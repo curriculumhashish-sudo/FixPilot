@@ -1,22 +1,22 @@
-"""agent-sandbox (Kubernetes) based remote workspace implementation.
+"""智能体-基于沙箱 (Kubernetes) 的远程工作区实现。
 
-Runs the OpenHands agent server inside a pod managed by the
-`kubernetes-sigs/agent-sandbox <https://github.com/kubernetes-sigs/agent-sandbox>`_
-controller. The pod is claimed from a ``SandboxWarmPool`` (sub-second when the pool
-is pre-warmed), which removes the container cold-start latency that the Docker and
-hosted-runtime backends pay per conversation.
+在由 pod 管理的 pod 内运行 OpenHands Agent Server
+`kubernetes-sigs/agent-sandbox <https://github.com/kubernetes-sigs/agent-sandbox>`_控
+制器
+。 该 Pod 从 ``SandboxWarmPool``（预热池时为秒级）获取，这消除了 Docker 和托管运行时
+后端因每会话支付而产生的容器冷启动延迟。
 
-Compared with the other remote backends this one adds:
+与其他远程后端相比，该后端增加了：
 
-* **Warm pools**: ``SandboxWarmPool`` hands out an already-running pod on claim.
-* **Native pause/resume**: ``pause()`` and ``resume()`` flip the Sandbox
-  ``spec.operatingMode`` between ``Suspended`` and ``Running``. With a persistent
-  volume the workspace state survives the suspend.
-* **Strong isolation**: the pod can run under gVisor or Kata via a ``runtimeClass``
-  set on the ``SandboxTemplate``, which is an infrastructure choice rather than a
-  Python one.
+* **温池**：``SandboxWarmPool``根据要求分发一个已经运行的 Pod。
+* **本机暂停/恢复**：``pause()``和``resume()``翻转沙箱
+  ``spec.operatingMode`` 位于 ``Suspended`` 和 ``Running`` 之间。 对于持久卷，工作区
+  状态在挂起后仍然存在。
+* **强隔离**：Pod 可以通过 ``SandboxTemplate`` 上的 ``runtimeClass`` 设置在 gVisor 或
+ Kata 下运行，这是一种基
+础设施选择，而不是 Python 基础设施选择。
 
-Requires the optional dependency::
+需要可选的依赖项：:
 
     pip install openhands-workspace[agent-sandbox]
 """
@@ -44,27 +44,27 @@ logger = get_logger(__name__)
 
 
 class AgentSandboxWorkspace(RemoteWorkspace):
-    """Remote workspace backed by a kubernetes-sigs/agent-sandbox Sandbox pod.
+    """远程工作区由 Kubernetes-sigs/agent-sandbox Sandbox pod 支持。
 
-    Claims a pod running the OpenHands agent server from a ``SandboxWarmPool``,
-    connects to it over HTTP, and manages its lifecycle (pause / resume / delete)
-    through the agent-sandbox custom resources.
+    声称运行中的 pod 是  OpenHands  Agent Server 从一个 ``SandboxWarmPool``连接到它
+    HTTP它还管理其生命周期（暂停
+    /恢复/删除） 智能体-sandbox自定义资源。
 
-    Two connection modes are supported:
+    支持两种连接方式：
 
-    * ``port_forward`` (default) spawns ``kubectl port-forward`` to the pod, so it
-      works from a laptop against a local kind or minikube cluster, and against any
-      cluster your kubeconfig can reach.
-    * ``direct`` means you supply ``host`` yourself, such as a ``sandbox-router`` or
-      Gateway URL, or the in-cluster DNS name when OpenHands runs in the cluster.
-      No port-forward is started.
+    * ``port_forward`` (默认) 启动了 ``kubectl port-forward`` 到 pod，因此它可以在笔
+    记本电脑上与本地的 kind 或
+     minikube 集群进行交互，也可以与你的 kubeconfig 可以访问的任何集群进行交互。
+    * ``direct`` 表示您自己提供 ``host``，例如 ``sandbox-router`` 或网关 URL，或者当
+    OpenHands 在集群中运行时提
+    供集群内 DNS 名称。 没有启动端口转发。
 
     Example:
         with AgentSandboxWorkspace(warmpool="openhands-pool") as workspace:
             result = workspace.execute_command("ls -la")
     """
 
-    # Override parent fields with defaults
+    # 使用默认值覆盖父字段
     working_dir: str = Field(
         default="/workspace",
         description="Working directory inside the sandbox pod.",
@@ -77,7 +77,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         ),
     )
 
-    # agent-sandbox configuration
+    # 智能体-沙箱配置
     warmpool: str = Field(
         description="Name of the SandboxWarmPool to claim the pod from.",
     )
@@ -134,19 +134,21 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         description="Whether to stream port-forward output in the background.",
     )
 
-    _sandbox: Any = PrivateAttr(default=None)  # k8s_agent_sandbox.Sandbox handle
+    _sandbox: Any = PrivateAttr(default=None)  # k8s_agent_sandbox.Sandbox 手柄
     _sb_client: Any = PrivateAttr(default=None)  # k8s_agent_sandbox.SandboxClient
     _pf_process: subprocess.Popen[str] | None = PrivateAttr(default=None)
     _logs_thread: threading.Thread | None = PrivateAttr(default=None)
     _stop_logs: threading.Event = PrivateAttr(default_factory=threading.Event)
-    # The caller's explicit host_port, if any. `host_port` itself tracks the port
-    # currently in use, so it cannot double as the preference across reconnects.
+    # 调用者的显式 host_port（如果有）。 `host_port` 本身跟踪当前正在使用的端口，因此它
+    # 不能兼作重新连接时的首选项。
+    #
     _preferred_host_port: int | None = PrivateAttr(default=None)
 
     def model_post_init(self, context: Any) -> None:
-        """Claim a sandbox pod, connect to the agent server, and initialize."""
-        # Validate connection config here (not in a model_validator) to match the
-        # sibling backends and avoid Pydantic validator/post-init ordering surprises.
+        """声明一个沙盒 Pod，连接到 Agent Server，然后初始化。"""
+        # 在此处验证连接配置（不在 model_validator 中）以匹配同级后端并避免 Pydantic 验
+        # 证器/初始化后排序意外。
+        #
         if self.connection == "direct" and not self.host:
             raise ValueError(
                 "connection='direct' requires 'host' to be set to the agent-server URL."
@@ -162,7 +164,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
                 "with: pip install openhands-workspace[agent-sandbox]"
             ) from e
 
-        # 1) Claim a pod from the warm pool (blocks until the Sandbox is Ready).
+        # 1) 从温水池中领取一个豆荚（在沙箱准备好之前会阻塞）。
         self._sb_client = k8s_agent_sandbox.SandboxClient()
         logger.info(
             "Claiming a sandbox from warm pool %r in namespace %r...",
@@ -184,22 +186,22 @@ class AgentSandboxWorkspace(RemoteWorkspace):
             self._sandbox.claim_name,
         )
 
-        # Everything past this point must clean up the claim on failure: the
-        # constructor raising means the caller never gets an object to close, so
-        # the claim and its pod would leak until GC, or forever when
-        # shutdown_after_seconds is left at its default of None.
+        # 从这里开始，所有的事情都必须清理失败的声明：构造函数抛出意味着调用者永远得不到
+        # 一个对象来关闭，因此声明及其容器将泄漏直到垃圾回收，或者永远，
+        # shutdown_after_seconds 时默认为 None。
+        #
         try:
-            # 2) Establish the connection to the agent server and wait for health.
+            # 2) 建立与 Agent Server 的连接并等待健康。
             if self.connection == "port_forward":
                 self._connect_port_forward_with_retry(
                     preferred_port=self._preferred_host_port
                 )
             else:
-                # 'direct': self.host was provided by the caller.
+                # 'direct': self.host 由调用者提供。
                 self._wait_for_health(timeout=self.health_check_timeout)
             logger.info("agent-sandbox workspace is ready at %s", self.host)
 
-            # 3) Initialize the parent RemoteWorkspace against the agent server URL.
+            # 3) 针对 Agent Server URL 初始化父级 RemoteWorkspace。
             super().model_post_init(context)
         except Exception:
             self.cleanup()
@@ -208,21 +210,20 @@ class AgentSandboxWorkspace(RemoteWorkspace):
     def _connect_port_forward_with_retry(
         self, attempts: int = 8, *, preferred_port: int | None = None
     ) -> None:
-        """Start a port-forward and wait for health, retrying transient failures.
+        """启动端口转发并等待运行状况，重试暂时性故障。
 
-        Right after a resume the pod's network namespace can still be churning, so
-        kubectl port-forward may drop with "network namespace ... is closed". A
-        dead forward exits immediately, so the retries back off progressively --
-        otherwise the whole budget is spent in a few seconds, well before a
-        freshly resumed pod is forwardable.
+        恢复后，Pod 的网络命名空间仍可能处于搅动状态，因此 kubectl port-forward 可能
+        会因“network 命名空间 ... 已关闭”。 一
+        个倒地的前锋立即退出，所以重试后退逐步进行——否则预算很快就会耗尽，甚至在新启
+        动的pod之前就已经耗尽。
 
-        ``preferred_port`` is only honored on the first attempt; pass None (the
-        default, used on resume) to always take a freshly allocated port, since
-        the previous session's port may still be in TIME_WAIT.
+        ``preferred_port`` 仅在第一次尝试时获得荣誉； pass None（默认值，在恢复时使用
+        ）始终采用新分配的端口，因为前一个会话的端口可能仍
+        在 TIME_WAIT 中。
         """
         last_error: Exception | None = None
         for i in range(attempts):
-            # Honor a caller-provided port on the first try; auto-pick on retries.
+            # 第一次尝试时尊重调用者提供的端口； 自动选取重试。
             self.host_port = preferred_port if i == 0 else None
             try:
                 self._start_port_forward()
@@ -243,13 +244,13 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         )
 
     def _resolve_pod_name(self) -> str:
-        """Read the current pod name from the live Sandbox object.
+        """从实时 Sandbox 对象中读取当前的 Pod 名称。
 
-        The pod name can change across a suspend/resume cycle, so this always
-        re-reads it rather than using ``Sandbox.get_pod_name()``, which caches the
-        first value for the lifetime of the handle. Uses only public client API;
-        if ``k8s_agent_sandbox`` grows a public refresh (e.g.
-        ``get_pod_name(refresh=True)``), this can defer to it.
+        pod 名称在暂停/恢复周期内可能会改变，因此总是重新读取它，而不是使用
+        ``Sandbox.get_pod_name()``，后者在 handle 的生命
+        周期内缓存第一次值。 仅使用公共客户端API； 如果 ``k8s_agent_sandbox`` 增加公
+        共刷新 (e.g.
+        ``get_pod_name(refresh=True)``），这个可以按照它。
         """
         from k8s_agent_sandbox.constants import (  # type: ignore[import-not-found]
             POD_NAME_ANNOTATION,
@@ -265,7 +266,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         return annotations.get(POD_NAME_ANNOTATION) or self._sandbox.sandbox_id
 
     def _start_port_forward(self) -> None:
-        """Start (or restart) kubectl port-forward to the sandbox pod."""
+        """启动（或重新启动）kubectl 端口转发到沙箱 pod。"""
         if self.host_port is None:
             self.host_port = find_available_tcp_port()
         elif not check_port_available(self.host_port):
@@ -298,7 +299,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
             self._logs_thread.start()
 
     def _stream_logs(self) -> None:
-        """Stream port-forward output to stdout in the background."""
+        """在后台将端口转发输出流式传输到标准输出。"""
         if not self._pf_process or not self._pf_process.stdout:
             return
         try:
@@ -314,7 +315,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
             self._stop_logs.set()
 
     def _wait_for_health(self, *, timeout: float) -> None:
-        """Wait for the agent server /health endpoint to return success."""
+        """等待Agent Server/health端点返回成功。"""
         start = time.time()
         health_url = f"{self.host.rstrip('/')}/health"
         while time.time() - start < timeout:
@@ -333,12 +334,11 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         raise RuntimeError("agent server failed to become healthy in time")
 
     def _patch_operating_mode(self, mode: str) -> None:
-        """Patch the Sandbox spec.operatingMode ('Running' or 'Suspended').
+        """修补沙箱 spec.operatingMode（“正在运行”或“已暂停”）。
 
-        TODO: agent-sandbox #1160 (claim-level idle lifecycle) and #1296
-        (traffic-triggered resume) will make this a claim-level concern; once they
-        land, pause/resume should move to the claim API instead of patching the
-        Sandbox directly.
+        TODO: 智能体-sandbox #1160（声明级空闲生命周期）和#1296
+        （流量触发的简历）将使这成为索赔级别的问题； 一旦他们着陆，暂停/恢复应该移至
+        声明 API，而不是直接修补沙箱。
         """
         from k8s_agent_sandbox.constants import (  # type: ignore[import-not-found]
             SANDBOX_API_GROUP,
@@ -356,10 +356,10 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         )
 
     def pause(self) -> None:
-        """Suspend the sandbox to conserve resources.
+        """暂停沙箱以节省资源。
 
-        Sets the Sandbox ``operatingMode`` to ``Suspended``; the controller
-        terminates the pod while keeping any persistent volume. Resume with
+        将沙箱``operatingMode``设置为``Suspended``； 控制器终止 pod，同时保留任何持久
+        卷。 继续使用
         ``resume()``.
         """
         if self._sandbox is None:
@@ -369,7 +369,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         self._patch_operating_mode("Suspended")
 
     def resume(self) -> None:
-        """Resume a suspended sandbox and reconnect to the agent server."""
+        """恢复暂停的沙箱并重新连接到Agent Server。"""
         if self._sandbox is None:
             raise RuntimeError("Cannot resume: no active sandbox")
         logger.info("Resuming sandbox %r...", self._sandbox.sandbox_id)
@@ -378,8 +378,9 @@ class AgentSandboxWorkspace(RemoteWorkspace):
             self._sandbox.sandbox_id, self.namespace, self.sandbox_ready_timeout
         )
         if self.connection == "port_forward":
-            # Reconnect on a fresh local port (the old one may be in TIME_WAIT) and
-            # rebuild the HTTP client so it targets the new host URL.
+            # 在新的本地端口上重新连接（旧端口可能位于 TIME_WAIT 中）并重建 HTTP 客户端
+            # ，使其以新主机 URL 为目标。
+            #
             self._connect_port_forward_with_retry(preferred_port=None)
             self.reset_client()
         else:
@@ -387,7 +388,7 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         logger.info("Sandbox %r resumed at %s", self._sandbox.sandbox_id, self.host)
 
     def _stop_port_forward(self) -> None:
-        """Stop the kubectl port-forward subprocess if running."""
+        """如果正在运行，请停止 kubectl port-forward 子进程。"""
         if self._pf_process is None:
             return
         self._stop_logs.set()
@@ -405,27 +406,27 @@ class AgentSandboxWorkspace(RemoteWorkspace):
         self._pf_process = None
 
     def __enter__(self) -> "AgentSandboxWorkspace":
-        """Context manager entry - returns the workspace itself."""
+        """上下文管理器条目 - 返回工作区本身。"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[no-untyped-def]
-        """Send completion callbacks and tear down the sandbox."""
+        """发送完成回调并拆除沙箱。"""
         try:
             super().__exit__(exc_type, exc_val, exc_tb)
         finally:
             self.cleanup()
 
     def __del__(self) -> None:
-        """Best-effort cleanup when the workspace is garbage collected."""
+        """当工作区被垃圾回收时尽最大努力进行清理。"""
         try:
             if getattr(self, "__pydantic_private__", None) is not None:
                 self.cleanup()
         except Exception:
-            # Never raise from __del__ (e.g. during interpreter shutdown).
+            # 切勿从 __del__ (e.g. 口译员关闭期间）。
             pass
 
     def cleanup(self) -> None:
-        """Stop the port-forward and delete the SandboxClaim (idempotent)."""
+        """停止端口转发并删除 SandboxClaim（幂等）。"""
         self._stop_port_forward()
         sandbox = getattr(self, "_sandbox", None)
         if sandbox is not None:

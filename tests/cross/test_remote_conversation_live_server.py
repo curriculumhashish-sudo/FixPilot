@@ -1,6 +1,6 @@
-"""End-to-end test using a real FastAPI agent server with patched LLM.
+"""使用真实的 FastAPI Agent Server 和修补的 LLM 进行端到端测试。
 
-This validates RemoteConversation against actual REST + WebSocket endpoints,
+这将根据实际的 REST + WebSocket 端点验证 RemoteConversation，
 while keeping the LLM deterministic via monkeypatching.
 """
 
@@ -75,31 +75,32 @@ def live_server_env(
     deferred_init: bool = False,
     config_overrides: dict[str, object] | None = None,
 ) -> Generator[dict]:
-    """Launch a real FastAPI server backed by temp workspace and conversations.
+    """启动由临时工作区和对话支持的真实 FastAPI 服务器。
 
-    We set OPENHANDS_AGENT_SERVER_CONFIG_PATH before creating the app so that
-    routers pick up the correct default config and in-memory services.
+    我们在创建应用程序之前设置 OPENHANDS_AGENT_SERVER_CONFIG_PATH，以便路由器选择正确
+    的默认配置和内存服务。
     """
 
-    # Create an isolated config pointing to tmp dirs
+    # 创建一个指向 tmp 目录的独立配置
     conversations_path = tmp_path / "conversations"
     workspace_path = tmp_path / "workspace"
 
-    # Ensure clean directories (both tmp and any leftover in cwd)
-    # Clean up any leftover directories from previous runs in current working directory
+    # 确保干净的目录（tmp 和 cwd 中的任何剩余目录） 清理当前工作目录中先前运行的任何剩余
+    # 目录
+    #
     cwd_conversations = Path("workspace/conversations")
     if cwd_conversations.exists():
         shutil.rmtree(cwd_conversations)
 
-    # Also clean up the workspace directory entirely to be safe
+    # 为了安全起见，还要完全清理工作区目录
     cwd_workspace = Path("workspace")
     if cwd_workspace.exists():
-        # Only remove conversations subdirectory to avoid interfering with other tests
+        # 仅删除对话子目录以避免干扰其他测试
         for item in cwd_workspace.iterdir():
             if item.name == "conversations":
                 shutil.rmtree(item)
 
-    # Clean up tmp directories
+    # 清理tmp目录
     if conversations_path.exists():
         shutil.rmtree(conversations_path)
     if workspace_path.exists():
@@ -108,7 +109,7 @@ def live_server_env(
     conversations_path.mkdir(parents=True, exist_ok=True)
     workspace_path.mkdir(parents=True, exist_ok=True)
 
-    # Verify the conversations directory is truly empty
+    # 验证对话目录确实为空
     assert not list(conversations_path.iterdir()), (
         f"Conversations path not empty: {list(conversations_path.iterdir())}"
     )
@@ -125,7 +126,7 @@ def live_server_env(
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text(json.dumps(cfg))
 
-    # Ensure default config uses our file and disable any env key override
+    # 确保默认配置使用我们的文件并禁用任何环境密钥覆盖
     monkeypatch.setenv("OPENHANDS_AGENT_SERVER_CONFIG_PATH", str(cfg_file))
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path / ".openhands"))
     monkeypatch.delenv("OH_CONVERSATIONS_PATH", raising=False)
@@ -136,7 +137,7 @@ def live_server_env(
     if import_modules is not None:
         preload_modules(import_modules)
 
-    # Build app after env is set
+    # 设置 env 后构建应用程序
     from openhands.agent_server.api import create_app
     from openhands.agent_server.config import Config
     from openhands.agent_server.persistence import reset_stores
@@ -146,7 +147,7 @@ def live_server_env(
 
     app = create_app(cfg_obj)
 
-    # Start uvicorn on a free port
+    # 在自由端口上启动 uvicorn
     port = find_available_tcp_port()
     config = uvicorn.Config(
         app, host="127.0.0.1", port=port, log_level="warning", ws="wsproto"
@@ -156,11 +157,11 @@ def live_server_env(
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
 
-    # Wait for the server to be ready with health check
+    # 等待服务器准备好进行健康检查
 
     base_url = f"http://127.0.0.1:{port}"
     server_ready = False
-    for attempt in range(50):  # Wait up to 5 seconds
+    for attempt in range(50):  # 等待最多5秒
         try:
             with httpx.Client() as client:
                 response = client.get(f"{base_url}/health", timeout=2.0)
@@ -184,11 +185,11 @@ def live_server_env(
             "workspace_path": workspace_path,
         }
     finally:
-        # uvicorn.Server lacks a robust shutdown API here; rely on daemon thread exit.
+        # uvicorn.Server 此处缺乏强大的关闭功能 API； 依赖守护进程线程退出。
         server.should_exit = True
         thread.join(timeout=2)
 
-        # Clean up any leftover directories created during the test
+        # 清理测试期间创建的所有剩余目录
         cwd_conversations = Path("workspace/conversations")
         if cwd_conversations.exists():
             shutil.rmtree(cwd_conversations)
@@ -196,7 +197,7 @@ def live_server_env(
 
 
 def _assert_secret(value: "str | SecretStr", expected: str) -> None:
-    """Assert a SecretStr-or-str api_key matches the expected plaintext."""
+    """断言 SecretStr-或-str api_key 与预期的明文匹配。"""
     if isinstance(value, SecretStr):
         assert value.get_secret_value() == expected
     else:
@@ -453,7 +454,7 @@ def authenticated_server_env(
 
 @pytest.fixture
 def patched_llm(monkeypatch: pytest.MonkeyPatch) -> list[list[Message]]:
-    """Patch LLM.completion to a deterministic assistant message response."""
+    """修补 LLM.completion 以确定性助理消息响应。"""
 
     calls: list[list[Message]] = []
 
@@ -468,7 +469,7 @@ def patched_llm(monkeypatch: pytest.MonkeyPatch) -> list[list[Message]]:
 
         calls.append(messages)
 
-        # Create a minimal ModelResponse with a single assistant message
+        # 使用一条辅助消息创建最小的 ModelResponse
         litellm_msg = LiteLLMMessage.model_validate(
             {
                 "role": "assistant",
@@ -482,7 +483,7 @@ def patched_llm(monkeypatch: pytest.MonkeyPatch) -> list[list[Message]]:
             choices=[Choices(index=0, finish_reason="stop", message=litellm_msg)],
         )
 
-        # Convert to OpenHands Message
+        # 转换为 OpenHands 消息
         message = Message.from_llm_chat_message(litellm_msg)
 
         self.metrics.add_token_usage(
@@ -495,7 +496,7 @@ def patched_llm(monkeypatch: pytest.MonkeyPatch) -> list[list[Message]]:
             reasoning_tokens=0,
         )
 
-        # Return LLMResponse as expected by the agent
+        # 返回 LLMResponse，符合智能体的预期
         return LLMResponse(
             message=message,
             metrics=self.metrics.get_snapshot(),
@@ -598,7 +599,7 @@ def test_remote_conversation_websocket_first_message_auth(
 def test_preloaded_custom_tool_resolves_in_live_server(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    """A startup-preloaded tool is available during live conversation creation."""
+    """在实时对话创建期间可以使用启动预加载的工具。"""
     from openhands.sdk.tool import Tool, registry as tool_registry
 
     package_name = "preload_live_server_tools_2771"
@@ -718,13 +719,11 @@ def test_preloaded_custom_tool_resolves_in_live_server(
 
 
 def test_websocket_attach_wait_does_not_block_ready_endpoint(server_env):
-    """A blocked websocket snapshot must not stall the live server event loop.
+    """被阻止的 WebSocket 快照不得停止活动服务器事件循环。
 
-    This exercises the production-shaped failure mode end-to-end: hold a real
-    conversation's synchronous state lock, start a second RemoteConversation that
-    attaches to the same server-side conversation, and verify `/ready` still
-    responds while the websocket subscription is waiting for its initial locked
-    state snapshot.
+    此练习模拟生产形状的失败模式，进行真实对话的端到端测试同步 state 锁启动第二个
+    RemoteConversation 该端点附着到同一个服务器端会话，并验证
+    `/ready` 仍然响应 WebSocket 订阅正在等待其初始锁定状态快照。
     """
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
@@ -850,11 +849,11 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
     import shutil
     from pathlib import Path
 
-    # Create an Agent with a real LLM object (patched for determinism)
+    # 使用真实的 LLM 对象创建智能体（针对确定性进行修补）
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
 
-    # Create conversation via factory pointing at the live server
+    # 通过指向实时服务器的工厂创建对话
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/workspace/project"
     )
@@ -862,7 +861,7 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
         agent=agent, workspace=workspace
     )  # RemoteConversation
 
-    # Lifecycle inspection/reprovision is available without a Docker backend.
+    # 无需 Docker 后端即可进行生命周期检查/重新配置。
     runtime_url = f"{server_env['host']}/api/conversations/{conv.id}/runtime"
     with httpx.Client() as client:
         before = client.get(runtime_url)
@@ -876,22 +875,22 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
         after.raise_for_status()
         assert after.json() == before.json()
 
-    # Send a message and run
+    # 发送消息并运行
     conv.send_message("Say hello")
     conv.run()
 
-    # Validate state transitions and that we received an assistant message
+    # 验证状态转换以及我们收到一条助理消息
     state = conv.state
     assert state.execution_status.value in {"finished", "idle", "running"}
 
-    # Wait for WS-delivered events and validate them using proper type checking
+    # 等待 WS 传递的事件并使用正确的类型检查验证它们
     found_state_update = False
     found_agent_event = False
 
-    for i in range(50):  # up to ~5s
+    for i in range(50):  # 长达〜5秒
         events = state.events
 
-        # Validate event types using isinstance checks (not hasattr/getattr)
+        # 使用 isinstance 检查验证事件类型（不是 hasattr/getattr）
         for e in events:
             assert isinstance(
                 e,
@@ -909,19 +908,19 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
                 ),
             ), f"Unexpected event type: {type(e).__name__}"
 
-        # Check for expected event types with proper isinstance checks
+        # 通过正确的 isinstance 检查来检查预期的事件类型
         for e in events:
             if isinstance(e, SystemPromptEvent) and e.source == "agent":
                 found_agent_event = True
 
             if isinstance(e, ConversationStateUpdateEvent):
                 found_state_update = True
-                # Verify it has the expected structure
+                # 验证它具有预期的结构
                 assert e.source == "environment", (
                     "ConversationStateUpdateEvent should have source='environment'"
                 )
 
-            # Validate MessageEvent structure when found
+            # 找到后验证 MessageEvent 结构
             if isinstance(e, MessageEvent) and e.source == "agent":
                 assert hasattr(e, "llm_message"), (
                     "MessageEvent should have llm_message attribute"
@@ -931,23 +930,24 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
                 )
                 found_agent_event = True
 
-            # Validate ActionEvent structure when found
+            # 找到后验证 ActionEvent 结构
             if isinstance(e, ActionEvent) and e.source == "agent":
                 assert hasattr(e, "tool_name"), (
                     "ActionEvent should have tool_name attribute"
                 )
                 found_agent_event = True
 
-        # We check for agent-related events and state updates.
-        # Note: SystemPromptEvent may not be delivered via WebSocket due to a race
-        # condition where the event is published before the WebSocket subscription
-        # completes. The event IS persisted on the server, but RemoteEventsList
-        # may miss it. See: https://github.com/OpenHands/software-agent-sdk/issues/1785
+        # 我们检查与智能体相关的事件和状态更新。
+        # 注意：由于比赛，SystemPromptEvent 可能无法通过 WebSocket 交付
+        # 在 WebSocket 订阅完成之前发布事件的情况。 事件在服务器上已持久化，但
+        # RemoteEventsList 可能会错过它。 参见：
+        # https://github.com/OpenHands/software-agent-sdk/issues/1785
+        #
         if found_agent_event and found_state_update:
             break
         time.sleep(0.1)
 
-    # Assert we got the expected events with descriptive messages
+    # 断言我们得到了带有描述性消息的预期事件
     assert found_state_update, (
         f"Expected to find ConversationStateUpdateEvent. "
         f"Found {len(state.events)} events: {[type(e).__name__ for e in state.events]}"
@@ -978,7 +978,7 @@ def test_remote_conversation_over_real_server(server_env, patched_llm):
 
     conv.close()
 
-    # Clean up any conversation directories that might have been created in cwd
+    # 清理可能在 cwd 中创建的所有对话目录
     cwd_conversations = Path("workspace/conversations")
     if cwd_conversations.exists():
         shutil.rmtree(cwd_conversations)
@@ -1431,29 +1431,27 @@ def test_openai_gateway_replays_frozen_llm_fixtures(
     reason="The live bash endpoint depends on the Unix terminal backend.",
 )
 def test_bash_command_endpoint_with_live_server(server_env):
-    """Integration test for bash command execution through live server.
+    """集成测试用于通过实时服务器执行 bash 命令。
 
-    This test validates that the /api/bash/start_bash_command endpoint works
-    correctly end-to-end by:
-    1. Starting a real FastAPI server with bash endpoints
-    2. Creating a RemoteWorkspace pointing to that server
-    3. Executing a real bash command
-    4. Verifying the actual command output
+    此测试通过以下方式验证 /api/bash/start_bash_command 端点端到端正常工作：
+    1. 使用 bash 端点启动真正的 FastAPI 服务器
+    2. 创建一个指向该服务器的 RemoteWorkspace
+    3. 执行真正的 bash 命令
+    4. 验证实际命令输出
 
-    This is a regression test for issue #866 where bash execution was broken
-    due to using the wrong endpoint URL.
+    这是针对问题 #866 的回归测试，其中 bash 执行由于使用错误的端点 URL 而被破坏。
     """
-    # Create a RemoteWorkspace pointing to the live server
+    # 创建一个指向实时服务器的 RemoteWorkspace
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/test_workspace"
     )
 
-    # Execute a bash command that produces verifiable output
-    # Test multiple commands to ensure command chaining works
+    # 执行可生成可验证输出的 bash 命令测试多个命令以确保命令链正常工作
+    #
     command = "echo 'Hello from live bash endpoint!' && echo 'Line 2' && expr 5 + 3"
     result = workspace.execute_command(command, timeout=10.0)
 
-    # Verify the command executed successfully
+    # 验证命令执行成功
     assert result.exit_code == 0, (
         f"Command failed with exit code {result.exit_code}. "
         f"stdout: {result.stdout}, stderr: {result.stderr}"
@@ -1462,7 +1460,7 @@ def test_bash_command_endpoint_with_live_server(server_env):
         "Command timed out - this suggests the endpoint is not working correctly"
     )
 
-    # Verify the actual output contains all our expected text
+    # 验证实际输出包含我们所有预期的文本
     assert "Hello from live bash endpoint!" in result.stdout, (
         f"Expected 'Hello from live bash endpoint!' not found in stdout: "
         f"{result.stdout}"
@@ -1480,7 +1478,7 @@ def test_bash_command_endpoint_with_live_server(server_env):
     reason="The live bash endpoint depends on the Unix terminal backend.",
 )
 def test_stop_bash_command_endpoint_with_live_server(server_env):
-    """Stop a long-running command through the live server end to end."""
+    """通过实时服务器端到端停止长时间运行的命令。"""
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/test_workspace"
     )
@@ -1498,33 +1496,32 @@ def test_stop_bash_command_endpoint_with_live_server(server_env):
 
 
 def test_file_upload_endpoint_with_live_server(server_env, tmp_path: Path):
-    """Integration test for file upload through live server.
+    """集成测试用于通过实时服务器上传文件。
 
-    This test validates that the /api/file/upload endpoint works
-    correctly end-to-end by:
-    1. Starting a real FastAPI server with file upload endpoints
-    2. Creating a RemoteWorkspace pointing to that server
-    3. Creating a test file and uploading it
-    4. Verifying the file was uploaded to the correct location with correct content
+    此测试通过以下方式验证 /api/file/upload 端点端到端正常工作：
+    1. 启动真实的 FastAPI 服务器并上传文件端点
+    2. 创建一个指向该服务器的 RemoteWorkspace
+    3. 创建测试文件并上传
+    4. 验证文件已上传到正确的位置且内容正确
     """
-    # Create a RemoteWorkspace pointing to the live server
+    # 创建一个指向实时服务器的 RemoteWorkspace
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/test_workspace"
     )
 
-    # Create a test file to upload
+    # 创建测试文件上传
     test_file = tmp_path / "test_upload.txt"
     test_content = "Hello from file upload test!\nThis is line 2.\n"
     test_file.write_text(test_content)
 
-    # Define the destination path (must be absolute for the server)
+    # 定义目标路径（对于服务器来说必须是绝对路径）
     destination = server_env["workspace_path"] / "uploaded_file.txt"
     destination_remote = destination.as_posix()
 
-    # Upload the file
+    # 上传文件
     result = workspace.file_upload(str(test_file), destination)
 
-    # Verify the upload was successful
+    # 验证上传是否成功
     assert result.success is True, (
         f"File upload failed. Error: {result.error}, "
         f"Source: {result.source_path}, Destination: {result.destination_path}"
@@ -1550,16 +1547,15 @@ def test_file_upload_endpoint_with_live_server(server_env, tmp_path: Path):
 def test_conversation_stats_with_live_server(
     server_env, monkeypatch: pytest.MonkeyPatch
 ):
-    """Integration test verifying conversation stats are correctly propagated.
+    """集成测试验证对话统计信息是否正确传播。
 
-    This test validates the fix for issue #1041 where accumulated cost was
-    always 0. It checks:
-    1. RemoteConversation reads stats from the correct 'stats' field (not
-       'conversation_stats')
-    2. Stats updates are propagated after run() completes
-    3. Accumulated cost and token usage are correctly tracked
+    此测试验证了问题 #1041 的修复，其中累积成本始终为 0。 它检查：
+    1. RemoteConversation 从正确的“统计”字段（而不是“conversation_stats”）读取统计信
+    息
+    2. run() 完成后传播统计更新
+    3. 正确跟踪累计成本和词元用量
 
-    This is a regression test for the field mismatch and state update issues.
+    这是针对字段不匹配和状态更新问题的回归测试。
     """
 
     def fake_completion_with_cost(
@@ -1573,7 +1569,7 @@ def test_conversation_stats_with_live_server(
         from openhands.sdk.llm.message import Message
         from openhands.sdk.llm.utils.metrics import TokenUsage
 
-        # Create a minimal ModelResponse with a single assistant message
+        # 使用一条辅助消息创建最小的 ModelResponse
         litellm_msg = LiteLLMMessage.model_validate(
             {"role": "assistant", "content": "Test response"}
         )
@@ -1584,11 +1580,11 @@ def test_conversation_stats_with_live_server(
             choices=[Choices(index=0, finish_reason="stop", message=litellm_msg)],
         )
 
-        # Convert to OpenHands Message
+        # 转换为 OpenHands 消息
         message = Message.from_llm_chat_message(litellm_msg)
 
-        # Simulate cost accumulation in the LLM's metrics
-        # The LLM should have metrics that track cost
+        # 模拟 LLM 指标中的成本累积 LLM 应该具有跟踪成本的指标
+        #
         from openhands.sdk.llm.utils.metrics import MetricsSnapshot
 
         if self.metrics:
@@ -1604,7 +1600,7 @@ def test_conversation_stats_with_live_server(
             )
             metrics_snapshot = self.metrics.get_snapshot()
         else:
-            # Create a default metrics snapshot if no metrics exist
+            # 如果不存在指标，则创建默认指标快照
             metrics_snapshot = MetricsSnapshot(
                 model_name=self.model,
                 accumulated_cost=0.0025,
@@ -1620,7 +1616,7 @@ def test_conversation_stats_with_live_server(
             message=message, metrics=metrics_snapshot, raw_response=raw_response
         )
 
-    # Patch LLM.completion with our cost-tracking version
+    # 使用我们的成本跟踪版本修补 LLM.completion
     monkeypatch.setattr(LLM, "completion", fake_completion_with_cost, raising=True)
 
     async def fake_acompletion(self, messages, tools=None, **kwargs):  # type: ignore[no-untyped-def]
@@ -1628,28 +1624,28 @@ def test_conversation_stats_with_live_server(
 
     monkeypatch.setattr(LLM, "acompletion", fake_acompletion, raising=True)
 
-    # Create an Agent with a real LLM object
+    # 使用真实的 LLM 对象创建智能体
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
 
-    # Create conversation via factory pointing at the live server
+    # 通过指向实时服务器的工厂创建对话
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/workspace/project"
     )
     conv: RemoteConversation = Conversation(agent=agent, workspace=workspace)
 
-    # Verify initial stats are empty/zero
+    # 验证初始统计数据为空/零
     initial_stats = conv.conversation_stats
     assert initial_stats is not None
     initial_cost = initial_stats.get_combined_metrics().accumulated_cost
     assert initial_cost == 0.0, f"Expected initial cost to be 0.0, got {initial_cost}"
 
-    # Send a message and run the conversation
+    # 发送消息并运行对话
     conv.send_message("Test message")
     conv.run()
 
-    # Wait for the conversation to finish and stats to update
-    # The fix ensures stats are published after run() completes
+    # 等待对话完成并更新统计信息该修复确保统计信息在 run() 完成后发布
+    #
     max_attempts = 50
     for attempt in range(max_attempts):
         try:
@@ -1657,14 +1653,14 @@ def test_conversation_stats_with_live_server(
             combined_metrics = stats.get_combined_metrics()
             accumulated_cost = combined_metrics.accumulated_cost
 
-            # Check if we got non-zero cost (stats have been updated)
+            # 检查我们是否获得非零成本（统计数据已更新）
             if accumulated_cost > 0:
-                # Verify the stats are correctly populated
+                # 验证统计数据是否正确填充
                 assert accumulated_cost > 0, (
                     f"Expected accumulated_cost > 0 after run(), got {accumulated_cost}"
                 )
 
-                # Verify token usage is tracked
+                # 验证词元用量已被跟踪
                 if combined_metrics.accumulated_token_usage:
                     assert combined_metrics.accumulated_token_usage.prompt_tokens > 0, (
                         "Expected prompt_tokens > 0 after run()"
@@ -1673,7 +1669,7 @@ def test_conversation_stats_with_live_server(
                         combined_metrics.accumulated_token_usage.completion_tokens > 0
                     ), "Expected completion_tokens > 0 after run()"
 
-                # Success - we got updated stats
+                # 成功 - 我们获得了更新的统计数据
                 break
         except (KeyError, AttributeError, AssertionError) as e:
             if attempt == max_attempts - 1:
@@ -1683,11 +1679,11 @@ def test_conversation_stats_with_live_server(
                 )
         time.sleep(0.1)
 
-    # Final verification: stats are read from 'stats' field, not 'conversation_stats'
+    # 最终验证：统计数据是从“stats”字段读取的，而不是“conversation_stats”
     info = conv.state._get_conversation_info()
     assert "stats" in info, "Expected 'stats' field in conversation info"
 
-    # Verify the RemoteConversation is correctly reading from 'stats'
+    # 验证 RemoteConversation 是否正确读取“stats”
     stats_from_field = info.get("stats", {})
     assert stats_from_field, "Expected non-empty stats in the 'stats' field after run()"
 
@@ -1697,25 +1693,25 @@ def test_conversation_stats_with_live_server(
 def test_events_not_lost_during_client_disconnection(
     server_env, monkeypatch: pytest.MonkeyPatch
 ):
-    """Test that events are NOT lost during client disconnection.
+    """测试事件在客户端断开连接期间是否丢失不。
 
-    This is a regression test for the bug described in PR #1791 review where
-    events emitted during client disconnection could be lost. The fix adds a
-    reconciliation sync after run() completes to ensure all events are captured.
+    这是针对 PR #1791 评论中描述的错误的回归测试，其中客户端断开连接期间发出的事件可
+    能会丢失。 该修复在 run() 完成后添加了协调同步，以确保捕获所有事件
+    。
 
-    The original bug scenario:
-    1. Test runs conversation with a mocked `finish` tool call
-    2. Server emits `ActionEvent` + `ObservationEvent`
-    3. `conv.run()` returns when status becomes "finished"
-    4. Client starts closing WebSocket
-    5. Events emitted during disconnect may not be delivered via WebSocket
+    最初的错误场景：
+    1. 测试与模拟的 `finish` 工具调用进行对话
+    2. 服务器发出 `ActionEvent` + `ObservationEvent`
+    3. 当状态变为“完成”时返回`conv.run()`
+    4. 客户端开始关闭 WebSocket
+    5. 断开连接期间发出的事件可能无法通过 WebSocket 传递
 
-    The fix: After run() completes, we call reconcile() to fetch any events
-    that may have been missed via WebSocket. This ensures the client always
-    has a complete view of all events.
+    修复：run() 完成后，我们调用 reconcile() 来获取可能通过 WebSocket 错过的任何事件
+    。 这可确保客户端始终拥有所有事件的完整视图。
 
-    See PR #1791 review for details: https://github.com/OpenHands/software-agent-sdk/pull/1791#pullrequestreview-3694259068
-    """
+    请参阅PR #1791 反馈以获取详细信息：
+    https://github.com/OpenHands/software-agent-sdk/pull/1791#pullrequestreview-3694259068
+    """  # noqa: E501
 
     def fake_completion_with_finish_tool(
         self,
@@ -1728,7 +1724,7 @@ def test_events_not_lost_during_client_disconnection(
         from openhands.sdk.llm.message import Message
         from openhands.sdk.llm.utils.metrics import MetricsSnapshot
 
-        # Return a finish tool call to end the conversation
+        # 返回完成工具调用结束对话
         litellm_msg = LiteLLMMessage.model_validate(
             {
                 "role": "assistant",
@@ -1774,7 +1770,7 @@ def test_events_not_lost_during_client_disconnection(
 
     monkeypatch.setattr(LLM, "acompletion", fake_acompletion, raising=True)
 
-    # Create an Agent with empty tools list (finish is a built-in tool)
+    # 创建一个带有空工具列表的智能体（finish 是内置工具）
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
 
@@ -1783,19 +1779,20 @@ def test_events_not_lost_during_client_disconnection(
     )
     conv: RemoteConversation = Conversation(agent=agent, workspace=workspace)
 
-    # Send message and run - this will trigger the finish tool
+    # 发送消息并运行 - 这将触发完成工具
     conv.send_message("Complete the task")
     conv.run()
 
-    # At this point, conv.run() has returned because status became "finished".
-    # The WebSocket client may have started closing, but the server may still
-    # be trying to send events.
+    # 此时，conv.run()已经返回，因为状态变为“完成”。 WebSocket 客户端可能已开始关闭，但
+    # 服务器可能仍在尝试发送事件。
+    #
 
-    # Get events received via WebSocket (cached in RemoteEventsList)
+    # 获取通过 WebSocket 接收的事件（缓存在 RemoteEventsList 中）
     ws_events = list(conv.state.events)
 
-    # Fetch events directly from REST API to get the authoritative list
-    # This bypasses the WebSocket and shows what's actually persisted on server
+    # 直接从 REST API 获取事件以获取权威列表这绕过 WebSocket 并显示服务器上实际已持久化
+    # 的内容
+    #
     with httpx.Client(base_url=server_env["host"]) as client:
         response = client.get(
             f"/api/conversations/{conv._id}/events/search",
@@ -1805,7 +1802,7 @@ def test_events_not_lost_during_client_disconnection(
         rest_data = response.json()
         rest_events = [Event.model_validate(item) for item in rest_data["items"]]
 
-    # Count ActionEvents in each source
+    # 每个源中计数 ActionEvents
     ws_action_events = [
         e for e in ws_events if isinstance(e, ActionEvent) and e.tool_name == "finish"
     ]
@@ -1824,7 +1821,7 @@ def test_events_not_lost_during_client_disconnection(
         if isinstance(e, ObservationEvent) and e.tool_name == "finish"
     ]
 
-    # Log what we found for debugging
+    # 记录我们发现的内容以进行调试
     ws_event_summary = [
         f"{type(e).__name__}({getattr(e, 'tool_name', 'N/A')})" for e in ws_events
     ]
@@ -1834,11 +1831,11 @@ def test_events_not_lost_during_client_disconnection(
 
     conv.close()
 
-    # The bug: Events may be lost during client disconnection
-    # REST API should always have the events (they're persisted)
-    # WebSocket may miss events if they're emitted during disconnect
+    # 问题：在客户端断开连接时，事件可能会丢失 REST API 应该总是有事件（它们是已持久化）
+    #  WebSocket 如果在断开连接时发出，可能会丢失事件
+    #
 
-    # First, verify REST API has the expected events (sanity check)
+    # 首先，验证 REST API 是否具有预期事件（健全性检查）
     assert len(rest_action_events) >= 1, (
         f"REST API should have ActionEvent with finish tool. "
         f"REST events: {rest_event_summary}"
@@ -1848,11 +1845,11 @@ def test_events_not_lost_during_client_disconnection(
         f"REST events: {rest_event_summary}"
     )
 
-    # Verify client has all events (reconciliation should have fetched any missed)
+    # 验证客户端是否拥有所有事件（协调应该已获取任何遗漏的事件）
     ws_has_action = len(ws_action_events) >= 1
     ws_has_observation = len(ws_observation_events) >= 1
 
-    # These assertions verify the fix works - reconciliation ensures no events are lost
+    # 这些断言验证了修复工作有效 - 调和确保没有事件丢失
     assert ws_has_action, (
         f"ActionEvent with finish tool not found in client events. "
         f"REST API has {len(rest_action_events)} ActionEvent(s) but client has "
@@ -1869,15 +1866,14 @@ def test_events_not_lost_during_client_disconnection(
 def test_post_run_reconcile_needed_under_ws_callback_lag(
     server_env, monkeypatch: pytest.MonkeyPatch
 ):
-    """Controlled repro for the *client-side* tail-event race.
+    """*客户端*尾部事件竞赛的受控重现。
 
-    We delay processing of finish-tool WS events in the client's WS callback.
-    This can make `conv.run()` return (polling sees a terminal status) before
-    the WS thread appends the final Action/Observation events.
+    我们延迟了客户端 WS 中完成工具 WS 事件的处理回调。 这可以使 `conv.run()` 在 WS 线
+    程附加最终操作/观察事件之前返回（轮询看到最终状态）。
 
-    Then we show that a REST reconcile after run completion recovers those events.
+    然后我们展示运行完成后的 REST 协调可以恢复这些事件。
 
-    This test is intentionally conservative: it doesn't change production logic
+    此测试有意保守：它不会改变生产逻辑
     except for injecting a delay into the client-side callback.
     """
 
@@ -1947,7 +1943,7 @@ def test_post_run_reconcile_needed_under_ws_callback_lag(
 
     conv: RemoteConversation = Conversation(agent=agent, workspace=workspace)
 
-    # Inject WS lag *only* for finish Action/Observation events.
+    # 仅为完成操作/观察事件注入 WS 滞后 **。
     assert conv._ws_client is not None
     orig_cb = conv._ws_client.callback
 
@@ -1982,17 +1978,16 @@ def test_post_run_reconcile_needed_under_ws_callback_lag(
         e for e in rest_events if isinstance(e, ActionEvent) and e.tool_name == "finish"
     ]
 
-    # Server must have persisted the finish ActionEvent.
+    # 服务器必须有已持久化完成ActionEvent。
     assert len(rest_action) >= 1
 
-    # Under WS lag, the client *may* be missing it immediately.
-    # If we already have it, the system behaved correctly without needing
-    # a post-run reconcile for this timing.
+    # 在 WS 滞后的情况下，客户端 * 可能 * 立即丢失它。 如果我们已经有了它，系统就会正常
+    # 运行，而无需在此时间进行运行后协调。
     #
-    # What we must always ensure is that reconcile() is harmless and yields a
-    # complete event list.
+    # 我们必须始终确保 reconcile() 无害并产生完整的事件列表。
+    #
     if len(ws_action) == 0:
-        # Reconcile after completion should fetch the missing event.
+        # 完成后协调应获取丢失的事件。
         conv.state.events.reconcile()
         ws_events_after = list(conv.state.events)
         ws_action_after = [
@@ -2002,7 +1997,7 @@ def test_post_run_reconcile_needed_under_ws_callback_lag(
         ]
         assert len(ws_action_after) >= 1
     else:
-        # Still validate reconcile is idempotent / does not drop events.
+        # 仍然验证协调是否幂等/不会删除事件。
         before_ids = {e.id for e in conv.state.events}
         conv.state.events.reconcile()
         after_ids = {e.id for e in conv.state.events}
@@ -2019,18 +2014,17 @@ def test_post_run_reconcile_needed_under_ws_callback_lag(
 def test_security_risk_field_with_live_server(
     server_env, monkeypatch: pytest.MonkeyPatch
 ):
-    """Integration test validating security_risk field functionality.
+    """集成测试验证 security_risk 字段功能。
 
-    This test validates the fix for issue #819 where security_risk field handling
-    was inconsistent. It tests that:
-    1. Actions execute successfully with security_risk provided
-    2. Actions execute successfully without security_risk (defaults to UNKNOWN)
+    此测试验证了问题 #819 的修复，其中 security_risk 字段处理不一致。 它测试：
+    1. 操作成功执行并提供了 security_risk
+    2. 没有 security_risk 的操作成功执行（默认为 UNKNOWN）
 
-    This is a regression test spawning a real agent server to ensure end-to-end
-    functionality of security_risk field handling.
+    这是一个回归测试，生成一个真实的 Agent Server，以确保 security_risk 字段处理的端
+    到端功能。
     """
 
-    # Track which completion call we're on to control behavior
+    # 跟踪我们正在使用哪个完成调用来控制行为
     call_count = {"count": 0}
 
     def fake_completion_with_tool_calls(
@@ -2046,8 +2040,8 @@ def test_security_risk_field_with_live_server(
 
         call_count["count"] += 1
 
-        # First call: return tool call WITHOUT security_risk
-        # (to test error event when analyzer is configured)
+        # 第一次调用：return 工具调用 WITHOUT security_risk（配置分析器时测试错误事件）
+        #
         if call_count["count"] == 1:
             litellm_msg = LiteLLMMessage.model_validate(
                 {
@@ -2065,8 +2059,8 @@ def test_security_risk_field_with_live_server(
                     ],
                 }
             )
-        # Second call: return tool call WITH security_risk
-        # (to test successful execution after error)
+        # 第二次调用：return 工具调用 WITH security_risk（错误后测试是否成功执行）
+        #
         elif call_count["count"] == 2:
             litellm_msg = LiteLLMMessage.model_validate(
                 {
@@ -2087,7 +2081,7 @@ def test_security_risk_field_with_live_server(
                     ],
                 }
             )
-        # Third call: simple message to finish
+        # 第三次通话：简单的消息即可完成
         else:
             litellm_msg = LiteLLMMessage.model_validate(
                 {"role": "assistant", "content": "Done"}
@@ -2121,8 +2115,9 @@ def test_security_risk_field_with_live_server(
 
     monkeypatch.setattr(LLM, "acompletion", fake_acompletion, raising=True)
 
-    # Create an Agent (security analyzer functionality has been deprecated and removed)
-    # Using empty tools list since tools need to be registered in the server
+    # 创建智能体（安全分析器功能已已弃用并删除）使用空工具列表，因为工具需要在服务器中注
+    # 册
+    #
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(
         llm=llm,
@@ -2134,18 +2129,18 @@ def test_security_risk_field_with_live_server(
     )
     conv: RemoteConversation = Conversation(agent=agent, workspace=workspace)
 
-    # Step 1: Send message WITHOUT security_risk - should still execute (defaults to
-    # UNKNOWN)
+    # 第 1 步：发送消息 WITHOUT security_risk - 仍应执行（默认为 UNKNOWN）
+    #
     conv.send_message("Complete the task")
     conv.run()
 
-    # Wait for action event - should succeed even without security_risk
+    # 等待操作事件 - 即使没有 security_risk 也应该成功
     found_action_without_risk = False
-    for attempt in range(50):  # up to ~5s
+    for attempt in range(50):  # 长达〜5秒
         events = conv.state.events
         for e in events:
             if isinstance(e, ActionEvent) and e.tool_name == "finish":
-                # Verify it has a security risk attribute
+                # 验证其是否具有安全风险属性
                 assert hasattr(e, "security_risk"), (
                     "Expected ActionEvent to have security_risk attribute"
                 )
@@ -2161,26 +2156,26 @@ def test_security_risk_field_with_live_server(
 
     conv.close()
 
-    # The test validates that:
-    # 1. Actions can be executed without security_risk (defaults to UNKNOWN)
-    # 2. ActionEvent always has a security_risk attribute
+    # 测试验证：
+    # 1. 无需 security_risk 即可执行操作（默认为 UNKNOWN）
+    # 2. ActionEvent 始终具有 security_risk 属性
 
 
 def test_hook_config_sent_to_server(
     server_env, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    """Test that hook_config is properly sent to the server and hooks are executed.
+    """测试 hook_config 是否正确发送到服务器并执行挂钩。
 
-    This validates the fix for the bug where hook_config was accepted by
-    RemoteConversation but never sent to the server, meaning server-side hooks
-    (PreToolUse, PostToolUse, UserPromptSubmit, Stop) were never executed.
+    这验证了修复了 hook_config 被 RemoteConversation 接受但未发送到服务器的问题，这意
+    味着服务器端钩子 (PreToolUse,
+    PostToolUse, UserPromptSubmit, Stop) 从未执行。
 
-    The test:
-    1. Configures both post_tool_use and stop hooks
-    2. Uses a patched LLM that returns a finish tool call
-    3. Verifies HookExecutionEvent events are received for both hook types
+    测试：
+    1. 配置 post_tool_use 和停止钩子
+    2. 使用修补的 LLM 返回完成工具调用
+    3. 验证两种钩子类型都收到 HookExecutionEvent 事件
     """
-    # Create hook scripts that output JSON to indicate successful execution
+    # 创建输出 JSON 的钩子脚本以指示执行成功
     post_tool_hook = tmp_path / "post_tool_hook.sh"
     post_tool_hook.write_text('#!/bin/bash\necho \'{"decision": "allow"}\'\nexit 0\n')
     post_tool_hook.chmod(0o755)
@@ -2214,7 +2209,7 @@ def test_hook_config_sent_to_server(
         ],
     )
 
-    # Create a patched LLM that returns a finish tool call to trigger hooks
+    # 创建一个修补的 LLM，它返回完成工具调用以触发钩子
     call_count = {"count": 0}
 
     def fake_completion_with_finish(
@@ -2236,7 +2231,7 @@ def test_hook_config_sent_to_server(
             litellm_msg = LiteLLMMessage.model_validate(
                 {"role": "assistant", "content": "Generated title"}
             )
-        # First agent call triggers PostToolUse and Stop hooks.
+        # 第一个智能体调用触发 PostToolUse 和 Stop 挂钩。
         elif call_count["count"] == 1:
             litellm_msg = LiteLLMMessage.model_validate(
                 {
@@ -2255,7 +2250,7 @@ def test_hook_config_sent_to_server(
                 }
             )
         else:
-            # Subsequent calls: simple message
+            # 后续调用：简单消息
             litellm_msg = LiteLLMMessage.model_validate(
                 {"role": "assistant", "content": "Done"}
             )
@@ -2286,11 +2281,11 @@ def test_hook_config_sent_to_server(
 
     monkeypatch.setattr(LLM, "acompletion", fake_acompletion, raising=True)
 
-    # Create an Agent
+    # 创建智能体
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
 
-    # Create conversation via factory with hook_config
+    # 通过工厂与 hook_config 创建对话
     workspace = RemoteWorkspace(
         host=server_env["host"], working_dir="/tmp/workspace/project"
     )
@@ -2300,32 +2295,32 @@ def test_hook_config_sent_to_server(
         hook_config=hook_config,
     )
 
-    # Verify the conversation was created successfully
+    # 验证对话已成功创建
     assert conv._id is not None
 
-    # Send a message and run - this triggers the finish tool call
+    # 发送消息并运行 - 这会触发完成工具调用
     conv.send_message("Complete the task")
     conv.run()
 
-    # Wait for events to be received and check for HookExecutionEvents
+    # 等待接收事件并检查 HookExecutionEvents
     found_post_tool_use_hook = False
     found_stop_hook = False
     events: list[Event] = []
 
-    for attempt in range(50):  # up to ~5s
+    for attempt in range(50):  # 长达〜5秒
         events = list(conv.state.events)
         for e in events:
             if isinstance(e, HookExecutionEvent):
                 if e.hook_event_type == "PostToolUse":
                     found_post_tool_use_hook = True
-                    # Verify hook executed successfully
+                    # 验证钩子执行成功
                     assert e.success is True
                     assert e.blocked is False
                     assert e.exit_code == 0
                     assert str(post_tool_hook) in e.hook_command
                 elif e.hook_event_type == "Stop":
                     found_stop_hook = True
-                    # Verify hook executed successfully
+                    # 验证钩子执行成功
                     assert e.success is True
                     assert e.blocked is False
                     assert e.exit_code == 0
@@ -2335,7 +2330,7 @@ def test_hook_config_sent_to_server(
             break
         time.sleep(0.1)
 
-    # Assert both hooks were executed and their events were received
+    # 断言两个钩子都被执行并且它们的事件被接收
     assert found_post_tool_use_hook, (
         "Expected HookExecutionEvent for PostToolUse hook. "
         f"Events received: {[type(e).__name__ for e in events]}"
@@ -2345,7 +2340,7 @@ def test_hook_config_sent_to_server(
         f"Events received: {[type(e).__name__ for e in events]}"
     )
 
-    # Verify state transitions occurred (proves the conversation ran successfully)
+    # 验证状态转换发生（证明对话成功运行）
     state = conv.state
     assert state.execution_status.value in {"finished", "idle", "running"}
 
@@ -2353,26 +2348,25 @@ def test_hook_config_sent_to_server(
 
 
 def test_subagent_definitions_forwarded_to_server(server_env, patched_llm):
-    """Agent definitions registered on the client survive the HTTP roundtrip.
+    """在客户端上注册的智能体定义在 HTTP 往返过程中仍然存在。
 
-    This is a regression test for the bug where the server's delegate registry
-    was empty because register_builtins_agents() only ran on the client.
+    这是针对错误的回归测试，其中服务器的委托注册表为空，因为 register_builtins_agents
+    () 仅在客户端上运行。
 
-    Validates the full flow:
-      client register_agent(description=AgentDefinition(...))
-            ( or register_agent_if_absent(...))
-        → get_registered_agent_definitions()
-        → JSON payload in POST /api/conversations
-        → server start_conversation() deserializes & re-registers
+    验证完整流程：
+      客户端 register_agent(描述=AgentDefinition(...))
+            （或 register_agent_if_absent(...)）
+        → get_registered_agent_definitions() → POST /api/conversations 中的 JSON 载荷
+         → 服务
+        器 start_conversation() 反序列化并重新注册
 
-    Because client and server share a process in this test, we reset the
-    global registry *after* building the payload, then POST directly to the
-    server. The server re-populates the registry from the HTTP payload (not
+    由于本次测试中客户端和服务器共享一个进程，因此我们在*构建载荷之后重置全局注册表*
+    ，然后将POST直接发送到服务器。 服务器从 HTTP 载荷重新填充注册表（不是
     from any shared in-process state).
     """
     _reset_registry_for_tests()
 
-    # Register two agents with explicit definitions (file/plugin-style)
+    # 注册两个智能体，并提供明确定义（文件/插件风格）
     bash_def = AgentDefinition(
         name="test_bash",
         description="Command execution specialist",
@@ -2397,21 +2391,22 @@ def test_subagent_definitions_forwarded_to_server(server_env, patched_llm):
         description=reviewer_def,
     )
 
-    # Verify definitions are complete before sending
+    # 发送前验证定义是否完整
     defs = get_registered_agent_definitions()
     reviewer = next(d for d in defs if d.name == "test_reviewer")
     assert reviewer.tools == ["terminal"]
     assert reviewer.system_prompt == "You review code for correctness."
 
-    # Capture serialized definitions, then reset to prove the server
-    # re-registers from the HTTP payload (not from shared in-process state).
+    # 捕获已序列化定义，然后重置以证明服务器从 HTTP 载荷重新注册（而不是从共享进程内状态
+    # ）。
+    #
     all_defs = [d.model_dump(mode="json") for d in defs]
     _reset_registry_for_tests()
 
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test"))
     agent = Agent(llm=llm, tools=[])
 
-    # POST directly to the server with the serialized definitions
+    # POST 直接连接到具有已序列化定义的服务器
     payload = {
         "agent": agent.model_dump(mode="json", context={"expose_secrets": True}),
         "workspace": {"working_dir": "/tmp/workspace/project"},
@@ -2421,7 +2416,7 @@ def test_subagent_definitions_forwarded_to_server(server_env, patched_llm):
         resp = client.post("/api/conversations", json=payload, timeout=10.0)
         resp.raise_for_status()
 
-    # The server should have re-registered both agents from the HTTP payload
+    # 服务器应该重新注册 HTTP 载荷中的智能体
     info = get_factory_info()
     assert "test_bash" in info
     assert "Command execution specialist" in info
@@ -2432,11 +2427,11 @@ def test_subagent_definitions_forwarded_to_server(server_env, patched_llm):
 
 
 def test_agent_final_response_endpoint(server_env, monkeypatch: pytest.MonkeyPatch):
-    """GET /api/conversations/{id}/agent_final_response returns the finish message.
+    """GET /api/conversations/{id}/agent_final_response 返回完成消息。
 
-    Creates a conversation, runs the agent with a patched LLM that calls
-    ``finish(message="Task complete")``, then hits the endpoint and verifies
-    the response text.  Also checks the 404 case for an unknown conversation.
+    创建一个对话，运行带有修补的 LLM 的智能体，调用
+    ``finish(message="Task complete")``，然后点击端点并验证响应文本。 还检查 404 案例
+    中是否存在未知对话。
     """
 
     call_count = {"count": 0}
@@ -2521,14 +2516,14 @@ def test_agent_final_response_endpoint(server_env, monkeypatch: pytest.MonkeyPat
     conv.send_message("Complete the task")
     conv.run()
 
-    # Wait for the finish action event to be persisted
+    # 等待完成操作事件为已持久化
     for _ in range(50):
         events = list(conv.state.events)
         if any(isinstance(e, ActionEvent) and e.tool_name == "finish" for e in events):
             break
         time.sleep(0.1)
 
-    # Hit the endpoint and verify the agent's final response
+    # 点击端点并验证智能体的最终响应
     with httpx.Client(base_url=server_env["host"]) as client:
         resp = client.get(
             f"/api/conversations/{conversation_id}/agent_final_response",
@@ -2538,7 +2533,7 @@ def test_agent_final_response_endpoint(server_env, monkeypatch: pytest.MonkeyPat
         data = resp.json()
         assert data["response"] == "Task complete"
 
-        # 404 for unknown conversation
+        # 404 表示未知对话
         from uuid import uuid4
 
         resp_404 = client.get(
@@ -2565,20 +2560,18 @@ def test_remote_state_exposes_invoked_skills(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ):
-    """End-to-end coverage for the `invoke_skill` tool on the remote agent-server.
+    """远程智能体服务器上 `invoke_skill` 工具的端到端覆盖。
 
-    Patches the LLM to emit an `invoke_skill(name=...)` tool call on the first
-    turn and a stop message on the second, then asserts:
+    修补 LLM 以在第一轮发出 `invoke_skill(name=...)` 工具调用，在第二轮发出停止消息，
+    然后断言：
 
-    1. The server records the invocation and `RemoteState.invoked_skills`
-       surfaces it through the REST response model.
-    2. The tool's ObservationEvent includes the location footer with the real
-       skill directory, proving the footer logic works through the remote
-       execution path (skill source resolves on disk server-side).
+    1. 服务器记录调用并 `RemoteState.invoked_skills` 通过 REST 响应模型显示它。
+    2. 工具的ObservationEvent 包含了真实技能目录的地理位置页脚，证明了页脚逻辑通过远
+    程执行路径（技能源在服务器端解析）有效。
     """
     call_count = {"count": 0}
 
-    # Real on-disk SKILL.md so the footer resolves to a real directory.
+    # 真实的磁盘上 SKILL.md，因此页脚解析为真实的目录。
     skill_dir = tmp_path / "frobnitz-converter"
     skill_dir.mkdir()
     skill_md = skill_dir / "SKILL.md"
@@ -2669,8 +2662,8 @@ def test_remote_state_exposes_invoked_skills(
     conv.send_message("Please run the frobnitz-converter skill.")
     conv.run()
 
-    # Bust the WS-populated cache so the assertion exercises the REST
-    # `ConversationInfo` response model end-to-end.
+    # 破坏 WS 填充的缓存，因此断言执行 REST
+    # `ConversationInfo` 端到端响应模型。
     conv.state.refresh_from_server()
     assert conv.state.invoked_skills == ["frobnitz-converter"]
     assert call_count["count"] >= 2, (
@@ -2678,8 +2671,8 @@ def test_remote_state_exposes_invoked_skills(
         "observation, proving the invoke_skill tool actually executed."
     )
 
-    # Find the invoke_skill ObservationEvent and confirm the footer points at
-    # the skill's real on-disk directory.
+    # 找到 invoke_skill ObservationEvent 并确认页脚指向技能的真实磁盘目录。
+    #
     skill_observations = [
         e
         for e in conv.state.events
@@ -2699,12 +2692,12 @@ def test_remote_state_exposes_invoked_skills(
 def test_workspace_default_llm_resolves_active_profile_despite_settings_drift(
     tmp_path, monkeypatch
 ):
-    """An unpinned automation gets the UI-advertised active named profile.
+    """取消固定的自动化获取 UI 公布的活动命名配置文件。
 
-    Reproduces the production drift through real HTTP endpoints: activate GLM,
-    then patch only legacy agent_settings.llm to keyless GPT while leaving the
-    active pointer untouched. RemoteWorkspace.get_llm() must resolve GLM and its
-    named-profile credential. Explicit profile selection remains an override.
+    通过实际 HTTP 端点重现生产波动：激活 GLM，然后只对 agent_settings.llm 进行补丁，
+    而保留 GPT 的活跃指针。
+    RemoteWorkspace.get_llm() 必须解析 GLM 及其命名配置文件凭据。 显式配置文件选择仍
+    然是替代。
     """
     with live_server_env(tmp_path, monkeypatch) as env:
         with httpx.Client(base_url=env["host"], timeout=10.0) as client:
@@ -2759,7 +2752,7 @@ def test_workspace_default_llm_resolves_active_profile_despite_settings_drift(
         _assert_secret(default_llm.api_key, "sk-glm-key")
         assert default_llm.usage_id == "profile:glm-default"
 
-        # Mirrors an explicit AUTOMATION_MODEL/profile_name override.
+        # 镜像显式 AUTOMATION_MODEL/profile_name 覆盖。
         explicit_llm = workspace.get_llm(profile_name="explicit-model")
         assert explicit_llm.model == "openrouter/explicit-model"
         assert explicit_llm.api_key is not None
@@ -2770,7 +2763,7 @@ def test_workspace_default_llm_resolves_active_profile_despite_settings_drift(
 def test_workspace_named_llm_resolves_current_provider_credentials(
     tmp_path, monkeypatch
 ):
-    """Selecting a linked profile resolves credentials without activating it."""
+    """选择链接的配置文件可解决凭据而无需激活它。"""
     with live_server_env(tmp_path, monkeypatch) as env:
         workspace = RemoteWorkspace(
             host=env["host"], working_dir=str(env["workspace_path"])
@@ -2828,19 +2821,18 @@ def test_workspace_named_llm_resolves_current_provider_credentials(
 
 
 def test_settings_and_secrets_api_with_live_server(server_env):
-    """End-to-end test for settings and secrets API endpoints.
+    """设置和机密 API 端点的端到端测试。
 
-    Validates the full REST API for settings and secrets management
-    through the live agent-server, including:
-    - GET/PATCH settings
-    - POST/PATCH/DELETE MCP servers
-    - GET/PUT/DELETE secrets
-    - Secret name validation
-    - Encryption/decryption round-trip
+    通过实时智能体服务器验证完整的 REST API 设置和机密管理，包括：
+    - GET/PATCH 设置
+    - POST/PATCH/DELETE MCP 个服务器
+    - GET/PUT/DELETE 机密
+    - 机密姓名验证
+    - 加密/解密往返
     """
     with httpx.Client(base_url=server_env["host"], timeout=10.0) as client:
-        # ── Test settings endpoints ────────────────────────────────────────
-        # GET settings (initial state)
+        # ── 测试设定端点 ──────────────────────────────────────── GET设定（初始状态）
+        #
         get_resp = client.get("/api/settings")
         assert get_resp.status_code == 200
         initial = get_resp.json()
@@ -2848,7 +2840,7 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         assert "conversation_settings" in initial
         assert "llm_api_key_is_set" in initial
 
-        # PATCH settings (update LLM model)
+        # PATCH 设置（更新 LLM 型号）
         patch_resp = client.patch(
             "/api/settings",
             json={"agent_settings_diff": {"llm": {"model": "gpt-4o"}}},
@@ -2877,13 +2869,14 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         assert delete_mcp_resp.status_code == 200
         assert "docs" not in delete_mcp_resp.json()["agent_settings"]["mcp_config"]
 
-        # ── Test secrets CRUD endpoints ────────────────────────────────────
-        # List secrets (should be empty initially)
+        # ── 测试机密 CRUD 端点 ──────────────────────────────────── 列表机密（最初应为
+        # 空）
+        #
         list_resp = client.get("/api/settings/secrets")
         assert list_resp.status_code == 200
         assert list_resp.json()["secrets"] == []
 
-        # Create a secret
+        # 创建一个机密
         create_resp = client.put(
             "/api/settings/secrets",
             json={
@@ -2897,21 +2890,21 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         assert created["name"] == "TEST_API_KEY"
         assert created["description"] == "Test API key for live server test"
 
-        # List secrets again (should have one)
+        # 再次列出机密（应该有一个）
         list_resp = client.get("/api/settings/secrets")
         assert list_resp.status_code == 200
         secrets = list_resp.json()["secrets"]
         assert len(secrets) == 1
         assert secrets[0]["name"] == "TEST_API_KEY"
-        # Value should NOT be returned in list
+        # 值应在列表中返回不
         assert "value" not in secrets[0]
 
-        # Get secret value
+        # 获取机密值
         value_resp = client.get("/api/settings/secrets/TEST_API_KEY")
         assert value_resp.status_code == 200
         assert value_resp.text == "sk-test-live-server-12345"
 
-        # Update the secret (upsert)
+        # 更新机密（更新插入）
         update_resp = client.put(
             "/api/settings/secrets",
             json={
@@ -2922,7 +2915,7 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         )
         assert update_resp.status_code == 200
 
-        # Verify updated value
+        # 验证更新值
         value_resp = client.get("/api/settings/secrets/TEST_API_KEY")
         assert value_resp.status_code == 200
         assert value_resp.text == "sk-updated-value"
@@ -2951,7 +2944,7 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         }
         assert "EMPTY_SECRET" not in listed_names
 
-        # Create another secret
+        # 创建另一个机密
         client.put(
             "/api/settings/secrets",
             json={"name": "ANOTHER_SECRET", "value": "another-value"},
@@ -2959,57 +2952,57 @@ def test_settings_and_secrets_api_with_live_server(server_env):
         list_resp = client.get("/api/settings/secrets")
         assert len(list_resp.json()["secrets"]) == 2
 
-        # Delete one secret
+        # 删除一项机密
         delete_resp = client.delete("/api/settings/secrets/TEST_API_KEY")
         assert delete_resp.status_code == 200
         assert delete_resp.json()["deleted"] is True
 
-        # Verify deleted
+        # 验证已删除
         get_deleted_resp = client.get("/api/settings/secrets/TEST_API_KEY")
         assert get_deleted_resp.status_code == 404
 
-        # ── Test secret name validation ────────────────────────────────────
-        # Invalid name: starts with number
+        # ── 测试机密名称验证 ────────────────────────────────── 名称无效：以数字开头
+        #
         invalid_resp = client.put(
             "/api/settings/secrets",
             json={"name": "123_invalid", "value": "test"},
         )
         assert invalid_resp.status_code == 422
 
-        # Invalid name: contains special characters
+        # 名称无效：包含特殊字符
         invalid_resp = client.put(
             "/api/settings/secrets",
             json={"name": "invalid-name", "value": "test"},
         )
         assert invalid_resp.status_code == 422
 
-        # ── Test settings with encrypted secrets ───────────────────────────
-        # Update LLM API key
+        # ── 测试加密设定机密 ──────────────────────────── 更新LLMAPI密钥
+        #
         patch_resp = client.patch(
             "/api/settings",
             json={"agent_settings_diff": {"llm": {"api_key": "sk-live-test-key"}}},
         )
         assert patch_resp.status_code == 200
         assert patch_resp.json()["llm_api_key_is_set"] is True
-        # Response should redact the key (no X-Expose-Secrets header)
+        # 响应应编辑密钥（无 X-Expose-机密标头）
         assert patch_resp.json()["agent_settings"]["llm"]["api_key"] == "**********"
 
-        # Cleanup
+        # 清理
         client.delete("/api/settings/secrets/ANOTHER_SECRET")
 
 
 def test_interrupt_endpoint_cancels_running_conversation(
     server_env, monkeypatch: pytest.MonkeyPatch
 ):
-    """POST /{conversation_id}/interrupt cancels a running arun() task.
+    """POST /{conversation_id}/interrupt 取消正在运行的 arun() 任务。
 
-    Uses a slow LLM (blocking sleep during completion) so the conversation
-    stays in RUNNING long enough for the interrupt request to arrive.
-    Verifies the conversation transitions to PAUSED with an InterruptEvent.
+    使用慢速 LLM（在完成期间阻止睡眠），以便对话保持在 RUNNING 足够长的时间，以便中断
+    请求到达。 使用 InterruptEvent 验证对话是否转换到
+    PAUSED。
     """
     import asyncio
 
-    slow_delay = 10  # seconds — long enough to guarantee interrupt lands
+    slow_delay = 10  # 秒 — 足够长以保证中断着陆
 
     def slow_completion(
         self,
@@ -3018,9 +3011,9 @@ def test_interrupt_endpoint_cancels_running_conversation(
         add_security_risk_prediction=False,
         **kwargs,
     ):  # type: ignore[no-untyped-def]
-        # Block in a way that arun() can cancel the awaiting coroutine.
+        # 以 arun() 可以取消等待的协程的方式进行阻止。
         time.sleep(slow_delay)
-        # Should never reach here if interrupt arrives in time.
+        # 如果中断及时到达，则永远不会到达这里。
         from openhands.sdk.llm.llm_response import LLMResponse
         from openhands.sdk.llm.message import Message
         from openhands.sdk.llm.utils.metrics import MetricsSnapshot
@@ -3047,7 +3040,7 @@ def test_interrupt_endpoint_cancels_running_conversation(
     monkeypatch.setattr(LLM, "completion", slow_completion, raising=True)
 
     async def slow_acompletion(self, messages, tools=None, **kwargs):  # type: ignore[no-untyped-def]
-        # Use asyncio.sleep so CancelledError interrupts instantly.
+        # 使用 asyncio.sleep，以便 CancelledError 立即中断。
         await asyncio.sleep(slow_delay)
         return slow_completion(self, messages, tools, **kwargs)
 
@@ -3056,7 +3049,7 @@ def test_interrupt_endpoint_cancels_running_conversation(
     host = server_env["host"]
 
     with httpx.Client(base_url=host, timeout=15.0) as client:
-        # 1. Create a conversation
+        # 1. 创建对话
         create_resp = client.post(
             "/api/conversations",
             json={
@@ -3070,7 +3063,7 @@ def test_interrupt_endpoint_cancels_running_conversation(
         assert create_resp.status_code == 201, create_resp.text
         conv_id = create_resp.json()["id"]
 
-        # 2. Send a message (without auto-run)
+        # 2. 发送消息（不自动运行）
         msg_resp = client.post(
             f"/api/conversations/{conv_id}/events",
             json={
@@ -3080,11 +3073,11 @@ def test_interrupt_endpoint_cancels_running_conversation(
         )
         assert msg_resp.status_code == 200, msg_resp.text
 
-        # 3. Start the run — this triggers arun() with the slow LLM
+        # 3. 开始运行 — 这将触发 arun() 和慢速 LLM
         run_resp = client.post(f"/api/conversations/{conv_id}/run")
         assert run_resp.status_code == 200, run_resp.text
 
-        # 4. Wait briefly for the run to actually start
+        # 4. 短暂等待运行实际开始
         status_resp = client.get(f"/api/conversations/{conv_id}")
         for _ in range(20):
             status_resp = client.get(f"/api/conversations/{conv_id}")
@@ -3095,11 +3088,11 @@ def test_interrupt_endpoint_cancels_running_conversation(
             f"Conversation did not reach RUNNING: {status_resp.json()}"
         )
 
-        # 5. Interrupt!
+        # 5. 打断！
         interrupt_resp = client.post(f"/api/conversations/{conv_id}/interrupt")
         assert interrupt_resp.status_code == 200, interrupt_resp.text
 
-        # 6. Verify the conversation transitions to PAUSED
+        # 6. 验证对话是否转换为 PAUSED
         for _ in range(50):
             status_resp = client.get(f"/api/conversations/{conv_id}")
             if status_resp.json().get("execution_status") == "paused":
@@ -3109,7 +3102,7 @@ def test_interrupt_endpoint_cancels_running_conversation(
             f"Expected PAUSED after interrupt, got: {status_resp.json()}"
         )
 
-        # 7. Verify an InterruptEvent was emitted
+        # 7. 验证 InterruptEvent 已发出
         events_resp = client.get(
             f"/api/conversations/{conv_id}/events/search",
             params={

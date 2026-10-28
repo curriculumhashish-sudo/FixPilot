@@ -1,9 +1,10 @@
-"""The store-agnostic prereqs for the cloud AgentProfiles surface (#3730).
+"""云 AgentProfiles 表面的与存储无关的先决条件 (#3730)。
 
-Proves the FK helpers (``profile_refs``), the id/revision lifecycle
-(``save_profile_preserving_identity``), and the seed/422 hoists work against a
-**non-file** store — i.e. a backend that satisfies ``AgentProfileStoreProtocol``
-without ``base_dir`` / ``_atomic_write``, the way a cloud DB-backed store will.
+证明 FK 帮助程序 (``profile_refs``)、id/revision 生命周期 (
+``save_profile_preserving_identity``)
+和 Seed/422 提升机可以对抗
+**非文件**存储 - i.e。 满足``AgentProfileStoreProtocol``的后端
+没有 ``base_dir`` / ``_atomic_write``，就像云数据库支持的存储一样。
 """
 
 from __future__ import annotations
@@ -35,11 +36,10 @@ from openhands.sdk.settings.model import VerificationSettings, validate_agent_se
 
 
 class InMemoryAgentProfileStore:
-    """Minimal non-file ``AgentProfileStoreProtocol`` impl (the cloud envelope).
+    """最小非文件 ``AgentProfileStoreProtocol`` impl（云信封）。
 
-    Holds profiles in a dict keyed by name, exposes the metadata + write
-    primitives the SDK FK / identity helpers need, and provides a re-entrant
-    no-op ``lock`` (a cloud store's router holds the row transaction instead).
+    它存储名称键的字典，提供元数据和写操作的 SDK FK / 身份辅助工具需要的接口，以及提
+    供一个可重入的无操作 ``lock``（云存储的路由器会持有行事务）。
     """
 
     def __init__(self) -> None:
@@ -47,7 +47,7 @@ class InMemoryAgentProfileStore:
 
     @contextmanager
     def lock(self, timeout: float = 30.0):
-        yield  # re-entrant no-op
+        yield  # 可重入空操作
 
     def list(self) -> list[str]:
         return [f"{name}.json" for name in self._profiles]
@@ -110,7 +110,7 @@ class InMemoryAgentProfileStore:
 
 
 class FakeLLMStore:
-    """Stub LLM store exposing only ``delete`` / ``rename`` for the FK helpers."""
+    """存根 LLM 存储仅公开 ``delete`` / ``rename`` 的 FK 助手。"""
 
     def __init__(self, names: list[str]) -> None:
         self.names = list(names)
@@ -141,7 +141,7 @@ def _seed(store: InMemoryAgentProfileStore) -> None:
 
 
 def test_inmemory_store_satisfies_protocol():
-    # runtime_checkable: a non-file backend is structurally interchangeable.
+    # runtime_checkable：非文件后端在结构上是可互换的。
     assert isinstance(InMemoryAgentProfileStore(), AgentProfileStoreProtocol)
 
 
@@ -150,7 +150,7 @@ def test_find_referrers_over_protocol_store():
     _seed(store)
     assert sorted(find_referrers(store, "gpt")) == ["coder", "reviewer"]
     assert find_referrers(store, "haiku") == ["cheap"]
-    # ACP profiles carry no llm_profile_ref and never match.
+    # ACP 配置文件不包含 llm_profile_ref 并且从不匹配。
     assert find_referrers(store, "claude-code") == []
     assert find_referrers(store, "missing") == []
 
@@ -162,7 +162,7 @@ def test_cascade_rename_over_protocol_store():
     assert sorted(rewritten) == ["coder", "reviewer"]
     assert find_referrers(store, "gpt") == []
     assert sorted(find_referrers(store, "gpt-5")) == ["coder", "reviewer"]
-    # The unrelated ref is untouched.
+    # 不相关的参考保持不变。
     assert find_referrers(store, "haiku") == ["cheap"]
 
 
@@ -170,13 +170,13 @@ def test_delete_llm_profile_blocks_on_referrers():
     store = InMemoryAgentProfileStore()
     _seed(store)
     llm_store = FakeLLMStore(["gpt", "haiku"])
-    # 'gpt' is referenced by reviewer + coder -> blocked, llm profile untouched.
+    # “gpt”被审阅者 + 编码器引用 -> 被阻止，llm 配置文件未受影响。
     with pytest.raises(ProfileReferenced) as exc:
         delete_llm_profile(store, llm_store, "gpt")
     assert sorted(exc.value.referrers) == ["coder", "reviewer"]
     assert "gpt" in llm_store.names
 
-    # Detach the referrers; the delete then goes through.
+    # 分离引荐来源网址； 然后删除就完成了。
     store.delete("reviewer")
     store.delete("coder")
     delete_llm_profile(store, llm_store, "gpt")
@@ -201,7 +201,7 @@ def test_save_preserving_identity_mints_then_keeps_id_and_bumps_revision():
     assert created.revision == 0
     first_id = created.id
 
-    # Overwrite keeps the id and bumps revision; a client-supplied id is ignored.
+    # 覆盖保留 id 和凹凸版本； 客户端提供的 ID 会被忽略。
     again = save_profile_preserving_identity(
         store, OpenHandsAgentProfile(name="p", llm_profile_ref="haiku")
     )
@@ -211,7 +211,7 @@ def test_save_preserving_identity_mints_then_keeps_id_and_bumps_revision():
     assert isinstance(reloaded, OpenHandsAgentProfile)
     assert reloaded.llm_profile_ref == "haiku"
 
-    # A different name mints a fresh id.
+    # 不同的名字会创造一个新的身份。
     other = save_profile_preserving_identity(
         store, OpenHandsAgentProfile(name="q", llm_profile_ref="gpt")
     )
@@ -230,7 +230,7 @@ def test_save_preserving_identity_enforces_limit():
             OpenHandsAgentProfile(name="b", llm_profile_ref="gpt"),
             max_profiles=1,
         )
-    # Overwriting the existing one is allowed at the cap.
+    # 上限允许覆盖现有的。
     save_profile_preserving_identity(
         store, OpenHandsAgentProfile(name="a", llm_profile_ref="haiku"), max_profiles=1
     )
@@ -243,15 +243,16 @@ def test_build_seed_profile_openhands_branch():
     assert profile.name == SEED_PROFILE_NAME
     assert profile.llm_profile_ref == "my-llm"
     assert profile.mcp_server_refs is None
-    # Default settings carry tools=None -> the seed inherits the server default.
+    # 默认设置携带tools=None -> 种子继承服务器默认值。
     assert profile.tools is None
-    # The seed disables nothing -> the default profile launches with all
-    # discovered skills (deny-list model; nothing frozen, nothing can dangle).
+    # 种子不会禁用任何内容 -> 默认配置文件会启动所有已发现的技能（拒绝列表模型； 没有任
+    # 何东西被冻结，没有任何东西可以悬挂）。
+    #
     assert profile.disabled_skills == []
-    # Secret-free verification projection (no critic_api_key on the profile type).
+    # 机密-无验证投影（配置文件类型上没有 critic_api_key）。
     assert "critic_api_key" not in type(profile.verification).model_fields
 
-    # No active LLM profile -> soft fallback to SEED_PROFILE_NAME.
+    # 没有活动的 LLM 配置文件 -> 软回退方案到 SEED_PROFILE_NAME。
     fallback = build_seed_profile(settings, active_llm_profile=None)
     assert isinstance(fallback, OpenHandsAgentProfile)
     assert fallback.llm_profile_ref == SEED_PROFILE_NAME
@@ -268,11 +269,11 @@ def test_build_seed_profile_copies_persona():
 
 
 def test_build_seed_profile_disables_nothing_even_with_inline_global_skills():
-    """The seed never freezes the global's skills by name — it sets an empty
-    deny-list, so the migrated default profile launches with all discovered
-    skills. Freezing by name was the #4017 launch-break: an inline global skill
-    absent from the launch catalog would have dangled. See the seed->resolve
-    regression in test_resolver.py."""
+    """种子永远不会冻结全球技能的名字——它设置了一个空的
+    拒绝列表，因此迁移的默认配置文件将随所有发现的技能一起启动。 冻结的名字是 #4017
+    启动中断：启动目录中缺少的内联全局技能将会悬而未决。 参见test_reso
+    lver.py中的seed->resolve 回归。
+    """
     settings = validate_agent_settings(
         {
             "agent_kind": "openhands",
@@ -290,9 +291,9 @@ def test_build_seed_profile_disables_nothing_even_with_inline_global_skills():
 
 
 def test_build_seed_profile_copies_explicit_tools():
-    """A global config with an explicit toolset (e.g. browser) seeds a
-    behavior-preserving profile — the tools are copied verbatim, not reset to
-    the server default (#3978)."""
+    """具有显式工具集的全局配置（e.g. 浏览器）种子 a
+    行为保留配置文件 - 工具被逐字复制，而不是重置为服务器默认值（#3978）。
+    """
     settings = validate_agent_settings(
         {
             "agent_kind": "openhands",
@@ -314,7 +315,7 @@ def test_build_seed_profile_acp_branch():
     assert profile.name == SEED_PROFILE_NAME
     assert profile.acp_server == "claude-code"
     assert profile.mcp_server_refs is None
-    # ACP profiles have no skill-selection field — they own their tooling.
+    # ACP 个人资料没有技能选择字段——他们拥有自己的工具。
     assert not hasattr(profile, "skill_refs")
     assert not hasattr(profile, "disabled_skills")
     assert not hasattr(profile, "llm_profile_ref")
@@ -338,17 +339,18 @@ def test_safe_validation_error_detail_surfaces_msg_without_input():
     secret = "sk-super-secret-value"
     with pytest.raises(Exception) as exc_info:
         # extra=forbid -> the unexpected key (carrying a value) triggers a
-        # ValidationError whose ``input`` echoes the rejected value.
+        # ValidationError，其 ``input`` 回显被拒绝的值。
         validate_agent_profile({"name": "p", "llm_profile_ref": "gpt", "leak": secret})
     from pydantic import ValidationError
 
     assert isinstance(exc_info.value, ValidationError)
     detail = safe_validation_error_detail(exc_info.value)
     assert detail, "expected at least one error entry"
-    # loc/type/msg are surfaced so a client can see *why* the save failed;
-    # ``input`` (which echoes the whole rejected payload) is dropped.
+    # loc/type/msg 会显示出来，以便客户端可以了解*为什么*保存失败；
+    # ``input``（与整个被拒绝的载荷相呼应）被删除。
     for entry in detail:
         assert set(entry.keys()) == {"loc", "type", "msg"}
-    # The rejected value lived in ``input``, which is dropped — so a value passed
-    # in an unexpected field never appears in the detail.
+    # 被拒绝的值位于 ``input`` 中，该值已被删除 - 因此在意外字段中传递的值永远不会出现在
+    # 详细信息中。
+    #
     assert secret not in repr(detail)

@@ -77,11 +77,8 @@ describe('Deterministic API Integration Tests', () => {
       expect(conversationSchema.model_name).toBeTruthy();
       expect(Array.isArray(tools)).toBe(true);
       expect(Array.isArray(skills.skills)).toBe(true);
-      // `load_builtin` discovery is best-effort and can be empty (e.g. the
-      // frozen agent-server image ships no built-in agent files), so assert the
-      // contract shape rather than a specific count. Any agent that does come
-      // back from a builtin-only request must be flagged `is_builtin`. A
-      // dedicated test below exercises project-level discovery end-to-end.
+      // `load_builtin` 发现是尽力而为的并且可以为空 (e.g. 冻结的智能体服务器映像没有内置智能体文件），因此断言合约形状而不是特定计数。 任何从内置请求返回的智能体都必须被标记 `is_builtin`。 下面的专门测试端到端地练习了项目级发现。
+      //
       expect(Array.isArray(subAgents.agents)).toBe(true);
       expect(subAgents.agents.every((agent) => agent.is_builtin)).toBe(true);
       expect(typeof vscodeStatus.enabled).toBe('boolean');
@@ -92,8 +89,8 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'discovers a project-level sub-agent from the workspace',
     async () => {
-      // Drop a file-based agent into the workspace and confirm the read-only
-      // POST /api/sub-agents endpoint discovers it losslessly.
+      // 将基于文件的智能体放入工作区中，并确认只读 POST /api/sub-agents 端点无损地发现它。
+      //
       const agentName = uniqueDirName('it-sub-agent');
       const agentPath = `.openhands/agents/${agentName}.md`;
       writeWorkspaceFile(
@@ -128,12 +125,9 @@ describe('Deterministic API Integration Tests', () => {
         expect(discovered?.system_prompt).toContain('integration-test project sub-agent');
         expect(discovered?.source).toContain(agentPath);
       } finally {
-        // Remove the entire `.openhands` tree this test created, not just the
-        // agent file. Writing it from the host leaves the directory owned by
-        // the test-runner user; if left behind, the agent-server container
-        // (which runs as a different user) later fails to chmod
-        // `workspace/.openhands` during profile activation ("Operation not
-        // permitted" -> 500 Failed to activate profile).
+        // 删除此测试创建的整个 `.openhands` 树，而不仅仅是智能体文件。 从主机写入它会留下测试运行者用户拥有的目录； 如果留下，智能体-server 容器（以不同用户身份运行）稍后将无法 chmod
+        // `workspace/.openhands` 在配置文件激活期间（“不允许操作”-> 500 无法激活配置文件）。
+        //
         removeWorkspacePath('.openhands');
       }
     },
@@ -177,7 +171,7 @@ describe('Deterministic API Integration Tests', () => {
         expect(trajectory).toBeInstanceOf(Blob);
         expect(trajectory.size).toBeGreaterThan(0);
         const trajectoryBytes = new Uint8Array(await trajectory.arrayBuffer());
-        // Verify it's a valid ZIP file (PK\x03\x04 magic bytes)
+        // 验证它是有效的 ZIP 文件（PK\x03\x04 魔法字节）
         expect(trajectoryBytes[0]).toBe(0x50); // P
         expect(trajectoryBytes[1]).toBe(0x4b); // K
 
@@ -191,10 +185,8 @@ describe('Deterministic API Integration Tests', () => {
           conversation.switchProfile('__profile_that_should_not_exist__')
         ).rejects.toBeInstanceOf(HttpError);
 
-        // switchLlm swaps the LLM in place, keyed by usage_id (first-write-wins
-        // in the registry). Reusing the agent's existing usage_id would be a
-        // silent no-op, so use a fresh one and read the model back off the
-        // agent to prove the swap actually took effect.
+        // switchLlm 交换 LLM 按位，键值 usage_id （以先写者胜） 注册表). 重用智能体'现有的' usage_id 将会是一个无声无息的操作，所以请使用一个新的，然后读回模型智能体证明交换确实生效。
+        //
         await conversation.switchLlm({
           model: 'dummy/switched-model',
           api_key: 'dummy-key',
@@ -300,10 +292,10 @@ describe('Deterministic API Integration Tests', () => {
 
         const detail = await manager.profiles.getProfile(profileName);
         expect(detail.name).toBe(profileName);
-        // The saved LLM config round-trips...
+        // 已保存的 LLM 配置往返...
         expect(detail.config.model).toBe('dummy/model');
         // ...but the default (no X-Expose-Secrets) response nulls api_key and
-        // reports the presence of the saved key via api_key_set instead.
+        // 相反，通过 api_key_set 报告已保存密钥的存在。
         expect(detail.config.api_key).toBeNull();
         expect(detail.api_key_set).toBe(true);
 
@@ -322,13 +314,13 @@ describe('Deterministic API Integration Tests', () => {
 
         const renamedDetail = await manager.profiles.getProfile(renamedProfile);
         expect(renamedDetail.name).toBe(renamedProfile);
-        // The config survives the (atomic) rename...
+        // 配置在（原子）重命名后仍然存在......
         expect(renamedDetail.config.model).toBe('dummy/model');
         // ...and because the renamed profile was the active one, the
-        // active_profile pointer follows it to the new name.
+        // active_profile 指针跟随它指向新名称。
         const afterRename = await manager.profiles.listProfiles();
         expect(afterRename.active_profile).toBe(renamedProfile);
-        // The original name stops resolving once the profile is renamed.
+        // 配置文件重命名后，原始名称将停止解析。
         await expect(manager.profiles.getProfile(profileName)).rejects.toBeInstanceOf(HttpError);
 
         const deleted = await manager.profiles.deleteProfile(renamedProfile);
@@ -347,13 +339,8 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'switchAcpModel reaches the route and rejects a non-ACP conversation with 400',
     async () => {
-      // Contract guard for switchAcpModel against a real agent-server. The
-      // route POST /api/conversations/{id}/switch_acp_model was added in
-      // software-agent-sdk #3390; a non-ACP conversation exercises it without
-      // ACP credentials or a real model switch. A 400 (not a 404) proves the
-      // route exists on the pinned image AND that the client targets the right
-      // path/body — catching client<->server contract drift the mocked unit
-      // tests cannot.
+      // switchAcpModel 的合约防护针对真实的智能体服务器。 软件-智能体-SDK#3390中添加了路线POST/api/conversations/{id}/switch_acp_model； 非 ACP 对话在没有 ACP 凭据或真实模型切换的情况下练习它。 一个400（不是404）证明了客户端指向的 pinned 图像 AND 上的路径和体存在，从而捕获了客户端<->服务器合同的漂移模拟的单元测试。
+      //
       const conversation = await manager.createConversation(createDummyAgent(), {
         workingDir: config.agentWorkspaceDir,
       });
@@ -376,15 +363,12 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'exercises the /goal, /goal/resume, and /goal/stop routes without an LLM',
     async () => {
-      // Contract guards for the goal endpoints (software-agent-sdk #3770,
-      // released in v1.29.0 — the pinned image). These deliberately stay off
-      // the happy path so they need neither a real LLM nor a background loop:
-      //   - start with an empty objective is rejected by GoalController -> 400
-      //   - resume with nothing to continue -> 400 ("no_resumable_goal")
-      //   - stop with no active loop is a no-op Success -> 200
-      // A 400/200 (not a 404) proves each route exists on the image AND that
-      // the client targets the right path/method/body — client<->server
-      // contract drift the mocked unit tests cannot catch.
+      // 球门的合同守卫端点（软件-智能体-SDK #3770，在 v1.29.0 中发布 - 固定图像）。 这些故意远离快乐路径，因此它们既不需要真正的 LLM 也不需要后台循环：
+      //   - 从空目标开始被 GoalController -> 400 拒绝
+      //   - 恢复，没有任何内容可以继续 -> 400 ("no_resumable_goal")
+      //   - 没有活动循环的停止是无操作成功 -> 200
+      // 400/200（不是404）证明了每个路由存在于图像中 AND 客户端应该选择正确的路径/方法/体<->服务器合同漂移模拟的单元测试无法捕捉。
+      //
       const conversation = await manager.createConversation(createDummyAgent(), {
         workingDir: config.agentWorkspaceDir,
       });
@@ -407,7 +391,7 @@ describe('Deterministic API Integration Tests', () => {
         }
         expect(resumeStatus).toBe(400);
 
-        // Stopping when no goal loop is running is a no-op Success, not an error.
+        // 当没有目标循环运行时停止是无操作成功，而不是错误。
         await expect(conversation.stopGoal()).resolves.toBeUndefined();
       } finally {
         await manager.deleteConversation(conversation.id).catch(() => undefined);
@@ -419,11 +403,11 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'returns 404 from the goal endpoints for an unknown conversation',
     async () => {
-      // A well-formed but non-existent conversation UUID parses as the path
-      // param and reaches each handler, which must answer 404. This is distinct
+      // 格式良好但不存在的对话 UUID 解析为路径参数并到达每个处理程序，该处理程序必须回答 404。 这是有区别的
+      //
       // from a 422 (malformed UUID) or 405 (wrong method on a missing route),
-      // so it confirms the route templates resolve and the not-found branch is
-      // wired for all three goal endpoints.
+      // 因此它确认了路由模板解析，并且未找到的分支已连接到所有三个目标端点。
+      //
       const client = new ConversationClient({ host: config.agentServerUrl });
       const missingId = '00000000-0000-0000-0000-000000000000';
       try {
@@ -452,10 +436,8 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'reaches the skills refresh route and 404s for an uninstalled skill',
     async () => {
-      // Contract guard for POST /api/skills/installed/{name}/refresh (the route
-      // is /refresh, not /update). A valid-but-uninstalled skill name reaches
-      // the handler, which must answer 404 — proving the route exists on the
-      // image and the client targets the corrected path.
+      // POST /api/skills/installed/{name}/refresh 的合同守卫 (路由是 /refresh，而不是 /update). 一个有效的但未安装的技能名称到达处理器，处理器必须返回 404 —— 证明路由存在于图像中，客户端则会指向正确的路径。)
+      //
       let status: number | undefined;
       try {
         await manager.skills.refreshSkill('nonexistent-skill');
@@ -471,13 +453,8 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'navigate re-roots the HEAD across existing events and back to the empty tree',
     async () => {
-      // Contract + semantics guard for POST /api/conversations/{id}/navigate
-      // (software-agent-sdk #3923, released in v1.31.0 — the pinned image).
-      // Two user messages create >=2 events without an LLM; navigate then moves
-      // the conversation HEAD (leaf_event_id) across them in place — no fork, no
-      // new conversation. This proves the route exists on the image AND that the
-      // client targets the right path/body while carrying back the new leaf —
-      // client<->server contract drift the mocked unit tests cannot catch.
+      // 合同 + 语义保护 POST  /api/conversations/{id}/navigate (软件-智能体-SDK #3923，发布于 v1.31.0 — 固定的镜像）。 两个用户消息创建了 >=2 个事件 LLM; 导航后，对话会移动 HEAD (leaf_event_id在他们之间 —— 没有分支，没有新的对话。 这证明了该路线存在于图像中 AND 客户端应该选择正确的路径/身体，而不是返回新叶<->服务器合同漂移模拟的单元测试无法捕捉。
+      //
       const client = new ConversationClient({ host: config.agentServerUrl });
       const conversation = await manager.createConversation(createDummyAgent(), {
         workingDir: config.agentWorkspaceDir,
@@ -486,7 +463,7 @@ describe('Deterministic API Integration Tests', () => {
         await conversation.sendMessage('First navigate message');
         await conversation.sendMessage('Second navigate message');
 
-        // Ascending sort => items[0] is the earliest event, last is the tail.
+        // 升序排序 => items[0] 是最早的事件，最后一个是尾部事件。
         const events = await conversation.state.events.search({
           limit: 50,
           sort_order: 'TIMESTAMP',
@@ -495,21 +472,20 @@ describe('Deterministic API Integration Tests', () => {
         const firstEventId = events.items[0].id;
         const lastEventId = events.items[events.items.length - 1].id;
 
-        // Re-root HEAD onto the earliest event; the response carries the new leaf.
+        // 将 HEAD 重新定位到最早的事件； 回应带来新的一页。
         const rerooted = await client.navigateConversation(conversation.id, {
           event_id: firstEventId,
         });
         expect(rerooted.leaf_event_id).toBe(firstEventId);
 
-        // A null event_id selects the empty tree (a deliberate new root).
+        // A null event_id 选择空树（故意的新根）。
         const emptied = await client.navigateConversation(conversation.id, {
           event_id: null,
         });
         expect(emptied.leaf_event_id).toBeNull();
 
-        // The high-level wrapper reaches the same route and refreshes cached
-        // state without throwing; restore the HEAD to the original tail and read
-        // it back off the server to prove the move persisted.
+        // 高层包装器到达相同的路由并刷新缓存状态而不抛出； 将 HEAD 恢复到原始尾部，并将其从服务器读回以证明移动已持久化。
+        //
         await conversation.navigateTo(lastEventId);
         const restored = await manager.getConversations([conversation.id]);
         expect(restored[0]?.leaf_event_id).toBe(lastEventId);
@@ -524,11 +500,8 @@ describe('Deterministic API Integration Tests', () => {
   it(
     'navigate 404s for an unknown conversation and an unknown event id',
     async () => {
-      // Both not-found branches of the navigate route. A well-formed but
-      // non-existent conversation UUID reaches the handler -> "Conversation not
-      // found" 404. A real conversation with a bogus event_id hits the server's
-      // event_id ValueError branch -> 404 (not a 500). Together they confirm the
-      // route template resolves and both not-found paths are wired.
+      // 导航路线的两个未找到分支。 格式良好但不存在的对话 UUID 到达处理程序 ->“未找到对话”404。 与虚假 event_id 的真实对话会到达服务器的 event_id ValueError 分支 -> 404（不是 500）。 它们一起确认路由模板已解析，并且两条未找到的路径均已连接。
+      //
       const client = new ConversationClient({ host: config.agentServerUrl });
       const missingId = '00000000-0000-0000-0000-000000000000';
       const conversation = await manager.createConversation(createDummyAgent(), {

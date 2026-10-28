@@ -1,28 +1,26 @@
 #!/usr/bin/env python3
 """
-Example: Task Runner
+Example: 任务执行器
 
-This script runs OpenHands agent for an arbitrary task. It accepts a
-prompt either as a string or from a file/URL and executes the task.
-Designed for use with GitHub Actions workflows.
+该脚本针对任意任务运行 OpenHands 智能体。 它接受提示词作为字符串或来自文件/URL 并执行
+任务。 设计用于 GitHub Actions 工作流程。
 
-Usage:
+用途：
     python agent_script.py [prompt_location]
 
 Arguments:
-    prompt_location: (Optional) Path to a local file or URL containing the prompt
-                     If not provided, PROMPT_STRING env variable must be set
+    prompt_location: （可选）本地文件的路径或包含提示词的 URL
+                     如果未提供，则必须设置 PROMPT_STRING 环境变量
 
-Environment Variables:
-    PROMPT_STRING: Direct prompt text (alternative to prompt_location)
-    LLM_API_KEY: API key for the LLM (required)
-    LLM_MODEL: Language model to use (default: gpt-5.5)
-    LLM_BASE_URL: Optional base URL for LLM API
+环境变量：
+    PROMPT_STRING: 直接提示词文本（替代 prompt_location）
+    LLM_API_KEY: API 键用于 LLM（必需）
+    LLM_MODEL: 要使用的语言模型（默认值：gpt-5.5）
+    LLM_BASE_URL: 可选底座 URL 用于 LLM API
 
-Note: Provide either prompt_location argument OR PROMPT_STRING env variable, not both.
+Note: 提供 prompt_location 参数或 PROMPT_STRING 环境变量，但不能同时提供两者。
 
-For setup instructions, usage examples, and GitHub Actions integration,
-see README.md in this directory.
+有关设置说明、使用示例和 GitHub 操作集成，请参阅此目录中的 README.md。
 """
 
 import argparse
@@ -39,7 +37,7 @@ logger = get_logger(__name__)
 
 
 def is_url(path: str) -> bool:
-    """Check if the given path is a URL."""
+    """检查给定路径是否为 URL。"""
     try:
         result = urlparse(path)
         return all([result.scheme, result.netloc])
@@ -49,16 +47,16 @@ def is_url(path: str) -> bool:
 
 def load_prompt(prompt_location: str) -> str:
     """
-    Load prompt from a file or URL.
+    从文件加载提示词或 URL。
 
     Args:
-        prompt_location: Path to a local file or URL containing the prompt
+        prompt_location: 本地文件或包含提示词的 URL 的路径
 
     Returns:
-        The prompt content as a string
+        提示词内容为字符串
 
     Raises:
-        ValueError: If the prompt cannot be loaded
+        ValueError: 如果提示词无法加载
     """
     try:
         if is_url(prompt_location):
@@ -74,7 +72,7 @@ def load_prompt(prompt_location: str) -> str:
 
 
 def main():
-    """Run the task with the provided prompt."""
+    """使用提供的提示词运行任务。"""
     parser = argparse.ArgumentParser(
         description="Run OpenHands agent for arbitrary tasks"
     )
@@ -88,11 +86,11 @@ def main():
     )
     args = parser.parse_args()
 
-    # Get prompt from either location or string
+    # 从位置或字符串获取提示词
     prompt_string = os.getenv("PROMPT_STRING")
     prompt_location = args.prompt_location
 
-    # Validate that exactly one is provided
+    # 验证是否确实提供了一个
     if prompt_string and prompt_location:
         logger.error(
             "Error: Both PROMPT_STRING and prompt_location provided. "
@@ -107,7 +105,7 @@ def main():
         )
         sys.exit(1)
 
-    # Load the prompt
+    # 加载提示词
     try:
         if prompt_string:
             logger.info("Using prompt from PROMPT_STRING environment variable")
@@ -119,7 +117,7 @@ def main():
         logger.error(str(e))
         sys.exit(1)
 
-    # Configure LLM
+    # 配置LLM
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         logger.error("LLM_API_KEY environment variable is not set.")
@@ -140,16 +138,16 @@ def main():
 
     llm = LLM(**llm_config)
 
-    # Get the current working directory as workspace
+    # 获取当前工作目录为工作区
     cwd = os.getcwd()
 
-    # Create agent with default tools
+    # 使用默认工具创建智能体
     agent = get_default_agent(
         llm=llm,
         cli_mode=True,
     )
 
-    # Create conversation
+    # 创建对话
     conversation = Conversation(
         agent=agent,
         workspace=cwd,
@@ -158,7 +156,7 @@ def main():
     logger.info("Starting task execution...")
     logger.info(f"Prompt: {prompt[:200]}...")
 
-    # Send the prompt and run the agent
+    # 发送提示词并运行智能体
     conversation.send_message(prompt)
     conversation.run()
 

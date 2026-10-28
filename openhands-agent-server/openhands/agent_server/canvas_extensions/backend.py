@@ -1,4 +1,4 @@
-"""Owned lifecycle for optional Canvas App backend subprocesses."""
+"""可选 Canvas 应用程序后端的拥有生命周期子进程。"""
 
 import asyncio
 import gzip
@@ -56,13 +56,13 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class BackendRevisionRequest(BaseModel):
-    """Explicit approval for one exact installed revision."""
+    """明确批准一项确切安装的修订版。"""
 
     revision: str = Field(min_length=1)
 
 
 class BackendStatus(BaseModel):
-    """Current state of an installed Canvas App backend."""
+    """已安装 Canvas 应用程序后端的当前状态。"""
 
     name: str
     state: BackendState
@@ -74,7 +74,7 @@ class BackendStatus(BaseModel):
 
 
 class BackendLogs(BaseModel):
-    """Bounded combined stdout and stderr output."""
+    """有界的组合 stdout 和 stderr 输出。"""
 
     name: str
     logs: str
@@ -89,7 +89,7 @@ class _PreparedState(BaseModel):
 
 
 class _RunRecord(BaseModel):
-    """Identifies a backend process group and the server that started it."""
+    """标识后端进程组和启动它的服务器。"""
 
     name: str
     pgid: int
@@ -99,12 +99,12 @@ class _RunRecord(BaseModel):
 
 
 def _process_start_time(pid: int) -> int | None:
-    """Return a process's start time in clock ticks since boot (Linux)."""
+    """返回自启动以来进程的启动时间（以时钟周期为单位）（Linux）。"""
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
     except OSError:
         return None
-    # Field 22; the command name (field 2) may contain spaces and parentheses.
+    # 场22； 命令名称（字段 2）可以包含空格和括号。
     return int(stat.rsplit(")", 1)[1].split()[19])
 
 
@@ -119,14 +119,15 @@ class _Runtime:
         self.log_bytes = 0
         self.logs_truncated = False
         self.drain_tasks: list[asyncio.Task[None]] = []
-        # The health wait runs in its own task so the name lock stays free for
-        # status()/stop()/logs() while a backend is coming up.
+        # 运行状况等待在其自己的任务中运行，因此当后端启动时，名称锁在 status()
+        # /stop()/logs() 内保持空闲状态。
+        #
         self.start_task: asyncio.Task[None] | None = None
         self.stop_requested = asyncio.Event()
 
 
 class CanvasExtensionBackendManager:
-    """Owns one optional backend process per installed Canvas App."""
+    """每个已安装的 Canvas 应用程序拥有一个可选的后端进程。"""
 
     def __init__(
         self,
@@ -500,8 +501,9 @@ class CanvasExtensionBackendManager:
             and runtime.port is not None
             and (
                 runtime.state == "ready"
-                # A live process that only missed a probe is probed again, so
-                # one slow answer does not latch it `unhealthy`.
+                # 只错过一次探测的实时进程会被再次探测，因此一个缓慢的答案不会锁定它
+                # `unhealthy`。
+                #
                 or (
                     runtime.state == "unhealthy"
                     and runtime.detail == _PROBE_FAILED_DETAIL
@@ -510,9 +512,9 @@ class CanvasExtensionBackendManager:
         ):
             manifest = self._manifest(name)
             if manifest is None or manifest.backend is None:
-                # The on-disk manifest no longer validates (or stopped
-                # declaring a backend); report that instead of tracing back
-                # an AssertionError once `_probe` dereferences it.
+                # 磁盘清单不再验证（或停止声明后端）； 报告一旦 `_probe` 取消引用它，而
+                # 不是回溯 AssertionError。
+                #
                 return self._status_unlocked(name)
             probe_url = f"http://127.0.0.1:{runtime.port}{manifest.backend.health.path}"
             if await asyncio.to_thread(self._probe, probe_url):
@@ -607,11 +609,11 @@ class CanvasExtensionBackendManager:
         backend: CanvasExtensionBackend,
         port: int,
     ) -> None:
-        """Poll the backend's health endpoint until it is ready.
+        """轮询后端的运行状况端点直到其准备就绪。
 
-        Runs as ``runtime.start_task`` rather than inline so the name lock is
-        free: ``status()`` can report ``starting`` and ``stop()`` can abandon a
-        backend that never comes up.
+        作为 ``runtime.start_task`` 而不是内联运行，因此名称锁是
+        free: ``status()`` 可以举报 ``starting``，``stop()`` 可以放弃
+        永远不会出现的后端。
         """
         try:
             deadline = time.monotonic() + backend.health.timeout_seconds
@@ -635,8 +637,8 @@ class CanvasExtensionBackendManager:
             raise
         except Exception as exc:
             if runtime.stop_requested.is_set():
-                # `stop()` owns the final state; don't clobber it with an
-                # error raised purely because we tore the process down.
+                # `stop()` 拥有最终状态； 不要纯粹因为我们破坏了流程而引发错误来破坏它。
+                #
                 runtime.state = "stopped"
                 runtime.detail = None
             else:
@@ -725,8 +727,8 @@ class CanvasExtensionBackendManager:
         if task is not None:
             await asyncio.gather(task, return_exceptions=True)
         async with self._lock(name):
-            # Clear the handle and reclaim a failed start's process group here,
-            # where the runtime is known to still be ours.
+            # 在这里清除句柄并回收失败启动的进程组，其中运行时已知仍然是我们的。
+            #
             if runtime.start_task is task:
                 runtime.start_task = None
             if runtime.state == "unhealthy":
@@ -775,18 +777,19 @@ class CanvasExtensionBackendManager:
         if process is None:
             return
         pgid = process.pid
-        # Signal the whole group and wait for the *group* to drain, not just the
-        # leader: a backend may fork descendants, and one that outlives (or is
-        # forked just after) the leader keeps the group alive. Escalating only
-        # on the leader's exit code would leak those descendants.
+        # 向整个组发送信号，并等待 *集团* 去排水，而不仅仅是
+        # 领导者：一个后端可能会分叉后代，并且一个比它寿命更长（或者是
+        # 之后分叉）领导者使团队保持活力。 仅在领导者的退出代码上升级会泄漏这些后代。
+        #
         if process.returncode is None:
             self._signal_group(pgid, signal.SIGTERM)
             if not await self._wait_for_group_exit(pgid, _STOP_TIMEOUT_SECONDS):
                 self._signal_group(pgid, signal.SIGKILL)
                 await self._wait_for_group_exit(pgid, _STOP_TIMEOUT_SECONDS)
         elif self._group_alive(pgid):
-            # With no leader left to shut down cleanly, its descendants are
-            # orphaned; do not let one hold status or restart for the grace period.
+            # 由于没有领导者可以彻底关闭，它的后代成为孤儿； 不要让某人在宽限期内保持状
+            # 态或重新启动。
+            #
             self._signal_group(pgid, signal.SIGKILL)
             await self._wait_for_group_exit(pgid, _STOP_TIMEOUT_SECONDS)
         if process.returncode is None:
@@ -831,10 +834,10 @@ class CanvasExtensionBackendManager:
         )
 
     async def reap_orphans(self) -> None:
-        """Stop backends left running by a server that died without teardown.
+        """停止因未拆除而死亡的服务器留下的运行后端。
 
-        Call before serving requests: the in-memory runtimes are the only view
-        `status`, `start` and `delete_data` have of a running backend.
+        在服务请求之前调用：内存中的运行时是唯一的视图
+        `status`、`start` 和 `delete_data` 有一个正在运行的后端。
         """
         for path in sorted(self.run_dir.glob("*.json")):
             try:
@@ -843,7 +846,7 @@ class CanvasExtensionBackendManager:
                 path.unlink(missing_ok=True)
                 continue
             if _process_start_time(record.server_pid) == record.server_start_time:
-                continue  # Its server is still running and owns it.
+                continue  # 它的服务器仍在运行并拥有它。
             if self._is_recorded_backend(record):
                 self._signal_group(record.pgid, signal.SIGTERM)
                 if not await self._wait_for_group_exit(
@@ -864,9 +867,9 @@ class CanvasExtensionBackendManager:
         async with self._lock(name):
             runtime = self._runtimes.get(name)
             if runtime is not None:
-                # Ask an in-flight health wait to give up before cancelling it,
-                # so a backend stuck in `starting` is stoppable instead of
-                # holding the lock (and the REST handler) for the full timeout.
+                # 在取消前询问空中健康等待，以便在`starting`中停滞的后端可以停止，而不是
+                # 对锁（以及REST处理器）进行全超时。
+                #
                 runtime.stop_requested.set()
                 task = runtime.start_task
                 runtime.start_task = None
@@ -904,13 +907,13 @@ class CanvasExtensionBackendManager:
             return self._status_unlocked(name)
 
     def ready_endpoint(self, name: str) -> tuple[str, int] | None:
-        """Internal registry boundary for the future authenticated router."""
+        """未来经过身份验证的路由器的内部注册表边界。"""
         runtime = self._runtimes.get(name)
         if runtime is None or runtime.state != "ready" or runtime.port is None:
             return None
-        # `state` is only reconciled by status()/start()/stop(); a backend that
-        # crashed since then must not be dialed (the next status poll reports
-        # it `unhealthy` and reaps its process group).
+        # `state`仅由status()/start()/stop()协调； 从那时起崩溃的后端不得被拨打（下一个
+        # 状态轮询报告它`unhealthy`并获取其进程组）。
+        #
         if runtime.process is None or runtime.process.returncode is not None:
             return None
         return "127.0.0.1", runtime.port

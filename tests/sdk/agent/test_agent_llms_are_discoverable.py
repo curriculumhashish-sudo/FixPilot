@@ -9,11 +9,11 @@ def check_usage_id_exists(usage_id: str, llms: list[LLM]):
     return usage_id in usage_ids
 
 
-# Define CustomAgent at module level to avoid "local class not supported" error
-# during serialization tests. Local classes (defined inside functions) cannot be
-# deserialized because they may not exist at deserialization time.
+# 在模块级别定义 CustomAgent 以避免序列化测试期间出现“不支持本地类”错误。 局部类（在函数
+# 内部定义）不能是已反序列化，因为它们在反序列化时可能不存在。
+#
 class CustomAgentWithRouters(Agent):
-    """Custom agent with additional LLM routers for testing LLM discovery."""
+    """带有附加 LLM 路由器的自定义智能体，用于测试 LLM 发现。"""
 
     model_routers: list[LLM] = Field(default_factory=list)
 
@@ -74,27 +74,27 @@ def test_automatic_llm_discovery_for_custom_agent_with_duplicates():
 
 
 def test_automatic_llm_discovery_with_multimodal_router():
-    """Test that LLMs inside a MultimodalRouter are discovered correctly."""
+    """测试 LLMs 和 MultimodalRouter 是否正确被发现。"""
     primary_usage_id = "primary-llm"
     secondary_usage_id = "secondary-llm"
 
-    # Create LLMs for the router
+    # 为路由器创建 LLMs
     primary_llm = LLM(model="test-primary-model", usage_id=primary_usage_id)
     secondary_llm = LLM(model="test-secondary-model", usage_id=secondary_usage_id)
 
-    # Create MultimodalRouter with the LLMs
+    # 创建 MultimodalRouter with the LLMs
     multimodal_router = MultimodalRouter(
         usage_id="multimodal-router",
         llms_for_routing={"primary": primary_llm, "secondary": secondary_llm},
     )
 
-    # Create agent with the router
+    # 使用路由器创建智能体
     agent = Agent(llm=multimodal_router)
 
-    # Get all LLMs and verify they are discovered
+    # 获取所有 LLMs 并验证它们已发现
     llms = list(agent.get_all_llms())
 
-    # Only the raw LLMs inside the router should be found (not the router itself)
+    # 仅限原始 LLMs 应在路由器内部找到（而不是路由器本身）
     assert len(llms) == 2
     assert check_usage_id_exists(primary_usage_id, llms)
     assert check_usage_id_exists(secondary_usage_id, llms)

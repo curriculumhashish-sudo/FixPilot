@@ -1,4 +1,4 @@
-"""VSCode router for agent server API endpoints."""
+"""VSCode Agent Server API 端点。"""
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ vscode_router = APIRouter(prefix="/vscode", tags=["VSCode"])
 
 
 class VSCodeUrlResponse(BaseModel):
-    """Response model for VSCode URL."""
+    """VSCode URL 的响应模型。"""
 
     url: str | None
 
@@ -22,18 +22,17 @@ class VSCodeUrlResponse(BaseModel):
 async def get_vscode_url(
     base_url: str | None = None, workspace_dir: str = "workspace"
 ) -> VSCodeUrlResponse:
-    """Get the VSCode URL with authentication token.
+    """获取 VSCode URL 身份验证 token。
 
     Args:
-        base_url: Base URL for the VSCode server. When omitted, the URL is
-            built from the actually configured VSCode port
-            (``http://localhost:{vscode_port}``), so callers that don't know
-            the deployment topology get a URL that matches where the server
-            really binds instead of a hardcoded ``:8001``.
-        workspace_dir: Path to workspace directory
+        base_url: URL 基础 VSCode 服务器。 当省略时，URL 是
+            由实际配置的 VSCode 端口 (``http://localhost:{vscode_port}``) 构建而成，
+            因此，不知道部署拓扑的调用者会
+            收到一个 URL，而不是硬编码的 ``:8001``。
+        workspace_dir: 工作区目录的路径
 
     Returns:
-        VSCode URL with token if available, None otherwise
+        对于 VSCode URL，可用时使用 token，否则使用 None
     """
     vscode_service = get_vscode_service()
     if vscode_service is None:
@@ -54,10 +53,10 @@ async def get_vscode_url(
 
 @vscode_router.get("/status")
 async def get_vscode_status() -> dict[str, bool | str]:
-    """Get the VSCode server status.
+    """获取 VSCode 服务器状态。
 
     Returns:
-        Dictionary with running status and enabled status
+        具有运行状态和启用状态的字典
     """
     vscode_service = get_vscode_service()
     if vscode_service is None:

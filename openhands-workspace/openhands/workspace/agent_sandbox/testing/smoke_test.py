@@ -1,19 +1,19 @@
-"""Keyless smoke test for AgentSandboxWorkspace against a real cluster (no LLM).
+"""针对真实集群（无 LLM）对 AgentSandboxWorkspace 进行无钥匙烟雾测试。
 
-Validates the integration end to end without needing an LLM: claim a pod from the
-warm pool, run a command inside it, pause/resume, and confirm the workspace state
-survives the suspend. Works against the secure default template (no network policy
-changes needed) because it never leaves the pod to reach an LLM.
+无需 LLM：从热池中获取 Pod，运行命令，暂停/恢复，确认工作区状态在暂停后仍然存活。 针
+对安全默认模板工作（无需更改网络策略），因为它永远不会离开 Pod 到达
+LLM。
 
-Prerequisites (see TESTING.md): a cluster reachable via your kubeconfig with the
-agent-sandbox controller installed and a warm pool of agent-server pods. Then:
+Prerequisites (see TESTING.md): 可通过 kubeconfig 访问的集群
+安装了智能体-沙箱控制器和智能体-服务器 Pod 的温池。 然后：
 
     pip install openhands-workspace[agent-sandbox]
     python smoke_test.py
 
-Env (optional):
-    AGENT_SANDBOX_WARMPOOL   warm pool name   (default: openhands-pool)
-    AGENT_SANDBOX_NAMESPACE  namespace        (default: default)
+环境（可选）：
+    AGENT_SANDBOX_WARMPOOL 暖池名称（默认：OpenHands-pool） AGENT_SANDBOX_NAMESPACE
+    命名空间（默认：def
+    ault）
 """
 
 import os
@@ -35,7 +35,7 @@ def main() -> None:
         assert result.exit_code == 0, result
         print("command output:\n" + result.stdout)
 
-        # Write a file, then suspend and resume the sandbox.
+        # 写入文件，然后暂停并恢复沙箱。
         ws.execute_command("echo persisted-across-suspend > /workspace/marker.txt")
         print("pause() -> Suspended ...")
         ws.pause()
@@ -43,7 +43,7 @@ def main() -> None:
         print("resume() -> Running ...")
         ws.resume()
 
-        # With a persistent volume the file is still there after the resume.
+        # 对于持久卷，文件在恢复后仍然存在。
         out = ws.execute_command("cat /workspace/marker.txt")
         assert out.stdout.strip() == "persisted-across-suspend", out
         print(f"state survived suspend/resume: {out.stdout!r}")

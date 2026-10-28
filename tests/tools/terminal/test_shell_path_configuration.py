@@ -1,4 +1,4 @@
-"""Tests for shell path configuration."""
+"""测试 shell 路径配置。"""
 
 import os
 import platform
@@ -20,9 +20,9 @@ from openhands.tools.terminal.terminal.factory import create_terminal_session
 
 
 def test_shell_path_explicit_parameter():
-    """Test that explicit shell_path parameter is used."""
+    """测试是否使用显式 shell_path 参数。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Use the system bash
+        # 使用系统bash
         bash_path = shutil.which("bash")
         if not bash_path:
             pytest.skip("bash not found in PATH")
@@ -39,24 +39,24 @@ def test_shell_path_explicit_parameter():
 
 
 def test_shell_path_auto_detection():
-    """Test shell path auto-detection with shutil.which."""
+    """使用 shutil.which 测试 shell 路径自动检测。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Don't set shell_path or environment variable
+        # 不要设置 shell_path 或环境变量
         session = create_terminal_session(
             work_dir=temp_dir,
             terminal_type="subprocess",
         )
 
-        # Should use auto-detected bash
+        # 应该使用自动检测的 bash
         assert isinstance(session.terminal, SubprocessTerminal)
-        assert session.terminal.shell_path is None  # Not set until initialize
+        assert session.terminal.shell_path is None  # 初始化之前未设置
         session.initialize()
         assert session.terminal.shell_path is not None
         session.close()
 
 
 def test_shell_path_validation_not_exists():
-    """Test that shell path validation fails for non-existent file."""
+    """测试 shell 路径验证对于不存在的文件是否失败。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         session = create_terminal_session(
             work_dir=temp_dir,
@@ -71,13 +71,13 @@ def test_shell_path_validation_not_exists():
 
 
 def test_shell_path_validation_not_executable():
-    """Test that shell path validation fails for non-executable file."""
+    """测试 shell 路径验证对于不可执行文件是否失败。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a non-executable file
+        # 创建一个不可执行的文件
         fake_bash = os.path.join(temp_dir, "fake_bash")
         with open(fake_bash, "w") as f:
             f.write("#!/bin/bash\n")
-        # Don't make it executable
+        # 不要使其可执行
 
         session = create_terminal_session(
             work_dir=temp_dir,
@@ -92,9 +92,9 @@ def test_shell_path_validation_not_executable():
 
 
 def test_shell_path_auto_detection_failure():
-    """Test that auto-detection failure raises clear error."""
+    """测试自动检测失败是否会引发明显错误。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Mock shutil.which to return None (bash not found)
+        # 模拟对象shutil.which返回None（bash未找到）
         with patch("shutil.which", return_value=None):
             session = create_terminal_session(
                 work_dir=temp_dir,
@@ -108,7 +108,7 @@ def test_shell_path_auto_detection_failure():
 
 
 def test_shell_path_with_tmux_terminal():
-    """Test that shell_path is passed but doesn't affect tmux terminal."""
+    """测试shell_path通过但不影响tmux终端。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         bash_path = shutil.which("bash")
         if not bash_path:
@@ -120,7 +120,7 @@ def test_shell_path_with_tmux_terminal():
                 terminal_type="tmux",
                 shell_path=bash_path,
             )
-            # TmuxTerminal doesn't use shell_path, so this should just be ignored
+            # TmuxTerminal 不使用 shell_path，所以应该忽略它
             session.initialize()
             session.close()
         except RuntimeError as e:
@@ -130,7 +130,7 @@ def test_shell_path_with_tmux_terminal():
 
 
 def test_shell_path_reset_preserves_config():
-    """Test that terminal reset preserves the shell_path configuration."""
+    """测试终端重置是否保留 shell_path 配置。"""
     from openhands.tools.terminal.impl import TerminalExecutor
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -144,26 +144,26 @@ def test_shell_path_reset_preserves_config():
             shell_path=bash_path,
         )
 
-        # Verify shell_path is stored
+        # 验证 shell_path 已存储
         assert executor.shell_path == bash_path
 
-        # Reset the terminal
+        # 重置终端
         executor.reset()
 
-        # Verify shell_path is preserved after reset
+        # 验证重置后是否保留 shell_path
         assert executor.shell_path == bash_path
 
         executor.close()
 
 
 def test_shell_path_precedence_explicit_over_auto():
-    """Test that explicit shell_path takes precedence over auto-detection."""
+    """测试显式 shell_path 优先于自动检测。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         bash_path = shutil.which("bash")
         if not bash_path:
             pytest.skip("bash not found in PATH")
 
-        # Test: Explicit parameter wins over auto-detect
+        # 测试：显式参数胜过自动检测
         with patch("shutil.which", return_value="/other/bash"):
             session = create_terminal_session(
                 work_dir=temp_dir,
@@ -176,7 +176,7 @@ def test_shell_path_precedence_explicit_over_auto():
 
 
 def test_terminal_tool_shell_path_parameter():
-    """Test that TerminalTool.create accepts and passes shell_path."""
+    """测试 TerminalTool.create 接受并通过 shell_path。"""
     import uuid
 
     from pydantic import SecretStr
@@ -209,7 +209,7 @@ def test_terminal_tool_shell_path_parameter():
         )
 
         terminal = tools[0]
-        # Verify the executor has the shell_path
+        # 验证执行者具有 shell_path
         from openhands.tools.terminal.impl import TerminalExecutor
 
         assert isinstance(terminal.executor, TerminalExecutor)

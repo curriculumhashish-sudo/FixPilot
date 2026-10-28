@@ -6,7 +6,7 @@ from openhands.sdk.llm.message import ImageContent, Message, TextContent
 
 
 class SendMessageRequest(BaseModel):
-    """Payload to send a message to the agent."""
+    """载荷向智能体发送消息。"""
 
     role: Literal["user", "system", "assistant", "tool"] = "user"
     content: list[TextContent | ImageContent] = Field(default_factory=list)

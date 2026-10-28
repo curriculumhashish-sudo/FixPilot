@@ -1,4 +1,4 @@
-"""Tests for MCP config variable expansion with secrets."""
+"""使用机密测试 MCP 配置变量扩展。"""
 
 import json
 import os
@@ -7,10 +7,10 @@ from openhands.sdk.skills.utils import expand_mcp_variables, load_mcp_config
 
 
 class TestExpandMcpVariables:
-    """Tests for expand_mcp_variables function."""
+    """测试 expand_mcp_variables 功能。"""
 
     def test_expand_basic_variables(self):
-        """Test expanding basic variables from the variables dict."""
+        """测试从变量字典扩展基本变量。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -28,7 +28,7 @@ class TestExpandMcpVariables:
         )
 
     def test_expand_windows_path_variables_preserves_backslashes(self):
-        """Windows paths must be expanded as values, not raw JSON fragments."""
+        """Windows 路径必须扩展为值，而不是原始 JSON 片段。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -45,7 +45,7 @@ class TestExpandMcpVariables:
         )
 
     def test_expand_variables_in_dictionary_keys(self):
-        """Variable expansion should preserve the legacy key-substitution behavior."""
+        """变量扩展应该保留遗留的键替换行为。"""
         config = {
             "mcpServers": {
                 "${SERVER_NAME}": {
@@ -67,7 +67,7 @@ class TestExpandMcpVariables:
         }
 
     def test_expand_environment_variables(self):
-        """Test expanding variables from environment."""
+        """测试从环境中扩展变量。"""
         os.environ["TEST_MCP_VAR"] = "env-value-123"
         try:
             config = {
@@ -86,7 +86,7 @@ class TestExpandMcpVariables:
             del os.environ["TEST_MCP_VAR"]
 
     def test_expand_secrets(self):
-        """Test expanding variables via get_secret callback."""
+        """通过 get_secret 回调测试扩展变量。"""
         config = {
             "mcpServers": {
                 "my-server": {
@@ -104,7 +104,7 @@ class TestExpandMcpVariables:
         )
 
     def test_variable_resolution_order(self):
-        """Test that variables dict takes precedence over secrets and env."""
+        """测试变量 dict 优先于机密和 env。"""
         os.environ["SHARED_VAR"] = "env-value"
         try:
             config = {
@@ -121,17 +121,17 @@ class TestExpandMcpVariables:
 
             result = expand_mcp_variables(config, variables, get_secret=secrets.get)
 
-            # variables dict should win over secrets and env
+            # 变量 dict 应该胜过机密和 env
             assert result["mcpServers"]["test-server"]["value1"] == "variables-value"
-            # secrets should be used when not in variables
+            # 当不在变量中时应使用机密
             assert result["mcpServers"]["test-server"]["value2"] == "secret-value"
-            # env should be used for ENV_VAR (not in variables or secrets)
+            # env 应该用于 ENV_VAR（不在变量或机密中）
             assert result["mcpServers"]["test-server"]["value3"] == "${ENV_VAR}"
         finally:
             del os.environ["SHARED_VAR"]
 
     def test_secrets_take_precedence_over_env(self):
-        """Test that secrets take precedence over environment variables."""
+        """测试机密优先于环境变量。"""
         os.environ["MCP_TOKEN"] = "env-token"
         try:
             config = {
@@ -145,7 +145,7 @@ class TestExpandMcpVariables:
 
             result = expand_mcp_variables(config, {}, get_secret=secrets.get)
 
-            # secrets should win over env
+            # 机密应该战胜 env
             assert result["mcpServers"]["test-server"]["headers"]["Authorization"] == (
                 "Bearer secret-token"
             )
@@ -153,7 +153,7 @@ class TestExpandMcpVariables:
             del os.environ["MCP_TOKEN"]
 
     def test_default_values(self):
-        """Test that default values are used when variable is not found."""
+        """测试未找到变量时是否使用默认值。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -171,7 +171,7 @@ class TestExpandMcpVariables:
         assert result["mcpServers"]["test-server"]["timeout"] == "30"
 
     def test_default_not_used_when_secret_exists(self):
-        """Test that default is not used when secret provides the value."""
+        """测试当机密提供值时不使用默认值。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -188,7 +188,7 @@ class TestExpandMcpVariables:
         )
 
     def test_unexpanded_variables_remain_unchanged(self):
-        """Test that unresolved variables remain as-is."""
+        """测试未解决的变量是否保持原样。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -199,13 +199,13 @@ class TestExpandMcpVariables:
 
         result = expand_mcp_variables(config, {})
 
-        # Variable should remain unchanged since it's not found
+        # 由于未找到变量，因此应保持不变
         assert result["mcpServers"]["test-server"]["url"] == (
             "https://example.com/${UNKNOWN_VAR}/api"
         )
 
     def test_multiple_variables_in_same_string(self):
-        """Test expanding multiple variables in the same string."""
+        """测试在同一字符串中扩展多个变量。"""
         config = {
             "mcpServers": {
                 "test-server": {
@@ -223,7 +223,7 @@ class TestExpandMcpVariables:
         )
 
     def test_no_get_secret_callback(self):
-        """Test with no get_secret callback (default behavior)."""
+        """不使用 get_secret 回调进行测试（默认行为）。"""
         config = {
             "mcpServers": {
                 "test-server": {"url": "${SKILL_ROOT}/api"},
@@ -231,17 +231,17 @@ class TestExpandMcpVariables:
         }
         variables = {"SKILL_ROOT": "/path"}
 
-        # Should work without get_secret
+        # 应该在没有 get_secret 的情况下工作
         result = expand_mcp_variables(config, variables, get_secret=None)
 
         assert result["mcpServers"]["test-server"]["url"] == "/path/api"
 
 
 class TestLoadMcpConfigWithSecrets:
-    """Tests for load_mcp_config function with secrets."""
+    """使用机密测试 load_mcp_config 功能。"""
 
     def test_load_mcp_config_with_secrets(self, tmp_path):
-        """Test loading .mcp.json with secrets expansion."""
+        """测试加载 .mcp.json 和机密扩展。"""
         mcp_json = tmp_path / ".mcp.json"
         config = {
             "mcpServers": {
@@ -262,7 +262,7 @@ class TestLoadMcpConfigWithSecrets:
         )
 
     def test_load_mcp_config_without_secrets(self, tmp_path):
-        """Test loading .mcp.json without secrets (backward compatibility)."""
+        """测试加载 .mcp.json，不带机密 (向后兼容性)。"""
         mcp_json = tmp_path / ".mcp.json"
         config = {
             "mcpServers": {
@@ -279,7 +279,7 @@ class TestLoadMcpConfigWithSecrets:
         assert result["mcpServers"]["my-server"]["command"] == f"{tmp_path}/server.py"
 
     def test_load_mcp_config_skill_root_takes_precedence(self, tmp_path):
-        """Test that SKILL_ROOT from skill_root param takes precedence over secrets."""
+        """测试 skill_root 参数中的 SKILL_ROOT 优先于机密。"""
         mcp_json = tmp_path / ".mcp.json"
         config = {
             "mcpServers": {
@@ -290,7 +290,7 @@ class TestLoadMcpConfigWithSecrets:
         }
         mcp_json.write_text(json.dumps(config))
 
-        # Even if secrets has SKILL_ROOT, the param should win
+        # 即使机密有 SKILL_ROOT，参数也应该获胜
         secrets = {"SKILL_ROOT": "/wrong/path"}
 
         result = load_mcp_config(mcp_json, skill_root=tmp_path, get_secret=secrets.get)
@@ -298,7 +298,7 @@ class TestLoadMcpConfigWithSecrets:
         assert result["mcpServers"]["my-server"]["command"] == f"{tmp_path}/server.py"
 
     def test_load_mcp_config_combined_variables_and_secrets(self, tmp_path):
-        """Test loading config that uses both skill_root and secrets."""
+        """测试加载使用 skill_root 和机密的配置。"""
         mcp_json = tmp_path / ".mcp.json"
         config = {
             "mcpServers": {

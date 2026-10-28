@@ -1,4 +1,4 @@
-"""Tests for RemoteConversation."""
+"""测试 RemoteConversation。"""
 
 import time
 import uuid
@@ -36,10 +36,10 @@ from openhands.sdk.workspace import LocalWorkspace, RemoteWorkspace
 
 
 class TestRemoteConversation:
-    """Test RemoteConversation functionality."""
+    """测试 RemoteConversation 功能。"""
 
     def setup_method(self):
-        """Set up test environment."""
+        """设置测试环境。"""
         self.host: str = "http://localhost:8000"
         self.llm: LLM = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"))
         self.agent: Agent = Agent(llm=self.llm, tools=[])
@@ -49,27 +49,27 @@ class TestRemoteConversation:
         )
 
     def setup_mock_client(self, conversation_id: str | None = None):
-        """Set up mock client for the workspace with default responses."""
+        """使用默认响应为工作区设置模拟对象客户端。"""
         mock_client_instance = Mock()
         self.workspace._client = mock_client_instance
 
-        # Default conversation ID
+        # 默认对话 ID
         if conversation_id is None:
             conversation_id = str(uuid.uuid4())
 
-        # Create default responses
+        # 创建默认响应
         mock_conv_response = self.create_mock_conversation_response(conversation_id)
         mock_events_response = self.create_mock_events_response()
 
-        # Mock the request method to return appropriate responses
+        # 模拟对象返回适当响应的请求方法
         def request_side_effect(method, url, **kwargs):
             if method == "POST" and url == "/api/conversations":
                 return mock_conv_response
             elif method == "GET" and "/api/conversations/" in url and "/events" in url:
                 return mock_events_response
             elif method == "GET" and url.startswith("/api/conversations/"):
-                # Return conversation info response with finished status
-                # (needed for run() polling to complete)
+                # 返回带有完成状态的对话信息响应（完成 run() 轮询所需）
+                #
                 response = Mock()
                 response.status_code = 200
                 response.raise_for_status.return_value = None
@@ -78,21 +78,21 @@ class TestRemoteConversation:
                 response.json.return_value = conv_info
                 return response
             elif method == "POST" and "/events" in url:
-                # POST to events endpoint (send_message)
+                # POST 至事件端点 (send_message)
                 response = Mock()
                 response.status_code = 200
                 response.raise_for_status.return_value = None
                 response.json.return_value = {}
                 return response
             elif method == "POST" and "/run" in url:
-                # POST to run endpoint
+                # POST 运行端点
                 response = Mock()
                 response.raise_for_status.return_value = None
                 response.status_code = 200
                 response.json.return_value = {}
                 return response
             elif method == "POST" or method == "PUT":
-                # Default success response for other POST/PUT requests
+                # 其他 POST/PUT 请求的默认成功响应
                 response = Mock()
                 response.status_code = 200
                 response.raise_for_status.return_value = None
@@ -108,7 +108,7 @@ class TestRemoteConversation:
         return mock_client_instance
 
     def create_mock_conversation_response(self, conversation_id: str | None = None):
-        """Create mock conversation creation response."""
+        """创建模拟对象对话创建响应。"""
         if conversation_id is None:
             conversation_id = str(uuid.uuid4())
 
@@ -122,7 +122,7 @@ class TestRemoteConversation:
         return mock_response
 
     def create_mock_events_response(self, events: list | None = None):
-        """Create mock events API response."""
+        """创建模拟对象事件 API 响应。"""
         if events is None:
             events = []
 
@@ -149,14 +149,14 @@ class TestRemoteConversation:
         status: str = "finished",
         **values,
     ):
-        """Install a side effect that fires a full-state WS event on the first
-        REST GET poll after POST /run.
+        """安装一个副作用，在第一个事件上触发全状态 WS 事件
+        REST GET 在 POST /run. 之后进行投票
 
-        The event is fired from the GET side effect (inside
-        _wait_for_run_completion, after _run_armed is set) rather than from the
-        POST side effect. Firing from POST races _run_armed.set(), which follows
-        the POST return, so the event would be silently discarded by
-        run_complete_callback's arming guard.
+        该事件是从 GET 副作用（在设置 _run_armed 之后，在 _wait_for_run_completion 内
+        ）触发的，而不是从 POST 副作用
+        触发的。 从 POST 比赛 _run_armed.set() 开火，紧接着 POST 返回，因此该事件将被
+         run_complete_callback 的
+        武装警卫默默地丢弃。
         """
         ws_callback = [lambda event: None]
         original_side_effect = mock_client_instance.request.side_effect
@@ -210,7 +210,7 @@ class TestRemoteConversation:
         assert conversation.id == cid
         conversation.close()
         assert all(call.args[0] == "GET" for call in client.request.call_args_list)
-        client.close.assert_not_called()  # The caller still owns the workspace.
+        client.close.assert_not_called()  # 调用者仍然拥有工作区。
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
@@ -279,11 +279,10 @@ class TestRemoteConversation:
     def test_constructor_attach_restores_persisted_tool_modules(
         self, restore_tool_registrations, mock_ws_client
     ):
-        """The ``RemoteConversation(conversation_id=...)`` path must also restore.
+        """``RemoteConversation(conversation_id=...)`` 路径也必须恢复。
 
-        ``Conversation(..., conversation_id=...)`` routes here rather than
-        through ``attach``/``create``, so skipping the restore would leave the
-        persisted tools unregistered and their events undeserializable.
+        ``Conversation(..., conversation_id=...)`` 在此路由而不是通过 ``attach``
+        /``create``，因此跳过恢复将使已持久化工具未注册且其事件不可反序列化。
         """
         mock_ws_client.return_value.wait_until_ready.return_value = True
         cid = uuid.uuid4()
@@ -311,7 +310,7 @@ class TestRemoteConversation:
         restore_tool_registrations.assert_called_once_with(
             {"TerminalTool": "openhands.tools.terminal.definition"}
         )
-        # An attach must not create a conversation.
+        # 附加不得创建对话。
         assert not [
             call
             for call in client.request.call_args_list
@@ -418,16 +417,16 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_initialization_new_conversation(self, mock_ws_client):
-        """Test RemoteConversation initialization with new conversation."""
-        # Set up mock client
+        """使用新对话测试 RemoteConversation 初始化。"""
+        # 设置模拟对象个客户端
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
-        # Mock WebSocket client
+        # 模拟对象 WebSocket 客户端
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create RemoteConversation
+        # 创建RemoteConversation
         conversation = RemoteConversation(
             agent=self.agent,
             workspace=self.workspace,
@@ -435,16 +434,16 @@ class TestRemoteConversation:
             stuck_detection=True,
         )
 
-        # Verify WebSocket client was created and started
+        # 验证 WebSocket 客户端已创建并启动
         mock_ws_client.assert_called_once()
         mock_ws_instance.start.assert_called_once()
 
-        # Verify conversation properties
+        # 验证会话属性
         assert conversation.id == uuid.UUID(conversation_id)
         assert conversation.workspace.host == self.host
         assert conversation.max_iteration_per_run == 100
 
-        # Verify POST was called to create the conversation
+        # 验证 POST 被调用以创建对话
         post_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -454,9 +453,9 @@ class TestRemoteConversation:
             "Should have made exactly one POST call to create conversation"
         )
 
-        # Verify GET was called to fetch events (RemoteEventsList initialization)
-        # This happens in RemoteEventsList._do_full_sync() which is called
-        # during RemoteState initialization
+        # 验证 GET 被调用来获取事件（RemoteEventsList 初始化） 这发生在
+        # RemoteEventsList._do_full_sync() 中，在 RemoteState 初始化期间调用
+        #
         get_events_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -542,9 +541,9 @@ class TestRemoteConversation:
     def test_remote_conversation_plugin_source_redacted_placeholder_kept(
         self, mock_ws_client
     ):
-        """The create payload masks inline plugin-source creds but keeps ${VAR}
-        placeholders, so the server clones private plugins via secret expansion
-        without raw credentials crossing the wire."""
+        """create 载荷屏蔽内联插件源信用但保留 ${VAR}
+        占位符，因此服务器通过机密扩展克隆私有插件，而无需原始凭据跨越线路。
+        """
         from openhands.sdk.plugin import PluginSource
 
         conversation_id = str(uuid.uuid4())
@@ -576,7 +575,7 @@ class TestRemoteConversation:
     )
     def test_remote_conversation_user_id_none_sends_explicit_null(self, mock_ws_client):
         """user_id=None sends an explicit null key (not omitted) so the server
-        receives a consistent payload regardless of whether user_id was supplied."""
+        无论是否提供 user_id，都会收到一致的载荷。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
         mock_ws_client.return_value = Mock()
@@ -725,28 +724,28 @@ class TestRemoteConversation:
     def test_remote_conversation_initialization_existing_conversation(
         self, mock_ws_client
     ):
-        """Test RemoteConversation initialization with existing conversation."""
-        # Mock the workspace client directly
+        """使用现有对话测试 RemoteConversation 初始化。"""
+        # 模拟对象工作区直接客户端
         conversation_id = uuid.uuid4()
         mock_client_instance = self.setup_mock_client(
             conversation_id=str(conversation_id)
         )
 
-        # Mock WebSocket client
+        # 模拟对象 WebSocket 客户端
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create RemoteConversation with existing ID
+        # 使用现有 ID 创建 RemoteConversation
         conversation = RemoteConversation(
             agent=self.agent,
             workspace=self.workspace,
             conversation_id=conversation_id,
         )
 
-        # Verify conversation ID is set correctly
+        # 验证对话 ID 设置正确
         assert conversation.id == conversation_id
 
-        # Verify no POST call was made to create a new conversation
+        # 验证没有进行 POST 呼叫来创建新对话
         post_create_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -756,7 +755,7 @@ class TestRemoteConversation:
             "Should not create a new conversation when ID is provided"
         )
 
-        # Verify GET call was made to validate existing conversation
+        # 验证已拨打 GET 电话以验证现有对话
         get_conversation_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -767,7 +766,7 @@ class TestRemoteConversation:
             "Should have made exactly one GET call to validate existing conversation"
         )
 
-        # Verify GET was called to fetch events (RemoteEventsList initialization)
+        # 验证调用 GET 来获取事件（RemoteEventsList 初始化）
         get_events_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -784,7 +783,7 @@ class TestRemoteConversation:
     def test_remote_conversation_initialization_nonexistent_conversation_creates_new(
         self, mock_ws_client
     ):
-        """Test RemoteConversation creates conversation when ID doesn't exist."""
+        """当 ID 不存在时，测试 RemoteConversation 创建对话。"""
         conversation_id = uuid.uuid4()
         mock_client_instance = Mock()
         self.workspace._client = mock_client_instance
@@ -795,7 +794,7 @@ class TestRemoteConversation:
         mock_events_response = self.create_mock_events_response()
 
         def request_side_effect(method, url, **kwargs):
-            # GET for specific conversation returns 404
+            # GET 对于特定对话返回 404
             if method == "GET" and url == f"/api/conversations/{conversation_id}":
                 response = Mock()
                 response.status_code = 404
@@ -825,17 +824,17 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create RemoteConversation with a non-existent ID
+        # 使用不存在的 ID 创建 RemoteConversation
         conversation = RemoteConversation(
             agent=self.agent,
             workspace=self.workspace,
             conversation_id=conversation_id,
         )
 
-        # Verify conversation ID is set correctly
+        # 验证对话 ID 设置正确
         assert conversation.id == conversation_id
 
-        # Verify GET call was made to check if conversation exists
+        # 验证已拨打 GET 电话以检查对话是否存在
         get_conversation_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -846,7 +845,7 @@ class TestRemoteConversation:
             "Should have made exactly one GET call to check if conversation exists"
         )
 
-        # Verify POST call was made to create the conversation
+        # 验证已拨打 POST 电话来创建对话
         post_create_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -856,7 +855,7 @@ class TestRemoteConversation:
             "Should have made exactly one POST call to create the conversation"
         )
 
-        # Verify the POST payload contains the conversation_id
+        # 验证 POST 载荷包含 conversation_id
         post_call = post_create_calls[0]
         payload = post_call[1].get("json", {})
         assert payload.get("conversation_id") == str(conversation_id), (
@@ -914,20 +913,21 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_send_message_string(self, mock_ws_client):
-        """Test sending a string message."""
-        # Setup mocks
+        """测试发送字符串消息。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and send message
+        # 创建对话并发送消息
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         conversation.send_message("Hello, world!")
 
-        # Verify message API call was made (the exact payload structure may vary)
-        # Check that a POST was made to the events endpoint
+        # 验证已进行消息 API 调用（确切的载荷结构可能会有所不同） 检查是否已对事件端点进
+        # 行了 POST
+        #
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -942,15 +942,15 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_send_message_object(self, mock_ws_client):
-        """Test sending a Message object."""
-        # Setup mocks
+        """测试发送 Message 对象。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and send message
+        # 创建对话并发送消息
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
         message = Message(
@@ -959,8 +959,9 @@ class TestRemoteConversation:
         )
         conversation.send_message(message)
 
-        # Verify message API call was made (the exact payload structure may vary)
-        # Check that a POST was made to the events endpoint
+        # 验证已进行消息 API 调用（确切的载荷结构可能会有所不同） 检查是否已对事件端点进
+        # 行了 POST
+        #
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -975,8 +976,8 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_send_message_invalid_role(self, mock_ws_client):
-        """Test sending a message with invalid role raises assertion error."""
-        # Setup mocks
+        """测试发送具有无效角色的消息会引发断言错误。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -989,12 +990,12 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation
+        # 创建对话
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Try to send message with invalid role
+        # 尝试发送角色无效的消息
         invalid_message = Message(
-            role="assistant",  # Only "user" role is allowed
+            role="assistant",  # 仅允许“用户”角色
             content=[TextContent(text="Invalid role message")],
         )
 
@@ -1010,7 +1011,7 @@ class TestRemoteConversation:
     def test_remote_conversation_generate_title_reconciles_locally(
         self, mock_ws_client, mock_generate_title
     ):
-        """generate_title uses reconciled local events instead of a REST endpoint."""
+        """generate_title 使用协调的本地事件而不是 REST 端点。"""
         conversation_id = str(uuid.uuid4())
         user_event = MessageEvent(
             source="user",
@@ -1092,8 +1093,8 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run(self, mock_ws_client):
-        """Test running the conversation."""
-        # Setup mocks
+        """测试运行对话。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
         ws_callback = self.install_post_run_full_state(
@@ -1103,12 +1104,12 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and run
+        # 创建对话并运行
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         ws_callback[0] = mock_ws_client.call_args.kwargs["callback"]
         conversation.run()
 
-        # Verify run API call
+        # 验证 run API 调用
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1121,22 +1122,23 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_already_running(self, mock_ws_client):
-        """Test running when conversation is already running (409 response)."""
-        # Setup mocks
+        """当对话已经运行时测试运行（409 响应）。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
         ws_callback = [lambda event: None]
 
-        # Override the default request side_effect to return 409 for /run endpoint.
-        # The full-state completion event fires on the first GET poll (after arming)
-        # rather than inline with the POST, since _run_armed is set after POST returns.
+        # 覆盖默认请求 side_effect，为 /run 端点返回 409。 全状态完成事件在第一个 GET 轮
+        # 询（启动后）上触发，而不是与 POST 内联，因为 _run_armed 是在 POST 返回后设置的
+        # 。
+        #
         original_side_effect = mock_client_instance.request.side_effect
         fired = [False]
 
         def custom_side_effect(method, url, **kwargs):
             if method == "POST" and "/run" in url:
                 mock_run_response = Mock()
-                mock_run_response.status_code = 409  # Already running
+                mock_run_response.status_code = 409  # 已经运行
                 mock_run_response.raise_for_status.return_value = None
                 return mock_run_response
             resp = original_side_effect(method, url, **kwargs)
@@ -1154,13 +1156,13 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and run
+        # 创建对话并运行
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         ws_callback[0] = mock_ws_client.call_args.kwargs["callback"]
-        # With blocking=True (default), it will poll until finished
-        conversation.run()  # Should not raise an exception
+        # 当blocking=True（默认）时，它将轮询直到完成
+        conversation.run()  # 不应引发异常
 
-        # Verify run API call was made
+        # 验证已进行 run API 调用
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1173,19 +1175,19 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_non_blocking(self, mock_ws_client):
-        """Test running the conversation with blocking=False returns immediately."""
-        # Setup mocks
+        """测试运行带有blocking=False 的对话会立即返回。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and run with blocking=False
+        # 创建对话并以阻塞=False运行
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         conversation.run(blocking=False)
 
-        # Verify run API call was made
+        # 验证已进行 run API 调用
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1194,14 +1196,14 @@ class TestRemoteConversation:
         ]
         assert len(request_calls) == 1, "Should have made exactly one POST call"
 
-        # Verify NO polling GET calls were made (only the initial events fetch)
+        # 验证未进行任何轮询 GET 调用（仅获取初始事件）
         get_conversation_calls = [
             call
             for call in mock_client_instance.request.call_args_list
             if call[0][0] == "GET"
             and call[0][1] == f"/api/conversations/{conversation_id}"
         ]
-        # Should be 0 because blocking=False skips polling
+        # 应为 0，因为blocking=False 会跳过轮询
         assert len(get_conversation_calls) == 0, (
             "Should not poll for status when blocking=False"
         )
@@ -1212,16 +1214,16 @@ class TestRemoteConversation:
     def test_remote_conversation_run_blocking_polls_until_finished(
         self, mock_ws_client
     ):
-        """Test that blocking=True waits for the post-run state snapshot.
+        """测试blocking=True是否等待运行后状态快照。
 
-        REST FINISHED is only a health signal; the server's full-state
-        ConversationStateUpdateEvent is the authoritative run-complete signal.
+        RESTFINISHED只是一个健康信号； 服务器的完整状态ConversationStateUpdateEvent是
+        权威的运行完成信号。
         """
-        # Setup mocks
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
-        # Track poll count and return "running" for first 2 polls, then "finished"
+        # 跟踪民意调查计数并为前 2 个民意调查返回“正在运行”，然后返回“已完成”
         poll_count = [0]
         original_side_effect = mock_client_instance.request.side_effect
         ws_callback = [lambda event: None]
@@ -1251,13 +1253,14 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and run with blocking=True
+        # 创建对话并以阻塞=True运行
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         ws_callback[0] = mock_ws_client.call_args.kwargs["callback"]
-        conversation.run(blocking=True, poll_interval=0.01)  # Fast polling for test
+        conversation.run(blocking=True, poll_interval=0.01)  # 快速轮询测试
 
-        # Verify REST FINISHED alone did not complete the run; the run returned
-        # only after the post-run full-state snapshot was delivered.
+        # 单独验证RESTFINISHED没有完成运行； 仅在交付运行后完整状态快照后，运行才会返回
+        # 。
+        #
         assert poll_count[0] == 5, (
             f"Should have polled until the post-run snapshot arrived, got "
             f"{poll_count[0]} poll(s)"
@@ -1269,7 +1272,7 @@ class TestRemoteConversation:
     def test_remote_conversation_run_returns_on_waiting_for_confirmation_snapshot(
         self, mock_ws_client
     ):
-        """A post-run non-running full-state snapshot completes blocking run()."""
+        """运行后非运行全状态快照完成阻塞run()。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
         ws_callback = [lambda event: None]
@@ -1279,8 +1282,9 @@ class TestRemoteConversation:
         def custom_side_effect(method, url, **kwargs):
             if method == "GET" and url == f"/api/conversations/{conversation_id}":
                 if first_poll[0]:
-                    # Fire the full-state event on the first REST poll, which runs
-                    # inside _wait_for_run_completion() after _run_armed is set.
+                    # 在第一个 REST 轮询上触发全状态事件，该轮询在设置 _run_armed 后在
+                    # _wait_for_run_completion() 内运行。
+                    #
                     first_poll[0] = False
                     ws_callback[0](self.full_state_event("waiting_for_confirmation"))
                 response = Mock()
@@ -1311,7 +1315,7 @@ class TestRemoteConversation:
     def test_remote_conversation_run_preserves_post_run_snapshot_after_running_poll(
         self, mock_ws_client
     ):
-        """An in-flight RUNNING REST poll must not discard a post-run snapshot."""
+        """进行中的 RUNNING REST 轮询不得丢弃运行后快照。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
         ws_callback = [lambda event: None]
@@ -1350,34 +1354,34 @@ class TestRemoteConversation:
     def test_remote_conversation_run_ws_finished_is_only_a_hint_not_terminal(
         self, mock_ws_client
     ):
-        """A WS-delivered FINISHED status must NOT terminate ``run()`` on its own.
+        """WS 交付的 FINISHED 状态必须不自行终止 ``run()``。
 
-        Regression test for the stop-hook race we observed in retry-16
-        (run 25497962453, conversation dd86d184…, agourlay/zip-password-finder):
+        回归测试我们在重试-16 中观察到的 stop-hook 竞赛（运行 25497962453，对话
+        dd86d184…，agourlay/zip-passw
+        ord-finder）：
 
-        Server-side timeline within a single ``LocalConversation.run`` loop:
-          1. ``agent.step()`` sets ``execution_status = FINISHED``; that
-             status update event is broadcast over the WebSocket.
-          2. **Lock released** at end of iteration. Client observes
-             FINISHED via WS.
-          3. Next loop iteration acquires lock, runs stop hooks, hook
-             returns rc=2, status reverts to RUNNING, ``continue``.
+        单个 ``LocalConversation.run`` 循环内的服务器端时间线：
+          1. ``agent.step()``套``execution_status = FINISHED``； 该状态更新事件通过
+          WebSocket 广播。
+          2. **锁在迭代结束时释放**。 客户端通过 WS 观察 FINISHED。
+          3. 下一个循环迭代获取锁，运行停止钩子，钩子返回rc=2，状态恢复为RUNNING，
+          ``continue``。
 
-        With the old implementation, step 2 caused the client's
-        ``_wait_for_run_completion`` to ``return`` immediately on the
-        WS-delivered FINISHED — racing the server's hook eval and tearing
-        down the agent-server pod (via ``workspace_keepalive`` exit) before
-        the agent could consume its iteration budget.
+        在旧的实现中，步骤 2 导致客户端
+        ``_wait_for_run_completion`` to ``return`` 立即在 WS-delivered 上 FINISHED —
+        按照服务器
+        钩子的评估和拆除智能体-server pod (via ``workspace_keepalive`` 在之前智能体它
+        可以消耗其迭代预算。
 
-        The fix: per-field WS FINISHED is ignored for completion. Only the
-        post-run full-state snapshot is authoritative.
+        修复：每个字段 WS FINISHED 在完成时被忽略。 只有运行后的完整状态快照才是权威
+        的。
         """
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
-        # REST poll script: the first 3 polls show the server has flipped
-        # *back* to RUNNING (the stop-hook revert); subsequent polls show
-        # the agent's second finish, which should be honored.
+        # REST 轮询脚本：前 3 个轮询显示服务器已翻转
+        # *back* 到 RUNNING（停止钩子恢复）； 随后的民意调查显示
+        # 智能体的第二次完成，应该受到尊重。
         rest_script = [
             "running",
             "running",
@@ -1426,10 +1430,10 @@ class TestRemoteConversation:
 
         conversation.run(blocking=True, poll_interval=0.01)
 
-        # Must have polled past the 3 RUNNING REST responses (race window),
-        # then waited for the post-run full-state snapshot. Pre-fix this would
-        # have returned on the WS FINISHED injected after the /run trigger with
-        # poll_count == 0.
+        # 必须轮询超过 3 RUNNING REST 响应（竞争窗口），然后等待运行后完整状态快照。 预
+        # 先修复此问题将在 /run 触发器之后注入的 WS FINISHED 上返回，其中 poll_count ==
+        # 0。
+        #
         assert poll_count[0] == len(rest_script), (
             f"Run() returned before the post-run snapshot. poll_count={poll_count[0]}"
         )
@@ -1440,7 +1444,7 @@ class TestRemoteConversation:
     def test_remote_conversation_run_rest_finished_revert_waits_for_full_state(
         self, mock_ws_client
     ):
-        """Do not return from REST FINISHED when a hook can still veto it."""
+        """当钩子仍然可以否决它时，不要从 REST FINISHED 返回。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1497,7 +1501,7 @@ class TestRemoteConversation:
     def test_remote_conversation_run_ws_error_still_terminates_immediately(
         self, mock_ws_client
     ):
-        """ERROR via WS still raises immediately (not subject to hook reverts)."""
+        """ERROR 通过 WS 仍然会立即引发（不受钩子恢复的影响）。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1539,13 +1543,12 @@ class TestRemoteConversation:
     def test_remote_conversation_run_stale_pre_run_snapshot_is_ignored(
         self, mock_ws_client
     ):
-        """A full-state WS snapshot received before run() POST must not complete run().
+        """在 run() POST 之前收到的全状态 WS 快照不得完成 run()。
 
-        The WS subscription delivers an initial full-state snapshot during
+        WS 订阅在以下期间发送初始完整状态快照：
         connect(). If that snapshot carries a non-RUNNING status (e.g. "idle"),
-        it must NOT be treated as the post-run completion signal — _run_armed
-        is not yet set at that point. run() should only complete once a
-        full-state snapshot arrives after the POST /run call.
+        它必须不被视为运行后完成信号 _run_armed 尚未在此处设置。 run() 只有在全量状态
+        快照到达后才应完成 POST  /run call.
         """
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
@@ -1558,7 +1561,7 @@ class TestRemoteConversation:
             if method == "GET" and url == f"/api/conversations/{conversation_id}":
                 poll_count[0] += 1
                 if poll_count[0] == 1:
-                    # Fire the real post-run snapshot on the first REST poll (armed).
+                    # 在第一次REST轮次（已武装）时，执行真实后的快照。
                     ws_callback[0](self.full_state_event("finished"))
             return resp
 
@@ -1569,17 +1572,17 @@ class TestRemoteConversation:
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         ws_callback[0] = mock_ws_client.call_args.kwargs["callback"]
 
-        # Inject a stale "idle" snapshot directly into the queue as if it
-        # arrived from the initial subscription, before run() is called.
-        # _run_armed is not set yet, so run_complete_callback would discard it,
-        # but simulating a direct queue put lets us verify the guard works end-to-end.
+        # 在调用 run() 之前，将过时的“空闲”快照直接注入队列，就好像它来自初始订阅一样。
+        # _run_armed 尚未设置，因此 run_complete_callback 会丢弃它，但模拟直接队列放置可
+        # 以让我们验证守卫端到端的工作情况。
+        #
         ws_callback[0](self.full_state_event("idle"))
         assert conversation._terminal_status_queue.empty(), (
             "Stale pre-run snapshot must not enter the queue (_run_armed not set)"
         )
 
-        # run() should complete via the first REST poll's full-state event, not
-        # the stale pre-run snapshot.
+        # run() 应通过第一个 REST 轮询的完整状态事件完成，而不是过时的预运行快照。
+        #
         conversation.run(blocking=True, poll_interval=0.01)
         assert poll_count[0] >= 1
 
@@ -1589,15 +1592,15 @@ class TestRemoteConversation:
     def test_remote_conversation_run_rest_hard_fallback_when_ws_silent(
         self, mock_ws_client
     ):
-        """run() completes via REST hard-fallback when WS snapshot never arrives.
+        """当 WS 快照从未到达时，run() 通过 REST 硬回退方案完成。
 
-        When the post-run WS full-state snapshot is never delivered (e.g. socket
-        dropped after the run finished), the client should not hang until the
-        overall timeout. After TERMINAL_HARD_FALLBACK_SECS of consecutive REST
-        terminal polls it must accept the status and return.
+        当运行后 WS 全状态快照从未交付时 (e.g. 运行完成后套接字被丢弃），客户端不应该
+        挂起直到整体超时。 在连续 REST 个终端轮询
+        TERMINAL_HARD_FALLBACK_SECS 后，它必须接受状态并返回。
 
-        time.monotonic is patched to advance 10 s per call so the 30 s threshold
-        is crossed after ~3 REST polls (real wall time ~poll_interval * 3).
+        time.monotonic 被修补为每次调用提前 10 秒，因此在 ~3 REST 轮询后超过 30 秒阈
+        值（实际挂墙时间 ~poll_interval
+        * 3）。
         """
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
@@ -1608,7 +1611,7 @@ class TestRemoteConversation:
             resp = original_side_effect(method, url, **kwargs)
             if method == "GET" and url == f"/api/conversations/{conversation_id}":
                 poll_count[0] += 1
-                # Never fire the post-run WS snapshot — simulate silent socket.
+                # 切勿触发运行后 WS 快照 — 模拟静默套接字。
             return resp
 
         mock_client_instance.request.side_effect = custom_side_effect
@@ -1616,8 +1619,9 @@ class TestRemoteConversation:
 
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Patch time.monotonic to advance 10 s per call so the 30 s hard-fallback
-        # threshold is crossed after ~3 REST polls.
+        # 修补 time.monotonic 以将每次调用提前 10 秒，以便在 ~3 REST 轮询后跨越 30 秒硬
+        # 回退方案阈值。
+        #
         call_counter = [0]
         base = time.monotonic()
 
@@ -1639,7 +1643,7 @@ class TestRemoteConversation:
     def test_remote_conversation_run_full_state_updates_cached_state(
         self, mock_ws_client
     ):
-        """Post-run full-state snapshots update cached state before run() returns."""
+        """运行后全状态快照会在 run() 返回之前更新缓存状态。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1726,7 +1730,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_error_status_raises(self, mock_ws_client):
-        """Test that error status raises ConversationRunError."""
+        """测试错误状态是否升高 ConversationRunError。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1757,7 +1761,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_stuck_status_raises(self, mock_ws_client):
-        """Test that stuck status raises ConversationRunError."""
+        """测试卡住状态是否升高 ConversationRunError。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1788,7 +1792,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_404_raises(self, mock_ws_client):
-        """Test that 404s during polling raise ConversationRunError."""
+        """测试轮询期间 404 是否引发 ConversationRunError。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1814,14 +1818,14 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_run_timeout(self, mock_ws_client):
-        """Test that run() raises ConversationRunError on timeout."""
+        """测试 run() 在超时上引发 ConversationRunError。"""
         from openhands.sdk.conversation.exceptions import ConversationRunError
 
-        # Setup mocks
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
-        # Always return "running" status to trigger timeout
+        # 始终返回“运行”状态以触发超时
         original_side_effect = mock_client_instance.request.side_effect
 
         def custom_side_effect(method, url, **kwargs):
@@ -1840,33 +1844,33 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and run with very short timeout
+        # 创建对话并以非常短的超时运行
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
         with pytest.raises(ConversationRunError) as exc_info:
             conversation.run(blocking=True, poll_interval=0.01, timeout=0.05)
 
-        # Verify the error contains timeout information
+        # 验证错误包含超时信息
         assert "timed out" in str(exc_info.value).lower()
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_set_confirmation_policy(self, mock_ws_client):
-        """Test setting confirmation policy."""
-        # Setup mocks
+        """测试设置确认策略。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and set policy
+        # 创建对话并设置策略
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         policy = AlwaysConfirm()
         conversation.set_confirmation_policy(policy)
 
-        # Verify policy API call
+        # 验证策略 API 调用
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1882,19 +1886,19 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_reject_pending_actions(self, mock_ws_client):
-        """Test rejecting pending actions."""
-        # Setup mocks
+        """测试拒绝待处理的操作。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and reject actions
+        # 创建对话并拒绝操作
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         conversation.reject_pending_actions("Custom rejection reason")
 
-        # Verify reject API call
+        # 验证拒绝 API 通话
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1910,19 +1914,19 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_pause(self, mock_ws_client):
-        """Test pausing the conversation."""
-        # Setup mocks
+        """暂停对话。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and pause
+        # 创建对话并暂停
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         conversation.pause()
 
-        # Verify pause API call
+        # 验证暂停 API 通话
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -1935,7 +1939,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_interrupt(self, mock_ws_client):
-        """interrupt() must POST to /interrupt, not degrade to /pause."""
+        """interrupt() 必须 POST 到 /interrupt，而不是降级到 /pause."""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1961,7 +1965,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_load_plugin(self, mock_ws_client):
-        """load_plugin() POSTs the plugin reference to the server."""
+        """load_plugin () POSTs 插件引用服务器。"""
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
@@ -1984,18 +1988,18 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_update_secrets(self, mock_ws_client):
-        """Test updating secrets."""
-        # Setup mocks
+        """测试更新机密。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and update secrets
+        # 创建对话并更新机密
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Test with string secrets
+        # 使用字符串机密进行测试
         from typing import cast
 
         from openhands.sdk.conversation.secret_registry import SecretValue
@@ -2009,7 +2013,7 @@ class TestRemoteConversation:
         )
         conversation.update_secrets(secrets)
 
-        # Verify secrets API call
+        # 验证机密 API 通话
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -2024,15 +2028,15 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_update_secrets_callable(self, mock_ws_client):
-        """Test updating secrets with callable values."""
-        # Setup mocks
+        """测试更新机密的可调用值。"""
+        # 设置模拟对象
         conversation_id = str(uuid.uuid4())
         mock_client_instance = self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and update secrets with callable
+        # 创建对话并使用可调用更新机密
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
         def get_secret():
@@ -2044,7 +2048,7 @@ class TestRemoteConversation:
         }
         conversation.update_secrets(secrets)
 
-        # Verify secrets API call with resolved callable
+        # 验证机密 API 调用已解析的可调用对象
         request_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -2059,8 +2063,8 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_close(self, mock_ws_client):
-        """Test closing the conversation."""
-        # Setup mocks
+        """测试关闭对话。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2073,22 +2077,23 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation and close
+        # 创建对话并结束
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
         conversation.close()
 
-        # Verify WebSocket client was stopped
+        # 验证 WebSocket 客户端已停止
         mock_ws_instance.stop.assert_called_once()
 
-        # Verify HTTP client was NOT closed because it's shared with the workspace.
-        # The workspace owns the client and will close it during its own cleanup.
+        # 验证 HTTP 客户端已不关闭，因为它与工作区共享。 工作区拥有该客户端，并将在其自
+        # 己的清理过程中关闭它。
+        #
         mock_client_instance.close.assert_not_called()
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_close_reports_accumulated_cost_to_workspace(self, mock_ws_client):
-        """Closing hands the accumulated LLM cost to the workspace."""
+        """平仓将累积的 LLM 成本变为工作区。"""
         self.setup_mock_client()
         mock_ws_client.return_value = Mock()
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
@@ -2107,7 +2112,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_close_does_not_fetch_state_to_read_cost(self, mock_ws_client):
-        """Closing never fetches state over HTTP — the server may already be gone."""
+        """关闭永远不会获取超过 HTTP 的状态——服务器可能已经消失了。"""
         mock_client_instance = self.setup_mock_client()
         mock_ws_client.return_value = Mock()
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
@@ -2121,7 +2126,7 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_close_leaves_cost_unreported_when_state_has_no_stats(self, mock_ws_client):
-        """An unknown cost stays unreported rather than being reported as 0.0."""
+        """未知成本保持未报告状态，而不是报告为 0.0。"""
         self.setup_mock_client()
         mock_ws_client.return_value = Mock()
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
@@ -2137,24 +2142,24 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_close_reports_streamed_cost_on_error_only_wakeup(self, mock_ws_client):
-        """The failure path reports this run's spend, not the subscribe snapshot.
+        """故障路径报告本次运行的支出，而不是订阅快照。
 
-        ERROR/STUCK wake run() from a per-field update, so close() runs before
-        the server's post-run full-state snapshot lands. Cost is still correct
-        because the agent server streams a "stats" update after every LLM
-        response (EventService._setup_stats_streaming).
+        ERROR/STUCK 从每个字段的更新中唤醒 run()，因此 close() 在服务器的运行后全状态
+        快照落地之前运行。 成本仍然是正确的，因为 Agen
+        t Server 在每次 LLM 响应 (EventService._setup_stats_streaming) 后都会流式传输
+        “统计”更新。
         """
         self.setup_mock_client()
         mock_ws_client.return_value = Mock()
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Subscribe-time full-state snapshot: stats exist, but cost is still 0.
+        # 订阅时全状态快照：统计信息存在，但成本仍为 0。
         conversation.state.update_state_from_event(
             self.full_state_event(
                 "running", stats=ConversationStats().model_dump(mode="json")
             )
         )
-        # Server streams stats after the run's LLM response.
+        # 服务器在运行的 LLM 响应后流式传输统计信息。
         metrics = Metrics(model_name="gpt-4o-mini")
         metrics.add_cost(0.75)
         conversation.state.update_state_from_event(
@@ -2163,7 +2168,7 @@ class TestRemoteConversation:
                 value=ConversationStats(usage_to_metrics={"agent": metrics}),
             )
         )
-        # Run fails: only the per-field status update arrives before close().
+        # 运行失败：只有每个字段的状态更新在 close() 之前到达。
         conversation.state.update_state_from_event(
             ConversationStateUpdateEvent(key="execution_status", value="error")
         )
@@ -2176,9 +2181,9 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_cleanup_lifecycle_flags(self, mock_ws_client):
-        """RemoteConversation cleanup updates declared lifecycle flags.
+        """RemoteConversation 清理更新声明的生命周期标志。
 
-        Verifies that close() updates flags and is idempotent.
+        验证 close() 更新标志并且是幂等的。
         """
         conversation_id = uuid.uuid4()
         self.setup_mock_client(str(conversation_id))
@@ -2203,8 +2208,8 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_stuck_detector_not_implemented(self, mock_ws_client):
-        """Test that stuck_detector property raises NotImplementedError."""
-        # Setup mocks
+        """测试 stuck_detector 属性是否引发 NotImplementedError。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2217,10 +2222,10 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation
+        # 创建对话
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Accessing stuck_detector should raise NotImplementedError
+        # 访问 stuck_detector 应该引发 NotImplementedError
         with pytest.raises(
             NotImplementedError, match="stuck detection is not available"
         ):
@@ -2230,8 +2235,8 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_with_callbacks(self, mock_ws_client):
-        """Test RemoteConversation with custom callbacks."""
-        # Setup mocks
+        """使用自定义回调测试 RemoteConversation。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2244,31 +2249,31 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create custom callback
+        # 创建自定义回调
         callback_calls = []
 
         def custom_callback(event):
             callback_calls.append(event)
 
-        # Create conversation with callback
+        # 与回调创建对话
         _conversation = RemoteConversation(
             agent=self.agent,
             workspace=self.workspace,
             callbacks=[custom_callback],
         )
 
-        # Verify WebSocket client was created with callback
-        # The callback should be a composed callback that includes the custom callback
+        # 验证 WebSocket 客户端是使用回调创建的回调应该是包含自定义回调的组合回调
+        #
         mock_ws_client.assert_called_once()
         call_args = mock_ws_client.call_args
-        assert "callback" in call_args[1]  # Should have a callback parameter
+        assert "callback" in call_args[1]  # 应该有一个回调参数
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_with_visualize(self, mock_ws_client):
-        """Test RemoteConversation with visualizer=DefaultConversationVisualizer()."""
-        # Setup mocks
+        """使用 Visualizer=DefaultConversationVisualizer() 测试 RemoteConversation。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2281,28 +2286,28 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create a custom visualizer instance
+        # 创建自定义可视化工具实例
         custom_visualizer = DefaultConversationVisualizer()
 
-        # Create conversation with visualizer=DefaultConversationVisualizer()
+        # 使用 Visualizer=DefaultConversationVisualizer() 创建对话
         conversation = RemoteConversation(
             agent=self.agent,
             workspace=self.workspace,
             visualizer=custom_visualizer,
         )
 
-        # Verify the custom visualizer instance is used directly
+        # 验证是否直接使用自定义可视化工具实例
         assert conversation._visualizer is custom_visualizer
 
-        # Verify the visualizer's on_event callback is in the callbacks list
+        # 验证可视化工具的 on_event 回调是否在回调列表中
         assert custom_visualizer.on_event in conversation._callbacks
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_host_url_normalization(self, mock_ws_client):
-        """Test that host URL is normalized correctly."""
-        # Setup mocks
+        """测试主机 URL 是否已正确标准化。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2315,7 +2320,7 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Test with trailing slash
+        # 使用尾部斜杠进行测试
         host_with_slash = "http://localhost:8000/"
         workspace_with_slash = RemoteWorkspace(host=host_with_slash, working_dir="/tmp")
         workspace_with_slash._client = mock_client_instance
@@ -2323,15 +2328,15 @@ class TestRemoteConversation:
             agent=self.agent, workspace=workspace_with_slash
         )
 
-        # Verify trailing slash was removed and workspace host was normalized
+        # 验证尾部斜杠已删除且工作区主机已标准化
         assert conversation.workspace.host == "http://localhost:8000"
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_execute_tool_not_implemented(self, mock_ws_client):
-        """Test that execute_tool raises NotImplementedError for RemoteConversation."""
-        # Setup mocks
+        """测试 execute_tool 为 RemoteConversation 引发 NotImplementedError。"""
+        # 设置模拟对象
         mock_client_instance = self.setup_mock_client()
 
         conversation_id = str(uuid.uuid4())
@@ -2344,15 +2349,15 @@ class TestRemoteConversation:
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Create conversation
+        # 创建对话
         conversation = RemoteConversation(agent=self.agent, workspace=self.workspace)
 
-        # Create a dummy action (using a simple mock)
+        # 创建一个虚拟动作（使用简单的模拟对象）
         from unittest.mock import MagicMock
 
         mock_action = MagicMock()
 
-        # Verify execute_tool raises NotImplementedError
+        # 验证 execute_tool 加注 NotImplementedError
         with pytest.raises(NotImplementedError) as exc_info:
             conversation.execute_tool("any_tool", mock_action)
 
@@ -2362,29 +2367,29 @@ class TestRemoteConversation:
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_remote_conversation_calls_register_conversation(self, mock_ws_client):
-        """Test RemoteConversation.__init__ calls workspace.register_conversation."""
+        """测试 RemoteConversation.__init__ 调用 workspace.register_conversation。"""
         conversation_id = str(uuid.uuid4())
         self.setup_mock_client(conversation_id=conversation_id)
 
         mock_ws_instance = Mock()
         mock_ws_client.return_value = mock_ws_instance
 
-        # Patch register_conversation at the class level to verify it gets called
+        # 在类级别修补 register_conversation 以验证它是否被调用
         with patch.object(RemoteWorkspace, "register_conversation") as mock_register:
-            # Create RemoteConversation - this should call register_conversation
+            # 创建 RemoteConversation - 这应该调用 register_conversation
             _conversation = RemoteConversation(
                 agent=self.agent,
                 workspace=self.workspace,
             )
 
-            # Verify register_conversation was called with the conversation ID
+            # 验证使用对话 ID 调用 register_conversation
             mock_register.assert_called_once_with(conversation_id)
 
     @patch(
         "openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient"
     )
     def test_reconnect_replays_missed_events_to_callbacks_once(self, mock_ws_client):
-        """Events stored while the socket was down reach callbacks on reconnect."""
+        """套接字关闭时存储的事件在重新连接时达到回调。"""
 
         def user_message(text: str) -> MessageEvent:
             return MessageEvent(
@@ -2425,11 +2430,11 @@ class TestRemoteConversation:
 
         server_events.append(live)
         ws_callback(live)
-        # The socket drops; the server records two events nobody streams.
+        # 插座掉落； 服务器记录了两个无人直播的事件。
         server_events.extend([missed_1, missed_2])
 
         on_reconnect()
-        # The new subscription may still deliver an event the replay covered.
+        # 新订阅可能仍会传送重播所涵盖的事件。
         ws_callback(missed_2)
         server_events.append(after)
         ws_callback(after)

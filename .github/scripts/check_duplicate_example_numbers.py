@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Check for duplicate example numbers in the examples directory.
+检查示例目录中是否有重复的示例编号。
 
-This script ensures that within each examples subdirectory, no two files or
-folders share the same numeric prefix (e.g., two files both starting with "04_").
+此脚本确保每个示例子目录内的文件或文件夹没有相同的数字前缀（e.g，两个文件都以 "04_"
+开头）。
 
-Exit codes:
-    0 - No duplicates found
-    1 - Duplicates found
+退出代码：
+    0 - 未找到重复项 1 - 找到重复项
 """
 
 import re
@@ -18,31 +17,30 @@ from pathlib import Path
 
 def find_duplicate_numbers(examples_dir: Path) -> dict[str, list[str]]:
     """
-    Find duplicate example numbers within each subdirectory.
+    在每个子目录中查找重复的示例编号。
 
     Returns:
-        Dictionary mapping subdirectory paths to lists of duplicate entries.
-        Only includes subdirectories that have duplicates.
+        将子目录路径映射到重复条目列表的字典。 仅包含具有重复项的子目录。
     """
     duplicates: dict[str, list[str]] = {}
 
-    # Pattern to extract leading number from filename/dirname
-    # e.g., "04" from "04_foo.py"
+    # 从文件名/目录名 e.g., "04_foo.py" 中提取前导数字的模式
+    #
     number_pattern = re.compile(r"^(\d+)_")
 
     for subdir in sorted(examples_dir.iterdir()):
         if not subdir.is_dir():
             continue
 
-        # Skip hidden directories
+        # 跳过隐藏目录
         if subdir.name.startswith("."):
             continue
 
-        # Group entries by their numeric prefix
+        # 按数字前缀对条目进行分组
         number_to_entries: dict[str, list[str]] = defaultdict(list)
 
         for entry in subdir.iterdir():
-            # Skip hidden files/directories
+            # 跳过隐藏文件/目录
             if entry.name.startswith("."):
                 continue
 
@@ -51,7 +49,7 @@ def find_duplicate_numbers(examples_dir: Path) -> dict[str, list[str]]:
                 number = match.group(1)
                 number_to_entries[number].append(entry.name)
 
-        # Find numbers with multiple entries
+        # 查找包含多个条目的数字
         subdir_duplicates = []
         for number, entries in sorted(number_to_entries.items()):
             if len(entries) > 1:
@@ -65,7 +63,7 @@ def find_duplicate_numbers(examples_dir: Path) -> dict[str, list[str]]:
 
 
 def main() -> None:
-    # Find the examples directory relative to this script
+    # 找到与此脚本相关的示例目录
     script_file = Path(__file__).resolve()
     repo_root = script_file.parent.parent.parent
     examples_dir = repo_root / "examples"

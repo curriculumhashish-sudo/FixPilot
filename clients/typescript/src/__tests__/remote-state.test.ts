@@ -46,8 +46,8 @@ describe('RemoteState full_state normalization', () => {
   });
 
   it('unwraps a full_state-wrapped payload exactly once for every accessor', async () => {
-    // The server may wrap the info in `{ full_state: {...} }`. Normalization now
-    // happens once in getConversationInfo(); accessors must still read through.
+    // 服务器可以将信息包装在`{ full_state: {...} }`中。 标准化现在在 getConversationInfo() 中发生一次； 访问者仍必须通读。
+    //
     const { state } = makeState({ full_state: CONVERSATION_INFO });
 
     await expect(state.getExecutionStatus()).resolves.toBe('running');
@@ -69,9 +69,9 @@ describe('RemoteState full_state normalization', () => {
   });
 
   it('normalizes a cache that was populated with a full_state wrapper via events', async () => {
-    // Regression: state-update events can leave the cached state wrapped in a
-    // `full_state` key. The cache-hit path of getConversationInfo() must unwrap
-    // it too, otherwise accessors throw "execution_status missing".
+    // 回归：状态更新事件可以将缓存的状态封装在
+    // `full_state` 键。 getConversationInfo() 的缓存命中路径也必须将其解包，否则访问器会抛出“execution_status 丢失”。
+    //
     const fetchMock = vi.fn().mockRejectedValue(new Error('network should not be called')) as Mock;
     global.fetch = fetchMock as typeof fetch;
     const state = new RemoteState(new HttpClient({ baseUrl: 'http://example.com' }), 'abc');

@@ -1,22 +1,22 @@
-"""Stress test: many parallel sub-agents in a single conversation.
+"""压力测试：单个对话中的许多并行子智能体。
 
-Bug class this catches:
-    - Event-attribution races (tasks getting mixed sub-agent results).
-    - Pub-sub corruption when N sub-agents publish concurrently.
-    - Sub-agent registry leaks (factories never released).
-    - Tool concurrency regressions that silently serialize parallel tool calls.
+捕获的错误类：
+    - 事件归因竞赛（任务获得混合子智能体个结果）。
+    - 当 N 子智能体并发发布时，发布-订阅损坏。
+    - 子智能体注册表泄漏（工厂从未发布）。
+    - 工具并发回归，默默地序列化并行工具调用。
 
-Why a SlowTestLLM is required:
-    Stock TestLLM responds in microseconds. Eight sub-agents in serial finish
-    so fast that wall time tells us nothing about whether they actually ran in
-    parallel. Adding ~200 ms per LLM call makes the gap between serial
-    (~8 × 200 ms) and parallel (~200 ms) large enough to assert against.
+为什么需要 SlowTestLLM：
+    Stock TestLLM 在微秒内响应。 八子智能体串行完成的速度如此之快，以至于墙上的时间无
+    法告诉我们它们是否实际上是并行运行的。 每次 LLM 调用添加约 2
+    00 毫秒，使得串行（约 8 × 200 毫秒）和并行（约 200 毫秒）之间的差距足够大，足以进
+    行断言。
 
-Subtle gotcha (manager.py:314):
-    The TaskManager model_copies the sub-agent's LLM before running it.
-    ``_call_count`` (an int) is independent on the copy; ``_scripted_responses``
-    (a deque) is reference-shared. So we assert via ``remaining_responses``,
-    not ``call_count``, on the original sub-agent LLM.
+微妙的陷阱 (manager.py:314):
+    运行之前的 TaskManager model_copies 子智能体的 LLM。
+    ``_call_count``（int）独立于副本； ``_scripted_responses``（双端队列）是引用共享
+    的。 因此，我们通过
+    ``remaining_responses`` 而不是 ``call_count`` 对原始子智能体 LLM 进行断言。
 """
 
 import json
@@ -45,7 +45,7 @@ pytestmark = pytest.mark.stress
 
 @pytest.fixture(autouse=True)
 def _reset_registry():
-    """Sub-agent registry is module-global; isolate per test."""
+    """子智能体注册表是模块全局的； 每次测试隔离。"""
     _reset_registry_for_tests()
     yield
     _reset_registry_for_tests()
@@ -67,14 +67,14 @@ def _register_subagents(n: int, latency_s: float) -> list[SlowTestLLM]:
             [text_message(f"sub-agent {i} done")],
             latency_s=latency_s,
         )
-        # from_messages is typed as returning the parent TestLLM; narrow.
+        # from_messages 被输入为返回父级 TestLLM； 狭窄。
         assert isinstance(sub_llm, SlowTestLLM)
         sub_llms.append(sub_llm)
         register_agent(
             name=f"stress_subagent_{i}",
-            # `_bound=sub_llm` captures the current sub_llm at definition
-            # time; without it, all factories close over the loop variable
-            # and end up returning the last `sub_llm` only.
+            # `_bound=sub_llm` 在定义时捕获当前的 sub_llm； 如果没有它，所有工厂都会关闭
+            # 循环变量并最终仅返回最后一个 `sub_llm`。
+            #
             factory_func=lambda llm, _bound=sub_llm: Agent(llm=_bound, tools=[]),
             description=f"stress test sub-agent {i}",
         )
@@ -82,8 +82,8 @@ def _register_subagents(n: int, latency_s: float) -> list[SlowTestLLM]:
 
 
 def _build_parent_llm(n: int, latency_s: float) -> SlowTestLLM:
-    """Parent emits one Message containing n parallel task tool calls, then a
-    terminal text message after observations come back."""
+    """Parent 发出一条包含 n 个并行任务工具调用的消息，然后
+    观测结果回来后终端短信。"""
     delegations = Message(
         role="assistant",
         content=[TextContent(text="delegating")],
@@ -99,7 +99,7 @@ def _build_parent_llm(n: int, latency_s: float) -> SlowTestLLM:
     llm = SlowTestLLM.from_messages(
         [delegations, text_message("all done")], latency_s=latency_s
     )
-    # from_messages is typed as returning the parent TestLLM; narrow.
+    # from_messages 被输入为返回父级 TestLLM； 狭窄。
     assert isinstance(llm, SlowTestLLM)
     return llm
 
@@ -145,7 +145,7 @@ async def test_parallel_subagents_all_complete(
     workspace = str(tmp_path / "ws")
     (tmp_path / "ws").mkdir()
 
-    # Single-agent reference, then registry reset.
+    # 单智能体参考，然后注册表复位。
     single_wall, single_subs, single_status = await _run_once(
         conversation_service,
         client,
@@ -159,14 +159,14 @@ async def test_parallel_subagents_all_complete(
     assert single_subs[0].remaining_responses == 0
     _reset_registry_for_tests()
 
-    # Snapshot probe state between the reference run and the parallel run
-    # so the resource assertions below measure *only* the parallel run.
-    # Without this the peak/baseline include any RSS spike caused by the
-    # single-agent run, which is unrelated to the leak we're checking.
+    # 快照探测参考运行和并行运行之间的状态，因此下面的资源断言仅测量**并行运行。 如果没
+    # 有这个，峰值/基线包括由单次智能体运行引起的任何 RSS 尖峰，这与我们正在检查的泄漏无
+    # 关。
+    #
     pre_parallel_idx = len(probe.samples)
     pre_parallel_rss_mb = probe.samples[-1].rss_mb
 
-    # Now the actual n-sub-agent run.
+    # 现在实际运行 n-子智能体。
     parallel_wall, sub_llms, status = await _run_once(
         conversation_service,
         client,
@@ -177,13 +177,11 @@ async def test_parallel_subagents_all_complete(
         usage_id="stress-parent-parallel",
     )
 
-    # 1. Each sub-agent ran exactly once. We assert on remaining_responses
-    #    (drained queue) rather than call_count: TaskManager model_copies the
-    #    sub-agent LLM (manager.py:314), and the copy gets its own integer
-    #    _call_count, while the deque of scripted responses is reference-
-    #    shared. remaining_responses reflects whether the original LLM's
-    #    queue was actually drained; call_count on the original always
-    #    reads 0.
+    # 1. 每个子智能体只运行一次。 我们主张 remaining_responses（已耗尽的队列）而不是
+    # call_count：TaskManager model_copies 子智能体 LLM（manager.py:314），以及复制有自
+    # 己的整数 _call_count，而脚本响应的队列是引用共享的。 remaining_responses反映了原始
+    # LLM的队列是否实际上被排空； 原件上的call_count始终显示为0。
+    #
     assert status == ConversationExecutionStatus.FINISHED
     for i, sub in enumerate(sub_llms):
         assert sub.remaining_responses == 0, (
@@ -192,8 +190,8 @@ async def test_parallel_subagents_all_complete(
             f"twice while this one was skipped."
         )
 
-    # 2. Parallelism actually happened. Without this, a regression that
-    #    serializes tool execution silently passes.
+    # 2. 并行性真的发生了。 如果没有这个，序列化工具执行的回归会默默地通过。
+    #
     budget = single_wall * PARALLEL_SUBAGENTS.wall_time_factor
     assert parallel_wall < budget, (
         f"parallel wall ({parallel_wall:.2f}s) exceeded budget "
@@ -201,8 +199,8 @@ async def test_parallel_subagents_all_complete(
         f"{PARALLEL_SUBAGENTS.wall_time_factor}). Sub-agents likely serialized."
     )
 
-    # 3. Resource budget. Compared against the snapshot taken between the
-    #    single-agent reference run and the parallel run, so the spike
+    # 3. 资源预算。 与单智能体参考运行和并行运行之间拍摄的快照相比，因此尖峰
+    #
     #    from the reference run isn't attributed here.
     parallel_peak_rss_mb = max(
         (s.rss_mb for s in probe.samples[pre_parallel_idx:]),

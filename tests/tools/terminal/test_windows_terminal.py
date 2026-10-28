@@ -1,4 +1,4 @@
-"""Windows-specific coverage for the PowerShell terminal backend."""
+"""PowerShell 终端后端的 Windows 特定覆盖范围。"""
 
 import os
 import platform
@@ -122,11 +122,11 @@ def test_basic_command_execution(windows_session) -> None:
 def test_multiline_powershell_command_executes(
     windows_session, command: str, expected: list[str]
 ) -> None:
-    """Multiline statements must leave PowerShell's ">>" continuation prompt.
+    """多行语句必须离开 PowerShell 的“>>”延续提示词。
 
-    Each case is a single statement spanning several lines, so it passes the
-    multiple-command guard in ``TerminalSession.execute`` and reaches
-    ``send_keys()``, which is what this PR fixes.
+    每个 case 都是跨越多行的单个语句，因此它通过 ``TerminalSession.execute`` 中的多命
+    令保护并到达
+    ``send_keys()``，这就是PR修复的内容。
     """
     obs = windows_session.execute(TerminalAction(command=command))
 
@@ -136,11 +136,11 @@ def test_multiline_powershell_command_executes(
 
 
 def test_multiple_statements_rejected_like_unix(windows_session) -> None:
-    """Two newline-separated statements are refused, as on the unix terminals.
+    """两个换行符分隔的语句将被拒绝，就像在 UNIX 终端上一样。
 
-    The guard lives in ``TerminalSession.execute``, which every terminal backend
-    is wrapped in, so this rejection is not Windows-specific. It is what
-    distinguishes multiple *statements* from a multi-line single statement.
+    守卫位于 ``TerminalSession.execute`` 中，每个终端后端都包含在其中，因此这种拒绝不
+    是 Windows 特定的。 这是多个 * 语句 *
+    与多行单语句的区别。
     """
     obs = windows_session.execute(
         TerminalAction(command="Write-Output a\nWrite-Output b")

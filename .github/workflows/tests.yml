@@ -135,13 +135,8 @@ jobs:
                   path: coverage-sdk.dat
                   if-no-files-found: warn
 
-    # Deliberately NOT a required status check: these tests launch real npx
-    # subprocesses and hit the live npm registry (see the `acp_live` marker
-    # and tests/sdk/agent/test_acp_conformance.py's docstring). sdk-tests IS
-    # required, so a registry blip must not be able to block unrelated PRs;
-    # this job carries that live-network risk instead, gated to only run
-    # when ACP registry/catalog files actually change (OpenHands/
-    # software-agent-sdk#4830 P0-1/2/3).
+    # 故意不一个必需的状态检查：这些测试会启动真实的npx子进程并访问活的npm注册表（请参阅`acp_live`标记和tests/sdk/agent/test_acp_conformance.py's文档字符串）。 SDK-需要测试，因此注册表 blip 一定不能阻止不相关的PR； 这项工作承担了网络实时风险，仅在ACP注册/目录文件实际发生变化时运行（OpenHands/软件-智能体-SDK#4830 P0-1/2/3）。
+    #
     acp-live-tests:
         runs-on: blacksmith-2vcpu-ubuntu-2404
         timeout-minutes: 15
@@ -163,10 +158,9 @@ jobs:
                       uv.lock
                       .github/workflows/tests.yml
 
-            # The runner image's default Node is older than some providers'
-            # `engines.node`, and the npx path runs on whatever Node is on
-            # PATH. Must clear the highest `min_node_version` in
-            # ACP_INSTALL_CATALOG, otherwise those providers only skip.
+            # 跑步者图像的默认节点比某些提供商的旧
+            # `engines.node`，并且 npx 路径在 PATH 上的任何节点上运行。 必须清除 ACP_INSTALL_CATALOG 中最高的 `min_node_version`，否则这些提供者只会跳过。
+            #
             - name: Use Node.js 24
               if: steps.changed.outputs.any_changed == 'true'
               uses: actions/setup-node@v7

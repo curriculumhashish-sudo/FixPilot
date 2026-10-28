@@ -1,4 +1,4 @@
-"""Tests for the GraySwan utils module."""
+"""测试 GraySwan utils 模块。"""
 
 import json
 
@@ -16,13 +16,13 @@ from openhands.sdk.tool import Action, Observation
 
 
 class GraySwanUtilsTestAction(Action):
-    """Mock action for GraySwan utils testing."""
+    """模拟对象 GraySwan utils 测试的操作。"""
 
     command: str = "test_command"
 
 
 class GraySwanUtilsTestObservation(Observation):
-    """Mock observation for GraySwan utils testing."""
+    """模拟对象观测结果用于 GraySwan 实用程序测试。"""
 
     output: str = "test_output"
 
@@ -32,7 +32,7 @@ class GraySwanUtilsTestObservation(Observation):
 
 
 def create_system_prompt_event(prompt: str = "You are a helpful assistant."):
-    """Create a SystemPromptEvent for testing."""
+    """创建一个 SystemPromptEvent 进行测试。"""
     return SystemPromptEvent(
         system_prompt=TextContent(text=prompt),
         tools=[],
@@ -40,7 +40,7 @@ def create_system_prompt_event(prompt: str = "You are a helpful assistant."):
 
 
 def create_message_event(content: str, source: str = "user"):
-    """Create a MessageEvent for testing."""
+    """创建一个 MessageEvent 进行测试。"""
     return MessageEvent(
         source=source,  # type: ignore
         llm_message=Message(
@@ -56,7 +56,7 @@ def create_action_event(
     thought: str = "thinking about this",
     tool_call_id: str = "call_123",
 ):
-    """Create an ActionEvent for testing."""
+    """创建一个 ActionEvent 进行测试。"""
     return ActionEvent(
         thought=[TextContent(text=thought)],
         action=GraySwanUtilsTestAction(command=command),
@@ -78,7 +78,7 @@ def create_observation_event(
     tool_call_id: str = "call_123",
     action_id: str = "action_123",
 ):
-    """Create an ObservationEvent for testing."""
+    """创建一个 ObservationEvent 进行测试。"""
     return ObservationEvent(
         tool_name=tool_name,
         tool_call_id=tool_call_id,
@@ -92,7 +92,7 @@ def create_agent_error_event(
     error: str = "Something went wrong",
     tool_call_id: str = "call_123",
 ):
-    """Create an AgentErrorEvent for testing."""
+    """创建一个 AgentErrorEvent 进行测试。"""
     return AgentErrorEvent(
         tool_name=tool_name,
         tool_call_id=tool_call_id,
@@ -106,7 +106,7 @@ def create_user_reject_observation(
     tool_call_id: str = "call_123",
     action_id: str = "action_123",
 ):
-    """Create a UserRejectObservation for testing."""
+    """创建一个 UserRejectObservation 进行测试。"""
     return UserRejectObservation(
         tool_name=tool_name,
         tool_call_id=tool_call_id,
@@ -116,15 +116,15 @@ def create_user_reject_observation(
 
 
 class TestConvertEventsToOpenAIMessages:
-    """Tests for convert_events_to_openai_messages function."""
+    """测试 convert_events_to_openai_messages 功能。"""
 
     def test_empty_events(self):
-        """Test conversion of empty event list."""
+        """测试空事件列表的转换。"""
         result = convert_events_to_openai_messages([])
         assert result == []
 
     def test_system_prompt_event(self):
-        """Test conversion of SystemPromptEvent."""
+        """测试 SystemPromptEvent 的转换。"""
         events = [create_system_prompt_event("You are a helpful assistant.")]
         result = convert_events_to_openai_messages(events)
 
@@ -133,7 +133,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["content"] == "You are a helpful assistant."
 
     def test_user_message_event(self):
-        """Test conversion of user MessageEvent."""
+        """测试用户MessageEvent的转化。"""
         events = [create_message_event("Hello, how are you?", "user")]
         result = convert_events_to_openai_messages(events)
 
@@ -142,7 +142,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["content"] == "Hello, how are you?"
 
     def test_agent_message_event(self):
-        """Test conversion of agent MessageEvent."""
+        """测试智能体 MessageEvent 的转换。"""
         events = [create_message_event("I'm doing well, thanks!", "agent")]
         result = convert_events_to_openai_messages(events)
 
@@ -151,7 +151,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["content"] == "I'm doing well, thanks!"
 
     def test_action_event(self):
-        """Test conversion of ActionEvent."""
+        """测试 ActionEvent 的转换。"""
         events = [
             create_action_event(
                 tool_name="execute_bash",
@@ -171,7 +171,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["tool_calls"][0]["function"]["name"] == "execute_bash"
 
     def test_action_event_removes_security_risk_from_arguments(self):
-        """Test that security_risk is removed from tool call arguments."""
+        """测试 security_risk 是否已从工具调用参数中删除。"""
         action = ActionEvent(
             thought=[TextContent(text="thinking")],
             action=GraySwanUtilsTestAction(command="test"),
@@ -193,7 +193,7 @@ class TestConvertEventsToOpenAIMessages:
         assert args["command"] == "test"
 
     def test_observation_event(self):
-        """Test conversion of ObservationEvent."""
+        """测试 ObservationEvent 的转换。"""
         events = [
             create_observation_event(
                 tool_name="execute_bash",
@@ -209,7 +209,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["tool_call_id"] == "call_abc"
 
     def test_agent_error_event(self):
-        """Test conversion of AgentErrorEvent."""
+        """测试 AgentErrorEvent 的转换。"""
         events = [
             create_agent_error_event(
                 tool_name="execute_bash",
@@ -225,7 +225,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["tool_call_id"] == "call_abc"
 
     def test_user_reject_observation(self):
-        """Test conversion of UserRejectObservation."""
+        """测试 UserRejectObservation 的转换。"""
         events = [
             create_user_reject_observation(
                 tool_name="execute_bash",
@@ -241,7 +241,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[0]["tool_call_id"] == "call_abc"
 
     def test_full_conversation(self):
-        """Test conversion of a full conversation with multiple event types."""
+        """测试具有多种事件类型的完整对话的转换。"""
         events = [
             create_system_prompt_event("You are a helpful assistant."),
             create_message_event("List the files in the current directory", "user"),
@@ -269,7 +269,7 @@ class TestConvertEventsToOpenAIMessages:
         assert result[4]["role"] == "assistant"
 
     def test_multiple_tool_calls_in_sequence(self):
-        """Test conversion of multiple tool calls in sequence."""
+        """依次测试多个工具调用的转换。"""
         events = [
             create_action_event(
                 tool_name="tool1",

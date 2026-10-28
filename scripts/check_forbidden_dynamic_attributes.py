@@ -1,23 +1,20 @@
-"""Reject new dynamic attribute access in SDK source files.
+"""拒绝 SDK 源文件中的新动态属性访问。
 
-Existing ``getattr``/``setattr`` and ``obj.__dict__.get`` calls are recorded
-in a committed baseline so the hook can be introduced before the cleanup work
-(tracked in #4903, #4904, #4905) is finished. Only calls *not* present in the
-baseline are reported.
+现有的``getattr``/``setattr``和``obj.__dict__.get``调用会被记录在一个已提交的基线中，
+以便在清理工作（跟踪在#4903, #490
+4, #4905）完成后引入钩子。 仅报告基线中存在的*不*的调用。
 
-A violation is identified by its file path (relative to the repo root), the
-call name, and a hash of the full call source segment (not just the first
-physical line).  Keying on the complete expression keeps the baseline stable
-when unrelated edits shift line numbers, while still flagging genuine edits
-to an existing call — including argument changes on subsequent lines.
+一个违规行为通过其文件路径（相对于仓库根目录）、调用名称以及完整调用源段的哈希值（而
+不是仅限于第一个物理行）来识别。 基于完整的表达，当无关的编辑移动行号时，保持基准稳定
+；
+同时，仍然标记对现有调用的真正编辑——包括后续行中的参数更改。
 
-The baseline is a *multiset* (occurrence counts are preserved), so adding
-another copy of an already-baselined call is still flagged.
+基线是 *multiset*（保留出现计数），因此添加已基线调用的另一个副本仍会被标记。
 
-Regenerate the baseline after removing existing calls with::
+使用以下命令删除现有调用后重新生成基线：
 
     uv run python scripts/check_forbidden_dynamic_attributes.py \\
-        --update-baseline $(find openhands-sdk -name '*.py')
+        --update-baseline $(查找 OpenHands-SDK -name '*.py')
 """
 
 from __future__ import annotations
@@ -51,12 +48,12 @@ def _forbidden_call_name(node: ast.Call) -> str | None:
 
 
 def _segment_hash(source: str, node: ast.Call) -> str:
-    """Hash the full source segment of *node*, not just its first line."""
+    """对 *node* 的完整源段进行哈希处理，而不仅仅是其第一行。"""
     segment = ast.get_source_segment(source, node)
     if segment is not None:
         text = segment
     else:
-        # Fallback: join all physical lines the node spans.
+        # 回退方案：连接节点跨越的所有物理线。
         lines = source.splitlines()
         end = getattr(node, "end_lineno", node.lineno) or node.lineno
         text = "\n".join(lines[node.lineno - 1 : end])
@@ -64,7 +61,7 @@ def _segment_hash(source: str, node: ast.Call) -> str:
 
 
 def violations(path: Path) -> list[tuple[int, str, str]]:
-    """Return ``(lineno, name, segment_hash)`` for each forbidden call in *path*."""
+    """对于 *path* 中的每个禁止调用返回 ``(lineno, name, segment_hash)``。"""
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     result: list[tuple[int, str, str]] = []
@@ -120,7 +117,7 @@ SDK_ROOT = "openhands-sdk"
 
 
 def _discover_sdk_files() -> list[str]:
-    """Return all Python files under the SDK root, relative to the repo root."""
+    """返回 SDK 根目录下相对于存储库根目录的所有 Python 文件。"""
     root = Path(__file__).resolve().parent.parent
     return [
         p.relative_to(root).as_posix() for p in sorted(root.glob(f"{SDK_ROOT}/**/*.py"))
@@ -130,7 +127,7 @@ def _discover_sdk_files() -> list[str]:
 def _current_entries(
     paths: list[str],
 ) -> list[tuple[str, str, str, int]]:
-    """Return all current violations across *paths* as ``(file, name, hash, line)``."""
+    """将 * 路径 * 上的所有当前违规返回为 ``(file, name, hash, line)``。"""
     entries: list[tuple[str, str, str, int]] = []
     for raw_path in paths:
         posix_path = Path(raw_path).as_posix()
@@ -167,8 +164,9 @@ def main(argv: list[str]) -> int:
             print("error: the forbidden dynamic attributes baseline may only shrink")
             return 1
 
-    # When no paths are given (e.g. via pre-commit with pass_filenames: false),
-    # auto-discover all SDK Python files so deletions are caught.
+    # 当没有给出路径时（e.g. 通过使用 pass_filenames: False 进行预提交，自动发现所有 SDK
+    #  Python 文件，以便捕获删除。
+    #
     paths = args.paths if args.paths else _discover_sdk_files()
 
     current = _current_entries(paths)
@@ -182,17 +180,18 @@ def main(argv: list[str]) -> int:
     current_counter = Counter((file, name, digest) for file, name, digest, _ in current)
     checked_files = {Path(p).as_posix() for p in paths}
 
-    # New violations: occurrences that exceed the baseline count for each key.
+    # 新违规：超出每个键的基线计数的发生次数。
     new_violations: list[tuple[str, int, str]] = []
     for file, name, digest, line in current:
         key = (file, name, digest)
         if current_counter[key] > baseline.get(key, 0):
             new_violations.append((file, line, name))
-            current_counter[key] -= 1  # count only the excess as new
+            current_counter[key] -= 1  # 仅将多余的部分视为新的
 
-    # Stale: baseline entries no longer present in the current code.  When the
-    # checker runs on all SDK files (auto-discovery), entries for deleted files
-    # are also flagged; subset runs only report drift for files they checked.
+    # 过时：当前代码中不再存在基线条目。 当
+    # 检查器在所有 SDK 文件上运行（自动发现），已删除文件的条目也会被标记； 子集仅运行他
+    # 们检查的文件的报告偏差。
+    #
     stale = {
         key
         for key, count in (baseline - current_counter).items()

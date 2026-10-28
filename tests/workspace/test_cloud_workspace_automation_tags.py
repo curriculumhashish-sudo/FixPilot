@@ -1,4 +1,4 @@
-"""Tests for OpenHandsCloudWorkspace automation tags functionality."""
+"""测试 OpenHandsCloudWorkspace 自动化标签功能。"""
 
 import json
 import os
@@ -8,11 +8,11 @@ import pytest
 
 
 class TestDefaultConversationTags:
-    """Tests for the default_conversation_tags property."""
+    """测试 default_conversation_tags 属性。"""
 
     @pytest.fixture
     def workspace(self):
-        """Create a workspace instance with mocked sandbox creation."""
+        """使用模拟的沙箱创建创建工作区实例。"""
         from openhands.workspace import OpenHandsCloudWorkspace
 
         with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -20,7 +20,7 @@ class TestDefaultConversationTags:
                 cloud_api_url="https://cloud.example.com",
                 cloud_api_key="test-api-key",
             )
-            # Set up minimal state
+            # 设置最小状态
             workspace._sandbox_id = "sandbox-123"
             workspace._session_api_key = "session-key"
             workspace.host = "https://agent.example.com"
@@ -29,9 +29,9 @@ class TestDefaultConversationTags:
             workspace.cleanup()
 
     def test_empty_tags_when_no_env_vars(self, workspace):
-        """Should return empty dict when no automation env vars are set."""
+        """当未设置自动化环境变量时，应返回空字典。"""
         with patch.dict(os.environ, {}, clear=True):
-            # Clear any existing env vars
+            # 清除任何现有的环境变量
             os.environ.pop("AUTOMATION_EVENT_PAYLOAD", None)
             os.environ.pop("AUTOMATION_RUN_ID", None)
             workspace._automation_run_id = None
@@ -40,42 +40,42 @@ class TestDefaultConversationTags:
             assert tags == {}
 
     def test_parses_trigger_from_payload(self, workspace):
-        """Should extract automationtrigger from AUTOMATION_EVENT_PAYLOAD."""
+        """应从 AUTOMATION_EVENT_PAYLOAD 中提取自动化触发器。"""
         payload = {"trigger": "cron"}
         with patch.dict(os.environ, {"AUTOMATION_EVENT_PAYLOAD": json.dumps(payload)}):
             tags = workspace.default_conversation_tags
             assert tags["automationtrigger"] == "cron"
 
     def test_parses_automation_id_from_payload(self, workspace):
-        """Should extract automationid from AUTOMATION_EVENT_PAYLOAD."""
+        """应该从AUTOMATION_EVENT_PAYLOAD中提取automationid。"""
         payload = {"automation_id": "auto-123"}
         with patch.dict(os.environ, {"AUTOMATION_EVENT_PAYLOAD": json.dumps(payload)}):
             tags = workspace.default_conversation_tags
             assert tags["automationid"] == "auto-123"
 
     def test_parses_automation_name_from_payload(self, workspace):
-        """Should extract automationname from AUTOMATION_EVENT_PAYLOAD."""
+        """应从 AUTOMATION_EVENT_PAYLOAD 中提取自动化名称。"""
         payload = {"automation_name": "Daily Report"}
         with patch.dict(os.environ, {"AUTOMATION_EVENT_PAYLOAD": json.dumps(payload)}):
             tags = workspace.default_conversation_tags
             assert tags["automationname"] == "Daily Report"
 
     def test_parses_run_id_from_env_var(self, workspace):
-        """Should extract runid from AUTOMATION_RUN_ID env var."""
+        """应从 AUTOMATION_RUN_ID 环境变量中提取 runid。"""
         with patch.dict(os.environ, {"AUTOMATION_RUN_ID": "run-456"}):
             workspace._automation_run_id = None
             tags = workspace.default_conversation_tags
             assert tags["automationrunid"] == "run-456"
 
     def test_prefers_env_var_run_id_over_private_attr(self, workspace):
-        """Should prefer AUTOMATION_RUN_ID env var over _automation_run_id."""
+        """应该更喜欢 AUTOMATION_RUN_ID 环境变量而不是 _automation_run_id。"""
         with patch.dict(os.environ, {"AUTOMATION_RUN_ID": "env-run-id"}):
             workspace._automation_run_id = "attr-run-id"
             tags = workspace.default_conversation_tags
             assert tags["automationrunid"] == "env-run-id"
 
     def test_uses_private_attr_run_id_when_no_env_var(self, workspace):
-        """Should use _automation_run_id when env var not set."""
+        """当环境变量未设置时应使用 _automation_run_id。"""
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("AUTOMATION_RUN_ID", None)
             workspace._automation_run_id = "attr-run-id"
@@ -83,22 +83,22 @@ class TestDefaultConversationTags:
             assert tags["automationrunid"] == "attr-run-id"
 
     def test_handles_invalid_json_payload(self, workspace):
-        """Should handle invalid JSON in AUTOMATION_EVENT_PAYLOAD gracefully."""
+        """应该优雅地处理 AUTOMATION_EVENT_PAYLOAD 中无效的 JSON。"""
         with patch.dict(os.environ, {"AUTOMATION_EVENT_PAYLOAD": "not-valid-json"}):
-            # Should not raise, just return empty tags
+            # 不应该引发，只返回空标签
             tags = workspace.default_conversation_tags
             assert "trigger" not in tags
 
     def test_handles_non_dict_json_payload(self, workspace):
-        """Should handle non-dict JSON payload gracefully."""
+        """应该优雅地处理非 dict JSON 载荷。"""
         with patch.dict(os.environ, {"AUTOMATION_EVENT_PAYLOAD": '"just a string"'}):
-            # Should not raise
+            # 不应该提高
             tags = workspace.default_conversation_tags
-            # Might raise AttributeError on .get() for string, ensure graceful handling
+            # 可能会在 .get() 上引发 AttributeError 字符串，确保优雅的处理
             assert isinstance(tags, dict)
 
     def test_parses_full_payload(self, workspace):
-        """Should parse all fields from a complete payload."""
+        """应该解析完整的载荷中的所有字段。"""
         payload = {
             "trigger": "webhook",
             "automation_id": "auto-abc",
@@ -116,34 +116,33 @@ class TestDefaultConversationTags:
             assert tags["automationid"] == "auto-abc"
             assert tags["automationname"] == "PR Review Bot"
             assert tags["automationrunid"] == "run-xyz"
-            # Skills are NOT included in workspace tags
+            # 技能不包含在工作区标签中
             assert "skills" not in tags
 
 
 class TestRemoteWorkspaceDefaultConversationTags:
-    """Tests for automation tags on the base RemoteWorkspace.
+    """基于 RemoteWorkspace 的自动化标签测试。
 
-    Local-mode automation runs use a plain RemoteWorkspace against the local
-    agent server, so the base class itself must derive the automation tags
+    本地模式自动化运行使用普通的 RemoteWorkspace 与本地 Agent Server 相对应，因此基类
+    本身必须派生自动化标签
     from the dispatcher-injected env vars (the derivation edge cases are
-    covered above through the OpenHandsCloudWorkspace subclass, which
-    inherits this implementation).
+    上面通过 OpenHandsCloudWorkspace 子类进行了介绍，该子类继承了此实现）。
     """
 
     @pytest.fixture
     def workspace(self):
-        """Create a plain RemoteWorkspace (constructing makes no requests)."""
+        """创建一个普通的 RemoteWorkspace（构造时不发出任何请求）。"""
         from openhands.sdk.workspace import RemoteWorkspace
 
         return RemoteWorkspace(host="http://localhost:1", working_dir="/tmp")
 
     def test_empty_tags_when_no_env_vars(self, workspace):
-        """Should return empty dict when no automation env vars are set."""
+        """当未设置自动化环境变量时，应返回空字典。"""
         with patch.dict(os.environ, {}, clear=True):
             assert workspace.default_conversation_tags == {}
 
     def test_derives_automation_tags_from_env_vars(self, workspace):
-        """Should stamp all four automation tags from the dispatcher env vars."""
+        """应标记调度程序环境变量中的所有四个自动化标签。"""
         payload = {
             "trigger": "cron",
             "automation_id": "auto-abc",
@@ -165,29 +164,29 @@ class TestRemoteWorkspaceDefaultConversationTags:
 
 
 class TestConversationTagMerging:
-    """Tests for automatic tag merging in Conversation factory."""
+    """在对话工厂中测试自动标签合并。"""
 
     def test_merges_default_tags_with_user_tags(self):
-        """User tags should override workspace default tags."""
+        """用户标签应覆盖工作区个默认标签。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
         from openhands.sdk.workspace import RemoteWorkspace
 
-        # Create a mock workspace with default_conversation_tags
+        # 使用 default_conversation_tags 创建模拟对象工作区
         mock_workspace = MagicMock(spec=RemoteWorkspace)
         mock_workspace.default_conversation_tags = {
             "automationtrigger": "cron",
             "automationid": "auto-123",
         }
 
-        # Mock RemoteConversation at the impl module level (where it's imported from)
+        # 模拟对象 RemoteConversation 在 impl 模块级别（从哪里导入）
         with patch(
             "openhands.sdk.conversation.impl.remote_conversation.RemoteConversation"
         ) as mock_convo_class:
             mock_convo_class.return_value = MagicMock()
 
-            # Create with user tags that override some defaults
+            # 使用覆盖某些默认值的用户标签创建
             user_tags = {"automationtrigger": "manual", "custom": "value"}
 
             Conversation(
@@ -196,19 +195,19 @@ class TestConversationTagMerging:
                 tags=user_tags,
             )
 
-            # Check the tags passed to RemoteConversation
+            # 检查传递给RemoteConversation的标签
             call_kwargs = mock_convo_class.call_args.kwargs
             effective_tags = call_kwargs["tags"]
 
-            # User's "trigger" should override workspace's "trigger"
+            # 用户的“触发器”应覆盖工作区的“触发器”
             assert effective_tags["automationtrigger"] == "manual"
-            # Workspace's automationid should be preserved
+            # 应保留工作区的automationid
             assert effective_tags["automationid"] == "auto-123"
-            # User's custom tag should be included
+            # 应包含用户的自定义标签
             assert effective_tags["custom"] == "value"
 
     def test_uses_only_default_tags_when_no_user_tags(self):
-        """Should use workspace default tags when user provides none."""
+        """当用户提供 None 时，应使用工作区默认标签。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -238,13 +237,13 @@ class TestConversationTagMerging:
             assert effective_tags["automationid"] == "auto-123"
 
     def test_no_merge_when_workspace_returns_none_for_default_tags(self):
-        """Should not merge when workspace returns None for default tags."""
+        """当默认标签的工作区返回 None 时不应合并。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
         from openhands.sdk.workspace import RemoteWorkspace
 
-        # Create mock with default_conversation_tags returning None
+        # 创建模拟对象，default_conversation_tags 返回 None
         mock_workspace = MagicMock(spec=RemoteWorkspace)
         mock_workspace.default_conversation_tags = None
 
@@ -263,11 +262,11 @@ class TestConversationTagMerging:
             call_kwargs = mock_convo_class.call_args.kwargs
             effective_tags = call_kwargs["tags"]
 
-            # Should just use user tags
+            # 应该只使用用户标签
             assert effective_tags == {"custom": "value"}
 
     def test_no_merge_when_default_tags_empty(self):
-        """Should not merge when workspace returns empty default tags."""
+        """当工作区返回空默认标签时不应合并。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -289,29 +288,29 @@ class TestConversationTagMerging:
             )
 
             call_kwargs = mock_convo_class.call_args.kwargs
-            # When default tags are empty, effective_tags should be user_tags
+            # 当默认标签为空时，effective_tags应该是user_tags
             assert call_kwargs["tags"] == user_tags
 
 
 class TestPluginSourceUrl:
-    """Tests for PluginSource.source_url property."""
+    """测试 PluginSource.source_url 属性。"""
 
     def test_github_shorthand_basic(self):
-        """Should convert github:owner/repo to full URL."""
+        """应该将 GitHub:owner/repo 转换为完整的 URL。"""
         from openhands.sdk.plugin import PluginSource
 
         plugin = PluginSource(source="github:OpenHands/skills")
         assert plugin.source_url == "https://github.com/OpenHands/skills"
 
     def test_github_shorthand_with_ref(self):
-        """Should add tree/ref for github: sources with ref."""
+        """应该为 GitHub 添加树/引用：带有引用的源。"""
         from openhands.sdk.plugin import PluginSource
 
         plugin = PluginSource(source="github:OpenHands/skills", ref="v1.0.0")
         assert plugin.source_url == "https://github.com/OpenHands/skills/tree/v1.0.0"
 
     def test_github_shorthand_with_repo_path(self):
-        """Should add tree/main/path for github: sources with repo_path."""
+        """应为 GitHub 添加树/主/路径：带有 repo_path 的源。"""
         from openhands.sdk.plugin import PluginSource
 
         plugin = PluginSource(
@@ -323,7 +322,7 @@ class TestPluginSourceUrl:
         )
 
     def test_github_shorthand_with_ref_and_path(self):
-        """Should include both ref and path in URL."""
+        """应在 URL 中包含引用和路径。"""
         from openhands.sdk.plugin import PluginSource
 
         plugin = PluginSource(
@@ -337,14 +336,14 @@ class TestPluginSourceUrl:
         )
 
     def test_urls_returned_as_is(self):
-        """Should return URLs as-is without modification."""
+        """应原样返回 URLs。"""
         from openhands.sdk.plugin import PluginSource
 
-        # Full GitHub URL
+        # 已满 GitHub URL
         plugin = PluginSource(source="https://github.com/OpenHands/skills")
         assert plugin.source_url == "https://github.com/OpenHands/skills"
 
-        # GitHub blob URL
+        # GitHub 斑点 URL
         plugin = PluginSource(
             source="https://github.com/OpenHands/skills/blob/main/SKILL.md"
         )
@@ -353,24 +352,24 @@ class TestPluginSourceUrl:
             == "https://github.com/OpenHands/skills/blob/main/SKILL.md"
         )
 
-        # GitLab URL (returned as-is, no ref appending)
+        # GitLab URL（按原样返回，不附加引用）
         plugin = PluginSource(source="https://gitlab.com/owner/repo", ref="v2.0.0")
         assert plugin.source_url == "https://gitlab.com/owner/repo"
 
-        # Bitbucket URL (returned as-is)
+        # Bitbucket URL（按原样返回）
         plugin = PluginSource(source="https://bitbucket.org/owner/repo", ref="v1.0.0")
         assert plugin.source_url == "https://bitbucket.org/owner/repo"
 
-        # Other git URLs
+        # 其他 git URLs
         plugin = PluginSource(source="https://git.example.com/repo.git", ref="v1.0")
         assert plugin.source_url == "https://git.example.com/repo.git"
 
-        # git@ URLs
+        # git URLs
         plugin = PluginSource(source="git@github.com:owner/repo.git")
         assert plugin.source_url == "git@github.com:owner/repo.git"
 
     def test_local_path_returns_none(self):
-        """Should return None for local paths (not portable)."""
+        """对于本地路径应返回 None（不可移植）。"""
         from openhands.sdk.plugin import PluginSource
 
         for path in ["/absolute/path", "./relative", "../parent", "~/home"]:
@@ -379,10 +378,10 @@ class TestPluginSourceUrl:
 
 
 class TestPluginsTagInConversation:
-    """Tests for automatic plugins tag generation in Conversation factory."""
+    """在对话工厂中测试自动插件标签生成。"""
 
     def test_plugins_added_as_urls_in_tags(self):
-        """Should serialize plugins to URLs in the tags."""
+        """应该序列化插件到 URLs 在标签中。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -420,7 +419,7 @@ class TestPluginsTagInConversation:
             assert "https://github.com/OpenHands/review-skill" in plugin_urls
 
     def test_credentials_redacted_in_plugins_tag(self):
-        """Inline creds must not reach the persisted plugins tag; ${VAR} survives."""
+        """内联信用不得到达已持久化插件标签； ${VAR} 幸存下来。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -446,7 +445,7 @@ class TestPluginsTagInConversation:
         assert "https://x-token-auth:${MY_TOKEN}@host/org/ext.git" in tag.split(",")
 
     def test_local_plugins_not_included_in_tags(self):
-        """Should not include local path plugins in tags."""
+        """标签中不应包含本地路径插件。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -458,7 +457,7 @@ class TestPluginsTagInConversation:
 
         plugins = [
             PluginSource(source="github:OpenHands/skill"),
-            PluginSource(source="/local/path/to/plugin"),  # Should be skipped
+            PluginSource(source="/local/path/to/plugin"),  # 应该跳过
         ]
 
         with patch(
@@ -475,11 +474,11 @@ class TestPluginsTagInConversation:
             call_kwargs = mock_convo_class.call_args.kwargs
             effective_tags = call_kwargs["tags"]
 
-            # Should only have one plugin (the GitHub one)
+            # 应该只有一个插件（GitHub 那个）
             assert effective_tags["plugins"] == "https://github.com/OpenHands/skill"
 
     def test_plugins_tag_merges_with_other_tags(self):
-        """Plugins tag should merge with workspace and user tags."""
+        """插件标签应与工作区和用户标签合并。"""
         from unittest.mock import MagicMock
 
         from openhands.sdk.conversation.conversation import Conversation
@@ -509,7 +508,7 @@ class TestPluginsTagInConversation:
             call_kwargs = mock_convo_class.call_args.kwargs
             effective_tags = call_kwargs["tags"]
 
-            # All tags should be present
+            # 所有标签都应该存在
             assert effective_tags["automationtrigger"] == "webhook"
             assert effective_tags["automationid"] == "auto-123"
             assert effective_tags["plugins"] == "https://github.com/OpenHands/skill"

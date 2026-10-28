@@ -24,16 +24,16 @@ class FailingAgent(AgentBase):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ):  # noqa: D401, ARG002
-        """Intentionally fail to simulate an unexpected runtime error."""
+        """故意未能模拟意外的运行时错误。"""
         raise ValueError("boom")
 
 
 class SelfEmittingFailingAgent(AgentBase):
-    """Mimics ACPAgent: surfaces its own typed ConversationErrorEvent, then raises.
+    """它表面其自身的类型 ACPAgent，然后提升 ConversationErrorEvent。
 
-    ACPAgent._emit_turn_error emits a detailed, classified
-    ``ConversationErrorEvent(source="agent")`` and re-raises so the run loop tears
-    down. The run loop must not then append a second, generic duplicate.
+    ACPAgent._emit_turn_error 发出详细的、分类的
+    ``ConversationErrorEvent(source="agent")`` 并重新加注，以便运行循环终止。 然后，
+    运行循环不得附加第二个通用副本。
     """
 
     def step(
@@ -42,7 +42,7 @@ class SelfEmittingFailingAgent(AgentBase):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ):  # noqa: D401, ARG002
-        """Surface a rich typed error, then raise the underlying exception."""
+        """呈现丰富类型的错误，然后引发底层异常。"""
         on_event(
             ConversationErrorEvent(
                 source="agent",
@@ -64,11 +64,11 @@ def test_run_raises_conversation_run_error_with_id():
             conv.run()
 
         err = excinfo.value
-        # carries the conversation id
+        # 携带会话id
         assert getattr(err, "conversation_id", None) == conv.id
-        # message should include the id for visibility in logs/tracebacks
+        # 消息应包含 id 以在日志/回溯中可见
         assert str(conv.id) in str(err)
-        # original exception preserved via chaining
+        # 通过链接保留原始异常
         assert isinstance(getattr(err, "original_exception", None), ValueError)
         assert err.conversation_error is not None
         assert err.conversation_error.code == "ValueError"
@@ -76,7 +76,7 @@ def test_run_raises_conversation_run_error_with_id():
 
 
 def test_run_error_includes_persistence_dir_and_issue_url():
-    """Test that ConversationRunError includes persistence_dir and issue URL."""
+    """测试 ConversationRunError 是否包含 persistence_dir 和问题 URL。"""
     llm = LLM(model="gpt-4o-mini", api_key=None, usage_id="test-llm")
     agent = FailingAgent(llm=llm, tools=[])
 
@@ -89,22 +89,22 @@ def test_run_error_includes_persistence_dir_and_issue_url():
         err = excinfo.value
         error_message = str(err)
 
-        # persistence_dir should be set
+        # 应设置 persistence_dir
         assert err.persistence_dir is not None
-        # persistence_dir should include the conversation ID (as hex)
+        # persistence_dir 应包含对话 ID（十六进制）
         assert conv.id.hex in err.persistence_dir
-        # persistence_dir should be in the error message
+        # persistence_dir 应该在错误消息中
         assert err.persistence_dir in error_message
-        # issue URL should be in the error message
+        # 问题 URL 应该出现在错误消息中
         assert ISSUE_URL in error_message
-        # should mention conversation logs
+        # 应该提及对话日志
         assert "Conversation logs are stored at:" in error_message
-        # should mention filing a bug report
+        # 应该提到提交错误报告
         assert "file a bug report" in error_message
 
 
 class TestAgentAlreadySurfacedError:
-    """Unit tests for the run-loop dedup guard."""
+    """单元测试用于运行循环重复数据删除防护。"""
 
     def test_empty_events(self):
         assert _agent_already_surfaced_error([]) is False
@@ -122,7 +122,7 @@ class TestAgentAlreadySurfacedError:
         assert _agent_already_surfaced_error(events) is False
 
     def test_uses_most_recent_error_event(self):
-        # If a later environment error follows an agent one, the most recent wins.
+        # 如果智能体错误之后出现较晚的环境错误，则最新的错误获胜。
         events = [
             ConversationErrorEvent(source="agent", code="ACPPromptError", detail="a"),
             ConversationErrorEvent(source="environment", code="ValueError", detail="b"),
@@ -130,7 +130,7 @@ class TestAgentAlreadySurfacedError:
         assert _agent_already_surfaced_error(events) is False
 
     def test_scans_past_trailing_non_error_events(self):
-        # A non-error event after the agent's error must not hide it.
+        # 智能体错误之后的非错误事件不得隐藏它。
         events = [
             ConversationErrorEvent(source="agent", code="ACPPromptError", detail="a"),
             MessageEvent(
@@ -143,14 +143,14 @@ class TestAgentAlreadySurfacedError:
         assert _agent_already_surfaced_error(events) is True
 
     def test_since_excludes_stale_prior_run_events(self):
-        # A source="agent" error from a prior run must not suppress the generic
-        # event for a new, unrelated exception in a subsequent run on the same
-        # conversation (state.events accumulates across runs).
+        # 源="智能体在同一个对话中的后续运行中，前一次运行的错误不能掩盖新的、无关的异常
+        # 事件state.events accumulates across runs).
+        #
         stale_agent_event = ConversationErrorEvent(
             source="agent", code="ACPPromptError", detail="from prior run"
         )
         events = [stale_agent_event]
-        since = len(events)  # start of the new run — no events added yet
+        since = len(events)  # 新一轮开始 - 尚未添加任何事件
         assert _agent_already_surfaced_error(events, since) is False
 
     def test_since_still_finds_current_run_agent_event(self):
@@ -161,14 +161,14 @@ class TestAgentAlreadySurfacedError:
             source="agent", code="ACPAuthRequired", detail="from current run"
         )
         events = [stale_agent_event, current_run_agent_event]
-        since = 1  # new run started after the stale event
+        since = 1  # 陈旧事件后开始新的运行
         assert _agent_already_surfaced_error(events, since) is True
 
 
 def test_run_does_not_duplicate_agent_emitted_error():
-    """When the agent surfaces its own typed error and re-raises, the run loop
-    must not append a generic str(exc) duplicate that would clobber it in clients
-    showing the most recent error."""
+    """当智能体出现其自己的类型错误并重新引发时，运行循环
+    不得附加通用 str(exc) 重复项，否则会在显示最近错误的客户端中破坏它。
+    """
     llm = LLM(model="gpt-4o-mini", api_key=None, usage_id="test-llm")
     agent = SelfEmittingFailingAgent(llm=llm, tools=[])
 
@@ -186,8 +186,8 @@ def test_run_does_not_duplicate_agent_emitted_error():
 
 
 def test_run_emits_generic_error_when_agent_did_not():
-    """Control: an agent that raises WITHOUT self-emitting still gets the run
-    loop's generic ConversationErrorEvent (regular-agent behaviour unchanged)."""
+    """Control: 引发 WITHOUT 自发射的智能体仍然可以运行
+    循环的通用 ConversationErrorEvent（常规智能体行为不变）。"""
     llm = LLM(model="gpt-4o-mini", api_key=None, usage_id="test-llm")
     agent = FailingAgent(llm=llm, tools=[])
 
@@ -203,12 +203,12 @@ def test_run_emits_generic_error_when_agent_did_not():
 
 
 def test_run_error_without_persistence_dir():
-    """Test that ConversationRunError works without persistence_dir."""
+    """测试 ConversationRunError 在没有 persistence_dir 的情况下也能工作。"""
     llm = LLM(model="gpt-4o-mini", api_key=None, usage_id="test-llm")
     agent = FailingAgent(llm=llm, tools=[])
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # No persistence_dir set
+        # 未设置 persistence_dir
         conv = Conversation(agent=agent, workspace=tmpdir)
 
         with pytest.raises(ConversationRunError) as excinfo:
@@ -217,9 +217,9 @@ def test_run_error_without_persistence_dir():
         err = excinfo.value
         error_message = str(err)
 
-        # persistence_dir should be None
+        # persistence_dir 应该是 None
         assert err.persistence_dir is None
-        # issue URL should NOT be in the error message when no persistence_dir
+        # 当没有 persistence_dir 时，问题 URL 应该在错误消息中包含不
         assert ISSUE_URL not in error_message
-        # should still have conversation id
+        # 应该仍然有对话 ID
         assert str(conv.id) in error_message

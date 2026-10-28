@@ -1,4 +1,4 @@
-"""Tests for git provider repository discovery."""
+"""测试 git 提供程序存储库发现。"""
 
 from typing import Any
 

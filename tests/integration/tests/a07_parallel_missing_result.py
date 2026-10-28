@@ -1,12 +1,12 @@
 """
-API Compliance Test: Parallel Tool Calls - Missing Result
+API 一致性测试：并行工具调用 - 缺少结果
 
-Tests how different LLM APIs respond when an assistant message contains
-multiple tool_calls but not all of them have corresponding tool_results.
+测试不同情况 LLM  APIs 当助手消息包含多个时，响应 tool_calls 但并非所有都对应
+tool_results.
 
-Pattern:
+图案：
     [assistant with tool_calls [A, B, C]] → [tool_result A] → [tool_result B]
-                                                               ↑ Missing result for C!
+                                                               ^ 缺少 C 的结果！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -26,7 +26,7 @@ This pattern can occur when:
 
 
 class ParallelMissingResultTest(BaseAPIComplianceTest):
-    """Test API response to parallel tool calls with missing results."""
+    """测试 API 对并行工具调用的响应，但缺少结果。"""
 
     @property
     def pattern_name(self) -> str:
@@ -37,7 +37,7 @@ class ParallelMissingResultTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with parallel tool calls missing a result."""
+        """构建缺少结果的并行工具调用的消息序列。"""
         return [
             Message(
                 role="system",
@@ -51,7 +51,7 @@ class ParallelMissingResultTest(BaseAPIComplianceTest):
                     )
                 ],
             ),
-            # Assistant message with THREE parallel tool_calls
+            # 助理消息与 THREE 并行 tool_calls
             Message(
                 role="assistant",
                 content=[
@@ -78,22 +78,22 @@ class ParallelMissingResultTest(BaseAPIComplianceTest):
                     ),
                 ],
             ),
-            # Tool result for SF - provided
+            # SF 的工具结果 - 提供
             Message(
                 role="tool",
                 content=[TextContent(text="San Francisco: 65°F, Sunny")],
                 tool_call_id="call_sf",
                 name="terminal",
             ),
-            # Tool result for Tokyo - provided
+            # 东京的工具结果 - 提供
             Message(
                 role="tool",
                 content=[TextContent(text="Tokyo: 72°F, Cloudy")],
                 tool_call_id="call_tokyo",
                 name="terminal",
             ),
-            # NOTE: Tool result for Paris is MISSING!
-            # Next user message arrives before Paris result
+            # 注意：巴黎的工具结果是 MISSING！
+            # 下一条用户消息在巴黎结果之前到达
             Message(
                 role="user",
                 content=[TextContent(text="What about Paris?")],

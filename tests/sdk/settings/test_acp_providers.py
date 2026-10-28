@@ -1,4 +1,4 @@
-"""Tests for the ACP provider registry."""
+"""测试 ACP 提供者注册表。"""
 
 from __future__ import annotations
 
@@ -28,11 +28,11 @@ from openhands.sdk.settings.model import ACPServerKind
 
 class TestACPProviderInfo:
     def test_known_providers_are_registered(self):
-        # A registry addition cannot be silent, but the guard that makes it so
-        # is test_acp_server_kind_matches_registry_keys — it ties the registry
-        # to the ACPServerKind Literal, which is the edit that actually has to
-        # happen. Restating the key set here only adds a literal every provider
-        # PR has to update, so this asserts the shared invariants instead.
+        # 注册表个附加项不能无声，但那个使它无声的保护措施是
+        # test_acp_server_kind_matches_registry_keys — 它将注册表与 ACPServerKind
+        # Literal 连接起来，这是实际上需要发生的编辑。 在这里重申关键集只会让每个提供者
+        # PR必须更新一个字面值，因此这断言了共享不变量。
+        #
         assert ACP_PROVIDERS, "the registry must not be empty"
         for key, info in ACP_PROVIDERS.items():
             assert info.key == key, f"{key}: registry key does not match info.key"
@@ -55,9 +55,10 @@ class TestACPProviderInfo:
         assert info.base_url_env_var == "ANTHROPIC_BASE_URL"
         assert info.default_session_mode == "bypassPermissions"
         assert "claude-agent" in info.agent_name_patterns
-        # Initial selection rides a protocol call — claude-agent-acp ignores the
-        # session-_meta payload (#3654), which is still sent as best-effort
-        # (session_meta_key below). On 0.44.0 the call is set_config_option.
+        # 初始选择使用协议调用 — claude-智能体-ACP 忽略了会话-_meta 载荷 (#3654)，尽管它
+        # 仍然以尽力而为的方式发送 (session_meta_key 以下)。 在 0.44.0 上，调用是
+        # set_config_option。
+        #
         assert info.supports_set_session_model is True
         assert info.supports_runtime_model_switch is True
         assert info.session_meta_key == "claudeCode"
@@ -67,7 +68,7 @@ class TestACPProviderInfo:
         assert models["claude-opus-5"] == "Claude Opus 5"
         assert models["sonnet"] == "Claude Sonnet"
         assert models["haiku"] == "Claude Haiku"
-        # Pinned binary exposed by the agent-server image wrappers.
+        # 由智能体-服务器图像包装器公开的固定二进制文件。
         assert info.binary_name == "claude-agent-acp"
         assert info.data_dir_env_var == "CLAUDE_CONFIG_DIR"
 
@@ -106,18 +107,20 @@ class TestACPProviderInfo:
         assert info.session_meta_key is None
         assert info.default_model == "auto"
         assert any(m.id == "auto" for m in info.available_models)
-        # The Gemini CLI's ACP binary is just ``gemini`` (the ``--acp`` flag is
-        # a trailing arg, preserved by resolve_acp_command on rewrite).
+        # Gemini CLI 的 ACP 二进制文件只是 ``gemini``（``--acp`` 标志是一个尾随参数，在
+        # 重写时由 resolve_acp_command 保留）。
+        #
         assert info.binary_name == "gemini"
-        # Gemini CLI has no dedicated config-dir var, so only HOME relocates it.
+        # Gemini CLI 没有专用的配置目录变量，因此只有 HOME 重新定位它。
         assert info.data_dir_env_var == "HOME"
 
     def test_kimi_code_metadata(self):
         info = ACP_PROVIDERS["kimi-code"]
         assert info.key == "kimi-code"
         assert info.display_name == "Kimi Code"
-        # Scoped package only: the unscoped npm ``kimi-code`` is a third-party
-        # tool that also ships a ``kimi`` bin.
+        # 仅限作用域包：未作用域的 npm ``kimi-code`` 是一个第三方工具，还附带一个
+        # ``kimi`` bin。
+        #
         assert info.default_command[:3] == ("npx", "-y", "--prefer-offline")
         assert "@moonshot-ai/kimi-code@" in info.default_command[3]
         assert info.default_command[4] == "acp"
@@ -128,16 +131,16 @@ class TestACPProviderInfo:
         assert info.supports_set_session_model is True
         assert info.supports_runtime_model_switch is True
         assert info.session_meta_key is None
-        # Model ids follow the credential, not the plan tier, so nothing is
-        # curated and the CLI resolves its own default. See
-        # _UNCURATED_MODEL_PROVIDERS.
+        # 模型 ID 遵循凭据，而不是计划层，因此不会策划任何内容，并且 CLI 会解析其自己的
+        # 默认值。 参见_UNCURATED_MODEL_PROVIDERS。
+        #
         assert info.available_models == ()
         assert info.default_model is None
-        # The CLI's ACP binary is just ``kimi``; ``acp`` is a trailing arg.
+        # CLI 的 ACP 二进制就是 ``kimi``； ``acp`` 是一个尾随参数。
         assert info.binary_name == "kimi"
         assert info.data_dir_env_var == "KIMI_CODE_HOME"
-        # The credential is config.toml materialised into KIMI_CODE_HOME —
-        # the env var authenticates nothing on its own.
+        # 凭据是 config.toml 物化为 KIMI_CODE_HOME — 环境变量本身不验证任何内容。
+        #
         assert [s.secret_name for s in info.file_secrets] == ["KIMI_CODE_CONFIG_TOML"]
         spec = info.file_secrets[0]
         assert spec.filename == "config.toml"
@@ -148,8 +151,9 @@ class TestACPProviderInfo:
         info = ACP_PROVIDERS["pi"]
         assert info.key == "pi"
         assert info.display_name == "Pi"
-        # pi-acp only adapts; it spawns the separately pinned `pi` engine off
-        # PATH, so the npx default provisions both packages and runs pi-acp.
+        # pi-ACP 仅适应； 它会在 PATH 上生成单独固定的 `pi` 引擎，因此 npx 默认设置这两
+        # 个包并运行 pi-ACP。
+        #
         assert info.default_command == (
             "npx",
             "-y",
@@ -159,9 +163,9 @@ class TestACPProviderInfo:
             "pi-acp",
         )
         assert info.api_key_env_var == "ANTHROPIC_API_KEY"
-        # pi takes its base URL from its own catalogue, not the environment.
+        # pi 从它自己的目录中获取它的基数 URL，而不是环境。
         assert info.base_url_env_var is None
-        # pi-acp maps ACP modes onto thinking levels and has no permission mode.
+        # pi-ACP 将 ACP 模式映射到思维层面，并且没有权限模式。
         assert info.default_session_mode is None
         assert info.agent_name_patterns == ("pi-acp",)
         assert info.supports_set_session_model is True
@@ -173,8 +177,8 @@ class TestACPProviderInfo:
         assert [spec.secret_name for spec in info.file_secrets] == ["PI_AUTH_JSON"]
 
     def test_pi_credential_file_is_auth_json_in_the_config_dir(self):
-        """PI_CODING_AGENT_DIR names the directory pi reads auth.json from;
-        settings.json in the same directory does not authenticate."""
+        """PI_CODING_AGENT_DIR 命名 pi 从中读取 auth.json 的目录；
+        settings.json同一目录下不进行身份验证。"""
         (spec,) = ACP_PROVIDERS["pi"].file_secrets
         assert spec.filename == "auth.json"
         assert spec.env_var == "PI_CODING_AGENT_DIR"
@@ -187,33 +191,34 @@ class TestACPProviderInfo:
         assert info.display_name == "OpenCode"
         assert info.default_command[:3] == ("npx", "-y", "--prefer-offline")
         assert "opencode-ai@" in info.default_command[3]
-        # ``acp`` is the subcommand that puts the CLI into ACP mode; it is
-        # preserved as a trailing arg when resolve_acp_command rewrites to the
-        # pinned binary.
+        # ``acp``是将CLI置于ACP模式的子命令； 当 resolve_acp_command 重写固定的二进制文
+        # 件时，它被保留为尾随参数。
+        #
         assert info.default_command[4] == "acp"
         assert info.api_key_env_var == "OPENCODE_API_KEY"
-        # OpenCode Zen resolves its endpoint from the model catalogue, so there
-        # is no base-URL override var.
+        # OpenCode Zen 从模型目录中解析其端点，因此没有 base-URL 覆盖变量。
+        #
         assert info.base_url_env_var is None
-        # OpenCode's only modes are ``build`` and ``plan``.
+        # OpenCode 的唯一模式是 ``build`` 和 ``plan``。
         assert info.default_session_mode == "build"
         assert "opencode" in info.agent_name_patterns
         assert info.supports_set_session_model is True
         assert info.supports_runtime_model_switch is True
-        # session/new ignores a _meta model selection.
+        # session/new 忽略 _meta 模型选择。
         assert info.session_meta_key is None
         assert info.default_model == "opencode/big-pickle"
         model_ids = [m.id for m in info.available_models]
         assert "opencode/big-pickle" in model_ids
         assert "opencode/claude-opus-5" in model_ids
-        # One free-tier id, which is the only kind that works with no key.
+        # 一个免费层 ID，这是唯一一种无需密钥即可使用的 ID。
         assert "opencode/nemotron-3-ultra-free" in model_ids
         assert info.binary_name == "opencode"
-        # OPENCODE_CONFIG_DIR relocates only the config file; auth, sessions and
-        # caches follow XDG dirs that fall back to HOME.
+        # OPENCODE_CONFIG_DIR 仅重定位配置文件； 身份验证、会话和缓存遵循 XDG 目录，该目
+        # 录回退到 HOME。
+        #
         assert info.data_dir_env_var == "HOME"
-        # OPENCODE_AUTH_CONTENT carries the auth store, so there is no
-        # credential file to materialise.
+        # OPENCODE_AUTH_CONTENT 携带身份验证存储，因此没有凭据文件可实现。
+        #
         assert info.file_secrets == ()
 
     def test_provider_info_is_frozen(self):
@@ -264,13 +269,13 @@ class TestDetectACPProviderByAgentName:
         assert info.key == "gemini-cli"
 
     def test_detects_kimi_code_by_agent_name(self):
-        # ``kimi acp`` reports agentInfo.name "Kimi Code CLI".
+        # ``kimi acp``报告agentInfo.name“Kimi代码CLI”。
         info = detect_acp_provider_by_agent_name("Kimi Code CLI")
         assert info is not None
         assert info.key == "kimi-code"
 
     def test_detects_opencode_by_agent_name(self):
-        # ``opencode acp`` reports agentInfo.name "OpenCode".
+        # ``opencode acp`` 报告 agentInfo.name“OpenCode”。
         info = detect_acp_provider_by_agent_name("OpenCode")
         assert info is not None
         assert info.key == "opencode"
@@ -290,8 +295,9 @@ class TestDetectACPProviderByCommand:
     def test_detects_each_provider_from_default_command(self):
         for key, info in ACP_PROVIDERS.items():
             detected = detect_acp_provider_by_command(list(info.default_command))
-            # Identity, not just a matching key: detect_acp_provider_by_command
-            # must resolve back to the very same ACP_PROVIDERS entry.
+            # 身份，而不仅仅是匹配的键：detect_acp_provider_by_command 必须解析回完全相
+            # 同的 ACP_PROVIDERS 条目。
+            #
             assert detected is info, key
 
     def test_tolerates_version_pin(self):
@@ -309,8 +315,8 @@ class TestDetectACPProviderByCommand:
         assert info.key == "codex"
 
     def test_detects_kimi_code_by_command(self):
-        # Deliberately not the pinned version: detection matches on package
-        # name, so a client may send any version.
+        # 故意不固定版本：检测与包名称匹配，因此客户端可以发送任何版本。
+        #
         info = detect_acp_provider_by_command(
             ["npx", "-y", "@moonshot-ai/kimi-code@0.39.1", "acp"]
         )
@@ -327,20 +333,22 @@ class TestDetectACPProviderByCommand:
         assert detect_acp_provider_by_command([]) is None
 
     def test_rejects_incidental_substring_in_custom_command(self):
-        # Plain substring matching would misattribute these to codex; the
-        # basename + prefix rule rejects them (basenames start with "my-"/"not-").
+        # 普通子字符串匹配会将这些错误归因于法典； 基本名称+前缀规则拒绝它们（基本名称以
+        # “my-”/"not-").开头
+        #
         assert detect_acp_provider_by_command(["my-codex-acp-wrapper"]) is None
         assert detect_acp_provider_by_command(["/opt/shims/not-codex-acp"]) is None
 
     def test_prefix_match_accepts_provider_basename_prefix(self):
-        # A basename that *starts with* the pattern is treated as that provider
-        # (mirrors how "claude-agent" must match the "claude-agent-acp" package).
+        # 以 * 开头的模式 * 被视为该提供程序（镜像“claude-智能体”必须如何匹配“claude-智
+        # 能体-ACP”包）。
+        #
         info = detect_acp_provider_by_command(["@acme/codex-acp-shim"])
         assert info is not None and info.key == "codex"
 
 
 class TestProviderRegistryConsistency:
-    """Verify the registry is internally consistent."""
+    """验证注册表内部一致。"""
 
     def test_every_provider_has_non_empty_default_command(self):
         for key, info in ACP_PROVIDERS.items():
@@ -353,14 +361,13 @@ class TestProviderRegistryConsistency:
             )
 
     def test_session_mode_is_a_real_id_or_absent(self):
-        """A mode id is scoped to its own server, so the only thing worth
-        asserting registry-side is that a recorded one is a usable id.
+        """模式 ID 的范围仅限于其自己的服务器，因此唯一值得的
+        断言注册表侧是记录的id是可用的id。
 
-        Two providers sharing a value says nothing — ``default`` is a mode
-        several ACP servers offer, and picking it for a second provider is a
-        correct record, not a collision. Whether the server accepts the id is
-        checked where it can be: against the running server, in
-        tests/sdk/agent/test_acp_conformance.py.
+        两个提供者共享一个值，这没什么意义——``default`` 是几个ACP 服务器提供的模式，
+        为第二个提供者选择它是一个正确的记录，而不是碰撞。 是否服务器
+        接受 id，检查时可以：与运行中的服务器进行比较，在tests/sdk/agent/
+        test_acp_conformance.py.
         """
         for key, info in ACP_PROVIDERS.items():
             mode = info.default_session_mode
@@ -369,8 +376,8 @@ class TestProviderRegistryConsistency:
             )
 
     def test_session_mode_is_a_non_empty_string_or_none(self):
-        """``None`` skips the ``session/set_mode`` call; an empty string would
-        be sent verbatim and rejected by the server."""
+        """``None`` 跳过 ``session/set_mode`` 调用； 空字符串会
+        逐字发送并被服务器拒绝。"""
         for key, info in ACP_PROVIDERS.items():
             assert (
                 info.default_session_mode is None or info.default_session_mode.strip()
@@ -387,7 +394,7 @@ class TestProviderRegistryConsistency:
         assert len(modes) == len(set(modes)), "each provider should use a unique mode"
 
     def test_detect_returns_matching_provider_for_all_registered_patterns(self):
-        """Every registered pattern should resolve back to its own provider."""
+        """每个注册的模式都应该解析回其自己的提供者。"""
         for key, info in ACP_PROVIDERS.items():
             for pattern in info.agent_name_patterns:
                 detected = detect_acp_provider_by_agent_name(pattern)
@@ -399,27 +406,27 @@ class TestProviderRegistryConsistency:
                 )
 
     def test_acp_server_kind_matches_registry_keys(self):
-        # ACPServerKind (the ACPAgentSettings.acp_server discriminator) is a
-        # hand-maintained Literal, not derived from ACP_PROVIDERS — a provider
-        # added to one without the other would either be unselectable via
-        # settings (Literal missing it) or unrecognized at runtime (registry
-        # missing it). "custom" is the one non-registry value it also accepts.
+        # ACPServerKind (the ACPAgentSettings.acp_server discriminator) 是一个手动维护的
+        #  Literal，不是从 ACP_PROVIDERS 中衍生的 —— 一个没有另一个的提供者，要么无法通
+        # 过设置选择（Literal 缺失它），要么在运行时无法识别 (注册表缺失它）。 "custom"
+        # 是它接受的唯一一个非注册表值。
+        #
         assert set(get_args(ACPServerKind)) == set(ACP_PROVIDERS) | {"custom"}
 
 
-# Providers whose model ids depend on which credential the user supplies, so no
-# static list can be correct. Not the same as plan-tier variance, which the
-# curated lists already tolerate (they are suggestions, not access checks).
+# 其模型 ID 取决于用户提供的凭据的提供者，因此静态列表不可能是正确的。 与计划层差异不同
+# ，策划列表已经容忍了计划层差异（它们是建议，而不是访问检查）。
+#
 _UNCURATED_MODEL_PROVIDERS = {
-    # An account login offers ``kimi-code/*`` aliases; a config.toml provider
-    # offers whatever alias the user named. A static list would be wrong, not
-    # merely incomplete, for anyone not on an account login.
+    # 帐户登录提供 ``kimi-code/*`` 个别名； config.toml 提供者提供用户指定的任何别名。
+    # 对于没有帐户登录的任何人来说，静态列表不仅是不完整的，而且是错误的。
+    #
     "kimi-code",
 }
 
 
 class TestProviderModelLists:
-    """Verify the curated ``available_models`` / ``default_model`` fields."""
+    """验证策划的 ``available_models`` / ``default_model`` 字段。"""
 
     def test_every_builtin_provider_has_available_models(self):
         for key, info in ACP_PROVIDERS.items():
@@ -516,11 +523,11 @@ class TestBuildSessionModelMeta:
 
 
 class TestACPFileSecrets:
-    """The registry declares reserved file-content credential secrets for the
-    providers that authenticate from a file on disk (issue #1020)."""
+    """注册表声明保留文件内容凭据机密
+    从磁盘上的文件进行身份验证的提供程序（问题＃1020）。"""
 
     def test_claude_code_has_no_file_secrets(self):
-        # Claude Code authenticates via env vars (token / API key) only.
+        # Claude Code 仅通过环境变量（token / API key）进行身份验证。
         assert ACP_PROVIDERS["claude-code"].file_secrets == ()
 
     def test_codex_auth_json_spec(self):
@@ -542,7 +549,7 @@ class TestACPFileSecrets:
         assert spec.env_var == "GOOGLE_APPLICATION_CREDENTIALS"
         assert spec.subdir == "gemini-cli"
         assert spec.env_points_to == "file"
-        # Vertex needs a project + location alongside the SA JSON.
+        # Vertex 需要 SA JSON 旁边的项目 + 位置。
         assert spec.warn_if_unset == ("GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION")
 
     def test_default_acp_file_secrets_aggregates_all_providers(self):
@@ -555,9 +562,9 @@ class TestACPFileSecrets:
             "KIMI_CODE_CONFIG_TOML",
             "PI_AUTH_JSON",
         }
-        # Deterministic concatenation in ACP_PROVIDERS registration order
-        # (codex, gemini-cli, kimi-code, pi) — downstream callers can rely on a
-        # stable ordering of the built-in specs.
+        # ACP_PROVIDERS 注册顺序中的确定性连接（codex、gemini-CLI、kimi-code、pi）——下游
+        # 调用者可以依赖内置特性的稳定排序。
+        #
         assert specs == (
             ACP_PROVIDERS["codex"].file_secrets
             + ACP_PROVIDERS["gemini-cli"].file_secrets
@@ -566,9 +573,9 @@ class TestACPFileSecrets:
         )
 
     def test_file_secret_subdirs_are_unique_across_providers(self):
-        # Each spec's subdir is a folder under the shared per-conversation
-        # acp/ root (see ACPFileSecretSpec.subdir); a collision would let two
-        # providers' credential files overwrite each other.
+        # 每个规范的子目录是共享的每个会话 acp/ root 下的一个文件夹（参见
+        # ACPFileSecretSpec.subdir）； 冲突会让两个提供商的凭据文件互相覆盖。
+        #
         subdirs = [
             spec.subdir for info in ACP_PROVIDERS.values() for spec in info.file_secrets
         ]
@@ -590,7 +597,7 @@ class TestACPFileSecrets:
 
         from openhands.sdk.settings.acp_providers import ACPFileSecretSpec
 
-        # filename must be a bare basename.
+        # 文件名必须是裸基名。
         with pytest.raises(ValidationError):
             ACPFileSecretSpec(
                 secret_name="X", filename="../escape.json", env_var="X", subdir="x"
@@ -599,7 +606,7 @@ class TestACPFileSecrets:
             ACPFileSecretSpec(
                 secret_name="X", filename="a/b.json", env_var="X", subdir="x"
             )
-        # subdir must not escape the acp root.
+        # subdir 不得转义 ACP 根目录。
         with pytest.raises(ValidationError):
             ACPFileSecretSpec(
                 secret_name="X", filename="x.json", env_var="X", subdir="../up"
@@ -608,7 +615,7 @@ class TestACPFileSecrets:
             ACPFileSecretSpec(
                 secret_name="X", filename="x.json", env_var="X", subdir="/abs"
             )
-        # "." / whitespace would drop the file straight into the shared acp/ root.
+        # “。” / 空格会将文件直接放入共享 acp/ 根目录中。
         for bad in (".", "  ", " . "):
             with pytest.raises(ValidationError):
                 ACPFileSecretSpec(

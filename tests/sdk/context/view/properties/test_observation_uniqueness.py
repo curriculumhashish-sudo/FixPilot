@@ -1,9 +1,8 @@
-"""Tests for ObservationUniquenessProperty.
+"""测试 ObservationUniquenessProperty。
 
-This property guarantees at most one observation-like event per
-tool_call_id, which protects ToolCallMatchingProperty's strict pairing
-assumption from crash-recovery scenarios where an AgentErrorEvent and a
-late ObservationEvent share the same tool_call_id.
+该属性最多保证一个观测结果-类似事件 tool_call_id，这保护了 ToolCallMatchingProperty
+的严格配对假设在 AgentErrorEvent
+ 和一个晚到的 ObservationEvent 共享同一个 tool_call_id 的崩溃恢复场景中免受损害。
 """
 
 from unittest.mock import create_autospec
@@ -21,10 +20,9 @@ from openhands.sdk.event.llm_convertible import (
 
 
 def test_enforce_drops_late_observation_after_agent_error() -> None:
-    """Crash-recovery scenario: AgentErrorEvent and a late ObservationEvent
-    share the same tool_call_id. The later observation-like event must be
-    dropped; the first one (the AgentErrorEvent the agent already saw) is
-    kept.
+    """崩溃恢复场景：AgentErrorEvent 和较晚的 ObservationEvent
+    共享相同的tool_call_id。 后面的类似观测结果的事件必须被删除； 第一个（已经看到的
+    AgentErrorEvent 和智能体）被保留。
     """
     property = ObservationUniquenessProperty()
 

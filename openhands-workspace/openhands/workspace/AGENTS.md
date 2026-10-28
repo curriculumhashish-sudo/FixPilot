@@ -1,30 +1,40 @@
 # Package Guidelines
 
-See the [project root AGENTS.md](../../../AGENTS.md) for repository-wide policies and workflows.
+请参阅 [ 项目根 AGENTS.md](../../../AGENTS.md) 了解存储库范围的策略和工作流程。
 
-## Package Structure & Module Organization
+<a id="package-structure--module-organization"></a>
 
-- This directory (`openhands-workspace/openhands/workspace/`) contains workspace implementations under the `openhands.workspace.*` namespace (Docker, Apptainer, cloud, and API-remote).
-- Each backend lives in its own subpackage (e.g. `docker/`, `cloud/`) and typically exposes a `*Workspace` class from `workspace.py`.
-- The published import surface is `openhands-workspace/openhands/workspace/__init__.py` (`__all__` is treated as public API). Keep imports lightweight so `import openhands.workspace` does not pull in build-time dependencies.
-- These classes should remain compatible with the SDK workspace interfaces and types (for example `openhands.sdk.workspace.RemoteWorkspace`, `TargetType`, `PlatformType`).
+## 包结构和模块组织
 
-## Build, Test, and Development Commands
+- 此目录 (`openhands-workspace/openhands/workspace/`) 包含 `openhands.workspace.*` 命名空间下的工作区实现（Docker、Apptainer、云和 API-远程）。
+- 每个后端都位于其自己的子包中（e.g. `docker/`、`cloud/`），并且通常公开 `workspace.py` 中的 `*Workspace` 类。
+- 已发布的导入表面为 `openhands-workspace/openhands/workspace/__init__.py` (`__all__` 被视为公共 API)。 保持导入轻量级，因此 `import openhands.workspace` 不会引入构建时依赖项。
+- 这些类应与 SDK 工作区接口和类型（例如 `openhands.sdk.workspace.RemoteWorkspace`、`TargetType`、`PlatformType`）保持兼容。
 
-- `make build`: set up the dev environment (`uv sync --dev`) and install pre-commit hooks.
-- `uv run pre-commit run --files <path>`: run checks for only the files you changed.
-- `uv run pytest tests/workspace -k <pattern>`: run workspace tests; start with the narrowest file/directory that covers your change.
+<a id="build-test-and-development-commands"></a>
 
-## Coding Style & Naming Conventions
+## 构建、测试和开发命令
 
-- Packages support Python 3.12 and later; repository tooling targets Python 3.13. Keep code Ruff-compliant (line length 88) and Pyright-friendly.
-- Prefer small, explicit wrappers around external interactions (Docker/Apptainer/HTTP). Validate inputs early and keep side-effecting operations out of module import time.
+- `make build`：设置开发环境（`uv sync --dev`）并安装预提交挂钩。
+- `uv run pre-commit run --files <path>`：仅对您更改的文件运行检查。
+- `uv run pytest tests/workspace -k <pattern>`：运行工作区测试； 从涵盖您的更改的最窄文件/目录开始。
 
-## Testing Guidelines
+<a id="coding-style--naming-conventions"></a>
 
-- Tests live under `tests/workspace/` and generally validate import behavior, model fields, and command invocation. Prefer patching command executors instead of requiring real Docker in unit tests.
-- Add focused coverage for backend-specific behavior and for any changes that affect the public import surface.
+## 编码风格和命名约定
 
-## Commit & Pull Request Guidelines
+- 软件包支持 Python 3.12 及更高版本； 存储库工具目标 Python 3.13。 保持代码Ruff兼容（行长88）和Pyright友好。
+- 更喜欢围绕外部交互的小型、显式包装器（Docker/Apptainer/HTTP）。 尽早验证输入并将副作用操作排除在模块导入时间之外。
 
-- Avoid breaking changes to exported workspace classes/symbols; deprecate before removal when changing the public surface.
+<a id="testing-guidelines"></a>
+
+## 测试指南
+
+- 测试位于 `tests/workspace/` 下，通常验证导入行为、模型字段和命令调用。 更喜欢修补命令执行器，而不是在单元测试中需要真正的 Docker。
+- 添加针对后端特定行为以及影响公共导入表面的任何更改的重点覆盖范围。
+
+<a id="commit--pull-request-guidelines"></a>
+
+## 提交和拉取请求指南
+
+- 避免将不兼容变更导出到工作区类/符号； 弃用更换公共表面时拆除前。

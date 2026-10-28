@@ -31,7 +31,7 @@ from .types import (
 
 
 __all__ = [
-    # Types
+    # 类型
     "LLMError",
     "LLMMalformedActionError",
     "LLMNoActionError",
@@ -51,7 +51,7 @@ __all__ = [
     "LLMBadRequestError",
     "UserCancelledError",
     "OperationCancelled",
-    # Helpers
+    # 帮手
     "is_content_policy_violation",
     "is_context_window_exceeded",
     "is_prompt_cache_too_small",

@@ -1,17 +1,16 @@
-"""ACPAgent — an AgentBase subclass that delegates to an ACP server.
+"""ACPAgent — 一个 AgentBase 子类，该子类调用 ACP 服务器。
 
-The Agent Client Protocol (ACP) lets OpenHands power conversations using
-ACP-compatible servers (Claude Code, Gemini CLI, etc.) instead of direct
-LLM calls.  The ACP server manages its own LLM, tools, and execution;
-the ACPAgent relays user messages and collects the response. OpenHands
-can still append prompt-only context, such as a skill catalog, to the
-user message before it is sent to the ACP server.
+的智能体客户端协议 (ACP) lets OpenHands 使用电力进行对话 ACP兼容服务器（Claude Code，
+Gemini） CLI而是通过间接的方式 LLM
+calls. 的 ACP 服务器管理自己 LLM工具和执行的 ACPAgent 转发用户消息并收集响应。
+OpenHands 仍然可以追加提示词-only 上下文例如，技能
+目录，发送到用户消息之前 ACP server.
 
-Unlike the built-in Agent, one ACP ``step()`` maps to one complete remote
-assistant turn. ACPAgent therefore emits a terminal ``FinishAction`` at the
-end of each step to delimit that completed turn for downstream consumers.
+不像内置的智能体，一个 ACP ``step()`` 对应一个完整的远程助手轮次。 ACPAgent 因此，在
+每个步骤的末尾发出一个终端 ``FinishAction``
+来标记完成的回合，供下游消费者使用。
 
-See https://agentclientprotocol.com/protocol/overview
+参见 https://agentclientprotocol.com/protocol/overview
 """
 
 from __future__ import annotations
@@ -167,20 +166,19 @@ if TYPE_CHECKING:
         LocalConversation,
     )
     from openhands.sdk.conversation.secret_registry import SecretRegistry
-# Maximum seconds to wait for a UsageUpdate notification after prompt()
-# returns. The ACP server writes UsageUpdate to the wire before the
-# PromptResponse, so under normal conditions the notification handler
-# completes almost immediately. This timeout is a safety net for slow
-# or remote servers.
+# prompt() 返回后等待 UsageUpdate 通知的最大秒数。 ACP 服务器在 PromptResponse 之前将
+# UsageUpdate 写入线路，因此在正常情况下，通知处理程序几乎立即完成。 这个超时是针对慢速
+# 或远程服务器的安全网。
+#
 _USAGE_UPDATE_TIMEOUT: float = float(os.environ.get("ACP_USAGE_UPDATE_TIMEOUT", "2.0"))
 
-# Retry configuration for transient ACP connection errors.
-# These errors can occur when the connection drops mid-conversation but the
-# session state is still valid on the server side.
+# 重试短暂 ACP 连接错误的配置。 当连接在会话中断开但会话状态在服务器端仍然有效时，可能会
+# 发生这些错误。
+#
 _ACP_PROMPT_MAX_RETRIES: int = int(os.environ.get("ACP_PROMPT_MAX_RETRIES", "3"))
 
-# After a timeout/cancellation, wait briefly for the ACP prompt task to react
-# to session/cancel before rewiring callbacks for the next turn.
+# 超时/取消后，短暂等待 ACP 提示词任务对会话/取消做出反应，然后重新连接回调进行下一轮。
+#
 _ACP_CANCEL_DRAIN_TIMEOUT: float = float(
     os.environ.get("ACP_CANCEL_DRAIN_TIMEOUT", "2.0")
 )
@@ -191,52 +189,51 @@ _ACP_NPX_CACHE_WARM_TIMEOUT: float = float(
 )
 _ACP_VERSION_RE = re.compile(r"v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)")
 
-_ACP_PROMPT_RETRY_DELAYS: tuple[float, ...] = (5.0, 15.0, 30.0)  # seconds
+_ACP_PROMPT_RETRY_DELAYS: tuple[float, ...] = (5.0, 15.0, 30.0)  # 秒
 
-# Exception types that indicate transient connection issues worth retrying
+# 指示值得重试的瞬时连接问题的异常类型
 _RETRIABLE_CONNECTION_ERRORS = (OSError, ConnectionError, BrokenPipeError, EOFError)
 
-# ``npm run`` exports package/lifecycle configuration into descendants. ACP
-# providers launched through ``npx`` must not inherit that context, otherwise npm
-# can try to resolve against the parent package instead of the requested one.
+# ``npm run`` 将包/生命周期配置导出到后代中。 ACP 通过 ``npx`` 启动的提供者必须不能继承
+# 那个上下文，否则 npm 可以尝试与父包而不是请求的包进行解析。
+#
 _INHERITED_NPM_ENV_EXACT: frozenset[str] = frozenset({"INIT_CWD"})
 _INHERITED_NPM_ENV_PREFIXES: tuple[str, ...] = ("npm_", "NPM_")
 
-# JSON-RPC error codes from the ACP server that are transient and worth
-# retrying.  These map to server-side failures (HTTP 500 equivalents) where
-# the session state is still valid but the request failed.
+# 来自 ACP 服务器的 JSON-RPC 错误代码是暂时的且值得重试。 这些映射到服务器端故障（HTTP
+# 500 等效项），其中会话状态仍然有效但请求失败。
+#
 # -32603 = "Internal error" (JSON-RPC spec) — covers ACP server crashes,
-#          upstream model 500s, and transient infrastructure errors.
+#          上游模型 500 和瞬时基础设施错误。
 _RETRIABLE_SERVER_ERROR_CODES: frozenset[int] = frozenset({-32603})
 
 
-# Maximum characters for ACP tool call content — matches MAX_CMD_OUTPUT_SIZE
-# used by the terminal tool and the default max_message_chars in LLM config.
+# ACP 工具调用内容的最大字符数 — 与终端工具使用的 MAX_CMD_OUTPUT_SIZE 和 LLM 配置中的默
+# 认 max_message_chars 匹配。
+#
 MAX_ACP_CONTENT_CHARS: int = 30_000
 _ACP_SUBPROCESS_LOG_LINE_CHARS = 4_000
 
-# Number of trailing characters of an ACP session id retained in log lines
-# for correlation.  ACP session ids are server-issued tokens whose possession
-# alone is enough to call ``session/load`` — they're effectively bearer
-# tokens.  ``model_dump`` / ``model_dump_json`` already redact the
-# ``acp_resume_session_id`` field; log aggregators (Datadog, CloudWatch, …)
-# are another serialization boundary that retains lines for weeks, so the
-# same redaction applies there.  Eight trailing characters give enough
-# entropy to correlate across log lines for one conversation but not enough
-# to brute-force the full id.
+# 日志行中保留的 ACP 会话 ID 的尾随字符数以进行关联。 ACP 会话 ID 是服务器发出的 token，
+# 仅拥有它就足以调用 ``session/load`` — 它们实际上是承载者 token。 ``model_dump`` /
+# ``model_dump_json`` 已编辑
+# ``acp_resume_session_id`` 字段； 日志聚合器（Datadog、CloudWatch、...）是另一个序列化
+# 边界，它会将行保留数周，因此同样的脱敏也适用于此。 八个尾随字符提供了足够的熵来关联一
+# 次对话的日志行，但不足以暴力破解完整 ID。
+#
 _SESSION_ID_LOG_SUFFIX_LEN: Final[int] = 8
 
 
 def _fingerprint_session_id(session_id: str | None) -> str:
-    """Render an ACP session id as a short, non-reversible fingerprint.
+    """将 ACP 会话 ID 呈现为短的、不可逆的指纹。
 
-    ACP session ids are effectively bearer tokens (anyone holding one can
-    call ``session/load`` against the ACP server), so the full value must
-    not appear in logs — see :data:`_SESSION_ID_LOG_SUFFIX_LEN`.
+    ACP 会话ID实际上相当于 token （持有任何会话ID的人都可以对 ``session/load`` 服务器
+    发起 ACP），因此日志中不应出现完整的值——请参
+    阅：data:`_SESSION_ID_LOG_SUFFIX_LEN`。
 
-    Returns ``"<none>"`` for ``None``, ``"<short>"`` for ids shorter than
-    or equal to the suffix length (e.g. test fixtures), and ``"...<last-N>"``
-    otherwise.
+    对于 ``None`` 返回 ``"<none>"``，对于短于或等于后缀长度的 id 返回 ``"<short>"`` (
+    e.g. 测试测试夹具），否则为
+    ``"...<last-N>"``。
     """
     if session_id is None:
         return "<none>"
@@ -246,7 +243,7 @@ def _fingerprint_session_id(session_id: str | None) -> str:
 
 
 def _strip_inherited_npm_env(env: dict[str, str]) -> None:
-    """Remove npm lifecycle/config variables inherited from the parent stack."""
+    """删除从父堆栈继承的 npm 生命周期/配置变量。"""
     for key in list(env):
         if key in _INHERITED_NPM_ENV_EXACT or key.startswith(
             _INHERITED_NPM_ENV_PREFIXES
@@ -254,27 +251,24 @@ def _strip_inherited_npm_env(env: dict[str, str]) -> None:
             env.pop(key, None)
 
 
-# Limit for asyncio.StreamReader buffers used by the ACP subprocess pipes.
-# The default (64 KiB) is too small for session_update notifications that
-# carry large tool-call outputs (e.g. file contents, test results).  When
-# a single JSON-RPC line exceeds the limit, readline() raises
-# LimitOverrunError, silently killing the filter/receive pipeline and
-# leaving the prompt() future unresolved forever.  100 MiB is a pragmatic
-# compatibility limit for current ACP servers, not an endorsement of huge
-# JSON-RPC payloads; the long-term fix is protocol-level chunking/streaming
-# for large tool output.
+# 限制 asyncio.StreamReader 使用的缓冲区 ACP  子进程管道。 默认值（64） KiB)太小了
+# session_update 包含大量工具调用输出的通知e.g. 文件内容、测试结果）。 当我单身时 JSON-
+# RPC 线超过极限， readline() 提出了 LimitOverrunError，使过滤和接收流水线静默终止，并留
+# 下 prompt() 未来永远无法解决 MiB 这是一个当前兼容性的实用限度 ACP 服务器，而不是对大型
+# 的 [endorsement] 的支持 JSON-RPC  载荷; 长期解决方案是针对大型工具输出的协议级分块/流
+# 式传输。
+#
 _STREAM_READER_LIMIT: int = 100 * 1024 * 1024  # 100 MiB
 
-# Minimum interval between on_activity heartbeat signals (seconds).
-# Throttled to avoid excessive calls while still keeping the idle timer
-# well below the ~20 min runtime-api kill threshold.  Shared with the
-# agent-server's streaming-delta heartbeat so both paths keep the same pace.
+# on_activity 心跳信号之间的最小间隔（秒）。 进行限制以避免过多的调用，同时仍将空闲计时
+# 器保持在远低于约 20 分钟的运行时-API 终止阈值。 与智能体-服务器的流式传输-delta 心跳共
+# 享，因此两条路径保持相同的速度。
+#
 ACTIVITY_SIGNAL_INTERVAL: Final[float] = 30.0
 
-# ACP tool-call statuses that represent a terminal outcome.  Non-terminal
-# statuses (``pending``, ``in_progress``) mean the call is still in flight
-# and, if the turn aborts before it reaches a terminal state, the live-
-# emitted event on state.events will otherwise be orphaned forever.
+# ACP 代表最终结果的工具调用状态。 ``pending``和``in_progress``表示调用仍在进行中，如果
+# 在到达终端状态之前state.events上的活发事件被终止，那么该事件将永远被遗弃。
+#
 _TERMINAL_TOOL_CALL_STATUSES: frozenset[str] = frozenset({"completed", "failed"})
 
 
@@ -285,35 +279,34 @@ class _PromptDrainResult(NamedTuple):
     error: BaseException | None
 
 
-# Stable identifier stamped onto the sentinel LLM so downstream code
-# (e.g. title_utils) can detect "this LLM cannot be called" without
-# relying on the model name — which we overwrite with the real model
-# once ``acp_model`` is known, so logs and serialized state show the
-# actual model rather than "acp-managed".
+# 稳定的标识符印在哨兵值  LLM 所以下游代码（e.g. title_utils) 可以检测 "this" LLM 不能不
+# 依赖模型名称调用它——我们会在实际模型上覆盖掉它 ``acp_model`` 已知，因此日志和已序列化
+# 状态显示实际模型，而不是 [ ]ACP-managed".
+#
 ACP_SENTINEL_USAGE_ID = "acp-managed"
 
 
 def _make_dummy_llm() -> LLM:
-    """Create a dummy LLM that should never be called directly."""
+    """创建一个永远不应该直接调用的虚拟 LLM。"""
     return LLM(model="acp-managed", usage_id=ACP_SENTINEL_USAGE_ID)
 
 
 # ---------------------------------------------------------------------------
-# ACP Client implementation
+# ACP 客户端实现
 # ---------------------------------------------------------------------------
 
 
-# ACP auth method ID → environment variable that supplies the credential.
-# When the server reports auth_methods, we pick the first method whose
-# required credential source is present.
-# Note: claude-login is intentionally NOT included because Claude Code ACP
-# uses bypassPermissions mode instead of API key authentication.
+# ACP 身份验证方法 ID → 环境变量提供凭据。 当服务器报告 auth_methods 时，我们选择第一个
+# 存在所需凭据源的方法。
+# 注意：故意包含 claude-login 不，因为 Claude 代码 ACP
+# 使用 bypassPermissions 模式而不是 API 键身份验证。
 _AUTH_METHOD_ENV_MAP: dict[str, str] = {
     "gemini-api-key": "GEMINI_API_KEY",
 }
-# Gemini CLI personal (Google OAuth) login, cached by ``gemini login`` /
-# ``gemini --acp``. Its presence lets us select the server's ``oauth-personal``
-# auth method without an API key (mirrors the ChatGPT subscription path).
+# Gemini CLI 个人 (Google OAuth) 登录，由 ``gemini login`` / 缓存
+# ``gemini --acp``. 它的存在让我们可以选择服务器的 ``oauth-personal`` 身份验证方法，而无
+# 需 API 密钥（镜像 ChatGPT 订阅路径）。
+#
 _GEMINI_OAUTH_PATH = Path(".gemini") / "oauth_creds.json"
 
 
@@ -322,13 +315,13 @@ def _preconfigured_credentials(
     specs: Sequence[ACPFileSecretSpec],
     env: dict[str, str],
 ) -> list[str]:
-    """Credential sources already in place, named as they were supplied.
+    """凭据来源已就位，按提供时的名称命名。
 
-    A server whose advertised auth methods we cannot perform may still be
-    authenticated out of band — from a credential file seeded onto disk, or
+    我们无法执行其所宣传的身份验证方法的服务器仍可能通过带外身份验证 — 从植入到磁盘上
+    的凭据文件，或者
     from the provider key it reads straight out of its environment. Both make
-    "no credential is available" the wrong thing to say. Read off the registry
-    record rather than provider names, so this holds for any provider.
+    “没有凭据可用”是错误的说法。 读取注册表记录而不是提供者名称，因此这适用于任何提供
+    者。
     """
     present: list[str] = []
     for spec in specs:
@@ -340,9 +333,9 @@ def _preconfigured_credentials(
             path = path / spec.filename
         if not path.is_file():
             continue
-        # A file that exists but cannot authenticate is the case that most
-        # needs the warning, so presence alone is not enough where the SDK
-        # knows the format.
+        # 存在但无法验证的文件是最需要警告的情况，因此在 SDK 知道格式的情况下，仅存在是
+        # 不够的。
+        #
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
@@ -359,27 +352,26 @@ def _select_auth_method(
     auth_methods: list[Any],
     env: dict[str, str],
 ) -> str | None:
-    """Pick an auth method whose required credentials are present.
+    """选择存在所需凭据的身份验证方法。
 
-    Returns the ``id`` of the first matching method, or ``None`` if no
-    supported credential source is available (the server may not require auth).
+    返回第一个匹配方法的 ``id``，如果没有支持的凭据源可用（服务器可能不需要身份验证）
+    ，则返回 ``None``。
 
-    File-backed subscription / SA logins are checked first so they take
-    precedence over explicit API keys, which serve as the fallback:
+    首先检查文件支持的订阅/SA 登录，因此它们优先于显式的 API 键，后者充当回退方案：
 
-    - ``chat-gpt`` (codex-acp) — ``$CODEX_HOME/auth.json`` or
+    - ``chat-gpt``（法典-ACP）— ``$CODEX_HOME/auth.json`` 或
       ``~/.codex/auth.json``
-    - ``vertex-ai`` (gemini-cli) — service-account JSON at
-      ``GOOGLE_APPLICATION_CREDENTIALS`` (the deployable Gemini path; preferred
-      over personal OAuth, which is host-bound and undeployable)
-    - ``oauth-personal`` (gemini-cli) — ``~/.gemini/oauth_creds.json``
+    - ``vertex-ai`` (gemini-CLI) — 服务帐户 JSON 位于
+      ``GOOGLE_APPLICATION_CREDENTIALS``（可部署的 Gemini 路径； 优于个人 OAuth，后者
+      是主机绑定且不可部署的）
+    - ``oauth-personal``（双子座-CLI）—``~/.gemini/oauth_creds.json``
 
-    In a server image the interactive-login files are absent, so the API-key
-    fallback (e.g. ``GEMINI_API_KEY``) is used instead.
+    在服务器映像中，交互式登录文件不存在，因此 API-键回退方案 (e.g. 使用
+    ``GEMINI_API_KEY``) 来代替。
     """
     method_ids = {m.id for m in auth_methods}
-    # Prefer file-backed subscription / service-account logins when their
-    # credential file is present.
+    # 当凭据文件存在时，首选文件支持的订阅/服务帐户登录。
+    #
     if "chat-gpt" in method_ids and codex_auth_file_is_chatgpt(env):
         return "chat-gpt"
     gac = env.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -387,13 +379,14 @@ def _select_auth_method(
         return "vertex-ai"
     if "oauth-personal" in method_ids and (Path.home() / _GEMINI_OAUTH_PATH).is_file():
         return "oauth-personal"
-    # The maintained Codex ACP adapter exposes one API-key method and reads
-    # CODEX_API_KEY first, then OPENAI_API_KEY, from its subprocess env.
+    # 维护的 Codex ACP 适配器公开一个 API-key 方法，并首先从其子进程环境读取
+    # CODEX_API_KEY，然后读取 OPENAI_API_KEY。
+    #
     if "api-key" in method_ids and any(
         env.get(name) for name in ("CODEX_API_KEY", "OPENAI_API_KEY")
     ):
         return "api-key"
-    # Fall back to explicit API key env vars.
+    # 回退到显式 API 键环境变量。
     for method_id, env_var in _AUTH_METHOD_ENV_MAP.items():
         if method_id in method_ids and env_var in env:
             return method_id
@@ -420,9 +413,9 @@ def _auth_selection_failure_reason(
     if provider is not None and provider.api_key_env_var:
         if not env.get(provider.api_key_env_var):
             reasons.append(f"{provider.api_key_env_var} is unset")
-    # ``type: "terminal"`` marks a login only an interactive TTY can complete,
-    # which the runtime does not have. Named so the log says why the method was
-    # never a candidate rather than implying a missing credential.
+    # ``type: "terminal"`` 标记只有交互式 TTY 才能完成的登录，这是运行时不具备的。 如此
+    # 命名的日志说明了为什么该方法从未成为候选方法，而不是暗示缺失凭据。
+    #
     terminal_ids = sorted(
         m.id
         for m in (normalize_auth_method(raw) for raw in auth_methods)
@@ -504,12 +497,11 @@ def _log_acp_provider_version(agent_name: str, agent_version: str) -> None:
 
 
 def _npx_packages(command: list[str]) -> list[str]:
-    """Pinned npm specs an ``npx`` command installs, for the cache warm.
+    """固定 npm 规格 ``npx`` 命令安装，用于缓存预热。
 
-    ``--package=<spec>`` flags when present — pi pins its ACP adapter and the
-    engine it spawns separately, and its positional argument is the bare binary
-    name, which would warm an unpinned package. Otherwise the first positional,
-    which is the package for the single-package providers.
+    ``--package=<spec>`` 当存在时，标志 —— pi 将其 ACP 适配器和生成的引擎分开，并且其
+    位置参数是裸的二进制名称，这将唤醒一个未挂载的包。
+     否则是第一个位置，它是单包提供商的包。
     """
     if not command or command[0] != "npx":
         return []
@@ -529,24 +521,26 @@ def _npx_packages(command: list[str]) -> list[str]:
 def _with_codex_base_url(
     command: str, args: list[str], env: dict[str, str]
 ) -> dict[str, str]:
-    """Return the Codex subprocess environment for a configured proxy.
+    """返回已配置代理的 Codex 子进程环境。
 
-    Unlike claude-agent-acp (which honours ``ANTHROPIC_BASE_URL``) and gemini-cli
-    (whose base URL is supplied via the ``authenticate`` gateway), **codex does
-    not read the ``OPENAI_BASE_URL`` env var** — its supported base-URL config
-    lives in ``config.toml`` (see the codex "Advanced configuration" docs). Its
-    built-in ``openai`` provider otherwise targets ``https://api.openai.com``, so
-    a caller that points codex at a gateway/proxy (eval LiteLLM proxy, a
-    corporate egress, etc.) via ``OPENAI_BASE_URL`` alone would have every turn
-    hit the real OpenAI API with the wrong key and fail ``401 invalid_api_key``
-    — surfaced opaquely as ACP ``-32603 Internal error``.
+    不同于克莱尔（Claude-）智能体-ACP （该端点已弃用） ``ANTHROPIC_BASE_URL``) and
+    gemini-CLI (whose base
+     URL 通过提供 ``authenticate`` gateway) **codex 不读取  ``OPENAI_BASE_URL`` 环境
+     变量** — 其支持的
+    基础—URL 配置文件在  ``config.toml`` （请参阅“高级配置”文档）。 其内置的
+    ``openai`` 其他提供商的目标
+    ``https://api.openai.com``所以，一个指向网关/代理的调用者（eval LiteLLM 通过代理
+    、企业出口等
+    ``OPENAI_BASE_URL`` 独自一人，每一个转角都会遇到真实的自己 OpenAI  API 使用错误的
+    密钥并失败
+    ``401 invalid_api_key`` — 隐隐约约浮现出来 ACP  ``-32603 Internal error``.
 
-    ``@agentclientprotocol/codex-acp`` reads a JSON object from ``CODEX_CONFIG``.
-    Existing config values are preserved, and an explicitly configured base URL
-    or model provider wins.
+    ``@agentclientprotocol/codex-acp`` 从 ``CODEX_CONFIG`` 读取 JSON 对象。 现有的配
+    置值将被保留，并且显式配
+    置的基础 URL 或模型提供程序将获胜。
 
-    The input mapping is never modified. A new mapping is returned only when the
-    child process needs a synthesized ``CODEX_CONFIG`` value.
+    输入映射永远不会被修改。 仅当子进程需要合成的 ``CODEX_CONFIG`` 值时，才会返回新的
+    映射。
     """
     if not any("codex-acp" in tok for tok in (command, *args)):
         return env
@@ -557,8 +551,9 @@ def _with_codex_base_url(
     try:
         config = json.loads(raw_config) if raw_config else {}
     except (TypeError, ValueError):
-        # Leave invalid caller-owned config untouched. The adapter will surface
-        # its own configuration error instead of us hiding it.
+        # 保持无效的调用者拥有的配置不变。 适配器将显示其自己的配置错误，而不是我们隐藏
+        # 它。
+        #
         return env
     if not isinstance(config, dict):
         return env
@@ -575,10 +570,10 @@ def _with_codex_base_url(
     return configured_env
 
 
-# Session config-option id that selects the model on ACP servers that drive
-# model selection through ``configOptions`` / ``session/set_config_option``
-# (codex-acp, claude-agent-acp 0.44+) rather than the UNSTABLE ``models``
-# capability + ``session/set_model`` (gemini-cli, older codex/claude).
+# ACP 服务器上选择模型的会话配置选项 ``configOptions`` / ``session/set_config_option``（
+# codex-ACP，claude-智能体-ACP 0.44+）而不是 UNSTABLE ``models`` 能力 +
+# ``session/set_model``（gemini-CLI，更旧的 codex/claude）。
+#
 _MODEL_CONFIG_OPTION_ID = "model"
 _CODEX_REASONING_EFFORTS: Final[frozenset[str]] = frozenset(
     {"low", "medium", "high", "xhigh"}
@@ -586,7 +581,7 @@ _CODEX_REASONING_EFFORTS: Final[frozenset[str]] = frozenset(
 
 
 def _codex_model_config_options(model: str) -> tuple[tuple[str, str], ...]:
-    """Map combined Canvas Codex model IDs to codex-acp config options."""
+    """将组合的 Canvas Codex 模型 ID 映射到 codex-ACP 配置选项。"""
     base_model, sep, effort = model.rpartition("/")
     if sep and base_model and effort in _CODEX_REASONING_EFFORTS:
         return (
@@ -614,18 +609,17 @@ async def _apply_acp_model(
     agent_name: str | None = None,
     via_config_option: bool,
 ) -> None:
-    """Apply ``model`` to a live ACP session via the mechanism the session
+    """通过会话机制将 ``model`` 应用于实时 ACP 会话
     advertised: ``set_config_option(configId="model")`` for configOptions-based
-    servers (codex-acp, claude-agent-acp 0.44+), else ``set_session_model``.
+    服务器（codex-ACP、claude-智能体-ACP 0.44+），其他 ``set_session_model``。
 
-    The model id is normally the bare preset id listed by the server. For
-    Codex, callers may still pass a combined Canvas id such as ``gpt-5.5/high``;
-    codex-acp exposes reasoning effort as a separate config option, so split it
-    only on the config-options mechanism.
+    模型 ID 通常是服务器列出的裸预设 ID。 对于 Codex，调用者仍然可以传递组合的 Canvas
+     id，例如 ``gpt-5.5/high``； codex-
+    ACP 将推理工作公开为单独的配置选项，因此仅在配置选项机制上拆分它。
 
-    agent-client-protocol 0.12.1 removed ``ClientSideConnection.set_session_model``;
-    :class:`_ACPClientConnection` restores it, and a connection without it
-    no-ops rather than raising ``AttributeError``.
+    智能体-客户端协议 0.12.1 已删除 ``ClientSideConnection.set_session_model``；
+    :class:`_ACPClientConnection` 恢复它，以及没有它的连接
+    无操作而不是提高 ``AttributeError``。
     """
     if via_config_option:
         for config_id, value in _model_config_options(agent_name, model):
@@ -641,28 +635,29 @@ def _extract_session_models(
     *,
     default_via_config_option: bool = False,
 ) -> tuple[str | None, list[ACPModelInfo] | None, bool]:
-    """Extract the model state off a session response in a single scan.
+    """在一次扫描中从会话响应中提取模型状态。
 
-    Returns ``(current_model_id, available_models, via_config_option)``, all
-    best-effort. ``available_models`` is normalized into our own stable
-    :class:`ACPModelInfo` type at this boundary so nothing downstream depends on
-    the vendored ``acp.schema`` shape. Reads whichever mechanism the session
-    advertised: the UNSTABLE ``models`` capability, or the ``model``
-    ``configOptions`` select (codex-acp, claude-agent-acp 0.44+).
+    返回 ``(current_model_id, available_models, via_config_option)``，尽最大努力。
+    ``available_models`` 被标准化为我们自己的稳定
+    :class:`ACPModelInfo` 在此边界键入，因此下游不依赖任何内容
+    出售的 ``acp.schema`` 形状。 读取会话的任何机制
+    advertised: UNSTABLE ``models`` 功能，或 ``model``
+    ``configOptions``选择（codex-ACP，claude-智能体-ACP 0.44+）。
 
-    ``available_models`` distinguishes **absent** from **empty** — this matters
-    for resume persistence (preserve the last-known list when the server didn't
-    report one; clear it when the server explicitly says it has none):
+    ``available_models`` 区分 **absent** 和 **empty** — 这对于恢复持久化很重要（当服
+    务器未报告列表时，保留最后已知的列表；
+     当服务器明确表示它有None时清除它）：
 
-    - ``None``  — neither mechanism was present in the response (older agent,
-      opted out, or ``load_session`` not carrying it).
-    - ``[]``    — the server reported a mechanism but offers no (usable) models.
-    - ``[...]`` — the reported models, minus any with an unusable ``model_id``.
+    - ``None`` — 响应中不存在这两种机制（较旧的智能体、选择退出或 ``load_session`` 不
+    执行）。
+    - ``[]`` — 服务器报告了一种机制，但没有提供（可用）模型。
+    - ``[...]`` — 报告的模型，减去任何不可用的 ``model_id``。
 
-    ``via_config_option`` is the selection mechanism: ``True`` for the
-    configOptions select, ``False`` for the ``models`` capability, and
-    ``default_via_config_option`` when the response carries neither (the
-    resume-path default for a ``load_session`` that omits the model block).
+    ``via_config_option`` 是选择机制：``True`` 表示 configOptions 选择，``False`` 表
+    示 ``models`` 功
+    能，并且
+    ``default_via_config_option`` 当响应两者都不携带时（省略模型块的 ``load_session``
+     的恢复路径默认值）。
     """
     state = extract_session_models(
         response, default_via_config_option=default_via_config_option
@@ -670,22 +665,21 @@ def _extract_session_models(
     return state.current_model_id, state.available_models, state.via_config_option
 
 
-# The ACP MCP server union accepted by new_session() / load_session().
+# new_session() / load_session() 接受的 ACP MCP 服务器联合。
 _ACPMcpServer = HttpMcpServer | SseMcpServer | McpServerStdio | AcpMcpServer
 
 
 def _oauth_bearer_header(auth: MCPOAuthAuthCredential, name: str) -> dict[str, str]:
-    """Forward a stored OAuth2 access token as an ``Authorization`` header.
+    """将存储的 OAuth2 访问令牌作为 ``Authorization`` 标头转发。
 
-    The ACP subprocess owns its own MCP transport and has no access to the
-    FastMCP token store the native path uses, so the token persisted in the
-    connection's ``auth.state`` is the only credential available here. Without
-    this the server is forwarded as a bare URL and the ACP agent reports it is
-    not logged in (``codex mcp login ...``).
+    的 ACP  子进程拥有自己的 MCP  传输层并且没有访问权限到 FastMCP  token 存储原生路
+    径，以便  token  已持久化在连接的
+    ``auth.state`` 这是唯一的凭据在这里可用。 没有这一点，服务器将被转发为裸机 URL 和
+     ACP  智能体报告未登录
+    ``codex mcp login ...``).
 
-    A missing or expired token still forwards what exists: a 401 from the
-    server is more actionable than an unauthenticated URL. Both cases are
-    logged so the drop is not silent.
+    丢失或过期的 token 仍然会转发存在的内容：来自服务器的 401 比未经身份验证的 URL 更
+    可操作。 这两种情况都会被记录下来，因此掉落并不是无声的。
     """
     state = auth.state
     token = state.tokens.access_token if state is not None and state.tokens else None
@@ -710,12 +704,11 @@ def _oauth_bearer_header(auth: MCPOAuthAuthCredential, name: str) -> dict[str, s
 
 
 def _remote_mcp_headers(server: MCPServer, name: str) -> list[HttpHeader]:
-    """Convert remote MCP headers/auth into ACP's header-only representation.
+    """将远程 MCP 标头/身份验证转换为 ACP 的仅标头表示形式。
 
-    Header-compatible auth (api key / bearer / basic / explicit headers)
-    converts directly. OAuth2 does not -- ``to_http_headers()`` returns ``None``
-    because the native path materializes tokens through FastMCP's token store --
-    so its stored access token is forwarded explicitly instead.
+    标头兼容的身份验证（API 密钥/承载/基本/显式标头）直接转换。 OAuth2 不
+    ``to_http_headers()`` 返回 ``None``，因为 to
+    ken 通过 FastMCP's token 存储实现访问令牌。
     """
     headers = [
         HttpHeader(name=name, value=value.get_secret_value())
@@ -745,34 +738,31 @@ def _mcp_config_to_acp_servers(
     mcp_config: dict[str, MCPServer],
     mcp_capabilities: Any,
 ) -> list[_ACPMcpServer]:
-    """Translate OpenHands MCP servers into ACP MCP server objects.
+    """将 OpenHands MCP 服务器转换为 ACP MCP 服务器对象。
 
-    Converts the native server map to the ACP protocol objects passed to
-    ``new_session()`` / ``load_session()`` so the ACP
-    subprocess connects to those servers itself.  Unlike the built-in Agent
-    these are *not* turned into in-process SDK MCP tools — the ACP server owns
-    the MCP connection and exposes the tools through its own turn.
+    将本机服务器映射转换为传递给的 ACP 协议对象
+    ``new_session()`` / ``load_session()`` 因此 ACP 子进程连接到这些服务器本身。 与内
+    置的智能体不同，这些*不是*被转换成在
+    进程中的SDK MCP工具——服务器拥有ACP连接并通过自己的MCP方式暴露工具。
 
-    Servers with ``enabled=False`` are skipped entirely -- the ACP subprocess
-    owns the connection, so withholding the entry is the only way to keep a
-    disabled server out of its reach.
+    具有 ``enabled=False`` 完全跳过 ACP  子进程拥有连接，因此唯一的方法是阻止一个被禁
+    用的服务器进入。
 
-    Each entry maps by transport:
+    每个条目由传输层映射：
 
-    - ``command`` present → :class:`McpServerStdio` (always forwarded; the
-      protocol gates only the remote transports behind a capability flag).
-    - ``url`` present, transport ``sse`` → :class:`SseMcpServer`, forwarded only
-      when the server advertises ``mcp_capabilities.sse``.
-    - ``url`` present, any other / absent transport → :class:`HttpMcpServer`
-      (covers ``http`` and ``streamable-http``), forwarded only when the server
-      advertises ``mcp_capabilities.http``.
+    - ``command`` 存在 → :class:`McpServerStdio` （始终转发； 该协议仅对能力标志后面
+    的远程传输层进行门控）。
+    - ``url`` 存在，传输层 ``sse`` → :class:`SseMcpServer`，仅在服务器通告
+    ``mcp_capabilities.sse``
+    时转发。
+    - ``url`` 存在，任何其他/不存在传输层 → :class:`HttpMcpServer`（涵盖 ``http`` 和
+    ``streamable-http``），仅在服务器通告 ``mcp_capabilities.http`` 时转发。
 
-    A remote server whose transport the ACP server does not advertise is dropped
-    with a warning rather than failing init — one misconfigured server should
-    not sink the whole conversation.  ``env`` / ``headers`` maps are converted
-    to the protocol's ``[{name, value}]`` list form; header-compatible auth
-    credentials, and the stored access token of an OAuth2 connection, are also
-    converted to headers.
+    远程服务器的传输层的 ACP 服务器没有广告的会以警告的方式丢弃，而不是失败初始化。一
+    个配置错误的服务器不应该沉没整个对话。 ``env`` /
+    ``headers`` 地图转换为协议的 ``[{name, value}]`` 列表表单。 兼容头的认证凭据，and
+     the stored 访问令牌 OAuth2
+    连接中的所有参数也都转换为头部。
     """
     caps = normalize_mcp_capabilities(mcp_capabilities)
     http_ok = caps.http
@@ -806,8 +796,9 @@ def _mcp_config_to_acp_servers(
                     server.url,
                 )
                 continue
-            # Construct each transport explicitly so the ``type`` literal stays
-            # narrow (the union's two arms require distinct ``Literal``s).
+            # 显式构造每个传输层，以便 ``type`` 文字保持狭窄（联合的两个分支需要不同的
+            # ``Literal``）。
+            #
             if is_sse:
                 result.append(
                     SseMcpServer(type="sse", name=name, url=server.url, headers=headers)
@@ -835,36 +826,36 @@ async def _maybe_set_session_model(
     *,
     via_config_option: bool,
 ) -> bool:
-    """Apply the *initial* session model right after session creation.
+    """会话创建后立即应用 *initial* 会话模型。
 
-    Session-creation path only, gated on
-    ``ACPProviderInfo.supports_set_session_model``. The model is applied via the
-    mechanism the session advertised (``via_config_option``):
-    ``set_config_option(configId="model")`` for configOptions-based servers
-    (codex-acp, claude-agent-acp 0.44+), else ``set_session_model``. The
-    ``_meta`` model payload is ignored by the pinned CLIs, so this protocol call
-    is what actually applies the model (#3654). A rejection is tolerated for
-    any provider — the curated model list is a pre-session suggestion, not an
-    access check (a server's model menu is dynamic/account-dependent), so the
-    session keeps the server default rather than failing to start. Runtime
-    switches go through :meth:`ACPAgent.set_acp_model`.
+    仅会话创建路径，门控
+    ``ACPProviderInfo.supports_set_session_model``. 该模型通过会话宣传的机制应用（
+    ``via_config_option``）：
+    ``set_config_option(configId="model")`` 用于基于 configOptions 的服务器（codex-
+    ACP、claude-智
+    能体-ACP 0.44+），其他为 ``set_session_model``。 的
+    ``_meta`` model 载荷被锁定的忽略 CLIs因此，这个协议调用实际上应用了模型（#3654）
+    。 对于任何提供者，都容忍拒绝 —— 专家模型列表是一个预
+    会建议，而不是访问检查（服务器的模型菜单是动态/账户相关的，因此会保持服务器默认设
+    置，而不是失败启动）。 运行时开关通过：meth：
+    `ACPAgent.set_acp_model`.
 
-    Returns ``True`` only when a model-setting call succeeded (the override
-    reached the server); ``False`` when there is nothing to apply or the call
-    was rejected, so the caller knows whether the live session runs ``acp_model``.
+    仅当模型设置调用成功（覆盖到达服务器）时才返回 ``True``； ``False`` 当没有什么可
+    申请的或呼叫被拒绝时，因此呼叫者知道实时会话是否运行
+    ``acp_model``。
     """
     if not acp_model:
         return False
     provider = detect_acp_provider_by_agent_name(agent_name)
-    # Known providers gate on supports_set_session_model; unknown/custom servers
-    # always attempt (best-effort).
+    # 已知提供商的门控为 supports_set_session_model； 未知/自定义服务器总是尝试（尽力而
+    # 为）。
+    #
     if provider is not None and not provider.supports_set_session_model:
         return False
-    # A rejection is tolerated so session creation can't break: the curated model
-    # list is a suggestion, not an access check — a server's model menu is
-    # dynamic/account-dependent (claude-agent-acp validates set_config_option
-    # against the live select and rejects an absent id), so a model the live
-    # session won't accept degrades to the server default rather than failing.
+    # 拒绝是被容忍的，以确保会话创建不会中断：精选模型列表只是一个建议，而不是访问检查——
+    # 服务器的模型菜单是动态/账户相关的（claude-）智能体-ACP 验证 set_config_option 在时
+    # ，会拒绝一个缺席的 ，因此，一个在的模型将降级为服务器默认值，而不是失败。
+    #
     try:
         await _apply_acp_model(
             conn,
@@ -893,26 +884,27 @@ async def _reapply_session_model_on_resume(
     *,
     via_config_option: bool,
 ) -> bool:
-    """Reapply the persisted model to a *resumed* session.
+    """将已持久化模型重新应用到 * 已恢复的 * 会话。
 
-    ``load_session()`` carries no model ``_meta``, so a session resumed after a
-    runtime switch (or with any persisted ``acp_model``) would otherwise run on
-    the ACP server's default. This applies the model via the mechanism the
-    resumed session uses (``via_config_option``: ``set_config_option`` for
-    codex-acp/claude-agent-acp 0.44+, else ``set_session_model``) so the
-    live session matches the serialized ``acp_model``. The caller derives
-    ``via_config_option`` from the ``load_session`` response, falling back to the
-    persisted mechanism hint when that response omits the model block.
+    ``load_session()`` 不携带模型 ``_meta``，因此在运行时切换（或使用任何已持久化
+    ``acp_model``）之后恢复的会话将在 ACP
+    服务器的默认值上运行。
+    这通过该会话恢复机制应用模型
+    (``via_config_option``: ``set_config_option`` for codex-acp/claude-智能体
+    -ACP 0.44+，否则 ``set_session_model``)
+    ，使得实时会话与已序列化 ``acp_model``匹配。 调用者得出
+    ``via_config_option`` 来自 ``load_session`` 响应，当该响应省略模型块时，回退到已
+    持久化机制提示。
 
-    Gated on runtime-switch support (skip only known providers that don't); a
-    server that rejects the call is tolerated (logged) — like the
-    ``load_session`` fallback — so resume can't break and the session keeps the
-    server default until the next switch.
+    对运行时切换支持进行门控（仅跳过不支持的已知提供程序）； 拒绝呼叫的服务器是可以容
+    忍的（记录）——就像
+    ``load_session`` 回退方案 — 因此恢复不会中断，会话将保持服务器默认状态，直到下一
+    次切换。
 
-    Returns ``True`` only when a model-setting call was issued and accepted, so
-    the caller knows the resumed live session is actually running ``acp_model``.
-    ``False`` when there is nothing to reapply, the provider doesn't support the
-    switch, or the server rejected the call (swallowed).
+    仅当发出并接受模型设置调用时才返回 ``True``，因此调用者知道恢复的实时会话实际上正
+    在运行 ``acp_model``。
+    ``False`` 当没有什么可以重新申请时，提供者不支持切换，或者服务器拒绝了调用（吞掉
+    ）。
     """
     if not acp_model:
         return False
@@ -942,13 +934,13 @@ async def _reapply_session_model_on_resume(
 def _extract_token_usage(
     response: Any,
 ) -> tuple[int, int, int, int, int]:
-    """Extract token usage from an ACP PromptResponse.
+    """从 ACP PromptResponse 中提取词元用量。
 
-    Returns (input_tokens, output_tokens, cache_read, cache_write, reasoning).
+    返回 (input_tokens, output_tokens, cache_read, cache_write, 推理)。
 
-    Checks two locations:
-    - claude-agent-acp, codex-acp: ``response.usage`` (standard ACP field)
-    - gemini-cli: ``response._meta.quota.token_count`` (non-standard)
+    检查两个位置：
+    - claude-智能体-ACP，codex-ACP：``response.usage``（标准 ACP 字段）
+    - gemini-CLI: ``response._meta.quota.token_count``（非标准）
     """
     if response is not None and response.usage is not None:
         u = response.usage
@@ -969,9 +961,9 @@ def _extract_token_usage(
 def _estimate_cost_from_tokens(
     model: str, input_tokens: int, output_tokens: int
 ) -> float:
-    """Estimate cost from token counts using LiteLLM's pricing database.
+    """使用 LiteLLM 的定价数据库根据 token 计数估算成本。
 
-    Returns 0.0 if pricing is unavailable for the model.
+    如果模型的定价不可用，则返回 0.0。
     """
     try:
         import litellm
@@ -986,14 +978,14 @@ def _estimate_cost_from_tokens(
 
 
 def _image_url_to_acp_block(url: str) -> ImageContentBlock | None:
-    """Convert an image URL (data URI or plain URL) to an ACP ImageContentBlock.
+    """将图像 URL（数据 URI 或纯文本 URL）转换为 ACP ImageContentBlock。
 
-    Data URIs (``data:<mime>;base64,<data>``) are parsed directly.
-    Plain URLs are passed via the ``uri`` field with a generic MIME type.
-    Returns ``None`` if the URL cannot be converted.
+    URIs (``data:<mime>;base64,<data>``) 数据直接解析。 URLs 通过通用类型 MIME 的
+    ``uri`` 字段传递。 返回
+    ``None``，如果 URL 无法转换。
     """
     if url.startswith("data:"):
-        # Parse data URI: data:<mime>;base64,<data>
+        # 解析数据URI：data:<mime>;base64,<data>
         try:
             header, data = url.split(",", 1)
             mime_type = header.split(":", 1)[1].split(";", 1)[0]
@@ -1001,20 +993,19 @@ def _image_url_to_acp_block(url: str) -> ImageContentBlock | None:
         except (ValueError, IndexError):
             logger.warning("Failed to parse data URI for ACP image block")
             return None
-    # Plain URL — pass as uri with a generic MIME type; the ACP server
-    # can fetch and detect the actual type.
+    # Plain URL — 使用通用 MIME 类型作为 uri 传递； ACP 服务器可以获取并检测实际类型。
+    #
     return image_block(data="", mime_type="image/png", uri=url)
 
 
 def _mask_json_value(value: Any, mask: Callable[[str], str]) -> Any:
-    """Recursively apply *mask* to every string leaf of a JSON-like value.
+    """递归地将 *mask* 应用于类似 JSON 值的每个字符串叶子。
 
-    ACP tool-call ``raw_input`` / ``raw_output`` / ``content`` blocks are
-    arbitrary JSON (a bare string, a dict of params, a list of content
-    blocks). ``SecretRegistry.mask_secrets_in_output`` maps a string to a
-    string, so walk the structure and mask each leaf string; non-string leaves
-    (ints, bools, ``None``) pass through unchanged. It resolves uncached
-    sources on first use, so this is not free.
+    ACP 工具调用 ``raw_input`` / ``raw_output`` / ``content`` 块是任意的 JSON（裸字符
+    串、参数字典、内容块列表）。
+     ``SecretRegistry.mask_secrets_in_output`` 将字符串映射到字符串，因此遍历结构并掩
+     盖每个叶子字符串。 非字符串叶子（整数、
+    布尔值、``None``）不变地通过。 它会在首次使用时解析未缓存的源，因此这不是免费的。
     """
     if isinstance(value, str):
         return mask(value)
@@ -1026,7 +1017,7 @@ def _mask_json_value(value: Any, mask: Callable[[str], str]) -> Any:
 
 
 def _serialize_tool_content(content: list[Any] | None) -> list[dict[str, Any]] | None:
-    """Serialize ACP tool call content blocks to plain dicts for JSON storage."""
+    """序列化 ACP 工具调用内容块到普通字典以进行 JSON 存储。"""
     if not content:
         return None
     result = []
@@ -1063,9 +1054,9 @@ class _NewSessionResponse(NewSessionResponse):
             return None
 
 
-# ``@final`` is typing-only; nothing but these two calls is overridden.
+# ``@final`` 仅限打字； 除了这两个调用之外，什么都没有被覆盖。
 class _ACPClientConnection(ClientSideConnection):  # pyright: ignore[reportGeneralTypeIssues]
-    """Restore the UNSTABLE model calls ACP 0.12 dropped; gemini-cli needs them."""
+    """恢复 UNSTABLE 模型调用 ACP 0.12 丢弃； 双子座-CLI需要它们。"""
 
     async def new_session(  # type: ignore[override]
         self,
@@ -1093,11 +1084,11 @@ class _ACPClientConnection(ClientSideConnection):  # pyright: ignore[reportGener
 
 
 async def _filter_jsonrpc_lines(source: Any, dest: Any) -> None:
-    """Read lines from *source* and forward only JSON-RPC lines to *dest*.
+    """从 *source* 读取行并仅将 JSON-RPC 行转发到 *dest*。
 
-    Some ACP servers (e.g. ``claude-code-acp`` v0.1.x) emit log messages
-    like ``[ACP] ...`` to stdout alongside JSON-RPC traffic.  This coroutine
-    strips those non-protocol lines so the JSON-RPC connection is not confused.
+    一些 ACP 服务器 (e.g. ``claude-code-acp`` v0.1.x) 将类似于 ``[ACP] ...`` 的日志消
+    息与 JSON-RPC 流量
+    一起发送到标准输出。 此协程去除了那些非协议行，因此 JSON-RPC 连接不会混淆。
     """
     try:
         while True:
@@ -1105,9 +1096,9 @@ async def _filter_jsonrpc_lines(source: Any, dest: Any) -> None:
             if not line:
                 dest.feed_eof()
                 break
-            # JSON-RPC messages are single-line JSON objects containing
-            # "jsonrpc". Filter out multi-line pretty-printed JSON from
-            # debug logs that also start with '{'.
+            # JSON-RPC 消息是包含“jsonrpc”的单行 JSON 对象。 从同样以“{”开头的调试日志中
+            # 过滤掉多行漂亮打印的 JSON。
+            #
             stripped = line.lstrip()
             if stripped.startswith(b"{") and b'"jsonrpc"' in line:
                 dest.feed_data(line)
@@ -1138,12 +1129,11 @@ async def _log_acp_subprocess_stderr(source: Any) -> None:
         logger.debug("_log_acp_subprocess_stderr stopped", exc_info=True)
 
 
-# Substrings that mark a generic ``-32603 Internal error`` as really a credential
-# failure.  ACP servers collapse upstream 401/403s into -32603 instead of -32000
-# (codex-acp swallows its thread-startup error; the claude SDK has a catch-all that
-# rewraps everything as internal), so the code alone is not a reliable auth signal —
-# the message + data must be scanned too.
-# Matched as whole words so "4031ms" or "model-id-401b" don't fire.
+# 将通用 ``-32603 Internal error`` 标记为真正的凭据失败的子字符串。 ACP 服务器将上游 401
+# /403 崩溃为 -32603 而不是 -32000（codex-ACP 吞噬其线程-启动错误； Claude SDK 有一个兜
+# 底的，将所有东西都重新包装成内部的，所以代码本身并不是一个可靠的认证信号——除了消息和数
+# 据，还需要进行扫描。 作为整个单词匹配，因此“4031ms”或“model-id-401b”不会触发。
+#
 _ACP_AUTH_HTTP_CODES_RE = re.compile(r"\b(401|403)\b")
 
 _ACP_AUTH_ERROR_MARKERS: tuple[str, ...] = (
@@ -1160,11 +1150,11 @@ _ACP_AUTH_ERROR_MARKERS: tuple[str, ...] = (
 
 
 def _stringify_acp_error_data(data: Any) -> str:
-    """Render an ACP ``RequestError.data`` payload as a compact string.
+    """将 ACP ``RequestError.data`` 载荷渲染为紧凑字符串。
 
-    Servers put the real cause here: codex sends ``{"message", "codex_error_info"}``
-    or a bare string; the claude SDK catch-all sends ``{"details": ...}``.  Pull the
-    human-readable field to the front; otherwise fall back to a compact JSON dump.
+    服务器将真正的原因放在这里：codex 发送 ``{"message", "codex_error_info"}`` 或裸字
+    符串； 克劳德 SDK 包罗万象发送
+    ``{"details": ...}``。 将人类可读的字段拉到前面； 否则回退到紧凑的 JSON 转储。
     """
     if data is None:
         return ""
@@ -1183,7 +1173,7 @@ def _stringify_acp_error_data(data: Any) -> str:
 
 
 def _acp_error_text(exc: BaseException) -> str:
-    """Lowercased message + data text used for substring classification."""
+    """小写消息 + 用于子字符串分类的数据文本。"""
     info = normalize_acp_error(exc)
     if isinstance(exc, ACPRequestError):
         data_str = _stringify_acp_error_data(info.data)
@@ -1192,11 +1182,11 @@ def _acp_error_text(exc: BaseException) -> str:
 
 
 def _acp_error_indicates_auth(exc: BaseException) -> bool:
-    """True when the failure is (or really is) a credential problem.
+    """True 当故障是（或确实是）凭据问题时。
 
-    ``-32000`` is the explicit auth code; a ``-32603`` whose message/data carries an
-    auth marker is an upstream 401/403 the server collapsed into a generic internal
-    error.  Either way the client should offer re-authentication.
+    ``-32000`` 是显式授权码； a ``-32603`` 其消息/数据带有 auth 标记，是上游 401/403
+    ，服务器崩溃为一般内部错误。 无论哪种方式，
+    客户都应该重新提供身份验证。
     """
     if isinstance(exc, ACPRequestError):
         info = normalize_acp_error(exc)
@@ -1211,15 +1201,16 @@ def _acp_error_indicates_auth(exc: BaseException) -> bool:
 def _acp_error_detail(
     exc: BaseException, secret_registry: SecretRegistry | None = None
 ) -> str:
-    """Compose a human-readable, secret-free ``detail`` for an ACP failure.
+    """为 ACP 失败编写一个人类可读的、无机密的 ``detail``。
 
-    ``acp.exceptions.RequestError.__str__`` returns only its ``message`` — so the
-    JSON-RPC ``code`` and the ``data`` payload (where servers stash the real cause:
-    an upstream 401 body, a model-not-found string, ``codex_error_info``) are lost
-    when callers use ``str(exc)``, which is why ``-32603`` failures reach the user as
-    a bare "Internal error".  This keeps all three.  ``data`` can echo a base URL or
-    auth header, so the result is redacted (pattern pass) and masked (exact tracked
-    secret values) before it leaves, and capped to the 500-char event limit.
+    ``acp.exceptions.RequestError.__str__`` 仅返回其 ``message`` — 因此，当调用者使用
+     ``str(exc)``
+    时，JSON-RPC ``code`` 和 ``data`` 载荷（服务器存储真正原因：上游 401 主体、未找到
+    模型的字符串、
+    ``codex_error_info``）会丢失，这就是为什么 ``-32603`` 失败作为纯粹的“内部错误”到
+    达用户。 这三个都保留了。 ``data`` 可以
+    回显基础 URL 或者认证头，因此结果是已脱敏（模式通过）并被掩码（精确跟踪机密的值）
+    在离开之前，被限制为 500 字符事件限制。
     """
     if isinstance(exc, ACPRequestError):
         info = normalize_acp_error(exc)
@@ -1238,27 +1229,30 @@ def _acp_error_detail(
 
 
 def _classify_acp_init_error(exc: BaseException) -> str:
-    """Map a cold-start failure to a structured ``ConversationErrorEvent`` code.
+    """将冷启动故障映射到结构化 ``ConversationErrorEvent`` 代码。
 
-    ACP's spawn + auth + ``session/new`` runs in :meth:`ACPAgent.init_state`,
-    which ``LocalConversation.run()``/``arun()`` invoke *before* their try-block
-    (via ``_ensure_agent_ready()``).  These cold-start failures — far more common
-    on cloud than locally — therefore bypass the run loop's error emission, so
-    ``init_state`` surfaces them itself.  The code tells clients *which* failure
-    occurred so they can react (e.g. prompt re-auth vs. report a missing binary):
+    ACP 的 spawn + auth + ``session/new`` 在：meth:`ACPAgent.init_state` 中运行，其中
+    ``LocalConversation.run()``/``arun()`` 在 * 的 try 块之前调用 *（通过
+    ``_ensure_agent_ready()``）。 这些冷启动故障在云上比在本地更常见，因此绕过了运行
+    循环的错误发射，因此
+    ``init_state`` 表面它们本身。 该代码告诉客户端 * 发生了哪个 * 故障，以便他们可以
+    做出反应 (e.g. 提示词重新验证与重新验证报告丢失的二进制
+    文件）：
 
-    - ``ACPAuthRequired``: a credential failure — the explicit ``-32000`` auth code,
-      or a ``-32603`` whose message/data reveals an upstream 401/403 (see
-      :func:`_acp_error_indicates_auth`).  The most actionable cloud failure.
-    - ``ACPStartupTimeout``: startup did not complete within
-      ``acp_startup_timeout`` — e.g. the server hung on ``authenticate()``
-      without ever returning an error (see :meth:`ACPAgent._start_acp_server`).
-    - ``ACPSpawnError``: the subprocess could not be launched — the CLI binary is
-      missing or not executable (``FileNotFoundError`` / ``PermissionError`` from
+    - ``ACPAuthRequired``：凭据失败 — 显式 ``-32000`` 身份验证代码，或 ``-32603``，其
+    消息/数据显示上游 401/403（
+    请参阅
+      :func:`_acp_error_indicates_auth`)。 最可操作的云失败。
+    - ``ACPStartupTimeout``：启动未在时间内完成
+      ``acp_startup_timeout`` — e.g. 服务器挂在 ``authenticate()`` 上而没有返回错误（
+      请参阅：meth：
+      `ACPAgent._start_acp_server`）。
+    - ``ACPSpawnError``：无法启动子进程 — CLI 二进制文件丢失或不可执行（
+    ``FileNotFoundError`` /
+    ``PermissionError`` 来自
       ``create_subprocess_exec``).
-    - ``ACPInitError``: anything else during the protocol handshake or session
-      creation (transport drops, unexpected protocol errors, cwd mismatch
-      surfaced by the server).
+    - ``ACPInitError``：协议握手或会话创建期间的任何其他内容（传输层丢失、意外协议错
+    误、服务器出现的 cwd 不匹配）。
     """
     if isinstance(exc, ACPFileCredentialSyncError):
         return "ACPInitError"
@@ -1274,11 +1268,11 @@ def _classify_acp_init_error(exc: BaseException) -> str:
 
 
 def _classify_acp_turn_error(exc: BaseException) -> str:
-    """Map a prompt-turn failure to a structured ``ConversationErrorEvent`` code.
+    """将提示词匝故障映射到结构化 ``ConversationErrorEvent`` 代码。
 
-    The turn-loop counterpart to :func:`_classify_acp_init_error`: usage/content
-    policy refusals get their own code, credential failures map to ``ACPAuthRequired``
-    (so the client can offer re-auth), everything else is a generic ``ACPPromptError``.
+    `_classify_acp_init_error`函数的转环对应体：凭据失败映射到``ACPAuthRequired``（因
+    此客户端可以提供重新认证），其余情况为
+    通用``ACPPromptError``。
     """
     if isinstance(exc, ACPFileCredentialSyncError):
         return "ACPPromptError"
@@ -1293,92 +1287,89 @@ def _classify_acp_turn_error(exc: BaseException) -> str:
 
 
 class _OpenHandsACPBridge:
-    """Bridge between OpenHands and ACP that accumulates session updates.
+    """OpenHands 和 ACP 之间的桥梁，用于累积会话更新。
 
-    Implements the ``Client`` protocol from ``agent_client_protocol``.
+    实现 ``agent_client_protocol`` 中的 ``Client`` 协议。
 
-    Concurrency model — ``on_event`` / ``on_token`` / ``on_activity`` are
-    fired synchronously from ``session_update``, which runs on the
-    ``AsyncExecutor`` portal thread.  The guarantees that keep callbacks
-    serialized within a single turn rely on the combination of two things,
-    not the GIL alone:
+    并发模型 — ``on_event`` / ``on_token`` / ``on_activity`` 从 ``session_update`` 同
+    步触发，运行在
+    ``AsyncExecutor``门户网站线程。 在单回合内保持回调已序列化的保证依赖于两个因素的
+    组合，而不是单独的 GIL：
 
-    1. ``LocalConversation.run()`` calls ``agent.step(...)`` while holding
-       the reentrant ``ConversationState`` lock (a ``FIFOLock``) — see
-       ``local_conversation.py`` where ``self.agent.step(...)`` sits inside
-       ``with self._state:``.  The caller thread owns that lock for the
-       entire duration of ``step()``, so no other thread can append to
-       ``state.events`` during the turn.
-    2. ``portal.call(_prompt)`` blocks the caller thread until ``prompt()``
-       returns.  Live ``on_event`` calls happen on the portal thread while
-       the caller thread is parked inside ``portal.call()`` still owning
-       the state lock; the final ``MessageEvent`` / ``FinishAction`` run
-       on the caller thread after ``prompt()`` returns.  The two phases
-       never overlap in time.
+    1. ``LocalConversation.run()`` 按住可重入 ``ConversationState`` 锁 (a
+    ``FIFOLock``) 的同时调
+    用 ``agent.step(...)`` — 请参阅
+       ``local_conversation.py`` 其中 ``self.agent.step(...)`` 位于内部
+       ``with self._state:``. 调用者线程在 ``step()`` 的整个持续时间内拥有该锁，因此
+       没有其他线程可以附加到
+       ``state.events`` 回合期间。
+    2. ``portal.call(_prompt)`` 阻塞调用者线程，直到 ``prompt()`` 返回。 实时
+    ``on_event`` 呼叫发生在门户线程上
+    ，而呼叫者线程停在 ``portal.call()`` 内，仍然拥有状态锁； ``prompt()`` 返回后，最
+    终的 ``MessageEvent`` /
+    ``FinishAction`` 在调用者线程上运行。 两个阶段的时间不会重叠。
 
-    The caller's state-lock ownership is what excludes *other* threads
-    (hook workers, remote-conversation push layers, visualizers spawned
-    elsewhere) from racing with either phase.  The ordering between the
-    two phases is what keeps a single consumer's cross-callback state
-    (e.g. hook processors that read-then-write) consistent.
+    调用者的状态-锁所有权排除了*其他* 线程（钩子工人、远程对话推送层、其他 spawned的
+    可视化器）与其他阶段进行竞争。 两个阶段之间的顺序是保持单个消费者的跨回
+    调状态 (e.g. 挂钩处理器（读然后写）一致。
 
-    Two invariants callers rely on:
+    两个不变量调用者依赖：
 
-    * ``on_event`` handlers MUST NOT acquire the conversation state lock
-      (``with conversation.state:``).  The bridge fires them on the portal
-      thread while the caller thread is parked inside ``portal.call()``
-      owning that lock, and ``FIFOLock`` is thread-bound — a lock-acquire
-      on the portal thread would deadlock rather than re-enter.
-    * Tool-call → final-message ordering depends on the ACP server
-      draining every ``session_update`` notification for a turn *before*
-      the prompt response returns.  Verified against
-      ``claude-agent-acp@0.29.0``; servers that interleave trailing
-      ``ToolCallProgress`` after the prompt response would invert the
-      order a consumer sees, and dedupe-by-id+"last-seen wins" would
-      treat the post-message event as authoritative.
+    * ``on_event`` handlers 必须不获取会话状态锁 (``with conversation.state:``). 桥上
+    放火线程在调用者线程位于内
+    部 ``portal.call()`` 拥有那个锁，and ``FIFOLock`` 是线程-bound - a 锁-在门户上获
+    取线程 would 死锁而不是重新输
+    入。
+    * 工具调用→最终消息排序取决于ACP服务器在提示词响应返回之前*轮*耗尽每个
+    ``session_update``通知。 已验证
+      ``claude-agent-acp@0.29.0``; 交错尾随的服务器
+      ``ToolCallProgress`` 在提示词响应之后，消费者会看到的顺序会被颠倒，且 "dedupe-
+      by-id+"last-seen wins" 会将消
+      息发布事件视为权威。
     """
 
     def __init__(self) -> None:
         self.accumulated_text: list[str] = []
         self.accumulated_thoughts: list[str] = []
         self.accumulated_tool_calls: list[dict[str, Any]] = []
-        # Emits the LLM/TOOL spans an ACP turn would otherwise never produce.
+        # 发出 LLM/TOOL 跨度 ACP 圈，否则永远不会产生。
         self.trace = ACPTurnTrace(acp_server=None, model_id=None)
         self.on_token: Any = None  # ConversationTokenCallbackType | None
-        # Live event sink — fired from session_update as ACP tool-call
-        # updates arrive, so the event stream reflects real subprocess
-        # progress instead of a single end-of-turn burst. Set by
-        # ACPAgent.step() for the duration of one prompt() round-trip.
+        # 直播事件汇流点 —— 从 session_update 接收到 ACP 工具调用更新时触发，因此事件流
+        # 反映的是真实的子进程进展，而不是单个结束回合的爆发。 由 ACPAgent.step() 设置一
+        # 次 prompt() 往返的持续时间。
+        #
         self.on_event: ConversationCallbackType | None = None
-        # Activity heartbeat — called (throttled) during session_update to
-        # signal that the ACP subprocess is still actively working.  Set by
-        # ACPAgent.step() to keep the agent-server's idle timer alive.
-        self.on_activity: Any = None  # Callable[[], None] | None
-        # Secret masker — set per turn by ACPAgent to
-        # ``state.secret_registry.mask_secrets_in_output``. Applied to streamed
-        # text chunks and tool-call raw_input/raw_output/content before they
-        # reach ``on_token`` / ``on_event`` so a subprocess that echoes an
-        # injected credential never lands in the (persisted, network-relayed)
-        # event stream in cleartext. ``None`` ⇒ no-op (bridge used standalone).
+        # 活动心跳 — 在 session_update 期间调用（节流）以表明 ACP 子进程仍在积极工作。
+        # 由 ACPAgent.step() 设置以保持智能体-服务器的空闲计时器处于活动状态。
+        #
+        self.on_activity: Any = None  # [[]，None] | None
+        # 机密遮罩 —— 每回合由 ACPAgent 设置
+        # ``state.secret_registry.mask_secrets_in_output``. 应用于流式文本块和工具调用
+        # raw_input/raw_output/内容，然后它们到达 ``on_token`` / ``on_event``，因此回显
+        # 注入的凭据的子进程永远不会以明文形式降落在（已持久化，网络中继）事件流中。
+        # ``None`` ⇒ 无操作（桥接器独立使用）。
+        #
         self.mask: Callable[[str], str] | None = None
         self.before_mask: Callable[[], None] | None = None
         self._masking_error: CredentialBindingError | None = None
         self._last_activity_signal: float = float("-inf")
-        # Monotonic timestamp of the most recent ``session_update``. Unlike the
-        # throttled ``_last_activity_signal``, updated on *every* update so the
-        # prompt idle-timeout watchdog sees real progress. Armed per turn via
+        # 最近的单调时间戳``session_update``。 与节流 ``_last_activity_signal`` 不同，在
+        #  * 每次 * 更新时更新，因此提示词空闲超时看门狗可以看到真正的进展。 每回合武装
+        # 通过
         # ``arm_activity_clock``.
         self._last_activity_monotonic: float = float("-inf")
-        # Telemetry state from UsageUpdate (persists across turns)
-        self._last_cost: float = 0.0  # last cumulative cost seen
+        # 来自 UsageUpdate 的遥测状态（跨回合持续存在）
+        self._last_cost: float = 0.0  # 最后看到的累计成本
         self._last_cost_by_session: dict[str, float] = {}
-        self._context_window: int = 0  # last context window seen
+        self._context_window: int = 0  # 最后看到上下文窗口
         self._context_window_by_session: dict[str, int] = {}
-        # Per-turn synchronization for UsageUpdate notifications.
+        # UsageUpdate 通知的每回合同步。
         self._turn_usage_updates: dict[str, Any] = {}
         self._usage_received: dict[str, asyncio.Event] = {}
-        # Fork session state for ask_agent() — guarded by _fork_lock to
-        # prevent concurrent ask_agent() calls from colliding.
+        # ask_agent() 的分叉会话状态 — 由 _fork_lock 保护，以防止并发 ask_agent() 调用发
+        # 生冲突。
+        #
         self._fork_lock = threading.Lock()
         self._fork_session_id: str | None = None
         self._fork_accumulated_text: list[str] = []
@@ -1393,53 +1384,50 @@ class _OpenHandsACPBridge:
         self._turn_usage_updates.clear()
         self._usage_received.clear()
         self._masking_error = None
-        # Note: telemetry state (_last_cost, _context_window, _last_activity_signal,
-        # etc.) is intentionally NOT cleared — it accumulates across turns.
+        # 注：遥测状态(_last_cost,_context_window,_last_activity_signal,
+        # 等）被故意清除不——它会在回合中累积。
 
     def arm_activity_clock(self) -> None:
-        """Mark "now" as the last activity for the idle-timeout watchdog.
+        """将“现在”标记为空闲超时看门狗的最后一个活动。
 
-        Called at the start of each prompt (and each retry) so the idle
-        window is measured from the moment the prompt is sent rather than
+        在每个提示词（和每个重试）开始时调用，因此空闲窗口是从发送提示词的那一刻开始
+        测量的，而不是
         from a stale value — a server that legitimately takes a while before
-        its first ``session_update`` must not be killed prematurely.
+        它的第一个 ``session_update`` 一定不能被过早地杀死。
         """
         self._last_activity_monotonic = time.monotonic()
 
     def seconds_since_last_activity(self) -> float:
-        """Seconds since the last ``session_update`` (or ``arm_activity_clock``).
+        """自上次 ``session_update``（或 ``arm_activity_clock``）以来的秒数。
 
-        Drives the prompt idle-timeout: any streamed token, thought, tool-call
-        start/progress, or usage update from the ACP server resets the clock,
-        so a steadily-progressing agent never trips the deadline while a
-        genuinely silent (hung) server still does.
+        驱动提示词 idle-超时任何流的 token, 想到，工具调用 start/progress 或者使用更
+        新从  ACP 服务器重置时钟，因此是逐步前进的智
+        能体无论一个真正沉默（静默）的服务器是否真的静默，它都从未错过截止日期。
         """
         return time.monotonic() - self._last_activity_monotonic
 
     def prepare_usage_sync(self, session_id: str) -> asyncio.Event:
-        """Prepare per-turn UsageUpdate synchronization for a session."""
+        """为会话准备每回合 UsageUpdate 同步。"""
         event = asyncio.Event()
         self._usage_received[session_id] = event
         self._turn_usage_updates.pop(session_id, None)
         return event
 
     def get_turn_usage_update(self, session_id: str) -> Any:
-        """Return the latest UsageUpdate observed for the current turn."""
+        """返回当前回合观察到的最新 UsageUpdate。"""
         return self._turn_usage_updates.get(session_id)
 
     def pop_turn_usage_update(self, session_id: str) -> Any:
-        """Consume per-turn UsageUpdate synchronization state for a session."""
+        """消耗会话的每回合 UsageUpdate 同步状态。"""
         self._usage_received.pop(session_id, None)
         return self._turn_usage_updates.pop(session_id, None)
 
     def _mask_value(self, value: Any) -> Any:
-        """Mask injected secrets in *value* (string or JSON-like), no-op if unset.
+        """掩码在 *value*（字符串或类似 JSON）中注入机密，如果未设置则无操作。
 
-        Defensive: on mask failure, returns the original value unchanged and
-        logs at DEBUG — this may transiently leak the credential but prevents a
-        crash, matching the regular terminal tool's masking contract. (Masking
-        swallows secret-resolution errors internally, so it should never raise
-        in practice.)
+        Defensive: 掩码失败时，返回原始值不变，并且
+        DEBUG 的日志 —— 这可能会暂时泄露凭据，但防止崩溃，符合常规终端工具的掩码合同
+        。 (掩码会内部吞咽机密分辨率错误，因此在实践中它不应该出现。)
         """
         if self.mask is None:
             return value
@@ -1456,15 +1444,15 @@ class _OpenHandsACPBridge:
             return value
 
     def _mask_tool_call_entry(self, entry: dict[str, Any]) -> None:
-        """Mask title / raw_input / raw_output / content of a tool-call entry.
+        """屏蔽工具调用条目的标题/raw_input/raw_output/内容。
 
-        Applied in place at ingestion (``session_update``) so the accumulator
-        itself never holds plaintext secrets, and every downstream emitter
-        (``_emit_tool_call_event`` and the supersede path in
-        ``_cancel_inflight_tool_calls``) carries masked values for free.
-        ``title`` is normally a benign server-set label, but a misbehaving ACP
-        server could echo a credential there (e.g. ``Running: curl -H
-        'Authorization: Bearer <token>'``), so it is masked too.
+        在接收数据时（``session_update``）就地处理，使累加器自身从不持有明文机密，同
+        时确保所有下游输出方（
+        ``_emit_tool_call_event`` 以及其中的替代路径
+        ``_cancel_inflight_tool_calls``) 免费携带屏蔽值。
+        ``title`` 通常是一个良性的服务器设置标签，但行为不当的 ACP 服务器可能会在那里
+        回显凭据 (e.g.
+        ``Running: curl -H 'Authorization: Bearer <token>'``)，所以它也被屏蔽了。
         """
         for key in ("title", "raw_input", "raw_output", "content"):
             if entry.get(key) is not None:
@@ -1474,7 +1462,7 @@ class _OpenHandsACPBridge:
         if self._masking_error is not None:
             raise self._masking_error
 
-    # -- Client protocol methods ------------------------------------------
+    # -- 客户端协议方法 ------------------------------------------------------
 
     async def session_update(
         self,
@@ -1484,16 +1472,17 @@ class _OpenHandsACPBridge:
     ) -> None:
         logger.debug("ACP session_update: type=%s", type(update).__name__)
 
-        # Any update — token, thought, tool-call start/progress, usage — is
-        # progress: reset the idle clock so the prompt's inactivity watchdog
-        # keeps a steadily-working agent alive (unthrottled, unlike the
-        # heartbeat in ``_maybe_signal_activity``).
+        # 任何更新 — token、想法、工具调用开始/进度、用法 — 都是
+        # 进度：重置空闲时钟，以便提示词不活动看门狗
+        # 保持稳定工作的智能体存活（不受限制，与 ``_maybe_signal_activity`` 中的心跳不同
+        # ）。
+        #
         self._last_activity_monotonic = time.monotonic()
 
-        # Route fork session updates to the fork accumulator. ask_agent() joins
-        # and returns this text to the caller (a UI/network sink), so mask it
-        # like the main-turn path — a secret echoed in a fork session must not
-        # leak in cleartext.
+        # 将分叉会话更新路由到分叉累加器。 ask_agent() 会将这段文本返回给调用者（用户界
+        # 面/网络汇接点），因此像主要路径一样对其进行遮蔽 —— 一个机密在 fork 会话中，
+        # echo 应该不泄露为明文。
+        #
         if self._fork_session_id is not None and session_id == self._fork_session_id:
             if isinstance(update, AgentMessageChunk):
                 if isinstance(update.content, TextContentBlock):
@@ -1504,11 +1493,10 @@ class _OpenHandsACPBridge:
 
         if isinstance(update, AgentMessageChunk):
             if isinstance(update.content, TextContentBlock):
-                # Mask once, then use the masked chunk for both the persisted
-                # accumulation and the live ``on_token`` relay. A secret split
-                # across two chunks slips through here (each piece alone won't
-                # match); the joined response is re-masked at the persistence
-                # boundary in ``_finalize_successful_turn`` to catch that.
+                # 屏蔽一次，然后将屏蔽的块用于已持久化累积和实时 ``on_token`` 中继。 分
+                # 成两个块的机密会从这里滑过（每个块单独不匹配）； 连接的响应在
+                # ``_finalize_successful_turn`` 中的持久化边界处被重新屏蔽以捕获该响应。
+                #
                 text = self._mask_value(update.content.text)
                 self.accumulated_text.append(text)
                 if self.on_token is not None:
@@ -1521,7 +1509,7 @@ class _OpenHandsACPBridge:
             if isinstance(update.content, TextContentBlock):
                 self.accumulated_thoughts.append(self._mask_value(update.content.text))
         elif isinstance(update, UsageUpdate):
-            # Store the update for step()/ask_agent() to process in one place.
+            # 将 step()/ask_agent() 的更新存储在一处进行处理。
             self._context_window = update.size
             self._context_window_by_session[session_id] = update.size
             self._turn_usage_updates[session_id] = update
@@ -1542,21 +1530,20 @@ class _OpenHandsACPBridge:
             self.accumulated_tool_calls.append(entry)
             self.trace.tool_started(entry)
             if entry.get("status") in _TERMINAL_TOOL_CALL_STATUSES:
-                # No later transition will arrive for this call, so close its
-                # span now; leaving it open would bill the rest of the turn to it.
+                # 此调用不会再有任何后续转换到达，因此现在关闭其跨度； 将其保持打开状态
+                # 将向其计费REST。
+                #
                 self.trace.tool_finished(entry)
             logger.debug("ACP tool call start: %s", update.tool_call_id)
-            # Emit one early "started" event — the action half of the
-            # action->observation pair. (If the server reports a terminal
-            # status on the very first notification, this single event is
-            # also the observation; the matching terminal-transition guard
-            # below then suppresses any redundant re-emission.)
+            # 发出一个早期的“开始”事件——动作的半部分->观测结果对中的动作->观测结果。 下
+            # 面匹配的终端转换保护会抑制任何冗余的重新发射。）
+            #
             self._emit_tool_call_event(entry)
             self._maybe_signal_activity()
         elif isinstance(update, ToolCallProgress):
-            # Find the existing tool call entry and merge updates. Track the
-            # status seen *before* this frame so we can detect the single
-            # transition into a terminal state.
+            # 查找现有的工具调用条目并合并更新。 跟踪此帧之前 * * 看到的状态，以便我们可
+            # 以检测到最终状态的单个转换。
+            #
             target: dict[str, Any] | None = None
             prev_status: str | None = None
             for index, tc in enumerate(self.accumulated_tool_calls):
@@ -1580,13 +1567,11 @@ class _OpenHandsACPBridge:
                     target = updated
                     break
             logger.debug("ACP tool call progress: %s", update.tool_call_id)
-            # Persist exactly one terminal event per tool call. Intermediate
-            # progress frames each carry the *full cumulative* output; emitting
-            # one per frame is O(n^2) storage + WebSocket relay (the bug this
-            # method fixes). We accumulate them into ``target`` silently and
-            # emit only on the first transition into a terminal status, so the
-            # terminal event still carries the complete final output. This is
-            # the observation half of the action->observation pair.
+            # 持久化每个工具调用恰好有一个终止事件。 每个中间进度帧都携带 * 完整累积 *
+            # 输出； 每帧发出一个是 O(n^2) 存储 + WebSocket 中继（此方法修复的错误）。
+            # 我们默默地将它们累积到``target``，只在状态变为终端状态时才发出，因此终端事
+            # 件仍然携带完整的最终输出。 这是动作->观测结果对的观测结果一半。
+            #
             became_terminal = (
                 target is not None
                 and target.get("status") in _TERMINAL_TOOL_CALL_STATUSES
@@ -1600,13 +1585,12 @@ class _OpenHandsACPBridge:
             logger.debug("ACP session update: %s", type(update).__name__)
 
     def _emit_tool_call_event(self, tc: dict[str, Any]) -> None:
-        """Emit an ACPToolCallEvent reflecting the current state of ``tc``.
+        """ACPToolCallEvent 反映 ``tc`` 当前状态。
 
-        Called from ``session_update`` on each ``ToolCallStart`` /
-        ``ToolCallProgress`` so downstream consumers see tool cards appear
-        and update as the subprocess runs.  The same ``tool_call_id`` is
-        reused on every emission — consumers should dedupe by id and treat
-        the last-seen event as authoritative.
+        从每个 ``ToolCallStart`` 上的 ``session_update`` 调用 /
+        ``ToolCallProgress`` 因此下游消费者会看到工具卡随着子进程的运行而出现并更新。
+         同一个 ``tool_call_id`` 在每次发射中都
+        被重复使用——消费者应该通过 ID 去重，并将最后看到的事件视为权威。
         """
         if self.on_event is None:
             return
@@ -1631,15 +1615,14 @@ class _OpenHandsACPBridge:
             logger.debug("on_event callback failed", exc_info=True)
 
     def _maybe_signal_activity(self) -> None:
-        """Signal activity to the agent-server's idle tracker (throttled).
+        """向智能体-服务器的空闲跟踪器发出活动信号（受到限制）。
 
-        During conn.prompt(), ACP tool calls run inside the subprocess and
-        never hit the agent-server's HTTP endpoints.  Without this heartbeat
-        the server's idle_time grows unboundedly and the runtime-api kills
-        the pod (default idle threshold ~20 min).
+        在 conn.prompt() 期间，ACP 工具调用在子进程内部运行，并且永远不会到达智能体服
+        务器的 HTTP 端点。 如果没有此心跳，服务器的
+        idle_time 会无限增长，并且运行时 API 会杀死 pod（默认空闲阈值约 20 分钟）。
 
-        Throttled to at most once per ACTIVITY_SIGNAL_INTERVAL seconds to
-        avoid excessive overhead on chatty ACP servers.
+        限制为最多每 ACTIVITY_SIGNAL_INTERVAL 秒一次，以避免在繁忙的 ACP 服务器上产生
+        过多的开销。
         """
         if self.on_activity is None:
             return
@@ -1658,8 +1641,8 @@ class _OpenHandsACPBridge:
         options: list[PermissionOption],
         **kwargs: Any,  # noqa: ARG002
     ) -> RequestPermissionResponse:
-        """Auto-approve all permission requests from the ACP server."""
-        # Pick the first option (usually "allow once")
+        """自动批准来自 ACP 服务器的所有权限请求。"""
+        # 选择第一个选项（通常“允许一次”）
         option_id = options[0].option_id if options else "allow_once"
         logger.info(
             "ACP auto-approving permission: %s (option: %s)",
@@ -1676,11 +1659,11 @@ class _OpenHandsACPBridge:
         mode: ElicitationMode,  # noqa: ARG002
         **kwargs: Any,  # noqa: ARG002
     ) -> CreateElicitationResponse:
-        """Decline elicitation requests; the headless bridge has no user to ask.
+        """拒绝启发请求； 无头桥没有用户可问。
 
-        Added to the ``Client`` protocol in agent-client-protocol 0.12.x. None
-        of the pinned ACP providers elicit during a headless turn, so this is a
-        defensive default rather than an exercised code path.
+        添加到智能体-client-protocol 0.12.x 中的 ``Client`` 协议。 固定的 ACP 提供者
+        的 None 在无头转向期间引发，因此
+        这是防御性默认设置，而不是执行的代码路径。
         """
         return DeclineElicitationResponse(action="decline")
 
@@ -1689,10 +1672,10 @@ class _OpenHandsACPBridge:
         elicitation_id: str,  # noqa: ARG002
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
-        """No-op completion for an elicitation the bridge always declines."""
+        """桥接的引出的无操作完成总是拒绝。"""
         return None
 
-    # fs/terminal methods — raise NotImplementedError; ACP server handles its own
+    # fs/终端方法 — raise NotImplementedError; ACP 服务器自己处理
     async def write_text_file(
         self, session_id: str, path: str, content: str, **kwargs: Any
     ) -> WriteTextFileResponse | None:
@@ -1764,14 +1747,14 @@ class _OpenHandsACPBridge:
 
 
 class ACPAgent(AgentBase):
-    """Agent that delegates to an ACP-compatible subprocess server."""
+    """智能体委托给 ACP 兼容的子进程服务器。"""
 
-    # Override required fields with ACP-appropriate defaults
+    # 使用 ACP 相应的默认值覆盖必填字段
     llm: LLM = Field(default_factory=_make_dummy_llm)
     tools: list[Tool] = Field(default_factory=list)
     include_default_tools: list[str] = Field(default_factory=list)
 
-    # ACP-specific configuration
+    # ACP-具体配置
     acp_command: list[str] = Field(
         ...,
         description=(
@@ -1861,13 +1844,13 @@ class ACPAgent(AgentBase):
 
     @field_serializer("acp_resume_session_id", when_used="always")
     def _serialize_acp_resume_session_id(self, value: str | None, info):
-        """Mask ``acp_resume_session_id`` via :func:`serialize_secret`.
+        """通过：func:`serialize_secret` 掩码 ``acp_resume_session_id``。
 
-        Default ``model_dump`` / ``model_dump_json`` redacts the id so it
-        cannot leak into logs, trace exports, or PR review attachments.
-        Trusted backend callers opt into plaintext via Pydantic's context
-        (``expose_secrets='plaintext'``); frontend round-trips use the
-        ``"encrypted"`` mode with a cipher in the context.
+        默认 ``model_dump`` / ``model_dump_json`` 会编辑 ID，以便它不会泄漏到日志、跟
+        踪导出或 PR 审阅附件中。 受信任的
+        后端调用者通过 Pydantic 的上下文 (``expose_secrets='plaintext'``) 选择明文；
+        前端往返使用
+        ``"encrypted"`` 模式，密码在上下文中。
         """
         if value is None:
             return None
@@ -1878,23 +1861,22 @@ class ACPAgent(AgentBase):
     def _validate_acp_resume_session_id(
         cls, value: Any, info: ValidationInfo
     ) -> str | None:
-        """Reverse :meth:`_serialize_acp_resume_session_id` on load.
+        """加载时反转：meth:`_serialize_acp_resume_session_id`。
 
-        Without this validator, ``model_validate_json`` of a previously
-        serialized agent would put garbage in ``acp_resume_session_id``:
+        如果没有这个验证器，先前的已序列化智能体的 ``model_validate_json`` 会将垃圾放
+        入 ``acp_resume_session_id``
+         中：
 
-        - Default-redacted dumps would reload as the literal ``"**********"``
-          sentinel — calling ``session/load`` with that fails server-side and
-          we fall back to a fresh session every time, defeating the whole
-          point of the durable mirror.
-        - Encrypted dumps (frontend round-trip) would reload as the raw
-          Fernet ciphertext — same failure mode, plus the ciphertext sits
-          in ``state.agent_state`` on disk.
+        - 已脱敏默认的``"**********"`` 哨兵值会重新加载，因为``session/load`` 会失败
+        ，因为我们每次都会切换到一个新的会话，这破坏
+        了持久镜像的初衷。
+        - 加密转储（前端往返）将作为原始 Fernet 密文重新加载 - 相同的故障模式，加上密
+        文位于磁盘上的 ``state.agent_state`` 中。
 
-        :func:`validate_secret` returns ``None`` for empty/redacted values
-        and decrypts when a cipher is present in the validation context.
-        We unwrap the returned ``SecretStr`` so the field's runtime type
-        stays ``str | None`` (the rest of the SDK reads it directly).
+        :func:`validate_secret` 对于空/编辑值返回 ``None``
+        并在验证上下文中存在密码时进行解密。 我们解开返回的 ``SecretStr``，因此该字段
+        的运行时类型保持为 ``str | None``（SDK 的
+        REST 直接读取它）。
         """
         secret = validate_secret(value, info)
         return secret.get_secret_value() if secret is not None else None
@@ -1934,13 +1916,13 @@ class ACPAgent(AgentBase):
     @field_validator("agent_context")
     @classmethod
     def _drop_project_skills(cls, value: AgentContext | None) -> AgentContext | None:
-        """Clear ``load_project_skills`` — ACP CLIs read the repo themselves.
+        """``load_project_skills`` — ACP CLIs 请自行阅读仓库。
 
-        Claude Code, Codex and Gemini already ingest ``AGENTS.md`` / ``CLAUDE.md``
-        and their own project skills from the session cwd, so loading them here
-        too would put that content in the prompt twice. Normalised rather than
-        rejected: callers legitimately set the flag on a shared context they also
-        use for OpenHands agents (#4019).
+        Claude Code、Codex 和 Gemini 已经从会话 cwd 中读取 ``AGENTS.md`` 和
+        ``CLAUDE.md``，所以在这里重复
+        加载这些内容会把内容加载两次到提示词。 标准化而不是
+        rejected: 调用者合法地在共享上下文上设置标志，他们也
+        用于 OpenHands 智能体 (#4019)。
         """
         if value is None or not value.load_project_skills:
             return value
@@ -1948,22 +1930,21 @@ class ACPAgent(AgentBase):
 
     def model_post_init(self, __context: object) -> None:
         super().model_post_init(__context)
-        # Propagate the actual model name to the sentinel LLM and its
-        # metrics so that logs, serialized state, and cost/token entries
-        # show the real model instead of the "acp-managed" placeholder.
-        # The ACP-sentinel marker lives on ``llm.usage_id`` and is
-        # independent of the model name.
+        # 将实际模型名称传播到哨兵值  LLM 以及其指标，以便于日志已序列化状态和成本/令牌
+        # 条目显示的是实际模型，而不是"ACP-managed" placeholder。 的 ACP-哨兵值标记永生
+        # ``llm.usage_id`` 并且与模型名称无关。
+        #
         if self.acp_model:
             self.llm.model = self.acp_model
             self.llm.metrics.model_name = self.acp_model
             if self.llm.metrics.accumulated_token_usage is not None:
                 self.llm.metrics.accumulated_token_usage.model = self.acp_model
 
-    # Private runtime state
+    # 私有运行时状态
     _executor: Any = PrivateAttr(default=None)
     _conn: ClientSideConnection | None = PrivateAttr(default=None)
     _session_id: str | None = PrivateAttr(default=None)
-    _process: Any = PrivateAttr(default=None)  # asyncio subprocess
+    _process: Any = PrivateAttr(default=None)  # 异步子进程
     _client: Any = PrivateAttr(default=None)  # _OpenHandsACPBridge
     _filtered_reader: Any = PrivateAttr(default=None)  # StreamReader
     _stdout_filter_task: Any = PrivateAttr(default=None)  # asyncio.Task
@@ -1972,64 +1953,65 @@ class ACPAgent(AgentBase):
     _working_dir: str = PrivateAttr(default="")
     _agent_name: str = PrivateAttr(
         default=""
-    )  # ACP server name from InitializeResponse
+    )  # ACP 来自 InitializeResponse 的服务器名称
     _agent_version: str = PrivateAttr(
         default=""
-    )  # ACP server version from InitializeResponse
-    # Which protocol this session uses to select the model: ``True`` ⇒
-    # ``session/set_config_option(configId="model")`` (codex-acp,
-    # claude-agent-acp 0.44+); ``False`` ⇒ ``session/set_model`` (gemini-cli and
-    # older codex/claude). Detected from the session/new (or load_session)
-    # response at init and reused by runtime ``set_acp_model`` switches.
-    _model_via_config_option: bool = PrivateAttr(default=False)
-    # The model the ACP server reported as active for this session, captured
-    # from ``models.currentModelId`` on the new_session / load_session
-    # response.  Overridden by ``self.acp_model`` when the caller explicitly
-    # chose one (either via ``set_session_model`` or via session ``_meta``).
-    # ``None`` when the server doesn't surface model state — the field is
-    # marked UNSTABLE in the ACP spec, so older agents may omit it.
+    )  # ACP 服务器版本来自 InitializeResponse
+    # 此会话使用哪个协议来选择模型：``True`` ⇒
+    # ``session/set_config_option(configId="model")``（法典-ACP，克劳德-智能体-ACP 0.44+
+    # ）； ``False`` ⇒ ``session/set_model``（双子座-CLI 和较旧的法典/克劳德）。 在 init
+    #  时从会话/新（或 load_session）响应中检测到并由运行时 ``set_acp_model`` 开关重用。
     #
-    # Kept as a PrivateAttr (not a Pydantic field) because ``AgentBase`` is
-    # frozen and this is per-session runtime state, not config.  The
-    # agent-server lifts it onto ``ConversationInfo`` so the value can cross
-    # the API boundary even though the agent itself doesn't serialize it.
+    _model_via_config_option: bool = PrivateAttr(default=False)
+    # ACP 服务器报告为此会话处于活动状态的模型，已捕获
+    # from ``models.currentModelId`` on the new_session / load_session
+    # 回应。 当调用者明确选择一个（通过 ``set_session_model`` 或通过会话 ``_meta``）时，
+    # 被 ``self.acp_model`` 覆盖。
+    # ``None`` 当服务器不显示模型状态时 - 该字段在 ACP 规范中标记为 UNSTABLE，因此较旧的
+    # 智能体可能会省略它。
+    #
+    # 保留为 PrivateAttr（不是 Pydantic 字段），因为 ``AgentBase`` 已冻结，并且这是每个
+    # 会话运行时状态，而不是配置。 智能体-服务器将其提升到 ``ConversationInfo``，因此该
+    # 值可以跨越 API 边界，即使智能体本身不序列化它。
+    #
     _current_model_id: str | None = PrivateAttr(default=None)
-    # ``models.availableModels`` from the same session response, normalized
-    # to our stable ``ACPModelInfo`` type.  Surfaced verbatim via the
-    # ``available_models`` property (and ``ConversationInfo.available_models``)
-    # so clients can render a picker and resolve ``current_model_id`` to a
-    # display label themselves — the SDK does no name curation.
-    # ``None`` encodes "the server didn't report a ``models`` block this launch"
-    # (distinct from ``[]`` = "reported, but no models"); the persistence logic
-    # in ``init_state`` uses that distinction to preserve vs clear the stored
-    # list on resume. The public ``available_models`` property coerces to ``[]``.
+    # ``models.availableModels`` 来自同一会话响应，标准化为我们的稳定 ``ACPModelInfo``
+    # 类型。 通过逐字逐句浮出水面
+    # ``available_models`` 属性（和 ``ConversationInfo.available_models``），以便客户端
+    # 可以渲染选择器并将 ``current_model_id`` 解析为自己的显示标签 - SDK 不进行名称管理
+    # 。
+    # ``None`` 编码“服务器没有报告本次启动的 ``models`` 块”（与 ``[]`` =“报告，但没有模
+    # 型”不同）； ``init_state`` 中的持久化逻辑使用这种区别来保留和清除恢复时存储的列表
+    # 。 公共``available_models``财产强制``[]``。
+    #
     _available_models: list[ACPModelInfo] | None = PrivateAttr(default=None)
-    # Whether the caller's ``acp_model`` was actually pushed to the server in
-    # the most recent session init (via session ``_meta`` or ``set_session_model``).
-    # ``False`` when there's no override, the provider can't apply it (unknown
-    # server on a fresh session), or the server rejected the call on resume — in
-    # those cases the live session runs its own default, so neither
-    # ``_current_model_id`` nor the ``ConversationInfo`` fallback may surface
-    # ``acp_model`` as the active model. Read by ``init_state`` to decide whether
-    # a stale persisted ``acp_current_model_id`` must be cleared.
+    # 调用者的 ``acp_model`` 是否实际上在最近的会话初始化中推送到服务器（通过会话
+    # ``_meta`` 或 ``set_session_model``）。
+    # ``False`` 当没有进行覆盖时，提供者无法应用它（在新会话中，未知服务器），或者在恢复
+    # 时服务器拒绝了调用——在这种情况下，活会话会运行自己的默认，所以两者都不适用
+    # ``_current_model_id`` 和 ``ConversationInfo`` 回退方案都不会出现
+    # ``acp_model`` 作为活动模型。 由``init_state``读取来决定是否必须清除陈旧的已持久化
+    # ``acp_current_model_id``。
+    #
     _model_override_applied: bool = PrivateAttr(default=False)
-    # Callback to signal that the ACP subprocess is actively working.
-    # Injected by the agent-server to call update_last_execution_time().
-    _on_activity: Any = PrivateAttr(default=None)  # Callable[[], None] | None
-    # Suffix rendered once at session start from agent_context + secret_registry.
-    # "unused"               — no agent_context or empty suffix
-    # "pending_first_prompt" — new session; inject into first user message
-    # "installed"            — already in subprocess history; skip further injection
+    # 回调表示 ACP 子进程正在积极工作。 由智能体-服务器注入以调用
+    # update_last_execution_time()。
+    #
+    _on_activity: Any = PrivateAttr(default=None)  # [[]，None] | None
+    # 后缀在会话开始时渲染一次，从 agent_context + secret_registry 开始。 "unused" — 无
+    # agent_context 或空后缀 "pending_first_prompt" — 新会话； 注入第一个用户消息“已安装
+    # ”——已经在子进程历史记录中； 跳过进一步注射
+    #
     _suffix_install_state: str = PrivateAttr(default="unused")
     _installed_suffix: str | None = PrivateAttr(default=None)
-    # Skills written to disk and listed by path in the prompt, not inlined.
+    # 写入磁盘并在提示词中按路径列出的技能，未内联。
     _skill_locations: dict[str, Path] = PrivateAttr(default_factory=dict)
     _skills_root: Path | None = PrivateAttr(default=None)
     _additional_directories_supported: bool = PrivateAttr(default=False)
     _restart_session_on_next_turn: bool = PrivateAttr(default=False)
-    # Stream identity for the turn in flight; see stream_context.py. Held on
-    # the agent rather than threaded through the finalizers because the ACP
-    # turn already resolves through four of them.
+    # 飞行中转弯的流身份； 参见stream_context.py。 保留在智能体上而不是通过终结器线程，
+    # 因为 ACP 回合已经通过其中四个终结器解析。
+    #
     _stream: StreamContext | None = PrivateAttr(default=None)
     _resumed_existing_session: bool = PrivateAttr(default=False)
     _file_credential_lifecycles: dict[str, ACPFileCredentialLifecycle] = PrivateAttr(
@@ -2047,7 +2029,8 @@ class ACPAgent(AgentBase):
     )
     _atexit_callback: Callable[[], None] | None = PrivateAttr(default=None)
 
-    # -- Helpers -----------------------------------------------------------
+    # -- 帮手 --------------------------------------------------------------------------
+    # --------
 
     def activate_file_credential_binding(
         self,
@@ -2106,17 +2089,18 @@ class ACPAgent(AgentBase):
         elapsed: float | None = None,
         usage_update: UsageUpdate | None = None,
     ) -> None:
-        """Record cost, token usage, latency, and notify stats callback once.
+        """记录成本、词元用量、延迟，并通知统计数据回调一次。
 
         Args:
-            response: The ACP PromptResponse (may carry a ``usage`` field).
-            session_id: Session identifier used as the response_id for metrics.
-            elapsed: Wall-clock seconds for this prompt round-trip (optional).
-            usage_update: The synchronized ACP UsageUpdate for this turn, if any.
+            response: ACP PromptResponse（可以携带 ``usage`` 字段）。
+            session_id: 会话标识符用作指标的 response_id。
+            elapsed: 此提示词往返的挂钟秒数（可选）。
+            usage_update: 本回合同步的 ACP UsageUpdate（如果有）。
         """
-        # -- Cost recording ---------------------------------------------------
-        # claude-agent-acp, codex-acp: report cost via UsageUpdate notification
-        # gemini-cli: does not send UsageUpdate (cost derived from tokens below)
+        # -- 成本记录----------------------------------------------------------------
+        # claude-智能体-ACP，codex-ACP：通过 UsageUpdate 通知报告成本 Gemini-CLI：不发送
+        #  UsageUpdate（成本源自下面的 token）
+        #
         cost_recorded = False
         if usage_update is not None and usage_update.cost is not None:
             last_cost = self._client._last_cost_by_session.get(session_id, 0.0)
@@ -2127,7 +2111,7 @@ class ACPAgent(AgentBase):
             self._client._last_cost_by_session[session_id] = usage_update.cost.amount
             self._client._last_cost = usage_update.cost.amount
 
-        # -- Token usage recording --------------------------------------------
+        # -- 词元用量录音 --------------------------------------------------------
         input_tokens, output_tokens, cache_read, cache_write, reasoning = (
             _extract_token_usage(response)
         )
@@ -2144,10 +2128,11 @@ class ACPAgent(AgentBase):
                 response_id=session_id,
             )
 
-        # -- Cost derivation from tokens --------------------------------------
-        # gemini-cli: no UsageUpdate cost, so derive from token counts using
-        # LiteLLM's model pricing database (same source the proxy uses).
-        # claude-agent-acp, codex-acp: skipped since cost_recorded is True.
+        # -- 成本推导自 token --------------------------------------------------
+        # gemini-CLI：没有 UsageUpdate 成本，因此使用 LiteLLM 的模型定价数据库（与代理使
+        # 用的来源相同）从 token 计数得出。 claude-智能体-ACP，codex-ACP：跳过，因为
+        # cost_recorded 是 True。
+        #
         if not cost_recorded and (input_tokens or output_tokens) and self.acp_model:
             cost = _estimate_cost_from_tokens(
                 self.acp_model, input_tokens, output_tokens
@@ -2156,9 +2141,9 @@ class ACPAgent(AgentBase):
                 self.llm.metrics.add_cost(cost)
 
         if not cost_recorded and not input_tokens and not output_tokens:
-            # gemini-cli currently returns response.usage=None and
+            # gemini-CLI 当前返回 response.usage=None 并且
             # response.field_meta=None (ACP SDK strips _meta during
-            # serialization). Tracked in google-gemini/gemini-cli#24280.
+            # 序列化). 在 google-gemini/gemini-CLI#24280 中跟踪。
             logger.debug(
                 "No usage data from ACP server %s — token/cost tracking unavailable",
                 self._agent_name or "unknown",
@@ -2173,104 +2158,101 @@ class ACPAgent(AgentBase):
             except Exception:
                 logger.debug("Stats update callback failed", exc_info=True)
 
-    # -- Capability helpers ------------------------------------------------
+    # -- 能力帮手------------------------------------------------
 
     @property
     def supports_openhands_tools(self) -> bool:
-        """``False`` — the ACP server manages its own toolset."""
+        """``False`` — ACP 服务器管理自己的工具集。"""
         return False
 
     @property
     def supports_openhands_mcp(self) -> bool:
-        """``False`` — OpenHands does not create in-process MCP tools here.
+        """``False`` — OpenHands 此处不创建进程内 MCP 工具。
 
-        ACP agents still honor ``mcp_config`` by forwarding configured servers
-        to the ACP subprocess at session creation time.
+        ACP 智能体仍然通过在会话创建时将配置的服务器转发到 ACP 子进程来尊重
+        ``mcp_config``。
         """
         return False
 
     @property
     def supports_condenser(self) -> bool:
-        """``False`` — the ACP server manages its own context window."""
+        """``False`` — ACP 服务器管理自己的上下文窗口。"""
         return False
 
     @property
     def agent_kind(self) -> Literal["acp"]:
-        """ACP agents have ``agent_kind == "acp"``."""
+        """ACP 智能体有 ``agent_kind == "acp"``。"""
         return "acp"
 
-    # -- ACP-specific runtime properties -----------------------------------
+    # -- ACP 特定的运行时属性 --------------------------------------------------
 
     @property
     def agent_name(self) -> str:
-        """Name of the ACP server (from InitializeResponse.agent_info)."""
+        """ACP 服务器的名称（来自 InitializeResponse.agent_info）。"""
         return self._agent_name
 
     @property
     def agent_version(self) -> str:
-        """Version of the ACP server (from InitializeResponse.agent_info)."""
+        """ACP 服务器的版本（来自 InitializeResponse.agent_info）。"""
         return self._agent_version
 
     @property
     def current_model_id(self) -> str | None:
-        """The model the ACP server is currently using for this session.
+        """ACP 服务器当前用于此会话的模型。
 
-        Captured from ``models.currentModelId`` on the
-        ``new_session`` / ``load_session`` response when the server surfaces
-        it (UNSTABLE ACP capability), or ``self.acp_model`` when the caller
-        explicitly chose one.  ``None`` for older servers that don't report
-        model state and when no override was set — callers should treat the
-        value as best-effort.
+        摘自 ``models.currentModelId``
+        当服务器显示它时 ``new_session`` / ``load_session`` 响应（UNSTABLE ACP 功能）
+        ，或当调用者明确选择其中之一时
+         ``self.acp_model``。 ``None`` 对于不报告模型状态并且未设置覆盖的旧服务器 -
+         调用者应将该值视为尽力而为。
 
-        Note: this is in-process runtime state; it does not round-trip
-        through ``model_dump()``.  Consumers that need to read it across the
-        API boundary should look at ``ConversationInfo.current_model_id``,
-        which the agent-server lifts off the agent into the response.
+        Note: 这是进程内运行时状态； 它不往返
+        通过``model_dump()``。 需要跨 API 边界读取它的消费者应该查看
+        ``ConversationInfo.current_model_id``，智能体服务器将智能体提升到响应中。
 
-        This (the protocol-reported session model) is the authoritative model
-        id — trust it over what the model says about itself. Provider models
-        introspect their own identity unreliably: gemini-cli reports a stale
-        ``gemini-1.5-flash-latest`` regardless of the active model, and codex
-        won't name its tier. Verified across all three providers; the switch is
-        honored even when the model's self-description disagrees.
+        这个（协议报告的会话模型）是权威模型 ID——相信它而不是模型本身所说的内容。 提
+        供者模型不可靠地内省自己的身份：gemini-CLI 报告过时
+        ``gemini-1.5-flash-latest`` 无论活动模型如何，codex 都不会命名其层级。 经过所
+        有三个提供商的验证； 即使模型的自我描述不一
+        致，这种转换也会得到尊重。
         """
         return self._current_model_id
 
     @property
     def available_models(self) -> list[ACPModelInfo]:
-        """Models the ACP server offers for this session.
+        """对 ACP 服务器为此会话提供的模型进行建模。
 
-        Captured verbatim from ``models.availableModels`` on the
-        ``new_session`` / ``load_session`` response (UNSTABLE ACP capability);
-        empty for servers that don't surface it.  Each entry carries the
-        server's ``model_id`` plus an optional ``name``/``description`` —
-        enough for a client to render a model picker and resolve
-        ``current_model_id`` to a display label without any server-side
-        curation.  ``current_model_id`` is the value to pass back to the server
-        to switch to that model.
+        从 ``models.availableModels`` 上逐字捕获
+        ``new_session`` / ``load_session`` 响应（UNSTABLE ACP 能力）； 对于不显示它的
+        服务器为空。 每个条目都带有服
+        务器的 ``model_id`` 加上可选的 ``name``/``description`` — 足以让客户端渲染模
+        型选择器并解析
+        ``current_model_id`` 到没有任何服务器端管理的显示标签。 ``current_model_id``
+        是传回服务器以切换到该模型的值。
 
-        Same lifecycle and serialization caveats as ``current_model_id``:
-        in-process runtime state, lifted onto
-        ``ConversationInfo.available_models`` by the agent-server for
-        cross-process consumers. Always a list (the internal ``None``
-        "not-reported" sentinel is coerced to ``[]`` here).
+        与 ``current_model_id`` 相同的生命周期和序列化警告：进程内运行时状态，提升到
+        ``ConversationInfo.available_models`` 由跨进程消费者的智能体服务器提供。 始终
+        是一个列表（内部 ``None``“未报
+        告”哨兵值在此被强制为 ``[]``）。
         """
         return list(self._available_models or [])
 
     @property
     def supports_runtime_model_switch(self) -> bool:
-        """Whether a live, mid-conversation model switch will be attempted.
+        """是否尝试进行实时对话模式切换。
 
-        Tells a client whether to offer the inline picker's live-switch control.
-        ``True`` only for known providers that explicitly declare support for
-        runtime model switching. Unknown/custom providers use ``set_config_option``
-        for *initial* model selection but that RPC is a generic config write, not
-        a guaranteed live-switch primitive, so the picker is hidden for them.
-        ``False`` before a session exists (nothing to switch yet).
+        告诉客户是否提供内联选择器的实时切换控制。
+        ``True`` 仅适用于明确声明支持运行时模型切换的已知提供程序。
+        ``set_config_option`` 未知/自定义提供者使用 * 选择初始 *
+        模型，但 RPC 这是一个通用配置写入，而不是一个保证的实时切换原语，因此选择器对
+        他们是隐藏的。
+        ``False`` 在会话存在之前（尚未切换）。
 
-        See
-        :meth:`~openhands.sdk.conversation.impl.local_conversation.LocalConversation.switch_acp_model`.
-        """
+        参见
+        ：方法：
+        `~openhands.sdk.conversation.impl.local_conversation.LocalConversation.switch_acp_model`
+        。
+        """  # noqa: E501
         if self._session_id is None:
             return False
         provider = detect_acp_provider_by_agent_name(self._agent_name)
@@ -2278,21 +2260,21 @@ class ACPAgent(AgentBase):
 
     @property
     def has_live_acp_session(self) -> bool:
-        """Whether a live ACP session exists to act on right now.
+        """是否存在可立即执行的实时 ACP 会话。
 
-        ``True`` only once the subprocess-backed session is fully wired —
-        connection, session id, and executor all present — which happens during
-        the first ``run()`` (see :meth:`init_state`). ``False`` before that
-        (created but not yet run) and after teardown.
+        ``True`` 只有在子进程- 被后端会话完全连接 - 连接、会话 ID 和执行器都存在 - 这
+        发生在第一次 ``run()`` (请参阅：
+        `see :meth:`)`init_state`). ``False`` 在创建但尚未运行之前，以及 teardown之后
+        。
 
-        Lets callers branch on session state instead of catching the
-        ``RuntimeError`` that :meth:`set_acp_model` raises pre-session or
-        reaching into the ``_conn`` / ``_session_id`` / ``_executor``
-        PrivateAttrs. In particular
-        :meth:`~openhands.sdk.conversation.impl.local_conversation.LocalConversation.switch_acp_model`
-        uses it to decide between a live in-place switch and a deferred persist
-        that the next session start applies.
-        """
+        让调用者在会话状态上分支而不是捕获
+        ``RuntimeError`` :meth:`set_acp_model` 提出会前或进入 ``_conn`` /
+        ``_session_id`` /
+        ``_executor`` PrivateAttrs。 特别是
+        ：甲基：
+        `~openhands.sdk.conversation.impl.local_conversation.LocalConversation.switch_acp_model`
+        使用它来决定下一个会话启动应用的实时就地切换和延迟持久化。
+        """  # noqa: E501
         return (
             self._conn is not None
             and self._session_id is not None
@@ -2302,20 +2284,19 @@ class ACPAgent(AgentBase):
     def get_all_llms(self) -> Generator[LLM]:
         yield self.llm
 
-    # -- Lifecycle ---------------------------------------------------------
+    # -- 生命周期---------------------------------------------------------------------
 
     def init_state(
         self,
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Spawn the ACP server and initialize a session."""
-        # Validate unsupported execution features. agent_context is allowed
-        # because it contributes prompt-only extensions to user messages; ACP
-        # server tools and context-window management remain owned by the server.
-        # mcp_config IS supported: its servers are forwarded to the subprocess at
-        # session creation (see _mcp_config_to_acp_servers) rather than turned
-        # into in-process SDK MCP tools.
+        """生成 ACP 服务器并初始化会话。"""
+        # 验证不支持的执行功能。 agent_context 是允许的，因为它为用户消息提供了仅提示词
+        # 的扩展； ACP 服务器工具和上下文窗口管理仍然归服务器所有。 mcp_config IS 支持：
+        # 其服务器在会话创建时转发到子进程（参见 _mcp_config_to_acp_servers），而不是转
+        # 变为进程内 SDK MCP 工具。
+        #
         if self.tools:
             raise NotImplementedError(
                 "ACPAgent does not support custom tools; "
@@ -2335,35 +2316,32 @@ class ACPAgent(AgentBase):
             self._cleanup()
         self._executor = AsyncExecutor()
 
-        # Render the suffix once, pulling secrets from the conversation's
-        # secret_registry to match the regular Agent's get_dynamic_context().
+        # 渲染后缀一次，从对话的 secret_registry 中提取机密以匹配常规智能体的
+        # get_dynamic_context()。
+        #
         self._materialize_skills(state)
         self._installed_suffix = self._render_suffix(state)
-        # A prior session id means we may be resuming; used by ``truly_resumed``
-        # below to decide whether the model state reported for this launch
-        # describes the resumed session or a fresh one. An explicit
-        # ``acp_resume_session_id`` (e.g. a cloud session-id mirror feeding the
-        # id back after base_state.json was wiped) takes precedence over the
-        # FS-persisted id, matching the precedence in ``_start_acp_server`` — so
-        # ``truly_resumed`` (``self._session_id == prior_session_id``) stays
-        # correct whether the resumed id came from the FS or the explicit field.
+        # 先前的会话 ID 意味着我们可能会恢复； 下面的 ``truly_resumed`` 使用它来确定为本
+        # 次启动报告的模型状态是描述恢复的会话还是新的会话。 明确的
+        # ``acp_resume_session_id`` (e.g. 擦除 base_state.json 后返回 id 的云会话 ID 镜
+        # 像）优先于 FS-已持久化 id，与 ``_start_acp_server`` 中的优先级匹配 — 因此
+        # 无论恢复的 id 来自 FS 还是显式字段，``truly_resumed`` (
+        # ``self._session_id == prior_session_id``) 都保持正确。
+        #
         prior_session_id = self.acp_resume_session_id or state.agent_state.get(
             "acp_session_id"
         )
-        # ``acp_suffix_installed`` is persisted by
-        # ``_commit_suffix_installation`` only after the first prompt has
-        # actually returned successfully, so on resume we know whether the
-        # ACP subprocess received the suffix.  ``acp_session_id`` alone is
-        # not a reliable signal — it is persisted at session-creation time
-        # regardless of whether the first prompt succeeded, so inferring
-        # "installed" from session id presence would skip suffix injection
-        # for sessions whose first turn was cancelled mid-prompt.  Older
-        # persisted state (from before this PR introduced the marker)
-        # will re-inject the suffix on the first turn after upgrade, which
-        # is benign — the suffix is additive LLM-context guidance.
+        # ``acp_suffix_installed`` 等于已持久化
+        # ``_commit_suffix_installation`` 只有在第一个提示词实际上成功返回之后，所以在恢
+        # 复时我们知道 ACP 子进程是否收到了后缀。 ``acp_session_id`` 单独使用并不是一个
+        # 可靠的信号——无论第一个提示词是否成功，已持久化在会话创建时间。因此，从会话ID的
+        # 存在中推断“安装”会跳过提示词的前一次会话的后缀注入。 升级后，已持久化之前的PR
+        # 状态在第一次升级后会重新注入后缀，这是正常的——后缀是LLM-上下文指导。
+        #
         suffix_already_installed = bool(state.agent_state.get("acp_suffix_installed"))
-        # Best-effort initial value for _resumed_existing_session; the real
-        # start path overwrites it once _start_acp_server returns.
+        # _resumed_existing_session 的尽力初始值； 一旦 _start_acp_server 返回，真正的起
+        # 始路径就会覆盖它。
+        #
         self._resumed_existing_session = bool(prior_session_id)
 
         try:
@@ -2376,17 +2354,15 @@ class ACPAgent(AgentBase):
                 logger.warning("Failed to clean up ACP resources", exc_info=True)
             if self._has_runtime_resources():
                 self._register_atexit_cleanup(replace=True)
-            # init_state runs *outside* run()/arun()'s try-block (it is reached
-            # via _ensure_agent_ready() before the loop starts), so a cold-start
-            # failure — bad/expired auth, missing CLI binary, cwd mismatch — would
-            # otherwise bypass error emission and reach the client as a generic
-            # "remote conversation ended with error".  Emit a typed
-            # ConversationErrorEvent and flip the status to ERROR here, mirroring
-            # what the regular Agent (and ACPAgent.astep) do from inside the run
-            # loop, so clients render their existing error banner instead.
-            # Best-effort: surfacing the error must never mask the original
-            # exception, which still propagates to preserve the existing
-            # cleanup/re-raise contract that run()/arun() rely on.
+            # init_state runs *outside*  run()/arun()'s try-block（它通过 try-block 被到
+            # 达） _ensure_agent_ready（在循环开始之前），因此冷启动失败 —— 错误/过期的
+            # 认证，缺失 CLI 二进制文件与工作目录不匹配——否则会跳过错误的发出，并以通用
+            # 的“远程对话以错误结束”形式到达客户端。 发出一个类型化的
+            # ConversationErrorEvent 并将状态翻转为 ERROR 这里，镜像常规的智能体 (and)
+            # ACPAgent.astep） 在运行循环内部，所以客户端会渲染现有的错误提示框。 尽力而
+            # 为：必须确保错误信息不会掩盖原始异常，该异常仍然会传播以保留现有的清理/重
+            # 新抛出合同 run()/arun() 依赖。
+            #
             try:
                 state.execution_status = ConversationExecutionStatus.ERROR
                 on_event(
@@ -2402,16 +2378,14 @@ class ACPAgent(AgentBase):
 
         self._register_atexit_cleanup(replace=True)
 
-        # A successful resume keeps the prior id; cwd mismatch and load_session
-        # failure both fall back to ``new_session``, which mints a fresh one.
-        # The session-id comparison is the only authoritative signal — the
-        # decision happens inside ``_start_acp_server`` and isn't otherwise
-        # observable here.
+        # 一份成功的简历会保留之前的身份； cwd 不匹配和 load_session 失败都会回落到
+        # ``new_session``，这会产生一个新的。 会话 ID 比较是唯一的权威信号——决定发生在
+        # ``_start_acp_server`` 内部，并且在这里无法观察到。
         #
-        # When _start_acp_server is patched out in tests, self._session_id
-        # stays None (never set by the mock).  In that case, keep the
-        # best-effort _resumed_existing_session value set above; otherwise
-        # override with the authoritative comparison result.
+        # 当 _start_acp_server 在测试中被修补时，self._session_id 保留为 None（从未由模
+        # 拟对象设置）。 在这种情况下，请保留上面设置的尽力而为
+        # _resumed_existing_session 值； 否则以权威比较结果覆盖。
+        #
         if self._session_id is not None:
             truly_resumed = (
                 prior_session_id is not None and self._session_id == prior_session_id
@@ -2422,37 +2396,37 @@ class ACPAgent(AgentBase):
 
         self._initialized = True
 
-        # Persist agent info + the ACP session id + its cwd in agent_state.
-        # Keeping these here (rather than on the frozen ACPAgent model) means
-        # ConversationState's existing base_state.json persistence carries
-        # them across agent-server restarts, and ``_start_acp_server`` on the
-        # next launch reads them back to call ``load_session`` instead of
-        # starting from scratch.  We record ``acp_session_cwd`` alongside the
-        # id because ACP servers key their persistence by ``cwd``: resuming
-        # in a different working directory would at best silently miss the
-        # prior session and at worst load a different session that happens to
-        # exist at the new cwd.
+        # 持久化智能体信息 +  ACP 会话 ID 和其工作目录 agent_state. 把它们放在这里（而不
+        # 是放在冷冻的地方） ACPAgent 模型）是指 ConversationState'现有的'
+        # base_state.json  持久化将他们带到目的地智能体服务器重启，和
+        # ``_start_acp_server`` 在下一次启动时，它们会被读回并调用 ``load_session`` 不如
+        # 从头开始。 我们记录 ``acp_session_cwd`` 除了 id 之外 ACP 服务器钥匙他们的持久
+        # 化 by ``cwd``在不同地方继续工作目录最好默默错过之前的会话，最坏加载一个存在于
+        # 新工作目录的新会话。
+        #
         new_agent_state = {
             **state.agent_state,
             "acp_agent_name": self._agent_name,
             "acp_agent_version": self._agent_version,
             "acp_session_id": self._session_id,
             "acp_session_cwd": self._working_dir,
-            # Static provider capability — persisted so cold reads of the
-            # conversation list can tell the picker whether to offer live
-            # switching without re-detecting the provider server-side.
+            # 静态提供者能力 — 已持久化冷读会话列表中的对话可以告诉选择器是否需要提供实
+            # 时切换，而无需在服务器侧重新检测提供者。
+            #
             "acp_supports_runtime_model_switch": self.supports_runtime_model_switch,
-            # Detected model-selection mechanism — persisted so a resume whose
-            # load_session omits the model block reapplies the model via the
-            # right call instead of defaulting to set_session_model.
+            # 检测到模型选择机制已持久化那么一个简历是  load_session 省略了模型块，而是
+            # 通过正确的调用来重新应用模型，而不是默认应用 set_session_model.
+            #
             "acp_model_via_config_option": self._model_via_config_option,
         }
-        # When starting a fresh session, clear stale suffix marker so the next
-        # launch knows to re-inject it (PR behavior: suffix state is per-session).
+        # 启动新会话时，清除过时的后缀标记，以便下次启动时知道重新注入它（PR行为：后缀状
+        # 态是每个会话）。
+        #
         if not self._resumed_existing_session:
             new_agent_state.pop("acp_suffix_installed", None)
-        # Model state tracking (from main): persist current model id and
-        # available models list for cold reads of the conversation list.
+        # 模型状态跟踪（来自 main）：持久化当前模型 ID 和用于冷读对话列表的可用模型列表
+        # 。
+        #
         override_attempted_not_applied = bool(self.acp_model) and (
             not self._model_override_applied
         )
@@ -2479,10 +2453,10 @@ class ACPAgent(AgentBase):
                 else "pending_first_prompt"
             )
 
-        # Emit a placeholder system prompt so the visualizer shows a section
-        # even though the real system prompt is managed by the ACP server.
-        # dynamic_context mirrors agent.py's SystemPromptEvent so that tooling
-        # (UI, tests) can inspect what suffix was installed.
+        # 发出占位符系统提示词，以便可视化工具显示一个部分，即使真实系统提示词由 ACP 服
+        # 务器管理。 dynamic_context 镜像 agent.py 的 SystemPromptEvent，以便工具（UI、
+        # 测试）可以检查安装的后缀。
+        #
         on_event(
             SystemPromptEvent(
                 source="agent",
@@ -2520,28 +2494,27 @@ class ACPAgent(AgentBase):
         self._skills_root = root
 
     def _render_suffix(self, state: ConversationState) -> str | None:
-        """Render the system suffix once, including secrets from the registry.
+        """渲染一次系统后缀，包括注册表中的机密。
 
-        The ``<CUSTOM_SECRETS>`` block lists every secret the ACP subprocess
-        will receive, so the agent knows which env vars are available without
-        them being inlined in the prompt. We render it from
-        ``state.secret_registry`` even when ``agent_context`` is absent —
-        otherwise a conversation that only ships secrets through the
-        ``StartConversationRequest.secrets`` channel (the canonical path)
-        would silently drop the advertisement, leaving the agent ignorant of
-        secrets that are nonetheless about to land in its env via
+        ``<CUSTOM_SECRETS>`` 块列出了 ACP 子进程将接收的每个机密，因此智能体知道哪些
+        环境变量可用，而无需将它们内联到提示词中。 我们渲染它
+        来自
+        ``state.secret_registry`` 即使 ``agent_context`` 不存在 - 否则对话仅通过机密
+        传送
+        ``StartConversationRequest.secrets`` 频道（canonical path）会无声地丢弃广告，
+        留下智能体无知的机密尽管如此
+        ，它们仍将在其环境里着陆
         ``_start_acp_server``.
 
-        Reserved file-content secrets (Codex ``auth.json``, Gemini Vertex SA —
-        see :meth:`_materialise_file_secrets`) are dropped from the
-        advertisement: their values are written to disk, not injected as env
-        vars, so advertising them as available env vars would mislead the agent.
+        保留的文件内容机密（Codex ``auth.json``、Gemini Vertex SA — 请参阅：meth:
+        `_materialise_file_secrets`）从
+        advertisement: 它们的值被写入磁盘，而不是作为 env 注入
+        vars，因此将它们宣传为可用的环境变量会误导智能体。
         """
-        # Advertise from state.secret_registry alone — it now holds
-        # agent_context.secrets too (seeded at conversation init, with their
-        # descriptions), so it is the single source for the <CUSTOM_SECRETS>
-        # block. Reserved file-content secrets are written to disk, not injected
-        # as env vars, so drop them from the advertisement.
+        # state.secret_registry 单独推广 —— 它现在也包含了 agent_context.secrets（在对话
+        # 开始时被种子，包含他们的描述），所以它是 <CUSTOM_SECRETS> 块的唯一来源。 保留
+        # 的文件内容机密被写入磁盘，而不是作为环境变量注入，因此将它们从广告中删除。
+        #
         file_secret_names = self._present_file_secret_names(state)
         secret_infos = [
             info
@@ -2550,12 +2523,11 @@ class ACPAgent(AgentBase):
         ]
         agent_context = self.agent_context
         if agent_context is None:
-            # No caller-supplied context. Only synthesize an empty one for the
-            # renderer if we actually have a registry-secret advertisement to
-            # emit — otherwise return None so we don't start injecting other
-            # parts of the empty AgentContext's defaults (current_datetime, …)
-            # that the old "agent_context is None ⇒ no suffix" rule used to
-            # suppress.
+            # 没有调用方提供的上下文。 只有在实际有时，才为渲染器生成一个空的注册表-机密
+            # 广告投放 —— 否则返回 None 所以我们不会开始注入空的其他部分 AgentContext'的
+            # 默认值是（current_datetime, …) that the oldagent_context 是 None ⇒ 使用了“
+            # 无后缀”规则来抑制。
+            #
             if not secret_infos:
                 return None
             agent_context = AgentContext(current_datetime=None)
@@ -2565,9 +2537,9 @@ class ACPAgent(AgentBase):
                 update={"skills": [s for s in agent_context.skills if s not in listed]}
             )
         if agent_context.secrets:
-            # The registry already carries these (and their descriptions), so
-            # clear the agent_context copy to advertise from the registry alone
-            # rather than re-merging a redundant second source.
+            # 注册表已经包含了这些（及其描述），因此，仅从注册表中清除agent_context的副
+            # 本，而不是重新合并冗余的第二个来源。
+            #
             agent_context = agent_context.model_copy(update={"secrets": {}})
         rendered = agent_context.to_acp_prompt_context(
             additional_secret_infos=secret_infos
@@ -2578,15 +2550,14 @@ class ACPAgent(AgentBase):
         return f"{rendered}\n\n{catalog}" if rendered else catalog
 
     def _present_file_secret_names(self, state: ConversationState) -> set[str]:
-        """Reserved file-content secret names supplied for this conversation.
+        """为此对话提供的保留文件内容机密名称。
 
-        A name counts as present if it is configured in
-        :attr:`acp_file_secrets` *and* registered in ``state.secret_registry``
-        (which holds ``agent_context.secrets`` too, seeded at conversation
-        init). These names are materialised to disk and therefore excluded from
-        the plain env-var injection and the ``<CUSTOM_SECRETS>`` advertisement
-        (their values are file blobs, not env vars the subprocess can reference
-        by name).
+        如果名称在以下位置配置，则视为存在：
+        :attr:`acp_file_secrets` * 和 * 在 ``state.secret_registry`` 中注册
+        （它也包含 ``agent_context.secrets``，在对话初始化时播种）。 这些名称被写入磁
+        盘，因此不包括普通的环境变量注入和
+        ``<CUSTOM_SECRETS>``的广告（它们的值是文件块，而不是环境变量子进程可以按名称
+        引用）。
         """
         configured = {spec.secret_name for spec in self._active_file_secrets()}
         if not configured:
@@ -2594,16 +2565,16 @@ class ACPAgent(AgentBase):
         return set(state.secret_registry.secret_sources) & configured
 
     def _acp_file_secret_dir(self, state: ConversationState, subdir: str) -> Path:
-        """Durable per-conversation directory for a credential file.
+        """凭据文件的持久每个对话目录。
 
-        ``<persistence_dir>/acp/{subdir}`` — the same per-conversation tree the
-        regular agent persists ``base_state.json`` / events to, so a token the
-        CLI refreshes on disk survives a pod recycle (``/workspace`` persists
-        across pause/resume; see #1018/#1019). Falls back to a per-conversation
-        directory under the workspace when the conversation is not persisted
-        (e.g. in-memory tests) — still seed-if-absent, still no
-        ``TemporaryDirectory``. Returned absolute so the subprocess (which
-        inherits the agent-server's cwd) resolves it unambiguously.
+        ``<persistence_dir>/acp/{subdir}`` — 同样保留了常规智能体的会话树
+        ``base_state.json`` / 事件，因
+        此 token 会话树在磁盘上持久化，会话在 pod 重启后 CLI 会刷新，会话在暂停/恢复
+        后 ``/workspace`` 持久化。 参见#1018/#
+        1019）。 当对话不是已持久化时，回退到工作区下的每个对话目录（e.g. 内存测试）—
+        —如果不存在的话仍然是种子，仍然没有
+        ``TemporaryDirectory``. 返回绝对值，因此子进程（继承智能体-服务器的 cwd）明确
+        地解析它。
         """
         if state.persistence_dir:
             root = Path(state.persistence_dir) / "acp" / subdir
@@ -2667,42 +2638,45 @@ class ACPAgent(AgentBase):
     def _isolate_acp_data_dir(
         self, state: ConversationState, env: dict[str, str]
     ) -> None:
-        """Relocate the CLI's data/config root to a per-conversation directory.
+        """将 CLI 的 data/config 根目录重新定位到每个对话目录。
 
-        When :attr:`acp_isolate_data_dir` is set, point the recognised provider's
-        data-dir env var (``CODEX_HOME`` / ``CLAUDE_CONFIG_DIR`` / ``HOME``) at
-        ``<persistence_dir>/acp/<provider>`` — the same per-conversation tree
-        :meth:`_materialise_file_secrets` seeds auth into, so a relocated
-        ``CODEX_HOME`` and a materialised ``auth.json`` always agree on one
-        directory. This stops conversations that share a sandbox
-        (``SandboxGroupingStrategy != NO_GROUPING``) from racing on a single
-        shared HOME's CLI auth/config/cache/lock files (#1019). The override
-        replaces an ambient value (e.g. the agent-server's own ``CODEX_HOME``):
-        the per-conversation root is what isolation is for.
+        当：attr:`acp_isolate_data_dir` 设置时，将识别的提供者的 data-dir env var (
+        ``CODEX_HOME`` /
+        ``CLAUDE_CONFIG_DIR`` / ``HOME``) 指向
+        ``<persistence_dir>/acp/<provider>`` — 相同的每个对话树
+        :meth:`_materialise_file_secrets` 种子验证到，所以重新定位
+        ``CODEX_HOME`` 和具体化的 ``auth.json`` 始终同意一个目录。 这会阻止共享沙箱 (
+        ``SandboxGroupingStrategy != NO_GROUPING``) 的对话在单个共享 HOME 的 CLI auth
+        /config/ca
+        che/lock 文件上竞争 (#1019)。 覆盖替换环境值 (e.g. 智能体-服务器自己的
+        ``CODEX_HOME``）：每个会话的根是隔离的目的。
 
-        No-ops for an unrecognised command or a provider without a relocation
-        lever.
+        对于无法识别的命令或没有重定位杠杆的提供者，无法执行任何操作。
 
-        Claude note: relocating ``CLAUDE_CONFIG_DIR`` is safe under either auth
-        mode. :data:`_ENV_CONFLICT_MAP` is keyed on the OAuth token
-        (``CLAUDE_CODE_OAUTH_TOKEN``), not on ``CLAUDE_CONFIG_DIR``, so setting
-        the config dir for isolation no longer strips a working
-        ``ANTHROPIC_API_KEY`` — API-key Claude gets the same per-conversation
-        isolation (and pause/resume continuity) as OAuth Claude (#3588).
+        Claude 注意：在任何一种身份验证模式下，重新定位 ``CLAUDE_CONFIG_DIR`` 都是安
+        全的。 :data:
+        `_ENV_CONFLICT_MAP` 是在 OAuth token (``CLAUDE_CODE_OAUTH_TOKEN``) 上键入的，
+        而不是在
+        ``CLAUDE_CONFIG_DIR`` 上键入的，因此设置用于隔离的配置目录不再剥夺工作
+        ``ANTHROPIC_API_KEY`` — API-key Claude 获得与 OAuth Claude 相同的每次对话隔离
+        （以及暂停/恢复连续性）（
+        #3588）。
 
-        ``HOME`` (the only lever for gemini-cli, which hard-codes ``~/.gemini``
-        and ignores ``XDG``, and for pi-acp, whose session map is hard-coded to
-        ``~/.pi/pi-acp``) has a wider blast radius than the surgical
-        ``CODEX_HOME`` / ``CLAUDE_CONFIG_DIR``: it also relocates the home dir
-        seen by anything the CLI subprocess itself spawns (``git``, ``npm``,
-        ``node``, shells — e.g. ``~/.gitconfig``, ``~/.npmrc``, the npm cache).
-        That is accepted as the cost of isolating Gemini at all; callers that
-        need a narrower scope can leave isolation off for Gemini.
+        ``HOME``（gemini-CLI 的唯一杠杆，它硬编码 ``~/.gemini`` 并忽略 ``XDG``，以及
+        pi-ACP，其会话映射被硬编码为
+        ``~/.pi/pi-acp``）具有比外科手术更宽的爆炸半径
+        ``CODEX_HOME`` / ``CLAUDE_CONFIG_DIR``：它还会重新定位 CLI 子进程本身生成的任
+        何内容所看到的主目录（``git``
+        、``npm``、
+        ``node``，贝壳 — e.g。 ``~/.gitconfig``、``~/.npmrc``、npm 缓存）。 这被认为
+        是孤立双子座的代价； 需要更窄范
+        围的呼叫者可以为双子座取消隔离。
 
-        Ordering: this runs *after* the ``secret_registry`` injection in
-        :meth:`_start_acp_server`. Relocation is now credential-blind
-        (the auth-conflict strip is keyed on ``CLAUDE_CODE_OAUTH_TOKEN``, not on
-        the config dir), so the data-dir var it sets never affects auth.
+        Ordering: 这个运行 *之后* 的 ``secret_registry`` 注射在
+        ：方法：`_start_acp_server`。 搬迁现在是凭据-盲目的
+        （auth-conflict strip 是在 ``CLAUDE_CODE_OAUTH_TOKEN`` 上键入的，而不是在配置
+        目录上），因此它设置的 dat
+        a-dir 变量永远不会影响 auth。
         """
         provider = detect_acp_provider_by_command(self.acp_command)
         if provider is None or provider.data_dir_env_var is None:
@@ -2713,35 +2687,32 @@ class ACPAgent(AgentBase):
         env[env_var] = str(data_dir)
 
     def _resolved_provider(self) -> ACPProviderInfo | None:
-        """The provider this agent runs, preferring the authoritative key.
+        """此智能体运行的提供程序，首选权威密钥。
 
-        ``acp_server`` is set by ``ACPAgentSettings.create_agent()`` and is the
-        only identity that survives a custom or aliased ``acp_command``; the
-        command is the fallback for an agent constructed directly.
+        ``acp_server`` 由 ``ACPAgentSettings.create_agent()`` 设置，并且是在自定义或
+        别名
+        ``acp_command`` 中幸存下来的唯一身份； 该命令是直接构造的智能体的回退方案。
         """
         return get_acp_provider(
             self.acp_server or ""
         ) or detect_acp_provider_by_command(self.acp_command)
 
     def _active_file_secrets(self) -> list[ACPFileSecretSpec]:
-        """The file-secret specs that apply to the provider this agent runs.
+        """适用于此智能体运行的提供程序的文件机密规范。
 
-        Drops the specs that are *another registered provider's* reserved
-        credential and keeps everything else, so a harness added upstream cannot
-        change how this provider's conversation treats a secret carrying the new
-        reserved name (see #4923). A name several providers share stays: it is
-        this provider's too.
+        删除了 * 另一个注册提供商的 * 保留凭据，保留其他一切，因此上游添加的 harness
+        不能改变这个提供商的对话如何处理机密（见 #4923）。 几个提
+        供商共享的名称仍然存在：它也是该提供商的。
 
-        Deliberately no provenance test. :attr:`acp_file_secrets` defaults to the
-        union across the registry, but a persisted conversation carries whatever
-        that union was when it was written, so comparing against today's default
-        would read an older list as a caller override and silently stop scoping
-        after an upgrade. Filtering by ownership needs no such distinction, and a
-        spec for a CLI outside the registry is owned by nobody and always applies.
+        故意不进行溯源测试。 :attr:`acp_file_secrets` 默认为注册表，但是一个已持久化
+        对话携带了当时写入时的任何内容，因此与今天的默认值进行
+        比较会将一个老的列表视为调用者重写，并在升级后自动终止作用域。 按所有权过滤不
+        需要这样的区别，也不需要一个 [spec] CLI outside the 注
+        册表它总是由没有人拥有。
 
-        An unrecognised server keeps every spec, matching
-        :meth:`_strip_conflicting_env`: without an identity we cannot tell whose
-        credential a reserved name belongs to.
+        无法识别的服务器保留所有规格，匹配
+        :meth:`_strip_conflicting_env`: 没有身份我们无法分辨谁
+        凭据属于保留名称。
         """
         provider = self._resolved_provider()
         if provider is None:
@@ -2760,17 +2731,16 @@ class ACPAgent(AgentBase):
         ]
 
     def _strip_conflicting_env(self, env: dict[str, str]) -> None:
-        """Remove env vars that would defeat this provider's own credential.
+        """删除会破坏该提供者自己的凭据的环境变量。
 
-        Scoped to the resolved provider's :attr:`ACPProviderInfo.env_conflicts`:
-        the same variable is another provider's *credential* (a provider whose
-        ``api_key_env_var`` is ``ANTHROPIC_API_KEY``), and stripping it there
-        leaves it with nothing to authenticate with.
+        作用域为已解析提供程序的：attr:`ACPProviderInfo.env_conflicts`：同一变量是另
+        一个提供程序的 *凭据*（其
+        ``api_key_env_var`` 是 ``ANTHROPIC_API_KEY``)，将其剥离后就没有任何可验证的内
+        容了。
 
-        An unrecognised server keeps the conservative union: without an identity
-        we cannot tell whose credential a dominant variable belongs to, and a
-        directly-constructed ``ACPAgent`` running Claude Code is the case the
-        rule was written for (#3588).
+        一个未识别的服务器保留了保守的集合：没有身份，我们无法分辨谁凭据一个主导变量
+        属于，以及一个直接构建的 ``ACPAgent`` 运行Claude
+        Code就是指规则(#3588)。
         """
         provider = self._resolved_provider()
         if provider is not None:
@@ -2930,7 +2900,7 @@ class ACPAgent(AgentBase):
         return failures
 
     def _sync_file_credentials(self) -> None:
-        """Flush ACP file credentials."""
+        """刷新 ACP 文件凭据。"""
         failures = self._sync_file_credentials_collect()
         self._raise_first_file_credential_failure("sync", failures)
 
@@ -2985,7 +2955,7 @@ class ACPAgent(AgentBase):
         return failures
 
     def _release_file_credentials(self) -> None:
-        """Release scoped ACP file credential sources."""
+        """发布范围 ACP 文件凭据源。"""
         failures = self._release_file_credentials_collect()
         self._raise_first_file_credential_failure("release", failures)
 
@@ -2997,62 +2967,61 @@ class ACPAgent(AgentBase):
         )
 
     def _start_acp_server(self, state: ConversationState) -> None:
-        """Start the ACP subprocess and initialize the session."""
+        """启动 ACP 子进程并初始化会话。"""
         client = _OpenHandsACPBridge()
         self._client = client
-        # Bind the secret masker for the conversation's lifetime. It's derived
+        # 在对话的生命周期内绑定机密掩码。 是衍生出来的
         # from state.secret_registry (stable for the conversation) and touches
-        # only that registry, so it has none of the cross-thread/state-lock
-        # hazards that make on_event/on_token strictly per-turn. Binding it here
-        # (rather than per-turn in _reset_client_for_turn) keeps it available for
-        # session updates AND for ask_agent() forks, which run on the shared
-        # client and may fire while no step()/astep() turn is active.
+        # 只有注册表，因此它具有None的跨线程/状态-锁危险，这些危险使得on_event/on_token
+        # 严格每回合。 _reset_client_for_turn这里绑定（而不是在每回合AND）保持可用，供
+        # ask_agent()分支使用，这些分支运行在共享客户端上，可能在没有step()/astep()回合
+        # 活跃时触发。
+        #
         client.mask = state.secret_registry.mask_secrets_in_output
         self._bind_file_credential_masking()
 
-        # Build the subprocess environment. Precedence, highest first:
+        # 构建子进程环境。 优先级，最高的在前：
         #   state.secret_registry > os.environ > default_environment
         #
-        # Conversation credentials intentionally OVERRIDE ambient os.environ: an
-        # explicit per-conversation / provider secret must win over a same-named
-        # variable in the agent-server's own environment.
+        # 对话凭据故意的 OVERRIDE ambient os.environ一个明确的每会话/提供者机密必须胜过
+        # 同名的变量智能体服务器自身的环境。
         #
-        # agent_context.secrets are seeded into secret_registry at
-        # LocalConversation.__init__ (lower priority than request.secrets), so
-        # the registry is now the single channel for all secrets including
-        # provider credentials (keyed by the provider's env var name).
+        # agent_context.secrets 被植入 secret_registry at LocalConversation.__init__ （
+        # 优先级低于） request.secrets, 所以注册表现在是所有内容的唯一渠道机密包括提供者
+        # 凭据 （根据提供者的环境变量名称）。
+        #
         env = default_environment()
         env.update(os.environ)
         _strip_inherited_npm_env(env)
-        # Reserved file-content credential secrets (Codex auth.json, Gemini
-        # Vertex SA — see _materialise_file_secrets) are written to disk, not
-        # injected as env vars, so exclude their (large blob) names from the
-        # plain env-injection below; materialisation sets only the path env var.
+        # 保留的文件内容凭据机密 （Codex auth.json，Gemini Vertex SA — 见
+        # _materialise_file_secrets）写入磁盘，而不是作为环境变量注入，因此在以下的纯环
+        # 境注入中排除它们（大块）的名称。 物化仅设置路径环境变量。
+        #
         file_secret_names = self._present_file_secret_names(state)
-        # Inject the whole registry: an ACP CLI is a black box we can't
-        # name-scan per command (unlike the regular agent's bash tool), so
-        # credentials must be delivered upfront. Registry values override
-        # ambient os.environ. Skip file secrets (materialised to disk below).
+        # 注入整个注册表：ACP CLI是一个我们无法按命令扫描的黑盒子（不像常规智能体的bash
+        # 工具），因此凭据必须提前交付。 注册表值覆盖环境 os.environ。 跳过文件机密（具
+        # 体化到下面的磁盘）。
+        #
         env.update(
             state.secret_registry.get_all_secrets_as_env_vars(exclude=file_secret_names)
         )
         if self.acp_isolate_data_dir:
             self._isolate_acp_data_dir(state, env)
 
-        # Materialise reserved file-content secrets to disk and point their
-        # data-dir env vars (CODEX_HOME / GOOGLE_APPLICATION_CREDENTIALS) at the
-        # written files.
+        # 将保留的文件内容机密物化到磁盘并将其数据目录环境变量 (CODEX_HOME /
+        # GOOGLE_APPLICATION_CREDENTIALS) 指向写入的文件。
+        #
         self._materialise_file_secrets(state, env)
-        # Strip CLAUDECODE so nested Claude Code instances don't refuse to start
+        # 剥离 CLAUDECODE，以便嵌套的 Claude Code 实例不会拒绝启动
         env.pop("CLAUDECODE", None)
 
         self._strip_conflicting_env(env)
 
         command = self.acp_command[0]
         args = list(self.acp_command[1:]) + list(self.acp_args)
-        # Codex ignores OPENAI_BASE_URL; translate it into the config key read by
-        # the adapter. The helper returns a child-only environment and never
-        # mutates the fully assembled mapping above.
+        # 法典忽略OPENAI_BASE_URL； 将其转换为适配器读取的配置密钥。 帮助器返回一个仅限
+        # 子环境，并且永远不会改变上面完全组装的映射。
+        #
         env = _with_codex_base_url(command, args, env)
 
         working_dir = str(state.workspace.working_dir)
@@ -3073,30 +3042,25 @@ class ACPAgent(AgentBase):
                     error,
                 )
 
-        # Prior ACP session id — typically survives agent-server restarts via
-        # ConversationState.agent_state (serialized into base_state.json).
-        # Its presence is the signal to resume; its absence means fresh start.
-        # ACP servers key persistence by ``cwd``; if the workspace moved we
-        # drop the id so we don't accidentally resume (or silently load) a
-        # session the server associates with a different directory.
+        # 先前的 ACP 会话 ID — 通常会在智能体后继续存在 - 服务器通过
+        # ConversationState.agent_state 重新启动（已序列化进入 base_state.json）。 它的
+        # 存在是恢复的信号； 它的缺席意味着新的开始。 ACP 服务器密钥持久化 by ``cwd``；
+        # 如果工作区移动，我们会删除 id，这样我们就不会意外恢复（或静默加载）服务器与不
+        # 同目录关联的会话。
         #
-        # ``acp_resume_session_id`` (set on the agent config) takes precedence
-        # over the FS-persisted id. This lets cloud deployments mirror the id
-        # into a durable store and pass it back on the first launch of a fresh
-        # sandbox, even when ``base_state.json`` was wiped along with the
-        # previous sandbox filesystem.
+        # ``acp_resume_session_id``（在智能体配置上设置）优先于 FS-已持久化 id。 这使得
+        # 云部署可以将ID镜像到一个持久存储中，并在第一次启动新的沙盒时将其返回，即使
+        # ``base_state.json``与之前的沙盒文件系统一起被擦除。
         #
-        # Note the asymmetry on the cwd guard: for an FS-persisted id we have
-        # the cwd it was created under and can refuse to load when it differs,
-        # because resuming the wrong session silently would be catastrophic.
-        # For an explicit ``acp_resume_session_id`` we do *not* have that
-        # recorded cwd — the contract is "the caller knows what they're doing"
-        # (the app-server only mirrors ids for conversations whose sandbox
-        # always lands in the same ``working_dir``). We therefore assume
-        # cwd-compatibility and let the ACP server's own ``session/load``
-        # validation be the last line of defence: a server-side cwd mismatch
-        # returns an ``ACPRequestError``, already caught below and falling back
-        # to ``new_session`` — the same recovery path as a forgotten id.
+        # 注意工作目录保护中的不对称性：对于 FS-已持久化我们有 cwd，它是在那里创建的，可
+        # 以拒绝加载，因为继续加载错误的会话是灾难性的。 对于一个明确的
+        # ``acp_resume_session_id`` 我们做 *不* 将该记录保存为 cwd — 合同是“调用者知道他
+        # 们正在做什么”（应用服务器只对会话的沙箱总是位于同一位置的会话进行ID映射）
+        # ``working_dir``). 因此，我们假设兼容 cwd，并让  ACP 服务器自身
+        # ``session/load``  验证成为最后一道防线：服务器端的 cwd 不匹配会返回一个
+        # ``ACPRequestError``已经捕获并回退到 ``new_session`` — 与遗失的 ID 同样的恢复路
+        # 径。
+        #
         fs_session_id: str | None = state.agent_state.get("acp_session_id")
         fs_session_cwd: str | None = state.agent_state.get("acp_session_cwd")
         if self.acp_resume_session_id and self.acp_resume_session_id != fs_session_id:
@@ -3127,10 +3091,9 @@ class ACPAgent(AgentBase):
         async def _init() -> tuple[
             str, str, str, str | None, list[ACPModelInfo] | None, bool
         ]:
-            # Spawn the subprocess directly so we can install a
-            # filtering reader that skips non-JSON-RPC lines some
-            # ACP servers (e.g. claude-code-acp v0.1.x) write to
-            # stdout.
+            # 直接生成子进程，这样我们就可以安装一个过滤阅读器，它会跳过一些 ACP 服务器
+            # 的非 JSON-RPC 行（e.g. claude-code-ACP v0.1.x) 写入标准输出。
+            #
             process = await asyncio.create_subprocess_exec(
                 command,
                 *args,
@@ -3144,8 +3107,9 @@ class ACPAgent(AgentBase):
             assert process.stdout is not None
             assert process.stderr is not None
 
-            # Wrap the subprocess stdout in a filtering reader that
-            # only passes lines starting with '{' (JSON-RPC messages).
+            # 将子进程标准输出包装在过滤读取器中，该读取器仅传递以“{”开头的行（JSON-RPC
+            # 消息）。
+            #
             filtered_reader = asyncio.StreamReader(limit=_STREAM_READER_LIMIT)
             stdout_filter_task = asyncio.get_event_loop().create_task(
                 _filter_jsonrpc_lines(process.stdout, filtered_reader)
@@ -3156,24 +3120,23 @@ class ACPAgent(AgentBase):
 
             conn = _ACPClientConnection(
                 client,
-                process.stdin,  # write to subprocess
-                filtered_reader,  # read filtered output
+                process.stdin,  # 写入子进程
+                filtered_reader,  # 读取过滤后的输出
             )
 
-            # Track the subprocess/connection on self as soon as they exist, so
-            # that if a *later* init step fails (e.g. the resume model reapply
-            # times out or the server errors), init_state()'s _cleanup() can
-            # still tear them down instead of leaking the subprocess/connection.
-            # The "session initialized" gating keys off _session_id (assigned
-            # last, on full success), so an early _conn here does not make the
-            # agent look ready before _init completes.
+            # 立即跟踪自进程/连接，以便如果  *later* 初始化步骤失败了e.g. 简历模型重试超
+            # 时或服务器错误)， init_state()'s _cleanup() 他们仍然可以拆卸而不是泄露子进
+            # 程/连接。 会话初始化门控键 _session_id (最后分配的，只有在完全成功时才使用
+            # )，因此，这里有一个早期的 _conn 不会妨碍智能体在 _init 完成之前看起来就准
+            # 备好。
+            #
             self._process = process
             self._conn = conn
             self._filtered_reader = filtered_reader
             self._stdout_filter_task = stdout_filter_task
             self._stderr_log_task = stderr_log_task
 
-            # Initialize the protocol and discover server identity
+            # 初始化协议并发现服务器身份
             init_response = await conn.initialize(protocol_version=1)
             agent_name = ""
             agent_version = ""
@@ -3187,12 +3150,11 @@ class ACPAgent(AgentBase):
             )
             _log_acp_provider_version(agent_name, agent_version)
 
-            # Translate any configured MCP servers into ACP protocol objects,
-            # gating remote (http/sse) transports on what this server advertised
-            # in its initialize response. The same list is passed to both
-            # new_session and load_session: load_session does not persist the
-            # prior MCP set server-side, so a resume must re-send it or the
-            # restored session would silently lose its MCP servers.
+            # 翻译任何配置的 MCP 服务器到 ACP 协议对象，远程端点（HTTP/SSE） 传输层在初
+            # 始化响应中，该服务器所宣称的内容。 同一个列表被传递给两个 new_session 和
+            # load_session: load_session 不持久化 prior MCP 设置为服务器端，因此，如果需
+            # 要重新发送，或者恢复会话时，会话将无声无息地丢失 MCP 服务器。
+            #
             mcp_caps = (
                 init_response.agent_capabilities.mcp_capabilities
                 if init_response.agent_capabilities is not None
@@ -3215,19 +3177,18 @@ class ACPAgent(AgentBase):
                     [s.name for s in acp_mcp_servers],
                 )
 
-            # Authenticate if the server requires it.  Some ACP servers
-            # (e.g. codex-acp) require an explicit authenticate call
-            # before session creation.  We auto-detect the method from
-            # the env vars that are available to the process.
+            # 如果服务器需要，则进行身份验证。 一些 ACP 服务器 (e.g. codex-ACP）需要在会
+            # 话创建之前进行显式身份验证调用。 我们从进程可用的环境变量中自动检测方法。
+            #
             auth_methods = init_response.auth_methods or []
             if auth_methods:
                 method_id = _select_auth_method(auth_methods, env)
                 if method_id is not None:
                     logger.info("Authenticating with ACP method: %s", method_id)
                     auth_kwargs: dict[str, Any] = {}
-                    # gemini-cli: pass gateway baseUrl to route API calls
-                    # through LiteLLM proxy. claude-agent-acp and codex-acp
-                    # read their provider base URL from env vars directly.
+                    # gemini-CLI：通过网关 baseUrl 通过 LiteLLM 代理路由 API 呼叫。
+                    # claude-智能体-ACP 和 codex-ACP 直接从环境变量读取其提供者库 URL。
+                    #
                     if method_id == "gemini-api-key":
                         provider = detect_acp_provider_by_agent_name(agent_name)
                         base_url_var = (
@@ -3262,11 +3223,10 @@ class ACPAgent(AgentBase):
                         ) from exc
                     await self._flush_file_credentials()
                 else:
-                    # A server whose advertised methods we cannot perform may
-                    # still be authenticated out of band — from a seeded
-                    # credential file or the provider key it reads out of the
-                    # environment — so warning about a login we cannot do
-                    # would be noise whenever either is present.
+                    # 我们无法执行的服务器仍可以通过种子认证凭据文件或环境读出的提供者密
+                    # 钥 — 因此，当文件或提供者密钥都存在时，我们无法进行的登录警告都是
+                    # 无意义的噪音。
+                    #
                     auth_provider = (
                         self._resolved_provider()
                         or detect_acp_provider_by_agent_name(agent_name)
@@ -3285,15 +3245,13 @@ class ACPAgent(AgentBase):
                     else:
                         _warn_auth_selection_failure(auth_methods, env, auth_provider)
 
-            # Resume the prior ACP session if we have its id.  If the server
-            # has forgotten it (state wiped, new host, etc.) fall through to
-            # new_session so the conversation still starts cleanly.
+            # 如果我们有 ID，则恢复之前的 ACP 会话。 如果服务器忘记了它（状态已擦除、新
+            # 主机等），则会转到 new_session，因此对话仍然可以干净地开始。
             #
-            # We only swallow ACPRequestError here: that is the protocol-level
-            # "I don't know this session" signal and is recoverable by
-            # starting fresh.  Transport failures (broken pipe, EOF, timeout,
-            # subprocess crash) propagate — there is no working connection to
-            # fall back on, and the outer init_state handler cleans up.
+            # 我们只吞咽 ACPRequestError 这里：这是协议级别的“我不认识这个会话”信号，可
+            # 以通过重新开始来恢复。 传输层失败（管道已断开） EOF, 超时，子进程崩溃) 传
+            # 播 — 没有可以 fallback 的工作连接，外层 init_state 处理器清理了。
+            #
             session_id: str | None = None
             reported_model_id: str | None = None
             available_models: list[ACPModelInfo] | None = None
@@ -3306,11 +3264,10 @@ class ACPAgent(AgentBase):
                         mcp_servers=acp_mcp_servers,
                     )
                     session_id = prior_session_id
-                    # load_session often omits the model block; fall back to the
-                    # mechanism detected at session creation (persisted alongside
-                    # the session id) so a config-option session still reapplies
-                    # via the right call rather than defaulting to
-                    # set_session_model and silently running the server default.
+                    # load_session经常省略模型块； 已持久化会话创建时检测到的机制作为后
+                    # 备方案，确保配置选项会话可以通过正确的调用重新应用，而不是默认使用
+                    #  set_session_model 并默默地运行服务器默认。
+                    #
                     persisted_via_config_option = bool(
                         state.agent_state.get("acp_model_via_config_option", False)
                     )
@@ -3334,17 +3291,17 @@ class ACPAgent(AgentBase):
                         e,
                     )
 
-            # Track whether ``acp_model`` was actually pushed to the server so
-            # ``current_model_id`` below can stay honest: a caller override that
-            # never reached the server (unknown provider on a fresh session, or
-            # a resume whose ``set_session_model`` the server rejected) must not
-            # be surfaced as the live model.
+            # 跟踪 ``acp_model`` 是否确实被推送到服务器，以便
+            # ``current_model_id`` 以下部分可以保持诚实：一个未到达服务器的呼叫重定向（
+            # 在新会话中，未知提供者，或者一个恢复的会话） ``set_session_model`` 服务器
+            # 拒绝的必须不被呈现为实时模型。
+            #
             override_applied = False
             if session_id is None:
-                # Fresh session. Build _meta content for session options (e.g.
-                # model selection). Extra kwargs to new_session() become the
-                # _meta dict in the JSON-RPC request — do NOT wrap in _meta=
-                # (that double-nests).
+                # 新的会议。 为会话选项构建 _meta 内容 (e.g. 型号选择）。 new_session()
+                # 的额外 kwargs 成为 JSON-RPC 请求中的 _meta 字典 - 将不包装在 _meta= 中
+                # （即双嵌套）。
+                #
                 session_meta = build_session_model_meta(agent_name, self.acp_model)
                 response = await conn.new_session(
                     cwd=working_dir,
@@ -3353,20 +3310,20 @@ class ACPAgent(AgentBase):
                     **session_meta,
                 )
                 session_id = response.session_id
-                # Detect the model-selection protocol the server advertised (in
-                # the same scan) so init and later runtime switches use the right
-                # call.
+                # 检测服务器通告的模型选择协议（在同一扫描中），以便 init 和以后的运行时
+                # 开关使用正确的调用。
+                #
                 (
                     reported_model_id,
                     available_models,
                     self._model_via_config_option,
                 ) = _extract_session_models(response)
-                # Initial-model protocol call for every built-in provider
-                # (codex, gemini, claude-code). The pinned claude/codex CLIs
-                # ignore the _meta above, so this protocol call is what actually
-                # applies the model (#3654) — via set_config_option for
-                # configOptions-based servers, else set_session_model; _meta is
-                # kept only as backward-compat for older claude CLIs.
+                # 每个内置提供程序的初始模型协议调用（codex、gemini、claude-code）。
+                # CLIs 这个 pinned claude/codex 忽略了 _meta，所以这个协议调用实际上应用
+                # 了模型 (#3654) —— 通过 set_config_option 对于基于 configOptions 的服务
+                # 器，否则 set_session_model；_meta 仅保留作为向后兼容的旧版 claude CLIs
+                # 。
+                #
                 applied_via_call = await _maybe_set_session_model(
                     conn,
                     agent_name,
@@ -3374,18 +3331,17 @@ class ACPAgent(AgentBase):
                     self.acp_model,
                     via_config_option=self._model_via_config_option,
                 )
-                # set_session_model is the authoritative signal that acp_model
-                # reached the server. _meta is a no-op on the pinned claude CLI,
-                # so it must not by itself claim the override took effect. (For
-                # claude+acp_model the two always agree: the call returns True or
-                # raises before we reach here.)
+                # set_session_model 是 acp_model 到达服务器的权威信号。 _meta 对固定的
+                # claude CLI 是无操作的，因此它本身不能声明覆盖已生效。 （对于 claude+
+                # acp_model ，两者总是一致的：调用返回 True 或在我们到达这里之前引发。）
+                #
                 override_applied = applied_via_call
             else:
-                # Resumed session. load_session() does not carry model _meta, so
-                # reapply the persisted (possibly runtime-switched) acp_model via
-                # the runtime-switch capability — otherwise the resumed live
-                # session would run on the server default while serialized state
-                # claims the switched model. ``_model_via_config_option`` was set
+                # 恢复会议。 load_session() 不携带模型 _meta，因此通过运行时切换能力重新
+                # 应用已持久化（可能在运行时切换的）acp_model —— 否则恢复的实时会话将运
+                # 行在服务器默认模型上，而已序列化状态则声称切换了模型。
+                # ``_model_via_config_option`` 已设定
+                #
                 # from the load_session response above.
                 override_applied = await _reapply_session_model_on_resume(
                     conn,
@@ -3395,16 +3351,16 @@ class ACPAgent(AgentBase):
                     via_config_option=self._model_via_config_option,
                 )
 
-            # Resolve the model the agent will actually use.
+            # 解析智能体将实际使用的模型。
             current_model_id = (
                 self.acp_model
                 if (self.acp_model and override_applied)
                 else reported_model_id
             )
 
-            # Resolve the permission mode. Known providers each have their own
-            # mode ID; unknown/custom servers get None — skip the call rather
-            # than sending a provider-specific string they won't recognise.
+            # 解决权限模式。 每个已知的提供商都有自己的模式 ID； 未知/自定义服务器获取
+            # None — 跳过调用，而不是发送他们无法识别的特定于提供者的字符串。
+            #
             provider = detect_acp_provider_by_agent_name(agent_name)
             mode_id = self.acp_session_mode or (
                 provider.default_session_mode if provider else None
@@ -3422,9 +3378,9 @@ class ACPAgent(AgentBase):
                 override_applied,
             )
 
-        # _conn / _process / _filtered_reader are assigned to the instance inside
-        # _init() so a mid-init failure can be cleaned up; only the
-        # success-only fields (including the resolved model state) are returned.
+        # _conn / _process / _filtered_reader 被分配给 _init() 内的实例，因此可以清除中
+        # 间初始化故障； 仅返回仅成功的字段（包括已解析的模型状态）。
+        #
         try:
             (
                 self._session_id,
@@ -3435,8 +3391,9 @@ class ACPAgent(AgentBase):
                 self._model_override_applied,
             ) = self._executor.run_async(_init, timeout=self.acp_startup_timeout)
         except TimeoutError:
-            # run_async's own TimeoutError carries no message (anyio.fail_after);
-            # raise a descriptive one so _acp_error_detail (str(exc)) isn't blank.
+            # run_async自己的TimeoutError不携带消息(anyio.fail_after)； 提出一个描述性的
+            # ，这样 _acp_error_detail (str(exc)) 就不是空白。
+            #
             raise TimeoutError(self._startup_timeout_message()) from None
         self._working_dir = working_dir
         self._flush_file_credentials_blocking()
@@ -3448,16 +3405,16 @@ class ACPAgent(AgentBase):
         prompt: Any = None,
         mask: Callable[[str], str] | None = None,
     ) -> None:
-        """Reset per-turn client state and (re)wire live callbacks.
+        """重置每轮客户端状态并（重新）实时连接回调。
 
-        Called at the start of ``step()`` and again on each retry inside the
-        prompt loop so that the three callbacks (``on_token``, ``on_event``,
-        ``on_activity``) stay in sync with the fresh turn after ``reset()``
-        clears them.  ``on_event`` is fired from inside
-        ``_OpenHandsACPBridge.session_update`` as tool-call notifications
-        arrive, so consumers see ACPToolCallEvents streamed live instead of
-        a single end-of-turn burst.  The secret masker is bound once in
-        ``_start_acp_server`` (conversation-stable), not here.
+        在 ``step()`` 开始处调用，并在提示词循环内的每个重试上再次调用，以便三个回调
+        (``on_token``, ``on_event``,
+        ``on_activity``) 在 ``reset()`` 清除它们后，在新回合中留在同步中。
+        ``on_event`` 从内部发射
+        ``_OpenHandsACPBridge.session_update`` 作为工具调用通知到达时，消费者会看到
+        ACPToolCallEvents 以流
+        的形式播放，而不是单个结束回合的爆发。 机密模糊化器绑定一次
+        ``_start_acp_server``（对话稳定），不在这里。
         """
         self._client.trace.abandon()
         self._client.reset()
@@ -3470,26 +3427,25 @@ class ACPAgent(AgentBase):
         self._client.on_token = on_token
         self._client.on_event = on_event
         self._client.on_activity = self._on_activity
-        # Start the idle-timeout clock fresh for this attempt so the deadline
-        # is measured from the send (or retry), not from a stale value.
+        # 为此尝试重新启动空闲超时时钟，以便从发送（或重试）开始测量截止时间，而不是从过
+        # 时的值开始测量。
+        #
         self._client.arm_activity_clock()
 
     def _cancel_inflight_tool_calls(self) -> None:
-        """Emit a terminal ``failed`` ACPToolCallEvent for every tool call
-        in the accumulator that has not reached a terminal status yet.
+        """对于每个工具调用，发出一个终端 ``failed`` ACPToolCallEvent
+        在尚未达到最终状态的累加器中。
 
-        ACP servers mint fresh ``tool_call_id``s on a retried turn, so any
-        ``pending`` / ``in_progress`` events already streamed during the
-        failed attempt would otherwise be orphaned on ``state.events`` —
-        no later notification reuses their id, and consumers that dedupe
-        by ``tool_call_id`` + "last-seen status wins" would keep them
-        spinning forever.  This method closes those cards before we wipe
-        the in-memory accumulator on retry / turn abort.
+        ACP 服务器在重试回合中铸造新的 ``tool_call_id``，因此任何
+        ``pending`` / ``in_progress`` 在失败尝试中已经流过的事件将会被弃置
+        ``state.events`` — 不晚的通知重用他们的
+         ID，以及通过去重的消费者 ``tool_call_id`` [+ "last-seen status wins" would
+         keep them spi
+        nning forever。] 该方法在擦除内存累加器之前关闭了这些卡片重试 / turn abort.
 
-        Captures the bridge's ``on_event`` callback, then unwires the bridge
-        before emitting synthetic terminal events so trailing updates from the
-        abandoned portal prompt cannot land after these failures.  No-op if
-        ``on_event`` was never set (e.g. tests exercising the bridge alone).
+        捕获桥梁的``on_event`` 回调，然后断开桥梁，发出合成终端事件，以防止废弃门户提
+        示词的后续更新落在这些失败之后。 无操作如果
+        ``on_event`` 从未设置过 (e.g. 单独运行桥梁的测试）。
         """
         on_event = self._client.on_event
         self._clear_turn_callbacks()
@@ -3520,20 +3476,19 @@ class ACPAgent(AgentBase):
                 )
 
     def _flush_inflight_tool_calls_as_completed(self) -> None:
-        """Emit a terminal ``completed`` ACPToolCallEvent for every accumulated
-        tool call still sitting at a non-terminal status.
+        """每积累一次，发出一个终端 ``completed`` ACPToolCallEvent
+        工具调用仍处于非终端状态。
 
-        The prompt returned successfully, so a tool card the server opened but
-        never closed (it sent ``ToolCallStart`` but no terminal
-        ``ToolCallProgress``) is treated as completed. Since we now persist
-        exactly one early ``started`` event and one terminal event per call,
-        this guarantees the action->observation pairing holds for *every*
-        call — without it, a server that omits the closing frame would leave
-        the early ``started`` event as the last word, and the relaxed canvas
-        render gate would show that card spinning forever. Reuses
-        ``_emit_tool_call_event`` so truncation and error-swallowing match the
-        live terminal path. No-op once every call is already terminal (the
-        common case, since ``conn.prompt`` only returns after its tools run).
+        提示词成功返回，因此服务器打开了一个工具卡但从未关闭（它发送了
+        ``ToolCallStart``但没有终端
+        ``ToolCallProgress``它被视为已完成。 自今以来持久化恰好一个早期的 ``started``
+         事件和每次调用一个终端事件，这保证了动作->
+        观测结果  *every* 缺少它时，一个不关闭帧的服务器将留下早期 ``started`` 将事件
+        作为最后一个单词，松散的画布渲染门将显示卡片永不停止旋转
+        。 重用
+        ``_emit_tool_call_event`` 因此截断和错误吞没与实时终端路径匹配。 一旦每次调用
+        都已终止，则无操作（常见情况，因为
+        ``conn.prompt`` 仅在其工具运行后返回）。
         """
         for tc in self._client.accumulated_tool_calls:
             if tc.get("status") in _TERMINAL_TOOL_CALL_STATUSES:
@@ -3542,7 +3497,7 @@ class ACPAgent(AgentBase):
             self._client._emit_tool_call_event(tc)
 
     async def _arequest_session_cancel(self) -> None:
-        """Async variant of _request_session_cancel that waits for cancel send."""
+        """异步等待取消发送的 _request_session_cancel 变体。"""
         if self._conn is None or self._executor is None or self._session_id is None:
             return
         conn = self._conn
@@ -3571,7 +3526,7 @@ class ACPAgent(AgentBase):
         self,
         future: Future[PromptResponse | None] | None,
     ) -> _PromptDrainResult:
-        """Let a cancelled/timed-out portal prompt quiesce before rewiring."""
+        """在重新连线之前让已取消/超时的门户提示词停顿。"""
         if future is None:
             return _PromptDrainResult(
                 drained=True, completed=False, response=None, error=None
@@ -3624,15 +3579,15 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Restart ACP after a prompt failed to quiesce post-cancel."""
+        """在提示词取消后无法停顿后重新启动 ACP。"""
         logger.warning("Restarting ACP session after cancelled prompt drain timeout")
         self._clear_turn_callbacks()
         self._cleanup()
         self._initialized = False
-        # A local drain timeout means the cancelled prompt did not quiesce
-        # within our short grace window; it does not prove the ACP server lost
-        # its persisted session. Preserve the session id so the restarted
-        # subprocess can load_session() and retain conversation memory.
+        # 本地耗尽超时意味着取消的提示词并未在我们短暂的宽限期内停顿； 它不能证明 ACP 服
+        # 务器丢失了其已持久化会话。 保留会话 ID，以便重新启动的子进程可以 load_session(
+        # ) 并保留对话内存。
+        #
         self.init_state(state, on_event=on_event)
         self._restart_session_on_next_turn = False
 
@@ -3641,17 +3596,17 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Restart ACP without blocking the async conversation loop."""
-        # Restart calls init_state(), which may synchronously resolve LookupSecret
-        # values through HTTP loopback to this same agent server. Keep it off the
-        # server loop for the same reason LocalConversation.arun() offloads the
-        # initial _ensure_agent_ready() path.
+        """重新启动 ACP，而不阻塞异步对话循环。"""
+        # 重新启动调用 init_state()，它可以通过 HTTP 环回同步解析 LookupSecret 值到同一
+        # Agent Server。 出于同样的原因，使其远离服务器循环，LocalConversation.arun() 卸
+        # 载初始 _ensure_agent_ready() 路径。
+        #
         await asyncio.to_thread(
             self._restart_session_after_drain_timeout, state, on_event
         )
 
     def _request_session_cancel(self) -> None:
-        """Ask the ACP server to cancel the active session prompt."""
+        """请求 ACP 服务器取消活动会话提示词。"""
         if self._conn is None or self._executor is None or self._session_id is None:
             return
         conn = self._conn
@@ -3670,7 +3625,7 @@ class ACPAgent(AgentBase):
     def _build_acp_prompt(
         self, event: MessageEvent
     ) -> list[TextContentBlock | ImageContentBlock] | None:
-        """Build the ACP content blocks for one user turn."""
+        """为一个用户回合构建 ACP 内容块。"""
         message = event.to_llm_message()
         blocks: list[TextContentBlock | ImageContentBlock] = []
         for content in message.content:
@@ -3686,33 +3641,29 @@ class ACPAgent(AgentBase):
             and self._installed_suffix
         ):
             blocks.append(text_block(self._installed_suffix))
-            # NOTE: do NOT flip ``_suffix_install_state`` here.  If the
-            # caller (step/astep) is cancelled or fails before the ACP
-            # server persists this first turn (more likely on the async
-            # path, where ``asyncio.wait_for`` / ``task.cancel()`` can
-            # land between block construction and the await), the local
-            # state would say "installed" while the server never received
-            # the suffix — and the next turn would skip it.  The actual
-            # transition happens in ``_commit_suffix_installation``,
-            # called from ``_finalize_successful_turn`` once the prompt
-            # has returned successfully.
+            # 注意：在这里将不翻转``_suffix_install_state``。 如果
+            # 在 ACP 服务器 ``asyncio.wait_for`` 或 ``task.cancel()`` 之前，异步路径上的
+            #  [caller (step/astep)] 取消或失败，本地状态会说“已安装”，而服务器却从未收
+            # 到后缀——下一回合会跳过它。 实际的转换发生在
+            # ``_commit_suffix_installation`` 中，一旦提示词成功返回，就会从
+            # ``_finalize_successful_turn`` 调用。
+            #
         if not blocks:
             return None
         return blocks
 
     def _commit_suffix_installation(self, state: ConversationState) -> None:
-        """Mark the suffix as installed once a turn has completed.
+        """转弯完成后，将后缀标记为已安装。
 
-        Called from ``_finalize_successful_turn`` so the transition only
-        happens after the ACP server has actually received the suffix.
-        Persists ``acp_suffix_installed=True`` into ``state.agent_state``
-        so a subsequent agent-server restart, reading back the same
-        ``ConversationState``, can tell whether the suffix was actually
-        installed (rather than inferring it from the mere presence of
-        ``acp_session_id``, which is persisted at session-creation time
-        regardless of whether the first prompt succeeded).  Idempotent:
-        safe to call when already ``installed`` or when there is no
-        suffix to install.
+        从 ``_finalize_successful_turn`` 调用，因此转换仅在 ACP 服务器实际收到后缀后
+        发生。 将
+        ``acp_suffix_installed=True`` 保留到 ``state.agent_state`` 中，以便随后的智能
+        体服务器重新启动，读回相同
+        的内容
+        ``ConversationState``，可以判断后缀是否确实已安装（而不是仅从存在来推断）
+        ``acp_session_id``，无论第一个提示词是否成功，会话创建时都是已持久化）。 幂等
+        ：当已经 ``installed`` 或没有要安装的后缀时可
+        以安全调用。
         """
         if self._suffix_install_state == "pending_first_prompt":
             self._suffix_install_state = "installed"
@@ -3722,16 +3673,16 @@ class ACPAgent(AgentBase):
             }
 
     async def _do_acp_prompt(self, prompt_blocks: list[Any]) -> PromptResponse | None:
-        """One ACP ``conn.prompt`` round-trip + UsageUpdate sync.
+        """一ACP``conn.prompt``往返+UsageUpdate同步。
 
-        Always runs on the portal loop (where ``self._conn`` lives).  No
-        retry / timeout — callers wrap with their own per-attempt
-        strategy so they can pick ``time.sleep`` (sync) or
-        ``asyncio.sleep`` (async).
+        始终在门户循环上运行（``self._conn`` 所在的位置）。 否重试 / 超时 — 调用者使
+        用自己的每次尝试策略进行包装，以便他们可以选择
+        ``time.sleep`` (同步) 或
+        ``asyncio.sleep`` (异步).
 
-        Return type allows ``None`` because the ACP server is permitted
-        to return an empty body (and test mocks do); downstream
-        ``_finalize_successful_turn`` already accepts ``PromptResponse | None``.
+        返回类型允许 ``None``，因为 ACP 服务器允许返回空主体（测试模拟对象也可以）；
+        下游
+        ``_finalize_successful_turn`` 已接受 ``PromptResponse | None``。
         """
         if self._conn is None or self._session_id is None:
             msg = "ACPAgent has no live ACP session; call init_state() first"
@@ -3763,22 +3714,21 @@ class ACPAgent(AgentBase):
         *,
         cancel_on_exit: bool,
     ) -> PromptResponse | None:
-        """Await *awaitable*, aborting only after a stretch of inactivity.
+        """Await *awaitable*，仅在一段不活动后才中止。
 
-        The deadline is an *idle* timeout, not a hard turn deadline: any
-        ``session_update`` from the ACP server (token, thought, tool-call
-        start/progress, usage) resets ``acp_prompt_timeout``, so a steadily-
-        progressing agent runs as long as it keeps making progress while a
-        genuinely silent (hung) server is still cut off after the idle window.
-        This is what keeps long-running ACP commands alive (issue
-        agent-canvas#1245).
+        截止日期是*空闲* 超时，而不是硬转截止日期：任何
+        ``session_update`` 从 ACP 服务器 (token, 想法，工具调用 start/progress, 使用)
+         重置
+        ``acp_prompt_timeout``，因此一个持续进行的智能体会一直运行，直到它继续进行，
+        而一个真正静默（挂起）的服务器在空闲窗口之后仍然被切断。
+        这就是使长时间运行的 ACP 命令保持活动状态的原因（问题智能体-canvas#1245）。
 
-        ``asyncio.wait`` (not ``wait_for``) drives the polling so an idle-check
-        slice elapsing never cancels the underlying prompt — only a true idle
-        period raises ``TimeoutError``. ``cancel_on_exit`` controls cleanup:
-        the sync path passes ``True`` to cancel the prompt coroutine it owns;
-        the async path passes ``False`` because the portal task must survive
-        for ``astep``'s ``session/cancel`` + drain handler.
+        ``asyncio.wait``（不是 ``wait_for``）驱动轮询，因此空闲检查切片的流逝永远不会
+        取消底层提示词 — 只有 True 空闲周期会引发
+         ``TimeoutError``。 ``cancel_on_exit`` 控制清理：同步路径通过``True`` 传递给
+         取消它所拥有的提示词协程。 异步路
+        径通过 ``False``，因为门户任务必须在 ``astep`` 的 ``session/cancel`` + 排水处
+        理程序中生存。
         """
         idle_limit = self.acp_prompt_timeout
         fut = asyncio.ensure_future(awaitable)
@@ -3787,13 +3737,14 @@ class ACPAgent(AgentBase):
                 remaining = idle_limit - self._client.seconds_since_last_activity()
                 if remaining <= 0:
                     raise TimeoutError(self._idle_timeout_message())
-                # wait() returns when the prompt finishes or the slice elapses,
-                # leaving fut untouched either way.
+                # 当提示词完成或切片结束时，wait() 返回，无论哪种方式，fut 都保持不变。
+                #
                 await asyncio.wait({fut}, timeout=remaining)
                 if fut.done():
                     return fut.result()
-                # Slice elapsed: only give up if the server produced nothing in
-                # the meantime, otherwise the loop re-arms with a fresh window.
+                # 切片已过：仅当服务器在此期间没有产生任何内容时才放弃，否则循环将重新准
+                # 备一个新窗口。
+                #
                 if self._client.seconds_since_last_activity() >= idle_limit:
                     raise TimeoutError(self._idle_timeout_message())
         finally:
@@ -3804,15 +3755,16 @@ class ACPAgent(AgentBase):
         self,
         prompt_future: Future[PromptResponse | None],
     ) -> PromptResponse | None:
-        """Await an ACP prompt with an idle (inactivity) turn deadline.
+        """等待具有空闲（不活动）回合截止时间的 ACP 提示词。
 
-        Wraps the portal-side prompt future in :meth:`_await_with_idle_deadline`
-        so the prompt is only abandoned after ``acp_prompt_timeout`` seconds
-        with no ACP activity. The timeout handler in ``astep`` sends
-        ``session/cancel`` and closes any in-flight tool cards.
+        将门户端提示词 future 包装在：meth:`_await_with_idle_deadline` 中，因此提示词
+        仅在
+        ``acp_prompt_timeout`` 秒后且没有 ACP 活动时才被放弃。 ``astep`` 中的超时处理
+        程序发送
+        ``session/cancel`` 并关闭所有飞行工具卡。
         """
         # cancel_on_exit=False: the portal task behind ``prompt_future`` must
-        # outlive an idle timeout / cancellation so astep's drain can observe it.
+        # 比空闲超时 / 取消的寿命更长，因此 astep 的排水管可以观察到它。
         return await self._await_with_idle_deadline(
             asyncio.wrap_future(prompt_future), cancel_on_exit=False
         )
@@ -3828,11 +3780,11 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Post-prompt bookkeeping + FinishAction/Observation emission."""
+        """后提示词簿记+FinishAction/观察发射。"""
         self._client._raise_masking_error()
-        # ACP server has acknowledged the prompt; commit any pending
-        # first-turn suffix install so a subsequent turn doesn't try to
-        # re-send it (and so a future cancellation can't unmark it).
+        # ACP服务器已确认提示词； 提交任何挂起的第一回合后缀安装，以便后续回合不会尝试重
+        # 新发送它（因此将来的取消无法取消标记它）。
+        #
         self._commit_suffix_installation(state)
 
         session_id = self._session_id or ""
@@ -3844,17 +3796,16 @@ class ACPAgent(AgentBase):
             usage_update=usage_update,
         )
 
-        # Tool cards were already streamed live from
-        # _OpenHandsACPBridge.session_update: one early ``started`` event per
-        # ToolCallStart and one terminal event per call. Close out any card the
-        # server opened but never terminated so every ``started`` has its
-        # matching terminal observation before the turn's FinishAction lands.
+        # 工具卡已从 _OpenHandsACPBridge.session_update 进行直播：每个 ToolCallStart 一
+        # 个早期 ``started`` 事件，每个呼叫一个终端事件。 关闭服务器打开但从未终止的任何
+        # 卡牌，以便每个 ``started`` 在回合 FinishAction 落地之前都有其匹配的终端观测结
+        # 果。
+        #
         self._flush_inflight_tool_calls_as_completed()
 
-        # Re-mask the joined text at this persistence boundary: the chunks were
-        # already masked individually as they streamed, but a secret split
-        # across two chunks only reassembles in the join, so this is where it
-        # gets caught before landing in the persisted event stream.
+        # 在持久化边界处重置拼接的文本：由于它们已经单独被重置，所以机密在两个块之间只重
+        # 新组装，因此这是它被捕捉的地方，然后进入已持久化事件流。
+        #
         self._track_file_credentials_for_masking()
         mask = state.secret_registry.mask_secrets_in_output
         response_text = mask("".join(self._client.accumulated_text))
@@ -3866,13 +3817,13 @@ class ACPAgent(AgentBase):
             response_text, thought_text, self._client.accumulated_tool_calls
         )
 
-        # ACP step() boundaries are full remote assistant turns, not
-        # partial planning steps. Emit FinishAction to delimit that
-        # completed turn for eval/remote consumers, matching #2190.
+        # ACP step() 边界是完整的远程助理轮流，而不是部分规划步骤。 发出 FinishAction 来
+        # 界定 eval/远程消费者的已完成轮次，匹配 #2190。
+        #
         finish_action = FinishAction(message=response_text)
         tc_id = str(uuid.uuid4())
-        # An ACP turn's streamed text lands here, not in a MessageEvent, so
-        # this is the event that retires the stream's slot.
+        # ACP 回合的流式文本落在此处，而不是 MessageEvent 中，因此这是使流槽失效的事件。
+        #
         minted: dict[str, Any] = {}
         if self._stream is not None and (item_id := self._stream.claim()):
             minted["id"] = item_id
@@ -3911,7 +3862,7 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Error path when ``conn.prompt`` went idle past ``acp_prompt_timeout``."""
+        """当 ``conn.prompt`` 空闲经过 ``acp_prompt_timeout`` 时出现错误路径。"""
         logger.error(
             "ACP prompt timed out after %.1fs with no activity for the last "
             "%.0fs. The ACP server may have stalled or failed to send the "
@@ -3934,7 +3885,7 @@ class ACPAgent(AgentBase):
                 )
             ],
         )
-        # Close any tool cards left in flight from the timed-out attempt.
+        # 关闭因超时尝试而剩余的所有工具卡。
         self._cancel_inflight_tool_calls()
         on_event(MessageEvent(source="agent", llm_message=error_message))
         state.execution_status = ConversationExecutionStatus.ERROR
@@ -3945,7 +3896,7 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Error path for non-timeout exceptions raised out of the prompt."""
+        """从提示词引发的非超时异常的错误路径。"""
         effective_exc = exc
         try:
             self._track_file_credentials_for_masking()
@@ -3961,8 +3912,8 @@ class ACPAgent(AgentBase):
             error_detail,
         )
         self._cancel_inflight_tool_calls()
-        # Emit error as an agent message (preserved for consumers that
-        # inspect MessageEvents).
+        # 将错误作为智能体消息发出（为检查 MessageEvents 的消费者保留）。
+        #
         on_event(
             MessageEvent(
                 source="agent",
@@ -3972,9 +3923,9 @@ class ACPAgent(AgentBase):
                 ),
             )
         )
-        # Emit typed ConversationErrorEvent so RemoteConversation surfaces
-        # the actual detail instead of falling back to
-        # "Remote conversation ended with error".
+        # 发出键入的 ConversationErrorEvent，以便 RemoteConversation 显示实际细节，而不
+        # 是退回到“远程对话因错误而结束”。
+        #
         on_event(
             ConversationErrorEvent(
                 source="agent",
@@ -4005,7 +3956,7 @@ class ACPAgent(AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Repair state when cancellation interrupts cancel/drain cleanup."""
+        """取消中断取消/排空清理时修复状态。"""
         if prompt_future is not None and prompt_future.done():
             try:
                 response = prompt_future.result()
@@ -4030,10 +3981,10 @@ class ACPAgent(AgentBase):
             self._restart_session_on_next_turn = True
 
     def _clear_turn_callbacks(self) -> None:
-        """Unwire per-turn bridge callbacks so trailing ``session_update``
-        between turns is a no-op (fires on the portal thread with no
-        FIFOLock held by anyone — without unwiring, a stale ``on_event``
-        there would race with other threads mutating ``state.events``).
+        """取消每匝桥回调的连线，使其尾随 ``session_update``
+        在回合之间是一个无操作（在门户线程上触发，没有 FIFOLock 人持有 —— 不断电，一
+        个陈旧的 ``on_event`` 会与其他线程的变异
+        ``state.events`` 竞争）。
         """
         if self._client is None:
             return
@@ -4049,12 +4000,11 @@ class ACPAgent(AgentBase):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ) -> None:
-        """Send the latest user message to the ACP server and emit the response.
+        """将最新的用户消息发送到 ACP 服务器并发出响应。
 
-        Sync entry point — used by ``LocalConversation.run`` (sync path),
-        the CLI, and the eval harness.  The async path
-        (``LocalConversation.arun``) goes through :meth:`astep`, which
-        avoids the cross-thread state-lock deadlock described in #3348.
+        同步入口 — 由 ``LocalConversation.run``（同步路径）、CLI 和评估线束使用。
+        异步路径(``LocalConversation.arun``)经过：meth:`astep`，这避免了#3348中描述的
+        交叉线程状态-锁死锁。
         """
         with StreamContext.open(conversation, on_token) as stream:
             self._stream = stream
@@ -4072,13 +4022,13 @@ class ACPAgent(AgentBase):
         state = conversation.state
 
         if self._restart_session_on_next_turn:
-            # If restart initialization fails, let the conversation transition
-            # to ERROR rather than reusing an ambiguous ACP session.
+            # 如果重新启动初始化失败，让会话转换到 ERROR，而不是重用不明确的 ACP 会话。
+            #
             self._restart_session_after_drain_timeout(state, on_event)
 
-        # Conversation implementations already attach per-turn AgentContext
-        # extensions to MessageEvent.extended_content; MessageEvent.to_llm_message()
-        # merges those extensions with the user text.
+        # 对话实现已经将每回合 AgentContext 扩展附加到 MessageEvent.extended_content；
+        # MessageEvent.to_llm_message() 将这些扩展名与用户文本合并。
+        #
         prompt_blocks: list[Any] | None = None
         for event in reversed(list(state.events)):
             if isinstance(event, MessageEvent) and event.source == "user":
@@ -4108,10 +4058,10 @@ class ACPAgent(AgentBase):
             max_retries = _ACP_PROMPT_MAX_RETRIES
 
             async def _prompt() -> PromptResponse | None:
-                # Thin closure so existing mocks of ``_executor.run_async``
-                # that take a single positional callable keep working. The idle
-                # deadline is enforced inside (cancel_on_exit=True: this path
-                # owns the coroutine) rather than as a hard run_async timeout.
+                # 薄闭包使得现有的``_executor.run_async``的模拟对象采用单个位置可调用继
+                # 续工作。 空闲期限在内部强制执行（cancel_on_exit=True：该路径拥有协程）
+                # ，而不是作为硬性run_async超时。
+                #
                 return await self._await_with_idle_deadline(
                     self._do_acp_prompt(prompt_blocks), cancel_on_exit=True
                 )
@@ -4148,9 +4098,9 @@ class ACPAgent(AgentBase):
                     else:
                         raise
                 except ACPRequestError as e:
-                    # Retry transient server errors (e.g. "Internal Server
-                    # Error" from Gemini).  JSON-RPC -32603 = server-side
-                    # failure, not a client bug.
+                    # 重试暂时性服务器错误 (e.g. 来自 Gemini 的“内部服务器错误”）。 JSON
+                    # -RPC -32603 = 服务器端故障，而不是客户端错误。
+                    #
                     if (
                         e.code in _RETRIABLE_SERVER_ERROR_CODES
                         and attempt < max_retries
@@ -4188,9 +4138,10 @@ class ACPAgent(AgentBase):
             self._emit_turn_timeout(time.monotonic() - t0, state, on_event)
         except Exception as e:
             self._emit_turn_error(e, state, on_event)
-            # Re-raise so LocalConversation.run()'s outer except handler
-            # breaks the loop, emits ConversationErrorEvent, and raises
-            # ConversationRunError — matching how the regular Agent works.
+            # 重新引发 LocalConversation.run() 的外部 except 处理程序会中断循环，发出
+            # ConversationErrorEvent，并引发 ConversationRunError — 与常规智能体的工作方
+            # 式相匹配。
+            #
             raise
         finally:
             self._clear_turn_callbacks()
@@ -4204,32 +4155,31 @@ class ACPAgent(AgentBase):
         on_token: ConversationTokenCallbackType | None = None,
         prompt_message: MessageEvent | None = None,
     ) -> None:
-        """Native-async variant of :meth:`step`.
+        """:meth:`step` 的 Native-异步变体。
 
-        Schedules the ACP ``conn.prompt`` round-trip on the portal loop
-        (where ``self._conn`` lives) via ``BlockingPortal.start_task_soon``
-        and awaits the result back on the caller's loop via
-        ``asyncio.wrap_future``.  Post-prompt work — ``_record_usage``
-        (and the ``stats_callback`` it triggers), ``on_event(action)``,
-        ``on_event(observation)``, ``state.execution_status`` — runs
-        entirely on the caller's thread.
+        通过 ``BlockingPortal.start_task_soon`` 在门户循环（``self._conn`` 所在的位置
+        ）上安排 ACP
+        ``conn.prompt`` 往返，并通过以下方式在调用者的循环上等待返回结果
+        ``asyncio.wrap_future``. 提示词后工作 — ``_record_usage``（及其触发的
+        ``stats_callback``）、
+        ``on_event(action)``、
+        ``on_event(observation)``, ``state.execution_status`` — 完全在调用者的线程上
+        运行。
 
-        Why this matters: ``LocalConversation.arun`` deliberately does
-        not hold the conversation state's reentrant ``FIFOLock`` across
-        long ACP prompt awaits, so remote user messages can be persisted
+        为什么这很重要：``LocalConversation.arun`` 故意不保持对话状态的可重入
+        ``FIFOLock`` 跨长时间 ACP 提示词等待，因
+        此远程用户消息可以已持久化
         while the subprocess is still working. The default
-        ``AgentBase.astep`` would wrap sync ``step`` in
-        ``loop.run_in_executor(None, self.step, ...)``, moving post-prompt
-        callbacks and state updates to a worker thread. Keeping this path
-        native-async leaves finalization on the caller's loop task, where
-        ``LocalConversation`` can serialize each emitted event with a
-        short state-lock acquire and avoid the cross-thread deadlocks
-        diagnosed in #3348 / #3350.
+        ``AgentBase.astep`` 会将同步 ``step`` 包裹在
+        ``loop.run_in_executor(None, self.step, ...)``，将后提示词回调和状态更新移动
+        到工作人员线程。 保持此路径为 n
+        ative-异步将最终确定留给调用者的循环任务，其中
+        ``LocalConversation`` 可以序列化每个具有短状态的发出事件 - 锁获取并避免在 #
+        3348 / #3350 中诊断的交叉线程死锁。
 
-        Bridge ``session_update`` notifications continue to fire on the
-        portal thread (no marshalling here). The ``on_event`` callback
-        supplied by ``LocalConversation.arun`` is responsible for taking
-        the state lock around each individual event.
+        桥 ``session_update`` 通知继续在门户线程上触发（此处没有编组）。
+        ``LocalConversation.arun`` 提供的
+        ``on_event`` 回调负责获取每个单独事件的状态锁。
         """
         with StreamContext.open(conversation, on_token) as stream:
             self._stream = stream
@@ -4250,8 +4200,8 @@ class ACPAgent(AgentBase):
         state = conversation.state
 
         if self._restart_session_on_next_turn:
-            # If restart initialization fails, let the conversation transition
-            # to ERROR rather than reusing an ambiguous ACP session.
+            # 如果重新启动初始化失败，让会话转换到 ERROR，而不是重用不明确的 ACP 会话。
+            #
             await self._arestart_session_after_drain_timeout(state, on_event)
 
         prompt_blocks: list[Any] | None = None
@@ -4289,12 +4239,10 @@ class ACPAgent(AgentBase):
             max_retries = _ACP_PROMPT_MAX_RETRIES
             for attempt in range(max_retries + 1):
                 try:
-                    # Schedule the ACP prompt on the portal loop (where the
-                    # connection lives); await the future back on the caller
-                    # loop.  Shield the portal task from wait_for timeout so
-                    # the timeout/cancellation handlers can send session/cancel
-                    # and briefly drain the task before the next turn rewires
-                    # callbacks.
+                    # 在门户循环（连接所在的位置）上安排 ACP 提示词； 等待未来回到调用者
+                    # 循环。 屏蔽 wait_for 超时任务，以便超时/取消处理器可以发送会话/取
+                    # 消，并短暂地清空任务，然后在下一个轮次重新配置回调。
+                    #
                     current_prompt_future: Future[PromptResponse | None] = (
                         portal.start_task_soon(
                             self._do_acp_prompt,
@@ -4365,24 +4313,23 @@ class ACPAgent(AgentBase):
 
             elapsed = time.monotonic() - t0
             logger.info("ACP prompt returned in %.1fs (async)", elapsed)
-            # ``on_event`` may be LocalConversation._on_event_with_state_lock,
-            # which re-acquires this same FIFOLock. This is safe because astep()
-            # finalization runs on the event-loop thread and FIFOLock is
-            # reentrant for the owning thread.
+            # ``on_event`` 可能是 LocalConversation._on_event_with_state_lock，这重新获
+            # 取了这个 FIFOLock。 这是因为 astep() 的最终化在事件循环线程运行，FIFOLock
+            # 是可重入的，线程。
+            #
             with state:
                 self._finalize_successful_turn(response, elapsed, state, on_event)
         except asyncio.CancelledError:
-            # ``asyncio.CancelledError`` inherits from ``BaseException``, not
-            # ``Exception`` — so it would otherwise bypass the generic handler
-            # and only run ``finally``, where ``_clear_turn_callbacks`` unwires
-            # the bridge.  Without closing in-flight tool cards here, any
-            # ``pending`` / ``in_progress`` ``ACPToolCallEvent`` streamed
-            # before cancellation stays live in the event log forever
-            # (``LocalConversation._emit_orphaned_action_errors`` only patches
-            # ``ActionEvent``s, not ``ACPToolCallEvent``s).  Cancel-emit on
-            # the caller thread after the portal prompt has observed
-            # session/cancel, so late cancelled-turn updates cannot overwrite
-            # the terminal synthetic failures.
+            # ``asyncio.CancelledError`` 继承自 ``BaseException``，而不是
+            # ``Exception`` - 因此它将绕过通用处理程序并仅运行 ``finally``，其中
+            # ``_clear_turn_callbacks`` 取消桥接。 如果不关闭此处的飞行工具卡，任何
+            # ``pending`` / ``in_progress`` ``ACPToolCallEvent`` 在取消之前流式传输，永
+            # 久保留在事件日志中（``LocalConversation._emit_orphaned_action_errors`` 仅
+            # 补丁
+            # ``ActionEvent``，而不是 ``ACPToolCallEvent``）。 在门户提示词观察到会话/取
+            # 消后，取消-emit 在调用者线程上取消。因此，晚取消更新无法覆盖终端的合成失败
+            # 。
+            #
             try:
                 await self._arequest_session_cancel()
                 drain_result = await self._drain_cancelled_prompt(prompt_future)
@@ -4448,7 +4395,7 @@ class ACPAgent(AgentBase):
             await self._flush_file_credentials()
 
     def ask_agent(self, question: str) -> str | None:
-        """Fork the ACP session, prompt the fork, and return the response."""
+        """分叉 ACP 会话，分叉提示词，并返回响应。"""
         if self._conn is None:
             msg = "ACPAgent has no ACP connection; call init_state() first"
             raise RuntimeError(msg)
@@ -4489,9 +4436,9 @@ class ACPAgent(AgentBase):
                         )
                 fork_elapsed = time.monotonic() - fork_t0
 
-                # Re-mask the joined fork text at this return boundary — mirrors
-                # _finalize_successful_turn, catching a secret split across fork
-                # chunks that per-chunk masking can't match.
+                # 在此返回边界处重新屏蔽连接的分叉文本 — 镜像 _finalize_successful_turn
+                # ，捕获跨分叉块的机密分割，而每个块的屏蔽无法匹配。
+                #
                 result = client._mask_value("".join(client._fork_accumulated_text))
                 usage_update = client.pop_turn_usage_update(fork_session_id)
                 self._record_usage(
@@ -4512,56 +4459,50 @@ class ACPAgent(AgentBase):
             return self._executor.run_async(_fork_and_prompt)
 
     def set_acp_model(self, model: str) -> None:
-        """Switch the model on the running ACP session (mid-conversation).
+        """在正在运行的 ACP 会话（对话中）切换模型。
 
-        Issues a protocol-level model-switch call on the live connection (the
-        mechanism the session advertised — ``set_config_option(model)`` or
-        ``set_session_model``) so the new model takes effect for subsequent
-        turns in the *same* session — no subprocess restart, no loss of
-        conversation
-        context. Verified against claude-agent-acp and codex-acp.
+        在实时连接上发出协议级模型切换调用（会话通告的机制 -
+        ``set_config_option(model)`` 或
+        ``set_session_model``），因此新模型对 * 相同 * 会话中的后续轮次生效 - 不会子
+        进程重新启动，不会丢失对话上下文。 已针对 cla
+        ude-智能体-ACP 和 codex-ACP 进行验证。
 
-        This is the low-level agent primitive; prefer
-        :meth:`LocalConversation.switch_acp_model` as the entry point. That
-        wrapper (a) holds the state lock so the switch cannot race a running
-        ``step()``, and (b) persists the new value by swapping in an agent
-        ``model_copy`` — ``acp_model`` is frozen, so this method updates only
-        the live session and the sentinel ``llm.model``/metrics, **not**
-        ``self.acp_model``. A direct caller therefore leaves ``acp_model``
-        (which ``_record_usage`` reads for cost attribution) stale and the
-        switch unpersisted; go through ``switch_acp_model`` instead.
+        这是低级智能体原语； 更喜欢
+        :meth:`LocalConversation.switch_acp_model` 作为入口。 那
+        包装器 (a) 保持状态锁，因此交换机无法与正在运行的交换机竞争
+        ``step()``，并且 (b) 通过交换智能体来保留新值
+        ``model_copy`` - ``acp_model`` 被冻结，因此此方法仅更新实时会话和哨兵值
+        ``llm.model``/metrics，** 不
+         **
+        ``self.acp_model``. 因此，直接调用者会使``acp_model``（其中``_record_usage``
+        读取成本归因）陈旧并且切换不持
+        久； 请改为查看 ``switch_acp_model``。
 
         Args:
-            model: Provider-specific model id to switch to (e.g.
-                ``"sonnet"`` or ``"gpt-5.6"``).
+            model: 要切换到的特定于提供商的模型 ID (e.g.
+                ``"sonnet"`` 或 ``"gpt-5.6"``）。
 
         Raises:
-            ValueError: If ``model`` is empty or whitespace-only, if the
-                detected provider does not support runtime model switching, or
-                if the ACP server rejects the model-switch call (e.g.
-                method-not-found on a custom server, or an invalid model id).
-            RuntimeError: If the ACP session has not been initialized yet
-                (i.e. before the first ``run()``).
-            TimeoutError: If the server does not answer within
-                ``acp_prompt_timeout`` seconds.
+            ValueError: 如果 ``model`` 为空或仅有空格，如果
+                检测到的提供程序不支持运行时模型切换，或者 ACP 服务器拒绝模型切换调用
+                 (e.g. 在自定义服务器上找不到方法，或模型 ID 无效）。
+            RuntimeError: 如果ACP会话尚未初始化
+                (i.e. 在第一个 ``run()`` 之前）。
+            TimeoutError: 如果服务器在时间内没有应答
+                ``acp_prompt_timeout`` 秒。
 
         Note:
-            A timeout means the client stopped waiting, not that the switch was
-            rejected: the switch request may already have been written and
-            could still be applied server-side. The connection and
-            session stay alive and the local sentinel model is intentionally
-            left unchanged, so a timed-out switch leaves the server-side model
-            indeterminate. The conservative choice (treat it as failed locally)
-            keeps cost/token accounting on the previously-known model and
-            self-heals on the next successful switch; the agent itself always
-            runs whatever model the live ACP session holds.
+            超时表示客户端停止等待，而不是表示切换已完成
+            rejected: 切换请求可能已经被写入并且
+            仍然可以应用于服务器端。 连接和会话保持活跃，本地哨兵值模型被有意保留不变
+            ，因此超时切换使服务器端模型不确定。 保守的选择（本地视作失败）会保留对先
+            前已知模型的成本/计数，并在下一次成功切换时自我修复。 智能体本身始终运行
+            实时 ACP 会话所拥有的任何模型。
 
-            claude-agent-acp caveat: a live switch changes the session model
-            and the inference target, but the model-naming system context is
-            injected at session *start* and is not refreshed here, so the
-            agent's self-reported identity can lag (e.g. still says "haiku"
-            after switching to sonnet) until a new session. The switch itself
-            is applied; only the model's self-description is stale.
+            claude-智能体-ACP 警告：实时切换会更改会话模型和推理目标，但模型命名系统
+            上下文是在会话 *start* 处注入的，并且不会在此处刷新，因
+            此智能体的自我报告身份可能会滞后（e.g. 切换到十四行诗后仍然说“俳句”）直到
+            新的会话。 应用开关本身； 只有模型的自我描述是陈旧的。
         """
         if not model or not model.strip():
             raise ValueError("model must be a non-empty string")
@@ -4576,17 +4517,17 @@ class ACPAgent(AgentBase):
                 f"ACP provider '{provider.key}' does not support runtime model "
                 "switching."
             )
-        # ``has_live_acp_session`` above guarantees a session id; narrow for the
+        # ``has_live_acp_session`` 以上保证了会话 id； 缩小为
         # type checker.
         assert self._conn is not None
         assert self._session_id is not None
         conn = self._conn
         session_id = self._session_id
-        # Bounded round-trip: this runs while LocalConversation.switch_acp_model
-        # holds the state lock, so a server that accepts the call but never
-        # answers must not wedge the lock indefinitely. On timeout / protocol
-        # error we propagate *before* mutating any local state, so the sentinel
-        # LLM is only updated once the live session has actually switched.
+        # 有界往返：此脚本运行直到 LocalConversation.switch_acp_model 保持状态锁，因此如
+        # 果服务器接受调用但从不回复，那么锁必须被无限期地楔住。 在超时 / 协议错误时，我
+        # 们先 *，然后再 * 任何本地状态，因此哨兵值 LLM 只有在实际切换了活会话之后才会更
+        # 新。
+        #
         try:
             self._executor.run_async(
                 _apply_acp_model(
@@ -4599,18 +4540,17 @@ class ACPAgent(AgentBase):
                 timeout=self.acp_prompt_timeout,
             )
         except ACPRequestError as e:
-            # Server-internal failures (JSON-RPC -32603) are not the caller's
-            # fault, and the prompt path already treats them as retriable. Let
-            # them propagate (-> 5xx) instead of mislabeling them as a 400.
+            # 服务器内部故障 (JSON-RPC -32603) 不是调用者的错误，并且提示词路径已将它们
+            # 视为可重试。 让它们传播 (-> 5xx)，而不是将它们错误地标记为 400。
+            #
             if e.code in _RETRIABLE_SERVER_ERROR_CODES:
                 raise
-            # acp.exceptions.RequestError derives from Exception (not
-            # RuntimeError); surface a true client/protocol rejection (invalid
-            # model id, or method-not-found on a mis-detected server) as a
-            # ValueError so callers — and the agent-server route — treat it as a
-            # 400-class client error rather than an opaque 500. The mechanism is
-            # the one the session advertised (``_model_via_config_option``), so
-            # the message names the call that actually failed.
+            # acp.exceptions.RequestError 派生自 Exception（而非 RuntimeError）； 表面一
+            # 个 True 客户/协议拒绝（无效模型 ID，或在误检测的服务器上找不到方法）为一个
+            #  ValueError 以便调用者和智能体-服务器路由将其视为 400 类客户端错误而不是
+            # 500 类无意义错误。 该机制是会话所通告的机制 (``_model_via_config_option``)
+            # ，因此消息会命名实际失败的调用。
+            #
             method = (
                 "set_config_option(model)"
                 if self._model_via_config_option
@@ -4619,21 +4559,19 @@ class ACPAgent(AgentBase):
             raise ValueError(
                 f"ACP server rejected {method}(model={model!r}): {e}"
             ) from e
-        # Reflect the live model on the sentinel LLM + metrics so cost/token
-        # accounting and serialized state show the model actually in use
-        # (mirrors model_post_init). The ``acp_model`` field is frozen, so the
-        # authoritative current model is persisted by
-        # :meth:`LocalConversation.switch_acp_model` via an agent ``model_copy``.
+        # 在哨兵值 LLM + 指标上反映实时模型，以便成本/代币核算和已序列化状态显示实际使用
+        # 的模型（镜像 model_post_init）。 ``acp_model``领域被冻结，所以目前权威的模型是
+        # 已持久化
+        # :meth:`LocalConversation.switch_acp_model` 通过智能体 ``model_copy``。
         self.llm.model = model
         self.llm.metrics.model_name = model
         if self.llm.metrics.accumulated_token_usage is not None:
             self.llm.metrics.accumulated_token_usage.model = model
-        # Refresh the surfaced model state so the chip/picker
-        # (``ConversationInfo.current_model_id``) reflects the switch instead
-        # of the stale session-start value. ``_current_model_id`` is a
-        # PrivateAttr, so ``switch_acp_model``'s shallow ``model_copy`` carries
-        # this updated value onto the persisted agent. ``available_models`` is
-        # unchanged by a model switch, so it is intentionally left alone.
+        # 刷新表面模型状态，以便芯片/选择器 (``ConversationInfo.current_model_id``) 反映
+        # 切换而不是陈旧的会话开始值。 ``_current_model_id`` 是 PrivateAttr，因此
+        # ``switch_acp_model`` 的浅层 ``model_copy`` 将此更新值携带到已持久化智能体上。
+        # ``available_models`` 不会因模型切换而发生变化，因此有意将其保留。
+        #
         self._current_model_id = model
         logger.info(
             "Switched ACP session model to %s (provider=%s, session=%s)",
@@ -4643,7 +4581,7 @@ class ACPAgent(AgentBase):
         )
 
     def close(self) -> None:
-        """Terminate the ACP subprocess and clean up resources."""
+        """终止ACP子进程并清理资源。"""
         with self._file_credential_close_lock:
             with self._file_credential_lock:
                 if self._closed and not self._file_credential_lifecycles:
@@ -4736,21 +4674,20 @@ class ACPAgent(AgentBase):
             await task
 
     def release_runtime(self) -> None:
-        """Disarm this agent's finalizer after handing its live ACP runtime to a
-        shallow :meth:`~pydantic.BaseModel.model_copy`.
+        """将其实时 ACP 运行时交给 a 后，解除此智能体的终结器
+        浅：方法：`~pydantic.BaseModel.model_copy`。
 
-        The copy shares this agent's ``_conn`` / ``_executor`` / ``_process``
-        references (``model_copy`` is shallow). Marking this now-stale instance
-        closed makes its ``__del__`` -> :meth:`close` a no-op, so dropping it
-        cannot tear down the runtime the copy now owns.
+        该副本共享此智能体的 ``_conn`` / ``_executor`` / ``_process`` 引用（
+        ``model_copy`` 是浅的）。 将这
+        个现已过时的实例标记为关闭使其 ``__del__`` -> :meth:`close` 成为无操作，因此
+        删除它不能破坏副本现在拥有的运行时。
 
-        The runtime references are intentionally left intact: an in-flight
-        :meth:`ask_agent` fork — which is thread-safe and may still hold this
-        pre-switch agent — keeps a valid connection until it finishes. Sole
-        ownership for teardown passes to the copy (the live ``self.agent``
-        going forward), which is closed on conversation shutdown.
+        运行时引用有意保持完整：一个正在运行的
+        :meth:`ask_agent` fork — 这是线程安全并且可能仍然保留这个
+        预切换智能体 — 保持有效连接直至完成。 拆卸的唯一所有权传递给副本（继续的实时
+        ``self.agent``），该副本在会话关闭时关闭。
 
-        See :meth:`LocalConversation.switch_acp_model`.
+        请参阅：方法：`LocalConversation.switch_acp_model`。
         """
         with self._file_credential_close_lock:
             self._unregister_atexit_cleanup()

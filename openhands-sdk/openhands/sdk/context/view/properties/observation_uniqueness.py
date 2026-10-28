@@ -16,18 +16,18 @@ logger = getLogger(__name__)
 
 
 class ObservationUniquenessProperty(ViewPropertyBase):
-    """At most one observation-like event per tool_call_id.
+    """每个 tool_call_id 最多有一个类似观测结果的事件。
 
-    Crash recovery can synthesize an ``AgentErrorEvent`` for an in-flight tool
-    call and then the original ``ObservationEvent`` may still arrive late, so
-    the view ends up with two observation-like events sharing a single
-    ``tool_call_id``. Downstream LLM APIs (for example Anthropic tool use)
-    require exactly one ``tool_result`` per ``tool_use``, and the strict
-    pairing assumed by ``ToolCallMatchingProperty`` would otherwise raise
-    ``KeyError`` during condensation.
+    在飞行中发生崩溃时，可以合成一个 ``AgentErrorEvent`` 来补救，然后原始
+    ``ObservationEvent`` 可能会晚些到达，因此最终的视图
+    会包含两个观测结果-类似事件共享一个工具调用
+    ``tool_call_id``. 下游端点 LLM APIs （例如 Anthropic 工具使用）需要一个
+    ``tool_result``，而
+    ``ToolCallMatchingProperty`` 假定的严格配对会 ``tool_use``
+    上下文压缩期间的 ``KeyError``。
 
-    This property is registered ahead of ``ToolCallMatchingProperty`` so the
-    duplicate is dropped before pairing logic runs.
+    此属性在 ``ToolCallMatchingProperty`` 之前注册，因此在配对逻辑运行之前会删除重复
+    项。
     """
 
     def enforce(
@@ -35,9 +35,8 @@ class ObservationUniquenessProperty(ViewPropertyBase):
         current_view_events: list[LLMConvertibleEvent],
         all_events: Sequence[Event],  # noqa: ARG002
     ) -> set[EventID]:
-        """Drop any observation-like event whose ``tool_call_id`` has already
-        been observed earlier in the view. The first occurrence wins because
-        the agent has likely already seen it.
+        """删除任何 ``tool_call_id`` 已发生的类似观测结果的事件
+        之前已在视图中观察到。 第一次出现获胜，因为智能体可能已经看到了它。
         """
         events_to_remove: set[EventID] = set()
         seen_tool_call_ids: set[ToolCallID] = set()
@@ -55,9 +54,9 @@ class ObservationUniquenessProperty(ViewPropertyBase):
         self,
         current_view_events: list[LLMConvertibleEvent],
     ) -> ManipulationIndices:
-        """This property does not restrict manipulation indices. If a duplicate
-        observation-like event slips past ``enforce``, log a warning so the
-        regression is visible without crashing condensation.
+        """该属性不限制操纵指数。 如果重复
+        观测结果类似事件滑过 ``enforce``，记录警告，以便回归可见而不会崩溃上下文压缩
+        。
         """
         seen_tool_call_ids: set[ToolCallID] = set()
 

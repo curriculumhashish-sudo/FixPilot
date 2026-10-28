@@ -1,10 +1,8 @@
-"""Tests for shared security-scan helpers — Link-header pagination.
+"""测试共享安全扫描助手 - 链接标头分页。
 
-The approval-drift gate must see *every* review of a PR; if a human APPROVED
-sits past the first REST page, truncating would misclassify the PR as
-unapproved and block a clean release. These cover the ``Link: rel="next"``
-follow and the header parser, with no real network (the per-page GET is
-monkeypatched).
+批准漂移门必须查看 PR 的 * 每 * 次审核； 如果一个人 APPROVED 坐在了第一个 REST 页之后
+，截断会将 PR 错误分类为未经批准并阻止干净发布。 这些覆
+盖了``Link: rel="next"``跟随和标头解析器，没有真正的网络（每页GET是猴子补丁的）。
 """
 
 from __future__ import annotations
@@ -85,7 +83,7 @@ def test_single_page_no_link(monkeypatch):
 
 
 def test_non_list_response_wrapped(monkeypatch):
-    # A dict (e.g. an error object) must not be iterated element-wise.
+    # 一个字典 (e.g. 错误对象）不得按元素迭代。
     monkeypatch.setattr(
         _common, "_github_get", lambda url, token: ({"message": "x"}, None)
     )

@@ -1,12 +1,12 @@
-# Byte-compiled / optimized / DLL files
+# 字节编译/优化/DLL 文件
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# C 扩展
 *.so
 
-# Distribution / packaging
+# 分销/包装
 .Python
 build/
 develop-eggs/
@@ -28,15 +28,15 @@ MANIFEST
 requirements.txt
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+#  通常这些文件是在 PyInstaller 构建 exe 之前由模板中的 Python 脚本编写的，以便将日期/其他信息注入其中。
+#
 *.manifest
 
-# Installer logs
+# 安装程序日志
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# 单元测试/报道报道
 htmlcov/
 .tox/
 .nox/
@@ -51,74 +51,68 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Translations
+# 翻译
 *.mo
 *.pot
 
-# Django stuff:
+# 姜戈的东西：
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Flask stuff:
+# 烧瓶的东西：
 instance/
 .webassets-cache
 
-# Scrapy stuff:
+# 乱七八糟的东西：
 .scrapy
 
-# Sphinx documentation
+# 狮身人面像文档
 docs/_build/
 
 # PyBuilder
 .pybuilder/
 target/
 
-# Jupyter Notebook
+# Jupyter笔记本
 .ipynb_checkpoints
 
-# IPython
+# Python
 profile_default/
 ipython_config.py
 
 # pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
+#   对于库或包，您可能希望忽略这些文件，因为代码旨在在多个环境中运行； 否则，请检查它们：
+#
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
+# 管彭夫
+#   根据 pypa/pipenv#598，建议在版本控制中包含 Pipfile.lock。 然而，在协作情况下，如果存在平台特定依赖或没有跨平台支持的依赖，pipenv 可能安装不工作或未安装所有所需依赖的依赖。
 #Pipfile.lock
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
+# 诗
+#   与Pipfile.lock类似，一般建议在版本控制中包含poetry.lock。 对于二进制包特别建议这样做，以确保可重复性，而对于库来说，通常会忽略这一点。
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 # poetry.lock
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+# 项目管理
+#   与Pipfile.lock类似，一般建议在版本控制中包含pdm.lock。
 #pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
+#   pdm 将项目范围的配置存储在 .pdm.toml 中，但建议不要将其包含在版本控制中。
 #   https://pdm.fming.dev/#use-with-ide
 .pdm.toml
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+# PEP 582; 由e.g使用。 github.com/David-OConnor/pyflow 和 github.com/pdm-project/pdm
 __pypackages__/
 
-# Celery stuff
+# 芹菜东西
 celerybeat-schedule
 celerybeat.pid
 
-# SageMath parsed files
+# SageMath 已解析的文件
 *.sage.py
 
-# Environments
+# 环境
 .env
 .venv
 env/
@@ -128,14 +122,14 @@ env.bak/
 .env.bak
 venv.bak/
 
-# Spyder project settings
+# Spyder 项目设置
 .spyderproject
 .spyproject
 
-# Rope project settings
+# 绳索项目设置
 .ropeproject
 
-# mkdocs documentation
+# mkdocs 文档
 /site
 
 # mypy
@@ -143,29 +137,27 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Pyre type checker
+# 柴堆类型检查器
 .pyre/
 
-# pytype static type analyzer
+# pytype 静态类型分析器
 .pytype/
 
-# Cython debug symbols
+# Cython 调试符号
 cython_debug/
 
 # PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#  JetBrains 特定模板维护在单独的 JetBrains.gitignore 中，可以在  https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore  中找到该模板，并且可以将其添加到全局 gitignore 或合并到此文件中。 对于更核心的选项（不推荐），您可以取消注释以下内容以忽略整个 idea 文件夹。
+#
 .idea/
 
-# VS Code: Ignore all but certain files that specify repo-specific settings.
+# VS Code：忽略除指定存储库特定设置的某些文件之外的所有文件。
 # https://stackoverflow.com/questions/32964920/should-i-commit-the-vscode-folder-to-source-control
 .vscode/**/*
 !.vscode/extensions.json
 !.vscode/tasks.json
 
-# VS Code extensions/forks:
+# VS Code 扩展/分支：
 .cursorignore
 .rooignore
 .clineignore
@@ -181,7 +173,7 @@ cython_debug/
 .repomix
 repomix-output.txt
 
-# misc
+# 杂项
 .DS_Store
 .env.local
 .env.development.local
@@ -194,7 +186,7 @@ yarn-error.log*
 
 logs
 
-# agent
+# 智能体
 .envrc
 cache
 .jinja_cache/
@@ -204,19 +196,19 @@ cache
 openapi.json
 .client/
 
-# Local workspace files
+# 本地工作区文件
 .beads/*.db
 .worktrees/
 agent-sdk.workspace.code-workspace
 
-# Integration test outputs
+# 集成测试输出
 tests/integration/outputs/
 tests/integration/api_compliance/outputs/
 
-# Agent-generated temp
+# 智能体-生成温度
 .agent_tmp/
 
-# TypeScript client build and test outputs
+# TypeScript 客户端构建和测试输出
 clients/typescript/node_modules/
 clients/typescript/dist/
 clients/typescript/coverage/

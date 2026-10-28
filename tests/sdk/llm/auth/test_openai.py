@@ -1,8 +1,7 @@
-"""Tests for OpenAI subscription authentication.
+"""测试 OpenAI 订阅身份验证。
 
-Note: Tests for JWT verification and JWKS caching have been removed as they
-require real OAuth tokens to be meaningful. See GitHub issue #1806 for tracking
-integration test requirements.
+Note: JWT 验证和 JWKS 缓存测试已被删除，因为它们
+需要真正的 OAuth token 才有意义。 请参阅 GitHub 问题 #1806 了解跟踪集成测试要求。
 """
 
 import time
@@ -63,18 +62,18 @@ def test_subscription_config_restores_credentials():
 
 
 def test_generate_pkce():
-    """Test PKCE code generation."""
+    """测试 PKCE 代码生成。"""
     verifier, challenge = _generate_pkce()
     assert verifier is not None
     assert challenge is not None
     assert len(verifier) > 0
     assert len(challenge) > 0
-    # Verifier and challenge should be different
+    # 验证者和挑战者应该不同
     assert verifier != challenge
 
 
 def test_pkce_codes_are_unique():
-    """Test that PKCE codes are unique each time."""
+    """测试 PKCE 代码每次都是唯一的。"""
     verifier1, challenge1 = _generate_pkce()
     verifier2, challenge2 = _generate_pkce()
     assert verifier1 != verifier2
@@ -82,7 +81,7 @@ def test_pkce_codes_are_unique():
 
 
 def test_build_authorize_url():
-    """Test building the OAuth authorization URL."""
+    """测试构建 OAuth 授权 URL。"""
     code_challenge = "test_challenge"
     state = "test_state"
     redirect_uri = "http://localhost:1455/auth/callback"
@@ -100,14 +99,14 @@ def test_build_authorize_url():
 
 
 def test_openai_subscription_auth_get_credentials(tmp_path):
-    """Test getting credentials from store."""
+    """测试从商店获取凭据。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # No credentials initially
+    # 最初没有凭据
     assert auth.get_credentials() is None
 
-    # Save credentials
+    # 保存凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="test_access",
@@ -116,21 +115,21 @@ def test_openai_subscription_auth_get_credentials(tmp_path):
     )
     store.save(creds)
 
-    # Now should return credentials
+    # 现在应该返回凭据
     retrieved = auth.get_credentials()
     assert retrieved is not None
     assert retrieved.access_token == "test_access"
 
 
 def test_openai_subscription_auth_has_valid_credentials(tmp_path):
-    """Test checking for valid credentials."""
+    """测试检查是否有效凭据。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # No credentials
+    # 没有凭据
     assert not auth.has_valid_credentials()
 
-    # Valid credentials
+    # 有效凭据
     valid_creds = OAuthCredentials(
         vendor="openai",
         access_token="test",
@@ -140,7 +139,7 @@ def test_openai_subscription_auth_has_valid_credentials(tmp_path):
     store.save(valid_creds)
     assert auth.has_valid_credentials()
 
-    # Expired credentials
+    # 已过期凭据
     expired_creds = OAuthCredentials(
         vendor="openai",
         access_token="test",
@@ -152,11 +151,11 @@ def test_openai_subscription_auth_has_valid_credentials(tmp_path):
 
 
 def test_openai_subscription_auth_logout(tmp_path):
-    """Test logout removes credentials."""
+    """测试注销删除凭据。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # Save credentials
+    # 保存凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="test",
@@ -166,20 +165,20 @@ def test_openai_subscription_auth_logout(tmp_path):
     store.save(creds)
     assert auth.has_valid_credentials()
 
-    # Logout
+    # 退出
     assert auth.logout() is True
     assert not auth.has_valid_credentials()
 
-    # Logout again should return False
+    # 再次注销应返回 False
     assert auth.logout() is False
 
 
 def test_openai_subscription_auth_create_llm_invalid_model(tmp_path):
-    """Test create_llm raises error for invalid model."""
+    """测试 create_llm 引发无效模型的错误。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # Save valid credentials
+    # 保存有效凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="test",
@@ -193,7 +192,7 @@ def test_openai_subscription_auth_create_llm_invalid_model(tmp_path):
 
 
 def test_openai_subscription_auth_create_llm_no_credentials(tmp_path):
-    """Test create_llm raises error when no credentials available."""
+    """当没有凭据可用时，测试 create_llm 会引发错误。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
@@ -203,11 +202,11 @@ def test_openai_subscription_auth_create_llm_no_credentials(tmp_path):
 
 @pytest.mark.parametrize("model", sorted(OPENAI_CODEX_MODELS))
 def test_openai_subscription_auth_create_llm_success(tmp_path, model):
-    """Test create_llm creates LLM with correct configuration."""
+    """测试 create_llm 创建具有正确配置的 LLM。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # Save valid credentials
+    # 保存有效凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="test_access_token",
@@ -224,7 +223,7 @@ def test_openai_subscription_auth_create_llm_success(tmp_path, model):
     assert llm.auth_type == "subscription"
     assert llm.subscription_vendor == "openai"
     assert llm.extra_headers is not None
-    # Uses codex_cli_rs to match official Codex CLI for compatibility
+    # 使用 codex_cli_rs 来匹配官方 Codex CLI 以实现兼容性
     assert llm.extra_headers.get("originator") == "codex_cli_rs"
 
 
@@ -257,7 +256,7 @@ def _response(status_code=200, payload=None):
 
 @pytest.mark.asyncio
 async def test_request_device_code_success():
-    """Test requesting an OpenAI device code."""
+    """测试请求 OpenAI 设备代码。"""
     fake_client = _FakeAsyncClient(
         [
             _response(
@@ -292,7 +291,7 @@ async def test_request_device_code_success():
 
 @pytest.mark.asyncio
 async def test_poll_device_code_retries_pending_then_succeeds():
-    """Test polling the OpenAI device auth token endpoint."""
+    """测试轮询 OpenAI 设备身份验证令牌端点。"""
     fake_client = _FakeAsyncClient(
         [
             _response(status_code=403),
@@ -345,7 +344,7 @@ async def test_poll_device_code_retries_pending_then_succeeds():
 
 @pytest.mark.asyncio
 async def test_openai_subscription_auth_login_device_code(tmp_path):
-    """Test device-code login stores OAuth credentials."""
+    """测试设备代码登录存储 OAuth 凭据。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
     device_code = DeviceCode(
@@ -394,7 +393,7 @@ async def test_openai_subscription_auth_login_device_code(tmp_path):
 
 @pytest.mark.asyncio
 async def test_openai_subscription_auth_refresh_if_needed_no_creds(tmp_path):
-    """Test refresh_if_needed returns None when no credentials."""
+    """当没有凭据时，测试 refresh_if_needed 返回 None。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
@@ -404,11 +403,11 @@ async def test_openai_subscription_auth_refresh_if_needed_no_creds(tmp_path):
 
 @pytest.mark.asyncio
 async def test_openai_subscription_auth_refresh_if_needed_valid_creds(tmp_path):
-    """Test refresh_if_needed returns existing creds when not expired."""
+    """测试 refresh_if_needed 返回未过期的现有信用。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # Save valid credentials
+    # 保存有效凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="test_access",
@@ -424,11 +423,11 @@ async def test_openai_subscription_auth_refresh_if_needed_valid_creds(tmp_path):
 
 @pytest.mark.asyncio
 async def test_openai_subscription_auth_refresh_if_needed_expired_creds(tmp_path):
-    """Test refresh_if_needed refreshes expired credentials."""
+    """测试 refresh_if_needed 刷新已过期凭据。"""
     store = CredentialStore(credentials_dir=tmp_path)
     auth = OpenAISubscriptionAuth(credential_store=store)
 
-    # Save expired credentials
+    # 保存已过期凭据
     creds = OAuthCredentials(
         vendor="openai",
         access_token="old_access",
@@ -437,7 +436,7 @@ async def test_openai_subscription_auth_refresh_if_needed_expired_creds(tmp_path
     )
     store.save(creds)
 
-    # Mock the refresh function
+    # 模拟对象刷新功能
     with patch(
         "openhands.sdk.llm.auth.openai._refresh_access_token",
         new_callable=AsyncMock,
@@ -456,21 +455,21 @@ async def test_openai_subscription_auth_refresh_if_needed_expired_creds(tmp_path
 
 
 # =========================================================================
-# Tests for consent banner system
+# 同意横幅系统测试
 # =========================================================================
 
 
 class TestConsentBannerSystem:
-    """Tests for the consent banner and acknowledgment system."""
+    """测试同意横幅和确认系统。"""
 
     def test_consent_banner_content(self):
-        """Test that consent banner contains required text."""
+        """测试同意横幅是否包含所需的文本。"""
         assert "ChatGPT" in CONSENT_BANNER
         assert "Terms of Use" in CONSENT_BANNER
         assert "openai.com/policies/terms-of-use" in CONSENT_BANNER
 
     def test_consent_marker_path(self, tmp_path):
-        """Test that consent marker path is in credentials directory."""
+        """测试同意标记路径是否位于凭据目录中。"""
         with patch(
             "openhands.sdk.llm.auth.openai.get_credentials_dir", return_value=tmp_path
         ):
@@ -479,14 +478,14 @@ class TestConsentBannerSystem:
             assert ".chatgpt_consent_acknowledged" in str(marker_path)
 
     def test_has_acknowledged_consent_false_initially(self, tmp_path):
-        """Test that consent is not acknowledged initially."""
+        """测试最初是否未确认同意。"""
         with patch(
             "openhands.sdk.llm.auth.openai.get_credentials_dir", return_value=tmp_path
         ):
             assert not _has_acknowledged_consent()
 
     def test_mark_consent_acknowledged(self, tmp_path):
-        """Test marking consent as acknowledged."""
+        """测试标记同意是否已确认。"""
         with patch(
             "openhands.sdk.llm.auth.openai.get_credentials_dir", return_value=tmp_path
         ):
@@ -495,7 +494,7 @@ class TestConsentBannerSystem:
             assert _has_acknowledged_consent()
 
     def test_display_consent_user_accepts(self, tmp_path, capsys):
-        """Test consent display when user accepts."""
+        """当用户接受时测试同意显示。"""
         with (
             patch(
                 "openhands.sdk.llm.auth.openai.get_credentials_dir",
@@ -507,13 +506,13 @@ class TestConsentBannerSystem:
             result = _display_consent_and_confirm()
             assert result is True
 
-            # Check banner was printed
+            # 检查横幅已打印
             captured = capsys.readouterr()
             assert "ChatGPT" in captured.out
             assert "Terms of Use" in captured.out
 
     def test_display_consent_user_declines(self, tmp_path, capsys):
-        """Test consent display when user declines."""
+        """当用户拒绝时测试同意显示。"""
         with (
             patch(
                 "openhands.sdk.llm.auth.openai.get_credentials_dir",
@@ -526,7 +525,7 @@ class TestConsentBannerSystem:
             assert result is False
 
     def test_display_consent_non_interactive_first_time_raises(self, tmp_path):
-        """Test that non-interactive mode raises error on first time."""
+        """测试非交互模式第一次是否会引发错误。"""
         with (
             patch(
                 "openhands.sdk.llm.auth.openai.get_credentials_dir",
@@ -538,11 +537,11 @@ class TestConsentBannerSystem:
                 _display_consent_and_confirm()
 
     def test_display_consent_non_interactive_after_acknowledgment(self, tmp_path):
-        """Test that non-interactive mode works after prior acknowledgment."""
+        """在事先确认后测试非交互模式是否有效。"""
         with patch(
             "openhands.sdk.llm.auth.openai.get_credentials_dir", return_value=tmp_path
         ):
-            # Mark consent as acknowledged
+            # 将同意标记为已确认
             _mark_consent_acknowledged()
 
             with patch("sys.stdin.isatty", return_value=False):
@@ -550,7 +549,7 @@ class TestConsentBannerSystem:
                 assert result is True
 
     def test_display_consent_keyboard_interrupt(self, tmp_path):
-        """Test handling of keyboard interrupt during consent."""
+        """测试同意期间键盘中断的处理。"""
         with (
             patch(
                 "openhands.sdk.llm.auth.openai.get_credentials_dir",
@@ -563,7 +562,7 @@ class TestConsentBannerSystem:
             assert result is False
 
     def test_display_consent_eof_error(self, tmp_path):
-        """Test handling of EOF during consent."""
+        """在同意期间测试 EOF 的处理。"""
         with (
             patch(
                 "openhands.sdk.llm.auth.openai.get_credentials_dir",
@@ -577,19 +576,19 @@ class TestConsentBannerSystem:
 
 
 # =========================================================================
-# End-to-end tests for _extract_chatgpt_account_id with joserfc
+# 使用 joserfc 对 _extract_chatgpt_account_id 进行端到端测试
 # =========================================================================
 
 
 @pytest.fixture
 def rsa_signing_key():
-    """Generate an RSA key pair for JWT signing in tests."""
+    """生成用于 JWT 登录测试的 RSA 密钥对。"""
     return RSAKey.generate_key(2048, parameters={"kid": "test-key-1"})
 
 
 @pytest.fixture
 def mock_jwks_cache(rsa_signing_key):
-    """Mock _jwks_cache to return a KeySet with the test public key."""
+    """模拟对象 _jwks_cache 返回带有测试公钥的 KeySet。"""
     pub_dict = rsa_signing_key.as_dict(private=False)
     key_set = KeySet.import_key_set({"keys": [pub_dict]})
     with patch(
@@ -600,13 +599,13 @@ def mock_jwks_cache(rsa_signing_key):
 
 
 def _sign_jwt(key: RSAKey, claims: dict) -> str:
-    """Sign a JWT with the given RSA key and claims."""
+    """使用给定的 RSA 密钥和声明签署 JWT。"""
     header = {"alg": "RS256", "kid": key.kid}
     return joserfc_jwt.encode(header, claims, key)
 
 
 def test_extract_chatgpt_account_id_success(rsa_signing_key, mock_jwks_cache):
-    """End-to-end: sign a JWT with joserfc, extract chatgpt_account_id."""
+    """端到端：用joserfc签署JWT，提取chatgpt_account_id。"""
     token = _sign_jwt(
         rsa_signing_key,
         {
@@ -621,14 +620,14 @@ def test_extract_chatgpt_account_id_success(rsa_signing_key, mock_jwks_cache):
 
 
 def test_extract_chatgpt_account_id_missing_claim(rsa_signing_key, mock_jwks_cache):
-    """Returns None when the JWT has no chatgpt_account_id claim."""
+    """当 JWT 没有 chatgpt_account_id 声明时返回 None。"""
     token = _sign_jwt(rsa_signing_key, {"sub": "user-123"})
     assert _extract_chatgpt_account_id(token) is None
 
 
 def test_extract_chatgpt_account_id_wrong_key(rsa_signing_key):
-    """Returns None when JWT signature cannot be verified (wrong key)."""
-    # Sign with the test key but verify against a different key
+    """当 JWT 签名无法验证时（密钥错误），返回 None。"""
+    # 使用测试密钥签名，但使用不同的密钥进行验证
     different_key = RSAKey.generate_key(2048, parameters={"kid": "other-key"})
     different_pub = different_key.as_dict(private=False)
     wrong_key_set = KeySet.import_key_set({"keys": [different_pub]})
@@ -651,7 +650,7 @@ def test_extract_chatgpt_account_id_wrong_key(rsa_signing_key):
 
 
 def test_extract_chatgpt_account_id_jwks_fetch_failure():
-    """Returns None when JWKS cache raises RuntimeError."""
+    """当 JWKS 缓存引发 RuntimeError 时，返回 None。"""
     with patch(
         "openhands.sdk.llm.auth.openai._jwks_cache.get_key_set",
         side_effect=RuntimeError("network error"),

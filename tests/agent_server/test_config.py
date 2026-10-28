@@ -82,7 +82,7 @@ def test_env_is_none_overrides_config_file_value(monkeypatch, tmp_path):
     )
     monkeypatch.setenv(CONFIG_PATH_ENV, str(config_path))
 
-    # Without an environment value the file value is kept.
+    # 如果没有环境值，则保留文件值。
     assert load_config().app_backend_public_url == "http://file.invalid:9"
 
     monkeypatch.setenv("OH_APP_BACKEND_PUBLIC_URL", "http://env.invalid:9")
@@ -194,8 +194,8 @@ def test_init_secret_key_with_surrounding_whitespace_is_kept_verbatim(
 
 
 def test_webhook_spec_descriptions_match_delivery_behaviour():
-    """The published WebhookSpec docs name the per-conversation events path
-    and a flush timer that later events do not reset (see WebhookSubscriber).
+    """已发布的 WebhookSpec 文档命名每个对话事件路径
+    以及一个刷新计时器，以后的事件不会重置（参见WebhookSubscriber）。
     """
     fields = WebhookSpec.model_fields
     base_url_doc = fields["base_url"].description or ""
@@ -233,8 +233,8 @@ def test_load_config_reads_previous_secret_keys(monkeypatch, tmp_path, env):
 
 
 def test_rotated_session_key_fallback_reads_with_previous_key(monkeypatch, tmp_path):
-    """Without OH_SECRET_KEY the cipher key is the first session API key, so a
-    rotated session key needs the old one in OH_PREVIOUS_SECRET_KEYS."""
+    """如果没有 OH_SECRET_KEY，密码密钥是第一个会话 API 密钥，因此
+    旋转的会话密钥需要 OH_PREVIOUS_SECRET_KEYS 中的旧密钥。"""
     monkeypatch.setenv(CONFIG_PATH_ENV, str(tmp_path / "missing.json"))
     monkeypatch.delenv("OH_SECRET_KEY", raising=False)
     monkeypatch.delenv(V0_SESSION_API_KEY_ENV, raising=False)

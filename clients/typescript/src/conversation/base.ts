@@ -1,8 +1,8 @@
 /**
- * Base conversation interface and types
+ * 基础对话接口和类型
  *
- * This file defines the abstract interface that all conversation implementations must follow.
- * It mirrors the Python SDK's BaseConversation pattern.
+ * 该文件定义了所有对话实现必须遵循的抽象接口。
+ * 它反映了 Python SDK 的 BaseConversation 模式。
  */
 
 import {
@@ -17,69 +17,69 @@ import {
 import { IWorkspace } from '../workspace/base';
 
 /**
- * Base conversation options that all conversation types share
+ * 所有对话类型共享的基本对话选项
  */
 export interface BaseConversationOptions {
-  /** Optional existing conversation ID to resume */
+  /** 要恢复的可选现有对话 ID*/
   conversationId?: string;
-  /** Callback function for conversation events */
+  /** 回调对话事件函数*/
   callback?: ConversationCallbackType;
-  /** Initial message to send when starting the conversation */
+  /** 开始对话时发送的初始消息*/
   initialMessage?: string;
-  /** Maximum iterations before stopping (default: 500) */
+  /** 停止前的最大迭代次数（默认值：500）*/
   maxIterations?: number;
-  /** Enable stuck detection (default: true) */
+  /** 启用卡住检测（默认值：True）*/
   stuckDetection?: boolean;
 }
 
 /**
- * Interface for events list.
- * Provides access to conversation events.
+ * 事件列表界面。
+ * 提供对对话事件的访问。
  */
 export interface IEventsList {
-  /** Add an event to the list */
+  /** 将事件添加到列表中*/
   addEvent(event: unknown): Promise<void>;
-  /** Get all events (may have additional parameters in implementations) */
+  /** 获取所有事件（实现中可能有附加参数）*/
   getEvents?(): Promise<unknown[]>;
 }
 
 /**
- * Interface for conversation state objects.
- * Provides access to conversation events and execution status.
+ * 对话状态对象的接口。
+ * 提供对对话事件和执行状态的访问。
  *
- * Note: This is a minimal interface. Specific implementations (RemoteState, LocalState)
- * may have additional methods and properties.
+ * 注意：这是一个最小的界面。 具体实现(RemoteState,LocalState)
+ * 可能有额外的方法和属性。
  */
 export interface IConversationState {
-  /** The conversation ID */
+  /** 对话ID*/
   readonly id: ConversationID;
-  /** Access to the events list */
+  /** 访问事件列表*/
   readonly events: IEventsList;
 }
 
 /**
- * Abstract interface for conversation implementations.
+ * 用于对话实现的抽象接口。
  *
- * Conversations manage the interaction between users and agents, handling message
- * exchange, execution control, and state management. All conversation implementations
- * support the same interface for interoperability.
+ * 对话管理用户和智能体之间的交互，处理消息
+ * 交换、执行控制和状态管理。 所有对话实现
+ * 支持相同的接口以实现互操作。
  *
- * This mirrors the Python SDK's BaseConversation abstract class.
+ * 这反映了 Python SDK 的 BaseConversation 抽象类。
  */
 export interface IConversation {
-  /** The agent running in the conversation */
+  /** 对话中运行的智能体*/
   readonly agent: AgentBase;
-  /** The workspace for agent operations */
+  /** 智能体操作的工作区*/
   readonly workspace: IWorkspace;
-  /** The conversation ID (available after start()) */
+  /** 对话 ID（在 start() 之后可用）*/
   readonly id: ConversationID;
-  /** Access to conversation state */
+  /** 访问对话状态*/
   readonly state: IConversationState;
 
   /**
-   * Start or resume a conversation.
+   * 开始或恢复对话。
    *
-   * @param options - Start options including initial message
+   * @param options - 启动选项，包括初始消息
    */
   start(options?: {
     initialMessage?: string;
@@ -88,80 +88,80 @@ export interface IConversation {
   }): Promise<void>;
 
   /**
-   * Get conversation statistics.
+   * 获取对话统计数据。
    *
-   * @returns ConversationStats with iteration count and other metrics
+   * @returns ConversationStats 以及迭代计数和其他指标
    */
   conversationStats(): Promise<ConversationStats>;
 
   /**
-   * Send a message to the agent.
+   * 发送消息至智能体。
    *
-   * @param message - Either a string (which will be converted to a user message)
-   *                  or a Message object
+   * @param message - 一个字符串（将被转换为用户消息）
+   *                  或消息对象
    */
   sendMessage(message: string | Message): Promise<void>;
 
   /**
-   * Execute the agent to process messages and perform actions.
+   * 执行智能体来处理消息并执行操作。
    *
-   * This method runs the agent until it finishes processing the current
-   * message or reaches the maximum iteration limit.
+   * 该方法运行智能体直到处理完当前的
+   * 消息或达到最大迭代限制。
    */
   run(): Promise<void>;
 
   /**
-   * Pause the agent execution.
+   * 暂停智能体执行。
    */
   pause(): Promise<void>;
 
   /**
-   * Set the confirmation policy for the conversation.
+   * 设置对话的确认策略。
    *
-   * @param policy - The confirmation policy to apply
+   * @param policy - 要应用的确认策略
    */
   setConfirmationPolicy(policy: ConfirmationPolicyBase): Promise<void>;
 
   /**
-   * Send a confirmation response (accept or reject pending actions).
+   * 发送确认响应（接受或拒绝待处理的操作）。
    *
-   * @param accept - Whether to accept the pending action
-   * @param reason - Optional reason for the decision
+   * @param Accept - 是否接受待处理的操作
+   * @param Reason - 决定的可选原因
    */
   sendConfirmationResponse(accept: boolean, reason?: string): Promise<void>;
 
   /**
-   * Set the title of the conversation.
+   * 设置对话的标题。
    *
-   * @param title - The title to set
+   * @param title - 要设置的标题
    */
   setTitle(title: string): Promise<void>;
 
   /**
-   * Update secrets available to the agent.
+   * 更新机密可用于智能体。
    *
-   * @param secrets - Record of secret name to value mappings
+   * @param 机密 - 机密名称到值映射的记录
    */
   updateSecrets(secrets: Record<string, SecretValue>): Promise<void>;
 
   /**
-   * Start the WebSocket client for real-time event streaming.
+   * 启动 WebSocket 客户端以获取实时事件流式传输。
    */
   startWebSocketClient(): Promise<void>;
 
   /**
-   * Stop the WebSocket client.
+   * 停止 WebSocket 客户端。
    */
   stopWebSocketClient(): Promise<void>;
 
   /**
-   * Close the conversation and cleanup resources.
+   * 关闭对话并清理资源。
    */
   close(): Promise<void>;
 }
 
 /**
- * Type discriminator for conversation types.
- * Useful for runtime type checking and factory patterns.
+ * 对话类型的类型鉴别器。
+ * 对于运行时类型检查和工厂模式很有用。
  */
 export type ConversationType = 'local' | 'remote';

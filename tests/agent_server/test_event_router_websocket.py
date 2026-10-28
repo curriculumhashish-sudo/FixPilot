@@ -1,4 +1,4 @@
-"""Tests for websocket functionality in event_router.py"""
+"""测试 event_router.py 中的 WebSocket 功能"""
 
 import logging
 from datetime import UTC, datetime
@@ -21,7 +21,7 @@ from openhands.sdk.llm.message import TextContent
 
 @pytest.fixture
 def mock_websocket():
-    """Create a mock WebSocket for testing."""
+    """创建模拟对象 WebSocket 进行测试。"""
     websocket = MagicMock()
     websocket.accept = AsyncMock()
     websocket.receive_json = AsyncMock()
@@ -33,7 +33,7 @@ def mock_websocket():
 
 @pytest.fixture
 def mock_event_service():
-    """Create a mock EventService for testing."""
+    """创建模拟对象 EventService 进行测试。"""
     service = MagicMock(spec=EventService)
     service.subscribe_to_events = AsyncMock(return_value=uuid4())
     service.unsubscribe_from_events = AsyncMock(return_value=True)
@@ -44,13 +44,13 @@ def mock_event_service():
 
 @pytest.fixture
 def sample_conversation_id():
-    """Return a sample conversation ID."""
+    """返回示例对话 ID。"""
     return uuid4()
 
 
 @pytest.mark.asyncio
 async def test_websocket_subscriber_call_success(mock_websocket):
-    """Test successful event sending through WebSocket subscriber."""
+    """测试通过 WebSocket 订阅者发送成功的事件。"""
     subscriber = _WebSocketSubscriber(websocket=mock_websocket)
     event = MessageEvent(
         id="test_event",
@@ -69,7 +69,7 @@ async def test_websocket_subscriber_call_success(mock_websocket):
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_websocket_subscriber_call_exception(mock_websocket):
-    """Test exception handling in WebSocket subscriber."""
+    """测试 WebSocket 订阅者中的异常处理。"""
     mock_websocket.send_json.side_effect = Exception("Connection error")
     subscriber = _WebSocketSubscriber(websocket=mock_websocket)
     event = MessageEvent(
@@ -78,7 +78,7 @@ async def test_websocket_subscriber_call_exception(mock_websocket):
         llm_message=Message(role="user", content=[TextContent(text="test")]),
     )
 
-    # Should not raise exception, just log it
+    # 不应引发异常，只需记录它
     await subscriber(event)
 
     mock_websocket.send_json.assert_called_once()
@@ -86,11 +86,12 @@ async def test_websocket_subscriber_call_exception(mock_websocket):
 
 @pytest.mark.asyncio
 async def test_websocket_subscriber_skips_send_when_disconnected(mock_websocket):
-    """Regression: pub/sub callbacks must not attempt send() on a closed socket.
+    """Regression: pub/sub 回调不得在已关闭的套接字上尝试 send()。
 
-    Starlette raises ``RuntimeError: Cannot call "send" once a close message
-    has been sent.`` if we send after disconnect. The subscriber should detect
-    the DISCONNECTED state and skip silently.
+    如果我们在断开连接后发送，Starlette 会引发
+    ``RuntimeError: Cannot call "send" once a close message has been sent.``。 订阅者
+    应该检测
+    DISCONNECTED 状态并静默跳过。
     """
     from starlette.websockets import WebSocketState
 
@@ -111,8 +112,8 @@ async def test_websocket_subscriber_skips_send_when_disconnected(mock_websocket)
 async def test_websocket_subscriber_send_runtime_error_not_logged_as_exception(
     mock_websocket,
 ):
-    """Regression: a RuntimeError from send (race between disconnect and send)
-    should be logged at debug level, not as a full traceback via
+    """Regression: 来自发送的 RuntimeError（断开连接和发送之间的竞争）
+    应该在调试级别记录，而不是作为完整的回溯
     ``logger.exception``.
     """
     mock_websocket.send_json.side_effect = RuntimeError(
@@ -182,7 +183,7 @@ async def test_send_bash_event_error_logs_omit_output_and_exception(
 async def test_websocket_disconnect_breaks_loop(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that WebSocketDisconnect exception breaks the loop."""
+    """测试 WebSocketDisconnect 异常是否会中断循环。"""
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
     with (
@@ -207,7 +208,7 @@ async def test_websocket_disconnect_breaks_loop(
 async def test_websocket_no_double_unsubscription(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that unsubscription only happens once even with disconnect."""
+    """测试即使在断开连接的情况下，取消订阅也只会发生一次。"""
     subscriber_id = uuid4()
     mock_event_service.subscribe_to_events.return_value = subscriber_id
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
@@ -235,7 +236,7 @@ async def test_websocket_no_double_unsubscription(
 async def test_websocket_general_exception_continues_loop(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that general exceptions don't break the loop immediately."""
+    """测试一般异常不会立即中断循环。"""
     call_count = 0
 
     def side_effect():
@@ -274,7 +275,7 @@ async def test_websocket_general_exception_continues_loop(
 async def test_websocket_successful_message_processing(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test successful message processing before disconnect."""
+    """在断开连接之前测试消息处理是否成功。"""
     message_data = {"role": "user", "content": "Hello"}
     call_count = 0
 
@@ -311,8 +312,8 @@ async def test_websocket_successful_message_processing(
 async def test_disconnect_and_unsubscribe_when_send_error_fails(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that unsubscribe is called and the socket disconnects when sending
-    an error event fails."""
+    """测试发送时调用unsubscribe并且socket断开连接
+    错误事件失败。"""
     mock_websocket.receive_json.side_effect = RuntimeError("Connection broken")
     mock_websocket.send_json.side_effect = RuntimeError("Connection broken")
 
@@ -328,8 +329,8 @@ async def test_disconnect_and_unsubscribe_when_send_error_fails(
 
         from openhands.agent_server.sockets import events_socket
 
-        # RuntimeError is caught gracefully (like WebSocketDisconnect)
-        # and the function returns normally
+        # RuntimeError 被优雅地捕获（如 WebSocketDisconnect）并且函数正常返回
+        #
         await events_socket(
             sample_conversation_id, mock_websocket, session_api_key=None
         )
@@ -342,7 +343,7 @@ async def test_disconnect_and_unsubscribe_when_send_error_fails(
 async def test_resend_mode_none_no_resend(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that resend_mode=None doesn't trigger event resend."""
+    """测试 resend_mode=None 不会触发事件重新发送。"""
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
     with (
@@ -370,7 +371,7 @@ async def test_resend_mode_none_no_resend(
 async def test_resend_mode_all_resends_events(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that resend_mode='all' resends all existing events."""
+    """测试 resend_mode='all' 重新发送所有现有事件。"""
     mock_events = [
         MessageEvent(
             id="event1",
@@ -416,7 +417,7 @@ async def test_resend_mode_all_resends_events(
 async def test_resend_mode_since_with_timestamp(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that resend_mode='since' with after_timestamp filters events."""
+    """测试 resend_mode='since' 和 after_timestamp 过滤事件。"""
     mock_events = [
         MessageEvent(
             id="event1",
@@ -428,7 +429,7 @@ async def test_resend_mode_since_with_timestamp(
     mock_event_service.search_events = AsyncMock(return_value=mock_event_page)
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
-    # Use a naive timestamp
+    # 使用朴素的时间戳
     test_timestamp = datetime(2024, 1, 15, 10, 30, 0)
 
     with (
@@ -459,7 +460,7 @@ async def test_resend_mode_since_with_timestamp(
 async def test_resend_mode_since_without_timestamp_logs_warning(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that resend_mode='since' without after_timestamp logs warning."""
+    """测试 resend_mode='since' 而没有 after_timestamp 记录警告。"""
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
     with (
@@ -482,7 +483,7 @@ async def test_resend_mode_since_without_timestamp_logs_warning(
             after_timestamp=None,
         )
 
-    # Should log a warning and not call search_events
+    # 应该记录警告而不是调用 search_events
     mock_logger.warning.assert_called()
     warning_call = str(mock_logger.warning.call_args)
     assert "resend_mode='since' requires after_timestamp" in warning_call
@@ -493,7 +494,7 @@ async def test_resend_mode_since_without_timestamp_logs_warning(
 async def test_resend_mode_since_timezone_aware_is_normalized(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that timezone-aware timestamps are normalized to naive server time."""
+    """测试时区感知时间戳是否标准化为原始服务器时间。"""
     mock_events = [
         MessageEvent(
             id="event1",
@@ -505,7 +506,7 @@ async def test_resend_mode_since_timezone_aware_is_normalized(
     mock_event_service.search_events = AsyncMock(return_value=mock_event_page)
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
-    # Use a timezone-aware timestamp (UTC)
+    # 使用时区感知时间戳 (UTC)
     test_timestamp = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
     with (
@@ -527,26 +528,26 @@ async def test_resend_mode_since_timezone_aware_is_normalized(
             after_timestamp=test_timestamp,
         )
 
-    # search_events should be called with the normalized timestamp
+    # search_events 应该使用规范化时间戳来调用
     mock_event_service.search_events.assert_called_once()
     call_args = mock_event_service.search_events.call_args
     passed_timestamp = call_args.kwargs["timestamp__gte"]
-    # The timestamp should be naive (no tzinfo)
+    # 时间戳应该是天真的（没有tzinfo）
     assert passed_timestamp is not None
     assert passed_timestamp.tzinfo is None
-    # It should represent the same instant in time (converted to local)
+    # 它应该代表同一时刻（转换为本地）
     expected = test_timestamp.astimezone(None).replace(tzinfo=None)
     assert passed_timestamp == expected
 
 
-# Backward compatibility tests for deprecated resend_all parameter
+# 向后兼容性测试已弃用 resend_all 参数
 
 
 @pytest.mark.asyncio
 async def test_deprecated_resend_all_true_still_works(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test backward compatibility: resend_all=True still resends all events."""
+    """测试向后兼容性：resend_all=True 仍然重新发送所有事件。"""
     mock_events = [
         MessageEvent(
             id="event1",
@@ -577,12 +578,12 @@ async def test_deprecated_resend_all_true_still_works(
             resend_all=True,
         )
 
-    # Should log deprecation warning
+    # 应记录弃用警告
     mock_logger.warning.assert_called()
     warning_call = str(mock_logger.warning.call_args)
     assert "resend_all is deprecated" in warning_call
 
-    # But still function correctly
+    # 但仍能正常运行
     mock_event_service.search_events.assert_called_once_with(page_id=None)
     assert mock_websocket.send_json.call_count == 1
 
@@ -591,7 +592,7 @@ async def test_deprecated_resend_all_true_still_works(
 async def test_deprecated_resend_all_false_no_resend(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test backward compatibility: resend_all=False doesn't trigger event resend."""
+    """测试向后兼容性：resend_all=False 不会触发事件重新发送。"""
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
     with (
@@ -619,7 +620,7 @@ async def test_deprecated_resend_all_false_no_resend(
 async def test_resend_mode_takes_precedence_over_resend_all(
     mock_websocket, mock_event_service, sample_conversation_id
 ):
-    """Test that resend_mode takes precedence over deprecated resend_all."""
+    """测试 resend_mode 优先于已弃用 resend_all。"""
     mock_websocket.receive_json.side_effect = WebSocketDisconnect()
 
     with (
@@ -634,10 +635,10 @@ async def test_resend_mode_takes_precedence_over_resend_all(
 
         from openhands.agent_server.sockets import events_socket
 
-        # If resend_mode is explicitly None and resend_all=True, it should
-        # fallback to resend_all behavior for backward compat. But if
-        # resend_mode is set, it takes precedence over resend_all.
-        # Let's test with resend_mode="all" and resend_all=False
+        # 如果 resend_mode 显式为 None 并且 resend_all=True，则它应该回退方案到
+        # resend_all 行为以实现向后兼容。 但如果设置了resend_mode，则它优先于resend_all
+        # 。 让我们用 resend_mode="all" 和 resend_all=False 进行测试
+        #
         mock_events = [
             MessageEvent(
                 id="event1",
@@ -655,11 +656,11 @@ async def test_resend_mode_takes_precedence_over_resend_all(
             mock_websocket,
             session_api_key=None,
             resend_mode="all",
-            resend_all=False,  # This should be ignored since resend_mode is set
+            resend_all=False,  # 由于设置了 resend_mode，因此应忽略此设置
         )
 
     # resend_mode="all" should trigger resend, not the resend_all=False
     mock_event_service.search_events.assert_called_once()
-    # No deprecation warning since we're using the new API
+    # 由于我们使用新的 API，因此没有弃用警告
     warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
     assert not any("resend_all is deprecated" in w for w in warning_calls)

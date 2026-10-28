@@ -1,9 +1,9 @@
-"""Tests for RequestValidationError sanitization in the agent server.
+"""测试 Agent Server 中的 RequestValidationError 消毒。
 
-Verifies that 422 error responses do not leak sensitive fields such as
-``api_key``, ``env``, or other secret-bearing request values.
+验证 422 错误响应不会泄漏敏感字段，例如
+``api_key``、``env`` 或其他机密轴承请求值。
 
-Refs: OpenHands/evaluation#385
+Refs: OpenHands/评估#385
 """
 
 import pytest
@@ -18,15 +18,15 @@ from openhands.agent_server.api import (
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for _sanitize_validation_errors
+# 单元测试为 _sanitize_validation_errors
 # ---------------------------------------------------------------------------
 
 
 class TestSanitizeValidationErrors:
-    """Unit tests for _sanitize_validation_errors helper."""
+    """单元测试为 _sanitize_validation_errors 助手。"""
 
     def test_redacts_api_key_in_input(self):
-        """api_key values inside the input dict should be redacted."""
+        """输入字典内的 api_key 值应为已脱敏。"""
         errors = [
             {
                 "type": "missing",
@@ -48,11 +48,11 @@ class TestSanitizeValidationErrors:
         assert len(result) == 1
         agent_input = result[0]["input"]["agent"]
         assert agent_input["llm"]["api_key"] == "<redacted>"
-        # Non-secret fields should be preserved
+        # 应保留非机密字段
         assert agent_input["llm"]["model"] == "gpt-4"
 
     def test_redacts_env_values(self):
-        """All values under a redact-all map key (e.g. ``env``) are redacted."""
+        """redact-all 映射键下的所有值 (e.g. ``env``）是已脱敏。"""
         errors = [
             {
                 "type": "value_error",
@@ -74,7 +74,7 @@ class TestSanitizeValidationErrors:
         assert env["DATABASE_URL"] == "<redacted>"
 
     def test_preserves_non_secret_fields(self):
-        """Non-secret fields should pass through unchanged."""
+        """非机密字段应不变地通过。"""
         errors = [
             {
                 "type": "missing",
@@ -93,7 +93,7 @@ class TestSanitizeValidationErrors:
         assert result[0]["input"]["agent"]["tools"] == [{"name": "bash"}]
 
     def test_handles_errors_without_input(self):
-        """Errors that lack an 'input' key should pass through unchanged."""
+        """缺少“输入”键的错误应保持不变。"""
         errors = [
             {
                 "type": "missing",
@@ -105,7 +105,7 @@ class TestSanitizeValidationErrors:
         assert result == errors
 
     def test_handles_scalar_input(self):
-        """Scalar input values should pass through unchanged."""
+        """标量输入值应不变地通过。"""
         errors = [
             {
                 "type": "type_error",
@@ -118,7 +118,7 @@ class TestSanitizeValidationErrors:
         assert result[0]["input"] == "not_a_number"
 
     def test_does_not_mutate_original(self):
-        """The original error list should not be modified."""
+        """不应修改原始错误列表。"""
         original_errors = [
             {
                 "type": "missing",
@@ -131,16 +131,16 @@ class TestSanitizeValidationErrors:
                 },
             }
         ]
-        # Keep a reference to the original input
+        # 保留对原始输入的引用
         original_api_key = original_errors[0]["input"]["agent"]["llm"]["api_key"]
         _sanitize_validation_errors(original_errors)
-        # Original should be untouched
+        # 原件应该不受影响
         assert (
             original_errors[0]["input"]["agent"]["llm"]["api_key"] == original_api_key
         )
 
     def test_redacts_multiple_secret_patterns(self):
-        """Various secret key patterns should all be redacted."""
+        """各种机密键模式应该都是已脱敏。"""
         errors = [
             {
                 "type": "value_error",
@@ -166,7 +166,7 @@ class TestSanitizeValidationErrors:
         assert inp["name"] == "safe_value"
 
     def test_stringifies_value_error_context(self):
-        """ValueError in ctx should not break JSONResponse rendering."""
+        """ValueError 在 ctx 中不应该破坏 JSONResponse 的渲染。"""
         errors = [
             {
                 "type": "value_error",
@@ -180,22 +180,22 @@ class TestSanitizeValidationErrors:
         assert result[0]["ctx"]["error"] == "bad metadata"
 
     def test_empty_errors_list(self):
-        """An empty error list should return an empty list."""
+        """空错误列表应返回空列表。"""
         assert _sanitize_validation_errors([]) == []
 
 
 # ---------------------------------------------------------------------------
-# Integration tests using a real FastAPI test client
+# 集成测试使用真实的 FastAPI 测试客户端
 # ---------------------------------------------------------------------------
 
 
 class TestValidationErrorResponse:
-    """Integration tests verifying 422 responses are sanitized end-to-end."""
+    """集成测试验证 422 响应是否经过端到端清理。"""
 
     @pytest.fixture
     def app_with_validation(self):
-        """Create a minimal FastAPI app with our exception handlers and a
-        route that will trigger a RequestValidationError."""
+        """使用我们的异常处理程序和一个创建一个最小的 FastAPI 应用程序
+        将触发 RequestValidationError 的路由。"""
         app = FastAPI()
         _add_exception_handlers(app)
 
@@ -211,9 +211,9 @@ class TestValidationErrorResponse:
         return app
 
     def test_422_response_redacts_api_key(self, app_with_validation):
-        """Sending a payload that fails validation should not leak api_key."""
+        """发送失败验证的载荷不应泄漏 api_key。"""
         client = TestClient(app_with_validation)
-        # Send a payload missing the required 'name' field but with api_key
+        # 发送缺少必填“名称”字段但包含 api_key 的载荷
         response = client.post(
             "/test-endpoint",
             json={
@@ -224,11 +224,11 @@ class TestValidationErrorResponse:
         assert response.status_code == 422
         body = response.json()
 
-        # Verify the response has the expected structure
+        # 验证响应具有预期的结构
         assert "detail" in body
         assert len(body["detail"]) > 0
 
-        # Check that secrets are redacted in the input
+        # 检查输入中的机密是否为已脱敏
         for error in body["detail"]:
             if "input" in error and isinstance(error["input"], dict):
                 if "api_key" in error["input"]:
@@ -238,7 +238,7 @@ class TestValidationErrorResponse:
                         assert val == "<redacted>"
 
     def test_422_response_preserves_error_structure(self, app_with_validation):
-        """The sanitized 422 should preserve error type, loc, and msg."""
+        """清理后的 422 应保留错误类型、loc 和 msg。"""
         client = TestClient(app_with_validation)
         response = client.post(
             "/test-endpoint",
@@ -247,7 +247,7 @@ class TestValidationErrorResponse:
         assert response.status_code == 422
         body = response.json()
 
-        # Verify standard FastAPI validation error structure
+        # 验证标准 FastAPI 验证错误结构
         assert "detail" in body
         for error in body["detail"]:
             assert "type" in error
@@ -255,7 +255,7 @@ class TestValidationErrorResponse:
             assert "msg" in error
 
     def test_valid_request_unaffected(self, app_with_validation):
-        """Valid requests should not be affected by the exception handler."""
+        """有效请求不应受到异常处理程序的影响。"""
         client = TestClient(app_with_validation)
         response = client.post(
             "/test-endpoint",
@@ -269,7 +269,7 @@ class TestValidationErrorResponse:
         assert response.json() == {"ok": True}
 
     def test_422_with_non_json_body(self, app_with_validation):
-        """Sending non-JSON body should still return sanitized 422."""
+        """发送非 JSON 主体仍应返回清理后的 422。"""
         client = TestClient(app_with_validation)
         response = client.post(
             "/test-endpoint",

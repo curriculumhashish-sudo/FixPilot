@@ -1,4 +1,4 @@
-"""Tests for AsyncExecutor shutdown behaviour."""
+"""测试 AsyncExecutor 关闭行为。"""
 
 import threading
 import time
@@ -10,7 +10,7 @@ from openhands.sdk.utils.async_executor import AsyncExecutor
 
 
 def _close_in_background(executor: AsyncExecutor, **kwargs) -> threading.Event:
-    """Call close() off-thread so a hang fails the test instead of freezing it."""
+    """调用 close() off-线程，以便挂起使测试失败而不是冻结它。"""
     done = threading.Event()
 
     def run() -> None:
@@ -22,7 +22,7 @@ def _close_in_background(executor: AsyncExecutor, **kwargs) -> threading.Event:
 
 
 def test_close_returns_with_task_still_running():
-    """close() must not wait for in-flight tasks to finish on their own."""
+    """close() 不得等待正在进行的任务自行完成。"""
     executor = AsyncExecutor()
     executor.portal.start_task_soon(anyio.sleep_forever)
     time.sleep(0.1)
@@ -33,10 +33,10 @@ def test_close_returns_with_task_still_running():
 
 
 def test_close_gives_up_on_uncancellable_task():
-    """A task that ignores cancellation must not block close() past the timeout."""
+    """忽略取消的任务不得阻止 close() 超过超时。"""
 
     async def blocked_in_worker_thread() -> None:
-        # anyio cannot deliver cancellation until the worker thread returns.
+        # 在工作人员线程返回之前，anyio 无法交付取消。
         await run_sync(lambda: time.sleep(30))
 
     executor = AsyncExecutor()
@@ -57,7 +57,7 @@ def test_close_is_idempotent():
 
 
 def test_close_without_started_portal():
-    """close() on a lazily-created executor that never started a portal."""
+    """close() 在一个从未启动门户的延迟创建的执行器上。"""
     AsyncExecutor().close()
 
 

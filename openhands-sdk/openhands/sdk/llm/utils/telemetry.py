@@ -25,14 +25,14 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class UsageSnapshot:
-    """Provider-independent view of one response's token accounting.
+    """一个响应的 token 会计的独立于提供者的视图。
 
-    LiteLLM reports usage in two disjoint shapes that name the same quantities
-    differently: ``Usage`` (Chat Completions) uses ``prompt_tokens`` /
-    ``completion_tokens``, while ``ResponseAPIUsage`` (Responses API) uses
-    ``input_tokens`` / ``output_tokens``. Normalizing once, at the boundary,
-    keeps every consumer -- metrics, span attributes and completion logs -- on
-    a single vocabulary instead of rediscovering the aliases at each call site.
+    LiteLLM 报告名称相同数量的两个不相交形状的使用情况
+    differently: ``Usage``（聊天完成）使用 ``prompt_tokens`` /
+    ``completion_tokens``，而 ``ResponseAPIUsage``（响应 API）使用
+    ``input_tokens`` / ``output_tokens``. 一次标准化，边界处进行，而不是每次调用时重
+    新发现别名，确保每个消费者（指标、跨度属性和完
+    成日志）都使用同一个词汇表。
     """
 
     prompt_tokens: int = 0
@@ -43,27 +43,26 @@ class UsageSnapshot:
 
     @property
     def has_tokens(self) -> bool:
-        """Whether the provider reported any prompt or completion tokens."""
+        """提供者是否报告了任何提示词或完成情况 token。"""
         return self.prompt_tokens > 0 or self.completion_tokens > 0
 
 
 def normalize_usage(usage: Usage | ResponseAPIUsage | None) -> UsageSnapshot | None:
-    """Return a :class:`UsageSnapshot` for either provider usage shape.
+    """返回任一提供程序使用形状的：class:`UsageSnapshot`。
 
-    ``None`` means "no token accounting": the provider reported no usage, or
-    reported a shape this module does not recognize. Unrecognized shapes are
-    ignored rather than guessed at, so adding a provider cannot silently feed
-    invented token counts into cost and cache accounting.
+    ``None`` 表示“无 token 核算”：提供者报告没有使用，或报告了该模块无法识别的形状。
+    未识别的形状被忽略，而不是猜测，因此添加提供者不会无意识地将虚构
+    的 token 计数喂入成本和缓存计数。
     """
     if isinstance(usage, Usage):
         prompt_details = usage.prompt_tokens_details
         completion_details = usage.completion_tokens_details
-        # ``cache_creation_tokens`` defaults to ``None``, so presence in
-        # ``model_fields_set`` is what distinguishes "provider reported a cache
-        # write" from "provider said nothing about cache writes". litellm,
-        # however, deletes the attribute from the instance when the value is
-        # ``None`` (e.g. minimax-m3 reports ``cache_creation_tokens: null``),
-        # so ``model_fields_set`` alone is insufficient; guard with ``hasattr``.
+        # ``cache_creation_tokens`` 默认为 ``None``，因此存在于
+        # ``model_fields_set`` 是“提供商报告缓存写入”与“提供商对缓存写入未提及”的区别。
+        # 然而，LiteLLM 当值为
+        # ``None`` (e.g. minimax-m3 报告 ``cache_creation_tokens: null``），因此仅
+        # ``model_fields_set`` 是不够的； 守卫``hasattr``。
+        #
         cache_write = 0
         if (
             prompt_details is not None
@@ -111,12 +110,12 @@ def normalize_usage(usage: Usage | ResponseAPIUsage | None) -> UsageSnapshot | N
 def _response_usage(
     resp: ModelResponse | ResponsesAPIResponse,
 ) -> Usage | ResponseAPIUsage | None:
-    """Return the usage object a response carries, if any.
+    """返回响应携带的使用对象（如果有）。
 
-    ``ResponsesAPIResponse`` declares ``usage`` as a field. ``ModelResponse``
-    only accepts it as a constructor argument, so pydantic keeps it in the
-    model's extra mapping instead of its fields; reading that mapping is the
-    typed equivalent of probing for a possibly-absent attribute.
+    ``ResponsesAPIResponse`` 将 ``usage`` 声明为字段。 ``ModelResponse`` 仅接受它作为
+    构造函数参数，因此 Pyda
+    ntic 将其保留在模型的额外映射中，而不是其字段中； 读取该映射相当于探测可能不存在
+    的属性的类型。
     """
     if isinstance(resp, ResponsesAPIResponse):
         return resp.usage
@@ -132,11 +131,11 @@ def _response_usage(
 
 class Telemetry(BaseModel):
     """
-    Handles latency, token/cost accounting, and optional logging.
-    All runtime state (like start times) lives in private attrs.
+    处理延迟、令牌/成本核算和可选日志记录。 所有运行时状态（如开始时间）都存在于私有
+    属性中。
     """
 
-    # --- Config fields ---
+    # --- 配置字段 ---
     model_name: str = Field(default="unknown", description="Name of the LLM model")
     log_enabled: bool = Field(default=False, description="Whether to log completions")
     log_dir: str | None = Field(
@@ -151,7 +150,7 @@ class Telemetry(BaseModel):
 
     metrics: Metrics = Field(..., description="Metrics collector instance")
 
-    # --- Runtime fields (not serialized) ---
+    # --- 运行时字段（不是已序列化）---
     _req_start: float = PrivateAttr(default=0.0)
     _req_ctx: dict[str, Any] = PrivateAttr(default_factory=dict)
     _last_latency: float = PrivateAttr(default=0.0)
@@ -166,24 +165,24 @@ class Telemetry(BaseModel):
         extra="forbid", arbitrary_types_allowed=True
     )
 
-    # ---------- Lifecycle ----------
+    # ---------- 生命周期 ----------
     def set_log_completions_callback(
         self, callback: Callable[[str, str], None] | None
     ) -> None:
-        """Set a callback function for logging instead of writing to file.
+        """设置回调函数用于记录而不是写入文件。
 
         Args:
-            callback: A function that takes (filename, log_data) and handles the log.
-                     Used for streaming logs in remote execution contexts.
+            callback: 一个接受 (filename, log_data) 并处理日志的函数。
+                     用于远程执行上下文中的流式传输日志。
         """
         self._log_completions_callback = callback
 
     def set_stats_update_callback(self, callback: Callable[[], None] | None) -> None:
-        """Set a callback function to be notified when stats are updated.
+        """设置回调函数以在统计数据更新时收到通知。
 
         Args:
-            callback: A function called whenever metrics are updated.
-                     Used for streaming stats updates in remote execution contexts.
+            callback: 每当指标更新时调用的函数。
+                     用于远程执行上下文中的流式传输统计信息更新。
         """
         self._stats_update_callback = callback
 
@@ -199,23 +198,23 @@ class Telemetry(BaseModel):
         provider_info: LLMProvider | None = None,
     ) -> Metrics:
         """
-        Side-effects:
-          - records latency, tokens, cost into Metrics
-          - optionally writes a JSON log file
+        副作用：
+          - 将延迟、token、成本记录到指标中
+          - 可选择写入 JSON 日志文件
         """
-        # 1) latency
+        # 1) 延迟
         self._last_latency = time.time() - (self._req_start or time.time())
         response_id = resp.id
         self.metrics.add_response_latency(self._last_latency, response_id)
 
-        # 2) cost
+        # 2) 成本
         cost = self._compute_cost(resp, provider_info=provider_info)
-        # Intentionally skip logging zero-cost (0.0) responses; only record
-        # positive cost
+        # 故意跳过记录零成本 (0.0) 响应； 仅记录正成本
+        #
         if cost:
             self.metrics.add_cost(cost)
 
-        # 3) tokens - normalize the provider's usage shape exactly once
+        # 3) token - 将提供者的使用形状标准化一次
         usage = normalize_usage(_response_usage(resp))
 
         if usage is not None and usage.has_tokens:
@@ -223,15 +222,15 @@ class Telemetry(BaseModel):
                 usage, response_id, self._req_ctx.get("context_window", 0)
             )
 
-        # 4) optional logging
+        # 4) 可选日志记录
         if self.log_enabled:
             self.log_llm_call(resp, cost, raw_resp=raw_resp)
 
-        # 5) authoritative cost + cache buckets onto the span, before it closes
+        # 5) 权威成本+在关闭之前将桶缓存到跨度上
         self._annotate_span(cost, usage)
         self._close_span()
 
-        # 6) notify about stats update
+        # 6) 通知统计数据更新
         if self._stats_update_callback is not None:
             try:
                 self._stats_update_callback()
@@ -241,8 +240,9 @@ class Telemetry(BaseModel):
         return self.metrics.deep_copy()
 
     def on_error(self, _err: BaseException) -> None:
-        # Best-effort logging for failed requests (so we can debug malformed
-        # request payloads, e.g. orphaned Responses reasoning items).
+        # 尽力记录失败的请求（因此我们可以调试格式错误的请求载荷、e.g。 孤立的响应推理项
+        # 目）。
+        #
         self._last_latency = time.time() - (self._req_start or time.time())
         self._close_span(_err)
 
@@ -286,11 +286,11 @@ class Telemetry(BaseModel):
             warnings.warn(f"Telemetry error logging failed: {e}")
         return
 
-    # ---------- Helpers ----------
+    # ---------- 帮手 ----------
     def _record_usage(
         self, usage: UsageSnapshot, response_id: str, context_window: int
     ) -> None:
-        """Record an already-normalized usage snapshot into ``metrics``."""
+        """将已经标准化的使用情况快照记录到 ``metrics`` 中。"""
         self.metrics.add_token_usage(
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
@@ -301,15 +301,16 @@ class Telemetry(BaseModel):
             response_id=response_id,
         )
 
-    # ---------- Observability span ----------
-    # These bracket one LLM call: ``on_request`` -> transport -> ``on_response``
-    # all run inside a single retry attempt, so the span is current while
-    # litellm executes and still open when the cost is known.
+    # ---------- 可观测范围 ----------
+    # 这些括号包含一个 LLM 调用： ``on_request`` -> 传输层 -> ``on_response`` 都在一个重
+    # 试次尝试中运行，因此跨度在 LiteLLM 执行时是当前的，当成本确定时仍然打开。
+    #
     def _open_span(self) -> None:
-        self._close_span()  # a retry re-enters on_request; never leak the old one
+        self._close_span()  # a 重试重新进入 on_request； 永远不要泄露旧的
         try:
-            # Imported lazily: openhands.sdk.observability pulls in
-            # openhands.sdk.event, which imports this module.
+            # 延迟导入：openhands.sdk.observability 拉入 openhands.sdk.event，从而导入该
+            # 模块。
+            #
             from openhands.sdk.observability.laminar import llm_call_span
 
             cm = llm_call_span(f"llm.{self.model_name}")
@@ -325,14 +326,15 @@ class Telemetry(BaseModel):
             return
         try:
             if cost:
-                # Authoritative: _compute_cost prefers the proxy's
-                # x-litellm-response-cost header, which is already cache-aware
-                # and priced by the real backend rather than by a name lookup.
+                # 权威：_compute_cost更喜欢代理的
+                # x-LiteLLM-response-cost 标头，它已经具有缓存感知能力，并由真实后端而不
+                # 是名称查找定价。
+                #
                 span.set_attribute("gen_ai.usage.cost", float(cost))
             if usage is not None:
-                # Emitted unconditionally: lmnr only reports these when
-                # prompt_tokens_details is populated, which not every provider
-                # shape does.
+                # 无条件发出：lmnr 仅在填充 prompt_tokens_details 时报告这些内容，并非每
+                # 个提供程序形状都会这样做。
+                #
                 span.set_attribute(
                     "gen_ai.usage.cache_read_input_tokens", usage.cache_read_tokens
                 )
@@ -360,7 +362,7 @@ class Telemetry(BaseModel):
         resp: ModelResponse | ResponsesAPIResponse,
         provider_info: LLMProvider | None = None,
     ) -> float | None:
-        """Try provider header → litellm direct. Return None on failure."""
+        """尝试直接提供程序标头 → LiteLLM。 失败时返回None。"""
         extra_kwargs = {}
         if (
             self.input_cost_per_token is not None
@@ -404,11 +406,11 @@ class Telemetry(BaseModel):
         cost: float | None,
         raw_resp: ModelResponse | ResponsesAPIResponse | None = None,
     ) -> None:
-        # Skip if neither file logging nor callback is configured
+        # 如果文件日志记录和回调均未配置，则跳过
         if not self.log_dir and not self._log_completions_callback:
             return
         try:
-            # Prepare filename and log data
+            # 准备文件名和日志数据
             filename = (
                 f"{self.model_name.replace('/', '__')}-"
                 f"{time.time():.3f}-"
@@ -418,13 +420,13 @@ class Telemetry(BaseModel):
             data = self._req_ctx.copy()
             data["response"] = (
                 resp  # ModelResponse | ResponsesAPIResponse;
-                # serialized via _safe_json
+                # 已序列化通过 _safe_json
             )
             data["cost"] = float(cost or 0.0)
             data["timestamp"] = time.time()
             data["latency_sec"] = self._last_latency
 
-            # Usage summary (prompt, completion, reasoning tokens) for quick inspection
+            # 用法总结（提示词、完成、推理token）以供快速检查
             try:
                 usage = normalize_usage(_response_usage(resp))
                 if usage is not None:
@@ -435,16 +437,16 @@ class Telemetry(BaseModel):
                         "cache_read_tokens": usage.cache_read_tokens,
                     }
             except Exception:
-                # Best-effort only; don't fail logging
+                # 仅尽力而为； 不要记录失败
                 pass
 
-            # Raw response *before* nonfncall -> call conversion
+            # 原始响应 *before* nonfncall -> 调用转换
             if raw_resp:
                 data["raw_response"] = (
                     raw_resp  # ModelResponse | ResponsesAPIResponse;
-                    # serialized via _safe_json
+                    # 已序列化通过 _safe_json
                 )
-            # Pop duplicated tools to avoid logging twice
+            # 弹出重复的工具以避免记录两次
             if (
                 "tools" in data
                 and isinstance(data.get("kwargs"), dict)
@@ -454,11 +456,11 @@ class Telemetry(BaseModel):
 
             log_data = json.dumps(data, default=_safe_json, ensure_ascii=False)
 
-            # Use callback if set (for remote execution), otherwise write to file
+            # 如果设置则使用回调（用于远程执行），否则写入文件
             if self._log_completions_callback:
                 self._log_completions_callback(filename, log_data)
             elif self.log_dir:
-                # Create log directory if it doesn't exist
+                # 如果日志目录不存在则创建
                 os.makedirs(self.log_dir, exist_ok=True)
                 if not os.access(self.log_dir, os.W_OK):
                     raise PermissionError(f"log_dir is not writable: {self.log_dir}")
@@ -470,12 +472,11 @@ class Telemetry(BaseModel):
 
 
 def _redact_request_credentials(ctx: dict[str, Any]) -> dict[str, Any]:
-    """Return ``ctx`` with its logged request credentials copied and redacted.
+    """返回 ``ctx``，并复制其记录的请求凭据和已脱敏。
 
-    The logged ``kwargs`` share their header dicts with the live call, and some
-    LiteLLM providers write ``Authorization`` into them in place. Copying here,
-    before the call, keeps such mutations and caller-supplied credential
-    options and headers out of completion logs.
+    记录的 ``kwargs`` 与实时调用共享其标头字典，并且一些 LiteLLM 提供者将
+    ``Authorization`` 写入其中。 在调用之前在此处进行复制
+    ，可以将此类突变以及调用者提供的凭据选项和标头保留在完成日志之外。
     """
     kwargs = ctx.get("kwargs")
     if not isinstance(kwargs, dict):
@@ -490,21 +491,21 @@ def _redact_request_credentials(ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 def _safe_json(obj: Any) -> Any:
-    # Centralized serializer for telemetry logs.
-    # Prefer robust serialization for Pydantic models first to avoid cycles.
+    # 遥测日志的集中序列化器。 首先对 Pydantic 模型选择稳健的序列化以避免循环。
+    #
     if isinstance(obj, SecretStr):
         return str(obj)
 
-    # Typed LiteLLM responses
+    # 输入 LiteLLM 条回复
     if isinstance(obj, ModelResponse) or isinstance(obj, ResponsesAPIResponse):
         return obj.model_dump(mode="json", exclude_none=True)
 
-    # Any Pydantic BaseModel (e.g., ToolDefinition, ChatCompletionToolParam, etc.)
+    # 任意 Pydantic BaseModel（e.g.、ToolDefinition、ChatCompletionToolParam 等）
     if isinstance(obj, BaseModel):
-        # Use Pydantic's serializer which respects field exclusions (e.g., executors)
+        # 使用 Pydantic 的序列化器尊重字段排除（e.g.，执行者）
         return obj.model_dump(mode="json", exclude_none=True)
 
-    # Fallbacks for other non-serializable objects used elsewhere in the log payload
+    # 回退方案用于日志中其他地方使用的其他不可序列化对象载荷
     try:
         return obj.__dict__
     except Exception:

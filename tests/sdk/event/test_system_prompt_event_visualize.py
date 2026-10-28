@@ -1,4 +1,4 @@
-"""Tests for SystemPromptEvent.visualize method."""
+"""测试 SystemPromptEvent.visualize 方法。"""
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Self
@@ -15,19 +15,19 @@ if TYPE_CHECKING:
 
 
 class SimpleAction(Action):
-    """Simple test action."""
+    """简单的测试动作。"""
 
     pass
 
 
 class SimpleObservation(Observation):
-    """Simple test observation."""
+    """简单测试观测结果。"""
 
     pass
 
 
 class SimpleExecutor(ToolExecutor):
-    """Simple test executor."""
+    """简单的测试执行器。"""
 
     def __call__(
         self, action: SimpleAction, conversation: "LocalConversation | None" = None
@@ -36,7 +36,7 @@ class SimpleExecutor(ToolExecutor):
 
 
 class SimpleTool(ToolDefinition[SimpleAction, SimpleObservation]):
-    """Simple test tool."""
+    """简单的测试工具。"""
 
     @classmethod
     def create(cls, *args, **kwargs) -> Sequence[Self]:
@@ -51,8 +51,8 @@ class SimpleTool(ToolDefinition[SimpleAction, SimpleObservation]):
 
 
 def test_visualize_no_data_mutation():
-    """Test that visualize does not mutate the original event data."""
-    # Create a test tool instance
+    """测试可视化不会改变原始事件数据。"""
+    # 创建测试工具实例
     tool = SimpleTool.create()[0]
 
     event = SystemPromptEvent(
@@ -60,21 +60,21 @@ def test_visualize_no_data_mutation():
         tools=[tool],
     )
 
-    # Store initial properties
+    # 存储初始属性
     initial_name = event.tools[0].name
     initial_description = event.tools[0].description
 
-    # Call visualize multiple times
+    # 多次调用可视化
     for _ in range(3):
         _ = event.visualize
 
-    # Verify no mutation occurred (check key properties)
+    # 验证没有发生突变（检查关键属性）
     assert event.tools[0].name == initial_name
     assert event.tools[0].description == initial_description
 
 
 class LongParametersAction(Action):
-    """Action with many parameters to test truncation."""
+    """具有许多参数的操作来测试截断。"""
 
     param_0: str = Field(description="Parameter 0 with very long description")
     param_1: str = Field(description="Parameter 1 with very long description")
@@ -89,7 +89,7 @@ class LongParametersAction(Action):
 
 
 class LongParametersExecutor(ToolExecutor):
-    """Executor for long parameters action."""
+    """长参数操作的执行器。"""
 
     def __call__(
         self,
@@ -100,7 +100,7 @@ class LongParametersExecutor(ToolExecutor):
 
 
 class LongParametersTool(ToolDefinition[LongParametersAction, SimpleObservation]):
-    """Tool with many parameters to test truncation."""
+    """具有许多参数来测试截断的工具。"""
 
     @classmethod
     def create(cls, *args, **kwargs) -> Sequence[Self]:
@@ -115,8 +115,8 @@ class LongParametersTool(ToolDefinition[LongParametersAction, SimpleObservation]
 
 
 def test_visualize_parameter_truncation():
-    """Test that long parameter JSON strings are truncated in display."""
-    # Create tool with many parameters
+    """测试长参数 JSON 字符串在显示中是否被截断。"""
+    # 创建具有多个参数的工具
     tool = LongParametersTool.create()[0]
 
     event = SystemPromptEvent(
@@ -124,11 +124,11 @@ def test_visualize_parameter_truncation():
         tools=[tool],
     )
 
-    # Get visualization
+    # 获得可视化效果
     visualization = event.visualize
     visualization_text = visualization.plain
 
-    # Find parameters line
+    # 查找参数行
     params_lines = [
         line for line in visualization_text.split("\n") if "Parameters:" in line
     ]
@@ -136,21 +136,21 @@ def test_visualize_parameter_truncation():
 
     params_text = params_lines[0].split("Parameters: ")[1]
 
-    # Verify truncation
+    # 验证截断
     assert len(params_text) <= 200
     assert params_text.endswith("...")
 
 
 def test_visualize_string_truncation_logic():
-    """Test the string truncation logic for tool fields."""
-    # Create tool with long description
+    """测试工具字段的字符串截断逻辑。"""
+    # 创建具有长描述的工具
     long_description = (
         "This is a very long description that should be truncated when displayed "
         "in the visualization because it exceeds the 100 character limit that is "
         "applied to the first line of the description in the visualize method"
     )
 
-    # Create a custom tool with long description
+    # 创建具有详细描述的自定义工具
     tool = SimpleTool(
         description=long_description,
         action_type=SimpleAction,
@@ -163,17 +163,17 @@ def test_visualize_string_truncation_logic():
         tools=[tool],
     )
 
-    # Store original lengths
+    # 存储原始长度
     original_name_len = len(tool.name)
     original_desc_len = len(tool.description)
 
-    # Call visualize
+    # 调用可视化
     visualization = event.visualize
     visualization_text = visualization.plain
 
-    # Verify original data unchanged
+    # 验证原始数据不变
     assert len(event.tools[0].name) == original_name_len
     assert len(event.tools[0].description) == original_desc_len
 
-    # Verify visualization contains truncated display
-    assert "..." in visualization_text  # Some truncation occurred in display
+    # 验证可视化包含截断的显示
+    assert "..." in visualization_text  # 显示中发生一些截断

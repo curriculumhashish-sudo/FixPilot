@@ -154,26 +154,26 @@ def test_claim_writes_owner_host_and_pid(tmp_path: Path) -> None:
 def test_claim_takes_over_when_previous_owner_pid_is_dead(
     tmp_path: Path,
 ) -> None:
-    """Simulates a non-graceful shutdown: a dead PID still owns a live lease.
+    """模拟非正常关闭：死亡的 PID 仍然拥有活动租约。
 
-    Without the crash-recovery check the second claim would fail with
-    ``ConversationLeaseHeldError`` until the TTL elapsed and the
-    conversation would be skipped on agent-server restart.
+    如果没有崩溃恢复检查，第二个索赔将失败
+    ``ConversationLeaseHeldError`` 直到 TTL 过去，对话将在智能体服务器重新启动时跳过
+    。
     """
     conversation_dir = tmp_path / "conversation"
     primary = ConversationLease(
         conversation_dir=conversation_dir,
         owner_instance_id="primary",
-        ttl_seconds=3600.0,  # Make sure the TTL is far from elapsing.
+        ttl_seconds=3600.0,  # 确保 TTL 远未过去。
     )
     primary_claim = primary.claim()
     payload = _read_lease_payload(conversation_dir)
-    # Sanity: lease is nominally valid.
+    # 健全性：租约名义上有效。
     assert payload["expires_at"] > time.time() + 60
 
-    # Forge a lease that points at a PID guaranteed not to exist on this
-    # host. PID 2**31 - 1 is well beyond /proc/sys/kernel/pid_max in any
-    # real environment.
+    # 伪造指向 PID 的租约，保证该主机上不存在。 PID 2**31 - 1 在任何真实环境中都远远超出
+    #  /proc/sys/kernel/pid_max。
+    #
     dead_pid = 2**31 - 1
     forged = dict(payload)
     forged["owner_pid"] = dead_pid
@@ -195,11 +195,10 @@ def test_claim_takes_over_when_previous_owner_pid_is_dead(
 def test_claim_blocks_takeover_when_owner_is_on_a_different_host(
     tmp_path: Path,
 ) -> None:
-    """Liveness checks must not fire for owners on other hosts.
+    """不得为其他主机上的所有者触发活动检查。
 
-    If the lease was written by a peer agent-server running on a
-    different machine, our local PID table tells us nothing about
-    whether that process is alive, so we must fall back to the TTL.
+    如果租约是由运行在不同机器上的智能体-服务器写的，我们本地PID表中没有关于该进程是
+    否存活的信息，因此我们不得不回退到TTL。
     """
     conversation_dir = tmp_path / "conversation"
     primary = ConversationLease(
@@ -212,7 +211,7 @@ def test_claim_blocks_takeover_when_owner_is_on_a_different_host(
     payload = _read_lease_payload(conversation_dir)
     forged = dict(payload)
     forged["owner_host"] = "some-other-host"
-    forged["owner_pid"] = 2**31 - 1  # would be "dead" if checked locally
+    forged["owner_pid"] = 2**31 - 1  # 如果在本地检查将是“死”
     (conversation_dir / LEASE_FILE_NAME).write_text(json.dumps(forged))
 
     secondary = ConversationLease(
@@ -226,10 +225,9 @@ def test_claim_blocks_takeover_when_owner_is_on_a_different_host(
 def test_claim_falls_back_to_ttl_for_legacy_lease_files(
     tmp_path: Path,
 ) -> None:
-    """Lease files written by older versions don't include host/pid.
+    """旧版本编写的租约文件不包括host/pid。
 
-    They must continue to behave exactly as before: TTL-only expiry
-    decides whether a takeover may occur.
+    他们必须继续像以前一样行事：TTL-只有到期才决定是否可能发生接管。
     """
     conversation_dir = tmp_path / "conversation"
     conversation_dir.mkdir(parents=True)
@@ -252,7 +250,7 @@ def test_owner_pid_check_treats_unknown_errors_as_alive(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """We must err on the side of not stealing live leases."""
+    """我们必须避免窃取实时租约。"""
     conversation_dir = tmp_path / "conversation"
     primary = ConversationLease(
         conversation_dir=conversation_dir,
@@ -266,9 +264,9 @@ def test_owner_pid_check_treats_unknown_errors_as_alive(
 
     monkeypatch.setattr(conversation_lease_module.os, "kill", _raise_oserror)
 
-    # Forge the lease so it points at a PID that is NOT this process
-    # (otherwise the same-process short-circuit kicks in before
-    # _is_pid_alive is consulted).
+    # 伪造租约，使其指向 PID，即不此进程（否则同一进程短路会在咨询 _is_pid_alive 之前启
+    # 动）。
+    #
     payload = _read_lease_payload(conversation_dir)
     forged = dict(payload)
     forged["owner_pid"] = os.getpid() + 1
@@ -283,10 +281,10 @@ def test_owner_pid_check_treats_unknown_errors_as_alive(
 
 
 def test_claim_self_pid_match_is_not_treated_as_dead(tmp_path: Path) -> None:
-    """A lease referring to *this* process must never be considered dead.
+    """引用 *this* 进程的租约绝不能被视为死亡。
 
-    Otherwise a same-process re-entry (e.g. tests, or a fast restart that
-    happens to reuse the same PID) could erroneously trigger a takeover.
+    否则，同一进程重新进入 (e.g. 测试，或者碰巧重用相同的快速重启 PID）可能会错误地触
+    发接管。
     """
     conversation_dir = tmp_path / "conversation"
     primary = ConversationLease(
@@ -296,8 +294,8 @@ def test_claim_self_pid_match_is_not_treated_as_dead(tmp_path: Path) -> None:
     )
     primary.claim()
 
-    # The lease already has owner_pid == os.getpid(). A different-owner
-    # claim must still be rejected.
+    # 租约已经有 owner_pid == os.getpid()。 不同所有者的索赔仍必须被拒绝。
+    #
     secondary = ConversationLease(
         conversation_dir=conversation_dir,
         owner_instance_id="secondary",

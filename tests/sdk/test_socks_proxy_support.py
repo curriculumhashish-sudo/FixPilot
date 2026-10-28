@@ -1,9 +1,8 @@
-"""Tests for SOCKS proxy support (OpenHands/OpenHands-CLI#632).
+"""测试 SOCKS 代理支持 (OpenHands/OpenHands-CLI#632)。
 
-When a user has SOCKS proxy env vars set (e.g. all_proxy=socks5://...),
-httpx needs the socksio package to handle SOCKS proxy connections.
-Without it, importing litellm (which creates an httpx.Client at module
-level) crashes at startup with ImportError.
+当用户设置了 SOCKS 代理环境变量 (e.g. all_proxy=socks5://...)，httpx需要socksio包来处
+理SOCKS代理连接。 如果没有它，导
+入 LiteLLM（在模块级别创建 httpx.Client）会在使用 ImportError 启动时崩溃。
 """
 
 import os
@@ -12,23 +11,23 @@ import sys
 
 
 def test_socksio_is_installed():
-    """Verify that socksio is installed as part of httpx[socks]."""
+    """验证socksio 是否作为httpx[socks] 的一部分安装。"""
     import socksio  # noqa: F401
 
 
 def test_httpx_socks_extra_available():
-    """Verify httpx can create a client when SOCKS proxy env vars are set."""
+    """验证当设置 SOCKS 代理环境变量时 httpx 可以创建客户端。"""
     import httpx
 
-    # Simulate a SOCKS proxy env var; the Client constructor should not raise
-    # ImportError for socksio. We use a non-routable address so no real
-    # connection is attempted.
+    # 模拟 SOCKS 代理环境变量； 客户端构造函数不应该为socksio引发ImportError。 我们使用
+    # 不可路由的地址，因此不会尝试真正的连接。
+    #
     client = httpx.Client(proxy="socks5://127.0.0.1:19999")
     client.close()
 
 
 def test_import_with_socks_proxy_env():
-    """Ensure httpx can be imported and used when all_proxy is set to socks5."""
+    """确保all_proxy设置为socks5时可以导入并使用httpx。"""
     env = os.environ.copy()
     env["all_proxy"] = "socks5://127.0.0.1:19999"
     env["https_proxy"] = "socks5://127.0.0.1:19999"

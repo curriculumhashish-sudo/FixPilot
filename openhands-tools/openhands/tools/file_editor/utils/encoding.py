@@ -1,4 +1,4 @@
-"""Encoding management for file operations."""
+"""文件操作的编码管理。"""
 
 import codecs
 import functools
@@ -16,19 +16,18 @@ if TYPE_CHECKING:
     from openhands.tools.file_editor.impl import FileEditor
 
 
-# Control bytes that never appear in ordinary text files.
+# 从未出现在普通文本文件中的控制字节。
 BINARY_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0e-\x1f\x7f]")
 
-# Candidate codecs for whole-file decoding when the detector cannot resolve a
-# file's encoding. Short non-UTF-8 files fall below the detector's confidence
-# threshold and are reported as the default encoding, so the detected value
-# alone is not enough to recover them. Ordered most to least likely for source
-# files; the detector's own guess is tried right after UTF-8 when it is one of
-# these.
+# 当检测器无法解析文件的编码时，用于整个文件解码的候选编解码器。 短非-UTF-8个文件低于检
+# 测器的置信度阈值，被报告为默认编码，因此检测到的值本身不足以恢复它们。 对源文件按最可
+# 能到最不可能的顺序排序； 检测器的自我猜测随后被尝试 UTF-8 当它其中之一。
+#
 TEXT_DECODE_CANDIDATES = ("utf-8", "cp1252", "latin-1", "cp1251")
 
-# charset_normalizer reports some codecs under IANA names; map them to the
-# Python codec names used above so their guesses decode correctly.
+# charset_normalizer 报告 IANA 名称下的一些编解码器； 将它们映射到上面使用的 Python 编解
+# 码器名称，以便它们的猜测正确解码。
+#
 TEXT_DECODE_ALIASES = {
     "windows-1251": "cp1251",
     "windows-1252": "cp1252",
@@ -38,37 +37,37 @@ TEXT_DECODE_ALIASES = {
 
 
 class EncodingManager:
-    """Manages file encodings across multiple operations to ensure consistency."""
+    """跨多个操作管理文件编码以确保一致性。"""
 
-    # Default maximum number of entries in the cache
-    DEFAULT_MAX_CACHE_SIZE: int = 1000  # ~= 300 KB
+    # 缓存中默认最大条目数
+    DEFAULT_MAX_CACHE_SIZE: int = 1000  # 〜= 300 KB
     default_encoding: str
     confidence_threshold: float
 
     def __init__(self, max_cache_size=None):
-        # Cache detected encodings to avoid repeated detection on the same file
-        # Format: {path_str: (encoding, mtime)}
+        # 缓存检测到的编码以避免对同一文件进行重复检测
+        # 格式：{path_str:(编码，mtime)}
         self._encoding_cache: LRUCache[str, tuple[str, float]] = LRUCache(
             maxsize=max_cache_size or self.DEFAULT_MAX_CACHE_SIZE
         )
-        # Default fallback encoding
+        # 默认回退方案编码
         self.default_encoding = "utf-8"
-        # Confidence threshold for encoding detection
+        # 编码检测的置信阈值
         self.confidence_threshold = 0.9
 
     def detect_encoding(self, path: Path) -> str:
-        """Detect the encoding of a file without handling caching logic.
+        """检测文件的编码而不处理缓存逻辑。
         Args:
-            path: Path to the file
+            path: 文件路径
         Returns:
-            The detected encoding or default encoding if detection fails
+            检测到的编码或检测失败时的默认编码
         """
-        # Handle non-existent files
+        # 处理不存在的文件
         if not path.exists():
             return self.default_encoding
 
-        # Read a sample of the file to detect encoding
-        sample_size = min(os.path.getsize(path), 1024 * 1024)  # Max 1MB sample
+        # 读取文件样本以检测编码
+        sample_size = min(os.path.getsize(path), 1024 * 1024)  # 最大 1MB 样本
         with open(path, "rb") as f:
             raw_data = f.read(sample_size)
 
@@ -82,10 +81,10 @@ class EncodingManager:
         else:
             return self.default_encoding
 
-        # Use charset_normalizer instead of chardet
+        # 使用 charset_normalizer 代替 chardet
         results = charset_normalizer.detect(raw_data)
 
-        # Get the best match if any exists
+        # 获取最佳匹配（如果存在）
         if (
             results
             and results["confidence"]
@@ -93,9 +92,9 @@ class EncodingManager:
             and results["encoding"]
         ):
             encoding = results["encoding"]
-            # Always use utf-8 instead of ascii for text files to support
-            # non-ASCII characters. This ensures files initially containing only
-            # ASCII can later accept non-ASCII content
+            # 文本文件始终使用 utf-8 而不是 ascii，以支持非 ASCII 字符。 这确保最初仅包
+            # 含 ASCII 的文件稍后可以接受非 ASCII 内容
+            #
             if encoding.lower() == "ascii":
                 encoding = self.default_encoding
         else:
@@ -104,12 +103,12 @@ class EncodingManager:
         return encoding
 
     def _best_guess_encoding(self, path: Path) -> str | None:
-        """Return charset_normalizer's guess when it is a codec we trust.
+        """当它是我们信任的编解码器时，返回 charset_normalizer 的猜测。
 
-        Short non-UTF-8 files score below ``confidence_threshold`` even when
-        the guess is correct, so the raw guess is worth trying — but only when
-        it names a common codec, since the detector also proposes exotic
-        candidates (e.g. cp1006 for latin-1 text) that decode to mojibake.
+        短非-UTF-8 个得分低于 ``confidence_threshold`` 即使猜测正确，但原始猜测也值得
+        一试——但仅当它指出了一个常见的编码器，因为检
+        测器还提出了异国情调的候选者e.g. cp1006（表示 latin-1 文本），解码为 mojibake
+        。
         """
         try:
             sample_size = min(os.path.getsize(path), 1024 * 1024)
@@ -127,7 +126,7 @@ class EncodingManager:
         return normalized if normalized in TEXT_DECODE_CANDIDATES else None
 
     def _recover_encoding(self, path: Path) -> str | None:
-        """Return a codec that decodes ``path`` to control-byte-free text."""
+        """返回一个将 ``path`` 解码为无控制字节文本的编解码器。"""
         candidates = (
             self.default_encoding,
             self._best_guess_encoding(path),
@@ -143,7 +142,7 @@ class EncodingManager:
         return None
 
     def resolve_text_encoding(self, path: Path) -> str | None:
-        """Return an encoding that decodes ``path`` to clean text, else None."""
+        """返回将 ``path`` 解码为干净文本的编码，否则返回 None。"""
         encoding = self.get_encoding(path)
         try:
             text = path.read_text(encoding=encoding)
@@ -152,72 +151,71 @@ class EncodingManager:
         return encoding if BINARY_CONTROL_CHARS.search(text) is None else None
 
     def get_encoding(self, path: Path) -> str:
-        """Get encoding for a file, using cache or detecting if necessary.
+        """获取文件的编码，使用缓存或检测（如果需要）。
         Args:
-            path: Path to the file
+            path: 文件路径
         Returns:
-            The encoding for the file
+            文件的编码
         """
         path_str = str(path)
-        # If file doesn't exist, return default encoding
+        # 如果文件不存在，则返回默认编码
         if not path.exists():
             return self.default_encoding
 
-        # Get current modification time
+        # 获取当前修改时间
         current_mtime = os.path.getmtime(path)
 
-        # Check cache for valid entry
+        # 检查缓存中是否有有效条目
         if path_str in self._encoding_cache:
             cached_encoding, cached_mtime = self._encoding_cache[path_str]
             if cached_mtime == current_mtime:
                 return cached_encoding
 
-        # No valid cache entry, detect encoding
+        # 没有有效的缓存条目，检测编码
         encoding = self.detect_encoding(path)
 
-        # The detector reports the default encoding for short non-UTF-8 files
-        # that fall below its confidence threshold. Recover a decodable
-        # encoding so reads and validation agree on the same codec.
+        # 检测器报告低于其置信阈值的短非 UTF-8 文件的默认编码。 恢复可解码的编码，以便读
+        # 取和验证在相同的编解码器上达成一致。
+        #
         if encoding == self.default_encoding:
             recovered = self._recover_encoding(path)
             if recovered is not None:
                 encoding = recovered
 
-        # Cache the result with current modification time
+        # 缓存当前修改时间的结果
         self._encoding_cache[path_str] = (encoding, current_mtime)
         return encoding
 
 
 def with_encoding(method):
-    """Decorator to handle file encoding for file operations.
-    This decorator automatically detects and applies the correct encoding
-    for file operations, ensuring consistency between read and write operations.
+    """处理文件操作的文件编码的装饰器。
+    该装饰器自动检测并应用文件操作的正确编码，确保读写操作之间的一致性。
     Args:
-        method: The method to decorate
+        method: 装饰方法
     Returns:
-        The decorated method
+        装饰方法
     """
 
     @functools.wraps(method)
     def wrapper(self: "FileEditor", path: Path, *args, **kwargs):
-        # Skip encoding handling for directories
+        # 跳过目录的编码处理
         if path.is_dir():
             return method(self, path, *args, **kwargs)
 
-        # Check if the method accepts an encoding parameter
+        # 检查该方法是否接受编码参数
         sig = inspect.signature(method)
         accepts_encoding = "encoding" in sig.parameters
 
         if accepts_encoding:
-            # For files that don't exist yet (like in 'create' command),
-            # use the default encoding
+            # 对于尚不存在的文件（例如“创建”命令中的文件），请使用默认编码
+            #
             if not path.exists():
                 if "encoding" not in kwargs:
                     kwargs["encoding"] = self._encoding_manager.default_encoding
             else:
-                # Get encoding from the encoding manager for existing files
+                # 从编码管理器获取现有文件的编码
                 encoding = self._encoding_manager.get_encoding(path)
-                # Add encoding to kwargs if the method accepts it
+                # 如果方法接受，则将编码添加到 kwargs
                 if "encoding" not in kwargs:
                     kwargs["encoding"] = encoding
 

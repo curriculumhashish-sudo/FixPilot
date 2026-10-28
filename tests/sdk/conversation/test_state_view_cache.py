@@ -1,4 +1,4 @@
-"""Tests for the lazily-updated, watermark-based View cache on ConversationState."""
+"""在 ConversationState 上测试延迟更新、基于水印的视图缓存。"""
 
 import uuid
 from unittest.mock import patch
@@ -18,7 +18,7 @@ from openhands.sdk.workspace import LocalWorkspace
 
 @pytest.fixture
 def state(tmp_path):
-    """Create a minimal ConversationState backed by a temp directory."""
+    """创建一个由临时目录支持的最小 ConversationState。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("k"), usage_id="test")
     agent = Agent(llm=llm, tools=[])
     working_dir = tmp_path / "work"
@@ -60,7 +60,7 @@ def test_view_tracks_multiple_appends(state):
 
 
 def test_view_matches_full_rebuild(state):
-    """Incremental view must produce the same result as View.from_events."""
+    """增量视图必须产生与 View.from_events 相同的结果。"""
     for i in range(10):
         state.events.append(_msg(f"msg-{i}"))
     incremental_ids = [e.id for e in state.view.events]
@@ -69,7 +69,7 @@ def test_view_matches_full_rebuild(state):
 
 
 def test_view_matches_full_rebuild_with_condensation(state):
-    """Parity holds on sequences that include a Condensation."""
+    """奇偶校验适用于包含上下文压缩的序列。"""
     for i in range(5):
         state.events.append(_msg(f"msg-{i}"))
     condensation = Condensation(
@@ -98,7 +98,7 @@ def test_condensation_applied_incrementally(state):
         llm_response_id="test-resp",
     )
     state.events.append(condensation)
-    # View should reflect the condensation: m1 removed
+    # 视图应反映上下文压缩：m1 已删除
     assert len(state.view.events) == 2
     remaining_ids = {e.id for e in state.view.events}
     assert m1.id not in remaining_ids
@@ -113,7 +113,7 @@ def test_condensation_request_sets_flag(state):
 
 
 def test_hot_path_does_not_call_enforce_properties(state):
-    """Normal incremental appends must never invoke enforce_properties."""
+    """正常的增量追加绝不能调用 enforce_properties。"""
     call_count = 0
     original = View.enforce_properties
 
@@ -125,13 +125,13 @@ def test_hot_path_does_not_call_enforce_properties(state):
     with patch.object(View, "enforce_properties", counting_enforce):
         for i in range(10):
             state.events.append(_msg(f"msg-{i}"))
-        _ = state.view  # force lazy catch-up
+        _ = state.view  # 强制懒惰追赶
 
     assert call_count == 0
 
 
 def test_rebuild_view_runs_enforce_properties(state):
-    """rebuild_view must invoke enforce_properties (via View.from_events)."""
+    """rebuild_view 必须调用 enforce_properties（通过 View.from_events）。"""
     state.events.append(_msg("a"))
     call_count = 0
     original = View.enforce_properties
@@ -149,7 +149,7 @@ def test_rebuild_view_runs_enforce_properties(state):
 
 def test_rebuild_view_replaces_cached_instance(state):
     state.events.append(_msg("a"))
-    _ = state.view  # populate cache
+    _ = state.view  # 填充缓存
     old_view = state.view
 
     state.rebuild_view()
@@ -174,7 +174,7 @@ def test_rebuild_view_matches_from_events(state):
 
 
 def test_view_idempotent_on_repeated_reads(state):
-    """Reading the view multiple times without new events is a no-op."""
+    """在没有新事件的情况下多次读取视图是无操作的。"""
     state.events.append(_msg("x"))
     v1 = state.view
     v2 = state.view
@@ -183,14 +183,14 @@ def test_view_idempotent_on_repeated_reads(state):
 
 
 def test_resume_path_rebuilds_view(tmp_path):
-    """Resuming a persisted ConversationState cold-loads the view."""
+    """恢复已持久化 ConversationState 冷加载视图。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("k"), usage_id="test")
     agent = Agent(llm=llm, tools=[])
     working_dir = tmp_path / "work"
     working_dir.mkdir()
     persist = str(tmp_path / "persist")
 
-    # Create and populate
+    # 创建并填充
     state = ConversationState.create(
         id=uuid.uuid4(),
         agent=agent,
@@ -200,7 +200,7 @@ def test_resume_path_rebuilds_view(tmp_path):
     state.events.append(_msg("persisted-msg"))
     cid = state.id
 
-    # Resume into a fresh state
+    # 恢复到新鲜状态
     resumed = ConversationState.create(
         id=cid,
         agent=agent,
@@ -210,16 +210,17 @@ def test_resume_path_rebuilds_view(tmp_path):
     assert len(resumed.view.events) == 1
     assert resumed.view.events[0].id == state.events[0].id
 
-    # Verify the watermark is correctly set so incremental reads work
-    # post-resume (guards against rebuild_view leaving watermark at 0).
+    # 验证水印设置正确，以便增量读取在恢复后正常工作（防止 rebuild_view 将水印保留为 0）
+    # 。
+    #
     resumed.events.append(_msg("after-resume"))
     assert len(resumed.view.events) == 2
 
 
 def test_rebuild_view_leaves_cache_unchanged_on_error(state):
-    """If View.from_events raises, the old cache and branch marker are preserved."""
+    """如果 View.from_events 升高，则保留旧的缓存和分支标记。"""
     state.events.append(_msg("pre-error"))
-    _ = state.view  # populate the incremental cache
+    _ = state.view  # 填充增量缓存
     old_view = state._view
     old_branch_leaf = state._view_branch_leaf
 

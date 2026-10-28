@@ -1,14 +1,13 @@
-"""Reproduction test for the event loss race condition.
+"""事件丢失的再现测试竞态条件。
 
-This test demonstrates that without proper synchronization, events can be lost
-when the WebSocket callback is delayed and run() returns before events are
-delivered to the client.
+此测试演示了如果没有适当的同步，当 WebSocket 回调延迟且 run() 返回之前，事件可能会丢
+失。
 
-This is a regression test for the issue observed in PR #1829:
+这是针对 PR #1829 中观察到的问题的回归测试：
 https://github.com/OpenHands/software-agent-sdk/actions/runs/21364607784/job/61492749827?pr=1829#step:7:5709
 
-Run with: uv run pytest tests/cross/test_event_loss_repro.py -v
-"""
+运行时：uv run pytest tests/cross/test_event_loss_repro.py -v
+"""  # noqa: E501
 
 import json
 import threading
@@ -30,7 +29,7 @@ from openhands.workspace.docker.workspace import find_available_tcp_port
 
 @pytest.fixture
 def server_env_for_repro(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Launch a real FastAPI server for the reproduction test."""
+    """启动真实的 FastAPI 服务器进行再现测试。"""
     import shutil
 
     cwd_conversations = Path("workspace/conversations")
@@ -92,19 +91,18 @@ def server_env_for_repro(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_event_loss_race_condition_with_ws_delay(
     server_env_for_repro, monkeypatch: pytest.MonkeyPatch
 ):
-    """Reliably reproduce the event loss race condition.
+    """可靠地重现事件丢失竞态条件。
 
-    This test injects a delay in the WebSocket callback to simulate the race
-    condition where run() returns before events are delivered. This reproduces
-    the CI failure observed in PR #1829.
+    此测试在 WebSocket 回调中注入延迟以模拟竞态条件，其中 run() 在事件传递之前返回。
+    这再现了 PR #1829 中观察到的 CI 失败。
 
-    The race condition occurs when:
-    1. Server emits events (ActionEvent, ObservationEvent)
-    2. Client polls and sees "finished" status
-    3. run() returns before WebSocket delivers those events
+    竞态条件发生在以下情况：
+    1. 服务器发出事件 (ActionEvent, ObservationEvent)
+    2. 客户端轮询并看到“完成”状态
+    3. run() 在 WebSocket 传递这些事件之前返回
 
-    Without proper handling, the client will be missing the finish ActionEvent
-    and ObservationEvent that the REST API has.
+    如果没有正确的处理，客户端将错过 REST API 所具有的饰面 ActionEvent 和
+    ObservationEvent。
     """
 
     def fake_completion_with_finish_tool(
@@ -170,10 +168,10 @@ def test_event_loss_race_condition_with_ws_delay(
     )
     conv: RemoteConversation = Conversation(agent=agent, workspace=workspace)
 
-    # KEY: Inject a delay in the WebSocket callback for finish events
-    # This simulates the race condition where run() returns before events
-    # are delivered. A 3s delay ensures the events are definitely missed
-    # if there's no synchronization mechanism.
+    # KEY：在 WebSocket 回调中为完成事件注入延迟
+    # 这模拟了竞态条件，其中 run() 在事件传递之前返回。 如果没有同步机制，3 秒的延迟确保
+    # 事件肯定会丢失。
+    #
     ws_delay_s = 3.0
     assert conv._ws_client is not None
     orig_cb = conv._ws_client.callback
@@ -191,10 +189,10 @@ def test_event_loss_race_condition_with_ws_delay(
     conv.send_message("Complete the task")
     conv.run()
 
-    # Get events IMMEDIATELY after run() returns
+    # run() 返回后获取事件 IMMEDIATELY
     ws_events = list(conv.state.events)
 
-    # Fetch events from REST API to see what the server has
+    # 从RESTAPI中获取事件以查看服务器有什么
     with httpx.Client(base_url=server_env_for_repro["host"]) as client:
         response = client.get(
             f"/api/conversations/{conv._id}/events/search",
@@ -220,14 +218,14 @@ def test_event_loss_race_condition_with_ws_delay(
 
     conv.close()
 
-    # Verify REST API has the expected events (sanity check)
+    # 验证 REST API 具有预期事件（健全性检查）
     assert len(rest_action_events) >= 1, (
         f"REST API should have ActionEvent. REST events: {rest_event_summary}"
     )
 
-    # This assertion verifies that the fix works - client should have all events
-    # even with the WebSocket delay, because the fix ensures events are fetched
-    # before run() returns.
+    # 该断言验证了修复工作有效 - 客户端应该在 WebSocket 延迟的情况下仍然收到所有事件，因
+    # 为修复确保在 run() 返回之前事件被获取。
+    #
     ws_has_action = len(ws_action_events) >= 1
     assert ws_has_action, (
         f"ActionEvent with finish tool not found in client events. "

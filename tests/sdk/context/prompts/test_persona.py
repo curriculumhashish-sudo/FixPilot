@@ -1,4 +1,4 @@
-"""A persona replaces the persona-layer sections and keeps capability guidance."""
+"""角色替换角色层部分并保留功能指导。"""
 
 import re
 from pathlib import Path

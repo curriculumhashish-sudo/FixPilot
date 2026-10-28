@@ -1,4 +1,4 @@
-"""Shared test utilities for terminal tests."""
+"""用于终端测试的共享测试实用程序。"""
 
 import platform
 import tempfile
@@ -30,7 +30,7 @@ _WINDOWS_UNSUPPORTED_BACKEND_TEST_MODULES = {
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Skip tests that exercise Unix-only terminal backends on Windows."""
+    """跳过在 Windows 上使用仅限 Unix 的终端后端的测试。"""
     if platform.system() != "Windows":
         return
 
@@ -48,7 +48,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 def get_no_change_timeout_suffix(timeout_seconds):
-    """Helper function to generate the expected no-change timeout suffix."""
+    """用于生成预期的无变化超时后缀的辅助函数。"""
     return (
         f"\n[The command has no new output after {timeout_seconds} seconds. "
         f"{TIMEOUT_MESSAGE_TEMPLATE}]"
@@ -56,17 +56,17 @@ def get_no_change_timeout_suffix(timeout_seconds):
 
 
 def create_test_bash_session(work_dir=None):
-    """Create a terminal session for testing purposes."""
+    """创建终端会话以进行测试。"""
     if work_dir is None:
         work_dir = tempfile.mkdtemp()
     return create_terminal_session(work_dir=work_dir)
 
 
 def cleanup_bash_session(session):
-    """Clean up a terminal session after testing."""
+    """测试后清理终端会话。"""
     if hasattr(session, "close"):
         try:
             session.close()
         except Exception as e:
-            # Ignore cleanup errors - session might already be closed
+            # 忽略清理错误 - 会话可能已关闭
             logger.warning(f"Error during session cleanup: {e}")

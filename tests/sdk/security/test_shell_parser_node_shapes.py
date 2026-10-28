@@ -1,4 +1,4 @@
-"""Pin tree-sitter-bash node shapes needed by shell-security migration."""
+"""固定 shell 安全迁移所需的 tree-sitter-bash 节点形状。"""
 
 from __future__ import annotations
 

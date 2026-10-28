@@ -16,8 +16,8 @@ from openhands.sdk.utils.redact import (
 
 logger = logging.getLogger(__name__)
 
-# Git empty tree hash - this is a well-known constant in git
-# representing the hash of an empty tree object
+# Git 空树哈希 - 这是 git 中众所周知的常量，表示空树对象的哈希
+#
 GIT_EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 
@@ -26,7 +26,7 @@ def _run_git_subprocess(
     cwd: str | Path | None,
     timeout: int,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a subprocess with the capture/decode settings all git callers need."""
+    """使用所有 git 调用者所需的捕获/解码设置运行子进程。"""
     return subprocess.run(
         args,
         cwd=cwd,
@@ -47,7 +47,7 @@ def _run_git_probe(args: list[str], cwd: str | Path) -> str:
 
 
 def get_git_repository_metadata(repo_dir: str | Path) -> dict[str, str]:
-    """Return best-effort repository identity metadata."""
+    """返回尽力而为的存储库身份元数据。"""
     metadata: dict[str, str] = {}
     remote = _run_git_probe(["remote", "get-url", "origin"], repo_dir)
     if remote:
@@ -74,23 +74,22 @@ def run_git_command(
     expected_failure: bool = False,
     strip: bool = True,
 ) -> str:
-    """Run a git command safely without shell injection vulnerabilities.
+    """安全地运行 git 命令，没有 shell 注入漏洞。
 
     Args:
-        args: List of command arguments (e.g., ['git', 'status', '--porcelain'])
-        cwd: Working directory to run the command in (optional for commands like clone)
-        timeout: Timeout in seconds (default: 30)
-        expected_failure: Log a non-zero exit at debug level when the caller
-            intentionally probes for a fallback condition.
-        strip: Strip leading and trailing whitespace from the output. Pass
-            ``False`` to read file contents (e.g. ``git show rev:path``)
-            verbatim.
+        args: 命令参数列表 (e.g., ['git', 'status', '--porcelain'])
+        cwd: 工作目录运行命令（对于克隆等命令是可选的）
+        timeout: 超时以秒为单位（默认值：30）
+        expected_failure: 当调用者在调试级别记录非零退出
+            有意探测回退方案条件。
+        strip: 从输出中去除前导和尾随空格。 通行证
+            ``False`` 读取文件内容 (e.g. ``git show rev:path``）逐字记录。
 
     Returns:
-        Command output as string
+        命令输出为字符串
 
     Raises:
-        GitCommandError: If the git command fails
+        GitCommandError: 如果 git 命令失败
     """
     redacted_args = [redact_url_credentials_in_text(a) for a in args]
     cmd_str = shlex.join(redacted_args)
@@ -100,7 +99,7 @@ def run_git_command(
 
         if result.returncode != 0:
             error_msg = f"Git command failed: {cmd_str}"
-            # stderr can echo the remote URL (with embedded credentials on some
+            # stderr 可以回显远程 URL（在某些设备上嵌入凭据
             # git versions / error paths), so redact before logging and storing.
             redacted_stderr = redact_url_credentials_in_text(result.stderr)
             log = logger.debug if expected_failure else logger.error
@@ -139,16 +138,16 @@ def run_git_command(
 
 
 def _repo_has_commits(repo_dir: str | Path) -> bool:
-    """Check if a git repository has any commits.
+    """检查 git 存储库是否有任何提交。
 
-    Uses 'git rev-list --count --all' which returns "0" for empty repos
-    without failing, avoiding ERROR logs for expected conditions.
+    使用“git rev-list --count --all”，它会为空存储库返回“0”而不会失败，从而避免出现预
+    期条件的 ERROR 日志。
 
     Args:
-        repo_dir: Path to the git repository
+        repo_dir: git 存储库的路径
 
     Returns:
-        True if the repository has at least one commit, False otherwise
+        True 如果存储库至少有一次提交，False 否则
     """
     try:
         count = run_git_command(
@@ -161,7 +160,7 @@ def _repo_has_commits(repo_dir: str | Path) -> bool:
 
 
 def _rev_parse(repo_dir: str | Path, ref: str) -> str | None:
-    """Resolve ``ref`` to a commit SHA, or None if it doesn't resolve."""
+    """将 ``ref`` 解析为提交 SHA，如果未解析，则解析为 None。"""
     try:
         result = run_git_command(
             ["git", "--no-pager", "rev-parse", "--verify", ref],
@@ -174,8 +173,8 @@ def _rev_parse(repo_dir: str | Path, ref: str) -> str | None:
 
 
 def _merge_base(repo_dir: str | Path, ref_a: str, ref_b: str) -> str | None:
-    """Return the merge base of two refs, or None if it can't be computed
-    (e.g. unrelated histories, shallow clone)."""
+    """返回两个引用的合并基数，如果无法计算则返回 None
+    (e.g. 不相关的历史，浅克隆）。"""
     try:
         result = run_git_command(
             ["git", "--no-pager", "merge-base", ref_a, ref_b],
@@ -188,7 +187,7 @@ def _merge_base(repo_dir: str | Path, ref_a: str, ref_b: str) -> str | None:
 
 
 def _get_current_branch(repo_dir: str | Path) -> str | None:
-    """Return the current branch name, or None when detached/unborn."""
+    """返回当前分支名称，或在分离/未诞生时返回 None。"""
     try:
         branch = run_git_command(
             ["git", "--no-pager", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -203,11 +202,11 @@ def _get_current_branch(repo_dir: str | Path) -> str | None:
 
 
 def _get_remote_default_branch(repo_dir: str | Path) -> str | None:
-    """Find origin's default branch name (e.g. ``main``).
+    """查找 origin 的默认分支名称 (e.g. ``main``).
 
-    Prefers the local ``origin/HEAD`` symref (recorded on clone — no
-    network); falls back to ``git remote show origin`` (a network call)
-    for remotes that were added without recording ``origin/HEAD``.
+    更喜欢本地 ``origin/HEAD`` symref（在克隆上记录 - 无网络）； 对于未记录
+    ``origin/HEAD`` 的情况下添加的遥控器，回退到
+    ``git remote show origin``（网络调用）。
     """
     try:
         symref = run_git_command(
@@ -237,12 +236,12 @@ def _get_remote_default_branch(repo_dir: str | Path) -> str | None:
 
 
 def _has_tracked_changes(repo_dir: str | Path) -> bool:
-    """True when the working tree or index differs from HEAD.
+    """True 当工作树或索引不同于 HEAD 时。
 
-    Untracked files are deliberately excluded: they never appear in
-    ``git diff <ref>`` output (they're reported separately via
-    ``ls-files --others``), so they must not influence base selection —
-    a stray scratch file must not re-hide a fully-pushed branch's diff.
+    未跟踪的文件被故意排除：它们永远不会出现在
+    ``git diff <ref>`` 输出（它们通过
+    ``ls-files --others``），因此它们不得影响基本选择 - 杂散的临时文件不得重新隐藏完
+    全推送的分支的差异。
     """
     try:
         status = run_git_command(
@@ -251,43 +250,35 @@ def _has_tracked_changes(repo_dir: str | Path) -> bool:
         )
         return bool(status.strip())
     except GitCommandError:
-        # Fail-safe: treat as dirty so the branch keeps comparing against
-        # its own upstream instead of surfacing unrelated history.
+        # 故障安全：视为脏，因此分支不断与其自己的上游进行比较，而不是显示不相关的历史记
+        # 录。
+        #
         return True
 
 
 def _get_display_base_ref(repo_dir: str | Path) -> str:
-    """Auto-detect the base ref for *displaying* what a conversation changed.
+    """自动检测*显示*对话更改内容的基本引用。
 
-    Unlike the export algorithm (which must only pick bases that are
-    reconstructable from a fresh clone, because workspace-export patches
-    are replayed elsewhere), this picks the base that best answers "what
-    has been changed here" — including work that is already committed and
-    even pushed. Candidates, in order:
+    与导出算法（必须只选择可以从新鲜克隆中重建的基因为基础的）不同， 工作区- 脚本的输
+    出会被重播到其他地方），这会选择最佳答案“这里发生了什么”——包括已经提交和甚至
+    推送的工作。 候选人按顺序：
 
-    1. ``origin/<current-branch>`` — but *skipped* when it points at HEAD
+    1. ``origin/<current-branch>`` — 但当 * 指向 HEAD 时跳过 *
        while the tracked working tree is clean: comparing a fully-pushed
-       branch against its own upstream renders an empty diff and would
-       hide the branch's (PR's) work. A dirty tree keeps this candidate,
-       so a pre-existing attached branch shows only the new edits rather
-       than the whole branch history.
-    2. ``merge-base(HEAD, origin/<default>)`` — the fork point. Preferred
-       over the default tip so commits that landed on the default branch
-       after the fork don't render as reverse-noise.
-    3. ``origin/<default>`` — when the merge base is unavailable (e.g.
-       shallow clone).
-    4. Without a usable origin: ``merge-base(HEAD, local main|master)``,
-       only when that branch is not the current one and is an ancestor of
-       HEAD — exactly the no-remote worktree shape (``openhands/<uuid>``
-       forked off local ``main``), keeping committed work visible.
-    5. ``HEAD`` — git-status-style. In particular this keeps no-remote
-       repos from falling through to the empty tree, which would list
-       every tracked file as an addition.
+       针对其自己的上游的分支会呈现一个空的差异，并会隐藏该分支的（PR's）工作。 脏树
+       保留了这个候选，因此预先存在的附加分支仅显示新的编辑而不是整个分支历史记录。
+    2. ``merge-base(HEAD, origin/<default>)`` — 分叉点。 优先于默认提示，因此分叉后落
+    在默认分支上的提交不会呈现为反向噪声。
+    3. ``origin/<default>`` — 当合并基础不可用时 (e.g. 浅克隆）。
+    4. 没有可用的起源： ``merge-base(HEAD, local main|master)``只有当分支不是当前分支
+    ，并且是其祖先时， HEAD — 没有远
+    程的工作树 shape (``openhands/<uuid>`` forked off local ``main``), 保持已提交的工
+    作可见。
+    5. ``HEAD`` — git 状态样式。 特别是，这可以防止非远程存储库落入空树，空树会将每个
+    跟踪的文件作为添加项列出。
 
-    The caller has already handled repos without commits, so this only
-    falls back to the empty tree for an unborn/orphan HEAD (matching the
-    explicit-``HEAD``-override behavior: untracked files render as
-    additions).
+    调用者已经处理过没有提交的仓库，所以这只会回退到空树，对于一个未出生或孤儿的HEAD
+    （与显式-``HEAD``-override行为一致：未跟踪的文件显示为添加）。
     """
     head_sha = _rev_parse(repo_dir, "HEAD")
     current_branch = _get_current_branch(repo_dir)
@@ -339,53 +330,49 @@ def get_valid_ref(
     *,
     purpose: Literal["export", "display"] = "export",
 ) -> str | None:
-    """Get a valid git reference to compare against.
+    """获取有效的 git 参考来进行比较。
 
-    If ``override`` is provided, it is resolved via ``git rev-parse --verify``
-    and returned. This lets callers request, for example, ``HEAD`` to get
-    ``git status``-style diffs against the latest commit instead of against
-    the remote branch.
+    如果提供了``override``，则通过``git rev-parse --verify``解析并返回。 这允许调用者
+    请求，例如 ``HEAD`` 以获取
+    ``git status`` 风格的差异针对最新的提交，而不是针对远程分支。
 
-    The ``"HEAD"`` override is treated specially: if it does not resolve
-    (no commits on the current branch — e.g. a freshly ``git init``'d
-    workspace, or an orphan branch in a repo that has commits elsewhere),
-    we fall back to the empty-tree hash so callers see untracked files as
-    additions instead of an opaque ``rev-parse --verify`` failure. Other
-    overrides that do not resolve still raise ``GitCommandError`` so a
-    typo'd branch/SHA is not silently swallowed.
+    的 ``"HEAD"`` 重写时会特别处理：如果它没有解决（当前分支上没有提交记录） e.g. 新
+    鲜的 ``git init``'d 工作区，或者一个不在仓库中的孤
+    本分支（它在其他地方有提交记录），我们回退到空树哈希，让调用者看到未跟踪的文件作
+    为添加，而不是一个不可见的哈希 ``rev-parse --verify`` 失败。
+     其他未解决的重写仍然引发 ``GitCommandError`` 所以是一个错拼的分支SHA 没有被默默
+     吞没。
 
-    Otherwise, auto-detects a reference according to ``purpose``. For
-    ``purpose="export"`` (the default), tries multiple strategies:
-    1. Current branch's origin (e.g., origin/main)
-    2. Default branch (e.g., origin/main, origin/master)
-    3. Merge base with default branch
-    4. Empty tree (for new repositories)
+    否则，根据 ``purpose`` 自动检测参考。 对于
+    ``purpose="export"``（默认），尝试多种策略：
+    1. 当前分支的起源 (e.g., origin/main)
+    2. 默认分支（e.g.、origin/main、origin/master）
+    3. 将基础分支与默认分支合并
+    4. 空树（用于新存储库）
 
     Args:
-        repo_dir: Path to the git repository
-        override: Optional explicit ref (e.g. ``"HEAD"`` or a commit hash) to
-            use instead of the auto-detected comparison ref.
-        purpose: What the ref is used for. ``"export"`` (default) only picks
-            bases that are reconstructable from a fresh clone — required by
-            workspace export/restore, whose patches are replayed elsewhere.
-            ``"display"`` optimizes for showing a conversation's work (see
-            :func:`_get_display_base_ref`): it skips a fully-pushed branch's
-            own upstream, prefers the fork point over the default-branch
-            tip, and degrades to ``HEAD`` (git status-style) instead of the
-            empty tree for repos without a usable origin.
+        repo_dir: git 存储库的路径
+        override: 可选的显式引用 (e.g. ``"HEAD"`` 或提交哈希）到
+            使用而不是自动检测的比较参考。
+        purpose: ref 的用途是什么。 ``"export"``（默认）仅选择
+            可从新克隆重建的碱基 - 工作区导出/恢复所需，其补丁在其他地方重播。
+            ``"display"`` 优化显示对话的工作（参见
+            :func:`_get_display_base_ref`): 它跳过完全推送的分支
+            自身上游，偏好分支点而非默认分支的顶端，并且在没有可用的上游时，降级为
+            ``HEAD``（git status风格），而不是空树。
 
     Returns:
-        Valid git reference hash, or None if no valid reference found
+        有效的 git 引用哈希，如果没有找到有效的引用则为 None
 
     Raises:
-        GitCommandError: If a non-``"HEAD"`` ``override`` is provided and
-            does not resolve.
+        GitCommandError: 如果提供了非 ``"HEAD"`` ``override`` 且
+            没有解决。
     """
     if override is not None:
         try:
-            # Resolve explicit override and surface failure to the caller so
-            # the difference between "ref not found" and "no changes" stays
-            # visible.
+            # 解决调用者的显式覆盖和表面故障，以便“未找到引用”和“无更改”之间的差异保持可
+            # 见。
+            #
             return run_git_command(
                 [
                     "git",
@@ -398,17 +385,15 @@ def get_valid_ref(
                 expected_failure=override == "HEAD",
             )
         except GitCommandError:
-            # ``HEAD`` is the canonical "current branch tip"; if it doesn't
-            # resolve, the current branch has no commits yet. That happens for
-            # freshly ``git init``'d workspaces *and* for orphan branches in
-            # repos that have commits on other branches (so ``_repo_has_commits``
-            # alone can't catch the latter). Treat both as empty-tree compares
-            # so the Changes tab renders working-tree additions instead of
-            # bubbling up an opaque ``rev-parse --verify`` failure to the GUI.
+            # ``HEAD`` 当前分支的主干分支指针。 如果没有解决，则当前分支还没有提交。 这
+            # 发生在新鲜的 ``git init``'d 工作区  *和* 对于拥有其他分支提交记录的仓库中
+            # 的孤儿分支（所以 ``_repo_has_commits`` 单独无法捕获后者）。 将两者视为空树
+            # 比较，以便更改标签显示工作树添加而不是向上冒泡的透明内容
+            # ``rev-parse --verify`` 失败的 GUI.
             #
-            # For non-``HEAD`` overrides (explicit branches/SHAs the caller
-            # asked for), keep the strict behavior so a typo doesn't silently
-            # become "no changes".
+            # 对于非``HEAD``的覆盖（显式分支/SHAs调用者要求的），保持严格的模式，以免拼
+            # 写错误悄无声息地变成“没有变化”。
+            #
             if override == "HEAD":
                 logger.debug(
                     "Override 'HEAD' did not resolve in %s; using empty tree",
@@ -417,8 +402,9 @@ def get_valid_ref(
                 return GIT_EMPTY_TREE_HASH
             raise
 
-    # Check if repo has any commits first. Empty repos (created with git init)
-    # won't have commits or remotes, so we can skip directly to the empty tree fallback.
+    # 首先检查 repo 是否有任何提交。 空存储库（使用 git init 创建）不会有提交或远程，因
+    # 此我们可以直接跳到空树回退方案。
+    #
     if not _repo_has_commits(repo_dir):
         logger.debug("Repository has no commits yet, using empty tree reference")
         return GIT_EMPTY_TREE_HASH
@@ -428,20 +414,20 @@ def get_valid_ref(
 
     refs_to_try = []
 
-    # Try current branch's origin
+    # 尝试当前分支的起源
     try:
         current_branch = run_git_command(
             ["git", "--no-pager", "rev-parse", "--abbrev-ref", "HEAD"],
             repo_dir,
             expected_failure=True,
         )
-        if current_branch and current_branch != "HEAD":  # Not in detached HEAD state
+        if current_branch and current_branch != "HEAD":  # 不处于分离HEAD状态
             refs_to_try.append(f"origin/{current_branch}")
             logger.debug(f"Added current branch reference: origin/{current_branch}")
     except GitCommandError:
         logger.debug("Could not get current branch name")
 
-    # Try to get default branch from remote
+    # 尝试从远程获取默认分支
     try:
         remote_info = run_git_command(
             ["git", "--no-pager", "remote", "show", "origin"], repo_dir
@@ -455,7 +441,7 @@ def get_valid_ref(
                         f"Added default branch reference: origin/{default_branch}"
                     )
 
-                    # Also try merge base with default branch
+                    # 还可以尝试将基础分支与默认分支合并
                     try:
                         merge_base = run_git_command(
                             [
@@ -477,7 +463,7 @@ def get_valid_ref(
     except GitCommandError:
         logger.debug("Could not get remote information")
 
-    # Find the first valid reference
+    # 找到第一个有效的参考
     for ref in refs_to_try:
         try:
             result = run_git_command(
@@ -492,22 +478,22 @@ def get_valid_ref(
             logger.debug(f"Reference not valid: {ref}")
             continue
 
-    # Fallback to empty tree hash (always valid, no verification needed)
+    # 回退方案为空树哈希（始终有效，无需验证）
     logger.debug(f"Using empty tree reference: {GIT_EMPTY_TREE_HASH}")
     return GIT_EMPTY_TREE_HASH
 
 
 def validate_git_repository(repo_dir: str | Path) -> Path:
-    """Validate that the given directory is a git repository.
+    """验证给定目录是 git 存储库。
 
     Args:
-        repo_dir: Path to check
+        repo_dir: 检查路径
 
     Returns:
-        Validated Path object
+        验证路径对象
 
     Raises:
-        GitRepositoryError: If not a valid git repository
+        GitRepositoryError: 如果不是有效的 git 存储库
     """
     repo_path = Path(repo_dir).resolve()
 
@@ -526,21 +512,22 @@ def validate_git_repository(repo_dir: str | Path) -> Path:
 
 
 # ============================================================================
-# Git URL utilities
+# Git URL 实用程序
 # ============================================================================
 
 
 def is_git_url(source: str) -> bool:
-    """Check if a source string looks like a git URL.
+    """检查源字符串是否类似于 git URL。
 
-    Detects git URLs by their protocol/scheme rather than enumerating providers.
-    This handles any git hosting service (GitHub, GitLab, Codeberg, self-hosted, etc.)
+    检测 Git URLs 通过协议/方案，而不是列举提供者。 这处理任何 Git 仓储服务GitHub,
+    GitLab, Codeberg, self-hosted,
+     etc.)
 
     Args:
-        source: String to check.
+        source: 要检查的字符串。
 
     Returns:
-        True if the string appears to be a git URL, False otherwise.
+        如果字符串看起来是 git URL，则为 True，否则为 False。
 
     Examples:
         >>> is_git_url("https://github.com/owner/repo.git")
@@ -550,19 +537,19 @@ def is_git_url(source: str) -> bool:
         >>> is_git_url("/local/path")
         False
     """
-    # HTTPS/HTTP URLs to git repositories
+    # HTTPS/HTTP URLs 到 Git 仓库
     if source.startswith(("https://", "http://")):
         return True
 
-    # SSH format: git@host:path or user@host:path
+    # SSH 格式：git@host:path 或 user@host:path
     if re.match(r"^[\w.-]+@[\w.-]+:", source):
         return True
 
-    # Git protocol
+    # Git协议
     if source.startswith("git://"):
         return True
 
-    # File protocol (for testing)
+    # 文件协议（用于测试）
     if source.startswith("file://"):
         return True
 
@@ -570,31 +557,32 @@ def is_git_url(source: str) -> bool:
 
 
 def normalize_git_url(url: str) -> str:
-    """Normalize a git URL by ensuring a .git suffix for HTTPS URLs.
+    """规范化 git URL 确保具有 .git 后缀的 HTTPS  URLs.
 
-    Azure DevOps clone URLs (paths containing ``/_git/``) are left without the
-    suffix, since Azure DevOps resolves ``<repo>.git`` as a different repository.
+    Azure DevOps克隆 URLs（包含 ``/_git/`` 的路径）没有后缀，因为 Azure DevOps 解析
+    ``<repo>.git`` 为不同的仓
+    库。
 
     Args:
-        url: Git URL to normalize.
+        url: Git URL 进行标准化。
 
     Returns:
-        Normalized URL with a .git suffix for HTTPS/HTTP URLs, except Azure
-        DevOps ``/_git/`` URLs, which only lose a trailing slash.
+        URL 以 .git 后缀命名，HTTPS/HTTP 除外，Azure URLs DevOps ``/_git/`` URLs 只去
+        掉尾部斜杠。
 
     Examples:
         >>> normalize_git_url("https://github.com/owner/repo")
-        "https://github.com/owner/repo.git"
+        " https://github.com/owner/repo.git"
         >>> normalize_git_url("https://github.com/owner/repo.git")
-        "https://github.com/owner/repo.git"
+        " https://github.com/owner/repo.git"
         >>> normalize_git_url("git@github.com:owner/repo.git")
-        "git@github.com:owner/repo.git"
+        “git@github.com：所有者/repo.git”
         >>> normalize_git_url("https://dev.azure.com/org/project/_git/repo")
-        "https://dev.azure.com/org/project/_git/repo"
+        " https://dev.azure.com/org/project/_git/repo"
     """
     if url.startswith(("https://", "http://")) and not url.endswith(".git"):
         url = url.rstrip("/")
-        # Azure DevOps resolves ``<repo>.git`` as a different, missing repo.
+        # Azure DevOps 将 ``<repo>.git`` 解析为不同的、缺失的存储库。
         if "/_git/" in urlparse(url).path:
             return url
         url = f"{url}.git"
@@ -602,41 +590,40 @@ def normalize_git_url(url: str) -> str:
 
 
 def extract_repo_name(source: str) -> str:
-    """Extract a human-readable repository name from a git URL or path.
+    """从 git URL 或路径中提取人类可读的存储库名称。
 
-    Extracts the last path component (repo name) and sanitizes it for use
-    in directory names or display purposes.
+    提取最后一个路径组件（存储库名称）并对其进行清理以用于目录名称或显示目的。
 
     Args:
-        source: Git URL or local path string.
+        source: Git URL 或本地路径字符串。
 
     Returns:
-        A sanitized name suitable for use in directory names (max 32 chars).
+        适合在目录名称中使用的经过清理的名称（最多 32 个字符）。
 
     Examples:
         >>> extract_repo_name("https://github.com/owner/my-repo.git")
-        "my-repo"
+        “我的仓库”
         >>> extract_repo_name("git@github.com:owner/my-repo.git")
-        "my-repo"
+        “我的仓库”
         >>> extract_repo_name("/path/to/local-repo")
-        "local-repo"
+        “本地仓库”
     """
-    # Strip common prefixes to get to the path portion
+    # 去掉公共前缀以到达路径部分
     name = source
     for prefix in ("github:", "https://", "http://", "git://", "file://"):
         if name.startswith(prefix):
             name = name[len(prefix) :]
             break
 
-    # Handle SSH format: user@host:path -> path
+    # 句柄SSH格式：user@host:path -> path
     if "@" in name and ":" in name and "/" not in name.split(":")[0]:
         name = name.split(":", 1)[1]
 
-    # Remove .git suffix and get last path component
+    # 删除.git后缀并获取最后一个路径组件
     name = name.rstrip("/").removesuffix(".git")
     name = name.rsplit("/", 1)[-1]
 
-    # Sanitize: keep alphanumeric, dash, underscore only
+    # 清理：仅保留字母数字、破折号、下划线
     name = re.sub(r"[^a-zA-Z0-9_-]", "-", name)
     name = re.sub(r"-+", "-", name).strip("-")
 

@@ -15,11 +15,10 @@ logger = get_logger(__name__)
 
 
 class LocalWorkspace(BaseWorkspace):
-    """Local workspace implementation that operates on the host filesystem.
+    """在主机文件系统上运行的本地工作区实现。
 
-    LocalWorkspace provides direct access to the local filesystem and command execution
-    environment. It's suitable for development and testing scenarios where the agent
-    should operate directly on the host system.
+    LocalWorkspace 提供对本地文件系统和命令执行环境的直接访问。 它适用于智能体应直接
+    在主机系统上运行的开发和测试场景。
 
     Example:
         >>> workspace = LocalWorkspace(working_dir="/path/to/project")
@@ -29,17 +28,17 @@ class LocalWorkspace(BaseWorkspace):
     """
 
     def __init__(self, *, working_dir: str | Path, **kwargs: Any):
-        # Accept Path in signature for ergonomics and type checkers,
-        # but normalize to str for the underlying model field.
+        # 接受人体工程学和类型检查器签名中的 Path，但将底层模型字段标准化为 str。
+        #
         super().__init__(working_dir=str(working_dir), **kwargs)
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit the workspace context and send the completion callback.
+        """退出工作区上下文并发送完成回调。
 
-        Mirrors ``RemoteWorkspace.__exit__`` so automations driving a local
-        agent report their outcome — and their accumulated LLM cost — the same
-        way remote ones do. Does nothing unless ``AUTOMATION_CALLBACK_URL`` is
-        set, so ordinary local usage is unaffected.
+        镜像 ``RemoteWorkspace.__exit__``，因此驱动本地智能体的自动化报告其结果 - 以
+        及累积的 LLM 成本 - 与远程自动化的方式相
+        同。 除非设置 ``AUTOMATION_CALLBACK_URL``，否则不执行任何操作，因此普通本地使
+        用不受影响。
         """
         self._send_completion_callback(exc_type, exc_val)
         super().__exit__(exc_type, exc_val, exc_tb)
@@ -50,18 +49,18 @@ class LocalWorkspace(BaseWorkspace):
         cwd: str | Path | None = None,
         timeout: float = 30.0,
     ) -> CommandResult:
-        """Execute a bash command locally.
+        """在本地执行 bash 命令。
 
-        Uses the shared shell execution utility to run commands with proper
-        timeout handling, output streaming, and error management.
+        使用共享 shell 执行实用程序来运行具有正确超时处理、输出流式传输和错误管理的命
+        令。
 
         Args:
-            command: The bash command to execute
-            cwd: Working directory (optional)
-            timeout: Timeout in seconds
+            command: 要执行的 bash 命令
+            cwd: 工作目录（可选）
+            timeout: 超时以秒为单位
 
         Returns:
-            CommandResult: Result with stdout, stderr, exit_code, command, and
+            CommandResult: 结果包含 stdout、stderr、exit_code、command 和
                 timeout_occurred
         """
         logger.debug(f"Executing local bash command: {command} in {cwd}")
@@ -84,17 +83,17 @@ class LocalWorkspace(BaseWorkspace):
         source_path: str | Path,
         destination_path: str | Path,
     ) -> FileOperationResult:
-        """Upload (copy) a file locally.
+        """在本地上传（复制）文件。
 
-        For local systems, file upload is implemented as a file copy operation
-        using shutil.copy2 to preserve metadata.
+        对于本地系统，文件上传是作为文件复制操作实现的，使用 shutil.copy2 来保留元数
+        据。
 
         Args:
-            source_path: Path to the source file
-            destination_path: Path where the file should be copied
+            source_path: 源文件的路径
+            destination_path: 文件应复制到的路径
 
         Returns:
-            FileOperationResult: Result with success status and file information
+            FileOperationResult: 结果包含成功状态和文件信息
         """
         source = Path(source_path)
         destination = Path(destination_path)
@@ -102,10 +101,10 @@ class LocalWorkspace(BaseWorkspace):
         logger.debug(f"Local file upload: {source} -> {destination}")
 
         try:
-            # Ensure destination directory exists
+            # 确保目标目录存在
             destination.parent.mkdir(parents=True, exist_ok=True)
 
-            # Copy the file with metadata preservation
+            # 复制并保留元数据的文件
             shutil.copy2(source, destination)
 
             return FileOperationResult(
@@ -129,17 +128,17 @@ class LocalWorkspace(BaseWorkspace):
         source_path: str | Path,
         destination_path: str | Path,
     ) -> FileOperationResult:
-        """Download (copy) a file locally.
+        """在本地下载（复制）文件。
 
-        For local systems, file download is implemented as a file copy operation
-        using shutil.copy2 to preserve metadata.
+        对于本地系统，文件下载是作为文件复制操作实现的，使用 shutil.copy2 来保留元数
+        据。
 
         Args:
-            source_path: Path to the source file
-            destination_path: Path where the file should be copied
+            source_path: 源文件的路径
+            destination_path: 文件应复制到的路径
 
         Returns:
-            FileOperationResult: Result with success status and file information
+            FileOperationResult: 结果包含成功状态和文件信息
         """
         source = Path(source_path)
         destination = Path(destination_path)
@@ -147,10 +146,10 @@ class LocalWorkspace(BaseWorkspace):
         logger.debug(f"Local file download: {source} -> {destination}")
 
         try:
-            # Ensure destination directory exists
+            # 确保目标目录存在
             destination.parent.mkdir(parents=True, exist_ok=True)
 
-            # Copy the file with metadata preservation
+            # 复制并保留元数据的文件
             shutil.copy2(source, destination)
 
             return FileOperationResult(
@@ -170,47 +169,45 @@ class LocalWorkspace(BaseWorkspace):
             )
 
     def git_changes(self, path: str | Path) -> list[GitChange]:
-        """Get the git changes for the repository at the path given.
+        """在给定的路径中获取存储库的 git 更改。
 
         Args:
-            path: Path to the git repository
+            path: git 存储库的路径
 
         Returns:
-            list[GitChange]: List of changes
+            list[GitChange]：更改列表
 
         Raises:
-            Exception: If path is not a git repository or getting changes failed
+            Exception: 如果路径不是 git 存储库或获取更改失败
         """
         path = Path(self.working_dir) / path
         return get_git_changes(path)
 
     def git_diff(self, path: str | Path) -> GitDiff:
-        """Get the git diff for the file at the path given.
+        """获取给定路径中文件的 git diff。
 
         Args:
-            path: Path to the file
+            path: 文件路径
 
         Returns:
-            GitDiff: Git diff
+            GitDiff: git diff
 
         Raises:
-            Exception: If path is not a git repository or getting diff failed
+            Exception: 如果路径不是 git 存储库或获取 diff 失败
         """
         path = Path(self.working_dir) / path
         return get_git_diff(path)
 
     def pause(self) -> None:
-        """Pause the workspace (no-op for local workspaces).
+        """暂停工作区（本地工作区无操作）。
 
-        Local workspaces have nothing to pause since they operate directly
-        on the host filesystem.
+        本地工作区无需暂停，因为它们直接在主机文件系统上操作。
         """
         logger.debug("pause() called on LocalWorkspace - nothing to do")
 
     def resume(self) -> None:
-        """Resume the workspace (no-op for local workspaces).
+        """恢复工作区（本地工作区无操作）。
 
-        Local workspaces have nothing to resume since they operate directly
-        on the host filesystem.
+        本地工作区无需恢复，因为它们直接在主机文件系统上操作。
         """
         logger.debug("resume() called on LocalWorkspace - nothing to do")

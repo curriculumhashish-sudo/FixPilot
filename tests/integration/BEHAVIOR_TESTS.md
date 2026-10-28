@@ -1,64 +1,82 @@
-# Agent Behavior Testing Framework
+<a id="agent-behavior-testing-framework"></a>
 
-This document describes the behavior testing framework integrated into the existing integration test suite.
+# 智能体行为测试框架
 
-## Overview
+本文档描述了集成到现有集成测试套件中的行为测试框架。
 
-**Behavior tests** verify that agents follow system message guidelines and avoid undesirable behaviors, complementing the existing **task completion tests** that verify agents can successfully complete tasks.
+<a id="overview"></a>
 
-Both types of tests use the same infrastructure (`BaseIntegrationTest`) and run together in the CI/CD pipeline.
+## 概述
 
-## Test Types
+**行为测试**验证行为是否符合系统消息指南，并避免不希望的行为，智能体是现有**任务完成测试**的补充，后者验证智能体是否能成功完成任务。
 
-| Type | Status | Focus | Example |
+两种类型的测试都使用相同的基础设施 (`BaseIntegrationTest`) 并在 CI/CD 管道中一起运行。
+
+<a id="test-types"></a>
+
+## 测试类型
+
+| 类型 | 状态 | 焦点 | 示例 |
 |------|--------|-------|---------|
-| **Integration** (t*.py) | **Required** | Agent successfully completes tasks | `t01_fix_simple_typo.py` - fixes typos in a file |
-| **Behavior** (b*.py) | **Optional** | Agent follows system guidelines | `b01_no_premature_implementation.py` - doesn't implement when asked for advice |
+| **积分** (t*.py) | **必填** | 智能体成功完成任务 | `t01_fix_simple_typo.py` - 修复文件中的拼写错误 |
+| **行为** (b*.py) | **可选** | 智能体遵循系统指南 | `b01_no_premature_implementation.py` - 在寻求建议时不实施 |
 
-### Test Type Classification
+<a id="test-type-classification"></a>
 
-Tests are classified by type to distinguish between required and optional tests:
+### 测试类型分类
 
-- **Integration tests** (t*.py) - **REQUIRED**: Verify that the agent can successfully complete essential tasks. These tests must pass for releases and focus on whether the agent achieves the desired outcome.
-- **Behavior tests** (b*.py) - **OPTIONAL**: Verify that the agent follows system message guidelines and best practices. These tests track quality improvements and don't block releases. They focus on how the agent approaches problems and interacts with users.
+测试按类型分类，以区分必需测试和可选测试：
 
-## Behavior Tests
+- **集成测试** (t*.py) - **REQUIRED**：验证智能体是否可以成功完成基本任务。 这些测试必须通过才能发布，并重点关注智能体是否达到了预期的结果。
+- **行为测试** (b*.py) - **OPTIONAL**：验证智能体是否遵循系统消息准则和最佳实践。 这些测试跟踪质量改进并且不会阻止发布。 他们关注智能体如何处理问题并与用户交互。
 
-### What They Test
+<a id="behavior-tests"></a>
 
-Behavior tests verify that agents:
-- ✅ Don't start implementing when asked for advice
-- ✅ Follow system message guidelines and best practices
-- ✅ Handle complex, nuanced scenarios appropriately
+## 行为测试
 
-### Guidelines for Adding Behavior Tests
+<a id="what-they-test"></a>
 
-Behavior tests should focus on **complex, real-world scenarios** that reveal subtle behavioral issues:
+### 他们测试什么
 
-**DO:**
-- Use real repositories from real problems encountered in production or development
-- Check out to a specific historic commit before the problem was fixed
-- Reset/remove all future commits so the agent cannot "cheat" by seeing the solution (see `b01_no_premature_implementation.py` for example)
-- Test complex, nuanced agent behaviors that require judgment
-- Use realistic, multi-file codebases with actual context
-- Consider using LLM judges to evaluate behavior quality when appropriate
+行为测试验证智能体：
+- ✅ 不要在寻求建议时开始实施
+- ✅ 遵循系统消息指南和最佳实践
+- ✅ 适当处理复杂、微妙的场景
 
-**DO NOT:**
-- Add simple, synthetic tests that can be easily verified with basic assertions
-- Create artificial scenarios with minimal setup (single file with trivial content)
-- Test behaviors that are too obvious or straightforward
-- Write tests where the "correct" behavior is immediately evident from the instruction
+<a id="guidelines-for-adding-behavior-tests"></a>
 
-The goal is to catch subtle behavioral issues that would appear in real-world usage, not to test basic functionality.
+### 添加行为测试的指南
 
-## Writing Behavior Tests
+行为测试应关注 ** 复杂的现实场景 **，这些场景揭示了微妙的行为问题：
 
-### 1. Create Test File
+**做：**
+- 使用来自生产或开发中遇到的实际问题的真实存储库
+- 在问题解决之前检查特定的历史提交
+- 重置/删除所有未来的提交，以便智能体无法通过查看解决方案来“欺骗”（例如，请参阅 `b01_no_premature_implementation.py`）
+- 测试需要判断的复杂、细致的智能体行为
+- 使用真实的多文件代码库和实际的上下文
+- 适当时考虑使用 LLM 个法官来评估行为质量
 
-Create a file in `tests/integration/tests/` with naming pattern `b##_*.py`:
+**做不：**
+- 添加简单的综合测试，可以使用基本断言轻松验证
+- 创建最小化设置的假想场景（单个文件，内容简单）
+- 测试过于明显或直接的行为
+- 编写测试，其中“正确”行为从指令中立即显而易见
+
+目标是捕获实际使用中出现的微妙行为问题，而不是测试基本功能。
+
+<a id="writing-behavior-tests"></a>
+
+## 编写行为测试
+
+<a id="1-create-test-file"></a>
+
+### 1. 创建测试文件
+
+使用命名模式 `b##_*.py` 在 `tests/integration/tests/` 中创建文件：
 
 ```python
-"""Test description here."""
+"""测试说明在这里。"""
 
 import os
 from openhands.sdk.tool import Tool, register_tool
@@ -70,7 +88,7 @@ INSTRUCTION = "Your user prompt that might trigger undesirable behavior"
 
 class YourBehaviorTest(BaseIntegrationTest):
     INSTRUCTION: str = INSTRUCTION
-    # Note: Test type is automatically determined by filename (b*.py = behavior)
+    # 注意：测试类型由文件名自动确定（b*.py = 行为）
 
     @property
     def tools(self) -> list[Tool]:
@@ -79,11 +97,11 @@ class YourBehaviorTest(BaseIntegrationTest):
         return [Tool(name="TerminalTool"), Tool(name="FileEditorTool")]
 
     def setup(self) -> None:
-        # Create any files/directories needed for the test
+        # 创建测试所需的任何文件/目录
         pass
 
     def verify_result(self) -> TestResult:
-        # Check agent behavior using helper methods
+        # 使用辅助方法检查智能体行为
         editing_ops = self.find_file_editing_operations()
 
         if editing_ops:
@@ -95,21 +113,25 @@ class YourBehaviorTest(BaseIntegrationTest):
         return TestResult(success=True, reason="Agent behaved correctly")
 ```
 
-**Note**: Test type is automatically determined by the filename prefix:
-- Files starting with `b` (e.g., `b01_*.py`) are classified as behavior tests
-- Files starting with `t` (e.g., `t01_*.py`) are classified as integration tests
+**注**：测试类型由文件名前缀自动确定：
+- 以 `b` (e.g., `b01_*.py`) 开头的文件被归类为行为测试
+- 以 `t` (e.g., `t01_*.py`) 开头的文件被分类为集成测试
 
-### 2. Validate Behavior
+<a id="2-validate-behavior"></a>
 
-- Keep assertions focused on the user-facing behavior you want to enforce.
-- Reach for `judge_agent_behavior` (see `tests/integration/utils/llm_judge.py`) when human-style evaluation is needed.
-- Make setup faithful to real incidents so the agent experiences the same context users faced.
+### 2. 验证行为
 
-For additional patterns, read the existing suites such as `b01_no_premature_implementation.py`.
+- 将断言集中于您想要强制执行的面向用户的行为。
+- 当需要人性化评估时，请使用 `judge_agent_behavior`（参见 `tests/integration/utils/llm_judge.py`）。
+- 让设置忠实于真实事件，以便智能体体验到与上下文用户所面临的相同的体验。
 
-## Running Tests
+有关其他模式，请阅读现有套件，例如 `b01_no_premature_implementation.py`。
 
-Use the integration runner locally when developing new scenarios:
+<a id="running-tests"></a>
+
+## 运行测试
+
+开发新场景时在本地使用集成运行器：
 
 ```bash
 python tests/integration/run_infer.py \
@@ -117,11 +139,13 @@ python tests/integration/run_infer.py \
   --eval-ids "b01_no_premature_implementation"
 ```
 
-CI automatically runs behavior and integration tests together via `.github/workflows/integration-runner.yml` when the `integration-test` label is applied or the workflow is triggered manually.
+当应用 `integration-test` 标签或手动触发工作流程时，CI 通过 `.github/workflows/integration-runner.yml` 自动运行行为和集成测试。
 
-## Test Results
+<a id="test-results"></a>
 
-Results include both integration and behavior tests with separate success rates:
+## 测试结果
+
+结果包括具有不同成功率的集成和行为测试：
 
 ```
 Overall Success rate: 90.00% (9/10)
@@ -133,26 +157,29 @@ Evaluation Results:
 ...
 ```
 
-In this example, all required integration tests passed (100%), while some optional behavior tests failed. This would not block a release, but the 
-behavior test failures should be investigated for UX improvements.
+在此示例中，所有必需的集成测试通过 (100%)，而某些可选行为测试失败。 这不会阻止发布，但应该调查行为测试失败以改进用户体验。
 
-## Adding New Behavior Tests
+<a id="adding-new-behavior-tests"></a>
 
-1. **Identify undesirable behavior** from real agent failures
-2. **Create a prompt** that might trigger that behavior
-3. **Write test** using the pattern above
-4. **Verify locally** before committing
-5. **Document** what behavior you're testing and why
+## 添加新的行为测试
 
-## System Message Optimization
+1. **从真实的智能体故障中识别不良行为**
+2. **创建一个可能触发该行为的提示词**
+3. **使用上面的模式编写测试**
+4. **提交前在本地验证**
+5. **记录**您正在测试什么行为以及原因
 
-Behavior tests serve as **regression tests for system messages**. When evolving ystem messages:
+<a id="system-message-optimization"></a>
 
-1. Run behavior test suite
-2. Identify tests that start failing
-3. Analyze if the failure indicates:
-   - System message needs improvement
-   - Test needs updating
-   - Acceptable trade-off
-4. Iterate on system message
-5. Re-run tests to verify
+## 系统消息优化
+
+行为测试充当系统消息**的**回归测试。 演化系统消息时：
+
+1. 运行行为测试套件
+2. 识别开始失败的测试
+3. 分析故障是否表明：
+   - 系统消息需要改进
+   - 测试需要更新
+   - 可接受的权衡
+4. 迭代系统消息
+5. 重新运行测试以验证

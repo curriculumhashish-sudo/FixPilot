@@ -1,9 +1,9 @@
-"""Sub-agents router for OpenHands Agent Server.
+"""子智能体 OpenHands Agent Server 的路由器。
 
-A single read endpoint listing the file-based and built-in sub-agents available
-to a workspace (mirrors ``skills_router``'s ``POST /skills``). No CRUD: the
-catalog is discovered, not mutated. Named ``sub_agents`` to distinguish these
-delegate agents from the top-level agent and ``agent_profiles``.
+一次读取端点列出了工作区可用的基于文件的内置子智能体（镜像 ``skills_router`` 的
+``POST /skills``）。 否 CRUD：目录是被发现的，而不
+是突变的。 命名为 ``sub_agents`` 以将这些委托智能体与顶级智能体和 ``agent_profiles``
+区分开来。
 """
 
 from typing import Any
@@ -28,7 +28,7 @@ sub_agents_router = APIRouter(prefix="/sub-agents", tags=["Sub Agents"])
 
 
 class SubAgentsRequest(BaseModel):
-    """Request body for listing sub-agents."""
+    """请求正文列出子智能体。"""
 
     load_user: bool = Field(
         default=True,
@@ -49,11 +49,11 @@ class SubAgentsRequest(BaseModel):
 
 
 class SubAgentInfo(BaseModel):
-    """Lossless view of an ``AgentDefinition`` returned by the API.
+    """API 返回的 ``AgentDefinition`` 的无损视图。
 
-    Every frontmatter field plus the discovered ``level``/``source``, an
-    ``is_builtin`` flag, and the inline ``system_prompt`` (Markdown body) so a
-    detail view needs no extra fetch.
+    每个前置元数据字段加上发现的 ``level``/``source``，一个
+    ``is_builtin`` 标志和内联 ``system_prompt``（Markdown 主体），因此详细视图不需要
+    额外的获取。
     """
 
     name: str
@@ -117,7 +117,7 @@ class SubAgentInfo(BaseModel):
 
 
 class SubAgentsResponse(BaseModel):
-    """Response containing all available sub-agents."""
+    """响应包含所有可用的子智能体。"""
 
     agents: list[SubAgentInfo]
 
@@ -126,11 +126,10 @@ class SubAgentsResponse(BaseModel):
 def get_sub_agents(
     request: SubAgentsRequest, http_request: Request
 ) -> SubAgentsResponse:
-    """List file-based and built-in sub-agents for the workspace.
+    """列表基于文件且内置子智能体为工作区。
 
-    Merged first-wins by name with precedence project > user > builtin. Read-only:
-    it registers nothing into the conversation registry. Browser-only built-ins
-    are left out when the server's config disables the browser.
+    按名称合并优先项目 > 用户 > 内置。 只读：它没有在会话注册表中注册任何内容。 当服
+    务器的配置禁用浏览器时，仅浏览器内置的插件将被排除。
     """
     discovered = discover_agents(
         project_dir=request.project_dir,
@@ -146,7 +145,7 @@ def get_sub_agents(
         else []
     )
 
-    # project > user (from discover_agents) > builtin: first wins on name clash.
+    # 项目 > 用户（来自 discover_agents）> 内置：名称冲突时先胜。
     seen_names: set[str] = set()
     agents: list[SubAgentInfo] = []
     for agent_def in (*discovered, *builtins):

@@ -1,26 +1,23 @@
-"""Example: Inherit SaaS credentials via OpenHandsCloudWorkspace.
+"""Example: 通过 OpenHandsCloudWorkspace 继承 SaaS 凭据。
 
-This example shows the simplified flow where your OpenHands Cloud account's
-LLM configuration and secrets are inherited automatically — no need to
-provide LLM_API_KEY separately.
+示例展示了简化流程，其中您的 OpenHands 云账户的 LLM 配置和机密会自动继承 —— 您无需单
+独提供 LLM_API_KEY。
 
-Compared to 07_convo_with_cloud_workspace.py (which requires a separate
-LLM_API_KEY), this approach uses:
-  - workspace.get_llm()     → fetches LLM config from your SaaS account
-  - workspace.get_secrets()  → builds lazy LookupSecret references for your secrets
+与 07_convo_with_cloud_workspace.py（需要单独的 LLM_API_KEY）相比，此方法使用：
+  - workspace.get_llm() → 从您的 SaaS 帐户获取 LLM 配置
+  - workspace.get_secrets() → 为您的机密构建惰性 LookupSecret 引用
 
-Raw secret values never transit through the SDK client. The agent-server
-inside the sandbox resolves them on demand.
+原始机密值永远不会通过 SDK 客户端传输。 沙箱内的智能体-服务器根据需要解析它们。
 
-Usage:
+用途：
   uv run examples/02_remote_agent_server/10_cloud_workspace_share_credentials.py
 
-Requirements:
-  - OPENHANDS_CLOUD_API_KEY: API key for OpenHands Cloud (the only credential needed)
+要求：
+  - OPENHANDS_CLOUD_API_KEY: OpenHands 云的 API 密钥（仅需要凭据）
 
-Optional:
-  - OPENHANDS_CLOUD_API_URL: Override the Cloud API URL (default: https://app.all-hands.dev)
-  - LLM_MODEL: Override the model from your SaaS settings
+可选：
+  - OPENHANDS_CLOUD_API_URL: 覆盖云 API URL（默认值： https://app.all-hands.dev ）
+  - LLM_MODEL: 从您的 SaaS 设置覆盖模型
 """
 
 import os
@@ -50,21 +47,22 @@ with OpenHandsCloudWorkspace(
     cloud_api_url=cloud_api_url,
     cloud_api_key=cloud_api_key,
 ) as workspace:
-    # --- LLM from SaaS account settings ---
-    # get_llm() calls GET /users/me?expose_secrets=true
-    # (dual auth: Bearer + session key) and returns a
-    # fully configured LLM instance.
-    # Override any parameter: workspace.get_llm(model="gpt-4o")
+    # --- 从 SaaS 账户设置获取 LLM ---
+    # get_llm() 调用 GET /users/me?expose_secrets=true，
+    # 同时使用 Bearer 和会话密钥认证，返回配置完整的 LLM 实例。
+    # 可覆盖任意参数，例如 workspace.get_llm(model="gpt-4o")。
+    #
     llm = workspace.get_llm()
     logger.info(f"LLM configured: model={llm.model}")
 
-    # --- Secrets from SaaS account ---
-    # get_secrets() fetches secret *names* (not values) and builds LookupSecret
-    # references. Values are resolved lazily inside the sandbox.
+    # --- 机密来自 SaaS 帐户 ---
+    # get_secrets() 获取机密 *名称*（不是值）并构建 LookupSecret 引用。 值在沙箱内延迟解
+    # 析。
+    #
     secrets = workspace.get_secrets()
     logger.info(f"Available secrets: {list(secrets.keys())}")
 
-    # Build agent and conversation
+    # 构建智能体和对话
     agent = get_default_agent(llm=llm, cli_mode=True)
     received_events: list = []
     last_event_time = {"ts": time.time()}
@@ -78,14 +76,14 @@ with OpenHandsCloudWorkspace(
     )
     assert isinstance(conversation, RemoteConversation)
 
-    # Inject SaaS secrets into the conversation
+    # 将 SaaS 机密插入对话中
     if secrets:
         conversation.update_secrets(secrets)
         logger.info(f"Injected {len(secrets)} secrets into conversation")
 
-    # Build a prompt that exercises the injected secrets by asking the agent to
+    # 构建一个提示词，通过要求智能体来练习注入的机密
     # print the last 50% of each token — proves values resolved without leaking
-    # full secrets in logs.
+    # 日志中已满机密。
     secret_names = list(secrets.keys()) if secrets else []
     if secret_names:
         names_str = ", ".join(f"${name}" for name in secret_names)
@@ -96,7 +94,7 @@ with OpenHandsCloudWorkspace(
             "Then write a short summary into SECRETS_CHECK.txt."
         )
     else:
-        # No secret was configured on OpenHands Cloud
+        # OpenHands 云上未配置机密
         prompt = "Tell me, is there any secret configured for you?"
 
     try:

@@ -1,19 +1,19 @@
-"""Deadlock, cancellation and concurrency guarantees.
+"""死锁、取消和并发保证。
 
-Every test here is wrapped in a hard ``asyncio.wait_for``: a regression that
-introduces a hang fails as a timeout rather than blocking CI forever.
+这里的每个测试都包含在硬 ``asyncio.wait_for`` 中：引入挂起的回归作为超时失败，而不是
+永远阻塞 CI。
 
-Background on why these specific shapes are tested:
+为什么要测试这些特定形状的背景：
 
-* ``emit()`` runs on the event loop from ``PubSub``; the drain task runs
-  concurrently on the same loop; ``on_consent_changed`` is called synchronously
+* ``emit()`` 在 ``PubSub`` 的事件循环上运行； 漏任务在同一个循环上同时运行；
+``on_consent_changed``同步调用
   from a request handler. All three touch ``_queue`` and ``_decision``.
-* ``_read_consent`` runs on a worker thread via ``asyncio.to_thread``. Cancelling
-  a task awaiting ``to_thread`` does not stop the thread, so shutdown must not
-  wait on it.
-* ``FileSettingsStore.update()`` takes a blocking ``fcntl.flock`` on a fresh fd,
-  which is **not** reentrant — a nested update from the same process would
-  deadlock on itself.
+* ``_read_consent`` 通过 ``asyncio.to_thread`` 在工作线程线程上运行。 取消等待
+``to_thread`` 的任务不会停止线程，
+因此 shutdown 不能等待它。
+* ``FileSettingsStore.update()`` 在新的 fd 上采用阻塞 ``fcntl.flock``，这是 ** 而不是
+ ** 可重入 — 来自同一进
+程的嵌套更新将对其自身进行死锁。
 """
 
 import asyncio
@@ -30,16 +30,16 @@ from tests.agent_server.telemetry.test_telemetry_sink import (
 TIMEOUT = 10.0
 
 
-# ── cancellation / shutdown ───────────────────────────────────────────────
+# ── 取消 / 关机────────────────────────────────────────────────
 
 
 async def test_shutdown_while_consent_reader_is_blocked_in_a_thread():
-    """Cancelling a task awaiting to_thread must not wait for the thread.
+    """取消等待 to_thread 的任务不得等待线程。
 
-    The reader blocks on a threading primitive that is never released, so if
-    aclose() waited on the worker thread this would hang.
+    读取器阻塞在永远不会释放的线程原语上，因此如果 aclose() 等待工作器线程，则这将挂
+    起。
     """
-    release = asyncio.Event()  # deliberately never set
+    release = asyncio.Event()  # 故意不设置
 
     async def blocking_reader():
         await release.wait()
@@ -56,7 +56,7 @@ async def test_shutdown_while_consent_reader_is_blocked_in_a_thread():
 
 
 async def test_shutdown_while_dispatch_is_in_flight():
-    """aclose() must not wait out an exporter that is mid-send."""
+    """aclose() 不得等待正在发送的导出器。"""
 
     class SlowExporter:
         async def send(self, events):
@@ -101,11 +101,11 @@ async def test_emit_after_close_is_a_no_op_and_does_not_raise():
     assert len(sink._queue) == 0
 
 
-# ── concurrent mutation ───────────────────────────────────────────────────
+# ── 并发突变────────────────────────────────────────────────────
 
 
 async def test_revocation_racing_a_burst_of_emits():
-    """Interleaving emit() and revocation must not lose or leak events."""
+    """交错emit()和撤销不得丢失或泄漏事件。"""
     exporter = RecordingExporter()
     sink = build_sink(exporter, flush_delay=0.01)
     sink.start()
@@ -126,7 +126,7 @@ async def test_revocation_racing_a_burst_of_emits():
 
         await asyncio.wait_for(asyncio.gather(emitter(), flipper()), timeout=TIMEOUT)
 
-        # End denied: nothing further may be delivered and the queue is empty.
+        # 结束被拒绝：不能再传送任何内容并且队列为空。
         sink.on_decision_changed(denied())
         assert len(sink._queue) == 0
 
@@ -158,7 +158,7 @@ async def test_drain_survives_a_consent_reader_that_always_raises():
 
 
 async def test_sink_never_blocks_the_loop_under_load():
-    """A heartbeat coroutine must keep ticking while telemetry is saturated."""
+    """当遥测饱和时，心跳协程必须保持滴答作响。"""
     ticks = {"n": 0}
 
     async def heartbeat():
@@ -185,9 +185,9 @@ async def test_sink_never_blocks_the_loop_under_load():
         await asyncio.wait_for(sink.aclose(), timeout=TIMEOUT)
 
 
-# ── the "never breaks a conversation" guarantee ───────────────────────────
-# Each subscriber entry point is driven with an injected failure; none may
-# propagate, because these run inside PubSub fan-out during a live run.
+# ── “永不中断对话”保证 ──────────────────────────── 每个订阅者入口都由注入的故障驱动；
+# None 可能会传播，因为它们在实时运行期间在 PubSub 扇出内运行。
+#
 
 
 def _subscriber(sink):
@@ -239,7 +239,7 @@ class _ExplodingSink:
 
 
 async def test_emit_started_swallows_a_sink_failure():
-    _subscriber(_ExplodingSink()).emit_started()  # must not raise
+    _subscriber(_ExplodingSink()).emit_started()  # 不得提高
 
 
 async def test_close_swallows_a_terminal_emit_failure():
@@ -261,7 +261,7 @@ async def test_call_swallows_a_failure_from_any_event_type():
 
 
 async def test_capture_usage_swallows_a_malformed_stats_block():
-    """A shape change in full_state must degrade, not raise."""
+    """full_state 中的形状变化必须降低，而不是升高。"""
     from openhands.sdk.event import ConversationStateUpdateEvent
 
     class _Collecting:
@@ -287,7 +287,7 @@ async def test_capture_usage_swallows_a_malformed_stats_block():
             key="full_state",
             value={
                 "execution_status": "finished",
-                # stats is the wrong shape all the way down
+                # 统计数据的形状一直都是错误的
                 "stats": {"usage_to_metrics": {"a": "not-a-dict", "b": None}},
             },
         )
@@ -298,12 +298,12 @@ async def test_capture_usage_swallows_a_malformed_stats_block():
 
 
 async def test_shutdown_is_bounded_when_exporter_aclose_hangs():
-    """Regression: the exporter close was uncapped.
+    """Regression: 出口商收盘价没有上限。
 
-    For PostHog this is where the real network I/O happens — capture() only
-    enqueues, so aclose() -> client.shutdown() is flush() + join(), and
-    posthog's consumer defaults to retries=10 with timeout=15 per batch. An
-    unreachable endpoint blocked the uvicorn lifespan here for minutes.
+    对于 PostHog 这就是真正的网络 I/O 场景 capture() 只进行队列操作，所以 aclose() ->
+     client.shutdown() 是
+    flush() + join(), 以及 posthog 的消费者默认为重试10 个超时每批15元。 不可达端点在
+    这里阻止了 uvicorn 的生命周期几分钟。
     """
     import time
 
@@ -326,7 +326,7 @@ async def test_shutdown_is_bounded_when_exporter_aclose_hangs():
 
 
 async def test_shutdown_is_bounded_when_both_send_and_aclose_hang():
-    """Both legs are capped, so worst case is bounded by 2x the timeout."""
+    """两条腿都有上限，因此最坏情况的范围是超时的 2 倍。"""
     import time
 
     class FullyHangingExporter:

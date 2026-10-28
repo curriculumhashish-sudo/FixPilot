@@ -16,13 +16,13 @@ from openhands.sdk.llm.llm_profile_store import (
 
 @pytest.fixture
 def profile_store(tmp_path: Path) -> LLMProfileStore:
-    """Create a profile store with a temporary directory."""
+    """使用临时目录创建配置文件存储。"""
     return LLMProfileStore(base_dir=tmp_path)
 
 
 @pytest.fixture
 def sample_llm() -> LLM:
-    """Create a sample LLM instance for testing."""
+    """创建示例 LLM 实例进行测试。"""
     return LLM(
         usage_id="test-llm",
         model="gpt-4-turbo",
@@ -33,7 +33,7 @@ def sample_llm() -> LLM:
 
 @pytest.fixture
 def sample_llm_with_secrets() -> LLM:
-    """Create a sample LLM instance with secrets for testing."""
+    """创建一个 LLM 实例机密用于测试。"""
     return LLM(
         usage_id="test-llm-secrets",
         model="gpt-4-turbo",
@@ -43,7 +43,7 @@ def sample_llm_with_secrets() -> LLM:
 
 
 def test_init_creates_directory(tmp_path: Path) -> None:
-    """Test that initialization creates the base directory."""
+    """测试初始化是否创建基目录。"""
     profile_dir = tmp_path / "profiles"
     assert not profile_dir.exists()
 
@@ -54,7 +54,7 @@ def test_init_creates_directory(tmp_path: Path) -> None:
 
 
 def test_init_with_string_path(tmp_path: Path) -> None:
-    """Test initialization with a string path."""
+    """使用字符串路径测试初始化​​。"""
     profile_dir = str(tmp_path / "profiles")
     store = LLMProfileStore(base_dir=profile_dir)
 
@@ -63,7 +63,7 @@ def test_init_with_string_path(tmp_path: Path) -> None:
 
 
 def test_init_with_path_object(tmp_path: Path) -> None:
-    """Test initialization with a Path object."""
+    """使用 Path 对象测试初始化。"""
     profile_dir = tmp_path / "profiles"
     store = LLMProfileStore(base_dir=profile_dir)
 
@@ -72,7 +72,7 @@ def test_init_with_path_object(tmp_path: Path) -> None:
 
 
 def test_init_with_existing_directory(tmp_path: Path) -> None:
-    """Test initialization with an existing directory."""
+    """使用现有目录测试初始化​​。"""
     profile_dir = tmp_path / "profiles"
     profile_dir.mkdir()
 
@@ -82,13 +82,13 @@ def test_init_with_existing_directory(tmp_path: Path) -> None:
 
 
 def test_list_empty_store(profile_store: LLMProfileStore) -> None:
-    """Test listing profiles in an empty store."""
+    """在空商店中测试列出配置文件。"""
     profiles = profile_store.list()
     assert profiles == []
 
 
 def test_list_with_profiles(profile_store: LLMProfileStore, sample_llm: LLM) -> None:
-    """Test listing profiles after saving some."""
+    """保存一些后测试列出配置文件。"""
     profile_store.save("profile1", sample_llm)
     profile_store.save("profile2", sample_llm)
 
@@ -102,10 +102,10 @@ def test_list_with_profiles(profile_store: LLMProfileStore, sample_llm: LLM) -> 
 def test_list_excludes_non_json_files(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test that list() only returns .json files."""
+    """测试 list() 仅返回 .JSON 个文件。"""
     profile_store.save("valid", sample_llm)
 
-    # Create a non-json file
+    # 创建非JSON文件
     (profile_store.base_dir / "not_a_profile.txt").write_text("hello")
 
     profiles = profile_store.list()
@@ -114,7 +114,7 @@ def test_list_excludes_non_json_files(
 
 
 def test_save_creates_file(profile_store: LLMProfileStore, sample_llm: LLM) -> None:
-    """Test that save creates a profile file."""
+    """测试保存会创建一个配置文件。"""
     profile_store.save("my_profile", sample_llm)
 
     profile_path = profile_store.base_dir / "my_profile.json"
@@ -242,7 +242,7 @@ def test_save_with_invalid_profile_name(
 def test_save_writes_valid_json(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test that saved file contains valid JSON."""
+    """测试保存的文件是否包含有效的 JSON。"""
     profile_store.save("my_profile", sample_llm)
 
     profile_path = profile_store.base_dir / "my_profile.json"
@@ -256,10 +256,10 @@ def test_save_writes_valid_json(
 def test_save_with_json_extension(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test saving with .json extension in name."""
+    """测试名称中带有 .JSON 扩展名的保存。"""
     profile_store.save("my_profile.json", sample_llm)
 
-    # Should not create my_profile.json.json
+    # 不应创建 my_profile.json.json
     assert (profile_store.base_dir / "my_profile.json").exists()
     assert not (profile_store.base_dir / "my_profile.json.json").exists()
 
@@ -267,10 +267,10 @@ def test_save_with_json_extension(
 def test_save_overwrites_existing(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test that save overwrites an existing profile."""
+    """测试保存是否会覆盖现有配置文件。"""
     profile_store.save("my_profile", sample_llm)
 
-    # Modify and save again
+    # 修改并再次保存
     modified_llm = LLM(
         usage_id="modified",
         model="gpt-3.5-turbo-16k",
@@ -278,7 +278,7 @@ def test_save_overwrites_existing(
     )
     profile_store.save("my_profile", modified_llm)
 
-    # Load and verify
+    # 加载并验证
     loaded = profile_store.load("my_profile")
     assert loaded.model == "gpt-3.5-turbo-16k"
     assert loaded.temperature == 0.3
@@ -287,26 +287,26 @@ def test_save_overwrites_existing(
 def test_save_without_secrets(
     profile_store: LLMProfileStore, sample_llm_with_secrets: LLM
 ) -> None:
-    """Test that secrets are not saved by default."""
+    """测试默认情况下不保存机密。"""
     profile_store.save("with_secrets", sample_llm_with_secrets)
 
     profile_path = profile_store.base_dir / "with_secrets.json"
     content = profile_path.read_text()
 
-    # Secret should be masked
+    # 机密应被屏蔽
     assert "secret-api-key-12345" not in content
 
 
 def test_save_with_secrets(
     profile_store: LLMProfileStore, sample_llm_with_secrets: LLM
 ) -> None:
-    """Test that secrets are saved when include_secrets=True."""
+    """测试当include_secrets=True时机密是否被保存。"""
     profile_store.save("with_secrets", sample_llm_with_secrets, include_secrets=True)
 
     profile_path = profile_store.base_dir / "with_secrets.json"
     content = profile_path.read_text()
 
-    # Secret should be present
+    # 机密应该存在
     assert "secret-api-key-12345" in content
 
 
@@ -314,7 +314,7 @@ def test_save_with_secrets(
 def test_load_existing_profile(
     name: str, profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test loading an existing profile."""
+    """测试加载现有配置文件。"""
     profile_store.save(name, sample_llm)
 
     loaded = profile_store.load(name)
@@ -326,7 +326,7 @@ def test_load_existing_profile(
 
 
 def test_load_nonexistent_profile(profile_store: LLMProfileStore) -> None:
-    """Test loading a profile that doesn't exist."""
+    """测试加载不存在的配置文件。"""
     with pytest.raises(FileNotFoundError) as exc_info:
         profile_store.load("nonexistent")
 
@@ -337,7 +337,7 @@ def test_load_nonexistent_profile(profile_store: LLMProfileStore) -> None:
 def test_load_nonexistent_shows_available(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test that error message shows available profiles."""
+    """测试错误消息是否显示可用的配置文件。"""
     profile_store.save("available1", sample_llm)
     profile_store.save("available2", sample_llm)
 
@@ -350,8 +350,8 @@ def test_load_nonexistent_shows_available(
 
 
 def test_load_corrupted_profile(profile_store: LLMProfileStore) -> None:
-    """Test loading a corrupted profile raises ValueError."""
-    # Create a corrupted profile file
+    """测试加载损坏的配置文件会引发 ValueError。"""
+    # 创建损坏的配置文件
     profile_path = profile_store.base_dir / "corrupted.json"
     profile_path.write_text("{ invalid json }")
 
@@ -366,7 +366,7 @@ def test_load_corrupted_profile(profile_store: LLMProfileStore) -> None:
 def test_delete_existing_profile(
     name: str, profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Test deleting an existing profile."""
+    """测试删除现有配置文件。"""
     profile_store.save(name, sample_llm)
     profile_filename = f"{name}.json" if not name.endswith(".json") else name
     assert profile_filename in profile_store.list()
@@ -376,12 +376,12 @@ def test_delete_existing_profile(
 
 
 def test_delete_nonexistent_profile(profile_store: LLMProfileStore) -> None:
-    """Test that deleting a nonexistent profile doesn't raise an error."""
+    """测试删除不存在的配置文件不会引发错误。"""
     profile_store.delete("nonexistent")
 
 
 def test_concurrent_saves(tmp_path: Path) -> None:
-    """Test that concurrent saves don't corrupt data."""
+    """测试并发保存不会损坏数据。"""
     store = LLMProfileStore(base_dir=tmp_path)
     num_threads = 10
     results: list[int] = []
@@ -411,16 +411,16 @@ def test_concurrent_saves(tmp_path: Path) -> None:
     assert len(errors) == 0, f"Errors occurred: {errors}"
     assert len(results) == num_threads
 
-    # Verify all profiles were saved correctly
+    # 验证所有配置文件均已正确保存
     profiles = store.list()
     assert len(profiles) == num_threads
 
 
 def test_concurrent_reads_and_writes(tmp_path: Path) -> None:
-    """Test concurrent reads and writes don't cause issues."""
+    """测试并发读取和写入不会导致问题。"""
     store = LLMProfileStore(base_dir=tmp_path)
 
-    # Pre-create some profiles
+    # 预先创建一些配置文件
     for i in range(5):
         llm = LLM(usage_id=f"test-{i}", model=f"model-{i}")
         store.save(f"profile_{i}", llm)
@@ -446,10 +446,10 @@ def test_concurrent_reads_and_writes(tmp_path: Path) -> None:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = []
-        # Submit read tasks
+        # 提交阅读任务
         for i in range(5):
             futures.append(executor.submit(read_profile, f"profile_{i}"))
-        # Submit write tasks
+        # 提交写任务
         for i in range(5):
             futures.append(executor.submit(write_profile, i))
 
@@ -461,7 +461,7 @@ def test_concurrent_reads_and_writes(tmp_path: Path) -> None:
 
 
 def test_full_workflow(profile_store: LLMProfileStore) -> None:
-    """Test a complete save-list-load-delete workflow."""
+    """测试完整的保存-列表-加载-删除工作流程。"""
     llm = LLM(
         usage_id="workflow-test",
         model="claude-3-opus",
@@ -469,26 +469,26 @@ def test_full_workflow(profile_store: LLMProfileStore) -> None:
         max_output_tokens=4096,
     )
 
-    # Save
+    # 保存
     profile_store.save("workflow_profile", llm)
 
-    # List
+    # 列表
     profiles = profile_store.list()
     assert "workflow_profile.json" in profiles
 
-    # Load
+    # 负载
     loaded = profile_store.load("workflow_profile")
     assert loaded.usage_id == llm.usage_id
     assert loaded.model == llm.model
     assert loaded.temperature == llm.temperature
     assert loaded.max_output_tokens == llm.max_output_tokens
 
-    # Delete
+    # 删除
     profile_store.delete("workflow_profile")
     assert "workflow_profile.json" not in profile_store.list()
 
 
-# ── Rename ────────────────────────────────────────────────────────────────
+# ── 重命名────────────────────────────────────────────────────────────────
 
 
 def test_rename_moves_file(profile_store: LLMProfileStore, sample_llm: LLM) -> None:
@@ -525,7 +525,7 @@ def test_rename_target_exists_raises(
     with pytest.raises(FileExistsError, match="taken"):
         profile_store.rename("old", "taken")
 
-    # Both files still present (no partial state)
+    # 两个文件仍然存在（无部分状态）
     assert (profile_store.base_dir / "old.json").exists()
     assert (profile_store.base_dir / "taken.json").exists()
 
@@ -539,7 +539,7 @@ def test_rename_same_name_is_noop(
 
 
 def test_rename_same_name_missing_raises(profile_store: LLMProfileStore) -> None:
-    """Same-name rename still verifies the profile exists."""
+    """同名重命名仍会验证配置文件是否存在。"""
     with pytest.raises(FileNotFoundError, match="ghost"):
         profile_store.rename("ghost", "ghost")
 
@@ -587,7 +587,7 @@ def test_list_summaries_api_key_set_with_secrets(
 def test_list_summaries_api_key_redacted_means_not_set(
     profile_store: LLMProfileStore, sample_llm_with_secrets: LLM
 ) -> None:
-    """A profile saved without secrets stores '**********' on disk; not 'set'."""
+    """不带机密保存的配置文件会将“**********”存储在磁盘上； 不是“设置”。"""
     profile_store.save("no_key", sample_llm_with_secrets, include_secrets=False)
 
     [summary] = profile_store.list_summaries()
@@ -607,7 +607,7 @@ def test_list_summaries_skips_corrupted(
 def test_list_summaries_skips_non_dict(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """A JSON file whose top-level value isn't an object is skipped, not raised."""
+    """顶级值不是对象的 JSON 文件将被跳过，而不是引发。"""
     profile_store.save("good", sample_llm)
     (profile_store.base_dir / "list.json").write_text("[1, 2, 3]")
     (profile_store.base_dir / "string.json").write_text('"plain"')
@@ -619,7 +619,7 @@ def test_list_summaries_skips_non_dict(
 def test_list_summaries_skips_invalid_filename(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Files with names not matching PROFILE_NAME_REGEX are skipped."""
+    """名称与 PROFILE_NAME_REGEX 不匹配的文件将被跳过。"""
     profile_store.save("good", sample_llm)
     (profile_store.base_dir / ".hidden.json").write_text('{"model": "x"}')
     (profile_store.base_dir / "bad@name.json").write_text('{"model": "x"}')
@@ -628,7 +628,7 @@ def test_list_summaries_skips_invalid_filename(
     assert [s["name"] for s in summaries] == ["good"]
 
 
-# ── Save with max_profiles ─────────────────────────────────────────────────
+# ── 以max_profiles保存──────────────────────────────────────────────────
 
 
 def test_save_with_max_profiles_blocks_over_limit(
@@ -644,7 +644,7 @@ def test_save_with_max_profiles_blocks_over_limit(
 def test_save_with_max_profiles_allows_overwrite(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Overwriting an existing profile is allowed even when at the limit."""
+    """即使达到限制，也允许覆盖现有配置文件。"""
     profile_store.save("a", sample_llm)
     profile_store.save("b", sample_llm)
 
@@ -665,7 +665,7 @@ def test_save_cleans_up_tmp_on_replace_failure(
     sample_llm: LLM,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """If Path.replace fails, no .tmp file should be left behind."""
+    """如果 Path.replace 失败，则不应留下任何 .tmp 文件。"""
 
     def boom(src, dst):
         raise OSError("disk full")
@@ -682,12 +682,12 @@ def test_save_cleans_up_tmp_on_replace_failure(
 def test_save_with_max_profiles_ignores_invalid_filenames(
     profile_store: LLMProfileStore, sample_llm: LLM
 ) -> None:
-    """Stray .json files with invalid names must not consume limit slots."""
+    """具有无效名称的流浪 .JSON 文件不得占用限制槽。"""
     profile_store.save("real", sample_llm)
     (profile_store.base_dir / ".hidden.json").write_text('{"model": "x"}')
     (profile_store.base_dir / "bad@name.json").write_text('{"model": "x"}')
 
-    # Only 'real' counts, so saving up to the limit of 2 should succeed.
+    # 只有“真实”才算数，因此保存到 2 的限制应该会成功。
     profile_store.save("another", sample_llm, max_profiles=2)
     assert "another.json" in profile_store.list()
 
@@ -695,7 +695,7 @@ def test_save_with_max_profiles_ignores_invalid_filenames(
 def test_list_summaries_does_not_mutate_env(
     profile_store: LLMProfileStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Listing summaries must not run LLM validators (which set env vars)."""
+    """列表摘要不得运行 LLM 验证器（设置环境变量）。"""
     llm = LLM(
         usage_id="t",
         model="bedrock/test",
@@ -711,45 +711,45 @@ def test_list_summaries_does_not_mutate_env(
     assert os.environ.get("AWS_ACCESS_KEY_ID") is None
 
 
-# ── Misc ──────────────────────────────────────────────────────────────────
+# ── 杂项──────────────────────────────────────────────────────────────────
 
 
 def test_multiple_profiles(profile_store: LLMProfileStore) -> None:
-    """Test managing multiple profiles."""
+    """测试管理多个配置文件。"""
     profiles_data = [
         ("gpt4", "gpt-4-turbo", 0.7),
         ("gpt35", "gpt-3.5-turbo-16k", 0.5),
         ("claude", "claude-3-opus", 0.9),
     ]
 
-    # Save all
+    # 全部保存
     for name, model, temp in profiles_data:
         llm = LLM(usage_id=name, model=model, temperature=temp)
         profile_store.save(name, llm)
 
-    # Verify all exist
+    # 验证全部存在
     stored = profile_store.list()
     assert len(stored) == 3
 
-    # Load and verify each
+    # 加载并验证每个
     for name, expected_model, expected_temp in profiles_data:
         loaded = profile_store.load(name)
         assert loaded.model == expected_model
         assert loaded.temperature == expected_temp
 
-    # Delete one
+    # 删除一个
     profile_store.delete("gpt4")
     assert len(profile_store.list()) == 2
     assert "gpt4.json" not in profile_store.list()
 
 
 def test_default_provider_store_is_sibling_of_base_dir(tmp_path: Path) -> None:
-    """A custom-dir profile store resolves connections under its own base_dir.
+    """自定义目录配置文件存储在其自己的 base_dir 下解析连接。
 
-    Regression: the default ProviderConnectionStore must be derived from
-    ``base_dir`` (a sibling ``provider-connections`` directory), not from
-    ``$HOME``. Otherwise a custom-directory profile store reads profiles from
-    ``base_dir`` but credentials from ``~/.openhands`` — the wrong source.
+    Regression: 默认 ProviderConnectionStore 必须源自
+    ``base_dir``（同级 ``provider-connections`` 目录），不是来自
+    ``$HOME``. 否则，自定义目录配置文件存储将从中读取配置文件
+    ``base_dir`` 但来自 ``~/.openhands`` 的凭据 — 来源错误。
     """
     from openhands.sdk.llm.provider_connection_store import (
         ProviderConnection,

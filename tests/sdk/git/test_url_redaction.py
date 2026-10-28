@@ -1,4 +1,4 @@
-"""Tests for URL credential redaction utilities."""
+"""测试 URL 凭据脱敏实用程序。"""
 
 import logging
 import subprocess
@@ -12,7 +12,7 @@ from openhands.sdk.git.utils import (
     get_git_repository_metadata,
     redact_url_credentials,
     run_git_command,
-)  # re-exported for compat
+)  # 重新导出以兼容
 from openhands.sdk.plugin.types import PluginSource, ResolvedPluginSource
 from openhands.sdk.utils.redact import (
     redact_url_credentials as redact_url_credentials_central,
@@ -20,17 +20,17 @@ from openhands.sdk.utils.redact import (
 
 
 class TestRedactUrlCredentials:
-    """Tests for redact_url_credentials function."""
+    """测试 redact_url_credentials 功能。"""
 
     def test_https_with_oauth2_token(self):
-        """Should redact oauth2 tokens in HTTPS URLs."""
+        """HTTPS URLs 应该删除 oauth2 token。"""
         url = "https://oauth2:SECRET_TOKEN@gitlab.com/org/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@gitlab.com/org/repo.git"
         assert "SECRET_TOKEN" not in result
 
     def test_https_with_username_password(self):
-        """Should redact username:password in HTTPS URLs."""
+        """HTTPS URLs 中应红帽用户名密码。"""
         url = "https://user:password123@github.com/owner/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@github.com/owner/repo.git"
@@ -38,27 +38,27 @@ class TestRedactUrlCredentials:
         assert "password123" not in result
 
     def test_https_with_x_token_auth(self):
-        """Should redact x-token-auth credentials (Bitbucket style)."""
+        """应编辑 x-token-auth 凭据（Bitbucket 样式）。"""
         url = "https://x-token-auth:MY_TOKEN@bitbucket.org/team/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@bitbucket.org/team/repo.git"
         assert "MY_TOKEN" not in result
 
     def test_https_with_just_token(self):
-        """Should redact token-only auth (GitHub PAT style)."""
+        """应编辑仅 token 的身份验证（GitHub PAT 样式）。"""
         url = "https://ghp_xxxxxxxxxxxx@github.com/owner/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@github.com/owner/repo.git"
         assert "ghp_xxxxxxxxxxxx" not in result
 
     def test_https_without_credentials(self):
-        """Should not modify URLs without credentials."""
+        """在凭据之前不应修改URLs。"""
         url = "https://github.com/owner/repo.git"
         result = redact_url_credentials(url)
         assert result == url
 
     def test_http_with_credentials(self):
-        """Should redact credentials in HTTP URLs."""
+        """应在HTTP URLs中删除凭据。"""
         url = "http://user:pass@internal-git.company.com/repo.git"
         result = redact_url_credentials(url)
         assert result == "http://****@internal-git.company.com/repo.git"
@@ -66,31 +66,31 @@ class TestRedactUrlCredentials:
         assert "pass" not in result
 
     def test_ssh_url_unchanged(self):
-        """Should not modify SSH URLs (no embedded credentials)."""
+        """不应修改 SSH URLs （不得嵌入凭据）。"""
         url = "git@github.com:owner/repo.git"
         result = redact_url_credentials(url)
         assert result == url
 
     def test_ssh_gitlab_url_unchanged(self):
-        """Should not modify GitLab SSH URLs."""
+        """不应修改 GitLab SSH URLs。"""
         url = "git@gitlab.com:org/project.git"
         result = redact_url_credentials(url)
         assert result == url
 
     def test_local_path_unchanged(self):
-        """Should not modify local paths."""
+        """不应修改本地路径。"""
         path = "/path/to/local/repo"
         result = redact_url_credentials(path)
         assert result == path
 
     def test_github_shorthand_unchanged(self):
-        """Should not modify GitHub shorthand format (no credentials)."""
+        """不应修改 GitHub 速记格式（不应修改凭据）。"""
         source = "github:owner/repo"
         result = redact_url_credentials(source)
         assert result == source
 
     def test_preserves_port_in_url(self):
-        """Should preserve port numbers in URLs while redacting credentials."""
+        """在 URLs 中保留端口号，在凭据中进行红帽处理。"""
         url = "https://user:pass@git.company.com:8443/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@git.company.com:8443/repo.git"
@@ -98,34 +98,34 @@ class TestRedactUrlCredentials:
         assert "user" not in result
 
     def test_preserves_path_with_subdirectories(self):
-        """Should preserve full path with subdirectories."""
+        """应保留带有子目录的完整路径。"""
         url = "https://token@github.com/org/repo/tree/main/subdir"
         result = redact_url_credentials(url)
         assert result == "https://****@github.com/org/repo/tree/main/subdir"
         assert "/org/repo/tree/main/subdir" in result
 
     def test_empty_string(self):
-        """Should handle empty string."""
+        """应该处理空字符串。"""
         result = redact_url_credentials("")
         assert result == ""
 
     def test_special_characters_in_token(self):
-        """Should handle special characters in tokens."""
-        # URL-encoded special characters in credentials
+        """应处理 token 中的特殊字符。"""
+        # 凭据中的 URL 编码特殊字符
         url = "https://user%40domain:p%40ss%3Aword@github.com/repo.git"
         result = redact_url_credentials(url)
         assert result == "https://****@github.com/repo.git"
         assert "user%40domain" not in result
 
     def test_preserve_placeholders_keeps_var_reference(self):
-        """A ${VAR} userinfo is not a secret and must survive when asked."""
+        """${VAR} 用户信息不是机密，并且在被询问时必须保留。"""
         url = "https://x-token-auth:${MY_TOKEN}@host/repo.git"
         assert redact_url_credentials(url, preserve_placeholders=True) == url
-        # Without the flag it is masked like any other userinfo.
+        # 如果没有该标志，它会像任何其他用户信息一样被屏蔽。
         assert redact_url_credentials(url) == "https://****@host/repo.git"
 
     def test_preserve_placeholders_still_masks_inline_credentials(self):
-        """preserve_placeholders only spares ${VAR}; real inline creds are masked."""
+        """preserve_placeholders仅备件${VAR}； 真正的内联信用被掩盖。"""
         url = "https://oauth2:SECRET@github.com/org/repo.git"
         result = redact_url_credentials(url, preserve_placeholders=True)
         assert result == "https://****@github.com/org/repo.git"
@@ -133,10 +133,10 @@ class TestRedactUrlCredentials:
 
 
 class TestResolvedPluginSourceCredentialRedaction:
-    """Tests for credential redaction in ResolvedPluginSource."""
+    """测试 ResolvedPluginSource 中的凭据脱敏。"""
 
     def test_from_plugin_source_redacts_credentials(self):
-        """Should redact credentials when creating from PluginSource."""
+        """从 PluginSource 创建时应编辑凭据。"""
         plugin_source = PluginSource(
             source="https://oauth2:SECRET_TOKEN@gitlab.com/org/repo.git",
             ref="main",
@@ -150,7 +150,7 @@ class TestResolvedPluginSourceCredentialRedaction:
         assert resolved.original_ref == "main"
 
     def test_from_plugin_source_preserves_url_without_credentials(self):
-        """Should not modify URLs without credentials."""
+        """在凭据之前不应修改URLs。"""
         plugin_source = PluginSource(
             source="https://github.com/owner/repo.git",
             ref="v1.0.0",
@@ -162,7 +162,7 @@ class TestResolvedPluginSourceCredentialRedaction:
         assert resolved.resolved_ref == "abc123def456"
 
     def test_from_plugin_source_preserves_local_path(self):
-        """Should not modify local paths."""
+        """不应修改本地路径。"""
         plugin_source = PluginSource(source="/path/to/local/plugin")
         resolved = ResolvedPluginSource.from_plugin_source(
             plugin_source, resolved_ref=None
@@ -171,7 +171,7 @@ class TestResolvedPluginSourceCredentialRedaction:
         assert resolved.resolved_ref is None
 
     def test_from_plugin_source_preserves_repo_path(self):
-        """Should preserve repo_path when redacting credentials."""
+        """编辑凭据时应保留 repo_path。"""
         plugin_source = PluginSource(
             source="https://token@github.com/org/monorepo.git",
             ref="main",
@@ -184,20 +184,20 @@ class TestResolvedPluginSourceCredentialRedaction:
         assert resolved.repo_path == "plugins/my-plugin"
 
     def test_to_plugin_source_uses_redacted_url(self):
-        """When converting back to PluginSource, should use the redacted URL."""
-        # Simulate a ResolvedPluginSource loaded from persistence
+        """当转换回PluginSource时，应使用已脱敏URL。"""
+        # 模拟从持久化加载的 ResolvedPluginSource
         resolved = ResolvedPluginSource(
-            source="https://****@gitlab.com/org/repo.git",  # Already redacted
+            source="https://****@gitlab.com/org/repo.git",  # 已经已脱敏
             resolved_ref="abc123def456",
             repo_path=None,
             original_ref="main",
         )
         plugin_source = resolved.to_plugin_source()
         assert plugin_source.source == "https://****@gitlab.com/org/repo.git"
-        assert plugin_source.ref == "abc123def456"  # Uses resolved ref, not original
+        assert plugin_source.ref == "abc123def456"  # 使用解析的参考，而不是原始的
 
     def test_serialization_does_not_expose_credentials(self):
-        """Ensure JSON serialization doesn't expose credentials."""
+        """确保 JSON 序列化不会暴露凭据。"""
         plugin_source = PluginSource(
             source="https://oauth2:SUPER_SECRET@gitlab.com/org/repo.git",
             ref="main",
@@ -211,8 +211,8 @@ class TestResolvedPluginSourceCredentialRedaction:
 
 
 class TestPluginSourceCredentialRedaction:
-    """PluginSource.source masks inline credentials at serialization time while
-    keeping the raw value in memory for fetch/clone and preserving ${VAR} refs."""
+    """PluginSource.source 在序列化时间内嵌凭据掩码，同时
+    将原始值保留在内存中以供获取/克隆并保留 ${VAR} 引用。"""
 
     CRED = "https://oauth2:SUPER_SECRET@gitlab.com/org/repo.git"
     REDACTED = "https://****@gitlab.com/org/repo.git"
@@ -220,17 +220,18 @@ class TestPluginSourceCredentialRedaction:
 
     def test_default_dump_masks_only_the_credential(self):
         ps = PluginSource(source=self.CRED)
-        # URL shape is kept (not a full ********** mask).
+        # 保留 URL 形状（不是完整的 ********** 掩模）。
         assert ps.model_dump()["source"] == self.REDACTED
         assert "SUPER_SECRET" not in ps.model_dump_json()
 
     def test_in_memory_value_is_raw_for_fetch(self):
-        # The attribute keeps the real URL so the plugin can still be cloned.
+        # 该属性保留真实的 URL，因此插件仍然可以被克隆。
         assert PluginSource(source=self.CRED).source == self.CRED
 
     def test_placeholder_survives_dump(self):
-        # ${VAR} is not a secret; it is expanded from the secret registry at
-        # fetch time (incl. server-side), so it must survive every dump.
+        # ${VAR} 不是机密； 它在获取时从机密注册表扩展（包括。 服务器端），因此它必须在
+        # 每次转储中都存在。
+        #
         ps = PluginSource(source=self.PLACEHOLDER)
         assert ps.model_dump()["source"] == self.PLACEHOLDER
         assert ps.model_dump_json().count("${MY_TOKEN}") == 1
@@ -248,14 +249,15 @@ class TestPluginSourceCredentialRedaction:
         assert PluginSource(source=source).model_dump()["source"] == source
 
     def test_redacted_dump_round_trips(self):
-        # Reloading a redacted dump does not raise; the source stays redacted
-        # (resume of an inline-credentialed plugin relies on the resolved SHA).
+        # 重新加载已脱敏转储不会引发； 源代码保持在已脱敏（内联凭证插件的恢复依赖于已解
+        # 析的 SHA）。
+        #
         dumped = PluginSource(source=self.CRED).model_dump()
         assert PluginSource.model_validate(dumped).source == self.REDACTED
 
 
 class TestRedactUrlCredentialsCentralModule:
-    """Verify redact_url_credentials is accessible from the central redact module."""
+    """验证 redact_url_credentials 可以从中央编辑模块访问。"""
 
     def test_same_behaviour_as_git_utils(self):
         url = "https://oauth2:SECRET@gitlab.com/org/repo.git"
@@ -272,7 +274,7 @@ REDACTED_URL = "https://****@github.com/o/r.git"
 
 
 class TestRunGitCommandCredentialRedaction:
-    """Credentials must not leak into GitCommandError.command on any error path."""
+    """凭据不得在任何错误路径上泄漏到 GitCommandError.command 中。"""
 
     def _args(self):
         return ["git", "clone", CREDENTIAL_URL, "/tmp/x"]
@@ -316,7 +318,7 @@ class TestRunGitCommandCredentialRedaction:
         assert REDACTED_URL in exc_info.value.command
 
     def test_stderr_credentials_redacted_on_exception(self):
-        """Credentials echoed in stderr must not leak onto GitCommandError.stderr."""
+        """stderr 中回显的凭据不得泄漏到 GitCommandError.stderr 上。"""
         leaky_stderr = f"fatal: Authentication failed for '{CREDENTIAL_URL}/'"
         completed = subprocess.CompletedProcess(
             args=self._args(), returncode=128, stdout="", stderr=leaky_stderr
@@ -328,7 +330,7 @@ class TestRunGitCommandCredentialRedaction:
         assert REDACTED_URL in exc_info.value.stderr
 
     def test_stderr_credentials_redacted_in_error_log_by_default(self, caplog):
-        """Credentials echoed in stderr must not leak into the error log line."""
+        """stderr 中回显的凭据不得泄漏到错误日志行中。"""
         leaky_stderr = f"fatal: Authentication failed for '{CREDENTIAL_URL}/'"
         completed = subprocess.CompletedProcess(
             args=self._args(), returncode=128, stdout="", stderr=leaky_stderr
@@ -354,7 +356,7 @@ class TestRunGitCommandCredentialRedaction:
 
 
 def test_run_git_command_replaces_undecodable_stdout_bytes():
-    """Invalid-encoding stdout must not raise UnicodeDecodeError (AGE-1871)."""
+    """无效编码标准输出不得引发 UnicodeDecodeError (AGE-1871)。"""
     result = run_git_command(
         [sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'\\xff\\xfe')"],
         cwd=None,

@@ -70,7 +70,7 @@ def test_from_responses_function_call_output_and_response_variants():
 
 
 def test_from_responses_function_call_missing_ids_raises():
-    # Neither call_id nor id provided
+    # 未提供 call_id 和 id
     bogus = SimpleNamespace(
         type="function_call", name="x", arguments="{}", call_id=None, id=None
     )
@@ -87,17 +87,17 @@ def test_from_responses_function_call_missing_name_raises():
 
 
 def test_to_responses_dict_prefix_and_stringify_arguments():
-    # No responses_item_id: synthesize `fc_{id}` for the item id; call_id verbatim.
+    # 否responses_item_id：合成`fc_{id}`为item id； call_id逐字逐句。
     mtc = MessageToolCall(id="123", name="do", arguments="{}", origin="responses")
     d = mtc.to_responses_dict()
     assert d["id"] == "fc_123" and d["call_id"] == "123"
 
-    # id already fc-prefixed: pass through unchanged.
+    # id 已带有 fc 前缀：不变地通过。
     mtc2 = MessageToolCall(id="fc_99", name="do", arguments="{}", origin="responses")
     d2 = mtc2.to_responses_dict()
     assert d2["id"] == "fc_99" and d2["call_id"] == "fc_99"
 
-    # Ensure dict arguments are stringified
+    # 确保 dict 参数已字符串化
     mtc3 = MessageToolCall.model_construct(
         id="5", name="do", arguments={"a": 1}, origin="responses"
     )
@@ -107,7 +107,7 @@ def test_to_responses_dict_prefix_and_stringify_arguments():
 
 
 def test_responses_function_call_round_trip_preserves_ids():
-    """Regression for #2905: Responses ingest → replay must be byte-identical."""
+    """回归对于 #2905：响应摄取 → 重放必须是字节相同的。"""
     original = ResponseFunctionToolCall(
         type="function_call",
         id="fc_abc123",

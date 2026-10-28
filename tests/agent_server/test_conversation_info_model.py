@@ -1,19 +1,20 @@
-"""Tests for ``_compose_conversation_info`` lifting ACP model state.
+"""测试 ``_compose_conversation_info`` 提升 ACP 模型状态。
 
-The chain is:
+链条是：
 
-  1. ``ACPAgent._init`` captures the session's ``current_model_id`` and
-     ``available_models`` into PrivateAttrs (because ``AgentBase`` is frozen).
-  2. PrivateAttrs don't survive ``model_dump``, so the values can't ride out
-     on the serialized ``agent`` field of the API response.
-  3. The agent-server lifts them off the live agent instance into top-level
-     ``current_model_id`` / ``available_models`` fields on ``ConversationInfo``
-     so the downstream OpenHands app_server (chip) and the model picker can
-     read them — the picker resolves the id to a label from the list itself.
+  1. ``ACPAgent._init`` 捕获会话的 ``current_model_id`` 和
+     ``available_models`` 进入 PrivateAttrs（因为 ``AgentBase`` 被冻结）。
+  2. PrivateAttrs 不会在 ``model_dump`` 后保留下来，因此这些值无法超出 API 响应的已序
+  列化 ``agent`` 字段。
+  3. 智能体-服务器将它们从实时智能体实例提升到顶层
+     ``current_model_id`` / ``available_models`` 两个字段在 ``ConversationInfo``，因
+     此下游
+     OpenHands app_server (芯片) 和模型选择器可以读取它们——选择器从列表中解析 id 到标
+     签。
 
-These tests pin down step 3 — that ``_compose_conversation_info`` reads the
-attributes off the agent (falling back to persisted ``agent_state``) and
-routes them into the response model.
+这些测试确定了第 3 步 — ``_compose_conversation_info`` 读取智能体中的属性（回落到已持
+久化 ``agent_state``）并将它们路由
+到响应模型中。
 """
 
 from __future__ import annotations
@@ -49,10 +50,10 @@ def _make_state(agent) -> ConversationState:
 
 
 def _make_stored(state: ConversationState) -> StoredConversation:
-    # ``state.workspace`` is typed as the ``BaseWorkspace`` parent; we
-    # constructed the state with a ``LocalWorkspace`` so it's safe to pass
-    # through.  ``cast`` would be more correct but is noise for a test
-    # helper — reconstruct the LocalWorkspace from the working dir instead.
+    # ``state.workspace`` 被键入为 ``BaseWorkspace`` 父级； 我们用 ``LocalWorkspace`` 构
+    # 建了状态，因此可以安全地通过。 ``cast`` 会更正确，但对于测试助手来说是噪音 - 相反
+    # ，从工作目录重建 LocalWorkspace。
+    #
     workspace = LocalWorkspace(working_dir=state.workspace.working_dir)
     return StoredConversation(
         id=state.id,
@@ -80,7 +81,7 @@ def test_tool_module_qualnames_are_returned_to_attaching_clients():
 
 
 def test_current_model_id_is_lifted_from_acp_agent():
-    """When the ACP agent has resolved a model, it surfaces on the response."""
+    """当 ACP 智能体解析了模型后，它就会出现在响应中。"""
     agent = ACPAgent(acp_command=["echo", "test"])
     agent._current_model_id = "claude-opus-4-1"
     state = _make_state(agent)
@@ -93,9 +94,9 @@ def test_current_model_id_is_lifted_from_acp_agent():
 
 
 def test_current_model_id_is_none_when_acp_agent_has_no_model():
-    """Older ACP servers don't surface the field — we propagate ``None``."""
+    """较旧的 ACP 服务器不会出现在该领域 - 我们传播 ``None``。"""
     agent = ACPAgent(acp_command=["echo", "test"])
-    # ``_current_model_id`` defaults to None — leave it as-is.
+    # ``_current_model_id`` 默认为 None — 保持原样。
     state = _make_state(agent)
     stored = _make_stored(state)
 
@@ -105,7 +106,7 @@ def test_current_model_id_is_none_when_acp_agent_has_no_model():
 
 
 def test_current_model_id_is_none_for_native_openhands_agent():
-    """Native agents don't have the attribute; ``getattr`` returns None."""
+    """Native智能体没有该属性； ``getattr`` 返回 None。"""
     agent = Agent(
         llm=LLM(
             model="gpt-4o",
@@ -119,33 +120,34 @@ def test_current_model_id_is_none_for_native_openhands_agent():
 
     info = _compose_conversation_info(stored, state)
 
-    # Consumers should read ``agent.llm.model`` for native agents instead.
+    # 消费者应该阅读 ``agent.llm.model`` 作为本机智能体。
     assert info.current_model_id is None
 
 
 @pytest.mark.parametrize(
     "override_model,server_model,expected",
     [
-        # Caller forced a model via ``acp_model`` — that wins (mirrors _init).
+        # 调用者通过 ``acp_model`` 强制建立一个模型——获胜（mirrors _init）。
         ("gpt-5", "claude-sonnet-4-5", "gpt-5"),
-        # No override, server reports a model — use the server's value.
+        # 不覆盖，服务器报告模型 - 使用服务器的值。
         (None, "claude-sonnet-4-5", "claude-sonnet-4-5"),
-        # Neither side has a model — pass None through.
+        # 双方都没有模型——通过None。
         (None, None, None),
     ],
 )
 def test_current_model_id_propagates_init_resolution(
     override_model, server_model, expected
 ):
-    """End-to-end check of the resolution semantics ``_init`` is meant to apply.
+    """解析语义 ``_init`` 的端到端检查是适用的。
 
-    ``_init`` resolves ``self.acp_model or _extract_session_models(response)[0]``;
-    the resolved value lands in ``_current_model_id``; the agent-server then
-    lifts it onto ``ConversationInfo``. This test simulates the assignment
-    ``_init`` makes and verifies the value travels through.
+    ``_init`` resolves ``self.acp_model or _extract_session_models(response)[0]``; 解
+    析值
+    落在``_current_model_id``中； 然后智能体服务器将其提升到 ``ConversationInfo``。
+    该测试模拟作业
+    ``_init`` 生成并验证值经过。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model=override_model)
-    # Mirror the assignment that happens at the end of ``_init``.
+    # 镜像 ``_init`` 末尾发生的分配。
     agent._current_model_id = override_model or server_model
     state = _make_state(agent)
     stored = _make_stored(state)
@@ -155,11 +157,11 @@ def test_current_model_id_propagates_init_resolution(
 
 
 def test_cold_read_falls_back_to_acp_model_override():
-    """Cold list read (``init_state`` not fired): with no live/persisted current
-    id, the serialized ``acp_model`` is the best last-known hint and is surfaced.
+    """冷列表读取（``init_state`` 未触发）：没有实时/持续电流
+    id，已序列化 ``acp_model`` 是最后已知的最佳提示并浮出水面。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model="model-x")
-    # _initialized defaults to False (cold read); _current_model_id defaults None.
+    # _initialized默认为False（冷读）； _current_model_id 默认为 None。
     state = _make_state(agent)
     stored = _make_stored(state)
 
@@ -169,14 +171,15 @@ def test_cold_read_falls_back_to_acp_model_override():
 
 
 def test_live_agent_does_not_fall_back_to_unapplied_override():
-    """Live initialized agent whose override was NOT applied (e.g. a resume whose
-    model-selection call the server rejected): ``current_model_id`` is the
-    authoritative ``None`` and must NOT fall back to ``acp_model`` — that would
-    re-assert an override the live session isn't running.
+    """实时初始化智能体，其覆盖已应用不 (e.g. 一份简历，其
+    模型选择调用服务器被拒绝了。``current_model_id`` 是权威的``None``，必须不
+    fallback 到``acp_model`` — 这会重新
+    激活一个已暂停的会话。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model="model-x")
-    # init_state has fired; the override resolved to None (rejected) and was
-    # recorded as not applied. The persisted hint was cleared by init_state.
+    # init_state 已解雇； 覆盖解析为 None（已拒绝）并记录为未应用。 已持久化提示已被
+    # init_state 清除。
+    #
     agent._initialized = True
     agent._current_model_id = None
     agent._model_override_applied = False
@@ -189,13 +192,13 @@ def test_live_agent_does_not_fall_back_to_unapplied_override():
 
 
 def test_available_models_lifted_from_acp_agent():
-    """``ConversationInfo.available_models`` mirrors the agent's model list.
+    """``ConversationInfo.available_models`` 反映智能体的型号列表。
 
-    The list is surfaced verbatim (as normalized ``ACPModelInfo``) so the
-    client can render a picker and resolve ``current_model_id`` to a label
-    itself — the server does no name curation. Simulates claude-agent-acp's
-    default config where ``current_model_id`` is the opaque alias ``"default"``
-    and the readable identity lives in the matching ``available_models`` entry.
+    该列表原样呈现（已标准化 ``ACPModelInfo``），客户端可以渲染选择器并将其
+    ``current_model_id`` 自己解析为标签——服务器不做名称
+    校验。 模拟 claude-智能体-ACP 的默认配置，其中 ``current_model_id`` 是不透明别名
+    ``"default"``，可读身份位于匹配的
+     ``available_models`` 条目中。
     """
     agent = ACPAgent(acp_command=["echo", "test"])
     agent._current_model_id = "default"
@@ -217,7 +220,7 @@ def test_available_models_lifted_from_acp_agent():
 
 
 def test_available_models_empty_when_server_omits_them():
-    """Servers that don't surface the UNSTABLE ``models`` capability yield []."""
+    """不具备 UNSTABLE ``models`` 功能的服务器会产生 []。"""
     agent = ACPAgent(acp_command=["echo", "test"])
     agent._current_model_id = "gpt-5.5"
     state = _make_state(agent)
@@ -230,7 +233,7 @@ def test_available_models_empty_when_server_omits_them():
 
 
 def test_available_models_empty_for_native_openhands_agent():
-    """Native agents don't have the attribute; the lift yields []."""
+    """Native智能体没有该属性； 提升产生[]。"""
     agent = Agent(
         llm=LLM(
             model="gpt-4o",
@@ -248,16 +251,17 @@ def test_available_models_empty_for_native_openhands_agent():
 
 
 def test_current_model_fields_read_from_persisted_agent_state():
-    """Cold conversation list: the live agent's PrivateAttrs are still
-    None/empty because ``init_state`` hasn't fired, but ``agent_state``
-    persisted the values from the last session.  The lift should source from
-    there so the chip + picker survive cold reads.  The persisted
-    ``available_models`` is a list of plain dicts; ``ConversationInfo``
-    coerces it back into ``ACPModelInfo``.
+    """冷话列表：直播的智能体的PrivateAttrs还在
+    无/空，因为 ``init_state`` 尚未触发，但 ``agent_state`` 已持久化是上次会话的值。
+    提升应该来自那里，以便芯片+拾取器能够承受冷读。
+     已持久化
+    ``available_models`` 是普通字典列表； ``ConversationInfo`` 将其强制返回
+    ``ACPModelInfo``。
     """
     agent = ACPAgent(acp_command=["echo", "test"])
-    # Crucially, leave the PrivateAttrs at their defaults — this simulates an
-    # agent freshly reconstructed from persisted JSON before any ``init_state``.
+    # 至关重要的是，将 PrivateAttrs 保留为默认值 - 这会模拟在任何 ``init_state`` 之前从
+    # 已持久化 JSON 重新构建的智能体。
+    #
     state = _make_state(agent)
     state.agent_state = {
         "acp_session_id": "prior-session",
@@ -285,14 +289,14 @@ def test_current_model_fields_read_from_persisted_agent_state():
 
 
 def test_live_agent_attrs_take_precedence_over_persisted_state():
-    """Within an active session, the live agent is the freshest source."""
+    """在活动会话中，实时智能体是最新的来源。"""
     agent = ACPAgent(acp_command=["echo", "test"])
     agent._current_model_id = "claude-opus-4-1"
     agent._available_models = [
         ACPModelInfo(model_id="claude-opus-4-1", name="Opus 4.1")
     ]
     state = _make_state(agent)
-    # Stale persisted state from a prior session that picked a different model.
+    # 来自选择不同模型的先前会话的陈旧已持久化状态。
     state.agent_state = {
         "acp_current_model_id": "haiku",
         "acp_available_models": [{"model_id": "haiku", "name": "Haiku"}],
@@ -308,13 +312,13 @@ def test_live_agent_attrs_take_precedence_over_persisted_state():
 
 
 def test_current_model_id_falls_back_to_acp_model_on_cold_read():
-    """Cold read of a switched/overridden conversation whose server never
-    surfaced ``models``: no live PrivateAttr and no persisted hint, but
-    ``acp_model`` is a real serialized field and is authoritative — so the chip
-    still resolves instead of going blank.
+    """冷读服务器从未切换/覆盖的对话
+    浮出水面 ``models``：没有实时 PrivateAttr 和已持久化提示，但是
+    ``acp_model`` 是真正的已序列化字段并且具有权威性 - 因此芯片仍然可以解析而不是空白
+    。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model="enterprise-x")
-    # Leave _current_model_id at None and agent_state empty: pure cold read.
+    # 将 None 和 agent_state 处的 _current_model_id 留空：纯冷读。
     state = _make_state(agent)
     stored = _make_stored(state)
 
@@ -324,8 +328,8 @@ def test_current_model_id_falls_back_to_acp_model_on_cold_read():
 
 
 def test_supports_runtime_model_switch_lifted_from_agent_state():
-    """The static provider capability is read from persisted ``agent_state``
-    (written at session init), so it's correct on cold list reads too.
+    """静态提供者能力读取自已持久化``agent_state``
+    （在会话初始化时编写），所以它在冷列表读取上也是正确的。
     """
     agent = ACPAgent(acp_command=["echo", "test"])
     state = _make_state(agent)
@@ -338,7 +342,7 @@ def test_supports_runtime_model_switch_lifted_from_agent_state():
 
 
 def test_supports_runtime_model_switch_defaults_false():
-    """No hint (native agent, or ACP conversation that hasn't started) -> False."""
+    """无提示（本机智能体或尚未开始的 ACP 对话）-> False。"""
     agent = Agent(
         llm=LLM(
             model="gpt-4o",

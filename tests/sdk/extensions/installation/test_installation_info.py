@@ -13,7 +13,7 @@ class MockExtension:
 
 
 def test_installation_info_from_extension():
-    """Test InstallationInfo construction from extensions populates as expected."""
+    """扩展的测试 InstallationInfo 构造按预期填充。"""
     extension = MockExtension(
         name="name", version="0.1.2", description="Test extension please ignore"
     )
@@ -38,7 +38,7 @@ def test_installation_info_from_extension():
 
 
 def test_installation_info_from_extension_with_refs():
-    """Test requested_ref and resolved_ref are recorded when provided."""
+    """测试 requested_ref 和 resolved_ref 在提供时进行记录。"""
     extension = MockExtension(
         name="name", version="0.1.2", description="Test extension please ignore"
     )

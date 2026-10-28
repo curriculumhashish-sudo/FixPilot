@@ -1,4 +1,4 @@
-"""Guard package version changes so they only happen in release PRs."""
+"""Guard 包版本发生变化，因此它们仅发生在版本 PR 中。"""
 
 from __future__ import annotations
 

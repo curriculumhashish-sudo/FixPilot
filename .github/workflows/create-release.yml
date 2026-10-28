@@ -1,8 +1,8 @@
 ---
 name: Create GitHub Release
 
-# Create a GitHub release when a release PR merges, then explicitly dispatch
-# every publisher against the immutable release tag.
+# 当发布 PR 合并时创建 GitHub 发布，然后根据不可变发布标签显式分派每个发布者。
+#
 
 on:
     pull_request:
@@ -11,7 +11,7 @@ on:
 
 jobs:
     create-release:
-        # Only run when a release PR is merged (not just closed)
+        # 仅在合并版本 PR 时运行（而不仅仅是关闭）
         if: >
             github.event.pull_request.merged == true &&
             startsWith(github.event.pull_request.head.ref, 'rel-')
@@ -208,9 +208,8 @@ jobs:
 
 
             - name: Dispatch Agent Server image build
-              # server.yml builds versioned Docker images (e.g. 1.21.0-python) when
-              # triggered on a tag ref. Tags created by GITHUB_TOKEN don't trigger
-              # workflow runs automatically, so we dispatch it explicitly here.
+              # 当在标签引用上触发时，server.yml 构建版本化的 Docker 图像 (e.g.1.21.0-Python)。 GITHUB_TOKEN 创建的标签不会触发工作流自动运行，因此我们在此处显式分派它。
+              #
               if: steps.check.outputs.exists == 'false'
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

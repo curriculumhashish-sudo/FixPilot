@@ -1,4 +1,4 @@
-"""Integration tests for the repeating action-error corrective nudge (#4331)."""
+"""集成测试用于重复操作错误纠正微调 (#4331)。"""
 
 from collections.abc import Sequence
 from typing import ClassVar
@@ -83,7 +83,7 @@ def _make_conversation(
 
 
 def test_run_nudges_before_going_stuck_on_repeating_action_error():
-    """4 identical failing calls: nudge after the 3rd, hard STUCK after the 4th."""
+    """4 个相同的失败调用：在第 3 个之后微移，在第 4 个之后硬 STUCK。"""
     scripted_messages: list[Message | Exception] = [
         _bad_tool_call_message(f"call_{i}") for i in range(4)
     ]
@@ -124,7 +124,7 @@ def test_run_nudges_before_going_stuck_on_repeating_action_error():
 
 
 def test_run_recovers_after_nudge_when_model_self_corrects():
-    """3 identical failing calls then a different response: no STUCK at all."""
+    """3 个相同的失败调用，然后是不同的响应：根本没有 STUCK。"""
     scripted_messages: list[Message | Exception] = [
         *[_bad_tool_call_message(f"call_{i}") for i in range(3)],
         Message(
@@ -154,13 +154,11 @@ def test_run_recovers_after_nudge_when_model_self_corrects():
 
 
 def test_run_does_not_renudge_action_error_while_streak_is_frozen():
-    """An empty response after the nudge must not re-fire the same nudge.
+    """轻推后的空响应不得重新触发相同的轻推。
 
-    3 identical failing calls hit the nudge threshold and emit one nudge.
-    The model then stalls with an empty response, which adds no new
-    action/observation, so the action-error streak stays frozen at the
-    threshold. The unrelated EMPTY corrective nudge fires for that, but
-    the action-error nudge must not re-fire on the frozen streak.
+    3 个相同的失败调用达到微移阈值并发出一次微移。 然后，模型因空响应而停止，这不会添
+    加新的操作/观察，因此操作错误条纹保持冻结在阈值。 不相关的 EMPTY 纠正微
+    移会为此触发，但动作错误微移不得在冻结的条纹上重新触发。
     """
     scripted_messages: list[Message | Exception] = [
         *[_bad_tool_call_message(f"call_{i}") for i in range(3)],
@@ -188,8 +186,9 @@ def test_run_does_not_renudge_action_error_while_streak_is_frozen():
         for e in conversation.state.events
         if isinstance(e, MessageEvent) and e.source == "environment"
     ]
-    # One action-error nudge plus the unrelated EMPTY corrective nudge —
-    # not a second action-error nudge for the already-nudged, frozen streak.
+    # 一次行动错误推动加上不相关的 EMPTY 纠正推动——而不是对已经推动的、冻结的连胜进行第
+    # 二次行动错误推动。
+    #
     assert len(nudges) == 2
     action_error_nudge = nudges[0].llm_message.content[0]
     empty_corrective_nudge = nudges[1].llm_message.content[0]

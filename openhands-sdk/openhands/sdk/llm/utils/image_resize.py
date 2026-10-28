@@ -12,9 +12,8 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Anthropic vision docs: requests with more than 20 images cap each image at
-# 2000x2000 pixels. Requests with 20 or fewer images cap each image at
-# 8000x8000 pixels.
+# Anthropic 视觉文档：超过 20 个图像的请求将每个图像限制为 2000x2000 像素。 包含 20 个或
+# 更少图像的请求将每个图像的大小限制为 8000x8000 像素。
 # https://docs.anthropic.com/en/docs/build-with-claude/vision
 ANTHROPIC_MANY_IMAGE_THRESHOLD = 20
 ANTHROPIC_MANY_IMAGE_MAX_DIMENSION = 2000
@@ -24,7 +23,7 @@ ANTHROPIC_STANDARD_IMAGE_MAX_DIMENSION = 8000
 def maybe_resize_messages_for_provider(
     messages: list[Message], *, provider: str | None, vision_enabled: bool
 ) -> list[Message]:
-    """Return a detached message list with provider-specific image resizing."""
+    """返回一个分离的消息列表，其中包含特定于提供者的图像大小调整。"""
     max_dimension = _get_image_max_dimension(
         messages=messages,
         provider=provider,

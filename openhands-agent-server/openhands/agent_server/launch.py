@@ -1,8 +1,7 @@
-"""This server's side of the launch pipeline in :mod:`openhands.sdk.launch`.
+""":mod:`openhands.sdk.launch` 中启动管道的服务器端。
 
-Resolves a start request's agent source with this server's stores, describes
-this process as a ``LaunchRuntime``, and serializes a resolved source for a
-conversation container to finalize.
+智能体请求的源被此服务器的存储库所解决，描述了这一过程为``LaunchRuntime``，并为会话容
+器的已解决源进行序列化，以完成。
 """
 
 from __future__ import annotations
@@ -89,9 +88,9 @@ def live_launch_runtime(
 
 
 def target_launch_runtime(config: Config) -> LaunchRuntime:
-    """Describe the runtime this server's launches run in, without starting it."""
+    """描述该服务器启动时运行的运行时，但不启动它。"""
     if config.conversation_runtime == "docker":
-        # The container image sets managed sourcing.
+        # 容器镜像集托管采购。
         return LaunchRuntime(
             browser_available=container_browser_enabled(config),
             acp_skill_sourcing="openhands_managed",
@@ -102,19 +101,19 @@ def target_launch_runtime(config: Config) -> LaunchRuntime:
 
 
 def can_probe_tools(config: Config) -> bool:
-    """Whether conversations run in this process, so tool usability can be probed."""
+    """在此过程中是否运行对话，因此可以探测工具的可用性。"""
     return config.conversation_runtime != "docker"
 
 
 def configured_browser_available(config: Config) -> bool | None:
-    """Browser availability fixed by ``config``; ``None`` means probe this process."""
+    """浏览器可用性已由 ``config`` 修复； ``None``表示探测这个过程。"""
     if config.conversation_runtime == "docker":
         return container_browser_enabled(config)
     return None if config.enable_browser else False
 
 
 def container_browser_enabled(config: Config) -> bool:
-    """Whether this server's conversation containers may get the browser."""
+    """该服务器的会话容器是否可以获取浏览器。"""
     if not config.enable_browser:
         return False
     if config.conversation_image_has_browser is not None:
@@ -139,7 +138,7 @@ def launch_source(
     stores: Callable[[], LaunchStores],
     cipher: Cipher | None,
 ) -> LaunchSource:
-    """Turn the request's agent source into a launch source (blocking)."""
+    """将请求的智能体源转变为启动源（阻止）。"""
     context = _decryption_context(request, cipher)
     additions = request.agent_launch_additions
     llm_profile_ref = additions.llm_profile_ref if additions else None
@@ -167,7 +166,7 @@ def launch_source(
 def request_secrets(
     request: StartConversationRequest, cipher: Cipher | None
 ) -> dict[str, SecretSource]:
-    """The request's secrets, decrypted when the client encrypted them."""
+    """请求的机密，在客户端加密时解密。"""
     context = _decryption_context(request, cipher)
     if context is None:
         return dict(request.secrets)
@@ -211,7 +210,7 @@ def launch_http_exception(exc: LaunchFailure) -> HTTPException:
 def scoped_secrets(
     secrets: Mapping[str, SecretSource], source: LaunchSource
 ) -> dict[str, SecretSource]:
-    """Drop the request secrets a profile's ``secret_refs`` does not allow."""
+    """删除配置文件 ``secret_refs`` 不允许的请求机密。"""
     allowed = source.allowed_secrets if isinstance(source, ResolvedLaunch) else None
     if allowed is None:
         return dict(secrets)
@@ -233,12 +232,11 @@ def forward_to_runtime(
     *,
     load_memory: bool,
 ) -> dict[str, Any]:
-    """Serialize a start request for a conversation container to finalize.
+    """序列化对话容器的启动请求以完成。
 
-    ``secrets`` are the request's secrets already decrypted; those only this
-    server can resolve are materialized, and the payload is encrypted with the
-    container's ``cipher``. ``source`` None forwards the request's own profile
-    source, for a conversation the container already has.
+    ``secrets`` 请求的机密已解密； 那些只有该服务器可以解析的内容被具体化，并且载荷用
+    容器的``cipher``加密。 ``source`` None 转发
+    请求自己的配置文件源，用于容器已有的对话。
     """
     scoped = secrets if source is None else scoped_secrets(secrets, source)
     forwarded = request.model_copy(
@@ -258,7 +256,7 @@ def forward_to_runtime(
         update=_forwarded_context(model.agent_context, load_memory=load_memory)
     ).model_dump(mode="json", context={"cipher": cipher})
     additions = dict(payload.get("agent_launch_additions") or {})
-    # Already applied by resolve; without a profile source it is invalid.
+    # 已通过解析申请； 没有配置文件源，它是无效的。
     additions.pop("llm_profile_ref", None)
     payload["agent_launch_additions"] = additions or None
     return payload
@@ -274,7 +272,7 @@ def _forwarded_context(
         updates["load_memory"] = True
     if not updates:
         return {}
-    # A null context means "no prompt context", so a synthesized one carries no
-    # timestamp.
+    # null 上下文表示“无提示词上下文”，因此合成后不携带时间戳。
+    #
     base = context or AgentContext(current_datetime=None)
     return {"agent_context": base.model_copy(update=updates)}

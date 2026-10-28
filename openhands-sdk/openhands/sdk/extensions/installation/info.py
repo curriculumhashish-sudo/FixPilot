@@ -9,10 +9,10 @@ from openhands.sdk.extensions.installation.interface import ExtensionProtocol
 
 
 class InstallationInfo(BaseModel):
-    """Metadata record for a single installed extension.
+    """单个已安装扩展的元数据记录。
 
-    Stored (keyed by name) inside ``InstallationMetadata`` and persisted to
-    the ``.installed.json`` file in the installation directory.
+    存储（按名称键入）``InstallationMetadata`` 和已持久化内到安装目录中的
+    ``.installed.json`` 文件。
     """
 
     name: str = Field(description="Extension name")
@@ -52,16 +52,16 @@ class InstallationInfo(BaseModel):
         resolved_ref: str | None = None,
         repo_path: str | None = None,
     ) -> InstallationInfo:
-        """Create an InstallationInfo from an extension and its install context.
+        """从扩展创建 InstallationInfo 并安装它上下文。
 
         Args:
-            extension: Any object satisfying ``ExtensionProtocol``.
-            source: Original source string (e.g. ``"github:owner/repo"``).
-            install_path: Filesystem path the extension was copied to.
-            requested_ref: Branch, tag, or commit requested at install time,
+            extension: 任何满足``ExtensionProtocol``的对象。
+            source: 原始源字符串 (e.g. ``"github:owner/repo"``).
+            install_path: 扩展被复制到的文件系统路径。
+            requested_ref: 安装时请求的分支、标记或提交，
                 if applicable.
-            resolved_ref: Resolved git commit SHA, if applicable.
-            repo_path: Subdirectory within a monorepo, if applicable.
+            resolved_ref: 已解决 git commit SHA（如果适用）。
+            repo_path: 单体仓库内的子目录（如果适用）。
         """
         return InstallationInfo(
             name=extension.name,

@@ -7,11 +7,11 @@ from tests.conftest import create_mock_litellm_response
 
 
 def test_llm_pricing_passthrough_custom_rates():
-    """LLM should pass custom pricing to Telemetry (litellm cost calc).
+    """LLM 应将自定义定价传递给遥测（LiteLLM 成本计算）。
 
-    Verifies that when LLM is constructed with input/output cost per token,
-    Telemetry._compute_cost forwards those via custom_cost_per_token to
-    litellm.cost_calculator.completion_cost.
+    验证当 LLM 使用每个 token 的输入/输出成本构造时，Telemetry._compute_cost 将这些成
+    本通过
+    custom_cost_per_token 转发到 litellm.cost_calculator.completion_cost。
     """
     with (
         patch("openhands.sdk.llm.llm.litellm_completion") as mock_completion,

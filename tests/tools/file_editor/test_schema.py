@@ -2,14 +2,14 @@ from openhands.tools.file_editor import FileEditorTool
 
 
 def test_to_mcp_tool_detailed_type_validation_editor(mock_conversation_state):
-    """Test detailed type validation for MCP tool schema generation."""
+    """测试 MCP 工具模式生成的详细类型验证。"""
 
     file_editor_tool = FileEditorTool.create(conv_state=mock_conversation_state)
     assert len(file_editor_tool) == 1
     file_editor_tool = file_editor_tool[0]
     assert isinstance(file_editor_tool, FileEditorTool)
 
-    # Test file_editor tool schema
+    # 测试 file_editor 工具模式
     str_editor_mcp = file_editor_tool.to_mcp_tool()
     str_editor_schema = str_editor_mcp["inputSchema"]
     str_editor_props = str_editor_schema["properties"]
@@ -21,7 +21,7 @@ def test_to_mcp_tool_detailed_type_validation_editor(mock_conversation_state):
     assert "new_str" in str_editor_props
     assert "insert_line" in str_editor_props
     assert "view_range" in str_editor_props
-    # security_risk should NOT be in the schema after #341
+    # security_risk应该不在#341之后的模式中
     assert "security_risk" not in str_editor_props
 
     view_range_schema = str_editor_props["view_range"]

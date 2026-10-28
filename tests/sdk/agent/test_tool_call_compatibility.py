@@ -1,4 +1,4 @@
-"""Tests for legacy tool-name compatibility shims."""
+"""测试旧版工具名称兼容性垫片。"""
 
 import json
 import os
@@ -388,7 +388,7 @@ def test_grep_terminal_command_falls_back_to_python_on_windows(monkeypatch, tmp_
 
 
 def test_security_risk_typo_normalized(tmp_path):
-    """Test that security_risk typos are normalized before validation."""
+    """测试 security_risk 拼写错误在验证之前是否已标准化。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="bash",
@@ -407,7 +407,7 @@ def test_security_risk_typo_normalized(tmp_path):
 
 
 def test_file_editor_command_inferred_from_old_str(tmp_path):
-    """Test that file_editor command is inferred when old_str is present."""
+    """测试当 old_str 存在时是否推断出 file_editor 命令。"""
     test_file = tmp_path / "sample.py"
     test_file.write_text("value = 'old'\n")
 
@@ -433,7 +433,7 @@ def test_file_editor_command_inferred_from_old_str(tmp_path):
 
 
 def test_file_editor_empty_args_emits_error(tmp_path):
-    """Test that file_editor with empty args produces helpful error."""
+    """测试带有空参数的 file_editor 是否会产生有用的错误。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="file_editor",
@@ -449,17 +449,17 @@ def test_file_editor_empty_args_emits_error(tmp_path):
     error_event = errors[0]
     assert "file_editor" in error_event.error
     assert "Cannot infer" in error_event.error or "command" in error_event.error.lower()
-    # Should NOT be the raw Pydantic validation error
+    # 不应该是原始 Pydantic 验证错误
     assert "Field required" not in error_event.error
     assert "validation errors" not in error_event.error
 
 
 def test_str_replace_alias_error_message_shows_file_editor(tmp_path):
-    """Test that str_replace alias shows 'file_editor' in error, not 'str_replace'."""
+    """测试 str_replace 别名是否显示错误的“file_editor”，而不是“str_replace”。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="str_replace",
-        arguments={},  # Empty args should fail with helpful error
+        arguments={},  # 空参数应该会失败并出现有用的错误
         tool_names=(FILE_EDITOR_TOOL_SPEC,),
     )
 
@@ -467,16 +467,17 @@ def test_str_replace_alias_error_message_shows_file_editor(tmp_path):
 
     assert len(errors) == 1
     error_event = errors[0]
-    # The error should reference 'file_editor' (the resolved name), not 'str_replace'
-    # since str_replace is an alias for file_editor
+    # 该错误应引用“file_editor”（已解析的名称），而不是“str_replace”，因为 str_replace
+    # 是 file_editor 的别名
+    #
     assert "file_editor" in error_event.error
     assert "Cannot infer" in error_event.error
-    # Should NOT show str_replace in error message since it resolved to file_editor
+    # 不应该在错误消息中显示 str_replace，因为它解析为 file_editor
     assert "for tool 'str_replace'" not in error_event.error
 
 
 def test_grep_pattern_with_shell_metacharacters_is_escaped(tmp_path):
-    """Verify shlex.join() prevents shell injection in grep patterns."""
+    """验证 shlex.join() 防止 grep 模式中的 shell 注入。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="grep",
@@ -490,24 +491,24 @@ def test_grep_pattern_with_shell_metacharacters_is_escaped(tmp_path):
     assert not errors
     assert action_event.tool_name == TERMINAL_TOOL_NAME
     assert action_event.action is not None
-    # shlex.join() quotes the pattern, preventing shell injection
+    # shlex.join() 引用模式，防止 shell 注入
     assert "; rm -rf /" in getattr(action_event.action, "command")
 
 
 def test_explicitly_registered_tool_not_hijacked_by_alias():
-    """Regression: explicitly registered 'bash' tool should not be hijacked to terminal.
+    """Regression: 显式注册的“bash”工具不应被劫持到终端。
 
-    When a tool named 'bash' is explicitly registered, it should be preserved
-    rather than aliased to 'terminal'. This prevents legitimate tools from being
-    silently overridden by the compatibility shim.
+    当显式注册名为“bash”的工具时，应保留它而不是别名为“terminal”。 这可以防止合法工具
+    被兼容性填充程序悄悄覆盖。
     """
     from openhands.sdk.agent.utils import normalize_tool_call
 
-    # When 'bash' is explicitly registered alongside 'terminal',
-    # normalize_tool_call should preserve 'bash', not alias to 'terminal'
+    # 当 'bash' 与 'terminal' 一起显式注册时，normalize_tool_call 应保留 'bash'，而不是
+    # 'terminal' 的别名
+    #
     available_tools = {"bash", "terminal", "file_editor"}
 
-    # Test with 'bash' tool name - should NOT be aliased since it's registered
+    # 使用“bash”工具名称进行测试 - 不应该是别名，因为它已注册
     tool_name, args = normalize_tool_call(
         "bash", {"command": "echo hi"}, available_tools
     )
@@ -515,11 +516,11 @@ def test_explicitly_registered_tool_not_hijacked_by_alias():
         "Explicitly registered 'bash' should not be aliased to terminal"
     )
 
-    # Test with 'ls' tool name - should still fallback since it's NOT registered
+    # 使用“ls”工具名称进行测试 - 仍应为回退方案，因为它已注册为不
     tool_name, args = normalize_tool_call("ls", {}, available_tools)
     assert tool_name == "terminal", "Unknown 'ls' should fallback to terminal"
 
-    # Test with 'str_replace' - should be aliased (alias target is registered)
+    # 使用“str_replace”进行测试 - 应该使用别名（别名目标已注册）
     tool_name, args = normalize_tool_call(
         "str_replace", {"old_str": "x", "new_str": "y"}, available_tools
     )
@@ -527,17 +528,17 @@ def test_explicitly_registered_tool_not_hijacked_by_alias():
 
 
 def test_malformed_tool_name_str_replace_xml_tag(tmp_path):
-    """Test that malformed tool names like 'str_replace </parameter' are fixed.
+    """测试格式错误的工具名称（例如“str_replace </parameter'”）是否已修复。
 
-    This addresses errors where LLMs emit XML/HTML tag fragments in tool names.
-    The fix extracts the first valid identifier and maps it to the correct tool.
+    这解决了 LLMs 发出 XML/HTML 标签片段的错误。 该修复提取第一个有效标识符并将其映射
+    到正确的工具。
     """
     test_file = tmp_path / "sample.py"
     test_file.write_text("value = 'old'\n")
 
     events = _run_tool_call(
         tmp_path,
-        tool_name="str_replace </parameter",  # Malformed: XML tag appended
+        tool_name="str_replace </parameter",  # 格式错误：附加了 XML 标签
         arguments={
             "path": str(test_file),
             "old_str": "'old'",
@@ -557,13 +558,13 @@ def test_malformed_tool_name_str_replace_xml_tag(tmp_path):
 
 
 def test_malformed_tool_name_str_replace_function_tag(tmp_path):
-    """Test that malformed tool names like 'str_replace</function>' are fixed."""
+    """测试格式错误的工具名称（例如“str_replace</function>”）是否已修复。"""
     test_file = tmp_path / "sample.py"
     test_file.write_text("value = 'old'\n")
 
     events = _run_tool_call(
         tmp_path,
-        tool_name="str_replace</function>",  # Malformed: XML tag appended
+        tool_name="str_replace</function>",  # 格式错误：附加了 XML 标签
         arguments={
             "path": str(test_file),
             "old_str": "'old'",
@@ -582,13 +583,13 @@ def test_malformed_tool_name_str_replace_function_tag(tmp_path):
 
 
 def test_malformed_tool_name_str_replace_editor_xml_tag(tmp_path):
-    """Test that malformed 'str_replace_editor </tool_call>' names are fixed."""
+    """测试格式错误的“str_replace_editor </tool_call>”名称是否已修复。"""
     test_file = tmp_path / "sample.py"
     test_file.write_text("value = 'old'\n")
 
     events = _run_tool_call(
         tmp_path,
-        tool_name="str_replace_editor </tool_call>",  # Malformed
+        tool_name="str_replace_editor </tool_call>",  # 畸形
         arguments={
             "path": str(test_file),
             "old_str": "'old'",
@@ -607,13 +608,13 @@ def test_malformed_tool_name_str_replace_editor_xml_tag(tmp_path):
 
 
 def test_malformed_tool_name_bash_xml_tag(tmp_path):
-    """Test that malformed tool names like 'bash </request>' are fixed."""
+    """测试格式错误的工具名称（例如“bash </request>”）是否已修复。"""
     test_file = tmp_path / "hello.txt"
     test_file.write_text("hello\n")
 
     events = _run_tool_call(
         tmp_path,
-        tool_name="bash </request>",  # Malformed: XML tag appended
+        tool_name="bash </request>",  # 格式错误：附加了 XML 标签
         arguments={"command": "cat hello.txt"},
         tool_names=(TERMINAL_TOOL_SPEC,),
     )
@@ -629,16 +630,16 @@ def test_malformed_tool_name_bash_xml_tag(tmp_path):
 
 
 def test_malformed_tool_name_no_fix_when_no_match():
-    """Test that truly malformed names that don't match any alias return original."""
+    """测试与任何别名不匹配的真正格式错误的名称是否返回原始名称。"""
     from openhands.sdk.agent.utils import normalize_tool_call
 
     available_tools = {"terminal", "file_editor"}
 
-    # "straight" doesn't match any alias or tool, so it should remain unchanged
+    # “straight”不匹配任何别名或工具，因此它应该保持不变
     tool_name, args = normalize_tool_call("straight", {}, available_tools)
     assert tool_name == "straight", "Unknown malformed name should remain unchanged"
 
-    # "xyz123 </invalid>" doesn't match any known alias
+    # “xyz123 </invalid>”与任何已知别名都不匹配
     tool_name, args = normalize_tool_call("xyz123 </invalid>", {}, available_tools)
     assert tool_name == "xyz123 </invalid>", (
         "Non-matching malformed name should remain unchanged"
@@ -646,16 +647,16 @@ def test_malformed_tool_name_no_fix_when_no_match():
 
 
 def test_malformed_tool_name_alias_precedence():
-    """Test that aliases are correctly resolved from malformed names.
+    """测试别名是否能从格式错误的名称中正确解析。
 
-    When a malformed name like 'str_replace </parameter' is fixed to 'str_replace',
-    it should then be mapped to 'file_editor' via the alias.
+    当像“str_replace </parameter'”这样的格式错误的名称被固定为“str_replace”时，它应该
+    通过别名映射到“file_editor”。
     """
     from openhands.sdk.agent.utils import normalize_tool_call
 
     available_tools = {"terminal", "file_editor"}
 
-    # 'str_replace </parameter' fixed to 'str_replace', then aliased to 'file_editor'
+    # 'str_replace </parameter' 固定为 'str_replace'，然后别名为 'file_editor'
     tool_name, args = normalize_tool_call(
         "str_replace </parameter",
         {"path": "/tmp/test", "old_str": "a", "new_str": "b"},
@@ -667,7 +668,7 @@ def test_malformed_tool_name_alias_precedence():
 
 
 def test_git_alias_executes_terminal_tool(tmp_path):
-    """Test that 'git' tool name is aliased to 'terminal'."""
+    """测试“git”工具名称是否别名为“terminal”。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="git",
@@ -686,7 +687,7 @@ def test_git_alias_executes_terminal_tool(tmp_path):
 
 
 def test_reset_alias_executes_terminal_tool(tmp_path):
-    """Test that 'reset' tool name is aliased to 'terminal'."""
+    """测试“重置”工具名称是否别名为“终端”。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="reset",
@@ -729,7 +730,7 @@ def test_terminal_prefix_alias_only_adds_a_missing_executable(
 
 
 def test_shell_tool_name_git_falls_back_to_terminal(tmp_path):
-    """Test that 'git' without arguments falls back to terminal."""
+    """测试不带参数的 'git' 是否回退到终端。"""
     events = _run_tool_call(
         tmp_path,
         tool_name="git",

@@ -3,32 +3,42 @@ title: OpenHands Agent SDK Tests
 description: Test suite structure and execution strategy for the OpenHands Agent SDK. Includes unit tests, integration tests, and CI configuration.
 ---
 
-# OpenHands Agent SDK Tests
+<a id="openhands-agent-sdk-tests"></a>
 
-This directory contains the test suite for the OpenHands Agent SDK.
+# OpenHands 智能体 SDK Tests
 
-## Test Structure
+该目录包含测试套件为OpenHands智能体SDK。
+
+<a id="test-structure"></a>
+
+## 测试结构
 
 ```
 tests/
-├── cross/         # Cross-package tests
-├── integration/   # Integration tests
-├── sdk/           # SDK unit tests
-└── tools/         # Tools unit tests
+├── cross/         # 跨包测试
+├── integration/   # 集成测试
+├── sdk/           # SDK 单元测试
+└── tools/         # 工具单元测试
 ```
 
-## Test Categories
+<a id="test-categories"></a>
 
-### Integration Tests (`integration`)
+## 测试类别
 
-End-to-end tests that cover large parts of the code base and are generally slower than other tests.
-**CI Execution:** The CI runs those tests nightly. Code changes do not trigger those tests to run.
+<a id="integration-tests-integration"></a>
 
-### Unit Tests (`cross`, `sdk`, `tools`)
+### 集成测试 (`integration`)
 
-Component-specific tests that prevent regressions in core functionality.
+端到端测试覆盖了大部分代码库，通常比其他测试慢。
+**CI 执行：** CI 每晚运行这些测试。 代码更改不会触发这些测试运行。
 
-**CI Execution:** The CI runs these tests intelligently based on code changes:
-- **SDK Tests** (`sdk/`): Run when changes are detected in `openhands-sdk/**` or `tests/sdk/**`
-- **Tools Tests** (`tools/`): Run when changes are detected in `openhands-tools/**` or `tests/tools/**`
-- **Cross Tests** (`cross/`): Run when changes are detected in any source code or test files
+<a id="unit-tests-cross-sdk-tools"></a>
+
+### 单元测试 (`cross`, `sdk`, `tools`)
+
+防止核心功能回归的特定于组件的测试。
+
+**CI执行：**CI根据代码更改智能地运行这些测试：
+- **SDK 测试** (`sdk/`)：在 `openhands-sdk/**` 或 `tests/sdk/**` 中检测到更改时运行
+- **工具测试** (`tools/`)：在 `openhands-tools/**` 或 `tests/tools/**` 中检测到更改时运行
+- **交叉测试** (`cross/`)：在任何源代码或测试文件中检测到更改时运行

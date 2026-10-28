@@ -1,8 +1,7 @@
-"""Tests for View.manipulation_indices property.
+"""测试 View.manipulation_indices 属性。
 
-This module tests the cached property that identifies safe indices for manipulating
-events (inserting new events or forgetting ranges) while respecting atomicity
-constraints.
+该模块测试缓存属性，该属性用于识别可以安全操作事件（插入新事件或忘记范围）的索引，同
+时遵守原子性约束。
 """
 
 from openhands.sdk.context.view import View
@@ -17,22 +16,22 @@ from tests.sdk.context.view.conftest import (  # noqa: F401
 
 
 def test_empty_list() -> None:
-    """Test manipulation_indices with empty event list."""
+    """使用空事件列表测试 manipulation_indices。"""
     view = View.from_events([])
     assert view.manipulation_indices == {0}
 
 
 def test_single_message_event() -> None:
-    """Test manipulation_indices with a single message event."""
+    """使用单个消息事件测试 manipulation_indices。"""
     events = [message_event("Event 0")]
     view = View.from_events(events)
 
-    # Should have boundaries before and after the single message
+    # 在单个消息之前和之后应该有边界
     assert view.manipulation_indices == {0, 1}
 
 
 def test_multiple_message_events() -> None:
-    """Test manipulation_indices with multiple message events."""
+    """使用多个消息事件测试 manipulation_indices。"""
     events = [
         message_event("Event 0"),
         message_event("Event 1"),
@@ -40,24 +39,24 @@ def test_multiple_message_events() -> None:
     ]
     view = View.from_events(events)
 
-    # Each message is its own atomic unit, so boundaries exist between all of them
+    # 每条消息都是它自己的原子单元，因此它们之间存在边界
     assert view.manipulation_indices == {0, 1, 2, 3}
 
 
 def test_single_action_observation_pair() -> None:
-    """Test manipulation_indices with a single action-observation pair."""
+    """使用单个操作-观测结果对测试 manipulation_indices。"""
     action = create_action_event("response_1", "tool_call_1")
     obs = create_observation_event("tool_call_1")
 
     events = [action, obs]
     indices = View.from_events(events).manipulation_indices
 
-    # The pair is an atomic unit, so boundaries are only at start and end
+    # 该对是一个原子单元，因此边界仅在开始和结束处
     assert indices == {0, 2}
 
 
 def test_action_observation_with_message_events() -> None:
-    """Test manipulation indices with message events around action-observation."""
+    """使用围绕操作观测结果的消息事件测试操作索引。"""
     msg1 = message_event("Before")
     action = create_action_event("response_1", "tool_call_1")
     obs = create_observation_event("tool_call_1")
@@ -66,12 +65,12 @@ def test_action_observation_with_message_events() -> None:
     events = [msg1, action, obs, msg2]
     indices = View.from_events(events).manipulation_indices
 
-    # Boundaries: [0 msg1 1 (action+obs) 3 msg2 4]
+    # 边界：[0 msg1 1（操作+obs）3 msg2 4]
     assert indices == {0, 1, 3, 4}
 
 
 def test_batch_of_actions_simple() -> None:
-    """Test manipulation indices with a batch of actions from same LLM response."""
+    """使用来自相同 LLM 响应的一批操作来测试操纵指数。"""
     thinking = [
         ThinkingBlock(type="thinking", thinking="Thinking...", signature="sig1")
     ]
@@ -87,20 +86,21 @@ def test_batch_of_actions_simple() -> None:
     events = [action1, action2, action3, obs1, obs2, obs3]
     indices = View.from_events(events).manipulation_indices
 
-    # All actions are part of the same batch, and observations extend the range
-    # The entire batch (actions + observations) is one atomic unit
+    # 所有动作都是同一批次的一部分，并且观测结果扩展了范围整个批次（动作 + 观测结果）是
+    # 一个原子单元
+    #
     assert indices == {0, 6}
 
 
 def test_multiple_separate_batches() -> None:
-    """Test manipulation indices with multiple separate action batches."""
-    # First batch
+    """使用多个单独的操作批次测试操作指数。"""
+    # 第一批
     action1_1 = create_action_event("response_1", "tool_call_1")
     action1_2 = create_action_event("response_1", "tool_call_2")
     obs1_1 = create_observation_event("tool_call_1")
     obs1_2 = create_observation_event("tool_call_2")
 
-    # Second batch
+    # 第二批
     action2_1 = create_action_event("response_2", "tool_call_3")
     action2_2 = create_action_event("response_2", "tool_call_4")
     obs2_1 = create_observation_event("tool_call_3")
@@ -118,12 +118,12 @@ def test_multiple_separate_batches() -> None:
     ]
     indices = View.from_events(events).manipulation_indices
 
-    # Two atomic units: batch1 (indices 0-3) and batch2 (indices 4-7)
+    # 两个原子单元：batch1（索引0-3）和batch2（索引4-7）
     assert indices == {0, 4, 8}
 
 
 def test_batches_separated_by_messages() -> None:
-    """Test manipulation indices with messages between action batches."""
+    """使用操作批次之间的消息测试操作索引。"""
     msg1 = message_event("Start")
 
     action1 = create_action_event("response_1", "tool_call_1")
@@ -146,19 +146,19 @@ def test_batches_separated_by_messages() -> None:
 
 
 def test_single_action_in_batch() -> None:
-    """Test manipulation indices with a batch containing only one action."""
+    """使用仅包含一个操作的批次测试操作指数。"""
     action = create_action_event("response_1", "tool_call_1")
     obs = create_observation_event("tool_call_1")
 
     events = [action, obs]
     indices = View.from_events(events).manipulation_indices
 
-    # Single-action batch is still an atomic unit
+    # 单动作批次仍然是原子单元
     assert indices == {0, 2}
 
 
 def test_complex_interleaved_scenario() -> None:
-    """Test complex scenario with multiple event types interleaved."""
+    """测试具有多种事件类型交错的复杂场景。"""
     msg1 = message_event("Message 1")
 
     # Batch 1: 2 actions
@@ -168,11 +168,11 @@ def test_complex_interleaved_scenario() -> None:
 
     msg2 = message_event("Message 2")
 
-    obs1_2 = create_observation_event("call_2")  # Observation comes late
+    obs1_2 = create_observation_event("call_2")  # 观测结果来晚了
 
     msg3 = message_event("Message 3")
 
-    # Batch 2: 1 action
+    # 第 2 批：1 次行动
     action2 = create_action_event("response_2", "call_3")
     obs2 = create_observation_event("call_3")
 
@@ -189,41 +189,40 @@ def test_complex_interleaved_scenario() -> None:
     ]
     indices = View.from_events(events).manipulation_indices
 
-    # msg1: [0, 1]
-    # batch1 (action1_1, action1_2, obs1_1, msg2, obs1_2): [1, 6]
-    # msg3: [6, 7]
-    # batch2 (action2, obs2): [7, 9]
+    # 消息 1: [0, 1]
+    # 批次1 (action1_1, action1_2, obs1_1, msg2, obs1_2): [1, 6]
+    # 消息 3：[6、7]
+    # 批次2（操作2，obs2）：[7，9]
     #
-    # Wait - msg2 is in between the batch, but it's its own atomic unit
-    # Actually, batch1 spans indices 1-5 (action1_1, action1_2, obs1_1, -, obs1_2)
-    # But there's a message at index 4
+    # 等等 - msg2 在批次之间，但它是一个独立的原子单元。实际上，批次1 跨越了索引 1-5 (
+    # action1_1, action1_2, obs1_1, -, obs1_2)，但在索引 4 处有一个消息
     #
-    # Let's recalculate:
-    # 0: msg1 (atomic unit)
-    # 1: action1_1 (part of batch1)
-    # 2: action1_2 (part of batch1)
-    # 3: obs1_1 (part of batch1)
-    # 4: msg2 (atomic unit but check if it's in batch range)
-    # 5: obs1_2 (part of batch1, extends range)
-    # 6: msg3 (atomic unit)
-    # 7: action2 (part of batch2)
-    # 8: obs2 (part of batch2)
+    # 我们重新计算一下：
+    # 0：msg1（原子单元）
+    # 1：action1_1（batch1的一部分）
+    # 2：action1_2（batch1的一部分）
+    # 3：obs1_1（batch1的一部分）
+    # 4：msg2（原子单位，但检查它是否在批次范围内）
+    # 5：obs1_2（batch1的一部分，扩展范围）
+    # 6：msg3（原子单元）
+    # 7：action2（batch2的一部分）
+    # 8：obs2（batch2的一部分）
     #
-    # batch1 range: min(1,2)=1, max after observations: max(2, 5)=5
-    # But msg2 at index 4 is between 1 and 5
+    # 批次1范围：min(1,2)=1，观测结果之后的最大值为max(2, 5)=5。但是，msg2在索引4处位于1
+    # 和5之间
     #
-    # Expected: [0, 1, 6, 7, 9]
-    # - 0: before msg1
-    # - 1: after msg1, before batch1
-    # - 6: after batch1 (which includes indices 1-5), before msg3
-    # - 7: after msg3, before batch2
-    # - 9: after batch2
+    # 预期：[0、1、6、7、9]
+    # - 0：在msg1之前
+    # - 1：msg1之后，batch1之前
+    # - 6：batch1 之后（包括索引 1-5），msg3 之前
+    # - 7：msg3之后，batch2之前
+    # - 9：第2批之后
 
     assert indices == {0, 1, 6, 7, 9}
 
 
 def test_observations_extend_batch_range() -> None:
-    """Test that observations extend the atomic unit range of a batch."""
+    """测试观测结果扩展批次的原子单元范围。"""
     action1 = create_action_event("response_1", "call_1")
     action2 = create_action_event("response_1", "call_2")
 
@@ -235,17 +234,16 @@ def test_observations_extend_batch_range() -> None:
     events = [action1, action2, msg, obs1, obs2]
     indices = View.from_events(events).manipulation_indices
 
-    # Batch includes actions 0-1 and observations 3-4
-    # Message at 2 falls within the batch range, so treated as part of it
-    # Range: min=0, max=4
+    # 批次包括操作 0-1 和观测结果 3-4 2 处的消息属于批次范围，因此被视为批次范围的一部分
+    # 范围：最小值=0，最大值=4
     assert indices == {0, 5}
 
 
 def test_batch_with_all_observations() -> None:
-    """Test batch boundaries when all actions have matching observations.
+    """当所有操作都匹配观测结果时测试批次边界。
 
-    Note: In practice, from_events() filters out unmatched actions, so this
-    tests the realistic scenario where all actions in a batch have observations.
+    Note: 实际上，from_events() 过滤掉不匹配的操作，所以这
+    测试批次中所有操作都有观测结果的实际场景。
     """
     action1 = create_action_event("response_1", "call_1")
     action2 = create_action_event("response_1", "call_2")
@@ -256,12 +254,12 @@ def test_batch_with_all_observations() -> None:
     view = View.from_events(events)
     indices = view.manipulation_indices
 
-    # The batch is one atomic unit containing both action-observation pairs
+    # 批次是一个包含两个 action-观测结果对的原子单元
     assert indices == {0, 4}
 
 
 def test_interleaved_batches_and_messages() -> None:
-    """Test alternating pattern of batches and messages."""
+    """测试批次和消息的交替模式。"""
     msg1 = message_event("Msg 1")
 
     action1 = create_action_event("response_1", "call_1")
@@ -282,7 +280,7 @@ def test_interleaved_batches_and_messages() -> None:
 
 
 def test_three_action_batch() -> None:
-    """Test batch with three parallel actions."""
+    """使用三个并行操作测试批次。"""
     action1 = create_action_event("response_1", "call_1")
     action2 = create_action_event("response_1", "call_2")
     action3 = create_action_event("response_1", "call_3")
@@ -294,12 +292,12 @@ def test_three_action_batch() -> None:
     events = [action1, action2, action3, obs1, obs2, obs3]
     indices = View.from_events(events).manipulation_indices
 
-    # All part of one batch
+    # 一批的所有部分
     assert indices == {0, 6}
 
 
 def test_consecutive_atomic_units() -> None:
-    """Test that consecutive indices correctly define atomic units."""
+    """测试连续索引是否正确定义原子单位。"""
     msg1 = message_event("Msg 1")
     msg2 = message_event("Msg 2")
 
@@ -314,15 +312,13 @@ def test_consecutive_atomic_units() -> None:
     # [0 msg1 1 msg2 2 batch 4 msg3 5]
     assert indices == {0, 1, 2, 4, 5}
 
-    # Verify atomic units:
-    # events[0:1] = [msg1]
-    # events[1:2] = [msg2]
-    # events[2:4] = [action, obs]
+    # 验证原子单位：事件[0:1] = [msg1] events[1:2] = [msg2] events[2:4] = [action, obs]
     # events[4:5] = [msg3]
+    #
 
 
 def test_forgetting_range_selection() -> None:
-    """Test that ranges between consecutive indices can be safely forgotten."""
+    """测试连续索引之间的范围可以被安全地遗忘。"""
     msg1 = message_event("Keep")
 
     action1 = create_action_event("response_1", "call_1")

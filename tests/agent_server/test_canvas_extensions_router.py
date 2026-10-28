@@ -1,8 +1,7 @@
-"""Tests for the installed-canvas-extension management router
-(canvas_extensions_router).
+"""测试已安装的画布扩展管理路由器 (canvas_extensions_router)。
 
-Drives the endpoints through a TestClient against a temp install store (the
-default install dir is redirected), so nothing touches the real
+通过 TestClient 驱动端点到临时安装存储（默认安装目录被重定向），因此没有任何内容触及
+真实的
 ~/.openhands.
 """
 
@@ -23,7 +22,7 @@ from .canvas_extensions.conftest import write_extension
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch) -> TestClient:
-    """A TestClient whose install store is an isolated temp directory."""
+    """A TestClient，其安装存储是一个独立的临时目录。"""
     store = tmp_path / "installed-store"
     monkeypatch.setattr(
         "openhands.agent_server.canvas_extensions.installed."
@@ -99,9 +98,8 @@ def test_list_includes_manifest_page_contributions(client: TestClient, tmp_path:
 def test_unreadable_manifest_after_install_yields_null_manifest(
     client: TestClient, tmp_path: Path
 ):
-    """A tracked extension whose stored manifest no longer parses must stay
-    visible with ``manifest: null`` -- not break the endpoints -- so it can
-    still be disabled or uninstalled through the API.
+    """其存储的清单不再解析的跟踪扩展必须保留
+    使用 ``manifest: null`` 可见——不会破坏端点——因此仍然可以通过 API 禁用或卸载它。
     """
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
     install = client.post("/canvas-extensions/install", json={"source": str(src)})
@@ -157,7 +155,7 @@ def test_patch_toggles_enabled_state(client: TestClient, tmp_path: Path):
 
 @pytest.fixture
 def client_with_sessions(tmp_path: Path, monkeypatch) -> tuple[TestClient, object]:
-    """A TestClient with an app-scoped session store attached."""
+    """附加了应用程序范围的会话存储的 TestClient。"""
     store = tmp_path / "installed-store"
     monkeypatch.setattr(
         "openhands.agent_server.canvas_extensions.installed."
@@ -175,10 +173,10 @@ def client_with_sessions(tmp_path: Path, monkeypatch) -> tuple[TestClient, objec
 def test_disable_uninstall_and_stop_revoke_app_sessions(
     client_with_sessions, tmp_path: Path, revision_route: str
 ):
-    """A live app cookie must stop authorizing once the app is torn down.
+    """一旦应用程序被拆除，实时应用程序 cookie 必须停止授权。
 
-    Regression test: these handlers used to call `stop()` directly, leaving
-    `revoke_app` (which also cancels attached WebSocket bridges) as dead code.
+    回归测试：这些处理程序过去直接调用`stop()`，留下
+    `revoke_app`（也取消附加的 WebSocket 桥）作为死代码。
     """
     import asyncio
 
@@ -256,11 +254,11 @@ def test_install_invalid_manifest_returns_422(client: TestClient, tmp_path: Path
 def test_install_missing_manifest_returns_422_not_500(
     client: TestClient, tmp_path: Path
 ):
-    """A source with no manifest file at all raises FileNotFoundError (an
-    OSError) out of load_from_dir()'s bare ``read_text()`` -- a very
-    plausible real input (e.g. a wrong repo_path into a monorepo), not just
-    a theoretical edge case. This must map to the endpoint's own documented
-    422, not fall through to an unhandled 500 that leaks a filesystem path.
+    """根本没有清单文件的源会引发 FileNotFoundError （
+    OSError) load_from_dir()的裸 ``read_text()`` -- 一个非常合理的实际输入 (e.g。
+    repo_path错误变成了单体仓库
+    ，不只是一个理论上的边缘情况。 这必须映射到端点的自身文档中的422，而不是掉落到一
+    个未处理的500，该500泄露了文件系统路径。
     """
     no_manifest = tmp_path / "src" / "no-manifest-extension"
     no_manifest.mkdir(parents=True)
@@ -286,11 +284,10 @@ def test_missing_extension_returns_404(client: TestClient):
 def test_bundle_endpoint_busts_cache_across_revisions(
     client: TestClient, tmp_path: Path
 ):
-    """Cache-busting across revisions is the specific guarantee named in
-    issue #4352: after a force-reinstall lands new bundle bytes, a client
-    must get the new content, and the response's validators (ETag) must
-    change too, or an intermediate cache keyed on them would keep serving
-    the pre-refresh bundle even after a successful revalidation round trip.
+    """跨修订版本的缓存清除是指定的具体保证
+    #4352: 在强制重安装后，如果新包字节被加载，客户端必须获取新的内容，并且响应的验证
+    器（ETag）必须改变，否则，基于它们的中间缓存将继续提供预刷新包，即使成功
+    验证往返。
     """
     src = write_extension(
         tmp_path / "src" / "demo-extension",
@@ -301,8 +298,9 @@ def test_bundle_endpoint_busts_cache_across_revisions(
     first = client.get("/canvas-extensions/installed/demo-extension/bundle")
     assert first.status_code == 200
 
-    # Different length, not just different bytes -- so the assertion below
-    # can't pass by relying on filesystem mtime resolution alone.
+    # 不同的长度，而不仅仅是不同的字节——因此下面的断言不能仅依靠文件系统 mtime 解析来通
+    # 过。
+    #
     (src / "dist" / "index.js").write_text("console.log('updated-bundle-v2')")
     client.post("/canvas-extensions/install", json={"source": str(src), "force": True})
     second = client.get("/canvas-extensions/installed/demo-extension/bundle")
@@ -334,11 +332,10 @@ def test_bundle_endpoint_serves_entrypoint_with_no_cache_header(
 def test_bundle_endpoint_rejects_escaping_entrypoint_installed_out_of_band(
     client: TestClient, tmp_path: Path
 ):
-    """Containment must be re-checked at serve time, not just install time.
+    """遏制必须在服务时重新检查，而不仅仅是安装时。
 
-    Simulates a symlink escape introduced after install (e.g. tampering
-    with the install directory directly) by writing straight into the
-    install store, bypassing install_canvas_extension()'s own validation.
+    模拟安装后引入的符号链接转义（e.g. 直接篡改安装目录）通过直接写入安装存储，绕过
+    install_canvas_extension() 自己的验证。
     """
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
     install = client.post("/canvas-extensions/install", json={"source": str(src)})
@@ -357,8 +354,8 @@ def test_bundle_endpoint_rejects_escaping_entrypoint_installed_out_of_band(
 def test_bundle_endpoint_returns_404_when_entrypoint_file_deleted(
     client: TestClient, tmp_path: Path
 ):
-    """Distinct failure mode from the symlink-escape case: the manifest is
-    still valid, but the file it points to is simply gone.
+    """与符号链接转义情况不同的故障模式：清单是
+    仍然有效，但它指向的文件已经消失了。
     """
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
     install = client.post("/canvas-extensions/install", json={"source": str(src)})
@@ -373,11 +370,11 @@ def test_bundle_endpoint_returns_404_when_entrypoint_file_deleted(
 def test_bundle_endpoint_serves_disabled_extensions_too(
     client: TestClient, tmp_path: Path
 ):
-    """The bundle endpoint doesn't gate on ``enabled`` -- same as the GET
-    metadata endpoints elsewhere in the codebase (plugins/skills), which
-    don't filter disabled entries out either. A fresh install always lands
-    disabled, so this is also the common case for a caller that installs
-    and immediately previews the bundle before explicitly enabling it.
+    """捆绑包端点不在 ``enabled`` 上选通——与 GET 相同
+    代码库中其他位置的元数据端点（插件/技能），也不会过滤掉禁用的条目。 每次进行全新
+    安装时，都会自动禁用，因此这也是一个常见的场景，即在明确启用之前先安装并预览包的
+    调
+    用者。
     """
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
     install = client.post("/canvas-extensions/install", json={"source": str(src)})
@@ -393,10 +390,10 @@ def test_bundle_endpoint_serves_disabled_extensions_too(
     ["Bad_Name", "a b", "-leading-hyphen", "trailing-hyphen-", "%2e%2e"],
 )
 def test_path_parameter_rejects_invalid_names(client: TestClient, bad_name: str):
-    """The {extension_name} pattern is defense-in-depth against path
-    traversal / injection through the URL itself -- it must reject bad
-    names before any request reaches the service layer, not just rely on
-    ``validate_extension_name`` deeper in the stack.
+    """{extension_name} 模式是针对路径的深度防御
+    通过URL本身进行遍历/注入——在任何请求到达服务层之前，它必须拒绝坏名称，而不仅仅是
+    依赖
+    ``validate_extension_name`` 位于堆栈较深处。
     """
     assert client.get(f"/canvas-extensions/installed/{bad_name}").status_code == 422
     assert (
@@ -412,10 +409,9 @@ def test_path_parameter_rejects_invalid_names(client: TestClient, bad_name: str)
 
 
 def test_install_ignores_smuggled_enabled_field(client: TestClient, tmp_path: Path):
-    """There's no ``enabled`` field on the request model, so a caller
-    attempting to force an install to land enabled is silently ignored
-    rather than accepted -- matching the disabled-by-default guarantee at
-    the HTTP boundary, not just at the service-function signature.
+    """请求模型上没有 ``enabled`` 字段，因此调用者
+    尝试强制安装被忽略，而不是接受——这符合默认禁用的保证 HTTP 边界不仅限于服务-功能签
+    名。
     """
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
 
@@ -478,10 +474,10 @@ def test_list_installed_empty_and_multiple(client: TestClient, tmp_path: Path):
 def test_install_composes_local_source_and_repo_path(
     client: TestClient, tmp_path: Path, source_suffix: str, repo_path: str
 ):
-    """A parent directory as Source plus the extension dir as Path installs."""
+    """作为源的父目录加上作为安装路径的扩展目录。"""
     repo = tmp_path / "canvas-extensions"
     write_extension(repo / "demo-extension", name="demo-extension")
-    # A sibling that must not be picked up.
+    # 一个绝对不能接的兄弟姐妹。
     write_extension(repo / "other-extension", name="other-extension")
 
     install = client.post(
@@ -499,7 +495,7 @@ def test_install_composes_local_source_and_repo_path(
 def test_install_with_full_extension_dir_as_source_still_works(
     client: TestClient, tmp_path: Path
 ):
-    """The pre-existing single-field flow is unchanged."""
+    """原有的单场流程不变。"""
     src = write_extension(tmp_path / "src" / "demo-extension", name="demo-extension")
 
     install = client.post("/canvas-extensions/install", json={"source": str(src)})
@@ -511,7 +507,7 @@ def test_install_with_full_extension_dir_as_source_still_works(
 def test_install_reports_which_field_is_wrong_for_bad_repo_path(
     client: TestClient, tmp_path: Path
 ):
-    """A bad Path blames Path, not the source (the old message misattributed)."""
+    """错误的 Path 会归咎于 Path，而不是来源（旧消息被错误归因）。"""
     repo = tmp_path / "canvas-extensions"
     write_extension(repo / "demo-extension", name="demo-extension")
 
@@ -523,16 +519,16 @@ def test_install_reports_which_field_is_wrong_for_bad_repo_path(
     assert install.status_code == 400
     assert "demo-extensio" in install.json()["detail"]
     assert "not found" in install.json()["detail"]
-    # The canvas client classifies any message containing "failed to fetch" as
-    # a network outage and replaces it with a "Disconnected" toast, which would
-    # hide the reason we just went to the trouble of reporting.
+    # canvas客户端将任何包含“failed to fetch”的消息分类为网络中断，并替换为“Disconnected
+    # ”弹窗，这将隐藏我们刚刚报告的原因。
+    #
     assert "failed to fetch" not in install.json()["detail"].lower()
 
 
 def test_install_reports_missing_manifest_at_resolved_location(
     client: TestClient, tmp_path: Path
 ):
-    """Pointing Source/Path at a directory with no manifest says so."""
+    """将源/路径指向没有清单的目录就是这样说的。"""
     repo = tmp_path / "canvas-extensions"
     (repo / "not-an-extension").mkdir(parents=True)
 
@@ -548,7 +544,7 @@ def test_install_reports_missing_manifest_at_resolved_location(
 def test_install_rejects_repo_path_escaping_the_source(
     client: TestClient, tmp_path: Path
 ):
-    """A traversing Path is rejected rather than resolving outside Source."""
+    """遍历 Path 会被拒绝，而不是解析外部 Source。"""
     repo = tmp_path / "canvas-extensions"
     write_extension(repo / "demo-extension", name="demo-extension")
     write_extension(tmp_path / "outside-extension", name="outside-extension")

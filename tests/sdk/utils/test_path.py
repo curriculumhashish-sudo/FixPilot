@@ -46,7 +46,7 @@ def test_get_user_persistence_dir_expands_tilde_in_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fake_home = tmp_path / "home"
-    # expanduser() reads HOME/USERPROFILE, not Path.home's patched classmethod.
+    # expanduser() 读取 HOME/USERPROFILE，而不是 Path.home 的修补类方法。
     monkeypatch.setenv("HOME", str(fake_home))
     monkeypatch.setenv("USERPROFILE", str(fake_home))
     monkeypatch.setenv("OH_PERSISTENCE_DIR", "~/persist")
@@ -56,7 +56,7 @@ def test_get_user_persistence_dir_expands_tilde_in_env(
 def test_get_user_persistence_dir_anchors_relative_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A relative value is pinned to the import-time CWD, not the current one."""
+    """相对值固定到导入时间 CWD，而不是当前时间。"""
     import openhands.sdk.utils.path as path_module
 
     anchor = tmp_path / "anchor"

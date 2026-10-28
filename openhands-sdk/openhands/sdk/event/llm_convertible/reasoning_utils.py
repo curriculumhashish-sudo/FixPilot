@@ -20,7 +20,7 @@ def _get_visible_responses_reasoning_lines(
 def has_visible_responses_reasoning(
     reasoning_item: ReasoningItemModel | None,
 ) -> bool:
-    """Return whether a Responses reasoning item has visible plaintext."""
+    """返回响应推理项是否具有可见的明文。"""
     return _get_visible_responses_reasoning_lines(reasoning_item) is not None
 
 
@@ -28,7 +28,7 @@ def append_visible_responses_reasoning(
     content: Text,
     reasoning_item: ReasoningItemModel | None,
 ) -> None:
-    """Append Responses API reasoning only when plaintext content exists."""
+    """仅当明文内容存在时追加响应 API 推理。"""
     visible_lines = _get_visible_responses_reasoning_lines(reasoning_item)
     if visible_lines is None:
         return

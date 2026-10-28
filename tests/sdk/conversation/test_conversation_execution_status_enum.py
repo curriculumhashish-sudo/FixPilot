@@ -1,4 +1,4 @@
-"""Test the ConversationExecutionStatus enum functionality."""
+"""测试 ConversationExecutionStatus 枚举功能。"""
 
 from pydantic import SecretStr
 
@@ -8,27 +8,27 @@ from openhands.sdk.llm import LLM
 
 
 def test_agent_execution_state_enum_basic():
-    """Test basic ConversationExecutionStatus enum functionality."""
+    """测试基本 ConversationExecutionStatus 枚举功能。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Test initial state
+    # 测试初始状态
     assert conversation._state.execution_status == ConversationExecutionStatus.IDLE
 
-    # Test setting enum directly
+    # 直接测试设置枚举
     conversation._state.execution_status = ConversationExecutionStatus.RUNNING
     assert conversation._state.execution_status == ConversationExecutionStatus.RUNNING
 
-    # Test setting to FINISHED
+    # 测试设置为 FINISHED
     conversation._state.execution_status = ConversationExecutionStatus.FINISHED
     assert conversation._state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Test setting to PAUSED
+    # 测试设置为 PAUSED
     conversation._state.execution_status = ConversationExecutionStatus.PAUSED
     assert conversation._state.execution_status == ConversationExecutionStatus.PAUSED
 
-    # Test setting to WAITING_FOR_CONFIRMATION
+    # 测试设置为 WAITING_FOR_CONFIRMATION
     conversation._state.execution_status = (
         ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
     )
@@ -37,13 +37,13 @@ def test_agent_execution_state_enum_basic():
         == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
     )
 
-    # Test setting to ERROR
+    # 测试设置为 ERROR
     conversation._state.execution_status = ConversationExecutionStatus.ERROR
     assert conversation._state.execution_status == ConversationExecutionStatus.ERROR
 
 
 def test_enum_values():
-    """Test that all enum values are correct."""
+    """测试所有枚举值是否正确。"""
     assert ConversationExecutionStatus.IDLE == "idle"
     assert ConversationExecutionStatus.RUNNING == "running"
     assert ConversationExecutionStatus.PAUSED == "paused"
@@ -56,12 +56,12 @@ def test_enum_values():
 
 
 def test_enum_serialization():
-    """Test that the enum serializes and deserializes correctly."""
+    """测试枚举序列化和反序列化是否正确。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Set to different states and test serialization
+    # 设置不同的状态并测试序列化
     conversation._state.execution_status = ConversationExecutionStatus.FINISHED
     serialized = conversation._state.model_dump_json()
     assert '"execution_status":"finished"' in serialized

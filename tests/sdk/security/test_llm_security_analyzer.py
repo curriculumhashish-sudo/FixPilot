@@ -1,4 +1,4 @@
-"""Tests for the LLMSecurityAnalyzer class."""
+"""LLMSecurityAnalyzer 类的测试。"""
 
 import pytest
 
@@ -10,7 +10,7 @@ from openhands.sdk.tool import Action
 
 
 class LlmSecurityAnalyzerMockAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str = "test_command"
 
@@ -18,7 +18,7 @@ class LlmSecurityAnalyzerMockAction(Action):
 def create_mock_action_event(
     action: Action, security_risk: SecurityRisk
 ) -> ActionEvent:
-    """Helper to create ActionEvent for testing."""
+    """帮助程序创建 ActionEvent 用于测试。"""
     return ActionEvent(
         thought=[TextContent(text="test thought")],
         action=action,
@@ -45,7 +45,7 @@ def create_mock_action_event(
     ],
 )
 def test_llm_security_analyzer_returns_stored_risk(risk_level: SecurityRisk):
-    """Test that LLMSecurityAnalyzer returns the security_risk stored in the action event."""  # noqa: E501
+    """测试 LLMSecurityAnalyzer 返回 security_risk 的操作事件。"""  # noqa: E501
     analyzer = LLMSecurityAnalyzer()
     action = LlmSecurityAnalyzerMockAction(command="test")
     action_event = create_mock_action_event(action, risk_level)

@@ -1,4 +1,4 @@
-"""Test that the agent provides a concise explanation for each tool call."""
+"""测试智能体是否为每个工具调用提供了简洁的解释。"""
 
 from __future__ import annotations
 
@@ -28,8 +28,7 @@ INSTRUCTION = append_environment_tips(INSTRUCTION_BODY)
 
 class EachToolCallHavingExplanation(SoftwareAgentSDKBehaviorTest):
     """
-    Ensure the agent provide a concise explanation for each tool
-    call instead of being silent.
+    确保智能体为每个工具调用提供简洁的解释，而不是保持沉默。
     """
 
     INSTRUCTION: str = INSTRUCTION
@@ -38,8 +37,8 @@ class EachToolCallHavingExplanation(SoftwareAgentSDKBehaviorTest):
         if self.repo_dir is None:
             raise RuntimeError("Repository directory was not initialized.")
 
-        # First, verify all actions have summary fields populated
-        # This is a hard requirement - the summary field should always be present
+        # 首先，验证所有操作都填充了汇总字段这是一个硬性要求 - 汇总字段应始终存在
+        #
         summary_check_passed, summary_check_reason = verify_all_actions_have_summary(
             self.collected_events
         )
@@ -49,7 +48,7 @@ class EachToolCallHavingExplanation(SoftwareAgentSDKBehaviorTest):
                 reason=f"Summary field check failed: {summary_check_reason}",
             )
 
-        # Then use LLM judge to evaluate the quality of explanations
+        # 然后用LLM判断来评价解释的质量
         conversation_summary = get_conversation_summary(self.collected_events)
         evaluation_criteria = dedent(
             """

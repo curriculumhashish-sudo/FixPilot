@@ -1,4 +1,4 @@
-"""Test OpenHandsCloudWorkspace implementation."""
+"""测试OpenHandsCloudWorkspace实施。"""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,7 +6,7 @@ import httpx
 
 
 def test_api_timeout_is_used_in_client():
-    """Test that api_timeout parameter is used for the HTTP client timeout."""
+    """测试 api_timeout 参数是否用于 HTTP 客户端超时。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -17,7 +17,7 @@ def test_api_timeout_is_used_in_client():
             api_timeout=custom_timeout,
         )
 
-        # Set up for client initialization
+        # 设置客户端初始化
         workspace._sandbox_id = "sandbox-123"
         workspace._session_api_key = "session-key"
         workspace.host = "https://agent.example.com"
@@ -31,13 +31,13 @@ def test_api_timeout_is_used_in_client():
         assert client.timeout.write == 10.0
         assert client.timeout.pool == 10.0
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_api_timeout_default_value():
-    """Test that the default api_timeout is 60 seconds."""
+    """测试默认 api_timeout 是否为 60 秒。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -46,7 +46,7 @@ def test_api_timeout_default_value():
             cloud_api_key="test-api-key",
         )
 
-        # Set up for client initialization
+        # 设置客户端初始化
         workspace._sandbox_id = "sandbox-123"
         workspace._session_api_key = "session-key"
         workspace.host = "https://agent.example.com"
@@ -56,13 +56,13 @@ def test_api_timeout_default_value():
 
         assert client.timeout.read == 60.0
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_api_headers_uses_bearer_token():
-    """Test that _api_headers uses Bearer token authentication."""
+    """测试 _api_headers 使用持有者令牌身份验证。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -74,13 +74,13 @@ def test_api_headers_uses_bearer_token():
         headers = workspace._api_headers
         assert headers == {"Authorization": "Bearer test-api-key"}
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_get_agent_server_url_extracts_correct_url():
-    """Test that _get_agent_server_url extracts AGENT_SERVER URL."""
+    """测试 _get_agent_server_url 提取 AGENT_SERVER URL。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -97,13 +97,13 @@ def test_get_agent_server_url_extracts_correct_url():
         url = workspace._get_agent_server_url()
         assert url == "https://agent.example.com"
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_get_agent_server_url_returns_none_when_not_found():
-    """Test that _get_agent_server_url returns None when AGENT_SERVER not found."""
+    """测试当未找到 AGENT_SERVER 时 _get_agent_server_url 返回 None。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -119,13 +119,13 @@ def test_get_agent_server_url_returns_none_when_not_found():
         url = workspace._get_agent_server_url()
         assert url is None
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_get_agent_server_url_returns_none_when_empty():
-    """Test that _get_agent_server_url returns None when exposed_urls is empty."""
+    """测试当 exposed_urls 为空时 _get_agent_server_url 返回 None。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -139,13 +139,13 @@ def test_get_agent_server_url_returns_none_when_empty():
         url = workspace._get_agent_server_url()
         assert url is None
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_cleanup_deletes_sandbox():
-    """Test that cleanup deletes the sandbox."""
+    """测试清理是否会删除沙箱。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -173,7 +173,7 @@ def test_cleanup_deletes_sandbox():
 
 
 def test_cleanup_keeps_sandbox_alive_when_configured():
-    """Test that cleanup keeps sandbox alive when keep_alive is True."""
+    """测试当 keep_alive 为 True 时清理是否使沙箱保持活动状态。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -190,12 +190,12 @@ def test_cleanup_keeps_sandbox_alive_when_configured():
         with patch.object(workspace, "_send_api_request") as mock_request:
             workspace.cleanup()
 
-            # Should not call DELETE when keep_alive is True
+            # 当 keep_alive 为 True 时不应调用 DELETE
             mock_request.assert_not_called()
 
 
 def test_cleanup_handles_missing_sandbox_id():
-    """Test that cleanup handles missing sandbox_id gracefully."""
+    """测试清理是否优雅地处理缺失的 sandbox_id。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -210,13 +210,13 @@ def test_cleanup_handles_missing_sandbox_id():
         workspace._exposed_urls = None
 
         with patch.object(workspace, "_send_api_request") as mock_request:
-            # Should not raise an exception
+            # 不应引发异常
             workspace.cleanup()
             mock_request.assert_not_called()
 
 
 def test_send_api_request_includes_bearer_token():
-    """Test that _send_api_request includes Bearer token header."""
+    """测试 _send_api_request 是否包含持有者令牌标头。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -241,13 +241,13 @@ def test_send_api_request_includes_bearer_token():
             call_kwargs = mock_client.request.call_args
             assert call_kwargs[1]["headers"]["Authorization"] == "Bearer test-api-key"
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_context_manager_calls_cleanup():
-    """Test that context manager calls cleanup on exit."""
+    """测试上下文管理器在退出时调用清理。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -269,7 +269,7 @@ def test_context_manager_calls_cleanup():
 
 
 def test_cloud_api_url_trailing_slash_removed():
-    """Test that trailing slash is removed from cloud_api_url."""
+    """测试尾部斜杠是否已从 cloud_api_url 中删除。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -280,13 +280,13 @@ def test_cloud_api_url_trailing_slash_removed():
 
         assert workspace.cloud_api_url == "https://cloud.example.com"
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_sandbox_id_field_is_public():
-    """Test that sandbox_id is a public field that can be set."""
+    """测试 sandbox_id 是一个可以设置的公共字段。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -298,13 +298,13 @@ def test_sandbox_id_field_is_public():
 
         assert workspace.sandbox_id == "existing-sandbox-123"
 
-        # Clean up
+        # 清理
         workspace._sandbox_id = None
         workspace.cleanup()
 
 
 def test_sandbox_id_triggers_resume_instead_of_create():
-    """Test that providing sandbox_id calls resume endpoint instead of create."""
+    """测试提供 sandbox_id 调用恢复端点而不是创建。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -314,7 +314,7 @@ def test_sandbox_id_triggers_resume_instead_of_create():
             sandbox_id="existing-sandbox-123",
         )
 
-    # Mock the methods - use class-level patch for reset_client
+    # 模拟对象方法 - 使用类级补丁 reset_client
     with (
         patch.object(workspace, "_resume_sandbox") as mock_resume,
         patch.object(workspace, "_create_new_sandbox") as mock_create,
@@ -325,18 +325,18 @@ def test_sandbox_id_triggers_resume_instead_of_create():
         mock_get_url.return_value = "https://agent.example.com"
         workspace._start_sandbox()
 
-        # Should call resume, not create
+        # 应该调用resume，而不是create
         mock_resume.assert_called_once()
         mock_create.assert_not_called()
         assert workspace._sandbox_id == "existing-sandbox-123"
 
-    # Clean up
+    # 清理
     workspace._sandbox_id = None
     workspace.cleanup()
 
 
 def test_no_sandbox_id_creates_new_sandbox():
-    """Test that without sandbox_id, a new sandbox is created."""
+    """测试没有 sandbox_id，会创建一个新的沙箱。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -345,7 +345,7 @@ def test_no_sandbox_id_creates_new_sandbox():
             cloud_api_key="test-api-key",
         )
 
-    # Mock the methods - use class-level patch for reset_client
+    # 模拟对象方法 - 使用类级补丁 reset_client
     with (
         patch.object(workspace, "_resume_sandbox") as mock_resume,
         patch.object(workspace, "_create_new_sandbox") as mock_create,
@@ -356,17 +356,17 @@ def test_no_sandbox_id_creates_new_sandbox():
         mock_get_url.return_value = "https://agent.example.com"
         workspace._start_sandbox()
 
-        # Should call create, not resume
+        # 应该调用create，而不是resume
         mock_create.assert_called_once()
         mock_resume.assert_not_called()
 
-    # Clean up
+    # 清理
     workspace._sandbox_id = None
     workspace.cleanup()
 
 
 def test_resume_existing_sandbox_sets_internal_id():
-    """Test that _resume_existing_sandbox sets _sandbox_id from sandbox_id."""
+    """测试 _resume_existing_sandbox 是否设置 sandbox_id 中的 _sandbox_id。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -381,19 +381,19 @@ def test_resume_existing_sandbox_sets_internal_id():
 
         assert workspace._sandbox_id == "my-sandbox-id"
 
-    # Clean up
+    # 清理
     workspace._sandbox_id = None
     workspace.cleanup()
 
 
-# --- local_agent_server_mode tests ---
+# --- local_agent_server_mode 测试 ---
 
 _CLOUD_URL = "https://app.all-hands.dev"
 _CLOUD_KEY = "test-key"
 
 
 def _make_local_workspace(**overrides):
-    """Helper to create an OpenHandsCloudWorkspace in local_agent_server_mode."""
+    """帮助程序在 local_agent_server_mode 中创建 OpenHandsCloudWorkspace。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     kwargs = {
@@ -406,19 +406,19 @@ def _make_local_workspace(**overrides):
 
 
 def test_local_agent_server_mode_skips_sandbox_creation():
-    """In local_agent_server_mode, no sandbox is created or resumed."""
+    """在local_agent_server_mode中，没有创建或恢复沙箱。"""
     workspace = _make_local_workspace()
 
     assert workspace.local_agent_server_mode is True
     assert workspace.host == "http://localhost:60000"
-    # Without SANDBOX_ID env var or constructor param, _sandbox_id is None
+    # 如果没有 SANDBOX_ID 环境变量或构造函数参数，_sandbox_id 就是 None
     assert workspace._sandbox_id is None
 
     workspace.cleanup()
 
 
 def test_local_agent_server_mode_sandbox_id_from_constructor():
-    """sandbox_id constructor param populates _sandbox_id in local_agent_server_mode."""
+    """sandbox_id 构造函数参数填充 local_agent_server_mode 中的 _sandbox_id。"""
     workspace = _make_local_workspace(sandbox_id="sb-123")
 
     assert workspace._sandbox_id == "sb-123"
@@ -426,7 +426,7 @@ def test_local_agent_server_mode_sandbox_id_from_constructor():
 
 
 def test_local_agent_server_mode_sandbox_id_from_env(monkeypatch):
-    """SANDBOX_ID env var populates _sandbox_id in local_agent_server_mode."""
+    """SANDBOX_ID 环境变量填充 local_agent_server_mode 中的 _sandbox_id。"""
     monkeypatch.setenv("SANDBOX_ID", "sb-env-456")
     workspace = _make_local_workspace()
 
@@ -435,18 +435,18 @@ def test_local_agent_server_mode_sandbox_id_from_env(monkeypatch):
 
 
 def test_local_agent_server_mode_session_key_from_env(monkeypatch):
-    """SESSION_API_KEY populates _session_api_key and api_key."""
+    """SESSION_API_KEY 填充 _session_api_key 和 api_key。"""
     monkeypatch.setenv("SESSION_API_KEY", "sess-key-abc")
     workspace = _make_local_workspace()
 
     assert workspace._session_api_key == "sess-key-abc"
-    # api_key must also be set so the shared HTTP client includes X-Session-API-Key
+    # 还必须设置 api_key，以便共享 HTTP 客户端包含 X-Session-API-Key
     assert workspace.api_key == "sess-key-abc"
     workspace.cleanup()
 
 
 def test_local_agent_server_mode_session_key_fallback(monkeypatch):
-    """Falls back to OH_SESSION_API_KEYS_0 if SESSION_API_KEY is unset."""
+    """如果 SESSION_API_KEY 未设置，则返回到 OH_SESSION_API_KEYS_0。"""
     monkeypatch.delenv("SESSION_API_KEY", raising=False)
     monkeypatch.setenv("OH_SESSION_API_KEYS_0", "oh-key-xyz")
     workspace = _make_local_workspace()
@@ -457,7 +457,7 @@ def test_local_agent_server_mode_session_key_fallback(monkeypatch):
 
 
 def test_local_agent_server_mode_custom_port():
-    """Custom agent_server_port is reflected in host URL."""
+    """自定义 agent_server_port 反映在主机 URL 中。"""
     workspace = _make_local_workspace(agent_server_port=9999)
 
     assert workspace.host == "http://localhost:9999"
@@ -465,7 +465,7 @@ def test_local_agent_server_mode_custom_port():
 
 
 def test_local_agent_server_mode_port_from_env(monkeypatch):
-    """AGENT_SERVER_PORT env var overrides agent_server_port."""
+    """AGENT_SERVER_PORT 环境变量覆盖 agent_server_port。"""
     monkeypatch.setenv("AGENT_SERVER_PORT", "7777")
     workspace = _make_local_workspace()
 
@@ -474,7 +474,7 @@ def test_local_agent_server_mode_port_from_env(monkeypatch):
 
 
 def test_local_agent_server_mode_cloud_credentials_available():
-    """Cloud API fields are available for get_llms / get_secrets."""
+    """云 API 字段可用于 get_llms / get_secrets。"""
     workspace = _make_local_workspace(
         cloud_api_url="https://app.all-hands.dev/",
         cloud_api_key="my-key",
@@ -486,7 +486,7 @@ def test_local_agent_server_mode_cloud_credentials_available():
 
 
 def test_local_agent_server_mode_cleanup_does_not_delete_sandbox():
-    """cleanup() in local_agent_server_mode should not call any Cloud API."""
+    """local_agent_server_mode 中的 cleanup() 不应调用任何 Cloud API。"""
     workspace = _make_local_workspace()
 
     with patch.object(workspace, "_send_api_request") as mock_req:
@@ -495,16 +495,16 @@ def test_local_agent_server_mode_cleanup_does_not_delete_sandbox():
 
 
 def test_local_agent_server_mode_context_manager():
-    """Context manager works in local_agent_server_mode without side effects."""
+    """上下文管理器适用于 local_agent_server_mode，没有副作用。"""
     with _make_local_workspace() as ws:
         assert ws.host == "http://localhost:60000"
 
 
-# --- completion callback tests ---
+# --- 完成回调测试 ---
 
 
 def test_callback_on_successful_exit(monkeypatch):
-    """__exit__ POSTs COMPLETED status to callback URL on clean exit."""
+    """__退出__ POSTs COMPLETED状态回调 URL在正常退出时。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
     ws = _make_local_workspace()
@@ -531,7 +531,7 @@ def test_callback_on_successful_exit(monkeypatch):
 
 
 def test_callback_on_exception_exit(monkeypatch):
-    """__exit__ POSTs FAILED status with error detail on exception."""
+    """__退出__ POSTs FAILED状态，包含异常详情。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-99")
     ws = _make_local_workspace()
@@ -556,7 +556,7 @@ def test_callback_on_exception_exit(monkeypatch):
 
 
 def test_no_callback_when_url_not_set():
-    """No HTTP call when AUTOMATION_CALLBACK_URL env var is not set."""
+    """当 AUTOMATION_CALLBACK_URL 环境变量未设置时，不会调用 HTTP。"""
     ws = _make_local_workspace()
     assert ws._automation_callback_url is None
 
@@ -566,7 +566,7 @@ def test_no_callback_when_url_not_set():
 
 
 def test_callback_failure_does_not_raise(monkeypatch):
-    """Callback errors are swallowed — cleanup still runs."""
+    """回调错误被吞掉 - 清理仍在运行。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     ws = _make_local_workspace()
 
@@ -577,15 +577,15 @@ def test_callback_failure_does_not_raise(monkeypatch):
         mock_client.__exit__ = MagicMock(return_value=False)
         MockClient.return_value = mock_client
 
-        # Should not raise
+        # 不应该提高
         ws.__exit__(None, None, None)
 
 
-# --- conversation_id registration tests ---
+# --- conversation_id 注册测试 ---
 
 
 def test_register_conversation_sets_conversation_id():
-    """register_conversation sets the _conversation_id attribute."""
+    """register_conversation 设置 _conversation_id 属性。"""
     ws = _make_local_workspace()
 
     ws.register_conversation("conv-123")
@@ -595,19 +595,19 @@ def test_register_conversation_sets_conversation_id():
 
 
 def test_conversation_id_property_returns_none_initially():
-    """conversation_id property returns None when no conversation registered."""
+    """当未注册任何对话时，conversation_id 属性返回 None。"""
     ws = _make_local_workspace()
 
     assert ws.conversation_id is None
 
 
 def test_callback_includes_conversation_id_when_registered(monkeypatch):
-    """Callback payload includes conversation_id when registered."""
+    """注册时，回调载荷包括 conversation_id。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
     ws = _make_local_workspace()
 
-    # Register a conversation
+    # 注册对话
     ws.register_conversation("conv-xyz")
 
     mock_resp = MagicMock()
@@ -622,7 +622,7 @@ def test_callback_includes_conversation_id_when_registered(monkeypatch):
 
         ws.__exit__(None, None, None)
 
-        # Check the POST payload includes conversation_id
+        # 检查POST载荷包含conversation_id
         mock_client.post.assert_called_once()
         payload = mock_client.post.call_args.kwargs["json"]
         assert payload["status"] == "COMPLETED"
@@ -631,12 +631,12 @@ def test_callback_includes_conversation_id_when_registered(monkeypatch):
 
 
 def test_callback_omits_conversation_id_when_not_registered(monkeypatch):
-    """Callback payload omits conversation_id when not registered."""
+    """回调载荷未注册时省略 conversation_id。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
     ws = _make_local_workspace()
 
-    # Do not register a conversation
+    # 不注册对话
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -650,7 +650,7 @@ def test_callback_omits_conversation_id_when_not_registered(monkeypatch):
 
         ws.__exit__(None, None, None)
 
-        # Check the POST payload does NOT include conversation_id
+        # 检查POST载荷不是否包含conversation_id
         mock_client.post.assert_called_once()
         payload = mock_client.post.call_args.kwargs["json"]
         assert payload["status"] == "COMPLETED"
@@ -658,7 +658,7 @@ def test_callback_omits_conversation_id_when_not_registered(monkeypatch):
 
 
 def test_callback_includes_registered_cost(monkeypatch):
-    """Callback payload reports the accumulated LLM cost when registered."""
+    """回调载荷报告注册时累计的 LLM 费用。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
     ws = _make_local_workspace()

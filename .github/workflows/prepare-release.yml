@@ -67,8 +67,8 @@ jobs:
                   npm --prefix clients/typescript version "$INPUTS_VERSION" \
                     --no-git-tag-version --ignore-scripts
 
-            # The npm publish packs the release tag as-is, so the client's
-            # Agent Server pin and generated types must land in this PR.
+            # npm 发布按原样打包发布标签，因此客户端的 Agent Server pin 和生成的类型必须位于此 PR 中。
+            #
             - name: Pin TypeScript client to the release Agent Server
               env:
                   INPUTS_VERSION: ${{ inputs.version }}

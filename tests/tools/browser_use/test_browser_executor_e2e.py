@@ -30,7 +30,7 @@ from openhands.tools.browser_use.definition import (
 from openhands.tools.browser_use.impl import BrowserToolExecutor
 
 
-# Test HTML content for browser operations
+# 测试HTML内容的浏览器操作
 TEST_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,7 +93,7 @@ TEST_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-# Second page for navigation testing
+# 用于导航测试的第二页
 PAGE2_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,19 +142,19 @@ def _wait_for_test_server(
 
 @pytest.fixture(scope="module")
 def test_server() -> Generator[str]:
-    """Set up a local HTTP server for testing."""
+    """设置本地 HTTP 服务器进行测试。"""
     temp_dir = tempfile.mkdtemp()
     server_process = None
 
     try:
-        # Create test HTML files
+        # 创建测试 HTML 文件
         with open(os.path.join(temp_dir, "index.html"), "w", encoding="utf-8") as f:
             f.write(TEST_HTML)
 
         with open(os.path.join(temp_dir, "page2.html"), "w", encoding="utf-8") as f:
             f.write(PAGE2_HTML)
 
-        # Start HTTP server
+        # 启动HTTP服务器
         port = _get_free_port()
         server_process = subprocess.Popen(
             [
@@ -175,7 +175,7 @@ def test_server() -> Generator[str]:
         yield server_url
 
     finally:
-        # Cleanup
+        # 清理
         if server_process is not None:
             try:
                 server_process.terminate()
@@ -190,13 +190,13 @@ def test_server() -> Generator[str]:
 
 @pytest.fixture
 def browser_executor() -> Generator[BrowserToolExecutor]:
-    """Create a real BrowserToolExecutor for testing."""
+    """创建一个真实的 BrowserToolExecutor 进行测试。"""
     executor = None
     try:
         try:
             executor = BrowserToolExecutor(
-                headless=True,  # Run in headless mode for CI/testing
-                session_timeout_minutes=5,  # Shorter timeout for tests
+                headless=True,  # 在无头模式下运行 CI/测试
+                session_timeout_minutes=5,  # 较短的超时用于测试
                 action_timeout_seconds=30.0,
             )
         except Exception as exc:
@@ -207,17 +207,17 @@ def browser_executor() -> Generator[BrowserToolExecutor]:
             try:
                 executor.close()
             except Exception:
-                pass  # Ignore cleanup errors
+                pass  # 忽略清理错误
 
 
 @pytest.mark.e2e
 class TestBrowserExecutorE2E:
-    """End-to-end tests for BrowserToolExecutor."""
+    """BrowserToolExecutor 的端到端测试。"""
 
     def test_navigate_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test browser navigation action."""
+        """测试浏览器导航操作。"""
         action = BrowserNavigateAction(url=test_server)
         result = browser_executor(action)
 
@@ -229,35 +229,35 @@ class TestBrowserExecutorE2E:
     def test_get_state_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test getting browser state."""
-        # First navigate to the test page
+        """测试获取浏览器状态。"""
+        # 首先导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Give the page a moment to fully load
+        # 给页面一点时间来完全加载
         time.sleep(0.5)
 
-        # Then get the state
+        # 然后获取状态
         action = BrowserGetStateAction(include_screenshot=False)
         result = browser_executor(action)
 
         assert isinstance(result, BrowserObservation)
         assert not result.is_error
-        # Check for interactive elements which are reliably present
+        # 检查可靠存在的交互元素
         assert "Click Me" in result.text
-        # Note: browser-use 0.10.1 has a bug where page title is not properly
-        # extracted from <title> tag. We check for URL instead.
+        # 注意：浏览器使用 0.10.1 版本存在一个页面标题未正确显示的问题
+        # 从 <title> 标签中提取。 我们改为检查 URL。
         assert test_server in result.text
 
     def test_get_state_with_screenshot(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test getting browser state with screenshot."""
-        # Navigate to test page
+        """使用屏幕截图测试获取浏览器状态。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Get state with screenshot
+        # 通过截图获取状态
         action = BrowserGetStateAction(include_screenshot=True)
         result = browser_executor(action)
 
@@ -269,20 +269,20 @@ class TestBrowserExecutorE2E:
     def test_click_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test clicking an element."""
-        # Navigate to test page
+        """测试单击一个元素。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Get state to find clickable elements
+        # 获取状态以查找可点击元素
         get_state_action = BrowserGetStateAction(include_screenshot=False)
         state_result = browser_executor(get_state_action)
 
-        # Parse the state to find button index
-        # The test button should be indexed in the interactive elements
+        # 解析状态以查找按钮索引测试按钮应在交互元素中建立索引
+        #
         assert "Click Me" in state_result.text
 
-        # Try to click the first interactive element (likely the button)
+        # 尝试单击第一个交互元素（可能是按钮）
         click_action = BrowserClickAction(index=0)
         result = browser_executor(click_action)
 
@@ -290,21 +290,21 @@ class TestBrowserExecutorE2E:
         assert not result.is_error
 
     def test_type_action(self, browser_executor: BrowserToolExecutor, test_server: str):
-        """Test typing text into an input field."""
-        # Navigate to test page
+        """测试在输入字段中键入文本。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Get state to find input elements
+        # 获取状态以查找输入元素
         get_state_action = BrowserGetStateAction(include_screenshot=False)
         state_result = browser_executor(get_state_action)
 
-        # Look for input field in the state
+        # 查找状态中的输入字段
         state_output = state_result.text
         assert "test-input" in state_output or "Type here" in state_output
 
-        # Find the input field index and type into it
-        # This assumes the input field is one of the interactive elements
+        # 找到输入字段索引并在其中键入这假设输入字段是交互元素之一
+        #
         type_action = BrowserTypeAction(index=1, text="Hello World")
         result = browser_executor(type_action)
 
@@ -314,19 +314,19 @@ class TestBrowserExecutorE2E:
     def test_scroll_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test scrolling the page."""
-        # Navigate to test page
+        """测试滚动页面。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Scroll down
+        # 向下滚动
         scroll_action = BrowserScrollAction(direction="down")
         result = browser_executor(scroll_action)
 
         assert isinstance(result, BrowserObservation)
         assert not result.is_error
 
-        # Scroll back up
+        # 向后滚动
         scroll_up_action = BrowserScrollAction(direction="up")
         result = browser_executor(scroll_up_action)
 
@@ -336,12 +336,12 @@ class TestBrowserExecutorE2E:
     def test_get_content_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test extracting page content."""
-        # Navigate to test page
+        """测试提取页面内容。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Get content without links
+        # 获取没有链接的内容
         content_action = BrowserGetContentAction(extract_links=False, start_from_char=0)
         result = browser_executor(content_action)
 
@@ -349,7 +349,7 @@ class TestBrowserExecutorE2E:
         assert not result.is_error
         assert "Browser Test Page" in result.text
 
-        # Get content with links
+        # 通过链接获取内容
         content_with_links_action = BrowserGetContentAction(
             extract_links=True, start_from_char=0
         )
@@ -362,8 +362,8 @@ class TestBrowserExecutorE2E:
     def test_navigate_new_tab(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test opening a new tab."""
-        # Navigate to test page in new tab
+        """测试打开新选项卡。"""
+        # 导航到新选项卡中的测试页面
         action = BrowserNavigateAction(url=test_server, new_tab=True)
         result = browser_executor(action)
 
@@ -373,34 +373,34 @@ class TestBrowserExecutorE2E:
     def test_list_tabs_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test listing browser tabs."""
-        # Navigate to create at least one tab
+        """测试列出浏览器选项卡。"""
+        # 导航以创建至少一个选项卡
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # List tabs
+        # 列表选项卡
         list_tabs_action = BrowserListTabsAction()
         result = browser_executor(list_tabs_action)
 
         assert isinstance(result, BrowserObservation)
         assert not result.is_error
-        # Should contain tab information
+        # 应包含tab信息
         assert len(result.text) > 0
 
     def test_go_back_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test browser back navigation."""
-        # Navigate to first page
+        """测试浏览器返回导航。"""
+        # 导航至第一页
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Navigate to second page
+        # 导航到第二页
         page2_url = f"{test_server}/page2.html"
         navigate_action2 = BrowserNavigateAction(url=page2_url)
         browser_executor(navigate_action2)
 
-        # Go back
+        # 返回
         back_action = BrowserGoBackAction()
         result = browser_executor(back_action)
 
@@ -410,98 +410,99 @@ class TestBrowserExecutorE2E:
     def test_switch_tab_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test switching between tabs."""
-        # Create first tab
+        """测试选项卡之间的切换。"""
+        # 创建第一个选项卡
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Create second tab
+        # 创建第二个选项卡
         navigate_new_tab_action = BrowserNavigateAction(
             url=f"{test_server}/page2.html", new_tab=True
         )
         browser_executor(navigate_new_tab_action)
 
-        # List tabs to get tab IDs
+        # 列出选项卡以获取选项卡 ID
         list_tabs_action = BrowserListTabsAction()
         tabs_result = browser_executor(list_tabs_action)
 
-        # Parse tab information to get a tab ID
-        # This is a simplified approach - in practice you'd parse the JSON response
+        # 解析选项卡信息以获取选项卡 ID 这是一种简化的方法 - 实际上，您可以解析 JSON 响
+        # 应
+        #
         if "tab" in tabs_result.text.lower():
-            # Try to switch to first tab (assuming tab ID format)
+            # 尝试切换到第一个选项卡（假设选项卡 ID 格式）
             switch_action = BrowserSwitchTabAction(tab_id="0")
             result = browser_executor(switch_action)
 
             assert isinstance(result, BrowserObservation)
-            # Note: This might fail if tab ID format is different, which is expected
+            # 注意：如果选项卡 ID 格式不同（这是预期的），则这可能会失败
 
     def test_close_tab_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test closing a browser tab."""
-        # Create first tab
+        """测试关闭浏览器选项卡。"""
+        # 创建第一个选项卡
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Create second tab
+        # 创建第二个选项卡
         navigate_new_tab_action = BrowserNavigateAction(
             url=f"{test_server}/page2.html", new_tab=True
         )
         browser_executor(navigate_new_tab_action)
 
-        # Try to close a tab
+        # 尝试关闭标签
         close_action = BrowserCloseTabAction(tab_id="1")
         result = browser_executor(close_action)
 
         assert isinstance(result, BrowserObservation)
-        # Note: This might fail if tab ID format is different, which is expected
+        # 注意：如果选项卡 ID 格式不同（这是预期的），则这可能会失败
 
     def test_error_handling(self, browser_executor: BrowserToolExecutor):
-        """Test error handling for invalid operations."""
-        # Try to navigate to invalid URL
+        """测试无效操作的错误处理。"""
+        # 尝试导航到无效的 URL
         action = BrowserNavigateAction(url="invalid-url")
         result = browser_executor(action)
 
         assert isinstance(result, BrowserObservation)
-        # Should either succeed with error message or fail gracefully
-        # The exact behavior depends on the browser implementation
+        # 应该成功但出现错误消息还是正常失败具体行为取决于浏览器实现
+        #
 
     def test_executor_initialization_and_cleanup(self):
-        """Test that executor can be created and cleaned up properly."""
+        """测试执行器是否可以正确创建和清理。"""
         executor = BrowserToolExecutor(headless=True)
 
-        # Test that executor is properly initialized
+        # 测试执行器是否正确初始化
         assert executor._config["headless"] is True
         assert executor._initialized is False
 
-        # Test cleanup
+        # 测试清理
         executor.close()
 
-        # Should not raise exceptions
+        # 不应引发异常
 
     def test_concurrent_actions(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test that multiple actions can be executed in sequence."""
-        # Navigate
+        """测试多个动作是否可以按顺序执行。"""
+        # 导航
         navigate_result = browser_executor(BrowserNavigateAction(url=test_server))
         assert not navigate_result.is_error
 
-        # Get state
+        # 获取状态
         state_result = browser_executor(BrowserGetStateAction(include_screenshot=False))
         assert not state_result.is_error
 
-        # Scroll
+        # 滚动
         scroll_result = browser_executor(BrowserScrollAction(direction="down"))
         assert not scroll_result.is_error
 
-        # Get content
+        # 获取内容
         content_result = browser_executor(
             BrowserGetContentAction(extract_links=False, start_from_char=0)
         )
         assert not content_result.is_error
 
-        # All actions should complete successfully
+        # 所有操作均应成功完成
         assert all(
             not result.is_error
             for result in [navigate_result, state_result, scroll_result, content_result]
@@ -510,23 +511,23 @@ class TestBrowserExecutorE2E:
     def test_get_storage_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test getting browser storage."""
-        # Navigate to the test page
+        """测试获取浏览器存储空间。"""
+        # 导航至测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Execute script to set storage.
-        # The test page has script in body, so it should run on load.
-        # However, the test_server fixture uses TEST_HTML which doesn't have the
-        # storage setting script. We need to update TEST_HTML or inject script.
-        # Since we can't easily update TEST_HTML in the fixture without modifying
-        # the file significantly, let's try to use BrowserTypeAction to execute
-        # some JS if possible? No, type action types text.
+        # 执行脚本来设置存储。 测试页面正文中有脚本，因此它应该在加载时运行。 然而，
+        # test_server测试夹具使用的TEST_HTML没有存储设置脚本。 我们需要更新 TEST_HTML 或
+        # 注入脚本。 既然我们无法在不大幅修改文件的情况下轻松更新测试夹具中的TEST_HTML，
+        # 那么如果可能的话，我们尝试使用BrowserTypeAction来执行一些JS？ 不，请输入操作类
+        # 型文本。
+        #
 
-        # Wait, the TEST_HTML in test_browser_executor_e2e.py is defined at the top.
-        # I can't easily change it for just this test.
+        # 等等，test_browser_executor_e2e.py中的TEST_HTML是在顶部定义的。 我不能轻易地为
+        # 了这个测试而改变它。
+        #
 
-        # But I can navigate to a data URL!
+        # 但我可以导航到数据 URL！
 
         html_content = """
         <!DOCTYPE html>
@@ -549,40 +550,39 @@ class TestBrowserExecutorE2E:
         navigate_action = BrowserNavigateAction(url=data_url)
         browser_executor(navigate_action)
 
-        # Give it a moment
+        # 稍等一下
         time.sleep(1)
 
-        # Get storage
+        # 获取存储空间
         action = BrowserGetStorageAction()
         result = browser_executor(action)
 
         assert isinstance(result, BrowserObservation)
         assert not result.is_error
 
-        # Parse the result
+        # 解析结果
         import json
 
         storage_data = json.loads(result.text)
 
-        # Check cookies.
-        # Note: data URLs might have restrictions on cookies/storage depending on
-        # browser security settings. But let's try.
-        # If data URL doesn't work, we might need to rely on the fact that we can't
-        # easily test it in this file without modifying the fixture.
-        # Actually, let's just check that the command runs and returns a valid JSON
-        # structure with keys.
+        # 检查cookies。
+        # 注意：数据 URLs 可能受到 cookie/存储的限制
+        # 浏览器安全设置。 但让我们尝试一下。 如果数据 URL 不行，我们可能需要依赖我们无
+        # 法在不修改测试夹具的情况下在这文件中轻易测试它。 实际上，我们只需检查命令是否
+        # 运行并返回带有键的有效 JSON 结构。
+        #
         assert "cookies" in storage_data
         assert "origins" in storage_data
 
     def test_set_storage_action(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test setting browser storage."""
-        # Navigate to test page
+        """测试设置浏览器存储。"""
+        # 导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Define storage state to set
+        # 定义要设置的存储状态
         storage_state = {
             "cookies": [
                 {
@@ -607,7 +607,7 @@ class TestBrowserExecutorE2E:
             ],
         }
 
-        # Set storage
+        # 设置存储
         set_action = BrowserSetStorageAction(storage_state=storage_state)
         result = browser_executor(set_action)
 
@@ -615,7 +615,7 @@ class TestBrowserExecutorE2E:
         assert not result.is_error
         assert "successfully" in result.text
 
-        # Verify storage was set by getting it back
+        # 通过恢复来验证存储是否已设置
         get_action = BrowserGetStorageAction()
         result = browser_executor(get_action)
 
@@ -626,15 +626,15 @@ class TestBrowserExecutorE2E:
 
         retrieved_storage = json.loads(result.text)
 
-        # Check cookies
+        # 检查cookies
         cookies = retrieved_storage.get("cookies", [])
         found_cookie = next((c for c in cookies if c["name"] == "test_cookie"), None)
         assert found_cookie is not None
         assert found_cookie["value"] == "cookie_value"
 
-        # Check local storage
+        # 检查本地存储
         origins = retrieved_storage.get("origins", [])
-        # Normalize origin (remove trailing slash if needed)
+        # 规范化原点（如果需要，删除尾部斜杠）
         target_origin = test_server.rstrip("/")
 
         found_origin = next((o for o in origins if target_origin in o["origin"]), None)
@@ -655,7 +655,7 @@ class TestBrowserExecutorE2E:
         assert found_session["value"] == "session_value"
 
     def test_save_screenshot(self, test_server: str):
-        """Test that screenshot is saved to the specified directory."""
+        """测试截图是否保存到指定目录。"""
         with tempfile.TemporaryDirectory() as temp_save_dir:
             executor = None
             try:
@@ -665,11 +665,11 @@ class TestBrowserExecutorE2E:
                     full_output_save_dir=temp_save_dir,
                 )
 
-                # Navigate to the test page
+                # 导航至测试页面
                 navigate_action = BrowserNavigateAction(url=test_server)
                 executor(navigate_action)
 
-                # Get state with screenshot
+                # 通过截图获取状态
                 action = BrowserGetStateAction(include_screenshot=True)
                 result = executor(action)
 
@@ -677,10 +677,10 @@ class TestBrowserExecutorE2E:
                 assert not result.is_error
                 assert result.screenshot_data is not None
 
-                # Trigger saving by accessing to_llm_content
+                # 通过访问 to_llm_content 触发保存
                 _ = result.to_llm_content
 
-                # Check if screenshot file exists in the save directory
+                # 检查保存目录下是否存在截图文件
                 files = os.listdir(temp_save_dir)
                 screenshot_files = [
                     f
@@ -695,7 +695,7 @@ class TestBrowserExecutorE2E:
                     f"No screenshot files found in {temp_save_dir}. Files: {files}"
                 )
 
-                # Verify the file content is not empty
+                # 验证文件内容不为空
                 file_path = os.path.join(temp_save_dir, screenshot_files[0])
                 assert os.path.getsize(file_path) > 0
 
@@ -709,12 +709,12 @@ class TestBrowserExecutorE2E:
     def test_start_recording(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test starting a recording session."""
-        # Navigate to the test page first
+        """测试开始录制会话。"""
+        # 首先导航到测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Start recording - now includes automatic retry
+        # 开始录制 - 现在包括自动重试
         result = browser_executor(BrowserStartRecordingAction())
 
         assert isinstance(result, BrowserObservation)
@@ -724,62 +724,62 @@ class TestBrowserExecutorE2E:
     def test_stop_recording_without_start(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test stopping recording when not started returns appropriate message."""
-        # Navigate to the test page
+        """测试在未开始时停止录制会返回适当的消息。"""
+        # 导航至测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Wait for page to load
+        # 等待页面加载
         time.sleep(1)
 
-        # Try to stop recording without starting
+        # 尝试停止录制而不开始录制
         stop_action = BrowserStopRecordingAction()
         result = browser_executor(stop_action)
 
         assert isinstance(result, BrowserObservation)
-        # Should return error indicating not recording
+        # 应该返回错误指示不记录
         assert "Error" in result.text or "Not recording" in result.text
 
     def test_recording_captures_events(
         self, browser_executor: BrowserToolExecutor, test_server: str
     ):
-        """Test that recording captures browser events."""
-        # Navigate to the test page
+        """测试录制是否捕获浏览器事件。"""
+        # 导航至测试页面
         navigate_action = BrowserNavigateAction(url=test_server)
         browser_executor(navigate_action)
 
-        # Start recording - now includes automatic retry
+        # 开始录制 - 现在包括自动重试
         start_result = browser_executor(BrowserStartRecordingAction())
 
         assert start_result is not None
         assert not start_result.is_error
         assert "Recording started" in start_result.text
 
-        # Perform some actions that should be recorded
+        # 执行一些应该记录的操作
         browser_executor(BrowserScrollAction(direction="down"))
         time.sleep(0.5)
         browser_executor(BrowserScrollAction(direction="up"))
         time.sleep(0.5)
 
-        # Stop recording - now returns a summary message instead of JSON
+        # 停止录制 - 现在返回摘要消息而不是 JSON
         stop_result = browser_executor(BrowserStopRecordingAction())
 
         assert isinstance(stop_result, BrowserObservation)
         assert not stop_result.is_error
 
-        # Verify the summary message contains expected information
+        # 验证摘要消息包含预期信息
         assert "Recording stopped" in stop_result.text
         assert "events" in stop_result.text.lower()
         assert "file" in stop_result.text.lower()
 
-        # Print result for debugging
+        # 打印结果进行调试
         print(f"\n✓ Stop recording result: {stop_result.text}")
 
     def test_recording_save_to_file(self, test_server: str):
-        """Test that recording is saved to files in a timestamped subfolder.
+        """测试录音是否保存到带有时间戳的子文件夹中的文件中。
 
-        Note: Recording output goes to BROWSER_RECORDING_OUTPUT_DIR
-        (.agent_tmp/browser_observations/) regardless of full_output_save_dir.
+        Note: 录音输出转到 BROWSER_RECORDING_OUTPUT_DIR
+        (.agent_tmp/browser_observations/) 无论full_output_save_dir如何。
         """
         from openhands.tools.browser_use.definition import (
             BROWSER_RECORDING_OUTPUT_DIR,
@@ -794,23 +794,23 @@ class TestBrowserExecutorE2E:
                 action_timeout_seconds=30.0,
             )
 
-            # Navigate to the test page
+            # 导航至测试页面
             navigate_action = BrowserNavigateAction(url=test_server)
             nav_result = executor(navigate_action)
 
-            # Skip test if browser failed to initialize (infrastructure issue)
+            # 如果浏览器初始化失败则跳过测试（基础设施问题）
             if nav_result.is_error or "Error" in nav_result.text:
                 pytest.skip(f"Browser initialization failed: {nav_result.text}")
 
-            # Browser successfully initialized
+            # 浏览器初始化成功
             browser_initialized = True
 
-            # Start recording - now includes automatic retry
+            # 开始录制 - 现在包括自动重试
             start_result = executor(BrowserStartRecordingAction())
 
             assert start_result is not None
 
-            # Skip test if recording couldn't start due to CDP issues
+            # 如果由于 CDP 问题而无法开始录制，则跳过测试
             if "Error" in start_result.text or "not initialized" in start_result.text:
                 pytest.skip(
                     f"Recording could not start due to CDP issues: {start_result.text}"
@@ -820,19 +820,19 @@ class TestBrowserExecutorE2E:
                 f"Failed to start recording: {start_result.text}"
             )
 
-            # Perform actions
+            # 执行操作
             executor(BrowserScrollAction(direction="down"))
             time.sleep(0.5)
 
-            # Stop recording - events are automatically saved to files
+            # 停止记录 - 事件自动保存到文件中
             stop_result = executor(BrowserStopRecordingAction())
             assert not stop_result.is_error
 
-            # Verify the summary message
+            # 验证摘要消息
             assert "Recording stopped" in stop_result.text
             assert "events" in stop_result.text.lower()
 
-            # Verify a timestamped subfolder was created in the recording output dir
+            # 验证在记录输出目录中创建了带时间戳的子文件夹
             if os.path.exists(BROWSER_RECORDING_OUTPUT_DIR):
                 subdirs = [
                     d
@@ -845,8 +845,9 @@ class TestBrowserExecutorE2E:
                     f"{BROWSER_RECORDING_OUTPUT_DIR}, got {subdirs}"
                 )
 
-                # Verify files were created in the most recent recording subfolder
-                # Sort by name (timestamp-based) to get the most recent
+                # 验证文件是在最近的记录子文件夹中创建的按名称排序（基于时间戳）以获取最
+                # 新的
+                #
                 subdirs.sort(reverse=True)
                 recording_dir = os.path.join(BROWSER_RECORDING_OUTPUT_DIR, subdirs[0])
                 files = os.listdir(recording_dir)
@@ -855,7 +856,7 @@ class TestBrowserExecutorE2E:
                     "Expected at least one JSON file to be created"
                 )
 
-                # Read and verify the saved file(s)
+                # 读取并验证已保存的file(s)
                 total_events = 0
                 for json_file in json_files:
                     filepath = os.path.join(recording_dir, json_file)
@@ -871,17 +872,17 @@ class TestBrowserExecutorE2E:
                 print(f"✓ Created {len(json_files)} file(s)")
                 print(f"✓ Total events: {total_events}")
             else:
-                # Directory doesn't exist - skip as the test cannot verify
+                # 目录不存在 - 跳过，因为测试无法验证
                 pytest.skip(
                     f"Recording directory {BROWSER_RECORDING_OUTPUT_DIR} does not exist"
                 )
 
         finally:
-            # Only attempt to close if browser was successfully initialized,
-            # as closing a broken session can hang indefinitely
+            # 仅在浏览器成功初始化后才尝试关闭，因为关闭损坏的会话可能会无限期挂起
+            #
             if executor and browser_initialized:
                 try:
                     executor.close()
                 except Exception as e:
-                    # Ignore errors during cleanup but log for debugging purposes
+                    # 忽略清理过程中的错误，但出于调试目的记录错误
                     print(f"Warning: failed to close BrowserToolExecutor cleanly: {e}")

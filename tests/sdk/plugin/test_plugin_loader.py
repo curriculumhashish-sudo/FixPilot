@@ -1,4 +1,4 @@
-"""Tests for load_plugins() utility and HookConfig.merge()."""
+"""测试 load_plugins() 实用程序和 HookConfig.merge()。"""
 
 import json
 from pathlib import Path
@@ -21,7 +21,7 @@ from openhands.sdk.skills import Skill
 
 @pytest.fixture
 def mock_llm():
-    """Create a mock LLM for agent tests."""
+    """为智能体个测试创建模拟对象 LLM。"""
     return LLM(
         model="test/model",
         api_key=SecretStr("test-key"),
@@ -30,7 +30,7 @@ def mock_llm():
 
 @pytest.fixture
 def basic_agent(mock_llm):
-    """Create a basic agent for testing."""
+    """创建一个基本的智能体进行测试。"""
     return Agent(
         llm=mock_llm,
         tools=[],
@@ -39,7 +39,7 @@ def basic_agent(mock_llm):
 
 @pytest.fixture
 def agent_with_context(mock_llm):
-    """Create an agent with existing context."""
+    """使用现有的上下文创建智能体。"""
     context = AgentContext(
         skills=[Skill(name="existing-skill", content="Existing skill content")]
     )
@@ -52,7 +52,7 @@ def agent_with_context(mock_llm):
 
 @pytest.fixture
 def agent_with_mcp(mock_llm):
-    """Create an agent with existing MCP config."""
+    """使用现有的 MCP 配置创建智能体。"""
     return Agent(
         llm=mock_llm,
         tools=[],
@@ -67,16 +67,16 @@ def create_test_plugin(
     mcp_config: dict | None = None,
     hooks: dict | None = None,
 ):
-    """Helper to create a test plugin directory."""
-    # Create plugin structure
+    """帮助程序创建测试插件目录。"""
+    # 创建插件结构
     manifest_dir = plugin_dir / ".plugin"
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write manifest
+    # 编写清单
     manifest = {"name": name, "version": "1.0.0", "description": f"Test plugin {name}"}
     (manifest_dir / "plugin.json").write_text(json.dumps(manifest))
 
-    # Write skills
+    # 写作技巧
     if skills:
         skills_dir = plugin_dir / "skills"
         skills_dir.mkdir(exist_ok=True)
@@ -86,12 +86,12 @@ def create_test_plugin(
             skill_file = skills_dir / f"{skill_name}.md"
             skill_file.write_text(f"---\nname: {skill_name}\n---\n{skill_content}")
 
-    # Write MCP config
+    # 写入MCP配置
     if mcp_config:
         mcp_file = plugin_dir / ".mcp.json"
         mcp_file.write_text(json.dumps(mcp_config))
 
-    # Write hooks
+    # 写钩子
     if hooks:
         hooks_dir = plugin_dir / "hooks"
         hooks_dir.mkdir(exist_ok=True)
@@ -102,15 +102,15 @@ def create_test_plugin(
 
 
 class TestHookConfigMerge:
-    """Tests for HookConfig.merge class method."""
+    """测试 HookConfig.merge 类方法。"""
 
     def test_merge_empty_list_returns_none(self):
-        """Test that empty list returns None."""
+        """测试空列表返回 None。"""
         result = HookConfig.merge([])
         assert result is None
 
     def test_merge_single_config(self):
-        """Test merging a single config returns equivalent config."""
+        """测试合并单个配置会返回等效配置。"""
         config = HookConfig(
             pre_tool_use=[
                 HookMatcher(matcher="*", hooks=[HookDefinition(command="test")])
@@ -122,7 +122,7 @@ class TestHookConfigMerge:
         assert result.pre_tool_use[0].matcher == "*"
 
     def test_merge_multiple_pre_tool_use(self):
-        """Test merging multiple configs concatenates pre_tool_use."""
+        """测试合并多个配置连接 pre_tool_use。"""
         config1 = HookConfig(
             pre_tool_use=[
                 HookMatcher(matcher="terminal", hooks=[HookDefinition(command="cmd1")])
@@ -140,7 +140,7 @@ class TestHookConfigMerge:
         assert result.pre_tool_use[1].matcher == "*"
 
     def test_merge_different_event_types(self):
-        """Test merging configs with different event types."""
+        """测试具有不同事件类型的合并配置。"""
         config1 = HookConfig(
             pre_tool_use=[
                 HookMatcher(matcher="*", hooks=[HookDefinition(command="pre")])
@@ -157,7 +157,7 @@ class TestHookConfigMerge:
         assert len(result.post_tool_use) == 1
 
     def test_merge_all_event_types(self):
-        """Test merging configs covers all event types."""
+        """测试合并配置涵盖所有事件类型。"""
         config1 = HookConfig(
             pre_tool_use=[
                 HookMatcher(matcher="*", hooks=[HookDefinition(command="c1")])
@@ -190,7 +190,7 @@ class TestHookConfigMerge:
         assert len(result.stop) == 1
 
     def test_merge_empty_configs_returns_none(self):
-        """Test merging only empty configs returns None."""
+        """仅测试合并空配置返回 None。"""
         config1 = HookConfig()
         config2 = HookConfig()
         result = HookConfig.merge([config1, config2])
@@ -198,16 +198,16 @@ class TestHookConfigMerge:
 
 
 class TestLoadPluginsSinglePlugin:
-    """Tests for load_plugins with a single plugin."""
+    """使用单个插件测试 load_plugins。"""
 
     def test_load_empty_list_returns_unchanged_agent(self, basic_agent):
-        """Test that empty plugin list returns agent unchanged."""
+        """测试空插件列表返回智能体不变。"""
         updated_agent, hooks = load_plugins([], basic_agent)
         assert updated_agent is basic_agent
         assert hooks is None
 
     def test_load_single_plugin_with_skills(self, tmp_path: Path, basic_agent):
-        """Test loading a plugin with skills merges into agent context."""
+        """测试加载具有技能的插件合并到智能体上下文。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -223,7 +223,7 @@ class TestLoadPluginsSinglePlugin:
         assert hooks is None
 
     def test_load_single_plugin_with_mcp(self, tmp_path: Path, basic_agent):
-        """Test loading a plugin with MCP config merges into agent."""
+        """测试加载具有 MCP 配置的插件合并到智能体。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -237,7 +237,7 @@ class TestLoadPluginsSinglePlugin:
         assert hooks is None
 
     def test_load_single_plugin_with_hooks(self, tmp_path: Path, basic_agent):
-        """Test loading a plugin with hooks returns hook config."""
+        """测试加载带有钩子的插件会返回钩子配置。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -258,10 +258,10 @@ class TestLoadPluginsSinglePlugin:
 
 
 class TestLoadPluginsMultiplePlugins:
-    """Tests for load_plugins with multiple plugins."""
+    """使用多个插件测试 load_plugins。"""
 
     def test_load_multiple_plugins_skills_override(self, tmp_path: Path, basic_agent):
-        """Test that later plugins override skills by name."""
+        """测试以后的插件是否会按名称覆盖技能。"""
         plugin1 = create_test_plugin(
             tmp_path / "plugin1",
             name="plugin1",
@@ -284,7 +284,7 @@ class TestLoadPluginsMultiplePlugins:
         assert "Second content" in updated_agent.agent_context.skills[0].content
 
     def test_load_multiple_plugins_mcp_override(self, tmp_path: Path, basic_agent):
-        """Test that later plugins override MCP config by key."""
+        """测试以后的插件是否通过按键覆盖 MCP 配置。"""
         plugin1 = create_test_plugin(
             tmp_path / "plugin1",
             name="plugin1",
@@ -305,7 +305,7 @@ class TestLoadPluginsMultiplePlugins:
         assert updated_agent.mcp_config["server"].command == "second"
 
     def test_load_multiple_plugins_hooks_concatenate(self, tmp_path: Path, basic_agent):
-        """Test that hooks from all plugins are concatenated."""
+        """测试所有插件的挂钩是否已连接。"""
         plugin1 = create_test_plugin(
             tmp_path / "plugin1",
             name="plugin1",
@@ -335,7 +335,7 @@ class TestLoadPluginsMultiplePlugins:
         assert len(hooks.pre_tool_use) == 2
 
     def test_load_multiple_plugins_different_skills(self, tmp_path: Path, basic_agent):
-        """Test that different skills from multiple plugins are combined."""
+        """测试来自多个插件的不同技能的组合。"""
         plugin1 = create_test_plugin(
             tmp_path / "plugin1",
             name="plugin1",
@@ -360,10 +360,10 @@ class TestLoadPluginsMultiplePlugins:
 
 
 class TestLoadPluginsWithExistingContext:
-    """Tests for load_plugins with agents that have existing context."""
+    """使用已存在上下文的智能体测试 load_plugins。"""
 
     def test_preserves_existing_skills(self, tmp_path: Path, agent_with_context):
-        """Test that existing skills are preserved when loading plugins."""
+        """测试加载插件时是否保留现有技能。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -379,7 +379,7 @@ class TestLoadPluginsWithExistingContext:
         assert "new-skill" in skill_names
 
     def test_plugin_skill_overrides_existing(self, tmp_path: Path, agent_with_context):
-        """Test that plugin skill with same name overrides existing."""
+        """测试同名插件技能是否覆盖现有技能。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -394,7 +394,7 @@ class TestLoadPluginsWithExistingContext:
         assert "Plugin content" in updated_agent.agent_context.skills[0].content
 
     def test_preserves_existing_mcp(self, tmp_path: Path, agent_with_mcp):
-        """Test that existing MCP config is preserved."""
+        """测试现有的 MCP 配置是否被保留。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -409,10 +409,10 @@ class TestLoadPluginsWithExistingContext:
 
 
 class TestLoadPluginsMaxSkills:
-    """Tests for max_skills limit enforcement."""
+    """测试 max_skills 限制执行。"""
 
     def test_max_skills_not_exceeded(self, tmp_path: Path, basic_agent):
-        """Test that loading succeeds when under max_skills."""
+        """测试在max_skills下是否加载成功。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -429,7 +429,7 @@ class TestLoadPluginsMaxSkills:
         assert len(updated_agent.agent_context.skills) == 2
 
     def test_max_skills_exceeded_raises_error(self, tmp_path: Path, basic_agent):
-        """Test that exceeding max_skills raises ValueError."""
+        """测试超过 max_skills 会引发 ValueError。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -446,43 +446,43 @@ class TestLoadPluginsMaxSkills:
 
 
 class TestLoadPluginsErrorHandling:
-    """Tests for error handling in load_plugins."""
+    """测试load_plugins中的错误处理。"""
 
     def test_nonexistent_plugin_raises_error(self, basic_agent):
-        """Test that nonexistent plugin path raises error."""
+        """测试不存在的插件路径是否会引发错误。"""
         plugins = [PluginSource(source="/nonexistent/path")]
         with pytest.raises(PluginFetchError):
             load_plugins(plugins, basic_agent)
 
     def test_invalid_plugin_dir_raises_error(self, tmp_path: Path, basic_agent):
-        """Test that invalid plugin (no manifest) still loads with inferred manifest."""
-        # Create an empty directory (no manifest)
+        """测试无效插件（无清单）是否仍然加载推断的清单。"""
+        # 创建一个空目录（无清单）
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
 
         plugins = [PluginSource(source=str(empty_dir))]
-        # Should not raise - Plugin.load() infers manifest from directory name
+        # 不应引发 - Plugin.load() 从目录名称推断清单
         updated_agent, _ = load_plugins(plugins, basic_agent)
         assert updated_agent is not None
 
 
 class TestPluginSource:
-    """Tests for PluginSource model."""
+    """测试 PluginSource 模型。"""
 
     def test_create_basic(self):
-        """Test creating a basic PluginSource."""
+        """测试创建一个基本的 PluginSource。"""
         source = PluginSource(source="github:owner/repo")
         assert source.source == "github:owner/repo"
         assert source.ref is None
         assert source.repo_path is None
 
     def test_create_with_ref(self):
-        """Test creating PluginSource with ref."""
+        """测试使用 ref 创建 PluginSource。"""
         source = PluginSource(source="github:owner/repo", ref="v1.0.0")
         assert source.ref == "v1.0.0"
 
     def test_create_with_repo_path(self):
-        """Test creating PluginSource with repo_path."""
+        """测试用 repo_path 创建 PluginSource。"""
         source = PluginSource(
             source="github:owner/monorepo",
             repo_path="plugins/my-plugin",
@@ -490,6 +490,6 @@ class TestPluginSource:
         assert source.repo_path == "plugins/my-plugin"
 
     def test_create_local_path(self):
-        """Test creating PluginSource with local path."""
+        """测试使用本地路径创建 PluginSource。"""
         source = PluginSource(source="/path/to/plugin")
         assert source.source == "/path/to/plugin"

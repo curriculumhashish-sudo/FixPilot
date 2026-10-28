@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Validate docstrings conform to MDX-compatible formatting guidelines.
+"""验证文档字符串符合 MDX 兼容的格式指南。
 
-This script checks that docstrings in the SDK use patterns that render correctly
-in Mintlify MDX documentation. It validates:
+此脚本检查 SDK 中的文档字符串使用的模式在 Mintlify MDX 文档中正确呈现。 它验证：
 
-1. No REPL-style examples (>>>) - should use fenced code blocks instead
-2. Shell/config examples use fenced code blocks (prevents # becoming headers)
+1. 没有 REPL 样式的示例 (>>>) - 应该使用隔离代码块
+2. Shell/config 示例使用受隔离的代码块（防止 # 成为标头）
 
-Run with: python scripts/check_docstrings.py
-Exit code 0 = all checks pass, 1 = violations found
+运行时：Python scripts/check_docstrings.py 退出码0表示所有检查通过，1表示发现违规
 """
 
 import ast
@@ -17,12 +15,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-# Directories to check
+# 需要检查的目录
 SDK_PATHS = [
     "openhands-sdk/openhands/sdk",
 ]
 
-# Files/directories to skip
+# 要跳过的文件/目录
 SKIP_PATTERNS = [
     "__pycache__",
     ".pyc",
@@ -30,8 +28,9 @@ SKIP_PATTERNS = [
     "_test.py",
 ]
 
-# Core public API files to check strictly (these are documented on the website)
-# Other files will be checked but only emit warnings, not failures
+# 要严格检查的核心公共 API 文件（这些文件已在网站上记录）其他文件将被检查，但仅发出警告
+# ，而不发出失败
+#
 STRICT_CHECK_FILES = [
     "agent/agent.py",
     "llm/llm.py",
@@ -44,18 +43,18 @@ STRICT_CHECK_FILES = [
 
 @dataclass
 class Violation:
-    """A docstring formatting violation."""
+    """文档字符串格式违规。"""
 
     file: Path
     line: int
     name: str
     rule: str
     message: str
-    is_strict: bool = False  # True if this is in a strictly-checked file
+    is_strict: bool = False  # True 如果这是在严格检查的文件中
 
 
 def should_skip(path: Path) -> bool:
-    """Check if a path should be skipped."""
+    """检查是否应跳过路径。"""
     path_str = str(path)
     return any(pattern in path_str for pattern in SKIP_PATTERNS)
 
@@ -63,9 +62,9 @@ def should_skip(path: Path) -> bool:
 def check_repl_examples(
     docstring: str, name: str, lineno: int, file: Path
 ) -> list[Violation]:
-    """Check for REPL-style examples (>>>).
+    """检查 REPL 样式的示例 (>>>)。
 
-    These should be replaced with fenced code blocks for better MDX rendering.
+    这些应该替换为受隔离的代码块，以获得更好的 MDX 渲染。
     """
     violations = []
     lines = docstring.split("\n")
@@ -85,7 +84,7 @@ def check_repl_examples(
                     ),
                 )
             )
-            # Only report once per docstring
+            # 每个文档字符串仅报告一次
             break
 
     return violations
@@ -94,9 +93,9 @@ def check_repl_examples(
 def check_unfenced_shell_config(
     docstring: str, name: str, lineno: int, file: Path
 ) -> list[Violation]:
-    """Check for shell/config examples that aren't in fenced code blocks.
+    """检查不在受保护代码块中的 shell/配置示例。
 
-    Lines starting with # outside code blocks become markdown headers.
+    以 # 开头的外部代码块行成为 Markdown 标头。
     """
     violations = []
     lines = docstring.split("\n")
@@ -105,25 +104,25 @@ def check_unfenced_shell_config(
     for i, line in enumerate(lines):
         stripped = line.strip()
 
-        # Track code block state
+        # 跟踪代码块状态
         if stripped.startswith("```"):
             in_code_block = not in_code_block
             continue
 
-        # Skip if inside a code block
+        # 如果在代码块内则跳过
         if in_code_block:
             continue
 
-        # Check for shell-style comments that look like config
-        # Pattern: line starts with # and previous line has = (config pattern)
+        # 检查类似于 config 的 shell 风格注释
+        # 模式：行以 # 开头，上一行有 = （配置模式）
         if stripped.startswith("#") and not stripped.startswith("# "):
-            # This is likely a shell comment without space (less common in prose)
+            # 这可能是一个没有空格的 shell 注释（在散文中不太常见）
             continue
 
-        # Check for unfenced config: KEY=VALUE followed by # comment
+        # 检查不受保护的配置：KEY=VALUE 后跟 # 注释
         if i > 0:
             prev_line = lines[i - 1].strip() if i > 0 else ""
-            # If previous line looks like config (VAR=value) and this is a # comment
+            # 如果上一行看起来像 config (VAR=value) 并且这是 # 注释
             if "=" in prev_line and prev_line.split("=")[0].isupper():
                 if stripped.startswith("# "):
                     violations.append(
@@ -139,7 +138,7 @@ def check_unfenced_shell_config(
                             ),
                         )
                     )
-                    # Only report once per docstring
+                    # 每个文档字符串仅报告一次
                     break
 
     return violations
@@ -148,7 +147,7 @@ def check_unfenced_shell_config(
 def check_docstring(
     docstring: str, name: str, lineno: int, file: Path
 ) -> list[Violation]:
-    """Run all checks on a docstring."""
+    """对文档字符串运行所有检查。"""
     if not docstring:
         return []
 
@@ -159,9 +158,9 @@ def check_docstring(
 
 
 def get_docstrings_from_file(file: Path) -> list[tuple[str, str, int]]:
-    """Extract all docstrings from a Python file.
+    """从 Python 文件中提取所有文档字符串。
 
-    Returns list of (name, docstring, lineno) tuples.
+    返回 (name, 文档字符串，lineno) 元组列表。
     """
     try:
         source = file.read_text()
@@ -197,7 +196,7 @@ def get_docstrings_from_file(file: Path) -> list[tuple[str, str, int]]:
 
 
 def is_strict_file(file: Path, repo_root: Path) -> bool:
-    """Check if a file is in the strict check list."""
+    """检查文件是否在严格检查列表中。"""
     try:
         rel_path = file.relative_to(repo_root / "openhands-sdk/openhands/sdk")
         return any(str(rel_path) == strict for strict in STRICT_CHECK_FILES)
@@ -206,7 +205,7 @@ def is_strict_file(file: Path, repo_root: Path) -> bool:
 
 
 def check_file(file: Path, repo_root: Path) -> list[Violation]:
-    """Check all docstrings in a file."""
+    """检查文件中的所有文档字符串。"""
     violations = []
     is_strict = is_strict_file(file, repo_root)
 
@@ -220,7 +219,7 @@ def check_file(file: Path, repo_root: Path) -> list[Violation]:
 
 
 def main() -> int:
-    """Run docstring checks on all SDK files."""
+    """对所有 SDK 个文件运行文档字符串检查。"""
     repo_root = Path(__file__).parent.parent.parent
 
     all_violations: list[Violation] = []
@@ -240,11 +239,11 @@ def main() -> int:
             violations = check_file(py_file, repo_root)
             all_violations.extend(violations)
 
-    # Separate strict violations (errors) from warnings
+    # 将严格违规（错误）与警告分开
     strict_violations = [v for v in all_violations if v.is_strict]
     warning_violations = [v for v in all_violations if not v.is_strict]
 
-    # Report warnings (non-strict files)
+    # 报告警告（非严格文件）
     if warning_violations:
         count = len(warning_violations)
         print(f"\n⚠️  Found {count} docstring warning(s) in non-core files:\n")
@@ -260,7 +259,7 @@ def main() -> int:
                 print(f"   Line {v.line}: {v.name} ({v.rule})")
         print()
 
-    # Report errors (strict files)
+    # 报告错误（严格文件）
     if strict_violations:
         count = len(strict_violations)
         print(f"\n❌ Found {count} docstring error(s) in core API files:\n")

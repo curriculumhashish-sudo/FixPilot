@@ -40,12 +40,12 @@ from openhands.tools.file_editor.utils.history import FileHistoryManager
 
 logger = get_logger(__name__)
 
-# Supported image extensions for viewing as base64-encoded content
+# 支持查看 Base64 编码内容的图像扩展名
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
 def _is_encodable(text: str, encoding: str) -> bool:
-    """Return True if text can be encoded with the given encoding."""
+    """如果文本可以使用给定的编码进行编码，则返回 True。"""
     try:
         text.encode(encoding)
     except UnicodeEncodeError:
@@ -55,17 +55,18 @@ def _is_encodable(text: str, encoding: str) -> bool:
 
 class FileEditor:
     """
-    An filesystem editor tool that allows the agent to
-    - view
-    - create
-    - navigate
-    - edit files
-    The tool parameters are defined by Anthropic and are not editable.
+    一个文件系统编辑器工具，允许智能体
+    - 查看
+    - 创造
+    - 导航
+    - 编辑文件
+    工具参数由 Anthropic 定义且不可编辑。
 
-    Original implementation: https://github.com/anthropics/anthropic-quickstarts/blob/main/computer-use-demo/computer_use_demo/tools/edit.py
-    """
+    原始实现：
+    https://github.com/anthropics/anthropic-quickstarts/blob/main/computer-use-demo/computer_use_demo/tools/edit.py
+    """  # noqa: E501
 
-    MAX_FILE_SIZE_MB: int = 10  # Maximum file size in MB
+    MAX_FILE_SIZE_MB: int = 10  # 最大文件大小（MB）
     _history_manager: FileHistoryManager
     _max_file_size: int
     _encoding_manager: EncodingManager
@@ -76,27 +77,27 @@ class FileEditor:
         workspace_root: str | None = None,
         max_file_size_mb: int | None = None,
     ):
-        """Initialize the editor.
+        """初始化编辑器。
 
         Args:
-            max_file_size_mb: Maximum file size in MB. If None, uses the default
+            max_file_size_mb: 最大文件大小（以 MB 为单位）。 如果 None，则使用默认值
                 MAX_FILE_SIZE_MB.
-            workspace_root: Root directory that serves as the current working
-                directory for relative path suggestions. Must be an absolute path.
-                If None, no path suggestions will be provided for relative paths.
+            workspace_root: 作为当前工作的根目录
+                相对路径建议的目录。 必须是绝对路径。 如果为 None，则不会为相对路径提
+                供路径建议。
         """
         self._history_manager = FileHistoryManager(max_history_per_file=10)
         self._max_file_size = (
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
-        )  # Convert to bytes
+        )  # 转换为字节
 
-        # Initialize encoding manager
+        # 初始化编码管理器
         self._encoding_manager = EncodingManager()
 
-        # Set cwd (current working directory) if workspace_root is provided
+        # 如果提供了 workspace_root，则设置 cwd（当前工作目录）
         if workspace_root is not None:
             workspace_path = Path(workspace_root)
-            # Ensure workspace_root is an absolute path
+            # 确保 workspace_root 是绝对路径
             if not workspace_path.is_absolute():
                 workspace_path = workspace_path.resolve()
             self._cwd = str(workspace_path)
@@ -161,15 +162,15 @@ class FileEditor:
     @with_encoding
     def _count_lines(self, path: Path, encoding: str = "utf-8") -> int:
         """
-        Count the number of lines in a file safely.
+        安全地计算文件中的行数。
 
         Args:
-            path: Path to the file
-            encoding: The encoding to use when reading the file (auto-detected by
-                decorator)
+            path: 文件路径
+            encoding: 读取文件时使用的编码（由
+                装饰器）
 
         Returns:
-            The number of lines in the file
+            文件中的行数
         """
         with open(path, encoding=encoding) as f:
             return sum(1 for _ in f)
@@ -182,49 +183,47 @@ class FileEditor:
         new_str: str | None,
     ) -> FileEditorObservation:
         """
-        Implement the str_replace command, which replaces old_str with new_str in
-        the file content.
+        执行str_replace命令，将文件内容中的old_str替换为new_str。
 
         Args:
-            path: Path to the file
-            old_str: String to replace
-            new_str: Replacement string
-            enable_linting: Whether to run linting on the changes
-            encoding: The encoding to use (auto-detected by decorator)
+            path: 文件路径
+            old_str: 要替换的字符串
+            new_str: 替换弦
+            enable_linting: 是否对更改运行静态检查
+            encoding: 要使用的编码（由装饰器自动检测）
         """
         self.validate_file(path)
         new_str = new_str or ""
 
-        # Read the entire file first to handle both single-line and multi-line
-        # replacements
+        # 首先读取整个文件，以处理单行和多行替换
+        #
         file_content = self.read_file(path)
 
-        # Find all occurrences using regex
-        # Escape special regex characters in old_str to match it literally
+        # 使用正则表达式查找所有出现的情况转义 old_str 中的特殊正则表达式字符以字面匹配
+        #
         pattern = re.escape(old_str)
         occurrences = [
             (
-                file_content.count("\n", 0, match.start()) + 1,  # line number
-                match.group(),  # matched text
-                match.start(),  # start position
+                file_content.count("\n", 0, match.start()) + 1,  # 行号
+                match.group(),  # 匹配的文本
+                match.start(),  # 起始位置
             )
             for match in re.finditer(pattern, file_content)
         ]
 
         if not occurrences:
-            # We found no occurrences, possibly because of extra white spaces at
-            # either the front or back of the string.
-            # Strip old_str to retry the *match* only. Do NOT strip new_str: it
-            # is the replacement content, and stripping it would silently drop
-            # meaningful leading/trailing whitespace (e.g. a Markdown hard line
+            # 我们没有发现任何出现的情况，可能是因为字符串前面或后面有多余的空格。 仅删
+            # 除 old_str 至重试 * 匹配 *。 执行不剥离 new_str：它是替换内容，剥离它会默
+            # 默地删除有意义的前导/尾随空白 (e.g. Markdown 强硬路线
+            #
             # break or intentional indentation) the caller asked to write.
             old_str = old_str.strip()
             pattern = re.escape(old_str)
             occurrences = [
                 (
-                    file_content.count("\n", 0, match.start()) + 1,  # line number
-                    match.group(),  # matched text
-                    match.start(),  # start position
+                    file_content.count("\n", 0, match.start()) + 1,  # 行号
+                    match.group(),  # 匹配的文本
+                    match.start(),  # 起始位置
                 )
                 for match in re.finditer(pattern, file_content)
             ]
@@ -240,28 +239,28 @@ class FileEditor:
                 f"`{old_str}` in lines {line_numbers}. Please ensure it is unique."
             )
 
-        # We found exactly one occurrence
+        # 我们恰好发现了一个现象
         replacement_line, matched_text, idx = occurrences[0]
 
-        # Create new content by replacing just the matched text
+        # 通过仅替换匹配的文本来创建新内容
         new_file_content = (
             file_content[:idx] + new_str + file_content[idx + len(matched_text) :]
         )
 
-        # Write the new content to the file
+        # 将新内容写入文件
         self.write_file(path, new_file_content)
 
-        # Save the content to history
+        # 将内容保存到历史记录
         self._history_manager.add_history(path, file_content)
 
-        # Create a snippet of the edited section
+        # 创建已编辑部分的片段
         start_line = max(0, replacement_line - SNIPPET_CONTEXT_WINDOW)
         end_line = replacement_line + SNIPPET_CONTEXT_WINDOW + new_str.count("\n")
 
-        # Read just the snippet range
+        # 仅读取片段范围
         snippet = self.read_file(path, start_line=start_line + 1, end_line=end_line)
 
-        # Prepare the success message
+        # 准备成功消息
         success_message = f"The file {path} has been edited. "
         success_message += self._make_output(
             snippet, f"a snippet of {path}", start_line + 1
@@ -284,7 +283,7 @@ class FileEditor:
         self, path: Path, view_range: list[int] | None = None
     ) -> FileEditorObservation:
         """
-        View the contents of a file or a directory.
+        查看文件或目录的内容。
         """
         if path.is_dir():
             if view_range:
@@ -328,10 +327,10 @@ class FileEditor:
                 prev_exist=True,
             )
 
-        # Check if the file is an image
+        # 检查文件是否是图像
         file_extension = path.suffix.lower()
         if file_extension in IMAGE_EXTENSIONS:
-            # Read image file as base64
+            # 将图像文件读取为 base64
             try:
                 with open(path, "rb") as f:
                     image_bytes = f.read()
@@ -356,7 +355,7 @@ class FileEditor:
             except Exception as e:
                 raise ToolError(f"Failed to read image file {path}: {e}") from None
 
-        # Validate file and count lines
+        # 验证文件并计算行数
         self.validate_file(path)
         try:
             num_lines = self._count_lines(path)
@@ -394,7 +393,7 @@ class FileEditor:
                 f"lines of the file: {[1, num_lines]}.",
             )
 
-        # Normalize end_line and provide a warning if it exceeds file length
+        # 规范化 end_line 并在超出文件长度时发出警告
         warning_message: str | None = None
         if end_line == -1:
             end_line = num_lines
@@ -418,7 +417,7 @@ class FileEditor:
 
         output = self._make_output(file_content, str(path), start_line)
 
-        # Prepend warning if we truncated the end_line
+        # 如果我们截断 end_line 则添加警告
         if warning_message:
             output = f"NOTE: {warning_message}\n{output}"
 
@@ -462,14 +461,13 @@ class FileEditor:
     @with_encoding
     def write_file(self, path: Path, file_text: str, encoding: str = "utf-8") -> None:
         """
-        Write the content of a file to a given path; raise a ToolError if an
-        error occurs.
+        将文件内容写入给定路径； 如果发生错误，则引发 ToolError。
 
         Args:
-            path: Path to the file to write
-            file_text: Content to write to the file
-            encoding: The encoding to use when writing the file (auto-detected by
-                decorator)
+            path: 要写入的文件的路径
+            file_text: 要写入文件的内容
+            encoding: 写入文件时使用的编码（由
+                装饰器）
         """
         self.validate_file(path)
         try:
@@ -478,15 +476,13 @@ class FileEditor:
             raise ToolError(f"Ran into {e} while trying to write to {path}") from None
 
     def _atomic_write(self, path: Path, file_text: str, encoding: str) -> None:
-        """Write file_text to path atomically, never leaving a truncated file.
+        """以原子方式将 file_text 写入路径，永远不会留下被截断的文件。
 
-        The content is written to a temporary file in the same directory which is
-        then Path.replace'd into place, so a failed write can never destroy the
-        original file. If the file's detected encoding cannot represent the new
-        content, fall back to UTF-8 so an edit may add characters (arrows, emoji,
-        CJK, ...) the original single-byte encoding lacks, instead of failing and
-        truncating the file. Note that the fallback transcodes the whole file to
-        UTF-8.
+        内容被写入同一目录下的临时文件中，然后 Path.replace一旦数据写入，那么任何失败
+        的写入都不会破坏原始文件。 如果检测到的文件编码无法表示新内容，
+        fallback 到  UTF-8 一个编辑可能会添加字符（箭头，表情符号，） CJK... 由于原始
+        的单字节编码缺乏这些，而是失败并截断文件。 注意回退方
+        案将整个文件转码为 UTF-8.
         """
         default = self._encoding_manager.default_encoding
         if encoding != default and not _is_encodable(file_text, encoding):
@@ -497,19 +493,18 @@ class FileEditor:
             encoding = default
 
         with self._temp_file(path, file_text, encoding) as tmp_path:
-            # Preserve the original file's permission bits when it already exists.
+            # 当原始文件已存在时，保留其权限位。
             if path.exists():
                 os.chmod(tmp_path, os.stat(path).st_mode & 0o7777)
             Path.replace(tmp_path, path)
 
     @contextmanager
     def _temp_file(self, path: Path, file_text: str, encoding: str) -> Iterator[Path]:
-        """Write file_text to a fresh temp file beside path and yield its Path.
+        """将 file_text 写入路径旁边的新临时文件并生成其路径。
 
-        The temp file is removed on any failure (write, chmod or replace), so the
-        original file is never destroyed and no stray temp file is left behind. The
-        unlink runs after the file is closed because Windows cannot delete an open
-        file.
+        发生任何故障（写入、chmod 或替换）时，临时文件都会被删除，因此原始文件永远不
+        会被破坏，并且不会留下任何杂散临时文件。 由于 Windows 无法删除打
+        开的文件，因此取消链接会在文件关闭后运行。
         """
         tmp = tempfile.NamedTemporaryFile(
             mode="w",
@@ -537,17 +532,16 @@ class FileEditor:
         encoding: str = "utf-8",
     ) -> FileEditorObservation:
         """
-        Implement the insert command, which inserts new_str at the specified line
-        in the file content.
+        实现插入命令，该命令在文件内容中的指定行插入new_str。
 
         Args:
-            path: Path to the file
-            insert_line: Line number where to insert the new content
-            new_str: Content to insert
-            enable_linting: Whether to run linting on the changes
-            encoding: The encoding to use (auto-detected by decorator)
+            path: 文件路径
+            insert_line: 插入新内容的行号
+            new_str: 要插入的内容
+            enable_linting: 是否对更改运行静态检查
+            encoding: 要使用的编码（由装饰器自动检测）
         """
-        # Validate file and count lines
+        # 验证文件并计算行数
         self.validate_file(path)
         num_lines = self._count_lines(path)
 
@@ -560,9 +554,9 @@ class FileEditor:
 
         new_str_lines = new_str.split("\n")
 
-        # Build the new content in memory, then write it atomically. Routing the
-        # write through write_file reuses the same atomic, encoding-safe path as
-        # every other edit (no truncation, UTF-8 fallback for new characters).
+        # 在内存中构建新内容，然后以原子方式写入。 通过 write_file 路由写入与其他所有编
+        # 辑一样，重复使用相同的原子、编码安全路径（无截断，新字符为 UTF-8 回退方案）。
+        #
         new_lines: list[str] = []
         history_lines: list[str] = []
         with open(path, encoding=encoding) as f:
@@ -572,11 +566,11 @@ class FileEditor:
                 new_lines.append(line)
                 history_lines.append(line)
 
-        # Insert new content
+        # 插入新内容
         for line in new_str_lines:
             new_lines.append(line + "\n")
 
-        # Copy remaining lines and save them for history
+        # 复制剩余的行并将其保存为历史记录
         with open(path, encoding=encoding) as f:
             for i, line in enumerate(f, 1):
                 if i <= insert_line:
@@ -586,7 +580,7 @@ class FileEditor:
 
         self.write_file(path, "".join(new_lines))
 
-        # Read just the snippet range
+        # 仅读取片段范围
         start_line = max(0, insert_line - SNIPPET_CONTEXT_WINDOW)
         end_line = min(
             num_lines + len(new_str_lines),
@@ -594,11 +588,11 @@ class FileEditor:
         )
         snippet = self.read_file(path, start_line=start_line + 1, end_line=end_line)
 
-        # Save history - we already have the lines in memory
+        # 保存历史记录 - 我们已经在内存中保存了这些行
         file_text = "".join(history_lines)
         self._history_manager.add_history(path, file_text)
 
-        # Read new content for result
+        # 阅读新内容以获得结果
         new_file_text = self.read_file(path)
 
         success_message = f"The file {path} has been edited. "
@@ -623,17 +617,17 @@ class FileEditor:
 
     def validate_path(self, command: CommandLiteral, path: Path) -> None:
         """
-        Check that the path/command combination is valid.
+        检查路径/命令组合是否有效。
 
-        Validates:
-        1. Path is absolute
-        2. Path and command are compatible
+        验证：
+        1. 路径是绝对的
+        2. 路径和命令兼容
         """
-        # Check if it's an absolute path on the current host filesystem.
+        # 检查它是否是当前主机文件系统上的绝对路径。
         if not is_host_absolute_path(path):
             suggestion_message = "The path should be an absolute path."
 
-            # Only suggest the absolute path if cwd is provided and the path exists
+            # 如果提供了 cwd 并且路径存在，则仅建议绝对路径
             if self._cwd is not None:
                 suggested_path = Path(self._cwd) / path
                 if suggested_path.exists():
@@ -645,7 +639,7 @@ class FileEditor:
                 suggestion_message,
             )
 
-        # Check if path and command are compatible
+        # 检查路径和命令是否兼容
         if command == "create" and path.exists():
             raise EditorToolParameterInvalidError(
                 "path",
@@ -670,7 +664,7 @@ class FileEditor:
 
     def undo_edit(self, path: Path) -> FileEditorObservation:
         """
-        Implement the undo_edit command.
+        执行undo_edit命令。
         """
         current_text = self.read_file(path)
         old_text = self._history_manager.pop_last_history(path)
@@ -693,19 +687,19 @@ class FileEditor:
 
     def validate_file(self, path: Path) -> None:
         """
-        Validate a file for reading or editing operations.
+        验证文件的读取或编辑操作。
 
         Args:
-            path: Path to the file to validate
+            path: 要验证的文件的路径
 
         Raises:
-            FileValidationError: If the file fails validation
+            FileValidationError: 如果文件失败验证
         """
-        # Skip validation for directories or non-existent files (for create command)
+        # 对于目录或不存在的文件跳过验证（对于创建命令）
         if not path.exists() or not path.is_file():
             return
 
-        # Check file size
+        # 检查文件大小
         file_size = os.path.getsize(path)
         max_size = self._max_file_size
         if file_size > max_size:
@@ -717,13 +711,13 @@ class FileEditor:
                 ),
             )
 
-        # Check file type - allow image files
+        # 检查文件类型 - 允许图像文件
         file_extension = path.suffix.lower()
         if is_binary(str(path)) and file_extension not in IMAGE_EXTENSIONS:
-            # binaryornot samples only the first chunk, so a non-UTF-8 (e.g.
-            # cp1251) or non-ASCII text file can be misclassified as binary.
-            # Decode the whole file with the encoding the editor will use and
-            # accept it if it is clean text.
+            # binaryornot 仅对第一个块进行采样，因此非 UTF-8 (e.g. cp1251) 或非 ASCII 文
+            # 本文件可能会被错误分类为二进制文件。 使用编辑器将使用的编码解码整个文件，
+            # 如果它是干净文本则接受它。
+            #
             if self._is_decodable_text(path):
                 return
             raise FileValidationError(
@@ -735,9 +729,9 @@ class FileEditor:
             )
 
     def _is_decodable_text(self, path: Path) -> bool:
-        """Return True if the file decodes as clean text in a known encoding.
+        """如果文件以已知编码解码为干净文本，则返回 True。
 
-        Used to override binaryornot misclassification of non-UTF-8 text files.
+        用于覆盖非 UTF-8 文本文件的二进制或错误分类。
         """
         return self._encoding_manager.resolve_text_encoding(path) is not None
 
@@ -747,25 +741,24 @@ class FileEditor:
         path: Path,
         start_line: int | None = None,
         end_line: int | None = None,
-        encoding: str = "utf-8",  # Default will be overridden by decorator
+        encoding: str = "utf-8",  # 默认值将被装饰器覆盖
     ) -> str:
         """
-        Read the content of a file from a given path; raise a ToolError if an
-        error occurs.
+        从给定路径读取文件内容； 如果发生错误，则引发 ToolError。
 
         Args:
-            path: Path to the file to read
-            start_line: Optional start line number (1-based). If provided with
-                end_line, only reads that range.
-            end_line: Optional end line number (1-based). Must be provided with
+            path: 要读取的文件的路径
+            start_line: 可选的起始行号（从 1 开始）。 如果提供
+                end_line，只读取该范围。
+            end_line: 可选的结束行号（从 1 开始）。 必须提供
                 start_line.
-            encoding: The encoding to use when reading the file (auto-detected by
-                decorator)
+            encoding: 读取文件时使用的编码（由
+                装饰器）
         """
         self.validate_file(path)
         try:
             if start_line is not None and end_line is not None:
-                # Read only the specified line range
+                # 只读指定行范围
                 lines = []
                 with open(path, encoding=encoding) as f:
                     for i, line in enumerate(f, 1):
@@ -779,20 +772,20 @@ class FileEditor:
                     "Both start_line and end_line must be provided together"
                 )
             else:
-                # Use line-by-line reading to avoid loading entire file into memory
+                # 使用逐行读取以避免将整个文件加载到内存中
                 with open(path, encoding=encoding) as f:
                     return "".join(f)
         except Exception as e:
             raise ToolError(f"Ran into {e} while trying to read {path}") from None
 
     def _normalize_lines(self, content: str) -> str:
-        """Rejoin a template snippet without folding exotic line separators.
+        """重新加入模板片段，无需折叠外来行分隔符。
 
-        ``read_file`` returns a snippet whose lines are separated by ``\\n``. The
-        ranged ``view`` path used to round-trip it through ``str.splitlines()``,
-        which also breaks on form feeds and Unicode separators that the rest of
-        the editor treats as ordinary characters, shifting line numbers. Joining
-        on ``\\n`` instead keeps every other character intact.
+        ``read_file`` 返回一个由换行符分隔的片段 ``\\n``. The ranged ``view`` 用于来
+        回传输的路径
+        ``str.splitlines()``，它也会破坏换页符和 Unicode 分隔符 REST 编辑器将它们视为
+        普通字符，移动行号。 加入 ``\\n``
+        而是保留了所有其他字符。
         """
         return "\n".join(content.split("\n"))
 
@@ -804,9 +797,9 @@ class FileEditor:
         is_converted_markdown: bool = False,
     ) -> str:
         """
-        Generate output for the CLI based on the content of a code snippet.
+        根据代码片段的内容生成 CLI 的输出。
         """
-        # If the content is converted from Markdown, we don't need line numbers
+        # 如果内容是从Markdown转换过来的，我们就不需要行号
         if is_converted_markdown:
             snippet_content = maybe_truncate(
                 snippet_content,
@@ -824,10 +817,10 @@ class FileEditor:
             truncate_notice=TEXT_FILE_CONTENT_TRUNCATED_NOTICE,
         )
 
-        # Split on "\n" only, matching how read_file/_count_lines define lines, so that
-        # characters splitlines() treats as breaks (\x0c, \u2028, ...) keep line numbers
-        # consistent with insert/view_range. A terminating newline ends the last line
-        # rather than adding a blank one, so drop the empty field it produces.
+        # 按“”分割\n仅匹配  read_file/_count_lines 定义行，以便于字符 splitlines() 视为
+        # 换行符 (\x0c, \u2028, ...) 保持插入线号一致view_range. 终止换行符结束最后一行
+        # 而不是添加空白行，因此删除它生成的空字段。
+        #
         lines = snippet_content.split("\n")
         if lines[-1] == "":
             lines.pop()

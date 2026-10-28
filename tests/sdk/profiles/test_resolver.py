@@ -1,10 +1,9 @@
-"""Tests for ``resolve_agent_profile`` / ``resolve_agent_profile_dry_run``.
+"""测试 ``resolve_agent_profile`` / ``resolve_agent_profile_dry_run``。
 
-Covers both union variants, the null/empty/filter/dangling MCP cases, the
-dangling-LLM hard error, and the dry-run's redacted, side-effect-free
-diagnostics. Profiles no longer embed ``skills`` (#4017) — the skill catalog is
-server-discovered and filtered by the ``disabled_skills`` deny-list (never an
-allow-list, which could dangle).
+涵盖联合变体，包括 null/empty/filter/dangling MCP cases, the dangling-LLM 硬错误，以
+及干运行的已脱敏无副作用的诊断。
+ 不再嵌入用户资料 ``skills`` (4017) — 技能目录由服务器发现并过滤 ``disabled_skills``
+ 拒绝列表（永远不是允许列表，这可能会悬空）。
 """
 
 from pathlib import Path
@@ -61,7 +60,7 @@ def mcp_config() -> dict[str, MCPServer]:
 
 
 # --------------------------------------------------------------------------- #
-# OpenHands path
+# OpenHands 路径
 # --------------------------------------------------------------------------- #
 
 
@@ -89,15 +88,15 @@ def test_openhands_resolves_to_settings_with_injected_llm(
     assert settings.tool_concurrency_limit == 3
     assert settings.agent_context is not None
     assert settings.agent_context.system_message_suffix == "be terse"
-    # LLM injected with the concrete (decrypted) credential.
+    # LLM注入混凝土（解密）凭据。
     assert isinstance(settings.llm.api_key, SecretStr)
     assert settings.llm.api_key.get_secret_value() == _LLM_SECRET
-    # MCP filtered to the referenced key.
+    # MCP 过滤到引用的键。
     assert settings.mcp_config != {}
     assert list(settings.mcp_config.keys()) == ["fetch"]
     agent = settings.create_agent()
     assert isinstance(agent, Agent)
-    # Delegation is a tool the profile selects, not a switch on the side.
+    # 委派是配置文件选择的工具，而不是侧面的开关。
     assert [t.name for t in agent.tools] == ["terminal", "file_editor", "task_tracker"]
     assert "SwitchLLMTool" in agent.include_default_tools
 
@@ -112,7 +111,7 @@ def test_openhands_resolves_to_settings_with_injected_llm(
 def test_openhands_resolves_default_exec_tools(
     llm_store: LLMProfileStore, browser_available: bool, expected: list[str]
 ) -> None:
-    """Unset ``tools`` resolves to the standard set, browser only where usable."""
+    """取消设置 ``tools`` 解析为标准设置，仅浏览器可用。"""
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     assert profile.tools is None
 
@@ -133,8 +132,8 @@ def test_openhands_resolves_default_exec_tools(
 def test_openhands_profile_tools_selection_is_used_as_given(
     llm_store: LLMProfileStore,
 ) -> None:
-    """An explicit profile ``tools`` list is used as given ([] = deliberately
-    bare) and never gets the browser."""
+    """按给定方式使用显式配置文件 ``tools`` 列表（[] = 有意
+    裸）并且永远不会获得浏览器。"""
     picked = OpenHandsAgentProfile(
         name="picked",
         llm_profile_ref="default",
@@ -376,17 +375,18 @@ def test_openhands_copies_verification(
     assert isinstance(settings, OpenHandsAgentSettings)
     assert settings.verification.critic_enabled is True
     assert settings.verification.critic_model_name == "critic-x"
-    # The profile carries no critic_api_key; it defaults to None on resolve.
+    # 配置文件中没有critic_api_key； 解析时默认为 None。
     assert settings.verification.critic_api_key is None
 
 
 def test_openhands_resolve_sets_load_project_skills(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    """Project skills are repo-scoped and can't be resolved at profile-resolve
-    time (no workspace yet); ``LocalConversation`` loads them lazily on first
-    use, gated on ``load_project_skills`` (#4016). The resolver must set it,
-    since the resolved ``AgentContext`` otherwise defaults it False."""
+    """项目技能是 repo 范围的，无法在 profile-resolve 上解决
+    时间（还没有工作区）； ``LocalConversation`` 在第一次使用时延迟加载它们，在
+    ``load_project_skills`` 上门控（#401
+    6）。 解析器必须设置它，因为解析的 ``AgentContext`` 否则默认它 False。
+    """
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     settings = resolve_agent_profile(
         profile,
@@ -415,7 +415,7 @@ def test_missing_llm_ref_raises_profile_not_found(
 
 
 # --------------------------------------------------------------------------- #
-# disabled_skills deny-list over discovered skills (#4017)
+# disabled_skills 已发现技能的拒绝名单 (#4017)
 # --------------------------------------------------------------------------- #
 
 
@@ -430,7 +430,7 @@ def _discovered_skills() -> list[Skill]:
 def test_disabled_skills_empty_includes_all_discovered(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # The default deny-list ([]) keeps every discovered skill.
+    # 默认拒绝列表 ([]) 保留每个发现的技能。
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     assert profile.disabled_skills == []
     settings = resolve_agent_profile(
@@ -446,15 +446,15 @@ def test_disabled_skills_empty_includes_all_discovered(
         "beta",
         "gamma",
     }
-    # The deny-list is carried onto the context so the lazy project-skill load
-    # honors it too.
+    # 拒绝列表被带入上下文，因此惰性项目技能负载也尊重它。
+    #
     assert settings.agent_context.disabled_skills == []
 
 
 def test_disabled_skills_excludes_named(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # Disabling one skill drops exactly it; the rest of the catalog remains.
+    # 禁用一项技能会直接降低该技能； 目录的 REST 仍然存在。
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", disabled_skills=["beta"]
     )
@@ -473,9 +473,9 @@ def test_disabled_skills_excludes_named(
 def test_disabled_skills_missing_name_is_noop(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # The #4017 fix: a disabled name absent from the catalog is a harmless no-op
-    # — resolution succeeds (never DanglingSkillRef) and yields all catalog
-    # skills. This is the whole point of the deny-list over an allow-list.
+    # #4017 修复：目录中缺少的禁用名称是无害的无操作 — 解析成功（从不 DanglingSkillRef）
+    # 并产生所有目录技能。 这就是拒绝列表相对于允许列表的全部要点。
+    #
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", disabled_skills=["not-in-catalog"]
     )
@@ -497,9 +497,9 @@ def test_disabled_skills_missing_name_is_noop(
 def test_duplicate_named_catalog_is_deduped(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # A colliding catalog (e.g. the app-server's fuller catalog merging sources
-    # whose names overlap) is de-duplicated by name, last-wins — resolution must
-    # not trip AgentContext's duplicate-name validator.
+    # 冲突目录 (e.g. 该应用服务器的全面合并源，名称重叠的源将通过名称进行去重，最后胜出
+    # — — 重复名称的处理必须不触发 AgentContext 的重复名称验证器。
+    #
     catalog = [
         Skill(name="alpha", content="first"),
         Skill(name="beta", content="b"),
@@ -517,14 +517,14 @@ def test_duplicate_named_catalog_is_deduped(
     )
     assert isinstance(settings, OpenHandsAgentSettings)
     skills = {s.name: s.content for s in settings.agent_context.skills}
-    assert skills == {"alpha": "second"}  # de-duped (last wins); beta disabled
+    assert skills == {"alpha": "second"}  # 重复数据删除（最后胜利）； 测试版已禁用
 
 
 def test_acp_profile_has_no_skill_selection_field(
     llm_store: LLMProfileStore,
 ) -> None:
-    # An ACP profile selects no skills of its own: the catalog the caller passes
-    # is taken whole, since there is no deny-list to apply.
+    # ACP 配置文件不选择自己的技能：调用者传递的目录是完整的，因为没有要应用的拒绝列表。
+    #
     acp = ACPAgentProfile(name="acp", acp_server="claude-code")
     assert not hasattr(acp, "skill_refs")
     assert not hasattr(acp, "disabled_skills")
@@ -548,7 +548,7 @@ def test_acp_profile_gets_no_skills_without_a_catalog(
     llm_store: LLMProfileStore,
 ) -> None:
     # available_skills=None is how a deployment says "the ACP CLI sources its
-    # own skills" (#4019) — nothing is injected.
+    # 自己的技能”（#4019）——没有注入任何东西。
     acp_settings = resolve_agent_profile(
         ACPAgentProfile(name="acp", acp_server="claude-code"),
         llm_store=llm_store,
@@ -565,8 +565,9 @@ def test_no_available_skills_yields_no_skills(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
     # available_skills=None (no discovery run) → no user/public skills reach the
-    # agent. Profiles no longer embed skills (#4017), so there is no other
-    # source (project skills load separately in LocalConversation).
+    # 智能体。 个人资料不再嵌入技能 (#4017)，因此没有其他来源（项目技能在
+    # LocalConversation 中单独加载）。
+    #
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     settings = resolve_agent_profile(
         profile,
@@ -613,7 +614,7 @@ def test_seed_then_resolve_with_narrower_catalog_does_not_dangle(
 
 
 # --------------------------------------------------------------------------- #
-# MCP composition
+# MCP 成分
 # --------------------------------------------------------------------------- #
 
 
@@ -702,7 +703,7 @@ def test_mcp_dangling_when_config_is_none(
 
 
 # --------------------------------------------------------------------------- #
-# ACP path
+# ACP 路径
 # --------------------------------------------------------------------------- #
 
 
@@ -729,7 +730,7 @@ def test_acp_resolves_to_settings_without_credentials(
     assert settings.acp_server == "codex"
     assert settings.acp_model == "gpt-5.5/medium"
     assert settings.acp_session_mode == "full-access"
-    # str command is tokenized into the settings' list[str] field.
+    # str 命令被标记到设置的 list[str] 字段中。
     assert settings.acp_command == ["codex-acp", "--foo"]
     assert settings.acp_args == ["--flag"]
     assert settings.mcp_config != {}
@@ -757,9 +758,9 @@ def test_acp_blank_command_resolves_empty_list(
 def test_acp_never_loads_project_skills(
     llm_store: LLMProfileStore,
 ) -> None:
-    """An ACP CLI reads ``AGENTS.md`` and its own project skills from the session
-    cwd, so loading them here would duplicate that content in the prompt
-    (#4019). ACP convention: no injected datetime."""
+    """ACP CLI 从会话中读取 ``AGENTS.md`` 及其自己的项目技能
+    cwd，因此在此处加载它们会复制提示词中的内容（#4019）。 ACP 约定：不注入日期时间。
+    """
     profile = ACPAgentProfile(name="acp", acp_server="claude-code")
     settings = resolve_agent_profile(
         profile,
@@ -775,7 +776,7 @@ def test_acp_never_loads_project_skills(
 
 
 # --------------------------------------------------------------------------- #
-# Dry-run
+# 试运行
 # --------------------------------------------------------------------------- #
 
 
@@ -801,7 +802,7 @@ def test_dry_run_openhands_valid_and_redacted(
     assert diag.resolved_mcp_config_keys == ["fetch"]
     assert diag.dangling_mcp_server_refs == []
     assert diag.resolved_settings is not None
-    # No secret survives into the redacted resolved settings.
+    # 已脱敏解析设置中没有机密存在。
     dumped = diag.model_dump_json()
     assert _LLM_SECRET not in dumped
     assert _MCP_SECRET not in dumped
@@ -831,9 +832,9 @@ def test_dry_run_reports_dangling_llm_and_mcp(
 def test_dry_run_reports_disabled_and_resolved_skills(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # Deny-list: the dry-run reports the disabled names and the resolved set
-    # (catalog minus disabled). A disabled name absent from the catalog does not
-    # invalidate the profile — the deny-list can't dangle.
+    # 拒绝列表：试运行报告禁用的名称和已解析的集（目录减去禁用）。 目录中不存在的禁用名
+    # 称不会使配置文件无效 - 拒绝列表不能悬空。
+    #
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", disabled_skills=["beta", "missing"]
     )
@@ -905,7 +906,7 @@ def test_resolve_uses_the_server_critic_key(
 def test_dry_run_default_disabled_resolves_all_discovered(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # Default deny-list ([]) resolves the whole catalog.
+    # 默认拒绝列表 ([]) 解析整个目录。
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     diag = resolve_agent_profile_dry_run(
         profile,
@@ -921,9 +922,9 @@ def test_dry_run_default_disabled_resolves_all_discovered(
 def test_dry_run_total_on_llm_store_transient_error(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # The store can raise filelock.TimeoutError (lock contention) before its
-    # own handler runs; the dry-run must surface that as a diagnostic, not
-    # crash the editor preview (#3719).
+    # 存储可以在其自己的处理程序运行之前引发 filelock.TimeoutError（锁争用）； 空运行必
+    # 须将其作为诊断，而不是使编辑器预览崩溃 (#3719)。
+    #
     def _boom(*_args: object, **_kwargs: object) -> LLM:
         raise TimeoutError("profile store lock acquisition timed out")
 
@@ -940,7 +941,7 @@ def test_dry_run_total_on_llm_store_transient_error(
     )
     assert diag.valid is False
     assert diag.llm_profile_resolved is False
-    # Reported as "could not load" (transient), distinct from "not found".
+    # 报告为“无法加载”（暂时），与“未找到”不同。
     assert any("Could not load LLM profile" in e for e in diag.errors)
     assert diag.resolved_settings is None
 
@@ -948,7 +949,7 @@ def test_dry_run_total_on_llm_store_transient_error(
 def test_dry_run_verdict_matches_real_resolve(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # A dangling MCP ref: dry-run says invalid, real resolve raises.
+    # 悬空的 MCP ref: dry-run 表示无效，真正的解决加注。
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", mcp_server_refs=["missing"]
     )
@@ -978,7 +979,7 @@ def test_dry_run_tools_match_the_launched_agent(
     browser_available: bool,
     tools: list[Tool] | None,
 ) -> None:
-    """``resolved_settings.tools`` is what the launch actually builds."""
+    """``resolved_settings.tools`` 是发布实际构建的内容。"""
     monkeypatch.setitem(registry._REG, "hello", lambda _params, _state: [])
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default", tools=tools)
     diag = resolve_agent_profile_dry_run(
@@ -1022,8 +1023,9 @@ def test_dry_run_acp_reports_credential_channels_by_role(
     )
     assert diag.agent_kind == "acp"
     assert diag.valid is True
-    # The API key and the file-content credential are alternative auth paths;
-    # the base URL is optional proxy routing — each surfaced in its own field.
+    # API 键和文件内容凭据是备用身份验证路径； 基础 URL 是可选的代理路由——每个代理路由都
+    # 在自己的领域中出现。
+    #
     assert diag.acp_api_key_secret_name == "OPENAI_API_KEY"
     assert diag.acp_base_url_secret_name == "OPENAI_BASE_URL"
     assert diag.acp_file_secret_names == ["CODEX_AUTH_JSON"]
@@ -1048,8 +1050,9 @@ def test_dry_run_acp_pi_reports_its_credential_file(
 def test_dry_run_acp_reports_the_injected_catalog(
     llm_store: LLMProfileStore,
 ) -> None:
-    # An ACP profile has no deny-list, so the dry-run reports whatever catalog
-    # the caller injected — and none when the caller injects nothing.
+    # ACP 配置文件没有拒绝列表，因此试运行会报告调用者注入的任何目录 - 以及 None 当调用
+    # 者不注入任何内容时。
+    #
     profile = ACPAgentProfile(name="acp", acp_server="codex")
     diag = resolve_agent_profile_dry_run(
         profile,
@@ -1076,9 +1079,9 @@ def test_dry_run_acp_reports_the_injected_catalog(
 def test_dry_run_skill_verdict_matches_real_resolve(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
-    # A disabled name absent from the catalog never invalidates: dry-run stays
-    # valid and the real resolve succeeds with the full catalog. The deny-list
-    # cannot dangle (unlike the MCP allow-list).
+    # 目录中不存在的禁用名称永远不会失效：空运行保持有效，并且完整目录的真正解析成功。
+    # 拒绝列表不能悬挂（与 MCP 允许列表不同）。
+    #
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", disabled_skills=["missing"]
     )
@@ -1109,7 +1112,7 @@ def test_dry_run_unknown_catalog_resolves_no_skills(
     llm_store: LLMProfileStore, mcp_config: dict[str, MCPServer]
 ) -> None:
     # available_skills=None (discovery skipped/failed) → no user/public skills
-    # resolve, and the profile stays valid (the deny-list has nothing to flag).
+    # 解决，并且配置文件保持有效（拒绝列表没有任何可标记的内容）。
     profile = OpenHandsAgentProfile(
         name="oh", llm_profile_ref="default", disabled_skills=["alpha"]
     )
@@ -1145,9 +1148,9 @@ def test_dry_run_acp_custom_server_has_no_credential_channels(
 def test_custom_acp_without_command_is_invalid(
     llm_store: LLMProfileStore,
 ) -> None:
-    # A custom server has no default launch command, so the resolved settings
-    # would fail in create_agent(). The dry-run must report valid=False and the
-    # strict resolve must raise, rather than deferring the failure to start.
+    # 自定义服务器没有默认启动命令，因此解析的设置将在 create_agent() 中失败。 空运行必
+    # 须报告 valid=False 并且必须提高严格解析，而不是推迟启动失败。
+    #
     profile = ACPAgentProfile(name="acp", acp_server="custom")
     diag = resolve_agent_profile_dry_run(
         profile,
@@ -1172,9 +1175,9 @@ def test_custom_acp_without_command_is_invalid(
 def test_dry_run_normalizes_settings_build_failure(
     llm_store: LLMProfileStore,
 ) -> None:
-    # An unbalanced-quote acp_command passes profile validation but breaks
-    # shlex.split during settings construction; the dry-run must report it as
-    # invalid rather than raising (its contract is total).
+    # 不平衡引用 acp_command 通过配置文件验证，但在设置构造期间中断 shlex.split； 试运行
+    # 必须将其报告为无效而不是加注（其合同是完整的）。
+    #
     profile = ACPAgentProfile(
         name="acp", acp_server="custom", acp_command="unterminated 'quote"
     )

@@ -12,13 +12,12 @@ logger = get_logger(__name__)
 
 class MultimodalRouter(RouterLLM):
     """
-    A RouterLLM implementation that routes requests based on multimodal content
-    (e.g., images) and token limits. If any message contains multimodal content
-    or if the token limit of the secondary model is exceeded, it routes to the
-    primary model. Otherwise, it routes to the secondary model.
+    根据多模式内容（e.g.、图像）和 token 限制路由请求的 RouterLLM 实现。 如果任何消息
+    包含多模式内容，或者超出辅助模型的 token 限制，则会路
+    由到主模型。 否则，它会路由到辅助模型。
 
-    Note: The primary model is expected to support multimodal content, while
-    the secondary model is typically a text-only model with a lower context window.
+    Note: 主要模型预计将支持多模式内容，而
+    辅助模型通常是具有较低上下文窗口的纯文本模型。
     """
 
     router_name: str = "multimodal_router"
@@ -27,10 +26,10 @@ class MultimodalRouter(RouterLLM):
     SECONDARY_MODEL_KEY: ClassVar[str] = "secondary"
 
     def select_llm(self, messages: list[Message]) -> str:
-        """Select LLM based on multimodal content and token limits."""
+        """根据多模式内容和 token 限制选择 LLM。"""
         route_to_primary = False
 
-        # Check for multimodal content in messages
+        # 检查消息中的多模式内容
         for message in messages:
             if message.contains_image:
                 logger.info(
@@ -39,9 +38,9 @@ class MultimodalRouter(RouterLLM):
                 )
                 route_to_primary = True
 
-        # Check if `messages` exceeds context window of the secondary model
-        # Assuming the secondary model has a lower context window limit
-        # compared to the primary model
+        # 检查辅助模型的 `messages` 是否超过上下文窗口假设辅助模型与主模型相比具有较低的
+        # 上下文窗口限制
+        #
         secondary_llm = self.llms_for_routing.get(self.SECONDARY_MODEL_KEY)
         if secondary_llm and (
             secondary_llm.effective_max_input_tokens
@@ -63,7 +62,7 @@ class MultimodalRouter(RouterLLM):
 
     @model_validator(mode="after")
     def _validate_llms_for_routing(self) -> "MultimodalRouter":
-        """Ensure required models are present in llms_for_routing."""
+        """确保所需的模型存在于 llms_for_routing 中。"""
         if self.PRIMARY_MODEL_KEY not in self.llms_for_routing:
             raise ValueError(
                 f"Primary LLM key '{self.PRIMARY_MODEL_KEY}' not found"

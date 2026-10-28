@@ -1,4 +1,4 @@
-"""Edit tool executor implementation."""
+"""编辑工具执行器实现。"""
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,13 +12,13 @@ if TYPE_CHECKING:
 
 
 class EditExecutor(ToolExecutor[EditAction, EditObservation]):
-    """Executor for edit tool."""
+    """编辑工具的执行器。"""
 
     def __init__(self, workspace_root: str):
-        """Initialize executor with workspace root.
+        """使用工作区 root 初始化执行器。
 
         Args:
-            workspace_root: Root directory for file operations
+            workspace_root: 文件操作的根目录
         """
         self.workspace_root = Path(workspace_root)
 
@@ -27,14 +27,14 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
         action: EditAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> EditObservation:
-        """Execute edit action.
+        """执行编辑操作。
 
         Args:
-            action: EditAction with file_path, old_string, new_string, etc.
-            conversation: Execution context
+            action: EditAction 与 file_path、old_string、new_string 等
+            conversation: 执行上下文
 
         Returns:
-            EditObservation with result
+            EditObservation 结果
         """
 
         file_path = action.file_path
@@ -44,7 +44,7 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
 
         resolved_path = (self.workspace_root / file_path).resolve()
 
-        # Handle file creation (old_string is empty)
+        # 处理文件创建（old_string为空）
         if old_string == "":
             if resolved_path.exists():
                 return EditObservation.from_text(
@@ -57,10 +57,10 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
                 )
 
             try:
-                # Create parent directories if needed
+                # 如果需要，创建父目录
                 resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Write the file
+                # 写入文件
                 with open(resolved_path, "w", encoding="utf-8") as f:
                     f.write(new_string)
 
@@ -84,7 +84,7 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
                     text=f"Error creating file: {e}",
                 )
 
-        # Editing existing file
+        # 编辑现有文件
         if not resolved_path.exists():
             return EditObservation.from_text(
                 is_error=True,
@@ -101,11 +101,11 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
             )
 
         try:
-            # Read current content
+            # 读取当前内容
             with open(resolved_path, encoding="utf-8", errors="replace") as f:
                 old_content = f.read()
 
-            # Check for no-op
+            # 检查无操作
             if old_string == new_string:
                 return EditObservation.from_text(
                     is_error=True,
@@ -115,7 +115,7 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
                     ),
                 )
 
-            # Count occurrences
+            # 计数出现次数
             occurrences = old_content.count(old_string)
 
             if occurrences == 0:
@@ -142,10 +142,10 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
                     file_path=str(resolved_path),
                 )
 
-            # Perform replacement
+            # 执行更换
             new_content = old_content.replace(old_string, new_string)
 
-            # Check if content actually changed
+            # 检查内容是否实际更改
             if old_content == new_content:
                 return EditObservation.from_text(
                     is_error=True,
@@ -156,7 +156,7 @@ class EditExecutor(ToolExecutor[EditAction, EditObservation]):
                     file_path=str(resolved_path),
                 )
 
-            # Write the file
+            # 写入文件
             with open(resolved_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
 

@@ -6,7 +6,7 @@ from litellm.types.utils import Message as LiteLLMMessage
 from openhands.sdk.llm.message import Message
 
 
-# Default serialization options for to_chat_dict() - tests can override as needed
+# to_chat_dict() 的默认序列化选项 - 测试可以根据需要覆盖
 DEFAULT_SERIALIZATION_OPTS = {
     "cache_enabled": False,
     "vision_enabled": False,
@@ -17,7 +17,7 @@ DEFAULT_SERIALIZATION_OPTS = {
 
 
 def test_content_base_class_not_implemented():
-    """Test that Content base class cannot be instantiated due to abstract method."""
+    """测试Content基类由于抽象方法而无法实例化。"""
     from openhands.sdk.llm.message import BaseContent
 
     with pytest.raises(TypeError, match="Can't instantiate abstract class BaseContent"):
@@ -25,7 +25,7 @@ def test_content_base_class_not_implemented():
 
 
 def test_text_content_with_cache_prompt():
-    """Test TextContent with cache_prompt enabled."""
+    """在启用 cache_prompt 的情况下测试 TextContent。"""
     from openhands.sdk.llm.message import TextContent
 
     content = TextContent(text="Hello world", cache_prompt=True)
@@ -38,7 +38,7 @@ def test_text_content_with_cache_prompt():
 
 
 def test_image_content_with_cache_prompt():
-    """Test ImageContent with cache_prompt enabled."""
+    """在启用 cache_prompt 的情况下测试 ImageContent。"""
     from openhands.sdk.llm.message import ImageContent
 
     content = ImageContent(
@@ -52,20 +52,20 @@ def test_image_content_with_cache_prompt():
     assert result[0]["image_url"]["url"] == "data:image/png;base64,abc123"  # type: ignore
     assert result[1]["type"] == "image_url"
     assert result[1]["image_url"]["url"] == "data:image/jpeg;base64,def456"  # type: ignore
-    # Only the last image should have cache_control
+    # 只有最后一张图片应该有 cache_control
     assert "cache_control" not in result[0]
     assert result[1]["cache_control"] == {"type": "ephemeral"}
 
 
 def test_message_contains_image_property():
-    """Test Message.contains_image property."""
+    """测试 Message.contains_image 属性。"""
     from openhands.sdk.llm.message import ImageContent, Message, TextContent
 
-    # Message with only text content
+    # 仅包含文字内容的消息
     text_message = Message(role="user", content=[TextContent(text="Hello")])
     assert not text_message.contains_image
 
-    # Message with image content
+    # 带有图片内容的消息
     image_message = Message(
         role="user",
         content=[
@@ -79,7 +79,7 @@ def test_message_contains_image_property():
 
 
 def test_message_tool_role_with_cache_prompt():
-    """Test Message with tool role and cache_prompt."""
+    """使用工具角色和 cache_prompt 测试消息。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -95,12 +95,12 @@ def test_message_tool_role_with_cache_prompt():
     assert result["role"] == "tool"
     assert result["tool_call_id"] == "call_123"
     assert result["cache_control"] == {"type": "ephemeral"}
-    # The content should not have cache_control since it's moved to message level
+    # 内容不应包含 cache_control，因为它已移至消息级别
     assert "cache_control" not in result["content"][0]
 
 
 def test_message_tool_role_with_image_cache_prompt():
-    """Test Message with tool role and ImageContent with cache_prompt."""
+    """使用工具角色和 ImageContent 和 cache_prompt 测试消息。"""
     from openhands.sdk.llm.message import ImageContent, Message
 
     message = Message(
@@ -121,17 +121,16 @@ def test_message_tool_role_with_image_cache_prompt():
     assert result["role"] == "tool"
     assert result["tool_call_id"] == "call_123"
     assert result["cache_control"] == {"type": "ephemeral"}
-    # The image content should not have cache_control since it's moved to message level
+    # 图像内容不应包含 cache_control，因为它已移至消息级别
     assert "cache_control" not in result["content"][0]
 
 
 def test_image_content_survives_forced_string_serializer():
-    """Images must not be dropped when string serialization is forced.
+    """当强制使用字符串序列化时，不得删除图像。
 
-    Regression test: models such as DeepSeek/GLM force the string serializer,
-    whose implementation emits TextContent only. Messages carrying images were
-    therefore silently serialized to text and the image was discarded, so
-    vision-capable models never received the image.
+    回归测试：DeepSeek/GLM 等模型强制字符串序列化器，其实现仅发出 TextContent。 因此
+    ，携带图像的消息会默默地已序列化转换为文本，并且图像被丢弃
+    ，因此具有视觉能力的模型永远不会收到图像。
     """
     from openhands.sdk.llm.message import ImageContent, TextContent
 
@@ -156,7 +155,7 @@ def test_image_content_survives_forced_string_serializer():
 
 
 def test_image_content_dropped_when_vision_disabled():
-    """With vision disabled the image is intentionally omitted, text remains."""
+    """当视力丧失时，图像会被故意省略，文字会保留下来。"""
     from openhands.sdk.llm.message import ImageContent, TextContent
 
     message = Message(
@@ -179,7 +178,7 @@ def test_image_content_dropped_when_vision_disabled():
 
 
 def test_text_only_message_still_uses_string_serializer_when_forced():
-    """Text-only messages keep the string form that forced providers require."""
+    """纯文本消息保留强制提供者所需的字符串形式。"""
     from openhands.sdk.llm.message import TextContent
 
     message = Message(role="user", content=[TextContent(text="Hello")])
@@ -196,7 +195,7 @@ def test_text_only_message_still_uses_string_serializer_when_forced():
 
 
 def test_message_with_tool_calls():
-    """Test Message with tool_calls."""
+    """使用 tool_calls 测试消息。"""
     from openhands.sdk.llm.message import (
         Message,
         MessageToolCall,
@@ -227,7 +226,7 @@ def test_message_with_tool_calls():
 
 
 def test_message_tool_calls_drop_empty_string_content():
-    """Assistant tool calls with no text should not include empty content strings."""
+    """没有文本的助手工具调用不应包含空内容字符串。"""
     from openhands.sdk.llm.message import Message, MessageToolCall
 
     tool_call = MessageToolCall(
@@ -248,7 +247,7 @@ def test_message_tool_calls_drop_empty_string_content():
 
 
 def test_message_tool_calls_strip_blank_list_content():
-    """List-serialized tool call messages should drop blank text content blocks."""
+    """List-已序列化工具调用消息应删除空白文本内容块。"""
     from openhands.sdk.llm.message import Message, MessageToolCall, TextContent
 
     tool_call = MessageToolCall(
@@ -271,7 +270,7 @@ def test_message_tool_calls_strip_blank_list_content():
 
 
 def test_empty_assistant_message_uses_string_content_in_list_serializer():
-    """List-serialized empty assistant messages should keep string content."""
+    """List-已序列化空助手消息应保留字符串内容。"""
     message = Message(role="assistant", content=[])
 
     result = message.to_chat_dict(
@@ -282,7 +281,7 @@ def test_empty_assistant_message_uses_string_content_in_list_serializer():
 
 
 def test_empty_assistant_from_llm_chat_message_uses_string_content_in_list_serializer():
-    """Empty assistant LLM responses should keep string content."""
+    """空助手 LLM 响应应保留字符串内容。"""
     litellm_message = LiteLLMMessage(role="assistant", content=None)
     message = Message.from_llm_chat_message(litellm_message)
 
@@ -294,7 +293,7 @@ def test_empty_assistant_from_llm_chat_message_uses_string_content_in_list_seria
 
 
 def test_message_from_llm_chat_message_function_role_error():
-    """Test Message.from_llm_chat_message with function role raises error."""
+    """使用函数角色测试 Message.from_llm_chat_message 会引发错误。"""
     from openhands.sdk.llm.message import Message
 
     litellm_message = LiteLLMMessage(role="function", content="Function response")  # type: ignore
@@ -304,19 +303,19 @@ def test_message_from_llm_chat_message_function_role_error():
 
 
 def test_message_from_llm_chat_message_with_non_string_content():
-    """Test Message.from_llm_chat_message with non-string content."""
+    """使用非字符串内容测试 Message.from_llm_chat_message。"""
     from openhands.sdk.llm.message import Message
 
-    # Create a message with non-string content (None or list)
+    # 创建包含非字符串内容的消息（None 或列表）
     litellm_message = LiteLLMMessage(role="assistant", content=None)
 
     result = Message.from_llm_chat_message(litellm_message)
     assert result.role == "assistant"
-    assert result.content == []  # Empty list for non-string content
+    assert result.content == []  # 非字符串内容的空列表
 
 
 def test_text_content_truncation_under_limit():
-    """Test TextContent doesn't truncate when under limit."""
+    """测试 TextContent 在低于限制时不会截断。"""
     from openhands.sdk.llm.message import TextContent
 
     content = TextContent(text="Short text")
@@ -327,7 +326,7 @@ def test_text_content_truncation_under_limit():
 
 
 def test_text_content_no_truncation_over_limit():
-    """TextContent itself should not truncate; truncation is role=tool only."""
+    """TextContent 本身不应截断； 截断仅是角色=工具。"""
     from openhands.sdk.llm.message import TextContent
     from openhands.sdk.utils import DEFAULT_TEXT_CONTENT_LIMIT
 
@@ -343,7 +342,7 @@ def test_text_content_no_truncation_over_limit():
 
 
 def test_tool_message_truncates_text_over_limit():
-    """Tool-role messages should truncate huge TextContent blocks."""
+    """工具角色消息应截断巨大的 TextContent 块。"""
     from openhands.sdk.llm.message import Message, TextContent
     from openhands.sdk.utils import DEFAULT_TEXT_CONTENT_LIMIT
 
@@ -374,7 +373,7 @@ def test_tool_message_truncates_text_over_limit():
 
 
 def test_user_message_does_not_truncate_text_over_limit():
-    """User-role messages should not truncate at serialization."""
+    """用户角色消息不应在序列化处截断。"""
     from openhands.sdk.llm.message import Message, TextContent
     from openhands.sdk.utils import DEFAULT_TEXT_CONTENT_LIMIT
 
@@ -395,7 +394,7 @@ def test_user_message_does_not_truncate_text_over_limit():
 
 
 def test_tool_message_truncates_text_over_limit_with_string_serializer():
-    """Tool-role truncation must also apply on the string-serializer path."""
+    """工具角色截断还必须应用于 string-序列化器路径。"""
     from openhands.sdk.llm.message import Message, TextContent
     from openhands.sdk.utils import DEFAULT_TEXT_CONTENT_LIMIT
 
@@ -418,27 +417,27 @@ def test_tool_message_truncates_text_over_limit_with_string_serializer():
 
 
 def test_text_content_truncation_exact_limit():
-    """Test TextContent doesn't truncate when exactly at limit."""
+    """测试 TextContent 在恰好达到极限时不会截断。"""
     from openhands.sdk.llm.message import TextContent
     from openhands.sdk.utils import DEFAULT_TEXT_CONTENT_LIMIT
 
-    # Create text that is exactly at the limit
+    # 创建完全符合限制的文本
     exact_text = "A" * DEFAULT_TEXT_CONTENT_LIMIT
 
     with patch("openhands.sdk.llm.message.logger") as mock_logger:
         content = TextContent(text=exact_text)
         result = content.to_llm_dict()
 
-        # Check that no warning was logged
+        # 检查是否未记录任何警告
         mock_logger.warning.assert_not_called()
 
-        # Check that text was not truncated
+        # 检查文本是否被截断
         assert len(result) == 1
         assert result[0]["text"] == exact_text
 
 
 def test_message_with_reasoning_content_when_enabled():
-    """Test that reasoning_content is included when send_reasoning_content is True."""
+    """测试当 send_reasoning_content 为 True 时是否包含 reasoning_content。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -456,7 +455,7 @@ def test_message_with_reasoning_content_when_enabled():
 
 
 def test_message_with_reasoning_content_when_disabled():
-    """Test that reasoning_content is NOT included when send_reasoning_content is False."""  # noqa: E501
+    """测试当 send_reasoning_content 为 False 时，reasoning_content 是否包含不。"""  # noqa: E501
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -472,7 +471,7 @@ def test_message_with_reasoning_content_when_disabled():
 
 
 def test_message_with_reasoning_content_default_disabled():
-    """Test that reasoning_content is NOT included when send_reasoning_content=False."""
+    """测试当 send_reasoning_content=False 时，reasoning_content 是否包含不。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -488,7 +487,7 @@ def test_message_with_reasoning_content_default_disabled():
 
 
 def test_message_with_reasoning_content_none():
-    """Test that reasoning_content is NOT included when it's None even if enabled."""
+    """即使已启用，测试 reasoning_content 是否在 None 时包含不。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -506,7 +505,7 @@ def test_message_with_reasoning_content_none():
 
 
 def test_message_with_reasoning_content_empty_string():
-    """Test that reasoning_content is NOT included when it's an empty string."""
+    """当 reasoning_content 为空字符串时，测试是否包含不。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -524,7 +523,7 @@ def test_message_with_reasoning_content_empty_string():
 
 
 def test_message_with_reasoning_content_list_serializer():
-    """Test that reasoning_content works with list serializer."""
+    """测试 reasoning_content 是否适用于列表序列化器。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -536,7 +535,7 @@ def test_message_with_reasoning_content_list_serializer():
     result = message.to_chat_dict(
         **{
             **DEFAULT_SERIALIZATION_OPTS,
-            "function_calling_enabled": True,  # Forces list serializer
+            "function_calling_enabled": True,  # 势力列表序列化器
             "send_reasoning_content": True,
         }
     )
@@ -547,10 +546,10 @@ def test_message_with_reasoning_content_list_serializer():
 
 
 def test_message_deprecated_fields_silently_removed():
-    """Test that deprecated fields are silently removed without warnings.
+    """测试已弃用字段是否在没有警告的情况下被静默删除。
 
-    Deprecated fields are kept permanently for backward compatibility and
-    are silently removed (no warnings) to avoid noise when loading old events.
+    已弃用字段将永久保留为向后兼容性，并被静默删除（无警告），以避免加载旧事件时出现
+    噪音。
     """
     from openhands.sdk.llm.message import Message
 
@@ -562,22 +561,22 @@ def test_message_deprecated_fields_silently_removed():
         "send_reasoning_content",
     ]
 
-    # Test each deprecated field individually - should load without error
+    # 单独测试每个已弃用字段 - 应该加载而不会出现错误
     for field in deprecated_fields:
         message = Message.model_validate(
             {"role": "user", "content": "test", field: True}
         )
-        # The message should be created successfully
+        # 消息应该已成功创建
         assert message.role == "user"
-        # The deprecated field should not exist on the model
+        # 已弃用字段不应存在于模型中
         assert not hasattr(message, field)
 
 
 def test_message_deprecated_fields_are_ignored():
-    """Test that deprecated fields are ignored and don't affect the Message."""
+    """测试已弃用字段是否被忽略并且不会影响消息。"""
     from openhands.sdk.llm.message import Message
 
-    # Use model_validate to pass extra fields that pyright doesn't know about
+    # 使用 model_validate 传递 Pyright 不知道的额外字段
     message = Message.model_validate(
         {
             "role": "user",
@@ -590,11 +589,11 @@ def test_message_deprecated_fields_are_ignored():
         }
     )
 
-    # The message should be created successfully
+    # 消息应该已成功创建
     assert message.role == "user"
     assert len(message.content) == 1
 
-    # The deprecated fields should not exist on the model
+    # 已弃用字段不应存在于模型中
     assert not hasattr(message, "cache_enabled")
     assert not hasattr(message, "vision_enabled")
     assert not hasattr(message, "function_calling_enabled")
@@ -603,11 +602,10 @@ def test_message_deprecated_fields_are_ignored():
 
 
 def test_text_content_deprecated_enable_truncation_silently_removed():
-    """Test deprecated enable_truncation field is silently removed.
+    """测试已弃用 enable_truncation 字段被默默删除。
 
-    This ensures backward compatibility when loading old events that contain
-    the deprecated enable_truncation field. The field is silently removed
-    (no warnings) to avoid noise when loading old events.
+    这可以确保在加载包含已弃用 enable_truncation 字段的旧事件时向后兼容性。 该字段会
+    被悄悄删除（没有警告），以避免加载旧事件时出现噪音。
     """
     from openhands.sdk.llm.message import TextContent
 
@@ -615,75 +613,73 @@ def test_text_content_deprecated_enable_truncation_silently_removed():
         {"type": "text", "text": "Hello world", "enable_truncation": True}
     )
 
-    # The content should be created successfully
+    # 内容应该已成功创建
     assert content.text == "Hello world"
     assert content.type == "text"
-    # The deprecated field should not exist on the model
+    # 已弃用字段不应存在于模型中
     assert not hasattr(content, "enable_truncation")
 
 
 def test_text_content_old_format_with_enable_truncation_loads_successfully():
-    """Test that old event format with enable_truncation loads without error.
+    """测试带有 enable_truncation 的旧事件格式加载没有错误。
 
-    This simulates loading an old event that was persisted before the field
-    was deprecated. The event should load successfully and the deprecated
-    field should be ignored.
+    这模拟加载字段为已弃用之前为已持久化的旧事件。 该事件应成功加载，并且已弃用字段应
+    被忽略。
     """
     import warnings
 
     from openhands.sdk.llm.message import TextContent
 
-    # Simulate the JSON structure of an old event
+    # 模拟旧事件的 JSON 结构
     old_event_text_content = {
         "type": "text",
         "text": "Tool execution result",
         "cache_prompt": False,
-        "enable_truncation": True,  # Old deprecated field
+        "enable_truncation": True,  # 旧已弃用字段
     }
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # Suppress warnings for this test
+        warnings.simplefilter("ignore")  # 禁止此测试的警告
         content = TextContent.model_validate(old_event_text_content)
 
-    # Should load successfully
+    # 应该加载成功
     assert content.text == "Tool execution result"
     assert content.type == "text"
     assert content.cache_prompt is False
 
 
 def test_text_content_both_old_and_new_format_in_sequence():
-    """Test that both old and new format TextContent can be loaded in sequence.
+    """测试旧格式和新格式 TextContent 是否可以按顺序加载。
 
-    This simulates a scenario where we're loading a conversation that contains
-    events from different SDK versions - some with deprecated fields and some
-    without.
+    这模拟了一个场景，其中包含来自不同事件的对话加载 SDK 版本 - 一些带有已弃用包含一
+    些没有的字段。
     """
     import warnings
 
     from openhands.sdk.llm.message import TextContent
 
-    # Simulate loading multiple events from different SDK versions
+    # 模拟加载来自不同 SDK 版本的多个事件
     event_contents = [
-        # Old format (with deprecated field)
+        # 旧格式（带有已弃用字段）
         {"type": "text", "text": "Old event 1", "enable_truncation": True},
-        # New format
+        # 新格式
         {"type": "text", "text": "New event 1"},
-        # Old format (with deprecated field and cache_prompt)
+        # 旧格式（带有已弃用字段和 cache_prompt）
         {
             "type": "text",
             "text": "Old event 2",
             "enable_truncation": False,
             "cache_prompt": True,
         },
-        # New format with cache_prompt
+        # 带有 cache_prompt 的新格式
         {"type": "text", "text": "New event 2", "cache_prompt": True},
     ]
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # Suppress warnings for this test
+        warnings.simplefilter("ignore")  # 禁止此测试的警告
         loaded_contents = [TextContent.model_validate(ec) for ec in event_contents]
 
-    # All should load successfully
+    # 全部应该加载成功
     assert len(loaded_contents) == 4
     assert loaded_contents[0].text == "Old event 1"
     assert loaded_contents[1].text == "New event 1"

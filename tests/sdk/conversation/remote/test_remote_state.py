@@ -1,4 +1,4 @@
-"""Tests for RemoteState."""
+"""测试 RemoteState。"""
 
 import uuid
 from unittest.mock import Mock
@@ -18,25 +18,25 @@ from openhands.sdk.security.llm_analyzer import LLMSecurityAnalyzer
 
 @pytest.fixture
 def mock_client():
-    """Create mock HTTP client."""
+    """创建模拟对象 HTTP 客户端。"""
     return Mock(spec=httpx.Client)
 
 
 @pytest.fixture
 def conversation_id():
-    """Test conversation ID."""
+    """测试对话 ID。"""
     return str(uuid.uuid4())
 
 
 @pytest.fixture
 def mock_agent():
-    """Create a test agent."""
+    """创建测试智能体。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"))
     return Agent(llm=llm, tools=[])
 
 
 def create_mock_conversation_info(conversation_id: str, mock_agent: Agent, **overrides):
-    """Create mock conversation info response."""
+    """创建模拟对象对话信息响应。"""
     default_info = {
         "id": conversation_id,
         "execution_status": "running",
@@ -49,7 +49,7 @@ def create_mock_conversation_info(conversation_id: str, mock_agent: Agent, **ove
 
 
 def create_mock_api_response(data):
-    """Create a mock API response."""
+    """创建模拟对象 API 响应。"""
     mock_response = Mock()
     mock_response.raise_for_status.return_value = None
     mock_response.json.return_value = data
@@ -57,7 +57,7 @@ def create_mock_api_response(data):
 
 
 def setup_mock_responses(mock_client, conversation_info):
-    """Setup mock responses for events and conversation info."""
+    """设置事件和对话信息的模拟对象响应。"""
     mock_events_response = Mock()
     mock_events_response.raise_for_status.return_value = None
     mock_events_response.json.return_value = {"items": [], "next_page_id": None}
@@ -68,7 +68,7 @@ def setup_mock_responses(mock_client, conversation_info):
 
 
 def test_remote_state_initialization(mock_client, conversation_id):
-    """Test RemoteState initialization and basic properties."""
+    """测试RemoteState初始化和基本属性。"""
     mock_events_response = Mock()
     mock_events_response.raise_for_status.return_value = None
     mock_events_response.json.return_value = {"items": [], "next_page_id": None}
@@ -79,7 +79,7 @@ def test_remote_state_initialization(mock_client, conversation_id):
     assert isinstance(state, RemoteState)
     assert str(state.id) == conversation_id
 
-    # Events should be RemoteEventsList type
+    # 事件应为 RemoteEventsList 类型
     from openhands.sdk.conversation.impl.remote_conversation import RemoteEventsList
     from openhands.sdk.conversation.secret_registry import SecretRegistry
 
@@ -90,7 +90,7 @@ def test_remote_state_initialization(mock_client, conversation_id):
 def test_remote_state_polymorphic_fields_are_stable_across_reads(
     mock_client, conversation_id, mock_agent
 ):
-    """Reading a polymorphic field must not strip `kind` from the cached info."""
+    """读取多态字段不得从缓存信息中删除 `kind`。"""
     conversation_info = create_mock_conversation_info(
         conversation_id,
         mock_agent,
@@ -118,7 +118,7 @@ def test_remote_state_polymorphic_fields_are_stable_across_reads(
 def test_remote_state_execution_status(
     mock_client, conversation_id, mock_agent, status_value, expected
 ):
-    """Test execution_status property with different values."""
+    """使用不同的值测试 execution_status 属性。"""
     conversation_info = create_mock_conversation_info(
         conversation_id, mock_agent, execution_status=status_value
     )
@@ -130,7 +130,7 @@ def test_remote_state_execution_status(
 
 
 def test_remote_state_confirmation_policy(mock_client, conversation_id, mock_agent):
-    """Test confirmation_policy property."""
+    """测试 confirmation_policy 属性。"""
     conversation_info = create_mock_conversation_info(
         conversation_id, mock_agent, confirmation_policy={"kind": "AlwaysConfirm"}
     )
@@ -143,7 +143,7 @@ def test_remote_state_confirmation_policy(mock_client, conversation_id, mock_age
 
 
 def test_remote_state_hook_config(mock_client, conversation_id, mock_agent):
-    """Test hook_config property."""
+    """测试 hook_config 属性。"""
     conversation_info = create_mock_conversation_info(
         conversation_id,
         mock_agent,
@@ -162,7 +162,7 @@ def test_remote_state_hook_config(mock_client, conversation_id, mock_agent):
 def test_remote_state_activated_knowledge_skills(
     mock_client, conversation_id, mock_agent
 ):
-    """Test activated_knowledge_skills property."""
+    """测试 activated_knowledge_skills 属性。"""
     microagents = ["agent1", "agent2", "agent3"]
     conversation_info = create_mock_conversation_info(
         conversation_id, mock_agent, activated_knowledge_skills=microagents
@@ -175,7 +175,7 @@ def test_remote_state_activated_knowledge_skills(
 
 
 def test_remote_state_agent_property(mock_client, conversation_id, mock_agent):
-    """Test agent property."""
+    """测试智能体属性。"""
     conversation_info = create_mock_conversation_info(conversation_id, mock_agent)
     setup_mock_responses(mock_client, conversation_info)
 
@@ -204,7 +204,7 @@ def test_remote_state_agent_property(mock_client, conversation_id, mock_agent):
 def test_remote_state_missing_fields(
     mock_client, conversation_id, mock_agent, missing_field, property_name, error_match
 ):
-    """Test error handling when required fields are missing."""
+    """测试缺少必填字段时的错误处理。"""
     conversation_info = create_mock_conversation_info(conversation_id, mock_agent)
     del conversation_info[missing_field]
     setup_mock_responses(mock_client, conversation_info)
@@ -216,7 +216,7 @@ def test_remote_state_missing_fields(
 
 
 def test_remote_state_model_dump(mock_client, conversation_id, mock_agent):
-    """Test model_dump returns conversation info."""
+    """测试 model_dump 返回对话信息。"""
     conversation_info = create_mock_conversation_info(conversation_id, mock_agent)
     setup_mock_responses(mock_client, conversation_info)
 
@@ -227,7 +227,7 @@ def test_remote_state_model_dump(mock_client, conversation_id, mock_agent):
 
 
 def test_remote_state_model_dump_json(mock_client, conversation_id, mock_agent):
-    """Test model_dump_json serializes to JSON string."""
+    """测试 model_dump_json 序列化为 JSON 字符串。"""
     conversation_info = create_mock_conversation_info(conversation_id, mock_agent)
     setup_mock_responses(mock_client, conversation_info)
 
@@ -239,7 +239,7 @@ def test_remote_state_model_dump_json(mock_client, conversation_id, mock_agent):
 
 
 def test_remote_state_context_manager(mock_client, conversation_id):
-    """Test RemoteState can be used as context manager."""
+    """测试RemoteState可以用作上下文管理器。"""
     mock_events_response = Mock()
     mock_events_response.raise_for_status.return_value = None
     mock_events_response.json.return_value = {"items": [], "next_page_id": None}
@@ -252,7 +252,7 @@ def test_remote_state_context_manager(mock_client, conversation_id):
 
 
 def test_remote_state_api_error_handling(mock_client, conversation_id):
-    """Test error propagation when conversation info API fails."""
+    """当对话信息 API 失败时测试错误传播。"""
     mock_events_response = Mock()
     mock_events_response.raise_for_status.return_value = None
     mock_events_response.json.return_value = {"items": [], "next_page_id": None}
@@ -277,7 +277,7 @@ def test_remote_state_api_error_handling(mock_client, conversation_id):
 def test_remote_state_refresh_from_server_uses_configured_base_path(
     mock_client, conversation_id, mock_agent
 ):
-    """Test refresh_from_server respects the configured conversation base path."""
+    """测试 refresh_from_server 遵循配置的对话基本路径。"""
     conversation_info = create_mock_conversation_info(conversation_id, mock_agent)
     setup_mock_responses(mock_client, conversation_info)
 

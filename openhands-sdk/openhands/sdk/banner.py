@@ -1,22 +1,22 @@
-"""Startup banner for OpenHands SDK.
+"""OpenHands SDK 的启动横幅。
 
-Prints a welcome message with helpful links when the SDK is first imported.
-Can be suppressed by setting the OPENHANDS_SUPPRESS_BANNER environment variable.
+首次导入 SDK 时打印一条带有有用链接的欢迎消息。 可以通过设置OPENHANDS_SUPPRESS_BANNER
+环境变量来抑制。
 """
 
 import os
 import sys
 
 
-# Not guarded by a lock; worst case in a race is the banner prints twice.
+# 不受锁保护； 比赛中最糟糕的情况是横幅打印两次。
 _BANNER_PRINTED = False
 
 
 def _print_banner(version: str) -> None:
-    """Print the OpenHands SDK startup banner to stderr."""
+    """将 OpenHands SDK 启动横幅打印到 stderr。"""
     global _BANNER_PRINTED
 
-    # Check if banner should be suppressed (check this first, before setting flag)
+    # 检查是否应抑制横幅（在设置标志之前先检查此项）
     suppress = os.environ.get("OPENHANDS_SUPPRESS_BANNER", "").lower() in {
         "1",
         "true",

@@ -14,18 +14,24 @@ triggers:
   - cipher
 ---
 
-# ROT13 Encryption Skill
+<a id="rot13-encryption-skill"></a>
 
-This skill provides a script for encrypting messages using ROT13.
+# ROT13 加密技能
 
-## How to Encrypt
+该技能提供了使用ROT13加密消息的脚本。
 
-Run the [encrypt.sh](scripts/encrypt.sh) script with your message:
+<a id="how-to-encrypt"></a>
+
+## 如何加密
+
+使用您的消息运行 [encrypt.sh](scripts/encrypt.sh) 脚本：
 
 ```bash
 ./scripts/encrypt.sh "your message"
 ```
 
-## Examples
+<a id="examples"></a>
 
-See [examples.md](references/examples.md) for more usage examples.
+## 示例
+
+有关更多用法示例，请参阅 [examples.md](references/examples.md)。

@@ -1,11 +1,11 @@
-"""The browser_use server reconfigures logging for ALL loggers on import,
-overwriting any custom configuration we may have applied.
+"""browser_use 服务器在导入时重新配置全部记录器的日志记录，覆盖我们可能已应用的任何自
+定义配置。
 
-We have submitted a patch which should allow us to circumvent this problematic
+我们已经提交了一个补丁，应该可以让我们绕过这个问题
 behavior: https://github.com/browser-use/browser-use/pull/3717
 
-In the meantime, using this script rather than a direct import means that
-logging will still work in the agent server."""
+同时，使用此脚本而不是直接导入意味着日志记录仍将在 Agent Server 中工作。
+"""
 
 import logging
 from dataclasses import dataclass, field
@@ -30,7 +30,7 @@ warn_cleanup(
 
 
 def _noop(*args, **kwargs):
-    """No-op replacement for functions"""
+    """函数的无操作替换"""
 
 
 @dataclass
@@ -47,7 +47,7 @@ class _MockRoot:
         return _noop
 
 
-# Monkey patch before import
+# 导入前的猴子补丁
 _orig_disable = logging.disable
 _orig_basic_config = logging.basicConfig
 _orig_root = logging.root
@@ -57,13 +57,13 @@ logging.root = _MockRoot()
 try:
     from browser_use.mcp import server  # noqa: E402
 finally:
-    # Restore logging after import
+    # 导入后恢复日志记录
     logging.disable = _orig_disable
     logging.basicConfig = _orig_basic_config
     logging.root = _orig_root
 
 
-# This gets called on each init - so make sure it's a noop
+# 这会在每次初始化时被调用 - 所以确保它是一个 noop
 server._ensure_all_loggers_use_stderr = _noop
 
 LogSafeBrowserUseServer = server.BrowserUseServer

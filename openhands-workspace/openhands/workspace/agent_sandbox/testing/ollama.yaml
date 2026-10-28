@@ -1,8 +1,6 @@
 ---
-# In-cluster Ollama for the no-API-key agent e2e (see TESTING.md).
-# Portable across clusters: the agent server reaches it by Service DNS / ClusterIP,
-# so no host networking is involved. Models live in an emptyDir, so `ollama pull`
-# again if the pod restarts. CPU-only; size the node/model for your cluster.
+# 集群内 Ollama 用于 no-API-key 智能体 e2e（参见 TESTING.md）。 可跨集群移植：Agent Server 通过服务 DNS / ClusterIP 到达它，因此不涉及主机网络。 模型位于 emptyDir 中，因此如果 pod 重新启动，则再次 `ollama pull`。 CPU-仅； 调整集群的节点/模型大小。
+#
 apiVersion: apps/v1
 kind: Deployment
 metadata:

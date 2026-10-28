@@ -1,9 +1,9 @@
-"""Build a conversation's launch agent in two stages.
+"""分两个阶段构建对话的启动智能体。
 
-:func:`resolve` runs where the stores live and turns an Agent Profile into a
-reference-free :class:`ResolvedLaunch`. :func:`finalize` runs in the process
-that will run the agent and is the only code that returns a
-:class:`LaunchedAgent`.
+:func:`resolve` 在商店所在的位置运行并将智能体配置文件转换为
+无参考：类：`ResolvedLaunch`。 :func:`finalize` 在将运行智能体的进程中运行，并且是唯
+一返回 a 的代码
+：类：`LaunchedAgent`。
 """
 
 from openhands.sdk.launch.errors import (

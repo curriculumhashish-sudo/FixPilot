@@ -30,9 +30,9 @@ class LeasePayload(TypedDict):
     owner_instance_id: str
     generation: int
     expires_at: float
-    # Optional fields added for crash-recovery. They are absent in lease
-    # files written by older versions of the agent server, so consumers
-    # must treat them as optional.
+    # 添加了用于崩溃恢复的可选字段。 它们在旧版本的 Agent Server 编写的租赁文件中不存在
+    # ，因此消费者必须将它们视为可选的。
+    #
     owner_host: NotRequired[str]
     owner_pid: NotRequired[int]
 
@@ -45,13 +45,12 @@ def _current_host() -> str:
 
 
 def _is_pid_alive(pid: int) -> bool:
-    """Best-effort check for whether ``pid`` is a live process on this host.
+    """尽力检查 ``pid`` 是否是该主机上的实时进程。
 
-    Uses ``os.kill(pid, 0)`` which is portable across POSIX platforms and
-    available on Windows since Python 3.2. When liveness cannot be
-    determined (permission errors, unsupported platforms, etc.) we
-    conservatively report the process as alive so we never steal a lease
-    that might still be in use.
+    使用 ``os.kill(pid, 0)``，它可以跨 POSIX 平台移植，并且自 Python 3.2 起可在
+    Windows 上使用。 当活检测无法确定（权限
+    错误、不支持的平台等）时，我们保守地报告进程为存活，以避免窃取可能仍在使用的租约
+    。
     """
     if pid <= 0:
         return False
@@ -60,10 +59,10 @@ def _is_pid_alive(pid: int) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        # Process exists but is owned by another user.
+        # 进程存在但由另一个用户拥有。
         return True
     except OSError:
-        # Unknown error - be conservative and assume the process is alive.
+        # 未知错误 - 保守一点并假设进程处于活动状态。
         return True
     return True
 
@@ -99,11 +98,10 @@ class ConversationOwnershipLostError(RuntimeError):
 
 
 class ConversationLease:
-    """Coordinate conversation ownership across multiple service instances.
+    """协调多个服务实例之间的对话所有权。
 
-    The lease file stores the active owner, a monotonically increasing
-    generation, and an expiry timestamp so stale owners can be fenced off after
-    a takeover.
+    租赁文件存储活跃所有者、递增的生成代和过期时间戳，这样在接管后，陈旧的所有者可以
+    被隔离。
     """
 
     def __init__(
@@ -120,7 +118,7 @@ class ConversationLease:
         self._lock_path = conversation_dir / LEASE_LOCK_FILE_NAME
 
     def claim(self) -> LeaseClaim:
-        """Claim or renew ownership of the conversation directory."""
+        """声明或更新对话目录的所有权。"""
         self._conversation_dir.mkdir(parents=True, exist_ok=True)
         with FileLock(str(self._lock_path)):
             now = time.time()
@@ -164,13 +162,12 @@ class ConversationLease:
             return LeaseClaim(generation=generation, takeover=takeover)
 
     def _owner_is_dead(self, payload: LeasePayload) -> bool:
-        """Return True if the lease's recorded owner process is gone.
+        """如果租赁记录的所有者进程消失，则返回 True。
 
-        Only considered when the recorded ``owner_host`` matches this
-        host: liveness checks for PIDs on other hosts are meaningless.
-        Lease files written by older agent-server versions don't include
-        host/pid, so this returns False (preserving the legacy
-        TTL-only behavior) for them.
+        仅在 ``owner_host`` 匹配此时考虑
+        host: PIDs 在其他主机上的存活检查毫无意义。
+        由较旧的智能体服务器版本编写的租用文件不包括主机/pid，因此这会为它们返回
+        False （保留旧的 TTL-only 行为）。
         """
         owner_host = payload.get("owner_host")
         owner_pid = payload.get("owner_pid")
@@ -178,14 +175,14 @@ class ConversationLease:
             return False
         if owner_host != _current_host():
             return False
-        # Don't mistakenly consider ourselves dead if the lease points at
-        # this very process (e.g. a same-process re-claim).
+        # 如果租约指向这个进程，请不要错误地认为我们已经死了（e.g. 同一流程的回收）。
+        #
         if owner_pid == os.getpid():
             return False
         return not _is_pid_alive(owner_pid)
 
     def renew(self, generation: int) -> None:
-        """Extend the current lease while keeping the same generation."""
+        """延长当前租约，同时保留同一代。"""
         with FileLock(str(self._lock_path)):
             self._assert_owner_locked(generation)
             self._write_payload(
@@ -195,13 +192,13 @@ class ConversationLease:
 
     @contextmanager
     def guarded_write(self, generation: int) -> Iterator[None]:
-        """Hold the lease lock while verifying ownership for a disk write."""
+        """在验证磁盘写入的所有权时保留租约锁。"""
         with FileLock(str(self._lock_path)):
             self._assert_owner_locked(generation)
             yield
 
     def release(self, generation: int) -> None:
-        """Release the lease if this instance still owns the generation."""
+        """如果该实例仍然拥有该代，则释放租约。"""
         with FileLock(str(self._lock_path)):
             payload = self._read_payload()
             if payload is None:

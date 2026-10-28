@@ -1,9 +1,8 @@
-"""Tests for MCP tool parameter secret/environment variable expansion.
+"""MCP 工具参数的密钥/环境变量展开测试。
 
-Covers the behavior described in GitHub issue #3277: MCP tool parameters should
-expand secrets the same way terminal commands do, instead of passing the literal
-"$SECRET_NAME" through to the MCP server. Secret values echoed back by the server
-are masked in the observation returned to the agent.
+涵盖描述的行为 GitHub issue #3277: MCP 工具参数应扩展机密就像终端命令那样，而不是传递
+原始的 "$"SECRET_NAME" through to
+the MCP server. 机密服务器返回的值被隐藏在观测结果返回到智能体。
 """
 
 from typing import Any
@@ -50,7 +49,7 @@ def executor(mock_client: MagicMock) -> MCPToolExecutor:
 
 
 def _make_result(content=None, is_error=False) -> MagicMock:
-    """Build a mock CallToolResult with the given content blocks."""
+    """使用给定的内容块构建模拟对象 CallToolResult。"""
     result = MagicMock(spec=mcp.types.CallToolResult)
     result.content = content or [mcp.types.TextContent(type="text", text="Success")]
     result.isError = is_error
@@ -58,7 +57,7 @@ def _make_result(content=None, is_error=False) -> MagicMock:
 
 
 def _call_and_capture(executor, mock_client, action, conversation, result=None):
-    """Run the executor, returning (action_sent_to_server, observation_returned)."""
+    """运行执行器，并返回 (action_sent_to_server, observation_returned)。"""
     captured: dict[str, Any] = {}
 
     def fake_call(coro_func, **kwargs):
@@ -140,7 +139,7 @@ def _call_and_capture(executor, mock_client, action, conversation, result=None):
 def test_executor_expands_secrets_in_action_data(
     executor, mock_client, conversation, input_data, expected
 ):
-    """Secret references are expanded before the action is sent to the server."""
+    """机密引用在操作发送到服务器之前展开。"""
     sent, _ = _call_and_capture(
         executor, mock_client, MCPToolAction(data=input_data), conversation
     )
@@ -148,7 +147,7 @@ def test_executor_expands_secrets_in_action_data(
 
 
 def test_executor_without_conversation_passes_literal_values(executor, mock_client):
-    """Without a conversation there is no secret registry, so values stay literal."""
+    """没有对话就没有机密注册表，因此值保持字面意思。"""
     action = MCPToolAction(
         data={"customer_id": "$CUSTOMER_ID", "api_key": "${API_KEY}"}
     )
@@ -159,32 +158,30 @@ def test_executor_without_conversation_passes_literal_values(executor, mock_clie
 def test_executor_does_not_expand_host_env_vars(
     executor, mock_client, conversation, monkeypatch
 ):
-    """Host environment variables must NOT be expanded into tool params.
+    """主机环境变量必须将不扩展为工具参数。
 
-    Tool-parameter expansion runs with check_env=False, so secret values reach
-    MCP servers but arbitrary host env vars never do. A reference to an env var
-    that is not a registered secret stays literal, while a registered secret in
-    the same payload is still expanded.
+    工具参数扩展以 check_env=False 运行，因此机密值到达 MCP 个服务器，但任意主机环境
+    变量永远不会到达。 对未注册机密的环境变量的引用保持原义，而同
+    一载荷中的已注册机密仍会扩展。
     """
     monkeypatch.setenv("SOME_HOST_ENV", "host-env-value")
     action = MCPToolAction(
         data={"from_env": "$SOME_HOST_ENV", "from_secret": "$CUSTOMER_ID"}
     )
     sent, _ = _call_and_capture(executor, mock_client, action, conversation)
-    # Env var is not a registered secret -> left as a literal placeholder.
+    # Env var 不是注册的机密 -> 保留为文字占位符。
     assert sent.data["from_env"] == "$SOME_HOST_ENV"
-    # Registered secret -> expanded as usual.
+    # 已注册机密 -> 照常扩展。
     assert sent.data["from_secret"] == "expanded-customer"
 
 
 def test_executor_masks_secrets_in_returned_observation(
     executor, mock_client, conversation
 ):
-    """End-to-end: a secret echoed by the server is masked on the way back.
+    """端到端：服务器回显的机密在返回过程中被屏蔽。
 
-    The action references $API_KEY, the MCP server echoes the resolved value,
-    and the observation returned to the agent must have it masked. Non-text
-    blocks and other observation fields must survive the masking rebuild.
+    该操作引用 $API_KEY，MCP 服务器回显已解析的值，并且返回到智能体的观测结果必须将其
+    屏蔽。 非文本块和其他观测结果字段必须在屏蔽重建后幸存下来。
     """
     secret_value = "expanded-api-key"
     result = _make_result(
@@ -201,35 +198,35 @@ def test_executor_masks_secrets_in_returned_observation(
         executor, mock_client, action, conversation, result=result
     )
 
-    # The secret value echoed by the server is masked in the observation.
+    # 服务器回显的机密值在观测结果中被屏蔽。
     assert secret_value not in observation.text
     assert "<secret-hidden>" in observation.text
-    # Non-text (image) blocks pass through untouched.
+    # 非文本（图像）块不受影响地通过。
     image_blocks = [b for b in observation.content if isinstance(b, ImageContent)]
     assert len(image_blocks) == 1
     assert image_blocks[0].image_urls == ["data:image/png;base64,aGVsbG8="]
-    # Other observation fields survive the model_copy rebuild.
+    # 其他观测结果字段在 model_copy 重建后仍然存在。
     assert observation.tool_name == "test_tool"
     assert observation.is_error is False
 
 
 @pytest.mark.parametrize("secret_name", ["CUSTOMER_ID", "API_KEY"])
 def test_registry_masks_secret_values_in_text(secret_registry, secret_name):
-    """Registered secret values are replaced with <secret-hidden> in text."""
-    value = secret_registry.get_secret_value(secret_name)  # also tracks for masking
+    """注册的机密值在文本中替换为 <secret-hidden>。"""
+    value = secret_registry.get_secret_value(secret_name)  # 还跟踪掩蔽
     assert value is not None
     masked = secret_registry.mask_secrets_in_output(f"leaked {value} here")
     assert value not in masked
     assert "<secret-hidden>" in masked
 
 
-# --- Failure / non-happy paths ------------------------------------------------
+# --- 失败/不愉快的道路------------------------------------------------
 
 
 def test_executor_returns_error_observation_on_timeout(
     executor, mock_client, conversation
 ):
-    """A client timeout is turned into an error observation, not raised."""
+    """客户端超时变成错误观测结果，而不是引发。"""
 
     def raise_timeout(coro_func, **kwargs):
         raise TimeoutError
@@ -244,14 +241,14 @@ def test_executor_returns_error_observation_on_timeout(
 
 
 def test_executor_falls_back_to_literal_when_expansion_raises(executor, mock_client):
-    """If secret lookup blows up, the literal action is sent and the call proceeds."""
+    """如果机密查找失败，则发送文字操作并继续调用。"""
     conv = MagicMock()
     conv.state.secret_registry.get_secret_value.side_effect = RuntimeError("down")
 
     action = MCPToolAction(data={"customer_id": "$CUSTOMER_ID"})
     sent, observation = _call_and_capture(executor, mock_client, action, conv)
 
-    # Expansion failed -> original placeholder is sent unchanged, no exception.
+    # 扩展失败 -> 原始占位符原封不动地发送，没有例外。
     assert sent.data == {"customer_id": "$CUSTOMER_ID"}
     assert observation.is_error is False
 
@@ -259,14 +256,14 @@ def test_executor_falls_back_to_literal_when_expansion_raises(executor, mock_cli
 def test_executor_returns_unmasked_observation_when_masking_raises(
     executor, mock_client
 ):
-    """If masking blows up, the original observation is returned, not raised."""
+    """如果屏蔽爆炸，则返回原始的观测结果，而不是引发。"""
     conv = MagicMock()
     conv.state.secret_registry.mask_secrets_in_output.side_effect = RuntimeError("down")
 
     result = _make_result(
         content=[mcp.types.TextContent(type="text", text="hello world")]
     )
-    # No references -> expansion is a no-op, isolating the masking failure.
+    # 无引用 -> 扩展是无操作，隔离屏蔽失败。
     action = MCPToolAction(data={"q": "noop"})
     _, observation = _call_and_capture(
         executor, mock_client, action, conv, result=result
@@ -276,7 +273,7 @@ def test_executor_returns_unmasked_observation_when_masking_raises(
 
 
 def test_executor_without_conversation_does_not_mask(executor, mock_client):
-    """Without a conversation there is no registry, so output is not masked."""
+    """没有对话就没有注册表，因此输出不会被屏蔽。"""
     result = _make_result(
         content=[mcp.types.TextContent(type="text", text="token=expanded-api-key")]
     )

@@ -29,8 +29,9 @@ class _MessageAction(Protocol):
 
 
 def _action_declares_message(action: Action) -> bool:
-    # Field values live on the instance, but a ``message`` property or class
-    # attribute lives on the class. Instance ``__dict__`` misses those.
+    # 字段值存在于实例上，但 ``message`` 属性或类属性存在于类上。 实例 ``__dict__`` 错过
+    # 了这些。
+    #
     if "message" in type(action).model_fields:
         return True
     return any("message" in cls.__dict__ for cls in type(action).__mro__)
@@ -105,7 +106,7 @@ class ActionEvent(LLMConvertibleEvent):
 
     @property
     def message(self) -> str | None:
-        """User-facing message or summary from the action, if any."""
+        """面向用户的消息或操作摘要（如果有）。"""
         action = self.action
         if action is None:
             return None
@@ -120,50 +121,50 @@ class ActionEvent(LLMConvertibleEvent):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this action event."""
+        """返回此操作事件的富文本表示形式。"""
         content = Text()
 
         if self.security_risk != risk.SecurityRisk.UNKNOWN:
             content.append(self.security_risk.visualize)
 
-        # Display summary if available
+        # 显示摘要（如果有）
         if self.summary:
             content.append("Summary: ", style="bold cyan")
             content.append(self.summary)
             content.append("\n\n")
 
-        # Display reasoning content first if available
+        # 首先显示推理内容（如果有）
         if self.reasoning_content:
             content.append("Reasoning:\n", style="bold")
             content.append(self.reasoning_content)
             content.append("\n\n")
 
-        # Display complete thought content
+        # 显示完整的思维内容
         thought_text = " ".join([t.text for t in self.thought])
         if thought_text:
             content.append("Thought:\n", style="bold")
             content.append(thought_text)
             content.append("\n\n")
 
-        # Responses API reasoning (plaintext only; never render encrypted_content)
+        # 响应 API 推理（仅限明文； 从不渲染 encrypted_content)
         append_visible_responses_reasoning(content, self.responses_reasoning_item)
 
-        # Display action information using action's visualize method
+        # 使用action的visible方法显示action信息
         if self.action:
             content.append(self.action.visualize)
         else:
-            # When action is None (non-executable), show the function call
+            # 当action为None（不可执行）时，显示函数调用
             content.append("Function call:\n", style="bold")
             content.append(f"- {self.tool_call.name} ({self.tool_call.id})\n")
 
-        # Display critic result if available
+        # 显示评论家结果（如果有）
         if self.critic_result is not None:
             content.append(self.critic_result.visualize)
 
         return content
 
     def to_llm_message(self) -> Message:
-        """Individual message - may be incomplete for multi-action batches"""
+        """单个消息 - 对于多操作批次可能不完整"""
         return Message(
             role="assistant",
             content=self.thought,
@@ -174,7 +175,7 @@ class ActionEvent(LLMConvertibleEvent):
         )
 
     def __str__(self) -> str:
-        """Plain text string representation for ActionEvent."""
+        """ActionEvent 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
         thought_text = " ".join([t.text for t in self.thought])
         thought_preview = (
@@ -186,7 +187,7 @@ class ActionEvent(LLMConvertibleEvent):
             action_name = self.action.__class__.__name__
             return f"{base_str}\n  Thought: {thought_preview}\n  Action: {action_name}"
         else:
-            # When action is None (non-executable), show the tool call
+            # 当action为None（不可执行）时，显示工具调用
             call = f"{self.tool_call.name}:{self.tool_call.id}"
             return (
                 f"{base_str}\n  Thought: {thought_preview}\n  Action: (not executed)"

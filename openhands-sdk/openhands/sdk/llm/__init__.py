@@ -51,12 +51,12 @@ from openhands.sdk.llm.utils.verified_models import VERIFIED_MODELS
 
 
 __all__ = [
-    # Auth
+    # 授权
     "CredentialStore",
     "OAuthCredentials",
     "OpenAISubscriptionAuth",
     "OPENAI_CODEX_MODELS",
-    # Core
+    # 核心
     "CLEANUP_PROFILE_NAME",
     "aclean_outward_text",
     "clean_outward_text",
@@ -75,7 +75,7 @@ __all__ = [
     "MetaProfileStore",
     "RouterLLM",
     "RegistryEvent",
-    # Messages
+    # 留言
     "Message",
     "MessageToolCall",
     "TextContent",
@@ -84,17 +84,17 @@ __all__ = [
     "RedactedThinkingBlock",
     "ReasoningItemModel",
     "content_to_str",
-    # Streaming
+    # 流式传输
     "AsyncTokenCallbackType",
     "LLMStreamChunk",
     "TokenCallbackType",
-    # Metrics
+    # 指标
     "Metrics",
     "MetricsSnapshot",
     "TokenUsage",
-    # Runtime metadata
+    # 运行时元数据
     "ModelRuntimeMetadata",
-    # Models
+    # 型号
     "VERIFIED_MODELS",
     "UNVERIFIED_MODELS_EXCLUDING_BEDROCK",
     "get_unverified_models",

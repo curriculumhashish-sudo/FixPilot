@@ -1,9 +1,10 @@
-"""End-to-end check that path rules fire on the REAL file-editor action.
+"""端到端检查路径规则是否在 REAL 文件编辑器操作上触发。
 
-The injection seam reads the touched path from the action's ``path`` field
-(``local_conversation._touched_rule_path``). These tests use the actual
-``FileEditorAction`` / ``FileEditorObservation`` from openhands-tools so a
-rename of that field (which would silently no-op the whole feature) is caught.
+注入接缝从操作的 ``path`` 字段 (``local_conversation._touched_rule_path``) 读取触摸路
+径。 这些测试使用实际
+``FileEditorAction`` / ``FileEditorObservation`` 来自 OpenHands-tools，因此该字段的重
+命名（这将默默地对整个
+功能进行无操作）被捕获。
 """
 
 from pathlib import Path
@@ -57,7 +58,7 @@ def _action_event(path: str, command: CommandLiteral = "view") -> ActionEvent:
 
 
 def test_real_file_editor_action_triggers_path_rule(tmp_path: Path) -> None:
-    """A real FileEditorAction on a matching path injects the rule."""
+    """匹配路径上的真实 FileEditorAction 会注入规则。"""
     conv = _conversation(tmp_path)
     try:
         action_event = _action_event(str(tmp_path / "src" / "api" / "users.ts"))
@@ -117,7 +118,7 @@ def test_real_file_editor_action_nonmatching_path(tmp_path: Path) -> None:
 
 
 def test_real_file_editor_create_command_triggers_rule(tmp_path: Path) -> None:
-    """Rules fire on ``create`` too (beats Claude Code's Write/create gap)."""
+    """规则也会在 ``create`` 上触发（击败 Claude Code 的写入/创建间隙）。"""
     conv = _conversation(tmp_path)
     try:
         action_event = _action_event(

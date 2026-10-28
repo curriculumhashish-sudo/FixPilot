@@ -1,4 +1,4 @@
-"""Hook executor - runs shell commands and LLM evaluations with JSON I/O."""
+"""Hook 执行器 - 使用 JSON I/O 运行 shell 命令和 LLM 评估。"""
 
 import contextlib
 import json
@@ -29,23 +29,22 @@ if TYPE_CHECKING:
 
 
 class HookResult(BaseModel):
-    """Result from executing a hook.
+    """执行挂钩的结果。
 
-    Exit-code semantics (matching Claude Code's hook contract):
+    退出代码语义（匹配 Claude Code 的钩子契约）：
 
-    - **Exit 0**: success. ``stdout`` is parsed as JSON for structured output
-      (``decision``, ``reason``, ``additionalContext``, ``continue``).
-    - **Exit 2**: blocking error. The operation is denied / the agent is
-      prevented from stopping. ``stderr`` should explain why.
-    - **Any other non-zero exit code**: non-blocking error. ``success`` is set
-      to ``False`` and the error is logged, but the operation still proceeds.
-      In particular, exit code ``1`` does **not** block — only ``2`` does.
-      Hooks intended to enforce a policy must exit with ``2``.
+    - **退出0**：成功。 ``stdout`` 被解析为 JSON 以获取结构化输出（``decision``、
+    ``reason``、
+    ``additionalContext``、``continue``）。
+    - **出口2**：阻塞错误。 操作被拒绝/智能体被阻止停止。 ``stderr``应该解释原因。
+    - **任何其他非零退出代码**：非阻塞错误。 ``success`` 设置为 ``False`` 并记录错误
+    ，但操作仍继续。 特别是，退出代码 ``1`` 会阻止
+     ** 而不是 **，只有 ``2`` 会阻止。 旨在执行策略的挂钩必须以 ``2`` 退出。
 
-    For agent / prompt hooks, ``success=True`` means the hook produced a
-    deliberate verdict (parsed ``allow`` or ``deny``). Fall-open paths set
-    ``success=False`` with ``error`` populated, so a "we couldn't decide" allow
-    is detectable as ``decision == ALLOW and not success``.
+    对于智能体 / 提示词钩子，``success=True`` 表示钩子产生了有意的判决（解析为
+    ``allow`` 或 ``deny``）。 秋季开放路径设置
+    ``success=False`` 填充了 ``error``，因此“我们无法决定”允许可检测为
+    ``decision == ALLOW and not success``。
     """
 
     success: bool = True
@@ -57,11 +56,11 @@ class HookResult(BaseModel):
     reason: str | None = None
     additional_context: str | None = None
     error: str | None = None
-    async_started: bool = False  # Indicates this was an async hook
+    async_started: bool = False  # 表明这是一个异步钩子
 
     @property
     def should_continue(self) -> bool:
-        """Whether the operation should continue after this hook."""
+        """操作是否应在该钩子之后继续。"""
         if self.blocked:
             return False
         if self.decision == HookDecision.DENY:
@@ -73,30 +72,28 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncProcessManager:
-    """Manages background hook processes for cleanup.
+    """管理后台挂钩进程以进行清理。
 
-    Tracks async hook processes and ensures they are terminated when they
-    exceed their timeout or when the session ends. Prevents zombie processes
-    by properly waiting for termination.
+    跟踪异步挂钩进程并确保它们在超过超时或会话结束时终止。 通过正确等待终止来防止僵尸
+    进程。
     """
 
     def __init__(self):
         self._processes: list[tuple[subprocess.Popen, float, int]] = []
 
     def add_process(self, process: subprocess.Popen, timeout: int) -> None:
-        """Track a background process for cleanup.
+        """跟踪后台进程以进行清理。
 
         Args:
-            process: The subprocess to track
-            timeout: Maximum runtime in seconds before termination
+            process: 要跟踪的子进程
+            timeout: 终止前的最大运行时间（以秒为单位）
         """
         self._processes.append((process, time.time(), timeout))
 
     def _terminate_process(self, process: subprocess.Popen) -> None:
-        """Safely terminate a process group and prevent zombies.
+        """安全终止进程组并防止僵尸进程。
 
-        Uses process groups to kill the entire process tree, not just
-        the parent shell when shell=True is used.
+        当使用 shell=True 时，使用进程组杀死整个进程树，而不仅仅是父 shell。
         """
         if os.name == "nt":
             subprocess.run(
@@ -116,7 +113,7 @@ class AsyncProcessManager:
             return
 
         try:
-            # Kill the entire process group (handles shell=True child processes)
+            # 杀死整个进程组（处理 shell=True 子进程）
             pgid = os.getpgid(process.pid)
         except (OSError, ProcessLookupError) as e:
             logger.debug(f"Process already terminated: {e}")
@@ -124,10 +121,10 @@ class AsyncProcessManager:
 
         try:
             os.killpg(pgid, signal.SIGTERM)
-            process.wait(timeout=1)  # Wait for graceful termination
+            process.wait(timeout=1)  # 等待优雅终止
         except subprocess.TimeoutExpired:
             try:
-                os.killpg(pgid, signal.SIGKILL)  # Force kill if it doesn't terminate
+                os.killpg(pgid, signal.SIGKILL)  # 如果不终止则强制终止
                 process.wait()
             except OSError:
                 pass
@@ -135,21 +132,21 @@ class AsyncProcessManager:
             logger.debug(f"Failed to kill process group: {e}")
 
     def cleanup_expired(self) -> None:
-        """Terminate processes that have exceeded their timeout."""
+        """终止超出其超时范围的进程。"""
         current_time = time.time()
         active: list[tuple[subprocess.Popen, float, int]] = []
         for process, start_time, timeout in self._processes:
-            if process.poll() is None:  # Still running
+            if process.poll() is None:  # 仍在运行
                 if current_time - start_time > timeout:
                     logger.debug(f"Terminating expired async hook (PID {process.pid})")
                     self._terminate_process(process)
                 else:
                     active.append((process, start_time, timeout))
-            # If poll() returns non-None, process already exited - just drop it
+            # 如果 poll() 返回非 None，则进程已退出 - 只需删除它
         self._processes = active
 
     def cleanup_all(self) -> None:
-        """Terminate all tracked background processes."""
+        """终止所有跟踪的后台进程。"""
         for process, _, _ in self._processes:
             if process.poll() is None:
                 self._terminate_process(process)
@@ -157,7 +154,7 @@ class AsyncProcessManager:
 
 
 class HookExecutor:
-    """Executes hook commands and LLM/agent evaluations with JSON I/O."""
+    """使用 JSON I/O 执行挂钩命令和 LLM/代理评估。"""
 
     _JSON_DECODER = json.JSONDecoder()
 
@@ -177,9 +174,9 @@ class HookExecutor:
         self.working_dir = working_dir or os.getcwd()
         self.async_process_manager = async_process_manager or AsyncProcessManager()
         self._llm = llm
-        # Prefer a getter so agent hooks always use the conversation's *current*
-        # LLM: switch_llm()/switch_profile() replace agent.llm after the executor
-        # is built, and a captured instance would go stale.
+        # 更喜欢 getter，因此智能体挂钩始终使用对话的 *current*
+        # LLM: switch_llm()/switch_profile()替换执行器后面的agent.llm
+        # 构建后，捕获的实例就会过时。
         self._llm_getter = llm_getter
         self.llm_call_context = llm_call_context
         self.persistence_dir = persistence_dir
@@ -188,7 +185,7 @@ class HookExecutor:
 
     @property
     def llm(self) -> "LLM | None":
-        """The LLM agent hooks should use, resolved live when a getter is set."""
+        """当设置 getter 时，LLM 智能体钩子应该使用实时解析。"""
         if self._llm_getter is not None:
             return self._llm_getter()
         return self._llm
@@ -216,8 +213,9 @@ class HookExecutor:
         hook: HookDefinition,
         event: HookEvent,
     ) -> HookResult:
-        # Lazy imports to avoid circular dependency:
-        # executor <- manager <- conversation_hooks <- local_conversation -> executor
+        # 延迟导入以避免循环依赖：executor
+        # <- manager <- conversation_hooks <- local_conversation -> executor
+        #
         from openhands.sdk.agent import Agent  # type: ignore[attr-defined]
         from openhands.sdk.conversation.impl.local_conversation import LocalConversation
         from openhands.sdk.conversation.response_utils import get_agent_final_response
@@ -229,7 +227,7 @@ class HookExecutor:
             else event.event_type.value
         )
 
-        # Resolve the active conversation LLM once (a getter may rebuild it).
+        # 解析一次活动对话 LLM（getter 可以重建它）。
         llm = self.llm
         if llm is None:
             logger.warning(
@@ -244,14 +242,13 @@ class HookExecutor:
                 "timeout": hook.timeout,
             }
         )
-        # Isolate Metrics so hook spend doesn't accrue to the parent's bucket.
+        # 隔离指标，以便钩子支出不会累积到父级的存储桶中。
         hook_llm.reset_metrics()
 
-        # Never hand the parent's already-initialized visualizer instance to the
-        # sub-conversation: LocalConversation.__init__ calls initialize() on it,
-        # which would rebind the parent visualizer to the hook's child state. Mirror
-        # the delegate pattern and ask the parent visualizer for a fresh sub-
-        # visualizer (returns None for visualizers that don't support sub-agents).
+        # LocalConversation.__init__ 不要将已经初始化的父视觉化器实例传递给子对话：
+        # initialize() 会重新绑定父视觉化器到钩子的子状态。 镜像委托模式并向父可视化工具
+        # 请求新的子可视化工具（对于不支持子智能体的可视化工具，返回 None）。
+        #
         hook_visualizer = self.visualizer
         if isinstance(self.visualizer, ConversationVisualizerBase):
             hook_visualizer = self.visualizer.create_sub_visualizer(
@@ -383,8 +380,8 @@ class HookExecutor:
         return self._parse_decision(raw, event_type, HookType.PROMPT)
 
     def _extract_first_json_object(self, text: str) -> dict | None:
-        # Scan for the first decodable JSON object so prose / ```json fences
-        # around the payload don't defeat parsing.
+        # 扫描第一个可解码的 JSON 对象，以便载荷周围的散文/```JSON 栅栏不会破坏解析。
+        #
         for i, ch in enumerate(text):
             if ch != "{":
                 continue
@@ -435,9 +432,9 @@ class HookExecutor:
                 decision=HookDecision.ALLOW,
                 reason=reason,
             )
-        # Missing or unknown decision: this is not a deliberate verdict, so it
-        # must be a detectable fall-open (success=False) rather than a silent
-        # allow that masquerades as a real decision.
+        # 缺少或未知的决策：这不是故意的结论，因此必须是可检测的自动打开（成功=False)，
+        # 而不是无声允许伪装成真实决策。
+        #
         logger.warning(
             f"{hook_label} returned an invalid decision for event '{event_type}'"
             f" — defaulting to allow: {repr(decision_str)[:200]}"
@@ -470,13 +467,13 @@ class HookExecutor:
         event: HookEvent,
         env: dict[str, str] | None = None,
     ) -> HookResult:
-        """Execute a single hook."""
+        """执行单个钩子。"""
         if hook.type == HookType.AGENT:
             return self._execute_agent_hook(hook, event)
         if hook.type == HookType.PROMPT:
             return self._execute_prompt_hook(hook, event)
 
-        # Prepare environment
+        # 准备环境
         hook_env = sanitized_env()
         hook_env["OPENHANDS_PROJECT_DIR"] = self.working_dir
         hook_env["OPENHANDS_SESSION_ID"] = event.session_id or ""
@@ -487,10 +484,10 @@ class HookExecutor:
         if env:
             hook_env.update(env)
 
-        # Serialize event to JSON for stdin
+        # 序列化事件到 JSON（对于标准输入）
         event_json = event.model_dump_json()
 
-        # Cleanup expired async processes before starting new ones
+        # 在开始新进程之前清理过期的异步个进程
         self.async_process_manager.cleanup_expired()
 
         command = hook.command
@@ -501,7 +498,7 @@ class HookExecutor:
                 error="'command' is required when type is 'command'",
             )
 
-        # Handle async hooks: fire and forget
+        # 手柄异步挂钩：即发即忘
         if hook.async_:
             try:
                 creationflags = 0
@@ -521,7 +518,7 @@ class HookExecutor:
                     start_new_session=start_new_session,
                     creationflags=creationflags,
                 )
-                # Write event JSON to stdin safely
+                # 安全地将事件 JSON 写入标准输入
                 try:
                     if process.stdin and process.poll() is None:
                         process.stdin.write(event_json.encode())
@@ -530,11 +527,11 @@ class HookExecutor:
                 except (BrokenPipeError, OSError) as e:
                     logger.warning(f"Failed to write to async hook stdin: {e}")
 
-                # Track for cleanup
+                # 跟踪清理
                 self.async_process_manager.add_process(process, hook.timeout)
                 logger.debug(f"Started async hook (PID {process.pid}): {command}")
 
-                # Return placeholder success result
+                # 返回占位符成功结果
                 return HookResult(
                     success=True,
                     exit_code=0,
@@ -548,7 +545,7 @@ class HookExecutor:
                 )
 
         try:
-            # Execute the hook command synchronously
+            # 同步执行hook命令
             result = subprocess.run(
                 command,
                 shell=True,
@@ -560,7 +557,7 @@ class HookExecutor:
                 timeout=hook.timeout,
             )
 
-            # Parse the result
+            # 解析结果
             hook_result = HookResult(
                 success=result.returncode == 0,
                 blocked=result.returncode == 2,
@@ -569,12 +566,12 @@ class HookExecutor:
                 stderr=result.stderr,
             )
 
-            # Try to parse JSON from stdout
+            # 尝试从标准输出解析 JSON
             if result.stdout.strip():
                 try:
                     output_data = json.loads(result.stdout)
                     if isinstance(output_data, dict):
-                        # Non-string values represent no decision.
+                        # 非字符串值不代表任何决定。
                         decision_value = output_data.get("decision")
                         if isinstance(decision_value, str):
                             decision_str = decision_value.lower()
@@ -584,7 +581,7 @@ class HookExecutor:
                                 hook_result.decision = HookDecision.DENY
                                 hook_result.blocked = True
 
-                        # Parse other fields
+                        # 解析其他字段
                         if "reason" in output_data:
                             hook_result.reason = str(output_data["reason"])
                         if "additionalContext" in output_data:
@@ -596,7 +593,7 @@ class HookExecutor:
                                 hook_result.blocked = True
 
                 except json.JSONDecodeError:
-                    # Not JSON, that's okay - just use stdout as-is
+                    # 不是 JSON，没关系 - 只需按原样使用 stdout
                     pass
 
             return hook_result
@@ -627,10 +624,10 @@ class HookExecutor:
         env: dict[str, str] | None = None,
         stop_on_block: bool = True,
     ) -> list[HookResult]:
-        """Execute multiple hooks in order, optionally stopping on block."""
+        """按顺序执行多个钩子，可以选择在块上停止。"""
         results: list[HookResult] = []
 
-        # Cleanup expired async processes periodically
+        # 定期清理过期的异步个进程
         self.async_process_manager.cleanup_expired()
 
         for hook in hooks:

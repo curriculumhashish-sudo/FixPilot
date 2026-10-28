@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""Static analysis for deprecation deadlines.
+"""弃用截止日期的静态分析。
 
-This script scans Python deprecation metadata (`deprecated`, `warn_deprecated`,
-`warn_cleanup`), agent-server REST routes marked `deprecated=True`, and Pydantic
-`Field(deprecated=True, ...)` declarations whose description carries the same
-versioned schedule wording. It fails when a version-based deprecation schedule
-provides less than 5 minor releases of runway, or when the current project
-version has reached or passed a feature's removal marker. This catches invalid
-schedules when they are introduced and later ensures legacy shims, overdue
-deprecated REST endpoints, and overdue deprecated schema fields are cleaned up
-before release.
+此脚本扫描 Python 弃用元数据（`deprecated`、`warn_deprecated`、
+`warn_cleanup`)、智能体-服务器 REST 标记为 `deprecated=True` 的路由和 Pydantic
+`Field(deprecated=True, ...)` 其描述带有相同版本化时间表措辞的声明。 当版本基于弃用的
+计划提供不足5次版本发布的跑道，或者当前项目版本已达到或
+超过功能的移除标记时，它会失败。 当引入无效的计划时捕获它们，并在发布之前确保清理过期
+的已弃用 REST 端点和已弃用模式字段。
 
-Not every `Field(deprecated=True)` declares a version-based schedule -- some are
-open-ended backward-compatibility aliases with no planned removal. Only fields
-whose description matches the "Deprecated since vX.Y.Z and scheduled for
-removal in vA.B.C." wording are subject to the runway/overdue check; others are
-left alone.
+并非每个 `Field(deprecated=True)` 都声明基于版本的计划 - 有些是开放式的向后兼容性别名
+，没有计划删除。 仅描述与“已弃用自 vX.Y.Z 以来并
+计划在 vA.B.C 中删除”匹配的字段。措辞须经跑道/逾期检查； 其他人则独自一人。
 """
 
 from __future__ import annotations
@@ -377,8 +372,8 @@ def _gather_pydantic_field_deprecations(
 
             match = REST_ROUTE_DEPRECATION_RE.search(" ".join(description.split()))
             if match is None:
-                # No version-based schedule declared; treat as an open-ended
-                # backward-compatibility alias, not subject to this check.
+                # 未声明基于版本的时间表； 视为开放式向后兼容性别名，不受此检查的约束。
+                #
                 continue
 
             yield DeprecationRecord(

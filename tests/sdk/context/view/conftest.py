@@ -1,6 +1,6 @@
-"""Common fixtures and utilities for view tests.
+"""用于视图测试的通用测试夹具和实用程序。
 
-This module consolidates common event creation helpers used across the view tests.
+该模块整合了视图测试中使用的常见事件创建助手。
 """
 
 from collections.abc import Sequence
@@ -21,7 +21,7 @@ from openhands.sdk.mcp.definition import MCPToolAction, MCPToolObservation
 
 
 def message_event(content: str) -> MessageEvent:
-    """Helper to create a MessageEvent."""
+    """创建 MessageEvent 的帮助程序。"""
     return MessageEvent(
         llm_message=Message(role="user", content=[TextContent(text=content)]),
         source="user",
@@ -35,7 +35,7 @@ def create_action_event(
     thinking_blocks: Sequence[ThinkingBlock | RedactedThinkingBlock] | None = None,
     thinking: str | None = None,
 ) -> ActionEvent:
-    """Helper to create an ActionEvent with specified IDs."""
+    """帮助程序创建具有指定 ID 的 ActionEvent。"""
     action = MCPToolAction(data={})
 
     tool_call = MessageToolCall(
@@ -68,7 +68,7 @@ def create_observation_event(
     content: str = "Success",
     tool_name: str = "test_tool",
 ) -> ObservationEvent:
-    """Helper to create an ObservationEvent."""
+    """创建 ObservationEvent 的帮助程序。"""
     observation = MCPToolObservation.from_text(
         text=content,
         tool_name=tool_name,

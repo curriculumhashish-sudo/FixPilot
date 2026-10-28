@@ -1,32 +1,42 @@
 # Package Guidelines
 
-See the [project root AGENTS.md](../../../AGENTS.md) for repository-wide policies and workflows.
+请参阅 [ 项目根 AGENTS.md](../../../AGENTS.md) 了解存储库范围的策略和工作流程。
 
-## Package Structure & Module Organization
+<a id="package-structure--module-organization"></a>
 
-- This directory (`openhands-tools/openhands/tools/`) contains runtime tool implementations under the `openhands.tools.*` namespace.
-- Most tools live in dedicated subpackages (for example `terminal/`, `file_editor/`, `browser_use/`) and typically split:
-  - `definition.py`: public schema/metadata/registration
-  - `impl.py` / `core.py`: runtime implementation
-- Treat `openhands-tools/openhands/tools/__init__.py` as the published surface for `openhands-tools`; `__all__` is considered public API.
+## 包结构和模块组织
 
-## Build, Test, and Development Commands
+- 此目录 (`openhands-tools/openhands/tools/`) 包含 `openhands.tools.*` 命名空间下的运行时工具实现。
+- 大多数工具都位于专用子包中（例如 `terminal/`、`file_editor/`、`browser_use/`），并且通常会拆分：
+  - `definition.py`：公共架构/元数据/注册
+  - `impl.py` / `core.py`：运行时实现
+- 将 `openhands-tools/openhands/tools/__init__.py` 视为 `openhands-tools` 的已发布表面； `__all__` 被认为是公开的 API。
 
-- `make build`: set up the dev environment (`uv sync --dev`) and install pre-commit hooks.
-- `uv run pre-commit run --files <path>`: run checks only for the files you touched.
-- `uv run pytest tests/tools -k <pattern>`: run the tools test suite; prefer running a focused subset first (e.g. `uv run pytest tests/tools/terminal`).
+<a id="build-test-and-development-commands"></a>
 
-## Coding Style & Naming Conventions
+## 构建、测试和开发命令
 
-- Packages support Python 3.12 and later; repository tooling targets Python 3.13. Keep code Ruff-compliant (line length 88) and Pyright-friendly.
-- Tool names, parameter schemas, and output schemas are user-facing and often referenced in tests like `tests/tools/test_tool_name_consistency.py`; avoid breaking changes. If a schema must change, provide a backward-compatible loading path.
-- When adding runtime-loaded assets (Jinja `.j2` templates or JS under `browser_use/js/`), ensure they are included as package data (and update the agent-server PyInstaller spec when needed).
+- `make build`：设置开发环境（`uv sync --dev`）并安装预提交挂钩。
+- `uv run pre-commit run --files <path>`：仅对您触摸的文件运行检查。
+- `uv run pytest tests/tools -k <pattern>`：运行工具测试套件； 更喜欢首先运行一个重点子集（e.g. `uv run pytest tests/tools/terminal`).
 
-## Testing Guidelines
+<a id="coding-style--naming-conventions"></a>
 
-- Add/adjust unit tests under `tests/tools/`, mirroring the tool package. Keep tests focused on the behavior you changed.
-- Prefer real code paths over mocks; when mocking is unavoidable (e.g. external processes), centralize setup in `tests/conftest.py` or `tests/tools/<tool>/conftest.py`.
+## 编码风格和命名约定
 
-## Commit & Pull Request Guidelines
+- 软件包支持 Python 3.12 及更高版本； 存储库工具目标 Python 3.13。 保持代码Ruff兼容（行长88）和Pyright友好。
+- 工具名称、参数模式和输出模式是面向用户的，并且经常在测试中引用，例如 `tests/tools/test_tool_name_consistency.py`； 避免不兼容变更。 如果模式必须更改，请提供向后兼容加载路径。
+- 在添加运行时加载的资产（Jinja `.j2` 模板或 JS `browser_use/js/`）时，请确保它们作为包数据包含（当需要时更新智能体-server PyInstaller 规范）。
 
-- Keep changes scoped to the tool(s) touched, and run the smallest relevant tests before running broader suites.
+<a id="testing-guidelines"></a>
+
+## 测试指南
+
+- 在`tests/tools/`下添加/调整单元测试，镜像工具包。 让测试集中在你改变的行为上。
+- 与模拟对象相比，更喜欢真实的代码路径； 当模拟不可避免时 (e.g. 外部进程），将设置集中在 `tests/conftest.py` 或 `tests/tools/<tool>/conftest.py` 中。
+
+<a id="commit--pull-request-guidelines"></a>
+
+## 提交和拉取请求指南
+
+- 将更改范围保持在 tool(s) 所触及的范围内，并在运行更广泛的套件之前运行最小的相关测试。

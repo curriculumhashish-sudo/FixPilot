@@ -1,4 +1,4 @@
-"""Conversation routes for the Docker runtime."""
+"""Docker 运行时的对话路由。"""
 
 from __future__ import annotations
 
@@ -88,10 +88,9 @@ async def _proxy_with_session(
     upstream_path: str,
     body: bytes | None = None,
 ) -> StreamingResponse:
-    """Proxy one request while holding an outer session attachment.
+    """代理一个请求，同时保留外部会话附件。
 
-    The attachment is released when the streamed response finishes (or the
-    client disconnects), so a long-lived proxied stream keeps the container
+    当流式响应完成（或客户端断开连接）时，附件将被释放，因此长期代理流会保留容器
     from being evicted while a client is still reading from it.
     """
     registry.attach_session(conversation_id)
@@ -150,8 +149,8 @@ async def start_conversation(
     body["workspace"] = {"kind": "LocalWorkspace", "working_dir": "/workspace"}
 
     registry = get_registry(request)
-    # Only a conversation the container already created is left alone on
-    # failure; a manifest from a failed earlier start is retried like a new one.
+    # 只有容器已经创建的对话才会失败； 先前启动失败的清单会像重新启动一样重试。
+    #
     try:
         existing = (
             registry.conversation_dir(conversation_id).joinpath("meta.json").is_file()
@@ -166,8 +165,8 @@ async def start_conversation(
         updates: dict[str, Any] = {}
         if launched is not None and identity.launched_agent_profile is None:
             updates["launched_agent_profile"] = launched
-        # Fixed once the container accepted the conversation; until then a
-        # retried start may change them.
+        # 一旦容器接受对话就修复； 在此之前，重试启动可能会改变它们。
+        #
         if not existing and identity.container != options:
             updates["container"] = options
         if updates:
@@ -216,10 +215,9 @@ async def _prepare_forward(
     LaunchedAgentProfile | None,
     ConversationContainerOptions | None,
 ]:
-    """Resolve the start request with this host's stores; the container finalizes.
+    """解决与该主机的商店的启动请求； 容器完成。
 
-    The profile of a conversation that already exists is not resolved again:
-    its container returns the conversation as it is.
+    已存在的对话的配置文件不会再次解析：其容器按原样返回对话。
     """
     config = registry.config
     start = StartConversationRequest.model_validate(
@@ -268,7 +266,7 @@ async def runtime_info(
 
 @docker_conversation_router.post("/{conversation_id}/runtime/credentials")
 async def runtime_credentials(conversation_id: UUID, request: Request) -> JSONResponse:
-    """Return the key for an authenticated client attached to this runtime."""
+    """返回附加到此运行时的经过身份验证的客户端的密钥。"""
     registry = get_registry(request)
     if not registry.conversation_dir(conversation_id).joinpath("meta.json").is_file():
         raise HTTPException(404, "Conversation not found")
@@ -278,7 +276,7 @@ async def runtime_credentials(conversation_id: UUID, request: Request) -> JSONRe
 
 @docker_conversation_router.delete("/{conversation_id}/runtime", status_code=204)
 async def release_runtime(conversation_id: UUID, request: Request) -> Response:
-    """Stop the container while retaining conversation and workspace state."""
+    """停止容器，同时保留会话和工作区状态。"""
     registry = get_registry(request)
     if not registry.conversation_dir(conversation_id).joinpath("meta.json").is_file():
         raise HTTPException(404, "Conversation not found")
@@ -315,10 +313,9 @@ async def delete_conversation(conversation_id: UUID, request: Request) -> Respon
     if not await registry.begin_delete(conversation_id):
         raise HTTPException(409, "Conversation deletion is already in progress")
 
-    # Stopping the container closes its conversation service. The outer server
-    # owns the bind-mounted state and removes it after Docker has unmounted it;
-    # asking the inner server to remove the mount root leaves that root in a
-    # partially deleted state.
+    # 停止容器会关闭其会话服务。 外部服务器拥有绑定安装状态，并在 Docker 卸载它后将其删
+    # 除； 要求内部服务器删除挂载根会使该根处于部分删除状态。
+    #
     try:
         await registry.stop(conversation_id)
         registry.provisioning.manifest_path(conversation_id).unlink(missing_ok=True)
@@ -450,8 +447,9 @@ async def _proxy_socket(
         return
     query = strip_auth_query("?" + websocket.url.query).lstrip("?")
     path = f"/sockets/{socket_name}/{conversation_id}"
-    # Hold the attachment for the whole bridge lifetime so the idle-eviction
-    # loop cannot stop the container under a live events/session websocket.
+    # 在整个桥生命周期内保留附件，以便空闲驱逐循环无法停止实时事件/会话下的容器
+    # WebSocket。
+    #
     registry.attach_session(conversation_id)
     try:
         await bridge_websocket(

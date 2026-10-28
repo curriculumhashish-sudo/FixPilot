@@ -1,11 +1,11 @@
-"""Tests for RemoteEventsList reconciliation + WebSocket readiness wait.
+"""测试 RemoteEventsList 协调 + WebSocket 准备等待。
 
-We keep these tests focused on behavior and avoid "tests that test that code exists"
-(e.g., hasattr/callable checks).
+我们将这些测试集中在行为上，并避免“测试代码是否存在的测试”（e.g.，hasattr/可调用检查
+）。
 
-High-value behavior:
-- WebSocketCallbackClient.wait_until_ready() obeys timeout and unblocks on signals.
-- RemoteEventsList.reconcile() deduplicates events by id and is idempotent.
+高价值行为：
+- WebSocketCallbackClient.wait_until_ready() 服从超时并解锁信号。
+- RemoteEventsList.reconcile() 通过 id 删除重复事件并且是幂等的。
 """
 
 import threading
@@ -43,12 +43,13 @@ class TestWebSocketReadySignaling:
         waiter = threading.Thread(target=wait_for_ready)
         waiter.start()
 
-        # Ensure it doesn't return immediately (i.e. it actually blocks).
+        # 确保它不会立即返回 (i.e. 它实际上阻止了。
         waiter.join(timeout=0.1)
         assert waiter.is_alive()
 
-        # Set _ready directly since we're testing wait_until_ready in isolation
-        # without starting the WebSocket thread that would normally set this
+        # 直接设置 _ready，因为我们正在单独测试 wait_until_ready，而不启动通常会设置此值
+        # 的 WebSocket 线程
+        #
         client._ready.set()
         waiter.join(timeout=1.0)
 
@@ -73,8 +74,9 @@ class TestWebSocketReadySignaling:
         waiter.join(timeout=0.1)
         assert waiter.is_alive()
 
-        # Set _stop directly to bypass the thread-exists check in stop()
-        # since we're testing without starting the WebSocket thread
+        # 直接设置 _stop 以绕过 stop() 中的线程-exists 检查，因为我们正在测试而不启动
+        # WebSocket 线程
+        #
         client._stop.set()
         waiter.join(timeout=1.0)
 

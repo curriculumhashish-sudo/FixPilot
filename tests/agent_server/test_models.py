@@ -1,4 +1,4 @@
-"""Tests for agent_server models."""
+"""测试 agent_server 个模型。"""
 
 from typing import Any
 
@@ -10,9 +10,9 @@ from openhands.sdk.secret import LookupSecret, StaticSecret
 
 
 def test_update_secrets_request_string_conversion():
-    """Test that plain string secrets are converted to StaticSecret objects."""
+    """测试纯字符串机密是否转换为 StaticSecret 对象。"""
 
-    # Test with plain string secrets
+    # 使用纯字符串机密进行测试
     request = UpdateSecretsRequest(
         secrets={  # type: ignore[arg-type]
             "API_KEY": "plain-secret-value",
@@ -20,17 +20,17 @@ def test_update_secrets_request_string_conversion():
         }
     )
 
-    # Verify conversion happened
+    # 验证转换是否发生
     assert isinstance(request.secrets["API_KEY"], StaticSecret)
     assert isinstance(request.secrets["TOKEN"], StaticSecret)
 
-    # Verify the actual secret values
+    # 验证实际的机密值
     assert request.secrets["API_KEY"].get_value() == "plain-secret-value"
     assert request.secrets["TOKEN"].get_value() == "another-secret"
 
 
 def test_update_secrets_request_proper_secret_source():
-    """Test that proper SecretSource objects are not modified."""
+    """测试正确的 SecretSource 对象是否未被修改。"""
 
     static_secret = StaticSecret(value=SecretStr("static-value"))
     lookup_secret = LookupSecret(url="https://example.com/secret")
@@ -42,7 +42,7 @@ def test_update_secrets_request_proper_secret_source():
         }
     )
 
-    # Verify objects are preserved
+    # 验证对象是否被保留
     assert request.secrets["STATIC_SECRET"] is static_secret
     assert request.secrets["LOOKUP_SECRET"] is lookup_secret
     assert isinstance(request.secrets["STATIC_SECRET"], StaticSecret)
@@ -50,7 +50,7 @@ def test_update_secrets_request_proper_secret_source():
 
 
 def test_update_secrets_request_mixed_formats():
-    """Test that mixed formats (strings and SecretSource objects) work together."""
+    """测试混合格式（字符串和 SecretSource 对象）是否可以协同工作。"""
 
     secrets_dict: dict[str, Any] = {
         "PLAIN_SECRET": "plain-value",
@@ -59,18 +59,18 @@ def test_update_secrets_request_mixed_formats():
     }
     request = UpdateSecretsRequest(secrets=secrets_dict)  # type: ignore[arg-type]
 
-    # Verify all types are correct
+    # 验证所有类型是否正确
     assert isinstance(request.secrets["PLAIN_SECRET"], StaticSecret)
     assert isinstance(request.secrets["STATIC_SECRET"], StaticSecret)
     assert isinstance(request.secrets["LOOKUP_SECRET"], LookupSecret)
 
-    # Verify values
+    # 验证值
     assert request.secrets["PLAIN_SECRET"].get_value() == "plain-value"
     assert request.secrets["STATIC_SECRET"].get_value() == "static-value"
 
 
 def test_update_secrets_request_dict_without_kind():
-    """Test handling of dict values without 'kind' field."""
+    """测试不包含 'kind' 字段的字典值的处理。"""
 
     request = UpdateSecretsRequest(
         secrets={  # type: ignore[arg-type]
@@ -81,16 +81,17 @@ def test_update_secrets_request_dict_without_kind():
         }
     )
 
-    # Secret with value should be converted to StaticSecret
+    # 机密的值应转换为 StaticSecret
     assert isinstance(request.secrets["SECRET_WITH_VALUE"], StaticSecret)
     assert request.secrets["SECRET_WITH_VALUE"].get_value() == "secret-value"
 
 
 def test_update_secrets_request_invalid_dict():
-    """Test handling of invalid dict values without 'kind' or 'value' field."""
+    """测试对没有“kind”或“value”字段的无效字典值的处理。"""
 
-    # This should raise an error since the dict is invalid
-    # The error could be KeyError or ValidationError depending on where it fails
+    # 这应该会引发错误，因为字典无效。错误可能是 KeyError 或 ValidationError，具体取决于
+    # 失败的位置
+    #
     with pytest.raises((ValidationError, KeyError)) as exc_info:
         UpdateSecretsRequest(
             secrets={  # type: ignore[arg-type]
@@ -98,21 +99,21 @@ def test_update_secrets_request_invalid_dict():
             }
         )
 
-    # Verify the error is about the missing 'kind' field
+    # 验证错误是否与缺少“kind”字段有关
     error_details = str(exc_info.value)
     assert "kind" in error_details.lower()
 
 
 def test_update_secrets_request_empty_secrets():
-    """Test that empty secrets dict is handled correctly."""
+    """测试空的机密字典是否被正确处理。"""
 
     request = UpdateSecretsRequest(secrets={})
     assert request.secrets == {}
 
 
 def test_update_secrets_request_invalid_input():
-    """Test that invalid input types are handled appropriately."""
+    """测试无效的输入类型是否得到适当处理。"""
 
-    # Non-dict input should be preserved (will fail validation later)
+    # 应保留非字典输入（稍后将失败验证）
     with pytest.raises(ValidationError):
         UpdateSecretsRequest(secrets="not-a-dict")  # type: ignore[arg-type]

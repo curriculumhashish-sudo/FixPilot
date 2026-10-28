@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 class ConversationStats(BaseModel):
-    """Track per-LLM usage metrics observed during conversations."""
+    """跟踪对话期间观察到的每个LLM的使用指标。"""
 
     usage_to_metrics: dict[str, Metrics] = Field(
         default_factory=dict,
@@ -22,30 +22,30 @@ class ConversationStats(BaseModel):
 
     @model_serializer(mode="wrap")
     def _serialize_with_context(self, serializer: Any, info: Any) -> dict[str, Any]:
-        """Serialize metrics based on context.
+        """序列化指标基于上下文。
 
-        By default, preserves full metrics history including costs,
-        response_latencies, and token_usages lists for persistence.
+        默认情况下，保留完整的指标历史记录，包括持久化的成本、response_latencies 和
+        token_usages 列表。
 
-        When context={'use_snapshot': True} is passed, converts Metrics to
-        MetricsSnapshot format to minimize payload size for network transmission.
+        当上下文={'use_snapshot': True}被传递时，将Metrics转换为MetricsSnapshot格式，
+        以最小化载荷大小以供网络传输。
 
         Args:
-            serializer: Pydantic's default serializer
-            info: Serialization info containing context
+            serializer: Pydantic 的默认值序列化器
+            info: 序列化信息包含上下文
 
         Returns:
-            Dictionary with metrics serialized based on context
+            具有基于上下文的指标已序列化的字典
         """
-        # Get the default serialization
+        # 获取默认值序列化
         data = serializer(self)
 
-        # Check if we should use snapshot serialization
+        # 检查我们是否应该使用快照序列化
         context = info.context if info else None
         use_snapshot = context.get("use_snapshot", False) if context else False
 
         if use_snapshot and "usage_to_metrics" in data:
-            # Replace each Metrics with its snapshot
+            # 将每个指标替换为其快照
             usage_to_snapshots = {}
             for usage_id, metrics in self.usage_to_metrics.items():
                 snapshot = metrics.get_snapshot()
@@ -68,11 +68,11 @@ class ConversationStats(BaseModel):
         return self.usage_to_metrics[usage_id]
 
     def register_llm(self, event: RegistryEvent):
-        # Listen for LLM creations and track their metrics
+        # 聆听 LLM 个创作并跟踪其指标
         llm = event.llm
         usage_id = llm.usage_id
 
-        # Usage costs exist but have not been restored yet
+        # 使用费用存在但尚未恢复
         if (
             usage_id in self.usage_to_metrics
             and usage_id not in self._restored_usage_ids
@@ -80,6 +80,6 @@ class ConversationStats(BaseModel):
             llm.restore_metrics(self.usage_to_metrics[usage_id])
             self._restored_usage_ids.add(usage_id)
 
-        # Usage is new, track its metrics
+        # 使用是新的，跟踪其指标
         if usage_id not in self.usage_to_metrics and llm.metrics:
             self.usage_to_metrics[usage_id] = llm.metrics

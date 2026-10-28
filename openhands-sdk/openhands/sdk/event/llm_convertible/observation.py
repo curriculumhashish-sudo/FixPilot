@@ -10,14 +10,14 @@ from openhands.sdk.llm import Message, TextContent, content_to_str
 from openhands.sdk.tool.schema import Observation
 
 
-# Source of action rejection - used to distinguish user rejections from hook blocks
+# 动作拒绝的来源 - 用于区分用户拒绝和钩子块
 RejectionSource = Literal["user", "hook"]
 
 
 class ObservationBaseEvent(LLMConvertibleEvent):
-    """Base class for anything as a response to a tool call.
+    """作为对工具调用响应的任何内容的基类。
 
-    Examples include tool execution, error, user reject.
+    示例包括工具执行、错误、用户拒绝。
     """
 
     source: SourceType = "environment"
@@ -46,7 +46,7 @@ class ObservationEvent(ObservationBaseEvent):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation event."""
+        """返回此观测结果事件的富文本表示。"""
         to_viz = self.observation.visualize
         content = Text()
         if to_viz.plain.strip():
@@ -54,8 +54,9 @@ class ObservationEvent(ObservationBaseEvent):
             content.append(self.tool_name)
             content.append("\nResult:\n", style="bold")
             content.append(to_viz)
-        # Surface agent-context injections (e.g. path-scoped rules) for parity
-        # with MessageEvent, so triggered rules are visible when debugging.
+        # 表面智能体-上下文注射 (e.g. 路径范围的规则）与 MessageEvent 奇偶校验，因此在调
+        # 试时触发的规则是可见的。
+        #
         if self.extended_content:
             content.append(
                 "\n\nPrompt Extension based on Agent Context:\n", style="bold"
@@ -72,7 +73,7 @@ class ObservationEvent(ObservationBaseEvent):
         )
 
     def __str__(self) -> str:
-        """Plain text string representation for ObservationEvent."""
+        """ObservationEvent 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
         content_str = "".join(content_to_str(self.observation.to_llm_content))
         obs_preview = (
@@ -84,11 +85,11 @@ class ObservationEvent(ObservationBaseEvent):
 
 
 class UserRejectObservation(ObservationBaseEvent):
-    """Observation when an action is rejected by user or hook.
+    """观测结果当操作被用户或挂钩拒绝时。
 
-    This event is emitted when:
-    - User rejects an action during confirmation mode (rejection_source="user")
-    - A PreToolUse hook blocks an action (rejection_source="hook")
+    该事件在以下情况下发出：
+    - 用户在确认模式期间拒绝操作 (rejection_source="user")
+    - PreToolUse 钩子阻止操作 (rejection_source="hook")
     """
 
     rejection_reason: str = Field(
@@ -108,7 +109,7 @@ class UserRejectObservation(ObservationBaseEvent):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this user rejection event."""
+        """返回此用户拒绝事件的富文本表示形式。"""
         content = Text()
         content.append("Tool: ", style="bold")
         content.append(self.tool_name)
@@ -125,7 +126,7 @@ class UserRejectObservation(ObservationBaseEvent):
         )
 
     def __str__(self) -> str:
-        """Plain text string representation for UserRejectObservation."""
+        """UserRejectObservation 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
         reason_preview = (
             self.rejection_reason[:N_CHAR_PREVIEW] + "..."
@@ -136,10 +137,10 @@ class UserRejectObservation(ObservationBaseEvent):
 
 
 class AgentErrorEvent(ObservationBaseEvent):
-    """Error triggered by the agent.
+    """由智能体触发的错误。
 
-    Note: This event should not contain model "thought" or "reasoning_content". It
-    represents an error produced by the agent/scaffold, not model output.
+    Note: 此事件不应包含模型“想法”或“reasoning_content”。 它
+    表示由代理/支架产生的错误，而不是模型输出。
     """
 
     source: SourceType = "agent"
@@ -151,13 +152,12 @@ class AgentErrorEvent(ObservationBaseEvent):
 
     @model_validator(mode="after")
     def classify(self) -> "AgentErrorEvent":
-        """Default to UNKNOWN when the producer did not supply a classification.
+        """当生产者未提供分类时默认为 UNKNOWN。
 
-        ``AgentErrorEvent`` describes *where* an error was surfaced (the agent
-        scaffold), not *why* it happened. Producers that know the error is an
-        expected, agent-correctable validation failure pass ``AGENT_ACTION``
-        explicitly; unexpected exceptions and crash-recovery paths leave the
-        default so telemetry treats them as diagnostics.
+        ``AgentErrorEvent``描述*哪里*出现错误（智能体脚手架），而不是*为什么*发生错误
+        。 知道错误是预期的、智能体-可纠正的验证失败的生产者显
+        式地通过``AGENT_ACTION``； 意外异常和崩溃恢复路径保留默认值，因此遥测将它们视
+        为诊断。
         """
         if self.classification is None:
             object.__setattr__(
@@ -169,15 +169,16 @@ class AgentErrorEvent(ObservationBaseEvent):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this agent error event."""
+        """返回此智能体错误事件的富文本表示形式。"""
         content = Text()
         content.append("Error Details:\n", style="bold")
         content.append(self.error)
         return content
 
     def to_llm_message(self) -> Message:
-        # Provide plain string error content; serializers handle Chat vs Responses.
-        # For Responses API, output is a string; JSON is not required.
+        # 提供纯字符串错误内容； 序列化器处理聊天与响应。 对于ResponsesAPI，输出是一个字
+        # 符串； JSON 不是必需的。
+        #
         return Message(
             role="tool",
             content=[TextContent(text=self.error)],
@@ -186,7 +187,7 @@ class AgentErrorEvent(ObservationBaseEvent):
         )
 
     def __str__(self) -> str:
-        """Plain text string representation for AgentErrorEvent."""
+        """AgentErrorEvent 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
         error_preview = (
             self.error[:N_CHAR_PREVIEW] + "..."

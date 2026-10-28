@@ -1,13 +1,12 @@
 """
-API Compliance Test: Duplicate tool_call_id
+API 合规性测试：重复 tool_call_id
 
-Tests how different LLM APIs respond when multiple tool_result messages
-have the same tool_call_id.
+测试不同 LLM APIs 对应的响应，当 tool_result 消息有相同的 tool_call_id 时。
 
 
-Pattern:
+图案：
     [assistant with tool_use id=X] → [tool_result id=X] → ... → [tool_result id=X]
-                                                                 ↑ Duplicate!
+                                                                 ↑ 重复！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -27,7 +26,7 @@ This pattern can occur when:
 
 
 class DuplicateToolCallIdTest(BaseAPIComplianceTest):
-    """Test API response to duplicate tool_call_id."""
+    """测试 API 对重复 tool_call_id 的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -38,7 +37,7 @@ class DuplicateToolCallIdTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with duplicate tool_call_id."""
+        """构建具有重复 tool_call_id 的消息序列。"""
         return [
             Message(
                 role="system",
@@ -48,7 +47,7 @@ class DuplicateToolCallIdTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="List the files in the current directory.")],
             ),
-            # Assistant message with tool_use
+            # 助理消息 tool_use
             Message(
                 role="assistant",
                 content=[TextContent(text="I'll list the files for you.")],
@@ -61,14 +60,14 @@ class DuplicateToolCallIdTest(BaseAPIComplianceTest):
                     )
                 ],
             ),
-            # First tool result (correct)
+            # 第一个工具结果（正确）
             Message(
                 role="tool",
                 content=[TextContent(text="file1.txt\nfile2.txt")],
                 tool_call_id="call_abc123",
                 name="terminal",
             ),
-            # Some intervening messages (simulating conversation continuation)
+            # 一些介入消息（模拟对话继续）
             Message(
                 role="user",
                 content=[TextContent(text="Thanks! Now what?")],
@@ -85,11 +84,11 @@ class DuplicateToolCallIdTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="Actually, show me the files again.")],
             ),
-            # DUPLICATE: Second tool result with SAME tool_call_id
+            # DUPLICATE：带有 SAME tool_call_id 的第二个工具结果
             Message(
                 role="tool",
                 content=[TextContent(text="file1.txt\nfile2.txt\nfile3.txt")],
-                tool_call_id="call_abc123",  # Same ID as before!
+                tool_call_id="call_abc123",  # 和之前的ID一样！
                 name="terminal",
             ),
         ]

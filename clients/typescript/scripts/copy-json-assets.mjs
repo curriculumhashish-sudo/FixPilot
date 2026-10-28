@@ -1,7 +1,5 @@
-// Copy non-TS assets (.json) from src/ to dist/ after tsc runs.
-// tsc does not emit imported JSON files even with resolveJsonModule;
-// without this step, `import x from './acp-providers.json'` resolves at
-// compile time but fails at runtime in the published package.
+// tsc 运行后，将非 TS 资源 (.JSON) 从 src/ 复制到 dist/。 即使使用 resolveJsonModule，tsc 也不会发出导入的 JSON 文件； 如果没有此步骤，`import x from './acp-providers.json'` 将在编译时解析，但在已发布的包中运行时失败。
+//
 
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';

@@ -38,7 +38,7 @@ def test_delete(file_cache):
 
 
 def test_delete_nonexistent_key(file_cache):
-    file_cache.delete("nonexistent_key")  # Should not raise an exception
+    file_cache.delete("nonexistent_key")  # 不应引发异常
 
 
 def test_contains(file_cache):
@@ -69,7 +69,7 @@ def test_iter(file_cache):
     reason="Skip large value test on CI since it will break due to memory limits",
 )
 def test_large_value(file_cache):
-    large_value = "x" * 1024 * 1024  # 1 MB string
+    large_value = "x" * 1024 * 1024  # 1 MB 字符串
     file_cache.set("large_key", large_value)
     assert file_cache.get("large_key") == large_value
 
@@ -122,8 +122,8 @@ def test_size_limit():
         cache.set("key2", val2)
 
         val3 = "z" * 40
-        # This should cause key1 to be evicted
-        cache.set("key3", val3)  # 40 bytes
+        # 这应该会导致 key1 被驱逐
+        cache.set("key3", val3)  # 40字节
 
         assert "key1" not in cache
         assert "key2" in cache
@@ -164,12 +164,12 @@ def test_special_characters_in_key(file_cache):
 
 def test_size_limit_with_empty_key():
     with tempfile.TemporaryDirectory() as temp_dir:
-        cache = FileCache(temp_dir, size_limit=100)  # 100 bytes limit
-        cache.set("", "x" * 50)  # 50 bytes with empty key
-        cache.set("key2", "y" * 60)  # 60 bytes
+        cache = FileCache(temp_dir, size_limit=100)  # 100 字节限制
+        cache.set("", "x" * 50)  # 50 字节，带空键
+        cache.set("key2", "y" * 60)  # 60字节
 
-        # This should cause the empty key to be evicted
-        cache.set("key3", "z" * 40)  # 40 bytes
+        # 这应该会导致空键被驱逐
+        cache.set("key3", "z" * 40)  # 40字节
 
         assert "" not in cache
         assert "key2" in cache
@@ -178,4 +178,4 @@ def test_size_limit_with_empty_key():
         assert cache.get("key3") == "z" * 40
 
 
-# Add more tests as needed
+# 根据需要添加更多测试

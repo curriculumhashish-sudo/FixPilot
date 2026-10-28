@@ -1,14 +1,11 @@
-"""Typed ACP capability and session contracts.
+"""输入 ACP 功能和会话合同。
 
-Defines explicit typed models, protocols, and boundary normalization helpers
-for ACP objects (session response options, model selection, MCP capabilities,
-protocol errors, credential revisions, and serialization).
+定义了显式类型模型、协议和边界标准化辅助工具，用于ACP对象（会话响应选项、模型选择、
+MCP能力、协议错误、凭据修订和序列化）。
 
-All dynamic attribute probing (for backward/forward protocol version
-compatibility and UNSTABLE extensions) is confined to the normalization
-boundary functions in this module. Downstream code in ACPAgent and its helpers
-interacts strictly with typed dataclasses and protocols via direct attribute
-access.
+所有动态属性探测（用于后/前协议版本兼容性和UNSTABLE扩展）仅限于本模块中的规范化边界函
+数。 ACPAgent 下游代码及其辅助代码严格通过直接属性访问与类型数据类和
+协议交互。
 """
 
 from __future__ import annotations
@@ -26,20 +23,20 @@ _MODEL_CONFIG_OPTION_ID = "model"
 
 
 # ---------------------------------------------------------------------------
-# Auth Method Contracts
+# 认证方法合约
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPAuthMethodProtocol(Protocol):
-    """Protocol for an auth method returned by an ACP server."""
+    """ACP 服务器返回的身份验证方法的协议。"""
 
     id: str
 
 
 @runtime_checkable
 class ACPAuthMethodWithTypeProtocol(Protocol):
-    """Protocol for an auth method specifying a login type (e.g. terminal)."""
+    """指定登录类型的身份验证方法的协议 (e.g. 终端）。"""
 
     id: str
     type: str | None
@@ -47,14 +44,14 @@ class ACPAuthMethodWithTypeProtocol(Protocol):
 
 @dataclass(frozen=True)
 class ACPAuthMethod:
-    """Normalized ACP auth method descriptor."""
+    """标准化 ACP 身份验证方法描述符。"""
 
     id: str
     type: str | None = None
 
 
 def normalize_auth_method(raw: Any) -> ACPAuthMethod:
-    """Normalize raw ACP auth method at the external-library boundary."""
+    """在外部库边界标准化 raw ACP auth 方法。"""
     if isinstance(raw, ACPAuthMethod):
         return raw
     if isinstance(raw, Mapping):
@@ -73,13 +70,13 @@ def normalize_auth_method(raw: Any) -> ACPAuthMethod:
 
 
 # ---------------------------------------------------------------------------
-# Model and Session Config Option Contracts
+# 模型和会话配置选项合约
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPConfigOptionBasicProtocol(Protocol):
-    """Minimal protocol for any ACP config option."""
+    """任何 ACP 配置选项的最小协议。"""
 
     id: str
     type: str
@@ -87,55 +84,55 @@ class ACPConfigOptionBasicProtocol(Protocol):
 
 @runtime_checkable
 class ACPConfigOptionValueProtocol(Protocol):
-    """Protocol for an option carrying a current selection."""
+    """携带当前选择的选项的协议。"""
 
     current_value: str | None
 
 
 @runtime_checkable
 class ACPConfigOptionOptionsProtocol(Protocol):
-    """Protocol for a select option carrying available options."""
+    """用于携带可用选项的选择选项的协议。"""
 
     options: list[Any]
 
 
 @runtime_checkable
 class ACPRootModelProtocol(Protocol):
-    """Protocol for Pydantic RootModel-wrapped options (agent-client-protocol 0.8.x)."""
+    """Pydantic RootModel 包装选项的协议 (智能体-client-protocol 0.8.x)。"""
 
     root: Any
 
 
 @runtime_checkable
 class ACPSessionConfigOptionsResponseProtocol(Protocol):
-    """Protocol for session responses exposing config options."""
+    """公开配置选项的会话响应协议。"""
 
     config_options: list[Any] | None
 
 
 @runtime_checkable
 class ACPCurrentModelIdProtocol(Protocol):
-    """Protocol for objects carrying a current_model_id attribute."""
+    """带有 current_model_id 属性的对象的协议。"""
 
     current_model_id: str | None
 
 
 @runtime_checkable
 class ACPAvailableModelsProtocol(Protocol):
-    """Protocol for objects carrying an available_models list."""
+    """携带 available_models 列表的对象的协议。"""
 
     available_models: list[Any] | None
 
 
 @runtime_checkable
 class ACPSessionModelsResponseProtocol(Protocol):
-    """Protocol for session responses exposing the UNSTABLE models block."""
+    """公开 UNSTABLE 模型块的会话响应协议。"""
 
     models: Any | None
 
 
 class ACPLegacyModelInfo(BaseModel):
-    """One entry of the UNSTABLE ``models`` block, as servers send it."""
+    """服务器发送时，UNSTABLE ``models`` 块的一项。"""
 
     model_config = ConfigDict(populate_by_name=True, protected_namespaces=())
 
@@ -145,7 +142,7 @@ class ACPLegacyModelInfo(BaseModel):
 
 
 class ACPLegacySessionModels(BaseModel):
-    """The UNSTABLE ``models`` block, which the ACP 0.12 schema no longer models."""
+    """UNSTABLE ``models`` 块，ACP 0.12 模式不再对其建模。"""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -157,13 +154,13 @@ class ACPLegacySessionModels(BaseModel):
 
 @runtime_checkable
 class ACPLegacyModelSwitchConnection(Protocol):
-    """Protocol for connections supporting the legacy set_session_model RPC."""
+    """支持传统 set_session_model RPC 的连接协议。"""
 
     async def set_session_model(self, *, model_id: str, session_id: str) -> Any: ...
 
 
 def supports_legacy_model_switch(conn: Any) -> bool:
-    """Return True if conn supports the legacy set_session_model RPC."""
+    """如果 conn 支持旧版 set_session_model RPC，则返回 True。"""
     return isinstance(conn, ACPLegacyModelSwitchConnection) or hasattr(
         conn, "set_session_model"
     )
@@ -171,7 +168,7 @@ def supports_legacy_model_switch(conn: Any) -> bool:
 
 @dataclass(frozen=True)
 class ACPConfigSelectOption:
-    """Normalized config select option from a session response."""
+    """从会话响应中标准化配置选择选项。"""
 
     id: str
     type: str
@@ -181,7 +178,7 @@ class ACPConfigSelectOption:
 
 @dataclass(frozen=True)
 class ACPSessionModelState:
-    """Model state extracted from a session response at the boundary."""
+    """从边界处的会话响应中提取的模型状态。"""
 
     current_model_id: str | None
     available_models: list[ACPModelInfo] | None
@@ -189,10 +186,10 @@ class ACPSessionModelState:
 
 
 def extract_model_config_option(response: Any) -> ACPConfigSelectOption | None:
-    """Extract the model select option from a session response at the boundary.
+    """从边界处的会话响应中提取模型选择选项。
 
-    Normalizes across agent-client-protocol 0.8.x (RootModel wrapped) and 0.10.x+
-    (direct union members), as well as dictionary payloads.
+    跨智能体-client-protocol 0.8.x（RootModel 包装）和 0.10.x+（直接联合成员）以及字
+    典载荷进行规范化。
     """
     if response is None:
         return None
@@ -246,10 +243,11 @@ def extract_session_models(
     *,
     default_via_config_option: bool = False,
 ) -> ACPSessionModelState:
-    """Extract model state off a session response into a typed contract.
+    """将会话响应中的模型状态提取到类型化合约中。
 
-    Handles both the newer ``configOptions`` model select mechanism and the
-    UNSTABLE legacy ``models`` block, returning an :class:`ACPSessionModelState`.
+    处理较新的 ``configOptions`` 模型选择机制和 UNSTABLE 旧 ``models`` 块，返回：
+    class:
+    `ACPSessionModelState`。
     """
     if response is None:
         return ACPSessionModelState(
@@ -258,7 +256,7 @@ def extract_session_models(
             via_config_option=default_via_config_option,
         )
 
-    # 1. Prefer configOptions
+    # 1. 偏好 configOptions
     opt = extract_model_config_option(response)
     if opt is not None:
         current = opt.current_value
@@ -274,7 +272,7 @@ def extract_session_models(
             via_config_option=True,
         )
 
-    # 2. Fall back to legacy models capability
+    # 2. 回退到旧模型功能
     models_block = None
     if isinstance(response, ACPSessionModelsResponseProtocol):
         models_block = response.models
@@ -315,34 +313,34 @@ def extract_session_models(
 
 
 # ---------------------------------------------------------------------------
-# MCP Capabilities Contracts
+# MCP 能力合同
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPMcpHttpCapabilityProtocol(Protocol):
-    """Protocol for MCP capabilities advertising http transport."""
+    """MCP 功能广告 HTTP 传输层的协议。"""
 
     http: bool
 
 
 @runtime_checkable
 class ACPMcpSseCapabilityProtocol(Protocol):
-    """Protocol for MCP capabilities advertising sse transport."""
+    """用于 MCP 功能广告 sse 传输层的协议。"""
 
     sse: bool
 
 
 @dataclass(frozen=True)
 class ACPMcpCapabilities:
-    """Normalized MCP capabilities from an ACP initialize response."""
+    """来自 ACP 初始化响应的标准化 MCP 功能。"""
 
     http: bool = False
     sse: bool = False
 
 
 def normalize_mcp_capabilities(raw: Any) -> ACPMcpCapabilities:
-    """Normalize raw MCP capabilities at the boundary."""
+    """标准化边界处的原始 MCP 能力。"""
     if isinstance(raw, ACPMcpCapabilities):
         return raw
     if isinstance(raw, Mapping):
@@ -356,27 +354,27 @@ def normalize_mcp_capabilities(raw: Any) -> ACPMcpCapabilities:
 
 
 # ---------------------------------------------------------------------------
-# Error Info Contracts
+# 错误信息合同
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPErrorCodeProtocol(Protocol):
-    """Protocol for exceptions carrying a JSON-RPC error code."""
+    """携带 JSON-RPC 错误代码的异常协议。"""
 
     code: int | None
 
 
 @runtime_checkable
 class ACPErrorDataProtocol(Protocol):
-    """Protocol for exceptions carrying an error data payload."""
+    """携带错误数据的异常协议载荷。"""
 
     data: Any
 
 
 @dataclass(frozen=True)
 class ACPErrorInfo:
-    """Typed error details extracted from an ACP exception at the boundary."""
+    """从边界处的 ACP 异常中提取的类型化错误详细信息。"""
 
     code: int | None
     message: str
@@ -384,7 +382,7 @@ class ACPErrorInfo:
 
 
 def normalize_acp_error(exc: BaseException) -> ACPErrorInfo:
-    """Extract structured error information at the exception boundary."""
+    """提取异常边界处的结构化错误信息。"""
     code = (
         exc.code
         if isinstance(exc, ACPErrorCodeProtocol) and isinstance(exc.code, int)
@@ -395,30 +393,30 @@ def normalize_acp_error(exc: BaseException) -> ACPErrorInfo:
 
 
 # ---------------------------------------------------------------------------
-# File Credential Binding Revision Contracts
+# 文件凭据具有约束力的修订合同
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPRevisionedCredentialBinding(Protocol):
-    """Protocol for credential bindings that expose authorization_revision."""
+    """用于公开 authorization_revision 的凭据绑定的协议。"""
 
     @property
     def authorization_revision(self) -> int | None: ...
 
 
 # ---------------------------------------------------------------------------
-# Serialization / Tracing Contracts
+# 序列化 / 追踪合约
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class ACPModelDumpable(Protocol):
-    """Protocol for objects supporting Pydantic-style model_dump."""
+    """支持 Pydantic 样式 model_dump 的对象的协议。"""
 
     def model_dump(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 def is_model_dumpable(obj: Any) -> bool:
-    """Return True if obj is a BaseModel or implements model_dump()."""
+    """如果 obj 是 BaseModel 或实现 model_dump()，则返回 True。"""
     return isinstance(obj, (BaseModel, ACPModelDumpable)) or hasattr(obj, "model_dump")

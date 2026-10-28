@@ -106,8 +106,9 @@ def test_ask_oracle_tool_added_by_name() -> None:
     )
     conversation = LocalConversation(agent=agent, workspace=Path.cwd())
     conversation._ensure_agent_ready()
-    # Plugin loading replaces conversation.agent with an initialized copy, so
-    # assert on the live agent rather than the now-stale local reference.
+    # 插件加载将 conversation.agent 替换为初始化的副本，因此对实时智能体而不是现在过时的
+    # 本地引用进行断言。
+    #
     assert "ask_oracle" in conversation.agent.tools_map
 
 

@@ -1,17 +1,17 @@
 /**
- * End-to-end integration tests for complete agent workflows
+ * 完整智能体工作流程的端到端集成测试
  *
- * Tests full scenarios from task to completion, verifying actual
- * changes in the mounted workspace.
+ * 测试从任务到完成的完整场景，验证实际情况
+ * 已安装的工作区发生变化。
  *
- * NOTE: Many tests in this file are skipped by default because they depend on
- * LLM behavior which is non-deterministic and can be slow. These tests are
- * useful for local development and manual verification but are not suitable
- * for CI due to their flaky nature.
+ * 注意：默认情况下会跳过此文件中的许多测试，因为它们依赖于
+ * LLM 行为是不确定的并且可能很慢。 这些测试是
+ * 对于本地开发和手动验证有用但不适合
+ * 由于其片状性质，CI。
  *
- * To run all tests including skipped ones locally:
- * - Set SKIP_FLAKY_TESTS=false in your environment
- * - Ensure you have valid LLM credentials
+ * 要在本地运行所有测试（包括跳过的测试）：
+ * - 在您的环境中设置 SKIP_FLAKY_TESTS=False
+ * - 确保您有有效的 LLM 凭据
  */
 
 import { Conversation, Workspace, Agent, Event, AgentExecutionStatus } from '../../index';
@@ -31,7 +31,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const SKIP_TESTS = skipIfNoConfig();
-// Skip flaky tests that depend on LLM behavior in CI
+// 跳过依赖于 CI 中的 LLM 行为的不稳定测试
 const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
 
 describe('End-to-End Integration Tests', () => {
@@ -46,7 +46,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('File Creation Tasks', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -174,7 +174,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('File Modification Tasks', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -186,7 +186,7 @@ describe('End-to-End Integration Tests', () => {
         const fullPath = `${config.agentWorkspaceDir}/${fileName}`;
         const originalContent = 'Line 1\nLine 2\nLine 3';
 
-        // Create original file
+        // 创建原始文件
         writeWorkspaceFile(fileName, originalContent);
 
         const agent = new Agent({ llm: createTestLLMConfig() });
@@ -262,7 +262,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('File Deletion Tasks', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -303,7 +303,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('Directory Operations', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -342,7 +342,7 @@ describe('End-to-End Integration Tests', () => {
         const content = readWorkspaceFile(filePath);
         expect(content).toContain('File in directory');
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(filePath);
         const hostDirPath = path.join(config.hostWorkspaceDir, dirName);
         if (fs.existsSync(hostDirPath)) {
@@ -359,7 +359,7 @@ describe('End-to-End Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create some files
+        // 创建一些文件
         const file1 = uniqueFileName('list1');
         const file2 = uniqueFileName('list2');
         writeWorkspaceFile(file1, 'Content 1');
@@ -388,11 +388,11 @@ describe('End-to-End Integration Tests', () => {
 
         await sleep(2000);
 
-        // Check that we received observation events with the ls output
+        // 检查我们是否通过 ls 输出收到了观测结果事件
         const obsEvents = receivedEvents.filter((e) => e.kind === 'ObservationEvent');
         expect(obsEvents.length).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(file1);
         deleteWorkspaceFile(file2);
 
@@ -404,7 +404,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('Multi-step Tasks', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -451,7 +451,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('Error Recovery', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -485,7 +485,7 @@ describe('End-to-End Integration Tests', () => {
 
         await sleep(2000);
 
-        // Agent should have completed (not crashed) - error is also acceptable
+        // 智能体应该已完成（未崩溃）- 错误也是可以接受的
         const finalStatus = await conversation.state.getAgentStatus();
         expect([
           AgentExecutionStatus.IDLE,
@@ -501,7 +501,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('Conversation Continuation', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -523,7 +523,7 @@ describe('End-to-End Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 40 });
 
-        // First task
+        // 第一个任务
         await conversation.sendMessage(
           `Create a file at "${fullPath1}" with content "First file".`
         );
@@ -535,7 +535,7 @@ describe('End-to-End Integration Tests', () => {
 
         expect(workspaceFileExists(fileName1)).toBe(true);
 
-        // Second task in same conversation
+        // 同一对话中的第二个任务
         await conversation.sendMessage(
           `Now create another file at "${fullPath2}" with content "Second file".`
         );
@@ -549,11 +549,11 @@ describe('End-to-End Integration Tests', () => {
 
         expect(workspaceFileExists(fileName2)).toBe(true);
 
-        // Both files should exist
+        // 两个文件都应该存在
         expect(workspaceFileExists(fileName1)).toBe(true);
         expect(workspaceFileExists(fileName2)).toBe(true);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName1);
         deleteWorkspaceFile(fileName2);
         await conversation.close();
@@ -563,7 +563,7 @@ describe('End-to-End Integration Tests', () => {
   });
 
   describe('Large Content Handling', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -572,7 +572,7 @@ describe('End-to-End Integration Tests', () => {
         if (SKIP_TESTS) return;
 
         const fileName = uniqueFileName('e2e-large');
-        // Create a file with multiple lines
+        // 创建一个多行文件
         const lines = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}: ${randomContent(50)}`);
         writeWorkspaceFile(fileName, lines.join('\n'));
 
@@ -594,7 +594,7 @@ describe('End-to-End Integration Tests', () => {
           timeout: 90000,
         });
 
-        // Agent should complete successfully
+        // 智能体应该成功完成
         const finalStatus = await conversation.state.getAgentStatus();
         expect([AgentExecutionStatus.IDLE, AgentExecutionStatus.FINISHED]).toContain(finalStatus);
 

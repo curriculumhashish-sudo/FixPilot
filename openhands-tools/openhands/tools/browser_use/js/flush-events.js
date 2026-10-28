@@ -1,6 +1,6 @@
 (function() {
     var events = window.__rrweb_events || [];
-    // Clear browser-side events after flushing
+    // 刷新后清除浏览器端事件
     window.__rrweb_events = [];
     return JSON.stringify({events: events});
 })();

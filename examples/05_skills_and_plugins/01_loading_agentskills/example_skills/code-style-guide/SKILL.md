@@ -6,26 +6,32 @@ description: >
 license: MIT
 ---
 
-# Code Style Guide
+<a id="code-style-guide"></a>
 
-Follow these conventions for all code in this project.
+# 代码风格指南
+
+此项目中的所有代码都遵循这些约定。
 
 ## Python
 
-- Use 4 spaces for indentation
-- Maximum line length: 88 characters (Black default)
-- Use type hints for function signatures
-- Prefer f-strings over `.format()` or `%` formatting
+- 使用 4 个空格进行缩进
+- 最大行长：88个字符（黑色默认）
+- 使用类型提示作为函数签名
+- 优先使用 f 字符串而不是 `.format()` 或 `%` 格式
 
-## Naming Conventions
+<a id="naming-conventions"></a>
 
-- Classes: `PascalCase`
-- Functions/variables: `snake_case`
-- Constants: `UPPER_SNAKE_CASE`
-- Private members: `_leading_underscore`
+## 命名约定
 
-## Documentation
+- 课程：`PascalCase`
+- 函数/变量：`snake_case`
+- 常数：`UPPER_SNAKE_CASE`
+- 私人会员：`_leading_underscore`
 
-- All public functions must have docstrings
-- Use Google-style docstrings
-- Include type information in docstrings when not using type hints
+<a id="documentation"></a>
+
+## 文档
+
+- 所有公共职能必须有文档字符串
+- 使用 Google 风格文档字符串
+- 不使用类型提示时，在文档字符串中包含类型信息

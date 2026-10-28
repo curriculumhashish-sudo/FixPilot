@@ -1,4 +1,4 @@
-"""Test that agent renames methods without adding backward compatibility shims."""
+"""测试智能体重命名方法而不添加向后兼容性垫片。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ INSTRUCTION = append_environment_tips(INSTRUCTION_BODY)
 
 
 class NoUselessBackwardCompatibilityTest(SoftwareAgentSDKBehaviorTest):
-    """Ensure the agent does not preserve unnecessary backward compatibility."""
+    """确保智能体不保留不必要的向后兼容性。"""
 
     INSTRUCTION: str = INSTRUCTION
 

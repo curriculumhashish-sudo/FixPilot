@@ -1,4 +1,4 @@
-"""Dynamic workflow tool definitions."""
+"""动态工作流程工具定义。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class WorkflowAction(Action):
-    """Schema for running a Python dynamic workflow script."""
+    """模式用于运行 Python 动态工作流脚本。"""
 
     name: str = Field(description="A short name for this workflow run.")
     script: str = Field(
@@ -44,7 +44,7 @@ class WorkflowAction(Action):
 
 
 class WorkflowObservation(Observation):
-    """Observation from a dynamic workflow run."""
+    """观测结果来自动态工作流程运行。"""
 
     name: str = Field(description="The workflow name that was executed.")
     status: Literal["completed", "error"] = Field(
@@ -136,11 +136,11 @@ running a workflow as approving generated code execution.
 
 
 class WorkflowTool(ToolDefinition[WorkflowAction, WorkflowObservation]):
-    """Low-level tool for explicit executor injection.
+    """用于显式执行程序注入的低级工具。
 
-    Prefer ``WorkflowToolSet`` for standard SDK auto-create usage.
-    Use ``WorkflowTool`` when you need to inject a custom executor
-    (e.g., in tests or extensions).
+    首选 ``WorkflowToolSet`` 标准 SDK 自动创建用法。 当您需要注入自定义执行器时，请使
+    用 ``WorkflowTool``（e.g.，在测试或
+    扩展中）。
     """
 
     user_selectable: ClassVar[bool] = False
@@ -177,7 +177,7 @@ class WorkflowTool(ToolDefinition[WorkflowAction, WorkflowObservation]):
 
 
 class WorkflowToolSet(ToolDefinition[WorkflowAction, WorkflowObservation]):
-    """Tool set that creates the dynamic workflow tool."""
+    """创建动态工作流程工具的工具集。"""
 
     user_selectable: ClassVar[bool] = False
 

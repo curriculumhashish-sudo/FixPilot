@@ -1,4 +1,4 @@
-"""Session socket semantics: framing, the replay boundary, backpressure."""
+"""会话套接字语义：成帧、重放边界，背压。"""
 
 import asyncio
 import json
@@ -34,7 +34,7 @@ def _msg(text: str) -> MessageEvent:
 
 
 class _FakeWebSocket:
-    """Records what actually reached the wire, and can be made to hang."""
+    """记录实际到达电线的内容，并可以将其挂起。"""
 
     def __init__(self) -> None:
         self.sent: list[str] = []
@@ -50,7 +50,7 @@ class _FakeWebSocket:
 
 
 class _FakeEventLog:
-    """Enough EventLog for framing: index by id, read by index, length."""
+    """足够的 EventLog 用于框架：按 id 索引，按索引读取，长度。"""
 
     def __init__(self) -> None:
         self._events: list = []
@@ -76,7 +76,7 @@ class _FakeEventLog:
 
 
 async def _drain(writer: _ConnectionWriter) -> None:
-    """Let the writer task flush what has been admitted."""
+    """让作者任务刷新已承认的内容。"""
     for _ in range(10):
         await asyncio.sleep(0)
 
@@ -98,13 +98,13 @@ async def test_durable_frame_carries_seq_and_untouched_event():
     (frame,) = ws.frames()
     assert frame["type"] == "durable"
     assert frame["seq"] == 0
-    # Byte-identical to what the legacy endpoint sends.
+    # 与旧版端点发送的字节相同。
     assert frame["event"] == event.model_dump(mode="json", exclude_none=True)
 
 
 @pytest.mark.asyncio
 async def test_deltas_never_reach_the_durable_channel():
-    """The bug that put token deltas on webhooks and telemetry."""
+    """将 token 增量放在 Webhook 和遥测上的错误。"""
     ws, log = _FakeWebSocket(), _FakeEventLog()
     writer = _ConnectionWriter(ws)  # type: ignore[arg-type]
     writer.start()
@@ -138,9 +138,9 @@ async def test_unpersisted_event_is_transient_and_carries_no_seq():
 
 @pytest.mark.asyncio
 async def test_replay_and_live_do_not_interleave_or_duplicate():
-    """Subscribe (buffering) -> read mark -> replay -> flush.
+    """订阅（缓冲）->读取标记->重放->刷新。
 
-    An event landing during replay arrives exactly once, after the history.
+    重播期间的事件着陆仅在历史记录之后到达一次。
     """
     ws, log = _FakeWebSocket(), _FakeEventLog()
     history = [_msg(f"h{i}") for i in range(3)]
@@ -153,7 +153,7 @@ async def test_replay_and_live_do_not_interleave_or_duplicate():
 
     through_seq = len(log) - 1
 
-    # Two arrive mid-replay: one already on disk, one genuinely new.
+    # 其中两份在重播中到达：一份已经在磁盘上，一份是真正新的。
     await sub(history[2])
     live = _msg("live")
     log.add(live)
@@ -171,11 +171,10 @@ async def test_replay_and_live_do_not_interleave_or_duplicate():
 
 @pytest.mark.asyncio
 async def test_persisted_state_update_is_durable_and_deduped():
-    """A ConversationStateUpdateEvent in the log must not be transient.
+    """日志中的 ConversationStateUpdateEvent 不能是暂时的。
 
-    append_event stores these, so deciding by type would strip their seq and
-    defeat the dedupe — the event would arrive from replay and again from the
-    buffer.
+    append_event 会存储这些信息，因此按类型决定会丢失它们的 seq 并破坏 dedupe — 事件
+    会从回放和缓冲区再次到达。
     """
     ws, log = _FakeWebSocket(), _FakeEventLog()
     state_update = ConversationStateUpdateEvent(key="execution_status", value="running")
@@ -186,7 +185,7 @@ async def test_persisted_state_update_is_durable_and_deduped():
     writer.start()
     sub = _SessionSubscriber(writer=writer, events=log)  # type: ignore[arg-type]
 
-    # Buffered mid-replay and also sent from disk: one copy must reach the wire.
+    # 缓冲中重播并且也从磁盘发送：一份副本必须到达线路。
     await sub(state_update)
     assert await _replay(log, 0, through_seq + 1, writer)  # type: ignore[arg-type]
     sub.go_live(through_seq)
@@ -200,10 +199,9 @@ async def test_persisted_state_update_is_durable_and_deduped():
 
 @pytest.mark.asyncio
 async def test_live_only_connection_keeps_events_buffered_during_subscribe():
-    """No replay ran, so nothing may be discarded as 'already replayed'.
+    """没有重播运行，因此任何内容都不会因为“已重播”而被丢弃。
 
-    A client omitting ``after_seq`` has no cursor to recover what deduping
-    against the mark would drop.
+    省略 ``after_seq`` 的客户端没有游标来恢复针对标记的重复数据删除操作将丢弃的内容。
     """
     ws, log = _FakeWebSocket(), _FakeEventLog()
     for i in range(3):
@@ -213,12 +211,12 @@ async def test_live_only_connection_keeps_events_buffered_during_subscribe():
     writer.start()
     sub = _SessionSubscriber(writer=writer, events=log)  # type: ignore[arg-type]
 
-    # Arrived during subscribe, so its seq is below the mark.
+    # 在订阅期间到达，因此其 seq 低于标记。
     raced = _msg("landed during subscribe")
     log.add(raced)
     await sub(raced)
 
-    # Live-only: the endpoint passes None when no replay happened.
+    # 仅直播：当没有重播发生时，端点通过 None。
     sub.go_live(None)
     await _drain(writer)
     await writer.aclose()
@@ -230,20 +228,19 @@ async def test_live_only_connection_keeps_events_buffered_during_subscribe():
 
 @pytest.mark.asyncio
 async def test_wedged_connection_drops_instead_of_blocking_the_publisher():
-    """Admission is synchronous: a stuck socket must never stall the caller.
+    """准入是同步：卡住的套接字绝不能阻止调用者。
 
-    What the legacy endpoint gets wrong by awaiting send_json in its
-    subscriber.
+    遗留端点在其订阅者中等待 send_json 会出现什么问题。
     """
     ws, log = _FakeWebSocket(), _FakeEventLog()
-    ws.gate = asyncio.Event()  # accepts nothing until released
+    ws.gate = asyncio.Event()  # 释放之前不接受任何内容
 
     writer = _ConnectionWriter(ws, max_pending_bytes=4096)  # type: ignore[arg-type]
     writer.start()
     sub = _SessionSubscriber(writer=writer, events=log)  # type: ignore[arg-type]
     sub.go_live(None)
 
-    # Publish far past the budget, and time the publisher.
+    # 发布远远超出预算，并为发布者计时。
     started = asyncio.get_running_loop().time()
     for i in range(500):
         event = _msg(f"m{i}" * 50)
@@ -261,8 +258,8 @@ async def test_wedged_connection_drops_instead_of_blocking_the_publisher():
 
 @pytest.mark.asyncio
 async def test_oversized_frame_drops_the_connection_not_the_event():
-    """Durable must survive a reconnect, so an unsendable frame kills the
-    connection and the client resumes from its cursor."""
+    """持久性必须在重新连接后仍然存在，因此无法发送的帧会杀死
+    连接，以及客户端从其光标处恢复。"""
     ws, log = _FakeWebSocket(), _FakeEventLog()
     writer = _ConnectionWriter(ws)  # type: ignore[arg-type]
     writer.start()
@@ -297,10 +294,10 @@ def test_replay_skips_unreadable_events_instead_of_failing():
 
 @pytest.mark.asyncio
 async def test_malformed_inbound_frame_is_reported_not_raised():
-    """A non-JSON text frame must not escape the inbound loop.
+    """非 JSON 文本框不得逃逸入站循环。
 
-    receive_json raises JSONDecodeError, not WebSocketDisconnect, so catching
-    only the latter let one bad frame take down the connection.
+    receive_json 引发 JSONDecodeError，而不是 WebSocketDisconnect，因此只捕获后者会导
+    致一个坏帧导致连接崩溃。
     """
     ws = _FakeWebSocket()
     writer = _ConnectionWriter(ws)  # type: ignore[arg-type]
@@ -327,13 +324,13 @@ async def test_malformed_inbound_frame_is_reported_not_raised():
     (frame,) = ws.frames()
     assert frame["type"] == "error"
     assert frame["code"] == "JSONDecodeError"
-    # The loop kept going rather than unwinding.
+    # 循环继续进行，而不是放松。
     assert receives == 2
 
 
 @pytest.mark.asyncio
 async def test_progress_frames_reach_the_wire_with_their_identity():
-    """StreamContext's frames map onto the envelope, one for one."""
+    """StreamContext的帧映射到外层，一一对应。"""
     ws = _FakeWebSocket()
     writer = _ConnectionWriter(ws)  # type: ignore[arg-type]
     writer.start()
@@ -368,7 +365,7 @@ async def test_progress_frames_reach_the_wire_with_their_identity():
         "reasoning",
         "thinking",
     )
-    # The provider's own identity, carried through as corroboration.
+    # 提供者自己的身份，作为佐证进行。
     assert (delta["chunk_id"], delta["choice_index"]) == ("chatcmpl-9", 0)
     assert aborted["type"] == "item_aborted"
     assert aborted["reason"] == "cancelled"
@@ -376,7 +373,7 @@ async def test_progress_frames_reach_the_wire_with_their_identity():
 
 @pytest.mark.asyncio
 async def test_a_dropped_progress_frame_does_not_drop_the_connection():
-    """Progress is recoverable from the durable event, so it is droppable."""
+    """进度可以从持久事件中恢复，因此它是可删除的。"""
     ws = _FakeWebSocket()
     writer = _ConnectionWriter(ws)  # type: ignore[arg-type]
     writer.start()

@@ -86,9 +86,9 @@ async def main(wf):
         '  "result:inspect beta"\n]'
     )
     assert result.startswith("result:summarize the results")
-    # map_agents uses asyncio.to_thread; thread scheduling is non-deterministic so the
-    # first two prompts may arrive in any order. gather() preserves result ordering but
-    # not dispatch order — use set comparison for the map phase.
+    # map_agents 使用 asyncio.to_thread； 线程调度是不确定的，因此前两个提示词可能以任何
+    # 顺序到达。 gather() 保留结果排序但不保留调度顺序——在映射阶段使用集合比较。
+    #
     assert set(manager.prompts[:2]) == {
         "researcher: inspect alpha",
         "researcher: inspect beta",
@@ -344,7 +344,7 @@ def test_workflow_context_close_is_idempotent() -> None:
     context = _context(manager)
 
     context.close()
-    context.close()  # second call must not raise
+    context.close()  # 第二次调用不得引发
     assert manager.closed
 
 
@@ -358,7 +358,7 @@ def test_run_agent_raises_after_close() -> None:
 
 
 def test_map_agents_respects_context_concurrency_cap() -> None:
-    """Per-call max_concurrency must be silently capped at context max."""
+    """每条调用 max_concurrency 必须被无声地限制在上下文的最大值。"""
 
     class _PeakTrackingManager(_FakeTaskManager):
         def __init__(self) -> None:
@@ -390,7 +390,7 @@ def test_map_agents_respects_context_concurrency_cap() -> None:
                 with self._lock:
                     self._active -= 1
 
-    # Context capped at 3; per-call max_concurrency=1000 should be min'd to 3
+    # 上下文上限为 3； 每次调用 max_concurrency=1000 应最小化为 3
     context_cap = 3
     manager = _PeakTrackingManager()
     context = _context(manager, max_concurrency=context_cap)
@@ -417,7 +417,7 @@ def test_pipeline_returns_results_in_item_order() -> None:
 
 
 def test_pipeline_has_no_barrier_between_stages() -> None:
-    """A fast item reaches a later stage while a slow item is still in stage 1."""
+    """快的项目到达较晚的阶段，而慢的项目仍处于第 1 阶段。"""
     ctx = _context(_FakeTaskManager())
     order: list[str] = []
 
@@ -434,8 +434,8 @@ def test_pipeline_has_no_barrier_between_stages() -> None:
         return item
 
     result = asyncio.run(ctx.pipeline(["slow", "fast"], stage1, stage2))
-    assert result == ["slow", "fast"]  # order preserved despite race
-    # fast reached stage 2 before slow finished stage 1 -> no barrier
+    assert result == ["slow", "fast"]  # 尽管种族不同，秩序仍得以保留
+    # 在慢速完成第 1 阶段之前，快达到第 2 阶段 -> 没有障碍
     assert order.index("fast:s2") < order.index("slow:s1:end")
 
 
@@ -496,15 +496,15 @@ def test_format_value_small_passthrough() -> None:
 
 
 def test_format_value_large_list_drops_whole_elements() -> None:
-    """Over-limit lists drop whole trailing elements and stay valid JSON, instead
-    of slicing mid-token."""
+    """超出限制的列表会删除整个尾随元素并保持有效 JSON，而不是
+    切片中间token。"""
     value = [f"finding {i}: " + "x" * 500 for i in range(60)]
     out = _format_value(value)
     assert "items omitted to fit" in out
     assert len(out) <= _MAX_REDUCE_INPUT_CHARS + 80
     head = out.split("\n... [")[0]
-    parsed = json.loads(head)  # must be valid JSON (the whole point)
-    assert parsed == value[: len(parsed)]  # leading elements kept, in order
+    parsed = json.loads(head)  # 必须有效 JSON（整点）
+    assert parsed == value[: len(parsed)]  # 主要要素保持有序
     assert 0 < len(parsed) < len(value)
 
 
@@ -518,7 +518,7 @@ def test_format_value_large_dict_drops_whole_keys() -> None:
 
 
 def test_format_value_single_oversized_element_char_truncated() -> None:
-    """A single element bigger than the budget falls back to char truncation."""
+    """大于预算的单个元素会回退到字符截断。"""
     out = _format_value(["z" * (_MAX_REDUCE_INPUT_CHARS + 5000)])
     assert out.endswith("[truncated workflow intermediate results]")
     assert len(out) <= _MAX_REDUCE_INPUT_CHARS + 60

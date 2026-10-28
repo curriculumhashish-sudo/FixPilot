@@ -1,10 +1,10 @@
 /**
- * deriveSwitchPlan — pure helper that decides whether a profile switch can
- * happen live (in-conversation), requires a new conversation, or is already
- * current.
+ * deriveSwitchPlan — 决定配置文件切换是否可以的纯助手
+ * 实时发生（对话中），需要新的对话，或者已经
+ * 当前。
  *
- * Lives in its own module so the canvas can import it without pulling in HTTP
- * client code, and so it can be unit-tested without any I/O.
+ * 存在于自己的模块中，因此画布可以导入它而无需拉入 HTTP
+ * 客户端代码，因此无需任何 I/O 即可对其进行单元测试。
  */
 
 import type { ACPProviderInfo } from '../models/acp';
@@ -16,14 +16,14 @@ export type SwitchPlan =
   | { action: 'start-new'; reason: string }
   | { action: 'disabled'; reason: string };
 
-// Fields excluded from content comparison (identity / provenance fields).
+// 从内容比较中排除的字段（身份/出处字段）。
 const IDENTITY_FIELDS = new Set(['id', 'name', 'revision', 'schema_version', 'agent_kind']);
 
 /**
- * Deterministic serialization with object keys sorted recursively. Two values
- * with identical content but different key *insertion order* serialize equal
- * (array order stays significant). A snapshot round-tripped through storage
- * must not look "changed" merely because its keys were re-ordered.
+ * 确定性序列化，对象键递归排序。 两个值
+ * 内容相同但键不同 *插入顺序* 序列化相等
+ * （数组顺序仍然很重要）。 通过存储往返的快照
+ * 不能仅仅因为其键被重新排序而看起来“发生了变化”。
  */
 function stableStringify(value: unknown): string {
   if (value === undefined) return 'undefined';
@@ -57,26 +57,26 @@ function changedNonMutableFields(
 }
 
 /**
- * Compute a {@link SwitchPlan} for transitioning a running conversation from
- * the currently-launched profile content (`snapshot`) to `targetProfile`.
+ * 计算一个 {@link SwitchPlan} 以将正在运行的对话从
+ * 当前启动的个人资料内容 (`snapshot`) 至 `targetProfile`。
  *
- * @param snapshot      Full content of the profile that launched the current
- *                      conversation, or `null`/`undefined` when no profile was
- *                      used at conversation start.
- * @param targetProfile The profile the user wants to apply.
- * @param providerInfo  ACP provider info for the *current* agent (from
- *                      {@link getAcpProvider}), or `null` for OpenHands or
- *                      custom ACP servers. Used to check
+ * @param snapshot 启动当前配置文件的完整内容
+ *                      对话，或 `null`/`undefined`（当没有个人资料时）
+ *                      在对话开始时使用。
+ * @param targetProfile 用户想要应用的配置文件。
+ * @param providerInfo ACP *current* 智能体的提供者信息（来自
+ *                      {@link getAcpProvider}），或 `null` 为 OpenHands 或
+ *                      自定义 ACP 服务器。 用于检查
  *                      `supports_runtime_model_switch`.
  *
- * Decision rules (mirrors epic #3713):
- * - **current**: `snapshot` content is identical to `targetProfile` content.
- * - **switch-live**: can transition without restarting the conversation:
- *   - OpenHands → OpenHands: only `llm_profile_ref` differs.
- *   - ACP → ACP: same `acp_server`, only `acp_model` differs, and the
- *     provider declares `supports_runtime_model_switch`.
- * - **start-new**: possible but requires a fresh conversation.
- * - **disabled**: no path forward (e.g. unknown agent kind).
+ * 决策规则（镜像史诗#3713）：
+ * - **当前**：`snapshot`内容与`targetProfile`内容相同。
+ * - **switch-live**：可以在不重新启动对话的情况下进行转换：
+ *   - OpenHands → OpenHands：仅 `llm_profile_ref` 不同。
+ *   - ACP → ACP：与`acp_server`相同，仅`acp_model`不同，并且
+ *     提供者声明`supports_runtime_model_switch`。
+ * - **开始新**：可能，但需要重新对话。
+ * - **禁用**：没有前进的道路（e.g。 unknown 智能体 kind).
  */
 export function deriveSwitchPlan(
   snapshot: OpenHandsAgentProfile | ACPAgentProfile | null | undefined,
@@ -87,12 +87,12 @@ export function deriveSwitchPlan(
     return { action: 'start-new', reason: 'no launched profile' };
   }
 
-  // Fast-path: exact same profile version already running.
+  // 快速路径：完全相同的配置文件版本已在运行。
   if (snapshot.id === targetProfile.id && snapshot.revision === targetProfile.revision) {
     return { action: 'current' };
   }
 
-  // Kind change: never a live switch.
+  // 善良的改变：从来没有实时切换。
   if (snapshot.agent_kind !== targetProfile.agent_kind) {
     return { action: 'start-new', reason: 'agent kind changed' };
   }
@@ -101,7 +101,7 @@ export function deriveSwitchPlan(
   const targetRaw = targetProfile as unknown as Record<string, unknown>;
 
   if (snapshot.agent_kind === 'openhands') {
-    // OpenHands → OpenHands: live only if just llm_profile_ref differs.
+    // OpenHands → OpenHands：仅当 llm_profile_ref 不同时才存活。
     const nonMutable = changedNonMutableFields(
       snapshotRaw,
       targetRaw,
@@ -122,27 +122,26 @@ export function deriveSwitchPlan(
     const snapshotAcp = snapshot as ACPAgentProfile;
     const targetAcp = targetProfile as ACPAgentProfile;
 
-    // Different ACP provider → must restart.
+    // 不同的 ACP 提供商 → 必须重新启动。
     if (snapshotAcp.acp_server !== targetAcp.acp_server) {
       return { action: 'start-new', reason: 'ACP provider changed' };
     }
 
-    // ACP → ACP (same provider): acp_model is the only field that can switch
-    // live. Any other content change forces a new conversation.
+    // ACP→ACP（同一提供商）：acp_model是唯一可以实时切换的字段。 任何其他内容更改都会强制进行新的对话。
+    //
     const nonMutable = changedNonMutableFields(snapshotRaw, targetRaw, new Set(['acp_model']));
     if (nonMutable.length > 0) {
       return { action: 'start-new', reason: `fields changed: ${nonMutable.join(', ')}` };
     }
 
-    // Identical model (and nothing else changed) → already current, regardless
-    // of provider capability. Check this before the runtime-switch gate so an
-    // unchanged profile is never mistaken for a switch.
+    // 相同的模型（没有其他变化） → 已经是最新的，无论提供商的能力如何。 在运行时切换门之前检查此项，这样未更改的配置文件就不会被误认为是切换。
+    //
     const modelDiffers = snapshotAcp.acp_model !== targetAcp.acp_model;
     if (!modelDiffers) {
       return { action: 'current' };
     }
 
-    // Model differs → live switch only if the provider supports it.
+    // 型号不同 → 仅当提供商支持时才进行实时切换。
     if (!providerInfo?.supports_runtime_model_switch) {
       return {
         action: 'start-new',
@@ -152,7 +151,7 @@ export function deriveSwitchPlan(
     return { action: 'switch-live', mutableFields: ['acp_model'] };
   }
 
-  // Unreachable with a valid AgentProfile union, but guards against future variants.
+  // 使用有效的 AgentProfile 联合无法访问，但可以防止未来的变体。
   const exhaustiveCheck: never = snapshot;
   return {
     action: 'disabled',

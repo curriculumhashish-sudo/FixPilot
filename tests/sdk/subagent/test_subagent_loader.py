@@ -1,4 +1,4 @@
-"""Tests for file-based agent loading."""
+"""测试基于文件的智能体加载。"""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -21,7 +21,7 @@ def teardown_function() -> None:
 
 
 def test_load_project_agents(tmp_path: Path) -> None:
-    """Loads .md files from .agents/ root directory."""
+    """从 .agents/ 根目录加载 .md 文件。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -46,7 +46,7 @@ def test_load_project_agents(tmp_path: Path) -> None:
     names = {a.name for a in agents}
     assert names == {"code-reviewer", "security-expert"}
 
-    # Verify the code-reviewer was parsed correctly
+    # 验证代码审查器是否正确解析
     reviewer = next(a for a in agents if a.name == "code-reviewer")
     assert reviewer.description == "Reviews code"
     assert "ReadTool" in reviewer.tools
@@ -54,16 +54,16 @@ def test_load_project_agents(tmp_path: Path) -> None:
 
 
 def test_load_project_agents_skips_subdirs(tmp_path: Path) -> None:
-    """Does not recurse into subdirectories like skills/."""
+    """不会递归到诸如 Skills/ 之类的子目录中。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
 
-    # Top-level agent
+    # 顶级智能体
     (agents_dir / "top-agent.md").write_text(
         "---\nname: top-agent\ndescription: Top\n---\nPrompt."
     )
 
-    # Subdirectory (should be skipped)
+    # 子目录（应跳过）
     skills_dir = agents_dir / "skills"
     skills_dir.mkdir()
     (skills_dir / "nested-agent.md").write_text(
@@ -77,13 +77,13 @@ def test_load_project_agents_skips_subdirs(tmp_path: Path) -> None:
 
 
 def test_load_project_agents_empty(tmp_path: Path) -> None:
-    """Returns [] for missing .agents/ directory."""
+    """对于缺少的 .agents/ 目录，返回 []。"""
     agents = load_project_agents(tmp_path)
     assert agents == []
 
 
 def test_load_project_agents_skips_readme(tmp_path: Path) -> None:
-    """README.md is skipped."""
+    """README.md 被跳过。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -99,7 +99,7 @@ def test_load_project_agents_skips_readme(tmp_path: Path) -> None:
 
 
 def test_load_project_agents_from_openhands_dir(tmp_path: Path) -> None:
-    """Loads .md files from .openhands/ when .agents/ does not exist."""
+    """当 .agents/ 不存在时，从 .openhands/ 加载 .md 文件。"""
     oh_dir = tmp_path / ".openhands" / "agents"
     oh_dir.mkdir(parents=True)
 
@@ -113,7 +113,7 @@ def test_load_project_agents_from_openhands_dir(tmp_path: Path) -> None:
 
 
 def test_load_project_agents_agents_dir_wins_over_openhands(tmp_path: Path) -> None:
-    """.agents/ takes precedence over .openhands/ for duplicate names."""
+    """对于重复名称，.agents/ 优先于 .openhands/。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "shared.md").write_text(
@@ -125,7 +125,7 @@ def test_load_project_agents_agents_dir_wins_over_openhands(tmp_path: Path) -> N
     (oh_dir / "shared.md").write_text(
         "---\nname: shared\ndescription: From .openhands\n---\nOH prompt."
     )
-    # Also put a unique agent in .openhands/ to verify it still loads
+    # 还要在 .openhands/ 中放置一个唯一的智能体以验证它是否仍然加载
     (oh_dir / "only-in-oh.md").write_text(
         "---\nname: only-in-oh\ndescription: OH only\n---\nOH only prompt."
     )
@@ -134,13 +134,13 @@ def test_load_project_agents_agents_dir_wins_over_openhands(tmp_path: Path) -> N
     names = [a.name for a in agents]
     assert sorted(names) == ["only-in-oh", "shared"]
 
-    # .agents/ version should win for the duplicate
-    # i.e., the first agent should come from .agents
+    # .agents/ 版本应该赢得重复的 i.e。，第一个智能体应该来自 .智能体
+    #
     assert agents[0].description == "From .agents"
 
 
 def test_load_project_agents_merges_both_dirs(tmp_path: Path) -> None:
-    """Agents from both .agents/ and .openhands/ are merged."""
+    """.agents/ 和 .openhands/ 中的智能体已合并。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "agent-a.md").write_text(
@@ -157,7 +157,7 @@ def test_load_project_agents_merges_both_dirs(tmp_path: Path) -> None:
 
 
 def test_load_user_agents(tmp_path: Path) -> None:
-    """Loads from ~/.agents/ directory."""
+    """从 ~/.agents/ 目录加载。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
 
@@ -173,7 +173,7 @@ def test_load_user_agents(tmp_path: Path) -> None:
 
 
 def test_load_user_agents_from_openhands_dir(tmp_path: Path) -> None:
-    """Loads from ~/.openhands/ when ~/.agents/ does not exist."""
+    """当 ~/.agents/ 不存在时从 ~/.openhands/ 加载。"""
     oh_dir = tmp_path / ".openhands" / "agents"
     oh_dir.mkdir(parents=True)
 
@@ -189,7 +189,7 @@ def test_load_user_agents_from_openhands_dir(tmp_path: Path) -> None:
 
 
 def test_load_user_agents_agents_dir_wins_over_openhands(tmp_path: Path) -> None:
-    """~/.agents/ takes precedence over ~/.openhands/ for duplicate names."""
+    """对于重复名称，~/.agents/ 优先于~/.openhands/。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "shared.md").write_text(

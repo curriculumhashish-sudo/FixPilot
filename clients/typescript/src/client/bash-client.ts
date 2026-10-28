@@ -54,11 +54,11 @@ export class BashClient {
   }
 
   /**
-   * Batch-fetch bash events in a single request via `GET /api/bash/bash_events/`.
+   * 通过 `GET /api/bash/bash_events/` 在单个请求中批量获取 bash 事件。
    *
-   * Unlike {@link getEvents} (which fans out one request per id), this calls the
-   * server-side batch endpoint and returns one entry per requested id, with
-   * `null` in the slots of any missing event — preserving input order.
+   * 与 {@link getEvents}（每个 id 扇出一个请求）不同，这会调用
+   * 服务器端批处理端点并为每个请求的 id 返回一个条目，其中
+   * `null` 在任何丢失事件的槽中 - 保留输入顺序。
    */
   async batchGetEvents(eventIds: string[]): Promise<Array<BashEvent | null>> {
     const response = await this.client.get<(BashEvent | null)[]>('/api/bash/bash_events/', {
@@ -95,8 +95,8 @@ export class BashClient {
   }
 
   /**
-   * Stop a running bash command by id. Unknown or already-finished ids
-   * resolve successfully, matching the server's idempotency contract.
+   * 通过 id 停止正在运行的 bash 命令。 未知或已完成的 id
+   * 解析成功，匹配服务器的幂等性合约。
    */
   async stopCommand(commandId: string): Promise<void> {
     try {

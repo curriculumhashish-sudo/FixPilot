@@ -1,4 +1,4 @@
-"""Named, reference-bearing agent launch specs (``AgentProfile``)."""
+"""命名，参考轴承智能体发射规格 (``AgentProfile``)。"""
 
 from openhands.sdk.profiles.agent_profile import (
     AGENT_PROFILE_SCHEMA_VERSION,

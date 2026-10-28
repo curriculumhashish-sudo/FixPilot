@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class SwitchLLMAction(Action):
-    """Action for switching this conversation to a saved LLM profile."""
+    """用于将此对话切换到已保存的 LLM 配置文件的操作。"""
 
     profile_name: str = Field(
         description="Name of the saved LLM profile to use for future agent steps."
@@ -41,7 +41,7 @@ class SwitchLLMAction(Action):
 
 
 class SwitchLLMObservation(Observation):
-    """Observation returned after switching this conversation's LLM profile."""
+    """切换此对话的 LLM 个人资料后返回观测结果。"""
 
     profile_name: str = Field(
         description="Name of the profile that the tool attempted to activate."
@@ -84,7 +84,7 @@ _DESCRIPTION_TEMPLATE = (
 
 
 def get_llm_profile_names() -> list[str]:
-    """Return saved LLM profile names that can be shown to the agent."""
+    """返回可向智能体显示的已保存的 LLM 配置文件名称。"""
     return [summary["name"] for summary in LLMProfileStore().list_summaries()]
 
 
@@ -149,7 +149,7 @@ class SwitchLLMExecutor(ToolExecutor):
 
 
 class SwitchLLMTool(ToolDefinition[SwitchLLMAction, SwitchLLMObservation]):
-    """Tool for switching a conversation to a saved LLM profile."""
+    """用于将对话切换到已保存的 LLM 配置文件的工具。"""
 
     catalog_description: ClassVar[str] = (
         "Let the agent switch the conversation to another saved LLM profile."

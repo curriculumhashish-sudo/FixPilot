@@ -1,4 +1,4 @@
-"""Tests for TmuxPanePool."""
+"""测试 TmuxPanePool。"""
 
 import os
 import tempfile
@@ -23,7 +23,7 @@ def test_tmux_session_viewport_is_bounded():
 
 @pytest.fixture
 def pool():
-    """Create and initialize a pool, close it after the test."""
+    """创建并初始化一个池，测试后关闭它。"""
     with tempfile.TemporaryDirectory() as work_dir:
         p = TmuxPanePool(work_dir=work_dir, max_panes=3)
         p.initialize()
@@ -31,7 +31,7 @@ def pool():
         p.close()
 
 
-# -- Init -------------------------------------------------------------------
+# -- 初始化 -------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("max_panes", [0, -1, -10])
@@ -44,11 +44,11 @@ def test_initialize_idempotent():
     with tempfile.TemporaryDirectory() as d:
         p = TmuxPanePool(work_dir=d, max_panes=1)
         p.initialize()
-        p.initialize()  # should not raise
+        p.initialize()  # 不应该提高
         p.close()
 
 
-# -- Checkout / Checkin ------------------------------------------------------
+# -- 结帐/签入 ------------------------------------------------------------------
 
 
 def test_checkout_returns_initialized_terminal(pool):
@@ -106,7 +106,8 @@ def test_checkout_unblocks_after_checkin(pool):
         pool.checkin(p)
 
 
-# -- Replace -----------------------------------------------------------------
+# -- 替换-------------------------------------------------------------------------------
+# -
 
 
 def test_replace_returns_new_terminal(pool):
@@ -118,7 +119,7 @@ def test_replace_returns_new_terminal(pool):
 
 
 def test_replace_preserves_semaphore(pool):
-    """Replace does not consume an extra semaphore slot."""
+    """替换不消耗额外的信号量槽。"""
     t1 = pool.checkout()
     t2 = pool.checkout()
     t3 = pool.checkout()
@@ -140,7 +141,7 @@ def test_replace_closes_old_pane(pool):
 
 
 def test_replace_does_not_affect_other_panes(pool):
-    """Other checked-out panes keep working after a replace."""
+    """其他签出的窗格在更换后继续工作。"""
     t1 = pool.checkout()
     t2 = pool.checkout()
 
@@ -160,11 +161,11 @@ def test_replace_fresh_pane_runs_commands(pool, cmd):
     new.send_keys(cmd)
     time.sleep(0.3)
     output = new.read_screen()
-    assert output.strip()  # non-empty output
+    assert output.strip()  # 非空输出
     pool.checkin(new)
 
 
-# -- Concurrent execution ---------------------------------------------------
+# -- 并发执行 ---------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -176,7 +177,7 @@ def test_replace_fresh_pane_runs_commands(pool, cmd):
     ids=["two_threads", "three_threads"],
 )
 def test_parallel_commands(pool, labels_and_cmds):
-    """Run commands on separate panes in parallel."""
+    """在单独的窗格上并行运行命令。"""
     results = {}
     barrier = threading.Barrier(len(labels_and_cmds))
 
@@ -200,12 +201,12 @@ def test_parallel_commands(pool, labels_and_cmds):
         t.join(timeout=10)
 
     for label, cmd in labels_and_cmds:
-        expected = cmd.split()[-1]  # e.g. "AAA" from "echo AAA"
+        expected = cmd.split()[-1]  # e.g. “回声 AAA”中的“AAA”
         assert expected in results[label]
 
 
 def test_concurrent_replace_does_not_corrupt_pool(pool):
-    """Replacing panes from multiple threads is safe."""
+    """从多个线程替换窗格是安全的。"""
     errors = []
 
     def replace_cycle():
@@ -227,23 +228,24 @@ def test_concurrent_replace_does_not_corrupt_pool(pool):
     assert not errors, f"Errors during concurrent replace: {errors}"
 
 
-# -- Initial window cleanup -------------------------------------------------
+# -- 初始窗口清理------------------------------------------------
 
 
 def test_initial_window_killed_after_first_pane(pool):
-    """The default tmux window is cleaned up on first checkout."""
+    """默认的 tmux 窗口在第一次结帐时会被清理。"""
     assert pool._initial_window is not None
     t = pool.checkout()
     assert pool._initial_window is None
     pool.checkin(t)
 
 
-# -- Close -------------------------------------------------------------------
+# -- 关闭 ------------------------------------------------------------------------------
+# ----
 
 
 def test_close_idempotent(pool):
     pool.close()
-    pool.close()  # should not raise
+    pool.close()  # 不应该提高
 
 
 def test_checkout_after_close_raises(pool):
@@ -253,11 +255,11 @@ def test_checkout_after_close_raises(pool):
 
 
 def test_checkin_foreign_pane_is_ignored(pool):
-    """Checkin of a pane not from this pool is ignored."""
+    """忽略不来自该池的窗格的签入。"""
     from openhands.tools.terminal.terminal.tmux_terminal import TmuxTerminal
 
     fake = TmuxTerminal.__new__(TmuxTerminal)
-    pool.checkin(fake)  # should log warning, not crash
+    pool.checkin(fake)  # 应该记录警告，而不是崩溃
 
 
 @pytest.mark.skipif(os.name != "posix", reason="tmux requires Unix sockets")
@@ -287,7 +289,7 @@ def test_overlong_tmux_tmpdir_uses_short_socket_path(
 def test_stale_terminal_cannot_access_restarted_server(
     tmp_path, monkeypatch, pooled, operation
 ):
-    # Only redirect the socket namespace; all terminal/tmux operations are real.
+    # 仅重定向套接字命名空间； 所有终端/tmux 操作都是真实的。
     with tempfile.TemporaryDirectory(prefix="oh-tmux-") as socket_dir:
         monkeypatch.setenv("TMUX_TMPDIR", socket_dir)
         first = TmuxPanePool(str(tmp_path)) if pooled else TmuxTerminal(str(tmp_path))

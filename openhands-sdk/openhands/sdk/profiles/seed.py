@@ -1,8 +1,8 @@
-"""Build the default :class:`~openhands.sdk.profiles.AgentProfile` from live settings.
+"""从实时设置构建默认的：class:`~openhands.sdk.profiles.AgentProfile`。
 
-The inverse of :func:`~openhands.sdk.profiles.resolve_agent_profile`: turns the
-current ``AgentSettingsConfig`` into the single profile used by the one-time
-migration (lazy on the local agent-server, eager backfill on the cloud one).
+逆函数：func`~openhands.sdk.profiles.resolve_agent_profile` 将当前
+``AgentSettingsConfig``转换为一
+次性的迁移（本地智能体服务器懒加载，云服务器 eager 回填）所使用的单个配置。
 """
 
 from __future__ import annotations
@@ -21,8 +21,9 @@ if TYPE_CHECKING:
     from openhands.sdk.settings import AgentSettingsConfig
 
 
-# Name of the lazily-seeded default / migration profile and the soft LLM-ref
-# fallback (a "default" LLM profile the resolver checks at materialize time).
+# 懒加载默认/迁移配置的名称和软 LLM 反射回退方案（一个“默认” LLM 配置，解析器在材料化时
+# 检查）。
+#
 SEED_PROFILE_NAME = "default"
 
 
@@ -32,12 +33,12 @@ def build_seed_profile(
     *,
     name: str = SEED_PROFILE_NAME,
 ) -> OpenHandsAgentProfile | ACPAgentProfile:
-    """Build one behavior-preserving ``AgentProfile`` from ``agent_settings``.
+    """从 ``agent_settings`` 构建一个行为保留 ``AgentProfile``。
 
-    Branches on ``agent_kind`` so an ACP setup seeds an ACP profile.
-    ``mcp_server_refs=None`` exposes all of the user's MCP servers; an OpenHands
-    profile references ``active_llm_profile``, falling back to
-    ``SEED_PROFILE_NAME`` (a soft ref the resolver checks at materialize time).
+    ``agent_kind`` 上的分支，因此 ACP 设置种子 ACP 配置文件。
+    ``mcp_server_refs=None``公开用户的所有MCP服务器； OpenHands 配置文件参考
+    ``active_llm_profile``，回落到
+    ``SEED_PROFILE_NAME``（解析器在实现时检查的软引用）。
     """
     if agent_settings.agent_kind == "acp":
         return ACPAgentProfile(
@@ -47,8 +48,9 @@ def build_seed_profile(
             acp_session_mode=agent_settings.acp_session_mode,
             acp_prompt_timeout=agent_settings.acp_prompt_timeout,
             acp_startup_timeout=agent_settings.acp_startup_timeout,
-            # Settings store the command as a token list; the profile holds a
-            # single (re-parseable) string. Empty list => use the server default.
+            # 设置将命令存储为 token 列表； 配置文件包含一个（可重新解析的）字符串。 空
+            # 列表 => 使用服务器默认值。
+            #
             acp_command=(
                 shlex.join(agent_settings.acp_command)
                 if agent_settings.acp_command
@@ -56,7 +58,7 @@ def build_seed_profile(
             ),
             acp_args=list(agent_settings.acp_args) or None,
             mcp_server_refs=None,
-            # ACP profiles carry no skill field — the subprocess owns its context.
+            # ACP 个人资料不包含技能领域 - 子进程拥有其上下文。
         )
     context = agent_settings.agent_context
     return OpenHandsAgentProfile(

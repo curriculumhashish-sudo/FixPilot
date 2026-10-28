@@ -1,12 +1,12 @@
-"""Cross-package tests pinning SDK_TOOL_EXPERIENCE_MAP to the real registry.
+"""跨包测试将 SDK_TOOL_EXPERIENCE_MAP 固定到真实的注册表。
 
-The map in ``openhands.sdk.security.toolshield_helpers`` keys experience
-files by the REGISTERED tool names that ``ToolDefinition.__init_subclass__``
-derives (snake_case, ``_tool`` suffix dropped). tests/sdk must not import
-``openhands.tools``, so the assertions against the actual tool classes and
-the default preset live here -- if a tool is renamed or the map keys drift,
-these fail instead of the mapping shipping as a silent no-op (the exact
-failure mode flagged in review of PR #2911).
+``openhands.sdk.security.toolshield_helpers`` 中的地图通过
+``ToolDefinition.__init_subclass__`` 派生的 REGISTERED 工具名称来键体验文件（删除
+snake_case、``_tool``
+ 后缀）。 tests/sdk 必须不允许导入
+``openhands.tools``，因此，对实际工具类的断言和默认预设在这里生效——如果工具被重命名或
+映射键漂移，这些断言会失败，而不是作为无声的无操作（在PR #29
+11的审查中指出的）进行（具体失败模式）。
 """
 
 from openhands.sdk.security.toolshield_helpers import (
@@ -21,7 +21,7 @@ from openhands.tools.terminal import TerminalTool
 
 
 def test_map_keys_match_registered_tool_names():
-    """Every mapped built-in tool's real ``.name`` must be a map key."""
+    """每个映射的内置工具的真实 ``.name`` 必须是映射键。"""
     for tool_cls, experience in [
         (FileEditorTool, "filesystem-mcp"),
         (PlanningFileEditorTool, "filesystem-mcp"),
@@ -36,9 +36,9 @@ def test_map_keys_match_registered_tool_names():
 
 
 def test_default_preset_tool_names_map_to_experiences():
-    """The documented pattern ``tool_names=[t.name for t in agent.tools]``
-    must map for the default preset: filesystem and playwright experiences
-    both appear."""
+    """记录的模式 ``tool_names=[t.name for t in agent.tools]``
+    必须映射默认预设：文件系统和剧作家体验都会出现。
+    """
     names = [t.name for t in get_default_tools()]
     result = mcp_tools_from_config({}, tool_names=names)
     assert "filesystem-mcp" in result

@@ -1,9 +1,10 @@
-"""Use the agent-server through an OpenAI-compatible Chat Completions client.
+"""通过 OpenAI 兼容的聊天完成客户端使用智能体服务器。
 
-This example starts a local agent-server, stores an LLM profile, lists it through
-``GET /v1/models``, then calls ``POST /v1/chat/completions`` with the OpenAI
-Python SDK. The returned ``X-OpenHands-ServerConversation-ID`` header is passed
-back on a second call to continue the same OpenHands conversation.
+这是一个示例，启动了一个本地智能体服务器，存储了一个LLM配置，并通过它列出
+``GET /v1/models``，然后用 OpenAI Python SDK 调用 ``POST /v1/chat/completions``。 返
+回的
+``X-OpenHands-ServerConversation-ID`` 标头将在第二次调用时传回，以继续相同的
+OpenHands 对话。
 """
 
 import os
@@ -14,9 +15,9 @@ from openai import OpenAI
 from scripts.utils import ManagedAPIServer
 
 
-# The gateway runs a full OpenHands agent, but OpenAI clients still need a
-# normal model-like name. We create an LLM profile below and expose it as
-# `openhands_<profile_name>` through `/v1/models`.
+# 网关运行完整的 OpenHands 智能体，但 OpenAI 客户端仍然需要一个正常的类似模型的名称。 我
+# 们在下面创建一个 LLM 配置文件并将其公开为
+# `openhands_<profile_name>` 到 `/v1/models`。
 
 api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
 assert api_key is not None, "Set LLM_API_KEY or OPENAI_API_KEY."
@@ -26,9 +27,10 @@ llm_base_url = os.getenv("LLM_BASE_URL")
 profile_name = "gateway_demo"
 gateway_model = f"openhands_{profile_name}"
 
-# Start a local agent-server for the demo. `use_session_api_key=True` turns on
-# authentication; the same key works as both `X-Session-API-Key` for native
-# agent-server routes and `Authorization: Bearer ...` for OpenAI SDK calls.
+# 启动本地智能体-服务器进行演示。 `use_session_api_key=True`开启身份验证； 相同的密钥既
+# 可用作本机智能体服务器路由的 `X-Session-API-Key`，也可用作 OpenAI SDK 调用的
+# `Authorization: Bearer ...`。
+#
 
 with ManagedAPIServer(
     port=8770,
@@ -48,8 +50,9 @@ with ManagedAPIServer(
     )
     assert session_api_key is not None
 
-    # Use the native REST API once to create the profile that backs the gateway
-    # model. After that, normal OpenAI SDK calls are enough for chat traffic.
+    # 使用本机 REST API 一次来创建支持网关模型的配置文件。 此后，正常的 OpenAI SDK 呼叫
+    # 足以满足聊天流量。
+    #
     api_client = httpx.Client(
         base_url=server.base_url,
         headers={"X-Session-API-Key": session_api_key},
@@ -65,7 +68,7 @@ with ManagedAPIServer(
     if llm_base_url:
         llm_config["base_url"] = llm_base_url
 
-    # `gateway_demo` becomes visible to OpenAI clients as `openhands_gateway_demo`.
+    # `gateway_demo` 对 OpenAI 客户端可见为 `openhands_gateway_demo`。
     profile_response = api_client.post(
         f"/api/profiles/{profile_name}",
         json={"llm": llm_config, "include_secrets": True},
@@ -77,9 +80,9 @@ with ManagedAPIServer(
     assert gateway_model in model_ids
     print(f"Gateway models include: {gateway_model}")
 
-    # Ask through the OpenAI SDK. `with_raw_response` lets us read the custom
-    # response header that identifies the OpenHands conversation created behind
-    # this otherwise OpenAI-shaped request.
+    # 通过OpenAISDK询问。 `with_raw_response` 让我们读取自定义响应标头，该标头标识了在此
+    #  OpenAI 形状的请求背后创建的 OpenHands 对话。
+    #
 
     first_response = openai_client.chat.completions.with_raw_response.create(
         model=gateway_model,
@@ -109,9 +112,9 @@ with ManagedAPIServer(
     persisted_response = api_client.get(f"/api/conversations/{conversation_id}")
     assert persisted_response.status_code == 200, persisted_response.text
 
-    # The gateway keeps conversations by default. Passing the header back lets
-    # another OpenAI-compatible request continue the same server-side agent
-    # conversation instead of starting over.
+    # 网关默认保留对话。 传回标头可以让另一个 OpenAI 兼容的请求继续相同的服务器端智能体
+    # 对话，而不是重新开始。
+    #
 
     second_completion = openai_client.chat.completions.create(
         model=gateway_model,
@@ -134,8 +137,9 @@ with ManagedAPIServer(
         metrics.get("accumulated_cost", 0.0) for metrics in usage_to_metrics.values()
     )
 
-    # Clean up the demo resources. Real applications can keep the conversation
-    # ID and inspect it later through the native agent-server API.
+    # 清理演示资源。 真实应用程序可以保留对话 ID，并在以后通过本机智能体-服务器 API 检查
+    # 它。
+    #
     api_client.delete(f"/api/conversations/{conversation_id}")
     api_client.delete(f"/api/profiles/{profile_name}")
     api_client.close()

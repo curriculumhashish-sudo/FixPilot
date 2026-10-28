@@ -1,11 +1,11 @@
-"""Golden-snapshot oracle for the rendered system prompt (issue #3607).
+"""渲染系统的黄金快照预言机提示词（问题#3607）。
 
-Pins ``static_system_message`` + ``dynamic_context`` across the matrix that varies
-their output: model family x llm_security_analyzer x cli_mode.
-Snapshots live under ``snapshots/`` (one .txt per cell), the dependency-free
-golden-file idiom from ``tests/sdk/persisted_settings_baselines``.
+矩阵上的引脚 ``static_system_message`` + ``dynamic_context`` 会改变其输出：模型系列 x
+llm_security_analyzer x cli_mode。 快照位于 ``snapshots/`` 下（每个单元一个 .txt），
+这是来自
+``tests/sdk/persisted_settings_baselines`` 的无依赖性黄金文件习惯用法。
 
-Regenerate after an intentional prompt change:
+有意提示词更改后重新生成：
     REGEN_PROMPT_SNAPSHOTS=1 uv run pytest \
         tests/sdk/context/prompts/test_prompt_snapshot.py
 """
@@ -36,8 +36,9 @@ SEPARATOR: Final[str] = (
 )
 REGEN: Final[bool] = os.environ.get("REGEN_PROMPT_SNAPSHOTS") == "1"
 
-# Strings chosen so get_model_prompt_spec resolves each family (and the gpt-5
-# variant); an unmatched string is the "other" branch (no model_specific section).
+# 选择字符串，以便 get_model_prompt_spec 解析每个系列（以及 gpt-5 变体）； 不匹配的字符
+# 串是“其他”分支（没有 model_specific 部分）。
+#
 FAMILY_MODELS: Final[dict[str, str]] = {
     "anthropic": "claude-sonnet-4-5",
     "openai": "gpt-5",
@@ -45,11 +46,11 @@ FAMILY_MODELS: Final[dict[str, str]] = {
     "other": "custom-made-model",
 }
 
-# Pin current_datetime (defaults to datetime.now()) so the dynamic block is
-# reproducible. The two legacy (trigger=None) skills are vendor-named to exercise
-# the model-family gating in get_system_message_suffix: anthropic keeps "claude",
-# gemini keeps "gemini", openai keeps neither, "other" (no family) keeps both.
-# Secrets are covered via the production get_dynamic_context() path (see below).
+# Pin current_datetime （默认为 ） datetime.now） 因此，动态块是可重复的。 两个遗留的（
+# 触发=）None) 技能被命名以执行模型族门禁操作 get_system_message_suffix: Anthropic keep
+# "claude", keep "gemini" OpenAI 既不保留“其他”（无家庭），也不保留两者。 机密通过生产覆
+# 盖 get_dynamic_context(请参见以下内容)。
+#
 DYNAMIC_CONTEXT: Final[AgentContext] = AgentContext(
     current_datetime="2025-01-01T00:00:00+00:00",
     system_message_suffix="Follow the repository's coding conventions.",
@@ -59,7 +60,7 @@ DYNAMIC_CONTEXT: Final[AgentContext] = AgentContext(
     ],
 )
 
-# The datetime shape injected into the dynamic block; in the static block, a leak.
+# 注入动态块的日期时间形状； 在静态块中，发生泄漏。
 ISO_DATETIME_RE: Final[re.Pattern[str]] = re.compile(
     r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}"
 )
@@ -89,7 +90,7 @@ def _build_matrix() -> list[Cell]:
     cells: list[Cell] = []
     for family in FAMILY_MODELS:
         for llm_security_analyzer in (True, False):
-            # cli_mode only affects the security-analyzer section.
+            # cli_mode 仅影响安全分析器部分。
             cli_values = (True, False) if llm_security_analyzer else (True,)
             for cli_mode in cli_values:
                 cells.append(Cell(family, llm_security_analyzer, cli_mode))
@@ -108,9 +109,9 @@ def _build_agent(cell: Cell) -> Agent:
         system_prompt_kwargs={
             "llm_security_analyzer": cell.llm_security_analyzer,
             "cli_mode": cell.cli_mode,
-            # Pin soul_content to the built-in default so snapshots are
-            # deterministic regardless of whether ~/.openhands/SOUL.md exists
-            # on the machine running the tests.
+            # 将 soul_content 固定到内置默认值，以便无论运行测试的计算机上是否存在 ~
+            # /.openhands/SOUL.md，快照都是确定性的。
+            #
             "soul_content": _DEFAULT_SOUL,
         },
     )
@@ -142,7 +143,7 @@ def test_prompt_snapshot(cell: Cell) -> None:
     _check_snapshot(cell.id, _rendered(cell))
 
 
-# Representative cell with every section "on", used to pin the windows variant.
+# 每个部分“打开”的代表性单元格，用于固定 Windows 变体。
 PLATFORM_CELL: Final[Cell] = Cell(
     family="anthropic",
     llm_security_analyzer=True,
@@ -151,20 +152,20 @@ PLATFORM_CELL: Final[Cell] = Cell(
 
 
 def test_prompt_snapshot_windows(monkeypatch: pytest.MonkeyPatch) -> None:
-    # refine() (context/prompts/prompt.py) swaps bash -> powershell and
-    # terminal -> execute_powershell on win32, reading sys.platform at render time.
+    # refine() (context/prompts/prompt.py) 在 win32 上交换 bash -> powershell 和终端 ->
+    # execute_powershell，在渲染时读取 sys.platform。
+    #
     monkeypatch.setattr(sys, "platform", "win32")
     content = _rendered(PLATFORM_CELL)
     _check_snapshot(f"{PLATFORM_CELL.id}__win32", content)
-    assert "powershell" in content  # the substitution actually fired
+    assert "powershell" in content  # 替补实际上被解雇了
 
 
 def test_dynamic_context_with_secret_registry(tmp_path: Path) -> None:
-    # Production builds the dynamic block via get_dynamic_context(state), which
-    # merges secrets from state.secret_registry (agent.py) -- the <CUSTOM_SECRETS>
-    # path and real assembly the bare dynamic_context property does not cover.
-    # (working_dir is not rendered into the suffix, so tmp_path stays out of the
-    # snapshot.)
+    # 生产构建动态块的get_dynamic_context(状态)，该块合并了机密从state.secret_registry(
+    # agent.py) -- <CUSTOM_SECRETS>路径和dynamic_context裸属性没有覆盖。working_dir没有
+    # 渲染到后缀，所以tmp_path没有进入快照。
+    #
     llm = LLM(model=FAMILY_MODELS["anthropic"], usage_id="snapshot-llm")
     agent = Agent(llm=llm, tools=[], agent_context=DYNAMIC_CONTEXT)
     state = ConversationState(
@@ -180,7 +181,7 @@ def test_dynamic_context_with_secret_registry(tmp_path: Path) -> None:
 
 
 def test_soul_default_snapshot(tmp_path: Path) -> None:
-    """Full prompt with the built-in default soul matches the snapshot."""
+    """与内置默认灵魂完全匹配的提示词快照。"""
     llm = LLM(model=FAMILY_MODELS["anthropic"], usage_id="snapshot-llm")
     agent = Agent(
         llm=llm,
@@ -191,7 +192,7 @@ def test_soul_default_snapshot(tmp_path: Path) -> None:
 
 
 def test_soul_custom_snapshot(tmp_path: Path) -> None:
-    """Full prompt with a custom soul_content matches the snapshot."""
+    """完整提示词与自定义 soul_content 与快照匹配。"""
     llm = LLM(model=FAMILY_MODELS["anthropic"], usage_id="snapshot-llm")
     agent = Agent(
         llm=llm,
@@ -205,9 +206,10 @@ def test_soul_custom_snapshot(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("cell", MATRIX, ids=[c.id for c in MATRIX])
 def test_static_block_has_no_dynamic_content(cell: Cell) -> None:
-    """Static block is the cache-shared prefix (#2827): per-run/per-env content
-    there silently breaks cross-conversation cache hits. Paths/hostname are checked
-    against this machine's concrete values -- the only ones injection could leak."""
+    """静态块是缓存共享前缀 (#2827)：per-run/per-env 内容
+    那里默默地破坏了交叉对话缓存命中。 路径/主机名根据本机的具体值进行检查——唯一可能
+    泄漏的注入。
+    """
     static = _build_agent(cell).static_system_message
     assert not ISO_DATETIME_RE.search(static), "static block contains a timestamp"
     assert os.getcwd() not in static, "static block contains the working directory"

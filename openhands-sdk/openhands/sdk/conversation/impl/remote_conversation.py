@@ -101,7 +101,7 @@ def _validate_remote_agent(agent_data: dict) -> AgentBase:
 def _token_delta_callback(
     token_callbacks: list[ConversationTokenCallbackType],
 ) -> ConversationCallbackType:
-    """Hand each streamed delta from the events socket to the token callbacks."""
+    """将每个流式增量从事件套接字传递到 token 回调。"""
     on_token = BaseConversation.compose_callbacks(token_callbacks)
 
     def callback(event: Event) -> None:
@@ -119,7 +119,7 @@ def _token_delta_callback(
 
 
 def _restore_tool_registrations(tool_module_qualnames: Mapping[str, str]) -> None:
-    """Import the tool modules persisted with a remote conversation."""
+    """通过远程对话导入工具模块已持久化。"""
     for tool_name, module_qualname in tool_module_qualnames.items():
         try:
             importlib.import_module(module_qualname)
@@ -172,7 +172,7 @@ def _send_request(
 
 
 class WebSocketCallbackClient:
-    """Minimal WS client: connects, forwards events, retries on error."""
+    """最小 WS 客户端：连接、转发事件、出现错误时重试。"""
 
     host: str
     conversation_id: str
@@ -215,21 +215,20 @@ class WebSocketCallbackClient:
         self._thread = None
 
     def wait_until_ready(self, timeout: float | None = None) -> bool:
-        """Wait for WebSocket subscription to complete.
+        """等待 WebSocket 订阅完成。
 
-        The server sends a ConversationStateUpdateEvent immediately after
-        subscription completes. This method blocks until that event is received,
-        the client is stopped, or the timeout expires.
+        订阅完成后，服务器立即发送 ConversationStateUpdateEvent。 此方法会阻塞，直到
+        收到该事件、客户端停止或超时过期。
 
         Args:
-            timeout: Maximum time to wait in seconds. None means wait forever.
+            timeout: 最长时间等待（以秒为单位）。 None 表示永远等待。
 
         Returns:
-            True if the WebSocket is ready, False if stopped or timeout expired.
+            True 如果 WebSocket 已准备好，False 如果已停止或超时已过期。
         """
         deadline = None if timeout is None else time.monotonic() + timeout
         while True:
-            # Calculate remaining timeout
+            # 计算剩余超时
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -238,11 +237,11 @@ class WebSocketCallbackClient:
             else:
                 wait_timeout = 0.05
 
-            # Wait efficiently using Event.wait() instead of sleep
+            # 使用 Event.wait() 而不是睡眠来有效等待
             if self._ready.wait(timeout=wait_timeout):
                 return True
 
-            # Check if stopped
+            # 检查是否停止
             if self._stop.is_set():
                 return False
 
@@ -250,7 +249,7 @@ class WebSocketCallbackClient:
         try:
             asyncio.run(self._client_loop())
         except RuntimeError:
-            # Fallback in case of an already running loop in rare environments
+            # 回退方案在罕见环境中已经运行循环的情况
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(self._client_loop())
@@ -284,8 +283,9 @@ class WebSocketCallbackClient:
                         try:
                             event = Event.model_validate(json.loads(message))
 
-                            # Set ready on first ConversationStateUpdateEvent
-                            # The server sends this immediately after subscription
+                            # 在第一个 ConversationStateUpdateEvent 上设置就绪服务器在订
+                            # 阅后立即发送此消息
+                            #
                             if (
                                 isinstance(event, ConversationStateUpdateEvent)
                                 and not connection_ready
@@ -333,10 +333,10 @@ class WebSocketCallbackClient:
 
 
 class RemoteEventsList(EventsListBase):
-    """A list-like, read-only view of remote conversation events.
+    """远程对话事件的类似列表的只读视图。
 
-    On first access it fetches existing events from the server. Afterwards,
-    it relies on the WebSocket stream to incrementally append new events.
+    第一次访问时，它从服务器获取现有事件。 之后，它依赖 WebSocket 流来增量追加新事件
+    。
     """
 
     _client: httpx.Client
@@ -359,11 +359,11 @@ class RemoteEventsList(EventsListBase):
         self._cached_event_ids: set[str] = set()
         self._acp_tool_call_id_to_event_id: dict[str, str] = {}
         self._lock = threading.RLock()
-        # Initial fetch to sync existing events
+        # 初始获取同步个现有事件
         self._do_full_sync()
 
     def _do_full_sync(self) -> None:
-        """Perform a full sync with the remote API."""
+        """使用遥控器 API 执行完整的同步。"""
         logger.debug(f"Performing full sync for conversation {self._conversation_id}")
 
         events = []
@@ -393,15 +393,14 @@ class RemoteEventsList(EventsListBase):
         logger.debug(f"Full sync completed, {len(events)} events cached")
 
     def reconcile(self) -> int:
-        """Reconcile local cache with server by fetching and merging events.
+        """通过获取和合并事件来协调本地缓存与服务器。
 
-        This method fetches all events from the server and merges them with
-        the local cache, deduplicating by event ID. This ensures no events
-        are missed due to race conditions between REST sync and WebSocket
-        subscription.
+        此方法从服务器获取所有事件并将它们与本地缓存合并，并按事件 ID 进行重复数据删
+        除。 这可确保不会因 REST、同步和 WebSocket 订阅之间的竞态条
+        件而错过任何事件。
 
         Returns:
-            Number of new events added during reconciliation.
+            调节期间添加的新事件数。
         """
         logger.debug(
             f"Performing reconciliation sync for conversation {self._conversation_id}"
@@ -425,7 +424,7 @@ class RemoteEventsList(EventsListBase):
                 data = resp.json()
             except Exception as e:
                 logger.warning(f"Failed to fetch events during reconciliation: {e}")
-                break  # Return partial results rather than failing completely
+                break  # 返回部分结果而不是完全失败
 
             events.extend([Event.model_validate(item) for item in data["items"]])
 
@@ -433,7 +432,7 @@ class RemoteEventsList(EventsListBase):
                 break
             page_id = data["next_page_id"]
 
-        # Merge events into cache, acquiring lock once for all events
+        # 将事件合并到缓存中，所有事件获取一次锁
         added_count = 0
         with self._lock:
             for event in events:
@@ -448,15 +447,14 @@ class RemoteEventsList(EventsListBase):
         return added_count
 
     def _add_event_unsafe(self, event: Event) -> None:
-        """Add event to cache without acquiring lock (caller must hold lock)."""
-        # ACP emits two ACPToolCallEvents per call — an early ``started`` event
-        # and one terminal (``completed`` / ``failed``) event — the
-        # action->observation pair for a tool call. Merge by tool_call_id:
-        # replace the ``started`` entry in-place with the terminal one so a
-        # single card updates from running to its result, mirroring how an
-        # ObservationEvent supersedes its ActionEvent. (The source no longer
-        # fans out one frame per cumulative-output ToolCallProgress, so this is
-        # an O(1) two-event merge, not an O(n²) dedup.)
+        """将事件添加到缓存而不获取锁（调用者必须持有锁）。"""
+        # ACP emits two ACPToolCallEvents 按次收费 ``started`` 事件和一个终端（
+        # ``completed`` / ``failed``) event — the action->观测结果 pair for a 工具调用。
+        #  合并 tool_call_id替换  ``started`` 将终端端点替换为入参，这样单张卡片从运行状
+        # 态更新到结果状态，与一个的端点更新方式相同 ObservationEvent 取代其 ActionEvent
+        # . (源不再按累积输出帧数分发一个帧 ToolCallProgress所以这是一个 O(1) 两个事件合
+        # 并，不是 O(n²) dedup.)
+        #
         if isinstance(event, ACPToolCallEvent):
             existing_id = self._acp_tool_call_id_to_event_id.get(event.tool_call_id)
             if existing_id is not None:
@@ -473,8 +471,9 @@ class RemoteEventsList(EventsListBase):
                             f"(tool_call_id={event.tool_call_id})"
                         )
                         return
-                # Index pointed to an event that is no longer in _cached_events;
-                # clean up the stale entry so we don't carry it forward.
+                # Index指向的事件不再在_cached_events中； 清理过时的条目，这样我们就不会
+                # 继续使用它。
+                #
                 logger.warning(
                     "Stale ACP tool-call index entry: "
                     f"tool_call_id={event.tool_call_id} "
@@ -484,9 +483,9 @@ class RemoteEventsList(EventsListBase):
                 self._cached_event_ids.discard(existing_id)
                 del self._acp_tool_call_id_to_event_id[event.tool_call_id]
 
-        # Use bisect with key function for O(log N) insertion
-        # This ensures events are always ordered correctly even if
-        # WebSocket delivers them out of order
+        # 使用带有 key 函数的 bisect 进行 O(log N) 插入这可确保事件始终正确排序，即使
+        # WebSocket 传递的事件顺序不正确
+        #
         insert_pos = bisect.bisect_right(
             self._cached_events, event.timestamp, key=lambda e: e.timestamp
         )
@@ -497,33 +496,32 @@ class RemoteEventsList(EventsListBase):
         logger.debug(f"Added event {event.id} to local cache at position {insert_pos}")
 
     def add_event(self, event: Event) -> None:
-        """Add a new event to the local cache (called by WebSocket callback).
+        """将新事件添加到本地缓存（由WebSocket 回调调用）。
 
-        Events are inserted in sorted order by timestamp to maintain correct
-        temporal ordering regardless of WebSocket delivery order.
+        事件按时间戳按排序顺序插入，以保持正确的时间顺序，而不管 WebSocket 传递顺序如
+        何。
         """
         with self._lock:
-            # Check if event already exists to avoid duplicates
+            # 检查事件是否已存在以避免重复
             if event.id not in self._cached_event_ids:
                 self._add_event_unsafe(event)
 
     def append(self, event: Event) -> int:
-        """Add a new event to the list (for compatibility with EventLog interface).
+        """将新事件添加到列表中（为了与 EventLog 接口兼容）。
 
-        Unlike ``EventLog``, this cache orders by event timestamp (not call
-        order) and merges some ACP pairs in place, so there is no per-event
-        sequence number to hand back. Returns the cache's length after the
-        write, only to satisfy ``EventsListBase``.
+        不像``EventLog``，这个缓存是按事件时间戳排序的（而不是按调用顺序），并且在内
+        存中合并了一些ACP对，因此无法返回每个事件的序列号。 返回写入后缓
+        存的长度，仅满足``EventsListBase``。
         """
         self.add_event(event)
         return len(self._cached_events) - 1
 
     def create_default_callback(self) -> ConversationCallbackType:
-        """Create a default callback that adds events to this list.
+        """创建一个默认回调，将事件添加到此列表。
 
-        Streamed ``StreamingDeltaEvent`` frames are transient: the server never
-        stores them, so they reach the other callbacks but stay out of this
-        list, which keeps matching the server's event log.
+        流的 ``StreamingDeltaEvent`` 帧是临时的：服务器永远不会存储它们，因此它们到达
+        对方回调但不要将自己列入这个列表，这个列表会匹配服务器
+        的日志。
         """
 
         def callback(event: Event) -> None:
@@ -552,7 +550,7 @@ class RemoteEventsList(EventsListBase):
 
 
 class RemoteState(ConversationStateProtocol):
-    """A state-like interface for accessing remote conversation state."""
+    """用于访问远程会话状态的类似状态的接口。"""
 
     _client: httpx.Client
     _conversation_id: str
@@ -573,22 +571,22 @@ class RemoteState(ConversationStateProtocol):
         self._conversation_info_base_path = conversation_info_base_path
         self._events = RemoteEventsList(client, conversation_id, events_base_path)
 
-        # Cache for state information to avoid REST calls
+        # 缓存状态信息以避免 REST 调用
         self._cached_state = None
         self._lock = threading.RLock()
 
     def _get_conversation_info(self) -> dict:
-        """Fetch the latest conversation info from the remote API."""
+        """从远程获取最新的对话信息 API。"""
         with self._lock:
-            # Return cached state if available
+            # 返回缓存状态（如果可用）
             if self._cached_state is not None:
                 return self._cached_state
 
-            # Fallback to REST API if no cached state
+            # 如果没有缓存状态，则回退方案到 REST API
             return self.refresh_from_server()
 
     def refresh_from_server(self) -> dict:
-        """Fetch and cache the latest authoritative conversation state."""
+        """获取并缓存最新的权威对话状态。"""
         resp = _send_request(
             self._client,
             "GET",
@@ -600,22 +598,22 @@ class RemoteState(ConversationStateProtocol):
             return state
 
     def update_state_from_event(self, event: ConversationStateUpdateEvent) -> None:
-        """Update cached state from a ConversationStateUpdateEvent."""
+        """从 ConversationStateUpdateEvent 更新缓存状态。"""
         with self._lock:
-            # Handle full state snapshot
+            # 处理全状态快照
             if event.key == FULL_STATE_KEY:
-                # Update cached state with the full snapshot
+                # 使用完整快照更新缓存状态
                 if self._cached_state is None:
                     self._cached_state = {}
                 self._cached_state.update(event.value)
             else:
-                # Handle individual field updates
+                # 处理各个字段更新
                 if self._cached_state is None:
                     self._cached_state = {}
                 self._cached_state[event.key] = event.value
 
     def create_state_update_callback(self) -> ConversationCallbackType:
-        """Create a callback that updates state from ConversationStateUpdateEvent."""
+        """创建一个回调来更新 ConversationStateUpdateEvent 的状态。"""
 
         def callback(event: Event) -> None:
             if isinstance(event, ConversationStateUpdateEvent):
@@ -625,17 +623,17 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def events(self) -> RemoteEventsList:
-        """Access to the events list."""
+        """访问事件列表。"""
         return self._events
 
     @property
     def id(self) -> ConversationID:
-        """The conversation ID."""
+        """对话 ID。"""
         return uuid.UUID(self._conversation_id)
 
     @property
     def execution_status(self) -> ConversationExecutionStatus:
-        """The current conversation execution status."""
+        """当前会话执行状态。"""
         info = self._get_conversation_info()
         status_str = info.get("execution_status")
         if status_str is None:
@@ -646,7 +644,7 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def confirmation_policy(self) -> ConfirmationPolicyBase:
-        """The confirmation policy."""
+        """确认政策。"""
         info = self._get_conversation_info()
         policy_data = info.get("confirmation_policy")
         if policy_data is None:
@@ -657,7 +655,7 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def security_analyzer(self) -> SecurityAnalyzerBase | None:
-        """The security analyzer."""
+        """安全分析器。"""
         info = self._get_conversation_info()
         analyzer_data = info.get("security_analyzer")
         if analyzer_data:
@@ -667,19 +665,19 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def activated_knowledge_skills(self) -> list[str]:
-        """List of activated knowledge skills."""
+        """激活的知识技能列表。"""
         info = self._get_conversation_info()
         return info.get("activated_knowledge_skills", [])
 
     @property
     def invoked_skills(self) -> list[str]:
-        """Names of progressive-disclosure skills explicitly invoked."""
+        """明确调用的渐进式披露技能的名称。"""
         info = self._get_conversation_info()
         return info.get("invoked_skills", [])
 
     @property
     def agent(self):
-        """The agent configuration (fetched from remote)."""
+        """智能体配置（从远程获取）。"""
         info = self._get_conversation_info()
         agent_data = info.get("agent")
         if agent_data is None:
@@ -688,7 +686,7 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def workspace(self):
-        """The working directory (fetched from remote)."""
+        """工作目录（从远程获取）。"""
         info = self._get_conversation_info()
         workspace = info.get("workspace")
         if workspace is None:
@@ -697,7 +695,7 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def persistence_dir(self):
-        """The persistence directory (fetched from remote)."""
+        """持久化目录（从远程获取）。"""
         info = self._get_conversation_info()
         persistence_dir = info.get("persistence_dir")
         if persistence_dir is None:
@@ -708,14 +706,14 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def stats(self) -> ConversationStats:
-        """Get conversation stats (fetched from remote)."""
+        """获取对话统计信息（从远程获取）。"""
         info = self._get_conversation_info()
         stats_data = info.get("stats", {})
         return ConversationStats.model_validate(stats_data)
 
     @property
     def hook_config(self) -> HookConfig | None:
-        """Get hook configuration (fetched from remote)."""
+        """获取钩子配置（从远程获取）。"""
         info = self._get_conversation_info()
         hook_config_data = info.get("hook_config")
         if hook_config_data is not None:
@@ -724,7 +722,7 @@ class RemoteState(ConversationStateProtocol):
 
     @property
     def secret_registry(self) -> SecretRegistry:
-        """The secret registry for this conversation."""
+        """此对话的机密注册表。"""
         info = self._get_conversation_info()
         secret_registry_data = info.get("secret_registry")
         if secret_registry_data is not None:
@@ -732,15 +730,15 @@ class RemoteState(ConversationStateProtocol):
         return SecretRegistry()
 
     def model_dump(self, **_kwargs):
-        """Get a dictionary representation of the remote state."""
+        """获取远程状态的字典表示。"""
         info = self._get_conversation_info()
         return info
 
     def model_dump_json(self, **kwargs):
-        """Get a JSON representation of the remote state."""
+        """获取远程状态的 JSON 表示。"""
         return json.dumps(self.model_dump(**kwargs))
 
-    # Context manager methods for compatibility with ConversationState
+    # 上下文管理器与 ConversationState 兼容的方法
     def __enter__(self):
         return self
 
@@ -791,43 +789,44 @@ class RemoteConversation(BaseConversation):
         token_callbacks: list[ConversationTokenCallbackType] | None = None,
         **_: object,
     ) -> None:
-        """Remote conversation proxy that talks to an agent server.
+        """与 Agent Server 对话的远程对话代理。
 
         Args:
-            agent: Agent configuration (will be sent to the server)
-            workspace: The working directory for agent operations and tool execution.
-            plugins: Optional list of plugins to load on the server. Each plugin
-                    is a PluginSource specifying source, ref, and repo_path.
-            conversation_id: Optional existing conversation id to attach to
-            callbacks: Optional callbacks to receive events (not yet streamed)
-            max_iteration_per_run: Max iterations configured on server
-            stuck_detection: Whether to enable stuck detection on server
-            stuck_detection_thresholds: Optional configuration for stuck detection
-                      thresholds. Can be a StuckDetectionThresholds instance or
-                      a dict with keys: 'action_observation', 'action_error',
-                      'monologue', 'alternating_pattern'. Values are integers
-                      representing the number of repetitions before triggering.
-            hook_config: Optional hook configuration sent to the server.
-                      All hooks are executed server-side.
-            visualizer: Visualization configuration. Can be:
-                       - ConversationVisualizerBase subclass: Class to instantiate
-                         (default: ConversationVisualizer)
-                       - ConversationVisualizerBase instance: Use custom visualizer
-                       - None: No visualization
-            secrets: Optional secrets to initialize the conversation with
-            tags: Optional key-value tags for the conversation. Keys must be
-                  lowercase alphanumeric, values up to 256 characters.
-            user_id: Optional user ID to associate with observability traces
-            client_tools: Optional list of client-defined tool specs. These tools
-                      have no server-side executor — when the agent calls them an
-                      ActionEvent is emitted over the WebSocket and the client
-                      handles execution via callbacks.
-            observability_metadata: Optional trace metadata for observability backends.
-            observability_tags: Optional root span tags for observability backends.
-            observability_span_name: Optional child span name for observability
-                      backends. The root span remains named "conversation".
-            token_callbacks: Optional callbacks invoked with each streamed token
-                      delta the server sends (agent LLM with ``stream=True``).
+            agent: 智能体配置（将发送到服务器）
+            workspace: 工作目录用于智能体操作和工具执行。
+            plugins: 要在服务器上加载的可选插件列表。 每个插件
+                    是一个 PluginSource，指定来源、参考和 repo_path。
+            conversation_id: 要附加到的可选现有对话 ID
+            callbacks: 可选回调用于接收事件（尚未流式传输）
+            max_iteration_per_run: 服务器上配置的最大迭代次数
+            stuck_detection: 是否启用服务器卡顿检测
+            stuck_detection_thresholds: 卡住检测的可选配置
+                      阈值。 可以是 StuckDetectionThresholds 实例或带有键的字典：“
+                      action_observation”、
+                      “action_error”、“monologue”、“alternating_pattern”。 值是表示触
+                      发前重复次数的整数
+                      。
+            hook_config: 发送到服务器的可选钩子配置。
+                      所有钩子都在服务器端执行。
+            visualizer: 可视化配置。 可以是：
+                       - ConversationVisualizerBase 子类：要实例化的类（默认值：
+                       ConversationVisualizer）
+                       - ConversationVisualizerBase 实例：使用自定义可视化工具
+                       - None: 无可视化
+            secrets: 可选机密用于初始化对话
+            tags: 对话的可选键值标签。 钥匙必须是
+                  小写字母数字，值最多 256 个字符。
+            user_id: 与可观察性跟踪关联的可选用户 ID
+            client_tools: 客户定义的工具规格的可选列表。 这些工具
+                      没有服务器端执行器 - 当智能体调用它们时，会通过 WebSocket 发出
+                      ActionEvent，并且客户端通过回调处理执行
+                      。
+            observability_metadata: 可观察性后端的可选跟踪元数据。
+            observability_tags: 用于可观察性后端的可选根跨度标签。
+            observability_span_name: 用于可观察性的可选子跨度名称
+                      后端。 根跨度仍命名为“conversation”。
+            token_callbacks: 每个流式传输 token 都会调用可选回调
+                      服务器发送的增量（智能体 LLM 和 ``stream=True``）。
         """
         super().__init__()
         observability_metadata = merge_observability_metadata(observability_metadata)
@@ -839,19 +838,19 @@ class RemoteConversation(BaseConversation):
         if default_span_name and observability_span_name == "conversation":
             observability_span_name = default_span_name
 
-        # Client tool specs the server already has persisted for this
-        # conversation (populated when re-attaching to an existing one). These
-        # must be registered locally before the initial event sync so that
-        # persisted ``ClientAction_*`` events can be deserialized.
+        # 客户端工具规范服务器已具有用于此对话的已持久化（在重新附加到现有对话时填充）。
+        #  这些必须在初始事件同步之前在本地注册，以便已持久化 ``ClientAction_*`` 事件可
+        # 以是已反序列化。
+        #
         attached_client_tools: list[ClientToolSpec] = []
-        # Tool modules persisted with the existing conversation. Importing them
-        # registers the dynamic action types the persisted events reference, so
-        # this has to happen before ``_initialize_connection`` syncs events.
+        # 工具模块已持久化与现有的对话。 导入它们会注册已持久化事件引用的动态操作类型，
+        # 因此这必须在 ``_initialize_connection`` 同步事件之前发生。
+        #
         attached_tool_module_qualnames: Mapping[str, str] = {}
 
         should_create = conversation_id is None
         if conversation_id is not None:
-            # Try to attach to existing conversation
+            # 尝试附加到现有对话
             resp = _send_request(
                 workspace.client,
                 "GET",
@@ -859,7 +858,7 @@ class RemoteConversation(BaseConversation):
                 acceptable_status_codes={404},
             )
             if resp.status_code == 404:
-                # Conversation doesn't exist, we'll create it
+                # 对话不存在，我们将创建它
                 should_create = True
             else:
                 info = resp.json()
@@ -868,8 +867,9 @@ class RemoteConversation(BaseConversation):
                     remote_agent = _validate_remote_agent(agent_payload)
                     if remote_agent.agent_kind != agent.agent_kind:
                         raise ValueError(_agent_kind_mismatch_message(conversation_id))
-                # Capture persisted client tool specs so we can register their
-                # dynamic action types before RemoteState syncs events.
+                # 捕获已持久化客户端工具规范，以便我们可以在 RemoteState 同步事件之前注
+                # 册其动态操作类型。
+                #
                 for raw_spec in info.get("client_tools") or []:
                     attached_client_tools.append(
                         ClientToolSpec.model_validate(raw_spec)
@@ -877,7 +877,7 @@ class RemoteConversation(BaseConversation):
                 attached_tool_module_qualnames = info.get("tool_module_qualnames") or {}
 
         if should_create:
-            # Import here to avoid circular imports
+            # 在这里导入以避免循环导入
             from openhands.sdk.subagent.registry import get_registered_agent_definitions
             from openhands.sdk.tool.registry import get_tool_module_qualnames
 
@@ -895,25 +895,25 @@ class RemoteConversation(BaseConversation):
                 "initial_message": None,
                 "max_iterations": max_iteration_per_run,
                 "stuck_detection": stuck_detection,
-                # We need to convert RemoteWorkspace to LocalWorkspace for the server
+                # 我们需要将RemoteWorkspace转换为LocalWorkspace以供服务器使用
                 "workspace": LocalWorkspace(
                     working_dir=workspace.working_dir
                 ).model_dump(),
-                # Include tool module qualnames for dynamic registration on server
+                # 包括用于在服务器上动态注册的工具模块限定名
                 "tool_module_qualnames": tool_qualnames,
-                # Include agent definitions for subagent registration on server
+                # 包括服务器上子智能体注册的智能体定义
                 "agent_definitions": serialized_defs,
-                # Include plugins to load on server
+                # 包括要在服务器上加载的插件
                 "plugins": [p.model_dump() for p in plugins] if plugins else None,
-                # Include hook_config for server-side hooks
+                # 包含 hook_config 用于服务器端挂钩
                 "hook_config": hook_config.model_dump() if hook_config else None,
-                # Include client-defined tool specs (no server-side executor)
+                # 包括客户端定义的工具规范（无服务器端执行器）
                 "client_tools": (
                     [s.model_dump(mode="json") for s in client_tools]
                     if client_tools
                     else []
                 ),
-                # Include tags and observability metadata if provided
+                # 包括标签和可观察性元数据（如果提供）
                 "tags": tags if tags is not None else {},
                 "observability_metadata": observability_metadata
                 if observability_metadata is not None
@@ -928,7 +928,7 @@ class RemoteConversation(BaseConversation):
             if user_id:
                 payload["user_id"] = user_id
             if stuck_detection_thresholds is not None:
-                # Convert to StuckDetectionThresholds if dict, then serialize
+                # 如果是 dict 则转换为 StuckDetectionThresholds，则转换为序列化
                 if isinstance(stuck_detection_thresholds, Mapping):
                     threshold_config = StuckDetectionThresholds(
                         **stuck_detection_thresholds
@@ -936,7 +936,7 @@ class RemoteConversation(BaseConversation):
                 else:
                     threshold_config = stuck_detection_thresholds
                 payload["stuck_detection_thresholds"] = threshold_config.model_dump()
-            # Include conversation_id if provided (for creating with specific ID)
+            # 如果提供，请包含 conversation_id（用于使用特定 ID 创建）
             if conversation_id is not None:
                 payload["conversation_id"] = str(conversation_id)
             resp = _send_request(
@@ -946,7 +946,7 @@ class RemoteConversation(BaseConversation):
                 json=payload,
             )
             data = resp.json()
-            # Expect a ConversationInfo
+            # 期待 ConversationInfo
             cid = data.get("id") or data.get("conversation_id")
             if not cid:
                 raise RuntimeError(
@@ -957,9 +957,9 @@ class RemoteConversation(BaseConversation):
             workspace.register_conversation(str(conversation_id))
 
         assert conversation_id is not None
-        # Register the persisted tools before connecting so that events synced
-        # during ``_initialize_connection`` can be deserialized. ``_from_info``
-        # does the same for the ``attach``/``create`` entry points.
+        # 连接前注册已持久化工具，以便 ``_initialize_connection`` 期间同步的事件可以是已
+        # 反序列化。 ``_from_info`` 对 ``attach``/``create``入口执行相同的操作。
+        #
         _restore_tool_registrations(attached_tool_module_qualnames)
         self._initialize_connection(
             agent=agent,
@@ -972,9 +972,9 @@ class RemoteConversation(BaseConversation):
             visualizer=visualizer,
         )
 
-        # Initialize secrets if provided
+        # 初始化机密（如果提供）
         if secrets:
-            # Convert dict[str, str] to dict[str, SecretValue]
+            # 将 dict[str, str] 转换为 dict[str, SecretValue]
             secret_values: dict[str, SecretValue] = {k: v for k, v in secrets.items()}
             self.update_secrets(secret_values)
 
@@ -987,8 +987,9 @@ class RemoteConversation(BaseConversation):
             conversation_tags=tags,
             parent_span_context=observability_parent_span_context,
         )
-        # All hooks (including SessionStart/SessionEnd) are executed server-side.
-        # hook_config is sent in the creation payload.
+        # 所有钩子（包括SessionStart/SessionEnd）都在服务器端执行。 hook_config 在创作载
+        # 荷中发送。
+        #
         self.delete_on_close = delete_on_close
 
     @classmethod
@@ -1002,12 +1003,11 @@ class RemoteConversation(BaseConversation):
             type[ConversationVisualizerBase] | ConversationVisualizerBase | None
         ) = DefaultConversationVisualizer,
     ) -> Self:
-        """Submit a creation request and connect to the returned conversation.
+        """提交创建请求并连接到返回的对话。
 
-        The request selects the agent source (``agent``, ``agent_settings`` or a
-        saved ``agent_profile_id``) and all server options. A supplied
-        conversation ID follows the server's idempotency contract; this method
-        does not probe for an existing conversation.
+        该请求选择智能体源（``agent``、``agent_settings`` 或已保存的
+        ``agent_profile_id``）和所有服务器选项。 提供
+        的会话 ID 遵循服务器的幂等性契约； 此方法不会探测现有对话。
         """
         updates: dict[str, object] = {
             "observability_metadata": merge_observability_metadata(
@@ -1058,9 +1058,9 @@ class RemoteConversation(BaseConversation):
             type[ConversationVisualizerBase] | ConversationVisualizerBase | None
         ) = DefaultConversationVisualizer,
     ) -> Self:
-        """Connect using the saved agent; never create or update a conversation.
+        """使用保存的智能体连接； 切勿创建或更新对话。
 
-        Missing or inaccessible conversations raise an HTTP error.
+        丢失或无法访问的对话会引发 HTTP 错误。
         """
         response = _send_request(
             workspace.client, "GET", f"{CONVERSATIONS_PATH}/{conversation_id}"
@@ -1109,7 +1109,7 @@ class RemoteConversation(BaseConversation):
         ),
         token_callbacks: list[ConversationTokenCallbackType] | None = None,
     ) -> None:
-        super().__init__()  # Initialize base class with span tracking
+        super().__init__()  # 使用跨度跟踪初始化基类
         self.agent = agent
         self._callbacks = callbacks or []
         if token_callbacks:
@@ -1122,11 +1122,11 @@ class RemoteConversation(BaseConversation):
         self._run_armed = threading.Event()
 
         self._id = conversation_id
-        # Register client tool action types locally so WebSocket/persisted
-        # events with ClientAction_* action_type can be deserialized by the
-        # event loop. This must cover both the specs the caller passed in and
-        # the specs the server already had persisted (when re-attaching), so a
-        # plain reattach by conversation_id can still sync persisted events.
+        # 在本地注册客户端工具操作类型，因此 WebSocket/具有 ClientAction_* action_type
+        # 的持久事件可以是已反序列化到事件循环。 这必须涵盖调用者传递的规格和服务器原有
+        # 的规格已持久化（在重新连接时），因此 conversation_id 的简单重新连接仍然同步已
+        # 持久化事件。
+        #
         seen_client_tool_names: set[str] = set()
         for spec in client_tools:
             if spec.name in seen_client_tool_names:
@@ -1134,46 +1134,46 @@ class RemoteConversation(BaseConversation):
             seen_client_tool_names.add(spec.name)
             ClientTool.from_spec(spec)
 
-        # Initialize the remote state
+        # 初始化远程状态
         self._state = RemoteState(self._client, str(self._id))
 
-        # Add default callback to maintain local event state
+        # 添加默认值回调以维护本地事件状态
         default_callback = self._state.events.create_default_callback()
         self._callbacks.append(default_callback)
 
-        # Add callback to update state from websocket events
+        # 添加回调以更新 WebSocket 事件的状态
         state_update_callback = self._state.create_state_update_callback()
         self._callbacks.append(state_update_callback)
 
-        # Add callback to handle LLM completion logs
-        # Register callback if any LLM has log_completions enabled
+        # 添加回调来处理 LLM 完成日志如果任何 LLM 启用了 log_completions，则注册回调
+        #
         if any(llm.log_completions for llm in agent.get_all_llms()):
             llm_log_callback = self._create_llm_completion_log_callback()
             self._callbacks.append(llm_log_callback)
 
-        # Handle visualization configuration
+        # 处理可视化配置
         if isinstance(visualizer, ConversationVisualizerBase):
-            # Use custom visualizer instance
+            # 使用自定义可视化工具实例
             self._visualizer = visualizer
-            # Initialize the visualizer with conversation state
+            # 使用对话状态初始化可视化工具
             self._visualizer.initialize(self._state)
             self._callbacks.append(self._visualizer.on_event)
         elif isinstance(visualizer, type) and issubclass(
             visualizer, ConversationVisualizerBase
         ):
-            # Instantiate the visualizer class with appropriate parameters
+            # 使用适当的参数实例化可视化工具类
             self._visualizer = visualizer()
-            # Initialize with state
+            # 用状态初始化
             self._visualizer.initialize(self._state)
             self._callbacks.append(self._visualizer.on_event)
         else:
-            # No visualization (visualizer is None)
+            # 无可视化（可视化工具为 None）
             self._visualizer = None
 
-        # Add a callback that signals when run completes via WebSocket.
-        # The server's post-run full-state snapshot is the only authoritative
-        # WebSocket success signal. Per-field FINISHED is a hint because stop
-        # hooks can still revert it; per-field ERROR/STUCK remain immediate.
+        # 添加回调，当运行完成时通过 WebSocket 发出信号。 服务器的运行后完整状态快照是唯
+        # 一权威的WebSocket成功信号。 每个字段 FINISHED 是一个提示，因为停止挂钩仍然可以
+        # 恢复它； 每个字段 ERROR/STUCK 保持立即。
+        #
         def run_complete_callback(event: Event) -> None:
             if not isinstance(event, ConversationStateUpdateEvent):
                 return
@@ -1193,13 +1193,11 @@ class RemoteConversation(BaseConversation):
             if event.key != FULL_STATE_KEY:
                 return
 
-            # Only accept full-state snapshots as run-completion signals when a
-            # run is actually in progress. The WS subscription delivers an
-            # initial full-state snapshot during connect(); if that snapshot
-            # carries a non-RUNNING status (e.g. "idle"), it could be picked up
-            # by _wait_for_run_completion() as the completion signal for the
-            # *next* run() invocation, causing blocking=True to return before the
-            # server has actually finished.
+            # 仅当运行实际正在进行时才接受全状态快照作为运行完成信号。 WS 订阅在
+            # connect() 期间交付初始全状态快照； 如果该快照具有非 RUNNING 状态 (e.g. “
+            # idle”），它可以被 _wait_for_run_completion() 拾取作为完成信号
+            # *next* run() 调用，导致blocking=True 在
+            # 服务器实际上已经完成了。
             if not self._run_armed.is_set():
                 return
 
@@ -1212,14 +1210,14 @@ class RemoteConversation(BaseConversation):
             if status != ConversationExecutionStatus.RUNNING:
                 self._terminal_status_queue.put(status.value)
 
-        # Compose all callbacks into a single callback
+        # 将所有回调组合成一个回调
         all_callbacks = self._callbacks + [run_complete_callback]
         composed_callback = BaseConversation.compose_callbacks(all_callbacks)
 
-        # Track which events the callbacks have seen, so that events the
-        # server recorded while the socket was reconnecting (and that only
-        # reached the cache through REST reconciliation) can be replayed to
-        # them once, without the live socket delivering them a second time.
+        # 跟踪哪些事件回调已经看到，以便记录在重连期间服务器记录的事件（这些事件仅通过缓
+        # 存到达） REST [reconciliation) 可以被重播一次，而不会让活的 socket 为他们发送
+        # 第二次。
+        #
         delivered_ids: set[str] = set()
         replayed_ids: set[str] = set()
 
@@ -1243,7 +1241,7 @@ class RemoteConversation(BaseConversation):
                 except Exception:
                     logger.exception("ws_replay_callback_error", stack_info=True)
 
-        # Initialize WebSocket client for callbacks
+        # 为回调初始化 WebSocket 客户端
         self._ws_client = WebSocketCallbackClient(
             host=self.workspace.host,
             conversation_id=str(self._id),
@@ -1253,9 +1251,9 @@ class RemoteConversation(BaseConversation):
         )
         self._ws_client.start()
 
-        # Wait for WebSocket subscription to complete before allowing operations.
-        # This ensures events emitted during send_message() are not missed.
-        # The server sends a ConversationStateUpdateEvent after subscription.
+        # 在允许操作之前等待 WebSocket 订阅完成。 这确保了 send_message() 期间发出的事件
+        # 不会被错过。 订阅后服务器发送ConversationStateUpdateEvent。
+        #
         ws_timeout = float(os.getenv("OPENHANDS_REMOTE_WS_READY_TIMEOUT", "30"))
         if not self._ws_client.wait_until_ready(timeout=ws_timeout):
             if os.getenv("OPENHANDS_REMOTE_WS_READY_REQUIRED", "true").lower() in (
@@ -1283,22 +1281,23 @@ class RemoteConversation(BaseConversation):
                     timeout=ws_timeout,
                 )
 
-        # Reconcile events after WebSocket is ready to catch any events that
-        # were emitted between the initial REST sync and WebSocket subscription.
-        # This is the "reconciliation" part of the subscription handshake.
+        # 在 WebSocket 准备好捕获初始 REST 同步和 WebSocket 订阅之间发出的任何事件后协调
+        # 事件。 这是订阅握手的“和解”部分。
+        #
         self._state.events.reconcile()
-        # Callbacks are not replayed history: only events recorded after this
-        # point and missed by the socket are replayed on reconnect.
+        # 回调不重播历史记录：只有在此点之后记录的事件以及套接字错过的事件才会在重新连接
+        # 时重播。
+        #
         delivered_ids.update(event.id for event in self._state.events[:])
 
     def _create_llm_completion_log_callback(self) -> ConversationCallbackType:
-        """Create a callback that writes LLM completion logs to client filesystem."""
+        """创建一个将 LLM 完成日志写入客户端文件系统的回调。"""
 
         def callback(event: Event) -> None:
             if not isinstance(event, LLMCompletionLogEvent):
                 return
 
-            # Find the LLM with matching usage_id
+            # 查找与 usage_id 匹配的 LLM
             target_llm = None
             for llm in self.agent.get_all_llms():
                 if llm.usage_id == event.usage_id:
@@ -1330,7 +1329,7 @@ class RemoteConversation(BaseConversation):
 
     @property
     def state(self) -> RemoteState:
-        """Access to remote conversation state."""
+        """访问远程会话状态。"""
         return self._state
 
     @property
@@ -1339,8 +1338,8 @@ class RemoteConversation(BaseConversation):
 
     @property
     def stuck_detector(self):
-        """Stuck detector for compatibility.
-        Not implemented for remote conversations."""
+        """卡住检测器以实现兼容性。
+        未实现远程对话。"""
         raise NotImplementedError(
             "For remote conversations, stuck detection is not available"
             " since it would be handled server-side."
@@ -1356,7 +1355,7 @@ class RemoteConversation(BaseConversation):
         payload = {
             "role": message.role,
             "content": [c.model_dump() for c in message.content],
-            "run": False,  # Mirror local semantics; explicit run() must be called
+            "run": False,  # 镜像局部语义； 必须调用显式 run()
         }
         if sender is not None:
             payload["sender"] = sender
@@ -1374,39 +1373,40 @@ class RemoteConversation(BaseConversation):
         poll_interval: float = 1.0,
         timeout: float = 3600.0,
     ) -> None:
-        """Trigger a run on the server.
+        """在服务器上触发运行。
 
         Args:
-            blocking: If True (default), wait for the run to complete by polling
-                the server. If False, return immediately after triggering the run.
-            poll_interval: Time in seconds between status polls (only used when
+            blocking: 如果True（默认），则通过轮询等待运行完成
+                服务器。 如果False，则触发运行后立即返回。
+            poll_interval: 状态轮询之间的时间（以秒为单位）（仅在以下情况下使用）
                 blocking=True). Default is 1.0 second.
-            timeout: Maximum time in seconds to wait for the run to complete
-                (only used when blocking=True). Default is 3600 seconds.
+            timeout: 等待运行完成的最长时间（以秒为单位）
+                （仅当阻塞=True时使用）。 默认值为 3600 秒。
 
         Raises:
-            ConversationRunError: If the run fails or times out.
+            ConversationRunError: 如果运行失败或超时。
         """
-        # Disarm and drain any stale terminal status events from previous runs
-        # before arming for the new one. _run_armed gates full-state WS snapshots
-        # in run_complete_callback; clearing it here prevents the initial WS
-        # subscription snapshot from being mistaken for the post-run snapshot.
+        # 在准备新的运行之前，请解除并清除之前运行中的任何过时的终端状态事件。
+        # _run_armed门run_complete_callback中的全状态WS快照； 此处清除它可以防止初始 WS
+        # 订阅快照被误认为是运行后快照。
+        #
         self._run_armed.clear()
         self._drain_terminal_status_queue()
         run_start_event_count = len(self._state.events)
 
-        # Trigger a run on the server using the dedicated run endpoint.
-        # Let the server tell us if it's already running (409), avoiding an extra GET.
+        # 使用专用运行端点在服务器上触发运行。 让服务器告诉我们它是否已经在运行 (409)，
+        # 避免额外的 GET。
+        #
         try:
             resp = _send_request(
                 self._client,
                 "POST",
                 f"{CONVERSATIONS_PATH}/{self._id}/run",
                 acceptable_status_codes={200, 201, 204, 409},
-                timeout=30,  # Short timeout for trigger request
+                timeout=30,  # 短超时表示触发请求
             )
-        except Exception as e:  # httpx errors already logged by _send_request
-            # Surface conversation id to help resuming
+        except Exception as e:  # _send_request 已记录 httpx 错误
+            # Surface 对话 ID 可帮助恢复
             raise ConversationRunError(self._id, e) from e
 
         if resp.status_code == 409:
@@ -1415,8 +1415,9 @@ class RemoteConversation(BaseConversation):
             logger.info(f"run() triggered successfully: {resp}")
 
         if blocking:
-            # Arm after POST so that only WS full-state snapshots arriving
-            # after the run was triggered are treated as run-completion signals.
+            # 在 POST 之后进行 Arm，以便仅将触发运行后到达的 WS 全状态快照视为运行完成信
+            # 号。
+            #
             self._run_armed.set()
             try:
                 self._wait_for_run_completion(
@@ -1431,39 +1432,36 @@ class RemoteConversation(BaseConversation):
         timeout: float = 1800.0,
         since: int = 0,
     ) -> None:
-        """Wait for the conversation run to complete.
+        """等待对话运行完成。
 
-        This method waits for the run to complete by listening for the terminal
-        status event via WebSocket. This ensures all events are delivered before
-        returning, avoiding the race condition where polling sees "finished"
-        status before WebSocket delivers the final events.
+        该方法通过WebSocket监听终端状态事件来等待运行完成。 这确保所有事件在返回之前
+        被交付，避免了竞态条件中轮询看到“完成”状态而WebSocket在交付
+        最终事件之前就看到的情况。
 
-        As a fallback, it also polls the server periodically. If the WebSocket
-        is delayed or disconnected, polling still surfaces ERROR/STUCK promptly.
-        A REST-only FINISHED status is not authoritative because stop hooks can
-        still revert it to RUNNING before the server-side run task exits.
+        与回退方案一样，它也会定期轮询服务器。 如果 WebSocket 延迟或断开，轮询仍会立
+        即出现 ERROR/STUCK。 仅 REST 的 FINISHED
+         状态并不具有权威性，因为在服务器端运行任务退出之前，停止挂钩仍然可以将其恢复
+         为 RUNNING。
 
         Args:
-            poll_interval: Time in seconds between status polls (fallback).
-            timeout: Maximum time in seconds to wait.
+            poll_interval: 状态轮询之间的时间（以秒为单位）(回退方案)。
+            timeout: 等待的最长时间（以秒为单位）。
 
         Raises:
-            ConversationRunError: If the run fails, the conversation disappears,
-                or the wait times out. Transient network errors, 429s, and 5xx
-                responses are retried until timeout.
+            ConversationRunError: 如果运行失败，对话就会消失，
+                或者等待超时。 重试瞬时网络错误、429 和 5xx 响应，直到超时。
         """
         start_time = time.monotonic()
         terminal_poll_count = 0
-        # Log a warning after this many consecutive REST terminal polls without a
-        # post-run WS snapshot. This is a health signal, not a return path —
-        # returning immediately on REST FINISHED would reintroduce the stop-hook race.
+        # 在没有运行后 WS 快照的情况下进行如此多次连续的 REST 终端轮询后记录警告。 这是
+        # 一个健康信号，而不是返回路径——立即返回 REST FINISHED 将重新引入停钩比赛。
+        #
         TERMINAL_POLL_WARNING_THRESHOLD = 3
-        # Time-based hard fallback: accept REST-confirmed terminal status after
-        # the server has been reporting terminal for at least this many seconds
-        # without a post-run WS snapshot. Stop hooks are fast (seconds); 30 s
-        # is a safe bound regardless of poll_interval. This prevents an
-        # indefinite hang when the WS snapshot is never delivered (e.g., socket
-        # dropped after the run finishes on the server).
+        # 时间戳硬回退方案：在服务器报告终端至少 REST 秒内没有运行后 WS 拍照的情况下，接
+        # 受终端状态。 停止钩子速度快（秒）；无论poll_interval如何，30 秒都是一个安全范
+        # 围。 这可以防止在 WS 快照从未传递时无限期挂起（e.g.，在服务器上运行完成后套接
+        # 字被丢弃）。
+        #
         TERMINAL_HARD_FALLBACK_SECS = 30.0
         terminal_first_seen_at: float | None = None
 
@@ -1478,12 +1476,12 @@ class RemoteConversation(BaseConversation):
                     ),
                 )
 
-            # Wait for either:
-            # 1. WebSocket delivers a run-completion signal
-            # 2. Poll interval expires (fall through to REST poll)
+            # 等待：
+            # 1. WebSocket 发出运行完成信号
+            # 2. 轮询间隔到期（下降到 REST 轮询）
             try:
                 ws_status = self._terminal_status_queue.get(timeout=poll_interval)
-                # Raises ConversationRunError on ERROR/STUCK; no-op otherwise.
+                # 在 ERROR/STUCK 上加注 ConversationRunError； 否则不进行任何操作。
                 self._handle_conversation_status(ws_status, since)
                 logger.info(
                     "Run completed via post-run WebSocket state update "
@@ -1491,38 +1489,38 @@ class RemoteConversation(BaseConversation):
                     ws_status,
                     elapsed,
                 )
-                # The server publishes the full ConversationStateUpdateEvent after
-                # conversation.run()/arun() exits and pending events are flushed,
-                # so non-running statuses from that snapshot are authoritative
-                # run-complete signals.
+                # 服务器发布完整 ConversationStateUpdateEvent 之后 conversation.run()
+                # /arun() 退出和待处理事件被刷新，因此，该快照中的非运行状态是权威的完成
+                # 信号。
+                #
                 self._state.events.reconcile()
                 return
             except Empty:
-                pass  # Queue.get() timed out, fall through to REST polling
+                pass  # Queue.get() 超时，进入 REST 轮询
 
-            # Poll the server for status as a health check and fallback.
-            # This catches ERROR/STUCK states that need immediate attention,
-            # and provides a fallback if WebSocket is delayed/disconnected.
+            # 轮询服务器的状态作为健康检查和回退方案。 这捕获需要立即关注的 ERROR/STUCK
+            # 状态，并在 WebSocket 延迟/断开连接时提供回退方案。
+            #
             try:
                 status = self._poll_status_once()
             except Exception as exc:
                 self._handle_poll_exception(exc)
-                # Reset on error: we cannot confirm the server is still in a
-                # terminal state after a failed poll, so conservatively restart
-                # the hard-fallback timer. In the degenerate case where polls
-                # alternate between terminal and exception, the 30 s threshold
-                # slides; this is intentional — we prefer a false-negative wait
-                # over a false-positive early return.
+                # 错误重置：我们无法确认轮询失败后服务器是否仍处于终端状态，因此保守地重
+                # 新启动硬回退方案计时器。 在轮询在终止和异常之间交替的退化情况下，30 秒
+                # 的阈值会滑动； 这是有意为之的——我们更喜欢False负等待而不是False正提前
+                # 返回。
+                #
                 terminal_poll_count = 0
                 terminal_first_seen_at = None
             else:
-                # Raises ConversationRunError for ERROR/STUCK states
+                # 针对 ERROR/STUCK 状态提高 ConversationRunError
                 self._handle_conversation_status(status, since)
 
                 if status and ConversationExecutionStatus(status).is_terminal():
-                    # ERROR/STUCK have already been handled above. FINISHED from
-                    # REST is advisory because stop hooks can still veto it;
-                    # prefer waiting for the server's post-run WebSocket state update.
+                    # ERROR/STUCK上面已经处理过了。 REST 中的 FINISHED 是建议性的，因为
+                    # stop hooks 仍然可以否决它； 更喜欢等待服务器的运行后 WebSocket 状
+                    # 态更新。
+                    #
                     terminal_poll_count += 1
                     now = time.monotonic()
                     if terminal_first_seen_at is None:
@@ -1556,10 +1554,9 @@ class RemoteConversation(BaseConversation):
                     terminal_first_seen_at = None
 
     def _drain_terminal_status_queue(self) -> None:
-        """Empty the WS terminal-status hint queue.
+        """清空 WS 终端状态提示队列。
 
-        Called at the start of run() (before arming) to discard any stale
-        signals left over from a previous run invocation.
+        在 run() 开始时（启动前）调用，以丢弃上一次运行调用留下的任何陈旧信号。
         """
         while True:
             try:
@@ -1568,7 +1565,7 @@ class RemoteConversation(BaseConversation):
                 break
 
     def _poll_status_once(self) -> str | None:
-        """Fetch the current execution status from the remote conversation."""
+        """从远程会话中获取当前执行状态。"""
         resp = _send_request(
             self._client,
             "GET",
@@ -1579,7 +1576,7 @@ class RemoteConversation(BaseConversation):
         return info.get("execution_status")
 
     def _handle_conversation_status(self, status: str | None, since: int = 0) -> bool:
-        """Handle non-running statuses; return True if the run is complete."""
+        """处理非运行状态； 如果运行完成则返回 True。"""
         if status == ConversationExecutionStatus.RUNNING.value:
             return False
         if status == ConversationExecutionStatus.ERROR.value:
@@ -1601,7 +1598,7 @@ class RemoteConversation(BaseConversation):
         return True
 
     def _handle_poll_exception(self, exc: Exception) -> None:
-        """Classify polling exceptions into retryable vs terminal failures."""
+        """将轮询异常分为可重试失败和终端失败。"""
         if isinstance(exc, httpx.HTTPStatusError):
             status_code = exc.response.status_code
             reason = exc.response.reason_phrase
@@ -1632,7 +1629,7 @@ class RemoteConversation(BaseConversation):
     def _get_last_conversation_error(
         self, since: int = 0
     ) -> ConversationErrorEvent | None:
-        """Return the most recent structured conversation error, if available."""
+        """返回最近的结构化对话错误（如果有）。"""
         events = self._state.events
         for idx in range(len(events) - 1, since - 1, -1):
             event = events[idx]
@@ -1650,7 +1647,7 @@ class RemoteConversation(BaseConversation):
         )
 
     def set_security_analyzer(self, analyzer: SecurityAnalyzerBase | None) -> None:
-        """Set the security analyzer for the remote conversation."""
+        """设置远程会话的安全分析器。"""
         payload = {
             "security_analyzer": analyzer.model_dump(mode="json")
             if analyzer
@@ -1664,7 +1661,7 @@ class RemoteConversation(BaseConversation):
         )
 
     def reject_pending_actions(self, reason: str = "User rejected the action") -> None:
-        # Equivalent to rejecting confirmation: pause
+        # 相当于拒绝确认：暂停
         _send_request(
             self._client,
             "POST",
@@ -1700,9 +1697,9 @@ class RemoteConversation(BaseConversation):
         serializable_secrets: dict[str, str | dict] = {}
         for key, value in secrets.items():
             if isinstance(value, SecretSource):
-                # Pydantic model → dict with "kind" discriminator for server.
+                # Pydantic 模型→带有服务器“种类”鉴别器的字典。
                 # expose_secrets=True prevents SecretStr fields (e.g. header
-                # values) from being redacted during serialization.
+                # 值）在序列化期间不再为已脱敏。
                 serializable_secrets[key] = value.model_dump(
                     mode="json", context={"expose_secrets": True}
                 )
@@ -1720,21 +1717,19 @@ class RemoteConversation(BaseConversation):
         )
 
     def ask_agent(self, question: str) -> str:
-        """Ask the agent a simple, stateless question and get a direct LLM response.
+        """向智能体提出一个简单的、无状态的问题，并获得直接的 LLM 响应。
 
-        This bypasses the normal conversation flow and does **not** modify, persist,
-        or become part of the conversation state. The request is not remembered by
-        the main agent, no events are recorded, and execution status is untouched.
-        It is also thread-safe and may be called while `conversation.run()` is
-        executing in another thread.
+        这绕过了正常的对话流程，并且 ** 不 ** 修改持久化或成为对话状态的一部分。 主程
+        序智能体不会记住该请求，不会记录任何事件，并且执行状态不变。 它也是线
+        程安全，并且可以在 `conversation.run()` 在另一个线程中执行时被调用。
 
         Args:
-            question: A simple string question to ask the agent
+            question: 一个简单的字符串问题要问智能体
 
         Returns:
-            A string response from the agent
+            来自智能体的字符串响应
         """
-        # For remote conversations, delegate to the server endpoint
+        # 对于远程对话，委托给服务器端点
         payload = {"question": question}
 
         resp = _send_request(
@@ -1747,7 +1742,7 @@ class RemoteConversation(BaseConversation):
         return data["response"]
 
     def set_title(self, title: str) -> None:
-        """Set the persisted display title without running the agent."""
+        """设置已持久化显示标题而不运行智能体。"""
         _send_request(
             self._client,
             "PATCH",
@@ -1761,18 +1756,19 @@ class RemoteConversation(BaseConversation):
         metadata={OPERATION_METADATA_KEY: "title_generation"},
     )
     def generate_title(self, llm: LLM | None = None, max_length: int = 50) -> str:
-        """Generate a title for the conversation based on the first user message.
+        """根据第一条用户消息生成对话标题。
 
         Args:
-            llm: Optional LLM to use for title generation. If not provided,
-                 uses the agent's LLM.
-            max_length: Maximum length of the generated title.
+            llm: 可选 LLM 用于标题生成。 如果没有提供，
+                 使用智能体的 LLM。
+            max_length: 生成的标题的最大长度。
 
         Returns:
-            A generated title for the conversation.
+            为对话生成的标题。
         """
-        # Reconcile before reading state so recently posted user messages are
-        # visible even if they arrived between the last sync and this call.
+        # 在读取状态之前进行协调，以便最近发布的用户消息可见，即使它们是在上次同步和此调
+        # 用之间到达的。
+        #
         self._state.events.reconcile()
 
         effective_llm = llm if llm is not None else self.agent.llm
@@ -1781,17 +1777,17 @@ class RemoteConversation(BaseConversation):
         )
 
     def condense(self) -> None:
-        """Force condensation of the conversation history.
+        """强制对话历史记录上下文压缩。
 
-        This method sends a condensation request to the remote agent server.
-        The server will use the existing condensation request pattern to trigger
-        condensation if a condenser is configured and handles condensation requests.
+        此方法向远程 Agent Server 发送上下文压缩请求。 如果配置了上下文压缩器并处理上
+        下文压缩请求，服务器将使用现有的上下文压缩请求模式来触发上下文压
+        缩。
 
-        The condensation will be applied on the server side and will modify the
-        conversation state by adding a condensation event to the history.
+        上下文压缩将应用于服务器端，并将通过向历史记录添加上下文压缩事件来修改对话状
+        态。
 
         Raises:
-            HTTPError: If the server returns an error (e.g., no condenser configured).
+            HTTPError: 如果服务器返回错误（e.g.，未配置上下文压缩器）。
         """
         _send_request(
             self._client,
@@ -1809,33 +1805,32 @@ class RemoteConversation(BaseConversation):
         reset_metrics: bool = True,
         from_event_id: EventID | None = None,
     ) -> "RemoteConversation":
-        """Fork this conversation on the remote agent server.
+        """在远程 Agent Server 上分叉此对话。
 
-        Sends a fork request to the server which deep-copies events and
-        state. Returns a new ``RemoteConversation`` pointing at the fork.
+        向服务器发送一个分叉请求，深度复制事件和状态。 返回一个指向叉子的新
+        ``RemoteConversation``。
 
         Args:
-            conversation_id: ID for the forked conversation (auto-generated
-                on the server if ``None``).
-            agent: **Not supported for remote conversations.** Passing a
-                non-``None`` value raises ``NotImplementedError``. Use
-                ``LocalConversation.fork(agent=...)`` for agent replacement.
-            title: Optional title for the forked conversation.
-            tags: Optional tags for the forked conversation.
-            reset_metrics: If ``True`` (default), cost/token stats start
-                fresh on the fork.
-            from_event_id: If set, fork only the branch up to and including this
-                event (``path_to_root``) and set the fork's HEAD there. If
-                ``None`` (default), copy the whole conversation.
+            conversation_id: 分叉对话的 ID（自动生成
+                如果 ``None``，则在服务器上）。
+            agent: **不支持远程对话。**通过一个
+                非 ``None`` 值提高 ``NotImplementedError``。 使用
+                ``LocalConversation.fork(agent=...)`` 用于智能体替换。
+            title: 分叉对话的可选标题。
+            tags: 分叉对话的可选标签。
+            reset_metrics: 如果 ``True``（默认），成本/代币统计开始
+                新鲜的在叉子上。
+            from_event_id: 如果设置，则仅分叉直到并包括该分支的分支
+                事件（``path_to_root``）并在那里设置叉子的HEAD。 如果
+                ``None``（默认），复制整个对话。
 
         Returns:
-            A new ``RemoteConversation`` backed by the forked server-side
-            conversation.
+            由分叉的服务器端对话支持的新 ``RemoteConversation``。
 
         Raises:
-            NotImplementedError: If ``agent`` is provided.
-            httpx.HTTPStatusError: If the server rejects the request (e.g. 404
-                for an unknown ``from_event_id``).
+            NotImplementedError: 如果提供``agent``。
+            httpx.HTTPStatusError：如果服务器拒绝请求（e.g.404
+                对于未知的``from_event_id``）。
         """
         if agent is not None:
             raise NotImplementedError(
@@ -1879,19 +1874,18 @@ class RemoteConversation(BaseConversation):
         )
 
     def navigate_to(self, event_id: EventID | None) -> None:
-        """Move the conversation HEAD to an existing event on the remote server.
+        """将对话 HEAD 移至远程服务器上的现有事件。
 
-        Posts to the server's ``/navigate`` route, which re-roots the active
-        branch in place (no new conversation). The cached state is refreshed so
-        a subsequent ``state`` read reflects the new HEAD — ``leaf_event_id`` is
-        not broadcast over the WebSocket.
+        发布到服务器的 ``/navigate`` 路由，这将活动分支重新定位到位（没有新对话）。
+        缓存的状态被刷新，因此后续的 ``state`` 读取反映了新的
+         HEAD - ``leaf_event_id`` 不会通过 WebSocket 广播。
 
         Args:
-            event_id: Event to make the new HEAD, or ``None`` for the empty tree.
+            event_id: 为空树创建新的 HEAD 或 ``None`` 的事件。
 
         Raises:
-            httpx.HTTPStatusError: If the server rejects the event id (e.g. 404
-                for an unknown event).
+            httpx.HTTPStatusError：如果服务器拒绝事件ID（e.g。404
+                对于未知事件）。
         """
         _send_request(
             self._client,
@@ -1902,18 +1896,17 @@ class RemoteConversation(BaseConversation):
         self._state.refresh_from_server()
 
     def execute_tool(self, tool_name: str, action: "Action") -> "Observation":
-        """Execute a tool directly without going through the agent loop.
+        """直接执行工具，无需经过智能体循环。
 
-        Note: This method is not yet supported for RemoteConversation.
-        Tool execution for remote conversations happens on the server side
-        during the normal agent loop.
+        Note: RemoteConversation 尚不支持此方法。
+        在正常的智能体循环期间，远程对话的工具执行发生在服务器端。
 
         Args:
-            tool_name: The name of the tool to execute
-            action: The action to pass to the tool executor
+            tool_name: 要执行的工具的名称
+            action: 传递给工具执行器的操作
 
         Raises:
-            NotImplementedError: Always, as this feature is not yet supported
+            NotImplementedError: 始终如此，因为尚不支持此功能
                 for remote conversations.
         """
         raise NotImplementedError(
@@ -1924,11 +1917,11 @@ class RemoteConversation(BaseConversation):
         )
 
     def close(self) -> None:
-        """Close the conversation and clean up resources.
+        """关闭对话并清理资源。
 
-        Note: We don't close self._client here because it's shared with the workspace.
-        The workspace owns the client and will close it during its own cleanup.
-        Closing it here would prevent the workspace from making cleanup API calls.
+        Note: 我们在这里不关闭 self._client，因为它与工作区共享。
+        工作区拥有该客户端，并将在其自己的清理过程中关闭它。 在此处关闭它会阻止工作区
+        进行清理 API 调用。
         """
         if self._cleanup_complete:
             return
@@ -1936,29 +1929,28 @@ class RemoteConversation(BaseConversation):
         if first_attempt:
             self._cleanup_initiated = True
 
-            # Best-effort: hand the accumulated LLM cost to the workspace so it can
-            # be included in the automation completion callback. Only read cached
-            # state — close() also runs on the failure path, where a live fetch
-            # could block until timeout against an agent server that is already gone.
-            # The cache tracks this run: the agent server streams a "stats" update
-            # after every LLM response (EventService._setup_stats_streaming), so it
-            # holds the run's spend even on the failure path, which wakes run() from
-            # a per-field ERROR/STUCK update before the post-run full-state snapshot.
+            # 尽力而为：将累积的 LLM 成本交给工作区，以便将其包含在自动化完成回调中。 仅
+            # 读取缓存状态 - close() 也在故障路径上运行，其中实时获取可能会阻塞，直到超
+            # 时针对已经消失的 Agent Server。 缓存记录了这次运行：Agent Server流在每次
+            # LLM响应后更新“统计”信息（EventService._setup_stats_streaming），因此即使在
+            # 失败路径上也持有运行的花费，run()在运行结束后从每字段ERROR/STUCK更新中唤醒
+            # 。
+            #
             try:
                 cached = self._state._cached_state
-                # Require an actual "stats" entry: a cache built only from partial
-                # field updates — e.g. the subscribe-time push for a service with no
-                # live conversation — would otherwise yield 0.0 and record a run as
-                # free when its cost is really just unknown.
+                # 需要一个实际的“统计”条目：仅根据部分字段更新构建的缓存 - e.g。 对于没
+                # 有实时对话的服务，订阅时间推送将产生 0.0 并记录为免费，而其实际成本只
+                # 是未知。
+                #
                 if cached is not None and "stats" in cached:
                     cost = self._state.stats.get_combined_metrics().accumulated_cost
                     self.workspace.register_cost(cost)
             except Exception as e:
                 logger.debug(f"Could not register accumulated cost: {e}")
 
-            # SessionEnd hooks are executed server-side (via hook_config in payload).
+            # SessionEnd 挂钩在服务器端执行（通过载荷中的 hook_config）。
             try:
-                # Stop WebSocket client if it exists
+                # 停止 WebSocket 客户端（如果存在）
                 if self._ws_client:
                     self._ws_client.stop()
                     self._ws_client = None
@@ -1968,8 +1960,8 @@ class RemoteConversation(BaseConversation):
             self._end_observability_span()
             if self.delete_on_close:
                 try:
-                    # trigger server-side delete_conversation to release resources
-                    # like tmux sessions
+                    # 触发服务器端delete_conversation释放资源，如tmux会话
+                    #
                     _send_request(
                         self._client,
                         "DELETE",

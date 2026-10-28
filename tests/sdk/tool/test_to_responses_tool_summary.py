@@ -1,4 +1,4 @@
-"""Tests for tool schema summary field enhancement."""
+"""测试工具模式摘要字段增强。"""
 
 from collections.abc import Sequence
 from typing import ClassVar
@@ -18,7 +18,7 @@ class TSAction(Action):
 
 
 class MockSummaryTool(ToolDefinition[TSAction, Observation]):
-    """Concrete mock tool for summary testing."""
+    """用于摘要测试的具体模拟对象工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -38,7 +38,7 @@ def tool():
 
 
 def test_to_responses_tool_summary_always_added(tool):
-    """Test that summary field is always added to responses tool schema."""
+    """测试汇总字段是否始终添加到响应工具模式。"""
     t = tool.to_responses_tool()
     params = t["parameters"]
     assert isinstance(params, dict)
@@ -48,7 +48,7 @@ def test_to_responses_tool_summary_always_added(tool):
 
 
 def test_to_openai_tool_summary_always_added(tool):
-    """Test that summary field is always added to OpenAI tool schema."""
+    """测试汇总字段是否始终添加到 OpenAI 工具模式。"""
     t = tool.to_openai_tool()
     func = t.get("function")
     assert func is not None
@@ -60,7 +60,7 @@ def test_to_openai_tool_summary_always_added(tool):
 
 
 def test_mcp_tool_with_summary_param_preserves_original_description():
-    """Schema injection must not shadow a tool's own 'summary' field."""
+    """模式注入不得影响工具自己的“摘要”字段。"""
     mcp_tool = mcp.types.Tool(
         name="jira_create_issue",
         description="Create a Jira issue",
@@ -87,7 +87,7 @@ def test_mcp_tool_with_summary_param_preserves_original_description():
     assert isinstance(params, dict)
     props = params.get("properties") or {}
 
-    # The tool's own "summary" field should be present with its
-    # original description, NOT the SDK's meta-summary description.
+    # 工具自己的“摘要”字段应与其原始描述一起出现，不 SDK 的元摘要描述。
+    #
     assert "summary" in props
     assert props["summary"]["description"] == "Ticket title"

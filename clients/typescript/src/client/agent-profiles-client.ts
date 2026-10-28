@@ -15,11 +15,11 @@ export interface AgentProfilesClientOptions {
 
 export interface GetAgentProfileOptions {
   /**
-   * Controls server-side `skills[].mcp_tools` secret exposure via
+   * 通过控制服务器端 `skills[].mcp_tools` 机密曝光
    * `X-Expose-Secrets`:
-   * - `"encrypted"`: Fernet-encrypted values (safe for frontend round-trip)
-   * - `"plaintext"`: raw secret values (backend clients only)
-   * - omitted: values are masked/redacted
+   * - `"encrypted"`：Fernet 加密值（前端往返安全）
+   * - `"plaintext"`：原始机密值（仅限后端客户端）
+   * - 省略：值被屏蔽/编辑
    */
   exposeSecrets?: ExposeSecretsMode;
 }
@@ -42,22 +42,22 @@ export interface AgentProfileMutationResponse {
 export interface ActivateAgentProfileResponse {
   id: string;
   message: string;
-  /** Always false — activation is pointer-only (does not write agent_settings). */
+  /** 始终 False — 仅激活指针（不写入 agent_settings）。*/
   agent_settings_applied: boolean;
 }
 
 /**
- * Client for the agent-server `/api/agent-profiles` endpoints.
+ * 客户端为智能体-服务器`/api/agent-profiles`端点。
  *
- * Mirrors `agent_profiles_router.py` in the OpenHands agent-server.
- * Error status codes surfaced via `HttpError.status`:
- * - 404: profile not found (get/rename/materialize)
- * - 409: profile limit exceeded (save) or new_name already exists (rename)
- * - 422: validation error (save)
+ * OpenHands 智能体服务器中的镜像 `agent_profiles_router.py`。
+ * 错误状态代码通过 `HttpError.status` 出现：
+ * - 404：找不到配置文件（获取/重命名/实现）
+ * - 409：超出配置文件限制（保存）或 new_name 已存在（重命名）
+ * - 422：验证错误（保存）
  *
- * `delete` is idempotent — a missing name resolves 200, not 404. `materialize`
- * never raises on dangling LLM/MCP refs; they are reported in the response body
- * (`valid: false`, `dangling_mcp_server_refs`), not as a 4xx.
+ * `delete` 是幂等的 — 缺少名称会解析 200，而不是 404。 `materialize`
+ * 永远不会在悬空的 LLM/MCP 裁判上加注； 它们在响应正文中报告
+ * (`valid: false`, `dangling_mcp_server_refs`)，不是 4xx。
  */
 export class AgentProfilesClient {
   public readonly host: string;
@@ -121,10 +121,10 @@ export class AgentProfilesClient {
   }
 
   /**
-   * Activate a profile by its stable UUID.
-   * Pointer-only — does NOT write `agent_settings`.
+   * 通过稳定的 UUID 激活配置文件。
+   * 仅指针 — 不写入 `agent_settings`。
    *
-   * @param profileId  The stable `id` UUID of the profile to activate.
+   * @param profileId 要激活的配置文件的稳定 `id` UUID。
    */
   async activateAgentProfile(profileId: string): Promise<ActivateAgentProfileResponse> {
     const response = await this.client.post<ActivateAgentProfileResponse>(
@@ -135,12 +135,12 @@ export class AgentProfilesClient {
   }
 
   /**
-   * Dry-run resolve a profile's LLM/MCP references.
-   * Returns an {@link AgentProfileDiagnostics} report; never raises on
-   * dangling refs — those appear in the body with `valid: false`.
+   * 试运行解析配置文件的 LLM/MCP 引用。
+   * 返回一个{@link AgentProfileDiagnostics}报告； 永远不会加注
+   * 悬空引用——那些出现在正文中的带有 `valid: false` 的引用。
    *
-   * @param name  Profile name (path slug, not the UUID).
-   * @param draft  Unsaved profile to resolve instead of the stored one; validated like a save.
+   * @param name 配置文件名称（路径段，而不是 UUID）。
+   * @param Draft 未保存的配置文件来解析，而不是存储的配置文件； 像保存一样进行验证。
    */
   async materializeAgentProfile(
     name: string,

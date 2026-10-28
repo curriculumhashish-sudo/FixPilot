@@ -1,4 +1,4 @@
-"""Select and manage the configured conversation runtime."""
+"""选择并管理配置的对话运行时。"""
 
 from __future__ import annotations
 
@@ -19,30 +19,30 @@ if TYPE_CHECKING:
 
 
 class ConversationRegistry:
-    """Route and lifecycle adapter for host-local conversations."""
+    """用于主机本地对话的路由和生命周期适配器。"""
 
     def __init__(self, config: Config) -> None:
         self.config = config
 
     def configure_service(self, service: ConversationService) -> None:
-        """Connect runtime-specific persistence to the shared catalog."""
+        """将运行时特定的持久化连接到共享目录。"""
 
     def runtime_info(self, _conversation_id: UUID) -> ConversationRuntimeInfo:
-        """Describe whether a catalog conversation has an executable runtime."""
+        """描述目录会话是否具有可执行运行时。"""
         return ConversationRuntimeInfo(
             runtime_status=ConversationRuntimeStatus.AVAILABLE,
             can_resume=True,
         )
 
     def serves_persisted_event_reads(self, _conversation_id: UUID) -> bool:
-        """Whether read-only event routes should use shared persisted storage."""
+        """只读事件路由是否应使用共享已持久化存储。"""
         return False
 
     async def start(self) -> None:
-        """Start resources owned by this registry."""
+        """启动此注册表拥有的资源。"""
 
     async def shutdown(self) -> None:
-        """Stop resources owned by this registry."""
+        """停止此注册表拥有的资源。"""
 
     def add_execution_routes(self, router: APIRouter) -> None:
         from openhands.agent_server.event_router import event_router

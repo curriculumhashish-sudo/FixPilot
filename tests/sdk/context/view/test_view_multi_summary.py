@@ -1,16 +1,15 @@
-"""Tests for multi-summary support in View.
+"""测试 View 中的多摘要支持。
 
-This module tests the View system's ability to handle multiple CondensationSummaryEvents
-simultaneously, including the ability to forget previous summaries in subsequent
-condensations.
+该模块测试视图系统处理多个CondensationSummaryEvents的能力，包括在后续浓缩中忘记先前摘
+要的能力。
 
-Key behaviors tested:
-- Multiple summaries can coexist in the same view
-- Summaries can be forgotten individually or in groups
-- Summary offsets work correctly with multiple summaries
-- Summaries have stable identifiers across view reconstructions
-- Integration with event forgetting
-- Backward compatibility with existing summary properties
+测试的关键行为：
+- 多个摘要可以共存于同一视图中
+- 摘要可能会被单独或成组地遗忘
+- 摘要偏移可以与多个摘要一起正确工作
+- 摘要在视图重建中具有稳定的标识符
+- 与事件遗忘整合
+- 向后兼容性具有现有的摘要属性
 """
 
 from openhands.sdk.context.view import View
@@ -21,17 +20,17 @@ from tests.sdk.context.view.conftest import message_event  # noqa: F401
 
 
 # ==============================================================================
-# Category 1: Multiple Summaries Coexistence
+# 第一类：多重摘要共存
 # ==============================================================================
 
 
 def test_multiple_summaries_at_different_offsets() -> None:
-    """Test that two summaries from different condensations can coexist in a view.
+    """测试来自不同压缩的两个摘要是否可以在视图中共存。
 
-    Scenario:
-    - First condensation: forgets event 0, adds summary at offset 0
-    - Second condensation: forgets event 2, adds summary at offset 2
-    - Both summaries should appear in the final view at their specified offsets
+    场景：
+    - 第一个上下文压缩：忘记事件 0，在偏移量 0 处添加摘要
+    - 第二个上下文压缩：忘记事件 2，在偏移量 2 处添加摘要
+    - 两个摘要都应以指定的偏移量出现在最终视图中
     """
     message_events = [message_event(f"Event {i}") for i in range(5)]
 
@@ -63,24 +62,24 @@ def test_multiple_summaries_at_different_offsets() -> None:
 
     view = View.from_events(events)
 
-    # Find all CondensationSummaryEvents in the view
+    # 查找视图中所有CondensationSummaryEvents
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
 
     assert len(summary_events) == 2, "Both summaries should be present in view"
 
-    # Verify first summary is at offset 0
+    # 验证第一个摘要位于偏移量 0 处
     assert isinstance(view.events[0], CondensationSummaryEvent)
     assert view.events[0].summary == "Summary of event 0"
 
-    # Verify second summary is at offset 2
+    # 验证第二个摘要位于偏移量 2 处
     assert isinstance(view.events[2], CondensationSummaryEvent)
     assert view.events[2].summary == "Summary of event 2"
 
 
 def test_multiple_summaries_from_sequential_condensations() -> None:
-    """Test three condensations each adding a summary at different positions.
+    """测试三个缩合，每个缩合在不同位置添加摘要。
 
-    This tests that summaries accumulate as condensations are processed sequentially.
+    这测试了按顺序处理压缩时摘要的累积情况。
     """
     message_events = [message_event(f"Event {i}") for i in range(6)]
 
@@ -126,7 +125,7 @@ def test_multiple_summaries_from_sequential_condensations() -> None:
 
     assert len(summary_events) == 3, "All three summaries should be present"
 
-    # Verify each summary is at its specified offset
+    # 验证每个摘要是否位于其指定的偏移量
     assert isinstance(view.events[0], CondensationSummaryEvent)
     assert view.events[0].summary == "First summary"
 
@@ -138,10 +137,9 @@ def test_multiple_summaries_from_sequential_condensations() -> None:
 
 
 def test_summaries_preserve_order_and_content() -> None:
-    """Test that multiple summaries maintain their order and content correctly.
+    """测试多个摘要是否正确保持其顺序和内容。
 
-    Verifies that summaries don't interfere with each other and each maintains
-    its own content and position.
+    验证摘要不会相互干扰，并且每个摘要都保持自己的内容和位置。
     """
     messages = [message_event(f"Msg {i}") for i in range(4)]
 
@@ -172,8 +170,8 @@ def test_summaries_preserve_order_and_content() -> None:
 
     view = View.from_events(events)
 
-    # Event 0 forgotten, Event 2 forgotten
-    # Expected: [Summary A, Msg 1, Summary B, Msg 3]
+    # 事件 0 被遗忘，事件 2 被遗忘
+    # 预期：[摘要 A、消息 1、摘要 B、消息 3]
     assert len(view.events) == 4
 
     assert isinstance(view.events[0], CondensationSummaryEvent)
@@ -192,18 +190,18 @@ def test_summaries_preserve_order_and_content() -> None:
 
 
 # ==============================================================================
-# Category 2: Forgetting Individual Summaries
+# 第二类：忘记个人总结
 # ==============================================================================
 
 
 def test_forget_first_summary_keeps_second() -> None:
-    """Test that forgetting the first summary preserves the second summary.
+    """测试忘记第一个摘要是否会保留第二个摘要。
 
-    Scenario:
-    - Condensation 1: adds summary A
-    - Condensation 2: adds summary B
-    - Condensation 3: forgets summary A
-    - Result: only summary B remains
+    场景：
+    - 上下文压缩 1：添加摘要 A
+    - 上下文压缩 2：添加摘要 B
+    - 上下文压缩 3：忘记摘要 A
+    - Result: 只剩下摘要B
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
@@ -223,7 +221,7 @@ def test_forget_first_summary_keeps_second() -> None:
         llm_response_id="cond_2",
     )
 
-    # To forget summary A, we need its event ID. Using deterministic ID approach:
+    # 为了忘记摘要 A，我们需要它的事件 ID。 使用确定性 ID 方法：
     # summary_id = f"{condensation_id}_summary"
     summary_a_id = "cond-1-summary"
 
@@ -253,12 +251,12 @@ def test_forget_first_summary_keeps_second() -> None:
 
 
 def test_forget_middle_summary_keeps_others() -> None:
-    """Test forgetting a middle summary while keeping first and last summaries.
+    """测试忘记中间摘要，同时保留第一个和最后一个摘要。
 
-    Scenario:
-    - Three summaries A, B, C
-    - Forget B
-    - A and C remain
+    场景：
+    - 三个总结A、B、C
+    - 忘记B
+    - A 和 C 仍然存在
     """
     messages = [message_event(f"Msg {i}") for i in range(4)]
 
@@ -319,9 +317,9 @@ def test_forget_middle_summary_keeps_others() -> None:
 
 
 def test_forget_most_recent_summary() -> None:
-    """Test forgetting the most recently added summary.
+    """测试忘记最近添加的摘要。
 
-    Verifies that newer summaries can be forgotten, not just older ones.
+    验证可以忘记新的摘要，而不仅仅是旧的摘要。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
@@ -367,9 +365,9 @@ def test_forget_most_recent_summary() -> None:
 
 
 def test_forget_summary_adjusts_later_summary_positions() -> None:
-    """Test that forgetting a summary correctly adjusts positions of later summaries.
+    """测试忘记摘要是否可以正确调整后续摘要的位置。
 
-    When a summary is forgotten, the indices of events after it shift down by 1.
+    当忘记摘要时，其后的事件索引将向下移动 1。
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
@@ -409,24 +407,24 @@ def test_forget_summary_adjusts_later_summary_positions() -> None:
 
     view = View.from_events(events)
 
-    # After forgetting first summary: [Msg 0, Summary at position 2, Msg 1, Msg 2]
-    # The second summary should now be at index 1
+    # 忘记第一个摘要后：[Msg 0，摘要位于位置 2，Msg 1，Msg 2] 第二个摘要现在应位于索引 1
+    #
     assert isinstance(view.events[1], CondensationSummaryEvent)
     assert view.events[1].summary == "Summary at position 2"
 
 
 # ==============================================================================
-# Category 3: Forgetting Multiple Summaries
+# 第 3 类：忘记多重摘要
 # ==============================================================================
 
 
 def test_forget_multiple_summaries_simultaneously() -> None:
-    """Test a single condensation forgetting multiple summaries at once.
+    """测试单个上下文压缩一次忘记多个摘要。
 
-    Scenario:
-    - Three summaries exist
-    - One condensation forgets two of them
-    - Only one summary remains
+    场景：
+    - 存在三个摘要
+    - 一上下文压缩忘记了其中两个
+    - 只剩下一份总结
     """
     messages = [message_event(f"Msg {i}") for i in range(4)]
 
@@ -484,9 +482,9 @@ def test_forget_multiple_summaries_simultaneously() -> None:
 
 
 def test_forget_all_summaries() -> None:
-    """Test forgetting all summaries from a view.
+    """测试忘记视图中的所有摘要。
 
-    After forgetting all summaries, view should contain only message events.
+    忘记所有摘要后，视图应仅包含消息事件。
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
@@ -534,13 +532,13 @@ def test_forget_all_summaries() -> None:
 
 
 def test_sequential_condensations_each_forget_summary() -> None:
-    """Test multiple condensations each forgetting one summary.
+    """测试多次凝结，每次都忘记一个总结。
 
-    Scenario:
-    - Create 3 summaries
-    - Condensation 4 forgets summary 1
-    - Condensation 5 forgets summary 2
-    - Only summary 3 remains
+    场景：
+    - 创建 3 个摘要
+    - 上下文压缩 4 忘记摘要 1
+    - 上下文压缩 5 忘记摘要 2
+    - 只剩下摘要3
     """
     messages = [message_event(f"Msg {i}") for i in range(4)]
 
@@ -606,15 +604,15 @@ def test_sequential_condensations_each_forget_summary() -> None:
 
 
 # ==============================================================================
-# Category 4: Summary Identification Mechanism
+# 第四类：概要识别机制
 # ==============================================================================
 
 
 def test_summary_events_have_stable_identifiers() -> None:
-    """Test that summary event IDs are stable across view reconstructions.
+    """测试摘要事件 ID 在视图重建中是否稳定。
 
-    This is the core requirement: if we construct the same view twice with the
-    same input events, summary events should have the same IDs both times.
+    这是核心要求：如果我们使用相同的输入事件构造相同的视图两次，则摘要事件两次应该具
+    有相同的 ID。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
@@ -628,11 +626,11 @@ def test_summary_events_have_stable_identifiers() -> None:
 
     events = [messages[0], condensation1, messages[1]]
 
-    # Construct view first time
+    # 第一次构建视图
     view1 = View.from_events(events)
     summary1 = [e for e in view1.events if isinstance(e, CondensationSummaryEvent)][0]
 
-    # Construct view second time with same events
+    # 使用相同事件第二次构造视图
     view2 = View.from_events(events)
     summary2 = [e for e in view2.events if isinstance(e, CondensationSummaryEvent)][0]
 
@@ -640,15 +638,15 @@ def test_summary_events_have_stable_identifiers() -> None:
         "Summary event ID should be stable across reconstructions"
     )
 
-    # Verify the ID follows the expected pattern
+    # 验证 ID 是否符合预期模式
     expected_id = "stable-condensation-summary"
     assert summary1.id == expected_id, f"Summary ID should be {expected_id}"
 
 
 def test_condensation_tracks_its_summary_event() -> None:
-    """Test that we can determine which condensation created which summary.
+    """测试我们是否可以确定哪个上下文压缩创建了哪个摘要。
 
-    This might be through ID conventions or explicit tracking.
+    这可能是通过 ID 约定或显式跟踪来实现的。
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
@@ -680,7 +678,7 @@ def test_condensation_tracks_its_summary_event() -> None:
 
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
 
-    # Verify we can identify which summary came from which condensation
+    # 验证我们可以识别哪个摘要来自哪个上下文压缩
     summary_1 = [s for s in summary_events if s.summary == "First"][0]
     summary_2 = [s for s in summary_events if s.summary == "Second"][0]
 
@@ -689,13 +687,13 @@ def test_condensation_tracks_its_summary_event() -> None:
 
 
 def test_can_reference_summary_from_previous_condensation() -> None:
-    """Test the core use case: referencing a summary created by an earlier condensation.
+    """测试核心用例：引用早期上下文压缩创建的摘要。
 
-    This verifies that the identification mechanism enables forgetting summaries.
+    这验证了识别机制可以忘记摘要。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
-    # First condensation creates a summary
+    # 首先上下文压缩创建一个摘要
     condensation1 = Condensation(
         id="cond-1",
         forgotten_event_ids=set(),
@@ -707,13 +705,13 @@ def test_can_reference_summary_from_previous_condensation() -> None:
     events_before_forgetting = [messages[0], condensation1, messages[1]]
     view_before = View.from_events(events_before_forgetting)
 
-    # Find the summary's ID
+    # 查找摘要的 ID
     summary_event = [
         e for e in view_before.events if isinstance(e, CondensationSummaryEvent)
     ][0]
     summary_id = summary_event.id
 
-    # Second condensation references and forgets that summary
+    # 第二个上下文压缩引用并忘记了摘要
     condensation2 = Condensation(
         id="cond-2",
         forgotten_event_ids={summary_id},
@@ -729,21 +727,20 @@ def test_can_reference_summary_from_previous_condensation() -> None:
         e for e in view_after.events if isinstance(e, CondensationSummaryEvent)
     ]
 
-    # Old summary should be gone, new summary should be present
+    # 旧的摘要应该消失，新的摘要应该出现
     assert len(summary_events) == 1
     assert summary_events[0].summary == "New summary"
 
 
 # ==============================================================================
-# Category 5: Offset Behavior
+# 类别 5：偏移行为
 # ==============================================================================
 
 
 def test_summary_offset_is_absolute_in_final_view() -> None:
-    """Test that summary_offset refers to the absolute position in the final view.
+    """测试 summary_offset 是否指最终视图中的绝对位置。
 
-    After events are forgotten, the offset should place the summary at that exact
-    index in the resulting event list.
+    事件被遗忘后，偏移量应将摘要放置在结果事件列表中的确切索引处。
     """
     messages = [message_event(f"Msg {i}") for i in range(5)]
 
@@ -766,9 +763,9 @@ def test_summary_offset_is_absolute_in_final_view() -> None:
 
     view = View.from_events(events)
 
-    # After forgetting events 0 and 1: [Msg 2, Msg 3, Msg 4]
-    # Summary at offset 1 should be between Msg 2 and Msg 3
-    # Expected: [Msg 2, Summary, Msg 3, Msg 4]
+    # 忘记事件 0 和 1 后：[Msg 2、Msg 3、Msg 4] 偏移量 1 处的摘要应位于 Msg 2 和 Msg 3
+    # 之间
+    # 预期：[消息 2、摘要、消息 3、消息 4]
 
     assert len(view.events) == 4
     assert isinstance(view.events[0], MessageEvent)
@@ -784,7 +781,7 @@ def test_summary_offset_is_absolute_in_final_view() -> None:
 
 
 def test_summary_offset_zero_inserts_at_beginning() -> None:
-    """Test that offset=0 inserts summary at the very beginning of the view."""
+    """测试 offset=0 是否在视图的最开头插入摘要。"""
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
     condensation1 = Condensation(
@@ -804,14 +801,14 @@ def test_summary_offset_zero_inserts_at_beginning() -> None:
 
 
 def test_summary_offset_at_end_of_events() -> None:
-    """Test that summary can be inserted at the end of the event list."""
+    """测试摘要是否可以插入到事件列表的末尾。"""
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
     condensation1 = Condensation(
         id="cond-1",
         forgotten_event_ids=set(),
         summary="At the end",
-        summary_offset=3,  # After all 3 messages
+        summary_offset=3,  # 所有3条消息
         llm_response_id="cond_1",
     )
 
@@ -825,10 +822,10 @@ def test_summary_offset_at_end_of_events() -> None:
 
 
 def test_multiple_summaries_with_same_offset() -> None:
-    """Test behavior when multiple summaries have the same offset.
+    """测试多个摘要具有相同偏移量时的行为。
 
-    This is an edge case that tests how the system handles offset collisions.
-    Expected: summaries are inserted in the order they were created.
+    这是测试系统如何处理偏移冲突的边缘情况。
+    Expected: 摘要按照创建顺序插入。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
@@ -852,27 +849,26 @@ def test_multiple_summaries_with_same_offset() -> None:
 
     view = View.from_events(events)
 
-    # Both summaries should be in the view
+    # 两个摘要都应该在视图中
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
     assert len(summary_events) == 2
 
-    # When inserting at the same offset, later insertions appear before earlier ones
-    # (standard list.insert() behavior)
+    # 当以相同的偏移量插入时，后面的插入出现在前面的插入之前（标准 list.insert() 行为）
+    #
     summaries_in_order = [s.summary for s in summary_events]
     assert summaries_in_order[0] == "Second at offset 1"
     assert summaries_in_order[1] == "First at offset 1"
 
 
 # ==============================================================================
-# Category 6: Integration with Event Forgetting
+# 第 6 类：与事件遗忘的整合
 # ==============================================================================
 
 
 def test_forget_events_and_summary_together() -> None:
-    """Test a condensation that forgets both regular events and a summary.
+    """测试一个忘记常规事件和摘要的上下文压缩。
 
-    Verifies that summaries can be forgotten alongside regular events in the
-    same condensation.
+    验证摘要是否可以与同一上下文压缩中的常规事件一起被遗忘。
     """
     messages = [message_event(f"Msg {i}") for i in range(4)]
 
@@ -905,8 +901,8 @@ def test_forget_events_and_summary_together() -> None:
 
     view = View.from_events(events)
 
-    # Should have forgotten: Msg 0, Msg 2, old summary
-    # Should remain: Msg 1, Msg 3, new summary
+    # 应该忘记：Msg 0、Msg 2、旧摘要应保留：Msg 1、Msg 3、新摘要
+    #
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
 
     assert len(summary_events) == 1
@@ -917,14 +913,13 @@ def test_forget_events_and_summary_together() -> None:
 
 
 def test_summary_offset_remains_valid_after_forgetting_events() -> None:
-    """Test that summary offsets work correctly when events before them are forgotten.
+    """测试当之前的事件被遗忘时，摘要偏移是否正常工作。
 
-    When earlier events are removed, the summary offset should still place the
-    summary at the correct position in the resulting view.
+    当删除较早的事件时，摘要偏移量仍应将摘要放置在结果视图中的正确位置。
     """
     messages = [message_event(f"Msg {i}") for i in range(5)]
 
-    # Forget first two messages, add summary at offset 2
+    # 忘记前两条消息，在偏移量 2 处添加摘要
     condensation1 = Condensation(
         id="cond-1",
         forgotten_event_ids={messages[0].id, messages[1].id},
@@ -944,9 +939,8 @@ def test_summary_offset_remains_valid_after_forgetting_events() -> None:
 
     view = View.from_events(events)
 
-    # After forgetting: [Msg 2, Msg 3, Msg 4]
-    # Summary at offset 2 should be after Msg 3
-    # Expected: [Msg 2, Msg 3, Summary, Msg 4]
+    # 忘记后：[Msg 2、Msg 3、Msg 4] 偏移量 2 处的摘要应位于 Msg 3 之后
+    # 预期：[消息 2、消息 3、摘要、消息 4]
 
     assert len(view.events) == 4
     assert isinstance(view.events[2], CondensationSummaryEvent)
@@ -954,12 +948,12 @@ def test_summary_offset_remains_valid_after_forgetting_events() -> None:
 
 
 def test_interleaved_events_and_summaries() -> None:
-    """Test complex scenario with events and summaries interleaved.
+    """测试事件和摘要交错的复杂场景。
 
-    Scenario:
-    - Messages and summaries interleaved
-    - Some messages forgotten
-    - Verify final view has correct structure
+    场景：
+    - 消息和摘要交错
+    - 有些消息忘记了
+    - 验证最终视图具有正确的结构
     """
     messages = [message_event(f"Msg {i}") for i in range(6)]
 
@@ -992,9 +986,9 @@ def test_interleaved_events_and_summaries() -> None:
 
     view = View.from_events(events)
 
-    # Messages 1 and 3 forgotten
-    # Remaining: Msg 0, Msg 2, Msg 4, Msg 5 + Summary A, Summary B
-    # Expected: [Msg 0, Summary A, Msg 2, Summary B, Msg 4, Msg 5]
+    # 消息 1 和 3 被遗忘
+    # 剩余：消息 0、消息 2、消息 4、消息 5 + 摘要 A、摘要 B
+    # 预期：[消息 0、摘要 A、消息 2、摘要 B、消息 4、消息 5]
 
     assert len(view.events) == 6
 
@@ -1014,21 +1008,21 @@ def test_interleaved_events_and_summaries() -> None:
 
 
 # ==============================================================================
-# Category 7: Edge Cases
+# 第 7 类：边缘案例
 # ==============================================================================
 
 
 def test_condensation_without_summary_no_summary_event_created() -> None:
-    """Test that condensations without summaries don't create summary events.
+    """测试没有摘要的压缩不会创建摘要事件。
 
-    Not all condensations have summaries - verify this still works.
+    并非所有凝结都有摘要 - 验证这是否仍然有效。
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
     condensation1 = Condensation(
         id="cond-1",
         forgotten_event_ids={messages[1].id},
-        summary=None,  # No summary
+        summary=None,  # 无摘要
         summary_offset=None,
         llm_response_id="cond_1",
     )
@@ -1044,9 +1038,9 @@ def test_condensation_without_summary_no_summary_event_created() -> None:
 
 
 def test_empty_view_with_only_summaries() -> None:
-    """Test edge case where all regular events are forgotten, only summaries remain.
+    """测试边缘情况，其中所有常规事件都被遗忘，仅保留摘要。
 
-    Verifies that a view can consist entirely of summary events.
+    验证视图是否可以完全由摘要事件组成。
     """
     messages = [message_event(f"Msg {i}") for i in range(3)]
 
@@ -1068,9 +1062,9 @@ def test_empty_view_with_only_summaries() -> None:
 
 
 def test_forget_nonexistent_summary_is_noop() -> None:
-    """Test that trying to forget a non-existent summary doesn't cause errors.
+    """测试尝试忘记不存在的摘要不会导致错误。
 
-    Graceful handling of invalid summary references.
+    优雅地处理无效的摘要引用。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
@@ -1082,7 +1076,7 @@ def test_forget_nonexistent_summary_is_noop() -> None:
         llm_response_id="cond_1",
     )
 
-    # Try to forget a summary that doesn't exist
+    # 尝试忘记不存在的摘要
     condensation2 = Condensation(
         id="cond-2",
         forgotten_event_ids={"nonexistent_summary_id"},
@@ -1094,7 +1088,7 @@ def test_forget_nonexistent_summary_is_noop() -> None:
 
     view = View.from_events(events)
 
-    # Existing summary should still be there
+    # 现有的摘要应该仍然存在
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
 
     assert len(summary_events) == 1
@@ -1102,10 +1096,9 @@ def test_forget_nonexistent_summary_is_noop() -> None:
 
 
 def test_multiple_condensations_same_summary_offset() -> None:
-    """Test multiple condensations each trying to insert at the same offset.
+    """测试多个缩合，每个缩合尝试以相同的偏移插入。
 
-    Verifies that when condensations are processed sequentially, each can
-    specify the same offset and they get inserted in order.
+    验证当按顺序处理压缩时，每个压缩都可以指定相同的偏移量并且它们会按顺序插入。
     """
     messages = [message_event(f"Msg {i}") for i in range(2)]
 
@@ -1143,12 +1136,12 @@ def test_multiple_condensations_same_summary_offset() -> None:
 
     view = View.from_events(events)
 
-    # All three summaries should be present
+    # 所有三个摘要都应该存在
     summary_events = [e for e in view.events if isinstance(e, CondensationSummaryEvent)]
 
     assert len(summary_events) == 3
 
-    # Verify they maintain insertion order
+    # 验证他们维持广告订单
     summaries_text = [s.summary for s in summary_events]
     assert "First at 1" in summaries_text
     assert "Second at 1" in summaries_text

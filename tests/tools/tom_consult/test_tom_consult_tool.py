@@ -1,4 +1,4 @@
-"""Tests for TomConsultTool declared_resources."""
+"""测试 TomConsultTool declared_resources。"""
 
 import pytest
 
@@ -23,7 +23,7 @@ from openhands.tools.tom_consult.definition import (
     ids=["use-user-message", "custom-query"],
 )
 def test_consult_tom_declared_resources(action):
-    """TomConsultTool always declares safe with no resource keys."""
+    """TomConsultTool 始终声明安全，没有资源密钥。"""
     tool = TomConsultTool(
         action_type=ConsultTomAction,
         observation_type=ConsultTomObservation,

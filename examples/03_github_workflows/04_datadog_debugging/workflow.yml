@@ -44,7 +44,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 30
         env:
-            # URLs to download script and template from the SDK repository
+            # URLs 下载脚本和模板的端点 SDK 仓库
             SCRIPT_URL: 
                 https://raw.githubusercontent.com/OpenHands/software-agent-sdk/main/examples/03_github_workflows/04_datadog_debugging/datadog_debugging.py
             TEMPLATE_URL: 

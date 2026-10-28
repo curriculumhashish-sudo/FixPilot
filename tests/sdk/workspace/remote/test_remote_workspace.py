@@ -1,4 +1,4 @@
-"""Unit tests for RemoteWorkspace class."""
+"""单元测试对应 RemoteWorkspace 类。"""
 
 from datetime import UTC
 from pathlib import Path
@@ -14,7 +14,7 @@ from openhands.sdk.workspace.remote.base import RemoteWorkspace
 
 
 class MockHTTPResponse:
-    """Mock HTTP response for urlopen."""
+    """模拟对象 HTTP urlopen 响应。"""
 
     def __init__(self, status: int = 200):
         self.status = status
@@ -27,7 +27,7 @@ class MockHTTPResponse:
 
 
 def test_remote_workspace_initialization():
-    """Test RemoteWorkspace can be initialized with required parameters."""
+    """测试 RemoteWorkspace 可以使用所需参数进行初始化。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -38,7 +38,7 @@ def test_remote_workspace_initialization():
 
 
 def test_remote_workspace_initialization_without_api_key():
-    """Test RemoteWorkspace can be initialized without API key."""
+    """无需API键即可初始化测试RemoteWorkspace。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     assert workspace.host == "http://localhost:8000"
@@ -47,30 +47,30 @@ def test_remote_workspace_initialization_without_api_key():
 
 
 def test_remote_workspace_host_normalization():
-    """Test that host URL is normalized by removing trailing slash."""
+    """通过删除尾部斜杠来测试主机 URL 是否已标准化。"""
     workspace = RemoteWorkspace(host="http://localhost:8000/", working_dir="/tmp")
 
     assert workspace.host == "http://localhost:8000"
 
 
 def test_client_property_lazy_initialization():
-    """Test that client property creates httpx.Client lazily."""
+    """测试客户端属性是否延迟创建 httpx.Client。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
-    # Client should be None initially
+    # 客户端最初应为 None
     assert workspace._client is None
 
-    # Accessing client should create it
+    # 访问客户端应该创建它
     client = workspace.client
     assert isinstance(client, httpx.Client)
     assert workspace._client is client
 
-    # Subsequent access should return same client
+    # 后续访问应返回相同的客户端
     assert workspace.client is client
 
 
 def test_headers_property_with_api_key():
-    """Test _headers property includes API key when present."""
+    """测试 _headers 属性包含 API 键（如果存在）。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -80,7 +80,7 @@ def test_headers_property_with_api_key():
 
 
 def test_headers_property_without_api_key():
-    """Test _headers property is empty when no API key."""
+    """当没有API键时测试_headers属性为空。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     headers = workspace._headers
@@ -88,16 +88,16 @@ def test_headers_property_without_api_key():
 
 
 def test_execute_method():
-    """Test _execute method handles generator protocol correctly."""
+    """测试 _execute 方法正确处理生成器协议。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
-    # Mock client
+    # 模拟对象客户端
     mock_client = MagicMock()
     mock_response = Mock()
     mock_client.request.return_value = mock_response
     workspace._client = mock_client
 
-    # Create a simple generator that yields request kwargs and returns a result
+    # 创建一个简单的生成器，生成请求 kwargs 并返回结果
     def test_generator():
         yield {"method": "GET", "url": "http://test.com"}
         return "test_result"
@@ -110,7 +110,7 @@ def test_execute_method():
 
 @patch("openhands.sdk.workspace.remote.base.RemoteWorkspace._execute")
 def test_execute_command(mock_execute):
-    """Test execute_command method calls _execute with correct generator."""
+    """测试 execute_command 方法使用正确的生成器调用 _execute。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     expected_result = CommandResult(
@@ -127,14 +127,14 @@ def test_execute_command(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
 
 @patch("openhands.sdk.workspace.remote.base.RemoteWorkspace._execute")
 def test_file_upload(mock_execute):
-    """Test file_upload method calls _execute with correct generator."""
+    """测试 file_upload 方法使用正确的生成器调用 _execute。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     expected_result = FileOperationResult(
@@ -150,14 +150,14 @@ def test_file_upload(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
 
 @patch("openhands.sdk.workspace.remote.base.RemoteWorkspace._execute")
 def test_file_download(mock_execute):
-    """Test file_download method calls _execute with correct generator."""
+    """测试 file_download 方法使用正确的生成器调用 _execute。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     expected_result = FileOperationResult(
@@ -173,13 +173,13 @@ def test_file_download(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
 
 def test_execute_command_with_path_objects():
-    """Test execute_command works with Path objects for cwd."""
+    """测试 execute_command 适用于 cwd 的 Path 对象。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     with patch.object(workspace, "_execute") as mock_execute:
@@ -199,7 +199,7 @@ def test_execute_command_with_path_objects():
 
 
 def test_file_operations_with_path_objects():
-    """Test file operations work with Path objects."""
+    """测试文件操作使用 Path 对象。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     with patch.object(workspace, "_execute") as mock_execute:
@@ -211,13 +211,13 @@ def test_file_operations_with_path_objects():
         )
         mock_execute.return_value = expected_result
 
-        # Test upload with Path objects
+        # 使用 Path 对象测试上传
         result = workspace.file_upload(
             Path("/local/file.txt"), Path("/remote/file.txt")
         )
         assert result == expected_result
 
-        # Test download with Path objects
+        # 使用 Path 对象测试下载
         result = workspace.file_download(
             Path("/remote/file.txt"), Path("/local/file.txt")
         )
@@ -225,20 +225,20 @@ def test_file_operations_with_path_objects():
 
 
 def test_context_manager_protocol():
-    """Test RemoteWorkspace supports context manager protocol."""
+    """测试RemoteWorkspace支持上下文管理器协议。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
-    # Test entering context
+    # 测试输入上下文
     with workspace as ctx:
         assert ctx is workspace
 
-    # Test that __exit__ doesn't raise exceptions
-    # (RemoteWorkspace doesn't override __exit__, so it uses BaseWorkspace's
-    # no-op implementation)
+    # 测试 __exit__ 不会引发异常（RemoteWorkspace 不会覆盖 __exit__，因此它使用
+    # BaseWorkspace 的无操作实现）
+    #
 
 
 def test_inheritance():
-    """Test RemoteWorkspace inherits from correct base classes."""
+    """测试RemoteWorkspace继承自正确的基类。"""
     from openhands.sdk.workspace.base import BaseWorkspace
     from openhands.sdk.workspace.remote.remote_workspace_mixin import (
         RemoteWorkspaceMixin,
@@ -251,10 +251,10 @@ def test_inheritance():
 
 
 def test_execute_with_exception_handling():
-    """Test _execute method handles exceptions in generator correctly."""
+    """测试 _execute 方法正确处理生成器中的异常。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
-    # Mock client to raise an exception
+    # 模拟对象客户端提出异常
     mock_client = MagicMock()
     mock_client.request.side_effect = httpx.RequestError("Connection failed")
     workspace._client = mock_client
@@ -263,29 +263,29 @@ def test_execute_with_exception_handling():
         yield {"method": "GET", "url": "http://test.com"}
         return "should_not_reach_here"
 
-    # The generator should handle the exception and not return the result
-    # Since the exception occurs during client.request(), the generator will
-    # not complete normally
+    # 生成器应该处理异常，并不返回结果，因为异常发生在 client.request()，生成器将不能正
+    # 常完成
+    #
     with pytest.raises(httpx.RequestError):
         workspace._execute(failing_generator())
 
 
 def test_execute_generator_completion():
-    """Test _execute method properly handles StopIteration to get return value."""
+    """测试 _execute 方法正确处理 StopIteration 以获取返回值。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
-    # Mock client
+    # 模拟对象客户端
     mock_client = MagicMock()
     mock_response = Mock()
     mock_client.request.return_value = mock_response
     workspace._client = mock_client
 
     def test_generator():
-        # First yield - get response
+        # 首次产出 - 获得响应
         yield {"method": "GET", "url": "http://test1.com"}
-        # Second yield - get another response
+        # 第二次产量 - 得到另一个回应
         yield {"method": "POST", "url": "http://test2.com"}
-        # Return final result
+        # 返回最终结果
         return "final_result"
 
     result = workspace._execute(test_generator())
@@ -298,7 +298,7 @@ def test_execute_generator_completion():
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_true_on_successful_health_check(mock_urlopen):
-    """Test alive property returns True when health endpoint returns 2xx status."""
+    """当运行状况端点返回 2xx 状态时，测试活动属性返回 True。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_urlopen.return_value = MockHTTPResponse(status=200)
@@ -311,7 +311,7 @@ def test_alive_returns_true_on_successful_health_check(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_true_on_204_status(mock_urlopen):
-    """Test alive property returns True when health endpoint returns 204 No Content."""
+    """当运行状况端点返回 204 无内容时，测试活动属性返回 True。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_urlopen.return_value = MockHTTPResponse(status=204)
@@ -323,7 +323,7 @@ def test_alive_returns_true_on_204_status(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_false_on_server_error(mock_urlopen):
-    """Test alive property returns False when health endpoint returns 5xx status."""
+    """当运行状况端点返回 5xx 状态时，测试活动属性返回 False。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_urlopen.return_value = MockHTTPResponse(status=500)
@@ -335,7 +335,7 @@ def test_alive_returns_false_on_server_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_false_on_client_error(mock_urlopen):
-    """Test alive property returns False when health endpoint returns 4xx status."""
+    """当运行状况端点返回 4xx 状态时，测试活动属性返回 False。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_urlopen.return_value = MockHTTPResponse(status=404)
@@ -347,7 +347,7 @@ def test_alive_returns_false_on_client_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_false_on_connection_error(mock_urlopen):
-    """Test alive property returns False when connection fails."""
+    """当连接失败时，测试活动属性返回 False。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_urlopen.side_effect = Exception("Connection refused")
@@ -359,7 +359,7 @@ def test_alive_returns_false_on_connection_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_returns_false_on_timeout(mock_urlopen):
-    """Test alive property returns False when request times out."""
+    """当请求超时时，测试活动属性返回 False。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     from urllib.error import URLError
@@ -373,7 +373,7 @@ def test_alive_returns_false_on_timeout(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_constructs_correct_health_url(mock_urlopen):
-    """Test alive property constructs correct health URL from host."""
+    """测试活动属性从主机构造正确的运行状况 URL。"""
     workspace = RemoteWorkspace(
         host="https://my-agent-server.example.com", working_dir="/tmp"
     )
@@ -389,8 +389,8 @@ def test_alive_constructs_correct_health_url(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.base.urlopen")
 def test_alive_with_normalized_host(mock_urlopen):
-    """Test alive property works correctly when host was normalized."""
-    # Host with trailing slash gets normalized in model_post_init
+    """当主机规范化时，测试活动属性可以正常工作。"""
+    # 带有尾部斜杠的主机在 model_post_init 中标准化
     workspace = RemoteWorkspace(host="http://localhost:8000/", working_dir="/tmp")
 
     mock_urlopen.return_value = MockHTTPResponse(status=200)
@@ -398,23 +398,23 @@ def test_alive_with_normalized_host(mock_urlopen):
     result = workspace.alive
 
     assert result is True
-    # Should not have double slash
+    # 不应有双斜杠
     mock_urlopen.assert_called_once_with("http://localhost:8000/health", timeout=5.0)
 
 
 def test_alive_is_property():
-    """Test that alive is a property, not a method."""
+    """测试live是一个属性，而不是一个方法。"""
     assert isinstance(RemoteWorkspace.alive, property)
 
 
-# ── Settings Methods Tests ────────────────────────────────────────────────
+# ── 设置方法测试────────────────────────────────────────────────
 
 
 def test_get_llm_returns_configured_llm(monkeypatch):
-    """Test get_llm returns an LLM with persisted settings."""
+    """测试 get_llm 返回带有已持久化设置的 LLM。"""
     from pydantic import SecretStr
 
-    # Allow short context windows for testing
+    # 允许短上下文窗口进行测试
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
 
     workspace = RemoteWorkspace(
@@ -452,9 +452,9 @@ def test_get_llm_returns_configured_llm(monkeypatch):
 
     llm = workspace.get_llm()
 
-    # Verify the LLM was created with correct settings
+    # 验证 LLM 是使用正确的设置创建的
     assert llm.model == "gpt-4"
-    # api_key can be str | SecretStr | None
+    # api_key 可以是 str | SecretStr | None
     assert llm.api_key is not None
     if isinstance(llm.api_key, SecretStr):
         assert llm.api_key.get_secret_value() == "sk-test-key"
@@ -469,7 +469,7 @@ def test_get_llm_returns_configured_llm(monkeypatch):
 
 
 def test_get_llm_without_name_resolves_active_profile(monkeypatch):
-    """Default resolution honors active_profile, not stale agent settings."""
+    """默认分辨率采用 active_profile，而不是过时的智能体设置。"""
     from pydantic import SecretStr
 
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
@@ -520,7 +520,7 @@ def test_get_llm_without_name_resolves_active_profile(monkeypatch):
 def test_get_llm_without_active_profile_falls_back_to_legacy(
     monkeypatch, active_profile
 ):
-    """Falsy active_profile values use the legacy agent_settings.llm fallback."""
+    """Falsy active_profile 值使用旧版 agent_settings.llm 回退方案。"""
     from pydantic import SecretStr
 
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
@@ -549,8 +549,8 @@ def test_get_llm_without_active_profile_falls_back_to_legacy(
     assert isinstance(llm.api_key, SecretStr)
     assert llm.api_key.get_secret_value() == "sk-legacy"
 
-    # Discovery avoids exposing legacy credentials; the fallback fetches them only
-    # when active_profile is absent.
+    # 发现避免暴露遗产凭据； 仅当 active_profile 不存在时，回退方案才会获取它们。
+    #
     assert [call.args[0] for call in client.get.call_args_list] == [
         "/api/settings",
         "/api/settings",
@@ -585,10 +585,10 @@ def test_get_llm_without_active_profile_rejects_acp_settings():
 
 
 def test_get_llm_with_kwargs_override(monkeypatch):
-    """Test get_llm allows kwargs to override persisted settings."""
+    """测试 get_llm 允许 kwargs 覆盖已持久化设置。"""
     from pydantic import SecretStr
 
-    # Allow short context windows for testing
+    # 允许短上下文窗口进行测试
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
 
     workspace = RemoteWorkspace(
@@ -622,11 +622,11 @@ def test_get_llm_with_kwargs_override(monkeypatch):
     mock_client.get.side_effect = [mock_response, profile_response]
     workspace._client = mock_client
 
-    # Override model but use the active profile API key
+    # 覆盖模型但使用活动配置文件 API 键
     llm = workspace.get_llm(model="gpt-4o")
 
-    assert llm.model == "gpt-4o"  # Overridden
-    # api_key can be str | SecretStr | None
+    assert llm.model == "gpt-4o"  # 被覆盖
+    # api_key 可以是 str | SecretStr | None
     assert llm.api_key is not None
     if isinstance(llm.api_key, SecretStr):
         assert llm.api_key.get_secret_value() == "sk-persisted-key"
@@ -635,7 +635,7 @@ def test_get_llm_with_kwargs_override(monkeypatch):
 
 
 def test_get_llm_with_profile_name(monkeypatch):
-    """Test get_llm can load a named LLM profile."""
+    """测试 get_llm 可以加载命名的 LLM 配置文件。"""
     from pydantic import SecretStr
 
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
@@ -684,7 +684,7 @@ def test_get_llm_with_profile_name(monkeypatch):
 
 
 def test_get_llm_with_missing_profile_raises(monkeypatch):
-    """Test get_llm raises FileNotFoundError for a missing profile."""
+    """测试 get_llm 引发 FileNotFoundError 缺少配置文件。"""
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
 
     workspace = RemoteWorkspace(
@@ -703,7 +703,7 @@ def test_get_llm_with_missing_profile_raises(monkeypatch):
 
 
 def test_get_llm_raises_on_undefined_host():
-    """Test get_llm raises RuntimeError when host is undefined."""
+    """当主机未定义时，测试 get_llm 引发 RuntimeError。"""
     workspace = RemoteWorkspace(host="undefined", working_dir="/tmp")
 
     with pytest.raises(RuntimeError, match="Workspace host is not set"):
@@ -711,7 +711,7 @@ def test_get_llm_raises_on_undefined_host():
 
 
 def test_get_secrets_returns_lookup_secrets():
-    """Test get_secrets returns LookupSecret references."""
+    """测试 get_secrets 返回 LookupSecret 引用。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -734,7 +734,7 @@ def test_get_secrets_returns_lookup_secrets():
     assert "GITHUB_TOKEN" in secrets
     assert "OPENAI_API_KEY" in secrets
 
-    # Check LookupSecret structure
+    # 检查LookupSecret结构
     gh_secret = secrets["GITHUB_TOKEN"]
     assert gh_secret.url == "http://localhost:8000/api/settings/secrets/GITHUB_TOKEN"
     assert gh_secret.headers == {"X-Session-API-Key": "test-key"}
@@ -745,7 +745,7 @@ def test_get_secrets_returns_lookup_secrets():
 
 
 def test_get_secrets_filters_by_names():
-    """Test get_secrets filters secrets by names when provided."""
+    """测试 get_secrets 按提供的名称过滤机密。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -763,7 +763,7 @@ def test_get_secrets_filters_by_names():
     mock_client.get.return_value = mock_response
     workspace._client = mock_client
 
-    # Request only specific secrets
+    # 仅请求特定的机密
     secrets = workspace.get_secrets(names=["GITHUB_TOKEN", "AWS_ACCESS_KEY"])
 
     assert len(secrets) == 2
@@ -794,7 +794,7 @@ def test_get_secrets_requests_agent_profile_scope():
 
 
 def test_get_secrets_returns_empty_dict_when_no_secrets():
-    """Test get_secrets returns empty dict when no secrets exist."""
+    """当不存在机密时，测试 get_secrets 返回空字典。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
     mock_client = MagicMock()
@@ -810,7 +810,7 @@ def test_get_secrets_returns_empty_dict_when_no_secrets():
 
 
 def test_get_secrets_raises_on_undefined_host():
-    """Test get_secrets raises RuntimeError when host is undefined."""
+    """当主机未定义时，测试 get_secrets 引发 RuntimeError。"""
     workspace = RemoteWorkspace(host="undefined", working_dir="/tmp")
 
     with pytest.raises(RuntimeError, match="Workspace host is not set"):
@@ -818,7 +818,7 @@ def test_get_secrets_raises_on_undefined_host():
 
 
 def test_get_mcp_config_returns_config():
-    """Test get_mcp_config returns MCP servers."""
+    """测试 get_mcp_config 返回 MCP 个服务器。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -847,13 +847,13 @@ def test_get_mcp_config_returns_config():
     assert "shttp_0" in dumped
     assert dumped["shttp_0"]["url"] == "https://mcp.example.com/api"
 
-    # Verify API was called with correct headers
+    # 验证使用正确的标头调用 API
     call_args = mock_client.get.call_args
     assert call_args[1]["headers"]["X-Expose-Secrets"] == "plaintext"
 
 
 def test_get_mcp_config_returns_empty_dict_when_no_config(monkeypatch):
-    """Test get_mcp_config returns empty dict when no MCP servers exists."""
+    """当不存在 MCP 服务器时，测试 get_mcp_config 返回空字典。"""
     monkeypatch.setenv("ALLOW_SHORT_CONTEXT_WINDOWS", "true")
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/tmp")
 
@@ -874,18 +874,18 @@ def test_get_mcp_config_returns_empty_dict_when_no_config(monkeypatch):
 
 
 def test_get_mcp_config_raises_on_undefined_host():
-    """Test get_mcp_config raises RuntimeError when host is undefined."""
+    """当主机未定义时，测试 get_mcp_config 引发 RuntimeError。"""
     workspace = RemoteWorkspace(host="undefined", working_dir="/tmp")
 
     with pytest.raises(RuntimeError, match="Workspace host is not set"):
         workspace.get_mcp_config()
 
 
-# ── Tests for Repository Cloning Methods ─────────────────────────────
+# ── 存储库克隆方法测试──────────────────────────────
 
 
 def test_get_secret_value_returns_secret():
-    """Test _get_secret_value fetches secret from agent server."""
+    """测试 _get_secret_value 从 Agent Server 获取机密。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -907,7 +907,7 @@ def test_get_secret_value_returns_secret():
 
 
 def test_get_secret_value_returns_none_on_404():
-    """Test _get_secret_value returns None when secret not found."""
+    """当未找到机密时，测试 _get_secret_value 返回 None。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
@@ -926,7 +926,7 @@ def test_get_secret_value_returns_none_on_404():
 
 
 def test_get_secret_value_returns_none_when_host_undefined():
-    """Test _get_secret_value returns None when host is undefined."""
+    """当主机未定义时，测试 _get_secret_value 返回 None。"""
     workspace = RemoteWorkspace(host="undefined", working_dir="/tmp")
 
     result = workspace._get_secret_value("github_token")
@@ -935,21 +935,21 @@ def test_get_secret_value_returns_none_when_host_undefined():
 
 
 def test_get_secret_value_validates_secret_name():
-    """Test _get_secret_value validates secret name to prevent path traversal."""
+    """测试 _get_secret_value 验证机密名称以防止路径遍历。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/tmp", api_key="test-key"
     )
 
-    # Names with slashes should be rejected
+    # 带有斜线的名字应该被拒绝
     assert workspace._get_secret_value("../etc/passwd") is None
     assert workspace._get_secret_value("secrets/github") is None
 
-    # Empty name should be rejected
+    # 空名应被拒绝
     assert workspace._get_secret_value("") is None
 
 
 def test_clone_repos_calls_helper():
-    """Test clone_repos delegates to helper function."""
+    """测试 clone_repos 委托辅助函数。"""
     from openhands.sdk.workspace.repo import CloneResult, RepoMapping
 
     workspace = RemoteWorkspace(
@@ -975,13 +975,13 @@ def test_clone_repos_calls_helper():
         assert result == expected_result
         mock_clone.assert_called_once()
 
-        # Verify token_fetcher is workspace's _get_secret_value
+        # 验证 token_fetcher 是工作区的 _get_secret_value
         call_kwargs = mock_clone.call_args[1]
         assert call_kwargs["token_fetcher"] == workspace._get_secret_value
 
 
 def test_clone_repos_normalizes_input_formats():
-    """Test clone_repos accepts strings, dicts, and RepoSource objects."""
+    """测试 clone_repos 接受字符串、字典和 RepoSource 对象。"""
     from openhands.sdk.workspace.repo import CloneResult, RepoSource
 
     workspace = RemoteWorkspace(
@@ -991,16 +991,16 @@ def test_clone_repos_normalizes_input_formats():
     with patch("openhands.sdk.workspace.remote.base._clone_repos_helper") as mock_clone:
         mock_clone.return_value = CloneResult(0, [], {})
 
-        # Mix of input formats
+        # 混合输入格式
         workspace.clone_repos(
             [
-                "https://github.com/owner/repo1",  # string
-                {"url": "https://gitlab.com/owner/repo2", "ref": "main"},  # dict
+                "https://github.com/owner/repo1",  # 字符串
+                {"url": "https://gitlab.com/owner/repo2", "ref": "main"},  # 词典
                 RepoSource(url="https://bitbucket.org/owner/repo3"),  # RepoSource
             ]
         )
 
-        # Verify all inputs were normalized to RepoSource
+        # 验证所有输入均已标准化为 RepoSource
         call_kwargs = mock_clone.call_args[1]
         repos = call_kwargs["repos"]
         assert len(repos) == 3
@@ -1008,7 +1008,7 @@ def test_clone_repos_normalizes_input_formats():
 
 
 def test_clone_repos_uses_custom_target_dir():
-    """Test clone_repos respects custom target directory."""
+    """测试 clone_repos 尊重自定义目标目录。"""
     from openhands.sdk.workspace.repo import CloneResult
 
     workspace = RemoteWorkspace(
@@ -1028,7 +1028,7 @@ def test_clone_repos_uses_custom_target_dir():
 
 
 def test_get_repos_context_delegates_to_helper():
-    """Test get_repos_context delegates to helper function."""
+    """测试 get_repos_context 委托辅助函数。"""
     from openhands.sdk.workspace.repo import RepoMapping
 
     workspace = RemoteWorkspace(
@@ -1052,7 +1052,7 @@ def test_get_repos_context_delegates_to_helper():
 
 
 def test_get_repos_context_empty_mappings():
-    """Test get_repos_context returns empty string for empty mappings."""
+    """测试 get_repos_context 对于空映射返回空字符串。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1062,11 +1062,11 @@ def test_get_repos_context_empty_mappings():
     assert context == ""
 
 
-# ── Tests for Skill Loading Methods ──────────────────────────────────
+# ── 技能加载方式测试──────────────────────────────────
 
 
 def test_load_skills_from_agent_server_raises_when_not_initialized():
-    """Test load_skills_from_agent_server raises when host is not set."""
+    """当未设置主机时，测试 load_skills_from_agent_server 会引发。"""
     workspace = RemoteWorkspace(host="undefined", working_dir="/workspace")
 
     with pytest.raises(RuntimeError, match="Workspace not initialized"):
@@ -1074,7 +1074,7 @@ def test_load_skills_from_agent_server_raises_when_not_initialized():
 
 
 def test_load_skills_from_agent_server_calls_api():
-    """Test load_skills_from_agent_server calls the agent server API."""
+    """测试 load_skills_from_agent_server 调用 Agent Server API。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1103,11 +1103,11 @@ def test_load_skills_from_agent_server_calls_api():
         assert skills[0].content == "Test content"
         assert skills[0].is_agentskills_format is True
         assert skills[0].disable_model_invocation is True
-        assert context.load_public_skills is False  # Skills were loaded
+        assert context.load_public_skills is False  # 技能加载成功
 
 
 def test_load_skills_from_agent_server_falls_back_when_no_skills():
-    """Test load_skills falls back to public skills when none loaded."""
+    """加载 None 后，测试 load_skills 会退回到公共技能。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1120,16 +1120,16 @@ def test_load_skills_from_agent_server_falls_back_when_no_skills():
         skills, context = workspace.load_skills_from_agent_server()
 
         assert len(skills) == 0
-        assert context.load_public_skills is True  # Fall back to public
+        assert context.load_public_skills is True  # 回归公众视野
 
 
 def test_load_skills_from_agent_server_with_project_dirs():
-    """Test load_skills_from_agent_server loads skills from multiple directories."""
+    """测试 load_skills_from_agent_server 从多个目录加载技能。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
 
-    # Return different skills for different calls
+    # 不同的调用返回不同的技能
     call_count = 0
 
     def side_effect(*args, **kwargs):
@@ -1137,13 +1137,13 @@ def test_load_skills_from_agent_server_with_project_dirs():
         call_count += 1
         response = Mock()
         if call_count == 1:
-            # Global skills call
+            # 全球技能召唤
             response.json.return_value = {
                 "skills": [{"name": "global-skill", "content": "Global"}],
                 "sources": {},
             }
         else:
-            # Project-specific call
+            # 项目具体调用
             response.json.return_value = {
                 "skills": [
                     {"name": f"project-skill-{call_count}", "content": "Project"}
@@ -1158,13 +1158,13 @@ def test_load_skills_from_agent_server_with_project_dirs():
             project_dirs=["/workspace/repo1", "/workspace/repo2"]
         )
 
-        # Should have loaded global skills + 2 project dirs = 3 calls
+        # 应该已加载全局技能 + 2 个项目目录 = 3 个调用
         assert mock_post.call_count == 3
-        assert len(skills) >= 1  # At least the global skill
+        assert len(skills) >= 1  # 至少有全局技能
 
 
 def test_load_skills_from_agent_server_preserves_base_context_when_found():
-    """Test load_skills_from_agent_server preserves caller's AgentContext fields."""
+    """测试 load_skills_from_agent_server 保留调用者的 AgentContext 字段。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1192,7 +1192,7 @@ def test_load_skills_from_agent_server_preserves_base_context_when_found():
 
 
 def test_load_skills_from_agent_server_preserves_base_context_on_fallback():
-    """Test base context fields survive even when no skills are found."""
+    """即使没有找到技能，测试基地上下文字段也会存在。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1215,7 +1215,7 @@ def test_load_skills_from_agent_server_preserves_base_context_on_fallback():
 
 
 def test_load_skills_from_agent_server_without_base_context_matches_legacy():
-    """Test omitting base_context matches today's default behavior."""
+    """测试省略 base_context 与今天的默认行为相匹配。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1234,7 +1234,7 @@ def test_load_skills_from_agent_server_without_base_context_matches_legacy():
 
 
 def test_load_skills_from_agent_server_preserves_current_datetime():
-    """Test current_datetime from the base context is not regenerated."""
+    """来自基上下文的测试 current_datetime 不会重新生成。"""
     from datetime import datetime
 
     workspace = RemoteWorkspace(
@@ -1255,7 +1255,7 @@ def test_load_skills_from_agent_server_preserves_current_datetime():
 
 
 def test_load_skills_from_agent_server_applies_disabled_skills():
-    """Test a skill named in disabled_skills is filtered out, not just carried."""
+    """测试disabled_skills中命名的技能是否被过滤掉，而不是仅仅携带。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1277,7 +1277,7 @@ def test_load_skills_from_agent_server_applies_disabled_skills():
 
 
 def test_load_skills_from_agent_server_fallback_resolves_public_skills():
-    """Test the empty-skills fallback materializes public skills, as before."""
+    """测试空技能回退方案具体化公共技能，如前。"""
     workspace = RemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace", api_key="test-key"
     )
@@ -1292,11 +1292,11 @@ def test_load_skills_from_agent_server_fallback_resolves_public_skills():
         assert [s.name for s in context.skills] == [s.name for s in legacy.skills]
 
 
-# --- Completion callback tests ---
+# --- 完成回调测试 ---
 
 
 def test_register_conversation_stores_id():
-    """Test register_conversation stores the conversation ID."""
+    """测试 register_conversation 存储对话 ID。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
 
     workspace.register_conversation("conv-123")
@@ -1306,14 +1306,14 @@ def test_register_conversation_stores_id():
 
 
 def test_conversation_id_property_returns_none_initially():
-    """Test conversation_id property returns None when not registered."""
+    """未注册时，测试 conversation_id 属性返回 None。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
 
     assert workspace.conversation_id is None
 
 
 def test_send_completion_callback_on_success(monkeypatch):
-    """Test _send_completion_callback POSTs COMPLETED status."""
+    """测试 _send_completion_callback POSTs COMPLETED 状态。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_CALLBACK_API_KEY", "test-api-key")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
@@ -1344,7 +1344,7 @@ def test_send_completion_callback_on_success(monkeypatch):
 
 
 def test_send_completion_callback_includes_observability_headers(monkeypatch):
-    """Test _send_completion_callback propagates generic observability context."""
+    """测试 _send_completion_callback 传播通用可观察性上下文。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_CALLBACK_API_KEY", "test-api-key")
     monkeypatch.setenv("OPENHANDS_OBSERVABILITY_METADATA", '{"automation.id":"auto-1"}')
@@ -1387,7 +1387,7 @@ def test_send_completion_callback_includes_observability_headers(monkeypatch):
 
 
 def test_send_completion_callback_on_failure(monkeypatch):
-    """Test _send_completion_callback POSTs FAILED status with error."""
+    """测试 _send_completion_callback POSTs FAILED 状态并添加错误。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-99")
 
@@ -1414,7 +1414,7 @@ def test_send_completion_callback_on_failure(monkeypatch):
 
 
 def test_send_completion_callback_no_op_without_url(monkeypatch):
-    """Test _send_completion_callback does nothing when URL not set."""
+    """当 URL 未设置时，测试 _send_completion_callback 不执行任何操作。"""
     monkeypatch.delenv("AUTOMATION_CALLBACK_URL", raising=False)
 
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
@@ -1425,7 +1425,7 @@ def test_send_completion_callback_no_op_without_url(monkeypatch):
 
 
 def test_send_completion_callback_swallows_errors(monkeypatch):
-    """Test _send_completion_callback doesn't raise on HTTP errors."""
+    """测试 _send_completion_callback 不会引发 HTTP 错误。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
 
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
@@ -1437,12 +1437,12 @@ def test_send_completion_callback_swallows_errors(monkeypatch):
         mock_client.__exit__ = MagicMock(return_value=False)
         MockClient.return_value = mock_client
 
-        # Should not raise
+        # 不应该提高
         workspace._send_completion_callback(None, None)
 
 
 def test_send_completion_callback_without_api_key(monkeypatch):
-    """Test _send_completion_callback sends without Authorization when no key."""
+    """当没有按键时，测试 _send_completion_callback 不发送授权。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.delenv("AUTOMATION_CALLBACK_API_KEY", raising=False)
 
@@ -1465,7 +1465,7 @@ def test_send_completion_callback_without_api_key(monkeypatch):
 
 
 def test_send_completion_callback_includes_conversation_id(monkeypatch):
-    """Test _send_completion_callback includes conversation_id when registered."""
+    """注册时测试 _send_completion_callback 包括 conversation_id。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_RUN_ID", "run-42")
 
@@ -1493,7 +1493,7 @@ def test_send_completion_callback_includes_conversation_id(monkeypatch):
 def test_send_completion_callback_omits_conversation_id_when_not_registered(
     monkeypatch,
 ):
-    """Test _send_completion_callback omits conversation_id when not registered."""
+    """未注册时，测试 _send_completion_callback 会省略 conversation_id。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
 
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
@@ -1515,7 +1515,7 @@ def test_send_completion_callback_omits_conversation_id_when_not_registered(
 
 
 def test_register_cost_stores_cost():
-    """Test register_cost stores the accumulated LLM cost."""
+    """测试 register_cost 存储累积的 LLM 成本。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
 
     workspace.register_cost(0.4213)
@@ -1524,7 +1524,7 @@ def test_register_cost_stores_cost():
 
 
 def test_send_completion_callback_includes_registered_cost(monkeypatch):
-    """Test _send_completion_callback reports a registered cost."""
+    """测试 _send_completion_callback 报告注册成本。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
 
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
@@ -1547,7 +1547,7 @@ def test_send_completion_callback_includes_registered_cost(monkeypatch):
 
 
 def test_send_completion_callback_omits_cost_when_not_registered(monkeypatch):
-    """Test _send_completion_callback omits cost when none was registered."""
+    """测试 _send_completion_callback 在注册 None 时忽略了成本。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
 
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
@@ -1569,7 +1569,7 @@ def test_send_completion_callback_omits_cost_when_not_registered(monkeypatch):
 
 
 def test_send_completion_callback_serializes_conversation_error(monkeypatch):
-    """A ConversationRunError sends its authoritative ConversationErrorEvent."""
+    """A ConversationRunError 发送其权威 ConversationErrorEvent。"""
     from openhands.sdk.conversation.exceptions import ConversationRunError
     from openhands.sdk.event.conversation_error import ConversationErrorEvent
 
@@ -1603,7 +1603,7 @@ def test_send_completion_callback_serializes_conversation_error(monkeypatch):
 
 
 def test_send_completion_callback_creates_fallback_error(monkeypatch):
-    """A non-conversation exception is converted to a classified error event."""
+    """非对话异常将转换为分类错误事件。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
 

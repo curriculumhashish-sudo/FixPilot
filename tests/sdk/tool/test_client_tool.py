@@ -1,4 +1,4 @@
-"""Tests for client-defined tools (ClientToolSpec / ClientTool)."""
+"""测试客户端定义的工具 (ClientToolSpec / ClientTool)。"""
 
 from typing import Any, cast
 
@@ -67,7 +67,7 @@ def test_spec_with_annotations():
 
 
 def test_spec_roundtrip_json():
-    """Spec should survive JSON serialization/deserialization."""
+    """规范应该在 JSON 序列化/反序列化中继续存在。"""
     spec = ClientToolSpec(
         name="my_tool",
         description="Does stuff",
@@ -88,7 +88,7 @@ def test_spec_roundtrip_json():
 
 def test_executor_returns_acknowledgment():
     executor = ClientToolExecutor()
-    # Create a minimal action to pass in
+    # 创建一个最小的动作来传递
     action_type = Action.from_mcp_schema(
         "TestAction",
         {"type": "object", "properties": {}},
@@ -116,11 +116,10 @@ def test_from_spec_basic():
 
 
 def test_from_spec_default_annotations_unset():
-    """Without explicit annotations, client tools are left annotation-less.
+    """如果没有显式注释，客户端工具就没有注释。
 
-    Client tools can trigger arbitrary frontend side effects, so we must not
-    optimistically assume read-only/idempotent. Leaving annotations unset keeps
-    the conservative behavior (e.g. security-risk prediction stays enabled).
+    客户端工具可以触发任意前端副作用，因此我们不能乐观地假设只读/幂等。 不设置注释会
+    保持保守行为 (e.g. 安全风险预测保持启用状态）。
     """
     spec = ClientToolSpec(name="view_panel", description="View panel")
     tool = ClientTool.from_spec(spec)
@@ -154,7 +153,7 @@ def test_from_spec_action_type_has_parameters():
         },
     )
     tool = ClientTool.from_spec(spec)
-    # The action type should have the parameters from the spec
+    # 操作类型应具有规范中的参数
     assert issubclass(tool.action_type, Action)
     schema = tool.action_type.to_mcp_schema()
     assert "path" in schema["properties"]
@@ -162,7 +161,7 @@ def test_from_spec_action_type_has_parameters():
 
 
 def test_client_tool_callable():
-    """Calling the tool through the normal path should return an ack."""
+    """通过正常路径调用该工具应该返回一个ack。"""
     spec = ClientToolSpec(
         name="navigate",
         description="Navigate to a page",
@@ -252,7 +251,7 @@ def test_client_tool_kind_argument_concrete_action_roundtrip():
 
 
 def test_create_classmethod():
-    """The create() classmethod should return a single-element sequence."""
+    """create() 类方法应返回单元素序列。"""
     spec = ClientToolSpec(name="test_tool", description="Test")
     tools = ClientTool.create(spec=spec)
     assert len(tools) == 1
@@ -260,13 +259,13 @@ def test_create_classmethod():
 
 
 def test_create_missing_spec_raises():
-    """A missing ``spec`` raises a clear ValueError, not a leaked KeyError."""
+    """缺失的 ``spec`` 会引发明确的 ValueError，而不是泄漏的 KeyError。"""
     with pytest.raises(ValueError, match="requires a 'spec'"):
         ClientTool.create()
 
 
 def test_create_accepts_dict_spec():
-    """create() accepts a serialized (dict) spec, used by per-conversation params."""
+    """create() 接受已序列化 (dict) 规范，由每个对话参数使用。"""
     spec = ClientToolSpec(name="dict_tool", description="From dict")
     tools = ClientTool.create(spec=spec.model_dump())
     assert len(tools) == 1
@@ -274,7 +273,7 @@ def test_create_accepts_dict_spec():
 
 
 def test_to_openai_tool():
-    """Client tools should export valid OpenAI tool schema."""
+    """客户端工具应导出有效的 OpenAI 工具模式。"""
     spec = ClientToolSpec(
         name="show_dialog",
         description="Show a dialog to the user",
@@ -299,12 +298,12 @@ def test_to_openai_tool():
 
 
 # ---------------------------------------------------------------------------
-# Schema validation and constraint preservation
+# 模式验证和约束保留
 # ---------------------------------------------------------------------------
 
 
 def test_spec_rejects_non_object_parameters():
-    """parameters must be an object JSON Schema."""
+    """参数必须是对象 JSON 模式。"""
     with pytest.raises(ValidationError, match="object JSON Schema"):
         ClientToolSpec(
             name="bad",
@@ -314,7 +313,7 @@ def test_spec_rejects_non_object_parameters():
 
 
 def test_openai_schema_preserves_client_constraints():
-    """Client JSON Schema constraints (enum, nested) must reach the LLM schema."""
+    """客户端 JSON 模式约束（枚举，嵌套）必须到达 LLM 模式。"""
     spec = ClientToolSpec(
         name="set_level",
         description="Set a level",
@@ -336,16 +335,16 @@ def test_openai_schema_preserves_client_constraints():
     tool = ClientTool.from_spec(spec)
     params = tool.to_openai_tool()["function"].get("parameters")
     assert isinstance(params, dict)
-    # enum preserved
+    # 枚举保留
     assert params["properties"]["level"]["enum"] == ["info", "warning", "error"]
-    # nested object properties preserved
+    # 保留嵌套对象属性
     assert params["properties"]["config"]["properties"]["retries"]["type"] == "integer"
-    # SDK meta field still injected
+    # SDK 元字段仍然注入
     assert "summary" in params["properties"]
 
 
 def test_security_risk_injected_when_annotations_unset():
-    """With no annotations, security-risk prediction is added (conservative)."""
+    """在没有注释的情况下，添加了安全风险预测（保守）。"""
     spec = ClientToolSpec(
         name="risky_default",
         description="Side effects",
@@ -374,15 +373,15 @@ def test_mcp_tool_uses_original_schema():
 
 
 # ---------------------------------------------------------------------------
-# Action-type caching / conflict handling
+# Action型缓存/冲突处理
 # ---------------------------------------------------------------------------
 
 
 def test_same_spec_reuses_action_type():
-    """Re-creating a tool with the same name+schema reuses the action type.
+    """重新创建同名工具+模式重用操作类型。
 
-    This avoids creating duplicate concrete Action subclasses with the same
-    kind, which would break Action.resolve_kind / event deserialization.
+    这可以避免创建具有相同类型的重复的具体 Action 子类，这会破坏 Action.resolve_kind
+    / 事件反序列化。
     """
     spec = ClientToolSpec(
         name="repeat_tool",
@@ -395,7 +394,7 @@ def test_same_spec_reuses_action_type():
 
 
 def test_same_name_different_schema_conflicts():
-    """Same name with a different schema is rejected explicitly."""
+    """具有不同模式的相同名称将被明确拒绝。"""
     spec_a = ClientToolSpec(
         name="conflict_tool",
         description="A",
@@ -429,11 +428,11 @@ def test_register_client_tools_returns_tool_specs():
     tool_specs = register_client_tools([spec])
     assert len(tool_specs) == 1
     ts = tool_specs[0]
-    # Tool spec carries the serialized spec via params (per-conversation ownership)
+    # 工具规范通过参数携带已序列化规范（每个会话所有权）
     assert ts.name == "reg_tool"
     assert ts.params["spec"]["name"] == "reg_tool"
     assert ts.params["spec"]["parameters"]["properties"]["q"]["type"] == "string"
-    # The ClientTool class is registered under the tool name
+    # ClientTool类注册在工具名下
     assert "reg_tool" in list_registered_tools()
 
 

@@ -19,7 +19,7 @@ class Cost(BaseModel):
 
 
 class ResponseLatency(BaseModel):
-    """Metric tracking the round-trip time per completion call."""
+    """跟踪每次完成调用的往返时间的指标。"""
 
     model: str
     latency: float = Field(ge=0.0, description="Latency must be non-negative")
@@ -32,7 +32,7 @@ class ResponseLatency(BaseModel):
 
 
 class TokenUsage(BaseModel):
-    """Metric tracking detailed token usage per completion call."""
+    """每次完成调用的指标跟踪详细信息词元用量。"""
 
     model: str = Field(default="")
     prompt_tokens: int = Field(
@@ -59,7 +59,7 @@ class TokenUsage(BaseModel):
     response_id: str = Field(default="")
 
     def __add__(self, other: "TokenUsage") -> "TokenUsage":
-        """Add two TokenUsage instances together."""
+        """将两个 TokenUsage 实例添加在一起。"""
         return TokenUsage(
             model=self.model,
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,
@@ -74,9 +74,9 @@ class TokenUsage(BaseModel):
 
 
 class MetricsSnapshot(BaseModel):
-    """A snapshot of metrics at a point in time.
+    """某个时间点的指标快照。
 
-    Does not include lists of individual costs, latencies, or token usages.
+    不包括单独成本、延迟或 token 使用情况的列表。
     """
 
     model_name: str = Field(default="default", description="Name of the model")
@@ -92,12 +92,11 @@ class MetricsSnapshot(BaseModel):
 
     @property
     def cache_hit_rate(self) -> float | None:
-        """Fraction of accumulated input tokens served from cache (0.0-1.0).
+        """从缓存提供的累积输入 token 的比例 (0.0-1.0)。
 
-        None when there is no input to measure. litellm/OpenAI count cached
-        reads inside ``prompt_tokens`` (the denominator); ACP reports them
-        separately, so when ``cache_read_tokens`` exceeds ``prompt_tokens`` the
-        denominator is their sum.
+        None 当没有可测量的输入时。 litellm/OpenAI 计数 ``prompt_tokens`` 内的缓存读
+        取（分母）； ACP 分别报告它们，因此
+        当 ``cache_read_tokens`` 超过 ``prompt_tokens`` 时，分母就是它们的总和。
         """
         usage = self.accumulated_token_usage
         if usage is None:
@@ -111,12 +110,12 @@ class MetricsSnapshot(BaseModel):
 
 @final
 class Metrics(MetricsSnapshot):
-    """Metrics class can record various metrics during running and evaluation.
-    We track:
-      - accumulated_cost and costs
-      - max_budget_per_task (budget limit)
-      - A list of ResponseLatency
-      - A list of TokenUsage (one per call).
+    """Metrics类可以记录运行和评估过程中的各种指标。
+    我们追踪：
+      - accumulated_cost 和成本
+      - max_budget_per_task（预算限制）
+      - 列表 ResponseLatency
+      - TokenUsage 列表（每个调用一个）。
     """
 
     costs: list[Cost] = Field(
@@ -152,7 +151,7 @@ class Metrics(MetricsSnapshot):
         return self
 
     def get_snapshot(self) -> MetricsSnapshot:
-        """Get a snapshot of the current metrics without the detailed lists."""
+        """获取当前指标的快照，无需详细列表。"""
         return MetricsSnapshot(
             model_name=self.model_name,
             accumulated_cost=self.accumulated_cost,
@@ -185,8 +184,8 @@ class Metrics(MetricsSnapshot):
         response_id: str,
         reasoning_tokens: int = 0,
     ) -> None:
-        """Add a single usage record."""
-        # Token each turn for calculating context usage.
+        """添加单次使用记录。"""
+        # token 每回合用于计算上下文使用情况。
         per_turn_token = prompt_tokens + completion_tokens
 
         usage = TokenUsage(
@@ -202,7 +201,7 @@ class Metrics(MetricsSnapshot):
         )
         self.token_usages.append(usage)
 
-        # Update accumulated token usage using the __add__ operator
+        # 使用 __add__ 运算符更新累积的词元用量
         new_usage = TokenUsage(
             model=self.model_name,
             prompt_tokens=prompt_tokens,
@@ -220,10 +219,10 @@ class Metrics(MetricsSnapshot):
             self.accumulated_token_usage = self.accumulated_token_usage + new_usage
 
     def merge(self, other: "Metrics") -> None:
-        """Merge 'other' metrics into this one."""
+        """将“其他”指标合并到此指标中。"""
         self.accumulated_cost += other.accumulated_cost
 
-        # Keep the max_budget_per_task from other if it's set and this one isn't
+        # 如果已设置而此未设置，则保留 max_budget_per_task 与其他设置
         if self.max_budget_per_task is None and other.max_budget_per_task is not None:
             self.max_budget_per_task = other.max_budget_per_task
 
@@ -231,7 +230,7 @@ class Metrics(MetricsSnapshot):
         self.token_usages += other.token_usages
         self.response_latencies += other.response_latencies
 
-        # Merge accumulated token usage using the __add__ operator
+        # 使用 __add__ 运算符合并累积的词元用量
         if self.accumulated_token_usage is None:
             self.accumulated_token_usage = other.accumulated_token_usage
         elif other.accumulated_token_usage is not None:
@@ -240,7 +239,7 @@ class Metrics(MetricsSnapshot):
             )
 
     def get(self) -> dict:
-        """Return the metrics in a dictionary."""
+        """返回字典中的指标。"""
         return {
             "accumulated_cost": self.accumulated_cost,
             "max_budget_per_task": self.max_budget_per_task,
@@ -255,7 +254,7 @@ class Metrics(MetricsSnapshot):
         }
 
     def log(self) -> str:
-        """Log the metrics."""
+        """记录指标。"""
         metrics = self.get()
         logs = ""
         for key, value in metrics.items():
@@ -263,26 +262,26 @@ class Metrics(MetricsSnapshot):
         return logs
 
     def deep_copy(self) -> "Metrics":
-        """Create a deep copy of the Metrics object."""
+        """创建 Metrics 对象的深层副本。"""
         return copy.deepcopy(self)
 
     def diff(self, baseline: "Metrics") -> "Metrics":
-        """Calculate the difference between current metrics and a baseline.
+        """计算当前指标与基线之间的差异。
 
-        This is useful for tracking metrics for specific operations like delegates.
+        这对于跟踪委托等特定操作的指标非常有用。
 
         Args:
-            baseline: A metrics object representing the baseline state
+            baseline: 表示基线状态的指标对象
 
         Returns:
-            A new Metrics object containing only the differences since the baseline
+            一个新的 Metrics 对象，仅包含自基线以来的差异
         """
         result = Metrics(model_name=self.model_name)
 
-        # Calculate cost difference
+        # 计算成本差异
         result.accumulated_cost = self.accumulated_cost - baseline.accumulated_cost
 
-        # Include only costs that were added after the baseline
+        # 仅包括在基准之后添加的成本
         if baseline.costs:
             last_baseline_timestamp = baseline.costs[-1].timestamp
             result.costs = [
@@ -291,15 +290,15 @@ class Metrics(MetricsSnapshot):
         else:
             result.costs = self.costs.copy()
 
-        # Include only response latencies that were added after the baseline
+        # 仅包括在基线之后添加的响应延迟
         result.response_latencies = self.response_latencies[
             len(baseline.response_latencies) :
         ]
 
-        # Include only token usages that were added after the baseline
+        # 仅包括在基线之后添加的 token 个用法
         result.token_usages = self.token_usages[len(baseline.token_usages) :]
 
-        # Calculate accumulated token usage difference
+        # 计算累计词元用量差异
         base_usage = baseline.accumulated_token_usage
         current_usage = self.accumulated_token_usage
 

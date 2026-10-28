@@ -1,4 +1,4 @@
-"""Tests for generated REST API contract PR summaries."""
+"""测试生成的 REST API 合同 PR 摘要。"""
 
 from __future__ import annotations
 

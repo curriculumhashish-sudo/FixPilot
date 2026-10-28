@@ -1,16 +1,14 @@
-"""Bridges conversation events onto the telemetry sink.
+"""将对话事件桥接到遥测接收器上。
 
-Two properties are non-negotiable here:
+这里有两个属性是不可协商的：
 
-* **Total.** Every public method wraps its whole body in ``try/except``.
-  ``PubSub`` isolates subscriber failures, but ``EventService.subscribe_to_events``
-  awaits an initial state push and only catches ``TimeoutError``, so an
-  exception escaping this subscriber during registration would fail
-  conversation *startup*.
-* **Non-blocking.** ``__call__`` must be ``async def`` to satisfy the
-  ``Subscriber`` ABC, but its body contains **zero ``await``** — it terminates
-  in the synchronous ``sink.emit``. ``PubSub.__call__`` awaits its subscribers,
-  so anything slower would stall event fan-out for the whole conversation.
+* **总计。**每个公共方法都将其整个主体包装在 ``try/except`` 中。
+  ``PubSub`` 隔离了订阅者的失败，但 ``EventService.subscribe_to_events`` 期待初始状态
+  推送，只捕获
+  ``TimeoutError``，因此在注册期间发生逃逸的异常会导致 * 启动 *。
+* **非阻塞。** ``__call__`` 必须是 ``async def`` 才能满足
+  ``Subscriber`` ABC，但其主体包含 **0 ``await``** — 它终止于同步 ``sink.emit``。
+  ``PubSub.__call__`` 等待其订阅者，因此任何较慢的速度都会阻碍整个对话的事件扇出。
 """
 
 from dataclasses import dataclass, field
@@ -48,15 +46,15 @@ __all__ = [
 
 logger = get_logger(__name__)
 
-# Derived from the SDK enum rather than hardcoded, so a new terminal status
-# cannot silently stop being reported.
+# 源自 SDK 枚举而不是硬编码，因此新的终端状态不能默默地停止报告。
+#
 _TERMINAL_STATUSES: Final[frozenset[str]] = frozenset(
     s.value for s in ConversationExecutionStatus if s.is_terminal()
 )
 _RUNNING_STATUS: Final[str] = ConversationExecutionStatus.RUNNING.value
-#: Reported when a run was observed but ended without a terminal state, e.g.
-#: the server stopped mid-run. Never a raw non-terminal status, which would put
-#: values like "paused" in a field named terminal_status.
+# ：当观察到运行但在没有最终状态的情况下结束时报告，e.g。 ：服务器在运行中停止。 绝不是
+# 原始的非终端状态，这会将：之类的值放在名为 terminal_status 的字段中。
+#
 _INTERRUPTED_STATUS: Final[str] = "interrupted"
 _FAILURE_STATUSES: Final[frozenset[str]] = _TERMINAL_STATUSES - {
     ConversationExecutionStatus.FINISHED.value
@@ -67,7 +65,7 @@ _STATS_KEY: Final[str] = "stats"
 
 @dataclass(frozen=True, slots=True)
 class ConversationTelemetryContext:
-    """The sanitized facts about one conversation, resolved once at start."""
+    """关于一次谈话的经过净化的事实，一开始就解决了。"""
 
     conversation_ref: str
     user_id: str | None
@@ -83,7 +81,7 @@ class ConversationTelemetryContext:
 
 @dataclass(slots=True)
 class TelemetrySubscriber(Subscriber[Event]):
-    """Emits lifecycle and failure events for a single conversation."""
+    """发出单个对话的生命周期和失败事件。"""
 
     conversation_id: UUID
     sink: TelemetrySink
@@ -117,9 +115,9 @@ class TelemetrySubscriber(Subscriber[Event]):
                 self._handle_state_update(event)
 
     def _handle_state_update(self, event: ConversationStateUpdateEvent) -> None:
-        # Usage is tracked from every update that carries stats: in a live run
-        # the terminal status arrives as a bare-string ``execution_status``
-        # update, before the final ``full_state`` snapshot.
+        # 从每项包含统计数据的更新中跟踪使用情况：在实时运行中，终端状态以裸字符串
+        # ``execution_status`` 更新的形式到达，而最终 ``full_state`` 拍照则在最后。
+        #
         self._capture_usage(event)
         status = _extract_status(event)
         if status is None:
@@ -127,8 +125,9 @@ class TelemetrySubscriber(Subscriber[Event]):
         self._last_status = status
 
         if not self._seeded:
-            # The attach-time push is a baseline, not a transition; otherwise
-            # every rehydration re-emits a terminal event.
+            # 附加时间推送是一个基线，而不是一个过渡； 否则每次补液都会重新发出终止事件
+            # 。
+            #
             self._seeded = True
             self._terminal_emitted = status in _TERMINAL_STATUSES
             return
@@ -140,7 +139,7 @@ class TelemetrySubscriber(Subscriber[Event]):
             self._emit_terminal(status)
 
     def emit_started(self) -> None:
-        """Emit canonical ``conversation_created`` once at registration."""
+        """注册时发出规范 ``conversation_created`` 一次。"""
         try:
             properties = m.ConversationStartedProperties(
                 conversation_ref=self.context.conversation_ref,
@@ -180,7 +179,7 @@ class TelemetrySubscriber(Subscriber[Event]):
             cost_bucket=bucket(self._total_cost, COST_BOUNDS),
             llm_model_family=self.context.llm_model_family,
         )
-        # An interrupted run did not complete, so it is not "finished".
+        # 中断的运行未完成，因此它没有“完成”。
         event_name = (
             m.EventName.CONVERSATION_FAILED
             if token in _FAILURE_STATUSES or token == _INTERRUPTED_STATUS
@@ -191,14 +190,13 @@ class TelemetrySubscriber(Subscriber[Event]):
         )
 
     def _capture_usage(self, event: ConversationStateUpdateEvent) -> None:
-        """Record aggregate token/cost from a state update carrying stats.
+        """记录来自携带统计数据的状态更新的总代币/成本。
 
-        Both a ``stats`` key update (published after each LLM call) and a
-        ``full_state`` snapshot carry ``usage_to_metrics``, a map of usage id
-        to a ``MetricsSnapshot``. Summing it gives the conversation totals,
-        which are bucketed at the terminal event — the raw figures are never
-        reported. Best-effort: any shape change degrades to ``unknown``
-        rather than raising.
+        ``stats`` 密钥更新（在每次 LLM 调用后发布）和
+        ``full_state``快照携带``usage_to_metrics``，使用id到``MetricsSnapshot``的映射
+        。 对它求和就得到了对话
+        总数，这些总数被存储在终端事件中——原始数据永远不会被报告。 尽力而为：任何形状
+        变化都会降级为 ``unknown`` 而不是升高。
         """
         try:
             key = getattr(event, "key", None)
@@ -233,12 +231,11 @@ class TelemetrySubscriber(Subscriber[Event]):
             logger.debug("Could not read usage from state snapshot", exc_info=True)
 
     def _emit_error_from_agent_event(self, event: AgentErrorEvent) -> None:
-        """Report a tool-level agent error.
+        """报告工具级智能体错误。
 
-        Only ``tool_name`` is read. ``AgentErrorEvent.error`` is the scaffold's
-        message and routinely contains tool output, paths and model text, so it
-        is never touched. The ``classification`` field determines whether the
-        error is an expected agent outcome or a diagnostic.
+        仅读取 ``tool_name``。 ``AgentErrorEvent.error`` 是脚手架的消息，通常包含工具
+        输出、路径和模型文本，因此永远不会被触
+        及。 ``classification`` 字段确定错误是预期的智能体结果还是诊断结果。
         """
         fingerprint = normalize_error_code("AgentError")
         classification = event.classification
@@ -266,11 +263,10 @@ class TelemetrySubscriber(Subscriber[Event]):
     def _emit_error_from_conversation_event(
         self, event: ConversationErrorEvent
     ) -> None:
-        """Report a conversation-level failure.
+        """报告对话级故障。
 
-        Only ``code`` is read — its docstring documents it as "typically a
-        type". The sibling ``detail`` field is free-form prose and is never
-        touched.
+        仅读取 ``code`` — 它的文档字符串将其记录为“通常是一种类型”。 同级 ``detail``
+        领域是自由形式的散文，从未被触及。
         """
         fingerprint = normalize_error_code(getattr(event, "code", None))
         classification = event.classification
@@ -295,23 +291,21 @@ class TelemetrySubscriber(Subscriber[Event]):
         )
 
     async def close(self) -> None:
-        """Emit a terminal event only if a run was actually observed.
+        """仅当实际观察到运行时才发出终端事件。
 
-        The subscriber attaches on every ``_start_event_service`` path,
-        including the lazy attach when a user merely *opens* an existing
-        conversation. Emitting unconditionally here produced a
-        ``conversation_finished`` — carrying a non-terminal
-        ``terminal_status`` like ``paused`` — for a conversation that did
-        nothing this session, with no matching ``conversation_created``, and
-        again on every view-then-restart cycle for the same
+        订阅者在每个 ``_start_event_service`` 路径上附加，包括当用户仅 * 打开 * 现有
+        对话时的惰性附加。 在这里无条件发射产生了
+        ``conversation_finished`` — 携带非终结符
+        ``terminal_status`` 像 ``paused`` — 对于本次会话没有执行任何操作的对话，没有
+        匹配的
+        ``conversation_created``，并且在每个查看然后重新启动循环中再次进行相同的操作
         ``conversation_ref``.
 
-        Gating on an observed run keeps the crash-mid-run safety net: a
-        conversation that reached ``running`` and never reported a terminal
-        state is still reported, as ``interrupted``.
+        在观察到的运行上开启门禁，保持了崩溃中运行的安全网：``running`` 会继续报告，
+        即使``interrupted`` 从未报告终端状态。
 
-        Deliberately does **not** close ``self.sink``: the sink is shared
-        process-wide and outlives every conversation.
+        故意 ** 不 ** 关闭 ``self.sink``：接收器在整个进程范围内共享，并且比每次对话
+        的寿命都长。
         """
         try:
             if self._terminal_emitted or not self._run_observed:
@@ -322,7 +316,7 @@ class TelemetrySubscriber(Subscriber[Event]):
 
 
 def _extract_status(event: ConversationStateUpdateEvent) -> str | None:
-    """Pull ``execution_status`` out of a state update, if present."""
+    """将 ``execution_status`` 从状态更新中拉出（如果存在）。"""
     key = getattr(event, "key", None)
     value: Any = getattr(event, "value", None)
 

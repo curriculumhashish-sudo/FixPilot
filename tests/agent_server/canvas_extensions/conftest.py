@@ -1,4 +1,4 @@
-"""Shared fixtures for canvas extension tests."""
+"""共享测试夹具用于画布扩展测试。"""
 
 import json
 from pathlib import Path
@@ -18,7 +18,7 @@ def write_extension(
     entrypoint: str = "dist/index.js",
     pages: list[dict[str, str]] | None = None,
 ) -> Path:
-    """Write a valid, loadable canvas extension package to *directory*."""
+    """将有效的、可加载的画布扩展包写入*目录*。"""
     directory.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, Any] = {
         "schema_version": 1,

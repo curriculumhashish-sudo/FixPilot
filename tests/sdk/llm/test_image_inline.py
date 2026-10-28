@@ -1,4 +1,4 @@
-"""Tests for inlining http(s) image URLs as base64 ``data:`` URLs."""
+"""http(s)图片URLs作为base64``data:``进行内联URLs的测试。"""
 
 from __future__ import annotations
 
@@ -38,9 +38,9 @@ def _clear_cache():
 
 @pytest.fixture(autouse=True)
 def _stub_dns_to_public_ip(monkeypatch: pytest.MonkeyPatch):
-    """Make SSRF host-resolution return a public IP by default.
+    """使SSRF主机解析默认返回公共IP。
 
-    Individual tests can override this to exercise loopback/private hosts.
+    单独的测试可以覆盖此设置以执行环回/私有主机。
     """
     monkeypatch.setattr(
         image_inline, "_resolve_host_ips", lambda host, port: ["8.8.8.8"]
@@ -49,7 +49,7 @@ def _stub_dns_to_public_ip(monkeypatch: pytest.MonkeyPatch):
 
 
 def _stub_get(url: str, *, body: bytes = _TINY_PNG, content_type: str = "image/png"):
-    """Return a context manager that mocks httpx.Client.stream for one URL."""
+    """返回上下文管理器，模拟对象 httpx.Client.stream 为一 URL。"""
 
     class _StubResponse:
         is_redirect = False
@@ -104,7 +104,7 @@ def test_no_op_when_inline_not_required():
     out = maybe_inline_image_urls(
         original_messages, inline_required=False, vision_enabled=True
     )
-    # Fast path must return the same list object — no copy, no rewrite.
+    # 快速路径必须返回相同的列表对象——没有复制，没有重写。
     assert out is original_messages
     img = out[0].content[0]
     assert isinstance(img, ImageContent)
@@ -133,7 +133,7 @@ def test_inlines_http_url_to_base64_data_url():
     assert isinstance(img, ImageContent)
     expected = "data:image/png;base64," + base64.b64encode(_TINY_PNG).decode("ascii")
     assert img.image_urls == [expected]
-    # Input must not be mutated.
+    # 输入不得发生突变。
     original = msg.content[0]
     assert isinstance(original, ImageContent)
     assert original.image_urls == [url]
@@ -143,7 +143,7 @@ def test_data_url_passes_through_unchanged():
     data_url = "data:image/png;base64,AAAA"
     msg = Message(role="user", content=[ImageContent(image_urls=[data_url])])
 
-    # No mock needed — must not perform any network call.
+    # 不需要模拟对象 — 不得执行任何网络调用。
     out = maybe_inline_image_urls([msg], inline_required=True, vision_enabled=True)
 
     img = out[0].content[0]
@@ -180,9 +180,9 @@ def test_fetch_failure_falls_back_to_original_url():
 
 
 def test_non_image_content_type_falls_back_to_original_url():
-    """A 200 OK with ``Content-Type: text/html`` (soft-404/auth wall) must
-    not be inlined as ``data:text/html;...`` — the original URL is sent
-    instead and the upstream produces its native error."""
+    """带有 ``Content-Type: text/html`` 的 200 OK（soft-404/auth wall）必须
+    不内联为 ``data:text/html;...`` — 而是发送原始 URL，并且上游产生其本机错误。
+    """
     url = "https://example.com/soft-404.png"
     msg = Message(role="user", content=[ImageContent(image_urls=[url])])
 
@@ -196,10 +196,11 @@ def test_non_image_content_type_falls_back_to_original_url():
 
 
 def test_no_extension_and_no_content_type_falls_back_to_original_url():
-    """If both the URL path extension and the server ``Content-Type`` are
-    missing, ``_derive_mime_type`` must raise so the caller falls back to
-    the original URL — otherwise a soft-404 / auth-wall response would
-    sneak past the ``_ALLOWED_IMAGE_MIMES`` guard."""
+    """如果 URL 路径扩展和服务器 ``Content-Type`` 都是
+    丢失，``_derive_mime_type`` 必须引发，以便调用者回退到原来的 URL — 否则软 404 /
+    auth-wall 响应会偷偷溜过
+    ``_ALLOWED_IMAGE_MIMES`` 守卫。
+    """
     url = "https://example.com/path/with/no/extension"
     msg = Message(role="user", content=[ImageContent(image_urls=[url])])
 
@@ -281,12 +282,14 @@ def test_model_features_marks_models_requiring_inline_images(model: str):
 
 
 def test_model_features_does_not_mark_other_moonshot_models():
-    # Only specific provider/model routes are listed; sibling Kimi releases must not
-    # be flagged so they continue to behave like before.
+    # 仅列出特定提供商/型号路线； Kimi的兄弟姐妹的标记必须保持不变，以继续像以前一样行为
+    # 。
+    #
     assert get_features("moonshot/kimi-k2.5").requires_inline_image_data is False
     assert get_features("moonshot/kimi-k2-thinking").requires_inline_image_data is False
-    # Hosted Kimi K2.6 on other clouds (bedrock/fireworks/azure) accepts URLs
-    # and must not be auto-inlined.
+    # Kimi K2.6 仅在其他云（bedrock/fireworks/azure）上托管，URLs 会被接受，且必须不自动
+    # 内联。
+    #
     assert (
         get_features("bedrock/moonshotai.kimi-k2.5").requires_inline_image_data is False
     )
@@ -299,7 +302,7 @@ def test_model_features_does_not_mark_other_moonshot_models():
 
 
 def test_llm_inline_image_urls_override_wins_over_capability():
-    """The explicit LLM field must override the capability default."""
+    """显式 LLM 字段必须覆盖功能默认值。"""
     url = "https://example.com/x.png"
     llm = LLM(
         model="anthropic/claude-sonnet-4-6",
@@ -327,7 +330,7 @@ def test_llm_inline_image_urls_override_wins_over_capability():
 
 
 def test_llm_kimi_k2_6_auto_inlines_without_override():
-    """No override needed when the model is in the capability list."""
+    """当模型位于功能列表中时，无需覆盖。"""
     url = "https://example.com/x.png"
     llm = LLM(
         model="litellm_proxy/moonshot/kimi-k2.6",
@@ -360,7 +363,7 @@ def test_llm_kimi_k2_6_auto_inlines_without_override():
     ],
 )
 def test_llm_kimi_k3_auto_inlines_http_url(model: str):
-    """K3 vision requests download public URLs before serialization."""
+    """K3 视觉请求下载公共 URLs 之前序列化。"""
     url = "https://example.com/x.png"
     llm = LLM(
         model=model,
@@ -383,7 +386,7 @@ def test_llm_kimi_k3_auto_inlines_http_url(model: str):
 
 
 def test_llm_inline_image_urls_false_disables_capability_default():
-    """``inline_image_urls=False`` opts out even when the model would auto-opt-in."""
+    """即使模型会自动选择加入，``inline_image_urls=False`` 也会选择退出。"""
     url = "https://example.com/x.png"
     llm = LLM(
         model="litellm_proxy/moonshot/kimi-k2.6",
@@ -415,7 +418,7 @@ def test_llm_inline_image_urls_false_disables_capability_default():
 
 
 def test_ssrf_blocks_loopback_literal(monkeypatch: pytest.MonkeyPatch):
-    """An ``http://127.0.0.1/...`` URL must not be fetched."""
+    """不得获取 ``http://127.0.0.1/...`` URL。"""
     url = "http://127.0.0.1/secret.png"
     msg = Message(role="user", content=[ImageContent(image_urls=[url])])
 
@@ -442,12 +445,12 @@ def test_ssrf_blocks_loopback_literal(monkeypatch: pytest.MonkeyPatch):
 
     img = out[0].content[0]
     assert isinstance(img, ImageContent)
-    # Fetch was refused → original URL preserved (best-effort fallback).
+    # 获取被拒绝 → 保留原始 URL（尽力而为回退方案）。
     assert img.image_urls == [url]
 
 
 def test_ssrf_blocks_private_host_via_dns(monkeypatch: pytest.MonkeyPatch):
-    """A hostname that resolves to a private IP must not be fetched."""
+    """不得获取解析为私有 IP 的主机名。"""
     monkeypatch.setattr(
         image_inline, "_resolve_host_ips", lambda host, port: ["10.0.0.5"]
     )
@@ -473,7 +476,7 @@ def test_ssrf_blocks_private_host_via_dns(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_ssrf_blocks_localhost_hostname():
-    """``localhost`` is rejected without DNS resolution."""
+    """``localhost`` 在没有 DNS 决议的情况下被拒绝。"""
     url = "http://localhost/secret.png"
     msg = Message(role="user", content=[ImageContent(image_urls=[url])])
     out = maybe_inline_image_urls([msg], inline_required=True, vision_enabled=True)
@@ -483,7 +486,7 @@ def test_ssrf_blocks_localhost_hostname():
 
 
 def test_reuses_single_client_across_multiple_urls():
-    """Multi-image turns share a single ``httpx.Client`` for connection pooling."""
+    """多图像轮流共享单个 ``httpx.Client`` 用于连接池。"""
     url_a = "https://example.com/a.png"
     url_b = "https://example.com/b.png"
     msg = Message(
@@ -535,7 +538,7 @@ def test_reuses_single_client_across_multiple_urls():
 
 
 def test_fetch_timeout_is_env_configurable(monkeypatch: pytest.MonkeyPatch):
-    """``OH_INLINE_IMAGE_FETCH_TIMEOUT_S`` overrides the default timeout."""
+    """``OH_INLINE_IMAGE_FETCH_TIMEOUT_S`` 覆盖默认值超时。"""
     monkeypatch.setenv("OH_INLINE_IMAGE_FETCH_TIMEOUT_S", "7.5")
     import importlib
 
@@ -548,7 +551,7 @@ def test_fetch_timeout_is_env_configurable(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_async_inline_uses_thread_offload():
-    """``amaybe_inline_image_urls`` returns the same result as the sync pass."""
+    """``amaybe_inline_image_urls`` 返回与同步遍相同的结果。"""
     url = "https://example.com/x.png"
     msg = Message(role="user", content=[ImageContent(image_urls=[url])])
 
@@ -564,17 +567,18 @@ def test_async_inline_uses_thread_offload():
 
 
 def test_ssrf_blocks_redirect_to_private_ip(monkeypatch: pytest.MonkeyPatch):
-    """A 302 from a public URL to a private IP must be blocked on the redirect hop.
+    """必须在重定向跃点上阻止从公共 URL 到私有 IP 的 302。
 
-    ``_validate_url_target`` is called inside the redirect-follow loop, so a
-    public origin that redirects to ``http://10.0.0.5/secret.png`` must be
-    refused without ever streaming the private body.
+    ``_validate_url_target`` 在重定向跟随循环内被调用，因此重定向到
+    ``http://10.0.0.5/secret.png`` 的公共源必须
+    在没有流式传输私有主体的情况下被拒绝。
     """
     public_url = "https://example.com/redirect.png"
     private_url = "http://10.0.0.5/secret.png"
 
-    # First call (public_url) resolves to a public IP; second call (private_url)
-    # resolves to a private IP, which ``_is_disallowed_ip`` rejects.
+    # 第一次调用 (public_url) 解析为公共 IP； 第二个调用 (private_url) 解析为私有 IP，但
+    #  ``_is_disallowed_ip`` 拒绝。
+    #
     def _resolve(host: str, port: int) -> list[str]:
         return ["10.0.0.5"] if host == "10.0.0.5" else ["8.8.8.8"]
 
@@ -622,22 +626,22 @@ def test_ssrf_blocks_redirect_to_private_ip(monkeypatch: pytest.MonkeyPatch):
     with patch.object(image_inline.httpx, "Client", _RedirectClient):
         out = maybe_inline_image_urls([msg], inline_required=True, vision_enabled=True)
 
-    # Only the initial public URL was actually streamed; the private redirect
-    # target was rejected by the validator before reaching ``stream``.
+    # 仅限首次公开 URL 实际上已经直播了。 私有重定向目标被拒绝了验证器在到达之前
+    # ``stream``.
+    #
     assert streamed_urls == [public_url]
     img = out[0].content[0]
     assert isinstance(img, ImageContent)
-    # Fetch was refused mid-redirect → original URL preserved.
+    # 获取在重定向中被拒绝 → 保留原始 URL。
     assert img.image_urls == [public_url]
 
 
 def test_sync_and_async_formatters_produce_identical_output():
-    """``aformat_messages_for_llm`` must match ``format_messages_for_llm``.
+    """``aformat_messages_for_llm`` 必须匹配 ``format_messages_for_llm``。
 
-    The async path duplicates ``_prepare_chat_messages`` (deepcopy + caching +
-    inline + resize) so it can ``await`` the inline pass. This test guards
-    against silent drift if a future preparation pass is added to one path
-    and not the other.
+    异步路径重复 ``_prepare_chat_messages``（深度复制 + 缓存 + 内联 + 调整大小），因
+    此它可以 ``await`` 内联传递。 如果将
+    来的准备通道添加到一条路径而不是另一条路径，则此测试可以防止静默漂移。
     """
     url = "https://example.com/x.png"
     llm = LLM(
@@ -665,7 +669,7 @@ def test_sync_and_async_formatters_produce_identical_output():
 
 
 def test_responses_formatter_inlines_image_urls():
-    """``format_messages_for_responses`` rewrites image URLs to base64."""
+    """``format_messages_for_responses`` 重写图片 URLs base64。"""
     url = "https://example.com/x.png"
     llm = LLM(
         model="litellm_proxy/moonshot/kimi-k2.6",
@@ -683,7 +687,7 @@ def test_responses_formatter_inlines_image_urls():
     ):
         _instructions, input_items = llm.format_messages_for_responses([message])
 
-    # Responses API wraps non-system items as ``message`` with a content array.
+    # 响应 API 将非系统项目包装为带有内容数组的 ``message``。
     image_items: list[dict] = []
     for it in input_items:
         for c in it.get("content", []):

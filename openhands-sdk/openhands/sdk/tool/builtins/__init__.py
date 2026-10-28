@@ -1,9 +1,10 @@
-"""SDK-resident tools that do not interact with the environment.
+"""SDK-不与环境交互的驻留工具。
 
-`BUILT_IN_TOOLS` contains tools attached to every agent. `BUILT_IN_TOOL_CLASSES`
-also includes optional SDK tools that are resolved by name from agent setup.
+`BUILT_IN_TOOLS` 包含每个智能体附带的工具。 `BUILT_IN_TOOL_CLASSES` 还包括可选的 SDK
+工具，这些工具通过智能体设置中的名称进行
+解析。
 
-Tools that require interacting with the environment belong in `openhands-tools`.
+需要与环境交互的工具属于`openhands-tools`。
 """
 
 from openhands.sdk.tool.builtins.classify_and_switch_llm import (
@@ -45,14 +46,14 @@ from openhands.sdk.tool.builtins.vision_inspect import (
 from openhands.sdk.tool.tool import ToolDefinition
 
 
-# Tools attached to every agent by default. `InvokeSkillTool` is deliberately
-# *not* here: it's auto-attached by `Agent._initialize` only when an
-# AgentSkills-format skill is loaded (see BUILT_IN_TOOL_CLASSES below).
+# 默认情况下，工具附加到每个智能体。 `InvokeSkillTool` 是故意的
+# *不* 这里：是自动连接的 `Agent._initialize` 只有当
+# AgentSkills-格式技能已加载（参见下面的BUILT_IN_TOOL_CLASSES）。
 BUILT_IN_TOOLS = [FinishTool, ThinkTool]
 
-# Map of built-in tool class names to their classes. Includes optional built-ins
-# so they can be resolved by name from `include_default_tools` and the
-# conditional wiring in `Agent._initialize`.
+# 内置工具类名称与其类的映射。 包括可选的内置函数，因此可以通过 `include_default_tools`
+# 中的名称和 `Agent._initialize` 中的条件接线来解析它们。
+#
 BUILT_IN_TOOL_CLASSES = {
     **{tool.__name__: tool for tool in BUILT_IN_TOOLS},
     InvokeSkillTool.__name__: InvokeSkillTool,
@@ -65,7 +66,7 @@ BUILT_IN_TOOLS_WITH_PARAMS = frozenset({ClassifyAndSwitchLLMTool.__name__})
 
 
 def builtin_tool_class(name: str) -> type[ToolDefinition] | None:
-    """Return the built-in tool class named by its class name or its tool name."""
+    """返回以其类名或工具名命名的内置工具类。"""
     if name in BUILT_IN_TOOL_CLASSES:
         return BUILT_IN_TOOL_CLASSES[name]
     return next(

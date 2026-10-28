@@ -204,7 +204,7 @@ async def test_prepare_start_logs_stop_and_preserve_data(
 @requires_linux_backend
 @pytest.mark.asyncio
 async def test_ready_endpoint_closes_when_ready_backend_exits(tmp_path: Path):
-    """A crashed backend is not dialed before anyone polls its status (#5912)."""
+    """在任何人轮询其状态之前，不会拨打崩溃的后端（#5912）。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension")
     installed_dir = tmp_path / "installed"
     install_canvas_extension(str(source), installed_dir=installed_dir)
@@ -227,7 +227,7 @@ async def test_ready_endpoint_closes_when_ready_backend_exits(tmp_path: Path):
             await asyncio.sleep(0.05)
         assert process.returncode is not None
 
-        # No status poll yet: the stored state is stale, the bridge is closed.
+        # 尚未进行状态轮询：存储的状态已过时，桥已关闭。
         assert manager._runtimes["my-extension"].state == "ready"
         assert manager.ready_endpoint("my-extension") is None
 
@@ -334,7 +334,7 @@ async def test_prepare_rejects_revision_checksum_and_unsafe_archive(tmp_path: Pa
 def _install_with_artifact_bytes(
     tmp_path: Path, payload: bytes
 ) -> tuple[CanvasExtensionBackendManager, str]:
-    """Install a backend app whose artifact is ``payload``, with a matching sha256."""
+    """安装工件为 ``payload`` 且具有匹配 sha256 的后端应用程序。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension")
     (source / "backend-linux-amd64.tar.gz").write_bytes(payload)
     manifest_path = source / MANIFEST_FILENAME
@@ -473,13 +473,13 @@ async def test_failed_start_cleanup_and_unsupported_states(tmp_path: Path):
 async def test_status_reports_starting_and_stop_abandons_hung_backend(
     tmp_path: Path,
 ):
-    """`starting` must be observable, and a hung start must be stoppable."""
+    """`starting` 必须是可观察的，并且挂起启动必须是可停止的。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension", timeout=30)
     installed_dir = tmp_path / "installed"
     install_canvas_extension(str(source), installed_dir=installed_dir)
-    # Replace the artifact with a backend that listens on nothing, so the
-    # health probe never succeeds and `start()` would otherwise block for the
-    # whole 30s timeout while holding the name lock.
+    # 替换为一个监听空端口的后端，这样健康检查永远不成功，`start()` 会因此在30秒内一直阻
+    # 塞，超时会一直持有名称锁。
+    #
     archive = installed_dir / "my-extension" / "backend-linux-amd64.tar.gz"
     payload = b"#!/usr/bin/python3\nimport time\ntime.sleep(300)\n"
     with tarfile.open(archive, "w:gz") as tar:
@@ -512,11 +512,11 @@ async def test_status_reports_starting_and_stop_abandons_hung_backend(
     stopped = await asyncio.wait_for(manager.stop("my-extension"), timeout=15)
     elapsed = time.monotonic() - started
     assert stopped.state == "stopped"
-    # The health timeout is 30s; stopping must not wait for it.
+    # 生命值超时为30s； 停下来不能等待它。
     assert elapsed < 10, f"stop() waited {elapsed:.1f}s on a hung backend"
 
-    # `start()` returns the post-stop status rather than raising, because the
-    # health wait is cancelled by `stop()`.
+    # `start()` 返回停止后状态而不是提升，因为运行状况等待已被 `stop()` 取消。
+    #
     started_status = (await asyncio.gather(starting, return_exceptions=True))[0]
     assert not isinstance(started_status, BaseException)
     assert started_status.state == "stopped"
@@ -550,7 +550,7 @@ server.serve_forever()
 @requires_linux_backend
 @pytest.mark.asyncio
 async def test_status_recovers_after_one_slow_health_probe(tmp_path: Path):
-    """A missed probe must not latch a live backend `unhealthy` (#5646)."""
+    """错过的探测不得锁定实时后端 `unhealthy` (#5646)。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension", timeout=10)
     installed_dir = tmp_path / "installed"
     install_canvas_extension(str(source), installed_dir=installed_dir)
@@ -581,7 +581,7 @@ async def test_status_recovers_after_one_slow_health_probe(tmp_path: Path):
         slow = await manager.status("my-extension")
         assert slow.state == "unhealthy"
         assert slow.pid == ready.pid
-        # Still slow: the backend stays unhealthy and the bridge stays closed.
+        # 仍然很慢：后端仍然不健康并且桥保持关闭。
         assert (await manager.status("my-extension")).state == "unhealthy"
         assert manager.ready_endpoint("my-extension") is None
 
@@ -592,8 +592,8 @@ async def test_status_recovers_after_one_slow_health_probe(tmp_path: Path):
         assert recovered.pid == ready.pid
         assert manager.ready_endpoint("my-extension") == ("127.0.0.1", ready.port)
 
-        # `start` with the same revision re-probes instead of echoing a stale
-        # `unhealthy`, and keeps the same process.
+        # `start` 使用相同的版本重新探测而不是回显陈旧的版本
+        # `unhealthy`，并保持相同的过程。
         await asyncio.to_thread(urllib.request.urlopen, f"{base}/slow", timeout=3)
         assert (await manager.status("my-extension")).state == "unhealthy"
         await asyncio.to_thread(urllib.request.urlopen, f"{base}/fast", timeout=3)
@@ -696,8 +696,8 @@ async def test_cleanup_kills_sigterm_ignoring_descendant(
     source = _write_backend_extension(tmp_path / "source" / "my-extension")
     installed_dir = tmp_path / "installed"
     install_canvas_extension(str(source), installed_dir=installed_dir)
-    # A backend whose descendant survives SIGTERM: the leader exits promptly,
-    # so escalating only on the leader's exit code would leak the descendant.
+    # 后代幸存的后端 SIGTERM：领导者立即退出，因此仅在领导者的退出代码上升级会泄漏后代。
+    #
     archive = installed_dir / "my-extension" / "backend-linux-amd64.tar.gz"
     payload = (
         b"#!/usr/bin/python3\n"
@@ -779,14 +779,14 @@ def _alive(pid: int) -> bool:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
-    # A zombie child of this test process is dead too.
+    # 这个测试过程的僵尸孩子也死了。
     return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
 
 
 @requires_linux_backend
 @pytest.mark.asyncio
 async def test_restart_after_server_crash_reaps_orphaned_backend(tmp_path: Path):
-    """A SIGKILLed server's backend must not survive the next server (#5637)."""
+    """SIGKILLed服务器的后端在接下来的服务器(#5637)之后必须不存在。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension")
     installed_dir = tmp_path / "installed"
     state_dir = tmp_path / "state"
@@ -810,8 +810,9 @@ async def test_restart_after_server_crash_reaps_orphaned_backend(tmp_path: Path)
     await crashed.wait()
     assert _alive(backend_pid) and _alive(child_pid)
 
-    # An unrelated process named in a forged record of the dead server is
-    # never signalled: its command line is outside the app's artifacts.
+    # 在失效服务器的伪造记录中命名的不相关进程永远不会发出信号：其命令行位于应用程序的工
+    # 件之外。
+    #
     [record_path] = list((state_dir / "run").glob("*.json"))
     record = json.loads(record_path.read_text())
     bystander = await asyncio.create_subprocess_exec(
@@ -840,7 +841,7 @@ async def test_restart_after_server_crash_reaps_orphaned_backend(tmp_path: Path)
 
 
 def test_status_degrades_when_manifest_is_corrupted(tmp_path: Path):
-    """A tampered live manifest must not surface as an AssertionError."""
+    """被篡改的实时清单不得显示为 AssertionError。"""
     source = _write_backend_extension(tmp_path / "source" / "my-extension")
     installed_dir = tmp_path / "installed"
     install_canvas_extension(str(source), installed_dir=installed_dir)

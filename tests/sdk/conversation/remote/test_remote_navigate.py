@@ -1,4 +1,4 @@
-"""Tests for RemoteConversation.navigate_to()."""
+"""测试 RemoteConversation.navigate_to()。"""
 
 import uuid
 from unittest.mock import Mock, patch
@@ -22,7 +22,7 @@ def _setup_workspace_with_mock_client(
     host: str = "http://localhost:8000",
     conversation_id: str | None = None,
 ) -> tuple[RemoteWorkspace, Mock, str]:
-    """Workspace + mock client that handles create, navigate, and state refresh."""
+    """工作区 + 模拟对象处理创建、导航和状态刷新的客户端。"""
     workspace = RemoteWorkspace(host=host, working_dir="/tmp")
     mock_client = Mock()
     workspace._client = mock_client
@@ -42,7 +42,7 @@ def _setup_workspace_with_mock_client(
         elif method == "GET" and "/events" in url:
             response.json.return_value = {"items": [], "next_page_id": None}
         else:
-            # navigate POST and the conversation-info refresh GET both land here.
+            # 导航 POST 和对话信息刷新 GET 都位于此处。
             response.json.return_value = {
                 "id": conversation_id,
                 "leaf_event_id": "evt-7",
@@ -55,7 +55,7 @@ def _setup_workspace_with_mock_client(
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_navigate_posts_event_id(mock_ws_cls: Mock) -> None:
-    """navigate_to(event) must POST {event_id} to /{id}/navigate."""
+    """navigate_to（事件）必须 POST {event_id} 到 /{id}/navigate."""
     mock_ws_cls.return_value = Mock()
     workspace, mock_client, cid = _setup_workspace_with_mock_client()
 
@@ -74,7 +74,7 @@ def test_remote_navigate_posts_event_id(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_navigate_none_posts_null(mock_ws_cls: Mock) -> None:
-    """navigate_to(None) selects the empty tree — body carries event_id=None."""
+    """navigate_to(None) 选择空树——主体携带 event_id=None。"""
     mock_ws_cls.return_value = Mock()
     workspace, mock_client, _ = _setup_workspace_with_mock_client()
 
@@ -92,16 +92,16 @@ def test_remote_navigate_none_posts_null(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_navigate_refreshes_state(mock_ws_cls: Mock) -> None:
-    """navigate_to refreshes cached state, since leaf_event_id isn't broadcast."""
+    """navigate_to 刷新缓存状态，因为 leaf_event_id 未广播。"""
     mock_ws_cls.return_value = Mock()
     workspace, mock_client, cid = _setup_workspace_with_mock_client()
 
     conv = RemoteConversation(agent=_agent(), workspace=workspace)
     conv.navigate_to("evt-7")
 
-    # The conversation-info GET (refresh_from_server) must come *after* the
-    # navigate POST — asserting order (not mere presence) keeps the test honest
-    # even if __init__ later starts fetching the same path.
+    # GET refresh_from_server 必须在 * * 之后，POST __ —— 保持顺序（而不是仅仅存在）可以
+    # 使测试更加诚实，即使 __ 后来开始获取相同的路径。
+    #
     calls = mock_client.request.call_args_list
     nav_idx = next(
         i

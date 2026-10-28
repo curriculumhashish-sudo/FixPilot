@@ -1,4 +1,4 @@
-"""Tests for Conversation constructor with secrets parameter."""
+"""测试带有机密参数的对话构造函数。"""
 
 import tempfile
 from unittest.mock import patch
@@ -17,11 +17,10 @@ from openhands.sdk.workspace import RemoteWorkspace
 from .conftest import create_mock_http_client
 
 
-# NOTE: module-level on purpose. A function-local ``SecretSource``
-# (DiscriminatedUnionMixin) subclass auto-registers globally and makes the
-# registry raise "Local classes not supported!" on any later discriminated-union
-# validation in the same xdist worker (e.g. unrelated ConversationState
-# deserialization).
+# 注意：有意的模块级。 局部函数 ``SecretSource``
+# (DiscriminatedUnionMixin) 类自动注册全局，并且使注册表在任何后续的歧异联合中引发 "本地
+# 类不支持！" 验证在同一个 xdist 工作器中（e.g. 无关的 ConversationState  反序列化).
+#
 class _DynamicTokenSource(SecretSource):
     def get_value(self):
         return "dynamic-token-789"
@@ -33,16 +32,16 @@ class _CallableApiKeySource(SecretSource):
 
 
 def create_test_agent() -> Agent:
-    """Create a test agent."""
+    """创建测试智能体。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     return Agent(llm=llm, tools=[])
 
 
 def test_local_conversation_constructor_with_secrets():
-    """Test LocalConversation constructor accepts and initializes secrets."""
+    """测试 LocalConversation 构造函数接受并初始化机密。"""
     agent = create_test_agent()
 
-    # Test secrets as dict[str, str]
+    # 测试机密为 dict[str, str]
     test_secrets = {
         "API_KEY": "test-api-key-123",
         "DATABASE_URL": "postgresql://localhost/test",
@@ -54,21 +53,21 @@ def test_local_conversation_constructor_with_secrets():
             agent=agent, workspace=tmpdir, persistence_dir=tmpdir, secrets=test_secrets
         )
 
-        # Verify it's a LocalConversation
+        # 验证它是 LocalConversation
         assert isinstance(conv, LocalConversation)
 
-        # Verify secrets were initialized
+        # 验证机密已初始化
         secret_registry = conv.state.secret_registry
         assert secret_registry is not None
 
-        # Verify secrets are accessible through the secret registry
+        # 验证机密可通过机密注册表访问
         env_vars = secret_registry.get_secrets_as_env_vars("echo $API_KEY")
         assert env_vars == {"API_KEY": "test-api-key-123"}
 
         env_vars = secret_registry.get_secrets_as_env_vars("echo $DATABASE_URL")
         assert env_vars == {"DATABASE_URL": "postgresql://localhost/test"}
 
-        # Test multiple secrets in one command
+        # 在一个命令中测试多个机密
         env_vars = secret_registry.get_secrets_as_env_vars(
             "export API_KEY=$API_KEY && export AUTH_TOKEN=$AUTH_TOKEN"
         )
@@ -79,7 +78,7 @@ def test_local_conversation_constructor_with_secrets():
 
 
 def test_local_conversation_constructor_with_callable_secrets():
-    """Test LocalConversation constructor with callable secrets."""
+    """使用可调用机密测试 LocalConversation 构造函数。"""
     agent = create_test_agent()
 
     test_secrets = {
@@ -93,10 +92,10 @@ def test_local_conversation_constructor_with_callable_secrets():
             agent=agent, workspace=tmpdir, persistence_dir=tmpdir, secrets=test_secrets
         )
 
-        # Verify it's a LocalConversation
+        # 验证它是 LocalConversation
         assert isinstance(conv, LocalConversation)
 
-        # Verify callable secrets work
+        # 验证可调用机密工作
         secret_registry = conv.state.secret_registry
 
         env_vars = secret_registry.get_secrets_as_env_vars("echo $DYNAMIC_TOKEN")
@@ -110,7 +109,7 @@ def test_local_conversation_constructor_with_callable_secrets():
 
 
 def test_local_conversation_constructor_without_secrets():
-    """Test LocalConversation constructor works without secrets parameter."""
+    """测试 LocalConversation 构造函数在没有机密参数的情况下工作。"""
     agent = create_test_agent()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -118,23 +117,23 @@ def test_local_conversation_constructor_without_secrets():
             agent=agent,
             workspace=tmpdir,
             persistence_dir=tmpdir,
-            # No secrets parameter
+            # 无机密参数
         )
 
-        # Verify it's a LocalConversation
+        # 验证它是 LocalConversation
         assert isinstance(conv, LocalConversation)
 
-        # Verify secrets manager exists but is empty
+        # 验证机密管理器存在但为空
         secret_registry = conv.state.secret_registry
         assert secret_registry is not None
 
-        # Should return empty dict for any command
+        # 应该为任何命令返回空字典
         env_vars = secret_registry.get_secrets_as_env_vars("echo $API_KEY")
         assert env_vars == {}
 
 
 def test_local_conversation_constructor_with_empty_secrets():
-    """Test LocalConversation constructor with empty secrets dict."""
+    """使用空的机密字典测试 LocalConversation 构造函数。"""
     agent = create_test_agent()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -142,27 +141,27 @@ def test_local_conversation_constructor_with_empty_secrets():
             agent=agent,
             workspace=tmpdir,
             persistence_dir=tmpdir,
-            secrets={},  # Empty dict
+            secrets={},  # 空字典
         )
 
-        # Verify it's a LocalConversation
+        # 验证它是 LocalConversation
         assert isinstance(conv, LocalConversation)
 
-        # Verify secrets manager exists but is empty
+        # 验证机密管理器存在但为空
         secret_registry = conv.state.secret_registry
         assert secret_registry is not None
 
-        # Should return empty dict for any command
+        # 应该为任何命令返回空字典
         env_vars = secret_registry.get_secrets_as_env_vars("echo $API_KEY")
         assert env_vars == {}
 
 
 @pytest.mark.parametrize("api_key", [None, "test-api-key"])
 def test_remote_conversation_constructor_with_secrets(api_key):
-    """Test RemoteConversation constructor accepts and initializes secrets."""
+    """测试 RemoteConversation 构造函数接受并初始化机密。"""
     agent = create_test_agent()
 
-    # Mock httpx client
+    # 模拟对象 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
     test_secrets = {
@@ -177,23 +176,24 @@ def test_remote_conversation_constructor_with_secrets(api_key):
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create a RemoteWorkspace
+        # 创建一个RemoteWorkspace
         workspace = RemoteWorkspace(
             host="http://localhost:3000",
             api_key=api_key,
             working_dir="/workspace/project",
         )
 
-        # Replace workspace client with mock to ensure all HTTP calls use the mock
+        # 将工作区客户端替换为模拟对象，以确保所有 HTTP 调用都使用模拟对象
         workspace._client = mock_client_instance
 
         conv = Conversation(agent=agent, workspace=workspace, secrets=test_secrets)
 
-        # Verify it's a RemoteConversation
+        # 验证它是 RemoteConversation
         assert isinstance(conv, RemoteConversation)
 
-        # Verify that update_secrets was called during initialization
-        # The RemoteConversation should have made a POST request to update secrets
+        # 验证 update_secrets 在初始化期间被调用 RemoteConversation 应该发出 POST 请求来
+        # 更新机密
+        #
         mock_client_instance.request.assert_any_call(
             "POST",
             "/api/conversations/12345678-1234-5678-9abc-123456789abc/secrets",
@@ -202,10 +202,10 @@ def test_remote_conversation_constructor_with_secrets(api_key):
 
 
 def test_remote_conversation_constructor_with_callable_secrets():
-    """Test RemoteConversation constructor with callable secrets."""
+    """使用可调用机密测试 RemoteConversation 构造函数。"""
     agent = create_test_agent()
 
-    # Mock httpx client
+    # 模拟对象 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
     def get_dynamic_token():
@@ -220,25 +220,25 @@ def test_remote_conversation_constructor_with_callable_secrets():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create a RemoteWorkspace
+        # 创建一个RemoteWorkspace
         workspace = RemoteWorkspace(
             host="http://localhost:3000",
             api_key="test-api-key",
             working_dir="/workspace/project",
         )
 
-        # Replace workspace client with mock to ensure all HTTP calls use the mock
+        # 将工作区客户端替换为模拟对象，以确保所有 HTTP 调用都使用模拟对象
         workspace._client = mock_client_instance
 
         conv = Conversation(agent=agent, workspace=workspace, secrets=test_secrets)
 
-        # Verify it's a RemoteConversation
+        # 验证它是 RemoteConversation
         assert isinstance(conv, RemoteConversation)
 
-        # Verify that callable secrets were resolved and sent to server
+        # 验证可调用机密已解析并发送到服务器
         expected_serialized_secrets = {
             "STATIC_KEY": "static-value",
-            "DYNAMIC_TOKEN": "dynamic-token-789",  # Callable was invoked
+            "DYNAMIC_TOKEN": "dynamic-token-789",  # Callable 被调用
         }
 
         mock_client_instance.request.assert_any_call(
@@ -249,10 +249,10 @@ def test_remote_conversation_constructor_with_callable_secrets():
 
 
 def test_remote_conversation_constructor_without_secrets():
-    """Test RemoteConversation constructor works without secrets parameter."""
+    """测试 RemoteConversation 构造函数在没有机密参数的情况下工作。"""
     agent = create_test_agent()
 
-    # Mock httpx client
+    # 模拟对象 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -262,26 +262,26 @@ def test_remote_conversation_constructor_without_secrets():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create a RemoteWorkspace
+        # 创建一个RemoteWorkspace
         workspace = RemoteWorkspace(
             host="http://localhost:3000",
             api_key="test-api-key",
             working_dir="/workspace/project",
         )
 
-        # Replace workspace client with mock to ensure all HTTP calls use the mock
+        # 将工作区客户端替换为模拟对象，以确保所有 HTTP 调用都使用模拟对象
         workspace._client = mock_client_instance
 
         conv = Conversation(
             agent=agent,
             workspace=workspace,
-            # No secrets parameter
+            # 无机密参数
         )
 
-        # Verify it's a RemoteConversation
+        # 验证它是 RemoteConversation
         assert isinstance(conv, RemoteConversation)
 
-        # Verify that no secrets update call was made
+        # 验证是否未进行机密更新调用
         secrets_calls = [
             call
             for call in mock_client_instance.request.call_args_list
@@ -291,17 +291,17 @@ def test_remote_conversation_constructor_without_secrets():
 
 
 def test_conversation_factory_routing_with_secrets():
-    """Test that Conversation factory correctly routes to Local/Remote with secrets."""
+    """测试对话工厂是否使用机密正确路由到本地/远程。"""
     agent = create_test_agent()
     test_secrets = {"API_KEY": "test-key"}
 
-    # Test LocalConversation routing
+    # 测试LocalConversation路由
     with tempfile.TemporaryDirectory() as tmpdir:
         local_conv = Conversation(agent=agent, workspace=tmpdir, secrets=test_secrets)
         assert isinstance(local_conv, LocalConversation)
 
-    # Test RemoteConversation routing
-    # Mock httpx client
+    # 测试 RemoteConversation 路由模拟对象 httpx 客户端
+    #
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -317,7 +317,7 @@ def test_conversation_factory_routing_with_secrets():
             working_dir="/workspace/project",
         )
 
-        # Replace workspace client with mock to ensure all HTTP calls use the mock
+        # 将工作区客户端替换为模拟对象，以确保所有 HTTP 调用都使用模拟对象
         workspace._client = mock_client_instance
 
         remote_conv = Conversation(
@@ -327,10 +327,10 @@ def test_conversation_factory_routing_with_secrets():
 
 
 def test_secrets_parameter_type_validation():
-    """Test that secrets parameter accepts correct types."""
+    """测试机密参数是否接受正确的类型。"""
     agent = create_test_agent()
 
-    # Test with valid dict[str, str]
+    # 使用有效的 dict[str、str] 进行测试
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = Conversation(agent=agent, workspace=tmpdir, secrets={"KEY": "value"})
         assert isinstance(conv, LocalConversation)
@@ -341,7 +341,7 @@ def test_secrets_parameter_type_validation():
         )  # type: ignore[dict-item]
         assert isinstance(conv, LocalConversation)
 
-    # Test with None (should work)
+    # 使用 None 进行测试（应该有效）
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = Conversation(agent=agent, workspace=tmpdir, secrets=None)
         assert isinstance(conv, LocalConversation)

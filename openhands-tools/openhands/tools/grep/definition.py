@@ -1,4 +1,4 @@
-"""Grep tool implementation for fast content search."""
+"""用于快速内容搜索的 Grep 工具实现。"""
 
 import os
 from collections.abc import Sequence
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class GrepAction(Action):
-    """Schema for grep content search operations."""
+    """模式用于 grep 内容搜索操作。"""
 
     pattern: str = Field(description="The regex pattern to search for in file contents")
     path: str | None = Field(
@@ -41,7 +41,7 @@ class GrepAction(Action):
 
 
 class GrepObservation(Observation):
-    """Observation from grep content search operations."""
+    """观测结果来自 grep 内容搜索操作。"""
 
     matches: list[str] = Field(description="List of file paths containing the pattern")
     pattern: str = Field(description="The regex pattern that was used")
@@ -65,18 +65,17 @@ TOOL_DESCRIPTION = """Fast content search tool.
 
 
 class GrepTool(ToolDefinition[GrepAction, GrepObservation]):
-    """A ToolDefinition subclass that automatically initializes a GrepExecutor."""
+    """自动初始化 GrepExecutor 的 ToolDefinition 子类。"""
 
     catalog_description: ClassVar[str] = (
         "Search file contents with regular expressions."
     )
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        """Declare resource usage for parallel execution.
+        """声明并行执行的资源使用情况。
 
-        All grep backends are stateless and safe to run lock-free in parallel:
-        ripgrep and system grep spawn independent subprocesses, and the Python
-        fallback only performs local file reads.
+        所有grep后端都是无状态的，并且可以并行运行锁无子进程：ripgrep 和系统 grep 启
+        动独立进程，而 Python 回退方案只进行本地文件读取。
         """
         if not isinstance(action, GrepAction):
             raise TypeError(f"Expected GrepAction, got {type(action).__name__}")
@@ -87,31 +86,30 @@ class GrepTool(ToolDefinition[GrepAction, GrepObservation]):
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["GrepTool"]:
-        """Initialize GrepTool with a GrepExecutor.
+        """用 GrepExecutor 初始化 GrepTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
-                         If provided, working_dir will be taken from
-                         conv_state.workspace
+            conv_state: 要从中获取工作目录的对话状态。
+                         如果提供，working_dir 将从 conv_state.workspace 中获取
         """
-        # Import here to avoid circular imports
+        # 在这里导入以避免循环导入
         from openhands.tools.grep.impl import GrepExecutor
 
         working_dir = conv_state.workspace.working_dir
         if not os.path.isdir(working_dir):
             raise ValueError(f"working_dir '{working_dir}' is not a valid directory")
 
-        # Initialize the executor
+        # 初始化执行器
         executor = GrepExecutor(working_dir=working_dir)
 
-        # Add working directory information to the tool description
+        # 在工具描述中添加工作目录信息
         enhanced_description = (
             f"{TOOL_DESCRIPTION}\n\n"
             f"Your current working directory is: {working_dir}\n"
             f"When searching for content, searches are performed in this directory."
         )
 
-        # Initialize the parent ToolDefinition with the executor
+        # 使用执行器初始化父级ToolDefinition
         return [
             cls(
                 description=enhanced_description,
@@ -129,5 +127,5 @@ class GrepTool(ToolDefinition[GrepAction, GrepObservation]):
         ]
 
 
-# Automatically register the tool when this module is imported
+# 导入此模块时自动注册该工具
 register_tool(GrepTool.name, GrepTool)

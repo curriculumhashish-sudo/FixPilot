@@ -1,14 +1,12 @@
-"""Child-conversation tool package.
+"""儿童对话工具包。
 
-Provides the ``start_child_conversation`` tool: a server-executed tool that
-starts a child conversation on the same backend as its parent and returns the
-child's id and launch status to the parent agent. The launch itself is
-delegated over HTTP to a child-launch endpoint, which defaults to the
-agent-server running the tool (``POST /api/conversations/{id}/children``) and
-can be pointed elsewhere via the ``launch_url`` tool parameter so a hosting
-backend can run its own provisioning lifecycle.
+提供 ``start_child_conversation`` 工具：一个服务器执行的工具，它在相同的后端启动一个
+子对话，并将子对话的 id 和启动状态返回给父对话智能体。
+ HTTP 启动本身由端点子启动器接管，该子启动器默认运行工具
+ ``POST /api/conversations/{id}/children``的智能体服务器，可以通过
+``launch_url``工具参数指向其他地方，以便托管后端运行自己的部署生命周期。
 
-Usage:
+用途：
     from openhands.tools.child_conversation import StartChildConversationTool
 
     agent = Agent(
@@ -16,8 +14,8 @@ Usage:
         tools=[Tool(name=StartChildConversationTool.name)],
     )
 
-The tool is registered by the agent-server; it is not part of the default
-tool preset because it requires a server to create the child on.
+该工具由智能体-服务器注册； 它不是默认工具预设的一部分，因为它需要服务器来创建子工具
+。
 """
 
 from openhands.tools.child_conversation.definition import (

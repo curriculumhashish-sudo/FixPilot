@@ -1,4 +1,4 @@
-"""Tests for the Vertex AI optional-extra preflight check."""
+"""Vertex AI 可选额外预检检查的测试。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from openhands.sdk.llm.utils.vertex_preflight import assert_vertex_sdk_available
 
 
 def test_noop_for_non_vertex_providers(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Even with the SDK absent, non-vertex providers must not raise.
+    # 即使SDK缺席，非顶点提供者也不得不提。
     monkeypatch.setattr(vertex_preflight, "_vertex_sdk_available", lambda: False)
     assert_vertex_sdk_available(None)
     assert_vertex_sdk_available("openai")

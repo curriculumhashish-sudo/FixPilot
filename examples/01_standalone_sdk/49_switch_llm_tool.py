@@ -1,10 +1,9 @@
-"""Switch LLM profiles with the built-in switch_llm tool.
+"""使用内置 switch_llm 工具切换 LLM 配置文件。
 
-This example creates two temporary LLM profiles, starts the conversation on a
-GPT profile, asks the agent to call the switch_llm tool, and then verifies that
-future model calls use the Claude profile.
+这个示例创建了两个临时 LLM 配置，启动对话在 GPT 配置上，要求智能体调用 switch_llm 工
+具，并验证未来模型调用使用 Claude 配置。
 
-Usage:
+用途：
     LLM_API_KEY=... LLM_BASE_URL=https://llm-proxy.app.all-hands.dev \
         uv run python examples/01_standalone_sdk/49_switch_llm_tool.py
 """

@@ -1,129 +1,155 @@
-# Automated TODO Management with GitHub Actions
+<a id="automated-todo-management-with-github-actions"></a>
 
-This example demonstrates how to use the OpenHands SDK to automatically scan a codebase for configurable TODO comments and create pull requests to implement them. This showcases practical automation and self-improving codebase capabilities.
+# 通过 GitHub 操作进行自动化 TODO 管理
 
-## Overview
+示例展示了如何使用 OpenHands SDK 自动扫描代码库以查找可配置的 TODO 注释，并创建 pull requests 实现这些注释。 这展示了实用的自动化和自我改进的代码库功能。
 
-The workflow consists of three main components:
+<a id="overview"></a>
 
-1. **Scanner** (`scanner.py`) - Scans the codebase for configurable TODO comments
-2. **Agent** (`agent.py`) - Uses OpenHands to implement individual TODOs
-3. **GitHub Actions Workflow** - Orchestrates the automation (see `.github/workflows/todo-management.yml`)
+## 概述
 
-## Features
+该工作流程由三个主要组成部分组成：
 
-- 🔍 **Smart Scanning**: Finds legitimate TODO comments with configurable identifiers while filtering out false positives
-- 🤖 **AI Implementation**: Uses OpenHands agent to automatically implement TODOs
-- 🔄 **PR Management**: Creates feature branches and pull requests automatically
-- 📝 **Progress Tracking**: Tracks TODO processing status and PR creation
-- 📊 **Comprehensive Reporting**: Detailed GitHub Actions summary with processing status
-- ⚙️ **Configurable**: Customizable TODO identifiers and processing limits
+1. **Scanner** (`scanner.py`) - 扫描代码库以获取可配置的 TODO 注释
+2. **智能体** (`agent.py`) - 使用 OpenHands 实现 TODOs
+3. **GitHub 操作工作流程** - 协调自动化（请参阅 `.github/workflows/todo-management.yml`）
 
-## How It Works
+<a id="features"></a>
 
-1. **Scan Phase**: The workflow scans your codebase for configurable TODO comments
-   - Default identifier: `TODO(openhands)` (customizable via workflow input)
-   - Filters out false positives (documentation, test files, quoted strings)
-   - Supports Python, TypeScript, Java, and Rust files
-   - Provides detailed logging of found TODOs
+## 特点
 
-2. **Process Phase**: For each TODO found:
-   - Creates a feature branch
-   - Uses OpenHands agent to implement the TODO
-   - Creates a pull request with the implementation
-   - Tracks processing status and PR information
+- 🔍 **智能扫描**：查找具有可配置标识符的合法TODO评论，同时过滤掉False正面评论
+- 🤖 **AI 实现**: 使用 OpenHands 智能体自动实现 TODOs
+- 🔄 **PR 管理**：自动创建功能分支和拉取请求
+- 📝 **进度跟踪**：跟踪TODO处理状态和PR创建
+- 📊 **综合报告**：详细GitHub带有处理状态的操作摘要
+- ⚙️ **可配置**：可自定义TODO标识符和处理限制
 
-3. **Summary Phase**: Generates a comprehensive summary showing:
-   - All processed TODOs with their file locations
-   - Associated pull request URLs for successful implementations
-   - Processing status (success, partial, failed) for each TODO
+<a id="how-it-works"></a>
 
-## Files
+## 它是如何运作的
 
-- **`scanner.py`**: Smart TODO scanner with false positive filtering
-- **`agent.py`**: OpenHands agent for TODO implementation
-- **`prompt.py`**: Contains the prompt template for TODO implementation
-- **`README.md`**: This comprehensive documentation
+1. **扫描阶段**：工作流程扫描您的代码库以获取可配置的TODO注释
+   - 默认标识符：`TODO(openhands)`（可通过工作流程输入自定义）
+   - 过滤掉 False 个正面信息（文档、测试文件、带引号的字符串）
+   - 支持 Python、TypeScript、Java 和 Rust 文件
+   - 提供详细的日志记录 TODOs
 
-## Setup
+2. **处理阶段**：对于找到的每个TODO：
+   - 创建一个功能分支
+   - 使用 OpenHands 智能体来实现 TODO
+   - 创建带有实施的拉取请求
+   - 跟踪处理状态和 PR 信息
 
-### 1. Repository Secrets
+3. **摘要阶段**：生成全面的摘要，显示：
+   - 所有处理过的 TODOs 与文件位置
+   - 成功实现的关联 pull request URLs
+   - 每个 TODO 的处理状态（成功、部分、失败）
 
-Add these secrets to your GitHub repository:
+<a id="files"></a>
 
-- **`LLM_API_KEY`** (required): Your LLM API key
-  - Get one from the [OpenHands LLM Provider](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms)
-- `GITHUB_TOKEN` - GitHub token with repo permissions (automatically provided)
--  Make sure Github Actions are allowed to create and review PRs (in the repo settings)
+## 文件
 
-### 2. Install Workflow
+- **`scanner.py`**：智能 TODO 扫描仪，带 False 正向滤波
+- **`agent.py`**：OpenHands智能体用于TODO实施
+- **`prompt.py`**：包含用于 TODO 实现的提示词模板
+- **`README.md`**：这份综合文档
 
-The GitHub Actions workflow is already installed at `.github/workflows/todo-management.yml` in this repository.
+<a id="setup"></a>
 
-### 3. Configure Permissions
+## 设置
 
-Ensure your `GITHUB_TOKEN` has these permissions:
+<a id="1-repository-secrets"></a>
+
+### 1. 存储库机密
+
+将这些机密添加到您的 GitHub 存储库：
+
+- **`LLM_API_KEY`**（必填）：您的 LLM API 密钥
+  - 从 [OpenHands LLM 提供商 ](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms) 获取一个
+- `GITHUB_TOKEN` - GitHub token 具有 repo 权限（自动提供）
+-  确保允许 GitHub 操作创建和审查 PR（在存储库设置中）
+
+<a id="2-install-workflow"></a>
+
+### 2. 安装工作流程
+
+GitHub 操作工作流程已安装在此存储库的 `.github/workflows/todo-management.yml` 处。
+
+<a id="3-configure-permissions"></a>
+
+### 3. 配置权限
+
+确保您的 `GITHUB_TOKEN` 具有以下权限：
 - `contents: write`
 - `pull-requests: write`
 
-### 4. Add TODO comments to your code
+<a id="4-add-todo-comments-to-your-code"></a>
 
-Add TODO comments in the following format anywhere in your codebase:
+### 4. 向您的代码添加 TODO 条注释
+
+在代码库中的任意位置添加以下格式的 TODO 注释：
 
 ```python
-# TODO(openhands): Add input validation for user email
+# TODO(OpenHands)：为用户电子邮件添加输入验证
 def process_user_email(email):
     return email.lower()
 
-# TODO(openhands): Implement caching mechanism for API responses
+# TODO(OpenHands)：为 API 响应实施缓存机制
 def fetch_api_data(endpoint):
-    # Current implementation without caching
+    # 目前的实现没有缓存
     return requests.get(endpoint).json()
 ```
 
-**Supported Languages:**
+**支持的语言：**
 - Python (`.py`)
-- TypeScript (`.ts`) 
-- Java (`.java`)
-- Rust (`.rs`)
+- TypeScript (`.ts`)
+- 爪哇 (`.java`)
+- 铁锈 (`.rs`)
 
-**Supported Comment Styles:**
-- `# TODO(openhands): description` (Python, Shell, etc.)
-- `// TODO(openhands): description` (TypeScript, Java, Rust, etc.)
+**支持的评论样式：**
+- `# TODO(openhands): description`（Python、外壳等）
+- `// TODO(openhands): description`（TypeScript、Java、Rust 等）
 
-**Custom Identifiers:**
-You can use custom TODO identifiers like `TODO(myteam)`, `TODO[urgent]`, etc. Configure this in the workflow parameters.
+**自定义标识符：**
+您可以使用自定义 TODO 标识符，例如 `TODO(myteam)`、`TODO[urgent]` 等。 在工作流程参数中进行配置。
 
-## Usage
+<a id="usage"></a>
 
-### Manual runs
+## 用途
 
-1. Go to Actions → "Automated TODO Management"
-2. Click "Run workflow"
-3. (Optional) Configure parameters:
-   - **Max TODOs**: Maximum number of TODOs to process (default: 3)
-   - **TODO Identifier**: Custom identifier to search for (default: `TODO(openhands)`)
-4. Click "Run workflow"
+<a id="manual-runs"></a>
 
-### Scanner CLI Usage
+### 手动运行
 
-You can also run the scanner directly from the command line:
+1. 转到操作→“自动化 TODO 管理”
+2. 单击“运行工作流程”
+3. （可选）配置参数：
+   - **最大 TODOs**最大数量的 TODOs 处理（默认值：3）
+   - **TODO 标识符**：要搜索的自定义标识符（默认值：`TODO(openhands)`）
+4. 单击“运行工作流程”
+
+<a id="scanner-cli-usage"></a>
+
+### 扫描仪 CLI 用途
+
+您还可以直接从命令行运行扫描仪：
 
 ```bash
-# Scan current directory with default identifier
+# 使用默认标识符扫描当前目录
 python scanner.py .
 
-# Scan with custom identifier
+# 使用自定义标识符扫描
 python scanner.py . --identifier "TODO(myteam)"
 
-# Scan specific directory and save to file
+# 扫描特定目录并保存到文件
 python scanner.py /path/to/code --output todos.json
 
-# Get help
+# 获得帮助
 python scanner.py --help
 ```
 
-**Scanner Options:**
-- `directory`: Directory or file to scan (default: current directory)
-- `--identifier, -i`: TODO identifier to search for (default: `TODO(openhands)`)
-- `--output, -o`: Output file for results (default: stdout)
+**扫描仪选项：**
+- `directory`：要扫描的目录或文件（默认：当前目录）
+- `--identifier, -i`：要搜索的 TODO 标识符（默认值：`TODO(openhands)`）
+- `--output, -o`：结果的输出文件（默认：stdout）

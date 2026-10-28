@@ -42,22 +42,22 @@ export interface OpenHandsRequestOptions {
   acceptableStatusCodes?: Set<number>;
   responseType?: ResponseType;
   /**
-   * Optional alternate upstream host. Semantics differ by client kind:
-   * agent-server clients send the request directly to this host (e.g. a
-   * per-conversation runtime URL), while cloud clients route it through
-   * the configured proxy endpoint (`CloudClientOptions.proxy`, default
-   * path `/api/cloud-proxy`) with this host in the proxy envelope.
+   * 可选的备用上游主机。 语义因客户端类型而异：
+   * 智能体-服务器客户端直接将请求发送到该主机（e.g. a
+   * 每个会话运行时 URL），而云客户端则通过它路由
+   * 配置的代理端点（`CloudClientOptions.proxy`，默认
+   * 路径 `/api/cloud-proxy`) 与代理信封中的该主机。
    */
   hostOverride?: string;
   /**
-   * Overrides the default auth strategy for this request. `default` uses
-   * the client's own scheme: agent-server clients send the client API key
-   * as `X-Session-API-Key` (they treat `bearer` the same way), while cloud
-   * clients send it as `Authorization: Bearer`. `session-api-key` sends
-   * `sessionApiKey` as `X-Session-API-Key`; `none` sends no auth header.
+   * 覆盖此请求的默认身份验证策略。 `default`用途
+   * 客户端自己的方案：智能体-服务器客户端发送客户端API密钥
+   * as `X-Session-API-Key` （他们以同样的方式对待 `bearer`），而 cloud
+   * 客户端将其发送为 `Authorization: Bearer`。 `session-api-key` 发送
+   * `sessionApiKey` 为 `X-Session-API-Key`； `none` 不发送 auth 标头。
    */
   authMode?: OpenHandsRequestAuthMode;
-  /** API key to use when `authMode` is `session-api-key`. */
+  /** 当`authMode`为`session-api-key`时使用API键。*/
   sessionApiKey?: string | null;
 }
 
@@ -115,7 +115,7 @@ export abstract class OpenHandsClient {
   }
 
   close(): void {
-    // Implemented by concrete clients when they own resources.
+    // 由具体客户在拥有资源时实施。
   }
 }
 

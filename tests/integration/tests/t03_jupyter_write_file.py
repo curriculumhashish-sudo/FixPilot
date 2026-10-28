@@ -1,4 +1,4 @@
-"""Test that an agent can use Jupyter IPython to write a text file."""
+"""测试智能体是否可以使用 Jupyter IPython 写入文本文件。"""
 
 import os
 
@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class JupyterWriteFileTest(BaseIntegrationTest):
-    """Test that an agent can use Jupyter IPython to write a text file."""
+    """测试智能体是否可以使用 Jupyter IPython 写入文本文件。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -25,20 +25,20 @@ class JupyterWriteFileTest(BaseIntegrationTest):
         self.file_path: str = os.path.join(self.workspace, "test.txt")
 
     def setup(self) -> None:
-        """Setup is not needed - agent will create directories as needed."""
+        """不需要安装 - 智能体将根据需要创建目录。"""
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully created the text file using IPython."""
+        """验证智能体是否使用 IPython 成功创建了文本文件。"""
         if not os.path.exists(self.file_path):
             return TestResult(
                 success=False, reason=f"Text file '{self.file_path}' not found"
             )
 
-        # Read the file content
+        # 读取文件内容
         with open(self.file_path) as f:
             file_content = f.read().strip()
 
-        # Check if the file contains the expected content
+        # 检查文件是否包含预期的内容
         if "hello world" not in file_content.lower():
             return TestResult(
                 success=False,

@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 """
-Datadog Debugging Example
+Datadog调试示例
 
-This example demonstrates how to use the OpenHands agent to debug errors
-logged in Datadog.
-The agent will:
-1. Query Datadog logs to understand the error using curl commands
-2. Clone relevant GitHub repositories using git commands
-3. Analyze the codebase to identify potential causes
-4. Attempt to reproduce the error
-5. Optionally create a draft PR with a fix
+此示例演示如何使用 OpenHands 智能体调试 Datadog 中记录的错误。 智能体将：
+1. 使用curl命令查询Datadog日志以了解错误
+2. 使用 git 命令克隆相关 GitHub 存储库
+3. 分析代码库以确定潜在原因
+4. 尝试重现错误
+5. （可选）创建包含修复的草稿 PR
 
-Usage:
+用途：
     python 26_datadog_debugging.py --query "status:error service:deploy" \\
         --repos "All-Hands-AI/OpenHands,All-Hands-AI/deploy"
 
-Environment Variables Required:
-    - DD_API_KEY: Your Datadog API key
-    - DD_APP_KEY: Your Datadog application key
-    - DD_SITE: (optional) Datadog site (e.g., datadoghq.com, datadoghq.eu)
-    - GITHUB_TOKEN: Your GitHub personal access token
-    - LLM_API_KEY: API key for the LLM service
+环境变量必填：
+    - DD_API_KEY: 您的 Datadog API 密钥
+    - DD_APP_KEY: 您的 Datadog 应用程序密钥
+    - DD_SITE: （可选）Datadog 站点（e.g.、datadoghq.com、datadoghq.eu）
+    - GITHUB_TOKEN: 您的 GitHub 个人访问令牌
+    - LLM_API_KEY: LLM 服务的 API 键
 """
 
 import argparse
@@ -54,7 +52,7 @@ logger = get_logger(__name__)
 
 
 def validate_environment():
-    """Validate that all required environment variables are set."""
+    """验证所有必需的环境变量均已设置。"""
     required_vars = [
         "DD_API_KEY",
         "DD_APP_KEY",
@@ -81,17 +79,17 @@ def fetch_datadog_errors(
     query: str, working_dir: Path, query_type: str = "log-query", limit: int = 5
 ) -> Path:
     """
-    Fetch error examples from Datadog and save to a JSON file.
+    从 Datadog 获取错误示例并保存到 JSON 文件。
 
     Args:
-        query: Datadog query string (search query or error tracking ID)
-        working_dir: Directory to save the error examples
-        query_type: Type of query - "log-query" (uses Logs API) or
-            "log-error-id" (uses Error Tracking API)
-        limit: Maximum number of error examples to fetch (default: 5)
+        query: Datadog 查询字符串（搜索查询或错误跟踪 ID）
+        working_dir: 保存错误示例的目录
+        query_type: 查询类型 - “日志查询”（使用日志 API）或
+            “log-error-id”（使用错误跟踪 API）
+        limit: 要获取的错误示例的最大数量（默认值：5）
 
     Returns:
-        Path to the JSON file containing error examples
+        包含错误示例的 JSON 文件的路径
     """
     dd_api_key = os.getenv("DD_API_KEY")
     dd_app_key = os.getenv("DD_APP_KEY")
@@ -100,7 +98,7 @@ def fetch_datadog_errors(
     error_examples = []
 
     if query_type == "log-error-id":
-        # Fetch specific error by ID using GET endpoint
+        # 使用 GET 端点按 ID 获取特定错误
         api_url = f"https://api.{dd_site}/api/v2/error-tracking/issues/{query}"
 
         print("📡 Fetching specific error from Datadog...")
@@ -129,12 +127,12 @@ def fetch_datadog_errors(
             print(f"   Response: {response.text[:500]}")
             sys.exit(1)
 
-        # Check for API errors
+        # 检查是否有 API 个错误
         if "errors" in response_data:
             print(f"❌ Datadog API error: {response_data['errors']}")
             sys.exit(1)
 
-        # Extract error details from GET response
+        # 从 GET 响应中提取错误详细信息
         data = response_data.get("data", {})
         attrs = data.get("attributes", {})
 
@@ -154,14 +152,14 @@ def fetch_datadog_errors(
         }
         error_examples.append(error_example)
 
-    else:  # log-query
+    else:  # 日志查询
         api_url = f"https://api.{dd_site}/api/v2/logs/events/search"
 
-        # Calculate timestamps (30 days back)
+        # 计算时间戳（30 天前）
         now = datetime.now()
         thirty_days_ago = now - timedelta(days=30)
 
-        # Build the request body for Logs API
+        # 构建日志的请求正文 API
         request_body = {
             "filter": {
                 "query": query,
@@ -201,12 +199,12 @@ def fetch_datadog_errors(
             print(f"   Response: {response.text[:500]}")
             sys.exit(1)
 
-        # Check for API errors
+        # 检查是否有 API 个错误
         if "errors" in response_data:
             print(f"❌ Datadog API error: {response_data['errors']}")
             sys.exit(1)
 
-        # Extract and format log entries
+        # 提取并格式化日志条目
         log_entries = response_data.get("data", [])
 
         if log_entries:
@@ -214,7 +212,7 @@ def fetch_datadog_errors(
                 log_id = log_entry.get("id", "")
                 log_attrs = log_entry.get("attributes", {})
 
-                # Extract relevant fields from log entry
+                # 从日志条目中提取相关字段
                 error_example = {
                     "example_number": idx,
                     "log_id": log_id,
@@ -228,7 +226,7 @@ def fetch_datadog_errors(
                 }
                 error_examples.append(error_example)
 
-    # Save to file
+    # 保存到文件
     errors_file = working_dir / "datadog_errors.json"
     with open(errors_file, "w") as f:
         json.dump(
@@ -249,22 +247,22 @@ def fetch_datadog_errors(
 
 def create_unique_identifier(query: str, errors_data: dict) -> str:
     """
-    Create a unique identifier for the error based on query or issue ID.
+    根据查询或问题 ID 创建错误的唯一标识符。
 
     Args:
-        query: The Datadog query string
-        errors_data: The parsed error data from datadog_errors.json
+        query: Datadog 查询字符串
+        errors_data: 来自datadog_errors.json的解析错误数据
 
     Returns:
-        Unique identifier string
+        唯一标识符字符串
     """
-    # Check if we have a specific issue ID
+    # 检查我们是否有特定的问题 ID
     examples = errors_data.get("examples", [])
     if examples and examples[0].get("issue_id"):
         issue_id = examples[0]["issue_id"]
         return f"error-id: {issue_id}"
     else:
-        # Use query as identifier
+        # 使用查询作为标识符
         return f"query: {query}"
 
 
@@ -272,19 +270,19 @@ def search_existing_issue(
     issue_repo: str, identifier: str, github_token: str
 ) -> int | None:
     """
-    Search for existing GitHub issues containing the identifier.
+    搜索包含该标识符的现有 GitHub 个问题。
 
     Args:
-        issue_repo: Repository in format 'owner/repo'
-        identifier: Unique identifier to search for
+        issue_repo: 存储库格式为“所有者/存储库”
+        identifier: 要搜索的唯一标识符
         github_token: GitHub API token
 
     Returns:
-        Issue number if found, None otherwise
+        如果找到则为问题编号，否则为 None
     """
     print(f"🔍 Searching for existing issue with identifier: {identifier}")
 
-    # Search issues in the repository
+    # 在存储库中搜索问题
     search_query = f'repo:{issue_repo} is:issue "{identifier}"'
     url = "https://api.github.com/search/issues"
     headers = {
@@ -299,7 +297,7 @@ def search_existing_issue(
         data = response.json()
         items = data.get("items", [])
         if items:
-            # Sort by created_at to get the oldest issue (first created)
+            # 按 created_at 排序以获取最旧的问题（首先创建）
             items_sorted = sorted(items, key=lambda x: x["created_at"])
             issue_number = items_sorted[0]["number"]
             print(f"✅ Found existing issue #{issue_number} (oldest of {len(items)})")
@@ -323,16 +321,16 @@ def create_github_issue(
     github_token: str,
 ) -> int:
     """
-    Create a new GitHub issue.
+    创建一个新的 GitHub 问题。
 
     Args:
-        issue_repo: Repository in format 'owner/repo'
-        title: Issue title
-        body: Issue body content
+        issue_repo: 存储库格式为“所有者/存储库”
+        title: 问题标题
+        body: 问题正文内容
         github_token: GitHub API token
 
     Returns:
-        Created issue number
+        创建问题编号
     """
     print(f"📝 Creating new issue: {title}")
 
@@ -372,32 +370,32 @@ def format_issue_body(
     parent_issue_url: str | None,
 ) -> str:
     """
-    Format the GitHub issue body with error details.
+    使用错误详细信息格式化 GitHub 问题正文。
 
     Args:
-        errors_data: The parsed error data
-        identifier: Unique identifier
-        parent_issue_url: Optional parent issue URL
+        errors_data: 解析出的错误数据
+        identifier: 唯一标识符
+        parent_issue_url: 可选的父问题 URL
 
     Returns:
-        Formatted issue body
+        格式化的问题正文
     """
     examples = errors_data.get("examples", [])
     query = errors_data.get("query", "")
 
     body_parts = []
 
-    # Add parent issue reference if provided
+    # 添加父问题参考（如果提供）
     if parent_issue_url:
         body_parts.append(f"**Parent Issue:** {parent_issue_url}\n")
 
-    # Add identifier for searchability
+    # 添加标识符以提高可搜索性
     body_parts.append(f"**Identifier:** `{identifier}`\n")
 
-    # Add query info
+    # 添加查询信息
     body_parts.append(f"**Query:** `{query}`\n")
 
-    # Add error summary
+    # 添加错误摘要
     if examples:
         first_example = examples[0]
         body_parts.append("## Error Summary\n")
@@ -421,21 +419,21 @@ def format_issue_body(
 
         body_parts.append("")
 
-        # Add error message if available
+        # 如果可用，则添加错误消息
         if first_example.get("error_message"):
             body_parts.append("## Error Message\n")
             body_parts.append("```")
             body_parts.append(first_example["error_message"])
             body_parts.append("```\n")
 
-    # Add note about full data
+    # 添加有关完整数据的注释
     body_parts.append("## Full Error Data\n")
     body_parts.append(
         "The complete error tracking data has been saved and will be analyzed "
         "by the debugging agent.\n"
     )
 
-    # Add JSON data as collapsible section
+    # 添加 JSON 数据作为可折叠部分
     body_parts.append("<details>")
     body_parts.append("<summary>View Full Error Data (JSON)</summary>\n")
     body_parts.append("```json")
@@ -460,53 +458,53 @@ def setup_github_issue(
     issue_parent: str | None,
 ) -> tuple[int, str]:
     """
-    Create or find GitHub issue for tracking debugging progress.
+    创建或查找 GitHub 问题以跟踪调试进度。
 
     Args:
-        query: The Datadog query
-        errors_file: Path to the errors JSON file
-        issue_repo: GitHub repository for issues
-        issue_prefix: Prefix for issue titles
-        issue_parent: Optional parent issue URL
+        query: 数据狗查询
+        errors_file: 错误 JSON 文件的路径
+        issue_repo: GitHub 问题存储库
+        issue_prefix: 问题标题的前缀
+        issue_parent: 可选的父问题 URL
 
     Returns:
-        Tuple of (issue_number, issue_url)
+        (issue_number, issue_url) 的元组
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if not github_token:
         print("❌ GITHUB_TOKEN environment variable not set")
         sys.exit(1)
 
-    # Load error data
+    # 加载错误数据
     with open(errors_file) as f:
         errors_data = json.load(f)
 
-    # Create unique identifier
+    # 创建唯一标识符
     identifier = create_unique_identifier(query, errors_data)
 
-    # Search for existing issue
+    # 搜索现有问题
     issue_number = search_existing_issue(issue_repo, identifier, github_token)
 
     if issue_number:
-        # Return existing issue
+        # 返回现有问题
         issue_url = f"https://github.com/{issue_repo}/issues/{issue_number}"
         return issue_number, issue_url
 
-    # Create new issue
-    # Determine title from error data
+    # 创建新问题根据错误数据确定标题
+    #
     examples = errors_data.get("examples", [])
     if examples and examples[0].get("error_type"):
         error_name = examples[0]["error_type"]
     else:
-        # Use query as fallback
-        error_name = query[:50]  # Limit length
+        # 使用查询作为回退方案
+        error_name = query[:50]  # 极限长度
 
     title = f"{issue_prefix}{error_name}"
 
-    # Format issue body
+    # 格式化问题正文
     body = format_issue_body(errors_data, identifier, issue_parent)
 
-    # Create issue
+    # 创建问题
     issue_number = create_github_issue(issue_repo, title, body, github_token)
     issue_url = f"https://github.com/{issue_repo}/issues/{issue_number}"
 
@@ -516,18 +514,18 @@ def setup_github_issue(
 def create_debugging_prompt(
     query: str, repos: list[str], errors_file: Path, issue_url: str
 ) -> str:
-    """Create the debugging prompt for the agent."""
+    """为智能体创建调试提示词。"""
     repos_list = "\n".join(f"- {repo}" for repo in repos)
     dd_site = os.getenv("DD_SITE", "datadoghq.com")
     error_tracking_url = f"https://api.{dd_site}/api/v2/error-tracking/issues/search"
     logs_url = f"https://api.{dd_site}/api/v2/logs/events/search"
 
-    # Load Jinja2 template
+    # 加载 Jinja2 模板
     template_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("debug_prompt.jinja")
 
-    # Render template with context
+    # 使用上下文渲染模板
     prompt = template.render(
         issue_url=issue_url,
         errors_file=errors_file,
@@ -541,7 +539,7 @@ def create_debugging_prompt(
 
 
 def main():
-    """Main function to run the Datadog debugging example."""
+    """运行Datadog调试示例的主要函数。"""
     parser = argparse.ArgumentParser(
         description="Debug errors from Datadog logs using OpenHands agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -602,10 +600,10 @@ def main():
     if not validate_environment():
         sys.exit(1)
 
-    # Parse repositories
+    # 解析存储库
     repos = [repo.strip() for repo in args.repos.split(",")]
 
-    # Create working directory
+    # 创建工作目录
     working_dir = Path(args.working_dir).resolve()
     working_dir.mkdir(exist_ok=True)
 
@@ -616,11 +614,11 @@ def main():
     print(f"💼 Working directory: {working_dir}")
     print()
 
-    # Fetch error examples from Datadog
+    # 从 Datadog 获取错误示例
     errors_file = fetch_datadog_errors(args.query, working_dir, args.query_type)
     print()
 
-    # Setup GitHub issue for tracking
+    # 设置 GitHub 跟踪问题
     print("📋 Setting up GitHub issue for tracking...")
     issue_number, issue_url = setup_github_issue(
         args.query,
@@ -632,13 +630,13 @@ def main():
     print(f"📌 Tracking issue: {issue_url}")
     print()
 
-    # Configure LLM
+    # 配置LLM
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         print("❌ LLM_API_KEY environment variable is required")
         sys.exit(1)
 
-    # Get LLM configuration from environment
+    # 从环境中获取 LLM 配置
     model = os.getenv("LLM_MODEL", "gpt-5.5")
     base_url = os.getenv("LLM_BASE_URL")
 
@@ -648,7 +646,7 @@ def main():
         api_key=SecretStr(api_key),
     )
 
-    # Run debugging session
+    # 运行调试会话
     run_debugging_session(llm, working_dir, args.query, repos, errors_file, issue_url)
 
 
@@ -660,8 +658,8 @@ def run_debugging_session(
     errors_file: Path,
     issue_url: str,
 ):
-    """Run the debugging session with the given configuration."""
-    # Register and set up tools
+    """使用给定的配置运行调试会话。"""
+    # 注册并设置工具
     register_tool("TerminalTool", TerminalTool)
     register_tool("FileEditorTool", FileEditorTool)
     register_tool("TaskTrackerTool", TaskTrackerTool)
@@ -672,22 +670,22 @@ def run_debugging_session(
         Tool(name="TaskTrackerTool"),
     ]
 
-    # Create agent
+    # 创建智能体
     agent = Agent(llm=llm, tools=tools)
 
-    # Collect LLM messages for debugging
+    # 收集 LLM 条消息以进行调试
     llm_messages = []
 
     def conversation_callback(event: Event):
         if isinstance(event, LLMConvertibleEvent):
             llm_messages.append(event.to_llm_message())
 
-    # Start conversation with local workspace
+    # 与当地人开始对话工作区
     conversation = Conversation(
         agent=agent, workspace=str(working_dir), callbacks=[conversation_callback]
     )
 
-    # Send the debugging task
+    # 发送调试任务
     debugging_prompt = create_debugging_prompt(query, repos, errors_file, issue_url)
 
     conversation.send_message(
@@ -706,14 +704,14 @@ def run_debugging_session(
         print(f"📁 Results saved in: {working_dir}")
         print(f"💬 Total LLM messages: {len(llm_messages)}")
 
-        # Show summary of what was accomplished
+        # 显示已完成事项的摘要
         print("\n📋 Session Summary:")
         print("- Queried Datadog logs for error analysis")
         print("- Cloned and analyzed relevant repositories")
         print("- Investigated potential root causes")
         print("- Attempted error reproduction")
 
-        # Check for cloned repositories
+        # 检查克隆存储库
         if working_dir.exists():
             cloned_repos = [
                 d for d in working_dir.iterdir() if d.is_dir() and (d / ".git").exists()
@@ -723,7 +721,7 @@ def run_debugging_session(
                     f"- Cloned repositories: {', '.join(d.name for d in cloned_repos)}"
                 )
     finally:
-        # Clean up conversation
+        # 清理对话
         logger.info("Closing conversation...")
         conversation.close()
 

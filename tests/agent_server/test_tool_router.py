@@ -1,4 +1,4 @@
-"""Tests for tool_router module-level initialization."""
+"""测试 tool_router 模块级初始化。"""
 
 import importlib
 
@@ -9,14 +9,14 @@ from openhands.sdk.subagent.registry import (
 
 
 def test_builtin_agents_registered_on_tool_router_import():
-    """Importing tool_router should register builtin agents (default, explore, bash).
+    """导入 tool_router 应注册内置智能体（默认、探索、bash）。
 
-    The agent-server includes tool_router at startup, so this verifies that
-    builtin sub-agents are available as soon as the server starts.
+    智能体-服务器在启动时包含 tool_router，因此这验证了内置子智能体在服务器启动后就可
+    用。
     """
     import openhands.agent_server.tool_router as mod
 
-    # Reset and reload to simulate a fresh import
+    # 重置并重新加载以模拟全新导入
     _reset_registry_for_tests()
     importlib.reload(mod)
 

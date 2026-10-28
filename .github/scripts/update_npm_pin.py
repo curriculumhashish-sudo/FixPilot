@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select stable same-major npm releases after a seven-day observation period."""
+"""在 7 天观测结果期限后选择稳定的相同主要 npm 版本。"""
 
 import argparse
 import json

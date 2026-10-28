@@ -1,31 +1,28 @@
 #!/usr/bin/env python3
-"""API breakage detection for published OpenHands packages using Griffe.
+"""使用 Griffe 检测已发布 OpenHands 包的 API 不兼容变更。
 
-This script compares current workspace packages against the most recent PyPI
-release (or the matching release if the current version is already published)
-to detect breaking changes in the public API.
+本脚本将当前工作区中的包与最新的 PyPI 发行版比较；如果当前版本已经发布，
+则与对应发行版比较，以检测公开 API 的不兼容变更。
 
-It focuses on the curated public surface:
-- symbols exported via ``__all__``
-- public members removed from classes exported via ``__all__``
+重点检查以下明确声明的公开接口：
+- 通过 ``__all__`` 导出的符号
+- 从通过 ``__all__`` 导出的类中移除的公共成员
 
-It enforces two policies:
+本脚本执行两项政策：
 
-1. **Deprecation runway before removal** – any removed export or removed public
-   class member must have been marked deprecated in the *previous* release using
-   the canonical deprecation helpers (``@deprecated`` decorator or
-   ``warn_deprecated()`` call from ``openhands.sdk.utils.deprecation``), and the
-   baseline deprecation metadata must show that the current version has reached a
-   scheduled removal target at least **5 minor releases** after
-   ``deprecated_in``. For members, the recommended ``warn_deprecated`` feature
-   name is qualified (e.g. ``"LLM.some_method"``).
+1. **移除前必须经过弃用期**：被移除的导出项或公共类成员，必须已在
+   *上一个*发行版中通过标准弃用工具标记为弃用，包括 ``@deprecated``
+   装饰器，或 ``openhands.sdk.utils.deprecation`` 中的 ``warn_deprecated()``。
+   基线弃用元数据必须表明当前版本已达到预定移除版本，且该目标至少晚于
+   ``deprecated_in`` **5 个次版本发布**。对于类成员，建议使用带限定名的
+   ``warn_deprecated`` 功能名称，例如 ``"LLM.some_method"``。
 
-2. **MINOR version bump** – any breaking change (removal or structural) requires
-   at least a MINOR version bump according to SemVer.
+2. **提升 MINOR 版本**：任何移除或结构性的不兼容变更，都必须依照 SemVer
+   至少提升一个 MINOR 版本。
 
-Complementary to the deprecation mechanism:
-- Deprecation (``check_deprecations.py``): enforces cleanup deadlines
-- This script: prevents unannounced removals and enforces SemVer bumps
+本脚本与弃用机制互为补充：
+- 弃用检查（``check_deprecations.py``）：执行清理期限要求
+- 本脚本：防止未经预告的移除，并要求提升相应的 SemVer 版本
 """
 
 from __future__ import annotations
@@ -51,11 +48,11 @@ from packaging.requirements import Requirement
 
 @dataclass(frozen=True)
 class PackageConfig:
-    """Configuration for a single published package."""
+    """单个已发布包的配置。"""
 
-    package: str  # dotted module path, e.g. "openhands.sdk"
-    distribution: str  # PyPI distribution name, e.g. "openhands-sdk"
-    source_dir: str  # repo-relative directory, e.g. "openhands-sdk"
+    package: str  # 点分模块路径，例如 "openhands.sdk"
+    distribution: str  # PyPI 发行包名称，例如 "openhands-sdk"
+    source_dir: str  # 相对于仓库的目录，例如 "openhands-sdk"
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,11 +63,11 @@ class DeprecationMetadata:
 
 @dataclass(frozen=True, slots=True)
 class DeprecatedSymbols:
-    """Deprecated SDK symbols detected in a source tree.
+    """在源树中检测到的已弃用 SDK 个符号。
 
-    ``top_level`` tracks module-level symbols (exports) like ``LLM``.
-    ``qualified`` tracks class members like ``LLM.some_method``.
-    ``metadata`` stores the parsed deprecation schedule for each feature.
+    ``top_level`` 与 ``LLM`` 一样跟踪模块级符号（导出）。
+    ``qualified`` 跟踪类似 ``LLM.some_method`` 的类成员。
+    ``metadata`` 存储每个特征的已解析的弃用时间表。
     """
 
     top_level: set[str] = frozenset()  # type: ignore[assignment]
@@ -123,7 +120,7 @@ def _get_base_ref() -> str | None:
 
 
 def _has_package_source_changes(repo_root: str, base_ref: str) -> bool:
-    """Return True when package source changed since base_ref, or if diffing fails."""
+    """当包源自 base_ref 以来发生更改或比较失败时，返回 True。"""
 
     changed_files: list[str] | None = None
     for candidate in _git_ref_candidates(base_ref):
@@ -156,7 +153,7 @@ def _has_package_source_changes(repo_root: str, base_ref: str) -> bool:
 
 
 def read_version_from_pyproject(path: str) -> str:
-    """Read the version string from a pyproject.toml file."""
+    """从 pyproject.toml 文件读取版本字符串。"""
     with open(path, "rb") as f:
         data = tomllib.load(f)
     proj = data.get("project", {})
@@ -328,7 +325,7 @@ def _check_acp_version_bump(repo_root: str) -> int:
 
 
 def _parse_version(v: str) -> pkg_version.Version:
-    """Parse a version string using packaging."""
+    """使用打包解析版本字符串。"""
     return pkg_version.parse(v)
 
 
@@ -398,19 +395,18 @@ def _deprecation_schedule_errors(
 
 
 def get_pypi_baseline_version(pkg: str, current: str | None) -> str | None:
-    """Fetch the baseline release version from PyPI.
+    """从 PyPI 获取基线发行版本。
 
-    The baseline is the most recent published release to compare against the
-    current workspace. If the current version already exists on PyPI, compare
-    against that same release. Otherwise, fall back to the newest release older
-    than the current version. If ``current`` is None, use the latest release.
+    基准是与当前工作区对比的最近发布的版本。 如果当前版本已存在于 PyPI 上，请与同一版
+    本进行比较。 否则，请回退到比当前版本旧的最新版本。 如果
+    ``current`` 为 None，则使用最新版本。
 
     Args:
-        pkg: Package name on PyPI (e.g., "openhands-sdk")
-        current: Current version from the workspace, or None for latest
+        pkg: PyPI 上的包名称（e.g.、“OpenHands-SDK”）
+        current: 当前版本来自工作区，或 None 为最新版本
 
     Returns:
-        Baseline version string, or None if not found or on network error
+        基线版本字符串，如果未找到或出现网络错误，则为 None
     """
     req = urllib.request.Request(
         url=f"https://pypi.org/pypi/{pkg}/json",
@@ -446,7 +442,7 @@ def get_pypi_baseline_version(pkg: str, current: str | None) -> str | None:
 
 
 def ensure_griffe() -> None:
-    """Verify griffe is installed, raising an error if not."""
+    """验证 griffe 是否已安装，如果未安装，则会引发错误。"""
     try:
         import griffe  # noqa: F401
     except ImportError:
@@ -468,7 +464,7 @@ FIELD_METADATA_KWARGS = frozenset(
 
 
 def _escape_newlines_in_string_literals(text: str) -> str:
-    """Escape literal newlines that appear inside quoted string literals."""
+    """转义出现在带引号的字符串文字内的文字换行符。"""
     chars: list[str] = []
     in_string: str | None = None
     escaped = False
@@ -505,7 +501,7 @@ def _escape_newlines_in_string_literals(text: str) -> str:
 
 
 def _parse_field_call(value: object) -> ast.Call | None:
-    """Parse a stringified Pydantic ``Field(...)`` value into an AST call."""
+    """将字符串化的 Pydantic ``Field(...)`` 值解析为 AST 调用。"""
     try:
         expr = ast.parse(
             _escape_newlines_in_string_literals(str(value)),
@@ -532,7 +528,7 @@ def _parse_field_call(value: object) -> ast.Call | None:
 
 
 def _filter_field_metadata_kwargs(call: ast.Call) -> ast.Call:
-    """Return a copy of a ``Field(...)`` call without metadata-only kwargs."""
+    """返回不带仅元数据 kwargs 的 ``Field(...)`` 调用的副本。"""
     return ast.Call(
         func=call.func,
         args=call.args,
@@ -544,7 +540,7 @@ FIELD_DEFAULT_KWARGS = ("default", "default_factory")
 
 
 def _field_default_node(call: ast.Call) -> ast.AST | None:
-    """Return the AST node representing a ``Field`` default value/factory."""
+    """返回表示 ``Field`` 默认值/工厂的 AST 节点。"""
     for kw in call.keywords:
         if kw.arg in FIELD_DEFAULT_KWARGS:
             return kw.value
@@ -554,7 +550,7 @@ def _field_default_node(call: ast.Call) -> ast.AST | None:
 
 
 def _remove_field_default(call: ast.Call) -> ast.Call:
-    """Return a copy of a ``Field(...)`` call without its default value/factory."""
+    """返回 ``Field(...)`` 调用的副本，不带默认值/工厂。"""
     args = list(call.args)
     if args:
         args = args[1:]
@@ -566,7 +562,7 @@ def _remove_field_default(call: ast.Call) -> ast.Call:
 
 
 def _field_default_repr(value: object) -> str | None:
-    """Return the string form of a ``Field`` default value/factory, if present."""
+    """返回 ``Field`` 默认值/工厂（如果存在）的字符串形式。"""
     call = _parse_field_call(value)
     if call is None:
         return None
@@ -577,10 +573,10 @@ def _field_default_repr(value: object) -> str | None:
 
 
 def _is_field_default_only_change(old_val: object, new_val: object) -> bool:
-    """Check whether only the ``Field`` default value changed.
+    """检查是否仅更改了``Field``默认值。
 
-    Metadata-only kwargs are ignored, but any other semantic ``Field`` argument
-    changes still count as real API breakage.
+    仅元数据 kwargs 会被忽略，但任何其他语义 ``Field`` 参数更改仍然算作真正的 API 损
+    坏。
     """
     old_call = _parse_field_call(old_val)
     new_call = _parse_field_call(new_val)
@@ -608,14 +604,14 @@ def _is_field_default_only_change(old_val: object, new_val: object) -> bool:
 
 
 def _is_field_metadata_only_change(old_val: object, new_val: object) -> bool:
-    """Check if the change is only in Field metadata (description, title, etc.).
+    """检查更改是否仅发生在字段元数据（描述、标题等）中。
 
-    Field metadata parameters like ``description``, ``title``, ``examples``,
-    ``json_schema_extra``, and ``deprecated`` don't affect runtime behavior.
-    Changes to these should not be considered breaking API changes.
+    字段元数据参数，例如 ``description``、``title``、``examples``、
+    ``json_schema_extra`` 和 ``deprecated`` 不影响运行时行为。 对这些的更改不应被视为
+    破坏性 API 更改。
 
     Returns:
-        True if both values are Field() calls and only metadata parameters differ.
+        True 如果两个值都是 Field() 调用并且只有元数据参数不同。
     """
     old_call = _parse_field_call(old_val)
     new_call = _parse_field_call(new_val)
@@ -632,7 +628,7 @@ def _is_field_metadata_only_change(old_val: object, new_val: object) -> bool:
 
 
 def _object_path(obj: object | None) -> str:
-    """Return the most specific path available for a griffe object."""
+    """返回可用于 griffe 对象的最具体的路径。"""
     if obj is None:
         return "<unknown>"
     return str(
@@ -648,7 +644,7 @@ def _write_field_default_change_report(
     *,
     field_default_changes_since_base: list[FieldDefaultChange] | None = None,
 ) -> None:
-    """Write detected public Field default changes to a JSON report file."""
+    """将检测到的公共字段默认更改写入 JSON 报告文件。"""
     report_path = os.environ.get(FIELD_DEFAULT_CHANGE_REPORT_ENV, "").strip()
     if not report_path:
         return
@@ -667,12 +663,12 @@ def _member_deprecation_metadata(
     member_name: str,
     deprecated: DeprecatedSymbols,
 ) -> DeprecationMetadata | None:
-    """Return deprecation metadata for a class member, including parent classes.
+    """返回类成员的弃用元数据，包括父类。
 
-    When a member like ``system_message`` is deprecated on a base class
-    (``AgentBase``) but removed from a subclass (``Agent``), griffe reports
-    the removal against the subclass name. This helper walks the MRO so that
-    ``Agent.system_message`` reuses the base-class deprecation schedule.
+    当像 ``system_message`` 这样的成员在基类 (``AgentBase``) 上是已弃用但从子类 (
+    ``Agent``) 中删除时，griffe 会
+    根据子类名称报告删除情况。 这个助手遍历 MRO 以便
+    ``Agent.system_message`` 重用了基类弃用的 schedule。
     """
     cls_name = getattr(cls_obj, "name", "")
     feature = f"{cls_name}.{member_name}"
@@ -710,12 +706,12 @@ def _collect_breakages_pairs(
     field_defaults_only: bool = False,
     emit_diagnostics: bool = True,
 ) -> tuple[list[object], int]:
-    """Find breaking changes between pairs of old/new API objects.
+    """在旧/新 API 对象对之间查找不兼容变更。
 
-    Only reports breakages for public API members.
+    仅报告公共 API 成员的损坏情况。
 
     Returns:
-        (breakages, removal_policy_errors)
+        （破损，removal_policy_errors）
     """
 
     import griffe
@@ -824,12 +820,11 @@ def _collect_breakages_pairs(
 
 
 def _extract_exported_names(module) -> set[str]:
-    """Extract names exported from a module via ``__all__``.
+    """通过 ``__all__`` 提取从模块导出的名称。
 
-    This check is explicitly meant to track the curated public surface. The SDK
-    is expected to define ``__all__`` in ``openhands.sdk``; if it's missing or we
-    can't statically interpret it, we fail fast rather than silently widening the
-    surface area (which would make the check noisy and brittle).
+    此检查的明确目的是跟踪策划的公共表面。 SDK预计在``openhands.sdk``中定义
+    ``__all__``； 如果缺失或无法静态解析，我们快速失败而不是无声
+    扩大表面（这会使检查变得噪音和脆弱）。
     """
     try:
         all_var = module["__all__"]
@@ -843,13 +838,13 @@ def _extract_exported_names(module) -> set[str]:
 
     names: set[str] = set()
     for el in elts:
-        # Griffe represents string literals in __all__ in different ways depending
-        # on how the module is loaded / griffe version:
-        # - sometimes as plain Python strings (including quotes, e.g. "'LLM'")
-        # - sometimes as expression nodes with a `.value` attribute
+        # Griffe 以不同的方式表示 __all__ 中的字符串文字，具体取决于模块的加载方式/
+        # griffe 版本：
+        # - 有时作为纯 Python 字符串（包括引号、e.g. "'LLM'")
+        # - 有时作为具有 `.value` 属性的表达式节点
         #
-        # We intentionally only support the "static __all__ of string literals"
-        # case; we just normalize the representation.
+        # 我们有意只支持“字符串文字的 static __all__”情况； 我们只是标准化表示。
+        #
         if isinstance(el, str):
             names.add(el.strip("\"'"))
             continue
@@ -864,12 +859,12 @@ def _extract_exported_names(module) -> set[str]:
 
 
 def _check_version_bump(prev: str, new_version: str, total_breaks: int) -> int:
-    """Check if version bump policy is satisfied for breaking changes.
+    """检查不兼容变更是否满足版本更新政策。
 
-    Policy: Breaking changes require at least a MINOR version bump.
+    Policy: 不兼容变更至少需要 MINOR 版本升级。
 
     Returns:
-        0 if policy satisfied, 1 if not
+        如果满足策略则为 0，如果不满足则为 1
     """
     if total_breaks == 0:
         print("No breaking changes detected")
@@ -878,7 +873,7 @@ def _check_version_bump(prev: str, new_version: str, total_breaks: int) -> int:
     parsed_prev = _parse_version(prev)
     parsed_new = _parse_version(new_version)
 
-    # MINOR bump required: same major, higher minor OR higher major
+    # MINOR 需要提升：相同专业、更高的辅修课程或更高的专业课程
     ok = (parsed_new.major > parsed_prev.major) or (
         parsed_new.major == parsed_prev.major and parsed_new.minor > parsed_prev.minor
     )
@@ -903,7 +898,7 @@ def _resolve_griffe_object(
     dotted: str,
     root_package: str = "",
 ) -> object:
-    """Resolve a dotted path to a griffe object."""
+    """解析指向 Griffe 对象的虚线路径。"""
     root_path = getattr(root, "path", None)
     if root_path == dotted:
         return root
@@ -1034,24 +1029,25 @@ def _collect_field_default_changes_since_ref(
     return changes
 
 
-# Names of module-level data registries that declare deprecated public
-# re-exports as ``{name: {"deprecated_in": ..., "removed_in": ...}}`` and are
-# consumed by a module-level ``__getattr__``. The SDK uses this form for renamed
+# 模块级数据注册表的名称，将已弃用公共重新导出声明为
+# ``{name: {"deprecated_in": ..., "removed_in": ...}}`` 并由模块级 ``__getattr__`` 使用
+# 。 SDK采用这种形式进行重命名
+#
 # export aliases (e.g. ``LLMAgentSettings``) that deliberately are NOT
-# ``@deprecated``-decorated on the class itself (the class stays a live internal
-# union member) and whose ``warn_deprecated`` feature name is a dynamic f-string.
-# Such deprecations are invisible to the decorator/call scans below, so we read
-# the registry as a third deprecation source.
+# ``@deprecated`` - 装饰在类本身上（该类仍然是实时内部联合成员），其 ``warn_deprecated``
+#  功能名称是动态 f 字符串。 这样的弃用项对于下面的装饰器/调用扫描是不可见的，因此我们将
+# 注册表视为第三个弃用源。
+#
 _DEPRECATED_EXPORT_REGISTRY_NAMES = frozenset({"_DEPRECATED_SDK_EXPORTS"})
 
 
 def _find_deprecated_symbols(source_root: Path) -> DeprecatedSymbols:
-    """Scan source files for symbols marked with the SDK deprecation helpers.
+    """扫描源文件中标有 SDK 弃用帮助程序的符号。
 
-    Detects three forms:
-    - ``@deprecated(...)`` decorator on a class/function/method
-    - ``warn_deprecated('SomeFeature', ...)`` call
-    - entries in a ``_DEPRECATED_SDK_EXPORTS``-style registry dict mapping an
+    检测三种形式：
+    - ``@deprecated(...)`` 类/函数/方法上的装饰器
+    - ``warn_deprecated('SomeFeature', ...)`` 致电
+    - ``_DEPRECATED_SDK_EXPORTS`` 样式注册表字典中的条目映射
       export name to ``{"deprecated_in": ..., "removed_in": ...}``
 
     Returns:
@@ -1155,7 +1151,7 @@ def _find_deprecated_symbols(source_root: Path) -> DeprecatedSymbols:
         def _record_export_registry(
             self, target: ast.expr, value: ast.expr | None
         ) -> None:
-            """Record exports declared deprecated via a registry dict literal."""
+            """通过注册表字典文字声明已弃用的记录导出。"""
             if not (
                 isinstance(target, ast.Name)
                 and target.id in _DEPRECATED_EXPORT_REGISTRY_NAMES
@@ -1203,14 +1199,14 @@ def _find_deprecated_symbols(source_root: Path) -> DeprecatedSymbols:
 
 
 def _extract_string_literal(node: ast.AST) -> str | None:
-    """Return the string value if *node* is a simple string literal."""
+    """如果 *node* 是简单字符串文字，则返回字符串值。"""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     return None
 
 
 def _extract_dict_string_value(node: ast.Dict, key: str) -> str | None:
-    """Return the string value for *key* in an ``ast.Dict`` literal, if present."""
+    """返回 ``ast.Dict`` 文字中 *key* 的字符串值（如果存在）。"""
     for k, v in zip(node.keys, node.values):
         if (
             isinstance(k, ast.Constant)
@@ -1223,7 +1219,7 @@ def _extract_dict_string_value(node: ast.Dict, key: str) -> str | None:
 
 
 def _get_source_root(griffe_root: object) -> Path | None:
-    """Derive the package source directory from a griffe module's filepath."""
+    """从 griffe 模块的文件路径派生包源目录。"""
     filepath = getattr(griffe_root, "filepath", None)
     if filepath is not None:
         return Path(filepath).parent
@@ -1240,13 +1236,14 @@ def _compute_breakages(
     field_defaults_only: bool = False,
     emit_diagnostics: bool = True,
 ) -> tuple[int, int]:
-    """Detect breaking changes between old and new package versions.
+    """检测新旧软件包版本之间的不兼容变更。
 
     Returns:
-        ``(total_breaks, removal_policy_errors)`` — *total_breaks* counts all
-        structural breakages (for the version-bump policy), while
-        *removal_policy_errors* counts public API removals that violate the
-        required deprecation runway.
+        ``(total_breaks, removal_policy_errors)`` — *total_breaks* 计算所有结构破坏（
+        对于版本冲突策略），
+        而
+        *removal_policy_errors* 统计违反规定的公开 API 删除
+        需要弃用跑道。
     """
     pkg = cfg.package
     title = f"{cfg.distribution} API"
@@ -1268,11 +1265,10 @@ def _compute_breakages(
     try:
         old_exports = _extract_exported_names(old_mod)
     except ValueError as e:
-        # The API breakage check relies on a curated public surface defined via
-        # __all__. If the baseline release didn't define (or couldn't statically
-        # evaluate) __all__, we can't compute meaningful breakages.
+        # API 破损检查依赖于通过 __all__ 定义的策划公共表面。 如果基线版本没有定义（或无
+        # 法静态评估）__全部__，我们就无法计算有意义的损坏。
         #
-        # In this situation, skip rather than failing the entire workflow.
+        # 在这种情况下，跳过整个工作流程而不是失败。
         if emit_diagnostics:
             print(
                 f"::notice title={title}::Skipping breakage check; baseline release "
@@ -1283,9 +1279,9 @@ def _compute_breakages(
     if not field_defaults_only:
         removed = sorted(old_exports - new_exports)
 
-        # Check deprecation runway policy (exports)
+        # 检查弃用跑道政策（出口）
         for name in removed:
-            total_breaks += 1  # every removal is a structural break
+            total_breaks += 1  # 每一次拆除都是一次结构性破坏
             errors = _deprecation_schedule_errors(
                 feature=name,
                 metadata=(
@@ -1338,7 +1334,7 @@ def _check_package(
     *,
     field_default_changes: list[FieldDefaultChange] | None = None,
 ) -> int:
-    """Run breakage checks for a single package. Returns 0 on success."""
+    """对单个包裹运行破损检查。 成功则返回 0。"""
     pyproj = os.path.join(repo_root, cfg.source_dir, "pyproject.toml")
     new_version = read_version_from_pyproject(pyproj)
 
@@ -1385,7 +1381,7 @@ def _check_package(
 
 
 def main() -> int:
-    """Main entry point for API breakage detection."""
+    """主要入口用于API破损检测。"""
     repo_root = os.getcwd()
     rc = _check_acp_version_bump(repo_root)
     base_ref = _get_base_ref()

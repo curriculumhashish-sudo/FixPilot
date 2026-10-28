@@ -1,17 +1,14 @@
-"""Resolution of *whether* telemetry may be delivered.
+"""解决*是否*可以传送遥测数据。
 
-There is no deployment "mode" and no notion of Cloud here. The agent-server
-resolves one thing — **effective consent** — and delivery additionally requires
-that an exporter is configured.
+这里没有部署“模式”，也没有云的概念。 智能体-服务器解决一件事 - **有效同意** - 并且交
+付还需要配置导出器。
 
-Consent lives in ``misc_settings.telemetry.consent``. That container is
-otherwise opaque to the agent-server, and this namespace is the single
-sanctioned exception: the frontend owns the value, the agent-server only reads
-it, and the shape is documented here rather than inferred.
+同意位于 ``misc_settings.telemetry.consent``。 该容器对智能体-服务器是透明的，而命名
+空间是唯一的例外：前端拥有值，智能体-服务器只读取
+它，形状在这里被文档而不是推断。
 
-A hosted deployment enforces its policy by *seeding* those misc settings before
-any conversation starts (``consent = granted``, ``managed = true``), not by the
-agent-server special-casing it.
+托管部署通过 * * 这些杂乱设置来 ``consent = granted`` ``managed = true``，而不是通过
+智能体服务器对其进行特殊处理。
 """
 
 import os
@@ -41,7 +38,7 @@ __all__ = [
 
 
 class TelemetryConsent(StrEnum):
-    """The user's recorded choice. ``UNSET`` is the default and is not consent."""
+    """用户的记录选择。 ``UNSET``为默认值，不同意。"""
 
     GRANTED = "granted"
     DENIED = "denied"
@@ -49,20 +46,21 @@ class TelemetryConsent(StrEnum):
 
 
 class ConsentMode(StrEnum):
-    """How ``OH_TELEMETRY_CONSENT`` interacts with the persisted value."""
+    """``OH_TELEMETRY_CONSENT`` 如何与已持久化值交互。"""
 
     SEED = "seed"
     OVERRIDE = "override"
 
 
-#: The one namespace inside the otherwise-opaque ``misc_settings`` container
-#: that the agent-server reads. Owned by the frontend, documented here.
+# ：智能体服务器读取的不透明``misc_settings``容器内的命名空间。 由前端拥有，记录在此处。
+#
 MISC_NAMESPACE: Final[str] = "telemetry"
 MISC_CONSENT_KEY: Final[str] = "consent"
 MISC_MANAGED_KEY: Final[str] = "managed"
 
-#: Pre-namespace key Canvas used. Read as a fallback so an existing user is not
-#: silently reset to no-consent; never written back.
+# ：使用命名空间键前的画布。 读作回退方案，这样现有用户就不会：默默地重置为不同意； 从未
+# 回信。
+#
 LEGACY_MISC_NAMESPACE: Final[str] = "app_preferences"
 LEGACY_CONSENT_KEY: Final[str] = "user_consents_to_analytics"
 
@@ -75,7 +73,7 @@ _TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 
 @dataclass(frozen=True, slots=True)
 class TelemetryDecision:
-    """The resolved answer, with provenance retained for logging and the API."""
+    """已解决的答案，保留了记录的出处和 API。"""
 
     consent: TelemetryConsent
     enabled: bool
@@ -91,19 +89,19 @@ class TelemetryDecision:
 
     @property
     def is_locked(self) -> bool:
-        """True when the user cannot change the outcome from settings."""
+        """True 当用户无法更改设置的结果时。"""
         return self.managed or self.reason in ("kill_switch", "env_override")
 
 
 def kill_switch_engaged(env: Mapping[str, str] | None = None) -> bool:
-    """Whether an operator has forced telemetry off via ``DO_NOT_TRACK``."""
+    """操作员是否通过 ``DO_NOT_TRACK`` 强制关闭遥测。"""
     source = os.environ if env is None else env
     value = source.get(DO_NOT_TRACK_ENV)
     return value is not None and value.strip().lower() in _TRUTHY
 
 
 def _coerce_consent(value: Any) -> TelemetryConsent | None:
-    """Accept the documented strings, plus the legacy boolean shape."""
+    """接受记录的字符串以及遗留的布尔形状。"""
     if isinstance(value, bool):
         return TelemetryConsent.GRANTED if value else TelemetryConsent.DENIED
     if isinstance(value, str):
@@ -124,11 +122,10 @@ def _namespace(misc_settings: Mapping[str, Any] | None, name: str) -> Mapping[st
 def read_consent(
     misc_settings: Mapping[str, Any] | None,
 ) -> tuple[TelemetryConsent | None, bool]:
-    """Read ``misc_settings.telemetry`` -> ``(consent, managed)``.
+    """读取 ``misc_settings.telemetry`` -> ``(consent, managed)``。
 
-    Returns ``None`` for consent when the namespace is absent or malformed, so
-    the caller can fall back to the legacy key or an env seed rather than
-    treating a broken value as a decision.
+    当命名空间不存在或格式不正确时，返回 ``None``，这样调用者可以 fallback 到旧密钥或
+    环境种子，而不是将一个破值视为一个决定。
     """
     section = _namespace(misc_settings, MISC_NAMESPACE)
     consent = _coerce_consent(section.get(MISC_CONSENT_KEY))
@@ -139,7 +136,7 @@ def read_consent(
 def read_legacy_consent(
     misc_settings: Mapping[str, Any] | None,
 ) -> TelemetryConsent | None:
-    """Read the pre-namespace Canvas key. Fallback only; never written."""
+    """读取命名空间之前的 Canvas 键。 回退方案仅； 从来没有写过。"""
     section = _namespace(misc_settings, LEGACY_MISC_NAMESPACE)
     return _coerce_consent(section.get(LEGACY_CONSENT_KEY))
 
@@ -149,8 +146,8 @@ def _env_consent(
 ) -> tuple[TelemetryConsent | None, ConsentMode]:
     consent = _coerce_consent(env.get(CONSENT_ENV))
     raw_mode = (env.get(CONSENT_MODE_ENV) or "").strip().lower()
-    # Default to `seed`: an operator default must not silently overrule a
-    # choice the user has already made.
+    # 默认为 `seed`：操作员默认值不得默默地否决用户已经做出的选择。
+    #
     mode = (
         ConsentMode.OVERRIDE if raw_mode == ConsentMode.OVERRIDE else ConsentMode.SEED
     )
@@ -162,10 +159,10 @@ def resolve(
     *,
     env: Mapping[str, str] | None = None,
 ) -> TelemetryDecision:
-    """Resolve effective consent from settings and environment.
+    """解决来自设置和环境的有效同意。
 
-    Precedence: kill switch, then an env *override*, then the persisted value,
-    then the legacy key, then an env *seed*, then ``unset``.
+    Precedence: 终止开关，然后是 env *override*，然后是已持久化值，
+    然后是旧密钥，然后是 env *seed*，然后是 ``unset``。
     """
     source = os.environ if env is None else env
 

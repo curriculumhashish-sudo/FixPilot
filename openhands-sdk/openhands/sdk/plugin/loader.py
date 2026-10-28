@@ -1,9 +1,8 @@
-"""Plugin loading utility for multi-plugin support.
+"""用于多插件支持的插件加载实用程序。
 
-This module provides the canonical function for loading multiple plugins
-and merging them into an agent. It is used by:
-- LocalConversation (for SDK-direct users)
-- ConversationService (for agent-server users)
+该模块提供了加载多个插件并将它们合并到智能体中的规范函数。 它的使用者：
+- LocalConversation（对于 SDK-直接用户）
+- ConversationService（对于智能体-服务器用户）
 """
 
 from __future__ import annotations
@@ -32,34 +31,34 @@ def load_plugins(
     max_skills: int = 100,
     get_secret: SecretLookup | None = None,
 ) -> tuple[AgentBase, HookConfig | None]:
-    """Load multiple plugins and merge them into the agent.
+    """加载多个插件并将它们合并到智能体中。
 
-    This is the canonical function for plugin loading, used by:
-    - LocalConversation (for SDK-direct users)
-    - ConversationService (for agent-server users)
+    这是插件加载的规范函数，使用者：
+    - LocalConversation（对于 SDK-直接用户）
+    - ConversationService（对于智能体-服务器用户）
 
-    Plugins are loaded in order and their contents are merged with these semantics:
-    - Skills: Override by name (last plugin wins)
-    - MCP config: Override by key (last plugin wins)
-    - Hooks: Concatenate (all hooks run)
+    插件按顺序加载，并与这些语义合并：
+    - Skills: 按名称覆盖（最后一个插件获胜）
+    - MCP 配置：按键覆盖（最后一个插件获胜）
+    - Hooks: 连接（所有钩子运行）
 
     Args:
-        plugin_specs: List of plugin sources to load.
-        agent: Agent to merge plugins into.
-        max_skills: Maximum total skills allowed (defense-in-depth limit).
-        get_secret: Optional callback to look up per-conversation secrets.
-            Used for expanding ${VAR} placeholders in MCP configuration files.
-            See expand_mcp_variables() for details on why this is a callback.
+        plugin_specs: 要加载的插件源列表。
+        agent: 智能体将插件合并到。
+        max_skills: 允许的最大总技能（纵深防御限制）。
+        get_secret: 可选回调用于查找每个对话机密。
+            用于扩展 MCP 配置文件中的 ${VAR} 占位符。 有关为什么这是回调的详细信息，
+            请参阅 expand_mcp_variables()。
 
     Returns:
-        Tuple of (updated_agent, merged_hook_config).
-        The agent has updated agent_context (with merged skills) and mcp_config.
-        The hook_config contains all hooks from all plugins concatenated.
+        (updated_agent, merged_hook_config) 的元组。 智能体更新了 agent_context（具有
+        合并技能）和
+        mcp_config。 hook_config 包含所有连接的插件的所有钩子。
 
     Raises:
-        PluginFetchError: If any plugin fails to fetch.
-        FileNotFoundError: If any plugin fails to load (e.g., path not found).
-        ValueError: If max_skills limit is exceeded.
+        PluginFetchError: 如果任何插件无法获取。
+        FileNotFoundError: 如果任何插件无法加载（e.g.，未找到路径）。
+        ValueError: 如果超出 max_skills 限制。
 
     Example:
         >>> from openhands.sdk.plugin import PluginSource
@@ -72,7 +71,7 @@ def load_plugins(
     if not plugin_specs:
         return agent, None
 
-    # Start with agent's existing context and MCP config
+    # 从智能体现有的上下文和 MCP 配置开始
     merged_context: AgentContext | None = agent.agent_context
     merged_mcp_config = agent.mcp_config
     all_hooks: list[HookConfig] = []
@@ -80,7 +79,7 @@ def load_plugins(
     for spec in plugin_specs:
         logger.info(f"Loading plugin from {redact_url_credentials(spec.source)}")
 
-        # Fetch (downloads if needed, returns cached path)
+        # 获取（如果需要则下载，返回缓存路径）
         path = Plugin.fetch(
             source=spec.source,
             ref=spec.ref,
@@ -95,24 +94,24 @@ def load_plugins(
             f"mcp_config={'yes' if plugin.mcp_config else 'no'}"
         )
 
-        # Merge skills and MCP config separately
+        # 分别合并技能和MCP配置
         merged_context = plugin.add_skills_to(merged_context, max_skills=max_skills)
         merged_mcp_config = plugin.add_mcp_config_to(merged_mcp_config)
 
-        # Collect hooks for later combination
+        # 收集钩子以供以后组合
         if plugin.hooks and not plugin.hooks.is_empty():
             all_hooks.append(plugin.hooks)
 
-    # Expand MCP server variables with per-conversation secrets
-    # This handles ${VAR} placeholders that reference secrets injected via API
+    # 使用每个会话扩展 MCP 服务器变量机密这处理通过 API 注入的引用机密的 ${VAR} 占位符
+    #
     if merged_mcp_config and get_secret:
         merged_mcp_config = expand_mcp_servers(merged_mcp_config, get_secret)
         logger.debug("Expanded MCP config variables")
 
-    # Combine all hook configs (concatenation semantics)
+    # 组合所有钩子配置（串联语义）
     combined_hooks = HookConfig.merge(all_hooks)
 
-    # Create updated agent with merged content
+    # 使用合并的内容创建更新的智能体
     updated_agent = agent.model_copy(
         update={
             "agent_context": merged_context,

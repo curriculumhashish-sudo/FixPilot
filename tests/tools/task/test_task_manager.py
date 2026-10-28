@@ -35,7 +35,7 @@ def _make_parent_conversation(
     tmp_path: Path,
     persistence_dir: str | Path | None = None,
 ) -> LocalConversation:
-    """Create a real (minimal) parent conversation for the manager."""
+    """为经理创建一个真正的（最少的）家长对话。"""
     llm = _make_llm()
     agent = Agent(llm=llm, tools=[])
     return LocalConversation(
@@ -51,7 +51,7 @@ def _manager_with_parent(
     tmp_path: Path,
     persistence_dir: str | Path | None = None,
 ) -> tuple[TaskManager, LocalConversation]:
-    """Return a TaskManager whose parent conversation is already set."""
+    """返回已设置父对话的 TaskManager。"""
     manager = TaskManager()
     parent = _make_parent_conversation(tmp_path, persistence_dir=persistence_dir)
     manager._ensure_parent(parent)
@@ -70,10 +70,10 @@ class TestTaskStatusEnum:
 
 
 class TestTaskState:
-    """Tests for TaskState"""
+    """测试 TaskState"""
 
     def test_initial_state(self):
-        """TaskState should start with 'running' status."""
+        """TaskState 应该以 'running' 状态开始。"""
         state = Task(
             id="test_1",
             conversation=None,
@@ -86,7 +86,7 @@ class TestTaskState:
 
     @pytest.mark.parametrize("result", ["Done!", ""])
     def test_set_completed(self, result):
-        """set_completed should update status and result."""
+        """set_completed 应更新状态和结果。"""
         state = Task(
             id="test_1",
             conversation=None,
@@ -99,7 +99,7 @@ class TestTaskState:
         assert state.error is None
 
     def test_set_error(self):
-        """set_error should update status, error, and result."""
+        """set_error 应更新状态、错误和结果。"""
         state = Task(
             id="test_1",
             conversation=None,
@@ -113,7 +113,7 @@ class TestTaskState:
 
 
 class TestTaskManager:
-    """Tests for TaskManager."""
+    """测试 TaskManager。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -122,7 +122,7 @@ class TestTaskManager:
         _reset_registry_for_tests()
 
     def test_init_defaults(self):
-        """Manager should initialize with correct defaults."""
+        """管理器应使用正确的默认值进行初始化。"""
         manager = TaskManager()
         assert len(manager._tasks) == 0
         assert manager._parent_conversation is None
@@ -132,7 +132,7 @@ class TestTaskManager:
         assert manager._persistence_dir is None
 
     def test_generate_task_id(self):
-        """Generated task IDs should be unique and prefixed."""
+        """生成的任务 ID 应该是唯一的并带有前缀。"""
         manager = TaskManager()
 
         tasks_ids: list[str] = []
@@ -150,13 +150,13 @@ class TestTaskManager:
         assert len(tasks_ids) == len(set(tasks_ids))
 
     def test_parent_conversation_raises_before_set(self):
-        """Accessing parent_conversation before first call should raise."""
+        """在第一次调用之前访问 parent_conversation 应该引发。"""
         manager = TaskManager()
         with pytest.raises(RuntimeError, match="Parent conversation not set"):
             _ = manager.parent_conversation
 
     def test_ensure_parent_sets_once(self):
-        """_ensure_parent should only set the parent on the first call."""
+        """_ensure_parent 应该只在第一次调用时设置父级。"""
         manager = TaskManager()
         conv1 = MagicMock()
         conv2 = MagicMock()
@@ -165,7 +165,7 @@ class TestTaskManager:
         assert manager._parent_conversation is conv1
 
         manager._ensure_parent(conv2)
-        # Still the first one
+        # 还是第一个
         assert manager._parent_conversation is conv1
 
     def test_returns_running_task_state(self, tmp_path):
@@ -192,7 +192,7 @@ class TestTaskManager:
         assert isinstance(manager._tasks[task.id].conversation_id, uuid.UUID)
 
     def test_create_task_uses_parent_max_iteration_when_factory_is_none(self, tmp_path):
-        """Fallback to parent's max_iteration_per_run when factory has none."""
+        """当工厂有 None 时，回退方案发送给父母的 max_iteration_per_run。"""
         register_builtins_agents()
         llm = _make_llm()
         agent = Agent(llm=llm, tools=[])
@@ -211,7 +211,7 @@ class TestTaskManager:
         assert task.conversation.max_iteration_per_run == 100
 
     def test_create_task_prefers_factory_max_iteration_over_parent(self, tmp_path):
-        """Factory definition max_iteration_per_run takes precedence over parent."""
+        """工厂定义 max_iteration_per_run 优先于父级。"""
         from openhands.sdk.subagent.registry import agent_definition_to_factory
 
         agent_def = AgentDefinition(
@@ -253,18 +253,18 @@ class TestTaskManager:
             )
 
     def test_resume_after_evict(self, tmp_path):
-        """A task that was created, evicted, and then resumed should work."""
+        """创建、驱逐然后恢复的任务应该可以工作。"""
         manager, _ = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
-        # Create and evict a task (simulating a completed first run)
+        # 创建和退出任务（模拟已完成的首次运行）
         task = manager._create_task(subagent_type="general-purpose", description=None)
         original_id = task.id
         original_uuid = task.conversation_id
         manager._evict_task(task)
         assert original_id in manager._tasks
 
-        # Resume it
+        # 恢复它
         resumed = manager._resume_task(
             resume=original_id, subagent_type="general-purpose"
         )
@@ -275,7 +275,7 @@ class TestTaskManager:
         assert resumed.conversation.state.id == original_uuid
 
     def test_default_agent_type(self, tmp_path):
-        """'default' should return an agent without raising."""
+        """'default' 应该返回智能体而不引发。"""
         manager, _ = _manager_with_parent(tmp_path)
         register_builtins_agents()
         agent = manager._get_sub_agent("general-purpose")
@@ -283,7 +283,7 @@ class TestTaskManager:
         assert agent.llm.stream is False
 
     def test_registered_agent_type(self, tmp_path):
-        """A registered factory should produce the correct agent."""
+        """注册工厂应生产正确的智能体。"""
         factory_called_with: list[LLM] = []
 
         def factory(llm: LLM) -> Agent:
@@ -354,7 +354,7 @@ class TestTaskManager:
             worker_agent=agent,
             conversation_id=conversation_id,
         )
-        # The conversation's persistence dir should be under the manager's tmp_dir
+        # 对话的持久化目录应位于经理的 tmp_dir 目录下
         persistence_dir = conv.state.persistence_dir
         assert persistence_dir is not None
         conv_persistence = Path(persistence_dir)
@@ -377,7 +377,7 @@ class TestTaskManager:
         assert conv._visualizer is None
 
     def test_sub_agents_inherit_parent_prompt_cache_key(self, tmp_path):
-        """Sibling sub-agents share the parent's OpenAI prefix-cache shard."""
+        """同级子智能体共享父级的 OpenAI 前缀缓存分片。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
         parent_key = str(parent.state.id)
@@ -399,9 +399,10 @@ class TestTaskManager:
         assert sub_keys == [parent_key, parent_key]
 
     def test_marks_conversation_as_delegate_with_linking_metadata(self, tmp_path):
-        """A sub-agent conversation must be built inside a detached trace,
-        tagged with the originating task_id/subagent_type (software-agent-sdk#4365).
-        Exercises the real `detached_delegate_context`, not a mock of it."""
+        """子智能体对话必须建立在分离的跟踪内，
+        标记为原始 task_id/subagent_type（软件-智能体-SDK#4365）。 练习真实的
+        `detached_delegate_context`，而不是它的模拟对象。
+        """
         from openhands.sdk.observability import laminar as lam
 
         manager, parent = _manager_with_parent(tmp_path)
@@ -441,7 +442,7 @@ class TestTaskManager:
         }
 
     def test_resume_task_marks_conversation_as_delegate(self, tmp_path):
-        """Resuming a task must also build a detached, delegate-tagged trace."""
+        """恢复任务还必须构建一个分离的、带有委托标记的跟踪。"""
         from openhands.sdk.observability import laminar as lam
 
         manager, parent = _manager_with_parent(tmp_path)
@@ -475,8 +476,8 @@ class TestTaskManager:
         }
 
     def test_delegate_metadata_includes_parent_span_link(self, tmp_path):
-        """When a parent span is active, its trace_id/span_id/tool_call_id must
-        be merged into the delegate's observability metadata."""
+        """当父跨度处于活动状态时，其 trace_id/span_id/tool_call_id 必须
+        被合并到委托的可观察性元数据中。"""
         from types import SimpleNamespace
 
         from openhands.sdk.observability import laminar as lam
@@ -526,10 +527,11 @@ class TestTaskManager:
 
 
 def _make_task_with_mock_conv(task_id: str, **conv_kwargs) -> Task:
-    """Create a Task with a MagicMock conversation, bypassing Pydantic validation."""
+    """创建一个包含 MagicMock 对话的任务，绕过 Pydantic 验证。"""
     mock_conv = MagicMock(**conv_kwargs)
-    # Default to a FINISHED run; a non-FINISHED status is now surfaced as an error,
-    # so override state.execution_status to test stuck/paused paths.
+    # 默认为 FINISHED 运行； 非 FINISHED 状态现在显示为错误，因此覆盖
+    # state.execution_status 来测试卡住/暂停的路径。
+    #
     mock_conv.state.execution_status = ConversationExecutionStatus.FINISHED
     return Task.model_construct(
         id=task_id,
@@ -542,7 +544,7 @@ def _make_task_with_mock_conv(task_id: str, **conv_kwargs) -> Task:
 
 
 class TestRunTask:
-    """Tests for TaskManager._run_task."""
+    """测试 TaskManager._run_task。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -551,7 +553,7 @@ class TestRunTask:
         _reset_registry_for_tests()
 
     def test_raises_when_conversation_is_none(self, tmp_path):
-        """_run_task should raise RuntimeError if the task has no conversation."""
+        """如果任务没有对话，_run_task 应该引发 RuntimeError。"""
         manager, _ = _manager_with_parent(tmp_path)
         task = Task(
             id="task_00000001",
@@ -567,7 +569,7 @@ class TestRunTask:
         return_value="task result",
     )
     def test_successful_run_sets_result(self, mock_get_response, tmp_path):
-        """A successful run should set status to COMPLETED and populate result."""
+        """成功运行应将状态设置为 COMPLETED 并填充结果。"""
         manager, _ = _manager_with_parent(tmp_path)
 
         task = _make_task_with_mock_conv("task_00000001")
@@ -590,7 +592,7 @@ class TestRunTask:
         return_value="task result",
     )
     def test_run_evicts_conversation_after_success(self, mock_get_response, tmp_path):
-        """After a successful run, the task's conversation should be evicted."""
+        """成功运行后，任务的对话应该被驱逐。"""
         manager, _ = _manager_with_parent(tmp_path)
 
         task = _make_task_with_mock_conv("task_00000001")
@@ -599,14 +601,14 @@ class TestRunTask:
 
         manager._run_task(task=task, prompt="do something")
 
-        # After eviction, the stored task should have no conversation
+        # 驱逐后，存储的任务不应有任何对话
         assert manager._tasks[task.id].conversation is None
         assert mock_conv is not None
         mock_conv.pause.assert_called_once()  # type: ignore[attr-defined]
         mock_conv.close.assert_called_once()  # type: ignore[attr-defined]
 
     def test_run_sets_error_on_exception(self, tmp_path):
-        """If the conversation raises, the task should be set to ERROR."""
+        """如果对话发生，则任务应设置为 ERROR。"""
         manager, _ = _manager_with_parent(tmp_path)
 
         task = _make_task_with_mock_conv(
@@ -622,8 +624,8 @@ class TestRunTask:
         assert result.result is None
 
     def test_non_finished_status_surfaced_as_error(self, tmp_path):
-        """A sub-agent that ends non-FINISHED (e.g. STUCK) is surfaced as an error,
-        not reported as an empty success."""
+        """一个子智能体结束非 FINISHED (e.g. STUCK）作为错误出现，
+        没有被报告为空洞的成功。"""
         manager, _ = _manager_with_parent(tmp_path)
 
         task = _make_task_with_mock_conv("task_00000001")
@@ -640,7 +642,7 @@ class TestRunTask:
         assert "stuck" in (result.error or "").lower()
 
     def test_run_evicts_conversation_after_error(self, tmp_path):
-        """Even on error, the task's conversation should be evicted (finally block)."""
+        """即使出现错误，任务的对话也应该被驱逐（最终阻止）。"""
         manager, _ = _manager_with_parent(tmp_path)
 
         task = _make_task_with_mock_conv(
@@ -663,10 +665,10 @@ class TestRunTask:
     def test_run_passes_parent_visualizer_name_as_sender(
         self, mock_get_response, tmp_path
     ):
-        """If parent has a visualizer with _name, it should be passed as sender."""
+        """如果父级有一个带有 _name 的可视化工具，则应将其作为发送者传递。"""
         manager, parent = _manager_with_parent(tmp_path)
 
-        # Give the parent a visualizer with a _name
+        # 为父级提供一个带有 _name 的可视化工具
         mock_visualizer = MagicMock()
         mock_visualizer._name = "main-agent"
         parent._visualizer = mock_visualizer
@@ -683,7 +685,7 @@ class TestRunTask:
 
 
 class TestStartTask:
-    """Tests for TaskManager.start_task (create/resume dispatch + run)."""
+    """测试 TaskManager.start_task（创建/恢复调度 + 运行）。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -692,12 +694,12 @@ class TestStartTask:
         _reset_registry_for_tests()
 
     def _fake_run_task(self, task: Task, prompt: str) -> Task:
-        """Simulate a successful _run_task without hitting the LLM."""
+        """模拟成功的 _run_task，但未命中 LLM。"""
         task.set_result(f"result for: {prompt}")
         return task
 
     def test_start_new_task_creates_and_runs(self, tmp_path):
-        """start_task without resume should create a new task and run it."""
+        """start_task 没有简历应该创建一个新任务并运行它。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
@@ -714,7 +716,7 @@ class TestStartTask:
         assert result.id in manager._tasks
 
     def test_start_task_sets_parent_conversation(self, tmp_path):
-        """start_task should set the parent conversation on first call."""
+        """start_task 应在第一次通话时设置家长对话。"""
         manager = TaskManager()
         parent = _make_parent_conversation(tmp_path)
         register_builtins_agents()
@@ -731,11 +733,11 @@ class TestStartTask:
         assert manager._parent_conversation is parent
 
     def test_start_task_with_resume(self, tmp_path):
-        """start_task with resume should resume an existing task."""
+        """start_task 带简历应恢复现有任务。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
-        # Create and evict a task to simulate a prior completed run
+        # 创建和逐出任务以模拟先前已完成的运行
         first = manager._create_task(subagent_type="general-purpose", description=None)
         original_id = first.id
         manager._evict_task(first)
@@ -753,7 +755,7 @@ class TestStartTask:
         assert result.id == original_id
 
     def test_start_task_resume_unknown_raises(self, tmp_path):
-        """start_task with an unknown resume ID should raise ValueError."""
+        """简历 ID 未知的 start_task 应引发 ValueError。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
@@ -767,7 +769,7 @@ class TestStartTask:
 
 
 class TestTaskMetrics:
-    """Tests for sub-agent metrics isolation and merge-back."""
+    """测试子智能体指标隔离和合并回。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -776,7 +778,7 @@ class TestTaskMetrics:
         _reset_registry_for_tests()
 
     def test_sub_agent_has_independent_metrics(self, tmp_path):
-        """Sub-agent LLM must not share the parent's Metrics object."""
+        """子智能体 LLM 不得共享父级的 Metrics 对象。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
@@ -790,7 +792,7 @@ class TestTaskMetrics:
         assert parent_llm.metrics.accumulated_cost == before
 
     def test_run_task_merges_metrics_into_parent(self, tmp_path):
-        """After _run_task, sub-agent metrics appear in parent stats."""
+        """_run_task 之后，子智能体指标出现在父统计信息中。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
@@ -799,13 +801,13 @@ class TestTaskMetrics:
             description="test",
         )
 
-        # Wire LLM into sub-conv stats (simulates what _ensure_agent_ready does)
+        # 将 LLM 连接到子转化统计数据（模拟 _ensure_agent_ready 的作用）
         sub_conv = task.conversation
         assert sub_conv is not None
         sub_llm = sub_conv.agent.llm
         sub_conv.conversation_stats.usage_to_metrics[sub_llm.usage_id] = sub_llm.metrics
 
-        # Simulate sub-agent LLM usage
+        # 模拟子智能体 LLM 使用情况
         sub_llm.metrics.add_cost(1.50)
         sub_llm.metrics.add_token_usage(
             prompt_tokens=100,
@@ -826,7 +828,7 @@ class TestTaskMetrics:
         ):
             manager._run_task(task=task, prompt="do something")
 
-        # Metrics synced to parent under task:<id> key
+        # 指标已同步到任务下的父项：<id> 键
         parent_stats = parent.conversation_stats
         assert f"task:{task.id}" in parent_stats.usage_to_metrics
         task_metrics = parent_stats.usage_to_metrics[f"task:{task.id}"]
@@ -836,7 +838,7 @@ class TestTaskMetrics:
         assert accumulated_token_usage.prompt_tokens == 100
 
     def test_multiple_tasks_have_separate_metrics(self, tmp_path):
-        """Each task gets its own metrics entry in parent stats."""
+        """每个任务在父统计信息中都有自己的指标条目。"""
         manager, parent = _manager_with_parent(tmp_path)
         register_builtins_agents()
 
@@ -873,7 +875,7 @@ class TestTaskMetrics:
 
 
 def _register_hooked_agent(name: str, hook_config: HookConfig) -> None:
-    """Register an agent with hooks via AgentDefinition."""
+    """通过 AgentDefinition 向钩子注册智能体。"""
     from openhands.sdk.subagent.registry import agent_definition_to_factory
 
     agent_def = AgentDefinition(
@@ -889,7 +891,7 @@ def _register_hooked_agent(name: str, hook_config: HookConfig) -> None:
 
 
 class TestTaskManagerHooks:
-    """Tests for hook_config propagation to sub-agent conversations."""
+    """测试 hook_config 传播到子智能体对话。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -898,7 +900,7 @@ class TestTaskManagerHooks:
         _reset_registry_for_tests()
 
     def test_create_task_passes_hook_config(self, tmp_path):
-        """_create_task should pass AgentDefinition.hooks to the sub-conversation."""
+        """_create_task 应将 AgentDefinition.hooks 传递给子对话。"""
         hook_config = HookConfig(
             pre_tool_use=[
                 HookMatcher(
@@ -922,7 +924,7 @@ class TestTaskManagerHooks:
         assert sub_conv._pending_hook_config.pre_tool_use[0].matcher == "terminal"
 
     def test_create_task_no_hooks_passes_none(self, tmp_path):
-        """When the agent definition has no hooks, hook_config should be None."""
+        """当智能体定义没有钩子时，hook_config应该是None。"""
         register_builtins_agents()
 
         manager, _ = _manager_with_parent(tmp_path)
@@ -936,7 +938,7 @@ class TestTaskManagerHooks:
         assert sub_conv._pending_hook_config is None
 
     def test_resume_task_passes_hook_config(self, tmp_path):
-        """_resume_task should pass hooks from the agent definition."""
+        """_resume_task 应该传递智能体定义中的钩子。"""
         hook_config = HookConfig(
             post_tool_use=[
                 HookMatcher(
@@ -949,7 +951,7 @@ class TestTaskManagerHooks:
 
         manager, _ = _manager_with_parent(tmp_path)
 
-        # Create and evict a task
+        # 创建和退出任务
         task = manager._create_task(
             subagent_type="hooked_resume",
             description="test",
@@ -957,7 +959,7 @@ class TestTaskManagerHooks:
         original_id = task.id
         manager._evict_task(task)
 
-        # Resume it
+        # 恢复它
         resumed = manager._resume_task(
             resume=original_id, subagent_type="hooked_resume"
         )
@@ -968,7 +970,7 @@ class TestTaskManagerHooks:
         assert sub_conv._pending_hook_config.post_tool_use[0].matcher == "*"
 
     def test_get_conversation_passes_hook_config(self, tmp_path):
-        """_get_conversation should forward hook_config to LocalConversation."""
+        """_get_conversation 应将 hook_config 转发到 LocalConversation。"""
         register_builtins_agents()
         manager, _ = _manager_with_parent(tmp_path)
 
@@ -999,7 +1001,7 @@ class TestTaskManagerHooks:
         assert conv._pending_hook_config.pre_tool_use[0].matcher == "file_editor"
 
     def test_get_conversation_without_hook_config(self, tmp_path):
-        """_get_conversation without hook_config should leave it as None."""
+        """_get_conversation 没有 hook_config 时应将其保留为 None。"""
         register_builtins_agents()
         manager, _ = _manager_with_parent(tmp_path)
 
@@ -1019,7 +1021,7 @@ class TestTaskManagerHooks:
 
 
 class TestTaskManagerPersistence:
-    """Tests for persistence directory behavior."""
+    """测试持久化目录行为。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -1028,7 +1030,7 @@ class TestTaskManagerPersistence:
         _reset_registry_for_tests()
 
     def test_no_persistence_uses_tmp_dir(self, tmp_path):
-        """When the parent has no persistence_dir, manager uses a temp directory."""
+        """当父级没有 persistence_dir 时，管理器使用临时目录。"""
         manager, parent = _manager_with_parent(tmp_path)
         assert parent.state.persistence_dir is None
         assert manager._persistence_dir is not None
@@ -1036,7 +1038,7 @@ class TestTaskManagerPersistence:
         assert "openhands_tasks_" in str(manager._persistence_dir)
 
     def test_no_persistence_close_deletes_tmp_dir(self, tmp_path):
-        """When the parent has no persistence_dir, close() deletes the temp dir."""
+        """当父级没有 persistence_dir 时，close() 删除临时目录。"""
         manager, _ = _manager_with_parent(tmp_path)
         persistence_dir = manager._persistence_dir
         assert persistence_dir is not None
@@ -1047,7 +1049,7 @@ class TestTaskManagerPersistence:
         assert not persistence_dir.exists()
 
     def test_with_persistence_creates_subagents_dir(self, tmp_path):
-        """When the parent persists, manager creates a subagents/ subdirectory."""
+        """当父目录持续存在时，管理器会创建一个 subagents/ 子目录。"""
         parent_persistence = tmp_path / "conversations"
         parent_persistence.mkdir()
         manager, parent = _manager_with_parent(
@@ -1063,7 +1065,7 @@ class TestTaskManagerPersistence:
         )
 
     def test_with_persistence_close_preserves_subagents_dir(self, tmp_path):
-        """When the parent persists, close() does NOT delete the subagents dir."""
+        """当父目录仍然存在时，close() 会不删除子智能体目录。"""
         parent_persistence = tmp_path / "conversations"
         parent_persistence.mkdir()
         manager, _ = _manager_with_parent(tmp_path, persistence_dir=parent_persistence)
@@ -1073,11 +1075,11 @@ class TestTaskManagerPersistence:
 
         manager.close()
 
-        # The subagents dir should be preserved for future restarts
+        # 应保留子智能体目录以供将来重新启动
         assert persistence_dir.exists()
 
     def test_with_persistence_subagent_conv_stored_under_subagents(self, tmp_path):
-        """Sub-agent conversations should be persisted under the subagents/ dir."""
+        """子智能体对话应位于 subagents/ 目录下的已持久化。"""
         parent_persistence = tmp_path / "conversations"
         parent_persistence.mkdir()
         manager, _ = _manager_with_parent(tmp_path, persistence_dir=parent_persistence)
@@ -1101,8 +1103,8 @@ class TestTaskManagerPersistence:
 
 
 class TestTaskManagerBudget:
-    """The per-subagent cost budget flows from the agent definition / parent
-    into the spawned sub-conversation."""
+    """每个子智能体的成本预算来自智能体定义/父级
+    进入生成的子对话。"""
 
     def test_budget_from_agent_definition(self, tmp_path):
         from openhands.sdk.subagent.registry import agent_definition_to_factory
@@ -1138,7 +1140,7 @@ class TestTaskManagerBudget:
 
 
 class TestRunErrorSurfacing:
-    """A sub-agent run that ends in a non-FINISHED status (stuck, paused, run-limit,
+    """以非 FINISHED 状态结束的子智能体运行（卡住、暂停、运行限制、
     ...) is surfaced to the parent task rather than reported as an empty success."""
 
     def test_run_stop_detail_returns_last_error(self):

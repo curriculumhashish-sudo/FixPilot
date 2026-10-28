@@ -22,7 +22,7 @@ export class ACPClient {
     });
   }
 
-  /** Start the ACP server in a throwaway session and report its default and models. */
+  /** 在一次性会话中启动 ACP 服务器并报告其默认值和模型。*/
   async discoverModels(request: ACPModelDiscoveryRequest): Promise<ACPModelDiscovery> {
     const response = await this.client.post<ACPModelDiscovery>('/api/acp/models', request);
     return response.data;

@@ -16,7 +16,7 @@ from openhands.tools.terminal.terminal.terminal_session import (
 
 
 def test_ps1_metadata_format():
-    """Test that PS1 prompt has correct format markers"""
+    """测试 PS1 提示词是否具有正确的格式标记"""
     prompt = CmdOutputMetadata.to_ps1_prompt()
     assert prompt.startswith("\n###PS1JSON###\n")
     assert prompt.endswith("\n###PS1END###\n")
@@ -24,17 +24,17 @@ def test_ps1_metadata_format():
 
 
 def test_ps1_metadata_json_structure():
-    """Test that PS1 prompt contains valid JSON with expected fields"""
+    """测试 PS1 提示词是否包含具有预期字段的有效 JSON"""
     prompt = CmdOutputMetadata.to_ps1_prompt()
-    # Extract JSON content between markers
+    # 提取标记之间的 JSON 内容
     json_str = prompt.replace("###PS1JSON###\n", "").replace("\n###PS1END###\n", "")
-    # Remove escaping before parsing
+    # 解析前去掉转义
     json_str = json_str.replace(r"\"", '"')
-    # Remove any trailing content after the JSON
+    # 删除 JSON 之后的所有尾随内容
     json_str = json_str.split("###PS1END###")[0].strip()
     data = json.loads(json_str)
 
-    # Check required fields
+    # 检查必填字段
     expected_fields = {
         "pid",
         "exit_code",
@@ -47,7 +47,7 @@ def test_ps1_metadata_json_structure():
 
 
 def test_ps1_metadata_parsing():
-    """Test parsing PS1 output into CmdOutputMetadata"""
+    """测试将 PS1 输出解析为 CmdOutputMetadata"""
     test_data = {
         "exit_code": 0,
         "username": "testuser",
@@ -71,7 +71,7 @@ def test_ps1_metadata_parsing():
 
 
 def test_ps1_metadata_parsing_string():
-    """Test parsing PS1 output into CmdOutputMetadata"""
+    """测试将 PS1 输出解析为 CmdOutputMetadata"""
     ps1_str = r"""###PS1JSON###
 {
   "exit_code": "0",
@@ -93,7 +93,7 @@ def test_ps1_metadata_parsing_string():
 
 
 def test_ps1_metadata_parsing_string_real_example():
-    """Test parsing PS1 output into CmdOutputMetadata"""
+    """测试将 PS1 输出解析为 CmdOutputMetadata"""
     ps1_str = r"""
 ###PS1JSON###
 {
@@ -120,7 +120,7 @@ def test_ps1_metadata_parsing_string_real_example():
 
 
 def test_ps1_metadata_parsing_additional_prefix():
-    """Test parsing PS1 output into CmdOutputMetadata"""
+    """测试将 PS1 输出解析为 CmdOutputMetadata"""
     test_data = {
         "exit_code": 0,
         "username": "testuser",
@@ -148,29 +148,29 @@ This is something that not part of the PS1 prompt
 
 
 def test_ps1_metadata_parsing_invalid():
-    """Test parsing invalid PS1 output returns default metadata"""
-    # Test with invalid JSON
+    """测试解析无效 PS1 输出返回默认元数据"""
+    # 测试无效 JSON
     invalid_json = """###PS1JSON###
     {invalid json}
 ###PS1END###
 """
     matches = CmdOutputMetadata.matches_ps1_metadata(invalid_json)
-    assert len(matches) == 0  # No matches should be found for invalid JSON
+    assert len(matches) == 0  # 找不到无效 JSON 的匹配项
 
-    # Test with missing markers
+    # 使用缺失的标记进行测试
     invalid_format = """NOT A VALID PS1 PROMPT"""
     matches = CmdOutputMetadata.matches_ps1_metadata(invalid_format)
     assert len(matches) == 0
 
-    # Test with empty PS1 metadata
+    # 使用空 PS1 元数据进行测试
     empty_metadata = """###PS1JSON###
 
 ###PS1END###
 """
     matches = CmdOutputMetadata.matches_ps1_metadata(empty_metadata)
-    assert len(matches) == 0  # No matches should be found for empty metadata
+    assert len(matches) == 0  # 不应为空元数据找到匹配项
 
-    # Test with whitespace in PS1 metadata
+    # 在 PS1 元数据中使用空格进行测试
     whitespace_metadata = """###PS1JSON###
 
     {
@@ -192,8 +192,8 @@ def test_ps1_metadata_parsing_invalid():
 
 
 def test_ps1_metadata_missing_fields():
-    """Test handling of missing fields in PS1 metadata"""
-    # Test with only required fields
+    """测试 PS1 元数据中缺失字段的处理"""
+    # 仅使用必需字段进行测试
     minimal_data = {"exit_code": 0, "pid": 123}
     ps1_str = f"""###PS1JSON###
 {json.dumps(minimal_data)}
@@ -209,7 +209,7 @@ def test_ps1_metadata_missing_fields():
     assert metadata.working_dir is None
     assert metadata.py_interpreter_path is None
 
-    # Test with missing exit_code but valid pid
+    # 测试缺少 exit_code 但有效的 pid
     no_exit_code = {"pid": 123, "username": "test"}
     ps1_str = f"""###PS1JSON###
 {json.dumps(no_exit_code)}
@@ -218,13 +218,13 @@ def test_ps1_metadata_missing_fields():
     matches = CmdOutputMetadata.matches_ps1_metadata(ps1_str)
     assert len(matches) == 1
     metadata = CmdOutputMetadata.from_ps1_match(matches[0])
-    assert metadata.exit_code == -1  # default value
+    assert metadata.exit_code == -1  # 默认值
     assert metadata.pid == 123
     assert metadata.username == "test"
 
 
 def test_ps1_metadata_multiple_blocks():
-    """Test handling multiple PS1 metadata blocks"""
+    """测试处理多个 PS1 元数据块"""
     test_data = {
         "exit_code": 0,
         "username": "testuser",
@@ -242,8 +242,8 @@ Some other content
 ###PS1END###
 """
     matches = CmdOutputMetadata.matches_ps1_metadata(ps1_str)
-    assert len(matches) == 2  # Should find both blocks
-    # Both blocks should parse successfully
+    assert len(matches) == 2  # 应该找到两个块
+    # 两个块都应该解析成功
     metadata1 = CmdOutputMetadata.from_ps1_match(matches[0])
     metadata2 = CmdOutputMetadata.from_ps1_match(matches[1])
     assert metadata1.exit_code == test_data["exit_code"]
@@ -251,20 +251,20 @@ Some other content
 
 
 def test_ps1_metadata_regex_pattern():
-    """Test the regex pattern used to extract PS1 metadata"""
-    # Test basic pattern matching
+    """测试用于提取 PS1 元数据的正则表达式模式"""
+    # 测试基本模式匹配
     test_str = f"{CMD_OUTPUT_PS1_BEGIN}test\n{CMD_OUTPUT_PS1_END}"
     matches = CMD_OUTPUT_METADATA_PS1_REGEX.finditer(test_str)
     match = next(matches)
     assert match.group(1).strip() == "test"
 
-    # Test with content before and after
+    # 测试之前和之后的内容
     test_str = f"prefix\n{CMD_OUTPUT_PS1_BEGIN}test\n{CMD_OUTPUT_PS1_END}suffix"
     matches = CMD_OUTPUT_METADATA_PS1_REGEX.finditer(test_str)
     match = next(matches)
     assert match.group(1).strip() == "test"
 
-    # Test with multiline content
+    # 使用多行内容进行测试
     test_str = f"{CMD_OUTPUT_PS1_BEGIN}line1\nline2\nline3\n{CMD_OUTPUT_PS1_END}"
     matches = CMD_OUTPUT_METADATA_PS1_REGEX.finditer(test_str)
     match = next(matches)
@@ -272,10 +272,10 @@ def test_ps1_metadata_regex_pattern():
 
 
 def test_cmd_output_observation_properties():
-    """Test TerminalObservation class properties"""
+    """测试 TerminalObservation 类属性"""
     from openhands.sdk.tool.schema import TextContent
 
-    # Test with successful command
+    # 使用成功的命令进行测试
     metadata = CmdOutputMetadata(exit_code=0, pid=123)
     obs = TerminalObservation.from_text(
         text="file1\nfile2",
@@ -293,7 +293,7 @@ def test_cmd_output_observation_properties():
     assert "file1\n" in obs.to_llm_content[0].text
     assert "file2\n" in obs.to_llm_content[0].text
 
-    # Test with failed command
+    # 使用失败的命令进行测试
     metadata = CmdOutputMetadata(exit_code=1, pid=456)
     obs = TerminalObservation.from_text(
         text="Command failed",
@@ -313,8 +313,8 @@ def test_cmd_output_observation_properties():
 
 
 def test_ps1_metadata_empty_fields():
-    """Test handling of empty fields in PS1 metadata"""
-    # Test with empty strings
+    """测试 PS1 元数据中空字段的处理"""
+    # 使用空字符串进行测试
     empty_data = {
         "exit_code": 0,
         "pid": 123,
@@ -337,7 +337,7 @@ def test_ps1_metadata_empty_fields():
     assert metadata.working_dir == ""
     assert metadata.py_interpreter_path == ""
 
-    # Test with malformed but valid JSON
+    # 测试格式错误但有效 JSON
     malformed_json = """###PS1JSON###
     {
         "exit_code":0,
@@ -361,12 +361,11 @@ def test_ps1_metadata_empty_fields():
 
 
 def test_issue_2416_missing_ps1_metadata_graceful_fallback():
-    """When PS1 markers are missing, _handle_completed_command should
-    return a valid observation instead of crashing with an assertion error.
+    """当PS1标记缺失时，_handle_completed_command应该
+    返回有效的观测结果而不是因断言错误而崩溃。
 
-    This happens when commands produce complex output (TUI rendering,
-    ANSI escape sequences) that corrupts the PS1 markers in the terminal
-    screen buffer.
+    当命令产生复杂的输出（TUI 渲染、ANSI 转义序列）并破坏终端屏幕缓冲区中的 PS1 标记
+    时，就会发生这种情况。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2416
     """
@@ -378,7 +377,7 @@ def test_issue_2416_missing_ps1_metadata_graceful_fallback():
     session._cwd = "/home/user/project"
     session._initialized = True
 
-    # Simulate terminal output with no PS1 metadata (markers corrupted)
+    # 模拟没有 PS1 元数据的终端输出（标记已损坏）
     terminal_content = (
         "running 139 tests\ntest result: ok. 139 passed; 0 failed; 0 ignored\n"
     )
@@ -386,7 +385,7 @@ def test_issue_2416_missing_ps1_metadata_graceful_fallback():
     obs = session._handle_completed_command(
         command="cargo test",
         terminal_content=terminal_content,
-        ps1_matches=[],  # No PS1 metadata found
+        ps1_matches=[],  # 找不到 PS1 元数据
     )
 
     assert isinstance(obs, TerminalObservation)

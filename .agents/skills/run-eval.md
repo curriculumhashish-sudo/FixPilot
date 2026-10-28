@@ -8,9 +8,13 @@ triggers:
 - swebench eval
 ---
 
-# Running Evaluations
+<a id="running-evaluations"></a>
 
-## Trigger via GitHub API
+# 运行评估
+
+<a id="trigger-via-github-api"></a>
+
+## 通过 GitHub API 触发
 
 ```bash
 curl -X POST \
@@ -30,37 +34,43 @@ curl -X POST \
   }'
 ```
 
-**Key parameters:**
+**关键参数：**
 - `benchmark`: `swebench`, `swebenchpro`, `swebenchmultimodal`, `gaia`, `swtbench`, `commit0`, `multiswebench`, `terminalbench`, `programbench`
-- `eval_limit`: Any positive integer (e.g., `1`, `10`, `50`, `200`)
-- `model_ids`: See `.github/run-eval/resolve_model_config.py` for available models
-- `benchmarks_branch`: Use feature branch from the benchmarks repo to test benchmark changes before merging
+- `eval_limit`：任意正整数（e.g.、`1`、`10`、`50`、`200`）
+- `model_ids`：请参阅 `.github/run-eval/resolve_model_config.py` 了解可用型号
+- `benchmarks_branch`：在合并之前使用基准测试存储库中的功能分支来测试基准测试更改
 
-**Note:** When running a full eval, you must select an `eval_limit` that is greater than or equal to the actual number of instances in the benchmark. If you specify a smaller limit, only that many instances will be evaluated (partial eval).
+**注意：**运行完整评估时，您必须选择大于或等于基准测试中实际实例数的`eval_limit`。 如果指定较小的限制，则只会评估那么多实例（部分评估）。
 
-## Monitoring
+<a id="monitoring"></a>
 
-**Datadog script** (requires `OpenHands/evaluation` repo; DD_API_KEY, DD_APP_KEY, and DD_SITE environment variables are set):
+## 监控
+
+**Datadog 脚本**（需要 `OpenHands/evaluation` 存储库； 设置 DD_API_KEY、DD_APP_KEY 和 DD_SITE 环境变量）：
 ```bash
 DD_API_KEY=$DD_API_KEY DD_APP_KEY=$DD_APP_KEY DD_SITE=$DD_SITE \
   python scripts/analyze_evals.py --job-prefix <EVAL_RUN_ID> --time-range 60
-# EVAL_RUN_ID format: typically the workflow run ID from GitHub Actions
+# EVAL_RUN_ID 格式：通常是来自 GitHub 操作的工作流运行 ID
 ```
 
-**kubectl** (for users with cluster access - the agent does not have kubectl access):
+**kubectl**（对于具有集群访问权限的用户 - 智能体没有 kubectl 访问权限）：
 ```bash
 kubectl logs -f job/eval-eval-<RUN_ID>-<MODEL_SLUG> -n evaluation-jobs
 ```
 
-## Common Errors
+<a id="common-errors"></a>
 
-| Error | Cause | Fix |
+## 常见错误
+
+| 错误 | 原因 | 修复 |
 |-------|-------|-----|
-| `503 Service Unavailable` | Infrastructure overloaded | Ask user to stop some evaluation runs |
-| `429 Too Many Requests` | Rate limiting | Wait or reduce concurrency |
-| `failed after 3 retries` | Instance failures | Check Datadog logs for root cause |
+| `503 Service Unavailable` | 基础设施超载 | 要求用户停止一些评估运行 |
+| `429 Too Many Requests` | 速率限制 | 等待或减少并发 |
+| `failed after 3 retries` | 实例失败 | 检查 Datadog 日志以查找根本原因 |
 
-## Limits
+<a id="limits"></a>
 
-- Max 256 parallel runtimes (jobs will queue if this limit is exceeded)
-- Full evals typically take 1-3 hours depending on benchmark size
+## 限制
+
+- 最多 256 个并行运行时（如果超过此限制，作业将排队）
+- 完整评估通常需要 1-3 小时，具体取决于基准测试大小

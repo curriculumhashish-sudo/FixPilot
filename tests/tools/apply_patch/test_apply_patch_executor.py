@@ -8,7 +8,7 @@ from openhands.tools.apply_patch.definition import ApplyPatchAction, ApplyPatchE
 
 @pytest.fixture()
 def tmp_ws(tmp_path: Path) -> Path:
-    # match other tool tests: use pytest tmp_path as a workspace root
+    # 匹配其他工具测试：使用 pytest tmp_path 作为工作区根
     return tmp_path
 
 
@@ -18,7 +18,7 @@ def run_exec(ws: Path, patch: str):
 
 
 def test_create_modify_delete(tmp_ws: Path):
-    # 1) create FACTS.txt
+    # 1) 创建FACTS.txt
     patch1 = (
         "*** Begin Patch\n"
         "*** Add File: FACTS.txt\n"
@@ -31,7 +31,7 @@ def test_create_modify_delete(tmp_ws: Path):
     assert fp.exists()
     assert fp.read_text().rstrip("\n") == "OpenHands SDK integrates tools."
 
-    # 2) append a second line
+    # 2) 追加第二行
     patch2 = (
         "*** Begin Patch\n"
         "*** Update File: FACTS.txt\n"
@@ -44,7 +44,7 @@ def test_create_modify_delete(tmp_ws: Path):
     assert not obs2.is_error
     assert fp.read_text() == ("OpenHands SDK integrates tools.\nApplyPatch works.")
 
-    # 3) delete
+    # 3) 删除
     patch3 = "*** Begin Patch\n*** Delete File: FACTS.txt\n*** End Patch"
     obs3 = run_exec(tmp_ws, patch3)
     assert not obs3.is_error
@@ -52,7 +52,7 @@ def test_create_modify_delete(tmp_ws: Path):
 
 
 def test_reject_absolute_path(tmp_ws: Path):
-    # refuse escape/absolute paths
+    # 拒绝逃逸/绝对路径
     patch = (
         "*** Begin Patch\n"
         f"*** Add File: {os.path.abspath('/etc/passwd')}\n"
@@ -183,22 +183,21 @@ def test_fuzz_matching_trailing_spaces(tmp_ws: Path):
 
     obs = run_exec(tmp_ws, patch)
     assert not obs.is_error
-    # fuzz should be > 0 because whitespace-stripped context is used
+    # 模糊应该 > 0，因为使用了空格剥离的上下文
     assert obs.fuzz > 0
     assert fp.read_text() == "a\ncontext line   \nEND\n"
 
 
 def test_delete_missing_file_expected_differror(tmp_ws: Path):
-    """Delete of a missing file should surface as a structured DiffError.
+    """删除丢失的文件应该以结构化的形式显示DiffError。
 
-    The reference implementation would bubble a FileNotFoundError from
-    load_files/open_fn; our SDK adapts this by converting it into a
-    "Delete File Error: Missing File" DiffError so the tool can return a
-    clean error observation instead of crashing.
+    参考实现将从 load_files/open_fn 中冒出 FileNotFoundError； 我们的SDK通过将其转换
+    为“删除文件错误：丢失文件”DiffErr
+    or来适应这一点，因此该工具可以返回一个干净的错误观测结果而不是崩溃。
     """
     patch = "*** Begin Patch\n*** Delete File: missing.txt\n*** End Patch"
     obs = run_exec(tmp_ws, patch)
-    # Intentionally assert the idealized behavior we *would* like to see.
+    # 有意断言我们*希望*希望看到的理想化行为。
     assert obs.is_error
     assert "Missing File" in obs.text
 
@@ -243,12 +242,12 @@ def test_reject_sibling_prefix_path_escape(tmp_path: Path):
 
 
 def test_malformed_patch_header_returns_differror(tmp_ws: Path):
-    """A patch missing '*** Begin Patch' must return a structured error, not crash.
+    """缺少“*** Begin Patch”的补丁必须返回结构化错误，而不是崩溃。
 
-    Before the assert→DiffError fix, process_patch() used assert to validate
-    the header. Python disables assert with -O (optimized mode, used in Docker
-    production images), so a bad header would silently pass and corrupt state.
-    Now it raises DiffError which is caught and returned as is_error=True.
+    在断言→DiffError修复之前，process_patch()使用断言来验证标头。 Python 使用 -O 禁用
+    断言（优化模式，在 Docker 生产映像中使
+    用），因此错误的标头会默默地通过并破坏状态。 现在它引发 DiffError，它被捕获并返回
+    为 is_error=True。
     """
     obs = run_exec(tmp_ws, "INVALID HEADER\n*** End Patch")
     assert obs.is_error
@@ -256,11 +255,10 @@ def test_malformed_patch_header_returns_differror(tmp_ws: Path):
 
 
 def test_invalid_move_to_path_returns_differror(tmp_ws: Path):
-    """A '*** Move to:' with '..' components must be rejected as a structured error.
+    """带有“..”组件的“***移动到：”必须作为结构错误被拒绝。
 
-    The original Parser.parse() had a TODO acknowledging this check was missing.
-    An unvalidated move_to path could allow the agent to move files outside the
-    workspace.
+    原始的 Parser.parse() 有一个 TODO 确认缺少此检查。 未经验证的 move_to 路径可能允
+    许智能体将文件移至工作区之外。
     """
     fp = tmp_ws / "source.txt"
     fp.write_text("hello\n")

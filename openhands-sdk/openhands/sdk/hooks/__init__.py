@@ -1,8 +1,8 @@
 """
-OpenHands Hooks System - Event-driven hooks for automation and control.
+OpenHands 挂钩系统 - 用于自动化和控制的事件驱动挂钩。
 
-Hooks are event-driven scripts that execute at specific lifecycle events
-during agent execution, enabling deterministic control over agent behavior.
+挂钩是事件驱动的脚本，在智能体执行期间在特定生命周期事件处执行，从而实现对智能体行为
+的确定性控制。
 """
 
 from openhands.sdk.hooks.config import (

@@ -44,7 +44,7 @@ class Wolf(Canine):
     @model_validator(mode="before")
     @classmethod
     def _remove_genus(cls, data):
-        # Remove the genus from input as it is generated
+        # 在生成时从输入中删除属
         if not isinstance(data, dict):
             return
         data = dict(data)
@@ -69,7 +69,7 @@ class AnimalPack(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _remove_alpha(cls, data):
-        # Remove the genus from input as it is generated
+        # 在生成时从输入中删除属
         if not isinstance(data, dict):
             return
         data = dict(data)
@@ -80,11 +80,11 @@ class AnimalPack(BaseModel):
 
 
 class Mythical(DiscriminatedUnionMixin, ABC):
-    """Mythical beasts have no implementations - they do not exist!"""
+    """神兽没有实现——它们不存在！"""
 
     @abstractmethod
     def get_description(self) -> str:
-        """Get a discription of the mythical beast"""
+        """获取神话野兽的描述"""
 
 
 class MythicalPack(OpenHandsModel):
@@ -92,34 +92,34 @@ class MythicalPack(OpenHandsModel):
 
 
 class SomeBase(DiscriminatedUnionMixin, ABC):
-    """Base class for duplicate test"""
+    """重复测试的基类"""
 
 
 class SomeImpl(SomeBase):
-    """Implementation for duplicate test"""
+    """重复测试的实施"""
 
 
 def test_json_schema_expected() -> None:
     json_schema = Animal.model_json_schema()
 
-    # Verify the schema has the expected structure
+    # 验证模式具有预期的结构
     assert "$defs" in json_schema
     assert "oneOf" in json_schema
     assert "discriminator" in json_schema
 
-    # Check discriminator structure
+    # 检查鉴别器结构
     discriminator = json_schema["discriminator"]
     assert discriminator["propertyName"] == "kind"
     assert "mapping" in discriminator
 
-    # Check the oneOf variants
+    # 检查 oneOf 变体
     assert json_schema["oneOf"] == [
         {"$ref": "#/$defs/Cat"},
         {"$ref": "#/$defs/Dog"},
         {"$ref": "#/$defs/Wolf"},
     ]
 
-    # Check the $defs structure
+    # 检查 $defs 结构
     assert json_schema["$defs"]["Cat"] == {
         "properties": {
             "name": {"title": "Name", "type": "string"},
@@ -167,7 +167,7 @@ def test_additional_field() -> None:
 
 @pytest.mark.parametrize("value", ["plain", 5, None, True, ["x"]])
 def test_non_object_input_is_a_validation_error(value) -> None:
-    """A non-dict value is a ValidationError, not an AttributeError from .pop()."""
+    """非字典值是 ValidationError，而不是 .pop() 中的 AttributeError。"""
     for target in (Animal, Cat, Dog):
         with pytest.raises(ValidationError):
             target.model_validate(value)
@@ -176,7 +176,7 @@ def test_non_object_input_is_a_validation_error(value) -> None:
 
 
 def test_property() -> None:
-    """There seems to be a real issue with @property decorators"""
+    """@property 装饰器似乎存在真正的问题"""
     original = Wolf(name="Silver")
     dumped = original.model_dump()
     assert dumped["genus"] == "Canis"
@@ -240,12 +240,12 @@ def test_model_containing_polymorphic_field():
 
 
 def test_duplicate_kind():
-    # nAn error should be raised when a duplicate class name is detected
+    # n检测到重复的类名时应引发错误
 
     with pytest.raises(ValueError) as exc_info:
 
         class SomeImpl(SomeBase):
-            """Duplicate implementation name"""
+            """重复的实现名称"""
 
         SomeBase.model_json_schema()
 
@@ -260,8 +260,8 @@ def test_duplicate_kind():
 
 
 def test_enhanced_error_message_with_validation():
-    """Test that the enhanced error message appears during model validation."""
-    # Create invalid data with unknown kind
+    """测试模型验证期间是否出现增强的错误消息。"""
+    # 创建类型未知的无效数据
     invalid_data = {"kind": "UnknownAnimal", "name": "Test"}
 
     with pytest.raises(ValueError) as exc_info:
@@ -269,7 +269,7 @@ def test_enhanced_error_message_with_validation():
 
     error_message = str(exc_info.value)
 
-    # Check that the error message contains expected components
+    # 检查错误消息是否包含预期的组件
     expected = (
         "Unknown kind 'UnknownAnimal' for "
         "tests.sdk.utils.test_discriminated_union.Animal; "
@@ -301,7 +301,7 @@ def test_enhanced_error_message_for_no_kinds():
 
     error_message = str(exc_info.value)
 
-    # Check that the error message contains all expected components
+    # 检查错误消息是否包含所有预期的组件
     expected = (
         "Unknown kind 'Unicorn' for tests.sdk.utils.test_discriminated_union.Mythical; "
         "Expected one of: []"
@@ -315,7 +315,7 @@ def test_enhanced_error_message_for_nested_no_kinds():
 
     error_message = str(exc_info.value)
 
-    # Check that the error message contains all expected components
+    # 检查错误消息是否包含所有预期的组件
     expected = (
         "Unknown kind 'Unicorn' for tests.sdk.utils.test_discriminated_union.Mythical; "
         "Expected one of: []"
@@ -330,7 +330,7 @@ def test_enhanced_error_message_for_nested_no_kinds_type_adapter():
 
     error_message = str(exc_info.value)
 
-    # Check that the error message contains all expected components
+    # 检查错误消息是否包含所有预期的组件
     expected = (
         "Unknown kind 'Unicorn' for tests.sdk.utils.test_discriminated_union.Mythical; "
         "Expected one of: []"

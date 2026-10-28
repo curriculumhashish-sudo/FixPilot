@@ -1,4 +1,4 @@
-"""Tests for plugin merging utilities."""
+"""测试插件合并实用程序。"""
 
 import pytest
 
@@ -15,34 +15,34 @@ def mcp_config(
 
 
 class TestPluginAddSkillsTo:
-    """Tests for Plugin.add_skills_to() method."""
+    """测试 Plugin.add_skills_to() 方法。"""
 
     def test_add_skills_to_empty_plugin(self, empty_plugin):
-        """Test adding skills from empty plugin returns unchanged context."""
+        """测试从空插件添加技能返回不变上下文。"""
         context = AgentContext(skills=[])
         new_context = empty_plugin.add_skills_to(context)
         assert new_context.skills == []
 
     def test_add_skills_to_none_context_empty_plugin(self, empty_plugin):
-        """Test adding skills with None context and empty plugin."""
+        """使用 None 上下文和空插件测试添加技能。"""
         new_context = empty_plugin.add_skills_to(None)
         assert isinstance(new_context, AgentContext)
         assert new_context.skills == []
 
     def test_add_skills_to_none_input(self, mock_plugin_with_skills):
-        """Test adding skills with None input creates new context."""
+        """测试使用 None 输入添加技能会创建新的上下文。"""
         new_context = mock_plugin_with_skills.add_skills_to()
         assert isinstance(new_context, AgentContext)
         assert len(new_context.skills) > 0
 
     def test_add_skills_to_with_skills(self, mock_plugin_with_skills):
-        """Test adding plugin skills to context."""
+        """测试将插件技能添加到上下文。"""
         context = AgentContext(skills=[])
         new_context = mock_plugin_with_skills.add_skills_to(context)
         assert len(new_context.skills) == len(mock_plugin_with_skills.skills)
 
     def test_add_skills_to_adds_new_skill(self, mock_skill, another_mock_skill):
-        """Test adding skills adds new skill when no conflict."""
+        """测试添加技能在不冲突的情况下添加新技能。"""
         plugin = Plugin(
             manifest=PluginManifest(name="test", version="1.0.0", description="Test"),
             path="/tmp/test",
@@ -55,7 +55,7 @@ class TestPluginAddSkillsTo:
         assert skill_names == {mock_skill.name, another_mock_skill.name}
 
     def test_add_skills_to_overrides_existing_skill(self):
-        """Test plugin skill overrides existing skill with same name."""
+        """测试插件技能会覆盖同名的现有技能。"""
         original_skill = Skill(name="test-skill", content="Original content")
         updated_skill = Skill(name="test-skill", content="Updated content")
         plugin = Plugin(
@@ -69,7 +69,7 @@ class TestPluginAddSkillsTo:
         assert new_context.skills[0].content == "Updated content"
 
     def test_add_skills_to_preserves_insertion_order(self):
-        """Test add_skills_to preserves order of existing skills."""
+        """测试 add_skills_to 保留现有技能的顺序。"""
         skill_a = Skill(name="skill-a", content="A")
         skill_b = Skill(name="skill-b", content="B")
         skill_c = Skill(name="skill-c", content="C")
@@ -84,7 +84,7 @@ class TestPluginAddSkillsTo:
         assert skill_names == ["skill-a", "skill-b", "skill-c"]
 
     def test_add_skills_to_returns_new_context(self, mock_skill):
-        """Test add_skills_to returns new context instance, not modifying original."""
+        """测试 add_skills_to 返回新的上下文实例，而不修改原始实例。"""
         new_skill = Skill(name="new-skill", content="New")
         plugin = Plugin(
             manifest=PluginManifest(name="test", version="1.0.0", description="Test"),
@@ -93,19 +93,19 @@ class TestPluginAddSkillsTo:
         )
         original_context = AgentContext(skills=[mock_skill])
         new_context = plugin.add_skills_to(original_context)
-        # Original context should be unchanged
+        # 原来的上下文应该不变
         assert len(original_context.skills) == 1
         assert len(new_context.skills) == 2
         assert new_context is not original_context
 
     def test_add_skills_to_enforces_max_skills(self, mock_plugin_with_skills):
-        """Test add_skills_to enforces max_skills limit."""
+        """测试 add_skills_to 强制执行 max_skills 限制。"""
         context = AgentContext(skills=[])
         with pytest.raises(ValueError, match="exceeds maximum"):
             mock_plugin_with_skills.add_skills_to(context, max_skills=0)
 
     def test_add_skills_to_max_skills_with_existing(self, mock_skill):
-        """Test max_skills counts unique skills after merge."""
+        """测试max_skills统计合并后的独特技能。"""
         plugin_skill_1 = Skill(name="plugin-skill-1", content="P1")
         plugin_skill_2 = Skill(name="plugin-skill-2", content="P2")
         plugin = Plugin(
@@ -115,16 +115,16 @@ class TestPluginAddSkillsTo:
         )
         context = AgentContext(skills=[mock_skill])
 
-        # Limit of 3 should allow merge (1 existing + 2 new = 3)
+        # 限制为 3 应允许合并（1 个现有 + 2 个新 = 3）
         new_context = plugin.add_skills_to(context, max_skills=3)
         assert len(new_context.skills) == 3
 
-        # Limit of 2 should fail (3 > 2)
+        # 2 的限制应该失败 (3 > 2)
         with pytest.raises(ValueError, match="exceeds maximum"):
             plugin.add_skills_to(context, max_skills=2)
 
     def test_add_skills_to_max_skills_with_override(self):
-        """Test max_skills counts correctly when plugin overrides existing skill."""
+        """当插件覆盖现有技能时，测试 max_skills 计数正确。"""
         existing_skill = Skill(name="shared-skill", content="Old")
         context = AgentContext(skills=[existing_skill])
 
@@ -140,7 +140,7 @@ class TestPluginAddSkillsTo:
         assert new_context.skills[0].content == "New"
 
     def test_add_skills_to_preserves_context_fields(self, mock_plugin_with_skills):
-        """Test add_skills_to preserves other AgentContext fields."""
+        """测试 add_skills_to 保留其他 AgentContext 字段。"""
         context = AgentContext(
             skills=[],
             system_message_suffix="Custom suffix",
@@ -150,30 +150,30 @@ class TestPluginAddSkillsTo:
 
 
 class TestPluginAddMcpConfigTo:
-    """Tests for Plugin.add_mcp_config_to() method."""
+    """测试 Plugin.add_mcp_config_to() 方法。"""
 
     def test_add_mcp_config_to_empty_plugin(self, empty_plugin):
-        """Test adding MCP servers from empty plugin returns an empty map."""
+        """测试从空插件添加 MCP 服务器会返回空地图。"""
         new_mcp = empty_plugin.add_mcp_config_to(mcp_config())
         assert new_mcp == {}
 
     def test_add_mcp_config_to_both_none(self, empty_plugin):
-        """Test adding MCP servers with both None returns an empty map."""
+        """测试添加 MCP 服务器与 None 会返回一个空地图。"""
         new_mcp = empty_plugin.add_mcp_config_to(None)
         assert new_mcp == {}
 
     def test_add_mcp_config_to_none_input(self, mock_plugin_with_mcp):
-        """Test adding MCP servers with None input."""
+        """测试使用 None 输入添加 MCP 个服务器。"""
         new_mcp = mock_plugin_with_mcp.add_mcp_config_to()
         assert new_mcp == mock_plugin_with_mcp.mcp_config
 
     def test_add_mcp_config_to_with_config(self, mock_plugin_with_mcp):
-        """Test adding plugin MCP servers."""
+        """测试添加插件 MCP 服务器。"""
         new_mcp = mock_plugin_with_mcp.add_mcp_config_to(mcp_config())
         assert new_mcp == mock_plugin_with_mcp.mcp_config
 
     def test_add_mcp_config_to_merges_servers(self):
-        """Test add_mcp_config_to returns correctly merged MCP servers."""
+        """测试 add_mcp_config_to 返回正确合并的 MCP 服务器。"""
         base_mcp = mcp_config({"server1": MCPServer(command="base")})
         plugin_mcp = mcp_config({"server2": MCPServer(command="plugin")})
 
@@ -189,7 +189,7 @@ class TestPluginAddMcpConfigTo:
         assert new_mcp["server2"].command == "plugin"
 
     def test_add_mcp_config_to_plugin_overrides(self):
-        """Test plugin MCP servers override base servers for same key."""
+        """测试插件 MCP 服务器会覆盖相同密钥的基本服务器。"""
         base_mcp = mcp_config(
             {"server1": MCPServer(command="python", args=["-m", "base_server"])}
         )
@@ -207,7 +207,7 @@ class TestPluginAddMcpConfigTo:
         assert new_mcp["server1"].args == ["-m", "plugin_server"]
 
     def test_add_mcp_config_to_does_not_modify_inputs(self):
-        """Test add_mcp_config_to does not modify input maps."""
+        """测试 add_mcp_config_to 不修改输入映射。"""
         base_mcp = mcp_config({"server1": MCPServer(command="python")})
         plugin_mcp = mcp_config({"server2": MCPServer(command="node")})
         original_base = dict(base_mcp)
@@ -225,7 +225,7 @@ class TestPluginAddMcpConfigTo:
         assert plugin_mcp == original_plugin
 
     def test_add_mcp_config_to_merges_mcp_config(self):
-        """Test add_mcp_config_to merges native server maps by server name."""
+        """测试 add_mcp_config_to 按服务器名称合并本机服务器映射。"""
         base_mcp = mcp_config({"server1": MCPServer(command="base")})
         plugin_mcp = mcp_config({"server2": MCPServer(command="plugin")})
 
@@ -241,7 +241,7 @@ class TestPluginAddMcpConfigTo:
         assert "server2" in new_mcp
 
     def test_add_mcp_config_to_mcp_config_plugin_overrides(self):
-        """Test plugin MCP config overrides base config for the same server name."""
+        """测试插件 MCP 配置覆盖相同服务器名称的基本配置。"""
         base_mcp = mcp_config({"server1": MCPServer(command="base")})
         plugin_mcp = mcp_config({"server1": MCPServer(command="plugin")})
 
@@ -256,12 +256,12 @@ class TestPluginAddMcpConfigTo:
         assert new_mcp["server1"].command == "plugin"
 
 
-# Fixtures
+# 测试夹具
 
 
 @pytest.fixture
 def mock_skill():
-    """Create a mock skill for testing."""
+    """创建模拟对象技能进行测试。"""
     return Skill(
         name="test-skill",
         content="Test skill content",
@@ -270,7 +270,7 @@ def mock_skill():
 
 @pytest.fixture
 def another_mock_skill():
-    """Create another mock skill for testing."""
+    """创建另一个模拟对象技能进行测试。"""
     return Skill(
         name="another-skill",
         content="Another skill content",
@@ -279,7 +279,7 @@ def another_mock_skill():
 
 @pytest.fixture
 def empty_plugin():
-    """Create an empty plugin."""
+    """创建一个空插件。"""
     return Plugin(
         manifest=PluginManifest(
             name="empty", version="1.0.0", description="Empty plugin"
@@ -290,7 +290,7 @@ def empty_plugin():
 
 @pytest.fixture
 def mock_plugin_with_skills(mock_skill, another_mock_skill):
-    """Create a plugin with skills."""
+    """创建一个具有技能的插件。"""
     return Plugin(
         manifest=PluginManifest(
             name="test-plugin", version="1.0.0", description="Test plugin"
@@ -302,7 +302,7 @@ def mock_plugin_with_skills(mock_skill, another_mock_skill):
 
 @pytest.fixture
 def mock_plugin_with_mcp():
-    """Create a plugin with MCP servers."""
+    """使用 MCP 个服务器创建一个插件。"""
     return Plugin(
         manifest=PluginManifest(
             name="mcp-plugin", version="1.0.0", description="MCP plugin"

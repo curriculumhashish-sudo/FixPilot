@@ -1,4 +1,4 @@
-"""Read file tool executor implementation."""
+"""读文件工具执行器实现。"""
 
 import os
 from pathlib import Path
@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 
 
 class ReadFileExecutor(ToolExecutor[ReadFileAction, ReadFileObservation]):
-    """Executor for read_file tool."""
+    """read_file 工具的执行器。"""
 
     def __init__(self, workspace_root: str):
-        """Initialize executor with workspace root.
+        """使用工作区 root 初始化执行器。
 
         Args:
-            workspace_root: Root directory for file operations
+            workspace_root: 文件操作的根目录
         """
         self.workspace_root = Path(workspace_root)
 
@@ -32,27 +32,27 @@ class ReadFileExecutor(ToolExecutor[ReadFileAction, ReadFileObservation]):
         action: ReadFileAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> ReadFileObservation:
-        """Execute read file action.
+        """执行读取文件操作。
 
         Args:
-            action: ReadFileAction with file_path, offset, and limit
-            conversation: Execution context
+            action: ReadFileAction 与 file_path、偏移量和限制
+            conversation: 执行上下文
 
         Returns:
-            ReadFileObservation with file content
+            ReadFileObservation 包含文件内容
         """
 
         file_path = action.file_path
         offset = action.offset or 0
         limit = action.limit
 
-        # Resolve path relative to workspace
+        # 解析相对于工作区的路径
         if not os.path.isabs(file_path):
             resolved_path = self.workspace_root / file_path
         else:
             resolved_path = Path(file_path)
 
-        # Check if file exists
+        # 检查文件是否存在
         if not resolved_path.exists():
             return ReadFileObservation.from_text(
                 text=f"Error: File not found: {resolved_path}",
@@ -61,7 +61,7 @@ class ReadFileExecutor(ToolExecutor[ReadFileAction, ReadFileObservation]):
                 file_content="",
             )
 
-        # Check if it's a directory
+        # 检查是否是一个目录
         if resolved_path.is_dir():
             return ReadFileObservation.from_text(
                 text=f"Error: Path is a directory, not a file: {resolved_path}",
@@ -71,13 +71,13 @@ class ReadFileExecutor(ToolExecutor[ReadFileAction, ReadFileObservation]):
             )
 
         try:
-            # Read file content
+            # 读取文件内容
             with open(resolved_path, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
             total_lines = len(lines)
 
-            # Apply offset and limit
+            # 应用偏移和限制
             if offset >= total_lines:
                 return ReadFileObservation.from_text(
                     text=(
@@ -89,24 +89,24 @@ class ReadFileExecutor(ToolExecutor[ReadFileAction, ReadFileObservation]):
                     file_content="",
                 )
 
-            # Determine the range to read
+            # 确定读取范围
             start = offset
             if limit:
                 end = min(start + limit, total_lines)
             else:
-                # If no limit specified, apply default maximum
+                # 如果未指定限制，则应用默认最大值
                 end = min(start + MAX_LINES_PER_READ, total_lines)
 
-            # Get the lines to return
+            # 获取返回的线路
             lines_to_show = lines[start:end]
 
-            # Add line numbers
+            # 添加行号
             numbered_lines = []
             for i, line in enumerate(lines_to_show, start=start + 1):
                 numbered_lines.append(f"{i:6d}  {line}")
             content_with_numbers = "".join(numbered_lines)
 
-            # Check if truncated
+            # 检查是否被截断
             is_truncated = end < total_lines
             lines_shown = (start + 1, end) if is_truncated else None
 

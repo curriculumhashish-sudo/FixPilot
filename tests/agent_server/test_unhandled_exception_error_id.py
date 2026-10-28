@@ -1,8 +1,8 @@
-"""Tests that unhandled exceptions return a correlation ``error_id``.
+"""测试未处理的异常是否返回相关性 ``error_id``。
 
-The ``error_id`` is included in both the 500 response body and the server-side
-log line (which carries the full traceback), so an otherwise opaque 500 a caller
-receives can be matched to its traceback in the server logs.
+``error_id`` 会出现在 500 响应体和服务器端日志行中（该日志行包含了完整的调用堆栈信息
+），因此，一个调用者收到的无意义的 500 响应可以与服务器日志中的调
+用堆栈信息匹配。
 """
 
 import pytest
@@ -30,7 +30,7 @@ def app_with_failing_route():
 
 def test_unhandled_exception_returns_error_id(app_with_failing_route):
     # raise_server_exceptions=False so the registered handler's JSONResponse is
-    # returned instead of the exception being re-raised into the test.
+    # 返回，而不是在测试中重新引发异常。
     client = TestClient(app_with_failing_route, raise_server_exceptions=False)
     response = client.get("/boom")
 
@@ -39,7 +39,7 @@ def test_unhandled_exception_returns_error_id(app_with_failing_route):
     assert body["detail"] == "Internal Server Error"
     error_id = body.get("error_id")
     assert isinstance(error_id, str)
-    assert len(error_id) == 32  # uuid4().hex
+    assert len(error_id) == 32  # uuid4().十六进制
 
 
 def test_error_id_is_unique_per_request(app_with_failing_route):

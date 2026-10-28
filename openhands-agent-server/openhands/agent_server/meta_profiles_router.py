@@ -1,7 +1,7 @@
-"""HTTP CRUD + activate endpoints for meta-profiles (mirrors profiles_router).
+"""HTTP CRUD + 激活元配置文件端点（镜像 profiles_router）。
 
-Unlike LLM profiles, meta-profiles hold no secrets — they are plain JSON
-documents persisted via :class:`MetaProfileStore`.
+与 LLM 配置文件不同，元配置文件不包含机密 — 它们是通过：class:`MetaProfileStore` 的普
+通 JSON 文档已持久化。
 """
 
 from collections.abc import Iterator
@@ -39,11 +39,11 @@ MetaProfileName = Annotated[
 
 
 def _require_route(meta_profile: MetaProfile) -> MetaProfile:
-    """Refuse a meta-profile that has nothing to route to.
+    """拒绝没有任何内容可路由的元配置文件。
 
-    Checked on save only, not in ``MetaProfile`` itself, so meta-profiles
-    already persisted without classes or a template (store files, the inline
-    copy in ``settings.json``, conversation tool params) still load.
+    只在保存时检查，而不是在``MetaProfile``本身，因此元配置已经已持久化，没有类或模板
+    （存储文件，``settings.json``内的内联复制，会话工具
+    参数）仍然加载。
     """
     if not meta_profile.classes and meta_profile.prompt_template is None:
         raise ValueError(
@@ -56,10 +56,9 @@ RoutableMetaProfile = Annotated[MetaProfile, AfterValidator(_require_route)]
 
 
 def _get_meta_profile_store() -> MetaProfileStore:
-    """Resolve the meta-profile store under ``OH_PERSISTENCE_DIR``.
+    """解析 ``OH_PERSISTENCE_DIR`` 下的元配置文件存储。
 
-    Uses the same helper as the runtime routing tool, so the HTTP API and
-    conversation execution read/write the same isolated store.
+    使用与运行时路由工具相同的帮助程序，因此 HTTP API 和会话执行读/写相同的隔离存储。
     """
     return MetaProfileStore(base_dir=default_meta_profile_dir())
 
@@ -89,20 +88,20 @@ class ActivateMetaProfileResponse(BaseModel):
     name: str
     message: str
     applied: bool = True
-    """False when the current agent settings cannot attach the routing tool
-    (e.g. ACP), so nothing was activated (mirrors ``llm_applied`` on LLM-profile
-    activation)."""
+    """False当前智能体设置无法附加布线工具时
+    (e.g. ACP），因此没有激活任何内容（在 LLM 配置文件激活上镜像 ``llm_applied``）。
+"""
 
 
 @contextmanager
 def _store_errors() -> Iterator[None]:
-    """Map ``MetaProfileStore`` errors to HTTP responses."""
+    """将 ``MetaProfileStore`` 个错误映射到 HTTP 个响应。"""
     try:
         yield
     except TimeoutError:
-        # save()/delete() can raise TimeoutError from the file lock under
-        # contention; surface a retryable 503 instead of a generic 500
-        # (mirrors profiles_router._store_errors()).
+        # save()/delete() 可以从存在争用的文件锁中提出 TimeoutError； 显示可重试的 503，
+        # 而不是通用的 500（镜像 profiles_router._store_errors()）。
+        #
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Meta-profile store is busy. Please retry.",
@@ -124,10 +123,10 @@ def _set_active_meta_profile_if_matches(
         return False
 
     def update_active(settings: PersistedSettings) -> PersistedSettings:
-        # Route through PersistedSettings.update() so the change also
-        # propagates into agent_settings (active_meta_profile +
-        # enable_classify_and_switch_llm_tool); a direct field assignment
-        # would leave that nested state stale.
+        # 通过 PersistedSettings.update() 进行路由，因此更改也会传播到 agent_settings (
+        # active_meta_profile + enable_classify_and_switch_llm_tool)； 直接的字段分配会
+        # 使嵌套状态变得陈旧。
+        #
         agent_diff = {"meta_profile": None} if new_name is None else {}
         settings.update(
             {
@@ -143,7 +142,7 @@ def _set_active_meta_profile_if_matches(
 
 @meta_profiles_router.get("", response_model=MetaProfileListResponse)
 def list_meta_profiles(request: Request) -> MetaProfileListResponse:
-    """List all saved meta-profiles and the currently active one."""
+    """列出所有已保存的元配置文件和当前活动的元配置文件。"""
     config = get_config(request)
     settings_store = get_settings_store(config)
     settings = settings_store.load() or PersistedSettings()
@@ -160,7 +159,7 @@ def list_meta_profiles(request: Request) -> MetaProfileListResponse:
 
 @meta_profiles_router.get("/{name}", response_model=MetaProfileDetailResponse)
 def get_meta_profile(name: MetaProfileName) -> MetaProfileDetailResponse:
-    """Get a meta-profile's full configuration."""
+    """获取元配置文件的完整配置。"""
     store = _get_meta_profile_store()
     try:
         with _store_errors():
@@ -183,9 +182,9 @@ def save_meta_profile(
     name: MetaProfileName,
     body: RoutableMetaProfile,
 ) -> MetaProfileMutationResponse:
-    """Save (create or overwrite) a meta-profile.
+    """保存（创建或覆盖）元配置文件。
 
-    Returns 409 if creating a new meta-profile would exceed
+    如果创建新的元配置文件超出限制，则返回 409
     ``MAX_META_PROFILES``.
     """
     store = _get_meta_profile_store()
@@ -211,10 +210,9 @@ def save_meta_profile(
 def delete_meta_profile(
     request: Request, name: MetaProfileName
 ) -> MetaProfileMutationResponse:
-    """Delete a meta-profile (idempotent).
+    """删除元配置文件（幂等）。
 
-    If the deleted meta-profile is the active one, ``active_meta_profile`` is
-    cleared.
+    如果删除的元配置文件是活动元配置文件，则 ``active_meta_profile`` 被清除。
     """
     store = _get_meta_profile_store()
     with _store_errors():
@@ -233,16 +231,16 @@ def delete_meta_profile(
 def activate_meta_profile(
     request: Request, name: MetaProfileName
 ) -> ActivateMetaProfileResponse:
-    """Activate a meta-profile by recording it as ``active_meta_profile``.
+    """通过将元配置文件记录为 ``active_meta_profile`` 来激活它。
 
-    Unlike LLM profiles, activating a meta-profile does not mutate the agent's
-    LLM config — it only records which meta-profile the
-    ``route_task_to_model`` tool should route with. Returns 404 if the
-    meta-profile does not exist. On agent settings that cannot attach the
-    routing tool (e.g. ACP) nothing is recorded and the response has
+    与 LLM 配置文件不同，激活元配置文件不会改变智能体的 LLM 配置 - 它只记录哪个元配置
+    文件
+    ``route_task_to_model`` 工具应用于布线。 如果元配置文件不存在，则返回 404。 在智
+    能体设置中无法附加布线工具 (e.g. ACP) 没有
+    记录任何内容，并且响应已
     ``applied: false``.
     """
-    # Verify the meta-profile exists (and is valid) before activating.
+    # 在激活之前验证元配置文件是否存在（并且有效）。
     store = _get_meta_profile_store()
     try:
         with _store_errors():
@@ -259,10 +257,10 @@ def activate_meta_profile(
 
     def apply_active(settings: PersistedSettings) -> PersistedSettings:
         nonlocal applied
-        # Route through PersistedSettings.update() so activation also wires
-        # agent_settings (active_meta_profile + enable_classify_and_switch_llm_tool),
-        # which is what actually attaches the routing tool. A direct field
-        # assignment would record the active name but never enable the tool.
+        # 通过 PersistedSettings.update() 进行路由，因此激活也会连接 agent_settings (
+        # active_meta_profile + enable_classify_and_switch_llm_tool)，这实际上是附加路由
+        # 工具的。 直接字段分配将记录活动名称，但永远不会启用该工具。
+        #
         settings.update(
             {
                 "active_meta_profile": name,
@@ -271,7 +269,7 @@ def activate_meta_profile(
                 },
             }
         )
-        # ``update()`` drops the pointer when the agent cannot route (ACP).
+        # 当智能体无法路由 (ACP) 时，``update()`` 会丢弃指针。
         applied = settings.active_meta_profile == name
         return settings
 

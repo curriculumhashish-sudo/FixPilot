@@ -1,11 +1,9 @@
-"""Construction and lifecycle of the process-wide telemetry sink.
+"""全流程遥测接收器的构造和生命周期。
 
-Mirrors the singleton pattern used by ``persistence/store.py`` so tests can
-reset process state between cases.
+镜像 ``persistence/store.py`` 使用的单例模式，因此测试可以在案例之间重置进程状态。
 
-Everything here degrades rather than fails: a missing optional dependency, an
-unconfigured exporter, or a settings-store read error all resolve to the no-op
-sink. Analytics must never be able to prevent a server from starting.
+这里的一切都退化而不是失败：缺少的可选依赖、未配置的导出器、或者设置存储读取错误都会
+导致无操作的汇流点。 分析绝不能阻止服务器启动。
 """
 
 import asyncio
@@ -41,20 +39,20 @@ _server_started_emitted = False
 def _read_misc_settings_sync(config: Config) -> dict[str, Any]:
     from openhands.agent_server.persistence.store import get_settings_store
 
-    # Must pass config: the store singleton is fixed by the first call, and a
-    # no-arg call here would disable the cipher process-wide.
+    # 必须通过配置：存储单例由第一次调用修复，并且此处的无参数调用将禁用整个密码进程。
+    #
     settings = get_settings_store(config).load()
     return dict(settings.misc_settings) if settings is not None else {}
 
 
 async def _read_decision(config: Config) -> TelemetryDecision:
-    """Resolve consent from persisted settings, off the event loop."""
+    """从已持久化设置中解决同意问题，关闭事件循环。"""
     misc = await asyncio.to_thread(_read_misc_settings_sync, config)
     return resolve(misc)
 
 
 def _build_exporter(config: Config) -> TelemetryExporter | None:
-    """Select an exporter by kind, or ``None`` if it cannot be built."""
+    """按类型选择导出器，如果无法构建，则选择 ``None``。"""
     spec = config.telemetry
 
     if spec.exporter == "posthog":
@@ -67,7 +65,7 @@ def _build_exporter(config: Config) -> TelemetryExporter | None:
             logger.info("Telemetry exporter is 'posthog' but no API key is configured.")
             return None
         try:
-            # Lazy: the only line that pulls in the optional vendor dependency.
+            # 惰性：唯一引入可选供应商依赖项的行。
             from openhands.agent_server.telemetry.posthog_exporter import (
                 PostHogExporter,
             )
@@ -99,7 +97,7 @@ def _build_exporter(config: Config) -> TelemetryExporter | None:
 
 
 async def build_telemetry_sink(config: Config) -> TelemetrySink:
-    """Build the sink for ``config``, or a no-op if telemetry cannot run."""
+    """为 ``config`` 构建接收器，如果遥测无法运行，则构建无操作。"""
     global _telemetry_sink, _event_factory
 
     spec = config.telemetry
@@ -135,7 +133,7 @@ async def build_telemetry_sink(config: Config) -> TelemetrySink:
     try:
         decision = await _read_decision(config)
     except Exception as exc:
-        # Unreadable settings fail closed.
+        # 无法读取的设置无法关闭。
         logger.debug("Could not read telemetry consent: %s", type(exc).__name__)
         decision = resolve(None)
 
@@ -162,7 +160,7 @@ async def build_telemetry_sink(config: Config) -> TelemetrySink:
 
 
 def get_telemetry_sink() -> TelemetrySink:
-    """Return the process sink, or a no-op if one was never built."""
+    """返回进程接收器，如果从未构建过则返回无操作。"""
     if _telemetry_sink is None:
         return NoOpTelemetrySink()
     return _telemetry_sink
@@ -173,7 +171,7 @@ def get_event_factory() -> DiagnosticEventFactory | None:
 
 
 async def shutdown_telemetry_sink() -> None:
-    """Close the sink, draining what is still permitted to be sent."""
+    """关闭水槽，排出仍允许发送的内容。"""
     global _telemetry_sink
     sink = _telemetry_sink
     _telemetry_sink = None
@@ -185,7 +183,7 @@ async def shutdown_telemetry_sink() -> None:
 
 
 def reset_telemetry_sink() -> None:
-    """Drop process state without awaiting. For tests."""
+    """无需等待即可删除进程状态。 用于测试。"""
     global _telemetry_sink, _event_factory, _server_started_emitted
     _telemetry_sink = None
     _event_factory = None
@@ -193,11 +191,10 @@ def reset_telemetry_sink() -> None:
 
 
 def emit_server_started() -> None:
-    """Emit ``server_started`` once, if telemetry is active.
+    """如果遥测处于活动状态，则发出 ``server_started`` 一次。
 
-    Idempotent: a second call while a start is already outstanding is a no-op,
-    so a caller that runs on a retry path cannot produce an unpaired second
-    start.
+    Idempotent: 当启动已经完成时第二次调用是无操作，
+    因此，在重试路径上运行的调用者无法产生不配对的第二个开始。
     """
     global _server_started_emitted
     if _server_started_emitted:
@@ -207,7 +204,7 @@ def emit_server_started() -> None:
 
 
 def emit_server_stopped() -> None:
-    """Emit ``server_stopped``, but only if a start was actually emitted."""
+    """发出 ``server_stopped``，但前提是实际发出了开始。"""
     global _server_started_emitted
     if not _server_started_emitted:
         return
@@ -216,7 +213,7 @@ def emit_server_stopped() -> None:
 
 
 def _emit_lifecycle(event_name: EventName) -> bool:
-    """Emit a server lifecycle event. Returns whether it was actually sent."""
+    """发出服务器生命周期事件。 返回是否实际发送。"""
     try:
         sink = get_telemetry_sink()
         if not sink.enabled:
@@ -232,10 +229,10 @@ def _emit_lifecycle(event_name: EventName) -> bool:
 
 
 def notify_misc_settings_changed(misc_settings: dict[str, Any] | None) -> None:
-    """Re-resolve consent after a settings write.
+    """设置写入后重新解决同意。
 
-    The settings-update path is now the only way consent changes. Revocation
-    must take effect before the request returns and must discard the queue.
+    设置更新路径现在是同意更改的唯一方式。 撤销必须在请求返回之前生效，并且必须丢弃队
+    列。
     """
     sink = _telemetry_sink
     if sink is None:

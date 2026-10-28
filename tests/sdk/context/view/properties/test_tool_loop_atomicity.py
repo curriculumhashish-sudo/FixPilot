@@ -1,11 +1,10 @@
-"""Tests for ToolLoopAtomicityProperty.
+"""测试 ToolLoopAtomicityProperty。
 
-This module tests that the ToolLoopAtomicityProperty correctly ensures tool loops
-(sequences of action/observation pairs) form atomic units.
+该模块测试 ToolLoopAtomicityProperty 是否正确确保工具循环（动作/观察对的序列）形成原
+子单元。
 
-A tool loop starts with an action event that has thinking blocks and continues
-through all subsequent action/observation events until a non-tool-loop event is
-encountered. Action events without thinking blocks do not start a tool loop.
+工具循环始于一个包含思考块的动作事件，然后继续通过所有后续的动作/观察事件，直到遇到非
+工具循环事件。 没有思维块的动作事件不会启动工具循环。
 """
 
 from collections.abc import Sequence
@@ -26,25 +25,24 @@ THINKING = "Extended thinking..."
 
 
 class TestToolLoopAtomicityPropertyBase:
-    """Base class for ToolLoopAtomicityProperty test suites."""
+    """ToolLoopAtomicityProperty 测试套件的基类。"""
 
     def setup_method(self) -> None:
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
         self.property = ToolLoopAtomicityProperty()
 
 
 class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase):
-    """Tests for ToolLoopAtomicityProperty enforcement."""
+    """测试 ToolLoopAtomicityProperty 执行情况。"""
 
     def test_partial_tool_loop_forgotten(self) -> None:
-        """Test that if one event in a tool loop is forgotten, all events in that loop
-        are forgotten.
+        """测试如果工具循环中的一个事件被遗忘，则该循环中的所有事件
+        被遗忘了。
 
-        This simulates the scenario where condensation forgets some but not all
-        events from a tool loop. The tool loop atomicity logic should ensure that all
-        events in the loop are removed.
+        这模拟了上下文压缩忘记工具循环中的一些但不是全部事件的场景。 工具循环原子性逻
+        辑应确保删除循环中的所有事件。
         """
-        # Create a tool loop: action (thinking) -> obs -> action -> obs
+        # 创建工具循环：action（思考）->obs->action->obs
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -52,37 +50,37 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view has action_1, observation_1 forgotten but action_2, obs_2 kept
+        # 当前视图已忘记 action_1、observation_1，但保留了 action_2、obs_2
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_2", "resp_2", "call_2"),
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # action_2 and obs_2 should be forgotten due to tool loop atomicity
+        # 由于工具循环原子性，action_2 和 obs_2 应该被忘记
         assert "action_2" in events_to_remove
         assert "obs_2" in events_to_remove
 
     def test_complete_tool_loop_forgotten(self) -> None:
-        """Test that when all events in a tool loop are forgotten, they're removed."""
+        """测试当工具循环中的所有事件都被遗忘时，它们将被删除。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
         ]
 
-        # Current view has no events (all forgotten)
+        # 当前视图没有事件（全部忘记）
         current_view_events: list[LLMConvertibleEvent] = []
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing more to remove since the tool loop is already gone
+        # 由于工具循环已经消失，无需再删除任何内容
         assert len(events_to_remove) == 0
 
     def test_no_forgetting_preserves_tool_loop(self) -> None:
-        """Test that when no events in a tool loop are forgotten, all are preserved."""
+        """测试当工具循环中没有事件被遗忘时，所有事件都会被保留。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -90,29 +88,29 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view has all events
+        # 当前视图包含所有事件
         current_view_events: list[LLMConvertibleEvent] = list(all_events)
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing should be removed
+        # 任何东西都不应该被删除
         assert len(events_to_remove) == 0
 
     def test_tool_loop_between_non_tool_loop_events(self) -> None:
-        """Test that tool loops are bounded by non-tool-loop events."""
+        """测试工具循环是否受非工具循环事件限制。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_message_event("msg_1", "User message"),
-            # Tool loop starts (thinking blocks on first action)
+            # 工具循环开始（第一个动作的思维阻塞）
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
             create_action_event("action_2", "resp_2", "call_2"),
             create_observation_event("obs_2", "call_2"),
-            # Tool loop ends
+            # 工具循环结束
             create_message_event("msg_2", "Another user message"),
         ]
 
-        # Current view: first action forgotten but rest kept
+        # 当前视图：第一个操作被遗忘，但 REST 保留
         current_view_events: list[LLMConvertibleEvent] = [
             create_observation_event("obs_1", "call_1"),
             create_action_event("action_2", "resp_2", "call_2"),
@@ -120,18 +118,18 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_message_event("msg_2", "Another user message"),
         ]
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # All remaining tool loop events should be removed
+        # 应删除所有剩余的工具循环事件
         assert "obs_1" in events_to_remove
         assert "action_2" in events_to_remove
         assert "obs_2" in events_to_remove
-        # Message should be preserved
+        # 消息应保留
         assert "msg_2" not in events_to_remove
 
     def test_first_event_of_tool_loop_forgotten(self) -> None:
-        """Test that forgetting first event causes entire tool loop to be forgotten."""
+        """测试忘记第一个事件是否会导致整个工具循环被忘记。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -139,23 +137,23 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view has action_1 forgotten
+        # 当前视图已忘记 action_1
         current_view_events: list[LLMConvertibleEvent] = [
             create_observation_event("obs_1", "call_1"),
             create_action_event("action_2", "resp_2", "call_2"),
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # All tool loop events should be forgotten
+        # 所有工具循环事件都应该被忘记
         assert "obs_1" in events_to_remove
         assert "action_2" in events_to_remove
         assert "obs_2" in events_to_remove
 
     def test_middle_event_of_tool_loop_forgotten(self) -> None:
-        """Test that forgetting middle event causes entire tool loop to be forgotten."""
+        """测试忘记中间事件是否会导致整个工具循环被忘记。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -163,35 +161,35 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view has observation_1 forgotten
+        # 当前视图已忘记 observation_1
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_action_event("action_2", "resp_2", "call_2"),
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # All tool loop events in the view should be forgotten
+        # 视图中的所有工具循环事件都应该被忘记
         assert "action_1" in events_to_remove
         assert "action_2" in events_to_remove
         assert "obs_2" in events_to_remove
 
     def test_multiple_separate_tool_loops(self) -> None:
-        """Test that multiple separate tool loops are handled independently."""
+        """测试多个单独的工具循环是否独立处理。"""
         all_events: Sequence[LLMConvertibleEvent] = [
-            # First tool loop (thinking blocks start it)
+            # 第一个工具循环（思维块启动它）
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
-            # Gap (non-tool-loop event)
+            # 间隙（非工具循环事件）
             create_message_event("msg_1", "User message"),
-            # Second tool loop (thinking blocks start it)
+            # 第二个工具循环（思维块启动它）
             create_action_event("action_2", "resp_2", "call_2", thinking=THINKING),
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view: first tool loop complete, second partial (only obs, no action)
+        # 当前视图：第一个工具循环完成，第二个部分（仅观察，无操作）
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -199,53 +197,53 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Second tool loop's observation should be removed
-        # (the action isn't even in the view)
+        # 应删除第二个工具循环的观测结果（该操作甚至不在视图中）
+        #
         assert "obs_2" in events_to_remove
-        # First tool loop should be preserved
+        # 应保留第一个工具循环
         assert "action_1" not in events_to_remove
         assert "obs_1" not in events_to_remove
-        # Message should be preserved
+        # 消息应保留
         assert "msg_1" not in events_to_remove
 
     def test_single_action_observation_pair(self) -> None:
-        """Test that a single action/observation pair works correctly."""
+        """测试单个操作/观察对是否正常工作。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
         ]
 
-        # Current view has both events
+        # 当前视图有两个事件
         current_view_events: list[LLMConvertibleEvent] = list(all_events)
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing should be removed
+        # 任何东西都不应该被删除
         assert len(events_to_remove) == 0
 
     def test_single_action_forgotten(self) -> None:
-        """Test that a forgotten single-pair tool loop is handled correctly."""
+        """测试是否正确处理了被遗忘的单对工具循环。"""
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
         ]
 
-        # Current view has no events (forgotten)
+        # 当前视图没有事件（忘记）
         current_view_events: list[LLMConvertibleEvent] = []
 
-        # Enforce tool loop atomicity
+        # 强制工具循环原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing more to remove
+        # 没有更多可删除的了
         assert len(events_to_remove) == 0
 
     def test_actions_without_thinking_are_not_tool_loops(self) -> None:
-        """Test that action/observation pairs without thinking blocks are not tool
-        loops and therefore not subject to tool loop atomicity enforcement.
+        """测试没有思维块的行动/观察对不是工具
+        循环，因此不受工具循环原子性强制的约束。
         """
         all_events: Sequence[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1"),
@@ -254,7 +252,7 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
             create_observation_event("obs_2", "call_2"),
         ]
 
-        # Current view has action_1 and obs_1 forgotten
+        # 当前视图已忘记 action_1 和 obs_1
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_2", "resp_2", "call_2"),
             create_observation_event("obs_2", "call_2"),
@@ -262,17 +260,17 @@ class TestToolLoopAtomicityPropertyEnforcement(TestToolLoopAtomicityPropertyBase
 
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Without thinking blocks there is no tool loop, so nothing to enforce
+        # 如果没有思维块，就没有工具循环，因此无需强制执行
         assert len(events_to_remove) == 0
 
 
 class TestToolLoopAtomicityPropertyManipulationIndices(
     TestToolLoopAtomicityPropertyBase
 ):
-    """Tests for ToolLoopAtomicityProperty manipulation indices."""
+    """测试 ToolLoopAtomicityProperty 操纵指数。"""
 
     def test_no_manipulation_within_tool_loop(self) -> None:
-        """Test that events in a tool loop cannot be split by manipulation."""
+        """测试工具循环中的事件是否无法通过操作进行拆分。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -282,12 +280,12 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # The entire set of events is a tool loop, so the only indices are at the start
-        # and end.
+        # 整个事件集是一个工具循环，因此唯一的索引位于开始和结束处。
+        #
         assert indices == {0, 4}
 
     def test_manipulation_allowed_between_tool_loops(self) -> None:
-        """Test that manipulation is allowed between separate tool loops."""
+        """测试单独的工具循环之间是否允许进行操作。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -298,12 +296,12 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # Indices at start, end, and wrapping the user message. No indices inside the
-        # tool loops.
+        # 用户消息开始、结束和包装处的索引。 工具循环内没有索引。
+        #
         assert indices == {0, 2, 3, 5}
 
     def test_manipulation_allowed_before_first_tool_loop(self) -> None:
-        """Test that manipulation is allowed before the first tool loop."""
+        """测试在第一个工具循环之前是否允许进行操作。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_message_event("msg_1", "User message"),
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
@@ -312,11 +310,11 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # Should not have an index in between the action and observation.
+        # 操作和观测结果之间不应有索引。
         assert indices == {0, 1, 3}
 
     def test_single_event_complete_indices(self) -> None:
-        """Test that a single event has complete manipulation indices."""
+        """测试单个事件是否具有完整的操纵索引。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_message_event("msg_1", "User message"),
         ]
@@ -325,14 +323,14 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
         assert indices == ManipulationIndices.complete(current_view_events)
 
     def test_empty_events_complete_indices(self) -> None:
-        """Test that an empty event list has complete manipulation indices."""
+        """测试空事件列表是否具有完整的操作索引。"""
         current_view_events: list[LLMConvertibleEvent] = []
 
         indices = self.property.manipulation_indices(current_view_events)
         assert indices == ManipulationIndices.complete(current_view_events)
 
     def test_tool_loop_with_message_breaks_at_boundary(self) -> None:
-        """Test that a message event breaks the tool loop."""
+        """测试消息事件是否会中断工具循环。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1", thinking=THINKING),
             create_observation_event("obs_1", "call_1"),
@@ -343,13 +341,14 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # All indices except 1 and 4, as those are between actions and observations.
+        # 除 1 和 4 之外的所有索引，因为这些索引位于操作和观测结果之间。
         assert indices == {0, 2, 3, 5}
 
     def test_parallel_actions_in_tool_loop(self) -> None:
-        """Test that parallel actions (same response) are in the same tool loop."""
-        # Two actions from same response (parallel) followed by observations.
-        # First action has thinking blocks, starting the tool loop.
+        """测试并行操作（相同的响应）是否位于同一工具循环中。"""
+        # 来自相同响应（并行）的两个操作，后跟观测结果。 第一个动作有思维块，启动工具循
+        # 环。
+        #
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1a", thinking=THINKING),
             create_action_event("action_1b", "resp_1", "call_1b"),
@@ -359,11 +358,11 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # It's one big tool loop, so only the start and end are manipulable.
+        # 这是一个大的工具循环，因此只有开始和结束是可操作的。
         assert indices == {0, 4}
 
     def test_no_tool_loop_without_thinking_blocks(self) -> None:
-        """Test that actions without thinking blocks do not form a tool loop."""
+        """测试没有思考块的行动不会形成工具循环。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "resp_1", "call_1"),
             create_observation_event("obs_1", "call_1"),
@@ -373,5 +372,5 @@ class TestToolLoopAtomicityPropertyManipulationIndices(
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # Without thinking blocks, no tool loop is formed. All indices are available.
+        # 没有思考块，就没有工具循环。 所有指数均可用。
         assert indices == ManipulationIndices.complete(current_view_events)

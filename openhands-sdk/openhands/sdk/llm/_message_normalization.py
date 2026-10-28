@@ -8,7 +8,7 @@ class _ProviderFields(BaseModel):
 
 
 class ChatMessageMetadata(_ProviderFields):
-    """LiteLLM deletes absent optional fields despite declaring them on Message."""
+    """LiteLLM 删除缺少的可选字段，尽管在消息上声明了它们。"""
 
     reasoning_content: str | None = None
     thinking_blocks: list[dict[str, object]] | None = None
@@ -75,7 +75,7 @@ def normalize_text_part(part: object) -> _TextPart | None:
 
 
 def normalize_response_output(item: object) -> ResponseOutput | None:
-    """Project provider objects and mappings onto the fields the SDK consumes."""
+    """项目提供者对象和映射到 SDK 使用的字段。"""
     try:
         kind = _OutputKind.model_validate(item).type
     except ValidationError:

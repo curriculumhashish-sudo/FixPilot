@@ -1,11 +1,11 @@
-"""Tests for the simplified TODO scanner functionality."""
+"""测试简化的 TODO 扫描仪功能。"""
 
 import sys
 import tempfile
 from pathlib import Path
 
 
-# Import the scanner functions
+# 导入扫描仪功能
 todo_mgmt_path = (
     Path(__file__).parent.parent.parent
     / "examples"
@@ -20,7 +20,7 @@ from scanner import (  # noqa: E402  # type: ignore[import-not-found]
 
 
 def test_scan_python_file_with_todos():
-    """Test scanning a Python file with TODO comments."""
+    """测试扫描包含 TODO 条注释的 Python 文件。"""
     content = """#!/usr/bin/env python3
 def function1():
     # TODO(openhands): Add input validation
@@ -45,7 +45,7 @@ def function2():
 
 
 def test_scan_typescript_file():
-    """Test scanning a TypeScript file."""
+    """测试扫描 TypeScript 文件。"""
     content = """function processData(): string {
     // TODO(openhands): Add validation
     return data;
@@ -65,7 +65,7 @@ def test_scan_typescript_file():
 
 
 def test_scan_java_file():
-    """Test scanning a Java file."""
+    """测试扫描 Java 文件。"""
     content = """public class Test {
     public void method() {
         // TODO(openhands): Implement this method
@@ -87,7 +87,7 @@ def test_scan_java_file():
 
 
 def test_scan_rust_file():
-    """Test scanning Rust files."""
+    """测试扫描 Rust 文件。"""
     content = """fn main() {
     // TODO(openhands): Add error handling
     println!("Hello, world!");
@@ -106,7 +106,7 @@ def test_scan_rust_file():
 
 
 def test_scan_unsupported_file_extension():
-    """Test that unsupported file extensions are ignored."""
+    """测试是否忽略不支持的文件扩展名。"""
     content = """// TODO(openhands): This should be ignored"""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
@@ -121,7 +121,7 @@ def test_scan_unsupported_file_extension():
 
 
 def test_scan_all_todos():
-    """Test that all TODO(openhands) comments are found."""
+    """测试是否找到所有 TODO(OpenHands) 评论。"""
     content = """def test():
     # TODO(openhands): This should be found
     # TODO(openhands): This should also be found
@@ -144,19 +144,19 @@ def test_scan_all_todos():
 
 
 def test_scan_directory():
-    """Test scanning a directory with multiple files."""
+    """测试扫描包含多个文件的目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
 
-        # Create Python file with TODO (avoid "test" in filename)
+        # 使用 TODO 创建 Python 文件（避免文件名中包含“test”）
         py_file = temp_path / "main.py"
         py_file.write_text("# TODO(openhands): Python todo\nprint('hello')")
 
-        # Create TypeScript file with TODO (avoid "test" in filename)
+        # 使用 TODO 创建 TypeScript 文件（避免文件名中包含“test”）
         ts_file = temp_path / "app.ts"
         ts_file.write_text("// TODO(openhands): TypeScript todo\nconsole.log('hello');")
 
-        # Create unsupported file (should be ignored)
+        # 创建不受支持的文件（应忽略）
         js_file = temp_path / "script.js"
         js_file.write_text("// TODO(openhands): Should be ignored")
 
@@ -169,7 +169,7 @@ def test_scan_directory():
 
 
 def test_todo_with_continuation_lines():
-    """Test TODO with continuation comment lines."""
+    """使用连续注释行测试 TODO。"""
     content = """def test():
     # TODO(openhands): Add error handling
     # This should handle network timeouts
@@ -195,7 +195,7 @@ def test_todo_with_continuation_lines():
 
 
 def test_todo_without_description():
-    """Test TODO without initial description but with continuation lines."""
+    """测试 TODO 没有初始描述，但有连续行。"""
     content = """def test():
     # TODO(openhands)
     # Implement user authentication
@@ -217,7 +217,7 @@ def test_todo_without_description():
 
 
 def test_empty_file():
-    """Test scanning an empty file."""
+    """测试扫描空文件。"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write("")
         f.flush()
@@ -230,7 +230,7 @@ def test_empty_file():
 
 
 def test_custom_todo_identifier():
-    """Test scanning with a custom TODO identifier."""
+    """使用自定义 TODO 标识符测试扫描。"""
     content = """def test():
     # TODO(myteam): Custom identifier test
     # This should be found with custom identifier
@@ -241,7 +241,7 @@ def test_custom_todo_identifier():
         f.write(content)
         f.flush()
 
-        # Test with custom identifier
+        # 使用自定义标识符进行测试
         todos = scan_file_for_todos(Path(f.name), "TODO(myteam)")
 
     Path(f.name).unlink()
@@ -253,7 +253,7 @@ def test_custom_todo_identifier():
 
 
 def test_custom_identifier_with_special_chars():
-    """Test custom identifier with regex special characters."""
+    """使用正则表达式特殊字符测试自定义标识符。"""
     content = """def test():
     # TODO[urgent]: Special chars in identifier
     pass
@@ -263,7 +263,7 @@ def test_custom_identifier_with_special_chars():
         f.write(content)
         f.flush()
 
-        # Test with identifier containing regex special chars
+        # 使用包含正则表达式特殊字符的标识符进行测试
         todos = scan_file_for_todos(Path(f.name), "TODO[urgent]")
 
     Path(f.name).unlink()

@@ -1,12 +1,12 @@
 """
-API Compliance Test: Unmatched tool_result
+API 合规性测试：无与伦比的 tool_result
 
-Tests how different LLM APIs respond when a tool_result message references
-a tool_call_id that doesn't exist in any prior tool_use.
+测试不同 LLM APIs 对于一个 tool_result 消息引用不存在于任何先前 tool_call_id 的
+tool_use 的响应如何。
 
-Pattern:
+图案：
     [system] → [user] → [assistant (no tool_use)] → [tool with unknown id]
-                                                     ↑ References non-existent ID!
+                                                     ↑ 引用的 ID 不存在！
 """
 
 from openhands.sdk.llm import Message, TextContent
@@ -26,7 +26,7 @@ This pattern can occur when:
 
 
 class UnmatchedToolResultTest(BaseAPIComplianceTest):
-    """Test API response to unmatched tool_result."""
+    """测试 API 对不匹配的 tool_result 的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -37,7 +37,7 @@ class UnmatchedToolResultTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with unmatched tool_result."""
+        """构建具有不匹配的 tool_result 的消息序列。"""
         return [
             Message(
                 role="system",
@@ -47,14 +47,14 @@ class UnmatchedToolResultTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="List the files in the current directory.")],
             ),
-            # Assistant message WITHOUT tool_use
+            # 助理消息 WITHOUT tool_use
             Message(
                 role="assistant",
                 content=[
                     TextContent(text="I can help you list files. What directory?")
                 ],
             ),
-            # Tool result that references a non-existent tool_call_id
+            # 引用不存在的 tool_call_id 的工具结果
             Message(
                 role="tool",
                 content=[TextContent(text="file1.txt\nfile2.txt\nfile3.txt")],

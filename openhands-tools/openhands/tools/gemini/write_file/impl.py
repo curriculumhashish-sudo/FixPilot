@@ -1,4 +1,4 @@
-"""Write file tool executor implementation."""
+"""写文件工具执行器实现。"""
 
 import os
 from pathlib import Path
@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 
 
 class WriteFileExecutor(ToolExecutor[WriteFileAction, WriteFileObservation]):
-    """Executor for write_file tool."""
+    """write_file 工具的执行器。"""
 
     def __init__(self, workspace_root: str):
-        """Initialize executor with workspace root.
+        """使用工作区 root 初始化执行器。
 
         Args:
-            workspace_root: Root directory for file operations
+            workspace_root: 文件操作的根目录
         """
         self.workspace_root = Path(workspace_root)
 
@@ -31,33 +31,33 @@ class WriteFileExecutor(ToolExecutor[WriteFileAction, WriteFileObservation]):
         action: WriteFileAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> WriteFileObservation:
-        """Execute write file action.
+        """执行写文件操作。
 
         Args:
-            action: WriteFileAction with file_path and content
-            conversation: Execution context
+            action: WriteFileAction 与 file_path 和内容
+            conversation: 执行上下文
 
         Returns:
-            WriteFileObservation with result
+            WriteFileObservation 结果
         """
 
         file_path = action.file_path
         content = action.content
 
-        # Resolve path relative to workspace
+        # 解析相对于工作区的路径
         if not os.path.isabs(file_path):
             resolved_path = self.workspace_root / file_path
         else:
             resolved_path = Path(file_path)
 
-        # Check if path is a directory
+        # 检查path是否是一个目录
         if resolved_path.exists() and resolved_path.is_dir():
             return WriteFileObservation.from_text(
                 is_error=True,
                 text=(f"Error: Path is a directory, not a file: {resolved_path}"),
             )
 
-        # Read old content if file exists
+        # 如果文件存在则读取旧内容
         is_new_file = not resolved_path.exists()
         old_content = None
         if not is_new_file:
@@ -68,10 +68,10 @@ class WriteFileExecutor(ToolExecutor[WriteFileAction, WriteFileObservation]):
                 pass
 
         try:
-            # Create parent directories if needed
+            # 如果需要，创建父目录
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write the file
+            # 写入文件
             with open(resolved_path, "w", encoding="utf-8") as f:
                 f.write(content)
 

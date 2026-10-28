@@ -1,4 +1,4 @@
-"""Tests for prompt generation utilities (Issue #1478)."""
+"""测试提示词生成实用程序（问题 #1478）。"""
 
 from openhands.sdk.skills import (
     Skill,
@@ -7,14 +7,14 @@ from openhands.sdk.skills import (
 
 
 def test_to_prompt_generates_xml() -> None:
-    """to_prompt() should generate valid XML for skills in AgentSkills format."""
-    # Empty list shows "no available skills"
+    """to_prompt() 应该为 AgentSkills 格式的技能生成有效的 XML。"""
+    # 空列表显示“没有可用技能”
     assert (
         to_prompt([])
         == "<available_skills>\n  no available skills\n</available_skills>"
     )
 
-    # Single skill with description
+    # 单一技能及描述
     skill = Skill(name="pdf-tools", content="# PDF", description="Process PDFs.")
     result = to_prompt([skill])
     assert "<skill>" in result
@@ -22,7 +22,7 @@ def test_to_prompt_generates_xml() -> None:
     assert "<description>Process PDFs.</description>" in result
     assert "<available_skills>" in result
 
-    # Multiple skills
+    # 多种技能
     skills = [
         Skill(name="pdf-tools", content="# PDF", description="Process PDFs."),
         Skill(name="code-review", content="# Code", description="Review code."),
@@ -32,8 +32,8 @@ def test_to_prompt_generates_xml() -> None:
 
 
 def test_to_prompt_never_emits_location() -> None:
-    """to_prompt() must not emit <location>: invoke_skill is the only entry
-    point and the agent must not be given the file path."""
+    """to_prompt() 不得发出 <location>：invoke_skill 是唯一的条目
+    点和智能体不得指定文件路径。"""
     skill = Skill(
         name="pdf-tools",
         content="# PDF",
@@ -46,19 +46,19 @@ def test_to_prompt_never_emits_location() -> None:
 
 
 def test_to_prompt_escapes_xml() -> None:
-    """to_prompt() should escape XML special characters."""
+    """to_prompt() 应该转义 XML 个特殊字符。"""
     skill = Skill(
         name="test", content="# Test", description='Handle <tags> & "quotes".'
     )
     result = to_prompt([skill])
     assert "&lt;tags&gt;" in result
     assert "&amp;" in result
-    # Quotes don't need escaping in XML element content (only in attributes)
+    # XML 元素内容中的引号不需要转义（仅在属性中）
     assert '"quotes"' in result
 
 
 def test_to_prompt_uses_content_fallback() -> None:
-    """to_prompt() should use content when no description."""
+    """to_prompt() 在没有描述时应使用内容。"""
     skill = Skill(name="test", content="# Header\n\nActual content here.")
     result = to_prompt([skill])
     assert "Actual content here." in result
@@ -66,37 +66,38 @@ def test_to_prompt_uses_content_fallback() -> None:
 
 
 def test_to_prompt_content_fallback_counts_remaining_as_truncated() -> None:
-    """to_prompt() should count content after first line as truncated."""
-    # Content with header, description line, and additional content
+    """to_prompt() 应该将第一行之后的内容计为被截断。"""
+    # 包含标题、描述行和附加内容的内容
     content = "# Header\n\nFirst line used as description.\n\nMore content here."
     skill = Skill(name="test", content=content, source="/skills/test.md")
     result = to_prompt([skill])
 
-    # Should use first non-header line as description
+    # 应使用第一个非标题行作为描述
     assert "First line used as description." in result
-    # Should indicate truncation for remaining content and point the agent at
-    # invoke_skill (not the file path) as the way to load the full content.
+    # 应指示剩余内容的截断并将智能体指向 invoke_skill（不是文件路径）作为加载完整内容的
+    # 方式。
+    #
     assert "characters truncated" in result
     assert 'invoke_skill(name="test")' in result
     assert "/skills/test.md" not in result
 
 
 def test_to_prompt_truncates_long_descriptions() -> None:
-    """to_prompt() should truncate long descriptions with indicator."""
+    """to_prompt() 应使用指示符截断长描述。"""
     skill = Skill(name="test", content="# Test", description="short")
     skill.description = "A" * 1034
     result = to_prompt([skill])
 
-    # Should contain truncation indicator pointing at invoke_skill
+    # 应包含指向 invoke_skill 的截断指示符
     assert "... [10 characters truncated" in result
     assert 'invoke_skill(name="test")' in result
-    # Should contain first 1024 chars
+    # 应包含前 1024 个字符
     assert "A" * 1024 in result
 
 
 def test_to_prompt_truncation_points_at_invoke_skill_not_source() -> None:
-    """Truncation message must direct the agent to invoke_skill, not the
-    skill's source path."""
+    """截断消息必须将智能体指向 invoke_skill，而不是
+    技能的来源路径。"""
     skill = Skill(
         name="test",
         content="# Test",

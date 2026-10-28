@@ -1,18 +1,18 @@
-"""Client-defined tools via the agent-server API.
+"""通过智能体-服务器 API 客户端定义的工具。
 
-Demonstrates the server-side path for client-defined tools: the agent runs
-inside a local ``openhands.agent_server`` subprocess, tool specs are sent in
-``POST /api/conversations``, and the SDK broadcasts ``ActionEvent`` s over
-WebSocket so this client process can intercept them — exactly what a browser
-frontend (e.g. Agent Canvas) would do.
+演示客户端定义工具的服务器端路径：智能体在本地 ``openhands.agent_server`` 子进程内运
+行，工具规格在其中发送
+``POST /api/conversations``，并且 SDK 通过 WebSocket 广播 ``ActionEvent`` ，因此该客
+户端进程可以拦截它们——这正
+是浏览器前端 (e.g. Agent Canvas）就可以了。
 
-Differences from the standalone SDK example:
-  - No local tool registration: the server calls ``ClientTool.from_spec()`` and
-    injects ``Tool(name=...)`` into the agent automatically.
-  - ``ActionEvent`` s arrive asynchronously via WebSocket through callbacks.
-  - ``client_tools=SPECS`` is the only new parameter on ``Conversation``.
+与独立 SDK 示例的差异：
+  - 没有本地工具注册：服务器自动调用``ClientTool.from_spec()``并将``Tool(name=...)``
+  注入智能体。
+  - ``ActionEvent`` 通过 WebSocket 到回调异步到达。
+  - ``client_tools=SPECS`` 是 ``Conversation`` 上唯一的新参数。
 
-Usage:
+用途：
     LLM_API_KEY=... uv run examples/02_remote_agent_server/14_client_defined_tools.py
 """
 
@@ -31,7 +31,7 @@ from openhands.tools.preset.default import get_default_agent
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# 1. Define tools via JSON spec — no Python executor, no server-side code
+# 1. 通过 JSON 规范定义工具 — 无 Python 执行器，无服务器端代码
 # ---------------------------------------------------------------------------
 
 SPECS = [
@@ -79,8 +79,8 @@ SPECS = [
 CLIENT_TOOL_NAMES = {spec.name for spec in SPECS}
 
 # ---------------------------------------------------------------------------
-# 2. Event callback: intercept client tool calls delivered over WebSocket
-#    In a real browser client this would forward the call to the UI layer.
+# 2. 事件回调：拦截通过 WebSocket 传递的客户端工具调用在真实的浏览器客户端中，这会将调用
+# 转发到 UI 层。
 # ---------------------------------------------------------------------------
 
 intercepted: list[dict] = []
@@ -94,7 +94,7 @@ def on_event(event: Event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 3. Build LLM — the agent runs on the server, this config is serialised there
+# 3. 构建 LLM — 智能体在服务器上运行，此配置在那里序列化
 # ---------------------------------------------------------------------------
 
 api_key = os.getenv("LLM_API_KEY")
@@ -107,7 +107,7 @@ llm = LLM(
 )
 
 # ---------------------------------------------------------------------------
-# 4. Start a local agent-server, connect, and run the conversation
+# 4. 启动本地智能体-服务器，连接并运行对话
 # ---------------------------------------------------------------------------
 
 with ManagedAPIServer(port=8004) as server:
@@ -117,15 +117,16 @@ with ManagedAPIServer(port=8004) as server:
 
     workspace = Workspace(host=server.base_url, working_dir=workspace_dir)
 
-    # The agent does NOT need to list client tools — the server injects them
-    # automatically when it processes the client_tools field in the request.
+    # 智能体确实不需要列出客户端工具 - 服务器在处理请求中的 client_tools 字段时自动注入
+    # 它们。
+    #
     agent = get_default_agent(llm=llm, cli_mode=True)
 
     conversation = Conversation(
         agent=agent,
         workspace=workspace,
         callbacks=[on_event],
-        client_tools=SPECS,  # sent to server in POST /api/conversations
+        client_tools=SPECS,  # 发送到 POST /api/conversations 中的服务器
     )
     assert isinstance(conversation, RemoteConversation)
 
@@ -141,7 +142,7 @@ with ManagedAPIServer(port=8004) as server:
         conversation.run()
 
         # -----------------------------------------------------------------------
-        # 5. Verify that the client tools were actually called over WebSocket
+        # 5. 验证客户端工具实际上是通过 WebSocket 调用的
         # -----------------------------------------------------------------------
 
         logger.info("\n=== %d client tool call(s) intercepted ===", len(intercepted))

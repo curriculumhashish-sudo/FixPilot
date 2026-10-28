@@ -1,5 +1,5 @@
 /**
- * Conversation manager for handling multiple conversations
+ * 用于处理多个对话的对话管理器
  */
 
 import { HttpClient } from '../client/http-client';
@@ -130,7 +130,7 @@ export class ConversationManager {
   }
 
   /**
-   * Search/list conversations
+   * 搜索/列出对话
    */
   async searchConversations(
     options: ConversationSearchRequest = {}
@@ -145,7 +145,7 @@ export class ConversationManager {
   }
 
   /**
-   * Count conversations matching the provided filters.
+   * 计算与提供的过滤器匹配的对话。
    */
   async countConversations(
     options: { status?: ConversationExecutionStatus } = {}
@@ -157,7 +157,7 @@ export class ConversationManager {
   }
 
   /**
-   * Batch get conversations by ID.
+   * 通过ID批量获取对话。
    */
   async getConversations(
     conversationIds: ConversationID[]
@@ -169,7 +169,7 @@ export class ConversationManager {
   }
 
   /**
-   * Get all conversations (convenience method)
+   * 获取所有对话（便捷方法）
    */
   async getAllConversations(options?: { tag?: string[] }): Promise<ConversationInfo[]> {
     const conversations: ConversationInfo[] = [];
@@ -190,7 +190,7 @@ export class ConversationManager {
   }
 
   /**
-   * Get a specific conversation by ID
+   * 通过ID获取特定对话
    */
   async getConversation(conversationId: ConversationID): Promise<ConversationInfo> {
     const response = await this.client.get<ConversationInfo>(
@@ -200,7 +200,7 @@ export class ConversationManager {
   }
 
   /**
-   * Create a new conversation
+   * 创建新对话
    */
   async createConversation(
     agent: AgentBase,
@@ -235,7 +235,7 @@ export class ConversationManager {
   }
 
   /**
-   * Load an existing conversation
+   * 加载现有对话
    */
   async loadConversation(
     conversationId: ConversationID,
@@ -259,7 +259,7 @@ export class ConversationManager {
   }
 
   /**
-   * Search ACP-capable conversations.
+   * 搜索支持 ACP 的对话。
    */
   async searchACPConversations(
     options: ConversationSearchRequest = {}
@@ -274,7 +274,7 @@ export class ConversationManager {
   }
 
   /**
-   * Count ACP-capable conversations.
+   * 对支持 ACP 的对话进行计数。
    */
   async countACPConversations(
     options: { status?: ConversationExecutionStatus } = {}
@@ -286,7 +286,7 @@ export class ConversationManager {
   }
 
   /**
-   * Batch get ACP-capable conversations by ID.
+   * 按 ID 批量获取支持 ACP 的对话。
    */
   async getACPConversations(
     conversationIds: ConversationID[]
@@ -301,7 +301,7 @@ export class ConversationManager {
   }
 
   /**
-   * Get all ACP-capable conversations (convenience method).
+   * 获取所有支持 ACP 的对话（便捷方法）。
    */
   async getAllACPConversations(): Promise<ACPConversationInfo[]> {
     const conversations: ACPConversationInfo[] = [];
@@ -321,7 +321,7 @@ export class ConversationManager {
   }
 
   /**
-   * Get a specific ACP-capable conversation by ID.
+   * 通过 ID 获取特定的 ACP 功能对话。
    */
   async getACPConversation(conversationId: ConversationID): Promise<ACPConversationInfo> {
     const response = await this.client.get<ACPConversationInfo>(
@@ -331,7 +331,7 @@ export class ConversationManager {
   }
 
   /**
-   * Create a new ACP-capable conversation.
+   * 创建一个新的支持 ACP 的对话。
    */
   async createACPConversation(
     agent: ACPAgentConfig,
@@ -365,7 +365,7 @@ export class ConversationManager {
   }
 
   /**
-   * Switch a conversation to a named LLM profile.
+   * 将对话切换到命名的 LLM 配置文件。
    */
   async switchProfile(conversationId: ConversationID, profileName: string): Promise<void> {
     await this.client.post<Success>(`/api/conversations/${conversationId}/switch_profile`, {
@@ -374,16 +374,16 @@ export class ConversationManager {
   }
 
   /**
-   * Delete a conversation
+   * 删除对话
    */
   async deleteConversation(conversationId: ConversationID): Promise<void> {
     await this.client.delete<Success>(`/api/conversations/${conversationId}`);
   }
 
   /**
-   * Update conversation metadata (e.g. title) and resolve with the updated
-   * conversation. The PATCH endpoint answers only `Success`, so the
-   * conversation is read back after the update.
+   * 更新对话元数据 (e.g. 标题）并用更新后的解决
+   * 谈话。 PATCH 端点只回答 `Success`，所以
+   * 更新后会回读对话。
    */
   async updateConversation(
     conversationId: ConversationID,
@@ -394,7 +394,7 @@ export class ConversationManager {
   }
 
   /**
-   * Close the manager and cleanup resources
+   * 关闭管理器并清理资源
    */
   close(): void {
     this.server.close();

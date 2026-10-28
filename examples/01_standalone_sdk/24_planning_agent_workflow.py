@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Planning Agent Workflow Example
+规划智能体工作流程示例
 
-This example demonstrates a two-stage workflow:
-1. Planning Agent: Analyzes the task and creates a detailed implementation plan
-2. Execution Agent: Implements the plan with full editing capabilities
+此示例演示了一个两阶段工作流程：
+1. 规划智能体：分析任务并创建详细的实施计划
+2. 执行智能体：以完整的编辑功能实施计划
 
-The task: Create a Python web scraper that extracts article titles and URLs
+任务：创建一个 Python 网页爬虫来提取文章标题和 URLs
 from a news website, handles rate limiting, and saves results to JSON.
 """
 
@@ -23,20 +23,20 @@ from openhands.tools.preset.planning import get_planning_agent
 
 
 def get_event_content(event):
-    """Extract content from an event."""
+    """从事件中提取内容。"""
     if hasattr(event, "llm_message"):
         return "".join(content_to_str(event.llm_message.content))
     return str(event)
 
 
-"""Run the planning agent workflow example."""
+"""运行规划智能体工作流程示例。"""
 
-# Create a temporary workspace
+# 创建临时工作区
 workspace_dir = Path(tempfile.mkdtemp())
 plan_path = workspace_dir / ".agents_tmp" / "PLAN.md"
 print(f"Working in: {workspace_dir}")
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -48,7 +48,7 @@ llm = LLM(
     usage_id="agent",
 )
 
-# Task description
+# 任务描述
 task = """
 Create a Python web scraper with the following requirements:
 - Scrape article titles and URLs from a news website
@@ -63,16 +63,16 @@ print("=" * 80)
 print("PHASE 1: PLANNING")
 print("=" * 80)
 
-# Create Planning Agent with read-only tools
+# 使用只读工具创建计划智能体
 planning_agent = get_planning_agent(llm=llm)
 
-# Create conversation for planning
+# 创建对话以进行规划
 planning_conversation = Conversation(
     agent=planning_agent,
     workspace=str(workspace_dir),
 )
 
-# Run planning phase
+# 运行计划阶段
 print("Planning Agent is analyzing the task and creating implementation plan...")
 planning_conversation.send_message(
     f"Please analyze this web scraping task and create a detailed "
@@ -89,16 +89,16 @@ print("\n" + "=" * 80)
 print("PHASE 2: EXECUTION")
 print("=" * 80)
 
-# Create Execution Agent with full editing capabilities
+# 创建具有完整编辑功能的执行智能体
 execution_agent = get_default_agent(llm=llm, cli_mode=True)
 
-# Create conversation for execution
+# 创建执行对话
 execution_conversation = Conversation(
     agent=execution_agent,
     workspace=str(workspace_dir),
 )
 
-# Prepare execution prompt with reference to the plan file
+# 参考计划文件准备执行提示词
 execution_prompt = f"""
 Please implement the web scraping project according to the implementation plan.
 
@@ -115,7 +115,7 @@ print("Execution Agent is implementing the plan...")
 execution_conversation.send_message(execution_prompt)
 execution_conversation.run()
 
-# Get the last message from the conversation
+# 获取对话中的最后一条消息
 execution_result = execution_conversation.state.events[-1]
 
 print("\n" + "=" * 80)
@@ -128,12 +128,12 @@ print("WORKFLOW COMPLETE")
 print("=" * 80)
 print(f"Project files created in: {workspace_dir}")
 
-# List created files
+# 列出已创建的文件
 print("\nCreated files:")
 for file_path in workspace_dir.rglob("*"):
     if file_path.is_file():
         print(f"  - {file_path.relative_to(workspace_dir)}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

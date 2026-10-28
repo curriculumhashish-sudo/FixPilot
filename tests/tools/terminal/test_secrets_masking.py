@@ -1,4 +1,4 @@
-"""Tests for automatic secrets masking in TerminalExecutor."""
+"""在 TerminalExecutor 中测试自动机密屏蔽。"""
 
 import tempfile
 from unittest.mock import Mock
@@ -14,17 +14,17 @@ from openhands.tools.terminal.impl import TerminalExecutor
 
 
 def test_terminal_executor_without_conversation():
-    """Test that TerminalExecutor works normally without conversation (no masking)."""
+    """测试TerminalExecutor在没有对话的情况下是否正常工作（无屏蔽）。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create executor without conversation
+        # 无需对话即可创建执行者
         executor = TerminalExecutor(working_dir=temp_dir)
 
         try:
-            # Execute a command that outputs a secret value
+            # 执行输出机密值的命令
             action = TerminalAction(command="echo 'The secret is: secret-value-123'")
             result = executor(action)
 
-            # Check that the output is not masked (no conversation provided)
+            # 检查输出是否未被屏蔽（未提供对话）
             assert "secret-value-123" in result.text
             assert "<secret-hidden>" not in result.text
 
@@ -33,9 +33,9 @@ def test_terminal_executor_without_conversation():
 
 
 def test_terminal_executor_with_conversation_secrets():
-    """Test TerminalExecutor uses secrets from conversation.state.secret_registry."""
+    """测试 TerminalExecutor 使用 conversation.state.secret_registry 中的机密。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a conversation with secrets
+        # 与机密创建对话
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
@@ -53,13 +53,13 @@ def test_terminal_executor_with_conversation_secrets():
             secrets=test_secrets,
         )
 
-        # Force subprocess mode so we have a single session to mock
+        # 强制子进程模式，以便我们有一个会话到模拟对象
         executor = TerminalExecutor(working_dir=temp_dir, terminal_type="subprocess")
 
         try:
-            # Mock the session to avoid subprocess issues in tests
+            # 模拟对象避免子进程测试中出现问题的会话
             mock_session = Mock()
-            # session.execute returns TerminalObservation
+            # session.execute 返回 TerminalObservation
             mock_observation = TerminalObservation(
                 command="echo 'Token: $SECRET_TOKEN, Key: $API_KEY'",
                 exit_code=0,
@@ -71,19 +71,19 @@ def test_terminal_executor_with_conversation_secrets():
             mock_session._closed = False
             executor._session = mock_session
 
-            # Execute command with conversation - secrets should be exported and masked
+            # 通过对话执行命令 - 机密应导出并屏蔽
             action = TerminalAction(
                 command="echo 'Token: $SECRET_TOKEN, Key: $API_KEY'"
             )
             result = executor(action, conversation=conversation)
 
-            # Verify that session.execute was called
+            # 验证 session.execute 被调用
             assert mock_session.execute.called
 
-            # Check that both secrets were masked in the output
+            # 检查两个机密在输出中都被屏蔽
             assert "secret-value-123" not in result.text
             assert "another-secret-456" not in result.text
-            # SecretsManager uses <secret-hidden> as the mask
+            # SecretsManager 使用 <secret-hidden> 作为掩码
             assert "<secret-hidden>" in result.text
 
         finally:
@@ -92,7 +92,7 @@ def test_terminal_executor_with_conversation_secrets():
 
 
 def test_terminal_executor_masks_secret_not_referenced_by_command():
-    """Secrets are masked even when the command never references their name."""
+    """即使命令从未引用其名称，机密也会被屏蔽。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"

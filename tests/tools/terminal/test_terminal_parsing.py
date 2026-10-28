@@ -141,10 +141,10 @@ def test_incomplete_heredoc_does_not_need_completion_boundary():
 
 
 def test_completion_boundary_is_platform_independent():
-    """The guard must not depend on a `bash` executable being on PATH.
+    """防护不能依赖于 PATH 上的 `bash` 可执行文件。
 
-    On Windows tree-sitter reports parse errors for these forms, so the
-    decision is made from the tree alone and must match on every platform.
+    在 Windows 上，树管理员会报告这些表单的解析错误，因此决策仅根据树做出，并且必须在
+    每个平台上匹配。
     """
     assert needs_heredoc_completion_boundary(
         "cat <<'EOF'\nbody\nEOF\nsleep 1; echo done"
@@ -173,9 +173,9 @@ def test_completion_boundary_is_platform_independent():
             "cat <<EOF\nunterminated\necho second",
             ["cat <<EOF\nunterminated\necho second"],
         ),
-        # A heredoc *nested* in a compound statement or substitution does not
-        # end the statement: tree-sitter leaves the closing token (`fi`, `)`)
-        # unnamed, so the following newline must still split.
+        # 在复合语句或替换中嵌套的heredoc * *，不会结束语句：tree-sitter 会忽略 token (
+        # `fi`, `)`)，因此，接下来的换行符仍需分隔。
+        #
         (
             "if true; then\n  cat <<EOF\nx\nEOF\nfi\necho after",
             ["if true; then\n  cat <<EOF\nx\nEOF\nfi", "echo after"],
@@ -246,27 +246,26 @@ def test_invalid_syntax():
         "cat <<EOF\nUnclosed heredoc",
     ]
     for input_command in invalid_inputs:
-        # it will fall back to return the original input
+        # 它将回退以返回原始输入
         assert split_bash_commands(input_command) == [input_command]
 
 
 def test_unclosed_backtick():
-    # This test reproduces issue #7391
-    # The issue occurs when parsing a command with an unclosed backtick
-    # which causes a TypeError: ParsingError.__init__() missing 2 required
-    # positional arguments: 's' and 'position'
+    # 此测试重现了 issue #7391。该问题发生在解析一个未闭合的反引号命令时，导致 TypeError
+    # : ParsingError.__init__()缺少2个必需的参数：'s' 和 'position'
+    #
     command = "echo `unclosed backtick"
 
-    # Should not raise TypeError
+    # 不应提高 TypeError
     try:
         result = split_bash_commands(command)
-        # If we get here, the error was handled properly
+        # 如果我们到达这里，则错误已得到正确处理
         assert result == [command]
     except TypeError as e:
-        # This is the error we're trying to fix
+        # 这就是我们试图修复的错误
         raise e
 
-    # Also test with the original command from the issue (with placeholder org/repo)
+    # 还可以使用问题中的原始命令进行测试（使用占位符 org/repo）
     curl_command = (
         'curl -X POST "https://api.github.com/repos/example-org/example-repo/pulls" \\ '
         '-H "Authorization: Bearer $GITHUB_TOKEN" \\ '
@@ -283,8 +282,8 @@ def test_unclosed_backtick():
 
 
 def test_over_escaped_command():
-    # This test reproduces issue #8369 Example 1
-    # The issue occurs when parsing a command with over-escaped quotes
+    # 此测试重现问题 #8369 示例 1 解析带有过度转义引号的命令时会出现此问题
+    #
     over_escaped_command = (
         r"# 0. Setup directory\\nrm -rf /workspace/repro_sphinx_bug && "
         r"mkdir -p /workspace/repro_sphinx_bug && cd /workspace/repro_sphinx_bug\\n\\n"
@@ -295,13 +294,13 @@ def test_over_escaped_command():
         r"mypackage_file\\\\\\\\n\' > index.rst"
     )
 
-    # Should not raise any exception
+    # 不应引发任何异常
     try:
         result = split_bash_commands(over_escaped_command)
-        # If parsing fails, it should return the original command
+        # 如果解析失败，应该返回原始命令
         assert result == [over_escaped_command]
     except Exception as e:
-        # This is the error we're trying to fix
+        # 这就是我们试图修复的错误
         pytest.fail(f"split_bash_commands raised {type(e).__name__} unexpectedly: {e}")
 
 
@@ -391,7 +390,7 @@ echo "Mixed 'quotes' in \\"double quotes\\""
         'echo "This is a \\"quoted\\" string"',
         'echo "Mixed \'quotes\' in \\"double quotes\\""',
     ]
-    # "echo 'This is a '\\''single-quoted'\\'' string'",
+    # "echo '这是一个'\\''单引号'\\''字符串'",
     result = split_bash_commands(input_commands)
     assert result == expected_output, f"Expected {expected_output}, got {result}"
 
@@ -403,35 +402,35 @@ def test_split_commands_with_invalid_input():
         "cat <<EOF\nUnclosed heredoc",
     ]
     for input_command in invalid_inputs:
-        # it will fall back to return the original input
+        # 它将回退以返回原始输入
         assert split_bash_commands(input_command) == [input_command]
 
 
 def test_escape_bash_special_chars():
     test_cases = [
-        # Basic cases - use raw strings (r'') to avoid Python escape sequence warnings
+        # 基本情况 - 使用原始字符串 (r'') 以避免 Python 转义序列警告
         ("echo test \\; ls", "echo test \\\\; ls"),
         ("grep pattern \\| sort", "grep pattern \\\\| sort"),
         ("cmd1 \\&\\& cmd2", "cmd1 \\\\&\\\\& cmd2"),
         ("cat file \\> output.txt", "cat file \\\\> output.txt"),
         ("cat \\< input.txt", "cat \\\\< input.txt"),
-        # Quoted strings should remain unchanged
+        # 引用的字符串应保持不变
         ('echo "test \\; unchanged"', 'echo "test \\; unchanged"'),
         ("echo 'test \\| unchanged'", "echo 'test \\| unchanged'"),
-        # Mixed quoted and unquoted
+        # 混合引用和未引用
         (
             'echo "quoted \\;" \\; "more" \\| grep',
             'echo "quoted \\;" \\\\; "more" \\\\| grep',
         ),
-        # Multiple escapes in sequence
+        # 连续多次逃脱
         ("cmd1 \\;\\|\\& cmd2", "cmd1 \\\\;\\\\|\\\\& cmd2"),
-        # Commands with other backslashes
+        # 带有其他反斜杠的命令
         ("echo test\\ntest", "echo test\\ntest"),
         ('echo "test\\ntest"', 'echo "test\\ntest"'),
-        # Edge cases
-        ("", ""),  # Empty string
-        ("\\\\", "\\\\"),  # Double backslash
-        ('\\"', '\\"'),  # Escaped quote
+        # 边缘情况
+        ("", ""),  # 空字符串
+        ("\\\\", "\\\\"),  # 双反斜杠
+        ('\\"', '\\"'),  # 转义报价
     ]
 
     for input_cmd, expected in test_cases:
@@ -448,7 +447,7 @@ def test_escape_bash_special_chars_with_invalid_syntax():
         "cat <<EOF\nunclosed heredoc",
     ]
     for input_cmd in invalid_inputs:
-        # Should return original input when parsing fails
+        # 解析失败时应返回原始输入
         result = escape_bash_special_chars(input_cmd)
         assert result == input_cmd, f"Failed to handle invalid input: {input_cmd}"
 
@@ -458,7 +457,7 @@ def test_escape_bash_special_chars_with_heredoc():
 line1 \; not escaped
 line2 \| not escaped
 EOF"""
-    # Heredoc content should not be escaped
+    # Heredoc 内容不应被转义
     expected = input_cmd
     result = escape_bash_special_chars(input_cmd)
     assert result == expected, (
@@ -468,17 +467,17 @@ EOF"""
 
 def test_escape_bash_special_chars_with_parameter_expansion():
     test_cases = [
-        # Parameter expansion should be preserved
+        # 应保留参数扩展
         ("echo $HOME", "echo $HOME"),
         ("echo ${HOME}", "echo ${HOME}"),
         ("echo ${HOME:-default}", "echo ${HOME:-default}"),
-        # Mixed with special chars
+        # 与特殊字符混合
         ("echo $HOME \\; ls", "echo $HOME \\\\; ls"),
         ("echo ${PATH} \\| grep bin", "echo ${PATH} \\\\| grep bin"),
-        # Quoted parameter expansion
+        # 引用参数扩展
         ('echo "$HOME"', 'echo "$HOME"'),
         ('echo "${HOME}"', 'echo "${HOME}"'),
-        # Complex parameter expansions
+        # 复杂的参数扩展
         ("echo ${var:=default} \\; ls", "echo ${var:=default} \\\\; ls"),
         ("echo ${!prefix*} \\| sort", "echo ${!prefix*} \\\\| sort"),
     ]
@@ -492,17 +491,17 @@ def test_escape_bash_special_chars_with_parameter_expansion():
 
 def test_escape_bash_special_chars_with_command_substitution():
     test_cases = [
-        # Basic command substitution
+        # 基本命令替换
         ("echo $(pwd)", "echo $(pwd)"),
         ("echo `pwd`", "echo `pwd`"),
-        # Mixed with special chars
+        # 与特殊字符混合
         ("echo $(pwd) \\; ls", "echo $(pwd) \\\\; ls"),
         ("echo `pwd` \\| grep home", "echo `pwd` \\\\| grep home"),
-        # Nested command substitution
+        # 嵌套命令替换
         ("echo $(echo `pwd`)", "echo $(echo `pwd`)"),
-        # Complex command substitution
+        # 复杂的命令替换
         ('echo $(find . -name "*.txt" \\; ls)', 'echo $(find . -name "*.txt" \\; ls)'),
-        # Mixed with quotes
+        # 与引号混合
         ('echo "$(pwd)"', 'echo "$(pwd)"'),
         ('echo "`pwd`"', 'echo "`pwd`"'),
     ]
@@ -516,11 +515,11 @@ def test_escape_bash_special_chars_with_command_substitution():
 
 def test_escape_bash_special_chars_mixed_nodes():
     test_cases = [
-        # Mix of parameter expansion and command substitution
+        # 参数扩展和命令替换的混合
         ("echo $HOME/$(pwd)", "echo $HOME/$(pwd)"),
-        # Mix with special chars
+        # 与特殊字符混合
         ("echo $HOME/$(pwd) \\; ls", "echo $HOME/$(pwd) \\\\; ls"),
-        # Complex mixed cases
+        # 复杂的混合情况
         (
             'echo "${HOME}/$(basename `pwd`) \\; next"',
             'echo "${HOME}/$(basename `pwd`) \\; next"',
@@ -529,7 +528,7 @@ def test_escape_bash_special_chars_mixed_nodes():
             "VAR=${HOME} \\; echo $(pwd)",
             "VAR=${HOME} \\\\; echo $(pwd)",
         ),
-        # Real-world examples
+        # 现实世界的例子
         (
             'find . -name "*.txt" -exec grep "${PATTERN:-default}" {} \\;',
             'find . -name "*.txt" -exec grep "${PATTERN:-default}" {} \\\\;',
@@ -549,19 +548,19 @@ def test_escape_bash_special_chars_mixed_nodes():
 
 def test_escape_bash_special_chars_with_chained_commands():
     test_cases = [
-        # Basic chained commands
+        # 基本的链式命令
         ("ls && pwd", "ls && pwd"),
         ('echo "hello" && ls', 'echo "hello" && ls'),
-        # Chained commands with special chars
+        # 带有特殊字符的链接命令
         ("ls \\; pwd && echo test", "ls \\\\; pwd && echo test"),
         ("echo test && grep pattern \\| sort", "echo test && grep pattern \\\\| sort"),
-        # Complex chained cases
+        # 复杂的连锁案件
         ("echo ${HOME} && ls \\; pwd", "echo ${HOME} && ls \\\\; pwd"),
         (
             'echo "$(pwd)" && cat file \\> out.txt',
             'echo "$(pwd)" && cat file \\\\> out.txt',
         ),
-        # Multiple chains
+        # 多链
         ("cmd1 && cmd2 && cmd3", "cmd1 && cmd2 && cmd3"),
         (
             "cmd1 \\; ls && cmd2 \\| grep && cmd3",

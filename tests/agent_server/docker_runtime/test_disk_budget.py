@@ -32,7 +32,7 @@ def git(repo: Path, *args: str) -> None:
 
 
 def make_repo(repo: Path) -> tuple[list[Path], list[Path]]:
-    """A checkout with deps installed; returns (rebuildable dirs, kept files)."""
+    """安装了 deps 的结帐； 返回（可重建的目录，保留的文件）。"""
     repo.mkdir(parents=True, exist_ok=True)
     git(repo, "init", "-q")
     files = {
@@ -40,9 +40,9 @@ def make_repo(repo: Path) -> tuple[list[Path], list[Path]]:
         "main.py": "print('hi')",
         "node_modules/left-pad/index.js": "module.exports = 1",
         ".venv/pyvenv.cfg": "home = /usr",
-        # Untracked, not ignored: the agent's own work.
+        # 未被追踪，未被忽视：智能体自己的作品。
         "notes.md": "todo",
-        # Ignored, but a file: may hold settings nobody can rebuild.
+        # 已忽略，但文件：可能保存无人可以重建的设置。
         ".env": "TOKEN=x",
     }
     for name, content in files.items():
@@ -59,7 +59,7 @@ def provision(
 ) -> tuple[UUID, Path]:
     conversation_id = uuid4()
     identity = runtime.provisioning.create(conversation_id, workspace)
-    # A started container has created its persistence dir, whatever the workspace.
+    # 启动的容器已创建其持久化目录，无论工作区是什么。
     persistence = runtime.provisioning.runtime_dir(conversation_id) / "persistence"
     persistence.mkdir(parents=True, exist_ok=True)
     state = runtime.conversation_dir(conversation_id) / "base_state.json"
@@ -71,7 +71,7 @@ def provision(
 
 @pytest.fixture
 def usage(monkeypatch) -> Iterator[list[float]]:
-    """Disk usage readings, one per check; the last one repeats."""
+    """磁盘使用情况读数，每次检查一个； 最后一个重复。"""
     readings: list[float] = []
 
     def read(_path: Path) -> float:
@@ -102,7 +102,7 @@ async def test_over_budget_sheds_oldest_stopped_runtime_first(
     _, old_workspace = provision(runtime, age=1_000)
     new_shed, _ = make_repo(new_workspace)
     old_shed, old_kept = make_repo(old_workspace)
-    # Over budget, then back under once the oldest runtime is shed.
+    # 超出预算，然后在最旧的运行时间结束后恢复预算。
     usage.extend([0.95, 0.7])
 
     await runtime.reclaimer.run_pass()
@@ -148,7 +148,7 @@ async def test_nested_checkouts_are_shed_but_ignored_repos_kept(
     _, workspace = provision(runtime, age=1)
     (workspace).mkdir(parents=True, exist_ok=True)
     nested_shed, nested_kept = make_repo(workspace / "project")
-    # A workspace that ignores a cloned repo must not lose the clone.
+    # 忽略克隆存储库的工作区不得丢失克隆。
     make_repo(workspace / "vendor-clone")
     git(workspace, "init", "-q")
     (workspace / ".gitignore").write_text("vendor-clone/\n")
@@ -245,7 +245,7 @@ async def test_ignored_dir_holding_a_clone_is_kept(tmp_path, monkeypatch, usage)
     _, workspace = provision(runtime, age=1)
     shed, _ = make_repo(workspace)
     (workspace / ".gitignore").write_text("node_modules/\n.venv/\nvendor/\n")
-    # A clone two levels down in an ignored dir is not build output.
+    # 在被忽略的目录中向下两级克隆不是构建输出。
     clone = workspace / "vendor" / "libs" / "upstream"
     make_repo(clone)
     usage.append(0.95)

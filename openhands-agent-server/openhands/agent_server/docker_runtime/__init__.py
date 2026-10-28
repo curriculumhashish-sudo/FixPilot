@@ -1,1 +1,1 @@
-"""Per-conversation Docker runtime support."""
+"""每个对话 Docker 运行时支持。"""

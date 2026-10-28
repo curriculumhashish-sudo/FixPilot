@@ -1,4 +1,4 @@
-"""Prompt text for the ``/goal`` command's judge and continuation messages."""
+"""提示词 ``/goal`` 命令的判断和继续消息的文本。"""
 
 from typing import Final
 
@@ -33,14 +33,15 @@ JUDGE_PROMPT: Final[str] = (
     + "\n\n"
     + JUDGE_USER_PROMPT
 )
-"""Backwards-compatible concatenation of the system steering prompt and the user
-payload template. Kept so external callers that still format a single prompt
+"""系统控制提示词和用户载荷模板的向后兼容串联。 保持外部调用者仍然格式化单个提示词
 continue to work; new code should use ``JUDGE_SYSTEM_PROMPT`` and
-``JUDGE_USER_PROMPT`` separately to build a ``system + user`` message pair.
+``JUDGE_USER_PROMPT``分别构建``system + user``消息对。
 
-JUDGE_SYSTEM_PROMPT carries the raw, un-escaped JSON shape because it is sent
-unformatted ins ``judge_goal``; ``JUDGE_PROMPT`` re-escapes it so the combined
-template survives ``.format(objective=..., transcript=...)``."""
+JUDGE_SYSTEM_PROMPT 携带原始的、未转义的 JSON 形状，因为它是在 ins ``judge_goal`` 中
+未格式化发送的；
+``JUDGE_PROMPT`` 重新转义它，以便组合模板保留下来
+``.format(objective=..., transcript=...)``。
+"""
 
 
 FOLLOWUP_PROMPT: Final[str] = """The goal is NOT yet complete (audit iteration \

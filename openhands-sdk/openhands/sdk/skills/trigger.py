@@ -1,7 +1,6 @@
-"""Trigger types for skills.
+"""技能的触发类型。
 
-This module defines different trigger types that determine when a skill
-should be activated.
+该模块定义了不同的触发器类型，以确定何时应激活技能。
 """
 
 from abc import ABC
@@ -11,15 +10,15 @@ from pydantic import BaseModel
 
 
 class BaseTrigger(BaseModel, ABC):
-    """Base class for all trigger types."""
+    """所有触发器类型的基类。"""
 
     pass
 
 
 class KeywordTrigger(BaseTrigger):
-    """Trigger for keyword-based skills.
+    """触发基于关键字的技能。
 
-    These skills are activated when specific keywords appear in the user's query.
+    当用户查询中出现特定关键字时，这些技能就会被激活。
     """
 
     type: Literal["keyword"] = "keyword"
@@ -27,9 +26,9 @@ class KeywordTrigger(BaseTrigger):
 
 
 class TaskTrigger(BaseTrigger):
-    """Trigger for task-specific skills.
+    """触发特定任务技能。
 
-    These skills are activated for specific task types and can modify prompts.
+    这些技能针对特定任务类型而激活，并且可以修改提示词。
     """
 
     type: Literal["task"] = "task"
@@ -37,10 +36,10 @@ class TaskTrigger(BaseTrigger):
 
 
 class PathTrigger(BaseTrigger):
-    """Trigger for path-scoped skills ("rules").
+    """触发路径范围的技能（“规则”）。
 
-    These skills are activated when the agent touches a file whose path matches
-    one of the ``paths`` glob patterns (gitignore-style ``**`` semantics).
+    当智能体触及路径与 ``paths`` glob 模式之一（gitignore 样式 ``**`` 语义）匹配的文
+    件时，这些技能将被激活。
     """
 
     type: Literal["path"] = "path"

@@ -1,12 +1,12 @@
-"""Provider connection endpoints for sharing LLM credentials across profiles.
+"""用于跨配置文件共享 LLM 凭据的提供商连接端点。
 
-A provider connection is a shared ``api_key`` + optional ``base_url`` that one
-or more LLM profiles reference by id. The credential is resolved into a runnable
-:class:`~openhands.sdk.llm.llm.LLM` lazily, at profile-load time
-(:meth:`LLMProfileStore.load`) — this router only performs CRUD over the stored
-connections. Because resolution is read-at-use, rotating a key here takes effect
-the next time a linked profile is activated or launched; nothing is copied into
-active settings, so there is no separate refresh path to keep in sync.
+提供者连接是一个共享的 ``api_key`` + 可选的 ``base_url``，一个或多个 LLM 配置文件通过
+ id 引用。 凭据被解析为可运行的
+:class:`~openhands.sdk.llm.llm.LLM` 在配置文件加载时延迟
+(:meth:`LLMProfileStore.load`) — 该路由器仅通过存储的连接执行 CRUD。 由于分辨率是在使
+用时读取的，因此此处旋转密钥将在下次激活或启动链
+接的配置文件时生效； 没有任何内容被复制到活动设置中，因此没有单独的刷新路径可以保留在
+同步中。
 """
 
 from __future__ import annotations
@@ -57,9 +57,9 @@ def _now() -> int:
 
 
 def _require_usable_api_key(v: SecretStr | None) -> SecretStr | None:
-    # The stored model turns a blank or redacted key into None, so accepting one
-    # would create a keyless connection (POST) or wipe/corrupt the shared key
-    # (PATCH). Refuse it up front; the message must not echo the value.
+    # 存储的模型将空白或已脱敏密钥转换为 None，因此接受该模型将创建无密钥连接 (POST) 或
+    # 擦除/损坏共享密钥 (PATCH)。 预先拒绝； 消息不得回显该值。
+    #
     if v is not None and (not v.get_secret_value().strip() or is_redacted_secret(v)):
         raise ValueError("api_key must be a real key, not blank or redacted")
     return v
@@ -88,9 +88,10 @@ class ProviderConnectionUpdateRequest(BaseModel):
 
     @model_validator(mode="after")
     def _reject_null_required_fields(self) -> ProviderConnectionUpdateRequest:
-        # Only `base_url` may be set to null (to clear it). `display_name` and
-        # `provider` are required on the stored model; accepting explicit null on
-        # PATCH would persist a null that poisons every subsequent store read.
+        # 仅 `base_url` 可以设置为 null（将其清除）。 `display_name` 和
+        # `provider` 需要在存储模型中指定。 在 PATCH 上接受显式的 null 会导致持久化 a
+        # null 毒害每个后续的存储读取。
+        #
         for field in ("display_name", "provider"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be set to null")
@@ -137,11 +138,10 @@ def _active_settings_references_connection(config, connection_id: str) -> bool:
 
 
 def _raise_if_connection_is_referenced(config, connection_id: str) -> None:
-    """Block deletion while any profile or the active settings still point here.
+    """当任何配置文件或活动设置仍指向此处时阻止删除。
 
-    Deleting a referenced connection would leave those references dangling; a
-    linked profile with no inline key raises on its next load. So the delete is
-    rejected until the references are removed first.
+    删除引用的连接会使这些引用悬空； 没有内联键的链接配置文件会在下次加载时引发。 因
+    此删除将被拒绝，直到首先删除引用。
     """
     profile_names = _linked_profile_names(connection_id)
     active_reference = _active_settings_references_connection(config, connection_id)
@@ -229,8 +229,9 @@ def update_provider_connection(
             detail=f"Provider connection '{connection_id}' not found",
         )
 
-    # A connection must always have a key, so clearing it is not a valid
-    # update. Reject api_key: null explicitly instead of silently dropping it.
+    # 连接必须始终有一个密钥，因此清除它不是有效的更新。 明确拒绝 api_key: null，而不是
+    # 默默地丢弃它。
+    #
     if "api_key" in fields and body.api_key is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -245,10 +246,10 @@ def update_provider_connection(
         updates["api_key"] = body.api_key
     updated = connection.model_copy(update=updates)
 
-    # store_errors() maps infra failures (lock timeout -> 503, corrupted/
-    # wrong-cipher file -> 4xx); the inner except keeps the deleted-between-
-    # get-and-update race as a 404 rather than the 422 store_errors would give
-    # ProviderConnectionNotFound.
+    # store_errors() 映射基础设施故障 (锁超时 -> 503, 未正确加密/错误的密钥文件 -> 4xx)
+    # 。 内部 except 将删除之间的获取和更新竞赛保留为 404，而不是 422 store_errors 给出
+    # 的 ProviderConnectionNotFound。
+    #
     with store_errors():
         try:
             store.update(updated, cipher=cipher)
@@ -281,7 +282,7 @@ def delete_provider_connection(
         )
     _raise_if_connection_is_referenced(config, connection_id)
 
-    # See update handler: keep the delete-race as 404, map infra errors.
+    # 请参阅更新处理程序：将删除竞赛保留为 404，映射基础设施错误。
     with store_errors():
         try:
             store.delete(connection_id, cipher=cipher)

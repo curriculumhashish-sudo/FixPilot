@@ -12,10 +12,10 @@ from openhands.sdk.subagent.schema import (
 
 
 class TestAgentDefinition:
-    """Tests for AgentDefinition loading."""
+    """测试 AgentDefinition 加载。"""
 
     def test_load_agent_basic(self, tmp_path: Path):
-        """Test loading a basic agent definition."""
+        """测试加载基本的智能体定义。"""
         agent_md = tmp_path / "test-agent.md"
         agent_md.write_text(
             """---
@@ -40,7 +40,7 @@ You are a test agent.
         assert agent.system_prompt == "You are a test agent."
 
     def test_load_agent_with_examples(self, tmp_path: Path):
-        """Test loading agent with when_to_use examples."""
+        """使用 when_to_use 个示例测试加载智能体。"""
         agent_md = tmp_path / "helper.md"
         agent_md.write_text(
             """---
@@ -57,7 +57,7 @@ Help the user.
         assert "When user needs help" in agent.when_to_use_examples[0]
 
     def test_load_agent_with_color(self, tmp_path: Path):
-        """Test loading agent with color."""
+        """测试用颜色加载智能体。"""
         agent_md = tmp_path / "colored.md"
         agent_md.write_text(
             """---
@@ -73,7 +73,7 @@ Content.
         assert agent.color == "blue"
 
     def test_load_agent_with_tools_as_string(self, tmp_path: Path):
-        """Test loading agent with tools as single string."""
+        """使用工具作为单个字符串测试加载智能体。"""
         agent_md = tmp_path / "single-tool.md"
         agent_md.write_text(
             """---
@@ -89,7 +89,7 @@ Content.
         assert agent.tools == ["Read"]
 
     def test_load_agent_defaults(self, tmp_path: Path):
-        """Test agent defaults when fields not provided."""
+        """当未提供字段时，测试智能体默认值。"""
         agent_md = tmp_path / "minimal.md"
         agent_md.write_text(
             """---
@@ -100,12 +100,12 @@ Just content.
         )
 
         agent = AgentDefinition.load(agent_md)
-        assert agent.name == "minimal"  # From filename
+        assert agent.name == "minimal"  # 从文件名
         assert agent.model == "inherit"
         assert agent.tools == []
 
     def test_load_agent_with_max_iteration_per_run(self, tmp_path: Path):
-        """Test loading agent with max_iteration_per_run."""
+        """使用 max_iteration_per_run 测试加载智能体。"""
         agent_md = tmp_path / "limited.md"
         agent_md.write_text(
             """---
@@ -121,7 +121,7 @@ Content.
         assert agent.max_iteration_per_run == 10
 
     def test_load_agent_without_max_iteration_per_run(self, tmp_path: Path):
-        """Test that max_iteration_per_run defaults to None when omitted."""
+        """测试当省略时 max_iteration_per_run 默认为 None。"""
         agent_md = tmp_path / "default.md"
         agent_md.write_text(
             """---
@@ -136,7 +136,7 @@ Content.
         assert agent.max_iteration_per_run is None
 
     def test_max_iteration_per_run_not_in_metadata(self, tmp_path: Path):
-        """Test that max_iteration_per_run doesn't leak into metadata."""
+        """测试 max_iteration_per_run 不会泄漏到元数据中。"""
         agent_md = tmp_path / "meta-check.md"
         agent_md.write_text(
             """---
@@ -159,12 +159,12 @@ Content.
             AgentDefinition(name="bad", max_iteration_per_run=0)
 
     def test_max_iteration_per_run_negative_raises(self):
-        """Negative max_iteration_per_run should fail Pydantic validation."""
+        """否定 max_iteration_per_run 应该失败 Pydantic 验证。"""
         with pytest.raises(ValidationError):
             AgentDefinition(name="bad", max_iteration_per_run=-1)
 
     def test_load_agent_with_metadata(self, tmp_path: Path):
-        """Test loading agent with extra metadata."""
+        """使用额外元数据测试加载智能体。"""
         agent_md = tmp_path / "meta.md"
         agent_md.write_text(
             """---
@@ -180,7 +180,7 @@ Content.
         assert agent.metadata.get("custom_field") == "custom_value"
 
     def test_load_agent_with_hooks(self, tmp_path: Path):
-        """Test loading agent with hook configuration."""
+        """使用钩子配置测试加载智能体。"""
         agent_md = tmp_path / "hooked.md"
         agent_md.write_text(
             """---
@@ -211,11 +211,11 @@ You are a hooked agent.
         assert agent.hooks.pre_tool_use[0].hooks[0].timeout == 10
         assert len(agent.hooks.post_tool_use) == 1
         assert agent.hooks.post_tool_use[0].matcher == "*"
-        # hooks should not appear in metadata
+        # 挂钩不应出现在元数据中
         assert "hooks" not in agent.metadata
 
     def test_load_agent_hooks_none_when_missing(self, tmp_path: Path):
-        """Test that hooks defaults to None when not in frontmatter."""
+        """测试 hooks 不在前置元数据中时默认为 None。"""
         agent_md = tmp_path / "no-hooks.md"
         agent_md.write_text(
             """---
@@ -230,12 +230,12 @@ Content.
         assert agent.hooks is None
 
     def test_skills_default_empty(self):
-        """Test that skills defaults to empty list."""
+        """测试技能是否默认为空列表。"""
         agent = AgentDefinition(name="no-skills")
         assert agent.skills == []
 
     def test_skills_as_list(self):
-        """Test creating AgentDefinition with skill names as list."""
+        """测试使用技能名称作为列表创建 AgentDefinition。"""
         agent = AgentDefinition(
             name="skilled-agent",
             skills=["code-review", "linting"],
@@ -243,7 +243,7 @@ Content.
         assert agent.skills == ["code-review", "linting"]
 
     def test_load_skills_comma_separated(self, tmp_path: Path):
-        """Test loading skills from comma-separated frontmatter string."""
+        """测试从逗号分隔的前置元数据字符串加载技巧。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -258,7 +258,7 @@ Prompt.
         assert agent.skills == ["code-review", "linting", "testing"]
 
     def test_load_skills_as_yaml_list(self, tmp_path: Path):
-        """Test loading skills from YAML list in frontmatter."""
+        """测试前置元数据中YAML列表的加载技巧。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -275,7 +275,7 @@ Prompt.
         assert agent.skills == ["code-review", "linting"]
 
     def test_load_skills_single_string(self, tmp_path: Path):
-        """Test loading a single skill name from frontmatter string."""
+        """测试从前置元数据字符串加载单个技能名称。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -290,7 +290,7 @@ Prompt.
         assert agent.skills == ["code-review"]
 
     def test_load_skills_default_empty(self, tmp_path: Path):
-        """Test that loading from file without skills gives empty list."""
+        """测试没有技能的情况下从文件加载会给出空列表。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -304,7 +304,7 @@ Prompt.
         assert agent.skills == []
 
     def test_load_skills_not_in_metadata(self, tmp_path: Path):
-        """Test that skills field is excluded from extra metadata."""
+        """测试技能字段是否被排除在额外元数据之外。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -321,7 +321,7 @@ Prompt.
         assert agent.metadata.get("custom_field") == "value"
 
     def test_load_agent_with_profile_store_dir(self, tmp_path: Path):
-        """Test loading agent with profile_store_dir from frontmatter."""
+        """测试从前置元数据中使用 profile_store_dir 加载智能体。"""
         agent_md = tmp_path / "profiled.md"
         agent_md.write_text(
             """---
@@ -337,7 +337,7 @@ Content.
         assert agent.profile_store_dir == "/custom/profiles"
 
     def test_load_agent_without_profile_store_dir(self, tmp_path: Path):
-        """Test that profile_store_dir defaults to None when omitted."""
+        """测试当省略时 profile_store_dir 默认为 None。"""
         agent_md = tmp_path / "default.md"
         agent_md.write_text(
             """---
@@ -352,7 +352,7 @@ Content.
         assert agent.profile_store_dir is None
 
     def test_profile_store_dir_not_in_metadata(self, tmp_path: Path):
-        """Test that profile_store_dir doesn't leak into metadata."""
+        """测试 profile_store_dir 不会泄漏到元数据中。"""
         agent_md = tmp_path / "meta-check.md"
         agent_md.write_text(
             """---
@@ -370,17 +370,17 @@ Content.
         assert agent.metadata.get("custom_field") == "value"
 
     def test_profile_store_dir_default_none(self):
-        """Test that profile_store_dir defaults to None on direct construction."""
+        """测试直接构造时 profile_store_dir 默认为 None。"""
         agent = AgentDefinition(name="test")
         assert agent.profile_store_dir is None
 
     def test_mcp_config_default_none(self):
-        """Test that mcp_config defaults to None on direct construction."""
+        """测试直接构造时 mcp_config 默认为 None。"""
         agent = AgentDefinition(name="test")
         assert agent.mcp_config is None
 
     def test_mcp_config(self):
-        """Test creating AgentDefinition with typed MCP servers."""
+        """测试使用类型化的 MCP 服务器创建 AgentDefinition。"""
         servers = {"fetch": MCPServer(command="uvx", args=["mcp-server-fetch"])}
         agent = AgentDefinition(name="mcp-agent", mcp_config=servers)
         assert agent.mcp_config is not None
@@ -389,7 +389,7 @@ Content.
         }
 
     def test_load_mcp_config_from_frontmatter(self, tmp_path: Path):
-        """Test loading mcp_config from YAML frontmatter."""
+        """测试从 YAML 前置元数据加载 mcp_config。"""
         agent_md = tmp_path / "mcp-agent.md"
         agent_md.write_text(
             """---
@@ -419,7 +419,7 @@ You are an agent with MCP tools.
         assert "filesystem" in agent.mcp_config
 
     def test_load_mcp_config_not_in_metadata(self, tmp_path: Path):
-        """Test that mcp_config doesn't leak into metadata."""
+        """测试 mcp_config 不会泄漏到元数据中。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -440,7 +440,7 @@ Prompt.
         assert agent.metadata.get("custom_field") == "value"
 
     def test_load_without_mcp_config(self, tmp_path: Path):
-        """Test that loading from file without mcp_config gives None."""
+        """测试从文件加载的代码 mcp_config gives None."""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -454,7 +454,7 @@ Prompt.
         assert agent.mcp_config is None
 
     def test_mcp_config_env_vars_preserved_in_env_field(self, tmp_path: Path):
-        """Test that ${VAR} references in env values are preserved."""
+        """测试是否保留 env 值中的 ${VAR} 引用。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -475,11 +475,11 @@ Prompt.
         mcp_config = agent.mcp_config
         assert mcp_config is not None
         dumped = dump_mcp_config(mcp_config)
-        # Placeholder preserved for runtime expansion with per-conversation secrets
+        # 为每个会话的运行时扩展保留占位符机密
         assert dumped["my-server"]["env"]["API_KEY"] == "${MY_API_KEY}"
 
     def test_mcp_config_env_vars_preserved_in_command(self, tmp_path: Path):
-        """Test that ${VAR} references in command are preserved."""
+        """测试命令中的 ${VAR} 引用是否被保留。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -499,7 +499,7 @@ Prompt.
         mcp_config = agent.mcp_config
         assert mcp_config is not None
         dumped = dump_mcp_config(mcp_config)
-        # Placeholders preserved for runtime expansion
+        # 为运行时扩展保留的占位符
         assert dumped["my-server"]["command"] == "${PLUGIN_ROOT}/bin/server"
         assert dumped["my-server"]["args"] == [
             "--config",
@@ -507,7 +507,7 @@ Prompt.
         ]
 
     def test_mcp_config_env_vars_preserved_in_url_and_headers(self, tmp_path: Path):
-        """Test that ${VAR} references in url and headers are preserved."""
+        """测试 url 和标头中的 ${VAR} 引用是否被保留。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -527,12 +527,12 @@ Prompt.
         mcp_config = agent.mcp_config
         assert mcp_config is not None
         dumped = dump_mcp_config(mcp_config)
-        # Placeholders preserved for runtime expansion
+        # 为运行时扩展保留的占位符
         assert dumped["remote"]["url"] == "${API_BASE}/mcp"
         assert dumped["remote"]["headers"]["Authorization"] == ("Bearer ${AUTH_TOKEN}")
 
     def test_mcp_config_placeholders_preserved(self, tmp_path: Path):
-        """Test that all ${VAR} placeholders are preserved unchanged."""
+        """测试所有 ${VAR} 占位符是否保持不变。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -551,7 +551,7 @@ Prompt.
         assert dump_mcp_config(mcp_config)["my-server"]["command"] == "${SOME_VAR}"
 
     def test_permission_mode_defaults_to_none(self):
-        """Test that permission_mode defaults to None (inherit parent)."""
+        """测试 permission_mode 默认为 None（继承父级）。"""
         agent = AgentDefinition(name="test")
         assert agent.permission_mode is None
 
@@ -564,12 +564,12 @@ Prompt.
         ],
     )
     def test_permission_mode_valid_values(self, mode: str):
-        """Test setting permission_mode to each valid value."""
+        """测试每个有效值的设置 permission_mode。"""
         agent = AgentDefinition(name="test", permission_mode=mode)
         assert agent.permission_mode == mode
 
     def test_load_permission_mode_from_frontmatter(self, tmp_path: Path):
-        """Test loading permission_mode from frontmatter."""
+        """测试从前置元数据加载 permission_mode。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -584,7 +584,7 @@ Prompt.
         assert agent.permission_mode == "always_confirm"
 
     def test_load_permission_mode_none_when_omitted(self, tmp_path: Path):
-        """Test that permission_mode is None when not in frontmatter."""
+        """测试，permission_mode 是 None 不在的时候前置元数据。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -598,7 +598,7 @@ Prompt.
         assert agent.permission_mode is None
 
     def test_load_permission_mode_not_in_metadata(self, tmp_path: Path):
-        """Test that permission_mode is excluded from extra metadata."""
+        """测试 permission_mode 是否被排除在额外元数据之外。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -615,7 +615,7 @@ Prompt.
         assert agent.metadata.get("custom_field") == "value"
 
     def test_get_confirmation_policy_none(self):
-        """Test that None permission_mode returns None (inherit parent)."""
+        """测试 None permission_mode 返回 None（继承父级）。"""
         agent = AgentDefinition(name="test")
         assert agent.get_confirmation_policy() is None
 
@@ -630,14 +630,14 @@ Prompt.
     def test_get_confirmation_policy_returns_instance(
         self, permission_mode: str, expected_class_name: str
     ):
-        """Test that each permission_mode returns the correct policy instance."""
+        """测试每个 permission_mode 返回正确的策略实例。"""
         agent = AgentDefinition(name="test", permission_mode=permission_mode)
         policy = agent.get_confirmation_policy()
         assert policy is not None
         assert type(policy).__name__ == expected_class_name
 
     def test_load_permission_mode_invalid_raises(self, tmp_path: Path):
-        """Test that an invalid permission_mode raises ValueError."""
+        """测试无效的 permission_mode 引发 ValueError。"""
         agent_md = tmp_path / "agent.md"
         agent_md.write_text(
             """---
@@ -653,28 +653,28 @@ Prompt.
 
 
 class TestExtractExamples:
-    """Tests for _extract_examples function."""
+    """测试 _extract_examples 功能。"""
 
     def test_extract_single_example(self):
-        """Test extracting single example."""
+        """测试提取单个示例。"""
         description = "A tool. <example>Use when X</example>"
         examples = _extract_examples(description)
         assert examples == ["Use when X"]
 
     def test_extract_multiple_examples(self):
-        """Test extracting multiple examples."""
+        """测试提取多个示例。"""
         description = "<example>First</example> text <example>Second</example>"
         examples = _extract_examples(description)
         assert examples == ["First", "Second"]
 
     def test_extract_no_examples(self):
-        """Test when no examples present."""
+        """当没有示例时进行测试。"""
         description = "A tool without examples"
         examples = _extract_examples(description)
         assert examples == []
 
     def test_extract_multiline_example(self):
-        """Test extracting multiline example."""
+        """测试提取多行示例。"""
         description = """<example>
         Multi
         Line
@@ -685,7 +685,7 @@ class TestExtractExamples:
 
 
 class TestAgentDefinitionCondenser:
-    """Tests for the condenser frontmatter field."""
+    """测试上下文压缩器前置元数据字段。"""
 
     def test_condenser_absent_is_none(self, tmp_path: Path):
         agent_md = tmp_path / "a.md"
@@ -713,14 +713,14 @@ class TestAgentDefinitionCondenser:
             AgentDefinition.load(agent_md)
 
     def test_condenser_not_in_metadata(self, tmp_path: Path):
-        """condenser is a known field, not leaked into metadata extras."""
+        """上下文压缩器是已知字段，未泄漏到元数据附加中。"""
         agent_md = tmp_path / "a.md"
         agent_md.write_text("---\nname: a\ncondenser: none\n---\n\nPrompt.\n")
         assert "condenser" not in AgentDefinition.load(agent_md).metadata
 
 
 class TestAgentDefinitionMaxBudget:
-    """Tests for the max_budget_per_run frontmatter field."""
+    """测试 max_budget_per_run 前置元数据字段。"""
 
     def test_absent_is_none(self, tmp_path: Path):
         md = tmp_path / "a.md"

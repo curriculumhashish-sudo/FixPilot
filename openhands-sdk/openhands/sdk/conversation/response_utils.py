@@ -1,4 +1,4 @@
-"""Utility functions for extracting agent responses from conversation events."""
+"""用于从对话事件中提取智能体响应的实用函数。"""
 
 from collections.abc import Sequence
 
@@ -9,32 +9,32 @@ from openhands.sdk.tool.builtins.finish import FinishAction, FinishTool
 
 
 def get_agent_final_response(events: Sequence[Event]) -> str:
-    """Extract the final response from the agent.
+    """从智能体中提取最终响应。
 
-    An agent can end a conversation in two ways:
-    1. By calling the finish tool
-    2. By returning a text message with no tool calls
+    智能体可以通过两种方式结束对话：
+    1. 通过调用完成工具
+    2. 通过返回不带工具调用的短信
 
     Args:
-        events: List of conversation events to search through.
+        events: 要搜索的对话事件列表。
 
     Returns:
-        The final response message from the agent, or empty string if not found.
+        最终的响应消息来自智能体，如果没有找到则为空字符串。
     """
-    # Find the last finish action or message event from the agent
+    # 从智能体中查找最后一个完成操作或消息事件
     for event in reversed(events):
-        # Case 1: finish tool call
+        # 情况1：完成工具调用
         if (
             isinstance(event, ActionEvent)
             and event.source == "agent"
             and event.tool_name == FinishTool.name
         ):
-            # Extract message from finish tool call
+            # 从完成工具调用中提取消息
             if event.action is not None and isinstance(event.action, FinishAction):
                 return event.action.message
             else:
                 break
-        # Case 2: text message with no tool calls (MessageEvent)
+        # 情况 2：没有工具调用 (MessageEvent) 的短信
         elif isinstance(event, MessageEvent) and event.source == "agent":
             text_parts = content_to_str(event.llm_message.content)
             return "".join(text_parts)

@@ -19,13 +19,13 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM using LLMRegistry
+# 使用LLMRegistry配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
 base_url = os.getenv("LLM_BASE_URL")
 
-# Create LLM instance
+# 创建 LLM 个实例
 main_llm = LLM(
     usage_id="agent",
     model=model,
@@ -33,21 +33,21 @@ main_llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Create LLM registry and add the LLM
+# 创建 LLM 注册表并添加 LLM
 llm_registry = LLMRegistry()
 llm_registry.add(main_llm)
 
-# Get LLM from registry
+# 从注册表获取 LLM
 llm = llm_registry.get("agent")
 
-# Tools
+# 工具
 cwd = os.getcwd()
 tools = [Tool(name=TerminalTool.name)]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -70,21 +70,21 @@ for i, message in enumerate(llm_messages):
 print("=" * 100)
 print(f"LLM Registry usage IDs: {llm_registry.list_usage_ids()}")
 
-# Demonstrate getting the same LLM instance from registry
+# 演示从注册表获取相同的 LLM 实例
 same_llm = llm_registry.get("agent")
 print(f"Same LLM instance: {llm is same_llm}")
 
-# Demonstrate requesting a completion directly from an LLM
+# 演示直接从 LLM 请求完成
 resp = llm.completion(
     messages=[
         Message(role="user", content=[TextContent(text="Say hello in one word.")])
     ]
 )
-# Access the response content via OpenHands LLMResponse
+# 通过 OpenHands LLMResponse 访问响应内容
 msg = resp.message
 texts = [c.text for c in msg.content if isinstance(c, TextContent)]
 print(f"Direct completion response: {texts[0] if texts else str(msg)}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

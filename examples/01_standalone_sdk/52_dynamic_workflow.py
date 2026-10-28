@@ -1,11 +1,11 @@
-"""Dynamic workflow tool example.
+"""动态工作流工具示例。
 
-This example demonstrates the intended workflow shape:
+此示例演示了预期的工作流程形状：
 
-1. The parent agent writes a Python workflow script.
-2. The parent agent calls the workflow tool with that generated script.
-3. The workflow fans out sub-agents to audit test coverage by project area.
-4. A reducer sub-agent summarizes the repo-wide coverage risks.
+1. 父级智能体编写 Python 工作流脚本。
+2. 父级智能体使用生成的脚本调用工作流工具。
+3. 工作流程呈扇形展开子智能体以按项目区域审核测试覆盖率。
+4. 减速器子智能体总结了回购范围的覆盖风险。
 """
 
 import os
@@ -28,7 +28,7 @@ llm = LLM(
 )
 
 
-# Sub-agent used by the generated workflow.
+# 子智能体由生成的工作流使用。
 def create_coverage_auditor(llm: LLM) -> Agent:
     return Agent(
         llm=llm,
@@ -68,8 +68,9 @@ register_agent_if_absent(
     description="Audits test coverage quality for one project area.",
 )
 
-# The parent agent has the workflow tool. It is responsible for writing the
-# workflow script and then calling the tool with that generated Python code.
+# 父级智能体具有工作流程工具。 它负责编写工作流脚本，然后使用生成的 Python 代码调用该工
+# 具。
+#
 parent_agent = Agent(
     llm=llm,
     tools=[Tool(name=WorkflowToolSet.name)],
@@ -95,7 +96,7 @@ conversation = Conversation(
     agent=parent_agent,
     workspace=Path.cwd(),
     visualizer=DelegationVisualizer(name="CoverageWorkflow"),
-    max_iteration_per_run=6,  # increase if more turns needed to write the script
+    max_iteration_per_run=6,  # 如果需要更多回合来编写脚本，则增加
 )
 
 conversation.send_message(

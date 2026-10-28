@@ -35,8 +35,8 @@ describe('Bash API Integration Tests', () => {
 
       const fetchedCommand = await bash.getEvent(command.id);
       const batch = await bash.getEvents([command.id, outputEvent!.id]);
-      // Server-side batch endpoint (GET /api/bash/bash_events/). Includes a
-      // bogus id to confirm missing items come back as null in place.
+      // 服务器端批次端点 (GET /api/bash/bash_events/). 包括一个虚假 ID，以确认丢失的项目以 null 的形式返回到位。
+      //
       const serverBatch = await bash.batchGetEvents([
         command.id,
         'does-not-exist',

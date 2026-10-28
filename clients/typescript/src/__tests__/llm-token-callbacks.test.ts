@@ -1,7 +1,7 @@
 /**
- * Tests for LLM token streaming callbacks
+ * 测试 LLM token 流式传输回调
  *
- * These tests verify the token callback functionality in the LLM module.
+ * 这些测试验证 LLM 模块中的 token 回调功能。
  */
 
 import { TokenCallbackType, TokenStreamEvent } from '../llm/base';
@@ -75,7 +75,7 @@ describe('Token Callback Types', () => {
   describe('Streaming Integration', () => {
     it('should support async callback functions', async () => {
       const events: TokenStreamEvent[] = [];
-      // Note: TokenCallbackType is sync, but we can test async behavior
+      // 注意：TokenCallbackType 是同步，但我们可以测试异步行为
       const asyncHandler = async (event: TokenStreamEvent) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         events.push(event);
@@ -99,7 +99,7 @@ describe('Token Callback Types', () => {
         }
       };
 
-      // Simulate a streaming response
+      // Simulate a 流式传输 response
       callback({ token: 'The', isFinal: false, accumulated: 'The', index: 0 });
       callback({ token: ' quick', isFinal: false, accumulated: 'The quick', index: 1 });
       callback({ token: ' brown', isFinal: false, accumulated: 'The quick brown', index: 2 });
@@ -128,7 +128,7 @@ describe('Token Callback Types', () => {
 });
 
 describe('LLM Interface with Callbacks', () => {
-  // Mock LLM for testing interface compliance
+  // 模拟对象 LLM 用于测试接口合规性
   class MockLLM {
     defaultModel = 'mock-model';
     private tokenCallback?: TokenCallbackType;
@@ -172,7 +172,7 @@ describe('LLM Interface with Callbacks', () => {
 
     await mockLLM.simulateStreaming('Hello World Test');
 
-    expect(events.length).toBe(4); // 3 content events + 1 final event
+    expect(events.length).toBe(4); // 3 个内容活动 + 1 个最终活动
     expect(events[0].token).toBe('Hello');
     expect(events[1].token).toBe(' World');
     expect(events[2].token).toBe(' Test');

@@ -1,15 +1,16 @@
-"""Shared fixtures for stress / scale tests.
+"""共享测试夹具用于压力/规模测试。
 
-Tests run **in-process** against the agent-server FastAPI app:
-- A real ConversationService is constructed pointed at tmp_path/persist.
-- A minimal FastAPI app is built with the routers needed for these suites.
-- The `get_conversation_service` dependency is overridden to return our service.
-- `httpx.AsyncClient(transport=ASGITransport(app))` shares the test event loop.
+针对智能体-server FastAPI 应用程序运行 **in-process** 测试：
+- 构造一个真正的 ConversationService 指向 tmp_path/persist。
+- 使用这些套件所需的路由器构建了一个最小的 FastAPI 应用程序。
+- `get_conversation_service` 依赖项被覆盖以返回我们的服务。
+- `httpx.AsyncClient(transport=ASGITransport(app))` 分享测试事件循环。
 
-We bypass HTTP for the *creation* of conversations because TestLLM has private
-attrs (`_scripted_responses`, `_call_count`) that don't survive Pydantic JSON
-round-trips. Tests call `service.start_conversation(request)` directly with a
-real Python object, then use the API for everything else.
+我们在对话的 * 创建 * 中绕过 HTTP，因为 TestLLM 具有无法在 Pydantic JSON 往返中生存的
+私有属性（`_scripted_responses`
+、`_call_count`）。 测试直接使用真实的 Python 对象调用
+`service.start_conversation(request)`，然后使用 API
+进行其他操作。
 """
 
 from collections.abc import AsyncIterator
@@ -37,20 +38,19 @@ from tests.agent_server.stress.probe import ResourceProbe
 
 @pytest_asyncio.fixture
 async def conversation_service(tmp_path: Path) -> AsyncIterator[ConversationService]:
-    """Real ConversationService with persistence under tmp_path/persist.
+    """真实的 ConversationService 和持久化在 tmp_path/坚持下。
 
-    Uses the service's own __aenter__/__aexit__ to set up and tear down the
-    event_services dict and webhook subscribers. No global state leaks across
-    tests because the path is unique per test.
+    使用服务自己的 __aenter__/__aexit__ 来设置和拆除 event_services dict 和 Webhook
+    订阅者。 跨测试不会发生全局状态
+    泄漏，因为每个测试的路径都是唯一的。
     """
     persist_dir = tmp_path / "persist"
     persist_dir.mkdir(parents=True, exist_ok=True)
-    # The parallelism benchmark runs one reference conversation and then n
-    # more at once. The reference run can still hold its permit for a moment
-    # after its status reads FINISHED, so size capacity at n + 1 to leave room
-    # for it; otherwise the last concurrent start is intermittently rejected
-    # with ConversationRunLimitExceeded. Rejection beyond capacity is still
-    # covered by test_run_admission.py.
+    # 并行性基准测试运行一个参考对话，然后同时运行 n 个参考对话。 参考运行在其状态读取
+    # FINISHED 后仍可暂时保留其许可，因此将容量大小调整为 n + 1 以为其留出空间； 否则，
+    # 最后的并发启动会间歇性地被 ConversationRunLimitExceeded 拒绝。
+    # test_run_admission.py 仍然涵盖超出容量的拒绝。
+    #
     service = ConversationService(
         conversations_dir=persist_dir,
         max_concurrent_runs=CONCURRENT_CONVERSATIONS.n_conversations + 1,
@@ -61,7 +61,7 @@ async def conversation_service(tmp_path: Path) -> AsyncIterator[ConversationServ
 
 @pytest_asyncio.fixture
 async def bash_service(tmp_path: Path) -> AsyncIterator[BashEventService]:
-    """Per-test BashEventService scoped to tmp_path/bash_events."""
+    """每次测试 BashEventService 范围为 tmp_path/bash_events。"""
     bash_dir = tmp_path / "bash_events"
     bash_dir.mkdir(parents=True, exist_ok=True)
     service = BashEventService(bash_events_dir=bash_dir)
@@ -73,16 +73,15 @@ async def bash_service(tmp_path: Path) -> AsyncIterator[BashEventService]:
 def app(
     conversation_service: ConversationService, bash_service: BashEventService
 ) -> FastAPI:
-    """FastAPI app wired to the test ConversationService and bash service.
+    """FastAPI 应用程序连接到测试 ConversationService 和 bash 服务。
 
-    Includes the routers the stress suites use today: conversation + event +
-    server_details (for /health) + bash. Sockets are skipped here; suites
-    that need websocket coverage assert against pub_sub internals (white-box)
-    rather than performing real WS handshakes through ASGITransport.
+    包括压力套件今天使用的路由器：对话 + 事件 + server_details（对于 /health) + bash
+    。 这里跳过套接字； 需要WebSocket覆盖
+    率的测试套件应针对pub_sub内部（白盒）进行测试，而不是通过ASGITransport进行真实的
+    WS握手。
 
-    ``app.state.config`` is set so any code that reads it (e.g. middleware)
-    finds something. ``mark_initialization_complete`` is called so /ready
-    returns 200 in the responsiveness canary.
+    设置 ``app.state.config`` 以便任何读取它的代码 (e.g. 中间件）发现了一些东西。
+    ``mark_initialization_complete`` 被调用，因此 /ready 在响应性金丝雀中返回 200。
     """
     fastapi_app = FastAPI()
     fastapi_app.state.config = Config()

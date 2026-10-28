@@ -1,4 +1,4 @@
-"""Tests for redact utility functions."""
+"""测试编辑实用函数。"""
 
 import pytest
 
@@ -13,12 +13,12 @@ from openhands.sdk.utils.redact import (
 
 
 # ---------------------------------------------------------------------------
-# SENSITIVE_URL_PARAMS constant
+# SENSITIVE_URL_PARAMS 常数
 # ---------------------------------------------------------------------------
 
 
 class TestSensitiveUrlParams:
-    """Verify the SENSITIVE_URL_PARAMS constant."""
+    """验证 SENSITIVE_URL_PARAMS 常数。"""
 
     def test_is_frozenset(self):
         assert isinstance(SENSITIVE_URL_PARAMS, frozenset)
@@ -42,9 +42,9 @@ class TestSensitiveUrlParams:
 
 
 class TestRedactUrlParams:
-    """Tests for redact_url_params()."""
+    """测试 redact_url_params()。"""
 
-    # -- basic redaction ---------------------------------------------------
+    # -- 基础脱敏 --------------------------------------------------
 
     def test_redacts_apikey_param(self):
         url = "https://example.com/search?q=hello&apikey=secret123"
@@ -87,20 +87,20 @@ class TestRedactUrlParams:
         assert "tvly-abc123" not in result
         assert "query=test" in result
 
-    # -- case-insensitive matching -----------------------------------------
+    # -- 不区分大小写的匹配 --------------------------------------------------
 
     def test_case_insensitive_exact_match(self):
-        """SENSITIVE_URL_PARAMS matching is case-insensitive."""
+        """SENSITIVE_URL_PARAMS 匹配不区分大小写。"""
         url = "https://example.com?ApiKey=val1&TOKEN=val2&Secret=val3"
         result = redact_url_params(url)
         assert "val1" not in result
         assert "val2" not in result
         assert "val3" not in result
 
-    # -- is_secret_key pattern matching ------------------------------------
+    # -- is_secret_key 模式匹配 ------------------------------------------------
 
     def test_redacts_via_is_secret_key_pattern(self):
-        """Params matching SECRET_KEY_PATTERNS via is_secret_key() get redacted."""
+        """通过 is_secret_key() 匹配 SECRET_KEY_PATTERNS 的参数得到已脱敏。"""
         url = "https://example.com?Authorization=Bearer+xyz&page=1"
         result = redact_url_params(url)
         assert "Bearer" not in result
@@ -108,13 +108,13 @@ class TestRedactUrlParams:
         assert "page=1" in result
 
     def test_redacts_x_api_key_via_pattern(self):
-        """'x-api-key' contains 'KEY' so is_secret_key matches."""
+        """'x-API-key' 包含 'KEY'，因此 is_secret_key 匹配。"""
         url = "https://example.com?x-api-key=abc123&limit=10"
         result = redact_url_params(url)
         assert "abc123" not in result
         assert "limit=10" in result
 
-    # -- edge cases --------------------------------------------------------
+    # -- 边缘情况--------------------------------------------------------------------
 
     def test_no_query_params(self):
         url = "https://example.com/path"
@@ -122,7 +122,7 @@ class TestRedactUrlParams:
 
     def test_empty_query_string(self):
         url = "https://example.com/path?"
-        # urlparse treats trailing '?' as empty query; should return unchanged
+        # urlparse 处理尾随的 '?'作为空查询； 应该返回不变
         result = redact_url_params(url)
         assert result == "https://example.com/path?"
 
@@ -130,7 +130,7 @@ class TestRedactUrlParams:
         assert redact_url_params("") == ""
 
     def test_non_url_string(self):
-        """Non-URL strings should be returned as-is (no crash)."""
+        """非 URL 字符串应按原样返回（不会崩溃）。"""
         text = "not a url at all"
         assert redact_url_params(text) == text
 
@@ -162,11 +162,11 @@ class TestRedactUrlParams:
     def test_param_with_empty_value(self):
         url = "https://example.com?apikey=&other=value"
         result = redact_url_params(url)
-        # Even empty values should be replaced with <redacted>
+        # 即使是空值也应该替换为 <redacted>
         assert "other=value" in result
 
     def test_param_with_multiple_values(self):
-        """When a param appears multiple times, all values are redacted."""
+        """当一个参数出现多次时，所有值都是已脱敏。"""
         url = "https://example.com?token=FIRSTVAL&token=SECONDVAL&page=1"
         result = redact_url_params(url)
         assert "token=" in result
@@ -178,7 +178,7 @@ class TestRedactUrlParams:
         url = "https://example.com/path?q=hello%20world&apikey=secret%20value"
         result = redact_url_params(url)
         assert "secret" not in result
-        # The non-sensitive param value should be preserved (possibly re-encoded)
+        # 应保留非敏感参数值（可能重新编码）
         assert "hello" in result
 
 
@@ -188,10 +188,10 @@ class TestRedactUrlParams:
 
 
 class TestRedactUrlCredentialsInText:
-    """Tests for redact_url_credentials_in_text() (substring-capable)."""
+    """测试 redact_url_credentials_in_text()（支持子字符串）。"""
 
     def test_redacts_credentials_embedded_in_larger_string(self):
-        """The key limitation of the anchored helper: creds inside a message."""
+        """锚定助手的关键限制：消息内的信用。"""
         s = "fatal: unable to access 'https://oauth2:SECRET@github.com/o/r.git/': 403"
         result = redact_url_credentials_in_text(s)
         assert "SECRET" not in result
@@ -235,7 +235,7 @@ class TestRedactUrlCredentialsInText:
         assert redact_url_credentials_in_text(s) == s
 
     def test_does_not_match_at_sign_in_path(self):
-        """An '@' after a path segment is not userinfo and must be left alone."""
+        """路径段后面的“@”不是用户信息，必须单独保留。"""
         s = "see https://github.com/owner/repo/blob/main/x@v1.txt"
         assert redact_url_credentials_in_text(s) == s
 
@@ -252,7 +252,7 @@ class TestRedactUrlCredentialsInText:
         )
 
     def test_matches_whole_url_like_anchored_helper(self):
-        """For a bare whole-URL string both helpers agree."""
+        """对于裸露的整个 URL 字符串，两个助手都同意。"""
         url = "https://oauth2:SECRET@gitlab.com/org/repo.git"
         assert redact_url_credentials_in_text(url) == redact_url_credentials(url)
 
@@ -263,9 +263,9 @@ class TestRedactUrlCredentialsInText:
 
 
 class TestRedactTextSecretsDictKeys:
-    """Dict-entry redaction is case-insensitive, like is_secret_key.
+    """字典条目脱敏不区分大小写，就像 is_secret_key 一样。
 
-    Regression tests for https://github.com/OpenHands/software-agent-sdk/issues/4505
+    回归测试  https://github.com/OpenHands/software-agent-sdk/issues/4505
     """
 
     def test_redacts_lowercase_and_mixed_case_dict_keys(self):
@@ -308,8 +308,8 @@ def test_redact_text_secrets_redacts_multiline_values(key, key_quote, value_quot
 
 
 class TestRedactTextSecretsHeaders:
-    """Header entries as provider errors echo them: any case, either quote
-    style, hyphenated names, and JSON embedded with escaped quotes."""
+    """标头条目作为提供者错误回显它们：任何情况，或者引用
+    样式、带破折号的姓名，以及 JSON 中嵌入的转义引号。"""
 
     @pytest.mark.parametrize(
         "text",
@@ -339,30 +339,30 @@ class TestRedactTextSecretsHeaders:
 
 
 class TestRedactApiKeyLiterals:
-    """Tests for redact_api_key_literals() — bare API key pattern matching."""
+    """测试 redact_api_key_literals() — 裸 API 键模式匹配。"""
 
     def test_redacts_sk_oh_api_key(self):
-        """sk-oh-* OpenHands API keys are redacted."""
+        """sk-oh-* OpenHands API 键是已脱敏。"""
         text = "key is sk-oh-abcdef1234567890 here"
         result = redact_api_key_literals(text)
         assert "sk-oh-abcdef1234567890" not in result
         assert result == "key is <redacted> here"
 
     def test_redacts_sk_oh_key_with_hyphens_and_underscores(self):
-        """sk-oh-* keys containing hyphens and underscores are redacted."""
+        """sk-oh-* 包含连字符和下划线的键是已脱敏。"""
         text = "export KEY=sk-oh-abc_def-123_XYZ-456"
         result = redact_api_key_literals(text)
         assert "sk-oh-abc_def-123_XYZ-456" not in result
         assert "export KEY=<redacted>" == result
 
     def test_does_not_redact_short_sk_oh_key(self):
-        """sk-oh- followed by fewer than 10 characters should NOT match."""
+        """sk-oh- 后跟少于 10 个字符应不匹配。"""
         text = "sk-oh-short"
         result = redact_api_key_literals(text)
         assert result == text
 
     def test_redacts_sk_oh_key_in_log_line(self):
-        """Realistic log line with an sk-oh-* key is redacted."""
+        """具有 sk-oh-* 键的实际日志行是已脱敏。"""
         text = (
             'ERROR runtime stderr: api_key="sk-oh-Xk9mP2vL4nR7wQ1y" connection refused'
         )

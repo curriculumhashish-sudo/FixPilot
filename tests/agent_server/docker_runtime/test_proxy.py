@@ -137,8 +137,8 @@ async def test_http_client_lives_until_the_stream_is_consumed(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_http_response_drops_upstream_date_and_server(monkeypatch):
-    """The serving uvicorn adds its own Date and Server; copying the upstream's
-    would send two of each."""
+    """服务 uvicorn 添加自己的日期和服务器； 复制上游的
+    每人会发送两个。"""
     import httpx
 
     from openhands.agent_server.docker_runtime import proxy
@@ -174,7 +174,7 @@ async def test_http_response_drops_upstream_date_and_server(monkeypatch):
 async def test_long_lived_proxied_stream_holds_a_session_until_consumed(
     tmp_path, monkeypatch
 ):
-    """An in-flight proxied stream must keep the runtime attached to avoid eviction."""
+    """运行中的代理流必须保持附加的运行时以避免驱逐。"""
     import httpx
     from pydantic import SecretStr
 
@@ -210,8 +210,8 @@ async def test_long_lived_proxied_stream_holds_a_session_until_consumed(
         registry, conversation_id, target, request, upstream_path="/api/test"
     )
 
-    # The attachment outlives the route handler so the container cannot be
-    # evicted while the client is still reading the response.
+    # 附件的寿命比路由处理程序的寿命长，因此当客户端仍在读取响应时，容器无法被逐出。
+    #
     assert registry.has_attached_sessions(conversation_id)
     chunks = [chunk async for chunk in response.body_iterator]
     assert chunks == [b"first", b"second"]

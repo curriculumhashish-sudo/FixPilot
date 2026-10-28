@@ -1,13 +1,13 @@
-"""Tests for subclass hierarchy caching.
+"""测试子类层次结构缓存。
 
-The generation-counter cache in models.py auto-invalidates via
-DiscriminatedUnionMixin.__init_subclass__.  These tests verify that the
-cache is correct in scenarios that could easily break:
-  - basic cache hits
-  - auto-invalidation on new subclass definition (including deep hierarchy)
-  - auto-invalidation from dynamic type() calls (what tool.py does)
-  - _get_checked_concrete_subclasses stays in sync with concrete cache
-  - concurrent subclass definition from multiple threads
+models.py 中的生成计数器缓存通过 DiscriminatedUnionMixin.__init_subclass__ 自动失效。
+ 这些测试验证缓存在很容易损坏的情
+况下是否正确：
+  - 基本缓存命中
+  - 新子类定义的自动失效（包括深层层次结构）
+  - 动态 type() 调用自动失效（tool.py 的作用）
+  - _get_checked_concrete_subclasses 保留在同步中并具有具体缓存
+  - 并发多个线程的子类定义
 """
 
 import threading
@@ -32,8 +32,8 @@ class _ConcreteB(_Base):
     x: int = 2
 
 
-# Separate hierarchy for _get_checked_concrete_subclasses tests
-# (which rejects <locals> classes).
+# _get_checked_concrete_subclasses 测试的单独层次结构（拒绝 <locals> 类）。
+#
 class _CheckedBase(DiscriminatedUnionMixin, ABC):
     pass
 
@@ -43,19 +43,19 @@ class _CheckedA(_CheckedBase):
 
 
 def test_cache_hit():
-    """Consecutive calls return the exact same tuple object."""
+    """连续调用返回完全相同的元组对象。"""
     first = get_known_concrete_subclasses(_Base)
     second = get_known_concrete_subclasses(_Base)
     assert first is second
 
 
 def test_returns_tuple():
-    """Cached result is a tuple (immutable)."""
+    """缓存的结果是一个元组（不可变）。"""
     assert isinstance(get_known_concrete_subclasses(_Base), tuple)
 
 
 def test_auto_invalidates_on_new_subclass():
-    """Defining a new direct subclass invalidates the parent's cache."""
+    """定义一个新的直接子类会使父类的缓存失效。"""
     first = get_known_concrete_subclasses(_Base)
 
     class _ConcreteNew(_Base):
@@ -67,7 +67,7 @@ def test_auto_invalidates_on_new_subclass():
 
 
 def test_deep_hierarchy_invalidation():
-    """A subclass of a subclass still invalidates the root ancestor's cache."""
+    """子类的子类仍然会使根祖先的缓存无效。"""
 
     class _Mid(_Base, ABC):
         pass
@@ -78,7 +78,7 @@ def test_deep_hierarchy_invalidation():
     result = get_known_concrete_subclasses(_Base)
     assert _Leaf in result
 
-    # Now add a deeper leaf — the _Base cache must see it.
+    # 现在添加更深的叶子 - _Base 缓存必须看到它。
     class _Leaf2(_Mid):
         x: int = 43
 
@@ -88,7 +88,7 @@ def test_deep_hierarchy_invalidation():
 
 
 def test_dynamic_type_invalidates_cache():
-    """type() call (what tool.py uses) triggers __init_subclass__."""
+    """type() 调用（tool.py 使用的内容）触发 __init_subclass__。"""
     before = get_known_concrete_subclasses(_Base)
 
     DynClass = type("_DynSubclass", (_Base,), {"__annotations__": {"x": int}})
@@ -99,11 +99,11 @@ def test_dynamic_type_invalidates_cache():
 
 
 def test_checked_cache_stays_in_sync():
-    """_get_checked_concrete_subclasses invalidates alongside the concrete cache."""
+    """_get_checked_concrete_subclasses 与具体缓存一起失效。"""
     checked_before = _get_checked_concrete_subclasses(_CheckedBase)
     assert "_CheckedA" in checked_before
 
-    # Dynamically add a module-level subclass so qualname has no <locals>.
+    # 动态添加模块级子类，因此 qualname 没有 <locals>。
     cls = type("_CheckedB", (_CheckedBase,), {"__annotations__": {"x": int}})
     cls.__module__ = __name__
     cls.__qualname__ = "_CheckedB"
@@ -114,7 +114,7 @@ def test_checked_cache_stays_in_sync():
 
 
 def test_concurrent_subclass_creation():
-    """Multiple threads defining subclasses — cache is correct after all finish."""
+    """多个线程定义子类 — 全部完成后缓存是正确的。"""
 
     class _ThreadBase(_Base, ABC):
         pass

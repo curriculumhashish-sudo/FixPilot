@@ -1,11 +1,11 @@
-# UV workspace configuration
+# uv工作区配置
 [tool.uv.workspace]
 members = ["openhands-sdk", "openhands-tools", "openhands-workspace", "openhands-agent-server"]
 
-# Security: Apply workspace-wide dependency guardrails.
+# 安全性：应用工作区范围的依赖关系约束检查。
 [tool.uv]
-exclude-newer = "7 days"  # Avoid packages uploaded in the last 7 days.
-exclude-newer-package = { litellm = "2026-07-20T00:00:00Z", lmnr = "2026-08-23T00:00:00Z", certifi = "2026-10-21T00:00:00Z", pip = "2026-10-21T00:00:00Z" }  # lmnr: allow 0.7.60 streaming-token fix through the 7-day guardrail; certifi/pip: allow eMudhra CA distrust fix (GHSA-6q48-6c7w-9gw2) through the 7-day guardrail
+exclude-newer = "7 days"  # 避免在过去 7 天内上传的包。
+exclude-newer-package = { litellm = "2026-07-20T00:00:00Z", lmnr = "2026-08-23T00:00:00Z", certifi = "2026-10-21T00:00:00Z", pip = "2026-10-21T00:00:00Z" }  # lmnr：允许在 7 天约束检查内修复 0.7.60 流式传输-token； certifi/pip：允许 eMudhra CA 不信任修复 (GHSA-6q48-6c7w-9gw2) 通过 7 天约束检查
 constraint-dependencies = [
     "nodejs-wheel-binaries>=24,<25",
     "starlette>=0.49.1",
@@ -14,15 +14,15 @@ constraint-dependencies = [
     "protobuf>=6.33.5",
     "pillow>=12.3.0",
     "orjson>=3.11.7",
-    "rich>=14.3.3", # Version 14.3.2 essentially has a denial-of-service vulnerability which is outlined in https://github.com/Textualize/rich/issues/3958
+    "rich>=14.3.3", # 版本 14.3.2 本质上存在一个拒绝服务漏洞，如  https://github.com/Textualize/rich/issues/3958  中所述
     "lupa>=2.8",
-    "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",  # 49.0.0 dropped x86_64 macOS wheels; release-binaries.yml still builds on macos-15-intel
-    "litellm==1.93.0",  # Workspace lock target for the requested LiteLLM upgrade
+    "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",  # 49.0.0 掉落了 x86_64 macOS 轮子； release-binaries.yml 仍然基于 macos-15-intel 构建
+    "litellm==1.93.0",  # 工作区锁请求的 LiteLLM 升级的目标
     "anyio>=4.14.2",
     "pyjwt>=2.14.0",
 ]
 
-# Workspace sources for intra-repo dependencies
+# 工作区仓库内依赖关系的来源
 [tool.uv.sources]
 openhands-sdk = { workspace = true }
 openhands-tools = { workspace = true }
@@ -50,7 +50,7 @@ dev = [
     "griffe[pypi]>=2.3.0",
 ]
 
-# Ruff configuration
+# Ruff 配置
 [tool.ruff]
 target-version = "py313"
 line-length = 88
@@ -62,24 +62,24 @@ indent-style = "space"
 [tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
-    "F",    # pyflakes (includes F841: unused-variable)
+    "F",    # pyflakes（包括 F841：未使用的变量）
     "I",    # isort
-    "UP",   # pyupgrade
-    "ARG",  # flake8-unused-arguments
+    "UP",   # py升级
+    "ARG",  # flake8-未使用的参数
 ]
-# Enforce rules that catch mutable defaults and related pitfalls
-# - B006: mutable-argument-default
-# - B008: function-call-in-default-argument
-# - B039: mutable-contextvar-default
-# - RUF012: mutable-class-default
+# 执行捕获可变默认值和相关陷阱的规则
+# - B006：可变参数默认值
+# - B008：默认参数中的函数调用
+# - B039：可变上下文变量默认值
+# - RUF012：可变类默认值
 extend-select = ["B006", "B008", "B039", "RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
-# Test files often have unused arguments (fixtures, mocks, interface implementations)
+# 测试文件通常具有未使用的参数（测试夹具、模拟对象、接口实现）
 "tests/**/*.py" = ["ARG"]
 
 
-# Allowlist safe default calls for flake8-bugbear rules (e.g., FastAPI Depends)
+# flake8-bugbear 规则的白名单安全默认调用（e.g., FastAPI 取决于）
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = [
     "fastapi.Depends",
@@ -92,7 +92,7 @@ combine-as-imports = true
 force-single-line = false
 lines-after-imports = 2
 
-# Pytest configuration
+# pytest 配置
 [tool.pytest.ini_options]
 testpaths = [
     "tests"
@@ -108,8 +108,8 @@ markers = [
     "docker_live: scenarios against a real Docker daemon and agent-server image, deselected by default. Run with `pytest -m docker_live` (see tests/agent_server/docker_runtime/STORAGE_SCENARIO.md).",
 ]
 
-# Pyright configuration for PEP 420 namespace packages
-# This is needed for VSCode to properly resolve imports across multiple packages in the monorepo
+# Pyright 配置文件 PEP 420 命名空间此包是必需的 VSCode 正确解决跨多个包的导入问题单体仓库
+#
 [tool.pyright]
 include = [
     "openhands-sdk",

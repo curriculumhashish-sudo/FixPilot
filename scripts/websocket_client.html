@@ -17,14 +17,14 @@
             document.getElementById('sendButton').disabled = false
         });
 
-        // Event handler for receiving messages from the server
+        // 接收服务器消息时调用的事件处理函数
         socket.addEventListener('message', (event) => {
             console.log('Message from server:', event.data);
-            // You can update your UI or process the received data here
+            // 可以在此更新界面或处理接收到的数据
             document.getElementById('messages').innerHTML += `<li>${event.data}</li>`;
         });
 
-        // Event handler for when the connection is closed
+        // 连接关闭时调用的事件处理函数
         socket.addEventListener('close', (event) => {
             console.log('WebSocket connection closed:', event);
             document.getElementById('connectButton').disabled = false
@@ -33,7 +33,7 @@
             document.getElementById('sendButton').disabled = true
         });
 
-        // Event handler for errors
+        // 发生错误时调用的事件处理函数
         socket.addEventListener('error', (event) => {
             console.error('WebSocket error:', event);
         });

@@ -1,4 +1,4 @@
-"""Tests for configurable stuck detection thresholds."""
+"""测试可配置的卡住检测阈值。"""
 
 from pydantic import SecretStr
 
@@ -12,8 +12,8 @@ from openhands.tools.terminal.definition import (
 
 
 def test_custom_action_observation_threshold():
-    """Test that custom thresholds work correctly for action-observation loops."""
-    # Create conversation with higher threshold
+    """测试自定义阈值对于 action-观测结果循环是否正常工作。"""
+    # 创建门槛较高的对话
     conv = LocalConversation(
         Agent(llm=LLM(model="gpt-4o-mini", api_key=SecretStr("test"))),
         workspace="/tmp",
@@ -21,10 +21,10 @@ def test_custom_action_observation_threshold():
         stuck_detection_thresholds={"action_observation": 6},
     )
 
-    # Add a user message first
+    # 先添加用户留言
     conv.send_message("start")
 
-    # Create identical action-observation pairs
+    # 创建相同的动作-观测结果对
     def create_action_obs():
         action = ActionEvent(
             source="agent",
@@ -51,31 +51,32 @@ def test_custom_action_observation_threshold():
         )
         return action, observation
 
-    # Add 4 pairs (would trigger default threshold of 4). Emit through the
-    # real chokepoint so HEAD advances, as it does in a live run.
+    # 添加 4 对（将触发默认阈值 4）。 通过真正的阻塞点发射，因此 HEAD 前进，就像在实时运
+    # 行中一样。
+    #
     for _ in range(4):
         action, observation = create_action_obs()
         with conv._state:
             conv._state.append_event(action)
             conv._state.append_event(observation)
 
-    # Should NOT be stuck with threshold=6
+    # 不应该被阈值=6 困住吗
     assert conv._stuck_detector is not None
     assert not conv._stuck_detector.is_stuck()
 
-    # Add 2 more pairs to reach threshold of 6
+    # 再添加 2 对以达到阈值 6
     for _ in range(2):
         action, observation = create_action_obs()
         with conv._state:
             conv._state.append_event(action)
             conv._state.append_event(observation)
 
-    # Now should be stuck
+    # 现在应该被卡住了
     assert conv._stuck_detector.is_stuck()
 
 
 def test_mixed_custom_thresholds():
-    """Test setting multiple custom thresholds at once."""
+    """测试一次设置多个自定义阈值。"""
     conv = LocalConversation(
         Agent(llm=LLM(model="gpt-4o-mini", api_key=SecretStr("test"))),
         workspace="/tmp",
@@ -91,5 +92,5 @@ def test_mixed_custom_thresholds():
     assert conv._stuck_detector.action_observation_threshold == 8
     assert conv._stuck_detector.action_error_threshold == 6
     assert conv._stuck_detector.monologue_threshold == 10
-    # alternating_pattern should use default
+    # alternating_pattern 应使用默认值
     assert conv._stuck_detector.alternating_pattern_threshold == 6

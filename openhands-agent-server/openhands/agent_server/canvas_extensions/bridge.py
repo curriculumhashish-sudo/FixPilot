@@ -1,4 +1,4 @@
-"""Authenticated browser bridge for owned Canvas App backends."""
+"""针对拥有的 Canvas 应用程序后端进行身份验证的浏览器桥。"""
 
 from __future__ import annotations
 
@@ -41,12 +41,11 @@ class BackendRegistry(Protocol):
 
 
 class AppBackendSessionResponse(BaseModel):
-    """Browser bootstrap result for one running Canvas App backend.
+    """一个正在运行的 Canvas 应用程序后端的浏览器引导结果。
 
-    The session credential is delivered only as an HttpOnly cookie. ``ingress_url``
-    contains no credential and must be loaded from a separate browser origin. That
-    origin is the isolation boundary, so frames retain their origin for cookies,
-    workers, WebSockets, and Origin-based request validation.
+    会话凭据仅作为 HttpOnly cookie 传送。 ``ingress_url`` 不包含凭据，并且必须从单独
+    的浏览器源加载。 该原点是隔离边界，因此框架保留
+    cookie、worker WebSockets 和基于原点的请求验证的原点。
     """
 
     ingress_url: str
@@ -72,12 +71,11 @@ class _AppBackendSession:
 
 
 class AppBackendSessionStore:
-    """Own short-lived app sessions and their live WebSocket bridges.
+    """拥有短暂的应用程序会话及其实时 WebSocket 桥。
 
-    A background reaper enforces expiry on its own: an already-bridged
-    WebSocket never calls :meth:`authorize` again, so opportunistic pruning
-    alone would let a socket keep forwarding past its TTL until some unrelated
-    session traffic happened to arrive.
+    背景收割者会自动执行过期：已经桥接的 WebSocket 从未调用过：meth方法。`authorize`
+    再次，仅仅依赖于机会主义修剪就能让一个套接字继续转发到它
+    的 TTL 直到一些无关的会话流量到达。
     """
 
     def __init__(self, ttl_seconds: int = APP_BACKEND_SESSION_TTL_SECONDS) -> None:
@@ -128,8 +126,9 @@ class AppBackendSessionStore:
             if self._sessions.get(session.token_digest) is not session:
                 raise RuntimeError("App backend session was revoked")
             session.sockets.add(task)
-            # A socket attached to a session created by an instance without a
-            # running reaper (or after `shutdown`) still needs one.
+            # 附加到由没有运行收割机（或在 `shutdown` 之后）的实例创建的会话的套接字仍然
+            # 需要一个。
+            #
             self._ensure_reaper_locked()
             self._reaper_wakeup.set()
 
@@ -192,13 +191,12 @@ class AppBackendSessionStore:
             self._reaper = asyncio.create_task(self._reap_expired_loop())
 
     async def _reap_expired_loop(self) -> None:
-        """Cancel expired sessions even when no request traffic arrives.
+        """即使没有请求流量到达，也可以取消过期的会话。
 
-        The loop sleeps until the earliest attached-socket expiry, waking early
-        whenever a session is created or a socket attached, so a bridged
-        WebSocket is terminated at its TTL rather than at the next unrelated
-        request. It exits (and clears ``_reaper``) once no bridged sockets
-        remain, at which point opportunistic pruning covers new sessions.
+        该循环会一直睡眠，直到最早的一个已附接的套接字过期，每当会话创建或套接字附接
+        时就会提前唤醒，因此，桥接 WebSocket 在其 TTL 而不是在下一个无关
+        的请求时终止。 一旦没有桥接套接字剩余，它就会退出（并清除``_reaper``），此时
+        机会修剪会覆盖新会话。
         """
         while True:
             async with self._lock:
@@ -273,12 +271,12 @@ def _allowed_control_origin(config: Config, origin: str) -> bool:
 
 
 def _request_origin(request: Request | WebSocket) -> str | None:
-    """Derive the request origin from the connection the server actually saw.
+    """从服务器实际看到的连接派生请求源。
 
-    ``X-Forwarded-Proto``/``X-Forwarded-Host`` are client-controllable, so they
-    are honored only when ``trust_forwarded_headers`` marks a deployment where a
-    proxy terminates TLS in front of this server. Otherwise the request's own
-    scheme and ``Host`` decide — the same inputs a spoofing client cannot fake.
+    ``X-Forwarded-Proto``/``X-Forwarded-Host`` 是客户端可控的，因此仅当
+    ``trust_forwarded_headers`` 标记代理在此服务器前面终止 TLS 的部署时，它们才会受到
+    尊重。 否则，请求自己的方案和``Host``决定
+    ——欺骗客户端无法伪造相同的输入。
     """
     config: Config | None = getattr(request.app.state, "config", None)
     trust_forwarded = bool(config and config.trust_forwarded_headers)
@@ -321,15 +319,13 @@ def _require_app_origin(origin: str | None, public_url: str) -> None:
 
 
 def _validate_proxy_path(path: str) -> None:
-    """Reject path traversal in an already once-decoded routing path.
+    """拒绝已经解码过一次的路由路径中的路径遍历。
 
-    Starlette decodes the raw URL once before ``path`` reaches us, so every
-    remaining ``%`` is encoded data the upstream will decode again. Decoding to
-    a fixed point therefore mirrors what the upstream path parser sees,
-    regardless of how deeply the caller nested the encoding. Each changing round
-    consumes at least one ``%XX`` escape, so ``len(path) + 1`` rounds is a hard
-    upper bound; reaching it means the value never converged and must be
-    rejected rather than forwarded.
+    Starlette在 URL 传给 ``path`` 之前解码了原始数据，因此剩下的 ``%`` 都是上游解码的
+    编码数据。 因此，解码到固定点会反映上游路径解析器所
+    看到的内容，无论调用者嵌套编码的深度如何。 每轮变化至少消耗一次``%XX``次逃脱，因
+    此``len(path) + 1``轮是一个硬性上限； 达到它意味着价值永远
+    不会收敛，必须被拒绝而不是转发。
     """
     candidate = path
     for _ in range(len(path) + 1):
@@ -375,11 +371,11 @@ def _cookie_path(extension_name: str) -> str:
 
 
 def _session_cookie_is_secure(request: Request) -> bool:
-    """Whether a ``Secure`` app-session cookie can be issued for this request.
+    """是否可以为此请求发出 ``Secure`` 应用程序会话 cookie。
 
-    Uses :func:`_request_origin`, so it makes the same non-spoofable
-    trusted-proxy decision as the ingress checks rather than reading
-    ``X-Forwarded-*`` unconditionally.
+    使用：func:`_request_origin`，因此它会做出与入口检查相同的不可欺骗可信代理决策，
+    而不是读取
+    ``X-Forwarded-*``无条件。
     """
     origin = _request_origin(request)
     if origin is None:
@@ -473,8 +469,8 @@ async def proxy_app_backend_http(
             reject_redirects=True,
         )
     except HTTPException as exc:
-        # proxy_http words connection failures for the Docker runtime
-        # ("Conversation container unreachable"); name the Canvas backend.
+        # proxy_http 字 Docker 运行时连接失败（“会话容器无法访问”）； 命名 Canvas 后端。
+        #
         if exc.status_code == status.HTTP_502_BAD_GATEWAY and isinstance(
             exc.__cause__, httpx.HTTPError
         ):

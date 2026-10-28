@@ -4,31 +4,29 @@ from openhands.sdk.event.base import LLMConvertibleEvent
 
 
 class ManipulationIndices(set[int]):
-    """A set of indices where events can be safely manipulated.
+    """可以安全地操纵事件的一组索引。
 
-    We mean two main things when we say a list of events `events` can be "manipulated":
+    当我们说事件列表 `events` 可以被“操纵”时，我们主要有两个意思：
 
-    1. If `i` is a manipulation index, we can insert any event into `events` at `i`.
-    2. If `i, j` are manipulation indices, `events[i:j]` can be deleted.
+    1. 如果`i`是一个操作索引，我们可以将任何事件插入到`events`的`i`处。
+    2. 如果`i, j`是操纵索引，则可以删除`events[i:j]`。
 
-    Extends set[int] to provide utility methods for finding the next valid manipulation
-    index and building common index sets.
+    扩展 set[int] 以提供用于查找下一个有效操作索引和构建公共索引集的实用方法。
     """
 
     def find_next(self, threshold: int) -> int:
-        """Find the smallest manipulation index greater than or equal to the threshold.
+        """找到大于或等于阈值的最小操纵指数。
 
-        This is a helper method for condensation logic that needs to find safe
-        boundaries for forgetting events.
+        这是上下文压缩逻辑的辅助方法，需要找到遗忘事件的安全边界。
 
         Args:
-            threshold: The threshold value to compare against.
+            threshold: 要比较的阈值。
 
         Returns:
-            The smallest manipulation index greater than or equal to the threshold.
+            大于或等于阈值的最小操纵指数。
 
         Raises:
-            ValueError: if no valid manipulation index exists past the threshold.
+            ValueError: 如果不存在超过阈值的有效操纵指数。
         """
         valid_indices = {idx for idx in self if idx >= threshold}
 
@@ -39,10 +37,9 @@ class ManipulationIndices(set[int]):
 
     @staticmethod
     def complete(events: list[LLMConvertibleEvent]) -> ManipulationIndices:
-        """Returns a complete set of manipulation indices for a sequence of events.
+        """返回事件序列的完整操作索引集。
 
-        This is equivalent to saying that manipulations can be done anywhere inside the
-        sequence without issue.
+        这相当于说可以在序列内的任何位置进行操作而不会出现问题。
         """
         manipulation_indices = ManipulationIndices()
 

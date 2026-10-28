@@ -1,4 +1,4 @@
-"""Docker development workspace with on-the-fly image building capability."""
+"""Docker 开发工作区具有即时图像构建功能。"""
 
 from pydantic import Field, model_validator
 
@@ -8,34 +8,34 @@ from .workspace import DockerWorkspace
 
 
 class DockerDevWorkspace(DockerWorkspace):
-    """Docker workspace with on-the-fly image building capability.
+    """Docker 工作区具有即时图像构建功能。
 
-    This workspace extends DockerWorkspace to support building Docker images
-    on-the-fly from a base image. This is useful for development and testing
-    scenarios where you need to customize the agent server environment.
+    此工作区扩展了 DockerWorkspace 以支持从基础映像即时构建 Docker 映像。 这对于需要
+    自定义 Agent Server 环境的开发和测试场景非常
+    有用。
 
-    Note: This class requires the OpenHands SDK workspace structure and should
-    only be used within the OpenHands development environment or when you have
-    the full SDK source code available.
+    Note: 该类需要 OpenHands SDK 工作区结构并且应该
+    仅可在 OpenHands 开发环境中或当您拥有完整的 SDK 源代码时使用。
 
-    For production use cases with pre-built images, use DockerWorkspace instead.
+    对于具有预构建图像的生产用例，请改用 DockerWorkspace。
 
     Example:
         with DockerDevWorkspace(
             base_image="python:3.13",
             target="source"
-        ) as workspace:
+        ) 作为工作区：
             result = workspace.execute_command("ls -la")
     """
 
-    # Override parent's server_image default to None so that callers
-    # providing base_image don't need to explicitly pass server_image=None.
+    # 将父级的 server_image 默认值覆盖为 None，以便提供 base_image 的调用者不需要显式传
+    # 递 server_image=None。
+    #
     server_image: str | None = Field(
         default=None,
         description="Pre-built agent server image. Mutually exclusive with base_image.",
     )
 
-    # Add base_image support
+    # 添加 base_image 支持
     base_image: str | None = Field(
         default=None,
         description=(
@@ -44,14 +44,14 @@ class DockerDevWorkspace(DockerWorkspace):
         ),
     )
 
-    # Add build-specific options
+    # 添加特定于构建的选项
     target: TargetType = Field(
         default="source", description="Build target for the Docker image."
     )
 
     @model_validator(mode="after")
     def _validate_images(self):
-        """Ensure exactly one of base_image or server_image is provided."""
+        """确保准确提供 base_image 或 server_image 之一。"""
         if (self.base_image is None) == (self.server_image is None):
             raise ValueError(
                 "Exactly one of 'base_image' or 'server_image' must be set."
@@ -67,19 +67,19 @@ class DockerDevWorkspace(DockerWorkspace):
     def _build_image_from_base(
         *, base_image: str, target: TargetType, platform: PlatformType
     ) -> str:
-        """Build a Docker image from a base image.
+        """从基础镜像构建 Docker 镜像。
 
         Args:
-            base_image: The base Docker image to build from.
-            target: The build target (e.g., 'source', 'dev').
-            platform: The platform to build for (e.g., 'linux/amd64').
+            base_image: 用于构建的基础 Docker 图像。
+            target: 构建目标（e.g., 'source', 'dev'）。
+            platform: 要构建的平台 (e.g., 'linux/amd64')。
 
         Returns:
-            The built Docker image tag.
+            内置的Docker图像标签。
 
         Raises:
-            RuntimeError: If the base_image is a pre-built agent-server image
-                or if the build fails.
+            RuntimeError: 如果 base_image 是预构建的智能体-服务器映像
+                或者如果构建失败。
         """
         from openhands.agent_server.docker.build import BuildOptions, build
 
@@ -101,23 +101,22 @@ class DockerDevWorkspace(DockerWorkspace):
         return tags[0]
 
     def get_image(self) -> str:
-        """Build the image if base_image is provided, otherwise use server_image.
+        """如果提供了 base_image，则构建图像，否则使用 server_image。
 
-        This overrides the parent method to add on-the-fly image building
-        capability.
+        这会覆盖父方法以添加即时图像构建功能。
 
         Returns:
-            The Docker image tag to use.
+            要使用的 Docker 图像标签。
         """
         if self.base_image:
-            # Build the image from base_image
+            # 从 base_image 构建图像
             return self._build_image_from_base(
                 base_image=self.base_image,
                 target=self.target,
                 platform=self.platform,
             )
         elif self.server_image:
-            # Use pre-built image
+            # 使用预先构建的图像
             return self.server_image
         else:
             raise ValueError("Either base_image or server_image must be set")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate markdown report for PR comments from consolidated JSON results.
+根据综合 JSON 结果生成 PR 条评论的 Markdown 报告。
 """
 
 import argparse
@@ -16,7 +16,7 @@ from tests.integration.utils.format_costs import format_cost
 
 
 def format_token_usage(token_usage: TokenUsageData | None) -> str:
-    """Format token usage for display."""
+    """词元用量格式用于显示。"""
     if token_usage is None:
         return "N/A"
 
@@ -39,7 +39,7 @@ def format_token_usage(token_usage: TokenUsageData | None) -> str:
 
 
 def format_token_usage_short(token_usage: TokenUsageData | None) -> str:
-    """Format token usage in a short format for tables."""
+    """将词元用量设置为表格的短格式。"""
     if token_usage is None:
         return "N/A"
 
@@ -51,7 +51,7 @@ def format_token_usage_short(token_usage: TokenUsageData | None) -> str:
 
 
 def generate_model_summary_table(model_results: list[ModelTestResults]) -> str:
-    """Generate a summary table for all models."""
+    """生成所有模型的汇总表。"""
 
     table_lines = [
         ("| Model | Overall | Tests Passed | Skipped | Total | Cost | Tokens |"),
@@ -78,7 +78,7 @@ def generate_model_summary_table(model_results: list[ModelTestResults]) -> str:
 
 
 def generate_detailed_results(model_results: list[ModelTestResults]) -> str:
-    """Generate detailed results for each model."""
+    """为每个模型生成详细的结果。"""
 
     sections = []
 
@@ -104,7 +104,7 @@ def generate_detailed_results(model_results: list[ModelTestResults]) -> str:
 
         section_lines.append("")
 
-        # Add skipped tests if any
+        # 添加跳过的测试（如果有）
         skipped_tests = [t for t in result.test_instances if t.test_result.skipped]
         if skipped_tests:
             section_lines.extend(
@@ -120,7 +120,7 @@ def generate_detailed_results(model_results: list[ModelTestResults]) -> str:
 
             section_lines.append("")
 
-        # Add failed tests if any
+        # 添加失败的测试（如果有）
         failed_tests = [
             t
             for t in result.test_instances
@@ -141,7 +141,7 @@ def generate_detailed_results(model_results: list[ModelTestResults]) -> str:
 
             section_lines.append("")
 
-        # Add error messages if any
+        # 添加错误消息（如果有）
         error_tests = [t for t in result.test_instances if t.error_message]
         if error_tests:
             section_lines.extend(
@@ -162,11 +162,10 @@ def generate_detailed_results(model_results: list[ModelTestResults]) -> str:
 
 
 def derive_report_title(consolidated: ConsolidatedResults) -> str:
-    """Derive the report heading from the test types that actually ran.
+    """从实际运行的测试类型中得出报告标题。
 
-    A run is labelled by its single test type when every result instance shares
-    that type; mixed or integration-only runs fall back to the default
-    "Integration Tests Results" heading for backward compatibility.
+    当每个结果实例共享该类型时，运行将由其单一测试类型标记； 混合或仅集成运行会回退到
+    向后兼容性的默认“集成测试结果”标题。
     """
     test_types = {
         instance.test_type
@@ -181,9 +180,9 @@ def derive_report_title(consolidated: ConsolidatedResults) -> str:
 
 
 def generate_markdown_report(consolidated: ConsolidatedResults) -> str:
-    """Generate complete markdown report from consolidated results."""
+    """根据合并结果生成完整的 Markdown 报告。"""
 
-    # Header
+    # 标头
     report_lines = [
         derive_report_title(consolidated),
         "",
@@ -194,7 +193,7 @@ def generate_markdown_report(consolidated: ConsolidatedResults) -> str:
         "",
     ]
 
-    # Add artifacts section if any model has artifact URLs
+    # 如果任何模型有 artifact URLs，添加 artifacts 部分
     artifacts_available = any(
         result.artifact_url for result in consolidated.model_results
     )
@@ -221,9 +220,9 @@ def generate_markdown_report(consolidated: ConsolidatedResults) -> str:
                     f"[📥 View & Download Logs]({result.artifact_url})"
                 )
 
-        report_lines.append("")  # Add empty line after artifacts section
+        report_lines.append("")  # 在工件部分后添加空行
 
-    # Summary table
+    # 汇总表
     report_lines.extend(
         [
             "## 📊 Summary",
@@ -233,7 +232,7 @@ def generate_markdown_report(consolidated: ConsolidatedResults) -> str:
         ]
     )
 
-    # Detailed results
+    # 详细结果
     report_lines.extend(
         [
             "## 📋 Detailed Results",
@@ -265,7 +264,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Load consolidated results
+        # 加载合并结果
         print(
             f"Loading consolidated results from {args.input_file}...", file=sys.stderr
         )
@@ -278,11 +277,11 @@ def main():
             f"✓ Loaded results for {consolidated.total_models} models", file=sys.stderr
         )
 
-        # Generate markdown report
+        # 生成 Markdown 报告
         print("Generating markdown report...", file=sys.stderr)
         markdown_report = generate_markdown_report(consolidated)
 
-        # Output report
+        # 输出报告
         if args.output_file:
             with open(args.output_file, "w") as f:
                 f.write(markdown_report)

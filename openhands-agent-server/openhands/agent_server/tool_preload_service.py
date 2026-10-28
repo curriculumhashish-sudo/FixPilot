@@ -1,4 +1,4 @@
-"""Service which preloads chromium."""
+"""预加载 Chromium 的服务。"""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ _logger = get_logger(__name__)
 
 
 class ToolPreloadService:
-    """Service which preloads tools / chromium reducing time to
-    start first conversation"""
+    """预加载工具/铬的服务减少了时间
+    开始第一次对话"""
 
     running: bool = False
 
     async def start(self) -> bool:
-        """Preload tools"""
+        """预加载工具"""
 
-        # Skip if already running
+        # 如果已经运行则跳过
         if self.running:
             return True
 
@@ -29,11 +29,11 @@ class ToolPreloadService:
         try:
             from openhands.tools.browser_use.impl import BrowserToolExecutor
 
-            # Creating an instance here to preload chomium
+            # 在这里创建一个实例来预加载 chomium
             BrowserToolExecutor()
 
-            # Pre-creating all these classes prevents processing which costs
-            # significant time per tool on the first conversation invocation.
+            # 预先创建所有这些类可以防止在第一次对话调用时每个工具花费大量时间的处理。
+            #
             for action_type in get_known_concrete_subclasses(Action):
                 create_action_type_with_risk(action_type)
 
@@ -44,11 +44,11 @@ class ToolPreloadService:
             return False
 
     async def stop(self) -> None:
-        """Stop the tool preload process."""
+        """停止工具预加载过程。"""
         self.running = False
 
     def is_running(self) -> bool:
-        """Check if tool preload is running."""
+        """检查工具预加载是否正在运行。"""
         return self.running
 
 
@@ -56,7 +56,7 @@ _tool_preload_service: ToolPreloadService | None = None
 
 
 def get_tool_preload_service() -> ToolPreloadService | None:
-    """Get the tool preload service instance if preload is enabled."""
+    """如果启用了预加载，则获取工具预加载服务实例。"""
     global _tool_preload_service
     config = get_default_config()
 

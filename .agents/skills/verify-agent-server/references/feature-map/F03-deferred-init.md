@@ -1,127 +1,84 @@
-# Deferred init (warm-pool dormant mode)
+<a id="deferred-init-warm-pool-dormant-mode"></a>
 
-A warm-pool agent server can boot *dormant*: with `OH_DEFERRED_INIT` set, the
-lifespan starts the stateless services (VS Code, tool preload, telemetry on the
-base config) and marks `/ready` ready, but never enters the conversation, event
-or bash services. Until `POST /api/init` delivers the per-user runtime config,
-the dormant gate closes every ingress that reaches user state: every `/api/*`
-route except `/api/init` (the workspace static-file routes included), the
-OpenAI-compatible `/v1` routes and `/app-backends` answer 503 with the gate's
-reason, and every WebSocket (`/sockets/events`, `/sockets/session`,
-`/sockets/bash-events`) is refused at the handshake. The gate runs before
-authentication, so a dormant pod answers 503 even to a request without a key.
-Only `/api/init`, `GET /`, `/static`, the docs and OpenAPI routes and the
-status routes stay open: `/alive`, `/health`, `/ready` and `/server_info`
-stay 200 so an orchestrator can place the pod. `GET
-/api/init` reports the dormant/initializing/ready state without a key; `POST
-/api/init` is gated by `X-Init-API-Key` (the dormant `secret_key`, open when
-the pod has none) and, in one shot, applies env, rebuilds telemetry, enters a
-conversation/registry/bash service built from the merged config, swaps them
-onto `app.state`, recomputes the root path and the VS Code token, and emits
-`server_started`. A failed init rolls back to dormant and records the error so
-the orchestrator can retry; a second init is a 400; on a
-non-deferred server both routes 404. Of the delivered fields,
+# 延迟初始化（暖池休眠模式）
+
+Agent Server 温热池 * 可以启动 * 濒死状态 `OH_DEFERRED_INIT` 设置，生命周期开始启动无状态服务（VS Code、工具预加载、基础配置中的 telemetry），并标记 `/ready` 就绪，但永远不会进入对话、事件或 bash 服务。 直到`POST /api/init`提供每个用户的运行时配置，休眠门会关闭所有到达用户状态的入站：除了`/api/*`（包括`/api/init`的工作区静态文件路由），OpenAI-兼容`/v1`路由和`/app-backends`会返回门的原因，以及WebSocket（`/sockets/events`，`/sockets/session`）都会返回503
+`/sockets/bash-events`) 在握手时被拒绝。 该门在身份验证之前运行，因此即使对于没有密钥的请求，休眠 Pod 也会响应 503。 只有`/api/init`、`GET /`、`/static`、文档和OpenAPI路由和状态路由保持开放：`/alive`、`/health`、`/ready`和`/server_info`保持200，这样调度器可以放置Pod。 `GET /api/init` 报告休眠/初始化/就绪状态，无需密钥； `POST /api/init` 由 `X-Init-API-Key`（休眠 `secret_key`，当 pod 有 None 时打开）控制，并且一次性应用 env，重建遥测，进入从合并配置构建的对话/注册表/bash 服务，将它们交换到 `app.state`，重新计算根路径和 VS Code token，并发出
+`server_started`. 失败的 init 会回滚到休眠状态并记录错误，以便协调器可以重试； 第二个 init 是 400； 在非延迟服务器上，两条路由均为 404。 在交付的字段中，
 `conversations_path`, `bash_events_dir`, `conversation_worktree_root`,
-`max_concurrent_runs`, `webhooks`, `session_api_keys`, `web_url` and `env`
-take effect, while `allow_cors_origins` never reaches the CORS middleware built
-at boot; this family reproduces it.
+`max_concurrent_runs`、`webhooks`、`session_api_keys`、`web_url`和`env`生效，而`allow_cors_origins`永远不会到达启动时构建的CORS中间件； 这个家庭复制了它。
 
-Source: `openhands-agent-server/openhands/agent_server/init_router.py`, `openhands-agent-server/openhands/agent_server/api.py`, `openhands-agent-server/openhands/agent_server/config.py`, `openhands-agent-server/openhands/agent_server/sockets.py`, `openhands-agent-server/openhands/agent_server/dependencies.py`, `openhands-agent-server/openhands/agent_server/middleware.py`, `openhands-agent-server/openhands/agent_server/persistence/store.py`
+资料来源：`openhands-agent-server/openhands/agent_server/init_router.py`、`openhands-agent-server/openhands/agent_server/api.py`、`openhands-agent-server/openhands/agent_server/config.py`、`openhands-agent-server/openhands/agent_server/sockets.py`、`openhands-agent-server/openhands/agent_server/dependencies.py`、`openhands-agent-server/openhands/agent_server/middleware.py`、`openhands-agent-server/openhands/agent_server/persistence/store.py`
 
-Needs: `git`, `llm`
+需求：`git`、`llm`
 
-Launch: `--no-auth --deferred-init`
+发射：`--no-auth --deferred-init`
 
-Routes: `GET /api/init`, `POST /api/init`
+路线：`GET /api/init`、`POST /api/init`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F03.dormant-boot`: a deferred server boots healthy, answers `/alive`, `/ready`, `/server_info`, `GET /` and the OpenAPI document with 200, and reports `{"state":"dormant","error":null}` on `GET /api/init`.
-- `F03.dormant-gates-api`: every `/api/*` route except `/api/init` returns 503 while dormant (reads, mutations and the separately mounted workspace file routes), and the body carries the gate's own reason (`exception` = `503: server is in deferred-init state 'dormant'; call POST /api/init first`; `detail` is rewritten to `Internal Server Error` by the 5xx handler).
-- `F03.dormant-gates-sockets`: while dormant the bash-events, conversation events and session WebSockets refuse the handshake (the gate closes with 1013 before accept, which the client sees as HTTP 403), so no auth frame is ever read.
-- `F03.dormant-gates-v1`: while dormant the OpenAI-compatible `GET /v1/models` and `POST /v1/chat/completions` answer 503 with the gate's reason, as does the Canvas app-backend bridge (`/app-backends/...`).
-- `F03.init-key-auth`: `POST /api/init` requires `X-Init-API-Key` equal to the dormant `secret_key`; a missing or wrong key is 401, checked before the body is validated, and leaves the state dormant.
-- `F03.init-validation`: an unknown field, an out-of-range value or an empty delivered session key is a 422 and the state stays dormant.
-- `F03.init-redacts-secret-input`: a 422 whose echoed input carries a secret-bearing key (`Authorization` header) redacts it to `<redacted>` and the raw value appears nowhere in the response.
-- `F03.init-failure-rollback`: an init that fails mid-build returns 500, rolls the state back to `dormant` with the gate still closed, and records the error on `GET /api/init` so it can be retried.
-- `F03.init-success`: a valid `POST /api/init` flips the server to `ready`, and new conversations are stored under the delivered `conversations_path`.
-- `F03.init-delivered-webhooks`: `webhooks` delivered at init (on a pod that booted with none) receive the new conversation's `ConversationInfo` at `{base_url}/conversations`, with the delivered headers and the delivered session key.
-- `F03.init-enforces-session-keys`: after init, `/api/*` rejects a missing or wrong key with 401 and accepts the delivered session key with 200, on a pod that booted without keys.
-- `F03.init-applies-env`: `env` entries delivered at init reach `os.environ` and therefore the bash subprocesses, and the delivered `bash_events_dir` receives the events.
-- `F03.init-keys-gate-bash-socket`: after init, `/sockets/bash-events` closes with 4001 for a client without the delivered key and runs commands for one with it.
-- `F03.init-opens-events-socket-and-v1`: after init, the conversation events socket that was refused while dormant opens and replays the conversation's state with the delivered key (4001 without it), and `GET /v1/models` answers 401 without a key and 200 with the delivered key as a Bearer token.
-- `F03.init-web-url-root-path`: a delivered `web_url` with a path becomes the root path: prefixed URLs serve and the OpenAPI document advertises the prefix.
-- `F03.init-delivered-worktree-root`: a `worktree: true` conversation on a git workspace created after init gets its worktree under the delivered `conversation_worktree_root`, not the boot root.
-- `F03.init-delivered-max-runs`: a delivered `max_concurrent_runs` of 1 replaces the boot default (10): a second conversation's `/run` is 429 while another run holds the slot, and is accepted once the slot is free.
-- `F03.init-delivered-cors-origins`: an origin delivered in `allow_cors_origins` must pass a CORS preflight after init, as the field promises (reproduces a real bug; see Gotchas).
-- `F03.init-second-call-400`: a second `POST /api/init` after `ready` is rejected with 400 and the state is unchanged; the init key is now the delivered `secret_key`, so the dormant bootstrap key is 401.
-- `F03.init-child-launcher`: after a keyless boot and key delivery at init, a real-model parent uses the authenticated internal launcher to start a child.
-- `F03.init-open-without-secret`: a pod booted with neither a secret key nor session keys accepts `POST /api/init` without `X-Init-API-Key`; afterwards the first delivered session key is the init key (a keyless retry is 401, a retry with it is 400).
-- `F03.init-state-not-persisted`: the init state lives in memory only, so after a restart a deferred pod is dormant again (the previously delivered key gets the dormant 503 too) and must be re-initialized.
-- `F03.auth-before-gate`: retired by #5700. It asserted that a dormant pod with boot session keys answered 401 to a missing key before the 503 gate; readiness is now checked first, see `F03.gate-before-auth`.
-- `F03.gate-before-auth`: when the dormant config already has session keys, readiness is checked before authentication: a missing, wrong or valid key all get the 503 dormant gate (never 401), on HTTP and on WebSockets.
-- `F03.not-deferred-404`: on a non-deferred server both `/api/init` routes return 404, and `POST` still authenticates the init key before the 404.
+## 子功能
 
-## How to get to it (agent POV)
+- `F03.dormant-boot`：延迟服务器正常启动，以 200 回答 `/alive`、`/ready`、`/server_info`、`GET /` 和 OpenAPI 文档，并在 `GET /api/init` 上报告 `{"state":"dormant","error":null}`。
+- `F03.dormant-gates-api`every `/api/*` except `/api/init` 返回503状态码（读取、修改和单独挂载的） 工作区文件路由），并且主体携带了门的自身原因（`exception` = `503: server is in deferred-init state 'dormant'; call POST /api/init first`; `detail` 已被重写为 `Internal Server Error` 由 5xx 处理器。
+- `F03.dormant-gates-sockets` 当bash-events、对话事件和会话 WebSockets 拒绝握手（门在1013之前关闭，客户端看到的是HTTP 403），因此永远不会读取认证帧。
+- `F03.dormant-gates-v1`：当处于休眠状态时，OpenAI 兼容的 `GET /v1/models` 和 `POST /v1/chat/completions` 使用门的原因回答 503，Canvas 应用程序后端桥 (`/app-backends/...`) 也是如此。
+- `F03.init-key-auth`：`POST /api/init`要求`X-Init-API-Key`等于休眠的`secret_key`； 丢失或错误的密钥是 401，在验证主体之前进行检查，并使状态处于休眠状态。
+- `F03.init-validation`：未知字段、超出范围的值或空的传递会话密钥为 422，并且状态保持休眠状态。
+- `F03.init-redacts-secret-input`：422 的回显输入带有包含机密的密钥（`Authorization` 标头），将其编辑为 `<redacted>`，并且原始值不会出现在响应中。
+- `F03.init-failure-rollback`：如果初始化在构建过程中失败，返回500状态码，将状态回滚到`dormant`，门仍然关闭，记录错误在`GET /api/init`，以便可以重试。
+- `F03.init-success`：有效的`POST /api/init`将服务器翻转到`ready`，新的对话存储在已传递的`conversations_path`下。
+- `F03.init-delivered-webhooks`: `webhooks` 在启动时交付（在启动时启动的 pod 上交付） None接收新的对话 `ConversationInfo` at `{base_url}/conversations`, 包含交付的头部和交付的会话密钥。
+- `F03.init-enforces-session-keys`：在没有密钥启动的 Pod 上，初始化后，`/api/*` 使用 401 拒绝丢失或错误的密钥，并使用 200 接受交付的会话密钥。
+- `F03.init-applies-env`：在 init 处传递的 `env` 条目到达 `os.environ`，因此 bash 子进程，并且传递的 `bash_events_dir` 接收事件。
+- `F03.init-keys-gate-bash-socket`：初始化后，`/sockets/bash-events` 对于没有交付密钥的客户端以 4001 关闭，并为使用它的客户端运行命令。
+- `F03.init-opens-events-socket-and-v1`在休眠期间，拒绝的会话事件socket会打开并重播会话状态，如果没有，则会发送4001 `GET /v1/models` 没有密钥返回401，有密钥返回200 持有者令牌。
+- `F03.init-web-url-root-path`: 一个已交付的 `web_url` 会成为根路径：带有 URLs 的服务，而 OpenAPI 文档会通告该前缀。
+- `F03.init-delivered-worktree-root`：在 init 获取交付的 `conversation_worktree_root` 下的工作树后创建的 git 工作区上的 `worktree: true` 对话，而不是启动根目录。
+- `F03.init-delivered-max-runs`：交付的 `max_concurrent_runs` 代替了默认值 (10)：第二次对话的 `/run` 是 429，而另一个运行占用该槽位，直到槽位空闲时才被接受。
+- `F03.init-delivered-cors-origins`：在 `allow_cors_origins` 中交付的源必须在 init 之后通过 CORS 预检，正如该字段所承诺的那样（重现了一个真正的错误； 请参阅陷阱）。
+- `F03.init-second-call-400`：`ready`之后的第二个`POST /api/init`被400拒绝，状态不变； 初始化密钥现已交付 `secret_key`，因此休眠引导密钥为 401。
+- `F03.init-child-launcher`：在初始化时进行无密钥启动和密钥传递后，真实模型父级使用经过身份验证的内部启动器来启动子级。
+- `F03.init-open-without-secret`：既不使用机密密钥也不使用会话密钥启动的 pod 接受 `POST /api/init`，但不使用 `X-Init-API-Key`； 之后，第一个交付的会话密钥是初始化密钥（无密钥重试是 401，带密钥的重试是 400）。
+- `F03.init-state-not-persisted` 初始化状态只存在于内存中，因此重启后一个延迟的 Pod 会再次处于休眠状态（先前交付的键也会获得休眠的 503 状态），并且必须重新初始化。
+- `F03.auth-before-gate`：已于 #5700 退休。 它断言，具有启动会话密钥的休眠 pod 在 503 门之前对丢失的密钥做出了 401 响应； 现在首先检查准备情况，请参阅`F03.gate-before-auth`。
+- `F03.gate-before-auth`：当休眠配置已经包含会话密钥时，准备就绪检查在身份验证：缺少、错误或有效的密钥都会得到503休眠门（从不为401），在HTTP和WebSockets。
+- `F03.not-deferred-404`：在非延迟服务器上，两个 `/api/init` 路由都返回 404，并且 `POST` 仍然在 404 之前验证 init 密钥。
 
-- Config / launch: `OH_DEFERRED_INIT=1` (`Config.deferred_init`) puts the server
-  in dormant mode; `control-agent-server launch --new --deferred-init` sets it.
-  A warm-pool pod normally also boots without session keys (they arrive in the
-  init body), which `--no-auth` models; `--no-secret-key` additionally drops
-  `OH_SECRET_KEY` (the open-init case).
-- REST: `GET /api/init` (unauthenticated status poll for orchestrators) and
-  `POST /api/init` (authenticated with the `X-Init-API-Key` header, whose value
-  is the dormant `secret_key` = `OH_SECRET_KEY`, else the first boot session
-  key, else nothing and the route is open). The init body overrides a narrow
-  set of `Config` fields: `session_api_keys`, `secret_key`,
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- 配置/启动：`OH_DEFERRED_INIT=1`（`Config.deferred_init`）将服务器置于休眠模式； `control-agent-server launch --new --deferred-init` 设置它。 暖池 Pod 通常也无需会话密钥即可启动（它们到达 init 主体），`--no-auth` 建模； `--no-secret-key` 另外掉落
+  `OH_SECRET_KEY`（开放初始化情况）。
+- REST: `GET /api/init`（未经身份验证的协调器状态轮询）和
+  `POST /api/init`（使用 `X-Init-API-Key` 标头进行身份验证，其值为休眠 `secret_key` = `OH_SECRET_KEY`，否则为第一个启动会话密钥，否则什么都没有且路由打开）。 初始化主体覆盖一组狭窄的 `Config` 字段：`session_api_keys`、`secret_key`、
   `conversations_path`, `bash_events_dir`, `conversation_worktree_root`,
   `webhooks`, `web_url`, `allow_cors_origins`, `max_concurrent_runs`, `env`,
-  `telemetry`. The recipes deliver every field but `telemetry` (F32's) and
-  read each one back through the behavior it controls.
-- REST (gated): every other `/api/*` route answers 503 while dormant; the recipe
-  probes `/api/settings`, `/api/conversations/search`,
-  `/api/bash/bash_events/search`, `POST /api/bash/execute_bash_command` and the
-  workspace file route `/api/conversations/{id}/workspace` (mounted on its own
-  router, which carries the same `require_initialized` gate). The `/v1`
-  OpenAI-compatible router and the `/app-backends` bridge carry it too; the
-  recipe probes `GET /v1/models`, `POST /v1/chat/completions` and
+  `telemetry`. 这些配方提供除 `telemetry`（F32）之外的所有字段，并通过其控制的行为读回每个字段。
+- REST（门控）：每隔一条 `/api/*` 路由在休眠时应答 503； 配方探针 `/api/settings`、`/api/conversations/search`、
+  `/api/bash/bash_events/search`、`POST /api/bash/execute_bash_command` 和工作区文件路由 `/api/conversations/{id}/workspace`（安装在其自己的路由器上，带有相同的 `require_initialized` 门）。 `/v1`OpenAI兼容路由器和`/app-backends`网桥也带有它； 配方探针 `GET /v1/models`、`POST /v1/chat/completions` 和
   `GET /app-backends/{name}/{path}`.
-- WebSocket: the sockets router (`/sockets/events/{id}`, `/sockets/session/{id}`,
-  `/sockets/bash-events`) carries the gate as a router dependency, so a dormant
-  socket is refused before `accept()`; after init the recipes drive the bash
-  and events sockets to show they open and that the delivered keys gate them.
-- Open while dormant: `GET /api/init`, `POST /api/init`, the status routes,
-  `GET /` (the `server_info` alias), `/static` (static-files mode only), and
+- WebSocket：套接字路由器（`/sockets/events/{id}`，`/sockets/session/{id}`，
+  `/sockets/bash-events`) 将gate作为路由器依赖项，因此休眠套接字在`accept()`之前被拒绝； 初始化后，配方驱动 bash 和事件套接字以显示它们打开，并且传递的密钥对它们进行门控。
+- 休眠时打开：`GET /api/init`、`POST /api/init`、状态路由、
+  `GET /`（`server_info` 别名）、`/static`（仅限静态文件模式）和
   `/openapi.json`, `/docs`, `/redoc`.
-- REST (after init, as observers of delivered fields; the routes belong to
-  their own families): `POST /api/conversations` with `worktree: true`
-  (worktree root), `POST /api/conversations/{id}/run` and `/interrupt` (run
-  capacity), and a CORS preflight `OPTIONS /api/settings` with an `Origin`
-  (CORS allowlist); the delivered webhook's deliveries are read from an HTTP
-  sink.
-- SDK / TypeScript client: no consumer method calls `/api/init`; only the
-  generated TypeScript types describe it
-  (`clients/typescript/src/generated/agent-server-schema.ts`). The caller is a
-  warm-pool orchestrator.
+- REST（在 init 之后，作为交付字段的观察者； 这些路由属于各自的家族：`POST /api/conversations` `worktree: true` (工作树根)，`POST /api/conversations/{id}/run` 和 `/interrupt` (运行容量)，以及一个 CORS 预检 `OPTIONS /api/settings`，带有 `Origin` (CORS 允许列表）； 已交付的Webhook的交付是从HTTP接收器读取的。
+- SDK/TypeScript客户端：没有消费者方法调用`/api/init`； 只有生成的 TypeScript 类型描述它 (`clients/typescript/src/generated/agent-server-schema.ts`)。 调用者是一个热池协调器。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A fresh warm-pool run, launched dormant and without boot session keys, is
-  live and exported: `control-agent-server launch --new --no-auth
-  --deferred-init`. `doctor` is ok (a deferred run's `doctor` uses `/alive`,
-  since `/ready` is 200 even while dormant). `$DEEPSEEK_API_KEY` is needed
-  only for the child-launcher bullet; capacity checks use an `llm-stub` that
-  hangs (the one way to hold a run slot on demand). `git` is needed for the
-  worktree fixture.
-- The following `sh` block runs first: it reads the run's dormant
-  `secret_key` (the bootstrap `X-Init-API-Key`, never printed) into `$SK`,
-  creates the user workspace dirs the success bullet delivers, a git
-  repository for the worktree bullet (`$F03_REPO`), a stub provider whose
-  every call hangs for 300 s (`$F03_HANG`) and a recording HTTP sink for the
-  delivered webhook (`$F03_HOOKS`). (`api --auth init` would send the
-  same header, but it sends nothing on a `--no-auth` run; see Gotchas.)
+前提条件：
+
+- 一个新的热池运行，以休眠状态启动且没有启动会话密钥，处于活动状态并导出：`control-智能体-server launch --new --no-auth
+  --deferred-init`. `医生` is ok (a deferred run's `医生` uses `/alive`,
+  因为 `/ready` 即使在休眠状态下也是 200）。 `$DEEPSEEK_API_KEY` 仅适用于子发射器子弹； 容量检查使用挂起的 `llm-stub`（按需保留运行槽的一种方法）。 工作树测试夹具需要 `git`。
+- 下面的 `sh` 块首先运行：它读取运行的休眠状态
+  `secret_key` (bootstrap) `X-Init-API-Key`, 从未打印过) `$SK`创建用户工作区成功小圆点所指向的目录，一个用于的 Git 仓库工作树 bullet (`$F03_REPO`), 一个stub提供者，每次调用都会阻塞300秒`$F03_HANG`) and a recording HTTP 交付的接收端 Webhook (`$F03_HOOKS`). (`api --auth init` 它发送相同的头，但在发送空值 `--no-auth` run; 请参阅陷阱。）
   ```sh
   SK="$(cat "$AGENT_SERVER_VERIFY_RUN/private/secret_key")"
   test -n "$SK"
@@ -131,14 +88,10 @@ Preconditions:
   F03_HANG=$(control-agent-server fixture llm-stub --name qa-f03-hang --step hang:300 --print-path)
   F03_HOOKS=$(control-agent-server fixture http-sink --name qa-f03-hooks --print-path)
   ```
-- Bullets run top to bottom on this one run. The dormant-state bullets come
-  first; `F03.init-success` is the one-way transition to `ready` and delivers
-  every field the later bullets read back; the open-init bullet uses its own
-  second server; the last three bullets each
-  `restart` the run (resetting it to dormant, then adding a boot key, then
-  turning deferred mode off) and say so.
+- 在这一轮中，子弹从上到下运行。 休眠状态的子弹首先出现； `F03.init-success` 是到 `ready` 的单向转换，并传递后面的项目符号读回的每个字段； open-init 项目符号使用自己的第二个服务器； 最后三颗子弹各
+  `restart` 运行（将其重置为休眠状态，然后添加启动键，然后关闭延迟模式）并这样说。
 
-- **Dormant boot (`F03.dormant-boot`).** A deferred pod is up, ready to place, and reports dormant.
+- **休眠启动 (`F03.dormant-boot`)。** A deferred pod is up, ready to place, and reports dormant.
   ```sh
   control-agent-server api GET /alive --auth none --expect 200 --check status eq ok
   control-agent-server api GET /ready --auth none --expect 200 --check status eq ready
@@ -149,14 +102,11 @@ Preconditions:
   control-agent-server api GET /server_info --auth none --expect 200 --check version exists
   control-agent-server api GET / --auth none --expect 200 --check version exists
   ```
-  `/ready` is 200 although the conversation service is not entered, `GET
-  /api/init` is `{"state":"dormant","error":null}`, `/server_info` and its
-  `GET /` alias answer outside the gate, and the log carries
-  `Server started in deferred-init mode; awaiting POST /api/init` (wrapped
-  over two lines by the log formatter, hence the shorter pattern). The OpenAPI
-  document has no `servers` yet (the before view for
+  虽然未进入会话服务，`/ready`为200，`GET /api/init`为`{"state":"dormant","error":null}`、`/server_info`及其
+  `GET /` 门外别名应答，日志携带
+  `Server started in deferred-init mode; awaiting POST /api/init`（由日志格式化程序包裹成两行，因此模式较短）。 OpenAPI 文档还没有 `servers`（之前的视图
   `F03.init-web-url-root-path`).
-- **Dormant gate (`F03.dormant-gates-api`).** Every `/api/*` route but `/api/init` is 503 while dormant.
+- **休眠门 (`F03.dormant-gates-api`).**除 `/api/init` 之外的所有 `/api/*` 路由在休眠时均为 503。
   ```sh
   control-agent-server api GET /api/settings --auth none --expect 503 \
     --check detail eq 'Internal Server Error' \
@@ -169,13 +119,8 @@ Preconditions:
     --check exception eq "503: server is in deferred-init state 'dormant'; call POST /api/init first" \
     --save F03.dormant-gates-api/workspace
   ```
-  All five answer 503 with the gate's reason. The real 503 detail is
-  rewritten by the 5xx handler, so assert on the status and on `exception`,
-  which carries `server is in deferred-init state 'dormant'; call POST
-  /api/init first`. The workspace file route is mounted on its own `/api`
-  router (cookie auth), which carries the same gate since #5700, so it no
-  longer reaches the missing conversation service.
-- **Dormant sockets (`F03.dormant-gates-sockets`).** Every WebSocket is refused at the handshake while dormant.
+  所有五人均返回了“门”的原因码 503。 真正的503详情由5xx处理器重写，因此需要断言状态和`exception`，后者携带`server is in deferred-init state 'dormant'; call POST /api/init first`。 工作区文件路由单独挂载在 `/api` 路由器上（基于 cookie 的认证），与 #5700 中的门限相同，因此它不再到达缺失的会话服务。
+- **休眠套接字 (`F03.dormant-gates-sockets`)。**每个WebSocket在休眠时握手时都会被拒绝。
   ```sh
   F03_ZERO=00000000-0000-0000-0000-0000000000f3
   control-agent-server ws listen /sockets/bash-events --auth none --duration 5 --expect-reject 403 \
@@ -185,14 +130,9 @@ Preconditions:
   control-agent-server ws listen "/sockets/session/$F03_ZERO" --auth none --duration 5 --expect-reject 403
   control-agent-server api GET /api/init --auth none --check state eq dormant
   ```
-  `require_initialized` raises `WebSocketException(1013)` from the sockets
-  router's dependency, before `accept()`, so the ASGI server answers the
-  upgrade with HTTP 403 and the socket never opens (`opened: false`); on this
-  keyless pod an open socket would have taken the first frame. A 403 also
-  answers an unknown socket path, so the positive control is the same events
-  and bash sockets opening after init (`F03.init-keys-gate-bash-socket`,
+  `require_initialized` 提出了 `WebSocketException(1013)` 从 sockets 路由器的依赖中，之前 `accept()`所以， ASGI 服务器回应升级请求 HTTP 403 错误，套接字从不打开`opened: false`); 在这个无钥匙吊舱上，打开的插座将占据第一帧。 403 状态码也回答了一个未知的套接字路径，因此正控制是 init 后打开的事件和 bash 套接字`F03.init-keys-gate-bash-socket`,
   `F03.init-opens-events-socket-and-v1`).
-- **Dormant /v1 and app backends (`F03.dormant-gates-v1`).** The OpenAI-compatible gateway and the app-backend bridge are gated too.
+- **休眠 /v1 和应用后端 (`F03.dormant-gates-v1`)。** OpenAI 兼容网关和应用程序后端桥也被门控。
   ```sh
   control-agent-server api GET /v1/models --auth none --expect 503 \
     --check exception contains "deferred-init state 'dormant'" --save F03.dormant-gates-v1/models
@@ -202,21 +142,16 @@ Preconditions:
   control-agent-server api GET /app-backends/qa-f03-app/index.html --auth none --expect 503 \
     --check exception contains 'call POST /api/init first' --save F03.dormant-gates-v1/app-backends
   ```
-  All three answer 503 with the gate's reason before any key, body or
-  extension lookup; on this keyless pod `/v1/models` would otherwise be an
-  open 200 (the after-init view is `F03.init-opens-events-socket-and-v1`).
-- **Init key auth (`F03.init-key-auth`).** The bootstrap key is required, before the body is looked at; a bad one is 401 and the state is unchanged.
+  所有三个答案都以门的原因返回 503。 在没有钥匙的这个密钥 `/v1/models` 的情况下，原本应该是一个开放的 200（初始化后的新视图是 `F03.init-opens-events-socket-and-v1`）。
+- **初始化密钥授权 (`F03.init-key-auth`).**在查看主体之前，需要引导密钥； 坏的是 401，状态没有改变。
   ```sh
   control-agent-server api POST /api/init --auth none --json '{}' --expect 401 --save F03.init-key-auth/no-header
   control-agent-server api POST /api/init --auth none --header 'X-Init-API-Key: qa-wrong-key' --json '{}' --expect 401
   control-agent-server api POST /api/init --auth none --header 'X-Init-API-Key: qa-wrong-key' --json '{"bogus":1}' --expect 401
   control-agent-server api GET /api/init --auth none --check state eq dormant
   ```
-  All three posts are 401; the third carries a body that the right key turns
-  into a 422 (next bullet), so the key is checked first. `GET /api/init` is
-  still dormant. The right key's 200 is `F03.init-success`.
-- **Init validation (`F03.init-validation`).** Unknown fields, out-of-range
-  values and empty delivered session keys are 422; the state stays dormant.
+  三个职位都是401； 第三个包含一个由正确按键转换成422（下一句）的主体，因此按键被检查到。 `GET /api/init` 仍然处于休眠状态。 200是正确的键 `F03.init-success`.
+- **初始化验证 (`F03.init-validation`).**未知字段、超出范围的值和空传递的会话密钥为 422； 该状态保持休眠状态。
   ```sh
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" \
     --json '{"bogus":1}' --expect 422 --check 'detail.0.type' eq extra_forbidden --save F03.init-validation/unknown-field
@@ -227,10 +162,9 @@ Preconditions:
     --check detail eq 'session_api_keys cannot contain empty keys' --save F03.init-validation/empty-session-key
   control-agent-server api GET /api/init --auth none --check state eq dormant
   ```
-  `InitRequest` is `extra="forbid"`, so `bogus` is `extra_forbidden`;
-  `max_concurrent_runs` has `ge=1`, so `0` fails the bound. Empty delivered
-  keys are rejected before initialization (PR #5659). None changes the state.
-- **Input redaction (`F03.init-redacts-secret-input`).** A 422 echo redacts secret-bearing keys.
+  `InitRequest`是`extra="forbid"`，所以`bogus`是`extra_forbidden`；
+  `max_concurrent_runs` 具有 `ge=1`，因此 `0` 未达到界限。 空的交付密钥在初始化之前会被拒绝 (PR #5659)。 None改变状态。
+- **输入脱敏（`F03.init-redacts-secret-input`）。** 422 echo 编辑了包含机密的密钥。
   ```sh
   RAW_REDACTED="$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f03-422-redacted.json"
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" \
@@ -241,11 +175,8 @@ Preconditions:
   if grep -q 'QA-SENTINEL-7788' "$RAW_REDACTED"; then false; fi
   control-agent-server api GET /api/init --auth none --check state eq dormant
   ```
-  The webhook is missing its required `base_url`, so the 422 echoes the webhook
-  object as `input`; the validation handler runs it through `sanitize_dict`, so
-  the `Authorization` value comes back `<redacted>` and the sentinel is nowhere
-  in the raw response bytes.
-- **Failure rollback (`F03.init-failure-rollback`).** A failing init returns 500 and returns to dormant with the error recorded.
+  的 Webhook 缺少其必需的 `base_url`因此，422 等同于  Webhook 对象为 `input`; 的验证处理器将其通过 `sanitize_dict`所以， `Authorization` 值返回 `<redacted>` 和哨兵值不在原始响应字节中。
+- **失败回滚(`F03.init-failure-rollback`)。**失败的 init 返回 500 并返回休眠状态并记录错误。
   ```sh
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" \
     --json '{"conversations_path":"/proc/oh-cannot-create-f03"}' --expect 500 \
@@ -253,12 +184,10 @@ Preconditions:
   control-agent-server api GET /api/init --auth none --check state eq dormant --check error contains oh-cannot-create-f03
   control-agent-server api GET /api/settings --auth none --expect 503
   ```
-  The unwritable path makes the conversation service fail to enter; the handler
-  rolls the state back to `dormant`, keeps the gate closed, and stores
-  `<ExceptionType>: <message>` under `error` (on Linux
-  `FileNotFoundError: [Errno 2] ... '/proc/oh-cannot-create-f03'`), so an
-  orchestrator can retry. The successful retry is the next bullet.
-- **Successful init (`F03.init-success`).** A valid body flips the pod to `ready`; conversations land in the delivered directory. The body delivers every field the later bullets read back.
+  不可写入的路径导致会话服务无法进入。 处理器将状态回滚到 `dormant`，保持门关闭，并存储
+  `error` 下的 `<ExceptionType>: <message>`（在 Linux 上
+  `FileNotFoundError: [Errno 2] ... '/proc/oh-cannot-create-f03'`），因此协调器可以重试。 成功的重试是下一个要点。
+- **初始化成功(`F03.init-success`)。**有效主体将 Pod 翻转到 `ready`； 对话位于交付的目录中。 身体传递了后来的子弹读回的每一个字段。
   ```sh
   BODY="$(python3 -c "import json,os,sys;r=os.environ['AGENT_SERVER_VERIFY_RUN']+'/fixtures/';print(json.dumps({'session_api_keys':['qa-user-key'],'secret_key':'qa-f03-delivered-secret','conversations_path':r+'conv','bash_events_dir':r+'bash','conversation_worktree_root':r+'qa-f03-worktrees','webhooks':[{'base_url':sys.argv[1],'headers':{'X-QA-F03':'delivered-hook'},'flush_delay':1}],'web_url':'http://qa-f03.invalid/rt/qa-f03','allow_cors_origins':['https://qa-f03.example'],'max_concurrent_runs':1,'env':{'PROBE_VAR':'qa-hello'}}))" "$F03_HOOKS")"
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" \
@@ -270,14 +199,11 @@ Preconditions:
   test -d "$AGENT_SERVER_VERIFY_RUN/fixtures/conv/$(echo "$F03_CID" | tr -d -)"
   test ! -e "$AGENT_SERVER_VERIFY_RUN/server/workspace/conversations/$(echo "$F03_CID" | tr -d -)"
   ```
-  The post returns `{"state":"ready","error":null}` and the status poll
-  agrees. A conversation created with the delivered key (a placeholder model
-  that is never called) is stored under the delivered `conversations_path`, as
-  `<id without dashes>/`, and not under the boot path
-  (`server/workspace/conversations`).
-- **Delivered webhooks (`F03.init-delivered-webhooks`).** The init body carried one webhook, `$F03_HOOKS` with header `X-QA-F03: delivered-hook`; the boot config has none.
+  `{"state":"ready","error":null}` 返回，状态检查一致。 使用交付的密钥创建的对话（一个未被调用的占位符模型）存储在交付的 `conversations_path` 下
+  `<id without dashes>/`，并且不在引导路径 (`server/workspace/conversations`) 下。
+- **已交付 Webhook (`F03.init-delivered-webhooks`)。** init主体携带Webhook、`$F03_HOOKS`和标头`X-QA-F03: delivered-hook`； 启动配置有None。
 
-  Requires: `F03.init-success`
+  需要：`F03.init-success`
   ```sh
   if grep -q webhooks "$AGENT_SERVER_VERIFY_RUN/private/config.json"; then false; fi
   control-agent-server sink read --name qa-f03-hooks --path /conversations --contains "\"id\": \"$F03_CID\"" --expect-min 1 --wait 15 \
@@ -285,28 +211,24 @@ Preconditions:
   control-agent-server sink read --name qa-f03-hooks --path /conversations --contains '"X-QA-F03": "delivered-hook"' --expect-min 1
   control-agent-server sink read --name qa-f03-hooks --path /conversations --contains '"X-Session-API-Key": "qa-user-key"' --expect-min 1
   ```
-  Creating `$F03_CID` in the previous bullet posted its `ConversationInfo` to
-  the delivered `{base_url}/conversations`, carrying the delivered header and
-  the delivered session key (`X-Session-API-Key: qa-user-key`): the new
-  conversation service was built from the merged config.
-- **Delivered keys are enforced (`F03.init-enforces-session-keys`).** The pod booted without keys; init added them.
+  在之前的一条 bullet 中创建 `$F03_CID` 后，它 `ConversationInfo` 交付的 `{base_url}/conversations`，携带交付的标头和交付的会话密钥 `X-Session-API-Key: qa-user-key`：新的会话服务是通过合并配置构建的。
+- **强制执行交付的密钥 (`F03.init-enforces-session-keys`)。** pod 无需钥匙即可启动； init 添加了它们。
   ```sh
   control-agent-server api GET /api/settings --auth none --expect 401 --save F03.init-enforces-session-keys/no-key
   control-agent-server api GET /api/settings --auth none --header 'X-Session-API-Key: qa-wrong-key' --expect 401
   control-agent-server api GET /api/settings --auth none --header 'X-Session-API-Key: qa-user-key' --expect 200
   ```
-  `/api/settings` without a key or with a wrong one is now 401 (it was 503
+  `/api/settings` 没有钥匙或钥匙错误现在是 401（之前是 503
   while dormant and would have been open on this no-auth pod before init); the
-  delivered `qa-user-key` is accepted.
-- **Init env reaches bash (`F03.init-applies-env`).** `env` entries are set before the services boot, so subprocesses see them, and the delivered `bash_events_dir` is used.
+  交付的 `qa-user-key` 已被接受。
+- **初始化环境到达 bash (`F03.init-applies-env`)。** `env` entries are set before the services boot, so 子进程 see them, and the delivered `bash_events_dir` is used.
   ```sh
   control-agent-server api POST /api/bash/execute_bash_command --auth none --header 'X-Session-API-Key: qa-user-key' \
     --json '{"command":"echo PROBE=$PROBE_VAR"}' --expect 200 --check stdout contains 'PROBE=qa-hello' --save F03.init-applies-env/env
   test -n "$(ls -A "$AGENT_SERVER_VERIFY_RUN/fixtures/bash")"
   ```
-  The command prints `PROBE=qa-hello` (the init-delivered env), and the
-  delivered bash-events directory now holds the command and output events.
-- **Delivered keys gate the bash socket (`F03.init-keys-gate-bash-socket`).** After init the socket authenticates with the delivered keys.
+  该命令打印 `PROBE=qa-hello`（初始化交付的环境），现在交付的 bash-events 目录包含了命令和输出事件。
+- **交付的密钥控制 bash 套接字 (`F03.init-keys-gate-bash-socket`)。**初始化后，套接字使用传递的密钥进行身份验证。
   ```sh
   SOCK_PROBE="$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f03-ws-after-init.txt"
   rm -f "$SOCK_PROBE"
@@ -318,13 +240,9 @@ Preconditions:
     --expect-kind BashCommand --save F03.init-keys-gate-bash-socket/with-key
   grep -qx with-key "$SOCK_PROBE"
   ```
-  Without a key the command frame is taken as a failed first-frame auth and
-  the socket closes with 4001 before anything runs; with `qa-user-key` the
-  same kind of frame produces `BashCommand` and `BashOutput` (`exit_code` 0)
-  and writes the file. The same socket was refused at the handshake while
-  dormant (`F03.dormant-gates-sockets`).
-- **Events socket and /v1 open after init (`F03.init-opens-events-socket-and-v1`).** The positive control for the dormant socket and `/v1` gates.
-  Requires: `F03.init-success`
+  没有密钥，命令帧被当作失败的第一帧认证，然后在任何东西运行之前，套接字就会以4001的状态关闭。 使用 `qa-user-key` 会产生 `BashCommand` 和 `BashOutput` (`exit_code` 0) 并写入文件。 握手时，该端点处于休眠状态，被拒绝连接 (`F03.dormant-gates-sockets`)。
+- **事件套接字和 /v1 在 init (`F03.init-opens-events-socket-and-v1`) 后打开。**休眠套接字和 `/v1` 门的阳性对照。
+  需要：`F03.init-success`
   ```sh
   control-agent-server ws listen "/sockets/events/$F03_CID" --auth key --key qa-user-key --query resend_mode=all \
     --until-kind ConversationStateUpdateEvent --duration 15 --expect-kind ConversationStateUpdateEvent \
@@ -335,12 +253,9 @@ Preconditions:
   control-agent-server api GET /v1/models --auth none --header 'Authorization: Bearer qa-user-key' --expect 200 \
     --check object eq list --save F03.init-opens-events-socket-and-v1/models
   ```
-  With the delivered key the events socket for `$F03_CID` opens and replays
-  its `ConversationStateUpdateEvent`; without a key the first frame is taken
-  as a failed auth and the socket closes with 4001 (no longer a handshake
-  403). `/v1/models` is now behind the delivered keys: 401 without one, and
-  `{"object": "list", ...}` for the delivered key sent the OpenAI way.
-- **Delivered web URL sets the root path (`F03.init-web-url-root-path`).** The init body carried `web_url` `http://qa-f03.invalid/rt/qa-f03`.
+  使用交付的密钥后，`$F03_CID` 的事件套接字打开并回放其`ConversationStateUpdateEvent`。 没有密钥时，第一个帧被当作认证失败，并且套接字关闭，返回状态码 4001（不再是一个握手 403）。 `/v1/models` 现在由交付的密钥保护：没有密钥时，为401
+  `{"object": "list", ...}` 表示以 OpenAI 方式发送的已交付密钥。
+- **传送的网页URL设置根路径(`F03.init-web-url-root-path`)。** init主体携带`web_url``http://qa-f03.invalid/rt/qa-f03`。
   ```sh
   PREFIX=/rt/qa-f03
   control-agent-server api GET "$PREFIX/alive" --auth none --expect 200 --check status eq ok --save F03.init-web-url-root-path/prefixed-alive
@@ -350,12 +265,10 @@ Preconditions:
   control-agent-server api GET /openapi.json --auth none --max-chars 200 --check servers.0.url eq /rt/qa-f03
   control-agent-server api GET /alive --auth none --expect 200
   ```
-  Only the URL's path matters (the host is never contacted): `/rt/qa-f03/...`
-  serves the app, another prefix is 404, unprefixed paths keep working, and
-  the OpenAPI document now lists `servers: [{"url": "/rt/qa-f03"}]` (it had no
-  `servers` while dormant). The prefixed paths go through `$PREFIX` because
-  `map check` validates literal paths against the unprefixed route table.
-- **Delivered worktree root (`F03.init-delivered-worktree-root`).** The init body carried `conversation_worktree_root` `<run>/fixtures/qa-f03-worktrees`; the boot config points at `<run>/worktrees`.
+  只有 URL 的路径（主机永远不会被联系到）：`/rt/qa-f03/...` 服务应用，另一个前缀是 404，未前缀的路径继续工作，而 OpenAPI 文档现在列出了 `servers: [{"url": "/rt/qa-f03"}]`（它原来没有）
+  `servers` 休眠时）。 带前缀的路径经过 `$PREFIX` 因为
+  `map check` 根据无前缀路由表验证文字路径。
+- **已交付工作树根 (`F03.init-delivered-worktree-root`)。** init体携带`conversation_worktree_root``<run>/fixtures/qa-f03-worktrees`； 启动配置指向`<run>/worktrees`。
   ```sh
   grep -qF "\"conversation_worktree_root\": \"$AGENT_SERVER_VERIFY_RUN/worktrees\"" "$AGENT_SERVER_VERIFY_RUN/private/config.json"
   WT_BODY="$(python3 -c "import json,sys;print(json.dumps({'agent_settings':{'agent_kind':'openhands','llm':{'model':'openai/qa-placeholder','api_key':'qa-placeholder','base_url':'http://127.0.0.1:9/v1','num_retries':0},'tools':[]},'workspace':{'kind':'LocalWorkspace','working_dir':sys.argv[1]},'worktree':True,'autotitle':False}))" "$F03_REPO")"
@@ -367,11 +280,9 @@ Preconditions:
   git -C "$F03_REPO" worktree list | grep -qF "$WT_DIR"
   test -z "$(ls -A "$AGENT_SERVER_VERIFY_RUN/worktrees" 2>/dev/null)"
   ```
-  The conversation's workspace is
-  `<delivered root>/<conversation id>/qa-f03-repo`, a real worktree of the
-  fixture repository on branch `openhands/<conversation id>`, and the boot
-  root stays empty. No model is called.
-- **Delivered run capacity (`F03.init-delivered-max-runs`).** The init body carried `max_concurrent_runs` 1; the boot config does not set it, so it would be the default 10. `$F03_HOLD` holds the one slot on a model call that hangs while `$F03_WAITER` asks to run.
+  对话的工作区是
+  `<delivered root>/<conversation id>/qa-f03-repo`，分支 `openhands/<conversation id>` 上测试夹具存储库的真实工作树，引导根目录保持为空。 没有调用任何模型。
+- **交付运行容量 (`F03.init-delivered-max-runs`)。** init体携带`max_concurrent_runs`1； 启动配置没有设置它，所以它是默认的 10。 `$F03_HOLD` 保留模型调用上的一个槽，该槽在 `$F03_WAITER` 要求运行时挂起。
   ```sh
   if grep -q max_concurrent_runs "$AGENT_SERVER_VERIFY_RUN/private/config.json"; then false; fi
   HANG_BODY="$(python3 -c "import json,os,sys;print(json.dumps({'agent_settings':{'agent_kind':'openhands','llm':{'model':'openai/qa-stub','api_key':'qa-stub-key','base_url':sys.argv[1]+'/v1','num_retries':0},'tools':[]},'workspace':{'kind':'LocalWorkspace','working_dir':os.environ['AGENT_SERVER_VERIFY_RUN']+'/fixtures/qa-f03-workspace'},'autotitle':False}))" "$F03_HANG")"
@@ -394,37 +305,28 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$F03_WAITER/interrupt" --auth none --header 'X-Session-API-Key: qa-user-key' --expect 200 --check success eq true
   control-agent-server api GET /api/conversations/count --auth none --header 'X-Session-API-Key: qa-user-key' --query status=running --check . eq 0 --until-ok 30
   ```
-  With one conversation running, the second `/run` is 429 `Conversation run
-  limit reached...` and leaves it `idle`; the default limit of 10 would have
-  accepted it. Once the holder is interrupted the same `/run` is accepted
-  (the positive control), and the bullet interrupts it again so no run is
-  left. Both conversations are created before either runs, because a create
-  also reserves a slot while it initializes.
-- **Delivered CORS origins (`F03.init-delivered-cors-origins`), known bug.** The init body carried `allow_cors_origins` `["https://qa-f03.example"]`, documented as "CORS origins to add to the existing localhost allowlist". Today the preflight from that origin is refused, so this is an expected failure.
+  在一次对话进行中，第二个 `/run` 是 429 `Conversation run limit reached...`，然后它 `idle`。 默认的限制是10，本应接受它。 一旦持有人被中断，相同的`/run`被接受（阳性对照），然后子弹又中断它，因此没有残留物。 两个会话在任何一方运行之前都已创建，因为一个创建会同时预留一个槽位。
+- **交付 CORS origins (`F03.init-delivered-cors-origins`), 已知错误。** 初始化体携带了 `allow_cors_origins`  `["https://qa-f03.example"]`, documented as [ ]CORS 允许添加到现有本地回环地址白名单中的原始。 今天，来自该来源的预检被拒绝，因此这是预期的失败。
   ```sh
   control-agent-server api OPTIONS /api/settings --auth none --header 'Origin: http://localhost:3000' --header 'Access-Control-Request-Method: GET' \
     --expect 200 --check-header access-control-allow-origin eq http://localhost:3000
   control-agent-server api OPTIONS /api/settings --auth none --header 'Origin: https://qa-f03-other.example' --header 'Access-Control-Request-Method: GET' \
     --expect 400 --check-header access-control-allow-origin missing
-  control-agent-server api OPTIONS /api/settings --auth none --header 'Origin: https://qa-f03.example' --header 'Access-Control-Request-Method: GET' --expect 200 --check-header access-control-allow-origin eq https://qa-f03.example --save F03.init-delivered-cors-origins/preflight  # bug: status eq 400 && response.body contains 'Disallowed CORS origin'
+  control-agent-server api OPTIONS /api/settings --auth none --header 'Origin: https://qa-f03.example' --header 'Access-Control-Request-Method: GET' --expect 200 --check-header access-control-allow-origin eq https://qa-f03.example --save F03.init-delivered-cors-origins/preflight  # bug：状态 eq 400 && response.body 包含“不允许的 CORS 来源”
   ```
-  The localhost preflight is allowed (the always-on allowlist, positive
-  control) and an origin nobody delivered is refused with 400 (the
-  middleware discriminates). The delivered origin should be echoed in
-  `access-control-allow-origin` with 200; today it gets the same 400
-  `Disallowed CORS origin` as the undelivered one, because `CORSDispatcher`
-  copied the boot config's `allow_cors_origins` when the app was built.
-- **Second init is 400 (`F03.init-second-call-400`).** Init is one-shot, and the delivered `secret_key` is now the init key.
+  本地回环预检被允许（始终启用的允许白名单，正向控制），而没有被送达的源被拒绝返回400（中间件用于区分）。 应回显交付的源头
+  `access-control-allow-origin` 200； 今天它得到同样的 400
+  `Disallowed CORS origin` 作为未交付的，因为 `CORSDispatcher` 在构建应用程序时复制了启动配置的 `allow_cors_origins`。
+- **第二个初始化为 400 (`F03.init-second-call-400`)。** Init 是一次性的，交付的 `secret_key` 现在是 init 密钥。
   ```sh
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" --json '{}' --expect 401 --save F03.init-second-call-400/old-key
   control-agent-server api POST /api/init --auth none --header 'X-Init-API-Key: qa-f03-delivered-secret' \
     --json '{}' --expect 400 --check detail contains 'already in state: ready' --save F03.init-second-call-400/already-ready
   control-agent-server api GET /api/init --auth none --check state eq ready
   ```
-  `check_init_api_key` reads the merged config, so the dormant bootstrap key
-  `$SK` is now 401, and the delivered `qa-f03-delivered-secret` reaches the
-  one-shot 400 `server already in state: ready`; the state is unchanged.
-- **Open init without a secret (`F03.init-open-without-secret`).** A second, keyless and secretless dormant server, stopped at the end of the bullet.
+  `check_init_api_key` 读取合并的配置，因此休眠引导键
+  `$SK`现在是401，交付的`qa-f03-delivered-secret`达到一次性400`server already in state: ready`； 状态不变。
+- **打开不带机密 (`F03.init-open-without-secret`) 的 init。**第二台无钥匙、无秘密的休眠服务器停在了子弹的末端。
   ```sh
   OPEN=$(control-agent-server launch --new --no-auth --no-secret-key --deferred-init --name f03-open --print-run)
   trap 'control-agent-server stop --run "$OPEN" >/dev/null' EXIT
@@ -438,14 +340,8 @@ Preconditions:
     --expect 400 --check detail contains 'already in state: ready' --save F03.init-open-without-secret/retry
   control-agent-server stop --run "$OPEN"
   ```
-  With no `secret_key` (`check_init_api_key`: "No key configured → endpoint is
-  open. Acceptable for dev."), the first post needs no header and applies the
-  delivered key. The explicitly empty `secret_key` is normalized, so the
-  merged config's `secret_key` falls back to `qa-open-key`, so a keyless retry is now 401 and a
-  retry with `qa-open-key` reaches the one-shot 400.
-- **Child launcher after init (`F03.init-child-launcher`).** A separate pod
-  boots without session keys, receives one at init, and uses it internally
-  when a real model calls the explicitly attached child-launch tool.
+  未配置 `secret_key` 时（`check_init_api_key`："未配置密钥 → 端点为开放状态。 对于开发人员来说，第一个帖子不需要头部，并且会应用传递的密钥。 显空的`secret_key`被规范化，因此合并配置的`secret_key` fallback到`qa-open-key`，所以无键的重试现在是401，带有`qa-open-key`的重试现在达到一次性400。
+- **初始化后的孩子启动器（）`F03.init-child-launcher`).** 一个单独的Pod在启动时没有会话密钥，但在初始化时接收到一个，当一个实际的模型调用明确附带的子启动工具时，它会使用这个密钥。
   ```sh
   CHILD_RUN=$(control-agent-server launch --new --no-auth --no-secret-key --deferred-init --name f03-child --print-run)
   trap 'control-agent-server stop --run "$CHILD_RUN" >/dev/null' EXIT
@@ -499,10 +395,8 @@ Preconditions:
     --header 'X-Session-API-Key: qa-f03-child-key' --check sub_conversation_ids contains "$DCHILD"
   control-agent-server stop --run "$CHILD_RUN"
   ```
-  The child tool's observation and catalog link prove that the internal
-  launcher received the init-delivered session key. A server that exported
-  only its empty boot credential would reject that internal request with 401.
-- **Init state is not persisted (`F03.init-state-not-persisted`).** This bullet restarts the run; a deferred pod comes back dormant.
+  儿童工具的观测结果和目录链接证明内部启动器接收到初始化交付的会话密钥。 只提供空启动凭据的服务器将拒绝该内部请求，返回 401。
+- **初始状态不是已持久化 (`F03.init-state-not-persisted`)。**该项目符号重新启动运行； 延迟的 pod 恢复休眠状态。
   ```sh
   control-agent-server restart
   control-agent-server api GET /api/init --auth none --check state eq dormant --check error missing --save F03.init-state-not-persisted/after-restart
@@ -510,10 +404,9 @@ Preconditions:
   control-agent-server api GET /api/settings --auth none --header 'X-Session-API-Key: qa-user-key' --expect 503 \
     --check exception contains "deferred-init state 'dormant'"
   ```
-  The transition lives only in memory, so a re-launched warm pod is dormant
-  again and must be re-initialized; even the previously delivered
-  `qa-user-key` meets the dormant 503.
-- **Readiness precedes auth (`F03.gate-before-auth`).** This bullet restarts the run with a boot session key, still deferred. It replaces the retired `F03.auth-before-gate` (401 before the gate), whose order #5700 reversed.
+  重生的热容器只存在于记忆中，因此，重新启动的容器又会处于休眠状态，必须重新初始化。 即使是之前交付的
+  `qa-user-key`满足休眠503。
+- **准备先于验证 (`F03.gate-before-auth`).**此项目符号使用启动会话密钥重新启动运行，但仍然延迟。 它取代了退役的 `F03.auth-before-gate`（大门前的 401），其顺序 #5700 颠倒了。
   ```sh
   control-agent-server restart --env OH_SESSION_API_KEYS_0=qa-boot-key
   control-agent-server api GET /api/init --auth none --expect 200 --check state eq dormant
@@ -526,13 +419,10 @@ Preconditions:
   control-agent-server ws listen /sockets/bash-events --auth bad --duration 5 --expect-reject 403 \
     --save F03.gate-before-auth/socket-bad-key
   ```
-  `require_initialized` is listed before `check_session_api_key` on the `/api`
-  router, and the `/v1` and sockets routers gate before their own auth, so
+  `require_initialized` 在 `/api` 路由器上列在 `check_session_api_key` 之前，并且 `/v1` 和套接字路由器在其自己的身份验证之前进行控制，因此
   while dormant a missing, wrong or valid boot key all get the same 503 (and a
-  bad-key socket the handshake 403, not the 4001 close of a ready server): a
-  dormant pod reveals nothing about which keys it holds. After init the keys
-  are enforced as usual (`F03.init-enforces-session-keys`).
-- **Not deferred is 404 (`F03.not-deferred-404`).** This bullet restarts the run with deferred mode off (the boot key from the previous bullet stays).
+  bad-key 套接字握手 403，而不是就绪服务器的 4001 关闭）：休眠的 Pod 不会透露它持有哪些密钥。 初始化后，密钥将照常强制执行 (`F03.init-enforces-session-keys`)。
+- **未推迟的是 404 (`F03.not-deferred-404`)。**此项目符号在关闭延迟模式的情况下重新启动运行（上一个项目符号的启动键保持不变）。
   ```sh
   control-agent-server restart --config-json '{"deferred_init": false}'
   control-agent-server api GET /api/init --auth none --expect 404 --check detail contains 'deferred_init=True' --save F03.not-deferred-404/get
@@ -540,68 +430,29 @@ Preconditions:
   control-agent-server api POST /api/init --auth none --header "X-Init-API-Key: $SK" --json '{}' --expect 404
   control-agent-server api GET /api/settings --auth none --header 'X-Session-API-Key: qa-boot-key' --expect 200
   ```
-  With no `InitService` on `app.state`, `GET /api/init` is 404; `POST` still
-  checks the init key first (401 without it, 404 with it), and the rest of the
-  API serves normally.
+  没有 `InitService` 和 `app.state`，`GET /api/init` 的值为 404。 `POST` 仍然首先检查初始化密钥（401 无此密钥，404 有此密钥），而REST 的API 正常工作。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `/ready` is 200 while dormant (the pod is placeable), so a readiness probe is
-  not an init check — poll `GET /api/init` for the real state. `doctor` on a
-  deferred run uses `/alive` for the same reason.
-- The dormant 503's `detail` is rewritten to `Internal Server Error` by the 5xx
-  exception handler; the reason survives only in `exception`. Key on the status
-  code, not the `detail` text. The same handler puts the init failure's
-  exception string (paths included) in the 500 body.
-- A dormant WebSocket is closed with 1013 before `accept()`, which reaches the
-  client as an HTTP 403 handshake rejection (`ws listen --expect-reject 403`),
-  not as a 1013 close frame. An unknown socket path is also a 403, so pair
-  the dormant check with the same socket opening after init.
-- The gate precedes every auth check since #5700 (`F03.gate-before-auth`), so
+## 陷阱
+
+- `/ready` 在休眠时（pod 可放置）为 200，因此就绪探针不是初始化检查 — 轮询 `GET /api/init` 来获取真实状态。 出于同样的原因，延迟运行中的 `doctor` 使用 `/alive`。
+- 休眠的503的`detail`被5xx异常处理程序重写为`Internal Server Error`； 原因仅在`exception`中存在。 键入状态代码，而不是 `detail` 文本。 同一处理程序将初始化失败的异常字符串（包括路径）放入 500 正文中。
+- 休眠的 WebSocket 在 `accept()` 之前用 1013 关闭，它以 HTTP 403 握手拒绝 (`ws listen --expect-reject 403`) 的形式到达客户端，而不是作为 1013 关闭帧。 未知的套接字路径也是 403，因此将休眠检查与 init 后打开的相同套接字配对。
+- 自 #5700 (`F03.gate-before-auth`) 以来，该门先于每次身份验证检查，因此
   while dormant a 503 says nothing about the key; prove a key only after init.
-  Before #5700 the workspace static-file routes, the sockets, `/v1` and
-  `/app-backends` were outside the gate (#5661, #5700 closed them); a baseline
-  checkout older than those PRs answers those recipes differently.
-- The bootstrap `X-Init-API-Key` is the dormant `secret_key`, which defaults to
-  the first session key when `OH_SECRET_KEY` is unset and is **open to anyone**
-  when neither is set (`F03.init-open-without-secret`). `control-agent-server
-  launch` sets `OH_SECRET_KEY` unless `--no-secret-key` is given, so the main
-  run's `POST /api/init` is key-protected.
-- Harness: `api --auth init` reads `<run>/private/secret_key`, but on a
-  `--no-auth` run it sends no header at all (the auth helper returns early when
-  the run has no session key), so these recipes pass `--header
-  "X-Init-API-Key: $SK"` explicitly. `doctor` reads the init `state`: while
-  dormant it checks the 503 HTTP and 403 socket gates; after init it checks
-  ordinary authentication using the run's configured credentials.
-- Init is one-shot and in-memory: it does not persist across a restart
-  (`F03.init-state-not-persisted`), and a second call is 400 (`already in
-  state: ready`; a call that lands while another is still building gets
-  `already in state: initializing`, which init is too fast to show on demand). If
-  the init body sets `secret_key`, or if the dormant config had none and
-  session keys are delivered, the bootstrap key changes and a retry with the old
-  key is 401 instead of 400.
-- A failed init rolls back only the state: `env` entries it applied stay in
-  `os.environ` (observed: a variable sent only in a failed attempt is visible
-  to bash after the successful retry), and the bash service it entered before
-  failing is not exited. `InitRequest.env` documents the `os.environ.update`,
-  not a rollback; resend the full env on retry.
-- `OH_DEFERRED_INIT` must be `1`/`true` (case-insensitive); `yes` parses as
-  False.
-- An init-delivered `allow_cors_origins` is a no-op
-  (`F03.init-delivered-cors-origins`): `create_app` adds `CORSDispatcher`
-  with the boot config's list, which it copies, and nothing rebuilds it at
-  init. The same origin in the boot config (`restart --config-json
-  '{"deferred_init": false, "allow_cors_origins": ["https://qa-f03.example"]}'`)
-  passes the same preflight with 200 (observed live; not asserted here).
-- With a delivered `max_concurrent_runs` of 1, a `POST /api/conversations`
-  also takes the slot while it initializes, so create every conversation
-  before starting a run (`F03.init-delivered-max-runs`).
-- Harness: the `conversation` verbs authenticate with the run's own session
-  key and take no `--header`, so on this `--no-auth` run the post-init bullets
-  create and drive conversations with `api ... --header 'X-Session-API-Key:
-  qa-user-key'`.
-- Known caveats this family does not assert: `web_url` is applied
-  unconditionally despite its "only when not already set" description; event
-  deliveries (`/events/{id}`) of the delivered webhook are not asserted here
-  (F32 owns delivery semantics); and init-delivered `telemetry` and the
-  deferred `server_started` event belong to the telemetry family (F32).
+  在 #5700 之前，工作区静态文件路由、套接字、`/v1` 和
+  `/app-backends`在门外（#5661，#5700关闭了他们）； 比 PR 更早的基线结账对这些食谱的回答不同。
+- 启动脚本 `X-Init-API-Key` 是沉睡的 `secret_key`，默认为第一个会话密钥 `OH_SECRET_KEY` 未设置且是 **对任何人开放** 当 neither 也不设置时（`F03.init-open-without-secret`). `control-agent-server launch` sets `OH_SECRET_KEY` 除非 `--no-secret-key` 已给出，因此主运行的 `POST /api/init` 是密钥保护的。
+- 线束：`api --auth init` 读取为 `<run>/private/secret_key`，但在
+  `--no-auth` run 它根本不发送标头（当运行没有会话密钥时，身份验证助手会提前返回），因此这些配方显式传递 `--header "X-Init-API-Key: $SK"`。 `doctor` 读取 init `state`：休眠时检查 503 HTTP 和 403 套接字门； 在 init 之后，它使用运行配置的凭据检查普通身份验证。
+- Init 是一次性的并且是内存中的：在重新启动 (`F03.init-state-not-persisted`) 时它不会持久化，并且第二次调用是 400（`已经在
+  状态：准备好`； 当另一个呼叫仍在构建时落地的呼叫得到
+  `already in state: initializing`, 初始化速度太快，无法按需显示。 如果初始化体设置 `secret_key`, 或者如果休眠的配置  None 并且会交付会话密钥，bootstrap密钥也会改变，并且会生成一个新的重试使用旧密钥时，返回状态码为401，而不是400。
+- 失败的 init 仅回滚状态：它应用的 `env` 条目保留在
+  `os.environ`（观察到：只有在尝试失败时才发送的变量在成功重试后对bash可见，而它在失败前进入的服务在失败后没有退出。） `InitRequest.env`记录`os.environ.update`，而不是回滚； 在重试上重新发送完整的环境。
+- `OH_DEFERRED_INIT` 必须是 `1`/`true`（不区分大小写）； `yes` 解析为False。
+- init 交付的 `allow_cors_origins` 是无操作 (`F03.init-delivered-cors-origins`)：`create_app` 将 `CORSDispatcher` 添加到启动配置列表中，它会复制该列表，并且不会在 init 处重建它。 启动配置中的相同源 (`restart --config-json '{"deferred_init": false, "allow_cors_origins": ["https://qa-f03.example"]}'`) 通过相同的预检，值为 200（实时观察； 此处未断言）。
+- 当交付的 `max_concurrent_runs` 为 1 时，`POST /api/conversations` 在初始化时也会占用该槽，因此在开始运行之前创建每个对话 (`F03.init-delivered-max-runs`)。
+- 测试框架：`conversation` 命令使用本次运行自身的会话密钥进行身份验证，且不接受 `--header`；因此在本次 `--no-auth` 运行中，初始化后的步骤使用 `api ... --header 'X-Session-API-Key: qa-user-key'` 创建并驱动对话。
+- 该系列未断言的已知警告：`web_url` 无条件应用，尽管其“仅在尚未设置时”描述； 此处未断言已交付 Webhook 的事件交付 (`/events/{id}`)（F32 拥有交付语义）； init-delivered `telemetry` 和 deferred `server_started` 事件属于遥测系列 (F32)。

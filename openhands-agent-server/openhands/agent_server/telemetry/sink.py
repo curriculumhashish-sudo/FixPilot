@@ -1,20 +1,18 @@
-"""Bounded, asynchronous delivery that can never block or fail a conversation.
+"""有界的异步传递永远不会阻止对话或使对话失败。
 
-The load-bearing decision is that :meth:`TelemetrySink.emit` is **synchronous**.
-``PubSub.__call__`` *awaits* its subscribers inside an ``asyncio.gather``, so a
-subscriber that performs inline network I/O stalls event fan-out for every
-sibling subscriber on that conversation. ``emit`` therefore appends to an
-in-memory deque and returns within a single event-loop step; all I/O happens on
-a separate long-lived drain task.
+承载决策是：meth:`TelemetrySink.emit`是**同步**。
+``PubSub.__call__`` *等待其订阅者在*中。因此，``asyncio.gather``中每个子会话的订阅者
+在执行内联网络I/O时，都会导致事件扇出。
+``emit`` 因此附加到内存中的双端队列并在单个事件循环步骤中返回； 所有 I/O 都发生在单独
+的长期耗尽任务上。
 
-Failure policy differs deliberately from ``WebhookSubscriber``:
+失败策略故意与``WebhookSubscriber``不同：
 
-* the queue is bounded **on ingest** via ``deque(maxlen=…)`` rather than only
-  on the retry path, so a wedged exporter cannot grow memory without limit;
-* a batch that exhausts its retries is **dropped, not re-queued** — re-queueing
-  converts a downstream outage into unbounded memory plus a queue permanently
-  full of stale events;
-* revocation **discards** the queue instead of draining it.
+* 队列通过 ``deque(maxlen=…)`` 限制在摄取 ** 上的 **，而不是仅限制在重试路径上，因此
+楔形导出器无法无限制地增加内存；
+* 一个耗尽其重试的批次会被**丢弃，而不是重新排队**——重新排队会将下游的中断转换为无限
+的内存和一个永久满的旧事件队列。
+* 撤销**丢弃**队列而不是耗尽它。
 """
 
 import asyncio
@@ -30,17 +28,17 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-#: Consent cache TTL. Revocation does not wait for it; the endpoint pushes.
+# ：同意缓存TTL。 撤销并不等待； 端点推动。
 CONSENT_REFRESH_SECONDS: Final[float] = 5.0
 
-#: Caps the final flush so a hung endpoint cannot extend shutdown.
+# ：限制最终冲洗，因此挂起的端点无法延长关闭时间。
 SHUTDOWN_FLUSH_TIMEOUT_SECONDS: Final[float] = 5.0
 
 _MAX_BACKOFF_SECONDS: Final[float] = 60.0
 
 
 class TelemetryExporter(Protocol):
-    """Ships a batch somewhere. The only vendor-aware seam."""
+    """将一批货物运送到某个地方。 唯一的供应商意识接缝。"""
 
     async def send(self, events: list[DiagnosticEvent]) -> None: ...
 
@@ -48,30 +46,30 @@ class TelemetryExporter(Protocol):
 
 
 class TelemetrySink(Protocol):
-    """What the rest of the server depends on. Never vendor-specific."""
+    """服务器的REST取决于什么。 绝不特定于供应商。"""
 
     @property
     def enabled(self) -> bool: ...
 
     def emit(self, event: DiagnosticEvent) -> None:
-        """Accept an event. Must be non-blocking and must never raise."""
+        """接受一个事件。 必须是非阻塞的并且绝不能引发。"""
         ...
 
     def on_decision_changed(self, decision: TelemetryDecision) -> None:
-        """Apply a re-resolved consent decision immediately."""
+        """立即应用重新解决的同意决定。"""
         ...
 
     async def aclose(self) -> None: ...
 
 
 class NoOpTelemetrySink:
-    """The default. Discards everything, cheaply."""
+    """默认。 廉价地丢弃一切。"""
 
     @property
     def enabled(self) -> bool:
         return False
 
-    # Args ignored; names match the protocol for keyword callers.
+    # 忽略参数； 名称与关键字调用者的协议相匹配。
     def emit(self, event: DiagnosticEvent) -> None:  # noqa: ARG002
         return None
 
@@ -83,7 +81,7 @@ class NoOpTelemetrySink:
 
 
 class BufferedTelemetrySink:
-    """Queue-and-drain sink with bounded memory and isolated failures."""
+    """具有有限内存和隔离故障的队列和排放接收器。"""
 
     def __init__(
         self,
@@ -116,7 +114,7 @@ class BufferedTelemetrySink:
         self._drain_task: asyncio.Task | None = None
 
     def start(self) -> None:
-        """Spawn the drain task. Retained on the instance, never orphaned."""
+        """产生排水任务。 保留在实例上，从未成为孤儿。"""
         if self._drain_task is None:
             self._drain_task = asyncio.create_task(
                 self._drain_loop(), name="telemetry-drain"
@@ -144,11 +142,12 @@ class BufferedTelemetrySink:
                 )
 
         self._queue.clear()
-        # Also capped. For PostHog this is where the real network I/O happens:
-        # capture() only enqueues, so aclose() -> client.shutdown() is
-        # flush() + join(), and posthog's consumer defaults to retries=10 with
+        # 还封顶了。 对于 PostHog，这是真正的网络 I/O 发生的地方：capture() 仅排队，因此
+        #  aclose() -> client.shutdown() 是 flush() + join()，posthog 的消费者默认为重试
+        # =10
+        #
         # timeout=15 per batch. Unbounded, an unreachable endpoint blocks the
-        # uvicorn lifespan here for minutes.
+        # uvicorn的寿命在这里只有几分钟。
         with suppress(Exception, asyncio.CancelledError):
             await asyncio.wait_for(
                 self._exporter.aclose(), timeout=self._shutdown_flush_timeout
@@ -167,13 +166,11 @@ class BufferedTelemetrySink:
         return self._dropped_count
 
     def on_decision_changed(self, decision: TelemetryDecision) -> None:
-        """Apply a re-resolved decision immediately.
+        """立即应用重新解决的决定。
 
-        Called synchronously from the settings-update path so revocation takes
-        effect without waiting for the refresh interval. On revocation the
-        queue is **discarded rather than flushed** — the inverse of
-        ``WebhookSubscriber.close()``. Events collected under a consent that
-        has since been withdrawn must not be delivered.
+        从设置更新路径同步调用，因此撤销无需等待刷新间隔即可生效。 撤销时，队列被 **
+        丢弃而不是刷新 ** — 与
+        ``WebhookSubscriber.close()``. 根据已撤回的同意收集的活动不得进行。
         """
         self._apply_decision(decision)
 
@@ -190,10 +187,9 @@ class BufferedTelemetrySink:
             )
 
     async def _refresh_consent_if_stale(self) -> None:
-        """Re-read persisted consent on the drain task, never inline.
+        """重新阅读已持久化对排水任务的同意，切勿内联。
 
-        The settings store is a file read, so it must not happen on the hot
-        path in :meth:`emit`.
+        设置存储是读取的文件，因此它不能发生在：meth:`emit` 中的热路径上。
         """
         if self._decision_reader is None:
             return
@@ -217,11 +213,10 @@ class BufferedTelemetrySink:
             self._apply_decision(decision)
 
     def emit(self, event: DiagnosticEvent) -> None:
-        """Enqueue an event. Synchronous, non-blocking, never raises.
+        """对事件进行排队。 同步，非阻塞，从不引发。
 
-        A ``deque`` with ``maxlen`` drops the oldest element on overflow in
-        O(1) and cannot raise, so there is no failure mode to propagate back
-        into conversation execution.
+        A ``deque`` 与 ``maxlen`` 在溢出时丢弃最旧的元素 O(1) 并且无法抛出异常，因此
+        没有回传到会话执行中的失败模式。
         """
         if not self.enabled:
             return
@@ -250,7 +245,7 @@ class BufferedTelemetrySink:
                 if batch:
                     await self._dispatch(batch)
                     if self._queue:
-                        # Keep draining; do not wait out flush_delay per batch.
+                        # 继续排水； 不要等待每批次 flush_delay。
                         self._wake.set()
             except asyncio.CancelledError:
                 raise
@@ -266,7 +261,7 @@ class BufferedTelemetrySink:
 
     async def _dispatch(self, batch: list[DiagnosticEvent]) -> None:
         for attempt in range(self._num_retries + 1):
-            # Re-check: a revocation may have landed mid-retry.
+            # 重新检查：撤销可能已在重试中期生效。
             if not self._decision.enabled:
                 return
             try:
@@ -280,7 +275,7 @@ class BufferedTelemetrySink:
                     await asyncio.sleep(self._retry_delay)
                     continue
                 self._failure_streak += 1
-                # One warning per streak, so an outage doesn't flood the log.
+                # 每次连续发出一个警告，因此中断不会淹没日志。
                 if self._failure_streak == 1:
                     logger.warning(
                         "Telemetry export failing (%s); dropping %d event(s). "
@@ -295,7 +290,7 @@ class BufferedTelemetrySink:
                         type(exc).__name__,
                     )
                 self._dropped_count += len(batch)
-                # Capped: this sleeps on the drain task.
+                # 上限：这会在排水任务上休眠。
                 backoff = min(
                     self._retry_delay * (2 ** min(self._failure_streak, 4)),
                     _MAX_BACKOFF_SECONDS,

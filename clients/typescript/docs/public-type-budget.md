@@ -1,31 +1,25 @@
-# Public weak-type budget
+<a id="public-weak-type-budget"></a>
 
-`config/public-type-budget.json` records the existing `any` and `unknown`
-locations reachable from the package's public declaration entry points. It is
-a ratchet, not a target.
+# 公共弱型预算
 
-Run the check after building:
+`config/public-type-budget.json` 记录可从包的公共声明入口访问的现有 `any` 和 `unknown` 位置。 它是一个棘轮，而不是一个目标。
+
+构建后运行检查：
 
 ```bash
 npm run check:public-type-budget
 ```
 
-The check fails when:
+在以下情况下检查失败：
 
-- a new public `any` or `unknown` location appears;
-- an approved location changes or widens; or
-- a weak location is tightened without removing its budget entry.
+- 出现新的公共 `any` 或 `unknown` 位置；
+- 经批准的地点发生变化或扩大； 或
+- 在不删除其预算条目的情况下收紧薄弱位置。
 
-When a weak type is removed, delete its matching budget tuple in the same
-change. Do not regenerate and replace the whole budget: that would approve
-unrelated regressions. `node scripts/check-public-type-budget.mjs
---print-current` is an inspection aid for intentionally reviewed updates.
+当删除弱类型时，在同一更改中删除其匹配的预算元组。 不要重新生成和替换整个预算：这将批准无关紧要的回归 scripts/check-public-type-budget.mjs
+--print-current` 是用于有意审查的更新的检查辅助工具。
 
-Every group records a category, reason, and owner. Public domain contracts,
-generic transport internals, and deliberately opaque Cloud proxy payloads are
-kept separate so they can be reviewed under different standards.
+每个组都记录一个类别、原因和所有者。 公共领域合同、通用传输层内部细节和故意不透明的云代理载荷保持分离，以便在不同标准下进行审查。
 
-Generated Agent Server declarations under `dist/generated/` are excluded from
-this budget. Their source OpenAPI document is governed by the Agent Server
-schema-quality allowlist, and generated-file drift is checked separately by
+Agent Server 生成的声明 `dist/generated/` 被排除在预算之外。 他们的源 OpenAPI 文档受 Agent Server 模式质量许可名单管辖，生成的文件漂移由以下各项单独检查
 `npm run check:agent-server-api`.

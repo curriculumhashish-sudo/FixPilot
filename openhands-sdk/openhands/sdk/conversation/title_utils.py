@@ -1,4 +1,4 @@
-"""Utility functions for generating conversation titles."""
+"""用于生成对话标题的实用函数。"""
 
 import re
 from collections.abc import Callable, Sequence
@@ -36,7 +36,7 @@ MAX_LENGTH_PLACEHOLDER: Final[str] = "{max_length}"
 
 
 def extract_message_text(event: MessageEvent) -> str | None:
-    """Extract plain-text content from a message event."""
+    """从消息事件中提取纯文本内容。"""
     if not event.llm_message.content:
         return None
 
@@ -49,13 +49,13 @@ def extract_message_text(event: MessageEvent) -> str | None:
 
 
 def extract_first_user_message(events: Sequence[Event]) -> str | None:
-    """Extract the first user message from conversation events.
+    """从对话事件中提取第一条用户消息。
 
     Args:
-        events: List of conversation events.
+        events: 对话事件列表。
 
     Returns:
-        The first user message text, or None if no user message is found.
+        第一个用户消息文本，如果未找到用户消息，则为 None。
     """
     for event in events:
         if isinstance(event, MessageEvent) and event.source == "user":
@@ -70,11 +70,11 @@ _UNCLOSED_REASONING = re.compile(r"<think>.*", re.DOTALL | re.IGNORECASE)
 
 
 def strip_reasoning_blocks(text: str) -> str:
-    """Remove inline ``<think>`` reasoning from a model's text.
+    """从模型文本中删除内联 ``<think>`` 推理。
 
-    Providers that do not split chain-of-thought into ``reasoning_content`` return it
-    inline in ``content``. An unterminated block means the response was cut mid-thought,
-    so everything from the opening tag on is reasoning too.
+    不将思想链拆分为 ``reasoning_content`` 的提供者将其内联返回到 ``content`` 中。 未
+    终止的块意味着响应在思考过程中被切断，因此从开
+    始标签开始的所有内容也是推理。
     """
     text = _REASONING_BLOCK.sub("", text)
     return _UNCLOSED_REASONING.sub("", text)
@@ -89,24 +89,24 @@ def generate_title_with_llm(
     on_error: Callable[[Exception], None] | None = None,
     prompt: str | None = None,
 ) -> str | None:
-    """Generate a conversation title using LLM.
+    """使用 LLM 生成对话标题。
 
     Args:
-        message: The first user message to generate title from.
-        llm: The LLM to use for title generation.
-        max_length: Maximum length of the generated title.
-        on_error: Optional callback invoked with the exception when the LLM
-            call fails. Title generation still falls back (returns None); the
-            callback lets callers surface the otherwise-swallowed error.
-        prompt: Optional user-message prompt override. The
-            ``{conversation_content}`` and ``{max_length}`` placeholders are
-            replaced when present. If the conversation placeholder is omitted,
-            the message content is appended automatically.
+        message: 用于生成标题的第一条用户消息。
+        llm: 用于标题生成的 LLM。
+        max_length: 生成的标题的最大长度。
+        on_error: 可选回调调用，但 LLM 时除外
+            呼叫失败。 标题生成仍然会回落（返回None）； 回调让调用者能够发现否则会被
+            吞掉的错误。
+        prompt: 可选的用户消息提示词覆盖。 的
+            ``{conversation_content}`` 和 ``{max_length}`` 占位符存在时将被替换。 如
+            果省略对话占位符，则会自动附加
+            消息内容。
 
     Returns:
-        Generated title, or None if LLM fails or returns empty response.
+        生成的标题，如果 LLM 失败或返回空响应，则为 None。
     """
-    # Truncate very long messages to avoid excessive token usage
+    # 截断很长的消息以避免过多的词元用量
     if len(message) > 1000:
         truncated_message = message[:1000] + "...(truncated)"
     else:
@@ -134,7 +134,7 @@ def generate_title_with_llm(
         )
 
     try:
-        # Create messages for the LLM to generate a title
+        # 为LLM创建消息以生成标题
         messages = [
             Message(
                 role="system",
@@ -166,7 +166,7 @@ def generate_title_with_llm(
             call_context=call_context,
         )
 
-        # Extract the title from the response
+        # 从响应中提取标题
         if response.message.content and isinstance(
             response.message.content[0], TextContent
         ):
@@ -178,7 +178,7 @@ def generate_title_with_llm(
                 )
                 return None
 
-            # Ensure the title isn't too long
+            # 确保标题不要太长
             if len(title) > max_length:
                 title = title[: max_length - 3] + "..."
 
@@ -189,22 +189,23 @@ def generate_title_with_llm(
 
     except Exception as e:
         logger.warning(f"Error generating conversation title with LLM: {e}")
-        # Non-fatal (we fall back to truncation), but let callers surface the
-        # otherwise-invisible LLM error to the UI (issue #16686).
+        # 非致命（我们回退到截断），但让调用者向 UI 显示原本不可见的 LLM 错误（问题＃
+        # 16686）。
+        #
         if on_error is not None:
             on_error(e)
         return None
 
 
 def generate_fallback_title(message: str, max_length: int = 50) -> str:
-    """Generate a fallback title by truncating the first user message.
+    """通过截断第一条用户消息生成回退方案标题。
 
     Args:
-        message: The first user message.
-        max_length: Maximum length of the title.
+        message: 第一条用户消息。
+        max_length: 标题的最大长度。
 
     Returns:
-        A truncated title.
+        一个被截断的标题。
     """
     title = message.strip()
     if len(title) > max_length:
@@ -221,10 +222,10 @@ def generate_title_from_message(
     on_error: Callable[[Exception], None] | None = None,
     prompt: str | None = None,
 ) -> str:
-    """Generate a title from an already-extracted user message."""
-    # Skip the ACP sentinel LLM — it has no credentials and cannot be
-    # called. Detected via ``usage_id`` so the real model name can still
-    # appear in logs and serialized state.
+    """从已提取的用户消息生成标题。"""
+    # 跳过ACP哨兵值LLM——它没有凭据，不能被调用。 通过``usage_id``检测到，因此真实的模型
+    # 名称仍然可以出现在日志和已序列化状态中。
+    #
     llm_to_use = None if llm and llm.usage_id == "acp-managed" else llm
 
     if llm_to_use:
@@ -250,25 +251,25 @@ def generate_conversation_title(
     call_context: LLMCallContext | None = None,
     on_error: Callable[[Exception], None] | None = None,
 ) -> str:
-    """Generate a title for a conversation based on the first user message.
+    """根据第一条用户消息生成对话标题。
 
-    This is the main utility function that orchestrates the title generation process:
-    1. Extract the first user message from events
-    2. Try to generate title using LLM
-    3. Fall back to simple truncation if LLM fails
+    这是协调标题生成过程的主要实用函数：
+    1. 从事件中提取第一条用户消息
+    2. 尝试使用 LLM 生成标题
+    3. 如果 LLM 失败，则退回到简单截断
 
     Args:
-        events: List of conversation events.
-        llm: Optional LLM to use for title generation.
-        max_length: Maximum length of the generated title.
+        events: 对话事件列表。
+        llm: 可选 LLM 用于标题生成。
+        max_length: 生成的标题的最大长度。
 
     Returns:
-        A generated title for the conversation.
+        为对话生成的标题。
 
     Raises:
-        ValueError: If no user messages are found in the conversation events.
+        ValueError: 如果在对话事件中没有找到用户消息。
     """
-    # Find the first user message in the events
+    # 查找事件中的第一条用户消息
     first_user_message = extract_first_user_message(events)
 
     if not first_user_message:

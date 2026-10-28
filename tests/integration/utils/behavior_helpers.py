@@ -1,4 +1,4 @@
-"""Shared utilities for behavior integration tests."""
+"""行为的共享实用程序集成测试。"""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ PINNED_SOFTWARE_AGENT_SDK_COMMIT = "693c32618dca43e6506a785da4e37575e387a638"
 
 
 def clone_pinned_software_agent_repo(workspace: str) -> Path:
-    """Clone the software-agent-sdk repository at a pinned commit."""
+    """在固定提交处克隆 software-智能体-SDK 存储库。"""
     repo_dir = Path(workspace) / "software-agent-sdk"
 
     try:
@@ -87,7 +87,7 @@ def clone_pinned_software_agent_repo(workspace: str) -> Path:
 
 
 def default_behavior_tools(tool_preset: ToolPresetType = "default") -> list[Tool]:
-    """Return the default tools for behavior tests based on the tool preset."""
+    """根据工具预设返回行为测试的默认工具。"""
     return get_tools_for_preset(tool_preset, enable_browser=False)
 
 
@@ -101,14 +101,14 @@ ENVIRONMENT_TIPS_BODY = """\
 
 
 def append_environment_tips(body: str) -> str:
-    """Append shared environment tips to an instruction body."""
+    """将共享环境提示附加到指令正文。"""
     trimmed_body = body.rstrip()
     tips = dedent(ENVIRONMENT_TIPS_BODY).rstrip()
     return f"{trimmed_body}\n\nImportant environment notes:\n{tips}\n"
 
 
 class SoftwareAgentSDKBehaviorTest(BaseIntegrationTest):
-    """Base class providing common setup and tools for behavior tests."""
+    """为行为测试提供通用设置和工具的基类。"""
 
     repo_dir: Path | None
 
@@ -128,19 +128,19 @@ class SoftwareAgentSDKBehaviorTest(BaseIntegrationTest):
         return default_behavior_tools(self.tool_preset)
 
     def get_early_stopper(self) -> EarlyStopperBase | None:
-        """Override in subclasses to provide an early stopper for this test.
+        """在子类中重写以提供此测试的早期阻止程序。
 
         Returns:
-            An EarlyStopperBase instance, or None to disable early stopping.
+            EarlyStopperBase 实例，或 None 禁用提前停止。
         """
         return None
 
     def setup(self) -> None:
         self.repo_dir = clone_pinned_software_agent_repo(self.workspace)
-        # Configure early stopper if provided by subclass
+        # 如果子类提供，则配置早期停止器
         self.early_stopper = self.get_early_stopper()
         self.after_workspace_setup()
 
     def after_workspace_setup(self) -> None:
-        """Hook for subclasses to perform additional setup if needed."""
+        """如果需要，挂钩子类以执行额外的设置。"""
         return

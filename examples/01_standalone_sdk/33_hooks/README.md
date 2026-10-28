@@ -1,56 +1,64 @@
-# Hooks Examples
+<a id="hooks-examples"></a>
 
-This folder demonstrates the OpenHands hooks system.
+# 钩子示例
 
-## Example
+该文件夹演示了 OpenHands 挂钩系统。
 
-- **main.py** - Complete hooks demo showing all four hook types
+<a id="example"></a>
 
-## Scripts
+## 示例
 
-The `hook_scripts/` directory contains reusable hook script examples:
+- **main.py** - 显示所有四种钩子类型的完整钩子演示
 
-- `block_dangerous.sh` - Blocks rm -rf commands (PreToolUse)
-- `log_tools.sh` - Logs tool usage to a file (PostToolUse)
-- `inject_git_context.sh` - Injects git status into prompts (UserPromptSubmit)
-- `require_summary.sh` - Requires summary.txt before stopping (Stop)
+<a id="scripts"></a>
 
-## Running
+## 脚本
+
+`hook_scripts/` 目录包含可重用的钩子脚本示例：
+
+- `block_dangerous.sh` - 阻止 rm -rf 命令 (PreToolUse)
+- `log_tools.sh` - 将工具使用情况记录到文件中 (PostToolUse)
+- `inject_git_context.sh` - 将 git status 注入提示词 (UserPromptSubmit)
+- `require_summary.sh` - 停止前需要 summary.txt（停止）
+
+<a id="running"></a>
+
+## 跑步
 
 ```bash
-# Set your LLM credentials
+# 设置您的 LLM 凭据
 export LLM_API_KEY="your-key"
-export LLM_MODEL="gpt-5.5"  # optional
-export LLM_BASE_URL="https://your-endpoint"  # optional
+export LLM_MODEL="gpt-5.5"  # 可选的
+export LLM_BASE_URL="https://your-endpoint"  # 可选的
 
-# Run example
+# 运行示例
 python main.py
 ```
 
-## Hook Types
+<a id="hook-types"></a>
 
-| Hook | When it runs | Can block? |
+## 挂钩类型
+
+| 钩子 | 当它运行时 | 可以拦截吗？ |
 |------|--------------|------------|
-| PreToolUse | Before tool execution | Yes (exit 2) |
-| PostToolUse | After tool execution | No |
-| UserPromptSubmit | Before processing user message | Yes (exit 2) |
-| Stop | When agent tries to finish | Yes (exit 2) |
-| SessionStart | When conversation starts | No |
-| SessionEnd | When conversation ends | No |
+| PreToolUse | 工具执行之前 | 有（2号出口） |
+| PostToolUse | 工具执行后 | 否 |
+| UserPromptSubmit | 处理用户消息之前 | 有（2号出口） |
+| 停止 | 当智能体尝试完成 | 有（2号出口） |
+| SessionStart | 当谈话开始时 | 否 |
+| SessionEnd | 当谈话结束时 | 否 |
 
-## Exit Codes
+<a id="exit-codes"></a>
 
-Hook scripts signal their result via the exit code (matching the Claude Code
-hook contract):
+## 退出代码
 
-- **`0` — success.** The operation proceeds. `stdout` is parsed as JSON for
-  structured output (`decision`, `reason`, `additionalContext`).
-- **`2` — block.** The operation is denied. For `Stop` hooks, this prevents
-  the agent from finishing and the agent continues running. `stderr` /
-  `reason` is surfaced as feedback.
-- **Any other non-zero exit code — non-blocking error.** The error is
-  logged, but the operation still proceeds.
+挂钩脚本通过退出代码发出结果信号（与 Claude Code 挂钩合约匹配）：
 
-> **Note:** Only exit code `2` blocks. Exit code `1` (the conventional Unix
-> failure code) is treated as a non-blocking error. A hook that is meant to
-> enforce a policy must exit with `2`.
+- **`0` — 成功。**操作继续进行。 对于结构化输出（`decision`、`reason`、`additionalContext`），`stdout` 被解析为 JSON。
+- **`2` — 块。**操作被拒绝。 对于 `Stop` 挂钩，这会阻止智能体完成并且智能体继续运行。 `stderr` /
+  `reason` 作为反馈出现。
+- **任何其他非零退出代码 — 非阻塞错误。**错误已记录，但操作仍继续进行。
+
+> **注意：** 仅退出代码 `2` 块。 退出代码 `1`（常规 Unix
+> 故障代码）被视为非阻塞错误。 一个钩子，旨在
+> 执行策略必须以 `2` 退出。

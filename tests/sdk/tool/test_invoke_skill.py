@@ -1,4 +1,4 @@
-"""Tests for the `invoke_skill` built-in tool."""
+"""测试 `invoke_skill` 内置工具。"""
 
 from __future__ import annotations
 
@@ -47,11 +47,11 @@ def _make_conv(
     working_dir: str = "/tmp",
     invoked_skills: list[str] | None = None,
 ) -> Any:
-    """Minimal duck-typed BaseConversation replacement for the executor.
+    """执行器的最小鸭子型 BaseConversation 替代品。
 
-    Returned as `Any` so pyright accepts it where a `LocalConversation`
-    is declared; the executor only uses attribute access, so a
-    SimpleNamespace is enough at runtime.
+    返回为 `Any`，因此 Pyright 在声明 `LocalConversation` 的地方接受它； 执行器仅使用
+    属性访问，因此在运行时
+    SimpleNamespace 就足够了。
     """
     return SimpleNamespace(
         state=SimpleNamespace(
@@ -70,17 +70,17 @@ def _tool() -> InvokeSkillTool:
 
 
 def _run(name: str, conv: Any) -> InvokeSkillObservation:
-    """Invoke the executor, silencing pyright's Optional complaint on .executor."""
+    """调用执行器，沉默 Pyright 对 .executor 的可选投诉。"""
     executor = _tool().executor
     assert executor is not None
     return executor(InvokeSkillAction(name=name), conversation=conv)
 
 
 def test_not_in_default_builtins_but_resolvable_by_name():
-    # Deliberately NOT in BUILT_IN_TOOLS: it must only attach when an
-    # AgentSkills-format skill is loaded.
+    # 故意将不放在BUILT_IN_TOOLS中：只有在加载AgentSkills格式的技能时才必须附加。
+    #
     assert InvokeSkillTool not in BUILT_IN_TOOLS
-    # Still resolvable by name so the agent can wire it up conditionally.
+    # 仍然可以通过名称解析，因此智能体可以有条件地连接它。
     assert BUILT_IN_TOOL_CLASSES["InvokeSkillTool"] is InvokeSkillTool
 
 
@@ -156,7 +156,7 @@ def test_name_is_trimmed_before_lookup(requested: str):
 
 
 def test_footer_uses_absolute_path_when_outside_working_dir(tmp_path):
-    """Skill outside the conversation's working_dir: footer shows absolute path."""
+    """对话之外的技巧working_dir：页脚显示绝对路径。"""
     skill_dir = tmp_path / "pdf-analyst"
     skill_dir.mkdir()
     skill_md = skill_dir / "SKILL.md"
@@ -168,7 +168,7 @@ def test_footer_uses_absolute_path_when_outside_working_dir(tmp_path):
         source=str(skill_md),
         is_agentskills_format=True,
     )
-    # working_dir is unrelated, so the footer must stay absolute.
+    # working_dir 不相关，因此页脚必须保持绝对。
     conv = _make_conv([skill], working_dir=str(tmp_path / "elsewhere"))
 
     obs = _run("pdf-analyst", conv)
@@ -180,8 +180,8 @@ def test_footer_uses_absolute_path_when_outside_working_dir(tmp_path):
 
 
 def test_footer_uses_relative_path_when_inside_working_dir(tmp_path):
-    """Skill under working_dir: footer uses the relative path, avoiding leakage
-    of absolute home-directory paths into the LLM context."""
+    """working_dir下技巧：页脚使用相对路径，避免泄漏
+    进入 LLM 上下文的绝对主目录路径。"""
     workspace = tmp_path / "ws"
     workspace.mkdir()
     skill_dir = workspace / "skills" / "pdf-analyst"
@@ -205,7 +205,7 @@ def test_footer_uses_relative_path_when_inside_working_dir(tmp_path):
 
 
 def test_footer_omitted_when_skill_has_no_source():
-    """Programmatic skills (source=None) should not get a footer."""
+    """编程技能（来源=None）不应出现页脚。"""
     skill = Skill(
         name="prog",
         content="inline body",
@@ -223,8 +223,8 @@ def test_footer_omitted_when_skill_has_no_source():
 
 
 def test_footer_omitted_when_source_is_not_a_real_path():
-    """Sentinels like `'local'` or `'github:owner/repo'` must not produce a footer
-    pointing at a made-up path."""
+    """哨兵值如 `'local'` 或 `'github:owner/repo'` 不得产生页脚
+    指着一条编好的路。"""
     skill = Skill(
         name="remote",
         content="body",
@@ -250,9 +250,9 @@ def test_invoked_skills_dedupes():
 
 
 def test_legacy_triggered_skill_is_invocable():
-    """Any Skill in agent_context.skills is resolvable, not just
-    AgentSkills-format. This keeps the executor consistent with what the
-    `<available_skills>` prompt block advertises."""
+    """agent_context.skills中的任何技能都是可以解决的，而不仅仅是
+    AgentSkills-格式。 这使执行者与执行者保持一致
+    `<available_skills>` 提示词阻止广告。"""
     legacy = _make_skill(
         "flarglebargle",
         content="legacy body",
@@ -384,8 +384,8 @@ def _make_agent(skills: list[Skill]) -> Agent:
 def test_agent_auto_attaches_invoke_skill_tool(
     skills: list[Skill], expect_attached: bool, tmp_path
 ):
-    """`Agent._initialize` must attach `invoke_skill` iff an AgentSkills-format
-    skill is loaded — regardless of what's in `include_default_tools`."""
+    """`Agent._initialize` 必须附加 `invoke_skill` 当且仅当是 AgentSkills 格式
+    技能已加载 - 无论 `include_default_tools` 中有什么。"""
     agent = _make_agent(skills)
     state = ConversationState.create(
         id=uuid.uuid4(),
@@ -399,7 +399,7 @@ def test_agent_auto_attaches_invoke_skill_tool(
 
 
 def test_invoke_skill_declared_resources_typed():
-    """InvokeSkillTool.declared_resources accesses action.name typed."""
+    """InvokeSkillTool.declared_resources 访问 action.name 键入的内容。"""
     tool = InvokeSkillTool(description="invoke skill", action_type=InvokeSkillAction)
     action = InvokeSkillAction(name="test-skill")
     res = tool.declared_resources(action)

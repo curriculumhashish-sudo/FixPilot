@@ -1,4 +1,4 @@
-"""Read file tool definition (Gemini-style)."""
+"""读取文件工具定义（Gemini 风格）。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class ReadFileAction(Action):
-    """Schema for read file operation."""
+    """模式用于读文件操作。"""
 
     file_path: str = Field(description="The path to the file to read.")
     offset: int | None = Field(
@@ -44,7 +44,7 @@ class ReadFileAction(Action):
 
 
 class ReadFileObservation(Observation):
-    """Observation from reading a file."""
+    """观测结果读取文件。"""
 
     file_path: str = Field(description="The file path that was read.")
     file_content: str = Field(default="", description="The content read from the file.")
@@ -64,7 +64,7 @@ class ReadFileObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation."""
+        """返回此观测结果的富文本表示形式。"""
         text = Text()
 
         if self.is_error:
@@ -102,19 +102,18 @@ Examples:
 - Read with pagination: read_file(file_path="/path/to/file.py", offset=100, limit=50)
 """
 
-# Maximum lines to read in one call (to prevent overwhelming the context)
+# 一次调用中读取的最大行数（以防止压倒上下文）
 MAX_LINES_PER_READ = 1000
 
 
 class ReadFileTool(ToolDefinition[ReadFileAction, ReadFileObservation]):
-    """Tool for reading file contents with pagination support."""
+    """用于读取文件内容并支持分页的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        """Lock on the target file path so a read never sees
-        partially-written content from a concurrent write.
-        Reads of different files run in parallel.
+        """锁在目标文件路径上，因此读取永远看不到
+        来自并发写入的部分写入内容。 不同文件的读取并行运行。
         """
         assert isinstance(action, ReadFileAction)
         path = Path(action.file_path)
@@ -130,10 +129,10 @@ class ReadFileTool(ToolDefinition[ReadFileAction, ReadFileObservation]):
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["ReadFileTool"]:
-        """Initialize ReadFileTool with executor.
+        """使用执行器初始化 ReadFileTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
+            conv_state: 要从中获取工作目录的对话状态。
         """
         from openhands.tools.gemini.read_file.impl import ReadFileExecutor
 

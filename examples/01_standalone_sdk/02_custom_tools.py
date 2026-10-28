@@ -1,4 +1,4 @@
-"""Advanced example showing explicit executor usage and custom grep tool."""
+"""显示显式执行器用法和自定义 grep 工具的高级示例。"""
 
 import os
 import shlex
@@ -34,7 +34,7 @@ from openhands.tools.terminal import (
 
 logger = get_logger(__name__)
 
-# --- Action / Observation ---
+# --- 行动 / 观测结果 ---
 
 
 class GrepAction(Action):
@@ -67,7 +67,7 @@ class GrepObservation(Observation):
         return [TextContent(text=ret)]
 
 
-# --- Executor ---
+# ---执行者---
 
 
 class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
@@ -79,7 +79,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         pat = shlex.quote(action.pattern)
         root_q = shlex.quote(root)
 
-        # Use grep -r; add --include when provided
+        # 使用 grep -r； 添加--include（如果提供）
         if action.include:
             inc = shlex.quote(action.include)
             cmd = f"grep -rHnE --include {inc} {pat} {root_q} 2>/dev/null | head -100"
@@ -97,7 +97,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         if output_text.strip():
             for line in output_text.strip().splitlines():
                 matches.append(line)
-                # Expect "path:line:content" — take the file part before first ":"
+                # 预期“路径：行：内容” - 获取第一个“：”之前的文件部分
                 file_path = line.split(":", 1)[0]
                 if file_path:
                     files.add(os.path.abspath(file_path))
@@ -105,7 +105,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         return GrepObservation(matches=matches, files=sorted(files), count=len(matches))
 
 
-# Tool description
+# 工具说明
 _GREP_DESCRIPTION = """Fast content search tool.
 * Searches file contents using regular expressions
 * Supports full regex syntax (eg. "log.*Error", "function\\s+\\w+", etc.)
@@ -117,25 +117,25 @@ _GREP_DESCRIPTION = """Fast content search tool.
 """  # noqa: E501
 
 
-# --- Tool Definition ---
+# --- 工具定义 ---
 
 
 class GrepTool(ToolDefinition[GrepAction, GrepObservation]):
-    """A custom grep tool that searches file contents using regular expressions."""
+    """自定义 grep 工具，使用正则表达式搜索文件内容。"""
 
     @classmethod
     def create(
         cls, conv_state, terminal_executor: TerminalExecutor | None = None
     ) -> Sequence[ToolDefinition]:
-        """Create GrepTool instance with a GrepExecutor.
+        """创建 GrepTool 个 GrepExecutor。
 
         Args:
-            conv_state: Conversation state to get working directory from.
-            terminal_executor: Optional terminal executor to reuse. If not provided,
-                         a new one will be created.
+            conv_state: 要从中获取工作目录的对话状态。
+            terminal_executor: 可选的终端执行器可重用。 如果没有提供，
+                         将创建一个新的。
 
         Returns:
-            A sequence containing a single GrepTool instance.
+            包含单个 GrepTool 实例的序列。
         """
         if terminal_executor is None:
             terminal_executor = TerminalExecutor(
@@ -153,7 +153,7 @@ class GrepTool(ToolDefinition[GrepAction, GrepObservation]):
         ]
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -165,12 +165,12 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools - demonstrating both simplified and advanced patterns
+# 工具 - 演示简化和高级模式
 cwd = os.getcwd()
 
 
 class BashAndGrepToolSet(ToolDefinition[Action, Observation]):
-    """Create terminal and grep tools sharing one terminal executor."""
+    """创建共享一个终端执行器的终端和 grep 工具。"""
 
     @classmethod
     def create(cls, conv_state, **params) -> Sequence[ToolDefinition]:
@@ -194,10 +194,10 @@ tools = [
     Tool(name=BashAndGrepToolSet.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -224,6 +224,6 @@ print("Conversation finished. Got the following LLM messages:")
 for i, message in enumerate(llm_messages):
     print(f"Message {i}: {str(message)[:200]}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

@@ -1,4 +1,4 @@
-"""OpenAI-compatible gateway routes for the agent server."""
+"""Agent Server 的 OpenAI 兼容网关路由。"""
 
 import json
 from typing import Annotated
@@ -46,17 +46,17 @@ def check_openai_api_key(
     session_api_key: str | None = Depends(_SESSION_API_KEY_HEADER),
     authorization: HTTPAuthorizationCredentials | None = Depends(_AUTHORIZATION_HEADER),
 ) -> None:
-    """Accept the same session key through OpenHands and OpenAI auth shapes.
+    """通过 OpenHands 和 OpenAI auth 形状接受相同的会话密钥。
 
-    ``X-Session-API-Key`` preserves compatibility with existing agent-server
-    clients, while ``Authorization: Bearer`` lets OpenAI-compatible clients use
-    their standard API-key header. Both forms validate against
-    ``config.session_api_keys``; this does not introduce a second credential
-    system. When no session keys are configured, the local server remains
-    unauthenticated like the existing agent-server API.
+    ``X-Session-API-Key`` 保留与现有智能体服务器客户端的兼容性，而
+    ``Authorization: Bearer`` 允许 OpenAI 兼容客
+    户端使用其标准 API 密钥标头。 两种形式都验证
+    ``config.session_api_keys``; 这并没有引入第二个凭据系统。 当未配置会话密钥时，本
+    地服务器与现有的智能体-服务器 API 一样保持未经身
+    份验证。
 
-    Reads config from ``request.app.state`` at request time so that keys
-    delivered via ``POST /api/init`` take effect immediately.
+    在请求时从 ``request.app.state`` 读取配置，以便通过 ``POST /api/init`` 传递的密钥
+    立即生效。
     """
     config: Config = request.app.state.config
     if not config.session_api_keys:

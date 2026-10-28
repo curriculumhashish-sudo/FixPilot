@@ -14,7 +14,7 @@ from openhands.tools.preset.default import get_default_agent
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -36,22 +36,22 @@ def conversation_callback(event: Event):
         llm_messages.append(event.to_llm_message())
 
 
-# Create conversation with built-in stuck detection
+# 使用内置卡住检测创建对话
 conversation = Conversation(
     agent=agent,
     callbacks=[conversation_callback],
     workspace=os.getcwd(),
-    # This is by default True, shown here for clarity of the example
+    # 默认情况下为 True，为了清楚地说明示例而在此处显示
     stuck_detection=True,
 )
 
-# Send a task that will be caught by stuck detection
+# 发送将被卡住检测捕获的任务
 conversation.send_message(
     "Please execute 'ls' command 5 times, each in its own "
     "action without any thought and then exit at the 6th step."
 )
 
-# Run the conversation - stuck detection happens automatically
+# 运行对话 - 卡住检测会自动发生
 conversation.run()
 
 assert conversation.stuck_detector is not None
@@ -63,6 +63,6 @@ print("Conversation finished. Got the following LLM messages:")
 for i, message in enumerate(llm_messages):
     print(f"Message {i}: {str(message)[:200]}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

@@ -1,4 +1,4 @@
-"""Tests for strict plugin pre-flight and pinned fetch behavior."""
+"""测试严格的插件预检和固定获取行为。"""
 
 from __future__ import annotations
 

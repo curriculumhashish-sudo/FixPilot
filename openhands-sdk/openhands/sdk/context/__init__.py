@@ -2,7 +2,7 @@ from openhands.sdk.context.agent_context import AgentContext
 from openhands.sdk.context.memory import load_memory
 from openhands.sdk.context.prompts import render_template
 
-# Import from canonical location (openhands.sdk.skills)
+# 从规范位置导入 (openhands.sdk.skills)
 from openhands.sdk.skills import (
     BaseTrigger,
     KeywordTrigger,

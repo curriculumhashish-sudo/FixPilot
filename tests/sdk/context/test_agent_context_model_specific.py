@@ -12,20 +12,19 @@ _REPO_BASELINE_TEXT = (
 _REPO_BASELINE_TEXT = (
     "---\n# type: repo\nversion: 1.0.0\nagent: CodeActAgent\n---\n\nRepo baseline\n"
 )
-# Different baseline formats for testing backward compatibility:
-# - _REPO_BASELINE_TEXT: legacy format with frontmatter (used in
-#   .openhands/skills/repo.md)
-# - _AGENTS_BASELINE_TEXT: simple markdown format (used in AGENTS.md)
+# 用于测试的不同基线格式向后兼容性：
+# - _REPO_BASELINE_TEXT: 旧格式，前置元数据（在 .openhands/skills/repo.md 中使用）
+# - _AGENTS_BASELINE_TEXT：简单的Markdown格式（在AGENTS.md中使用）
 _AGENTS_BASELINE_TEXT = "# Project Guidelines\n\nRepo baseline\n"
 
 
 def _write_repo_with_vendor_files(root: Path, baseline_source: str) -> None:
-    """Create test repository with baseline and vendor-specific skill files.
+    """使用基线和特定于供应商的技能文件创建测试存储库。
 
     Args:
-        root: Root directory for the test repository
-        baseline_source: Either "repo_md" (legacy .openhands/skills/repo.md)
-                        or "agents_md" (AGENTS.md in repo root)
+        root: 测试存储库的根目录
+        baseline_source: 要么 "repo_md"（遗留的 .openhands/skills/repo.md）
+                        或“agents_md”（仓库根目录中的AGENTS.md）
     """
     if baseline_source == "repo_md":
         skills_dir = root / ".openhands" / "skills"
@@ -40,9 +39,9 @@ def _write_repo_with_vendor_files(root: Path, baseline_source: str) -> None:
     (root / "gemini.md").write_text("Gemini-Specific Instructions")
 
 
-# Test both loading mechanisms for backward compatibility:
-# - "repo_md": Legacy .openhands/skills/repo.md (still supported for existing repos)
-# - "agents_md": New approach using AGENTS.md in repo root (recommended)
+# 测试向后兼容性的两种加载机制：
+# - repo_md：遗留的。openhands/skills/repo.md（对于现有仓库仍然支持）
+# - “agents_md”：在存储库根目录中使用 AGENTS.md 的新方法（推荐）
 @pytest.mark.parametrize("baseline_source", ["repo_md", "agents_md"])
 def test_context_gates_claude_vendor_file(tmp_path: Path, baseline_source: str):
     _write_repo_with_vendor_files(tmp_path, baseline_source)
@@ -103,7 +102,7 @@ def test_context_includes_all_when_model_unknown(tmp_path: Path, baseline_source
     _write_repo_with_vendor_files(tmp_path, baseline_source)
     skills = load_project_skills(tmp_path)
     ac = AgentContext(skills=skills)
-    # No model info provided -> backward-compatible include-all behavior
+    # 未提供模型信息 -> 向后兼容包含所有行为
     suffix = ac.get_system_message_suffix()
     assert suffix is not None
     assert "Repo baseline" in suffix

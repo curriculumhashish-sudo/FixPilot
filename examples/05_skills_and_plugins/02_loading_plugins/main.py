@@ -1,24 +1,24 @@
-"""Example: Loading and Managing Plugins
+"""Example: 加载和管理插件
 
-This example demonstrates plugin loading and lifecycle management in the SDK:
+此示例演示了 SDK 中的插件加载和生命周期管理：
 
-1. Loading a plugin from GitHub via Conversation (PluginSource)
-2. Installing plugins to persistent storage (local and GitHub)
-3. Listing tracked plugins and loading only the enabled ones
-4. Inspecting the `.installed.json` metadata file and `enabled` flag
-5. Disabling and re-enabling a plugin without reinstalling it
-6. Uninstalling plugins from persistent storage
+1. 通过对话 (PluginSource) 从 GitHub 加载插件
+2. 将插件安装到持久存储（本地和 GitHub）
+3. 列出跟踪的插件并仅加载启用的插件
+4. 检查 `.installed.json` 元数据文件和 `enabled` 标志
+5. 禁用并重新启用插件而不重新安装它
+6. 从持久存储中卸载插件
 
-Plugins bundle skills, hooks, and MCP config together.
+插件将技能、挂钩和 MCP 配置捆绑在一起。
 
-Supported plugin sources:
-- Local path: /path/to/plugin
-- GitHub shorthand: github:owner/repo
-- Git URL: https://github.com/owner/repo.git
-- With ref: branch, tag, or commit SHA
-- With repo_path: subdirectory for monorepos
+支持的插件来源：
+- 本地路径：/path/to/plugin
+- GitHub 简写：GitHub:owner/repo
+- git URL:  https://github.com/owner/repo.git
+- 使用 ref：分支、标签或提交 SHA
+- With repo_path: monorepos 的子目录
 
-For full documentation, see: https://docs.all-hands.dev/sdk/guides/plugins
+有关完整文档，请参阅： https://docs.all-hands.dev/sdk/guides/plugins
 """
 
 import json
@@ -49,7 +49,7 @@ local_plugin_path = script_dir / "example_plugins" / "code-quality"
 
 
 def print_state(label: str, installed_dir: Path) -> None:
-    """Print tracked, loaded, and persisted plugin state."""
+    """打印跟踪、加载和已持久化插件状态。"""
     print(f"\n{label}")
     print("-" * len(label))
 
@@ -67,7 +67,7 @@ def print_state(label: str, installed_dir: Path) -> None:
 
 
 def demo_conversation_with_github_plugin(llm: LLM) -> None:
-    """Demo 1: Load plugin from GitHub via Conversation."""
+    """演示 1：通过对话从 GitHub 加载插件。"""
     print("\n" + "=" * 60)
     print("DEMO 1: Loading plugin from GitHub via Conversation")
     print("=" * 60)
@@ -121,7 +121,7 @@ def demo_conversation_with_github_plugin(llm: LLM) -> None:
 
 
 def demo_install_local_plugin(installed_dir: Path) -> str:
-    """Demo 2: Install a plugin from a local path."""
+    """演示 2：从本地路径安装插件。"""
     print("\n" + "=" * 60)
     print("DEMO 2: Installing plugin from local path")
     print("=" * 60)
@@ -134,7 +134,7 @@ def demo_install_local_plugin(installed_dir: Path) -> str:
 
 
 def demo_install_github_plugin(installed_dir: Path) -> None:
-    """Demo 3: Install a plugin from GitHub to persistent storage."""
+    """演示 3：将插件从 GitHub 安装到持久存储。"""
     print("\n" + "=" * 60)
     print("DEMO 3: Installing plugin from GitHub")
     print("=" * 60)
@@ -168,7 +168,7 @@ def demo_install_github_plugin(installed_dir: Path) -> None:
 
 
 def demo_list_and_load_plugins(installed_dir: Path) -> None:
-    """Demo 4: List tracked plugins and load the enabled ones."""
+    """演示 4：列出跟踪的插件并加载启用的插件。"""
     print("\n" + "=" * 60)
     print("DEMO 4: Listing and loading installed plugins")
     print("=" * 60)
@@ -185,7 +185,7 @@ def demo_list_and_load_plugins(installed_dir: Path) -> None:
 
 
 def demo_enable_disable_plugin(installed_dir: Path, plugin_name: str) -> None:
-    """Demo 5: Disable then re-enable a plugin without reinstalling it."""
+    """演示 5：禁用然后重新启用插件，无需重新安装。"""
     print("\n" + "=" * 60)
     print("DEMO 5: Disabling and re-enabling a plugin")
     print("=" * 60)
@@ -212,7 +212,7 @@ def demo_enable_disable_plugin(installed_dir: Path, plugin_name: str) -> None:
 
 
 def demo_uninstall_plugins(installed_dir: Path) -> None:
-    """Demo 6: Uninstall all tracked plugins."""
+    """演示 6：卸载所有跟踪的插件。"""
     print("\n" + "=" * 60)
     print("DEMO 6: Uninstalling plugins")
     print("=" * 60)

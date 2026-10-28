@@ -1,4 +1,4 @@
-"""Tests for PlanningFileEditorTool create() behavior with optional plan_path."""
+"""使用可选的 plan_path 测试 PlanningFileEditorTool create() 行为。"""
 
 import tempfile
 from pathlib import Path
@@ -16,7 +16,7 @@ from openhands.tools.planning_file_editor.definition import PlanningFileEditorAc
 
 
 def _create_conv_state(working_dir: str) -> ConversationState:
-    """Create a minimal conversation state for tests."""
+    """创建用于测试的最小对话状态。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -27,18 +27,18 @@ def _create_conv_state(working_dir: str) -> ConversationState:
 
 
 def test_create_without_plan_path_uses_agents_tmp_directory():
-    """When plan_path is not provided, PLAN.md is created in .agents_tmp at workspace
-    root."""
+    """如果未提供 plan_path，则会在 .agents_tmp 的工作区处创建 PLAN.md
+    根。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange
+        # 安排
         conv_state = _create_conv_state(temp_dir)
         expected_path = Path(temp_dir).resolve() / ".agents_tmp" / "PLAN.md"
 
-        # Act
+        # 法案
         tools = PlanningFileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Assert
+        # 断言
         assert len(tools) == 1
         assert tool.executor is not None
         assert issubclass(tool.action_type, PlanningFileEditorAction)
@@ -47,67 +47,67 @@ def test_create_without_plan_path_uses_agents_tmp_directory():
 
 
 def test_create_with_plan_path_uses_given_path():
-    """When plan_path is provided, PLAN.md is created at that path."""
+    """当提供 plan_path 时，将在该路径创建 PLAN.md。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange
+        # 安排
         conv_state = _create_conv_state(temp_dir)
         custom_path = str(Path(temp_dir) / ".agents_tmp" / "PLAN.md")
 
-        # Act
+        # 法案
         tools = PlanningFileEditorTool.create(conv_state, plan_path=custom_path)
         tool = tools[0]
 
-        # Assert
+        # 断言
         assert Path(custom_path).exists()
         assert custom_path in tool.description
 
 
 def test_create_with_plan_path_creates_parent_directory():
-    """When plan_path is in a non-existent subdir, parent directory is created."""
+    """当 plan_path 位于不存在的子目录中时，将创建父目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange
+        # 安排
         conv_state = _create_conv_state(temp_dir)
         custom_path = str(Path(temp_dir) / "config" / "nested" / "PLAN.md")
         assert not Path(custom_path).parent.exists()
 
-        # Act
+        # 法案
         PlanningFileEditorTool.create(conv_state, plan_path=custom_path)
 
-        # Assert
+        # 断言
         assert Path(custom_path).parent.exists()
         assert Path(custom_path).exists()
 
 
 def test_create_without_plan_path_uses_legacy_location_if_exists():
-    """When legacy PLAN.md exists at workspace root, it is used for backward compatibility."""  # noqa: E501
+    """当旧版 PLAN.md 存在于工作区根时，它用于向后兼容性。"""  # noqa: E501
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange
+        # 安排
         conv_state = _create_conv_state(temp_dir)
         legacy_path = Path(temp_dir).resolve() / "PLAN.md"
         new_path = Path(temp_dir).resolve() / ".agents_tmp" / "PLAN.md"
 
-        # Create a legacy PLAN.md at workspace root
+        # 在工作区根目录创建旧版 PLAN.md
         legacy_path.write_text("# Legacy Plan Content")
 
-        # Act
+        # 法案
         tools = PlanningFileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Assert - tool uses legacy path
+        # 断言 - 工具使用旧路径
         assert str(legacy_path) in tool.description
         assert legacy_path.exists()
-        # New location should not be created
+        # 不应创建新位置
         assert not new_path.exists()
 
 
 def test_create_with_relative_path_raises_value_error():
-    """When plan_path is relative, ValueError is raised."""
+    """当plan_path是相对的时，ValueError被提升。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange
+        # 安排
         conv_state = _create_conv_state(temp_dir)
         relative_path = "relative/path/PLAN.md"
 
-        # Act & Assert
+        # 行动与断言
         with pytest.raises(
             ValueError, match="plan_path must be an absolute path, got: relative"
         ):

@@ -1,119 +1,95 @@
-# Git changes, diffs, commits and repository search
+<a id="git-changes-diffs-commits-and-repository-search"></a>
 
-Read-only git views of a directory on the agent server's host, for the
-Changes and Commits tabs that show what an agent did. `changes` lists the
-working tree's files against a display base (`UPDATED`, `ADDED`, `DELETED`;
-untracked files are `ADDED`, renames are a `DELETED` plus an `ADDED`), sorted
-by path, including repositories nested one level down. `diff` returns the full
-`original` and `modified` text of one file, either against a base (`ref`) or
-as one commit changed it (`commit`). `commits` pages the history reachable
+# Git 更改、差异、提交和存储库搜索
+
+只读 Agent Server 主机上目录的 git 视图，用于显示智能体所做操作的“更改”和“提交”选项卡。 `changes` 根据显示库列出工作树的文件（`UPDATED`、`ADDED`、`DELETED`； 未跟踪的文件是 `ADDED`，重命名是 `DELETED` 加 `ADDED`），按路径排序，包括嵌套在下一层的存储库。 `diff`返回完整的
+一个文件的 `original` 和 `modified` 文本，无论是针对基础 (`ref`) 还是在一次提交时更改它 (`commit`)。 `commits`页历史可达
 from `HEAD`, newest first, and `commits/{sha}/changes` lists the files one
-commit changed against its first parent. A path that is not a repository
-gives an empty result, not an error; other git failures are 400. Every
-operation except repository search also exists under
-`/api/conversations/{runtime_conversation_id}/git/...`, where `path` must
-resolve inside the conversation's workspace. Repository search is not about
-local directories: it lists the repositories a GitHub token stored in the
-server's secrets can access (`missing_token` when there is none).
+提交针对其第一个父级发生了更改。 非存储库的路径给出空结果，而不是错误； 其他 git 失败是 400。 除了存储库搜索之外的所有操作也存在于
+`/api/conversations/{runtime_conversation_id}/git/...`, where `path` 必须在对话中解决工作区。 仓库搜索与本地目录无关：它列出的是  GitHub  token 存储在服务器端的机密可以访问（`missing_token` 当有 None).
 
-Source: `openhands-agent-server/openhands/agent_server/git_router.py`, `openhands-agent-server/openhands/agent_server/git_provider_service.py`, `openhands-agent-server/openhands/agent_server/runtime_router.py`, `openhands-sdk/openhands/sdk/git/`, `openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`, `clients/typescript/src/workspace/remote-workspace.ts`, `clients/typescript/src/client/git-client.ts`
+资料来源：`openhands-agent-server/openhands/agent_server/git_router.py`、`openhands-agent-server/openhands/agent_server/git_provider_service.py`、`openhands-agent-server/openhands/agent_server/runtime_router.py`、`openhands-sdk/openhands/sdk/git/`、`openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`、`clients/typescript/src/workspace/remote-workspace.ts`、`clients/typescript/src/client/git-client.ts`
 
-Needs: `llm`, `git`, `node`
+需求：`llm`、`git`、`node`
 
-Routes: `GET /api/conversations/{runtime_conversation_id}/git/changes`,
+路线：`GET /api/conversations/{runtime_conversation_id}/git/changes`，
 `GET /api/conversations/{runtime_conversation_id}/git/diff`,
 `GET /api/conversations/{runtime_conversation_id}/git/commits`,
 `GET /api/conversations/{runtime_conversation_id}/git/commits/{sha}/changes`,
 `GET /api/git/repositories/search`, `GET /api/git/changes`,
 `GET /api/git/diff`, `GET /api/git/commits`, `GET /api/git/commits/{sha}/changes`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F15.auth`: every global and conversation-scoped git route answers 401 without a valid session key.
-- `F15.changes`: `changes` on the fixture repository lists the modified tracked file as `UPDATED` and the untracked file as `ADDED`, sorted by path, as repository-relative POSIX paths, matching `git status`.
-- `F15.changes-statuses`: a staged deletion is `DELETED`, a staged new file `ADDED`, and a staged rename a `DELETED` old path plus an `ADDED` new path.
-- `F15.changes-base`: without `ref` the display base is `HEAD` on a remote-less default branch, the fork point from local `main` on a feature branch (committed work stays visible), the fork point from `origin`'s default branch on a fully pushed clean branch, and the branch's own upstream once the tree is dirty.
-- `F15.changes-ref`: `ref=HEAD` gives `git status`-style changes and an older commit adds its later commits' files; an unknown or option-shaped `ref` is 400 and never runs as a git option; no `path` is 422.
-- `F15.changes-nested-repo`: changes inside a repository nested one level below the requested repository are listed with the nested directory as prefix, the nested directory itself is not listed, and `diff` of such an entry reads the nested repository.
-- `F15.changes-repo-below-path`: a non-repository directory that holds one repository (the layout of a repository-backed conversation) lists that repository's changes with its directory as prefix.
-- `F15.changes-special-names`: a modified tracked file whose name has a space or a non-ASCII character is listed under its real name; today a space fails the whole list with 400 and a non-ASCII name comes back as a mangled git-quoted string.
-- `F15.changes-subdir-paths`: `changes` for a subdirectory of a repository lists only the changes under it, tracked and untracked alike, as paths relative to the requested directory.
-- `F15.non-repo`: on a plain directory, a missing directory and a non-repository file every operation answers 200 with an empty result (`[]`, `{"original": null, "modified": null}`, `{"commits": [], "has_more": false}`); a repository without commits lists its files as `ADDED` and has no commits.
-- `F15.diff`: `diff` for a modified file returns the base text as `original` and the disk text as `modified` (final newline dropped on both sides), an untracked file has `original` `""`, and an explicit `ref` moves the base.
-- `F15.diff-commit`: `commit=<sha>` returns the file as that commit changed it, read from git objects: `original` from the first parent (empty for the root commit or an added file), `modified` from the commit (empty for a file it deleted), also for files no longer on disk and for abbreviated SHAs.
-- `F15.diff-errors`: `ref` together with `commit` is 400, a non-hex `commit` 422, an unknown commit or ref 400, a missing file 400, a file over 1 MiB 400, and no `path` 422.
-- `F15.diff-whitespace`: an unchanged file with leading indentation or trailing blank lines diffs to identical `original` and `modified`, so a file that `changes` does not list shows no diff.
-- `F15.diff-deleted-file`: the working-tree diff of a file that `changes` lists as `DELETED` returns its base text as `original` and `""` as `modified`; a path missing both on disk and at the base is still 400 `File does not exist`.
-- `F15.commits`: `commits` lists the history newest first with `sha`, `short_sha`, `subject`, `author` and an ISO 8601 `timestamp`, `has_more` tells whether `limit` cut it, and `limit` outside 1..200 is 422.
-- `F15.commit-changes`: `commits/{sha}/changes` lists one commit's files against its first parent (the root commit as all `ADDED`, a rename as `DELETED` plus `ADDED`), accepts abbreviated SHAs, answers 400 for an unknown SHA and 422 for a non-hex or shorter-than-4 SHA.
-- `F15.scoped`: the four conversation-scoped routes on a conversation whose workspace is the fixture repository return exactly what the global routes return.
-- `F15.scoped-guard`: scoped routes refuse a `path` outside the workspace (another directory, a same-prefix sibling, `..`, a symlink escape, a relative path, a second `path` parameter pointing outside) with 422 while the global route serves it; an unknown conversation is 404, a malformed id 422, and there is no scoped repository search.
-- `F15.scoped-restart`: after a restart the scoped routes still resolve the conversation's workspace and return the same changes.
-- `F15.sdk-workspace`: the Python SDK's `RemoteWorkspace.git_changes` and `git_diff` join relative paths to `working_dir` and return the same results plain and scoped (`runtime_conversation_id`), and the scoped workspace refuses a path outside it with 422.
-- `F15.ts-client`: the TypeScript client's `RemoteWorkspace.gitChanges` (with `ref`) and `gitDiff` return the same results plain and with `conversationId`, the scoped one rejects a path outside the workspace, and `GitClient.searchRepositories` returns the `missing_token` page.
-- `F15.agent-changes`: after a real model run writes a file in a repository workspace, the scoped `changes` lists it as `ADDED` and the scoped `diff` shows the written text, and the event stream has the file editor's observation.
-- `F15.repo-search-token`: without a stored token, GitHub search is 200 `{"items": [], "next_page_id": null, "missing_token": true}`; a secret named `github_token` or `GH_TOKEN` is picked up (a malformed `page_id` is then validated and refused with 400), and deleting it restores `missing_token`.
-- `F15.repo-search-errors`: `gitlab` and `bitbucket` are 400 (not supported), an unknown or missing `provider` is 422, and `limit` outside 1..100 is 422.
-- `F15.repo-search-unreachable`: when GitHub cannot be reached the search is 502 with the generic masked body and no token in it.
-- `F15.repo-search-timeout`: when GitHub does not answer within 15 s the search is 504 with the masked body `GitHub repository search timed out` and no token in it.
-- `F15.repo-search-github`: with a real GitHub token, search lists the token's repositories with a `page:offset` cursor and a case-insensitive `query` filter.
-- `F15.repo-search-rejected-token`: a provider's HTTP 401 for a rejected token is passed through as 401 with a generic error, without exposing the token.
+## 子功能
 
-## How to get to it (agent POV)
+- `F15.auth`：每个全局和对话范围的 git 路由都会在没有有效会话密钥的情况下回答 401。
+- `F15.changes`: `changes` 在测试夹具仓库列出已修改的跟踪文件为 `UPDATED` 以及未跟踪的文件作为 `ADDED`按路径排序，为仓库相对路径 POSIX 路径，匹配 `git status`.
+- `F15.changes-statuses`：分阶段删除是`DELETED`，分阶段新文件`ADDED`，分阶段重命名`DELETED`旧路径加`ADDED`新路径。
+- `F15.changes-base`: 无 `ref`，本地 `HEAD` 的显示基默认分支，本地 `main` 的分支点（已提交的工作仍可见）， `origin` 的默认分支的分支点，以及树脏的分支的上游。
+- `F15.changes-ref`: `ref=HEAD` 提供 `git status` 样式的更改，较旧的提交添加其较晚提交的文件； 未知或选项形状的 `ref` 是 400 并且永远不会作为 git 选项运行； 没有`path`是422。
+- `F15.changes-nested-repo`在请求的仓库层级以下的仓库内部更改将以嵌套目录作为前缀列出，而嵌套目录本身不会列出 `diff` 该条记录读取嵌套的仓库。
+- `F15.changes-repo-below-path`：一个非仓库目录，它包含一个仓库（基于仓库的对话的布局）以目录为前缀列出该仓库的更改。
+- `F15.changes-special-names`：名称中有空格或非ASCII字符的修改跟踪文件列在其真实名称下； 今天，一个空格使整个列表失败，结果为 400，并且非 ASCII 名称以损坏的 git-quoted 字符串形式返回。
+- `F15.changes-subdir-paths`：对于仓库中的子目录，`changes` 仅列出该目录下已跟踪与未跟踪文件的变更，并使用相对于请求目录的路径。
+- `F15.non-repo`：在普通目录、丢失目录和非存储库文件上，每个操作都会回答 200，结果为空（`[]`、`{"original": null, "modified": null}`、`{"commits": [], "has_more": false}`）； 没有提交的存储库将其文件列为 `ADDED` 并且没有提交。
+- `F15.diff`：`diff` 对于已修改的文件，将基本文本返回为 `original`，将磁盘文本返回为 `modified`（两边都删除最后的换行符），未跟踪的文件具有 `original` `""`，并且显式 `ref` 移动基本文本。
+- `F15.diff-commit`: `commit=<sha>` 返回该提交更改的文件，从 git 对象中读取：`original` 从第一个父提交（根提交为空，添加的文件则为空），`modified` 从该提交（删除的文件为空），也包括不再存储在磁盘上的文件和简短的SHAs。
+- `F15.diff-errors`：`ref` 与 `commit` 一起为 400、非十六进制 `commit` 422、未知提交或引用 400、丢失文件 400、超过 1 MiB 400 的文件以及无 `path` 422。
+- `F15.diff-whitespace`：带有前导缩进或后跟空格的未改动文件与`original`和`modified`完全相同，因此`changes`中未列出的文件没有差异。
+- `F15.diff-deleted-file`：`changes` 列为 `DELETED` 的文件的工作树差异返回其基本文本为 `original`，`""` 为 `modified`； 磁盘上和底部都缺失的路径仍然是 400 `File does not exist`。
+- `F15.commits`: `commits`按最新时间顺序列出，`sha`、`short_sha`、`subject`、`author`和一个ISO8601`timestamp`，`has_more`告诉`limit`是否切掉，`limit`不在1..200范围内是422。
+- `F15.commit-changes`: `commits/{sha}/changes`列出了一次提交的文件及其第一个父提交（所有`ADDED`，一个重命名`DELETED`和`ADDED`）；接受简写SHAs，返回未知SHA的400状态码和非十六进制或短于4位的SHA的422状态码。
+- `F15.scoped`：工作区是测试夹具存储库的会话上的四个会话范围路由返回的内容与全局路由返回的内容完全相同。
+- `F15.scoped-guard`: 范围内的路由拒绝 `path` 从工作区外部（另一个目录、同前缀的兄弟、`..`、一个符号链接逃逸、一个相对路径、一个指向外部的第二个 `path` 参数）；而全局路由则提供它。 未知对话为 404，格式错误的 ID 为 422，并且没有范围存储库搜索。
+- `F15.scoped-restart`：重新启动后，作用域路由仍解析对话的工作区并返回相同的更改。
+- `F15.sdk-workspace`: the Python  SDK's `RemoteWorkspace.git_changes` 和 `git_diff` 将相对路径连接起来 `working_dir` 并返回相同的结果（全局和局部的）`runtime_conversation_id`), and the scoped 工作区拒绝了不在它范围内的路径，返回状态码 422。
+- `F15.ts-client`: the TypeScript 客户端的 `RemoteWorkspace.gitChanges` (with `ref`) 和 `gitDiff` 返回相同的结果平平常常地 `conversationId`，该路径不在的范围内工作区，and `GitClient.searchRepositories` 返回 `missing_token` 页。
+- `F15.agent-changes`：在实际模型运行后，工作区将文件写入仓库，`changes`会将其标记为`ADDED`，`diff`会显示写入的文本，而事件流会显示文件编辑器的观测结果。
+- `F15.repo-search-token`：没有存储token，GitHub搜索为200次`{"items": [], "next_page_id": null, "missing_token": true}`； 名为 `github_token` 或 `GH_TOKEN` 的机密被选中（然后验证格式错误的 `page_id`，并以 400 拒绝），删除它即可恢复 `missing_token`。
+- `F15.repo-search-errors`：`gitlab`和`bitbucket`为400（不支持），未知或缺失的`provider`为422，1..100之外的`limit`为422。
+- `F15.repo-search-unreachable`：当无法到达 GitHub 时，搜索为 502，其中包含通用屏蔽主体且其中没有 token。
+- `F15.repo-search-timeout`：当 GitHub 在 15 秒内没有回答时，搜索为 504，其中包含屏蔽正文 `GitHub repository search timed out`，并且其中没有 token。
+- `F15.repo-search-github`：对于真实的 GitHub token，搜索会列出 token 的存储库，并带有 `page:offset` 游标和不区分大小写的 `query` 过滤器。
+- `F15.repo-search-rejected-token`：提供商针对被拒绝的 token 的 HTTP 401 作为带有一般错误的 401 传递，而不暴露 token。
 
-- REST, global: `GET /api/git/changes?path=<repo>&ref=<ref>`,
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST，全局：`GET /api/git/changes?path=<repo>&ref=<ref>`，
   `GET /api/git/diff?path=<file>&ref=<ref>|commit=<sha>`,
   `GET /api/git/commits?path=<repo>&limit=1..200`,
-  `GET /api/git/commits/{sha}/changes?path=<repo>`. `path` is any absolute
-  path the server user can read; a relative path resolves against the server
-  process's working directory. Every bullet except the scoped ones drives
-  these.
-- REST, conversation-scoped: the same four under
-  `/api/conversations/{runtime_conversation_id}/git/...`; the
-  `bind_local_conversation_runtime` dependency refuses a `path` that is not
-  absolute or does not resolve inside `workspace.working_dir`. Driven by
-  `F15.auth`, `F15.scoped`, `F15.scoped-guard`, `F15.scoped-restart` and
-  `F15.agent-changes`, and through the clients by `F15.sdk-workspace` and
+  `GET /api/git/commits/{sha}/changes?path=<repo>`. `path` 是服务器用户可以读取的任何绝对路径。 相对路径根据服务器进程的工作目录进行解析。 除了带瞄准镜的子弹外，每颗子弹都会驱动这些子弹。
+- REST，对话范围：同四下
+  `/api/conversations/{runtime_conversation_id}/git/...`; 的
+  `bind_local_conversation_runtime` 依赖拒绝非绝对的或无法在 `workspace.working_dir` 内解析的 `path`。 驱动力
+  `F15.auth`、`F15.scoped`、`F15.scoped-guard`、`F15.scoped-restart` 和
+  `F15.agent-changes`，并通过 `F15.sdk-workspace` 和客户端
   `F15.ts-client`.
-- REST, provider search (global only):
-  `GET /api/git/repositories/search?provider=github&query=...&limit=1..100&page_id=...`;
-  the token comes from the server's secrets store (`PUT /api/settings/secrets`,
-  names `github_token`, `GITHUB_TOKEN`, `GH_TOKEN`, `github`, in that order).
-- SDK: `RemoteWorkspace.git_changes(path)` and `git_diff(path)` (and the
-  `AsyncRemoteWorkspace` versions) join a relative `path` to `working_dir` and
-  call the global routes, or the scoped ones when the workspace has
-  `runtime_conversation_id`. They send neither `ref` nor `commit`, and there is
-  no SDK method for `commits` or repository search. Driven by
-  `F15.sdk-workspace` (an `exec` program).
-- TypeScript client: `RemoteWorkspace.gitChanges(path, {ref})` and
-  `gitDiff(path, {ref})` (scoped through the runtime transport when a
-  `conversationId` is set); `GitClient.searchRepositories({provider, query,
-  limit, pageId})`. Driven by `F15.ts-client` (a `node` program on
+- REST，提供商搜索（仅限全球）：
+  `GET /api/git/repositories/search?provider=github&query=...&limit=1..100&page_id=...`; token 来自服务器的机密存储（`PUT /api/settings/secrets`、名称 `github_token`、`GITHUB_TOKEN`、`GH_TOKEN`、`github`，按顺序）。
+- SDK：`RemoteWorkspace.git_changes(path)` 和 `git_diff(path)`（以及
+  `AsyncRemoteWorkspace` 版本）加入相对的 `path` 到 `working_dir` 并调用全局路由，或者当工作区具有范围时调用范围路由
+  `runtime_conversation_id`. 他们既不发送 `ref` 也不发送 `commit`，并且没有用于 `commits` 或存储库搜索的 SDK 方法。 驱动力
+  `F15.sdk-workspace`（`exec` 程序）。
+- TypeScript 客户端：`RemoteWorkspace.gitChanges(path, {ref})` 和
+  `gitDiff(path, {ref})`（范围通过运行时传输层，当
+  设置为`conversationId`）； `GitClient.searchRepositories({provider, query, limit, pageId})`. 由 `F15.ts-client` 驱动（`node` 程序
   `clients/typescript/dist`).
-- Agent Canvas (context only): the Changes tab (changes and diff), the
-  Commits tab (commits, commit changes, diff with `commit`) and the
-  repository picker (search).
+- Agent Canvas（仅限上下文）：“更改”选项卡（更改和比较）、“提交”选项卡（提交、提交更改、与 `commit` 比较）和存储库选取器（搜索）。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A run is live and exported, `doctor` is ok, `git` and `node` are
-  installed and `$DEEPSEEK_API_KEY` is set (only `F15.agent-changes` uses the
-  model; only `F15.ts-client` uses `node`, and builds the TypeScript client
-  with `npm ci && npm run build` if `clients/typescript/dist` is missing). No
-  launch flags are needed; `F15.repo-search-unreachable` restarts the run with
-  a dead proxy and restores it.
-- The block below activates `deepseek-flash`, points `git` at the run's
-  private config (author `QA Verify`, so commits made here need no global git
-  identity), creates the `qa-f15-repo` fixture (commits `Initial commit` =
-  `C1` and `Add util` = `C2`, a modified `README.md`, an untracked
-  `notes.txt`) and a never-run conversation `CID` whose workspace is that
-  repository. Bullets that mutate a repository work on copies under `$F`.
-  The run directory must not sit inside any git repository: the
-  non-repository bullets would silently test the enclosing one (and
-  `F15.changes-repo-below-path` would falsely pass), so the block stops with
-  the enclosing repository's path instead (see Gotchas).
+前提条件：
+
+- 运行已实时并导出，`doctor` 正常，`git` 和 `node` 已安装，`$DEEPSEEK_API_KEY` 已设置（仅 `F15.agent-changes` 使用该模型； 只有 `F15.ts-client` 使用 `node`，如果 `clients/typescript/dist` 缺失，则使用 `npm ci && npm run build` 构建 TypeScript 客户端）。 不需要启动标志； `F15.repo-search-unreachable` 使用失效的代理重新启动运行并恢复它。
+- 下方代码块启用 `deepseek-flash`，让 `git` 指向本次运行的私有配置（作者为 `QA Verify`，因此此处提交无须全局 Git 身份），并创建 `qa-f15-repo` 测试夹具（提交 `Initial commit` =
+  `C1` 和 `Add util` = `C2`，修改后的 `README.md`，未跟踪的
+  `notes.txt`）和一个从未运行的对话 `CID`，其工作区是该存储库。 改变存储库的项目符号在 `$F` 下的副本上工作。 运行目录不得位于任何 git 存储库中：非存储库项目符号会默默地测试封闭的目录（并且
+  `F15.changes-repo-below-path` 会错误地通过），因此该块会以封闭存储库的路径停止（请参阅陷阱）。
   ```sh
   control-agent-server llm preset deepseek
   export GIT_CONFIG_GLOBAL="$AGENT_SERVER_VERIFY_RUN/home/.gitconfig"
@@ -131,8 +107,7 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID" --expect 200 --check workspace.working_dir eq "$REPO"
   ```
 
-- **Session key required (`F15.auth`).** The run's key gets in (positive
-  control); then every route without a key (one with a wrong key).
+- **需要会话密钥 (`F15.auth`)。**运行的关键进入（正控制）； 然后每条路线都没有钥匙（钥匙错误）。
   ```sh
   control-agent-server api GET /api/git/changes --query path="$REPO" --expect 200 --check . len-eq 2
   control-agent-server api GET "/api/conversations/$CID/git/changes" --query path="$REPO" --expect 200 --check . len-eq 2
@@ -147,9 +122,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/git/commits/$C2/changes" --auth none --query path="$REPO" \
     --expect 401 --check detail eq Unauthorized --save F15.auth/scoped-commit-changes
   ```
-  With the key both views answer 200; without it all nine answer
+  两个视图都返回了200。 没有九个答案
   `401 {"detail": "Unauthorized"}`.
-- **Working-tree changes (`F15.changes`).** The fixture as created.
+- **工作树更改 (`F15.changes`).**创建时的测试夹具。
   ```sh
   control-agent-server api GET /api/git/changes --query path="$REPO" --expect 200 --check . len-eq 2 \
     --check 0.status eq UPDATED --check 0.path eq README.md --check 1.status eq ADDED --check 1.path eq notes.txt \
@@ -159,10 +134,8 @@ Preconditions:
   grep -qx '?? notes.txt' "$F/status.txt"
   test "$(wc -l < "$F/status.txt")" -eq 2
   ```
-  Exactly `[{"status": "UPDATED", "path": "README.md"}, {"status": "ADDED", "path": "notes.txt"}]`,
-  the same two entries `git status --porcelain` shows.
-- **Staged deletions, additions and renames (`F15.changes-statuses`).** On a
-  copy, delete `src/util.py`, rename `src/app.py`, stage a new file.
+  `[{"status": "UPDATED", "path": "README.md"}, {"status": "ADDED", "path": "notes.txt"}]`次，`git status --porcelain`条相同的记录再次出现。
+- **分阶段删除、添加和重命名 (`F15.changes-statuses`)。**在副本上，删除 `src/util.py`，重命名 `src/app.py`，暂存一个新文件。
   ```sh
   cp -r "$REPO" "$F/statuses"
   git -C "$F/statuses" rm -q src/util.py
@@ -175,11 +148,9 @@ Preconditions:
     --check 4.status eq DELETED --check 4.path eq src/util.py --check 5.status eq ADDED --check 5.path eq staged.txt \
     --save F15.changes-statuses/staged
   ```
-  The rename `src/app.py -> src/main.py` shows as `DELETED src/app.py` plus
-  `ADDED src/main.py`; the list stays sorted by path. There is no `MOVED` in
-  practice although the enum has it.
-- **Default display base (`F15.changes-base`).** A feature branch forked from
-  local `main`, then a clone of a local bare remote with a pushed branch.
+  重命名 `src/app.py -> src/main.py` 显示为 `DELETED src/app.py` 加上
+  `ADDED src/main.py`; 列表保持按路径排序。 尽管枚举有，但实际上没有`MOVED`。
+- **默认显示底座 (`F15.changes-base`)。**从本地 `main` 分叉出一个功能分支，然后使用推送分支克隆本地裸远程。
   ```sh
   cp -r "$REPO" "$F/branch"
   git -C "$F/branch" checkout -qb qa-feat
@@ -203,13 +174,10 @@ Preconditions:
   control-agent-server api GET /api/git/changes --query path="$F/clone" --expect 200 --check . len-eq 1 \
     --check 0.status eq UPDATED --check 0.path eq pr.txt --save F15.changes-base/pushed-dirty
   ```
-  On the fixture's own `main` (no remote) the base is `HEAD`, which is why
-  `F15.changes` shows no committed file. On `qa-feat` the committed
-  `feat.txt` stays visible (base = merge-base with local `main`) and its diff
-  has an empty `original`. On the pushed, clean `qa-pr` the base is the fork
-  point from `origin/main`, so the PR's `pr.txt` is `ADDED`; once the tree is
-  dirty the base becomes `origin/qa-pr` and only the edit shows (`UPDATED`).
-- **Explicit base and its errors (`F15.changes-ref`).**
+  在测试夹具的独立 `main`（没有远程）的情况下，基础是 `HEAD`，这就是为什么
+  `F15.changes` 显示没有提交的文件。 关于`qa-feat`所承诺的
+  `feat.txt` 保持可见（base = merge-base 与本地 `main`），其 diff 有一个空的 `original`。 在推动的、干净的`qa-pr`上，底座是`origin/main`的分叉点，因此PR的`pr.txt`是`ADDED`； 一旦树变脏，基部就会变成 `origin/qa-pr`，并且只有编辑显示 (`UPDATED`)。
+- **显式基数及其错误 (`F15.changes-ref`).**
   ```sh
   control-agent-server api GET /api/git/changes --query path="$F/branch" --query ref=HEAD --expect 200 --check . len-eq 2 \
     --check 0.path eq README.md --check 1.path eq notes.txt --save F15.changes-ref/head
@@ -221,13 +189,11 @@ Preconditions:
   test ! -e "$F/injected"
   control-agent-server api GET /api/git/changes --expect 422 --check detail.0.loc contains path
   ```
-  `ref=HEAD` drops the feature branch's committed `feat.txt`; `ref=<C1>` adds
-  `src/util.py` (committed after `C1`); an unknown ref is 400
-  `Git command failed: git --no-pager rev-parse --verify 'qa-f15-no-such-ref^{commit}'`;
-  an option-shaped ref only ever reaches `rev-parse --verify` with a
-  `^{commit}` suffix, so it is 400 and writes nothing.
-- **Nested repository (`F15.changes-nested-repo`).** A copy of the fixture
-  inside another copy.
+  `ref=HEAD` 删除功能分支的已提交 `feat.txt`； `ref=<C1>` 补充
+  `src/util.py`（在`C1`之后提交）； 未知的参考值是 400
+  `Git command failed: git --no-pager rev-parse --verify 'qa-f15-no-such-ref^{commit}'`; 选项形状的 ref 只能达到 `rev-parse --verify`
+  `^{commit}`后缀，所以是400，什么也不写。
+- **嵌套存储库 (`F15.changes-nested-repo`).**另一个副本中的测试夹具的副本。
   ```sh
   cp -r "$REPO" "$F/outer"
   cp -r "$REPO" "$F/outer/inner"
@@ -240,13 +206,8 @@ Preconditions:
     --check original eq "$(git -C "$F/outer/inner" show HEAD:README.md)" --check modified eq "$(cat "$F/outer/inner/README.md")" \
     --save F15.changes-nested-repo/inner-diff
   ```
-  `git status` of the outer repository shows `?? inner/`; the API instead
-  lists the inner repository's own changes under `inner/` and not the
-  directory itself, and the diff of `inner/README.md` is read from the inner
-  repository (its committed text against the edit).
-- **Repository below the requested directory (`F15.changes-repo-below-path`).**
-  A plain directory that holds one repository, as a repository-backed
-  conversation's workspace does (`{base}/{repo}`).
+  `git status` 外层仓库的版本显示 `?? inner/`; 的 API 而是列出内层仓库自己的更改 `inner/` 并且不是目录本身，而是目录的差异 `inner/README.md` 是从内层仓库读取的（其提交的文本与编辑）。
+- ** 低于请求目录的仓库 (`F15.changes-repo-below-path`).** 一个只包含一个仓库的普通目录，就像一个仓库支持的对话的工作区一样 (`{base}/{repo}`).
   ```sh
   mkdir -p "$F/ws"
   cp -r "$REPO" "$F/ws/proj"
@@ -256,13 +217,8 @@ Preconditions:
   control-agent-server api GET /api/git/changes --query path="$F/ws" --expect 200 --check . len-eq 2 \
     --check 0.path eq proj/README.md --check 1.path eq proj/notes.txt --save F15.changes-repo-below-path/ws
   ```
-  `$F/ws` itself is not a repository and the repository below it answers
-  with its two changes (positive control). The directory answers with the
-  repository's two changes under `proj/`, sorted by path, as for a nested
-  repository (and as `GET /api/file/archive` resolves the same layout), so
-  consumers that pass the workspace root of a repository-backed conversation
-  see its changes. The directory contributes no changes of its own.
-- **File names with a space or non-ASCII characters (`F15.changes-special-names`), known bug.**
+  `$F/ws` 本身不是存储库，它下面的存储库用它的两个更改（正控制）来回答。 目录以`proj/`中的两个更改排序，并按路径列出，就像一个嵌套仓库那样（`GET /api/file/archive`也解析了相同的布局），因此，使用仓库支持的对话根工作区的消费者可以看到其更改。 该目录本身没有做出任何更改。
+- **文件名包含空格或非 ASCII 字符 (`F15.changes-special-names`)，已知错误。**
   ```sh
   mkdir -p "$F/names"
   git -C "$F/names" init -q -b main
@@ -276,26 +232,15 @@ Preconditions:
   rm "$F/names/untracked note.md"
   printf 'a2\n' > "$F/names/my notes.md"
   control-agent-server api GET /api/git/changes --query path="$F/names" --expect 200 --check . len-eq 1 \
-    --check 0.status eq UPDATED --check 0.path eq 'my notes.md' --save F15.changes-special-names/space  # bug: status eq 400 && response.body.detail contains 'Unexpected git diff output format'
+    --check 0.status eq UPDATED --check 0.path eq 'my notes.md' --save F15.changes-special-names/space  # bug：status eq 400 && response.body.detail 包含“意外的 git diff 输出格式”
   git -C "$F/names" checkout -q -- 'my notes.md'
   printf 'b2\n' > "$F/names/café.txt"
   control-agent-server api GET /api/git/changes --query path="$F/names" --expect 200 --check . len-eq 1 \
-    --check 0.path eq café.txt --save F15.changes-special-names/non-ascii  # bug: status eq 200 && response.body.0.path contains 303/251
+    --check 0.path eq café.txt --save F15.changes-special-names/non-ascii  # bug：状态 eq 200 && response.body.0.path 包含 303/251
   ```
-  The committed repository answers for an untracked name with a space
-  (positive control: the route and the space in a name are fine on their
-  own). Expected: each modified file under its real name. Actual: the space
-  makes
-  the whole list `400 {"detail": "Unexpected git diff output format: M\tmy notes.md"}`
-  (`_parse_name_status` splits the `--name-status` line on any whitespace),
-  so one such file hides every other change; `GET /api/git/commits/{sha}/changes`
-  of the commit that added it fails the same way. A modified `café.txt` comes
-  back as `"\"caf/303/251.txt\""`: git's C-quoted octal form
-  (`core.quotePath`), with quotes kept and backslashes turned into slashes by
-  the POSIX path serializer. Untracked names with a space are fine; untracked
-  non-ASCII names are mangled the same way.
-- **Subdirectory of a repository (`F15.changes-subdir-paths`).**
-  `path` is `src/` of a copy with a modified `src/app.py` and an untracked
+  已提交的仓库对带有空格的未跟踪名称（正控制：名称中的路径和空格是独立有效的）做出了回应。 预期：每个修改后的文件应以其真实名称。 实际上，空间本身构成了整个列表 `400 {"detail": "Unexpected git diff output format: M\tmy notes.md"}` (`_parse_name_status` 分割成 `--name-status` 任何空白行上的行（例如，#），因此一个文件会隐藏其他所有更改； `GET /api/git/commits/{sha}/changes` 添加它的提交失败的方式相同。 已修改的 `café.txt` 返回为 `"\"caf/303/251.txt\""`git的C-quoted八进制形式（`core.quotePath`), 保留引号并将反斜杠转换为斜杠 POSIX path 序列化器。 带有空格的未跟踪名称是没问题的。 未跟踪的非-ASCII 名字也被同样的方式变形。
+- **存储库的子目录 (`F15.changes-subdir-paths`)。**
+  `path` 是带有修改过的 `src/app.py` 和未跟踪的副本的 `src/`
   `src/new.py`.
   ```sh
   cp -r "$REPO" "$F/subdir"
@@ -313,14 +258,10 @@ Preconditions:
   print(json.dumps({"paths": paths, "bases": bases}))
   PY
   ```
-  The repository root lists all four changes on one base (positive
-  control). For `src/` the list is `[UPDATED app.py, ADDED new.py]`: only the
-  changes under `src/` (the root's `README.md` and `notes.txt` are left out),
-  every path relative to the requested directory, so each one joined to
-  `path` names a file that exists. `get_changes_in_repo` runs
-  `git diff --name-status --relative`, which is scoped and relative the same
-  way as `git ls-files --others` for untracked files.
-- **Not a repository, or no commits yet (`F15.non-repo`).**
+  仓库根目录列出所有四个更改（正控制）。 对于 `src/`，列表是 `[UPDATED app.py, ADDED new.py]`：只包括 `src/`（根的 `README.md` 和 `notes.txt` 被省略），每个路径相对于请求的目录，因此每个路径都连接到
+  `path` 命名一个存在的文件。 `get_changes_in_repo` 运行
+  `git diff --name-status --relative`，其范围和相对方式与未跟踪文件的 `git ls-files --others` 相同。
+- **不是存储库，或尚未提交 (`F15.non-repo`)。**
   ```sh
   mkdir -p "$F/plain"
   printf 'x\n' > "$F/plain/x.txt"
@@ -339,12 +280,12 @@ Preconditions:
   control-agent-server api GET /api/git/changes --query path="$F/unborn" --query ref=HEAD --expect 200 --check 0.path eq x.txt
   control-agent-server api GET /api/git/commits --query path="$F/unborn" --expect 200 --check commits len-eq 0 --check has_more eq false
   ```
-  Plain and missing directories give `[]`, a file outside any repository
-  `{"original": null, "modified": null}` (not `""`), commits
-  `{"commits": [], "has_more": false}`, commit changes `[]`. A fresh
-  `git init` lists its files as `ADDED` (empty-tree base, also for
-  `ref=HEAD`) and has an empty history.
-- **Per-file diff (`F15.diff`).** The modified and the untracked file.
+  空目录和缺失目录 `[]`，不在任何仓库中的文件
+  `{"original": null, "modified": null}`（不是 `""`），提交
+  `{"commits": [], "has_more": false}`，提交更改 `[]`。 一个新鲜的
+  `git init` 将其文件列为 `ADDED`（空树基，也用于
+  `ref=HEAD`）并且历史记录为空。
+- **每个文件差异 (`F15.diff`)。**修改后的文件和未跟踪的文件。
   ```sh
   control-agent-server api GET /api/git/diff --query path="$REPO/README.md" --expect 200 \
     --check original eq "$(git -C "$REPO" show HEAD:README.md)" --check modified eq "$(cat "$REPO/README.md")" \
@@ -356,15 +297,9 @@ Preconditions:
   control-agent-server api GET /api/git/diff --query path="$REPO/src/util.py" --query ref="$C1" --expect 200 \
     --check original eq '' --check modified eq "$(cat "$REPO/src/util.py")" --save F15.diff/explicit-ref
   ```
-  `original` is `# QA fixture repo\n\nCreated by control-agent-server.` (the
-  committed text, read with `git show`), `modified` is the text on disk; both
-  lose the final newline (the shell's `$(...)` drops it too, so the checks
-  compare like with like). An untracked file has `original` `""`. The
-  unchanged `src/util.py` has identical sides against the default base
-  (`HEAD`), and `ref=<C1>` (before `src/util.py` existed) moves the base so
-  `original` is `""`.
-- **Diff of one commit (`F15.diff-commit`).** The fixture's two commits, then
-  a commit that deletes and renames, on a copy.
+  `original`是`# QA fixture repo\n\nCreated by control-agent-server.`（提交的文本，用`git show`读取），`modified`是磁盘上的文本； 两者都丢失了最后的换行符（shell 的 `$(...)` 也删除了它，因此检查比较类似）。 未跟踪的文件有 `original` `""`。 未更改的 `src/util.py` 与默认底座 (`HEAD`) 具有相同的边，并且 `ref=<C1>`（在 `src/util.py` 存在之前）移动底座，以便
+  `original` 是 `""`。
+- **一次提交的差异 (`F15.diff-commit`)。** 测试夹具的两个提交，然后是在副本上删除和重命名的提交。
   ```sh
   control-agent-server api GET /api/git/diff --query path="$REPO/src/util.py" --query commit="$C2" --expect 200 \
     --check original eq '' --check modified eq "$(git -C "$REPO" show "$C2:src/util.py")" --save F15.diff-commit/added
@@ -381,11 +316,8 @@ Preconditions:
   control-agent-server api GET /api/git/diff --query path="$F/hist/src/main.py" --query commit="$C3" --expect 200 \
     --check original eq '' --check modified eq "$(cat "$F/hist/src/main.py")"
   ```
-  `Add util` added `src/util.py` (`original` `""`); the root commit, named by
-  an 8-character prefix, added `README.md`; the delete commit renders the
-  deleted file's old text although it is gone from disk; the rename's new
-  path is all `modified`.
-- **Diff errors (`F15.diff-errors`).**
+  `Add util`添加`src/util.py`（`original``""`）； 添加了根提交，以 8 个字符的前缀命名；`README.md`； 删除提交呈现已删除文件的旧文本，尽管它已从磁盘中消失； 重命名的新路径是all `modified`。
+- **差异错误 (`F15.diff-errors`).**
   ```sh
   control-agent-server api GET /api/git/diff --query path="$REPO/README.md" --query ref=HEAD --query commit="$C2" \
     --expect 400 --check detail eq "'ref' and 'commit' are mutually exclusive" --save F15.diff-errors/ref-and-commit
@@ -402,11 +334,8 @@ Preconditions:
     --check detail eq 'File too large for git diff: 1100000 bytes (max: 1048576 bytes)' --save F15.diff-errors/too-large
   control-agent-server api GET /api/git/diff --expect 422 --check detail.0.loc contains path
   ```
-  400, 422, 400, 400, 400 (absolute path in the message), 400 for a file over
-  1 MiB, and 422 without `path`.
-- **Unchanged-file whitespace (`F15.diff-whitespace`).** Commit a
-  file with leading indentation and one with trailing blank lines, change
-  nothing, ask for their diffs.
+  400, 422, 400, 400, 400 (消息中的绝对路径), 400 用于文件大小超过1 MiB, 和 422 无 `path`。
+- **未更改的空白行（`F15.diff-whitespace`）。**提交带有前导缩进的文件，以及带有末尾空白行的文件，但不要做任何更改，要求显示它们的差异。
   ```sh
   mkdir -p "$F/ws-files"
   git -C "$F/ws-files" init -q -b main
@@ -424,15 +353,11 @@ Preconditions:
       | control-agent-server assert --check same eq true
   done
   ```
-  Expected: identical sides for every unchanged file (`changes` is `[]`):
-  `lead.txt` gives `"  indented line\nbody"` and `trail.txt` `"body\n\n"` on
-  both sides, and the CRLF file `"one\ntwo"`: `get_git_diff` reads the
-  `git show` blob verbatim (`strip=False`) and normalizes it like
-  `modified`, `"\n".join(text.splitlines())`. The commit-mode diff
-  strips both sides alike, so it shows no phantom change but loses the
-  whitespace.
-- **Diff of a deleted file (`F15.diff-deleted-file`).** `changes` lists a
-  deleted file; the diff the Changes tab opens for it shows the deletion.
+  预期：每个未更改文件的相同面（`changes` 是 `[]`）：
+  `lead.txt`两边给出`"  indented line\nbody"`和`trail.txt``"body\n\n"`，CRLF文件`"one\ntwo"`：`get_git_diff`读取
+  `git show` blob 逐字 (`strip=False`) 并将其规范化为
+  `modified`, `"\n".join(text.splitlines())`. 提交模式 diff 会同时剥离两侧，因此它不会显示任何虚拟更改，但会丢失空格。
+- **已删除文件的差异 (`F15.diff-deleted-file`)。** `changes`列出已删除的文件； “更改”选项卡打开的差异显示了删除。
   ```sh
   cp -r "$REPO" "$F/deleted"
   rm "$F/deleted/src/util.py"
@@ -441,12 +366,11 @@ Preconditions:
   control-agent-server api GET /api/git/diff --query path="$F/deleted/src/util.py" --expect 200 \
     --check original eq "$(git -C "$REPO" show HEAD:src/util.py)" --check modified eq '' --save F15.diff-deleted-file/diff
   ```
-  Expected: the base text as `original` and `""` as `modified`, as the
-  commit-mode diff does for deleted files; the old side of a working-tree
-  rename diffs the same way. `get_git_diff` reads a path missing from disk
+  预期：基础文本为 `original`，`""` 为 `modified`，
+  提交模式 diff 对已删除的文件起作用； 工作树重命名的旧部分以同样的方式进行比较。 `get_git_diff` 读取磁盘中缺少的路径
   from the base ref and answers `File does not exist` only when the base has
-  no file there either (`F15.diff-errors/missing`).
-- **Commit history (`F15.commits`).**
+  那里也没有文件（`F15.diff-errors/missing`）。
+- **提交历史记录 (`F15.commits`).**
   ```sh
   control-agent-server api GET /api/git/commits --query path="$REPO" --expect 200 --check commits len-eq 2 \
     --check has_more eq false --check commits.0.sha eq "$C2" --check commits.0.subject eq 'Add util' \
@@ -463,12 +387,11 @@ Preconditions:
   control-agent-server api GET /api/git/commits --query path="$REPO" --query limit=0 --expect 422
   control-agent-server api GET /api/git/commits --query path="$REPO" --query limit=201 --expect 422
   ```
-  Newest first, matching `git log`; `limit=1` reports `has_more: true` and
-  `limit=2` (exactly the history's length) `has_more: false`; the feature
-  branch's history includes its own commit; 0 and 201 are 422.
-- **Files of one commit (`F15.commit-changes`).**
+  按最新发布排序，匹配 `git log`。 `limit=1`报告`has_more: true`和
+  `limit=2`（恰好是历史的长度）`has_more: false`； 功能分支的历史记录包括它自己的提交； 0和201是422。
+- **一次提交的文件 (`F15.commit-changes`)。**
 
-  Requires: `F15.diff-commit`
+  需要：`F15.diff-commit`
   ```sh
   control-agent-server api GET "/api/git/commits/$C1/changes" --query path="$REPO" --expect 200 --check . len-eq 2 \
     --check 0.status eq ADDED --check 0.path eq README.md --check 1.status eq ADDED --check 1.path eq src/app.py \
@@ -485,12 +408,9 @@ Preconditions:
   control-agent-server api GET /api/git/commits/abc/changes --query path="$REPO" --expect 422
   control-agent-server api GET "/api/git/commits/$C2/changes" --expect 422 --check detail.0.loc contains path
   ```
-  The root commit is all `ADDED` (diffed against the empty tree), `Add util`
-  adds one file, the rename is `DELETED` plus `ADDED` (in git's order, not
-  re-sorted), a 7-character prefix resolves, an unknown SHA is 400, and a
-  non-hex or 3-character SHA and a missing `path` are 422.
-- **Conversation-scoped views (`F15.scoped`).** The four scoped routes on
-  `CID`, compared byte for byte with the global ones.
+  根提交全部为 `ADDED`（与空树不同），`Add util` 添加一个文件，重命名为 `DELETED` 加 `ADDED`（按照 git 的顺序，未重新排序），解析 7 个字符的前缀，未知的 SHA 为 400，非十六进制或 3 字符的 SHA 和缺失的 `path` 为 422。
+- **对话范围的视图 (`F15.scoped`)。**四个范围内的路线
+  `CID`，逐字节与全局进行比较。
   ```sh
   control-agent-server api GET "/api/conversations/$CID/git/changes" --query path="$REPO" --expect 200 \
     --raw-out "$F/scoped-changes.json" --save F15.scoped/changes
@@ -509,11 +429,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/git/diff" --query path="$REPO/src/util.py" --query commit="$C2" \
     --expect 200 --check original eq ''
   ```
-  Identical bodies for changes, diff and commits; the scoped commit changes
-  and commit-mode diff work the same way.
-- **Workspace guard (`F15.scoped-guard`).** A second never-run conversation
-  `CID2` on a copy, so the symlink stays out of the main fixture. The
-  workspace itself answers first (positive control), then every escape.
+  更改、差异和提交的相同主体。 scoped commit changes 和 commit-mode diff 工作方式相同。
+- **工作区守卫(`F15.scoped-guard`).**第二次从未进行过的对话
+  `CID2` 在副本上，因此符号链接不在主测试夹具之外。 工作区本身首先回答（阳性对照），然后是每次逃逸。
   ```sh
   cp -r "$REPO" "$F/guard"
   cp -r "$REPO" "$F/guard-sibling"
@@ -544,19 +462,11 @@ Preconditions:
     --check 'paths./api/conversations/{runtime_conversation_id}/git/changes' exists \
     --check 'paths./api/conversations/{runtime_conversation_id}/git/repositories/search' missing
   ```
-  The workspace and a file in it are 200. Another directory, a sibling
-  sharing the workspace's name as a prefix (`guard-sibling`), a `..` escape,
-  a symlink inside the workspace that resolves outside it (as `path` and as a
-  file below it), and a relative path are all
-  `422 {"detail": "path must be inside the conversation workspace"}` on every
-  scoped route, while the global route follows the same symlink. A repeated
-  `path` (the workspace first, then an outside repository) is also 422: the
-  guard and the handler both read the last value, so the guard cannot be
-  sidestepped by sending a second `path`. An unknown
-  conversation is 404, a malformed id 422, and repository search has no
-  scoped variant: the OpenAPI document lists the global search and the scoped
-  `changes` but no scoped search path.
-- **After a restart (`F15.scoped-restart`).**
+  的工作区文件中有200个。 另一个目录，与共享的目录兄弟工作区将名字作为前缀`guard-sibling`), a `..` 逃逸、一个符号链接，其位置在工作区却指向其外部（例如 `path` 以及它下面的文件），还有相对路径，全都
+  `422 {"detail": "path must be inside the conversation workspace"}` 在每个作用域路由上，而全局路由遵循相同的符号链接。 重复的一个
+  `path` (the) 工作区首先，然后是另一个外部仓库）也返回 422：守卫和处理器都读取了最后一个值，因此守卫无法通过发送第二个来绕过 `path`. 未知对话 404，非法ID 422，仓库搜索没有分页变体： OpenAPI 文档列出了全局搜索和受控搜索
+  `changes` 但没有范围搜索路径。
+- **重新启动后 (`F15.scoped-restart`)。**
   ```sh
   control-agent-server restart
   control-agent-server api GET "/api/conversations/$CID/git/changes" --query path="$REPO" --expect 200 \
@@ -565,11 +475,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/git/commits" --query path="$REPO" --expect 200 --check commits.0.sha eq "$C2"
   control-agent-server doctor
   ```
-  The restored conversation still binds its workspace; the scoped changes are
-  byte-identical to before the restart.
-- **Python SDK workspace (`F15.sdk-workspace`).** `RemoteWorkspace` with
-  `working_dir` set to the fixture, once plain and once scoped to `CID`
-  (`runtime_conversation_id`), through `exec`.
+  恢复的对话仍然绑定着工作区。 scoped更改与重启前的相同。
+- **PythonSDK工作区(`F15.sdk-workspace`).** `RemoteWorkspace` 与
+  `working_dir` 设置为测试夹具，一次是普通的，一次范围是 `CID` (`runtime_conversation_id`)，直到 `exec`。
   ```sh
   cat > "$F/sdk_git.py" <<'PY'
   import os
@@ -600,13 +508,11 @@ Preconditions:
   PY
   control-agent-server exec --expect-output SDK_GIT_OK --save F15.sdk-workspace/program -- uv run python "$F/sdk_git.py" "$REPO" "$CID"
   ```
-  Relative paths (`"."`, `"README.md"`) are joined to `working_dir` before
-  the call, both workspaces return the fixture's two changes and the README
-  diff, and the scoped one raises a 422 `HTTPStatusError` for `/`.
-- **TypeScript client (`F15.ts-client`).** `RemoteWorkspace.gitChanges` and
-  `gitDiff` plain and with `conversationId`, and
-  `GitClient.searchRepositories`, from the built client in
-  `clients/typescript/dist` (built here when missing).
+  相对路径 (`"."`, `"README.md"`) are joined to `working_dir` 在调用之前，两者工作区返回测试夹具的两个变化和 README diff，以及带有范围的版本会引发 422 错误 `HTTPStatusError` 为了 `/`.
+- **TypeScript 客户端 (`F15.ts-client`).** `RemoteWorkspace.gitChanges` 和
+  `gitDiff` 普通且带有 `conversationId`，并且
+  `GitClient.searchRepositories`，来自内置客户端
+  `clients/typescript/dist`（缺失时在此构建）。
   ```sh
   test -f clients/typescript/dist/clients.js || (cd clients/typescript && npm ci && npm run build)
   cat > "$F/ts_git.mjs" <<'JS'
@@ -642,14 +548,9 @@ Preconditions:
   JS
   control-agent-server exec --expect-output TS_GIT_OK --save F15.ts-client/program -- node "$F/ts_git.mjs" "$REPO" "$CID" "$C1"
   ```
-  Both workspaces return the same changes and diff; `ref: C1` is passed
-  through (it adds `src/util.py`, which the default base `HEAD` does not
-  show, so a dropped `ref` would fail), the scoped one rejects `/` with the
-  422, and
-  `searchRepositories` returns the `missing_token` page (no token is stored
-  yet at this point).
-- **What the agent changed (`F15.agent-changes`).** A real model writes one
-  file in a fresh copy of the fixture, then the scoped views show it.
+  两者工作区返回相同的变化和差异。 `ref: C1` 它会通过（它添加） `src/util.py`, 默认的基底 `HEAD` 没有显示，因此已丢弃 `ref` 如果失败，则受控的拒绝 `/` 并且
+  `searchRepositories` 返回 `missing_token` 页（此时尚未存储 token）。
+- **智能体改变了什么 (`F15.agent-changes`)。**真实模型在测试夹具的新副本中写入一个文件，然后范围视图显示它。
   ```sh
   AREPO=$(control-agent-server fixture git-repo --name qa-f15-agent-repo --print-path)
   ACID=$(control-agent-server conversation start --workspace "$AREPO" --tools file_editor --no-autotitle \
@@ -661,12 +562,11 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$ACID/git/diff" --query path="$AREPO/qa-f15-agent.txt" --expect 200 \
     --check original eq '' --check modified eq hi --save F15.agent-changes/diff
   ```
-  The file editor's observation names the file; `changes` adds
-  `ADDED qa-f15-agent.txt` after the fixture's two entries, and its diff is
-  `""` against `hi`.
-- **Token lookup (`F15.repo-search-token`).** No token, then each of two
-  accepted secret names. A token's presence is observed without the network:
-  `page_id` is only parsed once a token was found.
+  文件编辑器观测结果为文件命名。 `changes`补充道
+  `ADDED qa-f15-agent.txt` 在测试夹具的两个条目之后，其差异为
+  `""` 反对 `hi`。
+- **token查找(`F15.repo-search-token`).**没有 token，然后是两个接受的机密名称中的每一个。 在没有网络的情况下观察到 token 的存在：
+  仅当找到 token 后才会解析 `page_id`。
   ```sh
   control-agent-server api GET /api/git/repositories/search --query provider=github --expect 200 \
     --check items len-eq 0 --check next_page_id eq null --check missing_token eq true --save F15.repo-search-token/none
@@ -684,11 +584,8 @@ Preconditions:
   control-agent-server api GET /api/git/repositories/search --query provider=github --query page_id=abc --expect 200 \
     --check missing_token eq true --save F15.repo-search-token/deleted
   ```
-  Without a token the answer is `missing_token: true` and a garbage `page_id`
-  is ignored; with `github_token` or `GH_TOKEN` stored the same `page_id` is
-  400 (no request reaches GitHub); after the delete it is `missing_token`
-  again.
-- **Provider and parameter validation (`F15.repo-search-errors`).**
+  没有 token，答案是 `missing_token: true`，垃圾 `page_id` 被忽略。 `github_token` 或 `GH_TOKEN` 存储的 `page_id` 是 400（没有请求到达 GitHub）。 删除之后，它又变成了`missing_token`。
+- **提供者和参数验证 (`F15.repo-search-errors`).**
   ```sh
   control-agent-server api GET /api/git/repositories/search --query provider=gitlab --expect 400 \
     --check detail eq "Repository discovery is not supported for provider 'gitlab'" --save F15.repo-search-errors/gitlab
@@ -698,11 +595,8 @@ Preconditions:
   control-agent-server api GET /api/git/repositories/search --query provider=github --query limit=0 --expect 422
   control-agent-server api GET /api/git/repositories/search --query provider=github --query limit=101 --expect 422
   ```
-  `gitlab` and `bitbucket` are known providers without discovery (400); an
-  unknown or missing provider and `limit` 0 or 101 are 422.
-- **GitHub unreachable (`F15.repo-search-unreachable`).** Store a token, then
-  restart the server with its HTTPS proxy pointed at a closed port, so the
-  call to `api.github.com` fails on any machine; restore afterwards.
+  `gitlab`和`bitbucket`是未经发现的已知提供者(400)； 未知或缺失的提供商和 `limit` 0 或 101 为 422。
+- **GitHub 无法访问（`F15.repo-search-unreachable`）。** 将 token 存储起来，然后用指向关闭端口的 HTTPS 代理重启服务器，这样对任何机器的调用都会在 `api.github.com` 失败。 之后恢复。
   ```sh
   control-agent-server api PUT /api/settings/secrets --json '{"name": "github_token", "value": "qa-f15-not-a-real-token"}' --expect 200
   control-agent-server restart --env HTTPS_PROXY=http://127.0.0.1:9 --env https_proxy=http://127.0.0.1:9 \
@@ -715,16 +609,9 @@ Preconditions:
   control-agent-server api GET /api/git/repositories/search --query provider=github --expect 200 --check missing_token eq true
   control-agent-server doctor
   ```
-  502 with the server's masked 5xx body
-  (`{"detail": "Internal Server Error", "exception": "502: GitHub repository search failed"}`),
-  without the token. `restart --reset-config` drops the dead proxy again
-  (the run has no launch flags to lose), and the search is back to
-  `missing_token` once the secret is deleted.
-- **GitHub timeout (`F15.repo-search-timeout`).** A local listener that
-  accepts connections and never answers stands in for the HTTPS proxy, so the
-  call to GitHub hits the server's own 15 s timeout (the timer is under test,
-  so the bullet measures the wait). The listener is plain `python3`, started
-  in the background and killed at the end.
+  502 由于服务器的5xx头部被隐藏 (`{"detail": "Internal Server Error", "exception": "502: GitHub repository search failed"}`, without the token. `restart --reset-config` 再次丢弃了死代理（运行没有失去的启动标志），搜索又回到了这里
+  `missing_token` 一旦机密被删除。
+- **GitHub  超时 (`F15.repo-search-timeout`).** 一个本地监听器，接受连接但从不回应，代表了  HTTPS proxy，所以调用 GitHub 击中服务器的自身 15 秒超时 (定时器在测试中，所以子弹测量等待时间) 监听器是普通的 `python3`在后台启动，在结束时被杀死。
   ```sh
   python3 -c 'import socket, time; s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(8); print(s.getsockname()[1], flush=True); time.sleep(90)' \
     > "$F/hang-port" 2>/dev/null < /dev/null &
@@ -743,18 +630,13 @@ Preconditions:
   control-agent-server restart --reset-config
   control-agent-server doctor
   ```
-  504 after about 15 s (between 14 and 30), with the masked 5xx body
-  `{"detail": "Internal Server Error", "exception": "504: GitHub repository search timed out"}`
-  and no token in it.
-- **Live GitHub listing (`F15.repo-search-github`).**
-  Needs: `network`
+  大约15秒后（14到30之间），带有掩码的5xx主体
+  `{"detail": "Internal Server Error", "exception": "504: GitHub repository search timed out"}` 中没有 token。
+- **实时GitHub列表(`F15.repo-search-github`)。**
+  需求：`network`
 
-  Set `$QA_GITHUB_TOKEN` to a GitHub token with read access to at least three
-  repositories, including one named `agent-sdk`. Egress must allow
-  `GET https://api.github.com/user/repos`. The token travels through stdin;
-  the command-scoped `OPENHANDS_API_KEY` also registers that value with the
-  CLI's redactor, so neither the exchange nor a failure prints it. This
-  recipe only reads GitHub; its settings writes are on the owned local run.
+  将 `$QA_GITHUB_TOKEN` 设置为 GitHub token，对至少​​三个存储库具有读取权限，其中包括一个名为 `agent-sdk` 的存储库。 出口必须允许
+  `GET https://api.github.com/user/repos`. token 通过 stdin 传输； 命令范围的 `OPENHANDS_API_KEY` 还向 CLI 的编辑器注册该值，因此交换和失败都不会打印它。 这个菜谱只有GitHub； 它的设置写入在拥有的本地运行上。
   ```sh
   : "${QA_GITHUB_TOKEN:?Set a repository-read token before running this recipe}"
   trap 'control-agent-server api DELETE /api/settings/secrets/github_token --expect 200 >/dev/null 2>&1 || true' EXIT
@@ -770,15 +652,8 @@ Preconditions:
   control-agent-server api DELETE /api/settings/secrets/github_token --expect 200
   trap - EXIT
   ```
-  Two repositories per page with a `1:2` cursor (page 1, offset 2) that
-  continues the listing and a case-insensitive `query` match on `full_name`.
-  Some managed egress proxies inject credentials even when a request supplies
-  an invalid token; use the deterministic provider rejection below to prove
-  the server's 401 behavior independently of that environment policy.
-- **Rejected provider token (`F15.repo-search-rejected-token`).** A local TLS
-  fixture receives the server's GitHub request through an owned CONNECT proxy
-  and returns a provider 401. It never contacts GitHub and uses only a fake
-  token; the preceding recipe proves the real provider's successful path.
+  每页有两个仓库，带有`1:2`游标（第1页，偏移量2），继续列出，并且是不区分大小写的`query`匹配`full_name`。 一些管理的出口代理在请求提供无效的 token 时仍然注入凭据。 使用以下确定性提供者拒绝来独立证明服务器的401行为，不受该环境策略的影响。
+- **拒绝的提供商 token (`F15.repo-search-rejected-token`).**本地 TLS 测试夹具通过拥有的 CONNECT 代理接收服务器的 GitHub 请求并返回提供者 401。 它从不接触GitHub并且只使用假的token； 上述秘方证明了真正提供商的成功之路。
   ```sh
   cat > "$F/reject-github.py" <<'PY'
   import datetime, json, pathlib, socketserver, ssl, sys
@@ -848,61 +723,30 @@ Preconditions:
   control-agent-server doctor
   trap - EXIT
   ```
-  The fixture confirms that the fake credential reached the provider and that
-  it returned 401. The live server preserves that status and returns only its
-  generic error. Source policy also preserves 403, maps other 4xx to 400 and
-  5xx to 502; connection failure and timeout are covered above.
+  测试夹具确认伪造的凭据已经到达提供者，并且返回了 401。 活服务器保留了该状态，并只返回通用错误。 源策略还保留了403状态码，将其他4xx状态码映射为400状态码，将5xx状态码映射为502状态码。 连接失败和超时已在上面覆盖。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `changes` and `diff` without `ref` use the *display* base policy
-  (`get_valid_ref(..., purpose="display")`), which differs from the *export*
-  policy of `GET /api/file/archive` (`git-delta`): on a remote-less fixture
-  the Changes tab compares against `HEAD` while the archive patch is against
-  the empty tree. Do not expect them to agree.
-- A repository with an `origin` but no `origin/HEAD` makes base detection run
-  `git remote show origin`, a network call with a 30 s timeout. Use
-  remote-less fixtures or a local bare remote cloned with `git clone` (which
-  records `origin/HEAD`), as `F15.changes-base` does.
-- A non-repository `path` is not an error: `changes` is `[]` (unless a
-  repository sits directly below it, `F15.changes-repo-below-path`), commits are
-  empty and `diff` is `{"original": null, "modified": null}` (null, not `""`).
-  A missing file inside a repository is 400, and so is a file over 1 MiB.
-- "Not a repository" means no ancestor holds a `.git`: git searches upward
-  and `diff` walks up in Python. A stray `.git` above the runs home (for
-  example a `git init` that ran in `/tmp`) turns every fixture into part of
-  that repository: `F15.non-repo` then lists `x.txt` as `ADDED` and
-  `F15.changes-repo-below-path` passes for the wrong reason. The
-  Preconditions block refuses such a run; launch with
-  `AGENT_SERVER_VERIFY_HOME` outside the enclosing repository (for example
-  under `/var/tmp`) or have its owner remove the stray `.git`.
-- A relative `path` on the global routes resolves against the server
-  process's working directory (the run directory for `launch`); always send
-  absolute paths. The SDK joins relative paths to `working_dir` before
-  calling.
-- Both diff sides drop the final newline and line endings are normalized
-  (`\r\n` becomes `\n`, so a file whose only change is LF to CRLF is listed as
-  `UPDATED` but diffs to identical sides). Other leading and trailing
-  whitespace is kept on both sides (`F15.diff-whitespace`); the commit-mode
-  diff strips it from both.
-- `diff` on a directory inside a repository is not refused: it returns
-  `git show`'s tree listing (`"tree <sha>:src\n\napp.py\nutil.py"`) as
-  `original` and `""` as `modified`.
-- Nested repositories are only scanned one level below `path`
-  (`./*/.git`), whether or not `path` is itself a repository; deeper ones
-  show up as an untracked directory entry (or not at all below a
-  non-repository `path`).
-- `commits/{sha}/changes` keeps git's output order (renames as
-  `DELETED`+`ADDED` pairs), unlike `changes`, which is sorted by path.
-- Git calls reset `idle_time` (`update_last_execution_time`), like file
-  operations; see `F01.idle-time`.
-- Repository search is not a local directory scan: it needs a GitHub token in
-  the server's secrets store (encrypted with `OH_SECRET_KEY`) and calls
-  `https://api.github.com/user/repos` through the server's own proxy
-  environment. A garbage `page_id` is only rejected once a token exists.
-  Statuses from GitHub: 401 and 403 pass through, other 4xx are 400, 5xx and
-  transport errors 502 (masked as `Internal Server Error` with the reason in
-  `exception`), a timeout 504.
-- `restart --env` values persist for later restarts of the run; clear them
-  with `restart --reset-config` as `F15.repo-search-unreachable` does (that
-  also drops `Launch:` flags, which this family has none of).
+## 陷阱
+
+- 不带 `ref` 的 `changes` 和 `diff` 使用 *display* 基本策略 (`get_valid_ref(..., purpose="display")`)，该策略与 `GET /api/file/archive` (`git-delta`) 的 *export* 策略不同：在无远程测试夹具上，“更改”选项卡与 `HEAD` 进行比较，而存档补丁与空树进行比较。 不要指望他们会同意。
+- 具有 `origin` 但没有 `origin/HEAD` 的存储库会运行基本检测
+  `git remote show origin`，一个 30 秒的网络调用超时。 使用无远程测试夹具或使用 `git clone` 克隆的本地裸远程（记录 `origin/HEAD`），如 `F15.changes-base` 那样。
+- 非仓库 `path` 这不是错误。 `changes` 是 `[]` 除非一个仓库直接位于其下方，否则请忽略此仓库 `F15.changes-repo-below-path`), 没有提交 `diff` 是 `{"original": null, "modified": null}` (null, not `""`). 仓库中缺少的文件返回 400，超过 1 的文件也返回 400 MiB.
+- “不是存储库”意味着没有祖先拥有 `.git`：git 向上搜索，`diff` 在 Python 中向上走。 运行主目录上方的杂散 `.git`（例如，在 `/tmp` 中运行的 `git init`）将每个测试夹具变成该存储库的一部分：`F15.non-repo` 然后将 `x.txt` 列为 `ADDED` 并
+  `F15.changes-repo-below-path` 因错误原因而通过。 先决条件块拒绝这样的运行； 启动与
+  `AGENT_SERVER_VERIFY_HOME` 位于封闭存储库之外（例如在 `/var/tmp` 下），或者让其所有者删除杂散的 `.git`。
+- 全局路由上的相对 `path` 根据服务器进程的工作目录（`launch` 的运行目录）进行解析； 始终发送绝对路径。 SDK 在调用之前连接到 `working_dir` 的相对路径。
+- diff 双方都删除了最后的换行符，并且行结尾被标准化（`\r\n` 变为 `\n`，因此唯一更改为 LF 到 CRLF 的文件被列为
+  `UPDATED` 但与相同的边不同）。 其他前导和尾随空白保留在两侧 (`F15.diff-whitespace`)； 提交模式差异将其从两者中剥离。
+- 存储库内的目录上的 `diff` 不会被拒绝：它会返回
+  `git show` 的树列表 (`"tree <sha>:src\n\napp.py\nutil.py"`) 为
+  `original` 和 `""` 为 `modified`。
+- 嵌套存储库仅扫描 `path` (`./*/.git`) 以下一级，无论 `path` 本身是否是存储库； 更深的目录显示为未跟踪的目录条目（或者根本不在非存储库 `path` 之下）。
+- `commits/{sha}/changes` 保持 git 的输出顺序（重命名为
+  `DELETED`+`ADDED`对），与`changes`不同，它是按路径排序的。
+- Git调用reset`idle_time`(`update_last_execution_time`)，就像文件操作一样； 参见`F01.idle-time`。
+- 存储库搜索不是本地目录扫描：它需要服务器的机密存储中的 GitHub token（使用 `OH_SECRET_KEY` 加密）并调用
+  `https://api.github.com/user/repos`通过服务器自带的代理环境。 仅当 token 存在时，垃圾 `page_id` 才会被拒绝。 GitHub状态：401和403通过，其他4xx是400、5xx和传输层错误502（屏蔽为`Internal Server Error`，原因在
+  `exception`), a 超时 504.
+- `restart --env` 值持久化用于稍后重新启动运行； 像 `F15.repo-search-unreachable` 一样用 `restart --reset-config` 清除它们（这也会删除 `Launch:` 标志，该系列有 None 个标志）。

@@ -1,8 +1,8 @@
-"""The TOOL span's input is the action, not the conversation object.
+"""TOOL 范围的输入是操作，而不是对话对象。
 
-`tool(action, conversation)` would otherwise serialize the second argument as a
-bare ``<LocalConversation object at 0x…>`` repr — no analytical value, a leaked
-memory address, and dead weight through every downstream stage that scans it.
+`tool(action, conversation)` would otherwise 序列化第二个参数作为裸参数
+``<LocalConversation object at 0x…>`` repr — 没有分析价值，泄露的内存地址，以及通过每
+个下游扫描阶段的多余负担。
 """
 
 import json
@@ -72,15 +72,14 @@ register_tool("SpanInputEchoTool", _SpanInputTool)
 
 @pytest.fixture
 def exported():
-    """Capture the spans this test emits, whatever the ambient lmnr state.
+    """无论环境 lmnr 状态如何，捕获此测试发出的跨度。
 
-    Two paths, because this test must never skip — a skipped tracing test is
-    indistinguishable from a passing one, and ``LMNR_*`` env vars are set in real
-    CI. When lmnr is already up its span processor is borrowed and restored,
-    which also keeps test spans off whatever real endpoint it was configured
+    两条路径，因为这个测试必须永远不跳过——跳过的跟踪测试与通过的测试是无法区分的，
+    ``LMNR_*`` 环境变量在CI 中设置。 当 lmnr 已经启动时，其跨度处理
+    器被借用并恢复，这也使测试跨度远离其配置的任何实际端点
     with. Otherwise one is built here, with the in-memory exporter installed
-    *before* ``initialize`` so no OTLP endpoint is created — an unreachable one
-    leaves later tests retrying exports with backoff.
+    *before* ``initialize`` 因此没有创建 OTLP 端点 — 一个无法访问的
+    留下稍后的测试通过退避重试导出。
     """
     from lmnr import Laminar
     from lmnr.opentelemetry_lib.opentelemetry.instrumentation.threading import (
@@ -102,7 +101,7 @@ def exported():
             set_global_tracer_provider=False,
         )
     if not Laminar.is_initialized():
-        # Respects an existing TracerWrapper rather than building a second one.
+        # 尊重现有的 TracerWrapper，而不是构建第二个。
         Laminar.initialize(
             project_api_key="test-key",
             disable_batch=True,

@@ -1,4 +1,4 @@
-"""Delegate action and observation models for OpenHands agents."""
+"""为 OpenHands 智能体委托操作和观测结果模型。"""
 
 from typing import Literal
 
@@ -14,7 +14,7 @@ CommandLiteral = Literal["spawn", "delegate"]
 
 
 class DelegateAction(Action):
-    """Schema for delegation operations."""
+    """模式用于委托操作。"""
 
     command: CommandLiteral = Field(
         description="The commands to run. Allowed options are: `spawn`, `delegate`."
@@ -42,6 +42,6 @@ class DelegateAction(Action):
 
 
 class DelegateObservation(Observation):
-    """Observation from delegation operations."""
+    """观测结果来自授权操作。"""
 
     command: CommandLiteral = Field(description="The command that was executed")

@@ -1,4 +1,4 @@
-"""Tests for WebSocketCallbackClient."""
+"""测试 WebSocketCallbackClient。"""
 
 import asyncio
 import json
@@ -18,7 +18,7 @@ from openhands.sdk.llm import Message, TextContent
 
 @pytest.fixture
 def mock_event():
-    """Create a test event."""
+    """创建一个测试事件。"""
     return MessageEvent(
         id="test-event-id",
         timestamp=datetime.now().isoformat(),
@@ -30,7 +30,7 @@ def mock_event():
 
 
 def test_websocket_client_lifecycle():
-    """Test WebSocket client start/stop lifecycle with idempotency."""
+    """测试 WebSocket 客户端启动/停止生命周期的幂等性。"""
     callback_events = []
 
     def test_callback(event):
@@ -45,24 +45,24 @@ def test_websocket_client_lifecycle():
     assert isinstance(client, WebSocketCallbackClient)
 
     with patch.object(client, "_run"):
-        # Start the client
+        # 启动客户端
         client.start()
         assert client._thread is not None
         assert client._thread.daemon is True
 
-        # Starting again should be idempotent
+        # 重新开始应该是幂等的
         original_thread = client._thread
         client.start()
         assert client._thread is original_thread
 
-        # Stop the client
+        # 停止客户端
         client.stop()
         assert client._stop.is_set()
         assert client._thread is None
 
 
 def test_websocket_client_error_resilience(mock_event):
-    """Test that callback exceptions are logged but don't crash the client."""
+    """测试是否记录了回调异常，但不会使客户端崩溃。"""
 
     def failing_callback(event):
         raise ValueError("Test error")
@@ -87,7 +87,7 @@ def test_websocket_client_error_resilience(mock_event):
 
 
 def test_websocket_client_stop_timeout():
-    """Test WebSocket client handles thread join timeout gracefully."""
+    """测试 WebSocket 客户端优雅地处理线程连接超时。"""
 
     def noop_callback(event):
         pass
@@ -98,7 +98,7 @@ def test_websocket_client_stop_timeout():
         callback=noop_callback,
     )
 
-    # Mock thread that simulates delay
+    # 模拟对象线程模拟延迟
     mock_thread = MagicMock()
     mock_thread.join.side_effect = lambda timeout: time.sleep(0.1)
     client._thread = mock_thread
@@ -113,7 +113,7 @@ def test_websocket_client_stop_timeout():
 
 
 def test_websocket_client_callback_invocation(mock_event):
-    """Test callback is invoked with events."""
+    """测试回调通过事件调用。"""
     callback_events = []
 
     def test_callback(event):
@@ -248,7 +248,7 @@ class _MockWebSocketContext:
 
 
 def test_websocket_client_retries_after_retryable_connection_closed():
-    """Test that transient WebSocket closures reconnect instead of exiting."""
+    """测试瞬态 WebSocket 闭包是否重新连接而不是退出。"""
     connect_calls = 0
     callback_events = []
     sent_per_connection = []
@@ -306,7 +306,7 @@ def test_websocket_client_retries_after_retryable_connection_closed():
 
 @pytest.mark.parametrize("close_code", [4001, 4004])
 def test_websocket_client_stops_after_fatal_connection_closed(close_code):
-    """Test that fatal WebSocket close codes are not retried."""
+    """测试致命 WebSocket 关闭代码是否不会重试。"""
     connect_calls = 0
 
     class _MockAsyncContextManager:
@@ -339,7 +339,7 @@ def test_websocket_client_stops_after_fatal_connection_closed(close_code):
 
 
 def test_websocket_client_calls_on_reconnect_after_subscription_restored():
-    """Test reconnect callback runs after the replacement subscription is ready."""
+    """替换订阅准备就绪后运行测试重新连接回调。"""
     connect_calls = 0
     reconnect = MagicMock()
     callback_events = []

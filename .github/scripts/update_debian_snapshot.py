@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Advance the agent-server Debian snapshot after a three-day observation period."""
+"""在三天的观测结果期限后推进智能体服务器 Debian 快照。"""
 
 from __future__ import annotations
 

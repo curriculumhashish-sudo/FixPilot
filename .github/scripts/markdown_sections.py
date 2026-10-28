@@ -1,30 +1,29 @@
-"""Helpers for parsing Markdown sections in GitHub issue and PR bodies."""
+"""用于解析 GitHub 问题和 PR 主体中的 Markdown 部分的帮助程序。"""
 
 import re
 from dataclasses import dataclass
 
 
-# CommonMark allows an opening fence to carry leading indentation, and inside a
-# list item that indentation is measured from the list's content column rather
-# than the left margin. Rather than parse lists, accept any indentation on the
-# opening fence and bound the closing fence relative to it (below).
+# CommonMark 允许开区间包含前导缩进，并且在列表项中，缩进是从列表的内容列而不是左边缘测
+# 量的。 不要解析列表，而是接受起始栅栏上的任何缩进并相对于它绑定关闭栅栏（如下）。
+#
 FENCE_LINE_RE = re.compile(
     r"^(?P<indent>[ ]*)(?P<marker>`{3,}|~{3,})(?P<rest>[^\r\n]*)"
 )
 
-# CommonMark lets a closing fence sit up to three spaces further in than the
-# fence it closes; beyond that it is content, not a terminator.
+# CommonMark 让关闭的栅栏比它关闭的栅栏距离远三格； 除此之外，它是内容，而不是终结者。
+#
 MAX_CLOSING_INDENT_OFFSET = 3
 
 
 def _mask_line(line: str) -> str:
-    """Replace line content while preserving offsets and line endings."""
+    """替换行内容，同时保留偏移量和行结尾。"""
     return "".join(char if char in "\r\n" else " " for char in line)
 
 
 @dataclass(frozen=True)
 class _Fence:
-    """The marker used to open a fenced Markdown code block."""
+    """用于打开受隔离的 Markdown 代码块的标记。"""
 
     char: str
     length: int
@@ -32,7 +31,7 @@ class _Fence:
 
     @classmethod
     def opened_by(cls, line: str) -> "_Fence | None":
-        """Return the fence opened by ``line``, if any."""
+        """返回由 ``line`` 打开的栅栏（如果有）。"""
         match = FENCE_LINE_RE.match(line)
         if match is None:
             return None
@@ -44,7 +43,7 @@ class _Fence:
         )
 
     def closed_by(self, line: str) -> bool:
-        """Return whether ``line`` closes this fence."""
+        """返回 ``line`` 是否关闭此栅栏。"""
         match = FENCE_LINE_RE.match(line)
         if match is None:
             return False
@@ -58,13 +57,11 @@ class _Fence:
 
 
 def without_fenced_code_blocks(body: str) -> str:
-    """Mask fenced code blocks without changing character offsets.
+    """屏蔽屏蔽代码块而不更改字符偏移量。
 
-    A fence that is never closed is left untouched. CommonMark would run it to
-    the end of the document, but these parsers gate contributions: one stray
-    marker in a pasted log would hide every heading after it and reject a report
-    whose sections are plainly there. Masking only balanced fences keeps the
-    failure on the side of accepting.
+    永不关闭的栅栏就不会受到影响。 CommonMark 会一直读到文档的末尾，但这些解析器会贡
+    献：在粘贴的日志中有一个孤立的标记就会遮盖掉之后的所有标题，并且拒绝报告
+    ，因为其部分明显存在。 仅掩盖平衡的栅栏可以使失败保持在接受的一方。
     """
     masked_lines: list[str] = []
     fenced_lines: list[str] = []
@@ -84,12 +81,12 @@ def without_fenced_code_blocks(body: str) -> str:
                 fenced_lines.clear()
                 fence = None
 
-    # Whatever is left belongs to an unclosed fence, so it stays as written.
+    # 剩下的东西都属于未封闭的栅栏，所以它保持原样。
     masked_lines.extend(fenced_lines)
 
     return "".join(masked_lines)
 
 
 def find_headings(body: str, heading_re: re.Pattern[str]) -> list[re.Match[str]]:
-    """Return heading matches outside fenced code blocks."""
+    """返回标题与受保护的代码块外部匹配。"""
     return list(heading_re.finditer(without_fenced_code_blocks(body)))

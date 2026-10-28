@@ -1,8 +1,8 @@
 /**
- * Tests for StuckDetector class
+ * StuckDetector 类的测试
  *
- * These tests mirror the Python SDK's stuck detector tests to ensure
- * consistent behavior across implementations.
+ * 这些测试反映了 Python SDK 的卡住检测器测试，以确保
+ * 跨实现的一致行为。
  */
 
 import { StuckDetector, DEFAULT_STUCK_THRESHOLDS } from '../conversation/stuck-detector';
@@ -15,7 +15,7 @@ import {
   generateEventId,
 } from '../events/types';
 
-// Helper functions to create test events
+// 创建测试事件的辅助函数
 function createMessageEvent(source: 'user' | 'agent', text: string): MessageEvent {
   return {
     id: generateEventId(),
@@ -79,7 +79,7 @@ describe('StuckDetector', () => {
   describe('Constructor and Defaults', () => {
     it('should use default thresholds when not provided', () => {
       const detector = new StuckDetector();
-      // Access private thresholds through the isStuck behavior
+      // 通过 isStuck 行为访问私有阈值
       expect(detector).toBeDefined();
     });
 
@@ -135,7 +135,7 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ actionObservation: 4 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Please run ls')];
 
-      // Add 3 identical action-observation pairs (threshold is 4)
+      // 添加 3 个相同的操作-观测结果对（阈值为 4）
       for (let i = 0; i < 3; i++) {
         const action = createActionEvent('terminal', 'ls', 'I need to run ls');
         events.push(action);
@@ -150,7 +150,7 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ actionObservation: 4 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Please run ls')];
 
-      // Add 4 identical action-observation pairs
+      // 添加 4 个相同的动作-观测结果对
       for (let i = 0; i < 4; i++) {
         const action = createActionEvent('terminal', 'ls', 'I need to run ls');
         events.push(action);
@@ -169,7 +169,7 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ actionError: 4 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Run invalid command')];
 
-      // Add 3 identical action-error pairs (threshold is 4)
+      // 添加 3 个相同的操作错误对（阈值为 4）
       for (let i = 0; i < 3; i++) {
         const action = createActionEvent('terminal', 'invalid_cmd', 'Running command');
         events.push(action);
@@ -184,7 +184,7 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ actionError: 4 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Run invalid command')];
 
-      // Add 4 identical action-error pairs
+      // 添加 4 个相同的动作-错误对
       for (let i = 0; i < 4; i++) {
         const action = createActionEvent('terminal', 'invalid_cmd', 'Running command');
         events.push(action);
@@ -232,7 +232,7 @@ describe('StuckDetector', () => {
         createMessageEvent('user', 'Hello'),
         createMessageEvent('agent', 'Thinking... 1'),
         createMessageEvent('agent', 'Thinking... 2'),
-        createMessageEvent('user', 'Any progress?'), // User interrupts
+        createMessageEvent('user', 'Any progress?'), // 用户中断
         createMessageEvent('agent', 'Thinking... 3'),
         createMessageEvent('agent', 'Thinking... 4'),
       ];
@@ -264,21 +264,21 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ actionObservation: 4 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Please run ls')];
 
-      // Add 4 identical action-observation pairs (would trigger stuck)
+      // 添加 4 个相同的动作-观测结果对（会触发卡住）
       for (let i = 0; i < 4; i++) {
         const action = createActionEvent('terminal', 'ls', 'I need to run ls');
         events.push(action);
         events.push(createObservationEvent(action.id, 'terminal', 'file1.txt'));
       }
 
-      // Verify it's stuck
+      // 验证是否卡住
       let result = detector.isStuck(events);
       expect(result.isStuck).toBe(true);
 
-      // Add new user message
+      // 添加新用户消息
       events.push(createMessageEvent('user', 'Try something else'));
 
-      // Should no longer be stuck
+      // 不应该再被卡住
       result = detector.isStuck(events);
       expect(result.isStuck).toBe(false);
     });
@@ -289,7 +289,7 @@ describe('StuckDetector', () => {
       const detector = new StuckDetector({ alternatingPattern: 6 });
       const events: BaseEvent[] = [createMessageEvent('user', 'Help me')];
 
-      // Create alternating pattern: cmd1, cmd2, cmd1, cmd2, cmd1, cmd2
+      // 创建交替模式：cmd1、cmd2、cmd1、cmd2、cmd1、cmd2
       for (let i = 0; i < 3; i++) {
         const action1 = createActionEvent('terminal', 'cmd1', 'Running cmd1');
         events.push(action1);

@@ -1,1 +1,1 @@
-"""Tests for the critic module."""
+"""测试批评家模块。"""

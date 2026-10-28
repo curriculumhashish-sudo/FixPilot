@@ -1,10 +1,10 @@
 /**
- * Local workspace stub implementation.
+ * 本地工作区存根实现。
  *
- * This is a stub implementation of the IWorkspace interface for local execution.
- * All methods throw descriptive errors directing users to RemoteWorkspace.
+ * 这是用于本地执行的 IWorkspace 接口的存根实现。
+ * 所有方法都会抛出描述性错误，将用户引导至 RemoteWorkspace。
  *
- * This mirrors the Python SDK's LocalWorkspace class architecture.
+ * 这反映了 Python SDK 的 LocalWorkspace 类架构。
  */
 
 import {
@@ -17,12 +17,12 @@ import {
 import { IWorkspace, BaseWorkspaceOptions, GitQueryOptions } from './base';
 
 /**
- * Options for creating a LocalWorkspace instance.
+ * 用于创建 LocalWorkspace 实例的选项。
  */
 export type LocalWorkspaceOptions = BaseWorkspaceOptions;
 
 /**
- * Error thrown when LocalWorkspace methods are called.
+ * 调用 LocalWorkspace 方法时抛出错误。
  */
 class LocalWorkspaceNotSupportedError extends Error {
   constructor(method: string) {
@@ -32,17 +32,17 @@ class LocalWorkspaceNotSupportedError extends Error {
 }
 
 /**
- * Local workspace stub.
+ * 本地工作区存根。
  *
- * This is a placeholder implementation that throws descriptive errors when methods
- * are called. Use RemoteWorkspace for actual workspace functionality.
+ * 这是一个占位符实现，当方法
+ * 被称为。 使用 RemoteWorkspace 来实现实际的工作区功能。
  *
- * ```typescript
- * const workspace = new RemoteWorkspace({
- *   host: 'http://localhost:8000',
+ * ```TypeScript
+ * 常量工作区 = 新 RemoteWorkspace({
+ *   主持人：' http://localhost:8000',
  *   workingDir: '/workspace'
  * });
- * const result = await workspace.executeCommand('ls -la');
+ * const 结果 = wait workspace.executeCommand('ls -la');
  * ```
  */
 export class LocalWorkspace implements IWorkspace {
@@ -53,18 +53,18 @@ export class LocalWorkspace implements IWorkspace {
   }
 
   /**
-   * Execute a bash command locally.
+   * 在本地执行 bash 命令。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async executeCommand(_command: string, _cwd?: string, _timeout?: number): Promise<CommandResult> {
     throw new LocalWorkspaceNotSupportedError('executeCommand');
   }
 
   /**
-   * Write content to a file in the workspace.
+   * 将内容写入工作区中的文件。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async fileUpload(
     _content: string | Blob | File,
@@ -75,36 +75,36 @@ export class LocalWorkspace implements IWorkspace {
   }
 
   /**
-   * Read a file from the workspace.
+   * 从工作区读取一个文件。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async fileDownload(_sourcePath: string): Promise<FileDownloadResult> {
     throw new LocalWorkspaceNotSupportedError('fileDownload');
   }
 
   /**
-   * Get git changes for a repository.
+   * 获取存储库的 git 更改。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async gitChanges(_repoPath: string, _options?: GitQueryOptions): Promise<GitChange[]> {
     throw new LocalWorkspaceNotSupportedError('gitChanges');
   }
 
   /**
-   * Get git diff for a repository.
+   * 获取存储库的 git diff。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async gitDiff(_repoPath: string, _options?: GitQueryOptions): Promise<GitDiff> {
     throw new LocalWorkspaceNotSupportedError('gitDiff');
   }
 
   /**
-   * Convenience method to write text content as a file.
+   * 将文本内容写入文件的便捷方法。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async uploadText(
     _text: string,
@@ -115,38 +115,38 @@ export class LocalWorkspace implements IWorkspace {
   }
 
   /**
-   * Convenience method to upload a File object.
+   * 上传 File 对象的便捷方法。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async uploadFileObject(_file: File, _destinationPath: string): Promise<FileOperationResult> {
     throw new LocalWorkspaceNotSupportedError('uploadFileObject');
   }
 
   /**
-   * Convenience method to download file content as text.
+   * 将文件内容下载为文本的便捷方法。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async downloadAsText(_sourcePath: string): Promise<string> {
     throw new LocalWorkspaceNotSupportedError('downloadAsText');
   }
 
   /**
-   * Convenience method to download file content as a Blob.
+   * 将文件内容下载为 Blob 的便捷方法。
    *
-   * @throws LocalWorkspaceNotSupportedError - Always throws — not implemented
+   * @throws LocalWorkspaceNotSupportedError - 总是抛出 - 未实现
    */
   async downloadAsBlob(_sourcePath: string): Promise<Blob> {
     throw new LocalWorkspaceNotSupportedError('downloadAsBlob');
   }
 
   /**
-   * Close/cleanup the workspace.
+   * 关闭/清理工作区。
    *
-   * For the stub implementation, this is a no-op.
+   * 对于存根实现来说，这是一个空操作。
    */
   close(): void {
-    // No-op for stub implementation
+    // 存根实现无操作
   }
 }

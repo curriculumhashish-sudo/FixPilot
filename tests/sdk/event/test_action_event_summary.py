@@ -1,4 +1,4 @@
-"""Tests for ActionEvent summary field visualization."""
+"""测试 ActionEvent 摘要字段可视化。"""
 
 import pytest
 
@@ -15,7 +15,7 @@ def tool_call():
 
 
 def test_action_event_summary_visualization(tool_call):
-    """Test that summary appears in visualization when present."""
+    """测试摘要是否出现在可视化中（如果存在）。"""
     event = ActionEvent(
         source="agent",
         thought=[TextContent(text="I need to test")],
@@ -34,7 +34,7 @@ def test_action_event_summary_visualization(tool_call):
 
 
 def test_action_event_no_summary_visualization(tool_call):
-    """Test that visualization works without summary."""
+    """测试可视化在没有摘要的情况下是否有效。"""
     event = ActionEvent(
         source="agent",
         thought=[TextContent(text="I need to test")],

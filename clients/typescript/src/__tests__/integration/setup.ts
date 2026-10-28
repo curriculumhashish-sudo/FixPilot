@@ -1,7 +1,7 @@
 /**
- * Integration test setup
+ * 集成测试设置
  *
- * This file runs before all integration tests.
+ * 该文件在所有集成测试之前运行。
  */
 
 import { getServerTestConfig, skipIfNoConfig, getTestConfig } from './test-config';
@@ -40,7 +40,7 @@ beforeAll(async () => {
         return;
       }
     } catch {
-      // Server not ready yet
+      // 服务器尚未准备好
     }
 
     if (i < maxRetries - 1) {

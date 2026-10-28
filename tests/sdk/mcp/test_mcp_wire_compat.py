@@ -1,4 +1,4 @@
-"""Persisted MCP tools must load under either mcp major (#5251)."""
+"""已持久化 MCP 工具必须在任一 MCP 主要下加载 (#5251)。"""
 
 import json
 import uuid
@@ -18,9 +18,10 @@ from openhands.sdk.mcp.client import MCPClient
 from openhands.sdk.mcp.tool import MCPToolDefinition
 
 
-# Verbatim Tool.model_dump(mode="json", exclude_none=True) under mcp 2.2.0,
-# i.e. what SDK 1.49.0-1.49.1 wrote to events/. Note the schema property
-# "mime_type", which is user data and must survive unrenamed.
+# MCP 2.2.0、i.e 下逐字记录 Tool.model_dump(mode="JSON", exclude_none=True)。 SDK 1.49.0
+# -1.49.1 写入 events/ 的内容。 请注意模式属性“mime_type”，它是用户数据，必须在未重命名
+# 的情况下保留下来。
+#
 MCP2_TOOL = {
     "name": "read_file",
     "title": "Read",
@@ -52,12 +53,12 @@ MCP1_TOOL = {
     "_meta": {"k": 1},
 }
 
-# SDK 1.49.4 (mcp 1.x) dumped by field name: camelCase, but "meta" not "_meta".
+# SDK 1.49.4 (MCP 1.x) 按字段名称转储：camelCase，但“meta”不是“_meta”。
 MCP1_BY_NAME_TOOL = {("meta" if k == "_meta" else k): v for k, v in MCP1_TOOL.items()}
 
 
 class _Mcp2StyleAnnotations(BaseModel):
-    """Shape of mcp 2.x ToolAnnotations: snake_case attributes, camelCase aliases."""
+    """MCP 2.x ToolAnnotations 的形状：snake_case 属性，camelCase 别名。"""
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     read_only_hint: bool | None = None

@@ -1,4 +1,4 @@
-"""Test that an agent can browse a local web page and extract information."""
+"""测试智能体是否可以浏览本地网页并提取信息。"""
 
 import os
 import re
@@ -90,7 +90,7 @@ logger = get_logger(__name__)
 
 
 class SimpleBrowsingTest(BaseIntegrationTest):
-    """Test that an agent can browse a local web page and extract information."""
+    """测试智能体是否可以浏览本地网页并提取信息。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -100,19 +100,19 @@ class SimpleBrowsingTest(BaseIntegrationTest):
 
     @property
     def enable_browser(self) -> bool:
-        """Enable browser tools for this browsing test."""
+        """为此浏览测试启用浏览器工具。"""
         return True
 
     def setup(self) -> None:
-        """Set up a local web server with the HTML file."""
+        """使用 HTML 文件设置本地 Web 服务器。"""
 
         try:
-            # Write the HTML file to the workspace
+            # 将HTML文件写入工作区
             html_path = os.path.join(self.workspace, "index.html")
             with open(html_path, "w") as f:
                 f.write(HTML_FILE)
 
-            # Start the HTTP server in the background
+            # 在后台启动HTTP服务器
             self.server_process: subprocess.Popen[bytes] | None = subprocess.Popen(
                 [sys.executable, "-m", "http.server", "8000", "--bind", "127.0.0.1"],
                 cwd=self.workspace,
@@ -120,7 +120,7 @@ class SimpleBrowsingTest(BaseIntegrationTest):
                 stderr=subprocess.DEVNULL,
             )
 
-            # Give the server a moment to start
+            # 给服务器一点启动时间
             time.sleep(2)
 
             logger.info(f"Started HTTP server on port 8000 serving {html_path}")
@@ -129,15 +129,15 @@ class SimpleBrowsingTest(BaseIntegrationTest):
             raise RuntimeError(f"Failed to set up web server: {e}")
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully browsed the page and found the answer."""
-        # Use the utility function to get the agent's final response
+        """验证智能体是否已成功浏览该页面并找到答案。"""
+        # 使用效用函数获得智能体的最终响应
         agent_response = get_agent_final_response(self.conversation.state.events)
 
         logger.info(f"Agent final response to analyze: {agent_response[:500]}...")
 
-        # Use regex to check if the agent found the correct answer
-        # The expected answer is "The answer is OpenHands is all you need!"
-        # We'll be flexible with the exact wording but look for key components
+        # 使用正则表达式检查智能体是否找到了正确的答案。预期的答案是 "答案是 OpenHands
+        # 就够了！" 我们会灵活处理措辞，但寻找关键组件
+        #
         answer_patterns = [
             r"(?i)the answer is openhands is all you need",
             r"(?i)openhands is all you need",
@@ -172,7 +172,7 @@ class SimpleBrowsingTest(BaseIntegrationTest):
             )
 
     def teardown(self):
-        """Turn down the web server and close the conversation."""
+        """关闭网络服务器并关闭对话。"""
         if self.server_process:
             try:
                 self.server_process.terminate()

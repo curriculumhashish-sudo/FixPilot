@@ -1,9 +1,8 @@
 # simple_logger.py
 """
-Minimal logger setup that encourages per-module loggers,
-with Rich for humans and JSON for machines.
+鼓励每个模块记录器的最小记录器设置，Rich 适合人类，JSON 适合机器。
 
-Usage:
+用途：
     from openhands.sdk.logger import get_logger
     logger = get_logger(__name__)
     logger.info("Hello from this module!")
@@ -20,7 +19,7 @@ from rich.console import Console
 from openhands.sdk.logger._rich_handler import BoundedRichHandler
 
 
-# ========= ENV (loaded at import) =========
+# ========= ENV（导入时加载）=========
 LEVEL_MAP = (
     logging.getLevelNamesMapping()
     if hasattr(logging, "getLevelNamesMapping")
@@ -38,7 +37,7 @@ ENV_LOG_DIR = os.getenv("LOG_DIR", "logs")
 ENV_ROTATE_WHEN = os.getenv("LOG_ROTATE_WHEN", "midnight")
 ENV_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "7"))
 
-# Rich vs JSON
+# 丰富 vs JSON
 ENV_JSON = os.getenv("LOG_JSON", "false").lower() in {"1", "true", "yes"}
 IN_CI = os.getenv("CI", "false").lower() in {"1", "true", "yes"} or bool(
     os.environ.get("GITHUB_ACTIONS")
@@ -54,7 +53,7 @@ ENV_AUTO_CONFIG = os.getenv("LOG_AUTO_CONFIG", "true").lower() in {"1", "true", 
 ENV_DEBUG_LLM = os.getenv("DEBUG_LLM", "false").lower() in {"1", "true", "yes"}
 
 
-# ========= LiteLLM controls =========
+# ========= LiteLLM 控件 =========
 _ENABLE_LITELLM_DEBUG = False
 if ENV_DEBUG_LLM:
     confirmation = input(
@@ -76,13 +75,13 @@ else:
 
 
 def disable_logger(name: str, level: int = logging.CRITICAL) -> None:
-    """Disable or quiet down a specific logger by name."""
+    """按名称禁用或安静特定记录器。"""
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.propagate = False
 
 
-# Quiet chatty third-party loggers
+# 安静闲聊的第三方记录器
 for name in ["litellm", "LiteLLM", "openai"]:
     disable_logger(name, logging.DEBUG if _ENABLE_LITELLM_DEBUG else logging.ERROR)
 for name in ["httpcore", "httpx", "libtmux"]:
@@ -98,7 +97,7 @@ def setup_logging(
     when: str | None = None,
     backup_count: int | None = None,
 ) -> None:
-    """Configure the root logger. All child loggers inherit this setup."""
+    """配置根记录器。 所有子记录器都会继承此设置。"""
     lvl = ENV_LOG_LEVEL if level is None else level
     to_file = ENV_LOG_TO_FILE if log_to_file is None else log_to_file
     directory = ENV_LOG_DIR if log_dir is None else log_dir
@@ -109,18 +108,19 @@ def setup_logging(
     old_level = root.level
     root.setLevel(lvl)
 
-    # Set the level for any existing logger with the same intial level
+    # 为具有相同初始级别的任何现有记录器设置级别
     for logger in logging.root.manager.loggerDict.values():
         if isinstance(logger, logging.Logger) and logger.level == old_level:
             logger.setLevel(lvl)
 
-    # Do NOT clear existing handlers; Uvicorn installs these before importing the app.
-    # Only add ours if there isn't already a comparable stream handler.
+    # 执行不清除现有处理程序； Uvicorn 在导入应用程序之前安装这些。 仅当还没有类似的流处
+    # 理程序时才添加我们的流处理程序。
+    #
     has_stream = any(isinstance(h, logging.StreamHandler) for h in root.handlers)
 
     if not has_stream:
         if ENV_JSON or IN_CI:
-            # JSON console handler
+            # JSON 控制台处理程序
             ch = logging.StreamHandler()
             ch.setLevel(lvl)
             ch.setFormatter(
@@ -131,7 +131,7 @@ def setup_logging(
             )
             root.addHandler(ch)
         else:
-            # Rich console handler
+            # 丰富的控制台处理器
             rich_handler = BoundedRichHandler(
                 console=Console(stderr=True),
                 omit_repeated_times=False,
@@ -168,17 +168,16 @@ def setup_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get a logger instance for the specified module.
+    """获取指定模块的记录器实例。
 
-    This function returns a configured logger that inherits from the root logger
-    setup. The logger supports both Rich formatting for human-readable output
-    and JSON formatting for machine processing, depending on environment configuration.
+    此函数返回一个继承自根记录器设置的已配置记录器。 logger 支持两种格式化方式：JSON
+    用于机器处理的人可读输出，以及 Rich 格式化用于人类可读输出。
 
     Args:
-        name: The name of the module, typically __name__.
+        name: 模块的名称，通常为 __name__。
 
     Returns:
-        A configured Logger instance.
+        配置好的 Logger 实例。
 
     Example:
         >>> from openhands.sdk.logger import get_logger
@@ -191,6 +190,6 @@ def get_logger(name: str) -> logging.Logger:
     return logger
 
 
-# Auto-configure if desired
+# 如果需要自动配置
 if ENV_AUTO_CONFIG:
     setup_logging()

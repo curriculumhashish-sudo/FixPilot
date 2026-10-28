@@ -1,7 +1,7 @@
-"""Tests for ``MCPOAuth``: an expired token refreshes against the token endpoint
-the authorization server advertises, registration asks for a token endpoint auth
-method the server supports, and Basic-authenticated token requests leave
-``client_id`` out of the body."""
+"""测试 for ``MCPOAuth``过期的 token 刷新  token  端点的授权服务器广播，注册要求一个
+token  端点支持的认证方法，以及使用基本认证的 t
+oken requests leave
+``client_id`` 脱离身体。"""
 
 from __future__ import annotations
 
@@ -55,9 +55,9 @@ POST_CLIENT_INFO = {
 async def _stored_state(
     expires_at: float | None, client_info: dict[str, Any] = CLIENT_INFO
 ) -> MemoryStore:
-    """A store holding what a completed install leaves behind.
+    """一个存储完成安装后留下的东西的商店。
 
-    ``expires_at=None`` stores the registered client without any tokens.
+    ``expires_at=None``存储没有任何token的注册客户端。
     """
     store = MemoryStore()
     if expires_at is not None:
@@ -87,7 +87,7 @@ async def _stored_state(
 def _authorization_server(
     metadata: dict[str, Any],
 ) -> Callable[[httpx.Request], httpx.Response]:
-    """Serve discovery for ``metadata``; the MCP endpoint itself demands OAuth."""
+    """为``metadata``服务发现； MCP 端点本身需要 OAuth。"""
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/v4/mcp":
@@ -110,7 +110,7 @@ def _oauth(
     oauth_class: type[MCPOAuth] = MCPOAuth,
     **kwargs: Any,
 ) -> tuple[MCPOAuth, list[str]]:
-    """An ``MCPOAuth`` whose discovery client is served by ``handler``."""
+    """``MCPOAuth``，其发现客户端由 ``handler`` 提供服务。"""
     requested: list[str] = []
 
     def recording(request: httpx.Request) -> httpx.Response:
@@ -133,7 +133,7 @@ def _oauth(
 
 
 def _consent(oauth: MCPOAuth) -> None:
-    """Stand in for the browser: hand back a code for the state we were sent."""
+    """代表浏览器：返回我们发送的状态代码。"""
     states: list[str] = []
 
     async def redirect(authorization_url: str) -> None:
@@ -147,7 +147,7 @@ def _consent(oauth: MCPOAuth) -> None:
 
 
 async def _first_request(oauth: MCPOAuth) -> httpx.Request:
-    """The first request the auth flow emits for an MCP call."""
+    """auth 流程为 MCP 调用发出的第一个请求。"""
     flow = oauth.async_auth_flow(httpx.Request("POST", MCP_URL, json={}))
     try:
         return await flow.__anext__()
@@ -158,7 +158,7 @@ async def _first_request(oauth: MCPOAuth) -> httpx.Request:
 async def _serve_flow(
     oauth: MCPOAuth, handler: Callable[[httpx.Request], httpx.Response]
 ) -> None:
-    """Answer every request the auth flow emits for an MCP call."""
+    """回答 auth 流程为 MCP 调用发出的每个请求。"""
     flow = oauth.async_auth_flow(httpx.Request("POST", MCP_URL, json={}))
     try:
         request = await anext(flow)
@@ -173,7 +173,7 @@ async def _serve_flow(
 async def _request_to(
     oauth: MCPOAuth, handler: Callable[[httpx.Request], httpx.Response], url: str
 ) -> httpx.Request:
-    """Drive the auth flow, answering with ``handler``, until it requests ``url``."""
+    """驱动身份验证流程，用 ``handler`` 应答，直到它请求 ``url``。"""
     flow = oauth.async_auth_flow(httpx.Request("POST", MCP_URL, json={}))
     try:
         request = await anext(flow)
@@ -192,13 +192,13 @@ def _form(request: httpx.Request) -> dict[str, list[str]]:
 
 @pytest.mark.asyncio
 async def test_expired_token_refreshes_against_the_discovered_endpoint():
-    # Arrange
+    # 安排
     oauth, requested = _oauth(await _stored_state(time.time() - 60), _discovery)
 
-    # Act
+    # 法案
     request = await _first_request(oauth)
 
-    # Assert
+    # 断言
     assert (request.method, str(request.url)) == ("POST", TOKEN_ENDPOINT)
     assert b"grant_type=refresh_token" in request.content
     assert requested == [
@@ -209,16 +209,16 @@ async def test_expired_token_refreshes_against_the_discovered_endpoint():
 
 @pytest.mark.asyncio
 async def test_refresh_falls_back_to_the_default_endpoint_when_discovery_fails():
-    # Arrange
+    # 安排
     def unreachable(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("unreachable", request=request)
 
     oauth, _ = _oauth(await _stored_state(time.time() - 60), unreachable)
 
-    # Act
+    # 法案
     request = await _first_request(oauth)
 
-    # Assert: upstream's guess, exactly as without the discovery step.
+    # 断言：上游的猜测，与没有发现步骤时完全相同。
     assert (request.method, str(request.url)) == (
         "POST",
         "https://gitlab.example/token",
@@ -228,13 +228,13 @@ async def test_refresh_falls_back_to_the_default_endpoint_when_discovery_fails()
 
 @pytest.mark.asyncio
 async def test_valid_token_is_sent_without_discovery_or_refresh():
-    # Arrange
+    # 安排
     oauth, requested = _oauth(await _stored_state(time.time() + 3600), _discovery)
 
-    # Act
+    # 法案
     request = await _first_request(oauth)
 
-    # Assert
+    # 断言
     assert str(request.url) == MCP_URL
     assert request.headers["Authorization"] == "Bearer stored-access-token"
     assert requested == []
@@ -242,8 +242,8 @@ async def test_valid_token_is_sent_without_discovery_or_refresh():
 
 @pytest.mark.asyncio
 async def test_non_interactive_client_fails_instead_of_authorizing_again():
-    # Arrange: the server rejects the stored refresh token and then the
-    # unauthenticated MCP call.
+    # 排列：服务器拒绝存储的刷新令牌，然后
+    # 未经身份验证的 MCP 调用。
     store = await _stored_state(time.time() - 60)
     requested: list[str] = []
 
@@ -257,12 +257,12 @@ async def test_non_interactive_client_fails_instead_of_authorizing_again():
 
     oauth, _ = _oauth(store, server, NonInteractiveMCPOAuth)
 
-    # Act
+    # 法案
     with pytest.raises(MCPError):
         await _serve_flow(oauth, server)
 
-    # Assert: no authorization request or client registration, and the
-    # stored state is left for the user to replace by authorizing again.
+    # 断言：没有授权请求或客户端注册，并且
+    # 存储的状态留给用户通过再次授权来替换。
     paths = {httpx.URL(url).path for url in requested}
     assert not paths & {"/oauth/authorize", "/register"}
     assert await store.get(key=f"{MCP_URL}/tokens", collection="mcp-oauth-token")
@@ -283,16 +283,16 @@ async def test_non_interactive_client_fails_instead_of_authorizing_again():
 async def test_registration_requests_a_supported_token_endpoint_auth_method(
     supported: list[str], requested: str | None
 ):
-    # Arrange
+    # 安排
     server = _authorization_server(
         {**SERVER_METADATA, "token_endpoint_auth_methods_supported": supported}
     )
     oauth, _ = _oauth(MemoryStore(), server)
 
-    # Act
+    # 法案
     registration = await _request_to(oauth, server, REGISTRATION_ENDPOINT)
 
-    # Assert
+    # 断言
     body = json.loads(registration.content)
     assert body.get("token_endpoint_auth_method") == requested
     assert body["client_name"] == "test"
@@ -300,7 +300,7 @@ async def test_registration_requests_a_supported_token_endpoint_auth_method(
 
 @pytest.mark.asyncio
 async def test_registration_keeps_an_explicitly_configured_auth_method():
-    # Arrange
+    # 安排
     server = _authorization_server(
         {
             **SERVER_METADATA,
@@ -315,17 +315,17 @@ async def test_registration_keeps_an_explicitly_configured_auth_method():
         },
     )
 
-    # Act
+    # 法案
     registration = await _request_to(oauth, server, REGISTRATION_ENDPOINT)
 
-    # Assert
+    # 断言
     body = json.loads(registration.content)
     assert body["token_endpoint_auth_method"] == "client_secret_basic"
 
 
 @pytest.mark.asyncio
 async def test_static_client_is_used_as_configured_without_registration():
-    # Arrange: the server would hand out a public client, but ours is fixed.
+    # 安排：服务器会分发一个公共客户端，但我们的是固定的。
     server = _authorization_server(
         {**SERVER_METADATA, "token_endpoint_auth_methods_supported": ["none"]}
     )
@@ -334,10 +334,10 @@ async def test_static_client_is_used_as_configured_without_registration():
     )
     _consent(oauth)
 
-    # Act: a registration attempt would hit the 404 and abort the flow.
+    # 行动：注册尝试将出现 404 错误并中止流程。
     token = await _request_to(oauth, server, TOKEN_ENDPOINT)
 
-    # Assert
+    # 断言
     body = _form(token)
     assert "Authorization" not in token.headers
     assert body["client_id"] == ["static-id"]
@@ -346,14 +346,14 @@ async def test_static_client_is_used_as_configured_without_registration():
 
 @pytest.mark.asyncio
 async def test_basic_auth_token_exchange_sends_client_id_only_in_the_header():
-    # Arrange
+    # 安排
     oauth, _ = _oauth(await _stored_state(None, BASIC_CLIENT_INFO), _discovery)
     _consent(oauth)
 
-    # Act
+    # 法案
     token = await _request_to(oauth, _discovery, TOKEN_ENDPOINT)
 
-    # Assert
+    # 断言
     credentials = base64.b64encode(b"client-id:client-secret").decode()
     assert token.headers["Authorization"] == f"Basic {credentials}"
     body = _form(token)
@@ -367,15 +367,15 @@ async def test_basic_auth_token_exchange_sends_client_id_only_in_the_header():
 
 @pytest.mark.asyncio
 async def test_basic_auth_refresh_sends_client_id_only_in_the_header():
-    # Arrange
+    # 安排
     oauth, _ = _oauth(
         await _stored_state(time.time() - 60, BASIC_CLIENT_INFO), _discovery
     )
 
-    # Act
+    # 法案
     request = await _first_request(oauth)
 
-    # Assert
+    # 断言
     assert str(request.url) == TOKEN_ENDPOINT
     assert request.headers["Authorization"].startswith("Basic ")
     body = _form(request)
@@ -393,13 +393,13 @@ async def test_basic_auth_refresh_sends_client_id_only_in_the_header():
 async def test_body_authenticated_clients_keep_client_id_in_the_body(
     client_info: dict[str, Any], secret: list[str] | None
 ):
-    # Arrange
+    # 安排
     oauth, _ = _oauth(await _stored_state(time.time() - 60, client_info), _discovery)
 
-    # Act
+    # 法案
     request = await _first_request(oauth)
 
-    # Assert
+    # 断言
     assert "Authorization" not in request.headers
     body = _form(request)
     assert body["client_id"] == ["client-id"]

@@ -1,4 +1,4 @@
-"""Tests for model prompt spec utilities."""
+"""测试模型提示词规格实用程序。"""
 
 import pytest
 
@@ -10,17 +10,17 @@ from openhands.sdk.llm.utils.model_prompt_spec import (
 @pytest.mark.parametrize(
     ("model_name", "canonical_name", "expected_variant"),
     [
-        # Non-codex variants
+        # 非法典变体
         ("gpt-5", None, "gpt-5"),
         ("gpt-5.1", None, "gpt-5"),
         ("gpt-5.2", None, "gpt-5"),
-        # Codex variants
+        # 法典变体
         ("gpt-5-codex", None, "gpt-5-codex"),
         ("gpt-5.1-codex", None, "gpt-5-codex"),
         ("gpt-5.3-codex", None, "gpt-5-codex"),
-        # With canonical names
+        # 具有规范名称
         ("gpt-5.3-codex", "openai/gpt-5.3-codex", "gpt-5-codex"),
-        # Provider-prefixed variants
+        # 提供者前缀的变体
         ("openai/gpt-5.3-codex-pro", None, "gpt-5-codex"),
     ],
 )
@@ -29,7 +29,7 @@ def test_gpt5_variant_detection(
     canonical_name: str | None,
     expected_variant: str,
 ) -> None:
-    """Test that GPT-5 variants are correctly detected."""
+    """测试是否正确检测到 GPT-5 变体。"""
     result = get_model_prompt_spec(model_name, canonical_name)
     assert result.variant == expected_variant
     assert result.family == "openai_gpt"
@@ -51,7 +51,7 @@ def test_other_families(
     canonical_name: str | None,
     expected_family: str,
 ) -> None:
-    """Test that other model families are correctly detected."""
+    """测试是否正确检测到其他模型系列。"""
     result = get_model_prompt_spec(model_name, canonical_name)
     assert result.family == expected_family
     assert result.variant is None

@@ -2,8 +2,8 @@
 name: Create Version Bump PRs
 
 on:
-    # Dispatched by pypi-release.yml after a successful publish.
-    # Also supports manual reruns for a specific version.
+    # 成功发布后由 pypi-release.yml 发送。 还支持特定版本的手动重新运行。
+    #
     workflow_dispatch:
         inputs:
             version:
@@ -659,8 +659,8 @@ jobs:
                       text: "${{ env.BUMP_SLACK_TEXT }}"
 
             # continue-on-error lets one repo's failure not block the others,
-            # but the run must still go red so the failure is visible. This gate
-            # runs after Slack so the alert still goes out on failure.
+            # 但运行仍必须变为红色，以便可以看到故障。 该门在 Slack 之后运行，因此失败时警报仍然会发出。
+            #
             - name: Fail job if any bump PR failed
               if: ${{ env.BUMP_OVERALL != 'success' }}
               run: |
@@ -668,8 +668,8 @@ jobs:
                   exit 1
 
     bump-typescript-client:
-        # Open a PR in this repository bumping the TypeScript client's pinned
-        # agent-server image and generated contract to this SDK release.
+        # 在此存储库中打开 PR，将 TypeScript 客户端的固定智能体-服务器映像和生成的合约碰撞到此 SDK 版本。
+        #
         runs-on: ubuntu-24.04
         timeout-minutes: 60
         env:
@@ -678,7 +678,7 @@ jobs:
             - name: Checkout SDK release tooling
               uses: actions/checkout@v7.0.1
               with:
-                  # The default GITHUB_TOKEN cannot push the bump branch.
+                  # 默认值 GITHUB_TOKEN 无法推送凹凸分支。
                   token: ${{ secrets.OPENHANDS_BOT_GITHUB_PAT_PUBLIC }}
 
             - name: Install Node.js
@@ -820,17 +820,10 @@ jobs:
                   echo "TypeScript client bump: https://github.com/${{ github.repository }}/pulls?q=is%3Apr+bump-typescript-agent-server-$VERSION" >> "$GITHUB_STEP_SUMMARY"
 
     bump-cloud-chart:
-        # After an SDK release, bump the agent-server image tag pinned in the
-        # openhands-cloud charts (three locations) so the Check agent-server sync
-        # gate never trips on a stale pin. Shares the pypi-release dispatch chain
-        # and image-readiness wait used by bump-typescript-client.
+        # 在 SDK 个智能体版本发布后，更新 OpenHands 集群中的智能体服务器同步门控标签，以确保在旧标签上不会触发检查。 共享凹凸TypeScript-客户端使用的 pypi-release 调度链和图像就绪等待。
         #
-        # The sync gate compares this agent-server tag against the SDK version the
-        # chart's pinned enterprise-server release was built against (see
-        # OpenHands/OpenHands-Cloud scripts/check_agent_server_sync.py). This job
-        # is only correct because the same version-bump-prs.yml run also opens the
-        # enterprise SDK-pin bump PR (create-version-bump-prs), so the two pins
-        # move together and are merged together in the same release cycle.
+        # 的同步 gate compares this 智能体- 服务器标签针对 SDK 版本是基于图表的已 pinned [企业服务器] 发布构建的（请参阅） OpenHands/OpenHands云 scripts/check_agent_server_sync.py). 这个工作只有因为同样的原因是正确的 version-bump-prs.yml 运行也会打开企业 SDK-pin bump PR (create-version-bump-PR因此，这两个引脚一起移动，并在同一个发布周期中合并在一起。
+        #
         concurrency:
             group: bump-image-tag-OpenHands-OpenHands-Cloud-agent-server
             cancel-in-progress: false
@@ -867,11 +860,8 @@ jobs:
                   echo "❌ Timeout waiting for ${IMAGE}"
                   exit 1
 
-            # Auth choice: the sibling jobs open PRs in public repos with the
-            # PAT, but cloud chart bumps write to the private OpenHands-Cloud
-            # repo, so this job uses the shared release App (RELEASE_APP_ID /
-            # RELEASE_APP_PRIVATE_KEY) exactly like the enterprise and
-            # agent-canvas callers, with deliberately no PAT/GITHUB_TOKEN fallback.
+            # 授权选择：PR 个兄弟工作在公共仓库中以 PAT，但在云图中，写入到私有 OpenHands-云仓库，因此这个任务使用共享发布 App (RELEASE_APP_ID / RELEASE_APP_PRIVATE_KEY)，就像企业智能体-canvas 调用者一样，故意没有 PAT/GITHUB_TOKEN 回退方案。
+            #
             - name: Mint GitHub App token (scoped to OpenHands-Cloud)
               id: app-token
               uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3

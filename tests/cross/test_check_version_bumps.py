@@ -1,4 +1,4 @@
-"""Tests for the version bump guard script."""
+"""测试版本碰撞保护脚本。"""
 
 from __future__ import annotations
 

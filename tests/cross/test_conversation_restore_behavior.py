@@ -1,10 +1,10 @@
-"""Integration-like tests documenting LocalConversation restore semantics.
+"""类似集成的测试记录 LocalConversation 恢复语义。
 
-These tests aim to be a behavioral spec for conversation restore:
+这些测试旨在成为对话恢复的行为规范：
 
-- Normal lifecycle: start -> send/run -> send/run -> close -> restore -> send/run
-- Restore MUST fail if the agent toolset changes (tools are part of the system prompt)
-- Restore MUST succeed if other agent configuration changes (LLM, condenser, skills)
+- 正常生命周期：开始 -> 发送/运行 -> 发送/运行 -> 关闭 -> 恢复 -> 发送/运行
+- 如果智能体工具集发生更改，恢复必须将失败（工具是系统提示词的一部分）
+- 如果其他智能体配置更改（LLM、上下文压缩器、技能），则恢复必须成功
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class DifferentAgent(Agent):
 
 @dataclass
 class RestoreLifecycle:
-    """Reusable harness that exercises the persistence/restore lifecycle."""
+    """可重复使用的工具，用于执行持久性/恢复生命周期。"""
 
     workspace_dir: Path
     persistence_base_dir: Path
@@ -220,7 +220,7 @@ def _rewrite_openhands_llms_to_legacy_proxy(value: Any) -> None:
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_lifecycle_happy_path(mock_completion):
-    """Baseline: restore should load prior events and allow further execution."""
+    """Baseline: 恢复应该加载之前的事件并允许进一步执行。"""
 
     captured_completion_kwargs: list[dict[str, Any]] = []
 
@@ -252,8 +252,9 @@ def test_conversation_restore_lifecycle_happy_path(mock_completion):
 
         initial = lifecycle.run_initial_session(persisted_agent)
 
-        # Tool *ordering* is intentionally different from persisted_tools; restore
-        # should be order-insensitive as long as the toolset is identical.
+        # 工具 * 排序 * 故意与 persisted_tools 不同； 只要工具集相同，恢复就应该不区分顺
+        # 序。
+        #
         runtime_tools = [Tool(name="FileEditorTool"), Tool(name="TerminalTool")]
         runtime_agent = _agent(
             llm_model="gpt-4o-mini",
@@ -282,7 +283,7 @@ def test_conversation_restore_lifecycle_happy_path(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_preserves_security_risk_and_summary(mock_completion):
-    """Restore should preserve action metadata derived from tool call arguments."""
+    """恢复应保留从工具调用参数派生的操作元数据。"""
 
     tool_arguments = {
         "command": "printf 'hello from restore test\\n'",
@@ -386,7 +387,7 @@ def test_conversation_restore_preserves_security_risk_and_summary(mock_completio
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_fails_when_removing_tools(mock_completion):
-    """Restore must fail when runtime tools remove a persisted tool."""
+    """当运行时工具删除已持久化工具时，恢复必须失败。"""
 
     mock_completion.return_value = create_mock_litellm_response(
         content="I'll help you with that.", finish_reason="stop"
@@ -430,9 +431,9 @@ def test_conversation_restore_fails_when_removing_tools(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_succeeds_when_adding_tools(mock_completion):
-    """Restore must succeed when runtime tools add a new tool.
+    """当运行时工具添加新工具时，恢复必须成功。
 
-    Adding tools is allowed — only removing tools is rejected.
+    允许添加工具——只拒绝删除工具。
     """
 
     mock_completion.return_value = create_mock_litellm_response(
@@ -472,7 +473,7 @@ def test_conversation_restore_succeeds_when_adding_tools(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_fails_when_agent_class_changes(mock_completion):
-    """Restore must fail when persisted and runtime agent types differ."""
+    """当已持久化和运行时智能体类型不同时，恢复必须失败。"""
 
     mock_completion.return_value = create_mock_litellm_response(
         content="I'll help you with that.", finish_reason="stop"
@@ -515,7 +516,7 @@ def test_conversation_restore_fails_when_agent_class_changes(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_fails_when_default_tools_removed(mock_completion):
-    """Restore must fail if include_default_tools removes a built-in tool."""
+    """include_default_tools 移除内置工具时，恢复必须失败。"""
 
     mock_completion.return_value = create_mock_litellm_response(
         content="I'll help you with that.", finish_reason="stop"
@@ -561,9 +562,9 @@ def test_conversation_restore_fails_when_default_tools_removed(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_restore_succeeds_when_default_tools_added(mock_completion):
-    """Restore must succeed if include_default_tools adds a built-in tool.
+    """如果 include_default_tools 添加内置工具，则恢复必须成功。
 
-    Adding tools is allowed — only removing tools is rejected.
+    允许添加工具——只拒绝删除工具。
     """
 
     mock_completion.return_value = create_mock_litellm_response(
@@ -607,7 +608,7 @@ def test_conversation_restore_succeeds_when_default_tools_added(mock_completion)
 def test_conversation_restore_succeeds_when_llm_condenser_and_skills_change(
     mock_completion,
 ):
-    """Restore should succeed when ONLY non-breaking agent config changes."""
+    """当仅非破坏性智能体配置更改时，恢复应该成功。"""
 
     mock_completion.return_value = create_mock_litellm_response(
         content="Acknowledged.", finish_reason="stop"
@@ -777,7 +778,7 @@ def test_conversation_restore_rewrites_legacy_openhands_proxy_snapshot(
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_restore_reasoning_effort_none_strips_temperature(mock_completion):
-    """Reasoning models should accept reasoning_effort and ignore temperature/top_p."""
+    """推理模型应接受 reasoning_effort 并忽略温度/top_p。"""
 
     captured_completion_kwargs: list[dict[str, Any]] = []
 
@@ -839,17 +840,17 @@ def test_restore_reasoning_effort_none_strips_temperature(mock_completion):
 def test_restore_pre_event_tree_conversation_with_artifact_tail_keeps_history(
     mock_completion,
 ):
-    """Resuming a pre-event-tree conversation whose tail is a startup artifact
-    must keep the full history (#4057).
+    """恢复事件树前的对话，其尾部是启动工件
+    必须保留完整的历史记录（#4057）。
 
-    Older agent-servers (pre event-tree) wrote events without ``parent_id`` and
-    never persisted ``leaf_event_id``. We reproduce that shape from a *real* run:
-    strip ``parent_id`` off every event and drop the tree HEAD markers from
-    ``base_state``, then append the kind of non-tree artifact a newer server
-    writes onto the tail during an interrupted startup (a
-    ``ConversationStateUpdateEvent`` carrying a ``parent_id``). On resume the
-    agent must load the whole prior history and chain onto its real tail, rather
-    than stamping the next event a false ``__root__`` that orphans everything.
+    较旧的智能体服务器（事件树之前）编写的事件没有 ``parent_id``，也从不已持久化
+    ``leaf_event_id``。 我们从*真实*运行中重现该形状：从
+    每个事件中剥离``parent_id``并删除树HEAD标记
+    ``base_state``，然后将较新的服务器在中断启动期间写入尾部的非树工件类型附加到尾部
+    （a
+    ``ConversationStateUpdateEvent``携带``parent_id``）。 在恢复时，智能体必须加载整
+    个先前历史并链接到其真实尾部，而不是在
+    下一个事件上False ``__root__`` 或者是或phans掉一切。
     """
     mock_completion.return_value = create_mock_litellm_response(
         content="Acknowledged.", finish_reason="stop"
@@ -873,7 +874,7 @@ def test_restore_pre_event_tree_conversation_with_artifact_tail_keeps_history(
             skill_keyword="alpha",
         )
 
-        # 1) Produce a realistic event log by actually running a session.
+        # 1) 通过实际运行会话来生成真实的事件日志。
         lifecycle.run_initial_session(agent)
         assert lifecycle.conversation_id is not None
         events_dir = (
@@ -886,8 +887,9 @@ def test_restore_pre_event_tree_conversation_with_artifact_tail_keeps_history(
         assert len(event_files) >= 3
         original_ids = [json.loads(p.read_text())["id"] for p in event_files]
 
-        # 2) Downgrade to the pre-event-tree shape: strip parent_id off every
-        #    event and drop the tree HEAD markers older servers never wrote.
+        # 2) 降级到事件前树形状：从每个事件中剥离 parent_id 并删除旧服务器从未写入的树
+        # HEAD 标记。
+        #
         for p in event_files:
             data = json.loads(p.read_text())
             data.pop("parent_id", None)
@@ -897,23 +899,24 @@ def test_restore_pre_event_tree_conversation_with_artifact_tail_keeps_history(
         base_state.pop("head_is_empty", None)
         lifecycle.write_base_state(base_state)
 
-        # 3) Append the interrupted-startup artifact: a non-tree event a newer
-        #    server chained onto the legacy tail (it carries a parent_id).
+        # 3) 附加中断启动工件：一个非树事件，较新的服务器链接到旧尾部（它带有 parent_id
+        # ）。
+        #
         artifact = ConversationStateUpdateEvent(
             parent_id=original_ids[-1], key="execution_status", value="idle"
         )
         artifact_path = events_dir / f"event-{len(event_files):05d}-{artifact.id}.json"
         artifact_path.write_text(artifact.model_dump_json(exclude_none=True))
 
-        # 4) Resume under the current (tree-aware) code.
+        # 4) 在当前（树感知）代码下恢复。
         restored = lifecycle.restore(agent)
         try:
-            # The whole prior history is the active branch (nothing orphaned);
-            # the non-tree artifact is not on it.
+            # 整个先前的历史记录都是活动分支（没有孤立的分支）； 非树神器不在其上。
+            #
             active_ids = [e.id for e in restored.state.active_branch()]
             assert active_ids == original_ids
 
-            # Continuing chains onto the real legacy tail, not a false __root__.
+            # 继续链接到真正的遗留尾部，而不是 False __root__。
             restored.send_message("Third message")
             new_event = restored.state.events[-1]
             assert new_event.parent_id == original_ids[-1]
@@ -926,14 +929,14 @@ def test_restore_pre_event_tree_conversation_with_artifact_tail_keeps_history(
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_restore_event_tree_conversation_keeps_history(mock_completion):
-    """Control for the pre-event-tree case: a normal 1.33.0+ restore is unaffected.
+    """对前事件树情况的控制：正常的 1.33.0+ 恢复不受影响。
 
-    A conversation persisted by an event-tree server (events carry ``parent_id``,
-    ``base_state`` persists ``leaf_event_id``) is restored *without* any downgrade
-    and must keep its full history and chain onto the real tail. Because
-    ``leaf_event_id`` is set, ``_resolve_active_leaf`` returns it directly and the
-    legacy-resume path the #4057 fix touches is never entered — this guards that
-    normal restore stays intact.
+    事件树服务器的对话已持久化（事件携带 ``parent_id``，
+    ``base_state`` 持续 ``leaf_event_id``) 被恢复 *，而没有 * 任何降级，并且必须保留
+    其完整历史记录并链接到真实的尾部。 因为
+    ``leaf_event_id`` 设置为 ``_resolve_active_leaf`` 直接返回，并且遗留恢复路径 #
+    4057 的修复触及的路径从不进入——这
+    确保了正常恢复保持完整。
     """
     mock_completion.return_value = create_mock_litellm_response(
         content="Acknowledged.", finish_reason="stop"
@@ -969,21 +972,21 @@ def test_restore_event_tree_conversation_keeps_history(mock_completion):
         assert len(event_files) >= 3
         original_ids = [json.loads(p.read_text())["id"] for p in event_files]
 
-        # This IS the modern (event-tree) on-disk shape — leaf persisted and
-        # events carry parent_id (contrast the pre-event-tree test above). No
-        # downgrade, no injected artifact.
+        # 这是现代（事件树）磁盘形状 - 叶已持久化和事件携带 parent_id（对比上面的事件树
+        # 前测试）。 没有降级，没有注入工件。
+        #
         assert "leaf_event_id" in lifecycle.read_base_state()
         assert json.loads(event_files[0].read_text()).get("parent_id") is None
         assert json.loads(event_files[-1].read_text()).get("parent_id") is not None
 
         restored = lifecycle.restore(agent)
         try:
-            # HEAD is the persisted leaf; the whole history is the active branch.
+            # HEAD 是已持久化叶子； 整个历史是活跃的分支。
             assert restored.state.leaf_event_id == original_ids[-1]
             active_ids = [e.id for e in restored.state.active_branch()]
             assert active_ids == original_ids
 
-            # Continuing chains onto the real tail, exactly as before the fix.
+            # 继续将链条连接到真正的尾巴上，与修复之前完全相同。
             restored.send_message("Third message")
             new_event = restored.state.events[-1]
             assert new_event.parent_id == original_ids[-1]

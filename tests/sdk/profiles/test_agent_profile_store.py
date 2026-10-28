@@ -1,9 +1,9 @@
-"""Tests for ``AgentProfileStore`` — mirrors the ``LLMProfileStore`` suite.
+"""``AgentProfileStore`` 的测试 — 镜像 ``LLMProfileStore`` 套件。
 
-Adds the profile-specific contracts: both union variants round-trip, the
-``id`` is stable across rename, and ``list_summaries`` projects the FK fields.
-The profile is secret-free at rest (#4017) — every field is a reference or a
-plain value, so no cipher is involved anywhere in this store.
+添加特定于配置文件的合同：两个联合变体往返，
+``id`` 在重命名过程中保持稳定，``list_summaries`` 投影 FK 字段。 该配置文件在 REST (#
+4017) 处是机密-free — 每个字段都是
+引用或普通值，因此此存储中的任何位置都不涉及密码。
 """
 
 import concurrent.futures
@@ -43,7 +43,7 @@ def acp_profile() -> ACPAgentProfile:
     return ACPAgentProfile(name="acp", acp_server="codex", acp_model="gpt-5.5/medium")
 
 
-# ── Init ────────────────────────────────────────────────────────────────────
+# ── 初始化────────────────────────────────────────────────────────────────────
 
 
 def test_init_creates_directory(tmp_path: Path) -> None:
@@ -72,7 +72,7 @@ def test_init_with_existing_directory(tmp_path: Path) -> None:
     assert store.base_dir == profile_dir
 
 
-# ── List ────────────────────────────────────────────────────────────────────
+# ── 名单────────────────────────────────────────────────────────────────────
 
 
 def test_list_empty_store(agent_store: AgentProfileStore) -> None:
@@ -100,7 +100,7 @@ def test_list_excludes_non_json_files(
     assert agent_store.list() == ["oh.json"]
 
 
-# ── Save ────────────────────────────────────────────────────────────────────
+# ── 保存────────────────────────────────────────────────────────────────────
 
 
 def test_save_creates_file(
@@ -143,7 +143,7 @@ def test_load_migrates_untouched_v1_default_tools(
 def test_load_migrates_v1_default_embedded_skills(
     agent_store: AgentProfileStore,
 ) -> None:
-    """The legacy profile shape that Agent Canvas must be able to edit."""
+    """Agent Canvas 必须能够编辑的旧轮廓形状。"""
     (agent_store.base_dir / "default.json").write_text(
         json.dumps(
             {
@@ -188,8 +188,9 @@ def test_load_rejects_newer_schema_version(agent_store: AgentProfileStore) -> No
 @pytest.mark.parametrize(
     "name",
     [
-        # Empty names are rejected by the model (``name`` has min_length=1), so
-        # only names the model accepts but the store rejects are covered here.
+        # 模型会拒绝空名称（``name`` 具有 min_length=1），因此此处仅介绍模型接受的名称，
+        # 但存储拒绝的名称。
+        #
         ".",
         "..",
         "my/profile",
@@ -229,7 +230,7 @@ def test_save_overwrites_existing(
     assert loaded.llm_profile_ref == "other"
 
 
-# ── Round-trip (secret-free, no cipher) ─────────────────────────────────────
+# ── 往返（机密-自由，无密码）──────────────────────────────────────
 
 
 def test_roundtrip_openhands(
@@ -257,7 +258,7 @@ def test_roundtrip_acp(
     assert loaded.acp_model == "gpt-5.5/medium"
 
 
-# ── Load ────────────────────────────────────────────────────────────────────
+# ── 负载──────────────────────────────────────────────────────────────────
 
 
 def test_load_nonexistent_profile(agent_store: AgentProfileStore) -> None:
@@ -283,7 +284,7 @@ def test_load_corrupted_profile(agent_store: AgentProfileStore) -> None:
     assert "Failed to load profile" in str(exc_info.value)
 
 
-# ── Delete ──────────────────────────────────────────────────────────────────
+# ── 删除──────────────────────────────────────────────────────────────────
 
 
 def test_delete_existing_profile(
@@ -300,7 +301,7 @@ def test_delete_nonexistent_profile(agent_store: AgentProfileStore) -> None:
     agent_store.delete("nonexistent")
 
 
-# ── Rename ──────────────────────────────────────────────────────────────────
+# ── 重命名──────────────────────────────────────────────────────────────────
 
 
 def test_rename_moves_file(
@@ -390,7 +391,7 @@ def test_list_summaries_returns_fk_fields(
 
     acp = by_name["acp"]
     assert acp["agent_kind"] == "acp"
-    # ACP profiles have no llm_profile_ref.
+    # ACP 配置文件没有 llm_profile_ref。
     assert acp["llm_profile_ref"] is None
 
 
@@ -493,7 +494,7 @@ def test_save_cleans_up_tmp_on_replace_failure(
     assert list(agent_store.base_dir.glob("*.tmp")) == []
 
 
-# ── Concurrency ─────────────────────────────────────────────────────────────
+# ── 并发 ─────────────────────────────────────────────────────────────
 
 
 def test_concurrent_saves(tmp_path: Path) -> None:

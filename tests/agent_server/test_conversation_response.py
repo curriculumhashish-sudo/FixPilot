@@ -1,4 +1,4 @@
-"""Tests for the GET /conversations/{id}/agent_final_response endpoint."""
+"""测试 GET /conversations/{id}/agent_final_response 端点。"""
 
 import tempfile
 from pathlib import Path
@@ -45,7 +45,7 @@ def mock_event_service():
 def test_get_response_with_finish_action(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Endpoint returns FinishAction message text."""
+    """端点返回 FinishAction 消息文本。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.get_agent_final_response.return_value = (
         "Task completed successfully!"
@@ -74,7 +74,7 @@ def test_get_response_with_finish_action(
 def test_get_response_empty_when_no_agent_events(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Endpoint returns empty string when no agent response exists."""
+    """当不存在智能体响应时，端点返回空字符串。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.get_agent_final_response.return_value = ""
 
@@ -97,7 +97,7 @@ def test_get_response_empty_when_no_agent_events(
 def test_get_response_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Endpoint returns 404 when conversation does not exist."""
+    """端点当对话不存在时返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = (
@@ -114,7 +114,7 @@ def test_get_response_conversation_not_found(
 
 
 def test_event_service_get_agent_final_response_with_finish():
-    """EventService delegates to get_agent_final_response from SDK."""
+    """EventService 从 SDK 委托给 get_agent_final_response。"""
     event_service = EventService(stored=MagicMock(), conversations_dir=Path("test_dir"))
 
     finish_action = FinishAction(message="Done!")
@@ -142,7 +142,7 @@ def test_event_service_get_agent_final_response_with_finish():
 
 
 def test_event_service_get_agent_final_response_with_message():
-    """EventService returns MessageEvent text when no FinishAction."""
+    """当没有 FinishAction 时，EventService 返回 MessageEvent 文本。"""
     event_service = EventService(stored=MagicMock(), conversations_dir=Path("test_dir"))
 
     message_event = MessageEvent(
@@ -164,7 +164,7 @@ def test_event_service_get_agent_final_response_with_message():
 
 
 def test_event_service_get_agent_final_response_empty():
-    """EventService returns empty string with no agent events."""
+    """EventService 返回空字符串，没有智能体事件。"""
     event_service = EventService(stored=MagicMock(), conversations_dir=Path("test_dir"))
 
     conversation = MagicMock()
@@ -178,7 +178,7 @@ def test_event_service_get_agent_final_response_empty():
 
 
 def test_event_service_get_agent_final_response_inactive():
-    """EventService raises ValueError when service is inactive."""
+    """当服务处于非活动状态时，EventService 会引发 ValueError。"""
     event_service = EventService(stored=MagicMock(), conversations_dir=Path("test_dir"))
 
     with pytest.raises(ValueError, match="inactive_service"):
@@ -186,7 +186,7 @@ def test_event_service_get_agent_final_response_inactive():
 
 
 def test_event_service_get_agent_final_response_ignores_abandoned_branch():
-    """After navigating back before the answer, the abandoned answer is ignored."""
+    """返回到答案之前后，放弃的答案将被忽略。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         conversation = Conversation(
             agent=Agent(

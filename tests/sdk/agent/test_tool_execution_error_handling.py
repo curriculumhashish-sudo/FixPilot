@@ -1,4 +1,4 @@
-"""Test agent behavior when tool execution raises ValueError."""
+"""当工具执行引发 ValueError 时测试智能体行为。"""
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Self
@@ -27,26 +27,26 @@ if TYPE_CHECKING:
 
 
 class RaisingAction(Action):
-    """Action that will cause the executor to raise ValueError."""
+    """将导致执行者加注 ValueError 的操作。"""
 
     value: str = ""
 
 
 class RaisingObservation(Observation):
-    """Observation for the raising tool."""
+    """观测结果为提升工具。"""
 
     result: str = ""
 
 
 class RaisingExecutor(ToolExecutor[RaisingAction, RaisingObservation]):
-    """Executor that raises ValueError."""
+    """引发 ValueError 的执行者。"""
 
     def __call__(self, action: RaisingAction, conversation=None) -> RaisingObservation:
         raise ValueError("Cannot use reset=True with is_input=True")
 
 
 class RaisingTool(ToolDefinition[RaisingAction, RaisingObservation]):
-    """Tool that raises ValueError during execution."""
+    """在执行期间引发 ValueError 的工具。"""
 
     name = "raising_tool"
 
@@ -62,12 +62,12 @@ class RaisingTool(ToolDefinition[RaisingAction, RaisingObservation]):
         ]
 
 
-# Register the tool so it can be resolved by name
+# 注册该工具，以便可以通过名称解析
 register_tool("RaisingTool", RaisingTool)
 
 
 def test_tool_execution_valueerror_returns_error_event():
-    """Test that ValueError from tool execution returns AgentErrorEvent."""
+    """测试工具执行中的 ValueError 是否返回 AgentErrorEvent。"""
 
     llm = LLM(
         usage_id="test-llm",
@@ -122,10 +122,10 @@ def test_tool_execution_valueerror_returns_error_event():
             )
         )
 
-        # Run one step to trigger the tool call
+        # 运行一步即可触发工具调用
         agent.step(conversation, on_event=event_callback)
 
-    # Verify that an AgentErrorEvent was generated
+    # 验证是否生成了 AgentErrorEvent
     error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
     assert len(error_events) == 1, (
         f"Expected 1 AgentErrorEvent, got {len(error_events)}"
@@ -137,7 +137,7 @@ def test_tool_execution_valueerror_returns_error_event():
     assert error_event.tool_name == "raising_tool"
     assert error_event.tool_call_id == "call_1"
 
-    # Verify that the conversation is NOT finished
+    # 验证对话是否已完成不
     with conversation.state:
         assert (
             conversation.state.execution_status != ConversationExecutionStatus.FINISHED
@@ -145,7 +145,7 @@ def test_tool_execution_valueerror_returns_error_event():
 
 
 def test_conversation_continues_after_tool_execution_error():
-    """Test that conversation can continue after a tool execution error."""
+    """测试工具执行错误后对话是否可以继续。"""
 
     llm = LLM(
         usage_id="test-llm",
@@ -162,7 +162,7 @@ def test_conversation_continues_after_tool_execution_error():
         call_count += 1
 
         if call_count == 1:
-            # First call: try the raising tool
+            # 第一次调用：尝试提升工具
             return ModelResponse(
                 id="mock-response-1",
                 choices=[
@@ -190,7 +190,7 @@ def test_conversation_continues_after_tool_execution_error():
                 object="chat.completion",
             )
         else:
-            # Second call: respond with finish tool
+            # 第二次调用：使用完成工具响应
             return ModelResponse(
                 id="mock-response-2",
                 choices=[
@@ -238,24 +238,24 @@ def test_conversation_continues_after_tool_execution_error():
             )
         )
 
-        # Run first step - should generate error
+        # 运行第一步 - 应该生成错误
         agent.step(conversation, on_event=event_callback)
 
-        # Verify we got an error event
+        # 验证我们收到错误事件
         error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
         assert len(error_events) == 1
 
-        # Verify conversation is not finished
+        # 验证对话尚未结束
         with conversation.state:
             assert (
                 conversation.state.execution_status
                 != ConversationExecutionStatus.FINISHED
             )
 
-        # Run second step - should call finish tool
+        # 运行第二步 - 应该调用完成工具
         agent.step(conversation, on_event=event_callback)
 
-        # Verify we got an action event for the finish tool
+        # 验证我们获得了完成工具的操作事件
         action_events = [
             e
             for e in collected_events
@@ -265,12 +265,12 @@ def test_conversation_continues_after_tool_execution_error():
         ]
         assert len(action_events) == 1
 
-        # Now the conversation should be finished
+        # 现在谈话应该结束了
         with conversation.state:
             assert (
                 conversation.state.execution_status
                 == ConversationExecutionStatus.FINISHED
             )
 
-    # Verify we made two LLM calls
+    # 验证我们进行了两次 LLM 调用
     assert call_count == 2

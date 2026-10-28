@@ -1,4 +1,4 @@
-"""Test ApptainerWorkspace import and GPU passthrough behavior."""
+"""测试 ApptainerWorkspace 导入和 GPU 直通行为。"""
 
 from unittest.mock import Mock, patch
 
@@ -7,7 +7,7 @@ import pytest
 
 @pytest.fixture
 def mock_apptainer_workspace(tmp_path):
-    """Fixture to create a mocked ApptainerWorkspace with minimal setup."""
+    """测试夹具以最少的设置创建模拟的 ApptainerWorkspace。"""
     from openhands.workspace import ApptainerWorkspace
 
     sif_path = tmp_path / "test.sif"
@@ -43,7 +43,7 @@ def mock_apptainer_workspace(tmp_path):
 
 
 def test_apptainer_workspace_import():
-    """Test that ApptainerWorkspace can be imported from the package."""
+    """测试是否可以从包中导入 ApptainerWorkspace。"""
     from openhands.workspace import ApptainerWorkspace
 
     assert ApptainerWorkspace is not None
@@ -51,7 +51,7 @@ def test_apptainer_workspace_import():
 
 
 def test_apptainer_workspace_inheritance():
-    """Test that ApptainerWorkspace inherits from RemoteWorkspace."""
+    """测试 ApptainerWorkspace 是否继承自 RemoteWorkspace。"""
     from openhands.sdk.workspace import RemoteWorkspace
     from openhands.workspace import ApptainerWorkspace
 
@@ -59,7 +59,7 @@ def test_apptainer_workspace_inheritance():
 
 
 def test_apptainer_workspace_has_gpu_field():
-    """Test that ApptainerWorkspace exposes the GPU passthrough option."""
+    """测试 ApptainerWorkspace 是否公开 GPU 直通选项。"""
     from openhands.workspace import ApptainerWorkspace
 
     assert "enable_gpu" in ApptainerWorkspace.model_fields
@@ -69,7 +69,7 @@ def test_apptainer_workspace_has_gpu_field():
 def test_apptainer_workspace_gpu_passthrough_flag(
     mock_apptainer_workspace, enable_gpu: bool
 ):
-    """Test that GPU passthrough toggles the Apptainer --nv flag."""
+    """测试 GPU 直通是否切换 Apptainer --nv 标志。"""
     workspace, _ = mock_apptainer_workspace(enable_gpu=enable_gpu)
 
     fake_process = Mock(stdout=None)
@@ -90,7 +90,7 @@ def test_apptainer_workspace_gpu_passthrough_flag(
 
 
 def test_apptainer_workspace_extra_bind_mounts(mock_apptainer_workspace, monkeypatch):
-    """Test that explicit and environment-provided bind mounts reach Apptainer."""
+    """测试显式和环境提供的绑定安装是否达到 Apptainer。"""
     monkeypatch.setenv("OPENHANDS_APPTAINER_EXTRA_BINDS", "/env/src:/env/dst:ro")
     workspace, _ = mock_apptainer_workspace(
         extra_bind_mounts=["/host/tokenizer:/host/tokenizer:ro"]

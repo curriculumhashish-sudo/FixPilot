@@ -76,9 +76,9 @@ from tests.agent_server.stress.scripts import (
 )
 
 
-# Agent for a new conversation. meta.json (StoredConversation) no longer carries
-# the agent — base_state.json is its single source of truth — so tests pass it to
-# EventService separately.
+# 智能体进行新对话。 meta.json (StoredConversation) 不再带有智能体 - base_state.json 是
+# 其唯一的事实来源 - 因此测试将其单独传递给 EventService。
+#
 def _sample_agent() -> Agent:
     return Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[])
 
@@ -90,7 +90,7 @@ def sample_agent():
 
 @pytest.fixture
 def sample_stored_conversation():
-    """Create a sample StoredConversation for testing."""
+    """创建样本 StoredConversation 进行测试。"""
     return StoredConversation(
         id=uuid4(),
         workspace=LocalWorkspace(working_dir="workspace/project"),
@@ -104,7 +104,7 @@ def sample_stored_conversation():
 
 @pytest.fixture
 def event_service(sample_stored_conversation, sample_agent):
-    """Create an EventService instance for testing."""
+    """创建一个 EventService 实例用于测试。"""
     service = EventService(
         stored=sample_stored_conversation,
         agent=sample_agent,
@@ -115,11 +115,11 @@ def event_service(sample_stored_conversation, sample_agent):
 
 @pytest.fixture
 def mock_conversation_with_events():
-    """Create a mock conversation with sample events."""
+    """使用示例事件创建模拟对象对话。"""
     conversation = MagicMock(spec=Conversation)
     state = MagicMock(spec=ConversationState)
 
-    # Create sample events with different timestamps and kinds
+    # 创建具有不同时间戳和类型的示例事件
     events = [
         MessageEvent(
             id=f"event{index}", source="user", llm_message=Message(role="user")
@@ -137,12 +137,12 @@ def mock_conversation_with_events():
 
 @pytest.fixture
 def mock_conversation_with_timestamped_events():
-    """Create a mock conversation with events having specific timestamps for testing."""
+    """创建一个包含具有特定时间戳的事件的模拟对象对话以进行测试。"""
     conversation = MagicMock(spec=Conversation)
     state = MagicMock(spec=ConversationState)
 
-    # Create events with specific ISO format timestamps
-    # These timestamps are in chronological order
+    # 创建具有特定 ISO 格式时间戳的事件这些时间戳按时间顺序排列
+    #
     timestamps = [
         "2025-01-01T10:00:00.000000",
         "2025-01-01T11:00:00.000000",
@@ -214,11 +214,11 @@ def _attach_event_log(event_service, event_log: EventLog) -> None:
 
 
 class TestEventServiceSearchEvents:
-    """Test cases for EventService.search_events method."""
+    """测试用例代表 EventService.search_events 方法。"""
 
     @pytest.mark.asyncio
     async def test_search_events_inactive_service(self, event_service):
-        """Test that search_events raises ValueError when conversation is not active."""
+        """测试当对话不活跃时 search_events 是否会引发 ValueError。"""
         event_service._conversation = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -226,8 +226,8 @@ class TestEventServiceSearchEvents:
 
     @pytest.mark.asyncio
     async def test_search_events_empty_result(self, event_service):
-        """Test search_events with no events."""
-        # Mock conversation with empty events
+        """search_events 无事件地进行测试。"""
+        # 模拟对象与空事件的对话
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.events = []
@@ -247,28 +247,28 @@ class TestEventServiceSearchEvents:
     async def test_search_events_basic(
         self, event_service, mock_conversation_with_events
     ):
-        """Test basic search_events functionality."""
+        """测试基本 search_events 功能。"""
         event_service._conversation = mock_conversation_with_events
 
         result = await event_service.search_events()
 
         assert len(result.items) == 5
         assert result.next_page_id is None
-        # Default sort is TIMESTAMP (ascending), so first event should be earliest
+        # 默认排序为 TIMESTAMP（升序），因此第一个事件应该是最早的
         assert result.items[0].timestamp < result.items[-1].timestamp
 
     @pytest.mark.asyncio
     async def test_search_events_kind_filter(
         self, event_service, mock_conversation_with_events
     ):
-        """Test filtering events by kind."""
+        """测试按类型过滤事件。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Test filtering by ActionEvent
+        # 按 ActionEvent 测试过滤
         result = await event_service.search_events(kind="ActionEvent")
         assert len(result.items) == 0
 
-        # Test filtering by MessageEvent
+        # 按 MessageEvent 测试过滤
         result = await event_service.search_events(
             kind="openhands.sdk.event.llm_convertible.message.MessageEvent"
         )
@@ -276,7 +276,7 @@ class TestEventServiceSearchEvents:
         for event in result.items:
             assert event.__class__.__name__ == "MessageEvent"
 
-        # Test filtering by non-existent kind
+        # 按不存在的种类测试过滤
         result = await event_service.search_events(kind="NonExistentEvent")
         assert len(result.items) == 0
 
@@ -284,7 +284,7 @@ class TestEventServiceSearchEvents:
     async def test_search_events_short_kind_matches_qualified_kind(
         self, event_service, mock_conversation_with_events
     ):
-        """The bare class name (the wire ``kind``) filters like the full path."""
+        """裸类名（连线 ``kind``）像完整路径一样进行过滤。"""
         event_service._conversation = mock_conversation_with_events
 
         qualified = await event_service.search_events(
@@ -295,13 +295,13 @@ class TestEventServiceSearchEvents:
         assert [e.id for e in short.items] == [e.id for e in qualified.items]
         assert short.next_page_id == qualified.next_page_id
 
-        # Combined with another filter, both apply.
+        # 与另一个过滤器结合使用，两者都适用。
         result = await event_service.search_events(kind="MessageEvent", source="user")
         assert len(result.items) == 5
         result = await event_service.search_events(kind="MessageEvent", source="agent")
         assert len(result.items) == 0
 
-        # A partial module path is neither the short nor the full name.
+        # 部分模块路径既不是短名称也不是全名称。
         result = await event_service.search_events(kind="message.MessageEvent")
         assert len(result.items) == 0
 
@@ -309,16 +309,16 @@ class TestEventServiceSearchEvents:
     async def test_search_events_sorting(
         self, event_service, mock_conversation_with_events
     ):
-        """Test sorting events by timestamp."""
+        """测试按时间戳对事件进行排序。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Test TIMESTAMP (ascending) - default
+        # 测试 TIMESTAMP（升序）- 默认
         result = await event_service.search_events(sort_order=EventSortOrder.TIMESTAMP)
         assert len(result.items) == 5
         for i in range(len(result.items) - 1):
             assert result.items[i].timestamp <= result.items[i + 1].timestamp
 
-        # Test TIMESTAMP_DESC (descending)
+        # 测试 TIMESTAMP_DESC（降序）
         result = await event_service.search_events(
             sort_order=EventSortOrder.TIMESTAMP_DESC
         )
@@ -330,32 +330,32 @@ class TestEventServiceSearchEvents:
     async def test_search_events_pagination(
         self, event_service, mock_conversation_with_events
     ):
-        """Test pagination functionality."""
+        """测试分页功能。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Test first page with limit 2
+        # 测试首页限制为 2
         result = await event_service.search_events(limit=2)
         assert len(result.items) == 2
         assert result.next_page_id is not None
 
-        # Test second page using next_page_id
+        # 使用 next_page_id 测试第二页
         result = await event_service.search_events(page_id=result.next_page_id, limit=2)
         assert len(result.items) == 2
         assert result.next_page_id is not None
 
-        # Test third page
+        # 测试第三页
         result = await event_service.search_events(page_id=result.next_page_id, limit=2)
-        assert len(result.items) == 1  # Only one item left
+        assert len(result.items) == 1  # 仅剩一件商品
         assert result.next_page_id is None
 
     @pytest.mark.asyncio
     async def test_search_events_combined_filter_and_sort(
         self, event_service, mock_conversation_with_events
     ):
-        """Test combining kind filtering with sorting."""
+        """测试将种类过滤与排序相结合。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Filter by ActionEvent and sort by TIMESTAMP_DESC
+        # 按 ActionEvent 过滤并按 TIMESTAMP_DESC 排序
         result = await event_service.search_events(
             kind="openhands.sdk.event.llm_convertible.message.MessageEvent",
             sort_order=EventSortOrder.TIMESTAMP_DESC,
@@ -364,17 +364,17 @@ class TestEventServiceSearchEvents:
         assert len(result.items) == 5
         for event in result.items:
             assert event.__class__.__name__ == "MessageEvent"
-        # Should be sorted by timestamp descending (newest first)
+        # 应按时间戳降序排序（最新的在前）
         assert result.items[0].timestamp > result.items[1].timestamp
 
     @pytest.mark.asyncio
     async def test_search_events_pagination_with_filter(
         self, event_service, mock_conversation_with_events
     ):
-        """Test pagination with filtering."""
+        """使用过滤测试分页。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Filter by MessageEvent with limit 1
+        # 按 MessageEvent 过滤，限制为 1
         result = await event_service.search_events(
             kind="openhands.sdk.event.llm_convertible.message.MessageEvent", limit=1
         )
@@ -382,7 +382,7 @@ class TestEventServiceSearchEvents:
         assert result.items[0].__class__.__name__ == "MessageEvent"
         assert result.next_page_id is not None
 
-        # Get second page
+        # 获取第二页
         result = await event_service.search_events(
             kind="openhands.sdk.event.llm_convertible.message.MessageEvent",
             page_id=result.next_page_id,
@@ -390,20 +390,20 @@ class TestEventServiceSearchEvents:
         )
         assert len(result.items) == 4
         assert result.items[0].__class__.__name__ == "MessageEvent"
-        assert result.next_page_id is None  # No more MessageEvents
+        assert result.next_page_id is None  # 没有了 MessageEvents
 
     @pytest.mark.asyncio
     async def test_search_events_invalid_page_id(
         self, event_service, mock_conversation_with_events
     ):
-        """Test search_events with invalid page_id."""
+        """使用无效的 page_id 测试 search_events。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Use a non-existent page_id
+        # 使用不存在的 page_id
         invalid_page_id = "invalid_event_id"
         result = await event_service.search_events(page_id=invalid_page_id)
 
-        # Should return all items since page_id doesn't match any event
+        # 应该返回所有项目，因为 page_id 与任何事件都不匹配
         assert len(result.items) == 5
         assert result.next_page_id is None
 
@@ -411,12 +411,12 @@ class TestEventServiceSearchEvents:
     async def test_search_events_large_limit(
         self, event_service, mock_conversation_with_events
     ):
-        """Test search_events with limit larger than available events."""
+        """使用大于可用事件的限制来测试 search_events。"""
         event_service._conversation = mock_conversation_with_events
 
         result = await event_service.search_events(limit=100)
 
-        assert len(result.items) == 5  # All available events
+        assert len(result.items) == 5  # 所有可用事件
         assert result.next_page_id is None
 
     @pytest.mark.parametrize("unreadable_payload", ["", "{not-json", "{}"])
@@ -466,32 +466,33 @@ class TestEventServiceSearchEvents:
     async def test_search_events_zero_limit(
         self, event_service, mock_conversation_with_events
     ):
-        """Test search_events with zero limit."""
+        """用零极限测试 search_events。"""
         event_service._conversation = mock_conversation_with_events
 
         result = await event_service.search_events(limit=0)
 
         assert len(result.items) == 0
-        # Should still have next_page_id if there are events available
+        # 如果有活动可用，仍应有 next_page_id
         assert result.next_page_id is not None
 
     @pytest.mark.asyncio
     async def test_search_events_does_not_scan_whole_log(self, event_service):
-        """Loading the most recent N events must be O(limit), not O(total).
+        """加载最近的 N 个事件必须是 O(limit)，而不是 O(total)。
 
-        Regression test for a previous implementation that read every event
+        回归测试读取每个事件的先前实现
         from the EventLog before returning a single page, making long
-        conversations effectively unusable.
+        对话实际上无法使用。
         """
 
         class _CountingEvents:
-            """Sequence wrapper that counts ``__getitem__`` accesses."""
+            """对 ``__getitem__`` 次访问进行计数的序列包装器。"""
 
             def __init__(self, items: list[Event]):
                 self._items = items
                 self.getitem_calls = 0
-                # ``get_index`` is what EventLog exposes; mirroring it lets us
-                # verify the O(1) page_id lookup path is exercised.
+                # ``get_index`` 是 EventLog 暴露的内容； 镜像它可以让我们验证 O(1)
+                # page_id 查找路径是否已执行。
+                #
                 self._id_to_idx = {e.id: i for i, e in enumerate(items)}
 
             def __len__(self) -> int:
@@ -529,7 +530,7 @@ class TestEventServiceSearchEvents:
         conversation._state = state
         event_service._conversation = conversation
 
-        # First page: 50 most recent events out of 1000.
+        # 第一页：1000 个最新事件中的 50 个。
         result = await event_service.search_events(
             limit=50, sort_order=EventSortOrder.TIMESTAMP_DESC
         )
@@ -537,12 +538,12 @@ class TestEventServiceSearchEvents:
         assert result.items[0].id == events[-1].id
         assert result.items[-1].id == events[-50].id
         assert result.next_page_id == events[-51].id
-        # Must read at most limit + 1 events (one extra for next_page_id).
+        # 最多必须读取 limit + 1 个事件（next_page_id 需要额外读取一个事件）。
         assert wrapper.getitem_calls <= 51, (
             f"Expected <=51 getitem calls, got {wrapper.getitem_calls}"
         )
 
-        # Second page via page_id: also O(limit) and uses get_index (no scan).
+        # 第二页通过 page_id：也是 O(limit) 并使用 get_index（无扫描）。
         wrapper.getitem_calls = 0
         next_page = await event_service.search_events(
             page_id=result.next_page_id,
@@ -555,8 +556,8 @@ class TestEventServiceSearchEvents:
 
     @pytest.mark.asyncio
     async def test_search_events_exact_pagination_boundary(self, event_service):
-        """Test pagination when the number of events exactly matches the limit."""
-        # Create exactly 3 events
+        """当事件数量完全符合限制时测试分页。"""
+        # 正好创建 3 个事件
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
 
@@ -574,20 +575,20 @@ class TestEventServiceSearchEvents:
 
         event_service._conversation = conversation
 
-        # Request exactly 3 events (same as available)
+        # 请求恰好 3 个事件（与可用事件相同）
         result = await event_service.search_events(limit=3)
 
         assert len(result.items) == 3
-        assert result.next_page_id is None  # No more events available
+        assert result.next_page_id is None  # 没有更多活动
 
     @pytest.mark.asyncio
     async def test_search_events_timestamp_gte_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with timestamp__gte (greater than or equal)."""
+        """使用 timestamp__gte（大于或等于）测试过滤事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events >= 12:00:00 (should return events 3, 4, 5)
+        # 过滤事件 >= 12:00:00（应返回事件 3、4、5）
         filter_time = datetime(2025, 1, 1, 12, 0, 0)
         result = await event_service.search_events(timestamp__gte=filter_time)
 
@@ -595,7 +596,7 @@ class TestEventServiceSearchEvents:
         assert result.items[0].id == "event3"
         assert result.items[1].id == "event4"
         assert result.items[2].id == "event5"
-        # All returned events should have timestamp >= filter value
+        # 所有返回的事件应具有时间戳 >= 过滤器值
         filter_iso = filter_time.isoformat()
         for event in result.items:
             assert event.timestamp >= filter_iso
@@ -604,10 +605,10 @@ class TestEventServiceSearchEvents:
     async def test_search_events_timestamp_lt_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with timestamp__lt (less than)."""
+        """使用 timestamp__lt（小于）测试过滤事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events < 13:00:00 (should return events 1, 2, 3)
+        # 过滤 < 13:00:00 的事件（应返回事件 1、2、3）
         filter_time = datetime(2025, 1, 1, 13, 0, 0)
         result = await event_service.search_events(timestamp__lt=filter_time)
 
@@ -615,7 +616,7 @@ class TestEventServiceSearchEvents:
         assert result.items[0].id == "event1"
         assert result.items[1].id == "event2"
         assert result.items[2].id == "event3"
-        # All returned events should have timestamp < filter value
+        # 所有返回的事件应具有时间戳 < 过滤器值
         filter_iso = filter_time.isoformat()
         for event in result.items:
             assert event.timestamp < filter_iso
@@ -624,10 +625,10 @@ class TestEventServiceSearchEvents:
     async def test_search_events_timestamp_range_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with both timestamp__gte and timestamp__lt."""
+        """使用 timestamp__gte 和 timestamp__lt 测试过滤事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events between 11:00:00 and 13:00:00 (should return events 2, 3)
+        # 过滤 11:00:00 和 13:00:00 之间的事件（应返回事件 2、3）
         gte_time = datetime(2025, 1, 1, 11, 0, 0)
         lt_time = datetime(2025, 1, 1, 13, 0, 0)
         result = await event_service.search_events(
@@ -637,7 +638,7 @@ class TestEventServiceSearchEvents:
         assert len(result.items) == 2
         assert result.items[0].id == "event2"
         assert result.items[1].id == "event3"
-        # All returned events should be within the range
+        # 所有返回的事件都应该在范围内
         gte_iso = gte_time.isoformat()
         lt_iso = lt_time.isoformat()
         for event in result.items:
@@ -648,17 +649,18 @@ class TestEventServiceSearchEvents:
     async def test_search_events_timestamp_filter_with_timezone_aware(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with timezone-aware datetime requires normalization.
+        """使用时区感知的日期时间测试过滤事件需要标准化。
 
-        Event timestamps are naive (server local time), so callers must normalize
-        timezone-aware datetimes to naive before filtering. This is done by the
-        REST/WebSocket API layer via normalize_datetime_to_server_timezone().
+        事件时间戳是幼稚的（服务器本地时间），因此调用者必须在过滤之前将时区感知的日
+        期时间标准化为幼稚。 这是由 REST/WebSocket API 层通过
+        normalize_datetime_to_server_timezone() 完成的。
         """
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events >= 12:00:00 (naive, as if normalized by API layer)
-        # The API layer would convert a tz-aware datetime to naive server time
-        filter_time = datetime(2025, 1, 1, 12, 0, 0)  # naive datetime
+        # 过滤事件 >= 12:00:00（天真，就好像由 API 层标准化） API 层会将 tz 感知的日期时
+        # 间转换为天真的服务器时间
+        #
+        filter_time = datetime(2025, 1, 1, 12, 0, 0)  # 天真的日期时间
         result = await event_service.search_events(timestamp__gte=filter_time)
 
         assert len(result.items) == 3
@@ -670,10 +672,10 @@ class TestEventServiceSearchEvents:
     async def test_search_events_timestamp_filter_no_matches(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with timestamps that don't match any events."""
+        """测试过滤时间戳与任何事件都不匹配的事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events >= 15:00:00 (should return no events)
+        # 过滤事件 >= 15:00:00（不应返回任何事件）
         filter_time = datetime(2025, 1, 1, 15, 0, 0)
         result = await event_service.search_events(timestamp__gte=filter_time)
 
@@ -684,10 +686,10 @@ class TestEventServiceSearchEvents:
     async def test_search_events_timestamp_filter_all_events(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test filtering events with timestamps that include all events."""
+        """使用包含所有事件的时间戳测试过滤事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Filter events >= 09:00:00 (should return all events)
+        # 过滤事件 >= 09:00:00（应返回所有事件）
         filter_time = datetime(2025, 1, 1, 9, 0, 0)
         result = await event_service.search_events(timestamp__gte=filter_time)
 
@@ -697,11 +699,11 @@ class TestEventServiceSearchEvents:
 
 
 class TestEventServiceCountEvents:
-    """Test cases for EventService.count_events method."""
+    """测试用例代表 EventService.count_events 方法。"""
 
     @pytest.mark.asyncio
     async def test_count_events_inactive_service(self, event_service):
-        """Test that count_events raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 count_events 是否会引发 ValueError。"""
         event_service._conversation = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -709,7 +711,7 @@ class TestEventServiceCountEvents:
 
     @pytest.mark.asyncio
     async def test_count_events_empty_result(self, event_service):
-        """Test count_events with no events."""
+        """count_events 无事件地进行测试。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.events = []
@@ -726,36 +728,36 @@ class TestEventServiceCountEvents:
     async def test_count_events_basic(
         self, event_service, mock_conversation_with_events
     ):
-        """Test basic count_events functionality."""
+        """测试基本 count_events 功能。"""
         event_service._conversation = mock_conversation_with_events
 
         result = await event_service.count_events()
-        assert result == 5  # Total events in mock_conversation_with_events
+        assert result == 5  # mock_conversation_with_events 中的事件总数
 
     @pytest.mark.asyncio
     async def test_count_events_kind_filter(
         self, event_service, mock_conversation_with_events
     ):
-        """Test counting events with kind filter."""
+        """测试使用 kind 过滤器对事件进行计数。"""
         event_service._conversation = mock_conversation_with_events
 
-        # Count all events
+        # 统计所有事件
         result = await event_service.count_events()
         assert result == 5
 
-        # Count ActionEvent events (should be 5)
+        # 计数 ActionEvent 个事件（应为 5）
         result = await event_service.count_events(
             kind="openhands.sdk.event.llm_convertible.message.MessageEvent"
         )
         assert result == 5
 
-        # The bare class name (the wire ``kind``) counts the same events
+        # 裸类名称（连线 ``kind``）对相同事件进行计数
         result = await event_service.count_events(kind="MessageEvent")
         assert result == 5
         result = await event_service.count_events(kind="MessageEvent", source="agent")
         assert result == 0
 
-        # Count non-existent event type (should be 0)
+        # 计数不存在的事件类型（应为 0）
         result = await event_service.count_events(kind="NonExistentEvent")
         assert result == 0
 
@@ -774,10 +776,10 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_gte_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with timestamp__gte filter."""
+        """使用 timestamp__gte 过滤器测试计数事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events >= 12:00:00 (should return 3)
+        # 计数事件 >= 12:00:00（应返回 3）
         filter_time = datetime(2025, 1, 1, 12, 0, 0)
         result = await event_service.count_events(timestamp__gte=filter_time)
         assert result == 3
@@ -786,10 +788,10 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_lt_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with timestamp__lt filter."""
+        """使用 timestamp__lt 过滤器测试计数事件。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events < 13:00:00 (should return 3)
+        # 对 < 13:00:00 的事件进行计数（应返回 3）
         filter_time = datetime(2025, 1, 1, 13, 0, 0)
         result = await event_service.count_events(timestamp__lt=filter_time)
         assert result == 3
@@ -798,10 +800,10 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_range_filter(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with both timestamp filters."""
+        """测试使用两个时间戳过滤器对事件进行计数。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events between 11:00:00 and 13:00:00 (should return 2)
+        # 统计 11:00:00 到 13:00:00 之间的事件（应返回 2）
         gte_time = datetime(2025, 1, 1, 11, 0, 0)
         lt_time = datetime(2025, 1, 1, 13, 0, 0)
         result = await event_service.count_events(
@@ -813,16 +815,16 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_filter_with_timezone_aware(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with timezone-aware datetime requires normalization.
+        """使用时区感知日期时间测试计数事件需要标准化。
 
-        Event timestamps are naive (server local time), so callers must normalize
-        timezone-aware datetimes to naive before filtering. This is done by the
-        REST/WebSocket API layer via normalize_datetime_to_server_timezone().
+        事件时间戳是幼稚的（服务器本地时间），因此调用者必须在过滤之前将时区感知的日
+        期时间标准化为幼稚。 这是由 REST/WebSocket API 层通过
+        normalize_datetime_to_server_timezone() 完成的。
         """
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events >= 12:00:00 (naive, as if normalized by API layer)
-        filter_time = datetime(2025, 1, 1, 12, 0, 0)  # naive datetime
+        # 计数事件 >= 12:00:00（天真，就好像通过 API 层标准化）
+        filter_time = datetime(2025, 1, 1, 12, 0, 0)  # 天真的日期时间
         result = await event_service.count_events(timestamp__gte=filter_time)
         assert result == 3
 
@@ -830,10 +832,10 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_filter_no_matches(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with timestamps that don't match any events."""
+        """测试时间戳与任何事件都不匹配的事件计数。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events >= 15:00:00 (should return 0)
+        # 计数事件 >= 15:00:00（应返回 0）
         filter_time = datetime(2025, 1, 1, 15, 0, 0)
         result = await event_service.count_events(timestamp__gte=filter_time)
         assert result == 0
@@ -842,25 +844,25 @@ class TestEventServiceCountEvents:
     async def test_count_events_timestamp_filter_all_events(
         self, event_service, mock_conversation_with_timestamped_events
     ):
-        """Test counting events with timestamps that include all events."""
+        """测试使用包含所有事件的时间戳对事件进行计数。"""
         event_service._conversation = mock_conversation_with_timestamped_events
 
-        # Count events >= 09:00:00 (should return 5)
+        # 计数事件 >= 09:00:00（应返回 5）
         filter_time = datetime(2025, 1, 1, 9, 0, 0)
         result = await event_service.count_events(timestamp__gte=filter_time)
         assert result == 5
 
 
 class TestEventServiceSendMessage:
-    """Test cases for EventService.send_message method."""
+    """测试用例代表 EventService.send_message 方法。"""
 
     async def _mock_executor(self, *args):
-        """Helper to create a mock coroutine for run_in_executor."""
+        """帮助程序为 run_in_executor 创建模拟对象协程。"""
         return None
 
     @pytest.mark.asyncio
     async def test_send_message_inactive_service(self, event_service):
-        """Test that send_message raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 send_message 是否会引发 ValueError。"""
         event_service._conversation = None
         message = Message(role="user", content=[])
 
@@ -869,8 +871,8 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_false_default(self, event_service):
-        """Test send_message with default run=True."""
-        # Mock conversation and its methods
+        """使用默认 run=True 测试 send_message。"""
+        # 模拟对象对话及其方法
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -884,20 +886,20 @@ class TestEventServiceSendMessage:
         event_service._conversation = conversation
         message = Message(role="user", content=[])
 
-        # Mock the event loop and executor
+        # 模拟对象事件循环和执行者
         with patch("asyncio.get_running_loop") as mock_get_loop:
             mock_loop = MagicMock()
             mock_get_loop.return_value = mock_loop
             mock_loop.run_in_executor.side_effect = lambda *args: self._mock_executor()
 
-            # Call send_message with default run=True
+            # 使用默认 run=True 调用 send_message
             await event_service.send_message(message)
 
-            # Verify send_message was called via executor
+            # 验证 send_message 是通过执行器调用的
             mock_loop.run_in_executor.assert_any_call(
                 None, conversation.send_message, message
             )
-            # Verify run was called via executor since run=True and agent is not running
+            # 验证 run 是通过执行程序调用的，因为 run=True 且智能体未运行
             assert (
                 None,
                 conversation.run,
@@ -905,8 +907,8 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_false(self, event_service):
-        """Test send_message with run=False."""
-        # Mock conversation and its methods
+        """使用 run=False 测试 send_message。"""
+        # 模拟对象对话及其方法
         conversation = MagicMock()
         conversation.send_message = MagicMock()
         conversation.run = MagicMock()
@@ -914,28 +916,28 @@ class TestEventServiceSendMessage:
         event_service._conversation = conversation
         message = Message(role="user", content=[])
 
-        # Mock the event loop and executor
+        # 模拟对象事件循环和执行者
         with patch("asyncio.get_running_loop") as mock_get_loop:
             mock_loop = MagicMock()
             mock_get_loop.return_value = mock_loop
             mock_loop.run_in_executor.side_effect = lambda *args: self._mock_executor()
 
-            # Call send_message with run=False
+            # 使用 run=False 调用 send_message
             await event_service.send_message(message, run=False)
 
-            # Verify send_message was called via executor
+            # 验证 send_message 是通过执行器调用的
             mock_loop.run_in_executor.assert_called_once_with(
                 None, conversation.send_message, message
             )
-            # Verify run was NOT called since run=False
-            assert mock_loop.run_in_executor.call_count == 1  # Only send_message call
+            # 验证运行已被调用不，因为 run=False
+            assert mock_loop.run_in_executor.call_count == 1  # 仅 send_message 次通话
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_true_agent_already_running(
         self, event_service
     ):
-        """Test send_message with run=True but agent already running."""
-        # Mock conversation and its methods
+        """使用 run=True 测试 send_message，但智能体已在运行。"""
+        # 模拟对象对话及其方法
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.RUNNING
@@ -947,28 +949,28 @@ class TestEventServiceSendMessage:
         conversation.run = MagicMock()
 
         event_service._conversation = conversation
-        # Simulate conversation already running to test the ValueError path
+        # 模拟已运行的对话以测试 ValueError 路径
         event_service._run_task = asyncio.create_task(asyncio.sleep(10))
         message = Message(role="user", content=[])
 
-        # Call send_message with run=True — should silently skip run
+        # 使用 run=True 调用 send_message — 应该默默地跳过运行
         await event_service.send_message(message, run=True)
 
         conversation.send_message.assert_called_once_with(message)
-        # run() delegates to self.run() which checks status under lock
-        # and raises ValueError (caught by send_message) — so
-        # conversation.run is never invoked.
+        # run() 委托给 self.run()，它检查锁下的状态并引发 ValueError（被 send_message 捕
+        # 获）——因此 conversation.run 永远不会被调用。
+        #
         conversation.run.assert_not_called()
 
-        # Clean up the simulated running task
+        # 清理模拟运行任务
         event_service._run_task.cancel()
         with suppress(asyncio.CancelledError):
             await event_service._run_task
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_true_agent_idle(self, event_service):
-        """Test send_message with run=True and agent idle triggers run."""
-        # Mock conversation and its methods
+        """使用 run=True 和智能体空闲触发器运行测试 send_message。"""
+        # 模拟对象对话及其方法
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -983,24 +985,24 @@ class TestEventServiceSendMessage:
         event_service._publish_state_update = AsyncMock()
         message = Message(role="user", content=[])
 
-        # Call send_message with run=True
+        # 使用 run=True 调用 send_message
         await event_service.send_message(message, run=True)
 
-        # Verify send_message was called
+        # 验证 send_message 被调用
         conversation.send_message.assert_called_once_with(message)
 
-        # send_message delegates to self.run() which creates a background task
+        # send_message 委托给 self.run() 创建后台任务
         assert event_service._run_task is not None
         await event_service._run_task
 
-        # Verify run was called since agent was idle
+        # 由于智能体空闲而调用了验证运行
         conversation.run.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_true_interrupts_running_acp_turn(
         self, event_service, tmp_path
     ):
-        """A new user message should interrupt an in-flight ACP prompt."""
+        """新的用户消息应该会中断正在进行的 ACP 提示词。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1072,7 +1074,7 @@ class TestEventServiceSendMessage:
     async def test_send_message_with_run_true_does_not_interrupt_current_acp_prompt(
         self, event_service, tmp_path
     ):
-        """Do not cancel the ACP prompt if it already advanced to the new message."""
+        """如果 ACP 提示词已前进到新消息，请勿取消。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1119,15 +1121,13 @@ class TestEventServiceSendMessage:
     async def test_acp_supersede_holds_capacity_across_interrupt(
         self, event_service, tmp_path
     ):
-        """The ACP supersede restart must keep the permit its predecessor held.
+        """ACP 取代重新启动必须保留其前任持有的许可证。
 
-        ``send_message(run=True)`` interrupts the in-flight ACP prompt, which
-        makes that run yield its permit on the way out, and only then starts the
-        replacement run. If the replacement had to acquire a fresh permit it
-        could be refused (429) after the conversation's working run was already
-        killed -- dropping the user's request with no retryable signal. Holding
-        the session permit across the whole supersede window makes the restart
-        capacity-safe even when the server is at its limit.
+        ``send_message(run=True)`` 中断正在进行的 ACP 提示词，这使得该运行在退出时获
+        得许可，然后才开始替换运行。 如果替换需要获取一
+        个新的许可，那么在对话的工作运行已经被终止后拒绝它（429），就会丢弃用户的请求
+        ，没有任何重试信号。 即使在服务器处于极限时，在整个取代窗口中保持会话许可也
+        可以确保重新启动容量安全。
         """
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
@@ -1143,15 +1143,16 @@ class TestEventServiceSendMessage:
         event_service._mark_running_acp_prompt_superseded = AsyncMock(
             return_value=(True, False)
         )
-        # The server is at capacity: one slot, held by the run being superseded.
+        # 服务器已满：一个插槽，由被取代的运行占用。
         event_service._run_semaphore = asyncio.Semaphore(1)
         owner = await RunSlot.acquire(event_service._run_semaphore)
         event_service._run_session_slot = owner
         event_service._run_task = asyncio.create_task(asyncio.Event().wait())
 
         async def interrupt_and_yield(*, internal_acp_rerun=False):
-            # Model the outgoing run yielding its own handle as the interrupt
-            # drains it; the session permit survives via the pin.
+            # 当中断耗尽它时，对传出运行进行建模，产生自己的句柄； 会话许可通过 pin 保留
+            # 。
+            #
             run_task = event_service._run_task
             if run_task is not None:
                 run_task.cancel()
@@ -1159,9 +1160,9 @@ class TestEventServiceSendMessage:
                     await run_task
             event_service._run_task = None
             conversation.state.execution_status = ConversationExecutionStatus.IDLE
-            # With the predecessor's handle gone, a fresh acquire would have
-            # succeeded pre-fix -- and a competing caller could have taken it,
-            # making the restart below fail with 429.
+            # 由于前一个版本的用户名消失，一个新的获取应该成功预处理 -- 而且一个竞争的调
+            # 用者可能会接管它，导致下面的重启失败返回429。
+            #
             with pytest.raises(TimeoutError):
                 await asyncio.wait_for(
                     event_service._run_semaphore.acquire(), timeout=0.25
@@ -1186,8 +1187,9 @@ class TestEventServiceSendMessage:
             patch.object(ACPAgent, "init_state", autospec=True),
             patch.object(ACPAgent, "astep", new=finishing_astep),
         ):
-            # Must not raise ConversationRunLimitExceeded: the restart reuses the
-            # session permit its predecessor held instead of acquiring a new one.
+            # 不得引发 ConversationRunLimitExceeded：重新启动会重用其前任持有的会话许可
+            # ，而不是获取新的会话许可。
+            #
             await event_service.send_message(
                 Message(role="user", content=[TextContent(text="intervening")]),
                 run=True,
@@ -1197,8 +1199,8 @@ class TestEventServiceSendMessage:
             await asyncio.wait_for(event_service._run_task, timeout=5)
 
         assert replacement_started.is_set()
-        # Capacity stayed held across the whole supersede window, and the session
-        # permit is returned to the shared pool once the chain settles.
+        # 在整个取代窗口期间容量保持不变，并且一旦链稳定，会话许可将返回到共享池。
+        #
         assert capacity_held_at_interrupt.is_set()
         assert event_service._run_session_pins == 0
         assert event_service._run_session_slot is None
@@ -1209,7 +1211,7 @@ class TestEventServiceSendMessage:
     async def test_acp_supersede_pin_released_when_interrupt_raises(
         self, event_service, tmp_path
     ):
-        """The supersede pin must be released even when the interrupt raises."""
+        """即使中断发生，也必须释放取代引脚。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1237,7 +1239,7 @@ class TestEventServiceSendMessage:
     async def test_acp_supersede_mark_rechecks_current_prompt(
         self, event_service, tmp_path
     ):
-        """Do not attach the supersede marker to a replacement ACP prompt."""
+        """请勿将取代标记附加到替换 ACP 提示词上。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1276,7 +1278,7 @@ class TestEventServiceSendMessage:
     async def test_explicit_interrupt_clears_internal_acp_rerun_request(
         self, event_service
     ):
-        """A later explicit stop should win over an earlier internal ACP rerun."""
+        """稍后的显式停止应该胜过早期的内部 ACP 重新运行。"""
         conversation = MagicMock()
         event_service._conversation = conversation
         event_service._publish_state_update = AsyncMock()
@@ -1293,7 +1295,7 @@ class TestEventServiceSendMessage:
     async def test_internal_acp_rerun_does_not_override_explicit_interrupt(
         self, event_service
     ):
-        """Explicit Stop/Pause should win while an internal ACP interrupt drains."""
+        """当内部 ACP 中断耗尽时，显式停止/暂停应该获胜。"""
         conversation = MagicMock()
         conversation.send_message = MagicMock()
         event_service._conversation = conversation
@@ -1320,7 +1322,7 @@ class TestEventServiceSendMessage:
     async def test_internal_acp_send_message_restart_rechecks_generation_in_run(
         self, event_service, tmp_path
     ):
-        """A late explicit Stop/Pause should prevent direct ACP restart."""
+        """较晚的显式停止/暂停应防止直接 ACP 重新启动。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1357,7 +1359,7 @@ class TestEventServiceSendMessage:
     async def test_internal_acp_rerun_rechecks_explicit_interrupt_before_restart(
         self, event_service, tmp_path
     ):
-        """Explicit Stop/Pause should win during final restart status checks."""
+        """在最终重新启动状态检查期间，显式停止/暂停应该获胜。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1399,8 +1401,8 @@ class TestEventServiceSendMessage:
     async def test_late_stop_during_run_lock_wait_drops_internal_acp_rerun(
         self, event_service, tmp_path
     ):
-        """A stop that lands while run() waits on _run_lock must win, even when
-        the old run task is still alive (its interrupt drain timed out)."""
+        """在 run() 等待 _run_lock 期间到达的止损必须获胜，即使
+        旧的运行任务仍然存在（其中断消耗超时）。"""
         agent = ACPAgent(acp_command=["echo", "test"])
         conversation = LocalConversation(
             agent=agent,
@@ -1445,8 +1447,8 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_true_logs_exception(self, event_service):
-        """Test that exceptions from conversation.run() are caught and logged."""
-        # Mock conversation and its methods
+        """测试来自 conversation.run() 的异常是否被捕获并记录。"""
+        # 模拟对象对话及其方法
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -1461,35 +1463,36 @@ class TestEventServiceSendMessage:
         event_service._publish_state_update = AsyncMock()
         message = Message(role="user", content=[])
 
-        # Patch the logger to verify exception logging
+        # 修补记录器以验证异常日志记录
         with patch("openhands.agent_server.event_service.logger") as mock_logger:
-            # Call send_message with run=True
+            # 使用 run=True 调用 send_message
             await event_service.send_message(message, run=True)
 
-            # Wait for the background task to complete
+            # 等待后台任务完成
             assert event_service._run_task is not None
             await event_service._run_task
 
-            # Verify the failure was logged with its traceback (logged by
-            # run()'s _run_and_publish handler).
+            # 验证故障是否已通过其回溯记录（由 run() 的 _run_and_publish 处理程序记录）
+            # 。
+            #
             mock_logger.error.assert_called_once()
             fmt, detail = mock_logger.error.call_args.args
             assert fmt == "Error during conversation run\n%s"
             assert detail.startswith("Traceback (most recent call last):")
             assert detail.endswith("RuntimeError: Test error")
 
-        # Verify send_message was still called
+        # 验证 send_message 仍被调用
         conversation.send_message.assert_called_once_with(message)
 
-        # Verify run was called (and raised the exception)
+        # 验证运行被调用（并引发异常）
         conversation.run.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_run_error_log_has_no_exc_info(self, event_service):
-        """A failed run's traceback is logged as plain text, never as exc_info:
-        the default Rich console handler renders exc_info synchronously on the
-        event loop, which stalled the server for seconds per failed run
-        (issue #5633)."""
+        """失败的运行的回溯记录为纯文本，而不是 exc_info：
+        默认的 Rich 控制台处理程序在事件循环上同步呈现 exc_info，这会使服务器在每次运
+        行失败时停止几秒（问题 #5633）。
+        """
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.ERROR
@@ -1540,15 +1543,16 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_run_exception_forces_error_status(self, event_service):
-        """A run that raises before setting its own ERROR status (e.g. an ACP
-        cold-start failure in init_state, which runs outside run()/arun()'s
+        """在设置自己的 ERROR 状态 (e.g. 一个 ACP
+        init_state 中冷启动失败，该故障在 run()/arun()'s 之外运行
         try-block) must be flipped to ERROR so the finally's state publish
-        surfaces the failure instead of a stale IDLE/RUNNING status (issue
+        显示故障而不是陈旧的 IDLE/RUNNING 状态（问题
         #1024)."""
         conversation = MagicMock()
         state = MagicMock()
-        # Status never advanced past IDLE because the failure happened in
-        # _ensure_agent_ready() before the run loop set RUNNING.
+        # 状态从未超过 IDLE，因为故障发生在运行循环集 RUNNING 之前的 _ensure_agent_ready
+        # () 中。
+        #
         state.execution_status = ConversationExecutionStatus.IDLE
         state.__enter__ = MagicMock(return_value=state)
         state.__exit__ = MagicMock(return_value=None)
@@ -1565,13 +1569,13 @@ class TestEventServiceSendMessage:
         await event_service._run_task
 
         assert state.execution_status == ConversationExecutionStatus.ERROR
-        # The final state update is still published after the flip.
+        # 最终状态更新仍会在翻转后发布。
         event_service._publish_state_update.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_run_exception_preserves_existing_error_status(self, event_service):
-        """When the run already set ERROR (the regular Agent path), the backstop
-        is a no-op — it must not clobber a status the run already owns."""
+        """当运行已设置 ERROR（常规智能体路径）时，逆止器
+        是一个无操作——它不能破坏运行已经拥有的状态。"""
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.ERROR
@@ -1593,8 +1597,8 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_run_exception_emits_conversation_error_event(self, event_service):
-        """A failure that escapes run()/arun()'s own emission must be surfaced
-        by the backstop as a ConversationErrorEvent (issue #16686)."""
+        """逃避 run()/arun()'s 自身排放的故障必须浮出水面
+        由逆止器作为 ConversationErrorEvent（问题＃16686）。"""
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -1613,8 +1617,9 @@ class TestEventServiceSendMessage:
         assert event_service._run_task is not None
         await event_service._run_task
 
-        # A single ConversationErrorEvent was emitted through _on_event, carrying
-        # the exception type and message so the UI can render the detail.
+        # 通过 _on_event 发出单个 ConversationErrorEvent，携带异常类型和消息，以便 UI 可
+        # 以呈现详细信息。
+        #
         error_events = [
             call.args[0]
             for call in conversation._on_event.call_args_list
@@ -1628,8 +1633,8 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_run_conversation_run_error_does_not_double_emit(self, event_service):
-        """A ConversationRunError is already surfaced by run()/arun(), so the
-        backstop must not emit a duplicate ConversationErrorEvent."""
+        """ConversationRunError 已经被 run()/arun() 浮现，所以
+        backstop 不应产生重复 ConversationErrorEvent。"""
         conversation = MagicMock()
         state = MagicMock()
         state.execution_status = ConversationExecutionStatus.ERROR
@@ -1662,36 +1667,36 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_send_message_with_different_message_types(self, event_service):
-        """Test send_message with different message types."""
-        # Mock conversation
+        """使用不同的消息类型测试 send_message。"""
+        # 模拟对象对话
         conversation = MagicMock()
         conversation.send_message = MagicMock()
         conversation.run = MagicMock()
 
         event_service._conversation = conversation
 
-        # Mock the event loop and executor
+        # 模拟对象事件循环和执行者
         with patch("asyncio.get_running_loop") as mock_get_loop:
             mock_loop = MagicMock()
             mock_get_loop.return_value = mock_loop
-            # Create a side effect that returns a new coroutine each time
+            # 创建一个每次返回一个新的协程的副作用
             mock_loop.run_in_executor.side_effect = lambda *args: self._mock_executor()
 
-            # Test with user message (run=False to avoid state checking)
+            # 使用用户消息进行测试（run=False 以避免状态检查）
             user_message = Message(role="user", content=[])
             await event_service.send_message(user_message, run=False)
             mock_loop.run_in_executor.assert_any_call(
                 None, conversation.send_message, user_message
             )
 
-            # Test with assistant message
+            # 使用助手消息进行测试
             assistant_message = Message(role="assistant", content=[])
             await event_service.send_message(assistant_message, run=False)
             mock_loop.run_in_executor.assert_any_call(
                 None, conversation.send_message, assistant_message
             )
 
-            # Test with system message
+            # 用系统消息测试
             system_message = Message(role="system", content=[])
             await event_service.send_message(system_message, run=False)
             mock_loop.run_in_executor.assert_any_call(
@@ -1700,7 +1705,7 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_load_plugin_delegates_to_conversation(self, event_service):
-        """Runtime plugin loads are delegated through the executor."""
+        """运行时插件加载通过执行器委托。"""
         conversation = MagicMock()
         conversation.load_plugin = MagicMock()
         event_service._conversation = conversation
@@ -1718,7 +1723,7 @@ class TestEventServiceSendMessage:
 
     @pytest.mark.asyncio
     async def test_load_plugin_inactive_service(self, event_service):
-        """Runtime plugin loads require an active conversation."""
+        """运行时插件加载需要主动对话。"""
         event_service._conversation = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -1726,11 +1731,11 @@ class TestEventServiceSendMessage:
 
 
 class TestEventServiceRespondToConfirmation:
-    """Test cases for confirmation responses and rejection handling."""
+    """测试用例用于确认响应和拒绝处理。"""
 
     @pytest.mark.asyncio
     async def test_respond_to_confirmation_accept_calls_run(self, event_service):
-        """Accepting confirmation should trigger run and not rejection."""
+        """接受确认应该触发运行而不是拒绝。"""
         event_service._conversation = MagicMock()
         event_service.run = AsyncMock()
         event_service.reject_pending_actions = AsyncMock()
@@ -1744,7 +1749,7 @@ class TestEventServiceRespondToConfirmation:
 
     @pytest.mark.asyncio
     async def test_respond_to_confirmation_rejects_actions(self, event_service):
-        """Rejecting confirmation should call reject_pending_actions with reason."""
+        """拒绝确认应致电reject_pending_actions并说明原因。"""
         event_service._conversation = MagicMock()
         event_service.run = AsyncMock()
         event_service.reject_pending_actions = AsyncMock()
@@ -1759,7 +1764,7 @@ class TestEventServiceRespondToConfirmation:
 
     @pytest.mark.asyncio
     async def test_reject_pending_actions_inactive_service(self, event_service):
-        """Rejecting pending actions should fail when service is inactive."""
+        """当服务处于非活动状态时，拒绝待处理的操作应该会失败。"""
         event_service._conversation = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -1767,7 +1772,7 @@ class TestEventServiceRespondToConfirmation:
 
     @pytest.mark.asyncio
     async def test_reject_pending_actions_invokes_conversation(self, event_service):
-        """Rejecting pending actions should delegate to conversation via executor."""
+        """拒绝待处理的操作应通过执行器委托给对话。"""
         conversation = MagicMock()
         conversation.reject_pending_actions = MagicMock()
         event_service._conversation = conversation
@@ -1788,22 +1793,22 @@ class TestEventServiceRespondToConfirmation:
 
 
 class TestEventServiceIsOpen:
-    """Test cases for EventService.is_open method."""
+    """测试用例代表 EventService.is_open 方法。"""
 
     def test_is_open_when_conversation_is_none(self, event_service):
-        """Test is_open returns False when _conversation is None."""
+        """当 _conversation 为 None 时，测试 is_open 返回 False。"""
         event_service._conversation = None
         assert not event_service.is_open()
 
     def test_is_open_when_conversation_exists(self, event_service):
-        """Test is_open returns True when _conversation exists."""
+        """当 _conversation 存在时，测试 is_open 返回 True。"""
         conversation = MagicMock(spec=Conversation)
         event_service._conversation = conversation
         assert event_service.is_open()
 
     def test_is_open_when_conversation_is_falsy(self, event_service):
-        """Test is_open returns False when _conversation is falsy."""
-        # Test with various falsy values
+        """当 _conversation 为假时，测试 is_open 返回 False。"""
+        # 使用各种虚假值进行测试
         falsy_values = [None, False, 0, "", [], {}]
 
         for falsy_value in falsy_values:
@@ -1811,8 +1816,8 @@ class TestEventServiceIsOpen:
             assert not event_service.is_open(), f"Expected False for {falsy_value}"
 
     def test_is_open_when_conversation_is_truthy(self, event_service):
-        """Test is_open returns True when _conversation is truthy."""
-        # Test with various truthy values
+        """当 _conversation 为真时，测试 is_open 返回 True。"""
+        # 使用各种真值进行测试
         truthy_values = [
             MagicMock(spec=Conversation),
             "some_string",
@@ -1828,54 +1833,54 @@ class TestEventServiceIsOpen:
 
 
 class TestEventServiceBodyFiltering:
-    """Test cases for EventService body filtering functionality."""
+    """测试用例用于 EventService 正文过滤功能。"""
 
     def test_event_matches_body_with_message_event(self, event_service):
-        """Test _event_matches_body with MessageEvent containing text content."""
+        """使用包含文本内容的 MessageEvent 测试 _event_matches_body。"""
         from openhands.sdk.llm.message import TextContent
 
-        # Create a MessageEvent with text content
+        # 创建一个包含文本内容的 MessageEvent
         message = Message(role="user", content=[TextContent(text="Hello world")])
         event = MessageEvent(id="test", source="user", llm_message=message)
 
-        # Test case-insensitive matching
+        # 测试用例-不敏感匹配
         assert event_service._event_matches_body(event, "hello")
         assert event_service._event_matches_body(event, "WORLD")
         assert event_service._event_matches_body(event, "Hello world")
         assert event_service._event_matches_body(event, "llo wor")
 
-        # Test non-matching
+        # 测试不匹配
         assert not event_service._event_matches_body(event, "goodbye")
         assert not event_service._event_matches_body(event, "xyz")
 
     def test_event_matches_body_with_non_message_event(self, event_service):
-        """Test _event_matches_body with non-MessageEvent (should return False)."""
+        """使用非 MessageEvent 测试 _event_matches_body（应返回 False）。"""
         from openhands.sdk.event.user_action import PauseEvent
 
-        # Create a non-MessageEvent
+        # 创建一个非MessageEvent
         event = PauseEvent(id="test")
 
-        # Should always return False for non-MessageEvent
+        # 对于非 MessageEvent 应该始终返回 False
         assert not event_service._event_matches_body(event, "any text")
         assert not event_service._event_matches_body(event, "")
 
     def test_event_matches_body_with_empty_content(self, event_service):
-        """Test _event_matches_body with MessageEvent containing empty content."""
-        # Create a MessageEvent with empty content
+        """使用包含空内容的 MessageEvent 测试 _event_matches_body。"""
+        # 创建一个内容为空的 MessageEvent
         message = Message(role="user", content=[])
         event = MessageEvent(id="test", source="user", llm_message=message)
 
-        # Should not match any non-empty text
+        # 不应匹配任何非空文本
         assert not event_service._event_matches_body(event, "any text")
-        # Empty string should match empty content (empty string contains empty string)
+        # 空字符串应该匹配空内容（空字符串包含空字符串）
         assert event_service._event_matches_body(event, "")
 
     @pytest.mark.asyncio
     async def test_search_events_with_body_filter_integration(self, event_service):
-        """Test search_events with body filter using real MessageEvents."""
+        """使用真实的 MessageEvents 使用主体过滤器测试 search_events。"""
         from openhands.sdk.llm.message import TextContent
 
-        # Create a conversation with MessageEvents containing different text
+        # 创建与 MessageEvents 的对话，其中包含不同的文本
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
 
@@ -1910,31 +1915,31 @@ class TestEventServiceBodyFiltering:
 
         event_service._conversation = conversation
 
-        # Test filtering by "hello" (should match event1)
+        # 按“hello”测试过滤（应匹配 event1）
         result = await event_service.search_events(body="hello")
         assert len(result.items) == 1
         assert result.items[0].id == "event1"
 
-        # Test filtering by "python" (should match event3)
+        # 按“Python”测试过滤（应匹配 event3）
         result = await event_service.search_events(body="python")
         assert len(result.items) == 1
         assert result.items[0].id == "event3"
 
-        # Test filtering by "help" (should match event2)
+        # 通过“help”测试过滤（应匹配 event2）
         result = await event_service.search_events(body="help")
         assert len(result.items) == 1
         assert result.items[0].id == "event2"
 
-        # Test filtering by non-matching text
+        # 通过不匹配的文本测试过滤
         result = await event_service.search_events(body="nonexistent")
         assert len(result.items) == 0
 
     @pytest.mark.asyncio
     async def test_count_events_with_body_filter_integration(self, event_service):
-        """Test count_events with body filter using real MessageEvents."""
+        """使用真实的 MessageEvents 使用主体过滤器测试 count_events。"""
         from openhands.sdk.llm.message import TextContent
 
-        # Create a conversation with MessageEvents containing different text
+        # 创建与 MessageEvents 的对话，其中包含不同的文本
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
 
@@ -1969,21 +1974,21 @@ class TestEventServiceBodyFiltering:
 
         event_service._conversation = conversation
 
-        # Test counting by "hello" (should match 2 events)
+        # 测试按“hello”计数（应匹配 2 个事件）
         result = await event_service.count_events(body="hello")
         assert result == 2
 
-        # Test counting by "python" (should match 1 event)
+        # 按“Python”测试计数（应匹配 1 个事件）
         result = await event_service.count_events(body="python")
         assert result == 1
 
-        # Test counting by non-matching text
+        # 通过不匹配的文本测试计数
         result = await event_service.count_events(body="nonexistent")
         assert result == 0
 
 
 class TestEventServiceRun:
-    """Test cases for EventService.run method."""
+    """测试用例代表 EventService.run 方法。"""
 
     @pytest.mark.asyncio
     async def test_wait_for_run_completion_waits_for_task_finalization(
@@ -2019,7 +2024,7 @@ class TestEventServiceRun:
 
     @pytest.mark.asyncio
     async def test_run_inactive_service(self, event_service):
-        """Test that run raises ValueError when conversation is not active."""
+        """测试当对话不活跃时 run 会引发 ValueError。"""
         event_service._conversation = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -2027,7 +2032,7 @@ class TestEventServiceRun:
 
     @pytest.mark.asyncio
     async def test_run_already_running_by_status(self, event_service):
-        """Test that run raises ValueError when conversation is already running."""
+        """当对话已在运行时，测试 run 是否引发 ValueError。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.RUNNING
@@ -2042,7 +2047,7 @@ class TestEventServiceRun:
 
     @pytest.mark.asyncio
     async def test_run_already_running_by_task(self, event_service):
-        """Test that run raises ValueError when there's an active run task."""
+        """测试当存在活动的运行任务时，运行是否引发 ValueError。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -2052,7 +2057,7 @@ class TestEventServiceRun:
 
         event_service._conversation = conversation
 
-        # Create a mock task that is not done
+        # 创建一个未完成的模拟对象任务
         mock_task = MagicMock()
         mock_task.done.return_value = False
         event_service._run_task = mock_task
@@ -2064,8 +2069,8 @@ class TestEventServiceRun:
     async def test_run_already_running_does_not_wait_for_state_lock(
         self, event_service
     ):
-        """A live run holds the state lock for its whole step (e.g. a long tool
-        call); run() must refuse at once instead of blocking behind it."""
+        """实时运行在整个步骤中保持状态锁 (e.g. 一个长工具
+        打电话）； run()必须立即拒绝，而不是在后面阻塞。"""
         lock_released = threading.Event()
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.RUNNING
@@ -2089,7 +2094,7 @@ class TestEventServiceRun:
 
     @pytest.mark.asyncio
     async def test_run_starts_background_task(self, event_service):
-        """Test that run starts a background task and returns immediately."""
+        """测试 run 启动后台任务并立即返回。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -2101,24 +2106,24 @@ class TestEventServiceRun:
         event_service._conversation = conversation
         event_service._publish_state_update = AsyncMock()
 
-        # Call run - should return immediately
+        # 调用 run - 应该立即返回
         await event_service.run()
 
-        # Verify a task was created
+        # 验证任务已创建
         assert event_service._run_task is not None
 
-        # Wait for the background task to complete
+        # 等待后台任务完成
         await event_service._run_task
 
-        # Verify conversation.run was called
+        # 验证 conversation.run 被调用
         conversation.run.assert_called_once()
 
-        # Verify state update was published after run completed
+        # 验证运行完成后已发布状态更新
         event_service._publish_state_update.assert_called()
 
     @pytest.mark.asyncio
     async def test_run_publishes_state_update_on_completion(self, event_service):
-        """Test that run publishes state update after completion."""
+        """测试运行完成后发布状态更新。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -2131,14 +2136,14 @@ class TestEventServiceRun:
         event_service._publish_state_update = AsyncMock()
 
         await event_service.run()
-        await event_service._run_task  # Wait for completion
+        await event_service._run_task  # 等待完成
 
-        # State update should be published after run completes
+        # 运行完成后应发布状态更新
         event_service._publish_state_update.assert_called()
 
     @pytest.mark.asyncio
     async def test_run_publishes_state_update_on_error(self, event_service):
-        """Test that run publishes state update even if run raises an error."""
+        """测试即使运行引发错误，运行也会发布状态更新。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
         state.execution_status = ConversationExecutionStatus.IDLE
@@ -2152,21 +2157,21 @@ class TestEventServiceRun:
 
         await event_service.run()
 
-        # Wait for the background task to complete (it will raise but be caught)
+        # 等待后台任务完成（它会引发但被捕获）
         try:
             await event_service._run_task
         except RuntimeError:
-            pass  # Expected
+            pass  # 预计
 
-        # State update should still be published (in finally block)
+        # 状态更新仍应发布（在finally块中）
         event_service._publish_state_update.assert_called()
 
 
 class _PausingWriter:
-    """Text file handle that runs ``pause`` halfway through each write.
+    """每次写入过程中运行 ``pause`` 的文本文件句柄。
 
-    The first half is flushed to disk before ``pause`` runs, so ``pause`` sees
-    the file as a concurrent reader would in the middle of the write.
+    前半部分在 ``pause`` 运行之前刷新到磁盘，因此 ``pause`` 会像并发读取器在写入过程
+    中一样查看该文件。
     """
 
     def __init__(self, handle, pause):
@@ -2192,7 +2197,7 @@ class _PausingWriter:
 
 
 def _pause_text_writes_halfway(monkeypatch, pause) -> None:
-    """Run ``pause`` halfway through every text-mode write (``mode="w"``)."""
+    """在每次文本模式写入 (``mode="w"``) 的过程中运行 ``pause``。"""
     original_open = io.open
 
     def open_(file, mode="r", *args, **kwargs):
@@ -2203,15 +2208,15 @@ def _pause_text_writes_halfway(monkeypatch, pause) -> None:
 
 
 class TestEventServiceSaveMeta:
-    """Test cases for EventService.save_meta method."""
+    """测试用例代表 EventService.save_meta 方法。"""
 
     @pytest.mark.asyncio
     async def test_save_meta_preserves_updated_at(self, event_service, tmp_path):
-        """Test that save_meta does not modify updated_at.
+        """测试 save_meta 不会修改 updated_at。
 
-        On server restart every conversation's save_meta is called.  Before the
-        fix, save_meta stamped updated_at = utc_now(), so all conversations
-        appeared to have been updated at restart time.
+        服务器重新启动时，每个对话的 save_meta 都会被调用。 在修复之前，save_meta 标
+        记为 updated_at = utc_now()，因此所
+        有对话似乎都已在重新启动时更新。
         """
         original_updated_at = datetime(2025, 1, 1, 12, 30, 0, tzinfo=UTC)
         event_service.stored.updated_at = original_updated_at
@@ -2221,10 +2226,10 @@ class TestEventServiceSaveMeta:
 
         await event_service.save_meta()
 
-        # In-memory value must be unchanged
+        # 内存中的值必须保持不变
         assert event_service.stored.updated_at == original_updated_at
 
-        # Persisted value must also match
+        # 已持久化值也必须匹配
         meta_file = conv_dir / "meta.json"
         loaded = StoredConversation.model_validate_json(meta_file.read_text())
         assert loaded.updated_at == original_updated_at
@@ -2287,7 +2292,7 @@ class TestEventServiceSaveMeta:
     async def test_save_meta_never_exposes_a_partial_meta_json(
         self, event_service, tmp_path, monkeypatch
     ):
-        """A reader of meta.json during a save sees the previous complete file."""
+        """保存期间 meta.json 的读取器会看到上一个完整文件。"""
         event_service.conversations_dir = tmp_path
         event_service.conversation_dir.mkdir()
         meta_file = event_service.conversation_dir / "meta.json"
@@ -2309,10 +2314,10 @@ class TestEventServiceSaveMeta:
     async def test_trajectory_zip_built_during_save_meta_has_no_partial_meta_json(
         self, sample_stored_conversation, tmp_path, monkeypatch
     ):
-        """A trajectory zip built mid-save holds a complete, redacted meta.json.
+        """在保存过程中构建的轨迹拉链包含完整的已脱敏meta.json。
 
-        Partial JSON does not parse, so the zip cannot redact it, and the
-        encrypted secrets in it would be archived as they are.
+        部分 JSON 不会解析，因此 zip 无法对其进行编辑，并且其中加密的机密将按原样存档
+        。
         """
         sample_stored_conversation.secrets = {
             "GITHUB_TOKEN": StaticSecret(value=SecretStr("ghp_zip_during_save"))
@@ -2347,13 +2352,13 @@ class TestEventServiceSaveMeta:
 
     @pytest.mark.asyncio
     async def test_switch_acp_model_persists_via_conversation(self, tmp_path):
-        """switch_acp_model delegates to the SDK conversation, which persists the
-        new model to base_state.json (the single source of truth).
+        """switch_acp_model 代表参加 SDK 对话，该对话坚持
+        新模型到base_state.json（单一事实来源）。
 
-        meta.json no longer carries the agent, so the event service must NOT
-        mirror the switch there. The SDK ``LocalConversation.switch_acp_model``
-        sets ``state.agent`` to an agent carrying the new ``acp_model``, which the
-        autosave path writes to base_state.json; on resume the agent is rebuilt
+        meta.json 不再携带智能体，因此事件服务必须不镜像那里的开关。 SDK
+        ``LocalConversation.switch_acp_model``将
+        ``state.agent``设置为携带新``acp_model``的智能体，自动保存路径写入
+        base_state.json； 恢复后智能体被重建
         from base_state.
         """
         stored = StoredConversation(
@@ -2367,38 +2372,37 @@ class TestEventServiceSaveMeta:
         conv_dir = tmp_path / stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write a meta.json up front so the assertion below proves the switch
-        # does not overwrite an *existing* meta.json with an agent mirror, rather
-        # than trivially passing because meta.json was never created.
+        # 写一个 meta.json 提前告知，以证明下面的断言不会导致切换覆盖一个 *现有的*
+        # meta.json 与一个智能体镜像，而不是因为过于简单而通过 meta.json 从未创建过。
+        #
         await service.save_meta()
         meta_file = conv_dir / "meta.json"
         assert meta_file.exists()
         assert "agent" not in json.loads(meta_file.read_text())
 
-        # Stand in for a live conversation; the protocol-level switch and the
-        # base_state persistence are covered by the SDK's own tests — here we
-        # only assert delegation and that meta.json is not written with an agent.
+        # 代替现场对话； 协议级切换和base_state 持久化由SDK的自身测试覆盖——这里我们只验
+        # 证委托和meta.json不是用智能体写的。
+        #
         service._conversation = MagicMock()
 
         await service.switch_acp_model("new-model")
 
-        # Live switch is delegated to the SDK conversation (which persists to
-        # base_state.json).
+        # 实时切换被委托给 SDK 对话（持续到 base_state.json）。
+        #
         service._conversation.switch_acp_model.assert_called_once_with("new-model")
-        # StoredConversation no longer carries the agent at all.
+        # StoredConversation 不再带有智能体。
         assert not hasattr(service.stored, "agent")
-        # meta.json still exists and was never given an agent mirror.
+        # meta.json 仍然存在，并且从未获得过智能体镜像。
         assert meta_file.exists()
         assert "agent" not in json.loads(meta_file.read_text())
 
     @pytest.mark.asyncio
     async def test_switch_acp_model_inactive_service_raises_value_error(self, tmp_path):
-        """An inactive service (no live conversation) raises the shared
-        ``inactive_service`` ValueError — consistent with the other
-        event-service methods — which the router maps to 400. It is no longer a
-        RuntimeError: the SDK now defers (rather than rejects) a switch before
-        the first run(), so the only failure mode here is a closed/never-started
-        service.
+        """不活跃的服务（没有实时对话）会引发共享
+        ``inactive_service`` ValueError — 与其他事件服务方法一致 — 路由器将其映射到
+        400。 它不再是一个
+        RuntimeError: SDK 现在推迟（而不是拒绝）之前的切换
+        第一个 run()，因此这里唯一的故障模式是关闭/从未启动的服务。
         """
 
         stored = StoredConversation(
@@ -2409,7 +2413,7 @@ class TestEventServiceSaveMeta:
             metrics=None,
         )
         service = EventService(stored=stored, conversations_dir=tmp_path)
-        # _conversation defaults to None (service not started).
+        # _conversation 默认为 None（服务未启动）。
         assert service._conversation is None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -2417,30 +2421,30 @@ class TestEventServiceSaveMeta:
 
 
 class TestEventServiceStartWithRunningStatus:
-    """Test cases for EventService.start handling of RUNNING execution status."""
+    """测试用例用于 EventService.start 处理 RUNNING 执行状态。"""
 
     @pytest.mark.asyncio
     async def test_start_sets_error_status_when_running_from_disk(
         self, event_service, tmp_path
     ):
-        """Test that start() sets ERROR status and adds AgentErrorEvent.
+        """测试 start() 设置 ERROR 状态并添加 AgentErrorEvent。
 
-        When a conversation is loaded from disk with RUNNING status, it indicates
-        the process crashed or was terminated unexpectedly. The EventService should:
-        1. Set execution_status to ERROR
-        2. Add an AgentErrorEvent for the first unmatched action to inform the agent
+        当从磁盘加载状态为 RUNNING 的对话时，表示进程崩溃或意外终止。 EventService 应
+        该：
+        1. 将 execution_status 设置为 ERROR
+        2. 为第一个不匹配的操作添加 AgentErrorEvent 以通知智能体
         """
         from openhands.sdk.event import AgentErrorEvent
         from openhands.sdk.event.llm_convertible import ActionEvent
         from openhands.sdk.llm import MessageToolCall, TextContent
         from openhands.tools.terminal import TerminalAction
 
-        # Setup paths
+        # 设置路径
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
 
-        # Update workspace to use a valid temp directory
+        # 更新工作区以使用有效的临时目录
         event_service.stored.workspace = LocalWorkspace(working_dir=str(tmp_path))
 
         with patch(
@@ -2450,7 +2454,7 @@ class TestEventServiceStartWithRunningStatus:
             mock_state = MagicMock()
             mock_agent = MagicMock()
 
-            # Create an unmatched action event (action without observation)
+            # 创建一个不匹配的动作事件（不带观测结果的动作）
             unmatched_action = ActionEvent(
                 source="agent",
                 thought=[TextContent(text="I need to run ls command")],
@@ -2466,12 +2470,12 @@ class TestEventServiceStartWithRunningStatus:
                 llm_response_id="response_1",
             )
 
-            # Set up mock state with RUNNING status and the unmatched action
+            # 设置模拟对象状态与RUNNING状态以及不匹配的动作
             mock_state.execution_status = ConversationExecutionStatus.RUNNING
             mock_state.events = [unmatched_action]
             mock_state.stats = MagicMock()
 
-            # Setup mock agent
+            # 设置模拟对象智能体
             mock_agent.get_all_llms.return_value = []
 
             mock_conv._state = mock_state
@@ -2480,17 +2484,17 @@ class TestEventServiceStartWithRunningStatus:
             mock_conv._on_event = MagicMock()
             MockConversation.return_value = mock_conv
 
-            # Call start
+            # 呼叫开始
             await event_service.start()
 
-            # Verify execution_status was changed to ERROR
+            # 验证 execution_status 已更改为 ERROR
             assert mock_state.execution_status == ConversationExecutionStatus.ERROR
 
-            # Verify AgentErrorEvent was added via _on_event
+            # 验证 AgentErrorEvent 是通过 _on_event 添加的
             mock_conv._on_event.assert_called()
             call_args = mock_conv._on_event.call_args_list
 
-            # Find the AgentErrorEvent call
+            # 找到 AgentErrorEvent 呼叫
             error_event_calls = [
                 call for call in call_args if isinstance(call[0][0], AgentErrorEvent)
             ]
@@ -2506,19 +2510,19 @@ class TestEventServiceStartWithRunningStatus:
     async def test_start_does_not_add_error_event_when_no_unmatched_actions(
         self, event_service, tmp_path
     ):
-        """Test that start() doesn't add AgentErrorEvent without unmatched actions.
+        """测试 start() 在没有不匹配操作的情况下不会添加 AgentErrorEvent。
 
-        Even if execution_status is RUNNING, if there are no unmatched actions,
-        no AgentErrorEvent should be added.
+        即使execution_status是RUNNING，如果没有不匹配的动作，也不应该添加
+        AgentErrorEvent。
         """
         from openhands.sdk.event import AgentErrorEvent
 
-        # Setup paths
+        # 设置路径
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
 
-        # Update workspace to use a valid temp directory
+        # 更新工作区以使用有效的临时目录
         event_service.stored.workspace = LocalWorkspace(working_dir=str(tmp_path))
 
         with patch(
@@ -2528,12 +2532,12 @@ class TestEventServiceStartWithRunningStatus:
             mock_state = MagicMock()
             mock_agent = MagicMock()
 
-            # Set up mock state with RUNNING status but no events (no unmatched actions)
+            # 将模拟对象状态设置为 RUNNING 状态，但没有事件（没有不匹配的操作）
             mock_state.execution_status = ConversationExecutionStatus.RUNNING
             mock_state.events = []
             mock_state.stats = MagicMock()
 
-            # Setup mock agent
+            # 设置模拟对象智能体
             mock_agent.get_all_llms.return_value = []
 
             mock_conv._state = mock_state
@@ -2542,13 +2546,13 @@ class TestEventServiceStartWithRunningStatus:
             mock_conv._on_event = MagicMock()
             MockConversation.return_value = mock_conv
 
-            # Call start
+            # 呼叫开始
             await event_service.start()
 
-            # Verify execution_status was changed to ERROR
+            # 验证 execution_status 已更改为 ERROR
             assert mock_state.execution_status == ConversationExecutionStatus.ERROR
 
-            # Verify _on_event was NOT called with AgentErrorEvent
+            # 验证 _on_event 是通过 AgentErrorEvent 调用的不
             error_event_calls = [
                 call
                 for call in mock_conv._on_event.call_args_list
@@ -2560,15 +2564,15 @@ class TestEventServiceStartWithRunningStatus:
     async def test_start_does_nothing_when_status_not_running(
         self, event_service, tmp_path
     ):
-        """Test that start() doesn't modify execution_status when it's not RUNNING."""
+        """测试，start() 不修改 execution_status 当它不是 RUNNING."""
         from openhands.sdk.event import AgentErrorEvent
 
-        # Setup paths
+        # 设置路径
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
 
-        # Update workspace to use a valid temp directory
+        # 更新工作区以使用有效的临时目录
         event_service.stored.workspace = LocalWorkspace(working_dir=str(tmp_path))
 
         with patch(
@@ -2578,12 +2582,12 @@ class TestEventServiceStartWithRunningStatus:
             mock_state = MagicMock()
             mock_agent = MagicMock()
 
-            # Set up mock state with IDLE status
+            # 设置模拟对象状态和IDLE状态
             mock_state.execution_status = ConversationExecutionStatus.IDLE
             mock_state.events = []
             mock_state.stats = MagicMock()
 
-            # Setup mock agent
+            # 设置模拟对象智能体
             mock_agent.get_all_llms.return_value = []
 
             mock_conv._state = mock_state
@@ -2592,13 +2596,13 @@ class TestEventServiceStartWithRunningStatus:
             mock_conv._on_event = MagicMock()
             MockConversation.return_value = mock_conv
 
-            # Call start
+            # 呼叫开始
             await event_service.start()
 
-            # Verify execution_status remains IDLE
+            # 验证 execution_status 仍为 IDLE
             assert mock_state.execution_status == ConversationExecutionStatus.IDLE
 
-            # Verify _on_event was NOT called with AgentErrorEvent
+            # 验证 _on_event 是通过 AgentErrorEvent 调用的不
             error_event_calls = [
                 call
                 for call in mock_conv._on_event.call_args_list
@@ -2610,12 +2614,13 @@ class TestEventServiceStartWithRunningStatus:
     async def test_start_skips_error_event_when_observation_already_exists(
         self, event_service, tmp_path
     ):
-        """Don't synthesize AgentErrorEvent if the loaded state already carries an
-        ObservationBaseEvent for the unmatched action's tool_call_id.
+        """如果加载状态已经带有一个，则不要合成 AgentErrorEvent
+        ObservationBaseEvent 表示不匹配操作的 tool_call_id。
 
-        Reproduces the gap get_unmatched_actions misses: an ObservationEvent that
-        matches by tool_call_id but not by action_id (e.g. action_id rewritten on
-        replay) — without this guard we'd emit a duplicate observation-like event.
+        重现 get_unmatched_actions 遗漏的间隙：与 tool_call_id 匹配但不与 action_id
+        匹配的
+        ObservationEvent (e.g. action_id 在重播时重写）——如果没有这个保护，我们会发出
+        一个重复的类似观测结果的事件。
         """
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
@@ -2643,8 +2648,9 @@ class TestEventServiceStartWithRunningStatus:
                 ),
                 llm_response_id="response_1",
             )
-            # Observation matches by tool_call_id but with a different action_id,
-            # so get_unmatched_actions still reports the action as unmatched.
+            # 观测结果与 tool_call_id 匹配，但 action_id 不同，因此
+            # get_unmatched_actions 仍将操作报告为不匹配。
+            #
             stale_observation = ObservationEvent(
                 observation=TerminalObservation.from_text(
                     "done", command="ls", exit_code=0
@@ -2680,12 +2686,12 @@ class TestEventServiceStartWithRunningStatus:
     async def test_start_initializes_workspace_as_git_repo(
         self, event_service, tmp_path
     ):
-        """A fresh workspace dir should be `git init`-ed during start().
+        """新的工作区目录应该在 start() 期间被 `git init`-ed。
 
-        Without this, /api/git/changes 500s on non-repo workspaces and
-        agent-created files never appear in the Changes tab.
+        如果没有这个，非存储库工作区和智能体创建的文件上的 /api/git/changes 500 永远
+        不会出现在“更改”选项卡中。
         """
-        # Arrange
+        # 安排
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
@@ -2708,10 +2714,10 @@ class TestEventServiceStartWithRunningStatus:
             mock_conv._on_event = MagicMock()
             MockConversation.return_value = mock_conv
 
-            # Act
+            # 法案
             await event_service.start()
 
-        # Assert
+        # 断言
         assert (workspace_dir / ".git").exists()
 
     @pytest.mark.skipif(not shutil.which("git"), reason="git executable not found")
@@ -2719,13 +2725,13 @@ class TestEventServiceStartWithRunningStatus:
     async def test_start_is_idempotent_for_already_initialized_repo(
         self, event_service, tmp_path
     ):
-        """Resuming a conversation on an existing repo must not re-init it.
+        """恢复现有存储库上的对话不得重新初始化它。
 
-        Guards against accidental double-init that could clobber refs/HEAD
-        on a workspace the user already has commits in.
+        防止意外的双重初始化可能会破坏用户已经提交的工作区上的 refs/HEAD。
         """
-        # Arrange — pre-initialize the workspace dir as a git repo and
-        # capture the .git directory's identity so we can detect re-init.
+        # 安排 — 将工作区目录预初始化为 git 存储库并捕获 .git 目录的标识，以便我们可以检
+        # 测重新初始化。
+        #
         event_service.conversations_dir = tmp_path
         conv_dir = tmp_path / event_service.stored.id.hex
         conv_dir.mkdir(parents=True, exist_ok=True)
@@ -2755,36 +2761,35 @@ class TestEventServiceStartWithRunningStatus:
             mock_conv._on_event = MagicMock()
             MockConversation.return_value = mock_conv
 
-            # Act
+            # 法案
             await event_service.start()
 
-        # Assert — repo still present and our marker survived (no re-init).
+        # 断言 - 存储库仍然存在，并且我们的标记幸存下来（无需重新初始化）。
         assert (workspace_dir / ".git").exists()
         assert marker.exists()
         assert marker.read_text() == "preexisting"
 
 
 class TestEventServiceConcurrentSubscriptions:
-    """Test cases for concurrent subscription handling without deadlocks.
+    """测试用例用于并发订阅处理，无需死锁。
 
-    These tests verify that the fix for moving async operations outside the
-    FIFOLock context prevents deadlocks when multiple subscribers are active
-    or when subscribers are slow.
+    这些测试验证了将异步操作移动到 FIFOLock 上下文之外的修复，当多个订阅者活跃或订阅
+    者慢时，防止死锁。
     """
 
     @pytest.fixture
     def mock_conversation_with_real_lock(self):
-        """Create a mock conversation with a real FIFOLock for testing concurrency."""
+        """创建与真实FIFOLock的模拟对象对话，用于测试并发。"""
         conversation = MagicMock(spec=Conversation)
         state = MagicMock(spec=ConversationState)
 
-        # Use a real FIFOLock to test actual locking behavior
+        # 使用真实的FIFOLock来测试实际的锁定行为
         real_lock = FIFOLock()
         state._lock = real_lock
         state.__enter__ = lambda self: (real_lock.acquire(), self)[1]
         state.__exit__ = lambda self, *args: real_lock.release()
 
-        # Set up minimal state attributes needed for ConversationStateUpdateEvent
+        # 设置 ConversationStateUpdateEvent 所需的最小状态属性
         state.events = []
         state.execution_status = ConversationExecutionStatus.IDLE
         state.model_dump = MagicMock(
@@ -2801,10 +2806,9 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_concurrent_subscriptions_no_deadlock(
         self, event_service, mock_conversation_with_real_lock
     ):
-        """Test that multiple concurrent subscriptions don't cause deadlocks.
+        """测试多个并发订阅不会导致死锁。
 
-        This test creates multiple subscribers that are subscribed concurrently
-        and verifies that all subscriptions complete without hanging.
+        此测试创建多个并发订阅的订阅者，并验证所有订阅是否完成而不会挂起。
         """
         event_service._conversation = mock_conversation_with_real_lock
         received_events: list[list[Event]] = [[] for _ in range(3)]
@@ -2816,23 +2820,23 @@ class TestEventServiceConcurrentSubscriptions:
             async def __call__(self, event: Event):
                 received_events[self.index].append(event)
 
-        # Subscribe multiple subscribers concurrently
+        # 同时订阅多个订阅者
         subscribers = [TestSubscriber(i) for i in range(3)]
 
-        # Use asyncio.wait_for to detect deadlocks with a timeout
+        # 使用 asyncio.wait_for 检测死锁和超时
         async def subscribe_all():
             tasks = [event_service.subscribe_to_events(sub) for sub in subscribers]
             return await asyncio.gather(*tasks)
 
-        # This should complete within 2 seconds if there's no deadlock
+        # 如果没有死锁，这应该在 2 秒内完成
         subscriber_ids = await asyncio.wait_for(subscribe_all(), timeout=2.0)
 
-        # Verify all subscriptions succeeded
+        # 验证所有订阅是否成功
         assert len(subscriber_ids) == 3
         for sub_id in subscriber_ids:
             assert sub_id is not None
 
-        # Verify all subscribers received the initial state event
+        # 验证所有订阅者收到初始状态事件
         for i, events in enumerate(received_events):
             assert len(events) == 1, f"Subscriber {i} should have received 1 event"
             assert isinstance(events[0], ConversationStateUpdateEvent)
@@ -2841,7 +2845,7 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_subscription_receives_state_when_conversation_not_open(
         self, event_service
     ):
-        """Inactive services still need an initial state event for WS readiness."""
+        """非活动服务仍需要初始状态事件才能为 WS 做好准备。"""
         received_events: list[Event] = []
 
         class TestSubscriber(Subscriber[Event]):
@@ -2860,11 +2864,10 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_slow_subscriber_does_not_block_lock(
         self, event_service, mock_conversation_with_real_lock
     ):
-        """Test that a slow subscriber doesn't hold the lock during I/O.
+        """测试慢速订阅者在 I/O 期间是否不持有锁。
 
-        This test verifies that the lock is released before the async send
-        operation, allowing other operations to proceed even if a subscriber
-        is slow.
+        此测试验证锁在异步发送操作之前被释放，即使订阅者速度缓慢，也允许其他操作继续
+        进行。
         """
         event_service._conversation = mock_conversation_with_real_lock
         state = mock_conversation_with_real_lock._state
@@ -2873,21 +2876,21 @@ class TestEventServiceConcurrentSubscriptions:
         class SlowSubscriber(Subscriber[Event]):
             async def __call__(self, event: Event):
                 nonlocal lock_held_during_sleep
-                # Check if lock is held during the async operation
-                # If the fix is correct, the lock should NOT be held here
+                # 检查是否锁是在异步如果修正是正确的，那么 [操作] 锁应该不他被关在这里
+                #
                 lock_held_during_sleep = state._lock.locked()
-                await asyncio.sleep(0.1)  # Simulate slow I/O
+                await asyncio.sleep(0.1)  # 模拟慢速 I/O
 
         slow_subscriber = SlowSubscriber()
 
-        # Subscribe with the slow subscriber
+        # 与慢速订阅者一起订阅
         await asyncio.wait_for(
             event_service.subscribe_to_events(slow_subscriber),
             timeout=2.0,
         )
 
-        # The lock should NOT be held during the async sleep
-        # (it's released before the await subscriber() call)
+        # 锁应该在异步睡眠期间保留不（它在等待 subscriber() 调用之前释放）
+        #
         assert not lock_held_during_sleep, (
             "Lock should not be held during async subscriber call"
         )
@@ -2896,13 +2899,11 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_subscription_snapshot_wait_does_not_block_event_loop(
         self, event_service, mock_conversation_with_real_lock
     ):
-        """Creating the initial state snapshot must not stall the async loop.
+        """创建初始状态快照不得停止异步循环。
 
-        A reconnecting WebSocket subscriber takes an initial state snapshot before
-        the subscription starts streaming events. If snapshot creation waits on the
-        conversation's synchronous FIFOLock, it must do so in a worker thread; if
-        it blocks in the async task, the whole server loop stops answering liveness
-        probes.
+        重连 WebSocket 订阅者在订阅开始之前会获取初始状态快照流式传输事件。 如果快照
+        创建需要等待会话的同步  FIFOLock它必须在 worker 中
+        执行线程; 如果它在时阻塞异步任务完成后，整个服务器循环停止回答存活探针。
         """
         event_service._conversation = mock_conversation_with_real_lock
 
@@ -2951,10 +2952,9 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_subscription_during_state_update(
         self, event_service, mock_conversation_with_real_lock
     ):
-        """Test that subscriptions and state updates can interleave without deadlock.
+        """测试订阅和状态更新是否可以在没有死锁的情况下交错。
 
-        This test simulates a scenario where a subscription happens while
-        a state update is being published, verifying no deadlock occurs.
+        此测试模拟在发布状态更新时发生订阅的场景，验证没有死锁发生。
         """
         event_service._conversation = mock_conversation_with_real_lock
         events_received: list[Event] = []
@@ -2962,14 +2962,14 @@ class TestEventServiceConcurrentSubscriptions:
         class CollectorSubscriber(Subscriber[Event]):
             async def __call__(self, event: Event):
                 events_received.append(event)
-                # Simulate some async work
+                # 模拟一些异步工作
                 await asyncio.sleep(0.01)
 
-        # First, subscribe a collector
+        # 一、订阅收藏家
         collector = CollectorSubscriber()
         await event_service.subscribe_to_events(collector)
 
-        # Now trigger a state update while potentially another subscription happens
+        # 现在，当可能发生另一个订阅时触发状态更新
         async def subscribe_new():
             new_subscriber = CollectorSubscriber()
             return await event_service.subscribe_to_events(new_subscriber)
@@ -2977,13 +2977,13 @@ class TestEventServiceConcurrentSubscriptions:
         async def publish_update():
             await event_service._publish_state_update()
 
-        # Run both concurrently - this should not deadlock
+        # 同时运行两者 - 这不应该死锁
         results = await asyncio.wait_for(
             asyncio.gather(subscribe_new(), publish_update(), return_exceptions=True),
             timeout=2.0,
         )
 
-        # Verify no exceptions occurred
+        # 验证没有发生异常
         for result in results:
             if isinstance(result, Exception):
                 pytest.fail(f"Unexpected exception: {result}")
@@ -2992,10 +2992,10 @@ class TestEventServiceConcurrentSubscriptions:
     async def test_multiple_state_updates_with_slow_subscribers(
         self, event_service, mock_conversation_with_real_lock
     ):
-        """Test multiple rapid state updates with slow subscribers don't deadlock.
+        """测试多个快速状态更新，而慢速订阅者则不需要死锁。
 
-        This test verifies that even with slow subscribers, multiple state
-        updates can be processed without the lock causing contention issues.
+        此测试验证，即使订阅者速度较慢，也可以处理多个状态更新，而不会导致锁导致争用
+        问题。
         """
         event_service._conversation = mock_conversation_with_real_lock
         events_received: list[Event] = []
@@ -3003,54 +3003,52 @@ class TestEventServiceConcurrentSubscriptions:
         class SlowCollectorSubscriber(Subscriber[Event]):
             async def __call__(self, event: Event):
                 events_received.append(event)
-                await asyncio.sleep(0.05)  # Simulate slow processing
+                await asyncio.sleep(0.05)  # 模拟慢速处理
 
-        # Subscribe a slow collector
+        # 订阅慢速收集器
         slow_collector = SlowCollectorSubscriber()
         await event_service.subscribe_to_events(slow_collector)
 
-        # Clear the initial state event
+        # 清除初始状态事件
         events_received.clear()
 
-        # Trigger multiple state updates rapidly
+        # 快速触发多个状态更新
         async def rapid_updates():
             for _ in range(5):
                 await event_service._publish_state_update()
 
-        # This should complete without deadlock
+        # 这应该在没有死锁的情况下完成
         await asyncio.wait_for(rapid_updates(), timeout=5.0)
 
-        # Verify all updates were received
+        # 验证已收到所有更新
         assert len(events_received) == 5, (
             f"Expected 5 events, got {len(events_received)}"
         )
 
 
 class TestSearchEventsBlockedByRunLoop:
-    """Reproduce: search_events blocks for the entire duration of agent.step().
+    """Reproduce: search_events 在 agent.step() 的整个持续时间内阻塞。
 
-    The run loop in LocalConversation.run() holds the FIFOLock on
-    ConversationState for each iteration (including the LLM call and tool
-    execution).  EventService._search_events_sync() acquires the *same* lock
-    to iterate events, so it blocks until the step finishes.
+    运行循环在 LocalConversation.run() 保持不变 FIFOLock 在 ConversationState 在每次
+    迭代（包括） LLM 呼叫和工
+    具执行。 EventService._search_events_sync() 获取了 *相同的*  锁为了迭代事件，因此
+    它会阻塞直到步骤完成。
 
-    See HANG_REPRO.md for the full write-up.
+    完整的文章请参见 HANG_REPRO.md。
     """
 
     @pytest.mark.asyncio
     async def test_search_events_not_blocked_by_state_lock(
         self, sample_stored_conversation
     ):
-        """search_events must return promptly even while the run loop holds the lock.
+        """即使运行循环持有锁，search_events 也必须立即返回。
 
-        This simulates the real scenario: LocalConversation.run() holds
-        ``_state`` (FIFOLock) for the entire agent step, while
-        ``_search_events_sync`` tries to acquire the same lock in a
-        thread-pool executor.
+        这模拟了真实场景：LocalConversation.run() 成立
+        ``_state`` (FIFOLock) for the entire 智能体 step, while
+        ``_search_events_sync`` 尝试在线程池执行器中获取相同的锁。
 
-        The expected (fixed) behaviour is that the read path does NOT
-        contend on the write lock, so search_events returns in well
-        under a second regardless of how long the step takes.
+        预期的行为（已修复）是读路径不会与写路径锁 search_events 不会争用，无论步骤花
+        费多长时间。
         """
         service = EventService(
             stored=sample_stored_conversation,
@@ -3076,29 +3074,29 @@ class TestSearchEventsBlockedByRunLoop:
         lock_acquired = threading.Event()
 
         def hold_lock_like_run_loop():
-            """Simulate LocalConversation.run() holding the lock during step."""
+            """模拟 LocalConversation.run() 在步骤中按住锁。"""
             with state:
                 lock_acquired.set()
                 time.sleep(hold_seconds)
 
-        # Start the "run loop" thread that holds the lock
+        # 启动保存锁的“运行循环”线程
         run_thread = threading.Thread(target=hold_lock_like_run_loop, daemon=True)
         run_thread.start()
         lock_acquired.wait(timeout=5.0)
 
-        # search_events should return quickly even though the lock is held
+        # 即使锁被按住，search_events 也应该快速返回
         t0 = time.monotonic()
         result = await service.search_events()
         elapsed = time.monotonic() - t0
 
         run_thread.join(timeout=5.0)
 
-        # search_events returned correct data
+        # search_events返回正确的数据
         assert len(result.items) == 3
 
-        # The critical assertion: search_events must NOT be blocked by the
-        # run-loop's lock.  If it takes anywhere near hold_seconds, the read
-        # path is still contending on the write lock (the bug in HANG_REPRO.md).
+        # 关键断言：search_events 必须不被运行循环的锁阻止。 如果它花费在 hold_seconds
+        # 附近的任何位置，则读取路径仍在写入锁上竞争（HANG_REPRO.md 中的错误）。
+        #
         max_acceptable = 0.5
         assert elapsed < max_acceptable, (
             f"search_events took {elapsed:.3f}s, but should return in "
@@ -3109,10 +3107,10 @@ class TestSearchEventsBlockedByRunLoop:
 
 
 class _SyncOnlyAgent(AgentBase):
-    """Agent that only implements sync step() (no astep override).
+    """智能体仅实现同步 step()（无步进覆盖）。
 
-    Defined at module level (not inside a test) because ``AgentBase`` is a
-    discriminated-union member and local classes cannot be registered.
+    在模块级别定义（不在测试内部），因为 ``AgentBase`` 是可区分联合成员并且无法注册本
+    地类。
     """
 
     def step(self, conversation, on_event, on_token=None):
@@ -3120,18 +3118,18 @@ class _SyncOnlyAgent(AgentBase):
 
 
 class TestEventServiceClose:
-    """Tests for EventService.close() awaiting conversation teardown."""
+    """测试 EventService.close() 等待对话拆除。"""
 
     @pytest.mark.asyncio
     async def test_close_awaits_conversation_close(self, event_service):
-        """close() must await conversation.close(), not fire-and-forget."""
+        """close() 必须等待 conversation.close()，而不是即发即弃。"""
         conversation = MagicMock(spec=Conversation)
         event_service._conversation = conversation
 
         closed = asyncio.Event()
 
         def slow_close():
-            # Simulate non-trivial teardown work
+            # 模拟重要的拆卸工作
             time.sleep(0.05)
             closed.set()
 
@@ -3145,7 +3143,7 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_close_clears_conversation_reference(self, event_service):
-        """close() must set _conversation to None after closing."""
+        """close() 关闭后必须将 _conversation 设置为 None。"""
         conversation = MagicMock()
         event_service._conversation = conversation
 
@@ -3155,12 +3153,12 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_close_is_idempotent(self, event_service):
-        """Calling close() twice must not raise."""
+        """调用 close() 两次不得引发。"""
         conversation = MagicMock()
         event_service._conversation = conversation
 
         await event_service.close()
-        await event_service.close()  # second call — _conversation is already None
+        await event_service.close()  # 第二次通话 — _conversation 已经是 None
 
         conversation.close.assert_called_once()
 
@@ -3186,9 +3184,10 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_close_pauses_before_closing_conversation(self, event_service):
-        """close() must pause an in-flight run before calling conversation.close().
-        If close() ran first, the still-active run loop would race with executor
-        teardown — closing MCP clients while a tool call is in flight."""
+        """close() 必须在调用 conversation.close() 之前暂停正在进行的运行。
+        如果 close() 首先运行，仍然活动的运行循环将与执行程序拆卸竞争 - 在工具调用运
+        行时关闭 MCP 客户端。
+        """
         conversation = MagicMock(spec=Conversation)
         call_order: list[str] = []
 
@@ -3202,7 +3201,7 @@ class TestEventServiceClose:
         conversation.close = record_close
         event_service._conversation = conversation
 
-        # Task is in-flight when close() inspects it, finishes during the await.
+        # 当 close() 检查任务时，任务正在进行中，并在等待期间完成。
         async def fake_run():
             await asyncio.sleep(0.05)
 
@@ -3217,7 +3216,7 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_close_skips_pause_when_no_run_task(self, event_service):
-        """close() must not call pause() when no run task is in flight."""
+        """当没有正在运行的任务时，close() 不得调用 pause()。"""
         conversation = MagicMock(spec=Conversation)
         conversation.pause = MagicMock()
         conversation.close = MagicMock()
@@ -3231,12 +3230,11 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_close_proceeds_on_run_task_timeout(self, event_service, caplog):
-        """If the run task does not finish within the timeout, close() logs
-        and still proceeds. Server shutdown must not block on a hanging
-        agent.step(): cancel-on-timeout only cancels the asyncio wrapper, not
-        the underlying worker thread, so we accept that case as best-effort.
-        Pause must still be attempted so the common case (step finishes
-        promptly) stays clean."""
+        """如果运行任务未在超时、close() 日志内完成
+        并仍在继续。 服务器关闭不应因挂起的 agent.step 而阻塞：仅在超时上取消不会取消
+        底层工作线程，所以我们接受这种情况为尽力而为。 仍必须尝试暂停，以
+        便常见情况（步骤立即完成）保持干净。
+        """
         conversation = MagicMock(spec=Conversation)
         conversation.pause = MagicMock()
         conversation.close = MagicMock()
@@ -3269,20 +3267,20 @@ class TestEventServiceClose:
 
     @pytest.mark.asyncio
     async def test_run_uses_executor_for_sync_only_conversation(self, event_service):
-        """EventService.run() must use the thread-pool executor when the
-        conversation only inherits the default BaseConversation.arun()
-        (which delegates to sync run()).  This prevents sync-only
-        subclasses from accidentally blocking the event loop."""
+        """当 EventService.run() 必须使用线程-pool 执行器时
+        对话仅继承默认的 BaseConversation.arun() （委托给同步 run()）。 这可以防止仅
+        限同步的子类意外阻塞事件循环。
+        """
         from openhands.sdk.conversation.base import BaseConversation
 
         run_thread_id: int | None = None
         mock = MagicMock()
 
-        # Concrete subclass that never overrides arun(); all abstract
-        # methods are filled by a MagicMock delegate so we only test
-        # the dispatch logic.
+        # 永远不会覆盖 arun() 的具体子类； 所有抽象方法都由 MagicMock 委托填充，因此我们
+        # 只测试调度逻辑。
+        #
         class SyncOnlyConversation(BaseConversation):
-            """Minimal subclass that only implements sync run()."""
+            """仅实现同步 run() 的最小子类。"""
 
             @property
             def id(self):
@@ -3345,11 +3343,11 @@ class TestEventServiceClose:
         conv = SyncOnlyConversation()
         event_service._conversation = conv  # type: ignore[assignment]
 
-        # Sanity: this conversation does NOT override arun()
+        # 理智：此对话确实不覆盖 arun()
         assert type(conv).arun is BaseConversation.arun
 
-        # Bypass guards that access internal _state (not part of the
-        # abstract interface) so we only test the dispatch logic.
+        # 绕过访问内部_state（不是抽象接口的一部分）的保护，因此我们只测试调度逻辑。
+        #
         with (
             patch.object(
                 type(event_service),
@@ -3364,7 +3362,7 @@ class TestEventServiceClose:
             ),
         ):
             await event_service.run()
-            # Give the background task a moment to execute
+            # 给后台任务一点时间来执行
             await asyncio.sleep(0.3)
 
         event_loop_thread = threading.current_thread().ident
@@ -3374,22 +3372,22 @@ class TestEventServiceClose:
         )
 
     async def test_run_uses_executor_for_sync_only_agent(self, event_service):
-        """EventService.run() must use the thread-pool executor when the
-        agent only implements sync step() (no astep() override), even if the
-        conversation overrides arun().  ``LocalConversation`` always overrides
-        arun(), so the conversation-level guard alone would route sync-only
-        custom agents through the native async path, running their sync
-        step() in a worker thread while arun() holds the state lock on the
-        event-loop thread (B5)."""
+        """当 EventService.run() 必须使用线程-pool 执行器时
+        智能体仅实现同步 step()（不覆盖 astep()），即使对话覆盖 arun()。
+        ``LocalConversation`` 总是覆盖 arun()，
+        因此会话级防护会单独通过本机异步路径路由仅同步的自定义智能体，在工作线程线程
+        中运行它们的同步 step()，而 arun() 在事件循环线程上保存状态锁 (
+        B5)。
+        """
         from openhands.sdk.conversation.base import BaseConversation
 
         run_called = False
         arun_called = False
         agent = _SyncOnlyAgent(llm=LLM(model="gpt-4o", usage_id="sync-only"))
 
-        # Stand-in conversation that overrides arun() (like LocalConversation)
-        # but wraps a sync-only agent.  Only the dispatch-relevant members are
-        # implemented.
+        # 替代 arun()（如 LocalConversation）但包装仅同步的智能体的替代对话。 仅实施与调
+        # 度相关的成员。
+        #
         class AsyncConvSyncAgent:
             def __init__(self):
                 self.agent = agent
@@ -3405,8 +3403,8 @@ class TestEventServiceClose:
         conv = AsyncConvSyncAgent()
         event_service._conversation = conv  # type: ignore[assignment]
 
-        # Sanity: conversation overrides arun() but the agent inherits the
-        # default astep(), so the native async path must NOT be taken.
+        # 理智：对话覆盖 arun()，但智能体继承
+        # 默认 astep()，因此必须采用本机异步路径不。
         assert type(conv).arun is not BaseConversation.arun
         assert type(conv.agent).astep is AgentBase.astep
 
@@ -3424,7 +3422,7 @@ class TestEventServiceClose:
             ),
         ):
             await event_service.run()
-            # Give the background task a moment to execute
+            # 给后台任务一点时间来执行
             await asyncio.sleep(0.3)
 
         assert run_called, "sync run() was never called"
@@ -3443,7 +3441,7 @@ async def real_conversation_service(tmp_path):
 
 
 class _WedgedSubscriber:
-    """Models a WS client whose TCP send buffer is full."""
+    """表示一个 WS 客户端的 TCP 缓冲区已满。"""
 
     def __init__(self) -> None:
         self.unblock = asyncio.Event()
@@ -3483,14 +3481,14 @@ async def test_subscribe_to_events_does_not_deadlock_on_wedged_subscriber(
 async def test_close_blocks_until_executor_thread_finishes(
     real_conversation_service, tmp_path, monkeypatch
 ):
-    # close() cancels the _run_task then waits for it to settle.  With the
-    # native arun() path the task handles CancelledError and transitions to
-    # PAUSED quickly.  We verify close() returns promptly (the cancellation
-    # machinery works) and that the task is properly cleaned up.
+    # close() 取消 _run_task，然后等待它稳定下来。 通过本机 arun() 路径，任务可以快速处
+    # 理 CancelledError 并转换到 PAUSED。 我们验证 close() 是否及时返回（取消机器正常工
+    # 作）并且任务已正确清理。
+    #
     (tmp_path / "ws").mkdir()
     parent_llm = SlowTestLLM.from_messages(
         [text_message("done")],
-        latency_s=12.0,  # > the 10 s wait_for in close()
+        latency_s=12.0,  # > close() 中的 10 s wait_for
     )
     info = await start_conversation_with_test_llm(
         real_conversation_service,
@@ -3521,10 +3519,10 @@ async def test_close_blocks_until_executor_thread_finishes(
         await es.close()
     close_elapsed = time.monotonic() - close_start
 
-    # close() should return well before the 12 s LLM latency because
-    # it cancels the arun() task, which handles CancelledError and
-    # transitions to PAUSED.  Allow a generous margin for CI but ensure
-    # it did not block the full 12 s.
+    # close() 应该在 12 s LLM 延迟之前返回，因为它取消了 arun() 任务，该任务处理
+    # CancelledError 并转换到 PAUSED。 为 CI 留出足够的余量，但确保它不会阻塞整个 12 秒
+    # 。
+    #
     assert close_elapsed < 11.0, (
         f"close() took {close_elapsed:.1f}s — expected fast cancellation"
     )
@@ -3533,23 +3531,19 @@ async def test_close_blocks_until_executor_thread_finishes(
 
 
 class TestStatsCallbackNoDeadlock:
-    """Regression: stats_callback must not re-acquire the state lock.
+    """Regression: stats_callback 不得重新获取状态锁。
 
-    ``Telemetry._stats_update_callback`` is invoked synchronously from
-    inside the LLM completion / ACP turn pipeline while another thread
-    (``LocalConversation.run()``) holds the conversation state's
-    ``FIFOLock`` via ``with self._state:``.
+    ``Telemetry._stats_update_callback`` 从 LLM 完成/ACP 轮转管道内部同步调用，而另一
+    个线程 (
+    ``LocalConversation.run()``) 保存对话状态的
+    ``FIFOLock`` 通过 ``with self._state:``。
 
-    Empirically the deadlock is **cross-thread**: the FIFOLock's
-    same-thread reentry works fine (verified in
-    ``test_same_thread_reentry_works_on_fifolock``), but when the
-    callback fires on a different thread than the lock owner, the
-    extra ``with state:`` inside the callback waits forever.  That is
-    what hung every short-text ACP conversation before this fix.
+    根据经验，死锁是 **cross-线程**：FIFOLock 的 Same-线程重入工作正常（在
+    ``test_same_thread_reentry_works_on_fifolock``），但是当回调向与锁所有者不同的线
+    程开火时，回调内额外的
+    ``with state:`` 会永远等待。 这就是此次修复之前所有短文本 ACP 对话挂起的原因。
 
-    These tests pin the contract: the callback returns promptly and
-    the stats event is queued for emission regardless of which thread
-    owns the lock.
+    这些测试固定合约：回调立即返回，并且统计事件排队等待发射，无论哪个线程拥有锁。
     """
 
     def _make_service_with_callback(self):
@@ -3567,10 +3561,9 @@ class TestStatsCallbackNoDeadlock:
             agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-stats"), tools=[]),
             conversations_dir=Path("test_conversation_dir"),
         )
-        # A real FIFOLock on a Mock-ish state so the callback contends on
-        # the actual production lock primitive, but we don't have to spin
-        # up the LocalConversation event loop / persistence stack to
-        # exercise the deadlock.
+        # 一个真实的 FIFOLock 在模拟对象-ish 状态，以便回调争执于实际生产锁基本的，但我
+        # 们不需要启动它 LocalConversation  事件循环 / 持久化将堆栈用于练习死锁。
+        #
         state = MagicMock()
         state._lock = FIFOLock()
         state.__enter__ = MagicMock(side_effect=lambda: state._lock.acquire())
@@ -3580,10 +3573,10 @@ class TestStatsCallbackNoDeadlock:
         conversation = MagicMock()
         conversation._state = state
         service._conversation = conversation
-        # Stub the executor-thread emission path so the test stays
-        # synchronous + deterministic.  The under-test behaviour is just
-        # ``stats_callback returns promptly``; the locked_on_event side of
-        # _emit_event_from_thread is covered elsewhere.
+        # 存根 executor-线程发射路径，以便测试保持同步 + 确定性。 被测行为只是
+        # ``stats_callback returns promptly``; _emit_event_from_thread 的
+        # locked_on_event 侧已在其他地方覆盖。
+        #
         service._emit_event_from_thread = MagicMock(name="_emit_event_from_thread")
 
         callbacks: list = []
@@ -3600,19 +3593,18 @@ class TestStatsCallbackNoDeadlock:
         return service, state, callbacks[0]
 
     def test_same_thread_reentry_works_on_fifolock(self):
-        """Sanity: FIFOLock's reentrancy contract holds for same-thread re-acquire.
+        """Sanity: FIFOLock的可重入性合同适用于线程重新获取。
 
-        Documents why the fix is **not** about masking a broken reentrant
-        lock — even with the buggy ``with state:`` re-entry, the same
-        thread can re-acquire FIFOLock without deadlock.  This isolates
-        the deadlock as a cross-thread phenomenon (see the next test).
+        文档说明，修复**不是**关于掩盖一个可重入锁 — 即使有``with state:``的错误重入
+        ，同样的线程也能FIFOLock重新获得死锁。 这将死锁作
+        为跨线程现象（见下一项测试）。
         """
         lock = FIFOLock()
         finished = threading.Event()
 
         def run():
             with lock:
-                with lock:  # same-thread re-entry
+                with lock:  # 相同的线程重入
                     pass
             finished.set()
 
@@ -3621,19 +3613,18 @@ class TestStatsCallbackNoDeadlock:
 
     @pytest.mark.timeout(10)
     def test_returns_promptly_when_another_thread_holds_state_lock(self):
-        """The deadlock case: another thread owns the lock when the callback fires.
+        """死锁情况：当回调触发时，另一个线程拥有锁。
 
-        Mirrors production: ``LocalConversation.run()`` on thread A holds
-        ``state``'s FIFOLock via ``with self._state:``; the stats callback
-        fires on a different thread (executor / portal / bridge) and would
-        re-acquire the lock with ``with state:`` — blocking forever because
-        FIFOLock's reentrancy gates on ``threading.get_ident()`` and thread
-        B's ident is not the owner.
+        镜子生产：``LocalConversation.run()`` 在线程 A 上
+        ``state``'s FIFOLock via ``with self._state:``; stats 回调在不同地方发生线程
+        (执行器/门户/桥梁)
+        并重新获取锁与 ``with state:`` — 永久阻塞 FIFOLock's 可重入性门
+        ``threading.get_ident()`` 和线程
+        B的身份不是所有者。
 
-        Pre-fix this test hangs forever and the pytest timeout cap fires.
-        Post-fix the callback no longer re-acquires the lock and returns
-        immediately, with the stats event handed to ``_emit_event_from_thread``
-        for serialization once thread A eventually releases the lock.
+        预先修复此测试将永远挂起并且 pytest 超时上限触发。 修复后回调不再重新获取锁并
+        立即返回，统计事件将序列化一次线程 A 最终释放锁交给
+        ``_emit_event_from_thread``。
         """
         service, state, stats_callback = self._make_service_with_callback()
         lock_acquired = threading.Event()
@@ -3643,8 +3634,8 @@ class TestStatsCallbackNoDeadlock:
         def thread_a_holds_lock():
             with state:
                 lock_acquired.set()
-                # Hold the lock until the callback thread has done its work
-                # (or until the test times out, whichever comes first).
+                # 按住锁直到回调线程完成其工作（或直到测试超时，以先到者为准）。
+                #
                 release_lock.wait(timeout=5.0)
 
         def thread_b_invokes_callback():
@@ -3670,7 +3661,7 @@ class TestStatsCallbackNoDeadlock:
             b.join(timeout=2.0)
 
     def test_returns_promptly_with_no_lock_contention(self):
-        """Baseline: callback returns and emit is scheduled when nothing is held."""
+        """Baseline: 回调返回并在没有任何内容时调度发出。"""
         service, _state, stats_callback = self._make_service_with_callback()
         finished = threading.Event()
 
@@ -3690,22 +3681,22 @@ class TestStatsCallbackNoDeadlock:
 async def test_message_in_run_cleanup_tail_is_not_stranded(
     real_conversation_service, tmp_path, monkeypatch
 ):
-    """A message that lands while a *finished* run is still in its
-    ``wait_for_pending()`` cleanup tail must still be processed.
+    """当*完成*运行仍在其状态时到达的消息
+    ``wait_for_pending()`` 清理尾部仍必须进行处理。
 
-    Regression test for a stranded-message race: ``send_message(run=True)``
-    suppresses run()'s ``conversation_already_running`` while ``_run_task`` is
-    wrapping up, and without the re-arm in ``_run_and_publish`` nothing re-runs
-    once the tail clears — so the message sits unprocessed until the next send.
+    回归测试跨线路上的断言消息竞争： ``send_message(run=True)`` 抑制 run()'s
+    ``conversation_already_running`` while ``_run_task`` 正在收尾，缺少重新武装
+    ``_run_and_publish`` 一旦尾部清空，就不会再重跑 —— 因此，消息会一直处于未处理状态
+    ，直到下一次发送。
 
-    Not the in-flight case: ``LocalConversation.run`` deliberately keeps looping
-    on FINISHED so a message arriving *during* a step is absorbed. The unguarded
-    gap is strictly the post-run executor tail owned by ``_run_and_publish``.
+    不是飞行中的情况：``LocalConversation.run`` 故意在 FINISHED 上保持循环，因此在 *
+    步骤期间到达 * 的消息将被吸收。 不受保护
+    的间隙严格来说是 ``_run_and_publish`` 拥有的运行后执行器尾部。
     """
     (tmp_path / "ws").mkdir()
-    # One scripted reply per user message; each is plain text (no tool calls)
-    # so the agent finishes the turn immediately. ``_call_count`` tells us how
-    # many turns actually ran.
+    # 每条用户消息一份脚本化回复； 每个都是纯文本（没有工具调用），因此智能体立即完成转
+    # 弯。 ``_call_count`` 告诉我们实际跑了多少圈。
+    #
     parent_llm = SlowTestLLM.from_messages(
         [text_message("reply one"), text_message("reply two")],
         latency_s=0.0,
@@ -3720,9 +3711,9 @@ async def test_message_in_run_cleanup_tail_is_not_stranded(
     es = await real_conversation_service.get_event_service(info.id)
     assert es is not None and es._callback_wrapper is not None
 
-    # Park every run in its wait_for_pending() tail until released. It runs in
-    # a thread-pool worker, so block on a threading.Event there and signal
-    # entry back to the test.
+    # 将每次运行停放在 wait_for_pending() 尾部直至释放。 它在线程池工作线程中运行，因此
+    # 在 threading.Event 上阻塞并发出信号返回测试。
+    #
     entered_tail = threading.Event()
     release_tail = threading.Event()
 
@@ -3732,8 +3723,9 @@ async def test_message_in_run_cleanup_tail_is_not_stranded(
 
     monkeypatch.setattr(es._callback_wrapper, "wait_for_pending", _blocking_wait)
 
-    # Turn 1: the agent answers "first", finishes (FINISHED), then the run
-    # task parks in our blocking wait_for_pending().
+    # 第 1 回合：智能体“首先”回答，完成 (FINISHED)，然后运行任务停在我们的阻塞
+    # wait_for_pending() 中。
+    #
     await es.send_message(
         Message(role="user", content=[TextContent(text="first")]), run=True
     )
@@ -3745,21 +3737,22 @@ async def test_message_in_run_cleanup_tail_is_not_stranded(
     assert parent_llm._call_count == 1
     assert await es._get_execution_status() == ConversationExecutionStatus.FINISHED
 
-    # Turn 2 arrives DURING the tail: send_message appends it and resets the
-    # terminal status to IDLE, then run() is rejected (task not done) and
-    # suppressed. Nothing runs yet.
+    # 回合2到达DURING尾部：send_message追加它并将终端状态重置为IDLE，然后run()被拒绝（任
+    # 务未完成）并被抑制。 还没有运行。
+    #
     await es.send_message(
         Message(role="user", content=[TextContent(text="second")]), run=True
     )
     assert parent_llm._call_count == 1, "second turn ran before the tail cleared?!"
     assert es._run_task is first_run_task, "a second run started concurrently"
 
-    # Release the tail; the first run task finishes and clears _run_task.
+    # 松开尾巴； 第一个运行任务完成并清除 _run_task。
     release_tail.set()
     await first_run_task
 
-    # The second message must now get processed. Without the _run_and_publish
-    # re-arm it is stranded (call_count stays 1, status stuck IDLE).
+    # 现在必须处理第二条消息。 如果没有 _run_and_publish 重新启动，它就会陷入困境（
+    # call_count 保持 1，状态卡住 IDLE）。
+    #
     deadline = time.monotonic() + 5.0
     while parent_llm._call_count < 2 and time.monotonic() < deadline:
         await asyncio.sleep(0.05)
@@ -3775,14 +3768,14 @@ async def test_message_in_run_cleanup_tail_is_not_stranded(
 async def test_run_false_message_in_cleanup_tail_is_not_run(
     real_conversation_service, tmp_path, monkeypatch
 ):
-    """A run=False append landing in the cleanup tail must NOT be auto-run.
+    """清理尾部中的 run=False 追加着陆必须不自动运行。
 
-    Guards the explicit-intent contract behind the re-arm: send_message(
+    保护重新武装背后的明确意图合约：send_message(
     run=False) appends without running, and _run_and_publish must not
-    resurrect it just because send_message reset the terminal status to IDLE.
+    复活它只是因为send_message将终端状态重置为IDLE。
     """
     (tmp_path / "ws").mkdir()
-    # Two scripted replies, but only the first turn should ever run.
+    # 两个脚本回复，但只应运行第一轮。
     parent_llm = SlowTestLLM.from_messages(
         [text_message("reply one"), text_message("must not run")],
         latency_s=0.0,
@@ -3806,7 +3799,7 @@ async def test_run_false_message_in_cleanup_tail_is_not_run(
 
     monkeypatch.setattr(es._callback_wrapper, "wait_for_pending", _blocking_wait)
 
-    # Turn 1 runs and parks in the wait_for_pending tail.
+    # 1 号弯运行并停在 wait_for_pending 尾部。
     await es.send_message(
         Message(role="user", content=[TextContent(text="first")]), run=True
     )
@@ -3817,18 +3810,18 @@ async def test_run_false_message_in_cleanup_tail_is_not_run(
     assert first_run_task is not None
     assert parent_llm._call_count == 1
 
-    # Append a message with run=False during the tail: the caller explicitly
-    # does NOT want a run. It resets the terminal status to IDLE but must not
-    # set the re-run flag.
+    # 在尾部附加一条带有 run=False 的消息：调用者明确确实不想要运行。 它将终端状态重置为
+    # IDLE，但不得设置重新运行标志。
+    #
     await es.send_message(
         Message(role="user", content=[TextContent(text="just append")]), run=False
     )
     assert es._rerun_requested is False
 
-    # Release the tail and let the run task settle; nothing should re-run.
+    # 释放尾巴，让运行任务安定下来； 没有什么应该重新运行。
     release_tail.set()
     await first_run_task
-    await asyncio.sleep(0.3)  # give any erroneous re-arm a chance to fire
+    await asyncio.sleep(0.3)  # 给任何错误的重新武装机会
 
     assert parent_llm._call_count == 1, (
         "run=False append in the cleanup tail was unexpectedly run "
@@ -3838,12 +3831,13 @@ async def test_run_false_message_in_cleanup_tail_is_not_run(
 
 
 def test_emit_event_from_thread_uses_captured_loop(event_service: EventService) -> None:
-    """_emit_event_from_thread must use the captured main_loop, not self._main_loop.
+    """_emit_event_from_thread 必须使用捕获的 main_loop，而不是 self._main_loop。
 
-    Before this fix, the method captured _main_loop into a local variable for
-    the if-check but then called self._main_loop.run_in_executor(...) in the
-    body. A concurrent close() setting self._main_loop = None between the
-    check and the call would cause AttributeError. The fix uses main_loop.
+    在此修复之前，该方法将 _main_loop 捕获到局部变量中以进行 if 检查，但随后在主体中
+    调用 self._main_loop.run_in_executor
+    (...)。 检查和调用之间的并发 close() 设置 self._main_loop = None 将导致
+    AttributeError。 该修复使用main_
+    loop。
     """
     captured_calls: list = []
 
@@ -3851,11 +3845,11 @@ def test_emit_event_from_thread_uses_captured_loop(event_service: EventService) 
     mock_loop.is_running.return_value = True
 
     def record_and_null(*args, **kwargs):
-        # Simulate concurrent close() nulling self._main_loop mid-call
+        # 模拟并发 close() 清零 self._main_loop 通话中
         object.__setattr__(event_service, "_main_loop", None)
         captured_calls.append(args)
-        # run_in_executor always returns a Future; the caller attaches a
-        # done-callback to surface executor failures.
+        # run_in_executor 总是返回一个 Future； 调用者将完成回调附加到表面执行器故障。
+        #
         return MagicMock()
 
     mock_loop.run_in_executor.side_effect = record_and_null
@@ -3865,7 +3859,7 @@ def test_emit_event_from_thread_uses_captured_loop(event_service: EventService) 
 
     event = MagicMock()
 
-    # Should not raise AttributeError even though self._main_loop is cleared
+    # 即使 self._main_loop 已清除，也不应提高 AttributeError
     event_service._emit_event_from_thread(event)
     assert len(captured_calls) == 1, "run_in_executor should have been called once"
 
@@ -3873,12 +3867,11 @@ def test_emit_event_from_thread_uses_captured_loop(event_service: EventService) 
 async def test_emit_event_from_thread_stamps_event_when_persisted(
     event_service: EventService,
 ) -> None:
-    """An event emitted from a callback is timestamped when it is appended.
+    """从回调发出的事件在附加时会带有时间戳。
 
-    The stats update is built when the model answers, but it is appended only
-    once the step that holds the state lock has appended its action and
-    observation. Keeping the build-time timestamp put it out of timestamp
-    order, so ``timestamp__gte`` and ``resend_mode=since`` skipped it.
+    统计数据更新是在模型回答时构建的，但仅在保存状态锁的步骤附加其操作和观测结果后才
+    会附加。 保留构建时间时间戳会使其不符合时间戳顺序，因此
+    ``timestamp__gte`` 和 ``resend_mode=since`` 跳过了它。
     """
     state_lock = FIFOLock()
     appended: list[Event] = []
@@ -3892,7 +3885,7 @@ async def test_emit_event_from_thread_stamps_event_when_persisted(
     with state_lock:
         event_service._emit_event_from_thread(event)
         await asyncio.sleep(0.01)
-        # Stands in for the step's action/observation appended under the lock.
+        # 代表锁下附加的步骤操作/观察。
         step_end = datetime.now().isoformat()
         await asyncio.sleep(0.01)
 
@@ -4001,9 +3994,11 @@ async def test_event_service_creates_lease_with_custom_ttl(tmp_path: Path) -> No
 async def test_condense_without_request_handling_condenser_is_refused(
     event_service: EventService, condenser, message: str
 ) -> None:
-    """A condenser that cannot serve a request is the caller's configuration,
-    so condense raises CondensationUnavailable (mapped to 409) instead of
-    letting LocalConversation's ValueError become a 500."""
+    """无法服务请求的上下文压缩器是调用者的配置，
+    因此 condense 会提高 CondensationUnavailable（映射到 409），而不是让
+    LocalConversation 的
+    ValueError 变成 500。
+    """
     conversation = MagicMock()
     conversation.agent.condenser = condenser
     event_service._conversation = conversation
@@ -4015,7 +4010,7 @@ async def test_condense_without_request_handling_condenser_is_refused(
 
 
 class TestEmitEventFromThreadFailures:
-    """Executor failures must surface instead of dying with the future (#4386)."""
+    """执行器的失败必须浮出水面，而不是随着未来消亡（#4386）。"""
 
     @pytest.mark.asyncio
     async def test_emit_failure_is_logged(
@@ -4039,7 +4034,7 @@ class TestEmitEventFromThreadFailures:
 
         with caplog.at_level(logging.ERROR):
             service._emit_event_from_thread(event)
-            # Let the executor run and the done-callback fire.
+            # 让执行器运行并触发 did-回调。
             for _ in range(20):
                 await asyncio.sleep(0)
 
@@ -4051,10 +4046,10 @@ class TestEmitEventFromThreadFailures:
 
     @pytest.mark.asyncio
     async def test_cancelled_future_is_not_reported(self, caplog):
-        """A cancelled emission is not a failure and must not log or raise."""
+        """取消的发射并不是失败，并且不能记录或引发。"""
         future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
         future.cancel()
-        # Let the cancellation settle so `cancelled()` is True.
+        # 让取消稳定下来，这样 `cancelled()` 就是 True。
         with suppress(asyncio.CancelledError):
             await future
 
@@ -4067,11 +4062,10 @@ class TestEmitEventFromThreadFailures:
     async def test_callback_is_attached_from_the_loop_thread(
         self, sample_stored_conversation, tmp_path
     ):
-        """`add_done_callback` must be scheduled with call_soon_threadsafe.
+        """`add_done_callback` 必须与 call_soon_threadsafe 一起安排。
 
-        This helper runs on foreign threads, and attaching directly to an
-        already-done future would use plain `call_soon`, which does not wake an
-        idle loop.
+        该帮助程序在外部线程上运行，并且直接附加到已完成的 future 将使用普通
+        `call_soon`，这不会唤醒空闲循环。
         """
         service = EventService(
             stored=sample_stored_conversation, conversations_dir=tmp_path

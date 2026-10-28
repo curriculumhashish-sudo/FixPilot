@@ -1,4 +1,4 @@
-"""Test that an agent can browse a GitHub PR and extract information."""
+"""测试智能体是否可以浏览 GitHub PR 并提取信息。"""
 
 from openhands.sdk import get_logger
 from openhands.sdk.conversation import get_agent_final_response
@@ -15,22 +15,22 @@ logger = get_logger(__name__)
 
 
 class GitHubPRBrowsingTest(BaseIntegrationTest):
-    """Test that an agent can browse a GitHub PR and extract information."""
+    """测试智能体是否可以浏览 GitHub PR 并提取信息。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     @property
     def enable_browser(self) -> bool:
-        """Enable browser tools for this browsing test."""
+        """为此浏览测试启用浏览器工具。"""
         return True
 
     def setup(self) -> None:
-        """No special setup needed for GitHub PR browsing."""
+        """GitHub PR 浏览无需特殊设置。"""
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully browsed the GitHub PR."""
+        """验证智能体是否已成功浏览 GitHub PR。"""
 
-        # Get the agent's final answer/response to the instruction
+        # 获取智能体对指令的最终答案/响应
         agent_answer = get_agent_final_response(self.conversation.state.events)
 
         if not agent_answer:
@@ -43,7 +43,7 @@ class GitHubPRBrowsingTest(BaseIntegrationTest):
                 ),
             )
 
-        # Convert to lowercase for case-insensitive matching
+        # 转换为小写以进行不区分大小写的匹配
         answer_text = agent_answer.lower()
 
         github_indicators = ["mit", "apache", "license"]

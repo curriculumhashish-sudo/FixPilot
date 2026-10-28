@@ -1,4 +1,4 @@
-# Core tool interface
+# 核心工具界面
 from openhands.tools.terminal.definition import (
     TerminalAction,
     TerminalObservation,
@@ -6,7 +6,7 @@ from openhands.tools.terminal.definition import (
 )
 from openhands.tools.terminal.impl import TerminalExecutor
 
-# Terminal session architecture - import from sessions package
+# 终端会话架构 - 从会话包导入
 from openhands.tools.terminal.terminal import (
     TerminalCommandStatus,
     TerminalSession,
@@ -15,12 +15,12 @@ from openhands.tools.terminal.terminal import (
 
 
 __all__ = [
-    # === Core Tool Interface ===
+    # ===核心工具界面===
     "TerminalTool",
     "TerminalAction",
     "TerminalObservation",
     "TerminalExecutor",
-    # === Terminal Session Architecture ===
+    # === 终端会话架构 ===
     "TerminalSession",
     "TerminalCommandStatus",
     "create_terminal_session",

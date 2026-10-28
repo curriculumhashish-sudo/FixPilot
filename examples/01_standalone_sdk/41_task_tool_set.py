@@ -1,14 +1,11 @@
 """
-Animal Quiz with Task Tool Set
+带任务工具集的动物测验
 
-Demonstrates the TaskToolSet with a main agent delegating to an
-animal-expert sub-agent. The flow is:
+演示 TaskToolSet，并将主要智能体委托给动物专家子智能体。 流程是：
 
-1. Main agent picks an animal and delegates to the "animal_expert"
-   sub-agent to generate a multiple-choice question about it.
-2. Main agent thinks about the question and picks an answer.
-3. Main agent resumes the same sub-agent conversation to ask whether
-   its answer is correct. The sub-agent confirms or corrects it.
+1. Main 智能体选择一种动物并委托给“animal_expert”子智能体来生成有关它的多项选择题。
+2. Main 智能体思考问题并选择答案。
+3. Main 智能体恢复相同的子智能体对话，询问其答案是否正确。 子智能体证实或更正了它。
 """
 
 import os
@@ -25,14 +22,14 @@ llm = LLM(
     api_key=os.getenv("LLM_API_KEY"),
     base_url=os.getenv("LLM_BASE_URL", None),
 )
-# ── Register the animal expert sub-agent ─────────────────────────────
+# ── 注册动物专家子智能体 ──────────────────────────────
 
 
 def create_animal_expert(llm: LLM) -> Agent:
-    """Factory for the animal-expert sub-agent."""
+    """动物专家工厂子智能体。"""
     return Agent(
         llm=llm,
-        tools=[],  # no tools needed – pure knowledge
+        tools=[],  # 无需工具——纯知识
         agent_context=AgentContext(
             skills=[
                 Skill(
@@ -50,7 +47,7 @@ def create_animal_expert(llm: LLM) -> Agent:
                         "correct or incorrect, reveal the right answer, and "
                         "give a short fun-fact explanation."
                     ),
-                    trigger=None,  # always active
+                    trigger=None,  # 总是活跃的
                 )
             ],
             system_message_suffix="Keep every response concise.",
@@ -64,7 +61,7 @@ register_agent(
     description="Zoologist that creates and verifies animal quiz questions.",
 )
 
-# ── Main agent ───────────────────────────────────────────────────────
+# ── 主要智能体 ──────────────────────────────────────────────────────────
 
 main_agent = Agent(
     llm=llm,
@@ -77,7 +74,7 @@ conversation = Conversation(
     visualizer=DelegationVisualizer(name="QuizHost"),
 )
 
-# ── Round 1: generate the question ──────────────────────────────────
+# ── 第一轮：生成问题──────────────────────────────────
 
 conversation.send_message(
     "Pick any animal you like and use the task tool to delegate to the "
@@ -89,7 +86,7 @@ conversation.send_message(
 )
 conversation.run()
 
-# ── Round 2: verify the answer ──────────────────────────────────────
+# ── 第二轮：验证答案──────────────────────────────────────
 
 conversation.send_message(
     "Now use the task tool to resume the previous 'animal_expert' "
@@ -98,7 +95,7 @@ conversation.send_message(
 )
 conversation.run()
 
-# ── Done ────────────────────────────────────────────────────────────
+# ── 完成了────────────────────────────────────────────────────────────
 
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
 print(f"\nEXAMPLE_COST: {cost}")

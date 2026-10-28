@@ -14,111 +14,107 @@ logger = getLogger(__name__)
 
 
 class CondenserBase(DiscriminatedUnionMixin, ABC):
-    """Abstract condenser interface.
+    """摘要上下文压缩器接口。
 
-    Condensers take a list of `Event` objects and reduce them into a potentially smaller
-    list.
+    上下文压缩器获取 `Event` 个对象的列表，并将它们缩减为可能更小的列表。
 
-    Agents can use condensers to reduce the amount of events they need to consider when
-    deciding which action to take. To use a condenser, agents can call the
-    `condensed_history` method on the current `State` being considered and use the
-    results instead of the full history.
+    智能体可以使用上下文压缩器来减少他们在决定采取哪个操作时需要考虑的事件数量。 要使
+    用上下文压缩器、智能体可以调用
+    `condensed_history` 方法基于当前 `State` 正在考虑并使用结果而不是完整历史记录。
 
-    If the condenser returns a `Condensation` instead of a `View`, the agent should
-    return `Condensation.action` instead of producing its own action. On the next agent
-    step the condenser will use that condensation event to produce a new `View`.
+    如果上下文压缩器返回 `Condensation` 而不是 `View`，则智能体应该返回
+    `Condensation.action` 而不是产生自己的操作。 在下
+    一个智能体步骤中，上下文压缩器将使用该上下文压缩事件来生成新的 `View`。
     """
 
     def get_llm(self) -> LLM | None:
-        """The LLM used by the condenser, if any."""
+        """上下文压缩器使用的 LLM（如果有）。"""
         return None
 
     @abstractmethod
     def condense(self, view: View, agent_llm: LLM | None = None) -> View | Condensation:
-        """Condense a sequence of events into a potentially smaller list.
+        """将事件序列压缩为可能更小的列表。
 
-        New condenser strategies should override this method to implement their own
-        condensation logic. Call `self.add_metadata` in the implementation to record any
-        relevant per-condensation diagnostic information.
+        新的上下文压缩器策略应该重写此方法以实现它们自己的上下文压缩逻辑。 在实现中调
+        用 `self.add_metadata` 来记录任何相关的 per-上下文压
+        缩诊断信息。
 
         Args:
-            view: A view of the history containing all events that should be condensed.
-                **Implementations must treat this view as read-only.** The view may be
-                a cached projection owned by ``ConversationState``, and
-                mutating it in place will corrupt that cache.  Return a new ``View``
-                (e.g. ``View(events=view.events[k:])``) or a ``Condensation`` instead.
-            agent_llm: LLM instance used by the agent. Condensers use this for token
-                counting purposes. Defaults to None.
+            view: 包含所有应该浓缩的事件的历史视图。
+                **实现必须将此视图视为只读。**视图可能是
+                ``ConversationState`` 拥有的缓存投影，对其进行适当修改会破坏该缓存。
+                返回一个新的 ``View`` (e.g.
+                ``View(events=view.events[k:])``) 或 ``Condensation`` 代替。
+            agent_llm: 智能体使用的 LLM 实例。 上下文压缩器将其用于 token
+                counting purposes. 默认为 None。
 
         Returns:
-            View | Condensation: A condensed view of the events or an event indicating
-            the history has been condensed.
+            | 上下文压缩：简要事件视图或表示历史已被压缩的事件。
         """
 
     async def acondense(
         self, view: View, agent_llm: LLM | None = None
     ) -> View | Condensation:
-        """Async variant of :meth:`condense`.
+        """异步：meth:`condense` 的变体。
 
-        Default implementation delegates to the synchronous ``condense()``.
-        Subclasses that perform async I/O (e.g. LLM calls) should override this.
+        默认实现委托给同步``condense()``。 执行异步 I/O 的子类 (e.g. LLM 调用）应该覆
+        盖它。
         """
         return self.condense(view, agent_llm=agent_llm)
 
     def handles_condensation_requests(self) -> bool:
-        """Whether this condenser handles explicit condensation requests.
+        """此上下文压缩器是否处理显式上下文压缩请求。
 
-        If this returns True, the agent will trigger the condenser whenever a
-        CondensationRequest event is added to the history. If False, the condenser will
-        only be triggered when the agent's own logic decides to do so (e.g. context
-        window exceeded).
+        如果返回 True，则只要将 CondensationRequest 事件添加到历史记录中，智能体就会
+        触发上下文压缩器。 如果是False，则只有当智能体自
+        己的逻辑决定这样做时才会触发上下文压缩器（e.g. 上下文窗口超出）。
 
         Returns:
-            bool: True if the condenser handles explicit condensation requests, False
-            otherwise.
+            bool: True 如果上下文压缩器处理显式上下文压缩请求，False
+            否则。
         """
         return False
 
 
 class PipelinableCondenserBase(CondenserBase):
-    """Abstract condenser interface which may be pipelined. (Since a pipeline
-    condenser should not nest another pipeline condenser)"""
+    """可以流水线化的抽象上下文压缩器接口。 （由于管道
+    上下文压缩器不应嵌套另一个管道上下文压缩器）"""
 
 
 class NoCondensationAvailableException(Exception):
-    """Raised when a condenser is asked to provide a condensation but none is available.
+    """当要求上下文压缩器提供上下文压缩但 None 可用时引发。
 
-    This can happen if the condenser's `should_condense` method returns True, but due to
-    API constraints no condensation can be generated.
+    如果上下文压缩器的 `should_condense` 方法返回 True，但由​​于 API 的限制，无法生成
+    上下文压缩，就会发生这种情况。
 
-    When this exception is raised from a rolling condenser's `get_condensation` method,
-    the agent will fall back to using the uncondensed view for the next agent step.
+    当滚动上下文压缩器的 `get_condensation` 方法引发此异常时，智能体将回退到使用未压
+    缩视图进行下一个智能体步骤。
     """
 
 
 class CondensationRequirement(Enum):
-    """The type of condensation required by a rolling condenser."""
+    """滚动上下文压缩器所需的上下文压缩类型。"""
 
     HARD = "hard"
-    """Indicates that a condensation is required right now, and the agent cannot proceed
-    without it.
+    """表示现在需要上下文压缩，智能体无法继续
+    没有它。
     """
 
     SOFT = "soft"
-    """Indicates that a condensation is desired but not strictly required."""
+    """表示需要上下文压缩，但不严格要求。"""
 
 
 class RollingCondenser(PipelinableCondenserBase, ABC):
-    """Base class for a specialized condenser strategy that applies condensation to a
-    rolling history.
+    """专门的上下文压缩器策略的基类，该策略将上下文压缩应用于
+    滚动的历史。
 
-    The rolling history is generated by `View.from_events`, which analyzes all events in
-    the history and produces a `View` object representing what will be sent to the LLM.
+    `View.from_events` 生成滚动历史，它分析历史中的所有事件并生成一个表示将要发送到
+    LLM 的 `View` 对象。
 
-    If `condensation_requirement` says so, the condenser is then responsible for
-    generating a `Condensation` object from the `View` object. This will be added to the
-    event history which should -- when given to `get_view` -- produce the condensed
-    `View` to be passed to the LLM.
+    如果 `condensation_requirement` 这么说，则上下文压缩器负责从 `View` 对象生成
+    `Condensation` 对象。 这将被添加到
+    事件历史记录中，当给`get_view`时，事件历史记录应该生成压缩的
+    `View` 被传递到 LLM。
     """
 
     def hard_context_reset(
@@ -126,15 +122,14 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
         view: View,  # noqa: ARG002
         agent_llm: LLM | None = None,  # noqa: ARG002
     ) -> Condensation | None:
-        """Perform a hard context reset, if supported by the condenser.
+        """如果上下文压缩器支持，请执行硬上下文重置。
 
-        By default, rolling condensers do not support hard context resets. Override this
-        method to implement hard context reset logic by returning a `Condensation`
-        object.
+        默认情况下，滚动上下文压缩器不支持硬上下文重置。 重写此方法以通过返回
+        `Condensation` 对象来实现硬上下文重置逻辑。
 
-        This method is invoked when:
-        - A HARD condensation requirement is triggered (e.g., by user request)
-        - But the condenser raises a NoCondensationAvailableException error
+        该方法在以下情况下被调用：
+        - 触发 HARD 上下文压缩要求（e.g.，由用户请求）
+        - 但是上下文压缩器引发了 NoCondensationAvailableException 错误
         """
         return None
 
@@ -142,26 +137,26 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
     def condensation_requirement(
         self, view: View, agent_llm: LLM | None = None
     ) -> CondensationRequirement | None:
-        """Determine how a view should be condensed.
+        """确定应如何压缩视图。
 
         Args:
-            view: The current view of the conversation history.
-            agent_llm: LLM instance used by the agent. Condensers use this for token
-                counting purposes. Defaults to None.
+            view: 对话历史记录的当前视图。
+            agent_llm: 智能体使用的 LLM 实例。 上下文压缩器将其用于 token
+                counting purposes. 默认为 None。
 
         Returns:
-            CondensationRequirement | None: The type of condensation required, or None
-            if no condensation is needed.
+            CondensationRequirement  |  None类型是上下文压缩必需的，或 None 如果无上
+            下文压缩是必需的。
         """
 
     @abstractmethod
     def get_condensation(
         self, view: View, agent_llm: LLM | None = None
     ) -> Condensation:
-        """Get the condensation from a view."""
+        """从视图中获取上下文压缩。"""
 
     def condense(self, view: View, agent_llm: LLM | None = None) -> View | Condensation:
-        # If we trigger the condenser-specific condensation threshold, compute and
+        # 如果我们触发上下文压缩器特定的上下文压缩阈值，则计算并
         # return the condensation.
         request = self.condensation_requirement(view, agent_llm=agent_llm)
         if request is not None:
@@ -172,16 +167,17 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
                 logger.debug(f"No condensation available: {e}")
 
                 if request == CondensationRequirement.SOFT:
-                    # For soft requests, we can just return the uncondensed view. This
-                    # request will _eventually_ be handled, but it's not critical that
-                    # we do so immediately.
+                    # 对于软请求，我们可以只返回未压缩的视图。 该请求最终将得到处理，但
+                    # 我们是否立即处理并不重要。
+                    #
                     return view
 
                 elif request == CondensationRequirement.HARD:
-                    # The agent has found itself in a situation where it cannot proceed
-                    # without condensation, but the condenser cannot provide one. We'll
+                    # 的智能体它发现自己处于无法继续下去的境地上下文压缩，但是…… 上下文
+                    # 压缩器无法提供。 我们会
+                    #
                     # try to recover from this situation by performing a hard context
-                    # reset, if supported by the condenser.
+                    # 如果上下文压缩器支持，则重置。
                     try:
                         hard_reset_condensation = self.hard_context_reset(
                             view, agent_llm=agent_llm
@@ -189,25 +185,25 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
                         if hard_reset_condensation is not None:
                             return hard_reset_condensation
 
-                    # And if something goes wrong with the hard reset make sure we keep
-                    # both errors in the stack
+                    # 如果硬重置出现问题，请确保我们将这两个错误都保留在堆栈中
+                    #
                     except Exception as hard_reset_exception:
                         raise hard_reset_exception from e
 
-                # In all other situations re-raise the exception.
+                # 在所有其他情况下重新引发异常。
                 raise e
 
-        # Otherwise we're safe to just return the view.
+        # 否则我们就可以安全地返回视图。
         else:
             return view
 
     async def acondense(
         self, view: View, agent_llm: LLM | None = None
     ) -> View | Condensation:
-        """Async variant of :meth:`condense`.
+        """异步：meth:`condense` 的变体。
 
-        Delegates to :meth:`aget_condensation` when condensation is required,
-        allowing subclasses that perform async LLM calls to override only
+        当需要上下文压缩时委托给：meth:`aget_condensation`，允许执行异步 LLM 调用的子
+        类仅覆盖
         ``aget_condensation``.
         """
         request = self.condensation_requirement(view, agent_llm=agent_llm)
@@ -238,9 +234,9 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
     async def aget_condensation(
         self, view: View, agent_llm: LLM | None = None
     ) -> Condensation:
-        """Async variant of :meth:`get_condensation`.
+        """异步：meth:`get_condensation` 的变体。
 
-        Default delegates to the sync version.
+        默认委托给同步版本。
         """
         return self.get_condensation(view, agent_llm=agent_llm)
 
@@ -249,8 +245,8 @@ class RollingCondenser(PipelinableCondenserBase, ABC):
         view: View,
         agent_llm: LLM | None = None,
     ) -> Condensation | None:
-        """Async variant of :meth:`hard_context_reset`.
+        """异步：meth:`hard_context_reset` 的变体。
 
-        Default delegates to the sync version.
+        默认委托给同步版本。
         """
         return self.hard_context_reset(view, agent_llm=agent_llm)

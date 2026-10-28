@@ -1,7 +1,7 @@
-"""Tests for shutdown handling in terminal sessions.
+"""测试终端会话中的关闭处理。
 
-This module tests the shutdown handling logic that prevents ImportError
-during Python shutdown when terminal sessions are being cleaned up.
+该模块测试关闭处理逻辑，当终端会话被清理时，该逻辑可在 Python 关闭期间防止
+ImportError。
 """
 
 from unittest.mock import Mock
@@ -10,14 +10,14 @@ from openhands.tools.terminal.terminal.tmux_terminal import TmuxTerminal
 
 
 def test_tmux_terminal_close_normal_operation():
-    """Test that TmuxTerminal.close() works normally."""
+    """测试 TmuxTerminal.close() 是否正常工作。"""
     terminal = TmuxTerminal("/tmp")
 
-    # Manually set up a mock session to avoid complex initialization
+    # 手动设置模拟对象会话以避免复杂的初始化
     mock_session = Mock()
     terminal.session = mock_session
 
-    # Normal close should call session.kill()
+    # 正常关闭应该调用 session.kill()
     terminal.close()
 
     mock_session.kill.assert_called_once()
@@ -25,54 +25,54 @@ def test_tmux_terminal_close_normal_operation():
 
 
 def test_tmux_terminal_close_during_shutdown():
-    """Test that TmuxTerminal.close() handles ImportError during shutdown."""
+    """测试 TmuxTerminal.close() 在关闭期间处理 ImportError。"""
     terminal = TmuxTerminal("/tmp")
 
-    # Manually set up a mock session to avoid complex initialization
+    # 手动设置模拟对象会话以避免复杂的初始化
     mock_session = Mock()
     mock_session.kill.side_effect = ImportError(
         "sys.meta_path is None, Python is likely shutting down"
     )
     terminal.session = mock_session
 
-    # close() should handle the ImportError gracefully
-    terminal.close()  # Should not raise an exception
+    # close() 应该优雅地处理 ImportError
+    terminal.close()  # 不应引发异常
 
-    # session.kill() should have been called but raised ImportError
+    # session.kill() 应该被调用但引发了 ImportError
     mock_session.kill.assert_called_once()
     assert terminal.closed
 
 
 def test_tmux_terminal_close_multiple_calls():
-    """Test that multiple close() calls are safe."""
+    """测试多个 close() 调用是否安全。"""
     terminal = TmuxTerminal("/tmp")
 
-    # Manually set up a mock session to avoid complex initialization
+    # 手动设置模拟对象会话以避免复杂的初始化
     mock_session = Mock()
     terminal.session = mock_session
 
-    # First close
+    # 第一次收盘
     terminal.close()
     mock_session.kill.assert_called_once()
 
-    # Second close should be safe and not call kill() again
+    # 第二次关闭应该是安全的，不会再次调用 kill()
     terminal.close()
-    mock_session.kill.assert_called_once()  # Still only called once
+    mock_session.kill.assert_called_once()  # 还是只打过一次电话
 
 
 def test_tmux_terminal_close_when_session_already_dead():
-    """Test that TmuxTerminal.close() handles session already dead/killed externally."""
+    """测试 TmuxTerminal.close() 处理已经在外部死亡/终止的会话。"""
     terminal = TmuxTerminal("/tmp")
 
-    # Manually set up a mock session to avoid complex initialization
+    # 手动设置模拟对象会话以避免复杂的初始化
     mock_session = Mock()
-    # Simulate the "can't find session" error from tmux
+    # 模拟 tmux 中的“找不到会话”错误
     mock_session.kill.side_effect = Exception("can't find session: $2")
     terminal.session = mock_session
 
-    # close() should handle the exception gracefully
-    terminal.close()  # Should not raise an exception
+    # close()应该优雅地处理异常
+    terminal.close()  # 不应引发异常
 
-    # session.kill() should have been called but raised an exception
+    # session.kill() 应该被调用但引发了异常
     mock_session.kill.assert_called_once()
     assert terminal.closed

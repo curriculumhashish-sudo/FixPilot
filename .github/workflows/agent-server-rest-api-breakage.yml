@@ -29,17 +29,16 @@ jobs:
               run: uv sync --frozen --group dev
 
             - name: Install oasdiff
-              # Pin the version so install.sh skips its GitHub API "latest release"
-              # lookup, which intermittently hits the 60/hr unauthenticated rate
-              # limit on shared runners and fails the whole check. Bump as needed.
+              # 固定版本，使 install.sh 跳过 GitHub API 的“最新发布版本”查询；该查询在共享运行器上会偶发触及每小时 60 次的匿名访问限制，导致整项检查失败。 根据需要进行碰撞。
+              #
               run: |
                   curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | version=1.19.1 sh -s -- -b /usr/local/bin
                   oasdiff --version
 
             - name: Run agent server REST API breakage check
               id: api_breakage
-              # Let this step fail so CI is visibly red on breakage.
-              # Later reporting steps still run because they use if: always().
+              # 让此步骤失败，以便 CI 在破损时明显呈红色。 稍后的报告步骤仍会运行，因为它们使用 if: always()。
+              #
               env:
                   AGENT_SERVER_REST_API_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before
                       }}

@@ -1,7 +1,6 @@
-"""Stock CLI server with a synthetic service failure, no provider or model calls.
+"""库存 CLI 服务器出现综合服务故障，没有提供程序或模型调用。
 
-The cyclic shape is injected, not a reproduction of the reporter's deployment.
-A child process and external timeouts keep the pre-fix wedge safe to test.
+循环形状是注入的，而不是记者部署的复制。 子进程和外部超时确保前缀楔可以安全测试。
 """
 
 import json

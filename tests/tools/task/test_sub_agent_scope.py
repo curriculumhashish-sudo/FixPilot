@@ -27,7 +27,7 @@ from openhands.tools.workflow.definition import WorkflowObservation, WorkflowToo
 
 
 TOOLS_ONLY = {"tools": True}
-# The shape profiles stored before MCP servers were always inherited.
+# 始终继承 MCP 服务器之前存储的形状配置文件。
 LEGACY_TOOLS_AND_MCP = {"tools": True, "mcp_servers": True}
 
 
@@ -190,7 +190,7 @@ def test_a_scope_refuses_a_sub_agent_whose_tools_it_cannot_see(
         scoped._get_sub_agent("cli")
     acp_sub_agent = unscoped._get_sub_agent("cli")
     assert isinstance(acp_sub_agent, ACPAgent)
-    # These are the servers an ACP sub-agent forwards to its subprocess.
+    # 这些是 ACP 子智能体转发到其子进程的服务器。
     assert acp_sub_agent.mcp_config == {"fetch": MCPServer(command="uvx")}
 
 

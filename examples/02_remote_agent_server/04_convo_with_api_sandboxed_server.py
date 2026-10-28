@@ -1,14 +1,13 @@
-"""Example: APIRemoteWorkspace with Dynamic Build.
+"""Example: APIRemoteWorkspace 动态构建。
 
-This example demonstrates building an agent-server image on-the-fly from the SDK
-codebase and launching it in a remote sandboxed environment via Runtime API.
+该示例演示了从SDK代码库构建智能体服务器镜像，并通过运行时API在远程沙箱环境中启动它。
 
-Usage:
+用途：
   uv run examples/02_remote_agent_server/04_convo_with_api_sandboxed_server.py
 
-Requirements:
-  - LLM_API_KEY: API key for LLM access
-  - RUNTIME_API_KEY: API key for runtime API access
+要求：
+  - LLM_API_KEY: 用于 LLM 访问的 API 键
+  - RUNTIME_API_KEY: API 运行时 API 访问密钥
 """
 
 import os
@@ -45,8 +44,9 @@ if not runtime_api_key:
     exit(1)
 
 
-# SDK_SHA is the canonical commit SHA set by CI workflows (avoids the
-# built-in GITHUB_SHA which resolves to the merge-commit on PRs).
+# SDK_SHA 是 CI 工作流设置的规范提交 SHA（避免解析为 PR 上的合并提交的内置 GITHUB_SHA）
+# 。
+#
 server_image_sha = os.getenv("SDK_SHA") or os.getenv("GITHUB_SHA") or "main"
 server_image = f"ghcr.io/openhands/agent-server:{server_image_sha[:7]}-python-amd64"
 logger.info(f"Using server image: {server_image}")

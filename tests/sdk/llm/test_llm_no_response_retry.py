@@ -37,7 +37,7 @@ def create_mock_response(
 def create_empty_choices_response(response_id: str = "empty-1") -> ModelResponse:
     return ModelResponse(
         id=response_id,
-        choices=[],  # triggers LLMNoResponseError inside retry boundary
+        choices=[],  # LLMNoResponseError 在重试边界内触发
         created=1,
         model="gpt-4o",
         object="chat.completion",
@@ -54,7 +54,7 @@ def base_llm() -> LLM:
         num_retries=2,
         retry_min_wait=1,
         retry_max_wait=2,
-        temperature=0.0,  # Explicitly set to test temperature bump behavior
+        temperature=0.0,  # 明确设置为测试温度突变行为
     )
 
 
@@ -71,14 +71,14 @@ def test_no_response_retries_then_succeeds(mock_completion, base_llm: LLM) -> No
 
     assert isinstance(resp, LLMResponse)
     assert resp.message is not None
-    assert mock_completion.call_count == 2  # initial + 1 retry
+    assert mock_completion.call_count == 2  # 首字母 + 1 重试
 
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_no_response_exhausts_retries_bubbles_llm_no_response(
     mock_completion, base_llm: LLM
 ) -> None:
-    # Always return empty choices -> keeps raising LLMNoResponseError inside retry
+    # 总是返回空选项 -> LLMNoResponseError 仍在递增重试
     mock_completion.side_effect = [
         create_empty_choices_response("empty-1"),
         create_empty_choices_response("empty-2"),
@@ -89,13 +89,13 @@ def test_no_response_exhausts_retries_bubbles_llm_no_response(
             messages=[Message(role="user", content=[TextContent(text="hi")])]
         )
 
-    # Tenacity runs function num_retries times total
+    # tenacity 总共运行函数 num_retries 次
     assert mock_completion.call_count == base_llm.num_retries
 
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_no_response_retry_bumps_temperature(mock_completion, base_llm: LLM) -> None:
-    # Ensure we start at 0.0 to trigger bump to 1.0 on retry
+    # 确保我们从 0.0 开始以触发重试上的 1.0 碰撞
     assert base_llm.temperature == 0.0
 
     mock_completion.side_effect = [
@@ -107,15 +107,15 @@ def test_no_response_retry_bumps_temperature(mock_completion, base_llm: LLM) -> 
         messages=[Message(role="user", content=[TextContent(text="hi")])]
     )
 
-    # Verify that on the second call, temperature was bumped to 1.0 by RetryMixin
+    # 验证第二次调用时，温度是否已由 RetryMixin 升至 1.0
     assert mock_completion.call_count == 2
-    # Grab kwargs from the second call
+    # 从第二次调用中获取 kwargs
     _, second_kwargs = mock_completion.call_args_list[1]
     assert second_kwargs.get("temperature") == 1.0
 
 
 # ------------------------------------------------------------------
-# Async acompletion tests
+# 异步完成测试
 # ------------------------------------------------------------------
 
 
@@ -127,7 +127,7 @@ def test_no_response_retry_bumps_temperature(mock_completion, base_llm: LLM) -> 
 async def test_async_no_response_retry_bumps_temperature(
     mock_acompletion: AsyncMock, base_llm: LLM
 ) -> None:
-    """Async acompletion must apply the temperature bump on retry (B2 regression)."""
+    """异步完成后必须在重试 (B2 回归) 上施加温度冲击。"""
     assert base_llm.temperature == 0.0
 
     mock_acompletion.side_effect = [
@@ -189,7 +189,7 @@ async def test_async_no_response_exhausts_retries(
 
 
 # ------------------------------------------------------------------
-# Async aresponses tests
+# 异步反应测试
 # ------------------------------------------------------------------
 
 
@@ -223,7 +223,7 @@ def create_mock_responses_api_response(
 async def test_async_aresponses_retry_bumps_temperature(
     mock_aresponses: AsyncMock, base_llm: LLM
 ) -> None:
-    """aresponses must apply the temperature bump on retry (B2 regression)."""
+    """响应必须在重试 (B2 回归) 上应用温度冲击。"""
     assert base_llm.temperature == 0.0
 
     mock_aresponses.side_effect = [
@@ -285,14 +285,14 @@ async def test_async_aresponses_exhausts_retries(
 
 
 # ------------------------------------------------------------------
-# Sync responses tests (exercise the shared helper extraction)
+# 同步响应测试（练习共享助手提取）
 # ------------------------------------------------------------------
 
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_retry_bumps_temperature(mock_responses, base_llm: LLM) -> None:
-    """Sync responses must apply the temperature bump on retry after the
-    _prepare_responses_params / _build_responses_call_kwargs extraction."""
+    """同步响应必须在重试上应用温度冲击
+    _prepare_responses_params / _build_responses_call_kwargs 提取。"""
     assert base_llm.temperature == 0.0
 
     mock_responses.side_effect = [
@@ -327,17 +327,16 @@ def test_responses_retries_then_succeeds(mock_responses, base_llm: LLM) -> None:
 
 
 # ------------------------------------------------------------------
-# Streaming-path retry tests (stream completes without ResponseCompletedEvent)
+# 流式传输-路径重试测试（流在没有 ResponseCompletedEvent 的情况下完成）
 # ------------------------------------------------------------------
 
 
 class _FakeSyncStreamIterator(SyncResponsesAPIStreamingIterator):
-    """Minimal sync stream iterator for testing stream-path failures.
+    """用于测试流路径故障的最小同步流迭代器。
 
-    Mirrors :class:`_FakeAsyncStreamIterator` for the synchronous
-    ``responses`` path: inherits from ``SyncResponsesAPIStreamingIterator``
-    so it passes the ``isinstance`` check inside ``responses._one_attempt``,
-    but skips the heavyweight parent ``__init__``.
+    镜子：class:`_FakeAsyncStreamIterator` 为同步
+    ``responses``路径：继承自``SyncResponsesAPIStreamingIterator``，因此它通过
+    ``responses._one_attempt``内的``isinstance``检查，但跳过重量级父级``__init__``。
     """
 
     def __init__(
@@ -345,8 +344,8 @@ class _FakeSyncStreamIterator(SyncResponsesAPIStreamingIterator):
         events: list,
         completed_response=None,
     ) -> None:
-        # Intentionally skip parent __init__; we only need iteration
-        # and the completed_response attribute.
+        # 故意跳过父级__init__； 我们只需要迭代和 completed_response 属性。
+        #
         self._events = list(events)
         self.completed_response = completed_response
 
@@ -361,9 +360,9 @@ class _FakeSyncStreamIterator(SyncResponsesAPIStreamingIterator):
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_stream_path_retry_bumps_temperature(mock_responses) -> None:
-    """Sync streaming counterpart of the aresponses stream-path test: an
-    iterator that ends without a completed event raises LLMNoResponseError
-    inside the retry boundary, and the retry bumps temperature 0→1.0."""
+    """同步流式传输响应流路径测试的对应项：an
+    在 LLMNoResponseError 边界内，如果没有完成的事件，迭代器重试会抛出重试。
+    """
     streaming_llm = LLM(
         usage_id="test-stream-sync",
         model="gpt-4o",
@@ -392,11 +391,11 @@ def test_responses_stream_path_retry_bumps_temperature(mock_responses) -> None:
 
 
 class _FakeAsyncStreamIterator(ResponsesAPIStreamingIterator):
-    """Minimal async stream iterator for testing stream-path failures.
+    """用于测试流路径故障的最小异步流迭代器。
 
-    Inherits from ``ResponsesAPIStreamingIterator`` so it passes the
-    ``isinstance`` check inside ``aresponses._one_attempt``, but skips
-    the heavyweight parent ``__init__``.
+    继承自``ResponsesAPIStreamingIterator``，因此它传递了
+    ``isinstance`` 检查内部 ``aresponses._one_attempt``，但跳过重量级父级
+    ``__init__``。
     """
 
     def __init__(
@@ -404,8 +403,8 @@ class _FakeAsyncStreamIterator(ResponsesAPIStreamingIterator):
         events: list,
         completed_response=None,
     ) -> None:
-        # Intentionally skip parent __init__; we only need iteration
-        # and the completed_response attribute.
+        # 故意跳过父级__init__； 我们只需要迭代和 completed_response 属性。
+        #
         self._events = list(events)
         self.completed_response = completed_response
 
@@ -426,9 +425,9 @@ class _FakeAsyncStreamIterator(ResponsesAPIStreamingIterator):
 async def test_async_aresponses_stream_path_retry_bumps_temperature(
     mock_aresponses: AsyncMock,
 ) -> None:
-    """When a streaming response has no completed event, _finalize_stream_response
-    raises LLMNoResponseError inside the retry boundary. On retry the temperature
-    should be bumped from 0→1.0, just like the non-streaming path.
+    """当流式传输响应没有已完成的事件时，_finalize_stream_response
+    LLMNoResponseError 位于重试边界内。 在重试，温度应该从0→1.0调高，就像非流式传输路
+    径一样。
     """
     streaming_llm = LLM(
         usage_id="test-stream",
@@ -441,9 +440,9 @@ async def test_async_aresponses_stream_path_retry_bumps_temperature(
         stream=True,
     )
 
-    # First call: return an iterator that ends without a completed event
-    # → _finalize_stream_response raises LLMNoResponseError
-    # Second call: return a valid non-streaming response (fast path)
+    # 第一调用：返回一个没有完成事件的迭代器 → _finalize_stream_response 引发
+    # LLMNoResponseError 第二调用：返回一个有效的非流式传输响应（快速路径）
+    #
     mock_aresponses.side_effect = [
         _FakeAsyncStreamIterator(events=[], completed_response=None),
         create_mock_responses_api_response("ok"),

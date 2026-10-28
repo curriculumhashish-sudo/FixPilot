@@ -1,9 +1,9 @@
-"""Tests for sanitize_json_control_chars helper function.
+"""测试 sanitize_json_control_chars 辅助函数。
 
-This module tests the sanitize_json_control_chars helper that escapes raw
-control characters (U+0000–U+001F) in JSON strings produced by LLMs.  Some
-models (e.g. kimi-k2.5, minimax-m2.5) emit literal control bytes instead of
-legal two-character JSON escape sequences, which causes json.loads() to fail.
+该模块测试了 sanitize_json_control_chars 的 JSON 辅助函数，该函数用于 LLMs 生成的原始
+控制字符（U+0000–U+001F）进行转义
+。 一些模型(e.g。) kimi-k2.5、minimax-m2.5) 发送字节码而不是合法的两个字符 JSON 逃逸
+序列，这导致 json.loads() 失败。
 """
 
 import json
@@ -12,13 +12,13 @@ from openhands.sdk.agent.utils import sanitize_json_control_chars
 
 
 def test_valid_json_unchanged():
-    """Already-valid JSON is returned unmodified."""
+    """已有效的 JSON 未修改地返回。"""
     raw = '{"command": "echo hello", "path": "/tmp"}'
     assert sanitize_json_control_chars(raw) == raw
 
 
 def test_literal_newline_escaped():
-    """A raw 0x0A byte inside a JSON string is replaced with \\n."""
+    """JSON 字符串内的原始 0x0A 字节被替换为 \\n。"""
     raw = '{"command": "line1\nline2"}'
     sanitized = sanitize_json_control_chars(raw)
     assert "\n" not in sanitized
@@ -27,7 +27,7 @@ def test_literal_newline_escaped():
 
 
 def test_literal_tab_escaped():
-    """A raw 0x09 byte inside a JSON string is replaced with \\t."""
+    """JSON 字符串内的原始 0x09 字节被替换为 \\t。"""
     raw = '{"indent": "col1\tcol2"}'
     sanitized = sanitize_json_control_chars(raw)
     assert "\t" not in sanitized
@@ -36,7 +36,7 @@ def test_literal_tab_escaped():
 
 
 def test_multiple_control_chars():
-    """Multiple different control characters are all escaped."""
+    """多个不同的控制字符都被转义。"""
     raw = '{"text": "a\tb\nc\rd"}'
     sanitized = sanitize_json_control_chars(raw)
     parsed = json.loads(sanitized)
@@ -44,7 +44,7 @@ def test_multiple_control_chars():
 
 
 def test_null_byte_escaped():
-    """A raw NUL (0x00) byte is escaped to \\u0000."""
+    """原始 NUL (0x00) 字节转义为 \\u0000。"""
     raw = '{"data": "before\x00after"}'
     sanitized = sanitize_json_control_chars(raw)
     assert "\\u0000" in sanitized
@@ -53,7 +53,7 @@ def test_null_byte_escaped():
 
 
 def test_form_feed_and_backspace():
-    """Form-feed and backspace get their short escape aliases."""
+    """换页符和退格键获得它们的短转义别名。"""
     raw = '{"x": "a\x08b\x0cc"}'
     sanitized = sanitize_json_control_chars(raw)
     assert "\\b" in sanitized
@@ -63,22 +63,22 @@ def test_form_feed_and_backspace():
 
 
 def test_already_escaped_sequences_preserved():
-    """Properly escaped sequences (\\n, \\t) are NOT double-escaped."""
+    """正确转义的序列 (\\n, \\t) 是不双重转义的。"""
     raw = r'{"command": "echo \"hello\\nworld\""}'
     sanitized = sanitize_json_control_chars(raw)
-    # Already-valid escape sequences should parse correctly
+    # 已经有效的转义序列应该正确解析
     parsed = json.loads(sanitized)
     assert "hello\\nworld" in parsed["command"]
 
 
 def test_empty_string():
-    """Empty input returns empty output."""
+    """空输入返回空输出。"""
     assert sanitize_json_control_chars("") == ""
 
 
 def test_realistic_tool_call_arguments():
-    """Simulates a realistic malformed tool_call.arguments from an LLM."""
-    # The LLM emitted a literal newline inside the "command" value
+    """从 LLM 模拟现实的畸形 tool_call.arguments。"""
+    # LLM 在“命令”值中发出了一个文字换行符
     raw = '{"command": "cd /workspace && \\\npython test.py", "path": "/workspace"}'
     sanitized = sanitize_json_control_chars(raw)
     parsed = json.loads(sanitized)

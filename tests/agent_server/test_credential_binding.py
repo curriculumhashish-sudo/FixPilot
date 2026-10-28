@@ -403,8 +403,8 @@ async def test_direct_start_strips_reserved_conversation_secret(tmp_path) -> Non
 
 @pytest.mark.asyncio
 async def test_pending_binding_is_ignored_for_regular_agent(tmp_path) -> None:
-    """A binding sent while a regular (non-ACP) conversation is not loaded is
-    discarded on load, so it never makes the conversation require a binding."""
+    """未加载常规（非 ACP）对话时发送的绑定是
+    在加载时丢弃，因此它永远不会使对话需要绑定。"""
     conversation_id = uuid4()
     request = StartConversationRequest(
         conversation_id=conversation_id,
@@ -422,7 +422,7 @@ async def test_pending_binding_is_ignored_for_regular_agent(tmp_path) -> None:
         )
 
     async with ConversationService(conversations_dir=conversations_dir) as service:
-        # Pending binding consumed by the create path.
+        # 创建路径消耗的待定绑定。
         await service.activate_credential_binding(
             conversation_id, "CODEX_AUTH_JSON", binding()
         )
@@ -432,7 +432,7 @@ async def test_pending_binding_is_ignored_for_regular_agent(tmp_path) -> None:
         assert event_service.credential_bindings == {}
         assert "CODEX_AUTH_JSON" in event_service.stored.secrets
 
-        # Pending binding consumed when the unloaded conversation loads again.
+        # 当卸载的对话再次加载时，待处理的绑定将被消耗。
         await service.prepare_for_sandbox_pause()
         await service.activate_credential_binding(
             conversation_id, "CODEX_AUTH_JSON", binding()
@@ -618,8 +618,9 @@ async def test_managed_start_scrubs_all_durable_credential_copies(tmp_path) -> N
 
         assert "CODEX_AUTH_JSON" not in event_service.stored.secrets
         assert "KEEP" in event_service.stored.secrets
-        # The agent is no longer stored on meta.json; it lives on the live
-        # conversation / base_state.json. Assert the scrub there.
+        # 智能体不再存储在meta.json上； 它存在于实时对话中/base_state.json。 在那儿断言
+        # 磨砂膏。
+        #
         assert event_service._conversation is not None
         live_agent = event_service._conversation.agent
         assert live_agent.agent_context is not None
@@ -634,7 +635,7 @@ async def test_managed_start_scrubs_all_durable_credential_copies(tmp_path) -> N
         meta = json.loads((conversation_dir / "meta.json").read_text())
         base_state = json.loads((conversation_dir / "base_state.json").read_text())
         assert "CODEX_AUTH_JSON" not in meta["secrets"]
-        # meta.json no longer carries the agent at all.
+        # meta.json 不再带有智能体。
         assert "agent" not in meta
         assert "CODEX_AUTH_JSON" not in base_state["agent"]["agent_context"]["secrets"]
         assert "CODEX_AUTH_JSON" not in base_state["secret_registry"]["secret_sources"]
@@ -717,7 +718,7 @@ async def test_late_binding_scrubs_open_uninitialized_conversation(tmp_path) -> 
         assert event_service.credential_bindings["CODEX_AUTH_JSON"] is binding
         assert "CODEX_AUTH_JSON" not in event_service.stored.secrets
         assert "CODEX_AUTH_JSON" not in state.secret_registry.secret_sources
-        # The agent is on the live conversation / base_state.json, not meta.json.
+        # 智能体位于实时对话/base_state.json 中，而不是 meta.json。
         assert event_service._conversation is not None
         live_agent = event_service._conversation.agent
         assert live_agent.agent_context is not None
@@ -1141,8 +1142,9 @@ async def test_resume_removes_legacy_persisted_credential(tmp_path) -> None:
         meta = json.loads((conversation_dir / "meta.json").read_text())
         base_state = json.loads((conversation_dir / "base_state.json").read_text())
         assert "CODEX_AUTH_JSON" not in meta["secrets"]
-        # meta.json no longer carries the agent; the agent (and its scrubbed
-        # agent_context) lives solely in base_state.json.
+        # meta.json不再携带智能体； 智能体（及其被删除的agent_context）仅存在于
+        # base_state.json中。
+        #
         assert "agent" not in meta
         assert "CODEX_AUTH_JSON" not in base_state["agent"]["agent_context"]["secrets"]
         assert "KEEP" in base_state["agent"]["agent_context"]["secrets"]

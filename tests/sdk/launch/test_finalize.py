@@ -148,7 +148,7 @@ def test_memory_is_loaded_when_the_preference_is_on():
     context = launched.agent.agent_context
     assert context is not None
     assert context.load_memory is True
-    # A context synthesized for memory carries no timestamp.
+    # 为内存合成的上下文不带有时间戳。
     assert context.current_datetime is None
 
 

@@ -1,4 +1,4 @@
-"""Prepare secrets for an isolated agent-server."""
+"""为隔离的智能体服务器准备机密。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from openhands.sdk.secret import SecretSource, SecretValue, StaticSecret
 def materialize_secrets(
     secrets: Mapping[str, SecretValue],
 ) -> dict[str, SecretSource]:
-    """Resolve the SDK's secret sources before crossing a runtime boundary."""
+    """在跨越运行时边界之前解析 SDK 的机密源。"""
     registry = SecretRegistry()
     registry.update_secrets(secrets)
     return {

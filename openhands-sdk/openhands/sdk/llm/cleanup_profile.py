@@ -1,27 +1,21 @@
-"""Cleanup profile: repair an agent's outward text before a human reads it.
+"""清理配置文件：在人类读取智能体的外部文本之前对其进行修复。
 
-An agent's reasoning can be sound while the *surface* of a message is broken —
-mojibake from mis-encoded emoji, stray control characters, or an inconsistent
-format for the target channel. The big reasoning model should not have to police
-its own output every turn.
+智能体的推理可以正确，而消息的*表面*可能被破坏——由于未编码的emoji错误、意外的控制字符
+或目标渠道的不一致格式。 大推理模型不应该每次都监控自己的输出。
 
-This module runs the agent's outward text through a small, saved LLM profile —
-resolved by convention under the name ``cleanup`` (:data:`CLEANUP_PROFILE_NAME`) —
-and returns the repaired text. It mirrors the ``ask_oracle`` pattern: no agent
-setting and no wiring; a caller saves a profile named ``cleanup`` and calls
-:func:`clean_outward_text` (or the async :func:`aclean_outward_text`).
+该模块运行智能体的外文本并通过一个保存的小型LLM配置文件——根据约定以``cleanup`` (:data
+:`CLEANUP_PROFILE_NAME`)的形式返回——修
+复文本。 它反映了 ``ask_oracle`` 模式：无智能体设置且无接线； 呼叫者保存名为
+``cleanup`` 的配置文件并呼叫
+:func:`clean_outward_text` （或异步：func:`aclean_outward_text`）。
 
-The pass is deliberately narrow:
+通道故意狭窄：
 
-- It runs on outward, human-facing text only. Callers must not use it on internal
-  agent or tool messages.
-- It is stateless: only the cleanup system prompt plus the draft are sent, with
-  no conversation history and no tools. The active conversation LLM is never
-  switched.
-- It repairs the surface only. The prompt forbids adding facts, links, or
-  promises; it must not change meaning.
-- It fails open. If no ``cleanup`` profile exists, or the call errors, the
-  original text is returned unchanged.
+- 它仅在面向人的外部文本上运行。 调用者不得在内部智能体或工具消息上使用它。
+- 它是无状态的：仅发送清理系统提示词和草稿，没有对话历史记录，也没有工具。 活动对话
+LLM 永远不会切换。
+- 它仅修复表面。 提示词禁止添加事实、链接或承诺； 它一定不能改变意义。
+- 打开失败。 如果不存在 ``cleanup`` 配置文件，或者调用错误，则原样返回原始文本。
 """
 
 from __future__ import annotations
@@ -41,10 +35,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# The cleanup model is a saved LLM profile resolved by convention under this
-# name. Save a profile named "cleanup" (e.g. via LLMProfileStore.save("cleanup",
-# llm)) and callers on the outward path will consult it. No agent setting or
-# wiring is required.
+# 清理模型是一个已保存的 LLM 配置文件，按惯例以该名称解析。 保存名为“cleanup”的配置文件
+# (e.g. via LLMProfileStore.save("cleanup", llm)) 并且外向路径上的调用者将查阅它。 无需
+# 智能体设置或接线。
+#
 CLEANUP_PROFILE_NAME: Final[str] = "cleanup"
 
 _CLEANUP_SYSTEM_PROMPT = """\
@@ -65,16 +59,16 @@ Repair this message and return only the repaired text:
 
 
 def _load_cleanup_llm(cipher: Cipher | None) -> LLM | None:
-    """Load the ``cleanup`` profile, or ``None`` when cleanup is unavailable.
+    """加载 ``cleanup`` 配置文件，或在清理不可用时加载 ``None``。
 
-    Returns ``None`` (feature off / fail-open) when no ``cleanup`` profile is
-    saved or the profile cannot be loaded, so callers can pass the original text
-    through unchanged.
+    退货 ``None`` (功能关闭/失败打开) 当无 ``cleanup`` 如果 profile 保存成功或无法加
+    载 profile，那么调用者可以将原始文本原样
+    传递。
     """
     try:
         return LLMProfileStore().load(CLEANUP_PROFILE_NAME, cipher=cipher)
     except FileNotFoundError:
-        # No cleanup profile configured: feature is simply off.
+        # 未配置清理配置文件：功能完全关闭。
         return None
     except Exception as exc:
         logger.warning("Cleanup profile could not be loaded: %s", exc)
@@ -97,28 +91,26 @@ def _repaired_or_original(response: LLMResponse, text: str) -> str:
         for content in response.message.content
         if isinstance(content, TextContent)
     ).strip()
-    # An empty reply means the cleanup model gave us nothing usable; keep the
-    # original rather than sending a blank message.
+    # 空回复意味着清理模型没有给我们任何可用的东西； 保留原件而不是发送空白消息。
+    #
     return cleaned or text
 
 
 def clean_outward_text(text: str, *, cipher: Cipher | None = None) -> str:
-    """Return ``text`` repaired by the ``cleanup`` LLM profile, or unchanged.
+    """返回由 ``cleanup`` LLM 配置文件修复的 ``text``，或保持不变。
 
-    Resolves the saved profile named :data:`CLEANUP_PROFILE_NAME` from the
-    default :class:`LLMProfileStore` and runs a single stateless completion to
-    repair the message surface. This is fail-open: if the profile is missing or
-    the call fails for any reason, the original ``text`` is returned unchanged so
-    a cleanup problem can never block or corrupt an outward message.
+    从默认：class:`LLMProfileStore` 解析名为：data:`CLEANUP_PROFILE_NAME` 的已保存配
+    置文件，并运行单个无状态完成来修
+    复消息表面。 这是开环失败：如果配置缺失或调用失败，原始 ``text`` 会原样返回，以防
+    止清理问题阻止或损坏外发消息。
 
     Args:
-        text: The agent's outward, human-facing draft. Do not pass internal
-            agent or tool messages.
-        cipher: Optional cipher for decrypting the profile's secrets at rest.
+        text: 智能体向外的、面向人的草稿。 不要通过内部
+            智能体或工具消息。
+        cipher: 用于在 REST 处解密配置文件的机密的可选密码。
 
     Returns:
-        The repaired text, or the original ``text`` when cleanup is unavailable
-        or fails, or when ``text`` is empty.
+        修复后的文本，或原始文本 ``text`` 当清理不可用或失败，或当 ``text`` 是空的。
     """
     if not text.strip():
         return text
@@ -137,10 +129,10 @@ def clean_outward_text(text: str, *, cipher: Cipher | None = None) -> str:
 
 
 async def aclean_outward_text(text: str, *, cipher: Cipher | None = None) -> str:
-    """Async variant of :func:`clean_outward_text`.
+    """异步：func:`clean_outward_text` 的变体。
 
-    Same fail-open contract, for async outward paths (e.g. the agent-server
-    outbound surface). See :func:`clean_outward_text` for details.
+    相同的故障开放合约，用于异步向外路径 (e.g. 智能体-服务器出站表面）。 详细信息请参
+    见：func:`clean_outward_text`。
     """
     if not text.strip():
         return text

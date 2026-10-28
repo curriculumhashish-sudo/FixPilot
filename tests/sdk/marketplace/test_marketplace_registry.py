@@ -1,4 +1,4 @@
-"""Tests for marketplace registration and plugin resolution."""
+"""测试市场注册和插件解析。"""
 
 import json
 from pathlib import Path
@@ -60,7 +60,7 @@ def test_marketplace_registration_accepts_selective_auto_load() -> None:
     assert registration.auto_load == ["formatter", "linter"]
     assert registration.auto_loads_plugin("formatter") is True
     assert registration.auto_loads_plugin("other") is False
-    # A name list selects standalone skills the same way it selects plugins.
+    # 名单选择独立技能的方式与选择插件的方式相同。
     assert registration.auto_loads_skill("formatter") is True
     assert registration.auto_loads_skill("other") is False
 
@@ -395,11 +395,11 @@ def _write_skill(skill_dir: Path, name: str) -> None:
 
 
 def test_get_marketplace_reads_plain_skills_repository(tmp_path: Path) -> None:
-    """A source with no manifest lists the skills in its skills folders."""
+    """没有清单的源会在其技能文件夹中列出技能。"""
     repo = tmp_path / "repo"
     _write_skill(repo / "skills" / "greet", "greet")
     _write_skill(repo / ".skills" / "commit", "commit")
-    # Root-level folders and loose markdown are not read when skills/ exists.
+    # 当 Skills/ 存在时，不会读取根级文件夹和松散的 Markdown。
     _write_skill(repo / "stray", "stray")
     (repo / "README.md").write_text("---\nname: readme\n---\nNot a skill")
     registry = MarketplaceRegistry(
@@ -419,7 +419,7 @@ def test_get_marketplace_reads_plain_skills_repository(tmp_path: Path) -> None:
 def test_get_marketplace_reads_skills_folder_named_by_repo_path(
     tmp_path: Path,
 ) -> None:
-    """A repo_path pointing at the skills folder itself finds its skills."""
+    """指向技能文件夹本身的 repo_path 可以找到它的技能。"""
     repo = tmp_path / "repo"
     _write_skill(repo / "skills" / "greet", "greet")
     registry = MarketplaceRegistry(
@@ -446,7 +446,7 @@ def test_get_marketplace_warns_that_a_plugin_loads_only_its_skills(
     manifest_path: str,
     manifest: dict,
 ) -> None:
-    """A plugin registered as a marketplace keeps only its skills, and says so."""
+    """注册为市场的插件仅保留其技能，并如此说。"""
     repo = tmp_path / "repo"
     (repo / manifest_path).parent.mkdir(parents=True)
     (repo / manifest_path).write_text(json.dumps(manifest))
@@ -465,7 +465,7 @@ def test_get_marketplace_warns_that_a_plugin_loads_only_its_skills(
 def test_get_marketplace_does_not_call_a_skills_repository_a_plugin(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Folders a plugin could also use do not make a skills repository a plugin."""
+    """插件也可以使用的文件夹不会使技能存储库成为插件。"""
     repo = tmp_path / "repo"
     _write_skill(repo / "skills" / "greet", "greet")
     (repo / "agents").mkdir()
@@ -486,7 +486,7 @@ def test_get_marketplace_does_not_call_a_skills_repository_a_plugin(
 def test_get_marketplace_warns_about_a_duplicate_skill_name(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Two folders with the same skill name keep the first, and say so."""
+    """具有相同技能名称的两个文件夹保留第一个，并这么说。"""
     repo = tmp_path / "repo"
     _write_skill(repo / "skills" / "a", "shared")
     _write_skill(repo / ".skills" / "b", "shared")
@@ -506,7 +506,7 @@ def test_get_marketplace_warns_about_a_duplicate_skill_name(
 def test_get_marketplace_without_manifest_or_skills_still_fails(
     tmp_path: Path,
 ) -> None:
-    """Loose markdown is never read as skills, so this is still not a marketplace."""
+    """Loose Markdown 永远不会被解读为技能，因此这仍然不是一个市场。"""
     repo = tmp_path / "repo"
     (repo / "docs").mkdir(parents=True)
     (repo / "README.md").write_text("---\nname: readme\n---\nNot a skill")
@@ -520,7 +520,7 @@ def test_get_marketplace_without_manifest_or_skills_still_fails(
 
 
 def test_get_marketplace_keeps_rejecting_an_invalid_manifest(tmp_path: Path) -> None:
-    """A broken manifest is an error, not a cue to read the skills folder."""
+    """损坏的清单是一个错误，而不是读取技能文件夹的提示。"""
     repo = tmp_path / "repo"
     _write_skill(repo / "skills" / "greet", "greet")
     (repo / ".plugin").mkdir()

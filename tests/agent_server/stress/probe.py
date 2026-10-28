@@ -1,8 +1,8 @@
-"""psutil-based resource sampler for stress tests.
+"""压力测试基于 psutil 的资源采样器。
 
-Samples RSS, num_fds, num_threads, cpu at fixed cadence in a background asyncio
-task. Diff against a baseline taken at fixture entry so budgets are relative to
-warm-up, not absolute CI-runner constants.
+后台 asyncio 任务中以固定节奏采样 RSS、num_fds、num_threads、cpu。 与测试夹具条目中采
+取的基线不同，因此预算与热身相关，而不是绝对的 CI
+ 跑步者常数。
 """
 
 import asyncio
@@ -34,7 +34,7 @@ class ResourceProbe:
     _start_t: float = 0.0
 
     async def __aenter__(self) -> Self:
-        # Prime cpu_percent — first call returns 0.0.
+        # Prime cpu_percent — 第一次调用返回 0.0。
         self._proc.cpu_percent(interval=None)
         self._start_t = time.monotonic()
         self._baseline = self._take()
@@ -47,9 +47,8 @@ class ResourceProbe:
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-        # Final post-run sample — suppress so a psutil hiccup at teardown
-        # can't mask an exception that's already propagating out of the
-        # `async with` body.
+        # 最终的运行后示例 - 抑制，以便拆卸时的 psutil 打嗝无法掩盖已经从外部传播的异常
+        # `async with` 身体。
         with contextlib.suppress(Exception):
             self._samples.append(self._take())
 
@@ -63,10 +62,10 @@ class ResourceProbe:
         try:
             num_fds = self._proc.num_fds()
         except (AttributeError, psutil.AccessDenied):
-            # psutil exposes num_fds() only on POSIX; AttributeError covers
-            # Windows, AccessDenied covers sandboxed/non-owning processes.
-            # -1 is the sentinel for "unavailable" — peak_fds()/fd_delta()
-            # check it explicitly so FD assertions become no-ops there.
+            # psutil 仅在 POSIX 上公开 num_fds()； AttributeError 覆盖 Windows，
+            # AccessDenied 覆盖沙箱内或不拥有该进程的情况。-1 是表示“不可用”的哨兵值；
+            # peak_fds()/fd_delta() 会显式检查该值，使 FD 断言在这些环境中成为空操作。
+            #
             num_fds = -1
         return Sample(
             t=time.monotonic() - self._start_t,
@@ -89,9 +88,9 @@ class ResourceProbe:
         return max(s.rss_mb for s in self._samples)
 
     def peak_fds(self) -> int:
-        """Peak FD count across samples. Returns -1 on platforms where
-        psutil cannot read FDs (Windows; sandboxed processes); pair with
-        ``fd_delta`` rather than asserting on this directly."""
+        """样品间的峰值 FD 计数。 在平台上返回 -1
+        psutil 无法读取 FD（Windows； 沙盒进程）； 与
+        ``fd_delta`` 而不是直接断言这一点。"""
         return max(s.num_fds for s in self._samples)
 
     def peak_threads(self) -> int:
@@ -101,10 +100,10 @@ class ResourceProbe:
         return self.peak_rss_mb() - self.baseline.rss_mb
 
     def fd_delta(self) -> int:
-        """Peak-minus-baseline FD growth. Returns 0 on platforms where the
-        baseline read failed (-1 sentinel from ``_take``), so an
-        ``fd_delta() < budget`` assertion silently passes there rather than
-        firing on a missing measurement."""
+        """FD 增长峰值减去基线。 在平台上返回 0
+        基线读取失败（-1 哨兵值 from ``_take``），因此
+        ``fd_delta() < budget`` 断言会默默地传递到那里，而不是触发丢失的测量。
+        """
         if self.baseline.num_fds < 0:
             return 0
         return self.peak_fds() - self.baseline.num_fds

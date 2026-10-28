@@ -1,18 +1,18 @@
-"""Consult the Oracle end-to-end with the ask_oracle tool.
+"""使用 ask_oracle 工具端到端查询 Oracle。
 
-The Oracle is a saved LLM profile resolved by convention under the name
-``oracle``. This example wires two profiles — the agent's primary model and a
-separate ``oracle`` model — adds ``Tool(name="ask_oracle")`` to the agent, then
-drives a normal conversation: the agent decides to call ``ask_oracle``, the tool
-consults the ``oracle`` profile, and the agent uses the Oracle's answer to reply.
+Oracle 是一个已保存的 LLM 配置文件，按照约定以名称解析
+``oracle``. 这个示例连接了两个智能体的主模型和一个 ``oracle`` 的模型，添加了
+``Tool(name="ask_oracle")`` 到智能体，然后
+驱动了一个正常的对话：智能体决定给 ``ask_oracle`` 发电话，工具查询了 ``oracle`` 的模
+型，然后智能体使用 Oracle 的答案来回复。
 
-Usage:
+用途：
     LLM_API_KEY=... LLM_BASE_URL=https://llm-proxy.app.all-hands.dev \
         uv run python examples/01_standalone_sdk/58_ask_oracle_tool/main.py
 
 Note:
-    The example saves the ``oracle`` profile in a temporary directory so it
-    does not modify the user's default profile store.
+    该示例将 ``oracle`` 配置文件保存在临时目录中，因此不会修改用户的默认配置文件存储
+    。
 """
 
 import os
@@ -26,9 +26,9 @@ from openhands.tools.ask_oracle import ORACLE_PROFILE_NAME, AskOracleTool
 
 
 DEFAULT_BASE_URL = "https://llm-proxy.app.all-hands.dev"
-# The agent's primary model (follows the standard LLM_MODEL env like other
-# examples). The Oracle defaults to the same model; override ASK_ORACLE_MODEL to
-# point the "oracle" profile at a different/stronger model.
+# 智能体的主要模型（与其他示例一样遵循标准 LLM_MODEL env）。 Oracle默认为同模型； 覆盖
+# ASK_ORACLE_MODEL 将“oracle”配置文件指向不同/更强的模型。
+#
 PRIMARY_MODEL = os.getenv("ASK_ORACLE_PRIMARY_MODEL") or os.getenv(
     "LLM_MODEL", "openai/gpt-5.5"
 )

@@ -1,8 +1,7 @@
-"""Guards against duplicated or drifting hardcoded data.
+"""防止重复或漂移的硬编码数据。
 
-The telemetry package deliberately re-uses definitions that already exist
-elsewhere rather than restating them. These tests fail if a copy reappears, or
-if a hardcoded name silently stops matching the library it came from.
+遥测包故意重复使用其他地方已经存在的定义，而不是重述它们。 如果副本再次出现，或者硬编
+码名称默默地停止与其来源的库匹配，这些测试就会失败。
 """
 
 import builtins
@@ -23,14 +22,14 @@ from openhands.agent_server.telemetry.subscriber import (
 from openhands.sdk.conversation.state import ConversationExecutionStatus
 
 
-# ── single definitions ────────────────────────────────────────────────────
+# ── 单一定义────────────────────────────────────────────────────
 
 
-# ── derived, not hardcoded ────────────────────────────────────────────────
+# ── 派生的，非硬编码的────────────────────────────────────────────────
 
 
 def test_terminal_statuses_come_from_the_sdk_enum():
-    """A new terminal status must not silently stop being reported."""
+    """新的终端状态不得悄然停止报告。"""
     expected = {s.value for s in ConversationExecutionStatus if s.is_terminal()}
     assert _TERMINAL_STATUSES == expected
     assert _FAILURE_STATUSES == expected - {ConversationExecutionStatus.FINISHED.value}
@@ -47,15 +46,15 @@ def test_full_state_key_comes_from_the_sdk():
 
 
 def test_first_party_root_is_derived_not_hardcoded():
-    """It must track the package it lives in, not a literal that can go stale."""
+    """它必须跟踪它所在的包，而不是可能会过时的字面意思。"""
     import openhands.agent_server.telemetry.sanitizer as sanitizer
 
     assert _FIRST_PARTY_ROOT == sanitizer.__name__.split(".", 1)[0]
-    assert _FIRST_PARTY_ROOT == "openhands"  # current value, for readability
+    assert _FIRST_PARTY_ROOT == "openhands"  # 当前值，为了可读性
 
 
 def test_consent_literal_has_one_definition():
-    """policy owns TelemetryConsent now that no typed settings field exists."""
+    """由于不存在键入的设置字段，策略拥有 TelemetryConsent。"""
     from openhands.agent_server.persistence import models as persisted
 
     assert not hasattr(persisted, "TelemetryConsent"), (
@@ -65,7 +64,7 @@ def test_consent_literal_has_one_definition():
 
 
 def test_no_deployment_mode_concept_remains():
-    """The follow-up removed cloud mode from SDK and agent-server."""
+    """后续从SDK和智能体-服务器中删除了云模式。"""
     import openhands.agent_server.config as config_mod
 
     assert not hasattr(config_mod, "TelemetryMode")
@@ -90,7 +89,7 @@ def test_deployment_kind_is_a_runtime_property_not_a_mode():
 
 
 def test_versions_match_server_info():
-    """Telemetry and /server_info must never disagree about what is running."""
+    """遥测和 /server_info 决不能对正在运行的内容产生分歧。"""
     from openhands.agent_server.server_details_router import ServerInfo
 
     info = ServerInfo(uptime=0.0, idle_time=0.0)
@@ -103,7 +102,7 @@ def test_versions_match_server_info():
     assert runtime.build_git_ref == info.build_git_ref
 
 
-# ── hardcoded names still match their source ──────────────────────────────
+# ── 硬编码的名称仍然与其来源相符──────────────────────────────
 
 _LITELLM_NAMES = {
     "APIConnectionError",
@@ -123,7 +122,7 @@ _HTTPX_NAMES = {"ConnectError", "ReadTimeout", "HTTPStatusError"}
 
 @pytest.mark.parametrize("name", sorted(_LITELLM_NAMES))
 def test_litellm_error_names_still_exist(name: str):
-    """A litellm rename would silently drop the error into 'unknown'."""
+    """LiteLLM 重命名会默默地将错误放入“未知”。"""
     import litellm.exceptions
 
     assert hasattr(litellm.exceptions, name)
@@ -146,7 +145,7 @@ def test_builtin_error_names_still_exist():
 
 
 def test_model_family_hints_target_real_providers():
-    """Every hint must resolve to a provider litellm actually knows."""
+    """每个提示都必须解析为实际知道的提供者 LiteLLM。"""
     providers = _known_providers()
     unknown = sorted({family for _, family in _MODEL_FAMILY_HINTS} - providers)
     assert unknown == [], f"model family hints not in litellm.provider_list: {unknown}"

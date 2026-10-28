@@ -1,14 +1,14 @@
-# This MANIFEST.in file tells setuptools which files to include 
-# in the sdist package distribution used for building docker image
+# 此 MANIFEST.in 文件告诉 setuptools 在用于构建 Docker 映像的 sdist 软件包分发中包含哪些文件
+#
 
 # ==============================================================================
-# Root-level workspace files
+# 根级工作区文件
 # ==============================================================================
 include pyproject.toml
 include uv.lock
 
 # ==============================================================================
-# openhands-sdk
+# OpenHands-SDK
 # ==============================================================================
 include openhands-sdk/pyproject.toml
 recursive-include openhands-sdk *.py
@@ -17,7 +17,7 @@ recursive-include openhands-sdk schemas/*.json
 recursive-include openhands-sdk py.typed
 
 # ==============================================================================
-# openhands-tools
+# OpenHands-工具
 # ==============================================================================
 include openhands-tools/pyproject.toml
 recursive-include openhands-tools *.py
@@ -25,25 +25,25 @@ recursive-include openhands-tools *.j2
 recursive-include openhands-tools py.typed
 
 # ==============================================================================
-# openhands-workspace
+# OpenHands-工作区
 # ==============================================================================
 include openhands-workspace/pyproject.toml
 recursive-include openhands-workspace *.py
 recursive-include openhands-workspace py.typed
 
 # ==============================================================================
-# openhands-agent-server
+# OpenHands-智能体-服务器
 # ==============================================================================
 include openhands-agent-server/pyproject.toml
 recursive-include openhands-agent-server *.py
 recursive-include openhands-agent-server py.typed
 
-# Docker build files
+# Docker 构建文件
 include openhands-agent-server/openhands/agent_server/docker/Dockerfile
 include openhands-agent-server/openhands/agent_server/docker/wallpaper.svg
 
-# PyInstaller spec
+# PyInstaller 规格
 include openhands-agent-server/openhands/agent_server/agent-server.spec
 
-# VSCode extensions
+# VSCode 扩展
 recursive-include openhands-agent-server/openhands/agent_server/vscode_extensions *

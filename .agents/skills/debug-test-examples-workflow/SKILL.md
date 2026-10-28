@@ -3,85 +3,103 @@ name: debug-test-examples-workflow
 description: Guide for debugging failing example tests in the `test-examples` labeled workflow. Use this skill when investigating CI failures in the run-examples.yml workflow, when example scripts fail to run correctly, when needing to isolate specific test failures, or when analyzing workflow logs and failure patterns.
 ---
 
-# Debugging test-examples Workflow
+<a id="debugging-test-examples-workflow"></a>
 
-## Overview
+# 调试测试示例工作流程
 
-The `run-examples.yml` workflow runs example scripts from `examples/` directory. Triggers:
-- Adding `test-examples` label to a PR
-- Manual workflow dispatch
+<a id="overview"></a>
 
-## Debugging Steps
+## 概述
 
-### 1. Isolate Failing Tests
+`run-examples.yml` 工作流程运行 `examples/` 目录中的示例脚本。 触发器：
+- 将 `test-examples` 标签添加到 PR
+- 手动工作流调度
 
-Modify `tests/examples/test_examples.py` to focus on specific tests:
+<a id="debugging-steps"></a>
+
+## 调试步骤
+
+<a id="1-isolate-failing-tests"></a>
+
+### 1. 隔离失败的测试
+
+修改`tests/examples/test_examples.py`以专注于特定测试：
 
 ```python
 _TARGET_DIRECTORIES = (
-    # EXAMPLES_ROOT / "01_standalone_sdk",
-    EXAMPLES_ROOT / "02_remote_agent_server",  # Keep only failing directory
+    # EXAMPLES_ROOT/“01_standalone_sdk”，
+    EXAMPLES_ROOT / "02_remote_agent_server",  # 仅保留失败目录
 )
 ```
 
-### 2. Exclude Tests
+<a id="2-exclude-tests"></a>
 
-Add to `_EXCLUDED_EXAMPLES` with explanation:
+### 2. 排除测试
+
+添加到`_EXCLUDED_EXAMPLES`并附上说明：
 
 ```python
 _EXCLUDED_EXAMPLES = {
-    # Reason for exclusion
+    # 排除原因
     "examples/path/to/failing_test.py",
 }
 ```
 
-### 3. Trigger Workflow
+<a id="3-trigger-workflow"></a>
 
-Toggle the `test-examples` label:
+### 3. 触发工作流程
+
+切换 `test-examples` 标签：
 
 ```bash
-# Remove label
+# 去除标签
 curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/OpenHands/software-agent-sdk/issues/${PR_NUMBER}/labels/test-examples"
 
-# Add label
+# 添加标签
 curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
   "https://api.github.com/repos/OpenHands/software-agent-sdk/issues/{PR_NUMBER}/labels" \
   -d '{"labels":["test-examples"]}'
 ```
 
-### 4. Monitor Progress
+<a id="4-monitor-progress"></a>
+
+### 4. 监控进度
 
 ```bash
-# Check status
+# 检查状态
 curl -s -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/OpenHands/software-agent-sdk/actions/runs/{RUN_ID}" | jq '{status, conclusion}'
 
-# Download logs
+# 下载日志
 curl -sL -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/OpenHands/software-agent-sdk/actions/runs/{RUN_ID}/logs" -o logs.zip
 unzip logs.zip -d logs
 ```
 
-## Common Failure Patterns
+<a id="common-failure-patterns"></a>
 
-| Pattern | Cause | Solution |
+## 常见故障模式
+
+| 图案 | 原因 | 解决方案 |
 |---------|-------|----------|
-| Port conflicts | Fixed ports (8010, 8011) | Run with `-n 1` or use different ports |
-| Container issues | Docker/Apptainer setup | Check Docker availability, image pulls |
-| LLM failures | Transient API errors | Retry the test |
-| Example bugs | Code errors | Check traceback |
+| 端口冲突 | 固定端口（8010、8011） | 使用 `-n 1` 运行或使用不同的端口 |
+| 容器问题 | Docker/Apptainer 设置 | 检查 Docker 可用性，图像拉取 |
+| LLM 失败 | 瞬态 API 错误 | 重试测试 |
+| 错误示例 | 代码错误 | 检查回溯 |
 
 
-## Key Configuration
+<a id="key-configuration"></a>
 
-**Workflow** (`.github/workflows/run-examples.yml`):
-- Runner: `blacksmith-2vcpu-ubuntu-2404`
-- Timeout: 60 minutes
-- Parallelism: `-n 4` (pytest-xdist: 4 parallel workers)
+## 关键配置
 
-**Tests** (`tests/examples/test_examples.py`):
-- Timeout per example: 600 seconds
-- Target directories: `_TARGET_DIRECTORIES`
-- Excluded examples: `_EXCLUDED_EXAMPLES`
+**工作流程** (`.github/workflows/run-examples.yml`)：
+- 跑步者：`blacksmith-2vcpu-ubuntu-2404`
+- 超时：60 分钟
+- 并行度：`-n 4`（pytest-xdist：4 个并行工作线程）
+
+**测试** (`tests/examples/test_examples.py`)：
+- 超时每个示例：600 秒
+- 目标目录：`_TARGET_DIRECTORIES`
+- 排除的示例：`_EXCLUDED_EXAMPLES`

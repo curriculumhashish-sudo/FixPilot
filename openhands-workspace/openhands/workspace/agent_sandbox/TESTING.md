@@ -1,40 +1,42 @@
-# Testing `AgentSandboxWorkspace`
+<a id="testing-agentsandboxworkspace"></a>
 
-Three tiers, from no cluster at all to a full agent run. Every one of them runs
-locally without an API key. The steps are cluster-agnostic, so they work on kind,
-minikube, or any cluster your `kubectl` can reach.
+# 测试 `AgentSandboxWorkspace`
 
-1. **Unit tests**, which need no cluster.
-2. **Keyless workspace smoke test**, which needs a real cluster but no LLM. It
-   proves the integration on its own: claim, exec, pause/resume and persistence.
-3. **Full agent e2e**, which needs a real cluster plus either a local Ollama model
-   (no key) or a hosted LLM key.
+三层，从根本没有集群到完整的智能体运行。 它们中的每一个都在本地运行，无需 API 键。 这些步骤是集群无关的，因此它们可以在任何你的 `kubectl` 可以到达的集群上运行。
 
-## Prerequisites
+1. **单元测试**，不需要簇。
+2. **无钥匙工作区冒烟测试**，需要真实的集群，但不需要LLM。 它本身证明了集成：声明、执行、暂停/恢复和持久化。
+3. **完整智能体 e2e**，需要一个真实的集群加上本地 Ollama 模型（无密钥）或托管 LLM 密钥。
 
-- A Kubernetes cluster (kind/minikube/cloud) reachable via your kubeconfig, with the
+<a id="prerequisites"></a>
+
+## 先决条件
+
+- 可通过 kubeconfig 访问的 Kubernetes 集群（kind/minikube/cloud），其中
   [agent-sandbox controller + extensions](https://github.com/kubernetes-sigs/agent-sandbox#installation)
-  installed.
-- `kubectl`, and for a local Ollama run, [`ollama`](https://ollama.com) (or use the
-  in-cluster Ollama manifest below).
-- The package with its optional client:
+  安装。
+- `kubectl`，对于本地 Ollama 运行，[`ollama`](https://ollama.com)（或使用下面的集群内 Ollama 清单）。
+- 该软件包及其可选客户端：
 
   ```bash
   pip install openhands-workspace[agent-sandbox]
   ```
 
-## 1. Unit tests (no cluster)
+<a id="1-unit-tests-no-cluster"></a>
+
+## 1. 单元测试（无簇）
 
 ```bash
 uv run pytest tests/workspace/test_agent_sandbox_workspace.py -v
 ```
 
-These mock the `k8s-agent-sandbox` client, so no cluster or credentials are needed.
+这些模拟对象 `k8s-agent-sandbox` 客户端，因此不需要集群或凭据。
 
-## 2. Cluster setup (shared by tiers 2 and 3)
+<a id="2-cluster-setup-shared-by-tiers-2-and-3"></a>
 
-Install the controller (pick a release from
-<https://github.com/kubernetes-sigs/agent-sandbox/releases>):
+## 2. 集群设置（由第2层和第3层共享）
+
+安装控制器（从 <https://github.com/kubernetes-sigs/agent-sandbox/releases> 中选择一个版本）：
 
 ```bash
 export VERSION="v0.5.2"
@@ -42,64 +44,64 @@ kubectl apply -f "https://github.com/kubernetes-sigs/agent-sandbox/releases/down
 kubectl -n agent-sandbox-system rollout status deploy --timeout=180s
 ```
 
-Apply the agent-server `SandboxTemplate` and `SandboxWarmPool` (from
+应用智能体-服务器 `SandboxTemplate` 和 `SandboxWarmPool`（来自
 [`../deploy/`](../deploy/)):
 
 ```bash
 kubectl apply -f ../deploy/sandboxtemplate.yaml
 kubectl apply -f ../deploy/sandboxwarmpool.yaml
-kubectl get pods -w    # wait for the warm pool pods to become Ready
+kubectl get pods -w    # 等待温池 Pod 就绪
 ```
 
-The first pull of `ghcr.io/openhands/agent-server` can take a minute. On kind you can
-pre-load it to avoid an in-cluster pull:
+第一次拉取 `ghcr.io/openhands/agent-server` 可能需要一分钟。 在 kind 上，您可以预加载它以避免集群内拉取：
 
 ```bash
 docker pull ghcr.io/openhands/agent-server:1.42.1-python
 kind load docker-image ghcr.io/openhands/agent-server:1.42.1-python --name <cluster>
 ```
 
-## 3. Keyless workspace smoke test (no LLM)
+<a id="3-keyless-workspace-smoke-test-no-llm"></a>
 
-This validates the whole integration without an LLM, and it works against the
-**secure default template** because nothing ever leaves the pod, so no network
-policy change is needed.
+## 3. 无钥匙工作区烟雾测试（无 LLM）
+
+这验证了没有 LLM 的整个集成，并且它与
+**安全默认模板**因为没有任何东西离开容器，所以没有网络
+需要改变政策。
 
 ```bash
 python testing/smoke_test.py
 ```
 
-Expected: a sub-second claim from the warm pool, a command run in the pod, then a
-`pause()` / `resume()` where a file written before the pause is still present after
-(persistent-volume state survives the suspend), and a clean teardown.
+预期：来自热池的亚秒声明，在 pod 中运行的命令，然后
+`pause()` / `resume()` 其中暂停之前写入的文件在（持久卷状态在暂停后仍然存在）和干净的拆卸之后仍然存在。
 
-## 4. Full agent e2e
+<a id="4-full-agent-e2e"></a>
 
-An OpenHands agent runs *inside* the sandbox pod and calls the LLM from there, so the
-**sandbox pod must be able to reach the LLM**:
+## 4. 完整智能体 e2e
 
-- **Hosted LLM (public API):** the secure default template already allows public
-  egress, so there is nothing to change.
-- **Local / in-cluster LLM:** the default template's `NetworkPolicy` blocks private
-  ranges (cluster and host IPs). For a test, relax it:
+OpenHands 智能体在沙盒 Pod 内运行 ** 并从那里调用 LLM，因此
+**沙盒 Pod 必须能够到达 LLM**：
+
+- **托管 LLM（公共 API）：** 安全默认模板已允许公共出口，因此无需更改。
+- **本地/集群内LLM：**默认模板的`NetworkPolicy`阻止私有范围（集群和主机IP）。 对于测试，放松一下：
 
   ```bash
   kubectl patch sandboxtemplate openhands-agent-server --type merge \
     -p '{"spec":{"networkPolicyManagement":"Unmanaged"}}'
-  # recreate the pool so new pods pick up the change:
+  # 重新创建池，以便新的 pod 接受更改：
   kubectl patch sandboxwarmpool openhands-pool --type merge -p '{"spec":{"replicas":0}}'
   kubectl patch sandboxwarmpool openhands-pool --type merge -p '{"spec":{"replicas":1}}'
   ```
 
-  `Unmanaged` drops the policy entirely, which is fine for a throwaway test cluster
-  but not for real use. For anything beyond a local test, keep the policy **Managed**
-  and allow only what the agent needs. See the commented `networkPolicy` block in
+  `Unmanaged` 完全放弃了该策略，这对于一次性测试集群来说很好，但不适合实际使用。 对于本地测试之外的任何内容，请保留策略 ** 托管 **，并仅允许智能体需要的内容。 请参阅中注释的 `networkPolicy` 块
   [`deploy/sandboxtemplate.yaml`](deploy/sandboxtemplate.yaml) for a copy-pasteable
-  scoped-egress rule (DNS + your LLM endpoint).
+  范围出口规则（DNS + 你的 LLM 端点）。
 
-### 4a. No key, using local Ollama
+<a id="4a-no-key-using-local-ollama"></a>
 
-Deploy the in-cluster Ollama and pull a tool-capable model:
+### 4a. 没有钥匙，使用当地的 Ollama
+
+部署集群内 Ollama 并拉取支持工具的模型：
 
 ```bash
 kubectl apply -f testing/ollama.yaml
@@ -107,38 +109,37 @@ kubectl rollout status deploy/ollama --timeout=180s
 kubectl exec deploy/ollama -- ollama pull qwen2.5
 ```
 
-> **Model choice matters.** Use a model that returns *structured* tool calls:
-> `qwen2.5` (7b) and `llama3.1:8b` work. `qwen2.5-coder` and the `:3b` variants
-> return tool calls as plain **text**, so the agent never acts. Quick check:
+> **模型选择很重要。**使用返回 * 结构化 * 工具调用的模型：
+> `qwen2.5` (7b) 和 `llama3.1:8b` 有效。 `qwen2.5-coder` 和 `:3b` 变体
+> 将工具调用作为纯 **text** 返回，因此智能体永远不会起作用。 快速检查：
 >
 > ```bash
-> curl -s http://<ollama>:11434/api/chat -d '{"model":"qwen2.5","stream":false,
->   "messages":[{"role":"user","content":"call run_bash to make hello.txt"}],
->   "tools":[{"type":"function","function":{"name":"run_bash","parameters":
->   {"type":"object","properties":{"command":{"type":"string"}}}}}]}' | python3 -c \
->   'import sys,json;print("tool_calls:",json.load(sys.stdin)["message"].get("tool_calls"))'
+> 卷曲 -s HTTP://<ollama>:11434/api/chat -d '{"model":"qwen2.5","stream":False,
+>   "messages":[{"role":"user","content":"调用 run_bash 生成 hello.txt"}],
+>   "工具":[{"类型":"功能","功能":{"名称":"run_bash","参数":
+>   ]}' | python3 -c ''
+>   '导入 sys,JSON;print("tool_calls:",json.load(sys.stdin)["消息"].get("tool_calls"))'
 > ```
 >
-> A non-`null` `tool_calls` means the model is usable.
+> 非 `null` `tool_calls` 表示该模型可用。
 
-Run it, pointing at the Ollama Service:
+运行它，指向 Ollama 服务：
 
 ```bash
 export OLLAMA_URL="http://$(kubectl get svc ollama -o jsonpath='{.spec.clusterIP}'):11434"
 python testing/agent_ollama_example.py
 ```
 
-Notes baked into the example:
-- `reasoning_effort="none"`, because qwen2.5 has no "thinking" mode and the request
-  is otherwise rejected with `does not support thinking`.
-- A **minimal terminal-only agent**, because the default multi-tool agent overwhelms
-  models this size: they plan, think and finish without ever executing.
-- Small models on CPU are slow (up to minutes per turn); the example sets a generous
-  timeout.
+示例中包含的注释：
+- `reasoning_effort="none"`，因为qwen2.5没有“思考”模式，否则请求会被`does not support thinking`拒绝。
+- **一个智能体仅限终端的**，因为默认的多工具智能体会压倒这个大小的模型：它们计划、思考和完成，但从未执行。
+- CPU 上的小模型速度较慢（每转最多几分钟）； 这个例子设定了一个慷慨的超时。
 
-### 4b. With a hosted key
+<a id="4b-with-a-hosted-key"></a>
 
-Any `RemoteWorkspace`-style usage works; construct the workspace and hand it to a
+### 4b. 使用托管密钥
+
+任何 `RemoteWorkspace` 风格的用法都有效； 构建工作区并将其交给
 `Conversation`:
 
 ```python
@@ -154,39 +155,44 @@ with AgentSandboxWorkspace(warmpool="openhands-pool") as ws:
     conv.run()
 ```
 
-A capable hosted model can drive the full default agent; that's why 4b uses
-`get_default_agent` while 4a uses the minimal agent.
+一个有能力的托管模型可以驱动完全默认智能体； 这就是 4b 使用的原因
+`get_default_agent` 而 4a 使用最小的智能体。
 
-## What success looks like
+<a id="what-success-looks-like"></a>
 
-- A `SandboxClaim`, `Sandbox`, and pod appear while a test runs:
+## 成功是什么样的
+
+- 测试运行时会出现 `SandboxClaim`、`Sandbox` 和 pod：
 
   ```bash
   kubectl get sandboxclaim,sandbox,pods
   ```
 
-- Smoke test: the marker file survives `pause()`/`resume()`.
-- Agent e2e: the agent emits a `terminal` action, and `/workspace/hello.txt` ends up
-  with the expected content.
-- On exit the workspace deletes the `SandboxClaim` (and its pod) automatically.
+- 冒烟测试：标记文件仍然存在 `pause()`/`resume()`.
+- 智能体 e2e：智能体发出 `terminal` 动作，`/workspace/hello.txt` 最终得到预期的内容。
+- 退出时，工作区会自动删除 `SandboxClaim`（及其 pod）。
 
-## Cleanup
+<a id="cleanup"></a>
+
+## 清理
 
 ```bash
 kubectl delete -f testing/ollama.yaml --ignore-not-found
 kubectl delete -f ../deploy/sandboxwarmpool.yaml -f ../deploy/sandboxtemplate.yaml --ignore-not-found
-# kind: kind delete cluster --name <cluster>
+# kind: kind 删除集群 --name <cluster>
 ```
 
-## Troubleshooting
+<a id="troubleshooting"></a>
 
-| Symptom | Cause / fix |
+## 故障排除
+
+| 症状 | 原因/修复 |
 |---|---|
-| Agent connects but the LLM call times out; nothing reaches Ollama | The sandbox pod can't reach the LLM. The default `NetworkPolicy` blocks private ranges (cluster ClusterIPs, host IPs). Add a scoped egress rule (see the commented block in `deploy/sandboxtemplate.yaml`), or `networkPolicyManagement: Unmanaged` for a throwaway test cluster. Public/hosted APIs are already allowed. |
-| Agent replies with text and `finish`es without doing anything (no `ActionEvent`) | The model returns tool calls as text. Use `qwen2.5` (7b) or `llama3.1:8b`; avoid `qwen2.5-coder` and `:3b`. Verify with the raw `/api/chat` probe above. |
-| `litellm ... "<model>" does not support thinking` | Set `reasoning_effort="none"` on the `LLM` (qwen2.5 has no thinking mode). |
-| Agent plans/thinks/finishes but never runs the command | The default 7-tool agent is too heavy for a small model. Use a minimal terminal-only agent (as in `agent_ollama_example.py`), or a larger/hosted model. |
-| `model '<name>' not found` after editing the Ollama Deployment | The model store is an `emptyDir`; editing the Deployment restarts the pod and wipes it. `kubectl exec deploy/ollama -- ollama pull <model>` again (or use a PVC). |
-| `resume()` fails with a port or "network namespace is closed" error | Transient churn right after resume; the workspace retries with a fresh local port. If you see it persist, raise `health_check_timeout`. |
-| Claim never becomes Ready | First agent-server image pull is slow; pre-load it (see step 2) or raise `sandbox_ready_timeout`. |
+| 智能体已连接，但LLM呼叫超时； 奥拉马什么也没收到 | 沙盒 Pod 无法到达 LLM。 默认 `NetworkPolicy` 阻止专用范围（集群 ClusterIPs、主机 IP）。 添加范围出口规则（请参阅 `deploy/sandboxtemplate.yaml` 中的注释块），或添加 `networkPolicyManagement: Unmanaged` 以获取一次性测试集群。 公共/托管 APIs 已被允许。 |
+| 智能体回复文本和`finish`，但不执行任何操作（无`ActionEvent`） | 该模型以文本形式返回工具调用。 使用 `qwen2.5` (7b) 或 `llama3.1:8b`； 避免`qwen2.5-coder`和`:3b`。 使用上面的原始 `/api/chat` 探针进行验证。 |
+| `litellm ... "<model>" does not support thinking` | 在`LLM`上设置`reasoning_effort="none"`（qwen2.5没有思维模式）。 |
+| 智能体计划/思考/完成但从未运行命令 | 默认的 7 工具智能体对于小型模型来说太重。 使用最小的仅终端智能体（如 `agent_ollama_example.py` 中），或更大/托管模型。 |
+| `model '<name>' not found` 编辑 Ollama 部署后 | 模型商店是`emptyDir`； 编辑 Deployment 会重新启动 pod 并擦除它。 再次`kubectl exec deploy/ollama -- ollama pull <model>`（或使用PVC）。 |
+| `resume()` 失败并出现端口或“网络命名空间已关闭”错误 | 恢复后出现短暂的流失； 工作区重试带有新鲜的当地港口。 如果您看到它持久化，请加注 `health_check_timeout`。 |
+| 索赔永远不会变成就绪状态 | 第一个智能体-服务器镜像拉取速度慢； 预加载它（参见步骤 2）或升高 `sandbox_ready_timeout`。 |
 | `AgentSandboxWorkspace requires the 'agent-sandbox' extra` | `pip install openhands-workspace[agent-sandbox]`. |

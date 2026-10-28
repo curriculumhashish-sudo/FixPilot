@@ -1,4 +1,4 @@
-"""Planning file editor tool - file editor restricted to PLAN.md only."""
+"""规划文件编辑器工具 - 文件编辑器仅限于 PLAN.md。"""
 
 from openhands.tools.planning_file_editor.definition import PlanningFileEditorTool
 

@@ -49,16 +49,17 @@ class MetaProfileLoader(Protocol):
 
 @dataclass(frozen=True, kw_only=True)
 class LaunchStores:
-    """The stores a launch reads, as seen by the process that holds them."""
+    """存储启动时读取的内容，如保存它们的进程所示。"""
 
     llm_profiles: LLMProfileLoader
     mcp_config: Mapping[str, MCPServer]
     skills: Callable[[], Sequence[Skill]]
-    # Names of the public catalog tier that `public_skills` filters; None
-    # counts every catalog skill as public.
+    # `public_skills` 过滤的公共目录层的名称； None 将每个目录技能视为公共技能。
+    #
     public_skill_names: Callable[[], Collection[str]] | None = None
-    # Server-wide credential: a profile is secret-free, so every OpenHands
-    # profile launch uses this one.
+    # 服务器范围凭据：配置文件是机密自由的，因此每个 OpenHands 配置文件启动都使用此配置
+    # 文件。
+    #
     critic_api_key: SecretStr | None = None
     agent_profiles: AgentProfileLoader | None = None
     meta_profiles: MetaProfileLoader | None = None
@@ -68,7 +69,7 @@ class LaunchStores:
 
 @dataclass(frozen=True)
 class ResolvedLaunch:
-    """Reference-free agent settings plus the provenance of the launch."""
+    """无参考智能体设置以及发布的出处。"""
 
     settings: OpenHandsAgentSettings | ACPAgentSettings
     profile: LaunchedAgentProfile | None = None
@@ -89,12 +90,11 @@ def resolve(
     *,
     llm_profile_ref: str | None = None,
 ) -> ResolvedLaunch:
-    """Resolve a stored profile id or a profile into a ``ResolvedLaunch``.
+    """将存储的配置文件 ID 或配置文件解析为 ``ResolvedLaunch``。
 
-    Every reference is copied into the result, so the runtime that finalizes it
-    needs no store. All dangling references are raised together as
-    :class:`UnresolvedProfileReferences`; a store that cannot be read raises
-    :class:`LaunchStoreError`; an unknown profile id raises ``ProfileNotFound``.
+    每个引用都会复制到结果中，因此完成它的运行时不需要存储。 所有悬空引用都一起提出
+    ：类：`UnresolvedProfileReferences`； 无法读取的商店引发
+    ：类：`LaunchStoreError`； 未知的配置文件 ID 引发 ``ProfileNotFound``。
     """
     profile = (
         _load_stored_profile(source, stores) if isinstance(source, UUID) else source
@@ -161,8 +161,8 @@ def _resolve_openhands(
     try:
         return _build_openhands_settings(
             profile,
-            # A profile cannot express streaming; LLM degrades to non-streaming
-            # when the runtime wires no token callback.
+            # 简介无法表达流式传输； 当运行时未连线 token 回调时，LLM 降级为非流式传输。
+            #
             llm.model_copy(update={"stream": True}),
             mcp_config,
             skills,
@@ -263,8 +263,9 @@ def _load_meta_profile(
             raise LaunchStoreError("LLM profile store is busy", retryable=True) from exc
         except OSError as exc:
             raise LaunchStoreError(f"Could not list LLM profiles: {exc}") from exc
-        # Direct routing may pick any saved LLM profile, so an unreadable one
-        # that the meta-profile does not name is skipped rather than fatal.
+        # 直接路由可以选择任何已保存的 LLM 配置文件，因此元配置文件未命名的不可读配置文
+        # 件将被跳过，而不是致命的。
+        #
         for ref in names:
             if ref in llms:
                 continue

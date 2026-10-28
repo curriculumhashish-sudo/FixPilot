@@ -1,4 +1,4 @@
-"""Hook event types and data structures."""
+"""挂钩事件类型和数据结构。"""
 
 from enum import Enum
 from typing import Any
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class HookEventType(str, Enum):
-    """Types of hook events that can trigger hooks."""
+    """可以触发钩子的钩子事件类型。"""
 
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
@@ -18,7 +18,7 @@ class HookEventType(str, Enum):
 
 
 class HookEvent(BaseModel):
-    """Data passed to hook scripts via stdin as JSON."""
+    """通过 stdin 作为 JSON 传递到挂钩脚本的数据。"""
 
     event_type: HookEventType
     tool_name: str | None = None
@@ -33,8 +33,8 @@ class HookEvent(BaseModel):
 
 
 class HookDecision(str, Enum):
-    """Decisions a hook can make about an operation."""
+    """钩子可以对操作做出的决定。"""
 
     ALLOW = "allow"
     DENY = "deny"
-    # ASK = "ask"  # Future: prompt user for confirmation before proceeding
+    # ASK = "ask"  # 未来：提示词在继续之前需要用户确认

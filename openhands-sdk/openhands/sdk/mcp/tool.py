@@ -1,4 +1,4 @@
-"""Utility functions for MCP integration."""
+"""MCP 积分的实用函数。"""
 
 import copy
 import json
@@ -45,12 +45,12 @@ from openhands.sdk.utils.models import DiscriminatedUnionMixin
 logger = get_logger(__name__)
 
 
-# Default timeout for MCP tool execution in seconds
+# MCP 工具执行的默认值超时（以秒为单位）
 MCP_TOOL_TIMEOUT_SECONDS = 300
 
-# mcp 2.x dumps its snake_case attribute names unless by_alias=True; mcp 1.x
-# only reads the camelCase wire names. Keys inside inputSchema/outputSchema
-# are user JSON Schema and must never be renamed.
+# MCP 2.x 转储其 snake_case 属性名称，除非 by_alias=True； MCP 1.x 仅读取 camelCase 线路
+# 名称。 inputSchema/outputSchema 内的键是用户 JSON 模式，并且绝不能重命名。
+#
 _MCP_TOOL_WIRE_KEYS: Final[dict[str, str]] = {
     "input_schema": "inputSchema",
     "output_schema": "outputSchema",
@@ -69,7 +69,7 @@ _MCP_NESTED_WIRE_KEYS: Final[dict[str, dict[str, str]]] = {
 
 
 def _mcp_tool_to_wire_keys(data: Any) -> Any:
-    """Normalize a serialized mcp.types.Tool to the MCP spec's camelCase keys."""
+    """将已序列化 mcp.types.Tool 规范化为 MCP 规格的 camelCase 键。"""
     if not isinstance(data, dict):
         return data
     out = {_MCP_TOOL_WIRE_KEYS.get(k, k): v for k, v in data.items()}
@@ -87,9 +87,9 @@ def _mcp_tool_to_wire_keys(data: Any) -> Any:
     return out
 
 
-# NOTE: We don't define MCPToolAction because it
-# will be a pydantic BaseModel dynamically created from the MCP tool schema.
-# It will be available as "tool.action_type".
+# 注意我们不定义 MCPToolAction 因为它是
+# 将是从 MCP 工具模式动态创建的 Pydantic BaseModel。 它将作为“tool.action_type”提供。
+#
 
 
 def to_camel_case(s: str) -> str:
@@ -98,7 +98,7 @@ def to_camel_case(s: str) -> str:
 
 
 class MCPToolExecutor(ToolExecutor):
-    """Executor for MCP tools."""
+    """MCP 工具的执行器。"""
 
     tool_name: str
     client: MCPClient
@@ -116,12 +116,11 @@ class MCPToolExecutor(ToolExecutor):
 
     @observe(name="MCPToolExecutor.call_tool", span_type="TOOL")
     async def call_tool(self, action: MCPToolAction) -> MCPToolObservation:
-        """Execute the MCP tool call using the already-connected client.
+        """使用已连接的客户端执行MCP 工具调用。
 
-        If the client's session has been lost (e.g., due to a transient
-        server error such as HTTP 503), attempt to reconnect once before
-        failing. This prevents a single transient error from permanently
-        disabling all MCP tools for the remainder of the conversation.
+        如果客户端会话已丢失（e.g.，由于短暂的服务器错误，例如 HTTP 503），请在失败之
+        前尝试重新连接一次。 这可以防止单个瞬态错误永久禁用对话剩余部分的
+        所有 MCP 工具。
         """
         if not self.client.is_connected():
             if self.client._closed:
@@ -172,15 +171,15 @@ class MCPToolExecutor(ToolExecutor):
         action: MCPToolAction,
         conversation: "LocalConversation | None" = None,
     ) -> MCPToolObservation:
-        """Execute an MCP tool call.
+        """执行MCP工具调用。
 
-        If a conversation is provided, secret references in the action data
-        (e.g., $VAR, ${VAR}, ${VAR:-default}) are expanded using the
-        conversation's secret registry before calling the MCP server.
+        如果提供了对话，机密在动作数据中的引用（e.g、$VAR、${VAR}、${VAR:-default}）
+        在调用 MCP 服务器之前会使用对话的机密注册表扩展
+        。
         """
-        # Expand secret references (e.g. $VAR, ${VAR}, ${VAR:-default}) in the
-        # action data, mirroring how terminal commands resolve secrets before
-        # execution. Reuses the same expander as MCP config expansion.
+        # 展开操作数据中的机密引用 (e.g.$VAR, ${VAR}, ${VAR:-default})，镜像终端命令在执
+        # 行前如何解析机密。 重复使用与 MCP 配置扩展相同的扩展器。
+        #
         expanded_action = action
         if conversation is not None:
             try:
@@ -188,19 +187,19 @@ class MCPToolExecutor(ToolExecutor):
                 expanded_data = expand_variable_references(
                     action.data,
                     get_secret=secret_registry.get_secret_value,
-                    check_env=False,  # secrets only — never expand host env vars
-                    support_unbraced=True,  # also resolve $VAR like the shell
+                    check_env=False,  # 仅机密 — 从不扩展主机环境变量
+                    support_unbraced=True,  # 也像 shell 一样解析 $VAR
                 )
                 expanded_action = action.model_copy(update={"data": expanded_data})
             except Exception as e:
                 logger.warning(f"Failed to expand secrets in MCP tool action: {e}")
-                # Fall back to original action if expansion fails
+                # 如果扩展失败，则返回到原始操作
 
         try:
             observation = self.client.call_async_from_sync(
                 self.call_tool, action=expanded_action, timeout=self.timeout
             )
-            # Mask secrets in observation output
+            # 观测结果输出中的掩码机密
             return self._mask_observation(observation, conversation)
         except TimeoutError:
             error_msg = (
@@ -220,13 +219,13 @@ class MCPToolExecutor(ToolExecutor):
         observation: MCPToolObservation,
         conversation: "LocalConversation | None" = None,
     ) -> MCPToolObservation:
-        """Apply automatic secrets masking to observation content."""
+        """对观测结果内容应用自动机密屏蔽。"""
         if conversation is None:
             return observation
 
         try:
             secret_registry = conversation.state.secret_registry
-            # Mask secrets in text blocks; pass image blocks through untouched.
+            # 文本块中的掩码机密； 不受影响地传递图像块。
             masked_content = [
                 TextContent(text=secret_registry.mask_secrets_in_output(block.text))
                 if isinstance(block, TextContent) and block.text
@@ -243,26 +242,24 @@ class MCPToolExecutor(ToolExecutor):
 
 
 _MCP_ACTION_TYPE_CACHE_MAX: Final[int] = 512
-# LRU-bounded: keyed by (name, schema), so a tool whose schema keeps changing
-# no longer grows this cache without limit. Guarded by a lock since MCP tool
-# calls can validate concurrently through the parallel tool executor.
+# LRU-bounded：以 (name, 模式) 为键，因此模式不断变化的工具不再无限制地增长此缓存。 由锁
+# 保护，因为 MCP 工具调用可以通过并行工具执行器同时验证。
+#
 _mcp_dynamic_action_type: OrderedDict[tuple[str, str], type[Schema]] = OrderedDict()
 _mcp_dynamic_action_type_lock = threading.Lock()
 
 
 def _create_mcp_action_type(action_type: mcp.types.Tool) -> type[Schema]:
-    """Dynamically create a Pydantic model for MCP tool action from schema.
+    """为模式中的 MCP 工具操作动态创建 Pydantic 模型。
 
-    We create from "Schema" instead of:
-    - "MCPToolAction" because MCPToolAction has a "data" field that
-      wraps all dynamic fields, which we don't want here.
-    - "Action" because Action inherits from DiscriminatedUnionMixin,
-      which includes `kind` field that is not needed here.
+    我们从“模式”创建而不是：
+    - "MCPToolAction"，因为 MCPToolAction 的 "data" 字段会包装所有动态字段，而此处不
+    需要这种包装。
+    - “Action”是因为 Action 继承自 DiscriminatedUnionMixin，其中包含此处不需要的
+    `kind` 字段。
 
-    .from_mcp_schema simply defines a new Pydantic model class
-    that inherits from the given base class.
-    We may want to use the returned class to convert fields definitions
-    to openai tool schema.
+    .from_mcp_schema 只是定义了一个新的 Pydantic 模型类，该类继承自给定的基类。 我们
+    可能想使用返回的类将字段定义转换为OpenAI工具模式。
     """
 
     cache_key = (
@@ -284,7 +281,7 @@ def _create_mcp_action_type(action_type: mcp.types.Tool) -> type[Schema]:
 
 
 class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
-    """MCP Tool that wraps an MCP client and provides tool functionality."""
+    """MCP 包装 MCP 客户端并提供工具功能的工具。"""
 
     mcp_tool: mcp.types.Tool = Field(description="The MCP tool definition.")
 
@@ -297,14 +294,15 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
     def _write_mcp_wire_spelling(
         self, v: mcp.types.Tool, handler: SerializerFunctionWrapHandler
     ):
-        # Persisted events outlive the resolved mcp major; always write the
-        # spec's wire names so every mcp version can read them back. No return
-        # annotation, so the OpenAPI schema keeps referencing mcp.types.Tool.
+        # 已持久化事件比已解决的 MCP 重大事件持续时间更长； 始终写下规范的线路名称，以便
+        # 每个 MCP 版本都可以读回它们。 没有返回注释，因此 OpenAPI 模式继续引用
+        # mcp.types.Tool。
+        #
         return _mcp_tool_to_wire_keys(handler(v))
 
     @property
     def name(self) -> str:  # type: ignore[override]
-        """Return the MCP tool name instead of the class name."""
+        """返回 MCP 工具名称而不是类名称。"""
         return self.mcp_tool.name
 
     def __call__(
@@ -312,16 +310,15 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         action: Action,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> Observation:
-        """Execute the tool action using the MCP client.
+        """使用 MCP 客户端执行工具操作。
 
-        We dynamically create a new MCPToolAction class with
-        the tool's input schema to validate the action.
+        我们动态创建一个新的MCPToolAction类，使用工具的输入模式来验证操作。
 
         Args:
-            action: The action to execute.
+            action: 要执行的操作。
 
         Returns:
-            The observation result from executing the action.
+            观测结果是执行操作的结果。
         """
         if not isinstance(action, MCPToolAction):
             raise ValueError(
@@ -332,7 +329,7 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         try:
             mcp_action_type.model_validate(action.data)
         except ValidationError as e:
-            # Surface validation errors as an observation instead of crashing
+            # 表面验证错误为观测结果，而不是崩溃
             error_msg = f"Validation error for MCP tool '{self.name}' args: {e}"
             logger.error(error_msg, exc_info=True)
             return MCPToolObservation.from_text(
@@ -344,37 +341,38 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         return super().__call__(action, conversation)
 
     def action_from_arguments(self, arguments: dict[str, Any]) -> MCPToolAction:
-        """Create an MCPToolAction from parsed arguments with early validation.
+        """创建一个 MCPToolAction 从解析的早期参数验证。
 
-        We validate the raw arguments against the MCP tool's input schema here so
-        Agent._get_action_event can catch ValidationError and surface an
-        AgentErrorEvent back to the model instead of crashing later during tool
-        execution. On success, we return MCPToolAction with sanitized arguments.
+        我们验证原始参数是否符合  MCP 工具的输入模式这里如此 Agent._get_action_event
+        can catch
+        ValidationError 和表面 AgentErrorEvent 回到模型，而不是在工具执行过程中后期崩
+        溃。 成功时，我们返回
+        MCPToolAction 带有 sanitized 参数。
 
         Args:
-            arguments: The parsed arguments from the tool call.
+            arguments: 来自工具调用的解析参数。
 
         Returns:
-            The MCPToolAction instance with data populated from the arguments.
+            的 MCPToolAction 带有从参数填充的数据的实例。
 
         Raises:
-            ValidationError: If the arguments do not conform to the tool schema.
+            ValidationError: 如果参数不符合工具模式。
         """
         tool_arguments, structured_output = self._split_response_arguments(arguments)
         prefiltered_args = {
             key: value for key, value in tool_arguments.items() if value is not None
         }
-        # Validate against the dynamically created action type (from MCP schema)
+        # 针对动态创建的操作类型进行验证（来自 MCP 模式）
         mcp_action_type = _create_mcp_action_type(self.mcp_tool)
         validated = mcp_action_type.model_validate(prefiltered_args)
-        # Use exclude_none to avoid injecting nulls back to the call
-        # Exclude DiscriminatedUnionMixin fields (e.g., 'kind') as they're
-        # internal to OpenHands and not part of the MCP tool schema
+        # 使用 exclude_none 避免将空值注入回调用排除 DiscriminatedUnionMixin 字段（e.g.,
+        #  'kind'），因为它们是 OpenHands 内部的而不是 MCP 工具模式的一部分
+        #
         exclude_fields = set(DiscriminatedUnionMixin.model_fields.keys()) | set(
             DiscriminatedUnionMixin.model_computed_fields.keys()
         )
         sanitized = validated.model_dump(
-            by_alias=True,  # Use MCP arg names (e.g. "kind"), not internal fields.
+            by_alias=True,  # 使用 MCP 参数名称 (e.g. “种类”），而不是内部字段。
             exclude_none=True,
             exclude=exclude_fields,
         )
@@ -436,25 +434,26 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,  # noqa: ARG002
     ) -> dict[str, Any]:
-        """Build the LLM-facing schema from the raw MCP inputSchema.
+        """从原始的 MCP inputSchema 构建面向 LLM 的模式。
 
-        The parent implementation round-trips through a dynamically created
-        Pydantic model whose ``py_type()`` maps ``"type": "object"`` to
-        ``dict[str, Any]``, losing nested ``properties`` and ``required``
-        fields.  For MCP tools the authoritative schema is already provided
-        by the MCP server, so we start from a deep copy of it and inject
-        OpenHands-specific fields (``security_risk``, ``summary``) directly.
+        父实现通过动态创建的 Pydantic 模型进行往返，其 ``py_type()`` 映射
+        ``"type": "object"`` 到
+        ``dict[str, Any]``，丢失嵌套的 ``properties`` 和 ``required`` 字段。 对于MCP
+        个工具，权威的模式已经由MC
+        P服务器提供，所以我们从一个深拷贝开始，并直接注入OpenHands特定字段
+        (``security_risk``，``summary``)。
 
         See: https://github.com/OpenHands/software-agent-sdk/issues/3955
         """
         schema = copy.deepcopy(self.mcp_tool.inputSchema)
-        # Resolve any $ref / anyOf nodes (unlikely in raw MCP schemas but
-        # keeps the contract consistent with the parent implementation).
+        # 解析任何 $ref / anyOf 节点（在原始 MCP 模式中不太可能，但保持契约与父实现一致
+        # ）。
+        #
         schema = _process_schema_node(schema, schema.get("$defs", {}))
 
         schema.setdefault("properties", {})
 
-        # Inject security_risk when applicable (same guard as parent).
+        # 适用时注入 security_risk（与父级相同的防护）。
         add_security_risk_prediction = add_security_risk_prediction and (
             self.annotations is None or (not self.annotations.readOnlyHint)
         )
@@ -467,7 +466,7 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
                 "enum": [e.value for e in risk.SecurityRisk],
             }
 
-        # Inject summary unless the MCP tool already declares one.
+        # 除非 MCP 工具已经声明了一个，否则注入摘要。
         if "summary" not in schema["properties"]:
             schema["properties"]["summary"] = {
                 "type": "string",
@@ -492,19 +491,17 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,
     ) -> ChatCompletionToolParam:
-        """Convert a Tool to an OpenAI tool.
+        """将工具转换为 OpenAI 工具。
 
-        Schema generation is handled by :meth:`_get_tool_schema`, which
-        builds the LLM-facing schema directly from the raw MCP
-        ``inputSchema`` to preserve nested object structure.  The dynamic
-        Pydantic model is still used for runtime validation in
-        :meth:`__call__` / :meth:`action_from_arguments`.
+        模式生成由：meth:`_get_tool_schema` 处理，它直接从原始 MCP 构建面向 LLM 的模
+        式
+        ``inputSchema`` 保留嵌套对象结构。 动态Pydantic模型仍然用于运行时验证
+        ：甲基：`__call__` / ：甲基：`action_from_arguments`。
 
         Args:
-            add_security_risk_prediction: Whether to add a `security_risk` field
-                to the action schema for LLM to predict. This is useful for
-                tools that may have safety risks, so the LLM can reason about
-                the risk level before calling the tool.
+            add_security_risk_prediction: 是否添加`security_risk`字段
+                到 LLM 的动作模式进行预测。 这对于可能存在安全风险的工具很有用，因此
+                LLM可以在调用该工具之前推断出风险级别。
         """
         if action_type is not None:
             raise ValueError(
@@ -521,17 +518,16 @@ class MCPToolDefinition(ToolDefinition[MCPToolAction, MCPToolObservation]):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,
     ) -> FunctionToolParam:
-        """Convert a Tool to a Responses API function tool.
+        """将工具转换为 Responses API 功能工具。
 
-        Schema generation is handled by :meth:`_get_tool_schema`, which
-        builds the LLM-facing schema directly from the raw MCP
-        ``inputSchema`` to preserve nested object structure.
+        模式生成由：meth:`_get_tool_schema` 处理，它直接从原始 MCP 构建面向 LLM 的模
+        式
+        ``inputSchema`` 保留嵌套对象结构。
 
         Args:
-            add_security_risk_prediction: Whether to add a `security_risk` field
-                to the action schema for LLM to predict. This is useful for
-                tools that may have safety risks, so the LLM can reason about
-                the risk level before calling the tool.
+            add_security_risk_prediction: 是否添加`security_risk`字段
+                到 LLM 的动作模式进行预测。 这对于可能存在安全风险的工具很有用，因此
+                LLM可以在调用该工具之前推断出风险级别。
         """
         if action_type is not None:
             raise ValueError(

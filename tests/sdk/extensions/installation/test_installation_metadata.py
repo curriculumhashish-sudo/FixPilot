@@ -31,7 +31,7 @@ def _write_mock_extension(
     version: str = "0.0.1",
     description: str = "Mock extension",
 ) -> Path:
-    """Write a mock extension manifest to a directory."""
+    """将模拟对象扩展清单写入目录。"""
     directory.mkdir(parents=True, exist_ok=True)
     ext = MockExtension(name=name, version=version, description=description)
     with (directory / "extension.json").open("w") as f:
@@ -40,12 +40,12 @@ def _write_mock_extension(
 
 
 # ============================================================================
-# Legacy Key Migration Tests
+# 旧版关键迁移测试
 # ============================================================================
 
 
 def test_migrate_legacy_plugins_key():
-    """Test that old {"plugins": {...}} format is migrated to extensions."""
+    """测试旧的 {"plugins": {...}} 格式是否迁移到扩展。"""
     data = {
         "plugins": {
             "my-plugin": {
@@ -61,7 +61,7 @@ def test_migrate_legacy_plugins_key():
 
 
 def test_migrate_legacy_skills_key():
-    """Test that old {"skills": {...}} format is migrated to extensions."""
+    """测试旧的 {"skills": {...}} 格式是否迁移到扩展程序。"""
     data = {
         "skills": {
             "my-skill": {
@@ -78,7 +78,7 @@ def test_migrate_legacy_skills_key():
 
 
 def test_migrate_merges_both_legacy_keys():
-    """Test that both plugins and skills are merged when both are present."""
+    """当插件和技能都存在时，测试两者是否合并。"""
     data = {
         "plugins": {
             "my-plugin": {
@@ -101,7 +101,7 @@ def test_migrate_merges_both_legacy_keys():
 
 
 def test_migrate_legacy_key_logs_warning(caplog: pytest.LogCaptureFixture):
-    """Each legacy key that is migrated emits a warning."""
+    """每个迁移的旧密钥都会发出警告。"""
     data = {
         "plugins": {
             "p": {
@@ -127,7 +127,7 @@ def test_migrate_legacy_key_logs_warning(caplog: pytest.LogCaptureFixture):
 
 
 def test_migrate_merges_legacy_into_extensions():
-    """Legacy keys are merged into extensions; extensions wins on conflicts."""
+    """旧密钥被合并到扩展中； 扩展在冲突中获胜。"""
     data = {
         "extensions": {
             "new-ext": {
@@ -150,7 +150,7 @@ def test_migrate_merges_legacy_into_extensions():
 
 
 def test_migrate_extensions_wins_on_conflict():
-    """When a name appears in both extensions and a legacy key, extensions wins."""
+    """当一个名称同时出现在扩展程序和旧密钥中时，扩展程序获胜。"""
     data = {
         "extensions": {
             "shared": {
@@ -172,7 +172,7 @@ def test_migrate_extensions_wins_on_conflict():
 
 
 def test_migrate_conflicting_legacy_keys():
-    """When both plugins and skills have the same name, the later key wins."""
+    """当插件和技能名称相同时，后一个键获胜。"""
     data = {
         "plugins": {
             "shared": {
@@ -190,23 +190,23 @@ def test_migrate_conflicting_legacy_keys():
         },
     }
     metadata = InstallationMetadata.model_validate(data)
-    # skills is iterated after plugins in _LEGACY_KEYS, so it overwrites
+    # 技能在 _LEGACY_KEYS 中的插件之后迭代，因此它会覆盖
     assert metadata.extensions["shared"].source == "github:B"
 
 
 # ============================================================================
-# Load / Save Tests
+# 加载/保存测试
 # ============================================================================
 
 
 def test_load_from_dir_nonexistent(tmp_path: Path):
-    """Test loading metadata from nonexistent directory returns empty."""
+    """从不存在的目录加载元数据的测试返回空。"""
     metadata = InstallationMetadata.load_from_dir(tmp_path / "nonexistent")
     assert metadata.extensions == {}
 
 
 def test_load_from_dir_and_save_to_dir(tmp_path: Path):
-    """Test saving and loading metadata."""
+    """测试保存和加载元数据。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 
@@ -227,7 +227,7 @@ def test_load_from_dir_and_save_to_dir(tmp_path: Path):
 
 
 def test_load_from_dir_invalid_json(tmp_path: Path):
-    """Test loading invalid JSON returns empty metadata."""
+    """测试加载无效 JSON 返回空元数据。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 
@@ -239,13 +239,12 @@ def test_load_from_dir_invalid_json(tmp_path: Path):
 
 
 def test_save_and_load_round_trip_non_ascii(tmp_path: Path):
-    """save_to_dir() then load_from_dir() must round-trip non-ASCII content.
+    """save_to_dir() 则 load_from_dir() 必须往返非 ASCII 内容。
 
-    save_to_dir()/load_from_dir() use Path.write_text()/read_text(), which
-    fall back to the platform default encoding (cp1252 on Windows) when no
-    encoding is given. cp1252 cannot represent characters like emoji, so
-    metadata with non-ASCII fields would fail to persist. Both ends must
-    use UTF-8.
+    save_to_dir()/load_from_dir() 使用 Path.write_text()
+    /read_text()，当未给出编码时，它会回退到平台默认编码（Windows 上的 cp1252）。
+    cp1252 无法表示表情符号等字符，因此具有非
+    ASCII 字段的元数据将无法持久化。 两端必须使用UTF-8。
     """
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
@@ -260,7 +259,7 @@ def test_save_and_load_round_trip_non_ascii(tmp_path: Path):
     metadata = InstallationMetadata(extensions={"café-extension": info})
     metadata.save_to_dir(installation_dir)
 
-    # The metadata file on disk must be valid UTF-8.
+    # 磁盘上的元数据文件必须有效 UTF-8。
     metadata_path = InstallationMetadata.get_metadata_path(installation_dir)
     assert "🔐" in metadata_path.read_bytes().decode("utf-8")
 
@@ -272,12 +271,12 @@ def test_save_and_load_round_trip_non_ascii(tmp_path: Path):
 
 
 # ============================================================================
-# open() Context Manager Tests
+# open() 上下文管理器测试
 # ============================================================================
 
 
 def test_open_saves_on_clean_exit(tmp_path: Path):
-    """Test that the context manager auto-saves on a clean exit."""
+    """测试上下文管理器在干净退出时自动保存。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 
@@ -295,7 +294,7 @@ def test_open_saves_on_clean_exit(tmp_path: Path):
 
 
 def test_open_does_not_save_on_exception(tmp_path: Path):
-    """Test that the context manager does not save when an exception occurs."""
+    """测试异常发生时上下文管理器不保存。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 
@@ -317,12 +316,12 @@ def test_open_does_not_save_on_exception(tmp_path: Path):
 
 
 # ============================================================================
-# validate_tracked Tests
+# validate_tracked 测试
 # ============================================================================
 
 
 def test_validate_tracked_prunes_invalid_names(tmp_path: Path):
-    """Test that validate_tracked removes entries with invalid names."""
+    """测试 validate_tracked 是否删除具有无效名称的条目。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 
@@ -350,12 +349,12 @@ def test_validate_tracked_prunes_invalid_names(tmp_path: Path):
 
 
 # ============================================================================
-# discover_untracked Tests
+# discover_untracked 测试
 # ============================================================================
 
 
 def test_discover_untracked_skips_mismatched_manifest_name(tmp_path: Path):
-    """Test that discover skips dirs where manifest name doesn't match."""
+    """测试发现会跳过清单名称不匹配的目录。"""
     installation_dir = tmp_path / "installed"
     installation_dir.mkdir()
 

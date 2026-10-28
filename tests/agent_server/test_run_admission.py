@@ -1,4 +1,4 @@
-"""Concurrency is counted across native async and thread-backed agent runs."""
+"""并发跨本机异步和线程支持的智能体运行进行计数。"""
 
 import asyncio
 import threading
@@ -268,7 +268,7 @@ async def test_gateway_turn_refused_before_message_is_saved(runs, tmp_path):
     for holder in holders:
         await holder.run()
     events_before = len((await spare.get_state()).events)
-    for _ in range(2):  # an OpenAI client retries a 429 with the same request
+    for _ in range(2):  # 具有相同请求的 OpenAI 客户端重试 429
         with pytest.raises(
             ConversationRunLimitExceeded, match="Retry the request later"
         ):
@@ -317,31 +317,29 @@ async def test_goal_rejected_before_scheduling(runs):
 
 
 async def test_rearm_resumes_parked_input_despite_competing_claim(runs_one):
-    """A run re-armed for input parked while its predecessor was wrapping up
-    must actually resume, even when a competing caller tries to claim capacity
-    in that window.
+    """当其前一个运行结束时，运行重新准备输入停止
+    必须真正恢复，即使竞争调用者试图在该窗口中声明容量。
 
-    ``_run_and_publish`` re-arms after its own run yields. Without holding the
-    conversation's session permit across the re-arm, the freed token could be
-    taken first and the parked message would be stranded (``send_message(run=True)``
-    already returned 200, so the client has no signal to retry). The session
-    permit is shared with the re-arm, so the parked input always runs.
+    ``_run_and_publish`` 在其自身运行屈服后重新武装。 在重新武装时不持有对话会话许可
+    ，释放的 token 可以先被取走，而停放的消息会滞留 (
+    ``send_message(run=True)`` 已经返回 200，所以客户端没有信号去重试)。 会话许可与重
+    新布防共享，因此停放的输入始终运行。
     """
     service = await runs_one.create()
     await service.run()
     await wait_until(lambda: runs_one.tracker.active == 1)
 
-    # Deliver input while the only permit is held: run() refuses with
-    # "conversation_already_running" and the message is parked as pending.
+    # 在持有唯一许可的情况下传送输入：run() 拒绝“conversation_already_running”，并且消息
+    # 被保留为待处理。
+    #
     await service.send_message(
         Message(role="user", content=[TextContent(text="stranded")]), run=True
     )
     assert service._rerun_requested is True
 
-    # From the status read the re-arm performs after its own run yields --
-    # exactly the window in which a fresh permit would look free -- try to
-    # claim capacity as a competing caller would. The conversation's session
-    # permit is still held, so the claim cannot succeed.
+    # 从状态读取重置功能，其自身运行后，会精确地对应一个新鲜许可看起来空闲的窗口，尝试像
+    # 竞争者一样声称容量。 会话的会话许可仍然保留，因此声明无法成功。
+    #
     claim_attempted = False
     original_get_status = service._get_execution_status
 
@@ -363,34 +361,34 @@ async def test_rearm_resumes_parked_input_despite_competing_claim(runs_one):
     await run_task
     assert claim_attempted, "the competing claim window was never observed"
 
-    # The parked message resumed off the conversation's own session permit, so
-    # the competing claim could not pre-empt it.
+    # 暂停的消息在会话自己的会话许可之外恢复，因此竞争声明无法抢占它。
+    #
     await wait_until(lambda: runs_one.tracker.entered >= 2)
     assert service.get_conversation().state.last_user_message_id is not None
 
     runs_one.release.set()
     await service.wait_for_run_completion(5)
     await wait_until(lambda: runs_one.tracker.active == 0)
-    # Once the chain settles the permit is returned to the shared pool.
+    # 一旦链稳定下来，许可证就会返回到共享池。
     await asyncio.wait_for(runs_one.owner._run_semaphore.acquire(), timeout=5)
     runs_one.owner._run_semaphore.release()
 
 
 async def test_terminal_status_implies_released_permit(tmp_path, monkeypatch):
-    """A run that is observable as terminal must already have returned its permit.
+    """作为终端可观察到的运行必须已经返回其许可。
 
-    Regression: ``_maybe_end_run_session`` asked "is a successor run active?"
-    via ``self._run_task is not None and not self._run_task.done()``. The run
-    body calls it from its *own* ``finally``, so the task was always its own
-    "successor" and the release was deferred to the task's done callback --
-    after ``wait_for_pending`` and the final state publish. A conversation that
-    already reported FINISHED therefore still occupied a run slot, so a caller
-    that sized capacity exactly to its workload (the concurrent-conversations
-    benchmark: 16 conversations, max_concurrent_runs=16) got a spurious
+    Regression: ``_maybe_end_run_session``询问“后继运行是否活跃？”
+    via ``self._run_task is not None and not self._run_task.done()``. 它从其 run 体调
+    用它 *ow
+    n*  ``finally``因此，任务总是自己的“成功者”，而发布则推迟到任务完成时回调 --
+    after ``wait_for_pending`` 并最终状态发
+    布。 已经报告过的对话 FINISHED 因此，仍然占用了一个运行槽，所以一个恰好匹配其工作
+    负载的容量大小的调用者（the 并发-conversations
+    benchmark: 16 次对话，max_concurrent_runs=16) 得到了一个虚假的
     ConversationRunLimitExceeded.
 
-    Holding the run in its ``wait_for_pending`` tail makes the window
-    deterministic: status is terminal, so the slot must be free.
+    将运行保持在其 ``wait_for_pending`` 尾部使窗口
+    deterministic: 状态是终端，因此该插槽必须是空闲的。
     """
     tail_entered = threading.Event()
     tail_release = threading.Event()
@@ -427,7 +425,7 @@ async def test_terminal_status_implies_released_permit(tmp_path, monkeypatch):
             "run never reached its wait_for_pending tail"
         )
 
-        # The run is terminal from the client's point of view...
+        # 从客户的角度来看，运行是终端......
         status = await service.get_state()
         assert status.execution_status == ConversationExecutionStatus.FINISHED, (
             f"expected FINISHED in the tail, got {status.execution_status}"

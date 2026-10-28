@@ -1,17 +1,17 @@
-"""Example: ACPAgent with Remote Runtime via API.
+"""Example: ACPAgent 通过 API 使用远程运行时。
 
-This example demonstrates running an ACPAgent (Claude Code via ACP protocol)
-in a remote sandboxed environment via Runtime API. It follows the same pattern
-as 04_convo_with_api_sandboxed_server.py but uses ACPAgent instead of the
-default LLM-based Agent.
+此示例演示了运行  ACPAgent (Claude Code via ACP 通过运行时在远程沙箱环境中协议 API.
+它遵循相同的模式
+04_convo_with_api_sandboxed_server.py 但使用了 ACPAgent 而不是默认的 LLM-based 智能体
+。
 
-Usage:
+用途：
   uv run examples/02_remote_agent_server/09_acp_agent_with_remote_runtime.py
 
-Requirements:
-  - LLM_BASE_URL: LiteLLM proxy URL (routes Claude Code requests)
-  - LLM_API_KEY: LiteLLM virtual API key
-  - RUNTIME_API_KEY: API key for runtime API access
+要求：
+  - LLM_BASE_URL: LiteLLM代理URL（路由克劳德代码请求）
+  - LLM_API_KEY: LiteLLM 虚拟 API 键
+  - RUNTIME_API_KEY: API 运行时 API 访问密钥
 """
 
 import os
@@ -29,20 +29,21 @@ from openhands.workspace import APIRemoteWorkspace
 logger = get_logger(__name__)
 
 
-# ACP agents (Claude Code) route through LiteLLM proxy
+# ACP 智能体 (Claude Code) 通过 LiteLLM 代理路由
 llm_base_url = os.getenv("LLM_BASE_URL")
 llm_api_key = os.getenv("LLM_API_KEY")
 assert llm_base_url and llm_api_key, "LLM_BASE_URL and LLM_API_KEY required"
 
-# Set ANTHROPIC_* vars so Claude Code routes through LiteLLM
+# 设置 ANTHROPIC_* 变量，以便 Claude Code 路由通过 LiteLLM
 os.environ["ANTHROPIC_BASE_URL"] = llm_base_url
 os.environ["ANTHROPIC_API_KEY"] = llm_api_key
 
 runtime_api_key = os.getenv("RUNTIME_API_KEY")
 assert runtime_api_key, "RUNTIME_API_KEY required"
 
-# SDK_SHA is the canonical commit SHA set by CI workflows (avoids the
-# built-in GITHUB_SHA which resolves to the merge-commit on PRs).
+# SDK_SHA 是 CI 工作流设置的规范提交 SHA（避免解析为 PR 上的合并提交的内置 GITHUB_SHA）
+# 。
+#
 server_image_sha = os.getenv("SDK_SHA") or os.getenv("GITHUB_SHA") or "main"
 server_image = f"ghcr.io/openhands/agent-server:{server_image_sha[:7]}-python-amd64"
 logger.info(f"Using server image: {server_image}")
@@ -52,11 +53,11 @@ with APIRemoteWorkspace(
     runtime_api_key=runtime_api_key,
     server_image=server_image,
     image_pull_policy="Always",
-    target_type="binary",  # CI builds binary target images
+    target_type="binary",  # CI 构建二进制目标图像
     forward_env=["ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY"],
 ) as workspace:
     agent = ACPAgent(
-        acp_command=["claude-agent-acp"],  # Pre-installed in Docker image
+        acp_command=["claude-agent-acp"],  # 预安装在 Docker 图像中
     )
 
     received_events: list = []
@@ -80,7 +81,7 @@ with APIRemoteWorkspace(
         while time.time() - last_event_time["ts"] < 2.0:
             time.sleep(0.1)
 
-        # Report cost
+        # 报告费用
         cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
         print(f"EXAMPLE_COST: {cost:.4f}")
     finally:

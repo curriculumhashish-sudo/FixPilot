@@ -1,76 +1,55 @@
-# Verification maintenance migration — 2026-10-24
+<a id="verification-maintenance-migration--2026-10-24"></a>
 
-This migration keeps the verification mechanism from #5617 current and records
-new product findings under the existing #5653 umbrella. It does not close either
-tracker or implement the product fixes.
+# 验证维护迁移 — 2026-10-24
 
-## Revisions and scope
+此迁移使 #5617 的验证机制保持最新状态，并在现有的 #5653 保护下记录新产品发现。 它不会关闭跟踪器或实施产品修复。
 
-- Source: [enyst/agent-sdk#43](https://github.com/enyst/agent-sdk/pull/43),
-  `abb95804ad49679efdec04669122fdd38efa5253`; source commits `fe5ee276fb7959ed81b2edc4f6742c6f5cb70d5b`
-  and `abb95804ad49679efdec04669122fdd38efa5253` are retained with cherry-pick provenance.
-- Upstream base: `acd96e6fa424c02432304395b9208f99be24b54d`.
-- Live verification: `8acddbd3ac679746a15ac4e96560b9d9535a95d6`. Subsequent changes add regression tests
-  and this report; the CLI and map bytes remain the ones exercised live.
-- Accepted baseline remains `8ba966d1d3af49f08e04349c055009e1614b48d6`.
-- Changes are limited to the verification skill, its CLI regression tests and
-  temporary PR evidence. Product code, services already running on the machine,
-  and source issues/PRs remain unchanged.
+<a id="revisions-and-scope"></a>
 
-## Upstream reconciliation
+## 修订和范围
 
-The five conflicting map files were reconciled against upstream rather than
-restoring stale known-bug markers. This preserves the trajectory init-path fix,
-missing profile-pointer validation, `.json` profile identity, Playwright browser
-path fix, and the extra upstream settings recipe. The resulting map has 950
-entries: the source's 948, the newer upstream settings entry, and a credential-free
-recipe for `GET /api/skills/catalog` added by #6098. The catalog recipe uses a local
-git-backed public catalog plus user/project fixtures, verifies `public` and `user`
-origins, and excludes a project-only skill after a workspace-catalog positive control.
+- 来源：[enyst/agent-SDK#43](https://github.com/enyst/agent-sdk/pull/43)，
+  `abb95804ad49679efdec04669122fdd38efa5253`; 源提交 `fe5ee276fb7959ed81b2edc4f6742c6f5cb70d5b` 和 `abb95804ad49679efdec04669122fdd38efa5253` 保留有cherry-pick 出处。
+- 上游基地：`acd96e6fa424c02432304395b9208f99be24b54d`。
+- 实时验证：`8acddbd3ac679746a15ac4e96560b9d9535a95d6`。 随后的更改添加了回归个测试和此报告； CLI 和映射字节仍然是实时执行的。
+- 接受的基线仍然是`8ba966d1d3af49f08e04349c055009e1614b48d6`。
+- 更改仅限于验证技能、其 CLI 回归测试和临时 PR 证据。 产品代码、机器上已运行的服务以及源问题/PR 保持不变。
 
-Active bug links now refer to #6184 (skill install subpaths), #6185 (quota errors),
-#6183 (TypeScript public skills), and #6186 (child launch on an unborn repository).
-Historical reports retain their original source issue URLs and tested revisions.
-PR #6032 remains open and covers the independent `map dependents` consumer lookup;
-its functionality is neither replaced nor claimed as part of this migration.
-All-state upstream PR searches for the verification skill, recipes, doctor and
-provider behavior, plus a source-PR provenance search, found no equivalent migration.
+<a id="upstream-reconciliation"></a>
 
-## Current migration verification
+## 上游调节
 
-- `control-agent-server map check`: 34 family files, 950 entries, no problems.
-- `control-agent-server map coverage`: 207 routes; 197 owned and driven, 10
-  explicit exclusions; no unowned routes, duplicate owners or stale exclusions.
-- `uv run --no-sync pytest tests/cross/test_verify_agent_server_skill.py -q`:
-  74 passed. Five added cases cover successful/failed health gating with cleanup,
-  and structured, empty-object and null HTTP error bodies.
-- Pre-commit passes on the CLI, changed maps and regression tests; `git diff --check BASE...HEAD -- .agents tests`
-  is clean. The imported historical `.pr/` ledger retains source quotation whitespace.
-- `map run --file F01 --only F01.alive --fresh --repeat 2 --record` and
-  `map run --file F03 --only F03.dormant-boot --fresh --repeat 2 --record` pass.
-  Each fresh server saves a successful doctor report before replay.
-- On the same real dormant server, the base CLI doctor fails because it expects
-  missing-key 401 and an accepted WebSocket. The migrated CLI passes the actual
-  API 503 and WebSocket handshake 403 checks. After initialization, both doctors
+五个冲突的映射文件与上游进行协调，而不是恢复陈旧的已知错误标记。 这保留了初始路径修复（trajectory init-path fix）、缺失的 profile-pointer 验证和 `.json` 的 profile 识别，以及 Playwright 浏览器路径修复，以及额外的上游设置配方。 生成的地图有 950
+条目：源的 948、较新的上游设置条目和凭据-free
+#6098 添加的 `GET /api/skills/catalog` 配方。 该目录的食谱使用了一个本地的基于Git的公共目录，加上用户/项目测试夹具，验证了`public`和`user`的来源，并在工作区的目录正控后排除了一个项目专有的技能。
+
+活动错误链接现在指的是#6184（技能安装子路径）、#6185（配额错误）、
+#6183（TypeScript公共技能）和#6186（在未出生的存储库上启动子项目）。
+历史报告保留原始来源问题 URLs 和测试修订。 PR #6032 仍然开放，覆盖了独立的`map dependents` 消费者查找； 其功能既不会被替换，也不会被声明为此次迁移的一部分。 所有国家的上游PR搜索未发现验证技能、食谱、医生和提供者行为，以及PR溯源搜索。
+
+<a id="current-migration-verification"></a>
+
+## 当前迁移验证
+
+- `control-agent-server map check`：34个家庭档案，950个条目，没有问题。
+- `control-agent-server map coverage`：207条路线； 197 家拥有并驾驶，10 家明确排除； 没有无主路由、重复所有者或过时的排除。
+- `uv run --no-sync pytest tests/cross/test_verify_agent_server_skill.py -q`：74通过。 添加的五个案例涵盖了成功/失败的健康门控以及清理、结构化、空对象和 null HTTP 错误体。
+- 预提交通过 CLI、更改的地图和回归测试； `git diff --check BASE...HEAD -- .agents tests` 干净。 导入的历史 `.pr/` 分类帐保留源报价空白。
+- `map run --file F01 --only F01.alive --fresh --repeat 2 --record` 和
+  `map run --file F03 --only F03.dormant-boot --fresh --repeat 2 --record` 通过。 每个新服务器在重播之前都会保存一份成功的医生报告。
+- 在同一个真实的休眠服务器上，基础 CLI 医生失败，因为它期望丢失密钥 401 和已接受的 WebSocket。 迁移的CLI通过了实际的API503和WebSocket握手403检查。 初始化后，两位医生
   pass, but the base incorrectly reports `dormant: true`; the migrated CLI reports
-  `dormant: false`. The first test driver incorrectly expected the base to fail
-  after initialization; that expectation was corrected and the comparison rerun.
-- The base CLI rejects a `status:429:JSON` fixture step. The migrated fixture
-  returns the exact supplied quota-error JSON over HTTP, and retains explicit
-  `null` and `{}` bodies instead of replacing them with a generic error.
-- `map run --file F25 --only F25.profile-catalog --fresh --record` passes its
-  setup, local sync prerequisite and catalog recipe.
-- All nine migration-owned server runs were stopped. No model credentials were
-  acquired, no real model was called, and no existing service was restarted.
+  `dormant: false`. 第一个测试驱动程序错误地预期底座在初始化后会发生故障； 该预期已得到纠正并重新进行比较。
+- 基数 CLI 拒绝 `status:429:JSON` 测试夹具步骤。 迁移后的测试夹具返回精确提供的配额错误 JSON over HTTP，并保留显式的
+  `null` 和 `{}` 主体，而不是用一般错误替换它们。
+- `map run --file F25 --only F25.profile-catalog --fresh --record` 传递其设置、本地同步先决条件和目录配方。
+- 所有九个迁移拥有的服务器运行均已停止。 没有获取模型凭据，没有调用真实模型，也没有重新启动现有服务。
 
-The compact, sanitized results and verified file hashes are in
+紧凑、经过净化的结果和经过验证的文件哈希值位于
 [migration-43-evidence.json](migration-43-evidence.json).
 
-## Evidence limits
+<a id="evidence-limits"></a>
 
-The source's full 948-entry pass, 130-PR intent ledger and follow-up fix report
-are historical evidence for their recorded revisions. This migration does not
-claim a full 950-entry pass on current upstream. Docker, browser, real-model and
-human subscription authorization lanes were not repeated. The source's remaining
-human-authentication limitation still prevents advancing the accepted baseline.
-Published-head CI must run after publication.
+## 证据限制
+
+来源的完整 948 条目通行证、130-PR 意图分类账和后续修复报告是其记录的修订的历史证据。 此迁移并不要求当前上游的完整 950 个条目通过。 Docker、浏览器、真实模型和人工订阅授权车道不重复。 来源的剩余人为身份验证限制仍然阻止推进可接受的基线。 Published-head CI 必须在发布后运行。

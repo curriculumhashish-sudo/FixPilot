@@ -74,7 +74,7 @@ jobs:
                   REPO_NAME: ${{ github.event.repository.name }}
                   SDK_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
                   OPENHANDS_CLOUD_API_KEY: ${{ secrets.ALLHANDS_BOT_OPENHANDS_SAAS_API_KEY }}
-                  # ACP agents (Claude Code, Codex) route through LiteLLM proxy
+                  # ACP 智能体（Claude Code，Codex）通过 LiteLLM 代理路由
                   ANTHROPIC_BASE_URL: https://llm-proxy.app.all-hands.dev
                   ANTHROPIC_API_KEY: ${{ secrets.LLM_API_KEY }}
                   OPENAI_BASE_URL: https://llm-proxy.app.all-hands.dev

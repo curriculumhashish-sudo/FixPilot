@@ -1,8 +1,8 @@
-"""Skill fetching utilities for AgentSkills sources.
+"""AgentSkills 来源的技能获取实用程序。
 
-Delegates to :mod:`openhands.sdk.extensions.fetch` for the actual fetch logic
-and re-raises errors as :class:`SkillFetchError` to preserve the existing
-public interface.
+委托：mod:`openhands.sdk.extensions.fetch` 执行实际的获取逻辑，并将错误重新引发为：
+class:`SkillFetchError` 以保
+留现有的公共接口。
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ DEFAULT_CACHE_DIR = get_user_persistence_dir() / "cache" / "skills"
 
 
 class SkillFetchError(Exception):
-    """Raised when fetching a skill fails."""
+    """当获取技能失败时引发。"""
 
 
 def fetch_skill(
@@ -32,18 +32,18 @@ def fetch_skill(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> Path:
-    """Fetch a skill from a source and return the local path.
+    """从源获取技能并返回本地路径。
 
     Args:
-        source: Skill source - git URL, GitHub shorthand, or local path.
-        cache_dir: Directory for caching. Defaults to ~/.openhands/cache/skills/.
-        ref: Optional branch, tag, or commit to checkout.
-        update: If True and cache exists, update it.
-        repo_path: Subdirectory path within the repository.
-        git_helper: GitHelper instance (for testing).
+        source: 技能来源——gitURL、GitHub简写，或者本地路径。
+        cache_dir: 用于缓存的目录。 默认为~/.openhands/cache/skills/.
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。
+        repo_path: 存储库内的子目录路径。
+        git_helper: GitHelper 实例（用于测试）。
 
     Returns:
-        Path to the local skill directory.
+        本地技能目录的路径。
     """
     path, _ = fetch_skill_with_resolution(
         source=source,
@@ -64,22 +64,22 @@ def fetch_skill_with_resolution(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> tuple[Path, str | None]:
-    """Fetch a skill and return both the path and resolved commit SHA.
+    """获取技能并返回路径和已解决的提交 SHA。
 
     Args:
-        source: Skill source (git URL, GitHub shorthand, or local path).
-        cache_dir: Directory for caching. Defaults to ~/.openhands/cache/skills/.
-        ref: Optional branch, tag, or commit to checkout.
-        update: If True and cache exists, update it.
-        repo_path: Subdirectory path within the repository.
-        git_helper: GitHelper instance (for testing).
+        source: 技能来源（gitURL、GitHub简写，或本地路径）。
+        cache_dir: 用于缓存的目录。 默认为~/.openhands/cache/skills/.
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。
+        repo_path: 存储库内的子目录路径。
+        git_helper: GitHelper 实例（用于测试）。
 
     Returns:
-        Tuple of (path, resolved_ref) where resolved_ref is the commit SHA for git
-        sources and None for local paths.
+        (path, resolved_ref) 的元组，其中 resolved_ref 是 git 源的提交 SHA，None 是本
+        地路径。
 
     Raises:
-        SkillFetchError: If fetching the skill fails.
+        SkillFetchError: 如果获取技能失败。
     """
     resolved_cache_dir = cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR
     try:

@@ -1,4 +1,4 @@
-"""Tests for parent/child conversation relationships."""
+"""测试父母/孩子的对话关系。"""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -111,7 +111,7 @@ async def test_relationship_survives_service_reload(tmp_path, workspace_dir):
             _start_request(workspace_dir, parent_conversation_id=parent_info.id)
         )
 
-    # Fresh service over the same directory exercises _load_catalog_sync.
+    # 新鲜服务过同目录练习_load_catalog_sync。
     async with ConversationService(conversations_dir=conversations_dir) as service:
         parent = await service.get_conversation(parent_info.id)
         child = await service.get_conversation(child_info.id)
@@ -179,7 +179,7 @@ async def test_delete_parent_orphans_children(tmp_path, workspace_dir):
 
         assert await service.delete_conversation(parent_info.id)
 
-        # Children survive as top-level conversations; the pointer dangles.
+        # 孩子们在高层对话中生存下来； 指针悬空。
         for child_id in (child_a.id, child_b.id):
             child = await service.get_conversation(child_id)
             assert child is not None
@@ -252,7 +252,7 @@ def test_router_maps_invalid_parent_to_422(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Server-side child launches (start_child_conversation)
+# 服务器端子启动 (start_child_conversation)
 # ---------------------------------------------------------------------------
 
 
@@ -277,7 +277,7 @@ def _init_git_repo(repo_dir: Path) -> None:
 
 
 def _event_service_factory(services: dict[UUID, Any]):
-    """Stand in for EventService so no agent loop (and no LLM call) runs."""
+    """代替 for EventService，因此不会运行智能体循环（并且不会运行 LLM 调用）。"""
 
     def factory(**kwargs):
         stored = kwargs["stored"]
@@ -311,7 +311,7 @@ class _ChildLaunch:
 async def _launch_child(
     tmp_path: Path, workspace_dir: Path, request: StartChildConversationRequest
 ) -> _ChildLaunch:
-    """Start a parent in *workspace_dir*, then launch a child from it."""
+    """在 *workspace_dir* 中启动一个父级，然后从中启动一个子级。"""
     services: dict[UUID, Any] = {}
     worktree_root = tmp_path / "conversation-worktrees"
     parent_request = _start_request(workspace_dir).model_copy(
@@ -370,7 +370,7 @@ async def test_start_child_conversation_delivers_task_as_first_message(
     child_service.send_message.assert_awaited_once_with(
         Message(role="user", content=[TextContent(text="Write the docs")]), False
     )
-    # The run is admitted with the slot acquired before the child was persisted.
+    # 通过在子级已持久化之前获取的槽位来允许运行。
     child_service.run.assert_awaited_once()
     assert child_service.run.await_args is not None
     assert isinstance(child_service.run.await_args.kwargs["run_slot"], RunSlot)
@@ -485,7 +485,7 @@ async def test_start_child_conversation_shared_isolation_keeps_parent_directory(
 
 @pytest.mark.asyncio
 async def test_start_child_conversation_refused_when_run_limit_reached(tmp_path):
-    """A full server refuses the launch before anything is persisted."""
+    """完整的服务器会在任何内容变为已持久化之前拒绝启动。"""
     repo_dir = tmp_path / "repo"
     _init_git_repo(repo_dir)
     services: dict[UUID, Any] = {}

@@ -1,8 +1,8 @@
-"""GPT-5 preset configuration for OpenHands agents.
+"""GPT-5 OpenHands 智能体的预设配置。
 
-This preset uses ApplyPatchTool for file edits instead of the default
-claude-style FileEditorTool. It mirrors the Gemini preset pattern by
-providing optional helpers without changing global defaults.
+此预设使用 ApplyPatchTool 进行文件编辑，而不是默认的克劳德风格 FileEditorTool。 它通
+过提供可选的帮助程序而不更改全局默认值来反映 Gemin
+i 预设模式。
 """
 
 from openhands.sdk import Agent
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 def register_gpt5_tools(enable_browser: bool = True) -> None:
-    """Register the GPT-5 tool set (terminal, apply_patch, task_tracker, browser)."""
+    """注册 GPT-5 工具集（终端、apply_patch、task_tracker、浏览器）。"""
     from openhands.tools.apply_patch import ApplyPatchTool
     from openhands.tools.task_tracker import TaskTrackerTool
     from openhands.tools.terminal import TerminalTool
@@ -33,10 +33,10 @@ def register_gpt5_tools(enable_browser: bool = True) -> None:
 
 
 def get_gpt5_tools(enable_browser: bool = True) -> list[Tool]:
-    """Get the GPT-5 tool specifications using ApplyPatchTool for edits.
+    """使用 ApplyPatchTool 获取 GPT-5 工具规格进行编辑。
 
     Args:
-        enable_browser: Whether to include browser tools.
+        enable_browser: 是否包含浏览器工具。
     """
     register_gpt5_tools(enable_browser=enable_browser)
 
@@ -57,12 +57,12 @@ def get_gpt5_tools(enable_browser: bool = True) -> list[Tool]:
 
 
 def get_gpt5_condenser(llm: LLM) -> CondenserBase:
-    """Get the default condenser for the GPT-5 preset."""
+    """获取 GPT-5 预设的默认值上下文压缩器。"""
     return LLMSummarizingCondenser(llm=llm, max_size=80, keep_first=4)
 
 
 def get_gpt5_agent(llm: LLM, cli_mode: bool = False) -> Agent:
-    """Get an agent with ApplyPatchTool for unified-diff style file editing."""
+    """获取智能体和 ApplyPatchTool 以进行统一差异样式文件编辑。"""
     tools = get_gpt5_tools(enable_browser=not cli_mode)
     agent = Agent(
         llm=llm,

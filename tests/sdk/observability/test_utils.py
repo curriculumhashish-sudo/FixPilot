@@ -1,4 +1,4 @@
-"""Tests for observability utils."""
+"""可观察性实用程序的测试。"""
 
 import os
 from unittest.mock import patch
@@ -8,27 +8,26 @@ from openhands.sdk.observability.utils import get_env
 
 
 def test_get_env_from_environment():
-    """get_env returns the value from the process environment."""
+    """get_env 返回进程环境中的值。"""
     with patch.dict(os.environ, {"TEST_VAR": "test_value"}):
         assert get_env("TEST_VAR") == "test_value"
 
 
 def test_get_env_not_found():
-    """get_env returns None when the variable is not set."""
+    """当变量未设置时，get_env 返回 None。"""
     with patch.dict(os.environ, {}, clear=True):
         assert get_env("NONEXISTENT_VAR") is None
 
 
 def test_get_env_does_not_use_python_dotenv():
-    """Regression guard for issue #1325.
+    """回归问题 #1325 的守卫。
 
-    The crash came from python-dotenv's ``find_dotenv()``, which walks the
-    call stack and executes ``assert frame.f_back is not None``. That fails in
-    deployments whose frames have no on-disk source file (packaged/frozen
-    builds, a deleted CWD, threads running exec'd code). Loading ``.env`` is
-    now the host application's responsibility, so ``get_env`` must read solely
+    崩溃来自 Python-dotenv 的 ``find_dotenv()``，它遍历调用堆栈并执行
+    ``assert frame.f_back is not None``。 这在框架没有磁盘源文件的部署中失败（打包/冻
+    结构建、删除的 CWD、线程运行执行代码）。
+    加载 ``.env`` 现在是主机应用程序的责任，因此 ``get_env`` 必须单独读取
     from ``os.environ`` and must not import or call python-dotenv.
 
-    Reverting ``get_env`` to a ``dotenv_values()`` call makes this fail.
+    将 ``get_env`` 恢复为 ``dotenv_values()`` 调用会使此操作失败。
     """
     assert not hasattr(utils, "dotenv_values")

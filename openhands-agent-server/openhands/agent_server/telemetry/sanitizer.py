@@ -1,22 +1,22 @@
-"""Reduce rich runtime values to the narrow, non-identifying shapes in
-:mod:`.models`.
+"""将丰富的运行时间值减少为狭窄的、不可识别的形状
+:mod:`.models`。
 
-Two rules carry the privacy guarantee, and both are testable:
+两条规则具有隐私保证，并且都是可测试的：
 
-1. **The exception message is never read.** ``str(exc)`` does not appear on any
-   path in this module. Messages routinely embed prompts, file paths, request
-   bodies and API keys, so the only safe policy is to never look.
+1. **永远不会读取异常消息。** ``str(exc)`` 未出现在此模块的任何路径上。 消息通常会嵌
+入提示词、文件路径、请求正文和 API 键，因此唯一安全的策略是永
+远不要查看。
 
-2. **The traceback is never formatted.** We walk ``exc.__traceback__``
-   manually, reading only ``tb_frame.f_globals["__name__"]`` and
-   ``tb.tb_lineno``. ``traceback.extract_tb`` / ``format_exception`` are
-   forbidden here because :class:`traceback.FrameSummary` reads the actual
-   *source line* off disk into the object, and ``f_locals`` obviously holds
-   live values.
+2. **回溯从未被格式化。**我们手动行走``exc.__traceback__``，只阅读
+``tb_frame.f_globals["__name__"]``并且
+   ``tb.tb_lineno``. ``traceback.extract_tb`` / ``format_exception`` 在这里被禁止，因
+   为：class:
+   `traceback.FrameSummary` 读取实际的
+   *源行*从磁盘进入对象，并且``f_locals``显然成立
+   活生生的价值观。
 
-The fingerprint is a grouping key, not a redaction mechanism: its preimage is
-already PII-free, so the hash is defence in depth rather than the thing being
-relied on.
+指纹是一个分组键，而不是一个脱敏机制：其预图像已经PII，因此哈希是纵深防御而不是依赖的
+对象。
 """
 
 import bisect
@@ -53,10 +53,9 @@ _UNKNOWN_CATEGORY: Final[ErrorCategory] = "unknown"
 
 
 def safe_token(value: object, *, default: str = UNKNOWN_TOKEN) -> str:
-    """Coerce to a lowercase token, or ``default`` if it doesn't fit.
+    """强制转换为小写 token，如果不合适则强制转换为 ``default``。
 
-    Coerce rather than raise: a surprising value should degrade the event, not
-    lose it or crash a conversation.
+    强制而不是引发：令人惊讶的值应该降低事件的质量，而不是丢失它或破坏对话。
     """
     if not isinstance(value, str):
         return default
@@ -65,7 +64,7 @@ def safe_token(value: object, *, default: str = UNKNOWN_TOKEN) -> str:
 
 
 def safe_identifier(value: object, *, default: str = UNKNOWN_ERROR_CLASS) -> str:
-    """Coerce to a dotted identifier, or ``default`` if it doesn't fit."""
+    """强制为点标识符，如果不合适则为 ``default``。"""
     if not isinstance(value, str):
         return default
     candidate = value.strip()
@@ -75,7 +74,7 @@ def safe_identifier(value: object, *, default: str = UNKNOWN_ERROR_CLASS) -> str
 
 
 def safe_version(value: object, *, default: str = UNKNOWN_TOKEN) -> str:
-    """Coerce a version / git ref, or ``default`` if it doesn't fit."""
+    """强制版本/git ref，如果不合适则为 ``default``。"""
     if not isinstance(value, str):
         return default
     candidate = value.strip()
@@ -85,29 +84,28 @@ def safe_version(value: object, *, default: str = UNKNOWN_TOKEN) -> str:
 def allowlisted(
     value: object, allowed: frozenset[str], *, default: str = "other"
 ) -> str:
-    """Map ``value`` onto a closed vocabulary, collapsing anything else.
+    """将 ``value`` 映射到封闭词汇表上，折叠其他任何内容。
 
-    Bounds cardinality and guarantees no free-form string escapes.
+    限制基数并保证没有自由格式的字符串转义。
     """
     token = safe_token(value, default=default)
     return token if token in allowed else default
 
 
 class Bounds(NamedTuple):
-    """Ordered bucket edges plus the labelling for a magnitude.
+    """有序的桶边缘加上大小的标签。
 
-    Keeping the edges and the lookup together means a caller cannot pair a
-    value with the wrong scale, and the lookup is a binary search rather than a
-    linear scan.
+    保持边和查找在一起意味着调用者不能将值与错误的尺度配对，并且查找是二分查找而不是
+    线性扫描。
     """
 
     edges: tuple[float, ...]
 
     def label(self, value: float | None) -> str:
-        """Map a magnitude to a coarse label such as ``5-20`` or ``500+``.
+        """将幅度映射到粗略标签，例如 ``5-20`` 或 ``500+``。
 
-        Raw magnitudes are a re-identification vector once joined with a
-        timestamp, so no count, duration or cost is ever reported exactly.
+        原始幅度是与时间戳连接后的重新识别向量，因此不会准确报告计数、持续时间或成本
+        。
         """
         if value is None:
             return UNKNOWN_TOKEN
@@ -132,7 +130,7 @@ COST_BOUNDS: Final[Bounds] = Bounds((0.01, 0.1, 1, 10, 100))
 
 
 def bucket(value: float | None, bounds: Bounds) -> str:
-    """Backwards-compatible wrapper over :meth:`Bounds.label`."""
+    """:meth:`Bounds.label` 上的向后兼容包装器。"""
     return bounds.label(value)
 
 
@@ -149,7 +147,7 @@ def _format_number(value: float) -> str:
 
 
 def _derive_key(salt: str | bytes | None) -> bytes:
-    """Normalise any salt to the 32 bytes blake2s accepts as a key."""
+    """将任何 salt 标准化为 blake2s 接受的 32 字节密钥。"""
     if salt is None:
         return b""
     raw = salt.encode("utf-8") if isinstance(salt, str) else salt
@@ -159,10 +157,10 @@ def _derive_key(salt: str | bytes | None) -> bytes:
 
 
 def pseudonymize(value: str | bytes, salt: str | bytes | None) -> str:
-    """Keyed digest of an identifier.
+    """标识符的键控摘要。
 
-    Used for conversation ids, which appear in URLs and logs — shipping one
-    raw would make the whole analytics dataset joinable back to a person.
+    用于会话ID，出现在 URLs 和日志中——只发送一个原始值会使整个分析数据集能够回溯到个
+    人。
     """
     raw = value.encode("utf-8") if isinstance(value, str) else value
     return hashlib.blake2s(raw, key=_derive_key(salt), digest_size=16).hexdigest()
@@ -170,18 +168,17 @@ def pseudonymize(value: str | bytes, salt: str | bytes | None) -> str:
 
 @lru_cache(maxsize=1)
 def _known_providers() -> frozenset[str]:
-    """Provider names, sourced from litellm rather than hand-maintained."""
+    """提供者名称，源自 LiteLLM 而不是手动维护。"""
     from litellm import provider_list
 
     return frozenset(str(getattr(p, "value", p)).lower() for p in provider_list)
 
 
-# Model *family*, which litellm has no concept of: it models providers, and the
-# same family is served by many (claude-* is on anthropic, bedrock, azure_ai and
-# deepinfra). Deriving this from models_by_provider yields 4+ candidates for
-# every family, so the bare-model-name fallback stays explicit. The
-# provider-prefixed path uses litellm's real provider list; a test asserts every
-# target here is one of them.
+# 型号 *family*, which LiteLLM 没有概念：它模型提供商，同一家庭由许多（克莱尔-）服务* 正
+# 在运行 Anthropic, bedrock, azure_ai and deepinfra). 从这里推导出 models_by_provider 对
+# 于每个家庭，都会产生 4+ 个候选模型名称回退方案保持明确。 使用了带有提供者前缀的路径
+# LiteLLM真实提供者列表； 测试断言这里的每个目标都是其中之一。
+#
 _MODEL_FAMILY_HINTS: Final[tuple[tuple[str, str], ...]] = (
     ("claude", "anthropic"),
     ("gpt", "openai"),
@@ -196,10 +193,10 @@ _MODEL_FAMILY_HINTS: Final[tuple[tuple[str, str], ...]] = (
 
 
 def model_family(model: object) -> str:
-    """Reduce a model string to a coarse provider family.
+    """将模型字符串简化为粗略的提供者系列。
 
-    ``litellm`` model strings can carry deployment names and, for custom
-    endpoints, hostnames — so only the recognised family is ever reported.
+    ``litellm`` 模型字符串可以携带部署名称，对于自定义端点，还可以携带主机名 — 因此仅
+    报告已识别的系列。
     """
     if not isinstance(model, str) or not model.strip():
         return UNKNOWN_TOKEN
@@ -217,7 +214,7 @@ def model_family(model: object) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ErrorFingerprint:
-    """The complete, sanitized description of a failure."""
+    """对故障的完整、经过净化的描述。"""
 
     error_class: str
     error_category: ErrorCategory
@@ -228,13 +225,13 @@ class ErrorFingerprint:
 
 
 def _walk_frames(tb: TracebackType | None) -> Iterator[tuple[str, int]]:
-    """Collect ``(module, lineno)`` pairs without materialising source.
+    """收集 ``(module, lineno)`` 对，但不具体化来源。
 
-    Reads only ``f_globals["__name__"]`` and ``tb_lineno``. Never touches
-    ``f_locals``, and never calls into :mod:`traceback`.
+    只读 ``f_globals["__name__"]`` 和 ``tb_lineno``。 从来不碰
+    ``f_locals``，并且从不调用：mod:`traceback`。
     """
     current = tb
-    # Bounded: a runaway recursion produces a huge chain.
+    # 有界：失控的递归会产生一条巨大的链。
     remaining = 256
     while current is not None and remaining > 0:
         module = current.tb_frame.f_globals.get("__name__")
@@ -245,14 +242,15 @@ def _walk_frames(tb: TracebackType | None) -> Iterator[tuple[str, int]]:
 
 
 def _classify(exc: BaseException) -> tuple[str, bool]:
-    """Return ``(error_class, is_first_party)``.
+    """返回``(error_class, is_first_party)``。
 
-    First-party keeps its dotted module for precision. Third-party collapses
-    to ``pkg:QualName`` so an unfamiliar dependency cannot blow up cardinality.
+    第一方保留其点模块以确保精度。 第三方崩溃为 ``pkg:QualName``，因此不熟悉的依赖关
+    系不会破坏基数。
     """
     exc_type = type(exc)
-    # __name__, not __qualname__: a nested class gives ``outer.<locals>.Inner``,
-    # which is not a valid identifier and would bypass validation.
+    # __name__，而不是 __qualname__：嵌套类给出 ``outer.<locals>.Inner``，它不是有效的标
+    # 识符，会绕过验证。
+    #
     name = safe_identifier(getattr(exc_type, "__name__", None))
     module = getattr(exc_type, "__module__", "") or ""
 
@@ -267,12 +265,13 @@ def _classify(exc: BaseException) -> tuple[str, bool]:
 
 
 def _categorize(exc: BaseException) -> ErrorCategory:
-    """Category from the exception *type* only, walking the MRO."""
+    """类别仅从异常*type*开始，走MRO。"""
     candidates: Iterator[ErrorCategory | None] = (
         ERROR_CATEGORY_BY_CLASS_NAME.get(klass.__name__) for klass in type(exc).__mro__
     )
-    # Consumed with a loop rather than next(): pyright widens next() over a
-    # generator expression to str, losing the Literal type.
+    # 使用循环而不是 next(): Pyright 将生成器表达式上的 next() 加宽为 str，从而丢失了
+    # Literal 类型。
+    #
     for category in candidates:
         if category is not None:
             return category
@@ -280,10 +279,9 @@ def _categorize(exc: BaseException) -> ErrorCategory:
 
 
 def normalize_exception(exc: BaseException) -> ErrorFingerprint:
-    """Reduce an exception to a groupable, non-identifying fingerprint.
+    """减少可分组、非识别指纹的例外情况。
 
-    The message is never read and the traceback is never formatted; see the
-    module docstring.
+    消息永远不会被读取，回溯也不会被格式化； 请参阅模块文档字符串。
     """
     error_class, is_first_party = _classify(exc)
     category = _categorize(exc)
@@ -302,14 +300,14 @@ def normalize_exception(exc: BaseException) -> ErrorFingerprint:
         origin_module = safe_identifier(deepest_module, default=UNKNOWN_TOKEN)
         origin_lineno = deepest_lineno
     elif frames:
-        # No first-party frame: report only the top-level package.
+        # 无第一方框架：仅报告顶级包。
         deepest_module, deepest_lineno = frames[-1]
         origin_module = safe_identifier(
             deepest_module.split(".", 1)[0], default=UNKNOWN_TOKEN
         )
         origin_lineno = deepest_lineno
 
-    # Preimage is already PII-free: class, category, module/line. No message.
+    # 原像已经是PII自由的：类、类别、模块/行。 没有消息。
     parts = [str(TELEMETRY_SCHEMA_VERSION), error_class, category]
     parts.extend(
         f"{module}:{lineno}"
@@ -330,11 +328,11 @@ def normalize_exception(exc: BaseException) -> ErrorFingerprint:
 
 
 def normalize_error_code(code: object) -> ErrorFingerprint:
-    """Fingerprint a failure known only by a string code.
+    """对仅通过字符串代码识别的故障进行指纹识别。
 
-    ``ConversationErrorEvent.code`` is documented as "typically a type", so it
-    is treated as a class name and run through the same validation. The
-    accompanying ``detail`` field is never read.
+    ``ConversationErrorEvent.code`` 被记录为“通常是一种类型”，因此它被视为类名并通过
+    相同的验证运行。 永远不会读取随附的
+    ``detail`` 字段。
     """
     error_class = safe_identifier(code)
     category = ERROR_CATEGORY_BY_CLASS_NAME.get(

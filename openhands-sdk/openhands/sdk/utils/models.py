@@ -22,21 +22,21 @@ from pydantic_core import CoreSchema
 
 logger = logging.getLogger(__name__)
 
-# Thread-local storage for tracking schemas currently being generated.
-# This prevents infinite recursion when generating JSON schemas for
-# discriminated unions that reference each other.
+# 线程局部当前正在生成的用于跟踪模式的存储。 这可以防止在为相互引用的可区分联合生成 JSON
+#  模式时出现无限递归。
+#
 _thread_local = threading.local()
 
 
 def _get_schemas_in_progress() -> dict[type, JsonSchemaValue]:
-    """Get the thread-local dict for tracking in-progress schema generation."""
+    """获取用于跟踪正在进行的模式生成的线程局部字典。"""
     if not hasattr(_thread_local, "schemas_in_progress"):
         _thread_local.schemas_in_progress = {}
     return _thread_local.schemas_in_progress
 
 
 def _is_abstract(type_: type) -> bool:
-    """Determine whether the class directly extends ABC or contains abstract methods"""
+    """判断类是否直接扩展ABC或包含抽象方法"""
     try:
         return inspect.isabstract(type_) or ABC in type_.__bases__
     except Exception:
@@ -44,42 +44,40 @@ def _is_abstract(type_: type) -> bool:
 
 
 def _is_object_input(data: Any, cls: type) -> bool:
-    """Whether ``data`` is a dict or an instance of ``cls`` (a bool, so that
-    pyright does not narrow ``data`` at the call site)."""
+    """``data`` 是字典还是 ``cls`` 的实例（布尔值，因此
+    Pyright 不会在调用站点缩小 ``data``）。"""
     return isinstance(data, (dict, cls))
 
 
 def get_handler_class_name(handler: SerializerFunctionWrapHandler) -> str:
-    """Extract the class name from a Pydantic serializer handler's repr string.
+    """从 Pydantic 序列化器处理程序的 repr 字符串中提取类名。
 
-    WARNING: This is a fragile approach that relies on Pydantic's internal
-    repr format for SerializerFunctionWrapHandler. The handler is a Pydantic
-    wrapper around a Rust function that provides no public API for determining
-    which class it serializes. Parsing the repr string is the only available
-    mechanism.
+    WARNING: 这是一种脆弱的方法，依赖于 Pydantic 的内部
+    SerializerFunctionWrapHandler 的 repr 格式。 该处理程序是 Rust 函数的 Pydantic 包
+    装器，不提供公共 API 来确
+    定它序列化哪个类。 解析 repr 字符串是唯一可用的机制。
 
-    Expected format: `SerializationCallable(serializer=<ClassName>)`
+    预期格式：`SerializationCallable(serializer=<ClassName>)`
 
-    If Pydantic changes this format, multiple unit tests will fail immediately,
-    including tests in test_discriminated_union.py that verify serialization
-    behavior across the class hierarchy.
+    如果 Pydantic 更改此格式，多个单元测试将立即失败，包括
+    test_discriminated_union.py 中验证整个类层次结构中的序列化行为的测试。
 
     Args:
-        handler: The Pydantic serializer function wrap handler
+        handler: Pydantic 序列化器函数包装处理程序
 
     Returns:
-        The class name extracted from the handler's repr string
+        从处理程序的 repr 字符串中提取的类名
     """
     repr_str = str(handler)
-    # Format is `SerializationCallable(serializer=<NAME>)`
-    # Get everything after =
+    # 格式为 `SerializationCallable(serializer=<NAME>)` 获取 = 之后的所有内容
+    #
     _, name = repr_str.split("=", 1)
-    # Cut off the trailing )
+    # 剪掉尾部）
     return name[:-1]
 
 
 def kind_of(obj) -> str:
-    """Get the string value for the kind tag"""
+    """获取种类标签的字符串值"""
     if isinstance(obj, dict):
         return obj["kind"]
     if not hasattr(obj, "__name__"):
@@ -89,7 +87,7 @@ def kind_of(obj) -> str:
 
 def _get_all_subclasses(cls) -> set[type]:
     """
-    Recursively finds and returns all (loaded) subclasses of a given class.
+    递归查找并返回给定类的所有（已加载）子类。
     """
     result = set()
     for subclass in cls.__subclasses__():
@@ -99,17 +97,15 @@ def _get_all_subclasses(cls) -> set[type]:
 
 
 # ---------------------------------------------------------------------------
-# Subclass-hierarchy caching
+# 子类层次结构缓存
 #
-# get_known_concrete_subclasses() and _get_checked_concrete_subclasses() are
-# called on every event deserialization (via _validate_subtype).  Walking the
-# full class hierarchy each time dominated per-step CPU (~47 % of self-time
-# in wall profiles).
+# get_known_concrete_subclasses() 和 _get_checked_concrete_subclasses() 在每个事件反序列
+# 化上调用（通过 _validate_subtype）。 每次遍历完整的类层次结构都占主导地位CPU（约占墙轮
+# 廓中自时间的 47%）。
 #
-# The cache is keyed by (cls, _subclass_generation).  The generation counter
-# is bumped automatically via DiscriminatedUnionMixin.__init_subclass__
-# whenever a new subclass is defined, so callers never need to invalidate
-# manually — the cache self-invalidates.
+# 缓存以 (cls, _subclass_generation) 为键。 每次定义一个新的子类时，生成器计数器都会自动
+# 增加 DiscriminatedUnionMixin.__init_subclass__，因此调用者无需手动 invalidate — 缓存会
+# 自动失效。
 # ---------------------------------------------------------------------------
 _subclass_generation: int = 0
 _subclass_generation_lock = threading.Lock()
@@ -124,11 +120,10 @@ def _bump_subclass_generation() -> None:
 
 
 def get_known_concrete_subclasses(cls) -> tuple[type, ...]:
-    """Recursively returns all concrete subclasses in a stable order,
-    without deduping classes that share the same (module, name).
+    """以稳定的顺序递归返回所有具体子类，
+    无需对共享相同（模块、名称）的类进行重复数据删除。
 
-    Results are cached and automatically invalidated when new
-    DiscriminatedUnionMixin subclasses are defined.
+    当定义新的 DiscriminatedUnionMixin 子类时，结果将被缓存并自动失效。
     """
     cached = _concrete_cache.get(cls)
     if cached is not None and cached[0] == _subclass_generation:
@@ -136,12 +131,12 @@ def get_known_concrete_subclasses(cls) -> tuple[type, ...]:
 
     out: list[type] = []
     for sub in cls.__subclasses__():
-        # Recurse first so deeper classes appear after their parents
+        # 首先递归，以便更深的类在其父母之后出现
         out.extend(get_known_concrete_subclasses(sub))
         if not _is_abstract(sub):
             out.append(sub)
 
-    # Use qualname to distinguish nested/local classes (like test-local Cat)
+    # 使用 qualname 来区分嵌套/本地类（如 test-local Cat）
     out.sort(key=lambda t: (t.__module__, getattr(t, "__qualname__", t.__name__)))
     result = tuple(out)
     _concrete_cache[cls] = (_subclass_generation, result)
@@ -174,15 +169,14 @@ def _get_checked_concrete_subclasses(cls: type) -> dict[str, type]:
 
 
 def clear_subclass_cache() -> None:
-    """Invalidate cached results of :func:`get_known_concrete_subclasses`
-    and :func:`_get_checked_concrete_subclasses`.
+    """使：func:`get_known_concrete_subclasses` 的缓存结果无效
+    和：func:`_get_checked_concrete_subclasses`。
 
-    Normally not needed — the cache auto-invalidates when new
-    DiscriminatedUnionMixin subclasses are defined.  This function exists
-    for edge cases involving non-DiscriminatedUnionMixin hierarchies.
+    通常不需要 — 当定义新的 DiscriminatedUnionMixin 子类时，缓存自动失效。 此函数适用
+    于涉及非
+    DiscriminatedUnionMixin 层次结构的边缘情况。
 
-    Entries are dropped, not just superseded: a stale one is a strong
-    reference to every subclass it captured.
+    条目被删除，而不仅仅是被取代：陈旧的条目是对其捕获的每个子类的强引用。
     """
     _concrete_cache.clear()
     _checked_cache.clear()
@@ -190,13 +184,12 @@ def clear_subclass_cache() -> None:
 
 
 class OpenHandsModel(BaseModel):
-    """Deprecated: This class exists only for backward compatibility.
+    """Deprecated: 该类仅针对向后兼容性存在。
 
-    This class is no longer required for discriminated union support.
-    New code should extend pydantic.BaseModel directly instead of OpenHandsModel.
+    受歧视的工会支持不再需要此类。 新代码应该直接扩展pydantic.BaseModel而不是
+    OpenHandsModel。
 
-    Existing code that extends OpenHandsModel will continue to work, but
-    migration to BaseModel is recommended.
+    扩展 OpenHandsModel 的现有代码将继续工作，但建议迁移到 BaseModel。
     """
 
 
@@ -216,14 +209,16 @@ class DiscriminatedUnionMixin(OpenHandsModel):
         cls, data: Any, handler: ModelWrapValidatorHandler[Self], info: ValidationInfo
     ) -> Self:
         if not _is_object_input(data, cls):
-            # Let pydantic report a non-object input (a string, number, null,
-            # list...) as a ValidationError instead of failing on .pop().
+            # 让 Pydantic 将非对象输入（字符串、数字、null、列表...）报告为
+            # ValidationError，而不是在 .pop() 上失败。
+            #
             return handler(data)
         if isinstance(data, cls):
             return data
         if isinstance(data, dict):
-            # Never mutate the caller's dict: callers such as RemoteState
-            # validate the same cached payload more than once.
+            # 永远不要改变调用者的字典：诸如 RemoteState 之类的调用者多次验证相同的缓存
+            # 载荷。
+            #
             data = dict(data)
         if not _is_abstract(cls):
             has_kind_alias_field = any(
@@ -231,8 +226,8 @@ class DiscriminatedUnionMixin(OpenHandsModel):
                 for field_name, field_info in cls.model_fields.items()
             )
             if has_kind_alias_field:
-                # Concrete persisted dumps can include both the real aliased
-                # argument and this mixin's computed discriminator.
+                # 具体的已持久化转储可以包括真实的别名参数和该 mixin 的计算鉴别器。
+                #
                 if isinstance(data, dict) and data.get("kind") == cls.__name__:
                     internal_kind_field = next(
                         (
@@ -246,10 +241,9 @@ class DiscriminatedUnionMixin(OpenHandsModel):
                         data.pop("kind", None)
                 return handler(data)
             kind = data.pop("kind", None)
-            # Sanity check: if we're validating a concrete class directly,
-            # the kind (if provided) should match the class name. This should
-            # always be true at this point since resolve_kind() would have
-            # already routed to the correct subclass.
+            # 健全性检查：如果我们直接验证具体类，则类型（如果提供）应与类名匹配。 此时
+            # 应该始终为 True，因为 resolve_kind() 已经路由到正确的子类。
+            #
             assert kind is None or kind == cls.__name__
             return handler(data)
         kind = data.pop("kind", None)
@@ -260,12 +254,12 @@ class DiscriminatedUnionMixin(OpenHandsModel):
                     f"No kinds defined for {cls.__module__}.{cls.__name__}"
                 )
             elif len(subclasses) == 1:
-                # If there is ony 1 possible implementation, then we do not need
-                # to state the kind explicitly - it can only be this!
+                # 如果只有 1 种可能的实现，那么我们不需要显式地声明类型 - 只能是这个！
+                #
                 kind = next(iter(subclasses))
             else:
-                # There is more than 1 kind defined but the input did not specify
-                # This will cause an error to be raised
+                # 定义了超过 1 种，但输入未指定这将导致引发错误
+                #
                 kind = ""
         subclass = cls.resolve_kind(kind)
         return subclass.model_validate(data, context=info.context)
@@ -275,13 +269,13 @@ class DiscriminatedUnionMixin(OpenHandsModel):
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ):
         if isinstance(self, dict):
-            # Sometimes pydantic passes a dict in here.
+            # 有时 Pydantic 在这里传递一个字典。
             return self
         if self._is_handler_for_current_class(handler):
             result = handler(self)
             return result
 
-        # Delegate to the implementing class
+        # 委托给实现类
         result = self.model_dump(
             mode=info.mode,
             context=info.context,
@@ -298,10 +292,9 @@ class DiscriminatedUnionMixin(OpenHandsModel):
     def _is_handler_for_current_class(
         self, handler: SerializerFunctionWrapHandler
     ) -> bool:
-        """Check if the handler is for this class.
+        """检查处理程序是否适用于此类。
 
-        See get_handler_class_name() for details on the fragile string parsing
-        this relies on.
+        有关解析所依赖的脆弱字符串的详细信息，请参阅 get_handler_class_name()。
         """
         return self.__class__.__name__ == get_handler_class_name(handler)
 
@@ -311,12 +304,12 @@ class DiscriminatedUnionMixin(OpenHandsModel):
     ) -> JsonSchemaValue:
         schemas_in_progress = _get_schemas_in_progress()
 
-        # First we check if we are already generating a schema
+        # 首先我们检查是否已经生成了模式
         schema = schemas_in_progress.get(cls)
         if schema:
             return schema
 
-        # Set a temp schema to prevent infinite recursion
+        # 设置温度模式以防止无限递归
         schemas_in_progress[cls] = {"$ref": f"#/$defs/{cls.__name__}"}
         try:
             if _is_abstract(cls):
@@ -324,21 +317,21 @@ class DiscriminatedUnionMixin(OpenHandsModel):
                 if not subclasses:
                     raise ValueError(f"No subclasses defined for {cls.__name__}")
                 if len(subclasses) == 1:
-                    # Use the shared generator for single subclass too
+                    # 也对单个子类使用共享生成器
                     gen = handler.generate_json_schema
                     sub_schema = gen.generate_inner(
                         next(iter(subclasses.values())).__pydantic_core_schema__
                     )
                     return sub_schema
 
-                # Use the shared generator to properly register definitions
+                # 使用共享生成器正确注册定义
                 gen = handler.generate_json_schema
                 schemas = []
                 for sub in subclasses.values():
                     sub_schema = gen.generate_inner(sub.__pydantic_core_schema__)
                     schemas.append(sub_schema)
 
-                # Build discriminator mapping from $ref schemas
+                # 从 $ref 模式构建鉴别器映射
                 mapping = {}
                 for option in schemas:
                     if "$ref" in option:
@@ -357,7 +350,7 @@ class DiscriminatedUnionMixin(OpenHandsModel):
                     "type": "string",
                 }
         finally:
-            # Reset temp schema
+            # 重置温度模式
             schemas_in_progress.pop(cls)
         return schema
 
@@ -375,11 +368,10 @@ class DiscriminatedUnionMixin(OpenHandsModel):
     @classmethod
     def get_serializable_type(cls) -> type:
         """
-        Custom method to get the union of all currently loaded
-        non absract subclasses
+        获取所有当前加载的非抽象子类的并集的自定义方法
         """
 
-        # If the class is not abstract return self
+        # 如果类不是抽象类，则返回 self
         if not _is_abstract(cls):
             return cls
 
@@ -388,9 +380,9 @@ class DiscriminatedUnionMixin(OpenHandsModel):
             return cls
 
         if len(subclasses) == 1:
-            # Returning the concrete type ensures Pydantic instantiates the subclass
-            # (e.g. Agent) rather than the abstract base (e.g. AgentBase) when there is
-            # only ONE concrete subclass.
+            # 返回具体类型可确保 Pydantic 实例化子类 (e.g. 智能体) 而不是抽象基础 (e.g.
+            # AgentBase) 当只有一个个具体子类时。
+            #
             return next(iter(subclasses.values()))
 
         serializable_type = Annotated[

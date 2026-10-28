@@ -1,6 +1,6 @@
-# Pinned dependency for scripts/check-acp-drift.py.
-# Tracks `main` of OpenHands/software-agent-sdk intentionally: the drift
-# check exists to fail CI when ACP_PROVIDERS moves upstream so this repo's
-# JSON mirror gets updated. Do NOT pin to a tag or sha. CI resolves a companion
-# SDK PR linked in the TypeScript client PR description before installing.
+# scripts/check-acp-drift.py 使用的固定依赖。
+# 此处有意跟踪 OpenHands/software-agent-sdk 的 `main` 分支：上游
+# ACP_PROVIDERS 发生变化时，漂移检查应使 CI 失败，以推动更新本仓库的 JSON 镜像。
+# 请勿固定到标签或提交 SHA。安装前，CI 会解析 TypeScript 客户端 PR 描述中
+# 链接的配套 SDK PR。
 openhands-sdk @ git+https://github.com/OpenHands/software-agent-sdk@main#subdirectory=openhands-sdk

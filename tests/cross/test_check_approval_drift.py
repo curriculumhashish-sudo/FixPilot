@@ -1,13 +1,13 @@
-"""Tests for the approval-drift (TOCTOU) release check.
+"""测试批准漂移 (TOCTOU) 发布检查。
 
-Focus on the deterministic, network-free surface: how merged-PR subjects are
-mapped to PR numbers (and, crucially, which ones are *not* mapped and must be
-surfaced as a blind spot), and bot detection. The GitHub REST calls in
-``audit_pr``/``main`` are not exercised here.
+聚焦于确定性、网络无感的表面：如何合并-PR 主题映射到 PR 数字（最重要的是，哪些是 *不*
+ 映射并必须呈现为盲点)，以及机器人检测。 的 GitHub  REST c
+alls in
+``audit_pr``/``main``此处不执行。
 
-``merged_pr_numbers`` shells out to ``git log``; we drive it deterministically
-by monkeypatching the module's ``run_git`` to return a canned log, so no real
-repository history is required.
+``merged_pr_numbers`` 向 ``git log`` 发起攻击； 我们通过对模块的 ``run_git`` 进行猴子
+修补来返回预设日志来确定性地驱动它，因
+此不需要真正的存储库历史记录。
 """
 
 from __future__ import annotations
@@ -33,11 +33,11 @@ def _load_script_module(name: str):
 
 _drift = _load_script_module("check_approval_drift")
 
-_US = "\x1f"  # the unit-separator used in the git pretty-format
+_US = "\x1f"  # git Pretty-format 中使用的单位分隔符
 
 
 def _fake_log(*subjects: str) -> str:
-    """Build a ``%H\\x1f%s`` git log body from subjects (sha is irrelevant)."""
+    """从主题构建 ``%H\\x1f%s`` git 日志正文（sha 不相关）。"""
     return "\n".join(f"deadbeef{i}{_US}{s}" for i, s in enumerate(subjects))
 
 
@@ -80,7 +80,7 @@ def test_trailing_whitespace_after_pr_number_still_matches(monkeypatch):
 
 
 def test_pr_ref_not_at_end_is_unmapped(monkeypatch):
-    # A "(#N)" that is not the trailing token is not the squash-merge PR id.
+    # 不是尾随 token 的“(#N)”不是挤压合并 PR id。
     monkeypatch.setattr(
         _drift, "run_git", lambda *a, **k: _fake_log("revert of (#7) change")
     )

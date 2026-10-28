@@ -24,7 +24,7 @@ ACPSkillSourcing = Literal["native", "openhands_managed"]
 
 
 class LaunchRuntime(BaseModel):
-    """What the process that runs the agent can do."""
+    """运行智能体的进程可以做什么。"""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -47,7 +47,7 @@ _FINALIZE_TOKEN = object()
 
 @dataclass(frozen=True)
 class LaunchedAgent:
-    """The agent a conversation starts with; only :func:`finalize` builds one."""
+    """对话开始于智能体； 只有：func:`finalize` 构建一个。"""
 
     agent: AgentBase
     profile: LaunchedAgentProfile | None
@@ -72,12 +72,11 @@ def finalize(
     managed_secrets: Collection[str] = (),
     launched_at: datetime | None = None,
 ) -> LaunchedAgent:
-    """Build the launch agent for ``source`` in the process that will run it.
+    """在运行 ``source`` 的进程中构建启动智能体。
 
-    Owns every launch-time field: the tool set (with browser only when the
-    runtime can run it), ``current_datetime``, ``load_memory``, ACP skill
-    sourcing, launch additions, client tools and credentials the runtime
-    manages itself.
+    拥有每个启动时字段：工具集（只有在运行时可以运行时，``current_datetime``，
+    ``load_memory``，ACP技能来源，启动附加，客户端工具，
+    凭据运行时自己管理。
     """
     if isinstance(source, ResolvedLaunch):
         settings = _settings_for_runtime(source.settings, runtime)
@@ -135,7 +134,7 @@ def _with_current_datetime(agent: AgentBase, launched_at: datetime | None) -> Ag
 
 
 def _now_in_timezone_of(value: datetime | str) -> datetime | None:
-    """Now, in ``value``'s timezone; None when ``value`` is pre-formatted text."""
+    """现在，在 ``value`` 的时区； None 当 ``value`` 是预先格式化的文本时。"""
     if isinstance(value, str):
         try:
             value = datetime.fromisoformat(value)
@@ -147,8 +146,9 @@ def _now_in_timezone_of(value: datetime | str) -> datetime | None:
 
 
 def _context_of(agent: AgentBase) -> AgentContext:
-    # A null agent_context means "no prompt context"; ACP relies on that to keep
-    # a timestamp out of its prompt, so a synthesized context carries none.
+    # Anullagent_context表示“无提示词上下文”； ACP 依靠它来将时间戳保留在其提示词之外，
+    # 因此合成的上下文带有 None。
+    #
     return agent.agent_context or AgentContext(current_datetime=None)
 
 
@@ -200,7 +200,7 @@ def _append_system_message_suffix(agent: AgentBase, addition: str) -> AgentBase:
 
 
 def _with_launch_skills(agent: AgentBase, skills: Sequence[Skill]) -> AgentBase:
-    """Add launch-supplied skills; the agent's own skills and deny-list win."""
+    """添加启动提供的技能； 智能体自己的技能和拒绝名单获胜。"""
     context = _context_of(agent)
     taken = {skill.name for skill in context.skills} | set(context.disabled_skills)
     added: list[Skill] = []

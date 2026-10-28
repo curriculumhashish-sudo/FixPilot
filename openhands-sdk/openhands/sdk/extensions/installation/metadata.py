@@ -18,13 +18,13 @@ logger = get_logger(__name__)
 
 
 class MetadataSession:
-    """Context manager that binds ``InstallationMetadata`` to its directory.
+    """上下文管理器将 ``InstallationMetadata`` 绑定到其目录。
 
-    On a clean exit (no exception), the metadata is automatically saved.
-    This eliminates the need for callers to manually pair ``load_from_dir``
-    and ``save_to_dir``, and guarantees that mutations are persisted.
+    干净退出时（也不例外），元数据会自动保存。 这消除了调用者手动配对
+    ``load_from_dir`` 和 ``save_to_dir`` 的需要，并保证突变是已持
+    久化。
 
-    Use via ``InstallationMetadata.open(installed_dir)``.
+    通过 ``InstallationMetadata.open(installed_dir)`` 使用。
     """
 
     def __init__(
@@ -42,17 +42,16 @@ class MetadataSession:
         return self.metadata.extensions
 
     def sync(self) -> list[InstallationInfo]:
-        """Reconcile metadata with what is actually on disk.
+        """使元数据与磁盘上的实际内容保持一致。
 
-        Prunes stale tracked entries whose directories are missing and
-        discovers untracked extension directories.  Does **not** save —
-        the enclosing ``with`` block handles persistence on exit.
+        修剪目录丢失的陈旧跟踪条目并发现未跟踪的扩展目录。 **不**保存 - 退出时封闭的
+        ``with``块处理持久化。
 
-        Requires that an ``InstallationInterface`` was provided when the
-        session was created (via ``InstallationMetadata.open(..., interface=...)``).
+        要求在创建会话时提供 ``InstallationInterface``（通过
+        ``InstallationMetadata.open(..., interface=...)``）。
 
         Returns:
-            Combined list of valid tracked and newly discovered extensions.
+            有效跟踪和新发现的扩展程序的组合列表。
         """
         assert self.interface is not None, (
             "sync() requires an InstallationInterface; "
@@ -78,14 +77,14 @@ class MetadataSession:
 
 
 class InstallationMetadata(BaseModel):
-    """Metadata file for tracking installed extensions.
+    """用于跟踪已安装扩展的元数据文件。
 
-    Typically used via the ``open()`` context manager, which loads the
-    metadata, yields a ``MetadataSession``, and auto-saves on exit::
+    通常通过 ``open()`` 上下文管理器使用，加载元数据，生成 ``MetadataSession``，并在
+    退出时自动保存：:
 
         with InstallationMetadata.open(installed_dir) as session:
             session.extensions["my-ext"] = info
-        # saved automatically
+        # 自动保存
     """
 
     extensions: dict[str, InstallationInfo] = Field(
@@ -99,10 +98,10 @@ class InstallationMetadata(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _migrate_legacy_keys(cls, data: Any) -> Any:
-        """Migrate old ``plugins`` / ``skills`` keys into ``extensions``.
+        """将旧的 ``plugins`` / ``skills`` 键迁移到 ``extensions``。
 
-        Legacy entries are merged into the existing ``extensions`` dict
-        (if any).  Explicit ``extensions`` entries win on key conflicts.
+        旧条目将合并到现有的 ``extensions`` 字典（如果有）中。 显式的 ``extensions``
+        条目在关键冲突上获胜。
         """
         if not isinstance(data, dict):
             return data
@@ -126,12 +125,12 @@ class InstallationMetadata(BaseModel):
         *,
         interface: InstallationInterface | None = None,
     ) -> MetadataSession:
-        """Load metadata and return a session that auto-saves on exit.
+        """加载元数据并返回退出时自动保存的会话。
 
         Args:
-            installed_dir: Root directory where extensions are installed.
-            interface: Optional installation interface, required if the
-                session will call ``sync()``.
+            installed_dir: 安装扩展的根目录。
+            interface: 可选安装接口，如果需要
+                会话将调用``sync()``。
         """
         return MetadataSession(
             installed_dir, cls.load_from_dir(installed_dir), interface
@@ -139,12 +138,12 @@ class InstallationMetadata(BaseModel):
 
     @classmethod
     def get_metadata_path(cls, installed_dir: Path) -> Path:
-        """Get the metadata file path for the installed extension directory."""
+        """获取已安装扩展目录的元数据文件路径。"""
         return installed_dir / cls.metadata_filename
 
     @classmethod
     def load_from_dir(cls, installed_dir: Path) -> InstallationMetadata:
-        """Load metadata from the installed extensions directory."""
+        """从已安装的扩展目录加载元数据。"""
         metadata_path = cls.get_metadata_path(installed_dir)
         if not metadata_path.exists():
             return cls()
@@ -156,23 +155,23 @@ class InstallationMetadata(BaseModel):
             return cls()
 
     def save_to_dir(self, installed_dir: Path) -> None:
-        """Save metadata to the installed extensions directory."""
+        """将元数据保存到已安装的扩展目录。"""
         metadata_path = self.get_metadata_path(installed_dir)
         metadata_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
 
     def validate_tracked(self, installed_dir: Path) -> list[InstallationInfo]:
-        """Validate tracked extensions exist on disk.
+        """验证磁盘上是否存在跟踪的扩展。
 
-        Removes entries with invalid names or missing directories from
-        ``self.extensions`` in place.
+        删除名称无效或缺少目录的条目
+        ``self.extensions``到位。
 
         Returns:
-            List of extensions that are still valid.
+            仍然有效的扩展列表。
         """
         valid_extensions: list[InstallationInfo] = []
 
-        # Iterate over a snapshot because we mutate during the loop.
+        # 迭代快照是因为我们在循环期间发生了变化。
         for name, info in list(self.extensions.items()):
             try:
                 validate_extension_name(name)
@@ -199,12 +198,12 @@ class InstallationMetadata(BaseModel):
         installed_dir: Path,
         installation_interface: InstallationInterface,
     ) -> list[InstallationInfo]:
-        """Discover extension directories not tracked by the metadata.
+        """发现元数据未跟踪的扩展目录。
 
-        Adds newly found extensions to ``self.extensions`` in place.
+        将新发现的扩展添加到适当的位置 ``self.extensions``。
 
         Returns:
-            List of newly discovered extensions.
+            新发现的扩展列表。
         """
         discovered: list[InstallationInfo] = []
 

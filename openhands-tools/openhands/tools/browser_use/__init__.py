@@ -1,4 +1,4 @@
-"""Browser tools using browser-use integration."""
+"""使用浏览器使用集成的浏览器工具。"""
 
 from openhands.tools.browser_use.definition import (
     BrowserClickAction,
@@ -31,7 +31,7 @@ from openhands.tools.browser_use.definition import (
 
 
 __all__ = [
-    # Tool classes
+    # 工具类
     "BrowserNavigateTool",
     "BrowserClickTool",
     "BrowserTypeTool",
@@ -44,7 +44,7 @@ __all__ = [
     "BrowserCloseTabTool",
     "BrowserGetStorageTool",
     "BrowserSetStorageTool",
-    # Actions
+    # 行动
     "BrowserNavigateAction",
     "BrowserClickAction",
     "BrowserTypeAction",
@@ -57,7 +57,7 @@ __all__ = [
     "BrowserCloseTabAction",
     "BrowserGetStorageAction",
     "BrowserSetStorageAction",
-    # Observations
+    # 观测结果
     "BrowserObservation",
     "BrowserToolSet",
 ]

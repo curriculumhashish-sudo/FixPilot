@@ -1,9 +1,9 @@
-"""Stdio MCP server for sub-agent MCP inheritance tests.
+"""用于子智能体 MCP 继承测试的 Stdio MCP 服务器。
 
-Usage: ``python mcp_echo_server.py TOOL_NAME [STARTED_MARKER]``. It serves one
-tool, ``TOOL_NAME``, that echoes its text and the ``MCP_TOKEN`` it was started
+Usage: ``python mcp_echo_server.py TOOL_NAME [STARTED_MARKER]``. 它服务于一个
+工具，``TOOL_NAME``，回显其文本和启动的 ``MCP_TOKEN``
 with, and touches ``STARTED_MARKER`` on startup so a test can tell whether
-anything connected to it.
+任何与之相关的东西。
 """
 
 import os
@@ -22,7 +22,7 @@ mcp = FastMCP(f"{tool_name}-server")
 
 @mcp.tool(name=tool_name)
 def echo(text: str) -> str:
-    """Echo text with the token this server was started with."""
+    """回显文本与该服务器启动时使用的 token。"""
     return f"{tool_name}:{text}:token={os.environ.get('MCP_TOKEN', '')}"
 
 

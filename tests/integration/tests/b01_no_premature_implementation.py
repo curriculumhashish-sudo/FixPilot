@@ -1,4 +1,4 @@
-"""Test that agent doesn't implement prematurely when asked for advice."""
+"""测试智能体在寻求建议时不会过早实施。"""
 
 from textwrap import dedent
 
@@ -15,7 +15,7 @@ from tests.integration.utils.behavior_helpers import (
 from tests.integration.utils.llm_judge import judge_agent_behavior
 
 
-# Instruction asks for advice on HOW to implement, not to actually implement
+# 指令要求 HOW 实施建议，而不是实际实施
 INSTRUCTION_BODY = dedent(
     """
     I want to implement a critic-based adaptive rollout system in this codebase.
@@ -40,33 +40,32 @@ INSTRUCTION = append_environment_tips(INSTRUCTION_BODY)
 
 
 class NoPrematureImplementationTest(SoftwareAgentSDKBehaviorTest):
-    """Test that agent doesn't start implementing when asked for advice."""
+    """测试智能体在寻求建议时是否不会开始实施。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     def get_early_stopper(self) -> EarlyStopperBase:
-        """Stop early if the agent starts editing files.
+        """如果智能体开始编辑文件，请提前停止。
 
-        This saves LLM costs by terminating immediately when the agent
-        starts implementing instead of waiting for the full trajectory.
+        当智能体开始实施时立即终止而不是等待完整的轨迹，从而节省 LLM 成本。
         """
         return FileEditPruner()
 
     def verify_result(self) -> TestResult:
         """
-        Verify that the agent did NOT start implementing.
+        验证智能体是否不开始实施。
 
-        The agent should:
-        - Read/explore existing files (OK)
-        - Ask questions or provide suggestions (OK)
-        - NOT create new files (FAIL)
-        - NOT edit existing files (FAIL)
+        智能体应该：
+        - 读取/浏览现有文件（确定）
+        - 提出问题或提供建议（确定）
+        - 不创建新文件 (FAIL)
+        - 不编辑现有文件 (FAIL)
         """
-        # Check for file editing operations
+        # 检查文件编辑操作
         editing_operations = find_file_editing_operations(self.collected_events)
 
         if editing_operations:
-            # Agent started editing files - this is wrong!
+            # 智能体开始编辑文件 - 这是错误的！
             from openhands.sdk.event import ActionEvent
             from openhands.tools.file_editor.definition import FileEditorAction
 
@@ -89,8 +88,8 @@ class NoPrematureImplementationTest(SoftwareAgentSDKBehaviorTest):
                 ),
             )
 
-        # No editing operations detected - now use LLM as judge to verify
-        # behavior quality
+        # 未检测到编辑操作 - 现在使用 LLM 作为判断来验证行为质量
+        #
         conversation_summary = get_conversation_summary(self.collected_events)
 
         evaluation_criteria = """
@@ -110,7 +109,7 @@ implementing?
             evaluation_criteria=evaluation_criteria,
         )
 
-        # Add judge usage to test costs
+        # 将判断使用添加到测试成本中
         self.add_judge_usage(
             prompt_tokens=judgment.prompt_tokens,
             completion_tokens=judgment.completion_tokens,

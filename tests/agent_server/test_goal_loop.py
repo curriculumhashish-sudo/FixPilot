@@ -1,7 +1,8 @@
-"""Tests for the /goal driver loop in EventService (the agent-server side).
+"""测试 EventService 中的 /goal 驱动程序循环（智能体服务器端）。
 
-These drive a real EventService + LocalConversation with a scripted TestLLM
-agent (each run finishes on a content-only reply) and a separate scripted judge.
+这些驱动一个真正的 EventService + LocalConversation 和一个脚本化的 TestLLM 智能体（每
+次运行仅在内容回复上完成）和一个单独的脚本化
+判断。
 """
 
 import asyncio
@@ -31,10 +32,9 @@ def _scripted(*texts: str, usage_id: str) -> TestLLM:
 
 
 class _GatedLLM(TestLLM):
-    """Judge LLM that blocks until released, signalling when it has entered.
+    """判断LLM阻塞直到被释放，当它进入时发出信号。
 
-    Lets a test deterministically catch the goal loop mid-audit (no run in
-    flight) and stop it.
+    让测试确定性地捕获审计中的目标循环（没有飞行中的运行）并停止它。
     """
 
     _gate: Event = PrivateAttr(default_factory=Event)
@@ -62,11 +62,10 @@ class _GatedLLM(TestLLM):
 
 
 class _GatedJudge(TestLLM):
-    """Judge LLM that blocks on its first call, to catch the inter-round gap.
+    """判断LLM在第一次调用时会阻塞，以捕捉轮间间隙。
 
-    Between rounds the goal loop has no run in flight while it awaits the judge,
-    which is exactly where a competing request could claim a freshly-released
-    permit if the loop did not keep its own for its whole lifetime.
+    在回合之间，目标循环在等待裁判时没有运行，这正是一个竞争请求可以声称一个刚释放的
+    许可的地方，如果循环没有为自己的整个生命周期保留自己的。
     """
 
     _gate: Event = PrivateAttr(default_factory=Event)
@@ -123,7 +122,7 @@ def event_service(tmp_path):
 
 
 async def _start(service: EventService, tmp_path, *agent_turns: str) -> None:
-    """Start the service and install a scripted agent LLM (one reply per run)."""
+    """启动服务并安装脚本化的智能体 LLM（每次运行一个回复）。"""
     (tmp_path / "workspace").mkdir(exist_ok=True)
     await service.start()
     service.get_conversation().switch_llm(_scripted(*agent_turns, usage_id="agent"))
@@ -163,9 +162,9 @@ async def test_goal_loop_outcomes(
 
 @pytest.mark.asyncio
 async def test_goal_loop_emits_status_events(event_service, tmp_path):
-    # The loop publishes ConversationStateUpdateEvent(key="goal") at each
-    # lifecycle point; they are persisted to the shared event log (and streamed
-    # to subscribers) so a UI can render a progress chip.
+    # 循环在每个生命周期点发布 ConversationStateUpdateEvent(key="goal")； 它们已持久化到
+    # 共享事件日志（并流式传输给订阅者），因此 UI 可以呈现进度条。
+    #
     await _start(event_service, tmp_path, "did the work")
     judge = _scripted(
         '{"score": 1.0, "complete": true, "missing": ""}', usage_id="judge"
@@ -182,7 +181,7 @@ async def test_goal_loop_emits_status_events(event_service, tmp_path):
             if isinstance(e, ConversationStateUpdateEvent) and e.key == "goal"
         ]
         assert updates, "expected goal-status events"
-        # First update: running + active. Last: complete + inactive.
+        # 第一次更新：运行+活动。 最后：完成+不活动。
         assert updates[0]["active"] is True
         assert updates[0]["status"] == "running"
         assert updates[-1]["active"] is False
@@ -195,9 +194,9 @@ async def test_goal_loop_emits_status_events(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_goal_loop_emits_per_round_verdicts(event_service, tmp_path):
-    # Each continuing round publishes its judge verdict (score + missing) on the
-    # running status event, so a UI can show per-round feedback, not just the
-    # terminal verdict.
+    # 每个继续的回合都会发布其评委判决（得分 + 缺席），因此UI可以显示每回合的反馈，而不
+    # 是仅显示最终判决。
+    #
     await _start(event_service, tmp_path, "turn 1", "turn 2")
     judge = _scripted(_NOT_DONE, _DONE, usage_id="judge")
     try:
@@ -207,10 +206,10 @@ async def test_goal_loop_emits_per_round_verdicts(event_service, tmp_path):
         await asyncio.wait_for(event_service._goal_loop_task, timeout=15)
 
         updates = _goal_status_updates(event_service)
-        # The kickoff update (iteration 0) has no verdict yet.
+        # 启动更新（迭代 0）尚未得出结论。
         kickoff = next(u for u in updates if u["iteration"] == 0)
         assert kickoff["verdict"] is None
-        # The mid-loop "running" update for round 1 carries the round's verdict.
+        # 第 1 轮的中循环“运行”更新承载了该轮的判决。
         round_one = next(
             u for u in updates if u["status"] == "running" and u["iteration"] == 1
         )
@@ -223,9 +222,9 @@ async def test_goal_loop_emits_per_round_verdicts(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_goal_loop_defaults_judge_to_agent_llm(event_service, tmp_path):
-    # No judge_llm passed -> the agent's own LLM is used as the judge, so its
-    # scripted queue serves both the agent turn and the verdict. This is the
-    # path the POST /goal endpoint always takes.
+    # 没有 judge_llm 通过 -> 智能体自己的 LLM 被用作法官，因此它的脚本队列同时服务于智能
+    # 体轮和判决。 这是 POST /goal 端点始终采用的路径。
+    #
     await _start(
         event_service,
         tmp_path,
@@ -260,7 +259,7 @@ async def test_start_goal_loop_rejects_concurrent_goal_loop(event_service, tmp_p
     await _start(event_service, tmp_path, "noop")
     judge = _scripted("{}", usage_id="judge")
     try:
-        # Occupy the goal loop slot with a task that won't finish on its own.
+        # 用无法自行完成的任务占据目标循环槽。
         event_service._goal_loop_task = asyncio.create_task(asyncio.sleep(10))
         with pytest.raises(ValueError, match="goal_already_running"):
             await event_service.start_goal_loop("build x", judge_llm=judge)
@@ -281,8 +280,8 @@ async def test_stop_goal_loop_when_idle_returns_false(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_user_message_stops_running_goal_loop(event_service, tmp_path):
-    # A user message on the normal chat path cancels a running goal loop before
-    # being processed.
+    # 正常聊天路径上的用户消息在处理之前会取消正在运行的目标循环。
+    #
     await _start(event_service, tmp_path, "noop")
     try:
         event_service._goal_loop_task = asyncio.create_task(asyncio.sleep(30))
@@ -313,7 +312,7 @@ async def test_stop_running_goal_loop_emits_interrupted(event_service, tmp_path)
         await event_service.start_goal_loop(
             "build x", judge_llm=judge, max_iterations=5
         )
-        # Wait until the judge is blocked: the goal is mid-audit, no run in flight.
+        # 等到裁判被挡：目标是中审，没有跑动。
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, judge._entered.wait, 5.0)
 
@@ -321,17 +320,17 @@ async def test_stop_running_goal_loop_emits_interrupted(event_service, tmp_path)
         updates = _goal_status_updates(event_service)
         assert updates[-1]["status"] == "interrupted"
         assert updates[-1]["active"] is False
-        # The audit was abandoned, so the round is not counted as completed.
+        # 审核已被放弃，因此该轮不计为已完成。
         assert updates[-1]["iteration"] == 0
     finally:
-        judge._gate.set()  # release the orphaned judge thread for cleanup
+        judge._gate.set()  # 释放孤儿法官线程进行清理
         await event_service.close()
 
 
 @pytest.mark.asyncio
 async def test_resume_from_interrupted_status(event_service, tmp_path):
     await _start(event_service, tmp_path, "resumed and finished")
-    # Simulate a goal loop that was interrupted at round 1 of 5.
+    # 模拟在 5 轮中的第 1 轮中断的进球循环。
     conversation = event_service.get_conversation()
     with conversation._state:
         conversation._on_event(
@@ -357,16 +356,16 @@ async def test_resume_from_interrupted_status(event_service, tmp_path):
         outcome = event_service._goal_loop_outcome
         assert outcome is not None
         assert outcome.status == "complete"
-        assert outcome.iterations == 2  # resumed from round 1 -> completed at round 2
+        assert outcome.iterations == 2  # 从第 1 轮恢复 -> 在第 2 轮完成
     finally:
         await event_service.close()
 
 
 @pytest.mark.asyncio
 async def test_resume_after_failed_audit_never_exceeds_cap(event_service, tmp_path):
-    # The only round's judge call fails -> interrupted at 0 of 1 (the failed
-    # audit is not a completed round); the resume re-runs that round and caps
-    # at 1 of 1, never above max_iterations.
+    # 唯一一轮的判断调用失败 -> 在 0 of 1 处中断（失败的审核不是完整的一轮）； 简历会重
+    # 新运行该轮，上限为 1 中的 1，永远不会高于 max_iterations。
+    #
     await _start(event_service, tmp_path, "did the work", "tried again")
     failing_judge = TestLLM.from_messages(
         [RuntimeError("judge network error")], usage_id="judge"
@@ -407,9 +406,9 @@ async def test_resume_from_status_at_cap_never_exceeds_cap(
     override_max,
     final_iteration,
 ):
-    # An interrupted status already at (or past) the cap -- persisted by an
-    # older server that counted the failed audit, or resumed with a lower
-    # max_iterations -- resumes into one final round, not past the cap.
+    # 中断状态已经达到了（或超过了）上限已持久化由一个旧服务器计数失败的审计，或者继续运
+    # 行一个较低的版本 max_iterations -- 结束为一轮，而不是超过限额。
+    #
     await _start(event_service, tmp_path, "resumed")
     conversation = event_service.get_conversation()
     with conversation._state:
@@ -433,7 +432,7 @@ async def test_resume_from_status_at_cap_never_exceeds_cap(
         )
         await asyncio.wait_for(event_service._goal_loop_task, timeout=15)
 
-        updates = _goal_status_updates(event_service)[1:]  # skip the stored one
+        updates = _goal_status_updates(event_service)[1:]  # 跳过已存储的
         assert updates[-1]["status"] == "capped"
         assert updates[-1]["iteration"] == final_iteration
         assert all(u["iteration"] <= u["max_iterations"] for u in updates)
@@ -454,7 +453,7 @@ async def test_resume_without_resumable_goal_loop_raises(event_service, tmp_path
 
 @pytest.mark.asyncio
 async def test_resume_after_completed_goal_loop_raises(event_service, tmp_path):
-    # A completed (or capped) goal loop is not resumable.
+    # 已完成（或上限​​）的目标循环不可恢复。
     await _start(event_service, tmp_path, "noop")
     conversation = event_service.get_conversation()
     with conversation._state:
@@ -481,8 +480,9 @@ async def test_resume_after_completed_goal_loop_raises(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_goal_loop_halts_on_run_error_as_interrupted(event_service, tmp_path):
-    # Simulate "out of credits": the agent's run raises. The goal loop must record an
-    # interrupted (resumable) status, not die silently with no outcome.
+    # 模拟“积分不足”：智能体的运行加注。 目标循环必须记录中断（可恢复）状态，而不是默默
+    # 地死掉而没有结果。
+    #
     (tmp_path / "workspace").mkdir(exist_ok=True)
     await event_service.start()
     event_service.get_conversation().switch_llm(
@@ -507,18 +507,17 @@ async def test_goal_loop_halts_on_run_error_as_interrupted(event_service, tmp_pa
 
 @pytest.mark.asyncio
 async def test_goal_loop_continues_past_stuck_run(event_service, tmp_path):
-    # A run that ends in STUCK (the stuck-detector heuristic firing during
-    # legitimate iteration) must NOT halt the goal loop as "interrupted". The
-    # judge is the authoritative completion signal; the loop should proceed to
-    # audit and re-prompt, keeping the "work until finished" contract. Contrast
-    # with ERROR/PAUSED above, which are real stop signals.
+    # 以 STUCK 结束的运行（合法迭代期间卡住检测器启发式触发）必须不将目标循环停止为“中断
+    # ”。 裁判是权威的完成信号； 循环应进行审核并重新提示词，保持“工作直到完成”合同。 与
+    # 上面的ERROR/PAUSED对比，它们是真实的停止信号。
+    #
     await _start(event_service, tmp_path, "turn 1", "turn 2")
     conversation = event_service.get_conversation()
 
     original_arun = conversation.arun
 
     async def _arun_first_stuck():
-        # First run ends STUCK (simulates the stuck detector tripping mid-run).
+        # 第一次运行结束 STUCK（模拟卡住检测器在运行中跳闸）。
         if not getattr(conversation, "_test_stuck_fired", False):
             conversation._test_stuck_fired = True
             with conversation._state:
@@ -536,8 +535,8 @@ async def test_goal_loop_continues_past_stuck_run(event_service, tmp_path):
         await asyncio.wait_for(event_service._goal_loop_task, timeout=15)
 
         updates = _goal_status_updates(event_service)
-        # The loop must NOT have recorded a terminal "interrupted"; the STUCK
-        # round was treated as a normal continue and the judge later completed.
+        # 循环必须不记录了终端“中断”； STUCK回合被视为正常继续，裁判随后完成。
+        #
         assert updates[-1]["status"] == "complete"
         assert updates[-1]["active"] is False
         outcome = event_service._goal_loop_outcome
@@ -550,11 +549,11 @@ async def test_goal_loop_continues_past_stuck_run(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_goal_loop_emits_interrupted_on_unexpected_error(event_service, tmp_path):
-    # A judge LLM that *raises* (e.g. a network error) crashes the loop via the
-    # generic `except Exception` path -- distinct from a run error surfaced as
-    # ConversationExecutionStatus.ERROR (test above). The loop must still record
-    # a terminal interrupted (resumable) status; otherwise the last persisted
-    # event stays active=True/running and the UI shows a dead goal as running.
+    # * 提出 * 的法官 LLM (e.g. 网络错误）通过通用 `except Exception` 路径使循环崩溃——与
+    #  ConversationExecutionStatus.ERROR 所示的运行错误（上面的测试）不同。 循环仍必须记
+    # 录终端中断（可恢复）状态； 否则最后一个已持久化事件保持活动 = True/running 并且 UI
+    #  将死目标显示为正在运行。
+    #
     await _start(event_service, tmp_path, "did the work")
     judge = TestLLM.from_messages(
         [RuntimeError("judge network error")], usage_id="judge"
@@ -575,10 +574,10 @@ async def test_goal_loop_emits_interrupted_on_unexpected_error(event_service, tm
 
 @pytest.mark.asyncio
 async def test_start_goal_loop_rejected_while_run_active(event_service, tmp_path):
-    # /goal must refuse with conversation_already_running (-> 409) when a normal
-    # run is already in flight, instead of slipping in beside it and judging that
-    # run's unrelated transcript. A placeholder _run_task stands in for the active
-    # run (same pattern as test_start_goal_loop_rejects_concurrent_goal_loop).
+    # /goal 必须拒绝 conversation_already_running (-> 409) 当正常运行已经进行时，而不是
+    # 滑行并判断该运行无关的转录。 一个占位符 _run_task 充当活跃运行（与相同模式）
+    # test_start_goal_loop_rejects_concurrent_goal_loop).
+    #
     await _start(event_service, tmp_path, "noop")
     judge = _scripted("{}", usage_id="judge")
     try:
@@ -594,7 +593,7 @@ async def test_start_goal_loop_rejected_while_run_active(event_service, tmp_path
 
 @pytest.mark.asyncio
 async def test_resume_goal_loop_rejected_while_run_active(event_service, tmp_path):
-    # Resume uses the same busy guard; reuse the placeholder _run_task approach.
+    # 恢复使用相同的忙碌守卫； 重用占位符 _run_task 方法。
     await _start(event_service, tmp_path, "noop")
     conversation = event_service.get_conversation()
     with conversation._state:
@@ -624,15 +623,15 @@ async def test_resume_goal_loop_rejected_while_run_active(event_service, tmp_pat
 
 @pytest.mark.asyncio
 async def test_goal_loop_holds_capacity_across_rounds(event_service, tmp_path):
-    """Every goal round must run on the permit the loop reserved up front.
+    """每个球门回合必须在预先保留的循环许可上运行。
 
-    Only the first round ran on the reserved permit; later rounds called a plain
-    ``run()`` and needed a fresh one, and between rounds the permit was free
+    只有第一轮比赛是在保留的许可证上进行的； 后面的回合称为平原
+    ``run()``并且需要一个新的，并且在回合之间许可证是免费的
     while the judge LLM call ran. A competing request could take it there, and
-    the next round's ``run()`` would then raise ``ConversationRunLimitExceeded``
-    (a ``RuntimeError``, not a ``ValueError``), escaping to the outer handler and
-    ending the goal as ``interrupted`` with work still remaining. The loop keeps
-    one permit for its whole lifetime instead.
+    下一轮的 ``run()`` 那么就会引发 ``ConversationRunLimitExceeded`` (a
+    ``RuntimeError``不是
+    ``ValueError``), 逃到外部处理器，结束目标 ``interrupted`` 工作仍需完成。 相反，循
+    环在其整个生命周期中保留一个许可证。
     """
     await _start(event_service, tmp_path, "turn 1", "turn 2")
     event_service._run_semaphore = asyncio.Semaphore(1)
@@ -651,8 +650,9 @@ async def test_goal_loop_holds_capacity_across_rounds(event_service, tmp_path):
             "build x", judge_llm=judge, max_iterations=5
         )
         loop = asyncio.get_running_loop()
-        # Mid-audit: the first round finished and no run is in flight, but the
-        # loop must still hold capacity for the round it is about to start.
+        # 中期审核：第一轮结束，没有运行正在进行，但循环必须仍能容纳即将开始的一轮的容量
+        # 。
+        #
         await loop.run_in_executor(None, judge._entered.wait, 5.0)
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(event_service._run_semaphore.acquire(), timeout=0.25)
@@ -665,17 +665,17 @@ async def test_goal_loop_holds_capacity_across_rounds(event_service, tmp_path):
         assert outcome.status == "complete"
         assert outcome.iterations == 2
 
-        # The permit is returned to the shared pool once the loop is done.
+        # 循环完成后，许可证将返回到共享池。
         await asyncio.wait_for(event_service._run_semaphore.acquire(), timeout=5)
         event_service._run_semaphore.release()
     finally:
-        judge._gate.set()  # release the judge thread if still blocked
+        judge._gate.set()  # 如果仍被阻止，则释放法官线程
         await event_service.close()
 
 
 @pytest.mark.asyncio
 async def test_goal_loop_release_returns_capacity(event_service, tmp_path):
-    """A finished goal loop must not leak the permit it reserved."""
+    """完成的目标循环不得泄漏其保留的许可。"""
     await _start(event_service, tmp_path, "done")
     event_service._run_semaphore = asyncio.Semaphore(1)
     judge = _scripted(_DONE, usage_id="judge")
@@ -693,7 +693,7 @@ async def test_goal_loop_release_returns_capacity(event_service, tmp_path):
 
 
 def _reopen(service: EventService, tmp_path) -> EventService:
-    """A fresh EventService over the same persisted conversation (a restart)."""
+    """同一已持久化对话上的新 EventService（重新启动）。"""
     return EventService(
         stored=service.stored,
         conversations_dir=tmp_path / "conversations",
@@ -739,7 +739,7 @@ async def test_graceful_restart_marks_active_goal_interrupted(event_service, tmp
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, judge._entered.wait, 5.0)
         assert _goal_status_updates(event_service)[-1]["status"] == "running"
-        # Graceful shutdown with the loop active: close() records nothing.
+        # 循环处于活动状态时正常关闭：close() 不记录任何内容。
         await event_service.close()
     finally:
         judge._gate.set()
@@ -762,7 +762,7 @@ async def test_hard_kill_restart_marks_active_goal_interrupted_and_resumable(
     event_service, tmp_path
 ):
     await _start(event_service, tmp_path, "noop")
-    # The last status a killed process left behind: still active.
+    # 被杀死的进程留下的最后状态：仍然活动。
     _persist_goal_status(event_service, active=True, status="running")
     await event_service.close()
 

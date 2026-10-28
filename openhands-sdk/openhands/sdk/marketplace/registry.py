@@ -1,4 +1,4 @@
-"""Marketplace registry for lazy marketplace loading and plugin resolution."""
+"""Marketplace 注册表用于延迟市场加载和插件解析。"""
 
 from __future__ import annotations
 
@@ -29,11 +29,11 @@ class FetchedMarketplace:
 
 
 class PluginResolutionError(Exception):
-    """Raised when a marketplace plugin reference cannot be resolved."""
+    """当无法解析市场插件引用时引发。"""
 
 
 class AmbiguousPluginError(PluginResolutionError):
-    """Raised when a plugin name exists in multiple registered marketplaces."""
+    """当插件名称存在于多个注册市场中时引发。"""
 
     def __init__(self, plugin_name: str, matching_marketplaces: list[str]) -> None:
         self.plugin_name = plugin_name
@@ -46,7 +46,7 @@ class AmbiguousPluginError(PluginResolutionError):
 
 
 class PluginNotFoundError(PluginResolutionError):
-    """Raised when a plugin is absent from the registered marketplaces."""
+    """当注册市场中缺少插件时引发。"""
 
     def __init__(
         self,
@@ -74,7 +74,7 @@ class PluginNotFoundError(PluginResolutionError):
 
 
 class MarketplaceNotFoundError(PluginResolutionError):
-    """Raised when a referenced marketplace is not registered."""
+    """当引用的市场未注册时引发。"""
 
     def __init__(self, marketplace_name: str) -> None:
         self.marketplace_name = marketplace_name
@@ -82,7 +82,7 @@ class MarketplaceNotFoundError(PluginResolutionError):
 
 
 def _load_marketplace(path: Path, name: str) -> Marketplace:
-    """Load the manifest, or read a source without one as a plain skills folder."""
+    """加载清单，或读取没有清单的源作为普通技能文件夹。"""
     try:
         return Marketplace.load(path)
     except FileNotFoundError as missing_manifest:
@@ -110,7 +110,7 @@ def _load_marketplace(path: Path, name: str) -> Marketplace:
 
 
 def _plugin_manifest(path: Path) -> str | None:
-    """The manifest of a single plugin at ``path``, if it is one."""
+    """``path`` 处的单个插件的清单（如果有）。"""
     if (path / agent_plugins.MANIFEST_FILE).is_file():
         return agent_plugins.MANIFEST_FILE
     for manifest_dir in PLUGIN_MANIFEST_DIRS:
@@ -120,7 +120,7 @@ def _plugin_manifest(path: Path) -> str | None:
 
 
 class MarketplaceRegistry:
-    """Resolve plugin references against registered marketplaces."""
+    """解决针对注册市场的插件引用。"""
 
     def __init__(self, registrations: list[MarketplaceRegistration] | None = None):
         self._registrations: dict[str, MarketplaceRegistration] = {}

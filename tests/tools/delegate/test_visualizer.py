@@ -1,4 +1,4 @@
-"""Tests for the DelegationVisualizer class."""
+"""DelegationVisualizer 类的测试。"""
 
 import json
 from unittest.mock import MagicMock
@@ -14,13 +14,13 @@ from openhands.tools.delegate import DelegationVisualizer
 
 
 class MockDelegateAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str = "test command"
 
 
 class MockDelegateObservation(Observation):
-    """Mock observation for testing."""
+    """模拟对象观测结果用于测试。"""
 
     result: str = "test result"
 
@@ -28,7 +28,7 @@ class MockDelegateObservation(Observation):
 def create_tool_call(
     call_id: str, function_name: str, arguments: dict
 ) -> MessageToolCall:
-    """Helper to create a MessageToolCall."""
+    """创建 MessageToolCall 的帮助程序。"""
     return MessageToolCall(
         id=call_id,
         name=function_name,
@@ -38,7 +38,7 @@ def create_tool_call(
 
 
 def test_delegation_visualizer_user_message_without_sender():
-    """Test user message without sender shows 'User Message to [Agent] Agent'."""
+    """没有发件人的测试用户消息显示“用户消息至 [智能体] 智能体”。"""
     visualizer = DelegationVisualizer(name="MainAgent")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
@@ -50,12 +50,12 @@ def test_delegation_visualizer_user_message_without_sender():
     block = visualizer._create_message_event_block(user_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "User Message to Main Agent Agent" in str(block.renderables[0])
 
 
 def test_delegation_visualizer_user_message_with_sender():
-    """Test delegated message shows sender and receiver agent names."""  # noqa: E501
+    """测试委托消息显示发送者和接收者智能体名称。"""  # noqa: E501
     visualizer = DelegationVisualizer(name="Lodging Expert")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
@@ -71,14 +71,14 @@ def test_delegation_visualizer_user_message_with_sender():
     block = visualizer._create_message_event_block(delegated_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Delegator Agent Message to Lodging Expert Agent" in str(
         block.renderables[0]
     )
 
 
 def test_delegation_visualizer_framework_user_role_messages_use_event_source():
-    """Framework messages keep a user LLM role without looking human-authored."""
+    """框架消息保留用户 LLM 角色，而不是由人类编写的。"""
     visualizer = DelegationVisualizer(name="WorkerAgent")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
@@ -118,7 +118,7 @@ def test_delegation_visualizer_framework_user_role_messages_use_event_source():
 
 
 def test_delegation_visualizer_skip_user_messages_uses_event_source():
-    """Skipping human input must retain framework feedback with a user LLM role."""
+    """跳过人工输入必须保留具有用户 LLM 角色的框架反馈。"""
     visualizer = DelegationVisualizer(name="WorkerAgent", skip_user_messages=True)
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
@@ -142,7 +142,7 @@ def test_delegation_visualizer_skip_user_messages_uses_event_source():
 
 
 def test_delegation_visualizer_agent_response_to_user():
-    """Test agent response to user shows 'Message from [Agent] Agent to User'."""
+    """对用户的测试智能体响应显示“消息从 [智能体] 智能体发送给用户”。"""
     visualizer = DelegationVisualizer(name="MainAgent")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
@@ -156,17 +156,17 @@ def test_delegation_visualizer_agent_response_to_user():
     block = visualizer._create_message_event_block(response_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Message from Main Agent Agent to User" in str(block.renderables[0])
 
 
 def test_delegation_visualizer_agent_response_to_delegator():
-    """Framework feedback must not hide the parent-agent recipient."""
+    """框架反馈不得隐藏父级智能体接收者。"""
     visualizer = DelegationVisualizer(name="Lodging Expert")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
 
-    # Set up event history with delegated message
+    # 使用委托消息设置事件历史记录
     delegated_message = Message(
         role="user", content=[TextContent(text="Task from parent")]
     )
@@ -183,7 +183,7 @@ def test_delegation_visualizer_agent_response_to_delegator():
     mock_state.events = [delegated_event, corrective_nudge]
     visualizer.initialize(mock_state)
 
-    # Sub-agent responds
+    # 子智能体回复
     agent_message = Message(
         role="assistant", content=[TextContent(text="Response to delegator")]
     )
@@ -191,19 +191,19 @@ def test_delegation_visualizer_agent_response_to_delegator():
     block = visualizer._create_message_event_block(response_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Lodging Expert Agent Message to Delegator Agent" in str(
         block.renderables[0]
     )
 
 
 def test_delegation_visualizer_formats_agent_names():
-    """Test agent names are properly formatted (snake_case to Title Case)."""
+    """测试智能体名称格式正确（snake_case 为标题大小写）。"""
     visualizer = DelegationVisualizer(name="lodging_expert")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
 
-    # Set up event history with delegated message from another agent
+    # 使用来自另一个智能体的委托消息设置事件历史记录
     delegated_message = Message(
         role="user", content=[TextContent(text="Task from parent")]
     )
@@ -213,15 +213,15 @@ def test_delegation_visualizer_formats_agent_names():
     mock_state.events = [delegated_event]
     visualizer.initialize(mock_state)
 
-    # Create block for delegated message
+    # 为委托消息创建块
     block = visualizer._create_message_event_block(delegated_event)
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Main Delegator Agent Message to Lodging Expert Agent" in str(
         block.renderables[0]
     )
 
-    # Sub-agent responds
+    # 子智能体回复
     agent_message = Message(
         role="assistant", content=[TextContent(text="Response to delegator")]
     )
@@ -229,21 +229,21 @@ def test_delegation_visualizer_formats_agent_names():
     block = visualizer._create_message_event_block(response_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Lodging Expert Agent Message to Main Delegator Agent" in str(
         block.renderables[0]
     )
 
 
 def test_delegation_visualizer_action_event():
-    """Test action event shows agent name in title."""
+    """测试操作事件在标题中显示智能体名称。"""
     visualizer = DelegationVisualizer(name="lodging_expert")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
     mock_state.events = []
     visualizer.initialize(mock_state)
 
-    # Create a proper action event
+    # 创建适当的操作事件
     action = MockDelegateAction(command="search hotels")
     tool_call = create_tool_call("call_123", "search", {"command": "search hotels"})
     action_event = ActionEvent(
@@ -258,17 +258,16 @@ def test_delegation_visualizer_action_event():
     block = visualizer._create_event_block(action_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Lodging Expert Agent Action" in str(block.renderables[0])
 
 
 def test_delegation_visualizer_action_event_shows_per_request_usage():
-    """Regression: DelegationVisualizer overrides _create_event_block and must
-    forward the event into _format_metrics_subtitle. Without it, ActionEvent
-    subtitles silently stay cumulative-only while Condensation (handled by the
-    parent class, and the only other event type carrying an llm_response_id)
-    shows per-request numbers, mixing formats within a single delegate
-    transcript (#4105)."""
+    """Regression: DelegationVisualizer 覆盖 _create_event_block 并且必须
+    将事件转发到 _format_metrics_subtitle。 缺少它，ActionEvent 字幕会无声地只显示累
+    计数，而上下文压缩（由父类处理，唯一其他事件类
+    型携带llm_response_id）则按请求显示，混合格式在一个代理转录中（#4105）。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -312,20 +311,20 @@ def test_delegation_visualizer_action_event_shows_per_request_usage():
 
     assert block is not None
     rendered = "".join(str(r) for r in block.renderables)
-    # Per-request usage for response_2, not just the running cumulative total.
+    # response_2 的每个请求使用情况，而不仅仅是运行累积总数。
     assert "input 2K (total 3K)" in rendered
     assert "output 200 (total 300)" in rendered
 
 
 def test_delegation_visualizer_observation_event():
-    """Test observation event shows agent name in title."""
+    """测试观测结果事件在标题中显示智能体名称。"""
     visualizer = DelegationVisualizer(name="main_delegator")
     mock_state = MagicMock()
     mock_state.stats = ConversationStats()
     mock_state.events = []
     visualizer.initialize(mock_state)
 
-    # Create a proper observation event
+    # 创建适当的观测结果事件
     observation = MockDelegateObservation(result="Hotel search results")
     observation_event = ObservationEvent(
         source="environment",
@@ -338,47 +337,48 @@ def test_delegation_visualizer_observation_event():
     block = visualizer._create_event_block(observation_event)
 
     assert block is not None
-    # The block contains the Rule as the first element with the title
+    # 该块包含规则作为带有标题的第一个元素
     assert "Main Delegator Agent Observation" in str(block.renderables[0])
 
 
 def test_delegation_visualizer_create_sub_visualizer():
-    """Test create_sub_visualizer creates a new visualizer for sub-agents."""
+    """测试 create_sub_visualizer 为子智能体创建一个新的可视化工具。"""
     parent_visualizer = DelegationVisualizer(
         name="main_delegator",
         highlight_regex={"test": "bold"},
         skip_user_messages=True,
     )
 
-    # Create sub-visualizer for a sub-agent
+    # 为子智能体创建子可视化工具
     sub_visualizer = parent_visualizer.create_sub_visualizer("lodging_expert")
 
-    # Verify sub-visualizer is a DelegationVisualizer
+    # 验证子可视化器是 DelegationVisualizer
     assert isinstance(sub_visualizer, DelegationVisualizer)
-    # Verify sub-visualizer has the correct agent name
+    # 验证子可视化器具有正确的智能体名称
     assert sub_visualizer._name == "lodging_expert"
-    # Verify settings are inherited from parent
+    # 验证设置是从父级继承的
     assert sub_visualizer._highlight_patterns == {"test": "bold"}
     assert sub_visualizer._skip_user_messages is True
 
 
 def test_delegation_visualizer_create_sub_visualizer_with_defaults():
-    """Test create_sub_visualizer works with default parent settings."""
+    """测试 create_sub_visualizer 适用于默认父级设置。"""
     parent_visualizer = DelegationVisualizer(name="parent")
 
     sub_visualizer = parent_visualizer.create_sub_visualizer("child_agent")
 
     assert isinstance(sub_visualizer, DelegationVisualizer)
     assert sub_visualizer._name == "child_agent"
-    # Default values should be inherited
-    assert sub_visualizer._highlight_patterns is not None  # Has default patterns
+    # 默认值应该被继承
+    assert sub_visualizer._highlight_patterns is not None  # 有默认模式
     assert sub_visualizer._skip_user_messages is False
 
 
 def test_delegation_visualizer_user_message_labels_totals():
-    """User MessageEvents carry no llm_response_id, so the delegate message
-    block can only show running totals -- they must be labeled "(total)"
-    instead of printed as bare numbers next to per-request subtitles (#4105)."""
+    """用户MessageEvents不携带llm_response_id，因此委托消息
+    块只能显示运行总计 - 它们必须标记为“（总计）”，而不是在每个请求的字幕旁边打印为裸
+    数字（#4105）。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -410,7 +410,7 @@ def test_delegation_visualizer_user_message_labels_totals():
 
 
 def _delegate_batch_action(call_id: str, response_id: str) -> ActionEvent:
-    """Build an ActionEvent for a delegate parallel-batch test."""
+    """为委托并行批量测试构建 ActionEvent。"""
     return ActionEvent(
         thought=[TextContent(text="Searching")],
         action=MockDelegateAction(command="search"),
@@ -422,13 +422,14 @@ def _delegate_batch_action(call_id: str, response_id: str) -> ActionEvent:
 
 
 def test_delegation_visualizer_parallel_batch_siblings_fall_back():
-    """Parallel tool calls in a delegate transcript: only the first ActionEvent
-    of the shared-llm_response_id batch shows per-request numbers; siblings show
-    totals-only so the same usage isn't repeated under each event (#4189)."""
+    """代表成绩单中的并行工具调用：仅第一个 ActionEvent
+    共享llm_response_id批次的数量显示每个请求的数量； siblings显示总计，以避免在每个
+    事件下重复使用(#4189)。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
-    # Prior request so the running total (3K/300) differs from this batch's
-    # per-request usage (2K/200).
+    # 之前的请求，因此运行总数 (3K/300) 与该批次的每个请求使用情况 (2K/200) 不同。
+    #
     metrics.add_token_usage(
         prompt_tokens=1000,
         completion_tokens=100,
@@ -457,14 +458,14 @@ def test_delegation_visualizer_parallel_batch_siblings_fall_back():
     mock_state.stats = stats
     visualizer.initialize(mock_state)
 
-    # Rendered in stream order: a1 is the batch primary, a2 a sibling.
+    # 按流顺序渲染：a1 是批处理主批，a2 是同级批处理。
     primary_block = visualizer._create_event_block(a1)
     sibling_block = visualizer._create_event_block(a2)
     assert primary_block is not None and sibling_block is not None
     primary = "".join(str(r) for r in primary_block.renderables)
     sibling = "".join(str(r) for r in sibling_block.renderables)
 
-    # Primary shows per-request usage; the sibling shows totals-only.
+    # 主要显示每个请求的使用情况； 兄弟姐妹仅显示总计。
     assert "input 2K (total 3K)" in primary
     assert "input (total 3K)" in sibling
     assert "input 2K" not in sibling

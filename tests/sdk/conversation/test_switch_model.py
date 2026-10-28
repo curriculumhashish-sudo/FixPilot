@@ -38,8 +38,7 @@ def _message_event(content: str) -> MessageEvent:
 @pytest.fixture()
 def profile_store(tmp_path, monkeypatch):
     """
-    Create a temp profile store with 'fast' and
-    'slow' profiles saved via _make_llm.
+    创建一个临时配置文件存储，其中包含通过 _make_llm 保存的“快”和“慢”配置文件。
     """
 
     profile_dir = tmp_path / "profiles"
@@ -64,17 +63,17 @@ def _make_conversation(profile_store_dir: Path | None = None) -> LocalConversati
 
 
 def test_switch_acp_model_rejects_non_acp_agent():
-    """switch_acp_model is only valid for ACP conversations."""
-    conv = _make_conversation()  # plain Agent, not ACPAgent
+    """switch_acp_model 仅对 ACP 个对话有效。"""
+    conv = _make_conversation()  # 智能体，不是ACPAgent
     with pytest.raises(ValueError, match="only supported for ACP"):
         conv.switch_acp_model("haiku")
 
 
 def _make_acp_conversation(tmp_path) -> tuple[LocalConversation, ACPAgent]:
-    """A persisted ACP conversation with a faked-out live session.
+    """与伪造的实时会话的已持久化 ACP 对话。
 
-    The fake ``_conn`` / ``_executor`` let ``set_acp_model`` issue its
-    protocol call without launching a real ACP subprocess.
+    假的 ``_conn`` / ``_executor`` 让 ``set_acp_model`` 发出其协议调用，而不启动真正
+    的 ACP 子进程。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model="model-a")
     agent._conn = MagicMock()
@@ -92,10 +91,11 @@ def _make_acp_conversation(tmp_path) -> tuple[LocalConversation, ACPAgent]:
 
 
 def _make_pre_session_acp_conversation(tmp_path) -> tuple[LocalConversation, ACPAgent]:
-    """An ACP conversation created but not yet ``run()``.
+    """已创建 ACP 对话，但尚未 ``run()``。
 
-    No ``_conn`` / ``_session_id`` / ``_executor`` is wired, so there is no live
-    session — ``switch_acp_model`` must defer rather than issue a protocol call.
+    ``_conn`` / ``_session_id`` / ``_executor`` 没有连接，因此没有实时会话 -
+    ``switch_acp_model`` 必
+    须推迟而不是发出协议调用。
     """
     agent = ACPAgent(acp_command=["echo", "test"], acp_model="model-a")
     agent._agent_name = "codex-acp"
@@ -108,33 +108,33 @@ def _make_pre_session_acp_conversation(tmp_path) -> tuple[LocalConversation, ACP
 
 
 def test_switch_acp_model_before_session_defers_and_persists(tmp_path):
-    """A pre-``run()`` switch persists the new model without raising.
+    """pre-``run()`` 开关保留新模型而不引发。
 
-    Regression for #3763: ``switch_acp_model`` used to call ``set_acp_model``
-    first, which raised ``RuntimeError`` before the first ``run()``, so the
-    persist block never ran and the new model was silently lost — the first
-    session kept the construction-time ``acp_model``. With no live session the
-    live call must be skipped and the value persisted, so session creation on
-    the first ``run()`` honors the switched model.
+    回归对于 #3763：``switch_acp_model`` 曾经首先调用 ``set_acp_model``，这在第一个
+    ``run()`` 之前引发了
+    ``RuntimeError``，因此持久化块从未运行，并且新模型默默地丢失了 - 第一个会话保留了
+    构建时间 ``acp_model``。 如果没有实时会话，则必须
+    跳过实时呼叫和值已持久化，因此第一个 ``run()`` 上的会话创建将遵循切换模型。
     """
     conv, agent = _make_pre_session_acp_conversation(tmp_path)
     assert not agent.has_live_acp_session
 
     conv.switch_acp_model("model-b")
 
-    # The authoritative model moved even though no live session was touched.
+    # 尽管没有触及任何现场会议，但权威模型仍然在移动。
     switched = conv.agent
     assert isinstance(switched, ACPAgent)
     assert switched.acp_model == "model-b"
     assert not switched.has_live_acp_session
     assert isinstance(conv.state.agent, ACPAgent)
     assert conv.state.agent.acp_model == "model-b"
-    # Cold-read hint updated for the chip/picker before any session exists.
+    # 在任何会话存在之前，为芯片/选择器更新冷读提示。
     assert conv.state.agent_state["acp_current_model_id"] == "model-b"
 
-    # Survives a restart before the first run: base_state.json carries the
-    # switched model, and model_post_init re-derives the sentinel LLM from it,
-    # so the first session starts on model-b (acceptance criterion #3).
+    # base_state.json 在第一次运行之前就存活下来，它携带了切换后的模型，而
+    # model_post_init 会从它那里重新导出哨兵值 LLM，因此第一个会话会从模型b（接受标准#3
+    # ）开始。
+    #
     base_text = conv.state._fs.read(BASE_STATE)
     reloaded = ConversationState.model_validate(json.loads(base_text))
     assert isinstance(reloaded.agent, ACPAgent)
@@ -144,10 +144,10 @@ def test_switch_acp_model_before_session_defers_and_persists(tmp_path):
 
 @pytest.mark.parametrize("model", ["", "   "])
 def test_switch_acp_model_before_session_rejects_blank_model(tmp_path, model):
-    """A blank model is refused before the first ``run()`` too, as it is live.
+    """在第一个 ``run()`` 之前，空白模型也会被拒绝，因为它是实时的。
 
-    The pre-session path used to skip ``set_acp_model`` (which owns the
-    non-empty check) and persist the value unchecked, so ``acp_model`` became
+    会话前路径用于跳过 ``set_acp_model``（拥有非空检查）和持久化未检查的值，因此
+    ``acp_model`` 变成
     ``"   "``.
     """
     conv, agent = _make_pre_session_acp_conversation(tmp_path)
@@ -162,20 +162,21 @@ def test_switch_acp_model_before_session_rejects_blank_model(tmp_path, model):
 
 
 def test_switch_acp_model_persists_authoritative_model(tmp_path):
-    """A runtime switch persists as the authoritative ``acp_model``.
+    """运行时开关仍然是权威的 ``acp_model``。
 
-    Regression for the review finding that re-assigning the same (mutated)
-    agent object was an autosave no-op, and that the frozen ``acp_model``
-    field — which ``model_post_init`` / ``_start_acp_server`` read on
-    reload/resume — stayed at its construction-time value.
+    回归对于重新分配同一（变异）的审查发现智能体对象是一个自动保存的无操作，冻结了
+    ``acp_model`` field — which
+    ``model_post_init`` / ``_start_acp_server`` 继续加载/继续播放 — 保持了构造时的值
+    。
     """
     conv, agent = _make_acp_conversation(tmp_path)
     live_conn = agent._conn
 
     conv.switch_acp_model("model-b")
 
-    # In-memory: agent + state agree on the new model, and the live connection
-    # survived the model_copy so the conversation can keep running.
+    # 内存中：智能体 + 状态同意新模型，并且实时连接在 model_copy 中幸存下来，因此对话可
+    # 以继续运行。
+    #
     switched = conv.agent
     assert isinstance(switched, ACPAgent)
     assert switched.acp_model == "model-b"
@@ -185,50 +186,51 @@ def test_switch_acp_model_persists_authoritative_model(tmp_path):
     assert switched._conn is live_conn
     assert switched._session_id == "sess-1"
 
-    # On disk: base_state.json actually changed (not an autosave no-op), and the
-    # persisted agent reconstructs with the switched model as authoritative.
+    # 在磁盘上：base_state.json 实际上已更改（不是自动保存无操作），并且已持久化智能体使
+    # 用切换后的模型进行重建作为权威。
+    #
     base_text = conv.state._fs.read(BASE_STATE)
     reloaded = ConversationState.model_validate(json.loads(base_text))
     assert isinstance(reloaded.agent, ACPAgent)
     assert reloaded.agent.acp_model == "model-b"
-    # model_post_init derives the sentinel LLM model from the persisted acp_model.
+    # model_post_init 从已持久化 acp_model 导出哨兵值 LLM 模型。
     assert reloaded.agent.llm.model == "model-b"
 
 
 def test_switch_acp_model_refreshes_surfaced_current_model_id(tmp_path):
-    """After a live switch, the model state surfaced on ``ConversationInfo``
-    must reflect the new model, not the stale session-start value.
+    """实时切换后，模型状态出现在 ``ConversationInfo``
+    必须反映新模型，而不是过时的会话起始值。
 
-    Regression for the software-agent-sdk#3347 + #3390 integration: the chip /
-    inline picker reads ``ACPAgent.current_model_id`` (and the persisted
-    ``acp_current_model_id`` hint on cold reads). Without refreshing both on a
-    runtime switch, the chip goes stale exactly when it matters most.
+    回归软件-智能体-SDK#3347 + #3390 集成：芯片/内联拾取器读取
+    ``ACPAgent.current_model_id``（并且已持久化
+    ``acp_current_model_id``冷读提示）。 如果不在运行时开关上刷新两者，芯片就会在最重
+    要的时候变得陈旧。
     """
     conv, agent = _make_acp_conversation(tmp_path)
-    agent._current_model_id = "model-a"  # what _init captured at session start
-    # Deliberately do NOT pre-seed ``acp_current_model_id`` in agent_state:
-    # an older/custom server may not have reported a model at init, yet a
-    # successful switch is authoritative and must still persist the hint.
+    agent._current_model_id = "model-a"  # _init 在会话开始时捕获的内容
+    # 故意做不种子前投资 ``acp_current_model_id`` 在 agent_state：一个较旧/自定义服务器
+    # 可能在初始化时没有报告模型，但成功的切换仍然具有权威性，必须仍然执行持久化提示。
+    #
     assert "acp_current_model_id" not in conv.state.agent_state
 
     conv.switch_acp_model("model-b")
 
     switched = conv.agent
     assert isinstance(switched, ACPAgent)
-    # Live PrivateAttr (carried onto the persisted agent by the model_copy).
+    # 直播 PrivateAttr（由 model_copy 传送到已持久化智能体）。
     assert switched.current_model_id == "model-b"
-    # Persisted hint written unconditionally for cold reads before re-init.
+    # 已持久化重新初始化之前无条件为冷读写入的提示。
     assert conv.state.agent_state["acp_current_model_id"] == "model-b"
 
 
 def test_switch_acp_model_disarms_discarded_agent_finalizer(tmp_path):
-    """The pre-switch agent must not tear down the shared live session.
+    """预切换智能体不得拆除共享实时会话。
 
-    Regression: ``switch_acp_model`` swaps in a shallow ``model_copy`` that
-    shares ``_conn`` / ``_executor`` / ``_process`` with the old agent. Without
-    disarming it first, ``ACPAgent.__del__`` -> ``close()`` on the discarded
-    agent closes the connection, kills the subprocess and shuts down the
-    executor — out from under the copy, breaking the next turn.
+    Regression: ``switch_acp_model`` 交换为浅层 ``model_copy``
+    shares ``_conn`` / ``_executor`` / ``_process`` with the old 智能体。 在解除武装
+    之前，
+    ``ACPAgent.__del__`` -> ``close()`` 废弃的智能体关闭连接并终止子进程并关闭执行器—
+    —从复制中溜走，破坏了下一个回合。
     """
     conv, old_agent = _make_acp_conversation(tmp_path)
     live_conn = old_agent._conn
@@ -246,7 +248,7 @@ def test_switch_acp_model_disarms_discarded_agent_finalizer(tmp_path):
 
     conv.switch_acp_model("model-b")
 
-    # The copy took over the live runtime...
+    # 副本接管了实时运行时间......
     switched = conv.agent
     assert isinstance(switched, ACPAgent)
     assert switched._conn is live_conn
@@ -258,8 +260,9 @@ def test_switch_acp_model_disarms_discarded_agent_finalizer(tmp_path):
     assert switched._atexit_callback is not old_cleanup
 
     # ...and the discarded agent's finalizer was disarmed (marked closed)
-    # WITHOUT clearing its runtime references — an in-flight ask_agent()/fork
-    # still holding the old agent keeps a valid connection.
+    # WITHOUT 清除其运行时引用 - 仍在保留旧智能体的运行中 ask_agent()/fork 保持有效连接
+    # 。
+    #
     assert old_agent._closed is True
     assert old_agent._conn is live_conn
     assert old_agent._executor is live_executor
@@ -268,8 +271,9 @@ def test_switch_acp_model_disarms_discarded_agent_finalizer(tmp_path):
     client.before_mask()
     lifecycle.track_current.assert_called_once_with()
 
-    # Simulating GC (__del__ -> close()) on the disarmed old agent is a no-op:
-    # the copy's shared connection/executor are left intact.
+    # 在解除武装的旧智能体上模拟 GC (__del__ -> close()) 是无操作：副本的共享连接/执行器
+    # 保持不变。
+    #
     live_executor.run_async.reset_mock()
     old_agent.close()
     live_executor.run_async.assert_not_called()
@@ -279,7 +283,7 @@ def test_switch_acp_model_disarms_discarded_agent_finalizer(tmp_path):
 
 
 def test_switch_profile(profile_store):
-    """switch_profile switches the agent's LLM."""
+    """switch_profile 切换智能体的 LLM。"""
     conv = _make_conversation()
     conv.switch_profile("fast")
     assert conv.agent.llm.model == "fast-model"
@@ -299,14 +303,14 @@ def test_switch_profile_uses_custom_profile_store(tmp_path: Path) -> None:
 
 
 def test_switch_profile_updates_state(profile_store):
-    """switch_profile updates conversation state agent."""
+    """switch_profile 更新对话状态智能体。"""
     conv = _make_conversation()
     conv.switch_profile("fast")
     assert conv.state.agent.llm.model == "fast-model"
 
 
 def test_switch_between_profiles(profile_store):
-    """Switch fast -> slow -> fast, verify model changes each time."""
+    """切换快速->慢速->快速，验证每次模型的变化。"""
     conv = _make_conversation()
 
     conv.switch_profile("fast")
@@ -320,7 +324,7 @@ def test_switch_between_profiles(profile_store):
 
 
 def test_switch_reuses_registry_entry(profile_store):
-    """Switching back to a profile reuses the same registry LLM object."""
+    """切换回配置文件会重复使用相同的注册表 LLM 对象。"""
     conv = _make_conversation()
 
     conv.switch_profile("fast")
@@ -334,7 +338,7 @@ def test_switch_reuses_registry_entry(profile_store):
 
 
 def test_switch_nonexistent_raises(profile_store):
-    """Switching to a nonexistent profile raises FileNotFoundError."""
+    """切换到不存在的配置文件会引发 FileNotFoundError。"""
     conv = _make_conversation()
     with pytest.raises(FileNotFoundError):
         conv.switch_profile("nonexistent")
@@ -343,7 +347,7 @@ def test_switch_nonexistent_raises(profile_store):
 
 
 def test_switch_profile_preserves_prompt_cache_key(profile_store):
-    """Regression test for #2918: switching keeps conversation cache identity."""
+    """回归测试 #2918：切换保持会话缓存身份。"""
     conv = _make_conversation()
     expected = str(conv.id)
     assert conv.get_llm_call_context().prompt_cache_key == expected
@@ -354,25 +358,25 @@ def test_switch_profile_preserves_prompt_cache_key(profile_store):
     conv.switch_profile("slow")
     assert conv.get_llm_call_context().prompt_cache_key == expected
 
-    # Switching back to a cached registry entry must not change the context.
+    # 切换回缓存的注册表条目不得更改上下文。
     conv.switch_profile("fast")
     assert conv.get_llm_call_context().prompt_cache_key == expected
 
 
 def test_switch_then_send_message(profile_store):
-    """switch_profile followed by send_message doesn't crash on registry collision."""
+    """switch_profile 后跟 send_message 不会因注册表碰撞而崩溃。"""
     conv = _make_conversation()
     conv.switch_profile("fast")
-    # send_message triggers _ensure_agent_ready which re-registers agent LLMs;
-    # the switched LLM must not cause a duplicate registration error.
+    # send_message 触发 _ensure_agent_ready，后者会重新注册智能体 LLMs。 LLM 必须避免导
+    # 致重复注册错误。
+    #
     conv.send_message("hello")
 
 
 @pytest.fixture()
 def empty_profile_store(tmp_path, monkeypatch):
-    """Empty profile dir — simulates the agent-server sandbox where the
-    app-server has never uploaded profile JSON. This is the real failure
-    mode #3017 is fixing.
+    """空配置文件目录 — 模拟智能体服务器沙箱，其中
+    应用程序服务器从未上传过配置文件 JSON。 这是#3017 正在修复的真正故障模式。
     """
     profile_dir = tmp_path / "profiles"
     profile_dir.mkdir()
@@ -381,8 +385,8 @@ def empty_profile_store(tmp_path, monkeypatch):
 
 
 def test_switch_llm_swaps_when_store_empty(empty_profile_store):
-    """Real app-server case (#3017): profile is unknown to the sandbox FS,
-    the app-server supplies the LLM directly, and the swap succeeds.
+    """真实的应用程序服务器案例 (#3017)：沙箱 FS 不知道配置文件，
+    应用服务器直接提供LLM，交换成功。
     """
     conv = _make_conversation()
     inline = _make_llm("inline-model", "caller-supplied-id")
@@ -390,23 +394,22 @@ def test_switch_llm_swaps_when_store_empty(empty_profile_store):
     conv.switch_llm(inline)
 
     assert conv.agent.llm.model == "inline-model"
-    # State must agree — agent_server reads agent.llm via _state.
+    # 状态必须同意 - agent_server 通过 _state 读取 agent.llm。
     assert conv.state.agent.llm.model == "inline-model"
-    # Caller's usage_id is preserved as the registry key.
+    # 主叫方的 usage_id 被保留为注册表键。
     assert conv.agent.llm.usage_id == "caller-supplied-id"
     assert conv.llm_registry.get("caller-supplied-id").model == "inline-model"
-    # Cache identity belongs to the conversation, not the selected LLM.
+    # 缓存标识属于会话，而不是所选的LLM。
     assert conv.get_llm_call_context().prompt_cache_key == str(conv.id)
 
 
 def test_switch_llm_refreshes_llm_condenser_credentials(
     empty_profile_store, tmp_path, monkeypatch
 ):
-    """A mid-session LLM switch must also refresh the default condenser LLM.
+    """会话中的 LLM 切换还必须刷新默认的上下文压缩器 LLM。
 
-    The condenser owns a separate copy of the agent LLM. If the agent LLM is
-    switched but that copy is left behind, normal turns can keep working while
-    the next condensation request still calls the old no-credential model.
+    上下文压缩器拥有智能体 LLM 的单独副本。 如果智能体 LLM 被切换但该副本被留下，则正
+    常轮换可以继续工作，而下一个上下文压缩请求仍然调用旧的 no-凭据模型。
     """
     initial_llm = LLM(model="litellm_proxy/old-model", usage_id="default")
     initial_condenser_llm = initial_llm.model_copy(update={"usage_id": "condenser"})
@@ -545,10 +548,10 @@ def test_switch_llm_preserves_independent_condenser_profile(
 
 
 def test_switch_llm_then_send_message(empty_profile_store):
-    """send_message triggers _ensure_agent_ready, which re-registers agent
-    LLMs in the registry. switch_llm adds an entry under the caller's
-    usage_id; this must not collide with the agent's own LLM
-    re-registration on the next send_message().
+    """send_message 触发 _ensure_agent_ready，重新注册智能体
+    LLMs in the 注册表。 switch_llm 添加了关于usage_id的条目。 这必须与智能体的 LLM
+    重注册在 send_message() 时不冲
+    突。
     """
     conv = _make_conversation()
     conv.switch_llm(_make_llm("inline-model", "x"))
@@ -556,8 +559,8 @@ def test_switch_llm_then_send_message(empty_profile_store):
 
 
 def test_switch_between_two_llms(empty_profile_store):
-    """Consecutive switch_llm calls under distinct usage_ids each register
-    their own slot and end up as the agent's LLM.
+    """每个寄存器在不同的 usage_ids 下连续 switch_llm 调用
+    他们自己的插槽并最终成为智能体的 LLM。
     """
     conv = _make_conversation()
 
@@ -569,9 +572,8 @@ def test_switch_between_two_llms(empty_profile_store):
 
 
 def test_switch_llm_does_not_consult_store(empty_profile_store, monkeypatch):
-    """switch_llm must not hit LLMProfileStore.load — the caller is
-    authoritative. Guards against a regression where the inline path
-    silently falls through to disk IO.
+    """switch_llm 不得点击 LLMProfileStore.load — 调用者是
+    权威的。 防止内联路径默默地进入磁盘 IO 的回归。
     """
     calls: list[str] = []
 
@@ -588,9 +590,8 @@ def test_switch_llm_does_not_consult_store(empty_profile_store, monkeypatch):
 
 
 def test_switch_profile_decrypts_with_cipher(tmp_path, monkeypatch):
-    """A profile saved with cipher-encrypted secrets must decrypt on switch
-    so the agent's LLM ends up with the plaintext API key, not a Fernet
-    token (regression for #3164).
+    """使用密码加密机密保存的配置文件必须在交换机上解密
+    因此智能体的 LLM 最终得到的是明文 API 密钥，而不是 Fernet token（#3164 的回归）。
     """
     profile_dir = tmp_path / "profiles"
     profile_dir.mkdir()
@@ -626,8 +627,8 @@ def test_switch_profile_decrypts_with_cipher(tmp_path, monkeypatch):
 
 
 def test_switch_profile_delegates_to_switch_llm(profile_store, monkeypatch):
-    """switch_profile loads from disk and delegates to switch_llm; the LLM
-    handed off carries the canonical ``profile:{name}`` usage_id.
+    """switch_profile从磁盘加载并委托给switch_llm； LLM
+    传递的内容带有规范的 ``profile:{name}`` usage_id。
     """
     conv = _make_conversation()
     seen: list[LLM] = []
@@ -647,42 +648,40 @@ def test_switch_profile_delegates_to_switch_llm(profile_store, monkeypatch):
 
 
 def test_duplicate_usage_ids_in_registration_loop_are_silently_deduped(tmp_path):
-    """Regression: if agent LLM and condenser LLM both carry the same
-    usage_id (as happens when a conversation is deserialised from a
-    base_state.json written before #3368), _ensure_agent_ready() must
-    NOT raise ValueError.  The first-write-wins contract means only
-    the agent LLM entry is registered; the condenser duplicate is
-    silently skipped.
+    """Regression: 如果智能体 LLM 和上下文压缩器 LLM 都带有相同的
+    usage_id（当对话从 #3368 之前编写的 base_state.json 反序列化时发生），
+    _ensure_agent_ready() 必须不引发
+    ValueError。 先写胜合约意味着只有智能体LLM条目被注册； 上下文压缩器重复项将被静默
+    跳过。
     """
-    # Simulate the broken persisted state: condenser inherits the agent LLM's usage_id
+    # 模拟损坏的已持久化状态：上下文压缩器继承智能体LLM的usage_id
     agent_llm = LLM(
         model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="default"
     )
-    condenser_llm = agent_llm.model_copy()  # inherits usage_id="default"
+    condenser_llm = agent_llm.model_copy()  # 继承usage_id=“默认”
     condenser = LLMSummarizingCondenser(llm=condenser_llm, max_size=100, keep_first=2)
     agent = Agent(llm=agent_llm, condenser=condenser, tools=[])
 
     conv = LocalConversation(agent=agent, workspace=tmp_path)
 
-    # Must not raise ValueError("Usage ID 'default' already exists in registry")
+    # 不得引发 ValueError（“使用 ID 'default' 已存在于注册表中”）
     conv._ensure_agent_ready()
 
-    # First-write-wins: only one entry under the shared usage_id
+    # First-write-wins: 共享 usage_id 下只有一个条目
     assert conv.llm_registry.list_usage_ids().count("default") == 1
 
 
 def test_switch_llm_tool_during_arun_does_not_deadlock(profile_store, tmp_path):
-    """Regression for #3485: a ``switch_llm`` tool call during ``arun()`` must
-    not deadlock the conversation runtime.
+    """回归对于 #3485：``arun()`` 期间的 ``switch_llm`` 工具调用必须
+    不是死锁对话运行时间。
 
-    ``arun()`` holds the ConversationState lock across the (async) agent step
+    ``arun()`` 在 (异步) 智能体步长上保持 ConversationState 锁
     while tools execute on worker threads. ``switch_llm()`` used to re-acquire
-    that lock from the tool worker thread, which deadlocked against the run
-    loop that already held it and was blocked awaiting the tool — no
-    observation was ever emitted and the conversation hung in ``running``.
+    that 锁从工具工人那里线程，与已经持有的运行循环死锁并被阻塞等待工具 —— 无观测结果
+    从未发出过，对话悬而未决 ``running``.
 
-    The agent emits the switch and a finish in a single step, so the switch
-    happens mid-step (the deadlock site) and the run can complete.
+    智能体在一个步骤中发出切换和结束，因此切换发生在步骤中间（死锁站点）并且运行可以
+    完成。
     """
     llm = TestLLM.from_messages(
         [
@@ -709,17 +708,18 @@ def test_switch_llm_tool_during_arun_does_not_deadlock(profile_store, tmp_path):
         usage_id="test-llm",
     )
 
-    # Resolve the tools from BUILT_IN_TOOL_CLASSES (no global registry writes).
+    # 解析 BUILT_IN_TOOL_CLASSES 中的工具（无全局注册表写入）。
     agent = Agent(llm=llm, include_default_tools=["FinishTool", "SwitchLLMTool"])
     conv = LocalConversation(agent=agent, workspace=tmp_path, visualizer=None)
     conv.send_message("please switch")
 
-    # Bounded so a regression surfaces as a fast test failure rather than a
-    # hung suite. On the fixed path arun() completes near-instantly.
+    # 因此，回归表面上表现为快速测试失败，而不是挂起的套件。 在固定路径 arun() 上几乎立
+    # 即完成。
+    #
     asyncio.run(asyncio.wait_for(conv.arun(), timeout=10))
 
     assert conv.state.execution_status == ConversationExecutionStatus.FINISHED
-    # The switch took effect: the agent now carries the 'fast' profile's model.
+    # 切换生效：智能体现在带有“快速”配置文件的模型。
     assert conv.agent.llm.model == "fast-model"
 
 
@@ -765,8 +765,9 @@ def test_switch_llm_to_subscription_profile_keeps_condenser(
     )
 
     assert conv.agent.llm.is_subscription
-    # Condenser must NOT be disabled for subscription LLMs — the condenser's
-    # own LLM config differs from the agent's, so it is preserved as-is.
+    # 上下文压缩器必须不禁用订阅 LLMs — the 上下文压缩器自己的 LLM 配置与不同智能体'，因
+    # 此保留原样。
+    #
     assert conv.agent.condenser is condenser
     assert conv.state.agent.condenser is condenser
 
@@ -778,20 +779,20 @@ def test_switch_llm_to_subscription_profile_keeps_condenser(
 
 
 def test_switch_llm_replaces_registered_usage_id_after_init(empty_profile_store):
-    """#5636: once the agent initialized, ``default`` is registered. Posting a
-    different config under that usage_id must install it, not keep the old LLM,
-    and the usage's accrued metrics must carry over to the new LLM.
+    """#5636: 一旦智能体初始化，``default``就被注册。 发布一个
+    usage_id 下的不同配置必须安装它，而不是保留旧的 LLM，并且使用情况的累积指标必须转
+    移到新的 LLM。
     """
-    # Plain LLMs: agent init registers only base-class LLMs, not TestLLM.
+    # LLMs: 智能体初始化只注册基类 LLMs，而不是 TestLLM。
     original = LLM(model="original-model", api_key=SecretStr("k"))
     conv = LocalConversation(
         agent=Agent(llm=original, tools=[]),
         workspace=Path.cwd(),
     )
-    conv.send_message("hi")  # initializes the agent and registers "default"
+    conv.send_message("hi")  # 初始化智能体并注册“默认”
     conv.llm_registry.get("default").metrics.add_cost(0.5)
 
-    # usage_id omitted: it defaults to "default", the registered slot.
+    # usage_id省略：默认为“default”，注册的槽位。
     conv.switch_llm(LLM(model="switched-model", api_key=SecretStr("k")))
 
     assert conv.agent.llm.model == "switched-model"
@@ -803,8 +804,8 @@ def test_switch_llm_replaces_registered_usage_id_after_init(empty_profile_store)
 
 
 def test_switch_llm_identical_config_reuses_registered_llm(empty_profile_store):
-    """Re-posting the registered config under the same usage_id keeps the
-    registered LLM object (and its metrics) instead of replacing it.
+    """在相同的 usage_id 下重新发布注册的配置将保留
+    注册 LLM 对象（及其指标）而不是替换它。
     """
     conv = _make_conversation()
     conv.switch_llm(_make_llm("model-a", "x"))

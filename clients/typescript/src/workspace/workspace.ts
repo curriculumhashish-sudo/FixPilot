@@ -1,8 +1,8 @@
 /**
- * Workspace factory and utility functions
+ * 工作区工厂和实用功能
  *
- * This module provides a convenient factory pattern for creating workspace instances.
- * It matches the Python SDK pattern while supporting both local and remote workspaces.
+ * 该模块提供了一个方便的工厂模式来创建工作区实例。
+ * 它匹配 Python SDK 模式，同时支持本地和远程工作区。
  */
 
 import { IWorkspace, WorkspaceType } from './base';
@@ -10,12 +10,12 @@ import { RemoteWorkspace, RemoteWorkspaceOptions } from './remote-workspace';
 import { LocalWorkspace, LocalWorkspaceOptions } from './local-workspace';
 
 /**
- * Union type for all workspace options
+ * 所有工作区选项的联合类型
  */
 export type WorkspaceOptions = RemoteWorkspaceOptions | LocalWorkspaceOptions;
 
 /**
- * Options for creating a workspace with explicit type selection
+ * 用于创建具有显式类型选择的工作区的选项
  */
 export interface CreateWorkspaceOptions {
   type: WorkspaceType;
@@ -23,26 +23,26 @@ export interface CreateWorkspaceOptions {
 }
 
 /**
- * Type guard to check if options are for RemoteWorkspace
+ * 输入guard来检查选项是否适用于RemoteWorkspace
  */
 function isRemoteWorkspaceOptions(options: WorkspaceOptions): options is RemoteWorkspaceOptions {
   return 'host' in options;
 }
 
 /**
- * Workspace class that extends RemoteWorkspace for backwards compatibility.
- * Provides a cleaner API that matches the Python SDK naming.
+ * 工作区类将 RemoteWorkspace 扩展为向后兼容性。
+ * 提供与 Python SDK 命名相匹配的更清晰的 API。
  *
- * For new code, consider using the createWorkspace factory function
- * or directly instantiating RemoteWorkspace or LocalWorkspace.
+ * 对于新代码，请考虑使用 createWorkspace 工厂函数
+ * 或者直接实例化 RemoteWorkspace 或 LocalWorkspace。
  *
- * Usage:
- * ```typescript
- * // Legacy usage (backwards compatible)
- * const workspace = new Workspace({
- *   host: 'http://localhost:8000',
+ * 用途：
+ * ```TypeScript
+ * // 传统用法（向后兼容）
+ * 常量工作区 = 新工作区({
+ *   主持人：' http://localhost:8000',
  *   workingDir: '/workspace',
- *   apiKey: 'key'
+ *   apiKey：“钥匙”
  * });
  * ```
  */
@@ -53,34 +53,34 @@ export class Workspace extends RemoteWorkspace {
 }
 
 /**
- * Factory function to create a workspace instance based on options.
+ * 工厂函数根据选项创建工作区实例。
  *
- * This provides a unified way to create either local or remote workspaces
- * based on the provided options.
+ * 这提供了一种统一的方式来创建本地或远程工作区
+ * 基于提供的选项。
  *
- * Usage:
- * ```typescript
- * // Create a remote workspace
+ * 用途：
+ * ```TypeScript
+ * // Create a remote 工作区
  * const remoteWorkspace = createWorkspace({
- *   type: 'remote',
- *   options: {
- *     host: 'http://localhost:8000',
+ *   类型：'远程'，
+ *   选项：{
+ *     主持人：' http://localhost:8000',
  *     workingDir: '/workspace',
- *     apiKey: 'key'
+ *     apiKey：“钥匙”
  *   }
  * });
  *
- * // Create a local workspace
+ * // 创建本地工作区
  * const localWorkspace = createWorkspace({
- *   type: 'local',
- *   options: {
+ *   类型：'本地'，
+ *   选项：{
  *     workingDir: '/path/to/project'
  *   }
  * });
  * ```
  *
- * @param config - The workspace configuration including type and options
- * @returns A workspace instance implementing IWorkspace
+ * @param config - 工作区配置，包括类型和选项
+ * @returns 实现 IWorkspace 的工作区实例
  */
 export function createWorkspace(config: CreateWorkspaceOptions): IWorkspace {
   switch (config.type) {
@@ -99,27 +99,27 @@ export function createWorkspace(config: CreateWorkspaceOptions): IWorkspace {
 }
 
 /**
- * Create a workspace automatically detecting the type from options.
+ * 创建一个自动检测选项类型的工作区。
  *
- * If the options contain a 'host' property, creates a RemoteWorkspace.
- * Otherwise, creates a LocalWorkspace.
+ * 如果选项包含“主机”属性，则创建 RemoteWorkspace。
+ * 否则，创建一个 LocalWorkspace。
  *
- * Usage:
- * ```typescript
- * // Automatically creates RemoteWorkspace (has 'host')
- * const remote = createWorkspaceAuto({
- *   host: 'http://localhost:8000',
+ * 用途：
+ * ```TypeScript
+ * // 自动创建 RemoteWorkspace（具有“主机”）
+ * 常量远程 = createWorkspaceAuto({
+ *   主持人：' http://localhost:8000',
  *   workingDir: '/workspace'
  * });
  *
- * // Automatically creates LocalWorkspace (no 'host')
- * const local = createWorkspaceAuto({
+ * // 自动创建 LocalWorkspace（无“主机”）
+ * 常量本地 = createWorkspaceAuto({
  *   workingDir: '/path/to/project'
  * });
  * ```
  *
- * @param options - The workspace options
- * @returns A workspace instance implementing IWorkspace
+ * @param options - 工作区选项
+ * @returns 实现 IWorkspace 的工作区实例
  */
 export function createWorkspaceAuto(options: WorkspaceOptions): IWorkspace {
   if (isRemoteWorkspaceOptions(options)) {

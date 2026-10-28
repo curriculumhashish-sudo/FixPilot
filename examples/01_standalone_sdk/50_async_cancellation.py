@@ -1,22 +1,20 @@
 """
-Async interrupt demo — cancel during LLM reasoning *or* tool execution.
+异步中断演示 — 在 LLM 推理 * 或 * 工具执行期间取消。
 
-The task is designed to give two windows where ``interrupt()`` can fire:
+该任务旨在提供两个可以触发 ``interrupt()`` 的窗口：
 
-1. **During LLM completion** — the model must reason about how to write
-   the script and then run it, which takes several seconds of generation.
-2. **During a long-running terminal command** — the agent runs a shell
-   script that sleeps for 30 seconds, giving plenty of time to interrupt
+1. **在LLM完成期间**——模型必须推理如何编写脚本然后运行它，这需要几秒钟的生成时间。
+2. **在长时间运行的终端命令期间** - 智能体运行一个休眠 30 秒的 shell 脚本，从而有足够
+的时间来中断
    while a tool call is in-flight.
 
-Press **Ctrl-C** at any point, or let the auto-timer fire after a
-configurable delay (default 8 s).  The conversation transitions to
-``PAUSED`` and can be resumed later with another ``arun()`` / ``run()``.
+随时按 **Ctrl-C**，或让自动计时器在可配置的延迟（默认 8 秒）后触发。 对话转到
+``PAUSED``，稍后可以使用另一个 ``arun()`` / ``run()`` 恢复。
 
-Usage:
+用途：
     LLM_API_KEY=... python examples/01_standalone_sdk/50_async_cancellation.py
 
-    # Override the auto-interrupt delay:
+    # 覆盖自动中断延迟：
     AUTO_CANCEL_SECONDS=12 LLM_API_KEY=... python examples/...
 """
 
@@ -34,7 +32,7 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# ── Configuration ────────────────────────────────────────────────────
+# ── 配置────────────────────────────────────────────────────
 api_key = os.getenv("LLM_API_KEY")
 assert api_key, "Set LLM_API_KEY in your environment."
 
@@ -48,7 +46,7 @@ llm = LLM(
     usage_id="async-cancel-demo",
 )
 
-# ── Agent & conversation ─────────────────────────────────────────────
+# ── 智能体与对话──────────────────────────────────────────────
 agent = Agent(
     llm=llm,
     tools=[
@@ -57,12 +55,12 @@ agent = Agent(
     ],
 )
 
-# ── Live event log ───────────────────────────────────────────────────
-phase = "llm"  # tracks which phase we're in for the status line
+# ── 现场事件日志──────────────────────────────────────────────────────
+phase = "llm"  # 跟踪我们处于状态行的哪个阶段
 
 
 def on_event(event: Event) -> None:
-    """Print a one-liner for each event so the user can see progress."""
+    """为每个事件打印一行行内容，以便用户可以看到进度。"""
     global phase
     if isinstance(event, ActionEvent):
         phase = "tool"
@@ -78,9 +76,9 @@ conversation = Conversation(
     callbacks=[on_event],
 )
 
-# Ask the agent to do something that naturally produces TWO blocking
-# phases: first a long LLM completion (reasoning + generation), then
-# a long-running terminal command (sleep 30).
+# 要求智能体做一些自然会产生 TWO 阻塞的事情
+# 阶段：首先是长LLM完成（推理+生成），然后
+# 长时间运行的终端命令（sleep 30）。
 conversation.send_message(
     "Please do the following:\n"
     "1. Write a bash script called countdown.sh that prints the numbers "
@@ -91,7 +89,7 @@ conversation.send_message(
 )
 
 
-# ── Interruption machinery ───────────────────────────────────────────
+# ── 中断机械────────────────────────────────────────────
 AUTO_CANCEL_SECONDS = float(os.getenv("AUTO_CANCEL_SECONDS", "8"))
 
 
@@ -111,14 +109,14 @@ async def _auto_interrupt_timer() -> None:
 async def main() -> None:
     loop = asyncio.get_running_loop()
 
-    # Wire Ctrl-C to interrupt instead of killing the process.
+    # 连接 Ctrl-C 来中断而不是终止进程。
     try:
         loop.add_signal_handler(
             signal.SIGINT,
             lambda: _request_interrupt("Ctrl-C"),
         )
     except NotImplementedError:
-        pass  # Windows — KeyboardInterrupt will still work
+        pass  # Windows — KeyboardInterrupt 仍然有效
 
     print("=" * 60)
     print("Async Interrupt Demo")
@@ -132,7 +130,7 @@ async def main() -> None:
     print("=" * 60)
     print()
 
-    # ── Run with interrupt timer ─────────────────────────────────────
+    # ── 用中断定时器运行──────────────────────────────────────
     timer_task = asyncio.create_task(_auto_interrupt_timer())
     wall_start = time.monotonic()
 
@@ -141,7 +139,7 @@ async def main() -> None:
     timer_task.cancel()
     elapsed = time.monotonic() - wall_start
 
-    # ── Summary ──────────────────────────────────────────────────────
+    # ── 概要──────────────────────────────────────────────────────
     status = conversation.state.execution_status
     print()
     print("─" * 60)

@@ -1,6 +1,6 @@
 """
-Unit tests for dependency-based authentication functionality.
-Tests the check_session_api_key dependency with multiple session API keys support.
+单元测试用于基于依赖关系的身份验证功能。 使用多个会话 API 键支持测试
+check_session_api_key 依赖性。
 """
 
 from fastapi import Depends, FastAPI
@@ -43,7 +43,7 @@ def test_check_session_api_key_missing():
 
 
 def test_check_session_api_key_no_keys_configured():
-    """When no keys are configured the endpoint is open."""
+    """当未配置任何按键时，端点打开。"""
     client = TestClient(_make_app([]), raise_server_exceptions=False)
     assert client.get("/test").status_code == 200
     assert (
@@ -52,7 +52,7 @@ def test_check_session_api_key_no_keys_configured():
 
 
 def test_check_session_api_key_reflects_config_update():
-    """Updating app.state.config is reflected immediately; no route re-registration needed."""  # noqa: E501
+    """更新app.state.config立即反映； 无需重新注册路线。"""  # noqa: E501
     app = _make_app(["old-key"])
     client = TestClient(app, raise_server_exceptions=False)
 

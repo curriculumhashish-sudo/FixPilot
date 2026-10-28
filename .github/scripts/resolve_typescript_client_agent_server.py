@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Report whether the TypeScript client's pinned Agent Server is released yet.
+"""报告 TypeScript 客户端的固定 Agent Server 是否已释放。
 
-A release PR pins the client to the version it is about to publish, so that
-release's openapi.json and image only exist after the PR merges. CI uses these
-outputs to read the contract from the branch's own source in that window.
+版本 PR 将客户端固定到即将发布的版本，因此版本的 openapi.json 和映像仅在 PR 合并后才
+存在。 CI 使用这些输出从该窗口中分支自己的源读取合约。
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ def contract_published(version: str) -> bool:
         with urllib.request.urlopen(OPENAPI_URL.format(version=version), timeout=30):
             return True
     except urllib.error.HTTPError as exc:
-        # Anything other than 404 is a transient failure, not "unreleased".
+        # 除了 404 之外的任何情况都是暂时性故障，而不是“未释放”。
         if exc.code == 404:
             return False
         raise

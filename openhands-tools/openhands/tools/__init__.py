@@ -1,18 +1,16 @@
-"""Runtime tools package.
+"""运行时工具包。
 
-This is the primary import surface for the published ``openhands-tools``
-distribution.
+这是已发布的 ``openhands-tools`` 分布的主要导入表面。
 
-Most tool implementations live in explicit submodules (e.g.
-``openhands.tools.terminal``). However, we also provide a small set of
-convenience re-exports here for the most common tools and presets.
+大多数工具实现都位于显式子模块中（e.g.
+``openhands.tools.terminal``). 但是，我们还为最常见的工具和预设提供了一小部分方便的重
+新导出。
 
-The curated public surface is tracked via ``__all__`` so CI can detect breaking
-changes.
+策划的公共表面通过 ``__all__`` 进行跟踪，因此 CI 可以检测到不兼容变更。
 
-Note: BrowserToolSet is intentionally NOT re-exported here to avoid forcing
-downstream consumers (e.g., OpenHands-CLI) to bundle the browser-use package
-and its heavy dependencies. Users who need browser tools should import directly
+Note: BrowserToolSet 是故意在此处重新导出的不，以避免强制
+下游消费者（e.g.，OpenHands-CLI）捆绑浏览器使用包及其严重依赖项。 需要浏览器工具的用
+户直接导入
 from ``openhands.tools.browser_use``.
 """
 
@@ -36,7 +34,7 @@ from openhands.tools.workflow import WorkflowToolSet
 try:
     __version__ = version("openhands-tools")
 except PackageNotFoundError:
-    __version__ = "0.0.0"  # fallback for editable/unbuilt environments
+    __version__ = "0.0.0"  # 回退方案用于可编辑/未构建的环境
 
 
 __all__ = [

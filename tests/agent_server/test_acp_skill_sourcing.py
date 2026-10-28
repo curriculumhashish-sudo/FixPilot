@@ -1,10 +1,10 @@
-"""ACP skill sourcing: who supplies an ACP agent's skills (#4019).
+"""ACP 技能来源：谁提供 ACP 智能体的技能 (#4019)。
 
-An ACP CLI reads ``AGENTS.md`` / ``CLAUDE.md`` and its own project skills from
-the session cwd, so OpenHands never injects those. Whether it injects its
-*managed* catalog is a per-deployment choice (``Config.acp_skill_sourcing``):
-a host-local CLI reaches the user's own configuration, one in a container
-cannot.
+ACP CLI 从会话 cwd 中读取 ``AGENTS.md`` / ``CLAUDE.md`` 及其自己的项目技能，因此
+OpenHands 永远不会注入这些内容。 是
+否注入其
+*Managed* 目录是每个部署的选择 (``Config.acp_skill_sourcing``)：
+主机本地 CLI 可以达到用户自己的配置，而容器中的主机则不能。
 """
 
 from __future__ import annotations
@@ -71,9 +71,9 @@ def _apply_acp_skill_sourcing(
 
 
 def _installed_suffix(agent: AgentBase, project: Path) -> str:
-    """The suffix ``init_state`` renders into the ACP subprocess's prompt.
+    """后缀 ``init_state`` 渲染到 ACP 子进程的提示词中。
 
-    Only the subprocess spawn is stubbed; the render is the production one.
+    仅子进程生成被存根； 渲染是生产渲染。
     """
     with patch.object(ACPAgent, "_start_acp_server", lambda self, state: None):
         conversation = Conversation(agent=agent, workspace=str(project))
@@ -94,7 +94,7 @@ def test_acp_agent_clears_load_project_skills() -> None:
 
 
 def test_openhands_agent_keeps_load_project_skills() -> None:
-    """The guard is ACP-only — a regular agent still loads project skills."""
+    """守卫仅是ACP——常规智能体仍然加载项目技能。"""
     agent = Agent(
         llm=LLM(model="gpt-4o", usage_id="agent"),
         tools=[],
@@ -139,8 +139,8 @@ def test_managed_sourcing_keeps_managed_skills(tmp_path: Path) -> None:
 
 
 def test_native_sourcing_clears_lazy_skill_sources() -> None:
-    """Flags and marketplace registrations resolve to skills later, so a strip
-    that only emptied ``skills`` would let them back in."""
+    """旗帜和市场注册稍后会解决技能问题，所以一条条
+    只有清空``skills``才能让他们回来。"""
     agent = _apply_acp_skill_sourcing(
         _acp_agent(
             load_user_skills=True,

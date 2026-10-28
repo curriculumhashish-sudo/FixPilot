@@ -16,7 +16,7 @@ from openhands.workspace import ApptainerWorkspace
 
 logger = get_logger(__name__)
 
-# 1) Ensure we have LLM API key
+# 1) 确保我们有 LLM API 键
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 
@@ -29,7 +29,7 @@ llm = LLM(
 
 
 def detect_platform():
-    """Detects the correct platform string."""
+    """检测正确的平台字符串。"""
     machine = platform.machine().lower()
     if "arm" in machine or "aarch64" in machine:
         return "linux/arm64"
@@ -37,37 +37,37 @@ def detect_platform():
 
 
 def get_server_image():
-    """Get the server image tag, using PR-specific image in CI."""
+    """使用 CI 中的 PR 特定图像获取服务器图像标签。"""
     platform_str = detect_platform()
     arch = "arm64" if "arm64" in platform_str else "amd64"
-    # SDK_SHA is the canonical commit SHA set by CI workflows (avoids the
-    # built-in GITHUB_SHA which resolves to the merge-commit on PRs).
+    # SDK_SHA 是 CI 工作流设置的规范提交 SHA（避免解析为 PR 上的合并提交的内置
+    # GITHUB_SHA）。
+    #
     sha = os.getenv("SDK_SHA") or os.getenv("GITHUB_SHA")
     if sha:
         return f"ghcr.io/openhands/agent-server:{sha[:7]}-python-{arch}"
     return "ghcr.io/openhands/agent-server:latest-python"
 
 
-# 2) Create an Apptainer-based remote workspace that will set up and manage
-#    the Apptainer container automatically. Use `ApptainerWorkspace` with a
-#    pre-built agent server image.
-#    Apptainer (formerly Singularity) doesn't require root access, making it
-#    ideal for HPC and shared computing environments.
+# 2) 创建一个基于 Apptainer 的远程工作区，它将自动设置和管理 Apptainer 容器。 将
+# `ApptainerWorkspace` 与预先构建的 Agent Server 图像结合使用。 Apptainer（以前称为
+# Singularity）不需要 root 访问权限，因此非常适合 HPC 和共享计算环境。
+#
 server_image = get_server_image()
 logger.info(f"Using server image: {server_image}")
 with ApptainerWorkspace(
-    # use pre-built image for faster startup
+    # 使用预构建的映像以加快启动速度
     server_image=server_image,
-    # host_port auto-selects an available port when not specified
+    # host_port 未指定时自动选择可用端口
     platform=detect_platform(),
 ) as workspace:
-    # 3) Create agent
+    # 3) 创建智能体
     agent = get_default_agent(
         llm=llm,
         cli_mode=True,
     )
 
-    # 4) Set up callback collection
+    # 4) 设置回调个集合
     received_events: list = []
     last_event_time = {"ts": time.time()}
 
@@ -77,7 +77,7 @@ with ApptainerWorkspace(
         received_events.append(event)
         last_event_time["ts"] = time.time()
 
-    # 5) Test the workspace with a simple command
+    # 5) 使用简单的命令测试工作区
     result = workspace.execute_command(
         "echo 'Hello from sandboxed environment!' && pwd"
     )
@@ -104,7 +104,7 @@ with ApptainerWorkspace(
         logger.info("✅ First task completed!")
         logger.info(f"Agent status: {conversation.state.execution_status}")
 
-        # Wait for events to settle (no events for 2 seconds)
+        # 等待事件稳定（2 秒内没有事件）
         logger.info("⏳ Waiting for events to stop...")
         while time.time() - last_event_time["ts"] < 2.0:
             time.sleep(0.1)
@@ -115,7 +115,7 @@ with ApptainerWorkspace(
         conversation.run()
         logger.info("✅ Second task completed!")
 
-        # Report cost (must be before conversation.close())
+        # 报告费用（必须在 conversation.close() 之前）
         cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
         print(f"EXAMPLE_COST: {cost}")
     finally:

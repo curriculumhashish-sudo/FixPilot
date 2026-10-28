@@ -19,7 +19,7 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -31,24 +31,24 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 cwd = os.getcwd()
 tools = [
     Tool(name=TerminalTool.name),
     Tool(name=FileEditorTool.name),
 ]
 
-# Add MCP Tools
+# 添加 MCP 工具
 mcp_config = {
     "fetch": MCPServer(
         command="uvx",
         args=["--with", "mcp==1.29.0", "mcp-server-fetch==2026.7.10"],
     ),
 }
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools, mcp_config=mcp_config)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -80,12 +80,12 @@ print("Conversation finished. Got the following LLM messages:")
 for i, message in enumerate(llm_messages):
     print(f"Message {i}: {str(message)[:200]}")
 
-# Conversation persistence
+# 对话持久化
 print("Serializing conversation...")
 
 del conversation
 
-# Deserialize the conversation
+# 反序列化对话
 print("Deserializing conversation...")
 conversation = Conversation(
     agent=agent,
@@ -99,6 +99,6 @@ print("Sending message to deserialized conversation...")
 conversation.send_message("Hey what did you create? Return an agent finish action")
 conversation.run()
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

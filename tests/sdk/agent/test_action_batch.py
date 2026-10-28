@@ -1,4 +1,4 @@
-"""Unit tests for _ActionBatch."""
+"""单元测试为 _ActionBatch。"""
 
 from typing import Any
 from unittest.mock import MagicMock
@@ -12,7 +12,7 @@ from openhands.sdk.tool.builtins import FinishTool
 
 
 def _ae(tool_name: str = "tool", action_id: str | None = None) -> ActionEvent:
-    """Minimal ActionEvent mock (typed as ActionEvent for static analysis)."""
+    """最小 ActionEvent 模拟对象（静态分析时输入为 ActionEvent）。"""
     ae = MagicMock(spec=ActionEvent)
     ae.tool_name = tool_name
     ae.id = action_id or str(id(ae))
@@ -43,7 +43,7 @@ def test_truncate_at_finish(names, expected_names, expected_finish):
 
 
 def _make_state(blocked: dict[str, str] | None = None):
-    """Mock ConversationState with pop_blocked_action support."""
+    """模拟对象 ConversationState 和 pop_blocked_action 支持。"""
     blocked = dict(blocked or {})
     state = MagicMock()
     state.pop_blocked_action = lambda aid: blocked.pop(aid, None)
@@ -51,7 +51,7 @@ def _make_state(blocked: dict[str, str] | None = None):
 
 
 def _make_executor(side_effect: Any = None) -> Any:
-    """Mock ParallelToolExecutor."""
+    """模拟对象 ParallelToolExecutor."""
     executor = MagicMock()
     if side_effect:
         executor.execute_batch = side_effect
@@ -95,7 +95,7 @@ def test_prepare_with_blocked():
 
 
 def test_prepare_truncates_before_blocking():
-    """FinishTool truncation happens before blocked partitioning."""
+    """FinishTool 截断发生在阻塞分区之前。"""
     events = [_ae("a", "1"), _ae(FinishTool.name, "2"), _ae("c", "3")]
     state = _make_state({"3": "should not appear"})
 
@@ -103,7 +103,7 @@ def test_prepare_truncates_before_blocking():
 
     assert batch.has_finish
     assert len(batch.action_events) == 2
-    assert "3" not in batch.blocked_reasons  # truncated before we checked
+    assert "3" not in batch.blocked_reasons  # 在我们检查之前被截断
 
 
 def test_prepare_all_blocked():
@@ -126,11 +126,11 @@ def test_prepare_empty():
     assert batch.results_by_id == {}
 
 
-# ── emit ──────────────────────────────────────────────────────────
+# ── 发出──────────────────────────────────────────────────────────
 
 
 def _obs(label: str) -> ObservationEvent:
-    """Create a minimal ObservationEvent stub for testing."""
+    """创建一个最小的 ObservationEvent 存根用于测试。"""
     obs = MagicMock(spec=ObservationEvent)
     obs._label = label
     return obs  # type: ignore[return-value]
@@ -167,7 +167,7 @@ def test_emit_blocked_produces_rejection():
     assert emitted[1] is o2
 
 
-# ── finalize ──────────────────────────────────────────────────────
+# ── 定稿──────────────────────────────────────────────────────
 
 
 def test_finalize_noop_when_no_finish():

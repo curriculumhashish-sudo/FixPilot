@@ -1,13 +1,13 @@
-"""Tests for the check_browser functionality."""
+"""测试 check_browser 功能。"""
 
 from unittest.mock import MagicMock, patch
 
 
 class TestCheckBrowser:
-    """Test check_browser function with mocked browser components."""
+    """使用模拟的浏览器组件测试 check_browser 功能。"""
 
     def test_check_browser_success(self, capsys):
-        """Test check_browser returns True when browser works correctly."""
+        """当浏览器正常工作时，测试 check_browser 返回 True。"""
         mock_result = MagicMock()
         mock_result.is_error = False
         mock_result.content = "Success"
@@ -39,7 +39,7 @@ class TestCheckBrowser:
             assert "Browser check passed" in captured.out
 
     def test_check_browser_failure_is_error(self, capsys):
-        """Test check_browser returns False when result.is_error is True."""
+        """当 result.is_error 为 True 时，测试 check_browser 返回 False。"""
         mock_result = MagicMock()
         mock_result.is_error = True
         mock_result.content = "Navigation failed"
@@ -66,7 +66,7 @@ class TestCheckBrowser:
             assert "Navigation failed" in captured.out
 
     def test_check_browser_failure_exception(self, capsys):
-        """Test check_browser returns False when an exception is raised."""
+        """当引发异常时，测试 check_browser 返回 False。"""
         mock_executor = MagicMock()
         mock_executor.side_effect = RuntimeError("Browser crashed")
 
@@ -89,7 +89,7 @@ class TestCheckBrowser:
             assert "Browser crashed" in captured.out
 
     def test_check_browser_cleanup_on_executor_creation_failure(self, capsys):
-        """Test check_browser handles executor creation failure gracefully."""
+        """测试 check_browser 优雅地处理执行器创建失败。"""
         with (
             patch("openhands.tools.preset.default.register_default_tools"),
             patch(
@@ -108,10 +108,10 @@ class TestCheckBrowser:
             assert "Chromium not found" in captured.out
 
     def test_check_browser_str_conversion_for_content(self, capsys):
-        """Test that result.content is converted to string properly."""
+        """测试 result.content 是否正确转换为字符串。"""
         mock_result = MagicMock()
         mock_result.is_error = True
-        # Use a non-string content to verify str() conversion
+        # 使用非字符串内容验证str()转换
         mock_result.content = {"error": "complex error object"}
 
         mock_executor = MagicMock()
@@ -132,5 +132,5 @@ class TestCheckBrowser:
 
             captured = capsys.readouterr()
             assert "Browser check failed" in captured.out
-            # The dict should be converted to string representation
+            # 字典应该转换为字符串表示形式
             assert "error" in captured.out

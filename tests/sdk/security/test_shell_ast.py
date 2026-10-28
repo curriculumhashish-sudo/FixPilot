@@ -1,4 +1,4 @@
-"""Tests for private shell AST command-view helpers."""
+"""测试私有 shell AST 命令视图帮助程序。"""
 
 from __future__ import annotations
 
@@ -226,10 +226,10 @@ def test_missing_descendant_marks_command_has_error() -> None:
     assert tuple(command.has_error for command in commands) == (True, True)
 
 
-# Both flag helpers take the literal a caller has already resolved through
-# quote removal, not raw word source. That is what lets ``-rf``, ``"-rf"`` and
-# ``-r"f"`` -- the same argv -- split identically; the caller owns resolution
-# and skips words it cannot resolve.
+# 两个标志助手都采用调用者已经通过引号删除解析的文字，而不是原始单词源。 这就是让
+# ``-rf``、``"-rf"`` 和
+# ``-r"f"`` -- 相同的argv -- 相同地分割； 调用者拥有解析权并跳过它无法解析的单词。
+#
 @pytest.mark.parametrize(
     ("literal", "flags"),
     [

@@ -1,4 +1,4 @@
-"""Persistence/resume behavior for client-defined tools on LocalConversation."""
+"""LocalConversation 上客户端定义的工具的持久/恢复行为。"""
 
 import gc
 import uuid
@@ -15,14 +15,13 @@ from openhands.sdk.utils.models import clear_subclass_cache
 
 @pytest.fixture(autouse=True)
 def _collect_dynamic_client_tool_classes():
-    """Drop the dynamic ``ClientAction_*`` classes these tests define.
+    """删除这些测试定义的动态 ``ClientAction_*`` 类。
 
-    Each client tool spec builds a new class, so a test that registers the same
-    tool name twice leaves two same-named classes behind. They are only
-    reachable through reference cycles, so until a cyclic collection runs they
-    stay in ``Action.__subclasses__()`` and make the duplicate-class check in
-    ``_get_checked_concrete_subclasses`` fail in *unrelated* later tests.
-    Collecting on teardown, once the test frame is gone, keeps that leak local.
+    每个客户端工具规范都会构建一个新类，因此两次注册相同工具名称的测试会留下两个同名
+    的类。 它们只能通过引用循环访问，因此在循环集合运行之前，它们会保留在
+    ``Action.__subclasses__()`` 中并进行重复类签入
+    ``_get_checked_concrete_subclasses`` 在*不相关的*个后续测试中失败。 一旦测试框架
+    消失，在拆卸时收集，将泄漏保留在本地。
     """
     yield
     gc.collect()
@@ -37,7 +36,7 @@ def _make_agent() -> Agent:
 
 
 def _wipe_client_tool_globals(names: list[str]) -> None:
-    """Simulate a fresh process where dynamic client tools are unregistered."""
+    """模拟未注册动态客户端工具的新流程。"""
     ct._client_action_types.clear()
     ct._client_action_schemas.clear()
     for name in names:
@@ -47,11 +46,10 @@ def _wipe_client_tool_globals(names: list[str]) -> None:
 
 
 def test_persisted_client_tools_resume_without_respecifying(tmp_path: Path) -> None:
-    """A persisted conversation re-registers/injects client tools on resume.
+    """已持久化对话在恢复时重新注册/注入客户端工具。
 
-    The caller does not pass ``client_tools`` on resume; the specs must be
-    recovered from persisted state so the agent keeps the tools and resume does
-    not fail with "tools were removed mid-conversation".
+    调用者未在简历中传递 ``client_tools``； 规范必须从已持久化状态恢复，以便智能体保
+    留工具，并且恢复不会因“工具在对话中被删除”而失败。
     """
     specs = [
         ClientToolSpec(
@@ -87,11 +85,11 @@ def test_persisted_client_tools_resume_without_respecifying(tmp_path: Path) -> N
     assert set(names) <= {t.name for t in created.agent.tools}
     created.close()
 
-    # Fresh-process simulation: drop the global registrations.
+    # 新流程模拟：放弃全局注册。
     _wipe_client_tool_globals(names)
     assert not any(n in reg.list_registered_tools() for n in names)
 
-    # Resume WITHOUT re-supplying client_tools.
+    # 恢复 WITHOUT 重新供应 client_tools。
     resumed = Conversation(
         agent=_make_agent(),
         workspace=str(ws_dir),
@@ -101,8 +99,8 @@ def test_persisted_client_tools_resume_without_respecifying(tmp_path: Path) -> N
     )
     try:
         assert set(names) <= {t.name for t in resumed.agent.tools}
-        # The dynamic action types are registered again so persisted
-        # ClientAction_* events could be deserialized.
+        # 动态操作类型再次注册，因此已持久化 ClientAction_* 事件可能是已反序列化。
+        #
         for n in names:
             assert n in reg.list_registered_tools()
     finally:
@@ -171,7 +169,7 @@ def test_client_tool_named_like_a_builtin_leaves_other_agents_alone() -> None:
 
 
 def test_recover_persisted_client_tools_no_state(tmp_path: Path) -> None:
-    """Recovery is a no-op (empty list) when there is no persisted base state."""
+    """当没有已持久化基状态时，恢复是无操作（空列表）。"""
     convo = Conversation(
         agent=_make_agent(),
         workspace=str(tmp_path / "ws"),

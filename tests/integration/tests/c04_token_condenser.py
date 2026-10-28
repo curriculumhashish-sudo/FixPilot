@@ -1,9 +1,9 @@
-"""Test that agent with token-based condenser successfully triggers condensation.
+"""测试智能体和基于 token 的上下文压缩器是否成功触发上下文压缩。
 
-This integration test verifies that:
-1. An agent can be configured with an LLMSummarizingCondenser using max_tokens
-2. The condenser correctly uses get_token_count to measure conversation size
-3. Condensation is triggered when token limit is exceeded
+此集成测试验证：
+1. 智能体可以通过 LLMSummarizingCondenser 来配置 max_tokens
+2. 上下文压缩器正确使用 get_token_count 来衡量对话大小
+3. 当超出 token 限制时触发上下文压缩
 """
 
 from openhands.sdk import get_logger
@@ -14,7 +14,7 @@ from openhands.tools.terminal import TerminalTool
 from tests.integration.base import BaseIntegrationTest, TestResult
 
 
-# Large tool results cross the token limit without a long, model-dependent loop.
+# 大型工具结果跨越 token 限制，而无需长的、依赖于模型的循环。
 INSTRUCTION = """
 Run these two commands using the terminal tool, in separate calls, in order:
 
@@ -31,18 +31,18 @@ logger = get_logger(__name__)
 
 
 class TokenCondenserTest(BaseIntegrationTest):
-    """Test that agent with token-based condenser triggers condensation."""
+    """测试智能体与基于 token 的上下文压缩器触发器上下文压缩。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     def __init__(self, *args, **kwargs):
-        """Initialize test with tracking variables."""
+        """使用跟踪变量初始化测试。"""
         self.condensations: list[Condensation] = []
         super().__init__(*args, **kwargs)
 
     @property
     def tools(self) -> list[Tool]:
-        """List of tools available to the agent."""
+        """智能体可用的工具列表。"""
         register_tool("TerminalTool", TerminalTool)
         return [
             Tool(name="TerminalTool"),
@@ -50,47 +50,48 @@ class TokenCondenserTest(BaseIntegrationTest):
 
     @property
     def condenser(self) -> LLMSummarizingCondenser:
-        """Configure a token-based condenser with low limits to trigger condensation."""
-        # Create a condenser with a low token limit to trigger condensation
-        # Using max_tokens instead of max_size to test token counting
+        """配置基于 token 的上下文压缩器，并具有触发上下文压缩的下限。"""
+        # 创建具有下限 token 的上下文压缩器以触发上下文压缩使用 max_tokens 而不是
+        # max_size 来测试 token 计数
+        #
         condenser_llm = self.create_llm_copy("test-condenser-llm")
         return LLMSummarizingCondenser(
             llm=condenser_llm,
-            max_size=1000,  # Set high so it doesn't trigger on event count
-            # One payload (~9k tokens for 2,000 reps) clears this by a wide margin, so
-            # neither side is tight against small differences in the system prompt or
-            # tool descriptions across the CI model matrix.
-            max_tokens=6000,  # Low token limit to ensure condensation triggers
-            # Keep the system prompt and the user instruction. With keep_first=1 the
-            # first condensation forgets the instruction, and command 2 then survives
-            # only if the LLM summary happens to preserve it.
+            max_size=1000,  # 设置为高，这样它就不会在事件计数时触发
+            # 载荷（约9千个token，2000个提示词）轻松完成了这一任务，因此，双方在系统CI或
+            # 工具描述上的细微差别上都没有优势。
+            #
+            max_tokens=6000,  # 低 token 限制以确保上下文压缩触发
+            # 保留系统提示词和用户说明。 当 keep_first=1 时，第一个上下文压缩会忘记该指
+            # 令，只有当 LLM 摘要恰好保留它时，命令 2 才会存活。
+            #
             keep_first=2,
         )
 
     @property
     def max_iteration_per_run(self) -> int:
-        # A condensation step still counts as an iteration: agent.step returns early
-        # after emitting the Condensation and the loop increments the counter. The
-        # happy path is therefore already ~4 iterations, so leave generous headroom.
+        # 上下文压缩步骤仍然算作一次迭代：agent.step 在发出上下文压缩后提前返回，并且循
+        # 环递增计数器。 因此，快乐路径已经有约 4 次迭代，因此请留出足够的空间。
+        #
         return 20
 
     def conversation_callback(self, event):
-        """Override callback to detect condensation events."""
+        """覆盖回调以检测上下文压缩事件。"""
         super().conversation_callback(event)
 
         if isinstance(event, Condensation):
             if len(self.condensations) >= 1:
                 logger.info("2nd condensation detected! Stopping test early.")
                 self.conversation.pause()
-            # We allow the first condensation request to test if
-            # thinking block + condensation will work together
+            # 我们允许第一个上下文压缩请求来测试思维块 + 上下文压缩是否可以一起工作
+            #
             self.condensations.append(event)
 
     def setup(self) -> None:
         logger.info(f"Token condenser test: max_tokens={self.condenser.max_tokens}")
 
     def verify_result(self) -> TestResult:
-        """Verify that token-count-based condensation was triggered twice."""
+        """验证基于 token 计数的上下文压缩是否被触发两次。"""
         if len(self.condensations) < 2:
             return TestResult(
                 success=False,

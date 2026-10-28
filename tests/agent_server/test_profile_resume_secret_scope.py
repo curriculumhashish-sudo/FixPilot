@@ -1,4 +1,4 @@
-"""Profile scope remains authoritative across Codex credential attachment/resume."""
+"""配置文件范围在 Codex 凭据附件/简历中仍然具有权威性。"""
 
 import json
 

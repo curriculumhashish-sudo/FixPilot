@@ -1,20 +1,18 @@
-"""Cross-cutting canary: /health stays responsive under each background load.
+"""横切金丝雀：/health 在每个后台负载下保持响应。
 
-Why this exists:
-    Most agent-server bugs that cause user-visible "the server hangs" symptoms
-    boil down to sync I/O on the asyncio thread. Each individual suite checks
-    this in its specific scenario. This canary checks it under a representative
-    mix of loads in one place — cheap to add, catches the regression class we
-    forgot to test specifically.
+为什么存在：
+    大多数导致用户可见的“服务器挂起”症状的智能体服务器错误都归结为 asyncio 上的同步 I
+    /O 线程。 每个单独的套件都会在其特定场景中检查这一点。 这个金丝雀
+    在一个地方的代表性负载组合下检查它——添加成本低，捕获我们忘记专门测试的回归类。
 
-Loads exercised:
-    - Long bash command (sleep + final marker) — exercises bash_service.
-    - Busy conversation listing on a seeded store — exercises persistence.
+行使负荷：
+    - 长 bash 命令（睡眠 + 最终标记）——练习 bash_service。
+    - 种子商店上的繁忙对话列表 - 练习持久化。
 
-Loads NOT exercised here (covered by their own suites):
-    - Slow webhook (test_slow_webhook.py).
-    - Slow-loris websocket (test_slow_websocket_consumer.py).
-    - High-volume bash output (test_high_volume_bash_output.py).
+此处执行的负载不（由其自己的套件覆盖）：
+    - 慢 Webhook (test_slow_webhook.py)。
+    - 懒猴 WebSocket (test_slow_websocket_consumer.py)。
+    - 高容量 bash 输出 (test_high_volume_bash_output.py)。
 """
 
 import asyncio
@@ -44,7 +42,7 @@ async def _measure_health_p95_p99(client, *, samples: int) -> tuple[float, float
         latencies.append(time.monotonic() - t0)
         assert resp.status_code == 200
     quantiles = statistics.quantiles(latencies, n=100)
-    # quantiles returns 99 cut-points; index 94 ≈ p95, 98 ≈ p99.
+    # 分位数返回 99 个分割点； 索引 94 ≈ p95，98 ≈ p99。
     return quantiles[94], quantiles[98]
 
 
@@ -64,10 +62,10 @@ async def test_health_responsive_under_long_bash(
     client,
     bash_service: BashEventService,
 ):
-    """A long bash command must not starve the event loop."""
+    """长 bash 命令一定不能让事件循环挨饿。"""
     samples = EVENT_LOOP_RESPONSIVENESS.health_samples
 
-    # Baseline: no load.
+    # 基线：无负载。
     p95_baseline, p99_baseline = await _measure_health_p95_p99(client, samples=samples)
     _assert_within_budget("baseline", p95_baseline, p99_baseline)
 
@@ -79,13 +77,12 @@ async def test_health_responsive_under_long_bash(
     assert resp.status_code == 200, resp.text
     cmd_id = UUID(resp.json()["id"])
 
-    # Interleave /health sampling with bash-completion polling so:
-    #   (a) samples land throughout the bash lifetime (in-process ASGI makes a
-    #       single /health call sub-millisecond, so a tight burst would only
-    #       cover the first frame and miss the rest of the run);
-    #   (b) we verify the bash command actually ran to clean exit, otherwise
-    #       a silent crash/early-exit would pass the budget for the wrong
-    #       reason ("/health is fast under no load").
+    # 与 bash-completion 轮询交错 /health 采样，因此：
+    #   (a) 样本在整个 bash 生命周期中着陆（进程内 ASGI 使
+    #       单个 /health 调用亚毫秒，因此紧密突发只会覆盖第一帧并错过运行的 REST）；
+    #   (b) 我们验证 bash 命令实际上运行到干净退出，否则
+    #       无声的崩溃/提前退出会因错误的原因而通过预算（“/health在空载下速度很快”）。
+    #
     latencies: list[float] = []
     deadline = time.monotonic() + bash_duration_s + 10
     final = None
@@ -96,10 +93,10 @@ async def test_health_responsive_under_long_bash(
             latencies.append(time.monotonic() - t0)
             assert h_resp.status_code == 200
 
-        # `limit=1, sort_order=TIMESTAMP_DESC` so we read just the latest
-        # event regardless of how many the bash command emits — the default
-        # page caps at 100 and we don't want a multi-page-output regression
-        # to silently miss the final BashOutput here.
+        # `limit=1, sort_order=TIMESTAMP_DESC` 所以我们只读取最新的事件，不管bash命令输
+        # 出多少条 — 默认页面最多显示100条，我们不想有分页输出回归默默错过结局
+        # BashOutput 这里。
+        #
         events_resp = await client.get(
             "/api/bash/bash_events/search",
             params={
@@ -137,12 +134,12 @@ async def test_health_responsive_under_busy_listing(
     client,
     tmp_path,
 ):
-    """High-volume conversation listing in parallel must not starve /health."""
+    """并行的大容量对话列表绝不能匮乏 /health."""
     samples = EVENT_LOOP_RESPONSIVENESS.health_samples
     workspace = str(tmp_path / "ws")
     (tmp_path / "ws").mkdir()
 
-    # Seed a modest store.
+    # 开一家不起眼的商店。
     seed_n = 100
     seed_sem = asyncio.Semaphore(8)
 
@@ -157,7 +154,7 @@ async def test_health_responsive_under_busy_listing(
 
     await asyncio.gather(*[_seed(i) for i in range(seed_n)])
 
-    # Drive listing in the background.
+    # 在后台驱动器列表。
     stop = asyncio.Event()
 
     async def _listing_loop():
@@ -166,14 +163,14 @@ async def test_health_responsive_under_busy_listing(
                 "/api/conversations/search",
                 params={"limit": 50, "sort_order": "CREATED_AT_DESC"},
             )
-            # Without this guard, a 500 from listing would silently turn
-            # the test into "/health under no load" — passing for the
-            # wrong reason.
+            # 如果没有这个保护，列表中的 500 会默默地将测试变成“无负载下的/health”——由于
+            # 错误的原因而通过。
+            #
             assert resp.status_code == 200, resp.text
 
     bg_task = asyncio.create_task(_listing_loop())
     try:
-        # Brief warm-up so the listing loop is hot before we measure.
+        # 短暂的预热，以便在我们测量之前列表循环是热的。
         await asyncio.sleep(0.1)
         p95, p99 = await _measure_health_p95_p99(client, samples=samples)
         _assert_within_budget("busy_listing", p95, p99)

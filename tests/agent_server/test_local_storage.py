@@ -1,4 +1,4 @@
-"""Deleting host-local conversations, against a real server and real git."""
+"""针对真实服务器和真实 git 删除主机本地对话。"""
 
 import subprocess
 from collections.abc import Iterator
@@ -44,7 +44,7 @@ def worktrees(repo: Path) -> list[str]:
 
 @pytest.fixture
 def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
-    """A local-mode server configured by environment, as the CLI does."""
+    """由环境配置的本地模式服务器，如 CLI 所示。"""
     for name, value in {
         "OH_CONVERSATION_RUNTIME": "local",
         "OH_CONVERSATIONS_PATH": str(tmp_path / "conversations"),
@@ -53,7 +53,7 @@ def client(tmp_path, monkeypatch) -> Iterator[TestClient]:
         "OH_SECRET_KEY": "key",
     }.items():
         monkeypatch.setenv(name, value)
-    # Both are process-wide and would keep another test's paths.
+    # 两者都是进程范围的，并且会保留另一个测试的路径。
     monkeypatch.setattr(config_module, "_default_config", None)
     monkeypatch.setattr(service_module, "_conversation_service", None)
     with TestClient(create_app()) as client:
@@ -95,7 +95,7 @@ def test_delete_removes_the_worktree_and_keeps_the_branch(client, tmp_path):
     assert worktrees(repo) == [str(repo.resolve())]
     branch = f"openhands/{conversation_id}"
     assert git(repo, "log", "-1", "--format=%s", branch) == "agent work"
-    # The user's own checkout is untouched.
+    # 用户自己的结账未受影响。
     assert git(repo, "status", "--porcelain") == ""
     assert git(repo, "branch", "--show-current") == "main"
 
@@ -108,7 +108,7 @@ def test_uncommitted_work_goes_with_the_conversation(client, tmp_path):
 
     delete(client, conversation_id)
 
-    # Only what the agent committed survives, on its branch.
+    # 只有智能体提交的内容才能在其分支上生存。
     branch = f"openhands/{conversation_id}"
     assert git(repo, "show", f"{branch}:README.md") == "hi"
     assert "draft.py" not in git(repo, "ls-tree", "--name-only", branch)
@@ -185,7 +185,7 @@ def test_a_fork_keeps_the_shared_worktree_until_it_is_deleted(client, tmp_path):
 
     delete(client, source)
 
-    # The fork works in its source's worktree, so it survives the source.
+    # 分叉在其源的工作树中工作，因此它比源继续存在。
     assert (worktree / "wip.py").read_text() == "in progress"
     assert str(worktree) in worktrees(repo)
 

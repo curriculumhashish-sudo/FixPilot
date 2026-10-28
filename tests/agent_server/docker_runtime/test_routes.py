@@ -98,8 +98,9 @@ def test_docker_mode_replaces_local_conversation_execution_routes(tmp_path):
     ]
     assert getattr(matched[0], "endpoint").__name__ == "proxy_session"
 
-    # Static collection paths must reach their real handlers before the
-    # Docker ``/{conversation_id}`` catch-all tries to parse them as UUIDs.
+    # 静态收集路径必须在Docker ``/{conversation_id}`` UUIDs捕获器尝试解析之前到达真正的
+    # 处理器。
+    #
     client = TestClient(app)
     for path in ("/api/conversations/search", "/api/conversations/count"):
         assert client.get(path).status_code != 422
@@ -560,8 +561,8 @@ def test_a_retried_start_records_the_latest_container_options(tmp_path, monkeypa
     monkeypatch.setattr(httpx.AsyncClient, "post", post)
 
     with TestClient(app) as client:
-        # The first start is saved but fails in the container, so the retry
-        # may still change the options.
+        # 第一次启动已保存，但在容器中失败，因此重试仍可能更改选项。
+        #
         for container in ({"memory": "2g"}, {"memory": "4g", "browser": False}):
             response = client.post(
                 "/api/conversations",

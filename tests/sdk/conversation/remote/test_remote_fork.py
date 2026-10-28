@@ -1,4 +1,4 @@
-"""Tests for RemoteConversation.fork()."""
+"""测试 RemoteConversation.fork()。"""
 
 import uuid
 from unittest.mock import Mock, patch
@@ -25,7 +25,7 @@ def _setup_workspace_with_mock_client(
     fork_id: str | None = None,
     fork_tags: dict[str, str] | None = None,
 ) -> tuple[RemoteWorkspace, Mock]:
-    """Set up workspace with a mock client that handles create + fork."""
+    """使用处理 create + fork 的模拟对象客户端设置工作区。"""
     workspace = RemoteWorkspace(host=host, working_dir="/tmp")
     mock_client = Mock()
     workspace._client = mock_client
@@ -66,7 +66,7 @@ def _setup_workspace_with_mock_client(
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_sends_post_request(mock_ws_cls: Mock) -> None:
-    """fork() must POST to /{id}/fork."""
+    """fork() 必须 POST 到 /{id}/fork."""
     mock_ws_cls.return_value = Mock()
     fork_uuid = str(uuid.uuid4())
     workspace, mock_client = _setup_workspace_with_mock_client(
@@ -78,7 +78,7 @@ def test_remote_fork_sends_post_request(mock_ws_cls: Mock) -> None:
 
     assert fork.id == uuid.UUID(fork_uuid)
 
-    # Verify a POST …/fork call was made
+    # 验证已进行 POST …/fork 调用
     fork_calls = [
         c
         for c in mock_client.request.call_args_list
@@ -89,11 +89,11 @@ def test_remote_fork_sends_post_request(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_uses_server_returned_tags(mock_ws_cls: Mock) -> None:
-    """The forked RemoteConversation constructor must receive tags from the
-    server response (which merges title), not the raw input kwargs.
+    """分叉的 RemoteConversation 构造函数必须从
+    服务器响应（合并标题），而不是原始输入 kwargs。
 
-    We verify by monkeypatching RemoteConversation to capture the tags kwarg
-    that the fork method passes to the constructor.
+    我们通过monkeypatchingRemoteConversation来验证捕获fork方法传递给构造函数的标签
+    kwarg。
     """
     mock_ws_cls.return_value = Mock()
     server_tags = {"env": "test", "title": "My Fork"}
@@ -101,7 +101,7 @@ def test_remote_fork_uses_server_returned_tags(mock_ws_cls: Mock) -> None:
 
     conv = RemoteConversation(agent=_agent(), workspace=workspace)
 
-    # Capture the kwargs passed to the fork's RemoteConversation()
+    # 捕获传递给 fork 的 RemoteConversation() 的 kwargs
     captured_kwargs: dict[str, object] = {}
     _orig_cls = RemoteConversation
 
@@ -110,7 +110,7 @@ def test_remote_fork_uses_server_returned_tags(mock_ws_cls: Mock) -> None:
             captured_kwargs.update(kwargs)
             super().__init__(**kwargs)  # type: ignore[arg-type]
 
-    # Temporarily replace the class reference used by the fork method.
+    # 暂时替换 fork 方法使用的类引用。
     import openhands.sdk.conversation.impl.remote_conversation as _mod
 
     _mod.RemoteConversation = _Capture  # type: ignore[misc]
@@ -124,7 +124,7 @@ def test_remote_fork_uses_server_returned_tags(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_raises_on_agent_param(mock_ws_cls: Mock) -> None:
-    """Passing agent= must raise NotImplementedError for remote forks."""
+    """对于远程分叉，传递智能体= 必须提高 NotImplementedError。"""
     mock_ws_cls.return_value = Mock()
     workspace, _ = _setup_workspace_with_mock_client()
 
@@ -136,7 +136,7 @@ def test_remote_fork_raises_on_agent_param(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_passes_body_fields(mock_ws_cls: Mock) -> None:
-    """Verify conversation_id, title, tags, reset_metrics are sent in body."""
+    """验证 conversation_id、标题、标签、reset_metrics 是否在正文中发送。"""
     mock_ws_cls.return_value = Mock()
     custom_id = uuid.uuid4()
     workspace, mock_client = _setup_workspace_with_mock_client(
@@ -168,7 +168,7 @@ def test_remote_fork_passes_body_fields(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_passes_from_event_id(mock_ws_cls: Mock) -> None:
-    """fork(from_event_id=...) forwards the branch point in the request body."""
+    """fork(from_event_id=...)转发请求体中的分支点。"""
     mock_ws_cls.return_value = Mock()
     workspace, mock_client = _setup_workspace_with_mock_client()
 
@@ -186,7 +186,7 @@ def test_remote_fork_passes_from_event_id(mock_ws_cls: Mock) -> None:
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_fork_omits_from_event_id_when_none(mock_ws_cls: Mock) -> None:
-    """A whole-conversation fork must not send a from_event_id field."""
+    """整个会话分叉不得发送 from_event_id 字段。"""
     mock_ws_cls.return_value = Mock()
     workspace, mock_client = _setup_workspace_with_mock_client()
 

@@ -1,12 +1,11 @@
 """
-API Compliance Test: Parallel Tool Calls - Wrong Order
+API 一致性测试：并行工具调用 - 错误顺序
 
-Tests how different LLM APIs respond when tool_results appear BEFORE
-the assistant message containing the corresponding tool_calls.
+测试不同 LLM APIs 对应 tool_results 出现之前副作用助手消息 tool_calls 的反应。
 
-Pattern:
+图案：
     [tool_result A] → [tool_result B] → [assistant with tool_calls [A, B]]
-    ↑ Results before the tool_calls!
+    ↑ tool_calls之前的结果！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -26,7 +25,7 @@ This pattern might occur with:
 
 
 class ParallelWrongOrderTest(BaseAPIComplianceTest):
-    """Test API response to tool results appearing before tool calls."""
+    """测试 API 对工具调用之前出现的工具结果的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -37,7 +36,7 @@ class ParallelWrongOrderTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with tool results before tool calls."""
+        """使用工具调用之前的工具结果构建消息序列。"""
         return [
             Message(
                 role="system",
@@ -47,7 +46,7 @@ class ParallelWrongOrderTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="Check the weather in SF and Tokyo.")],
             ),
-            # Tool results appear FIRST (wrong!)
+            # 工具结果显示 FIRST（错误！）
             Message(
                 role="tool",
                 content=[TextContent(text="San Francisco: 65°F, Sunny")],
@@ -60,7 +59,7 @@ class ParallelWrongOrderTest(BaseAPIComplianceTest):
                 tool_call_id="call_tokyo",
                 name="terminal",
             ),
-            # Assistant message with tool_calls comes AFTER tool_results
+            # 带有 tool_calls 的助理消息来自之后 tool_results
             Message(
                 role="assistant",
                 content=[TextContent(text="I'll check both cities.")],

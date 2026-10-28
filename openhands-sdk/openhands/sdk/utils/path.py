@@ -1,4 +1,4 @@
-"""Path helpers for serialized and display-facing path strings."""
+"""已序列化和面向显示的路径字符串的路径助手。"""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 _URL_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 
-# Anchor for a relative OH_PERSISTENCE_DIR: captured once so the state tree
-# cannot move when something chdirs mid-process.
+# 相对 OH_PERSISTENCE_DIR 的锚点：捕获一次，以便在进程中某些 chdirs 时状态树无法移动。
+#
 _INITIAL_CWD = Path.cwd()
 
 
 @cache
 def _warn_relative_persistence_dir(env_dir: str) -> None:
-    """Warn once per distinct relative value; this is called on every lookup."""
+    """每个不同的相对值警告一次； 每次查找时都会调用此方法。"""
     logger.warning(
         "OH_PERSISTENCE_DIR=%r is relative; anchoring it to %s. Set an absolute path.",
         env_dir,
@@ -30,22 +30,23 @@ def _warn_relative_persistence_dir(env_dir: str) -> None:
 
 
 def get_user_persistence_dir(default: Path | None = None) -> Path:
-    """Return the base directory for user-level OpenHands persistence.
+    """返回用户级别 OpenHands 持久化的基目录。
 
-    Honors the ``OH_PERSISTENCE_DIR`` environment variable when set (used by
-    ephemeral/isolated sandboxes to redirect state onto a persistent volume),
-    otherwise returns ``default``, or ``~/.openhands`` when no ``default`` is
-    given. ``OH_PERSISTENCE_DIR`` replaces the ``~/.openhands`` base directory;
-    callers append their usual subdirectories (e.g. ``profiles``,
-    ``cache/skills``) to the result.
+    尊重 ``OH_PERSISTENCE_DIR``  环境变量当设置（用于 ephemeral/isolated sandboxes 重
+    定向状态到持久卷）时，否则返
+    回 ``default``, 或 ``~/.openhands`` when no ``default`` 已给出。
+    ``OH_PERSISTENCE_DIR``
+    替换 ``~/.openhands`` 基础目录； callers append their usual subdirectories (e.g.
+    ``profiles``,
+    ``cache/skills``) 到结果。
 
-    ``OH_PERSISTENCE_DIR`` is expected to be absolute. A relative value is
-    honored but anchored to the working directory this module was imported in,
-    so a later ``chdir`` cannot split the state tree across call sites.
+    ``OH_PERSISTENCE_DIR`` 预计是绝对的。 相对值受到尊重，但锚定到导入此模块的工作目
+    录，因此后面的 ``chdir`` 无法跨调用站点拆分状态树
+    。
 
-    Call sites that store the result in a module-level constant freeze it at
+    将结果存储在模块级常量中的调用站点将其冻结在
     import time, so ``OH_PERSISTENCE_DIR`` must be set before ``openhands.sdk``
-    is imported; only call-time call sites pick up a later change.
+    是进口的； 只有呼叫时间呼叫站点才会接收稍后的更改。
     """
     env_dir = os.environ.get("OH_PERSISTENCE_DIR")
     if env_dir:
@@ -60,10 +61,10 @@ def get_user_persistence_dir(default: Path | None = None) -> Path:
 
 
 def resolves_within(path: Path, root: Path) -> bool:
-    """Whether ``path`` resolves inside the resolved ``root``.
+    """``path`` 是否在已解析的 ``root`` 内解析。
 
-    Symlinks may point anywhere under ``root`` but not outside it. A path that
-    cannot be resolved (a symlink loop raises on Python 3.12) counts as outside.
+    符号链接可以指向 ``root`` 下的任何位置，但不能指向其外部。 无法解析的路径（Python
+     3.12 上引发符号链接循环）被视为外部路径。
     """
     with suppress(OSError, RuntimeError):
         if path.resolve().is_relative_to(root.resolve()):
@@ -73,24 +74,24 @@ def resolves_within(path: Path, root: Path) -> bool:
 
 
 def to_posix_path(path: str | os.PathLike[str]) -> str:
-    """Return a slash-separated path string for wire/storage/display formats.
+    """返回线路/存储/显示格式的斜杠分隔的路径字符串。
 
-    This intentionally does not resolve or validate the path. Use ``Path`` or
-    ``os.path`` directly when interacting with the local filesystem.
+    这故意不解析或验证路径。 使用 ``Path`` 或
+    ``os.path`` 与本地文件系统交互时直接进行。
     """
 
     return os.fspath(path).replace("\\", "/")
 
 
 def posix_path_name(path: str | os.PathLike[str]) -> str:
-    """Return the final name from a slash-normalized path string."""
+    """从斜杠标准化路径字符串返回最终名称。"""
 
     normalized = to_posix_path(path).rstrip("/")
     return normalized.rsplit("/", 1)[-1] if normalized else ""
 
 
 def is_absolute_path_source(path: str | os.PathLike[str]) -> bool:
-    """Return whether ``path`` is absolute in POSIX or Windows syntax."""
+    """返回 ``path`` 在 POSIX 或 Windows 语法中是否是绝对的。"""
 
     value = os.fspath(path).strip()
     if not value:
@@ -103,7 +104,7 @@ def is_absolute_path_source(path: str | os.PathLike[str]) -> bool:
 
 
 def is_host_absolute_path(path: str | os.PathLike[str]) -> bool:
-    """Return whether ``path`` is absolute for the current host filesystem."""
+    """返回 ``path`` 对于当前主机文件系统是否是绝对的。"""
 
     value = os.fspath(path).strip()
     if not value:
@@ -112,12 +113,12 @@ def is_host_absolute_path(path: str | os.PathLike[str]) -> bool:
 
 
 def is_local_path_source(source: str) -> bool:
-    """Return whether a plugin/skill source should be treated as local.
+    """返回插件/技能源是否应被视为本地。
 
-    This accepts explicit local path syntax such as ``file://`` URLs,
-    home-relative paths, any dot-prefixed relative path (``.``, ``..``,
-    ``.openhands``), host-native absolute paths, Windows absolute paths, and
-    backslash-separated paths when they are not URL-like.
+    此端点接受明确定义的本地路径语法，例如 ``file://`` URLs，家目录相对路径，任何以点
+    开头的相对路径 (``.``，``..``)
+    ``.openhands``)、主机本机绝对路径、Windows 绝对路径以及反斜杠分隔的路径（当它们与
+     URL 不同时）。
     """
 
     value = source.strip()

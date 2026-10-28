@@ -1,5 +1,5 @@
 /**
- * HTTP client for OpenHands Agent Server API
+ * HTTP OpenHands Agent Server API 的客户端
  */
 
 import type { ValidationError as AgentServerValidationError } from '../generated/agent-server-schema';
@@ -22,18 +22,18 @@ export interface RequestOptions {
   acceptableStatusCodes?: Set<number>;
   responseType?: ResponseType;
   /**
-   * Credentials mode for `fetch`. Use `'include'` for endpoints that issue or
-   * consume cookies (e.g. the workspace-session cookie minted by
-   * `POST /api/auth/workspace-session`) so the browser persists them across
-   * origins.
+   * 凭据 mode for `fetch`. 使用 `'include'` 代替端点该问题或
+   * 消耗 cookie (e.g. 由以下人员创建的工作区-会话 cookie
+   * `POST /api/auth/workspace-session`) 因此浏览器将它们持久化
+   * 起源。
    */
   credentials?: RequestCredentials;
   /**
-   * Caller-owned cancellation signal, combined with the client timeout so a
-   * request aborts on whichever fires first. Pass the lifecycle signal of the
-   * component that owns the request (e.g. a React mount/`AbortController`) so
-   * teardown or a retry cancels the in-flight call instead of leaving it to
-   * resolve into a stale consumer.
+   * 调用者拥有的取消信号，与客户端超时相结合，所以
+   * 请求在先触发时中止。 传递生命周期信号
+   * 请求的所有者（e.g。 React 安装/`AbortController`) 所以
+   * 拆解或重试取消正在进行的调用，而不是将其留给
+   * 决心成为一个陈旧的消费者。
    */
   signal?: AbortSignal;
 }
@@ -46,27 +46,27 @@ export interface HttpResponse<T = unknown> {
 }
 
 /**
- * One entry of an Agent Server validation error body:
- * `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}`. FastAPI request
- * validation answers 422 with this shape, and a few handlers reuse it.
+ * Agent Server 验证错误主体的一项：
+ * `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}`. FastAPI 请求
+ * 验证使用此形状回答 422，并且一些处理程序重复使用它。
  */
 export type HttpValidationErrorItem = Pick<AgentServerValidationError, 'loc' | 'msg' | 'type'>;
 
 /**
- * Marks HttpError instances. `Symbol.for` returns the same symbol in every
- * copy of this package, so {@link isHttpError} recognizes an error thrown by
- * another bundled copy, where `instanceof HttpError` is false. Copies built
- * before this brand existed do not set it.
+ * 标记 HttpError 个实例。 `Symbol.for` 在每个中返回相同的符号
+ * 该包的副本，因此 {@link isHttpError} 可以识别出由
+ * 另一个捆绑副本，其中 `instanceof HttpError` 是 False。 已建副本
+ * 在这个品牌存在之前不要设置它。
  */
 const HTTP_ERROR_BRAND = Symbol.for('@openhands/typescript-client/HttpError');
 
 /**
- * Thrown when the server answers with a status the request does not accept.
+ * 当服务器以请求不接受的状态应答时抛出。
  *
- * `message` is the transport text (`HTTP request failed (<status> <text>):
- * <body>`), meant for logs. Use {@link HttpError.detail} for the server's own
- * message, and {@link isHttpError} instead of `instanceof` when more than one
- * copy of this package may be loaded.
+ * `message` 是传输层文本（`HTTP 请求失败 (<status> <text>)：
+ * <body>`)，用于日志。 使用 {@link HttpError.detail} 作为服务器自己的
+ * 消息，当超过一个时，用 {@link isHttpError} 代替 `instanceof`
+ * 可以加载此包的副本。
  */
 export class HttpError extends Error {
   constructor(
@@ -81,20 +81,20 @@ export class HttpError extends Error {
   }
 
   /**
-   * The server's readable message from the parsed error body, or `undefined`
-   * when the body carries none. Reads the Agent Server's error shapes:
+   * 来自已解析错误正文的服务器可读消息，或 `undefined`
+   * 当身体携带None时。 读取Agent Server的错误形状：
    *
-   * - `{"detail": "<message>"}`: returned as is.
-   * - `{"detail": [{"loc", "msg", "type"}, ...]}` (validation errors): one
-   *   entry gives its `msg`. Several entries are joined with `"; "`, and each
-   *   `msg` is prefixed with its field name (the last string in `loc`) so the
-   *   messages can be told apart, e.g. `"name: Field required; model: Field
+   * - `{"detail": "<message>"}`：按原样返回。
+   * - `{"detail": [{"loc", "msg", "type"}, ...]}`（验证个错误）：一
+   *   条目给出其`msg`。 多个条目用 `"; "` 连接，每个条目
+   *   `msg` 以其字段名称为前缀（`loc` 中的最后一个字符串），因此
+   *   消息可以被区分，e.g。 `"名称：必填字段； 型号：田野
    *   required"`. Use {@link HttpError.validationErrors} for the full `loc`.
-   * - `{"detail": {"message": "<message>", ...}}` (e.g. a launch error with a
-   *   `code`): the `message`.
+   * - `{"detail": {"message": "<message>", ...}}` (e.g. 启动错误
+   *   `code`）：`message`。
    *
-   * Any other body, including a non-JSON body (such as an HTML page from a
-   * proxy) or a blank message, gives `undefined`; `response` still holds it.
+   * 任何其他正文，包括非 JSON 正文（例如来自某个网站的 HTML 页面）
+   * `undefined`； `response`至今仍保留着这一观点。
    */
   get detail(): string | undefined {
     const body = this.response;
@@ -107,10 +107,10 @@ export class HttpError extends Error {
   }
 
   /**
-   * The entries of a validation error body (`{"detail": [{"loc", "msg",
-   * "type"}, ...]}`), or `undefined` when the body is not one. Each entry is
-   * copied with only `loc`, `msg` and `type`; an entry is skipped unless `loc`
-   * is an array of strings and numbers and `msg` and `type` are strings.
+   * 验证错误主体的条目 (`{"detail": [{"loc", "msg",
+   * "type"}, ...]}`), or `undefined` 当主体不是一个时。 每个条目都是
+   * 仅使用 `loc`、`msg` 和 `type` 进行复制； 除非 `loc`，否则将跳过条目
+   * 是字符串和数字的数组，`msg` 和 `type` 是字符串。
    */
   get validationErrors(): HttpValidationErrorItem[] | undefined {
     const body = this.response;
@@ -123,10 +123,10 @@ export class HttpError extends Error {
 }
 
 /**
- * Whether `value` is an {@link HttpError}, including one created by another
- * copy of this package (for example when an app and a library each bundle
- * their own), where `instanceof HttpError` is false. The other copy must be
- * a version that brands its errors, i.e. this one or later.
+ * `value`是否是一个{@link HttpError}，包括由另一个创建的
+ * 该包的副本（例如，当应用程序和库每个捆绑包
+ * 他们自己的），其中 `instanceof HttpError` 是 False。 另一个副本必须是
+ * 一个标记其错误的版本，i.e。 这个或以后。
  */
 export function isHttpError(value: unknown): value is HttpError {
   return (
@@ -168,7 +168,7 @@ function formatValidationErrors(items: HttpValidationErrorItem[] | undefined): s
     .join('; ');
 }
 
-/** The last non-empty string in a validation `loc`, e.g. `name` in `['body', 'name']`. */
+/** 验证 `loc`, e.g 中的最后一个非空字符串。 `['body', 'name']`中的`name`。*/
 function fieldName(loc: HttpValidationErrorItem['loc']): string | undefined {
   for (let index = loc.length - 1; index >= 0; index -= 1) {
     const part = loc[index];
@@ -208,11 +208,9 @@ export class HttpClient {
   }
 
   async request<T = unknown>(options: RequestOptions): Promise<HttpResponse<T>> {
-    // `fetch` (and browsers) reject a body on a GET request, but a few
-    // agent-server batch endpoints (e.g. `GET /api/bash/bash_events/` and
-    // `GET /api/conversations/{id}/events`) are declared as GET-with-required-body.
-    // Route those through Node's http(s) module, which permits a GET body, and
-    // leave the fetch path untouched for every other request.
+    // `fetch`（和浏览器）拒绝 GET 请求上的正文，但有一些智能体-服务器批处理端点 (e.g. `GET /api/bash/bash_events/` 和
+    // `GET /api/conversations/{id}/events`) 被声明为 GET-with-required-body。 通过 Node 的 http(s) 模块路由这些模块，该模块允许 GET 主体，并为每个其他请求保留获取路径不变。
+    //
     if (options.method === 'GET' && options.data !== undefined && options.data !== null) {
       return this.requestWithBodyOnGet<T>(options);
     }
@@ -298,8 +296,8 @@ export class HttpClient {
 
       if (error instanceof Error) {
         if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-          // A caller-owned signal that already fired means the request was
-          // cancelled by its owner, not that the client timeout elapsed.
+          // 已触发的调用者拥有的信号意味着请求已被其所有者取消，而不是客户端超时已失效。
+          //
           if (options.signal?.aborted) {
             throw error;
           }
@@ -315,11 +313,11 @@ export class HttpClient {
   }
 
   /**
-   * Issue a GET request that carries a JSON body via Node's `http`/`https`
-   * module. `fetch` throws `TypeError: Request with GET/HEAD method cannot have
-   * body`, so this is the only way to call the agent-server's GET-with-body
-   * batch endpoints. Mirrors the URL/header/error/parse behavior of the fetch
-   * path in {@link request}. Node-only by nature (browsers forbid GET bodies).
+   * 通过 Node 的 `http`/`https` 发出携带 JSON 主体的 GET 请求
+   * 模块。 `fetch` 抛出 `TypeError：使用 GET/HEAD 方法的请求不能有
+   * body`，所以这是调用智能体-server 的 GET-with-body 的唯一方法
+   * 批次端点。 镜像获取的 URL/header/error/parse 行为
+   * {@link request} 中的路径。 本质上仅限节点（浏览器禁止 GET 主体）。
    */
   private async requestWithBodyOnGet<T = unknown>(
     options: RequestOptions
@@ -502,14 +500,14 @@ export class HttpClient {
   }
 
   close(): void {
-    // No cleanup needed for fetch-based client
+    // 基于提取的客户端无需清理
   }
 }
 
 /**
- * Combine a caller-owned signal with the client timeout signal so the request
- * aborts on whichever fires first. Returns the timeout signal unchanged when no
- * caller signal is supplied, keeping the single-signal behavior identical.
+ * 将调用者拥有的信号与客户端超时信号相结合，以便请求
+ * 以先触发者为准中止。 当没有时返回超时信号不变
+ * 提供呼叫者信号，保持单信号行为相同。
  */
 function combineAbortSignals(
   callerSignal: AbortSignal | undefined,

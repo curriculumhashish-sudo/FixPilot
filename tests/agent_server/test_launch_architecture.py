@@ -1,4 +1,4 @@
-"""Only the launch pipeline builds or changes a launch agent in the agent-server."""
+"""只有启动管道会在智能体服务器中构建或更改启动智能体。"""
 
 from __future__ import annotations
 

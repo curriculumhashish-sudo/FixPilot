@@ -1,13 +1,12 @@
 """
-API Compliance Test: Unmatched tool_use
+API 合规性测试：无与伦比的 tool_use
 
-Tests how different LLM APIs respond when a tool_use message is sent
-without a corresponding tool_result.
+测试不同 LLM APIs 对于没有 tool_use 对应的 tool_result 消息的响应。
 
 
-Pattern:
+图案：
     [system] → [user] → [assistant with tool_use] → [user message] → API CALL
-                                                     ↑ No tool_result!
+                                                     ↑ 没有tool_result！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -27,7 +26,7 @@ This pattern can occur when:
 
 
 class UnmatchedToolUseTest(BaseAPIComplianceTest):
-    """Test API response to unmatched tool_use."""
+    """测试 API 对不匹配的 tool_use 的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -38,7 +37,7 @@ class UnmatchedToolUseTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with unmatched tool_use."""
+        """构建具有不匹配的 tool_use 的消息序列。"""
         return [
             Message(
                 role="system",
@@ -48,7 +47,7 @@ class UnmatchedToolUseTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="List the files in the current directory.")],
             ),
-            # Assistant message with tool_use
+            # 助理消息 tool_use
             Message(
                 role="assistant",
                 content=[TextContent(text="I'll list the files for you.")],
@@ -61,7 +60,7 @@ class UnmatchedToolUseTest(BaseAPIComplianceTest):
                     )
                 ],
             ),
-            # NOTE: No tool_result follows! Directly another user message.
+            # 注意：后面没有tool_result！ 直接另一个用户消息。
             Message(
                 role="user",
                 content=[TextContent(text="What was the result?")],

@@ -1,4 +1,4 @@
-"""Tests for bash terminal reset functionality."""
+"""测试 bash 终端重置功能。"""
 
 import tempfile
 import uuid
@@ -18,7 +18,7 @@ from openhands.tools.terminal import (
 
 
 def _create_conv_state(working_dir: str) -> ConversationState:
-    """Helper to create a ConversationState for testing."""
+    """帮助程序创建 ConversationState 用于测试。"""
 
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
@@ -28,51 +28,51 @@ def _create_conv_state(working_dir: str) -> ConversationState:
 
 
 def test_bash_reset_basic():
-    """Test basic reset functionality."""
+    """测试基本重置功能。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Execute a command to set an environment variable
+        # 执行命令设置环境变量
         action = TerminalAction(command="export TEST_VAR=hello")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert result.metadata.exit_code == 0
 
-        # Verify the variable is set
+        # 验证变量是否已设置
         action = TerminalAction(command="echo $TEST_VAR")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert "hello" in result.text
 
-        # Reset the terminal
+        # 重置终端
         reset_action = TerminalAction(command="", reset=True)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)
         assert "Terminal session has been reset" in reset_result.text
         assert reset_result.command == "[RESET]"
 
-        # Verify the variable is no longer set after reset
+        # 验证重置后不再设置变量
         action = TerminalAction(command="echo $TEST_VAR")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
-        # The variable should be empty after reset
+        # 重置后该变量应为空
         assert result.text.strip() == ""
 
 
 def test_bash_reset_with_command():
-    """Test that reset executes the command after resetting."""
+    """测试reset复位后是否执行命令。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Set an environment variable
+        # 设置环境变量
         action = TerminalAction(command="export TEST_VAR=world")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert result.metadata.exit_code == 0
 
-        # Reset with a command (should reset then execute the command)
+        # 使用命令重置（应重置然后执行命令）
         reset_action = TerminalAction(
             command="echo 'hello from fresh terminal'", reset=True
         )
@@ -82,7 +82,7 @@ def test_bash_reset_with_command():
         assert "hello from fresh terminal" in reset_result.text
         assert reset_result.command == "[RESET] echo 'hello from fresh terminal'"
 
-        # Verify the variable is no longer set (confirming reset worked)
+        # 验证变量不再设置（确认重置有效）
         action = TerminalAction(command="echo $TEST_VAR")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
@@ -90,35 +90,35 @@ def test_bash_reset_with_command():
 
 
 def test_bash_reset_working_directory():
-    """Test that reset preserves the working directory."""
+    """测试重置是否保留工作目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Check initial working directory
+        # 检查初始工作目录
         action = TerminalAction(command="pwd")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert temp_dir in result.text
 
-        # Change directory
+        # 更改目录
         action = TerminalAction(command="cd /home")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
 
-        # Verify directory changed
+        # 验证目录已更改
         action = TerminalAction(command="pwd")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert "/home" in result.text
 
-        # Reset the terminal
+        # 重置终端
         reset_action = TerminalAction(command="", reset=True)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)
         assert "Terminal session has been reset" in reset_result.text
 
-        # Verify working directory is back to original
+        # 验证工作目录恢复为原始状态
         action = TerminalAction(command="pwd")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
@@ -126,30 +126,30 @@ def test_bash_reset_working_directory():
 
 
 def test_bash_reset_multiple_times():
-    """Test that reset can be called multiple times."""
+    """测试reset可以被多次调用。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # First reset
+        # 第一次重置
         reset_action = TerminalAction(command="", reset=True)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)
         assert "Terminal session has been reset" in reset_result.text
 
-        # Execute a command after first reset
+        # 第一次重置后执行命令
         action = TerminalAction(command="echo 'after first reset'")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
         assert "after first reset" in result.text
 
-        # Second reset
+        # 第二次重置
         reset_action = TerminalAction(command="", reset=True)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)
         assert "Terminal session has been reset" in reset_result.text
 
-        # Execute a command after second reset
+        # 第二次复位后执行命令
         action = TerminalAction(command="echo 'after second reset'")
         result = tool(action)
         assert isinstance(result, TerminalObservation)
@@ -157,12 +157,12 @@ def test_bash_reset_multiple_times():
 
 
 def test_bash_reset_with_timeout():
-    """Test that reset works with timeout parameter."""
+    """测试重置是否与超时参数一起工作。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Reset with timeout (should ignore timeout)
+        # 使用超时重置（应忽略超时）
         reset_action = TerminalAction(command="", reset=True, timeout=5.0)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)
@@ -171,15 +171,15 @@ def test_bash_reset_with_timeout():
 
 
 def test_bash_reset_with_is_input_validation():
-    """Test that reset=True with is_input=True raises validation error."""
+    """测试 Reset=True 和 is_input=True 会引发验证错误。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Create action with invalid combination
+        # 创建具有无效组合的操作
         action = TerminalAction(command="", reset=True, is_input=True)
 
-        # Should raise error when executed
+        # 执行时应该引发错误
         with pytest.raises(
             ValueError, match="Cannot use reset=True with is_input=True"
         ):
@@ -187,12 +187,12 @@ def test_bash_reset_with_is_input_validation():
 
 
 def test_bash_reset_only_with_empty_command():
-    """Test reset with empty command (reset only)."""
+    """使用空命令测试重置（仅重置）。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # Reset with empty command
+        # 用空命令重置
         reset_action = TerminalAction(command="", reset=True)
         reset_result = tool(reset_action)
         assert isinstance(reset_result, TerminalObservation)

@@ -55,7 +55,7 @@ jobs:
               if: runner.os != 'Windows'
               run: make build-server
 
-            # Windows runners have no `make`; invoke PyInstaller directly.
+            # Windows 运行者没有 `make`； 直接调用PyInstaller。
             - name: Build binary (Windows)
               if: runner.os == 'Windows'
               shell: bash
@@ -303,8 +303,8 @@ jobs:
 
     build-and-push-image:
         name: Build & Push (${{ matrix.variant }}-${{ matrix.arch }})
-        # Run on push events, pull requests from the same repository (not forks), and manual workflow_dispatch
-        # Fork PRs cannot push to GHCR and would fail authentication
+        # 在推送事件上运行，从同一存储库（不是分叉）拉取请求，并且手动 workflow_dispatch 分叉 PR 无法推送到 GHCR 并且会失败身份验证
+        #
         if: >
             github.event_name == 'push' ||
             github.event_name == 'workflow_dispatch' ||
@@ -313,10 +313,10 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                # Explicit matrix: 5 variants × 2 architectures = 10 jobs
-                # Each job specifies exactly what it builds and where it runs
+                # 显式矩阵：5 个变体 × 2 架构 = 10 个作业每个作业准确指定其构建的内容和运行的位置
+                #
                 include:
-                    # Python variant
+                    # Python 变体
                     - variant: python
                       custom_tags: python
                       image_flavor: default
@@ -337,7 +337,7 @@ jobs:
                       runner: ubuntu-24.04-arm
                       platform: linux/arm64
 
-                    # Python variant without preinstalled ACP providers
+                    # Python 个没有预装 ACP 个提供商的变体
                     - variant: python-slim
                       custom_tags: python
                       image_flavor: slim
@@ -362,7 +362,7 @@ jobs:
                       runner: ubuntu-24.04-arm
                       platform: linux/arm64
 
-                    # Minimal Python variant without ACP providers or capabilities
+                    # 没有 ACP 个提供商或功能的最小 Python 变体
                     - variant: python-minimal
                       custom_tags: python
                       image_flavor: minimal
@@ -383,7 +383,7 @@ jobs:
                       runner: ubuntu-24.04-arm
                       platform: linux/arm64
 
-                    # Java variant
+                    # Java变体
                     - variant: java
                       custom_tags: java
                       image_flavor: default
@@ -402,7 +402,7 @@ jobs:
                       runner: ubuntu-24.04-arm
                       platform: linux/arm64
 
-                    # Golang variant
+                    # Golang变体
                     - variant: golang
                       custom_tags: golang
                       image_flavor: default
@@ -426,14 +426,11 @@ jobs:
         env:
             IMAGE: ${{ inputs.image != '' && inputs.image || 'ghcr.io/openhands/agent-server' }}
             BASE_IMAGE: ${{ inputs.base_image != '' && inputs.base_image || matrix.base_image }}
-            # The maybe-empty value (inputs.install_acp_providers) must be the
-            # LAST operand: GitHub Actions' `A && B || C` collapses to C
-            # whenever B is falsy, so an explicit "" dispatch input ("install
-            # none") would silently fall through to the default if it sat in
-            # B's position instead.
+            # inputs.install_acp_providers 可能为空的值必须是 LAST 操作符：GitHub Actions 的 `A && B || C` 在 B 为假时会折叠为 C，因此，如果它位于 B 的位置，显式地使用 "" 输入（"install None") 会无声地跳过默认值。
+            #
             INSTALL_ACP_PROVIDERS: ${{ github.event_name != 'workflow_dispatch' && 'claude-code,codex,gemini-cli' || inputs.install_acp_providers }}
-            # Same last-operand reasoning as INSTALL_ACP_PROVIDERS above: an
-            # explicit "" dispatch input ("install none") must survive.
+            # 与上面的 INSTALL_ACP_PROVIDERS 相同的最后一个操作数推理：显式的“”调度输入（“install None”）必须保留。
+            #
             INSTALL_CAPABILITIES: ${{ github.event_name != 'workflow_dispatch' && 'vscode,browser,docker' || inputs.install_capabilities }}
             CUSTOM_TAGS: ${{ matrix.custom_tags }}
             IMAGE_FLAVOR: ${{ matrix.image_flavor }}
@@ -442,8 +439,8 @@ jobs:
             TARGET: ${{ matrix.target || 'binary' }}
             PLATFORM: ${{ matrix.platform }}
             ENABLE_VSCODE: ${{ matrix.enable_vscode || 'true' }}
-            # Use SDK_SHA/SDK_REF so build.py tags PR images with the head commit and branch.
-            # GITHUB_SHA/GITHUB_REF point at the synthetic merge ref on pull_request events.
+            # 使用 SDK_SHA/SDK_REF so build.py 标记 PR 图像以及头部提交和分支。 GITHUB_SHA/GITHUB_REF 指向 pull_request 事件的合成合并引用。
+            #
             SDK_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
             SDK_REF: ${{ github.head_ref != '' && format('refs/heads/{0}', github.head_ref) || github.ref }}
             GITHUB_REF: ${{ github.ref }}
@@ -719,7 +716,7 @@ jobs:
     consolidate-build-info:
         name: Consolidate Build Information
         needs: [build-and-push-image, merge-manifests]
-        # Run if it's a PR and the matrix job completed (even if some variants failed)
+        # 如果它是 PR 并且矩阵作业已完成，则运行（即使某些变体失败）
         if: github.event_name == 'pull_request' && always() && (needs.build-and-push-image.result == 'success' || needs.build-and-push-image.result ==
             'failure')
         runs-on: ubuntu-24.04
@@ -882,7 +879,7 @@ jobs:
     update-pr-description:
         name: Update PR description with agent server image
         needs: consolidate-build-info
-        # Only on PRs, and only if the consolidation succeeded
+        # 仅在 PR 上，并且仅当合并成功时
         if: github.event_name == 'pull_request' && needs.consolidate-build-info.result == 'success'
         runs-on: ubuntu-24.04
         permissions:

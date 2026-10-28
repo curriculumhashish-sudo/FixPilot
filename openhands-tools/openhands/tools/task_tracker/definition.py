@@ -25,10 +25,10 @@ from openhands.sdk.tool import (
 
 logger = get_logger(__name__)
 
-# Type alias for task tracker status
+# 任务跟踪器状态的类型别名
 TaskTrackerStatusType = Literal["todo", "in_progress", "done"]
 
-# Models trained on other agents' todo tools send these names for our statuses.
+# 在其他智能体' 待办事项工具上训练的模型会发送这些名称来表示我们的状态。
 _STATUS_ALIASES: dict[str, TaskTrackerStatusType] = {
     "pending": "todo",
     "to_do": "todo",
@@ -58,7 +58,7 @@ class TaskItem(BaseModel):
 
 
 class TaskTrackerAction(Action):
-    """An action where the agent writes or updates a task list for task management."""
+    """智能体写入或更新任务列表以进行任务管理的操作。"""
 
     command: Literal["view", "plan"] = Field(
         default="view",
@@ -71,18 +71,18 @@ class TaskTrackerAction(Action):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation with task management styling."""
+        """返回具有任务管理样式的富文本表示形式。"""
         content = Text()
 
-        # Add command header with icon
+        # 添加带有图标的命令标题
         if self.command == "view":
             content.append("👀 ", style="blue")
             content.append("View Task List", style="blue")
-        else:  # plan
+        else:  # 计划
             content.append("📋 ", style="green")
             content.append("Update Task List", style="green")
 
-        # Show task count if planning
+        # 如果有计划，则显示任务数
         if self.command == "plan" and self.task_list:
             content.append(f" ({len(self.task_list)} tasks)")
 
@@ -90,7 +90,7 @@ class TaskTrackerAction(Action):
 
 
 class TaskTrackerObservation(Observation):
-    """This data class represents the result of a task tracking operation."""
+    """该数据类表示任务跟踪操作的结果。"""
 
     command: Literal["view", "plan"] = Field(
         description='The command that was executed: "view" or "plan".'
@@ -101,7 +101,7 @@ class TaskTrackerObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation with task list formatting."""
+        """返回具有任务列表格式的富文本表示形式。"""
         text = Text()
 
         if self.is_error:
@@ -109,22 +109,22 @@ class TaskTrackerObservation(Observation):
             text.append(self.ERROR_MESSAGE_HEADER, style="bold red")
 
         if self.task_list:
-            # Count tasks by status
+            # 按状态计数任务
             todo_count = sum(1 for task in self.task_list if task.status == "todo")
             in_progress_count = sum(
                 1 for task in self.task_list if task.status == "in_progress"
             )
             done_count = sum(1 for task in self.task_list if task.status == "done")
 
-            # Show status summary
+            # 显示状态摘要
             if self.command == "plan":
                 text.append("✅ ", style="green")
                 text.append("Task list updated: ", style="green")
-            else:  # view command
+            else:  # 查看命令
                 text.append("📋 ", style="blue")
                 text.append("Current task list: ", style="blue")
 
-            # Status counts
+            # 状态计数
             status_parts = []
             if todo_count:
                 status_parts.append(f"{todo_count} todo")
@@ -137,20 +137,20 @@ class TaskTrackerObservation(Observation):
                 text.append(", ".join(status_parts), style="white")
                 text.append("\n\n")
 
-            # Show the actual task list
+            # 显示实际任务列表
             for i, task in enumerate(self.task_list, 1):
-                # Status icon
+                # 状态图标
                 if task.status == "done":
                     text.append("✅ ", style="green")
                 elif task.status == "in_progress":
                     text.append("🔄 ", style="yellow")
-                else:  # todo
+                else:  # 待办事项
                     text.append("⏳ ", style="blue")
 
-                # Task title
+                # 任务标题
                 text.append(f"{i}. {task.title}", style="white")
 
-                # NEW: show notes under the title if present
+                # NEW：在标题下显示注释（如果存在）
                 if task.notes:
                     text.append("\n   Notes: " + task.notes, style="italic")
 
@@ -164,22 +164,22 @@ class TaskTrackerObservation(Observation):
 
 
 class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation]):
-    """Executor for the task tracker tool."""
+    """任务跟踪器工具的执行器。"""
 
     save_dir: Path | None
 
     def __init__(self, save_dir: str | None = None):
-        """Initialize TaskTrackerExecutor.
+        """初始化TaskTrackerExecutor。
 
         Args:
-            save_dir: Optional directory to save tasks to. If provided, tasks will be
-                     persisted to save_dir/TASKS.md
+            save_dir: 用于保存任务的可选目录。 如果提供，任务将是
+                     已持久化至save_dir/TASKS.md
         """
         self.save_dir = Path(save_dir) if save_dir else None
         logger.info(f"TaskTrackerExecutor initialized with save_dir: {self.save_dir}")
         self._task_list: list[TaskItem] = []
 
-        # Load existing tasks if save_dir is provided and file exists
+        # 如果提供了 save_dir 并且文件存在，则加载现有任务
         if self.save_dir:
             self._load_tasks()
 
@@ -188,11 +188,11 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
         action: TaskTrackerAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> TaskTrackerObservation:
-        """Execute the task tracker action."""
+        """执行任务跟踪器操作。"""
         if action.command == "plan":
-            # Update the task list
+            # 更新任务列表
             self._task_list = action.task_list
-            # Save to file if save_dir is provided
+            # 如果提供 save_dir，则保存到文件
             if self.save_dir:
                 self._save_tasks()
             return TaskTrackerObservation.from_text(
@@ -203,7 +203,7 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
                 task_list=self._task_list,
             )
         elif action.command == "view":
-            # Return the current task list
+            # 返回当前任务列表
             if not self._task_list:
                 return TaskTrackerObservation.from_text(
                     text=('No task list found. Use the "plan" command to create one.'),
@@ -228,7 +228,7 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
             )
 
     def _format_task_list(self, task_list: list[TaskItem]) -> str:
-        """Format the task list for display."""
+        """设置任务列表的格式以供显示。"""
         if not task_list:
             return "No tasks in the list."
 
@@ -249,7 +249,7 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
         return content.strip()
 
     def _load_tasks(self) -> None:
-        """Load tasks from the TASKS.json file if it exists."""
+        """从 TASKS.json 文件加载任务（如果存在）。"""
         if not self.save_dir:
             return
 
@@ -268,13 +268,13 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
             self._task_list = []
 
     def _save_tasks(self) -> None:
-        """Save tasks to the TASKS.json file."""
+        """将任务保存到 TASKS.json 文件。"""
         if not self.save_dir:
             return
 
         tasks_file = self.save_dir / "TASKS.json"
         try:
-            # Create the directory if it doesn't exist
+            # 如果目录不存在则创建
             self.save_dir.mkdir(parents=True, exist_ok=True)
 
             with open(tasks_file, "w", encoding="utf-8") as f:
@@ -284,7 +284,7 @@ class TaskTrackerExecutor(ToolExecutor[TaskTrackerAction, TaskTrackerObservation
             pass
 
 
-# Tool definition with detailed description
+# 工具定义及详细说明
 TASK_TRACKER_DESCRIPTION = """This tool provides structured task management capabilities for development workflows.
 It enables systematic tracking of work items, progress monitoring, and efficient
 organization of complex development activities.
@@ -419,7 +419,7 @@ systematic approach and ensures comprehensive requirement fulfillment."""  # noq
 
 
 class TaskTrackerTool(ToolDefinition[TaskTrackerAction, TaskTrackerObservation]):
-    """A ToolDefinition subclass that automatically initializes a TaskTrackerExecutor."""  # noqa: E501
+    """自动初始化 TaskTrackerExecutor 的 ToolDefinition 子类。"""  # noqa: E501
 
     catalog_description: ClassVar[str] = (
         "Keep a running task list to organise multi-step work."
@@ -428,16 +428,15 @@ class TaskTrackerTool(ToolDefinition[TaskTrackerAction, TaskTrackerObservation])
 
     @classmethod
     def create(cls, conv_state: "ConversationState") -> Sequence["TaskTrackerTool"]:
-        """Initialize TaskTrackerTool with a TaskTrackerExecutor.
+        """用 TaskTrackerExecutor 初始化 TaskTrackerTool。
 
         Args:
-            conv_state: Conversation state to get persistence directory from.
-                         If provided, save_dir will be taken from
-                         conv_state.persistence_dir
+            conv_state: 从中获取持久化目录的对话状态。
+                         如果提供，save_dir 将从 conv_state.persistence_dir 中获取
         """
         executor = TaskTrackerExecutor(save_dir=conv_state.persistence_dir)
 
-        # Initialize the parent Tool with the executor
+        # 使用执行器初始化父 Tool
         return [
             cls(
                 description=TASK_TRACKER_DESCRIPTION,
@@ -454,5 +453,5 @@ class TaskTrackerTool(ToolDefinition[TaskTrackerAction, TaskTrackerObservation])
         ]
 
 
-# Automatically register the tool when this module is imported
+# 导入此模块时自动注册该工具
 register_tool(TaskTrackerTool.name, TaskTrackerTool)

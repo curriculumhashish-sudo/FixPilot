@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Validate SDK reference for semantic versioning.
+验证语义版本控制的 SDK 参考。
 
-This script validates that the SDK reference is a semantic version (e.g., v1.0.0, 1.0.0)
-unless the allow_unreleased_branches flag is set.
+此脚本验证 SDK 引用是否是语义版本（e.g.、v1.0.0、1.0.0），除非设置了
+allow_unreleased_branches 标志。
 
-Environment variables:
-- SDK_REF: The SDK reference to validate
-- ALLOW_UNRELEASED_BRANCHES: If 'true', bypass semantic version validation
+环境变量：
+- SDK_REF: 要验证的 SDK 引用
+- ALLOW_UNRELEASED_BRANCHES: 如果为“True”，则绕过语义版本验证
 
-Exit codes:
-- 0: Validation passed
-- 1: Validation failed
+退出代码：
+- 0: 验证通过
+- 1: 验证失败
 """
 
 import os
@@ -20,31 +20,32 @@ import subprocess
 import sys
 
 
-# Semantic version pattern: optional 'v' prefix, followed by MAJOR.MINOR.PATCH
-# Optionally allows pre-release (-alpha.1, -beta.2, -rc.1) and build metadata
+# 语义版本模式：可选的“v”前缀，后跟 MAJOR.MINOR.PATCH 可选择允许预发布（-alpha.1、-beta.
+# 2、-rc.1）和构建元数据
+#
 SEMVER_PATTERN = re.compile(
-    r"^v?"  # Optional 'v' prefix
+    r"^v?"  # 可选的“v”前缀
     r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"  # MAJOR.MINOR.PATCH
-    r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"  # Pre-release
-    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"  # More pre-release
-    r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # Build metadata
+    r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"  # 预发布
+    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"  # 更多预发布内容
+    r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # 构建元数据
 )
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,40}$")
 BRANCH_EXAMPLES = "'main', 'feature/foo', or 'release/1.2.3'"
 
 
 def is_semantic_version(ref: str) -> bool:
-    """Check if the given reference is a valid semantic version."""
+    """检查给定的引用是否是有效的语义版本。"""
     return bool(SEMVER_PATTERN.match(ref))
 
 
 def is_commit_sha(ref: str) -> bool:
-    """Check if the given reference is a git commit SHA."""
+    """检查给定的引用是否是 git commit SHA。"""
     return bool(COMMIT_SHA_PATTERN.fullmatch(ref))
 
 
 def is_valid_branch_name(ref: str) -> bool:
-    """Check if the given reference is a valid git branch name."""
+    """检查给定的引用是否是有效的 git 分支名称。"""
     return (
         subprocess.run(
             ["git", "check-ref-format", "--branch", ref],
@@ -57,7 +58,7 @@ def is_valid_branch_name(ref: str) -> bool:
 
 
 def validate_branch_name(branch_name: str, input_name: str) -> tuple[bool, str]:
-    """Validate a workflow branch input against git branch naming rules."""
+    """根据 git 分支命名规则验证工作流分支输入。"""
     if is_valid_branch_name(branch_name):
         return True, f"Valid {input_name}: {branch_name}"
 
@@ -68,7 +69,7 @@ def validate_branch_name(branch_name: str, input_name: str) -> tuple[bool, str]:
 
 
 def validate_sdk_ref(sdk_ref: str, allow_unreleased: bool) -> tuple[bool, str]:
-    """Validate the SDK reference."""
+    """验证 SDK 引用。"""
     if is_semantic_version(sdk_ref):
         return True, f"Valid semantic version: {sdk_ref}"
 

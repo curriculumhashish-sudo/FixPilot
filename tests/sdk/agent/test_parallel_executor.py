@@ -1,4 +1,4 @@
-"""Tests for ParallelToolExecutor."""
+"""测试 ParallelToolExecutor。"""
 
 import threading
 import time
@@ -37,8 +37,7 @@ def test_single_action_bypasses_thread_pool():
 
 def test_multi_action_limit_one_runs_sequentially_on_caller_thread():
     """
-    When max_workers=1, multiple actions run on the calling thread,
-    not a pool thread.
+    当 max_workers=1 时，多个操作在调用方线程上运行，而不是在池线程上运行。
     """
     executor = ParallelToolExecutor(max_workers=1)
     actions: list[Any] = [MagicMock() for _ in range(3)]
@@ -51,20 +50,20 @@ def test_multi_action_limit_one_runs_sequentially_on_caller_thread():
 
     executor.execute_batch(actions, tool_runner)
 
-    # All calls should have run on the caller's thread, not a pool thread
+    # 所有调用都应该在调用者的线程上运行，而不是在池线程上运行
     assert all(t == caller_thread for t in observed_threads), (
         f"Expected all calls on {caller_thread}, got {observed_threads}"
     )
 
 
 def test_result_ordering_preserved_despite_variable_duration():
-    """Results are in input order even when later actions finish first."""
+    """即使后面的操作先完成，结果也按输入顺序排列。"""
     executor = ParallelToolExecutor()
     actions: list[Any] = [MagicMock() for _ in range(5)]
 
     def tool_runner(action: Any) -> list:
         idx = actions.index(action)
-        time.sleep((5 - idx) * 0.01)  # First action sleeps longest
+        time.sleep((5 - idx) * 0.01)  # 第一个动作睡眠时间最长
         return [f"result-{idx}"]
 
     results = executor.execute_batch(actions, tool_runner)
@@ -79,7 +78,7 @@ def test_result_ordering_preserved_despite_variable_duration():
 
 
 def test_actions_run_concurrently():
-    """Verify that actions actually run in parallel, not sequentially."""
+    """验证操作实际上是并行运行的，而不是顺序运行的。"""
     executor = ParallelToolExecutor(max_workers=4)
     actions: list[Any] = [MagicMock() for _ in range(4)]
     max_concurrent = [0]
@@ -101,7 +100,7 @@ def test_actions_run_concurrently():
 
 
 def test_concurrency_limited_by_max_workers():
-    """Concurrency does not exceed the configured limit."""
+    """并发未超出配置的限制。"""
     executor = ParallelToolExecutor(max_workers=2)
     actions: list[Any] = [MagicMock() for _ in range(6)]
     concurrent_count: list[int] = []
@@ -123,7 +122,7 @@ def test_concurrency_limited_by_max_workers():
 
 
 def test_multiple_events_per_action():
-    """tool_runner can return multiple events for a single action."""
+    """tool_runner 可以为单个操作返回多个事件。"""
     executor = ParallelToolExecutor()
     actions: list[Any] = [MagicMock(), MagicMock()]
 
@@ -138,7 +137,7 @@ def test_multiple_events_per_action():
 
 
 def _make_action(name: str = "test_tool", tool_call_id: str = "call_1") -> Any:
-    """Create a mock ActionEvent with required fields."""
+    """创建包含必填字段的模拟对象 ActionEvent。"""
     action = MagicMock()
     action.tool_name = name
     action.tool_call_id = tool_call_id
@@ -146,7 +145,7 @@ def _make_action(name: str = "test_tool", tool_call_id: str = "call_1") -> Any:
 
 
 def test_error_returns_agent_error_event_for_single_action():
-    """Single action errors are wrapped in AgentErrorEvent."""
+    """单个操作错误包含在 AgentErrorEvent 中。"""
     executor = ParallelToolExecutor()
     action = _make_action("my_tool", "call_1")
 
@@ -162,8 +161,7 @@ def test_error_returns_agent_error_event_for_single_action():
 
 def test_error_returns_agent_error_event_in_batch():
     """
-    ValueErrors in a batch produce AgentErrorEvents
-    successful results are preserved.
+    ValueErrors批量产生AgentErrorEvents成功的结果被保存。
     """
     executor = ParallelToolExecutor()
     actions = [
@@ -190,7 +188,7 @@ def test_error_returns_agent_error_event_in_batch():
 
 
 def test_all_exceptions_wrapped_in_agent_error_event():
-    """All exceptions are caught and converted to AgentErrorEvent."""
+    """所有异常都会被捕获并转换为 AgentErrorEvent。"""
     executor = ParallelToolExecutor()
     actions = [
         _make_action("tool_a", "call_0"),
@@ -212,10 +210,10 @@ def test_all_exceptions_wrapped_in_agent_error_event():
 
 
 def test_nested_execution_no_deadlock():
-    """Nested execute_batch (subagent scenario) does not deadlock.
+    """嵌套 execute_batch（子智能体场景）不会死锁。
 
-    The outer executor has max_workers=1. The subagent tool creates its
-    own executor — since pools are per-instance, no thread starvation.
+    外层执行器 max_workers 的值为 1。 子智能体工具创建自己的执行器 - 因为池是每个实例
+    的，所以没有线程饥饿。
     """
     outer_executor = ParallelToolExecutor(max_workers=1)
 

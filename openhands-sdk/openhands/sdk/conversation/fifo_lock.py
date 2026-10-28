@@ -1,8 +1,8 @@
 """
-FIFO Lock implementation that guarantees first-in-first-out access ordering.
+FIFO 锁保证先进先出访问顺序的实现。
 
-This provides fair lock access where threads acquire the lock in the exact order
-they requested it, preventing starvation that can occur with standard RLock.
+这提供了公平的锁访问，其中线程按照其请求的确切顺序获取锁，从而防止标准 RLock 可能发生
+的饥饿情况。
 """
 
 import threading
@@ -13,53 +13,49 @@ from typing import Any, Self
 
 class FIFOLock:
     """
-    A reentrant lock that guarantees FIFO (first-in-first-out) access ordering.
+    保证 FIFO (先进先出) 访问顺序的可重入锁。
 
-    Unlike Python's standard RLock, this lock ensures that threads acquire
-    the lock in the exact order they requested it, providing fairness and
-    preventing lock starvation.
+    不同于Python的默认RLock，这个锁确保了线程按照他们请求的顺序获取锁，提供公平性并防
+    止锁饥饿。
 
-    Features:
-    - Reentrant: Same thread can acquire multiple times
-    - FIFO ordering: Threads get lock in request order
-    - Context manager support: Use with 'with' statement
-    - Thread-safe: Safe for concurrent access
+    特点：
+    - Reentrant: 相同的线程可以多次获取
+    - FIFO 排序：线程按请求顺序获取锁
+    - 上下文管理器支持：与 'with' 语句一起使用
+    - 线程安全：并发访问安全
 
-    Note: reentrancy is keyed by OS thread id, not by asyncio task, so the
-    lock does NOT serialize concurrent coroutines on the same event-loop
-    thread - each re-enters it. Only hold it across an ``await`` when no
-    other task on that thread can acquire it.
+    Note: 可重入性由 OS 线程 id 键入，而不是由 asyncio 任务键入，因此
+    锁在同一个事件循环线程上执行不序列化并发协程 - 每个都重新进入它。 仅当线程上没有
+    其他任务可以获取它时，才将其跨过 ``await``。
     """
 
     _mutex: threading.Lock
     _count: int
 
     def __init__(self) -> None:
-        self._mutex = threading.Lock()  # Protects internal state
-        self._waiters: deque[threading.Condition] = (
-            deque()
-        )  # FIFO queue of waiting threads
-        self._owner: int | None = None  # Current lock owner thread ID
-        self._count = 0  # Reentrancy counter
+        self._mutex = threading.Lock()  # 保护内部状态
+        self._waiters: deque[threading.Condition] = deque()  # FIFO 等待队列线程
+        self._owner: int | None = None  # 当前锁所有者线程 ID
+        self._count = 0  # 可重入性计数器
 
     def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
         """
-        Acquire the lock.
+        获取锁。
 
         Args:
-            blocking: If True, block until lock is acquired. If False, return
-                     immediately.
-            timeout: Maximum time to wait for lock (ignored if blocking=False).
-                    -1 means wait indefinitely.
+            blocking: 如果True，则阻塞直到获取锁。 如果False，则返回
+                     立即。
+            timeout: 等待锁的最长时间（如果阻塞=False，则忽略）。
+                    -1 表示无限期等待。
 
         Returns:
-            True if lock was acquired, False otherwise.
+            如果获取了锁，则为 True，否则为 False。
         """
         ident = threading.get_ident()
         start = time.monotonic()
 
         with self._mutex:
-            # Reentrant case
+            # 可重入案例
             if self._owner == ident:
                 self._count += 1
                 return True
@@ -70,15 +66,15 @@ class FIFOLock:
                 return True
 
             if not blocking:
-                # Give up immediately
+                # 立即放弃
                 return False
 
-            # Add to wait queue
+            # 添加到等待队列
             me = threading.Condition(self._mutex)
             self._waiters.append(me)
 
             while True:
-                # If I'm at the front of the queue and nobody owns it → acquire
+                # 如果我排在队列的前面并且没有人拥有它 → 获取
                 if self._waiters[0] is me and self._owner is None:
                     self._waiters.popleft()
                     self._owner = ident
@@ -96,10 +92,10 @@ class FIFOLock:
 
     def release(self) -> None:
         """
-        Release the lock.
+        释放锁。
 
         Raises:
-            RuntimeError: If the current thread doesn't own the lock.
+            RuntimeError: 如果当前的线程不拥有锁。
         """
         ident = threading.get_ident()
         with self._mutex:
@@ -115,10 +111,10 @@ class FIFOLock:
                     self._waiters[0].notify()
 
     def release_all(self) -> int:
-        """Drop all reentrant levels at once, returning the prior depth.
+        """立即删除所有可重入级别，返回之前的深度。
 
-        Hands the lock to the next FIFO waiter, so it can be restored later with
-        :meth:`reacquire`. Raises RuntimeError if not owned by the current thread.
+        将锁交给下一个 FIFO 等待者，以便稍后可以恢复
+        ：方法：`reacquire`。 如果不属于当前线程，则引发 RuntimeError。
         """
         ident = threading.get_ident()
         with self._mutex:
@@ -132,7 +128,7 @@ class FIFOLock:
         return depth
 
     def reacquire(self, depth: int) -> None:
-        """Re-acquire (FIFO-fair) and restore the ``depth`` from release_all()."""
+        """重新获取(FIFO-公平)并从release_all()恢复``depth``。"""
         if depth <= 0:
             return
         self.acquire()
@@ -140,24 +136,24 @@ class FIFOLock:
             self._count = depth
 
     def __enter__(self: Self) -> Self:
-        """Context manager entry."""
+        """上下文管理器条目。"""
         self.acquire()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Context manager exit."""
+        """上下文管理器退出。"""
         self.release()
 
     def locked(self) -> bool:
         """
-        Return True if the lock is currently held by any thread.
+        如果锁当前被任意线程持有，则返回 True。
         """
         with self._mutex:
             return self._owner is not None
 
     def owned(self) -> bool:
         """
-        Return True if the lock is currently held by the calling thread.
+        如果锁当前由调用方线程持有，则返回 True。
         """
         with self._mutex:
             return self._owner == threading.get_ident()

@@ -1,12 +1,12 @@
 """
-API Compliance Test: Interleaved Assistant Message
+API 合规性测试：交错助理消息
 
-Tests how different LLM APIs respond when an assistant message (without tool_calls)
-appears between tool_use and tool_result.
+测试不同 LLM APIs 在 tool_use 和 tool_result 之间出现助手消息（没有 tool_calls）时的
+响应。
 
-Pattern:
+图案：
     [assistant with tool_use] → [assistant message] → [tool_result]
-                                 ↑ Another assistant turn before tool_result!
+                                 ↑ tool_result之前又一个助手转了！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -26,7 +26,7 @@ This pattern might occur in edge cases with:
 
 
 class InterleavedAssistantMessageTest(BaseAPIComplianceTest):
-    """Test API response to interleaved assistant message."""
+    """测试 API 对交错助理消息的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -37,7 +37,7 @@ class InterleavedAssistantMessageTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with interleaved assistant message."""
+        """使用交错的辅助消息构建消息序列。"""
         return [
             Message(
                 role="system",
@@ -47,7 +47,7 @@ class InterleavedAssistantMessageTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="List the files in the current directory.")],
             ),
-            # First assistant message with tool_use
+            # 第一助理消息 tool_use
             Message(
                 role="assistant",
                 content=[TextContent(text="I'll list the files for you.")],
@@ -60,12 +60,12 @@ class InterleavedAssistantMessageTest(BaseAPIComplianceTest):
                     )
                 ],
             ),
-            # INTERLEAVED: Another assistant message without tool_calls
+            # INTERLEAVED：另一条没有tool_calls的助理消息
             Message(
                 role="assistant",
                 content=[TextContent(text="The command is running...")],
             ),
-            # Tool result comes AFTER the interleaved assistant message
+            # 工具结果来之后交错的辅助消息
             Message(
                 role="tool",
                 content=[TextContent(text="file1.txt\nfile2.txt")],

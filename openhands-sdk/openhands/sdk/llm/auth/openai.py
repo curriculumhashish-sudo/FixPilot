@@ -1,11 +1,11 @@
-"""OpenAI subscription-based authentication via OAuth.
+"""OpenAI 基于订阅身份验证通过 OAuth。
 
-This module implements OAuth PKCE flow for authenticating with OpenAI's ChatGPT
-service, allowing users with ChatGPT Plus/Pro subscriptions to use Codex models
-without consuming API credits.
+该模块实现了 PKCE 流程，用于与 OpenAI's ChatGPT 服务进行身份验证，允许 ChatGPT Plus/
+Pro 订阅的用户使用 Codex 模型而无需消耗
+ API 信用。
 
-Uses joserfc for JWT handling, authlib for OAuth utilities, and aiohttp for the
-callback server.
+使用 joserfc 进行 JWT 处理，使用 authlib 进行 OAuth 实用程序，使用 aiohttp 进行回调服
+务器。
 """
 
 from __future__ import annotations
@@ -39,15 +39,15 @@ from openhands.sdk.logger import get_logger
 if TYPE_CHECKING:
     from openhands.sdk.llm.llm import LLM
 
-# Supported vendors for subscription-based authentication.
-# Add new vendors here as they become supported.
+# 支持基于订阅的供应商身份验证。 当新供应商获得支持时，在此处添加它们。
+#
 SupportedVendor = Literal["openai"]
 OpenAIAuthMethod = Literal["browser", "device_code"]
 
 logger = get_logger(__name__)
 
 # =========================================================================
-# Consent banner constants
+# 同意横幅常量
 # =========================================================================
 
 CONSENT_BANNER = """\
@@ -60,39 +60,39 @@ CONSENT_MARKER_FILENAME = ".chatgpt_consent_acknowledged"
 
 
 def _get_consent_marker_path() -> Path:
-    """Get the path to the consent acknowledgment marker file."""
+    """获取同意确认标记文件的路径。"""
     return get_credentials_dir() / CONSENT_MARKER_FILENAME
 
 
 def _has_acknowledged_consent() -> bool:
-    """Check if the user has previously acknowledged the consent disclaimer."""
+    """检查用户之前是否已确认同意免责声明。"""
     return _get_consent_marker_path().exists()
 
 
 def _mark_consent_acknowledged() -> None:
-    """Mark that the user has acknowledged the consent disclaimer."""
+    """标记用户已承认同意免责声明。"""
     marker_path = _get_consent_marker_path()
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     marker_path.touch()
 
 
 def _display_consent_and_confirm() -> bool:
-    """Display consent banner and get user confirmation.
+    """显示同意横幅并获得用户确认。
 
     Returns:
-        True if user confirms, False otherwise.
+        True 如果用户确认，False 否则。
 
     Raises:
-        RuntimeError: If running in non-interactive mode without prior consent.
+        RuntimeError: 如果未经事先同意以非交互模式运行。
     """
     is_first_time = not _has_acknowledged_consent()
 
-    # Always show the consent banner
+    # 始终显示同意横幅
     print("\n" + "=" * 70)
     print(CONSENT_BANNER)
     print("=" * 70 + "\n")
 
-    # Check if we're in an interactive terminal
+    # 检查我们是否处于交互式终端中
     if not sys.stdin.isatty():
         if is_first_time:
             raise RuntimeError(
@@ -100,11 +100,11 @@ def _display_consent_and_confirm() -> bool:
                 "and consent has not been previously acknowledged. Please run "
                 "interactively first to acknowledge the terms."
             )
-        # Non-interactive but consent was previously given - proceed
+        # 非交互式但已事先同意 - 继续
         logger.info("Non-interactive mode: using previously acknowledged consent")
         return True
 
-    # Interactive mode: prompt for confirmation
+    # 交互模式：提示词确认
     try:
         response = input("Do you want to continue? [y/N]: ").strip().lower()
         if response in ("y", "yes"):
@@ -113,23 +113,23 @@ def _display_consent_and_confirm() -> bool:
             return True
         return False
     except (EOFError, KeyboardInterrupt):
-        print()  # Newline after ^C
+        print()  # ^C 后换行
         return False
 
 
-# OAuth configuration for OpenAI Codex
-# This is a public client ID for OpenAI's OAuth flow (safe to commit)
+# OpenAI Codex OAuth 配置。这是 OpenAI 的 OAuth 流程的公共客户端 ID（安全提交）
+#
 CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 ISSUER = "https://auth.openai.com"
 JWKS_URL = f"{ISSUER}/.well-known/jwks.json"
 CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 DEFAULT_OAUTH_PORT = 1455
-OAUTH_TIMEOUT_SECONDS = 300  # 5 minutes
-DEVICE_CODE_TIMEOUT_SECONDS = 900  # 15 minutes
-JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour
+OAUTH_TIMEOUT_SECONDS = 300  # 5分钟
+DEVICE_CODE_TIMEOUT_SECONDS = 900  # 15分钟
+JWKS_CACHE_TTL_SECONDS = 3600  # 1小时
 
 
-# Models available via ChatGPT subscription (not API).
+# 可通过 ChatGPT 订阅（而非 API）获得模型。
 OPENAI_CODEX_MODELS = frozenset(
     {
         "gpt-6.1-sol",
@@ -144,9 +144,9 @@ OPENAI_CODEX_MODELS = frozenset(
 )
 
 
-# Thread-safe JWKS cache
+# 线程安全JWKS缓存
 class _JWKSCache:
-    """Thread-safe cache for OpenAI's JWKS (JSON Web Key Set)."""
+    """线程安全缓存 OpenAI 的 JWKS（JSON Web 键集）。"""
 
     def __init__(self) -> None:
         self._keys: jwk.KeySetSerialization = {"keys": []}
@@ -154,13 +154,13 @@ class _JWKSCache:
         self._lock = threading.Lock()
 
     def get_key_set(self) -> jwk.KeySet:
-        """Get the JWKS, fetching from OpenAI if cache is stale or empty.
+        """获取 JWKS，如果缓存已过时或为空，则从 OpenAI 获取。
 
         Returns:
-            KeySet for verifying JWT signatures.
+            KeySet 用于验证 JWT 签名。
 
         Raises:
-            RuntimeError: If JWKS cannot be fetched.
+            RuntimeError: 如果无法获取JWKS。
         """
         with self._lock:
             now = time.time()
@@ -172,7 +172,7 @@ class _JWKSCache:
             return jwk.KeySet.import_key_set(self._keys)
 
     def _fetch_jwks(self) -> None:
-        """Fetch JWKS from OpenAI's well-known endpoint."""
+        """从 OpenAI 的众所周知的端点中获取 JWKS。"""
         try:
             with Client(timeout=10) as client:
                 response = client.get(JWKS_URL)
@@ -186,7 +186,7 @@ class _JWKSCache:
             raise RuntimeError(f"Failed to fetch OpenAI JWKS: {e}") from e
 
     def clear(self) -> None:
-        """Clear the cache (useful for testing)."""
+        """清除缓存（对于测试有用）。"""
         with self._lock:
             self._keys = {"keys": []}
             self._fetched_at = 0
@@ -196,35 +196,34 @@ _jwks_cache = _JWKSCache()
 
 
 def _generate_pkce() -> tuple[str, str]:
-    """Generate PKCE verifier and challenge using authlib."""
+    """使用 authlib 生成 PKCE 验证程序和质询。"""
     verifier = generate_token(43)
     challenge = create_s256_code_challenge(verifier)
     return verifier, challenge
 
 
 def _extract_chatgpt_account_id(access_token: str) -> str | None:
-    """Extract chatgpt_account_id from JWT access token with signature verification.
+    """通过签名验证从 JWT 访问令牌中提取 chatgpt_account_id。
 
-    Verifies the JWT signature using OpenAI's published JWKS before extracting
-    claims. This prevents attacks where a manipulated token could be injected
-    through OAuth callback interception.
+    在提取声明之前，使用 OpenAI 发布的 JWKS 验证 JWT 签名。 这可以防止通过 OAuth 回调
+    拦截注入被操纵的 token 的攻击。
 
     Args:
-        access_token: The JWT access token from OAuth flow
+        access_token: OAuth 流程中的 JWT 访问令牌
 
     Returns:
-        The chatgpt_account_id if found and signature is valid, None otherwise
+        如果找到且签名有效则为 chatgpt_account_id，否则为 None
     """
     try:
-        # Fetch JWKS and verify JWT signature
+        # 获取 JWKS 并验证 JWT 签名
         key_set = _jwks_cache.get_key_set()
         token = jwt.decode(access_token, key_set)
 
-        # Validate standard claims (issuer)
+        # 验证标准声明（发行者）
         claims_registry = jwt.JWTClaimsRegistry()
         claims_registry.validate(token.claims)
 
-        # Extract account ID from nested structure
+        # 从嵌套结构中提取帐户 ID
         auth_info = token.claims.get("https://api.openai.com/auth", {})
         account_id = auth_info.get("chatgpt_account_id")
 
@@ -239,7 +238,7 @@ def _extract_chatgpt_account_id(access_token: str) -> str | None:
         logger.warning(f"JWT signature verification failed: {e}")
         return None
     except RuntimeError as e:
-        # JWKS fetch failed - log but don't crash
+        # JWKS 获取失败 - 记录但不崩溃
         logger.warning(f"Could not verify JWT: {e}")
         return None
     except Exception as e:
@@ -248,7 +247,7 @@ def _extract_chatgpt_account_id(access_token: str) -> str | None:
 
 
 def _build_authorize_url(redirect_uri: str, code_challenge: str, state: str) -> str:
-    """Build the OAuth authorization URL."""
+    """构建 OAuth 授权 URL。"""
     params = {
         "response_type": "code",
         "client_id": CLIENT_ID,
@@ -267,7 +266,7 @@ def _build_authorize_url(redirect_uri: str, code_challenge: str, state: str) -> 
 async def _exchange_code_for_tokens(
     code: str, redirect_uri: str, code_verifier: str
 ) -> dict[str, Any]:
-    """Exchange authorization code for tokens."""
+    """将授权代码交换为 token。"""
     async with AsyncClient() as client:
         response = await client.post(
             f"{ISSUER}/oauth/token",
@@ -287,7 +286,7 @@ async def _exchange_code_for_tokens(
 
 @dataclass(frozen=True)
 class DeviceCode:
-    """OpenAI device authorization details."""
+    """OpenAI 设备授权详细信息。"""
 
     verification_url: str
     user_code: str
@@ -296,7 +295,7 @@ class DeviceCode:
 
 
 async def _request_device_code() -> DeviceCode:
-    """Request a device code for headless ChatGPT sign-in."""
+    """请求用于无头 ChatGPT 登录的设备代码。"""
     async with AsyncClient() as client:
         response = await client.post(
             f"{ISSUER}/api/accounts/deviceauth/usercode",
@@ -334,9 +333,9 @@ async def _request_device_code() -> DeviceCode:
 
 
 async def _poll_device_code_once(device_code: DeviceCode) -> dict[str, Any] | None:
-    """Poll once for an OpenAI device login result.
+    """轮询一次以获取 OpenAI 设备登录结果。
 
-    Returns ``None`` while authorization is still pending.
+    当授权仍待处理时返回 ``None``。
     """
     async with AsyncClient() as client:
         response = await client.post(
@@ -358,7 +357,7 @@ async def _poll_device_code_once(device_code: DeviceCode) -> dict[str, Any] | No
 
 
 async def _poll_device_code(device_code: DeviceCode) -> dict[str, Any]:
-    """Poll until OpenAI issues an authorization code for a device login."""
+    """轮询直到 OpenAI 发出用于设备登录的授权代码。"""
     deadline = time.monotonic() + DEVICE_CODE_TIMEOUT_SECONDS
 
     while time.monotonic() < deadline:
@@ -374,7 +373,7 @@ async def _poll_device_code(device_code: DeviceCode) -> dict[str, Any]:
 
 
 async def _refresh_access_token(refresh_token: str) -> dict[str, Any]:
-    """Refresh the access token using a refresh token."""
+    """使用刷新令牌刷新访问令牌。"""
     async with AsyncClient() as client:
         response = await client.post(
             f"{ISSUER}/oauth/token",
@@ -391,7 +390,7 @@ async def _refresh_access_token(refresh_token: str) -> dict[str, Any]:
 
 
 def _refresh_access_token_sync(refresh_token: str) -> dict[str, Any]:
-    """Synchronously refresh the access token using a refresh token."""
+    """使用刷新令牌同步刷新访问令牌。"""
     with Client() as client:
         response = client.post(
             f"{ISSUER}/oauth/token",
@@ -407,7 +406,7 @@ def _refresh_access_token_sync(refresh_token: str) -> dict[str, Any]:
         return response.json()
 
 
-# HTML templates for OAuth callback
+# HTML OAuth 模板回调
 _HTML_SUCCESS = """<!DOCTYPE html>
 <html>
 <head>
@@ -457,44 +456,44 @@ _HTML_ERROR = """<!DOCTYPE html>
 
 
 class OpenAISubscriptionAuth:
-    """Handle OAuth authentication for OpenAI ChatGPT subscription access."""
+    """处理 OpenAI ChatGPT 订阅访问的 OAuth 身份验证。"""
 
     def __init__(
         self,
         credential_store: CredentialStore | None = None,
         oauth_port: int = DEFAULT_OAUTH_PORT,
     ):
-        """Initialize the OpenAI subscription auth handler.
+        """初始化 OpenAI 订阅身份验证处理程序。
 
         Args:
-            credential_store: Optional custom credential store.
-            oauth_port: Port for the local OAuth callback server.
+            credential_store: 可选自定义凭据商店。
+            oauth_port: 本地 OAuth 回调服务器的端口。
         """
         self._credential_store = credential_store or CredentialStore()
         self._oauth_port = oauth_port
 
     @property
     def vendor(self) -> str:
-        """Get the vendor name."""
+        """获取供应商名称。"""
         return "openai"
 
     def get_credentials(self) -> OAuthCredentials | None:
-        """Get stored credentials if they exist."""
+        """如果存在，则存储凭据。"""
         return self._credential_store.get(self.vendor)
 
     def has_valid_credentials(self) -> bool:
-        """Check if valid (non-expired) credentials exist."""
+        """检查是否存在有效（未过期）凭据。"""
         creds = self.get_credentials()
         return creds is not None and not creds.is_expired()
 
     async def refresh_if_needed(self) -> OAuthCredentials | None:
-        """Refresh credentials if they are expired.
+        """如果过期，请刷新凭据。
 
         Returns:
-            Updated credentials, or None if no credentials exist.
+            更新凭据，如果不存在凭据，则更新 None。
 
         Raises:
-            RuntimeError: If token refresh fails.
+            RuntimeError: 如果token刷新失败。
         """
         creds = self.get_credentials()
         if creds is None:
@@ -514,7 +513,7 @@ class OpenAISubscriptionAuth:
         return updated
 
     def refresh_if_needed_sync(self) -> OAuthCredentials | None:
-        """Synchronously refresh credentials if they are expired."""
+        """如果过期则同步刷新凭据。"""
         creds = self.get_credentials()
         if creds is None:
             return None
@@ -536,23 +535,21 @@ class OpenAISubscriptionAuth:
         open_browser: bool = True,
         auth_method: OpenAIAuthMethod = "browser",
     ) -> OAuthCredentials:
-        """Perform OAuth login flow.
+        """执行 OAuth 登录流程。
 
-        The browser method starts a local HTTP server to handle the OAuth
-        callback, opens the browser for user authentication, and waits for the
-        callback with the authorization code. The device-code method prints a
-        URL and one-time code, then polls until the browser-side authorization
-        completes.
+        browser 方法启动本地 HTTP 服务器来处理 OAuth 回调，为用户身份验证打开浏览器，
+        并等待回调和授权代码。 设备代码方法打印 URL 和一次性
+        代码，然后轮询直到浏览器端授权完成。
 
         Args:
-            open_browser: Whether to automatically open the browser.
-            auth_method: Login method to use: "browser" or "device_code".
+            open_browser: 是否自动打开浏览器。
+            auth_method: 使用的登录方法：“浏览器”或“device_code”。
 
         Returns:
-            The obtained OAuth credentials.
+            获得的OAuth凭据。
 
         Raises:
-            RuntimeError: If the OAuth flow fails or times out.
+            RuntimeError: 如果 OAuth 流程失败或超时。
         """
         if auth_method == "device_code":
             return await self._login_with_device_code()
@@ -564,10 +561,10 @@ class OpenAISubscriptionAuth:
         redirect_uri = f"http://localhost:{self._oauth_port}/auth/callback"
         auth_url = _build_authorize_url(redirect_uri, code_challenge, state)
 
-        # Future to receive callback result
+        # 未来将收到回调结果
         callback_future: asyncio.Future[dict[str, Any]] = asyncio.Future()
 
-        # Create aiohttp app for callback
+        # 为回调创建 aiohttp 应用程序
         app = web.Application()
 
         async def handle_callback(request: web.Request) -> web.Response:
@@ -674,15 +671,15 @@ class OpenAISubscriptionAuth:
             await runner.cleanup()
 
     async def start_device_login(self) -> DeviceCode:
-        """Start a device-code OAuth login flow without polling."""
+        """启动设备代码 OAuth 登录流程而不进行轮询。"""
         return await _request_device_code()
 
     async def poll_device_login(
         self, device_code: DeviceCode, *, persist: bool = True
     ) -> OAuthCredentials | None:
-        """Poll once for a device-code OAuth login result.
+        """轮询一次设备代码 OAuth 登录结果。
 
-        Returns ``None`` while authorization is still pending.
+        当授权仍待处理时返回 ``None``。
         """
         code_response = await _poll_device_code_once(device_code)
         if code_response is None:
@@ -690,7 +687,7 @@ class OpenAISubscriptionAuth:
         return await self._complete_device_login(code_response, persist=persist)
 
     async def _login_with_device_code(self) -> OAuthCredentials:
-        """Perform device-code OAuth login flow."""
+        """执行设备代码 OAuth 登录流程。"""
         device_code = await _request_device_code()
         logger.info(
             "Open this URL in your browser and enter the one-time code:\n"
@@ -711,9 +708,9 @@ class OpenAISubscriptionAuth:
     async def _complete_device_login(
         self, code_response: dict[str, Any], *, persist: bool = True
     ) -> OAuthCredentials:
-        """Exchange a completed device auth response.
+        """交换已完成的设备身份验证响应。
 
-        Optionally persists credentials after the exchange succeeds.
+        交换成功后可选择保留凭据。
         """
         try:
             authorization_code = code_response["authorization_code"]
@@ -740,18 +737,18 @@ class OpenAISubscriptionAuth:
         return credentials
 
     def save_credentials(self, credentials: OAuthCredentials) -> None:
-        """Persist OpenAI subscription credentials."""
+        """持久化OpenAI订阅凭据。"""
         self._credential_store.save(credentials)
 
     def extract_chatgpt_account_id(self, credentials: OAuthCredentials) -> str | None:
-        """Return the ChatGPT account id for request headers, if present."""
+        """返回请求标头的 ChatGPT 帐户 ID（如果存在）。"""
         return _extract_chatgpt_account_id(credentials.access_token)
 
     def logout(self) -> bool:
-        """Remove stored credentials.
+        """删除存储的凭据。
 
         Returns:
-            True if credentials were removed, False if none existed.
+            如果凭据被删除，则为 True；如果 None 存在，则为 False。
         """
         return self._credential_store.delete(self.vendor)
 
@@ -762,19 +759,19 @@ class OpenAISubscriptionAuth:
         instructions: str | None = None,
         **llm_kwargs: Any,
     ) -> LLM:
-        """Create an LLM instance configured for Codex subscription access.
+        """创建一个配置用于 Codex 订阅访问的 LLM 实例。
 
         Args:
-            model: The model to use (must be in OPENAI_CODEX_MODELS).
-            credentials: OAuth credentials to use. If None, uses stored credentials.
-            instructions: Optional instructions for the Codex model.
-            **llm_kwargs: Additional arguments to pass to LLM constructor.
+            model: 要使用的模型（必须位于 OPENAI_CODEX_MODELS 中）。
+            credentials: OAuth 凭据使用。 如果 None, 使用存储的凭据。
+            instructions: Codex 模型的可选说明。
+            **llm_kwargs: 要传递给 LLM 构造函数的其他参数。
 
         Returns:
-            An LLM instance configured for Codex access.
+            配置用于 Codex 访问的 LLM 实例。
 
         Raises:
-            ValueError: If the model is not supported or no credentials available.
+            ValueError: 如果该型号不受支持或没有可用的凭据。
         """
         from openhands.sdk.llm.llm import LLM
 
@@ -797,14 +794,14 @@ class OpenAISubscriptionAuth:
                 "API requests may fail."
             )
 
-        # Build extra_body with Codex-specific params
+        # 使用 Codex 特定参数构建 extra_body
         extra_body: dict[str, Any] = {"store": False}
         if instructions:
             extra_body["instructions"] = instructions
         if "litellm_extra_body" in llm_kwargs:
             extra_body.update(llm_kwargs.pop("litellm_extra_body"))
 
-        # Build headers matching OpenAI's official Codex CLI
+        # 构建与 OpenAI 的官方 Codex CLI 匹配的标头
         extra_headers: dict[str, str] = {
             "originator": "codex_cli_rs",
             "OpenAI-Beta": "responses=experimental",
@@ -813,7 +810,7 @@ class OpenAISubscriptionAuth:
         if account_id:
             extra_headers["chatgpt-account-id"] = account_id
 
-        # Codex API requires streaming and doesn't support temperature/max_output_tokens
+        # Codex API 需要流式传输，但不支持温度/max_output_tokens
         llm = LLM(
             model=f"openai/{model}",
             base_url=CODEX_API_ENDPOINT.rsplit("/", 1)[0],
@@ -828,7 +825,7 @@ class OpenAISubscriptionAuth:
             **llm_kwargs,
         )
         llm.is_subscription = True
-        # Ensure these stay None even if model info tried to set them
+        # 确保这些保持 None，即使模型信息尝试设置它们
         llm.max_output_tokens = None
         llm._effective_max_output_tokens = None
         llm.temperature = None
@@ -848,27 +845,26 @@ async def subscription_login_async(
     skip_consent: bool = False,
     **llm_kwargs: Any,
 ) -> LLM:
-    """Authenticate with a subscription and return an LLM instance.
+    """使用订阅进行身份验证并返回 LLM 实例。
 
-    This is the main entry point for subscription-based LLM access.
-    It handles credential caching, token refresh, and login flow.
+    这是基于订阅的 LLM 访问的主要入口。 它处理凭据缓存、token 刷新和登录流程。
 
     Args:
-        vendor: The vendor/provider (currently only "openai" is supported).
-        model: The model to use.
-        force_login: If True, always perform a fresh login.
-        open_browser: Whether to automatically open the browser for login.
-        auth_method: Login method to use: "browser" or "device_code".
-        skip_consent: If True, skip the consent prompt (for programmatic use
-            where consent has been obtained through other means).
-        **llm_kwargs: Additional arguments to pass to LLM constructor.
+        vendor: 供应商/提供商（当前仅支持“OpenAI”）。
+        model: 要使用的模型。
+        force_login: 如果 True，则始终执行全新登录。
+        open_browser: 是否自动打开浏览器登录。
+        auth_method: 使用的登录方法：“浏览器”或“device_code”。
+        skip_consent: 如果 True，则跳过同意提示词（用于编程使用
+            已通过其他方式取得同意的情况）。
+        **llm_kwargs: 要传递给 LLM 构造函数的其他参数。
 
     Returns:
-        An LLM instance configured for subscription access.
+        配置用于订阅访问的 LLM 实例。
 
     Raises:
-        ValueError: If the vendor is not supported.
-        RuntimeError: If authentication fails or user declines consent.
+        ValueError: 如果供应商不受支持。
+        RuntimeError: 如果身份验证失败或用户拒绝同意。
 
     Example:
         >>> import asyncio
@@ -882,28 +878,28 @@ async def subscription_login_async(
 
     auth = OpenAISubscriptionAuth()
 
-    # Check for existing valid credentials
+    # 检查现有的有效凭据
     if not force_login:
         creds = await auth.refresh_if_needed()
         if creds is not None:
             logger.info("Using existing OpenAI credentials")
             return auth.create_llm(model=model, credentials=creds, **llm_kwargs)
 
-    # Display consent banner and get confirmation before login
+    # 显示同意横幅并在登录前获得确认
     if not skip_consent:
         if not _display_consent_and_confirm():
             raise RuntimeError("User declined to continue with ChatGPT sign-in")
 
-    # Perform login
+    # 执行登录
     creds = await auth.login(open_browser=open_browser, auth_method=auth_method)
     return auth.create_llm(model=model, credentials=creds, **llm_kwargs)
 
 
 def create_subscription_llm_from_config(llm: LLM) -> LLM:
-    """Create a runtime subscription LLM from a serialized LLM config."""
+    """从已序列化 LLM 配置创建运行时订阅 LLM。"""
     if llm.auth_type != "subscription":
         return llm
-    # Serialized configs restore the flag but not runtime-only credentials.
+    # 已序列化配置恢复标志，但不恢复运行时凭据。
     if llm.is_subscription and llm._subscription_credentials is not None:
         return llm
 
@@ -954,9 +950,9 @@ def subscription_login(
     skip_consent: bool = False,
     **llm_kwargs: Any,
 ) -> LLM:
-    """Synchronous wrapper for subscription_login_async.
+    """同步 subscription_login_async 的包装。
 
-    See subscription_login_async for full documentation.
+    请参阅 subscription_login_async 获取完整文档。
     """
     return asyncio.run(
         subscription_login_async(
@@ -972,7 +968,7 @@ def subscription_login(
 
 
 # =========================================================================
-# Message transformation utilities for subscription mode
+# 订阅模式的消息转换实用程序
 # =========================================================================
 
 DEFAULT_SYSTEM_MESSAGE = (
@@ -984,14 +980,14 @@ DEFAULT_SYSTEM_MESSAGE = (
 def inject_system_prefix(
     input_items: list[dict[str, Any]], prefix_content: dict[str, Any]
 ) -> None:
-    """Inject system prefix into the first user message, or create one.
+    """将系统前缀插入到第一条用户消息中，或创建一个。
 
-    This modifies input_items in place.
+    这会就地修改 input_items。
 
     Args:
-        input_items: List of input items (messages) to modify.
-        prefix_content: The content dict to prepend
-            (e.g., {"type": "input_text", "text": "..."}).
+        input_items: 要修改的输入项（消息）列表。
+        prefix_content: 要添加的内容字典
+            （e.g.，{“类型”：“input_text”，“文本”：“...”}）。
     """
     for item in input_items:
         if item.get("type") == "message" and item.get("role") == "user":
@@ -1001,28 +997,28 @@ def inject_system_prefix(
             item["content"] = [prefix_content] + content
             return
 
-    # No user message found, create a synthetic one
+    # 未找到用户消息，请创建一条合成消息
     input_items.insert(0, {"role": "user", "content": [prefix_content]})
 
 
 def transform_for_subscription(
     system_chunks: list[str], input_items: list[dict[str, Any]]
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Transform messages for Codex subscription transport.
+    """转换 Codex 订阅的消息传输层。
 
-    Codex subscription endpoints reject complex/long `instructions`, so we:
-    1. Use a minimal default instruction string
-    2. Prepend system prompts to the first user message
-    3. Normalize message format to match OpenCode's Codex client
+    Codex 订阅端点拒绝复杂/长的 `instructions`，所以我们：
+    1. 使用最小的默认指令字符串
+    2. 将系统提示词添加到第一条用户消息之前
+    3. 标准化消息格式以匹配 OpenCode 的 Codex 客户端
 
     Args:
-        system_chunks: List of system prompt strings to merge.
-        input_items: List of input items (messages) to transform.
+        system_chunks: 要合并的系统提示词字符串列表。
+        input_items: 要转换的输入项（消息）列表。
 
     Returns:
-        A tuple of (instructions, normalized_input_items).
+        (指令，normalized_input_items) 的元组。
     """
-    # Prepend system prompts to first user message
+    # 将系统提示词添加到第一条用户消息之前
     if system_chunks:
         merged = "\n\n---\n\n".join(system_chunks)
         prefix_content = {
@@ -1031,7 +1027,7 @@ def transform_for_subscription(
         }
         inject_system_prefix(input_items, prefix_content)
 
-    # Normalize: {"type": "message", ...} -> {"role": ..., "content": ...}
+    # 规范化： {"type": "message", ...} -> {"role": ..., "content": ...}
     normalized = [
         {"role": item.get("role"), "content": item.get("content") or []}
         if item.get("type") == "message"

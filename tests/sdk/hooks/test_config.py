@@ -1,4 +1,4 @@
-"""Tests for hook configuration loading and management."""
+"""测试钩子配置加载和管理。"""
 
 import json
 import tempfile
@@ -177,55 +177,55 @@ def test_agent_hook_from_json():
 
 
 class TestHookMatcher:
-    """Tests for HookMatcher pattern matching."""
+    """测试 HookMatcher 模式匹配。"""
 
     def test_wildcard_matches_all(self):
-        """Test that * matches all tool names."""
+        """测试 * 匹配所有工具名称。"""
         matcher = HookMatcher(matcher="*")
         assert matcher.matches("BashTool")
         assert matcher.matches("FileEditorTool")
         assert matcher.matches(None)
 
     def test_exact_match(self):
-        """Test exact string matching."""
+        """测试精确的字符串匹配。"""
         matcher = HookMatcher(matcher="BashTool")
         assert matcher.matches("BashTool")
         assert not matcher.matches("FileEditorTool")
 
     def test_regex_match_with_delimiters(self):
-        """Test regex pattern matching with explicit /pattern/ delimiters."""
+        """使用显式 /pattern/ 分隔符测试正则表达式模式匹配。"""
         matcher = HookMatcher(matcher="/.*Tool$/")
         assert matcher.matches("BashTool")
         assert matcher.matches("FileEditorTool")
         assert not matcher.matches("BashCommand")
 
     def test_regex_match_auto_detect(self):
-        """Test regex auto-detection (bare regex without delimiters)."""
-        # Pipe character triggers regex mode
+        """测试正则表达式自动检测（没有分隔符的裸正则表达式）。"""
+        # 管道字符触发正则表达式模式
         matcher = HookMatcher(matcher="Edit|Write")
         assert matcher.matches("Edit")
         assert matcher.matches("Write")
         assert not matcher.matches("Read")
         assert not matcher.matches("EditWrite")
 
-        # Wildcard pattern
+        # 通配符模式
         matcher2 = HookMatcher(matcher="Bash.*")
         assert matcher2.matches("BashTool")
         assert matcher2.matches("BashCommand")
         assert not matcher2.matches("ShellTool")
 
     def test_empty_matcher_matches_all(self):
-        """Test that empty string matcher matches all tools."""
+        """测试空字符串匹配器是否匹配所有工具。"""
         matcher = HookMatcher(matcher="")
         assert matcher.matches("BashTool")
         assert matcher.matches(None)
 
 
 class TestHookConfig:
-    """Tests for HookConfig loading and management."""
+    """测试 HookConfig 加载和管理。"""
 
     def test_load_from_dict(self):
-        """Test loading config from dictionary."""
+        """测试从字典加载配置。"""
         data = {
             "hooks": {
                 "PreToolUse": [
@@ -243,7 +243,7 @@ class TestHookConfig:
         assert hooks[0].command == "echo pre-hook"
 
     def test_load_from_json_file(self):
-        """Test loading config from JSON file."""
+        """测试从 JSON 文件加载配置。"""
         hook = {"type": "command", "command": "logger.sh", "timeout": 30}
         data = {"hooks": {"PostToolUse": [{"matcher": "*", "hooks": [hook]}]}}
 
@@ -258,17 +258,17 @@ class TestHookConfig:
         assert hooks[0].timeout == 30
 
     def test_load_missing_file_returns_empty(self):
-        """Test that loading missing file returns empty config."""
+        """测试加载丢失的文件是否返回空配置。"""
         config = HookConfig.load("/nonexistent/path/hooks.json")
         assert config.is_empty()
 
     def test_load_discovers_config_in_working_dir(self):
-        """Test that load() discovers .openhands/hooks.json in working_dir."""
+        """load() 应该 openhands/hooks.json working_dir。"""
         hook = {"type": "command", "command": "test-hook.sh"}
         data = {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [hook]}]}}
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create .openhands/hooks.json in the working directory
+            # 在工作目录中创建openhands/hooks.json
             import os
 
             hooks_dir = os.path.join(tmpdir, ".openhands")
@@ -277,7 +277,7 @@ class TestHookConfig:
             with open(hooks_file, "w") as f:
                 json.dump(data, f)
 
-            # Load using working_dir (NOT cwd)
+            # 使用 working_dir (不 cwd) 加载
             config = HookConfig.load(working_dir=tmpdir)
 
             assert config.has_hooks_for_event(HookEventType.PRE_TOOL_USE)
@@ -286,7 +286,7 @@ class TestHookConfig:
             assert hooks[0].command == "test-hook.sh"
 
     def test_get_hooks_filters_by_tool_name(self):
-        """Test that hooks are filtered by tool name."""
+        """测试挂钩是否按工具名称过滤。"""
         data = {
             "hooks": {
                 "PreToolUse": [
@@ -314,7 +314,7 @@ class TestHookConfig:
         assert file_hooks[0].command == "file-hook.sh"
 
     def test_typed_field_instantiation(self):
-        """Test creating HookConfig with typed fields (recommended approach)."""
+        """测试使用类型化字段创建 HookConfig（推荐方法）。"""
         config = HookConfig(
             pre_tool_use=[
                 HookMatcher(
@@ -335,7 +335,7 @@ class TestHookConfig:
         assert hooks[0].timeout == 10
 
     def test_json_round_trip(self):
-        """Test that model_dump produces JSON-compatible output for round-trip."""
+        """测试 model_dump 是否为往返生成与 JSON 兼容的输出。"""
         config = HookConfig(
             pre_tool_use=[
                 HookMatcher(
@@ -345,18 +345,18 @@ class TestHookConfig:
             ]
         )
 
-        # model_dump should produce snake_case format
+        # model_dump 应产生 snake_case 格式
         output = config.model_dump(mode="json", exclude_defaults=True)
         assert "pre_tool_use" in output
         assert output["pre_tool_use"][0]["matcher"] == "terminal"
         assert output["pre_tool_use"][0]["hooks"][0]["command"] == "test.sh"
 
-        # Should be able to reload from the output
+        # 应该能够从输出重新加载
         reloaded = HookConfig.model_validate(output)
         assert reloaded.pre_tool_use == config.pre_tool_use
 
     def test_is_empty(self):
-        """Test is_empty() correctly identifies empty configs."""
+        """测试 is_empty() 正确识别空配置。"""
         empty_config = HookConfig()
         assert empty_config.is_empty()
 
@@ -366,7 +366,7 @@ class TestHookConfig:
         assert not non_empty_config.is_empty()
 
     def test_legacy_format_is_still_supported(self):
-        """Test that legacy format remains supported without warnings."""
+        """测试旧格式是否仍受支持而不发出警告。"""
         import warnings
 
         with warnings.catch_warnings(record=True) as w:
@@ -379,7 +379,7 @@ class TestHookConfig:
         assert cfg.pre_tool_use[0].hooks[0].command == "test.sh"
 
     def test_duplicate_keys_raises_error(self):
-        """Test that providing both PascalCase and snake_case raises error."""
+        """测试同时提供 PascalCase 和 snake_case 是否会引发错误。"""
         import pytest
 
         with pytest.raises(ValueError, match="Duplicate hook event"):
@@ -391,7 +391,7 @@ class TestHookConfig:
             )
 
     def test_unknown_event_type_raises_error(self):
-        """Test that typos in event types raise helpful errors."""
+        """测试事件类型中的拼写错误是否会引发有用的错误。"""
         import pytest
 
         with pytest.raises(ValueError, match="Unknown event type.*PreToolExecute"):
@@ -401,20 +401,20 @@ class TestHookConfig:
 
 
 class TestAsyncHooks:
-    """Tests for async hook configuration."""
+    """测试异步挂钩配置。"""
 
     def test_async_field_defaults_false(self):
-        """Test that async defaults to False."""
+        """测试异步默认为 False。"""
         hook = HookDefinition(command="echo test")
         assert hook.async_ is False
 
     def test_async_field_set_true(self):
-        """Test that async can be set to True using async alias."""
+        """测试是否可以使用异步别名将异步设置为 True。"""
         hook = HookDefinition.model_validate({"command": "echo test", "async": True})
         assert hook.async_ is True
 
     def test_async_field_parsed_from_json_alias(self):
-        """Test that 'async' key in JSON is parsed correctly via alias."""
+        """测试 JSON 中的“异步”键是否通过别名正确解析。"""
         data = {
             "hooks": {
                 "PostToolUse": [
@@ -428,20 +428,20 @@ class TestAsyncHooks:
         assert hooks[0].async_ is True
 
     def test_async_field_serialization_by_alias(self):
-        """Test that async field serializes correctly using alias."""
+        """使用别名测试异步字段是否正确序列化。"""
         hook = HookDefinition.model_validate({"command": "test.sh", "async": True})
         output = hook.model_dump(mode="json", by_alias=True)
         assert output["async"] is True
         assert "async_" not in output
 
     def test_async_field_serialization_without_alias(self):
-        """Test that async field serializes as async_ without by_alias."""
+        """测试异步字段是否序列化为不带 by_alias 的 async_。"""
         hook = HookDefinition.model_validate({"command": "test.sh", "async": True})
         output = hook.model_dump(mode="json")
         assert output["async_"] is True
 
     def test_async_hook_in_config_round_trip(self):
-        """Test that async hooks survive a JSON round-trip."""
+        """测试异步钩子是否能够在 JSON 往返中幸存。"""
         data = {
             "PostToolUse": [
                 {
@@ -462,7 +462,7 @@ class TestAsyncHooks:
         assert hooks[1].timeout == 30
 
     def test_multiple_async_hooks_across_events(self):
-        """Test async hooks configured across multiple event types."""
+        """测试跨多个事件类型配置的异步挂钩。"""
         data = {
             "PostToolUse": [
                 {"matcher": "*", "hooks": [{"command": "log.sh", "async": True}]}
@@ -481,7 +481,7 @@ class TestAsyncHooks:
 
 
 def test_issue_2749():
-    """Prompt-based stop hooks should not cause a validation error.
+    """基于提示词的停止挂钩不应导致验证错误。
 
     https://github.com/OpenHands/software-agent-sdk/issues/2749
     """
@@ -516,7 +516,7 @@ def test_issue_2749():
     ids=["command_requires_command", "prompt_requires_prompt"],
 )
 def test_issue_2749_validation(hook_type: HookType, match: str):
-    """Validator should enforce required fields based on hook type.
+    """验证器应根据挂钩类型强制执行必填字段。
 
     https://github.com/OpenHands/software-agent-sdk/issues/2749
     """
@@ -525,7 +525,7 @@ def test_issue_2749_validation(hook_type: HookType, match: str):
 
 
 def test_hook_config_typed_events_and_merge():
-    """HookConfig methods access events typed without dynamic getattr."""
+    """HookConfig 方法访问无需动态 getattr 键入的事件。"""
     matcher = HookMatcher(matcher="*")
     cfg1 = HookConfig(pre_tool_use=[matcher], session_start=[matcher])
     cfg2 = HookConfig(post_tool_use=[matcher], stop=[matcher])

@@ -1,6 +1,6 @@
-"""Storage reclaim against a real Docker daemon and agent-server image.
+"""针对真实的 Docker 守护进程和智能体服务器映像进行存储回收。
 
-See STORAGE_SCENARIO.md next to this file.
+请参阅此文件旁边的 STORAGE_SCENARIO.md。
 """
 
 import hashlib
@@ -31,8 +31,8 @@ IMAGE = os.environ.get(
 )
 GIT = "git -c user.name=agent -c user.email=agent@example.com"
 
-# What a sandbox leaves after real work: caches and dependencies it can
-# rebuild, next to things that are someone's work or state.
+# 沙箱在实际工作后留下的东西：它可以重建的缓存和依赖项，旁边是某人的工作或状态。
+#
 HOME_FILL = """
 set -e
 mkdir -p "$HOME/.cache/uv" "$HOME/.npm/_cacache" "$HOME/.config/tool"
@@ -88,7 +88,7 @@ def _docker_ready() -> bool:
 
 @pytest.fixture
 def server(tmp_path, monkeypatch) -> Callable[..., AbstractContextManager[TestClient]]:
-    """Start the server the way the CLI does: configured by environment."""
+    """按照CLI的方式启动服务器：由环境配置。"""
     if not _docker_ready():
         pytest.skip(f"needs a running Docker daemon and the image {IMAGE}")
 
@@ -103,7 +103,7 @@ def server(tmp_path, monkeypatch) -> Callable[..., AbstractContextManager[TestCl
             **env,
         }.items():
             monkeypatch.setenv(name, value)
-        # Both are process-wide and would keep another test's paths.
+        # 两者都是进程范围的，并且会保留另一个测试的路径。
         monkeypatch.setattr(config_module, "_default_config", None)
         monkeypatch.setattr(service_module, "_conversation_service", None)
         app = create_app()
@@ -142,7 +142,7 @@ def _exec(client: TestClient, conversation_id: UUID, script: str) -> str:
 
 
 def _call(client: TestClient, fn: Callable[[], Awaitable[object]]) -> None:
-    """Run a coroutine on the server's event loop."""
+    """在服务器的事件循环上运行协程。"""
     assert client.portal is not None
     client.portal.call(fn)
 
@@ -168,7 +168,7 @@ def _workspace(client: TestClient, conversation_id: UUID) -> Path:
 
 
 def _snapshot(root: Path) -> dict[str, str]:
-    """Every file and link under ``root``, with its content hash or target."""
+    """``root`` 下的每个文件和链接及其内容哈希或目标。"""
     snapshot = {}
     for path in sorted(root.rglob("*")):
         key = str(path.relative_to(root))
@@ -197,7 +197,7 @@ def test_stop_and_budget_drop_only_what_a_runtime_can_rebuild(server):
         for name in (*SHED_OVER_BUDGET, *KEPT_IN_WORKSPACE):
             assert (workspace / name).exists(), f"{name} must survive a stop"
 
-        # Any real disk is more than 1% full, so the pass is over budget.
+        # 任何实际磁盘的容量都超过 1%，因此该通行证超出了预算。
         _pass(client)
 
         for name in SHED_OVER_BUDGET:
@@ -206,14 +206,14 @@ def test_stop_and_budget_drop_only_what_a_runtime_can_rebuild(server):
             assert (workspace / name).is_file(), f"{name} must never be shed"
         for name in KEPT_IN_HOME:
             assert (home / name).is_file(), name
-        # The running conversation is untouched, file for file.
+        # 正在运行的对话没有受到任何影响。
         assert _registry(client).get(running) is not None
         assert _snapshot(running_dir) == before
         assert list(_registry(client).reclaimer.trash.dir.iterdir()) == []
 
 
 def test_links_planted_by_the_sandbox_are_removed_not_followed(server, tmp_path):
-    # Paths outside the runtime that a sandbox could guess and point at.
+    # 沙箱可以猜测并指向的运行时之外的路径。
     outside = tmp_path / "outside"
     for name in ("npm", "build"):
         (outside / name).mkdir(parents=True)
@@ -238,7 +238,7 @@ def test_links_planted_by_the_sandbox_are_removed_not_followed(server, tmp_path)
         )
         home = _home(client, conversation_id)
         workspace = _workspace(client, conversation_id)
-        assert (home / ".cache" / "data").is_file()  # it does resolve on the host
+        assert (home / ".cache" / "data").is_file()  # 它确实在主机上解析
 
         _stop(client, conversation_id)
         _pass(client)
@@ -265,7 +265,7 @@ def test_a_caller_supplied_workspace_is_never_shed(server, tmp_path):
         _pass(client)
 
         assert (checkout / "node_modules" / "dep" / "i.js").read_text() == "1"
-        # The sandbox's home is still the server's, so its caches go.
+        # 沙箱的家仍然是服务器的，所以它的缓存也随之消失。
         assert not (_home(client, conversation_id) / ".cache").exists()
 
 
@@ -277,7 +277,7 @@ def test_a_reclaimed_conversation_resumes_and_works(server):
         _pass(client)
         assert _registry(client).get(conversation_id) is None
 
-        # Reading a workspace file through the API starts the container again.
+        # 通过API读取工作区文件再次启动容器。
         response = client.get(f"/api/conversations/{conversation_id}/workspace/main.py")
         assert response.status_code == 200, response.text
         assert response.text == "print(1)\n"
@@ -315,7 +315,7 @@ def test_an_archived_conversation_is_read_only_until_deleted(server):
         assert not registry.provisioning.runtime_dir(old).exists()
         assert not registry.is_archived(recent)
         assert (_workspace(client, recent) / "main.py").is_file()
-        # History stays readable; the runtime cannot come back.
+        # 历史保持可读性； 运行时无法回来。
         assert client.get(f"/api/conversations/{old}").status_code == 200
         events = client.get(f"/api/conversations/{old}/events/search")
         assert events.status_code == 200, events.text

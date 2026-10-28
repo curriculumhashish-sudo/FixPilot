@@ -1,11 +1,11 @@
-"""Regression tests for Codex subscription mode fixes.
+"""回归 Codex 订阅模式修复测试。
 
-Tests cover four bugs that made LLM.subscription_login() unusable:
-1. prompt_cache_retention rejected by Codex endpoint (400)
-2. include/reasoning params cause silent empty output
-3. Streaming output items lost (response.completed has output=[])
-4. Reasoning item IDs cause 404 on follow-up requests (store=false)
-5. Retry path must not add unsupported temperature param
+测试涵盖了四个导致 LLM.subscription_login() 无法使用的错误：
+1. prompt_cache_retention 被食品法典委员会拒绝端点 (400)
+2. 包含/推理参数导致静默空输出
+3. 流式传输输出项丢失（response.completed 输出=[]）
+4. 推理项目 ID 导致后续请求出现 404 (store=False)
+5. 重试路径不得添加不支持的温度参数
 
 See: https://github.com/OpenHands/software-agent-sdk/issues/2797
 """
@@ -36,12 +36,12 @@ from openhands.sdk.llm.options.responses_options import select_responses_options
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 帮手
 # ---------------------------------------------------------------------------
 
 
 def _make_subscription_llm() -> LLM:
-    """Create a minimal subscription-mode LLM for testing."""
+    """创建最小订阅模式 LLM 进行测试。"""
     llm = LLM(
         model="openai/gpt-5.4",
         base_url="https://chatgpt.com/backend-api/codex",
@@ -53,8 +53,8 @@ def _make_subscription_llm() -> LLM:
 
 
 def _make_generic_output_item(**kwargs: Any) -> BaseLiteLLMOpenAIResponseObject:
-    """Build a BaseLiteLLMOpenAIResponseObject (the type litellm uses for
-    streaming output items) with the given attributes."""
+    """构建一个 BaseLiteLLMOpenAIResponseObject （类型 LiteLLM 用于
+    流式传输输出项）具有给定的属性。"""
     return BaseLiteLLMOpenAIResponseObject.model_construct(**kwargs)
 
 
@@ -79,7 +79,7 @@ def _make_responses_api_response(text: str = "ok") -> ResponsesAPIResponse:
 
 
 # ---------------------------------------------------------------------------
-# Bug 1 & 2: Unsupported params must be skipped in subscription mode
+# Bug 1 & 2：订阅模式下必须跳过不支持的参数
 # ---------------------------------------------------------------------------
 
 
@@ -94,8 +94,8 @@ def _make_responses_api_response(text: str = "ok") -> ResponsesAPIResponse:
     ],
 )
 def test_subscription_skips_unsupported_param(param: str):
-    """The Codex subscription endpoint rejects or silently mishandles these
-    parameters.  They must be omitted when is_subscription is True."""
+    """Codex 订阅端点拒绝或默默地错误处理这些
+    参数。 当is_subscription为True时必须省略它们。"""
     llm = _make_subscription_llm()
     llm.max_output_tokens = 4096
     opts = select_responses_options(llm, {}, include=["text.output_text"], store=None)
@@ -109,7 +109,7 @@ def test_subscription_skips_unsupported_param(param: str):
     ],
 )
 def test_non_subscription_keeps_scalar_param(param: str, expected_value: Any):
-    """Non-subscription GPT-5 models should still send these params."""
+    """非订阅 GPT-5 模型仍应发送这些参数。"""
     llm = LLM(model="openai/gpt-5.4", reasoning_effort="high")
     llm.enable_encrypted_reasoning = True
     assert not llm.is_subscription
@@ -133,7 +133,7 @@ def test_non_subscription_does_not_invent_temperature():
     ],
 )
 def test_non_subscription_keeps_structured_param(param: str, check: Any):
-    """Non-subscription LLMs should send include and reasoning normally."""
+    """非订阅用户 LLMs 应该正常发送 include 和 reasoning。"""
     llm = LLM(model="openai/gpt-5.4", reasoning_effort="high")
     llm.enable_encrypted_reasoning = True
     assert not llm.is_subscription
@@ -143,16 +143,16 @@ def test_non_subscription_keeps_structured_param(param: str, check: Any):
 
 
 # ---------------------------------------------------------------------------
-# Bug 5: Retry path must preserve omitted subscription params
+# Bug 5：重试路径必须保留省略的订阅参数
 # ---------------------------------------------------------------------------
 
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_subscription_retry_does_not_add_temperature(mock_responses: Any):
-    """Subscription mode intentionally omits temperature.
+    """订阅模式故意省略了温度。
 
-    A retry after LLMNoResponseError must not manufacture temperature=1.0,
-    because the ChatGPT subscription endpoint rejects the parameter.
+    A 重试之后 LLMNoResponseError 必须不制造温度为1.0的，因为 ChatGPT 订阅端点拒绝参
+    数。
     """
     llm = _make_subscription_llm()
     llm.num_retries = 2
@@ -165,8 +165,9 @@ def test_subscription_retry_does_not_add_temperature(mock_responses: Any):
         _make_responses_api_response("ok"),
     ]
 
-    # Subscription auth loads OAuth credentials from disk; stub it out so the
-    # test does not depend on a real ChatGPT login being present.
+    # 订阅身份验证从磁盘加载 OAuth 凭据； 将其存根，以便测试不依赖于真实的 ChatGPT 登录
+    # 。
+    #
     with patch.object(llm, "_get_litellm_auth_values", return_value=(None, {})):
         llm.responses(messages=[Message(role="user", content=[TextContent(text="hi")])])
 
@@ -178,7 +179,7 @@ def test_subscription_retry_does_not_add_temperature(mock_responses: Any):
 
 
 # ---------------------------------------------------------------------------
-# Bug 3: from_llm_responses_output must handle generic litellm types
+# Bug 3：from_llm_responses_output 必须处理通用 LiteLLM 类型
 # ---------------------------------------------------------------------------
 
 
@@ -288,9 +289,10 @@ def test_from_llm_responses_output_item_type(
     expected_tool: dict[str, str] | None,
     expected_text: str | None,
 ):
-    """from_llm_responses_output must parse function_call and message items
-    regardless of whether they arrive as typed Pydantic objects, generic
-    BaseLiteLLMOpenAIResponseObject, or plain dicts."""
+    """from_llm_responses_output 必须解析 function_call 和消息项
+    无论它们是作为类型化 Pydantic 对象、通用 BaseLiteLLMOpenAIResponseObject 还是普通
+    字典到达。
+    """
     item = item_factory()
     msg = Message.from_llm_responses_output([item])
 
@@ -323,7 +325,7 @@ def test_from_llm_responses_output_reasoning_item(
     expected_id: str,
     expected_summary: list[str],
 ):
-    """Reasoning items from streaming should be parsed into ReasoningItemModel."""
+    """流式传输中的推理项应解析为 ReasoningItemModel。"""
     item = item_factory()
     msg = Message.from_llm_responses_output([item])
     assert msg.responses_reasoning_item is not None
@@ -332,7 +334,7 @@ def test_from_llm_responses_output_reasoning_item(
 
 
 def test_mixed_typed_and_generic_items():
-    """Parser should handle a mix of typed and generic items in one call."""
+    """解析器应该在一次调用中处理类型化和通用项的混合。"""
     typed_fc = _typed_function_call_item()
     generic_fc = _generic_function_call_item()
     msg = Message.from_llm_responses_output([typed_fc, generic_fc])
@@ -403,12 +405,12 @@ def test_response_output_missing_optional_fields():
 
 
 # ---------------------------------------------------------------------------
-# Bug 4: Reasoning item IDs must be stripped in subscription mode
+# Bug 4：在订阅模式下推理项目 ID 必须被剥离
 # ---------------------------------------------------------------------------
 
 
 def _make_conversation_messages() -> tuple[Message, Message, Message, Message]:
-    """Build a minimal multi-turn conversation with a reasoning item."""
+    """使用推理项目构建最小的多轮对话。"""
     sys_msg = Message(
         role="system",
         content=[TextContent(text="You are a helpful assistant.")],
@@ -454,8 +456,8 @@ def _make_conversation_messages() -> tuple[Message, Message, Message, Message]:
 def test_format_messages_reasoning_item_handling(
     is_subscription: bool, reasoning_id_present: bool
 ):
-    """Subscription mode must strip reasoning item IDs (store=false means they
-    can't be resolved).  Non-subscription mode must preserve them."""
+    """订阅模式必须剥离推理项 ID（store=False 表示它们
+    无法解决）。 非订阅模式必须保留它们。"""
     llm = LLM(model="openai/gpt-5.4")
     if is_subscription:
         llm.is_subscription = True
@@ -470,12 +472,11 @@ def test_format_messages_reasoning_item_handling(
 
 
 def test_is_subscription_survives_serialization_round_trip():
-    """is_subscription must survive model_dump -> model_validate.
+    """is_subscription 必须生存 model_dump -> model_validate。
 
-    A RemoteConversation serializes the LLM and the agent-server rebuilds it;
-    if the flag is lost, all subscription-specific request handling (streaming
-    exemption, system prompt transform, reasoning item stripping) silently
-    stops applying on the server side.
+    RemoteConversation 序列化 LLM，智能体服务器重建它； 如果标志丢失，所有与订阅相关
+    的请求处理（流式传输豁免、系统提示词转换、理由项去除）将无声
+    地在服务器端停止应用。
     """
     llm = _make_subscription_llm()
     restored = LLM.model_validate(llm.model_dump(context={"expose_secrets": True}))

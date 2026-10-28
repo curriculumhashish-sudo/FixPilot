@@ -1,4 +1,4 @@
-"""Test ConversationState serialization and persistence logic."""
+"""测试 ConversationState 序列化和持久化逻辑。"""
 
 import json
 import tempfile
@@ -28,12 +28,11 @@ from openhands.sdk.workspace import LocalWorkspace
 
 
 class _DifferentAgentForVerifyTest(AgentBase):
-    """A different agent class used to test Agent.verify() rejects class mismatches.
+    """用于测试 Agent.verify() 的不同智能体类拒绝类不匹配。
 
-    This class is defined at module level (rather than inside a test function) to
-    ensure it's importable by Pydantic during serialization/deserialization.
-    Defining it inside a test function causes test pollution when running tests
-    in parallel with pytest-xdist.
+    此类在模块级别定义（而不是在测试函数内部），以确保它在序列化/反序列化期间可由
+    Pydantic 导入。 当与 pytest-xdist 并行运行测试时，在测试函数
+    中定义它会导致测试污染。
     """
 
     def __init__(self):
@@ -57,7 +56,7 @@ class _DifferentAgentForVerifyTest(AgentBase):
 
 
 def test_conversation_state_basic_serialization():
-    """Test basic ConversationState serialization and deserialization."""
+    """测试基本 ConversationState 序列化和反序列化。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     state = ConversationState.create(
@@ -66,7 +65,7 @@ def test_conversation_state_basic_serialization():
         workspace=LocalWorkspace(working_dir="/tmp"),
     )
 
-    # Add some events
+    # 添加一些事件
     event1 = SystemPromptEvent(
         source="agent", system_prompt=TextContent(text="system"), tools=[]
     )
@@ -77,19 +76,19 @@ def test_conversation_state_basic_serialization():
     state.events.append(event1)
     state.events.append(event2)
 
-    # Test serialization - note that events are not included in base state
+    # 测试序列化 - 请注意，事件不包含在基本状态中
     serialized = state.model_dump_json(exclude_none=True)
     assert isinstance(serialized, str)
 
-    # Test deserialization - events won't be included in base state
+    # 测试反序列化 - 事件不会包含在基本状态中
     deserialized = ConversationState.model_validate_json(serialized)
     assert deserialized.id == state.id
 
-    # Events are stored separately, so we need to check the actual events
-    # through the EventLog, not through serialization
-    assert len(state.events) >= 2  # May have additional events from Agent.init_state
+    # 事件是单独存储的，所以我们需要通过EventLog来查看实际的事件，而不是通过序列化
+    #
+    assert len(state.events) >= 2  # 可能还有来自 Agent.init_state 的其他活动
 
-    # Find our test events
+    # 查找我们的测试活动
     our_events = [
         e
         for e in state.events
@@ -100,13 +99,13 @@ def test_conversation_state_basic_serialization():
     assert deserialized.agent.llm.model == state.agent.llm.model
     assert deserialized.agent.__class__ == state.agent.__class__
 
-    # Verify agent properties
+    # 验证智能体个属性
     assert deserialized.agent.llm.model == agent.llm.model
     assert deserialized.agent.__class__ == agent.__class__
 
 
 def test_conversation_state_persistence_save_load():
-    """Test ConversationState persistence with FileStore."""
+    """使用 FileStore 测试 ConversationState 持久化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -124,7 +123,7 @@ def test_conversation_state_persistence_save_load():
             id=conv_id,
         )
 
-        # Add events
+        # 添加事件
         event1 = SystemPromptEvent(
             source="agent", system_prompt=TextContent(text="system"), tools=[]
         )
@@ -134,19 +133,19 @@ def test_conversation_state_persistence_save_load():
         )
         state.events.append(event1)
         state.events.append(event2)
-        # Note: Do NOT register LLM stats here - this test verifies pure event
-        # persistence. LLM stats registration happens during agent initialization
-        # which is now lazy.
+        # 注意：在此处不注册 LLM 统计数据 - 此测试验证纯事件
+        # 持久化。 LLM 统计信息注册发生在智能体初始化期间，现在是惰性的。
+        #
 
-        # State auto-saves when events are added
-        # Verify files were created
+        # 添加事件时状态自动保存验证文件已创建
+        #
         assert Path(persist_path_for_state, "base_state.json").exists()
 
-        # Events are stored with new naming pattern
+        # 事件以新的命名模式存储
         event_files = list(Path(persist_path_for_state, "events").glob("*.json"))
         assert len(event_files) == 2
 
-        # Load state using Conversation (which handles loading)
+        # 使用 Conversation 加载状态（处理加载）
         conversation = Conversation(
             agent=agent,
             persistence_dir=temp_dir,
@@ -157,23 +156,23 @@ def test_conversation_state_persistence_save_load():
         loaded_state = conversation._state
         assert conversation.state.persistence_dir == persist_path_for_state
 
-        # Verify loaded state matches original
+        # 验证加载状态是否与原始状态相符
         assert loaded_state.id == state.id
         assert len(loaded_state.events) == 2
         assert isinstance(loaded_state.events[0], SystemPromptEvent)
         assert isinstance(loaded_state.events[1], MessageEvent)
         assert loaded_state.agent.llm.model == agent.llm.model
         assert loaded_state.agent.__class__ == agent.__class__
-        # Test model_dump equality
+        # 测试 model_dump 相等性
         assert loaded_state.model_dump(mode="json") == state.model_dump(mode="json")
 
-        # Also verify key fields are preserved
+        # 还要验证关键字段是否已保留
         assert loaded_state.id == state.id
         assert len(loaded_state.events) == len(state.events)
 
 
 def test_conversation_state_incremental_save():
-    """Test that ConversationState saves events incrementally."""
+    """测试 ConversationState 是否增量保存事件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -191,30 +190,30 @@ def test_conversation_state_incremental_save():
             id=uuid.UUID("12345678-1234-5678-9abc-123456789003"),
         )
 
-        # Add first event - auto-saves
+        # 添加第一个事件 - 自动保存
         event1 = SystemPromptEvent(
             source="agent", system_prompt=TextContent(text="system"), tools=[]
         )
         state.events.append(event1)
-        # Note: Do NOT register LLM stats here - LLM registration happens during
-        # agent initialization which is now lazy.
+        # 注意：不在此注册 LLM 统计数据 - LLM 注册发生在
+        # 智能体现在是懒加载的初始化。
 
-        # Verify event files exist (may have additional events from Agent.init_state)
+        # 验证事件文件是否存在（可能有来自 Agent.init_state 的其他事件）
         event_files = list(Path(persist_path_for_state, "events").glob("*.json"))
         assert len(event_files) == 1
 
-        # Add second event - auto-saves
+        # 添加第二个事件 - 自动保存
         event2 = MessageEvent(
             source="user",
             llm_message=Message(role="user", content=[TextContent(text="hello")]),
         )
         state.events.append(event2)
 
-        # Verify additional event file was created
+        # 验证是否已创建附加事件文件
         event_files = list(Path(persist_path_for_state, "events").glob("*.json"))
         assert len(event_files) == 2
 
-        # Load using Conversation and verify events are present
+        # 使用对话加载并验证事件是否存在
         conversation = Conversation(
             agent=agent,
             persistence_dir=temp_dir,
@@ -225,12 +224,12 @@ def test_conversation_state_incremental_save():
         assert conversation.state.persistence_dir == persist_path_for_state
         loaded_state = conversation._state
         assert len(loaded_state.events) == 2
-        # Test model_dump equality
+        # 测试 model_dump 相等性
         assert loaded_state.model_dump(mode="json") == state.model_dump(mode="json")
 
 
 def test_conversation_state_event_file_scanning():
-    """Test event file scanning and sorting logic through EventLog."""
+    """通过EventLog测试事件文件扫描和排序逻辑。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -242,11 +241,11 @@ def test_conversation_state_event_file_scanning():
             temp_dir, conv_id
         )
 
-        # Create event files with valid format (new pattern)
+        # 创建具有有效格式的事件文件（新模式）
         events_dir = Path(persist_path_for_state, "events")
         events_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create files with different indices using valid event format
+        # 使用有效的事件格式创建具有不同索引的文件
         event1 = SystemPromptEvent(
             id="abcdef01",
             source="agent",
@@ -267,10 +266,10 @@ def test_conversation_state_event_file_scanning():
             event2.model_dump_json(exclude_none=True)
         )
 
-        # Invalid file should be ignored
+        # 无效文件应被忽略
         (events_dir / "invalid-file.json").write_text('{"type": "test"}')
 
-        # Load state - EventLog should handle scanning
+        # 加载状态 - EventLog 应该处理扫描
         conversation = Conversation(
             agent=agent,
             persistence_dir=temp_dir,
@@ -278,12 +277,12 @@ def test_conversation_state_event_file_scanning():
             conversation_id=conv_id,
         )
 
-        # Should load valid events in order
+        # 应按顺序加载有效事件
         assert (
             len(conversation._state.events) == 2
-        )  # May have additional events from Agent.init_state
+        )  # 可能还有来自 Agent.init_state 的其他活动
 
-        # Find our test events
+        # 查找我们的测试活动
         our_events = [
             e
             for e in conversation._state.events
@@ -293,14 +292,14 @@ def test_conversation_state_event_file_scanning():
 
 
 def test_conversation_state_corrupted_event_handling():
-    """Test handling of corrupted event files during replay."""
+    """测试重播期间损坏的事件文件的处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
         agent = Agent(llm=llm, tools=[])
 
-        # Create event files with some corrupted
+        # 创建一些损坏的事件文件
         conv_id = uuid.uuid4()
         persist_path_for_state = LocalConversation.get_persistence_dir(
             temp_dir, conv_id
@@ -308,7 +307,7 @@ def test_conversation_state_corrupted_event_handling():
         events_dir = Path(persist_path_for_state, "events")
         events_dir.mkdir(parents=True, exist_ok=True)
 
-        # Valid event with proper format
+        # 具有正确格式的有效事件
         valid_event = SystemPromptEvent(
             id="abcdef01",
             source="agent",
@@ -319,13 +318,13 @@ def test_conversation_state_corrupted_event_handling():
             valid_event.model_dump_json(exclude_none=True)
         )
 
-        # Corrupted JSON - will cause validation error when accessed
+        # 损坏的 JSON - 访问时将导致验证错误
         (events_dir / "event-00001-abcdef02.json").write_text('{"invalid": json}')
 
-        # Empty file - will be ignored by EventLog
+        # 空文件 - 将被 EventLog 忽略
         (events_dir / "event-00002-abcdef03.json").write_text("")
 
-        # Valid event with proper format
+        # 具有正确格式的有效事件
         valid_event2 = MessageEvent(
             id="abcdef04",
             source="user",
@@ -335,8 +334,8 @@ def test_conversation_state_corrupted_event_handling():
             valid_event2.model_dump_json(exclude_none=True)
         )
 
-        # Load conversation - EventLog indexes files during init but doesn't
-        # validate content until events are accessed
+        # 加载对话 - EventLog 在初始化期间索引文件，但在访问事件之前不验证内容
+        #
         conversation = Conversation(
             agent=agent,
             workspace=LocalWorkspace(working_dir="/tmp"),
@@ -344,21 +343,21 @@ def test_conversation_state_corrupted_event_handling():
             conversation_id=conv_id,
         )
 
-        # Accessing events triggers validation - corrupted JSON will fail
+        # 访问事件触发器验证 - 损坏的 JSON 将失败
         with pytest.raises((ValidationError, json.JSONDecodeError)):
-            # Iterate through all events to trigger loading
+            # 遍历所有事件来触发加载
             list(conversation._state.events)
 
 
 def test_conversation_state_empty_filestore():
-    """Test ConversationState behavior with empty persistence directory."""
+    """使用空的持久化目录测试 ConversationState 行为。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
         agent = Agent(llm=llm, tools=[])
 
-        # Create conversation with empty persistence directory
+        # 创建与空持久化目录的对话
         conversation = Conversation(
             agent=agent,
             persistence_dir=temp_dir,
@@ -366,25 +365,25 @@ def test_conversation_state_empty_filestore():
             visualizer=None,
         )
 
-        # Should create new state
+        # 应该创建新状态
         assert conversation._state.id is not None
 
-        # Agent initialization is lazy - trigger it to emit SystemPromptEvent
+        # 智能体初始化是惰性的 - 触发它发出 SystemPromptEvent
         conversation._ensure_agent_ready()
 
-        assert len(conversation._state.events) == 1  # System prompt event
+        assert len(conversation._state.events) == 1  # 系统提示词事件
         assert isinstance(conversation._state.events[0], SystemPromptEvent)
 
 
 def test_conversation_state_missing_base_state():
-    """Test error handling when base_state.json is missing but events exist."""
+    """测试缺少 base_state.json 但事件存在时的错误处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
         agent = Agent(llm=llm, tools=[])
 
-        # Create events directory with files but no base_state.json
+        # 创建包含文件但不包含 base_state.json 的事件目录
         events_dir = Path(temp_dir, "events")
         events_dir.mkdir()
         event = SystemPromptEvent(
@@ -397,21 +396,21 @@ def test_conversation_state_missing_base_state():
             event.model_dump_json(exclude_none=True)
         )
 
-        # Current implementation creates new conversation and ignores orphaned
-        # event files
+        # 当前的实现创建新的对话并忽略孤立的事件文件
+        #
         conversation = Conversation(
             agent=agent,
             persistence_dir=temp_dir,
             workspace=LocalWorkspace(working_dir="/tmp"),
         )
 
-        # Should create new state, not load the orphaned event file
+        # 应该创建新状态，而不是加载孤立事件文件
         assert conversation._state.id is not None
-        # Note: With lazy initialization, system prompt not added until first use
+        # 注意：使用延迟初始化，系统提示词直到第一次使用时才添加
 
 
 def test_conversation_state_exclude_from_base_state():
-    """Test that events are excluded from base state serialization."""
+    """测试事件是否从基础状态中排除序列化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -424,25 +423,25 @@ def test_conversation_state_exclude_from_base_state():
             id=uuid.UUID("12345678-1234-5678-9abc-123456789004"),
         )
 
-        # Add events
+        # 添加事件
         event = SystemPromptEvent(
             source="agent", system_prompt=TextContent(text="system"), tools=[]
         )
         state.events.append(event)
 
-        # State auto-saves, read base state file directly
+        # 状态自动保存，直接读取基础状态文件
         base_state_path = Path(temp_dir) / "base_state.json"
         base_state_content = base_state_path.read_text()
         base_state_data = json.loads(base_state_content)
 
-        # Events should not be in base state
+        # 事件不应处于基本状态
         assert "events" not in base_state_data
         assert "agent" in base_state_data
         assert "id" in base_state_data
 
 
 def test_conversation_state_thread_safety():
-    """Test ConversationState thread safety with lock/unlock."""
+    """使用锁定/解锁测试 ConversationState 线程安全。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     state = ConversationState.create(
@@ -451,79 +450,79 @@ def test_conversation_state_thread_safety():
         id=uuid.UUID("12345678-1234-5678-9abc-123456789005"),
     )
 
-    # Test context manager
+    # 测试上下文管理器
     with state:
         assert state.owned()
-        # Should be owned by current thread when locked
+        # 锁定时应由当前线程拥有
 
-    # Test manual acquire/release
+    # 测试手册获取/释放
     state.acquire()
     try:
         assert state.owned()
     finally:
         state.release()
 
-    # Test that state is not owned when not locked
+    # 测试未锁定时状态不被拥有
     assert not state.owned()
 
 
 def test_agent_pydantic_validation_on_creation():
-    """Test that Pydantic validation happens when creating agents."""
-    # Valid agent creation - Pydantic validates
+    """测试创建智能体时是否发生 Pydantic 验证。"""
+    # 有效智能体创建 - Pydantic 验证
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     assert agent.llm.model == "gpt-4o-mini"
 
-    # Invalid LLM creation should fail Pydantic validation
+    # 无效 LLM 创建应该失败 Pydantic 验证
     with pytest.raises(ValueError, match="model must be specified"):
         LLM(model="", api_key=SecretStr("test-key"), usage_id="test-llm")
 
 
 def test_agent_verify_validates_tools_match():
-    """Test that agent.verify() validates tools match between runtime and persisted."""
+    """测试 agent.verify() 验证运行时和已持久化之间的工具匹配。"""
     from openhands.sdk.agent import AgentBase
     from openhands.sdk.tool import Tool
 
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
 
-    # Create original agent with two tools
+    # 使用两个工具创建原创智能体
     original_agent = Agent(
         llm=llm, tools=[Tool(name="TerminalTool"), Tool(name="FileEditorTool")]
     )
 
-    # Serialize and deserialize to simulate persistence
+    # 序列化和反序列化模拟持久化
     serialized = original_agent.model_dump_json()
     persisted_agent = AgentBase.model_validate_json(serialized)
 
-    # Runtime agent with same tools should succeed
+    # 使用相同工具的运行时智能体应该会成功
     same_tools_agent = Agent(
         llm=llm, tools=[Tool(name="TerminalTool"), Tool(name="FileEditorTool")]
     )
     result = same_tools_agent.verify(persisted_agent)
     assert result is same_tools_agent
 
-    # Runtime agent with different tools should fail
+    # 使用不同工具的运行时智能体应该会失败
     different_tools_agent = Agent(llm=llm, tools=[Tool(name="TerminalTool")])
     with pytest.raises(ValueError, match="tools were removed mid-conversation"):
         different_tools_agent.verify(persisted_agent)
 
 
 def test_agent_verify_allows_different_llm():
-    """Test that agent.verify() allows different LLM configuration."""
+    """测试 agent.verify() 是否允许不同的 LLM 配置。"""
     from openhands.sdk.agent import AgentBase
     from openhands.sdk.tool import Tool
 
     tools = [Tool(name="TerminalTool")]
 
-    # Create original agent
+    # 创作原创智能体
     llm1 = LLM(model="gpt-4o-mini", api_key=SecretStr("key1"), usage_id="llm1")
     original_agent = Agent(llm=llm1, tools=tools)
 
-    # Serialize and deserialize
+    # 序列化和反序列化
     serialized = original_agent.model_dump_json()
     persisted_agent = AgentBase.model_validate_json(serialized)
 
-    # Runtime agent with different LLM should succeed (LLM can change freely)
+    # 具有不同 LLM 的运行时智能体应该成功（LLM 可以自由更改）
     llm2 = LLM(model="gpt-4o", api_key=SecretStr("key2"), usage_id="llm2")
     different_llm_agent = Agent(llm=llm2, tools=tools)
     result = different_llm_agent.verify(persisted_agent)
@@ -532,7 +531,7 @@ def test_agent_verify_allows_different_llm():
 
 
 def test_agent_verify_different_class_raises_error():
-    """Test that agent.verify() raises error for different agent classes."""
+    """测试 agent.verify() 是否会针对不同的智能体类引发错误。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     original_agent = Agent(llm=llm, tools=[])
     different_agent = _DifferentAgentForVerifyTest()
@@ -542,7 +541,7 @@ def test_agent_verify_different_class_raises_error():
 
 
 def test_conversation_state_flags_persistence():
-    """Test that conversation state flags are properly persisted."""
+    """测试对话状态标志是否正确已持久化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -561,12 +560,12 @@ def test_conversation_state_flags_persistence():
 
         state.stats.register_llm(RegistryEvent(llm=llm))
 
-        # Set various flags
+        # 设置各种标志
         state.execution_status = ConversationExecutionStatus.FINISHED
         state.confirmation_policy = AlwaysConfirm()
         state.activated_knowledge_skills = ["agent1", "agent2"]
 
-        # Create a new ConversationState that loads from the same persistence directory
+        # 创建一个从同一持久化目录加载的新 ConversationState
         loaded_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path_for_state,
@@ -574,21 +573,21 @@ def test_conversation_state_flags_persistence():
             id=conv_id,
         )
 
-        # Verify key fields are preserved
+        # 验证关键字段是否已保留
         assert loaded_state.id == state.id
         assert loaded_state.agent.llm.model == state.agent.llm.model
-        # Verify flags are preserved
+        # 验证标志是否保留
         assert loaded_state.execution_status == ConversationExecutionStatus.FINISHED
         assert loaded_state.confirmation_policy == AlwaysConfirm()
         assert loaded_state.activated_knowledge_skills == ["agent1", "agent2"]
-        # Test model_dump equality - stats should be preserved on resume
+        # 测试 model_dump 平等 - 统计数据应保留在简历中
         assert loaded_state.model_dump(mode="json") == state.model_dump(mode="json")
 
 
 def test_conversation_with_agent_different_llm_config():
-    """Test conversation with agent having different LLM configuration."""
+    """测试与具有不同 LLM 配置的智能体的对话。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create conversation with original LLM config
+        # 使用原始 LLM 配置创建对话
         original_llm = LLM(
             model="gpt-4o-mini",
             api_key=SecretStr("original-key"),
@@ -602,14 +601,13 @@ def test_conversation_with_agent_different_llm_config():
             visualizer=None,
         )
 
-        # Send a message (this triggers lazy agent initialization)
+        # 发送消息（这会触发惰性智能体初始化）
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test")])
         )
 
-        # Store original state dump and ID before deleting
-        # Exclude stats since LLM registration happens during agent init
-        # and the second conversation will have its own stats after init
+        # 在 LLM 注册期间，智能体初始化时，原始状态快照和ID应先保存
+        #
         original_state_dump = conversation._state.model_dump(
             mode="json", exclude={"agent", "stats"}
         )
@@ -617,25 +615,25 @@ def test_conversation_with_agent_different_llm_config():
 
         del conversation
 
-        # Try with different LLM config (different API key should be resolved)
+        # 尝试使用不同的 LLM 配置（应该解析不同的 API 键）
         new_llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("new-key"), usage_id="test-llm"
         )
         new_agent = Agent(llm=new_llm, tools=[])
 
-        # This should succeed because API key differences are resolved
+        # 这应该会成功，因为 API 关键差异已解决
         new_conversation = Conversation(
             agent=new_agent,
             persistence_dir=temp_dir,
             workspace=LocalWorkspace(working_dir="/tmp"),
-            conversation_id=conversation_id,  # Use same ID
+            conversation_id=conversation_id,  # 使用相同的ID
             visualizer=None,
         )
 
         assert new_conversation._state.agent.llm.api_key is not None
         assert isinstance(new_conversation._state.agent.llm.api_key, SecretStr)
         assert new_conversation._state.agent.llm.api_key.get_secret_value() == "new-key"
-        # Test that the core state structure is preserved (excluding agent and stats)
+        # 测试核心状态结构是否保留（不包括智能体和 stats）
         new_dump = new_conversation._state.model_dump(
             mode="json", exclude={"agent", "stats"}
         )
@@ -644,7 +642,7 @@ def test_conversation_with_agent_different_llm_config():
 
 
 def test_resume_uses_runtime_workspace_and_max_iterations():
-    """Test that resume uses runtime-provided workspace and max_iterations."""
+    """测试恢复是否使用运行时提供的工作区和 max_iterations。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -677,7 +675,7 @@ def test_resume_uses_runtime_workspace_and_max_iterations():
 
 
 def test_resume_preserves_persisted_execution_status_and_stuck_detection():
-    """Test that resume preserves execution_status and stuck_detection."""
+    """测试简历是否保留 execution_status 和 stuck_detection。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -708,7 +706,7 @@ def test_resume_preserves_persisted_execution_status_and_stuck_detection():
 
 
 def test_resume_preserves_blocked_actions_and_messages():
-    """Test that resume preserves blocked_actions and blocked_messages."""
+    """测试简历是否保留 blocked_actions 和 blocked_messages。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -738,7 +736,7 @@ def test_resume_preserves_blocked_actions_and_messages():
 
 
 def test_conversation_state_stats_preserved_on_resume():
-    """Regression: stats should not be reset when resuming a conversation."""
+    """Regression: 恢复对话时不应重置统计数据。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -758,7 +756,7 @@ def test_conversation_state_stats_preserved_on_resume():
 
         state.stats.register_llm(RegistryEvent(llm=llm))
 
-        # Add token usage with context_window
+        # 将词元用量添加到 context_window
         assert llm.metrics is not None
         llm.metrics.add_cost(0.05)
         llm.metrics.add_token_usage(
@@ -770,24 +768,24 @@ def test_conversation_state_stats_preserved_on_resume():
             response_id="test-response-1",
         )
 
-        # Verify stats are set correctly before saving
+        # 保存前验证统计数据设置正确
         combined_metrics = state.stats.get_combined_metrics()
         assert combined_metrics.accumulated_cost == 0.05
         assert combined_metrics.accumulated_token_usage is not None
         assert combined_metrics.accumulated_token_usage.prompt_tokens == 100
         assert combined_metrics.accumulated_token_usage.context_window == 128000
 
-        # Force save the state
+        # 强制保存状态
         state._save_base_state(state._fs)
 
-        # Verify the base_state.json contains the stats
+        # 验证 base_state.json 包含统计信息
         base_state_path = Path(persist_path_for_state) / "base_state.json"
         base_state_content = json.loads(base_state_path.read_text())
         assert "stats" in base_state_content
         assert "usage_to_metrics" in base_state_content["stats"]
         assert "test-llm" in base_state_content["stats"]["usage_to_metrics"]
 
-        # Now resume the conversation with a new agent
+        # 现在与新的智能体恢复对话
         new_llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
@@ -800,7 +798,7 @@ def test_conversation_state_stats_preserved_on_resume():
             id=conv_id,
         )
 
-        # Verify stats are preserved after resume
+        # 验证恢复后统计数据是否保留
         resumed_combined_metrics = resumed_state.stats.get_combined_metrics()
         assert resumed_combined_metrics.accumulated_cost == 0.05, (
             "Cost should be preserved after resume"
@@ -815,7 +813,7 @@ def test_conversation_state_stats_preserved_on_resume():
 
 
 def test_resume_with_conversation_id_mismatch_raises_error():
-    """Test that resuming with mismatched conversation ID raises error."""
+    """测试使用不匹配的对话 ID 进行恢复是否会引发错误。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -842,12 +840,12 @@ def test_resume_with_conversation_id_mismatch_raises_error():
 
 
 def test_conversation_state_secrets_serialization_deserialization():
-    """Test that secrets are properly serialized and deserialized.
+    """测试机密是否正确为已序列化和已反序列化。
 
-    This is a regression test for issue 1505 where conversations with secrets
-    would fail to restore because secrets are serialized as '**********'
-    (redacted) but StaticSecret.value was a required field that couldn't
-    accept None after validation converted '**********' to None.
+    这是一个回归测试 issue 1505 中的对话机密会导致恢复失败机密 are 已序列化 as '****
+    ******' (已脱敏但
+    StaticSecret.value 这是一个必填字段，不能接受 None 之后验证转换完毕**********' to
+     None.
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         llm = LLM(
@@ -857,7 +855,7 @@ def test_conversation_state_secrets_serialization_deserialization():
         conv_id = uuid.UUID("12345678-1234-5678-9abc-123456789099")
         persist_path = LocalConversation.get_persistence_dir(temp_dir, conv_id)
 
-        # Create conversation state with secrets
+        # 创建与机密的对话状态
         state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -865,7 +863,7 @@ def test_conversation_state_secrets_serialization_deserialization():
             id=conv_id,
         )
 
-        # Add secrets to the secret registry
+        # 将机密添加到机密注册表
         state.secret_registry.update_secrets(
             {
                 "API_KEY": "test-api-key",
@@ -873,26 +871,26 @@ def test_conversation_state_secrets_serialization_deserialization():
             }
         )
 
-        # Verify secrets are set before save
+        # 保存前验证机密已设置
         env_vars = state.secret_registry.get_secrets_as_env_vars("echo $API_KEY")
         assert env_vars == {"API_KEY": "test-api-key"}
 
-        # Force save the state (triggers serialization)
+        # 强制保存状态（触发序列化）
         state._save_base_state(state._fs)
 
-        # Verify the serialized state has redacted secrets
+        # 验证已序列化状态有已脱敏机密
         base_state_path = Path(persist_path) / "base_state.json"
         base_state_content = json.loads(base_state_path.read_text())
         assert "secret_registry" in base_state_content
         api_key_source = base_state_content["secret_registry"]["secret_sources"][
             "API_KEY"
         ]
-        # Value should be redacted to '**********' in serialization
+        # 值应为序列化中的已脱敏到“**********”
         assert api_key_source["value"] == "**********"
 
-        # Now simulate restoring the conversation state from persisted data
-        # This was failing before the fix with:
-        # "pydantic_core._pydantic_core.ValidationError: Field required
+        # 现在模拟从已持久化数据恢复对话状态在修复之前失败：“
+        # pydantic_core._pydantic_core.ValidationError：需要字段
+        #
         # [type=missing, ... for StaticSecret.value"
         resumed_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
@@ -901,33 +899,32 @@ def test_conversation_state_secrets_serialization_deserialization():
             id=conv_id,
         )
 
-        # The state should load successfully - this was the bug fix
+        # 状态应该成功加载 - 这是错误修复
         assert resumed_state.id == conv_id
 
-        # The secrets should be None after restore (since they were redacted)
-        # but the StaticSecret objects should exist
+        # 恢复后机密应该是 None（因为它们是已脱敏），但 StaticSecret 对象应该存在
+        #
         assert "API_KEY" in resumed_state.secret_registry.secret_sources
         assert "DATABASE_URL" in resumed_state.secret_registry.secret_sources
 
-        # The values should be None after deserialization of redacted secrets
+        # 这些值应为已脱敏机密的反序列化之后的 None
         api_key_source_restored = resumed_state.secret_registry.secret_sources[
             "API_KEY"
         ]
         assert api_key_source_restored.get_value() is None
 
-        # Getting env vars should return empty since values are None
+        # 获取环境变量应该返回空，因为值为 None
         env_vars = resumed_state.secret_registry.get_secrets_as_env_vars(
             "echo $API_KEY"
         )
-        assert env_vars == {}  # No value available
+        assert env_vars == {}  # 没有值可用
 
 
 def test_conversation_state_secrets_with_cipher():
-    """Test that secrets are preserved when using a cipher.
+    """测试使用密码时是否保留机密。
 
-    When a cipher is provided to ConversationState.create(), secrets should
-    be encrypted during serialization and decrypted during deserialization,
-    preserving the actual secret values across save/restore cycles.
+    当将密钥提供给 ConversationState.create() 时，机密应在序列化中加密，在反序列化中
+    解密，以确保在保存/恢复周期中保留实际机密值。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -939,10 +936,10 @@ def test_conversation_state_secrets_with_cipher():
         conv_id = uuid.UUID("12345678-1234-5678-9abc-1234567890aa")
         persist_path = LocalConversation.get_persistence_dir(temp_dir, conv_id)
 
-        # Create a cipher for encryption
+        # 创建用于加密的密码
         cipher = Cipher(secret_key="my-secret-encryption-key")
 
-        # Create conversation state with secrets AND cipher
+        # 使用机密 AND 密码创建对话状态
         state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -951,7 +948,7 @@ def test_conversation_state_secrets_with_cipher():
             cipher=cipher,
         )
 
-        # Add secrets to the secret registry
+        # 将机密添加到机密注册表
         state.secret_registry.update_secrets(
             {
                 "API_KEY": "test-api-key",
@@ -959,26 +956,26 @@ def test_conversation_state_secrets_with_cipher():
             }
         )
 
-        # Verify secrets are set before save
+        # 保存前验证机密已设置
         env_vars = state.secret_registry.get_secrets_as_env_vars("echo $API_KEY")
         assert env_vars == {"API_KEY": "test-api-key"}
 
-        # Force save the state (triggers serialization with encryption)
+        # 强制保存状态（触发序列化加密）
         state._save_base_state(state._fs)
 
-        # Verify the serialized state has encrypted (not redacted) secrets
+        # 验证已序列化状态已加密（不是已脱敏）机密
         base_state_path = Path(persist_path) / "base_state.json"
         base_state_content = json.loads(base_state_path.read_text())
         assert "secret_registry" in base_state_content
         api_key_source = base_state_content["secret_registry"]["secret_sources"][
             "API_KEY"
         ]
-        # Value should be encrypted (not '**********')
+        # 值应该加密（不是“**********”）
         assert api_key_source["value"] != "**********"
-        assert api_key_source["value"] != "test-api-key"  # Not plaintext
-        assert len(api_key_source["value"]) > 20  # Encrypted value is longer
+        assert api_key_source["value"] != "test-api-key"  # 不是明文
+        assert len(api_key_source["value"]) > 20  # 加密值更长
 
-        # Now restore the conversation state with the same cipher
+        # 现在用相同的密码恢复对话状态
         resumed_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -987,20 +984,20 @@ def test_conversation_state_secrets_with_cipher():
             cipher=cipher,
         )
 
-        # The state should load successfully
+        # 状态应该加载成功
         assert resumed_state.id == conv_id
 
-        # The secrets should be PRESERVED after restore
+        # 恢复后机密应为PRESERVED
         assert "API_KEY" in resumed_state.secret_registry.secret_sources
         assert "DATABASE_URL" in resumed_state.secret_registry.secret_sources
 
-        # The values should be decrypted and accessible
+        # 这些值应该被解密并可访问
         api_key_source_restored = resumed_state.secret_registry.secret_sources[
             "API_KEY"
         ]
         assert api_key_source_restored.get_value() == "test-api-key"
 
-        # Getting env vars should return the actual values
+        # 获取环境变量应该返回实际值
         env_vars = resumed_state.secret_registry.get_secrets_as_env_vars(
             "echo $API_KEY"
         )
@@ -1013,12 +1010,11 @@ def test_conversation_state_secrets_with_cipher():
 
 
 def test_agent_context_seed_preserves_persisted_registry_secret_on_resume():
-    """LocalConversation resume must not downgrade existing registry secrets.
+    """LocalConversation 简历不得降级现有注册表机密。
 
-    ``agent_context.secrets`` is a lower-priority bootstrap source for callers
-    that do not build ``request.secrets``. If a prior request secret is already
-    persisted in the registry, reopening the conversation with no new request
-    secrets should keep the registry value.
+    ``agent_context.secrets`` 是不构建 ``request.secrets`` 的调用者的较低优先级引导源
+    。 如果先前的请求机密已在注册表中为
+    已持久化，则在没有新请求机密的情况下重新打开对话应保留注册表值。
     """
     from openhands.sdk.context.agent_context import AgentContext
     from openhands.sdk.secret import StaticSecret
@@ -1073,11 +1069,10 @@ def test_agent_context_seed_preserves_persisted_registry_secret_on_resume():
 
 
 def test_conversation_state_save_with_cipher_load_without():
-    """Test loading state saved with cipher but without providing cipher.
+    """测试使用密码保存但不提供密码的加载状态。
 
-    When state is saved with a cipher (secrets encrypted) but loaded without
-    a cipher, the encrypted values should remain as-is (unusable) but the
-    conversation should still load successfully.
+    当使用密码（机密加密）保存状态，但加载时不使用密码时，应保持加密值不变（不可用）
+    ，但对话应仍然成功加载。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -1089,10 +1084,10 @@ def test_conversation_state_save_with_cipher_load_without():
         conv_id = uuid.UUID("12345678-1234-5678-9abc-1234567890bb")
         persist_path = LocalConversation.get_persistence_dir(temp_dir, conv_id)
 
-        # Create a cipher for encryption
+        # 创建用于加密的密码
         cipher = Cipher(secret_key="my-secret-encryption-key")
 
-        # Create conversation state with secrets AND cipher
+        # 使用机密 AND 密码创建对话状态
         state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -1101,40 +1096,40 @@ def test_conversation_state_save_with_cipher_load_without():
             cipher=cipher,
         )
 
-        # Add secrets to the secret registry
+        # 将机密添加到机密注册表
         state.secret_registry.update_secrets({"API_KEY": "test-api-key"})
 
-        # Force save the state (triggers serialization with encryption)
+        # 强制保存状态（触发序列化加密）
         state._save_base_state(state._fs)
 
-        # Now restore WITHOUT a cipher - should load but secrets are unusable
+        # 现在恢复 WITHOUT 密码 - 应该加载，但机密不可用
         resumed_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
             agent=agent,
             id=conv_id,
-            cipher=None,  # No cipher provided
+            cipher=None,  # 没有提供密码
         )
 
-        # The state should load successfully
+        # 状态应该加载成功
         assert resumed_state.id == conv_id
 
-        # The secret source should exist but value is the encrypted string
-        # (not decrypted, so not usable as the original value)
+        # 机密源应该存在，但值是加密字符串（未解密，因此不能用作原始值）
+        #
         assert "API_KEY" in resumed_state.secret_registry.secret_sources
         api_key_value = resumed_state.secret_registry.secret_sources[
             "API_KEY"
         ].get_value()
-        # Value should be the encrypted string, not the original
+        # 值应该是加密的字符串，而不是原始字符串
         assert api_key_value != "test-api-key"
-        assert api_key_value is not None  # It's the encrypted value
+        assert api_key_value is not None  # 这是加密后的值
 
 
 def test_conversation_state_save_without_cipher_load_with():
-    """Test loading state saved without cipher but with cipher provided.
+    """测试加载状态在没有密码的情况下保存，但提供了密码。
 
-    When state is saved without a cipher (secrets redacted) but loaded with
-    a cipher, the redacted secrets should deserialize to None values.
+    当状态保存时不带密码 (机密已脱敏) 但加载密码时，已脱敏机密应为反序列化至 None 值
+    。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -1146,22 +1141,22 @@ def test_conversation_state_save_without_cipher_load_with():
         conv_id = uuid.UUID("12345678-1234-5678-9abc-1234567890cc")
         persist_path = LocalConversation.get_persistence_dir(temp_dir, conv_id)
 
-        # Create conversation state with secrets but NO cipher
+        # 使用机密创建对话状态，但没有密码
         state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
             agent=agent,
             id=conv_id,
-            cipher=None,  # No cipher - secrets will be redacted
+            cipher=None,  # 无密码 - 机密将变为已脱敏
         )
 
-        # Add secrets to the secret registry
+        # 将机密添加到机密注册表
         state.secret_registry.update_secrets({"API_KEY": "test-api-key"})
 
-        # Force save the state (triggers serialization with redaction)
+        # 强制保存状态（用脱敏触发序列化）
         state._save_base_state(state._fs)
 
-        # Now restore WITH a cipher - should load but secrets are already lost
+        # 现在恢复 WITH 密码 - 应该加载，但机密已经丢失
         cipher = Cipher(secret_key="my-secret-encryption-key")
         resumed_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
@@ -1171,10 +1166,10 @@ def test_conversation_state_save_without_cipher_load_with():
             cipher=cipher,
         )
 
-        # The state should load successfully
+        # 状态应该加载成功
         assert resumed_state.id == conv_id
 
-        # The secret source should exist but value is None (was redacted)
+        # 机密源应该存在，但值为 None（原为已脱敏）
         assert "API_KEY" in resumed_state.secret_registry.secret_sources
         api_key_value = resumed_state.secret_registry.secret_sources[
             "API_KEY"
@@ -1183,11 +1178,10 @@ def test_conversation_state_save_without_cipher_load_with():
 
 
 def test_conversation_state_cipher_mismatch():
-    """Test loading state with a different cipher than used for saving.
+    """使用与保存时使用的密码不同的密码来测试加载状态。
 
-    When state is saved with cipher A but loaded with cipher B, decryption
-    fails gracefully - the conversation loads but secrets are set to None
-    (with a warning logged).
+    当使用加密A保存状态，但使用加密B加载时，解密会优雅失败 - 对话加载，机密会被设置为
+    None（并记录警告）。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -1199,10 +1193,10 @@ def test_conversation_state_cipher_mismatch():
         conv_id = uuid.UUID("12345678-1234-5678-9abc-1234567890dd")
         persist_path = LocalConversation.get_persistence_dir(temp_dir, conv_id)
 
-        # Create cipher A for encryption
+        # 创建密码 A 进行加密
         cipher_a = Cipher(secret_key="cipher-key-a")
 
-        # Create conversation state with secrets AND cipher A
+        # 使用机密 AND 密码 A 创建对话状态
         state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -1211,16 +1205,16 @@ def test_conversation_state_cipher_mismatch():
             cipher=cipher_a,
         )
 
-        # Add secrets to the secret registry
+        # 将机密添加到机密注册表
         state.secret_registry.update_secrets({"API_KEY": "test-api-key"})
 
-        # Force save the state (triggers serialization with encryption using cipher A)
+        # 强制保存状态（使用密码 A 进行加密触发序列化）
         state._save_base_state(state._fs)
 
-        # Now try to restore with cipher B - decryption fails gracefully
+        # 现在尝试使用密码 B 恢复 - 解密正常失败
         cipher_b = Cipher(secret_key="cipher-key-b")
 
-        # Conversation loads but secrets are lost (set to None with warning)
+        # 对话加载，但机密丢失（设置为 None 并发出警告）
         resumed_state = ConversationState.create(
             workspace=LocalWorkspace(working_dir="/tmp"),
             persistence_dir=persist_path,
@@ -1229,10 +1223,10 @@ def test_conversation_state_cipher_mismatch():
             cipher=cipher_b,
         )
 
-        # The state should load successfully
+        # 状态应该加载成功
         assert resumed_state.id == conv_id
 
-        # The secret source should exist but value is None (decryption failed)
+        # 机密源应该存在，但值为 None（解密失败）
         assert "API_KEY" in resumed_state.secret_registry.secret_sources
         api_key_value = resumed_state.secret_registry.secret_sources[
             "API_KEY"
@@ -1241,53 +1235,52 @@ def test_conversation_state_cipher_mismatch():
 
 
 def test_agent_verify_fails_when_explicit_tools_differ():
-    """Test that verify() fails when explicit tools differ.
+    """当显式工具不同时，测试 verify() 是否失败。
 
-    Tools cannot be changed mid-conversation. This test verifies that
-    changing explicit tools fails verification.
+    无法在对话中更改工具。 此测试验证更改显式工具未通过验证。
     """
     from openhands.sdk.agent import AgentBase
     from openhands.sdk.tool import Tool
 
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
 
-    # Create persisted agent with TerminalTool
+    # 使用 TerminalTool 创建已持久化智能体
     persisted_agent_obj = Agent(
         llm=llm,
         tools=[Tool(name="TerminalTool")],
         include_default_tools=["FinishTool"],
     )
 
-    # Serialize and deserialize to simulate loading from persistence
+    # 序列化和反序列化模拟从持久化加载
     serialized = persisted_agent_obj.model_dump_json()
     persisted_agent = AgentBase.model_validate_json(serialized)
 
-    # Create a runtime agent with DIFFERENT explicit tools (FileEditorTool instead of
-    # TerminalTool) - this should FAIL because tools must match exactly
+    # 使用 DIFFERENT 显式工具创建运行时智能体（FileEditorTool 而不是 TerminalTool） - 这
+    # 应该是 FAIL，因为工具必须完全匹配
+    #
     runtime_agent = Agent(
         llm=llm,
-        tools=[Tool(name="FileEditorTool")],  # Different from persisted!
+        tools=[Tool(name="FileEditorTool")],  # 与已持久化不同！
         include_default_tools=["FinishTool"],
     )
 
-    # Should fail because TerminalTool was removed (FileEditorTool vs TerminalTool)
+    # 应该会失败，因为 TerminalTool 被删除（FileEditorTool 与 TerminalTool）
     with pytest.raises(ValueError, match="tools were removed mid-conversation"):
         runtime_agent.verify(persisted_agent)
 
 
 def test_agent_verify_fails_when_builtin_tools_differ():
-    """Test that verify() fails when builtin tools differ.
+    """当内置工具不同时，测试 verify() 是否失败。
 
-    Tools cannot be changed mid-conversation. This test verifies that
-    changing builtin tools (include_default_tools) fails verification,
-    even when explicit tools match.
+    无法在对话中更改工具。 此测试验证更改内置工具 (include_default_tools) 是否会失败
+    ，即使显式工具匹配也是如此。
     """
     from openhands.sdk.agent import AgentBase
     from openhands.sdk.tool import Tool
 
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
 
-    # Persisted agent has FinishTool as builtin
+    # 已持久化智能体内置 FinishTool
     persisted_agent_obj = Agent(
         llm=llm,
         tools=[Tool(name="TerminalTool")],
@@ -1297,20 +1290,20 @@ def test_agent_verify_fails_when_builtin_tools_differ():
     serialized = persisted_agent_obj.model_dump_json()
     persisted_agent = AgentBase.model_validate_json(serialized)
 
-    # Runtime agent has ThinkTool instead of FinishTool (same explicit tools)
+    # 运行时智能体有 ThinkTool 而不是 FinishTool（相同的显式工具）
     runtime_agent = Agent(
         llm=llm,
-        tools=[Tool(name="TerminalTool")],  # Same explicit tools
-        include_default_tools=["ThinkTool"],  # Different builtin!
+        tools=[Tool(name="TerminalTool")],  # 相同的显式工具
+        include_default_tools=["ThinkTool"],  # 不同的内置！
     )
 
-    # Should fail because FinishTool was removed (ThinkTool replaces it)
+    # 应该会失败，因为 FinishTool 已被删除（ThinkTool 取代了它）
     with pytest.raises(ValueError, match="tools were removed mid-conversation"):
         runtime_agent.verify(persisted_agent)
 
 
 def test_agent_verify_fails_when_builtin_tool_removed():
-    """Test that verify fails when a builtin tool is removed."""
+    """删除内置工具时验证失败的测试。"""
     from openhands.sdk.agent import AgentBase
     from openhands.sdk.tool import Tool
 
@@ -1319,20 +1312,20 @@ def test_agent_verify_fails_when_builtin_tool_removed():
     persisted_agent_obj = Agent(
         llm=llm,
         tools=[Tool(name="TerminalTool")],
-        include_default_tools=["FinishTool", "ThinkTool"],  # Has both
+        include_default_tools=["FinishTool", "ThinkTool"],  # 两者都有
     )
 
     serialized = persisted_agent_obj.model_dump_json()
     persisted_agent = AgentBase.model_validate_json(serialized)
 
-    # Runtime agent removes ThinkTool
+    # 运行时智能体删除 ThinkTool
     runtime_agent = Agent(
         llm=llm,
         tools=[Tool(name="TerminalTool")],
-        include_default_tools=["FinishTool"],  # Missing ThinkTool!
+        include_default_tools=["FinishTool"],  # 缺少ThinkTool！
     )
 
-    # Should fail because ThinkTool was removed
+    # 应该会失败，因为 ThinkTool 已被删除
     with pytest.raises(ValueError, match="tools were removed mid-conversation"):
         runtime_agent.verify(persisted_agent)
 
@@ -1340,9 +1333,9 @@ def test_agent_verify_fails_when_builtin_tool_removed():
 def test_v1_11_5_cli_default_conversation_resumes_when_runtime_adds_delegate(
     tmp_path: Path,
 ):
-    """Test resuming a v1.11.5 CLI conversation succeeds after adding delegate.
+    """添加委托后，恢复 v1.11.5 CLI 对话的测试成功。
 
-    Adding new tools is allowed — only removing tools is rejected.
+    允许添加新工具——只拒绝删除工具。
     """
     from openhands.sdk.agent import Agent
     from openhands.sdk.tool import Tool
@@ -1368,8 +1361,9 @@ def test_v1_11_5_cli_default_conversation_resumes_when_runtime_adds_delegate(
         api_key=SecretStr("test-key"),
         usage_id="test-llm",
     )
-    # The fixture has tools: terminal, file_editor, task_tracker
-    # Runtime adds delegate — this should succeed (adding tools is allowed)
+    # 测试夹具有工具：终端、file_editor、task_tracker 运行时添加委托 — 这应该会成功（允
+    # 许添加工具）
+    #
     runtime_agent = Agent(
         llm=llm,
         tools=[
@@ -1390,7 +1384,7 @@ def test_v1_11_5_cli_default_conversation_resumes_when_runtime_adds_delegate(
 
 
 def test_context_manager_batches_saves() -> None:
-    """Multiple field mutations inside `with state:` produce a single save."""
+    """`with state:` 内的多个字段突变会产生一次保存。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("k"), usage_id="test-llm")
     agent = Agent(llm=llm)
     workspace = LocalWorkspace(working_dir="/tmp/test")
@@ -1416,7 +1410,7 @@ def test_context_manager_batches_saves() -> None:
 
     state._save_base_state = _counting_save  # type: ignore[method-assign]
 
-    # Three mutations inside one context-manager block → exactly 1 save
+    # 一个上下文-管理器块内的三个突变 → 恰好 1 次保存
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
         state.max_iterations = 999
@@ -1424,7 +1418,7 @@ def test_context_manager_batches_saves() -> None:
 
     assert save_count == 1
 
-    # Mutation outside a context-manager block → immediate save
+    # 上下文-管理器块外的突变 → 立即保存
     state.max_iterations = 42
     assert save_count == 2
 

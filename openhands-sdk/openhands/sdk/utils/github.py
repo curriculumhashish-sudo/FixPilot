@@ -1,44 +1,43 @@
-"""Utility functions for GitHub integrations."""
+"""GitHub 集成的实用函数。"""
 
 import re
 
 
-# Zero-width joiner character (U+200D)
-# We use ZWJ instead of ZWSP (U+200B) because:
-# - ZWJ is semantically more appropriate (joins characters without adding space)
-# - ZWJ has better support in modern renderers
-# - ZWJ is invisible and doesn't affect text rendering or selection
+# 零宽度连接符 (U+200D) 我们使用 ZWJ 而不是 ZWSP (U+200B)，因为：
+# - ZWJ 在语义上更合适（连接字符而不添加空格）
+# - ZWJ 在现代渲染器中有更好的支持
+# - ZWJ 不可见，不影响文本渲染或选择
 ZWJ = "\u200d"
 
 
 def sanitize_openhands_mentions(text: str) -> str:
-    """Sanitize @OpenHands mentions in text to prevent self-mention loops.
+    """清理文本中的 @OpenHands 提及，以防止自我提及循环。
 
-    This function inserts a zero-width joiner (ZWJ) after the @ symbol in
+    该函数在 @ 符号后面插入一个零宽度连接符 (ZWJ)
     @OpenHands mentions, making them non-clickable in GitHub comments while
-    preserving readability. The original case of the mention is preserved.
+    保持可读性。 提及的原始情况被保留。
 
     Args:
-        text: The text to sanitize
+        text: 要清理的文本
 
     Returns:
-        Text with sanitized @OpenHands mentions (e.g., "@OpenHands" -> "@‍OpenHands")
+        带有经过净化处理的@OpenHands的文本提及（e.g., "@OpenHands" -> "@‍OpenHands"）
 
     Examples:
         >>> sanitize_openhands_mentions("Thanks @OpenHands for the help!")
-        'Thanks @\\u200dOpenHands for the help!'
+        “感谢@\\u200dOpenHands 的帮助！”
         >>> sanitize_openhands_mentions("Check @openhands and @OPENHANDS")
-        'Check @\\u200dopenhands and @\\u200dOPENHANDS'
+        '检查@\\u200dopenhands 和@\\u200dOPENHANDS'
         >>> sanitize_openhands_mentions("No mention here")
-        'No mention here'
+        “这里没有提及”
     """
-    # Pattern to match @OpenHands mentions at word boundaries
-    # Uses re.IGNORECASE so we don't need [Oo]pen[Hh]ands
-    # Capture group preserves the original case
+    # 与单词边界处提及的 @OpenHands 匹配的模式使用 re.IGNORECASE，因此我们不需要 [Oo]pen
+    # [Hh] 并且捕获组保留原始大小写
+    #
     pattern = r"@(OpenHands)\b"
 
-    # Replace @ with @ + ZWJ while preserving the original case
-    # The \1 backreference preserves the matched case
+    # 将 @ 替换为 @ + ZWJ，同时保留原始大小写 \1 反向引用保留匹配的大小写
+    #
     sanitized = re.sub(pattern, f"@{ZWJ}\\1", text, flags=re.IGNORECASE)
 
     return sanitized

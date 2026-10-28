@@ -12,251 +12,135 @@ triggers:
 - agent-server feature map
 ---
 
-# Verify the Agent Server through its real API
+<a id="verify-the-agent-server-through-its-real-api"></a>
 
-Prove what an API consumer observes, not that a handler returned or CI passed.
-The consumers are agents and the programs that carry them: the SDK's
-`RemoteConversation`/`RemoteWorkspace`, the TypeScript client, Agent Canvas and
-automations. Three parts work together:
+# 通过真实的API验证Agent Server
 
-1. **`control-agent-server`** ([scripts/](scripts/)) is the lever. It launches
-   this checkout as an isolated real server (private `HOME`, persistence dir,
-   config file, session key, secret key, port), and turns every API step into a
-   command you can rerun: REST calls, WebSocket captures, LLM-backed
-   conversations, fixtures, SDK programs.
-2. **The feature map** ([references/feature-map/](references/feature-map/README.md))
-   lists every agent-facing behavior with stable IDs, the routes each family
-   owns, entry points (REST, WebSocket, SDK and TypeScript client methods),
-   exact `control-agent-server` recipes, observable results and gotchas.
-3. **Evidence**: saved request/response exchanges, WebSocket frames, webhook
-   deliveries and program transcripts, plus a pass/fail/blocked/not-run ledger
-   that survives cleanup.
+证明 API 消费者观察到的内容，而不是处理程序返回或 CI 传递的内容。 消费者是智能体以及承载它们的程序：SDK的
+`RemoteConversation`/`RemoteWorkspace`、TypeScript 客户端、Agent Canvas 和自动化。 三部分协同工作：
 
-Neither this skill nor the map authorizes external writes, paid models beyond
-the budget you were given, or product fixes the user did not ask for.
+1. **`control-agent-server`** ([scripts/](scripts/)) 是控制杆。 它将此结账作为独立的实服务器（私有`HOME`，持久化目录，配置文件，会话密钥，机密密钥，端口）启动，并将每个API步骤转换为你可以重跑的命令：REST调用，WebSocket捕获，LLM-后端对话，测试夹具，SDK程序。
+2. **功能图**（[references/feature-map/](references/feature-map/README.md)）列出了每种智能体-面行为的稳定ID，每个家庭拥有的路由，入口（REST、WebSocket、SDK和TypeScript客户端方法），精确`control-agent-server`食谱，可观察结果和陷阱。
+3. **证据**：保存的请求/响应交换、WebSocket帧、Webhook交付和程序转录，还包括一个生存清理后存活的通过/失败/被阻止/未运行的账本。
 
-## The CLI comes first
+此技能和地图都不会授权外部写入、超出您预算的付费模型或用户未要求的产品修复。
 
-Put it on `PATH` and read its help before anything else:
+<a id="the-cli-comes-first"></a>
+
+## CLI 排在第一位
+
+将其放在 `PATH` 上并首先阅读其帮助：
 
 ```sh
 export PATH="$PWD/.agents/skills/verify-agent-server/scripts:$PATH"
-control-agent-server --help              # then: control-agent-server <command> --help
+control-agent-server --help              # 然后：control-智能体-server <command> --help
 ```
 
-Requirements: `make build` (or `uv sync --dev`) in the repository root; the
-CLI runs on the repository's `.venv` and needs nothing else. `git` is needed
-for fixtures, `tmux` for bash and terminal tools, and a DeepSeek key for
-model-backed recipes. Every command prints one JSON object; exit 0 ok,
-1 action failed, 2 usage, 3 environment.
+要求：存储库根目录中的`make build`（或`uv sync --dev`）； 的
+CLI 在存储库的 `.venv` 上运行，不需要任何其他东西。 测试夹具需要 `git`，bash 和终端工具需要 `tmux`，模型支持的配方需要 DeepSeek 键。 每个命令打印一个 JSON 对象； 退出 0 正常，1 操作失败，2 使用情况，3 环境。
 
-In a container whose PID 1 does not reap children, run the entire
-`map run --fresh` or test command under a subreaper such as `tini -s --`
-(Docker's `docker-init -s --` is also suitable). For manual runs, wrap the
-shell containing launch, drive and stop; wrapping launch alone exits the
-supervisor too early. Otherwise exited descendants can remain zombies, causing cleanup
-checks to mistake them for live work. Keep the original failure evidence and
-report this environment difference; do not weaken the cleanup assertions.
+在 PID 1 不收割子级的容器中，运行整个
+`map run --fresh` 或在子收割器下测试命令，例如 `tini -s --`（Docker 的 `docker-init -s --` 也适用）。 对于手动运行，包装包含 launch、drive 和 stop 的 shell； 单独包装启动退出主管太早了。 否则，退出的后代可能仍然是僵尸，导致清理检查将其误认为是实时工作。 保留原始故障证据并报告此环境差异； 不要削弱清理主张。
 
-If an agent-facing path cannot be driven with the CLI, that is a **harness
-gap**: extend `scripts/control_agent_server.py` (document the verb in its
-`--help` with examples and in this file), prove it live, then write the recipe.
-Never work around a gap with an untracked one-off script the next agent cannot
-rerun. `api` and `ws` reach every route, so most gaps are about waiting,
-fixtures or observing side effects, not about calling an endpoint. Other agents
-may be running the same script: edit a copy, run its tests and
-`map check`, then move it into place in one step.
+如果面向智能体的路径无法使用 CLI 行驶，则为 ** 线束
+间隙**：扩展`scripts/control_agent_server.py`（记录动词在其
+`--help` 包含示例并在此文件中），现场证明，然后编写配方。 切勿使用未跟踪的一次性脚本来解决下一个智能体无法重新运行的间隙。 `api` 和 `ws` 到达每条路线，因此大多数间隙是关于等待、测试夹具或观察副作用，而不是关于调用端点。 其他智能体可能正在运行相同的脚本：编辑副本，运行其测试并
+`map check`，然后一步将其移动到位。
 
-## Launch → doctor → drive → evidence → cleanup
+<a id="launch--doctor--drive--evidence--cleanup"></a>
+
+## 发射→医生→驾驶→证据→清理
 
 ```sh
 export AGENT_SERVER_VERIFY_RUN=$(control-agent-server launch --new --print-run)
-control-agent-server doctor                     # read-only; must be ok before driving
-control-agent-server llm preset deepseek        # deepseek-flash (active) + deepseek-pro from $DEEPSEEK_API_KEY
+control-agent-server doctor                     # 只读; 开车前必须没问题
+control-agent-server llm preset deepseek        # deepseek-flash（主动）+ deepseek-pro 从 $DEEPSEEK_API_KEY
 CID=$(control-agent-server conversation start --prompt 'Create hello.txt containing hi' --wait --print-id)
 control-agent-server conversation events "$CID" --kinds ObservationEvent --contains hello.txt
 control-agent-server api GET "/api/conversations/$CID" --expect 200 --save F03.get/after-run
 control-agent-server evidence add --feature F03.get --result pass --entry "GET /api/conversations/{id}" \
   --expected "execution_status finished" --actual "finished" --artifact evidence/F03.get/after-run.json
-control-agent-server stop                       # stops only this run; evidence stays
+control-agent-server stop                       # 仅停止本次运行； 证据保留
 ```
 
-- **Which run.** Commands use `--run DIR` (anywhere on the line), else
-  `$AGENT_SERVER_VERIFY_RUN`, else the only live run. With several live runs
-  they refuse to guess, so export `AGENT_SERVER_VERIFY_RUN` in every shell when
-  other agents share the machine: an agent that drives someone else's run
-  corrupts both evidence ledgers. Never `pkill -f` or `killall` by pattern;
-  `control-agent-server stop` ends only your run's process groups.
-- **Launch** runs `python -m openhands.agent_server` from the checkout in its
-  own process group, with cwd, `HOME`, `OH_PERSISTENCE_DIR`, the config file
-  (`OPENHANDS_AGENT_SERVER_CONFIG_PATH`), tmux dir, worktree root, session key
-  (`OH_SESSION_API_KEYS_0`) and secret key (`OH_SECRET_KEY`) all private to the
-  run. The caller's `OH_*`, LLM and cloud variables are not inherited; pass
-  what a recipe needs with `--env K=V` or `--pass-env NAME`. Useful variants:
-  `--no-auth` (unauthenticated mode), `--deferred-init` (dormant until
-  `POST /api/init`), `--webhook-sink` (a recording webhook receiver wired into
-  the config), `--config-json '{...}'` (any other config field), `--vscode`,
-  `--preload-tools`, and `--checkout PATH` (another worktree, for a baseline).
-  Nested launches in a map recipe inherit the selected checkout; an explicit
-  `--checkout` overrides it.
-  `attach --url ... --key-env VAR` drives a server you did not launch (a Docker
-  image, the PyInstaller binary, a remote sandbox); `stop` never kills it.
-  Launch refuses to start with less than about 1 GB free: a run with a model
-  conversation holds 300 to 600 MB.
-- **Doctor** checks the process group, that this run owns its port, `/alive`,
-  `/health`, `/ready`, `/server_info` (version, and that `build_git_sha` is the
-  checkout's HEAD), that a missing key is rejected (401) and the run's key
-  accepted, that a rotated-out key is rejected, the OpenAPI document, WebSocket
-  first-frame auth (bad key closes with 4001), and tracebacks in the log. Run it
-  first, after every surprising failure, and before blaming the product.
-- **Drive** with `api METHOD PATH` (any REST route, `OPTIONS` and `HEAD`
-  included; `--auth none|bad|previous|bearer|bearer-bad|init` for auth cases,
-  `--expect` for the status, `--check FIELD OP VALUE` and `--check-header` for
-  the body and headers, `--field` to chain values into shell variables, `--jar`
-  for cookies, `--until-ok` to poll, `--save FEATURE/NAME` for evidence),
-  `ws listen|start|read|stop` (any WebSocket;
+- **哪个运行。**命令使用 `--run DIR`（该行中的任何位置），否则
+  `$AGENT_SERVER_VERIFY_RUN`否则，唯一存活的运行。 他们拒绝猜测，所以导出 `AGENT_SERVER_VERIFY_RUN` 在每个 shell 中，当其他智能体分享机器：一个智能体这会破坏他人的运行，从而破坏证据日志。 从未 `pkill -f` 或 `killall` 按照模式；
+  `control-agent-server stop` 仅结束运行的进程组。
+- **Launch**运行在自己的进程组中，从checkout开始，`python -m openhands.agent_server`cwd，`HOME`，`OH_PERSISTENCE_DIR`，配置文件(`OPENHANDS_AGENT_SERVER_CONFIG_PATH`)，tmux目录，工作树根，机密会话密钥(`OH_SESSION_API_KEYS_0`)和`OH_SECRET_KEY`密钥都是私有的。 调用者的`OH_*`、LLM和云变量不被继承； 使用 `--env K=V` 或 `--pass-env NAME` 传递菜谱所需的内容。 有用的变体：
+  `--no-auth`（未经身份验证模式），`--deferred-init`（休眠直到
+  `POST /api/init`)、`--webhook-sink`（连接到配置的录音 Webhook 接收器）、`--config-json '{...}'`（任何其他配置字段）、`--vscode`、
+  `--preload-tools` 和 `--checkout PATH`（另一个工作树，用于基线）。 地图配方中的嵌套启动继承所选的结账； 明确的
+  `--checkout` 覆盖它。
+  `attach --url ... --key-env VAR` 驱动您未启动的服务器（Docker 映像、PyInstaller 二进制文件、远程沙箱）； `stop` 永远不会杀死它。 启动拒绝在可用空间少于 1 GB 的情况下启动：模型对话的运行可容纳 300 到 600 MB。
+- **Doctor** 检查进程组，该运行是否拥有其端口，`/alive`，
+  `/health`, `/ready`, `/server_info` (版本，以及) `build_git_sha` 是结账的 HEAD), 一个缺少的密钥被拒绝（401），运行的密钥被接受，一个过期的密钥被拒绝， OpenAPI 文档 WebSocket 第一帧认证（坏密钥以4001码关闭），日志中包含调用堆栈。 在每一次令人惊讶的失败之后、在归咎于产品之前，先运行它。
+- **沿 `api METHOD PATH` 行驶 **（任何 REST 路线，包括 `OPTIONS` 和 `HEAD`； `--auth none|bad|previous|bearer|bearer-bad|init` 对于授权案例，
+  `--expect` 状态，`--check FIELD OP VALUE` 和 `--check-header` 为正文和头，`--field` 链接值为 shell 变量，`--jar` 为 cookies，`--until-ok` 为 poll，`--save FEATURE/NAME` 为 evidence)
+  `ws listen|start|read|stop`（任何WebSocket；
   `--auth first-frame|query|header|none|bad|bad-query|bad-header|previous|key`,
-  `--expect-reject` for close codes, replay with `--query resend_mode=all`,
-  background captures that span other commands, `--wait` on `read|stop` to
-  poll until the expectations hold),
-  `conversation start|wait|send|events` (the essential agent pathways),
-  `sink read` (what a webhook, telemetry or credential sink received),
-  `state ls|cat|grep` (what the server persisted, and that secrets are not in
-  it), `config` and `capabilities`, and `exec -- <program>` (an SDK or
-  TypeScript-client program with `AGENT_SERVER_URL` and `SESSION_API_KEY`
-  injected). `logs --grep` reads the server log with secrets redacted.
-- **Arrange, don't fake.** `llm`, `fixture` and setup calls through `api` exist
-  to reach preconditions (a configured profile, a git repository, a skill, a
-  stdio MCP server, an HTTP sink). They never count as proof of the feature
-  that consumes them; the map says which steps are proof. Never patch the
-  server or mock a server response to make a live check pass. The one stand-in
-  is `fixture llm-stub`: an OpenAI-compatible provider on loopback that
-  replays scripted steps (`reply`, `tool`, `status`, `hang`) through the
-  server's real LLM client. Use it only for provider behavior a real model
-  cannot produce on demand (a 401, a 500, a hang, an exact tool call such as
-  `finish` or a risky command); every happy path runs on a real model.
-  A status step can include a provider error body, for example
-  `--step 'status:429:{"error":{"message":"Quota exceeded","type":"insufficient_quota","code":"insufficient_quota"}}'`,
-  so quota exhaustion and transient rate limiting can be distinguished.
-  A recipe-local process that later bullets use (an HTTP fixture server, a
-  proxy) runs under `helper start --name NAME -- CMD`, not `CMD &`: `map run`
-  ends each bullet's process group when the bullet ends.
-- **State control** reaches states a happy path never shows, without mocks:
-  `restart` (same state after a restart: persistence, restore, reconnection),
-  `restart --hard` (SIGKILL: crash recovery), `restart --rotate-key` (stale
-  session key), `launch --share-conversations-from RUN` (a second instance on
-  the same conversations: leases and takeover), `restart --env K=V` or
-  `--config-json` (config changes such as `max_concurrent_runs` or idle TTL),
-  `launch --deferred-init`, `launch --no-auth`, `conversation start --no-run`,
-  and `ws start` before an action so its events are captured live.
-- **Evidence** goes under `<run>/evidence/<feature-id>/` and the append-only
-  ledger `<run>/evidence/ledger.jsonl`. Nothing is overwritten: a repeated name
-  is saved as `<name>-2.json`, so cite the path the command prints;
-  `evidence report` renders [the report contract](references/report.md). The
-  CLI redacts the run's keys, `$DEEPSEEK_API_KEY` and cipher-encrypted values
+  `--expect-reject` 用于关闭代码，使用 `--query resend_mode=all` 重放，跨越其他命令的后台捕获，`--wait` 在 `read|stop` 上进行轮询，直到达到预期），
+  `conversation start|wait|send|events`（基本智能体途径），
+  `sink read` (什么 Webhook，如凭据接收的)，
+  `state ls|cat|grep`（服务器已持久化和机密不在其中）、`config` 和 `capabilities` 以及 `exec -- <program>`（注入了 `AGENT_SERVER_URL` 和 `SESSION_API_KEY` 的 SDK 或 TypeScript 客户端程序）。 `logs --grep`使用机密已脱敏读取服务器日志。
+- **安排，不要造假。**  `llm`, `fixture` 并调用设置方法 `api` 存在以满足预条件（配置的模式、一个 Git 仓库、一个技能、一个 stdio） MCP 服务器，一个 HTTP sink). 它们永远不会被视为消耗它们的功能的证据； 地图上标明了哪些步骤是证据。 不要修补服务器模拟对象服务器响应使进行实时检查通过。 唯一的替代方案是 `fixture llm-stub`: an OpenAI在环回上兼容的提供者，重播脚本步骤`reply`, `tool`, `status`, `hang`通过服务器的真实 LLM 客户端。 仅用于提供者行为，即一个真实模型无法按需生产的401、500、挂起或一个精确的工具调用例如
+  `finish` 或有风险的命令）； 每条幸福的道路都运行在真实的模型上。 状态步骤可以包括提供者错误主体，例如
+  `--step 'status:429:{"error":{"message":"Quota exceeded","type":"insufficient_quota","code":"insufficient_quota"}}'`，因此可以区分配额耗尽和瞬时速率限制。 一个使用了 HTTP 测试夹具服务器和代理的本地烹饪过程，现在运行在 `helper start --name NAME -- CMD` 而不是 `CMD &`：`map run` 在每个子弹的进程组结束时结束。
+- **状态控制**达到状态，没有模拟对象，一条幸福的道路永远不会显示：
+  `restart`（重启后相同状态：持久化，恢复，重新连接），
+  `restart --hard`（SIGKILL：崩溃恢复）、`restart --rotate-key`（过时的会话密钥）、`launch --share-conversations-from RUN`（同一会话的第二个实例：租用和接管）、`restart --env K=V` 或
+  `--config-json`（配置更改，例如 `max_concurrent_runs` 或空闲 TTL），
+  `launch --deferred-init`、`launch --no-auth`、`conversation start --no-run` 和 `ws start` 在操作之前，以便实时捕获其事件。
+- **证据**属于`<run>/evidence/<feature-id>/`和仅附加分类账`<run>/evidence/ledger.jsonl`。 没有任何内容被覆盖：重复的名称将保存为 `<name>-2.json`，因此请引用命令打印的路径；
+  `evidence report` 呈现 [ 报告合同 ](references/report.md)。 CLI 编辑运行的密钥，`$DEEPSEEK_API_KEY` 和密码加密的值
   from output and evidence, including `--field` and `--print-header`. Only
-  `api --unsafe-unredacted` with either flag returns raw secret values for a
-  round trip; capture those directly in variables and keep them out of reports.
-  Evidence remains redacted. Keys, logs and state stay in `<run>/private/`.
-  Evidence is not automatically public: read it before publishing it.
-- **Cleanup** with `control-agent-server stop` (add `--purge-private` to delete
-  keys, state and fixtures once the evidence is checked). It signals only the
-  process groups this run started (server, HTTP sinks, background captures,
-  helpers) and verifies the port closed.
+  具有任一标志的 `api --unsafe-unredacted` 返回往返的原始机密值； 直接在变量中捕获这些内容并将其排除在报告之外。 证据仍然存在已脱敏。 密钥、日志和状态保留在 `<run>/private/` 中。 证据不会自动公开：在发布之前先阅读它。
+- **清理**和`control-agent-server stop`（添加`--purge-private`以删除密钥，一旦检查证据，请说明和测试夹具）。 它仅向此运行启动的进程组发出信号（服务器、HTTP 接收器、后台捕获、帮助程序）并验证端口已关闭。
 
-## LLM budget
+<a id="llm-budget"></a>
 
-Use `deepseek-flash` (DeepSeek V4.1 Flash) for everything that needs a model;
-switch to `deepseek-pro` only for checks that need a second profile or a
-stronger model. Keep prompts tiny, deterministic and confined to the
-conversation's workspace ("Create hello.txt containing exactly: hi"), and
-assert on tool observations and files, never on the model's wording. Stop or
-delete conversations a recipe no longer needs. Without a key, run every
-credential-free recipe and record model-dependent ones as `blocked` with the
-missing prerequisite; never substitute a mock and call it a pass.
+## LLM 预算
 
-For critic checks, use an available, authorized OpenHands (`openhands/…`) or
-compatible OpenHands LLM-proxy profile, regardless of the main profile used
-for the pass. The SDK reuses its LLM key when `verification.critic_api_key`
-is unset. Restore the previous profile afterwards. Do not declare the critic
-blocked merely because the main model uses another provider. This does not
-authorize new credentials, additional budget, or sending private test data
-to another service; require real scored events before recording a pass.
+对于需要模型的所有内容，请使用 `deepseek-flash` (DeepSeek V4.1 Flash)； 仅当检查需要第二个配置文件或更强大的模型时才切换到 `deepseek-pro`。 保持提示词微小、确定和局限于对话的工作区（“创建 hello.txt，包含：hi”），并在工具观测结果和文件上进行断言，而不是在模型的用词上。 停止或删除菜谱不再需要的对话。 如果没有密钥，则运行每个无凭据的配方，并将依赖于模型的配方记录为 `blocked`，但缺少先决条件； 永远不要替换模拟对象并称其为通过。
 
-## Choose the job
+对于批评者检查，请使用可用的、授权的 OpenHands (`openhands/…`) 或兼容的 OpenHands LLM 代理配置文件，无论用于通行证的主配置文件如何。 当 `verification.critic_api_key` 未设置时，SDK 会重用其 LLM 键。 之后恢复之前的配置文件。 不要仅仅因为主模型使用了另一个提供者就宣布批评家被屏蔽。 这并不授权新的凭据、额外的预算或将私人测试数据发送到其他服务； 在记录传球之前需要真实的得分事件。
 
-- **Verify a change or a PR**: map the changed paths to feature IDs with
-  `control-agent-server map owners --changed origin/main...HEAD`, drive every
-  entry point those features list (REST, WebSocket, SDK, TypeScript client),
-  and report with [the report contract](references/report.md). A behavior
-  change needs a regression test as well (usually in
-  `tests/cross/test_remote_conversation_live_server.py`); the recipe is the
-  live proof, not a substitute for that test.
-- **Verify an existing fix** (an open PR or a merged commit that claims to fix
-  a `known bug` bullet): reproduce on the baseline twice and the fix twice,
+<a id="choose-the-job"></a>
+
+## 选择工作
+
+- **验证更改或 PR**：将更改的路径映射到功能 ID
+  `control-agent-server map owners --changed origin/main...HEAD`，驱动每个入口这些功能列表（REST、WebSocket、SDK、TypeScript 客户端），并使用 [ 报告合同 ](references/report.md) 进行报告。 行为改变也需要回归测试（通常在
+  `tests/cross/test_remote_conversation_live_server.py`); 配方是活生生的证据，不能代替测试。
+- ** 验证现有修复**（一个已打开的PR或已合并的提交，声称修复了`known bug`条目）：在基线上重复两次，修复也重复两次
   with the same flags and fixtures:
-  `control-agent-server map run --file Fnn --only Fnn.x --fresh --repeat 2 --checkout <base worktree>`
-  must report the bullet `xfail` in both attempts, and the same command
-  without `--checkout` (the fix) `xpass` in both. `xfail` means the marked
-  command failed with the failure its `# bug: PREDICATE` documents (see
+  `control-agent-server map run --file Fnn --only Fnn.x --fresh --repeat 2 --checkout <base worktree>` 必须在两次尝试中报告项目符号 `xfail`，并且两次尝试中都必须报告没有 `--checkout`（修复）`xpass` 的相同命令。 `xfail` 表示标记的命令失败，其 `# bug: PREDICATE` 文档失败（请参阅
   [the marker contract](references/mapping.md)); any other failure on the
-  baseline is a `fail`, so the proof cannot rest on an unrelated error. Then drop the marker in the
-  same PR. Baseline not reproducing twice means "inconclusive", never
-  "fixed". `--only` rejects unknown IDs and also runs each selected recipe's
-  transitive `Requires:` prerequisites in family order.
-- **Create or extend the map**: follow [references/mapping.md](references/mapping.md).
-  `control-agent-server map coverage` measures which routes no family owns or
-  drives.
-- **Re-prove the map**: every family's recipes are fenced `sh` blocks whose
-  commands assert their own expectations, so
-  `control-agent-server map run --file Fnn --fresh --record` replays a family
-  on its own fresh run (with the family's `Launch:` flags), requires a
-  passing `doctor` before the first recipe, and writes ledger
-  rows, and `control-agent-server map run --all --fresh --record` replays the
-  whole map. Only failing bullets need judgment; `known bug` bullets report as
-  expected failures until the bug is fixed.
-- **Run the daily pass**: follow [references/daily.md](references/daily.md):
-  static checks (`map check`, `map coverage`), the families changed since the
-  `Maintenance baseline` line of the map index (`map baseline`; `map owners`
-  with no arguments diffs from it), and nothing else: families nothing in
-  the range touched wait for the weekly pass, and a pass with no new commits
-  on `main` stops early. A pass that finished its changed families proposes
-  `TARGET` as the next baseline with `map baseline --set "$TARGET"` in its PR;
-  compare ledgers with `evidence report --baseline` when yesterday's is at
-  hand.
-- **Maintain the map (periodic or weekly)**: follow
+  基线是 `fail`，因此证明不能 REST 不相关的错误。 然后将标记放入同一个 PR 中。 基线不复制两次意味着“不确定”，永远不会“固定”。 `--only` 拒绝未知 ID，并按系列顺序运行每个选定配方的传递 `Requires:` 先决条件。
+- **创建或扩展地图**：遵循[参考/mapping.md](references/mapping.md)。
+  `control-agent-server map coverage` 衡量没有家庭拥有或驾驶的路线。
+- **重新证明地图**：每个家庭的食谱都被围起来`sh`块，其命令断言了自己的期望，所以
+  `control-agent-server map run --file Fnn --fresh --record` 重现一个家庭在第一次运行时（带有家庭的`Launch:`标志），需要在第一个食谱之前通过`doctor`，并写入账本行，`control-agent-server map run --all --fresh --record` 重现整个地图。 只有失败的子弹才需要判断； `known bug` 项目符号报告预期的失败，直到错误得到修复。
+- **运行每日通行证**：遵循[参考文献/daily.md](references/daily.md)：静态检查（`map check`，`map coverage`），家庭自
+  地图索引的 `Maintenance baseline` 行 (`map baseline`; `map owners` 无参数的差异与它本身没有关系，也没有其他东西：在 `main` 范围内没有触及的家庭等待周票，以及一个没有新提交的票。 完成其改变的家庭的通行证建议
+  `TARGET` 作为下一个基线，`map baseline --set "$TARGET"` 在其 PR 中； 当昨天的账本临近时，将账本与 `evidence report --baseline` 进行比较。
+- **维护地图（定期或每周）**：关注
   [references/maintenance.md](references/maintenance.md): a frozen BASE/TARGET,
-  a route diff, a PR-intent ledger, a source wave, one live pass over every
-  family, and at most one PR of proven corrections.
+  路线差异、PR意图分类账、源波、每个家庭的一次实时传递，以及最多一个PR经过验证的更正。
 
-## Triage what you find
+<a id="triage-what-you-find"></a>
 
-- **Map drift**: the map describes something the server no longer does by
-  design. Fix the entry with current source and live evidence.
-- **Harness gap**: the server works but the CLI cannot drive or observe it.
-  Fix the CLI, re-drive.
-- **Product bug**: the server is broken. Keep the evidence, search existing
-  issues, and report it separately: Agent Server, SDK and the TypeScript client
-  here (`OpenHands/agent-sdk`), Agent Canvas UI in `OpenHands/OpenHands`,
-  scheduling and dispatch in `OpenHands/automation`. Never rewrite an expected
-  result to bless broken behavior.
-- **Blocked**: name the missing prerequisite (key, account, Docker, binary, OS)
-  and the route you attempted. Unreachable is never a pass.
-  `control-agent-server capabilities` says what this machine can drive and
-  which families' `Needs:` are unmet.
-  A family's `Needs:` line gates the whole family under `--all`; a recipe's
-  own `Needs:` line blocks only that recipe and the ones that require it, so
-  the rest of the family still runs on a machine without it.
+## 对您发现的内容进行分类
 
-## How this fits with the tests
+- **地图漂移**：地图描述了服务器在设计上不再执行的操作。 使用当前来源和现场证据修复条目。
+- **线束间隙**：服务器可以工作，但CLI无法驱动或观察它。 修复CLI，重新驱动。
+- **产品错误**：服务器损坏。 保留证据，查找现有问题，并单独报告：Agent Server、SDK 和 TypeScript 客户（`OpenHands/agent-sdk`），Agent Canvas 用户界面（`OpenHands/OpenHands`），调度和派送（`OpenHands/automation`）。 永远不要重写预期结果来祝福破坏的行为。
+- **已阻止**：命名缺少的先决条件（密钥、帐户、Docker、二进制文件、操作系统）以及您尝试的路线。 遥不可及永远不是通行证。
+  `control-agent-server capabilities` 表示该机器可以驱动什么以及哪些系列的 `Needs:` 未满足。 一个家庭的`Needs:`线将整个家庭门控在`--all`下； 配方自己的 `Needs:` 行仅阻止该配方和需要它的配方，因此该系列的 REST 仍然可以在没有它的机器上运行。
 
-Unit tests (`tests/agent_server/`), the in-process live-server tests
-(`tests/cross/test_remote_conversation_live_server.py`), the stress suite, the
-REST breakage check (oasdiff against the last release) and the TypeScript
-client's endpoint audit prove contracts in isolation, with scripted LLMs. This
-skill proves the assembled server as agents use it: one real process, real
-persistence and restarts, real sockets and webhooks, and a real model. It does
-not replace any of them.
+<a id="how-this-fits-with-the-tests"></a>
 
-See [references/adaptation.md](references/adaptation.md) for where these ideas
-come from and what was deliberately left out.
+## 这如何与测试相符
+
+单元测试 (`tests/agent_server/`), 在线实时服务器测试（`tests/cross/test_remote_conversation_live_server.py`), 压力测试， 该测试 REST 断开检查（与上一个版本进行 oasdiff）和  TypeScript 客户端的端点审计合同，孤立进行，使用脚本 LLMs. 该技能证明了组装的服务器是智能体使用它：一个真实的过程，真实持久化并重启，真实套接字和 Webhook, 并且是一个真实模型。 它不会取代其中任何一个。
+
+请参阅 [references/adaptation.md](references/adaptation.md) 了解这些想法的来源以及故意遗漏的内容。

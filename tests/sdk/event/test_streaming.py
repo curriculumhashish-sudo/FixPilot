@@ -1,4 +1,4 @@
-"""Tests for the StreamingDeltaEvent model."""
+"""对 StreamingDeltaEvent 模型的测试。"""
 
 import pytest
 

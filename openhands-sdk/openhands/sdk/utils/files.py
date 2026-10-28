@@ -4,22 +4,23 @@ from pathlib import Path
 from typing import Final
 
 
-# Suffix that marks a file as still being written. ``atomic_write_text`` writes
-# to ``.<name>.<random>.tmp`` next to ``path`` and then renames it to ``<name>``.
+# 将文件标记为仍在写入的后缀。 ``atomic_write_text`` 写入 ``path`` 旁边的
+# ``.<name>.<random>.tmp``，然后将其重命名为 ``<name>``。
+#
 _TEMP_SUFFIX: Final[str] = ".tmp"
 
 
 def is_temp_file(path: Path) -> bool:
-    """Return True if ``path`` is named like a file that is still being written.
+    """如果 ``path`` 的命名类似于仍在写入的文件，则返回 True。
 
-    That is any ``*.tmp`` name: ``atomic_write_text``'s temp files, and those of
-    other writers that use the same suffix for a file they rename into place.
+    这是任何 ``*.tmp`` 名称：``atomic_write_text`` 的临时文件，以及其他编写者对他们重
+    命名的文件使用相同后缀的临时文件。
     """
     return path.suffix == _TEMP_SUFFIX
 
 
 def atomic_write_text(path: Path, value: str, mode: int = 0o600) -> None:
-    """Atomically write text with owner-only permissions."""
+    """使用仅限所有者的权限自动写入文本。"""
     fd, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=_TEMP_SUFFIX, dir=path.parent
     )

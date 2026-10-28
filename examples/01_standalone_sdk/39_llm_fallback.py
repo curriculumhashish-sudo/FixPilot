@@ -1,15 +1,13 @@
-"""Example: Using FallbackStrategy for LLM resilience.
+"""Example: 使用 FallbackStrategy 来实现 LLM 弹性。
 
-When the primary LLM fails with a transient error (rate limit, timeout, etc.),
-FallbackStrategy automatically tries alternate LLMs in order.  Fallback is
-per-call: each new request starts with the primary model.  Token usage and
-cost from fallback calls are merged into the primary LLM's metrics.
+当主 LLM 失效，且是短暂错误（如限流超时等）， FallbackStrategy 会自动尝试备用 LLMs。
+回退方案是按次计费：每次新的请求都从主模型开始。 词元用量
+和回退方案的成本被合并到主 LLM 的指标中。
 
-This example:
-  1. Saves two fallback LLM profiles to a temporary store.
-  2. Configures a primary LLM with a FallbackStrategy pointing at those profiles.
-  3. Runs a conversation — if the primary model is unavailable, the agent
-     transparently falls back to the next available model.
+这个例子：
+  1. 将两个回退方案 LLM 配置文件保存到临时存储中。
+  2. 配置主 LLM，其中 FallbackStrategy 指向这些配置文件。
+  3. 运行对话 - 如果主模型不可用，智能体会透明地回退到下一个可用模型。
 """
 
 import os
@@ -23,14 +21,15 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Read configuration from environment
+# 从环境中读取配置
 api_key = os.getenv("LLM_API_KEY", None)
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 base_url = os.getenv("LLM_BASE_URL")
 primary_model = os.getenv("LLM_MODEL", "gpt-5.5")
 
-# Use a temporary directory so this example doesn't pollute your home folder.
-# In real usage you can omit base_dir to use the default (~/.openhands/profiles).
+# 使用临时目录，以便此示例不会污染您的主文件夹。 在实际使用中，您可以省略 base_dir 以使
+# 用默认值（~/.openhands/profiles).
+#
 profile_store_dir = tempfile.mkdtemp()
 store = LLMProfileStore(base_dir=profile_store_dir)
 
@@ -53,7 +52,7 @@ store.save("fallback-2", fallback_2, include_secrets=True)
 print(f"Saved fallback profiles: {store.list()}")
 
 
-# Configure the primary LLM with a FallbackStrategy
+# 使用 FallbackStrategy 配置主 LLM
 primary_llm = LLM(
     usage_id="agent-primary",
     model=primary_model,
@@ -66,7 +65,7 @@ primary_llm = LLM(
 )
 
 
-# Run a conversation
+# 进行对话
 agent = Agent(
     llm=primary_llm,
     tools=[
@@ -80,7 +79,7 @@ conversation.send_message("Write a haiku about resilience into HAIKU.txt.")
 conversation.run()
 
 
-# Inspect metrics (includes any fallback usage)
+# 检查指标（包括任何回退方案使用情况）
 metrics = primary_llm.metrics
 print(f"Total cost (including fallbacks): ${metrics.accumulated_cost:.6f}")
 print(f"Token usage records: {len(metrics.token_usages)}")

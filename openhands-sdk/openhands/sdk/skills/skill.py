@@ -53,30 +53,30 @@ from openhands.sdk.utils.path import get_user_persistence_dir, to_posix_path
 logger = get_logger(__name__)
 
 
-# One glob token per match; longest operator first so `**/` and `**` beat `*`.
+# 每场比赛一球 token； 最长的运算符优先，因此 `**/` 和 `**` 击败 `*`。
 _GLOB_TOKENS: Final[re.Pattern[str]] = re.compile(r"\*\*/|\*\*|\*|\?|[^*?]+")
 _GLOB_TO_REGEX: Final[dict[str, str]] = {
-    "**/": "(?:.*/)?",  # any number of leading path segments (including zero)
-    "**": ".*",  # anything, crossing `/` separators
-    "*": "[^/]*",  # any run within a single segment
-    "?": "[^/]",  # a single non-separator character
+    "**/": "(?:.*/)?",  # 任意数量的引导路径段（包括零）
+    "**": ".*",  # 任何内容，跨越 `/` 分隔符
+    "*": "[^/]*",  # 单个段内的任何运行
+    "?": "[^/]",  # 单个非分隔符
 }
 
 
 @lru_cache(maxsize=512)
 def _compile_path_glob(pattern: str) -> re.Pattern[str]:
-    """Compile a gitignore-style path glob into an anchored regex.
+    """将 gitignore 风格的路径 glob 编译为锚定的正则表达式。
 
-    Supported syntax (matched against a POSIX path):
-    - ``**`` matches any number of path segments (including zero).
-    - ``*`` matches any run of characters within a single segment.
-    - ``?`` matches a single non-separator character.
-    - A pattern without a ``/`` matches the basename at any depth, e.g.
-      ``*.py`` behaves like ``**/*.py`` (gitignore semantics).
+    支持的语法（与 POSIX 路径匹配）：
+    - ``**`` 匹配任意数量的路径段（包括零）。
+    - ``*`` 匹配单个段内的任何字符串。
+    - ``?`` 匹配单个非分隔符。
+    - 不带 ``/`` 的模式与任意深度的基本名称 e.g 匹配。
+      ``*.py`` 的行为类似于 ``**/*.py``（gitignore 语义）。
 
-    Matching is case-sensitive. Results are cached per pattern string.
+    匹配区分大小写。 结果按模式字符串进行缓存。
     """
-    # A slash-less pattern matches at any depth.
+    # 无斜线模式在任何深度都匹配。
     if "/" not in pattern:
         pattern = "**/" + pattern
     tokens: list[str] = _GLOB_TOKENS.findall(pattern)
@@ -85,9 +85,9 @@ def _compile_path_glob(pattern: str) -> re.Pattern[str]:
 
 
 def path_matches_glob(file_path: str, pattern: str) -> bool:
-    """Return True if ``file_path`` matches the gitignore-style glob ``pattern``.
+    """如果 ``file_path`` 与 gitignore 样式的 glob ``pattern`` 匹配，则返回 True。
 
-    ``file_path`` is expected to be a POSIX path (typically workspace-relative).
+    ``file_path`` 预计是 POSIX 路径（通常是工作区相关路径）。
     """
     if not pattern:
         return False
@@ -95,10 +95,9 @@ def path_matches_glob(file_path: str, pattern: str) -> bool:
 
 
 class SkillInfo(BaseModel):
-    """Lightweight representation of a skill's essential information.
+    """技能基本信息的轻量级表示。
 
-    This class provides a standardized, serializable format for skill metadata
-    that can be used across different components of the system.
+    此类为技能元数据提供标准化、可序列化的格式，可在系统的不同组件中使用。
     """
 
     name: str
@@ -112,12 +111,12 @@ class SkillInfo(BaseModel):
 
 
 class SkillResources(BaseModel):
-    """Resource directories for a skill (AgentSkills standard).
+    """技能的资源目录（AgentSkills 标准）。
 
-    Per the AgentSkills specification, skills can include:
-    - scripts/: Executable scripts the agent can run
-    - references/: Reference documentation and examples
-    - assets/: Static assets (images, data files, etc.)
+    根据 AgentSkills 规范，技能可以包括：
+    - scripts/: 智能体可以运行的可执行脚本
+    - References/：参考文档和示例
+    - asset/：静态资产（图像、数据文件等）
     """
 
     skill_root: str = Field(description="Root directory of the skill (absolute path)")
@@ -135,26 +134,26 @@ class SkillResources(BaseModel):
     )
 
     def has_resources(self) -> bool:
-        """Check if any resources are available."""
+        """检查是否有可用资源。"""
         return bool(self.scripts or self.references or self.assets)
 
     def get_scripts_dir(self) -> Path | None:
-        """Get the scripts directory path if it exists."""
+        """获取脚本目录路径（如果存在）。"""
         scripts_dir = Path(self.skill_root) / "scripts"
         return scripts_dir if scripts_dir.is_dir() else None
 
     def get_references_dir(self) -> Path | None:
-        """Get the references directory path if it exists."""
+        """获取引用目录路径（如果存在）。"""
         refs_dir = Path(self.skill_root) / "references"
         return refs_dir if refs_dir.is_dir() else None
 
     def get_assets_dir(self) -> Path | None:
-        """Get the assets directory path if it exists."""
+        """获取资产目录路径（如果存在）。"""
         assets_dir = Path(self.skill_root) / "assets"
         return assets_dir if assets_dir.is_dir() else None
 
 
-# Union type for all trigger types
+# 所有触发器类型的联合类型
 TriggerType = Annotated[
     KeywordTrigger | TaskTrigger | PathTrigger,
     Field(discriminator="type"),
@@ -162,11 +161,11 @@ TriggerType = Annotated[
 
 
 def _keyword_matches(keyword: str, message_lower: str) -> bool:
-    """Return True if ``keyword`` appears as a whole token in ``message_lower``.
+    """如果 ``keyword`` 在 ``message_lower`` 中作为整体 token 出现，则返回 True。
 
-    Uses alphanumeric boundaries (not ``\\b``) so ``git`` does not fire on
-    ``github`` while slash-prefixed keywords like ``/linear`` still match.
-    ``message_lower`` is expected to be lowercased by the caller.
+    使用数字和字母边界（不包括 ``\\b``），因此 ``git`` 不会触发
+    ``github`` 而斜杠前缀的关键字（如 ``/linear``）仍然匹配。
+    ``message_lower`` 预计由调用者小写。
     """
     keyword_lower = keyword.lower()
     if not keyword_lower:
@@ -176,21 +175,22 @@ def _keyword_matches(keyword: str, message_lower: str) -> bool:
 
 
 class Skill(BaseModel):
-    """A skill provides specialized knowledge or functionality.
+    """技能提供专业知识或功能。
 
-    Skill behavior depends on format (is_agentskills_format) and trigger:
+    技能行为取决于格式（is_agentskills_format）和触发器：
 
-    AgentSkills format (SKILL.md files):
-    - Always listed in <available_skills> with name, description, location
-    - Agent reads full content on demand (progressive disclosure)
-    - If has triggers: content is ALSO auto-injected when triggered
+    AgentSkills 格式（SKILL.md 个文件）：
+    - 始终在 <available_skills> 中列出，并包含名称、描述、位置
+    - 智能体按需阅读完整内容（渐进式披露）
+    - 如果有触发器：触发时内容会自动注入 ALSO
 
-    Legacy OpenHands format:
-    - With triggers: Listed in <available_skills>, content injected on trigger
-    - Without triggers (None): Full content in <REPO_CONTEXT>, always active
+    旧版 OpenHands 格式：
+    - 使用触发器：在 <available_skills> 中列出，在触发器上注入内容
+    - 无触发器 (None)：<REPO_CONTEXT> 中的完整内容，始终处于活动状态
 
-    This model supports both OpenHands-specific fields and AgentSkills standard
-    fields (https://agentskills.io/specification) for cross-platform compatibility.
+    该模型支持 OpenHands 特定字段和 AgentSkills 标准字段 (
+    https://agentskills.io/specification ) 以实
+    现跨平台兼容性。
     """
 
     name: str
@@ -231,10 +231,10 @@ class Skill(BaseModel):
         ),
     )
 
-    # AgentSkills specification: description must be 1-1024 characters.
+    # AgentSkills规范：描述必须为1-1024个字符。
     MAX_DESCRIPTION_LENGTH: ClassVar[int] = 1024
 
-    # AgentSkills standard fields (https://agentskills.io/specification)
+    # AgentSkills 标准字段 ( https://agentskills.io/specification )
     version: str = Field(
         default="1.0.0",
         description="Skill version (AgentSkills standard field).",
@@ -299,7 +299,7 @@ class Skill(BaseModel):
     @field_validator("allowed_tools", mode="before")
     @classmethod
     def _parse_allowed_tools(cls, v: str | list | None) -> list[str] | None:
-        """Parse allowed_tools from space-delimited string or list."""
+        """从空格分隔的字符串或列表中解析 allowed_tools。"""
         if v is None:
             return None
         if isinstance(v, str):
@@ -311,7 +311,7 @@ class Skill(BaseModel):
     @field_validator("metadata", mode="before")
     @classmethod
     def _convert_metadata_values(cls, v: dict | None) -> dict[str, str] | None:
-        """Convert metadata values to strings."""
+        """将元数据值转换为字符串。"""
         if v is None:
             return None
         if isinstance(v, dict):
@@ -323,7 +323,7 @@ class Skill(BaseModel):
     def _validate_mcp_tools(
         cls, v: object, info: ValidationInfo
     ) -> dict[str, MCPServer] | None:
-        """Validate skill MCP tools as native MCP server models."""
+        """验证技能 MCP 工具作为本机 MCP 服务器模型。"""
         if v is None:
             return None
         if not isinstance(v, Mapping):
@@ -359,22 +359,21 @@ class Skill(BaseModel):
         strict: bool = True,
         skip_mcp: bool = False,
     ) -> "Skill":
-        """Load a skill from a markdown file with frontmatter.
+        """使用前置元数据从 Markdown 文件加载技能。
 
-        The agent's name is derived from its path relative to skill_base_dir,
-        or from the directory name for AgentSkills-style SKILL.md files.
+        智能体的名称源自其相对于 skill_base_dir 的路径，或者源自 AgentSkills 样式
+        SKILL.md 文件的目录名称。
 
-        Supports both OpenHands-specific frontmatter fields and AgentSkills
-        standard fields (https://agentskills.io/specification).
+        支持 OpenHands 特定前置元数据字段和 AgentSkills 标准字段 (
+        https://agentskills.io/specification )。
 
         Args:
-            path: Path to the skill file.
-            skill_base_dir: Base directory for skills (used to derive relative names).
-            strict: If True, enforce strict AgentSkills name validation.
-                If False, allow relaxed naming (e.g., for plugin compatibility).
-            skip_mcp: If True, skip loading MCP configuration from .mcp.json.
-                Used when loading root plugin skills where MCP config is already
-                loaded at the plugin level to avoid double-loading.
+            path: 技能文件的路径。
+            skill_base_dir: 技能的基本目录（用于派生相对名称）。
+            strict: 如果为 True，则强制执行严格的 AgentSkills 名称验证。
+                如果为 False，则允许宽松的命名（e.g.，用于插件兼容性）。
+            skip_mcp: 如果是 True，则跳过从 .mcp.json 加载 MCP 配置。
+                在加载根插件技能时使用，其中 MCP 配置已在插件级别加载以避免双重加载。
         """
         path = Path(path) if isinstance(path, str) else path
 
@@ -392,15 +391,15 @@ class Skill(BaseModel):
     def _load_agentskills_skill(
         cls, path: Path, file_content: str, strict: bool = True, skip_mcp: bool = False
     ) -> "Skill":
-        """Load a skill from an AgentSkills-format SKILL.md file.
+        """从 AgentSkills 格式的 SKILL.md 文件加载技能。
 
         Args:
-            path: Path to the SKILL.md file.
-            file_content: Content of the file.
-            strict: If True, enforce strict AgentSkills name validation.
-            skip_mcp: If True, skip loading MCP configuration from .mcp.json.
+            path: SKILL.md 文件的路径。
+            file_content: 文件的内容。
+            strict: 如果为 True，则强制执行严格的 AgentSkills 名称验证。
+            skip_mcp: 如果是 True，则跳过从 .mcp.json 加载 MCP 配置。
         """
-        # For SKILL.md files, use parent directory name as the skill name
+        # 对于 SKILL.md 个文件，使用父目录名称作为技能名称
         directory_name = path.parent.name
         skill_root = path.parent
 
@@ -409,10 +408,10 @@ class Skill(BaseModel):
         content = loaded.content
         metadata_dict = loaded.metadata or {}
 
-        # Use name from frontmatter if provided, otherwise use directory name
+        # 如果提供的话，使用前置元数据中的名称，否则使用目录名称
         agent_name = str(metadata_dict.get("name", directory_name))
 
-        # Validate skill name (only in strict mode)
+        # 验证技能名称（仅在严格模式下）
         if strict:
             name_errors = validate_skill_name(agent_name, directory_name)
             if name_errors:
@@ -420,7 +419,7 @@ class Skill(BaseModel):
                     f"Invalid skill name '{agent_name}': {'; '.join(name_errors)}"
                 )
 
-        # Load MCP configuration from .mcp.json (agent_skills ONLY use .mcp.json)
+        # 从.mcp.json加载MCP配置（agent_skills仅使用.mcp.json）
         mcp_tools: dict[str, MCPServer] | None = None
         if not skip_mcp:
             mcp_json_path = find_mcp_config(skill_root)
@@ -428,7 +427,7 @@ class Skill(BaseModel):
                 mcp_config = load_mcp_config(mcp_json_path, skill_root)
                 mcp_tools = coerce_mcp_config(mcp_config.get("mcpServers", {}))
 
-        # Discover resource directories
+        # 发现资源目录
         resources: SkillResources | None = None
         discovered_resources = discover_skill_resources(skill_root)
         if discovered_resources.has_resources():
@@ -448,19 +447,19 @@ class Skill(BaseModel):
     def _load_legacy_openhands_skill(
         cls, path: Path, file_content: str, skill_base_dir: Path | None
     ) -> "Skill":
-        """Load a skill from a legacy OpenHands-format file.
+        """从旧的 OpenHands 格式文件加载技能。
 
         Args:
-            path: Path to the skill file.
-            file_content: Content of the file.
-            skill_base_dir: Base directory for skills (used to derive relative names).
+            path: 技能文件的路径。
+            file_content: 文件的内容。
+            skill_base_dir: 技能的基本目录（用于派生相对名称）。
         """
-        # Handle third-party agent instruction files
+        # 处理第三方智能体指令文件
         third_party_agent = cls._handle_third_party(path, file_content)
         if third_party_agent is not None:
             return third_party_agent
 
-        # Calculate derived name from path
+        # 从路径计算派生名称
         if skill_base_dir is not None:
             skill_name = cls.PATH_TO_THIRD_PARTY_SKILL_NAME.get(
                 path.name.lower()
@@ -473,10 +472,10 @@ class Skill(BaseModel):
         content = loaded.content
         metadata_dict = loaded.metadata or {}
 
-        # Use name from frontmatter if provided, otherwise use derived name
+        # 如果提供，则使用前置元数据中的名称，否则使用派生名称
         agent_name = str(metadata_dict.get("name", skill_name))
 
-        # Legacy skills ONLY use mcp_tools from frontmatter (not .mcp.json)
+        # 旧技能仅使用前置元数据中的 mcp_tools（不是 .mcp.json）
         mcp_tools = metadata_dict.get("mcp_tools")
         if mcp_tools is not None and not isinstance(mcp_tools, dict):
             raise SkillValidationError("mcp_tools must be a dictionary or None")
@@ -488,8 +487,8 @@ class Skill(BaseModel):
 
     @staticmethod
     def _parse_paths(v: object) -> list[str] | None:
-        """Parse ``paths`` frontmatter (comma-separated string or list) into a
-        non-empty list of globs, or None. Mirrors Claude Code / AgentSkills."""
+        """将 ``paths`` 前置元数据 （逗号分隔的字符串或列表）解析为
+        非空的 glob 列表，或 None。 镜像克劳德代码/AgentSkills。"""
         if v is None:
             return None
         if isinstance(v, str):
@@ -509,19 +508,20 @@ class Skill(BaseModel):
         resources: SkillResources | None = None,
         is_agentskills_format: bool = False,
     ) -> "Skill":
-        """Create a Skill object from parsed metadata.
+        """从解析的元数据创建技能对象。
 
         Args:
-            agent_name: The name of the skill.
-            content: The markdown content (without frontmatter).
-            path: Path to the skill file.
-            metadata_dict: Parsed frontmatter metadata.
-            mcp_tools: MCP tools configuration (from .mcp.json or frontmatter).
-            resources: Discovered resource directories.
-            is_agentskills_format: Whether this skill follows the AgentSkills standard.
+            agent_name: 技能的名称。
+            content: Markdown 内容（不含前置元数据）。
+            path: 技能文件的路径。
+            metadata_dict: 已解析前置元数据元数据。
+            mcp_tools: MCP 工具配置（来自.mcp.json 或前置元数据）。
+            resources: 发现资源目录。
+            is_agentskills_format: 该技能是否遵循AgentSkills标准。
         """
-        # Extract AgentSkills standard fields (Pydantic validators handle
-        # transformation). Handle "allowed-tools" to "allowed_tools" key mapping.
+        # 提取 AgentSkills 个标准字段（Pydantic 验证器句柄转换）。 处理“allowed-tools”到
+        # “allowed_tools”键映射。
+        #
         allowed_tools_value = metadata_dict.get(
             "allowed-tools", metadata_dict.get("allowed_tools")
         )
@@ -537,28 +537,29 @@ class Skill(BaseModel):
             "allowed_tools": allowed_tools_value,
             "disable_model_invocation": disable_model_invocation_value,
         }
-        # Remove None values to avoid passing unnecessary kwargs
+        # 删除 None 值以避免传递不必要的 kwargs
         agentskills_fields = {
             k: v for k, v in agentskills_fields.items() if v is not None
         }
 
-        # Get trigger keywords from metadata
+        # 从元数据中获取触发关键字
         keywords = metadata_dict.get("triggers", [])
         if not isinstance(keywords, list):
             raise SkillValidationError("Triggers must be a list of strings")
 
-        # Parse path globs ("rules"): a comma-separated string or a YAML list.
+        # 解析路径 glob（“规则”）：以逗号分隔的字符串或 YAML 列表。
         paths = cls._parse_paths(metadata_dict.get("paths"))
 
-        # Infer the trigger type:
-        # 1. If paths exist -> PathTrigger (deterministic file-touch injection)
-        # 2. If inputs exist -> TaskTrigger
-        # 3. If keywords exist -> KeywordTrigger
-        # 4. Else (no keywords) -> None (always active)
+        # 推断触发类型：
+        # 1. 如果路径存在 -> PathTrigger（确定性文件触摸注入）
+        # 2. 如果输入存在 -> TaskTrigger
+        # 3. 如果关键字存在 -> KeywordTrigger
+        # 4. Else（无关键字）-> None（始终有效）
         if paths:
-            # A skill is either path-triggered OR model-invocable, not both:
-            # `paths:` wins and any `triggers:`/`inputs:` are ignored. Warn so the
-            # dropped fields are discoverable instead of silently disappearing.
+            # 技能要么是路径触发的，要么是模型调用的，不能同时是两者。
+            # `paths:` 获胜，任何 `triggers:`/`inputs:` 都将被忽略。 发出警告，以便发现
+            # 丢弃的字段，而不是默默地消失。
+            #
             ignored = []
             if keywords:
                 ignored.append(f"'triggers': {keywords}")
@@ -585,7 +586,7 @@ class Skill(BaseModel):
                 **agentskills_fields,
             )
         elif "inputs" in metadata_dict:
-            # Add a trigger for the agent name if not already present
+            # 为智能体名称添加触发器（如果尚不存在）
             trigger_keyword = f"/{agent_name}"
             if trigger_keyword not in keywords:
                 keywords.append(trigger_keyword)
@@ -619,7 +620,7 @@ class Skill(BaseModel):
                 **agentskills_fields,
             )
         else:
-            # No triggers, default to None (always active)
+            # 无触发器，默认为 None（始终处于活动状态）
             return Skill(
                 name=agent_name,
                 content=content,
@@ -633,10 +634,9 @@ class Skill(BaseModel):
 
     @classmethod
     def _handle_third_party(cls, path: Path, file_content: str) -> Union["Skill", None]:
-        """Handle third-party skill files (e.g., .cursorrules, AGENTS.md).
+        """处理第三方技能文件（e.g.、.cursorrules、AGENTS.md）。
 
-        Creates a Skill with None trigger (always active) if the file type
-        is recognized.
+        如果文件类型被识别，则创建具有 None 触发器的技能（始终处于活动状态）。
         """
         skill_name = cls.PATH_TO_THIRD_PARTY_SKILL_NAME.get(path.name.lower())
 
@@ -654,15 +654,16 @@ class Skill(BaseModel):
     def _handle_nested_third_party(
         cls, path: Path, file_content: str, rel_dir: PurePosixPath
     ) -> Union["Skill", None]:
-        """Build a ``PathTrigger`` rule scoped to ``rel_dir`` from a nested
-        third-party file, so its guidance is injected only when a file under that
-        directory is touched. ``rel_dir`` is workspace-relative (the matcher's
-        base)."""
+        """从嵌套构建范围为 ``rel_dir`` 的 ``PathTrigger`` 规则
+        第三方文件，因此只有当该目录下的文件被触及时才会注入它的指导。 ``rel_dir`` 是
+        工作区相关的（匹配器的基数）。
+        """
         skill_name = cls.PATH_TO_THIRD_PARTY_SKILL_NAME.get(path.name.lower())
         if skill_name is None:
             return None
-        # Encode the directory in the name so multiple nested files (all mapping
-        # to e.g. "agents") stay distinct for dedup and activation tracking.
+        # 对名称中的目录进行编码，以便多个嵌套文件（全部映射到 e.g. “智能体”）在重复数据
+        # 删除和激活跟踪方面保持独特。
+        #
         return Skill(
             name=f"{skill_name}:{rel_dir.as_posix()}",
             content=file_content,
@@ -672,11 +673,11 @@ class Skill(BaseModel):
 
     @model_validator(mode="after")
     def _truncate_long_description(self):
-        """Truncate description to MAX_DESCRIPTION_LENGTH via maybe_truncate.
+        """通过 maybe_truncate 将描述截断为 MAX_DESCRIPTION_LENGTH。
 
-        Uses a model_validator (not field_validator) so the truncation notice
-        can reference self.source, telling the agent where to find the full
-        skill content.
+        使用model_validator（而不是field_validator），因此截断通知可以引用self.source
+        ，告诉智能体在哪里可以找到完整的技能内
+        容。
         """
         if (
             self.description is not None
@@ -700,12 +701,12 @@ class Skill(BaseModel):
 
     @model_validator(mode="after")
     def _append_missing_variables_prompt(self):
-        """Append a prompt to ask for missing variables after model construction."""
-        # Only apply to task skills
+        """在模型构建后附加提示词以询问缺失的变量。"""
+        # 仅适用于任务技能
         if not isinstance(self.trigger, TaskTrigger):
             return self
 
-        # If no variables and no inputs, nothing to do
+        # 如果没有变量和输入，则无需执行任何操作
         if not self.requires_user_input() and not self.inputs:
             return self
 
@@ -714,7 +715,7 @@ class Skill(BaseModel):
             "provide them first before the agent can proceed with the task."
         )
 
-        # Avoid duplicating the prompt if content already includes it
+        # 如果内容已包含提示词，请避免重复它
         if self.content and prompt not in self.content:
             self.content += prompt
 
@@ -722,23 +723,24 @@ class Skill(BaseModel):
 
     @model_validator(mode="after")
     def _path_rules_are_trigger_only(self):
-        """Force ``disable_model_invocation`` for path rules: they inject only on
-        file-touch, so every consumer of that flag (catalog, invoke_skill,
-        tool-attach) keeps them unadvertised and non-invocable."""
+        """对路径规则强制 ``disable_model_invocation``：它们仅注入
+        file-touch，因此该标志的每个使用者（目录、invoke_skill、工具附加）都使它们不
+        被广告且不可调用。
+        """
         if isinstance(self.trigger, PathTrigger):
             self.disable_model_invocation = True
         return self
 
     def match_trigger(self, message: str) -> str | None:
-        """Match a trigger in the message.
+        """匹配消息中的触发器。
 
-        Returns the first trigger that matches the message, or None if no match.
-        Only applies to KeywordTrigger and TaskTrigger types.
+        返回与消息匹配的第一个触发器，如果​​不匹配则返回 None。 仅适用于
+        KeywordTrigger 和 TaskTrigger 类型。
 
-        Matching is whole-token and case-insensitive: a keyword only fires when
-        it appears bounded by non-alphanumeric characters, so ``git`` does not
-        match ``github`` and ``issue`` does not match ``tissue``. See
-        :func:`_keyword_matches` for details.
+        匹配是完整的-token 并且不区分大小写：关键字只有在非字母数字字符包围时才会触发
+        ，所以 ``git`` 不匹配 ``github`` 和
+        ``issue`` 不匹配 ``tissue``. 参见
+        :func:`_keyword_matches` 了解详细信息。
         """
         if isinstance(self.trigger, KeywordTrigger):
             keywords = self.trigger.keywords
@@ -754,9 +756,9 @@ class Skill(BaseModel):
         return None
 
     def match_path_trigger(self, file_path: str) -> str | None:
-        """Return the first PathTrigger glob matching ``file_path`` (a POSIX,
-        typically workspace-relative, path), or None. Inert for non-PathTrigger
-        skills."""
+        """返回第一个匹配 ``file_path`` 的 PathTrigger glob (a POSIX,
+        通常为工作区相对路径）或 None。 对于非 PathTrigger 技能无效。
+        """
         if isinstance(self.trigger, PathTrigger):
             for pattern in self.trigger.paths:
                 if path_matches_glob(file_path, pattern):
@@ -764,30 +766,30 @@ class Skill(BaseModel):
         return None
 
     def extract_variables(self, content: str) -> list[str]:
-        """Extract variables from the content.
+        """从内容中提取变量。
 
-        Variables are in the format ${variable_name}.
+        变量的格式为 ${variable_name}。
         """
         pattern = r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}"
         matches = re.findall(pattern, content)
         return matches
 
     def requires_user_input(self) -> bool:
-        """Check if this skill requires user input.
+        """检查该技能是否需要用户输入。
 
-        Returns True if the content contains variables in the format ${variable_name}.
+        如果内容包含格式为 ${variable_name} 的变量，则返回 True。
         """
-        # Check if the content contains any variables
+        # 检查内容是否包含变量
         variables = self.extract_variables(self.content)
         logger.debug(f"This skill requires user input: {variables}")
         return len(variables) > 0
 
     def get_skill_type(self) -> Literal["repo", "knowledge", "agentskills"]:
-        """Determine the type of this skill.
+        """确定该技能的类型。
 
         Returns:
-            "agentskills" for AgentSkills format, "repo" for always-active skills,
-            "knowledge" for trigger-based skills.
+            “agentskills”表示 AgentSkills 格式，“repo”表示始终激活的技能，“knowledge”
+            表示基于触发的技能。
         """
         if self.is_agentskills_format:
             return "agentskills"
@@ -797,10 +799,10 @@ class Skill(BaseModel):
             return "knowledge"
 
     def get_triggers(self) -> list[str]:
-        """Extract trigger keywords from this skill.
+        """从此技能中提取触发关键字。
 
         Returns:
-            List of trigger strings, or empty list if no triggers.
+            触发器字符串列表，如果没有触发器则为空列表。
         """
         if isinstance(self.trigger, KeywordTrigger):
             return self.trigger.keywords
@@ -809,10 +811,10 @@ class Skill(BaseModel):
         return []
 
     def to_skill_info(self) -> SkillInfo:
-        """Convert this skill to a SkillInfo.
+        """将此技能转换为SkillInfo。
 
         Returns:
-            SkillInfo containing the skill's essential information.
+            SkillInfo包含技能的基本信息。
         """
         return SkillInfo(
             name=self.name,
@@ -829,18 +831,17 @@ class Skill(BaseModel):
         self,
         working_dir: Path | None = None,
     ) -> str:
-        """Render skill content, executing inline !`command` blocks.
+        """渲染技能内容，执行内联 !`command` 块。
 
-        Inline !`command` patterns in the content are executed and
-        replaced with their stdout output. Code blocks (fenced and
-        inline) are preserved. Unclosed fenced blocks are treated as
-        extending to EOF. Use \\!`cmd` to produce literal !`cmd` text.
+        内容中的内联 !`command` 模式被执行并替换为其标准输出。 代码块（隔离的和内联的
+        ）被保留。 未封闭的围栏块被视为延伸至 EOF。 使用 \\!
+        `cmd` 生成文字 !`cmd` 文本。
 
         Args:
-            working_dir: Directory to run commands in.
+            working_dir: 运行命令的目录。
 
         Returns:
-            Processed content with command outputs substituted.
+            用命令输出替换的处理内容。
         """
         return render_content_with_commands(self.content, working_dir)
 
@@ -852,31 +853,31 @@ def load_skills_from_dir(
     root: Path | None = None,
     exclude_dirs: set[Path] | None = None,
 ) -> tuple[dict[str, Skill], dict[str, Skill], dict[str, Skill]]:
-    """Load all skills from the given directory.
+    """从给定目录加载所有技能。
 
-    Supports both formats:
-    - OpenHands format: skills/*.md files
-    - AgentSkills format: skills/skill-name/SKILL.md directories
+    支持两种格式：
+    - OpenHands格式：技能/*.md文件
+    - AgentSkills格式：技能/技能名称/SKILL.md目录
 
-    Note, legacy repo instructions will not be loaded here.
+    请注意，此处不会加载旧版存储库指令。
 
-    A skill that fails to load is logged and skipped; it never aborts the others.
+    加载失败的技能会被记录并跳过； 它永远不会中止其他的。
 
     Args:
-        skill_dir: Path to the skills directory (e.g. .openhands/skills)
-        strict: If True, enforce strict AgentSkills name validation.
-        recursive: If False, only load regular .md files that are immediate
-            children of skill_dir.
-        root: If given, skill paths that resolve outside it (e.g. through a
-            symlink) are skipped. Plugins pass their root here.
-        exclude_dirs: Directories whose regular .md files are not loaded as
-            skills (e.g. managed installed packages inside a user skills dir).
+        skill_dir: 技能目录的路径（e.g. .openhands/skills）
+        strict: 如果为 True，则强制执行严格的 AgentSkills 名称验证。
+        recursive: 如果为 False，则仅加载即时的常规 .md 文件
+            skill_dir 的孩子。
+        root: 如果给出，则在其外部解析的技能路径（e.g. 通过一个
+            符号链接）被跳过。 插件在这里传递它们的根。
+        exclude_dirs: 常规 .md 文件未加载的目录
+            技能（e.g. 在用户技能目录中管理已安装的软件包）。
 
     Returns:
-        Tuple of (repo_skills, knowledge_skills, agent_skills) dictionaries.
-        - repo_skills: Skills with trigger=None (permanent context)
-        - knowledge_skills: Skills with KeywordTrigger or TaskTrigger (progressive)
-        - agent_skills: AgentSkills standard SKILL.md files (separate category)
+        (repo_skills, knowledge_skills, agent_skills) 字典的元组。
+        - repo_skills: 触发技能=None（永久上下文）
+        - knowledge_skills: 技能为 KeywordTrigger 或 TaskTrigger（渐进）
+        - agent_skills: AgentSkills 标准 SKILL.md 文件（单独类别）
     """
     if isinstance(skill_dir, str):
         skill_dir = Path(skill_dir)
@@ -886,14 +887,15 @@ def load_skills_from_dir(
     agent_skills: dict[str, Skill] = {}
     logger.debug(f"Loading agents from {skill_dir}")
 
-    # Discover skill files in the skills directory
-    # Note: Third-party files (AGENTS.md, etc.) are loaded separately by
-    # load_project_skills() to ensure they're loaded even when this directory
-    # doesn't exist.
+    # 发现技能目录中的技能文件
+    # 注意：第三方文件（AGENTS.md等）由单独加载
+    # load_project_skills() 以确保即使该目录不存在也能加载它们。
+    #
     skill_md_files = find_skill_md_directories(skill_dir, root)
     skill_md_dirs = {skill_md.parent for skill_md in skill_md_files}
-    # Rebase exclusions onto skill_dir so they still match when skill_dir is
-    # reached through a symlink (e.g. ~/.agents/skills -> ~/.openhands/skills).
+    # 将排除重新设置为 skill_dir，以便当通过符号链接到达 skill_dir 时它们仍然匹配 (e.g.
+    # ~/.agents/skills -> ~/.openhands/skills).
+    #
     real_skill_dir = skill_dir.resolve()
     rebased_exclude_dirs = {
         skill_dir / real.relative_to(real_skill_dir)
@@ -904,8 +906,9 @@ def load_skills_from_dir(
         skill_dir, skill_md_dirs | rebased_exclude_dirs, recursive, root
     )
 
-    # Load SKILL.md files (auto-detected and validated in Skill.load)
-    # Wrap each load in try/except to ensure one bad skill doesn't break all loading
+    # 加载 SKILL.md 个文件（在 Skill.load 中自动检测和验证）将每个加载包装在 try/ except
+    #  中，以确保一项糟糕的技能不会破坏所有加载
+    #
     for skill_md_path in skill_md_files:
         try:
             load_and_categorize(
@@ -920,7 +923,7 @@ def load_skills_from_dir(
         except Exception as e:
             logger.warning(f"Failed to load skill from {skill_md_path}: {e}")
 
-    # Load regular .md files
+    # 加载常规 .md 文件
     for path in regular_md_files:
         try:
             load_and_categorize(
@@ -945,29 +948,27 @@ def load_skills_from_dir(
     return repo_skills, knowledge_skills, agent_skills
 
 
-# Default user skills directories (in order of priority)
+# 默认用户技能目录（按优先级顺序）
 USER_SKILLS_DIRS = [
     Path.home() / ".agents" / "skills",
     get_user_persistence_dir() / "skills",
-    get_user_persistence_dir() / "microagents",  # Legacy support
+    get_user_persistence_dir() / "microagents",  # 旧版支持
 ]
 
 
 def load_user_skills() -> list[Skill]:
-    """Load skills from user's home directory.
+    """从用户的主目录加载技能。
 
-    Searches for skills in ~/.agents/skills/, ~/.openhands/skills/, and
-    ~/.openhands/microagents/ (legacy). Skills from all directories are merged,
-    with earlier entries in USER_SKILLS_DIRS taking precedence for duplicate
-    names.
+    搜索 ~/.agents/skills/、~/.openhands/skills/ 中的技能，以及
+    ~/.openhands/microagents/（旧版）。 所有目录中的技能都会合并，USER_SKILLS_DIRS 中
+    较早的条目优先处理重复的名称。
 
-    Also loads enabled installed skills from ~/.openhands/skills/installed/
-    (managed via install_skill/uninstall_skill). Installed skills have lower
-    precedence than user skills from the directories above.
+    还从 ~/.openhands/skills/installed/ 加载已启用的已安装技能（通过 install_skill/
+    uninstall_skill 管理）
+    。 安装的技能的优先级低于上述目录中的用户技能。
 
     Returns:
-        List of Skill objects loaded from user directories.
-        Returns empty list if no skills found or loading fails.
+        从用户目录加载的技能对象列表。 如果未找到技能或加载失败，则返回空列表。
     """
     from openhands.sdk.skills.installed import get_installed_skills_dir
 
@@ -982,7 +983,7 @@ def load_user_skills() -> list[Skill]:
         exclude_dirs={get_installed_skills_dir()},
     )
 
-    # Load enabled installed skills (lower precedence than user skills)
+    # 加载已启用的已安装技能（优先级低于用户技能）
     try:
         from openhands.sdk.skills.installed import load_installed_skills
 
@@ -1000,11 +1001,11 @@ def load_user_skills() -> list[Skill]:
 
 
 def _find_git_repo_root(path: Path) -> Path | None:
-    """Find the nearest ancestor directory that looks like a Git repository root.
+    """查找看起来像 Git 存储库根的最近的祖先目录。
 
-    We intentionally don't shell out to `git`, so this works even when git isn't
-    installed. A directory is considered a git root if it contains a `.git`
-    entry (directory *or* file, to support worktrees/submodules).
+    我们故意不向 `git` 支付费用，因此即使未安装 git 也可以使用。 如果目录包含 `.git`
+    条目（目录 * 或 * 文件，以支持工作树/子模块），则该目录
+    被视为 git 根。
     """
 
     for candidate in (path, *path.parents):
@@ -1036,18 +1037,18 @@ def _load_and_merge_from_dirs(
     source_label: str,
     exclude_dirs: set[Path] | None = None,
 ) -> None:
-    """Load skills from multiple directories, merging with deduplication.
+    """从多个目录加载技能，与重复数据删除合并。
 
-    For each directory that exists, loads all skills via load_skills_from_dir()
-    and merges them into all_skills, skipping duplicates based on seen_names.
-    Earlier directories take precedence for duplicate names.
+    对于每个存在的目录，通过 load_skills_from_dir() 加载所有技能并将它们合并到
+    all_skills 中，根据 seen_names 跳过重复项
+    。 对于重复的名称，较早的目录优先。
 
     Args:
-        dirs: List of directories to search for skills.
-        seen_names: Set of already-seen skill names (mutated in place).
-        all_skills: Accumulator list of skills (mutated in place).
-        source_label: Human-readable label for log messages (e.g. "user skills").
-        exclude_dirs: Passed through to load_skills_from_dir().
+        dirs: 用于搜索技能的目录列表。
+        seen_names: 一组已经见过的技能名称（就地变异）。
+        all_skills: 技能的累加器列表（就地变异）。
+        source_label: 日志消息的人类可读标签 (e.g. “用户技能”）。
+        exclude_dirs: 传递到load_skills_from_dir()。
     """
     for skills_dir in dirs:
         if not skills_dir.exists():
@@ -1070,33 +1071,31 @@ def _load_and_merge_from_dirs(
 
 
 def load_project_skills(work_dir: str | Path) -> list[Skill]:
-    """Load skills from project-specific directories.
+    """从特定于项目的目录加载技能。
 
-    Searches for skills in {work_dir}/.agents/skills/, {work_dir}/.openhands/skills/,
-    and {work_dir}/.openhands/microagents/ (legacy).
+    搜索 {work_dir}/.agents/skills/、{work_dir}/.openhands/skills/ 和 {work_dir}
+    /.openhands/microagents/（旧版）中的技能。
 
-    If the working directory is inside a Git repository, this function also loads
-    skills from the Git repo root, so running from a subdirectory still picks up
-    repo-level guidance (e.g., AGENTS.md).
+    如果工作目录位于 Git 仓库中，该函数还会从 Git 仓库根目录加载技能，因此从子目录运
+    行仍然会获取仓库级别的指导 (e.g., AGENTS.md)。
 
-    Skills are merged in priority order, with the *working directory* taking
-    precedence over the Git repo root when duplicates exist.
+    技能按优先顺序合并，当存在重复项时，*工作目录* 优先于 Git 存储库根。
 
-    Use .agents/skills for new skills. .openhands/skills is the legacy OpenHands
-    location, and .openhands/microagents is deprecated.
+    使用 .agents/skills 创建新技能。openhands/skills 是旧版 OpenHands 地址，
+    openhands/microagents 是已
+    弃用。
 
-    Example: If "my-skill" exists in both .agents/skills/ and .openhands/skills/,
-    the version from .agents/skills/ is used.
+    Example: 如果“my-skill”在 .agents/skills/ 和 .openhands/skills/ 中都存在
+    使用 .agents/skills/ 中的版本。
 
-    Also loads third-party skill files (AGENTS.md, .cursorrules, etc.) from the
-    working directory and (if different) the git repo root.
+    还从工作目录和（如果不同）git repo 根加载第三方技能文件（AGENTS.md、.cursorrules
+    等）。
 
     Args:
-        work_dir: Path to the project/working directory.
+        work_dir: 项目/工作目录的路径。
 
     Returns:
-        List of Skill objects loaded from project directories.
-        Returns empty list if no skills found or loading fails.
+        从项目目录加载的技能对象列表。 如果未找到技能或加载失败，则返回空列表。
     """
     if isinstance(work_dir, str):
         work_dir = Path(work_dir)
@@ -1106,14 +1105,14 @@ def load_project_skills(work_dir: str | Path) -> list[Skill]:
 
     git_root = _find_git_repo_root(work_dir)
 
-    # Working dir takes precedence (more local rules override repo root rules)
+    # 工作目录优先（更多本地规则覆盖存储库根规则）
     search_roots: list[Path] = [work_dir]
     if git_root is not None and git_root != work_dir:
         search_roots.append(git_root)
 
-    # First, load third-party skill files (AGENTS.md, .cursorrules, etc.) from each
-    # search root. This ensures they are loaded even if .openhands/skills doesn't
-    # exist.
+    # 首先，从每个搜索根加载第三方技能文件（AGENTS.md、.cursorrules 等）。 这确保它们即
+    # 使不存在 openhands/skills 也能加载。
+    #
     for root in search_roots:
         third_party_files = find_third_party_files(
             root, Skill.PATH_TO_THIRD_PARTY_SKILL_NAME
@@ -1128,8 +1127,9 @@ def load_project_skills(work_dir: str | Path) -> list[Skill]:
             except (SkillError, OSError, yaml.YAMLError) as e:
                 logger.warning(f"Failed to load third-party skill from {path}: {e}")
 
-    # Load nested third-party files (e.g. server/AGENTS.md) as directory-scoped
-    # path rules, keyed off work_dir (the matcher's base).
+    # 加载嵌套的第三方文件 (e.g. server/AGENTS.md) 作为目录范围的路径规则，关闭 work_dir
+    #  （匹配器的基础）。
+    #
     for path, rel_dir in find_nested_third_party_files(
         work_dir, Skill.PATH_TO_THIRD_PARTY_SKILL_NAME
     ):
@@ -1143,13 +1143,14 @@ def load_project_skills(work_dir: str | Path) -> list[Skill]:
         except (SkillError, OSError, UnicodeDecodeError, yaml.YAMLError) as e:
             logger.warning(f"Failed to load nested third-party file {path}: {e}")
 
-    # Load project-specific skills from .agents/skills, .openhands/skills,
-    # and legacy microagents (priority order; first wins for duplicates)
+    # 加载项目特定的技能从 .agents/skills，openhands/skills，以及遗留微代理（优先顺序：
+    # 重复者先胜）
+    #
     for root in search_roots:
         project_skills_dirs = [
             root / ".agents" / "skills",
             root / ".openhands" / "skills",
-            root / ".openhands" / "microagents",  # Legacy support
+            root / ".openhands" / "microagents",  # 旧版支持
         ]
 
         _load_and_merge_from_dirs(
@@ -1162,25 +1163,24 @@ def load_project_skills(work_dir: str | Path) -> list[Skill]:
     return all_skills
 
 
-# Public skills repository configuration
+# 公共技能库配置
 PUBLIC_SKILLS_REPO = "https://github.com/OpenHands/extensions"
-# Allow overriding the ref via EXTENSIONS_REF environment variable.
-# Accepts a branch name, tag (e.g. "v1.0.0"), or full 40-char commit SHA.
+# 允许通过 EXTENSIONS_REF 环境变量覆盖 ref。 接受分支名称、标签 (e.g. “v1.0.0”），或完整
+# 的 40 个字符提交 SHA。
+#
 PUBLIC_SKILLS_REF = os.environ.get("EXTENSIONS_REF", "main")
 DEFAULT_MARKETPLACE_PATH = "marketplaces/default.json"
-# A local checkout or package of the public repo, read instead of a git clone.
+# 公共存储库的本地签出或包，读取而不是 git 克隆。
 PUBLIC_SKILLS_PATH_ENV = "EXTENSIONS_PATH"
 
-# Process-level cache for load_public_skills. Conversation creation re-validates
-# AgentContext several times and each validation re-runs load_public_skills
-# (git fetch + parse ~40 md files ≈ 1s). The cache short-circuits repeated calls
-# within the TTL while still picking up new skills within a minute.
+# load_public_skills 的进程级缓存。 会话创建会多次重新验证 AgentContext，并且每次验证都
+# 会重新运行 load_public_skills（git fetch + parse ~40 md 文件 ≈ 1 秒）。 缓存会短路 TTL
+#  内的重复调用，同时仍能在一分钟内获取新技能。
 #
-# Cache value: (timestamp, skills)
-# For mutable refs (branches), timestamp is time.monotonic() at write time and
-# the entry expires after _PUBLIC_SKILLS_CACHE_TTL_SECONDS.
-# For pinned refs (tags and commit SHAs), timestamp is float("inf") so the
-# TTL check is never satisfied and the entry lives for the process lifetime.
+# 缓存值：（时间戳，技能）对于可变引用（分支），写入时时间戳为 time.monotonic()，条目在
+# _PUBLIC_SKILLS_CACHE_TTL_SECONDS 之后过期。 对于 pinned ref（标签和提交 SHAs），时间戳
+# 是 float("inf")，因此 TTL 检查永远不会满足，该条目会一直存在直到进程生命周期结束。
+#
 _PUBLIC_SKILLS_CACHE: dict[
     tuple[str, str, str | None], tuple[float, list["Skill"]]
 ] = {}
@@ -1189,10 +1189,9 @@ _PUBLIC_SKILLS_CACHE_LOCK = threading.Lock()
 
 
 def _invalidate_public_skills_cache() -> None:
-    """Clear the in-memory public-skills cache.
+    """清除内存中的公共技能缓存。
 
-    Called by ``sync_public_skills`` so a forced refresh re-parses immediately
-    instead of waiting for the TTL.
+    由 ``sync_public_skills`` 调用，因此强制刷新会立即重新解析，而不是等待 TTL。
     """
     with _PUBLIC_SKILLS_CACHE_LOCK:
         _PUBLIC_SKILLS_CACHE.clear()
@@ -1201,17 +1200,16 @@ def _invalidate_public_skills_cache() -> None:
 def load_marketplace_skill_names(
     repo_path: Path, marketplace_path: str
 ) -> set[str] | None:
-    """Load the list of skill names from a marketplace manifest file.
+    """从市场清单文件加载技能名称列表。
 
-    Uses the existing Marketplace model from openhands.sdk.plugin to parse
-    the marketplace JSON file and extract plugin names.
+    使用 openhands.sdk.plugin 中的现有市场模型来解析市场 JSON 文件并提取插件名称。
 
     Args:
-        repo_path: Path to the local repository.
-        marketplace_path: Relative path to the marketplace JSON file within the repo.
+        repo_path: 本地存储库的路径。
+        marketplace_path: 存储库内市场 JSON 文件的相对路径。
 
     Returns:
-        Set of skill names to load, or None if marketplace file not found or invalid.
+        要加载的技能名称集，如果未找到市场文件或无效，则为 None。
     """
     from openhands.sdk.marketplace import Marketplace
 
@@ -1224,7 +1222,7 @@ def load_marketplace_skill_names(
         with open(marketplace_file, encoding="utf-8") as f:
             data = json.load(f)
 
-        # Use Marketplace model for validation and parsing
+        # 使用 Marketplace 模型进行验证和解析
         marketplace = Marketplace.model_validate(
             {**data, "path": to_posix_path(repo_path)}
         )
@@ -1260,50 +1258,48 @@ def load_public_skills(
     ref: str = PUBLIC_SKILLS_REF,
     marketplace_path: str | None = DEFAULT_MARKETPLACE_PATH,
 ) -> list[Skill]:
-    """Load skills from the public OpenHands skills repository.
+    """从公共 OpenHands 技能存储库加载技能。
 
-    This function maintains a local git clone of the public skills registry at
-    https://github.com/OpenHands/extensions. On first run, it clones the repository
-    to ~/.openhands/skills-cache/. On subsequent runs within the same process, it
-    returns cached results. For branch refs it re-fetches after the cache TTL; for
-    pinned tags and commit SHAs the cache never expires. The loader makes no
-    further network calls for those refs.
+    此功能维护公共技能注册表的本地 git 克隆，位于
+    https://github.com/OpenHands/extensions.  第一次运行时，它会克隆存储库
+    to ~/.openhands/skills-cache/. 在同一进程中的后续运行中，它返回缓存的结果。 对于
+    分支引用，它会在缓存 TTL 之后重新获取； 对于
+    pinned 标签和提交 SHAs，缓存永远不会过期。 加载器不会对这些引用进行进一步的网络调
+    用。
 
-    When ``EXTENSIONS_PATH`` names a local copy of the default repository, such
-    as an installed ``@openhands/extensions`` package, skills are read from it
-    and nothing is cloned.
+    当 ``EXTENSIONS_PATH`` 命名默认存储库的本地副本（例如已安装的
+    ``@openhands/extensions`` 包）时，将从其中读取技能，并
+    且不会克隆任何内容。
 
-    By default, only skills listed in the default marketplace
-    (marketplaces/default.json) are loaded. Pass a different relative
-    marketplace_path to load another marketplace, or None to load all public
-    skills without marketplace filtering.
+    默认情况下，仅加载默认市场 (marketplaces/default.json) 中列出的技能。 传递不同的
+    亲属 marketplace_path 来加载另一个市
+    场，或 None 加载所有公共技能而不进行市场过滤。
 
-    Note: When a skill directory contains a SKILL.md file (AgentSkills format),
-    any other markdown files in that directory or its subdirectories are treated
-    as reference materials for that skill, NOT as separate skills.
+    Note: 当技能目录包含SKILL.md文件（AgentSkills格式）时，
+    该目录或其子目录中的任何其他 Markdown 文件都被视为该技能的参考资料，不被视为单独
+    的技能。
 
     Args:
-        repo_url: URL of the skills repository. Defaults to the official
-            OpenHands skills repository.
-        ref: Branch name, tag (e.g. ``"v1.0.0"``), or full 40-character commit
-            SHA to load skills from. Defaults to ``'main'``. Tags and commit
-            SHAs are pinned after loading. The result stays cached for the
-            lifetime of the process without further remote polling.
-        marketplace_path: Relative path to the marketplace JSON file within the
-            repository. Pass None to load all public skills without filtering.
+        repo_url: 技能库的URL。 默认为官方
+            OpenHands 技能库。
+        ref: 分支名称、标签 (e.g. ``"v1.0.0"``)，或完整的 40 个字符提交
+            SHA 从中加载技能。 默认为 ``'main'``。 加载后，标签和提交 SHAs 已被锁定。
+             结果在进程的生命周期内保持缓存，无需进一步远程轮询
+            。
+        marketplace_path: 市场 JSON 文件的相对路径
+            存储库。 通过None加载所有公共技能，不进行过滤。
 
     Returns:
-        List of Skill objects loaded from the public repository.
-        Returns empty list if loading fails.
+        从公共存储库加载的技能对象列表。 如果加载失败则返回空列表。
 
     Example:
         >>> from openhands.sdk.context import AgentContext
         >>> from openhands.sdk.skills import load_public_skills
         >>>
-        >>> # Load public skills
+        >>> # 加载公共技能
         >>> public_skills = load_public_skills()
         >>>
-        >>> # Use with AgentContext
+        >>> # 使用 AgentContext
         >>> context = AgentContext(skills=public_skills)
     """
     local_path = _local_public_skills_path(repo_url)
@@ -1323,7 +1319,7 @@ def load_public_skills(
         if local_path is not None:
             repo_path = local_path
         else:
-            # Get or update the local repository
+            # 获取或更新本地存储库
             cache_dir = get_skills_cache_dir()
             repo_path = update_skills_repository(repo_url, ref, cache_dir)
 
@@ -1333,13 +1329,13 @@ def load_public_skills(
 
             is_pinned = is_skills_repo_pinned(repo_path, ref)
 
-        # Load skills from the local repository
+        # 从本地存储库加载技能
         skills_dir = repo_path / "skills"
         if not skills_dir.exists():
             logger.warning(f"Skills directory not found in repository: {skills_dir}")
             return all_skills
 
-        # Determine which skill files to load
+        # 确定要加载哪些技能文件
         if marketplace_path is None:
             marketplace_skill_names = None
         else:
@@ -1384,7 +1380,7 @@ def load_public_skills(
             f"Found {len(all_skill_files)} skill files in public skills repository"
         )
 
-        # Load each skill file
+        # 加载各个技能文件
         for skill_file in all_skill_files:
             try:
                 skill = Skill.load(
@@ -1404,8 +1400,8 @@ def load_public_skills(
 
     logger.info("Loaded %d public skills", len(all_skills))
 
-    # Only cache non-empty results so transient errors don't poison the cache
-    # for the full TTL window.
+    # 仅缓存非空结果，因此瞬态错误不会破坏整个 TTL 窗口的缓存。
+    #
     if all_skills:
         timestamp = float("inf") if is_pinned else time.monotonic()
         with _PUBLIC_SKILLS_CACHE_LOCK:
@@ -1422,27 +1418,25 @@ def load_available_skills(
     include_public: bool = False,
     marketplace_path: str | None = DEFAULT_MARKETPLACE_PATH,
 ) -> dict[str, Skill]:
-    """Load and merge skills from SDK-level sources with consistent precedence.
+    """以一致的优先级从 SDK 级来源加载和合并技能。
 
-    Precedence (later overrides earlier via dict updates):
-        public (lowest) → user → project (highest)
+    优先级（稍后通过字典更新覆盖之前的内容）：
+        公共（最低）→用户→项目（最高）
 
-    This is the single entry-point for building a merged skill catalog from
-    the three SDK-shipped sources. Server-only sources (sandbox, org) are
-    layered on top by the caller.
+    这是从三个 SDK 发布的源构建合并技能目录的单一入口点。 仅服务器源（沙箱、组织）由
+    调用者分层。
 
     Args:
-        work_dir: Project/working directory for project skills. When None,
-            project skills are skipped regardless of *include_project*.
-        include_user: Load user-level skills (~/.agents/skills, etc.).
-        include_project: Load project-level skills (requires *work_dir*).
-        include_public: Load public skills from the OpenHands extensions repo.
-        marketplace_path: Relative marketplace JSON path to use for public skills.
-            Pass None to load all public skills without marketplace filtering.
+        work_dir: 项目技能的项目/工作目录。 当None时，
+            无论*include_project*如何，都会跳过项目技能。
+        include_user: 加载用户级技能（~/.agents/skills等）。
+        include_project: 加载项目级技能（需要 *work_dir*）。
+        include_public: 从 OpenHands 扩展存储库加载公共技能。
+        marketplace_path: 用于公共技能的相对市场 JSON 路径。
+            通过 None 加载所有公共技能，无需市场过滤。
 
     Returns:
-        Dict mapping skill name → Skill, with higher-precedence sources
-        overriding lower ones.
+        字典映射技能名称 → 技能，优先级较高的来源优先于较低优先级的来源。
     """
     available: dict[str, Skill] = {}
 
@@ -1473,11 +1467,11 @@ def load_available_skills(
 def merge_skills_by_name(
     primary: Iterable[Skill], secondary: Iterable[Skill]
 ) -> list[Skill]:
-    """Merge two skill collections by name.
+    """按名称合并两个技能集合。
 
-    ``primary`` skills are authoritative: they take precedence on name conflicts
-    and keep their order. Each ``secondary`` skill is appended only when its name
-    is not already provided by ``primary``.
+    ``primary`` 技能具有权威性：它们优先处理名称冲突并保持顺序。 仅当 ``primary`` 尚
+    未提供每个 ``secondary`` 技能的名称时才会附
+    加该技能。
     """
     merged = list(primary)
     seen = {skill.name for skill in merged}
@@ -1489,19 +1483,19 @@ def merge_skills_by_name(
 
 
 def to_prompt(skills: list[Skill], max_description_length: int = 1024) -> str:
-    """Generate XML prompt block for available skills.
+    """为可用技能生成 XML 提示词块。
 
-    Creates an `<available_skills>` XML block suitable for inclusion
-    in system prompts, following the AgentSkills format from skills-ref.
+    创建一个适合包含在系统提示词中的 `<available_skills>` XML 块，遵循技能参考中的
+    AgentSkills 格式。
 
     Args:
-        skills: List of skills to include in the prompt
-        max_description_length: Maximum length for descriptions (default 1024)
+        skills: 要包含在提示词中的技能列表
+        max_description_length: 描述的最大长度（默认 1024）
 
     Returns:
-        XML string in AgentSkills format with name and description. The
-        `<location>` field is intentionally omitted so the agent cannot
-        bypass the `invoke_skill` tool by reading the file directly.
+        XML 格式为 AgentSkills 的字符串，包含名称和说明。 的
+        `<location>` 字段被故意省略，因此智能体无法通过直接读取文件来绕过
+        `invoke_skill` 工具。
 
     Example:
         >>> skills = [Skill(name="pdf-tools", content="...",
@@ -1510,8 +1504,8 @@ def to_prompt(skills: list[Skill], max_description_length: int = 1024) -> str:
         >>> print(to_prompt(skills))
         <available_skills>
           <skill>
-            <name>pdf-tools</name>
-            <description>Extract text from PDF files.</description>
+            <name>pdf-tools</name> <description>从 PDF 个文件中提取文本。
+            </description>
           </skill>
         </available_skills>
     """
@@ -1520,30 +1514,30 @@ def to_prompt(skills: list[Skill], max_description_length: int = 1024) -> str:
 
     lines = ["<available_skills>"]
     for skill in skills:
-        # Use description if available, otherwise use first line of content
+        # 如果有的话使用描述，否则使用第一行内容
         description = skill.description
         content_truncated = 0
         if not description:
-            # Extract first non-empty, non-header line from content as fallback
-            # Track position to calculate truncated content after the description
+            # 从内容中提取第一个非空、非标题行作为回退方案跟踪位置以计算描述后的截断内容
+            #
             chars_before_desc = 0
             for line in skill.content.split("\n"):
                 stripped = line.strip()
-                # Skip markdown headers and empty lines
+                # 跳过 Markdown 个标题和空行
                 if not stripped or stripped.startswith("#"):
-                    chars_before_desc += len(line) + 1  # +1 for newline
+                    chars_before_desc += len(line) + 1  # +1 换行
                     continue
                 description = stripped
-                # Calculate remaining content after this line as truncated
+                # 计算此行被截断后的剩余内容
                 desc_end_pos = chars_before_desc + len(line)
                 content_truncated = max(0, len(skill.content) - desc_end_pos)
                 break
         description = description or ""
 
-        # Calculate total truncated characters
+        # 计算截断字符总数
         total_truncated = content_truncated
 
-        # Truncate description if needed and add truncation indicator
+        # 如果需要，截断描述并添加截断指示符
         if len(description) > max_description_length:
             total_truncated += len(description) - max_description_length
             description = description[:max_description_length]
@@ -1555,13 +1549,13 @@ def to_prompt(skills: list[Skill], max_description_length: int = 1024) -> str:
             )
             description = description + truncation_msg
 
-        # Escape XML special characters using standard library
+        # 使用标准库转义 XML 特殊字符
         description = xml_escape(description.strip())
         name = xml_escape(skill.name.strip())
 
-        # Build skill element. Note: <location> is intentionally omitted so
-        # the agent cannot bypass `invoke_skill` by reading the file directly;
-        # `invoke_skill` is the only supported invocation path.
+        # 构建技能元素。 注意：<location>被故意省略，因此智能体无法通过直接读取文件来绕
+        # 过`invoke_skill`；
+        # `invoke_skill` 是唯一受支持的调用路径。
         lines.append("  <skill>")
         lines.append(f"    <name>{name}</name>")
         lines.append(f"    <description>{description}</description>")

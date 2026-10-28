@@ -1,4 +1,4 @@
-"""Tests for Laminar observability configuration."""
+"""层流可观测性配置测试。"""
 
 import asyncio
 import contextvars
@@ -14,10 +14,10 @@ from openhands.sdk.conversation.impl.local_conversation import LocalConversation
 
 @pytest.fixture(autouse=True)
 def _reset_observability_cache():
-    """Reset the module-level _observability_enabled flag between tests.
+    """在测试之间重置模块级 _observability_enabled 标志。
 
-    The flag is sticky-True by design (see laminar.py docstring), so it
-    leaks across tests. This fixture isolates each test from prior state.
+    该标志在设计上是粘性的True（参见laminar.py文档字符串），因此它会在测试中泄漏。 此
+    测试夹具将每个测试与先前状态隔离。
     """
     from openhands.sdk.observability import laminar
 
@@ -27,10 +27,10 @@ def _reset_observability_cache():
 
 
 def test_lmnr_base_url_passed_to_laminar():
-    """Test that LMNR_BASE_URL is correctly passed to Laminar.initialize."""
+    """测试 LMNR_BASE_URL 是否正确传递到 Laminar.initialize。"""
     import os
 
-    # Save original values
+    # 保存原始值
     original_base_url = os.environ.get("LMNR_BASE_URL")
     original_key = os.environ.get("LMNR_PROJECT_API_KEY")
 
@@ -46,11 +46,11 @@ def test_lmnr_base_url_passed_to_laminar():
 
                     maybe_init_laminar()
 
-                    # Check that Laminar.initialize was called with base_url
+                    # 检查 Laminar.initialize 是否被 base_url 调用
                     call_kwargs = mock_laminar.initialize.call_args.kwargs
                     assert call_kwargs.get("base_url") == "https://custom.lmnr.ai"
     finally:
-        # Restore original values
+        # 恢复原始值
         if original_base_url is not None:
             os.environ["LMNR_BASE_URL"] = original_base_url
         elif "LMNR_BASE_URL" in os.environ:
@@ -62,8 +62,8 @@ def test_lmnr_base_url_passed_to_laminar():
 
 
 def test_lmnr_base_url_not_passed_when_empty():
-    """Test that base_url is None when LMNR_BASE_URL is not set."""
-    # Save original values
+    """当LMNR_BASE_URL未设置时，测试base_url是否为None。"""
+    # 保存原始值
     original_base_url = os.environ.get("LMNR_BASE_URL")
     original_key = os.environ.get("LMNR_PROJECT_API_KEY")
 
@@ -80,11 +80,11 @@ def test_lmnr_base_url_not_passed_when_empty():
 
                     maybe_init_laminar()
 
-                    # Check that Laminar.initialize was called with base_url=None
+                    # 检查 Laminar.initialize 是否已通过 base_url=None 调用
                     call_kwargs = mock_laminar.initialize.call_args.kwargs
                     assert call_kwargs.get("base_url") is None
     finally:
-        # Restore original values
+        # 恢复原始值
         if original_base_url is not None:
             os.environ["LMNR_BASE_URL"] = original_base_url
         elif "LMNR_BASE_URL" in os.environ:
@@ -96,13 +96,13 @@ def test_lmnr_base_url_not_passed_when_empty():
 
 
 def test_maybe_init_laminar_skips_when_already_initialized():
-    """Laminar.initialize must not be called again when already initialized.
+    """Laminar.initialize 已初始化后不得再次调用。
 
-    Re-calling Laminar.initialize after a previous init emits
-    'Laminar is already initialized. Skipping initialization.' at INFO level
+    在前一个 init 发出“Laminar 已初始化”之后重新调用 Laminar.initialize。 跳过初始化
+    。'在 INFO 级别
     from lmnr. Since ``maybe_init_laminar`` runs at import time in agent.py
-    and acp_agent.py, that line shows up on every module load after the
-    first one. Guard against the re-init to keep logs clean.
+    和 acp_agent.py，该行显示在第一个模块加载之后的每个模块加载上。 防止重新初始化以
+    保持日志干净。
     """
     original_key = os.environ.get("LMNR_PROJECT_API_KEY")
 
@@ -129,10 +129,10 @@ def test_maybe_init_laminar_skips_when_already_initialized():
 def test_observe_preserves_async_signature():
     """@observe must keep an async function async so introspection works.
 
-    Regression test for a bug where the lazy wrapper was unconditionally
-    sync, causing `inspect.iscoroutinefunction` to return False for
-    decorated async methods. That broke `MCPToolExecutor.__call__`, which
-    relies on `iscoroutinefunction` in `run_async` to dispatch the call.
+    回归测试惰性包装器无条件同步的错误，导致 `inspect.iscoroutinefunction` 对于修饰的
+    异步方法返回 False。 这破坏了
+    `MCPToolExecutor.__call__`，它依赖 `run_async` 中的 `iscoroutinefunction` 来调度
+    调用。
     """
     from openhands.sdk.observability.laminar import observe
 
@@ -161,7 +161,7 @@ def test_observe_preserves_async_signature():
     ],
 )
 def test_lmnr_force_http_passed_to_laminar(force_http_value, expected_force_http):
-    """Test that LMNR_FORCE_HTTP is correctly passed to Laminar.initialize."""
+    """测试 LMNR_FORCE_HTTP 是否正确传递到 Laminar.initialize。"""
     original_key = os.environ.get("LMNR_PROJECT_API_KEY")
     original_force_http = os.environ.get("LMNR_FORCE_HTTP")
 
@@ -204,7 +204,7 @@ def test_lmnr_force_http_passed_to_laminar(force_http_value, expected_force_http
 def test_lmnr_instruments_passed_to_laminar(
     is_laminar_backend, instruments_env, expected, invalid, caplog
 ):
-    """LMNR_INSTRUMENTS limits Laminar to the selected integrations."""
+    """LMNR_INSTRUMENTS 将层流限制为所选积分。"""
     from lmnr import Instruments
 
     with patch.dict(
@@ -234,32 +234,32 @@ def test_lmnr_instruments_passed_to_laminar(
 
 
 # ---------------------------------------------------------------------------
-# Cross-context root-span propagation
+# 跨上下文根跨传播
 # ---------------------------------------------------------------------------
 #
-# Regression tests for the orphan-trace bug where ``@observe``-decorated
-# methods on a Conversation, when called from a different asyncio task or
-# thread than the one that constructed the Conversation, started a fresh
-# trace instead of attaching to the conversation's root span. The fix moves
+# 回归测试了 ``@observe``-装饰方法在 Conversation 上，当从不同的异步任务或线程于构建
+# Conversation 的任务中调用时，会启动一个新的跟踪，而不是附接到 Conversation 的根跟踪。
+# 修复动作
+#
 # from ``Laminar.start_active_span`` (which relies on contextvars
-# propagation) to ``Laminar.start_span`` + ``Laminar.use_span`` re-attached
-# at every entry point.
+# 传播）到 ``Laminar.start_span`` + ``Laminar.use_span``，每入口重新连接一次。
+#
 
 
 class _DummyOwner:
-    """Mimics a ``BaseConversation`` for the purposes of the observe wrapper."""
+    """出于观察包装器的目的，模拟 ``BaseConversation``。"""
 
     def __init__(self, root_span):
         from openhands.sdk.observability.laminar import RootSpan
 
-        # Build a RootSpan-like object without invoking real lmnr.
+        # 构建一个类似 RootSpan 的对象，而不调用真正的 lmnr。
         self._observability_root_span = RootSpan.__new__(RootSpan)
         self._observability_root_span.span = root_span
         self._observability_root_span._ended = False
 
 
 def test_observe_calls_use_span_with_owner_root_span_on_sync():
-    """Sync ``@observe``'d methods must re-attach the owner's root span."""
+    """同步 ``@observe``d 方法必须重新附加所有者的根跨度。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar  # noqa: F401  ensure module is importable
@@ -275,9 +275,9 @@ def test_observe_calls_use_span_with_owner_root_span_on_sync():
             yield span
 
         with patch.object(Laminar, "use_span", side_effect=fake_use_span):
-            # Force-enable observability for the duration of this call.
+            # 在此调用期间强制启用可观察性。
             lam._observability_enabled = True
-            # Stub the lmnr-level ``observe`` so the wrapper just calls through.
+            # 存根 lmnr-level ``observe``，以便包装器直接调用。
             with patch("lmnr.observe", lambda **kw: lambda f: f):
 
                 @lam.observe(name="conversation.send_message")
@@ -296,7 +296,7 @@ def test_observe_calls_use_span_with_owner_root_span_on_sync():
 
 
 def test_observe_with_owner_root_span_preserves_wrapped_exceptions():
-    """Exceptions from wrapped functions must not be treated as use_span errors."""
+    """包装函数中的异常不得被视为 use_span 错误。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar
@@ -329,7 +329,7 @@ def test_observe_with_owner_root_span_preserves_wrapped_exceptions():
 
 
 def test_observe_calls_use_span_with_owner_root_span_on_async():
-    """Async ``@observe``'d methods must re-attach the owner's root span."""
+    """异步 ``@observe``d 方法必须重新附加所有者的根跨度。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar
@@ -353,8 +353,9 @@ def test_observe_calls_use_span_with_owner_root_span_on_async():
                     return "done"
 
                 owner = _DummyOwner(sentinel_span)
-                # Run from a fresh, empty contextvars Context to mimic a
-                # task created outside the conversation's async ancestry.
+                # 从新的、空的上下文变量上下文运行，以模仿在对话的异步祖先之外创建的任务
+                # 。
+                #
 
                 async def _call_in_isolated_context():
                     new_ctx = contextvars.Context()
@@ -372,7 +373,7 @@ def test_observe_calls_use_span_with_owner_root_span_on_async():
 
 
 def test_root_span_sets_user_id():
-    """RootSpan must call Laminar.set_trace_user_id when user_id is provided."""
+    """当提供 user_id 时，RootSpan 必须调用 Laminar.set_trace_user_id。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar
@@ -401,7 +402,7 @@ def test_root_span_sets_user_id():
 
 
 def test_root_span_skips_user_id_when_none():
-    """RootSpan must not call set_trace_user_id when user_id is None."""
+    """当 user_id 为 None 时，RootSpan 不得调用 set_trace_user_id。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar
@@ -429,7 +430,7 @@ def test_root_span_skips_user_id_when_none():
 
 
 def test_root_span_sets_attributes():
-    """RootSpan must attach provided attributes to the underlying span."""
+    """RootSpan 必须将提供的属性附加到基础跨度。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
     try:
         from lmnr import Laminar
@@ -453,17 +454,16 @@ def test_root_span_sets_attributes():
 
 
 def test_two_concurrent_conversations_do_not_collide():
-    """Each conversation must own its own root span (no global stack).
+    """每个会话必须拥有自己的根跨度（无全局堆栈）。
 
-    Before the fix, a process-wide ``SpanManager`` LIFO stack meant a second
-    conversation constructed while the first was alive would corrupt the
-    first's root span on close.
+    在修复之前，一个全局的 ``SpanManager`` LIFO 栈意味着在第一个会话存活期间会创建第
+    二个会话，这会破坏第一个会话的根跨度。
     """
     from openhands.sdk.conversation.base import BaseConversation
 
-    # Bypass ABC instantiation by calling ``BaseConversation.__init__`` on a
-    # bare ``object``-like instance. We only exercise the span-management
-    # methods, which are concrete on the base class.
+    # 通过在类似 ``object`` 的裸实例上调用 ``BaseConversation.__init__`` 来绕过 ABC 实例
+    # 化。 我们仅使用跨度管理方法，该方法具体针对基类。
+    #
     class _BareConvo:
         pass
 
@@ -472,8 +472,8 @@ def test_two_concurrent_conversations_do_not_collide():
     BaseConversation.__init__(c1)  # type: ignore[arg-type]
     BaseConversation.__init__(c2)  # type: ignore[arg-type]
 
-    # Patch the symbol in the module where it's looked up at call time, and
-    # force observability on so the shortcut early-return doesn't fire.
+    # 修补在调用时查找的模块中的符号，并强制启用可观察性，以便快捷方式提前返回不会触发。
+    #
     from openhands.sdk.conversation import base as base_mod
 
     with (
@@ -487,25 +487,26 @@ def test_two_concurrent_conversations_do_not_collide():
         BaseConversation._start_observability_span(c1, "session-1")  # type: ignore[arg-type]
         BaseConversation._start_observability_span(c2, "session-2")  # type: ignore[arg-type]
 
-        # Each conversation has its own root span – no shared stack.
+        # 每个对话都有自己的根跨度——没有共享堆栈。
         assert c1._observability_root_span is not c2._observability_root_span  # type: ignore[attr-defined]
 
-        # Closing c2 must NOT end c1's root span.
+        # 关闭 c2 必须不结束 c1 的根跨度。
         c2_root = c2._observability_root_span  # type: ignore[attr-defined]
         c1_root = c1._observability_root_span  # type: ignore[attr-defined]
         BaseConversation._end_observability_span(c2)  # type: ignore[arg-type]
         c2_root.end.assert_called_once()
         c1_root.end.assert_not_called()
 
-        # And vice versa.
+        # 反之亦然。
         BaseConversation._end_observability_span(c1)  # type: ignore[arg-type]
         c1_root.end.assert_called_once()
 
         assert mock_start.call_count == 2
 
 
-# Tiny shim because we want a generator-based context manager helper that
-# also works as a side_effect for patch().
+# 很小的垫片，因为我们想要一个基于生成器的上下文管理器帮助器，它也可以用作 patch() 的
+# side_effect。
+#
 def contextlib_compat():
     import contextlib
 
@@ -543,19 +544,19 @@ def test_root_span_sets_trace_metadata_and_tags():
 
 
 def test_detached_delegate_context_severs_ambient_span_and_links_parent():
-    """A span created inside the context manager must not join whatever span
-    is currently active — and the yielded link must identify the severed
-    parent (trace_id, span_id, tool_call_id), so the two traces stay
-    correlatable (software-agent-sdk#4365).
+    """在上下文管理器内创建的跨度不得加入任何跨度
+    该端点目前是活跃的——生成的链接必须标识断开的父端点
+    (trace_id, span_id, tool_call_id)，因此两个追踪可以关联起来（软件-智能体-
+    SDK#4365）。
 
-    Only ``Laminar.get_laminar_span_context`` is mocked (not the whole
-    ``Laminar`` class): ``detached_delegate_context`` must sever the ambient
-    span via lmnr's OWN isolated context tracking, not just the standard
-    ``opentelemetry.context`` one (they are separate — see the docstring on
-    ``detached_delegate_context``), so this needs the real
-    ``Laminar.use_span`` to run. Laminar is never initialized here, so it
-    falls back to plain ``opentelemetry.trace.use_span`` internally, which is
-    enough to prove severance against a raw OTel tracer.
+    只有 ``Laminar.get_laminar_span_context`` 是模拟的（不是整个
+    ``Laminar`` 类）：``detached_delegate_context`` 必须通过 lmnr 的 OWN 隔离上下文跟
+    踪来切断环境跨度，而不仅仅是标
+    准
+    ``opentelemetry.context`` 一个（它们是独立的 - 请参阅上的文档字符串
+    ``detached_delegate_context``），所以这需要真实的
+    ``Laminar.use_span`` 运行。 Laminar 在这里从未初始化，因此它在内部回落到普通
+    ``opentelemetry.trace.use_span``，这足以证明与原始 OTel 跟踪器的隔离。
     """
     from types import SimpleNamespace
 
@@ -592,7 +593,7 @@ def test_detached_delegate_context_severs_ambient_span_and_links_parent():
 
 
 def test_detached_delegate_context_restores_ambient_span_after_exit():
-    """Code after the ``with`` block must see the original span again."""
+    """``with`` 块之后的代码必须再次看到原始跨度。"""
     from lmnr import Laminar
     from opentelemetry import trace as trace_api
     from opentelemetry.sdk.trace import TracerProvider
@@ -612,7 +613,7 @@ def test_detached_delegate_context_restores_ambient_span_after_exit():
 
 
 def test_detached_delegate_context_without_ambient_parent():
-    """No active span to sever must not crash and must yield an empty link."""
+    """没有要切断的活动跨度不得崩溃并且必须产生空链接。"""
     from lmnr import Laminar
 
     from openhands.sdk.observability import laminar as lam
@@ -625,7 +626,7 @@ def test_detached_delegate_context_without_ambient_parent():
 
 
 def test_detached_delegate_context_noop_when_observability_disabled():
-    """When observability is off, the context manager must be a pure no-op."""
+    """当可观察性关闭时，上下文管理器必须是纯粹的无操作。"""
     from openhands.sdk.observability import laminar as lam
 
     with patch("lmnr.Laminar") as mock_laminar:
@@ -639,7 +640,7 @@ def test_detached_delegate_context_noop_when_observability_disabled():
 
 
 def test_deprecated_shims_are_removed():
-    """The legacy global-stack API (deprecated 1.22.0) was removed in 1.27.0."""
+    """旧的全局堆栈 API (已弃用 1.22.0) 在 1.27.0 中被删除。"""
     from openhands.sdk.observability import laminar as lam
 
     assert not hasattr(lam, "start_active_span")
@@ -648,13 +649,14 @@ def test_deprecated_shims_are_removed():
 
 
 def test_async_agent_and_conversation_paths_are_observed():
-    """The async twins must be ``@observe``-wrapped like their sync versions.
+    """异步双胞胎必须像其同步版本一样被 ``@observe`` 包裹。
 
-    Regression test for the async-parity gap (issue #3449): ``Agent.astep`` and
-    ``LocalConversation.arun`` lost the tracing decorators their sync twins
-    (``Agent.step`` / ``LocalConversation.run``) carry. The ``observe`` wrapper
-    renames the underlying code object to ``async_wrapper``/``sync_wrapper``, so
-    its presence is detectable via ``__code__.co_name``.
+    回归测试异步-奇偶校验间隙（问题#3449）：``Agent.astep`` 和
+    ``LocalConversation.arun`` 失去了他们的同步双胞胎 (``Agent.step`` /
+    ``LocalConversation.run``
+    ) 携带的追踪装饰器。 ``observe`` 包装器将底层代码对象重命名为 ``async_wrapper``
+    /``sync_wrapper``，因此可以通过
+    ``__code__.co_name`` 检测到它的存在。
     """
     assert Agent.step.__code__.co_name == "sync_wrapper"
     assert Agent.astep.__code__.co_name == "async_wrapper"
@@ -663,7 +665,7 @@ def test_async_agent_and_conversation_paths_are_observed():
 
 
 def test_should_enable_observability_returns_true_when_env_set():
-    """should_enable_observability returns True when an observability env var is set."""
+    """当设置可观察性环境变量时，should_enable_observability 返回 True。"""
     from openhands.sdk.observability.laminar import should_enable_observability
 
     with patch.dict(os.environ, {"LMNR_PROJECT_API_KEY": "test_key"}, clear=True):
@@ -671,7 +673,7 @@ def test_should_enable_observability_returns_true_when_env_set():
 
 
 def test_should_enable_observability_returns_false_when_no_env():
-    """should_enable_observability returns False when no relevant env vars are set."""
+    """当未设置相关环境变量时，should_enable_observability 返回 False。"""
     from openhands.sdk.observability.laminar import should_enable_observability
 
     with patch.dict(os.environ, {}, clear=True):

@@ -1,4 +1,4 @@
-"""Private tree-sitter-bash command views for security analyzers."""
+"""用于安全分析器的私有 tree-sitter-bash 命令视图。"""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ _COMMAND_CHILD_SKIP_TYPES = frozenset(
 
 @dataclass(frozen=True, slots=True)
 class ShellProgram:
-    """Parsed shell source plus the tree-sitter parse result it came from."""
+    """解析的 shell 源加上它来自的树守护者解析结果。"""
 
     source: str
     source_bytes: bytes
@@ -36,7 +36,7 @@ class ShellProgram:
 
 @dataclass(frozen=True, slots=True)
 class ShellWord:
-    """A command word or assignment with its original shell syntax text."""
+    """带有原始 shell 语法文本的命令字或赋值。"""
 
     text: str
     node_type: str
@@ -46,7 +46,7 @@ class ShellWord:
 
 @dataclass(frozen=True, slots=True)
 class ShellCommand:
-    """A simple command, including its command name and argument words."""
+    """一个简单的命令，包括其命令名称和参数字。"""
 
     name: ShellWord | None
     words: tuple[ShellWord, ...]
@@ -57,7 +57,7 @@ class ShellCommand:
 
 @dataclass(frozen=True, slots=True)
 class ShellPipeline:
-    """A pipeline of simple commands connected by shell pipe operators."""
+    """由 shell 管道运算符连接的简单命令的管道。"""
 
     commands: tuple[ShellCommand, ...]
     complete: bool
@@ -66,17 +66,16 @@ class ShellPipeline:
 
 
 def parse_shell_program(source: str) -> ShellProgram:
-    """Parse ``source`` and return its private shell syntax view."""
+    """解析 ``source`` 并返回其私有 shell 语法视图。"""
     return view_shell_program(source, parse(source))
 
 
 def view_shell_program(source: str, parse_result: ParseResult) -> ShellProgram:
-    """Create a shell syntax view from a matching parse result.
+    """从匹配的解析结果创建 shell 语法视图。
 
-    The parse tree must span the UTF-8 byte length of ``source``. If a caller
-    passes a same-length source different from the parsed text, byte slicing will
-    reflect that caller error; this helper intentionally does not keep a second
-    copy of the parsed bytes to detect it.
+    解析树必须跨越 ``source`` 的 UTF-8 字节长度。 如果调用者传递与解析文本不同的相同
+    长度源，则字节切片将反映该调用者错误； 这个助手故意不保留已解析
+    字节的第二个副本来检测它。
     """
     source_bytes = source.encode()
     if parse_result.tree.root_node.end_byte != len(source_bytes):
@@ -89,38 +88,38 @@ def view_shell_program(source: str, parse_result: ParseResult) -> ShellProgram:
 
 
 def node_text(program: ShellProgram, node: Node) -> str:
-    """Return ``node`` text using tree-sitter byte offsets."""
+    """使用树托管字节偏移量返回 ``node`` 文本。"""
     return program.source_bytes[node.start_byte : node.end_byte].decode()
 
 
 def iter_commands(program: ShellProgram) -> Iterator[ShellCommand]:
-    """Yield real ``command`` nodes from the parsed shell syntax tree."""
+    """从解析的 shell 语法树中生成真实的 ``command`` 节点。"""
     for node in _iter_nodes(program.parse_result.tree.root_node):
         if node.type == "command":
             yield _view_command(program, node)
 
 
 def iter_pipelines(program: ShellProgram) -> Iterator[ShellPipeline]:
-    """Yield pipeline views for tree-sitter ``pipeline`` nodes."""
+    """生成树托管者 ``pipeline`` 节点的管道视图。"""
     for node in _iter_nodes(program.parse_result.tree.root_node):
         if node.type == "pipeline":
             yield _view_pipeline(program, node)
 
 
 def command_basename(command: ShellCommand) -> str | None:
-    """Return the POSIX basename for a non-opaque command name."""
+    """返回非不透明命令名称的 POSIX 基本名称。"""
     if command.name is None or command.name.opaque:
         return None
     return posixpath.basename(command.name.text)
 
 
 def split_short_flags(text: str) -> frozenset[str]:
-    """Split a short-flag word's literal text into individual flag characters.
+    """将短标志词的文字文本拆分为单独的标志字符。
 
-    Takes the literal the shell would produce after quote removal rather than
-    a ``ShellWord``, so a caller that resolves quotes gets the same answer for
-    ``-rf``, ``"-rf"`` and ``-r"f"`` -- which are the same argv. A caller that
-    cannot resolve a word must skip it rather than pass its raw source text.
+    采用 shell 在删除引号后生成的文字而不是 ``ShellWord``，因此解析引号的调用者会得到
+    相同的答案
+    ``-rf``、``"-rf"`` 和 ``-r"f"``——它们是相同的 argv。 无法解析单词的调用者必须跳过
+    它而不是传递其原始源文本。
     """
     if len(text) <= 1 or not text.startswith("-") or text.startswith("--"):
         return frozenset()
@@ -128,12 +127,12 @@ def split_short_flags(text: str) -> frozenset[str]:
 
 
 def is_long_flag(text: str, name: str) -> bool:
-    """Return whether a word's literal text is exactly ``--<name>``."""
+    """返回单词的文字文本是否恰好为 ``--<name>``。"""
     return text == f"--{name}"
 
 
 def split_key_value_word(word: ShellWord) -> tuple[str, str] | None:
-    """Split a non-opaque ``KEY=VALUE`` word."""
+    """分割一个透明的 ``KEY=VALUE`` 单词。"""
     if word.opaque:
         return None
 
@@ -248,7 +247,7 @@ def _redirect_argument_nodes(
 
 
 def iter_redirect_nodes(redirect: Node) -> Iterator[Node]:
-    """Yield one redirect and its nested redirect nodes."""
+    """产生一个重定向及其嵌套的重定向节点。"""
     yield redirect
     for index, child in enumerate(redirect.children):
         if child.is_named and redirect.field_name_for_child(index) == "redirect":

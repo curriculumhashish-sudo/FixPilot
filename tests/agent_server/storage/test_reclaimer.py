@@ -1,4 +1,4 @@
-"""The reclaimer against a minimal storage: nothing here knows about Docker."""
+"""针对最小存储的回收器：这里对 Docker 一无所知。"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

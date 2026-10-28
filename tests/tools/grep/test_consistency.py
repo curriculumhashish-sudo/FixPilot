@@ -1,4 +1,4 @@
-"""Tests to verify consistency between ripgrep and Python fallback."""
+"""测试验证 ripgrep 和 Python 回退方案之间的一致性。"""
 
 import tempfile
 from pathlib import Path
@@ -18,15 +18,15 @@ from openhands.tools.utils import _check_ripgrep_available
     reason="ripgrep not available - consistency tests require ripgrep",
 )
 class TestGrepConsistency:
-    """Test that ripgrep and the Python fallback stay consistent."""
+    """测试 ripgrep 和 Python 回退方案保持一致。"""
 
     @pytest.fixture
     def temp_dir_with_content(self):
-        """Create a temporary directory with test files containing searchable content."""
+        """创建一个临时目录，其中包含包含可搜索内容的测试文件。"""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create test files with more complex content
+            # 创建内容更复杂的测试文件
             test_files = {
-                # Root level files
+                # 根级文件
                 "app.py": "def main():\n    print('Hello World')\n    return 0\n# TODO: add error handling",
                 "main.py": "import sys\ndef hello():\n    print('Hello from main')\n# FIXME: refactor this",
                 "test.py": (
@@ -39,7 +39,7 @@ class TestGrepConsistency:
                 "README.MD": "# Alternative README\nHELLO WORLD\n",
                 ".env": "API_KEY=secret123\nDEBUG=true\n",
                 ".gitignore": "*.pyc\n__pycache__/\n.env\n",
-                # Source directory
+                # 源码目录
                 "src/utils.py": "def helper():\n    return 'Hello from helper'\n\ndef error_handler():\n    raise Exception('Error!')",
                 "src/models.py": (
                     "class User:\n    def __init__(self, name):\n"
@@ -53,7 +53,7 @@ class TestGrepConsistency:
                 "src/plugins/auth.py": "def authenticate(user, password):\n    # Security: hash passwords\n    return user == 'admin'",
                 "src/plugins/db.py": "class Database:\n    def connect(self):\n        # TODO: add connection pooling\n        pass",
                 "src/plugins/__init__.py": "",
-                # Tests directory
+                # 测试目录
                 "tests/test_utils.py": "def test_helper():\n    # TODO: add assertions\n    pass",
                 "tests/test_models.py": "def test_user():\n    assert True  # FIXME: real test",
                 "tests/integration/test_api.py": "def test_api():\n    # Integration test\n    pass",
@@ -61,35 +61,35 @@ class TestGrepConsistency:
                 "tests/unit/test_engine.py": "def test_engine():\n    # Unit test for engine\n    pass",
                 "tests/unit/test_parser.py": "def test_parser():\n    # TODO: test edge cases\n    pass",
                 "tests/unit/__init__.py": "",
-                # Documentation
+                # 文档
                 "docs/guide.md": "# User Guide\nSay hello to get started.\n\n## Examples\nTODO: add examples",
                 "docs/api.md": "# API Reference\n\n## Authentication\nUse API keys for auth.",
                 "docs/tutorial.rst": "Tutorial\n========\n\nHello from tutorial\n\nTODO: complete sections",
                 "docs/CHANGELOG.md": "# Changelog\n\n## v1.0.0\n- Initial release\n\n## TODO\n- Add v2.0 features",
-                # Configuration files
+                # 配置文件
                 "config/settings.json": '{"debug": true, "timeout": 30, "retries": 3}',
                 "config/database.yaml": "host: localhost\nport: 5432\nuser: admin\n",
                 "config/logging.ini": "[loggers]\nkeys=root\n\n[handlers]\nkeys=console",
                 "config/secrets.env": "API_KEY=secret\nDB_PASSWORD=pass123\n",
-                # Scripts
+                # 脚本
                 "scripts/deploy.sh": "#!/bin/bash\necho 'Deploying...'\n# TODO: add validation",
                 "scripts/build.py": "import subprocess\n# Build script\nsubprocess.run(['make', 'build'])",
                 "scripts/test.py": "import pytest\n# Run tests\npytest.main(['-v'])",
-                # Build artifacts
+                # 构建工件
                 "build/output.js": "console.log('Hello from build');\n// TODO: minify",
                 "build/styles.css": "body { margin: 0; }\n/* TODO: add dark mode */",
-                # Hidden directory
+                # 隐藏目录
                 ".github/workflows/ci.yml": "name: CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest",
                 ".github/workflows/deploy.yml": "name: Deploy\n# TODO: add production deploy",
-                # Deep nesting
+                # 深度嵌套
                 "deep/level1/level2/level3/file.py": "# Deep nested file\ndef deep_function():\n    return 'hello from deep'",
                 "deep/level1/level2/level3/data.json": '{"deep": "nested", "hello": "world"}',
-                # Special characters in content
+                # 内容中的特殊字符
                 "special.txt": "Line with ERROR: something failed\nLine with WARNING: be careful\nLine with INFO: all good",
                 "patterns.txt": "email@example.com\n192.168.1.1\nhttp://example.com\n",
-                # Binary-like file (won't match text searches)
+                # 类似二进制文件（不会匹配文本搜索）
                 "data.bin": "\x00\x01\x02\x03\x04",
-                # Empty file
+                # 空文件
                 "empty.txt": "",
             }
 
@@ -101,11 +101,11 @@ class TestGrepConsistency:
             yield temp_dir
 
     def test_basic_search_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback return consistent results for basic searches."""
+        """测试 ripgrep 和 Python 回退方案是否为基本搜索返回一致的结果。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="hello")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -113,15 +113,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets of matching files for exact comparison
+        # 转换为匹配文件集以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -130,11 +130,11 @@ class TestGrepConsistency:
         )
 
     def test_case_insensitive_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback handle case-insensitive searches consistently."""
+        """测试 ripgrep 和 Python 回退方案是否一致地处理不区分大小写的搜索。"""
         executor = GrepExecutor(temp_dir_with_content)
-        action = GrepAction(pattern="HELLO")  # Uppercase pattern
+        action = GrepAction(pattern="HELLO")  # 大写模式
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -142,15 +142,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -159,11 +159,11 @@ class TestGrepConsistency:
         )
 
     def test_include_pattern_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback handle include patterns consistently."""
+        """测试 ripgrep 和 Python 回退方案句柄是否一致地包含模式。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="hello", include="*.py")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -171,15 +171,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -187,16 +187,16 @@ class TestGrepConsistency:
             f"Difference (Python fallback - ripgrep): {python_matches - ripgrep_matches}"
         )
 
-        # Verify all matches are Python files
+        # 验证所有匹配项都是 Python 个文件
         for match in ripgrep_matches:
             assert match.endswith(".py"), f"Non-Python file found: {match}"
 
     def test_no_matches_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback handle no matches consistently."""
+        """测试 ripgrep 和 Python 回退方案是否一致地处理不匹配的情况。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="nonexistentpattern12345")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -204,23 +204,23 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed with identical empty results
+        # 两者都应该成功并获得相同的空结果
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Both must return exactly the same (empty) set
+        # 两者必须返回完全相同的（空）集
         assert ripgrep_matches == python_matches == set()
 
     def test_regex_pattern_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback handle simple regex patterns consistently."""
+        """测试 ripgrep 和 Python 回退方案是否一致地处理简单的正则表达式模式。"""
         executor = GrepExecutor(temp_dir_with_content)
-        action = GrepAction(pattern="def ")  # Simple pattern that should work in both
+        action = GrepAction(pattern="def ")  # 应该适用于两者的简单模式
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -228,15 +228,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -245,11 +245,11 @@ class TestGrepConsistency:
         )
 
     def test_todo_comments_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback find TODO comments consistently."""
+        """测试 ripgrep 和 Python 回退方案 find TODO 注释是否一致。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="TODO")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -257,15 +257,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -274,11 +274,11 @@ class TestGrepConsistency:
         )
 
     def test_error_patterns_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback find error patterns consistently."""
+        """测试 ripgrep 和 Python 回退方案是否一致地找到错误模式。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="ERROR:")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -286,15 +286,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -303,11 +303,11 @@ class TestGrepConsistency:
         )
 
     def test_import_statements_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback find import statements consistently."""
+        """测试 ripgrep 和 Python 回退方案是否一致地查找导入语句。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="import ", include="*.py")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -315,15 +315,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -332,11 +332,11 @@ class TestGrepConsistency:
         )
 
     def test_class_definitions_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback find class definitions consistently."""
+        """测试 ripgrep 和 Python 回退方案查找类定义是否一致。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="class ")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -344,15 +344,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -361,11 +361,11 @@ class TestGrepConsistency:
         )
 
     def test_deep_nested_search_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback search deeply nested files consistently."""
+        """测试 ripgrep 和 Python 回退方案搜索深度嵌套文件的一致性。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="deep")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -373,15 +373,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"
@@ -390,7 +390,7 @@ class TestGrepConsistency:
         )
 
     def test_config_file_search_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback search various config file formats consistently."""
+        """测试 ripgrep 和 Python 回退方案一致地搜索各种配置文件格式。"""
         executor = GrepExecutor(temp_dir_with_content)
 
         for pattern, file_type in [
@@ -400,7 +400,7 @@ class TestGrepConsistency:
         ]:
             action = GrepAction(pattern=pattern, include=file_type)
 
-            # Get results from ripgrep and the Python fallback
+            # 从 ripgrep 和 Python 回退方案获取结果
             ripgrep_result = executor._execute_with_ripgrep(
                 action, Path(temp_dir_with_content)
             )
@@ -408,15 +408,15 @@ class TestGrepConsistency:
                 action, Path(temp_dir_with_content)
             )
 
-            # Both should succeed
+            # 两者都应该成功
             assert not ripgrep_result.is_error
             assert not python_result.is_error
 
-            # Convert to sets for exact comparison
+            # 转换为集合以进行精确比较
             ripgrep_matches = set(ripgrep_result.matches)
             python_matches = set(python_result.matches)
 
-            # Ripgrep and the Python fallback must return exactly the same files
+            # Ripgrep 和 Python 回退方案必须返回完全相同的文件
             assert ripgrep_matches == python_matches, (
                 f"Pattern: {pattern}, File type: {file_type}\n"
                 f"Ripgrep found: {ripgrep_matches}\n"
@@ -426,11 +426,11 @@ class TestGrepConsistency:
             )
 
     def test_hidden_files_search_consistency(self, temp_dir_with_content):
-        """Test that ripgrep and the Python fallback search hidden files consistently."""
+        """测试 ripgrep 和 Python 回退方案搜索隐藏文件的一致性。"""
         executor = GrepExecutor(temp_dir_with_content)
         action = GrepAction(pattern="API_KEY")
 
-        # Get results from ripgrep and the Python fallback
+        # 从 ripgrep 和 Python 回退方案获取结果
         ripgrep_result = executor._execute_with_ripgrep(
             action, Path(temp_dir_with_content)
         )
@@ -438,15 +438,15 @@ class TestGrepConsistency:
             action, Path(temp_dir_with_content)
         )
 
-        # Both should succeed
+        # 两者都应该成功
         assert not ripgrep_result.is_error
         assert not python_result.is_error
 
-        # Convert to sets for exact comparison
+        # 转换为集合以进行精确比较
         ripgrep_matches = set(ripgrep_result.matches)
         python_matches = set(python_result.matches)
 
-        # Ripgrep and the Python fallback must return exactly the same files
+        # Ripgrep 和 Python 回退方案必须返回完全相同的文件
         assert ripgrep_matches == python_matches, (
             f"Ripgrep found: {ripgrep_matches}\n"
             f"Python fallback found: {python_matches}\n"

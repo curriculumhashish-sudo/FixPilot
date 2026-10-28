@@ -3,32 +3,22 @@ name: Release Security Scan
 run-name: >-
     Release Security Scan ${{ inputs.reason || github.event.label.name || 'manual' }}
 
-# Fourth release-PR check, alongside integration-test / behavior-test /
-# test-examples. It guards the *release* diff (last tag -> this PR) against two
-# supply-chain / integrity risks:
-#   1. approval drift (TOCTOU): code that shipped without the human-approved
-#      state actually being what merged;
-#   2. dependency risk: new/bumped deps with known OSV vulns or non-PyPI
-#      sources.
+# 第四个版本-PR 检查，以及集成测试/行为测试/测试示例。 它保护 *release* diff（最后一个标签 -> 这个 PR）免受两个供应链/完整性风险的影响：
+#   1. 批准漂移（TOCTOU）：在没有人工批准状态的情况下发布的代码实际上是合并的；
+#   2. 依赖性风险：具有已知 OSV 漏洞或非 PyPI 来源的新/冲突的 deps。
 #
-# Two behaviors, one job:
-#   A. Always-on for `rel-*` PRs — these are internal repo branches (never
-#      forks), so this is the guaranteed gate on the thing that actually ships,
-#      and it cannot be skipped (no label required).
-#   B. Best-effort for any other branch via the `security-scan` label or manual
-#      dispatch — a human opts a feature/fork PR in.
+# 两种行为，一种工作：
+#   A. `rel-*` PR 永远在线——这些是内部仓库分支（从不）
+#      叉子），所以这是实际运输的东西的保证门，并且不能跳过（不需要标签）。
+#   B. 通过 `security-scan` 标签或手册尽力为任何其他分支
+#      调度——人类选择一个功能/分叉 PR。
 #
-# Deterministic by design: the scanners only read git history and query
-# read-only APIs (GitHub REST, OSV). They never install or execute the code
-# under review — a security gate that runs untrusted content is itself an
-# injection target. We therefore use plain `pull_request` (not
-# pull_request_target) and need no secrets beyond the default GITHUB_TOKEN. On
-# fork PRs that token is read-only, so results always go to the job summary and
-# the PR comment is posted only when the token can write (non-fork).
+# 设计就绪：扫描器只读取 git 历史并查询只读 APIs (GitHub REST, OSV)。 他们从不安装或执行正在审查的代码——运行不受信任内容的安全门本身就是注入目标。 因此，我们使用简单的`pull_request`（而不是pull_request_target），不需要机密，除了默认的GITHUB_TOKEN。 在分叉 PR 上，token 是只读，因此结果始终会进入作业摘要，并且仅当 token 可以写入（非分叉）时才会发布 PR 评论。
+#
 
 on:
     pull_request:
-        # `labeled` drives rel-* release PRs and opt-in scans.
+        # `labeled` 驱动 rel-* 版本 PR 和选择加入扫描。
         types: [labeled]
     workflow_dispatch:
         inputs:
@@ -50,9 +40,8 @@ permissions:
 
 jobs:
     security-scan:
-        # Behavior A: always on rel-* PRs. Behavior B: the label, or manual
-        # dispatch. Non-release PRs without the label are skipped so this does
-        # not run on every open PR.
+        # 行为 A：始终处于 rel-* PR 上。 行为B：贴标签，或者人工派送。 没有标签的非发布 PR 会被跳过，因此不会在每个打开的 PR 上运行。
+        #
         if: >-
             github.event_name == 'workflow_dispatch' ||
             github.event.label.name == 'security-scan' ||
@@ -79,8 +68,8 @@ jobs:
                   GITHUB_REPOSITORY: ${{ github.repository }}
                   SECURITY_SCAN_BASELINE_TAG: ${{ inputs.baseline_tag }}
                   SECURITY_SCAN_OUTPUT: ${{ github.workspace }}/security-report.md
-                  # Dependabot merges are allowed without a human approval; the
-                  # dependency check still audits what they bring in.
+                  # 无需人工批准即可允许 Dependabot 合并； 依赖性检查仍然会审核它们带来的内容。
+                  #
                   SECURITY_SCAN_TRUSTED_BOTS: dependabot[bot]
               run: python .github/scripts/check_approval_drift.py
 
@@ -114,10 +103,8 @@ jobs:
                   cat comment.md >> "$GITHUB_STEP_SUMMARY"
 
             - name: Post results comment (non-fork PRs only)
-              # On a fork PR the default token is read-only regardless of the
-              # permissions block, so the POST would 403. Guard on same-repo so
-              # a stray label on a fork PR doesn't produce a confusing red X —
-              # the run summary above still has the full results either way.
+              # 在分叉 PR 上，无论权限块如何，默认 token 都是只读，因此 POST 将为 403。 保护相同的存储库，因此分叉上的杂散标签 PR 不会产生令人困惑的红色 X — 上面的运行摘要仍然具有完整的结果。
+              #
               if: >-
                   github.event_name == 'pull_request' &&
                   github.event.pull_request.head.repo.full_name == github.repository

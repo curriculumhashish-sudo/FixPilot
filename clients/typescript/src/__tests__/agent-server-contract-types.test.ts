@@ -66,7 +66,7 @@ type GeneratedMCPClientContract = {
 };
 
 function assertType<Type extends true>(_value: Type): void {
-  // Compiling this call is the assertion.
+  // 编译这个调用就是断言。
 }
 
 describe('Agent Server generated contract aliases', () => {

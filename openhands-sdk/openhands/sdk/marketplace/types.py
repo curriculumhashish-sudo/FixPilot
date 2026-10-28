@@ -1,4 +1,4 @@
-"""Type definitions for Marketplace module."""
+"""Marketplace 模块的类型定义。"""
 
 from __future__ import annotations
 
@@ -20,15 +20,15 @@ from openhands.sdk.plugin.types import (
 
 logger = get_logger(__name__)
 
-# Directories to check for marketplace manifest
+# 用于检查市场清单的目录
 MARKETPLACE_MANIFEST_DIRS = [".plugin", ".claude-plugin"]
 MARKETPLACE_MANIFEST_FILE = "marketplace.json"
 
 
 class MarketplaceOwner(BaseModel):
-    """Owner information for a marketplace.
+    """市场的所有者信息。
 
-    The owner represents the maintainer or team responsible for the marketplace.
+    所有者代表负责市场的维护者或团队。
     """
 
     name: str = Field(description="Name of the maintainer or team")
@@ -38,9 +38,9 @@ class MarketplaceOwner(BaseModel):
 
 
 class MarketplacePluginSource(BaseModel):
-    """Plugin source specification for non-local sources.
+    """非本地源的插件源规范。
 
-    Supports GitHub repositories and generic git URLs.
+    支持GitHub仓库和通用的gitURLs。
     """
 
     source: str = Field(description="Source type: 'github' or 'url'")
@@ -59,7 +59,7 @@ class MarketplacePluginSource(BaseModel):
 
     @model_validator(mode="after")
     def validate_source_fields(self) -> MarketplacePluginSource:
-        """Validate that required fields are present based on source type."""
+        """根据源类型验证是否存在必填字段。"""
         if self.source == "github" and not self.repo:
             raise ValueError("GitHub source requires 'repo' field")
         if self.source == "url" and not self.url:
@@ -68,13 +68,13 @@ class MarketplacePluginSource(BaseModel):
 
 
 class MarketplaceEntry(BaseModel):
-    """Base class for marketplace entries (plugins and skills).
+    """市场条目的基类（插件和技能）。
 
-    Both plugins and skills are pointers to directories:
-    - Plugin directories contain: plugin.json, skills/, commands/, agents/, etc.
-    - Skill directories contain: SKILL.md and optionally scripts/, references/, assets/
+    插件和技能都是指向目录的指针：
+    - 插件目录包含：plugin.json、skills/、commands/、agents/等。
+    - 技能目录包含：SKILL.md 和可选的 script/、references/、assets/
 
-    Source is a string path (local path or GitHub URL).
+    源是字符串路径（本地路径或 GitHub URL）。
     """
 
     name: str = Field(description="Identifier (kebab-case, no spaces)")
@@ -98,21 +98,21 @@ class MarketplaceEntry(BaseModel):
 
 
 class MarketplacePluginEntry(MarketplaceEntry):
-    """Plugin entry in a marketplace.
+    """市场中的插件入口。
 
-    Extends MarketplaceEntry with Claude Code compatibility fields for
-    inline plugin definitions (when strict=False).
+    使用 Claude Code 兼容性字段扩展 MarketplaceEntry 以实现内联插件定义（当 strict=
+    False 时）。
 
-    Plugins support both string sources and complex source objects
-    (MarketplacePluginSource) for GitHub/git URLs with ref and path.
+    插件支持字符串源和复杂的源对象（MarketplacePluginSource）GitHub/git URLs，其中
+    ref 和 path。
     """
 
-    # Override source to allow complex source objects for plugins
+    # 覆盖源以允许插件使用复杂的源对象
     source: str | MarketplacePluginSource = Field(  # type: ignore[assignment]
         description="Path to plugin directory or source object for GitHub/git"
     )
 
-    # Plugin-specific fields
+    # 插件特定字段
     entry_command: str | None = Field(
         default=None,
         description=(
@@ -121,7 +121,7 @@ class MarketplacePluginEntry(MarketplaceEntry):
         ),
     )
 
-    # Claude Code compatibility fields
+    # 克劳德代码兼容性字段
     strict: bool = Field(
         default=True,
         description="If True, plugin source must contain plugin.json. "
@@ -133,7 +133,7 @@ class MarketplacePluginEntry(MarketplaceEntry):
     mcp_config: McpServersDict | None = Field(default=None, alias="mcpServers")
     lsp_servers: LspServersDict | None = Field(default=None, alias="lspServers")
 
-    # Additional metadata fields
+    # 附加元数据字段
     license: str | None = Field(default=None, description="SPDX license identifier")
     keywords: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
@@ -149,7 +149,7 @@ class MarketplacePluginEntry(MarketplaceEntry):
         return v
 
     def to_plugin_manifest(self) -> PluginManifest:
-        """Convert to PluginManifest (for strict=False entries)."""
+        """转换为 PluginManifest（对于 strict=False 条目）。"""
         return PluginManifest(
             name=self.name,
             version=self.version or "1.0.0",
@@ -160,7 +160,7 @@ class MarketplacePluginEntry(MarketplaceEntry):
 
 
 class MarketplaceMetadata(BaseModel):
-    """Optional metadata for a marketplace."""
+    """市场的可选元数据。"""
 
     description: str | None = Field(default=None)
     version: str | None = Field(default=None)
@@ -169,13 +169,13 @@ class MarketplaceMetadata(BaseModel):
 
 
 class Marketplace(BaseModel):
-    """A plugin marketplace that lists available plugins and skills.
+    """列出可用插件和技能的插件市场。
 
-    Follows the Claude Code marketplace structure for compatibility,
-    with an additional `skills` field for standalone skill references.
+    遵循 Claude Code 市场结构以实现兼容性，并附加一个用于独立技能参考的 `skills` 字段
+    。
 
-    The marketplace.json file is located in `.plugin/` or `.claude-plugin/`
-    directory at the root of the marketplace repository.
+    marketplace.json 文件位于市场存储库根目录的 `.plugin/` 或 `.claude-plugin/` 目录
+    中。
 
     Example:
     ```json
@@ -219,19 +219,19 @@ class Marketplace(BaseModel):
 
     @classmethod
     def load(cls, marketplace_path: str | Path) -> Marketplace:
-        """Load a marketplace from a directory.
+        """从目录加载市场。
 
-        Looks for marketplace.json in .plugin/ or .claude-plugin/ directories.
+        在 .plugin/ 或 .claude-plugin/ 目录中查找 marketplace.json。
 
         Args:
-            marketplace_path: Path to the marketplace directory.
+            marketplace_path: 市场目录的路径。
 
         Returns:
-            Loaded Marketplace instance.
+            已加载 Marketplace 实例。
 
         Raises:
-            FileNotFoundError: If the marketplace directory or manifest doesn't exist.
-            ValueError: If the marketplace manifest is invalid.
+            FileNotFoundError: 如果市场目录或清单不存在。
+            ValueError: 如果市场清单无效。
         """
         marketplace_dir = Path(marketplace_path).resolve()
         if not marketplace_dir.is_dir():
@@ -239,7 +239,7 @@ class Marketplace(BaseModel):
                 f"Marketplace directory not found: {marketplace_dir}"
             )
 
-        # Find manifest file
+        # 查找 manifest 文件
         manifest_path = None
         for manifest_dir in MARKETPLACE_MANIFEST_DIRS:
             candidate = marketplace_dir / manifest_dir / MARKETPLACE_MANIFEST_FILE
@@ -265,20 +265,20 @@ class Marketplace(BaseModel):
 
     @classmethod
     def from_skills_dir(cls, marketplace_path: str | Path, name: str) -> Marketplace:
-        """Build a marketplace from a plain folder of skills, without a manifest.
+        """从普通的技能文件夹构建市场，无需清单。
 
-        Each ``<name>/SKILL.md`` folder becomes a standalone skill: those in
-        ``skills/`` and ``.skills/``, or, when neither exists, those directly in
-        ``marketplace_path``, so a ``repo_path`` can point at the skills folder
-        itself. Loose markdown files are not read, so a repository's README and
-        docs never become skills. The result has no skills when none are found.
+        每个 ``<name>/SKILL.md`` 文件夹都成为一项独立技能：
+        ``skills/`` 和 ``.skills/``，或者，当两者都不存在时，直接位于
+        ``marketplace_path``，因此 ``repo_path`` 可以指向技能文件夹本身。 松散的
+        Markdown 文件不会被读取，因此存储库的
+         README 和文档永远不会成为技能。 找到None时结果没有技能。
 
         Args:
-            marketplace_path: Path to the repository or skills folder.
-            name: Marketplace name, since there is no manifest to supply one.
+            marketplace_path: 存储库或技能文件夹的路径。
+            name: 市场名称，因为没有清单可以提供。
 
         Returns:
-            Marketplace listing the discovered skills, with no plugins.
+            市场列出了已发现的技能，没有插件。
         """
         from openhands.sdk.skills import Skill
         from openhands.sdk.skills.utils import find_skill_md_directories
@@ -321,13 +321,13 @@ class Marketplace(BaseModel):
         )
 
     def get_plugin(self, name: str) -> MarketplacePluginEntry | None:
-        """Get a plugin entry by name.
+        """按名称获取插件条目。
 
         Args:
-            name: Plugin name to look up.
+            name: 要查找的插件名称。
 
         Returns:
-            MarketplacePluginEntry if found, None otherwise.
+            如果找到则为 MarketplacePluginEntry，否则为 None。
         """
         for plugin in self.plugins:
             if plugin.name == name:
@@ -337,17 +337,17 @@ class Marketplace(BaseModel):
     def resolve_plugin_source(
         self, plugin: MarketplacePluginEntry
     ) -> tuple[str, str | None, str | None]:
-        """Resolve a plugin's source to a full path or URL.
+        """将插件的源解析为完整路径或 URL。
 
         Returns:
-            Tuple of (source, ref, subpath) where:
-            - source: Resolved source string (path or URL)
-            - ref: Branch, tag, or commit reference (None for local paths)
-            - subpath: Subdirectory path within the repo (None if not specified)
+            (源、引用、子路径) 的元组，其中：
+            - source: 已解析的源字符串（路径或 URL）
+            - ref: 分支、标记或提交引用（None 表示本地路径）
+            - subpath: 存储库内的子目录路径（如果未指定，则为 None）
         """
         source = plugin.source
 
-        # Handle complex source objects (GitHub, git URLs)
+        # 处理复杂源对象(GitHub, git URLs)
         if isinstance(source, MarketplacePluginSource):
             if source.source == "github" and source.repo:
                 return (f"github:{source.repo}", source.ref, source.path)
@@ -358,11 +358,11 @@ class Marketplace(BaseModel):
                 f"source type '{source.source}' is missing required field"
             )
 
-        # Absolute paths or URLs - return as-is
+        # 绝对路径或 URLs - 保持不变
         if source.startswith(("/", "~")) or "://" in source:
             return (source, None, None)
 
-        # Relative path - resolve against marketplace path if known
+        # 相对路径 - 根据市场路径（如果已知）进行解析
         if self.path:
             source = str(Path(self.path) / source.lstrip("./"))
 

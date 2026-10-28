@@ -1,8 +1,8 @@
 /**
- * OpenRouter LLM implementation
+ * OpenRouter LLM 实施
  *
- * This implements the ILLM interface using the OpenRouter SDK,
- * providing access to 300+ models through a unified API.
+ * 这使用 OpenRouter SDK 实现了 ILLM 接口，
+ * 通过统一的 API 提供对 300 多个模型的访问。
  */
 
 import { OpenRouter } from '@openrouter/sdk';
@@ -18,7 +18,7 @@ import type {
   TokenCallbackType,
 } from './base';
 
-// Define response types locally since the SDK's module resolution is complex
+// 由于 SDK 的模块解析很复杂，因此在本地定义响应类型
 interface OpenRouterChatResponse {
   id: string;
   choices: Array<{
@@ -61,16 +61,16 @@ interface OpenRouterStreamChunk {
 }
 
 /**
- * Options for creating an OpenRouterLLM instance
+ * 用于创建 OpenRouterLLM 实例的选项
  */
 export interface OpenRouterLLMOptions extends BaseLLMOptions {
-  /** Site URL for rankings on openrouter.ai (optional) */
+  /** 网站 URL 在 openrouter.ai 上的排名（可选）*/
   siteUrl?: string;
-  /** Site title for rankings on openrouter.ai (optional) */
+  /** openrouter.ai 排名的网站标题（可选）*/
   siteTitle?: string;
 }
 
-// OpenRouter SDK message types (simplified for our use)
+// OpenRouter SDK 消息类型（为我们使用而简化）
 type OpenRouterMessage =
   | { role: 'system'; content: string; name?: string }
   | { role: 'user'; content: string; name?: string }
@@ -78,24 +78,24 @@ type OpenRouterMessage =
   | { role: 'tool'; content: string; toolCallId: string };
 
 /**
- * OpenRouter LLM implementation using the official @openrouter/sdk.
+ * OpenRouter LLM 使用官方@openrouter/sdk实现。
  *
- * Provides access to 300+ AI models through OpenRouter's unified API.
+ * 通过OpenRouter的统一API提供对300多个AI模型的访问。
  *
- * Example:
- * ```typescript
- * const llm = new OpenRouterLLM({
- *   apiKey: 'your-api-key',
- *   defaultModel: 'anthropic/claude-3.5-sonnet'
+ * 示例：
+ * ```TypeScript
+ * 常量 llm = 新 OpenRouterLLM({
+ *   apiKey: '你的-API-密钥',
+ *   defaultModel: '人类/克劳德-3.5-十四行诗'
  * });
  *
- * const response = await llm.generate('Hello, how are you?');
- * console.log(response);
+ * const response = wait llm.generate('你好，你好吗？');
+ * console.log（回复）；
  *
- * // Or with full control:
- * const completion = await llm.chatCompletion({
- *   messages: [{ role: 'user', content: 'Explain quantum computing' }],
- *   temperature: 0.7,
+ * // 或完全控制：
+ * 常量完成 = 等待 llm.chatCompletion({
+ *   messages: [{ role: '用户', content: '解释量子计算' }],
+ *   温度：0.7，
  *   maxTokens: 1000
  * });
  * ```
@@ -119,7 +119,7 @@ export class OpenRouterLLM implements ILLM {
   }
 
   /**
-   * Convert our ChatMessage format to OpenRouter's format
+   * 将我们的 ChatMessage 格式转换为 OpenRouter 的格式
    */
   private convertMessages(messages: ChatMessage[]): OpenRouterMessage[] {
     return messages.map((msg): OpenRouterMessage => {
@@ -143,7 +143,7 @@ export class OpenRouterLLM implements ILLM {
           toolCalls: msg.tool_calls,
         };
       } else {
-        // tool role
+        // 工具角色
         return {
           role: 'tool',
           content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
@@ -154,7 +154,7 @@ export class OpenRouterLLM implements ILLM {
   }
 
   /**
-   * Convert our Tool format to OpenRouter's format
+   * 将我们的工具格式转换为OpenRouter的格式
    */
   private convertTools(tools: Tool[]) {
     return tools.map((tool) => ({
@@ -168,7 +168,7 @@ export class OpenRouterLLM implements ILLM {
   }
 
   /**
-   * Build the common request parameters shared by chatCompletion and chatCompletionStream.
+   * 构建chatCompletion和chatCompletionStream共享的公共请求参数。
    */
   private buildRequestParams(
     options: ChatCompletionOptions | Omit<ChatCompletionOptions, 'stream'>,
@@ -211,12 +211,12 @@ export class OpenRouterLLM implements ILLM {
     const model = options.model || this.defaultModel;
     const requestParams = this.buildRequestParams(options, false);
 
-    // Cast to expected type - SDK handles validation
+    // 转换为预期类型 - SDK 句柄验证
     const response = (await this.client.chat.send(
       requestParams as Parameters<typeof this.client.chat.send>[0]
     )) as OpenRouterChatResponse;
 
-    // Convert to our response format
+    // 转换为我们的响应格式
     return {
       id: response.id || '',
       model: response.model || model,
@@ -253,7 +253,7 @@ export class OpenRouterLLM implements ILLM {
       requestParams as Parameters<typeof this.client.chat.send>[0]
     );
 
-    // The stream is an async iterable when stream: true
+    // 当流为 True 时，流是异步可迭代的
     for await (const chunk of stream as AsyncIterable<OpenRouterStreamChunk>) {
       yield {
         id: chunk.id || '',
@@ -298,8 +298,8 @@ export class OpenRouterLLM implements ILLM {
   }
 
   /**
-   * Chat completion with streaming and token callback.
-   * Invokes the callback for each token received during streaming.
+   * 与流式传输和 token 回调聊天完成。
+   * 为流式传输期间收到的每个 token 调用回调。
    */
   async chatCompletionWithCallback(
     options: Omit<ChatCompletionOptions, 'stream'>,
@@ -318,7 +318,7 @@ export class OpenRouterLLM implements ILLM {
       lastChunk = chunk;
 
       for (const choice of chunk.choices) {
-        // Handle content tokens
+        // 处理内容 token
         if (choice.delta?.content) {
           accumulated += choice.delta.content;
           onToken({
@@ -330,17 +330,17 @@ export class OpenRouterLLM implements ILLM {
           });
         }
 
-        // Accumulate tool calls
+        // 累计工具调用
         if (choice.delta?.tool_calls) {
           for (const tc of choice.delta.tool_calls) {
             const existing = toolCalls.get(tc.index);
             if (existing) {
-              // Append to existing tool call
+              // 追加到现有的工具调用
               if (tc.function?.arguments) {
                 existing.function.arguments += tc.function.arguments;
               }
             } else if (tc.id) {
-              // New tool call
+              // 新工具调用
               toolCalls.set(tc.index, {
                 id: tc.id,
                 type: 'function',
@@ -355,7 +355,7 @@ export class OpenRouterLLM implements ILLM {
       }
     }
 
-    // Send final token event
+    // 发送最终 token 事件
     onToken({
       token: '',
       isFinal: true,
@@ -364,7 +364,7 @@ export class OpenRouterLLM implements ILLM {
       model,
     });
 
-    // Construct final response
+    // 构建最终响应
     const finalToolCalls = toolCalls.size > 0 ? Array.from(toolCalls.values()) : undefined;
 
     return {
@@ -386,7 +386,7 @@ export class OpenRouterLLM implements ILLM {
   }
 
   /**
-   * Generate with streaming and token callback.
+   * 使用流式传输和 token 回调生成。
    */
   async generateWithCallback(
     prompt: string,
@@ -409,6 +409,6 @@ export class OpenRouterLLM implements ILLM {
   }
 
   close(): void {
-    // OpenRouter SDK doesn't require explicit cleanup
+    // OpenRouter SDK 不需要显式清理
   }
 }

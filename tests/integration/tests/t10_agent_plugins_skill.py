@@ -1,13 +1,11 @@
-"""Test that an agent uses a skill delivered by an Agent Plugins package.
+"""测试智能体使用智能体插件包提供的技能。
 
-The live-LLM half of the Agent Plugins end-to-end coverage (issue #5156). The
-deterministic suites assert that a package reaches `agent.agent_context.skills`;
-this asserts that a model then actually uses what arrived that way, through the
-portable layout (root `plugin.json`, `skills/<name>/SKILL.md`) rather than the
-Claude Code one.
+智能体插件端到端覆盖的实时 LLM 一半（问题 #5156）。 确定性套件断言包到达
+`agent.agent_context.skills`； 这断言模型实际上通过可移植
+布局（根`plugin.json`，`skills/<name>/SKILL.md`）而不是克劳德代码布局使用以这种方式到
+达的内容。
 
-Mirrors `t09_invoke_skill.py`, which covers the same ground for a skill handed
-to `AgentContext` directly.
+镜子 `t09_invoke_skill.py`，覆盖直接传递给 `AgentContext` 的技能的相同区域。
 """
 
 from __future__ import annotations
@@ -101,7 +99,7 @@ logger = get_logger(__name__)
 
 
 class AgentPluginsSkillTest(BaseIntegrationTest):
-    """Assert the agent calls `invoke_skill` for a plugin-supplied skill."""
+    """断言智能体调用 `invoke_skill` 以获得插件提供的技能。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -113,10 +111,9 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
         workspace: str,
         tool_preset: ToolPresetType = "default",
     ):
-        # Re-run the base constructor logic, but attach the skill as an Agent
-        # Plugins package instead of putting it on the AgentContext by hand.
-        # Plugins load lazily on the first run, i.e. after setup() has written
-        # the package to disk.
+        # 重新运行基本构造函数逻辑，但将技能附加为智能体插件包，而不是手动将其放在
+        # AgentContext 上。 插件在第一次运行时延迟加载，i.e。 setup() 将包写入磁盘后。
+        #
         self.instruction = instruction
         self.llm_config = llm_config
         self.workspace = workspace
@@ -137,9 +134,10 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
             usage_id="test-llm",
         )
 
-        # The package lives OUTSIDE the workspace so the agent cannot discover
-        # `scripts/convert.py` by exploring its cwd — it must follow the
-        # absolute path appended by `invoke_skill`'s location footer.
+        # 该包位于 OUTSIDE 工作区中，因此智能体无法发现
+        # `scripts/convert.py` 通过探索其 cwd — 它必须遵循 `invoke_skill` 的位置页脚附加
+        # 的绝对路径。
+        #
         self.plugin_dir = (
             Path(workspace).parent / f"{instance_id}_plugin_cache" / PLUGIN_NAME
         )
@@ -166,7 +164,7 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
         return get_tools_for_preset(self.tool_preset, enable_browser=False)
 
     def setup(self) -> None:
-        """Write the Agent Plugins package: manifest, skill, bundled script."""
+        """编写智能体插件包：清单、技能、捆绑脚本。"""
         scripts_dir = self.skill_dir / "scripts"
         scripts_dir.mkdir(parents=True, exist_ok=True)
         (self.plugin_dir / "plugin.json").write_text(json.dumps(MANIFEST, indent=2))
@@ -174,8 +172,9 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
         (scripts_dir / "convert.py").write_text(CONVERT_SCRIPT)
 
     def verify_result(self) -> TestResult:
-        # 0. The skill reached the agent through the package, not some other
-        #    source — otherwise the rest would pass without testing plugins.
+        # 0. 该技能通过包到达智能体，而不是其他来源 - 否则 REST 将在不测试插件的情况下通
+        # 过。
+        #
         context = self.conversation.agent.agent_context
         sources = {
             skill.name: skill.source for skill in (context.skills if context else [])
@@ -200,7 +199,7 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
 
         action_events = [e for e in self.collected_events if isinstance(e, ActionEvent)]
 
-        # 1. Agent invoked the plugin's skill.
+        # 1. 智能体调用了插件的技能。
         invoked = [
             e
             for e in action_events
@@ -217,9 +216,9 @@ class AgentPluginsSkillTest(BaseIntegrationTest):
                 ),
             )
 
-        # 2. After invocation, the agent reached the script bundled in the
-        #    package. The package is outside the workspace, so this is only
-        #    possible via the footer path.
+        # 2. 调用后，智能体到达了包中捆绑的脚本。 该包位于工作区之外，因此只能通过页脚路
+        # 径实现。
+        #
         invoke_idx = self.collected_events.index(invoked[0])
         touched = False
         for e in self.collected_events[invoke_idx + 1 :]:

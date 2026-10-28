@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""Trigger, compare, and report on OpenHands evaluation runs.
+"""触发、比较和报告 OpenHands 次评估运行。
 
-Subcommands:
-    trigger   Dispatch an evaluation workflow via the GitHub API
-    compare   Compare two evaluation runs and produce a markdown report
+子命令：
+    触发通过 GitHub API 比较调度评估工作流程比较两次评估运行并生成 Markdown 报告
 
 Examples:
-    # Trigger a swebench eval on a PR branch
+    # 在 PR 分支上触发 swebench eval
     python manage_evals.py trigger --sdk-ref my-branch --benchmark swebench --eval-limit 50
 
-    # Trigger a GAIA eval on a release tag
+    # 在发布标签上触发 GAIA eval
     python manage_evals.py trigger --sdk-ref v1.16.0 --benchmark gaia --eval-limit 50
 
-    # Auto-find baseline and print comparison markdown
+    # 自动查找基线并打印比较 Markdown
     python manage_evals.py compare swebench/litellm_proxy-claude-sonnet-4-5-20250929/23775164157/ --auto-baseline
 
-    # Post comparison to PR
+    # 与 PR 进行比较
     python manage_evals.py compare swebench/.../23775164157/ --auto-baseline \\
-        --post-comment --pr 2334 --repo OpenHands/software-agent-sdk
+        --post-comment --PR 2334 --repo OpenHands/软件-智能体-SDK
 """  # noqa: E501
 
 from __future__ import annotations
@@ -50,7 +49,7 @@ AGENT_TYPES = ["default", "acp-claude", "acp-codex"]
 
 
 def fetch_json(url: str) -> dict[str, Any] | None:
-    """Fetch JSON from a URL, returning None on 404."""
+    """从 URL 获取 JSON，在 404 上返回 None。"""
     try:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -65,7 +64,7 @@ def fetch_json(url: str) -> dict[str, Any] | None:
 
 
 def fetch_text(url: str) -> str | None:
-    """Fetch text from a URL, returning None on 404."""
+    """从 URL 获取文本，在 404 上返回 None。"""
     try:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -80,11 +79,11 @@ def fetch_text(url: str) -> str | None:
 
 
 def parse_run_path(path: str) -> tuple[str, str, str]:
-    """Parse a run path into (benchmark, model_slug, run_id).
+    """将运行路径解析为 (基准测试，model_slug, run_id)。
 
-    Accepts formats:
-        swebench/litellm_proxy-claude-sonnet-4-5-20250929/23775164157/
-        swebench/litellm_proxy-claude-sonnet-4-5-20250929/23775164157
+    接受格式：
+        swebench/litellm_proxy-克劳德-十四行诗-4-5-20250929/23775164157/ swebench/
+        litellm_proxy-克劳德-十四行诗-4-5-20250929/23775164157
     """
     parts = path.strip("/").split("/")
     if len(parts) != 3:
@@ -95,19 +94,19 @@ def parse_run_path(path: str) -> tuple[str, str, str]:
 
 
 def get_report(run_path: str) -> dict[str, Any] | None:
-    """Fetch output.report.json for a run."""
+    """获取 output.report.json 进行运行。"""
     url = f"{RESULTS_CDN}/{run_path.strip('/')}/output.report.json"
     return fetch_json(url)
 
 
 def get_params(run_path: str) -> dict[str, Any] | None:
-    """Fetch metadata/params.json for a run."""
+    """获取运行的元数据/params.json。"""
     url = f"{RESULTS_CDN}/{run_path.strip('/')}/metadata/params.json"
     return fetch_json(url)
 
 
 def get_metadata_for_date(date_str: str) -> list[str]:
-    """Fetch the metadata listing for a given date (YYYY-MM-DD)."""
+    """获取给定日期 (YYYY-MM-DD) 的元数据列表。"""
     url = f"{RESULTS_CDN}/metadata/{date_str}.txt"
     text = fetch_text(url)
     if not text:
@@ -122,18 +121,18 @@ def find_baseline_run(
     lookback_days: int = 14,
     current_eval_limit: int | None = None,
 ) -> str | None:
-    """Find the most recent previous run with matching benchmark/model.
+    """查找具有匹配基准/模型的最近一次运行。
 
-    Scans metadata files backward from today, looking for a run with the
-    same benchmark and model_slug but a different (earlier) run_id.
-    Prefers runs with matching eval_limit when available.
+    从今天开始向后扫描元数据文件，查找具有相同基准测试和 model_slug 但不同（较早）
+    run_id 的运行。 首选在可用时使用匹配的 eval_limit 运行
+    。
 
-    Returns the run path or None if no baseline found.
+    返回运行路径，如果未找到基线，则返回 None。
     """
     today = datetime.now(UTC).date()
     prefix = f"{benchmark}/{model_slug}/"
 
-    # Two-pass: first look for matching eval_limit, then any completed run
+    # 两遍：首先查找匹配的 eval_limit，然后查找任何已完成的运行
     candidates: list[tuple[str, dict[str, Any] | None]] = []
 
     for day_offset in range(lookback_days + 1):
@@ -152,7 +151,7 @@ def find_baseline_run(
             if report and report.get("submitted_instances", 0) > 0:
                 params = get_params(entry)
                 candidates.append((entry, params))
-                # Stop after finding enough candidates
+                # 找到足够的候选人后停止
                 if len(candidates) >= 10:
                     break
         if len(candidates) >= 10:
@@ -161,13 +160,13 @@ def find_baseline_run(
     if not candidates:
         return None
 
-    # Prefer runs with matching eval_limit
+    # 优先选择匹配 eval_limit 的运行
     if current_eval_limit is not None:
         for path, params in candidates:
             if params and params.get("eval_limit") == current_eval_limit:
                 return path
 
-    # Fall back to most recent completed run
+    # 回退到最近完成的运行
     return candidates[0][0]
 
 
@@ -177,8 +176,8 @@ def compute_diff(
     current_params: dict[str, Any] | None,
     baseline_params: dict[str, Any] | None,
 ) -> str:
-    """Produce a markdown comparison of two eval reports."""
-    # Extract key metrics
+    """生成两个评估报告的 Markdown 比较。"""
+    # 提取关键指标
     c_resolved = current.get("resolved_instances", 0)
     b_resolved = baseline.get("resolved_instances", 0)
     c_submitted = current.get("submitted_instances", 0)
@@ -190,11 +189,11 @@ def compute_diff(
     c_error = current.get("error_instances", 0)
     b_error = baseline.get("error_instances", 0)
 
-    # Eval limit from params
+    # 从参数评估限制
     c_limit = (current_params or {}).get("eval_limit", c_submitted)
     b_limit = (baseline_params or {}).get("eval_limit", b_submitted)
 
-    # Denominators for rate calculation
+    # 比率计算的分母
     c_denom = min(c_limit, c_total) if c_total > 0 else c_limit
     b_denom = min(b_limit, b_total) if b_total > 0 else b_limit
 
@@ -202,24 +201,24 @@ def compute_diff(
     b_rate = (b_resolved / b_denom * 100) if b_denom else 0
     rate_delta = c_rate - b_rate
 
-    # Instance-level diff
+    # 实例级差异
     c_resolved_ids = set(current.get("resolved_ids", []))
     b_resolved_ids = set(baseline.get("resolved_ids", []))
     gained = sorted(c_resolved_ids - b_resolved_ids)
     lost = sorted(b_resolved_ids - c_resolved_ids)
 
-    # Delta symbol
+    # 三角洲符号
     def delta_str(val: float | int) -> str:
         if val > 0:
             return f"+{val}"
         return str(val)
 
-    # Build markdown
+    # 构建Markdown
     lines: list[str] = []
     lines.append("## 📊 Evaluation Comparison")
     lines.append("")
 
-    # Summary line
+    # 摘要行
     if rate_delta > 0:
         emoji = "📈"
         delta_pp = f"+{rate_delta:.1f}"
@@ -235,7 +234,7 @@ def compute_diff(
     )
     lines.append("")
 
-    # Metadata
+    # 元数据
     c_pr = (current_params or {}).get("pr_number")
     b_pr = (baseline_params or {}).get("pr_number")
     c_commit = (current_params or {}).get("sdk_commit", "unknown")[:12]
@@ -261,7 +260,7 @@ def compute_diff(
     lines.append(f"| **Errors** | {c_error} | {b_error} |")
     lines.append("")
 
-    # Instance-level changes
+    # 实例级别的更改
     if gained or lost:
         lines.append("### Instance-Level Changes")
         lines.append("")
@@ -290,7 +289,7 @@ def compute_diff(
         )
         lines.append("")
 
-    # Dashboard links
+    # 仪表板链接
     lines.append("### 🔗 Links")
     lines.append("")
     if c_run_id:
@@ -329,7 +328,7 @@ def github_api_request(
     method: str = "GET",
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    """Make a GitHub API request. Returns parsed JSON or None for 204."""
+    """发出 GitHub API 请求。 返回 204 的解析后的 JSON 或 None。"""
     body = json.dumps(data).encode() if data else None
     req = urllib.request.Request(
         url,
@@ -348,7 +347,7 @@ def github_api_request(
 
 
 def post_github_comment(repo: str, pr_number: int, body: str, token: str) -> None:
-    """Post a comment on a GitHub PR."""
+    """在 GitHub PR 上发表评论。"""
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     result = github_api_request(url, token, method="POST", data={"body": body})
     if result:
@@ -371,7 +370,7 @@ def trigger_eval(
     agent_type: str = "default",
     instance_ids: str = "",
 ) -> None:
-    """Dispatch an evaluation workflow via the GitHub Actions API."""
+    """通过 GitHub 操作 API 调度评估工作流程。"""
     inputs: dict[str, str] = {
         "benchmark": benchmark,
         "sdk_ref": sdk_ref,
@@ -414,7 +413,7 @@ def trigger_eval(
 
 
 def _require_token() -> str:
-    """Return GITHUB_TOKEN or exit with error."""
+    """返回 GITHUB_TOKEN 或错误退出。"""
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         print("ERROR: GITHUB_TOKEN environment variable not set", file=sys.stderr)
@@ -423,7 +422,7 @@ def _require_token() -> str:
 
 
 def cmd_trigger(args: argparse.Namespace) -> None:
-    """Handle the 'trigger' subcommand."""
+    """处理“trigger”子命令。"""
     token = _require_token()
     trigger_eval(
         token,
@@ -442,8 +441,8 @@ def cmd_trigger(args: argparse.Namespace) -> None:
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
-    """Handle the 'compare' subcommand."""
-    # Validate
+    """处理“比较”子命令。"""
+    # 验证
     if args.post_comment and (not args.pr or not args.repo):
         print("ERROR: --post-comment requires --pr and --repo", file=sys.stderr)
         sys.exit(1)
@@ -454,7 +453,7 @@ def cmd_compare(args: argparse.Namespace) -> None:
     benchmark, model_slug, run_id = parse_run_path(args.current_run_path)
     print(f"Current run: {benchmark}/{model_slug}/{run_id}", file=sys.stderr)
 
-    # Fetch current run data
+    # 获取当前运行数据
     current_report = get_report(args.current_run_path)
     if not current_report:
         print(f"ERROR: No report found for {args.current_run_path}", file=sys.stderr)
@@ -462,7 +461,7 @@ def cmd_compare(args: argparse.Namespace) -> None:
 
     current_params = get_params(args.current_run_path)
 
-    # Find baseline
+    # 寻找基线
     if args.baseline:
         baseline_path = args.baseline
     else:
@@ -491,13 +490,13 @@ def cmd_compare(args: argparse.Namespace) -> None:
 
     baseline_params = get_params(baseline_path)
 
-    # Generate comparison
+    # 生成比较
     markdown = compute_diff(
         current_report, baseline_report, current_params, baseline_params
     )
     print(markdown)
 
-    # Post comment if requested
+    # 如果需要请发表评论
     if args.post_comment:
         token = _require_token()
         body = (
@@ -515,7 +514,7 @@ def main() -> None:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # --- trigger subcommand ---
+    # --- 触发子命令 ---
     p_trigger = subparsers.add_parser(
         "trigger",
         help="Dispatch an evaluation workflow",
@@ -580,7 +579,7 @@ def main() -> None:
         help="Comma-separated instance IDs to evaluate (overrides eval-limit)",
     )
 
-    # --- compare subcommand ---
+    # --- 比较子命令 ---
     p_compare = subparsers.add_parser(
         "compare",
         help="Compare two evaluation runs",

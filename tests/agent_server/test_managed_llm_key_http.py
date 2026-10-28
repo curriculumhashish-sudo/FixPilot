@@ -1,4 +1,4 @@
-"""Exercise managed-key registration and SDK recovery over real HTTP."""
+"""在实际 HTTP 上进行管理密钥注册和 SDK 恢复。"""
 
 import asyncio
 import json

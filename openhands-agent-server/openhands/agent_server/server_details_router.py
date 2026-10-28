@@ -78,9 +78,9 @@ class ServerInfo(BaseModel):
             "credential_binding_v1",
             "credential_binding_readiness_probe_v1",
             "credential_binding_activation_guard_v1",
-            # Concurrent creates for one conversation id are deduplicated under
-            # the conversation's lifecycle lock, so a client may safely re-send
-            # a create whose response it never saw.
+            # 并发为一个会话 ID 创建的请求会被在会话生命周期内去重锁，因此客户端可以安全
+            # 地重新发送它从未看到的创建请求。
+            #
             "idempotent_conversation_create_v1",
             "tool_catalog_v1",
             "agent_profile_draft_materialize_v1",
@@ -109,10 +109,10 @@ def update_last_execution_time():
 
 
 def mark_initialization_complete() -> None:
-    """Mark the server as fully initialized and ready to serve requests.
+    """将服务器标记为完全初始化并准备好服务请求。
 
-    This should be called after all services (VSCode, tool preload, etc.)
-    have finished initializing. Until this is called, the /ready endpoint will
+    此应在所有服务之后调用VSCode工具预加载，等等）已完成初始化。 在调用此之前，
+    /ready  端点 will
     return 503 Service Unavailable.
     """
     _initialization_complete.set()
@@ -120,22 +120,22 @@ def mark_initialization_complete() -> None:
 
 @server_details_router.get("/alive")
 async def alive() -> HealthStatus:
-    """Basic liveness check - returns OK if the server process is running."""
+    """基本活动检查 - 如果服务器进程正在运行，则返回 OK。"""
     return HealthStatus(status="ok")
 
 
 @server_details_router.get("/health")
 async def health() -> HealthStatus:
-    """Basic health check - returns OK if the server process is running."""
+    """基本运行状况检查 - 如果服务器进程正在运行，则返回 OK。"""
     return HealthStatus(status="ok")
 
 
 @server_details_router.get("/ready")
 async def ready(response: Response) -> dict[str, str]:
-    """Readiness check - returns OK only if the server has completed initialization.
+    """就绪检查 - 仅当服务器已完成初始化时才返回 OK。
 
-    This endpoint should be used by Kubernetes readiness probes to determine
-    when the pod is ready to receive traffic. Returns 503 during initialization.
+    Kubernetes 就绪探针应使用此端点来确定 Pod 何时准备好接收流量。 初始化期间返回 503
+    。
     """
     if _initialization_complete.is_set():
         return {"status": "ready"}
@@ -145,7 +145,7 @@ async def ready(response: Response) -> dict[str, str]:
 
 
 def _usable_tools(browser_available: bool | None) -> list[str]:
-    """Usable tools, with the browser fixed by config as the tool catalog does."""
+    """可用的工具，浏览器通过配置固定，就像工具目录一样。"""
     tools = list_usable_tools()
     if browser_available is None:
         return tools
@@ -162,7 +162,7 @@ def build_server_info(
     conversation_runtime_selectable: bool = False,
     browser_available: bool | None = None,
 ) -> ServerInfo:
-    """Build the server info; ``browser_available`` None probes this process."""
+    """构建服务器信息； ``browser_available`` None 探讨了这个过程。"""
     now = time.time()
     info = ServerInfo(
         uptime=int(now - _start_time),

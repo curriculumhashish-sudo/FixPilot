@@ -13,23 +13,20 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Upper bound on how long close() waits for the portal thread to wind down.
-# The portal thread is a daemon thread, so abandoning it is safe; blocking the
-# caller forever is not.
+# close() 等待传送门线程关闭的时间上限。 门户线程是一个守护进程线程，因此放弃它是安全的
+# ； 永远阻止呼叫者并非如此。
 #
-# The default is intentionally short for lifecycle teardown: a successful
-# portal stop + join normally completes in milliseconds once remaining tasks
-# are cancelled, so 10s is already a generous margin for a healthy shutdown.
-# It is deliberately *not* the 30s inherited from BrowserToolExecutor cleanup
-# — that value predates the lifecycle-lock path and is too long for teardown
-# that may hold a conversation lock while waiting. See PR #4548 and the
-# discussion of #4598 in its description.
+# 默认值是特意简短的，用于生命周期 teardown：一旦剩余任务被取消，成功的门户停止和加入通
+# 常会在毫秒内完成，因此10秒已经是一个健康的关闭的宽裕时间。 故意的 *不* 30年代继承自
+# BrowserToolExecutor 清理 —— 那个值早于生命周期锁路径过长，可能包含对话的 teardown 锁等
+# 待中。 参见 PR #4548 和 #4598 的讨论在描述中。
+#
 DEFAULT_CLOSE_TIMEOUT = 10.0
 
 
 class AsyncExecutor:
     """
-    Thin wrapper around AnyIO's BlockingPortal to execute async code
+    围绕AnyIO的BlockingPortal执行异步代码的薄壳
     from synchronous contexts with proper resource and timeout handling.
     """
 
@@ -41,13 +38,13 @@ class AsyncExecutor:
 
     @property
     def portal(self) -> BlockingPortal:
-        """The lazily-started ``BlockingPortal`` — public accessor.
+        """延迟启动的 ``BlockingPortal`` — 公共访问器。
 
-        Callers that need to schedule work directly on the portal loop
-        (e.g. ``ACPAgent.astep`` bridges ACP awaits across loops via
-        ``portal.start_task_soon`` + ``asyncio.wrap_future``) use this
-        instead of ``run_async`` because they need the future, not the
-        result.
+        需要直接在门户循环上安排工作的调用者 (e.g. ``ACPAgent.astep`` 桥 ACP 通过循环
+        等待
+        ``portal.start_task_soon`` + ``asyncio.wrap_future``) 使用这个而不是
+        ``run_async`` 因为
+        他们需要未来，而不是结果。
         """
         return self._ensure_portal()
 
@@ -56,9 +53,9 @@ class AsyncExecutor:
             if self._portal is None:
                 self._portal_cm = start_blocking_portal()
                 self._portal = self._portal_cm.__enter__()
-                # Register atexit handler to ensure cleanup on interpreter shutdown
+                # 注册 atexit 处理程序以确保解释器关闭时的清理
                 if not self._atexit_registered:
-                    # Use weakref to avoid keeping the executor alive
+                    # 使用weakref来避免让执行者保持活动状态
                     weak_self = weakref.ref(self)
 
                     def cleanup():
@@ -81,17 +78,17 @@ class AsyncExecutor:
         **kwargs,
     ) -> Any:
         """
-        Run a coroutine or async function from sync code.
+        从同步代码运行协程或异步函数。
 
         Args:
-            awaitable_or_fn: coroutine or async function
-            *args: positional arguments (only used if awaitable_or_fn is a function)
-            timeout: optional timeout in seconds
-            **kwargs: keyword arguments (only used if awaitable_or_fn is a function)
+            awaitable_or_fn: 协程或异步功能
+            *args: 位置参数（仅当 awaitable_or_fn 是函数时使用）
+            timeout: 可选超时以秒为单位
+            **kwargs: 关键字参数（仅当 awaitable_or_fn 是函数时使用）
         """
         portal = self._ensure_portal()
 
-        # Construct coroutine
+        # 构建协程
         if inspect.iscoroutine(awaitable_or_fn):
             coro = awaitable_or_fn
         elif inspect.iscoroutinefunction(awaitable_or_fn):
@@ -99,7 +96,7 @@ class AsyncExecutor:
         else:
             raise TypeError("run_async expects a coroutine or async function")
 
-        # Apply timeout by wrapping in an async function with fail_after
+        # 通过将异步函数包裹在 fail_after 中来应用超时
         if timeout is not None:
 
             async def _with_timeout():
@@ -115,36 +112,29 @@ class AsyncExecutor:
             return portal.call(_execute)
 
     def close(self, timeout: float | None = DEFAULT_CLOSE_TIMEOUT):
-        """Shut down the portal, without ever blocking the caller forever.
+        """关闭门户，而不会永远阻止调用者。
 
-        Semantics
+        语义学
         ---------
-        This is **bounded, best-effort shutdown, not guaranteed cleanup.**
+        这是**有限制的、尽力关闭，不保证清理。**
 
-        - It first cancels any remaining portal tasks (``portal.stop(True)``)
-          and then waits up to ``timeout`` seconds for the portal thread to
-          exit.
-        - If the portal thread is stuck on work that does *not* honour
-          cancellation — for example a task awaiting inside a worker thread,
-          which anyio cannot interrupt until the thread returns (see #4598) —
-          the wait expires and the helper thread is **abandoned**. The portal
-          thread is a daemon, so the process can still exit; but the thread
-          and any resources it holds (subprocess handles, sockets, file
-          descriptors) may remain alive until process exit. This is a
-          deliberate trade-off: blocking the caller forever is worse.
-        - The shutdown path is non-raising. Failures inside the portal
-          teardown are logged (with traceback) and swallowed so that
-          ``close()`` is always safe to call from a destructor or
+        - 它首先取消任何剩余的门户任务 (``portal.stop(True)``)，然后等待 ``timeout``
+        秒以让门户线程退出。
+        - 如果门户线程正在工作于  *不* 荣誉取消例如一个任务在工作者内部等待线程，任何
+        io都无法中断直到线程返回（参见#4598）——等待超时，助手停止线程是
+         **废弃的**. 门户线程这是一个守护进程，因此进程仍然可以退出。 但线程以及它持
+         有的任何资源子进程这些处理程序、套接字、文件描述符等可能会一直存活到进程
+        退出。 这是一个故意的权衡：永远阻止调用者会更糟糕。
+        - 关闭路径是非上升的。 门户拆卸内的故障会被记录（带有回溯）并被吞掉，以便
+          从析构函数调用 ``close()`` 始终是安全的，或者
           ``__exit__``.
-        - **Idempotent.** Calling ``close()`` on an already-closed executor
-          is a no-op.
+        - **幂等。**在已经关闭的执行器上调用 ``close()`` 是一个空操作。
 
         Args:
-            timeout: seconds to wait for the portal thread to exit. ``None``
-                waits indefinitely (the previous, pre-#4548 behaviour) and
-                is kept only for compatibility — **do not use it on any
-                production path**, since it reintroduces the unbounded hang
-                this fix exists to prevent. See PR #4548 / issue #4598.
+            timeout: 等待门户线程退出的秒数。 ``None``
+                无限期等待（之前的，预#4548行为）并且仅保留兼容性 — ** 不在任何生产路
+                径上使用它**，因为这修复引入了这个补丁存在的无界挂起。 请
+                参阅 PR #4548/问题 #4598。
         """
         with self._lock:
             portal_cm = self._portal_cm
@@ -155,25 +145,25 @@ class AsyncExecutor:
         if portal_cm is None:
             return
 
-        # Stamp the owner into the thread name so an abandoned thread is
-        # identifiable in py-spy / py-dump traces (the portal thread itself
-        # does not carry the executor identity).
+        # 将所有者刻入线程名称中，以便在 py-spy / py-dump 跟踪中识别遗弃的线程（门户线程
+        # 自身并不携带执行者身份）。
+        #
         owner = type(self).__qualname__
         thread_name = f"{owner}-close"
 
         def _shutdown() -> None:
             try:
-                # Cancel whatever is still running. Without this, anyio's
-                # graceful path (portal.stop(cancel_remaining=False)) waits
-                # for in-flight tasks that may never complete on their own.
+                # 取消仍在运行的任何内容。 如果没有这个，anyio 的优雅路径 (portal.stop(
+                # cancel_remaining=False)) 会等待可能永远不会自行完成的正在进行的任务。
+                #
                 if portal is not None:
                     portal.call(portal.stop, True)
             except RuntimeError:
-                pass  # portal already stopped
+                pass  # 门户已经停止
             except Exception:
-                # Teardown must stay non-raising: close() is called from
-                # __del__/__exit__/atexit. Log with traceback so the failure
-                # remains diagnosable instead of being reduced to str(exc).
+                # 拆卸必须保持非引发状态：从 __del__/__exit__/atexit 调用 close()。 使用
+                # 回溯记录日志，以便故障保持可诊断状态，而不是减少到 str(exc)。
+                #
                 logger.warning(
                     "Error stopping BlockingPortal during AsyncExecutor.close "
                     "(owner=%s); teardown continues.",
@@ -190,24 +180,24 @@ class AsyncExecutor:
                     exc_info=True,
                 )
 
-        # Run the shutdown on a helper thread so we can bound the wait: the
-        # portal thread can be stuck on work that does not honour cancellation
-        # (for example an await blocked inside a worker thread), and anyio
-        # joins it with no timeout.
+        # 运行一个辅助端点线程，以便我们可以限制等待：门户线程可能会停留在不尊重取消的工
+        # 作上（例如一个 await 被阻塞在 worker 线程中），并且任何io 会将其与超时的任何io
+        #  一起。
+        #
         try:
             waiter = threading.Thread(target=_shutdown, name=thread_name, daemon=True)
             waiter.start()
         except RuntimeError:
-            # Interpreter is shutting down and will not start new threads.
-            # The portal thread is a daemon; let the process reap it.
+            # 解释器正在关闭并且不会启动新的线程。 门户线程是一个守护进程； 让过程收获它
+            # 。
+            #
             return
 
         waiter.join(timeout)
         if waiter.is_alive():
-            # Abandonment is observable: name the owner, the timeout, and
-            # that cancellation was already attempted, so the operator can
-            # correlate with py-spy / the wedged resource. Per #4598 the
-            # thread may genuinely be un-interruptible from Python.
+            # 抛弃是可观察的：指出所有者、超时和取消已经尝试过，因此操作员可以与 py-spy
+            # / 裂缝资源进行关联。 根据 #4598，线程可能确实是 Python 不可中断的。
+            #
             logger.warning(
                 "AsyncExecutor (owner=%s): BlockingPortal did not shut down "
                 "within %.1fs; abandoning its helper thread. Cancellation was "

@@ -1,4 +1,4 @@
-"""Command splitting and escape utilities backed by tree-sitter-bash."""
+"""由 tree-sitter-bash 支持的命令分割和转义实用程序。"""
 
 import re
 
@@ -10,9 +10,9 @@ from openhands.sdk.security.shell_parser import parse
 
 logger = get_logger(__name__)
 
-# Regions whose contents bash takes verbatim — escape doubling stops at
-# their boundaries so operators nested inside (e.g.) a double-quoted
-# string remain untouched. Walking does not recurse into these nodes.
+# 包含内容原封不动的区域——嵌套的转义字符在边界处停止e.g.) 双引号中的字符串保持不变。 行
+# 走不会递归到这些节点。
+#
 _PRESERVE_TYPES: frozenset[str] = frozenset(
     {
         "string",
@@ -31,13 +31,13 @@ _ESCAPE_PATTERN: re.Pattern[bytes] = re.compile(rb"\\([;&|<>])")
 
 
 def _ends_with_heredoc(node: Node) -> bool:
-    """Whether ``node``'s final token is a heredoc terminator.
+    """``node``的最终token是否是一个heredoc终止符。
 
-    Checking only that the last *named* descendant is a ``heredoc_end`` is not
-    enough: tree-sitter leaves closing tokens such as ``fi``, ``done``, and
-    ``)`` unnamed, so a compound statement or substitution that merely
-    *contains* a heredoc would match and swallow the newline that actually ends
-    the statement. Require the terminator to reach ``node``'s end too.
+    仅检查最后一个 *named* 后代是 ``heredoc_end`` 不是
+    enough: 树上的叶子关闭 token，例如 ``fi``、``done`` 和
+    ``)`` 未命名，因此复合语句或替换仅
+    *contains* 定界符会匹配并吞掉实际结束的换行符
+    声明。 要求终止符也到达``node``的末端。
     """
     last = node
     while last.named_children:
@@ -46,15 +46,15 @@ def _ends_with_heredoc(node: Node) -> bool:
 
 
 def _last_heredoc_is_closed(root: Node) -> bool:
-    """Whether the final heredoc in an unparseable input has seen its terminator.
+    """不可解析输入中的最终定界符是否已看到其终止符。
 
-    tree-sitter-bash reports a parse error for forms bash itself accepts (a
-    quoted delimiter, several heredocs on one command, ``&`` before the body)
-    and may then omit the ``heredoc_end`` node, leaving the terminator line
-    inside the ``heredoc_body`` instead. Compare that final line against the
-    delimiter to tell a closed heredoc from one bash is still reading. Deciding
+    tree-sitter-bash 报告了 bash 自己接受的语法错误（一个引号分隔符，多个命令行的嵌入
+    行） ``&`` 在主体之前) 并且可能随后省略
+    ``heredoc_end`` 节点，将终止符线留在 ``heredoc_body`` 相反。 将最后一行与分隔符进
+    行比较，以区分封闭的定界符和仍在读取的 bash
+    。 决定
     from the tree keeps the guard identical on every platform instead of
-    depending on a ``bash`` executable being present and working.
+    取决于 ``bash`` 可执行文件是否存在且正在运行。
     """
     entries: list[tuple[int, str, bytes]] = []
     stack = [root]
@@ -89,7 +89,7 @@ def _last_heredoc_is_closed(root: Node) -> bool:
 
 
 def needs_heredoc_completion_boundary(commands: str) -> bool:
-    """Whether interactive Bash may prompt before this input is fully consumed."""
+    """在此输入完全消耗之前，交互式 Bash 是否可以提示词。"""
     source = commands.encode()
     result = parse(commands)
     root = result.tree.root_node
@@ -113,14 +113,12 @@ def needs_heredoc_completion_boundary(commands: str) -> bool:
 
 
 def split_bash_commands(commands: str) -> list[str]:
-    """Split a multi-statement bash input into top-level statements.
+    """将多语句 bash 输入拆分为顶级语句。
 
-    Statements separated by a newline (with or without intermediate
-    whitespace/comments) become separate entries, except after a completed
-    heredoc. Statements joined by ``;``, ``&&``, ``||``, ``|``, or ``&`` stay
-    together. Comments and whitespace between two statements are folded into
-    the preceding entry. On parse failure the input is returned as a
-    single-element list.
+    由换行符分隔的语句（有或没有中间空格/注释）将成为单独的条目，除非在完成的定界文档
+    之后。 由 ``;``、``&&``、``||``、``|`` 或 ``&`` 连
+    接的语句保持在一起。 两个语句之间的注释和空格被折叠到前面的条目中。 解析失败时，
+    输入将作为单元素列表返回。
     """
     if not commands.strip():
         return [""]
@@ -153,12 +151,10 @@ def split_bash_commands(commands: str) -> list[str]:
 
 
 def escape_bash_special_chars(command: str) -> str:
-    r"""Double the escape on ``\;``, ``\&``, ``\|``, ``\<``, ``\>``.
+    r"""对 ``\;``、``\&``、``\|``、``\<``、``\>`` 进行双倍转义。
 
-    Sequences inside regions bash takes verbatim — single- and
-    double-quoted strings, command substitutions, parameter expansions,
-    heredoc bodies, and comments — are left untouched. On parse failure
-    the input is returned unchanged.
+    在区域内的序列（包括单引号和双引号的字符串、命令替换、参数扩展、行内文档体以及注
+    释）将被保留原样。 解析失败时，输入将原样返回。
     """
     if command.strip() == "":
         return ""

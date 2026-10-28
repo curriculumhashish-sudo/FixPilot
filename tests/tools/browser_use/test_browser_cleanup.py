@@ -1,4 +1,4 @@
-"""Tests for browser tool executor cleanup and resource management."""
+"""测试浏览器工具执行器清理和资源管理。"""
 
 import threading
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,11 +10,11 @@ from openhands.tools.browser_use.impl import BrowserToolExecutor
 
 
 class TestBrowserCleanup:
-    """Test browser tool executor cleanup functionality."""
+    """测试浏览器工具执行器清理功能。"""
 
     @pytest.fixture
     def mock_executor(self):
-        """Create a mock browser executor for testing."""
+        """创建一个模拟对象浏览器执行器用于测试。"""
         mock_server = MagicMock()
         mock_async_executor = MagicMock()
 
@@ -39,7 +39,7 @@ class TestBrowserCleanup:
             return executor
 
     async def test_close_browser_when_initialized(self, mock_executor):
-        """Test closing browser when it's initialized."""
+        """测试初始化时关闭浏览器。"""
         mock_executor._initialized = True
         mock_executor._server._close_browser = AsyncMock(return_value="Browser closed")
 
@@ -50,7 +50,7 @@ class TestBrowserCleanup:
         mock_executor._server._close_browser.assert_called_once()
 
     async def test_close_browser_when_not_initialized(self, mock_executor):
-        """Test closing browser when it's not initialized."""
+        """测试未初始化时关闭浏览器。"""
         mock_executor._initialized = False
 
         result = await mock_executor.close_browser()
@@ -62,7 +62,7 @@ class TestBrowserCleanup:
         )
 
     async def test_cleanup_calls_close_all_sessions(self, mock_executor):
-        """Test cleanup calls _close_all_sessions to properly kill browser."""
+        """测试清理调用 _close_all_sessions 以正确终止浏览器。"""
         mock_executor._server._close_all_sessions = AsyncMock()
 
         await mock_executor.cleanup()
@@ -71,11 +71,11 @@ class TestBrowserCleanup:
 
     async def test_cleanup_falls_back_to_close_browser(self, mock_executor):
         """
-        Test cleanup falls back to close_browser when _close_all_sessions is missing.
+        当 _close_all_sessions 缺失时，测试清理会回退到 close_browser。
         """
         mock_executor._initialized = True
         mock_executor._server._close_browser = AsyncMock(return_value="Browser closed")
-        # Remove _close_all_sessions so hasattr returns False
+        # 删除 _close_all_sessions，hasattr 返回 False
         del mock_executor._server._close_all_sessions
 
         await mock_executor.cleanup()
@@ -83,18 +83,18 @@ class TestBrowserCleanup:
         mock_executor._server._close_browser.assert_called_once()
 
     async def test_cleanup_with_close_all_sessions_exception(self, mock_executor):
-        """Test cleanup handles _close_all_sessions exception gracefully."""
+        """测试清理可以优雅地处理 _close_all_sessions 异常。"""
         mock_executor._server._close_all_sessions = AsyncMock(
             side_effect=Exception("Close sessions failed")
         )
 
-        # Should not raise exception, just log warning
+        # 不应引发异常，仅记录警告
         await mock_executor.cleanup()
 
         mock_executor._server._close_all_sessions.assert_called_once()
 
     def test_close_method_calls_cleanup(self, mock_executor):
-        """Test that close method calls cleanup through async executor."""
+        """测试 close 方法通过异步执行器调用清理。"""
         mock_executor._async_executor.run_async = MagicMock()
 
         mock_executor.close()
@@ -105,18 +105,18 @@ class TestBrowserCleanup:
         mock_executor._async_executor.close.assert_called_once()
 
     def test_close_method_handles_cleanup_exception(self, mock_executor):
-        """Test that close method handles cleanup exceptions gracefully."""
+        """测试 close 方法是否正常处理清理异常。"""
         mock_executor._async_executor.run_async = MagicMock(
             side_effect=Exception("Cleanup failed")
         )
 
-        # Should not raise exception
+        # 不应引发异常
         mock_executor.close()
 
         mock_executor._async_executor.close.assert_called_once()
 
     def test_close_method_always_closes_async_executor(self, mock_executor):
-        """Test that close method always closes async executor even on exception."""
+        """测试 close 方法是否始终关闭异步执行程序，即使出现异常也是如此。"""
         mock_executor._async_executor.run_async = MagicMock(
             side_effect=Exception("Cleanup failed")
         )
@@ -127,7 +127,7 @@ class TestBrowserCleanup:
         mock_executor._async_executor.close.assert_called_once()
 
     def test_close_method_releases_shared_executor(self, mock_executor):
-        """Test that closing the shared executor clears the singleton reference."""
+        """测试关闭共享执行器是否会清除单例引用。"""
         BrowserToolSet._shared_executor = mock_executor
 
         try:
@@ -137,7 +137,7 @@ class TestBrowserCleanup:
             BrowserToolSet._shared_executor = None
 
     def test_concurrent_close_serializes_shared_cleanup(self, mock_executor):
-        """Concurrent closes must not release create lock before cleanup ends."""
+        """在清理结束之前，并发关闭不得释放创建锁。"""
         first_detached = threading.Event()
         first_can_continue = threading.Event()
         cleanup_started = threading.Event()
@@ -196,7 +196,7 @@ class TestBrowserCleanup:
         mock_executor,
         monkeypatch,
     ):
-        """Stale executor finalizers should not contend with create()'s lock."""
+        """过时的执行器终结器不应该与 create() 的锁竞争。"""
 
         class FailOnEnterLock:
             def __enter__(self):
@@ -218,36 +218,36 @@ class TestBrowserCleanup:
         mock_executor._async_executor.close.assert_called_once()
 
     def test_del_method_calls_close(self, mock_executor):
-        """Test that __del__ method calls close."""
+        """测试 __del__ 方法调用 close。"""
         with patch.object(mock_executor, "close") as mock_close:
             mock_executor.__del__()
             mock_close.assert_called_once()
 
     def test_del_method_handles_close_exception(self, mock_executor):
-        """Test that __del__ method handles close exceptions gracefully."""
+        """测试 __del__ 方法是否正常处理关闭异常。"""
         with patch.object(
             mock_executor, "close", side_effect=Exception("Close failed")
         ):
-            # Should not raise exception
+            # 不应引发异常
             mock_executor.__del__()
 
     def test_close_method_timeout_configuration(self, mock_executor):
-        """Test that close method uses correct timeout for cleanup."""
+        """测试 close 方法是否使用正确的超时进行清理。"""
         mock_executor._async_executor.run_async = MagicMock()
 
         mock_executor.close()
 
-        # Verify the timeout is set to 30.0 seconds
+        # 验证超时设置为 30.0 秒
         mock_executor._async_executor.run_async.assert_called_once()
         args, kwargs = mock_executor._async_executor.run_async.call_args
         assert kwargs["timeout"] == 30.0
 
     async def test_cleanup_not_initialized_browser(self, mock_executor):
-        """Test cleanup when browser is not initialized."""
+        """测试浏览器未初始化时的清理。"""
         mock_executor._initialized = False
         mock_executor._server._close_all_sessions = AsyncMock()
 
         await mock_executor.cleanup()
 
-        # _close_all_sessions is still called (it's a no-op if no sessions exist)
+        # _close_all_sessions 仍然被调用（如果不存在会话则无操作）
         mock_executor._server._close_all_sessions.assert_called_once()

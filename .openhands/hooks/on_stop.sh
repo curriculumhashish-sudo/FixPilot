@@ -1,22 +1,20 @@
 #!/bin/bash
-# Stop hook: runs pre-commit, pytest, and checks CI status before allowing agent to finish
+# 停止挂钩：运行预提交 pytest，并在允许智能体完成之前检查 CI 状态
 #
-# This hook runs when the agent attempts to stop/finish.
-# It can BLOCK the stop by:
-#   - Exiting with code 2 (blocked)
-#   - Outputting JSON: {"decision": "deny", "additionalContext": "feedback message"}
+# 当智能体尝试停止/完成时，此挂钩运行。 它可以 BLOCK 经停：
+#   - 使用代码 2 退出（被阻止）
+#   - 输出JSON: {"decision": "deny", "additionalContext": "反馈信息"}
 #
-# Environment variables available:
-#   OPENHANDS_PROJECT_DIR - Project directory
-#   OPENHANDS_SESSION_ID - Session ID
-#   GITHUB_TOKEN - GitHub API token (if available)
+# 环境变量可用：
+#   OPENHANDS_PROJECT_DIR - 项目目录 OPENHANDS_SESSION_ID - 会话 ID GITHUB_TOKEN - GitHub API token（如果可用）
+#
 
 set -o pipefail
 
 PROJECT_DIR="${OPENHANDS_PROJECT_DIR:-$(pwd)}"
 cd "$PROJECT_DIR" || exit 1
 
-# Collect all issues to report back to the agent
+# 收集所有问题以报告给智能体
 ISSUES=""
 BLOCK_STOP=false
 
@@ -30,7 +28,7 @@ log_issue() {
 >&2 echo ""
 
 # --------------------------
-# Step 1: Run pre-commit on all files
+# 第 1 步：对所有文件运行预提交
 # --------------------------
 >&2 echo "=== Running pre-commit run --all-files ==="
 if command -v uv &> /dev/null; then
@@ -52,11 +50,11 @@ fi
 >&2 echo ""
 
 # --------------------------
-# Step 2: Detect changed files and run appropriate tests
+# 第 2 步：检测更改的文件并运行适当的测试
 # --------------------------
 >&2 echo "=== Detecting changed files and running appropriate tests ==="
 
-# Get changed files from git (staged, unstaged, and untracked)
+# 从 git 获取更改的文件（暂存、未暂存和未跟踪）
 CHANGED_FILES=$(git status --porcelain 2>/dev/null | awk '{print $NF}')
 
 if [ -n "$CHANGED_FILES" ]; then
@@ -64,7 +62,7 @@ if [ -n "$CHANGED_FILES" ]; then
     >&2 echo "$CHANGED_FILES" | head -20
     >&2 echo ""
 
-    # Map changed files to test directories
+    # 将更改的文件映射到测试目录
     PROJECTS_TO_TEST=""
 
     add_project() {
@@ -127,17 +125,17 @@ fi
 >&2 echo ""
 
 # --------------------------
-# Step 3: Check if there's a pushed commit and wait for CI
+# 步骤 3：检查是否有推送提交并等待 CI
 # --------------------------
 >&2 echo "=== Checking GitHub CI status ==="
 
-# Check if we're in a git repo with a GitHub remote
+# 检查我们是否在具有 GitHub 远程的 git 存储库中
 GITHUB_REMOTE=$(git remote -v 2>/dev/null | grep -E "(github\.com.*push)" | head -1)
 if [ -z "$GITHUB_REMOTE" ]; then
     >&2 echo "No GitHub remote found, skipping CI check"
 else
-    # Extract owner/repo from remote URL
-    # Handle both HTTPS and SSH formats
+    # 从远程提取所有者/存储库 URL 处理 HTTPS 和 SSH 格式
+    #
     REPO_INFO=$(echo "$GITHUB_REMOTE" | sed -E 's|.*github\.com[:/]([^/]+)/([^/.]+)(\.git)?.*|\1/\2|')
     
     if [ -z "$REPO_INFO" ]; then
@@ -145,15 +143,15 @@ else
     else
         >&2 echo "Repository: $REPO_INFO"
         
-        # Get current branch
+        # 获取当前分支
         CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
         >&2 echo "Current branch: $CURRENT_BRANCH"
         
-        # Get the latest commit SHA
+        # 获取最新提交 SHA
         LOCAL_SHA=$(git rev-parse HEAD 2>/dev/null)
         >&2 echo "Local commit: ${LOCAL_SHA:0:8}"
         
-        # Check if this commit has been pushed
+        # 检查此提交是否已推送
         REMOTE_SHA=$(git ls-remote origin "$CURRENT_BRANCH" 2>/dev/null | awk '{print $1}')
         
         if [ -z "$REMOTE_SHA" ]; then
@@ -163,22 +161,22 @@ else
         else
             >&2 echo "Commit has been pushed, checking CI status..."
             
-            # Check if GITHUB_TOKEN is available
+            # 检查GITHUB_TOKEN是否可用
             if [ -z "$GITHUB_TOKEN" ]; then
                 >&2 echo "GITHUB_TOKEN not set, cannot check CI status"
             else
-                # Use gh CLI if available, otherwise fall back to API
+                # 如果可用，请使用 gh CLI，否则回退到 API
                 if command -v gh &> /dev/null; then
                     >&2 echo "Using gh CLI to check CI status..."
                     
-                    # Get check runs for this commit
+                    # 获取此提交的检查运行
                     CI_STATUS=$(gh api "repos/$REPO_INFO/commits/$LOCAL_SHA/check-runs" \
                         --jq '.check_runs | map({name: .name, status: .status, conclusion: .conclusion})' 2>&1)
                     
                     if [ $? -ne 0 ]; then
                         >&2 echo "Failed to get CI status: $CI_STATUS"
                     else
-                        # Parse the status
+                        # 解析状态
                         TOTAL_CHECKS=$(echo "$CI_STATUS" | jq 'length')
                         
                         if [ "$TOTAL_CHECKS" -eq 0 ]; then
@@ -186,15 +184,15 @@ else
                         else
                             >&2 echo "Found $TOTAL_CHECKS CI check(s)"
                             
-                            # Check for in-progress runs
+                            # 检查正在进行的运行
                             IN_PROGRESS=$(echo "$CI_STATUS" | jq '[.[] | select(.status != "completed")] | length')
                             FAILED=$(echo "$CI_STATUS" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
                             
                             if [ "$IN_PROGRESS" -gt 0 ]; then
                                 >&2 echo "⏳ $IN_PROGRESS check(s) still in progress"
                                 
-                                # Wait for CI to complete (with timeout)
-                                MAX_WAIT=300  # 5 minutes
+                                # 等待 CI 完成（与超时一起）
+                                MAX_WAIT=300  # 5分钟
                                 WAIT_INTERVAL=15
                                 TOTAL_WAITED=0
                                 
@@ -214,29 +212,29 @@ else
                                 fi
                             fi
                             
-                            # Re-check for failures after waiting
+                            # 等待后重新检查是否失败
                             FAILED=$(echo "$CI_STATUS" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
                             
                             if [ "$FAILED" -gt 0 ]; then
                                 >&2 echo "❌ $FAILED check(s) failed!"
                                 
-                                # Get details of failed checks
+                                # 获取失败检查的详细信息
                                 FAILED_DETAILS=$(echo "$CI_STATUS" | jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled") | "- \(.name): \(.conclusion)"')
                                 >&2 echo "$FAILED_DETAILS"
                                 
-                                # Try to get failure logs
+                                # 尝试获取失败日志
                                 FAILED_NAMES=$(echo "$CI_STATUS" | jq -r '.[] | select(.conclusion == "failure") | .name')
                                 
                                 FAILURE_MSG="## CI Failed\n\nThe following CI checks failed:\n\n${FAILED_DETAILS}\n"
                                 
-                                # Try to get the workflow run logs for more context
+                                # 尝试获取工作流运行日志以了解更多信息上下文
                                 WORKFLOW_RUNS=$(gh api "repos/$REPO_INFO/actions/runs?head_sha=$LOCAL_SHA" \
                                     --jq '.workflow_runs[] | select(.conclusion == "failure") | {id: .id, name: .name}' 2>/dev/null)
                                 
                                 if [ -n "$WORKFLOW_RUNS" ]; then
                                     FAILURE_MSG="${FAILURE_MSG}\nYou can view the full logs at: https://github.com/$REPO_INFO/actions\n"
                                     
-                                    # Try to get job logs
+                                    # 尝试获取作业日志
                                     FIRST_RUN_ID=$(echo "$WORKFLOW_RUNS" | jq -r '.id' | head -1)
                                     if [ -n "$FIRST_RUN_ID" ]; then
                                         JOBS_OUTPUT=$(gh api "repos/$REPO_INFO/actions/runs/$FIRST_RUN_ID/jobs" \
@@ -254,7 +252,7 @@ else
                         fi
                     fi
                 else
-                    # Fallback to curl
+                    # 回退方案卷曲
                     >&2 echo "gh CLI not available, using API directly..."
                     CI_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
                         -H "Accept: application/vnd.github.v3+json" \
@@ -287,12 +285,12 @@ fi
 >&2 echo ""
 
 # --------------------------
-# Final decision
+# 最终决定
 # --------------------------
 if [ "$BLOCK_STOP" = true ]; then
     >&2 echo "=== BLOCKING STOP: Issues found ==="
-    # Output JSON to provide feedback to the agent
-    # Escape the issues for JSON
+    # 输出 JSON 向智能体提供反馈逃避 JSON 的问题
+    #
     ESCAPED_ISSUES=$(echo -e "$ISSUES" | jq -Rs .)
     echo "{\"decision\": \"deny\", \"reason\": \"Checks failed\", \"additionalContext\": $ESCAPED_ISSUES}"
     exit 2

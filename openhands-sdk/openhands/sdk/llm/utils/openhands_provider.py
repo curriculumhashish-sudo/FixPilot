@@ -12,10 +12,10 @@ OPENHANDS_LLM_PROXY_BASE_URL: Final[str] = "https://llm-proxy.app.all-hands.dev"
 DIGITALOCEAN_PROVIDER_PREFIX: Final[str] = "digitalocean/"
 DIGITALOCEAN_INFERENCE_BASE_URL: Final[str] = "https://inference.do-ai.run/v1"
 
-# SDK provider prefix -> (LiteLLM prefix, default api_base).
-# TODO: DigitalOcean goes through ``openai/`` only as a stopgap, because
-# LiteLLM's native ``gradient_ai/`` route rejects ``tools``. Switch to
-# ``gradient_ai/`` once LiteLLM supports tool calling there.
+# SDK 提供商前缀 ->（LiteLLM 前缀，默认 api_base）。
+# TODO：DigitalOcean经过``openai/``只是作为权宜之计，因为
+# LiteLLM 的本机 ``gradient_ai/`` 路由拒绝 ``tools``。 切换到
+# ``gradient_ai/``一次LiteLLM支持那里的工具调用。
 _ROUTED_PROVIDERS: Final[dict[str, tuple[str, str]]] = {
     OPENHANDS_PROVIDER_PREFIX: (LITELLM_PROXY_PREFIX, OPENHANDS_LLM_PROXY_BASE_URL),
     DIGITALOCEAN_PROVIDER_PREFIX: ("openai/", DIGITALOCEAN_INFERENCE_BASE_URL),

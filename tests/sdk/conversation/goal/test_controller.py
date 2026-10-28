@@ -1,4 +1,4 @@
-"""Tests for GoalController (the transport-agnostic /goal decision logic)."""
+"""测试 GoalController（与传输层无关的 /goal 决策逻辑）。"""
 
 import pytest
 
@@ -12,7 +12,7 @@ from openhands.sdk.testing import TestLLM
 
 
 def _judge(*texts: str) -> TestLLM:
-    """A judge LLM scripted to return one verdict per on_run_finished() call."""
+    """法官 LLM 编写脚本，每次 on_run_finished() 调用返回一个判决。"""
     return TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text=t)]) for t in texts]
     )
@@ -34,8 +34,9 @@ def test_continue_when_incomplete():
     assert isinstance(step, GoalContinue)
     assert "tests" in step.followup
     assert controller.iteration == 1
-    # The verdict for the round just finished rides along so a driver can
-    # publish per-round judge feedback, not just the terminal one.
+    # 刚刚结束的这一轮比赛的裁决会一直进行，因此车手可以发布每轮裁判的反馈，而不仅仅是终
+    # 点的反馈。
+    #
     assert step.verdict.score == 0.2
     assert step.verdict.complete is False
     assert step.verdict.missing == "tests"
@@ -58,8 +59,8 @@ def test_caps_at_max_iterations():
         "build x", _judge(incomplete, incomplete), max_iterations=2
     )
 
-    assert isinstance(controller.on_run_finished([]), GoalContinue)  # round 1
-    step = controller.on_run_finished([])  # round 2 -> capped
+    assert isinstance(controller.on_run_finished([]), GoalContinue)  # 第一轮
+    step = controller.on_run_finished([])  # 第 2 轮 -> 封顶
     assert isinstance(step, GoalDone)
     assert step.outcome.status == "capped"
     assert step.outcome.iterations == 2
@@ -67,8 +68,9 @@ def test_caps_at_max_iterations():
 
 
 def test_failed_judge_call_does_not_count_a_round():
-    # A judge call that raises is not a completed audit: the count must not
-    # advance, or a resumed goal would overrun max_iterations.
+    # 法官提出的要求并不是已完成的审核：计数不得前进，否则恢复的目标将超出max_iterations
+    # 。
+    #
     controller = GoalController(
         "build x",
         TestLLM.from_messages([RuntimeError("judge network error")]),

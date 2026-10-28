@@ -8,11 +8,11 @@ export interface SubAgentsClientOptions {
 }
 
 /**
- * Client for the agent-server's sub-agents catalog.
+ * 智能体-服务器的子智能体目录的客户端。
  *
- * A single read endpoint (`POST /api/sub-agents`) listing the file-based and
- * built-in sub-agents available to a workspace. Read-only: it discovers the
- * catalog, it does not mutate it.
+ * 一次读取端点 (`POST /api/sub-agents`) 列出基于文件和
+ * 内置子智能体可用于工作区。 只读：它发现
+ * 目录，它不会改变它。
  */
 export class SubAgentsClient {
   public readonly host: string;
@@ -30,9 +30,9 @@ export class SubAgentsClient {
   }
 
   /**
-   * List the file-based and built-in sub-agents for the workspace.
+   * 列出工作区的基于文件和内置的子智能体。
    *
-   * Merged first-wins by name with precedence project > user > builtin.
+   * 按名称合并优先项目 > 用户 > 内置。
    */
   async getSubAgents(request: SubAgentsRequest = {}): Promise<SubAgentsResponse> {
     const response = await this.client.post<SubAgentsResponse>('/api/sub-agents', request);

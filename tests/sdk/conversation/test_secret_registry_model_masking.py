@@ -1,4 +1,4 @@
-"""Unit tests for SecretRegistry.mask_secrets_in_model (issue #4677)."""
+"""单元测试对应 SecretRegistry.mask_secrets_in_model（问题 #4677）。"""
 
 import base64
 from enum import Enum
@@ -45,7 +45,7 @@ class Outer(BaseModel):
 def _registry() -> SecretRegistry:
     registry = SecretRegistry()
     registry.update_secrets({"TOKEN": SECRET})
-    registry.get_secret_value("TOKEN")  # resolve -> tracked for masking
+    registry.get_secret_value("TOKEN")  # 解析 -> 跟踪掩码
     return registry
 
 
@@ -76,10 +76,10 @@ def test_leaves_non_string_values_alone():
 
 
 def test_preserves_str_subclass_enum_members():
-    """A str-subclass enum must stay an enum member.
+    """str 子类枚举必须保留为枚举成员。
 
-    Masking it would downgrade it to a plain ``str`` and break the field's
-    serialization, and its vocabulary can never hold a secret anyway.
+    屏蔽它会将其降级为普通的 ``str`` 并破坏该领域的序列化，而且它的词汇表无论如何都无
+    法容纳机密。
     """
     model = Outer(title="clean", inner=Inner(note="clean", kind=Kind.ADD))
 
@@ -107,7 +107,7 @@ def test_returns_input_unchanged_when_nothing_is_registered():
 
 
 def test_masks_set_members():
-    """A ``set`` field is walked like any other container."""
+    """``set`` 字段像任何其他容器一样被遍历。"""
     model = Outer(
         title="clean", inner=Inner(note="clean"), tags={f"t {SECRET}", "plain"}
     )
@@ -118,7 +118,7 @@ def test_masks_set_members():
 
 
 def test_preserves_namedtuple_type():
-    """A NamedTuple keeps its type, like an Enum keeps its member."""
+    """NamedTuple 保留其类型，就像枚举保留其成员一样。"""
     model = Outer(title="clean", inner=Inner(note="clean"), span=Span(f"s {SECRET}", 3))
 
     masked = _registry().mask_secrets_in_model(model)

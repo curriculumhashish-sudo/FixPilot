@@ -1,9 +1,8 @@
-"""Serialization round-trip tests for defense-in-depth analyzers.
+"""序列化深度防御分析器的往返测试。
 
-Follows the SDK convention from test_confirmation_policy.py:
-direct round-trip, polymorphic round-trip, container-field tests,
-roundtrip-then-detect behavior tests, kind discriminator stability,
-stable detector/rule IDs, and public API surface assertions.
+遵循 SDK 的 test_confirmation_policy.py 规则：直接往返、多态往返、容器字段测试、往返
+后检测行为测试、类型鉴别稳定性、稳定检测器/规则 ID
+，以及公开 API 表面断言。
 """
 
 from __future__ import annotations
@@ -67,7 +66,7 @@ def make_action(command: str) -> ActionEvent:
 
 
 # ---------------------------------------------------------------------------
-# PatternSecurityAnalyzer serialization
+# PatternSecurityAnalyzer 序列化
 # ---------------------------------------------------------------------------
 
 
@@ -85,7 +84,7 @@ class TestPatternSerializationRoundTrip:
         assert isinstance(restored, PatternSecurityAnalyzer)
 
     def test_roundtrip_then_detect(self):
-        """PrivateAttr compiled patterns rebuild via model_post_init."""
+        """PrivateAttr 编译模式通过 model_post_init 重建。"""
         analyzer = PatternSecurityAnalyzer()
         data = analyzer.model_dump_json()
         restored = PatternSecurityAnalyzer.model_validate_json(data)
@@ -94,7 +93,7 @@ class TestPatternSerializationRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# PolicyRailSecurityAnalyzer serialization
+# PolicyRailSecurityAnalyzer 序列化
 # ---------------------------------------------------------------------------
 
 
@@ -120,7 +119,7 @@ class TestPolicyRailSerializationRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# EnsembleSecurityAnalyzer serialization
+# EnsembleSecurityAnalyzer 序列化
 # ---------------------------------------------------------------------------
 
 
@@ -176,7 +175,7 @@ class TestEnsembleSerializationRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# Container-field test (BaseModel with SecurityAnalyzerBase field)
+# 容器字段测试（BaseModel 和 SecurityAnalyzerBase 字段）
 # ---------------------------------------------------------------------------
 
 
@@ -205,7 +204,7 @@ class TestContainerField:
 
 
 # ---------------------------------------------------------------------------
-# Config field defaults and validation
+# 配置字段默认值和验证
 # ---------------------------------------------------------------------------
 
 
@@ -223,7 +222,7 @@ class TestConfigDefaults:
 
 
 # ---------------------------------------------------------------------------
-# kind discriminator stability
+# 种类判别器稳定性
 # ---------------------------------------------------------------------------
 
 
@@ -240,7 +239,7 @@ class TestKindDiscriminators:
 
 
 # ---------------------------------------------------------------------------
-# Public API surface
+# 公共API表面
 # ---------------------------------------------------------------------------
 
 
@@ -258,12 +257,12 @@ class TestPublicAPISurface:
 
 
 # ---------------------------------------------------------------------------
-# Stable detector/rule IDs
+# 稳定的检测器/规则 ID
 # ---------------------------------------------------------------------------
 
 
 class TestStableIDs:
-    """Stable IDs are string constants that must not change between releases."""
+    """稳定 ID 是字符串常量，在不同版本之间不得更改。"""
 
     def test_rail_ids(self):
         assert (
@@ -297,7 +296,7 @@ class TestStableIDs:
         assert DET_INJECT_IDENTITY == "inject.identity"
 
     def test_pattern_tuples_reference_constants(self):
-        """Pattern tuples use detector ID constants, not bare strings."""
+        """模式元组使用检测器 ID 常量，而不是裸字符串。"""
         high_ids = {p[2] for p in DEFAULT_HIGH_PATTERNS}
         assert DET_EXEC_DESTRUCT_RM_RF in high_ids
         assert DET_EXEC_DESTRUCT_DD in high_ids

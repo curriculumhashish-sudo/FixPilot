@@ -1,4 +1,4 @@
-"""``materialize`` and a real launch agree, for every agent source."""
+"""对于每个智能体源，``materialize`` 和真实发布都一致。"""
 
 from __future__ import annotations
 

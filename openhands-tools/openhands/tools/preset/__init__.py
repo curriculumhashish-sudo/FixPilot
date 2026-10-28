@@ -1,21 +1,18 @@
 """
-Agent presets for OpenHands SDK.
+智能体预设为 OpenHands SDK。
 
-This package provides predefined agent configurations (tool bundles)
-that can be used out of the box. Presets are intended as starting points
-for common use cases, such as a default production agent with shell access,
-file editing, task tracking, and selected MCP integrations.
+该软件包提供预定义的智能体配置（工具包），可以开箱即用。 预设旨在作为常见用例的起点，
+例如默认生产环境智能体、远程 shell 访问、文件编辑、任务跟踪以及选定 MCP 的
+集成。
 
-Usage:
+用途：
     from openhands.tools.preset.default import default_tools
 
     tools = default_tools()
 
 Notes:
-- Presets are simple collections of tools and configuration, not a
-  replacement for custom agents.
-- They are stable entry points meant to reduce boilerplate for typical
-  setups.
+- 预设是工具和配置的简单集合，而不是自定义智能体的替代品。
+- 它们是稳定的入口，旨在减少典型设置的样板文件。
 """
 
 from .default import (

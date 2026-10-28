@@ -1,4 +1,4 @@
-"""Executor for the start_child_conversation tool."""
+"""start_child_conversation 工具的执行器。"""
 
 import json
 import os
@@ -26,31 +26,29 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Same seam ``LookupSecret`` uses to reach the agent-server that runs this tool.
+# 使用相同的接缝 ``LookupSecret`` 来访问运行此工具的智能体服务器。
 INTERNAL_SERVER_URL_ENV = "OH_INTERNAL_SERVER_URL"
 DEFAULT_INTERNAL_SERVER_URL = "http://127.0.0.1:8000"
-# v1 and v0 names of the agent-server session key, as exported by the server.
+# 由服务器导出的智能体-服务器会话密钥的 v1 和 v0 名称。
 SESSION_API_KEY_ENVS = ("OH_SESSION_API_KEYS_0", "SESSION_API_KEY")
 SESSION_API_KEY_HEADER = "X-Session-API-Key"
-# A launch may include worktree or sandbox provisioning; mirror the MCP tool
-# timeout rather than httpx's 5 second default.
+# 启动可能包括工作树或沙箱配置； 镜像 MCP 工具超时而不是 httpx 的 5 秒默认值。
+#
 CHILD_LAUNCH_TIMEOUT_SECONDS = 300.0
 
 
 def default_launch_url(parent_conversation_id: UUID) -> str:
-    """Child-launch endpoint of the agent-server running this tool."""
+    """运行此工具的智能体服务器的子启动端点。"""
     base = os.getenv(INTERNAL_SERVER_URL_ENV, DEFAULT_INTERNAL_SERVER_URL).rstrip("/")
     return f"{base}/api/conversations/{parent_conversation_id}/children"
 
 
 def session_api_key_headers() -> dict[str, str]:
-    """Auth header for the launcher, taken from the agent-server's own env.
+    """启动器的身份验证标头，取自智能体-服务器自己的环境。
 
-    The key identifies this server to its launcher, as it does for the
-    server's webhook subscribers. ``launch_url`` is chosen by whoever assembles
-    the conversation's agent, and the header grants that party nothing new: a
-    hosting backend minted the key, and a direct caller had to present one to
-    create the conversation.
+    该密钥向其启动器标识该服务器，就像它对服务器的 Webhook 订阅者所做的那样。
+    ``launch_url`` 由谁来决定会话的智能体，而头衔则授予那个派系：一个
+    托管后端生成了密钥，而直接发起者必须提供一个来创建会话。
     """
     for env_name in SESSION_API_KEY_ENVS:
         value = os.getenv(env_name)
@@ -74,13 +72,12 @@ def _response_detail(response: httpx.Response) -> str:
 class StartChildConversationExecutor(
     ToolExecutor[StartChildConversationAction, StartChildConversationObservation]
 ):
-    """POST the launch request to the child-launch endpoint and report back.
+    """POST 向子启动端点发出启动请求并返回报告。
 
-    The executor is deliberately backend-agnostic: it only knows the wire
-    contract (``StartChildConversationRequest`` in,
-    ``StartChildConversationResponse`` out) and where to send it. By default it
-    targets the agent-server that runs this tool, authenticated with that
-    server's own session API key from the environment.
+    执行器故意与后端无关：它只知道电汇合约（``StartChildConversationRequest``中，
+    ``StartChildConversationResponse`` out）以及发送到哪里。 默认情况下，它的目标是运
+    行此工具的智能体服务器，并使用该服务器自己的
+    会话 API 密钥从环境中进行身份验证。
     """
 
     def __init__(

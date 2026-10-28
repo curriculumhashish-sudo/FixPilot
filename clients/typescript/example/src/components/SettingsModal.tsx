@@ -66,7 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleInputChange = (field: keyof Settings, value: string) => {
     setSettings(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field when user starts typing
+    // 当用户开始输入时清除此字段的错误
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }

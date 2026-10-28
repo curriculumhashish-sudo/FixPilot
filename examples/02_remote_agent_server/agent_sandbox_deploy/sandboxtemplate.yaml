@@ -1,6 +1,6 @@
 ---
-# SandboxTemplate that runs the OpenHands agent server. See the canonical copy and
-# docs at openhands-workspace/openhands/workspace/agent_sandbox/.
+# SandboxTemplate 运行 OpenHands Agent Server。 请参阅openhands-workspace/openhands/workspace/agent_sandbox/.中的官方副本和文档
+#
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:
@@ -17,7 +17,7 @@ spec:
                       storage: 5Gi
     podTemplate:
         spec:
-            # runtimeClassName: gvisor   # uncomment for strong isolation of untrusted code
+            # runtimeClassName: gvisor # 取消注释以强隔离不受信任的代码
             securityContext:
                 runAsUser: 10001
                 runAsGroup: 10001

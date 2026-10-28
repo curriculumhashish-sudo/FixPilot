@@ -1,4 +1,4 @@
-"""Windows-specific terminal interrupt behavior tests."""
+"""Windows 特定的终端中断行为测试。"""
 
 import platform
 import time
@@ -18,11 +18,11 @@ pytestmark = pytest.mark.skipif(
 
 
 def _wait_for_child_exit(pid: int, timeout: float = 5.0) -> bool:
-    """Wait for the process to exit, returning False if it survives the timeout."""
+    """等待进程退出，如果在超时中幸存下来，则返回 False。"""
     try:
         process = psutil.Process(pid)
     except psutil.NoSuchProcess:
-        return True  # already gone
+        return True  # 已经走了
     try:
         process.wait(timeout=timeout)
         return True
@@ -33,11 +33,10 @@ def _wait_for_child_exit(pid: int, timeout: float = 5.0) -> bool:
 
 
 def _wait_for_pid_file(pid_path, timeout: float = 15.0) -> bool:
-    """Wait for the script to write its child pid file.
+    """等待脚本写入其子 pid 文件。
 
-    ``execute`` returns at the 1s no-change timeout, but on a loaded runner
-    PowerShell may not have started the script (and written the file) yet;
-    the command is still running in the session at that point.
+    ``execute`` 在 1 秒后返回，无变化超时，但在加载的运行器上 PowerShell 可能尚未启动
+    脚本（并写入文件）； 此时该命令仍在会话中运行。
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -56,14 +55,14 @@ def _stop_powershell_process(pid: int) -> None:
 
 @pytest.mark.timeout(45)
 def test_windows_ctrl_c_interrupt_kills_child_process(tmp_path) -> None:
-    """Ctrl-C after a timeout stops the child that kept the command alive.
+    """在超时之后按 Ctrl-C 会停止使命令保持活动状态的子进程。
 
-    The assertion covers only the directly spawned child process, not the full
-    Windows process tree; a leaked grandchild would not fail this test.
+    该断言仅涵盖直接生成的子进程，而不是完整的 Windows 进程树； 泄露的孙子不会通过这
+    个测试。
     """
     pid_path = tmp_path / "child.pid"
     script_path = tmp_path / "wait_on_child.ps1"
-    # Use native path for PowerShell (str() gives Windows-style on Windows)
+    # 使用 PowerShell 的本机路径（str() 在 Windows 上提供 Windows 样式）
     pid_path_str = str(pid_path)
     script_path_str = str(script_path)
     script_path.write_text(

@@ -35,7 +35,7 @@ def test_remote_run_raises_conversation_run_error_with_id():
             api_key=None,
         )
 
-        # Instantiate RemoteConversation attached to an existing id to avoid create POST
+        # 实例化 RemoteConversation 附加到现有 id 以避免创建 POST
         from openhands.sdk.conversation.impl.remote_conversation import (
             RemoteConversation,
         )
@@ -44,13 +44,13 @@ def test_remote_run_raises_conversation_run_error_with_id():
             agent=agent, workspace=workspace, conversation_id=conv_id
         )
 
-        # Patch _send_request to raise on POST /run for this conversation id
+        # 修补 _send_request 以针对此对话 ID 在 POST /run 上提出
         def fake_send_request(
             client, method, url, acceptable_status_codes=None, **kwargs
         ):  # noqa: D401, ARG001
             if method == "POST" and str(conv_id) in url and url.endswith("/run"):
                 raise httpx.RequestError("boom", request=httpx.Request(method, url))
-            # Return a minimal successful response for other calls
+            # 返回其他调用的最小成功响应
             resp = Mock()
             resp.status_code = 200
             resp.json.return_value = {"items": []}
@@ -65,7 +65,7 @@ def test_remote_run_raises_conversation_run_error_with_id():
                 with pytest.raises(ConversationRunError) as excinfo:
                     rc.run()
         finally:
-            # restore original if needed (context manager should handle)
+            # 如果需要的话恢复原始（上下文管理器应该处理）
             pass
 
         err = excinfo.value

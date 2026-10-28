@@ -1,6 +1,5 @@
-"""Cross-tool test: Gemini tools and FileEditorTool must produce the same
-resource key for the same file so that the parallel executor serializes
-access correctly across tool boundaries.
+"""交叉工具测试：Gemini 工具和 FileEditorTool 必须为同一个文件生成相同的资源密钥，以
+便并行执行器正确地在工具边界处串行化访问。
 """
 
 from pathlib import Path
@@ -12,12 +11,12 @@ from openhands.tools.gemini.write_file.definition import WriteFileAction, WriteF
 
 
 def test_gemini_and_file_editor_produce_same_key(fake_conv_state):
-    """A Gemini relative path and a FileEditorTool absolute path for the same
-    file must yield identical resource keys."""
+    """Gemini 相对路径和 FileEditorTool 绝对路径相同
+    文件必须产生相同的资源密钥。"""
     workspace = fake_conv_state.workspace.working_dir
     abs_path = str(Path(workspace) / "src" / "foo.py")
 
-    # Gemini tools with a relative path
+    # 具有相对路径的 Gemini 工具
     edit_tool = EditTool.create(conv_state=fake_conv_state)[0]
     read_tool = ReadFileTool.create(conv_state=fake_conv_state)[0]
     write_tool = WriteFileTool.create(conv_state=fake_conv_state)[0]
@@ -32,13 +31,13 @@ def test_gemini_and_file_editor_produce_same_key(fake_conv_state):
         WriteFileAction(file_path="src/foo.py", content="x")
     ).keys[0]
 
-    # FileEditorTool with an absolute path
+    # FileEditorTool 具有绝对路径
     file_editor_tool = FileEditorTool.create(conv_state=fake_conv_state)[0]
     file_editor_key = file_editor_tool.declared_resources(
         FileEditorAction(command="view", path=abs_path)
     ).keys[0]
 
-    # All must agree
+    # 所有人都必须同意
     assert gemini_edit_key == file_editor_key
     assert gemini_read_key == file_editor_key
     assert gemini_write_key == file_editor_key

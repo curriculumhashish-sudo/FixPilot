@@ -1,37 +1,45 @@
-# Condenser
+<a id="condenser"></a>
 
-The condenser is one of the systems used by OpenHands to manage the context window.
+# 上下文压缩器
 
-At regular intervals, or when requested by the agent or a user, the context window is condensed by replacing the first half of all events with a single summary event. This strategy performs well in benchmarks and strikes a balance between:
-1. **Per-completion cost**: by regularly condensing, the context window stays bounded and completions use less tokens.
-2. **Cache optimization**: condensation destroys the prompt cache, but doing so regularly keeps the cost of rebuilding the prompt cache low.
-3. **Early context**: events are summarized, and summaries are also summarized in future condensations, so important information stays in the context.
-4. **Recent context**: the back half of the context is untouched, so the agent has an easy time continuing the current task.
+上下文压缩器是OpenHands 用于管理上下文窗口的系统之一。
 
-The primary condensation strategy is implemented in the [LLM summarizing condenser](llm_summarizing_condenser.py). The remaining condensation infrastructure is used to facilitate rapid condenser prototyping and specialized downstream use cases.
+定期或在智能体或用户请求时，上下文窗口会被压缩，将事件的前半部分替换为一个简要事件。 该策略在基准测试中表现良好，并在以下方面取得了平衡：
+1. **每次完成成本**：通过定期压缩，上下文窗口保持有限，并且完成使用更少的 token。
+2. **缓存优化**：上下文压缩会破坏提示词缓存，但定期这样做可以降低重建提示词缓存的成本。
+3. **早期上下文**：事件被总结，总结也在未来的凝结中总结，所以重要的信息留在上下文中。
+4. **最近的上下文**：上下文的后半部分未受影响，因此智能体可以轻松地继续当前任务。
 
-## Event-Based Condensations and the View
+主要的上下文压缩策略在总结上下文压缩器](llm_summarizing_condenser.py) 的 [LLM 中实现。 其余的上下文压缩基础设施用于促进快速上下文压缩器原型设计和专门的下游用例。
 
-The conversation is an important source of state for the agent, and at the heart is an append-only event log. Events capture almost every non-environment state change, and the agent takes events from this log that subclass [`LLMConvertibleEvent`](../../event/base.py) and converts them to messages that can be sent to completion endpoints.
+<a id="event-based-condensations-and-the-view"></a>
 
-The fact that the event log is append-only means that, even if we lose the environment the agent ran in, we have an almost perfect record of what transpired. Incredible for debugging and for enabling broader agent uses. But this poses a slight problem for the condensation system: how can we forget events from an append-only log?
+## 基于事件的凝聚和视图
 
-Since we can only add data to an append-only structure, we mark condensations with a special [`Condensation`](../../event/condenser.py) event. These are similar to _tombstones_ in Apache systems like Cassandra and Kafka, and contain information about how to apply a condensation. The precise semantics are captured in the [`Condensation.apply`](../../event/condenser.py) method, which converts a list of `LLMConvertibleEvent` objects by forgetting marked events and inserting summaries.
+对话是智能体的重要状态来源，其核心是仅附加事件日志。 事件捕获几乎所有的非环境状态变化，智能体从这个日志中捕获[`LLMConvertibleEvent`](../../event/base.py)的子类事件，并将其转换为可以发送到完成的端点消息。
 
-Of course, now the agent cannot just grab all instances of `LLMConvertibleEvent` when communicating with the LLM. To capture "all events currently relevant to the LLM" we use the [`View`](../view/view.py) class, which does the work of applying condensation events as they come in. Views also maintain some metadata that ensures condensers don't accidentally forget critical events or insert summaries where they shouldn't.
+事件日志只能追加，这意味着即使我们丢失了智能体运行的环境，我们也能几乎完美地记录下发生的事情。 对于调试和实现更广泛的智能体用途来说令人难以置信。 但这给上下文压缩系统带来了一个小问题：我们如何忘记仅附加日志中的事件？
 
-## Triggering Condensation
+由于我们只能将数据添加到仅附加结构中，因此我们使用特殊的 [`Condensation`](../../event/condenser.py) 事件来标记压缩。 这些类似于 Cassandra 和 Kafka 等 Apache 系统中的_tombstones_，并且包含有关如何应用上下文压缩的信息。 精确的语义在[`Condensation.apply`](../../event/condenser.py)方法中被捕捉，该方法将一个`LLMConvertibleEvent`对象列表转换为不记入标记事件的列表，并插入摘要。
 
-Condensation is triggered in two main cases:
-1. A resource limit is reached ([`max_tokens` or `max_size`](llm_summarizing_condenser.py)) in the current view, or
-2. An explicit condensation request is made.
+当然，现在智能体在与LLM通信时不能仅仅获取`LLMConvertibleEvent`的所有实例。 为了捕获“当前与 LLM 相关的所有事件”，我们使用 [`View`](../view/view.py) 类，该类负责在上下文压缩事件进入时应用它们。 视图还维护一些元数据，以确保上下文压缩器不会意外忘记关键事件或在不应该插入的地方插入摘要。
 
-The condensation requests can be made by a user (see [`Conversation.condense`](../../conversation/base.py)) or by the agent. Agents will request a condensation when they detect issues with the context window. These issues vary by model and provider -- we do our best to capture as many cases as possible in [`is_context_window_exceeded`](../../llm/exceptions/classifier.py).
+<a id="triggering-condensation"></a>
 
-## Handling Failure
+## 触发上下文压缩
 
-Condensation is not always possible. The LLM expects a certain structure to the messages (see the [view properties](../view/properties/) and the [API compliance tests](../../../../../tests/integration/tests/)), and sometimes the default condensation strategy will necessarily violate that structure.
+上下文压缩在两种主要情况下被触发：
+1. 当前视图中达到资源限制（[`max_tokens` 或 `max_size`](llm_summarizing_condenser.py)），或者
+2. 发出显式上下文压缩请求。
 
-When that happens, the condenser has to determine if condensation is _needed_ right now or if we're just trying to maintain our upper bound on the size of the context. In the latter situation the condenser just returns the view uncondensed. Since the resource limit condensation trigger is still satisfied, the condenser will just try again the next time the agent takes a step. These condensation triggers are "soft".
+上下文压缩请求可以由用户（参见 [`Conversation.condense`](../../conversation/base.py)）或智能体提出。 当智能体检测到上下文窗口存在问题时，他们将请求上下文压缩。 这些问题因模型和提供商而异——我们尽力在 [`is_context_window_exceeded`](../../llm/exceptions/classifier.py) 中捕获尽可能多的案例。
 
-If condensation is explicitly requested, the conversation is often in a state that cannot proceed without condensation (e.g., context window exceptions). Skipping and trying on the next step is not an option: there won't _be_ a next step. These are "hard" condensation triggers, and when our balanced condensation isn't an option we forget-and-summarize the entire view in a hard context reset (see [`LLMSummarizingCondenser.hard_context_reset`](llm_summarizing_condenser.py) for an implementation).
+<a id="handling-failure"></a>
+
+## 处理失败
+
+上下文压缩并不总是可能的。 LLM 期望消息具有特定结构（请参阅[ 视图属性](../view/properties/) 和[API 遵守测试](../../../../../tests/integration/tests/)），有时默认上下文压缩策略必然违反该结构。
+
+当这种情况发生时，上下文压缩器必须确定上下文压缩是否现在就 _需要_，还是只是试图保持上下文的大小上限。 在后一种情况下，上下文压缩器仅返回未压缩的视图。 由于资源限制上下文压缩触发器仍然满足，上下文压缩器将在智能体下一次采取步骤时重试。 这些上下文压缩触发器是“软”的。
+
+如果明确请求上下文压缩，则会话通常处于没有上下文压缩就无法进行的状态（e.g.、上下文窗口例外）。 跳过并尝试下一步不是一个选择：不会有下一步。 这些都是“硬”上下文压缩触发器，当我们的平衡上下文压缩不可用时，我们就会忘记并总结整个视图为一个硬上下文重置（参见[`LLMSummarizingCondenser.hard_context_reset`](llm_summarizing_condenser.py)的实现）。

@@ -1,14 +1,14 @@
-"""Git-related exceptions for OpenHands SDK."""
+"""OpenHands SDK 的与 Git 相关的异常。"""
 
 
 class GitError(Exception):
-    """Base exception for git-related errors."""
+    """与 git 相关的错误的基本异常。"""
 
     pass
 
 
 class GitRepositoryError(GitError):
-    """Exception raised when git repository operations fail."""
+    """git 存储库操作失败时引发异常。"""
 
     command: str | None
     exit_code: int | None
@@ -22,7 +22,7 @@ class GitRepositoryError(GitError):
 
 
 class GitCommandError(GitError):
-    """Exception raised when git command execution fails."""
+    """git 命令执行失败时引发异常。"""
 
     command: list[str]
     exit_code: int
@@ -38,6 +38,6 @@ class GitCommandError(GitError):
 
 
 class GitPathError(GitError):
-    """Exception raised when git path operations fail."""
+    """git 路径操作失败时引发异常。"""
 
     pass

@@ -1,13 +1,13 @@
 /**
- * System prompts for the LocalConversation agent
+ * 系统提示词为 LocalConversation 智能体
  *
- * These prompts are aligned with the Python SDK's system prompts to ensure
- * consistent agent behavior across implementations.
+ * 这些提示词与 Python SDK 的系统提示词保持一致，以确保
+ * 跨实现的一致智能体行为。
  */
 
 /**
- * The default system prompt for the OpenHands agent.
- * This is a TypeScript version of the Python SDK's system_prompt.j2 template.
+ * 系统默认提示词为OpenHands智能体。
+ * 这是 Python SDK 的 system_prompt.j2 模板的 TypeScript 版本。
  */
 export const DEFAULT_SYSTEM_PROMPT = `You are OpenHands agent, a helpful AI assistant that can interact with a computer to solve tasks.
 
@@ -87,7 +87,7 @@ export const DEFAULT_SYSTEM_PROMPT = `You are OpenHands agent, a helpful AI assi
 `;
 
 /**
- * A minimal system prompt for simple use cases.
+ * 用于简单用例的最小系统提示词。
  */
 export const MINIMAL_SYSTEM_PROMPT = `You are a helpful coding assistant with access to a workspace. You can execute commands, read files, and write files to help the user with their tasks.
 
@@ -101,7 +101,7 @@ When working on tasks:
 Always explain what you're doing and why.`;
 
 /**
- * Tool descriptions aligned with the Python SDK
+ * 工具描述与 Python SDK 一致
  */
 export const TOOL_DESCRIPTIONS = {
   execute_command: `Execute a bash command in the terminal within a persistent shell session.
@@ -163,21 +163,21 @@ The message should include:
 };
 
 /**
- * Options for generating a system prompt
+ * 生成系统的选项提示词
  */
 export interface SystemPromptOptions {
-  /** Custom system prompt to use instead of the default */
+  /** 使用自定义系统提示词代替默认系统*/
   customPrompt?: string;
-  /** Whether to use the minimal prompt (default: false) */
+  /** 是否使用最小值提示词（默认：False）*/
   minimal?: boolean;
-  /** Additional context to append to the prompt */
+  /** 附加上下文附加到提示词*/
   additionalContext?: string;
-  /** Working directory path to include in the prompt */
+  /** 工作目录要包含在提示词中的路径*/
   workingDir?: string;
 }
 
 /**
- * Generate a system prompt with the given options.
+ * 使用给定选项生成系统提示词。
  */
 export function generateSystemPrompt(options: SystemPromptOptions = {}): string {
   let prompt: string;
@@ -190,7 +190,7 @@ export function generateSystemPrompt(options: SystemPromptOptions = {}): string 
     prompt = DEFAULT_SYSTEM_PROMPT;
   }
 
-  // Add working directory context if provided
+  // 添加工作目录上下文（如果提供）
   if (options.workingDir) {
     prompt += `\n\n<WORKSPACE>
 Your current working directory is: ${options.workingDir}
@@ -198,7 +198,7 @@ When exploring project structure, start with this directory instead of the root 
 </WORKSPACE>`;
   }
 
-  // Add any additional context
+  // 添加任何其他上下文
   if (options.additionalContext) {
     prompt += `\n\n${options.additionalContext}`;
   }

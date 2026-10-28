@@ -1,4 +1,4 @@
-"""Tests for skills service."""
+"""技能服务测试。"""
 
 import json
 import tempfile
@@ -68,7 +68,7 @@ def _create_standalone_skill(skill_dir: Path, name: str) -> None:
 
 
 def _create_skills_only_marketplace(marketplace_dir: Path) -> Path:
-    """Marketplace declaring only standalone skills (no plugins)."""
+    """市场仅声明独立技能（无插件）。"""
     _create_standalone_skill(marketplace_dir / "skills" / "greet", "greet")
     _create_standalone_skill(marketplace_dir / "skills" / "commit", "commit")
     manifest_dir = marketplace_dir / ".plugin"
@@ -90,10 +90,10 @@ def _create_skills_only_marketplace(marketplace_dir: Path) -> Path:
 
 
 class TestExposedUrlData:
-    """Tests for ExposedUrlData dataclass."""
+    """测试 ExposedUrlData 数据类。"""
 
     def test_create_exposed_url_data(self):
-        """Test creating ExposedUrlData instance."""
+        """测试创建 ExposedUrlData 实例。"""
         url_data = ExposedUrlData(
             name="WORKER_8080",
             url="http://localhost:8080",
@@ -105,10 +105,10 @@ class TestExposedUrlData:
 
 
 class TestCreateSandboxSkill:
-    """Tests for create_sandbox_skill function."""
+    """测试 create_sandbox_skill 功能。"""
 
     def test_create_sandbox_skill_with_worker_urls(self):
-        """Test creating sandbox skill with WORKER_ prefixed URLs."""
+        """测试带有 WORKER_ 前缀的 URLs 预置的沙盒技能。"""
         exposed_urls = [
             ExposedUrlData(name="WORKER_8080", url="http://localhost:8080", port=8080),
             ExposedUrlData(name="WORKER_3000", url="http://localhost:3000", port=3000),
@@ -126,7 +126,7 @@ class TestCreateSandboxSkill:
         assert skill.source is None
 
     def test_create_sandbox_skill_no_worker_urls(self):
-        """Test that non-WORKER_ URLs are filtered out."""
+        """测试非WORKER_ URLs 被过滤掉。"""
         exposed_urls = [
             ExposedUrlData(name="DATABASE", url="http://localhost:5432", port=5432),
             ExposedUrlData(name="REDIS", url="http://localhost:6379", port=6379),
@@ -137,7 +137,7 @@ class TestCreateSandboxSkill:
         assert skill is None
 
     def test_create_sandbox_skill_mixed_urls(self):
-        """Test with mix of WORKER_ and non-WORKER_ URLs."""
+        """WORKER_ 和非WORKER_ URLs 进行测试。"""
         exposed_urls = [
             ExposedUrlData(name="WORKER_8080", url="http://localhost:8080", port=8080),
             ExposedUrlData(name="DATABASE", url="http://localhost:5432", port=5432),
@@ -152,25 +152,25 @@ class TestCreateSandboxSkill:
         assert "http://localhost:5432" not in skill.content
 
     def test_create_sandbox_skill_empty_list(self):
-        """Test with empty URL list."""
+        """使用空的 URL 列表进行测试。"""
         skill = create_sandbox_skill([])
         assert skill is None
 
     def test_sandbox_worker_url_prefix_constant(self):
-        """Test that SANDBOX_WORKER_URL_PREFIX is correctly defined."""
+        """测试 SANDBOX_WORKER_URL_PREFIX 的定义是否正确。"""
         assert SANDBOX_WORKER_URL_PREFIX == "WORKER_"
 
 
 class TestMergeSkills:
-    """Tests for merge_skills function."""
+    """测试 merge_skills 功能。"""
 
     def test_merge_empty_lists(self):
-        """Test merging empty skill lists."""
+        """测试合并空技能列表。"""
         result = merge_skills([[], [], []])
         assert result == []
 
     def test_merge_single_list(self):
-        """Test merging a single skill list."""
+        """测试合并单个技能列表。"""
         skills = [
             Skill(name="skill1", content="content1", trigger=None),
             Skill(name="skill2", content="content2", trigger=None),
@@ -182,7 +182,7 @@ class TestMergeSkills:
         assert {s.name for s in result} == {"skill1", "skill2"}
 
     def test_merge_multiple_lists_no_duplicates(self):
-        """Test merging multiple lists without duplicates."""
+        """测试合并多个不重复的列表。"""
         list1 = [Skill(name="skill1", content="content1", trigger=None)]
         list2 = [Skill(name="skill2", content="content2", trigger=None)]
         list3 = [Skill(name="skill3", content="content3", trigger=None)]
@@ -193,7 +193,7 @@ class TestMergeSkills:
         assert {s.name for s in result} == {"skill1", "skill2", "skill3"}
 
     def test_merge_with_duplicates_later_wins(self):
-        """Test that later lists override earlier lists for duplicate names."""
+        """测试稍后列出的内容是否会覆盖先前列出的重复名称。"""
         list1 = [Skill(name="skill1", content="original", trigger=None)]
         list2 = [Skill(name="skill1", content="override", trigger=None)]
 
@@ -204,7 +204,7 @@ class TestMergeSkills:
         assert result[0].content == "override"
 
     def test_merge_preserves_precedence_order(self):
-        """Test that precedence order is maintained (later overrides earlier)."""
+        """测试优先顺序是否得到维护（稍后覆盖之前）。"""
         list1 = [Skill(name="shared", content="first", trigger=None)]
         list2 = [Skill(name="shared", content="second", trigger=None)]
         list3 = [Skill(name="shared", content="third", trigger=None)]
@@ -216,10 +216,10 @@ class TestMergeSkills:
 
 
 class TestLoadOrgSkillsFromUrl:
-    """Tests for load_org_skills_from_url function."""
+    """测试 load_org_skills_from_url 功能。"""
 
     def test_load_org_skills_git_clone_failure(self):
-        """Test handling of git clone failure."""
+        """测试 git 克隆失败的处理。"""
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = Exception("Git not found")
 
@@ -231,7 +231,7 @@ class TestLoadOrgSkillsFromUrl:
             assert result == []
 
     def test_load_org_skills_repo_not_found(self):
-        """Test handling of repository not found."""
+        """未找到存储库的测试处理。"""
         import subprocess
 
         with patch("subprocess.run") as mock_run:
@@ -248,7 +248,7 @@ class TestLoadOrgSkillsFromUrl:
             assert result == []
 
     def test_load_org_skills_timeout(self):
-        """Test handling of git clone timeout."""
+        """测试 git clone 超时的处理。"""
         import subprocess
 
         with patch("subprocess.run") as mock_run:
@@ -265,7 +265,7 @@ class TestLoadOrgSkillsFromUrl:
             assert result == []
 
     def test_load_org_skills_custom_working_dir(self):
-        """Test using custom working directory."""
+        """使用自定义工作目录进行测试。"""
         import subprocess
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -285,7 +285,7 @@ class TestLoadOrgSkillsFromUrl:
 
 
 class TestLoadAllSkills:
-    """Tests for load_all_skills function."""
+    """测试 load_all_skills 功能。"""
 
     _PATCH_TARGET = "openhands.agent_server.skills_service.load_available_skills"
 
@@ -352,7 +352,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_uses_auto_load_registrations(
         self, tmp_path: Path
     ):
-        """Only registrations marked auto_load=True contribute plugin skills."""
+        """只有标记为 auto_load=True 的注册才能贡献插件技能。"""
         marketplace_dir = _create_test_marketplace(tmp_path / "marketplace")
 
         skills = load_registered_marketplace_skills(
@@ -406,7 +406,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_selects_listed_standalone_skills(
         self, tmp_path: Path
     ):
-        """A name list selects standalone skills the same way it selects plugins."""
+        """名单选择独立技能的方式与选择插件的方式相同。"""
         marketplace_dir = _create_skills_only_marketplace(tmp_path / "marketplace")
 
         skills = load_registered_marketplace_skills(
@@ -424,7 +424,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_skips_standalone_when_not_auto_load(
         self, tmp_path: Path
     ):
-        """A skills-only marketplace without auto_load contributes nothing."""
+        """没有 auto_load 的纯技能市场没有任何贡献。"""
         marketplace_dir = _create_skills_only_marketplace(tmp_path / "marketplace")
 
         skills = load_registered_marketplace_skills(
@@ -436,7 +436,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_loads_plain_skills_repository(
         self, tmp_path: Path
     ):
-        """A repository with no manifest contributes its skills folder."""
+        """没有清单的存储库会贡献其技能文件夹。"""
         repo = tmp_path / "repo"
         _create_standalone_skill(repo / "skills" / "greet", "greet")
         _create_standalone_skill(repo / "skills" / "commit", "commit")
@@ -458,7 +458,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_loads_plugins_and_standalone(
         self, tmp_path: Path
     ):
-        """A marketplace with both plugins and standalone skills loads both."""
+        """具有插件和独立技能的市场会加载两者。"""
         marketplace_dir = tmp_path / "marketplace"
         _create_test_plugin(marketplace_dir / "plugins" / "auto", "auto", "auto-skill")
         _create_standalone_skill(marketplace_dir / "skills" / "greet", "greet")
@@ -486,9 +486,9 @@ class TestLoadAllSkills:
         assert {skill.name for skill in skills} == {"auto-skill", "greet"}
 
     def test_plugin_wins_over_standalone_on_name_collision(self, tmp_path: Path):
-        """A plugin skill overrides a same-named standalone skill (catalog rule)."""
+        """插件技能会覆盖同名的独立技能（目录规则）。"""
         marketplace_dir = tmp_path / "marketplace"
-        # Plugin 'p' bundles a skill named 'shared'.
+        # 插件“p”捆绑了名为“共享”的技能。
         plugin_dir = marketplace_dir / "plugins" / "p"
         (plugin_dir / ".plugin").mkdir(parents=True)
         (plugin_dir / ".plugin" / "plugin.json").write_text(
@@ -498,7 +498,7 @@ class TestLoadAllSkills:
         (plugin_dir / "skills" / "shared.md").write_text(
             "---\nname: shared\n---\nFROM_PLUGIN"
         )
-        # Standalone skill also named 'shared'.
+        # 独立技能也称为“共享”。
         standalone = marketplace_dir / "skills" / "shared"
         standalone.mkdir(parents=True)
         (standalone / "SKILL.md").write_text(
@@ -517,8 +517,9 @@ class TestLoadAllSkills:
             )
         )
 
-        # Marketplace auto-load is gated on load_public; the patch keeps the
-        # public tier empty so only the marketplace contributes 'shared'.
+        # 市场自动加载由 load_public 控制； 该补丁使公共层保持空白，因此只有市场贡献“共
+        # 享”。
+        #
         with patch(self._PATCH_TARGET, return_value={}):
             result = load_all_skills(
                 load_public=True,
@@ -540,7 +541,7 @@ class TestLoadAllSkills:
     def test_load_registered_marketplace_skills_uses_registration_fetch_fields(
         self, tmp_path: Path
     ):
-        """Marketplace source, ref, and repo_path drive registry fetching."""
+        """市场源、参考和 repo_path 驱动器注册表获取。"""
         marketplace_dir = _create_test_marketplace(tmp_path / "marketplace")
 
         with patch(
@@ -567,7 +568,7 @@ class TestLoadAllSkills:
         )
 
     def test_load_all_skills_returns_skill_load_result(self):
-        """Test that load_all_skills returns a SkillLoadResult."""
+        """测试 load_all_skills 返回 SkillLoadResult。"""
         with patch(self._PATCH_TARGET, return_value={}):
             result = load_all_skills(
                 load_public=True,
@@ -581,16 +582,16 @@ class TestLoadAllSkills:
             assert isinstance(result.sources, dict)
 
     def test_load_all_skills_sources_tracking(self):
-        """Test that source counts are tracked correctly."""
+        """测试源计数是否正确跟踪。"""
         skill1 = Skill(name="public1", content="c1", trigger=None)
         skill2 = Skill(name="user1", content="c2", trigger=None)
 
-        # First call returns sdk_base (public+user), second returns project
+        # 第一次调用返回 sdk_base (public+user)，第二次返回项目
         with patch(
             self._PATCH_TARGET,
             side_effect=[
                 {"public1": skill1, "user1": skill2},  # sdk_base
-                {},  # project
+                {},  # 项目
             ],
         ):
             result = load_all_skills(
@@ -607,7 +608,7 @@ class TestLoadAllSkills:
             assert result.sources["registered_marketplaces"] == 0
 
     def test_load_all_skills_passes_marketplace_path_to_sdk_base(self):
-        """Test that marketplace_path is forwarded to SDK public skill loading."""
+        """测试marketplace_path转发到SDK公共技能加载。"""
         with patch(self._PATCH_TARGET, side_effect=[{}, {}]) as mock_avail:
             load_all_skills(
                 load_public=True,
@@ -625,7 +626,7 @@ class TestLoadAllSkills:
         assert project_call.kwargs["include_public"] is False
 
     def test_load_all_skills_disabled_sources(self):
-        """Test that disabled sources are not loaded."""
+        """测试禁用的源是否未加载。"""
         with patch(self._PATCH_TARGET, return_value={}) as mock_avail:
             result = load_all_skills(
                 load_public=False,
@@ -634,13 +635,13 @@ class TestLoadAllSkills:
                 load_org=False,
             )
 
-            # Called twice (sdk_base + project), both with disabled flags
+            # 调用两次（sdk_base + 项目），均带有禁用标志
             assert mock_avail.call_count == 2
             assert result.sources["sdk_base"] == 0
             assert result.sources["project"] == 0
 
     def test_load_all_skills_with_sandbox_urls(self):
-        """Test loading skills with sandbox URLs."""
+        """使用沙盒测试加载技能 URLs。"""
         sandbox_urls = [
             ExposedUrlData(name="WORKER_8080", url="http://localhost:8080", port=8080),
         ]
@@ -659,17 +660,17 @@ class TestLoadAllSkills:
             assert result.skills[0].name == "work_hosts"
 
     def test_load_all_skills_handles_exceptions(self):
-        """Test that exceptions from skill loaders are handled gracefully."""
+        """测试技能加载器的异常是否得到妥善处理。"""
         user_skill = Skill(name="user1", content="content", trigger=None)
 
-        # load_available_skills handles exceptions internally and returns
-        # whatever it can. Simulate: first call returns user skill only
-        # (public failed internally), second call returns empty project.
+        # load_available_skills 在内部处理异常并返回任何它能返回的内容。 模拟：第一次调
+        # 用仅返回用户技能（公共内部失败），第二次调用返回空项目。
+        #
         with patch(
             self._PATCH_TARGET,
             side_effect=[
-                {"user1": user_skill},  # sdk_base (public error handled inside)
-                {},  # project
+                {"user1": user_skill},  # sdk_base（内部处理公共错误）
+                {},  # 项目
             ],
         ):
             result = load_all_skills(
@@ -682,16 +683,16 @@ class TestLoadAllSkills:
             assert result.sources["sdk_base"] == 1
 
     def test_load_all_skills_merge_precedence(self):
-        """Test that skills are merged with correct precedence."""
+        """测试技能是否以正确的优先顺序合并。"""
         base_skill = Skill(name="shared", content="user", trigger=None)
         project_skill = Skill(name="shared", content="project", trigger=None)
 
-        # sdk_base returns user version, project returns project version
+        # sdk_base返回用户版本，项目返回项目版本
         with patch(
             self._PATCH_TARGET,
             side_effect=[
                 {"shared": base_skill},  # sdk_base
-                {"shared": project_skill},  # project
+                {"shared": project_skill},  # 项目
             ],
         ):
             result = load_all_skills(
@@ -702,13 +703,13 @@ class TestLoadAllSkills:
                 project_dir="/workspace",
             )
 
-            # Project should override user/public
+            # 项目应覆盖用户/公共
             shared_skills = [s for s in result.skills if s.name == "shared"]
             assert len(shared_skills) == 1
             assert shared_skills[0].content == "project"
 
     def test_load_all_skills_loops_and_merges_multiple_org_repos(self):
-        """Every org repo is loaded (in order) and merged into the org source."""
+        """每个组织存储库都会加载（按顺序）并合并到组织源中。"""
         with patch(self._PATCH_TARGET, return_value={}):
             with patch(
                 "openhands.agent_server.skills_service.load_org_skills_from_url",
@@ -735,7 +736,7 @@ class TestLoadAllSkills:
         ]
 
     def test_load_all_skills_org_merge_precedence(self):
-        """A skill in multiple org repos resolves to the later repo's version."""
+        """多个组织存储库中的技能解析为较晚的存储库版本。"""
         with patch(self._PATCH_TARGET, return_value={}):
             with patch(
                 "openhands.agent_server.skills_service.load_org_skills_from_url",
@@ -761,7 +762,7 @@ class TestLoadAllSkills:
 
 
 class TestDiscoverProfileSkills:
-    """Tests for discover_profile_skills (the OpenHands profile launch catalog)."""
+    """测试 discover_profile_skills（OpenHands 配置文件启动目录）。"""
 
     _LOAD_ALL = "openhands.agent_server.skills_service.load_all_skills"
 
@@ -772,7 +773,7 @@ class TestDiscoverProfileSkills:
             result = discover_profile_skills()
 
         assert result == skills
-        # Only the deterministic, no-extra-context sources are discovered.
+        # 仅发现确定性的、无额外上下文的来源。
         assert mock_load.call_args.kwargs == {
             "load_public": True,
             "load_user": True,
@@ -781,9 +782,9 @@ class TestDiscoverProfileSkills:
         }
 
     def test_propagates_unexpected_failure(self):
-        # load_all_skills absorbs benign per-source failures internally; an
-        # unexpected failure propagates rather than silently resolving to a
-        # zero-skill agent (the caller surfaces it loudly).
+        # load_all_skills 在内部吸收良性的每源故障； 意外的失败会传播，而不是默默地解决
+        # 为零技能智能体（调用者大声地表达它）。
+        #
         with patch(self._LOAD_ALL, side_effect=RuntimeError("boom")):
             with pytest.raises(RuntimeError, match="boom"):
                 discover_profile_skills()
@@ -804,10 +805,10 @@ class TestDiscoverPublicSkillNames:
 
 
 class TestSyncPublicSkills:
-    """Tests for sync_public_skills function."""
+    """测试 sync_public_skills 功能。"""
 
     def test_sync_public_skills_success(self):
-        """Test successful skill sync."""
+        """测试成功的技能同步。"""
         with (
             patch(
                 "openhands.agent_server.skills_service.get_skills_cache_dir"
@@ -825,7 +826,7 @@ class TestSyncPublicSkills:
             assert "success" in message.lower()
 
     def test_sync_public_skills_failure(self):
-        """Test failed skill sync."""
+        """测试失败的技能同步。"""
         with (
             patch(
                 "openhands.agent_server.skills_service.get_skills_cache_dir"
@@ -843,7 +844,7 @@ class TestSyncPublicSkills:
             assert "failed" in message.lower()
 
     def test_sync_public_skills_exception(self):
-        """Test skill sync with exception."""
+        """测试技能同步有异常。"""
         with patch(
             "openhands.agent_server.skills_service.get_skills_cache_dir"
         ) as mock_cache:
@@ -855,8 +856,8 @@ class TestSyncPublicSkills:
             assert "failed" in message.lower() or "error" in message.lower()
 
     def test_sync_public_skills_invalidates_in_memory_cache(self):
-        """Successful sync must drop the in-memory cache so the next call
-        re-parses immediately instead of waiting for the TTL."""
+        """成功的同步必须删除内存中的缓存，以便下次调用
+        立即重新解析，而不是等待 TTL。"""
         with (
             patch(
                 "openhands.agent_server.skills_service.get_skills_cache_dir"
@@ -877,8 +878,8 @@ class TestSyncPublicSkills:
             mock_invalidate.assert_called_once()
 
     def test_sync_public_skills_failure_does_not_invalidate_cache(self):
-        """A failed sync must not clobber the cache so the previous skills
-        stay available until the next successful refresh."""
+        """失败的同步不得破坏缓存，因此之前的技能
+        保持可用，直到下一次成功刷新。"""
         with (
             patch(
                 "openhands.agent_server.skills_service.get_skills_cache_dir"
@@ -899,7 +900,7 @@ class TestSyncPublicSkills:
             mock_invalidate.assert_not_called()
 
     def test_sync_public_skills_reports_unreachable_origin(self, tmp_path):
-        """A sync whose fetch fails must report failure, not the stale clone."""
+        """获取失败的同步必须报告失败，而不是过时的克隆。"""
         import subprocess
 
         def git(*args: str, cwd: Path) -> None:
@@ -937,21 +938,21 @@ class TestSyncPublicSkills:
             assert sync_public_skills()[0] is True
             clone = cache_dir / "public-skills"
 
-            # The origin becomes unreachable once the clone exists.
+            # 一旦克隆存在，原点就变得不可访问。
             origin.rename(tmp_path / "moved")
             success, message = sync_public_skills()
 
         assert success is False
         assert "failed" in message.lower()
-        # The stale clone stays usable for offline skill loading.
+        # 过时的克隆仍然可用于离线技能加载。
         assert (clone / "README.md").read_text() == "skills\n"
 
 
 class TestSkillLoadResult:
-    """Tests for SkillLoadResult dataclass."""
+    """测试 SkillLoadResult 数据类。"""
 
     def test_skill_load_result_creation(self):
-        """Test creating SkillLoadResult instance."""
+        """测试创建 SkillLoadResult 实例。"""
         skills = [Skill(name="test", content="content", trigger=None)]
         sources = {"public": 1, "user": 0}
 
@@ -961,7 +962,7 @@ class TestSkillLoadResult:
         assert result.sources == sources
 
     def test_skill_load_result_empty(self):
-        """Test creating empty SkillLoadResult."""
+        """测试创建空SkillLoadResult。"""
         result = SkillLoadResult(skills=[], sources={})
 
         assert result.skills == []
@@ -969,16 +970,16 @@ class TestSkillLoadResult:
 
 
 class TestMarketplaceCatalogCache:
-    """Tests for TTL caching in service_get_marketplace_catalog."""
+    """测试 service_get_marketplace_catalog 中的 TTL 缓存。"""
 
     def setup_method(self):
-        """Reset the module-level cache before each test."""
+        """每次测试前重置模块级缓存。"""
         import openhands.agent_server.skills_service as svc
 
         svc._catalog_cache = None
 
     def test_cache_miss_calls_fetch(self):
-        """First call (cold cache) fetches from the repository."""
+        """第一次调用（冷缓存）从存储库中获取。"""
         entries = [("github", "GitHub skill", "github:org/repo")]
         with (
             patch(
@@ -1002,7 +1003,7 @@ class TestMarketplaceCatalogCache:
         assert result[0].installed is False
 
     def test_cache_hit_skips_fetch(self):
-        """Second call within TTL reuses cached entries without another fetch."""
+        """TTL 内的第二次调用重用缓存的条目，无需再次提取。"""
         entries = [("github", "GitHub skill", "github:org/repo")]
         with (
             patch(
@@ -1021,10 +1022,10 @@ class TestMarketplaceCatalogCache:
             service_get_marketplace_catalog()
             service_get_marketplace_catalog()
 
-        mock_fetch.assert_called_once()  # only one fetch despite two calls
+        mock_fetch.assert_called_once()  # 尽管有两次调用，但只有一次获取
 
     def test_installed_status_always_fresh(self):
-        """installed flag is derived fresh on every call, not from the cache."""
+        """已安装标志在每次调用时都会重新派生，而不是从缓存中派生。"""
         from unittest.mock import MagicMock
 
         from openhands.agent_server.skills_service import (
@@ -1045,21 +1046,21 @@ class TestMarketplaceCatalogCache:
                 "openhands.agent_server.skills_service.service_list_installed_skills",
             ) as mock_installed,
         ):
-            # First call: skill not installed
+            # 第一次调用：技能未安装
             mock_installed.return_value = []
             result1 = service_get_marketplace_catalog()
             assert result1[0].installed is False
 
-            # Second call (cache hit): skill now installed
+            # 第二次调用（缓存命中）：技能现已安装
             mock_installed.return_value = [installed_skill]
             result2 = service_get_marketplace_catalog()
             assert result2[0].installed is True
 
-        # service_list_installed_skills called twice (once per request)
+        # service_list_installed_skills 调用两次（每个请求一次）
         assert mock_installed.call_count == 2
 
     def test_cache_expires_after_ttl(self):
-        """After TTL expires, the next call fetches from the repository again."""
+        """TTL 过期后，下一次调用将再次从存储库中获取。"""
         import openhands.agent_server.skills_service as svc
 
         entries = [("github", "GitHub skill", "github:org/repo")]
@@ -1078,7 +1079,7 @@ class TestMarketplaceCatalogCache:
             )
 
             service_get_marketplace_catalog()
-            # Artificially expire the cache
+            # 人为地使缓存过期
             assert svc._catalog_cache is not None
             svc._catalog_cache = (
                 svc._catalog_cache[0] - svc._CATALOG_TTL_SECONDS - 1,
@@ -1086,11 +1087,11 @@ class TestMarketplaceCatalogCache:
             )
             service_get_marketplace_catalog()
 
-        assert mock_fetch.call_count == 2  # fetched again after expiry
+        assert mock_fetch.call_count == 2  # 过期后再次获取
 
     def test_empty_result_is_not_cached(self):
-        """A failed or empty fetch is retried on the next call instead of
-        blanking the catalog for the whole TTL."""
+        """失败或空的提取将在下次调用时重试，而不是
+        清空整个目录 TTL。"""
         import openhands.agent_server.skills_service as svc
 
         entries = [("github", "GitHub skill", "github:org/repo")]
@@ -1112,7 +1113,7 @@ class TestMarketplaceCatalogCache:
         assert [s.name for s in result] == ["github"]
 
     def test_sync_clears_catalog_cache(self):
-        """A successful sync makes the next catalog read pick up new entries."""
+        """成功的同步使下一个目录读取拾取新条目。"""
         import openhands.agent_server.skills_service as svc
 
         before = [("github", "GitHub skill", "github:org/repo")]
@@ -1141,7 +1142,7 @@ class TestMarketplaceCatalogCache:
         assert [s.name for s in result] == ["github", "jira"]
 
     def test_failed_sync_keeps_catalog_cache(self):
-        """A failed sync leaves the cached catalog in place."""
+        """失败的同步会将缓存的目录保留在原处。"""
         import openhands.agent_server.skills_service as svc
 
         entries = [("github", "GitHub skill", "github:org/repo")]

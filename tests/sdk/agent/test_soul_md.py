@@ -1,8 +1,7 @@
-"""Unit tests for _load_soul_md loader edge cases.
+"""单元测试适用于 _load_soul_md 装载机边缘情况。
 
-Snapshot tests for the full rendered system prompt with default and custom
-soul content live in ``tests/sdk/context/prompts/test_prompt_snapshot.py``
-alongside the other prompt golden files.
+对完整渲染系统提示词进行快照测试，默认和自定义灵魂内容与其他提示词黄金文件一起位于
+``tests/sdk/context/prompts/test_prompt_snapshot.py`` 中。
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
 (function() {
     if (window.__rrweb_stopFn) return {status: 'already_recording'};
-    // Check if rrweb failed to load from CDN
+    // 检查 rrweb 是否无法从 CDN 加载
     if (window.__rrweb_load_failed) return {status: 'load_failed'};
-    // rrweb UMD module exports to window.rrweb (not rrwebRecord)
+    // rrweb UMD 模块导出到 window.rrweb （不是 rrwebRecord）
     var recordFn = (typeof rrweb !== 'undefined' && rrweb.record) ||
                    (typeof rrwebRecord !== 'undefined' && rrwebRecord.record);
     if (!recordFn) return {status: 'not_loaded'};

@@ -1,9 +1,8 @@
-"""Secret masking must leave id fields unchanged.
+"""机密屏蔽必须保持 id 字段不变。
 
-A short secret can occur inside a random UUID. If masking rewrites the id, the
-event file name no longer matches ``EVENT_NAME_RE``, so ``EventLog`` cannot
-reload the conversation. A masked ``tool_call_id`` or ``action_id`` also
-breaks tool-call pairing in the LLM request.
+短路机密可以发生在随机 UUID 内。 如果屏蔽重写了 ID，则事件文件名不再与
+``EVENT_NAME_RE`` 匹配，因此 ``EventLog`` 无法重新加载对话
+。 屏蔽的 ``tool_call_id`` 或 ``action_id`` 也会破坏 LLM 请求中的工具调用配对。
 """
 
 from collections.abc import Callable
@@ -41,7 +40,7 @@ TEXT = f"text {SECRET}"
 def _registry() -> SecretRegistry:
     registry = SecretRegistry()
     registry.update_secrets({"SHORT": SECRET})
-    registry.get_secret_value("SHORT")  # resolve -> tracked for masking
+    registry.get_secret_value("SHORT")  # 解析 -> 跟踪掩码
     return registry
 
 
@@ -58,7 +57,7 @@ def _tool_call() -> MessageToolCall:
 
 
 def test_masked_event_reloads_from_disk(tmp_path):
-    """The repro from the bug report: the log must reload after masking."""
+    """错误报告的重现：屏蔽后必须重新加载日志。"""
     log = EventLog(LocalFileStore(str(tmp_path)))
     first = _message(None)
     log.append(first)
@@ -79,8 +78,9 @@ def test_masked_event_reloads_from_disk(tmp_path):
     assert EventLog(LocalFileStore(str(tmp_path))).get_index(last.id) == 2
 
 
-# Each case: an event with ``ID`` in every id field, the id field names, and a
-# getter for a text field that holds ``TEXT`` and must still be masked.
+# 每种情况：每个 id 字段中包含 ``ID`` 的事件、id 字段名称以及包含 ``TEXT`` 且仍必须屏蔽
+# 的文本字段的 getter。
+#
 _CASES: list[tuple[Any, list[str], Callable[[Any], Any]]] = [
     (
         SecurityAnalysisEvent(
@@ -177,7 +177,7 @@ def test_masks_text_but_not_id_fields(event, id_fields, get_text):
 
 
 def test_security_analysis_details_keyed_by_event_id_are_still_masked():
-    """``dict[EventID, ...]`` marks only the keys; the values hold analyzer text."""
+    """``dict[EventID, ...]`` 仅标记按键； 这些值保存分析器文本。"""
     event = SecurityAnalysisEvent(
         analyzer="LLMSecurityAnalyzer",
         policy="NeverConfirm",
@@ -215,7 +215,7 @@ class _MixedContainers(BaseModel):
 
 
 def test_text_beside_an_id_type_is_still_masked():
-    """A type is skipped only when every str-bearing part of it is an id."""
+    """仅当类型的每个带有 str 的部分都是 id 时，才会跳过该类型。"""
     model = _MixedContainers(either=[TEXT], pair=(ID, TEXT), by_name={"k": TEXT})
 
     masked = _registry().mask_secrets_in_model(model)

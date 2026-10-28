@@ -1,4 +1,4 @@
-"""Test pause and resume functionality for workspace classes."""
+"""测试工作区类的暂停和恢复功能。"""
 
 from unittest.mock import MagicMock, Mock, patch
 
@@ -6,13 +6,13 @@ import pytest
 
 
 # =============================================================================
-# Fixtures
+# 测试夹具
 # =============================================================================
 
 
 @pytest.fixture
 def mock_docker_workspace():
-    """Create a mocked DockerWorkspace with minimal setup."""
+    """使用最少的设置创建模拟的 DockerWorkspace。"""
     from openhands.workspace import DockerWorkspace
 
     with patch("openhands.workspace.docker.workspace.execute_command") as mock_exec:
@@ -31,7 +31,7 @@ def mock_docker_workspace():
 
 @pytest.fixture
 def mock_api_workspace():
-    """Create a mocked APIRemoteWorkspace with minimal setup."""
+    """使用最少的设置创建模拟的 APIRemoteWorkspace。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime"):
@@ -51,7 +51,7 @@ def mock_api_workspace():
 
 @pytest.fixture
 def mock_cloud_workspace():
-    """Create a mocked OpenHandsCloudWorkspace with minimal setup."""
+    """使用最少的设置创建模拟的 OpenHandsCloudWorkspace。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):
@@ -68,40 +68,40 @@ def mock_cloud_workspace():
 
 
 # =============================================================================
-# LocalWorkspace Tests
+# LocalWorkspace 测试
 # =============================================================================
 
 
 def test_local_workspace_pause_is_noop():
-    """Test that pause() is a no-op for LocalWorkspace."""
+    """测试 pause() 对于 LocalWorkspace 是无操作。"""
     from openhands.sdk.workspace import LocalWorkspace
 
     workspace = LocalWorkspace(working_dir="/tmp")
-    # Should not raise
+    # 不应该提高
     workspace.pause()
 
 
 def test_local_workspace_resume_is_noop():
-    """Test that resume() is a no-op for LocalWorkspace."""
+    """测试 resume() 对于 LocalWorkspace 是无操作。"""
     from openhands.sdk.workspace import LocalWorkspace
 
     workspace = LocalWorkspace(working_dir="/tmp")
-    # Should not raise
+    # 不应该提高
     workspace.resume()
 
 
 # =============================================================================
-# DockerWorkspace Tests
+# DockerWorkspace 测试
 # =============================================================================
 
 
 def test_docker_workspace_pause_calls_docker_pause(mock_docker_workspace):
-    """Test that pause() calls docker pause command."""
+    """测试 pause() 调用 Docker 暂停命令。"""
     workspace, mock_exec = mock_docker_workspace
 
     workspace.pause()
 
-    # Verify docker pause was called
+    # 验证调用了 Docker 暂停
     calls = [c[0][0] for c in mock_exec.call_args_list]
     pause_calls = [c for c in calls if "pause" in c and "docker" in c]
     assert len(pause_calls) == 1
@@ -109,15 +109,15 @@ def test_docker_workspace_pause_calls_docker_pause(mock_docker_workspace):
 
 
 def test_docker_workspace_resume_calls_docker_unpause(mock_docker_workspace):
-    """Test that resume() calls docker unpause command."""
+    """测试 resume() 调用 Docker 取消暂停命令。"""
     workspace, mock_exec = mock_docker_workspace
     workspace.host_port = 8000
 
-    # Mock _wait_for_health
+    # 模拟对象 _wait_for_health
     with patch.object(workspace, "_wait_for_health"):
         workspace.resume()
 
-    # Verify docker unpause was called
+    # 验证已调用 Docker 取消暂停
     calls = [c[0][0] for c in mock_exec.call_args_list]
     unpause_calls = [c for c in calls if "unpause" in c and "docker" in c]
     assert len(unpause_calls) == 1
@@ -125,7 +125,7 @@ def test_docker_workspace_resume_calls_docker_unpause(mock_docker_workspace):
 
 
 def test_docker_workspace_pause_raises_if_no_container():
-    """Test that pause() raises RuntimeError if container not running."""
+    """如果容器未运行，则测试 pause() 是否引发 RuntimeError。"""
     from openhands.workspace import DockerWorkspace
 
     with patch.object(DockerWorkspace, "_start_container"):
@@ -140,7 +140,7 @@ def test_docker_workspace_pause_raises_if_no_container():
 
 
 def test_docker_workspace_resume_raises_if_no_container():
-    """Test that resume() raises RuntimeError if container not running."""
+    """如果容器未运行，则测试 resume() 是否引发 RuntimeError。"""
     from openhands.workspace import DockerWorkspace
 
     with patch.object(DockerWorkspace, "_start_container"):
@@ -155,12 +155,12 @@ def test_docker_workspace_resume_raises_if_no_container():
 
 
 # =============================================================================
-# APIRemoteWorkspace Tests
+# APIRemoteWorkspace 测试
 # =============================================================================
 
 
 def test_api_workspace_pause_calls_api_endpoint(mock_api_workspace):
-    """Test that pause() calls /pause API endpoint."""
+    """测试 pause() 调用 /pause API 端点。"""
     workspace = mock_api_workspace
 
     with patch.object(workspace, "_send_api_request") as mock_request:
@@ -173,7 +173,7 @@ def test_api_workspace_pause_calls_api_endpoint(mock_api_workspace):
 
 
 def test_api_workspace_resume_calls_api_endpoint(mock_api_workspace):
-    """Test that resume() calls /resume API endpoint."""
+    """测试 resume() 调用 /resume API 端点。"""
     workspace = mock_api_workspace
 
     with patch.object(workspace, "_resume_runtime") as mock_resume:
@@ -183,7 +183,7 @@ def test_api_workspace_resume_calls_api_endpoint(mock_api_workspace):
 
 
 def test_api_workspace_pause_raises_if_no_runtime():
-    """Test that pause() raises RuntimeError if runtime not running."""
+    """如果运行时未运行，则测试 pause() 是否引发 RuntimeError。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime"):
@@ -200,7 +200,7 @@ def test_api_workspace_pause_raises_if_no_runtime():
 
 
 def test_api_workspace_resume_raises_if_no_runtime():
-    """Test that resume() raises RuntimeError if runtime not running."""
+    """如果运行时未运行，则测试 resume() 是否引发 RuntimeError。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime"):
@@ -217,12 +217,12 @@ def test_api_workspace_resume_raises_if_no_runtime():
 
 
 # =============================================================================
-# OpenHandsCloudWorkspace Tests
+# OpenHandsCloudWorkspace 测试
 # =============================================================================
 
 
 def test_cloud_workspace_pause_raises_not_implemented(mock_cloud_workspace):
-    """Test that pause() raises NotImplementedError."""
+    """测试 pause() 引发 NotImplementedError。"""
     workspace = mock_cloud_workspace
 
     with pytest.raises(NotImplementedError, match="not yet supported"):
@@ -230,7 +230,7 @@ def test_cloud_workspace_pause_raises_not_implemented(mock_cloud_workspace):
 
 
 def test_cloud_workspace_resume_calls_resume_sandbox(mock_cloud_workspace):
-    """Test that resume() calls _resume_sandbox()."""
+    """测试 resume() 调用 _resume_sandbox()。"""
     workspace = mock_cloud_workspace
 
     with patch.object(workspace, "_resume_sandbox") as mock_resume:
@@ -240,7 +240,7 @@ def test_cloud_workspace_resume_calls_resume_sandbox(mock_cloud_workspace):
 
 
 def test_cloud_workspace_resume_raises_if_no_sandbox():
-    """Test that resume() raises RuntimeError if sandbox not running."""
+    """如果沙箱未运行，则测试 resume() 是否引发 RuntimeError。"""
     from openhands.workspace import OpenHandsCloudWorkspace
 
     with patch.object(OpenHandsCloudWorkspace, "_start_sandbox"):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Integration test runner for agent-sdk.
+集成测试智能体-SDK 的跑步者。
 """
 
 import argparse
@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 
 class TestInstance(BaseModel):
-    """Represents a single test instance."""
+    """代表单个测试实例。"""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
@@ -42,12 +42,12 @@ class TestInstance(BaseModel):
 
     @property
     def required(self) -> bool:
-        """Whether the test is required (integration) or optional (everything else)."""
+        """测试是必需的（集成）还是可选的（其他一切）。"""
         return self.test_type == "integration"
 
 
 class EvalOutput(BaseModel):
-    """Output from running a single test instance."""
+    """运行单个测试实例的输出。"""
 
     instance_id: str
     test_result: TestResult
@@ -60,15 +60,15 @@ class EvalOutput(BaseModel):
 
     @property
     def required(self) -> bool:
-        """Whether the test is required (integration) or optional (everything else)."""
+        """测试是必需的（集成）还是可选的（其他一切）。"""
         return self.test_type == "integration"
 
 
 def load_integration_tests() -> list[TestInstance]:
-    """Load tests from python files under ./tests/integration"""
+    """从 ./tests/integration 下的 Python 个文件加载测试"""
     test_dir = Path(__file__).parent / "tests"
-    # Load task completion tests (t*.py), behavior tests (b*.py), and condenser tests
-    # (c*.py)
+    # 加载任务完成测试 (t*.py)、行为测试 (b*.py) 和上下文压缩器测试 (c*.py)
+    #
     test_files = [
         f
         for f in test_dir.glob("[tbc]*.py")
@@ -78,9 +78,9 @@ def load_integration_tests() -> list[TestInstance]:
 
     instances = []
     for test_file in test_files:
-        instance_id = test_file.stem  # filename without extension
+        instance_id = test_file.stem  # 不带扩展名的文件名
 
-        # Determine test type based on filename prefix
+        # 根据文件名前缀确定测试类型
         if test_file.name.startswith("b"):
             test_type = "behavior"
         elif test_file.name.startswith("c"):
@@ -100,7 +100,7 @@ def load_integration_tests() -> list[TestInstance]:
 
 
 def load_test_class(file_path: str) -> type[BaseIntegrationTest]:
-    """Dynamically load test class from a Python file."""
+    """从 Python 文件动态加载测试类。"""
 
     spec = importlib.util.spec_from_file_location("test_module", file_path)
     if spec is None or spec.loader is None:
@@ -109,7 +109,7 @@ def load_test_class(file_path: str) -> type[BaseIntegrationTest]:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    # Find the test class that inherits from BaseIntegrationTest
+    # 找到继承自BaseIntegrationTest的测试类
     for attr_name in dir(module):
         attr = getattr(module, attr_name)
         if (
@@ -117,7 +117,7 @@ def load_test_class(file_path: str) -> type[BaseIntegrationTest]:
             and issubclass(attr, BaseIntegrationTest)
             and attr != BaseIntegrationTest
         ):
-            return attr  # Return the class, not an instance
+            return attr  # 返回类，而不是实例
 
     raise ImportError(f"No BaseIntegrationTest subclass found in {file_path}")
 
@@ -127,12 +127,12 @@ def process_instance(
     llm_config: dict[str, Any],
     tool_preset: ToolPresetType = "default",
 ) -> EvalOutput:
-    """Process a single test instance."""
+    """处理单个测试实例。"""
     logger.info(
         "Processing test: %s (tool_preset: %s)", instance.instance_id, tool_preset
     )
 
-    # Load the test class
+    # 加载测试类
     test_class_type = load_test_class(instance.file_path)
     if test_class_type is None:
         return EvalOutput(
@@ -143,11 +143,11 @@ def process_instance(
             error_message="Could not load test class",
         )
 
-    # Initialize temp_dir outside try block to ensure it's always defined
+    # 在 try 块外部初始化 temp_dir 以确保它始终被定义
     temp_dir = tempfile.mkdtemp()
 
     try:
-        # Get the module to access its constants
+        # 获取模块访问其常量
         spec = importlib.util.spec_from_file_location("test_module", instance.file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load module from {instance.file_path}")
@@ -156,22 +156,22 @@ def process_instance(
 
         test_instance = test_class_type(
             instruction=module.INSTRUCTION,
-            llm_config=llm_config,  # Use the provided config
-            workspace=temp_dir,  # Pass the workspace directory
-            instance_id=instance.instance_id,  # Pass the instance ID for logging
-            tool_preset=tool_preset,  # Pass the tool preset
+            llm_config=llm_config,  # 使用提供的配置
+            workspace=temp_dir,  # 传递工作区目录
+            instance_id=instance.instance_id,  # 传递实例 ID 进行日志记录
+            tool_preset=tool_preset,  # 传递工具预设
         )
 
-        # Run the test
+        # 运行测试
         start_time = time.time()
         test_result = test_instance.run_integration_test()
         end_time = time.time()
 
-        # Access accumulated_cost from the metrics object where it's properly validated
+        # 从经过正确验证的指标对象访问 accumulated_cost
         llm_cost = test_instance.llm.metrics.accumulated_cost
         token_usage = test_instance.llm.metrics.accumulated_token_usage
 
-        # Create TokenUsageData from the metrics token usage
+        # 根据指标词元用量创建 TokenUsageData
         eval_token_usage = None
         if token_usage:
             eval_token_usage = TokenUsageData(
@@ -206,24 +206,24 @@ def process_instance(
             token_usage_str,
         )
 
-        # Copy log file to a location that will be preserved
+        # 将日志文件复制到将保留的位置
         log_file_path = None
         if hasattr(test_instance, "log_file_path") and os.path.exists(
             test_instance.log_file_path
         ):
-            # Copy the log file to a permanent location before temp_dir is cleaned up
+            # 在清除 temp_dir 之前将日志文件复制到永久位置
 
-            # Create a permanent logs directory in the current working directory
+            # 在当前工作目录中创建永久日志目录
             permanent_logs_dir = os.path.join(os.getcwd(), "integration_test_logs")
             os.makedirs(permanent_logs_dir, exist_ok=True)
 
-            # Create a unique filename to avoid conflicts
+            # 创建唯一的文件名以避免冲突
             permanent_log_filename = f"{instance.instance_id}_agent_logs.txt"
             permanent_log_path = os.path.join(
                 permanent_logs_dir, permanent_log_filename
             )
 
-            # Copy the log file
+            # 复制日志文件
             shutil.copy2(test_instance.log_file_path, permanent_log_path)
             log_file_path = permanent_log_path
 
@@ -244,7 +244,7 @@ def process_instance(
         )
 
     except SkipTest as e:
-        # Test should be skipped (e.g., LLM doesn't support required capabilities)
+        # 应跳过测试（e.g., LLM 不支持所需的功能）
         logger.info("Test %s skipped: %s", instance.instance_id, str(e))
         return EvalOutput(
             instance_id=instance.instance_id,
@@ -270,7 +270,7 @@ def process_instance(
             error_message=str(e),
         )
     finally:
-        # Clean up temporary directory if we created one
+        # 如果我们创建了临时目录，请清理临时目录
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -281,7 +281,7 @@ def run_evaluation(
     num_workers: int,
     tool_preset: ToolPresetType = "default",
 ) -> list[EvalOutput]:
-    """Run evaluation on all test instances and return results directly."""
+    """对所有测试实例运行评估并直接返回结果。"""
     logger.info(
         "Running %d tests with %d workers (tool_preset: %s)",
         len(instances),
@@ -292,15 +292,14 @@ def run_evaluation(
     results = []
 
     if num_workers == 1:
-        # Sequential execution
+        # 顺序执行
         for instance in instances:
             result = process_instance(instance, llm_config, tool_preset)
             results.append(result)
     else:
-        # Parallel execution – avoid ProcessPoolExecutor context manager
-        # because worker processes that spawn browser/Chrome subprocesses
-        # may not exit cleanly, causing shutdown(wait=True) to hang
-        # indefinitely.
+        # 并行执行 - 避免 ProcessPoolExecutor  上下文管理器因为启动浏览器/Chrome的进程子
+        # 进程可能无法干净退出，导致 shutdown(wait=True) 无限期地悬挂。
+        #
         executor = ProcessPoolExecutor(max_workers=num_workers)
         try:
             future_to_instance = {
@@ -327,9 +326,9 @@ def generate_structured_results(
     run_suffix: str,
     llm_config: dict[str, Any],
 ) -> str:
-    """Generate structured JSON results from evaluation outputs."""
+    """从评估输出生成结构化的 JSON 结果。"""
 
-    # Create structured results using the schema
+    # 使用模式创建结构化结果
     structured_results = ModelTestResults.from_eval_outputs(
         eval_outputs=eval_outputs,
         model_name=model_name,
@@ -338,14 +337,14 @@ def generate_structured_results(
         eval_note=eval_note,
     )
 
-    # Save structured results
+    # 保存结构化结果
     os.makedirs(output_dir, exist_ok=True)
     results_file = os.path.join(output_dir, "results.json")
 
     with open(results_file, "w") as f:
         f.write(structured_results.model_dump_json(indent=2))
 
-    # Copy log files to output directory
+    # 将日志文件复制到输出目录
     logs_dir = os.path.join(output_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
 
@@ -373,7 +372,7 @@ def generate_structured_results(
                 eval_output.log_file_path,
             )
 
-    # Print summary for console output
+    # 打印控制台输出的摘要
     success_rate = structured_results.success_rate
     successful = structured_results.successful_tests
     skipped = structured_results.skipped_tests
@@ -382,7 +381,7 @@ def generate_structured_results(
         "Overall Success rate: %.2f%% (%d/%d)", success_rate * 100, successful, total
     )
 
-    # Print type-specific success rates
+    # 打印特定类型的成功率
     if structured_results.integration_tests_total > 0:
         logger.info(
             "Integration tests: %.2f%% (%d/%d)",
@@ -403,7 +402,7 @@ def generate_structured_results(
     logger.info("Evaluation Results:")
     for instance in structured_results.test_instances:
         if instance.test_result.skipped:
-            status = "⊘"  # Skipped symbol
+            status = "⊘"  # 跳过的符号
         else:
             status = "✓" if instance.test_result.success else "✗"
         reason = instance.test_result.reason or "N/A"
@@ -411,7 +410,7 @@ def generate_structured_results(
     logger.info("Total cost: %s", format_cost(structured_results.total_cost))
     logger.info("Structured results saved to %s", results_file)
 
-    # Clean up temporary logs directory
+    # 清理临时日志目录
     permanent_logs_dir = os.path.join(os.getcwd(), "integration_test_logs")
     if os.path.exists(permanent_logs_dir):
         shutil.rmtree(permanent_logs_dir, ignore_errors=True)
@@ -477,7 +476,7 @@ def main():
     llm_config = args.llm_config
     tool_preset: ToolPresetType = args.tool_preset
 
-    # Log configuration details
+    # 日志配置详细信息
     logger.info("INTEGRATION TEST CONFIGURATION")
     logger.info("LLM_CONFIG: %s", json.dumps(llm_config, indent=2))
     logger.info("NUM_WORKERS: %s", args.num_workers)
@@ -487,14 +486,14 @@ def main():
     if args.eval_ids:
         logger.info("EVAL_IDS: %s", args.eval_ids)
 
-    # Load all integration tests
+    # 加载全部集成测试
     instances = load_integration_tests()
 
     if args.test_type != "all":
         instances = [inst for inst in instances if inst.test_type == args.test_type]
         logger.info("Filtered to %d %s tests", len(instances), args.test_type)
 
-    # Filter by specific test IDs if provided
+    # 按特定测试 ID（如果提供）进行过滤
     if args.eval_ids:
         eval_ids = [id.strip() for id in args.eval_ids.split(",")]
         instances = [inst for inst in instances if inst.instance_id in eval_ids]
@@ -505,7 +504,7 @@ def main():
         logger.error("No test instances found!")
         return
 
-    # Create output directory with timestamp and model info
+    # 创建带有时间戳和模型信息的输出目录
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     model_name = llm_config.get("model", "unknown").replace("/", "_").replace("-", "_")
     output_subdir = f"{model_name}_{args.eval_note}_N{len(instances)}_{timestamp}"

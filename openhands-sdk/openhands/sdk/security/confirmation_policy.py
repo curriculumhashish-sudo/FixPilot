@@ -9,18 +9,16 @@ from openhands.sdk.utils.models import DiscriminatedUnionMixin
 class ConfirmationPolicyBase(DiscriminatedUnionMixin, ABC):
     @abstractmethod
     def should_confirm(self, risk: SecurityRisk = SecurityRisk.UNKNOWN) -> bool:
-        """Determine if an action with the given risk level requires confirmation.
+        """确定具有给定风险级别的操作是否需要确认。
 
-        This method defines the core logic for determining whether user confirmation
-        is required before executing an action based on its security risk level.
+        此方法定义了在执行基于其安全风险级别的操作之前是否需要用户确认的核心逻辑。
 
         Args:
-            risk: The security risk level of the action to be evaluated.
-                 Defaults to SecurityRisk.UNKNOWN if not specified.
+            risk: 待评估操作的安全风险级别。
+                 如果未指定，则默认为 SecurityRisk.UNKNOWN。
 
         Returns:
-            True if the action requires user confirmation before execution,
-            False if the action can proceed without confirmation.
+            True 如果操作在执行前需要用户确认，False 如果操作无需确认即可继续。
         """
 
 
@@ -54,8 +52,8 @@ class ConfirmRisky(ConfirmationPolicyBase):
         if risk == SecurityRisk.UNKNOWN:
             return self.confirm_unknown
 
-        # This comparison is reflexive by default, so if the threshold is HIGH we will
-        # still require confirmation for HIGH risk actions. And since the threshold is
-        # guaranteed to never be UNKNOWN (by the validator), we're guaranteed to get a
-        # boolean here.
+        # 默认情况下，这种比较是自反的，因此如果阈值是 HIGH，我们仍然需要确认 HIGH 风险
+        # 操作。 由于阈值保证永远不会是 UNKNOWN（通过验证器），因此我们保证在这里得到一
+        # 个布尔值。
+        #
         return risk.is_riskier(self.threshold)

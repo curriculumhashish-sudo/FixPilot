@@ -1,4 +1,4 @@
-"""Tests for critic implementations and registry."""
+"""批评者实现的测试和注册表。"""
 
 import json
 
@@ -17,35 +17,35 @@ from openhands.sdk.tool.builtins.finish import FinishAction
 from openhands.sdk.tool.schema import Action
 
 
-# Define a dummy action class once to avoid duplicate kind errors
+# 定义一次虚拟操作类以避免重复的类型错误
 class DummyAction(Action):
-    """A simple dummy action for testing purposes."""
+    """用于测试目的的简单虚拟动作。"""
 
     pass
 
 
 def test_critic_result_success_threshold():
-    """Test that CriticResult determines success based on threshold."""
-    # Score above threshold should be success
+    """测试 CriticResult 根据阈值确定成功。"""
+    # 分数高于阈值就应该成功
     result_success = CriticResult(score=0.8, message="Success")
     assert result_success.success is True
 
-    # Score at threshold should be success
+    # 达到阈值的分数应该是成功的
     result_at_threshold = CriticResult(score=0.5, message="At threshold")
     assert result_at_threshold.success is True
 
-    # Score below threshold should not be success
+    # 低于阈值的分数不应视为成功
     result_fail = CriticResult(score=0.3, message="Fail")
     assert result_fail.success is False
 
 
 def test_critic_result_validation():
-    """Test that CriticResult validates score bounds."""
-    # Valid scores
+    """测试 CriticResult 是否验证分数范围。"""
+    # 有效分数
     CriticResult(score=0.0, message="Min")
     CriticResult(score=1.0, message="Max")
 
-    # Invalid scores should raise validation error
+    # 无效分数应引发验证错误
     with pytest.raises(Exception):  # Pydantic ValidationError
         CriticResult(score=-0.1, message="Below min")
 
@@ -54,15 +54,15 @@ def test_critic_result_validation():
 
 
 def test_pass_critic_always_succeeds():
-    """Test that PassCritic always returns success."""
+    """测试 PassCritic 是否始终返回成功。"""
     critic = PassCritic()
 
-    # Empty events and no patch
+    # 空事件且无补丁
     result = critic.evaluate([], None)
     assert result.score == 1.0
     assert result.success is True
 
-    # With events but no patch
+    # 有事件但没有补丁
     events = [
         ActionEvent(
             thought=[TextContent(text="thinking")],
@@ -81,36 +81,36 @@ def test_pass_critic_always_succeeds():
     assert result.score == 1.0
     assert result.success is True
 
-    # With events and patch
+    # 有事件和补丁
     result = critic.evaluate(events, "some patch")
     assert result.score == 1.0
     assert result.success is True
 
 
 def test_empty_patch_critic_with_empty_patch():
-    """Test EmptyPatchCritic returns failure for empty patches."""
+    """测试 EmptyPatchCritic 返回空补丁失败。"""
     critic = EmptyPatchCritic()
 
-    # None patch
+    # None 补丁
     result = critic.evaluate([], None)
     assert result.score == 0.0
     assert result.success is False
     assert result.message is not None
     assert "empty" in result.message.lower()
 
-    # Empty string patch
+    # 空字符串补丁
     result = critic.evaluate([], "")
     assert result.score == 0.0
     assert result.success is False
 
-    # Whitespace-only patch
+    # 仅空白补丁
     result = critic.evaluate([], "   \n\t  ")
     assert result.score == 0.0
     assert result.success is False
 
 
 def test_empty_patch_critic_with_non_empty_patch():
-    """Test EmptyPatchCritic returns success for non-empty patches."""
+    """测试 EmptyPatchCritic 返回非空补丁的成功。"""
     critic = EmptyPatchCritic()
 
     patch = """
@@ -131,10 +131,10 @@ def test_empty_patch_critic_with_non_empty_patch():
 
 
 def test_agent_finished_critic_with_empty_patch():
-    """Test AgentFinishedCritic fails when patch is empty."""
+    """当补丁为空时，测试 AgentFinishedCritic 失败。"""
     critic = AgentFinishedCritic()
 
-    # Create events with FinishAction
+    # 使用 FinishAction 创建事件
     finish_action = FinishAction(message="Task completed")
     events = [
         ActionEvent(
@@ -152,7 +152,7 @@ def test_agent_finished_critic_with_empty_patch():
         )
     ]
 
-    # Should fail with empty patch even though agent finished
+    # 即使智能体已完成，也应该因空补丁而失败
     result = critic.evaluate(events, None)
     assert result.score == 0.0
     assert result.success is False
@@ -161,17 +161,17 @@ def test_agent_finished_critic_with_empty_patch():
 
 
 def test_agent_finished_critic_without_finish_action():
-    """Test AgentFinishedCritic fails when no FinishAction present."""
+    """当不存在 FinishAction 时，测试 AgentFinishedCritic 失败。"""
     critic = AgentFinishedCritic()
 
     patch = "diff --git a/file.py"
 
-    # Empty events
+    # 空事件
     result = critic.evaluate([], patch)
     assert result.score == 0.0
     assert result.success is False
 
-    # Events without FinishAction
+    # 没有 FinishAction 的活动
     other_action = DummyAction()
     events = [
         ActionEvent(
@@ -197,7 +197,7 @@ def test_agent_finished_critic_without_finish_action():
 
 
 def test_agent_finished_critic_success():
-    """Test AgentFinishedCritic succeeds with FinishAction and non-empty patch."""
+    """测试 AgentFinishedCritic 成功，且 FinishAction 和非空补丁。"""
     critic = AgentFinishedCritic()
 
     patch = """
@@ -245,7 +245,7 @@ def test_agent_finished_critic_success():
 
 
 def test_agent_finished_critic_last_action_not_finish():
-    """Test AgentFinishedCritic fails when last action is not FinishAction."""
+    """当最后一个操作不是 FinishAction 时，测试 AgentFinishedCritic 失败。"""
     critic = AgentFinishedCritic()
 
     patch = "diff --git a/file.py"
@@ -253,7 +253,7 @@ def test_agent_finished_critic_last_action_not_finish():
     finish_action = FinishAction(message="Task completed")
     other_action = DummyAction()
 
-    # FinishAction is not the last action
+    # FinishAction 不是最后一个操作
     events = [
         ActionEvent(
             thought=[TextContent(text="Finishing")],
@@ -289,6 +289,6 @@ def test_agent_finished_critic_last_action_not_finish():
 
 
 def test_critic_base_is_abstract():
-    """Test that CriticBase cannot be instantiated directly."""
+    """测试CriticBase不能直接实例化。"""
     with pytest.raises(TypeError):
         CriticBase()  # type: ignore

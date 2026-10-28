@@ -1,4 +1,4 @@
-"""Tests for the staged two-step refresh flow: check() / apply()."""
+"""测试分阶段两步刷新流程：check() / apply()。"""
 
 import json
 import os
@@ -25,7 +25,7 @@ from .conftest import write_extension as _write_extension
 
 @pytest.fixture
 def installed(extension_dir: Path, installed_dir: Path) -> Path:
-    """A tracked, enabled install of "my-extension" -- the common baseline."""
+    """“my-extension”的跟踪、启用安装——公共基线。"""
     install_canvas_extension(str(extension_dir), installed_dir=installed_dir)
     enable_canvas_extension("my-extension", installed_dir=installed_dir)
     return installed_dir
@@ -60,7 +60,7 @@ def test_check_reports_validated_and_new_resolved_ref(
 
     assert result is not None
     assert result.validated is True
-    # Local sources never resolve to a commit SHA.
+    # 本地源永远不会解析为提交 SHA。
     assert result.resolved_ref is None
     assert result.requested_ref is None
 
@@ -103,8 +103,8 @@ def test_check_stages_new_content(extension_dir: Path, installed: Path):
 def test_check_uses_originally_requested_ref_not_latest(
     extension_dir: Path, installed_dir: Path
 ):
-    """A pinned ref must survive a check, unlike update() which forces ref=None."""
-    # Patch both: install() fetches via the SDK manager, check() via this module.
+    """固定的 ref 必须在检查中幸存下来，这与强制 ref=None 的 update() 不同。"""
+    # 修补两者：install() 通过 SDK 管理器获取，check() 通过此模块获取。
     with (
         patch(
             "openhands.sdk.extensions.installation.manager.fetch_with_resolution",
@@ -140,7 +140,7 @@ def test_check_invalid_manifest_marks_unvalidated_and_cleans_staging(
                 "name": "my-extension",
                 "display_name": "My Extension",
                 "version": "2.0.0",
-                # entrypoint dropped -- required field.
+                # 入口删除——必填字段。
             }
         )
     )
@@ -150,7 +150,7 @@ def test_check_invalid_manifest_marks_unvalidated_and_cleans_staging(
     assert result is not None
     assert result.validated is False
     assert not (installed / ".staging" / "my-extension").exists()
-    # Active install is unaffected.
+    # 主动安装不受影响。
     assert _active_version(installed) == "1.0.0"
 
 
@@ -175,7 +175,7 @@ def test_check_escaping_entrypoint_marks_unvalidated_and_cleans_staging(
 def test_check_manifest_name_mismatch_marks_unvalidated(
     extension_dir: Path, installed: Path
 ):
-    """A manifest name change isn't a valid update for the tracked extension."""
+    """清单名称更改不是跟踪扩展程序的有效更新。"""
     _write_extension(extension_dir, name="renamed-extension", version="2.0.0")
 
     result = check_canvas_extension_update("my-extension", installed_dir=installed)
@@ -212,8 +212,8 @@ def test_check_is_repeatable_when_nothing_changed(extension_dir: Path, installed
 
 
 def test_check_propagates_fetch_error(extension_dir: Path, installed: Path):
-    """A fetch failure (network/auth) is an infra problem, not "this
-    content is invalid" -- it must raise, not come back as validated=False.
+    """获取失败（网络/身份验证）是一个基础设施问题，而不是“这个
+    内容无效”——它必须引发，而不是返回为 valid=False。
     """
     with patch(
         "openhands.agent_server.canvas_extensions.installed.fetch_with_resolution",
@@ -267,7 +267,7 @@ def test_apply_without_prior_check_raises(installed: Path):
             "my-extension", resolved_ref=None, enabled=True, installed_dir=installed
         )
 
-    # Nothing about the active install changed.
+    # 活动安装没有任何变化。
     assert _active_version(installed) == "1.0.0"
 
 
@@ -308,8 +308,8 @@ def test_apply_rejects_resolved_ref_with_parent_traversal(
 def test_apply_rejects_absolute_resolved_ref(
     extension_dir: Path, installed: Path, tmp_path: Path
 ):
-    """A resolved_ref shaped like an absolute path must not let Path's
-    "/" operator discard the staging root and point anywhere on disk."""
+    """形状像绝对路径的 resolved_ref 一定不能让 Path 的
+    “/" 运算符丢弃暂存根并指向磁盘上的任何位置。"""
     outside = _write_extension(
         tmp_path / "evil", name="my-extension", version="666.0.0"
     )
@@ -333,15 +333,15 @@ def test_staged_path_rejects_traversal_and_absolute_refs(installed_dir: Path):
 
 
 def test_staged_path_rejects_empty_string_ref(installed_dir: Path):
-    """ "" must not silently alias the None/"local" slot -- a caller that
-    serializes None as "" would otherwise get a false-positive match."""
+    """ "" 不得默默地为 None/"local" 插槽添加别名——调用者
+    将 None 序列化为“”，否则将获得 False 正匹配。"""
     with pytest.raises(ValueError, match="Invalid resolved_ref"):
         _staged_path(installed_dir, "my-extension", "")
 
 
 def test_staged_path_allows_ref_with_internal_slash(installed_dir: Path):
-    """A branch name like "feature/foo" is a legitimate resolved_ref
-    fallback value and must not be rejected, only ".." and a leading "/"."""
+    """像“feature/foo”这样的分支名称是合法的 resolved_ref
+    回退方案值且不得拒绝，只能是“..”和前导“/"."""
     path = _staged_path(installed_dir, "my-extension", "feature/foo")
     assert path == installed_dir / ".staging" / "my-extension" / "feature" / "foo"
 
@@ -416,7 +416,7 @@ def test_apply_sets_enabled_explicitly_not_inherited(
 def test_apply_can_enable_a_previously_disabled_extension(
     extension_dir: Path, installed_dir: Path
 ):
-    # Fresh install lands disabled.
+    # 全新安装被禁用。
     install_canvas_extension(str(extension_dir), installed_dir=installed_dir)
 
     _write_extension(extension_dir, version="2.0.0")
@@ -600,17 +600,17 @@ def test_apply_rolls_back_active_install_on_failed_swap(
                 installed_dir=installed,
             )
 
-    # Rolled back: the active install still serves the old content.
+    # 回滚：活动安装仍提供旧内容。
     assert _active_version(installed) == "1.0.0"
     assert (installed / "my-extension").is_dir()
 
-    # Metadata untouched by the failed apply.
+    # 失败的应用未影响元数据。
     info = get_installed_canvas_extension("my-extension", installed_dir=installed)
     assert info is not None
     assert info.version == "1.0.0"
     assert info.enabled is True
 
-    # The validated staged candidate survives the failure -- retryable.
+    # 经过验证的分阶段候选者能够在失败后幸存下来——可重试。
     staged = installed / ".staging" / "my-extension" / "local"
     assert staged.is_dir()
 
@@ -655,7 +655,7 @@ def test_apply_retry_succeeds_after_rolled_back_failure(
 def test_apply_leaves_no_backup_when_first_rename_fails(
     extension_dir: Path, installed: Path
 ):
-    """If the first rename fails, nothing moved -- no rollback needed."""
+    """如果第一次重命名失败，则不会发生任何移动——无需回滚。"""
     _write_extension(extension_dir, version="2.0.0")
     check = check_canvas_extension_update("my-extension", installed_dir=installed)
     assert check is not None
@@ -677,7 +677,7 @@ def test_apply_leaves_no_backup_when_first_rename_fails(
 def test_apply_rejects_manifest_that_became_invalid_since_check(
     extension_dir: Path, installed: Path
 ):
-    """apply() re-validates staged content right before swapping."""
+    """apply() 在交换之前重新验证暂存内容。"""
     _write_extension(extension_dir, version="2.0.0")
     check = check_canvas_extension_update("my-extension", installed_dir=installed)
     assert check is not None

@@ -1,8 +1,7 @@
-"""Integration tests for parallel tool execution within the agent.
+"""集成测试用于智能体内的并行工具执行。
 
-These tests verify that the agent correctly executes tool calls in parallel
-when tool_concurrency_limit > 1, including event ordering, state transitions,
-FinishTool truncation, and blocked action handling.
+这些测试验证了智能体在 tool_concurrency_limit > 1 时正确并行执行工具调用，包括事件顺
+序、状态转换、FinishTool 转储和阻塞动作处理。
 """
 
 import threading
@@ -57,7 +56,7 @@ class SlowTool(ToolDefinition[SlowAction, SlowObservation]):
     name = "slow_tool"
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        # Each invocation is independent — safe to run in parallel.
+        # 每个调用都是独立的——可以安全地并行运行。
         return DeclaredResources(keys=(), declared=True)
 
     @classmethod
@@ -112,7 +111,7 @@ register_tool("SlowTool", SlowTool)
 register_tool("ParallelFailingTool", ParallelFailingTool)
 
 
-# --- Helper ---
+# --- 帮手 ---
 
 
 def _tool_call(call_id: str, name: str, arguments: str) -> MessageToolCall:
@@ -122,15 +121,15 @@ def _tool_call(call_id: str, name: str, arguments: str) -> MessageToolCall:
 
 
 def _run_step(agent, conversation, collected_events):
-    """Run a single agent step and return collected events."""
+    """运行单个智能体步骤并返回收集的事件。"""
     agent.step(conversation, on_event=lambda e: collected_events.append(e))
 
 
-# --- Tests ---
+# --- 测试 ---
 
 
 def test_parallel_execution_multiple_tools():
-    """Multiple tool calls execute in parallel and events are emitted in order."""
+    """多个工具调用并行执行，事件按顺序发出。"""
     llm = TestLLM.from_messages(
         [
             Message(
@@ -152,7 +151,7 @@ def test_parallel_execution_multiple_tools():
     conversation.send_message(Message(role="user", content=[TextContent(text="Go")]))
     _run_step(agent, conversation, collected)
 
-    # Verify observations are emitted in original order
+    # 验证观测结果是否按原始顺序发出
     obs_events = [e for e in collected if isinstance(e, ObservationEvent)]
     assert len(obs_events) == 3
     assert obs_events[0].tool_call_id == "call_0"
@@ -161,7 +160,7 @@ def test_parallel_execution_multiple_tools():
 
 
 def test_parallel_execution_faster_than_sequential():
-    """Parallel execution completes faster than sequential would."""
+    """并行执行比顺序执行更快。"""
     llm = TestLLM.from_messages(
         [
             Message(
@@ -187,12 +186,12 @@ def test_parallel_execution_faster_than_sequential():
     _run_step(agent, conversation, collected)
     elapsed = time.monotonic() - start
 
-    # 4 tools x 0.1s each = 0.4s sequential, should be ~0.1s parallel
+    # 4 个工具 x 每个 0.1s = 0.4s 顺序，应该 ~0.1s 并行
     assert elapsed < 0.3, f"Expected parallel execution, took {elapsed:.2f}s"
 
 
 def test_sequential_execution_with_default_limit():
-    """With default tool_concurrency_limit=1, tools execute sequentially."""
+    """默认 tool_concurrency_limit=1 时，工具按顺序执行。"""
     llm = TestLLM.from_messages(
         [
             Message(
@@ -220,14 +219,14 @@ def test_sequential_execution_with_default_limit():
 
 
 def test_limit_one_preserves_sequential_semantics():
-    """Regression: tool_concurrency_limit=1 must preserve old sequential behavior.
+    """Regression: tool_concurrency_limit=1 必须保留旧的顺序行为。
 
-    With the default limit of 1, multi-tool batches must:
-    1. Run each tool on the caller's thread (not a pool thread).
-    2. Execute tools strictly in order.
+    默认限制为 1，多工具批次必须：
+    1. 在调用者的线程（而不是池线程）上运行每个工具。
+    2. 严格按顺序执行工具。
 
-    SlowTool already records threading.current_thread().name in its
-    observation, so we can verify thread affinity end-to-end.
+    SlowTool 已经在其观测结果中记录了 threading.current_thread().name，因此我们可以端
+    到端地验证线程亲和力。
     """
     llm = TestLLM.from_messages(
         [
@@ -243,7 +242,7 @@ def test_limit_one_preserves_sequential_semantics():
             Message(role="assistant", content=[TextContent(text="Done")]),
         ]
     )
-    # Default tool_concurrency_limit=1
+    # 默认 tool_concurrency_limit=1
     agent = Agent(llm=llm, tools=[Tool(name="SlowTool")])
 
     collected = []
@@ -256,7 +255,7 @@ def test_limit_one_preserves_sequential_semantics():
     obs_events = [e for e in collected if isinstance(e, ObservationEvent)]
     assert len(obs_events) == 3
 
-    # Property 1: every tool ran on the caller's thread, not a pool thread
+    # 属性 1：每个工具都在调用者的线程上运行，而不是在池线程上运行
     labels: list[str] = []
     for obs in obs_events:
         observation = obs.observation
@@ -267,12 +266,12 @@ def test_limit_one_preserves_sequential_semantics():
         )
         labels.append(observation.label)
 
-    # Property 2: tools executed in original order
+    # 属性2：按原始顺序执行的工具
     assert labels == ["a", "b", "c"]
 
 
 def test_finish_tool_truncates_subsequent_tools():
-    """Tools after FinishTool are discarded and never executed."""
+    """FinishTool 之后的工具将被丢弃并且永远不会执行。"""
     llm = TestLLM.from_messages(
         [
             Message(
@@ -297,18 +296,18 @@ def test_finish_tool_truncates_subsequent_tools():
     conversation.send_message(Message(role="user", content=[TextContent(text="Go")]))
     _run_step(agent, conversation, collected)
 
-    # Only slow_tool "before" and finish should have executed
+    # 只有slow_tool“之前”和完成应该执行
     action_events = [e for e in collected if isinstance(e, ActionEvent)]
     tool_names = [e.tool_name for e in action_events]
     assert "slow_tool" in tool_names
     assert "finish" in tool_names
 
-    # The "after" tool call should not exist
+    # “之后”工具调用不应该存在
     obs_events = [e for e in collected if isinstance(e, ObservationEvent)]
     obs_tool_calls = [e.tool_call_id for e in obs_events]
     assert "call_2" not in obs_tool_calls
 
-    # Conversation should be finished
+    # 谈话应该结束
     with conversation.state:
         assert (
             conversation.state.execution_status == ConversationExecutionStatus.FINISHED
@@ -317,8 +316,7 @@ def test_finish_tool_truncates_subsequent_tools():
 
 def test_error_in_parallel_batch_preserves_other_results():
     """
-    A failing tool in a parallel batch doesn't
-    prevent other tools from completing.
+    并行批处理中出现故障的工具不会阻止其他工具完成。
     """
     llm = TestLLM.from_messages(
         [
@@ -349,7 +347,7 @@ def test_error_in_parallel_batch_preserves_other_results():
     conversation.send_message(Message(role="user", content=[TextContent(text="Go")]))
     _run_step(agent, conversation, collected)
 
-    # Should have 2 observations and 1 error, in order
+    # 应该有 2 个观测结果和 1 个错误，按顺序
     obs_events = [e for e in collected if isinstance(e, ObservationEvent)]
     error_events = [e for e in collected if isinstance(e, AgentErrorEvent)]
 
@@ -357,7 +355,7 @@ def test_error_in_parallel_batch_preserves_other_results():
     assert len(error_events) == 1
     assert "boom" in error_events[0].error
 
-    # Events should be in original order: obs_0, error_1, obs_2
+    # 事件应按原始顺序排列：obs_0、error_1、obs_2
     result_events = [
         e for e in collected if isinstance(e, (ObservationEvent, AgentErrorEvent))
     ]
@@ -365,7 +363,7 @@ def test_error_in_parallel_batch_preserves_other_results():
     assert result_events[1].tool_call_id == "call_1"
     assert result_events[2].tool_call_id == "call_2"
 
-    # Conversation should NOT be finished
+    # 对话应该不结束
     with conversation.state:
         assert (
             conversation.state.execution_status != ConversationExecutionStatus.FINISHED
@@ -374,8 +372,7 @@ def test_error_in_parallel_batch_preserves_other_results():
 
 def test_blocked_action_with_parallel_execution():
     """
-    Blocked actions produce rejections while
-    non-blocked actions execute in parallel.
+    阻塞的操作会产生拒绝，而非阻塞的操作会并行执行。
     """
     llm = TestLLM.from_messages(
         [
@@ -396,17 +393,17 @@ def test_blocked_action_with_parallel_execution():
     conversation = Conversation(agent=agent, callbacks=[lambda e: collected.append(e)])
     conversation.send_message(Message(role="user", content=[TextContent(text="Go")]))
 
-    # Run one step to get the action events so we know their IDs
+    # 运行一步来获取操作事件，以便我们知道它们的 ID
     _run_step(agent, conversation, collected)
 
-    # For this test, we verify the mechanism works by checking that
-    # both observations were emitted (no blocking configured).
+    # 对于此测试，我们通过检查两个观测结果是否已发出（未配置阻塞）来验证该机制是否有效。
+    #
     obs_events = [e for e in collected if isinstance(e, ObservationEvent)]
     assert len(obs_events) == 2
 
 
 def test_tool_concurrency_limit_wires_to_executor():
-    """Agent.tool_concurrency_limit is wired through to the ParallelToolExecutor."""
+    """Agent.tool_concurrency_limit 连接到 ParallelToolExecutor。"""
     llm = TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text="Done")])]
     )
@@ -419,7 +416,7 @@ def test_tool_concurrency_limit_wires_to_executor():
 
 @pytest.mark.parametrize("value", [0, -1, -100])
 def test_tool_concurrency_limit_rejects_invalid_values(value):
-    """Pydantic validates tool_concurrency_limit >= 1 at construction time."""
+    """Pydantic 在构造时验证 tool_concurrency_limit >= 1。"""
     llm = TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text="Done")])]
     )

@@ -9,7 +9,7 @@ from openhands.sdk.llm.message import (
 
 
 def test_function_call_and_output_paired():
-    # Assistant emits a function_call; tool returns an output for same id
+    # Assistant 发出 function_call； 工具返回相同 ID 的输出
     tc = MessageToolCall(
         id="call_xyz789",
         responses_item_id="fc_abc123",
@@ -43,7 +43,7 @@ def test_system_to_responses_value_instructions_concat():
     m1 = Message(role="system", content=[TextContent(text="A"), TextContent(text="B")])
     m2 = Message(role="system", content=[TextContent(text="C")])
 
-    # system messages become instructions string, concatenated with separators
+    # 系统消息变成指令字符串，用分隔符连接
     llm = LLM(model="gpt-5-mini")
     instr, inputs = llm.format_messages_for_responses([m1, m2])
     assert instr == "A\nB\n\n---\n\nC"
@@ -55,7 +55,7 @@ def test_subscription_codex_transport_does_not_use_top_level_instructions_and_pr
     m_user = Message(role="user", content=[TextContent(text="USER")])
 
     llm = LLM(model="gpt-5.1-codex", base_url="https://chatgpt.com/backend-api/codex")
-    llm.is_subscription = True  # Mark as subscription-based
+    llm.is_subscription = True  # 标记为基于订阅
     instr, inputs = llm.format_messages_for_responses([m_sys, m_user])
 
     assert instr is not None
@@ -73,7 +73,7 @@ def test_subscription_codex_transport_injects_synthetic_user_message_when_none_e
     m_asst = Message(role="assistant", content=[TextContent(text="ASST")])
 
     llm = LLM(model="gpt-5.1-codex", base_url="https://chatgpt.com/backend-api/codex")
-    llm.is_subscription = True  # Mark as subscription-based
+    llm.is_subscription = True  # 标记为基于订阅
     instr, inputs = llm.format_messages_for_responses([m_sys, m_asst])
 
     assert instr is not None
@@ -102,13 +102,13 @@ def test_user_to_responses_dict_with_and_without_vision():
         ],
     )
 
-    # without vision: only input_text
+    # 没有视力：只有input_text
     items = m.to_responses_dict(vision_enabled=False)
     assert len(items) == 1 and items[0]["type"] == "message"
     content = items[0]["content"]
     assert {c["type"] for c in content} == {"input_text"}
 
-    # with vision: include input_image
+    # 有远见：包括input_image
     items_v = m.to_responses_dict(vision_enabled=True)
     types = [c["type"] for c in items_v[0]["content"]]
     assert "input_text" in types and "input_image" in types
@@ -118,7 +118,7 @@ assistant_text = "Here is the result"
 
 
 def test_assistant_to_responses_dict_with_text_and_tool_calls():
-    # assistant prior text becomes output_text in message item
+    # 助理先前的文本在消息项中变为 output_text
     tc = MessageToolCall(
         id="call_xyz789",
         responses_item_id="fc_abc123",
@@ -131,7 +131,7 @@ def test_assistant_to_responses_dict_with_text_and_tool_calls():
     )
 
     out = m.to_responses_dict(vision_enabled=False)
-    # Should include a message item with output_text, then function_call item
+    # 应包含带有 output_text 的消息项，然后包含 function_call 项
     assert any(item["type"] == "message" for item in out)
     msg_item = next(item for item in out if item["type"] == "message")
     assert msg_item["role"] == "assistant"
@@ -144,7 +144,7 @@ def test_assistant_to_responses_dict_with_text_and_tool_calls():
 
 
 def test_tool_to_responses_emits_function_call_output_with_verbatim_call_id():
-    # tool result requires tool_call_id and outputs function_call_output entries
+    # 工具结果需要 tool_call_id 并输出 function_call_output 条目
     m = Message(
         role="tool",
         tool_call_id="call_xyz789",
@@ -211,7 +211,7 @@ def test_assistant_includes_reasoning_passthrough():
     m = Message(role="assistant", content=[], responses_reasoning_item=ri)
     out = m.to_responses_dict(vision_enabled=False)
 
-    # Contains a reasoning item with exact passthrough fields
+    # 包含具有精确传递字段的推理项
     r_items = [it for it in out if it["type"] == "reasoning"]
     assert len(r_items) == 1
     r = r_items[0]

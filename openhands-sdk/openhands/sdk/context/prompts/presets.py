@@ -1,13 +1,13 @@
-"""Named :class:`PromptRegistry` presets -- ready-to-use section compositions.
+"""命名为：class:`PromptRegistry` 预设 - 即用型部分合成。
 
-``create_registry()`` selects a section composition over the same engine. The
-``"default"`` preset registers the static-tier sections in the exact order
-``agent/prompts/system_prompt.j2`` emitted them, so ``registry.build(ctx).static``
-reproduces ``AgentBase.static_system_message``. The ``"planning"`` preset is a
-distinct standalone composition (ported from ``system_prompt_planning.j2``) that
-omits the default OpenHands sections. The dynamic-tier sections are **shared** --
-repo/skills/suffix/secrets/datetime are preset-independent -- so a planning agent
-with an ``agent_context`` still gets its dynamic block.
+``create_registry()`` 选择同一引擎上的部分组合。 的
+``"default"`` 预设以确切的顺序注册静态层部分
+``agent/prompts/system_prompt.j2`` 发出它们，因此 ``registry.build(ctx).static`` 再现
+``AgentBase.static_system_message``。 ``"planning"`` 预设是一个独特的独立组合（从
+``system_prompt_planning.j2`` 移植），省略了默认的 OpenHands 部分。 动态层级部分 **共
+享 ** -- repo/skills/s
+uffix/secrets/datetime 预设独立 -- 因此，一个智能体规划 ``agent_context``仍然可以获取
+其动态块。
 """
 
 from dataclasses import dataclass, field
@@ -56,7 +56,7 @@ __all__ = ["PromptPreset", "create_registry"]
 
 
 class PromptPreset(StrEnum):
-    """Names a :func:`create_registry` section composition."""
+    """命名：func:`create_registry` 节组合。"""
 
     DEFAULT = "default"
     PLANNING = "planning"
@@ -64,7 +64,7 @@ class PromptPreset(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class _ReplacedByPersona:
-    """A persona-layer section: dropped when the agent supplies its own persona."""
+    """角色层部分：当智能体提供自己的角色时被删除。"""
 
     section: PromptSection
     name: str = field(init=False)
@@ -93,14 +93,14 @@ _DEFAULT_STATIC_SECTIONS: Final[tuple[PromptSection, ...]] = (
     _ReplacedByPersona(PullRequestsSection()),
     _ReplacedByPersona(ProblemSolvingSection()),
     _ReplacedByPersona(SelfDocumentationSection()),
-    SecuritySection(),  # guard: security_policy_filename set
-    SecurityRiskAssessmentSection(),  # guard: llm_security_analyzer
-    ToolGuidanceSection(),  # guard: loaded tools supply prompt_guidance
+    SecuritySection(),  # 守卫：security_policy_filename设置
+    SecurityRiskAssessmentSection(),  # 守卫：llm_security_analyzer
+    ToolGuidanceSection(),  # 守卫：装载工具供应prompt_guidance
     ExternalServicesSection(),
     _ReplacedByPersona(EnvironmentSetupSection()),
     _ReplacedByPersona(TroubleshootingSection()),
     ProcessManagementSection(),
-    ModelSpecificSection(),  # guard: model_family resolved
+    ModelSpecificSection(),  # 守卫：model_family已解决
 )
 _PLANNING_STATIC_SECTIONS: Final[tuple[PromptSection, ...]] = (
     PersonaSection(),
@@ -108,24 +108,25 @@ _PLANNING_STATIC_SECTIONS: Final[tuple[PromptSection, ...]] = (
 )
 
 _DYNAMIC_SECTIONS: Final[tuple[PromptSection, ...]] = (
-    RepoContextSection(),  # guard: gated repo skills present
-    MemoryContextSection(),  # guard: resolved memory present
-    AvailableSkillsSection(),  # guard: available_skills_prompt
-    CustomSuffixSection(),  # guard: system_message_suffix
-    CustomSecretsSection(),  # guard: secret_infos present
-    # DateTimeSection is intentionally last: it is the only per-conversation
-    # volatile value, so the stable dynamic content stays a cache-friendly prefix.
+    RepoContextSection(),  # 守卫：存在门控回购技能
+    MemoryContextSection(),  # 守卫：已解决的内存存在
+    AvailableSkillsSection(),  # 守卫：available_skills_prompt
+    CustomSuffixSection(),  # 守卫：system_message_suffix
+    CustomSecretsSection(),  # 守卫：secret_infos 存在
+    # DateTimeSection 故意放在最后：它是唯一的每个会话易失值，因此稳定的动态内容仍然是缓
+    # 存友好的前缀。
+    #
     DateTimeSection(),
 )
 
 
 def create_registry(preset: PromptPreset = PromptPreset.DEFAULT) -> PromptRegistry:
-    """Build the section registry for ``preset``.
+    """为 ``preset`` 构建部分注册表。
 
-    ``DEFAULT`` is the standard OpenHands composition; ``PLANNING`` is the read-only
-    analysis composition (no ``<SECURITY>``/``<SOUL>``/``<MEMORY>`` ...). Both share
-    the dynamic tier. Sections are stateless, so the per-preset sequences are reused
-    across calls.
+    ``DEFAULT``为标准OpenHands成分； ``PLANNING`` 是只读分析成分（无 ``<SECURITY>``
+    /``<SOUL>``/``
+    <MEMORY>`` ...）。 两者共享动态层。 部分是无状态的，因此每个预设序列可以在调用之
+    间重复使用。
     """
     match preset:
         case PromptPreset.PLANNING:

@@ -1,29 +1,26 @@
-"""The /goal command: pursue an objective until a judge LLM confirms it is done.
+"""/goal 命令：追求一个目标，直到法官 LLM 确认目标已完成。
 
-A plain ``conversation.run()`` stops as soon as the agent *thinks* it is
-finished. The ``/goal`` loop is stricter: after each run it asks a second
-"judge" LLM to audit the transcript for authoritative evidence -- file
-contents, command output, test results -- that the objective is *provably*
-complete. If something is still missing, it re-prompts the agent with the
-judge's feedback and runs again, until the goal is genuinely done or a hard
-iteration cap is reached.
+A plain ``conversation.run()`` 停止当智能体  *认为* 已完成。 的 ``/goal`` 循环更加严
+格：每次运行后，它都会问一个“裁判”
+LLM 审核转录以获取权威证据 -- 文件内容、命令输出、测试结果 -- 以证明目标是 *provably*
+ 完成。 如果还有缺失的部分，请继续提示词的智能体在法官的反馈下
+再次运行，直到目标真正实现或达到硬迭代上限。
 
-That makes it a good fit for verifiable objectives like "make the tests pass":
-the agent cannot finish just by claiming success; the judge has to see green
-output first.
+这使得它非常适合可验证的目标，例如“让测试通过”：智能体不能仅仅通过声称成功来完成； 法
+官必须首先看到绿色输出。
 
-Key concepts demonstrated:
-1. ``run_goal(conversation, objective, judge_llm, max_iterations=...)`` drives
-   the conversation from the outside, re-prompting until the judge is satisfied.
-2. A second, independent "judge" LLM grades completion -- separate from the
-   agent that does the work.
-3. The returned ``GoalOutcome`` reports whether the goal ``"complete"``-d or was
-   ``"capped"``, how many audit rounds it took, and the judge's final verdict.
+演示的关键概念：
+1. ``run_goal(conversation, objective, judge_llm, max_iterations=...)``从外部驱动对话
+，重新提示，直到
+法官满意为止。
+2. 第二个独立的“法官”LLM 对完成情况进行评分——独立于完成工作的智能体。
+3. 返回的 ``GoalOutcome`` 报告目标 ``"complete"``-d 是否为
+   ``"capped"``，经过了多少轮审核，以及法官的最终判决。
 
-Because ``run_goal`` drives the conversation you pass in (it does not fork or
-spin up a sidecar), every turn -- objective, agent work, judge-driven followups
--- lands in the same ``conversation.state.events`` history. It therefore
-composes with whatever agent, tools, or critic you already have.
+因为 ``run_goal`` 驱动你传入的对话（它不会分叉或旋转 sidecar），所以每个回合——目标，
+智能体工作，判断驱动的后续行动
+——同样的``conversation.state.events``历史。 因此它
+使用您已有的任何智能体、工具或评论家进行创作。
 """
 
 import os
@@ -35,8 +32,9 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# The agent LLM does the work; the judge LLM independently grades completion.
-# Two separate instances (same model, distinct usage_id) keep their costs apart.
+# 智能体 LLM 完成这项工作； 评委LLM独立对完成情况进行评分。 两个独立的实例（相同的模型，
+# 不同的 usage_id）使它们的成本分开。
+#
 model = os.getenv("LLM_MODEL", "gpt-5.5")
 api_key = os.getenv("LLM_API_KEY")
 base_url = os.getenv("LLM_BASE_URL")
@@ -51,14 +49,14 @@ agent = Agent(
 workspace = tempfile.mkdtemp(prefix="goal_demo_")
 conversation = Conversation(agent=agent, workspace=workspace)
 
-# A verifiable objective: the judge can only call it done once it has seen
+# 可验证的目标：法官只有在看到后才能宣布其完成
 # pytest actually pass -- not merely the agent asserting that it did.
 objective = (
     "Create mathx.py with an add(a, b) function and test_mathx.py with a pytest "
     "test for it. The goal is complete only when `python -m pytest -q` passes."
 )
 
-# Drive the conversation toward the objective, re-judging after each run.
+# 将对话推向目标，每次运行后重新判断。
 outcome = run_goal(conversation, objective, judge_llm, max_iterations=3)
 
 print("\n" + "=" * 70)
@@ -69,6 +67,6 @@ if outcome.verdict.missing:
 print(f"Workspace: {workspace}")
 print("=" * 70)
 
-# Report cost (agent work + judge audits).
+# 报告成本（智能体工作+法官审核）。
 cost = agent_llm.metrics.accumulated_cost + judge_llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

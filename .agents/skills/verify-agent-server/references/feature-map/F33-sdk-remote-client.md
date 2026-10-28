@@ -1,162 +1,116 @@
-# Python SDK remote client (RemoteConversation, RemoteWorkspace)
+<a id="python-sdk-remote-client-remoteconversation-remoteworkspace"></a>
 
-The consumer lane: what a Python program built on this checkout's SDK
-observes when it drives the Agent Server. `RemoteWorkspace` (and
-`AsyncRemoteWorkspace`) runs commands, moves files, reads git state and
-fetches the server's LLM profiles and secret references over REST;
-`Conversation(agent, workspace=RemoteWorkspace(...))` returns a
-`RemoteConversation` that creates or reattaches a server conversation, sends
-messages, runs it to completion while streaming events to callbacks over the
-events WebSocket, and steers it (pause, interrupt, confirmation, secrets, ask,
-title, fork, close). The same program carries server-side hooks, client-defined
-tools, custom tool modules, token streaming and completion logs. Every recipe
-runs a real SDK program through
-`control-agent-server exec` and checks the server's own view through the REST
-API afterwards, so an SDK that reports success while the server disagrees
-fails here.
+# Python SDK 远程客户端 (RemoteConversation, RemoteWorkspace)
 
-Source: `openhands-sdk/openhands/sdk/conversation/impl/remote_conversation.py`, `openhands-sdk/openhands/sdk/workspace/remote/`, `openhands-sdk/openhands/sdk/conversation/conversation.py`, `openhands-sdk/openhands/sdk/workspace/workspace.py`, `openhands-sdk/openhands/sdk/workspace/models.py`, `openhands-sdk/openhands/sdk/tool/client_tool.py`, `openhands-sdk/openhands/sdk/tool/registry.py`, `openhands-sdk/openhands/sdk/llm/utils/telemetry.py`
+消费者通道：建立在该结帐 SDK 上的 Python 程序在驱动 Agent Server 时会观察到什么。 `RemoteWorkspace`（和
+`AsyncRemoteWorkspace`) 运行命令、移动文件、读取 git 状态并获取服务器的 LLM 配置文件和 REST 上的机密引用；
+`Conversation(agent, workspace=RemoteWorkspace(...))` 返回一个
+`RemoteConversation` 创建或重新连接服务器会话，发送消息，运行到完成，同时流式传输事件到回调事件 WebSocket，并引导它（暂停、中断、确认、机密，询问、标题、分叉、关闭）。 同一程序携带服务器端钩子、客户端定义的工具、自定义工具模块、token流式传输和完成日志。 每个菜谱都运行一个真实的 SDK 程序
+`control-agent-server exec`并随后通过RESTAPI检查服务器自己的视图，因此报告成功而服务器不同意的SDK在这里失败。
 
-Needs: `llm`, `tmux`, `git`
+资料来源：`openhands-sdk/openhands/sdk/conversation/impl/remote_conversation.py`、`openhands-sdk/openhands/sdk/workspace/remote/`、`openhands-sdk/openhands/sdk/conversation/conversation.py`、`openhands-sdk/openhands/sdk/workspace/workspace.py`、`openhands-sdk/openhands/sdk/workspace/models.py`、`openhands-sdk/openhands/sdk/tool/client_tool.py`、`openhands-sdk/openhands/sdk/tool/registry.py`、`openhands-sdk/openhands/sdk/llm/utils/telemetry.py`
 
-Routes: none
+需求：`llm`、`tmux`、`git`
 
-## Sub-features
+路线：None
 
-- `F33.workspace-exec`: `Workspace(host=...)` returns a `RemoteWorkspace` whose `execute_command` returns the command's exit code, stdout and stderr, runs in the given `cwd`, gives up after `timeout` with exit `-1` and `timeout_occurred`; `alive` and `get_server_info()` match the server.
-- `F33.workspace-bad-key`: with a wrong `api_key`, `execute_command` and `file_upload` report a 401 failure instead of raising, creating a conversation raises a 401 `HTTPStatusError`, and the server records no command, file or conversation.
-- `F33.workspace-background`: `start_command` returns a command id at once, `get_command_output` shows no exit code while it runs, `stop_command` ends it (no later output), and stopping an unknown id is a no-op.
-- `F33.workspace-files`: `file_upload` (from a path or from bytes) and `file_download` round-trip a binary file byte for byte; a missing remote file or a relative destination reports `success: false` with the server's 404 or 400 and leaves no local file.
-- `F33.workspace-git`: `git_changes` (a path relative to `working_dir`) and `git_diff` return what the server's git routes return for a repository with a modified and an untracked file.
-- `F33.workspace-settings`: `get_llm()` resolves the server's active LLM profile with a usable key, `get_llm(profile_name=...)` a named one (unknown names raise `FileNotFoundError`), `get_secrets()` returns `LookupSecret` references without values, and `get_mcp_config()` is empty on a fresh server.
-- `F33.async-workspace`: `AsyncRemoteWorkspace` runs a command, starts, reads and stops a background command, uploads and downloads a file, reads git changes, a git diff and server info, and closes its client on context exit.
-- `F33.workspace-runtime-scope`: a `RemoteWorkspace(runtime_conversation_id=...)` routes through `/api/conversations/{id}/...`: commands default to the conversation's workspace and land in its own bash history, paths outside that workspace are refused with 422, and an unknown conversation gives 404.
-- `F33.workspace-runtime-lifecycle`: synchronous and asynchronous `get_runtime_session_key()` obtain a distinct worker key that authenticates a real child command; `release_runtime()` removes its container while conversation history stays readable, and reprovision permits the second SDK variant to repeat the lifecycle.
-- `F33.conversation-create`: `Conversation(agent, workspace=RemoteWorkspace)` returns a `RemoteConversation` that creates the server conversation with the agent, working directory, tags and `max_iteration_per_run`; `send_message` stores the message without running and the agent's key is not echoed back.
-- `F33.conversation-create-request`: `RemoteConversation.create(workspace, StartConversationRequest(...))` creates the conversation with the requested id from server-built `agent_settings`, tags and iteration limit, and runs its `initial_message`; repeating the same request returns the same conversation and adds no conversation or message.
-- `F33.conversation-create-profile`: `RemoteConversation.create(workspace, StartConversationRequest(agent_profile_id=...))` builds the agent from a saved agent profile (its LLM profile, tool selection and system message suffix), records the launched profile and runs the `initial_message` to `finished`; `get_secrets(agent_profile_id=...)` returns only the profile's `secret_refs`.
-- `F33.conversation-run`: `send_message` plus a blocking `run()` returns once the agent finished; the server reports `finished` and the file the agent wrote exists.
-- `F33.conversation-callbacks`: callbacks receive the run's events live over the events WebSocket, and after `run()` the callback counts and `state.events` match the server's persisted events kind by kind.
-- `F33.conversation-stats`: `conversation_stats` and `state.execution_status` read back the server's numbers (accumulated cost and prompt tokens of the agent's LLM).
-- `F33.conversation-stop-hook`: with a `Stop` hook that refuses the first stop (exit 2), a blocking `run()` returns only after the extra agent turn the hook forced: the server is `finished` when `run()` returns, and `state.events` already holds both stop `HookExecutionEvent`s (blocked, then allowed) and the hook's feedback, matching the server kind by kind.
-- `F33.client-tools`: `Conversation(client_tools=[ClientToolSpec(...)])` delivers the model's call to the callbacks as a typed `ClientAction_<name>` `ActionEvent`, the server acknowledges it with a `ClientToolObservation` and finishes, and a second program that attaches without `client_tools` replays those events.
-- `F33.conversation-streaming`: with a `stream=True` agent LLM, callbacks receive the run's `StreamingDeltaEvent` frames live and the server stores none of them.
-- `F33.conversation-token-callbacks`: `Conversation(token_callbacks=[...])` on a remote workspace calls the token callbacks with the run's streamed deltas.
-- `F33.conversation-streaming-state`: streamed deltas stay out of `state.events`, which keeps matching the server's stored events.
-- `F33.completion-logs`: an agent LLM with `log_completions=True` gets one log file per model call in its `log_completions_folder`, written by the client from the `LLMCompletionLogEvent`s the server streams and stores (the server writes no file).
-- `F33.conversation-attach`: a second program reattaches by id with `RemoteConversation.attach()` or `Conversation(conversation_id=...)` and replays the same history without creating anything; `attach()` on an unknown id raises 404 while `Conversation(conversation_id=<new id>)` creates that id.
-- `F33.conversation-attach-large`: attaching to a conversation with more than 100 stored events pages through the whole history: `state.events` holds the server's events in the server's order (plus the one unpersisted socket snapshot), and the first reads of `state.confirmation_policy`, `state.security_analyzer`, `state.hook_config` and `state.agent` equal the server's.
-- `F33.conversation-state-reread`: reading `state.confirmation_policy`, `state.security_analyzer`, `state.agent` and `is_confirmation_mode_active` a second time gives the same answer as the first.
-- `F33.conversation-ask-title`: `ask_agent()` answers without adding events, `generate_title()` returns a title within `max_length` without adding events, and `set_title()` changes the server's title.
-- `F33.conversation-fork`: `fork(title=..., tags=...)` returns a `RemoteConversation` for a new server conversation with the same history, the title and the tags; `fork(agent=...)` is refused client-side.
-- `F33.conversation-fork-branch`: `fork(from_event_id=..., reset_metrics=False)` returns a fork whose history ends at that event (its HEAD) with the source's stats, and `navigate_to(None)` and `navigate_to(event_id)` move the fork's HEAD without changing its events.
-- `F33.conversation-plugins-tag`: `Conversation(plugins=[PluginSource(...)])` with inline URL credentials stores the `plugins` tag with the credentials masked, and the token reaches no server state.
-- `F33.conversation-confirmation`: `set_confirmation_policy(AlwaysConfirm())` makes `run()` return at `waiting_for_confirmation`; `reject_pending_actions()` records a `UserRejectObservation`, never runs the action and leaves the conversation `idle`.
-- `F33.conversation-pause`: `pause()` from another thread during a blocking `run()` lets the tool step in flight finish, makes `run()` return with `paused` and a `PauseEvent`, and a later `run()` resumes to `finished`.
-- `F33.conversation-interrupt`: `interrupt()` from another thread while a blocking `run()` waits on a model call makes `run()` return at once without raising, at `paused` with one `InterruptEvent` and no `PauseEvent`, and a later `run()` reaches `finished`.
-- `F33.conversation-run-timeout`: `run(timeout=...)` raises `ConversationRunError` wrapping a `TimeoutError` on time while the server keeps running, and a second `run()` joins the run in flight (the server's 409 is not an error) and returns at `finished`.
-- `F33.conversation-run-join-long-tool`: a second `run()` also joins a run whose current tool call lasts longer than 30 s, instead of raising.
-- `F33.conversation-stuck`: when the server's stuck detector stops a looping agent, `run()` raises `ConversationRunError` ("got stuck") at once and the server reports `stuck`.
-- `F33.conversation-secrets`: `update_secrets()` with a plain value and with a `LookupSecret` from `get_secrets()` makes both available to the agent's commands, masked in observations and not stored in plaintext.
-- `F33.conversation-run-error`: when the model provider rejects the key, `run()` raises `ConversationRunError` carrying the server's `ConversationErrorEvent` code, and the server reports `error`.
-- `F33.ws-unavailable`: when the events socket cannot connect, `Conversation(...)` raises `WebSocketConnectionError` after `OPENHANDS_REMOTE_WS_READY_TIMEOUT` seconds (the conversation it created stays on the server); with `OPENHANDS_REMOTE_WS_READY_REQUIRED=false` it continues, and `run()` returns at `finished` through the REST fallback about 30 s after the server finished, with `state.events` matching the server.
-- `F33.conversation-reconnect`: a live `RemoteConversation` survives a server restart: its events socket reconnects, a new message runs to `finished`, and `state.events` again matches the server.
-- `F33.conversation-reconnect-callbacks`: an event the server records while a live `RemoteConversation`'s events socket is down reaches its callbacks once the socket is back, not only `state.events`.
-- `F33.conversation-restart`: after a restart a new program reattaches to a finished conversation, sees the same history, and continues it to `finished`.
-- `F33.custom-tool-module`: a tool registered in the client process is sent as `tool_module_qualnames`, imported by a server started with `OH_EXTRA_PYTHON_PATH`, and runs on the server when the agent calls it; a client-registered module the server cannot import is only a logged warning; reattaching from a process without the module raises `ImportError` naming the tool.
-- `F33.custom-tool-module-unimportable`: a conversation whose agent names a tool from a module the server cannot import is rejected at create with a 422 naming the tool and the module, never a 500 on a later message.
-- `F33.conversation-close`: `close()` keeps the server conversation when `delete_on_close=False` and deletes it when the `Conversation(...)` factory's default `delete_on_close=True` applies.
+<a id="sub-features"></a>
 
-## How to get to it (agent POV)
+## 子功能
 
-- SDK workspace: `Workspace(host=..., api_key=..., working_dir=...)` or
+- `F33.workspace-exec`: `Workspace(host=...)` 返回一个 `RemoteWorkspace`，其 `execute_command` 返回命令的退出码、标准输出和标准错误，运行在给定的 `cwd`，在 `timeout` 后退出，退出码为 `-1`，标准输出和标准错误为 `timeout_occurred`。 `alive` 和 `get_server_info()` 与服务器匹配。
+- `F33.workspace-bad-key`: 有误 `api_key`, `execute_command` 和 `file_upload` 报告 401 失败，而不是抛出，创建对话会引发 401 `HTTPStatusError`, 服务器没有记录任何命令、文件或对话。
+- `F33.workspace-background`: `start_command` 返回一个命令 ID，`get_command_output` 在运行时没有退出码，`stop_command` 结束它（没有后续输出），停止未知 ID 是无操作的。
+- `F33.workspace-files`: `file_upload` (从路径或从字节)和 `file_download` 逐字传输二进制文件缺少远程文件或相对目的地报告 `success: false` 服务器返回 404 或 400 错误，不留下本地文件。
+- `F33.workspace-git`：`git_changes`（相对于 `working_dir` 的路径）和 `git_diff` 返回服务器的 git 路由为具有已修改和未跟踪文件的存储库返回的内容。
+- `F33.workspace-settings`: `get_llm()` 解决服务器的活动状态 LLM 具有可使用的密钥的凭证 `get_llm(profile_name=...)` 一个已知的 [unknown names raise] `FileNotFoundError`), `get_secrets()` 返回 `LookupSecret` 无值的引用，和 `get_mcp_config()` 在一台新的服务器上是空的。
+- `F33.async-workspace`: `AsyncRemoteWorkspace` 运行命令，启动、读取和停止后台命令，上传和下载文件，读取 Git 改进，Git 差异和服务器信息，并在上下文退出时关闭其客户端。
+- `F33.workspace-runtime-scope`：`RemoteWorkspace(runtime_conversation_id=...)` 路由通过 `/api/conversations/{id}/...`：命令默认为会话的工作区并进入其自己的 bash 历史记录，工作区之外的路径将被拒绝，返回 422，未知会话则返回 404。
+- `F33.workspace-runtime-lifecycle`: 同步和异步 `get_runtime_session_key()` 获取验证真实子命令的不同工作密钥； `release_runtime()` 删除其容器，同时对话历史记录保持可读，并且重新配置允许第二个 SDK 变体重复生命周期。
+- `F33.conversation-create`: `Conversation(agent, workspace=RemoteWorkspace)` 返回一个 `RemoteConversation`，它创建与智能体、工作目录、标签和 `max_iteration_per_run` 的服务器会话； `send_message` 存储消息而不运行，并且智能体的键不回显。
+- `F33.conversation-create-request`：`RemoteConversation.create(workspace, StartConversationRequest(...))`使用服务器构建的`agent_settings`、标签和迭代限制中请求的id创建会话，并运行其`initial_message`； 重复相同的请求将返回相同的对话，并且不会添加任何对话或消息。
+- `F33.conversation-create-profile`: `RemoteConversation.create(workspace, StartConversationRequest(agent_profile_id=...))` 构建了智能体从一个保存的智能体 profile (its LLM 记录启动的配置文件，并运行它 `initial_message` to `finished`; `get_secrets(agent_profile_id=...)` 只返回  `secret_refs`.
+- `F33.conversation-run`：`send_message`加一个阻塞`run()`，一旦智能体完成就返回； 服务器报告`finished`并且智能体写入的文件存在。
+- `F33.conversation-callbacks`：回调通过事件 WebSocket 实时接收运行事件，在 `run()` 之后，回调计数，`state.events` 与服务器的已持久化事件逐类匹配。
+- `F33.conversation-stats`：`conversation_stats`和`state.execution_status`读回服务器的数字（智能体的LLM的累计成本和提示词token）。
+- `F33.conversation-stop-hook`：使用拒绝第一个停止（出口 2）的 `Stop` 钩子，只有在额外的智能体强制转动钩子之后才会返回阻塞 `run()`：当 `run()` 返回时，服务器处于 `finished`，并且 `state.events` 已经持有停止 `HookExecutionEvent`（被阻止，然后允许）和钩子的反馈，逐一匹配服务器。
+- `F33.client-tools`: `Conversation(client_tools=[ClientToolSpec(...)])` 将模型的调用交付给回调作为 `ClientAction_<name>` `ActionEvent`，服务器用 `ClientToolObservation` 回应，并完成，第二个程序则不 `client_tools` 重播这些事件。
+- `F33.conversation-streaming`：使用 `stream=True` 智能体 LLM、回调实时接收运行的 `StreamingDeltaEvent` 个帧，服务器存储其中的 None 个帧。
+- `F33.conversation-token-callbacks`：远程工作区上的 `Conversation(token_callbacks=[...])` 使用运行的流式增量调用 token 回调。
+- `F33.conversation-streaming-state`：流式增量不存在于 `state.events` 范围内，它保持与服务器存储的事件匹配。
+- `F33.completion-logs`: an 智能体  LLM 与 `log_completions=True` 在每次模型调用时，获取一个日志文件 `log_completions_folder`由客户端撰写的 `LLMCompletionLogEvent`服务器流式传输并存储数据（服务器不写入文件）。
+- `F33.conversation-attach`：第二个程序通过 id 与 `RemoteConversation.attach()` 或 `Conversation(conversation_id=...)` 重新连接，并重播相同的历史记录而不创建任何内容； `attach()` 在未知 id 上引发 404，而 `Conversation(conversation_id=<new id>)` 创建该 id。
+- `F33.conversation-attach-large`通过整个历史记录，附带与超过100条存储事件的对话。 `state.events` 它包含了服务器事件，按服务器顺序（加上一个未持久化的套接字快照），以及第一次读取 `state.confirmation_policy`, `state.security_analyzer`, `state.hook_config` 和 `state.agent` 等同于服务器。
+- `F33.conversation-state-reread`：第二次读取`state.confirmation_policy`、`state.security_analyzer`、`state.agent`和`is_confirmation_mode_active`给出与第一次相同的答案。
+- `F33.conversation-ask-title`：`ask_agent()`回答而不添加事件，`generate_title()`返回`max_length`内的标题而不添加事件，`set_title()`更改服务器的标题。
+- `F33.conversation-fork`：`fork(title=..., tags=...)`返回`RemoteConversation`，表示具有相同历史记录、标题和标签的新服务器对话； `fork(agent=...)`被客户端拒绝。
+- `F33.conversation-fork-branch`: `fork(from_event_id=..., reset_metrics=False)` 返回一个历史结束于该事件（其）的分支 HEAD) 与源的统计信息一起， `navigate_to(None)` 和 `navigate_to(event_id)` 移动叉子的 HEAD 不改变其事件。
+- `F33.conversation-plugins-tag`: `Conversation(plugins=[PluginSource(...)])` with inline URL 凭据存储 `plugins` 标记，凭据被屏蔽，token 达到无服务器状态。
+- `F33.conversation-confirmation`：`set_confirmation_policy(AlwaysConfirm())`使`run()`在`waiting_for_confirmation`处返回； `reject_pending_actions()` 记录 `UserRejectObservation`，从不运行该操作并离开对话 `idle`。
+- `F33.conversation-pause`: `pause()` 从另一个线程在阻塞期间 `run()` 让工具在飞行中完成，使 `run()` 返回 `paused` and a `PauseEvent`, and a later `run()` 继续 `finished`.
+- `F33.conversation-interrupt`: `interrupt()` 从另一个线程在阻塞状态下 `run()` 等待模型调用的操作 `run()` 立即返回，无需抛出异常 `paused` with one `InterruptEvent` 和没有 `PauseEvent`, and a later `run()` reaches `finished`.
+- `F33.conversation-run-timeout` `run(timeout=...)` 在服务器继续运行时，会 `ConversationRunError` 包裹一个 `TimeoutError`，而另一个 `run()` 正在运行中（服务器的 409 不是错误），并在 `finished` 返回。
+- `F33.conversation-run-join-long-tool`：第二个 `run()` 也加入当前工具调用持续时间超过 30 秒的运行，而不是加注。
+- `F33.conversation-stuck`：当服务器的卡住检测器停止循环智能体时，`run()` 立即引发 `ConversationRunError`（“卡住”），并且服务器报告 `stuck`。
+- `F33.conversation-secrets`：`update_secrets()` 具有纯值，并且具有来自 `get_secrets()` 的 `LookupSecret`，使得两者都可用于智能体的命令，在观测结果中屏蔽并且不以明文形式存储。
+- `F33.conversation-run-error`：当模型提供者拒绝密钥时，`run()`提出携带服务器`ConversationErrorEvent`代码的`ConversationRunError`，并且服务器报告`error`。
+- `F33.ws-unavailable`：当事件套接字无法连接时，`Conversation(...)` 在 `OPENHANDS_REMOTE_WS_READY_TIMEOUT` 秒后引发 `WebSocketConnectionError`（它创建的会话保留在服务器上）； `OPENHANDS_REMOTE_WS_READY_REQUIRED=false` 继续，`run()` 在服务器完成后约 30 秒通过 REST 回退方案在 `finished` 处返回，`state.events` 与服务器匹配。
+- `F33.conversation-reconnect`：活动的 `RemoteConversation` 在服务器重新启动后仍然存在：其事件套接字重新连接，新消息运行到 `finished`，并且 `state.events` 再次与服务器匹配。
+- `F33.conversation-reconnect-callbacks`：当活动 `RemoteConversation` 的事件套接字关闭时，服务器记录的事件在套接字恢复后到达其回调，而不仅仅是 `state.events`。
+- `F33.conversation-restart`：重新启动后，新程序重新附加到已完成的对话，看到相同的历史记录，并继续到 `finished`。
+- `F33.custom-tool-module`：在客户端进程中注册的工具作为`tool_module_qualnames`发送，由`OH_EXTRA_PYTHON_PATH`启动的服务器导入，并在智能体调用时在服务器上运行； 服务器无法导入的客户端注册模块只是记录的警告； 从没有模块的进程重新附加会引发 `ImportError` 命名该工具。
+- `F33.custom-tool-module-unimportable`[a conversation whose] 智能体在创建时，如果服务器无法导入模块中的工具，则会拒绝，并以422命名工具和模块，而不是500。
+- `F33.conversation-close`：`close()`在`delete_on_close=False`时保留服务器会话，并在`Conversation(...)`工厂默认`delete_on_close=True`适用时删除它。
+
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- SDK 工作区：`Workspace(host=..., api_key=..., working_dir=...)` 或
   `RemoteWorkspace(...)` (`openhands.sdk.workspace`): `execute_command`,
   `start_command`, `get_command_output`, `stop_command`, `file_upload`,
   `file_download`, `git_changes`, `git_diff`, `get_server_info`, `alive`,
-  `get_llm`, `get_secrets`, `get_mcp_config`, and with
-  `runtime_conversation_id` the conversation-scoped variants plus
-  `get_runtime_session_key` and `release_runtime`. `AsyncRemoteWorkspace`
-  mirrors the command, file, git and server-info methods with `await`.
-- SDK conversation: `Conversation(agent=..., workspace=<RemoteWorkspace>, ...)`
-  (factory; `delete_on_close` defaults to `True`) or `RemoteConversation(...)`
-  (`delete_on_close` defaults to `False`), `RemoteConversation.create(workspace,
-  StartConversationRequest)` (with `agent_settings` or `agent_profile_id`)
-  and `RemoteConversation.attach(workspace, id)`; constructor options
+  `get_llm`、`get_secrets`、`get_mcp_config` 以及
+  `runtime_conversation_id` 对话范围的变体加上
+  `get_runtime_session_key` 和 `release_runtime`。 `AsyncRemoteWorkspace` 与 `await` 镜像了命令、文件、git 和 server-info 方法。
+- SDK对话：`Conversation(agent=..., workspace=<RemoteWorkspace>, ...)`（工厂； `delete_on_close`默认为`True`）或`RemoteConversation(...)`（`delete_on_close`默认为`False`），`RemoteConversation.create(workspace, StartConversationRequest)`（与`agent_settings`或`agent_profile_id`）和`RemoteConversation.attach(workspace, id)`； 构造函数选项
   `hook_config`, `client_tools`, `callbacks`, `token_callbacks`, `plugins`,
-  `tags`, `max_iteration_per_run`; then `send_message`,
+  `tags`, `max_iteration_per_run`; 那么`send_message`,
   `run(blocking=..., timeout=...)`, `pause`, `interrupt`,
   `set_confirmation_policy`, `set_security_analyzer`,
   `reject_pending_actions`, `update_secrets`, `ask_agent`, `generate_title`,
   `set_title`, `fork(title, tags, from_event_id, reset_metrics)`,
-  `navigate_to`, `close`, and the read side `state` (`execution_status`,
+  `navigate_to`、`close` 和读取侧 `state` (`execution_status`、
   `events`, `confirmation_policy`, `security_analyzer`, `hook_config`,
-  `agent`, `refresh_from_server()`) and `conversation_stats`. Agent-side
-  options that change what the client sees: an LLM with `stream=True`
-  (`StreamingDeltaEvent` frames) or `log_completions=True` (completion log
-  files written by the client), and tools registered in the client process
-  (sent as `tool_module_qualnames`). Not driven here: `condense` and
-  `load_plugin`, one-call wrappers over routes F10 and F09 drive.
-- Wire: the workspace calls `/api/bash/*`, `/api/file/*`, `/api/git/*`,
+  `agent`、`refresh_from_server()`) 和 `conversation_stats`。 智能体端点选项会改变客户端看到的内容：LLM端点`stream=True`（`StreamingDeltaEvent`帧）或`log_completions=True`（客户端生成的完成日志文件），以及客户端注册的工具（发送为`tool_module_qualnames`）。 此处未驱动：`condense` 和
+  `load_plugin`，路由 F10 和 F09 驱动器上的一调用包装器。
+- 连线：工作区调用 `/api/bash/*`、`/api/file/*`、`/api/git/*`、
   `/server_info`, `/health`, `/api/settings`, `/api/profiles/{name}`,
-  `/api/settings/secrets` (or the `/api/conversations/{id}/...` scoped copies);
-  the conversation calls `/api/conversations` and its sub-routes and keeps
-  `WS /sockets/events/{conversation_id}` open with first-frame auth. Those
-  routes belong to their own families; this family owns none.
-- Configuration on the client: `OPENHANDS_REMOTE_WS_READY_TIMEOUT` (seconds to
-  wait for the events socket, default 30) and
-  `OPENHANDS_REMOTE_WS_READY_REQUIRED` (`false` continues without it), both
-  driven by `F33.ws-unavailable`. On the server, `OH_EXTRA_PYTHON_PATH`
-  makes custom tool modules importable (`F33.custom-tool-module`).
-- Examples: `examples/02_remote_agent_server/` (01 local server with hooks,
-  06 custom tool, 11 fork, 12 settings and secrets, 13 `get_llm`, 14 client
-  tools); Agent Canvas and the TypeScript client reach the same routes
-  without this SDK.
-- Every recipe below runs a heredoc program with
-  `control-agent-server exec -- .venv/bin/python -`, which injects
-  `AGENT_SERVER_URL` and `SESSION_API_KEY` and passes `$DEEPSEEK_API_KEY`
-  through, then checks the server with the CLI's `api` and `conversation
-  events` verbs.
+  `/api/settings/secrets`（或 `/api/conversations/{id}/...` 范围副本）； 对话调用 `/api/conversations` 及其子路由并保持
+  `WS /sockets/events/{conversation_id}` 使用第一帧身份验证打开。 那些路线属于他们自己的家族； 这个家庭拥有None。
+- 客户端配置：`OPENHANDS_REMOTE_WS_READY_TIMEOUT`（等待事件套接字的秒数，默认 30）和
+  `OPENHANDS_REMOTE_WS_READY_REQUIRED`（`false` 没有它继续），两者都由 `F33.ws-unavailable` 驱动。 在服务器上，`OH_EXTRA_PYTHON_PATH` 使自定义工具模块可导入 (`F33.custom-tool-module`)。
+- 示例：`examples/02_remote_agent_server/`（01 带钩子的本地服务器、06 自定义工具、11 fork、12 设置和机密、13 `get_llm`、14 客户端工具）； Agent Canvas 和 TypeScript 客户端在没有此 SDK 的情况下到达相同的路由。
+- 下面的每个食谱都运行一个heredoc程序
+  `control-agent-server exec -- .venv/bin/python -`，注入
+  `AGENT_SERVER_URL` 和 `SESSION_API_KEY` 并传递 `$DEEPSEEK_API_KEY`，然后使用 CLI 的 `api` 和 `conversation events` 动词检查服务器。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok,
-  `$DEEPSEEK_API_KEY` is set, `tmux` and `git` are installed. The block below
-  activates deepseek-flash on the server (the settings bullet reads it) and
-  writes `$F33/f33.py`, a small helper every probe imports (via
-  `--env PYTHONPATH="$F33"`): `workspace(name)` makes a `RemoteWorkspace` on
-  `$F33/<name>` with the run's key (`host=` points it elsewhere),
-  `agent()` a terminal-only agent on deepseek-flash with its own key
-  (`usage_id` `qa-f33`; keyword arguments go to its `LLM`), `kinds(events)`
-  counts events by class without `ConversationStateUpdateEvent`, and
-  `emit(name, ...)` prints one JSON line and keeps it as `$F33/<name>.json`
-  for the shell checks. `Proxy()` is a loopback TCP forwarder to the run's
-  server for the socket-outage bullets: REST passes through, `block_ws`
-  refuses event-socket upgrades with 403 (counted in `refused`), and
-  `drop_sockets()` aborts the open event sockets as a network failure would.
-  Each probe asserts with `assert`, so a failure exits non-zero and fails the
-  bullet.
-- It also creates a git repository fixture (`REPO`, one modified and one
-  untracked file), the server secret `QA_F33_LOOKUP` (read by the settings
-  and secrets bullets, deleted by the secrets bullet) and four `llm-stub`
-  providers, each used by one bullet for provider behavior a real model
-  cannot produce on demand: `STUB` answers every completion with 401
-  (run-error), `LONG_STUB` asks for one exact `terminal` call of 45 s with a
-  90 s tool timeout and then `finish` (run-join-long-tool), `HANG_STUB` holds
-  the first completion for 300 s and answers `finish` next (`HANG_LOG` is its
-  request log; interrupt), and `LOOP_STUB` repeats one `think` call forever
-  (stuck). Probes on a stub call `set_title()` before the first message so
-  that the server's auto-title, which uses the agent's LLM, does not consume
-  a scripted step.
-- The run bullet's conversation (`CID`) is reused read-only by the attach,
-  ask/title, fork and fork-branch bullets and continued by the restart
-  bullet; the create bullet's idle conversation (`IDLE`) is used by the
-  runtime-scope bullet. Known-bug bullets read only what the normal bullet
-  before them recorded (`stream.json`, `$BIG`, the module files)
-  and set nothing later bullets use. The reconnect, restart and
-  custom-tool-module bullets restart the run (the last one with
-  `OH_EXTRA_PYTHON_PATH`, which later restarts keep).
+前提条件：
+
+- 基线运行已上线并已导出 (`launch --new`)，`doctor` 可以，
+  设置 `$DEEPSEEK_API_KEY`，安装 `tmux` 和 `git`。 下面的块激活服务器上的 deepseek-flash（设置项目符号读取它）并写入 `$F33/f33.py`，每个探针导入的一个小助手（通过
+  `--env PYTHONPATH="$F33"`): `workspace(name)` 使 `RemoteWorkspace` 开启
+  `$F33/<name>` 与运行的键（`host=` 将其指向其他地方），
+  `agent()` deepseek-flash 上的仅限终端智能体，有自己的密钥 (`usage_id` `qa-f33`; 关键字参数转到其 `LLM`），`kinds(events)` 按类别对事件进行计数，不带 `ConversationStateUpdateEvent`，并且
+  `emit(name, ...)` 打印 JSON 行并将其保留为 `$F33/<name>.json` 以供 shell 检查。 `Proxy()` 是一个回环 TCP 重定向器，用于处理 socket-outage 短信：REST 通过，`block_ws` 拒绝使用 403 的事件-socket 升级（`refused` 计入），
+  `drop_sockets()` 中止打开事件套接字，就像网络故障一样。 每个探针都断言 `assert`，因此失败退出非零并且项目符号失败。
+- 它还创建了一个测试夹具（`REPO`，一个修改过的文件和一个未跟踪的文件），服务器机密（`QA_F33_LOOKUP`，由设置读取，机密条目删除，由机密条目）和四个`llm-stub`提供商，每个提供商都用于一个条目以模拟真实模型无法即时生产的提供商行为：`STUB`在每个完成中回答401（运行错误），`LONG_STUB`要求一个精确的`terminal`调用（90秒工具）超时，然后`finish`（运行长工具），`HANG_STUB`保持第一个完成300秒并回答`finish`（`HANG_LOG`是其请求日志）； 中断），并且 `LOOP_STUB` 永远重复一次 `think` 调用（卡住）。 在第一个消息之前，探针调用`set_title()`，这样服务器的自动标题，使用智能体's LLM，就不会消耗脚本步骤。
+- run 项目符号的对话 (`CID`) 被 Attach、ask/title、fork 和 fork-branch 项目符号重用只读，并由重启项目符号继续； 创建项目符号的空闲对话 (`IDLE`) 由运行时范围项目符号使用。 已知错误项目符号只读之前记录了哪些正常项目符号（`stream.json`、`$BIG`、模块文件），并且没有设置任何后续项目符号使用。 重新连接、重新启动和自定义工具模块项目符号重新启动运行（最后一个带有
+  `OH_EXTRA_PYTHON_PATH`，稍后重新启动 keep）。
 
   ```sh
   control-agent-server llm preset deepseek
@@ -283,8 +237,7 @@ Preconditions:
   control-agent-server api PUT /api/settings/secrets --json '{"name": "QA_F33_LOOKUP", "value": "qa-f33-lookup-value", "description": "qa f33 lookup"}' --expect 200
   ```
 
-- **Commands, server info and liveness (`F33.workspace-exec`).** Run three
-  commands through `RemoteWorkspace`, then read the server's bash history.
+- **命令、服务器信息和活跃度 (`F33.workspace-exec`)。**通过 `RemoteWorkspace` 运行三个命令，然后读取服务器的 bash 历史记录。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-exec/probe -- .venv/bin/python - <<'PY'
   import os
@@ -313,11 +266,9 @@ Preconditions:
     --check items.2.exit_code eq 3 --check items.2.stderr contains qa-f33-err --check items.1.exit_code eq 0 \
     --check items.0.exit_code eq -1 --until-ok 15 --save F33.workspace-exec/server-outputs
   ```
-  The probe passes; the server's newest three commands are the SDK's, with
-  the `cwd` and `timeout` it sent, and their outputs carry exit codes `3`,
-  `0` and `-1` (the server stopped `sleep 20` after 2 s too).
-- **Wrong session key (`F33.workspace-bad-key`).** The run's key works (the
-  bullet above); a wrong one must change nothing.
+  探测器通过； 服务器的最新三个命令是SDK的，`cwd`和`timeout`发送的，它们的输出包含退出码`3`
+  `0`和`-1`（服务器也在2秒后停止`sleep 20`）。
+- **会话密钥错误 (`F33.workspace-bad-key`)。**运行的关键是有效的（上面的项目符号）； 一个错误的决定不会改变任何事情。
   ```sh
   N0=$(control-agent-server api GET /api/conversations/count --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-bad-key/probe -- .venv/bin/python - <<'PY'
@@ -342,12 +293,9 @@ Preconditions:
     --check items.0.command not-contains qa-f33-bad-key --save F33.workspace-bad-key/no-command
   test ! -e "$F33/badkey/qa-f33-bad.txt"
   ```
-  `execute_command` returns exit `-1` with `Remote execution error: Client
-  error '401 Unauthorized'` in stderr (it never raises), the upload reports
-  `success: false`, `Conversation(...)` raises; the count, the newest command
-  and the workspace are unchanged.
-- **Background command (`F33.workspace-background`).** Start a long command,
-  stop it, read its output.
+  `execute_command` 在 stderr 中返回 exit `-1` 和 `Remote execution error: Client error '401 Unauthorized'`（它永远不会引发），上传报告
+  `success: false`、`Conversation(...)` 加注； 计数、最新命令和工作区不变。
+- **后台命令(`F33.workspace-background`).**启动一个长命令，停止它，读取它的输出。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-background/probe -- .venv/bin/python - <<'PY'
   import time
@@ -371,11 +319,8 @@ Preconditions:
     --check items.-1.exit_code eq "$(jq .exit_code "$F33/bg.json")" --check items.-1.exit_code ne 0 \
     --check items contains qa-f33-bg-start --check items not-contains qa-f33-bg-late --save F33.workspace-background/outputs
   ```
-  `start_command` returns at once; the stopped command ends with a negative
-  exit code (`-15`, SIGTERM) and only the output printed before the stop;
-  the unknown id is ignored (the server's 404 is swallowed).
-- **File round trip (`F33.workspace-files`).** Upload 70 kB of random bytes,
-  download them, and compare with what the server serves.
+  `start_command`立即返回； 停止的命令以负退出代码（`-15`，SIGTERM）结束，并且仅在停止之前打印输出； 未知的id被忽略（服务器的404被吞掉）。
+- **文件往返 (`F33.workspace-files`).**上传 70 kB 的随机字节，下载它们，并与服务器提供的内容进行比较。
   ```sh
   head -c 70000 /dev/urandom > "$F33/qa-f33-upload.bin"
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-files/probe -- .venv/bin/python - <<'PY'
@@ -405,12 +350,8 @@ Preconditions:
   test ! -e "$F33/qa-f33-missing.bin"
   test ! -e "$AGENT_SERVER_VERIFY_RUN/server/qa-f33-relative.txt"
   ```
-  Both copies are identical to the source; the missing file gives a 404
-  failure without a local file, and the relative destination a 400 without a
-  file in the server's working directory (`<run>/server`, where a relative
-  path would land).
-- **Git changes and diff (`F33.workspace-git`).** Read the fixture
-  repository through the SDK and through REST.
+  两个副本与源完全相同。 缺少的文件会以404失败，而相对目的地会以400失败，因为服务器上没有文件工作目录 (`<run>/server`，即相对路径会指向的位置）。
+- **Git 更改和差异 (`F33.workspace-git`).**通过 SDK 和 REST 阅读测试夹具存储库。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-git/probe -- .venv/bin/python - <<'PY'
   import os
@@ -430,9 +371,8 @@ Preconditions:
   control-agent-server api GET /api/git/diff --query path="$REPO/README.md" --check modified eq "$(jq -r .modified "$F33/git.json")" \
     --save F33.workspace-git/diff
   ```
-  The SDK joins the relative repository name with `working_dir`; both views
-  list `README.md` as `UPDATED` and `notes.txt` as `ADDED` with the same diff.
-- **LLM profiles, secrets and MCP from the server (`F33.workspace-settings`).**
+  的 SDK 将相对仓库名称与之连接 `working_dir`; 两种观点都列出了 `README.md` as `UPDATED` 和 `notes.txt` as `ADDED` 同上。
+- 来自服务器 (`F33.workspace-settings`) 的 **LLM 个配置文件、机密和 MCP。**
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.workspace-settings/probe -- .venv/bin/python - <<'PY'
   import os
@@ -459,9 +399,8 @@ Preconditions:
   control-agent-server api GET /api/settings --check active_profile eq deepseek-flash --save F33.workspace-settings/settings
   control-agent-server api GET /api/settings/secrets --check secrets contains QA_F33_LOOKUP --check . not-contains qa-f33-lookup-value
   ```
-  `get_llm()` follows `active_profile` and carries the profile's real key;
-  the lookup reference holds a URL and the session header, never the value.
-- **Async workspace (`F33.async-workspace`).**
+  `get_llm()`跟在`active_profile`之后，携带配置文件的真实密钥； 查找引用包含 URL 和会话标头，而不是值。
+- **异步工作区 (`F33.async-workspace`).**
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.async-workspace/probe -- .venv/bin/python - <<'PY'
   import asyncio
@@ -510,11 +449,8 @@ Preconditions:
     --check items.-1.exit_code eq "$(jq .exit_code "$F33/async.json")" --check items.-1.exit_code ne 0 \
     --check items not-contains qa-f33-async-late --save F33.async-workspace/background
   ```
-  Every awaited call succeeds: the diff matches the fixture, the background
-  command is stopped (negative exit code, only the output printed before the
-  stop), the unknown id is ignored, and the context exit drops the HTTP
-  client.
-- **Create a conversation without running it (`F33.conversation-create`).**
+  每一次期待的调用都成功了：差异与测试夹具匹配，后台命令被停止（退出码为负数，只打印停止之前的内容），未知ID被忽略，上下文退出会关闭HTTP客户端。
+- **创建对话而不运行它 (`F33.conversation-create`)。**
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-create/probe -- .venv/bin/python - <<'PY'
   import f33
@@ -535,12 +471,8 @@ Preconditions:
   control-agent-server conversation events "$IDLE" --kinds MessageEvent --contains 'qa-f33 pending message' --expect-count 1
   control-agent-server conversation events "$IDLE" --kinds ActionEvent --expect-count 0
   ```
-  The server stores the SDK's agent, working directory, tag and iteration
-  limit; the message is persisted but nothing runs (`idle`, no action), and
-  GET returns the LLM key redacted.
-- **Create from a request, twice (`F33.conversation-create-request`).** The
-  server builds the agent from `agent_settings`; the same request is then
-  submitted again with the same `conversation_id`.
+  服务器存储 SDK 的智能体、工作目录标签和迭代限制。 消息是已持久化，但没有任何操作(`idle`)，GET返回LLM键已脱敏。
+- **根据请求创建两次 (`F33.conversation-create-request`)。**服务器从`agent_settings`构建智能体； 然后使用相同的 `conversation_id` 再次提交相同的请求。
   ```sh
   N0=$(control-agent-server api GET /api/conversations/count --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-create-request/probe -- .venv/bin/python - <<'PY'
@@ -580,14 +512,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$REQ/events/search" --query source=user --check items len-eq 1 \
     --check items.0.llm_message.content.0.text eq 'qa-f33 create: reply with one word' --save F33.conversation-create-request/user-messages
   ```
-  Both calls return the requested id; the agent (model, `usage_id`) and the
-  iteration limit come back from the server; one conversation and one user
-  message exist, and the run the server started for `initial_message`
-  reaches `finished` (the server runs it whatever its `run` field says; see
-  Gotchas).
-- **Create from a saved agent profile (`F33.conversation-create-profile`).**
-  The profile allows one of two server secrets, has no tools and a system
-  message suffix, so its agent differs from the default one.
+  两个调用都返回请求的 id。 智能体 (模型，`usage_id`) 和迭代次数从服务器返回。 存在一个对话和一个用户消息，`initial_message` 运行的服务器启动后，`finished`（不管服务器的 `run` 字段说什么）都运行。 请参阅陷阱）。
+- ** 从已保存的智能体角色（`F33.conversation-create-profile`）创建。** 这个角色允许使用两个服务器机密，没有工具，系统消息后缀，因此它的智能体与默认的不相同。
   ```sh
   control-agent-server api PUT /api/settings/secrets --json '{"name": "QA_F33_PROFILE_IN", "value": "qa-f33-in-value"}' --expect 200
   control-agent-server api PUT /api/settings/secrets --json '{"name": "QA_F33_PROFILE_OUT", "value": "qa-f33-out-value"}' --expect 200
@@ -627,16 +553,10 @@ Preconditions:
   control-agent-server api DELETE /api/settings/secrets/QA_F33_PROFILE_IN --expect 200
   control-agent-server api DELETE /api/settings/secrets/QA_F33_PROFILE_OUT --expect 200
   ```
-  `get_secrets()` lists both secrets and `get_secrets(agent_profile_id=...)`
-  only the profile's `secret_refs`, as the server's scoped list does. The
-  conversation's agent is the profile's (deepseek-flash, no tools, the
-  suffix in its system prompt), the server records the launched profile, and
-  the initial message runs to `finished` (`run()` joins it). The profile and
-  both secrets are deleted afterwards.
-- **Conversation-scoped workspace (`F33.workspace-runtime-scope`).** Bind a
-  workspace to `IDLE` and probe its boundaries.
+  `get_secrets()` 列出机密和 `get_secrets(agent_profile_id=...)`，仅列出配置文件的 `secret_refs`，就像服务器的作用域列表一样。 智能体会话是 [deepseek-flash] 的（不使用工具，系统中的后缀为提示词），服务器记录启动的会话，初始消息运行到 `finished`（`run()` 加入其中）。 此后，该配置文件和两者机密都会被删除。
+- **对话范围工作区 (`F33.workspace-runtime-scope`).**将工作区绑定到 `IDLE` 并探测其边界。
 
-  Requires: `F33.conversation-create`
+  需要：`F33.conversation-create`
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$IDLE" --save F33.workspace-runtime-scope/probe -- .venv/bin/python - <<'PY'
   import os
@@ -665,17 +585,11 @@ Preconditions:
   test -f "$F33/idle/qa-f33-in.txt"
   test ! -e "$F33/qa-f33-outside.txt"
   ```
-  Without `cwd` the scoped command runs in the conversation's workspace; it
-  is in the conversation's bash history and not in the host's; the upload and
-  the `cwd` outside the workspace are 422, an unknown conversation 404.
-- **Runtime key and release (`F33.workspace-runtime-lifecycle`).**
-  Needs: `docker`
+  如果没有 `cwd`，则在会话的工作区中运行 scoped 命令。 它在会话的历史中，而不是在主机中。 上传和 `cwd` 之外的工作区都是 422，未知对话 404。
+- **运行时按键和释放 (`F33.workspace-runtime-lifecycle`)。**
+  需求：`docker`
 
-  Pull the selected image first. This uses an isolated Docker-runtime server,
-  the same pinned minimal image and optional `AGENT_SERVER_VERIFY_DOCKER_IMAGE`
-  override as F12. The outer server and SDK use this checkout; the child can
-  be a released image, so both its identity and version are recorded. The
-  placeholder LLM is never invoked.
+  首先拉取选定的图像。 这使用隔离的 Docker 运行时服务器、与 F12 相同的固定最小图像和可选的 `AGENT_SERVER_VERIFY_DOCKER_IMAGE` 覆盖。 外部服务器和SDK使用此结帐； 孩子可以是发布的图像，因此它的身份和版本都被记录。 LLM 从未被调用过。
   ```sh
   IMAGE=${AGENT_SERVER_VERIFY_DOCKER_IMAGE:-ghcr.io/openhands/agent-server:1.55.1-python-minimal}
   docker image inspect "$IMAGE" >/dev/null
@@ -752,14 +666,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$RUNTIME_CID" --run "$DK" --expect 404
   control-agent-server stop --run "$DK"
   ```
-  Both SDK variants obtain a distinct worker key, authenticate an actual
-  command directly against the child, then release it. After each release
-  its running and stopped containers are absent, while catalog and retained
-  event reads succeed without reprovisioning. The key stays in process memory
-  and is never printed or saved. Local runtime servers lack these lifecycle
-  routes (see Gotchas).
-- **Send and run to completion (`F33.conversation-run`, `F33.conversation-callbacks`, `F33.conversation-stats`).**
-  The agent writes a file; the probe counts the events its callback received.
+  两者 SDK variant获取一个独特的工作密钥，直接对子进程进行认证，然后释放它。 在每次发布后，其运行和停止的容器不存在，而目录和保留事件的读取成功，无需重新配置。 密钥始终驻留在进程内存中，并且从不打印或保存。 本地运行时服务器缺少这些生命周期路由（见陷阱）。
+- **发送并运行完成（`F33.conversation-run`、`F33.conversation-callbacks`、`F33.conversation-stats`）。** 智能体写入文件； 探测器对其回调接收到的事件进行计数。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-run/probe -- .venv/bin/python - <<'PY'
   from collections import Counter
@@ -792,15 +700,8 @@ Preconditions:
   control-agent-server conversation events "$CID" --kinds ObservationEvent --contains qa-f33-run.txt --expect-kind ObservationEvent \
     --save F33.conversation-callbacks/observations
   ```
-  `run()` returns once the server is `finished`; the file holds `hi`; for
-  each event kind the callback count, the `state.events` count and the
-  server's count agree; cost and prompt tokens equal the server's `stats`.
-- **A Stop hook that refuses the first stop (`F33.conversation-stop-hook`).**
-  Hooks run on the server (`hook_config` travels in the create request). The
-  hook counts its calls in the workspace and exits 2 on the first one, so the
-  server reports `finished`, runs the hook, flips back to `running` and gives
-  the agent one more turn with the hook's stderr as feedback. The probe reads
-  the server's status the moment `run()` returns.
+  一旦服务器为`finished`，`run()`就返回； 该文件包含 `hi`； 对于每种事件类型，回调计数、`state.events` 计数和服务器计数一致； 成本和提示词 token 等于服务器的 `stats`。
+- **拒绝第一次停止的停止钩子 (`F33.conversation-stop-hook`)。**挂钩在服务器上运行（`hook_config` 在创建请求中传播）。 钩子在工作区计数调用次数，并在第一次调用时退出，因此服务器报告`finished`，运行钩子，切换到`running`，并用钩子的stderr作为反馈给智能体一次额外的机会。 探测器在 `run()` 返回时读取服务器的状态。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-stop-hook/probe -- .venv/bin/python - <<'PY'
   import os
@@ -842,16 +743,10 @@ Preconditions:
     control-agent-server conversation events "$HOOK" --kinds $K --expect-count "$(jq ".local.$K // 0" "$F33/stophook.json")"
   done
   ```
-  When `run()` returns the server already reports `finished`, and
-  `state.events` holds the blocked stop (exit 2), the hook's feedback (an
-  `environment` message), at least one agent turn after it, and the allowed
-  stop (exit 0), with the same counts per kind as the server. A client that
-  returned on the first `finished` status update would see `running` here
-  and at most one hook event (the race `AGENTS.md` describes).
-- **Client-defined tool (`F33.client-tools`).** The tool exists only as a
-  JSON spec; the server injects it into the agent and acknowledges each call,
-  and the client handles the call from its callback. A second program then
-  attaches without `client_tools`.
+  当 `run()` 返回服务器已经报告 `finished`，并且
+  `state.events` 保存被阻止的停止（出口 2）、钩子的反馈（
+  `environment` 消息），之后至少一智能体圈，以及允许的停止（出口 0），每种计数与服务器相同。 在第一次 `finished` 状态更新时返回的客户端将在此处看到 `running` 以及最多一个挂钩事件（竞赛 `AGENTS.md` 描述）。
+- **客户端定义的工具(`F33.client-tools`)。**该工具仅作为 JSON 规范存在； 服务器将其注入智能体并确认每个调用，客户端处理来自其回调的调用。 然后附加第二个程序，无需 `client_tools`。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.client-tools/probe -- .venv/bin/python - <<'PY'
   import f33
@@ -905,16 +800,11 @@ Preconditions:
   same.close()
   PY
   ```
-  The callback receives exactly one `ActionEvent` whose action is the typed
-  `ClientAction_qa_f33_notify` with a string `message`; the server answers
-  it with a `ClientToolObservation` ("Tool call dispatched to client.") and
-  the run finishes. A fresh process that never declared the tool replays the
-  same action, typed, through both attach paths (the SDK registers the specs
-  the server persisted before syncing events).
-- **Streamed tokens (`F33.conversation-streaming`).** An agent LLM with
-  `stream=True`, a token callback, and an event callback that keeps
-  `StreamingDeltaEvent` frames. The token and `state.events` outcomes are
-  recorded for the two bullets after this one.
+  回调接收一个 `ActionEvent`，其操作是打出来的
+  `ClientAction_qa_f33_notify` 带有字符串 `message`； 服务器用 `ClientToolObservation`（“工具调用分派给客户端。”）回答它，然后运行完成。 一个从未声明工具的新进程会重播相同的动作，通过两个挂载路径（SDK 注册了服务器已持久化之前同步事件）。
+- **已直播 token (`F33.conversation-streaming`).** 智能体 LLM 与
+  `stream=True`、token 回调和事件回调保持
+  `StreamingDeltaEvent` 帧。 token 和 `state.events` 结果记录在这之后的两个项目符号中。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-streaming/probe -- .venv/bin/python - <<'PY'
   import f33
@@ -938,41 +828,30 @@ Preconditions:
   control-agent-server conversation events "$STREAM" --kinds StreamingDeltaEvent --expect-count 0 --save F33.conversation-streaming/stored
   control-agent-server api GET "/api/conversations/$STREAM" --check stats.usage_to_metrics.qa-f33.accumulated_token_usage.completion_tokens gt 0
   ```
-  The callback receives the run's deltas live over the events socket
-  (dozens for one sentence), and the server's stored events hold none: the
-  deltas are transient frames, while the reply itself is stored as a
-  `MessageEvent` (or `finish` action).
-- **Token callbacks on a remote conversation (`F33.conversation-token-callbacks`).**
-  The `Conversation(...)` factory forwards `token_callbacks` to
-  `RemoteConversation`, which hands each `StreamingDeltaEvent` frame from the
-  events socket to them as an `LLMStreamChunk` (the delta's `content` and
-  `reasoning_content` in `choices[0].delta`), so they receive the run's
-  deltas.
+  回调接收运行的差分数据，这些差分数据通过事件套接字实时发送（一个句子中有几十个），而服务器存储的事件则包含None：这些差分数据是瞬态帧，而回复本身则被存储为一个
+  `MessageEvent`（或 `finish` 操作）。
+- **token 回调进行远程对话 (`F33.conversation-token-callbacks`)。** `Conversation(...)` 工厂将 `token_callbacks` 转发至
+  `RemoteConversation`，它将事件套接字中的每个 `StreamingDeltaEvent` 帧作为 `LLMStreamChunk`（增量的 `content` 和
+  `choices[0].delta` 中的 `reasoning_content`），因此他们收到运行的增量。
 
-  Requires: `F33.conversation-streaming`
+  需要：`F33.conversation-streaming`
   ```sh
   test "$(jq .deltas "$F33/stream.json")" -gt 0
   control-agent-server assert --json "$F33/stream.json" --check tokens gt 0
   ```
-  The event callback got the deltas (control), and the token callback got
-  them too.
-- **Deltas kept out of `state.events` (`F33.conversation-streaming-state`).**
-  `RemoteConversation`'s default callback skips the transient deltas the
-  server never stores, so they reach the callbacks only and `state.events`
-  keeps matching the server.
+  回调事件获得了差异（控制权），而 token 和回调也都获得了这些差异。
+- **Delta 被排除在 `state.events` (`F33.conversation-streaming-state`) 之外。**
+  `RemoteConversation` 的默认值回调会跳过服务器从不存储的瞬态增量，因此它们仅到达回调，而 `state.events` 保持与服务器匹配。
 
-  Requires: `F33.conversation-streaming`
+  需要：`F33.conversation-streaming`
   ```sh
   test "$(jq '.local.MessageEvent // 0' "$F33/stream.json")" -eq "$(control-agent-server conversation events "$STREAM" --kinds MessageEvent | jq .matching)"
   control-agent-server assert --json "$F33/stream.json" --check local.StreamingDeltaEvent missing
   ```
-  The stored kinds agree, and `state.events` holds no `StreamingDeltaEvent`
-  although the callback saw one per delta.
-- **Completion logs on the client (`F33.completion-logs`).** An agent LLM
+  存储的类型一致，`state.events` 仍然成立，尽管 `StreamingDeltaEvent` 看到一个回调。
+- **客户端上的完成日志 (`F33.completion-logs`)。**一个智能体 LLM
   with `log_completions=True` and a relative `log_completions_folder`. The
-  server replaces file logging with `LLMCompletionLogEvent`s; the client
-  writes them under its own working directory, and the server's working
-  directory (`<run>/server`) would show any file the server wrote itself.
+  服务器用 `LLMCompletionLogEvent` 替换文件日志记录； 客户端将它们写入自己的工作目录下，服务器的工作目录（`<run>/server`）将显示服务器自己编写的任何文件。
   ```sh
   mkdir -p "$F33/logs-client"
   control-agent-server exec --cwd "$F33/logs-client" --env PYTHONPATH="$F33" --save F33.completion-logs/probe -- "$PWD/.venv/bin/python" - <<'PY'
@@ -1004,14 +883,10 @@ Preconditions:
   test ! -e "$AGENT_SERVER_VERIFY_RUN/server/qa-f33-logs"
   control-agent-server state grep deepseek-flash --glob 'fixtures/qa-f33/logs-client/qa-f33-logs/*'
   ```
-  One file per model call lands in the client's `qa-f33-logs`, named after
-  the event the socket delivered; the server stored the same events and
-  wrote no file of its own. (Without `set_title()` the server's auto-title
-  makes one more logged call on the agent's LLM, often after `run()`
-  returned.)
-- **Reattach from a second program (`F33.conversation-attach`).**
+  每个模型调用都会将一个文件存储在客户端的`qa-f33-logs`，并根据套接字发送的事件命名。 服务器存储了相同的事件，并未生成自己的文件。`set_title()` 服务器的自动标题会引发一次额外的登录调用到智能体's LLM，通常在 `run()` 返回之后。
+- **从第二个程序重新连接 (`F33.conversation-attach`)。**
 
-  Requires: `F33.conversation-run`
+  需要：`F33.conversation-run`
   ```sh
   N0=$(control-agent-server api GET /api/conversations/count --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$CID" --save F33.conversation-attach/probe -- .venv/bin/python - <<'PY'
@@ -1050,14 +925,10 @@ Preconditions:
     control-agent-server conversation events "$CID" --kinds $K --expect-count "$(jq ".kinds.$K" "$F33/attach.json")"
   done
   ```
-  Both reattach paths replay the same history (the first user message,
-  `finished`, the saved agent) and create nothing; only the explicit new id
-  adds one conversation.
-- **Attach to a long history (`F33.conversation-attach-large`).** A seeding
-  program sets a confirmation policy, a security analyzer and a
-  `PreToolUse` hook, then queues 110 messages (no model call); the server
-  stores more than 200 events. A second program attaches both ways and
-  compares with the server's paged search.
+  两条重新连接路径都会重放同一份历史（第一条用户消息、
+  `finished`，保存的智能体）并且什么也不创建； 只有明确的新 ID 才会添加一个对话。
+- **依附悠久的历史(`F33.conversation-attach-large`)。**种子程序设置确认策略、安全分析器和
+  `PreToolUse`钩子，然后排队110条消息（无模型调用）； 服务器存储了200多个事件。 第二个程序附加两种方式并与服务器的分页搜索进行比较。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-attach-large/seed -- .venv/bin/python - <<'PY'
   import f33
@@ -1117,17 +988,11 @@ Preconditions:
     --check execution_status eq idle --save F33.conversation-attach-large/get
   test "$(control-agent-server conversation events "$BIG" | jq .total)" -eq "$(jq .events "$F33/attachlarge.json")"
   ```
-  The SDK pages the history 100 events at a time: `state.events` has every
-  stored event in the server's order plus the one full-state snapshot the
-  socket sent on connect (never persisted), the 110 messages in order, and
-  the first read of each state field equals the server's GET.
-- **Read the state twice (`F33.conversation-state-reread`).**
-  `RemoteState` validates its cached conversation info on every read, so
-  validating a polymorphic field must not change the dict it is given: the
-  discriminated-union validator (`openhands/sdk/utils/models.py`) copies its
-  input before it removes `kind`, and a second read returns the same value.
+  SDK 页显示了 100 个历史事件：`state.events` 包含服务器的顺序存储事件，以及连接时发送的全状态快照（已持久化从未出现），110 条消息按顺序排列，以及每个状态字段的第一次读取等于服务器的 GET。
+- **读取状态两次(`F33.conversation-state-reread`)。**
+  `RemoteState` 在每次读取时都会验证其缓存的会话信息，因此验证一个多态字段必须不改变它所给的字典：验证器 (`openhands/sdk/utils/models.py`) 在删除 `kind` 之前先复制了输入，而第二次读取会返回相同的值。
 
-  Requires: `F33.conversation-attach-large`
+  需要：`F33.conversation-attach-large`
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$BIG" --save F33.conversation-state-reread/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1156,14 +1021,11 @@ Preconditions:
   PY
   control-agent-server assert --json "$F33/reread.json" --check stable eq true
   ```
-  Each field is read on a freshly attached conversation, and every first
-  read is right (control). The second reads return `AlwaysConfirm`,
-  `LLMSecurityAnalyzer` and `Agent` again, and `is_confirmation_mode_active`
-  stays `True`, without a socket snapshot or `state.refresh_from_server()`
-  in between.
-- **Ask, generate and set a title (`F33.conversation-ask-title`).**
+  每个字段在每次新连接的会话上读取，并且每次读取的第一个字段是正确的（控制）。 第二读返回 `AlwaysConfirm`
+  再次 `LLMSecurityAnalyzer` 和 `Agent`，`is_confirmation_mode_active` 仍为 `True`，中间没有套接字快照或 `state.refresh_from_server()`。
+- **询问、生成并设置标题 (`F33.conversation-ask-title`)。**
 
-  Requires: `F33.conversation-run`
+  需要：`F33.conversation-run`
   ```sh
   E0=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$CID" --save F33.conversation-ask-title/probe -- .venv/bin/python - <<'PY'
@@ -1186,11 +1048,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID" --check title eq 'qa-f33 title' --check execution_status eq finished \
     --save F33.conversation-ask-title/get
   ```
-  The answer and the generated title are non-empty; the event count is
-  unchanged and the server's title is the one set.
-- **Fork (`F33.conversation-fork`).**
+  答案和生成的标题都不为空。 事件计数保持不变，服务器标题为设置的值。
+- **叉子 (`F33.conversation-fork`).**
 
-  Requires: `F33.conversation-run`
+  需要：`F33.conversation-run`
   ```sh
   E0=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$CID" --save F33.conversation-fork/probe -- .venv/bin/python - <<'PY'
@@ -1221,12 +1082,10 @@ Preconditions:
   done
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq "$E0" --save F33.conversation-fork/source-count
   ```
-  The fork is a new `idle` conversation with the source's events, the title
-  and the tag; the source keeps its own id and its event count.
-- **Fork from an event, then move HEAD (`F33.conversation-fork-branch`).**
-  Fork `CID` at its first user message, keeping the metrics.
+  fork是一个新的`idle`对话，包含源事件、标题和标签。 源码保留自己的 id 和事件计数。
+- **从事件中分叉，然后移动 HEAD (`F33.conversation-fork-branch`)。**在第一个用户消息处分叉 `CID`，保留指标。
 
-  Requires: `F33.conversation-run`
+  需要：`F33.conversation-run`
   ```sh
   E0=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$CID" --save F33.conversation-fork-branch/probe -- .venv/bin/python - <<'PY'
@@ -1266,15 +1125,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$BRANCH/events/count" --check . eq "$(jq .kept "$F33/branch.json")"
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq "$E0"
   ```
-  The branch holds the source's events up to and including the first user
-  message (the system prompt and the message), its HEAD is that message,
-  and its stats equal the source's; `navigate_to(None)` empties the HEAD and
-  `navigate_to(<message id>)` restores it (the SDK refreshes the cached
-  state, since `leaf_event_id` is not pushed on the socket). The source is
-  unchanged.
-- **Plugin source with inline credentials (`F33.conversation-plugins-tag`).**
-  The plugin is lazy-loaded on the first run, so a conversation that never
-  runs shows only what the create stored. No network.
+  分支包含源的事件，直到并包括第一个用户消息（系统提示词和消息），其HEAD是该消息，其统计信息等于源的； `navigate_to(None)`清空HEAD和
+  `navigate_to(<message id>)` 恢复它（SDK 刷新缓存状态，因为 `leaf_event_id` 未推送到套接字上）。 来源不变。
+- **插件源包含凭据（`F33.conversation-plugins-tag`）。**插件在首次运行时是懒加载的，因此一个从不运行的对话只会显示创建的存储。 没有网络。
   ```sh
   QA_F33_PLUGIN_TOKEN="qa-f33-plugin-token-$(date +%s%N)"
   export QA_F33_PLUGIN_TOKEN
@@ -1301,13 +1154,8 @@ Preconditions:
   control-agent-server state grep --env-value QA_F33_PLUGIN_TOKEN --glob 'server/**/*' --expect-none
   control-agent-server state grep --env-value QA_F33_PLUGIN_TOKEN --glob 'home/**/*' --expect-none
   ```
-  The factory adds a `plugins` tag next to the caller's tags, with the
-  user and token replaced by `****`, and the token is in no file the server
-  wrote (the control file shows the search finds it). The create request
-  itself carries the masked URL too (`PluginSource` masks `source` on every
-  dump), so a source that needs inline credentials cannot be fetched by the
-  server (see Gotchas).
-- **Confirm or reject (`F33.conversation-confirmation`).**
+  工厂添加了一个 `plugins` 在叫号人标签旁边添加标签， 用户和 token 被取代了 `****`, and the token 在服务器写入的任何文件中都没有（控制文件显示搜索找到了它）。 请求本身携带了掩码 URL 太 `PluginSource` masks `source` 在每次导出时，所以需要内联的源凭据无法通过服务器获取（见陷阱）。
+- **确认或拒绝(`F33.conversation-confirmation`)。**
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-confirmation/probe -- .venv/bin/python - <<'PY'
   import f33
@@ -1331,11 +1179,8 @@ Preconditions:
   control-agent-server conversation events "$CONF" --kinds ObservationEvent --expect-count 0
   test ! -e "$F33/confirm/qa-f33-confirm.txt"
   ```
-  `run()` returns at `waiting_for_confirmation` with the action pending; the
-  rejection is recorded with its reason, nothing executed, and the
-  conversation is `idle`.
-- **Pause a blocking run (`F33.conversation-pause`).** `run()` blocks in a
-  thread; the main thread pauses once the agent's first action arrives.
+  `run()` 返回到 `waiting_for_confirmation`，且操作未决； 拒绝记录及其原因，不执行任何操作，对话是`idle`。
+- **暂停阻塞运行 (`F33.conversation-pause`)。** `run()` a 线程中的块； 一旦智能体的第一个动作到达，主线程就会暂停。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-pause/probe -- .venv/bin/python - <<'PY'
   import threading
@@ -1366,12 +1211,9 @@ Preconditions:
   control-agent-server conversation events "$PAUSED" --key execution_status --contains paused --expect-min 1
   control-agent-server api GET "/api/conversations/$PAUSED" --check execution_status eq finished --save F33.conversation-pause/get
   ```
-  The command in flight completes (its file exists), `run()` returns with
-  `paused`, the server persisted one `PauseEvent` and a `paused` status, and
-  the second `run()` finishes.
-- **Interrupt a blocking run (`F33.conversation-interrupt`).** The agent's
-  model is `HANG_STUB`, whose first completion hangs for 300 s; the main
-  thread interrupts once the stub has logged that request.
+  命令在飞行中完成（文件存在），`run()` 返回
+  `paused`，服务器已持久化一`PauseEvent`和一`paused`状态，第二`run()`完成。
+- **中断阻塞运行 (`F33.conversation-interrupt`)。** 智能体的模型是`HANG_STUB`，其第一次完成挂起300秒； 一旦存根记录了该请求，main 线程就会中断。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-interrupt/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1420,13 +1262,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$INT" --check execution_status eq finished --save F33.conversation-interrupt/get
   control-agent-server sink read --name qa-f33-hang --path /v1/chat/completions --expect-min 2 --expect-max 2
   ```
-  `interrupt()` cancels the hanging model call: the blocking `run()` returns
-  within a second or two, without raising, at `paused`; the server recorded
-  one `InterruptEvent` (no `PauseEvent`), and the second `run()` sends the
-  stub's next completion (`finish`) and returns at `finished`. The stub saw
-  exactly the two agent calls (no title request took a step).
-- **Time out, then wait again (`F33.conversation-run-timeout`).** The agent's
-  command outlives `run(timeout=3)`; a second `run()` waits for that same run.
+  `interrupt()` 取消挂起模型调用：阻塞 `run()` 在 `paused` 处在一两秒内返回，而不引发； 服务器记录了一个`InterruptEvent`（没有`PauseEvent`），第二个`run()`发送存根的下一个完成（`finish`）并在`finished`处返回。 存根准确地看到了两个智能体调用（没有标题请求采取任何步骤）。
+- **超时，然后再次等待 (`F33.conversation-run-timeout`)。** 智能体的命令比 `run(timeout=3)` 的寿命更长； 第二个 `run()` 等待相同的运行。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-run-timeout/probe -- .venv/bin/python - <<'PY'
   import time
@@ -1456,23 +1293,14 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$TOUT" --check execution_status eq finished --save F33.conversation-run-timeout/get
   control-agent-server api GET "/api/conversations/$TOUT/events/search" --query source=user --check items len-eq 1
   ```
-  The first `run()` raises after 3 to 10 s while the server still reports
-  `running`; the second `run()` posts `/run`, gets 409 (already running),
-  keeps waiting and returns at `finished`; the file the 15 s command wrote
-  exists and the conversation has its one user message.
-- **Join a run during a long tool call (`F33.conversation-run-join-long-tool`).**
-  The same join as above, but the agent's command runs 45 s. The run loop
-  holds the conversation's state lock for the whole tool call (see
-  `F05.pause-tool-step`), and the SDK gives the run trigger a 30 s HTTP
-  timeout (`remote_conversation.py`, `run()`). The server's `/run` checks its
-  live run task before reading the status under that lock, so it answers 409
-  at once and the second `run()` joins the run instead of raising
-  `ConversationRunError` wrapping `ReadTimeout`. The agent's model is
-  `LONG_STUB`, which asks for exactly that `terminal` call with a 90 s tool
-  timeout: a real model chooses its own `timeout`, and without one the
-  terminal tool returns after 30 s of silence, which races the SDK's own
-  30 s. The probe records how the second `run()` ended and asserts that it
-  waited and returned at `finished`.
+  第一个`run()`在3到10秒后出现，而服务器仍然报告
+  `running`; 第二个 `run()` 发布 `/run`，得到 409（已在运行），继续等待并在 `finished` 返回； 15 s 命令写入的文件存在，并且对话有其一条用户消息。
+- **在长跑期间加入跑步工具调用 (`F33.conversation-run-join-long-tool`)。** The same join as above, but the 智能体's command runs 45 s. 运行循环保存整个对话的状态锁工具调用（请参阅
+  `F05.pause-tool-step`), and the SDK 给运行触发器设置 30 秒 HTTP  超时 (`remote_conversation.py`, `run()`). 服务器的 `/run` 在读取该状态之前，它会检查其活运行任务锁因此，它立即返回 409，并且第二个 `run()` 它加入了运行，而不是抛出
+  `ConversationRunError` 包装 `ReadTimeout`。 智能体的模型为
+  `LONG_STUB`，它要求使用 90 年代的工具进行 `terminal` 调用
+  超时：真实模型选择自己的`timeout`，并且没有一个
+  终端工具在 30 秒的静默后返回，这与 SDK 自己的 30 秒赛跑。 探测器记录第二个 `run()` 如何结束，并断言它在 `finished` 处等待并返回。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-run-join-long-tool/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1509,12 +1337,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$LONG" --check execution_status eq finished --save F33.conversation-run-join-long-tool/get
   control-agent-server assert --json "$F33/longtool.json" --check joined eq true
   ```
-  `run(blocking=False)` returns at once; once the 45 s command is running,
-  the blocking `run()` waits for it (about 45 s, no error) and returns at
-  `finished`; the file appears and the conversation has finished.
-- **A stuck agent (`F33.conversation-stuck`).** The agent's model is
-  `LOOP_STUB`, which repeats the same `think` call, so the server's stuck
-  detector stops the run.
+  `run(blocking=False)`立即返回； 一旦 45 s 命令运行，阻塞 `run()` 就会等待它（大约 45 s，没有错误）并在
+  `finished`; 文件出现并且对话结束。
+- **卡住了智能体 (`F33.conversation-stuck`)。** 智能体的模型为
+  `LOOP_STUB`，它重复相同的 `think` 调用，因此服务器的卡住检测器停止运行。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-stuck/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1544,13 +1370,8 @@ Preconditions:
   control-agent-server conversation events "$STUCK" --kinds ActionEvent --contains qa-f33 --expect-min 3
   control-agent-server conversation events "$STUCK" --kinds ConversationErrorEvent --expect-count 0
   ```
-  The detector stops the loop after a few identical `think` calls; `run()`
-  raises `ConversationRunError` ("Remote conversation got stuck") within
-  seconds, with no `conversation_error` (no `ConversationErrorEvent` is
-  recorded for a stuck run), and the server reports `stuck`.
-- **Secrets for the agent (`F33.conversation-secrets`).** A fresh plain value
-  and the server secret `QA_F33_LOOKUP` by reference; the agent stores only
-  hash prefixes, since models refuse to echo secrets.
+  检测器在进行几组相同的`think`调用后停止循环。 `run()` 会在几秒钟内引发 `ConversationRunError` ("远程对话卡住了")，没有 `conversation_error`（没有 `ConversationErrorEvent` 记录在卡住的运行中），服务器报告 `stuck`。
+- **机密为智能体 (`F33.conversation-secrets`)。**新鲜的纯值和服务器机密`QA_F33_LOOKUP`引用； 智能体门店只存储哈希前缀，因为模型拒绝回显机密。
   ```sh
   QA_F33_TOKEN="qa-f33-$(date +%s%N)"
   export QA_F33_TOKEN
@@ -1584,13 +1405,9 @@ Preconditions:
     control-agent-server state grep --env-value QA_F33_SESSION_KEY --glob 'server/workspace/conversations/**/*' --expect-none
   control-agent-server api DELETE /api/settings/secrets/QA_F33_LOOKUP --expect 200
   ```
-  Both hashes match, so the agent's shell saw both values; no observation
-  carries either value. The grep finds the value in a control file (positive
-  control), but neither the plain value nor the session key the
-  `LookupSecret` sends as a header is on disk in plaintext in the
-  conversation store. The server secret is deleted afterwards.
-- **Provider error surfaces (`F33.conversation-run-error`).** The stub answers
-  401 like a provider rejecting the key.
+  两个哈希匹配，所以智能体的壳看到了这两个值。 没有观测结果的值。 grep找到了控制文件中的值（正控制），但也没有找到普通值或会话密钥
+  `LookupSecret` 作为标头以明文形式发送到磁盘上的对话存储中。 服务器机密随后被删除。
+- **提供者错误表面（`F33.conversation-run-error`）。**存根回答 401，就像提供者拒绝密钥一样。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-run-error/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1618,14 +1435,8 @@ Preconditions:
   control-agent-server conversation events "$ERR" --kinds ConversationErrorEvent --contains LLMAuthenticationError --expect-min 1
   control-agent-server sink read --name qa-f33-stub --path /v1/chat/completions --expect-min 1
   ```
-  `run()` raises within seconds with the structured error the server
-  recorded; the stub saw the server's model request.
-- **No events socket (`F33.ws-unavailable`).** The probe reaches the
-  server through `f33.Proxy(block_ws=True)`: REST passes, every event-socket
-  upgrade is refused with 403. First with the default settings and a 3 s
-  readiness timeout, then with `OPENHANDS_REMOTE_WS_READY_REQUIRED=false`; a
-  watcher thread polls the server directly to time `run()`'s return against
-  the moment the server reported `finished`.
+  `run()` 在几秒钟内引发服务器记录的结构化错误； 存根看到服务器的模型请求。
+- **无事件套接字 (`F33.ws-unavailable`)。**探针通过 `f33.Proxy(block_ws=True)`: REST 到达服务器，每个事件套接字升级都会被拒绝并返回 403。 首先使用默认设置和 3 秒准备时间超时，然后使用 `OPENHANDS_REMOTE_WS_READY_REQUIRED=false`； 观察者线程直接轮询服务器，以根据服务器报告 `finished` 的时刻返回时间 `run()`。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.ws-unavailable/probe -- .venv/bin/python - <<'PY'
   import os
@@ -1681,17 +1492,13 @@ Preconditions:
     control-agent-server conversation events "$NOWS" --kinds $K --expect-count "$(jq ".local.$K // 0" "$F33/nows.json")"
   done
   ```
-  With the socket required, `Conversation(...)` raises
-  `WebSocketConnectionError` after the 3 s timeout, but the conversation it
-  created first stays on the server (`idle`). With
-  `OPENHANDS_REMOTE_WS_READY_REQUIRED=false` it continues without the
-  socket: callbacks get nothing, and `run()` waits for the post-run socket
-  snapshot that never comes, then accepts the REST status 30 s after the
-  server reported `finished` (the hard fallback), reconciles, and
-  `state.events` matches the server kind by kind.
-- **A live conversation across a restart (`F33.conversation-reconnect`).** The
-  probe runs in the background, signals `reconnect-ready`, and continues once
-  the shell has restarted the server and created `reconnect-go`.
+  有了套接字，`Conversation(...)` 将会提升
+  `WebSocketConnectionError` 3 秒后超时，但它首先创建的对话仍保留在服务器上 (`idle`)。 与
+  `OPENHANDS_REMOTE_WS_READY_REQUIRED=false` 它继续没有
+  套接字：回调什么也没得到，`run()`等待运行后套接字
+  快照永远不会出现，然后在服务器报告 `finished`（硬回退方案）、协调和 30 秒后接受 REST 状态
+  `state.events` 逐一匹配服务器。
+- **跨重启的实时对话`F33.conversation-reconnect`).** 探针在后台运行，发送信号 `reconnect-ready`，并在 shell 重新启动服务器并创建后继续 `reconnect-go`.
   ```sh
   rm -f "$F33/reconnect-ready" "$F33/reconnect-go"
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-reconnect/probe -- .venv/bin/python - > "$F33/reconnect-exec.json" <<'PY' &
@@ -1730,20 +1537,9 @@ Preconditions:
   done
   control-agent-server api GET "/api/conversations/$RECON" --check execution_status eq finished --save F33.conversation-reconnect/get
   ```
-  The same `RemoteConversation` object, created before the restart, runs the
-  new message to `finished`; its socket delivered state updates again, and
-  after `run()` its `state.events` matches the server kind by kind.
-- **Callbacks after a reconnect (`F33.conversation-reconnect-callbacks`).**
-  The SDK's events socket retries on a backoff (1 s doubling to 30 s) and
-  resubscribes without `resend_mode`; on reconnect it reconciles
-  `state.events` over REST and passes the events the callbacks have not seen
-  to them, in order, once each. The probe talks to the server
-  through `f33.Proxy()`, so the outage is exact instead of racing a
-  restart's timing: a first message sent while connected reaches the
-  callback (control); then the proxy drops the socket and refuses
-  reconnects, the client is seen retrying, a second message is sent and
-  stored with no socket open, and the proxy lets the socket back. No model
-  call.
+  在重启之前创建的同一个`RemoteConversation`对象，会运行`finished`消息。 它的套接字再次交付了状态更新，`run()` 后，它的 `state.events` 与服务器类型一一匹配。
+- **回调重新连接后 (`F33.conversation-reconnect-callbacks`)。** SDK 的事件套接字重试进行退避（1 秒加倍到 30 秒）并重新订阅，无需 `resend_mode`； 重新连接时会协调
+  `state.events` 越过 REST，并按顺序将回调未见过的事件传递给它们，每个事件一次。 探针通过`f33.Proxy()`与服务器通信，因此故障是精确的，而不是与重启时间赛跑：连接时发送的第一个消息到达回调（控制）。 然后代理丢弃了套接字并拒绝重连，客户端看起来在重试，发送了第二条消息并存储在没有套接字打开的状态下，代理让套接字重新开放。 没有模型调用。
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-reconnect-callbacks/probe -- .venv/bin/python - <<'PY'
   import time
@@ -1796,14 +1592,10 @@ Preconditions:
     --check items.1.id eq "$(jq -r .message "$F33/gap.json")" --save F33.conversation-reconnect-callbacks/server-message
   control-agent-server assert --json "$F33/gap.json" --check callback_got_message eq true
   ```
-  The server stored both messages and, after the reconnect, `state.events`
-  has both; the callback got the first one live and the second once the
-  socket was back (`callback_got_message` is `true`). A server restart opens
-  the same gap, and `F33.conversation-reconnect`'s client fills it the same
-  way.
-- **Reattach after a restart and continue (`F33.conversation-restart`).**
+  服务器存储了这两个消息，`state.events` 之后又存储了这两个。 回调先活了下来，`true` 在`callback_got_message`的套接字恢复后才活了下来。 重启服务器填补了同样的空隙，`F33.conversation-reconnect`的客户端也是这样做的。
+- **重新启动后重新连接并继续 (`F33.conversation-restart`)。**
 
-  Requires: `F33.conversation-run`
+  需要：`F33.conversation-run`
   ```sh
   control-agent-server restart
   control-agent-server exec --env PYTHONPATH="$F33" --env CID="$CID" --save F33.conversation-restart/probe -- .venv/bin/python - <<'PY'
@@ -1831,16 +1623,9 @@ Preconditions:
     control-agent-server conversation events "$CID" --kinds $K --expect-count "$(jq ".local.$K" "$F33/restart.json")"
   done
   ```
-  The history read after the restart equals the one recorded before it, and
-  the continued conversation finishes and writes the second file.
-- **A custom tool module (`F33.custom-tool-module`).** The documented
-  custom-tool deployment seen from the SDK: the module `qa_f33_tool`
-  registers `qa_f33_echo`, the server is restarted with
-  `OH_EXTRA_PYTHON_PATH` naming the module's directory, and the probe
-  imports the same module, so the SDK sends it in `tool_module_qualnames`
-  without being told. The tool records in the workspace whether it ran in
-  the agent server's process. A second module, `qa_f33_ghost`, sits where
-  only the client can import it.
+  重启后的历史读取与在重启前记录的一样，继续的对话会结束并写入第二个文件。
+- **一个自定义工具模块 (`F33.custom-tool-module`).** 从 SDK 所见的自定义工具部署文档：该模块 `qa_f33_tool` 注册 `qa_f33_echo`，服务器重启了
+  `OH_EXTRA_PYTHON_PATH` 命名模块的目录，并且探测器导入相同的模块，因此 SDK 在不被告知的情况下将其发送到 `tool_module_qualnames` 中。 该工具在工作区中记录它是否在Agent Server的进程中运行。 第二个模块 `qa_f33_ghost` 位于只有客户端可以导入它的位置。
   ```sh
   mkdir -p "$F33/tools" "$F33/clientonly"
   cat > "$F33/tools/qa_f33_tool.py" <<'EOF'
@@ -1951,25 +1736,14 @@ Preconditions:
     --check tool_module_qualnames.qa_f33_ghost eq qa_f33_ghost --save F33.custom-tool-module/unused-ghost-get
   control-agent-server api GET /api/tools/ --check . contains qa_f33_echo --check . not-contains qa_f33_ghost
   ```
-  The SDK sends every tool registered in its process, so `qa_f33_echo`
-  (with `terminal` and the rest) reaches `tool_module_qualnames`; the
-  server imports the module from `OH_EXTRA_PYTHON_PATH`, the agent's call
-  runs in the server process (the file says `agent-server`) and returns a
-  `QaF33EchoObservation`. A process without the module cannot reattach:
-  both `attach()` and `Conversation(conversation_id=...)` raise
-  `ImportError` naming the tool and the module. A client-registered module
-  the server cannot import is only a logged `Failed to import module`
-  warning while the agent does not use its tool: that conversation runs
-  normally and the server's registry never lists `qa_f33_ghost`.
-- **An agent tool the server cannot import (`F33.custom-tool-module-unimportable`).**
-  The agent now names `qa_f33_ghost`. The create answers 422, with a
-  `detail` naming the tool and the module the server could not import, and
-  no conversation is created: the agent could never be built, since
-  `resolve_tool` would raise `KeyError: "ToolDefinition 'qa_f33_ghost' is
-  not registered"` on the first message. A client error the caller can act
-  on, never a 500.
+  SDK 发送其进程中注册的所有工具，因此 `qa_f33_echo`（包含 `terminal` 和 REST）到达 `tool_module_qualnames`。 服务器导入了模块 `OH_EXTRA_PYTHON_PATH`，智能体的调用在服务器进程中运行（文件中说 `agent-server`），并返回一个
+  `QaF33EchoObservation`. 没有该模块的进程无法重新附加：`attach()` 和 `Conversation(conversation_id=...)` 都引发
+  `ImportError` 命名工具和模块。 服务器无法导入的客户端注册模块仅是一个登录名 `Failed to import module` 警告时智能体它不使用其工具：该对话正常运行，服务器的响应正常注册表 never lists `qa_f33_ghost`.
+- **服务器无法导入的智能体工具 (`F33.custom-tool-module-unimportable`)。** 智能体现在命名为 `qa_f33_ghost`。 创建答案 422，带有
+  `detail` 命名服务器无法导入的工具和模块，并且不会创建任何对话：永远无法构建智能体，因为
+  `resolve_tool` 会在第一条消息上引发 `KeyError: "ToolDefinition 'qa_f33_ghost' is not registered"`。 调用者可以采取行动的客户端错误，而不是 500。
 
-  Requires: `F33.custom-tool-module`
+  需要：`F33.custom-tool-module`
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33:$F33/clientonly" --save F33.custom-tool-module-unimportable/probe -- .venv/bin/python - <<'PY'
   import httpx
@@ -1996,10 +1770,9 @@ Preconditions:
   control-agent-server api GET /api/tools/ --check . contains terminal --check . not-contains qa_f33_ghost
   control-agent-server assert --json "$F33/ghost.json" --check server_errors eq 0 --check statuses.create eq 422
   ```
-  The server's registry lacks `qa_f33_ghost` (control). The probe records
-  `{"create": 422}`; the server log has only the `Failed to import module`
-  warning.
-- **Close keeps or deletes (`F33.conversation-close`).**
+  服务器的注册表缺乏 `qa_f33_ghost`（控制）。 探针记录
+  `{"create": 422}`; 服务器日志仅包含 `Failed to import module` 警告。
+- **关闭保留或删除(`F33.conversation-close`)。**
   ```sh
   control-agent-server exec --env PYTHONPATH="$F33" --save F33.conversation-close/probe -- .venv/bin/python - <<'PY'
   import f33
@@ -2016,126 +1789,56 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$(jq -r .keep "$F33/close.json")" --expect 200 --save F33.conversation-close/kept
   control-agent-server api GET "/api/conversations/$(jq -r .gone "$F33/close.json")" --expect 404 --save F33.conversation-close/deleted
   ```
-  The conversation closed with `delete_on_close=False` is still served; the
-  factory default deleted the other one.
+  对话以 `delete_on_close=False` 仍在提供结束。 工厂默认删除了另一个。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `exec` reports the probe's stdout in `stdout_tail` and the full transcript
-  under `evidence/<ID>/probe.json`; the SDK logs (and, without
-  `visualizer=None`, rich panels on stdout) are noisy, so probes pass
-  `visualizer=None` and the preconditions export `OPENHANDS_SUPPRESS_BANNER=1`.
-  Importing the SDK takes about 8 s per probe.
-- The `Conversation(...)` factory defaults to `delete_on_close=True`, the
-  `RemoteConversation` class to `False`: a program that calls `close()` on a
-  factory-made conversation deletes it on the server, so a program whose
-  conversation another program will reattach must pass
-  `delete_on_close=False`. `close()` also runs from `__del__`, but not
-  reliably at interpreter exit.
-- `RemoteWorkspace.execute_command` without `cwd` sends no `cwd`: the host
-  bash service then uses the server process's directory (the run's `server/`),
-  not `working_dir` (a runtime-scoped workspace uses the conversation's
-  workspace). `LocalWorkspace` defaults to `working_dir`; the remote omission
-  is deliberate (`tests/sdk/workspace/remote/test_remote_workspace_mixin.py`),
-  so pass `cwd` explicitly.
-- `execute_command`, `file_upload` and `file_download` never raise on HTTP
-  errors: they return exit `-1` with `Remote execution error: ...` in stderr,
-  or `success: false` with the httpx message in `error`. Check the result.
-  `git_changes`, `git_diff`, `get_llm` and the conversation methods do raise.
-- On a command timeout the SDK stops polling and returns exit `-1` with
-  `Command timed out after N seconds` and empty stdout, even though the
-  server recorded the output printed before its own timeout.
-- `file_upload` reports `file_size: null` (the server answers only
-  `{"success": true}`), and its destination must be absolute (a relative one
-  is a 400), while `git_changes`/`git_diff` join relative paths with
+## 陷阱
+
+- `exec` 在 `stdout_tail` 中报告探针的标准输出，在 `evidence/<ID>/probe.json` 中报告完整的转录本； SDK 日志（并且，没有
+  `visualizer=None`，标准输出上的丰富面板）有噪音，因此探针通过
+  `visualizer=None`和导出的前提条件`OPENHANDS_SUPPRESS_BANNER=1`。 每个探针导入 SDK 大约需要 8 秒。
+- `Conversation(...)`出厂默认为`delete_on_close=True`，
+  `RemoteConversation` 类到 `False` ：一个程序调用 `close()` 会删除服务器上的内容，因此，另一个程序会重新附上的程序必须传递
+  `delete_on_close=False`. `close()` 也从 `__del__` 运行，但在解释器退出时不可靠。
+- `RemoteWorkspace.execute_command` 无 `cwd` 发送 `cwd`：主机 bash 服务则使用服务器进程的目录（运行的 `server/`），而不是 `working_dir`（运行时的工作区使用会话的工作区）。 `LocalWorkspace`默认为`working_dir`； 远程遗漏是故意的（`tests/sdk/workspace/remote/test_remote_workspace_mixin.py`），因此明确传递`cwd`。
+- `execute_command`、`file_upload` 和 `file_download` 从未在 HTTP 上加注
+  错误：它们在 stderr 中返回 exit `-1` 和 `Remote execution error: ...`，
+  或 `success: false` 以及 `error` 中的 httpx 消息。 检查结果。
+  `git_changes`、`git_diff`、`get_llm` 和对话方法确实提出了。
+- 在命令超时上，SDK 停止轮询并返回 exit `-1`
+  `Command timed out after N seconds` 和空标准输出，即使服务器记录了在其自己的超时之前打印的输出。
+- `file_upload` 报告 `file_size: null`（服务器仅应答
+  `{"success": true}`)，其目的地必须是绝对的（相对路径是 400），而 `git_changes`/`git_diff` 将相对路径与
   `working_dir`.
-- The server persists per-field `ConversationStateUpdateEvent`s
-  (`execution_status`, `stats`, ...), but the full-state snapshots the socket
-  sends on connect and after each run are never persisted, so
-  `len(conversation.state.events)` is not the server's event count; compare
-  kinds other than state updates, as the recipes do. Count kinds with
-  `conversation events --kinds` or `events/count?kind=ActionEvent` (the
-  server accepts the short name or the full `<module>.<Class>` name, see
+- 服务器保存字段级别的 `ConversationStateUpdateEvent`s (`execution_status`, `stats`, ...)，但连接和每次运行后发送的全状态快照已持久化
+  `len(conversation.state.events)` 不是服务器的事件计数； 像食谱一样，比较状态更新以外的类型。 计数种类
+  `conversation events --kinds` 或 `events/count?kind=ActionEvent`（服务器接受短名称或完整的 `<module>.<Class>` 名称，请参阅
   `F06.search-kind-short`).
-- A live `RemoteConversation` reconnects its events socket with exponential
-  backoff (1 s doubling to 30 s) after a server restart or a dropped
-  connection; events emitted before it reconnects reach `state.events`
-  through REST reconciliation on reconnect and after `run()`, and on
-  reconnect the client passes the ones its callbacks have not seen to them,
-  once each and in order (`F33.conversation-reconnect-callbacks`; the
-  client does not use the server's `resend_mode=since` replay). How many
-  events fall in the gap depends on the backoff timing, so the reconnect
-  bullet asserts only `state.events`, and the callbacks bullet makes the
-  outage exact with `f33.Proxy` instead of a restart (a restart's window
-  between "server ready" and the next retry varies from under a second to
-  many seconds).
-- `run()` posts `/run` with a 30 s timeout. While the agent's tool call is
-  executing, the run loop holds the conversation's state lock (`/pause`
-  waits for it); `/run` answers 409 from the live run task without taking
-  that lock, so `run()` joins a run whatever its current command's length
-  (`F33.conversation-run-join-long-tool`, `F33.conversation-run-timeout`).
-- `RemoteConversation.create(...)` with an `initial_message` starts a run on
-  the server whatever `initial_message.run` says (see F04); repeating the
-  request with the same `conversation_id` returns the existing conversation
-  without sending the message again.
-- `RemoteWorkspace(runtime_conversation_id=...).get_runtime_session_key()`
-  and `release_runtime()` call `POST .../runtime/credentials` and
-  `DELETE .../runtime`, which only a Docker conversation runtime serves; a
-  local server answers 404 and 405, and the SDK raises on both (it treats
-  only 404 from `release_runtime` as already released).
-- `RemoteConversation.attach()` rebuilds the agent from the server, whose LLM
-  key comes back redacted: use it to read or steer, and use
-  `Conversation(agent=<your agent>, conversation_id=...)` when the client
-  must call the model itself (`generate_title()` runs on the client with the
-  agent's LLM unless given another).
-- `run()` treats only the server's post-run full-state socket snapshot as
-  completion; without it, it accepts a REST-confirmed terminal status after
-  30 s, so a broken socket makes every run at least 30 s long
-  (`F33.ws-unavailable`). `ERROR` and `STUCK` raise `ConversationRunError`
-  at once (`F33.conversation-run-error`, `F33.conversation-stuck`).
-- With the socket required (the default), `Conversation(...)` creates the
-  server conversation before it waits for the socket, so a
-  `WebSocketConnectionError` leaves an `idle` conversation behind; its id is
-  on the exception (`conversation_id`).
-- The server's auto-title runs on the agent's own LLM (unless the create
-  names `title_llm_profile`) for the first user message of a conversation
-  without a title. With an `llm-stub` agent it takes a scripted step,
-  racing the agent's first call; with `log_completions` it logs one more
-  call, often after `run()` returned; its cost lands in the agent's
-  `usage_to_metrics`. `RemoteConversation` sends no `autotitle` field, so
-  call `set_title()` before the first message to keep a stub's script and
-  the call count to the agent's own.
-- `tool_module_qualnames` is every tool registered in the client process at
-  create time, not only the agent's tools, and a later attach imports all of
-  them: a program that cannot import one of those modules cannot attach,
-  even if the agent never used that tool (`ImportError` names the first
-  missing one). A client-registered module the server cannot import is only
-  a warning, until an agent names its tool (then the create is a 422,
-  `F33.custom-tool-module-unimportable`). `OH_EXTRA_PYTHON_PATH` only
-  extends the server's `sys.path`; F27 drives the server side
-  (`F27.custom-tool-modules`, and `F27.custom-tool-missing-on-resume` for a
-  module that disappears).
-- Client tools have no server executor: the server acknowledges each call
-  with `Tool call dispatched to client.` at once, and the agent continues
-  without waiting for the client's handler. The client learns of the call
-  only through callbacks, so a client tool called while the socket is down
-  is missed by the handler (the reconnect gap above).
-- With a `stream=True` LLM the events socket also carries
-  `StreamingDeltaEvent` frames: callbacks get them, the server stores none,
-  and they stay out of `state.events` (`F33.conversation-streaming-state`);
-  `token_callbacks` passed to `Conversation(...)` receive the same deltas
-  (`F33.conversation-token-callbacks`).
-- `log_completions=True` on a remote agent writes the log files on the
-  client (relative folders resolve against the client's working directory),
+- 直播 `RemoteConversation` 在服务器重启或断开连接后，它会使用指数退避（1秒加倍到30秒）重新连接事件套接字。 在它重新连接之前发出的事件 `state.events` 通过 REST 重连和之后的核对 `run()`, 重连时客户端会传递这些值回调未曾见过他们，一次又一次，按顺序`F33.conversation-reconnect-callbacks`; 客户端不使用服务器的 `resend_mode=since` replay). 事件落在空隙中的数量取决于重试时间，因此断开连接的弹出框只断开连接 `state.events`, and the 回调子弹使停机时间精确到秒 `f33.Proxy` 而不是重启（重启的窗口从“服务器就绪”到下一个） 重试从几秒到几分钟。
+- `run()` 帖子 `/run` 的时间为 30 秒超时。 当智能体的工具调用正在执行时，运行循环保持会话的状态锁（`/pause` 等待它）； `/run` 从实时运行任务中回答 409，而不采用锁，因此 `run()` 加入运行，无论其当前命令的长度如何（`F33.conversation-run-join-long-tool`、`F33.conversation-run-timeout`）。
+- `RemoteConversation.create(...)` 和 `initial_message` 开始在服务器上运行，无论 `initial_message.run` 说什么（参见 F04）； 使用相同的 `conversation_id` 重复请求将返回现有对话，而无需再次发送消息。
+- `RemoteWorkspace(runtime_conversation_id=...).get_runtime_session_key()` 和 `release_runtime()` 调用 `POST .../runtime/credentials` 和
+  `DELETE .../runtime`，仅 Docker 会话运行时提供服务； 本地服务器回答 404 和 405，并且 SDK 对两者都加注（它仅将 `release_runtime` 中的 404 视为已发布）。
+- `RemoteConversation.attach()`从服务器重建智能体，其LLM密钥返回已脱敏：用它来读取或引导，并使用
+  `Conversation(agent=<your agent>, conversation_id=...)` 当客户端必须调用模型本身时（`generate_title()` 与智能体的 LLM 一起在客户端上运行，除非给出另一个）。
+- `run()` 仅将服务器的运行后全状态套接字快照视为完成； 如果没有它，它会在 30 秒后接受 REST 确认的终端状态，因此损坏的套接字会使每次运行至少持续 30 秒 (`F33.ws-unavailable`)。 `ERROR` 和 `STUCK` 立即加注 `ConversationRunError` (`F33.conversation-run-error`, `F33.conversation-stuck`)。
+- 由于需要套接字（默认），`Conversation(...)` 在等待套接字之前创建服务器会话，因此
+  `WebSocketConnectionError` 留下 `idle` 条对话； 它的 id 位于异常 (`conversation_id`) 上。
+- 对于没有标题的对话的第一条用户消息，服务器的自动标题在智能体自己的 LLM 上运行（除非创建名称 `title_llm_profile`）。 对于 `llm-stub` 智能体，它需要一个脚本化的步骤，与智能体的第一次调用进行竞争； 使用 `log_completions` 它会再记录一次调用，通常是在 `run()` 返回之后； 其成本落在智能体的范围内
+  `usage_to_metrics`. `RemoteConversation` 不发送 `autotitle` 字段，因此在第一条消息之前调用 `set_title()`，以保留存根脚本和智能体自己的调用计数。
+- `tool_module_qualnames` 是在创建时在客户端进程中注册的每个工具，不仅仅是智能体的工具，并且稍后附加导入所有
+  它们：无法导入这些模块之一的程序无法附加，
+  即使智能体从未使用过该工具（`ImportError` 列出了第一个缺失的工具）。 服务器无法导入的客户端注册模块只是一个警告，直到智能体为其工具命名（然后创建是 422，
+  `F33.custom-tool-module-unimportable`). `OH_EXTRA_PYTHON_PATH`仅扩展服务器的`sys.path`； F27 驱动服务器端（`F27.custom-tool-modules` 和 `F27.custom-tool-missing-on-resume` 表示消失的模块）。
+- 客户端工具没有服务器执行器：服务器对每个调用都立即返回 `Tool call dispatched to client.`，而智能体不等待客户端的处理器。 客户端只能通过回调了解该调用，因此处理程序会错过在套接字关闭时调用的客户端工具（上面的重新连接间隙）。
+- 对于 `stream=True` LLM，事件套接字还携带
+  `StreamingDeltaEvent`帧：回调获取它们，服务器存储None，并且它们远离`state.events`（`F33.conversation-streaming-state`）；
+  `token_callbacks` 传递到 `Conversation(...)` 接收相同的增量 (`F33.conversation-token-callbacks`)。
+- 远程智能体上的 `log_completions=True` 将日志文件写入客户端（相对文件夹根据客户端的工作目录进行解析），
   from `LLMCompletionLogEvent`s that the server also stores and serves like
-  any event.
-- `fork()` returns a `RemoteConversation` built with the default visualizer
-  and no callbacks, whatever the source used: rich panels go to stdout for
-  the fork's events unless the program passes its own fork to a quieter
+  任何事件。
+- `fork()` 返回使用默认可视化工具构建的 `RemoteConversation`，而不返回回调，无论使用什么源：丰富的面板都会转到标准输出以获取 fork 的事件，除非程序将其自己的 fork 传递给更安静的程序
   `Conversation(conversation_id=...)`.
-- `PluginSource` masks inline URL credentials on every dump, including the
-  create request, so the server receives `https://****@host/...`: plugins
-  that need credentials cannot be fetched by a remote server from an inline
-  token (only the client-side `source` attribute keeps it).
-- Models refuse to print or copy a secret into a file; prove secret delivery
-  with a hash prefix computed in the shell, as the secrets bullet does.
+- `PluginSource` 在每次导出时，包括创建请求，都会覆盖 URL 凭据，因此服务器接收到 `https://****@host/...`。需要凭据的插件无法从 token（仅客户端 `source` 属性保持它）远程服务器获取。
+- 模型拒绝将机密打印或复制到文件中； 使用在 shell 中计算的哈希前缀来证明机密交付，如机密项目符号所做的那样。

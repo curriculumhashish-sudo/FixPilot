@@ -1,8 +1,8 @@
-"""Tests for provider-aware runtime metadata resolution.
+"""测试提供者感知的运行时元数据解析。
 
-Covers the OpenRouter adapter (route-aware context limits), the LLM facade
-methods, the precedence rules, TTL/negative caching, concurrent de-duplication,
-and that ``effective_max_input_tokens`` stays side-effect free.
+涵盖了OpenRouter适配器（基于路由的上下文限制），LLMFacade方法，优先规则，TTL/负缓存，
+并发去重，以及
+``effective_max_input_tokens``保持副作用自由。
 
 See: https://github.com/OpenHands/software-agent-sdk/issues/4421
 """
@@ -74,10 +74,9 @@ def _sync_client(handler) -> httpx.Client:
 
 
 def _patch_async_factory(handler):
-    """Return a AsyncClient factory bound to a MockTransport(handler).
+    """返回绑定到 MockTransport（处理程序）的 AsyncClient 工厂。
 
-    The original class is captured before any patch is installed so the
-    factory does not recurse into a patched ``httpx.AsyncClient``.
+    在安装任何补丁之前捕获原始类，因此工厂不会递归到已修补的 ``httpx.AsyncClient``。
     """
     original = orm.httpx.AsyncClient
 
@@ -88,7 +87,7 @@ def _patch_async_factory(handler):
 
 
 # ---------------------------------------------------------------------------
-# Parsing / routing unit tests
+# 解析/路由单元测试
 # ---------------------------------------------------------------------------
 
 
@@ -110,8 +109,8 @@ def test_parse_allow_fallbacks_returns_safe_lower_bound():
     assert md is not None
     assert md.confidence == "safe_lower_bound"
     assert md.max_input_tokens == 262144
-    # With fallbacks enabled the runtime provider is not known ahead of time, so
-    # the safe lower bound must not claim a specific provider.
+    # 启用回退方案后，运行时提供程序无法提前获知，因此安全下限不得声明特定的提供程序。
+    #
     assert md.selected_provider is None
 
 
@@ -142,8 +141,8 @@ def test_parse_provider_names_normalized_case_insensitively():
 
 
 def test_parse_unmatched_order_falls_back_to_none():
-    # An explicit order referencing providers absent from the catalog is not
-    # safely interpretable; model-level metadata should be used instead.
+    # 引用目录中缺少的提供商的显式订单无法安全地解释； 应改用模型级元数据。
+    #
     assert orm.parse_openrouter_payload(PAYLOAD, {"order": ["Nope"]}) is None
     assert orm.parse_openrouter_payload(PAYLOAD, {"only": ["Nope"]}) is None
 
@@ -153,8 +152,9 @@ def test_parse_ignore_removes_routes():
         PAYLOAD,
         {"order": ["CoreWeave"], "ignore": ["Baseten"], "allow_fallbacks": True},
     )
-    # CoreWeave retained; Baseten ignored; DeepInfra added back as fallback but
-    # the safe lower bound is still CoreWeave's 262144.
+    # CoreWeave 保留； 巴斯坦被忽视； DeepInfra 添加回回退方案，但安全下限仍然是
+    # CoreWeave 的 262144。
+    #
     assert md is not None
     assert md.max_input_tokens == 262144
 
@@ -178,7 +178,7 @@ def test_parse_malformed_payload_returns_none():
     assert orm.parse_openrouter_payload({}, {}) is None
     assert orm.parse_openrouter_payload({"data": {}}, {}) is None
     assert orm.parse_openrouter_payload({"data": []}, {}) is None
-    # Endpoints with no usable context_length.
+    # 端点没有可用的 context_length。
     assert (
         orm.parse_openrouter_payload(
             {"data": {"endpoints": [{"provider_name": "A"}]}}, {}
@@ -203,24 +203,23 @@ def test_openrouter_model_id_normalization():
     )
     assert orm._openrouter_model_id(llm2) == "deepseek/deepseek-v4-flash-0731"
 
-    # Non-OpenRouter config yields no id.
+    # 非 OpenRouter 配置不会产生 id。
     llm3 = LLM(model="openai/gpt-4o")
     assert orm._openrouter_model_id(llm3) is None
 
 
 # ---------------------------------------------------------------------------
-# LLM facade / caching / precedence tests
+# LLM 外观/缓存/优先级测试
 # ---------------------------------------------------------------------------
 
 
 def test_effective_unchanged_before_resolution():
     llm = _openrouter_llm()
     assert llm.resolved_runtime_metadata is None
-    # The property performs no network I/O, so the route-aware limit this
-    # provider would report (262144, see PAYLOAD) cannot be in play yet — it
-    # falls through to LiteLLM's static metadata. That fallback is deliberately
-    # not asserted: it is upstream data, and pinning it here made this test
-    # fail the day LiteLLM learned the model (#4877).
+    # 该属性不进行网络 I/O，因此该提供者报告的路由相关的限制（262144，见PAYLOAD）还不能
+    # 生效——它会跳转到LiteLLM的静态元数据。 回退方案故意不被断言：它是上游数据，将其固定
+    # 在此处使得该测试在 LiteLLM 学习模型的那天失败（#4877）。
+    #
     assert llm.effective_max_input_tokens != 262144
     assert llm.resolved_runtime_metadata is None
 
@@ -231,7 +230,7 @@ def test_explicit_max_input_tokens_wins():
     client = _sync_client(handler)
     md = orm.resolve_openrouter_sync(llm, http_client=client)
     assert md is not None and md.max_input_tokens == 262144
-    # Explicit config still outranks discovered metadata.
+    # 显式配置仍然高于发现的元数据。
     assert llm.effective_max_input_tokens == 131072
 
 
@@ -250,11 +249,10 @@ def test_async_resolution_updates_effective():
 
 
 def test_acompletion_resolves_runtime_metadata(monkeypatch):
-    """The async completion path must wire in runtime-metadata resolution.
+    """异步完成路径必须连接到运行时元数据解析中。
 
-    Without a production caller of ``aresolve_runtime_metadata`` the cache is
-    never populated and ``effective_max_input_tokens`` never reflects the
-    runtime route (issue #4421).
+    如果没有 ``aresolve_runtime_metadata`` 的生产调用者，则永远不会填充缓存，并且
+    ``effective_max_input_tokens`` 永远不会反映运行时路由（问题＃4421）。
     """
     from litellm.types.utils import (
         Choices,
@@ -331,7 +329,7 @@ def test_failure_negative_caches_then_refreshes(monkeypatch):
             orm.httpx, "AsyncClient", _patch_async_factory(flaky_handler)
         )
         first = await llm.aresolve_runtime_metadata()
-        # Within the negative-cache window no second request is issued.
+        # 在负缓存窗口内，不会发出第二个请求。
         second = await llm.aresolve_runtime_metadata()
         return first, second, calls["n"]
 
@@ -353,9 +351,9 @@ def test_forced_resolution_bypasses_cache(monkeypatch):
         monkeypatch.setattr(
             orm.httpx, "AsyncClient", _patch_async_factory(counting_handler)
         )
-        await llm.aresolve_runtime_metadata()  # caches
-        await llm.aresolve_runtime_metadata()  # served from cache
-        await llm.aresolve_runtime_metadata(force=True)  # re-fetches
+        await llm.aresolve_runtime_metadata()  # 缓存
+        await llm.aresolve_runtime_metadata()  # 从缓存提供
+        await llm.aresolve_runtime_metadata(force=True)  # 重新获取
         return calls["n"]
 
     assert asyncio.run(go()) == 2
@@ -388,12 +386,13 @@ def test_concurrent_resolution_deduplicates(monkeypatch):
 
 
 def test_sync_resolver_inside_running_loop_falls_back():
-    """The sync resolver must not raise asyncio.run() inside a running loop."""
+    """同步解析器不得在运行循环内引发 asyncio.run()。"""
     llm = _openrouter_llm()
 
     async def go():
-        # A running loop is present here, so the sync resolver must return None
-        # without attempting to enter a nested event loop or issuing a request.
+        # 这里存在一个正在运行的循环，因此同步解析器必须返回 None，而不尝试输入嵌套事件
+        # 循环或发出请求。
+        #
         return rm.resolve_provider_metadata_sync(llm)
 
     assert asyncio.run(go()) is None
@@ -407,7 +406,7 @@ def test_http_error_timeout_and_unsupported_fall_back(monkeypatch):
     )
     assert md is None
 
-    # Non-OpenRouter model -> detect_provider returns None, no network.
+    # 非OpenRouter模型->detect_provider返回None，无网络。
     llm_other = LLM(model="openai/gpt-4o")
     assert rm.detect_provider(llm_other) is None
 
@@ -424,7 +423,7 @@ def test_cached_metadata_ttl():
     md = ModelRuntimeMetadata(max_input_tokens=262144, source="test")
     now = rm.time.monotonic()
     assert rm.cached_metadata(md, now) is md
-    # Expired -> None
+    # 已过期 -> None
     assert rm.cached_metadata(md, now - rm.RUNTIME_METADATA_TTL_SECONDS - 1) is None
     assert rm.cached_metadata(None, now) is None
     assert rm.cached_metadata(md, None) is None
@@ -446,12 +445,12 @@ def test_cache_key_depends_on_routing():
 
 
 # ---------------------------------------------------------------------------
-# Regression tests for reviewer findings
+# 回归审查者发现的测试
 # ---------------------------------------------------------------------------
 
 
 def test_parse_only_matches_returns_exact():
-    """A positive ``only`` match pins to that route and is exact."""
+    """正 ``only`` 匹配会固定到该路线并且是准确的。"""
     md = orm.parse_openrouter_payload(PAYLOAD, {"only": ["CoreWeave"]})
     assert md is not None
     assert md.confidence == "exact"
@@ -460,7 +459,7 @@ def test_parse_only_matches_returns_exact():
 
 
 def test_detect_provider_prefix_requires_slash():
-    """openrouterx/foo must not be treated as an OpenRouter model."""
+    """openrouterx/foo 不得被视为 OpenRouter 模型。"""
     assert rm.detect_provider(LLM(model="openrouterx/deepseek")) is None
     assert rm.detect_provider(LLM(model="not-openrouter")) is None
     assert (
@@ -476,7 +475,7 @@ def test_detect_provider_prefix_requires_slash():
 
 
 def test_model_copy_resets_cache_on_route_change():
-    """Changing the route must drop any cached runtime metadata for the old key."""
+    """更改路由必须删除旧密钥的所有缓存运行时元数据。"""
     llm = _openrouter_llm()
     llm._runtime_metadata = ModelRuntimeMetadata(max_input_tokens=262144, source="test")
     llm._runtime_metadata_fetched_at = rm.time.monotonic()
@@ -491,7 +490,7 @@ def test_model_copy_resets_cache_on_route_change():
 
 
 def test_async_inflight_keyed_by_event_loop(monkeypatch):
-    """In-flight dedup is scoped per event loop, so two loops never cross-await."""
+    """动态重复数据删除的范围为事件循环，因此两个循环永远不会交叉等待。"""
     llm = _openrouter_llm()
     calls = {"n": 0}
 
@@ -511,13 +510,14 @@ def test_async_inflight_keyed_by_event_loop(monkeypatch):
     b = go()
     rm._inflight.clear()
     assert a is not None and b is not None
-    # One upstream request per event loop: a task from loop A is never awaited
-    # by loop B (which would cross event-loop boundaries).
+    # 每个事件循环一个上游请求：循环 B 永远不会等待来自循环 A 的任务（这将跨越事件循环边
+    # 界）。
+    #
     assert calls["n"] == 2
 
 
 def test_sync_resolution_generation_guards_stale_write(monkeypatch):
-    """A stale (earlier-started) sync probe must not overwrite a newer result."""
+    """过时的（较早启动的）同步探针不得覆盖较新的结果。"""
     from openhands.sdk.llm import llm as llm_module
 
     start = threading.Event()
@@ -543,7 +543,7 @@ def test_sync_resolution_generation_guards_stale_write(monkeypatch):
     t = threading.Thread(target=slow_call)
     t.start()
     assert start.wait(5)
-    newer = llm.resolve_runtime_metadata()  # bumps generation, resolves to 2000
+    newer = llm.resolve_runtime_metadata()  # 颠簸生成，解析到 2000
     release.set()
     t.join(5)
 

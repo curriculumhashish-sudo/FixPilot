@@ -5,10 +5,10 @@ from rich.text import Text
 
 
 class CriticResult(BaseModel):
-    """A critic result is a score and a message."""
+    """评论家的结果是一个分数和一条消息。"""
 
     THRESHOLD: ClassVar[float] = 0.5
-    DISPLAY_THRESHOLD: ClassVar[float] = 0.2  # Only show scores above this threshold
+    DISPLAY_THRESHOLD: ClassVar[float] = 0.2  # 仅显示高于此阈值的分数
 
     score: float = Field(
         description="A predicted probability of success between 0 and 1.",
@@ -26,14 +26,14 @@ class CriticResult(BaseModel):
 
     @property
     def success(self) -> bool:
-        """Whether the agent is successful."""
+        """智能体是否成功。"""
         return self.score >= CriticResult.THRESHOLD
 
     @staticmethod
     def _get_star_rating(score: float) -> str:
-        """Convert score (0-1) to a 5-star rating string.
+        """将分数 (0-1) 转换为 5 星级评级字符串。
 
-        Each star represents 20% of the score.
+        每颗星代表分数的 20%。
         """
         filled_stars = round(score * 5)
         empty_stars = 5 - filled_stars
@@ -41,7 +41,7 @@ class CriticResult(BaseModel):
 
     @staticmethod
     def _get_star_style(score: float) -> str:
-        """Get the style for the star rating based on score."""
+        """根据分数获取星级评定的样式。"""
         if score >= 0.6:
             return "green"
         elif score >= 0.4:
@@ -51,23 +51,23 @@ class CriticResult(BaseModel):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of the critic result."""
+        """返回评论家结果的富文本表示。"""
         content = Text()
         content.append("\n\nCritic: agent success likelihood ", style="bold")
 
-        # Display star rating with percentage
+        # 以百分比显示星级
         stars = self._get_star_rating(self.score)
         style = self._get_star_style(self.score)
         percentage = self.score * 100
         content.append(stars, style=style)
         content.append(f" ({percentage:.1f}%)", style="dim")
 
-        # Use categorized features from metadata if available
+        # 如果可用的话，使用元数据中的分类特征
         if self.metadata and "categorized_features" in self.metadata:
             categorized = self.metadata["categorized_features"]
             self._append_categorized_features(content, categorized)
         else:
-            # Fallback: display message as-is
+            # 回退方案：按原样显示消息
             if self.message:
                 content.append(f"\n  {self.message}\n")
             else:
@@ -78,10 +78,10 @@ class CriticResult(BaseModel):
     def _append_categorized_features(
         self, content: Text, categorized: dict[str, Any]
     ) -> None:
-        """Append categorized features to content, each category on its own line."""
+        """将分类功能附加到内容中，每个类别独占一行。"""
         has_content = False
 
-        # Agent behavioral issues
+        # 智能体行为问题
         agent_issues = categorized.get("agent_behavioral_issues", [])
         if agent_issues:
             content.append("\n  ")
@@ -89,7 +89,7 @@ class CriticResult(BaseModel):
             self._append_feature_list_inline(content, agent_issues)
             has_content = True
 
-        # User follow-up patterns
+        # 用户跟进模式
         user_patterns = categorized.get("user_followup_patterns", [])
         if user_patterns:
             content.append("\n  ")
@@ -97,7 +97,7 @@ class CriticResult(BaseModel):
             self._append_feature_list_inline(content, user_patterns)
             has_content = True
 
-        # Infrastructure issues
+        # 基础设施问题
         infra_issues = categorized.get("infrastructure_issues", [])
         if infra_issues:
             content.append("\n  ")
@@ -105,7 +105,7 @@ class CriticResult(BaseModel):
             self._append_feature_list_inline(content, infra_issues)
             has_content = True
 
-        # Other metrics
+        # 其他指标
         other = categorized.get("other", [])
         if other:
             content.append("\n  ")
@@ -124,13 +124,13 @@ class CriticResult(BaseModel):
         features: list[dict[str, Any]],
         is_other: bool = False,
     ) -> None:
-        """Append features inline with likelihood percentages."""
+        """附加与可能性百分比内联的特征。"""
         for i, feature in enumerate(features):
             display_name = feature.get("display_name", feature.get("name", "Unknown"))
             prob = feature.get("probability", 0.0)
             percentage = prob * 100
 
-            # Get style based on probability
+            # 根据概率获取样式
             if is_other:
                 prob_style = "white"
             elif prob >= 0.7:
@@ -140,7 +140,7 @@ class CriticResult(BaseModel):
             else:
                 prob_style = "dim"
 
-            # Add dot separator between features
+            # 在特征之间添加点分隔符
             if i > 0:
                 content.append(" · ", style="dim")
 

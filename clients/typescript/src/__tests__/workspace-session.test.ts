@@ -73,11 +73,8 @@ describe('RemoteWorkspace.startWorkspaceSession', () => {
   });
 
   it('does not require constructing an Agent or RemoteConversation', async () => {
-    // Regression guard for the agent-canvas use case: consumers that only want
-    // to embed workspace assets must be able to do so directly from the
-    // workspace, without inventing a placeholder Agent + LLM just to satisfy
-    // the RemoteConversation constructor. The mere fact this test compiles
-    // without importing Agent / RemoteConversation is the assertion.
+    // 回归用于智能体-canvas 用例的保护：只有希望直接嵌入工作区资产的消费者，必须能够从工作区中直接进行操作，而无需发明一个占位符智能体 + LLM 来满足 RemoteConversation 构造函数。 该测试在不导入智能体 / RemoteConversation 的情况下进行编译的事实就是断言。
+    //
     const fetchMock = vi.fn().mockResolvedValue(noContentResponse()) as Mock;
     global.fetch = fetchMock as typeof fetch;
 

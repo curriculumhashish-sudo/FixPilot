@@ -73,7 +73,7 @@ file_discovery_router = APIRouter(prefix="/file", tags=["Files"])
 _FILE_DOWNLOAD_RESPONSES: dict[int | str, dict[str, Any]] = {
     200: {
         "content": {
-            # Existing routes advertised this media type. Runtime aliases discard it.
+            # 现有路由通告此媒体类型。 运行时别名丢弃它。
             "application/json": {"schema": {}},
             "application/octet-stream": {
                 "schema": {"type": "string", "format": "binary"}
@@ -84,7 +84,7 @@ _FILE_DOWNLOAD_RESPONSES: dict[int | str, dict[str, Any]] = {
 
 
 async def _upload_file(path: str, file: UploadFile) -> FileUploadResult:
-    """Internal helper to upload a file to the workspace."""
+    """用于将文件上传到工作区的内部助手。"""
     update_last_execution_time()
     logger.info(f"Uploading file: {path}")
     try:
@@ -95,16 +95,15 @@ async def _upload_file(path: str, file: UploadFile) -> FileUploadResult:
                 detail="Path must be absolute",
             )
 
-        # Ensure target directory exists
+        # 确保目标目录存在
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Stream the file to disk to avoid memory issues with large files.
-        # Offload writes to a worker thread so slow storage (NFS, FUSE,
-        # encrypted FS) cannot starve the event loop for the upload's
-        # duration.
+        # 将文件流式传输到磁盘以避免大文件的内存问题。 卸载写入工作进程线程，因此缓慢的
+        # 存储（NFS、FUSE、加密的 FS）无法在上传期间使事件循环饥饿。
+        #
         file_size = 0
         with open(target_path, "wb") as f:
-            while chunk := await file.read(8192):  # Read in 8KB chunks
+            while chunk := await file.read(8192):  # 读取 8KB 块
                 await asyncio.to_thread(f.write, chunk)
                 file_size += len(chunk)
 
@@ -114,15 +113,17 @@ async def _upload_file(path: str, file: UploadFile) -> FileUploadResult:
     except HTTPException:
         raise
     except IsADirectoryError:
-        # The target itself is an existing directory: the caller's path is
-        # wrong, not a server fault (create_directory answers 400 likewise).
+        # 目标本身是一个现有目录：调用者的路径错误，而不是服务器故障（create_directory
+        # 同样回答 400）。
+        #
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Path is a directory",
         )
     except (FileExistsError, NotADirectoryError):
-        # mkdir(parents=True) raises FileExistsError when the direct parent is
-        # a file and NotADirectoryError when a component further up is one.
+        # 当直接父级是文件时，mkdir(parents=True) 引发 FileExistsError；当更上一层的组件
+        # 是文件时，NotADirectoryError 引发。
+        #
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A parent of the path is not a directory",
@@ -136,7 +137,7 @@ async def _upload_file(path: str, file: UploadFile) -> FileUploadResult:
 
 
 async def _download_file(path: str) -> FileResponse:
-    """Internal helper to download a file from the workspace."""
+    """从工作区下载文件的内部助手。"""
     update_last_execution_time()
     logger.info(f"Downloading file: {path}")
     try:
@@ -177,18 +178,16 @@ _TRAJECTORY_EXCLUDED_TOP_DIRS = frozenset({"acp"})
 
 
 def _create_zip_from_directory(source_dir: Path, output_path: Path) -> None:
-    """Create a zip archive for source_dir using only Python stdlib APIs.
+    """使用 Python 标准库 APIs 创建 source_dir 的 zip 压缩文件。
 
-    Secret-bearing fields (LLM/AWS credentials) in the persisted JSON payloads
-    are redacted on the way into the archive so a downloaded trajectory never
-    leaks API keys — see ``redacted_json_bytes``. Top-level directories in
-    ``_TRAJECTORY_EXCLUDED_TOP_DIRS`` hold runtime credentials and are omitted.
+    已持久化 JSON 载荷中携带机密的字段（LLM/AWS 凭据）会在写入归档时进行已脱敏，确保
+    下载的轨迹不会泄漏 API 密钥；参见
+    ``redacted_json_bytes``。 顶级目录位于
+    ``_TRAJECTORY_EXCLUDED_TOP_DIRS`` 保留运行时间凭据，并且被省略。
 
-    The conversation may still be running and saving state while this walks
-    it, so files that are still being written (``*.tmp``) are skipped, and so
-    are entries that disappear between listing and reading. Each JSON file is
-    read once, so the bytes checked for secrets are the bytes that get
-    archived.
+    这段对话可能仍在运行并保存状态，因此正在写入的文件（``*.tmp``）会被跳过，以及在列
+    出和读取之间消失的条目。 每个 JSON 文件都会读取一次，因此检查机密的
+    字节是存档的字节。
     """
     try:
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -199,12 +198,12 @@ def _create_zip_from_directory(source_dir: Path, output_path: Path) -> None:
                 ):
                     continue
                 if is_temp_file(path):
-                    # A save in progress (or left by a crash), from
-                    # atomic_write_text or the lease's owner_lease.tmp; the
-                    # file it replaces is archived.
+                    # 正在进行的保存（或因崩溃而留下），来自 atomic_write_text 或租约的
+                    # owner_lease.tmp； 它所替换的文件已存档。
+                    #
                     continue
                 arcname = str(path.relative_to(source_dir.parent))
-                # Skip entries removed or renamed away after rglob listed them.
+                # rglob 列出后，跳过条目被删除或重命名。
                 with contextlib.suppress(FileNotFoundError):
                     if should_redact(path) and path.is_file():
                         zinfo = zipfile.ZipInfo.from_file(path, arcname)
@@ -237,13 +236,12 @@ _ARCHIVE_MEDIA_TYPE: dict[str, str] = {
 ARCHIVE_MANIFEST_NAME = "archive_manifest.json"
 
 
-# Heavy / generated directories that usually bloat an archive without helping
-# eval replay. These are the default excludes, not a minimum exclusion set:
-# callers can disable them with ``use_default_excludes=false`` when they need a
-# full workspace capture. Both formats apply the same set: git-delta as
-# ``:(exclude)`` pathspecs (dropping tracked *and* untracked copies, on top of
-# the repo's own .gitignore) and tar.gz by pruning the walk — so the two
-# archives capture the same files.
+# 繁重/生成的目录通常会使存档膨胀，而不会帮助评估重放。 这些是默认排除，而不是最小排除集
+# ：当调用者需要完整的工作区捕获时，可以使用 ``use_default_excludes=false`` 禁用它们。
+# 两种格式都应用相同的集合：git-delta as
+# ``:(exclude)`` 路径规格（删除已跟踪的 * 和 * 未跟踪的副本，再加上仓库本身的 .gitignore
+# ）以及 tar.gz 通过修剪走道来实现——因此这两个归档捕获了相同的文件。
+#
 _DEFAULT_ARCHIVE_EXCLUDES = (
     ".git/",
     "node_modules/",
@@ -260,26 +258,24 @@ _DEFAULT_ARCHIVE_EXCLUDES = (
     "*.pyc",
 )
 
-# Credential-bearing git internals that must NEVER be persisted to a shared
-# archive bucket, even for a full capture (``use_default_excludes=false``). A
-# tokenized clone (``https://x-access-token:TOKEN@github.com/...``) keeps that
-# token in ``.git/config`` and ``.git/FETCH_HEAD``; reflogs and saved
-# credentials are equally sensitive. These live under the superproject ``.git``
-# AND under ``.git/modules/<name>`` for submodules, so the match is by position
-# within any ``.git`` directory rather than a fixed top-level path. (git-delta
-# is a working-tree diff and never includes ``.git``, so this only matters for
-# tar.gz.)
+# 凭据-轴承 git 内部结构必须绝不是已持久化到共享存档存储桶，即使是完整捕获 (
+# ``use_default_excludes=false``)。 标记化克隆 (
+# ``https://x-access-token:TOKEN@github.com/...``) 将 token 保留在 ``.git/config`` 和
+# ``.git/FETCH_HEAD`` 中； 引用日志和保存的凭据同样敏感。 这些位于 ``.git`` AND
+# ``.git/modules/<name>`` 下的子模块中，因此匹配是在任何 ``.git`` 目录中，而不是固定在顶
+# 级路径。 (git-delta 是工作目录的差异，从不包括 ``.git``，所以这只对 tar.gz 有影响。)
+#
 _SENSITIVE_GIT_INTERNALS = frozenset(
     {"config", "config.worktree", "credentials", ".git-credentials", "FETCH_HEAD"}
 )
 
 
 def _is_sensitive_git_internal(rel: PurePosixPath) -> bool:
-    """True if ``rel`` is a credential-bearing file inside any ``.git`` dir.
+    """True 如果 ``rel`` 是任何 ``.git`` 目录中包含凭据的文件。
 
-    Covers the superproject (``.git/...``) and submodules
-    (``.git/modules/<name>/...``) at any depth: the sensitive config/credential
-    files and every reflog under a ``logs/`` subtree.
+    涵盖任意深度的超级项目 (``.git/...``) 和子模块 (``.git/modules/<name>/...``)：敏
+    感的配置/凭证文件以及
+    ``logs/`` 子树下的每个引用日志。
     """
     parts = rel.parts
     for i, part in enumerate(parts):
@@ -293,29 +289,27 @@ def _is_sensitive_git_internal(rel: PurePosixPath) -> bool:
     return False
 
 
-# Directory names never worth descending when auto-resolving the repo root under
-# a workspace path: they can legitimately contain vendored/nested git repos that
-# must not be mistaken for the workspace's own repo.
+# 在工作区路径下的仓库根目录下的目录名从不值得向下递归：它们可能合法地包含 vendored/
+# nested git 仓库，这些仓库必须不能被误认为是工作区的仓库。
+#
 _ARCHIVE_DESCENT_SKIP = frozenset({"node_modules", "venv", "site-packages", "vendor"})
 
 
 def _resolve_git_repo_root(target: Path, max_depth: int = 3) -> Path:
-    """Resolve the git work-tree to archive under ``target``.
+    """将 git 工作树解析为存档在 ``target`` 下。
 
-    Callers pass the workspace base (e.g. ``/workspace/project``), but a
-    repository-backed conversation clones into a subdirectory
-    (``{base}/[{group}/]{repo_name}``), so the base itself is usually *not* a git
-    repo. ``git rev-parse`` only searches upward, so archiving the base would
-    400 even though the repo sits one or two levels below it — silently
-    capturing nothing for exactly the repo-backed conversations the archive
-    exists for.
+    调用者传递工作区基数 (e.g. ``/workspace/project``），但基于仓库的对话会克隆到子目
+    录（
+    ``{base}/[{group}/]{repo_name}``），因此基目录本身通常*不是* Git 仓库。
+    ``git rev-parse`` 只向上搜索，因此
+    即使仓库位于其下方一层或两层，也400 —— 完全无声地捕获了不存在于档案中用于支持档案
+    的仓库对话。
 
-    If ``target`` is already a git work-tree, return it unchanged. Otherwise do a
-    bounded depth-first search of its descendants (skipping hidden and
-    vendored directories, and not descending into a repo once found) for git
-    work-tree roots. Return the unique match if there is exactly one; if zero or
-    several are found, return ``target`` unchanged so the existing not-a-git-repo
-    handling (HTTP 400) applies rather than guessing.
+    如果 ``target`` 已经是 git 工作树，则将其原样返回。 否则，对它的后代进行有界深度
+    优先搜索（跳过隐藏和 vendored 目录，并在找到后不进入仓库
+    ），以查找 git 工作树根。 如果恰好有一个，则返回唯一匹配； 如果找到零个或多个，则
+    返回 ``target`` 不变，以便应用现有的 not-a-git-rep
+    o 处理 (HTTP 400) 而不是猜测。
     """
     if (target / ".git").exists():
         return target
@@ -340,7 +334,7 @@ def _resolve_git_repo_root(target: Path, max_depth: int = 3) -> Path:
             if (child / ".git").exists():
                 found.append(child)
                 if len(found) > 1:
-                    # Ambiguous — don't guess which repo to archive.
+                    # 不明确——不要猜测要存档哪个存储库。
                     logger.warning(
                         f"Multiple git repos under {target}; cannot pick one to "
                         "archive — using the path as given. Caller should pass "
@@ -353,21 +347,20 @@ def _resolve_git_repo_root(target: Path, max_depth: int = 3) -> Path:
 
 
 def _excludes_to_git_pathspecs(excludes: list[str]) -> list[str]:
-    """Translate the archive excludes into git ``:(exclude)`` pathspecs.
+    """将存档排除项翻译为 git ``:(exclude)`` 路径规范。
 
-    Using pathspecs instead of ``core.excludesFile`` drops excluded paths
-    whether they are tracked or untracked, so git-delta and tar.gz capture the
-    same file set. ``glob`` magic keeps ``*`` from crossing ``/`` while ``**``
-    spans directories, mirroring the tar.gz matcher's gitignore semantics: a
-    bare name matches at any depth; a multi-segment pattern is anchored at the
-    repo root.
+    使用 pathspecs 而不是 ``core.excludesFile`` 会删除排除的路径，无论它们是跟踪还是
+    未跟踪，因此 git-delta 和 tar.gz
+     捕获相同的文件集。 ``glob`` 魔法阻止 ``*`` 通过 ``/``，同时 ``**`` 跨越目录，镜
+     像 tar.gz 匹配器的 gitignore 语义
+    ：裸名在任何深度都匹配。 多段模式锚定在存储库根上。
 
-    A trailing ``/`` marks a directory-only pattern: we emit only the
-    contents form (``.../**``) and NOT the bare entry form, so a regular file
-    that happens to share the name (e.g. an authored file literally named
-    ``build``) is kept — matching ``_path_is_excluded``'s dir-only carve-out.
-    Emitting the bare entry too would silently drop such files from the
-    git-delta while the tar.gz keeps them.
+    ``/`` 通常表示一个只包含目录的模式：我们只输出(``.../**``)的内容，不输出(不)的裸
+    文件名，因此，如果一个文件的名称(e.g)与它共享，那么它将不会
+    被处理。 一个字面上命名的创作文件
+    ``build``) 被保留 — 匹配 ``_path_is_excluded`` 的仅目录剥离。 发出裸条目也会从
+    git-delta 中默默地删除这些文件，而
+    tar.gz 会保留它们。
     """
     specs: list[str] = []
     for raw in excludes:
@@ -387,7 +380,7 @@ def _excludes_to_git_pathspecs(excludes: list[str]) -> list[str]:
 
 
 def _head_is_detached(root: Path) -> bool:
-    """True if the repo at ``root`` has a detached HEAD (no current branch)."""
+    """True 如果 ``root`` 处的存储库具有分离的 HEAD（没有当前分支）。"""
     try:
         branch = run_git_command(
             ["git", "--no-pager", "rev-parse", "--abbrev-ref", "HEAD"], root
@@ -398,51 +391,49 @@ def _head_is_detached(root: Path) -> bool:
 
 
 def _header_safe(value: str) -> str:
-    """Percent-encode a header value."""
+    """对标头值进行百分比编码。"""
     return quote(value, safe="")
 
 
 def _create_git_delta(
     root: Path, base_ref: str | None, output_path: Path, excludes: list[str]
 ) -> str:
-    """Write a git patch capturing the working-tree delta against a base.
+    """编写一个 git 补丁，捕获针对基础的工作树增量。
 
-    The delta covers tracked modifications, new (untracked) files, and
-    deletions relative to ``base_ref`` (defaulting to the auto-detected
-    comparison ref — origin branch, merge-base, or the empty tree for a fresh
-    repo). A throwaway index (``GIT_INDEX_FILE``) is used so the repository's
-    real index is never touched. ``excludes`` are applied as ``:(exclude)``
-    pathspecs — on top of the repo's own ``.gitignore`` — so excluded paths are
-    dropped whether tracked or untracked, matching the tar.gz format. Callers
-    can disable the default excludes when they intentionally want a fuller
-    capture.
+    Delta 包含了相对于 ``base_ref``（默认为自动检测的比较分支 —— 源分支、合并基、或空
+    树，对于一个新仓库）的跟踪修改、新（未跟踪）文件，以及删除。
+     使用一次性索引（``GIT_INDEX_FILE``），因此存储库的真实索引永远不会被触及。
+     ``excludes`` 应用在 ``:(exclude)`` 路径
+    规格上，``.gitignore`` 仓库自己的，所以排除的路径无论是否被跟踪，都会被丢弃，符合
+     tar.gz 格式。 当调用者有意想要更全面的捕获时，可以禁用默认
+    排除。
 
-    Returns the full base commit SHA the patch applies against, or "" when the
-    base is the empty tree (fresh repo) or cannot resolve to a commit.
+    返回补丁所应用的完整基础提交 SHA，或者当基础是空树（新存储库）或无法解析为提交时
+    返回“”。
     """
     validate_git_repository(root)
     effective_base = base_ref
     if effective_base is None and _head_is_detached(root):
-        # A pinned base-commit checkout (e.g. a SWE-bench-style eval setup)
-        # leaves HEAD detached; get_valid_ref then skips the branch strategy and
-        # diffs against the remote default-branch TIP, polluting the patch with
-        # base..tip. The pinned HEAD commit is the right base, so request it.
+        # 固定的基础提交签出 (e.g. SWE-bench-style eval 设置）使 HEAD 分离；
+        # get_valid_ref 然后跳过分支策略并与远程默认分支 TIP 进行比较，用 base..tip 污染
+        # 补丁。 固定的 HEAD 提交是正确的基础，因此请求它。
+        #
         effective_base = "HEAD"
     try:
         ref = get_valid_ref(root, effective_base) or GIT_EMPTY_TREE_HASH
     except GitCommandError as e:
-        # An explicit base_ref that does not resolve is client error, not a
-        # server fault; surface it so the caller gets a 4xx.
+        # 无法解析的显式 base_ref 是客户端错误，而不是服务器故障； 将其显示出来，以便调
+        # 用者得到 4xx。
+        #
         raise ValueError(f"base_ref {base_ref!r} could not be resolved") from e
     index_path = output_path.with_name(output_path.name + ".index")
     pathspecs = _excludes_to_git_pathspecs(excludes)
     env = {**os.environ, "GIT_INDEX_FILE": str(index_path)}
     try:
-        # Seed the scratch index from the base ref, stage the working tree on
-        # top of it (skipping the requested excludes), then diff. The ``-- .``
-        # pathspec scopes staging and the diff to the requested directory, so a
-        # ``path`` that is a subdirectory of a larger repo yields only that
-        # subtree's delta rather than the whole repository's.
+        # 从基本引用中播种临时索引，将工作树放置在其顶部（跳过请求的排除），然后进行比较
+        # 。 ``-- .`` 路径规范范围暂存和差异到请求的目录，所以
+        # ``path`` 是较大存储库的子目录，仅生成该子树的增量，而不是整个存储库的增量。
+        #
         subprocess.run(
             ["git", "read-tree", ref],
             cwd=root,
@@ -459,8 +450,9 @@ def _create_git_delta(
             check=True,
             timeout=300,
         )
-        # Stream the diff straight to disk so a large binary patch is never
-        # buffered in memory (OOM risk at pause/stop on a fat workspace).
+        # 将 diff 直接流式传输到磁盘，因此大型二进制补丁永远不会在内存中缓冲（OOM 在胖工
+        # 作区上暂停/停止的风险）。
+        #
         with open(output_path, "wb") as out:
             subprocess.run(
                 ["git", "diff", "--binary", "--cached", ref, "--", ".", *pathspecs],
@@ -496,7 +488,7 @@ def _create_git_delta(
 
     if ref == GIT_EMPTY_TREE_HASH:
         return ""
-    # Resolve the base to a full commit SHA so the artifact is self-describing.
+    # 将基础解析为完整提交 SHA，以便工件是自描述的。
     try:
         return run_git_command(
             ["git", "--no-pager", "rev-parse", "--verify", f"{ref}^{{commit}}"],
@@ -507,45 +499,44 @@ def _create_git_delta(
 
 
 def _path_is_excluded(rel: PurePosixPath, patterns: list[str], is_dir: bool) -> bool:
-    """True if ``rel`` is excluded by any glob in ``patterns``.
+    """True 如果 ``rel`` 被 ``patterns`` 中的任何 glob 排除。
 
-    Mirrors the git-delta path's gitignore semantics so the two formats agree:
+    镜像 git-delta 路径的 gitignore 语义，因此两种格式一致：
 
-    - A trailing ``/`` marks a directory-only pattern: it matches a directory but
-      never a file's own name, so a ``build/`` pattern prunes a ``build``
-      directory while keeping a file literally named ``build``.
-    - A multi-segment pattern (one containing ``/``, e.g. ``secrets/prod``)
-      matches the full relative path or any prefix of it, so it drops both
-      ``secrets/prod`` and everything beneath it.
-    - A bare-name pattern (no ``/``, e.g. ``node_modules`` or ``*.pyc``) matches
-      any single path component, at any depth.
+    - 逗号 ``/`` 标示了一个只匹配目录的模式：它匹配目录，但永远不会匹配文件的名称，所
+    以  ``build/`` 模式修剪一个 ``build`` 目录，同时保
+    留一个文件的名称 ``build``.
+    - 多段模式（其中包含 ``/``、e.g。 ``secrets/prod``) 匹配完整的相对路径或其任何前
+    缀，因此它会删除两者
+      ``secrets/prod`` 及其下面的所有内容。
+    - 裸名模式（无 ``/``、e.g。 ``node_modules`` 或 ``*.pyc``) 匹配任何深度的任何单个
+    路径组件。
 
-    Dependency-free so no new package is pulled in.
+    无依赖关系，因此不会引入新的包。
     """
     parts = rel.parts
     for raw in patterns:
         pattern = raw.rstrip("/")
         dir_only = raw.endswith("/")
         if "/" in pattern:
-            # Multi-segment: anchor against the relative path root and match
-            # per-segment so a ``*`` does NOT cross ``/`` (gitignore semantics,
-            # matching the git-delta path). The pattern matches the path itself
-            # or anything nested under it: ``secrets/prod`` drops ``secrets/prod``
-            # and ``secrets/prod/key``; ``*/test`` drops ``a/test`` but not
-            # ``a/b/test``; ``a/*/c`` drops ``a/x/c``.
+            # 多段：锚点与相对路径根匹配，按段匹配，``*`` 会不跨越 ``/``（gitignore语义
+            # ，与 git-delta 路径匹配）。 该模式匹配路径本身或嵌套在其下的任何内容：
+            # ``secrets/prod`` 删除 ``secrets/prod`` 和 ``secrets/prod/key``；
+            # ``*/test`` 掉落 ``a/test`` 但不
+            # ``a/b/test``; ``a/*/c`` 下降 ``a/x/c``。
             pattern_parts = pattern.split("/")
             if len(parts) >= len(pattern_parts) and all(
                 fnmatch.fnmatch(part, pat) for part, pat in zip(parts, pattern_parts)
             ):
-                # A dir-only pattern matches the directory and anything nested
-                # under it, but not a file whose own path equals the pattern.
+                # 一个只匹配目录的模式匹配目录及其子目录，但不匹配路径等于模式的文件。
+                #
                 if dir_only and not is_dir and len(parts) == len(pattern_parts):
                     continue
                 return True
         else:
-            # Bare name: match any single component. For a dir-only pattern on a
-            # file, skip the basename so a file sharing a directory exclude's
-            # name is not dropped.
+            # 裸名：匹配任何单个组件。 对于文件上的仅目录模式，请跳过基本名称，以便共享
+            # 目录排除名称的文件不会被删除。
+            #
             candidates = parts if (is_dir or not dir_only) else parts[:-1]
             for part in candidates:
                 if fnmatch.fnmatch(part, pattern):
@@ -556,7 +547,7 @@ def _path_is_excluded(rel: PurePosixPath, patterns: list[str], is_dir: bool) -> 
 def _build_archive_manifest(
     source: str, file_count: int, total_bytes: int, excludes: list[str]
 ) -> bytes:
-    """Deterministic (timestamp-free) JSON manifest embedded in a tar.gz."""
+    """确定性（无时间戳）JSON 清单嵌入在 tar.gz 中。"""
     manifest = {
         "format": "tar.gz",
         "source": source,
@@ -568,16 +559,14 @@ def _build_archive_manifest(
 
 
 class _ExactSizeReader:
-    """File wrapper that always yields exactly ``size`` bytes.
+    """始终精确生成 ``size`` 字节的文件包装器。
 
-    ``tar.addfile`` writes the member header (declaring ``size``) and then copies
-    bytes from the file; if a concurrent writer truncates the file in between, a
-    short read would raise *mid-member*, after the header and a partial,
-    unpadded body are already on the gzip stream — silently misaligning every
-    member that follows (the trailing manifest included). By padding a short read
-    with NUL (file shrank) and stopping at ``size`` (file grew), the bytes handed
-    to ``addfile`` always match the declared size, so the stream can never
-    desynchronize no matter how the workspace mutates during capture.
+    ``tar.addfile``写入成员头（声明``size``），然后从文件中复制字节； 如果并发作家在
+    中间截断文件，那么一个短读会引发 * 中成员 *，在头和已经
+    存在于 gzip 流中的部分前缀之后。这样，每跟随的成员（包括尾随的元数据）都会被无声
+    地错位。 通过在NUL（文件变小）和在``size``（文件变大）处填充短读，
+    ``addfile``总是收到声明大小的字节，因此，无论工作区在捕获过程中如何变异，流都不会
+    解同步。
     """
 
     def __init__(self, fileobj: IO[bytes], size: int) -> None:
@@ -597,14 +586,14 @@ class _ExactSizeReader:
 
 
 def _add_file_member(tar: tarfile.TarFile, file_path: Path, arcname: str) -> int | None:
-    """Add a regular file to ``tar`` without risking tar-stream corruption.
+    """将常规文件添加到 ``tar``，而不会有 tar 流损坏的风险。
 
-    ``tar.add`` stats the file, writes a header for that size, then copies the
-    body — a concurrent truncate between the two desynchronizes the stream (see
-    ``_ExactSizeReader``). Instead, size the header from the OPEN fd and copy
-    exactly that many bytes via ``_ExactSizeReader``. Returns the byte count, or
-    ``None`` if the file could not be read / was not a regular file (skipped,
-    best-effort — the workspace may still be mutating).
+    ``tar.add`` 统计文件，写入该大小的标头，然后复制正文 - 两者之间的并发截断会使流不
+    同步（请参阅
+    ``_ExactSizeReader``). 相反，调整 OPEN fd 中的标头大小，并通过
+    ``_ExactSizeReader`` 复制那么多字节。 返回字节
+    数，或者
+    ``None`` 如果文件无法读取/不是常规文件（已跳过，尽力而为 - 工作区可能仍在变异）。
     """
     try:
         f = open(file_path, "rb")
@@ -614,7 +603,7 @@ def _add_file_member(tar: tarfile.TarFile, file_path: Path, arcname: str) -> int
     try:
         st = os.fstat(f.fileno())
         if not stat.S_ISREG(st.st_mode):
-            # Raced into a non-regular path (dir/fifo/socket); skip it.
+            # 进入非常规路径（dir/fifo/socket）； 跳过它。
             return None
         info = tar.gettarinfo(arcname=arcname, fileobj=f)
         tar.addfile(info, _ExactSizeReader(f, info.size))
@@ -627,13 +616,12 @@ def _add_file_member(tar: tarfile.TarFile, file_path: Path, arcname: str) -> int
 
 
 def _create_tar_gz_archive(root: Path, output_path: Path, excludes: list[str]) -> None:
-    """Stream a gzip tarball of ``root`` to ``output_path``.
+    """将 ``root`` 的 gzip tarball 流式传输到 ``output_path``。
 
-    Walks ``root`` without following symlinks, pruning excluded directories so
-    they are never descended into, and adds regular files only (symlinks are
-    skipped — same safety posture as the rest of the endpoint). Files are added
-    one at a time so the archive is never held in memory. A deterministic
-    manifest member (``ARCHIVE_MANIFEST_NAME``) records what was captured.
+    ``root`` 步行时不跟随符号链接，修剪排除的目录，以确保它们从不被访问，只添加常规文
+    件（符号链接被跳过——与REST的端点相同的安全姿态）。 文件一次添加一个
+    ，因此存档永远不会保存在内存中。 确定性清单成员 (``ARCHIVE_MANIFEST_NAME``) 记录
+    捕获的内容。
     """
     file_count = 0
     total_bytes = 0
@@ -643,24 +631,23 @@ def _create_tar_gz_archive(root: Path, output_path: Path, excludes: list[str]) -
         with tarfile.open(output_path, "w:gz") as tar:
             for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
                 base = PurePosixPath(Path(dirpath).relative_to(root).as_posix())
-                # Prune excluded directories in place so we never descend them.
+                # 修剪已排除的目录，这样我们就不会降级它们。
                 dirnames[:] = [
                     d
                     for d in dirnames
                     if not _path_is_excluded(base / d, excludes, is_dir=True)
                     and not _is_sensitive_git_internal(base / d)
                 ]
-                # Emit a directory member for every surviving directory so empty
-                # authored directories round-trip (the byte-for-byte full-capture
-                # contract). tar would otherwise only recreate parents implied by
-                # file members, dropping childless directories entirely.
+                # 为每个幸存目录发出一个目录成员，以便清空创作目录往返（逐字节完整捕获合
+                # 同）。 否则 tar 只会重新创建文件成员隐含的父目录，完全删除无子目录。
+                #
                 dir_arcname = (
                     root.name if base == PurePosixPath(".") else f"{root.name}/{base}"
                 )
                 if not Path(dirpath).is_symlink():
-                    # Guard like the per-file add below: a directory that vanishes
-                    # mid-capture (concurrent mutation) must skip its own member,
-                    # not abort the whole archive.
+                    # 像下面每个文件添加的防护一样：在捕获中消失的目录（并发突变）必须跳
+                    # 过其自己的成员，而不是中止整个存档。
+                    #
                     try:
                         tar.add(dirpath, arcname=dir_arcname, recursive=False)
                     except OSError as e:
@@ -675,9 +662,9 @@ def _create_tar_gz_archive(root: Path, output_path: Path, excludes: list[str]) -
                     if file_path.is_symlink() or not file_path.is_file():
                         continue
                     arcname = f"{root.name}/{rel}"
-                    # Best-effort and corruption-proof: the workspace may still be
-                    # mutating, so a file that vanishes or is truncated mid-add is
-                    # skipped without desynchronizing the tar stream.
+                    # 尽力而为且防腐败：工作区仍然可能变异，因此在添加文件时文件消失或被
+                    # 截断的文件会被跳过，而不进行 tar 流的同步。
+                    #
                     size = _add_file_member(tar, file_path, arcname)
                     if size is None:
                         continue
@@ -686,8 +673,9 @@ def _create_tar_gz_archive(root: Path, output_path: Path, excludes: list[str]) -
                     file_count += 1
                     total_bytes += size
 
-            # Skip our synthetic capture manifest when the workspace already has a
-            # real file at that path: the user's data must win over our metadata.
+            # 当工作区在该路径上已经有一个真实文件时，跳过我们的合成捕获清单：用户的数据
+            # 必须胜过我们的元数据。
+            #
             if manifest_collision:
                 logger.warning(
                     f"Workspace already contains {ARCHIVE_MANIFEST_NAME!r}; "
@@ -711,7 +699,7 @@ async def upload_file_query(
     path: Annotated[str, Query(description="Absolute file path")],
     file: Annotated[UploadFile, File()],
 ) -> FileUploadResult:
-    """Upload a file to the workspace using query parameter (preferred method)."""
+    """使用查询参数将文件上传到工作区（首选方法）。"""
     return await _upload_file(path, file)
 
 
@@ -721,7 +709,7 @@ async def upload_file_query(
 async def download_file_query(
     path: Annotated[str, Query(description="Absolute file path")],
 ) -> FileResponse:
-    """Download a file from the workspace using query parameter (preferred method)."""
+    """使用查询参数从工作区下载文件（首选方法）。"""
     return await _download_file(path)
 
 
@@ -729,11 +717,11 @@ async def download_file_query(
 async def create_directory(
     path: Annotated[str, Query(description="Absolute directory path to create")],
 ) -> Success:
-    """Create a directory in the workspace, including any missing parents.
+    """在工作区中创建一个目录，包括所有缺失的父目录。
 
-    Idempotent: an existing directory succeeds and its contents are left
-    untouched. Creating over an existing file, or under a path whose parent is
-    a file, is a client error (400) rather than a server fault.
+    Idempotent: 现有目录成功并保留其内容
+    未受影响。 在现有文件上或在父文件为文件的路径下创建是客户端错误 (400)，而不是服务
+    器故障。
     """
     update_last_execution_time()
     logger.info(f"Creating directory: {path}")
@@ -748,9 +736,10 @@ async def create_directory(
     try:
         await asyncio.to_thread(lambda: target_path.mkdir(parents=True, exist_ok=True))
     except (FileExistsError, NotADirectoryError):
-        # mkdir(exist_ok=True) still raises when the final component exists as a
-        # non-directory; NotADirectoryError covers a parent component being a
-        # file. Both are the caller's path being wrong, not a server fault.
+        # 当最终组件作为非目录存在时，mkdir(exist_ok=True) 仍然会引发；
+        # NotADirectoryError 涵盖了作为文件的父组件。 两者都是调用者的路径错误，而不是服
+        # 务器故障。
+        #
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Path exists and is not a directory",
@@ -774,11 +763,11 @@ async def create_directory(
 def _list_home_favorites(
     home: Path, limit: int = 50, include_hidden: bool = False
 ) -> list[FileBrowserEntry]:
-    """Top-level directories inside the user's home, alphabetised.
+    """用户家中的顶级目录，按字母顺序排列。
 
-    Symlinks are skipped. Hidden entries (names starting with '.') are skipped
-    unless ``include_hidden`` is True, so the list matches what
-    ``search_subdirs`` returns for the same path and the same flag.
+    符号链接被跳过。 除非 ``include_hidden`` 为 True，否则将跳过隐藏条目（以“.”开头的
+    名称），因此列表与
+    ``search_subdirs`` 返回相同的路径和相同的标志。
     """
     entries: list[FileBrowserEntry] = []
     try:
@@ -801,7 +790,7 @@ def _list_home_favorites(
 
 
 def _list_root_locations() -> list[FileBrowserEntry]:
-    """Filesystem roots: present drives on Windows, '/' on POSIX."""
+    """文件系统根：Windows 上的当前驱动器，“/' 位于 POSIX”。"""
     if os.name == "nt":
         from string import ascii_uppercase
 
@@ -826,13 +815,13 @@ async def get_home_directory(
         Query(description="Include hidden top-level directories in `favorites`"),
     ] = False,
 ) -> HomeResponse:
-    """Return the agent-server user's home directory and dynamic sidebar lists.
+    """返回智能体-服务器用户的主目录和动态侧边栏列表。
 
-    ``favorites`` is the set of top-level directories actually present in the
-    user's home (so it reflects the real environment instead of a hardcoded
-    list of names that may not exist). Hidden directories are included only
-    when ``include_hidden`` is True. ``locations`` is the set of filesystem
-    roots — '/' on POSIX or available drive letters on Windows.
+    ``favorites`` 是用户家目录中实际存在的顶级目录集合，因此反映了真实的环境，而不是
+    硬编码的名称列表，这些名称可能不存在。 仅当
+    ``include_hidden`` 为 True 时才包含隐藏目录。 ``locations`` 是文件系统根的集合 -
+    POSIX 上的“/'”或 Window
+    s 上的可用驱动器号。
     """
     home = Path.home()
     return HomeResponse(
@@ -861,16 +850,16 @@ async def search_subdirs(
         Query(title="Include hidden subdirectories (names starting with '.')"),
     ] = False,
 ) -> SubdirectoryPage:
-    """Search / List immediate subdirectories of `path`.
+    """搜索/列出 `path` 的直接子目录。
 
-    Used by the GUI's workspace picker. Symlinks and files are skipped. Hidden
-    entries (names starting with '.') are skipped unless ``include_hidden`` is
-    True. Returns absolute paths so the GUI can use a result directly as
+    由 GUI 的工作区选择器使用。 符号链接和文件被跳过。 除非 ``include_hidden`` 为
+    True，否则将跳过隐藏条目（以“.”开头的名称）。 返回
+    绝对路径，以便 GUI 可以直接使用结果
     ``workspace.working_dir``.
 
-    Results are sorted case-insensitively by name (ties broken by the exact
-    name) and paginated. ``page_id`` is the ``next_page_id`` returned by the
-    previous page (the name of the first item to include on the next page).
+    结果按名称（按确切名称断开关系）排序（不区分大小写）并分页。 ``page_id`` 是上一页
+    返回的 ``next_page_id``（下一页中包含的第一个项目的名
+    称）。
     """
 
     target = Path(path)
@@ -910,8 +899,9 @@ async def search_subdirs(
             detail=f"Permission denied: {e}",
         )
 
-    # Break case-insensitive ties by the exact name so that names differing
-    # only by case ("Foo", "foo") have a stable order and distinct cursors.
+    # 通过确切的名称打破不区分大小写的关系，以便仅大小写不同的名称（“Foo”、“foo”）具有稳
+    # 定的顺序和不同的游标。
+    #
     entries.sort(key=lambda e: (e.name.lower(), e.name))
 
     start_index = 0
@@ -920,7 +910,7 @@ async def search_subdirs(
         if page_id in names:
             start_index = names.index(page_id)
         else:
-            # Lowercase cursors issued by older servers.
+            # 旧服务器发出的小写游标。
             for i, name in enumerate(names):
                 if name.lower() == page_id:
                     start_index = i
@@ -943,7 +933,7 @@ async def download_trajectory(
     conversation_id: UUID,
     request: Request,
 ) -> FileResponse:
-    """Download a zip archive of a conversation trajectory."""
+    """下载对话轨迹的 zip 存档。"""
     config: Config = request.app.state.config
     temp_file = config.conversations_path / f"{conversation_id.hex}.zip"
     conversation_dir = config.conversations_path / conversation_id.hex
@@ -1030,12 +1020,11 @@ async def archive_directory(
         ),
     ] = None,
 ) -> FileResponse:
-    """Archive a workspace directory for persistence before runtime deletion.
+    """在运行时删除之前，将持久化的工作区目录存档。
 
-    Produces a downloadable archive of ``path``. Symlinks are never followed
-    out of the requested directory, so the archive cannot include files from
-    outside it. The temporary archive is created outside ``path`` and removed
-    after the response is sent.
+    生成一个可下载的归档文件 ``path``。 符号链接永远不会离开请求的目录，因此存档不能
+    包含来自外部的文件。 临时存档在 ``path`` 外部创建，并在发送响应
+    后删除。
     """
     update_last_execution_time()
 
@@ -1065,11 +1054,11 @@ async def archive_directory(
     effective_excludes = (
         list(_DEFAULT_ARCHIVE_EXCLUDES) if use_default_excludes else []
     ) + (exclude or [])
-    # Build the archive on the same volume as the workspace (its parent dir, so
-    # it is never included in itself) rather than the system temp dir: a large
-    # tar.gz on a tmpfs /tmp would defeat the stream-to-disk OOM fix, and on a
-    # small container root it could trip the pod's ephemeral-storage limit. Fall
-    # back to the default temp location if the parent is not usable.
+    # 将档案建在工作区的同一卷上（其父目录，因此它永远不会包含在自己之中），而不是系统临
+    # 时目录：在 tmpfs /tmp 上的大型 tar.gz 会击败流到磁盘 OOM 的修复，而在小容器根目录
+    # 上可能会触发 pod 的 ephemeral-storage 限制。 如果父级不可用，则回退到默认临时位置
+    # 。
+    #
     scratch_dir: str | None = None
     parent = target.parent
     if parent != target and os.access(parent, os.W_OK):
@@ -1080,10 +1069,10 @@ async def archive_directory(
     os.close(fd)
     output_path = Path(tmp_name)
 
-    # The caller passes the workspace base, but a repo-backed conversation clones
-    # into a subdirectory; resolve to the actual repo so both formats root the
-    # archive at the repo (consistent paths across git-delta, tar.gz, and the
-    # initial snapshot) and git-delta does not 400 on the non-repo parent.
+    # 调用者传递工作区基址，但存储库支持的对话克隆到子目录中； 将实际仓库解决，这样两个
+    # 格式都会在仓库中根化（在 git-delta、tar.gz 和初始快照中的一致路径），git-delta 不
+    # 会在非仓库父节点上返回 400。
+    #
     repo_root = await asyncio.to_thread(_resolve_git_repo_root, target)
     base_commit = ""
     try:
@@ -1125,9 +1114,9 @@ async def archive_directory(
             detail=f"Failed to archive directory: {str(e)}",
         )
 
-    # Repo identity (remote / branch / HEAD) applies to both formats so a
-    # tar.gz snapshot is self-describing too; base_commit/base_ref are
-    # git-delta-only (they describe the patch's replay base).
+    # 存储库身份（远程/分支/HEAD）适用于两种格式，因此 tar.gz 快照也是自描述的；
+    # base_commit/base_ref 仅限 git-delta（它们描述了补丁的重放基础）。
+    #
     headers: dict[str, str] = {}
     if (repo_root / ".git").exists():
         repo_metadata = await asyncio.to_thread(get_git_repository_metadata, repo_root)
@@ -1140,7 +1129,7 @@ async def archive_directory(
                 headers[header] = _header_safe(value)
         headers["X-Archive-Repo-Root"] = _header_safe(str(repo_root))
     if base_commit:
-        # Make a git-delta self-describing so consumers can replay the patch.
+        # 使 git-delta 自描述，以便消费者可以重播补丁。
         headers["X-Archive-Base-Commit"] = base_commit
         headers["X-Archive-Base-Ref"] = base_ref or "auto"
 

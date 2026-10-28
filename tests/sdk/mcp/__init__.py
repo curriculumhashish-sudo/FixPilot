@@ -1,1 +1,1 @@
-"""Tests for MCP (Model Context Protocol) integration."""
+"""测试 MCP（模型上下文协议）集成。"""

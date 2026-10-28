@@ -58,10 +58,9 @@ def _wait_for_http_server(port: int, timeout: float = 5.0) -> None:
 
 
 class _HeadlessOAuth(MCPOAuth):
-    """FastMCP OAuth client that follows the authorization redirect itself.
+    """FastMCP 遵循授权重定向本身的 OAuth 客户端。
 
-    This preserves the real DCR/PKCE/token exchange while avoiding an external
-    browser and local callback server in CI.
+    这保留了真实的 DCR/PKCE/令牌交换，同时避免了 CI 中的外部浏览器和本地回调服务器。
     """
 
     redirect_count = 0
@@ -88,7 +87,7 @@ class _HeadlessOAuth(MCPOAuth):
 
 @pytest.fixture
 def oauth_provider() -> InMemoryOAuthProvider:
-    """The authorization server of ``protected_oauth_mcp_server``."""
+    """``protected_oauth_mcp_server`` 的授权服务器。"""
     return InMemoryOAuthProvider(
         base_url=f"http://127.0.0.1:{_find_free_port()}",
         client_registration_options=ClientRegistrationOptions(
@@ -122,7 +121,7 @@ def protected_oauth_mcp_server(oauth_provider: InMemoryOAuthProvider):
     thread.start()
     _wait_for_http_server(port)
     yield f"http://127.0.0.1:{port}/mcp"
-    # A server left running keeps calling asyncio.sleep, which other tests patch.
+    # 保持运行的服务器不断调用 asyncio.sleep，其他测试补丁。
     server.should_exit = True
     thread.join(timeout=5)
 
@@ -238,13 +237,11 @@ def test_oauth_mcp_connection_persists_and_reuses_settings_state(
     tmp_path: Path,
     protected_oauth_mcp_server: str,
 ):
-    """Authenticate to a protected MCP server once, serialize, reload, and reuse.
+    """对受保护的 MCP 服务器进行一次身份验证，序列化、重新加载并重复使用。
 
-    The server uses FastMCP's in-memory OAuth provider. The client uses the
-    normal SDK MCP settings shape plus FastMCP OAuth; only the human
-    browser/callback step is replaced with a deterministic redirect follower.
-    Conversations never authorize, so the settings-backed provider only
-    reuses the persisted state.
+    服务器使用 FastMCP 的内存中 OAuth 提供程序。 客户端使用正常的SDKMCP设置形状加上
+    FastMCPOAuth； 只有人类浏览器/回调步骤被确定性重
+    定向跟随器取代。 对话从不授权，因此设置支持的提供程序仅重用已持久化状态。
     """
 
     reset_stores()
@@ -371,11 +368,10 @@ async def test_mcp_oauth_token_storage_does_not_attach_to_non_oauth_server(
 
 
 def test_settings_backed_provider_forwards_on_tools_reconciled():
-    """on_tools_reconciled must reach create_mcp_tools(), not be dropped.
+    """on_tools_reconciled 必须到达 create_mcp_tools()，不能被丢弃。
 
-    Previously this provider only accepted on_tools_changed, so callers had
-    to attach on_tools_reconciled to the returned client after the fact --
-    missing any notification that arrived during the initial connect.
+    以前，这个提供者只接受 on_tools_changed，因此调用者必须在连接完成后附加
+    on_tools_reconciled。
     """
     provider = SettingsBackedMCPToolProvider()
     config = coerce_mcp_config({"fake": {"command": "true"}})
@@ -392,7 +388,7 @@ def test_settings_backed_provider_forwards_on_tools_reconciled():
 
 
 def _inline_oauth_server(access_token: str):
-    """One OAuth server carrying its state inline, as a hosted agent passes it."""
+    """当托管智能体传递它时，一台 OAuth 服务器内嵌其状态。"""
     return coerce_mcp_config(
         {
             "mail": {
@@ -413,7 +409,7 @@ async def test_mcp_oauth_token_store_serves_inline_state_for_servers_absent_from
 ):
     reset_stores()
     try:
-        # Arrange: the sandbox settings store knows no MCP servers at all.
+        # 安排：沙箱设置存储根本不知道 MCP 个服务器。
         config = Config(
             session_api_keys=[],
             conversations_path=tmp_path / "conversations",
@@ -427,7 +423,7 @@ async def test_mcp_oauth_token_store_serves_inline_state_for_servers_absent_from
         )
         key = "https://mcp.example.com/mcp/tokens"
 
-        # Act
+        # 法案
         initial = await store.get(key=key, collection="mcp-oauth-token")
         await store.put(
             key=key,
@@ -437,8 +433,8 @@ async def test_mcp_oauth_token_store_serves_inline_state_for_servers_absent_from
         refreshed = await store.get(key=key, collection="mcp-oauth-token")
         deleted = await store.delete(key=key, collection="mcp-oauth-token")
 
-        # Assert: served from the inline state, refreshed in memory, never
-        # written into settings.
+        # 断言：从内联状态提供服务，在内存中刷新，从不
+        # 写入设置。
         assert initial == {"access_token": "agent-access-token"}
         assert refreshed == {"access_token": "refreshed-access-token"}
         assert deleted is True
@@ -456,7 +452,7 @@ async def test_mcp_oauth_token_store_prefers_settings_over_inline_state(
 ):
     reset_stores()
     try:
-        # Arrange: the same server exists in settings with its own tokens.
+        # 排列：设置中存在相同的服务器并具有自己的token。
         config = Config(
             session_api_keys=[],
             conversations_path=tmp_path / "conversations",
@@ -472,12 +468,12 @@ async def test_mcp_oauth_token_store_prefers_settings_over_inline_state(
             cipher=config.cipher,
         )
 
-        # Act
+        # 法案
         value = await store.get(
             key="https://mcp.example.com/mcp/tokens", collection="mcp-oauth-token"
         )
 
-        # Assert
+        # 断言
         assert value == {"access_token": "settings-access-token"}
     finally:
         reset_stores()
@@ -489,7 +485,7 @@ async def test_settings_backed_provider_seeds_token_store_from_agent_mcp_config(
 ):
     reset_stores()
     try:
-        # Arrange
+        # 安排
         config = Config(
             session_api_keys=[],
             conversations_path=tmp_path / "conversations",
@@ -499,13 +495,13 @@ async def test_settings_backed_provider_seeds_token_store_from_agent_mcp_config(
         provider = create_settings_backed_mcp_tool_provider(config)
         mcp_config = _inline_oauth_server("agent-access-token")
 
-        # Act
+        # 法案
         with patch(
             "openhands.agent_server.mcp_oauth_store.create_mcp_tools"
         ) as mock_create:
             provider.create_tools(mcp_config)
 
-        # Assert: the store handed to FastMCP already knows the agent's tokens.
+        # 断言：传递给 FastMCP 的存储已经知道智能体的 token。
         storage = mock_create.call_args.kwargs["mcp_oauth_token_storage"]
         assert await storage.get(
             key="https://mcp.example.com/mcp/tokens", collection="mcp-oauth-token"
@@ -515,8 +511,8 @@ async def test_settings_backed_provider_seeds_token_store_from_agent_mcp_config(
 
 
 def _hosted_config(tmp_path: Path) -> Config:
-    """The agent-server config a hosted sandbox runs with: an app-server
-    webhook to post to and the session key the app server authenticates."""
+    """托管沙箱运行的智能体-服务器配置：应用程序服务器
+    Webhook 发布到应用程序服务器验证的会话密钥。"""
     return Config(
         session_api_keys=["sandbox-session-key"],
         conversations_path=tmp_path / "conversations",
@@ -536,7 +532,7 @@ async def test_settings_backed_provider_writes_refreshed_inline_state_back_to_th
 ):
     reset_stores()
     try:
-        # Arrange: the server is inline only, as a hosted conversation passes it.
+        # 排列：服务器仅内联，因为托管对话会通过它。
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         posted: list[dict] = []
@@ -553,7 +549,7 @@ async def test_settings_backed_provider_writes_refreshed_inline_state_back_to_th
             provider.create_tools(_inline_oauth_server("agent-access-token"))
         storage = mock_create.call_args.kwargs["mcp_oauth_token_storage"]
 
-        # Act: FastMCP stores a refreshed token and its expiry.
+        # Act: FastMCP 存储刷新的 token 及其到期时间。
         await storage.put(
             key="https://mcp.example.com/mcp/tokens",
             value={
@@ -568,7 +564,7 @@ async def test_settings_backed_provider_writes_refreshed_inline_state_back_to_th
             collection="mcp-oauth-token-expiry",
         )
 
-        # Assert: each write posts the whole state to the app server.
+        # 断言：每次写入都会将整个状态发布到应用程序服务器。
         assert [entry["url"] for entry in posted] == [
             "https://app.example/api/v1/webhooks/mcp-oauth-state"
         ] * 2
@@ -596,7 +592,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_settings_backed_state(
 ):
     reset_stores()
     try:
-        # Arrange: the same server lives in this agent server's own settings.
+        # 排列：同一服务器位于此 Agent Server 自己的设置中。
         config = _hosted_config(tmp_path)
         settings = PersistedSettings()
         settings.agent_settings = settings.agent_settings.model_copy(
@@ -615,14 +611,14 @@ async def test_mcp_oauth_token_store_does_not_write_back_settings_backed_state(
         )
         key = "https://mcp.example.com/mcp/tokens"
 
-        # Act
+        # 法案
         await store.put(
             key=key,
             value={"access_token": "refreshed-access-token"},
             collection="mcp-oauth-token",
         )
 
-        # Assert: persisted locally, nothing sent to the app server.
+        # 断言：已持久化在本地，没有任何内容发送到应用程序服务器。
         assert posted == []
         assert await store.get(key=key, collection="mcp-oauth-token") == {
             "access_token": "refreshed-access-token"
@@ -637,7 +633,7 @@ async def test_mcp_oauth_token_store_keeps_refreshed_inline_state_when_write_bac
 ):
     reset_stores()
     try:
-        # Arrange: the app server cannot be reached.
+        # 安排：无法访问应用程序服务器。
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
 
@@ -655,14 +651,14 @@ async def test_mcp_oauth_token_store_keeps_refreshed_inline_state_when_write_bac
         )
         key = "https://mcp.example.com/mcp/tokens"
 
-        # Act
+        # 法案
         await store.put(
             key=key,
             value={"access_token": "refreshed-access-token"},
             collection="mcp-oauth-token",
         )
 
-        # Assert: the conversation keeps using the refreshed token.
+        # 断言：会话继续使用刷新后的token。
         assert await store.get(key=key, collection="mcp-oauth-token") == {
             "access_token": "refreshed-access-token"
         }
@@ -672,7 +668,7 @@ async def test_mcp_oauth_token_store_keeps_refreshed_inline_state_when_write_bac
 
 @pytest.fixture
 def write_backs(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
-    """Bodies the agent server posts to the app server's OAuth state webhook."""
+    """正文 Agent Server 发布到应用服务器的 OAuth 状态 Webhook。"""
     posted: list[dict] = []
 
     def fake_post(url, *, json, headers, timeout):
@@ -689,7 +685,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_state_without_tokens(
 ):
     reset_stores()
     try:
-        # Arrange
+        # 安排
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         store = MCPSettingsOAuthTokenStore(
@@ -699,7 +695,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_state_without_tokens(
             session_api_key="sandbox-session-key",
         )
 
-        # Act: FastMCP drops the stored tokens and registers a new client.
+        # 行动：FastMCP删除存储的token并注册一个新客户端。
         await store.delete(
             key="https://mcp.example.com/mcp/tokens", collection="mcp-oauth-token"
         )
@@ -712,7 +708,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_state_without_tokens(
             collection="mcp-oauth-client-info",
         )
 
-        # Assert: nothing replaces the credentials the app server holds.
+        # 断言：没有任何内容可以替代应用程序服务器持有的凭据。
         assert write_backs == []
     finally:
         reset_stores()
@@ -724,7 +720,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_a_client_it_registered(
 ):
     reset_stores()
     try:
-        # Arrange: the inline state has tokens but no client registration.
+        # 排列：内联状态有token但没有客户端注册。
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         store = MCPSettingsOAuthTokenStore(
@@ -734,7 +730,7 @@ async def test_mcp_oauth_token_store_does_not_write_back_a_client_it_registered(
             session_api_key="sandbox-session-key",
         )
 
-        # Act: FastMCP registers a loopback client while keeping the tokens.
+        # Act：FastMCP注册一个环回客户端，同时保留token。
         await store.put(
             key="https://mcp.example.com/mcp/client_info",
             value={
@@ -744,14 +740,14 @@ async def test_mcp_oauth_token_store_does_not_write_back_a_client_it_registered(
             collection="mcp-oauth-client-info",
         )
 
-        # Assert
+        # 断言
         assert write_backs == []
     finally:
         reset_stores()
 
 
 def _installed_client(oauth_provider: InMemoryOAuthProvider) -> dict[str, Any]:
-    """A client registered for the app server's public callback only."""
+    """仅为应用程序服务器的公共回调注册的客户端。"""
     client = OAuthClientInformationFull.model_validate(
         {
             "client_id": "installed-client",
@@ -772,7 +768,7 @@ def _expired_inline_oauth_server(
     refresh_token: str,
     static_client_id: str | None = None,
 ) -> dict[str, MCPServer]:
-    """An inline OAuth server whose stored access token has expired."""
+    """存储的访问令牌已过期的内联 OAuth 服务器。"""
     return coerce_mcp_config(
         {
             "mail": {
@@ -809,17 +805,16 @@ def test_settings_backed_provider_keeps_stored_state_when_refresh_fails(
     protected_oauth_mcp_server: str,
     write_backs: list[dict],
 ):
-    """A rejected refresh token fails the connection instead of re-authorizing.
+    """被拒绝的刷新令牌会使连接失败，而不是重新授权。
 
-    FastMCP's interactive fallback preflights a loopback redirect URI the
-    installed client never registered, and on the 400 drops the stored state,
-    registers a new client and opens a browser.
+    FastMCP'的交互回退方案预飞一个回环重定向 URI 安装的客户端从未注册，400错误时，存
+    储的状态会注册一个新的客户端并打开浏览器。
     """
     reset_stores()
     opened: list[str] = []
     monkeypatch.setattr(webbrowser, "open", lambda url, *_, **__: opened.append(url))
     try:
-        # Arrange: the server no longer accepts the stored refresh token.
+        # 排列：服务器不再接受存储的刷新令牌。
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         client_info = _installed_client(oauth_provider)
@@ -828,12 +823,12 @@ def test_settings_backed_provider_keeps_stored_state_when_refresh_fails(
         )
         provider = create_settings_backed_mcp_tool_provider(config)
 
-        # Act
+        # 法案
         with pytest.raises(MCPError) as exc_info:
             provider.create_tools(mcp_config, timeout=5.0)
 
-        # Assert: no browser or callback wait, no new client, and nothing
-        # posted over the credentials the app server holds.
+        # 断言：没有浏览器或回调等待，没有新客户端，什么也没有
+        # 通过应用服务器保存的凭据发布。
         assert not isinstance(exc_info.value, MCPTimeoutError)
         assert opened == []
         assert list(oauth_provider.clients) == ["installed-client"]
@@ -848,16 +843,15 @@ def test_settings_backed_provider_does_not_write_back_a_client_it_registers(
     protected_oauth_mcp_server: str,
     write_backs: list[dict],
 ):
-    """Stored tokens without a client registration cannot be refreshed.
+    """未经客户端注册而存储的 token 无法刷新。
 
-    FastMCP registers a loopback client before it asks for authorization;
-    that client must not reach the app server.
+    FastMCP 在请求授权之前注册一个环回客户端； 该客户端不得到达应用程序服务器。
     """
     reset_stores()
     opened: list[str] = []
     monkeypatch.setattr(webbrowser, "open", lambda url, *_, **__: opened.append(url))
     try:
-        # Arrange
+        # 安排
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         mcp_config = _expired_inline_oauth_server(
@@ -865,11 +859,11 @@ def test_settings_backed_provider_does_not_write_back_a_client_it_registers(
         )
         provider = create_settings_backed_mcp_tool_provider(config)
 
-        # Act
+        # 法案
         with pytest.raises(MCPError) as exc_info:
             provider.create_tools(mcp_config, timeout=5.0)
 
-        # Assert
+        # 断言
         assert not isinstance(exc_info.value, MCPTimeoutError)
         assert opened == []
         assert write_backs == []
@@ -885,7 +879,7 @@ def test_settings_backed_provider_writes_back_tokens_refreshed_on_connect(
 ):
     reset_stores()
     try:
-        # Arrange: an expired access token and a refresh token the server issued.
+        # 安排：服务器发出的过期访问令牌和刷新令牌。
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         client_info = _installed_client(oauth_provider)
@@ -899,12 +893,12 @@ def test_settings_backed_provider_writes_back_tokens_refreshed_on_connect(
         )
         provider = create_settings_backed_mcp_tool_provider(config)
 
-        # Act
+        # 法案
         with provider.create_tools(mcp_config, timeout=10.0) as client:
             tool_names = [tool.name for tool in client.tools]
 
-        # Assert: connected with the rotated tokens, which went back to the
-        # app server along with the client and the new expiry.
+        # 断言：与旋转的token连接，返回到
+        # 应用程序服务器以及客户端和新的到期。
         assert "read_subject" in tool_names
         state = write_backs[-1]["oauth_state"]
         assert state["tokens"]["refresh_token"] in oauth_provider.refresh_tokens
@@ -923,11 +917,11 @@ def test_settings_backed_provider_writes_back_tokens_refreshed_for_a_static_clie
     write_backs: list[dict],
     stored_client: bool,
 ):
-    """FastMCP rewrites a static client's registration with a loopback
-    redirect URI on every connect; its refreshed tokens still go back."""
+    """FastMCP 使用环回重写静态客户端的注册
+    每次连接时重定向 URI； 其刷新token仍回去。"""
     reset_stores()
     try:
-        # Arrange
+        # 安排
         config = _hosted_config(tmp_path)
         get_settings_store(config).save(PersistedSettings())
         client_info = _installed_client(oauth_provider)
@@ -944,11 +938,11 @@ def test_settings_backed_provider_writes_back_tokens_refreshed_for_a_static_clie
         )
         provider = create_settings_backed_mcp_tool_provider(config)
 
-        # Act
+        # 法案
         with provider.create_tools(mcp_config, timeout=10.0) as client:
             tool_names = [tool.name for tool in client.tools]
 
-        # Assert
+        # 断言
         assert "read_subject" in tool_names
         state = write_backs[-1]["oauth_state"]
         assert state["tokens"]["refresh_token"] in oauth_provider.refresh_tokens

@@ -1,4 +1,4 @@
-"""Live-network tests for the authenticated Canvas App backend bridge."""
+"""对经过身份验证的 Canvas 应用程序后端桥进行实时网络测试。"""
 
 from __future__ import annotations
 
@@ -348,11 +348,11 @@ async def test_live_websocket_is_bidirectional_and_revoked(live_bridge) -> None:
 async def test_live_websocket_is_revoked_at_session_expiry_without_traffic(
     tmp_path: Path,
 ) -> None:
-    """An idle bridged socket must die at its TTL, not at the next request.
+    """空闲的桥接套接字必须在其 TTL 处终止，而不是在下一个请求时终止。
 
-    Regression test: pruning used to run only from `create()`/`authorize()`, so
-    a WebSocket-only app (no subsequent session traffic) kept forwarding to the
-    backend indefinitely past `expires_at`.
+    回归测试：只运行于 `create()`/`authorize()` 的剪枝，因此一个 WebSocket-只应用（没
+    有后续会话流量）一直转发到后端，直到
+    `expires_at`。
     """
     async with _live_bridge(tmp_path, ttl_seconds=1) as bridge:
         client: httpx.AsyncClient = bridge.client
@@ -376,7 +376,7 @@ async def test_live_websocket_is_revoked_at_session_expiry_without_traffic(
         ) as websocket:
             await websocket.send("hello")
             assert await websocket.recv() == "echo:hello"
-            # No session traffic during this window: only the reaper can act.
+            # 在此窗口期间没有会话流量：只有收割者可以采取行动。
             with pytest.raises(websockets.exceptions.ConnectionClosed):
                 await asyncio.wait_for(websocket.recv(), timeout=10)
 
@@ -390,10 +390,10 @@ async def test_live_websocket_is_revoked_at_session_expiry_without_traffic(
 async def test_nested_percent_encoding_traversal_is_rejected_everywhere(
     live_bridge,
 ) -> None:
-    """Any nesting depth of percent-encoded ``..`` must be rejected.
+    """任何百分比编码 ``..`` 的嵌套深度都必须被拒绝。
 
-    Regression test: the validator capped decoding at 3 rounds, so a 4th layer
-    of encoding around ``..`` passed validation and was forwarded upstream.
+    回归测试：验证器的解码上限为 3 轮，因此 ``..`` 周围的第 4 层编码通过了验证并被转
+    发到上游。
     """
     client: httpx.AsyncClient = live_bridge.client
     root = f"{live_bridge.public_url}/app-backends/{APP_NAME}"
@@ -401,9 +401,9 @@ async def test_nested_percent_encoding_traversal_is_rejected_everywhere(
         await client.post(f"{root}/session", headers=_bootstrap_headers())
     ).status_code == 200
 
-    # Each round re-encodes the previous value, so `segment` decodes to `..`
-    # only after that many rounds and still holds an encoded `..` when the
-    # router validates it.
+    # 每个回合都会重新编码上一个值，因此`segment`只有经过那么多回合后才能解码为`..`，并
+    # 且在路由器验证时仍然保持一个编码的`..`。
+    #
     segment = "%2e%2e"
     for _ in range(2, 8):
         segment = segment.replace("%", "%25")
@@ -415,7 +415,7 @@ async def test_nested_percent_encoding_traversal_is_rejected_everywhere(
     for encoded in ("%25255c", "%2525255c"):
         assert (await client.get(f"{root}/{encoded}{encoded}secret")).status_code == 400
 
-    # A literal percent sign in an ordinary filename must still be allowed.
+    # 普通文件名中仍必须允许使用文字百分号。
     assert (await client.get(f"{root}/prefix/static/app%2Ejs")).status_code == 200
 
 
@@ -423,12 +423,12 @@ async def test_nested_percent_encoding_traversal_is_rejected_everywhere(
 async def test_spoofed_forwarded_headers_do_not_pass_ingress_check(
     live_bridge,
 ) -> None:
-    """`X-Forwarded-*` must not stand in for the request's own Host.
+    """`X-Forwarded-*` 不得代表请求自己的主机。
 
-    Regression test: `_request_origin` preferred client-supplied
-    `X-Forwarded-Host`/`X-Forwarded-Proto`, so a request addressed to an
-    unrelated host could satisfy the configured-ingress check and mint a
-    session. Trusted forwarding is opt-in via `trust_forwarded_headers`.
+    回归测试：`_request_origin` 首选客户提供
+    `X-Forwarded-Host`/`X-Forwarded-Proto`，因此发送到不相关主机的请求可以满足配置的
+    入口检查并创建会话。 可信转发可通过
+    `trust_forwarded_headers` 选择加入。
     """
     client: httpx.AsyncClient = live_bridge.client
     ingress = live_bridge.public_url.removeprefix("https://")
@@ -448,7 +448,7 @@ async def test_spoofed_forwarded_headers_do_not_pass_ingress_check(
 async def test_spoofed_forwarded_headers_are_honored_only_when_trusted(
     tmp_path: Path,
 ) -> None:
-    """The opt-in trusted-proxy model restores forwarded-header behavior."""
+    """选择加入的可信代理模型恢复转发标头行为。"""
 
     async def run(*, trust_forwarded: bool) -> int:
         async with _live_bridge(
@@ -474,9 +474,9 @@ async def test_spoofed_forwarded_headers_are_honored_only_when_trusted(
 @pytest.mark.parametrize(
     ("public_scheme", "expected_status"),
     [
-        # Plain-HTTP ingress: the header must not turn the origin into https.
+        # Plain-HTTP ingress：标头不得将原点变为 HTTPS。
         ("http", 200),
-        # HTTPS ingress reached over plain HTTP: the header must not claim it.
+        # HTTPS 通过普通 HTTP 到达入口：标头不得声明它。
         ("https", 421),
     ],
 )
@@ -486,13 +486,13 @@ async def test_untrusted_forwarded_proto_does_not_change_origin_on_launch_config
     public_scheme: str,
     expected_status: int,
 ) -> None:
-    """With `trust_forwarded_headers` off, `X-Forwarded-Proto` from a loopback
-    client leaves the request origin alone under the server's real uvicorn
-    launch options.
+    """`trust_forwarded_headers` 关闭，`X-Forwarded-Proto` 来自环回
+    客户端将请求源单独保留在服务器的真实 uvicorn 启动选项下。
 
-    Regression test: `__main__` left uvicorn's `proxy_headers` on, so uvicorn
-    rewrote the scheme from `X-Forwarded-Proto` for loopback peers before
-    `_request_origin` read it.
+    回归测试：`__main__`将uvicorn的`proxy_headers`打开，因此uvicorn重写了之前
+    `X-Forwarded-Proto`中环回对等点的
+    方案
+    `_request_origin` 阅读它。
     """
     from openhands.agent_server.__main__ import _trust_forwarded_headers
 
@@ -564,7 +564,7 @@ async def test_unreachable_backend_error_names_the_canvas_backend(
 ) -> None:
     client: httpx.AsyncClient = live_bridge.client
     root = f"{live_bridge.public_url}/app-backends/{APP_NAME}"
-    # Nothing listens on this port, so the proxy's connection fails.
+    # 该端口上没有任何内容侦听，因此代理的连接失败。
     live_bridge.manager.endpoint = ("127.0.0.1", _free_port())
     assert (
         await client.post(f"{root}/session", headers=_bootstrap_headers())

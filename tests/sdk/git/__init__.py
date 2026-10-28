@@ -1,1 +1,1 @@
-"""Tests for git functionality."""
+"""测试 git 功能。"""

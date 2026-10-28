@@ -132,7 +132,7 @@ from openhands.sdk.llm.exceptions import (
     map_provider_exception,
 )
 
-# OpenHands utilities
+# OpenHands 公用事业
 from openhands.sdk.llm.llm_response import LLMResponse
 from openhands.sdk.llm.message import (
     Message,
@@ -176,7 +176,7 @@ _serialized_is_subscription = ContextVar(
 __all__ = ["LLM"]
 
 
-# Exceptions we retry on
+# 我们重试的例外情况
 LLM_RETRY_EXCEPTIONS: Final[tuple[type[Exception], ...]] = (
     APIConnectionError,
     BadGatewayError,
@@ -187,40 +187,38 @@ LLM_RETRY_EXCEPTIONS: Final[tuple[type[Exception], ...]] = (
     LLMNoResponseError,
 )
 
-# Minimum context window size required for OpenHands to function properly.
-# Based on typical usage: system prompt (~2k) + conversation history (~4k)
-# + tool definitions (~2k) + working memory (~8k) = ~16k minimum.
+# OpenHands 正常运行所需的最小上下文窗口大小。 基于典型用法：系统提示词 (~2k) + 对话历史
+# 记录 (~4k)
+# + 工具定义 (~2k) + 工作内存 (~8k) = 至少~16k。
 MIN_CONTEXT_WINDOW_TOKENS: Final[int] = 16384
 
-# Environment variable to override the minimum context window check
+# 环境变量覆盖最小上下文窗口检查
 ENV_ALLOW_SHORT_CONTEXT_WINDOWS: Final[str] = "ALLOW_SHORT_CONTEXT_WINDOWS"
 
-# Default max output tokens when model info only provides 'max_tokens' (ambiguous).
-# Some providers use 'max_tokens' for the total context window, not output limit.
-# This cap prevents requesting output that exceeds the context window.
-# 16384 is a safe default that works for most models (GPT-4o: 16k, Claude: 8k).
+# 当模型信息仅提供“max_tokens”（不明确）时，默认最大输出 token。 一些提供商使用“
+# max_tokens”表示总数上下文窗口，而不是输出限制。 此上限可防止请求超出上下文窗口的输出。
+#  16384 是适用于大多数模型的安全默认值（GPT-4o：16k，Claude：8k）。
+#
 DEFAULT_MAX_OUTPUT_TOKENS_CAP: Final[int] = 16384
 
-# Some providers (notably AWS Bedrock for Anthropic models) enforce
-# ``input_tokens + max_tokens <= context_window`` on a single shared window.
-# For these providers we clamp the per-request output budget at request time so
-# our injected default ``max_tokens`` (which defaults to the model's full
-# ``max_output_tokens`` -- e.g. 64k for Sonnet 4.5) cannot push large-input
-# requests past the context window. See BerriAI/litellm#17900 for the upstream
-# default change that made this manifest.
+# 一些提供商（特别是 Anthropic 模型的 AWS Bedrock）强制执行
+# ``input_tokens + max_tokens <= context_window`` 在单个共享窗口上。 对于这些提供者，我
+# 们在请求时限制每个请求的输出预算，因此我们注入的默认值``max_tokens``（默认为模型的完整
+# ``max_output_tokens``——e.g。 Sonnet 4.5 的 64k）无法将大输入请求推过上下文窗口。 请参
+# 阅 BerriAI/litellm#17900 了解导致此清单的上游默认更改。
+#
 JOINT_BUDGET_SAFETY_MARGIN_TOKENS: Final[int] = 256
 JOINT_BUDGET_MIN_OUTPUT_TOKENS: Final[int] = 1024
-# Provider name prefixes known to enforce a joint input/output token budget.
-# Kept as a narrow allowlist so direct providers (Anthropic, OpenAI, etc.) --
-# which have independent input/output windows -- are not affected. We match by
-# prefix because LiteLLM uses both ``bedrock`` (raw provider inference) and
-# ``bedrock_converse`` (the Anthropic-on-Bedrock route, surfaced via the model
-# registry) for the same underlying API.
+# 已知可强制执行联合输入/输出的提供者名称前缀词元预算。 保留为狭窄的允许列表，因此具有独
+# 立输入/输出窗口的直接提供者（Anthropic、OpenAI 等）不会受到影响。 我们按前缀匹配，因为
+#  LiteLLM 同时使用 ``bedrock``（原始提供者推断）和
+# ``bedrock_converse``（Anthropic-基岩路线，通过模型注册表浮出水面）相同的底层 API。
+#
 _JOINT_BUDGET_PROVIDER_PREFIXES: Final[tuple[str, ...]] = ("bedrock",)
 
-# Secret-bearing fields on LLM. Kept as a single source of truth so callers that
-# need to walk secrets (e.g. cipher-aware decryption on the save path) stay in
-# sync with the serializer below.
+# 机密-LLM 上的轴承字段。 作为单一事实来源，以便需要步行的调用者机密 (e.g. 保存路径上的
+# 密码感知解密）留在同步和下面的序列化器中。
+#
 LLM_SECRET_FIELDS: Final[tuple[str, ...]] = (
     "api_key",
     "aws_access_key_id",
@@ -234,7 +232,7 @@ _T = TypeVar("_T")
 
 
 def __getattr__(name: str) -> Any:
-    """Provide the deprecated pre-refactor import path for call context."""
+    """提供调用上下文的已弃用预重构导入路径。"""
     if name == "LLMCallContext":
         warn_deprecated(
             "openhands.sdk.llm.llm.LLMCallContext",
@@ -250,18 +248,17 @@ def __getattr__(name: str) -> Any:
 
 
 class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
-    """Language model interface for OpenHands agents.
+    """OpenHands 智能体的语言模型接口。
 
-    The LLM class provides a unified interface for interacting with various
-    language models through the litellm library. It handles model configuration,
-    API authentication, retry logic, and tool calling capabilities.
+    LLM类提供了一个统一的接口，用于通过LiteLLM库与各种语言模型进行交互。 它处理模型配
+    置、API 身份验证、重试逻辑和工具调用功能。
 
     Attributes:
-        model: Model name (e.g., "gpt-5.6").
-        api_key: API key for authentication.
-        base_url: Custom API base URL.
-        num_retries: Number of retry attempts for failed requests.
-        timeout: Request timeout in seconds.
+        model: 型号名称（e.g.，“gpt-5.6”）。
+        api_key: 身份验证的 API 键。
+        base_url: 自定义 API 基础 URL。
+        num_retries: 失败请求的尝试次数为重试。
+        timeout: 请求超时（以秒为单位）。
 
     Example:
         ```python
@@ -273,12 +270,12 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             api_key=SecretStr("your-api-key"),
             usage_id="my-agent"
         )
-        # Use with agent or conversation
+        # 与智能体或对话一起使用
         ```
     """
 
     # =========================================================================
-    # Config fields
+    # 配置字段
     # =========================================================================
 
     model: str = Field(
@@ -365,8 +362,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         json_schema_extra=field_meta(),
     )
 
-    # OpenRouter uses HTTP-Referer as the app identity for rankings.
-    # Keep this stable unless the OpenRouter app attribution is migrated.
+    # OpenRouter使用HTTP-Referer作为应用标识进行排名。 保持稳定，除非 OpenRouter 应用属
+    # 性被迁移。
+    #
     openrouter_site_url: str = Field(
         default="https://docs.all-hands.dev/",
         json_schema_extra=field_meta(),
@@ -599,7 +597,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         "in Responses API include.",
         json_schema_extra=field_meta(),
     )
-    # Prompt cache retention is filtered per model features in chat options.
+    # 提示词缓存保留根据聊天选项中的模型功能进行过滤。
     prompt_cache_retention: str | None = Field(
         default="24h",
         description=(
@@ -662,7 +660,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     )
 
     # =========================================================================
-    # Internal fields (excluded from dumps)
+    # 内部字段（从转储中排除）
     # =========================================================================
     retry_listener: SkipJsonSchema[
         Callable[[int, int, BaseException | None], None] | None
@@ -671,7 +669,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         exclude=True,
     )
     _metrics: Metrics | None = PrivateAttr(default=None)
-    # Runtime-only private attrs
+    # 仅限运行时的私有属性
     _model_info: Any = PrivateAttr(default=None)
     _tokenizer: dict[str, object] | None = PrivateAttr(default=None)
     _chat_template_tokenizer: ChatTemplateTokenizer | None = PrivateAttr(default=None)
@@ -682,45 +680,46 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     _provider_info: LLMProvider | None = PrivateAttr(default=None)
     _effective_max_input_tokens: int | None = PrivateAttr(default=None)
     _effective_max_output_tokens: int | None = PrivateAttr(default=None)
-    # Provider-aware runtime metadata resolved lazily (see
-    # `utils/runtime_metadata.py`). `fetched_at` and `negative_until` are
-    # monotonic timestamps used for the positive/negative caches;
-    # `generation` is bumped each time a lookup is *started* so that a stale
-    # (earlier-started, later-finished) probe can never overwrite the result
-    # of a newer one (single-flight by generation, see `resolve_runtime_metadata`).
+    # 提供者感知的运行时元数据延迟解析（请参阅
+    # `utils/runtime_metadata.py`). `fetched_at`和`negative_until`是用于正/负缓存的单调
+    # 时间戳；
+    # 每次查找 * 开始 *，`generation` 会被更新，这样就不会有 `resolve_runtime_metadata`
+    # 生成的新探针覆盖较早开始较晚结束的探针的结果。
+    #
     _runtime_metadata: ModelRuntimeMetadata | None = PrivateAttr(default=None)
     _runtime_metadata_fetched_at: float | None = PrivateAttr(default=None)
     _runtime_metadata_negative_until: float | None = PrivateAttr(default=None)
     _runtime_metadata_key: tuple[str, str, str] | None = PrivateAttr(default=None)
-    # Single-flight / stale-proofing for runtime-metadata resolution. Each
-    # *started* lookup records the generation it belongs to (see above); a
-    # completed probe only publishes its result if that generation is still the
-    # latest, so a slow earlier-started probe can never overwrite a newer one.
+    # 用于运行时元数据解析的单次飞行/过时验证。 每个
+    # *启动*记录该记录所属的生成版本（见上文）。 a
+    # 已完成的探测仅在该一代仍然是最新的情况下才会发布其结果，因此较慢的较早启动的探测永
+    # 远不会覆盖较新的探测。
+    #
     _runtime_metadata_generation: int = PrivateAttr(default=0)
-    # Guards the runtime-metadata cache fields above. The synchronous resolver
-    # may be driven from a worker thread, and the async resolver can also store
-    # a result, so the read/check and store are kept atomic. ClassVar (shared);
-    # critical sections are tiny and never cover network I/O.
+    # 保护上面的运行时元数据缓存字段。 同步解析器可以由工作器线程驱动，并且异步解析器还
+    # 可以存储结果，因此读取/检查和存储保持原子性。 ClassVar（共享）； 关键部分很小并且
+    # 从不覆盖网络 I/O。
+    #
     _runtime_metadata_lock: ClassVar[threading.Lock] = threading.Lock()
-    # Optional callback that returns a freshly-resolved API key. When set, an
-    # authentication failure (HTTP 401, e.g. a rotated/healed managed proxy key
-    # that LiteLLM reports as ``token_not_found_in_db``) triggers a single
-    # re-resolve of the key followed by one retry of the call. This is a
-    # near-term mitigation for stale credentials reaching a sandbox runtime
-    # agent; the durable fix is reference-only credential delivery (#4288).
-    # Held as a PrivateAttr so it is never serialized into conversation state.
+    # 可选回调，返回新解析的 API 键。 设置后，身份验证失败（HTTP 401，e.g. LiteLLM 报告
+    # 为 ``token_not_found_in_db`` 的轮换/修复托管代理密钥）会触发该密钥的一次重新解析，
+    # 然后触发一个重试调用。 这是对陈旧凭据达到沙箱运行时智能体的近期缓解措施； 持久修复
+    # 仅供参考凭据交付 (#4288)。 保持为 PrivateAttr，因此它永远不会已序列化进入对话状态
+    # 。
+    #
     _api_key_refresh_hook: Callable[[], str | SecretStr | None] | None = PrivateAttr(
         default=None
     )
-    # Recursion guard: set on the refreshed copy so a still-failing key does not
-    # loop. One refresh + one retry per call chain.
+    # 递归防护：在刷新的副本上设置，以便仍然失败的密钥不会循环。 每次调用链中，有一个刷
+    # 新和一个重试。
+    #
     _auth_refresh_attempted: bool = PrivateAttr(default=False)
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="ignore", arbitrary_types_allowed=True
     )
 
     # =========================================================================
-    # Validators
+    # 验证器
     # =========================================================================
     @model_validator(mode="before")
     @classmethod
@@ -750,33 +749,33 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         if "stream_idle_timeout" not in d:
             d["stream_idle_timeout"] = d.get("timeout", 300)
 
-        # Azure default version
+        # Azure 默认版本
         if model_val.startswith("azure") and not d.get("api_version"):
             d["api_version"] = "2024-12-01-preview"
 
-        # Fix base_url for direct OpenAI - API expects /v1 suffix
-        # If base_url is "https://api.openai.com", set to None to use LiteLLM default
+        # 修复 base_url 为直接 OpenAI - API 需要 /v1 后缀如果 base_url 是“
+        # https://api.openai.com",  设置为 None 以使用 LiteLLM 默认值
+        #
         if model_val.startswith("openai/"):
             base = d.get("base_url")
             if base == "https://api.openai.com" or base == "https://api.openai.com/":
-                d["base_url"] = None  # Let LiteLLM use its default which includes /v1
+                d["base_url"] = None  # 让 LiteLLM 使用其默认值，其中包括 /v1
 
         return d
 
     @model_validator(mode="after")
     def _post_init(self):
-        # NOTE: AWS credentials and OpenRouter site/app identifiers are NOT
-        # written to ``os.environ`` here. Doing so in a multi-tenant agent
-        # server would let one conversation's credentials bleed into another
-        # via the shared process environment (see issue #3138). Instead,
-        # AWS credentials flow per-call through ``_aws_kwargs()`` and the
-        # OpenRouter ``HTTP-Referer`` / ``X-Title`` headers flow per-call
-        # through ``_openrouter_headers()``.
+        # 注意：AWS 凭据和 OpenRouter 站点/应用程序标识符为不
+        # 写到这里的``os.environ``。 在多租户 Agent Server 中这样做会让一个对话的凭据通
+        # 过共享进程环境渗透到另一个对话中（请参阅问题 #3138）。 相反，AWS 凭据按每次调
+        # 用流过 ``_aws_kwargs()``，OpenRouter ``HTTP-Referer`` / ``X-Title`` 标头按每次
+        # 调用流过 ``_openrouter_headers()``。
+        #
 
-        # Metrics + Telemetry wiring. Guard both: this validator re-runs whenever
-        # the LLM is passed into another Pydantic model (e.g. RegistryEvent),
-        # and replacing _telemetry would silently drop any callback callers
-        # have attached via telemetry.set_*_callback().
+        # 指标+遥测接线。 守护两者：这个验证器重新运行 LLM 传递给另一个 Pydantic 模型
+        # (e.g. RegistryEvent), and replacing _telemetry would silently drop any 回调来
+        # 电者已通过 telemetry.set_*_callback().
+        #
         if self._metrics is None:
             self._metrics = Metrics(model_name=self.model)
 
@@ -790,7 +789,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 metrics=self._metrics,
             )
 
-        # Tokenizer
+        # 分词器
         if self.custom_tokenizer:
             self._chat_template_tokenizer = load_chat_template_tokenizer(
                 self.custom_tokenizer
@@ -829,8 +828,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         update: Mapping[str, Any] | None = None,
         deep: bool = False,
     ) -> Self:
-        # Pydantic copies private attrs without re-running validators, even for
-        # deep copies, so routing-field updates must rebuild derived metadata.
+        # Pydantic 无需重新运行验证器即可复制私有属性，即使对于深层复制也是如此，因此路
+        # 由字段更新必须重建派生元数据。
+        #
         copied = super().model_copy(update=update, deep=deep)
         route_changed = update is not None and any(
             k in update for k in ("model", "base_url", "litellm_extra_body")
@@ -841,12 +841,12 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return copied
 
     def _openrouter_headers(self) -> dict[str, str]:
-        """Build OpenRouter HTTP-Referer / X-Title headers for per-call use.
+        """构建 OpenRouter HTTP-Referer / X-Title 标头以供每次调用使用。
 
-        Returns an empty dict when neither field is set. Passed via
-        ``extra_headers`` so litellm forwards them on the OpenRouter request
-        without us having to mutate ``os.environ`` (which would leak across
-        conversations in a multi-tenant server; see issue #3138).
+        当两个字段均未设置时，返回一个空字典。 通过
+        ``extra_headers`` 因此 LiteLLM 在 OpenRouter 请求上转发它们，而无需我们改变
+        ``os.environ``（这会在多租
+        户服务器中的对话中泄漏； 请参阅问题#3138）。
         """
         headers: dict[str, str] = {}
         if self.openrouter_site_url:
@@ -856,7 +856,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return headers
 
     def _aws_kwargs(self) -> dict[str, str]:
-        """Build kwargs dict for AWS params to pass to litellm calls."""
+        """为 AWS 参数构建 kwargs 字典以传递给 LiteLLM 调用。"""
         kw: dict[str, str] = {}
         if self.aws_access_key_id:
             assert isinstance(self.aws_access_key_id, SecretStr)
@@ -884,28 +884,28 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     ) -> None:
         if self.retry_listener is not None:
             self.retry_listener(attempt_number, num_retries, _err)
-        # NOTE: don't call Telemetry.on_error here.
-        # This function runs for each retried failure (before the next attempt),
-        # which would create noisy duplicate error logs.
-        # The completion()/responses() exception handlers call Telemetry.on_error
-        # after retries are exhausted (final failure), which is what we want to log.
+        # 注意：不要在这里调用Telemetry.on_error。
+        # 此函数针对每次重试失败（在下一次尝试之前）运行，这会创建嘈杂的重复错误日志。
+        # completion()/responses() 异常处理程序在重试耗尽后调用 Telemetry.on_error（最终
+        # 失败），这就是我们想要记录的内容。
+        #
 
     # =========================================================================
-    # Serializers
+    # 序列化器
     # =========================================================================
     @field_serializer(*LLM_SECRET_FIELDS, when_used="always")
     def _serialize_secrets(self, v: SecretStr | None, info):
         return serialize_secret(v, info)
 
     # =========================================================================
-    # Public API
+    # 公开 API
     # =========================================================================
     @property
     def metrics(self) -> Metrics:
-        """Get usage metrics for this LLM instance.
+        """获取此 LLM 实例的使用指标。
 
         Returns:
-            Metrics object containing token usage, costs, and other statistics.
+            包含词元用量、成本和其他统计信息的 Metrics 对象。
 
         Example:
             ```python
@@ -919,10 +919,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @property
     def telemetry(self) -> Telemetry:
-        """Get telemetry handler for this LLM instance.
+        """获取此 LLM 实例的遥测处理程序。
 
         Returns:
-            Telemetry object for managing logging and metrics callbacks.
+            用于管理日志记录和指标的遥测对象回调。
 
         Example:
             ```python
@@ -950,7 +950,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     )
     @property
     def is_subscription(self) -> bool:
-        """Check if this LLM uses subscription-based authentication."""
+        """检查此 LLM 是否使用基于订阅的身份验证。"""
         return self._is_subscription
 
     @is_subscription.setter
@@ -959,11 +959,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @property
     def requires_streaming(self) -> bool:
-        """Whether the provider requires stream=True for all requests.
+        """提供者是否要求所有请求的stream=True。
 
-        Set when the underlying endpoint rejects non-streaming requests;
-        callers must leave streaming enabled and must not require an
-        on_token callback because the response is drained internally.
+        当底层端点拒绝非流式传输请求时设置； 调用者必须保持流式传输启用，并且不能要求
+         on_token 回调，因为响应在内部耗尽。
         """
         return self._is_subscription
 
@@ -980,26 +979,25 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             _serialized_is_subscription.reset(token)
 
     def restore_metrics(self, metrics: Metrics) -> None:
-        # Only used by ConversationStats to seed metrics
+        # 仅由 ConversationStats 用于播种指标
         self._metrics = metrics
-        # Keep telemetry in sync so post-resume LLM calls record into
-        # the restored metrics object, not the stale one from __init__.
+        # 将遥测数据保留在同步中，以便恢复后 LLM 调用记录到恢复的指标对象中，而不是 __
+        # init__ 中的过时指标对象。
+        #
         if self._telemetry is not None:
             self._telemetry.metrics = metrics
 
     def reset_metrics(self) -> None:
-        """Reset metrics and telemetry to fresh instances.
+        """将指标和遥测重置为新实例。
 
-        This is used by the LLMRegistry to ensure each registered LLM has
-        independent metrics, preventing metrics from being shared between
-        LLMs that were created via model_copy().
+        这是用于的 LLMRegistry 确保每个注册的 LLM 具有独立的指标，防止指标被共享 LLMs
+         通过创建的 model_copy().
 
-        When an LLM is copied (e.g., to create a condenser LLM from an agent LLM),
-        Pydantic's model_copy() does a shallow copy of private attributes by default,
-        causing the original and copied LLM to share the same Metrics object.
-        This method allows the registry to fix this by creating fresh metrics and
-        telemetry immediately, so the copied LLM is ready for the next completion
-        call even if callers do not access ``metrics``/``telemetry`` first.
+        当 LLM 复制 (e.g., 以创建上下文压缩器 LLM 从智能体 LLM) 时，Pydantic's
+        model_copy() 默认进行浅拷贝，导致原始
+        和复制的 LLM 共享同一个 Metrics 对象。 该方法允许注册表立即创建新的指标和监控
+        数据，这样即使调用者没有首先访问 ``metrics`` 和
+        /``telemetry``，复制的 LLM 也能准备好进行下一次完成调用。
         """
         self._metrics = Metrics(model_name=self.model)
         self._telemetry = Telemetry(
@@ -1016,10 +1014,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         error: Exception,
         fallback_call_fn: Callable[[LLM], LLMResponse],
     ) -> LLMResponse:
-        """Handle an error from completion/responses: try fallback, then map and raise.
+        """处理完成/响应中的错误：尝试回退方案，然后映射并引发。
 
-        Must be called from within an except block. Either returns an
-        LLMResponse (fallback succeeded) or re-raises (mapped or original).
+        必须从 except 块内调用。 要么返回 LLMResponse（回退方案成功），要么重新抛出（
+        映射或原始）。
         """
         assert self._telemetry is not None
         self._telemetry.on_error(error)
@@ -1042,12 +1040,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         error: Exception,
         fallback_call_fn: Callable[[LLM], LLMResponse],
     ) -> LLMResponse:
-        """Async variant of :meth:`_handle_error`.
+        """异步：meth:`_handle_error` 的变体。
 
-        The *fallback_call_fn* is synchronous (it calls the fallback LLM's
-        sync ``completion``/``responses``), so the fallback attempt is
-        offloaded to a thread via :func:`asyncio.loop.run_in_executor` to
-        avoid blocking the event loop.
+        *fallback_call_fn* 是同步（它调用回退方案LLM 的同步``completion``
+        /``responses``)，因此回退方案尝试通过：func:`asyncio.loop.run_in_executor` 卸
+        载到线程以避免阻塞事件循环。
         """
         assert self._telemetry is not None
         self._telemetry.on_error(error)
@@ -1069,33 +1066,29 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         raise
 
     # =========================================================================
-    # Authentication refresh (refresh-on-401)
+    # 身份验证刷新（401 上刷新）
     # =========================================================================
     def set_api_key_refresh_hook(
         self, hook: Callable[[], str | SecretStr | None] | None
     ) -> None:
-        """Register a callback that re-resolves this LLM's API key on a 401.
+        """注册一个回调，在 401 上重新解析此 LLM 的 API 键。
 
-        When a completion/responses call fails with an authentication error,
-        the hook is invoked once to obtain a fresh key; if it returns a new
-        value the call is retried a single time with that key. This mitigates
-        stale managed/proxy credentials reaching a sandbox runtime agent (e.g.
-        after a server-side managed-key rotation or heal), where the first call
-        would otherwise fail with ``401 token_not_found_in_db``.
+        当完成/响应调用因身份验证错误而失败时，将调用一次钩子以获取新密钥； 如果它返
+        回一个新值，则使用该键重试一次调用。 这可以缓解过时的托管/代理凭据到达沙箱运
+        行时智能体 (e.g. 在服务器端托管密钥轮换或修复之后），否则第一次调用将失败并显
+        示 ``401 token_not_found_in_db``。
 
-        The hook must be non-blocking / cheap; on the async paths it is invoked
-        in a worker thread. It is stored as a private attribute and is never
-        serialized into conversation state.
+        钩子必须是无阻塞的/便宜的； 在异步路径上，它在工作器线程中调用。 它被存储为私
+        有属性并且永远不会已序列化进入会话状态。
         """
         self._api_key_refresh_hook = hook
 
     def _resolve_refreshed_api_key(self, error: Exception) -> SecretStr | None:
-        """Return a fresh API key to retry with, or ``None`` to skip refresh.
+        """将新的 API 键返回到重试，或 ``None`` 跳过刷新。
 
-        Returns ``None`` unless every condition holds: the error looks like an
-        authentication failure, a refresh hook is configured, no refresh has
-        already been attempted in this call chain, this LLM uses ``api_key``
-        auth, and the hook yields a key that differs from the current one.
+        除非所有条件都成立，否则返回 ``None``：错误看起来像是身份验证失败，配置了刷新
+        钩子，没有在当前调用链中尝试过刷新，这个 LLM 使用
+        ``api_key`` 认证，并且钩子返回的密钥与当前密钥不同。
         """
         if self._auth_refresh_attempted:
             return None
@@ -1108,8 +1101,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         try:
             new_key = self._api_key_refresh_hook()
         except Exception:
-            # A flaky hook must not mask the original authentication error;
-            # log and skip the refresh so the caller sees the real 401.
+            # 片状钩子不能掩盖原始的身份验证错误； 记录并跳过刷新，以便调用者看到真正的
+            # 401。
+            #
             logger.warning(
                 "API key refresh hook raised; skipping refresh and "
                 "surfacing the original authentication error.",
@@ -1123,28 +1117,28 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             return None
         current = self._get_api_key_value()
         if current is not None and current == new_secret.get_secret_value():
-            # A refresh that returns the same (still-rejected) key is useless;
-            # skip the retry and surface the original error.
+            # 返回相同（仍被拒绝）密钥的刷新是无用的； 跳过重试并显示原始错误。
+            #
             return None
         return new_secret
 
     def _auth_refreshed_llm(self, new_api_key: SecretStr) -> LLM:
-        """Copy this LLM with a refreshed key and the recursion guard set."""
+        """使用刷新的密钥和递归防护集复制此 LLM。"""
         refreshed = self.model_copy(update={"api_key": new_api_key})
         refreshed._auth_refresh_attempted = True
         return refreshed
 
     # =========================================================================
-    # Shared helpers for completion / acompletion / responses / aresponses
+    # 用于完成/完成/响应/响应的共享助手
     # =========================================================================
 
     def _make_retry_decorator(
         self,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Return a configured retry decorator using this LLM's retry settings.
+        """使用此 LLM 的重试设置返回配置的重试装饰器。
 
-        Exhausted allowances skip backoff. Provider quota errors may fall back;
-        explicit budget denials stop without trying another model.
+        用尽的津贴跳过退避。 提供商配额错误可能会回落； 如果不尝试其他模式，明确的预
+        算拒绝就会停止。
         """
         retry_condition = (
             retry_if_exception_type(LLM_RETRY_EXCEPTIONS)
@@ -1191,12 +1185,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     async def _anext_with_idle_timeout(
         self, iterator: AsyncIterator[_T], timeout: float
     ) -> _T:
-        """Await one chunk, converting only this idle timer's own expiry.
+        """等待一个块，仅转换此空闲计时器自己的到期时间。
 
-        ``asyncio.timeout`` is used instead of ``asyncio.wait_for`` so that a
-        ``TimeoutError`` raised by the transport itself (for example a
-        provider-side read timeout) keeps its original identity instead of
-        being relabelled as an idle timeout.
+        使用 ``asyncio.timeout`` 代替 ``asyncio.wait_for``，以便
+        由传输层本身引发的 ``TimeoutError``（例如提供者端读取超时）保留其原始身份，而
+        不是被重新标记为空闲超时。
         """
         timeout_context = asyncio.timeout(timeout)
         try:
@@ -1223,7 +1216,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             yield item
 
     def _build_completion_result(self, resp: ModelResponse) -> LLMResponse:
-        """Convert a raw :class:`ModelResponse` into an :class:`LLMResponse`."""
+        """将原始：class:`ModelResponse` 转换为：class:`LLMResponse`。"""
         first_choice = resp["choices"][0]
         message = Message.from_llm_chat_message(first_choice["message"])
         return LLMResponse(
@@ -1233,7 +1226,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         )
 
     def _build_responses_result(self, resp: ResponsesAPIResponse) -> LLMResponse:
-        """Convert a raw :class:`ResponsesAPIResponse` into an :class:`LLMResponse`."""
+        """将原始：class:`ResponsesAPIResponse` 转换为：class:`LLMResponse`。"""
         message = Message.from_llm_responses_output(resp.output)
         return LLMResponse(
             message=message,
@@ -1249,7 +1242,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         final_kwargs: dict[str, Any],
         auth_values: tuple[str | None, dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        """Build the shared kwargs dict for litellm_responses / litellm_aresponses."""
+        """为 litellm_responses / litellm_aresponses 构建共享 kwargs 字典。"""
         typed_input: ResponseInputParam | str = (
             cast(ResponseInputParam, input_items) if input_items else ""
         )
@@ -1283,20 +1276,20 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     def _process_stream_event(
         self, event: ResponseStreamEvent, *, emit_deltas: bool = True
     ) -> tuple[object | None, ModelResponseStream | None]:
-        """Extract output item and delta chunk from a Responses stream event.
+        """从响应流事件中提取输出项和增量块。
 
         Args:
-            event: A single Responses streaming event.
-            emit_deltas: When ``False`` the delta chunk is never built — skip
-                the allocation when there is no stream callback to receive it.
+            event: 单个响应流式传输事件。
+            emit_deltas: 当 ``False`` 增量块从未构建时 — 跳过
+                当没有流回调接收它时的分配。
 
         Returns:
-            (output_item, delta_chunk) — either or both may be ``None``.
+            (output_item, delta_chunk) — 其中一个或两个都可以是 ``None``。
         """
         output_item: object | None = None
         delta_chunk: ModelResponseStream | None = None
 
-        # Collect finished output items
+        # 收集成品输出项目
         if (
             isinstance(event, OutputItemEvent)
             and event.type == ResponsesAPIStreamEvents.OUTPUT_ITEM_DONE
@@ -1313,8 +1306,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         ):
             delta = event.delta
             if delta:
-                # ModelResponseStream mints a fresh id per instance, and a
-                # changed chunk id reads as a retry (StreamContext._emit_delta).
+                # ModelResponseStream 为每个实例创建一个新的 id，更改后的块 id 读取为重
+                # 试 (StreamContext._emit_delta)。
+                #
                 delta_chunk = ModelResponseStream(
                     id=event.item_id,
                     choices=[StreamingChoices(delta=Delta(content=delta))],
@@ -1327,11 +1321,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         completed_response: ResponseCompletedEvent | None,
         collected_output_items: list[Any],
     ) -> ResponsesAPIResponse:
-        """Validate and patch the completed response from a Responses stream.
+        """验证并修补来自响应流的完整响应。
 
         Raises:
-            LLMNoResponseError: If the stream finished without a completed
-                response or with an unexpected event type.
+            LLMNoResponseError: 如果流已完成但未完成
+                响应或意外事件类型。
         """
         if completed_response is None:
             raise LLMNoResponseError(
@@ -1343,7 +1337,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             )
 
         completed_resp = completed_response.response
-        # Patch empty output with items collected from stream
+        # 使用从流中收集的项目修补空输出
         if not completed_resp.output and collected_output_items:
             completed_resp.output = collected_output_items
 
@@ -1368,7 +1362,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Shared setup for :meth:`completion`.
+        """:meth:`completion` 的共享设置。
 
         Returns:
             (formatted_messages, cc_tools, use_mock_tools, call_kwargs,
@@ -1397,11 +1391,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Async variant of :meth:`_prepare_completion_params`.
+        """异步：meth:`_prepare_completion_params` 的变体。
 
-        Uses :meth:`aformat_messages_for_llm` so the (potentially blocking)
-        image-inlining pass is offloaded to a worker thread instead of running
-        on the event loop.
+        使用：meth:`aformat_messages_for_llm`，因此（可能阻塞的）图像内联传递被卸载到
+        工作线程线程，而不是在事件循环上运行。
         """
         formatted_messages = await self.aformat_messages_for_llm(messages)
         return self._finalize_completion_params(
@@ -1426,21 +1419,22 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Finalize chat completion params from already-formatted messages.
+        """根据已格式化的消息最终确定聊天完成参数。
 
-        Shared post-formatting steps for :meth:`_prepare_completion_params`
-        and :meth:`_aprepare_completion_params`: tool conversion, mock-tool
-        prompt substitution, kwargs normalization and telemetry context.
+        :meth:`_prepare_completion_params` 和：meth:`_aprepare_completion_params` 的
+        共享后格式
+        化步骤：工具转换、模拟对象-工具提示词替换、kwargs 标准化和遥测上下文。
         """
-        # Defensive copy — this method mutates kwargs (e.g. kwargs["tools"])
-        # and the caller should not observe those side-effects.
+        # 防御性副本——此方法会改变 kwargs (e.g. kwargs["tools"]) 并且调用者不应该观察这
+        # 些副作用。
+        #
         kwargs = dict(kwargs)
 
-        # 2) choose function-calling strategy
+        # 2) 选择函数调用策略
         use_native_fc = self.native_tool_calling
         original_fncall_msgs = copy.deepcopy(formatted_messages)
 
-        # Convert Tool objects to ChatCompletionToolParam once here
+        # 在此将工具对象转换为 ChatCompletionToolParam 一次
         cc_tools: list[ChatCompletionToolParam] = []
         if tools:
             cc_tools = [
@@ -1463,25 +1457,25 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 include_security_params=add_security_risk_prediction,
             )
 
-        # 3) normalize provider params
-        # Only pass tools when native FC is active
+        # 3) 规范化提供者参数
+        # 仅当本机 FC 处于活动状态时才传递工具
         kwargs["tools"] = cc_tools if (bool(cc_tools) and use_native_fc) else None
         has_tools_flag = bool(cc_tools) and use_native_fc
-        # Behavior-preserving: delegate to select_chat_options
+        # 行为保留：委托给 select_chat_options
         call_kwargs = select_chat_options(
             self, kwargs, has_tools=has_tools_flag, call_context=call_context
         )
 
-        # 3a) joint input/output budget clamp (e.g. Bedrock-Anthropic)
+        # 3a) 联合投入/产出预算限制 (e.g. 基岩-Anthropic)
         call_kwargs = self._clamp_max_tokens_for_joint_budget(
             call_kwargs,
             formatted_messages,
             [] if use_mock_tools else cc_tools,
         )
 
-        # 4) request context for telemetry (always include context_window for metrics)
-        # Always pass context_window so metrics are tracked even when
-        # logging is disabled.
+        # 4) 遥测请求上下文（始终包含指标 context_window）
+        # 始终传递 context_window，以便即使禁用日志记录也会跟踪指标。
+        #
         telemetry = self.telemetry
         telemetry_ctx: dict[str, Any] = {
             "context_window": self.effective_max_input_tokens or 0
@@ -1489,7 +1483,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         if telemetry.log_enabled:
             telemetry_ctx.update(
                 {
-                    "messages": formatted_messages[:],  # already simple dicts
+                    "messages": formatted_messages[:],  # 已经很简单的小字典
                     "tools": tools,
                     "kwargs": {k: v for k, v in call_kwargs.items()},
                 }
@@ -1521,10 +1515,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Shared setup for :meth:`responses`.
+        """:meth:`responses` 的共享设置。
 
         Returns:
-            (instructions, input_items, resp_tools, call_kwargs,
+            （指令，input_items，resp_tools，call_kwargs，
              telemetry_ctx)
         """
         instructions, input_items = self.format_messages_for_responses(messages)
@@ -1555,9 +1549,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Async variant of :meth:`_prepare_responses_params`.
+        """异步：meth:`_prepare_responses_params` 的变体。
 
-        Uses :meth:`aformat_messages_for_responses` so the image-inlining
+        使用：meth:`aformat_messages_for_responses` 因此图像内联
         pass runs off the event loop.
         """
         instructions, input_items = await self.aformat_messages_for_responses(messages)
@@ -1589,16 +1583,17 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         dict[str, Any],
         dict[str, Any],
     ]:
-        """Finalize Responses params from already-formatted inputs.
+        """根据已格式化的输入完成响应参数。
 
-        Shared post-formatting steps for :meth:`_prepare_responses_params`
-        and :meth:`_aprepare_responses_params`.
+        共享：meth:`_prepare_responses_params` 和：meth:`_aprepare_responses_params`
+        的后格式化步
+        骤。
         """
-        # Defensive copy — select_responses_options may mutate kwargs.
+        # 防御性副本 — select_responses_options 可能会变异 kwargs。
         kwargs = dict(kwargs)
 
-        # Convert Tool objects to Responses ToolParam
-        # (Responses path always supports function tools)
+        # 将工具对象转换为响应 ToolParam（响应路径始终支持功能工具）
+        #
         resp_tools = (
             [
                 t.to_responses_tool(
@@ -1610,14 +1605,14 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             else None
         )
 
-        # Normalize/override Responses kwargs consistently
+        # 一致地标准化/覆盖响应 kwargs
         call_kwargs = select_responses_options(
             self, kwargs, include=include, store=store, call_context=call_context
         )
 
-        # Request context for telemetry (always include context_window for metrics)
-        # Always pass context_window so metrics are tracked even when
-        # logging is disabled.
+        # 请求上下文的遥测 (始终包括 context_window 的指标)。始终通过 context_window，即
+        # 使日志未启用，也能追踪指标。
+        #
         telemetry = self.telemetry
         telemetry_ctx: dict[str, Any] = {
             "context_window": self.effective_max_input_tokens or 0
@@ -1644,15 +1639,14 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         cc_tools: list[ChatCompletionToolParam],
         add_security_risk_prediction: bool,
     ) -> ModelResponse:
-        """Post-process a chat completion response inside the retry boundary.
+        """对重试边界内的聊天完成响应进行后处理。
 
-        The raw (pre-mock) response is consumed internally by
-        ``Telemetry.on_response`` and is not returned to the caller.
+        原始（pre-模拟对象）响应由内部消耗
+        ``Telemetry.on_response`` 并且不会返回给调用者。
 
         Raises:
-            LLMNoResponseError: If the response has no choices
-                (Gemini sometimes returns empty choices; raising here
-                inside the retry boundary ensures it is retried).
+            LLMNoResponseError: 如果回应没有选择
+                （双子座有时会返回空选择； 在重试边界内提升可确保重试）。
         """
         raw_resp: ModelResponse | None = None
         if use_mock_tools:
@@ -1664,7 +1658,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 include_security_params=add_security_risk_prediction,
             )
 
-        # 6) telemetry
+        # 6) 遥测
         assert self._telemetry is not None
         self._telemetry.on_response(
             resp,
@@ -1672,9 +1666,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             provider_info=self._provider_info,
         )
 
-        # Ensure at least one choice.
-        # Gemini sometimes returns empty choices; we raise LLMNoResponseError here
-        # inside the retry boundary so it is retried.
+        # 确保至少有一项选择。 双子座有时会返回空的选择； 在这里，我们在这里
+        # LLMNoResponseError 以重试的边界，因此它被重试。
+        #
         if not resp.get("choices") or len(resp["choices"]) < 1:
             raise LLMNoResponseError(
                 "Response choices is less than 1. Response: " + str(resp)
@@ -1692,7 +1686,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Generate a response using the configured API mode."""
+        """使用配置的 API 模式生成响应。"""
         if self.uses_responses_api():
             return self.responses(
                 messages=messages,
@@ -1724,7 +1718,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Async variant of :meth:`generate`."""
+        """异步：meth:`generate` 的变体。"""
         if self.uses_responses_api():
             return await self.aresponses(
                 messages=messages,
@@ -1746,7 +1740,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         )
 
     # =========================================================================
-    # Chat Completion API
+    # 聊天完成 API
     # =========================================================================
 
     def completion(
@@ -1758,38 +1752,38 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Generate a completion from the language model.
+        """从语言模型生成补全。
 
-        This is the method for getting responses from the model via Completion API.
-        It handles message formatting, tool calling, and response processing.
+        这是通过 Completion API 从模型获取响应的方法。 它处理消息格式化、工具调用和响
+        应处理。
 
         Args:
-            messages: List of conversation messages.
-            tools: Optional list of tools available to the model.
-            add_security_risk_prediction: Add security_risk field to tool schemas.
-            on_token: Optional callback for streaming tokens.
-            **kwargs: Additional arguments passed to the LLM API.
+            messages: 对话消息列表。
+            tools: 模型可用的可选工具列表。
+            add_security_risk_prediction: 将 security_risk 字段添加到工具模式。
+            on_token: 流式传输 token 可选回调。
+            **kwargs: 附加参数传递给 LLM API。
 
         Returns:
-            LLMResponse containing the model's response and metadata.
+            LLMResponse 包含模型的响应和元数据。
 
         Note:
-            Summary field is always added to tool schemas for transparency and
-            explainability of agent actions.
+            摘要字段始终添加到工具模式中，以提高智能体操作的透明度和可解释性。
         """
-        # Resolve provider-aware runtime metadata (e.g. OpenRouter route limits)
-        # before the first completion so ``effective_max_input_tokens`` /
-        # ``effective_max_output_tokens`` reflect the actual runtime route for
-        # any context management that runs later in this call. The result is
-        # cached (1h TTL) and negative-cached on failure, and the probe is a
-        # no-op for providers without runtime metadata.
+        # 解析提供者感知的运行时元数据 (e.g. OpenRouter路线限制）在第一次完成之前所以
+        # ``effective_max_input_tokens``/
+        # ``effective_max_output_tokens`` 反映在此调用中稍后运行的任何上下文管理的实际运
+        # 行时路由。 结果被缓存（1h TTL）并在失败时进行负缓存，并且对于没有运行时元数据
+        # 的提供者来说，探测是无操作的。
+        #
         self.resolve_runtime_metadata()
 
         _caller_kwargs = kwargs.copy()
         enable_streaming = bool(kwargs.get("stream", False)) or self.stream
         if enable_streaming and on_token is None:
-            # Gracefully degrade to non-streaming rather than crashing a run when
-            # streaming is requested without a callback wired. See #4014.
+            # 当在没有连接回调的情况下请求流式传输时，优雅地降级为非流式传输，而不是使运
+            # 行崩溃。 参见#4014。
+            #
             logger.debug(
                 "Streaming requested without an on_token callback; "
                 "falling back to a non-streaming completion."
@@ -1836,9 +1830,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         try:
             return self._build_completion_result(_one_attempt())
         except Exception as e:
-            # If the prompt cache content is too small for the provider's
-            # minimum token threshold (e.g., Vertex AI requires ≥4096 tokens),
-            # retry without prompt caching markers.
+            # 如果提示词缓存内容小于提供商的最小 token 阈值 (e.g., Vertex AI 需要 ≥4096
+            # token)，则重试不提示词缓存标记。
+            #
             if is_prompt_cache_too_small(e) and self.is_caching_prompt_active():
                 logger.warning(
                     "Prompt cache content too small for provider minimum, "
@@ -1852,8 +1846,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     on_token=on_token,
                     **_caller_kwargs,
                 )
-            # If the credential was rejected (401) and a refresh hook can supply
-            # a fresh key, re-resolve it and retry the call exactly once.
+            # 如果凭据被拒绝 (401) 并且刷新挂钩可以提供新密钥，则重新解析它并重试调用一
+            # 次。
+            #
             refreshed_key = self._resolve_refreshed_api_key(e)
             if refreshed_key is not None:
                 logger.warning(
@@ -1880,7 +1875,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             )
 
     # =========================================================================
-    # Async Chat Completion API
+    # 异步聊天完成 API
     # =========================================================================
     async def acompletion(
         self,
@@ -1891,24 +1886,25 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Async variant of :meth:`completion`.
+        """异步：meth:`completion` 的变体。
 
-        Uses ``litellm.acompletion`` under the hood, freeing the event loop
+        在底层使用 ``litellm.acompletion``，释放事件循环
         while waiting for the LLM provider response.
         """
-        # Resolve provider-aware runtime metadata (e.g. OpenRouter route limits)
-        # before the first completion on the agent-server async path so
-        # ``effective_max_input_tokens`` reflects the actual runtime route.
-        # The result is cached (1h TTL) and negative-cached on failure, and the
-        # probe is a no-op for providers without runtime metadata, so repeated
-        # calls are cheap.
+        # 解析提供者感知的运行时元数据 (e.g. OpenRouter 路由限制）在智能体-服务器异步路
+        # 径上第一次完成之前
+        # ``effective_max_input_tokens``反映实际运行路线。 结果被缓存（1小时 TTL)，失败
+        # 时被负缓存，对于没有运行时元数据的提供者，探针是无操作的，因此重复调用是便宜的
+        # 。
+        #
         await self.aresolve_runtime_metadata()
 
         _caller_kwargs = kwargs.copy()
         enable_streaming = bool(kwargs.get("stream", False)) or self.stream
         if enable_streaming and on_token is None:
-            # Gracefully degrade to non-streaming rather than crashing a run when
-            # streaming is requested without a callback wired. See #4014.
+            # 当在没有连接回调的情况下请求流式传输时，优雅地降级为非流式传输，而不是使运
+            # 行崩溃。 参见#4014。
+            #
             logger.debug(
                 "Streaming requested without an on_token callback; "
                 "falling back to a non-streaming completion."
@@ -1956,9 +1952,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         try:
             return self._build_completion_result(await _one_attempt())
         except Exception as e:
-            # If the prompt cache content is too small for the provider's
-            # minimum token threshold (e.g., Vertex AI requires ≥4096 tokens),
-            # retry without prompt caching markers.
+            # 如果提示词缓存内容小于提供商的最小 token 阈值 (e.g., Vertex AI 需要 ≥4096
+            # token)，则重试不提示词缓存标记。
+            #
             if is_prompt_cache_too_small(e) and self.is_caching_prompt_active():
                 logger.warning(
                     "Prompt cache content too small for provider minimum, "
@@ -1972,8 +1968,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     on_token=on_token,
                     **_caller_kwargs,
                 )
-            # If the credential was rejected (401) and a refresh hook can supply
-            # a fresh key, re-resolve it (off the event loop) and retry once.
+            # 如果凭据被拒绝 (401) 并且刷新挂钩可以提供新密钥，则重新解析它（脱离事件循
+            # 环）和重试一次。
+            #
             loop = asyncio.get_running_loop()
             refreshed_key = await loop.run_in_executor(
                 None, self._resolve_refreshed_api_key, e
@@ -1990,8 +1987,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     call_context=call_context,
                     **_caller_kwargs,
                 )
-            # Fallback is synchronous; cast the token callback since the
-            # fallback LLM's sync path accepts TokenCallbackType.
+            # 回退方案是同步； 由于回退方案 LLM 的同步路径接受 TokenCallbackType，因此强
+            # 制转换 token 回调。
+            #
             _fb_token = cast("TokenCallbackType | None", on_token)
             return await self._ahandle_error(
                 e,
@@ -2006,7 +2004,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             )
 
     # =========================================================================
-    # Responses API (v1)
+    # 回复 API (v1)
     # =========================================================================
     def responses(
         self,
@@ -2019,37 +2017,36 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Alternative invocation path using OpenAI Responses API via LiteLLM.
+        """通过 LiteLLM 使用 OpenAI 响应 API 的替代调用路径。
 
-        Maps Message[] -> (instructions, input[]) and returns LLMResponse.
+        [] -> (指令，输入[]) 并返回LLMResponse。
 
         Args:
-            messages: List of conversation messages
-            tools: Optional list of tools available to the model
-            include: Optional list of fields to include in response
-            store: Whether to store the conversation
-            add_security_risk_prediction: Add security_risk field to tool schemas
-            on_token: Optional callback for streaming deltas
-            **kwargs: Additional arguments passed to the API
+            messages: 对话消息列表
+            tools: 模型可用的可选工具列表
+            include: 要包含在响应中的可选字段列表
+            store: 是否存储对话内容
+            add_security_risk_prediction: 将 security_risk 字段添加到工具模式
+            on_token: 流式传输增量的可选回调
+            **kwargs: 传递给 API 的附加参数
 
         Note:
-            Summary field is always added to tool schemas for transparency and
-            explainability of agent actions.
+            摘要字段始终添加到工具模式中，以提高智能体操作的透明度和可解释性。
         """
-        # Resolve provider-aware runtime metadata before the first request so
-        # ``effective_max_input_tokens`` / ``effective_max_output_tokens``
-        # reflect the actual runtime route during subsequent context management.
-        # Cached (1h TTL) / negative-cached; no-op for providers without runtime
-        # metadata.
+        # 在第一个请求之前解析提供者感知的运行时元数据
+        # ``effective_max_input_tokens``/``effective_max_output_tokens``反映后续上下文管
+        # 理时的实际运行路线。 缓存（1h TTL）/负缓存； 对于没有运行时元数据的提供者来说
+        # ，无操作。
+        #
         self.resolve_runtime_metadata()
 
         _caller_kwargs = kwargs.copy()
         user_enable_streaming = bool(kwargs.get("stream", False)) or self.stream
         if user_enable_streaming and on_token is None and not self.requires_streaming:
-            # Gracefully degrade to non-streaming rather than crashing a run when
-            # streaming is requested without a callback wired. Providers that
-            # require streaming are exempt — they drain the stream internally
-            # without an on_token callback. See requires_streaming and #4014.
+            # 当在没有连接回调的情况下请求流式传输时，优雅地降级为非流式传输，而不是使运
+            # 行崩溃。 需要流式传输的提供者可以豁免 — 他们在内部耗尽流而无需 on_token 回
+            # 调。 请参阅requires_streaming和#4014。
+            #
             logger.debug(
                 "Streaming requested without an on_token callback; "
                 "falling back to a non-streaming responses call."
@@ -2098,18 +2095,16 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 )
                 return ret
 
-            # When stream=True, LiteLLM returns a streaming
-            # iterator rather than a single ResponsesAPIResponse.
-            # Third-party wrappers may replace LiteLLM's concrete
-            # iterator with another iterable, so drain by protocol.
+            # 当stream=True时，LiteLLM返回一个流式传输迭代器而不是单个
+            # ResponsesAPIResponse。 第三方包装器可以用另一个可迭代器替换LiteLLM的具体迭
+            # 代器，因此按协议排出。
+            #
             if final_kwargs.get("stream", False):
                 stream_callback = on_token if user_enable_streaming else None
-                # Collect output items from streaming events.
-                # Some endpoints (e.g., Codex subscription) send
-                # output items as separate events but the final
-                # response.completed event has output=[].  We
-                # accumulate them here and patch the completed
-                # response if needed.
+                # 收集流式传输事件的输出项目。 一些端点（e.g.，Codex 订阅）将输出项作为
+                # 单独的事件发送，但最终的 response.completed 事件的输出=[]。 我们在这里
+                # 累积它们，并根据需要修补完整的响应。
+                #
                 collected_output_items: list[object] = []
                 completed_response = get_completed_response(ret)
                 if not isinstance(ret, Iterable):
@@ -2135,9 +2130,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         try:
             return self._build_responses_result(_one_attempt())
         except Exception as e:
-            # If the prompt cache content is too small for the provider's
-            # minimum token threshold (e.g., Vertex AI requires ≥4096 tokens),
-            # retry without prompt caching markers.
+            # 如果提示词缓存内容小于提供商的最小 token 阈值 (e.g., Vertex AI 需要 ≥4096
+            # token)，则重试不提示词缓存标记。
+            #
             if is_prompt_cache_too_small(e) and self.is_caching_prompt_active():
                 logger.warning(
                     "Prompt cache content too small for provider minimum, "
@@ -2153,8 +2148,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     on_token=on_token,
                     **_caller_kwargs,
                 )
-            # If the credential was rejected (401) and a refresh hook can supply
-            # a fresh key, re-resolve it and retry the call exactly once.
+            # 如果凭据被拒绝 (401) 并且刷新挂钩可以提供新密钥，则重新解析它并重试调用一
+            # 次。
+            #
             refreshed_key = self._resolve_refreshed_api_key(e)
             if refreshed_key is not None:
                 logger.warning(
@@ -2185,7 +2181,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             )
 
     # =========================================================================
-    # Async Responses API
+    # 异步回应 API
     # =========================================================================
     async def aresponses(
         self,
@@ -2198,23 +2194,23 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         call_context: LLMCallContext | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """Async variant of :meth:`responses`.
+        """异步：meth:`responses` 的变体。
 
-        Uses ``litellm.aresponses`` under the hood, freeing the event loop
+        在底层使用 ``litellm.aresponses``，释放事件循环
         while waiting for the LLM provider response.
         """
-        # See :meth:`acompletion`: resolve provider-aware runtime metadata before
-        # the first request so context management reads runtime (not model-level)
-        # limits. No blocking network I/O in-process.
+        # 请参阅：meth：`acompletion`：在第一个请求之前解析提供者感知的运行时元数据，以
+        # 便上下文管理读取运行时（而不是模型级）限制。 进程内没有阻塞网络 I/O。
+        #
         await self.aresolve_runtime_metadata()
 
         _caller_kwargs = kwargs.copy()
         user_enable_streaming = bool(kwargs.get("stream", False)) or self.stream
         if user_enable_streaming and on_token is None and not self.requires_streaming:
-            # Gracefully degrade to non-streaming rather than crashing a run when
-            # streaming is requested without a callback wired. Providers that
-            # require streaming are exempt — they drain the stream internally
-            # without an on_token callback. See requires_streaming and #4014.
+            # 当在没有连接回调的情况下请求流式传输时，优雅地降级为非流式传输，而不是使运
+            # 行崩溃。 需要流式传输的提供者可以豁免 — 他们在内部耗尽流而无需 on_token 回
+            # 调。 请参阅requires_streaming和#4014。
+            #
             logger.debug(
                 "Streaming requested without an on_token callback; "
                 "falling back to a non-streaming responses call."
@@ -2271,19 +2267,16 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 )
                 return ret
 
-            # When stream=True, LiteLLM returns a streaming
-            # iterator rather than a single ResponsesAPIResponse.
-            # Third-party wrappers may replace LiteLLM's concrete
-            # iterator with another sync or async iterable, so drain
-            # by protocol.
+            # 当stream=True时，LiteLLM返回一个流式传输迭代器而不是单个
+            # ResponsesAPIResponse。 第三方包装器可以用另一个同步或异步可迭代器替换
+            # LiteLLM 的具体迭代器，因此按协议排出。
+            #
             if final_kwargs.get("stream", False):
                 stream_cb = on_token if user_enable_streaming else None
-                # Collect output items from streaming events.
-                # Some endpoints (e.g., Codex subscription) send
-                # output items as separate events but the final
-                # response.completed event has output=[].  We
-                # accumulate them here and patch the completed
-                # response if needed.
+                # 收集流式传输事件的输出项目。 一些端点（e.g.，Codex 订阅）将输出项作为
+                # 单独的事件发送，但最终的 response.completed 事件的输出=[]。 我们在这里
+                # 累积它们，并根据需要修补完整的响应。
+                #
                 collected_output_items: list[object] = []
                 completed_response = get_completed_response(ret)
                 if isinstance(ret, AsyncIterable):
@@ -2327,9 +2320,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         try:
             return self._build_responses_result(await _one_attempt())
         except Exception as e:
-            # If the prompt cache content is too small for the provider's
-            # minimum token threshold (e.g., Vertex AI requires ≥4096 tokens),
-            # retry without prompt caching markers.
+            # 如果提示词缓存内容小于提供商的最小 token 阈值 (e.g., Vertex AI 需要 ≥4096
+            # token)，则重试不提示词缓存标记。
+            #
             if is_prompt_cache_too_small(e) and self.is_caching_prompt_active():
                 logger.warning(
                     "Prompt cache content too small for provider minimum, "
@@ -2345,8 +2338,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     on_token=on_token,
                     **_caller_kwargs,
                 )
-            # If the credential was rejected (401) and a refresh hook can supply
-            # a fresh key, re-resolve it (off the event loop) and retry once.
+            # 如果凭据被拒绝 (401) 并且刷新挂钩可以提供新密钥，则重新解析它（脱离事件循
+            # 环）和重试一次。
+            #
             loop = asyncio.get_running_loop()
             refreshed_key = await loop.run_in_executor(
                 None, self._resolve_refreshed_api_key, e
@@ -2381,7 +2375,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             )
 
     # =========================================================================
-    # Transport + helpers
+    # 传输层 + 帮助者
     # =========================================================================
 
     def _litellm_call_kwargs(self) -> LiteLLMCallKwargs:
@@ -2486,14 +2480,14 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         auth_values: tuple[str | None, dict[str, str]] | None = None,
         **kwargs,
     ) -> dict[str, Any]:
-        """Build the keyword arguments for a litellm (a)completion call."""
+        """构建 LiteLLM (a) 完成调用的关键字参数。"""
         provider_info = self._provider_info
         assert provider_info is not None
         assert_vertex_sdk_available(provider_info.name)
 
-        # When streaming, request usage in the final chunk so that detailed
-        # token breakdowns (prompt_tokens_details with cached_tokens, etc.) are
-        # not silently discarded by litellm's streaming handler.
+        # 当流式传输时，请求最终块中的使用情况，以便 LiteLLM 的流式传输处理程序不会默默
+        # 地丢弃详细的 token 故障（prompt_tokens_details 和 cached_tokens 等）。
+        #
         if enable_streaming:
             kwargs.setdefault("stream_options", {"include_usage": True})
         api_key_value, subscription_headers = (
@@ -2512,7 +2506,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             "drop_params": self.drop_params,
             "seed": self.seed,
             "messages": messages,
-            # The SDK owns retries so budget denials reach its classifier immediately.
+            # SDK 拥有重试，因此预算拒绝会立即到达其分类器。
             "max_retries": 0,
             **self._aws_kwargs(),
             **kwargs,
@@ -2552,7 +2546,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         on_token: AnyTokenCallbackType | None = None,
         **kwargs,
     ) -> ModelResponse:
-        """Async variant of :meth:`_transport_call`."""
+        """异步：meth:`_transport_call` 的变体。"""
         auth_values = await self._aget_litellm_auth_values()
         ret = await litellm_acompletion(
             **self._prepare_transport_kwargs(
@@ -2564,8 +2558,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         )
         if enable_streaming and on_token is not None:
             chunks: list[ModelResponseStream] = []
-            # Some litellm wrappers (lmnr 0.7.47's instrumentor) hand
-            # back a plain sync generator from ``litellm_acompletion``
+            # 一些 LiteLLM 包装器（lmnr 0.7.47 的检测器）从 ``litellm_acompletion`` 交还
+            # 一个普通的同步生成器
+            #
             if isinstance(ret, AsyncIterable):
                 stream = cast(AsyncIterable[ModelResponseStream], ret)
                 async for chunk in self._aiter_with_idle_timeout(stream):
@@ -2587,14 +2582,14 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return ret
 
     # =========================================================================
-    # Capabilities, formatting, and info
+    # 功能、格式和信息
     # =========================================================================
     def _model_name_for_capabilities(self) -> str:
-        """Return canonical name for capability lookups (e.g., vision support)."""
+        """返回功能查找的规范名称（e.g.，视觉支持）。"""
         return self.model_canonical_name or self.model
 
     def _model_features(self) -> ModelFeatures:
-        """Resolve capabilities consistently for every request path."""
+        """为每个请求路径一致地解析功能。"""
         return get_features(
             self._model_name_for_capabilities(),
             model_info=self._model_info,
@@ -2602,11 +2597,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         )
 
     def _provider_has_joint_token_budget(self) -> bool:
-        """Whether the provider enforces input + max_tokens <= context_window.
+        """提供者是否强制输入 + max_tokens <= context_window。
 
-        Some providers (notably AWS Bedrock for Anthropic models) share a single
-        token window between input and requested output. Direct providers
-        (Anthropic, OpenAI, etc.) have independent input/output windows.
+        一些提供程序（特别是 Anthropic 模型的 AWS Bedrock）在输入和请求的输出之间共享
+        单个 token 窗口。 直接提供者（Anthropic
+        、OpenAI等）具有独立的输入/输出窗口。
         """
         provider = self._infer_model_info_provider() or ""
         return any(provider.startswith(p) for p in _JOINT_BUDGET_PROVIDER_PREFIXES)
@@ -2617,18 +2612,18 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         formatted_messages: list[dict[str, Any]],
         cc_tools: list[ChatCompletionToolParam],
     ) -> dict[str, Any]:
-        """Clamp per-request output budget for joint-window providers.
+        """限制联合窗口提供商的每个请求的输出预算。
 
-        For providers like Bedrock-Anthropic, ``input_tokens + max_tokens`` must
-        not exceed the context window. Our injected default for ``max_tokens`` is
-        the model's full ``max_output_tokens`` (e.g. 64k for Sonnet 4.5), which
-        for any input larger than roughly ``context_window - max_output_tokens``
-        will fail with "Input is too long for requested model" -- even when the
-        actual response would be small. Clamp to the headroom that actually
-        remains, with a safety margin and a floor so we never send ``0``.
+        对于像 Bedrock-Anthropic 这样的提供者，``input_tokens + max_tokens`` 不得超过
+        上下文窗口。
+        ``max_tokens`` 的默认注入值是模型的完整 ``max_output_tokens`` (e.g. 64k 对于
+        Sonnet 4.5)，对于任
+        何输入长度超过大约 ``context_window - max_output_tokens`` 的情况，都会因为“请
+        求的模型输入太长”而失败——即使实际响
+        应会很小。 夹住实际剩余的净空，并设置安全裕度和下限，这样我们就不会发送``0``
+        。
 
-        For non-joint providers the parameters are independent budgets and we
-        leave the kwargs untouched.
+        对于非联合提供商，参数是独立的预算，我们不影响 kwargs。
         """
         if not self._provider_has_joint_token_budget():
             return call_kwargs
@@ -2637,8 +2632,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         if not context_window:
             return call_kwargs
 
-        # Both keys may appear depending on routing (Azure / extended thinking
-        # use ``max_tokens``; everything else uses ``max_completion_tokens``).
+        # 这两个键可能会出现，具体取决于路由（Azure /扩展思维使用``max_tokens``； 其他一
+        # 切都使用``max_completion_tokens``）。
+        #
         budget_key = next(
             (k for k in ("max_tokens", "max_completion_tokens") if k in call_kwargs),
             None,
@@ -2712,7 +2708,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         ):
             self._effective_max_input_tokens = self._model_info.get("max_input_tokens")
 
-        # Validate context window size
+        # 验证上下文窗口尺寸
         self._validate_context_window_size()
 
         effective_max_output_tokens = self.max_output_tokens
@@ -2726,7 +2722,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                 ]
             ):
                 effective_max_output_tokens = (
-                    64000  # practical cap (litellm may allow 128k with header)
+                    64000  # 实用上限（LiteLLM 可能允许 128k 带标头）
                 )
                 logger.debug(
                     f"Setting effective max_output_tokens to "
@@ -2738,13 +2734,12 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                     effective_max_output_tokens = self._model_info.get(
                         "max_output_tokens"
                     )
-                    # Guard: if max_output_tokens >= the context window,
-                    # requesting that many output tokens would leave zero
-                    # room for input and strict providers (e.g. AWS Bedrock)
-                    # will reject every call. Halve it so input has
-                    # headroom. We check both max_input_tokens and
-                    # max_tokens since either may represent the context
-                    # window depending on the provider.
+                    # 守卫：如果 max_output_tokens >= 上下文窗口，
+                    # 要求许多输出token将为输入和严格的提供者留下零空间（e.g。 AWS
+                    # Bedrock）将拒绝每个呼叫。 将其减半，以便输入有空间。 我们检查
+                    # max_input_tokens 和 max_tokens，因为其中任何一个都可能代表上下文窗
+                    # 口，具体取决于提供商。
+                    #
                     context_window = (
                         self.effective_max_input_tokens
                         or self._model_info.get("max_tokens")
@@ -2780,9 +2775,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
                         )
                         effective_max_output_tokens = DEFAULT_MAX_OUTPUT_TOKENS_CAP
                 elif isinstance(self._model_info.get("max_tokens"), int):
-                    # 'max_tokens' is ambiguous: some providers use it for total
-                    # context window, not output limit. Cap it to avoid requesting
-                    # output that exceeds the context window.
+                    # “max_tokens”不明确：一些提供商将其用于总计上下文窗口，而不是输出限
+                    # 制。 对其进行限制以避免请求超出上下文窗口的输出。
+                    #
                     max_tokens_value = self._model_info.get("max_tokens")
                     assert isinstance(max_tokens_value, int)  # for type checker
                     effective_max_output_tokens = min(
@@ -2813,8 +2808,8 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         self._effective_max_output_tokens = effective_max_output_tokens
 
     def _validate_context_window_size(self) -> None:
-        """Validate that the context window is large enough for OpenHands."""
-        # Allow override via environment variable
+        """验证上下文窗口对于 OpenHands 来说足够大。"""
+        # 允许通过环境变量覆盖
         if os.environ.get(ENV_ALLOW_SHORT_CONTEXT_WINDOWS, "").lower() in (
             "true",
             "1",
@@ -2822,11 +2817,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         ):
             return
 
-        # Unknown context window - cannot validate
+        # 未知上下文窗口 - 无法验证
         if self.effective_max_input_tokens is None:
             return
 
-        # Check minimum requirement
+        # 检查最低要求
         if self.effective_max_input_tokens < MIN_CONTEXT_WINDOW_TOKENS:
             raise LLMContextWindowTooSmallError(
                 self.effective_max_input_tokens, MIN_CONTEXT_WINDOW_TOKENS
@@ -2836,18 +2831,18 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return not self.disable_vision and self._model_features().supports_vision
 
     def is_caching_prompt_active(self) -> bool:
-        """Check if prompt caching is supported and enabled for current model.
+        """检查当前型号是否支持并启用提示词缓存。
 
         Returns:
-            boolean: True if prompt caching is supported and enabled for the given
-                model.
+            boolean: True 如果提示词缓存受支持并为给定启用
+                模型。
         """
         if not self.caching_prompt:
             return False
         return self.caching_prompt and self._model_features().supports_prompt_cache
 
     def uses_responses_api(self) -> bool:
-        """Whether this model uses the OpenAI Responses API path."""
+        """该模型是否使用 OpenAI 响应 API 路径。"""
 
         if self.api_mode != "auto":
             return self.api_mode == "responses"
@@ -2855,17 +2850,16 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @property
     def model_info(self) -> dict | None:
-        """Returns the model info dictionary."""
+        """返回模型信息字典。"""
         return self._model_info
 
     @property
     def effective_max_input_tokens(self) -> int | None:
-        """Resolved context window used at runtime.
+        """已解决运行时使用的上下文窗口。
 
-        ``max_input_tokens`` remains the user-configured value and always wins.
-        When it is unset, a previously resolved provider-aware runtime limit is
-        used (this property performs no network I/O), falling back to the value
-        discovered from model metadata.
+        ``max_input_tokens`` 仍然是用户配置的值并且始终获胜。 当未设置时，使用先前已
+        解决的提供者感知运行时限制（此属性不进行网络 I/O），并
+        回退到从模型元数据中发现的值。
         """
         if self.max_input_tokens:
             return self.max_input_tokens
@@ -2878,39 +2872,35 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @property
     def effective_max_output_tokens(self) -> int | None:
-        """Resolved output token limit used at runtime.
+        """解决了运行时使用的输出 token 限制。
 
-        ``max_output_tokens`` remains the user-configured value and always
-        wins. This property performs no network I/O and falls back to the value
-        discovered from model metadata. Runtime (provider) resolution only
-        refines the input/context limit, never the output limit, so no call
-        here is needed for output tokens (see issue #4421).
+        ``max_output_tokens`` 仍然是用户配置的值并且始终获胜。 此属性不执行网络 I/O，
+        并回退到从模型元数据发现的值。 运行时（提供者）解析
+        仅细化输入/上下文限制，从不细化输出限制，因此在这里不需要调用任何输出 token（
+        见 issue #4421）。
         """
         return self.max_output_tokens or self._effective_max_output_tokens
 
     # =========================================================================
-    # Runtime (provider-aware) metadata
+    # 运行时（提供商感知）元数据
     # =========================================================================
     def resolve_runtime_metadata(
         self, *, force: bool = False
     ) -> ModelRuntimeMetadata | None:
-        """Resolve provider-aware runtime limits synchronously (lazy + cached).
+        """同步解决提供者感知的运行时限制（惰性+缓存）。
 
-        Discovery never runs during construction. Unsupported providers and
-        unresolvable routes return ``None`` so callers fall back to static
-        model metadata. Successful results are cached for
-        ``RUNTIME_METADATA_TTL_SECONDS``; failures are negative-cached briefly.
+        Discovery 在构建期间从不运行。 不支持的提供者和无法解析的路由返回 ``None``，
+        因此调用者会退回到静态模型元数据。 成功的结果会被缓存
+        ``RUNTIME_METADATA_TTL_SECONDS``; 失败会被短暂地负缓存。
 
-        Prefer :meth:`aresolve_runtime_metadata` on the agent-server event loop,
-        which performs no blocking network I/O in-process. A concurrent
-        resolution already in flight cannot be overwritten by a stale
-        (earlier-started) probe: each probe carries a generation, and only the
-        latest generation may publish its result.
+        首选智能体-服务器事件循环上的：meth:`aresolve_runtime_metadata`，它在进程内执
+        行无阻塞网络 I/O。 一个正在飞行中的并发解
+        决方案不能被一个陈旧的（早启动的）探针覆盖：每个探针都携带一个生成版本，只有
+        最新的生成版本才能发布结果。
         """
-        # The LLM may be shared across threads via the sync path, so the cache
-        # read/check and the store must be atomic. The network probe itself runs
-        # outside the lock so a slow endpoint cannot block other threads from
-        # reading the cache.
+        # LLM 可以通过同步路径在线程之间共享，因此缓存读取/检查和存储必须是原子的。 网络
+        # 探测器本身在锁之外运行，因此速度较慢的端点无法阻止其他线程读取缓存。
+        #
         with self._runtime_metadata_lock:
             if not force:
                 cached = cached_metadata(
@@ -2930,16 +2920,13 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     async def aresolve_runtime_metadata(
         self, *, force: bool = False
     ) -> ModelRuntimeMetadata | None:
-        """Async variant of :meth:`resolve_runtime_metadata`.
+        """异步：meth:`resolve_runtime_metadata` 的变体。
 
-        Concurrent calls for the same route are deduplicated so only one
-        upstream request is issued. If the caller is configuring the condenser
-        or context management, resolve before computing a token threshold.
+        并发对同一路由的调用已进行重复数据删除，因此仅发出一个上游请求。 如果调用者正
+        在配置上下文压缩器或上下文管理，请在计算 token 阈值之前解析。
 
-        Because the agent-server may drive a shared ``LLM`` from multiple event
-        loops, a result is only published if no *newer* resolution (started via
-        the sync path on another thread, or a forced re-resolution) has landed
-        meanwhile.
+        因为智能体-服务器可能驱动从多个事件循环共享的``LLM``，结果只有在同时没有*新的
+        *解决（通过同步路径在另一个线程启动，或强制重新解决）时才发布。
         """
         if not force:
             cached = cached_metadata(
@@ -2962,13 +2949,13 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         self, metadata: ModelRuntimeMetadata | None, generation: int
     ) -> None:
         fetched_at, negative_until, resolved = store_result(metadata)
-        # Locked so a concurrent synchronous resolver (its probe runs outside the
-        # lock) cannot observe a torn / interleaved cache state. Generation
-        # guards against a stale (earlier-started) probe overwriting the result
-        # of a newer resolution: only the latest generation may publish.
+        # 锁定，因此并发同步解析器（其探针在锁之外运行）无法观察撕裂/交错缓存状态。
+        # Generation 防止陈旧的（较早开始的）探测覆盖较新决议的结果：只有最新一代可以发
+        # 布。
+        #
         with self._runtime_metadata_lock:
             if generation != self._runtime_metadata_generation:
-                # Superseded by a newer resolution; drop this result.
+                # 被更新的决议取代； 放弃这个结果。
                 return
             self._runtime_metadata_fetched_at = fetched_at
             self._runtime_metadata_negative_until = negative_until
@@ -2977,7 +2964,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             self._runtime_metadata_key = runtime_metadata_cache_key(self)
 
     def _reset_runtime_metadata_for_key(self) -> None:
-        """Drop the runtime-metadata cache when the route (cache key) changes."""
+        """当路由（缓存键）更改时，删除运行时元数据缓存。"""
         with self._runtime_metadata_lock:
             self._runtime_metadata = None
             self._runtime_metadata_fetched_at = None
@@ -2987,46 +2974,44 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @property
     def resolved_runtime_metadata(self) -> ModelRuntimeMetadata | None:
-        """Currently cached runtime metadata, without triggering discovery."""
+        """当前缓存运行时元数据，不触发发现。"""
         return cached_metadata(
             self._runtime_metadata, self._runtime_metadata_fetched_at
         )
 
     # =========================================================================
-    # Utilities preserved from previous class
+    # 从上一课中保留的实用程序
     # =========================================================================
     def _apply_prompt_caching(self, messages: list[Message]) -> None:
-        """Applies caching breakpoints to the messages.
+        """将缓存断点应用于消息。
 
-        For Anthropic's prefix caching, we mark specific content blocks:
-        1. System message: Mark the first block (static prompt) for caching.
-           If there are two blocks (static + dynamic), only the first is marked
-           to enable cross-conversation cache sharing.
-        2. Last user/tool message: Mark for caching to extend the cache prefix.
+        对于Anthropic的前缀缓存，我们标记特定的内容块：
+        1. 系统消息：将第一个块（静态提示词）标记为缓存。 如果有两个块（静态+动态），
+        则仅标记第一个块以启用跨会话缓存共享。
+        2. 最后的用户/工具消息：标记缓存以扩展缓存前缀。
         """
         if len(messages) > 0 and messages[0].role == "system":
             sys_content = messages[0].content
             if len(sys_content) >= 2:
-                # Two-block structure: static (index 0) + dynamic (index 1)
-                # Mark only the static block; ensure dynamic is unmarked
+                # 两块结构：静态（索引0）+动态（索引1） 只标记静态块； 确保动态未标记
+                #
                 sys_content[0].cache_prompt = True
                 sys_content[1].cache_prompt = False
             elif len(sys_content) == 1:
-                # Single block: mark it for caching
+                # 单个块：标记为缓存
                 sys_content[0].cache_prompt = True
 
-        # Second breakpoint: mark the last user/tool message so the cached prefix
-        # extends every turn. Anthropic-only; Gemini is excluded from
-        # PROMPT_CACHE_MODELS because its cache can't extend this way.
+        # 第二个断点：标记最后一个用户/工具消息，以便缓存的前缀每回合都会扩展。
+        # Anthropic-仅； Gemini 被排除在 PROMPT_CACHE_MODELS 之外，因为它的缓存无法以这
+        # 种方式扩展。
+        #
         for message in reversed(messages):
             if message.role in ("user", "tool"):
-                message.content[
-                    -1
-                ].cache_prompt = True  # Last item inside the message content
+                message.content[-1].cache_prompt = True  # 消息内容中的最后一项
                 break
 
     def _inline_required(self) -> bool:
-        """Resolve whether http(s) image URLs must be downloaded and inlined."""
+        """判断 http(s) 图片 URLs 是否必须下载并内联。"""
         if self.inline_image_urls is not None:
             return self.inline_image_urls
         return self._model_features().requires_inline_image_data
@@ -3034,12 +3019,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     def _begin_chat_messages(
         self, messages: list[Message]
     ) -> tuple[list[Message], bool]:
-        """Deepcopy ``messages`` and apply prompt-caching flags.
+        """深度复制 ``messages`` 并应用提示词缓存标志。
 
-        Shared by the sync and async chat-formatting paths. Returns the
-        detached message list and the resolved ``vision_enabled`` flag so
-        callers can plug in their own (sync or async) inline-image pass
-        without duplicating the boilerplate.
+        由同步和异步聊天格式路径共享。 返回分离的消息列表和已解决的``vision_enabled``
+        标志，以便调用者可以插入自己的同步或异步内联图像传递，而不重
+        复样板代码。
         """
         messages = copy.deepcopy(messages)
         if self.is_caching_prompt_active():
@@ -3047,11 +3031,12 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return messages, self.vision_is_active()
 
     def _prepare_chat_messages(self, messages: list[Message]) -> list[Message]:
-        """Apply the cache+inline+resize passes, returning detached messages."""
+        """应用缓存+内联+调整大小传递，返回分离的消息。"""
         messages, vision_enabled = self._begin_chat_messages(messages)
-        # Inline first (URL → data:), then resize (data: → smaller data:).
-        # The resize pass only operates on ``data:image/*`` URLs, so chaining
-        # gives us "free" large-image protection for inlined images.
+        # 在行（）URL → data:), 然后缩放 (data: → 更小的数据：)。 只在缩放阶段操作
+        # ``data:image/*``  URLs因此，链式操作为我们提供了“免费”的大图保护，用于嵌入的图
+        # 片。
+        #
         messages = maybe_inline_image_urls(
             messages,
             inline_required=self._inline_required(),
@@ -3087,16 +3072,16 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         ]
 
     def format_messages_for_llm(self, messages: list[Message]) -> list[dict]:
-        """Formats Message objects for LLM consumption."""
+        """格式化 Message 对象以供 LLM 使用。"""
         return self._to_chat_dicts(self._prepare_chat_messages(messages))
 
     async def aformat_messages_for_llm(self, messages: list[Message]) -> list[dict]:
-        """Async variant that runs the blocking inline/resize pass off-loop.
+        """异步运行阻塞内联/调整大小传递闭环的变体。
 
-        Keep in sync with ``_prepare_chat_messages``: any new message
-        preparation pass added there must also be added here (and in
-        ``aformat_messages_for_responses``), because ``await`` cannot be
-        used inside the synchronous helper.
+        保留在同步和 ``_prepare_chat_messages`` 中：添加的任何新消息准备过程也必须添
+        加到此处（并且在
+        ``aformat_messages_for_responses``)，因为 ``await`` 不能在同步帮助器内部使用
+        。
         """
         messages, vision_enabled = self._begin_chat_messages(messages)
         messages = await amaybe_inline_image_urls(
@@ -3112,12 +3097,12 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return self._to_chat_dicts(messages)
 
     def _prepare_responses_messages(self, messages: list[Message]) -> list[Message]:
-        """Detach messages and optionally strip reasoning items."""
+        """分离消息并可选择删除推理项。"""
         msgs = copy.deepcopy(messages)
 
-        # Subscription mode (store=false): strip reasoning items from prior
-        # assistant turns. The Codex endpoint doesn't persist items, so
-        # referencing their IDs in follow-up requests causes a 404.
+        # 订阅模式（store=False）：从之前的助理轮次中剥离推理项目。 Codex 端点没有持久化
+        # 项，因此在后续请求中引用它们的 ID 会导致 404。
+        #
         if self.is_subscription:
             for m in msgs:
                 if m.role == "assistant" and m.responses_reasoning_item is not None:
@@ -3155,14 +3140,13 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     def format_messages_for_responses(
         self, messages: list[Message]
     ) -> tuple[str | None, list[dict[str, Any]]]:
-        """Prepare (instructions, input[]) for the OpenAI Responses API.
+        """为 OpenAI 响应 API 准备（指令，输入 []）。
 
-        - Skips prompt caching flags and string serializer concerns
-        - Uses Message.to_responses_value to get either instructions (system)
-          or input items (others)
-        - Concatenates system instructions into a single instructions string
-        - For subscription mode, system prompts are prepended to user content
-        - Inlines http(s) image URLs as base64 when the active model requires it
+        - 跳过提示词缓存标志和字符串序列化器问题
+        - 使用 Message.to_responses_value 获取指令（系统）或输入项（其他）
+        - 将系统指令连接成单个指令字符串
+        - 对于订阅模式，系统提示词被添加到用户内容之前
+        - 当活动模型需要时，将内联图像 http(s) URLs 作为 base64
         """
         msgs = self._prepare_responses_messages(messages)
         msgs = maybe_inline_image_urls(
@@ -3175,10 +3159,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     async def aformat_messages_for_responses(
         self, messages: list[Message]
     ) -> tuple[str | None, list[dict[str, Any]]]:
-        """Async variant that runs the blocking inline pass off-loop.
+        """异步变体，在环外运行阻塞内联传递。
 
-        Keep in sync with ``format_messages_for_responses``: any new
-        message preparation pass added there must also be added here.
+        保留在同步和 ``format_messages_for_responses`` 中：添加到此处的任何新消息准备
+        过程也必须添加到此处。
         """
         msgs = self._prepare_responses_messages(messages)
         msgs = await amaybe_inline_image_urls(
@@ -3247,14 +3231,13 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         formatted_messages: list[dict],
         tools: list[ChatCompletionToolParam],
     ) -> int | None:
-        """Count tokens with a tokenizer chat template when one is available.
+        """当分词器聊天模板可用时，使用分词器聊天模板计数 token。
 
-        LiteLLM's generic token counter estimates OpenAI-style chat/tool overhead.
-        Local OpenAI-compatible servers commonly apply the model tokenizer's chat
-        template before tokenization, which can differ substantially once tool
-        schemas are rendered into the prompt. If a caller configured a tokenizer
-        that supports ``apply_chat_template``, prefer that exact rendered prompt
-        shape for condenser token checks and fall back to LiteLLM otherwise.
+        LiteLLM 的通用 token 计数器估计 OpenAI 式聊天/工具开销。 通常，本地OpenAI-兼
+        容服务器在分词之前会应用模型 tokenizer
+         的聊天模板，这在工具模式被渲染成提示词后会显著不同。 如果调用者配置了支持
+         ``apply_chat_template`` 的分词器，则更喜欢使用精确渲染
+        的提示词形状进行上下文压缩器 token 检查，否则回退到 LiteLLM。
         """
         tokenizer = chat_template_tokenizer(
             self._chat_template_tokenizer or self._tokenizer
@@ -3314,7 +3297,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
 
     @classmethod
     def from_persisted(cls, data: Any, *, context: dict[str, Any] | None = None) -> LLM:
-        """Load a persisted LLM profile payload, applying schema migrations."""
+        """加载已持久化 LLM 配置文件载荷，应用模式迁移。"""
         if not isinstance(data, dict):
             return cls.model_validate(data, context=context)
 
@@ -3341,7 +3324,7 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return llm
 
     def to_persisted(self, *, context: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Serialize this LLM for profile persistence."""
+        """序列化此 LLM 用于配置文件持久化。"""
         data = self.model_dump(mode="json", exclude_none=True, context=context)
         if data.get("auth_type") == "subscription":
             data.pop("api_key", None)
@@ -3351,21 +3334,21 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         return data
 
     # =========================================================================
-    # Serialization helpers
+    # 序列化帮手
     # =========================================================================
     @classmethod
     def load_from_json(
         cls, json_path: str, *, context: dict[str, Any] | None = None
     ) -> LLM:
-        """Load an LLM instance from a JSON file.
+        """从 JSON 文件加载 LLM 实例。
 
         Args:
-            json_path: Path to the JSON file containing LLM configuration.
-            context: Optional validation context (e.g., ``{"cipher": cipher}``
-                for decrypting secrets stored at rest).
+            json_path: 包含 LLM 配置的 JSON 文件的路径。
+            context: 可选验证上下文 (e.g., ``{"cipher": cipher}``
+                用于解密存储在 REST 中的机密）。
 
         Returns:
-            An LLM instance constructed from the JSON configuration.
+            根据 JSON 配置构造的 LLM 实例。
         """
         with open(json_path) as f:
             data = json.load(f)
@@ -3443,51 +3426,50 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         auth_method: OpenAIAuthMethod = "browser",
         **llm_kwargs,
     ) -> LLM:
-        """Authenticate with a subscription service and return an LLM instance.
+        """使用订阅服务进行身份验证并返回 LLM 实例。
 
-        This method provides subscription-based access to LLM models that are
-        available through chat subscriptions (e.g., ChatGPT Plus/Pro) rather
-        than API credits. It handles credential caching, token refresh, and
-        the OAuth login flow.
+        此方法提供订阅访问 LLM 通过聊天订阅可用的模型e.g., ChatGPT Plus/Pro) 而不是
+        API credits. 它处理了凭据缓存 tok
+        en 刷新，以及OAuth登录流程。
 
-        Currently supported vendors:
-        - "openai": ChatGPT Plus/Pro subscription for Codex models
+        目前支持的供应商：
+        - “OpenAI”：ChatGPT Codex 型号的 Plus/Pro 订阅
 
-        Supported OpenAI models:
-        - gpt-5.6
-        - gpt-5.6-sol
+        支持的 OpenAI 型号：
+        - GPT-5.6
+        - gpt-5.6-溶胶
         - gpt-5.6-terra
-        - gpt-5.6-luna
-        - gpt-5.5
+        - gpt-5.6-月神
+        - GPT-5.5
         - gpt-5.4
-        - gpt-5.4-mini
+        - GPT-5.4-迷你
 
         Args:
-            vendor: The vendor/provider. Currently only "openai" is supported.
-            model: The model to use. Must be supported by the vendor's
-                subscription service.
-            force_login: If True, always perform a fresh login even if valid
-                credentials exist.
-            open_browser: Whether to automatically open the browser for the
-                OAuth login flow.
-            auth_method: Login method to use: "browser" or "device_code".
-            **llm_kwargs: Additional arguments to pass to the LLM constructor.
+            vendor: 供应商/提供商。 目前仅支持“OpenAI”。
+            model: 要使用的模型。 必须得到供应商的支持
+                订阅服务。
+            force_login: 如果为 True，即使有效，也始终执行全新登录
+                凭据存在。
+            open_browser: 是否自动打开浏览器
+                OAuth 登录流程。
+            auth_method: 使用的登录方法：“浏览器”或“device_code”。
+            **llm_kwargs: 要传递给 LLM 构造函数的其他参数。
 
         Returns:
-            An LLM instance configured for subscription-based access.
+            配置为基于订阅的访问的 LLM 实例。
 
         Raises:
-            ValueError: If the vendor or model is not supported.
-            RuntimeError: If authentication fails.
+            ValueError: 如果供应商或型号不受支持。
+            RuntimeError: 如果身份验证失败。
 
         Example:
             ```python
             from openhands.sdk import LLM
 
-            # First time: opens browser for OAuth login
+            # 第一次：打开浏览器进行OAuth登录
             llm = LLM.subscription_login(vendor="openai", model="gpt-5.6")
 
-            # Subsequent calls: reuses cached credentials
+            # 后续调用：重用缓存的凭据
             llm = LLM.subscription_login(vendor="openai", model="gpt-5.6")
             ```
         """

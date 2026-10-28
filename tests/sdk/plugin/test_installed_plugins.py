@@ -1,11 +1,10 @@
-"""Tests for installed plugins management.
+"""测试已安装的插件管理。
 
-These tests verify the public API in ``openhands.sdk.plugin.installed``
-delegates correctly to ``InstallationManager``.  Internal metadata and
-sync logic is already covered by ``tests/sdk/extensions/installation/``.
+这些测试验证 ``openhands.sdk.plugin.installed`` 中的公共 API 是否正确委托给
+``InstallationManager``。 内部
+元数据和同步逻辑已在 ``tests/sdk/extensions/installation/`` 中涵盖。
 
-Integration tests (marked with @pytest.mark.network) test real GitHub
-cloning and remain unchanged.
+集成测试（用@pytest.mark.network标记）测试真实的GitHub克隆并保持不变。
 """
 
 import json
@@ -30,7 +29,7 @@ from openhands.sdk.plugin import (
 
 
 # ============================================================================
-# Fixtures
+# 测试夹具
 # ============================================================================
 
 
@@ -66,7 +65,7 @@ def sample_plugin_dir(tmp_path: Path) -> Path:
 
 
 # ============================================================================
-# Public API smoke tests
+# 公共 API 烟雾测试
 # ============================================================================
 
 
@@ -197,8 +196,8 @@ def test_update_nonexistent_plugin(installed_dir: Path) -> None:
 def test_install_git_repo_root_without_manifest_is_named_after_repo(
     tmp_path: Path, installed_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A manifest-less repository is named after the repository, not after
-    its ``<repo>-<hash>`` clone cache directory."""
+    """无清单存储库以存储库命名，而不是
+    它的 ``<repo>-<hash>`` 克隆缓存目录。"""
     monkeypatch.setattr(
         "openhands.sdk.extensions.installation.manager.DEFAULT_CACHE_DIR",
         tmp_path / "cache",
@@ -226,8 +225,8 @@ def test_install_git_repo_root_without_manifest_is_named_after_repo(
 def test_update_git_repo_root_keeps_installed_name(
     tmp_path: Path, installed_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A repository root installed under another name (the cache directory
-    name, before the fix) keeps that name when it is updated."""
+    """以另一个名称安装的存储库根目录（缓存目录
+    修复之前的名称）在更新时保留该名称。"""
     monkeypatch.setattr(
         "openhands.sdk.extensions.installation.manager.DEFAULT_CACHE_DIR",
         tmp_path / "cache",
@@ -255,7 +254,7 @@ def test_update_git_repo_root_keeps_installed_name(
 
 
 # ============================================================================
-# Integration Tests (Real GitHub)
+# 集成测试（真实GitHub）
 # ============================================================================
 
 

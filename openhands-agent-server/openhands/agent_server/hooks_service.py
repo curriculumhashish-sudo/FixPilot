@@ -1,11 +1,10 @@
-"""Hooks service for OpenHands Agent Server.
+"""OpenHands Agent Server 的挂钩服务。
 
-This module contains the business logic for loading hooks from the workspace,
-keeping the router clean and focused on HTTP concerns.
+该模块包含从工作区加载钩子的业务逻辑，保持路由器干净并专注于 HTTP 关注点。
 
-Hook Sources:
-- Project hooks: {workspace}/.openhands/hooks.json
-- User hooks: ~/.openhands/hooks.json (future)
+钩子来源：
+- 项目挂钩：{工作区}/.openhands/hooks.json
+- 用户挂钩：~/.openhands/hooks.json（未来）
 """
 
 from pathlib import Path
@@ -18,16 +17,15 @@ logger = get_logger(__name__)
 
 
 def load_hooks_from_workspace(project_dir: str | None = None) -> HookConfig | None:
-    """Load hooks from the workspace .openhands/hooks.json file.
+    """从工作区 .openhands/hooks.json 文件加载钩子。
 
-    This function reads the hooks configuration from the project's
-    .openhands/hooks.json file if it exists.
+    如果项目存在，则此函数会读取项目 .openhands/hooks.json 文件中的钩子配置。
 
     Args:
-        project_dir: Workspace directory path for project hooks.
+        project_dir: 工作区项目挂钩的目录路径。
 
     Returns:
-        HookConfig if hooks.json exists and is valid, None otherwise.
+        如果 hooks.json 存在且有效，则为 HookConfig，否则为 None。
     """
     if not project_dir:
         logger.debug("No project_dir provided, skipping hooks loading")

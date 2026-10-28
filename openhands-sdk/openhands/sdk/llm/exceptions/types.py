@@ -9,7 +9,7 @@ class LLMError(Exception):
         return self.message
 
 
-# General response parsing/validation errors
+# 一般响应解析/验证错误
 class LLMMalformedActionError(LLMError):
     def __init__(self, message: str = "Malformed response") -> None:
         super().__init__(message)
@@ -27,7 +27,7 @@ class LLMResponseError(LLMError):
         super().__init__(message)
 
 
-# Function-calling conversion/validation
+# 函数调用转换/验证
 class FunctionCallConversionError(LLMError):
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -43,7 +43,7 @@ class FunctionCallNotExistsError(LLMError):
         super().__init__(message)
 
 
-# Provider/transport related
+# 提供商/运输相关
 class LLMNoResponseError(LLMError):
     def __init__(
         self,
@@ -78,7 +78,7 @@ class LLMMalformedConversationHistoryError(LLMError):
 
 
 class LLMContextWindowTooSmallError(LLMError):
-    """Raised when the model's context window is too small for OpenHands to work."""
+    """当模型的上下文窗口太小而 OpenHands 无法工作时引发。"""
 
     def __init__(
         self,
@@ -132,11 +132,10 @@ class LLMBadRequestError(LLMError):
 
 
 class LLMContentPolicyViolationError(LLMBadRequestError):
-    """Provider blocked the request/response via its content filter.
+    """提供者通过其内容过滤器阻止请求/响应。
 
-    Subclasses LLMBadRequestError for back-compat. Deterministic in
-    (messages, model): a bare retry trips the same filter, so recovery
-    requires changing the request, not re-sending it.
+    子类 LLMBadRequestError 为了兼容旧版本。 确定性在（消息，模型）：裸体重试重复调用
+    同一个过滤器，因此恢复需要更改请求，而不是重新发送。
     """
 
     def __init__(
@@ -145,7 +144,7 @@ class LLMContentPolicyViolationError(LLMBadRequestError):
         super().__init__(message)
 
 
-# Other
+# 其他
 class UserCancelledError(Exception):
     def __init__(self, message: str = "User cancelled the request") -> None:
         super().__init__(message)

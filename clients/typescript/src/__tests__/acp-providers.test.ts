@@ -2,15 +2,15 @@ import { ACP_PROVIDERS, ACP_SETTINGS_KEYS, getAcpProvider } from '../index';
 import type { ACPProviderKey } from '../index';
 
 /**
- * The canvas ACP authentication section (#3728) renders provider-specific
- * credential forms by reading the descriptor fields off {@link ACP_PROVIDERS}
- * rather than hardcoding provider lists. These tests lock in that every
- * built-in provider exposes the credential metadata that UI relies on:
- * `api_key_env_var`, `base_url_env_var`, and `file_secrets`.
+ * 画布 ACP 身份验证部分 (#3728) 呈现特定于提供者的内容
+ * 凭据通过读取 {@link ACP_PROVIDERS} 的描述符字段来形成
+ * 而不是硬编码提供商列表。 这些测试锁中每个
+ * 内置提供程序公开 UI 依赖的凭据元数据：
+ * `api_key_env_var`、`base_url_env_var` 和 `file_secrets`。
  */
 describe('ACP provider credential descriptors', () => {
-  // Derived, so a provider added to the registry is covered here without an
-  // edit — and cannot be added without these invariants applying to it.
+  // 派生的，因此添加到注册表的提供程序在此处无需编辑即可覆盖 - 并且在不应用这些不变量的情况下无法添加。
+  //
   const KEYS = Object.keys(ACP_PROVIDERS) as ACPProviderKey[];
 
   it('exposes an entry for each built-in provider', () => {
@@ -23,8 +23,8 @@ describe('ACP provider credential descriptors', () => {
   it('defines the credential descriptor fields on every provider', () => {
     for (const key of KEYS) {
       const provider = ACP_PROVIDERS[key];
-      // api_key_env_var / base_url_env_var are `string | null` — present (not
-      // undefined) on every provider so callers can branch on the value.
+      // api_key_env_var / base_url_env_var 是 `string | null` - 每个提供者都存在（不是未定义），因此调用者可以根据该值进行分支。
+      //
       expect(provider).toHaveProperty('api_key_env_var');
       expect(provider).toHaveProperty('base_url_env_var');
       expect(Array.isArray(provider.file_secrets)).toBe(true);
@@ -35,11 +35,11 @@ describe('ACP provider credential descriptors', () => {
     ['claude-code', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL'],
     ['codex', 'OPENAI_API_KEY', 'OPENAI_BASE_URL'],
     ['gemini-cli', 'GEMINI_API_KEY', 'GEMINI_BASE_URL'],
-    // pi reads a provider key out of the environment but resolves base URLs
+    // pi 从环境中读取提供商密钥，但解析基础 URLs
     // from its own catalogue, so it has no base-URL override var.
     ['pi', 'ANTHROPIC_API_KEY', null],
-    // opencode's own gateway (OpenCode Zen) resolves its endpoint from the
-    // model catalogue, so it has no base-URL override var either.
+    // opencode 自己的网关 (OpenCode Zen) 从模型目录解析其端点，因此它也没有 base-URL 覆盖变量。
+    //
     ['opencode', 'OPENCODE_API_KEY', null],
   ])('%s declares its api_key/base_url env vars', (key, apiKeyEnvVar, baseUrlEnvVar) => {
     const provider = ACP_PROVIDERS[key];
@@ -57,8 +57,8 @@ describe('ACP provider credential descriptors', () => {
       '--package=@earendil-works/pi-coding-agent@0.83.0',
       'pi-acp',
     ]);
-    // pi-acp maps ACP modes onto pi's thinking levels, so there is no
-    // permission-suppressing mode to set at session start.
+    // pi-ACP 将 ACP 模式映射到 pi 的思维级别，因此在会话开始时无需设置权限抑制模式。
+    //
     expect(pi.default_session_mode).toBeNull();
   });
 

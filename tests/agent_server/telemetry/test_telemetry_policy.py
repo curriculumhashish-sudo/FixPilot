@@ -1,7 +1,7 @@
-"""Consent resolution.
+"""同意决议。
 
-There is no deployment mode axis. Effective consent is resolved from
-``misc_settings.telemetry.consent``, the legacy Canvas key, and the environment.
+没有部署模式轴。 有效同意是从
+``misc_settings.telemetry.consent``、旧版 Canvas 键和环境。
 """
 
 import pytest
@@ -33,7 +33,7 @@ def misc(consent=None, managed=None, legacy=None):
     return out
 
 
-# ── defaults ──────────────────────────────────────────────────────────────
+# ── 默认值──────────────────────────────────────────────────────────────
 
 
 def test_no_settings_means_no_consent():
@@ -44,7 +44,7 @@ def test_no_settings_means_no_consent():
 
 
 def test_telemetry_is_disabled_by_default_in_config():
-    """Library and headless consumers get no exporter at all."""
+    """图书馆和无头消费者根本没有出口商。"""
     assert Config().telemetry.exporter == "none"
 
 
@@ -58,7 +58,7 @@ def test_malformed_consent_value_is_ignored(value):
     assert resolve(misc(consent=value), env={}).consent == "unset"
 
 
-# ── settings ──────────────────────────────────────────────────────────────
+# ── 设置──────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -88,11 +88,11 @@ def test_read_consent_returns_none_when_absent():
     )
 
 
-# ── legacy key ────────────────────────────────────────────────────────────
+# ── 旧钥匙────────────────────────────────────────────────────────────
 
 
 def test_legacy_key_is_read_when_the_new_namespace_is_absent():
-    """An existing Canvas user must not be silently reset to no-consent."""
+    """不得将现有 Canvas 用户静默重置为不同意。"""
     d = resolve(misc(legacy=True), env={})
     assert d.enabled is True
     assert d.reason == "legacy_settings"
@@ -112,7 +112,7 @@ def test_read_legacy_consent_accepts_the_boolean_shape():
     assert read_legacy_consent({}) is None
 
 
-# ── environment ───────────────────────────────────────────────────────────
+# ── 环境────────────────────────────────────────────────────────────
 
 
 def test_env_seed_applies_only_when_settings_are_unset():
@@ -122,17 +122,17 @@ def test_env_seed_applies_only_when_settings_are_unset():
     assert seeded.enabled is True
     assert seeded.reason == "env_seed"
 
-    # An explicit user choice wins over a seed.
+    # 明确的用户选择赢得了种子。
     chosen = resolve(misc(consent=TelemetryConsent.DENIED), env=env)
     assert chosen.enabled is False
     assert chosen.reason == "settings"
 
 
 def test_seed_is_the_default_mode():
-    """An operator default must not silently overrule an explicit choice."""
+    """操作员默认值不得默默地否决显式选择。"""
     env = {CONSENT_ENV: "granted", CONSENT_MODE_ENV: "seed"}
     assert resolve(misc(consent=TelemetryConsent.DENIED), env=env).enabled is False
-    # Same without naming the mode.
+    # 相同，无需命名模式。
     assert (
         resolve(
             misc(consent=TelemetryConsent.DENIED), env={CONSENT_ENV: "granted"}
@@ -159,7 +159,7 @@ def test_unrecognised_mode_falls_back_to_seed():
     assert resolve(misc(consent=TelemetryConsent.DENIED), env=env).enabled is False
 
 
-# ── kill switch ───────────────────────────────────────────────────────────
+# ── 死亡开关────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
@@ -184,5 +184,5 @@ def test_do_not_track_ignores_falsey_values(value):
 
 
 def test_the_redundant_alias_is_gone():
-    """OH_TELEMETRY_DISABLED was dropped in favour of DO_NOT_TRACK alone."""
+    """OH_TELEMETRY_DISABLED 被弃用，只保留了 DO_NOT_TRACK。"""
     assert kill_switch_engaged({"OH_TELEMETRY_DISABLED": "1"}) is False

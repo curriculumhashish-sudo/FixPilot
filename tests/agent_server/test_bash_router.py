@@ -1,4 +1,4 @@
-"""Tests for the synchronous ``execute_bash_command`` route."""
+"""测试同步 ``execute_bash_command`` 路线。"""
 
 import httpx
 import pytest
@@ -60,7 +60,7 @@ async def test_execute_returns_all_chunks_of_large_output(bash_client, monkeypat
 @pytest.mark.asyncio
 async def test_execute_reports_exit_code_past_one_search_page(bash_client, monkeypatch):
     monkeypatch.setattr(bash_service_module, "MAX_CONTENT_CHAR_LENGTH", 10)
-    # 2 * 600 = 1200 characters in 10-character chunks: over 100 stored events.
+    # 2 * 600 = 10 个字符块中的 1200 个字符：超过 100 个存储的事件。
     result = await _execute(bash_client, "yes a | head -n 600; exit 7")
 
     assert await _stored_outputs(bash_client, result["command_id"]) > 100

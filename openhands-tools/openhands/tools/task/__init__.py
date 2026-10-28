@@ -1,11 +1,11 @@
-"""Task tool package for sub-agent delegation.
+"""用于子智能体委派的任务工具包。
 
-This package provides a TaskToolSet tool to delegate tasks to subagent.
+该软件包提供了一个 TaskToolSet 工具来将任务委托给子智能体。
 
-Tools:
-    - task: Launch and run a (blocking) sub-agent task.
+工具：
+    - task: 启动并运行（阻塞）子智能体任务。
 
-Usage:
+用途：
     from openhands.tools.task import TaskToolSet
 
     agent = Agent(

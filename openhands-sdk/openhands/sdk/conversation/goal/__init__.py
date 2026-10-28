@@ -1,14 +1,14 @@
-"""The ``/goal`` command: judge-driven, self-continuing goal completion.
+"""``/goal``命令：判断驱动，自我持续完成目标。
 
-A conversation-level command (not a critic) that drives the agent toward an
-objective: it sends the objective, runs the agent, judges completion with a
-second LLM, and re-prompts until the goal is done or a cap is reached.
+对话级命令（不是批评家），将智能体推向
+objective: 它发送目标，运行智能体，用 a 判断完成情况
+第二次 LLM，然后重新提示词，直到完成目标或达到上限。
 
-The decision logic lives in :class:`GoalController` (transport-agnostic, no
-I/O); :func:`run_goal` is a thin synchronous driver over it. An async
-agent-server task can reuse the same controller with its own I/O loop.
+决策逻辑位于：class:`GoalController` （传输层不可知，无 I/O）； :func:`run_goal` 是一
+个薄同步驱动程序。 异步智能体-服务器任务
+可以通过其自己的 I/O 循环重用同一控制器。
 
-Usage::
+用法：:
 
     from openhands.sdk.conversation.goal import run_goal
 

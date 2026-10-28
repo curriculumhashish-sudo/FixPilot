@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-# Cache of positive results for should_enable_observability. Once observability
-# is enabled (via env vars or a user-side Laminar.initialize() call), it stays
-# enabled for the lifetime of the process.
+# 缓存 should_enable_observability 的阳性结果。 一旦启用可观察性（通过环境变量或用户端
+# Laminar.initialize() 调用），它就会在进程的生命周期内保持启用状态。
+#
 _observability_enabled: bool = False
 
 
@@ -34,7 +34,7 @@ _OBSERVABILITY_ENV_KEYS: Final[tuple[str, ...]] = (
 
 
 OPERATION_METADATA_KEY: Final[str] = "openhands.operation"
-"""Metadata key naming the side-utility operation a span subtree belongs to."""
+"""命名跨度子树所属的辅助实用操作的元数据键。"""
 
 _OBSERVABILITY_METADATA_ENV: Final[str] = "OPENHANDS_OBSERVABILITY_METADATA"
 _OBSERVABILITY_TAGS_ENV: Final[str] = "OPENHANDS_OBSERVABILITY_TAGS"
@@ -71,7 +71,7 @@ def _clean_trace_metadata(value: Any) -> dict[str, TraceMetadataValue]:
 
 
 def observability_metadata_from_env() -> dict[str, TraceMetadataValue]:
-    """Return generic observability metadata supplied by the process env."""
+    """返回流程环境提供的通用可观察性元数据。"""
     raw_metadata = get_env(_OBSERVABILITY_METADATA_ENV)
     if not raw_metadata:
         return {}
@@ -85,7 +85,7 @@ def observability_metadata_from_env() -> dict[str, TraceMetadataValue]:
 def merge_observability_metadata(
     metadata: Mapping[str, TraceMetadataValue] | None,
 ) -> dict[str, TraceMetadataValue]:
-    """Merge generic env defaults with caller-supplied metadata."""
+    """将通用环境默认值与调用者提供的元数据合并。"""
     merged = observability_metadata_from_env()
     if metadata:
         merged.update(metadata)
@@ -93,19 +93,19 @@ def merge_observability_metadata(
 
 
 def observability_parent_span_context_from_env() -> str | None:
-    """Return serialized parent span context propagated by the host process."""
+    """返回由主机进程传播的已序列化父范围上下文。"""
     return get_env(_OBSERVABILITY_PARENT_CONTEXT_ENV) or get_env(
         _LAMINAR_PARENT_CONTEXT_ENV
     )
 
 
 def default_observability_span_name_from_env() -> str | None:
-    """Return the default conversation child span name from generic env."""
+    """从通用环境返回默认对话子范围名称。"""
     return get_env(_OBSERVABILITY_SPAN_NAME_ENV)
 
 
 def observability_tags_from_env() -> list[str]:
-    """Return comma-separated observability tags supplied by generic env."""
+    """返回由通用环境提供的逗号分隔的可观察性标签。"""
     raw_tags = get_env(_OBSERVABILITY_TAGS_ENV)
     if not raw_tags:
         return []
@@ -113,7 +113,7 @@ def observability_tags_from_env() -> list[str]:
 
 
 def observability_headers_from_env() -> dict[str, str]:
-    """Build generic observability headers for agent-server API calls."""
+    """为智能体-服务器 API 调用构建通用可观察性标头。"""
     headers: dict[str, str] = {}
     metadata = observability_metadata_from_env()
     if metadata:
@@ -141,7 +141,7 @@ def observability_headers_from_env() -> dict[str, str]:
 
 
 def _get_int_env(key: str) -> int | None:
-    """Read an environment variable as an optional int."""
+    """将环境变量读取为可选 int。"""
     val = get_env(key)
     if val is not None and val != "":
         try:
@@ -153,33 +153,33 @@ def _get_int_env(key: str) -> int | None:
 
 
 def maybe_init_laminar():
-    """Initialize Laminar if the environment variables are set.
+    """如果设置了环境变量，则初始化层流。
 
-    Example configuration:
+    配置示例：
 
     ```bash
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4317/v1/traces
 
-    # comma separated, key=value url-encoded pairs
+    # 逗号分隔，key=value url 编码对
     OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20<KEY>,X-Key=<CUSTOM_VALUE>"
 
-    # grpc is assumed if not specified
-    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf # or grpc/protobuf
-    # or
-    OTEL_EXPORTER=otlp_http # or otlp_grpc
+    # 如果未指定，则假定为 grpc
+    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf # 或 grpc/protobuf
+    # 或
+    OTEL_EXPORTER=otlp_http # 或 otlp_grpc
     ```
 
-    For self-hosted Laminar, set the base URL and ports via environment variables:
-    LMNR_BASE_URL=https://api.lmnr.ai  # optional, defaults to https://api.lmnr.ai
+    对于自托管 Laminar，通过环境变量设置基础 URL 和端口：
+    LMNR_BASE_URL=https://api.lmnr.ai  # 可选，默认值为  https://api.lmnr.ai
     LMNR_HTTP_PORT=8000
     LMNR_GRPC_PORT=8001
 
-    To force HTTP instead of gRPC for Laminar communication:
-    LMNR_FORCE_HTTP=true  # or 1, yes, on
+    强制 HTTP 而不是 gRPC 进行层流通信：
+    LMNR_FORCE_HTTP=true  # 或者 1，是的，是的
 
-    To initialize only selected Laminar integrations:
+    仅初始化选定的层流集成：
     LMNR_INSTRUMENTS=litellm,mcp
-    """
+    """  # noqa: E501
     if not should_enable_observability():
         logger.debug(
             "Observability/OTEL environment variables are not set. "
@@ -220,7 +220,7 @@ def maybe_init_laminar():
             force_http=force_http,
         )
     else:
-        # Do not enable browser session replays for non-laminar backends
+        # 不要为非分层后端启用浏览器会话重放
         Laminar.initialize(
             instruments=instruments,
             disabled_instruments=[
@@ -248,11 +248,10 @@ def observe[**P, R](
     preserve_global_context: bool = False,
     **kwargs: dict[str, Any],
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Lazy-resolving observe decorator.
+    """延迟解析观察装饰器。
 
-    When observability is not enabled, decorated functions run as pass-throughs
-    with no `lmnr` import. The first call after observability becomes enabled
-    imports `lmnr` and caches the wrapped function.
+    当未启用可观察性时，修饰函数将作为传递运行，无需 `lmnr` 导入。 可观察性启用后的第
+    一次调用导入 `lmnr` 并缓存包装的函数。
     """
 
     def _build_wrapped(func: Any) -> Any:
@@ -277,10 +276,10 @@ def observe[**P, R](
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         wrapped: Any = None
 
-        # Branch on async-ness at decoration time so that
-        # inspect.iscoroutinefunction(decorated) matches the original. A sync
-        # wrapper around an async function would hide its asyncness from
-        # callers like run_async that introspect the function.
+        # 在装饰时在异步-ness 上进行分支，以便 inspect.iscoroutinefunction(decorated) 与
+        # 原始内容匹配。 围绕异步函数的同步包装器将对像 run_async 这样内省该函数的调用者
+        # 隐藏其异步性。
+        #
         if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
@@ -314,7 +313,7 @@ def observe[**P, R](
     return decorator
 
 
-# Keep owner first so observe can restore its conversation root span.
+# 首先保留所有者，以便观察可以恢复其会话根跨度。
 def _return_tool_result(owner: object, tool_input: Any, tool_output: Any) -> Any:
     _ = owner, tool_input
     return tool_output
@@ -345,9 +344,9 @@ def should_enable_observability() -> bool:
     if any(get_env(key) for key in _OBSERVABILITY_ENV_KEYS):
         _observability_enabled = True
         return True
-    # Only probe Laminar.is_initialized() if the user has already imported
-    # lmnr themselves — otherwise importing it here defeats the purpose of
-    # lazy loading.
+    # 如果用户已经自己导入了 lmnr，则仅探测 Laminar.is_initialized() - 否则在这里导入它
+    # 会破坏延迟加载的目的。
+    #
     if "lmnr" in sys.modules:
         from lmnr import Laminar
 
@@ -358,10 +357,9 @@ def should_enable_observability() -> bool:
 
 
 def _is_otel_backend_laminar():
-    """Simple heuristic to check if the OTEL backend is Laminar.
-    Caveat: This will still be True if another backend uses the same
-    authentication scheme, and the user uses LMNR_PROJECT_API_KEY
-    instead of OTEL_HEADERS to authenticate.
+    """简单的启发式检查 OTEL 后端是否为层流。
+    Caveat: 如果另一个后端使用相同的值，这仍然是 True
+    身份验证方案，用户使用LMNR_PROJECT_API_KEY而不是OTEL_HEADERS进行身份验证。
     """
     key = get_env("LMNR_PROJECT_API_KEY")
     return key is not None and key != ""
@@ -371,25 +369,23 @@ _ROOT_SPAN_ATTR: Final[str] = "_observability_root_span"
 
 
 class RootSpan:
-    """A long-lived Laminar span owned by a single object (e.g. a Conversation).
+    """由单个对象 (e.g. 对话）。
 
-    The span is created via ``Laminar.start_span`` (which does NOT attach the
-    span to the current OpenTelemetry context). To make the span the parent of
-    nested ``@observe``-decorated calls, the ``observe`` wrapper in this module
-    re-attaches the span via ``Laminar.use_span`` at every entry point. This
-    allows the root span to span across asyncio tasks, threads, and processes
-    where naive ``contextvars`` propagation breaks down.
+    跨度是通过 ``Laminar.start_span`` 创建的（不将跨度附加到当前的 OpenTelemetry 上下
+    文）。 为了使 Span 成为嵌套
+    ``@observe`` 修饰调用的父级，此模块中的 ``observe`` 包装器在每个入口处通过
+    ``Laminar.use_span`` 重新附加 Span。
+     这允许根跨度跨越 asyncio 任务、线程和原生 ``contextvars`` 传播失败的进程。
 
-    The ``Laminar.start_active_span`` API was previously used for this purpose
-    but its docstring explicitly warns:
+    ``Laminar.start_active_span`` API 以前用于此目的，但其文档字符串明确警告：
 
-        "ending the started span in a different async context yields
-         unexpected results. … Use Laminar.start_span + Laminar.use_span
-         where possible."
+        “以不同的异步上下文结束开始的跨度会产生
+         意想不到的结果。 …尽可能使用 Laminar.start_span + Laminar.use_span。”
 
-    Empirically, ``start_active_span`` produced trace-context loss for ~60% of
-    conversations (orphan ``conversation.send_message`` / ``conversation.run``
-    traces with no ``session_id``), so we switched to the recommended pattern.
+    empirically，``start_active_span`` 产生了上下文的[60%] 的对话（或无``session_id``
+     的
+    ``conversation.send_message`` / ``conversation.run`` 跟踪），因此我们切换到推荐的
+    模式。
     """
 
     def __init__(
@@ -409,8 +405,9 @@ class RootSpan:
             with contextlib.suppress(Exception):
                 parent = Laminar.deserialize_span_context(parent_span_context)
 
-        # ``start_span`` returns a span without attaching it as the current
-        # OTel context; we'll restore it on every entry point via ``use_span``.
+        # ``start_span`` 返回一个跨度，但不将其附加为当前 OTel 上下文； 我们将通过
+        # ``use_span`` 在每个入口上恢复它。
+        #
         if parent is not None:
             self.span = Laminar.start_span(name, parent_span_context=parent)
         else:
@@ -420,12 +417,13 @@ class RootSpan:
                 for key, value in attributes.items():
                     self.span.set_attribute(key, value)
         if session_id or user_id or metadata or tags:
-            # These trace/span helpers require an active span; briefly enter
-            # the span context to apply conversation-level observability data.
+            # 这些跟踪/跨度助手需要一个活动跨度； 简单输入范围上下文以应用会话级可观测性
+            # 数据。
+            #
             with contextlib.suppress(Exception):
                 with Laminar.use_span(
                     self.span,
-                    # Don't mark the span ERROR if a helper raises.
+                    # 如果辅助者加注，请勿将跨度标记为 ERROR。
                     record_exception=False,
                     set_status_on_exception=False,
                 ):
@@ -434,8 +432,9 @@ class RootSpan:
                     if user_id:
                         Laminar.set_trace_user_id(user_id)
                     if metadata:
-                        # dict is invariant: dict[str, TraceMetadataValue] is
-                        # not assignable to dict[str, Any] without a cast.
+                        # dict 是不变量： dict[str, TraceMetadataValue] 不能在没有强制转
+                        # 换的情况下分配给 dict[str, Any] 。
+                        #
                         Laminar.set_trace_metadata(cast(dict[str, Any], metadata))
                     if tags:
                         Laminar.set_span_tags(tags)
@@ -461,9 +460,9 @@ def start_root_span(
     tags: list[str] | None = None,
     parent_span_context: str | None = None,
 ) -> RootSpan | None:
-    """Create a long-lived root span for an owning object.
+    """为所属对象创建长期存在的根跨度。
 
-    Returns ``None`` if observability is not enabled.
+    如果未启用可观察性，则返回 ``None``。
     """
     if not should_enable_observability():
         return None
@@ -483,7 +482,7 @@ def start_root_span(
 
 
 def end_root_span(root: RootSpan | None) -> None:
-    """End a previously-started root span. Safe to call with ``None``."""
+    """结束先前启动的根跨度。 使用 ``None`` 可以安全通话。"""
     if root is None:
         return
     root.end()
@@ -494,7 +493,7 @@ def start_child_span(
     name: str,
     tags: list[str] | None = None,
 ) -> None:
-    """Create and immediately end a child span under a conversation root span."""
+    """在对话根跨度下创建并立即结束子跨度。"""
     if root is None or root.span is None:
         return
     try:
@@ -514,16 +513,16 @@ def start_child_span(
 
 @contextlib.contextmanager
 def llm_call_span(name: str) -> Iterator[Any]:
-    """Open a span that stays current for the duration of one LLM call.
+    """打开一个在一次 LLM 调用期间保持当前状态的跨度。
 
-    lmnr's LiteLLM instrumentation builds its span with ``Laminar.start_span``
-    (detached from the OTel context) and ends it in a ``finally`` before
-    ``litellm.completion`` returns, so attributes cannot be attached to it
-    afterwards -- OTel silently drops writes to an ended span. This span is
-    *current* while the call runs, so lmnr's span nests underneath it, and it
-    stays open long enough for Telemetry to attach the authoritative cost.
+    lmnr 的 LiteLLM 检测用 ``Laminar.start_span``（与 OTel 上下文分离）构建其跨度，并
+    在之前以 ``finally`` 结束
+    ``litellm.completion`` 返回，因此之后无法将属性附加到它 - OTel 会默默地删除对结束
+    跨度的写入。 这个跨度是
+    *current* 当调用运行时，所以 lmnr 的跨度嵌套在它下面，并且它
+    保持开放足够长的时间，以便 Telemetry 附加权威成本。
 
-    Yields ``None`` when observability is disabled, so callers stay branch-free.
+    当可观察性被禁用时，产量 ``None``，因此调用者保持无分支。
     """
     if not should_enable_observability():
         yield None
@@ -540,36 +539,34 @@ def llm_call_span(name: str) -> Iterator[Any]:
         yield span
 
 
-# Trace-metadata key set by software-agent-sdk#4010 on the parent's `task`
-# TOOL span; copied onto a detached delegate trace when present so the
-# originating tool call is visible from the delegate's trace alone.
+# 由软件-智能体-SDK#4010 在父级 `task` TOOL 跨度上设置的跟踪元数据键； 当存在时复制到分
+# 离的委托跟踪上，因此原始工具调用仅从委托的跟踪中可见。
+#
 _TOOL_CALL_ID_META_KEY: Final[str] = "tool_call_id"
 
 
 @contextlib.contextmanager
 def detached_delegate_context() -> Iterator[dict[str, TraceMetadataValue]]:
-    """Clear the ambient span so a conversation constructed inside this block
-    starts a genuinely new Laminar trace, instead of ``RootSpan`` silently
-    joining whatever span is currently active.
+    """清除环境范围，以便在该块内构建对话
+    启动一个真正新的层流跟踪，而不是 ``RootSpan`` 默默地加入当前活动的任何跨度。
 
-    ``Laminar.start_span`` without an explicit ``context=`` parents onto the
-    ambient span — its "isolated context" helper just returns whatever is
-    current. Laminar tracks that "current" span via its OWN isolated
-    ``ContextVar`` (``lmnr...tracing.context._ISOLATED_RUNTIME_CONTEXT``),
-    separate from the standard ``opentelemetry.context`` one, so attaching an
-    empty/no-parent context through the standard API (as ``RootSpan`` does
-    for cross-thread re-attachment) has no effect here — ``Laminar.use_span``
-    is the one call that updates both. Pushing ``INVALID_SPAN`` through it is
-    what actually severs the link, so a sub-agent conversation constructed
-    synchronously inside its parent's ``task`` TOOL span (see TaskManager)
-    starts its own trace instead of inheriting the parent's
-    (software-agent-sdk#4365).
+    ``Laminar.start_span`` 没有明确的 ``context=`` 父级到环境跨度 - 它的“隔离上下文”
+    帮助器只返回当前的任何内容。 层流通过其
+    OWN 隔离跟踪“电流”跨度
+    ``ContextVar`` (``lmnr...tracing.context._ISOLATED_RUNTIME_CONTEXT``, 与标准分开
+    ``opentelemetry.context`` 1. 所以，添加一个空的/没有父节点上下文通过标准 API (as
+    ``RootSpan`` does for
+    cross-线程重连操作在这里没有效果 ``Laminar.use_span`` 这是唯一一个更新两个的调用
+    。 Pushing ``INVALID_SPAN`` 通
+    过它实际上切断了链接，所以是它子智能体在它的父级中同步构建的对话 ``task``  TOOL
+    span (see TaskManager它会自己启动跟踪，而不是继
+    承父级的（软件）智能体-SDK#4365).
 
-    Yields trace-metadata linking the delegate back to the severed parent
-    span (``delegate.parent_trace_id``/``delegate.parent_span_id``, plus a
-    best-effort ``tool_call_id`` copied from the parent's TOOL span) for the
-    caller to merge into the delegate's ``observability_metadata``. Yields an
-    empty dict if there is no active span, or if observability is disabled.
+    生成回溯到断开父级 span 的 delegate 的跟踪元数据``delegate.parent_trace_id``
+    /``delegate.parent_span_id``加上尽力而为 ``tool_call_id`` 从父元素中复制的 TOOL
+    为调用者合并到委托的
+    ``observability_metadata``. 如果没有活动范围，或者可观察性被禁用，则生成一个空字
+    典。
     """
     if not should_enable_observability():
         yield {}
@@ -592,9 +589,9 @@ def detached_delegate_context() -> Iterator[dict[str, TraceMetadataValue]]:
         if tool_call_id:
             link[_TOOL_CALL_ID_META_KEY] = tool_call_id
 
-    # Only guard *entering* Laminar.use_span (a caller exception raised
-    # inside the ``with`` block below must propagate normally, not be
-    # swallowed here).
+    # 仅保护 *entering* Laminar.use_span（下面的 ``with`` 块内引发的调用者异常必须正常传
+    # 播，而不是在这里被吞噬）。
+    #
     with contextlib.ExitStack() as stack:
         try:
             stack.enter_context(
@@ -611,10 +608,10 @@ def detached_delegate_context() -> Iterator[dict[str, TraceMetadataValue]]:
 
 @contextlib.contextmanager
 def _maybe_use_root_span(args: tuple[Any, ...]) -> Iterator[None]:
-    """If the first positional arg owns a ``RootSpan``, re-attach it.
+    """如果第一个位置参数拥有 ``RootSpan``，则重新附加它。
 
-    This is what ties ``@observe``-decorated methods (called from arbitrary
-    asyncio tasks or threads) back to the conversation's long-lived root span.
+    这就是将 ``@observe`` 修饰的方法（从任意异步任务或线程调用）与会话的长期根跨度联
+    系起来的原因。
     """
     root = _root_span_from_args(args)
     if root is None or root.span is None:
@@ -629,7 +626,7 @@ def _maybe_use_root_span(args: tuple[Any, ...]) -> Iterator[None]:
         span_context = Laminar.use_span(root.span)
         span_context.__enter__()
     except Exception:
-        # Never let an observability error break the wrapped function.
+        # 永远不要让可观察性错误破坏包装的函数。
         logger.debug("use_span failed; calling without parent", exc_info=True)
         yield
         return
@@ -655,22 +652,21 @@ def _root_span_from_args(args: tuple[Any, ...]) -> RootSpan | None:
 
 
 def init_laminar_for_external():
-    """Initialize Laminar for external callers and return parent span context.
+    """为外部调用者初始化 Laminar 并返回父跨度上下文。
 
-    This is a convenience function for integrations (e.g., GitHub, Slack webhooks)
-    that need to:
-    1. Initialize Laminar if env vars are set (via maybe_init_laminar)
-    2. Capture the parent span context from the external trigger
+    这是一个方便的集成函数（e.g.、GitHub、Slack Webhook），需要：
+    1. 如果设置了环境变量，则初始化 Laminar（通过 maybe_init_laminar）
+    2. 从外部触发器捕获父范围上下文
 
     Returns:
-        The parent span context if observability is enabled, None otherwise.
+        如果启用了可观察性，则父范围为上下文，否则为 None。
 
     Example:
         ```python
         from openhands.sdk.observability import init_laminar_for_external
         from lmnr import Laminar
 
-        # At the start of handling an external event (webhook, etc.)
+        # 开始处理外部事件时（Webhook等）
         laminar_span_context = init_laminar_for_external()
 
         if laminar_span_context:
@@ -678,7 +674,7 @@ def init_laminar_for_external():
                 name='my-integration',
                 parent_span_context=laminar_span_context,
             ):
-                # Do work - traces will be children of the external trigger
+                # 工作 - 痕迹将是外部触发器的子项
                 await do_something()
         else:
             await do_something()

@@ -18,7 +18,7 @@ def _task_tool_call(
     description: str | None = None,
     resume: str | None = None,
 ) -> Message:
-    """Build a Message whose only tool call is the task tool."""
+    """构建一条消息，其唯一的工具调用是任务工具。"""
     args: dict = {
         "prompt": prompt,
         "subagent_type": subagent_type,
@@ -43,12 +43,12 @@ def _task_tool_call(
 
 
 def _text_message(text: str) -> Message:
-    """A plain assistant text message (no tool calls)."""
+    """普通的助理短信（无工具调用）。"""
     return Message(role="assistant", content=[TextContent(text=text)])
 
 
 def _register_simple_agent(name: str, sub_llm: TestLLM) -> None:
-    """Register a sub-agent backed by *sub_llm* (ignores the parent-copied LLM)."""
+    """注册由 *sub_llm* 支持的子智能体（忽略父复制的 LLM）。"""
 
     def factory(llm):
         return Agent(llm=sub_llm, tools=[])
@@ -57,7 +57,7 @@ def _register_simple_agent(name: str, sub_llm: TestLLM) -> None:
 
 
 def _get_task_observations(conversation: LocalConversation) -> list[TaskObservation]:
-    """Extract all TaskObservation objects from conversation events."""
+    """从对话事件中提取所有 TaskObservation 对象。"""
     results = []
     for event in conversation.state.events:
         if isinstance(event, ObservationEvent) and isinstance(
@@ -68,7 +68,7 @@ def _get_task_observations(conversation: LocalConversation) -> list[TaskObservat
 
 
 class TestTaskToolSetIntegration:
-    """Tests for the TaskToolSet."""
+    """测试TaskToolSet。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -77,7 +77,7 @@ class TestTaskToolSetIntegration:
         _reset_registry_for_tests()
 
     def test_basic_task_delegation_and_result(self, tmp_path):
-        """Parent delegates to sub-agent; sub-agent text is returned as task result."""
+        """家长代表子智能体； 子智能体文本作为任务结果返回。"""
         parent_llm = TestLLM.from_messages(
             [
                 _task_tool_call("call_1", prompt="What is the capital of France?"),
@@ -99,16 +99,16 @@ class TestTaskToolSetIntegration:
         conversation.send_message("What is the capital of France?")
         conversation.run()
 
-        # Conversation finished
+        # 对话结束
         assert (
             conversation.state.execution_status == ConversationExecutionStatus.FINISHED
         )
 
-        # Both LLMs fully consumed
+        # LLMs都完全消耗了
         assert parent_llm.remaining_responses == 0
         assert sub_llm.remaining_responses == 0
 
-        # Task observation present and successful
+        # 任务观测结果存在且成功
         observations = _get_task_observations(conversation)
         assert len(observations) == 1
         obs = observations[0]
@@ -117,10 +117,10 @@ class TestTaskToolSetIntegration:
         assert obs.subagent == "test_agent"
         assert "Paris" in obs.text
 
-    # ── Multiple sequential tasks ───────────────────────────────────
+    # ── 多个连续任务────────────────────────────────────
 
     def test_two_sequential_tasks(self, tmp_path):
-        """Parent can launch two tasks one after another in a single turn."""
+        """家长可以在一轮中相继启动两项任务。"""
         sub_llm_1 = TestLLM.from_messages([_text_message("first result")])
         sub_llm_2 = TestLLM.from_messages([_text_message("second result")])
         _register_simple_agent("agent_a", sub_llm_1)
@@ -153,8 +153,8 @@ class TestTaskToolSetIntegration:
         assert observations[1].subagent == "agent_b"
 
     def test_task_resume_across_turns(self, tmp_path):
-        """A task can be launched, then resumed by passing the task_id."""
-        # Sub-agent for the first call
+        """可以启动任务，然后通过传递 task_id 来恢复任务。"""
+        # 子智能体第一次通话
         sub_llm_1 = TestLLM.from_messages(
             [
                 _text_message("Here is a quiz: What color is the sky?"),
@@ -163,7 +163,7 @@ class TestTaskToolSetIntegration:
         )
         _register_simple_agent("quiz_agent", sub_llm_1)
 
-        # First turn: parent delegates to quiz_agent
+        # 第一轮：家长代表quiz_agent
         parent_llm = TestLLM.from_messages(
             [
                 _task_tool_call(
@@ -201,16 +201,16 @@ class TestTaskToolSetIntegration:
         conversation.run()
 
         all_observations = _get_task_observations(conversation)
-        # Should now have 2 total observations
+        # 现在总共应该有 2 个观测结果
         assert len(all_observations) == 2
         resumed_obs = all_observations[1]
         assert resumed_obs.task_id == task_id
         assert "Correct" in resumed_obs.text
 
-    # ── Error handling ──────────────────────────────────────────────
+    # ── 错误处理──────────────────────────────────────────────
 
     def test_unknown_agent_type_returns_error_observation(self, tmp_path):
-        """Using an unregistered subagent_type yields an error TaskObservation."""
+        """使用未注册的 subagent_type 会产生错误 TaskObservation。"""
         parent_llm = TestLLM.from_messages(
             [
                 _task_tool_call(
@@ -240,7 +240,7 @@ class TestTaskToolSetIntegration:
         assert "nonexistent_agent" in obs.text or "Unknown agent" in obs.text
 
     def test_sub_agent_exception_returns_error_observation(self, tmp_path):
-        """When the sub-agent's LLM raises, the task reports an error."""
+        """当子智能体的 LLM 升高时，任务报告错误。"""
         sub_llm = TestLLM.from_messages(
             [
                 RuntimeError("LLM went boom"),
@@ -275,7 +275,7 @@ class TestTaskToolSetIntegration:
         assert obs.status == TaskStatus.ERROR
 
     def test_task_ids_are_unique_and_sequential(self, tmp_path):
-        """Each task gets a unique, incrementing ID."""
+        """每个任务都有一个唯一的、递增的 ID。"""
         sub_llm_1 = TestLLM.from_messages([_text_message("r1")])
         sub_llm_2 = TestLLM.from_messages([_text_message("r2")])
         _register_simple_agent("agent_x", sub_llm_1)
@@ -302,11 +302,11 @@ class TestTaskToolSetIntegration:
         id1 = observations[0].task_id
         id2 = observations[1].task_id
         assert id1 != id2
-        # Sequential: task_00000001 < task_00000002
+        # 顺序：task_00000001 < task_00000002
         assert id1 < id2
 
     def test_resume_nonexistent_task_returns_error(self, tmp_path):
-        """Resuming a task ID that doesn't exist yields an error observation."""
+        """恢复不存在的任务 ID 会产生错误观测结果。"""
         sub_llm = TestLLM.from_messages([_text_message("never reached")])
         _register_simple_agent("test_agent", sub_llm)
 
@@ -339,8 +339,8 @@ class TestTaskToolSetIntegration:
 
 
 class TestTaskToolExamples:
-    """Tests that TASK_TOOL_EXAMPLES are included in the tool description
-    only when the corresponding agents are registered."""
+    """测试工具描述中包含 TASK_TOOL_EXAMPLES
+    仅当相应的智能体已注册时。"""
 
     def setup_method(self):
         _reset_registry_for_tests()
@@ -349,13 +349,13 @@ class TestTaskToolExamples:
         _reset_registry_for_tests()
 
     def test_matching_agent_example_included(self, tmp_path):
-        """When a registered agent name matches a TASK_TOOL_EXAMPLES key,
-        its example appears in the tool description."""
-        # Pick one key from the examples dict
+        """当注册的智能体名称与 TASK_TOOL_EXAMPLES 键匹配时，
+        其示例出现在工具说明中。"""
+        # 从示例字典中选择一个键
         example_name = next(iter(TASK_TOOL_EXAMPLES))
         example_text = TASK_TOOL_EXAMPLES[example_name]
 
-        # Register an agent whose name matches the example key
+        # 注册一个名称与示例密钥匹配的智能体
         register_agent(
             name=example_name,
             factory_func=lambda llm: Agent(llm=llm, tools=[]),
@@ -370,9 +370,9 @@ class TestTaskToolExamples:
         assert example_text.strip() in description
 
     def test_no_matching_agent_example_excluded(self, tmp_path):
-        """When no registered agent name matches any TASK_TOOL_EXAMPLES key,
-        no example text appears in the tool description."""
-        # Register an agent whose name does NOT match any example key
+        """当没有注册的智能体名称与任何TASK_TOOL_EXAMPLES键匹配时，
+        工具描述中没有出现示例文本。"""
+        # 注册一个名称不与任何示例键匹配的智能体
         register_agent(
             name="unrelated_agent",
             factory_func=lambda llm: Agent(llm=llm, tools=[]),
@@ -388,10 +388,10 @@ class TestTaskToolExamples:
             assert example_text.strip() not in description
 
     def test_only_registered_examples_included(self, tmp_path):
-        """Only examples for registered agents appear; others are excluded."""
+        """仅出现已注册的智能体的示例； 其他人则被排除在外。"""
         keys = list(TASK_TOOL_EXAMPLES.keys())
         if len(keys) < 2:
-            return  # Need at least 2 examples for this test
+            return  # 此测试至少需要 2 个示例
 
         included_name = keys[0]
         excluded_name = keys[1]

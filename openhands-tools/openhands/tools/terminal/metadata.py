@@ -1,4 +1,4 @@
-"""Metadata for bash command execution."""
+"""bash 命令执行的元数据。"""
 
 import json
 import re
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 
 class CmdOutputMetadata(BaseModel):
-    """Additional metadata captured from PS1"""
+    """从 PS1 捕获的其他元数据"""
 
     exit_code: int = Field(
         default=-1, description="The exit code of the last executed command."
@@ -43,7 +43,7 @@ class CmdOutputMetadata(BaseModel):
 
     @classmethod
     def to_ps1_prompt(cls) -> str:
-        """Convert the required metadata into a PS1 prompt."""
+        """将所需的元数据转换为 PS1 提示词。"""
         prompt = CMD_OUTPUT_PS1_BEGIN
         json_str = json.dumps(
             {
@@ -56,15 +56,15 @@ class CmdOutputMetadata(BaseModel):
             },
             indent=2,
         )
-        # Make sure we escape double quotes in the JSON string
-        # So that PS1 will keep them as part of the output
+        # 确保我们在 JSON 字符串中转义双引号，以便 PS1 将它们保留为输出的一部分
+        #
         prompt += json_str.replace('"', r"\"")
-        prompt += CMD_OUTPUT_PS1_END + "\n"  # Ensure there's a newline at the end
+        prompt += CMD_OUTPUT_PS1_END + "\n"  # 确保末尾有换行符
         return prompt
 
     @classmethod
     def matches_ps1_metadata(cls, string: str) -> list[re.Match[str]]:
-        """Find all valid PS1 metadata blocks in the string."""
+        """查找字符串中所有有效的 PS1 元数据块。"""
         matches: list[re.Match[str]] = []
         for match in CMD_OUTPUT_METADATA_PS1_REGEX.finditer(string):
             content = match.group(1).strip()
@@ -80,11 +80,11 @@ class CmdOutputMetadata(BaseModel):
 
     @classmethod
     def from_ps1_match(cls, match: re.Match[str]) -> "CmdOutputMetadata":
-        """Extract the required metadata from a PS1 prompt."""
+        """从 PS1 提示词中提取所需的元数据。"""
         metadata = json.loads(match.group(1))
-        # Create a copy of metadata to avoid modifying the original
+        # 创建元数据的副本以避免修改原始数据
         processed = metadata.copy()
-        # Convert numeric fields
+        # 转换数字字段
         if "pid" in metadata:
             try:
                 processed["pid"] = int(float(str(metadata["pid"])))

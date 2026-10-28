@@ -1,4 +1,4 @@
-"""Unit tests for AsyncRemoteWorkspace class."""
+"""单元测试对应 AsyncRemoteWorkspace 类。"""
 
 import asyncio
 from pathlib import Path
@@ -12,7 +12,7 @@ from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWor
 
 
 def test_async_remote_workspace_initialization():
-    """Test AsyncRemoteWorkspace can be initialized with required parameters."""
+    """测试 AsyncRemoteWorkspace 可以使用所需参数进行初始化。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", api_key="test-key", working_dir="workspace"
     )
@@ -22,7 +22,7 @@ def test_async_remote_workspace_initialization():
 
 
 def test_async_remote_workspace_initialization_without_api_key():
-    """Test AsyncRemoteWorkspace can be initialized without API key."""
+    """无需API键即可初始化测试AsyncRemoteWorkspace。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -32,7 +32,7 @@ def test_async_remote_workspace_initialization_without_api_key():
 
 
 def test_async_remote_workspace_host_normalization():
-    """Test that host URL is normalized by removing trailing slash."""
+    """通过删除尾部斜杠来测试主机 URL 是否已标准化。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000/", working_dir="workspace"
     )
@@ -41,25 +41,25 @@ def test_async_remote_workspace_host_normalization():
 
 
 def test_async_client_property_lazy_initialization():
-    """Test that client property creates httpx.AsyncClient lazily."""
+    """测试客户端属性是否延迟创建 httpx.AsyncClient。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
-    # Client should be None initially
+    # 客户端最初应为 None
     assert workspace._client is None
 
-    # Accessing client should create it
+    # 访问客户端应该创建它
     client = workspace.client
     assert isinstance(client, httpx.AsyncClient)
     assert workspace._client is client
 
-    # Subsequent access should return same client
+    # 后续访问应返回相同的客户端
     assert workspace.client is client
 
 
 def test_async_headers_property_with_api_key():
-    """Test _headers property includes API key when present."""
+    """测试 _headers 属性包含 API 键（如果存在）。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", api_key="test-key", working_dir="workspace"
     )
@@ -69,7 +69,7 @@ def test_async_headers_property_with_api_key():
 
 
 def test_async_headers_property_without_api_key():
-    """Test _headers property is empty when no API key."""
+    """当没有API键时测试_headers属性为空。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -80,18 +80,18 @@ def test_async_headers_property_without_api_key():
 
 @pytest.mark.asyncio
 async def test_async_execute_method():
-    """Test _execute method handles async generator protocol correctly."""
+    """测试 _execute 方法正确处理异步生成器协议。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
-    # Mock async client
+    # 模拟对象异步客户端
     mock_client = AsyncMock()
     mock_response = Mock()
     mock_client.request.return_value = mock_response
     workspace._client = mock_client
 
-    # Create a simple generator that yields request kwargs and returns a result
+    # 创建一个简单的生成器，生成请求 kwargs 并返回结果
     def test_generator():
         yield {"method": "GET", "url": "http://test.com"}
         return "test_result"
@@ -107,7 +107,7 @@ async def test_async_execute_method():
     "openhands.sdk.workspace.remote.async_remote_workspace.AsyncRemoteWorkspace._execute"
 )
 async def test_async_execute_command(mock_execute):
-    """Test execute_command method calls _execute with correct generator."""
+    """测试 execute_command 方法使用正确的生成器调用 _execute。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -126,7 +126,7 @@ async def test_async_execute_command(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
@@ -136,7 +136,7 @@ async def test_async_execute_command(mock_execute):
     "openhands.sdk.workspace.remote.async_remote_workspace.AsyncRemoteWorkspace._execute"
 )
 async def test_async_file_upload(mock_execute):
-    """Test file_upload method calls _execute with correct generator."""
+    """测试 file_upload 方法使用正确的生成器调用 _execute。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -154,7 +154,7 @@ async def test_async_file_upload(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
@@ -164,7 +164,7 @@ async def test_async_file_upload(mock_execute):
     "openhands.sdk.workspace.remote.async_remote_workspace.AsyncRemoteWorkspace._execute"
 )
 async def test_async_file_download(mock_execute):
-    """Test file_download method calls _execute with correct generator."""
+    """测试 file_download 方法使用正确的生成器调用 _execute。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -182,14 +182,14 @@ async def test_async_file_download(mock_execute):
     assert result == expected_result
     mock_execute.assert_called_once()
 
-    # Verify the generator was created correctly
+    # 验证生成器是否正确创建
     generator_arg = mock_execute.call_args[0][0]
     assert hasattr(generator_arg, "__next__")
 
 
 @pytest.mark.asyncio
 async def test_async_execute_command_with_path_objects():
-    """Test execute_command works with Path objects for cwd."""
+    """测试 execute_command 适用于 cwd 的 Path 对象。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -212,7 +212,7 @@ async def test_async_execute_command_with_path_objects():
 
 @pytest.mark.asyncio
 async def test_async_file_operations_with_path_objects():
-    """Test file operations work with Path objects."""
+    """测试文件操作使用 Path 对象。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -226,13 +226,13 @@ async def test_async_file_operations_with_path_objects():
         )
         mock_execute.return_value = expected_result
 
-        # Test upload with Path objects
+        # 使用 Path 对象测试上传
         result = await workspace.file_upload(
             Path("/local/file.txt"), Path("/remote/file.txt")
         )
         assert result == expected_result
 
-        # Test download with Path objects
+        # 使用 Path 对象测试下载
         result = await workspace.file_download(
             Path("/remote/file.txt"), Path("/local/file.txt")
         )
@@ -240,7 +240,7 @@ async def test_async_file_operations_with_path_objects():
 
 
 def test_async_inheritance():
-    """Test AsyncRemoteWorkspace inherits from correct base classes."""
+    """测试AsyncRemoteWorkspace继承自正确的基类。"""
     from openhands.sdk.workspace.remote.remote_workspace_mixin import (
         RemoteWorkspaceMixin,
     )
@@ -254,12 +254,12 @@ def test_async_inheritance():
 
 @pytest.mark.asyncio
 async def test_async_execute_with_exception_handling():
-    """Test _execute method handles exceptions in generator correctly."""
+    """测试 _execute 方法正确处理生成器中的异常。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
-    # Mock async client to raise an exception
+    # 模拟对象异步客户端提出异常
     mock_client = AsyncMock()
     mock_client.request.side_effect = httpx.RequestError("Connection failed")
     workspace._client = mock_client
@@ -268,32 +268,32 @@ async def test_async_execute_with_exception_handling():
         yield {"method": "GET", "url": "http://test.com"}
         return "should_not_reach_here"
 
-    # The generator should handle the exception and not return the result
-    # Since the exception occurs during client.request(), the generator will
-    # not complete normally
+    # 生成器应该处理异常，并不返回结果，因为异常发生在 client.request()，生成器将不能正
+    # 常完成
+    #
     with pytest.raises(httpx.RequestError):
         await workspace._execute(failing_generator())
 
 
 @pytest.mark.asyncio
 async def test_async_execute_generator_completion():
-    """Test _execute method properly handles StopIteration to get return value."""
+    """测试 _execute 方法正确处理 StopIteration 以获取返回值。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
-    # Mock async client
+    # 模拟对象异步客户端
     mock_client = AsyncMock()
     mock_response = Mock()
     mock_client.request.return_value = mock_response
     workspace._client = mock_client
 
     def test_generator():
-        # First yield - get response
+        # 首次产出 - 获得响应
         yield {"method": "GET", "url": "http://test1.com"}
-        # Second yield - get another response
+        # 第二次产量 - 得到另一个回应
         yield {"method": "POST", "url": "http://test2.com"}
-        # Return final result
+        # 返回最终结果
         return "final_result"
 
     result = await workspace._execute(test_generator())
@@ -306,19 +306,19 @@ async def test_async_execute_generator_completion():
 
 @pytest.mark.asyncio
 async def test_async_execute_multiple_yields():
-    """Test _execute method handles multiple yields correctly."""
+    """测试 _execute 方法正确处理多个收益。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
-    # Mock async client
+    # 模拟对象异步客户端
     mock_client = AsyncMock()
     responses = [Mock(), Mock(), Mock()]
     mock_client.request.side_effect = responses
     workspace._client = mock_client
 
     def multi_yield_generator():
-        # Multiple yields to simulate complex API interactions
+        # 多个产量来模拟复杂的 API 相互作用
         yield {"method": "POST", "url": "http://start.com"}
         yield {"method": "GET", "url": "http://poll.com"}
         yield {"method": "GET", "url": "http://result.com"}
@@ -335,13 +335,13 @@ async def test_async_execute_multiple_yields():
 
 @pytest.mark.asyncio
 async def test_async_concurrent_operations():
-    """Test that multiple async operations can run concurrently."""
+    """测试多个异步操作是否可以同时运行。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
 
     with patch.object(workspace, "_execute") as mock_execute:
-        # Mock different results for different operations
+        # 模拟对象不同操作结果不同
         command_result = CommandResult(
             command="echo test",
             exit_code=0,
@@ -364,7 +364,7 @@ async def test_async_concurrent_operations():
 
         mock_execute.side_effect = [command_result, upload_result, download_result]
 
-        # Run operations concurrently
+        # 同时运行操作
         tasks = [
             workspace.execute_command("echo test"),
             workspace.file_upload("/local/file1.txt", "/remote/file1.txt"),
@@ -380,7 +380,7 @@ async def test_async_concurrent_operations():
 
 
 class MockHTTPResponse:
-    """Mock HTTP response for urlopen."""
+    """模拟对象 HTTP urlopen 响应。"""
 
     def __init__(self, status: int = 200):
         self.status = status
@@ -394,7 +394,7 @@ class MockHTTPResponse:
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_true_on_successful_health_check(mock_urlopen):
-    """Test alive property returns True when health endpoint returns 2xx status."""
+    """当运行状况端点返回 2xx 状态时，测试活动属性返回 True。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -409,7 +409,7 @@ def test_async_alive_returns_true_on_successful_health_check(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_true_on_204_status(mock_urlopen):
-    """Test alive property returns True when health endpoint returns 204 No Content."""
+    """当运行状况端点返回 204 无内容时，测试活动属性返回 True。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -423,7 +423,7 @@ def test_async_alive_returns_true_on_204_status(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_false_on_server_error(mock_urlopen):
-    """Test alive property returns False when health endpoint returns 5xx status."""
+    """当运行状况端点返回 5xx 状态时，测试活动属性返回 False。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -437,7 +437,7 @@ def test_async_alive_returns_false_on_server_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_false_on_client_error(mock_urlopen):
-    """Test alive property returns False when health endpoint returns 4xx status."""
+    """当运行状况端点返回 4xx 状态时，测试活动属性返回 False。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -451,7 +451,7 @@ def test_async_alive_returns_false_on_client_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_false_on_connection_error(mock_urlopen):
-    """Test alive property returns False when connection fails."""
+    """当连接失败时，测试活动属性返回 False。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -465,7 +465,7 @@ def test_async_alive_returns_false_on_connection_error(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_returns_false_on_timeout(mock_urlopen):
-    """Test alive property returns False when request times out."""
+    """当请求超时时，测试活动属性返回 False。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="workspace"
     )
@@ -481,7 +481,7 @@ def test_async_alive_returns_false_on_timeout(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_constructs_correct_health_url(mock_urlopen):
-    """Test alive property constructs correct health URL from host."""
+    """测试活动属性从主机构造正确的运行状况 URL。"""
     workspace = AsyncRemoteWorkspace(
         host="https://my-agent-server.example.com", working_dir="workspace"
     )
@@ -497,8 +497,8 @@ def test_async_alive_constructs_correct_health_url(mock_urlopen):
 
 @patch("openhands.sdk.workspace.remote.async_remote_workspace.urlopen")
 def test_async_alive_with_normalized_host(mock_urlopen):
-    """Test alive property works correctly when host was normalized."""
-    # Host with trailing slash gets normalized in model_post_init
+    """当主机规范化时，测试活动属性可以正常工作。"""
+    # 带有尾部斜杠的主机在 model_post_init 中标准化
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000/", working_dir="workspace"
     )
@@ -508,10 +508,10 @@ def test_async_alive_with_normalized_host(mock_urlopen):
     result = workspace.alive
 
     assert result is True
-    # Should not have double slash
+    # 不应有双斜杠
     mock_urlopen.assert_called_once_with("http://localhost:8000/health", timeout=5.0)
 
 
 def test_async_alive_is_property():
-    """Test that alive is a property, not a method."""
+    """测试live是一个属性，而不是一个方法。"""
     assert isinstance(AsyncRemoteWorkspace.alive, property)

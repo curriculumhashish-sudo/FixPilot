@@ -1,4 +1,4 @@
-"""Tests for deprecation deadline script."""
+"""测试弃用截止日期脚本。"""
 
 from __future__ import annotations
 
@@ -143,10 +143,10 @@ def test_gather_pydantic_field_deprecations_collects_scheduled_field(tmp_path):
 
 
 def test_gather_pydantic_field_deprecations_skips_open_ended_field(tmp_path):
-    """A deprecated=True field with no versioned schedule is not tracked.
+    """不跟踪没有版本化计划的已弃用=True 字段。
 
-    Some deprecations are deliberately open-ended backward-compatibility
-    aliases (e.g. SubAgentInfo.mcp_servers) with no planned removal version.
+    一些弃用项是故意开放式的向后兼容别名（e.g. SubAgentInfo.mcp_servers)，没有计划删
+    除版本。
     """
     path = tmp_path / "model.py"
     tree = ast.parse(

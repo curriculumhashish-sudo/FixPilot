@@ -1,4 +1,4 @@
-"""Type definitions for Plugin module."""
+"""插件模块的类型定义。"""
 
 from __future__ import annotations
 
@@ -13,22 +13,22 @@ from openhands.sdk.utils.redact import redact_url_credentials
 
 
 class PluginSource(BaseModel):
-    """Specification for a plugin to load.
+    """要加载的插件的规范。
 
-    This model describes where to find a plugin and is used by load_plugins()
-    to fetch and load plugins from various sources.
+    该模型描述了在哪里可以找到插件，并被 load_plugins() 用于从各种来源获取和加载插件
+    。
 
     Examples:
-        >>> # GitHub repository
+        >>> # GitHub 仓库
         >>> PluginSource(source="github:owner/repo", ref="v1.0.0")
 
-        >>> # Plugin from monorepo subdirectory
+        >>> # 单体仓库子目录下的插件
         >>> PluginSource(
         ...     source="github:owner/monorepo",
         ...     repo_path="plugins/my-plugin"
         ... )
 
-        >>> # Local path
+        >>> # 本地路径
         >>> PluginSource(source="/path/to/plugin")
     """
 
@@ -51,13 +51,13 @@ class PluginSource(BaseModel):
     @field_validator("repo_path")
     @classmethod
     def validate_repo_path(cls, v: str | None) -> str | None:
-        """Validate repo_path is a safe relative path within the repository."""
+        """验证 repo_path 是存储库内的安全相对路径。"""
         if v is None:
             return v
-        # Must be relative (no absolute paths)
+        # 必须是相对路径（无绝对路径）
         if v.startswith("/"):
             raise ValueError("repo_path must be relative, not absolute")
-        # No parent directory traversal
+        # 没有父目录遍历
         if ".." in Path(v).parts:
             raise ValueError(
                 "repo_path cannot contain '..' (parent directory traversal)"
@@ -66,40 +66,39 @@ class PluginSource(BaseModel):
 
     @field_serializer("source", when_used="always")
     def _redact_source(self, source: str) -> str:
-        """Mask inline URL credentials on dump; ${VAR} refs survive (not secrets).
+        """转储时掩码内联 URL 凭据； ${VAR} 裁判仍然存在（不是机密）。
 
-        The raw value stays on the attribute for fetch/clone — only serialized
-        forms (persisted state, the plugins tag, the remote payload) are masked.
+        原始值保留在获取/克隆的属性上 - 仅已序列化表单（已持久化状态、插件标签、远程
+        载荷）被屏蔽。
         """
         return redact_url_credentials(source, preserve_placeholders=True)
 
     @property
     def source_url(self) -> str | None:
-        """Convert the plugin source to a canonical URL.
+        """将插件源转换为规范 URL。
 
-        Converts the 'github:' convenience prefix to a full URL.
-        For sources that are already URLs, returns them directly.
-        Local paths return None (not portable).
+        将'GitHub方便的前缀，但并非完整的 URL. 对于已经存在的源 URLs返回它们。 本地路
+        径返回 None (不兼容)
 
         Returns:
-            URL string, or None for local paths.
+            URL 字符串，或 None 表示本地路径。
 
         Examples:
             >>> PluginSource(source="github:owner/repo").source_url
-            'https://github.com/owner/repo'
+            ' https://github.com/owner/repo'
 
             >>> PluginSource(source="github:owner/repo", ref="v1.0").source_url
-            'https://github.com/owner/repo/tree/v1.0'
+            ' https://github.com/owner/repo/tree/v1.0'
 
             >>> PluginSource(source="https://github.com/owner/repo").source_url
-            'https://github.com/owner/repo'
+            ' https://github.com/owner/repo'
 
             >>> PluginSource(source="/local/path").source_url
             None
         """
-        # Handle github: shorthand - the only convenience prefix we support
+        # Handle GitHub：简写 - 我们支持的唯一方便前缀
         if self.source.startswith("github:"):
-            repo_part = self.source[7:]  # Remove 'github:' prefix
+            repo_part = self.source[7:]  # 删除 'GitHub:' 前缀
             base_url = f"https://github.com/{repo_part}"
             if self.ref or self.repo_path:
                 ref = self.ref or "main"
@@ -108,33 +107,32 @@ class PluginSource(BaseModel):
                 return f"{base_url}/tree/{ref}"
             return base_url
 
-        # Already a URL - return as-is
+        # 已经是 URL - 按原样返回
         if self.source.startswith(("https://", "http://", "git@", "git://")):
             return self.source
 
-        # Local paths - not portable, return None
+        # 本地路径 - 不可移植，返回 None
         return None
 
 
 class ResolvedPluginSource(BaseModel):
-    """A plugin source with resolved ref (pinned to commit SHA).
+    """具有解析引用的插件源（固定到提交 SHA）。
 
-    Used for persistence to ensure deterministic behavior across pause/resume.
-    When a conversation is resumed, the resolved ref ensures we get exactly
-    the same plugin version that was used when the conversation started.
+    用于持久化以确保暂停/恢复期间的确定性行为。 当对话恢复时，解析的引用确保我们获得
+    与对话开始时使用的插件版本完全相同的插件版本。
 
-    The resolved_ref is the actual commit SHA that was fetched, even if the
-    original ref was a branch name like 'main'. This prevents drift when
-    branches are updated between pause and resume.
+    resolved_ref 是获取的实际提交 SHA，即使原始引用是像“main”这样的分支名称。 这可以
+    防止在暂停和恢复之间更新分支时发生漂移。
 
-    Security Note:
-        The source URL is redacted when created via from_plugin_source() to
-        prevent credential exposure in persisted state. Any credentials in
-        the original URL (e.g., https://oauth2:TOKEN@host) are replaced with
-        "****" (e.g., https://****@host). This is safe because:
-        1. The plugin is fetched and cached BEFORE this object is created
-        2. The resolved_ref (commit SHA) uniquely identifies the exact version
-        3. Resume operations can re-fetch using the SHA from the local cache
+    安全注意事项：
+        通过 from_plugin_source() 创建时，源 URL 为已脱敏，以防止凭据在已持久化状态下
+        曝光。 将原URL（e.g.、
+        https://oauth2:TOKEN@host ）中的任意凭据替换为“****”（e.g.、
+        https://****@host ）。 这是安全的，因为
+        ：
+        1. 插件已获取并缓存之前该对象已创建
+        2. resolved_ref（提交SHA）唯一标识确切的版本
+        3. 恢复操作可以使用SHA从本地缓存中重新获取
     """
 
     source: str = Field(
@@ -164,11 +162,10 @@ class ResolvedPluginSource(BaseModel):
     def from_plugin_source(
         cls, plugin_source: PluginSource, resolved_ref: str | None
     ) -> ResolvedPluginSource:
-        """Create a ResolvedPluginSource from a PluginSource and resolved ref.
+        """从 PluginSource 和已解析的引用创建 ResolvedPluginSource。
 
-        The source URL is automatically redacted to prevent credential exposure
-        in persisted state. This is safe because the plugin should already be
-        fetched and cached before creating the ResolvedPluginSource.
+        源 URL 自动为已脱敏，以防止已持久化状态下的凭据曝光。 这是安全的，因为在创建
+        ResolvedPluginSource 之前应该已经获取并缓存了插件。
         """
         return cls(
             source=redact_url_credentials(plugin_source.source),
@@ -178,39 +175,41 @@ class ResolvedPluginSource(BaseModel):
         )
 
     def to_plugin_source(self) -> PluginSource:
-        """Convert back to PluginSource using the resolved ref.
+        """使用已解析的引用转换回 PluginSource。
 
-        When loading from persistence, use the resolved_ref to ensure we get
-        the exact same version that was originally fetched.
+        从持久化加载时，使用 resolved_ref 确保我们获得与最初获取的版本完全相同的版本
+        。
 
-        Note: The source URL may have redacted credentials. This is safe because
-        the plugin should already be in the local cache, and the resolved_ref
-        (commit SHA) allows fetching without re-authenticating.
+        Note: 源 URL 可能有已脱敏凭据。 这是因为
+        该插件应该已经在本地缓存中，并且 resolved_ref（提交 SHA）允许提取而无需重新验
+        证。
         """
         return PluginSource(
             source=self.source,
-            ref=self.resolved_ref,  # Use resolved SHA, not original ref
+            ref=self.resolved_ref,  # 使用已解决的 SHA，而不是原始参考
             repo_path=self.repo_path,
         )
 
 
-# Type aliases for marketplace plugin entry configurations
-# These provide better documentation than dict[str, Any] while remaining flexible
+# 市场插件条目配置的类型别名这些提供了比 dict[str、Any] 更好的文档，同时保持灵活性
+#
 
-#: MCP server configuration dict. Keys are server names, values are server configs.
-#: Each config should have 'command' (str), optional 'args' (list[str]), 'env'.
-#: See https://gofastmcp.com/clients/client#configuration-format
+# ：MCP服务器配置字典。 键是服务器名称，值是服务器配置。 ：每个配置应该有“command”（str
+# ）、可选的“args”（list[str]）、“env”。 ：参见
+# https://gofastmcp.com/clients/client#configuration-format
+#
 type McpServersDict = dict[str, dict[str, Any]]
 
-#: LSP server configuration dict. Keys are server names, values are server configs.
-#: Each server config should have 'command' (str) and optional 'args' (list[str]),
-#: 'extensionToLanguage' (dict mapping file extensions to language IDs).
-#: See https://github.com/OpenHands/software-agent-sdk/issues/1745 for LSP support.
+# ：LSP服务器配置字典。 密钥是服务器名称，值是服务器配置。：每个服务器配置都应包含 '
+# command'（str）和可选的 'args'（list[str]），：'extensionToLanguage'（映射文件扩展名到
+# 语言ID的字典）。：请参阅 https://github.com/OpenHands/software-agent-sdk/issues/1745
+# 以了解LSP支持。
+#
 type LspServersDict = dict[str, dict[str, Any]]
 
-#: Hooks configuration dict matching HookConfig.to_dict() structure.
-#: Should have 'hooks' key with event types mapping to list of matchers.
-#: See openhands.sdk.hooks.HookConfig for the full structure.
+# : 钩子配置字典，匹配 HookConfig.to_dict() 结构。: 应包含 'hooks' 键，键值对为事件类型
+# 映射到匹配器列表。: 查看 openhands.sdk.hooks.HookConfig 获取完整结构。
+#
 type HooksConfigDict = dict[str, Any]
 
 
@@ -219,10 +218,10 @@ if TYPE_CHECKING:
 
 
 class PluginAuthor(BaseModel):
-    """Author information for a plugin."""
+    """插件的作者信息。"""
 
-    # Optional: the Agent Plugins schema permits an author object with no name,
-    # so requiring it here would reject a conformant manifest.
+    # 可选：智能体插件模式允许没有名称的作者对象，
+    # 因此在这里要求它会拒绝一致的清单。
     name: str = Field(default="", description="Author's name")
     email: str | None = Field(default=None, description="Author's email address")
     url: str | None = Field(
@@ -231,7 +230,7 @@ class PluginAuthor(BaseModel):
 
     @classmethod
     def from_string(cls, author_str: str) -> PluginAuthor:
-        """Parse author from string format 'Name <email>'."""
+        """从字符串格式“名称 <email>”解析作者。"""
         if "<" in author_str and ">" in author_str:
             name = author_str.split("<")[0].strip()
             email = author_str.split("<")[1].split(">")[0].strip()
@@ -240,7 +239,7 @@ class PluginAuthor(BaseModel):
 
 
 class PluginManifest(BaseModel):
-    """Plugin manifest from plugin.json."""
+    """插件清单来自 plugin.json。"""
 
     name: str = Field(description="Plugin name")
     version: str = Field(default="1.0.0", description="Plugin version")
@@ -259,10 +258,9 @@ class PluginManifest(BaseModel):
 
 
 class CommandDefinition(BaseModel):
-    """Command definition loaded from markdown file.
+    """从 Markdown 文件加载命令定义。
 
-    Commands are slash commands that users can invoke directly.
-    They define instructions for the agent to follow.
+    命令是用户可以直接调用的斜杠命令。 它们定义了智能体要遵循的指令。
     """
 
     name: str = Field(description="Command name (from filename, e.g., 'review')")
@@ -277,39 +275,39 @@ class CommandDefinition(BaseModel):
     source: str | None = Field(
         default=None, description="Source file path for this command"
     )
-    # Raw frontmatter for any additional fields
+    # Raw 前置元数据用于任何其他字段
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata from frontmatter"
     )
 
     @classmethod
     def load(cls, command_path: Path) -> CommandDefinition:
-        """Load a command definition from a markdown file.
+        """从 Markdown 文件加载命令定义。
 
-        Command markdown files have YAML frontmatter with:
-        - description: Command description
-        - argument-hint: Hint for command arguments (string or list)
-        - allowed-tools: List of allowed tools
+        命令 Markdown 文件有 YAML 前置元数据，其中：
+        - description: 命令说明
+        - argument-hint：命令参数的提示（字符串或列表）
+        - allowed-tools：允许的工具列表
 
-        The body of the markdown is the command instructions.
+        Markdown的正文是命令指令。
 
         Args:
-            command_path: Path to the command markdown file.
+            command_path: 命令 Markdown 文件的路径。
 
         Returns:
-            Loaded CommandDefinition instance.
+            已加载 CommandDefinition 实例。
         """
         with open(command_path, encoding="utf-8") as f:
             post = frontmatter.load(f)
 
-        # Extract frontmatter fields with proper type handling
+        # 使用正确的类型处理提取前置元数据字段
         fm = post.metadata
-        name = command_path.stem  # Command name from filename
+        name = command_path.stem  # 来自文件名的命令名称
         description = str(fm.get("description", ""))
         argument_hint_raw = fm.get("argument-hint") or fm.get("argumentHint")
         allowed_tools_raw = fm.get("allowed-tools") or fm.get("allowedTools") or []
 
-        # Handle argument_hint as list (join with space) or string
+        # 将 argument_hint 处理为列表（用空格连接）或字符串
         argument_hint: str | None
         if isinstance(argument_hint_raw, list):
             argument_hint = " ".join(str(h) for h in argument_hint_raw)
@@ -318,7 +316,7 @@ class CommandDefinition(BaseModel):
         else:
             argument_hint = None
 
-        # Ensure allowed_tools is a list of strings
+        # 确保 allowed_tools 是字符串列表
         allowed_tools: list[str]
         if isinstance(allowed_tools_raw, str):
             allowed_tools = [allowed_tools_raw]
@@ -327,7 +325,7 @@ class CommandDefinition(BaseModel):
         else:
             allowed_tools = []
 
-        # Remove known fields from metadata to get extras
+        # 从元数据中删除已知字段以获得额外内容
         known_fields = {
             "description",
             "argument-hint",
@@ -348,29 +346,29 @@ class CommandDefinition(BaseModel):
         )
 
     def to_skill(self, plugin_name: str) -> Skill:
-        """Convert this command to a keyword-triggered Skill.
+        """将此命令转换为关键字触发的技能。
 
-        Creates a Skill with a KeywordTrigger using the Claude Code namespacing
+        使用 Claude Code 命名空间创建带有 KeywordTrigger 的技能
         format: /<plugin-name>:<command-name>
 
         Args:
-            plugin_name: The name of the plugin this command belongs to.
+            plugin_name: 该命令所属插件的名称。
 
         Returns:
-            A Skill object with the command content and a KeywordTrigger.
+            具有命令内容和 KeywordTrigger 的技能对象。
 
         Example:
-            For a plugin "city-weather" with command "now":
-            - Trigger keyword: "/city-weather:now"
-            - When user types "/city-weather:now Tokyo", the skill activates
+            对于带有命令“now”的插件“city-weather”：
+            - 触发关键字：“/city-weather:now"
+            - 当用户输入“/city-weather:now东京”时，技能激活
         """
         from openhands.sdk.skills.skill import Skill
         from openhands.sdk.skills.trigger import KeywordTrigger
 
-        # Build the trigger keyword in Claude Code namespace format
+        # 以 Claude Code 命名空间格式构建触发关键字
         trigger_keyword = f"/{plugin_name}:{self.name}"
 
-        # Build skill content with $ARGUMENTS placeholder context
+        # 使用 $ARGUMENTS 占位符上下文构建技能内容
         content_parts = []
         if self.description:
             content_parts.append(f"## {self.name}\n\n{self.description}\n")

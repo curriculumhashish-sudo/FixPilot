@@ -1,21 +1,21 @@
 """
-Simple API for users to register custom agents.
+简单API供用户注册自定义智能体。
 
-Example usage:
+用法示例：
     from openhands.sdk import register_agent, Agent, AgentContext
     from openhands.sdk.tool.spec import Tool
 
-    # Define a custom security expert factory
+    # 定义自定义安全专家工厂
     def create_security_expert(llm):
         tools = [Tool(name="TerminalTool")]
         agent_context = AgentContext(
             system_message_suffix=(
-                "You are a cybersecurity expert. Always consider security implications."
+                “你是一名网络安全专家。 始终考虑安全影响。”
             ),
         )
         return Agent(llm=llm, tools=tools, agent_context=agent_context)
 
-    # Register with a plain description (local-only, no remote metadata)
+    # 使用简单描述进行注册（仅限本地，无远程元数据）
     register_agent(
         name="security_expert",
         factory_func=create_security_expert,
@@ -47,13 +47,13 @@ logger = get_logger(__name__)
 
 
 class AgentFactory(NamedTuple):
-    """Container for an agent factory function and its definition."""
+    """智能体工厂函数及其定义的容器。"""
 
     factory_func: Callable[["LLM"], "Agent"]
     definition: AgentDefinition
 
 
-# Global registry for user-registered agent factories
+# 全局注册表用于用户注册的智能体工厂
 _agent_factories: dict[str, AgentFactory] = {}
 _registry_lock = RLock()
 
@@ -62,20 +62,20 @@ def _resolve_agent_definition(
     name: str,
     description: str | AgentDefinition,
 ) -> AgentDefinition:
-    """Build or normalise an `AgentDefinition` for registration.
+    """构建或规范化 `AgentDefinition` 以进行注册。
 
-    When description is a plain string a minimal definition is created
+    当描述是纯字符串时，将创建最小定义
     from name and description.  When it is already an
-    `AgentDefinition` it is returned as-is.
+    `AgentDefinition` 按原样返回。
 
     Args:
-        name: Agent name used as the registry key.
-        description: Either a human-readable description string (a minimal
-            `AgentDefinition` will be created) or a full
-            `AgentDefinition` instance.
+        name: 智能体名称用作注册表键。
+        description: 人类可读的描述字符串（最小
+            `AgentDefinition` 将被创建）或完整
+            `AgentDefinition` 实例。
 
     Returns:
-        An `AgentDefinition` ready for storage.
+        `AgentDefinition` 已准备好存储。
     """
     if isinstance(description, AgentDefinition):
         return description
@@ -87,28 +87,26 @@ def register_agent(
     factory_func: Callable[["LLM"], "Agent"],
     description: str | AgentDefinition,
 ) -> None:
-    """Register a custom agent globally.
+    """全局注册自定义智能体。
 
-    The factory_func is the source of truth for local execution —
-    it receives an `LLM` and must return a fully-configured `Agent`.
+    factory_func 是本地执行的真实来源 - 它接收 `LLM` 并且必须返回完全配置的 `Agent`。
 
-    The description parameter accepts either a plain string or a full
-    `AgentDefinition`.  A plain string creates a minimal definition
+    描述参数接受纯字符串或完整字符串
+    `AgentDefinition`. 普通字符串创建最小定义
     from name and description; this is fine for local-only agents but
-    means the remote server will not know about tools or system prompts.
-    Pass an `AgentDefinition` when the agent needs to work in remote
-    workspaces, as the definition's metadata (tools, system_prompt,
-    model, skills, …) is serialised and forwarded to the agent-server.
+    意味着远程服务器将不知道工具或系统提示词。 当智能体需要在远程工作区中工作时，传递
+     `AgentDefinition`。定义的元数据（工具、
+    system_prompt、模型、技能等）会被序列化并转发到智能体-服务器。
 
     Args:
-        name: Unique name for the agent (used as the registry key).
-        factory_func: Function that takes an LLM and returns an Agent.
-        description: A human-readable description string, or a full
-            `AgentDefinition` carrying tools, system_prompt, model,
-            and other metadata needed for remote execution.
+        name: 智能体的唯一名称（用作注册表键）。
+        factory_func: 接受 LLM 并返回智能体的函数。
+        description: 人类可读的描述字符串，或完整的
+            `AgentDefinition` 携带工具、system_prompt 模型和其它远程执行所需的元数据
+            。
 
     Raises:
-        ValueError: If an agent with the same name already exists.
+        ValueError: 如果同名的智能体已存在。
     """
     definition = _resolve_agent_definition(name, description)
 
@@ -126,19 +124,16 @@ def register_agent_if_absent(
     factory_func: Callable[["LLM"], "Agent"],
     description: str | AgentDefinition,
 ) -> bool:
-    """Register a custom agent if no agent with that name exists yet.
+    """如果尚不存在具有该名称的智能体，请注册自定义智能体。
 
-    Behaves identically to `register_agent` except that it silently
-    no-ops when an agent with *name* is already registered, instead of
-    raising `ValueError`.  This is used by file-based and plugin-based
-    agent loading to gracefully skip conflicts with programmatically
-    registered agents.
+    行为与 `register_agent` 相同，只是当具有 *name* 的智能体已注册时，它会静默无操作
+    ，而不是引发 `ValueError`。 基于文件和基于插
+    件的智能体加载使用它来优雅地跳过与以编程方式注册的智能体的冲突。
 
-    See `register_agent` for full parameter documentation.
+    有关完整参数文档，请参阅 `register_agent`。
 
     Returns:
-        `True` if the agent was registered, `False` if an agent with
-        that name already existed.
+        `True`（如果智能体已注册）；`False`（如果具有该名称的智能体已存在）。
     """
     definition = _resolve_agent_definition(name, description)
 
@@ -161,32 +156,31 @@ def agent_definition_to_factory(
     agent_def: AgentDefinition,
     work_dir: str | Path | None = None,
 ) -> Callable[["LLM"], "Agent"]:
-    """Create an agent factory closure from an `AgentDefinition`.
+    """从 `AgentDefinition` 创建一个智能体工厂闭包。
 
-    The returned callable accepts the parent agent's LLM and produces a
-    fully-configured `Agent`.
+    返回的可调用对象接受父级智能体的 LLM 并生成完全配置的 `Agent`。
 
-    - Tool names from `agent_def.tools` are mapped to `Tool` objects.
-    - Skill names from `agent_def.skills` are resolved to `Skill` objects
+    - `agent_def.tools` 中的工具名称映射到 `Tool` 对象。
+    - `agent_def.skills` 中的技能名称解析为 `Skill` 对象
       from project and user skill directories (project takes priority).
-    - The system prompt is set as the `system_message_suffix` on the
+    - 系统提示词被设置为 `system_message_suffix` 在
       `AgentContext`.
-    - `model: inherit` preserves the parent LLM; an explicit model name
-      creates a copy via `model_copy(update=...)`.
+    - `model: inherit` 保留父级 LLM； 明确的模型名称通过 `model_copy(update=...)` 创
+    建一个副本。
 
-    Note: Callers (e.g. TaskManager) are responsible for
-    disabling streaming and resetting metrics on the resulting agent's LLM.
+    Note: 来电者 (e.g. TaskManager) 负责
+    禁用流式传输并重置结果智能体的 LLM 的指标。
 
     Args:
-        agent_def: The agent definition to convert.
-        work_dir: Project directory for resolving skill names. If None,
-            only user-level skills are searched.
+        agent_def: 要转换的智能体定义。
+        work_dir: 用于解析技能名称的项目目录。 如果None，
+            仅搜索用户级别的技能。
 
     Raises:
-        ValueError: If a tool or skill is not found.
+        ValueError: 如果找不到工具或技能。
     """
-    # Resolve skills eagerly at factory creation time.
-    # Priority: project skills override user skills (handled by load_available_skills).
+    # 在工厂创建时急切地解决技能问题。
+    # 优先级：项目技能优先于用户技能（由 load_available_skills 处理）。
     resolved_skills: list = []
     if agent_def.skills:
         from openhands.sdk.skills import load_available_skills
@@ -213,8 +207,8 @@ def agent_definition_to_factory(
         from openhands.sdk.tool.registry import list_registered_tools
         from openhands.sdk.tool.spec import Tool
 
-        # Load LLM profile if agent_def.model is different from
-        # 'inherit' and empty string
+        # 如果 agent_def.model 不同于“继承”且为空字符串，则加载 LLM 配置文件
+        #
         if agent_def.model and agent_def.model != "inherit":
             store = _get_profile_store(agent_def.profile_store_dir)
             available_profiles = [name.removesuffix(".json") for name in store.list()]
@@ -227,8 +221,8 @@ def agent_definition_to_factory(
 
             llm = store.load(profile_name)
 
-        # the system prompt of the subagent is added as a suffix of the
-        # main system prompt
+        # 子智能体的系统提示词被添加为主系统提示词的后缀
+        #
         has_context = agent_def.system_prompt or resolved_skills
         agent_context = (
             AgentContext(
@@ -239,7 +233,7 @@ def agent_definition_to_factory(
             else None
         )
 
-        # Resolve tools
+        # 解决工具
         tools: list[Tool] = []
         registered_tools: set[str] = set(list_registered_tools())
         for tool_name in agent_def.tools:
@@ -250,16 +244,16 @@ def agent_definition_to_factory(
                 )
             tools.append(Tool(name=tool_name))
 
-        # Sub-agents get a summarizing condenser by default (parity with the
-        # top-level agent) so deep runs auto-compact instead of erroring on context
-        # overflow. The condenser LLM needs a distinct usage_id or its tokens get
-        # deduped out of conversation stats. A NoOpCondenser disables condensation.
+        # 子智能体默认情况下得到一个总结上下文压缩器（与顶级智能体相同），因此深度运行自
+        # 动压缩，而不是在上下文溢出时出错。 上下文压缩器 LLM 需要一个不同的 usage_id 或
+        # 其 token 从对话统计数据中删除重复数据。 NoOpCondenser 禁用上下文压缩。
+        #
         if agent_def.condenser is not None:
             condenser = agent_def.condenser
             if isinstance(condenser, LLMSummarizingCondenser):
-                # Freshen per spawn: a distinct LLM with its own metrics (so
-                # sub-agents don't share/double-count condenser cost) and a
-                # usage_id distinct from the agent's, else its tokens get deduped.
+                # 每 spawn 时刷新：LLM 有其自身的指标（因此子智能体不会共享/重复计费上下
+                # 文压缩器成本）；usage_id 与智能体's 不同，否则 token 的重复会被删除。
+                #
                 cond_llm = condenser.llm
                 usage_id = (
                     cond_llm.usage_id
@@ -286,22 +280,20 @@ def agent_definition_to_factory(
 
 
 def register_file_agents(work_dir: str | Path) -> list[str]:
-    """Load and register file-based agents from project-level `.agents/agents` and
-    `.openhands/agents`, and user-level `~/.agents/agents` and `~/.openhands/agents`
-    directories.
+    """从项目级 `.agents/agents` 加载并注册基于文件的智能体和
+    `.openhands/agents` 以及用户级 `~/.agents/agents` 和 `~/.openhands/agents` 目录。
 
-    Project-level definitions take priority over user-level ones, and within
-    each level `.agents/` takes priority over `.openhands/`.
+    项目级定义优先于用户级定义，并且在每个级别内 `.agents/` 优先于 `.openhands/`。
 
-    Does not overwrite agents already registered programmatically or by plugins.
+    不会覆盖已通过编程或插件注册的智能体。
 
     Returns:
-        List of agent names that were actually registered.
+        实际注册的智能体个名称列表。
     """
     project_agents = load_project_agents(work_dir)
     user_agents = load_user_agents()
 
-    # Deduplicate: project wins over user
+    # 重复数据删除：项目赢得用户
     seen_names: set[str] = set()
     deduplicated: list[AgentDefinition] = []
 
@@ -328,11 +320,10 @@ def _register_definition(
     work_dir: str | Path | None,
     kind: str,
 ) -> bool:
-    """Register one agent definition; skip it with a warning if it is invalid.
+    """注册一个智能体定义； 如果无效则跳过并发出警告。
 
-    A definition that cannot be turned into a factory (for example, one naming
-    a skill that does not exist) is skipped so that it does not break the
-    conversation that loads it or the other agents registered alongside it.
+    一个无法转换为工厂的定义（例如，一个命名了一个不存在的技能）会被跳过，以防止它破
+    坏加载它或其旁边注册的其他智能体对话。
     """
     source = f" from {agent_def.source}" if agent_def.source else ""
     try:
@@ -354,20 +345,19 @@ def register_plugin_agents(
     agents: list[AgentDefinition],
     work_dir: str | Path | None = None,
 ) -> list[str]:
-    """Register plugin-provided agent definitions into the delegate registry.
+    """将插件提供的智能体定义注册到委托注册表中。
 
-    Plugin agents have higher priority than file-based agents but lower than
-    programmatic ``register_agent()`` calls. This function bridges the existing
-    ``Plugin.agents`` list (which is loaded but not currently registered) into
-    the delegate registry.
+    插件智能体的优先级高于基于文件的智能体，但低于编程 ``register_agent()`` 调用。 该
+    功能桥接了现有的
+    ``Plugin.agents`` 列表（已加载但当前未注册）到委托注册表中。
 
     Args:
-        agents: Agent definitions collected from loaded plugins.
-        work_dir: Project directory for resolving skill names in agent
-            definitions. If None, only user-level skills are searched.
+        agents: 智能体从加载的插件收集的定义。
+        work_dir: 智能体中技能名称的解决项目目录
+            定义。 如果 None，则仅搜索用户级技能。
 
     Returns:
-        List of agent names that were actually registered.
+        实际注册的智能体个名称列表。
     """
     registered: list[str] = []
     for agent_def in agents:
@@ -379,19 +369,19 @@ def register_plugin_agents(
 
 def get_agent_factory(name: str | None) -> AgentFactory:
     """
-    Get a registered agent factory by name.
+    按名称获取已注册的智能体工厂。
 
     Args:
-        name: Name of the agent factory to retrieve. If None, empty, or "default",
-            the default agent factory is returned.
+        name: 要检索的智能体工厂的名称。 如果 None、空或“默认”，
+            返回默认的智能体工厂。
 
     Returns:
-        AgentFactory: The factory function and definition
+        AgentFactory: 工厂功能及定义
 
     Raises:
-        ValueError: If no agent factory with the given name is found
+        ValueError: 如果未找到具有给定名称的智能体工厂
     """
-    # Map old names to new names for backward compatibility
+    # 将向后兼容性的旧名称映射到新名称
     _DEPRECATED_NAMES = {
         "default": "general-purpose",
         "default cli mode": "general-purpose",
@@ -428,7 +418,7 @@ def get_agent_factory(name: str | None) -> AgentFactory:
 def get_factory_info(
     include: Callable[[AgentDefinition], bool] | None = None,
 ) -> str:
-    """Get formatted information about available agent factories."""
+    """获取有关可用智能体工厂的格式化信息。"""
     with _registry_lock:
         user_factories = {
             name: factory
@@ -450,15 +440,15 @@ def get_factory_info(
 
 
 def get_registered_agent_definitions() -> list[AgentDefinition]:
-    """Return the definitions of all registered agents.
+    """返回所有已注册的智能体的定义。
 
-    Useful for forwarding agent metadata to a remote agent-server.
+    用于将智能体元数据转发到远程智能体服务器。
     """
     with _registry_lock:
         return [f.definition for f in _agent_factories.values()]
 
 
 def _reset_registry_for_tests() -> None:
-    """Clear the registry for tests to avoid cross-test contamination."""
+    """清除测试的注册表以避免交叉测试污染。"""
     with _registry_lock:
         _agent_factories.clear()

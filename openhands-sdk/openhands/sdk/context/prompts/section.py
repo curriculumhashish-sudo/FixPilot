@@ -1,6 +1,6 @@
-"""Typed core for the system-prompt section registry.
+"""system-提示词部分注册表的类型化核心。
 
-Pure data types -- no I/O -- so they unit-test in isolation.
+纯数据类型——没有 I/O——所以它们单独进行单元测试。
 """
 
 import sys
@@ -22,16 +22,16 @@ __all__ = [
 
 
 class CacheTier(StrEnum):
-    """Block a section renders into; maps 1:1 onto ``SystemPromptEvent``'s two
-    content blocks. ``STATIC`` is cache-stable across conversations, ``DYNAMIC``
-    is per-conversation."""
+    """块渲染到的部分； 将 1:1 映射到 ``SystemPromptEvent`` 的两个
+    内容块。 ``STATIC`` 在对话之间缓存稳定，``DYNAMIC`` 是每个对话。
+    """
 
     STATIC = "static"
     DYNAMIC = "dynamic"
 
 
 class Platform(StrEnum):
-    """Host platform, derived from :data:`sys.platform`."""
+    """主机平台，源自：data:`sys.platform`。"""
 
     WINDOWS = "windows"
     MACOS = "macos"
@@ -50,11 +50,11 @@ class Platform(StrEnum):
 
 
 class PromptContext(BaseModel):
-    """Frozen snapshot of everything that shapes a system prompt.
+    """塑造系统的一切事物的冻结快照提示词。
 
-    ``template_kwargs`` is the resolved kwarg dict for the static, cache-stable
-    block; the other fields snapshot per-conversation signals. ``model_family`` /
-    ``cli_mode`` are typed views over ``template_kwargs``.
+    ``template_kwargs`` 是静态、缓存稳定块的解析 kwarg 字典； 其他字段快照每个对话信
+    号。 ``model_family`` /
+    ``cli_mode`` 是 ``template_kwargs`` 上的类型化视图。
     """
 
     model_config = ConfigDict(frozen=True)
@@ -69,9 +69,9 @@ class PromptContext(BaseModel):
     now: str | None = None
     skill_names: tuple[str, ...] = Field(default_factory=tuple)
     secret_names: tuple[str, ...] = Field(default_factory=tuple)
-    # Resolved dynamic-tier data (skills gated + secrets merged before assembly),
-    # consumed by the dynamic sections. ``repo_skills`` is (name, content) pairs;
-    # ``secret_infos`` is (name, description) pairs.
+    # 已解决的动态层数据（技能门控 + 机密在组装前合并），由动态部分消耗。
+    # ``repo_skills`` 是（名称，内容）对；
+    # ``secret_infos`` 是（名称，描述）对。
     repo_skills: tuple[tuple[str, str], ...] = Field(default_factory=tuple)
     available_skills_prompt: str | None = None
     custom_suffix: str | None = None
@@ -84,7 +84,7 @@ class PromptContext(BaseModel):
         cls, value: Mapping[str, object]
     ) -> Mapping[str, object]:
         # frozen=True blocks attribute reassignment but not nested mutation;
-        # store a read-only copy so the snapshot and its views cannot drift.
+        # 存储只读副本，以便快照及其视图不会漂移。
         return MappingProxyType(dict(value))
 
     @property
@@ -104,20 +104,19 @@ class PromptContext(BaseModel):
 
 @runtime_checkable
 class PromptSection(Protocol):
-    """One pure unit of system-prompt text -- a guarded block that contributes
-    text only when it applies.
+    """system-提示词文本的一个纯单元——一个贡献的受保护块
+    仅在适用时才显示文本。
 
-    Assembled in two steps against the frozen :class:`PromptContext`:
-    :meth:`guard` decides whether the section applies (if ``False`` it is
-    skipped and :meth:`render` never runs), then :meth:`render` produces the
-    text. The split is intentional -- ``guard`` returning ``False`` means "not
-    applicable here" (e.g. security policy disabled), while ``render`` returning
-    ``None`` means "applicable, but nothing to add right now" (e.g. no skills
-    present).
+    针对冻结的：class:`PromptContext` 分两步组装：
+    :meth:`guard` 决定该部分是否适用（如果 ``False`` 是
+    跳过并且：meth:`render` 永远不会运行），然后：meth:`render` 生成文本。 拆分是有意
+    的 - ``guard`` 返回 ``False``
+    意味着“此处不适用”（e.g. 安全策略已禁用），同时 ``render`` 返回
+    ``None`` 表示“适用，但现在无需添加”（e.g. 没有技能）。
 
-    Both must be pure -- read-only on ``ctx``, no I/O -- so sections are
-    testable in isolation. ``name`` is the registry's unique key for
-    dedup/override; ``cache_tier`` selects the static or dynamic block.
+    两者都必须是纯的——只读在``ctx``上，没有I/O——所以部分可以单独测试。 ``name`` 是注
+    册表用于重复数据删除/覆盖的唯一键；
+    ``cache_tier`` 选择静态或动态块。
     """
 
     @property
@@ -127,21 +126,21 @@ class PromptSection(Protocol):
     def cache_tier(self) -> CacheTier: ...
 
     def guard(self, ctx: PromptContext) -> bool:
-        """Return ``True`` if this section applies to ``ctx``."""
+        """如果本节适用于 ``ctx``，则返回 ``True``。"""
         ...
 
     def render(self, ctx: PromptContext) -> str | None:
-        """Return the section's text, or ``None``/blank to contribute nothing."""
+        """返回该部分的文本，或 ``None``/blank 不提供任何内容。"""
         ...
 
 
 class PromptBlocks(NamedTuple):
-    """The two content blocks a registry assembles.
+    """两个内容块注册表组成。
 
-    Maps 1:1 onto ``SystemPromptEvent``: ``static`` becomes the cache-stable
-    ``system_prompt`` block and ``dynamic`` the optional ``dynamic_context``
-    (``None`` when no dynamic section produced output). It is a tuple, so it
-    still unpacks as ``static, dynamic = registry.build(ctx)``.
+    将 1:1 映射到 ``SystemPromptEvent``：``static`` 成为缓存稳定的
+    ``system_prompt`` 块和 ``dynamic`` 可选的 ``dynamic_context``（``None`` 当没有动
+    态部分产生输出时）。 它
+    是一个元组，所以它仍然解压为 ``static, dynamic = registry.build(ctx)``。
     """
 
     static: str

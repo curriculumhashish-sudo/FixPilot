@@ -1,11 +1,11 @@
 /**
- * Integration tests for RemoteConversation and Conversation
+ * RemoteConversation 的集成测试和对话
  *
- * Tests conversation lifecycle including creation, sending messages,
- * running the agent, and receiving events against a real agent-server.
+ * 测试对话生命周期，包括创建、发送消息、
+ * 运行智能体，并接收针对真实智能体服务器的事件。
  *
- * NOTE: Some tests in this file are skipped by default because they depend on
- * LLM behavior which is non-deterministic and can be slow.
+ * 注意：默认情况下会跳过此文件中的一些测试，因为它们依赖于
+ * LLM 行为是不确定的并且可能很慢。
  */
 
 import {
@@ -28,7 +28,7 @@ import {
 } from './test-utils';
 
 const SKIP_TESTS = skipIfNoConfig();
-// Skip flaky tests that depend on LLM behavior in CI
+// 跳过依赖于 CI 中的 LLM 行为的不稳定测试
 const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
 
 describe('Conversation Integration Tests', () => {
@@ -59,7 +59,7 @@ describe('Conversation Integration Tests', () => {
 
         const conversation = new Conversation(agent, workspace);
 
-        // Start the conversation
+        // 开始对话
         await conversation.start();
 
         expect(conversation).toBeInstanceOf(RemoteConversation);
@@ -67,7 +67,7 @@ describe('Conversation Integration Tests', () => {
         expect(typeof conversation.id).toBe('string');
         expect(conversation.id.length).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -89,7 +89,7 @@ describe('Conversation Integration Tests', () => {
 
         const conversation = new Conversation(agent, workspace);
 
-        // Start with initial message
+        // 从初始消息开始
         await conversation.start({
           initialMessage: 'Hello, this is an initial message.',
           maxIterations: 5,
@@ -97,7 +97,7 @@ describe('Conversation Integration Tests', () => {
 
         expect(conversation.id).toBeDefined();
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -122,16 +122,16 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start();
 
-        // Access state
+        // 访问状态
         const state = conversation.state;
         expect(state).toBeDefined();
         expect(state.id).toBe(conversation.id);
 
-        // Get agent status
+        // 获取智能体状态
         const status = await state.getAgentStatus();
         expect(Object.values(AgentExecutionStatus)).toContain(status);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -157,7 +157,7 @@ describe('Conversation Integration Tests', () => {
         const stats = await conversation.conversationStats();
         expect(stats).toBeDefined();
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -182,10 +182,10 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start();
 
-        // Send message (should not throw)
+        // 发送消息（不应该抛出）
         await conversation.sendMessage('What is 2 + 2?');
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -208,13 +208,13 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start();
 
-        // Send message as Message object
+        // 作为 Message 对象发送消息
         await conversation.sendMessage({
           role: 'user',
           content: [{ type: 'text', text: 'Hello from Message object' }],
         });
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -222,7 +222,7 @@ describe('Conversation Integration Tests', () => {
   });
 
   describe('Running Agent', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -242,13 +242,13 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a simple message
+        // 发送一条简单的消息
         await conversation.sendMessage('Reply with only the word "ACKNOWLEDGED".');
 
-        // Run the agent
+        // 运行智能体
         await conversation.run();
 
-        // Wait for agent to finish (poll status)
+        // 等待智能体完成（投票状态）
         await waitForAgentIdle(async () => {
           return await conversation.state.getAgentStatus();
         });
@@ -256,7 +256,7 @@ describe('Conversation Integration Tests', () => {
         const finalStatus = await conversation.state.getAgentStatus();
         expect([AgentExecutionStatus.IDLE, AgentExecutionStatus.FINISHED]).toContain(finalStatus);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -279,19 +279,19 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 50 });
 
-        // Send a message that might take a while
+        // 发送消息可能需要一段时间
         await conversation.sendMessage('Count from 1 to 100, saying each number.');
 
-        // Run the agent
+        // 运行智能体
         await conversation.run();
 
-        // Wait a bit then pause
+        // 稍等一下然后暂停
         await sleep(1000);
 
-        // Pause (should not throw, even if agent is idle)
+        // 暂停（不应抛出，即使智能体空闲）
         await conversation.pause();
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -321,28 +321,28 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace, { callback });
         await conversation.start({ maxIterations: 10 });
 
-        // Start WebSocket client for events
+        // 启动 WebSocket 客户端进行事件
         await conversation.startWebSocketClient();
 
-        // Give a moment for connection to establish
+        // 稍等片刻以建立连接
         await sleep(500);
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Say "Hello Test!" exactly.');
         await conversation.run();
 
-        // Wait for agent to finish
+        // 等待智能体完成
         await waitForAgentIdle(async () => {
           return await conversation.state.getAgentStatus();
         });
 
-        // Wait for events to be received
+        // 等待接收事件
         await sleep(2000);
 
-        // Should have received some events
+        // 应该收到一些事件
         expect(receivedEvents.length).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         await conversation.stopWebSocketClient();
         await conversation.close();
       },
@@ -383,10 +383,10 @@ describe('Conversation Integration Tests', () => {
 
         await sleep(2000);
 
-        // Should have received multiple event types
+        // 应该收到多种事件类型
         expect(eventTypes.size).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         await conversation.stopWebSocketClient();
         await conversation.close();
       },
@@ -395,7 +395,7 @@ describe('Conversation Integration Tests', () => {
   });
 
   describe('Events List', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -422,18 +422,18 @@ describe('Conversation Integration Tests', () => {
           return await conversation.state.getAgentStatus();
         });
 
-        // Fetch events from state
+        // 从状态获取事件
         const events = await conversation.state.events.getEvents();
         expect(events.length).toBeGreaterThan(0);
 
-        // Events should have required properties
+        // 事件应该具有必需的属性
         for (const event of events) {
           expect(event.id).toBeDefined();
           expect(event.kind).toBeDefined();
           expect(event.timestamp).toBeDefined();
         }
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -441,7 +441,7 @@ describe('Conversation Integration Tests', () => {
   });
 
   describe('Title Generation', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -461,7 +461,7 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message about a specific topic
+        // 发送有关特定主题的消息
         await conversation.sendMessage('Tell me about TypeScript testing best practices.');
         await conversation.run();
 
@@ -469,7 +469,7 @@ describe('Conversation Integration Tests', () => {
           return await conversation.state.getAgentStatus();
         });
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -494,13 +494,13 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 5 });
 
-        // Update secrets (should not throw)
+        // 更新机密（不应该抛出）
         await conversation.updateSecrets({
           TEST_SECRET: 'test-value',
           ANOTHER_SECRET: () => 'dynamic-value',
         });
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -508,7 +508,7 @@ describe('Conversation Integration Tests', () => {
   });
 
   describe('Agent Task Execution', () => {
-    // Skip flaky tests that depend on LLM behavior in CI
+    // 跳过依赖于 CI 中的 LLM 行为的不稳定测试
     const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
@@ -533,13 +533,13 @@ describe('Conversation Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 20 });
 
-        // Ask the agent to create a file
+        // 要求智能体创建文件
         await conversation.sendMessage(
           `Create a file at "${fullPath}" with exactly this content: "${expectedContent}". Use the terminal tool to create the file with echo.`
         );
         await conversation.run();
 
-        // Wait for agent to complete
+        // 等待智能体完成
         await waitForAgentIdle(
           async () => {
             return await conversation.state.getAgentStatus();
@@ -547,10 +547,10 @@ describe('Conversation Integration Tests', () => {
           { timeout: 90000 }
         );
 
-        // Wait for file system to sync
+        // 等待文件系统同步
         await sleep(1000);
 
-        // Check if file was created in the mounted workspace
+        // 检查文件是否在已安装的工作区中创建
         const fileExists = workspaceFileExists(fileName);
         expect(fileExists).toBe(true);
 
@@ -560,7 +560,7 @@ describe('Conversation Integration Tests', () => {
           deleteWorkspaceFile(fileName);
         }
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 180000
@@ -575,7 +575,7 @@ describe('Conversation Integration Tests', () => {
         const fullPath = `${config.agentWorkspaceDir}/${fileName}`;
         const fileContent = 'This file contains the secret number: 42';
 
-        // Create the file first
+        // 首先创建文件
         const agent = new Agent({
           llm: createTestLLMConfig(),
         });
@@ -585,7 +585,7 @@ describe('Conversation Integration Tests', () => {
           workingDir: config.agentWorkspaceDir,
         });
 
-        // Create file via workspace
+        // 通过工作区创建文件
         await workspace.uploadText(fileContent, fullPath, fileName);
         await sleep(500);
 
@@ -599,13 +599,13 @@ describe('Conversation Integration Tests', () => {
         await conversation.startWebSocketClient();
         await sleep(500);
 
-        // Ask the agent to read the file and tell us what's in it
+        // 要求智能体读取该文件并告诉我们其中的内容
         await conversation.sendMessage(
           `Read the file at "${fullPath}" and tell me what secret number is mentioned in it.`
         );
         await conversation.run();
 
-        // Wait for agent to complete
+        // 等待智能体完成
         await waitForAgentIdle(
           async () => {
             return await conversation.state.getAgentStatus();
@@ -613,17 +613,17 @@ describe('Conversation Integration Tests', () => {
           { timeout: 90000 }
         );
 
-        // Wait for events
+        // 等待活动
         await sleep(2000);
 
-        // Check that agent received events (indicating activity)
+        // 检查智能体是否收到事件（指示活动）
         expect(receivedEvents.length).toBeGreaterThan(0);
 
-        // Look for message events that might contain the answer
+        // 查找可能包含答案的消息事件
         const messageEvents = receivedEvents.filter((e) => e.kind === 'MessageEvent');
         expect(messageEvents.length).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
         await conversation.stopWebSocketClient();
         await conversation.close();

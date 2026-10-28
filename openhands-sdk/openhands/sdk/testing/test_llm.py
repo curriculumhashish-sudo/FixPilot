@@ -1,31 +1,31 @@
-"""TestLLM - A mock LLM for testing.
+"""TestLLM - A 模拟对象 LLM 用于测试。
 
-TestLLM is a real LLM subclass that returns scripted responses, eliminating
-the need for @patch decorators and understanding of LiteLLM internals.
+TestLLM 是一个真正的 LLM 子类，它返回脚本化响应，消除了对 @patch 装饰器的需要和对
+LiteLLM 内部结构的理解。
 
 Example:
     >>> from openhands.sdk.testing import TestLLM
     >>> from openhands.sdk.llm import Message, TextContent
     >>>
-    >>> # Create a TestLLM with scripted responses
+    >>> # 创建一个 TestLLM，并设置脚本响应
     >>> llm = TestLLM.from_messages([
     ...     Message(role="assistant", content=[TextContent(text="Hello!")]),
     ...     Message(role="assistant", content=[TextContent(text="Goodbye!")]),
     ... ])
     >>>
-    >>> # Use it like a normal LLM
+    >>> # 像正常一样使用它 LLM
     >>> user_msg = Message(role="user", content=[TextContent(text="Hi")])
     >>> response = llm.completion([user_msg])
-    >>> print(response.message.content[0].text)  # "Hello!"
+    >>> print(response.message.content[0].text)  # 你好！
 
-    >>> # Scripted errors (like unittest.mock side_effect)
+    >>> # unittest.mock side_effect 生成的错误
     >>> from openhands.sdk.llm.exceptions import LLMContextWindowExceedError
     >>> llm = TestLLM.from_responses([
     ...     Message(role="assistant", content=[TextContent(text="OK")]),
     ...     LLMContextWindowExceedError(),
     ... ])
-    >>> llm.completion([...])  # returns "OK"
-    >>> llm.completion([...])  # raises LLMContextWindowExceedError
+    >>> llm.completion([...])  # 返回 "OK"
+    >>> llm.completion([...])  # LLMContextWindowExceedError引发了异常
 """
 
 from __future__ import annotations
@@ -54,34 +54,35 @@ __all__ = ["TestLLM", "TestLLMExhaustedError"]
 
 
 class TestLLMExhaustedError(Exception):
-    """Raised when TestLLM has no more scripted responses."""
+    """当 TestLLM 没有更多脚本响应时引发。"""
 
     pass
 
 
 class TestLLM(LLM):
-    """A mock LLM for testing that returns scripted responses.
+    """用于返回脚本响应的测试的模拟对象 LLM。
 
-    TestLLM is a real LLM subclass that can be used anywhere an LLM is accepted:
-    in Agent(llm=...), in fallback_llms, in condensers, in routers, etc.
+    TestLLM 是一个真正的 LLM 子类，可以在任何接受 LLM 的地方使用：在 Agent(llm=...)、
+    fallback_llms、上下文压缩器、路由器等
+    中。
 
-    Key features:
-    - No patching needed: just pass TestLLM as the llm= argument
-    - Tests speak in SDK types (Message, TextContent, MessageToolCall)
-    - Clear error when responses are exhausted
-    - Zero-cost metrics by default
-    - Always uses completion() path (uses_responses_api returns False)
+    主要特点：
+    - 无需修补：只需将 TestLLM 作为 llm= 参数传递
+    - 测试以 SDK 类型说话（消息、TextContent、MessageToolCall）
+    - 当响应用尽时清除错误
+    - 默认情况下的零成本指标
+    - 始终使用 completion() 路径（uses_responses_api 返回 False）
 
     Example:
         >>> from openhands.sdk.testing import TestLLM
         >>> from openhands.sdk.llm import Message, TextContent, MessageToolCall
         >>>
-        >>> # Simple text response
+        >>> # 简单的文本回复
         >>> llm = TestLLM.from_messages([
         ...     Message(role="assistant", content=[TextContent(text="Done!")]),
         ... ])
         >>>
-        >>> # Response with tool calls
+        >>> # 工具调用的响应
         >>> llm = TestLLM.from_messages([
         ...     Message(
         ...         role="assistant",
@@ -99,7 +100,7 @@ class TestLLM(LLM):
         ... ])
     """
 
-    # Prevent pytest from collecting this class as a test
+    # 阻止 pytest 收集此类作为测试
     __test__ = False
 
     model: str = Field(default="test-model")
@@ -111,7 +112,7 @@ class TestLLM(LLM):
     )
 
     def __init__(self, **data: Any) -> None:
-        # Extract scripted_responses before calling super().__init__
+        # 在调用 super().__init__ 之前提取 scripted_responses
         scripted_responses = data.pop("scripted_responses", [])
         super().__init__(**data)
         self._scripted_responses = deque(list(scripted_responses))
@@ -126,19 +127,19 @@ class TestLLM(LLM):
         usage_id: str = "test-llm",
         **kwargs: Any,
     ) -> TestLLM:
-        """Create a TestLLM with scripted responses and/or errors.
+        """创建一个包含脚本化响应和/或错误的 TestLLM。
 
         Args:
-            messages: List of Message or Exception objects to return in order.
-                Each call to completion() or responses() consumes the next
-                item: Message objects are returned normally, Exception objects
-                are raised (like unittest.mock side_effect).
-            model: Model name (default: "test-model")
-            usage_id: Usage ID for metrics (default: "test-llm")
-            **kwargs: Additional LLM configuration options
+            messages: 按顺序返回的消息或异常对象的列表。
+                每次调用 completion() 或 responses() 都会消耗下一个
+                item: 消息对象正常返回，异常对象
+                被提升（如 unittest.mock side_effect）。
+            model: 模型名称（默认：“测试模型”）
+            usage_id: 指标的使用 ID（默认值：“test-llm”）
+            **kwargs: 其他 LLM 配置选项
 
         Returns:
-            A TestLLM instance configured with the scripted responses.
+            配置有脚本响应的 TestLLM 实例。
 
         Example:
             >>> llm = TestLLM.from_messages([
@@ -162,21 +163,21 @@ class TestLLM(LLM):
         call_context: LLMCallContext | None = None,  # noqa: ARG002
         **kwargs: Any,  # noqa: ARG002
     ) -> LLMResponse:
-        """Return the next scripted response.
+        """返回下一个脚本响应。
 
         Args:
-            messages: Input messages (ignored, but required for API compatibility)
-            tools: Available tools (ignored)
-            add_security_risk_prediction: Add security risk field (ignored)
-            on_token: Streaming callback (ignored)
-            **kwargs: Additional arguments (ignored)
+            messages: 输入消息（被忽略，但 API 兼容性所必需）
+            tools: 可用工具（忽略）
+            add_security_risk_prediction: 添加安全风险字段（忽略）
+            on_token: 流式传输回调 (ignored)
+            **kwargs: 附加参数（忽略）
 
         Returns:
-            LLMResponse containing the next scripted message.
+            LLMResponse 包含下一个脚本消息。
 
         Raises:
-            TestLLMExhaustedError: When no more scripted responses are available.
-            Exception: Any scripted exception placed in the response queue.
+            TestLLMExhaustedError: 当没有更多可用的脚本响应时。
+            Exception: 放置在响应队列中的任何脚本化异常。
         """
         if not self._scripted_responses:
             raise TestLLMExhaustedError(
@@ -187,13 +188,13 @@ class TestLLM(LLM):
         item = self._scripted_responses.popleft()
         self._call_count += 1
 
-        # Raise scripted exceptions (like unittest.mock side_effect)
+        # 引发脚本异常（如 unittest.mock side_effect）
         if isinstance(item, Exception):
             raise item
 
         message = item
 
-        # Create a minimal ModelResponse for raw_response
+        # 为 raw_response 创建最小 ModelResponse
         raw_response = self._create_model_response(message)
 
         return LLMResponse(
@@ -211,16 +212,13 @@ class TestLLM(LLM):
         call_context: LLMCallContext | None = None,  # noqa: ARG002
         **kwargs: Any,
     ) -> LLMResponse:
-        """Async variant that delegates to the synchronous :meth:`completion`.
+        """异步变体委托给同步：meth:`completion`。
 
-        Runs the sync call in an executor so the event loop is not
-        blocked, even though the underlying ``deque.popleft()`` is
-        effectively instantaneous.
+        运行同步调用，以确保事件循环不受阻，尽管底层``deque.popleft()``实际上非常快。
 
-        ``on_token`` is accepted for API compatibility but not forwarded
-        because :meth:`completion` ignores it and the type union
-        (sync | async callback) is not assignable to the sync-only
-        signature.
+        ``on_token`` 因 API 兼容性而被接受，但未转发，因为：meth:`completion` 会忽略
+        它，并且类型联合 (同步 | 异步回调) 不
+        可分配给仅同步签名。
         """
         import asyncio
 
@@ -246,10 +244,9 @@ class TestLLM(LLM):
         call_context: LLMCallContext | None = None,  # noqa: ARG002
         **kwargs: Any,
     ) -> LLMResponse:
-        """Return the next scripted response (delegates to completion).
+        """返回下一个脚本响应（委托完成）。
 
-        For TestLLM, both completion() and responses() return from the same
-        queue of scripted responses.
+        对于 TestLLM，completion() 和 responses() 都从同一脚本响应队列返回。
         """
         return self.completion(
             messages=messages,
@@ -260,11 +257,11 @@ class TestLLM(LLM):
         )
 
     def uses_responses_api(self) -> bool:
-        """TestLLM always uses the completion path."""
+        """TestLLM 始终使用完成路径。"""
         return False
 
     def _zero_metrics(self) -> MetricsSnapshot:
-        """Return a zero-cost metrics snapshot."""
+        """返回零成本指标快照。"""
         return MetricsSnapshot(
             model_name=self.model,
             accumulated_cost=0.0,
@@ -277,18 +274,17 @@ class TestLLM(LLM):
         )
 
     def _create_model_response(self, message: Message) -> ModelResponse:
-        """Create a minimal ModelResponse from a Message.
+        """从消息创建最小的 ModelResponse。
 
-        This creates a valid ModelResponse that can be used as raw_response
-        in LLMResponse.
+        这创建了一个有效的 ModelResponse，可以用于 raw_response 在 LLMResponse。
         """
-        # Build the LiteLLM message dict
+        # 构建 LiteLLM 消息字典
         litellm_message_dict: dict[str, Any] = {
             "role": message.role,
             "content": self._content_to_string(message),
         }
 
-        # Add tool_calls if present
+        # 添加 tool_calls（如果存在）
         if message.tool_calls:
             litellm_message_dict["tool_calls"] = [
                 {
@@ -313,7 +309,7 @@ class TestLLM(LLM):
         )
 
     def _content_to_string(self, message: Message) -> str:
-        """Convert message content to a string."""
+        """将消息内容转换为字符串。"""
         from openhands.sdk.llm.message import TextContent
 
         parts = []
@@ -324,10 +320,10 @@ class TestLLM(LLM):
 
     @property
     def remaining_responses(self) -> int:
-        """Return the number of remaining scripted responses."""
+        """返回剩余脚本响应的数量。"""
         return len(self._scripted_responses)
 
     @property
     def call_count(self) -> int:
-        """Return the number of calls made to this TestLLM."""
+        """返回对此 TestLLM 的调用次数。"""
         return self._call_count

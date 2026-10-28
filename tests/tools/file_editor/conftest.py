@@ -12,7 +12,7 @@ from openhands.tools.file_editor.editor import FileEditor
 
 @pytest.fixture
 def temp_file():
-    """Create a temporary file for testing."""
+    """创建一个临时文件用于测试。"""
     with tempfile.NamedTemporaryFile(delete=False) as f:
         path = Path(f.name)
 
@@ -27,20 +27,20 @@ def temp_file():
 
 @pytest.fixture
 def temp_dir():
-    """Create a temporary directory for testing."""
+    """创建一个临时目录用于测试。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
 
 
 @pytest.fixture
 def editor():
-    """Create a FileEditor instance for testing."""
+    """创建一个 FileEditor 实例用于测试。"""
     return FileEditor()
 
 
 @pytest.fixture
 def editor_with_test_file(tmp_path):
-    """Create a FileEditor instance with a test file."""
+    """使用测试文件创建 FileEditor 实例。"""
     editor = FileEditor()
     test_file = tmp_path / "test.txt"
     test_file.write_text("This is a test file.\nThis file is for testing purposes.")
@@ -49,7 +49,7 @@ def editor_with_test_file(tmp_path):
 
 @pytest.fixture
 def editor_python_file_with_tabs(tmp_path):
-    """Create a FileEditor instance with a Python test file containing tabs."""
+    """使用包含选项卡的 Python 测试文件创建 FileEditor 实例。"""
     editor = FileEditor()
     test_file = tmp_path / "test.py"
     test_file.write_text('def test():\n\tprint("Hello, World!")')
@@ -59,7 +59,7 @@ def editor_python_file_with_tabs(tmp_path):
 def assert_successful_result(
     result: FileEditorObservation, expected_path: str | None = None
 ):
-    """Assert that a result is successful (no error)."""
+    """断言结果成功（无错误）。"""
     assert isinstance(result, FileEditorObservation)
     assert not result.is_error
     if expected_path:
@@ -69,7 +69,7 @@ def assert_successful_result(
 def assert_error_result(
     result: FileEditorObservation, expected_error_substring: str | None = None
 ):
-    """Assert that a result contains an error."""
+    """断言结果包含错误。"""
     assert isinstance(result, FileEditorObservation)
     assert result.is_error
     if expected_error_substring:
@@ -82,6 +82,6 @@ def assert_error_result(
 
 
 def create_test_file(path: Path, content: str):
-    """Helper to create a test file with given content."""
+    """帮助程序创建具有给定内容的测试文件。"""
     path.write_text(content)
     return path

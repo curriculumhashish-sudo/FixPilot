@@ -1,6 +1,6 @@
-"""Utility for converting environment variables into pydantic base models.
-We couldn't use pydantic-settings for this as we need complex nested types
-and polymorphism."""
+"""用于将环境变量转换为 Pydantic 基本模型的实用程序。 我们不能为此使用 Pydantic-设置
+，因为我们需要复杂的嵌套类型和多态性。
+"""
 
 import importlib
 import inspect
@@ -24,7 +24,7 @@ from openhands.sdk.utils.models import (
 )
 
 
-# Define Missing type
+# 定义缺失类型
 class MissingType:
     pass
 
@@ -34,14 +34,14 @@ JsonType = str | int | float | bool | dict | list | None | MissingType
 
 
 class EnvParser(ABC):
-    """Event parser type"""
+    """事件解析器类型"""
 
     @abstractmethod
     def from_env(self, key: str) -> JsonType:
-        """Parse environment variables into a json like structure"""
+        """将环境变量解析为类似 JSON 的结构"""
 
     def to_env(self, key: str, value: Any, output: IO):
-        """Produce a template based on this parser"""
+        """基于此解析器生成模板"""
         if value is None:
             value = ""
         output.write(f"{key}={value}\n")
@@ -103,7 +103,7 @@ class LiteralEnvParser(EnvParser):
 
     def to_env(self, key: str, value: Any, output: IO):
         output.write(f"# Permitted Values: {', '.join(self.values)}\n")
-        # For enums, use the value instead of the string representation
+        # 对于枚举，使用值而不是字符串表示形式
         if hasattr(value, "value"):
             output.write(f"{key}={value.value}\n")
         else:
@@ -116,7 +116,7 @@ class ModelEnvParser(EnvParser):
     descriptions: dict[str, str]
 
     def from_env(self, key: str) -> dict | MissingType:
-        # First we see is there a base value defined as json...
+        # 首先我们看到有一个基值定义为 JSON...
         value = os.environ.get(key)
         if value:
             result = json.loads(value)
@@ -124,12 +124,12 @@ class ModelEnvParser(EnvParser):
         else:
             result = MISSING
 
-        # Check for overrides...
+        # 检查是否有覆盖...
         for field_name, parser in self.parsers.items():
             env_var_name = f"{key}_{field_name.upper()}"
 
-            # First we check that there are possible keys for this field to prevent
-            # infinite recursion
+            # 首先我们检查该字段是否有可能的键以防止无限递归
+            #
             has_possible_keys = next(
                 (k for k in os.environ if k.startswith(env_var_name)), False
             )
@@ -164,7 +164,7 @@ class ModelEnvParser(EnvParser):
 
 class DictEnvParser(EnvParser):
     def from_env(self, key: str) -> dict | MissingType:
-        # Read json from an environment variable
+        # 从环境变量读取 JSON
         value = os.environ.get(key)
         if value:
             result = json.loads(value)
@@ -182,8 +182,8 @@ class ListEnvParser(EnvParser):
 
     def from_env(self, key: str) -> list | MissingType:
         if key not in os.environ:
-            # Try to read sequentially, starting with 0
-            # Return MISSING if there are no items
+            # 尝试顺序读取，从0开始如果没有项则返回MISSING
+            #
             result = MISSING
             index = 0
             while True:
@@ -196,22 +196,23 @@ class ListEnvParser(EnvParser):
                 result.append(item)  # type: ignore
                 index += 1
 
-        # Assume the value is json
+        # 假设值为JSON
         value = os.environ.get(key)
         result = json.loads(value)  # type: ignore
-        # A number indicates that the result should be N items long
+        # 数字表示结果的长度应为 N 项
         if isinstance(result, int):
             result = [MISSING] * result
         else:
-            # Otherwise assume the item is a list
+            # 否则假设该项目是一个列表
             assert isinstance(result, list)
 
         for index in range(len(result)):
             sub_key = f"{key}_{index}"
             item = self.item_parser.from_env(sub_key)
             item = merge(result[index], item)
-            # We permit missing items in the list because these may be filled
-            # in later when merged with the output of another parser
+            # 我们允许列表中缺少项目，因为这些项目可能会在稍后与另一个解析器的输出合并时
+            # 被填充
+            #
             result[index] = item  # type: ignore
 
         return result
@@ -222,7 +223,7 @@ class ListEnvParser(EnvParser):
                 sub_key = f"{key}_{index}"
                 self.item_parser.to_env(sub_key, sub_value, output)
         else:
-            # Try to produce a sample value based on the defaults...
+            # 尝试根据默认值生成样本值...
             try:
                 sub_key = f"{key}_0"
                 sample_output = StringIO()
@@ -234,7 +235,7 @@ class ListEnvParser(EnvParser):
                     output.write(line)
                     output.write("\n")
             except Exception:
-                # Couldn't create a sample value. Skip
+                # 无法创建示例值。 跳过
                 pass
 
 
@@ -252,7 +253,7 @@ class UnionEnvParser(EnvParser):
     def to_env(self, key: str, value: Any, output: IO):
         for type_, parser in self.parsers.items():
             if not isinstance(value, type_):
-                # Try to produce a sample value based on the defaults...
+                # 尝试根据默认值生成样本值...
                 try:
                     sample_value = _create_sample(type_)
                     sample_output = StringIO()
@@ -263,7 +264,7 @@ class UnionEnvParser(EnvParser):
                         output.write(line)
                         output.write("\n")
                 except Exception:
-                    # Couldn't create a sample value. Skip
+                    # 无法创建示例值。 跳过
                     pass
         for type_, parser in self.parsers.items():
             if isinstance(value, type_):
@@ -281,57 +282,57 @@ class DiscriminatedUnionEnvParser(EnvParser):
         kind_missing = False
         if kind is MISSING:
             kind_missing = True
-            # If there are other fields and there is exactly one kind, use it directly
+            # 如果还有其他字段并且恰好有一种，则直接使用
             if len(self.parsers) == 1:
                 kind = next(iter(self.parsers.keys()))
             else:
                 return MISSING
-        # Type narrowing: kind is str here (from os.environ.get or dict keys)
+        # 类型缩小：这里的 kind 是 str （来自 os.environ.get 或 dict 键）
         kind = cast(str, kind)
 
-        # If kind contains dots, treat it as a full class name
+        # 如果 kind 包含点，则将其视为完整的类名
         if "." in kind:
             kind = self._import_and_register_class(kind)
 
-        # Intentionally raise KeyError for invalid KIND - typos should fail early
+        # 故意对无效的 KIND 提出 KeyError - 拼写错误应该会提前失败
         parser = self.parsers[kind]
         parser_result = parser.from_env(key)
 
-        # A kind was defined without other fields
+        # 定义了一个种类，没有其他字段
         if parser_result is MISSING:
-            # If the kind was not defined, the entry is MISSING
+            # 如果未定义种类，则条目为 MISSING
             if kind_missing:
                 return MISSING
-            # Only a kind was defined
+            # 仅定义了一种
             parser_result = {}
 
-        # Type narrowing: discriminated union parsers always return dicts
+        # 类型缩小：可区分的联合解析器总是返回字典
         parser_result = cast(dict, parser_result)
         parser_result["kind"] = kind
         return parser_result
 
     def _import_and_register_class(self, full_class_name: str) -> str:
-        """Import a class from its full module path and register its parser.
+        """从完整模块路径导入类并注册其解析器。
 
         Args:
-            full_class_name: Full class path (e.g., 'mymodule.submodule.MyClass')
+            full_class_name: 完整的类路径 (e.g., mymodule.submodule.MyClass)
 
         Returns:
-            The unqualified class name (e.g., 'MyClass')
+            非限定类名 (e.g., 'MyClass')
         """
         parts = full_class_name.rsplit(".", 1)
         module_name = parts[0]
         class_name = parts[1]
 
-        # If class already registered, just return the name
+        # 如果类已经注册，只需返回名称
         if class_name in self.parsers:
             return class_name
 
-        # Import the module and get the class
+        # 导入模块并获取类
         module = importlib.import_module(module_name)
         cls = getattr(module, class_name)
 
-        # Create and register the parser for this class
+        # 为该类创建并注册解析器
         parser = get_env_parser(cls, _get_default_parsers())
         self.parsers[class_name] = parser
 
@@ -344,7 +345,7 @@ class DiscriminatedUnionEnvParser(EnvParser):
 
 @dataclass
 class DelayedParser(EnvParser):
-    """Delayed parser for circular dependencies"""
+    """循环依赖的延迟解析器"""
 
     parser: EnvParser | None = None
 
@@ -358,11 +359,12 @@ class DelayedParser(EnvParser):
 
 
 def merge(a, b, *, none_overrides: bool = False):
-    """Merge ``b`` over ``a``.
+    """将 ``b`` 合并到 ``a``。
 
-    By default a ``None`` in ``b`` keeps ``a``. With ``none_overrides=True`` an
-    explicit ``None`` in ``b`` replaces ``a`` (e.g. ``OH_<FIELD>_IS_NONE=1``
-    over a config file value); ``MISSING`` still keeps ``a``.
+    默认情况下，``b`` 中的 ``None`` 保留 ``a``。 对于 ``none_overrides=True``，``b``
+    中的显式 ``None`` 取
+    代了 ``a``（e.g。 ``OH_<FIELD>_IS_NONE=1``超过配置文件值）； ``MISSING``仍保留
+    ``a``。
     """
     if a is MISSING:
         return b
@@ -383,22 +385,22 @@ def merge(a, b, *, none_overrides: bool = False):
                     result[index], value, none_overrides=none_overrides
                 )
         return result
-    # Favor present values over missing ones
+    # 优先考虑当前值而不是缺失值
     if b is None and not none_overrides:
         return a
-    # Later values overwrite earier ones
+    # 后面的值会覆盖前面的值
     return b
 
 
 def get_env_parser(target_type: type, parsers: dict[type, EnvParser]) -> EnvParser:
-    # Check if we have already defined a parser
+    # 检查我们是否已经定义了解析器
     if target_type in parsers:
         return parsers[target_type]
 
-    # Check origin
+    # 检查原产地
     origin = get_origin(target_type)
     if origin is Annotated:
-        # Strip annotations...
+        # 剥离注释...
         return get_env_parser(get_args(target_type)[0], parsers)
     if origin is UnionType or origin is Union:
         union_parsers = {
@@ -424,7 +426,7 @@ def get_env_parser(target_type: type, parsers: dict[type, EnvParser]) -> EnvPars
         inspect.isabstract(target_type) or ABC in target_type.__bases__
     ):
         delayed = DelayedParser()
-        parsers[target_type] = delayed  # Prevent circular dependency
+        parsers[target_type] = delayed  # 防止循环依赖
         sub_parsers = {
             c.__name__: get_env_parser(c, parsers)
             for c in get_known_concrete_subclasses(target_type)
@@ -435,7 +437,7 @@ def get_env_parser(target_type: type, parsers: dict[type, EnvParser]) -> EnvPars
         return parser
     if issubclass(target_type, BaseModel):  # type: ignore
         delayed = DelayedParser()
-        parsers[target_type] = delayed  # Prevent circular dependency
+        parsers[target_type] = delayed  # 防止循环依赖
         field_parsers = {}
         descriptions = {}
         for name, field in target_type.model_fields.items():
@@ -484,7 +486,7 @@ def _create_sample(type_: type):
             return next(iter(type_))
     except Exception:
         pass
-    # Try to initialize and raise exception if failure.
+    # 尝试初始化并在失败时引发异常。
     return type_()
 
 

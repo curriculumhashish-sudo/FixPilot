@@ -1,11 +1,10 @@
-"""server_started/stopped lifecycle across the deferred-init path.
+"""server_started/stopped 跨 deferred-init 路径的生命周期。
 
-Regression coverage for two review findings:
+回归两项审查结果的覆盖范围：
 
-* a ``/api/init`` that fails after the telemetry sink is built must not emit a
-  ``server_started``, and a retry must emit exactly one; and
-* ``emit_server_started`` is idempotent, so no call path can produce an
-  unpaired second start.
+* 构建遥测接收器后失败的 ``/api/init`` 不得发出
+  ``server_started``，并且重试必须恰好发出 1； 和
+* ``emit_server_started`` 是幂等的，因此任何调用路径都不能产生不配对的第二个启动。
 """
 
 from types import SimpleNamespace
@@ -40,7 +39,7 @@ class _RecordingSink:
 
 @pytest.fixture
 def recording(monkeypatch):
-    """Install a recording sink and a real factory, and reset lifecycle state."""
+    """安装记录接收器和真实工厂，并重置生命周期状态。"""
     service_mod.reset_telemetry_sink()
     sink = _RecordingSink()
     monkeypatch.setattr(service_mod, "_telemetry_sink", sink)
@@ -70,19 +69,18 @@ async def test_emit_server_started_is_idempotent(recording):
 async def test_started_then_stopped_pairs(recording):
     service_mod.emit_server_started()
     service_mod.emit_server_stopped()
-    service_mod.emit_server_stopped()  # no double stop
+    service_mod.emit_server_stopped()  # 没有双停
     assert recording.events == [m.EventName.SERVER_STARTED, m.EventName.SERVER_STOPPED]
 
 
 async def test_failed_init_emits_no_start_and_retry_emits_exactly_one(
     recording, tmp_path, monkeypatch
 ):
-    """The core regression: a start must not be emitted for a failed init.
+    """核心回归：不能为失败的 init 发出启动。
 
-    The sink is built before the conversation service, so a failure in
-    get_instance() lands after telemetry setup. The old code emitted
-    server_started there, leaving an unpaired start and letting the retry emit
-    a second one.
+    接收器是在会话服务之前构建的，因此 get_instance() 中的故障在遥测设置之后发生。 旧
+    代码在那里发出 server_started，留下一个未配对的开始
+    ，并让重试发出第二个开始。
     """
     _reset_singletons()
     base = Config(
@@ -93,8 +91,9 @@ async def test_failed_init_emits_no_start_and_retry_emits_exactly_one(
     app = SimpleNamespace(state=SimpleNamespace(config=base))
     svc = InitService(app, base_config=base)  # type: ignore[arg-type]
 
-    # The sink is (re)built inside initialize(); keep our recording sink in
-    # place so the emit path is observable regardless.
+    # 水槽在initialize()内（重新）建造； 将我们的记录接收器保持在适当的位置，以便无论如
+    # 何都能观察到发射路径。
+    #
     monkeypatch.setattr(service_mod, "build_telemetry_sink", _keep_sink(recording))
     monkeypatch.setattr(service_mod, "shutdown_telemetry_sink", _noop_async)
     import openhands.agent_server.init_router as init_mod
@@ -102,7 +101,7 @@ async def test_failed_init_emits_no_start_and_retry_emits_exactly_one(
     monkeypatch.setattr(init_mod, "build_telemetry_sink", _keep_sink(recording))
     monkeypatch.setattr(init_mod, "shutdown_telemetry_sink", _noop_async)
 
-    # First attempt: force a failure after the sink is built.
+    # 第一次尝试：在水槽建成后强制失败。
     boom = {"raise": True}
     real_get_instance = init_mod.ConversationService.get_instance
 
@@ -121,7 +120,7 @@ async def test_failed_init_emits_no_start_and_retry_emits_exactly_one(
         assert svc.state == "dormant", "failed init should roll back to dormant"
         assert recording.events == [], "a failed init must not emit server_started"
 
-        # Retry succeeds.
+        # 重试成功。
         boom["raise"] = False
         result = await svc.initialize(InitRequest())
         assert result.state == "ready"

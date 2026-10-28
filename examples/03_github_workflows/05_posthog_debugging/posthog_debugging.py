@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 """
-PostHog Debugging Example
+PostHog 调试示例
 
-This example demonstrates how to use the OpenHands agent to debug errors
-logged in PostHog.
-The agent will:
-1. Query PostHog events to understand the error using the Query API
-2. Clone relevant GitHub repositories using git commands
-3. Analyze the codebase to identify potential causes
-4. Attempt to reproduce the error
-5. Optionally create a draft PR with a fix
+此示例演示如何使用 OpenHands 智能体调试 PostHog 中记录的错误。 智能体将：
+1. 使用查询 API 查询 PostHog 事件以了解错误
+2. 使用 git 命令克隆相关 GitHub 存储库
+3. 分析代码库以确定潜在原因
+4. 尝试重现错误
+5. （可选）创建包含修复的草稿 PR
 
-Usage:
+用途：
     python posthog_debugging.py --query "$exception" \\
         --repos "All-Hands-AI/OpenHands,All-Hands-AI/deploy"
 
-Environment Variables Required:
-    - POSTHOG_API_KEY: Your PostHog Personal API key
-    - POSTHOG_PROJECT_ID: Your PostHog project ID
-    - POSTHOG_HOST: (optional) PostHog host (e.g., us.posthog.com, eu.posthog.com)
-    - GITHUB_TOKEN: Your GitHub personal access token
-    - LLM_API_KEY: API key for the LLM service
+环境变量必填：
+    - POSTHOG_API_KEY: 您的 PostHog 个人 API 密钥
+    - POSTHOG_PROJECT_ID: 您的 PostHog 项目 ID
+    - POSTHOG_HOST: （可选）PostHog 主机（e.g.、us.posthog.com、eu.posthog.com）
+    - GITHUB_TOKEN: 您的 GitHub 个人访问令牌
+    - LLM_API_KEY: LLM 服务的 API 键
 """
 
 import argparse
@@ -56,24 +54,24 @@ DEFAULT_POSTHOG_HOST = "us.posthog.com"
 
 
 def get_posthog_host() -> str:
-    """Get PostHog host from environment, using default if not set or empty."""
+    """从环境中获取 PostHog 主机，如果未设置或为空，则使用默认值。"""
     host = os.getenv("POSTHOG_HOST", "")
     return host if host else DEFAULT_POSTHOG_HOST
 
 
 def _extract_issue_title(examples: list[dict], query: str) -> str:
     """
-    Extract a meaningful issue title from event examples.
+    从事件示例中提取有意义的问题标题。
 
-    For $exception events, tries to extract the exception type and message.
-    Falls back to the query if no meaningful info can be extracted.
+    对于 $exception 事件，尝试提取异常类型和消息。 如果无法提取有意义的信息，则返回到
+    查询。
 
     Args:
-        examples: List of event examples
-        query: The original query string
+        examples: 事件示例列表
+        query: 原始查询字符串
 
     Returns:
-        A descriptive title string (max 100 chars)
+        描述性标题字符串（最多 100 个字符）
     """
     if not examples:
         return query[:50]
@@ -81,30 +79,30 @@ def _extract_issue_title(examples: list[dict], query: str) -> str:
     first_event = examples[0]
     properties = first_event.get("properties", {})
 
-    # Handle string properties (need to parse JSON)
+    # 处理字符串属性（需要解析JSON）
     if isinstance(properties, str):
         try:
             properties = json.loads(properties)
         except json.JSONDecodeError:
             properties = {}
 
-    # Try to extract exception info from $exception events
+    # 尝试从 $exception 事件中提取异常信息
     exception_types = properties.get("$exception_types", [])
     exception_values = properties.get("$exception_values", [])
 
     if exception_types and exception_values:
-        # Combine type and value for a descriptive title
+        # 组合描述性标题的类型和值
         exc_type = exception_types[0] if exception_types else "Error"
         exc_value = exception_values[0] if exception_values else ""
 
         if exc_value:
-            # Truncate long messages
+            # 截断长消息
             if len(exc_value) > 60:
                 exc_value = exc_value[:57] + "..."
             return f"{exc_type}: {exc_value}"
         return exc_type
 
-    # Try $exception_list format
+    # 尝试 $exception_list 格式
     exception_list = properties.get("$exception_list", [])
     if exception_list:
         first_exc = exception_list[0]
@@ -117,7 +115,7 @@ def _extract_issue_title(examples: list[dict], query: str) -> str:
             return f"{exc_type}: {exc_value}"
         return exc_type
 
-    # Fall back to event name or query
+    # 回退到事件名称或查询
     event_name = first_event.get("event", query)
     return event_name[:50] if event_name else query[:50]
 
@@ -130,20 +128,19 @@ def _fetch_event_timeline(
     days_back: int = 30,
 ) -> dict:
     """
-    Fetch timeline information about when an event first occurred and daily counts.
+    获取有关事件首次发生时间和每日计数的时间线信息。
 
-    This helps identify when an error started occurring, which is critical for
-    correlating with code changes and deployments.
+    这有助于识别错误何时开始发生，这对于与代码更改和部署相关联至关重要。
 
     Args:
-        event_name: The event name to query (e.g., '$exception')
-        posthog_host: PostHog API host
-        posthog_project_id: PostHog project ID
-        posthog_api_key: PostHog API key
-        days_back: How many days back to look for first occurrence
+        event_name: 要查询的事件名称 (e.g., '$exception')
+        posthog_host: PostHog API 主持人
+        posthog_project_id: PostHog 项目编号
+        posthog_api_key: PostHogAPI键
+        days_back: 回溯多少天来查找第一次出现的情况
 
     Returns:
-        Dictionary with timeline information
+        带有时间线信息的词典
     """
     api_url = f"https://{posthog_host}/api/projects/{posthog_project_id}/query/"
     headers = {
@@ -159,7 +156,7 @@ def _fetch_event_timeline(
         "days_analyzed": days_back,
     }
 
-    # Query 1: Get first and last occurrence timestamps and total count
+    # 查询 1：获取第一次和最后一次出现的时间戳以及总计数
     summary_query = (
         f"SELECT min(timestamp) as first_seen, max(timestamp) as last_seen, "
         f"count() as total_count FROM events "
@@ -184,7 +181,7 @@ def _fetch_event_timeline(
     except Exception as e:
         print(f"⚠️  Warning: Could not fetch event timeline summary: {e}")
 
-    # Query 2: Get daily counts for the period
+    # 查询 2：获取该时段内的每日计数
     daily_query = (
         f"SELECT toDate(timestamp) as day, count() as count FROM events "
         f"WHERE event = '{event_name}' "
@@ -212,7 +209,7 @@ def _fetch_event_timeline(
 
 
 def validate_environment():
-    """Validate that all required environment variables are set."""
+    """验证所有必需的环境变量均已设置。"""
     required_vars = [
         "POSTHOG_API_KEY",
         "POSTHOG_PROJECT_ID",
@@ -239,17 +236,17 @@ def fetch_posthog_events(
     query: str, working_dir: Path, query_type: str = "event-query", limit: int = 5
 ) -> Path:
     """
-    Fetch event examples from PostHog and save to a JSON file.
+    从 PostHog 获取事件示例并保存到 JSON 文件。
 
     Args:
-        query: PostHog query string (event name or event ID)
-        working_dir: Directory to save the event examples
-        query_type: Type of query - "event-query" (uses Query API with HogQL) or
-            "event-id" (fetches specific event)
-        limit: Maximum number of event examples to fetch (default: 5)
+        query: PostHog 查询字符串（事件名称或事件 ID）
+        working_dir: 保存事件示例的目录
+        query_type: 查询类型 - “事件查询”（使用查询 API 和 HogQL）或
+            “event-id”（获取特定事件）
+        limit: 要获取的事件示例的最大数量（默认值：5）
 
     Returns:
-        Path to the JSON file containing event examples
+        包含事件示例的 JSON 文件的路径
     """
     posthog_api_key = os.getenv("POSTHOG_API_KEY")
     posthog_project_id = os.getenv("POSTHOG_PROJECT_ID")
@@ -258,10 +255,10 @@ def fetch_posthog_events(
     event_examples = []
 
     if query_type == "event-id":
-        # Fetch specific event by ID using HogQL query
+        # 使用 HogQL 查询按 ID 获取特定事件
         api_url = f"https://{posthog_host}/api/projects/{posthog_project_id}/query/"
 
-        # Use HogQL to fetch event by UUID
+        # 使用 HogQL 通过 UUID 获取事件
         hogql_query = f"SELECT * FROM events WHERE uuid = '{query}' LIMIT 1"
 
         request_body = {
@@ -305,7 +302,7 @@ def fetch_posthog_events(
             print(f"   Response: {response.text[:500]}")
             sys.exit(1)
 
-        # Parse HogQL response
+        # 解析 HogQL 响应
         results = response_data.get("results", [])
         columns = response_data.get("columns", [])
 
@@ -313,11 +310,11 @@ def fetch_posthog_events(
             print(f"⚠️ No event found with ID: {query}")
             sys.exit(1)
 
-        # Convert row to dict using column names
+        # 使用列名将行转换为字典
         row = results[0]
         event_data = dict(zip(columns, row))
 
-        # Extract event details
+        # 提取事件详细信息
         event_example = {
             "example_number": 1,
             "event_id": event_data.get("uuid"),
@@ -329,12 +326,12 @@ def fetch_posthog_events(
         }
         event_examples.append(event_example)
 
-    else:  # event-query
-        # Use Query API with HogQL to fetch events
+    else:  # 事件查询
+        # 使用查询 API 和 HogQL 来获取事件
         api_url = f"https://{posthog_host}/api/projects/{posthog_project_id}/query/"
 
-        # Build HogQL query to fetch events
-        # Query for events in the last 1 day to avoid server-side timeouts
+        # 构建 HogQL 查询来获取事件查询最近 1 天内的事件以避免服务器端超时
+        #
         hogql_query = (
             f"SELECT * FROM events WHERE event = '{query}' "
             f"AND timestamp > now() - INTERVAL 1 DAY "
@@ -383,28 +380,28 @@ def fetch_posthog_events(
             print(f"   Response: {response.text[:500]}")
             sys.exit(1)
 
-        # Check for API errors (PostHog returns "error": null on success)
+        # 检查 API 个错误（成功时 PostHog 返回“error”：null）
         if response_data.get("error"):
             print(f"❌ PostHog API error: {response_data['error']}")
             sys.exit(1)
 
-        # Extract event results from HogQL query response
+        # 从 HogQL 查询响应中提取事件结果
         results = response_data.get("results", [])
 
         if results:
-            # The results are in a columnar format, need to parse them
+            # 结果是柱状格式，需要解析它们
             columns = response_data.get("columns", [])
             rows = response_data.get("results", [])
 
             for idx, row in enumerate(rows[:limit], 1):
-                # Create a dictionary mapping column names to values
+                # 创建将列名映射到值的字典
                 event_dict = {}
                 if columns:
                     for col_idx, col_name in enumerate(columns):
                         if col_idx < len(row):
                             event_dict[col_name] = row[col_idx]
                 else:
-                    # Fallback if no columns provided
+                    # 回退方案如果未提供列
                     event_dict = {"data": row}
 
                 event_example = {
@@ -418,11 +415,11 @@ def fetch_posthog_events(
                 }
                 event_examples.append(event_example)
 
-    # Fetch timeline information (when error first occurred, daily counts)
+    # 获取时间线信息（第一次发生错误时，每日计数）
     timeline_info: dict = {}
     if query_type == "event-query":
         print("📊 Fetching event timeline (first occurrence, daily counts)...")
-        # These are validated by validate_environment() before this function is called
+        # 在调用该函数之前，这些由 validate_environment() 验证
         assert posthog_project_id is not None
         assert posthog_api_key is not None
         timeline_info = _fetch_event_timeline(
@@ -433,7 +430,7 @@ def fetch_posthog_events(
             print(f"   Last seen: {timeline_info['last_seen']}")
             print(f"   Total count (30 days): {timeline_info['total_count']}")
 
-    # Save to file
+    # 保存到文件
     events_file = working_dir / "posthog_events.json"
     events_data = {
         "query": query,
@@ -442,7 +439,7 @@ def fetch_posthog_events(
         "examples": event_examples,
     }
 
-    # Add timeline info if available
+    # 添加时间线信息（如果有）
     if timeline_info:
         events_data["timeline"] = timeline_info
 
@@ -456,22 +453,22 @@ def fetch_posthog_events(
 
 def create_unique_identifier(query: str, events_data: dict) -> str:
     """
-    Create a unique identifier for the event based on query or event ID.
+    根据查询或事件 ID 为事件创建唯一标识符。
 
     Args:
-        query: The PostHog query string
-        events_data: The parsed event data from posthog_events.json
+        query: PostHog 查询字符串
+        events_data: 来自 posthog_events.json 的已解析事件数据
 
     Returns:
-        Unique identifier string
+        唯一标识符字符串
     """
-    # Check if we have a specific event ID
+    # 检查我们是否有特定的事件 ID
     examples = events_data.get("examples", [])
     if examples and examples[0].get("event_id"):
         event_id = examples[0]["event_id"]
         return f"event-id: {event_id}"
     else:
-        # Use query as identifier
+        # 使用查询作为标识符
         return f"query: {query}"
 
 
@@ -479,22 +476,22 @@ def search_existing_issue(
     issue_repo: str, identifier: str, github_token: str
 ) -> int | None:
     """
-    Search for existing open GitHub issues containing the identifier.
+    搜索包含标识符的现有开放 GitHub 问题。
 
-    Only returns open issues. If all matching issues are closed,
-    returns None so a new issue can be created.
+    仅返回未解决的问题。 如果所有匹配的问题都已关闭，则返回 None，以便可以创建新问题
+    。
 
     Args:
-        issue_repo: Repository in format 'owner/repo'
-        identifier: Unique identifier to search for
+        issue_repo: 存储库格式为“所有者/存储库”
+        identifier: 要搜索的唯一标识符
         github_token: GitHub API token
 
     Returns:
-        Issue number if found (open), None otherwise
+        如果找到则发行号（开放），否则为 None
     """
     print(f"🔍 Searching for existing open issue with identifier: {identifier}")
 
-    # Search for open issues in the repository
+    # 在存储库中搜索未解决的问题
     search_query = f'repo:{issue_repo} is:issue is:open "{identifier}"'
     url = "https://api.github.com/search/issues"
     headers = {
@@ -509,7 +506,7 @@ def search_existing_issue(
         data = response.json()
         items = data.get("items", [])
         if items:
-            # Sort by created_at to get the oldest issue (first created)
+            # 按 created_at 排序以获取最旧的问题（首先创建）
             items_sorted = sorted(items, key=lambda x: x["created_at"])
             issue_number = items_sorted[0]["number"]
             print(
@@ -535,16 +532,16 @@ def create_github_issue(
     github_token: str,
 ) -> int:
     """
-    Create a new GitHub issue.
+    创建一个新的 GitHub 问题。
 
     Args:
-        issue_repo: Repository in format 'owner/repo'
-        title: Issue title
-        body: Issue body content
+        issue_repo: 存储库格式为“所有者/存储库”
+        title: 问题标题
+        body: 问题正文内容
         github_token: GitHub API token
 
     Returns:
-        Created issue number
+        创建问题编号
     """
     print(f"📝 Creating new issue: {title}")
 
@@ -585,12 +582,12 @@ def update_github_issue(
     github_token: str,
 ) -> None:
     """
-    Update an existing GitHub issue body.
+    更新现有的 GitHub 问题正文。
 
     Args:
-        issue_repo: Repository in format 'owner/repo'
-        issue_number: Issue number to update
-        body: New issue body content
+        issue_repo: 存储库格式为“所有者/存储库”
+        issue_number: 要更新的问题编号
+        body: 新期正文内容
         github_token: GitHub API token
     """
     print(f"📝 Updating issue #{issue_number} with latest event data...")
@@ -610,20 +607,20 @@ def update_github_issue(
         print(f"✅ Updated issue #{issue_number}")
     except requests.exceptions.RequestException as e:
         print(f"⚠️  Warning: Could not update issue: {e}")
-        # Don't exit - this is not critical
+        # 不要退出 - 这并不重要
 
 
 def _extract_exception_info(properties: dict | str) -> dict | None:
     """
-    Extract exception information from event properties.
+    从事件属性中提取异常信息。
 
     Args:
-        properties: Event properties (dict or JSON string)
+        properties: 事件属性（字典或JSON字符串）
 
     Returns:
-        Dict with exception_type, exception_message, stack_frames, or None
+        包含 exception_type、exception_message、stack_frames 或 None 的字典
     """
-    # Parse properties if it's a string
+    # 如果是字符串则解析属性
     if isinstance(properties, str):
         try:
             properties = json.loads(properties)
@@ -633,7 +630,7 @@ def _extract_exception_info(properties: dict | str) -> dict | None:
     if not isinstance(properties, dict):
         return None
 
-    # Try to extract from $exception_list (PostHog format)
+    # 尝试从$exception_list（PostHog格式）中提取
     exception_list = properties.get("$exception_list", [])
     if exception_list and isinstance(exception_list, list):
         exc = exception_list[0]
@@ -643,7 +640,7 @@ def _extract_exception_info(properties: dict | str) -> dict | None:
             "stack_frames": [],
         }
 
-        # Extract stack frames
+        # 提取堆栈帧
         stacktrace = exc.get("stacktrace", {})
         frames = stacktrace.get("frames", [])
         for frame in frames:
@@ -657,7 +654,7 @@ def _extract_exception_info(properties: dict | str) -> dict | None:
 
         return result
 
-    # Fallback: try $exception_types and $exception_values
+    # 回退方案：尝试$exception_types和$exception_values
     exc_types = properties.get("$exception_types", [])
     exc_values = properties.get("$exception_values", [])
     if exc_types or exc_values:
@@ -671,7 +668,7 @@ def _extract_exception_info(properties: dict | str) -> dict | None:
 
 
 def _format_stack_trace(stack_frames: list[dict]) -> str:
-    """Format stack frames into a readable stack trace."""
+    """将堆栈帧格式化为可读的堆栈跟踪。"""
     if not stack_frames:
         return "*No stack trace available*"
 
@@ -682,7 +679,7 @@ def _format_stack_trace(stack_frames: list[dict]) -> str:
         line = frame.get("line", "?")
         col = frame.get("column", "")
 
-        # Clean up file path for display
+        # 清理显示的文件路径
         if file.startswith("/"):
             file = file.lstrip("/")
 
@@ -701,15 +698,15 @@ def format_issue_body(
     parent_issue_url: str | None,
 ) -> str:
     """
-    Format the GitHub issue body with event details.
+    使用事件详细信息格式化 GitHub 问题正文。
 
     Args:
-        events_data: The parsed event data
-        identifier: Unique identifier
-        parent_issue_url: Optional parent issue URL
+        events_data: 解析的事件数据
+        identifier: 唯一标识符
+        parent_issue_url: 可选的父问题 URL
 
     Returns:
-        Formatted issue body
+        格式化的问题正文
     """
     examples = events_data.get("examples", [])
     query = events_data.get("query", "")
@@ -717,11 +714,11 @@ def format_issue_body(
 
     body_parts = []
 
-    # Add parent issue reference if provided
+    # 添加父问题参考（如果提供）
     if parent_issue_url:
         body_parts.append(f"**Parent Issue:** {parent_issue_url}\n")
 
-    # Extract exception info from first example
+    # 从第一个示例中提取异常信息
     exception_info = None
     if examples:
         first_example = examples[0]
@@ -739,7 +736,7 @@ def format_issue_body(
     if timeline:
         first_seen = timeline.get("first_seen", "")
         if first_seen:
-            # Format date nicely
+            # 很好地格式化日期
             date_part = first_seen.split("T")[0] if "T" in first_seen else first_seen
             body_parts.append(f"**First Occurred:** {date_part}")
 
@@ -769,7 +766,7 @@ def format_issue_body(
 
         body_parts.append("")
 
-        # Add daily counts as a table
+        # 将每日计数添加为表格
         daily_counts = timeline.get("daily_counts", [])
         if daily_counts:
             body_parts.append("<details>")
@@ -778,7 +775,7 @@ def format_issue_body(
             )
             body_parts.append("| Date | Count |")
             body_parts.append("|------|-------|")
-            for day_data in daily_counts[-14:]:  # Last 14 days
+            for day_data in daily_counts[-14:]:  # 过去 14 天
                 body_parts.append(f"| {day_data['date']} | {day_data['count']} |")
             if len(daily_counts) > 14:
                 body_parts.append(
@@ -800,13 +797,13 @@ def format_issue_body(
 
         body_parts.append("")
 
-    # === METADATA SECTION (collapsible) ===
+    # === METADATA SECTION（可折叠）===
     body_parts.append("<details>")
     body_parts.append("<summary>🔧 Technical Details</summary>\n")
     body_parts.append(f"**Identifier:** `{identifier}`\n")
     body_parts.append(f"**Query:** `{query}`\n")
 
-    # Add full JSON data
+    # 添加完整的 JSON 数据
     body_parts.append("**Full Event Data:**")
     body_parts.append("```json")
     body_parts.append(json.dumps(events_data, indent=2))
@@ -830,49 +827,49 @@ def setup_github_issue(
     issue_parent: str | None,
 ) -> tuple[int, str]:
     """
-    Create or find GitHub issue for tracking debugging progress.
+    创建或查找 GitHub 问题以跟踪调试进度。
 
     Args:
-        query: The PostHog query
-        events_file: Path to the events JSON file
-        issue_repo: GitHub repository for issues
-        issue_prefix: Prefix for issue titles
-        issue_parent: Optional parent issue URL
+        query: PostHog 查询
+        events_file: 事件 JSON 文件的路径
+        issue_repo: GitHub 问题存储库
+        issue_prefix: 问题标题的前缀
+        issue_parent: 可选的父问题 URL
 
     Returns:
-        Tuple of (issue_number, issue_url)
+        (issue_number, issue_url) 的元组
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if not github_token:
         print("❌ GITHUB_TOKEN environment variable not set")
         sys.exit(1)
 
-    # Load event data
+    # 加载事件数据
     with open(events_file) as f:
         events_data = json.load(f)
 
-    # Create unique identifier
+    # 创建唯一标识符
     identifier = create_unique_identifier(query, events_data)
 
-    # Format issue body (needed for both new and existing issues)
+    # 格式化问题正文（新问题和现有问题都需要）
     body = format_issue_body(events_data, identifier, issue_parent)
 
-    # Search for existing issue
+    # 搜索现有问题
     issue_number = search_existing_issue(issue_repo, identifier, github_token)
 
     if issue_number:
-        # Update existing issue with latest data (including timeline info)
+        # 使用最新数据更新现有问题（包括时间线信息）
         update_github_issue(issue_repo, issue_number, body, github_token)
         issue_url = f"https://github.com/{issue_repo}/issues/{issue_number}"
         return issue_number, issue_url
 
-    # Create new issue
-    # Determine title from event data - try to extract meaningful error info
+    # 创建新问题根据事件数据确定标题 - 尝试提取有意义的错误信息
+    #
     examples = events_data.get("examples", [])
     title_suffix = _extract_issue_title(examples, query)
     title = f"{issue_prefix}{title_suffix}"
 
-    # Create issue
+    # 创建问题
     issue_number = create_github_issue(issue_repo, title, body, github_token)
     issue_url = f"https://github.com/{issue_repo}/issues/{issue_number}"
 
@@ -882,19 +879,19 @@ def setup_github_issue(
 def create_debugging_prompt(
     query: str, repos: list[str], events_file: Path, issue_url: str
 ) -> str:
-    """Create the debugging prompt for the agent."""
+    """为智能体创建调试提示词。"""
     repos_list = "\n".join(f"- {repo}" for repo in repos)
     posthog_host = get_posthog_host()
     posthog_project_id = os.getenv("POSTHOG_PROJECT_ID")
     query_url = f"https://{posthog_host}/api/projects/{posthog_project_id}/query/"
     events_url = f"https://{posthog_host}/api/projects/{posthog_project_id}/events/"
 
-    # Load Jinja2 template
+    # 加载 Jinja2 模板
     template_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("debug_prompt.jinja")
 
-    # Render template with context
+    # 使用上下文渲染模板
     prompt = template.render(
         issue_url=issue_url,
         events_file=events_file,
@@ -908,7 +905,7 @@ def create_debugging_prompt(
 
 
 def main():
-    """Main function to run the PostHog debugging example."""
+    """主要功能是运行PostHog调试示例。"""
     parser = argparse.ArgumentParser(
         description="Debug errors from PostHog events using OpenHands agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -968,10 +965,10 @@ def main():
     if not validate_environment():
         sys.exit(1)
 
-    # Parse repositories
+    # 解析存储库
     repos = [repo.strip() for repo in args.repos.split(",")]
 
-    # Create working directory
+    # 创建工作目录
     working_dir = Path(args.working_dir).resolve()
     working_dir.mkdir(exist_ok=True)
 
@@ -982,11 +979,11 @@ def main():
     print(f"💼 Working directory: {working_dir}")
     print()
 
-    # Fetch event examples from PostHog
+    # 从 PostHog 获取事件示例
     events_file = fetch_posthog_events(args.query, working_dir, args.query_type)
     print()
 
-    # Setup GitHub issue for tracking
+    # 设置 GitHub 跟踪问题
     print("📋 Setting up GitHub issue for tracking...")
     issue_number, issue_url = setup_github_issue(
         args.query,
@@ -998,13 +995,13 @@ def main():
     print(f"📌 Tracking issue: {issue_url}")
     print()
 
-    # Configure LLM
+    # 配置LLM
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         print("❌ LLM_API_KEY environment variable is required")
         sys.exit(1)
 
-    # Get LLM configuration from environment
+    # 从环境中获取 LLM 配置
     model = os.getenv("LLM_MODEL", "gpt-5.5")
     base_url = os.getenv("LLM_BASE_URL")
 
@@ -1014,7 +1011,7 @@ def main():
         api_key=SecretStr(api_key),
     )
 
-    # Run debugging session
+    # 运行调试会话
     run_debugging_session(llm, working_dir, args.query, repos, events_file, issue_url)
 
 
@@ -1026,8 +1023,8 @@ def run_debugging_session(
     events_file: Path,
     issue_url: str,
 ):
-    """Run the debugging session with the given configuration."""
-    # Register and set up tools
+    """使用给定的配置运行调试会话。"""
+    # 注册并设置工具
     register_tool("TerminalTool", TerminalTool)
     register_tool("FileEditorTool", FileEditorTool)
     register_tool("TaskTrackerTool", TaskTrackerTool)
@@ -1038,22 +1035,22 @@ def run_debugging_session(
         Tool(name="TaskTrackerTool"),
     ]
 
-    # Create agent
+    # 创建智能体
     agent = Agent(llm=llm, tools=tools)
 
-    # Collect LLM messages for debugging
+    # 收集 LLM 条消息以进行调试
     llm_messages = []
 
     def conversation_callback(event: Event):
         if isinstance(event, LLMConvertibleEvent):
             llm_messages.append(event.to_llm_message())
 
-    # Start conversation with local workspace
+    # 与当地人开始对话工作区
     conversation = Conversation(
         agent=agent, workspace=str(working_dir), callbacks=[conversation_callback]
     )
 
-    # Send the debugging task
+    # 发送调试任务
     debugging_prompt = create_debugging_prompt(query, repos, events_file, issue_url)
 
     conversation.send_message(
@@ -1072,14 +1069,14 @@ def run_debugging_session(
         print(f"📁 Results saved in: {working_dir}")
         print(f"💬 Total LLM messages: {len(llm_messages)}")
 
-        # Show summary of what was accomplished
+        # 显示已完成事项的摘要
         print("\n📋 Session Summary:")
         print("- Queried PostHog events for error analysis")
         print("- Cloned and analyzed relevant repositories")
         print("- Investigated potential root causes")
         print("- Attempted error reproduction")
 
-        # Check for cloned repositories
+        # 检查克隆存储库
         if working_dir.exists():
             cloned_repos = [
                 d for d in working_dir.iterdir() if d.is_dir() and (d / ".git").exists()
@@ -1089,7 +1086,7 @@ def run_debugging_session(
                     f"- Cloned repositories: {', '.join(d.name for d in cloned_repos)}"
                 )
     finally:
-        # Clean up conversation
+        # 清理对话
         logger.info("Closing conversation...")
         conversation.close()
 

@@ -1,6 +1,6 @@
-"""StreamContext mints one identity per step and always closes it.
+"""StreamContext 每一步创建一个身份并始终关闭它。
 
-See https://github.com/OpenHands/software-agent-sdk/issues/4682.
+参见 https://github.com/OpenHands/software-agent-sdk/issues/4682.
 """
 
 import asyncio
@@ -78,7 +78,7 @@ def test_first_delta_opens_the_slot_with_the_anchor():
     assert isinstance(delta, StreamDelta)
     assert (delta.kind, delta.content, delta.order) == ("text", "hello", 0)
     assert (delta.chunk_id, delta.choice_index) == ("chunk-1", 0)
-    # Nothing claimed the id, so the slot is retired by an abort.
+    # 没有任何东西声明该 ID，因此该槽会因中止而退出。
     assert isinstance(aborted, StreamAborted)
 
 
@@ -94,7 +94,7 @@ def test_a_committed_id_retires_the_slot_without_an_abort():
 
 
 def test_a_claim_that_never_commits_still_aborts():
-    """on_event can raise while persisting, after the id was handed out."""
+    """on_event 可以在 id 发出后，在坚持的同时提出。"""
     frames: list = []
     with pytest.raises(RuntimeError):
         with _make(frames) as stream:
@@ -144,7 +144,7 @@ def test_a_retry_re_streams_the_same_item_under_a_higher_attempt():
     frames: list = []
     with _make(frames) as stream:
         stream.on_chunk(_chunk("half", chunk_id="completion-a"))
-        # litellm mints a new completion id per attempt.
+        # LiteLLM 每次尝试都会生成一个新的完成 ID。
         stream.on_chunk(_chunk("half", chunk_id="completion-b"))
         stream.on_chunk(_chunk(" again", chunk_id="completion-b"))
         stream.claim()
@@ -153,7 +153,7 @@ def test_a_retry_re_streams_the_same_item_under_a_higher_attempt():
     deltas = [f for f in frames if isinstance(f, StreamDelta)]
     assert [f.attempt for f in starts] == [1, 2]
     assert {f.item_id for f in starts} == {stream.item_id}
-    # order is monotonic within (item_id, attempt), so the retry restarts it.
+    # (item_id, attempts) 内的顺序是单调的，因此重试会重新启动它。
     assert [(d.attempt, d.order) for d in deltas] == [(1, 0), (2, 0), (2, 1)]
 
 
@@ -181,7 +181,7 @@ def test_deltas_are_masked_by_the_snapshot():
 
 
 def test_the_raw_chunk_still_reaches_the_token_callback():
-    """The CLI, the legacy socket and user callbacks must see no change."""
+    """CLI、旧套接字和用户回调不得有任何变化。"""
     frames: list = []
     forwarded: list = []
     chunk = _chunk("hello")
@@ -194,7 +194,7 @@ def test_the_raw_chunk_still_reaches_the_token_callback():
 
 
 def test_no_consumer_means_no_callback_for_the_llm():
-    """`llm.completion` degrades a stream=True model when on_token is None."""
+    """当 on_token 为 None 时，`llm.completion` 会降低stream=True模型的性能。"""
     silent = StreamContext(
         item_id="item",
         anchor_seq=None,
@@ -220,13 +220,13 @@ def test_without_a_sink_nothing_is_minted_and_chunks_still_flow():
     )
     with stream:
         stream.on_chunk(_chunk("hello"))
-        # No consumer, so the durable event keeps its own id.
+        # 没有消费者，因此持久事件保留自己的 id。
         assert stream.claim() is None
     assert len(forwarded) == 1
 
 
 def test_a_retry_that_dies_before_its_first_token_still_retires_the_slot():
-    """The abort must name the attempt whose start the client observed."""
+    """中止必须命名客户端观察到的启动尝试。"""
     frames: list = []
     stream = _make(frames)
     try:
@@ -260,8 +260,8 @@ def test_a_broken_sink_does_not_fail_the_turn():
     )
     with stream:
         stream.on_chunk(_chunk("hello"))
-    # Including the abort in __exit__, which would otherwise replace whatever
-    # exception the step is unwinding.
+    # 在 __exit__ 中包含中止，否则它将替换该步骤正在展开的任何异常。
+    #
     assert len(forwarded) == 1
 
 

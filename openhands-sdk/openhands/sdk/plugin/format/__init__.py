@@ -1,46 +1,43 @@
-"""Plugin format strategies.
+"""插件格式策略。
 
-A *plugin format* owns everything specific to how a plugin is laid out on disk
-(manifest location and validation, MCP config file and variable expansion, and
-where client extensions — commands / agents / hooks — live) and turns a plugin
-directory into a normalized :class:`~openhands.sdk.plugin.Plugin`. Everything
-downstream of a loaded plugin is format-agnostic and lives on ``Plugin`` itself,
-so adding a new format never touches the merge/apply path.
+*插件格式*拥有与插件在磁盘上的布局方式相关的所有内容（清单位置和验证、MCP配置文件和变
+量扩展，以及客户端扩展 - 命令 / 智能体 / 钩子 - 活动的位置）并将插件目
+录转换为规范化的：class:`~openhands.sdk.plugin.Plugin`。 加载插件下游的所有内容都是与
+格式无关的，并且依赖于 ``Plugin`` 本身
+，因此添加新格式永远不会触及合并/应用路径。
 
-Module layout:
+模块布局：
 
-- ``base`` — the abstract :class:`PluginFormat` contract plus the shared
-  discovery logic (skills discovery, final assembly).
-- ``claude_code`` — the concrete :class:`ClaudeCodePluginFormat` strategy.
-- ``agent_plugins`` — the :class:`AgentPluginsFormat` strategy, which also owns
-  our ``dev.openhands`` client-extension namespace, and ``agent_plugins_mcp``,
-  its ``mcp.json`` loader.
-- this package ``__init__`` — the format registry (``_FORMATS``) and the
-  :func:`detect_format` dispatcher.
+- ``base`` — 抽象：class:`PluginFormat` 合约加上共享发现逻辑（技能发现、最终组装）。
+- ``claude_code`` — 具体的：class:`ClaudeCodePluginFormat` 策略。
+- ``agent_plugins`` — :class:`AgentPluginsFormat` 策略，它还拥有我们的
+``dev.openhands`` 客户端扩展命名
+空间和 ``agent_plugins_mcp``，它的 ``mcp.json`` 加载器。
+- 该包 ``__init__`` — 格式注册表 (``_FORMATS``) 和
+  :func:`detect_format` 调度程序。
 
-:func:`detect_format` returns the first format in ``_FORMATS`` whose
-:meth:`PluginFormat.detect` returns True. Agent Plugins goes first because it is
-specific — a root ``plugin.json`` — and Claude Code last because its ``detect``
-accepts any directory, making it the universal fallback.
+:func:`detect_format` 返回 ``_FORMATS`` 中的第一个格式，其
+:meth:`PluginFormat.detect` 返回 True。 智能体插件优先，因为它是
+具体的 - 根 ``plugin.json`` - 克劳德代码最后，因为它的 ``detect`` 接受任何目录，使其
+成为通用的回退方案。
 
-How to add a new plugin format
+如何添加新的插件格式
 ------------------------------
-1. Create a module in this package and subclass :class:`PluginFormat`, giving it
-   a unique class-level ``name`` (used in logs).
-2. Implement :meth:`PluginFormat.detect` — cheap, specific, and True only for
-   directories this format should claim.
-3. Implement the format-specific loaders (:meth:`~PluginFormat.load_manifest`,
-   :meth:`~PluginFormat.load_mcp_config`, :meth:`~PluginFormat.load_hooks`,
-   :meth:`~PluginFormat.load_agents`, :meth:`~PluginFormat.load_commands`). Each
-   owns one component type and should isolate its own failures rather than abort
-   the whole plugin.
-4. Reuse the base where behavior is shared — notably
-   :meth:`~PluginFormat.load_skills` (the ``skills/<name>/SKILL.md`` rule) and
-   :meth:`~PluginFormat.load` (final assembly); you should not need to override
-   either.
-5. Register the class in ``_FORMATS`` below in detection-precedence order
-   (earlier = higher priority; fallbacks last).
-6. Add a :func:`detect_format` selection test (see
+1. 在此包中创建一个模块并子类：class:`PluginFormat`，为其提供唯一的类级别 ``name``（
+在日志中使用）。
+2. 实现：meth:`PluginFormat.detect` — 便宜、具体，并且 True 仅适用于该格式应声明的目
+录。
+3. 实现特定于格式的加载器 (:meth:`~PluginFormat.load_manifest`,
+   ：方法：`~PluginFormat.load_mcp_config`，：方法：`~PluginFormat.load_hooks`，
+   ：方法：`~PluginFormat.load_agents`，：方法：`~PluginFormat.load_commands`）。 每
+   个
+   拥有一种组件类型，应该隔离其自身的故障，而不是中止整个插件。
+4. 重用共享行为的基础——尤其是
+   :meth:`~PluginFormat.load_skills` （``skills/<name>/SKILL.md`` 规则）和
+   :meth:`~PluginFormat.load`（最终组装）； 你不需要覆盖
+   要么。
+5. 按检测优先顺序在下面的 ``_FORMATS`` 中注册类（较早 = 较高优先级； 回退方案最后）。
+6. 添加：func:`detect_format` 选择测试（请参阅
    ``tests/sdk/plugin/test_plugin_loading.py::TestDetectFormat``).
 """
 
@@ -57,23 +54,25 @@ from openhands.sdk.plugin.format.claude_code import ClaudeCodePluginFormat
 logger = get_logger(__name__)
 
 
-# Registered formats, in detection-precedence order. Higher-precedence formats
-# come first; the Claude Code format is last because it accepts any directory.
+# 注册格式，按检测优先顺序排列。 优先级较高的格式优先； Claude Code 格式排在最后，因为它
+# 接受任何目录。
+#
 _FORMATS: list[type[PluginFormat]] = [AgentPluginsFormat, ClaudeCodePluginFormat]
 
 
 def detect_format(plugin_dir: Path) -> PluginFormat:
-    """Select the plugin format for ``plugin_dir``.
+    """选择 ``plugin_dir`` 的插件格式。
 
-    Precedence: the first registered format whose ``detect()`` returns True. The
-    Claude Code format matches unconditionally, so this always resolves.
+    Precedence: ``detect()`` 返回 True 的第一个注册格式。 的
+    克劳德代码格式无条件匹配，因此总是可以解决。
     """
     for fmt_cls in _FORMATS:
         if fmt_cls.detect(plugin_dir):
             logger.debug(f"Detected plugin format '{fmt_cls.name}' for {plugin_dir}")
             return fmt_cls()
-    # Unreachable while ClaudeCodePluginFormat.detect() returns True, but keep an
-    # explicit, actionable error rather than an implicit None if that changes.
+    # 当 ClaudeCodePluginFormat.detect() 返回 True 时无法访问，但如果发生变化，则保留显
+    # 式的、可操作的错误，而不是隐式的 None。
+    #
     raise ValueError(f"No plugin format matched {plugin_dir}")
 
 

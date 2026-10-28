@@ -1,10 +1,10 @@
-/** Browser transport for the Agent Server conversation event socket. */
+/** Agent Server 对话事件套接字的浏览器传输层。*/
 export interface ConversationEventStreamOptions {
-  /** Full event socket URL, including any reverse-proxy prefix. */
+  /** 完整事件套接字 URL，包括任何反向代理前缀。*/
   url: string;
   queryParams?: Record<string, string | boolean>;
   sessionApiKey?: string | null;
-  /** Optional WebSocket constructor adapter for environments without the native API. */
+  /** 适用于没有本机 API 的环境的可选 WebSocket 构造函数适配器。*/
   createWebSocket?: (url: string) => WebSocket;
   onOpen?: (event: Event) => void;
   onClose?: (event: CloseEvent) => void;
@@ -21,7 +21,7 @@ export interface ConversationEventStreamState {
   error: Error | null;
 }
 
-/** Resolve the canonical endpoint without discarding a deployment's path prefix. */
+/** 解析规范端点，而不丢弃部署的路径前缀。*/
 export function buildConversationEventStreamUrl(host: string, conversationId: string): string {
   const url = new URL(host);
   if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
@@ -36,9 +36,9 @@ export function buildConversationEventStreamUrl(host: string, conversationId: st
 }
 
 /**
- * Owns authentication, reconnects and handshake cleanup. Callbacks receive each
- * frame once; no message history is retained. Call stop() when the owner unmounts.
- * A Web-standard global WebSocket is required only when start() is called.
+ * 拥有身份验证，重新连接并握手清理。 回调接收每个
+ * 框架一次； 不保留任何消息历史记录。 当所有者卸载时调用 stop()。
+ * 仅当调用 start() 时才需要 Web 标准全局 WebSocket。
  */
 export class ConversationEventStream {
   private socket: WebSocket | null = null;
@@ -54,7 +54,7 @@ export class ConversationEventStream {
 
   constructor(private options: ConversationEventStreamOptions) {}
 
-  /** Update callbacks and credentials for subsequent handshakes without reconnecting. */
+  /** 更新回调和凭据以进行后续握手，而无需重新连接。*/
   updateOptions(options: ConversationEventStreamOptions): void {
     this.options = options;
   }
@@ -84,7 +84,7 @@ export class ConversationEventStream {
     this.clearTimers();
     const socket = this.socket;
     this.socket = null;
-    // Late events from a replaced socket must not affect the new connection.
+    // 来自已替换套接字的延迟事件不得影响新连接。
     if (socket) {
       socket.onopen = socket.onclose = socket.onerror = socket.onmessage = null;
       socket.close();

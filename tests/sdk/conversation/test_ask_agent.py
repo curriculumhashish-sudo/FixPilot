@@ -1,4 +1,4 @@
-"""Tests for ask_agent functionality in conversation classes."""
+"""测试对话类中的 ask_agent 功能。"""
 
 import json
 from collections.abc import Sequence
@@ -32,7 +32,7 @@ from tests.sdk.conversation.conftest import create_mock_http_client
 
 
 # ---------------------------------------------------------------------------
-# Test helpers
+# 测试助手
 # ---------------------------------------------------------------------------
 
 
@@ -54,7 +54,7 @@ def create_test_agent() -> Agent:
 
 
 def create_mock_llm_response(content: str) -> LLMResponse:
-    """Create a minimal, properly structured LLM response."""
+    """创建最小的、结构正确的 LLM 响应。"""
     message = LiteLLMMessage(content=content, role="assistant")
     choice = Choices(finish_reason="stop", index=0, message=message)
     usage = Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15)
@@ -80,7 +80,7 @@ def create_mock_llm_response(content: str) -> LLMResponse:
 
 
 def find_msg(messages: list[Message], role: str, text_substring: str | None = None):
-    """Find first message with given role and (optionally) containing a substring."""
+    """查找具有给定角色且（可选）包含子字符串的第一条消息。"""
     for m in messages:
         if m.role != role:
             continue
@@ -92,7 +92,7 @@ def find_msg(messages: list[Message], role: str, text_substring: str | None = No
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# 测试夹具
 # ---------------------------------------------------------------------------
 
 
@@ -102,13 +102,13 @@ def agent() -> Agent:
 
 
 # ---------------------------------------------------------------------------
-# Tests
+# 测试
 # ---------------------------------------------------------------------------
 
 
 @patch("openhands.sdk.llm.llm.LLM.completion")
 def test_local_conversation_ask_agent(mock_completion, tmp_path, agent):
-    """ask_agent returns the LLM response and configures a dedicated ask-agent-llm."""
+    """ask_agent返回LLM响应并配置专用ask-智能体-llm。"""
     mock_completion.return_value = create_mock_llm_response(
         "This is the agent's response"
     )
@@ -123,7 +123,7 @@ def test_local_conversation_ask_agent(mock_completion, tmp_path, agent):
 
     assert result == "This is the agent's response"
 
-    # LLM was called with a question appended as the last user message
+    # LLM 被调用，并附加了一个问题作为最后一条用户消息
     mock_completion.assert_called_once()
     messages = mock_completion.call_args.kwargs["messages"]
     assert len(messages) >= 2
@@ -142,24 +142,24 @@ def test_local_conversation_ask_agent(mock_completion, tmp_path, agent):
     )
     assert user_msg.content[0].text == expected_text
 
-    # Dedicated ask-agent LLM is configured correctly
+    # 专用ask-智能体LLM配置正确
     ask_agent_llm = conv.llm_registry.get("ask-agent-llm")
-    # Verify that parameters are copied from the original agent's LLM
+    # 验证参数是否是从原始智能体的LLM复制而来
     assert ask_agent_llm.native_tool_calling == agent.llm.native_tool_calling
     assert ask_agent_llm.caching_prompt == agent.llm.caching_prompt
     assert ask_agent_llm.usage_id == "ask-agent-llm"
-    # Since we're using default LLM values, these should be True
+    # 由于我们使用默认的 LLM 值，因此这些值应该是 True
     assert ask_agent_llm.native_tool_calling is True
     assert ask_agent_llm.caching_prompt is True
 
 
 @patch("openhands.sdk.llm.llm.LLM.completion")
 def test_ask_agent_llm_refreshes_after_switch_llm(mock_completion, tmp_path, agent):
-    """switch_llm() invalidates the cached ask-agent-llm so /btw follows the switch.
+    """switch_llm() 使缓存的ask-智能体-llm 无效，因此/btw 跟随开关。
 
-    Regression test for #3943: after switching profiles, a second ask_agent()
-    must clone a fresh ask-agent-llm from the new agent LLM rather than reuse
-    the one cached from the previous profile.
+    回归测试 #3943：切换用户后，会出现第二个 ask_agent() 必须克隆一个新鲜的 ask-智能
+    体-来自新的llm 智能体  LLM 而不是从之前的配置中重
+    用一个缓存。
     """
     mock_completion.return_value = create_mock_llm_response("answer")
 
@@ -169,11 +169,11 @@ def test_ask_agent_llm_refreshes_after_switch_llm(mock_completion, tmp_path, age
         workspace=str(tmp_path),
     )
 
-    # First /btw caches an ask-agent-llm cloned from profile A.
+    # 第一个 /btw 缓存从配置文件 A 克隆的ask-智能体-llm。
     conv.ask_agent("profile A?")
     assert conv.llm_registry.get("ask-agent-llm").model == agent.llm.model
 
-    # Switch the conversation to a distinguishable profile B.
+    # 将对话切换到可区分的配置文件 B.
     profile_b = LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -181,27 +181,27 @@ def test_ask_agent_llm_refreshes_after_switch_llm(mock_completion, tmp_path, age
     )
     conv.switch_llm(profile_b)
 
-    # The stale ask-agent-llm must be gone, not silently reused.
+    # 过时的ask-智能体-llm 必须消失，而不是默默地重用。
     with pytest.raises(KeyError):
         conv.llm_registry.get("ask-agent-llm")
 
-    # Second /btw re-clones from profile B.
+    # 第二个 /btw 从配置文件 B 重新克隆。
     conv.ask_agent("profile B?")
     assert conv.llm_registry.get("ask-agent-llm").model == "gpt-4o"
 
 
 @patch("openhands.sdk.llm.llm.LLM.completion")
 def test_local_conversation_ask_agent_copies_llm_config(mock_completion, tmp_path):
-    """ask_agent creates LLM with parameters copied from original agent's LLM."""
+    """ask_agent 使用从原始智能体的 LLM 复制的参数创建 LLM。"""
     mock_completion.return_value = create_mock_llm_response("Test response")
 
-    # Create agent with custom LLM configuration
+    # 使用自定义 LLM 配置创建智能体
     llm = LLM(
         model="gpt-4o-mini",
         api_key=SecretStr("test-key"),
         usage_id="test-llm",
-        native_tool_calling=False,  # Non-default value
-        caching_prompt=False,  # Non-default value
+        native_tool_calling=False,  # 非默认值
+        caching_prompt=False,  # 非默认值
     )
     agent = Agent(llm=llm, tools=[])
 
@@ -214,18 +214,18 @@ def test_local_conversation_ask_agent_copies_llm_config(mock_completion, tmp_pat
     result = conv.ask_agent("Test question")
     assert result == "Test response"
 
-    # Verify that ask-agent-llm copies the custom configuration
+    # 验证ask-智能体-llm 是否复制了自定义配置
     ask_agent_llm = conv.llm_registry.get("ask-agent-llm")
     assert ask_agent_llm.native_tool_calling == agent.llm.native_tool_calling
     assert ask_agent_llm.caching_prompt == agent.llm.caching_prompt
     assert ask_agent_llm.usage_id == "ask-agent-llm"
-    # Verify the specific custom values are copied
+    # 验证特定自定义值是否已复制
     assert ask_agent_llm.native_tool_calling is False
     assert ask_agent_llm.caching_prompt is False
 
 
 def create_mock_model_response(content: str) -> ModelResponse:
-    """A raw litellm ModelResponse, as returned by ``LLM._transport_call``."""
+    """原始 LiteLLM ModelResponse，由 ``LLM._transport_call`` 返回。"""
     return ModelResponse(
         id="test-id",
         choices=[
@@ -244,10 +244,10 @@ def create_mock_model_response(content: str) -> ModelResponse:
 
 @patch("openhands.sdk.llm.llm.LLM._transport_call", autospec=True)
 def test_ask_agent_disables_streaming_when_llm_streams(mock_transport, tmp_path):
-    """Regression test (sibling of PR #3901): a ``stream=True`` agent LLM must
-    still answer ask_agent even though the path passes no ``on_token`` callback.
-    Patching ``_transport_call`` keeps the real streaming guard in
-    ``completion()`` live, so the bug reproduces without the fix.
+    """回归测试（PR #3901 的同级）：``stream=True`` 智能体 LLM 必须
+    即使路径没有经过 ``on_token`` 回调，仍然回答 ask_agent。 修补 ``_transport_call``
+     保留真正的流式传输守卫
+    ``completion()`` 已上线，因此错误会在未修复的情况下重现。
     """
     mock_transport.return_value = create_mock_model_response("4")
 
@@ -268,7 +268,7 @@ def test_ask_agent_disables_streaming_when_llm_streams(mock_transport, tmp_path)
 
     assert result == "4"
     mock_transport.assert_called_once()
-    # Streaming was disabled on the dedicated ask-agent LLM; agent LLM untouched.
+    # 流式传输在专用询问-智能体 LLM 上被禁用； 智能体 LLM 未受影响。
     assert mock_transport.call_args.kwargs["enable_streaming"] is False
     assert mock_transport.call_args.kwargs["on_token"] is None
     assert streaming_llm.stream is True
@@ -277,8 +277,8 @@ def test_ask_agent_disables_streaming_when_llm_streams(mock_transport, tmp_path)
 
 @patch("openhands.sdk.llm.llm.LLM._transport_call", autospec=True)
 def test_ask_agent_during_in_flight_llm_call(mock_transport, tmp_path, agent):
-    """Regression test for #5082: while the agent LLM has a call in flight its
-    telemetry holds the open span, which cannot be deep-copied.
+    """回归测试 #5082：在智能体 LLM 有调用的情况下，它的
+    遥测保留开放跨度，无法对其进行深度复制。
     """
     conv = Conversation(
         agent=agent,
@@ -308,7 +308,7 @@ def test_remote_conversation_ask_agent(mock_ws_client, agent):
     workspace = RemoteWorkspace(host="http://test-server", working_dir="/tmp")
     mock_client = create_mock_http_client("12345678-1234-5678-9abc-123456789abc")
 
-    # Response for /ask_agent
+    # 对 /ask_agent 的回复
     mock_ask_response = Mock()
     mock_ask_response.raise_for_status.return_value = None
     mock_ask_response.json.return_value = {"response": "Remote agent response"}
@@ -319,7 +319,7 @@ def test_remote_conversation_ask_agent(mock_ws_client, agent):
 
         response = Mock()
         response.raise_for_status.return_value = None
-        # For conversation creation, return an ID; otherwise, return empty list
+        # 对于会话创建，返回一个ID； 否则，返回空列表
         response.json.return_value = (
             {"id": "12345678-1234-5678-9abc-123456789abc"}
             if method == "POST"
@@ -340,7 +340,7 @@ def test_remote_conversation_ask_agent(mock_ws_client, agent):
         result = conv.ask_agent("What is the weather?")
         assert result == "Remote agent response"
 
-        # Ensure we made exactly one ask_agent call with the expected payload
+        # 确保我们与预期的载荷进行了一次 ask_agent 调用
         ask_calls = [
             c
             for c in mock_client.request.call_args_list
@@ -358,7 +358,7 @@ def test_remote_conversation_ask_agent(mock_ws_client, agent):
 def test_ask_agent_with_existing_events_and_tool_calls(
     mock_completion, tmp_path, agent
 ):
-    """ask_agent includes prior events (user, tool call, observation) in the context."""
+    """ask_agent 包括上下文中的先前事件（用户、工具调用、观测结果）。"""
     mock_completion.return_value = create_mock_llm_response(
         "Based on the tool calls, I can see you ran 'ls' command."
     )
@@ -369,17 +369,17 @@ def test_ask_agent_with_existing_events_and_tool_calls(
         workspace=str(tmp_path),
     )
 
-    # 0. SystemPromptEvent (required for proper conversation state)
-    # In a real conversation, this is always added by init_state before user messages
+    # 0. SystemPromptEvent（正确对话状态所需）
+    # 在真实的对话中，它总是在用户消息之前添加 init_state
     conv.state.events.append(
         SystemPromptEvent(
             source="agent",
             system_prompt=TextContent(text="You are a helpful assistant."),
-            tools=[],  # Tools list for test purposes
+            tools=[],  # 用于测试目的的工具列表
         )
     )
 
-    # 1. Prior user message
+    # 1. 之前的用户消息
     conv.state.events.append(
         MessageEvent(
             source="user",
@@ -390,7 +390,7 @@ def test_ask_agent_with_existing_events_and_tool_calls(
         )
     )
 
-    # 2. Action event with tool call
+    # 2. 带有工具调用的动作事件
     tool_call = MessageToolCall(
         id="call_123",
         name="terminal",
@@ -409,7 +409,7 @@ def test_ask_agent_with_existing_events_and_tool_calls(
         )
     )
 
-    # 3. Observation event (tool result)
+    # 3. 观测结果事件（工具结果）
     observation_result = (
         "total 8\n"
         "drwxr-xr-x 2 user user 4096 Nov 25 10:00 .\n"
@@ -426,16 +426,16 @@ def test_ask_agent_with_existing_events_and_tool_calls(
         )
     )
 
-    # ask_agent should incorporate the entire history
+    # ask_agent应该包含整个历史
     result = conv.ask_agent("What did you find?")
     assert result == "Based on the tool calls, I can see you ran 'ls' command."
 
     mock_completion.assert_called_once()
     messages = mock_completion.call_args.kwargs["messages"]
 
-    # Expect: user + assistant(tool_call) + tool + question
-    # Note: With lazy initialization, system message may not be present if events
-    # were added before agent initialization
+    # 预期：用户 + assistant(tool_call) + 工具 + 问题
+    # 注意：使用延迟初始化，如果事件发生，系统消息可能不会出现
+    # 在智能体初始化之前添加
     assert len(messages) >= 4
 
     user_msg = find_msg(messages, "user", "List the files")
@@ -450,7 +450,7 @@ def test_ask_agent_with_existing_events_and_tool_calls(
     assert tool_msg is not None, "Tool response message should be present"
     assert question_msg is not None, "ask_agent question message should be present"
 
-    # Tool call wiring
+    # 工具调用接线
     assert len(assistant_msg.tool_calls) == 1
     assert assistant_msg.tool_calls[0].id == "call_123"
     assert assistant_msg.tool_calls[0].name == "terminal"
@@ -463,7 +463,7 @@ def test_ask_agent_with_existing_events_and_tool_calls(
 def test_ask_agent_drops_in_flight_action_without_observation(
     mock_completion, tmp_path, agent
 ):
-    """ask_agent must drop an in-flight ActionEvent that has no observation yet."""
+    """ask_agent 必须删除尚无观测结果的正在运行的 ActionEvent。"""
     mock_completion.return_value = create_mock_llm_response("answer")
 
     conv = Conversation(
@@ -489,7 +489,7 @@ def test_ask_agent_drops_in_flight_action_without_observation(
         )
     )
 
-    # In-flight action with NO matching observation.
+    # 没有匹配的飞行中操作观测结果。
     tool_call = MessageToolCall(
         id="call_inflight",
         name="terminal",
@@ -520,7 +520,7 @@ def test_ask_agent_drops_in_flight_action_without_observation(
 
 
 # ---------------------------------------------------------------------------
-# Exception handling tests
+# 异常处理测试
 # ---------------------------------------------------------------------------
 
 
@@ -589,10 +589,10 @@ def test_ask_agent_filters_incomplete_parallel_tool_calls(
 def test_local_conversation_ask_agent_raises_context_window_error(
     mock_completion, tmp_path, agent
 ):
-    """ask_agent properly propagates LLMContextWindowExceedError from LLM completion."""
+    """ask_agent 应该正确地传播 LLMContextWindowExceedError 从 LLM 完成。"""
     from openhands.sdk.llm.exceptions import LLMContextWindowExceedError
 
-    # Mock LLM completion to raise context window error
+    # 模拟对象 LLM 完成以引发上下文窗口错误
     mock_completion.side_effect = LLMContextWindowExceedError(
         "Context window exceeded: conversation too long"
     )
@@ -603,7 +603,7 @@ def test_local_conversation_ask_agent_raises_context_window_error(
         workspace=str(tmp_path),
     )
 
-    # ask_agent should propagate the exception
+    # ask_agent 应该传播异常
     with pytest.raises(LLMContextWindowExceedError) as exc_info:
         conv.ask_agent("What is the current status?")
 
@@ -615,10 +615,10 @@ def test_local_conversation_ask_agent_raises_context_window_error(
 def test_local_conversation_ask_agent_raises_failed_to_generate_summary(
     mock_completion, tmp_path, agent
 ):
-    """ask_agent raises 'Failed to generate summary' when LLM returns no text."""
-    # Mock LLM response with no text content
+    """当 LLM 没有返回文本时，ask_agent 引发“无法生成摘要”。"""
+    # 模拟对象 LLM 响应无文本内容
     mock_response = create_mock_llm_response("")
-    mock_response.message.content = []  # Empty content list
+    mock_response.message.content = []  # 内容列表为空
     mock_completion.return_value = mock_response
 
     conv = Conversation(
@@ -627,7 +627,7 @@ def test_local_conversation_ask_agent_raises_failed_to_generate_summary(
         workspace=str(tmp_path),
     )
 
-    # ask_agent should raise the generic exception
+    # ask_agent 应该引发通用异常
     with pytest.raises(Exception) as exc_info:
         conv.ask_agent("What is the current status?")
 
@@ -639,8 +639,8 @@ def test_local_conversation_ask_agent_raises_failed_to_generate_summary(
 def test_local_conversation_ask_agent_raises_failed_to_generate_summary_non_text(
     mock_completion, tmp_path, agent
 ):
-    """ask_agent raises 'Failed to generate summary' when LLM returns only non-text."""
-    # Mock LLM response with only image content (no text content)
+    """当 LLM 仅返回非文本时，ask_agent 引发“无法生成摘要”。"""
+    # 模拟对象 LLM 仅包含图像内容的响应（无文本内容）
     mock_response = create_mock_llm_response("")
     mock_response.message.content = [
         ImageContent(image_urls=["http://example.com/image.jpg"])
@@ -653,7 +653,7 @@ def test_local_conversation_ask_agent_raises_failed_to_generate_summary_non_text
         workspace=str(tmp_path),
     )
 
-    # ask_agent should raise the generic exception
+    # ask_agent 应该引发通用异常
     with pytest.raises(Exception) as exc_info:
         conv.ask_agent("What is the current status?")
 
@@ -663,7 +663,7 @@ def test_local_conversation_ask_agent_raises_failed_to_generate_summary_non_text
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_conversation_ask_agent_raises_http_status_error(mock_ws_client, agent):
-    """RemoteConversation ask_agent properly propagates HTTPStatusError from server."""
+    """RemoteConversation ask_agent 应该正确地传播 HTTPStatusError。"""
     mock_ws_client.return_value.wait_until_ready.return_value = True
 
     import httpx
@@ -671,7 +671,7 @@ def test_remote_conversation_ask_agent_raises_http_status_error(mock_ws_client, 
     workspace = RemoteWorkspace(host="http://test-server", working_dir="/tmp")
     mock_client = create_mock_http_client("12345678-1234-5678-9abc-123456789abc")
 
-    # Mock HTTP error response for ask_agent endpoint
+    # 模拟对象 HTTP ask_agent 端点的错误响应
     mock_error_response = Mock()
     mock_error_response.status_code = 500
     mock_error_response.reason_phrase = "Internal Server Error"
@@ -680,14 +680,14 @@ def test_remote_conversation_ask_agent_raises_http_status_error(mock_ws_client, 
 
     def mock_request(method, url, **kwargs):
         if method == "POST" and "ask_agent" in url:
-            # Raise HTTPStatusError for ask_agent requests
+            # HTTPStatusError请求ask_agent
             raise httpx.HTTPStatusError(
                 "500 Internal Server Error",
                 request=Mock(),
                 response=mock_error_response,
             )
 
-        # Normal responses for other requests
+        # 其他请求的正常响应
         response = Mock()
         response.raise_for_status.return_value = None
         response.json.return_value = (
@@ -707,7 +707,7 @@ def test_remote_conversation_ask_agent_raises_http_status_error(mock_ws_client, 
             workspace=workspace,
         )
 
-        # ask_agent should propagate the HTTPStatusError
+        # ask_agent 应该传播 HTTPStatusError
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             conv.ask_agent("What is the current status?")
 
@@ -716,7 +716,7 @@ def test_remote_conversation_ask_agent_raises_http_status_error(mock_ws_client, 
 
 @patch("openhands.sdk.conversation.impl.remote_conversation.WebSocketCallbackClient")
 def test_remote_conversation_ask_agent_raises_request_error(mock_ws_client, agent):
-    """RemoteConversation ask_agent properly propagates RequestError from network."""
+    """RemoteConversation ask_agent 从网络正确传播 RequestError。"""
     mock_ws_client.return_value.wait_until_ready.return_value = True
 
     import httpx
@@ -726,10 +726,10 @@ def test_remote_conversation_ask_agent_raises_request_error(mock_ws_client, agen
 
     def mock_request(method, url, **kwargs):
         if method == "POST" and "ask_agent" in url:
-            # Raise RequestError for ask_agent requests (network error)
+            # 针对 ask_agent 个请求引发 RequestError（网络错误）
             raise httpx.RequestError("Connection failed", request=Mock())
 
-        # Normal responses for other requests
+        # 其他请求的正常响应
         response = Mock()
         response.raise_for_status.return_value = None
         response.json.return_value = (
@@ -749,7 +749,7 @@ def test_remote_conversation_ask_agent_raises_request_error(mock_ws_client, agen
             workspace=workspace,
         )
 
-        # ask_agent should propagate the RequestError
+        # ask_agent 应该传播 RequestError
         with pytest.raises(httpx.RequestError) as exc_info:
             conv.ask_agent("What is the current status?")
 
@@ -757,13 +757,13 @@ def test_remote_conversation_ask_agent_raises_request_error(mock_ws_client, agen
 
 
 # ---------------------------------------------------------------------------
-# Template directory and rendering tests
+# 模板目录和渲染测试
 # ---------------------------------------------------------------------------
 
 
 @patch("openhands.sdk.llm.llm.LLM.completion")
 def test_ask_agent_template_dir_path_construction(mock_completion, tmp_path, agent):
-    """Test that ask_agent correctly constructs template_dir path and finds template."""
+    """测试 ask_agent 是否正确构造 template_dir 路径并找到模板。"""
     mock_completion.return_value = create_mock_llm_response(
         "Template rendered successfully"
     )
@@ -774,15 +774,15 @@ def test_ask_agent_template_dir_path_construction(mock_completion, tmp_path, age
         workspace=str(tmp_path),
     )
 
-    # Call ask_agent to trigger template_dir construction
+    # 调用ask_agent触发template_dir构建
     result = conv.ask_agent("Test question")
     assert result == "Template rendered successfully"
 
-    # Verify LLM was called with properly formatted question
+    # 验证使用格式正确的问题调用 LLM
     mock_completion.assert_called_once()
     messages = mock_completion.call_args.kwargs["messages"]
 
-    # Find the user message with the question
+    # 查找包含问题的用户消息
     question_msg = None
     for msg in messages:
         if msg.role == "user" and msg.content:
@@ -793,7 +793,7 @@ def test_ask_agent_template_dir_path_construction(mock_completion, tmp_path, age
 
     assert question_msg is not None, "Question message should be found"
 
-    # Verify the template was rendered correctly (contains expected template structure)
+    # 验证模板是否正确呈现（包含预期的模板结构）
     question_text = question_msg.content[0].text
     assert "<QUESTION>" in question_text
     assert "Test question" in question_text

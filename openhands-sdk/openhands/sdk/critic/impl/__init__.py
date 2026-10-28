@@ -1,4 +1,4 @@
-"""Critic implementations module."""
+"""批评实现模块。"""
 
 from openhands.sdk.critic.impl.agent_finished import AgentFinishedCritic
 from openhands.sdk.critic.impl.api import APIBasedCritic

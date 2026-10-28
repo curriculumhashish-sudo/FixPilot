@@ -1,16 +1,14 @@
-"""Stress test: lease contention — exactly one writer wins.
+"""压力测试：租约争用——只有一位作家获胜。
 
-Bug class this catches:
-    - Two services racing to start the same conversation both succeed,
-      yielding a split-brain owner and silent event-log corruption.
-    - Lease release happens twice or before the rightful owner finishes,
-      enabling spurious takeovers.
+捕获的错误类：
+    - 两个竞相启动同一个对话的服务都成功了，产生了裂脑所有者和无声的事件日志损坏。
+    - 租约释放发生两次或在合法所有者完成之前发生，从而导致虚假收购。
 
-How the lease works (ConversationLease):
-    Each ConversationService has an ``owner_instance_id``. Starting an
-    EventService claims the lease via a file lock + a per-conversation
-    lease file. If the lease is held by another owner and not expired,
-    ``claim()`` raises ConversationLeaseHeldError.
+租赁如何运作 (ConversationLease)：
+    每个ConversationService都有一个``owner_instance_id``。 启动 EventService 通过文件
+    锁 + 每个会话租约文件声明
+    租约。 如果租约由另一位业主持有且未到期，
+    ``claim()`` 提高 ConversationLeaseHeldError。
 """
 
 import asyncio
@@ -39,7 +37,7 @@ async def _try_start(
     workspace_dir: str,
     usage_id: str,
 ) -> tuple[bool, Exception | None]:
-    """Attempt to start the conversation. Returns (success, exception)."""
+    """尝试开始对话。 返回（成功，异常）。"""
     request = StartConversationRequest(
         conversation_id=conv_id,
         agent=Agent(llm=placeholder_llm(usage_id), tools=[]),
@@ -56,9 +54,9 @@ async def _try_start(
 async def test_concurrent_start_of_same_conversation_yields_one_winner(
     tmp_path: Path,
 ):
-    """N services try to start the *same* conversation_id at once. Exactly
-    one wins; the rest fail with ConversationLeaseHeldError (or analogous
-    contention error)."""
+    """N 个服务尝试同时启动 * 相同的 * conversation_id。 正是如此
+    一胜一负； REST 因 ConversationLeaseHeldError 失败（或类似的争用错误）。
+    """
     persist = tmp_path / "persist"
     persist.mkdir()
     workspace = str(tmp_path / "ws")
@@ -66,20 +64,20 @@ async def test_concurrent_start_of_same_conversation_yields_one_winner(
 
     n = LEASE_CONTENTION.n_concurrent
     services = [ConversationService(conversations_dir=persist) for _ in range(n)]
-    # Ensure distinct owners so we exercise the cross-owner contention path.
+    # 确保不同的所有者，以便我们运用跨所有者竞争路径。
     owner_ids = [uuid4().hex for _ in range(n)]
     for s, o in zip(services, owner_ids):
         s.owner_instance_id = o
 
-    # Bring each service up. __aenter__ scans the persist dir; with no
-    # pre-existing conversations, this is just initialization.
+    # 启动每项服务。 __aenter__扫描持久化目录； 由于没有预先存在的对话，这只是初始化。
+    #
     started: list[ConversationService] = []
     try:
         for s in services:
             await s.__aenter__()
             started.append(s)
     except Exception:
-        # If a later service fails to enter, tear down the ones already up.
+        # 如果后面的服务无法进入，则将已经启动的服务拆掉。
         for s in reversed(started):
             with contextlib.suppress(Exception):
                 await s.__aexit__(None, None, None)
@@ -109,17 +107,17 @@ async def test_concurrent_start_of_same_conversation_yields_one_winner(
         winners = [(i, exc) for i, (ok, exc) in enumerate(results) if ok]
         losers = [(i, exc) for i, (ok, exc) in enumerate(results) if not ok]
 
-        # 1. Exactly one winner. Catches "split brain — both services
-        #    think they own the conversation" regressions.
+        # 1. 恰好一位获胜者。 捕获“脑裂——两个服务都认为自己拥有对话”回归。
+        #
         assert len(winners) == 1, (
             f"expected exactly 1 winner, got {len(winners)}: "
             f"{[i for i, _ in winners]}. Lease contention is broken."
         )
         assert len(losers) == n - 1, f"expected {n - 1} losers, got {len(losers)}"
 
-        # 2. Every loser raised a recognisable lease-contention error.
-        #    We accept ConversationLeaseHeldError directly, or any subclass
-        #    chain that includes it (some paths wrap it).
+        # 2. 每个失败者都会提出一个可识别的租约争用错误。 我们直接接受
+        # ConversationLeaseHeldError，或包含它的任何子类链（某些路径包装它）。
+        #
         for i, exc in losers:
             assert exc is not None
             chain: list[BaseException | None] = [exc]
@@ -132,9 +130,9 @@ async def test_concurrent_start_of_same_conversation_yields_one_winner(
                 f"cause chain."
             )
 
-        # 3. Persistence dir contains exactly one conversation directory
-        #    for the target. If a loser partially wrote state, we'd see
-        #    two — or worse, a corrupt one.
+        # 3. 持久化 dir 恰好包含目标的一个对话目录。 如果失败者部分写入了状态，我们会看
+        # 到两个状态，或者更糟糕的是，一个损坏的状态。
+        #
         target_dirs = list(persist.glob(f"{target.hex}*"))
         assert len(target_dirs) == 1, (
             f"expected 1 conversation directory for {target.hex}, found "
@@ -142,10 +140,9 @@ async def test_concurrent_start_of_same_conversation_yields_one_winner(
             f"partially wrote state to disk."
         )
     finally:
-        # Tear down all services. Order doesn't matter — losers had no
-        # event_services attached. Suppress per-service exceptions so a
-        # bad teardown doesn't mask the test's primary failure or skip
-        # the rest of the cleanup.
+        # 拆除所有服务。 顺序并不重要——失败者没有附加event_services。 抑制每个服务的异常
+        # ，这样糟糕的拆卸就不会掩盖测试的主要故障或跳过清理的 REST。
+        #
         for s in services:
             with contextlib.suppress(Exception):
                 await s.__aexit__(None, None, None)

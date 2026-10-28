@@ -1,4 +1,4 @@
-# Core tool interface
+# 核心工具界面
 from openhands.tools.glob.definition import (
     GlobAction,
     GlobObservation,

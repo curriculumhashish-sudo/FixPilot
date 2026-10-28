@@ -1,19 +1,17 @@
-"""Real-like end-to-end tests for the base_state single-source-of-truth fix.
+"""针对 base_state 单一事实来源修复的类似真实的端到端测试。
 
-These drive the *real* ``ConversationService`` against a *real* on-disk
-persistence directory (no mocks of the conversation, event service, or SDK).
-They reproduce the user-reported bug — a runtime model switch getting reverted
-on reload — and prove it stays fixed through the actual code paths a client
-(odie / Agent Canvas) exercises:
+它们针对 *real* 磁盘上的持久化目录驱动 *real* ``ConversationService``（没有对话、事件
+服务或 SDK 的模拟对象）。 他们重现了用户报
+告的 bug —— 运行时模型切换在重新加载时被撤销 —— 并证明它在客户端（Agent Canvas）实际
+执行的代码路径上保持不变。
 
-    start conversation -> switch_llm at runtime -> base_state.json owns the agent
-    -> idle-eviction (or a full service restart) -> rehydrate -> switch survives.
+    开始对话 -> switch_llm 在运行时 -> base_state.json 拥有智能体 -> 空闲驱逐（或完整
+    的服务重启） -> 补充 -> 开关存活。
 
-They also guard against the "does it affect various things" worry: meta.json
-never carries the agent, and unrelated persisted state (tags, confirmation
-policy, secret registry) survives the round-trip intact.
+他们还防止了“它是否影响各种事物”的担忧：meta.json 从不携带智能体，无关的已持久化状态
+（标签、确认政策、机密注册表）在往返过程中完好无损。
 
-No network is required: ``switch_llm`` and persistence never call the model.
+不需要网络：``switch_llm`` 和持久化从不调用模型。
 """
 
 import json
@@ -41,7 +39,7 @@ def _read_json(path):
 
 
 async def _switch_llm(service: ConversationService, conv_id: UUID, llm: LLM) -> None:
-    """Drive the real runtime switch path used by the /switch_llm endpoint."""
+    """驱动实际运行时所使用的开关路径/switch_llm端点。"""
     event_service = await service.get_event_service(conv_id)
     assert event_service is not None
     conversation = event_service.get_conversation()
@@ -50,8 +48,8 @@ async def _switch_llm(service: ConversationService, conv_id: UUID, llm: LLM) -> 
 
 @pytest.mark.asyncio
 async def test_runtime_switch_llm_survives_idle_eviction(tmp_path):
-    """The reported bug, end to end: a runtime switch_llm must NOT revert when
-    an idle conversation is evicted and later rehydrated from disk.
+    """报告的错误，端到端：运行时 switch_llm 必须不恢复
+    空闲的对话会被逐出，然后从磁盘中重新恢复。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -63,7 +61,7 @@ async def test_runtime_switch_llm_survives_idle_eviction(tmp_path):
         )
         conv_id = info.id
 
-        # Runtime switch (new usage_id so the registry actually installs it).
+        # 运行时开关（新的 usage_id，因此注册表实际上安装了它）。
         await _switch_llm(
             service, conv_id, LLM(model="claude-sonnet-4", usage_id="switched")
         )
@@ -71,15 +69,15 @@ async def test_runtime_switch_llm_survives_idle_eviction(tmp_path):
         conv_dir = conversations_dir / conv_id.hex
         base_state = _read_json(conv_dir / "base_state.json")
         meta = _read_json(conv_dir / "meta.json")
-        # base_state.json owns the switched agent; meta.json has no agent at all.
+        # base_state.json拥有交换的智能体； meta.json根本没有智能体。
         assert base_state["agent"]["llm"]["model"] == "claude-sonnet-4"
         assert "agent" not in meta
 
-        # Force idle eviction (real internal path); the live service drops the
-        # in-memory conversation but keeps the record for rehydration.
+        # 强制空闲驱逐（真实内部路径）； 实时服务会删除内存中的对话，但保留补液记录。
+        #
         await service._evict_idle_conversations(0.0)
 
-        # Accessing it again rehydrates from base_state.json.
+        # 再次访问它会从 base_state.json 重新水化。
         event_service = await service.get_event_service(conv_id)
         assert event_service is not None
         rehydrated = event_service.get_conversation()
@@ -88,8 +86,8 @@ async def test_runtime_switch_llm_survives_idle_eviction(tmp_path):
 
 @pytest.mark.asyncio
 async def test_runtime_switch_llm_survives_service_restart(tmp_path):
-    """A runtime switch_llm must also survive a full agent-server restart
-    (a fresh ConversationService reading the same directory).
+    """运行时 switch_llm 还必须在完整的智能体服务器重新启动后继续存在
+    （新的 ConversationService 读取同一目录）。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -104,7 +102,7 @@ async def test_runtime_switch_llm_survives_service_restart(tmp_path):
             service, conv_id, LLM(model="gpt-5-codex", usage_id="switched")
         )
 
-    # Fresh service == server restart: agent comes back from base_state.json.
+    # 新鲜服务==服务器重新启动：智能体从base_state.json返回。
     async with ConversationService(conversations_dir=conversations_dir) as service2:
         reloaded = await service2.get_conversation(conv_id)
         assert reloaded is not None
@@ -117,8 +115,8 @@ async def test_runtime_switch_llm_survives_service_restart(tmp_path):
 
 @pytest.mark.asyncio
 async def test_new_conversation_agent_only_in_base_state(tmp_path):
-    """A brand-new conversation persists the agent to base_state.json only —
-    never to meta.json — so the duplication that caused the bug cannot recur.
+    """全新的对话仅保留智能体到 base_state.json —
+    从不到 meta.json — 因此导致错误的重复不会再次出现。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -139,8 +137,8 @@ async def test_new_conversation_agent_only_in_base_state(tmp_path):
 
 @pytest.mark.asyncio
 async def test_switch_llm_preserves_unrelated_state_across_reload(tmp_path):
-    """ "Does it affect various things?" — unrelated persisted state (tags,
-    confirmation policy) must survive a switch + eviction + rehydration.
+    """“它会影响各种事情吗？” — 不相关的已持久化状态（标签，
+    确认政策）必须在转换+驱逐+补水后继续存在。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -164,7 +162,7 @@ async def test_switch_llm_preserves_unrelated_state_across_reload(tmp_path):
         event_service = await service.get_event_service(conv_id)
         assert event_service is not None
         conversation = event_service.get_conversation()
-        # Switched model is authoritative...
+        # 切换模型是权威的...
         assert conversation.agent.llm.model == "claude-opus-4"
         # ...and unrelated state came back intact.
         assert dict(event_service.stored.tags) == {
@@ -176,9 +174,9 @@ async def test_switch_llm_preserves_unrelated_state_across_reload(tmp_path):
 
 @pytest.mark.asyncio
 async def test_switch_llm_after_init_replaces_registered_usage_id(tmp_path):
-    """#5636: after the first message the agent's usage_id is registered.
-    Switching under that same usage_id must install the posted model, in the
-    live conversation, in base_state.json and in the service's read model.
+    """#5636: 在第一条消息之后，智能体的 usage_id 被注册。
+    在同一 usage_id 下进行切换必须在实时对话、base_state.json 和服务的读取模型中安装
+    发布的模型。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -192,7 +190,7 @@ async def test_switch_llm_after_init_replaces_registered_usage_id(tmp_path):
         event_service = await service.get_event_service(conv_id)
         assert event_service is not None
         conversation = event_service.get_conversation()
-        conversation.send_message("hi")  # initializes the agent (run=False)
+        conversation.send_message("hi")  # 初始化智能体 (run=False)
         assert "default" in conversation.llm_registry.list_usage_ids()
 
         await _switch_llm(

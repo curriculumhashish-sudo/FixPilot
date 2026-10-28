@@ -1,4 +1,4 @@
-"""Tests for TerminalTool auto-detection functionality."""
+"""测试 TerminalTool 自动检测功能。"""
 
 import platform
 import tempfile
@@ -29,7 +29,7 @@ from openhands.tools.terminal.terminal import (
 
 
 def _create_conv_state(working_dir: str) -> ConversationState:
-    """Helper to create a ConversationState for testing."""
+    """帮助程序创建 ConversationState 用于测试。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -40,18 +40,18 @@ def _create_conv_state(working_dir: str) -> ConversationState:
 
 
 def test_default_auto_detection():
-    """Test that TerminalTool auto-detects the appropriate session type."""
+    """测试 TerminalTool 是否自动检测适当的会话类型。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
-        # TerminalTool always has an executor
+        # TerminalTool 总是有一个执行者
         assert tool.executor is not None
         executor = tool.executor
         assert isinstance(executor, TerminalExecutor)
 
-        # In pool mode there is no single session attribute;
-        # in single-session mode there is.
+        # 在池模式下，没有单一会话属性； 在单会话模式下有。
+        #
         if executor.is_pooled:
             assert executor._pool is not None
             assert executor._pool.max_panes >= 1
@@ -60,16 +60,16 @@ def test_default_auto_detection():
             terminal_type = type(executor.session.terminal).__name__
             assert terminal_type in ["TmuxTerminal", "SubprocessTerminal"]
 
-        # Test that it works
+        # 测试它是否有效
         action = TerminalAction(command="echo 'Auto-detection test'")
         obs = executor(action)
         assert "Auto-detection test" in obs.text
 
 
 def test_forced_terminal_types():
-    """Test forcing specific session types."""
+    """测试强制特定会话类型。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Test forced subprocess session
+        # 测试强制子进程会话
         tools = TerminalTool.create(
             _create_conv_state(temp_dir), terminal_type="subprocess"
         )
@@ -80,7 +80,7 @@ def test_forced_terminal_types():
         assert isinstance(executor.session, TerminalSession)
         assert isinstance(executor.session.terminal, SubprocessTerminal)
 
-        # Test basic functionality
+        # 测试基本功能
         action = TerminalAction(command="echo 'Subprocess test'")
         obs = tool.executor(action)
         assert obs.metadata.exit_code == 0
@@ -88,11 +88,11 @@ def test_forced_terminal_types():
 
 @patch("platform.system")
 def test_unix_auto_detection(mock_system):
-    """Test auto-detection behavior on Unix-like systems."""
+    """在类 Unix 系统上测试自动检测行为。"""
     mock_system.return_value = "Linux"
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Mock tmux as available → pool mode
+        # 模拟对象 tmux 可用 → 池模式
         with patch(
             "openhands.tools.terminal.terminal.factory._is_tmux_available",
             return_value=True,
@@ -102,10 +102,10 @@ def test_unix_auto_detection(mock_system):
             assert tool.executor is not None
             executor = tool.executor
             assert isinstance(executor, TerminalExecutor)
-            # Pool mode: no single session, pool is active
+            # 池模式：无单个会话，池处于活动状态
             assert executor.is_pooled
 
-        # Mock tmux as unavailable → single-session / subprocess mode
+        # 模拟对象 tmux 不可用 → 单会话/子进程模式
         with (
             patch(
                 "openhands.tools.terminal.terminal.factory._is_tmux_available",
@@ -126,7 +126,7 @@ def test_unix_auto_detection(mock_system):
 
 
 def test_session_parameters():
-    """Test that session parameters are properly passed."""
+    """测试会话参数是否正确传递。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(
             _create_conv_state(temp_dir),
@@ -146,9 +146,9 @@ def test_session_parameters():
 
 
 def test_backward_compatibility():
-    """Test that the simplified API still works."""
+    """测试简化的 API 是否仍然有效。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # This should work just like before
+        # 这应该像以前一样工作
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
 
@@ -160,7 +160,7 @@ def test_backward_compatibility():
 
 
 def test_tool_metadata():
-    """Test that tool metadata is preserved."""
+    """测试工具元数据是否被保留。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(_create_conv_state(temp_dir))
         tool = tools[0]
@@ -172,24 +172,24 @@ def test_tool_metadata():
 
 
 def test_session_lifecycle():
-    """Test session lifecycle management."""
+    """测试会话生命周期管理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = TerminalTool.create(
             _create_conv_state(temp_dir), terminal_type="subprocess"
         )
         tool = tools[0]
 
-        # Session should be initialized
+        # 会话应该被初始化
         assert tool.executor is not None
         executor = tool.executor
         assert isinstance(executor, TerminalExecutor)
         assert executor.session._initialized
 
-        # Should be able to execute commands
+        # 应该能够执行命令
         action = TerminalAction(command="echo 'Lifecycle test'")
         obs = executor(action)
         assert obs.metadata.exit_code == 0
 
-        # Manual cleanup should work
+        # 手动清理应该有效
         executor.session.close()
         assert executor.session._closed

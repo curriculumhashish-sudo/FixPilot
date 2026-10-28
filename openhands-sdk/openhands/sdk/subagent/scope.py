@@ -1,8 +1,8 @@
-"""Bound a sub-agent by the agent delegating to it.
+"""通过委托给它的智能体来绑定子智能体。
 
-A sub-agent always runs with exactly its parent's MCP servers
-(:func:`inherit_mcp_config`). A :class:`SubAgentScope` can additionally keep its
-tools within the parent's.
+子智能体始终与其父级的 MCP 服务器 (:func:`inherit_mcp_config`) 一起运行。 :class:
+`SubAgentScope` 还可以将其工具保
+留在父级的工具中。
 """
 
 from __future__ import annotations
@@ -32,14 +32,14 @@ logger = get_logger(__name__)
 SUB_AGENT_SCOPE_PARAM: Final = "sub_agent_scope"
 
 DELEGATION_TOOL_NAMES: Final = (SUB_AGENT_TOOL_NAME, "workflow_tool_set", "workflow")
-"""Tools that start sub-agents and take a ``sub_agent_scope`` parameter."""
+"""启动子智能体并采用 ``sub_agent_scope`` 参数的工具。"""
 
 
 class SubAgentScope(BaseModel):
-    """Which of the delegating agent's tools its sub-agents must stay within.
+    """子智能体必须留在委托智能体的哪个工具中。
 
-    MCP servers are not part of the scope: every sub-agent inherits exactly the
-    delegating agent's MCP servers (see :func:`inherit_mcp_config`).
+    MCP 服务器不属于该范围：每个子智能体都准确继承委托智能体的 MCP 服务器（请参阅：
+    func:`inherit_mcp_config`）。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -62,10 +62,9 @@ class SubAgentScope(BaseModel):
     def missing_from(
         self, parent: AgentBase, sub_agent: AgentBase | AgentDefinition
     ) -> list[str]:
-        """Return the tools ``sub_agent`` uses that ``parent`` lacks, if scoped.
+        """返回 ``sub_agent`` 使用 ``parent`` 缺少的工具（如果有范围）。
 
-        Conversation-local tools never count: they reach nothing outside the
-        sub-agent's own conversation.
+        对话本地工具永远不会起作用：它们无法到达子智能体自己的对话之外的任何内容。
         """
         if not self.tools:
             return []
@@ -79,11 +78,11 @@ class SubAgentScope(BaseModel):
 def inherit_mcp_config[AgentT: AgentBase](
     parent: AgentBase, sub_agent: AgentT
 ) -> AgentT:
-    """Return ``sub_agent`` with exactly ``parent``'s MCP servers.
+    """返回 ``sub_agent`` 和 ``parent`` 的 MCP 个服务器。
 
-    ``parent`` is the delegating conversation's agent, whose ``mcp_config`` is
-    already resolved (plugin servers merged, ``${VAR}`` secrets expanded).
-    Servers the sub-agent declares itself are dropped, never merged.
+    ``parent`` 是委托会话的智能体，其 ``mcp_config`` 已解决（插件服务器合并，
+    ``${VAR}`` 机密扩展）。 子智能体声明自己的服务器已被
+    删除，从未合并。
     """
     declared = sub_agent.mcp_config
     if declared and declared != parent.mcp_config:
@@ -97,7 +96,7 @@ def inherit_mcp_config[AgentT: AgentBase](
 
 
 def scope_delegation_tools(tools: Sequence[Tool], scope: SubAgentScope) -> list[Tool]:
-    """Return ``tools`` with ``scope`` added to every delegation tool."""
+    """返回 ``tools``，并将 ``scope`` 添加到每个委托工具。"""
     if not scope.restricts:
         return list(tools)
     return [

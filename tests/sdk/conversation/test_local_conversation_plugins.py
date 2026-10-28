@@ -1,4 +1,4 @@
-"""Tests for plugin loading via LocalConversation and Conversation factory."""
+"""通过 LocalConversation 和对话工厂测试插件加载。"""
 
 import json
 import logging
@@ -64,7 +64,7 @@ class RecordingMCPToolProvider:
 
 @pytest.fixture
 def mock_llm():
-    """Create a mock LLM for agent tests."""
+    """为智能体个测试创建模拟对象 LLM。"""
     return LLM(
         model="test/model",
         api_key=SecretStr("test-key"),
@@ -73,7 +73,7 @@ def mock_llm():
 
 @pytest.fixture
 def basic_agent(mock_llm):
-    """Create a basic agent for testing."""
+    """创建一个基本的智能体进行测试。"""
     return Agent(
         llm=mock_llm,
         tools=[],
@@ -87,7 +87,7 @@ def create_test_plugin(
     mcp_config: dict | None = None,
     hooks: dict | None = None,
 ):
-    """Helper to create a test plugin directory."""
+    """帮助程序创建测试插件目录。"""
     manifest_dir = plugin_dir / ".plugin"
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -121,7 +121,7 @@ def create_test_marketplace(
     plugins: list[dict],
     name: str = "test-marketplace",
 ) -> Path:
-    """Helper to create a test marketplace with local plugin entries."""
+    """使用本地插件条目创建测试市场的帮助程序。"""
     manifest_dir = marketplace_dir / ".plugin"
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -160,7 +160,7 @@ def create_test_marketplace_with_standalone_skills(
     skills: list[str],
     name: str = "skills-marketplace",
 ) -> Path:
-    """Helper to create a marketplace declaring only standalone skills."""
+    """帮助创建一个仅声明独立技能的市场。"""
     manifest_dir = marketplace_dir / ".plugin"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     entries = []
@@ -182,10 +182,10 @@ def create_test_marketplace_with_standalone_skills(
 
 
 class TestLocalConversationPlugins:
-    """Tests for plugin loading in LocalConversation.
+    """测试 LocalConversation 中的插件加载。
 
-    Note: Plugins are lazy-loaded on first run()/send_message() call.
-    Tests trigger _ensure_plugins_loaded() to verify loading behavior.
+    Note: 插件在第一次 run()/send_message() 调用时延迟加载。
+    测试触发器 _ensure_plugins_loaded() 以验证加载行为。
     """
 
     def test_auto_load_marketplace_plugins(self, tmp_path: Path, mock_llm):
@@ -243,7 +243,7 @@ class TestLocalConversationPlugins:
         assert len(conversation.resolved_plugins) == 1
 
     def test_auto_load_marketplace_standalone_skills(self, tmp_path: Path, mock_llm):
-        """Standalone marketplace skills auto-load into the agent context."""
+        """独立市场技能自动加载到智能体上下文中。"""
         marketplace_dir = create_test_marketplace_with_standalone_skills(
             tmp_path / "marketplace",
             skills=["greet", "commit"],
@@ -282,7 +282,7 @@ class TestLocalConversationPlugins:
         conversation.close()
 
     def test_auto_load_plain_skills_repository(self, tmp_path: Path, mock_llm):
-        """A registered repository without a manifest auto-loads its skills."""
+        """没有清单的注册存储库会自动加载其技能。"""
         repo = create_test_marketplace_with_standalone_skills(
             tmp_path / "repo",
             skills=["greet", "commit"],
@@ -322,7 +322,7 @@ class TestLocalConversationPlugins:
     def test_plugin_wins_over_standalone_on_name_collision(
         self, tmp_path: Path, mock_llm
     ):
-        """A plugin skill overrides a same-named standalone skill (catalog rule)."""
+        """插件技能会覆盖同名的独立技能（目录规则）。"""
         marketplace_dir = tmp_path / "marketplace"
         create_test_plugin(
             marketplace_dir / "plugins" / "p",
@@ -578,7 +578,7 @@ class TestLocalConversationPlugins:
     def test_registered_only_marketplace_does_not_auto_load(
         self, tmp_path: Path, mock_llm
     ):
-        """Test registered marketplaces without auto_load stay resolution-only."""
+        """测试已注册的市场，无需 auto_load 仅保留解析。"""
         marketplace_dir = create_test_marketplace(
             tmp_path / "marketplace",
             plugins=[
@@ -616,7 +616,7 @@ class TestLocalConversationPlugins:
     def test_explicit_plugins_override_auto_loaded_marketplace_plugins(
         self, tmp_path: Path, mock_llm
     ):
-        """Test explicit plugins load after auto-loaded marketplace plugins."""
+        """在自动加载市场插件后测试显式插件加载。"""
         marketplace_dir = create_test_marketplace(
             tmp_path / "marketplace",
             plugins=[
@@ -688,7 +688,7 @@ class TestLocalConversationPlugins:
         )
 
     def test_create_conversation_with_plugins(self, tmp_path: Path, basic_agent):
-        """Test creating LocalConversation with plugins parameter."""
+        """测试使用plugins参数创建LocalConversation。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -704,15 +704,15 @@ class TestLocalConversationPlugins:
             visualizer=None,
         )
 
-        # Plugins are lazy loaded - trigger loading
+        # 插件是延迟加载的 - 触发加载
         conversation._ensure_plugins_loaded()
 
-        # Agent should have been updated with plugin skills
+        # 智能体应该更新插件技能
         assert conversation.agent.agent_context is not None
         skill_names = [s.name for s in conversation.agent.agent_context.skills]
         assert "test-skill" in skill_names
 
-        # Verify resolved plugins are tracked
+        # 验证已解析的插件是否已被跟踪
         assert conversation.resolved_plugins is not None
         assert len(conversation.resolved_plugins) == 1
         assert conversation.resolved_plugins[0].source == str(plugin_dir)
@@ -720,7 +720,7 @@ class TestLocalConversationPlugins:
         conversation.close()
 
     def test_load_plugin_from_registered_marketplace(self, tmp_path: Path, mock_llm):
-        """Test runtime plugin loading from a registered marketplace."""
+        """测试从注册市场加载的运行时插件。"""
         marketplace_dir = create_test_marketplace(
             tmp_path / "marketplace",
             plugins=[
@@ -973,7 +973,7 @@ class TestLocalConversationPlugins:
     def test_load_plugin_requires_registered_marketplaces(
         self, tmp_path: Path, basic_agent
     ):
-        """Test runtime plugin loading requires registered marketplaces."""
+        """测试运行时插件加载需要注册市场。"""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         conversation = LocalConversation(
@@ -988,7 +988,7 @@ class TestLocalConversationPlugins:
         conversation.close()
 
     def test_conversation_with_multiple_plugins(self, tmp_path: Path, basic_agent):
-        """Test loading multiple plugins via LocalConversation."""
+        """通过 LocalConversation 测试加载多个插件。"""
         plugin1 = create_test_plugin(
             tmp_path / "plugin1",
             name="plugin1",
@@ -1012,7 +1012,7 @@ class TestLocalConversationPlugins:
             visualizer=None,
         )
 
-        # Plugins are lazy loaded - trigger loading
+        # 插件是延迟加载的 - 触发加载
         conversation._ensure_plugins_loaded()
 
         assert conversation.agent.agent_context is not None
@@ -1020,7 +1020,7 @@ class TestLocalConversationPlugins:
         assert "skill-a" in skill_names
         assert "skill-b" in skill_names
 
-        # Verify both plugins tracked
+        # 验证跟踪的两个插件
         assert conversation.resolved_plugins is not None
         assert len(conversation.resolved_plugins) == 2
 
@@ -1029,7 +1029,7 @@ class TestLocalConversationPlugins:
     def test_plugin_hooks_combined_with_explicit_hooks(
         self, tmp_path: Path, basic_agent
     ):
-        """Test that plugin hooks are combined with explicit hook_config."""
+        """测试插件钩子是否与显式hook_config结合。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -1060,19 +1060,20 @@ class TestLocalConversationPlugins:
             visualizer=None,
         )
 
-        # Hooks are lazy loaded - trigger loading
+        # 钩子是延迟加载的 - 触发加载
         conversation._ensure_plugins_loaded()
 
-        # Both hook sources should be combined
+        # 两个钩子源应该结合起来
         assert conversation._hook_processor is not None
-        # We can verify hooks were processed by checking the hook_config passed
-        # (The actual hook_processor is internal, but we trust the merging works)
+        # 我们可以通过检查传递的 hook_config 来验证钩子是否已处理（实际的 hook_processor
+        #  是内部的，但我们相信合并工作）
+        #
         conversation.close()
 
     def test_hook_sub_conversations_receive_persistence_base_dir(
         self, tmp_path: Path, basic_agent
     ):
-        """Agent hook persistence should not nest under the parent conversation id."""
+        """智能体挂钩持久化不应嵌套在父对话 ID 下。"""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         persistence_base = tmp_path / "state"
@@ -1109,7 +1110,7 @@ class TestLocalConversationPlugins:
         conversation.close()
 
     def test_plugins_not_loaded_until_needed(self, tmp_path: Path, basic_agent):
-        """Test that plugins are not loaded in constructor (lazy loading)."""
+        """测试插件是否未在构造函数中加载（延迟加载）。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1125,12 +1126,12 @@ class TestLocalConversationPlugins:
             visualizer=None,
         )
 
-        # Before loading, plugins should not be applied
+        # 加载之前，不应应用插件
         assert conversation._plugins_loaded is False
         assert conversation.resolved_plugins is None
         assert conversation.agent.agent_context is None
 
-        # After triggering load
+        # 触发负载后
         conversation._ensure_plugins_loaded()
 
         assert conversation._plugins_loaded is True
@@ -1140,12 +1141,12 @@ class TestLocalConversationPlugins:
         conversation.close()
 
     def test_plugin_mcp_config_are_initialized(self, tmp_path: Path, basic_agent):
-        """Test that MCP servers from plugins are properly initialized.
+        """测试插件的 MCP 服务器是否已正确初始化。
 
-        This is a regression test for a bug where MCP tools from plugins were not
-        being created because the agent was initialized before plugins were loaded.
+        这是针对错误的回归测试，其中未创建来自插件的 MCP 工具，因为智能体在加载插件之
+        前已初始化。
         """
-        # Inject an MCP provider to avoid actually starting MCP servers in tests
+        # 注入 MCP 提供程序以避免在测试中实际启动 MCP 服务器
         mcp_tools_created = []
         mcp_tool_provider = RecordingMCPToolProvider(mcp_tools_created)
 
@@ -1165,17 +1166,18 @@ class TestLocalConversationPlugins:
             mcp_tool_provider=mcp_tool_provider,
         )
 
-        # Before loading plugins, no MCP servers should exist
+        # 加载插件之前，不应存在 MCP 个服务器
         assert conversation.agent.mcp_config == {}
 
-        # Trigger plugin loading and agent initialization
+        # 触发插件加载和智能体初始化
         conversation._ensure_agent_ready()
 
-        # After loading, MCP servers should be merged
+        # 加载后，MCP台服务器应该被合并
         assert "test-server" in conversation.agent.mcp_config
 
-        # The agent should have been initialized with the complete MCP servers
-        # This verifies that create_mcp_tools was called with the plugin's MCP servers
+        # 智能体应该已使用完整的 MCP 服务器进行初始化这验证了 create_mcp_tools 是通过插
+        # 件的 MCP 服务器调用的
+        #
         assert len(mcp_tools_created) > 0
         assert "test-server" in mcp_tools_created[-1]
 
@@ -1183,15 +1185,15 @@ class TestLocalConversationPlugins:
 
 
 class TestConversationFactoryPlugins:
-    """Tests for plugin loading via Conversation factory.
+    """通过对话工厂测试插件加载。
 
-    Note: Plugins are lazy-loaded on first run()/send_message() call.
+    Note: 插件在第一次 run()/send_message() 调用时延迟加载。
     """
 
     def test_factory_passes_plugins_to_local_conversation(
         self, tmp_path: Path, basic_agent
     ):
-        """Test that Conversation factory passes plugins to LocalConversation."""
+        """测试会话工厂是否将插件传递给 LocalConversation。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1209,7 +1211,7 @@ class TestConversationFactoryPlugins:
 
         assert isinstance(conversation, LocalConversation)
 
-        # Plugins are lazy loaded - trigger loading
+        # 插件是延迟加载的 - 触发加载
         conversation._ensure_plugins_loaded()
 
         assert conversation.agent.agent_context is not None
@@ -1220,7 +1222,7 @@ class TestConversationFactoryPlugins:
     def test_factory_with_string_workspace_and_plugins(
         self, tmp_path: Path, basic_agent
     ):
-        """Test factory with string workspace path and plugins."""
+        """使用字符串工作区路径和插件测试工厂。"""
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="plugin",
@@ -1236,7 +1238,7 @@ class TestConversationFactoryPlugins:
             visualizer=None,
         )
 
-        # Plugins are lazy loaded - trigger loading
+        # 插件是延迟加载的 - 触发加载
         conversation._ensure_plugins_loaded()
 
         assert conversation.agent.agent_context is not None
@@ -1244,7 +1246,7 @@ class TestConversationFactoryPlugins:
         conversation.close()
 
     def test_factory_with_no_plugins(self, tmp_path: Path, basic_agent):
-        """Test that factory works without plugins (plugins=None is default)."""
+        """测试工厂在没有插件的情况下是否可以工作（默认为plugins=None）。"""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
 
@@ -1254,31 +1256,31 @@ class TestConversationFactoryPlugins:
             visualizer=None,
         )
 
-        # Should work without errors
+        # 应该可以正常工作而不会出现错误
         assert conversation is not None
         conversation.close()
 
 
 class TestPluginMcpSecretsExpansion:
-    """Tests for per-conversation secrets in MCP config expansion.
+    """测试 MCP 配置扩展中的每个会话机密。
 
-    These tests verify that secrets injected via the REST API are correctly
-    used for MCP config variable expansion (${VAR} syntax).
+    这些测试验证通过 REST API 注入的机密是否正确用于 MCP 配置变量扩展（${VAR} 语法）
+    。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2872
     """
 
     def test_plugin_mcp_secrets_without_defaults(self, tmp_path: Path, basic_agent):
-        """Test that per-conversation secrets work for variables without defaults.
+        """测试每个对话机密是否适用于没有默认值的变量。
 
-        This test verifies that ${VAR} placeholders (without defaults) are
-        correctly expanded using secrets from SecretRegistry.
+        此测试验证 ${VAR} 占位符（无默认值）是否使用 SecretRegistry 中的机密正确扩展
+        。
         """
-        # Inject an MCP provider to avoid actually starting MCP servers
+        # 注入 MCP 提供程序以避免实际启动 MCP 服务器
         mcp_tools_created = []
         mcp_tool_provider = RecordingMCPToolProvider(mcp_tools_created)
 
-        # Create plugin with MCP config using ${VAR} WITHOUT default
+        # 使用 ${VAR} WITHOUT 默认值创建具有 MCP 配置的插件
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1302,13 +1304,13 @@ class TestPluginMcpSecretsExpansion:
             mcp_tool_provider=mcp_tool_provider,
         )
 
-        # Inject secret BEFORE triggering plugin loading
+        # Inject 机密之前触发插件加载
         conversation.update_secrets({"SECRET_TOKEN": "my-actual-secret"})
 
-        # Trigger plugin loading and agent initialization
+        # 触发插件加载和智能体初始化
         conversation._ensure_agent_ready()
 
-        # Verify the secret was expanded in the MCP servers
+        # 验证机密已在 MCP 服务器中扩展
         headers = dump_mcp_config(conversation.agent.mcp_config)["test-server"][
             "headers"
         ]
@@ -1321,22 +1323,21 @@ class TestPluginMcpSecretsExpansion:
         conversation.close()
 
     def test_plugin_mcp_secrets_with_defaults(self, tmp_path: Path, basic_agent):
-        """Test that per-conversation secrets work with default values.
+        """测试每个对话机密是否使用默认值。
 
-        This test verifies that ${VAR:-default} placeholders use the secret
-        value when available, NOT the default.
+        此测试验证 ${VAR:-default} 占位符是否使用机密值（如果可用），不为默认值。
 
-        This is a regression test for the double-expansion bug where:
-        1. First expansion in plugin.py replaces ${VAR:-default} with "default"
-        2. Second expansion in local_conversation.py sees no placeholder to expand
+        这是针对双展开错误的回归测试，其中：
+        1. plugin.py 中的第一次扩展将 ${VAR:-default} 替换为“默认”
+        2. local_conversation.py 中的第二次扩展没有看到要扩展的占位符
 
-        Expected: Secret value should be used, not the default.
+        Expected: 应使用机密值，而不是默认值。
         """
-        # Inject an MCP provider to avoid actually starting MCP servers
+        # 注入 MCP 提供程序以避免实际启动 MCP 服务器
         mcp_tools_created = []
         mcp_tool_provider = RecordingMCPToolProvider(mcp_tools_created)
 
-        # Create plugin with MCP config using ${VAR:-default} WITH default
+        # 使用 ${VAR:-default} WITH 默认值创建具有 MCP 配置的插件
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1362,20 +1363,20 @@ class TestPluginMcpSecretsExpansion:
             mcp_tool_provider=mcp_tool_provider,
         )
 
-        # Inject secret BEFORE triggering plugin loading
+        # Inject 机密之前触发插件加载
         conversation.update_secrets({"SECRET_TOKEN": "my-actual-secret"})
 
-        # Trigger plugin loading and agent initialization
+        # 触发插件加载和智能体初始化
         conversation._ensure_agent_ready()
 
-        # CRITICAL: Verify the secret was used, NOT the default
+        # CRITICAL：验证是否使用了机密，不为默认值
         headers = dump_mcp_config(conversation.agent.mcp_config)["test-server"][
             "headers"
         ]
         assert isinstance(headers, dict)
         auth_header = headers["Authorization"]
 
-        # This assertion will FAIL with double-expansion bug
+        # 此断言将 FAIL 带有双展开错误
         assert auth_header == "Bearer my-actual-secret", (
             f"Expected secret value 'Bearer my-actual-secret', got '{auth_header}'. "
             "This is likely due to double-expansion: the default value was applied "
@@ -1387,18 +1388,17 @@ class TestPluginMcpSecretsExpansion:
     def test_plugin_mcp_secrets_fallback_to_default_when_no_secret(
         self, tmp_path: Path, basic_agent
     ):
-        """Test that default values work when no secret is provided.
+        """测试未提供机密时默认值是否有效。
 
-        This test verifies that ${VAR:-default} correctly falls back to the
-        default value when no secret is injected.
+        此测试验证当没有注入机密时，${VAR:-default} 是否正确回退到默认值。
         """
-        # Inject an MCP provider to avoid actually starting MCP servers
+        # 注入 MCP 提供程序以避免实际启动 MCP 服务器
         mcp_tools_created = []
         mcp_tool_provider = RecordingMCPToolProvider(mcp_tools_created)
 
-        # Create plugin with MCP config using ${VAR:-default}
-        # Note: MCP config structure requires valid fields, so we use 'headers'
-        # for string values instead of 'timeout' which expects an integer
+        # 使用 ${VAR:-default} 创建具有 MCP 配置的插件
+        # 注意：MCP 配置结构需要有效字段，因此我们使用“headers”
+        # 对于字符串值而不是需要整数的“超时”
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1424,12 +1424,12 @@ class TestPluginMcpSecretsExpansion:
             mcp_tool_provider=mcp_tool_provider,
         )
 
-        # Do NOT inject any secrets - should use defaults
+        # 执行不注入任何机密 - 应使用默认值
 
-        # Trigger plugin loading and agent initialization
+        # 触发插件加载和智能体初始化
         conversation._ensure_agent_ready()
 
-        # Verify defaults were used
+        # 验证是否使用了默认值
         mcp_config = dump_mcp_config(conversation.agent.mcp_config)
         url = mcp_config["test-server"]["url"]
         headers = mcp_config["test-server"]["headers"]
@@ -1443,10 +1443,10 @@ class TestPluginMcpSecretsExpansion:
 
 
 class TestPluginSourceSecretExpansion:
-    """Secrets in plugin ``source``/``ref`` are expanded before fetch.
+    """插件 ``source``/``ref`` 中的机密在获取之前展开。
 
-    This enables cloning private plugin repositories with a token supplied via
-    the per-conversation secrets API, e.g. a ``source`` of
+    这使得可以使用通过每个会话机密 API、e.g 提供的 token 来克隆私有插件存储库。 的
+    ``source``
     ``https://x-token-auth:${MY_TOKEN}@host/org/repo.git``.
     """
 
@@ -1469,7 +1469,7 @@ class TestPluginSourceSecretExpansion:
         return conversation, plugin_dir
 
     def test_source_secret_expanded_before_fetch(self, tmp_path: Path, basic_agent):
-        """A ${VAR} in the source is replaced with the secret value before clone."""
+        """源中的 ${VAR} 在克隆之前被替换为机密值。"""
         source = "https://x-token-auth:${MY_TOKEN}@host.example.com/org/repo.git"
         conversation, plugin_dir = self._make_conversation(
             tmp_path, basic_agent, source
@@ -1490,12 +1490,12 @@ class TestPluginSourceSecretExpansion:
         ):
             conversation._ensure_plugins_loaded()
 
-        # The secret was expanded in the URL handed to the fetcher.
+        # 机密在传递给获取器的 URL 中展开。
         assert captured["source"] == (
             "https://x-token-auth:s3cr3t-value@host.example.com/org/repo.git"
         )
 
-        # Persisted state must NOT contain the raw secret value.
+        # 已持久化状态必须不包含原始机密值。
         assert conversation.resolved_plugins is not None
         assert "s3cr3t-value" not in conversation.resolved_plugins[0].source
 
@@ -1504,13 +1504,13 @@ class TestPluginSourceSecretExpansion:
     def test_host_env_not_expanded_in_source(
         self, tmp_path: Path, basic_agent, monkeypatch
     ):
-        """Host environment variables must NOT be folded into the source URL."""
+        """主机环境变量必须不折叠到源 URL 中。"""
         monkeypatch.setenv("HOST_ONLY_VAR", "host-value")
         source = "https://x-token-auth:${HOST_ONLY_VAR}@host.example.com/org/repo.git"
         conversation, plugin_dir = self._make_conversation(
             tmp_path, basic_agent, source
         )
-        # Deliberately register NO secret named HOST_ONLY_VAR.
+        # 故意注册名为HOST_ONLY_VAR的NO机密。
 
         captured: dict[str, str | None] = {}
 
@@ -1525,24 +1525,23 @@ class TestPluginSourceSecretExpansion:
         ):
             conversation._ensure_plugins_loaded()
 
-        # Placeholder preserved verbatim - host env was not used.
+        # 逐字保留的占位符 - 未使用主机 env。
         assert captured["source"] == source
         assert "host-value" not in (captured["source"] or "")
 
         conversation.close()
 
     def test_unknown_var_with_default_left_untouched(self, tmp_path: Path, basic_agent):
-        """`${MISSING:-default}` is preserved verbatim (expand_defaults=False).
+        """`${MISSING:-default}` 逐字保留 (expand_defaults=False)。
 
-        An unresolved variable in a URL must not be silently replaced with its
-        default -- the placeholder is left intact so the failure is visible
-        rather than producing a wrong-but-plausible URL.
+        在 URL 中未解决的变量必须不被无声地替换为默认值 -- 保留占位符以使失败可见，而
+        不是产生一个看似合理但错误的 URL。
         """
         source = "https://x-token-auth:${MISSING:-fallback}@host.example.com/o/r.git"
         conversation, plugin_dir = self._make_conversation(
             tmp_path, basic_agent, source
         )
-        # No secret named MISSING registered.
+        # 未注册名为 MISSING 的机密。
 
         captured: dict[str, str | None] = {}
 
@@ -1557,15 +1556,15 @@ class TestPluginSourceSecretExpansion:
         ):
             conversation._ensure_plugins_loaded()
 
-        # Placeholder preserved verbatim: the default is NOT substituted in,
-        # the whole ${MISSING:-fallback} token is left intact.
+        # 逐字保留占位符：默认将不替换进去，整个 ${MISSING:-fallback} token 保持不变。
+        #
         assert captured["source"] == source
         assert "${MISSING:-fallback}" in (captured["source"] or "")
 
         conversation.close()
 
     def test_ref_secret_expanded_before_fetch(self, tmp_path: Path, basic_agent):
-        """A ${VAR} in the ref is also expanded from secrets."""
+        """ref 中的 ${VAR} 也是从机密扩展而来。"""
         source = str(tmp_path / "plugin")
         conversation, plugin_dir = self._make_conversation(
             tmp_path, basic_agent, source, ref="${MY_REF}"
@@ -1591,22 +1590,22 @@ class TestPluginSourceSecretExpansion:
 
 
 class TestAmbientPluginAutoLoad:
-    """Ambient auto-load: enabled installed + local plugins load into a
-    conversation alongside (and below) the explicit-attach path.
+    """环境自动加载：启用已安装+本地插件加载到
+    沿着显式附加路径（和下方）进行对话。
     """
 
     def _isolate(self, monkeypatch, user_dirs: list[Path], install_store: Path):
-        """Point discovery at test directories instead of the real home."""
+        """将发现指向测试目录而不是真正的主目录。"""
         monkeypatch.setattr(discovery, "USER_PLUGINS_DIRS", user_dirs)
         monkeypatch.setattr(installed, "DEFAULT_INSTALLED_PLUGINS_DIR", install_store)
 
     def test_enabled_installed_plugin_auto_loads_into_conversation(
         self, tmp_path: Path, basic_agent, monkeypatch
     ):
-        """An installed + enabled plugin loads with no explicit attach.
+        """已安装并启用的插件无需显式附加即可加载。
 
-        The plugin contributes only a skill (no MCP / no explicit specs), so this
-        also covers that a skills-only ambient plugin still updates the agent.
+        该插件仅贡献一项技能（无 MCP/无明确规格），因此这也涵盖了仅技能环境插件仍然更
+        新智能体。
         """
         install_store = tmp_path / "installed-store"
         install_store.mkdir()
@@ -1633,7 +1632,7 @@ class TestAmbientPluginAutoLoad:
     def test_explicitly_attached_plugin_overrides_ambient_plugin(
         self, tmp_path: Path, basic_agent, monkeypatch
     ):
-        """A same-named explicit plugin wins; the ambient one is skipped entirely."""
+        """一个同名的显式插件获胜； 环境音被完全跳过。"""
         user_dir = tmp_path / ".agents" / "plugins"
         create_test_plugin(
             user_dir / "shared",
@@ -1668,7 +1667,7 @@ class TestAmbientPluginAutoLoad:
     def test_ambient_plugins_are_not_recorded_in_resolved_plugins(
         self, tmp_path: Path, basic_agent, monkeypatch
     ):
-        """Ambient plugins load but are not pinned (resume re-discovers them)."""
+        """环境插件加载但未固定（恢复重新发现它们）。"""
         user_dir = tmp_path / ".agents" / "plugins"
         create_test_plugin(
             user_dir / "ambient",
@@ -1695,9 +1694,10 @@ class TestAmbientPluginAutoLoad:
     def test_plugin_load_log_never_leaks_credentials(
         self, tmp_path: Path, basic_agent, caplog: pytest.LogCaptureFixture
     ):
-        """Plugin-load logs must never contain the source credential. A serializer
-        covers model dumps, not f-string log lines, so this guards against anyone
-        re-adding spec.source to that log (issue #3752)."""
+        """插件加载日志绝不能包含源凭据。 A 序列化器
+        涵盖模型转储，而不是 f 字符串日志行，因此这可以防止任何人将 spec.source 重新
+        添加到该日志（问题＃3752）。
+        """
         plugin_dir = create_test_plugin(
             tmp_path / "plugin",
             name="test-plugin",
@@ -1728,11 +1728,10 @@ class TestAmbientPluginAutoLoad:
 
 
 class TestAgentPluginsMCPExpansion:
-    """An Agent Plugins package brings its own, already-complete expansion.
+    """智能体 Plugins 包带来了自己的、已经完成的扩展。
 
-    The conversation-level pass expands ``${VAR}`` against the environment and
-    per-conversation secrets. The standard allows exactly two placeholders and
-    forbids everything else, so those servers must come through untouched.
+    对话级别通道根据环境和每个对话机密扩展 ``${VAR}``。 该标准允许使用两个占位符并禁
+    止其他所有内容，因此这些服务器必须保持不变。
     """
 
     def test_package_values_are_not_expanded_again(
@@ -1793,8 +1792,8 @@ class TestAgentPluginsMCPExpansion:
     def test_load_plugin_does_not_expand_package_servers(
         self, tmp_path: Path, mock_llm, monkeypatch: pytest.MonkeyPatch
     ):
-        """load_plugin() expands twice -- the runtime servers and the merged
-        config -- and both must leave an Agent Plugins package literal."""
+        """load_plugin() 扩展两次——运行时服务器和合并的服务器
+        config - 并且两者都必须留下智能体 Plugins 包文字。"""
         monkeypatch.setattr(
             "openhands.sdk.plugin.format.agent_plugins_mcp.DEFAULT_PLUGIN_DATA_DIR",
             tmp_path / "plugin-data",

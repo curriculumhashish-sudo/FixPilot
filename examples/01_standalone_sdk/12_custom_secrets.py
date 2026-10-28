@@ -13,7 +13,7 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -25,13 +25,13 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 tools = [
     Tool(name=TerminalTool.name),
     Tool(name=FileEditorTool.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 conversation = Conversation(agent)
 
@@ -53,6 +53,6 @@ conversation.send_message("just echo $SECRET_FUNCTION_TOKEN")
 
 conversation.run()
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

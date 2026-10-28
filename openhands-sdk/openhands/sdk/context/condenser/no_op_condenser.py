@@ -5,9 +5,9 @@ from openhands.sdk.llm import LLM
 
 
 class NoOpCondenser(CondenserBase):
-    """Simple condenser that returns a view un-manipulated.
+    """简单上下文压缩器返回未操作的视图。
 
-    Primarily intended for testing purposes.
+    主要用于测试目的。
     """
 
     def condense(self, view: View, agent_llm: LLM | None = None) -> View | Condensation:  # noqa: ARG002

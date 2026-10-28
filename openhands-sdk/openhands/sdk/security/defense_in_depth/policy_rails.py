@@ -1,16 +1,13 @@
-"""Block obviously dangerous composed actions before pattern scanning runs.
+"""在模式扫描运行之前阻止明显危险的组合操作。
 
-Some threats are structural, not lexical: ``curl ... | command`` is
-dangerous because of the *combination* of fetch + pipeline consumer, not
-because either token is dangerous alone. Rails express these composed
-conditions as deterministic rules evaluated per-segment, so that
-tokens from different executable fields cannot
-accidentally satisfy a composed condition.
+一些威胁是结构性的，而不是词汇性的：``curl ... | command`` 危险是因为 * 搭配 * 的
+fetch + pipeline 消费者，而不是 token
+ 单独危险。 Rails 将这些组合条件表示为按段执行的确定性规则，因此 token 从不同可执行字
+ 段中无法意外满足组合条件。
 
-v1 ships three rails: fetch-to-exec, raw-disk-op, catastrophic-delete.
-A matching rail maps to ``SecurityRisk.HIGH`` at the SDK boundary. Relevant
-unresolved shell structure maps to ``SecurityRisk.UNKNOWN``. The confirmation
-policy decides whether to prompt the user.
+v1 提供了三个轨道：获取执行、原始磁盘操作、灾难性删除。 匹配的轨道映射到 SDK 边界处的
+ ``SecurityRisk.HIGH``。 相关未解决的 shell 结构
+映射到 ``SecurityRisk.UNKNOWN``。 确认策略决定是否提示词用户。
 """
 
 from __future__ import annotations
@@ -47,7 +44,7 @@ from openhands.sdk.security.risk import SecurityRisk
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Stable rail IDs -- do not change between releases without documentation.
+# 稳定的导轨 ID——在没有文档的情况下不要在版本之间进行更改。
 # ---------------------------------------------------------------------------
 
 RAIL_FETCH_TO_EXEC = "fetch-to-exec"
@@ -56,19 +53,18 @@ RAIL_CATASTROPHIC_DELETE = "catastrophic-delete"
 
 
 # ---------------------------------------------------------------------------
-# Rail types
+# 轨道类型
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class RailDecision:
-    """Result of a policy rail evaluation.
+    """政策轨道评估的结果。
 
-    ``outcome`` is ``HIGH`` when a rail fires and ``UNKNOWN`` when a relevant
-    shell structure cannot be resolved. ``LOW`` means that no configured rail
-    matched and no relevant uncertainty remained. It is not a general safety
-    or authorization result. ``reason`` preserves observability for logging
-    and debugging.
+    ``outcome`` 是 ``HIGH`` 当铁轨着火时 ``UNKNOWN`` 当相关shell结构无法解析时。
+    ``LOW`` 这意味着没有配置的轨道匹配，也
+    没有相关的不确定性。 这不是一般的安全或授权结果。 ``reason`` 保留日志和调试的可观
+    察性。
     """
 
     outcome: SecurityRisk
@@ -139,17 +135,16 @@ class _RailSignals:
 
 
 # ---------------------------------------------------------------------------
-# Rail evaluation
+# 铁路评估
 # ---------------------------------------------------------------------------
 
 
 def _evaluate_rail_segments(segments: list[str]) -> RailDecision:
-    """Evaluate deterministic policy rails against per-segment content.
+    """根据每个细分内容评估确定性政策。
 
-    Per-segment evaluation prevents cross-field false positives. Fetch-to-exec
-    requires fetch output to reach a consumer in one pipeline inside one
-    executable segment. Text from separate executable fields cannot form one
-    match.
+    每个分段的评估可防止跨领域 False 的积极结果。 Fetch-to-exec 需要获取输出才能到达
+    一个可执行段内的一个管道中的使用者。 来自单独可执行字段的文本
+    无法形成一个匹配项。
     """
     uncertain: RailDecision | None = None
     for seg in segments:
@@ -537,7 +532,7 @@ def _leading_heredoc_pipeline_source(
     pipeline: Node,
     commands: list[tuple[ast_view.ShellCommand, CommandSemantics]],
 ) -> tuple[ast_view.ShellCommand, CommandSemantics] | None:
-    """Recover a heredoc source kept outside a leading-pipe AST node."""
+    """恢复位于方括号 AST 开始的管道前的源代码。"""
     if not (pipeline.text or b"").lstrip().startswith(b"|"):
         return None
     redirect = pipeline.parent
@@ -875,10 +870,10 @@ def _normalize_absolute_path(path: str) -> str | None:
 
 
 def _evaluate_rail(content: str) -> RailDecision:
-    """Evaluate rails against a single string (convenience wrapper).
+    """根据单个字符串（方便的包装器）评估 Rails。
 
-    Parses the original shell source so text normalization cannot change its
-    execution structure. This matches ``PolicyRailSecurityAnalyzer``.
+    解析原始 shell 源代码，因此文本规范化无法更改其执行结构。 这匹配
+    ``PolicyRailSecurityAnalyzer``。
     """
     return _evaluate_rail_segments([content])
 
@@ -889,34 +884,31 @@ def _evaluate_rail(content: str) -> RailDecision:
 
 
 class PolicyRailSecurityAnalyzer(SecurityAnalyzerBase):
-    """Catch threats defined by shell command structure.
+    """捕获由 shell 命令结构定义的威胁。
 
-    Named rails use shell syntax to detect dangerous operations, such as a
-    network fetch piped to a downstream command. Per-segment evaluation keeps
-    the threat model interpretable and prevents text from separate fields from
-    forming one match.
+    命名轨使用 shell 语法来检测危险操作，例如通过管道传输到下游命令的网络获取。 每段
+    评估使威胁模型保持可解释性，并防止来自不同字段的文本形成一个匹配。
 
-    Evaluates original executable segments only -- reasoning text is never
-    scanned.
+    仅评估原始可执行段——推理文本永远不会被扫描。
 
-    Returns ``SecurityRisk.HIGH`` when a rail fires and ``UNKNOWN`` when a
-    relevant shell structure cannot be resolved. ``LOW`` means that no
-    configured rail matched and no relevant uncertainty remained. It does not
-    establish general safety or authorization. Pair with ``ConfirmRisky`` and
-    compose via ``EnsembleSecurityAnalyzer``.
+    当轨道着火时返回 ``SecurityRisk.HIGH``，当无法解析相关外壳结构时返回 ``UNKNOWN``
+    。 ``LOW`` 表示没有配置的轨道匹配，并且不
+    存在相关的不确定性。 它没有建立一般安全性或授权。 与 ``ConfirmRisky`` 配对并通过
+    ``EnsembleSecurityAnalyzer`` 进行
+    创作。
 
-    v1 rails: fetch-to-exec, raw-disk-op, catastrophic-delete.
+    v1 Rails：获取执行、原始磁盘操作、灾难性删除。
 
-    Example::
+    示例：:
 
         from openhands.sdk.security import PolicyRailSecurityAnalyzer
 
         analyzer = PolicyRailSecurityAnalyzer()
-        # risk = analyzer.security_risk(action)
+        # 风险 = analyzer.security_risk（行动）
     """
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Evaluate policy rails on original executable segments."""
+        """评估原始可执行段的策略轨道。"""
         rail = _evaluate_rail_segments(_extract_exec_segments(action))
         if rail.outcome != SecurityRisk.LOW:
             logger.debug(

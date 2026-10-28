@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ratchet weak types in the public Agent Server OpenAPI contract."""
+"""公共 Agent Server OpenAPI 合约中的棘轮弱类型。"""
 
 from __future__ import annotations
 

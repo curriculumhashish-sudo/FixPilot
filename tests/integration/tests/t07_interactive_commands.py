@@ -1,4 +1,4 @@
-"""Test that an agent can execute interactive Python scripts with input."""
+"""测试智能体是否可以执行带有输入的交互式 Python 脚本。"""
 
 import hashlib
 import os
@@ -12,7 +12,7 @@ INSTRUCTION = (
     'and "25" and tell me the secret number.'
 )
 
-# Calculate the expected secret number for age 25
+# 计算 25 岁的预期机密数字
 SECRET_NUMBER = int(hashlib.sha256(str(25).encode()).hexdigest()[:8], 16) % 1000
 
 PYTHON_SCRIPT_CONTENT = (
@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 
 
 class InteractiveCommandsTest(BaseIntegrationTest):
-    """Test that an agent can execute interactive Python scripts with input."""
+    """测试智能体是否可以执行带有输入的交互式 Python 脚本。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -38,7 +38,7 @@ class InteractiveCommandsTest(BaseIntegrationTest):
         self.script_path: str = os.path.join(self.workspace, "python_script.py")
 
     def setup(self) -> None:
-        """Set up the interactive Python script."""
+        """设置交互式 Python 脚本。"""
 
         try:
             with open(self.script_path, "w") as f:
@@ -53,7 +53,7 @@ class InteractiveCommandsTest(BaseIntegrationTest):
             raise RuntimeError(f"Failed to set up interactive Python script: {e}")
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully executed the script with input."""
+        """验证智能体是否成功执行了带有输入的脚本。"""
         if not os.path.exists(self.script_path):
             return TestResult(
                 success=False,

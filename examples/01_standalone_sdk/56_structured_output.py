@@ -1,14 +1,13 @@
-"""Structured output via ``response_schema``.
+"""通过 ``response_schema`` 进行结构化输出。
 
-Attach a Pydantic model to *any* tool spec and the agent must populate those
-fields when calling that tool. The schema is sent to the LLM as the tool's
-JSON-schema parameters and validated on receipt.
+将 Pydantic 模型附加到 * 任何 * 工具规范，并且智能体在调用该工具时必须填充这些字段。
+模式作为工具的 JSON-模式参数发送到 LLM，并在收到时进行验证。
 
-Demonstrated here on two tools:
-  - ``TerminalTool`` (existing SDK tool) — every command must come with a
-    ``purpose`` and ``expected_outcome``, on top of the tool's own ``command``
-    field. No subclassing required: the schema is merged in via the spec.
-  - ``FinishTool`` (built-in) — the final answer comes back as a typed object.
+在这里演示了两个工具：
+  - ``TerminalTool``（现有的 SDK 工具）- 每个命令都必须带有一个
+    ``purpose`` 和 ``expected_outcome``，位于工具自己的 ``command`` 字段的顶部。 不需
+    要子类化：模式通过规范合并。
+  - ``FinishTool``（内置）——最终答案作为类型对象返回。
 """
 
 import os
@@ -24,11 +23,11 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# --- Structured-output schemas ------------------------------------------------
+# --- 结构化输出模式 ------------------------------------------------
 
 
 class CommandRationale(BaseModel):
-    """Forced-annotation schema attached to TerminalTool."""
+    """强制注释模式附加到 TerminalTool。"""
 
     purpose: str = Field(description="Why this command is being run, in one line.")
     expected_outcome: str = Field(
@@ -37,18 +36,19 @@ class CommandRationale(BaseModel):
 
 
 class ProjectFacts(BaseModel):
-    # NOTE: ``kind``, ``security_risk``, ``structured_output`` and ``summary``
-    # are reserved, as are the tool's own field names; using one raises at
-    # resolution time.
+    # 注意：``kind``、``security_risk``、``structured_output`` 和 ``summary``
+    # 被保留，工具自己的字段名称也是保留的； 在解决时使用加注。
+    #
     description: str = Field(description="One-paragraph description of the project.")
     facts: list[str] = Field(description="Three concise, distinct facts.")
 
 
-# Register FinishTool so we can attach a response_schema via Tool spec.
+# 注册 FinishTool，以便我们可以通过工具规范附加 response_schema。
 register_tool("FinishTool", FinishTool)
 
 
-# --- Agent setup --------------------------------------------------------------
+# --- 智能体设置 -----------------------------------------------------------------------
+# -----------
 
 
 llm = LLM(
@@ -60,12 +60,12 @@ llm = LLM(
 agent = Agent(
     llm=llm,
     tools=[
-        # Existing tool, augmented with a forced-annotation schema:
+        # 现有工具，增强了强制注释模式：
         Tool(name=TerminalTool.name, params={"response_schema": CommandRationale}),
         Tool(name=FileEditorTool.name),
         Tool(name="FinishTool", params={"response_schema": ProjectFacts}),
     ],
-    # Skip the auto-injected default FinishTool so our schema-bound one is used.
+    # 跳过自动注入的默认 FinishTool，因此使用我们的模式绑定的。
     include_default_tools=["ThinkTool"],
 )
 
@@ -77,14 +77,15 @@ conversation.send_message(
 conversation.run()
 
 
-# --- Recover typed outputs from any tool with a response_schema ---------------
+# --- 从具有 response_schema 的任何工具恢复键入的输出 --------------
 
 events = conversation.state.events
 terminal_tool = agent.tools_map[TerminalTool.name]
 finish_tool = agent.tools_map["finish"]
 
-# Every TerminalTool call now carries our annotation fields. Walk all events to
-# show that the LLM populated them on every invocation.
+# 现在每个 TerminalTool 调用都带有我们的注释字段。 遍历所有事件以表明 LLM 在每次调用时都
+# 填充了它们。
+#
 print("\n[Terminal commands with rationale]")
 
 for event in events:
@@ -94,12 +95,12 @@ for event in events:
         and event.action is not None
     ):
         rationale = cast(CommandRationale, terminal_tool.parse_response(event.action))
-        # action.command is the tool's own field; rationale.* came from the schema.
+        # action.command是工具自己的字段； 基本原理。*来自模式。
         print(f"  $ {getattr(event.action, 'command', '?')}")
         print(f"    purpose:          {rationale.purpose}")
         print(f"    expected_outcome: {rationale.expected_outcome}")
 
-# And the typed final answer:
+# 以及输入的最终答案：
 facts = cast(ProjectFacts | None, finish_tool.parse_last_response(events))
 if facts:
     print("\n[Finish]")
@@ -107,6 +108,6 @@ if facts:
     for fact in facts.facts:
         print(f"  - {fact}")
 
-# Report cost
+# 报告费用
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
 print(f"\nEXAMPLE_COST: {cost}")

@@ -16,8 +16,9 @@ from openhands.sdk.workspace.local import LocalWorkspace
 class _LimitedIterEvents(EventLog):
     def __init__(self, events, max_iter: int):
         self._events = list(events)
-        # Mirror EventLog's id/index maps so id-based lookups (get_index,
-        # path_to_root, active_branch) work without touching __iter__.
+        # 镜像 EventLog 的 id/index 映射，因此基于 id 的查找（get_index、path_to_root、
+        # active_branch）无需触及 __iter__ 即可工作。
+        #
         self._id_to_idx = {e.id: i for i, e in enumerate(self._events)}
         self._idx_to_id = {i: e.id for i, e in enumerate(self._events)}
         self._max_iter = max_iter
@@ -43,8 +44,9 @@ class _LimitedIterEvents(EventLog):
 class _FailingIterEvents(EventLog):
     def __init__(self, events):
         self._events = list(events)
-        # Mirror EventLog's id/index maps so id-based lookups (get_index,
-        # path_to_root, active_branch) work without touching __iter__.
+        # 镜像 EventLog 的 id/index 映射，因此基于 id 的查找（get_index、path_to_root、
+        # active_branch）无需触及 __iter__ 即可工作。
+        #
         self._id_to_idx = {e.id: i for i, e in enumerate(self._events)}
         self._idx_to_id = {i: e.id for i, e in enumerate(self._events)}
 
@@ -67,7 +69,7 @@ def test_agent_step_latest_user_message_scan_is_bounded(tmp_path):
     workspace = LocalWorkspace(working_dir=tmp_path)
     conv = LocalConversation(agent=agent, workspace=workspace)
 
-    # Create a long-ish history with the user message at the end.
+    # 创建一个较长的历史记录，并在末尾添加用户消息。
     for i in range(1000):
         conv._on_event(
             MessageEvent(
@@ -83,8 +85,9 @@ def test_agent_step_latest_user_message_scan_is_bounded(tmp_path):
 
     conv.state.block_message(blocked_user_msg.id, "blocked")
 
-    # Replace the events list with a wrapper that would blow up if code iterates
-    # over the full history via list(state.events).
+    # 将事件列表替换为包装器，如果代码通过 list(state.events) 迭代完整历史记录，该包装器
+    # 将会爆炸。
+    #
     conv.state._events = _LimitedIterEvents(conv.state.events, max_iter=0)
 
     agent.step(conv, on_event=conv._on_event)
@@ -110,11 +113,11 @@ def test_agent_step_uses_last_user_message_id(tmp_path):
 
 
 def test_agent_step_legacy_state_no_last_user_id(tmp_path, caplog):
-    """Verify graceful handling of old state without last_user_message_id.
+    """验证在不last_user_message_id的情况下优雅处理旧状态的能力。
 
-    When last_user_message_id is None but blocked_messages exist (legacy state),
-    the code should log a debug message and continue processing rather than
-    checking for blocked messages.
+    当 last_user_message_id 为 None 但 blocked_messages 存在（旧状态）时，代码应记录
+    调试消息并继续处理，而不是检查阻止的消
+    息。
     """
     import logging
 
@@ -125,28 +128,28 @@ def test_agent_step_legacy_state_no_last_user_id(tmp_path, caplog):
     conv.send_message("hi")
     message = conv.state.events[-1]
 
-    # Simulate legacy state: blocked_messages exist but last_user_message_id is None
+    # 模拟遗留状态：blocked_messages存在，但last_user_message_id是None
     conv.state.block_message(message.id, "blocked by hook")
     conv.state.last_user_message_id = None
 
-    # Capture debug logs
+    # 捕获调试日志
     with caplog.at_level(logging.DEBUG, logger="openhands.sdk.agent.agent"):
-        # Step should NOT finish early since we can't check blocked messages
-        # without last_user_message_id. It will proceed to LLM call which will
-        # fail due to invalid API key, but that's expected.
+        # 步骤不应该提前完成，因为如果没有 last_user_message_id，我们就无法检查被阻止的
+        # 消息。 它将继续进行 LLM 调用，该调用将因 API 键无效而失败，但这是预期的。
+        #
         try:
             agent.step(conv, on_event=conv._on_event)
         except Exception:
-            # Expected: LLM call fails with invalid API key
+            # 预期：LLM 调用因 API 密钥无效而失败
             pass
 
-    # Verify the legacy fallback debug message was logged
+    # 验证已记录旧版回退方案调试消息
     assert any(
         "Blocked messages exist but last_user_message_id is None" in record.message
         for record in caplog.records
     )
 
-    # Verify blocked_messages was NOT consumed (since we skipped the check)
+    # 验证 blocked_messages 已消耗不（因为我们跳过了检查）
     assert message.id in conv.state.blocked_messages
 
 

@@ -1,4 +1,4 @@
-"""Tests for MCP utils functionality - integration tests with real MCP servers."""
+"""使用真实的 MCP 服务器测试 MCP utils 功能 - 集成测试。"""
 
 import asyncio
 import logging
@@ -103,35 +103,35 @@ def test_mcp_auth_credentials_to_http_headers(credential, expected):
 
 
 def _find_free_port() -> int:
-    """Find an available port on localhost."""
+    """在本地主机上查找可用端口。"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
 
 
 def _wait_for_port(port: int, timeout: float = 5.0, interval: float = 0.1) -> None:
-    """Wait for a port to become available by polling with HTTP requests."""
+    """通过使用 HTTP 请求进行轮询，等待端口变得可用。"""
     max_attempts = int(timeout / interval)
     for _ in range(max_attempts):
         try:
-            # Try HTTP request since MCP servers use HTTP
+            # 由于 MCP 服务器使用 HTTP，因此尝试 HTTP 请求
             with httpx.Client(timeout=interval) as client:
                 client.get(f"http://127.0.0.1:{port}/")
                 return
         except httpx.ConnectError:
             pass
         except (httpx.TimeoutException, httpx.HTTPStatusError):
-            # Any response (even errors) means server is up
+            # 任何响应（甚至错误）都意味着服务器已启动
             return
         except Exception:
-            # Any other response means server is up
+            # 任何其他响应都意味着服务器已启动
             return
         time.sleep(interval)
     raise RuntimeError(f"Server failed to start on port {port} within {timeout}s")
 
 
 class MCPTestServer:
-    """Helper class to manage MCP test servers for testing."""
+    """用于管理 MCP 测试服务器进行测试的帮助程序类。"""
 
     def __init__(self, name: str = "test-server"):
         self.mcp = FastMCP(name)
@@ -139,11 +139,11 @@ class MCPTestServer:
         self._server_thread: threading.Thread | None = None
 
     def add_tool(self, func):
-        """Add a tool to the server."""
+        """向服务器添加一个工具。"""
         return self.mcp.tool()(func)
 
     def start(self, transport: MCPTransport = "http") -> int:
-        """Start the server and return the port."""
+        """启动服务器并返回端口。"""
         self.port = _find_free_port()
         path = "/sse" if transport == "sse" else "/mcp"
         startup_error: list[Exception] = []
@@ -172,36 +172,36 @@ class MCPTestServer:
         self._server_thread = threading.Thread(target=server_thread_target, daemon=True)
         self._server_thread.start()
 
-        # Wait for server to be ready by polling the port
+        # 通过轮询端口等待服务器准备就绪
         _wait_for_port(self.port)
 
-        # Check if server thread failed during startup
+        # 检查服务器线程在启动过程中是否失败
         if startup_error:
             raise startup_error[0]
 
         return self.port
 
     def stop(self):
-        """Stop the server and clean up resources."""
+        """停止服务器并清理资源。"""
         if self._server_thread is not None:
-            # Daemon thread will clean up automatically when process exits
+            # 进程退出时守护进程线程将自动清理
             self._server_thread = None
         self.port = None
 
 
 @pytest.fixture
 def http_mcp_server() -> Generator[MCPTestServer]:
-    """Fixture providing a running HTTP MCP server with test tools."""
+    """测试夹具提供正在运行的 HTTP MCP 服务器以及测试工具。"""
     server = MCPTestServer("http-test-server")
 
     @server.add_tool
     def greet(name: str) -> str:
-        """Greet someone by name."""
+        """称呼某人的名字来打招呼。"""
         return f"Hello, {name}!"
 
     @server.add_tool
     def add_numbers(a: int, b: int) -> int:
-        """Add two numbers together."""
+        """将两个数字相加。"""
         return a + b
 
     server.start(transport="http")
@@ -211,17 +211,17 @@ def http_mcp_server() -> Generator[MCPTestServer]:
 
 @pytest.fixture
 def sse_mcp_server() -> Generator[MCPTestServer]:
-    """Fixture providing a running SSE MCP server with test tools."""
+    """测试夹具提供正在运行的 SSE MCP 服务器以及测试工具。"""
     server = MCPTestServer("sse-test-server")
 
     @server.add_tool
     def echo(message: str) -> str:
-        """Echo a message back."""
+        """回显一条消息。"""
         return message
 
     @server.add_tool
     def multiply(x: int, y: int) -> int:
-        """Multiply two numbers."""
+        """两个数字相乘。"""
         return x * y
 
     server.start(transport="sse")
@@ -230,14 +230,14 @@ def sse_mcp_server() -> Generator[MCPTestServer]:
 
 
 def test_create_mcp_tools_empty_config():
-    """Test creating MCP tools with empty configuration raises error."""
+    """测试使用空配置创建 MCP 工具会引发错误。"""
     config = {}
     with pytest.raises(ValueError, match="No MCP servers defined"):
         create_mcp_tools(config)
 
 
 def test_create_mcp_tools_rejects_external_config_shapes():
-    """Runtime tool creation only accepts native MCPServer maps."""
+    """运行时工具仅接受MCPServer的原生地图。"""
     config = {
         "mcpServers": {
             "remote": {
@@ -254,7 +254,7 @@ def test_create_mcp_tools_rejects_external_config_shapes():
 
 
 def test_create_mcp_tools_skips_disabled_servers():
-    """A server the user switched off is never connected to."""
+    """用户关闭的服务器永远不会连接到。"""
     config = {
         "mcpServers": {
             "kept": {"url": "https://kept.example.com/mcp"},
@@ -273,7 +273,7 @@ def test_create_mcp_tools_skips_disabled_servers():
 
 
 def test_create_mcp_tools_all_servers_disabled():
-    """Disabling every server is reported by name, not as "no servers defined"."""
+    """禁用每个服务器是按名称报告的，而不是“未定义服务器”。"""
     config = {
         "mcpServers": {
             "switched_off": {
@@ -288,7 +288,7 @@ def test_create_mcp_tools_all_servers_disabled():
 
 
 def test_to_fastmcp_mcp_config_strips_enabled():
-    """``enabled`` is OpenHands-side only, and FastMCP would absorb it silently."""
+    """``enabled``只是OpenHands一方，FastMCP会默默地吸收它。"""
     config = native_mcp_config(
         {
             "mcpServers": {
@@ -452,7 +452,7 @@ def test_prepare_mcp_config_applies_oauth_token_storage_to_bare_oauth_credential
 
 
 def test_prepare_mcp_config_builds_endpoint_discovering_oauth_clients():
-    # Arrange: one server with explicit authentication, one bare credential.
+    # 安排：一台服务器带有显式身份验证，一台服务器裸露凭据。
     config = {
         "mcpServers": {
             "explicit": {
@@ -469,12 +469,12 @@ def test_prepare_mcp_config_builds_endpoint_discovering_oauth_clients():
         }
     }
 
-    # Act
+    # 法案
     prepared = _prepare_mcp_config(
         native_mcp_config(config), mcp_oauth_token_storage=MemoryStore()
     )
 
-    # Assert: both refresh against the discovered token endpoint.
+    # 断言：两者均针对发现的 token 端点进行刷新。
     for name in ("explicit", "bare"):
         server = prepared.mcpServers[name]
         assert isinstance(server, RemoteMCPServer)
@@ -482,7 +482,7 @@ def test_prepare_mcp_config_builds_endpoint_discovering_oauth_clients():
 
 
 def test_create_mcp_tools_http_server(http_mcp_server: MCPTestServer):
-    """Test creating MCP tools with a real HTTP server."""
+    """使用真实的 HTTP 服务器测试创建 MCP 工具。"""
     config = {
         "mcpServers": {
             "http_server": {
@@ -499,7 +499,7 @@ def test_create_mcp_tools_http_server(http_mcp_server: MCPTestServer):
     assert "greet" in tool_names
     assert "add_numbers" in tool_names
 
-    # Verify tool schemas are properly loaded
+    # 验证工具模式已正确加载
     greet_tool = next(t for t in tools if t.name == "greet")
     openai_schema = greet_tool.to_openai_tool()
     assert openai_schema["type"] == "function"
@@ -508,7 +508,7 @@ def test_create_mcp_tools_http_server(http_mcp_server: MCPTestServer):
 
 
 def test_create_mcp_tools_sse_server(sse_mcp_server: MCPTestServer):
-    """Test creating MCP tools with a real SSE server."""
+    """使用真实的 SSE 服务器测试创建 MCP 工具。"""
     config = {
         "mcpServers": {
             "sse_server": {
@@ -529,7 +529,7 @@ def test_create_mcp_tools_sse_server(sse_mcp_server: MCPTestServer):
 def test_create_mcp_tools_mixed_servers(
     http_mcp_server: MCPTestServer, sse_mcp_server: MCPTestServer
 ):
-    """Test creating MCP tools with both HTTP and SSE servers."""
+    """测试使用 HTTP 和 SSE 服务器创建 MCP 工具。"""
     config = {
         "mcpServers": {
             "http_server": {
@@ -545,7 +545,7 @@ def test_create_mcp_tools_mixed_servers(
 
     tools = create_mcp_tools(native_mcp_config(config), timeout=10.0)
 
-    # Should have tools from both servers (prefixed with server name)
+    # 应该有来自两个服务器的工具（以服务器名称为前缀）
     assert len(tools) == 4
     tool_names = {t.name for t in tools}
     assert "http_server_greet" in tool_names
@@ -555,7 +555,7 @@ def test_create_mcp_tools_mixed_servers(
 
 
 def test_create_mcp_tools_http_schema_validation(http_mcp_server: MCPTestServer):
-    """Test that tool schemas are properly loaded from HTTP server."""
+    """测试工具模式是否已从 HTTP 服务器正确加载。"""
     config = {
         "mcpServers": {
             "http_server": {
@@ -590,11 +590,11 @@ def test_create_mcp_tools_http_schema_validation(http_mcp_server: MCPTestServer)
 
 
 def test_create_mcp_tools_transport_inferred_from_url(http_mcp_server: MCPTestServer):
-    """Test that transport type is inferred when not explicitly specified."""
+    """测试在未明确指定时是否推断出传输层类型。"""
     config = {
         "mcpServers": {
             "auto_http": {
-                # No explicit transport - should infer from URL
+                # 没有明确的传输层 - 应该从 URL 推断
                 "url": f"http://127.0.0.1:{http_mcp_server.port}/mcp",
             }
         }
@@ -605,11 +605,11 @@ def test_create_mcp_tools_transport_inferred_from_url(http_mcp_server: MCPTestSe
 
 
 def test_create_mcp_tools_sse_inferred_from_url(sse_mcp_server: MCPTestServer):
-    """Test that SSE transport is inferred from URL containing /sse."""
+    """测试 SSE 传输层是从包含 /sse. 的 URL 推断出来的"""
     config = {
         "mcpServers": {
             "auto_sse": {
-                # No explicit transport - should infer SSE from /sse in URL
+                # 没有明确的传输层 - 应该从 URL 中的 /sse 推断出 SSE
                 "url": f"http://127.0.0.1:{sse_mcp_server.port}/sse",
             }
         }
@@ -620,7 +620,7 @@ def test_create_mcp_tools_sse_inferred_from_url(sse_mcp_server: MCPTestServer):
 
 
 def test_execute_http_tool(http_mcp_server: MCPTestServer):
-    """Test executing a tool on an HTTP MCP server."""
+    """测试在 HTTP MCP 服务器上执行工具。"""
     config = {
         "mcpServers": {
             "http_server": {
@@ -642,7 +642,7 @@ def test_execute_http_tool(http_mcp_server: MCPTestServer):
 
 
 def test_execute_sse_tool(sse_mcp_server: MCPTestServer):
-    """Test executing a tool on an SSE MCP server."""
+    """测试在 SSE MCP 服务器上执行工具。"""
     config = {
         "mcpServers": {
             "sse_server": {
@@ -664,7 +664,7 @@ def test_execute_sse_tool(sse_mcp_server: MCPTestServer):
 
 
 def test_create_mcp_tools_connection_to_nonexistent_server():
-    """Test that connection to non-existent server fails gracefully."""
+    """测试与不存在的服务器的连接是否正常失败。"""
     config = {
         "mcpServers": {
             "nonexistent": {
@@ -674,25 +674,25 @@ def test_create_mcp_tools_connection_to_nonexistent_server():
         }
     }
 
-    # Should either return empty tools or raise connection-related errors
-    # Key is it shouldn't hang
+    # 应该返回空工具或引发与连接相关的错误关键是它不应该挂起
+    #
     try:
         tools = create_mcp_tools(native_mcp_config(config), timeout=5.0)
-        assert len(tools) == 0  # No tools from failed connection
+        assert len(tools) == 0  # 连接失败没有工具
     except (ConnectionError, TimeoutError, MCPTimeoutError, OSError, MCPError):
-        pass  # Expected connection errors are acceptable
+        pass  # 预期的连接错误是可以接受的
 
 
 def test_create_mcp_tools_stdio_server():
-    """Test creating MCP tools from a native server map."""
+    """测试从本机服务器映射创建 MCP 工具。"""
     mcp_config = stdio_fetch_mcp_config()
 
     tools = create_mcp_tools(native_mcp_config(mcp_config), timeout=10.0)
     assert len(tools) == 1
     assert tools[0].name == "fetch"
 
-    # Get the schema from the OpenAI tool since MCPToolAction now uses dynamic
-    # schema
+    # 从OpenAI工具中获取模式，因为MCPToolAction现在使用动态模式
+    #
     openai_tool = tools[0].to_openai_tool()
     assert openai_tool["type"] == "function"
     assert "parameters" in openai_tool["function"]
@@ -706,22 +706,23 @@ def test_create_mcp_tools_stdio_server():
     assert "required" in input_schema
     assert "url" in input_schema["required"]
 
-    # security_risk should NOT be in the schema when no security analyzer is enabled
+    # security_risk 应该不在… 模式当没有启用安全分析器时
     assert "security_risk" not in input_schema["required"]
     assert "security_risk" not in input_schema["properties"]
 
     mcp_tool = tools[0].to_mcp_tool()
     mcp_schema = mcp_tool["inputSchema"]
 
-    # Check that both schemas have the same essential structure
+    # 检查两个模式是否具有相同的基本结构
     assert mcp_schema["type"] == input_schema["type"]
     assert set(mcp_schema["required"]) == set(input_schema["required"])
 
-    # Check that all properties from input_schema exist in mcp_schema
-    # (excluding meta fields like 'summary' which are for LLM, not tool interface)
+    # 检查 input_schema 中的所有属性是否存在于 mcp_schema 中（不包括用于 LLM 的“摘要”等
+    # 元字段，而不是工具接口）
+    #
     for prop_name, prop_def in input_schema["properties"].items():
         if prop_name == "summary":
-            continue  # summary is a meta field for LLM, not part of tool interface
+            continue  # 摘要是 LLM 的元字段，不是工具界面的一部分
         assert prop_name in mcp_schema["properties"]
         assert mcp_schema["properties"][prop_name]["type"] == prop_def["type"]
         assert (
@@ -731,7 +732,7 @@ def test_create_mcp_tools_stdio_server():
 
     assert openai_tool["function"]["name"] == "fetch"
 
-    # security_risk should NOT be in the OpenAI tool schema when no security analyzer is enabled  # noqa: E501
+    # 未启用安全分析器时，OpenAI 工具模式中不应包含 security_risk  # noqa: E501
     assert "security_risk" not in input_schema["required"]
     assert "security_risk" not in input_schema["properties"]
 
@@ -739,10 +740,10 @@ def test_create_mcp_tools_stdio_server():
 
 
 def test_create_mcp_tools_timeout_error_message():
-    """Test that timeout errors are wrapped with informative error messages.
+    """测试超时错误是否包含有信息性错误消息。
 
-    Note: This test uses mocking to simulate a timeout since waiting for real
-    timeouts would be slow and flaky.
+    Note: 此测试使用模拟来模拟超时，因为等待真实的
+    超时会很慢而且不稳定。
     """
     config = {
         "mcpServers": {

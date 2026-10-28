@@ -1,4 +1,4 @@
-"""Prompt template for TODO implementation."""
+"""提示词用于 TODO 实施的模板。"""
 
 PROMPT = """Please implement a TODO comment in a codebase.
 

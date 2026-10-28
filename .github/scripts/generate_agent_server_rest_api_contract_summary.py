@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a concise public REST API contract diff for PR descriptions."""
+"""为 PR 描述生成简明的公共 REST API 合约差异。"""
 
 from __future__ import annotations
 

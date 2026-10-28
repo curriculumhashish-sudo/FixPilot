@@ -1,4 +1,4 @@
-"""Tests for browser tool executor initialization and timeout handling."""
+"""测试浏览器工具执行器初始化和超时处理。"""
 
 from unittest.mock import MagicMock, patch
 
@@ -9,10 +9,10 @@ from openhands.tools.utils.timeout import TimeoutError
 
 
 class TestBrowserInitialization:
-    """Test browser tool executor initialization."""
+    """测试浏览器工具执行器初始化。"""
 
     def test_initialization_timeout_handling(self):
-        """Test that initialization timeout is handled properly."""
+        """测试初始化​​ 超时是否正确处理。"""
         with (
             patch.object(
                 BrowserToolExecutor,
@@ -32,7 +32,7 @@ class TestBrowserInitialization:
             )
 
     def test_initialization_custom_timeout(self):
-        """Test initialization with custom timeout."""
+        """使用自定义超时测试初始化​​。"""
         mock_server = MagicMock()
 
         with (
@@ -49,12 +49,12 @@ class TestBrowserInitialization:
         ):
             BrowserToolExecutor(init_timeout_seconds=60)
             mock_timeout.assert_called_once()
-            # Check that the timeout was passed correctly
+            # 检查超时是否正确传递
             args, kwargs = mock_timeout.call_args
-            assert args[1] == 60  # timeout_seconds parameter
+            assert args[1] == 60  # timeout_seconds参数
 
     def test_initialization_default_timeout(self):
-        """Test initialization with default timeout."""
+        """使用默认值超时测试初始化。"""
         mock_server = MagicMock()
 
         with (
@@ -71,12 +71,12 @@ class TestBrowserInitialization:
         ):
             BrowserToolExecutor()
             mock_timeout.assert_called_once()
-            # Check that the default timeout was used
+            # 检查是否使用了默认值超时
             args, kwargs = mock_timeout.call_args
-            assert args[1] == 30  # default init_timeout_seconds
+            assert args[1] == 30  # 默认 init_timeout_seconds
 
     def test_initialization_config_passed_to_server(self):
-        """Test that configuration is properly passed to server."""
+        """测试配置是否正确传递到服务器。"""
         mock_server = MagicMock()
 
         with (
@@ -93,7 +93,7 @@ class TestBrowserInitialization:
                 "openhands.tools.browser_use.impl.os.getuid",
                 return_value=1000,
                 create=True,
-            ),  # Non-root user
+            ),  # 非root用户
         ):
             executor = BrowserToolExecutor(
                 headless=False,
@@ -106,7 +106,7 @@ class TestBrowserInitialization:
                 "headless": False,
                 "allowed_domains": ["example.com"],
                 "executable_path": "/usr/bin/chromium",
-                "chromium_sandbox": True,  # Enabled for non-root
+                "chromium_sandbox": True,  # 非 root 启用
                 "custom_param": "test",
                 "user_data_dir": executor._config["user_data_dir"],
             }
@@ -114,7 +114,7 @@ class TestBrowserInitialization:
             assert executor._config == expected_config
 
     def test_initialization_server_creation_with_timeout(self):
-        """Test that server is created with correct session timeout."""
+        """测试服务器是否已使用正确的会话超时创建。"""
         mock_server = MagicMock()
 
         with (
@@ -133,7 +133,7 @@ class TestBrowserInitialization:
             mock_server_class.assert_called_once_with(session_timeout_minutes=45)
 
     def test_initialization_async_executor_created(self):
-        """Test that async executor is properly created."""
+        """测试异步执行程序是否已正确创建。"""
         mock_server = MagicMock()
         mock_async_executor = MagicMock()
 
@@ -158,7 +158,7 @@ class TestBrowserInitialization:
             assert executor._initialized is False
 
     def test_initialization_chromium_not_available(self):
-        """Test initialization when Chromium is not available."""
+        """当 Chromium 不可用时测试初始化。"""
         with patch.object(
             BrowserToolExecutor,
             "_ensure_chromium_available",
@@ -167,13 +167,13 @@ class TestBrowserInitialization:
             with pytest.raises(Exception) as exc_info:
                 BrowserToolExecutor()
 
-            # The exception should be wrapped in a timeout error message
+            # 异常应该包含在超时错误消息中
             assert "Browser tool initialization timed out" in str(
                 exc_info.value
             ) or "Chromium not found" in str(exc_info.value)
 
     def test_call_method_delegates_to_async_executor(self):
-        """Test that __call__ method properly delegates to async executor."""
+        """测试 __call__ 方法是否正确委托给异步执行器。"""
         from openhands.tools.browser_use.definition import BrowserObservation
 
         mock_server = MagicMock()
@@ -207,7 +207,7 @@ class TestBrowserInitialization:
             )
 
     def test_call_method_timeout_configuration(self):
-        """Test that __call__ method uses correct timeout."""
+        """测试 __call__ 方法是否使用正确的超时。"""
         from openhands.tools.browser_use.definition import BrowserObservation
 
         mock_server = MagicMock()
@@ -235,18 +235,18 @@ class TestBrowserInitialization:
             executor = BrowserToolExecutor()
             executor(mock_action)
 
-            # Verify the timeout is set to 300.0 seconds (5 minutes)
+            # 验证超时设置为 300.0 秒（5 分钟）
             mock_async_executor.run_async.assert_called_once()
             args, kwargs = mock_async_executor.run_async.call_args
             assert kwargs["timeout"] == 300.0
 
 
 class TestUniqueUserDataDir:
-    """Tests for unique user_data_dir per executor instance."""
+    """测试每个执行程序实例的唯一 user_data_dir。"""
 
     def test_two_executors_get_distinct_profile_dirs(self):
-        """Two BrowserToolExecutor instances must get different user_data_dir
-        values so a crashed session's SingletonLock can't block another."""
+        """两个 BrowserToolExecutor 实例必须获得不同的 user_data_dir
+        值，以便崩溃会话的 SingletonLock 无法阻止另一个会话。"""
         mock_server = MagicMock()
 
         with (
@@ -278,8 +278,8 @@ class TestUniqueUserDataDir:
             assert "browseruse" in dir_b and "profiles" in dir_b
 
     def test_explicit_user_data_dir_overrides_default(self):
-        """An explicit user_data_dir passed via **config must override the
-        unique default."""
+        """通过 **config 传递的显式 user_data_dir 必须覆盖
+        唯一的默认值。"""
         mock_server = MagicMock()
 
         with (

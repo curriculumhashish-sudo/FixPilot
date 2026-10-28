@@ -1,4 +1,4 @@
-"""Tests for the conversation visualizer and event visualization."""
+"""测试对话可视化和事件可视化。"""
 
 import io
 import json
@@ -44,19 +44,18 @@ if TYPE_CHECKING:
 
 
 class _UnknownEventForVisualizerTest(Event):
-    """Unknown event type for testing fallback visualization.
+    """用于测试回退方案可视化的事件类型未知。
 
-    This class is defined at module level (rather than inside a test function) to
-    ensure it's importable by Pydantic during serialization/deserialization.
-    Defining it inside a test function causes test pollution when running tests
-    in parallel with pytest-xdist.
+    此类在模块级别定义（而不是在测试函数内部），以确保它在序列化/反序列化期间可由
+    Pydantic 导入。 当与 pytest-xdist 并行运行测试时，在测试函数
+    中定义它会导致测试污染。
     """
 
     source: SourceType = "agent"
 
 
 class _Cp1252Stdout:
-    """Minimal stream that reproduces legacy Windows cp1252 stdout encoding."""
+    """再现旧版 Windows cp1252 标准输出编码的最小流。"""
 
     encoding = "cp1252"
 
@@ -81,20 +80,20 @@ class _Cp1252Stdout:
 
 
 class VisualizerMockAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str = "test command"
     working_dir: str = "/tmp"
 
 
 class VisualizerCustomAction(Action):
-    """Custom action with overridden visualize method."""
+    """具有重写可视化方法的自定义操作。"""
 
     task_list: list[dict] = Field(default_factory=list)
 
     @property
     def visualize(self) -> Text:
-        """Custom visualization for task tracker."""
+        """任务跟踪器的自定义可视化。"""
         content = Text()
         content.append("Task Tracker Action\n", style="bold")
         content.append(f"Tasks: {len(self.task_list)}")
@@ -104,13 +103,13 @@ class VisualizerCustomAction(Action):
 
 
 class VisualizerMockObservation(Observation):
-    """Mock observation for testing."""
+    """模拟对象观测结果用于测试。"""
 
     pass
 
 
 class VisualizerMockExecutor(ToolExecutor):
-    """Mock executor for testing."""
+    """模拟对象用于测试的执行器。"""
 
     def __call__(
         self,
@@ -123,7 +122,7 @@ class VisualizerMockExecutor(ToolExecutor):
 class VisualizerMockTool(
     ToolDefinition[VisualizerMockAction, VisualizerMockObservation]
 ):
-    """Mock tool for testing."""
+    """模拟对象测试工具。"""
 
     @classmethod
     def create(cls, *args, **kwargs) -> Sequence[Self]:
@@ -140,7 +139,7 @@ class VisualizerMockTool(
 def create_tool_call(
     call_id: str, function_name: str, arguments: dict
 ) -> MessageToolCall:
-    """Helper to create a MessageToolCall."""
+    """创建 MessageToolCall 的帮助程序。"""
     return MessageToolCall(
         id=call_id,
         name=function_name,
@@ -150,8 +149,8 @@ def create_tool_call(
 
 
 def subtitle_of(block: Group | None) -> str | None:
-    """Extract the rendered metrics subtitle (markup stripped) from an event
-    block, or None if the block has no metrics subtitle."""
+    """从事件中提取渲染的指标副标题（标记已去除）
+    块，如果该块没有指标副标题，则为 None。"""
     if block is None:
         return None
     for renderable in block.renderables:
@@ -161,13 +160,13 @@ def subtitle_of(block: Group | None) -> str | None:
 
 
 def test_action_base_visualize():
-    """Test that Action has a visualize property."""
+    """测试 Action 是否具有可视化属性。"""
     action = VisualizerMockAction(command="echo hello", working_dir="/home")
 
     result = action.visualize
     assert isinstance(result, Text)
 
-    # Check that it contains action name and fields
+    # 检查它是否包含操作名称和字段
     text_content = result.plain
     assert "VisualizerMockAction" in text_content
     assert "command" in text_content
@@ -177,7 +176,7 @@ def test_action_base_visualize():
 
 
 def test_custom_action_visualize():
-    """Test that custom actions can override visualize method."""
+    """测试自定义操作是否可以覆盖可视化方法。"""
     tasks = [
         {"title": "Task 1", "status": "todo"},
         {"title": "Task 2", "status": "done"},
@@ -195,7 +194,7 @@ def test_custom_action_visualize():
 
 
 def test_system_prompt_event_visualize():
-    """Test SystemPromptEvent visualization."""
+    """测试 SystemPromptEvent 可视化。"""
     tool = VisualizerMockTool.create()[0]
 
     event = SystemPromptEvent(
@@ -214,7 +213,7 @@ def test_system_prompt_event_visualize():
 
 
 def test_action_event_visualize():
-    """Test ActionEvent visualization."""
+    """测试 ActionEvent 可视化。"""
     action = VisualizerMockAction(command="ls -la", working_dir="/tmp")
     tool_call = create_tool_call("call_123", "terminal", {"command": "ls -la"})
     event = ActionEvent(
@@ -239,7 +238,7 @@ def test_action_event_visualize():
 
 
 def test_action_event_visualize_omits_empty_responses_reasoning_label():
-    """Empty Responses reasoning items should not render a reasoning heading."""
+    """空响应推理项不应呈现推理标题。"""
     action = VisualizerMockAction(command="ls -la", working_dir="/tmp")
     tool_call = create_tool_call("call_123", "terminal", {"command": "ls -la"})
     event = ActionEvent(
@@ -259,7 +258,7 @@ def test_action_event_visualize_omits_empty_responses_reasoning_label():
 
 
 def test_action_event_visualize_renders_responses_reasoning_content():
-    """Responses reasoning plaintext should still render when present."""
+    """推理明文的响应在存在时仍应呈现。"""
     action = VisualizerMockAction(command="ls -la", working_dir="/tmp")
     tool_call = create_tool_call("call_123", "terminal", {"command": "ls -la"})
     event = ActionEvent(
@@ -282,7 +281,7 @@ def test_action_event_visualize_renders_responses_reasoning_content():
 
 
 def test_observation_event_visualize():
-    """Test ObservationEvent visualization."""
+    """测试 ObservationEvent 可视化。"""
     observation = VisualizerMockObservation(
         content=[TextContent(text="total 4\ndrwxr-xr-x 2 user user 4096 Jan 1 12:00 .")]
     )
@@ -303,7 +302,7 @@ def test_observation_event_visualize():
 
 
 def test_message_event_visualize():
-    """Test MessageEvent visualization."""
+    """测试 MessageEvent 可视化。"""
     message = Message(
         role="user",
         content=[TextContent(text="Hello, how can you help me?")],
@@ -326,7 +325,7 @@ def test_message_event_visualize():
 
 
 def test_message_event_visualize_omits_empty_responses_reasoning_label():
-    """Empty Responses reasoning items should not render a reasoning heading."""
+    """空响应推理项不应呈现推理标题。"""
     message = Message(
         role="assistant",
         content=[TextContent(text="Hello, how can you help me?")],
@@ -341,7 +340,7 @@ def test_message_event_visualize_omits_empty_responses_reasoning_label():
 
 
 def test_environment_user_role_message_is_not_titled_as_human_user():
-    """Framework user-role messages should not render as human-authored input."""
+    """框架用户角色消息不应呈现为人工创作的输入。"""
     from rich.console import Console
 
     visualizer = DefaultConversationVisualizer()
@@ -367,7 +366,7 @@ def test_environment_user_role_message_is_not_titled_as_human_user():
 
 
 def test_skip_user_messages_keeps_environment_user_role_messages():
-    """skip_user_messages should skip only real human messages."""
+    """skip_user_messages 应该只跳过真实的人类消息。"""
     visualizer = DefaultConversationVisualizer(skip_user_messages=True)
     human_event = MessageEvent(
         source="user",
@@ -389,7 +388,7 @@ def test_skip_user_messages_keeps_environment_user_role_messages():
 
 
 def test_agent_error_event_visualize():
-    """Test AgentErrorEvent visualization."""
+    """测试 AgentErrorEvent 可视化。"""
     event = AgentErrorEvent(
         error="Failed to execute command: permission denied",
         tool_call_id="call_err_1",
@@ -405,7 +404,7 @@ def test_agent_error_event_visualize():
 
 
 def test_pause_event_visualize():
-    """Test PauseEvent visualization."""
+    """测试 PauseEvent 可视化。"""
     event = PauseEvent()
 
     result = event.visualize
@@ -416,7 +415,7 @@ def test_pause_event_visualize():
 
 
 def test_conversation_visualizer_initialization():
-    """Test DefaultConversationVisualizer can be initialized."""
+    """测试DefaultConversationVisualizer可以初始化。"""
     visualizer = DefaultConversationVisualizer()
     assert visualizer is not None
     assert hasattr(visualizer, "on_event")
@@ -424,7 +423,7 @@ def test_conversation_visualizer_initialization():
 
 
 def test_default_visualizer_handles_unicode_on_legacy_windows_stdout(monkeypatch):
-    """Visualizer output should not fail on legacy Windows stdout."""
+    """可视化工具输出在旧版 Windows 标准输出上不应失败。"""
     stream = _Cp1252Stdout()
     monkeypatch.setattr(sys, "stdout", cast(IO[str], stream))
 
@@ -443,12 +442,12 @@ def test_default_visualizer_handles_unicode_on_legacy_windows_stdout(monkeypatch
 
 
 def test_visualizer_event_panel_creation():
-    """Test that visualizer creates event blocks for different event types."""
+    """测试可视化工具是否为不同的事件类型创建事件块。"""
     from rich.console import Group
 
     conv_viz = DefaultConversationVisualizer()
 
-    # Test with a simple action event
+    # 使用简单的动作事件进行测试
     action = VisualizerMockAction(command="test")
     tool_call = create_tool_call("call_1", "test", {})
     action_event = ActionEvent(
@@ -465,7 +464,7 @@ def test_visualizer_event_panel_creation():
 
 
 def test_visualizer_action_event_with_none_action_panel():
-    """ActionEvent with action=None should render as 'Agent Action (Not Executed)'."""
+    """ActionEvent 与 action=None 应呈现为“智能体操作（未执行）”。"""
     import re
 
     from rich.console import Console
@@ -483,24 +482,24 @@ def test_visualizer_action_event_with_none_action_panel():
     block = visualizer._create_event_block(action_event)
     assert block is not None
 
-    # Render block to string to check content
+    # 将块渲染为字符串以检查内容
     console = Console()
     with console.capture() as capture:
         console.print(block)
     output = capture.get()
 
-    # Strip ANSI codes for text comparison
+    # 剥离ANSI代码进行文本比较
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     plain_output = ansi_escape.sub("", output)
 
-    # Ensure it doesn't fall back to UNKNOWN
+    # 确保它不会回落到 UNKNOWN
     assert "UNKNOWN Event" not in plain_output
-    # And uses the 'Agent Action (Not Executed)' title
+    # 并使用“智能体操作（未执行）”标题
     assert "Agent Action (Not Executed)" in plain_output
 
 
 def test_visualizer_user_reject_observation_panel():
-    """UserRejectObservation should render a dedicated event block."""
+    """UserRejectObservation 应该渲染一个专用的事件块。"""
     from rich.console import Console
 
     visualizer = DefaultConversationVisualizer()
@@ -514,7 +513,7 @@ def test_visualizer_user_reject_observation_panel():
     block = visualizer._create_event_block(event)
     assert block is not None
 
-    # Render block to string to check content
+    # 将块渲染为字符串以检查内容
     console = Console()
     with console.capture() as capture:
         console.print(block)
@@ -522,12 +521,12 @@ def test_visualizer_user_reject_observation_panel():
 
     assert "UNKNOWN Event" not in output
     assert "User Rejected Action" in output
-    # ensure the reason is part of the rendered text
+    # 确保原因是渲染文本的一部分
     assert "User rejected the proposed action." in output
 
 
 def test_visualizer_condensation_request_panel():
-    """CondensationRequest renders system-styled event block with friendly text."""
+    """CondensationRequest 用友好的文本呈现系统风格的事件块。"""
     from rich.console import Console
 
     visualizer = DefaultConversationVisualizer()
@@ -535,32 +534,32 @@ def test_visualizer_condensation_request_panel():
     block = visualizer._create_event_block(event)
     assert block is not None
 
-    # Render block to string to check content
+    # 将块渲染为字符串以检查内容
     console = Console()
     with console.capture() as capture:
         console.print(block)
     output = capture.get()
 
-    # Should not fall back to UNKNOWN
+    # 不应回退到 UNKNOWN
     assert "UNKNOWN Event" not in output
-    # Title should indicate condensation request
+    # 标题应注明上下文压缩请求
     assert "Condensation Request" in output
-    # Body should be the friendly visualize text
+    # 正文应该是友好的可视化文本
     assert "Conversation Condensation Requested" in output
     assert "condensation of the conversation history" in output
 
 
 def test_metrics_formatting():
-    """Test metrics subtitle formatting."""
+    """测试指标字幕格式。"""
     from unittest.mock import MagicMock
 
     from openhands.sdk.conversation.conversation_stats import ConversationStats
     from openhands.sdk.llm.utils.metrics import Metrics
 
-    # Create conversation stats with metrics
+    # 使用指标创建对话统计数据
     conversation_stats = ConversationStats()
 
-    # Create metrics and add to conversation stats
+    # 创建指标并添加到对话统计信息
     metrics = Metrics(model_name="test-model")
     metrics.add_cost(0.0234)
     metrics.add_token_usage(
@@ -573,33 +572,35 @@ def test_metrics_formatting():
         response_id="test_response",
     )
 
-    # Add metrics to conversation stats
+    # 将指标添加到对话统计信息
     conversation_stats.usage_to_metrics["test_usage"] = metrics
 
-    # Create visualizer and initialize with mock state
+    # 创建可视化工具并使用模拟对象状态进行初始化
     visualizer = DefaultConversationVisualizer()
     mock_state = MagicMock()
     mock_state.stats = conversation_stats
     visualizer.initialize(mock_state)
 
-    # Test the metrics subtitle formatting
+    # 测试指标字幕格式
     subtitle = visualizer._format_metrics_subtitle()
     assert subtitle is not None
-    assert "1.5K" in subtitle  # Input tokens abbreviated (trailing zeros removed)
-    assert "500" in subtitle  # Output tokens
-    assert "20.00%" in subtitle  # Cache hit rate
-    assert "200" in subtitle  # Reasoning tokens
-    assert "0.0234" in subtitle  # Cost
+    assert "1.5K" in subtitle  # 输入 token 缩写（删除尾随零）
+    assert "500" in subtitle  # 输出token
+    assert "20.00%" in subtitle  # 缓存命中率
+    assert "200" in subtitle  # 推理 token
+    assert "0.0234" in subtitle  # 成本
 
 
 def test_metrics_subtitle_caps_cache_rate_when_cache_exceeds_prompt():
-    """Regression for #3044: ACP reports input_tokens excluding cached reads,
-    so cache_read_tokens can exceed prompt_tokens. The rendered cache hit
-    rate must stay within [0, 100]%."""
+    """回归对于 #3044：ACP 报告 input_tokens 不包括缓存读取，
+    所以 cache_read_tokens 可以超过 prompt_tokens。 渲染的缓存命中率必须保持在 [0,
+    100]% 范围内。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
-    # Numbers reproduced from the issue: 13 input + ~117,654 cached previously
-    # rendered as "cache hit 905030.77%".
+    # 从该问题中复制的数字：13 个输入 + ~117,654 个缓存，之前呈现为“缓存命中 905030.77%”
+    # 。
+    #
     metrics.add_token_usage(
         prompt_tokens=13,
         completion_tokens=568,
@@ -625,7 +626,7 @@ def test_metrics_subtitle_caps_cache_rate_when_cache_exceeds_prompt():
 
 
 def test_metrics_abbreviation_formatting():
-    """Test number abbreviation with various edge cases."""
+    """具有各种边缘情况的测试编号缩写。"""
     from unittest.mock import MagicMock
 
     from openhands.sdk.conversation.conversation_stats import ConversationStats
@@ -633,14 +634,14 @@ def test_metrics_abbreviation_formatting():
 
     test_cases = [
         # (input_tokens, expected_abbr)
-        (999, "999"),  # Below threshold
-        (1000, "1K"),  # Exact K boundary, trailing zeros removed
-        (1500, "1.5K"),  # K with one decimal, trailing zero removed
-        (89080, "89.08K"),  # K with two decimals (regression test for bug)
-        (89000, "89K"),  # K with trailing zeros removed
-        (1000000, "1M"),  # Exact M boundary
-        (1234567, "1.23M"),  # M with decimals
-        (1000000000, "1B"),  # Exact B boundary
+        (999, "999"),  # 低于阈值
+        (1000, "1K"),  # 精确的 K 边界，删除尾随零
+        (1500, "1.5K"),  # K 保留一位小数，删除尾随零
+        (89080, "89.08K"),  # K 具有两位小数（回归测试 bug）
+        (89000, "89K"),  # K 删除了尾随零
+        (1000000, "1M"),  # 精确的 M 边界
+        (1234567, "1.23M"),  # M 带小数
+        (1000000000, "1B"),  # 精确 B 边界
     ]
 
     for tokens, expected in test_cases:
@@ -670,9 +671,9 @@ def test_metrics_abbreviation_formatting():
 
 
 def test_metrics_subtitle_shows_per_request_and_cumulative():
-    """Two sequential requests on the same LLM: the subtitle for the latest
-    event should show both the per-request usage and the running cumulative
-    total, not just the total (#4105)."""
+    """对同一个 LLM 的两个连续请求：最新的字幕
+    事件应该显示每个请求的使用情况和运行的累积总数，而不仅仅是总数（#4105）。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -711,9 +712,9 @@ def test_metrics_subtitle_shows_per_request_and_cumulative():
     )
 
     subtitle = visualizer._format_metrics_subtitle(event)
-    # Full-string assertion pins down which number is per-request vs.
-    # cumulative -- individual `in subtitle` checks can't tell "input 4.63K
-    # (total 9.02K)" apart from the numbers swapped.
+    # 全字符串断言确定每个请求的数字与实际的数字。 累积——除了交换的数字之外，单独的
+    # `in subtitle` 检查无法区分“输入 4.63K（总计 9.02K）”。
+    #
     assert subtitle == (
         "Tokens: [cyan]↑ input 4.63K (total 9.02K)[/cyan] • "
         "[magenta]cache hit 0.00% (total 0.00%)[/magenta] • "
@@ -723,11 +724,11 @@ def test_metrics_subtitle_shows_per_request_and_cumulative():
 
 
 def test_metrics_subtitle_reasoning_and_cache_hit_are_per_request():
-    """Regression: reasoning tokens and cache hit rate must get the same
-    per-request "X (total Y)" treatment as input/output tokens. Showing the
-    cumulative reasoning count unlabeled next to per-request input/output
-    numbers reads as per-request too, which is the exact confusion #4105 set
-    out to fix."""
+    """Regression: 推理token和缓存命中率必须相同
+    每个请求“X（总 Y）”处理为输入/输出 token。 在旁边显示按次请求输入/输出数量的累积
+    推理计数，这读起来和按次请求的输入/输出数量一样，这是混淆 #4105
+     要解决的问题。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -767,20 +768,21 @@ def test_metrics_subtitle_reasoning_and_cache_hit_are_per_request():
 
     subtitle = visualizer._format_metrics_subtitle(event)
     assert subtitle is not None
-    # Per-request reasoning (response_2 only: 50), not the cumulative 250.
+    # 每个请求推理（仅限 response_2：50），而不是累计 250。
     assert "reasoning 50 (total 250)" in subtitle
-    # Per-request cache hit rate (1000 / 2000), not the cumulative rate.
+    # 每个请求的缓存命中率 (1000 / 2000)，而不是累积率。
     assert "cache hit 50.00% (total 36.67%)" in subtitle
 
 
 def test_metrics_subtitle_matches_by_response_id_not_last_index():
-    """Regression: get_combined_metrics().token_usages[-1] merges usages
-    across every usage id (agent, condenser, ...) and is not chronological
-    across them. Per-request usage must be looked up by response_id, which
-    telemetry sets to the same id events carry as llm_response_id (#4105)."""
+    """Regression: get_combined_metrics().token_usages[-1] 合并用法
+    跨每个使用 ID（智能体、上下文压缩器、...），并且不按时间顺序排列。 每个请求的使用
+    情况必须通过 response_id 查找，遥测设置为与
+    llm_response_id 携带的相同 id 事件 (#4105)。
+    """
     stats = ConversationStats()
 
-    # Condenser usage id is inserted first...
+    # 上下文压缩器使用 ID 首先插入...
     condenser_metrics = Metrics(model_name="test-model")
     condenser_metrics.add_token_usage(
         prompt_tokens=2000,
@@ -806,8 +808,9 @@ def test_metrics_subtitle_matches_by_response_id_not_last_index():
     )
     stats.usage_to_metrics["agent"] = agent_metrics
 
-    # Sanity check: naive token_usages[-1] would return the agent usage, not
-    # the condenser usage this test looks up.
+    # 健全性检查：天真的 token_usages[-1] 将返回智能体用法，而不是此测试查找的上下文压缩
+    # 器用法。
+    #
     combined = stats.get_combined_metrics()
     assert combined.token_usages[-1].response_id == "agent_response"
 
@@ -833,10 +836,10 @@ def test_metrics_subtitle_matches_by_response_id_not_last_index():
 
 
 def test_metrics_subtitle_fallback_labels_totals():
-    """No event, or an event whose response_id is unknown (e.g. the ACP path,
-    where response ids are per-session), must label every number "(total)":
-    bare numbers next to per-request events read as per-request, which is the
-    confusion #4105 set out to fix."""
+    """无事件，或 response_id 未知的事件 (e.g. ACP 路径，
+    其中响应 ID 是每个会话），必须将每个数字标记为“（总计）”：每个请求事件旁边的裸数
+    字读取为每个请求，这是 #4105 想要解决的混乱。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -862,10 +865,10 @@ def test_metrics_subtitle_fallback_labels_totals():
         "[green]$ (total 0.00)[/green]"
     )
 
-    # No event at all.
+    # 根本没有任何事件。
     assert visualizer._format_metrics_subtitle() == expected
 
-    # Event carries a response_id that doesn't match any recorded usage.
+    # 事件带有与任何记录的使用情况都不匹配的 response_id。
     tool_call = create_tool_call("call_1", "test", {})
     event = ActionEvent(
         thought=[TextContent(text="Testing")],
@@ -879,8 +882,8 @@ def test_metrics_subtitle_fallback_labels_totals():
 
 
 def test_metrics_subtitle_user_message_labels_totals():
-    """User MessageEvents carry no llm_response_id, so their subtitle can only
-    show running totals -- and must say so instead of printing bare numbers."""
+    """用户MessageEvents没有携带llm_response_id，因此他们的字幕只能
+    显示运行总计——并且必须这样说，而不是打印裸露的数字。"""
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
     metrics.add_token_usage(
@@ -912,7 +915,7 @@ def test_metrics_subtitle_user_message_labels_totals():
 
 
 def _batch_action_event(call_id: str, response_id: str) -> ActionEvent:
-    """Build an ActionEvent for a given tool call and LLM response."""
+    """为给定的工具调用和 LLM 响应构建 ActionEvent。"""
     return ActionEvent(
         thought=[TextContent(text="Testing")],
         action=VisualizerMockAction(command="test"),
@@ -924,10 +927,11 @@ def _batch_action_event(call_id: str, response_id: str) -> ActionEvent:
 
 
 def test_claim_batch_primary_tracks_consecutive_batches():
-    """Parallel tool calls share one llm_response_id and render consecutively;
-    only the first ActionEvent of each batch claims the per-request metrics
-    (#4189). Detection tracks just the previous response id -- O(1), no scan --
-    so it must be called once per event in render order."""
+    """并行工具调用共用一个llm_response_id，连续渲染；
+    只有每个批次的第一个 ActionEvent 声明每个请求的指标 (#4189)。 检测仅跟踪先前的响
+    应 ID - O(1)，不扫描 - 因此必须按渲染顺序对每个事
+    件调用一次。
+    """
     visualizer = DefaultConversationVisualizer()
 
     a1 = _batch_action_event("call_1", "resp_batch")
@@ -936,15 +940,16 @@ def test_claim_batch_primary_tracks_consecutive_batches():
     b1 = _batch_action_event("call_4", "resp_other")
     b2 = _batch_action_event("call_5", "resp_other")
 
-    # First ActionEvent of each response id is its batch's primary.
+    # 每个响应 ID 的第一个 ActionEvent 是其批次的主响应 ID。
     assert visualizer._claim_batch_primary(a1) is True
     assert visualizer._claim_batch_primary(a2) is False
     assert visualizer._claim_batch_primary(a3) is False
-    # A new response id starts a new batch -> primary again.
+    # 新的响应 ID 再次启动新批次 -> 主批次。
     assert visualizer._claim_batch_primary(b1) is True
 
-    # Non-ActionEvents never form tool-call batches and never disturb tracking:
-    # the resp_other sibling after them is still detected.
+    # 非 ActionEvents 永远不会形成工具调用批次，也不会干扰跟踪：仍然会检测到它们之后的
+    # resp_other 同级。
+    #
     user_event = MessageEvent(
         source="user",
         llm_message=Message(role="user", content=[TextContent(text="hi")]),
@@ -954,14 +959,15 @@ def test_claim_batch_primary_tracks_consecutive_batches():
 
 
 def test_parallel_batch_only_primary_shows_per_request():
-    """End-to-end through _create_event_block: in a parallel tool-call batch
-    (shared llm_response_id) only the first event shows per-request numbers;
-    siblings fall back to totals-only so the shared usage isn't repeated N
-    times (#4189)."""
+    """端到端通过 _create_event_block：在并行工具调用批处理中
+    （共享 llm_response_id）仅第一个事件显示每个请求的数量； 兄弟姐妹退回到仅总计，因
+    此共享使用不会重复 N 次 (#4189)。
+    """
     stats = ConversationStats()
     metrics = Metrics(model_name="test-model")
-    # A prior request, so the running total (3K/300) differs from this batch's
-    # per-request usage (2K/200) and the two are distinguishable in the output.
+    # 之前的一个请求，因此运行总和（3K/300）与这次批次的每请求使用量（2K/200）不同，两个
+    # 值在输出中是可区分的。
+    #
     metrics.add_token_usage(
         prompt_tokens=1000,
         completion_tokens=100,
@@ -991,12 +997,12 @@ def test_parallel_batch_only_primary_shows_per_request():
     mock_state.stats = stats
     visualizer.initialize(mock_state)
 
-    # Rendered in stream order. Primary: per-request numbers alongside the total.
+    # 按流顺序渲染。 主要：每个请求的数量以及总数。
     assert subtitle_of(visualizer._create_event_block(a1)) == (
         "Tokens: ↑ input 2K (total 3K) • cache hit 0.00% (total 0.00%) • "
         "↓ output 200 (total 300) • $ (total 0.00)"
     )
-    # Siblings: totals-only, so the same 2K/200 isn't shown three times.
+    # 兄弟姐妹：仅总计，因此相同的 2K/200 不会显示三次。
     sibling = (
         "Tokens: ↑ input (total 3K) • cache hit (total 0.00%) • "
         "↓ output (total 300) • $ (total 0.00)"
@@ -1006,7 +1012,7 @@ def test_parallel_batch_only_primary_shows_per_request():
 
 
 def test_event_base_fallback_visualize():
-    """Test that Event provides fallback visualization."""
+    """测试事件是否提供回退方案可视化。"""
     event = _UnknownEventForVisualizerTest()
     result = event.visualize
     assert isinstance(result, Text)
@@ -1016,7 +1022,7 @@ def test_event_base_fallback_visualize():
 
 
 def test_conversation_error_event_visualize():
-    """Test that ConversationErrorEvent provides a specific visualization."""
+    """测试 ConversationErrorEvent 是否提供特定的可视化。"""
     from openhands.sdk.event.conversation_error import ConversationErrorEvent
 
     event = ConversationErrorEvent(
@@ -1033,21 +1039,20 @@ def test_conversation_error_event_visualize():
 
 
 def test_visualizer_conversation_state_update_event_skipped():
-    """Test that ConversationStateUpdateEvent is not visualized."""
+    """测试 ConversationStateUpdateEvent 未可视化。"""
     visualizer = DefaultConversationVisualizer()
     event = ConversationStateUpdateEvent(key="execution_status", value="finished")
 
     block = visualizer._create_event_block(event)
-    # Should return None to skip visualization
+    # 应返回 None 以跳过可视化
     assert block is None
 
 
 def test_default_visualizer_create_sub_visualizer_returns_none():
-    """Test that DefaultConversationVisualizer.create_sub_visualizer returns None.
+    """测试 DefaultConversationVisualizer.create_sub_visualizer 返回 None。
 
-    This is the expected default behavior - base visualizers don't support
-    sub-agent visualization. Subclasses like DelegationVisualizer can override
-    this to provide sub-agent visualizers.
+    这是预期的默认行为 - 基础可视化工具不支持子智能体可视化。 像 DelegationVisualizer
+     这样的子类可以覆盖它以提供子智能体可视化工具。
     """
     visualizer = DefaultConversationVisualizer()
     result = visualizer.create_sub_visualizer("test_agent")

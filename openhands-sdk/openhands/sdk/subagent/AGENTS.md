@@ -1,170 +1,184 @@
-# Subagent loader (file-based agents): design + invariants
+<a id="subagent-loader-file-based-agents-design--invariants"></a>
 
-See the [project root AGENTS.md](../../../../AGENTS.md) for repository-wide policies and workflows.
+# 子智能体加载器（基于文件智能体）：设计+不变量
 
-This package (`openhands.sdk.subagent`) centralizes **subagent discovery** and **registration**.
-It exists so that contributors (human or agentic) can answer:
+请参阅 [ 项目根 AGENTS.md](../../../../AGENTS.md) 了解存储库范围的策略和工作流程。
 
-- “Where did this agent come from?”
-- “Why did this definition win over the other one?”
+该软件包 (`openhands.sdk.subagent`) 集中了 **子智能体发现 ** 和 ** 注册 **。 它的存在是为了让贡献者（人类或智能体式）能够回答：
 
-without reverse-engineering `LocalConversation` and the loader.
+- “这个智能体从哪里来？”
+- “为什么这个定义胜过另一个定义？”
 
-## Scope
+无需逆向工程 `LocalConversation` 和加载程序。
 
-- **File-based agents**: Markdown files (`*.md`) with YAML frontmatter.
-- **Plugin agents**: `Plugin.agents` (already parsed by the plugin loader; registered here).
-- **Programmatic agents**: explicit `register_agent(...)` calls.
-- **Built-in agents**: supplied by `openhands-tools`, outside this SDK package.
+<a id="scope"></a>
 
-Relevant implementation files:
+## 适用范围
 
-- `load.py`: filesystem discovery + parse-error handling.
-- `schema.py`: Markdown/YAML schema and parsing rules.
-- `registry.py`: registry API + “first registration wins” semantics.
-- `conversation/impl/local_conversation.py`: lazy plugin and file-agent registration.
-- `openhands-tools/openhands/tools/preset/default.py`: built-in agent discovery and
-  registration.
+- **基于文件智能体**：Markdown 个文件 (`*.md`) 和 YAML 前置元数据。
+- **Plugin 智能体**: `Plugin.agents`（已由插件加载器解析； 在此注册）。
+- **编程智能体**：显式 `register_agent(...)` 调用。
+- **内置智能体**：由`openhands-tools`提供，位于此SDK封装之外。
 
-## Invariant 1: discovery locations & file rules
+相关实施文件：
 
-### Directories scanned
+- `load.py`：文件系统发现+解析错误处理。
+- `schema.py`：Markdown/YAML模式以及解析规则。
+- `registry.py`: 注册表 API + “先注册者获胜”语义。
+- `conversation/impl/local_conversation.py`：惰性插件和文件智能体注册。
+- `openhands-tools/openhands/tools/preset/default.py`：内置智能体发现和注册。
 
-**Project-level (higher priority than user-level):**
+<a id="invariant-1-discovery-locations--file-rules"></a>
+
+## 不变量 1：发现位置和文件规则
+
+<a id="directories-scanned"></a>
+
+### 扫描的目录
+
+**项目级（优先级高于用户级）：**
 
 1. `{project}/.agents/agents/*.md`
 2. `{project}/.openhands/agents/*.md`
 
-**User-level:**
+**用户级别：**
 
 3. `~/.agents/agents/*.md`
 4. `~/.openhands/agents/*.md`
 
 Notes:
 
-- Only the **top-level** `*.md` files are scanned.
-  - Subdirectories (e.g. `{project}/.agents/skills/…`) are ignored.
-- `README.md` / `readme.md` is always skipped.
-- Directory iteration is deterministic (`sorted(dir.iterdir())`).
+- 仅扫描 ** 顶级 ** `*.md` 文件。
+  - 子目录 (e.g. `{project}/.agents/skills/…`) 被忽略。
+- `README.md` / `readme.md` 始终被跳过。
+- 目录迭代是确定性的 (`sorted(dir.iterdir())`)。
 
-### Parse failures must be non-fatal
+<a id="parse-failures-must-be-non-fatal"></a>
 
-If a single file fails to parse (invalid YAML frontmatter, malformed Markdown, etc.),
-loading must:
+### 解析失败必须是非致命的
 
-- log a warning (with stack trace), and
-- continue scanning other files.
+如果单个文件无法解析（无效的 YAML 前置元数据、格式错误的 Markdown 等），则加载必须：
 
-(See `load_agents_from_dir` in `load.py`.)
+- 记录警告（带有堆栈跟踪），以及
+- 继续扫描其他文件。
 
-### Registration failures must be non-fatal
+（参见 `load.py` 中的 `load_agents_from_dir`。）
 
-If a parsed file-based or plugin definition cannot be registered (for example, its
-`skills` names a skill that does not exist), registration must:
+<a id="registration-failures-must-be-non-fatal"></a>
 
-- log a warning naming the agent, its `source` and the error, and
-- skip that definition and keep registering the others.
+### 注册失败必须是非致命的
 
-(See `_register_definition` in `registry.py`.)
+如果无法注册基于已解析文件的定义或插件定义（例如，其
+`skills` 命名了一项不存在的技能），注册必须：
 
-## Invariant 2: resolution / precedence (“who wins”)
+- 记录一条警告，命名为智能体、其 `source` 和错误，并且
+- 跳过该定义并继续注册其他定义。
 
-### Core rule: first registration wins
+（参见 `registry.py` 中的 `_register_definition`。）
 
-Once an agent name is registered in the global registry (`_agent_factories`), later
-sources must not overwrite it.
+<a id="invariant-2-resolution--precedence-who-wins"></a>
 
-This is enforced by using:
+## 不变量 2：决议/优先级（“谁赢了”）
 
-- `register_agent(...)` (raises on duplicates; used for programmatic registration)
-- `register_agent_if_absent(...)` (skips duplicates; used for plugins, file agents, builtins)
+<a id="core-rule-first-registration-wins"></a>
 
-### Effective precedence order
+### 核心规则：先报名者胜
 
-`LocalConversation._ensure_agent_ready()` establishes this order for agents loaded
-as part of conversation initialization:
+一旦智能体名称在全局注册表 (`_agent_factories`) 中注册，后续来源不得覆盖它。
 
-1. Existing registry entries, including explicit `register_agent(...)` calls
-2. Plugin-provided agents (`Plugin.agents` → `register_plugin_agents`)
-3. Project file-based agents
-   - `{project}/.agents/agents/*.md` then `{project}/.openhands/agents/*.md`
-4. User file-based agents
-   - `~/.agents/agents/*.md` then `~/.openhands/agents/*.md`
+这是通过使用以下方式强制执行的：
 
-Built-ins are discovered and registered separately by `openhands-tools` through
-`register_builtins_agents()`. Because all non-programmatic sources use
-`register_agent_if_absent(...)`, whichever source registers a name first keeps it.
-Call built-in registration after higher-priority sources if built-ins should act as
-fallbacks. The agent-server registers built-ins during tool-router import, before
-per-conversation file discovery.
+- `register_agent(...)`（重复时加注； 用于程序化注册）
+- `register_agent_if_absent(...)`（跳过重复项； 用于插件、文件智能体、内置）
 
-### Deduplication rules inside file-based loading
+<a id="effective-precedence-order"></a>
 
-File-based loading has *two* layers of “first wins” deduplication:
+### 有效的优先顺序
 
-1. **Within a level** (`load_project_agents` / `load_user_agents`):
-   - `.agents/agents` wins over `.openhands/agents` for the same agent name.
-2. **Across levels** (`register_file_agents`):
-   - project wins over user for the same agent name.
+`LocalConversation._ensure_agent_ready()` 为作为对话初始化的一部分加载的智能体建立此顺序：
 
-If you change these rules, update the unit tests in `tests/sdk/subagent/`.
+1. 现有的注册表条目，包括显式 `register_agent(...)` 调用
+2. 插件提供智能体 (`Plugin.agents` → `register_plugin_agents`)
+3. 基于项目文件智能体
+   - `{project}/.agents/agents/*.md` 然后 `{project}/.openhands/agents/*.md`
+4. 基于用户文件智能体
+   - `~/.agents/agents/*.md` 然后 `~/.openhands/agents/*.md`
 
-## Invariant 3: Markdown agent schema & semantics
+内置函数由 `openhands-tools` 单独发现并注册
+`register_builtins_agents()`. 因为所有非程序化来源都使用
+`register_agent_if_absent(...)`，无论哪个源首先注册名称，都会保留该名称。 如果内置程序应充当回退方案，则在更高优先级的源之后调用内置注册。 智能体-服务器在工具路由器导入期间、每个会话文件发现之前注册内置程序。
 
-### Frontmatter keys
+<a id="deduplication-rules-inside-file-based-loading"></a>
 
-Supported YAML frontmatter keys (see `AgentDefinition.load` in `schema.py`):
+### 基于文件的加载内的重复数据删除规则
 
-- `name` (default: filename stem)
+基于文件的加载具有*两*层“先胜”重复数据删除：
+
+1. **在一个级别**（`load_project_agents` / `load_user_agents`）内：
+   - 对于相同的智能体名称，`.agents/agents` 战胜了 `.openhands/agents`。
+2. **跨级别** (`register_file_agents`)：
+   - 项目赢得了具有相同智能体名称的用户。
+
+如果更改这些规则，请更新 `tests/sdk/subagent/` 中的单元测试。
+
+<a id="invariant-3-markdown-agent-schema--semantics"></a>
+
+## 不变量 3: Markdown 智能体模式 & 语义
+
+<a id="frontmatter-keys"></a>
+
+### 前置元数据键
+
+支持的 YAML 前置元数据键（参见 `schema.py` 中的 `AgentDefinition.load`）：
+
+- `name`（默认值：文件名主干）
 - `description`
-- `tools` (default: `[]`): one tool name or a list of names
-- `skills` (default: `[]`): a comma-separated string or a list of skill names
-- `model` (default: `inherit`): `inherit` reuses the parent LLM; another value is
-  loaded as an LLM profile name from `profile_store_dir` or the default profile store
-- `color` (optional)
-- `max_iteration_per_run` (optional, positive integer)
-- `max_budget_per_run` (optional, positive number in USD)
-- `hooks` (optional hook configuration)
-- `profile_store_dir` (optional custom LLM profile directory)
-- `mcp_config` (optional MCP server map); `mcp_servers` is a deprecated alias.
-  Ignored when the agent runs as a delegated sub-agent: `inherit_mcp_config`
-  (`scope.py`) gives every sub-agent exactly its parent's resolved MCP servers
-  (plugin servers merged, secrets expanded), and the child conversation is
-  created with `_mcp_config_from_parent=True` so it neither re-merges plugin
-  servers nor re-expands `${VAR}`. Declared servers never affect eligibility.
-- `permission_mode` (optional): `always_confirm`, `never_confirm`, or `confirm_risky`;
-  omission inherits the parent confirmation policy
-- `condenser` (optional): omission uses the default summarizing condenser; `none` or
-  `false` disables condensation; a mapping configures a condenser
+- `tools`（默认值：`[]`）：一个工具名称或名称列表
+- `skills`（默认值：`[]`）：以逗号分隔的字符串或技能名称列表
+- `model`（默认值：`inherit`）：`inherit`重用父级LLM； 另一个值作为 LLM 配置文件名称从 `profile_store_dir` 或默认配置文件存储加载
+- `color`（可选）
+- `max_iteration_per_run`（可选，正整数）
+- `max_budget_per_run`（可选，USD中的正数）
+- `hooks`（可选钩子配置）
+- `profile_store_dir`（可选自定义LLM配置文件目录）
+- `mcp_config`（可选MCP服务器地图）； `mcp_servers` 是已弃用别名。 当智能体作为代理子智能体运行时，`inherit_mcp_config` (`scope.py`) 会为每个子智能体提供其父节点的已解析 MCP 服务器（插件服务器合并，机密扩展），并且子对话通过 `_mcp_config_from_parent=True` 创建，因此它既不重新合并插件服务器也不重新扩展 `${VAR}`。 声明的服务器永远不会影响资格。
+- `permission_mode`（可选）：`always_confirm`、`never_confirm` 或 `confirm_risky`； 遗漏继承父确认策略
+- `condenser`（可选）：省略则使用默认总结上下文压缩器； `none` 或
+  `false` 禁用上下文压缩； 映射配置上下文压缩器
 
-**Unknown keys are preserved** in `AgentDefinition.metadata`.
+**未知密钥被保留**在`AgentDefinition.metadata`中。
 
-### Body → system prompt
+<a id="body--system-prompt"></a>
 
-The Markdown **body content** becomes the agent’s `system_prompt`.
+### 本体 → 系统提示词
 
-Currently, when the agent is instantiated, this is applied as:
+Markdown **主体内容**成为智能体的`system_prompt`。
+
+目前，当实例化智能体时，这将应用为：
 
 - `AgentContext(system_message_suffix=agent_def.system_prompt)`
 
-meaning it is appended to the parent system message (not a complete replacement).
+这意味着它被附加到父系统消息中（不是完整的替换）。
 
-### Tool and skill resolution
+<a id="tool-and-skill-resolution"></a>
 
-`tools` values remain names until factory instantiation. Each name must already be
-registered; unknown tools raise `ValueError`. Valid names become `Tool(name=...)`.
+### 工具和技能解析
 
-`skills` resolve when the factory is created. Project skills take priority over user
-skills, public skills are excluded, and an unknown skill raises `ValueError`.
+`tools` 值在工厂实例化之前仍保留名称。 每个名称必须已经注册； 未知的工具引发`ValueError`。 有效名称变为 `Tool(name=...)`。
 
-### Trigger examples in description
+`skills` 工厂创建时解决。 项目技能优先于用户技能，公共技能被排除，未知技能提升`ValueError`。
 
-The loader extracts `<example>…</example>` tags from `description` (case-insensitive)
-into `AgentDefinition.when_to_use_examples`.
+<a id="trigger-examples-in-description"></a>
 
-These examples are used for triggering / routing logic elsewhere.
+### 描述中的触发示例
 
-### Minimal example
+加载器将 `<example>…</example>` 标签从 `description`（不区分大小写）提取到 `AgentDefinition.when_to_use_examples` 中。
+
+这些示例用于其他地方的触发/路由逻辑。
+
+<a id="minimal-example"></a>
+
+### 最小的例子
 
 ```markdown
 ---
@@ -187,9 +201,10 @@ You are a meticulous code reviewer.
 Focus on correctness, security, and clear reasoning.
 ```
 
-## User-facing documentation
+<a id="user-facing-documentation"></a>
 
-User docs for Markdown agents live in the docs repo. If you change any of the
-invariants above, update both this file and the user docs.
+## 面向用户的文档
 
-- Published guide: https://docs.openhands.dev/sdk/guides/agent-file-based
+Markdown 智能体的用户文档位于文档存储库中。 如果您更改上述不变量中的任何一项，请更新此文件和用户文档。
+
+- 已发布指南： https://docs.openhands.dev/sdk/guides/agent-file-based

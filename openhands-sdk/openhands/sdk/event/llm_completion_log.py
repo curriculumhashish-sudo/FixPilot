@@ -1,4 +1,4 @@
-"""Event for streaming LLM completion logs from remote agents to clients."""
+"""流式传输 LLM 完成日志的事件从远程智能体发送到客户端。"""
 
 from pydantic import Field
 
@@ -7,11 +7,11 @@ from openhands.sdk.event.types import SourceType, UnmaskedID
 
 
 class LLMCompletionLogEvent(Event):
-    """Event containing LLM completion log data.
+    """包含 LLM 完成日志数据的事件。
 
-    When an LLM is configured with log_completions=True in a remote conversation,
-    this event streams the completion log data back to the client through WebSocket
-    instead of writing it to a file inside the Docker container.
+    当在远程对话中配置 LLM 为 log_completions=True 时，此事件会通过 WebSocket 而不是
+    写入 Docker 容器内的文件来回传完成日志
+    数据。
     """
 
     source: SourceType = "environment"

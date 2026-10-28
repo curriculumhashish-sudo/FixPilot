@@ -1,6 +1,6 @@
-"""Unit tests for the prompt-registry typed core (``section.py``).
+"""单元测试为提示词-注册表型核心 (``section.py``)。
 
-These exercise the pure data types only -- no agent, no I/O.
+这些仅使用纯数据类型——没有智能体，没有 I/O。
 """
 
 import sys
@@ -48,7 +48,7 @@ def test_prompt_context_defaults() -> None:
     assert ctx.skill_names == ()
     assert ctx.secret_names == ()
     assert isinstance(ctx.platform, Platform)
-    # typed views over template_kwargs
+    # 超过 template_kwargs 的输入视图
     assert ctx.model_family is None
     assert ctx.cli_mode is False
 

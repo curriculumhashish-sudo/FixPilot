@@ -1,4 +1,4 @@
-"""Implementation of delegate tool executor."""
+"""委托工具执行器的实现。"""
 
 import threading
 from collections.abc import Callable
@@ -26,17 +26,18 @@ logger = get_logger(__name__)
 
 _SUBAGENTS_DIR: Final[str] = "subagents"
 
-# Called when a sub-agent hits WAITING_FOR_CONFIRMATION.
-# Receives (agent_id, pending_actions) and returns True to approve, False to reject.
+# 当子智能体命中 WAITING_FOR_CONFIRMATION 时调用。 接收(agent_id, pending_actions)并返回
+# True以批准，返回False以拒绝。
+#
 ConfirmationHandler = Callable[[str, list["ActionEvent"]], bool]
 
 
 class DelegateExecutor(ToolExecutor):
-    """Executor for delegation operations.
+    """委托操作的执行者。
 
-    This class handles:
-    - Spawning sub-agents with meaningful string identifiers (e.g., 'refactor_module')
-    - Delegating tasks to sub-agents and waiting for results (blocking)
+    该类处理：
+    - 使用有意义的字符串标识符生成子智能体 (e.g., 'refactor_module')
+    - 将任务委托给子智能体并等待结果（阻塞）
     """
 
     def __init__(
@@ -45,17 +46,17 @@ class DelegateExecutor(ToolExecutor):
         confirmation_handler: ConfirmationHandler | None = None,
     ):
         self._parent_conversation: LocalConversation | None = None
-        # Map from user-friendly identifier to conversation
+        # 从用户友好的标识符映射到对话
         self._sub_agents: dict[str, LocalConversation] = {}
         self._max_children: int = max_children
         self._confirmation_handler = confirmation_handler
 
     @property
     def parent_conversation(self) -> LocalConversation:
-        """Get the parent conversation.
+        """获取家长对话。
 
         Raises:
-            RuntimeError: If parent conversation has not been set yet.
+            RuntimeError: 如果尚未设置家长对话。
         """
         if self._parent_conversation is None:
             raise RuntimeError(
@@ -67,11 +68,11 @@ class DelegateExecutor(ToolExecutor):
     def __call__(  # type: ignore[override]
         self, action: "DelegateAction", conversation: LocalConversation
     ) -> DelegateObservation:
-        """Execute a spawn or delegate action."""
+        """执行生成或委托操作。"""
         if self._parent_conversation is None:
             self._parent_conversation = conversation
 
-        # Route to appropriate handler based on command
+        # 根据命令路由到适当的处理程序
         if action.command == "spawn":
             return self._spawn_agents(action)
         elif action.command == "delegate":
@@ -88,12 +89,12 @@ class DelegateExecutor(ToolExecutor):
 
     @staticmethod
     def _format_agent_label(agent_id: str, agent_type: str) -> str:
-        """Compose a friendly label for logging and user messages."""
+        """为日志记录和用户消息编写友好的标签。"""
         type_suffix = " (default)" if agent_type == "default" else f" ({agent_type})"
         return f"{agent_id}{type_suffix}"
 
     def _resolve_agent_type(self, action: "DelegateAction", index: int) -> str:
-        """Get the agent type for a given index, defaulting to the general agent."""
+        """获取给定索引的智能体类型，默认为通用智能体。"""
         if not action.agent_types or index >= len(action.agent_types):
             return "default"
         return action.agent_types[index].strip() or "default"
@@ -112,7 +113,7 @@ class DelegateExecutor(ToolExecutor):
     def _run_until_finished(
         self, agent_id: str, conversation: LocalConversation
     ) -> None:
-        """Run a sub-agent conversation to completion, handling confirmations."""
+        """运行子智能体对话直至完成，处理确认。"""
         conversation.run()
         while (
             conversation.state.execution_status
@@ -131,7 +132,7 @@ class DelegateExecutor(ToolExecutor):
                 conversation.run()
 
     def _spawn_agents(self, action: "DelegateAction") -> DelegateObservation:
-        """Spawn sub-agents with optional agent types."""
+        """生成具有可选智能体类型的子智能体。"""
         if not action.ids:
             return DelegateObservation.from_text(
                 text="At least one ID is required for spawn action",
@@ -139,7 +140,7 @@ class DelegateExecutor(ToolExecutor):
                 is_error=True,
             )
 
-        # Validate agent_types if provided
+        # 验证 agent_types（如果提供）
         if action.agent_types is not None:
             if len(action.agent_types) > len(action.ids):
                 return DelegateObservation.from_text(
@@ -182,13 +183,13 @@ class DelegateExecutor(ToolExecutor):
                 action.ids, resolved_agent_types, factories
             ):
                 sub_agent_llm = parent_llm.model_copy()
-                # resetting metrics such that the sub-agent has its own
-                # Metrics object
+                # 重置指标，使子智能体拥有自己的 Metrics 对象
+                #
                 sub_agent_llm.reset_metrics()
 
                 worker_agent = factory.factory_func(sub_agent_llm)
 
-                # ensuring that the sub-agent LLM has stream deactivated
+                # 确保子智能体 LLM 已停用流
                 worker_agent = inherit_mcp_config(
                     parent_conversation.agent, worker_agent
                 ).model_copy(
@@ -197,16 +198,16 @@ class DelegateExecutor(ToolExecutor):
                     }
                 )
 
-                # Use parent visualizer's create_sub_visualizer method if available
-                # This allows custom visualizers (e.g., TUI-based) to create
-                # appropriate sub-visualizers for their environment
+                # 如果可用，使用父可视化器的 create_sub_visualizer 方法。这允许自定义可
+                # 视化器（e.g，TUI-基于的）为他们的环境创建适当的子可视化器
+                #
                 sub_visualizer = None
                 if parent_visualizer is not None:
                     sub_visualizer = parent_visualizer.create_sub_visualizer(agent_id)
 
-                # Inherit persistence from the parent conversation:
-                # if the parent persists its conversation, subagents persist
-                # theirs under a "subagents" subdirectory.
+                # 从父对话继承持久化：如果父对话保留其对话，子智能体持久化他们的对话位于
+                # “子智能体”子目录下。
+                #
                 parent_persistence_dir = parent_conversation.state.persistence_dir
                 if parent_persistence_dir is not None:
                     subagents_persistence_dir: Path | None = (
@@ -216,7 +217,7 @@ class DelegateExecutor(ToolExecutor):
                 else:
                     subagents_persistence_dir = None
 
-                # Use max_iteration_per_run from agent definition if set
+                # 如果设置，则使用智能体定义中的 max_iteration_per_run
                 conv_kwargs: dict = {
                     "agent": worker_agent,
                     "workspace": workspace_path,
@@ -238,8 +239,8 @@ class DelegateExecutor(ToolExecutor):
                 sub_conversation = LocalConversation(**conv_kwargs)
                 created_sub_agents.append((agent_id, agent_type, sub_conversation))
 
-                # Apply permission_mode: explicit mode from definition,
-                # or inherit the parent's policy when None.
+                # 应用permission_mode：根据定义显式模式，或者在None时继承父级策略。
+                #
                 confirmation_policy = factory.definition.get_confirmation_policy()
                 if confirmation_policy is None:
                     sub_conversation.set_confirmation_policy(
@@ -254,12 +255,12 @@ class DelegateExecutor(ToolExecutor):
                     self._close_sub_agent(agent_id, previous_conversation)
                 self._sub_agents[agent_id] = sub_conversation
 
-                # Log what type of agent was created
+                # 记录创建的智能体类型
                 logger.info(
                     f"Spawned sub-agent '{self._format_agent_label(agent_id, agent_type)}'"  # noqa: E501
                 )
 
-            # Create success message with details
+            # 创建包含详细信息的成功消息
             agent_details = [
                 self._format_agent_label(agent_id, agent_type)
                 for agent_id, agent_type in zip(action.ids, resolved_agent_types)
@@ -285,15 +286,15 @@ class DelegateExecutor(ToolExecutor):
             )
 
     def _delegate_tasks(self, action: "DelegateAction") -> "DelegateObservation":
-        """Delegate tasks to sub-agents using user-friendly identifiers
-        and wait for results (blocking).
+        """使用用户友好的标识符将任务委托给子智能体
+        并等待结果（阻塞）。
 
         Args:
-            action: DelegateAction with tasks dict mapping identifiers to tasks
-                   (e.g., {'lodging': 'Find hotels', 'activities': 'List attractions'})
+            action: DelegateAction 任务字典将标识符映射到任务
+                   (e.g., {'lodging': '查找酒店', 'activities': '列出景点'})
 
         Returns:
-            DelegateObservation with consolidated results from all sub-agents
+            DelegateObservation 包含所有子智能体的综合结果
         """
         if not action.tasks:
             return DelegateObservation.from_text(
@@ -302,7 +303,7 @@ class DelegateExecutor(ToolExecutor):
                 is_error=True,
             )
 
-        # Check that all requested agent IDs exist
+        # 检查所有请求的智能体 ID 是否存在
         missing_agents = set(action.tasks.keys()) - set(self._sub_agents.keys())
         if missing_agents:
             return DelegateObservation.from_text(
@@ -315,12 +316,12 @@ class DelegateExecutor(ToolExecutor):
             )
 
         try:
-            # Create threads to run tasks in parallel
+            # 创建线程以并行运行任务
             threads = []
             results = {}
             errors = {}
 
-            # Get the parent agent's name from the visualizer if available
+            # 从可视化工具中获取父级智能体的姓名（如果可用）
             parent_conversation = self.parent_conversation
             parent_name = None
             if hasattr(parent_conversation, "_visualizer"):
@@ -334,7 +335,7 @@ class DelegateExecutor(ToolExecutor):
                 task: str,
                 parent_name: str | None,
             ):
-                """Run a single task on a sub-agent."""
+                """在子智能体上运行单个任务。"""
                 try:
                     logger.info(f"Sub-agent {agent_id} starting task: {task[:100]}...")
                     conversation.send_message(task, sender=parent_name)
@@ -355,7 +356,7 @@ class DelegateExecutor(ToolExecutor):
                     errors[agent_id] = error_msg
                     logger.error(error_msg, exc_info=True)
 
-            # Start all tasks in parallel
+            # 并行启动所有任务
             for agent_id, task in action.tasks.items():
                 conversation = self._sub_agents[agent_id]
                 thread = threading.Thread(
@@ -366,13 +367,13 @@ class DelegateExecutor(ToolExecutor):
                 threads.append(thread)
                 thread.start()
 
-            # Wait for all threads to complete
+            # 等待所有线程完成
             for thread in threads:
                 thread.join()
 
-            # Sync sub-agent metrics into parent conversation.
-            # Sub-agent metrics are cumulative, so replace (not merge)
-            # to avoid double-counting on repeated delegations.
+            # 同步子智能体家长对话中的指标。 子智能体指标是累积的，因此替换（而不是合并
+            # ）以避免重复委托的重复计算。
+            #
             parent_stats = parent_conversation.conversation_stats
             for agent_id in action.tasks:
                 if agent_id in self._sub_agents:
@@ -381,7 +382,7 @@ class DelegateExecutor(ToolExecutor):
                         sub_conv.conversation_stats.get_combined_metrics()
                     )
 
-            # Collect results in the same order as the input tasks
+            # 按照与输入任务相同的顺序收集结果
             all_results = []
 
             for agent_id in action.tasks.keys():
@@ -392,7 +393,7 @@ class DelegateExecutor(ToolExecutor):
                 else:
                     all_results.append(f"Agent {agent_id}: No result")
 
-            # Create comprehensive message with results
+            # 创建包含结果的综合消息
             output_text = f"Completed delegation of {len(action.tasks)} tasks"
             if errors:
                 output_text += f" with {len(errors)} errors"

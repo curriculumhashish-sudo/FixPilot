@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Benchmark: Storage growth across all evaluation conversations.
+Benchmark: 所有评估对话中的存储增长。
 
-Analyzes the on-disk footprint of persisted event logs from a full
-SWE-Bench evaluation run. Reports conversation size distribution and
-storage composition by event type.
+分析完整 SWE-Bench 评估运行中已持久化事件日志的磁盘占用量。 按事件类型报告会话大小分
+布和存储组成。
 
-Usage:
+用途：
     python bench_storage_growth.py --eval-dir <path-to-eval-run>
 """
 
@@ -96,7 +95,7 @@ def main():
 
     print(f"\n  Analyzed {len(all_convs)} conversations total")
 
-    # --- Conversation Size Distribution ---
+    # --- 会话大小分布 ---
     print(f"\n{'=' * 70}")
     print("1. Conversation Size Distribution")
     print(f"{'=' * 70}")
@@ -119,7 +118,7 @@ def main():
         f"Max={sizes_kb[-1]:.1f}KB"
     )
 
-    # --- Storage Composition ---
+    # --- 存储组成 ---
     print(f"\n{'=' * 70}")
     print("2. Storage Composition by Event Type")
     print(f"{'=' * 70}")
@@ -157,7 +156,7 @@ def main():
     total_mb = total_all_bytes / 1024 / 1024
     print(f"  {'TOTAL':<35} {total_all_events:>7} {'100.0':>7}% {total_mb:>8.1f}MB")
 
-    # Save
+    # 保存
     output = {
         "n_conversations": len(all_convs),
         "conversation_sizes": {

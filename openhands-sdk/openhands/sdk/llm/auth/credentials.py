@@ -1,4 +1,4 @@
-"""Credential storage and retrieval for OAuth-based LLM authentication."""
+"""凭据基于 OAuth 的存储和检索 LLM 身份验证。"""
 
 from __future__ import annotations
 
@@ -19,17 +19,17 @@ logger = get_logger(__name__)
 
 
 def get_credentials_dir() -> Path:
-    """Get the directory for storing credentials.
+    """获取存储凭据的目录。
 
-    Returns the ``auth`` subdirectory of the user persistence directory:
-    ``OH_PERSISTENCE_DIR/auth`` when ``OH_PERSISTENCE_DIR`` is set, otherwise
+    返回用户持久化目录的``auth``子目录：
+    当设置 ``OH_PERSISTENCE_DIR`` 时为 ``OH_PERSISTENCE_DIR/auth``，否则
     ``~/.openhands/auth``.
     """
     return get_user_persistence_dir() / "auth"
 
 
 class OAuthCredentials(BaseModel):
-    """OAuth credentials for subscription-based LLM access."""
+    """OAuth 凭据用于基于订阅的 LLM 访问。"""
 
     type: Literal["oauth"] = "oauth"
     vendor: str = Field(description="The vendor/provider (e.g., 'openai')")
@@ -40,48 +40,49 @@ class OAuthCredentials(BaseModel):
     )
 
     def is_expired(self) -> bool:
-        """Check if the access token is expired."""
-        # Add 60 second buffer to avoid edge cases
-        # Add 60 second buffer to avoid edge cases where token expires during request
+        """检查访问令牌是否已过期。"""
+        # 添加 60 秒缓冲区以避免边缘情况添加 60 秒缓冲区以避免请求期间 token 过期的边缘
+        # 情况
+        #
         return self.expires_at < (int(time.time() * 1000) + 60_000)
 
 
 class CredentialStore:
-    """Store and retrieve OAuth credentials for LLM providers."""
+    """存储和检索 LLM 提供商的 OAuth 凭据。"""
 
     def __init__(self, credentials_dir: Path | None = None):
-        """Initialize the credential store.
+        """初始化凭据存储。
 
         Args:
-            credentials_dir: Optional custom directory for storing credentials.
-                           Defaults to the ``auth`` subdirectory of the user
-                           persistence directory (``OH_PERSISTENCE_DIR/auth``
-                           when set, otherwise ``~/.openhands/auth``).
+            credentials_dir: 用于存储凭据的可选自定义目录。
+                           默认为用户持久化目录的 ``auth`` 子目录（设置时为
+                           ``OH_PERSISTENCE_DIR/auth``，否
+                           则为 ``~/.openhands/auth``）。
         """
         self._credentials_dir = credentials_dir or get_credentials_dir()
         logger.info(f"Using credentials directory: {self._credentials_dir}")
 
     @property
     def credentials_dir(self) -> Path:
-        """Get the credentials directory, creating it if necessary."""
+        """获取凭据目录，必要时创建它。"""
         self._credentials_dir.mkdir(parents=True, exist_ok=True)
-        # Set directory permissions to owner-only (rwx------)
+        # 将目录权限设置为仅限所有者 (rwx------)
         if os.name != "nt":
             self._credentials_dir.chmod(0o700)
         return self._credentials_dir
 
     def _get_credentials_file(self, vendor: str) -> Path:
-        """Get the path to the credentials file for a vendor."""
+        """获取供应商的凭据文件的路径。"""
         return self.credentials_dir / f"{vendor}_oauth.json"
 
     def get(self, vendor: str) -> OAuthCredentials | None:
-        """Get stored credentials for a vendor.
+        """为供应商存储凭据。
 
         Args:
-            vendor: The vendor/provider name (e.g., 'openai')
+            vendor: 供应商/提供商名称（e.g., 'OpenAI'）
 
         Returns:
-            OAuthCredentials if found and valid, None otherwise
+            OAuthCredentials（如果找到且有效），否则为 None
         """
         creds_file = self._get_credentials_file(vendor)
         if not creds_file.exists():
@@ -92,22 +93,22 @@ class CredentialStore:
                 data = json.load(f)
             return OAuthCredentials.model_validate(data)
         except (json.JSONDecodeError, ValueError):
-            # Invalid credentials file, remove it
+            # 无效的凭据文件，请将其删除
             creds_file.unlink(missing_ok=True)
             return None
 
     def save(self, credentials: OAuthCredentials) -> None:
-        """Save credentials for a vendor.
+        """为供应商保存凭据。
 
         Args:
-            credentials: The OAuth credentials to save
+            credentials: 要保存的 OAuth 凭据
         """
         creds_file = self._get_credentials_file(credentials.vendor)
         with open(creds_file, "w", encoding="utf-8") as f:
             json.dump(credentials.model_dump(), f, indent=2)
-        # Set restrictive permissions (owner read/write only)
-        # Note: On Windows, NTFS ACLs should be used instead
-        if os.name != "nt":  # Not Windows
+        # 设置限制性权限（所有者只读/写）
+        # 注意：在 Windows 上，NTFS ACLs 应该使用
+        if os.name != "nt":  # 不是Windows
             creds_file.chmod(0o600)
         else:
             warnings.warn(
@@ -116,13 +117,13 @@ class CredentialStore:
             )
 
     def delete(self, vendor: str) -> bool:
-        """Delete stored credentials for a vendor.
+        """删除为供应商存储的凭据。
 
         Args:
-            vendor: The vendor/provider name
+            vendor: 供应商/提供商名称
 
         Returns:
-            True if credentials were deleted, False if they didn't exist
+            True 如果凭据已删除，False 如果它们不存在
         """
         creds_file = self._get_credentials_file(vendor)
         if creds_file.exists():
@@ -137,16 +138,16 @@ class CredentialStore:
         refresh_token: str | None,
         expires_in: int,
     ) -> OAuthCredentials | None:
-        """Update tokens for an existing credential.
+        """更新现有凭据的 token。
 
         Args:
-            vendor: The vendor/provider name
-            access_token: New access token
-            refresh_token: New refresh token (if provided)
-            expires_in: Token expiry in seconds
+            vendor: 供应商/提供商名称
+            access_token: 新访问令牌
+            refresh_token: 新刷新令牌（如果提供）
+            expires_in: token 秒后到期
 
         Returns:
-            Updated credentials, or None if no existing credentials found
+            已更新凭据，如果未找到现有凭据，则更新 None
         """
         existing = self.get(vendor)
         if existing is None:

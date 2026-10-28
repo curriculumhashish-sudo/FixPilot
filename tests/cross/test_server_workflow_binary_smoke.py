@@ -1,8 +1,8 @@
-"""Guards for the agent-server binary smoke test in ``server.yml``.
+"""``server.yml`` 中智能体-服务器二进制冒烟测试的防护。
 
-These assertions are deliberately textual: the harness is bash that only runs
-inside GitHub Actions, so the invariant that can drift and silently reintroduce
-a flaky Windows job is the shape of the script, not any Python behavior.
+这些断言是故意用文本的：Harness 是 Bash，只在运行 GitHub 动作，所以不变量那可能是脚本
+的形状，而不是任何其他东西，导致Windows任务变得不稳 Pyt
+hon 行为。
 """
 
 from pathlib import Path
@@ -13,20 +13,19 @@ SERVER_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "server.yml"
 
 
 def _smoke_step() -> str:
-    """Return the body of the ``--extra-python-path`` smoke-test step."""
+    """返回 ``--extra-python-path`` 冒烟测试步骤的主体。"""
     workflow = SERVER_WORKFLOW.read_text(encoding="utf-8")
     marker = "- name: Test --extra-python-path custom tool import"
     assert marker in workflow, f"{SERVER_WORKFLOW}: smoke-test step is missing"
     step = workflow.partition(marker)[2]
-    # Stop at the next step so assertions cannot match unrelated script text.
+    # 在下一步停止，以便断言无法匹配不相关的脚本文本。
     return step.partition("- name:")[0]
 
 
 def test_startup_wait_is_not_a_tight_fixed_cap() -> None:
-    """A PyInstaller onefile binary unpacks itself on first run; on a cold or
-    loaded Windows runner that alone exceeded the old 45s cap, so a healthy
-    server was reported as a failure. The wait must be both generous and
-    overridable rather than a hand-tuned constant.
+    """PyInstaller onefile 二进制文件在第一次运行时自行解压； 感冒或
+    仅加载的 Windows 运行程序就超过了旧的 45 秒上限，因此健康的服务器被报告为故障。
+    等待必须既慷慨又可重写，而不是手动调整的常量。
     """
     step = _smoke_step()
 
@@ -41,9 +40,8 @@ def test_startup_wait_is_not_a_tight_fixed_cap() -> None:
 
 
 def test_wait_for_log_takes_the_pid_and_fails_fast() -> None:
-    """Waiting the full timeout after the process already died just burns
-    runner minutes and hides the real cause, so the wait must be able to
-    observe liveness and say which condition it hit.
+    """在进程已经死掉之后等待完整的超时只是燃烧
+    跑步分钟并隐藏真正的原因，因此等待必须能够观察活跃度并说出它达到了哪个条件。
     """
     step = _smoke_step()
 
@@ -56,8 +54,8 @@ def test_wait_for_log_takes_the_pid_and_fails_fast() -> None:
 
 
 def test_failed_wait_dumps_the_log_even_when_empty() -> None:
-    """`cat` on an empty log printed nothing, which made a slow-startup
-    failure look like a missing-log bug in the CI output.
+    """`cat` 在空日志中打印了什么，这导致了缓慢启动
+    失败看起来像是 CI 输出中缺少日志错误。
     """
     step = _smoke_step()
 
@@ -70,16 +68,16 @@ def test_failed_wait_dumps_the_log_even_when_empty() -> None:
 
 
 def test_windows_process_teardown_kills_the_whole_tree() -> None:
-    """The onefile bootloader runs the server in a child process, so killing
-    only the bootloader can leave that child holding the port. Windows must
-    therefore terminate the tree, and the call must not let MSYS rewrite the
-    `/F /T /PID` switches into paths.
+    """onefile 引导加载程序在子进程中运行服务器，因此杀死
+    只有引导加载程序可以让该子进程保留端口。 因此，Windows 必须终止树，并且调用不能让
+     MSYS 重写
+    `/F /T /PID` 切换到路径。
     """
     step = _smoke_step()
 
     assert "MSYS_NO_PATHCONV=1 taskkill /F /T /PID" in step
-    # The tree kill has to stay scoped to Windows; Unix runners have no
-    # taskkill and should keep the plain signal path.
+    # 树杀戮必须仅限于 Windows； Unix 运行程序没有任务终止，应该保持简单的信号路径。
+    #
     end_of_block = "\n                  }"
     teardown = step.partition("stop_process() {")[2].partition(end_of_block)[0]
     assert 'RUNNER_OS:-}" == "Windows"' in teardown

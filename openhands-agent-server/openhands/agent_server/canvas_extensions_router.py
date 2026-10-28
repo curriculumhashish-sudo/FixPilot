@@ -1,10 +1,10 @@
-"""Canvas Extensions router for OpenHands Agent Server.
+"""OpenHands Agent Server 的 Canvas Extensions 路由器。
 
-HTTP API endpoints for canvas extension operations. Business logic is
-delegated to ``canvas_extensions/installed.py``; this module mirrors
-``plugins_router.py`` / ``skills_router.py`` and stays focused on HTTP
-concerns: install / list / get / enable-disable / uninstall, plus serving
-an installed extension's entrypoint bundle to the Canvas frontend.
+HTTP API 端点用于画布扩展操作。 业务逻辑委托给``canvas_extensions/installed.py``； 该
+模块镜像
+``plugins_router.py`` / ``skills_router.py`` 并专注于 HTTP
+concerns: 安装/列表/获取/启用-禁用/卸载，以及服务
+将已安装的扩展的入口捆绑到 Canvas 前端。
 """
 
 import asyncio
@@ -45,7 +45,7 @@ canvas_extensions_router = APIRouter(
     prefix="/canvas-extensions", tags=["Canvas Extensions"]
 )
 
-# Matches the SDK's validate_extension_name() rule.
+# 匹配 SDK 的 validate_extension_name() 规则。
 CANVAS_EXTENSION_NAME_PATTERN: Final[str] = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
 CanvasExtensionNamePath = Annotated[
@@ -77,7 +77,7 @@ async def _revoke_and_stop_backend(
 
 
 class InstallCanvasExtensionRequest(BaseModel):
-    """Request body for installing a canvas extension."""
+    """安装画布扩展的请求正文。"""
 
     source: str = Field(
         min_length=1,
@@ -99,7 +99,7 @@ class InstallCanvasExtensionRequest(BaseModel):
 
 
 class InstalledCanvasExtensionResponse(BaseModel):
-    """Response containing installed canvas extension information."""
+    """包含已安装画布扩展信息的响应。"""
 
     name: str = Field(description="Canvas extension name")
     version: str = Field(default="", description="Canvas extension version")
@@ -154,26 +154,26 @@ class InstalledCanvasExtensionResponse(BaseModel):
 
 
 class InstalledCanvasExtensionsListResponse(BaseModel):
-    """Response containing the list of installed canvas extensions."""
+    """包含已安装画布扩展列表的响应。"""
 
     canvas_extensions: list[InstalledCanvasExtensionResponse]
 
 
 class UpdateCanvasExtensionStateRequest(BaseModel):
-    """Request body for updating canvas extension state (enable/disable)."""
+    """用于更新画布扩展状态（启用/禁用）的请求正文。"""
 
     enabled: bool
 
 
 class UpdateCanvasExtensionStateResponse(BaseModel):
-    """Response from a canvas extension state update."""
+    """来自画布扩展状态更新的响应。"""
 
     name: str
     enabled: bool
 
 
 class UninstallCanvasExtensionResponse(BaseModel):
-    """Response from a canvas extension uninstall."""
+    """来自画布扩展卸载的响应。"""
 
     message: str
 
@@ -191,11 +191,11 @@ async def install_canvas_extension_endpoint(
     request: InstallCanvasExtensionRequest,
     http_request: Request,
 ) -> InstalledCanvasExtensionResponse:
-    """Install a canvas extension from a git URL, GitHub shorthand, or local
-    path.
+    """从 git URL、GitHub 简写或本地安装画布扩展
+    路径。
 
-    A fresh install always lands disabled, regardless of the request body --
-    there is no ``enabled`` field to smuggle a different state through.
+    无论请求主体如何，全新安装始终会被禁用 - 没有 ``enabled`` 字段可以通过不同的状态
+    。
     """
     manager = _backend_manager(http_request)
     if request.force and manager.has_running_backends():
@@ -221,12 +221,11 @@ async def install_canvas_extension_endpoint(
             detail="Canvas extension already installed. Use force=true to overwrite.",
         )
     except ExtensionFetchError as e:
-        # Pass the specific reason through -- which of source/ref/repo_path is
-        # wrong is the whole diagnostic, and a generic message misattributes a
-        # bad repo_path to the source. Redacted in case a URL carried a token.
-        # Deliberately not worded "failed to fetch": the canvas client treats
-        # that phrase as a network outage and hides the reason behind a
-        # "Disconnected, check your network" toast.
+        # 通过 -- 传递具体的理由，是源/  repo_path 整个诊断是错误的，通用消息错误地将一
+        # 个坏的错误归因于它 repo_path 到源。 已脱敏在以下情况下 URL carried a token. 故
+        # 意没有写“未能获取”：画布客户端将该短语视为网络中断，并隐藏原因以显示“断开连接
+        # ，请检查网络”弹窗。
+        #
         raise HTTPException(
             status_code=400,
             detail=(
@@ -256,7 +255,7 @@ async def install_canvas_extension_endpoint(
 def list_installed_canvas_extensions_endpoint() -> (
     InstalledCanvasExtensionsListResponse
 ):
-    """List all installed canvas extensions (enabled and disabled)."""
+    """列出所有已安装的画布扩展（启用和禁用）。"""
     infos = list_installed_canvas_extensions()
     return InstalledCanvasExtensionsListResponse(
         canvas_extensions=[
@@ -276,7 +275,7 @@ def list_installed_canvas_extensions_endpoint() -> (
 def get_installed_canvas_extension_endpoint(
     extension_name: CanvasExtensionNamePath,
 ) -> InstalledCanvasExtensionResponse:
-    """Get information about a specific installed canvas extension."""
+    """获取有关特定已安装画布扩展的信息。"""
     info = get_installed_canvas_extension(name=extension_name)
     if info is None:
         raise HTTPException(
@@ -298,7 +297,7 @@ async def set_canvas_extension_enabled_endpoint(
     request: UpdateCanvasExtensionStateRequest,
     http_request: Request,
 ) -> UpdateCanvasExtensionStateResponse:
-    """Enable or disable an installed canvas extension."""
+    """启用或禁用已安装的画布扩展。"""
     if not request.enabled:
         await _revoke_and_stop_backend(http_request, extension_name)
     fn = enable_canvas_extension if request.enabled else disable_canvas_extension
@@ -321,7 +320,7 @@ async def uninstall_canvas_extension_endpoint(
     extension_name: CanvasExtensionNamePath,
     request: Request,
 ) -> UninstallCanvasExtensionResponse:
-    """Uninstall a canvas extension by name while retaining backend data."""
+    """按名称卸载画布扩展，同时保留后端数据。"""
     await _revoke_and_stop_backend(request, extension_name)
     if not uninstall_canvas_extension(name=extension_name):
         raise HTTPException(
@@ -341,7 +340,7 @@ async def get_canvas_extension_backend_status_endpoint(
     extension_name: CanvasExtensionNamePath,
     request: Request,
 ) -> BackendStatus:
-    """Probe the optional backend lifecycle state."""
+    """探测可选的后端生命周期状态。"""
     return await _backend_manager(request).status(extension_name)
 
 
@@ -355,7 +354,7 @@ async def prepare_canvas_extension_backend_endpoint(
     body: BackendRevisionRequest,
     request: Request,
 ) -> BackendStatus:
-    """Verify and prepare the immutable artifact for an exact revision."""
+    """验证并准备不可变工件以进行精确修订。"""
     try:
         return await _backend_manager(request).prepare(extension_name, body.revision)
     except ValueError as exc:
@@ -372,7 +371,7 @@ async def start_canvas_extension_backend_endpoint(
     body: BackendRevisionRequest,
     request: Request,
 ) -> BackendStatus:
-    """Start only a previously prepared exact backend revision."""
+    """仅启动先前准备的精确后端修订版。"""
     try:
         return await _backend_manager(request).start(extension_name, body.revision)
     except (RuntimeError, ValueError) as exc:
@@ -387,9 +386,9 @@ async def stop_canvas_extension_backend_endpoint(
     extension_name: CanvasExtensionNamePath,
     request: Request,
 ) -> BackendStatus:
-    """Stop the backend's owned process group idempotently."""
-    # Revoke app-scoped sessions too: a stopped backend must not stay reachable
-    # through a cookie that outlives it.
+    """幂等地停止后端拥有的进程组。"""
+    # 也撤销应用程序范围的会话：停止的后端不得通过比其寿命更长的 cookie 保持可访问性。
+    #
     return await _revoke_and_stop_backend(request, extension_name)
 
 
@@ -402,7 +401,7 @@ async def get_canvas_extension_backend_logs_endpoint(
     request: Request,
     limit_bytes: Annotated[int, Query(ge=1, le=256 * 1024)] = 64 * 1024,
 ) -> BackendLogs:
-    """Return bounded combined stdout and stderr from the owned process."""
+    """从所属进程返回有界组合的 stdout 和 stderr。"""
     return await _backend_manager(request).logs(extension_name, limit_bytes)
 
 
@@ -415,7 +414,7 @@ async def delete_canvas_extension_backend_data_endpoint(
     extension_name: CanvasExtensionNamePath,
     request: Request,
 ) -> BackendStatus:
-    """Delete mutable backend data separately from app uninstall."""
+    """与应用程序卸载分开删除可变后端数据。"""
     try:
         return await _backend_manager(request).delete_data(extension_name)
     except RuntimeError as exc:
@@ -429,15 +428,15 @@ async def delete_canvas_extension_backend_data_endpoint(
 def get_canvas_extension_bundle_endpoint(
     extension_name: CanvasExtensionNamePath,
 ) -> FileResponse:
-    """Serve an installed canvas extension's entrypoint bundle file.
+    """提供已安装画布扩展的入口捆绑文件。
 
-    Entrypoint containment is re-validated against the live install path on
-    every request, not just at install time -- see
-    ``get_canvas_extension_bundle_path``. ``Cache-Control: no-cache`` forces
-    revalidation on each request, so a client never keeps serving a bundle
+    入口遏制会根据每个请求的实时安装路径重新验证，而不仅仅是在安装时 - 请参阅
+    ``get_canvas_extension_bundle_path``. ``Cache-Control: no-cache`` 强制对每个请求
+    进行重新验证，因此
+    客户端永远不会继续提供捆绑服务
     from before the extension's last refresh: the actual bytes are re-read
     from disk, and Starlette's file-stat-based ``ETag``/``Last-Modified``
-    change the moment the on-disk revision does.
+    在磁盘上的修订发生时进行更改。
     """
     bundle_path = get_canvas_extension_bundle_path(name=extension_name)
     if bundle_path is None:
@@ -463,10 +462,10 @@ def get_canvas_extension_bundle_endpoint(
 def get_canvas_extension_icon_endpoint(
     extension_name: CanvasExtensionNamePath,
 ) -> FileResponse:
-    """Serve the SVG icon declared by an installed canvas extension's manifest.
+    """提供由已安装的画布扩展的清单声明的 SVG 图标。
 
-    The path comes from the manifest, never the request. The CSP sandbox keeps
-    a directly opened SVG from running scripts on the agent-server origin.
+    路径来自清单，而不是请求。 CSP 沙箱阻止直接打开的 SVG 在智能体服务器源上运行脚本
+    。
     """
     icon_path = get_canvas_extension_icon_path(name=extension_name)
     if icon_path is None:

@@ -1,14 +1,14 @@
-"""Stress test: rapid subscribe/unsubscribe cycles must not leak state.
+"""压力测试：快速订阅/取消订阅周期不得泄漏状态。
 
-Bug class this catches:
-    - PubSub subscriber leak: subscribe/unsubscribe accounting drifts after
-      many cycles, leaving stale entries in the dict.
-    - FD leak (less likely in-process; included as a cheap sanity check).
+捕获的错误类：
+    - PubSub 订阅者泄漏：订阅/取消订阅会计在多次循环后发生漂移，在字典中留下过时的条
+    目。
+    - FD 泄漏（过程中不太可能发生； 包括作为廉价的健全性检查）。
 
-White-box, not real WS:
-    Real websocket reconnects through ASGITransport are awkward and the
-    failure mode is in the *server-side* registration accounting, which we
-    reach directly via ``event_service._pub_sub``.
+白盒，不是真正的 WS：
+    Real WebSocket 通过重连 ASGITransport 都是笨拙的，失败模式在  *服务器端* 注册会计
+    ，我们直接通过它到达
+    ``event_service._pub_sub``.
 """
 
 import os
@@ -41,7 +41,7 @@ class _NoopSubscriber(Subscriber[Event]):
 async def _idle_event_service(
     conversation_service: ConversationService, *, workspace_dir: str
 ) -> EventService:
-    """Create an idle conversation and return its event service."""
+    """创建一个空闲会话并返回其事件服务。"""
     parent_llm = SlowTestLLM.from_messages([text_message("ok")], latency_s=0.0)
     info = await start_conversation_with_test_llm(
         conversation_service,
@@ -59,8 +59,8 @@ async def test_reconnect_storm_subscriber_accounting_balanced(
     conversation_service: ConversationService,
     tmp_path,
 ):
-    """N subscribe/unsubscribe cycles. Subscriber count and FDs return to
-    baseline."""
+    """N 个订阅/取消订阅周期。 订户数量和 FD 返回
+    基线。"""
     workspace = str(tmp_path / "ws")
     (tmp_path / "ws").mkdir()
     es = await _idle_event_service(conversation_service, workspace_dir=workspace)
@@ -72,11 +72,10 @@ async def test_reconnect_storm_subscriber_accounting_balanced(
     except (AttributeError, psutil.AccessDenied):
         pre_fds = -1
 
-    # Use pub_sub.subscribe/unsubscribe directly. subscribe_to_events does
-    # an initial-state sync that calls the subscriber with the FIFOLock
-    # held — fine for one subscriber, but in a tight loop of 100 it can
-    # contend with the lease renew loop and turn the test into a
-    # latency benchmark rather than a leak check.
+    # 使用 pub_sub.subscribe取消订阅直接。 subscribe_to_events 初始状态同步调用订阅者的
+    # 方法是 FIFOLock  — 对一个订阅者收费，但在一个 100 的环中，它可以与续租循环竞争，并
+    # 将测试变成一个延迟基准测试而不是泄漏检查。
+    #
     for _ in range(WEBSOCKET_RECONNECT_STORM.cycles):
         sub = _NoopSubscriber()
         sid = es._pub_sub.subscribe(sub)

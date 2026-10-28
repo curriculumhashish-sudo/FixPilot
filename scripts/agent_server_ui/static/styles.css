@@ -1,6 +1,6 @@
-/* OpenHands Color Theme Variables */
+/* OpenHands 颜色主题变量*/
 :root {
-    /* Primary OpenHands Colors */
+    /* 原色 OpenHands 颜色*/
     --color-primary: #c9b974;
     --color-logo: #cfb755;
     --color-base: #0d0f11;
@@ -13,7 +13,7 @@
     --color-content: #ecedee;
     --color-content-2: #f9fbfe;
     
-    /* Additional UI Colors */
+    /* 附加UI颜色*/
     --color-border: #3a3a3a;
     --color-hover: #2a2a2a;
     --color-active: #1f1f1f;
@@ -22,7 +22,7 @@
     --color-shadow: rgba(0, 0, 0, 0.3);
 }
 
-/* Reset and base styles */
+/* 重置和基本样式*/
 * {
     margin: 0;
     padding: 0;
@@ -37,13 +37,13 @@ body {
     overflow: hidden;
 }
 
-/* App layout */
+/* 应用程序布局*/
 .app-container {
     display: flex;
     height: 100vh;
 }
 
-/* Sidebar */
+/* 侧边栏*/
 .sidebar {
     width: 300px;
     background: var(--color-base-secondary);
@@ -147,7 +147,7 @@ body {
     background-color: var(--color-danger);
 }
 
-/* Main content */
+/* 主要内容*/
 .main-content {
     flex: 1;
     display: flex;
@@ -203,7 +203,7 @@ body {
     gap: 10px;
 }
 
-/* Chat messages */
+/* 聊天消息*/
 .chat-messages {
     flex: 1;
     overflow-y: auto;
@@ -339,7 +339,7 @@ body {
     word-wrap: break-word;
 }
 
-/* Chat input */
+/* 聊天输入*/
 .chat-input-container {
     padding: 20px;
     border-top: 1px solid var(--color-border);
@@ -411,7 +411,7 @@ body {
     gap: 5px;
 }
 
-/* Buttons */
+/* 按钮*/
 .btn {
     padding: 8px 16px;
     border: none;
@@ -482,7 +482,7 @@ body {
     justify-content: center;
 }
 
-/* Modal */
+/* 莫代尔*/
 .modal {
     display: none;
     position: fixed;
@@ -587,7 +587,7 @@ body {
     font-size: 0.8rem;
 }
 
-/* JSON textarea specific styles */
+/* JSON 文本区域特定样式*/
 .json-textarea {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 0.9rem;
@@ -641,7 +641,7 @@ body {
     color: var(--color-content);
 }
 
-/* Loading overlay */
+/* 加载叠加层*/
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -666,7 +666,7 @@ body {
     color: var(--color-primary);
 }
 
-/* Animations */
+/* 动画*/
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -677,7 +677,7 @@ body {
     to { transform: translateY(0); opacity: 1; }
 }
 
-/* Responsive design */
+/* 响应式设计*/
 @media (max-width: 768px) {
     .sidebar {
         width: 250px;
@@ -720,7 +720,7 @@ body {
     }
 }
 
-/* Scrollbar styling */
+/* 滚动条样式*/
 ::-webkit-scrollbar {
     width: 6px;
 }

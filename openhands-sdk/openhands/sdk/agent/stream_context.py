@@ -1,11 +1,12 @@
-"""Stream identity for one agent step: mint it, stamp the deltas, close it once.
+"""一个智能体步骤的流身份：铸造它，标记增量，关闭它一次。
 
-The durable event is built with the minted id, so a client retires its open
-slot on ``frame.event.id == slot.item_id``.
+持久事件是使用铸造的 id 构建的，因此客户端将其在 ``frame.event.id == slot.item_id``
+上的开放插槽退役。
 
-Minting up front is safe against the append-only log because it is not a write:
-``Event.id`` is already client-minted in-process (``event/base.py``), so this
-changes only *when* ``uuid4()`` runs, and an unused id was never on disk.
+预先创建对于仅附加日志是安全的，因为它不是写入：
+``Event.id`` 已经是客户端在进程中创建的 (``event/base.py``)，因此只有 * 当 *
+``uuid4()`` 运行时才会更改，并且未使用的 I
+D 永远不会在磁盘上。
 """
 
 from __future__ import annotations
@@ -31,10 +32,9 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class StreamStarted:
-    """A stream is opening. One per attempt, before its first token.
+    """一条溪流正在打开。 每次尝试一次，在第一个 token 之前。
 
-    ``anchor_seq`` is the seq the slot sits after, so a user message landing
-    mid-stream cannot split it.
+    ``anchor_seq`` 是槽所在的 seq，因此到达中流的用户消息无法拆分它。
     """
 
     item_id: str
@@ -44,10 +44,10 @@ class StreamStarted:
 
 @dataclass(frozen=True, slots=True)
 class StreamDelta:
-    """One masked increment of a stream.
+    """流的一个屏蔽增量。
 
-    ``chunk_id`` is corroboration only: litellm mints a new completion id per
-    retry attempt, so it cannot identify the durable event.
+    ``chunk_id`` 只是佐证： LiteLLM 生成一个新的完成标识重试尝试了，因此无法识别持久
+    事件。
     """
 
     item_id: str
@@ -61,7 +61,7 @@ class StreamDelta:
 
 @dataclass(frozen=True, slots=True)
 class StreamAborted:
-    """A stream ended without producing a durable event."""
+    """流结束时未产生持久事件。"""
 
     item_id: str
     attempt: int
@@ -73,7 +73,7 @@ StreamProgressCallbackType = Callable[[StreamProgress], None]
 
 
 class StreamContext:
-    """One streaming slot: mints its id, stamps its deltas, closes it once."""
+    """一个流式传输槽：铸造它的 id，标记它的增量，关闭它一次。"""
 
     def __init__(
         self,
@@ -88,8 +88,8 @@ class StreamContext:
         self._on_token = on_token
         self._on_stream = on_stream
         self._mask = mask
-        # One masker per kind: text and reasoning are separately ordered, and a
-        # masker holds back a partial secret across the chunks of its own kind.
+        # 每种掩码器：文本和推理是分开排序的，并且掩码器在其自身类型的块中保留部分机密。
+        #
         self._masks: dict[Literal["text", "reasoning"], StreamOutputMask] = {}
         self._attempt = 1
         self._order = itertools.count()
@@ -106,7 +106,7 @@ class StreamContext:
         conversation: LocalConversation,
         on_token: Callable[[Any], None] | None,
     ) -> StreamContext:
-        """Mint an id and read the anchor. Neither touches the event log."""
+        """创建一个 id 并读取锚点。 两者都不触及事件日志。"""
         state = conversation.state
         length = len(state.events)
         return cls(
@@ -119,21 +119,20 @@ class StreamContext:
 
     @property
     def token_callback(self) -> Callable[[Any], None] | None:
-        """The callback to hand the LLM, or ``None`` when nothing consumes it.
+        """回调交给 LLM，或者当没有东西消耗它时 ``None``。
 
-        ``llm.completion`` degrades a ``stream=True`` model to a non-streaming
-        call when ``on_token`` is ``None`` (#4014); an unconditional wrapper
-        would take that fallback away.
+        当 ``on_token`` 为 ``None`` 时，``llm.completion`` 将 ``stream=True`` 模型降
+        级为非流式传输调用
+        (#4014)； 无条件包装器会将回退方案拿走。
         """
         if self._on_token is None and self._on_stream is None:
             return None
         return self.on_chunk
 
     def on_chunk(self, chunk: Any) -> None:
-        """Forward the raw chunk downstream, then emit its stamped deltas.
+        """将原始块转发到下游，然后发出其标记的增量。
 
-        The pass-through is what keeps existing ``on_token`` consumers seeing
-        exactly what they see today.
+        传递是让现有 ``on_token`` 消费者准确看到他们今天所看到的内容的原因。
         """
         if self._on_token is not None:
             self._on_token(chunk)
@@ -143,27 +142,27 @@ class StreamContext:
             for kind, text, chunk_id, choice_index in _split_chunk(chunk):
                 self._emit_delta(kind, text, chunk_id, choice_index)
         except Exception:
-            # Progress is a UX affordance; never fail a turn over it.
+            # 进步是用户体验的可供性； 永远不会失败。
             logger.debug("stream progress emission failed", exc_info=True)
 
     def new_attempt(self) -> None:
-        """Start a new attempt for the same item; a higher one supersedes."""
+        """对同一项目开始新的尝试； 更高的取代。"""
         if not self._opened:
             return
         self._attempt += 1
         self._order = itertools.count()
         self._started = False
         self._chunk_id = None
-        # The new attempt re-streams the item, so the old tail is superseded.
+        # 新的尝试重新流式传输该项目，因此旧的尾部被取代。
         self._masks.clear()
 
     def claim(self) -> str | None:
-        """Reserve the minted id for a durable event being built.
+        """为正在构建的持久事件保留铸造的 ID。
 
-        ``None`` once reserved, so a second durable event in the same step
-        keeps its own id rather than colliding. Reserving does not retire the
-        slot: an event that is never emitted still owes an abort, so the
-        caller must :meth:`commit` once emission has succeeded.
+        ``None`` 一旦保留，因此同一步骤中的第二个持久事件将保留其自己的 id 而不会发生
+        冲突。 保留并不意味着退休
+        slot: 从未发出的事件仍然需要中止，因此
+        一旦发射成功，调用者必须：meth:`commit`。
         """
         if self._reserved or self._on_stream is None:
             return None
@@ -172,15 +171,15 @@ class StreamContext:
         return self.item_id
 
     def commit(self) -> None:
-        """Retire the slot: the durable event carrying the id was emitted."""
+        """退出槽：发出带有 id 的持久事件。"""
         if self._reserved:
             self._claimed = True
 
     def close(self, reason: str) -> None:
-        """Emit ``StreamAborted`` unless a durable event committed the id.
+        """除非持久事件提交了该 ID，否则发出 ``StreamAborted``。
 
-        Keyed on ever-opened, not on the current attempt: a retry that dies
-        before its first token still owes an answer for the one that streamed.
+        关注的是永远打开的，而不是当前的尝试：在第一个 token 之前死亡的重试仍然欠下流
+        的答案。
         """
         if not self._opened or self._claimed:
             return
@@ -206,8 +205,9 @@ class StreamContext:
     ) -> None:
         if chunk_id is not None and self._chunk_id is not None:
             if chunk_id != self._chunk_id:
-                # litellm mints a completion id per attempt, so a change of id
-                # mid-item is a re-stream of the same slot.
+                # LiteLLM 每次尝试都会生成一个完成ID，因此在中间步骤中更改ID相当于重新播
+                # 放同一个槽位。
+                #
                 self.new_attempt()
         self._chunk_id = chunk_id
         if not self._started:
@@ -222,7 +222,7 @@ class StreamContext:
             self._emit_content(kind, released, chunk_id, choice_index)
 
     def _flush(self) -> None:
-        """Release the tail each masker holds back against a split secret."""
+        """释放每个掩蔽器阻止分裂的尾巴机密。"""
         for kind, masker in self._masks.items():
             held = masker.flush()
             if held:
@@ -249,8 +249,8 @@ class StreamContext:
         )
 
     def _emit(self, frame: StreamProgress) -> None:
-        """Never raises: ``close()`` runs from ``__exit__``, where a sink error
-        would replace the exception the step is unwinding."""
+        """从不引发：``close()`` 从 ``__exit__`` 运行，其中出现接收器错误
+        将替换该步骤正在展开的异常。"""
         assert self._on_stream is not None
         try:
             self._on_stream(frame)
@@ -269,10 +269,10 @@ def _abort_reason(exc_type: type[BaseException] | None) -> str:
 def _split_chunk(
     chunk: LLMStreamChunk | str,
 ) -> list[tuple[Literal["text", "reasoning"], str, str | None, int | None]]:
-    """Break one token-callback payload into the deltas it carries.
+    """将 token-回调载荷分解为它所携带的增量。
 
-    The ACP bridge passes a bare ``str`` and never enters the LLM layer, which
-    is why this lives above both rather than in ``llm.py``.
+    ACP 桥穿过裸露的 ``str`` 层，并且永远不会进入 LLM 层，这就是为什么它位于两者之上
+    而不是 ``llm.py`` 中。
     """
     if isinstance(chunk, str):
         return [("text", chunk, None, None)] if chunk else []

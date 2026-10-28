@@ -6,7 +6,7 @@ from litellm.types.utils import ModelResponse
 from openhands.sdk.llm import LLM, Message, TextContent
 
 
-# Chat path: extra_body policy: always forward if provided, let provider validate
+# 聊天路径：extra_body 策略：如果提供则始终转发，让提供商验证
 
 
 def test_chat_forwards_extra_body_for_all_models():
@@ -31,7 +31,7 @@ def test_chat_forwards_extra_body_for_all_models():
         llm.completion(messages=messages, metadata={"m": 1})
         mock_call.assert_called_once()
         kwargs = mock_call.call_args[1]
-        # extra_body should be forwarded even for non-proxy models
+        # 即使对于非代理模型也应转发 extra_body
         assert kwargs.get("extra_body") == {"k": "v"}
 
 
@@ -58,7 +58,7 @@ def test_chat_proxy_forwards_extra_body():
         assert kwargs.get("extra_body") == eb
 
 
-# Responses path: same policy
+# 响应路径：同政策
 
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
@@ -86,7 +86,7 @@ def test_responses_forwards_extra_body_for_all_models(mock_responses):
         metadata={"m": 1},
     )
     kwargs = mock_responses.call_args[1]
-    # extra_body should be forwarded even for non-proxy models
+    # 即使对于非代理模型也应转发 extra_body
     assert kwargs.get("extra_body") == {"k": "v"}
 
 

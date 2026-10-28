@@ -9,15 +9,13 @@ from openhands.sdk.security.risk import SecurityRisk
 
 
 class SecurityAnalysisEvent(Event):
-    """Risk levels the configured security analyzer assigned to pending actions.
+    """已配置的安全分析器分配给待处理操作的风险级别。
 
-    Emitted once per batch of actions the agent is about to execute, whenever a
-    security analyzer is configured on the conversation, regardless of whether
-    the confirmation policy then asks for confirmation. This makes the
-    analyzer's verdict visible in the event log and UI even when the policy
-    (for example ``NeverConfirm``) never consults it.
+    智能体执行时，每当配置了安全分析器并在对话中时，无论确认策略是否要求确认，都会发
+    出一次。 这使得分析器的结论在事件日志和 UI 中可见，即使策略（例如
+    ``NeverConfirm``）从未查阅它。
 
-    This event is not sent to the LLM.
+    该事件不会发送到 LLM。
     """
 
     source: SourceType = "environment"

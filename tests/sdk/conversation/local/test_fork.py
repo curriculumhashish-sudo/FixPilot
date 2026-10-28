@@ -1,4 +1,4 @@
-"""Tests for Conversation.fork() primitive."""
+"""测试 Conversation.fork() 原语。"""
 
 import tempfile
 import threading
@@ -71,7 +71,7 @@ class ForkCopyNonPicklableTool(
 
 
 def test_fork_creates_new_id():
-    """Forked conversation must have a distinct ID."""
+    """分叉对话必须有一个独特的 ID。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork()
@@ -81,7 +81,7 @@ def test_fork_creates_new_id():
 
 
 def test_fork_with_explicit_id():
-    """Explicit conversation_id is honoured."""
+    """显式 conversation_id 受到尊重。"""
     custom_id = uuid.uuid4()
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
@@ -91,7 +91,7 @@ def test_fork_with_explicit_id():
 
 
 def test_fork_copies_events():
-    """Events from the source must appear in the fork."""
+    """来自源的事件必须出现在分叉中。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src.state.events.append(_msg("evt-1", "hello"))
@@ -99,7 +99,7 @@ def test_fork_copies_events():
 
         fork = src.fork()
 
-        # The fork should have at least the events we added
+        # 分叉应该至少有我们添加的事件
         fork_ids = [e.id for e in fork.state.events]
         assert "evt-1" in fork_ids
         assert "evt-2" in fork_ids
@@ -129,7 +129,7 @@ def test_fork_copies_system_prompt_event_with_non_picklable_executor():
 
 
 def test_fork_source_unmodified():
-    """Appending to the fork must not affect the source."""
+    """附加到 fork 不得影响源。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src.state.events.append(_msg("src-evt"))
@@ -138,12 +138,12 @@ def test_fork_source_unmodified():
         fork = src.fork()
         fork.state.events.append(_msg("fork-only"))
 
-        # Source should not grow
+        # 来源不应增长
         assert len(src.state.events) == src_event_count
 
 
 def test_fork_execution_status_is_idle():
-    """Forked conversation starts in idle status."""
+    """分叉对话在空闲状态下开始。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork()
@@ -152,7 +152,7 @@ def test_fork_execution_status_is_idle():
 
 
 def test_fork_resets_metrics_by_default():
-    """By default, metrics on the fork should be fresh (empty)."""
+    """默认情况下，分叉上的指标应该是新鲜的（空）。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork()
@@ -162,10 +162,10 @@ def test_fork_resets_metrics_by_default():
 
 
 def test_fork_preserves_metrics_when_requested():
-    """When reset_metrics=False the fork should carry over stats."""
+    """当 reset_metrics=False 时，分叉应该保留统计数据。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
-        # Inject a non-zero metric
+        # 注入非零指标
         from openhands.sdk.llm.utils.metrics import Metrics
 
         m = Metrics()
@@ -179,7 +179,7 @@ def test_fork_preserves_metrics_when_requested():
 
 
 def test_fork_copies_agent_state():
-    """agent_state dict should be carried over to the fork."""
+    """agent_state dict 应该被转移到 fork。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src._state.agent_state = {"key": "value"}
@@ -187,13 +187,13 @@ def test_fork_copies_agent_state():
         fork = src.fork()
 
         assert fork.state.agent_state == {"key": "value"}
-        # Mutation on fork should not affect source
+        # 分叉上的突变不应影响源
         fork._state.agent_state = {**fork._state.agent_state, "new": True}
         assert "new" not in src._state.agent_state
 
 
 def test_fork_accepts_replacement_agent():
-    """Providing an agent kwarg replaces the source agent in the fork."""
+    """提供智能体 kwarg 会替换 fork 中的源智能体。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         alt_agent = Agent(
@@ -208,12 +208,12 @@ def test_fork_accepts_replacement_agent():
         fork = src.fork(agent=alt_agent)
 
         assert fork.agent.llm.model == "gpt-4o"
-        # Source should keep its original agent
+        # 来源应保留其原始内容智能体
         assert src.agent.llm.model == "gpt-4o-mini"
 
 
 def test_fork_with_tags():
-    """Tags should be passed through to the fork."""
+    """标签应该传递到 fork。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork(tags={"env": "test"})
@@ -223,7 +223,7 @@ def test_fork_with_tags():
 
 @pytest.mark.parametrize("tags", [{}, {"purpose": "debugging"}, {"title": "user tag"}])
 def test_fork_with_title_is_deprecated(tags: dict[str, str]):
-    """Passing title is accepted for compat but warns and does not pollute tags."""
+    """compat 接受传递标题，但会发出警告并且不会污染标签。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         with pytest.warns(DeprecationWarning, match="title parameter is deprecated"):
@@ -233,7 +233,7 @@ def test_fork_with_title_is_deprecated(tags: dict[str, str]):
 
 
 def test_fork_shares_workspace():
-    """Fork should reuse the same workspace as the source."""
+    """Fork 应该重用与源相同的工作区。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork()
@@ -242,30 +242,30 @@ def test_fork_shares_workspace():
 
 
 def test_fork_event_deep_copy_isolation():
-    """Mutating an event object in the fork must not affect the source."""
+    """改变分叉中的事件对象不得影响源。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src.state.events.append(_msg("deep-evt", "original"))
 
         fork = src.fork()
 
-        # The fork event is a different object
+        # fork事件是一个不同的对象
         src_evt = src.state.events[0]
         fork_evt = fork.state.events[0]
         assert src_evt is not fork_evt
 
-        # Mutating the fork event should not change the source
+        # 改变 fork 事件不应改变源
         assert fork_evt.llm_message.content[0].text == "original"  # type: ignore[union-attr]
         fork_evt.llm_message.content[0].text = "mutated"  # type: ignore[union-attr]
         assert src_evt.llm_message.content[0].text == "original"  # type: ignore[union-attr]
 
 
 def test_fork_persistence_path_no_doubling():
-    """Fork persistence dir must be a sibling of source, not nested inside it.
+    """Fork 持久化 dir 必须是 source 的同级，而不是嵌套在其中。
 
-    Regression test: fork() previously computed the persistence path with
-    the conversation hex appended, but __init__ also appends it via
-    get_persistence_dir(), leading to /base/FORK_HEX/FORK_HEX.
+    回归测试：fork() 之前计算了附加了对话十六进制的持久化路径，但 __init__ 也通过
+    get_persistence_dir() 附加了它，导致
+    /base/FORK_HEX/FORK_HEX.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
@@ -276,20 +276,19 @@ def test_fork_persistence_path_no_doubling():
         src_path = Path(src._state.persistence_dir)
         fork_path = Path(fork._state.persistence_dir)
 
-        # Both should live directly under the same base directory
+        # 两者都应该直接位于同一基本目录下
         assert src_path.parent == fork_path.parent
-        # The fork dir should be <base>/<fork_id_hex>, not doubled
+        # fork dir 应该是 <base>/<fork_id_hex>，而不是双倍
         assert fork_path.name == fork.id.hex
 
 
 def test_fork_persisted_events_survive_reload():
-    """Events persisted by fork() should be loadable from the fork dir.
+    """事件已持久化 by fork() 应该可以从 fork 目录加载。
 
-    This validates the path-doubling fix end-to-end: if the fork wrote
-    events to the wrong directory, resuming from the correct path would
-    see zero events.
+    它验证了路径双倍修正的端到端：如果分支写入了错误的目录，从正确的路径恢复将看到零
+    事件。
     """
-    # Event IDs must be hex+dash, ≥8 chars to match EVENT_NAME_RE.
+    # 事件 ID 必须是十六进制 + 破折号，≥8 个字符才能匹配 EVENT_NAME_RE。
     evt_id_1 = uuid.uuid4().hex
     evt_id_2 = uuid.uuid4().hex
 
@@ -301,10 +300,10 @@ def test_fork_persisted_events_survive_reload():
         fork = src.fork()
         fork_id = fork.id
 
-        # The fork should have the events in-memory
+        # 分叉应该将事件保存在内存中
         assert len(fork.state.events) == 2
 
-        # Close the fork to flush persistence, then reopen from disk
+        # 关闭 fork 以刷新持久化，然后从磁盘重新打开
         fork.close()
 
         resumed = Conversation(
@@ -319,7 +318,7 @@ def test_fork_persisted_events_survive_reload():
 
 
 def test_fork_default_does_not_clobber_source_cache_key():
-    """Default fork() must leave the source's prompt_cache_key intact (#2917)."""
+    """默认 fork() 必须保持源的 prompt_cache_key 不变 (#2917)。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src_key_before = src.get_llm_call_context().prompt_cache_key
@@ -337,7 +336,7 @@ def test_fork_default_does_not_clobber_source_cache_key():
 
 
 def test_fork_with_aliased_agent_does_not_clobber_source_cache_key():
-    """fork(agent=source.agent) must preserve source cache identity (#2917)."""
+    """fork(agent=source.agent) 必须保留源缓存标识 (#2917)。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         src_key_before = src.get_llm_call_context().prompt_cache_key

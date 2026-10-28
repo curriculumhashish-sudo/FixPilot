@@ -1,4 +1,4 @@
-"""List directory tool executor implementation."""
+"""列表目录工具执行器实现。"""
 
 import os
 from datetime import datetime
@@ -21,13 +21,13 @@ if TYPE_CHECKING:
 class ListDirectoryExecutor(
     ToolExecutor[ListDirectoryAction, ListDirectoryObservation]
 ):
-    """Executor for list_directory tool."""
+    """list_directory 工具的执行器。"""
 
     def __init__(self, workspace_root: str):
-        """Initialize executor with workspace root.
+        """使用工作区 root 初始化执行器。
 
         Args:
-            workspace_root: Root directory for file operations
+            workspace_root: 文件操作的根目录
         """
         self.workspace_root = Path(workspace_root)
 
@@ -36,33 +36,33 @@ class ListDirectoryExecutor(
         action: ListDirectoryAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> ListDirectoryObservation:
-        """Execute list directory action.
+        """执行列出目录操作。
 
         Args:
-            action: ListDirectoryAction with dir_path and recursive
-            conversation: Execution context
+            action: ListDirectoryAction 与 dir_path 和递归
+            conversation: 执行上下文
 
         Returns:
-            ListDirectoryObservation with directory contents
+            ListDirectoryObservation 包含目录内容
         """
 
         dir_path = action.dir_path
         recursive = action.recursive
 
-        # Resolve path relative to workspace
+        # 解析相对于工作区的路径
         if not os.path.isabs(dir_path):
             resolved_path = self.workspace_root / dir_path
         else:
             resolved_path = Path(dir_path)
 
-        # Check if directory exists
+        # 检查目录是否存在
         if not resolved_path.exists():
             return ListDirectoryObservation.from_text(
                 is_error=True,
                 text=f"Error: Directory not found: {resolved_path}",
             )
 
-        # Check if it's a directory
+        # 检查是否是一个目录
         if not resolved_path.is_dir():
             return ListDirectoryObservation.from_text(
                 is_error=True,
@@ -73,7 +73,7 @@ class ListDirectoryExecutor(
             entries = []
 
             if recursive:
-                # List up to 2 levels deep
+                # 列出最多 2 层深度
                 for root, dirs, files in os.walk(resolved_path):
                     root_path = Path(root)
                     depth = len(root_path.relative_to(resolved_path).parts)
@@ -81,7 +81,7 @@ class ListDirectoryExecutor(
                         dirs.clear()
                         continue
 
-                    # Add directories
+                    # 添加目录
                     for d in sorted(dirs):
                         d_path = root_path / d
                         try:
@@ -98,7 +98,7 @@ class ListDirectoryExecutor(
                         except Exception:
                             continue
 
-                    # Add files
+                    # 添加文件
                     for f in sorted(files):
                         f_path = root_path / f
                         try:
@@ -118,7 +118,7 @@ class ListDirectoryExecutor(
                     if len(entries) >= MAX_ENTRIES:
                         break
             else:
-                # List only immediate contents
+                # 仅列出直接内容
                 for entry in sorted(resolved_path.iterdir()):
                     try:
                         stat = entry.stat()

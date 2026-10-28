@@ -1,9 +1,9 @@
-"""Tests for the verify-agent-server skill's control CLI and feature map.
+"""测试 verify-智能体-server 技能的控制 CLI 和特征图。
 
-The CLI lives at `.agents/skills/verify-agent-server/scripts/control_agent_server.py`.
-These tests drive it against a tiny local HTTP server (via `attach`) and a
-throwaway feature map, and validate the committed map's structure, without
-launching an agent server.
+CLI 位于 `.agents/skills/verify-agent-server/scripts/control_agent_server.py`。 这些
+测试驱动它与一
+个小型本地 HTTP 服务器（通过 `attach`）和一个弃用的功能映射进行交互，并验证已提交的映
+射结构，而不启动 Agent Server。
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def run_dir(tmp_path, monkeypatch):
-    """An attached run pointing at a local HTTP server, with a session key."""
+    """指向本地 HTTP 服务器的附加运行，带有会话密钥。"""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     monkeypatch.setenv(cas.HOME_ENV, str(tmp_path / "runs"))
@@ -916,11 +916,11 @@ DOCUMENTED = "  # bug: status eq 404 && response.body.detail eq 'Not Found'"
 @pytest.mark.parametrize(
     "path, status",
     [
-        # The documented failure: the marked command answers 404 Not Found.
+        # 记录的失败：标记的命令回答 404 Not Found。
         ("/missing", "xfail"),
-        # An unrelated error at the same marked command is not the known bug.
+        # 同一标记命令中的不相关错误不是已知错误。
         ("/refused", "fail"),
-        # Correct behavior: the bug no longer reproduces.
+        # 正确的行为：错误不再重现。
         ("/info", "xpass"),
     ],
 )
@@ -951,8 +951,8 @@ def test_known_bug_xfails_only_on_the_documented_failure(
 def test_known_bug_matches_the_failure_not_a_later_cleanup_call(
     run_dir, write_verification_family, capsys
 ):
-    # A recipe's EXIT cleanup calls the CLI after the marked command failed;
-    # the predicate still sees what the marked command observed.
+    # 配方的 EXIT 清理在标记的命令失败后调用 CLI； 谓词仍然看到标记命令观察到的内容。
+    #
     family = FAMILY.replace(
         '  test "$VALUE" = fixed  # bug: exit 1',
         "  trap 'control-agent-server api GET /info >/dev/null' EXIT\n  "
@@ -968,8 +968,9 @@ def test_known_bug_matches_the_failure_not_a_later_cleanup_call(
 def test_known_bug_pass_after_a_broken_arrange_is_not_a_fix(
     run_dir, write_verification_family, capsys
 ):
-    # With --keep-going, a recipe whose prerequisite failed can pass on empty
-    # variables; that is no evidence the bug is fixed.
+    # 使用 --keep-going，先决条件失败的配方可以传递空变量； 这并不能证明该错误已得到修复
+    # 。
+    #
     family = FAMILY.replace(
         "VALUE=$(echo carried)", "VALUE=$(echo carried)\n  false"
     ).replace(
@@ -986,8 +987,9 @@ def test_known_bug_pass_after_a_broken_arrange_is_not_a_fix(
 def test_known_bug_pass_after_a_broken_indirect_arrange_is_not_a_fix(
     run_dir, write_verification_family, capsys
 ):
-    # F98.second passes on its own, but it needs F98.first, which failed; the
-    # known bug needs F98.second, so its pass is no evidence either.
+    # F98.second自己通过了，但是需要F98.first，失败了； 已知的 bug 需要 F98.second，所以
+    # 它的通过也没有证据。
+    #
     family = (
         FAMILY.replace("VALUE=$(echo carried)", "VALUE=$(echo carried)\n  false")
         .replace(
@@ -1011,10 +1013,10 @@ def test_known_bug_pass_after_a_broken_indirect_arrange_is_not_a_fix(
 @pytest.mark.parametrize(
     "stored, status",
     [
-        # The documented failure: the file is there and has no key.
+        # 记录的故障：文件存在但没有密钥。
         ('{"agent": {"model": "m"}}', "xfail"),
-        # The file is missing: an error object has no `checks`, so the
-        # `eq null` clause must not read its absence as the bug.
+        # 文件丢失：错误对象没有 `checks`，因此
+        # `eq null` 子句不得将其缺失视为错误。
         (None, "fail"),
     ],
 )
@@ -1037,7 +1039,7 @@ def test_known_bug_predicate_needs_its_paths_present(
 def test_known_bug_exit_predicate_tells_a_false_test_from_an_error(
     run_dir, write_verification_family, capsys
 ):
-    # `test` exits 1 when the comparison is false and 2 when it cannot run.
+    # 当比较为False时，`test`退出1；当比较无法运行时，退出2。
     family = FAMILY.replace(
         '  test "$VALUE" = fixed  # bug: exit 1',
         '  test "$VALUE" -le 3  # bug: exit 1',
@@ -1052,8 +1054,8 @@ def test_known_bug_exit_predicate_tells_a_false_test_from_an_error(
 def test_the_marked_call_replaces_an_earlier_observation(
     run_dir, write_verification_family, capsys
 ):
-    # The marked line's own call replaces what an earlier call observed, so an
-    # earlier 404 cannot stand in for the marked command's failure.
+    # 标记行自己的调用会替换先前观察到的调用，因此早期的 404 不能代替标记命令的失败。
+    #
     family = FAMILY.replace(
         '  test "$VALUE" = fixed  # bug: exit 1',
         "  control-agent-server api GET /missing --expect 404\n"
@@ -1067,7 +1069,7 @@ def test_the_marked_call_replaces_an_earlier_observation(
 
 
 def test_committed_feature_map_is_structurally_valid(capsys):
-    """`map check --no-routes`: headings, IDs, index counts, recipes parse."""
+    """`map check --no-routes`：标题、ID、索引计数、食谱解析。"""
     code, out = _run(capsys, "map", "check", "--no-routes")
     assert code == 0, out
 

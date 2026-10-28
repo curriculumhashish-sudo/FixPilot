@@ -1,4 +1,4 @@
-"""Tests for FileEditorTool subclass."""
+"""测试 FileEditorTool 子类。"""
 
 import os
 import tempfile
@@ -21,7 +21,7 @@ from openhands.tools.file_editor import (
 
 
 def _create_test_conv_state(temp_dir: str) -> ConversationState:
-    """Helper to create a test conversation state."""
+    """创建测试对话状态的帮助程序。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -32,20 +32,20 @@ def _create_test_conv_state(temp_dir: str) -> ConversationState:
 
 
 def test_file_editor_tool_initialization():
-    """Test that FileEditorTool initializes correctly."""
+    """测试 FileEditorTool 初始化是否正确。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the tool has the correct name and properties
+        # 检查该工具是否具有正确的名称和属性
         assert tool.name == "file_editor"
         assert tool.executor is not None
         assert issubclass(tool.action_type, FileEditorAction)
 
 
 def test_file_editor_tool_create_file():
-    """Test that FileEditorTool can create files."""
+    """测试 FileEditorTool 是否可以创建文件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
@@ -53,30 +53,30 @@ def test_file_editor_tool_create_file():
 
         test_file = os.path.join(temp_dir, "test.txt")
 
-        # Create an action to create a file
+        # 创建一个创建文件的动作
         action = FileEditorAction(
             command="create",
             path=test_file,
             file_text="Hello, World!",
         )
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check the result
+        # 检查结果
         assert result is not None
         assert isinstance(result, FileEditorObservation)
         assert not result.is_error
         assert os.path.exists(test_file)
 
-        # Check file contents
+        # 检查文件内容
         with open(test_file) as f:
             content = f.read()
         assert content == "Hello, World!"
 
 
 def test_file_editor_tool_view_file():
-    """Test that FileEditorTool can view files."""
+    """测试 FileEditorTool 是否可以查看文件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
@@ -84,17 +84,17 @@ def test_file_editor_tool_view_file():
 
         test_file = os.path.join(temp_dir, "test.txt")
 
-        # Create a test file
+        # 创建测试文件
         with open(test_file, "w") as f:
             f.write("Line 1\nLine 2\nLine 3")
 
-        # Create an action to view the file
+        # 创建一个查看文件的动作
         action = FileEditorAction(command="view", path=test_file)
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check the result
+        # 检查结果
         assert result is not None
         assert isinstance(result, FileEditorObservation)
         assert not result.is_error
@@ -104,7 +104,7 @@ def test_file_editor_tool_view_file():
 
 
 def test_file_editor_tool_str_replace():
-    """Test that FileEditorTool can perform string replacement."""
+    """测试FileEditorTool是否可以进行字符串替换。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
@@ -112,11 +112,11 @@ def test_file_editor_tool_str_replace():
 
         test_file = os.path.join(temp_dir, "test.txt")
 
-        # Create a test file
+        # 创建测试文件
         with open(test_file, "w") as f:
             f.write("Hello, World!\nThis is a test.")
 
-        # Create an action to replace text
+        # 创建一个动作来替换文本
         action = FileEditorAction(
             command="str_replace",
             path=test_file,
@@ -124,31 +124,31 @@ def test_file_editor_tool_str_replace():
             new_str="Universe",
         )
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check the result
+        # 检查结果
         assert result is not None
         assert isinstance(result, FileEditorObservation)
         assert not result.is_error
 
-        # Check file contents
+        # 检查文件内容
         with open(test_file) as f:
             content = f.read()
         assert "Hello, Universe!" in content
 
 
 def test_file_editor_tool_to_openai_tool():
-    """Test that FileEditorTool can be converted to OpenAI tool format."""
+    """测试FileEditorTool可以转换为OpenAI工具格式。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Convert to OpenAI tool format
+        # 转换为OpenAI工具格式
         openai_tool = tool.to_openai_tool()
 
-        # Check the format
+        # 检查格式
         assert openai_tool["type"] == "function"
         assert openai_tool["function"]["name"] == "file_editor"
         assert "description" in openai_tool["function"]
@@ -156,13 +156,13 @@ def test_file_editor_tool_to_openai_tool():
 
 
 def test_file_editor_tool_view_directory():
-    """Test that FileEditorTool can view directories."""
+    """测试 FileEditorTool 是否可以查看目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Create some test files
+        # 创建一些测试文件
         test_file1 = os.path.join(temp_dir, "file1.txt")
         test_file2 = os.path.join(temp_dir, "file2.txt")
 
@@ -171,13 +171,13 @@ def test_file_editor_tool_view_directory():
         with open(test_file2, "w") as f:
             f.write("File 2 content")
 
-        # Create an action to view the directory
+        # 创建一个查看目录的动作
         action = FileEditorAction(command="view", path=temp_dir)
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check the result
+        # 检查结果
         assert result is not None
         assert isinstance(result, FileEditorObservation)
         assert not result.is_error
@@ -186,20 +186,20 @@ def test_file_editor_tool_view_directory():
 
 
 def test_file_editor_tool_includes_working_directory_in_description():
-    """Test that FileEditorTool includes working directory info in description."""
+    """测试 FileEditorTool 的描述中是否包含工作目录信息。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the tool description includes working directory information
+        # 检查工具描述是否包含工作目录信息
         assert f"Your current working directory is: {temp_dir}" in tool.description
         assert (
             "When exploring project structure, start with this directory "
             "instead of the root filesystem."
         ) in tool.description
 
-        # Verify the original description is still there
+        # 验证原始描述是否仍然存在
         assert (
             "Custom editing tool for viewing, creating and editing files"
             in tool.description
@@ -207,16 +207,16 @@ def test_file_editor_tool_includes_working_directory_in_description():
 
 
 def test_file_editor_tool_openai_format_includes_working_directory():
-    """Test that OpenAI tool format includes working directory info."""
+    """测试 OpenAI 工具格式是否包含工作目录信息。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Convert to OpenAI tool format
+        # 转换为OpenAI工具格式
         openai_tool = tool.to_openai_tool()
 
-        # Check that the description includes working directory information
+        # 检查描述是否包含工作目录信息
         function_def = openai_tool["function"]
         assert "description" in function_def
         description = function_def["description"]
@@ -231,7 +231,7 @@ def test_file_editor_tool_openai_format_includes_working_directory():
     "command", ["view", "create", "str_replace", "insert", "undo_edit"]
 )
 def test_declared_resources_locks_on_file_path(command):
-    """Every command locks on file:{path} with declared=True."""
+    """文件：{path} 上的每个命令锁都声明为=True。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tool = FileEditorTool.create(_create_test_conv_state(temp_dir))[0]
         action = FileEditorAction(command=command, path="/a.py")
@@ -264,7 +264,7 @@ def test_declared_resources_same_path_same_key_across_commands():
 
 
 def test_declared_resources_normalizes_dotdot_paths():
-    """Paths with '..' that resolve to the same file produce the same key."""
+    """解析为同一文件的带有“..”的路径会产生相同的密钥。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tool = FileEditorTool.create(_create_test_conv_state(temp_dir))[0]
         r1 = tool.declared_resources(FileEditorAction(command="view", path="/a/c.py"))
@@ -275,7 +275,7 @@ def test_declared_resources_normalizes_dotdot_paths():
 
 
 def test_declared_resources_normalizes_dot_paths():
-    """Paths with '.' that resolve to the same file produce the same key."""
+    """带有“.”的路径解析到同一文件会产生相同的密钥。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tool = FileEditorTool.create(_create_test_conv_state(temp_dir))[0]
         r1 = tool.declared_resources(FileEditorAction(command="view", path="/a/c.py"))
@@ -284,7 +284,7 @@ def test_declared_resources_normalizes_dot_paths():
 
 
 def test_declared_resources_normalizes_relative_paths():
-    """Relative paths are resolved to absolute path."""
+    """相对路径解析为绝对路径。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         tool = FileEditorTool.create(_create_test_conv_state(temp_dir))[0]
         r1 = tool.declared_resources(FileEditorAction(command="view", path="a.py"))
@@ -293,9 +293,9 @@ def test_declared_resources_normalizes_relative_paths():
 
 
 def test_file_editor_tool_image_viewing_line_with_vision_enabled():
-    """Test that image viewing line is included when LLM supports vision."""
+    """测试当 LLM 支持视觉时，是否包含图像观看线。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create LLM with vision support (gpt-4o-mini supports vision)
+        # 创建具有视觉支持的LLM（gpt-4o-mini支持视觉）
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
@@ -309,7 +309,7 @@ def test_file_editor_tool_image_viewing_line_with_vision_enabled():
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the image viewing line is included in description
+        # 检查图像查看线是否包含在描述中
         assert (
             "If `path` is an image file (.png, .jpg, .jpeg, .gif, .webp, .bmp)"
             in tool.description
@@ -318,9 +318,9 @@ def test_file_editor_tool_image_viewing_line_with_vision_enabled():
 
 
 def test_file_editor_tool_image_viewing_line_with_vision_disabled():
-    """Test that image viewing line is excluded when LLM doesn't support vision."""
+    """测试当LLM不支持视觉时，图像观看线被排除。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create LLM without vision support (gpt-3.5-turbo doesn't support vision)
+        # 创建不带视觉支持的LLM（gpt-3.5-turbo不支持视觉）
         llm = LLM(
             model="gpt-3.5-turbo", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
@@ -334,18 +334,17 @@ def test_file_editor_tool_image_viewing_line_with_vision_disabled():
         tools = FileEditorTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the image viewing line is NOT included in description
+        # 检查图像查看线不包含在描述中
         assert "is an image file" not in tool.description
         assert "displays the image content" not in tool.description
 
 
 def test_str_replace_fallback_preserves_new_str_whitespace():
-    """When the whitespace-tolerant fallback is used (old_str not verbatim),
-    meaningful leading/trailing whitespace in new_str must be preserved.
+    """当使用空白容忍回退方案时（old_str 不是逐字），
+    必须保留 new_str 中有意义的前导/尾随空白。
 
-    Regression test: previously the fallback stripped new_str as well as
-    old_str, silently dropping intentional whitespace (e.g. a Markdown hard
-    line break) while reporting success.
+    回归测试：之前回退方案剥离了 new_str 和 old_str，默默地删除了故意的空白 (e.g.
+    Markdown 硬线中断），同时报告成功。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
@@ -355,8 +354,9 @@ def test_str_replace_fallback_preserves_new_str_whitespace():
         with open(test_file, "w") as f:
             f.write("hello world\nsecond line\n")
 
-        # Leading space in old_str -> exact match fails -> fallback runs.
-        # Trailing spaces in new_str are meaningful (Markdown hard line break).
+        # old_str 中的前导空格 -> 精确匹配失败 -> 回退方案运行。 new_str 中的尾随空格是
+        # 有意义的（Markdown 硬换行）。
+        #
         action = FileEditorAction(
             command="str_replace",
             path=test_file,
@@ -373,8 +373,8 @@ def test_str_replace_fallback_preserves_new_str_whitespace():
 
 
 def test_str_replace_exact_match_preserves_new_str_whitespace():
-    """The exact-match path (no fallback) must also preserve new_str
-    whitespace. Guards against regressions in the normal code path."""
+    """完全匹配路径（无回退方案）也必须保留 new_str
+    空白。 防止正常代码路径中的回归。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tool = FileEditorTool.create(conv_state)[0]

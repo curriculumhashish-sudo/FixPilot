@@ -1,8 +1,7 @@
-"""Structural guarantees about what a diagnostic event can physically hold.
+"""关于诊断事件可以物理容纳的内容的结构保证。
 
-These tests are the enforcement mechanism described in the module docstring of
-``telemetry/models.py``: rather than trusting a reviewer to notice that a new
-property leaks, the type system is made to reject it.
+这些测试是模块文档字符串中描述的执行机制
+``telemetry/models.py``：类型系统不是相信审阅者会注意到新属性泄漏，而是拒绝它。
 """
 
 import typing
@@ -25,7 +24,7 @@ PROPERTY_MODELS: list[type[BaseModel]] = [
 
 
 def _is_constrained_str(annotation: object) -> bool:
-    """True if the annotation is a *constrained* string, not a bare ``str``."""
+    """True 如果注释是 *constrained* 字符串，而不是裸露的 ``str``。"""
     if get_origin(annotation) is Annotated:
         args = get_args(annotation)
         return args[0] is str and len(args) > 1
@@ -33,7 +32,7 @@ def _is_constrained_str(annotation: object) -> bool:
 
 
 def _permitted(annotation: object) -> bool:
-    # Unwrap optionals / unions.
+    # 打开选项/联合。
     origin = get_origin(annotation)
     if origin is typing.Union or str(origin) == "<class 'types.UnionType'>":
         return all(
@@ -48,10 +47,10 @@ def _permitted(annotation: object) -> bool:
 
 @pytest.mark.parametrize("model", PROPERTY_MODELS, ids=lambda mo: mo.__name__)
 def test_no_unconstrained_property_fields(model: type[BaseModel]):
-    """No property may be a bare str, Any, dict or list.
+    """任何属性都不能是纯粹的 str、Any、dict 或 list。
 
-    A bare ``str`` can hold a prompt, a traceback, or an API key. Every field
-    must therefore be a bool, an int, a Literal, or a pattern-constrained str.
+    裸露的 ``str`` 可以容纳提示词、回溯或 API 键。 因此，每个字段都必须是 bool、int、
+    Literal 或模式约束的 str。
     """
     hints = typing.get_type_hints(model, include_extras=True)
     offenders = [
@@ -72,7 +71,7 @@ def test_property_models_are_frozen_and_closed(model: type[BaseModel]):
 
 
 def test_property_names_match_the_declared_allowlist():
-    """Adding a property must be a deliberate act, not a silent one."""
+    """增加财产必须是一种深思熟虑的行为，而不是无声无息的行为。"""
     actual: set[str] = {"schema_version"}
     for model in PROPERTY_MODELS:
         actual.update(n for n in model.model_fields if n != "kind")
@@ -98,7 +97,7 @@ def test_property_names_match_the_declared_allowlist():
     ids=["prompt", "api_key", "path", "traceback", "email"],
 )
 def test_sensitive_values_are_rejected_at_construction(leak: str):
-    """A leak becomes a ValidationError, not a review miss."""
+    """泄漏会变成 ValidationError，而不是审核失误。"""
     with pytest.raises(ValidationError):
         m.ErrorProperties(
             conversation_ref="a" * 32,
@@ -116,7 +115,7 @@ def test_extra_properties_are_forbidden():
 
 
 def test_route_template_rejects_a_concrete_path_with_an_id():
-    """The 500 handler must send the route template, not the real URL."""
+    """500 处理程序必须发送路由模板，而不是真正的 URL。"""
     m.RequestFailedProperties(
         route_template="/api/conversations/{conversation_id}",
         method="POST",
@@ -158,7 +157,7 @@ def test_payload_carries_schema_version_and_excludes_distinct_id():
     payload = event.to_payload()
 
     assert payload["schema_version"] == m.TELEMETRY_SCHEMA_VERSION
-    # distinct_id is the transport's addressing field, not a property.
+    # distinct_id 是传输层的寻址字段，而不是属性。
     assert "distinct_id" not in payload
     assert "kind" not in payload
     assert payload["deployment_kind"] == "local"

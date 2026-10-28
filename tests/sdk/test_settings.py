@@ -48,12 +48,12 @@ from openhands.sdk.settings.model import (
 from openhands.sdk.workspace import LocalWorkspace
 
 
-# Fields on LLM that have ``exclude=True`` and should not appear in the schema.
+# LLM 上具有 ``exclude=True`` 的字段不应出现在模式中。
 _LLM_EXCLUDED_FIELDS = {name for name, fi in LLM.model_fields.items() if fi.exclude}
 
 
 # ---------------------------------------------------------------------------
-# Schema export — per-variant
+# 模式导出 — 每个变体
 # ---------------------------------------------------------------------------
 
 
@@ -72,7 +72,7 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
 
     sections = {s.key: s for s in schema.sections}
 
-    # -- general section (top-level scalar fields) --
+    # -- 一般部分（顶级标量字段）--
     general_fields = {f.key: f for f in sections["general"].fields}
     assert set(general_fields) == {
         "agent",
@@ -94,7 +94,7 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
         general_fields["tool_concurrency_limit"].prominence is SettingProminence.MAJOR
     )
 
-    # -- llm section --
+    # -- 法学硕士部分 --
     llm_fields = {f.key: f for f in sections["llm"].fields}
     expected_llm_keys = {
         f"llm.{name}" for name in LLM.model_fields if name not in _LLM_EXCLUDED_FIELDS
@@ -110,11 +110,11 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
     assert llm_fields["llm.api_key"].prominence is SettingProminence.CRITICAL
     assert llm_fields["llm.base_url"].prominence is SettingProminence.MAJOR
 
-    # Excluded fields must not appear
+    # 排除字段不得出现
     assert "llm.fallback_strategy" not in llm_fields
     assert "llm.retry_listener" not in llm_fields
 
-    # -- agent_context section (only annotated fields surface) --
+    # -- agent_context 部分（仅带注释的字段表面）--
     assert sections["agent_context"].label == "Memory"
     ac_fields = {f.key: f for f in sections["agent_context"].fields}
     assert set(ac_fields) == {"agent_context.load_memory"}
@@ -124,7 +124,7 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
     assert load_memory.default is False
     assert load_memory.prominence is SettingProminence.MAJOR
 
-    # -- condenser section --
+    # -- 上下文压缩器部分 --
     condenser_fields = {f.key: f for f in sections["condenser"].fields}
     assert (
         condenser_fields["condenser.enabled"].prominence is SettingProminence.CRITICAL
@@ -141,7 +141,7 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
         condenser_fields["condenser.max_tokens"].prominence is SettingProminence.MINOR
     )
 
-    # -- verification section (critic settings only) --
+    # -- 验证部分（仅限批评设置）--
     v_fields = {f.key: f for f in sections["verification"].fields}
     assert v_fields["verification.critic_mode"].value_type == "string"
     assert [c.value for c in v_fields["verification.critic_mode"].choices] == [
@@ -153,9 +153,9 @@ def test_llm_agent_settings_export_schema_groups_sections() -> None:
         is SettingProminence.CRITICAL
     )
 
-    # The critic API key must surface in the schema as a CRITICAL, secret
-    # field that depends on critic_enabled — this is what the GUI uses to
-    # render a masked input gated on the toggle.
+    # API 评论键必须在模式中作为 CRITICAL 和机密字段呈现，这些字段依赖于 critic_enabled
+    # — 这是 GUI 用来渲染受切换控制的隐藏输入的关键。
+    #
     critic_api_key = v_fields["verification.critic_api_key"]
     assert critic_api_key.secret is True
     assert critic_api_key.value_type == "string"
@@ -182,15 +182,16 @@ def test_acp_agent_settings_export_schema_has_acp_section() -> None:
         "acp_prompt_timeout",
         "acp_startup_timeout",
     }
-    # Server picker + model are both critical — users pick server then
-    # model. Raw command is a minor override for power users.
+    # 服务器选择器+模型都很关键——用户选择服务器然后模型。 对于高级用户来说，原始命令是一
+    # 个较小的覆盖。
+    #
     assert acp_fields["acp_server"].prominence is SettingProminence.CRITICAL
     assert acp_fields["acp_model"].prominence is SettingProminence.CRITICAL
     assert acp_fields["acp_command"].prominence is SettingProminence.MINOR
 
-    # mcp_config is exposed as a single object field (matching the OpenHands
-    # variant) rather than being expanded into nested per-server fields. The
-    # servers are forwarded to the ACP subprocess at session creation.
+    # mcp_config 作为单个对象字段公开（与 OpenHands 变体匹配），而不是扩展为嵌套的每服务
+    # 器字段。 服务器在会话创建时转发到 ACP 子进程。
+    #
     general_fields = {f.key: f for f in sections["general"].fields}
     assert "mcp_config" in general_fields
     assert general_fields["mcp_config"].prominence is SettingProminence.MINOR
@@ -230,7 +231,7 @@ def test_conversation_settings_export_schema_groups_sections() -> None:
         "docker",
     ]
     assert runtime_fields["default_runtime"].default == "local"
-    # Each runtime's options show only while that runtime is the default.
+    # 每个运行时的选项仅在该运行时为默认时显示。
     assert {key: f.depends_on for key, f in runtime_fields.items()} == {
         "default_runtime": [],
         "worktree_base": ["default_runtime=worktree"],
@@ -247,13 +248,14 @@ def test_conversation_settings_export_schema_groups_sections() -> None:
     ]
     assert runtime_fields["worktree_branch_prefix"].default == "openhands/"
     assert runtime_fields["container_browser"].default is True
-    # One tier: the page has a few fields, none worth hiding behind "All".
+    # 第一层：页面有几个字段，None值得隐藏在“全部”后面。
     assert {f.prominence for f in runtime_fields.values()} == {SettingProminence.MAJOR}
 
 
 def test_runtime_settings_stay_out_of_create_request() -> None:
-    # They are Canvas launcher defaults; create_request() callers such as the
-    # OpenAI gateway start in-process and must keep running locally.
+    # 它们是 Canvas 启动器默认设置； create_request() 调用者（例如 OpenAI 网关）在进程内
+    # 启动，并且必须保持在本地运行。
+    #
     settings = ConversationSettings(
         default_runtime="worktree",
         worktree_base="head",
@@ -275,7 +277,7 @@ def test_runtime_settings_stay_out_of_create_request() -> None:
 @pytest.mark.parametrize(
     "values",
     [
-        # "Other ref" needs the ref itself.
+        # “其他参考”需要参考本身。
         {"worktree_base": "ref"},
         # git would read a leading "-" as an option.
         {"worktree_base": "ref", "worktree_base_ref": "--orphan"},
@@ -293,7 +295,7 @@ def test_unusable_worktree_settings_are_refused(values: dict[str, str]) -> None:
         ("container_memory", "512m", True),
         ("container_memory", "4 GB", True),
         ("container_memory", "2GiB", True),
-        # `docker run --memory` refuses these, so every start would fail.
+        # `docker run --memory` 拒绝这些，因此每次启动都会失败。
         ("container_memory", "lots", False),
         ("container_memory", "", False),
         ("container_cpus", 0.01, True),
@@ -311,7 +313,7 @@ def test_container_limits_are_checked_when_saved(
 
 
 def test_export_settings_schema_remains_backward_compatible():
-    """export_settings_schema produces identical structured schemas."""
+    """export_settings_schema产生相同结构的模式。"""
     schema_openhands = export_settings_schema(OpenHandsAgentSettings)
     assert any(s.key == "general" for s in schema_openhands.sections)
     assert any(s.key == "llm" for s in schema_openhands.sections)
@@ -404,11 +406,11 @@ def test_conversation_settings_create_request_with_acp_agent() -> None:
 
 
 def test_acp_create_request_lifts_context_secrets_into_request_secrets() -> None:
-    # End-to-end: provider creds supplied as agent_context.secrets (keyed by
-    # the provider's env var name) are lifted into request.secrets by
-    # create_request — the channel that lands them in state.secret_registry
-    # on the agent-server, from where _start_acp_server injects them into the
-    # subprocess env. llm.api_key is no longer read (deprecated, #3632).
+    # 端到端：agent_context.secrets（根据提供商的环境变量名称键）提供的凭证被
+    # create_request（将它们注入到state.secret_registry上的智能体服务器）注入到request.
+    # secrets，从_start_acp_server那里注入到子进程的环境。 llm.api_key 不再被读取（已弃
+    # 用，#3632）。
+    #
     agent = ACPAgentSettings(
         acp_server="claude-code",
         agent_context=AgentContext(
@@ -431,7 +433,7 @@ def test_acp_create_request_lifts_context_secrets_into_request_secrets() -> None
 
 
 # ---------------------------------------------------------------------------
-# Schema export — combined (discriminated union)
+# 模式导出 — 联合（受歧视联合）
 # ---------------------------------------------------------------------------
 
 
@@ -441,8 +443,9 @@ def test_export_agent_settings_schema_emits_variant_tagged_sections() -> None:
 
     by_keyvariant = {(s.key, s.variant): s for s in schema.sections}
 
-    # Shared general section contains LLM-only top-level fields with
-    # field-level variant="openhands" tags (so they hide on the ACP page).
+    # 共享常规部分包含仅限 LLM 的顶级字段，带有字段级变量 =“OpenHands”标签（因此它们隐藏
+    # 在 ACP 页面上）。
+    #
     general = by_keyvariant.get(("general", None))
     assert general is not None
     general_keys = {f.key for f in general.fields}
@@ -454,25 +457,26 @@ def test_export_agent_settings_schema_emits_variant_tagged_sections() -> None:
         "tool_concurrency_limit",
         "mcp_config",
     }
-    # No agent_kind field — each variant has its own settings page and
-    # injects the discriminator on save.
+    # 没有 agent_kind 字段 - 每个变体都有自己的设置页面，并在保存时注入鉴别器。
+    #
     assert "agent_kind" not in general_keys
     for f in general.fields:
         assert f.variant == "openhands", (
             f"expected field {f.key} variant=openhands, got {f.variant}"
         )
 
-    # LLM-variant sections.
+    # LLM-变体部分。
     assert ("llm", "openhands") in by_keyvariant
     assert ("condenser", "openhands") in by_keyvariant
     assert ("verification", "openhands") in by_keyvariant
 
-    # Memory section is OpenHands-only: the GUI matches sections by key and
-    # ignores variant, so tagging both variants would render the toggle twice.
+    # 内存部分仅是 OpenHands：GUI 按键匹配部分并忽略变体，因此标记两个变体将渲染切换两次
+    # 。
+    #
     assert ("agent_context", "openhands") in by_keyvariant
     assert ("agent_context", "acp") not in by_keyvariant
 
-    # ACP-variant sections.
+    # ACP-变体部分。
     acp_section = by_keyvariant.get(("acp", "acp"))
     assert acp_section is not None
     acp_keys = {f.key for f in acp_section.fields}
@@ -480,8 +484,8 @@ def test_export_agent_settings_schema_emits_variant_tagged_sections() -> None:
     assert "acp_command" in acp_keys
     assert "acp_model" in acp_keys
 
-    # acp_server is the critical user-visible field (the command is a
-    # minor override).
+    # acp_server 是关键的用户可见字段（该命令是次要覆盖）。
+    #
     server_field = next(f for f in acp_section.fields if f.key == "acp_server")
     assert server_field.prominence is SettingProminence.CRITICAL
     server_choices = {c.value for c in server_field.choices}
@@ -502,7 +506,7 @@ def test_export_agent_settings_schema_emits_variant_tagged_sections() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Discriminator + validation
+# 鉴别器 + 验证
 # ---------------------------------------------------------------------------
 
 
@@ -513,9 +517,9 @@ def test_default_agent_settings_returns_openhands_variant() -> None:
 
 
 def test_condenser_settings_discriminator_declared_on_base():
-    """CondenserSettings base declares condenser_kind.
+    """CondenserSettings 基声明 condenser_kind。
 
-    The discriminator accesses it directly without getattr.
+    判别器直接访问它，无需 getattr。
     """
     base = CondenserSettings(enabled=True)
     assert base.condenser_kind == "llm_summarizing"
@@ -531,9 +535,9 @@ def test_condenser_settings_discriminator_declared_on_base():
 
 
 def test_agent_settings_discriminator_declared_on_base():
-    """AgentSettingsBase declares agent_kind.
+    """AgentSettingsBase 声明 agent_kind。
 
-    The discriminator accesses it directly without getattr.
+    判别器直接访问它，无需 getattr。
     """
     base = AgentSettingsBase()
     assert base.agent_kind == "openhands"
@@ -551,7 +555,7 @@ def test_agent_settings_discriminator_declared_on_base():
 def test_validate_agent_settings_defaults_to_openhands_when_discriminator_missing() -> (
     None
 ):
-    """Existing persisted payloads predate ``agent_kind`` — they must round-trip."""
+    """现有的已持久化载荷早于 ``agent_kind`` — 它们必须往返。"""
     v = validate_agent_settings({"llm": {"model": "test-model"}})
     assert isinstance(v, OpenHandsAgentSettings)
     assert v.llm.model == "test-model"
@@ -602,14 +606,14 @@ def test_validate_agent_settings_dispatches_current_acp_payload() -> None:
     )
 
     assert isinstance(settings, ACPAgentSettings)
-    # Migrations keep ACP payloads intact while bumping schema_version.
+    # 迁移保持 ACP 载荷完整，同时碰撞 schema_version。
     assert settings.schema_version == AGENT_SETTINGS_SCHEMA_VERSION
     assert settings.acp_command == ["npx", "-y", "claude-agent-acp"]
 
 
 def test_validate_agent_settings_canonicalizes_legacy_llm_kind() -> None:
-    """v1 payloads with the deprecated ``agent_kind: 'llm'`` are migrated to
-    the canonical ``'openhands'`` discriminator on read."""
+    """v1载荷与已弃用``agent_kind: 'llm'``被迁移到
+    读取时的规范 ``'openhands'`` 判别器。"""
     settings = validate_agent_settings(
         {
             "schema_version": 1,
@@ -664,7 +668,7 @@ def test_validate_agent_settings_migrates_legacy_openhands_proxy_llm() -> None:
 
 
 def test_validate_agent_settings_migrates_v5_modify_params() -> None:
-    """Persisted ``llm.modify_params`` (removed in v1.47.0) is dropped on load."""
+    """已持久化 ``llm.modify_params``（在 v1.47.0 中删除）在加载时被删除。"""
     settings = validate_agent_settings(
         {
             "schema_version": 5,
@@ -1085,8 +1089,9 @@ def test_openhands_agent_settings_from_persisted_matches_union_validator() -> No
     from_persisted_settings = OpenHandsAgentSettings.from_persisted(payload)
     union_settings = validate_agent_settings(payload)
 
-    # agent_context.current_datetime defaults to now(); exclude it so the
-    # comparison is not sensitive to the microseconds between validations.
+    # agent_context.current_datetime默认为now()； 排除它，以便比较对验证之间的微秒不敏感
+    # 。
+    #
     volatile = {"agent_context": {"current_datetime"}}
     assert from_persisted_settings.model_dump(
         exclude=volatile
@@ -1139,8 +1144,9 @@ def test_llm_create_agent_defaults_tool_concurrency_limit_to_one() -> None:
 
 def test_create_agent_defaults_tools_when_none() -> None:
     """tools=None (the default) materializes the canonical exec set at
-    create_agent — the single defaulting point (#3967 / #3978). Deterministic:
-    browser is a serving-layer injection, never part of the default."""
+    create_agent — 单个默认点 (#3967 / #3978)。 确定性：浏览器是服务层注入，绝不是默
+    认的一部分。
+    """
     settings = OpenHandsAgentSettings(llm=LLM(model="test-model"))
     assert settings.tools is None
     agent = settings.create_agent()
@@ -1471,7 +1477,7 @@ def test_explicitly_selected_switch_llm_is_not_added_twice() -> None:
 
 def test_create_agent_empty_tools_stays_bare() -> None:
     """tools=[] is an explicit choice: no default injection (persisted-payload
-    compatibility — [] predates the None default and keeps its old meaning)."""
+    兼容性 — [] 早于 None 默认值并保留其旧含义）。"""
     settings = OpenHandsAgentSettings(llm=LLM(model="test-model"), tools=[])
     agent = settings.create_agent()
     assert agent.tools == []
@@ -1493,8 +1499,8 @@ def test_create_agent_without_persona_uses_builtin_prompt() -> None:
 
 
 def test_tool_concurrency_limit_defaults_to_one_when_omitted_from_payload() -> None:
-    # Backward compatibility: payloads persisted before the field existed must
-    # still load and fall back to the sequential default.
+    # 向后兼容性：载荷已持久化在字段存在之前仍然必须加载并回退到顺序默认值。
+    #
     settings = OpenHandsAgentSettings.model_validate({"agent_kind": "openhands"})
     assert settings.tool_concurrency_limit == 1
 
@@ -1502,14 +1508,14 @@ def test_tool_concurrency_limit_defaults_to_one_when_omitted_from_payload() -> N
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        (1, 1),  # sequential default, explicit
+        (1, 1),  # 顺序默认，显式
         (2, 2),
         (8, 8),
         (32, 32),
-        (1000, 1000),  # no upper cap — large values are accepted
-        ("4", 4),  # lax string -> int coercion
-        (4.0, 4),  # whole-number float coercion
-        (True, 1),  # bool is an int subclass; True -> 1 (>= 1, so valid)
+        (1000, 1000),  # 无上限——接受较大的值
+        ("4", 4),  # 松散字符串 -> int 强制转换
+        (4.0, 4),  # 整数浮点强制
+        (True, 1),  # bool 是 int 子类； True -> 1（>= 1，因此有效）
     ],
 )
 def test_tool_concurrency_limit_valid_values_round_trip(
@@ -1521,7 +1527,7 @@ def test_tool_concurrency_limit_valid_values_round_trip(
     assert settings.tool_concurrency_limit == expected
     assert type(settings.tool_concurrency_limit) is int
 
-    # The value must survive a JSON serialization round-trip...
+    # 该值必须在 JSON 序列化往返中保持不变...
     reloaded = OpenHandsAgentSettings.model_validate(settings.model_dump(mode="json"))
     assert reloaded.tool_concurrency_limit == expected
 
@@ -1533,14 +1539,14 @@ def test_tool_concurrency_limit_valid_values_round_trip(
 @pytest.mark.parametrize(
     "raw",
     [
-        0,  # below ge=1
-        -1,  # negative
+        0,  # 低于 ge=1
+        -1,  # 消极的
         -100,
-        False,  # bool False -> 0, below ge=1
-        4.5,  # non-integral float
-        "abc",  # unparseable string
-        None,  # not Optional
-        [1],  # wrong type entirely
+        False,  # bool False -> 0，低于 ge=1
+        4.5,  # 非整数浮点数
+        "abc",  # 无法解析的字符串
+        None,  # 不可选
+        [1],  # 完全错误的类型
     ],
 )
 def test_tool_concurrency_limit_invalid_values_rejected(raw: Any) -> None:
@@ -1576,7 +1582,7 @@ def test_llm_create_agent_serializes_typed_mcp_config_compactly() -> None:
 
 
 def test_disabled_mcp_server_survives_settings_round_trip() -> None:
-    """A switched-off server stays off, and keeps its config, across reloads."""
+    """关闭的服务器在重新加载期间保持关闭状态并保留其配置。"""
     settings = OpenHandsAgentSettings.model_validate(
         {
             "mcp_config": {
@@ -1627,12 +1633,11 @@ def test_llm_create_agent_builds_condenser_when_enabled() -> None:
 
 
 def test_llm_summarizing_condenser_inherits_max_tokens_from_llm() -> None:
-    """When the condenser's ``max_tokens`` is left unset, it should inherit
-    the agent LLM's ``effective_max_input_tokens`` so that condensation can
-    be triggered by token count, not just event count. See #3746: a
-    configured ``max_input_tokens`` on the LLM had no effect on the
-    condenser, so long tool outputs could blow past the context window
-    without ever triggering summarization.
+    """当上下文压缩器的``max_tokens``未设置时，它应该继承
+    智能体 LLM 的 ``effective_max_input_tokens`` 以便上下文压缩可以由词元数量触发，而
+    不仅仅是事件计数。 见#3746：配置的
+    ``max_input_tokens``在LLM上没有对上下文压缩器产生影响，所以长工具输出可以不经上下
+    文窗口就直接过。
     """
     llm = LLM(model="test-model", usage_id="agent", max_input_tokens=65536)
     settings = OpenHandsAgentSettings(
@@ -1646,8 +1651,8 @@ def test_llm_summarizing_condenser_inherits_max_tokens_from_llm() -> None:
 
 
 def test_llm_summarizing_condenser_respects_explicit_max_tokens_over_llm() -> None:
-    """An explicitly configured condenser ``max_tokens`` must not be
-    overridden by the LLM's ``effective_max_input_tokens``.
+    """显式配置的上下文压缩器 ``max_tokens`` 不得
+    被LLM的``effective_max_input_tokens``覆盖。
     """
     llm = LLM(model="test-model", usage_id="agent", max_input_tokens=65536)
     settings = OpenHandsAgentSettings(
@@ -1661,9 +1666,9 @@ def test_llm_summarizing_condenser_respects_explicit_max_tokens_over_llm() -> No
 
 
 def test_llm_summarizing_condenser_max_tokens_none_when_llm_has_no_limit() -> None:
-    """When neither the condenser nor the LLM has a token limit configured,
-    the condenser's ``max_tokens`` should remain ``None`` (event-count-only
-    condensation), matching pre-fix behavior for users who never set
+    """当上下文压缩器和LLM都没有配置token限制时，
+    上下文压缩器的 ``max_tokens`` 应保留 ``None``（仅限事件计数上下文压缩），与从未设
+    置的用户匹配前缀行为
     ``max_input_tokens``.
     """
     llm = LLM(model="test-model", usage_id="agent")
@@ -1678,9 +1683,9 @@ def test_llm_summarizing_condenser_max_tokens_none_when_llm_has_no_limit() -> No
 
 
 def test_llm_summarizing_condenser_explicit_none_max_tokens_remains_unset() -> None:
-    """An explicit ``max_tokens=None`` remains unset on the condenser configuration.
+    """上下文压缩器配置上的显式 ``max_tokens=None`` 保持未设置。
 
-    The active agent LLM's effective input limit still governs condensation at runtime.
+    运行时，活动智能体 LLM 的有效输入限制仍然控制上下文压缩。
     """
     llm = LLM(model="test-model", usage_id="agent", max_input_tokens=65536)
     settings = OpenHandsAgentSettings(
@@ -1792,9 +1797,9 @@ def test_llm_create_agent_no_critic_without_api_key() -> None:
 
 
 def test_llm_create_agent_critic_uses_explicit_api_key() -> None:
-    """When ``verification.critic_api_key`` is set, the critic authenticates
-    with it instead of the LLM key. The LLM's own key is preserved untouched
-    so the main agent loop still talks to its provider."""
+    """当设置``verification.critic_api_key``时，批评者进行身份验证
+    用它代替 LLM 键。 LLM 自己的密钥保持不变，因此主智能体循环仍然与其提供者对话。
+    """
     settings = OpenHandsAgentSettings(
         llm=LLM(model="m", api_key=SecretStr("llm-key")),
         verification=VerificationSettings(
@@ -1806,14 +1811,14 @@ def test_llm_create_agent_critic_uses_explicit_api_key() -> None:
     assert isinstance(agent.critic, APIBasedCritic)
     assert isinstance(agent.critic.api_key, SecretStr)
     assert agent.critic.api_key.get_secret_value() == "critic-key"
-    # LLM key unaffected.
+    # LLM 键不受影响。
     assert isinstance(agent.llm.api_key, SecretStr)
     assert agent.llm.api_key.get_secret_value() == "llm-key"
 
 
 def test_llm_create_agent_critic_falls_back_to_llm_api_key() -> None:
-    """Without ``verification.critic_api_key``, the legacy behavior holds:
-    the critic reuses the LLM key (auto-config path for the All-Hands proxy)."""
+    """如果没有 ``verification.critic_api_key``，遗留行为将成立：
+    评论家重复使用 LLM 键（All-Hands 代理的自动配置路径）。"""
     settings = OpenHandsAgentSettings(
         llm=LLM(model="m", api_key=SecretStr("llm-key")),
         verification=VerificationSettings(critic_enabled=True),
@@ -1825,8 +1830,8 @@ def test_llm_create_agent_critic_falls_back_to_llm_api_key() -> None:
 
 
 def test_llm_create_agent_critic_with_only_critic_api_key() -> None:
-    """If the LLM has no key but ``critic_api_key`` is supplied, the critic
-    is still built — its credential is independent of the LLM's."""
+    """如果 LLM 没有密钥但提供了 ``critic_api_key``，则批评者
+    仍然被构建 - 它的凭据独立于 LLM。"""
     settings = OpenHandsAgentSettings(
         llm=LLM(model="m", api_key=None),
         verification=VerificationSettings(
@@ -1841,8 +1846,8 @@ def test_llm_create_agent_critic_with_only_critic_api_key() -> None:
 
 
 def test_verification_settings_critic_api_key_roundtrip() -> None:
-    """``critic_api_key`` survives dump → validate when secrets are exposed,
-    and validates from both plain strings and SecretStr inputs."""
+    """``critic_api_key`` 在转储中幸存 → 当机密暴露时进行验证，
+    并从纯字符串和 SecretStr 输入进行验证。"""
     settings = VerificationSettings(
         critic_enabled=True,
         critic_api_key="plain-string-key",
@@ -1857,7 +1862,7 @@ def test_verification_settings_critic_api_key_roundtrip() -> None:
     assert isinstance(restored.critic_api_key, SecretStr)
     assert restored.critic_api_key.get_secret_value() == "plain-string-key"
 
-    # Empty strings normalize to None (consistent with LLM.api_key handling).
+    # 空字符串标准化为 None（与 LLM.api_key 处理一致）。
     empty = VerificationSettings(critic_enabled=True, critic_api_key="")
     assert empty.critic_api_key is None
 
@@ -1895,11 +1900,12 @@ def test_llm_roundtrip_preserves_llm_model() -> None:
 def test_acp_create_agent_uses_server_default_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With ``acp_server`` set but no explicit command, use the built-in default.
+    """设置 ``acp_server`` 但没有显式命令时，使用内置默认值。
 
-    Pin ``shutil.which`` to ``None`` so the ``npx`` default is asserted
-    deterministically — on a host where the pinned ``claude-agent-acp`` binary
-    is installed, :meth:`resolve_acp_command` would (correctly) rewrite to it.
+    将 ``shutil.which`` 粘贴到 ``None``，使 ``npx`` 的默认值被确定性地激活 —— 在已安
+    装粘贴的
+    ``claude-agent-acp`` 二进制文件的主机上，`resolve_acp_command` 方法 (正确地) 会重
+    写为它。
     """
     monkeypatch.setattr(shutil, "which", lambda _: None)
     settings = ACPAgentSettings(acp_server="claude-code", acp_model="claude-opus-4-6")
@@ -1912,18 +1918,18 @@ def test_acp_create_agent_uses_server_default_command(
         "@agentclientprotocol/claude-agent-acp@0.63.0",
     ]
     assert agent.acp_model == "claude-opus-4-6"
-    # The authoritative provider key is carried onto the agent.
+    # 权威提供商密钥被携带到智能体上。
     assert agent.acp_server == "claude-code"
 
 
 def test_acp_create_agent_carries_provider_key() -> None:
-    """``create_agent`` stamps the provider key onto the agent for every choice.
+    """``create_agent`` 将每个选择的提供者密钥标记到智能体上。
 
-    ``acp_command`` does not reliably reverse-map to a provider, so the key must
-    ride the agent (and thus ``ConversationInfo.agent``) for consumers to resolve
-    a brand label / model list. Custom carries through verbatim; an agent built
-    directly (not from settings) defaults to ``None``; and the key survives a
-    serialization round-trip through the ``AgentBase`` discriminated union.
+    ``acp_command`` 无法可靠地反向映射到提供商，因此密钥必须利用智能体（因此也是
+    ``ConversationInfo.agent``）以便消费者解析品
+    牌标签/型号列表。 习惯一字不差地贯彻执行； 直接构建的智能体（不是从设置）默认为
+    ``None``； 并且密钥在通过 ``AgentBase`` 受歧视联盟的序列
+    化往返中仍然存在。
     """
     for server in (
         "claude-code",
@@ -1950,10 +1956,10 @@ def test_acp_create_agent_carries_provider_key() -> None:
 def test_acp_resolve_command_for_known_servers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Every non-custom choice must map to a runnable default.
+    """每个非自定义选择都必须映射到可运行的默认值。
 
-    With no pinned binary on ``PATH`` (``shutil.which`` → ``None``), the
-    default stays the ``npx`` invocation.
+    由于 ``PATH`` (``shutil.which`` → ``None``) 上没有固定二进制文件，默认保留
+    ``npx`` 调用。
     """
     monkeypatch.setattr(shutil, "which", lambda _: None)
     for server in ("claude-code", "codex", "gemini-cli", "kimi-code", "pi", "opencode"):
@@ -1983,11 +1989,10 @@ def test_acp_custom_server_requires_explicit_command() -> None:
 
 
 def test_acp_create_agent_forwards_isolate_data_dir() -> None:
-    """``acp_isolate_data_dir`` propagates from settings to the built agent.
+    """``acp_isolate_data_dir`` 从设置传播到构建的智能体。
 
-    Off by default, and an explicit True reaches ``ACPAgent`` so a deploying
-    application can opt conversations sharing one sandbox into a per-conversation
-    CLI data dir (#1019).
+    默认情况下是错的，一个明确的 True 会到达 ``ACPAgent``，这样部署的应用可以将一个沙
+    箱中的对话分享到一个会话 CLI 的数据目录 (#1019)。
     """
     default_agent = ACPAgentSettings(acp_server="codex").create_agent()
     assert default_agent.acp_isolate_data_dir is False
@@ -2007,19 +2012,18 @@ def test_acp_custom_server_with_command_resolves() -> None:
 
 
 # ---------------------------------------------------------------------------
-# resolve_acp_command() — prefer the pinned, pre-installed CLI binary
+# resolve_acp_command() — 更喜欢固定的、预安装的 CLI 二进制文件
 #
-# The agent-server image pre-installs the ACP CLIs and exposes them as wrappers
-# on PATH (claude-agent-acp / codex-acp / gemini). resolve_acp_command rewrites
-# the ``npx -y <pkg>`` launch command — the registry default AND the explicit
-# acp_command canvas sends — to run the pinned binary directly when it is on
-# PATH (reproducible, no runtime npm download), preserving trailing args. When
-# the binary is absent (local dev), it falls back to the npx command unchanged.
+# 的智能体服务器预安装了 [server image] ACP  CLIs 并暴露为包装器 PATH (claude-智能体-ACP
+#  / codex-ACP / gemini). resolve_acp_command 重写 ``npx -y <pkg>`` 启动命令 ——  注册表
+# default AND explicit acp_command canvas 发送 — 当它在时，直接运行 pinned 二进制 PATH (
+# 可重现的，不进行运行时的 npm 下载)，保留尾随参数。 当二进制文件不存在（本地开发）时，
+# 它将回退到 npx 命令不变。
 # ---------------------------------------------------------------------------
 
 
 def _which_returning(*available: str):
-    """Build a ``shutil.which`` stub resolving only the named binaries."""
+    """构建仅解析指定二进制文件的 ``shutil.which`` 存根。"""
     paths = {name: f"/usr/local/bin/{name}" for name in available}
     return lambda name: paths.get(name)
 
@@ -2029,11 +2033,12 @@ def _which_returning(*available: str):
     [
         ("claude-code", "claude-agent-acp", ["claude-agent-acp"]),
         ("codex", "codex-acp", ["codex-acp"]),
-        # gemini's default carries a trailing ``--acp`` that must be preserved.
+        # Gemini 的默认值带有必须保留的尾随 ``--acp``。
         ("gemini-cli", "gemini", ["gemini", "--acp"]),
         ("pi", "pi-acp", ["pi-acp"]),
-        # opencode's trailing arg is an ``acp`` subcommand, preserved the same
-        # way as gemini's ``--acp`` flag.
+        # opencode 的尾随 arg 是一个 ``acp`` 子命令，其保留方式与 Gemini 的 ``--acp`` 标
+        # 志相同。
+        #
         ("opencode", "opencode", ["opencode", "acp"]),
     ],
 )
@@ -2043,7 +2048,7 @@ def test_acp_resolve_command_rewrites_default_to_pinned_binary(
     binary: str,
     expected: list[str],
 ) -> None:
-    """(a) Registry default + binary on PATH → run the pinned binary directly."""
+    """(a) 注册表默认 + PATH 上的二进制文件 → 直接运行固定的二进制文件。"""
     monkeypatch.setattr(shutil, "which", _which_returning(binary))
     settings = ACPAgentSettings(acp_server=server)
     assert settings.resolve_acp_command() == expected
@@ -2052,8 +2057,8 @@ def test_acp_resolve_command_rewrites_default_to_pinned_binary(
 def test_acp_resolve_command_rewrites_explicit_npx_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """(b) Explicit ``npx -y <pkg>`` (what canvas sends) + binary on PATH →
-    rewritten to the pinned binary, with trailing args preserved."""
+    """(b) 显式 ``npx -y <pkg>``（画布发送的内容）+ PATH 上的二进制 →
+    重写为固定的二进制文件，并保留尾随参数。"""
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp"))
     settings = ACPAgentSettings(
         acp_server="codex",
@@ -2070,10 +2075,10 @@ def test_acp_resolve_command_rewrites_explicit_npx_command(
 def test_acp_resolve_command_rewrites_versioned_npx_to_pinned_binary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """(b') Matching is version-agnostic: an ``npx`` command for the provider's
-    package at *any* version (bare, the pinned default, or a drifted pin a client
-    sends) rewrites to the pinned binary on PATH — in the image we always stand
-    the reviewed binary in for the provider's package."""
+    """(b') 匹配与版本无关：提供者的 ``npx`` 命令
+    包at *任何的* 版本（裸的、默认的锁定版本，或客户端发送的漂移版本）重写为锁定的二
+    进制 PATH — 在图像中，我们总是将已审核的二进制文件呈现给提供者的包。
+    """
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp"))
     for pkg in (
         "@agentclientprotocol/codex-acp",
@@ -2089,10 +2094,10 @@ def test_acp_resolve_command_rewrites_versioned_npx_to_pinned_binary(
 def test_acp_resolve_command_keeps_npx_when_binary_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """(c) Binary not on PATH (local dev) → the ``npx`` command is unchanged.
+    """(c) 二进制文件不在 PATH（本地开发）上 → ``npx`` 命令不变。
 
-    The default is version-pinned, so the native fallback launches the reviewed
-    version rather than npm ``latest``.
+    默认情况下是版本固定的，因此本机回退方案启动经过审查的版本，而不是 npm ``latest``
+    。
     """
     monkeypatch.setattr(shutil, "which", lambda _: None)
     settings = ACPAgentSettings(acp_server="codex")
@@ -2107,8 +2112,8 @@ def test_acp_resolve_command_keeps_npx_when_binary_absent(
 def test_acp_resolve_command_leaves_custom_binary_untouched(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """(d) A non-npx / user-supplied command is never rewritten, even when the
-    provider's pinned binary is on PATH."""
+    """(d) 非 npx/用户提供的命令永远不会被重写，即使
+    提供商的固定二进制文件位于 PATH。"""
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp"))
     settings = ACPAgentSettings(
         acp_server="codex",
@@ -2120,8 +2125,8 @@ def test_acp_resolve_command_leaves_custom_binary_untouched(
 def test_acp_resolve_command_leaves_unknown_package_untouched(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """(d) An ``npx`` command for a *different* package is not rewritten — the
-    pinned binary only stands in for the provider's own package."""
+    """(d) 不重写 * different* 包的 ``npx`` 命令 —
+    固定的二进制文件仅代表提供商自己的包。"""
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp"))
     settings = ACPAgentSettings(
         acp_server="codex",
@@ -2133,8 +2138,8 @@ def test_acp_resolve_command_leaves_unknown_package_untouched(
 def test_acp_resolve_command_custom_server_never_rewritten(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``custom`` has no registry entry (hence no pinned binary), so even a
-    command that looks exactly like codex's is returned verbatim."""
+    """``custom`` 没有注册表条目（因此没有固定的二进制文件），所以即使
+    与 Codex 完全相同的命令会逐字返回。"""
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp", "gemini"))
     settings = ACPAgentSettings(
         acp_server="custom",
@@ -2150,7 +2155,7 @@ def test_acp_resolve_command_custom_server_never_rewritten(
 def test_acp_resolve_command_queries_which_with_binary_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The PATH probe uses the provider's ``binary_name``, not the npm package."""
+    """PATH 探针使用提供者的 ``binary_name``，而不是 npm 包。"""
     queried: list[str] = []
 
     def fake_which(name: str) -> str | None:
@@ -2169,7 +2174,7 @@ def test_acp_resolve_command_queries_which_with_binary_name(
 def test_acp_create_agent_uses_pinned_binary_when_present(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """End-to-end: create_agent() bakes the rewritten command into the agent."""
+    """端到端：create_agent()将重写的命令烘焙到智能体中。"""
     monkeypatch.setattr(shutil, "which", _which_returning("codex-acp"))
     agent = ACPAgentSettings(acp_server="codex").create_agent()
     assert agent.acp_command == ["codex-acp"]
@@ -2178,7 +2183,7 @@ def test_acp_create_agent_uses_pinned_binary_when_present(
 def test_acp_create_agent_pinned_binary_preserves_subcommand(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The rewrite keeps trailing args (``acp`` subcommand) after the binary."""
+    """重写会在二进制文件之后保留尾随 args（``acp`` 子命令）。"""
     monkeypatch.setattr(shutil, "which", _which_returning("kimi"))
     agent = ACPAgentSettings(acp_server="kimi-code").create_agent()
     assert agent.acp_command == ["kimi", "acp"]
@@ -2191,10 +2196,11 @@ def test_acp_api_key_env_var_maps_known_servers() -> None:
     )
     assert ACPAgentSettings(acp_server="codex").api_key_env_var == "OPENAI_API_KEY"
     assert ACPAgentSettings(acp_server="gemini-cli").api_key_env_var == "GEMINI_API_KEY"
-    # Kimi has no env-var API key; the credential is config.toml.
+    # Kimi 没有 env-var API 键； 凭据是 config.toml。
     assert ACPAgentSettings(acp_server="kimi-code").api_key_env_var is None
-    # pi is multi-provider but reads a plain provider key out of the process
-    # env; ANTHROPIC_API_KEY is the channel the registry provisions for it.
+    # pi 是多提供者，但从进程环境中读取普通提供者密钥； ANTHROPIC_API_KEY 是注册表为其提
+    # 供的通道。
+    #
     assert ACPAgentSettings(acp_server="pi").api_key_env_var == "ANTHROPIC_API_KEY"
     assert (
         ACPAgentSettings(acp_server="custom", acp_command=["x"]).api_key_env_var is None
@@ -2202,10 +2208,10 @@ def test_acp_api_key_env_var_maps_known_servers() -> None:
 
 
 def test_acp_create_agent_ignores_llm_credentials() -> None:
-    # llm.api_key/base_url are never read: an LLM-profile base_url would leak
-    # into the subprocess and silently re-route its API calls (#3632). Provider
-    # credentials ride the conversation secrets channel keyed by the provider's
-    # env var name; the caller's secrets pass through untouched.
+    # llm.api_key/base_url 永远不会被读取：LLM-配置文件 base_url 会泄漏到子进程中并默默
+    # 地重新路由其 API 调用 (#3632)。 提供者凭据乘坐由提供者的环境变量名称键入的对话机密
+    # 通道； 调用者的机密未受影响地通过。
+    #
     context = AgentContext(secrets={"GITHUB_TOKEN": "ghp_test"})
     settings = ACPAgentSettings.from_persisted(
         dict(
@@ -2222,14 +2228,14 @@ def test_acp_create_agent_ignores_llm_credentials() -> None:
 
     agent = settings.create_agent()
 
-    # The caller's secrets pass through untouched; no provider creds appear.
+    # 调用者的机密不受影响地通过； 没有提供者信用出现。
     assert agent.agent_context is not None
     assert dict(agent.agent_context.secrets or {}) == {"GITHUB_TOKEN": "ghp_test"}
 
 
 def test_acp_create_agent_ignores_credentials_without_context() -> None:
-    # No caller agent_context: nothing is synthesized for the ignored creds —
-    # the context stays None.
+    # 无调用者 agent_context：不会为被忽略的信用合成任何内容 — 上下文保留为 None。
+    #
     settings = ACPAgentSettings.from_persisted(
         dict(
             agent_kind="acp",
@@ -2271,9 +2277,9 @@ def test_acp_settings_without_llm_do_not_warn() -> None:
 
 
 def test_acp_create_agent_passes_caller_context_through() -> None:
-    # Secrets supplied via agent_context reach the agent unchanged; they are
-    # seeded into state.secret_registry at conversation init (the canonical
-    # channel), not rewritten here.
+    # 机密通过 agent_context 提供，到达智能体不变； 它们在对话初始化（规范通道）时被播种
+    # 到 state.secret_registry 中，而不是在这里重写。
+    #
     context = AgentContext(secrets={"ANTHROPIC_API_KEY": "sk-direct"})
     settings = ACPAgentSettings(acp_server="claude-code", agent_context=context)
 
@@ -2283,8 +2289,8 @@ def test_acp_create_agent_passes_caller_context_through() -> None:
 
 
 def test_llm_agent_settings_public_alias_removed() -> None:
-    """The deprecated ``LLMAgentSettings`` public import aliases were removed in
-    v1.24.0; the class itself is retained (internal-only) for the union."""
+    """已弃用 ``LLMAgentSettings`` 公共导入别名已在
+    v1.24.0; 类本身为联合保留（仅限内部）。"""
     import openhands.sdk as _sdk_mod
     import openhands.sdk.settings as _settings_mod
 
@@ -2293,9 +2299,9 @@ def test_llm_agent_settings_public_alias_removed() -> None:
     with pytest.raises(AttributeError):
         getattr(_sdk_mod, "LLMAgentSettings")
 
-    # The class is still reachable at its canonical internal location and keeps
+    # 该类仍然可以在其规范的内部位置访问并保持
     # agent_kind="llm" so the discriminated union deserializes legacy payloads
-    # and the API-breakage checker sees no field-value change.
+    # API-破损检查器看不到字段值变化。
     from openhands.sdk.settings.model import LLMAgentSettings
 
     assert issubclass(LLMAgentSettings, OpenHandsAgentSettings)
@@ -2306,7 +2312,7 @@ def test_llm_agent_settings_public_alias_removed() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConversationSettings.create_request — dispatches on variant
+# ConversationSettings.create_request — 发送变体
 # ---------------------------------------------------------------------------
 
 
@@ -2355,7 +2361,7 @@ def test_conversation_settings_create_request_with_acp_agent_variant() -> None:
 
 
 def test_conversation_settings_agent_settings_field_accepts_both_variants() -> None:
-    """The agent_settings runtime field should accept either variant."""
+    """agent_settings 运行时字段应该接受任一变体。"""
     llm_conv = ConversationSettings(
         agent_settings=OpenHandsAgentSettings(llm=LLM(model="m")),
     )
@@ -2368,7 +2374,7 @@ def test_conversation_settings_agent_settings_field_accepts_both_variants() -> N
 
 
 # ---------------------------------------------------------------------------
-# Secret redaction in settings serialization
+# 设置序列化中的机密脱敏
 # ---------------------------------------------------------------------------
 
 
@@ -2396,12 +2402,11 @@ def test_openhands_agent_settings_mcp_config_redacts_env_and_headers() -> None:
 
 
 def test_mcp_config_encrypts_env_and_headers_with_cipher() -> None:
-    """When a cipher is in the serialization context (the on-disk persistence
-    path), MCP ``env`` / ``headers`` values must be encrypted per-value with
-    that cipher — the same way other secret fields are persisted.
+    """当密钥在序列化上下文 （磁盘上的持久化 ）时
+    路径），MCP ``env`` / ``headers`` 值必须使用该密码对每个值进行加密 — 与其他机密字
+    段的加密方式相同已持久化。
 
-    Round-tripping through ``model_validate`` with the same cipher must
-    recover the original plaintext values.
+    使用相同密码进行 ``model_validate`` 的往返必须恢复原始明文值。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -2438,21 +2443,21 @@ def test_mcp_config_encrypts_env_and_headers_with_cipher() -> None:
     assert isinstance(enc_token, str)
     assert isinstance(enc_auth, str)
 
-    # Plaintext values must NOT appear on disk.
+    # 纯文本值必须不出现在磁盘上。
     serialized = json.dumps(dumped)
     assert "ghp-mcp-secret" not in serialized
     assert "tok-mcp-secret" not in serialized
     assert "**********" not in serialized
 
-    # Values must be Fernet ciphertext (base64; starts with "gAAAA").
+    # 值必须是 Fernet 密文（base64； 以“gAAAA”开头）。
     assert enc_token.startswith("gAAAA")
     assert enc_auth.startswith("gAAAA")
-    # Non-secret structure must remain plaintext.
+    # 非机密结构必须保持明文。
     assert servers["github"]["command"] == "uvx"
     assert servers["github"]["args"] == ["mcp-server-github"]
     assert servers["fetch"]["url"] == "https://example.com/mcp"
 
-    # Round-trip: decrypt with the same cipher recovers the originals.
+    # 往返：使用相同的密码解密恢复原始数据。
     restored = OpenHandsAgentSettings.model_validate(dumped, context={"cipher": cipher})
     restored_dump = dump_mcp_config(restored.mcp_config)
     restored_github_env = restored_dump["github"]["env"]
@@ -2544,10 +2549,9 @@ def test_openhands_agent_settings_create_agent_preserves_mcp_auth_model() -> Non
 
 
 def test_openhands_agent_settings_mcp_config_decrypt_legacy_plaintext_on_disk() -> None:
-    """Loading a settings file that pre-dates per-value encryption (env /
-    headers stored as plaintext) must NOT drop those values: each value that
-    isn't a valid Fernet token is passed through unchanged so the next save
-    can re-encrypt it.
+    """加载早于按值加密的设置文件 (env /
+    必须不删除这些值：除了有效的 Fernet token 之外，每个值都保持不变，以便下次保存时
+    可以重新加密它。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -2557,7 +2561,7 @@ def test_openhands_agent_settings_mcp_config_decrypt_legacy_plaintext_on_disk() 
             "github": {
                 "command": "uvx",
                 "args": ["mcp-server-github"],
-                # plaintext, as the previous (pre-encryption) build wrote
+                # 明文，如先前（预加密）构建所写
                 "env": {"GITHUB_TOKEN": "ghp-legacy-plaintext"},
             }
         }
@@ -2572,12 +2576,11 @@ def test_openhands_agent_settings_mcp_config_decrypt_legacy_plaintext_on_disk() 
 
 
 def test_openhands_agent_settings_mcp_config_expose_encrypted_requires_cipher() -> None:
-    """``expose_secrets="encrypted"`` without a cipher must raise — mirroring
-    the contract used for individual ``SecretStr`` fields via
-    :func:`serialize_secret`. Pydantic wraps the inner
-    ``MissingCipherError`` in a ``PydanticSerializationError``; the
-    agent-server's ``translate_missing_cipher`` walks the cause chain to
-    surface a 503.
+    """``expose_secrets="encrypted"`` 没有密码必须提出 — 镜像
+    用于各个 ``SecretStr`` 字段的合约
+    :func:`serialize_secret`。 Pydantic 包裹内层
+    ``PydanticSerializationError`` 中的 ``MissingCipherError``； 智能体-服务器的
+    ``translate_missing_cipher`` 遍历原因链以显示 503。
     """
     from pydantic_core import PydanticSerializationError
 
@@ -2600,9 +2603,8 @@ def test_openhands_agent_settings_mcp_config_expose_encrypted_requires_cipher() 
 
 
 def test_openhands_agent_settings_mcp_config_expose_plaintext_passes_through() -> None:
-    """``expose_secrets="plaintext"`` must return raw env / headers values
-    even when a cipher is also in the context (e.g. an admin GET with
-    explicit plaintext exposure).
+    """``expose_secrets="plaintext"`` 必须返回原始环境/标头值
+    即使密码也在上下文 (e.g. 具有明确明文暴露的管理员 GET）。
     """
     from openhands.sdk.utils.cipher import Cipher
 
@@ -2627,8 +2629,9 @@ def test_openhands_agent_settings_mcp_config_expose_plaintext_passes_through() -
 
 
 def test_openhands_agent_settings_create_agent_keeps_real_mcp_secrets() -> None:
-    # create_agent must hand the runtime real env/headers (the field serializer
-    # redacts mcp_config for transit only).
+    # create_agent 必须传递运行时真实环境/标头（字段序列化器编辑 mcp_config 仅用于传输）
+    # 。
+    #
     mcp_config = coerce_mcp_config(
         {
             "leaky": {
@@ -2673,8 +2676,9 @@ def test_acp_agent_settings_mcp_config_redacts_env_and_headers() -> None:
 
 
 def test_acp_agent_settings_create_agent_keeps_real_mcp_secrets() -> None:
-    # create_agent must hand the subprocess real env/headers (the field serializer
-    # redacts mcp_config for transit/storage only).
+    # create_agent 必须提供子进程真实环境/标头（字段序列化器编辑 mcp_config 仅用于传输/
+    # 存储）。
+    #
     mcp_config = coerce_mcp_config(
         {
             "leaky": {
@@ -2698,7 +2702,7 @@ def test_acp_agent_settings_create_agent_keeps_real_mcp_secrets() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AgentSettingsBase — shared interface
+# AgentSettingsBase — 共享接口
 # ---------------------------------------------------------------------------
 
 
@@ -2722,7 +2726,7 @@ def test_agent_settings_base_export_schema_works_on_both_variants() -> None:
 
 
 def test_agent_settings_base_create_agent_is_callable_via_interface() -> None:
-    """Both variants expose create_agent() through the shared base type."""
+    """两种变体都通过共享基类型公开 create_agent()。"""
     settings: AgentSettingsBase = OpenHandsAgentSettings(llm=LLM(model="test-model"))
     agent = settings.create_agent()
     assert isinstance(agent, Agent)
@@ -2735,7 +2739,7 @@ def test_agent_settings_base_create_agent_is_callable_via_interface() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ACPAgentSettings — provider registry integration
+# ACPAgentSettings — 提供商注册表集成
 # ---------------------------------------------------------------------------
 
 
@@ -2759,7 +2763,7 @@ def test_acp_settings_api_key_env_var_from_registry() -> None:
     )
     assert ACPAgentSettings(acp_server="codex").api_key_env_var == "OPENAI_API_KEY"
     assert ACPAgentSettings(acp_server="gemini-cli").api_key_env_var == "GEMINI_API_KEY"
-    # Kimi has no env-var API key; the credential is config.toml.
+    # Kimi 没有 env-var API 键； 凭据是 config.toml。
     assert ACPAgentSettings(acp_server="kimi-code").api_key_env_var is None
     assert (
         ACPAgentSettings(acp_server="custom", acp_command=["x"]).api_key_env_var is None
@@ -2791,7 +2795,7 @@ def test_acp_resolve_command_uses_registry_defaults(
     )
     from openhands.sdk.settings.acp_providers import ACP_PROVIDERS
 
-    # No pinned binary on PATH → registry default is returned verbatim.
+    # PATH → 注册表上没有固定的二进制文件，默认情况下会逐字返回。
     monkeypatch.setattr(shutil, "which", lambda _: None)
     for server_key in (
         "claude-code",
@@ -2804,8 +2808,8 @@ def test_acp_resolve_command_uses_registry_defaults(
         settings = ACPAgentSettings(acp_server=server_key)
         expected = list(ACP_PROVIDERS[server_key].default_command)
         assert settings.resolve_acp_command() == expected
-    # Pi is the only provider whose default installs two packages: the pi-acp
-    # adapter and the `pi` engine it spawns off PATH.
+    # Pi 是唯一一个默认安装两个软件包的提供商：pi-ACP 适配器和它生成的 `pi` 引擎 PATH。
+    #
     pi_settings = ACPAgentSettings(acp_server="pi")
     assert pi_settings.resolve_acp_command() == [
         "npx",
@@ -2818,7 +2822,7 @@ def test_acp_resolve_command_uses_registry_defaults(
 
 
 # ---------------------------------------------------------------------------
-# Agent capability helpers
+# 智能体能力助手
 # ---------------------------------------------------------------------------
 
 

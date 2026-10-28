@@ -1,29 +1,26 @@
-"""Generic HTTP exporter.
+"""通用 HTTP 导出器。
 
-POSTs batches of already-sanitized events to a configured endpoint. Intended to
-front a backend that revalidates runtime auth and consent before forwarding
-onward, so no vendor credentials need to live in the sandbox.
+已批处理的已 sanitized 事件 POSTs，配置的端点。 旨在前端一个后端，该后端在转发之前验
+证运行时的认证和同意，因此不需要任何供应商凭据需要在沙盒中生存。
 
-The payload contract is stable and documented in the agent-server README:
+载荷合约是稳定的并记录在智能体-服务器 README 中：
 
-    POST <endpoint>
-    Content-Type: application/json
-    Authorization: Bearer <token>          # only when a token is configured
+    POST <endpoint> 内容类型：application/json
+    Authorization: Bearer <token> #仅当配置token时
 
     {
-      "schema_version": 1,
-      "events": [
+      “schema_version”：1，“事件”：[
         {
-          "event": "agent_server.conversation_finished",
-          "distinct_id": "<user id, or anon:...>",
-          "occurred_at": "2026-07-21T10:00:00Z",
-          "properties": { ... allowlisted properties ... }
+          “事件”：“agent_server.conversation_finished”，“distinct_id”：“
+          <user id, or anon:...>”，“occurred_at”：“2026-07-21T10：00：00Z”，“属性”：{
+           ... 列入许可
+          名单的属性...}
         }
       ]
     }
 
-Failures propagate to ``BufferedTelemetrySink``, which owns the retry, drop and
-bounded-shutdown behaviour — this class deliberately implements none of it.
+失败传播到``BufferedTelemetrySink``，它拥有重试、丢弃和有界关闭行为——这个类故意实现了
+它的None。
 """
 
 from typing import Final
@@ -43,7 +40,7 @@ DEFAULT_TIMEOUT_SECONDS: Final[float] = 15.0
 
 
 class HttpExporter:
-    """Ships sanitized diagnostic events to an arbitrary HTTP endpoint."""
+    """将清理后的诊断事件发送到任意 HTTP 端点。"""
 
     def __init__(
         self,

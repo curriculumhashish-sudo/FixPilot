@@ -1,8 +1,8 @@
 /**
- * Stuck Detection for Conversations
+ * 对话卡住检测
  *
- * Detects when an agent is stuck in repetitive or unproductive patterns.
- * This mirrors the Python SDK's StuckDetector class.
+ * 检测智能体何时陷入重复或无效模式。
+ * 这反映了 Python SDK 的 StuckDetector 类。
  */
 
 import {
@@ -17,21 +17,21 @@ import {
 } from '../events/types';
 
 /**
- * Thresholds for stuck detection patterns
+ * 卡住检测模式的阈值
  */
 export interface StuckDetectionThresholds {
-  /** Number of identical action-observation pairs before triggering (default: 4) */
+  /** 触发前相同动作-观测结果对的数量（默认值：4）*/
   actionObservation: number;
-  /** Number of identical action-error pairs before triggering (default: 4) */
+  /** 触发前相同动作-错误对的数量（默认值：4）*/
   actionError: number;
-  /** Number of consecutive agent messages without user input (default: 4) */
+  /** 无需用户输入的连续智能体消息数（默认值：4）*/
   monologue: number;
-  /** Number of alternating patterns before triggering (default: 6) */
+  /** 触发前交替模式的数量（默认值：6）*/
   alternatingPattern: number;
 }
 
 /**
- * Default thresholds for stuck detection
+ * 卡住检测的默认阈值
  */
 export const DEFAULT_STUCK_THRESHOLDS: StuckDetectionThresholds = {
   actionObservation: 4,
@@ -41,33 +41,33 @@ export const DEFAULT_STUCK_THRESHOLDS: StuckDetectionThresholds = {
 };
 
 /**
- * Result of stuck detection check
+ * 卡住检测检查结果
  */
 export interface StuckDetectionResult {
-  /** Whether the agent is stuck */
+  /** 智能体是否卡住*/
   isStuck: boolean;
-  /** Type of stuck pattern detected (if any) */
+  /** 检测到的卡住图案类型（如果有）*/
   pattern?:
     | 'action_observation_loop'
     | 'action_error_loop'
     | 'monologue'
     | 'alternating_pattern'
     | 'context_window_error';
-  /** Number of repetitions detected */
+  /** 检测到的重复次数*/
   repetitions?: number;
-  /** Human-readable description */
+  /** 人类可读的描述*/
   description?: string;
 }
 
 /**
- * Detects when an agent is stuck in repetitive or unproductive patterns.
+ * 检测智能体何时陷入重复或无效模式。
  *
- * This detector analyzes the conversation history to identify various stuck patterns:
- * 1. Repeating action-observation cycles
- * 2. Repeating action-error cycles
- * 3. Agent monologue (repeated messages without user input)
- * 4. Repeating alternating action-observation patterns
- * 5. Context window errors indicating memory issues
+ * 该检测器分析对话历史记录以识别各种卡住模式：
+ * 1. 重复动作-观测结果个周期
+ * 2. 重复动作-错误循环
+ * 3. 智能体独白（无需用户输入的重复消息）
+ * 4. 重复交替动作-观测结果模式
+ * 5. 上下文窗口指示内存问题的错误
  */
 export class StuckDetector {
   private thresholds: StuckDetectionThresholds;
@@ -80,24 +80,24 @@ export class StuckDetector {
   }
 
   /**
-   * Check if the agent is stuck based on the event history.
+   * 根据事件历史记录检查智能体是否卡住。
    *
-   * @param events - Array of conversation events to analyze
-   * @returns StuckDetectionResult with stuck status and details
+   * @param events - 要分析的对话事件数组
+   * @returns StuckDetectionResult 带有卡住状态和详细信息
    */
   isStuck(events: BaseEvent[]): StuckDetectionResult {
-    // Find the last user message index
+    // 查找最后一条用户消息索引
     const lastUserMsgIndex = this.findLastUserMessageIndex(events);
 
     if (lastUserMsgIndex === -1) {
-      // No user message found, skip detection
+      // 未找到用户消息，跳过检测
       return { isStuck: false };
     }
 
-    // Only analyze events after the last user message
+    // 仅分析最后一条用户消息之后的事件
     const recentEvents = events.slice(lastUserMsgIndex + 1);
 
-    // Determine minimum events needed
+    // 确定所需的最少事件
     const minThreshold = Math.min(
       this.thresholds.actionObservation,
       this.thresholds.actionError,
@@ -108,12 +108,12 @@ export class StuckDetector {
       return { isStuck: false };
     }
 
-    // Collect actions and observations for analysis
+    // 收集操作和观测结果进行分析
     const maxNeeded = Math.max(this.thresholds.actionObservation, this.thresholds.actionError);
     const lastActions: ActionEvent[] = [];
     const lastObservations: (ObservationEvent | AgentErrorEvent)[] = [];
 
-    // Collect from the end of history
+    // 从历史的终结收集
     for (let i = recentEvents.length - 1; i >= 0; i--) {
       const event = recentEvents[i];
       if (isActionEvent(event) && lastActions.length < maxNeeded) {
@@ -129,27 +129,27 @@ export class StuckDetector {
       }
     }
 
-    // Check all stuck patterns
+    // 检查所有卡住的图案
 
-    // Scenario 1: Same action, same observation
+    // 场景 1：相同的操作，相同的观测结果
     const actionObsResult = this.checkRepeatingActionObservation(lastActions, lastObservations);
     if (actionObsResult.isStuck) {
       return actionObsResult;
     }
 
-    // Scenario 2: Same action, errors
+    // 场景 2：相同的操作，但出现错误
     const actionErrorResult = this.checkRepeatingActionError(lastActions, lastObservations);
     if (actionErrorResult.isStuck) {
       return actionErrorResult;
     }
 
-    // Scenario 3: Monologue
+    // 场景三：独白
     const monologueResult = this.checkMonologue(recentEvents);
     if (monologueResult.isStuck) {
       return monologueResult;
     }
 
-    // Scenario 4: Alternating action-observation pattern
+    // 场景 4：交替动作-观测结果模式
     if (recentEvents.length >= this.thresholds.alternatingPattern) {
       const alternatingResult = this.checkAlternatingPattern(recentEvents);
       if (alternatingResult.isStuck) {
@@ -161,7 +161,7 @@ export class StuckDetector {
   }
 
   /**
-   * Find the index of the last user message in the events.
+   * 查找事件中最后一条用户消息的索引。
    */
   private findLastUserMessageIndex(events: BaseEvent[]): number {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -174,7 +174,7 @@ export class StuckDetector {
   }
 
   /**
-   * Check for repeating action-observation pattern.
+   * 检查重复的操作-观测结果模式。
    */
   private checkRepeatingActionObservation(
     lastActions: ActionEvent[],
@@ -186,18 +186,18 @@ export class StuckDetector {
       return { isStuck: false };
     }
 
-    // Filter to only regular observations (not errors)
+    // 过滤为仅常规观测结果（不是错误）
     const observations = lastObservations.filter(isObservationEvent);
     if (observations.length < threshold) {
       return { isStuck: false };
     }
 
-    // Check if all actions are identical
+    // 检查所有操作是否相同
     const actionsEqual = lastActions
       .slice(0, threshold)
       .every((action) => this.actionsEqual(lastActions[0], action));
 
-    // Check if all observations are identical
+    // 检查所有观测结果是否相同
     const observationsEqual = observations
       .slice(0, threshold)
       .every((obs) => this.observationsEqual(observations[0], obs));
@@ -215,7 +215,7 @@ export class StuckDetector {
   }
 
   /**
-   * Check for repeating action-error pattern.
+   * 检查重复的操作错误模式。
    */
   private checkRepeatingActionError(
     lastActions: ActionEvent[],
@@ -227,7 +227,7 @@ export class StuckDetector {
       return { isStuck: false };
     }
 
-    // Check if all actions are identical
+    // 检查所有操作是否相同
     const actionsEqual = lastActions
       .slice(0, threshold)
       .every((action) => this.actionsEqual(lastActions[0], action));
@@ -236,7 +236,7 @@ export class StuckDetector {
       return { isStuck: false };
     }
 
-    // Check if all observations are errors
+    // 检查观测结果是否全部错误
     const allErrors = lastObservations.slice(0, threshold).every(isAgentErrorEvent);
 
     if (allErrors) {
@@ -252,7 +252,7 @@ export class StuckDetector {
   }
 
   /**
-   * Check for agent monologue (repeated messages without user input).
+   * 检查智能体独白（没有用户输入的重复消息）。
    */
   private checkMonologue(events: BaseEvent[]): StuckDetectionResult {
     const threshold = this.thresholds.monologue;
@@ -263,7 +263,7 @@ export class StuckDetector {
 
     let agentMessageCount = 0;
 
-    // Count consecutive agent messages from the end
+    // 从末尾开始计算连续的智能体条消息
     for (let i = events.length - 1; i >= 0; i--) {
       const event = events[i];
 
@@ -271,14 +271,14 @@ export class StuckDetector {
         if (event.source === 'agent') {
           agentMessageCount++;
         } else if (event.source === 'user') {
-          // User interrupted, not a monologue
+          // 用户被打断，而不是独白
           break;
         }
       } else if (event.kind === 'CondensationSummaryEvent') {
-        // Condensation events don't break the monologue pattern
+        // 上下文压缩事件不会打破独白模式
         continue;
       } else {
-        // Other events (actions/observations) break the count
+        // 其他事件（行动/观察）打破了计数
         break;
       }
     }
@@ -296,7 +296,7 @@ export class StuckDetector {
   }
 
   /**
-   * Check for alternating action-observation pattern (A-B-A-B-A-B).
+   * 检查交替动作-观测结果模式 (A-B-A-B-A-B)。
    */
   private checkAlternatingPattern(events: BaseEvent[]): StuckDetectionResult {
     const threshold = this.thresholds.alternatingPattern;
@@ -304,7 +304,7 @@ export class StuckDetector {
     const lastActions: ActionEvent[] = [];
     const lastObservations: (ObservationEvent | AgentErrorEvent)[] = [];
 
-    // Collect recent actions and observations
+    // 收集最近的行动和观测结果
     for (let i = events.length - 1; i >= 0; i--) {
       const event = events[i];
       if (isActionEvent(event) && lastActions.length < threshold) {
@@ -324,8 +324,8 @@ export class StuckDetector {
       return { isStuck: false };
     }
 
-    // Check for alternating pattern: even indices match, odd indices match
-    // This detects A-B-A-B-A-B patterns
+    // 检查交替模式：偶数索引匹配，奇数索引匹配这会检测 A-B-A-B-A-B 模式
+    //
     const actionsAlternate = this.checkAlternatingEquality(lastActions);
     const observationsAlternate = this.checkAlternatingEquality(lastObservations);
 
@@ -342,14 +342,14 @@ export class StuckDetector {
   }
 
   /**
-   * Check if elements alternate (even indices match each other, odd indices match each other).
+   * 检查元素是否交替（偶数索引彼此匹配，奇数索引彼此匹配）。
    */
   private checkAlternatingEquality<T extends BaseEvent>(items: T[]): boolean {
     if (items.length < 4) {
       return false;
     }
 
-    // Check that items[0] == items[2] == items[4] ... and items[1] == items[3] == items[5] ...
+    // 检查 items[0] == items[2] == items[4] ... 项目[1] == 项目[3] == 项目[5] ...
     for (let i = 0; i < items.length - 2; i++) {
       if (!this.eventsEqual(items[i], items[i + 2])) {
         return false;
@@ -360,7 +360,7 @@ export class StuckDetector {
   }
 
   /**
-   * Compare two action events for equality (ignoring IDs and timestamps).
+   * 比较两个操作事件是否相等（忽略 ID 和时间戳）。
    */
   private actionsEqual(a: ActionEvent, b: ActionEvent): boolean {
     return (
@@ -372,7 +372,7 @@ export class StuckDetector {
   }
 
   /**
-   * Compare two observation events for equality (ignoring IDs and timestamps).
+   * 比较两个观测结果事件是否相等（忽略 ID 和时间戳）。
    */
   private observationsEqual(a: ObservationEvent, b: ObservationEvent): boolean {
     return (
@@ -383,7 +383,7 @@ export class StuckDetector {
   }
 
   /**
-   * Compare two events for equality based on their type.
+   * 根据两个事件的类型比较它们是否相等。
    */
   private eventsEqual(a: BaseEvent, b: BaseEvent): boolean {
     if (a.kind !== b.kind) {
@@ -408,7 +408,7 @@ export class StuckDetector {
       );
     }
 
-    // Fallback: compare JSON representation
+    // 回退方案：比较JSON表示
     return JSON.stringify(a) === JSON.stringify(b);
   }
 }

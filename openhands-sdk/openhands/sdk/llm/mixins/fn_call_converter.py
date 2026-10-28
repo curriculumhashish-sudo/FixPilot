@@ -1,9 +1,8 @@
-"""Convert function calling messages to non-function calling messages and vice versa.
+"""将函数调用消息转换为非函数调用消息，反之亦然。
 
-This will inject prompts so that models that doesn't support function calling
-can still be used with function calling agents.
+这将注入提示词，以便不支持函数调用的模型仍然可以与函数调用智能体一起使用。
 
-We follow format from: https://docs.litellm.ai/docs/completion/function_call
+我们遵循以下格式： https://docs.litellm.ai/docs/completion/function_call
 """  # noqa: E501
 
 import copy
@@ -33,7 +32,8 @@ class TextPart(TypedDict):
 
 Content = str | list[TextPart]
 
-# Inspired by: https://docs.together.ai/docs/llama-3-function-calling#function-calling-w-llama-31-70b
+# 灵感来源：
+# https://docs.together.ai/docs/llama-3-function-calling#function-calling-w-llama-31-70b
 MISSING_DESCRIPTION_PLACEHOLDER: Final[str] = "No description provided"
 SCHEMA_INDENT_STEP: Final[int] = 2
 SCHEMA_UNION_KEYS: Final[tuple[str, str, str]] = ("anyOf", "oneOf", "allOf")
@@ -80,17 +80,17 @@ IN_CONTEXT_LEARNING_EXAMPLE_SUFFIX = """
 PLEASE follow the format strictly! PLEASE EMIT ONE AND ONLY ONE FUNCTION CALL PER MESSAGE.
 """  # noqa: E501
 
-# Regex patterns for function call parsing
-# Note: newline after function name is optional for compatibility with various models
+# 用于函数调用解析的正则表达式模式
+# 注意：函数名后面的换行符是可选的，以兼容各种模型
 FN_REGEX_PATTERN = r"<function=([^>]+)>\n?(.*?)</function>"
 FN_PARAM_REGEX_PATTERN = r"<parameter=([^>]+)>(.*?)</parameter>"
 
-# Add new regex pattern for tool execution results
+# 为工具执行结果添加新的正则表达式模式
 TOOL_RESULT_REGEX_PATTERN = r"EXECUTION RESULT of \[(.*?)\]:\n(.*)"
 
 
 def convert_tool_call_to_string(tool_call: dict) -> str:
-    """Convert tool call to content in string format."""
+    """将工具调用转换为字符串格式的内容。"""
     for key in ("function", "id", "type"):
         if key not in tool_call:
             raise FunctionCallConversionError(f"Tool call must contain '{key}' key.")
@@ -121,7 +121,7 @@ def convert_tool_call_to_string(tool_call: dict) -> str:
 
 def _summarize_schema_type(schema: object | None) -> str:
     """
-    Capture array, union, enum, and nested type info.
+    捕获数组、联合、枚举和嵌套类型信息。
     """
     if not isinstance(schema, dict):
         return "unknown" if schema is None else str(schema)
@@ -158,7 +158,7 @@ def _nested_indent(indent: int, levels: int = 1) -> int:
 
 def _get_description(schema: dict[str, object] | None) -> str:
     """
-    Extract description from schema, or return placeholder if missing.
+    从模式中提取描述，如果缺少则返回占位符。
     """
     if not isinstance(schema, dict):
         return MISSING_DESCRIPTION_PLACEHOLDER
@@ -246,7 +246,7 @@ def _format_object_details(schema: dict[str, Any], indent: int) -> list[str]:
 
 
 def _format_schema_detail(schema: object | None, indent: int = 4) -> list[str]:
-    """Recursively describe arrays, objects, unions, and additional properties."""
+    """递归地描述数组、对象、联合和其他属性。"""
     if not isinstance(schema, dict):
         return []
 
@@ -316,7 +316,7 @@ def _build_system_message_suffix(
     tools: list[ChatCompletionToolParam],
     include_security_params: bool,
 ) -> str:
-    """Build the system message suffix with tool descriptions."""
+    """使用工具描述构建系统消息后缀。"""
     formatted_tools = convert_tools_to_description(tools)
     template = system_message_suffix_TEMPLATE
     if include_security_params:
@@ -327,7 +327,7 @@ def _build_system_message_suffix(
 
 
 def _append_to_content(content: Content, suffix: str) -> Content:
-    """Append text to content (string or list format)."""
+    """将文本附加到内容（字符串或列表格式）。"""
     if isinstance(content, str):
         return content + suffix
     if isinstance(content, list):
@@ -342,7 +342,7 @@ def _append_to_content(content: Content, suffix: str) -> Content:
 
 
 def _prepend_to_content(content: Content, prefix: str) -> Content:
-    """Prepend text to content (string or list format)."""
+    """将文本添加到内容前面（字符串或列表格式）。"""
     if isinstance(content, str):
         return prefix + content
     if isinstance(content, list):
@@ -361,7 +361,7 @@ def _wrap_content_with_example(
     prefix: str,
     suffix: str,
 ) -> Content:
-    """Wrap content with prefix and suffix for in-context learning."""
+    """使用前缀和后缀包装内容以进行 in-上下文学习。"""
     if isinstance(content, str):
         return prefix + content + suffix
     if isinstance(content, list):
@@ -383,7 +383,7 @@ def _convert_system_to_non_fncall(
     content: Content,
     system_message_suffix: str,
 ) -> dict:
-    """Convert system message to non-function-call format."""
+    """将系统消息转换为非函数调用格式。"""
     content = _append_to_content(content, system_message_suffix)
     return {"role": "system", "content": content}
 
@@ -394,7 +394,7 @@ def _convert_user_to_non_fncall(
     is_first_user_message: bool,
     add_in_context_learning_example: bool,
 ) -> dict:
-    """Convert user message to non-function-call format."""
+    """将用户消息转换为非函数调用格式。"""
     if is_first_user_message and add_in_context_learning_example:
         example = IN_CONTEXT_LEARNING_EXAMPLE_PREFIX(tools)
         if example:
@@ -409,7 +409,7 @@ def _convert_assistant_to_non_fncall(
     content: Content,
     messages: list[dict],
 ) -> dict:
-    """Convert assistant message to non-function-call format."""
+    """将助理消息转换为非功能调用格式。"""
     if "tool_calls" in message and message["tool_calls"] is not None:
         if len(message["tool_calls"]) != 1:
             raise FunctionCallConversionError(
@@ -445,7 +445,7 @@ def _convert_assistant_to_non_fncall(
 
 
 def _convert_tool_to_non_fncall(message: dict, content: Content) -> dict:
-    """Convert tool message to non-function-call format (as user message)."""
+    """将工具消息转换为非函数调用格式（作为用户消息）。"""
     tool_name = message.get("name", "function")
     prefix = f"EXECUTION RESULT of [{tool_name}]:\n"
 
@@ -474,7 +474,7 @@ def convert_fncall_messages_to_non_fncall_messages(
     add_in_context_learning_example: bool = True,
     include_security_params: bool = False,
 ) -> list[dict]:
-    """Convert function calling messages to non-function calling messages."""
+    """将函数调用消息转换为非函数调用消息。"""
     messages = copy.deepcopy(messages)
     system_message_suffix = _build_system_message_suffix(tools, include_security_params)
 
@@ -530,10 +530,10 @@ def _extract_and_validate_params(
         param_name = param_match.group(1)
         param_value: Any = param_match.group(2).strip()
 
-        # security_risk is excluded here for the same reason it's excluded from
-        # missing_params below: read-only tools (e.g. finish) never declare it
-        # as an allowed parameter (see add_security_risk_prediction in
-        # tool.py), but models include it on every call regardless of tool.
+        # 此处排除 security_risk 的原因与从下面的 missing_params 中排除的原因相同：只读
+        # 工具 (e.g. finish）永远不要将其声明为允许的参数（请参阅tool.py中的
+        # add_security_risk_prediction），但模型在每次调用时都包含它，无论工具如何。
+        #
         if (
             allowed_params
             and param_name not in allowed_params
@@ -571,9 +571,10 @@ def _extract_and_validate_params(
         params[param_name] = param_value
         found_params.add(param_name)
 
-    # security_risk is excluded: it's validated later in Agent._extract_security_risk,
-    # which knows whether a security analyzer is configured. Weaker models may omit it
-    # when no analyzer is active; LLMSecurityAnalyzer enforces it for stronger ones.
+    # security_risk 被排除：稍后在 Agent._extract_security_risk 中对其进行验证，它知道是
+    # 否配置了安全分析器。 当没有分析器处于活动状态时，较弱的型号可能会忽略它；
+    # LLMSecurityAnalyzer 对于更强的版本进行强制。
+    #
     missing_params = required_params - found_params - {"security_risk"}
     if missing_params:
         raise FunctionCallValidationError(
@@ -583,25 +584,25 @@ def _extract_and_validate_params(
 
 
 def _preprocess_model_output(content: str) -> str:
-    """Clean up model-specific formatting before parsing function calls.
+    """在解析函数调用之前清理特定于模型的格式。
 
-    Removes wrapper tags that some models (like Nemotron) emit around function calls:
-    - </think> before the function call
-    - <tool_call>...</tool_call> around the function call
+    删除某些模型（如 Nemotron）在函数调用周围发出的包装标签：
+    - </think> 函数调用之前
+    - <tool_call>...</tool_call>围绕函数调用
 
-    Only strips tags at boundaries, not inside parameter values.
+    仅剥离边界处的标签，而不剥离参数值内的标签。
     """
-    # Strip </think> when it appears before <function= (Nemotron reasoning end)
+    # 当</think>出现在<function=之前时将其剥离（Nemotron推理结束）
     content = re.sub(r"</think>\s*(?=<function=)", "", content)
-    # Strip <tool_call> when it appears right before <function=
+    # 当 <tool_call> 出现在 <function= 之前时，将其删除
     content = re.sub(r"<tool_call>\s*(?=<function=)", "", content)
-    # Strip </tool_call> when it appears right after </function>
+    # 当 </tool_call> 出现在 </function> 之后时将其删除
     content = re.sub(r"(?<=</function>)\s*</tool_call>", "", content)
     return content
 
 
 def _fix_stopword(content: str) -> str:
-    """Fix the issue when some LLM would NOT return the stopword."""
+    """修复某些 LLM 将不返回停用词时的问题。"""
     content = _preprocess_model_output(content)
     if "<function=" in content and content.count("<function=") == 1:
         if content.endswith("</"):
@@ -612,17 +613,16 @@ def _fix_stopword(content: str) -> str:
 
 
 def _normalize_parameter_tags(fn_body: str) -> str:
-    """Normalize malformed parameter tags to the canonical format.
+    """将格式错误的参数标签标准化为规范格式。
 
-    Some models occasionally emit malformed parameter tags like:
+    某些模型偶尔会发出格式错误的参数标签，例如：
         <parameter=command=str_replace</parameter>
-    instead of the correct:
+    而不是正确的：
         <parameter=command>str_replace</parameter>
 
-    This function rewrites the malformed form into the correct one to allow
-    downstream parsing to succeed.
+    此函数将格式错误的形式重写为正确的形式，以允许下游解析成功。
     """
-    # Replace '<parameter=name=value</parameter>'
+    # 替换“<parameter=name=value</parameter>”
     # with '<parameter=name>value</parameter>'
     return re.sub(
         r"<parameter=([a-zA-Z0-9_]+)=([^<]*)</parameter>",
@@ -631,7 +631,7 @@ def _normalize_parameter_tags(fn_body: str) -> str:
     )
 
 
-# Tool name aliases for legacy model compatibility
+# 用于旧模型兼容性的工具名称别名
 TOOL_NAME_ALIASES: dict[str, str] = {
     "str_replace_editor": "file_editor",
     "bash": "terminal",
@@ -644,7 +644,7 @@ def _find_tool(
     tools: list[ChatCompletionToolParam],
     name: str,
 ) -> ChatCompletionToolParamFunctionChunk | None:
-    """Find a tool by name in the tools list."""
+    """在工具列表中按名称查找工具。"""
     return next(
         (
             tool["function"]
@@ -659,10 +659,10 @@ def _resolve_tool_name(
     tools: list[ChatCompletionToolParam],
     fn_name: str,
 ) -> tuple[str, ChatCompletionToolParamFunctionChunk]:
-    """Resolve tool name (with alias fallback) and return the matching tool."""
+    """解析工具名称（别名为回退方案）并返回匹配的工具。"""
     matching_tool = _find_tool(tools, fn_name)
 
-    # Try aliases if tool not found (some models use legacy names)
+    # 如果找不到工具，请尝试使用别名（某些型号使用旧名称）
     if not matching_tool and fn_name in TOOL_NAME_ALIASES:
         fn_name = TOOL_NAME_ALIASES[fn_name]
         matching_tool = _find_tool(tools, fn_name)
@@ -679,7 +679,7 @@ def _resolve_tool_name(
 
 
 def _remove_suffix_from_content(content: Content, suffix: str) -> Content:
-    """Remove a suffix from content (string or list format)."""
+    """从内容（字符串或列表格式）中删除后缀。"""
     if isinstance(content, str):
         return content.split(suffix)[0]
     if isinstance(content, list) and content and content[-1]["type"] == "text":
@@ -691,7 +691,7 @@ def _strip_in_context_example(
     content: Content,
     tools: list[ChatCompletionToolParam],
 ) -> Content:
-    """Remove in-context learning examples from content."""
+    """从内容中删除 in-上下文学习示例。"""
     example = IN_CONTEXT_LEARNING_EXAMPLE_PREFIX(tools)
     suffix = IN_CONTEXT_LEARNING_EXAMPLE_SUFFIX
 
@@ -708,7 +708,7 @@ def _strip_in_context_example(
 
 
 def _find_tool_result_match(content: Content) -> re.Match | None:
-    """Find tool result pattern in content."""
+    """在内容中查找工具结果模式。"""
     if isinstance(content, str):
         return re.search(TOOL_RESULT_REGEX_PATTERN, content, re.DOTALL)
     if isinstance(content, list):
@@ -731,7 +731,7 @@ def _find_tool_result_match(content: Content) -> re.Match | None:
 
 
 def _convert_system_to_fncall(content: Content, system_message_suffix: str) -> dict:
-    """Convert system message to function-call format by removing suffix."""
+    """通过删除后缀将系统消息转换为函数调用格式。"""
     content = _remove_suffix_from_content(content, system_message_suffix)
     return {"role": "system", "content": content}
 
@@ -742,10 +742,10 @@ def _convert_user_to_fncall(
     tool_call_counter: int,
     is_first_user_message: bool,
 ) -> tuple[dict, bool]:
-    """Convert user message to function-call format.
+    """将用户消息转换为函数调用格式。
 
     Returns:
-        Tuple of (converted message, whether it was a tool result).
+        元组（转换后的消息，是否是工具结果）。
     """
     if is_first_user_message:
         content = _strip_in_context_example(content, tools)
@@ -753,7 +753,7 @@ def _convert_user_to_fncall(
     tool_result_match = _find_tool_result_match(content)
 
     if tool_result_match:
-        # Validate content has text if it's a list
+        # 验证内容是否包含文本（如果是列表）
         if isinstance(content, list):
             text_items = [item for item in content if item.get("type") == "text"]
             if not text_items:
@@ -778,7 +778,7 @@ def _convert_user_to_fncall(
 
 
 def _find_function_match(content: Content) -> tuple[Content, re.Match | None]:
-    """Find function call pattern in content and return fixed content with match."""
+    """在内容中查找函数调用模式并返回匹配的固定内容。"""
     if isinstance(content, str):
         content = _fix_stopword(content)
         fn_match = re.search(FN_REGEX_PATTERN, content, re.DOTALL)
@@ -791,7 +791,7 @@ def _find_function_match(content: Content) -> tuple[Content, re.Match | None]:
         else:
             fn_match = None
 
-        # Check if function call exists in wrong position
+        # 检查函数调用位置是否存在错误
         fn_match_exists = any(
             item.get("type") == "text"
             and re.search(FN_REGEX_PATTERN, item["text"], re.DOTALL)
@@ -810,7 +810,7 @@ def _find_function_match(content: Content) -> tuple[Content, re.Match | None]:
 
 
 def _strip_function_call_from_content(content: Content) -> Content:
-    """Remove the function call part from content."""
+    """从内容中删除函数调用部分。"""
     if isinstance(content, list):
         assert content and content[-1]["type"] == "text"
         content[-1]["text"] = content[-1]["text"].split("<function=")[0].strip()
@@ -829,10 +829,10 @@ def _convert_assistant_to_fncall(
     tools: list[ChatCompletionToolParam],
     tool_call_counter: int,
 ) -> tuple[dict, int]:
-    """Convert assistant message to function-call format.
+    """将助理消息转换为函数调用格式。
 
     Returns:
-        Tuple of (converted message, updated tool_call_counter).
+        元组（转换后的消息，更新tool_call_counter）。
     """
     content, fn_match = _find_function_match(content)
 
@@ -844,13 +844,13 @@ def _convert_assistant_to_fncall(
 
     fn_name, matching_tool = _resolve_tool_name(tools, fn_name)
 
-    # Parse parameters
+    # 解析参数
     param_matches = re.finditer(FN_PARAM_REGEX_PATTERN, fn_body, re.DOTALL)
     params = _extract_and_validate_params(matching_tool, param_matches, fn_name)
 
-    # Create tool call
+    # 创建工具调用
     tool_call = {
-        "index": 1,  # always 1 because we only support one tool call per message
+        "index": 1,  # 始终为 1，因为我们只支持每条消息一个工具调用
         "id": f"toolu_{tool_call_counter:02d}",
         "type": "function",
         "function": {"name": fn_name, "arguments": json.dumps(params)},
@@ -870,7 +870,7 @@ def convert_non_fncall_messages_to_fncall_messages(
     tools: list[ChatCompletionToolParam],
     include_security_params: bool = False,
 ) -> list[dict]:
-    """Convert non-function calling messages back to function calling messages."""
+    """将非函数调用消息转换回函数调用消息。"""
     messages = copy.deepcopy(messages)
     system_message_suffix = _build_system_message_suffix(tools, include_security_params)
 
@@ -895,8 +895,8 @@ def convert_non_fncall_messages_to_fncall_messages(
             )
             converted_messages.append(converted_msg)
             first_user_message_encountered = True
-            # Note: tool_call_counter not incremented here since tool results
-            # reference the previous counter value
+            # 注意：由于工具结果，tool_call_counter 此处未递增
+            # 参考之前的计数器值
         elif role == "assistant":
             converted_msg, tool_call_counter = _convert_assistant_to_fncall(
                 message, content, tools, tool_call_counter
@@ -915,7 +915,7 @@ def convert_from_multiple_tool_calls_to_single_tool_call_messages(
     messages: list[dict],
     ignore_final_tool_result: bool = False,
 ) -> list[dict]:
-    """Break one message with multiple tool calls into multiple messages."""
+    """将具有多个工具调用的一条消息分成多条消息。"""
     converted_messages = []
 
     pending_tool_calls: dict[str, dict] = {}
@@ -926,7 +926,7 @@ def convert_from_multiple_tool_calls_to_single_tool_call_messages(
         content = message.get("content") or ""
         if role == "assistant":
             if message.get("tool_calls") and len(message["tool_calls"]) > 1:
-                # handle multiple tool calls by breaking them into multiple messages
+                # 通过将多个工具调用分成多个消息来处理它们
                 for i, tool_call in enumerate(message["tool_calls"]):
                     pending_tool_calls[tool_call["id"]] = {
                         "role": "assistant",
@@ -937,10 +937,10 @@ def convert_from_multiple_tool_calls_to_single_tool_call_messages(
                 converted_messages.append(message)
         elif role == "tool":
             if message["tool_call_id"] in pending_tool_calls:
-                # remove the tool call from the pending list
+                # 从待处理列表中删除工具调用
                 _tool_call_message = pending_tool_calls.pop(message["tool_call_id"])
                 converted_messages.append(_tool_call_message)
-                # add the tool result
+                # 添加工具结果
                 converted_messages.append(message)
             else:
                 assert len(pending_tool_calls) == 0, (

@@ -1,8 +1,7 @@
-"""Shared fixtures for telemetry tests.
+"""共享测试夹具用于遥测测试。
 
-Combines the persistence-dir isolation used by ``test_settings_router.py`` with
-a reset of the telemetry sink singleton, so no test can observe another's
-process state.
+将 ``test_settings_router.py`` 使用的持久化-dir 隔离与遥测接收器单例的重置相结合，因
+此没有测试可以观察另一个进程的状态。
 """
 
 import os
@@ -26,7 +25,7 @@ from openhands.agent_server.telemetry.policy import (
 
 @pytest.fixture(autouse=True)
 def _clean_telemetry_env(monkeypatch):
-    """Ensure a developer's own DO_NOT_TRACK cannot flip test outcomes."""
+    """确保开发人员自己的 DO_NOT_TRACK 无法翻转测试结果。"""
     monkeypatch.delenv(DO_NOT_TRACK_ENV, raising=False)
     monkeypatch.delenv(CONSENT_ENV, raising=False)
     monkeypatch.delenv(CONSENT_MODE_ENV, raising=False)

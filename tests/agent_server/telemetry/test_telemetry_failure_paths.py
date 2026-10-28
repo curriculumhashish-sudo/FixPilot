@@ -1,8 +1,7 @@
-"""Degradation paths: everything that can go wrong must end in a no-op.
+"""退化路径：所有可能出错的事情都必须以空操作结束。
 
-Telemetry is never allowed to prevent a server from starting or to turn a
-working request into a failing one, so each of these exercises a failure and
-asserts the fallback rather than the success case.
+Telemetry 从不被允许阻止服务器启动，或者将一个成功的请求变成一个失败的请求，因此，这
+些测试都会引发失败，并且会断言它们回退方案而不是成功案例。
 """
 
 import sys
@@ -34,13 +33,13 @@ def _spec(**kw) -> TelemetrySpec:
     return TelemetrySpec(**kw)
 
 
-# ── missing / broken optional dependency ──────────────────────────────────
+# ── 缺失/损坏的可选依赖项──────────────────────────────────
 
 
 async def test_missing_posthog_extra_degrades_to_noop(
     temp_persistence_dir, monkeypatch
 ):
-    """The whole point of the optional extra: absence must not break startup."""
+    """可选附加项的要点是：缺席不得中断启动。"""
     real_import = __import__
 
     def _no_posthog(name, *args, **kwargs):
@@ -62,7 +61,7 @@ async def test_missing_posthog_extra_degrades_to_noop(
 async def test_exporter_constructor_raising_degrades_to_noop(
     temp_persistence_dir, monkeypatch
 ):
-    """A bad API key or client-side config must not abort startup."""
+    """错误的 API 键或客户端配置不得中止启动。"""
     module = types.ModuleType("posthog")
 
     def _boom(**kwargs):
@@ -78,7 +77,7 @@ async def test_exporter_constructor_raising_degrades_to_noop(
 async def test_unreadable_consent_is_treated_as_absent_consent(
     temp_persistence_dir, monkeypatch
 ):
-    """A corrupt settings file must fail closed, never open."""
+    """损坏的设置文件必须关闭失败，永远不要打开。"""
     module = types.ModuleType("posthog")
     module.Posthog = lambda **kw: Mock(spec=["capture", "flush", "shutdown"])  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "posthog", module)
@@ -105,11 +104,11 @@ async def test_exporter_aclose_raising_is_swallowed(temp_persistence_dir, monkey
     monkeypatch.setitem(sys.modules, "posthog", module)
 
     await build_telemetry_sink(Config(static_files_path=None, telemetry=_spec()))
-    # Must not propagate.
+    # 不得传播。
     await shutdown_telemetry_sink()
 
 
-# ── settings-store failures at the consent endpoint ───────────────────────
+# ── 同意时设置存储失败端点 ────────────────────────
 
 
 @pytest.fixture
@@ -140,7 +139,7 @@ def test_unwritable_settings_file_yields_500(client, monkeypatch):
 
 
 def test_consent_endpoint_survives_a_sink_that_raises(client, monkeypatch):
-    """A broken sink must not turn a successful consent write into a 500."""
+    """损坏的接收器不得将成功的同意写入变成 500。"""
     import openhands.agent_server.telemetry.service as service_mod
 
     class _ExplodingSink:
@@ -166,11 +165,11 @@ def test_consent_endpoint_survives_a_sink_that_raises(client, monkeypatch):
         )
 
 
-# ── singleton / lifecycle edge cases ──────────────────────────────────────
+# ── 单例/生命周期边缘情况──────────────────────────────────────
 
 
 def test_notify_consent_changed_before_any_sink_is_built_is_a_noop():
-    notify_misc_settings_changed({})  # must not raise
+    notify_misc_settings_changed({})  # 不得提高
 
 
 async def test_shutdown_without_a_sink_is_a_noop():
@@ -198,5 +197,5 @@ async def test_shutdown_swallows_an_aclose_failure(temp_persistence_dir, monkeyp
             raise RuntimeError("teardown failed")
 
     monkeypatch.setattr(service_mod, "_telemetry_sink", _BadSink())
-    await shutdown_telemetry_sink()  # must not propagate
+    await shutdown_telemetry_sink()  # 必须不传播
     assert isinstance(get_telemetry_sink(), NoOpTelemetrySink)

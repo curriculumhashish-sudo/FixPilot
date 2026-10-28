@@ -1,7 +1,7 @@
-"""Authentication module for LLM subscription-based access.
+"""身份验证用于 LLM 基于订阅的访问的模块。
 
-This module provides OAuth-based authentication for LLM providers that support
-subscription-based access (e.g., ChatGPT Plus/Pro for OpenAI Codex models).
+该模块为支持基于订阅的访问的 LLM 提供商提供基于 OAuth 的身份验证（e.g.、ChatGPT Plus/
+Pro 用于 OpenAI Codex 模型）。
 """
 
 from openhands.sdk.llm.auth.credentials import (

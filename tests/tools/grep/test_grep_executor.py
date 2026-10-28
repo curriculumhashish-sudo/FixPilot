@@ -1,9 +1,9 @@
-"""Tests for GrepExecutor implementation.
+"""测试 GrepExecutor 实施。
 
-These tests verify that grep behaves like OpenHands:
-- Case-insensitive search (rg -i)
-- Returns file paths only (rg -l)
-- Sorted by modification time (--sortr=modified)
+这些测试验证 grep 的行为类似于 OpenHands：
+- 不区分大小写的搜索 (rg -i)
+- 仅返回文件路径 (rg -l)
+- 按修改时间排序（--sortr=modified）
 """
 
 import tempfile
@@ -19,7 +19,7 @@ from openhands.tools.utils import _check_grep_available
 
 
 def test_grep_executor_initialization():
-    """Test that GrepExecutor initializes correctly."""
+    """测试 GrepExecutor 初始化是否正确。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         executor = GrepExecutor(working_dir=temp_dir)
         assert executor.working_dir == Path(temp_dir).resolve()
@@ -56,9 +56,9 @@ def test_grep_executor_falls_back_to_python_when_no_binary_exists(monkeypatch):
 
 
 def test_grep_executor_basic_search():
-    """Test basic content search - returns file paths."""
+    """测试基本内容搜索 - 返回文件路径。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create test files
+        # 创建测试文件
         (Path(temp_dir) / "app.py").write_text("print('hello')\nreturn 0")
         (Path(temp_dir) / "utils.py").write_text(
             "def helper():\n    print('Helper')\n    return True"
@@ -69,11 +69,11 @@ def test_grep_executor_basic_search():
         observation = executor(action)
 
         assert observation.is_error is False
-        assert len(observation.matches) == 2  # Two files containing "print"
+        assert len(observation.matches) == 2  # 两个包含“print”的文件
         assert observation.pattern == "print"
         assert observation.search_path == str(Path(temp_dir).resolve())
 
-        # Check that matches are file paths
+        # 检查匹配的文件路径
         for file_path in observation.matches:
             assert isinstance(file_path, str)
             assert file_path.endswith(".py")
@@ -81,7 +81,7 @@ def test_grep_executor_basic_search():
 
 
 def test_grep_executor_case_insensitive():
-    """Test that search is case-insensitive."""
+    """测试搜索是否不区分大小写。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         content = "Print('uppercase')\nprint('lowercase')\nPRINT('allcaps')"
         (Path(temp_dir) / "case_test.py").write_text(content)
@@ -91,12 +91,12 @@ def test_grep_executor_case_insensitive():
         observation = executor(action)
 
         assert observation.is_error is False
-        assert len(observation.matches) == 1  # File contains pattern (case-insensitive)
+        assert len(observation.matches) == 1  # 文件包含模式（不区分大小写）
         assert "case_test.py" in observation.matches[0]
 
 
 def test_grep_executor_include_filter():
-    """Test include pattern filtering."""
+    """测试包括模式过滤。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         (Path(temp_dir) / "test.py").write_text("print('test')")
         (Path(temp_dir) / "test.js").write_text("console.log('test')")
@@ -112,7 +112,7 @@ def test_grep_executor_include_filter():
 
 
 def test_grep_executor_custom_path():
-    """Test search in custom directory."""
+    """在自定义目录中测试搜索。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         sub_dir = Path(temp_dir) / "subdir"
         sub_dir.mkdir()
@@ -130,7 +130,7 @@ def test_grep_executor_custom_path():
 
 
 def test_grep_executor_invalid_path():
-    """Test search in invalid directory."""
+    """在无效目录中测试搜索。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         executor = GrepExecutor(working_dir=temp_dir)
         action = GrepAction(pattern="test", path="/nonexistent/path")
@@ -141,7 +141,7 @@ def test_grep_executor_invalid_path():
 
 
 def test_grep_executor_no_matches():
-    """Test when no files match the pattern."""
+    """测试何时没有文件与模式匹配。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         (Path(temp_dir) / "test.py").write_text("def main():\n    return 0")
 
@@ -154,7 +154,7 @@ def test_grep_executor_no_matches():
 
 
 def test_grep_executor_hidden_files_excluded():
-    """Test that hidden files are excluded."""
+    """测试隐藏文件是否被排除。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         (Path(temp_dir) / "visible.py").write_text("test")
         (Path(temp_dir) / ".hidden.py").write_text("test")
@@ -169,7 +169,7 @@ def test_grep_executor_hidden_files_excluded():
 
 
 def test_grep_executor_include_filter_still_skips_hidden_directories():
-    """Test that include globs do not recurse into hidden directories."""
+    """包含 glob 的测试不会递归到隐藏目录中。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         visible = Path(temp_dir) / "visible.py"
         visible.write_text("test")
@@ -210,7 +210,7 @@ def test_grep_executor_system_grep_matches_python_fallback_for_hidden_include():
 
 
 def test_grep_executor_sorting():
-    """Test that files are sorted by modification time (newest first)."""
+    """测试文件是否按修改时间排序（最新的在前）。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         old_file = Path(temp_dir) / "old.py"
         new_file = Path(temp_dir) / "new.py"
@@ -225,15 +225,15 @@ def test_grep_executor_sorting():
 
         assert observation.is_error is False
         assert len(observation.matches) == 2
-        # Newest file should be first
+        # 最新的文件应该是第一个
         assert "new.py" in observation.matches[0]
         assert "old.py" in observation.matches[1]
 
 
 def test_grep_executor_truncation():
-    """Test that results are truncated to 100 files."""
+    """测试结果是否被截断为 100 个文件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create 150 files
+        # 创建 150 个文件
         for i in range(150):
             (Path(temp_dir) / f"file{i}.py").write_text("test")
 
@@ -247,7 +247,7 @@ def test_grep_executor_truncation():
 
 
 def test_grep_executor_invalid_regex():
-    """Test handling of invalid regex patterns."""
+    """测试无效正则表达式模式的处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         executor = GrepExecutor(working_dir=temp_dir)
         action = GrepAction(pattern="[invalid")
@@ -258,10 +258,9 @@ def test_grep_executor_invalid_regex():
 
 
 def test_grep_executor_concurrent():
-    """Test that concurrent grep calls return correct results.
+    """测试并发 grep 调用是否返回正确的结果。
 
-    All grep backends are stateless, so concurrent calls are inherently
-    thread-safe.
+    所有 grep 后端都是无状态的，因此并发调用本质上是线程安全。
     """
     import threading
 

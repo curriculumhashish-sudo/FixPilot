@@ -1,14 +1,12 @@
-"""Marketplace module for OpenHands SDK.
+"""OpenHands SDK 的市场模块。
 
-This module provides support for plugin and skill marketplaces - directories
-that list available plugins and skills with their metadata and source locations.
+该模块提供插件和技能市场支持 - 列出可用插件和技能及其元数据和源位置的目录。
 
-A marketplace is defined by a `marketplace.json` file in a `.plugin/` or
-`.claude-plugin/` directory at the root of a repository. It lists plugins and
-skills available for installation, along with metadata like descriptions,
-versions, and authors.
+市场由 `.plugin/` 中的 `marketplace.json` 文件定义，或
+存储库根目录的 `.claude-plugin/` 目录。 它列出了可安装的插件和技能，以及描述、版本和
+作者等元数据。
 
-Example marketplace.json:
+示例marketplace.json：
 ```json
 {
     "name": "company-tools",

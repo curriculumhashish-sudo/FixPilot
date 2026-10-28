@@ -9,11 +9,11 @@ from openhands.sdk.critic.result import CriticResult
 
 
 __all__ = [
-    # Base classes
+    # 基类
     "CriticBase",
     "CriticResult",
     "IterativeRefinementConfig",
-    # Critic implementations
+    # 评论家的实现
     "AgentFinishedCritic",
     "APIBasedCritic",
     "EmptyPatchCritic",

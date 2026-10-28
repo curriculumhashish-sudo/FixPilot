@@ -1,4 +1,4 @@
-"""Tests for SecretsManager class."""
+"""测试 SecretsManager 类。"""
 
 from pydantic import SecretStr
 
@@ -9,12 +9,11 @@ from openhands.sdk.conversation.secret_registry import (
 from openhands.sdk.secret import SecretSource, StaticSecret
 
 
-# NOTE: module-level on purpose. A function-local ``SecretSource``
-# (DiscriminatedUnionMixin) subclass auto-registers globally and makes the
-# registry raise "Local classes not supported!" on any later discriminated-union
-# validation in the same xdist worker (breaking unrelated ConversationState
-# (de)serialization). Defining each once here also avoids the "Duplicate class
-# definition" guard that two same-named function-local classes would trip.
+# 注意：有意的模块级。 局部函数 ``SecretSource``
+# (DiscriminatedUnionMixin) 类自动注册全局，并且使注册表在任何后续的歧异联合中引发 "本地
+# 类不支持！" 验证在同一个 xdist 工作进程（破坏了无关的） ConversationState (空)序列化).
+#  在这里定义每个类还可以避免两个同名函数本地类会触发“重复类定义”保护。
+#
 class MyTokenSource(SecretSource):
     def get_value(self):
         return "dynamic-token-456"
@@ -56,7 +55,7 @@ class MyRecoveringSource(SecretSource):
 
 
 def test_update_secrets_with_static_values():
-    """Test updating secrets with static string values."""
+    """测试使用静态字符串值更新机密。"""
     secret_registry = SecretRegistry()
     secrets = {
         "API_KEY": "test-api-key",
@@ -71,16 +70,16 @@ def test_update_secrets_with_static_values():
 
 
 def test_update_secrets_overwrites_existing():
-    """Test that update_secrets overwrites existing keys."""
+    """测试 update_secrets 是否覆盖现有键。"""
     secret_registry = SecretRegistry()
 
-    # Add initial secrets
+    # 添加首字母机密
     secret_registry.update_secrets({"API_KEY": "old-value"})
     assert secret_registry.secret_sources["API_KEY"] == StaticSecret(
         value=SecretStr("old-value")
     )
 
-    # Update with new value
+    # 使用新值更新
     secret_registry.update_secrets({"API_KEY": "new-value", "NEW_KEY": "key-value"})
     assert secret_registry.secret_sources["API_KEY"] == StaticSecret(
         value=SecretStr("new-value")
@@ -93,7 +92,7 @@ def test_update_secrets_overwrites_existing():
 
 
 def test_find_secrets_in_text_case_insensitive():
-    """Test that find_secrets_in_text is case insensitive."""
+    """测试 find_secrets_in_text 是否不区分大小写。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -102,7 +101,7 @@ def test_find_secrets_in_text_case_insensitive():
         }
     )
 
-    # Test various case combinations
+    # 测试各种案例组合
     found = secret_registry.find_secrets_in_text("echo api_key=$API_KEY")
     assert found == {"API_KEY"}
 
@@ -117,23 +116,23 @@ def test_find_secrets_in_text_case_insensitive():
 
 
 def test_find_secrets_in_text_partial_matches():
-    """Test that find_secrets_in_text handles partial matches correctly."""
+    """测试 find_secrets_in_text 是否正确处理部分匹配。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
             "API_KEY": "test-key",
-            "API": "test-api",  # Shorter key that's contained in API_KEY
+            "API": "test-api",  # API_KEY 中包含的较短密钥
         }
     )
 
-    # Both should be found since "API" is contained in "API_KEY"
+    # 两者都应该找到，因为“API”包含在“API_KEY”中
     found = secret_registry.find_secrets_in_text("export API_KEY=$API_KEY")
     assert "API_KEY" in found
     assert "API" in found
 
 
 def test_get_secrets_as_env_vars_static_values():
-    """Test get_secrets_as_env_vars with static values."""
+    """使用静态值测试 get_secrets_as_env_vars。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -155,7 +154,7 @@ def test_get_secrets_as_env_vars_static_values():
 
 
 def test_get_secrets_as_env_vars_callable_values():
-    """Test get_secrets_as_env_vars with callable values."""
+    """使用可调用值测试 get_secrets_as_env_vars。"""
     secret_registry = SecretRegistry()
 
     secret_registry.update_secrets(
@@ -172,7 +171,7 @@ def test_get_secrets_as_env_vars_callable_values():
 
 
 def test_get_secrets_as_env_vars_handles_callable_exceptions():
-    """Test that get_secrets_as_env_vars handles exceptions from callables."""
+    """测试 get_secrets_as_env_vars 是否处理来自可调用对象的异常。"""
     secret_registry = SecretRegistry()
 
     secret_registry.update_secrets(
@@ -182,17 +181,17 @@ def test_get_secrets_as_env_vars_handles_callable_exceptions():
         }
     )
 
-    # Should not raise exception, should skip failing secret
+    # 不应引发异常，应跳过失败机密
     env_vars = secret_registry.get_secrets_as_env_vars(
         "export FAILING_SECRET=$FAILING_SECRET && export WORKING_SECRET=$WORKING_SECRET"
     )
 
-    # Only working secret should be returned
+    # 仅应返回工作机密
     assert env_vars == {"WORKING_SECRET": "working-value"}
 
 
 def test_get_all_secrets_as_env_vars_resolves_whole_registry():
-    """get_all_secrets_as_env_vars resolves every secret without a command scan."""
+    """get_all_secrets_as_env_vars 无需命令扫描即可解析每个机密。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -209,7 +208,7 @@ def test_get_all_secrets_as_env_vars_resolves_whole_registry():
 
 
 def test_get_all_secrets_as_env_vars_excludes_named_keys():
-    """The exclude set skips keys (e.g. ones a higher-precedence tier will set)."""
+    """排除集会跳过键 (e.g. 更高优先级的层将设置）。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"KEEP": "keep-value", "DROP": "drop-value"})
 
@@ -218,7 +217,7 @@ def test_get_all_secrets_as_env_vars_excludes_named_keys():
 
 
 def test_get_all_secrets_as_env_vars_skips_failing_lookups():
-    """Failing lookups are swallowed, not raised; only resolvable keys returned."""
+    """失败的查找会被吞掉，而不是引发； 仅返回可解析的键。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -232,7 +231,7 @@ def test_get_all_secrets_as_env_vars_skips_failing_lookups():
 
 
 def test_get_all_secrets_as_env_vars_tracks_values_for_masking():
-    """Resolved values feed _exported_values so output masking covers them."""
+    """解析值馈送 _exported_values，因此输出屏蔽会覆盖它们。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"API_KEY": "super-secret"})
 
@@ -244,7 +243,7 @@ def test_get_all_secrets_as_env_vars_tracks_values_for_masking():
 
 
 def test_get_secret_value_static():
-    """Test get_secret_value with static string values."""
+    """使用静态字符串值测试 get_secret_value。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -262,7 +261,7 @@ def test_get_secret_value_static():
 
 
 def test_get_secret_value_callable():
-    """Test get_secret_value with callable values."""
+    """使用可调用值测试 get_secret_value。"""
     secret_registry = SecretRegistry()
 
     secret_registry.update_secrets(
@@ -277,7 +276,7 @@ def test_get_secret_value_callable():
 
 
 def test_get_secret_value_handles_exceptions():
-    """Test that get_secret_value handles exceptions from callables gracefully."""
+    """测试 get_secret_value 是否优雅地处理来自可调用对象的异常。"""
     secret_registry = SecretRegistry()
 
     secret_registry.update_secrets(
@@ -287,19 +286,19 @@ def test_get_secret_value_handles_exceptions():
         }
     )
 
-    # Should not raise exception, should return None for failing secret
+    # 不应引发异常，如果失败机密应返回 None
     assert secret_registry.get_secret_value("FAILING_SECRET") is None
     assert secret_registry.get_secret_value("WORKING_SECRET") == "working-value"
 
 
 def test_get_secret_value_empty_registry():
-    """Test get_secret_value with empty registry."""
+    """使用空注册表测试 get_secret_value。"""
     secret_registry = SecretRegistry()
     assert secret_registry.get_secret_value("ANY_KEY") is None
 
 
 def test_get_secret_value_as_callback():
-    """Test using get_secret_value as a callback for dict-like lookup."""
+    """测试使用 get_secret_value 作为回调进行类似字典的查找。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -308,7 +307,7 @@ def test_get_secret_value_as_callback():
         }
     )
 
-    # This is how it's used with expand_mcp_variables
+    # 这就是它与 expand_mcp_variables 一起使用的方式
     get_secret = secret_registry.get_secret_value
 
     assert get_secret("API_KEY") == "test-api-key"
@@ -317,10 +316,10 @@ def test_get_secret_value_as_callback():
 
 
 def test_get_secret_value_tracks_for_masking():
-    """Test that get_secret_value adds secrets to _exported_values for masking.
+    """测试 get_secret_value 将机密添加到 _exported_values 以进行屏蔽。
 
-    Secrets retrieved via get_secret_value (e.g., for MCP expansion) should be
-    tracked so they can be masked in command outputs.
+    应跟踪通过 get_secret_value（e.g.，用于 MCP 扩展）检索的机密，以便可以在命令输出
+    中屏蔽它们。
     """
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
@@ -330,45 +329,45 @@ def test_get_secret_value_tracks_for_masking():
         }
     )
 
-    # Initially, no exported values
+    # 最初，没有导出值
     assert secret_registry._exported_values == {}
 
-    # Retrieve a secret via get_secret_value
+    # 通过 get_secret_value 检索机密
     value = secret_registry.get_secret_value("API_TOKEN")
     assert value == "super-secret-token-123"
 
-    # The secret should now be tracked for masking
+    # 现在应该跟踪机密以进行屏蔽
     assert "API_TOKEN" in secret_registry._exported_values
     assert secret_registry._exported_values["API_TOKEN"] == "super-secret-token-123"
 
-    # Masking should work on the tracked secret
+    # 屏蔽应该适用于跟踪的机密
     output = "Response: super-secret-token-123"
     masked = secret_registry.mask_secrets_in_output(output)
     assert masked == "Response: <secret-hidden>"
 
-    # Retrieve another secret
+    # 检索另一个机密
     secret_registry.get_secret_value("DB_PASSWORD")
     assert "DB_PASSWORD" in secret_registry._exported_values
 
-    # Both should be masked now
+    # 现在两者都应该被屏蔽
     output2 = "API: super-secret-token-123, DB: db-pass-456"
     masked2 = secret_registry.mask_secrets_in_output(output2)
     assert masked2 == "API: <secret-hidden>, DB: <secret-hidden>"
 
 
 def test_get_secret_value_missing_not_tracked():
-    """Test that missing secrets don't get added to _exported_values."""
+    """测试缺失的机密是否不会添加到 _exported_values。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"EXISTING": "value"})
 
-    # Look up a missing key
+    # 查找丢失的钥匙
     result = secret_registry.get_secret_value("NONEXISTENT")
     assert result is None
     assert "NONEXISTENT" not in secret_registry._exported_values
 
 
 def test_track_exported_values_drops_empty_values():
-    """Empty values must not enter _exported_values (they would poison masking)."""
+    """空值不得输入 _exported_values（它们会破坏屏蔽）。"""
     secret_registry = SecretRegistry()
     secret_registry.track_exported_values({"REAL": "secret", "EMPTY": ""})
 
@@ -377,7 +376,7 @@ def test_track_exported_values_drops_empty_values():
 
 
 def test_mask_secrets_in_output_ignores_empty_value():
-    """An empty exported value must not splice the placeholder between chars."""
+    """空的导出值不得在字符之间拼接占位符。"""
     secret_registry = SecretRegistry()
     secret_registry._exported_values["EMPTY"] = ""
 
@@ -385,12 +384,12 @@ def test_mask_secrets_in_output_ignores_empty_value():
 
 
 def test_mask_secrets_without_name_reference_in_command():
-    """A secret value is masked even if no command ever referenced its name."""
+    """即使没有命令引用过机密值的名称，它也会被屏蔽。"""
     token = "github_pat_REALSECRETVALUE123"
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"github_token": token})
 
-    # The name-scan exports nothing: the command does not mention the name.
+    # name-scan 不导出任何内容：该命令未提及名称。
     assert secret_registry.get_secrets_as_env_vars("git remote -v") == {}
 
     output = f"origin\thttps://{token}@github.com/repo/test.git (fetch)"
@@ -400,7 +399,7 @@ def test_mask_secrets_without_name_reference_in_command():
 
 
 def test_mask_secrets_survives_serialization_round_trip():
-    """Masking survives a resume: _exported_values is not serialized."""
+    """简历中的掩码仍然存在：_exported_values 不是已序列化。"""
     token = "github_pat_REALSECRETVALUE123"
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"github_token": token})
@@ -415,7 +414,7 @@ def test_mask_secrets_survives_serialization_round_trip():
 
 
 def test_mask_secrets_tolerates_failing_source():
-    """A source that fails to resolve is skipped; other secrets still mask."""
+    """无法解析的源将被跳过； 其他机密仍然是掩码。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
         {
@@ -429,7 +428,7 @@ def test_mask_secrets_tolerates_failing_source():
 
 
 def test_mask_secrets_backs_off_failing_source():
-    """A failing source is retried once per window, not on every mask call."""
+    """失败的源会在每个窗口重试一次，而不是在每次掩码调用时重试。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"FAILING_SECRET": MyCountingFailingSource()})
 
@@ -438,14 +437,14 @@ def test_mask_secrets_backs_off_failing_source():
         secret_registry.mask_secrets_in_output("unrelated output")
     assert MyCountingFailingSource.attempts == 1
 
-    # Window elapsed: retried again.
+    # 窗口已过：再次重试。
     secret_registry._failed_lookups["FAILING_SECRET"] -= FAILED_LOOKUP_RETRY_SECONDS
     secret_registry.mask_secrets_in_output("unrelated output")
     assert MyCountingFailingSource.attempts == 2
 
 
 def test_mask_secrets_retries_until_source_succeeds():
-    """Back-off does not permanently disable masking for a recovered source."""
+    """回退不会永久禁用已恢复源的屏蔽。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"FLAKY": MyRecoveringSource()})
 
@@ -462,7 +461,7 @@ def test_mask_secrets_retries_until_source_succeeds():
 
 
 def test_compile_stream_mask_uses_only_already_resolved_values():
-    """The stream path cannot afford a resolve: get_value() may block on I/O."""
+    """流路径无法解析：get_value() 可能会阻塞 I/O。"""
     MyCountingLazySource.attempts = 0
     secret_registry = SecretRegistry()
     secret_registry.update_secrets(
@@ -475,7 +474,7 @@ def test_compile_stream_mask_uses_only_already_resolved_values():
         return masker.feed(text) + masker.flush()
 
     assert mask("leak: abc123") == "leak: <secret-hidden>"
-    # The unresolved source is not consulted, so its value is not masked here.
+    # 未查询的源不会被查询，因此它的值不会在此处被屏蔽。
     assert mask("leak: lazy-value") == "leak: lazy-value"
     assert MyCountingLazySource.attempts == 0
 
@@ -491,7 +490,7 @@ def test_compile_stream_mask_prefers_the_longest_overlapping_value():
 
 
 def test_compile_stream_mask_masks_a_value_split_across_chunks():
-    """A per-chunk masker cannot see a secret the provider splits in two."""
+    """每个块的掩码器无法看到提供者分成两部分的机密。"""
     secret_registry = SecretRegistry()
     secret_registry.update_secrets({"TOKEN": "hunter2"})
     secret_registry.get_secrets_as_env_vars("echo $TOKEN")

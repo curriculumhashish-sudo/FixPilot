@@ -1,21 +1,19 @@
-"""Persistence for shared LLM provider connections.
+"""持久化用于共享 LLM 提供商连接。
 
-A *provider connection* is a small, named bundle of the credential material an
-LLM profile would otherwise carry inline: an ``api_key`` and an optional
-``base_url``. Several LLM profiles can reference one connection by id, so
-rotating the shared key in one place updates every profile that points at it.
+* 提供者连接 * 是一个小的、命名的凭据材料包，LLM 配置文件否则会内联：一个 ``api_key``
+ 和一个可选的
+``base_url``. 多个 LLM 配置文件可以通过 id 引用一个连接，因此在一个位置旋转共享密钥会
+更新指向它的每个配置文件。
 
-This lives in the SDK — next to :class:`LLMProfileStore` — on purpose. The
-profile store resolves a profile's ``provider_connection_id`` into concrete
-credentials at load time (see :meth:`LLMProfileStore.load`), and it can only do
-that if the connection store is reachable from the same layer. Keeping it here
-(rather than in the agent-server) means every path that turns a stored profile
-into a runnable :class:`~openhands.sdk.llm.llm.LLM` — named-profile activation
-*and* the default/seed launch path — resolves identically.
+它故意存在于 SDK 中 — :class:`LLMProfileStore` 旁边。 ``provider_connection_id`` 会解
+析为凭据（见：meth:
+`LLMProfileStore.load`），只有当连接存储从同一层可达时，它才能做到这一点。 将它保留在
+这里（而不是在智能体-服务器上）意味着，任何将存储的凭据转换为可
+运行的：class:`~openhands.sdk.llm.llm.LLM` — 命名凭据激活的路径
+*和 * 默认/种子启动路径 — 解析相同。
 
-The credential is encrypted at rest with the same cipher machinery LLM profiles
-use, so the connection file never holds a plaintext key when ``OH_SECRET_KEY``
-is configured.
+的凭据在加密 REST 使用相同的加密机制 LLM 因此，连接文件中永远不会存储明文密钥
+``OH_SECRET_KEY`` 已配置。
 """
 
 from __future__ import annotations
@@ -53,8 +51,9 @@ _LOCK_TIMEOUT_SECONDS: Final[float] = 30.0
 PROVIDER_CONNECTIONS_SCHEMA_VERSION: Final[int] = 1
 MAX_PROVIDER_CONNECTIONS: Final[int] = 64
 
-# Connection ids: 1-128 chars, alphanumeric start, then alphanumeric/._-.
-# Same shape as profile names — blocks path separators and leading dots.
+# 连接 ID：1-128 个字符，字母数字开头，然后是字母数字/._-。 与配置文件名称形状相同 - 块
+# 路径分隔符和前导点。
+#
 CONNECTION_ID_PATTERN: Final[str] = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
 CONNECTION_ID_REGEX: Final[re.Pattern[str]] = re.compile(CONNECTION_ID_PATTERN)
 
@@ -62,29 +61,27 @@ logger = get_logger(__name__)
 
 
 class ProviderConnectionLimitExceeded(Exception):
-    """Raised when creating a connection would exceed the configured limit."""
+    """创建连接将超出配置的限制时引发。"""
 
 
 class ProviderConnectionNotFound(ValueError):
-    """A referenced provider connection id does not exist.
+    """引用的提供程序连接 ID 不存在。
 
-    Raised by :meth:`LLMProfileStore.load` when a profile points at a connection
-    that has been deleted and the profile has no usable inline key to fall back
-    on.
+    当配置文件指向已删除的连接并且该配置文件没有可用的内联键可供依赖时，由：meth:
+    `LLMProfileStore.load` 引发。
 
-    Subclasses :class:`ValueError` so every ``load()`` caller degrades sensibly
-    even without a dedicated ``except``. The profile-activation and settings
-    endpoints (via ``store_errors``) map it to 422, and the OpenAI-compatible
-    gateway's ``except ValueError`` turns it into a 400 instead of an opaque
-    500. The agent-profile launch path already funnels load failures through
-    its resolver's ``ValueError`` handling; that path can't actually hit a
-    dangling reference, since deleting a referenced connection is blocked while
-    any profile points at it.
+    子类：class:`ValueError` 因此，即使没有专用的 ``except``，每个 ``load()`` 调用者
+    也会明显降级。 配置文件激活和设置端点（通
+    过 ``store_errors``）将其映射到 422，OpenAI 兼容网关的 ``except ValueError`` 将其
+    转换为 400 而不是不透明
+    500. 智能体-配置文件启动路径已经通过以下方式汇集了加载失败
+    其解析器的 ``ValueError`` 处理； 该路径实际上无法命中悬空引用，因为当任何配置文件
+    指向该连接时，删除引用的连接都会被阻止。
     """
 
 
 class ProviderConnection(BaseModel):
-    """A shared credential bundle reused by one or more LLM profiles."""
+    """由一个或多个 LLM 配置文件重复使用的共享凭据捆绑包。"""
 
     id: str = Field(..., min_length=1, max_length=128)
     display_name: str = Field(..., min_length=1, max_length=128)
@@ -99,9 +96,9 @@ class ProviderConnection(BaseModel):
     @field_validator("api_key", mode="before")
     @classmethod
     def _validate_api_key(cls, v: str | SecretStr | None, info) -> SecretStr | None:
-        # Provider connections use a strict decryption path: a Fernet-encrypted key
-        # that cannot be decrypted raises instead of silently becoming None.  A
-        # wrong-cipher read→modify→write would otherwise rewrite the collection
+        # 提供者连接使用严格的解密路径：无法解密的 Fernet 加密密钥会升高，而不是默默地变
+        # 为 None。 错误的密码读取→修改→写入将重写集合
+        #
         # with api_key=null, permanently destroying the stored ciphertext.
         from openhands.sdk.utils.cipher import FERNET_TOKEN_PREFIX
 
@@ -131,7 +128,7 @@ class ProviderConnection(BaseModel):
         return serialize_secret(v, info)
 
     def api_key_value(self) -> str | None:
-        """Return the plaintext key, or ``None`` when unset/empty."""
+        """返回明文密钥，如果未设置/为空，则返回 ``None``。"""
         if self.api_key is None:
             return None
         value = self.api_key.get_secret_value()
@@ -139,7 +136,7 @@ class ProviderConnection(BaseModel):
 
 
 class PersistedProviderConnections(BaseModel):
-    """Container for the saved provider connections file."""
+    """保存的提供者连接文件的容器。"""
 
     schema_version: int = Field(default=PROVIDER_CONNECTIONS_SCHEMA_VERSION)
     connections: list[ProviderConnection] = Field(default_factory=list)
@@ -148,12 +145,12 @@ class PersistedProviderConnections(BaseModel):
 
 
 class ProviderConnectionStore:
-    """File-backed store for shared LLM provider connections.
+    """用于共享 LLM 提供者连接的文件支持存储。
 
-    All connections live in a single JSON file guarded by a file lock, so
-    concurrent create/update/delete calls in-process are serialized. The
-    ``api_key`` of each connection is encrypted at rest when a cipher is
-    supplied, matching :class:`LLMProfileStore`'s secret handling.
+    所有连接都位于由文件锁保护的单个 JSON 文件中，因此并发进程中的创建/更新/删除调用
+    是已序列化。 的
+    当提供密码时，每个连接的 ``api_key`` 在 REST 处加密，匹配：class:
+    `LLMProfileStore` 的机密处理。
     """
 
     def __init__(self, base_dir: Path | str | None = None) -> None:
@@ -176,11 +173,10 @@ class ProviderConnectionStore:
             )
 
     def _read(self, *, cipher: Cipher | None) -> PersistedProviderConnections:
-        """Read the file without locking. Missing file -> empty container.
+        """读取文件而不加锁。 丢失文件 -> 空容器。
 
-        A corrupted file raises ``ValueError`` rather than being silently
-        replaced, so a bad key or truncated write never destroys stored
-        credentials.
+        损坏的文件会引发 ``ValueError``，而不是被静默替换，因此错误的密钥或截断的写入
+        永远不会破坏存储的凭据。
         """
         if not self._path.exists():
             return PersistedProviderConnections()

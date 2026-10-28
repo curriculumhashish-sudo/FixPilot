@@ -1,4 +1,4 @@
-"""HTTP and WebSocket forwarding to authenticated conversation containers."""
+"""HTTP 和 WebSocket 转发到经过身份验证的会话容器。"""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ class ProxyTarget(Protocol):
 
 logger = get_logger(__name__)
 
-# Hop-by-hop headers (RFC 7230) — must not be forwarded by a proxy.
+# 逐跳标头 (RFC 7230) — 不得由代理转发。
 _HOP_BY_HOP_HEADERS = frozenset(
     {
         "authorization",
@@ -43,21 +43,22 @@ _HOP_BY_HOP_HEADERS = frozenset(
         "trailer",
         "transfer-encoding",
         "upgrade",
-        # ``host`` and ``content-length`` are recomputed by httpx; forwarding
-        # the original values causes spurious 400s when bodies are re-chunked.
-        # ``proxy_http`` re-adds the client's ``content-length`` when it
-        # streams that client's body unchanged.
+        # ``host``和``content-length``由httpx重新计算； 当主体被重新分块时，转发原始值会
+        # 导致虚假的 400 秒。
+        # ``proxy_http`` 当客户端的正文未更改时重新添加客户端的 ``content-length``。
+        #
         "host",
         "content-length",
     }
 )
 
-# The serving uvicorn adds its own ``date`` and ``server`` to every response
-# without de-duplicating, so copying the upstream's would send two of each.
+# 服务 uvicorn 将自己的 ``date`` 和 ``server`` 添加到每个响应中，而不进行重复数据删除，
+# 因此复制上游的将发送每个响应中的两个。
+#
 _RESPONSE_DROP_HEADERS = frozenset({"date", "server"})
 
-# Stream chunk size for request/response bodies. Set it explicitly so proxy
-# behavior does not depend on an httpx implementation default.
+# 请求/响应主体的流块大小。 显式设置它，以便代理行为不依赖于 httpx 实现默认值。
+#
 _CHUNK_SIZE = 64 * 1024
 
 
@@ -90,41 +91,39 @@ async def proxy_http(
     on_close: Callable[[], Awaitable[None]] | None = None,
     reject_redirects: bool = False,
 ) -> StreamingResponse:
-    """Forward ``request`` to the per-conversation container.
+    """将 ``request`` 转发到每个对话容器。
 
     Args:
-        request: Incoming Starlette request on the outer agent-server.
-        workspace: The proxy target for the target container.
-        upstream_path: Path (including any query string) on the inner
-            agent-server to forward to. Typically the same path the outer
-            server received, since the inner agent-server exposes the same
-            API surface.
-        timeout: Per-request timeout in seconds. ``None`` (the default) means
-            no read timeout — conversation event streams can be long-lived.
-        body: Replacement request body. By default the incoming body is streamed.
-        on_close: Awaited once the streamed response is fully consumed or the
-            client disconnects. Callers use this to release a session
-            attachment that must outlive the route handler (see
+        request: 外部智能体服务器上传入的 Starlette 请求。
+        workspace: 目标容器的代理目标。
+        upstream_path: 内部的路径（包括任何查询字符串）
+            智能体-要转发到的服务器。 通常与外部服务器接收的路径相同，因为内部智能体-
+            服务器公开相同的 API 表面。
+        timeout: 每个请求超时以秒为单位。 ``None``（默认）表示
+            no read 超时 — 对话事件流可以长期存在。
+        body: 更换请求正文。 默认情况下，传入的正文是流式传输的。
+        on_close: 一旦流式响应被完全消耗或
+            客户端断开连接。 调用者使用它来释放会话附件，该附件必须比路由处理程序的寿
+            命更长（请参阅
             ``DockerConversationRegistry.attach_session``).
-        reject_redirects: Reject upstream redirects instead of forwarding a
-            location that could escape a fixed-destination proxy.
+        reject_redirects: 拒绝上游重定向而不是转发
+            可以逃避固定目标代理的位置。
 
     Notes:
-        A fresh :class:`httpx.AsyncClient` is created per request. We avoid a
-        long-lived pool because the outer server can serve many concurrent
-        conversations and each one talks to a different upstream port — and
-        because making the client per-request keeps the lifespan/teardown
-        story trivial.
+        每个请求都会创建一个新的：class:`httpx.AsyncClient`。 我们避免使用长连接池，
+        因为外层服务器可以处理许多并发会话，每个会话都连接到不
+        同的上游端口，而且因为客户端每请求一次就保持一个，这样生命周期和 teardown故事
+        变得非常简单。
     """
     if request.headers.get("x-expose-secrets"):
         raise HTTPException(422, "Runtime secret exposure is unsupported")
     url = workspace.host + strip_auth_query(upstream_path)
     headers = _filter_headers(request.headers)
-    # If the client authenticated via the workspace-session cookie (used by
-    # iframe / img embeds that can't attach custom headers), there's no
-    # ``X-Session-API-Key`` on the inbound request — but the inner
-    # agent-server only knows about the header. Synthesize one from the
-    # workspace's stored key so the inner accepts the proxied request.
+    # 如果客户端通过工作区-session cookie（由无法附加自定义标头的 iframe / img 嵌入使用
+    # ）进行身份验证，则不会
+    # 入站请求上的 ``X-Session-API-Key`` — 但内部智能体服务器只知道标头。 从工作区的存储
+    # 密钥合成一个，以便内部接受代理请求。
+    #
     if workspace.api_key:
         headers["X-Session-API-Key"] = workspace.api_key
 
@@ -133,9 +132,9 @@ async def proxy_http(
             if chunk:
                 yield chunk
 
-    # Keep the client's body framing: a fixed-length body stays fixed-length
-    # (httpx skips chunking when Content-Length is set) and a request without
-    # a body is sent without one, instead of an empty chunked body.
+    # 保持客户端的主体框架：固定长度的主体保持固定长度（httpx 设置 Content-Length 时跳过
+    #  chunking），没有主体的请求不发送主体，而是发送一个空的 chunked 主体。
+    #
     content: bytes | AsyncIterator[bytes] | None = body
     if body is None and "transfer-encoding" in request.headers:
         content = _request_body()
@@ -143,7 +142,7 @@ async def proxy_http(
         headers["Content-Length"] = request.headers["content-length"]
         content = _request_body()
 
-    # Keep HTTPX's contexts open until StreamingResponse consumes the body.
+    # 保持 HTTPX 的上下文打开，直到 StreamingResponse 消耗掉主体。
     stack = AsyncExitStack()
     try:
         client = await stack.enter_async_context(
@@ -200,26 +199,24 @@ async def bridge_websocket(
     *,
     upstream_path: str,
 ) -> None:
-    """Bridge a WebSocket session between the browser and an inner container.
+    """在浏览器和内部容器之间桥接 WebSocket 会话。
 
-    Precondition: ``client_ws`` MUST already be accepted by the caller. The
-    bridge does not call ``accept()`` itself because the outer server's
-    WebSocket-auth helper accepts on success and calling ``accept()`` a
-    second time would raise.
+    Precondition: ``client_ws`` 必须已被呼叫者接受。 的
+    桥接器不会调用 ``accept()`` 本身，因为外部服务器的 WebSocket-auth 帮助程序在成功
+    时接受，并且第二次调用 ``accept()`` 会引
+    发。
 
-    Closure semantics: when either side closes (or errors), we close the
-    other side and return. No reconnect.
+    关闭语义：当任一端关闭（或错误）时，我们关闭另一端并返回。 无需重新连接。
     """
     upstream_url = workspace.host.replace("http://", "ws://").replace(
         "https://", "wss://"
     ) + strip_auth_query(upstream_path)
 
-    # The local sockets router accepts auth via header / query param / first
-    # message. By the time we get here the outer has already accepted the
-    # socket — but the inner is a separate server that requires its own
-    # auth. Mint the inner-side ``X-Session-API-Key`` from the workspace's
-    # shared key. (If both outer and inner have no key requirement, the
-    # workspace.api_key is None and we send no header — that's fine.)
+    # 本地套接字路由器通过标头/查询参数/第一条消息接受身份验证。 当我们到达这里时，外部
+    # 已经接受了套接字 - 但内部是一个单独的服务器，需要自己的身份验证。 从工作区的共享密
+    # 钥中生成 ``X-Session-API-Key`` 的内侧部分。（如果内外都无需密钥，则
+    # workspace.api_key 是 None，我们不发送头部——这没问题。）
+    #
     upstream_headers: dict[str, str] = {}
     if workspace.api_key:
         upstream_headers["X-Session-API-Key"] = workspace.api_key
@@ -232,8 +229,9 @@ async def bridge_websocket(
             await _bridge_websocket_loop(client_ws, upstream_ws)
     except websockets.exceptions.InvalidStatus as exc:
         logger.warning("Upstream WebSocket rejected (%s) to %s", exc, workspace.host)
-        # 1011 == "internal error"; closest match for an upstream HTTP failure
-        # since browsers can't see HTTP status codes from a failed upgrade.
+        # 第1011章上游 HTTP 故障的最接近匹配，因为浏览器无法看到升级失败的 HTTP 状态代码
+        # 。
+        #
         await client_ws.close(code=1011)
     except (OSError, websockets.exceptions.WebSocketException) as exc:
         logger.warning(

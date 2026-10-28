@@ -18,7 +18,7 @@ class _RollingViewHandler(logging.Handler):
         super().__init__()
         self._buf: deque[str] = deque(maxlen=max_lines)
         self._use_live: bool = use_live
-        self._live: Live | None = None  # set by rolling_log_view when Live is active
+        self._live: Live | None = None  # 当 Live 处于活动状态时设置为 rolling_log_view
         self.render_fn: RenderFnType | None = None
 
     def emit(self, record: logging.LogRecord):
@@ -26,18 +26,18 @@ class _RollingViewHandler(logging.Handler):
         self._buf.append(msg)
 
         if self._use_live and self._live:
-            # Live mode: repaint using either a custom render_fn or the buffer
+            # 实时模式：使用自定义 render_fn 或缓冲区重新绘制
             self._live.update(
                 self.render_fn() if self.render_fn else "\n".join(self._buf)
             )
             return
 
-        # Non-live paths
+        # 非活动路径
         if ENV_JSON:
-            # JSON mode: do nothing here; rely on other handlers via propagation
+            # JSON模式：此处不执行任何操作； 通过传播依赖其他处理程序
             return
 
-        # CI / non-TTY plain pass-through (avoid double newlines)
+        # CI/非TTY普通传递（避免双换行符）
         sys.stdout.write(msg + "\n")
         sys.stdout.flush()
 
@@ -55,15 +55,14 @@ def rolling_log_view(
     header: str | None = None,
     footer: str | None = None,
     *,
-    json_flush_level: int
-    | None = None,  # optional: separate level for the final JSON flush
+    json_flush_level: int | None = None,  # 可选：最终 JSON 冲洗的单独级别
 ):
     """
-    Temporarily attach a rolling view handler that renders the last N log lines.
+    临时附加一个滚动视图处理程序，用于呈现最后 N 条日志行。
 
-    - Local TTY & not CI & not JSON: pretty, live-updating view (Rich.Live)
-    - CI / non-TTY: plain line-by-line (no terminal control)
-    - JSON mode: buffer only; on exit emit ONE large log record with the full snapshot.
+    - 本地 TTY 且非 CI 且非 JSON：漂亮的实时更新视图 (Rich.Live)
+    - CI/非TTY：逐行普通（无终端控制）
+    - JSON模式：仅缓冲； 退出时发出一个大日志记录和完整快照。
     """
     is_tty = sys.stdout.isatty()
     use_live = (not IN_CI) and is_tty and (not ENV_JSON)
@@ -73,7 +72,7 @@ def rolling_log_view(
     handler.setFormatter(logging.Formatter("%(message)s"))
 
     prev_propagate = logger.propagate
-    # Let other handlers (e.g., your JSON handler) run if needed
+    # 如果需要，让其他处理程序（e.g.，您的 JSON 处理程序）运行
     logger.propagate = bool(propagate or ENV_JSON)
 
     logger.addHandler(handler)
@@ -98,15 +97,15 @@ def rolling_log_view(
     finally:
         final_text = _render()
 
-        # Freeze final frame if Live was active
+        # 如果 Live 处于活动状态，则冻结最后一帧
         if handler._live:
             handler._live.update(final_text)
 
-        # Detach our handler BEFORE flushing to avoid recursion
+        # 分离我们的处理程序之前刷新以避免递归
         logger.removeHandler(handler)
         logger.propagate = prev_propagate
 
-        # JSON mode: emit one big record at exit
+        # JSON模式：退出时发出一大条记录
         if ENV_JSON:
             logger.log(
                 json_flush_level if json_flush_level is not None else level, final_text

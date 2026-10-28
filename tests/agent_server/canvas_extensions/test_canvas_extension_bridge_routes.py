@@ -1,4 +1,4 @@
-"""Route binding of the Canvas App backend bridge: which upstream path is proxied."""
+"""Canvas App后端桥的路由绑定：代理哪条上游路径。"""
 
 from __future__ import annotations
 

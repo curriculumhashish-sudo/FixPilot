@@ -1,4 +1,4 @@
-"""Tests for conversation.execute_tool() functionality."""
+"""测试 conversation.execute_tool() 功能。"""
 
 import pytest
 from pydantic import SecretStr
@@ -23,24 +23,24 @@ from openhands.sdk.tool import (
 )
 
 
-# Define a simple test action and observation
+# 定义一个简单的测试操作和观测结果
 class ExecuteToolTestAction(Action):
-    """Test action for execute_tool tests."""
+    """execute_tool 测试的测试操作。"""
 
     value: str = "test"
 
 
 class ExecuteToolTestObservation(Observation):
-    """Test observation for execute_tool tests."""
+    """测试观测结果进行 execute_tool 次测试。"""
 
     result: str = ""
 
 
-# Define a simple test tool executor
+# 定义一个简单的测试工具执行器
 class ExecuteToolTestExecutor(
     ToolExecutor[ExecuteToolTestAction, ExecuteToolTestObservation]
 ):
-    """Test executor that returns a simple observation."""
+    """返回简单观测结果的测试执行器。"""
 
     def __init__(self, prefix: str = "executed"):
         self.prefix = prefix
@@ -57,11 +57,11 @@ class ExecuteToolTestExecutor(
         )
 
 
-# Define a simple test tool
+# 定义一个简单的测试工具
 class ExecuteToolTestTool(
     ToolDefinition[ExecuteToolTestAction, ExecuteToolTestObservation]
 ):
-    """Test tool for execute_tool tests."""
+    """用于 execute_tool 测试的测试工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params):
@@ -91,7 +91,7 @@ def _tool_registry_snapshot():
 
 
 class ExecuteToolDummyAgent(AgentBase):
-    """Dummy agent for testing execute_tool."""
+    """用于测试 execute_tool 的虚拟智能体。"""
 
     def __init__(self, tools=None):
         llm = LLM(
@@ -102,9 +102,9 @@ class ExecuteToolDummyAgent(AgentBase):
     def init_state(
         self, state: ConversationState, on_event: ConversationCallbackType
     ) -> None:
-        # Call parent init_state to properly initialize tools
+        # 调用父级 init_state 来正确初始化工具
         super().init_state(state, on_event)
-        # Then emit the system prompt event
+        # 然后发出系统提示词事件
         event = SystemPromptEvent(
             source="agent", system_prompt=TextContent(text="dummy"), tools=[]
         )
@@ -125,64 +125,64 @@ class ExecuteToolDummyAgent(AgentBase):
 
 
 def test_execute_tool_basic():
-    """Test basic execute_tool functionality."""
+    """测试基本 execute_tool 功能。"""
     agent = ExecuteToolDummyAgent(
         tools=[Tool(name="execute_tool_test", params={"prefix": "hello"})]
     )
     conversation = Conversation(agent=agent)
 
-    # Execute the tool before run()
+    # 在 run() 之前执行该工具
     action = ExecuteToolTestAction(value="world")
     result = conversation.execute_tool("execute_tool_test", action)
 
-    # Verify the result
+    # 验证结果
     assert isinstance(result, ExecuteToolTestObservation)
     assert result.result == "hello_world"
     assert "hello: world" in result.text
 
 
 def test_execute_tool_initializes_agent():
-    """Test that execute_tool initializes the agent if not already initialized."""
+    """如果尚未初始化，则测试 execute_tool 是否初始化智能体。"""
     agent = ExecuteToolDummyAgent(tools=[Tool(name="execute_tool_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Agent should not be initialized yet
+    # 智能体尚未初始化
     assert not conversation._agent_ready
 
-    # Execute the tool
+    # 执行工具
     action = ExecuteToolTestAction(value="test")
     conversation.execute_tool("execute_tool_test", action)
 
-    # Agent should now be initialized
+    # 智能体现在应该被初始化
     assert conversation._agent_ready
 
 
 def test_execute_tool_before_send_message():
-    """Test that execute_tool works before send_message is called."""
+    """在调用 send_message 之前测试 execute_tool 是否有效。"""
     agent = ExecuteToolDummyAgent(tools=[Tool(name="execute_tool_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Execute tool before any messages
+    # 在任何消息之前执行工具
     action = ExecuteToolTestAction(value="pre-message")
     result = conversation.execute_tool("execute_tool_test", action)
 
     assert isinstance(result, ExecuteToolTestObservation)
     assert result.result == "executed_pre-message"
 
-    # Now send a message - should still work
+    # 现在发送消息 - 应该仍然有效
     conversation.send_message("Hello")
-    assert len(conversation.state.events) >= 2  # System prompt + user message
+    assert len(conversation.state.events) >= 2  # 系统提示词+用户消息
 
 
 def test_execute_tool_after_send_message():
-    """Test that execute_tool works after send_message is called."""
+    """测试 execute_tool 是否在调用 send_message 后起作用。"""
     agent = ExecuteToolDummyAgent(tools=[Tool(name="execute_tool_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Send a message first
+    # 先发消息
     conversation.send_message("Hello")
 
-    # Execute tool after message
+    # 消息后执行工具
     action = ExecuteToolTestAction(value="post-message")
     result = conversation.execute_tool("execute_tool_test", action)
 
@@ -191,7 +191,7 @@ def test_execute_tool_after_send_message():
 
 
 def test_execute_tool_not_found():
-    """Test that execute_tool raises KeyError for non-existent tools."""
+    """测试 execute_tool 是否会因不存在的工具而引发 KeyError。"""
     agent = ExecuteToolDummyAgent(tools=[Tool(name="execute_tool_test", params={})])
     conversation = Conversation(agent=agent)
 
@@ -205,11 +205,11 @@ def test_execute_tool_not_found():
 
 
 def test_execute_tool_multiple_calls():
-    """Test that execute_tool can be called multiple times."""
+    """测试execute_tool可以被多次调用。"""
     agent = ExecuteToolDummyAgent(tools=[Tool(name="execute_tool_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Execute multiple times
+    # 执行多次
     for i in range(3):
         action = ExecuteToolTestAction(value=f"call_{i}")
         result = conversation.execute_tool("execute_tool_test", action)
@@ -218,19 +218,19 @@ def test_execute_tool_multiple_calls():
 
 
 def test_execute_tool_with_conversation_context():
-    """Test that execute_tool passes conversation context to the executor."""
+    """测试 execute_tool 将对话上下文传递给执行者。"""
 
     class ContextAwareExecutor(
         ToolExecutor[ExecuteToolTestAction, ExecuteToolTestObservation]
     ):
-        """Executor that uses conversation context."""
+        """使用对话上下文的执行器。"""
 
         def __call__(
             self,
             action: ExecuteToolTestAction,
             conversation: "LocalConversation | None" = None,
         ) -> ExecuteToolTestObservation:
-            # Verify conversation is passed
+            # 验证对话是否通过
             conv_id = str(conversation.id) if conversation else "no_conversation"
             return ExecuteToolTestObservation.from_text(
                 f"conv_id: {conv_id}", result=f"context_{action.value}"
@@ -258,7 +258,7 @@ def test_execute_tool_with_conversation_context():
     action = ExecuteToolTestAction(value="test")
     result = conversation.execute_tool("context_aware", action)
 
-    # Verify conversation was passed (result should contain conversation ID)
+    # 验证对话已通过（结果应包含对话 ID）
     assert "conv_id:" in result.text
     assert isinstance(result, ExecuteToolTestObservation)
     assert result.result == "context_test"

@@ -1,8 +1,9 @@
-"""Persistence module for settings and secrets storage.
+"""持久化设置和机密存储模块。
 
-Note: API request/response models (SecretCreateRequest, SecretItemResponse,
-SecretsListResponse, SettingsResponse, SettingsUpdateRequest) are defined
-in the SDK to enable sharing between SDK clients and agent-server.
+Note: API 请求/响应模型 (SecretCreateRequest, SecretItemResponse,
+SecretsListResponse、SettingsResponse、SettingsUpdateRequest）在 SDK 中定义，以实现
+SDK 客户端和智能体服务
+器之间的共享。
 See: openhands.sdk.settings.api_models
 """
 
@@ -42,11 +43,11 @@ from openhands.sdk.llm.provider_connection_store import (
 
 
 __all__ = [
-    # Constants
+    # 常数
     "PERSISTED_SETTINGS_SCHEMA_VERSION",
     "SECRET_NAME_PATTERN",
     "WORKSPACES_SCHEMA_VERSION",
-    # Models
+    # 型号
     "CustomSecret",
     "PersistedProviderConnections",
     "PersistedSettings",
@@ -56,7 +57,7 @@ __all__ = [
     "SettingsUpdatePayload",
     "WorkspaceItem",
     "WorkspaceParentItem",
-    # Stores
+    # 商店
     "FileSecretsStore",
     "FileSettingsStore",
     "FileWorkspacesStore",

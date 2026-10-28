@@ -1,4 +1,4 @@
-"""Tests for AgentContext template rendering functionality."""
+"""测试 AgentContext 模板渲染功能。"""
 
 import re
 
@@ -15,17 +15,17 @@ from openhands.sdk.skills import (
 
 
 class TestAgentContext:
-    """Test cases for AgentContext template rendering."""
+    """测试用例用于 AgentContext 模板渲染。"""
 
     def test_agent_context_creation_empty(self):
-        """Test creating an empty AgentContext."""
+        """测试创建一个空的 AgentContext。"""
         context = AgentContext()
         assert context.skills == []
         assert context.system_message_suffix is None
         assert context.user_message_suffix is None
 
     def test_agent_context_creation_with_suffix(self):
-        """Test creating AgentContext with custom suffixes."""
+        """测试使用自定义后缀创建 AgentContext。"""
         context = AgentContext(
             system_message_suffix="Custom system suffix",
             user_message_suffix="Custom user suffix",
@@ -34,7 +34,7 @@ class TestAgentContext:
         assert context.user_message_suffix == "Custom user suffix"
 
     def test_skill_validation_duplicate_names(self):
-        """Test that duplicate skill names raise validation error."""
+        """测试重复的技能名称是否会引发验证错误。"""
         repo_skill1 = Skill(
             name="duplicate",
             content="First agent",
@@ -52,19 +52,19 @@ class TestAgentContext:
             AgentContext(skills=[repo_skill1, repo_skill2])
 
     def test_disabled_skills_drops_named_skill(self):
-        """The disabled_skills deny-list drops the named skill from the context
-        after loading, regardless of source; a name not present is a no-op."""
+        """disabled_skills 拒绝列表从上下文中删除指定的技能
+        加载后，无论来源如何； 不存在的名称是空操作。"""
         keep = Skill(name="keep", content="k", source="keep.md", trigger=None)
         drop = Skill(name="drop", content="d", source="drop.md", trigger=None)
         context = AgentContext(
             skills=[keep, drop],
-            # "absent" is not among the skills — must be a harmless no-op.
+            # “缺席”不属于技能范围——必须是无害的空操作。
             disabled_skills=["drop", "absent"],
         )
         assert [s.name for s in context.skills] == ["keep"]
 
     def test_disabled_skills_empty_keeps_all(self):
-        """The default empty deny-list keeps every skill."""
+        """默认的空拒绝列表保留所有技能。"""
         a = Skill(name="a", content="a", source="a.md", trigger=None)
         b = Skill(name="b", content="b", source="b.md", trigger=None)
         context = AgentContext(skills=[a, b])
@@ -72,7 +72,7 @@ class TestAgentContext:
         assert {s.name for s in context.skills} == {"a", "b"}
 
     def test_get_system_message_suffix_no_repo_skills(self):
-        """Test system message suffix with no repo skills but with triggered skills."""
+        """测试系统消息后缀，没有repo技能但有触发技能。"""
         knowledge_skill = Skill(
             name="test_knowledge",
             content="Some knowledge content",
@@ -81,15 +81,15 @@ class TestAgentContext:
         )
         context = AgentContext(skills=[knowledge_skill])
         result = context.get_system_message_suffix()
-        # Now includes available skills prompt for triggered skills
+        # 现在包括触发技能的可用技能提示词
         assert result is not None
         assert "<SKILLS>" in result
         assert "<available_skills>" in result
         assert "<name>test_knowledge</name>" in result
 
     def test_get_system_message_suffix_available_skills_auto_added(self):
-        """Test that available skills are automatically added to system prompt."""
-        # Create multiple triggered skills
+        """测试可用技能是否自动添加到系统提示词。"""
+        # 创建多种触发技能
         skill1 = Skill(
             name="pdf-tools",
             content="Extract text from PDF files using pdftotext.",
@@ -107,7 +107,7 @@ class TestAgentContext:
         context = AgentContext(skills=[skill1, skill2])
         result = context.get_system_message_suffix()
 
-        # Verify the available skills prompt is included
+        # 验证包含可用技能提示词
         assert result is not None
         assert "<SKILLS>" in result
         assert "The following skills are available" in result
@@ -116,19 +116,19 @@ class TestAgentContext:
         assert "<name>image-resize</name>" in result
         assert "Extract text from PDF files." in result
         assert "Resize and convert images." in result
-        # Source paths must NOT be exposed: invoke_skill is the only entry point.
+        # 源路径必须公开不：invoke_skill 是唯一的入口。
         assert "<location>" not in result
         assert "pdf-tools.md" not in result
         assert "image-resize.md" not in result
 
     def test_agentskills_format_progressive_disclosure(self):
-        """Test that AgentSkills-format skills use progressive disclosure.
+        """测试 AgentSkills 格式技能是否使用渐进式披露。
 
-        AgentSkills-format skills (is_agentskills_format=True) should always
-        be listed in <available_skills> regardless of trigger, following the
-        AgentSkills standard's progressive disclosure model.
+        AgentSkills 格式技能 (is_agentskills_format=True) 应始终列在
+        <available_skills> 中，无论触发方
+        式如何，遵循 AgentSkills 标准的渐进式披露模型。
         """
-        # AgentSkills-format skill WITHOUT triggers
+        # AgentSkills-格式技能WITHOUT触发
         agentskills_no_trigger = Skill(
             name="code-style",
             content="Full content that should NOT be in system prompt",
@@ -137,7 +137,7 @@ class TestAgentContext:
             trigger=None,
             is_agentskills_format=True,
         )
-        # AgentSkills-format skill WITH triggers
+        # AgentSkills-格式技能WITH触发
         agentskills_with_trigger = Skill(
             name="encryption",
             content="Encryption instructions",
@@ -146,7 +146,7 @@ class TestAgentContext:
             trigger=KeywordTrigger(keywords=["encrypt"]),
             is_agentskills_format=True,
         )
-        # Legacy OpenHands skill WITHOUT triggers (should go to REPO_CONTEXT)
+        # 旧版 OpenHands 技能 WITHOUT 触发器（应转到 REPO_CONTEXT）
         legacy_no_trigger = Skill(
             name="repo-rules",
             content="Legacy repo rules content",
@@ -162,23 +162,23 @@ class TestAgentContext:
 
         assert result is not None
 
-        # AgentSkills-format skills should be in <available_skills>
+        # AgentSkills-格式技能应为<available_skills>
         assert "<available_skills>" in result
         assert "<name>code-style</name>" in result
         assert "<name>encryption</name>" in result
         assert "Code style guidelines" in result
         assert "Encrypt and decrypt messages" in result
 
-        # AgentSkills-format skill content should NOT be dumped
+        # AgentSkills-格式技能内容应不转储
         assert "Full content that should NOT be in system prompt" not in result
 
-        # Legacy skill should be in REPO_CONTEXT with full content
+        # 旧技能应在 REPO_CONTEXT 中且内容完整
         assert "<REPO_CONTEXT>" in result
         assert "Legacy repo rules content" in result
 
     def test_disable_model_invocation_hides_skill_but_preserves_triggers(self):
-        """Disabled skills should not be advertised for invoke_skill, but their
-        trigger-based activation still works."""
+        """残疾技能不应为 invoke_skill 做广告，但他们的技能
+        基于触发器的激活仍然有效。"""
         visible = Skill(
             name="visible",
             content="Visible full content",
@@ -232,7 +232,7 @@ class TestAgentContext:
         assert activated_skill_names == ["hidden-triggered"]
 
     def test_get_system_message_suffix_with_repo_skills(self):
-        """Test system message suffix rendering with repo skills."""
+        """使用repo技能测试系统消息后缀渲染。"""
         repo_agent1 = Skill(
             name="coding_standards",
             content="Follow PEP 8 style guidelines for Python code.",
@@ -280,7 +280,7 @@ class TestAgentContext:
         assert result == expected_output
 
     def test_get_system_message_suffix_with_custom_suffix(self):
-        """Test system message suffix with repo skills and custom suffix."""
+        """使用存储库技能和自定义后缀测试系统消息后缀。"""
         repo_agent = Skill(
             name="security_rules",
             content="Always validate user input and sanitize data.",
@@ -294,7 +294,7 @@ class TestAgentContext:
         )
         result = context.get_system_message_suffix()
 
-        # Verify key components are present
+        # 验证关键组件是否存在
         assert result is not None
         assert "<REPO_CONTEXT>" in result
         assert "[BEGIN context from [security_rules]]" in result
@@ -303,7 +303,7 @@ class TestAgentContext:
         assert "Additional custom instructions for the system." in result
 
     def test_get_system_message_suffix_with_memory_context(self):
-        """Resolved memory renders as a <MEMORY_CONTEXT> block in the suffix."""
+        """解析内存呈现为后缀中的 <MEMORY_CONTEXT> 块。"""
         context = AgentContext(load_memory=True).model_copy(
             update={"memory_context": "- the API uses cursor-based pagination"}
         )
@@ -313,7 +313,7 @@ class TestAgentContext:
         assert "- the API uses cursor-based pagination" in result
 
     def test_to_acp_prompt_context_accepts_memory_fields(self):
-        """The memory fields are ACP-compatible and render in the ACP suffix."""
+        """内存字段与 ACP 兼容并以 ACP 后缀呈现。"""
         context = AgentContext(load_memory=True).model_copy(
             update={"memory_context": "- remembered fact"}
         )
@@ -323,7 +323,7 @@ class TestAgentContext:
         assert "- remembered fact" in result
 
     def test_get_user_message_suffix_empty_query(self):
-        """Test user message suffix with empty query."""
+        """使用空查询测试用户消息后缀。"""
         knowledge_agent = Skill(
             name="python_tips",
             content="Use list comprehensions for better performance.",
@@ -338,7 +338,7 @@ class TestAgentContext:
         assert result is None
 
     def test_get_user_message_suffix_no_triggers(self):
-        """Test user message suffix with no matching triggers."""
+        """测试没有匹配触发器的用户消息后缀。"""
         knowledge_agent = Skill(
             name="python_tips",
             content="Use list comprehensions for better performance.",
@@ -355,7 +355,7 @@ class TestAgentContext:
         assert result is None
 
     def test_get_user_message_suffix_with_single_trigger(self):
-        """Test user message suffix with single triggered skill."""
+        """使用单次触发技能测试用户消息后缀。"""
         knowledge_agent = Skill(
             name="python_tips",
             content="Use list comprehensions for better performance.",
@@ -392,7 +392,7 @@ class TestAgentContext:
         assert triggered_names == ["python_tips"]
 
     def test_get_user_message_suffix_with_multiple_triggers(self):
-        """Test user message suffix with multiple triggered skills."""
+        """使用多种触发技能测试用户消息后缀。"""
         python_agent = Skill(
             name="python_best_practices",
             content="Follow PEP 8 and use type hints for better code quality.",
@@ -454,7 +454,7 @@ parametrization.",
         assert set(triggered_names) == {"python_best_practices", "testing_framework"}
 
     def test_get_user_message_suffix_skip_skill_names(self):
-        """Test user message suffix with skipped skill names."""
+        """使用跳过的技能名称测试用户消息后缀。"""
         knowledge_agent = Skill(
             name="python_tips",
             content="Use list comprehensions for better performance.",
@@ -472,7 +472,7 @@ parametrization.",
         assert result is None
 
     def test_get_user_message_suffix_multiline_content(self):
-        """Test user message suffix with multiline user content."""
+        """使用多行用户内容测试用户消息后缀。"""
         knowledge_agent = Skill(
             name="database_tips",
             content="Always use parameterized queries to prevent SQL injection \
@@ -514,7 +514,7 @@ attacks.",
         assert triggered_names == ["database_tips"]
 
     def test_mixed_skill_types(self):
-        """Test AgentContext with mixed skill types."""
+        """使用混合技能类型测试 AgentContext。"""
         repo_agent = Skill(
             name="repo_standards",
             content="Use semantic versioning for releases.",
@@ -530,19 +530,19 @@ attacks.",
 
         context = AgentContext(skills=[repo_agent, knowledge_agent])
 
-        # Test system message suffix (includes repo skills and available skills)
+        # 测试系统消息后缀（包括repo技能和可用技能）
         system_result = context.get_system_message_suffix()
         assert system_result is not None
-        # Should include repo context
+        # 应包含存储库上下文
         assert "<REPO_CONTEXT>" in system_result
         assert "[BEGIN context from [repo_standards]]" in system_result
         assert "Use semantic versioning for releases." in system_result
-        # Should also include available skills for triggered skills
+        # 还应包括触发技能的可用技能
         assert "<SKILLS>" in system_result
         assert "<available_skills>" in system_result
         assert "<name>git_tips</name>" in system_result
 
-        # Test user message suffix (should only include knowledge skills)
+        # 测试用户留言后缀（应仅包含知识技能）
         user_message = Message(
             role="user",
             content=[TextContent(text="How should I format my git commits?")],
@@ -571,7 +571,7 @@ attacks.",
         assert triggered_names == ["git_tips"]
 
     def test_case_insensitive_trigger_matching(self):
-        """Test that trigger matching is case insensitive."""
+        """测试触发器匹配是否不区分大小写。"""
         knowledge_agent = Skill(
             name="docker_tips",
             content="Use multi-stage builds to reduce image size.",
@@ -608,7 +608,7 @@ attacks.",
         assert triggered_names == ["docker_tips"]
 
     def test_special_characters_in_content(self):
-        """Test template rendering with special characters in content."""
+        """使用内容中的特殊字符测试模板渲染。"""
         repo_agent = Skill(
             name="special_chars",
             content="Use {{ curly braces }} and <angle brackets> carefully in \
@@ -648,7 +648,7 @@ templates.",
         assert result == expected_output
 
     def test_empty_skill_content(self):
-        """Test template rendering with empty skill content."""
+        """使用空技能内容测试模板渲染。"""
         repo_agent = Skill(
             name="empty_content", content="", source="test.md", trigger=None
         )
@@ -683,14 +683,14 @@ templates.",
         assert result == expected_output
 
     def test_get_system_message_suffix_custom_suffix_only(self):
-        """Test system message suffix with custom suffix but no repo skills.
+        """使用自定义后缀测试系统消息后缀，但没有 repo 技能。
 
-        This test exposes a bug where get_system_message_suffix() returns None
-        when there are no repo skills, even if system_message_suffix is set.
-        The method should return the custom suffix in this case.
+        此测试暴露了一个错误，即当没有回购技能时，get_system_message_suffix() 返回
+        None，即使设置了
+        system_message_suffix。 在这种情况下，该方法应返回自定义后缀。
         """
-        # Create context with only knowledge skills (no repo skills)
-        # but with a custom system_message_suffix
+        # 仅使用知识技能（无回购技能）但使用自定义 system_message_suffix 创建上下文
+        #
         knowledge_agent = Skill(
             name="test_knowledge",
             content="Some knowledge content",
@@ -704,27 +704,27 @@ templates.",
 
         result = context.get_system_message_suffix()
 
-        # Should include both the available skills and the custom suffix
+        # 应包括可用技能和自定义后缀
         assert result is not None
         assert "Custom system instructions without repo context." in result
-        # Also includes available skills for triggered skills
+        # 还包括触发技能的可用技能
         assert "<SKILLS>" in result
         assert "<name>test_knowledge</name>" in result
 
     def test_get_user_message_suffix_empty_query_with_suffix(self):
-        """Test user message suffix with empty query but custom user_message_suffix.
+        """使用空查询但自定义 user_message_suffix 测试用户消息后缀。
 
-        This test exposes a bug where get_user_message_suffix() returns None
-        when the user message has no text content, even if user_message_suffix is set.
-        The method should return the custom suffix in this case.
+        此测试暴露了一个错误，即当用户消息没有文本内容时，get_user_message_suffix()
+        返回 None，即使设置了
+        user_message_suffix。 在这种情况下，该方法应返回自定义后缀。
         """
-        # Create context with user_message_suffix
+        # 使用 user_message_suffix 创建上下文
         context = AgentContext(
             skills=[],
             user_message_suffix="Custom user instructions for empty messages.",
         )
 
-        # Create a message with no text content (empty query)
+        # 创建没有文本内容的消息（空查询）
         empty_message = Message(role="user", content=[])
 
         result = context.get_user_message_suffix(empty_message, [])
@@ -735,19 +735,19 @@ templates.",
         assert result == (expected_content, [])
 
     def test_get_secret_infos_no_secrets(self):
-        """Test get_secret_infos with no secrets configured."""
+        """在未配置机密的情况下测试 get_secret_infos。"""
         context = AgentContext()
         result = context.get_secret_infos()
         assert result == []
 
     def test_get_secret_infos_none_secrets(self):
-        """Test get_secret_infos when secrets is None."""
+        """当机密为 None 时测试 get_secret_infos。"""
         context = AgentContext(secrets=None)
         result = context.get_secret_infos()
         assert result == []
 
     def test_get_secret_infos_with_secrets(self):
-        """Test get_secret_infos with multiple secrets."""
+        """使用多个机密测试 get_secret_infos。"""
         secrets = {
             "GITHUB_TOKEN": StaticSecret(
                 value=SecretStr("test_token_123"),
@@ -764,11 +764,11 @@ templates.",
         }
         context = AgentContext(secrets=secrets)
         result = context.get_secret_infos()
-        # Order may vary, so use set comparison for names
+        # 顺序可能会有所不同，因此请对名称使用集合比较
         result_names = {info["name"] for info in result}
         assert result_names == {"GITHUB_TOKEN", "API_KEY", "DATABASE_PASSWORD"}
         assert len(result) == 3
-        # Verify descriptions are included
+        # 验证是否包含说明
         result_dict = {info["name"]: info for info in result}
         assert (
             result_dict["GITHUB_TOKEN"]["description"] == "GitHub authentication token"
@@ -777,7 +777,7 @@ templates.",
         assert result_dict["DATABASE_PASSWORD"]["description"] == "Database password"
 
     def test_get_secret_infos_with_lookup_secrets(self):
-        """Test get_secret_infos with multiple LookupSecret instances."""
+        """使用多个 LookupSecret 实例测试 get_secret_infos。"""
         secrets = {
             "API_TOKEN": LookupSecret(
                 url="https://api.example.com/token",
@@ -794,11 +794,11 @@ templates.",
         }
         context = AgentContext(secrets=secrets)
         result = context.get_secret_infos()
-        # Order may vary, so use set comparison for names
+        # 顺序可能会有所不同，因此请对名称使用集合比较
         result_names = {info["name"] for info in result}
         assert result_names == {"API_TOKEN", "CONFIG_SECRET", "AUTH_KEY"}
         assert len(result) == 3
-        # Verify descriptions are included
+        # 验证是否包含说明
         result_dict = {info["name"]: info for info in result}
         assert (
             result_dict["API_TOKEN"]["description"]
@@ -811,7 +811,7 @@ templates.",
         assert result_dict["AUTH_KEY"]["description"] == "Authentication key"
 
     def test_get_secret_infos_with_mixed_secret_types(self):
-        """Test get_secret_infos with a mix of StaticSecret and LookupSecret."""
+        """混合使用 StaticSecret 和 LookupSecret 来测试 get_secret_infos。"""
         secrets = {
             "STATIC_SECRET": StaticSecret(
                 value=SecretStr("static_value"),
@@ -821,26 +821,25 @@ templates.",
                 url="https://example.com/secret",
                 description="A lookup secret",
             ),
-            "PLAIN_STRING": "plain_string_value",  # Plain string has no description
+            "PLAIN_STRING": "plain_string_value",  # 纯字符串没有描述
         }
         context = AgentContext(secrets=secrets)
         result = context.get_secret_infos()
-        # Order may vary, so use set comparison for names
+        # 顺序可能会有所不同，因此请对名称使用集合比较
         result_names = {info["name"] for info in result}
         assert result_names == {"STATIC_SECRET", "LOOKUP_SECRET", "PLAIN_STRING"}
         assert len(result) == 3
-        # Verify descriptions are included for SecretSource instances
+        # 验证 SecretSource 个实例中包含描述
         result_dict = {info["name"]: info for info in result}
         assert result_dict["STATIC_SECRET"]["description"] == "A static secret"
         assert result_dict["LOOKUP_SECRET"]["description"] == "A lookup secret"
-        # Plain strings have no description
+        # 普通字符串没有描述
         assert result_dict["PLAIN_STRING"]["description"] is None
 
     def test_get_system_message_suffix_with_secrets_only(self):
-        """Test system message suffix with secrets but no repo skills or custom suffix.
+        """使用机密测试系统消息后缀，但没有存储库技能或自定义后缀。
 
-        This test verifies that secrets are included in the system message suffix
-        when no repo skills or custom suffix are present.
+        此测试验证当不存在存储库技能或自定义后缀时，系统消息后缀中是否包含机密。
         """
         secrets = {
             "GITHUB_TOKEN": StaticSecret(
@@ -863,7 +862,7 @@ templates.",
         assert "**$API_KEY**" in result
         assert "API key for external service" in result
         assert "</CUSTOM_SECRETS>" in result
-        # Verify the guidance is in the CUSTOM_SECRETS section
+        # 验证指南位于 CUSTOM_SECRETS 部分
         secrets_section_start = result.index("<CUSTOM_SECRETS>")
         secrets_section_end = result.index("</CUSTOM_SECRETS>")
         secrets_section = result[secrets_section_start:secrets_section_end]
@@ -871,7 +870,7 @@ templates.",
         assert "conversation history may be logged or shared" in secrets_section
 
     def test_get_system_message_suffix_with_secrets_and_repo_skills(self):
-        """Test system message suffix with both secrets and repo skills."""
+        """使用机密和 repo 技能测试系统消息后缀。"""
         repo_skill = Skill(
             name="coding_standards",
             content="Follow PEP 8 style guidelines.",
@@ -895,7 +894,7 @@ templates.",
         assert "GitHub authentication token" in result
 
     def test_get_system_message_suffix_with_secrets_and_custom_suffix(self):
-        """Test system message suffix with secrets and custom suffix."""
+        """使用机密和自定义后缀测试系统消息后缀。"""
         secrets = {
             "API_KEY": StaticSecret(
                 value=SecretStr("test_key"),
@@ -915,7 +914,7 @@ templates.",
         assert "API key for external service" in result
 
     def test_get_system_message_suffix_with_all_components(self):
-        """Test system message suffix with repo skills, secrets, and custom suffix."""
+        """使用存储库技能测试系统消息后缀，机密和自定义后缀。"""
         repo_skill = Skill(
             name="security_rules",
             content="Always validate user input.",
@@ -950,7 +949,7 @@ templates.",
         assert "Database password" in result
 
     def test_get_system_message_suffix_secrets_order(self):
-        """Test that secret names appear in the output in a consistent order."""
+        """测试机密名称是否以一致的顺序出现在输出中。"""
         secrets = {
             "Z_SECRET": StaticSecret(
                 value=SecretStr("z_value"),
@@ -969,7 +968,7 @@ templates.",
         result = context.get_system_message_suffix()
 
         assert result is not None
-        # Check that all secrets are present
+        # 检查所有机密是否都存在
         assert "**$Z_SECRET**" in result
         assert "Z secret description" in result
         assert "**$A_SECRET**" in result
@@ -978,14 +977,14 @@ templates.",
         assert "M secret description" in result
 
     def test_agent_context_creation_with_datetime_string(self):
-        """Test creating AgentContext with a datetime string."""
+        """测试使用日期时间字符串创建 AgentContext。"""
         context = AgentContext(
             current_datetime="2024-03-15T14:30:00Z",
         )
         assert context.current_datetime == "2024-03-15T14:30:00Z"
 
     def test_agent_context_creation_with_datetime_object(self):
-        """Test creating AgentContext with a datetime object."""
+        """测试使用日期时间对象创建 AgentContext。"""
         from datetime import datetime
 
         dt = datetime(2024, 3, 15, 14, 30, 0)
@@ -993,7 +992,7 @@ templates.",
         assert context.current_datetime == dt
 
     def test_get_formatted_datetime_with_string(self):
-        """Test get_formatted_datetime returns string as-is."""
+        """测试 get_formatted_datetime 按原样返回字符串。"""
         context = AgentContext(
             current_datetime="2024-03-15T14:30:00+00:00",
         )
@@ -1001,7 +1000,7 @@ templates.",
         assert result == "2024-03-15T14:30:00+00:00"
 
     def test_get_formatted_datetime_with_datetime_object(self):
-        """Datetime objects render to the minute: no seconds or offset."""
+        """日期时间对象呈现为分钟：没有秒或偏移量。"""
         from datetime import datetime
 
         dt = datetime(2024, 3, 15, 14, 30, 45)
@@ -1010,35 +1009,35 @@ templates.",
         assert result == "2024-03-15T14:30"
 
     def test_get_formatted_datetime_with_none(self):
-        """Test get_formatted_datetime returns None when current_datetime is None."""
+        """当 current_datetime 为 None 时，测试 get_formatted_datetime 返回 None。"""
         context = AgentContext(current_datetime=None)
         result = context.get_formatted_datetime()
         assert result is None
 
     def test_agent_context_default_datetime(self):
-        """Test that AgentContext defaults to the current timezone-aware datetime."""
+        """测试 AgentContext 默认为当前时区感知的日期时间。"""
         from datetime import datetime, timedelta
 
         before = datetime.now().astimezone()
         context = AgentContext()
         after = datetime.now().astimezone()
 
-        # Verify current_datetime is set and is a datetime object
+        # 验证 current_datetime 已设置并且是日期时间对象
         assert context.current_datetime is not None
         assert isinstance(context.current_datetime, datetime)
-        # The default field value is timezone-aware (the rendered string trims it).
+        # 默认字段值是时区感知的（呈现的字符串会对其进行修剪）。
         assert context.current_datetime.tzinfo is not None
-        # Rendered value is "YYYY-MM-DDTHH:MM": no seconds, no UTC offset.
+        # 渲染值为“YYYY-MM-DDTHH:MM”：没有秒，没有 UTC 偏移量。
         formatted = context.get_formatted_datetime()
         assert formatted is not None
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", formatted), (
             f"formatted datetime should be YYYY-MM-DDTHH:MM, got {formatted!r}"
         )
-        # Verify it's approximately the current time (within 1 second)
+        # 验证它大约是当前时间（1 秒内）
         assert before <= context.current_datetime <= after + timedelta(seconds=1)
 
     def test_get_system_message_suffix_with_datetime_only(self):
-        """Test system message suffix with datetime but no other content."""
+        """测试系统消息后缀包含日期时间但不包含其他内容。"""
         context = AgentContext(
             current_datetime="2024-03-15T14:30:00Z",
         )
@@ -1050,7 +1049,7 @@ templates.",
         assert "</CURRENT_DATETIME>" in result
 
     def test_get_system_message_suffix_with_datetime_and_repo_skills(self):
-        """Test system message suffix with datetime and repo skills."""
+        """使用日期时间和存储库技能测试系统消息后缀。"""
         repo_skill = Skill(
             name="coding_standards",
             content="Follow PEP 8 style guidelines.",
@@ -1068,14 +1067,15 @@ templates.",
         assert "2024-03-15T14:30:00Z" in result
         assert "<REPO_CONTEXT>" in result
         assert "coding_standards" in result
-        # Datetime renders last in the dynamic block (after repo context) so the
-        # stable dynamic content stays a cache-friendly prefix.
+        # 日期时间在动态块中最后渲染（在 repo 上下文之后），因此稳定的动态内容保持缓存友
+        # 好的前缀。
+        #
         datetime_pos = result.index("<CURRENT_DATETIME>")
         repo_context_pos = result.index("<REPO_CONTEXT>")
         assert datetime_pos > repo_context_pos
 
     def test_get_system_message_suffix_with_datetime_and_secrets(self):
-        """Test system message suffix with datetime and secrets."""
+        """使用日期时间和机密测试系统消息后缀。"""
         secrets = {
             "API_KEY": StaticSecret(
                 value=SecretStr("test_key"),
@@ -1095,7 +1095,7 @@ templates.",
         assert "**$API_KEY**" in result
 
     def test_get_system_message_suffix_with_all_components_including_datetime(self):
-        """Test system message suffix with all components including datetime."""
+        """使用包括日期时间在内的所有组件测试系统消息后缀。"""
         repo_skill = Skill(
             name="security_rules",
             content="Always validate user input.",
@@ -1117,7 +1117,7 @@ templates.",
         result = context.get_system_message_suffix()
 
         assert result is not None
-        # Check all components are present
+        # 检查所有组件是否存在
         assert "<CURRENT_DATETIME>" in result
         assert "2024-03-15T14:30:00Z" in result
         assert "<REPO_CONTEXT>" in result
@@ -1127,7 +1127,7 @@ templates.",
         assert "**$GITHUB_TOKEN**" in result
 
     def test_get_system_message_suffix_datetime_with_datetime_object(self):
-        """Test system message suffix with a datetime object."""
+        """使用日期时间对象测试系统消息后缀。"""
         from datetime import datetime
 
         dt = datetime(2024, 3, 15, 14, 30, 45)
@@ -1142,7 +1142,7 @@ templates.",
 def test_agent_context_secrets_raw_strings_redacted_by_default():
     context = AgentContext(secrets={"GITHUB_TOKEN": "ghp_real_secret"})
 
-    # In-memory shape is preserved — runtime consumers read raw strings directly.
+    # 内存中的形状被保留——运行时消费者直接读取原始字符串。
     assert context.secrets is not None
     assert context.secrets["GITHUB_TOKEN"] == "ghp_real_secret"
 

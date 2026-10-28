@@ -1,20 +1,13 @@
-# File upload, download, archive and directory helpers
+<a id="file-upload-download-archive-and-directory-helpers"></a>
 
-Byte-level file transfer on the agent server's host and the directory helpers
-around it. Consumers upload one file per multipart request (field `file`,
-destination in the `path` query), download it back as an
-`application/octet-stream` attachment, create directories (`mkdir -p`), pack a
-directory as a git patch or a `tar.gz` for persistence, and export a
-conversation's persisted trajectory as a zip with credentials redacted. The
-workspace picker lists the server user's home and the subdirectories of any
-absolute path. Every operation except `home` and `search_subdirs` also exists
-under `/api/conversations/{runtime_conversation_id}/file/...`, where the path
-must resolve inside that conversation's workspace; the global routes accept
-any absolute path, so the session key is their only guard.
+# 文件上传、下载、归档和目录助手
 
-Source: `openhands-agent-server/openhands/agent_server/file_router.py`, `openhands-agent-server/openhands/agent_server/runtime_router.py`, `openhands-agent-server/openhands/agent_server/_secret_redaction.py`, `openhands-sdk/openhands/sdk/git/utils.py`, `openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`, `clients/typescript/src/client/file-client.ts`, `clients/typescript/src/workspace/remote-workspace.ts`
+Agent Server 主机及其周围的目录助手上的字节级文件传输。 消费者为每个多部分请求上传一个文件（字段 `file`，`path` 查询中的目标），将其作为一个文件下载回来
+`application/octet-stream` 附件，创建目录 (`mkdir -p`), 将目录打包为 Git 拉取补丁或  `tar.gz` 为了持久化，并导出一个会话的已持久化轨迹就像一个.zip文件凭据已脱敏。 的工作区 picker 列出了服务器用户的家目录，以及任何绝对路径的子目录。 除了 ，所有操作都无效 `home` 和 `search_subdirs` 也存在于 `/api/conversations/{runtime_conversation_id}/file/...`，路径必须在那个对话中解析工作区; 全局路由接受任何绝对路径，因此会话密钥是它们唯一的保护。
 
-Needs: `llm`, `git`, `node`
+资料来源：`openhands-agent-server/openhands/agent_server/file_router.py`、`openhands-agent-server/openhands/agent_server/runtime_router.py`、`openhands-agent-server/openhands/agent_server/_secret_redaction.py`、`openhands-sdk/openhands/sdk/git/utils.py`、`openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`、`clients/typescript/src/client/file-client.ts`、`clients/typescript/src/workspace/remote-workspace.ts`
+
+需求：`llm`、`git`、`node`
 
 Routes: `GET /api/file/home`, `GET /api/file/search_subdirs`,
 `POST /api/conversations/{runtime_conversation_id}/file/upload`,
@@ -26,90 +19,78 @@ Routes: `GET /api/file/home`, `GET /api/file/search_subdirs`,
 `POST /api/file/create_directory`,
 `GET /api/file/download-trajectory/{conversation_id}`, `GET /api/file/archive`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F14.auth`: every global and conversation-scoped file route answers 401 without a valid session key, and nothing is written.
-- `F14.upload-download`: a multipart upload creates missing parent directories, a download returns byte-identical bytes as an `application/octet-stream` attachment named after the basename, and a second upload to the same path replaces the content.
-- `F14.upload-errors`: an upload without the `file` part or without `path` is 422, and a relative `path` is 400 `Path must be absolute`.
-- `F14.upload-onto-directory`: uploading onto an existing directory, or to a path whose parent is a file, is a client error (400), as `create_directory` answers for the same collisions.
-- `F14.upload-size`: the SDK's `RemoteWorkspace.file_upload` and the TypeScript `RemoteWorkspace.fileUpload` report the uploaded `file_size`, as `LocalWorkspace.file_upload` does; the upload response carries it as `{"success": true, "file_size": N}`.
-- `F14.upload-atomic`: an overwrite that fails mid-write leaves the previous file intact; today the target is truncated before streaming and keeps a partial file.
-- `F14.download-errors`: downloading a missing file is 404 `File not found`, a directory 400 `Path is not a file`, a relative path 400.
-- `F14.mkdir`: `create_directory` creates missing parents, is idempotent and keeps existing contents, the new directory is listed by `search_subdirs`, and a path that is or runs through a file is 400.
-- `F14.home`: `GET /api/file/home` reports the server user's `HOME`, its visible top-level directories as case-insensitively sorted `favorites` (no files, no symlinks), `/` as the only location, and hidden directories only with `include_hidden=true`.
-- `F14.subdirs`: `search_subdirs` lists only the immediate real subdirectories of an absolute path (no files, no symlinks, hidden only with `include_hidden=true`), sorted case-insensitively, with absolute paths.
-- `F14.subdirs-pagination`: `limit` and the `next_page_id` cursor page through the entries; `limit` outside 1..100 is 422.
-- `F14.subdirs-errors`: `search_subdirs` on a missing directory is 404, on a file 400, on a relative path 400.
-- `F14.subdirs-case-pagination`: following `next_page_id` across two directories that differ only by case (`Foo`, `foo`) reaches the second one instead of repeating the first page forever.
-- `F14.archive-tar`: `format=tar.gz` returns an `application/gzip` archive named `<dir>.tar.gz`, rooted at `<dir>/`, with `archive_manifest.json`, the repository identity headers but no `X-Archive-Base-*`, the default excludes applied (`.git/`, `node_modules/`), symlinks skipped, and no temp file left in the parent directory.
-- `F14.archive-excludes`: `use_default_excludes=false` keeps `node_modules` and `.git` internals but never `.git/config` or reflogs; `exclude=<glob>` (repeatable) drops matching files and is recorded in the manifest.
-- `F14.archive-git-delta`: the default `git-delta` format with `base_ref=HEAD` is a `text/x-patch` of the uncommitted and untracked changes that applies to a clone of HEAD, carries `X-Archive-Base-Commit`, `X-Archive-Base-Ref`, `X-Archive-Branch` and `X-Archive-Head-Commit`, and leaves the repository's index untouched; without `base_ref` on a remote-less repo the patch is against the empty tree and has no base headers; a subdirectory of a repository yields only that subtree's delta.
-- `F14.archive-auto-base`: without `base_ref`, a clone with an `origin` remote is diffed against `origin/<branch>` (the patch holds the local commit and the uncommitted edit, applies to a clone of the origin tip, and carries `X-Archive-Base-Ref: auto`, `X-Archive-Base-Commit` = the origin tip and `X-Archive-Repo-Remote`); a detached HEAD is diffed against HEAD itself.
-- `F14.archive-nested-repo`: archiving a non-repo directory that holds exactly one git repository archives that repository; with two repositories `git-delta` is 400 and `tar.gz` archives the directory itself.
-- `F14.archive-format-doc`: the OpenAPI description of `format` matches what a non-repository directory holding one repository archives: it does not promise "the entire directory" and says only the nested repository is packed.
-- `F14.archive-errors`: a relative path is 400, a missing directory 404, a file 400, a `base_ref` starting with `-` 400, an unknown `base_ref` 400, an unknown `format` 422, and `git-delta` of a non-repo directory 400.
-- `F14.trajectory`: `GET /api/file/download-trajectory/{id}` returns `<hex>.zip` with `meta.json`, `base_state.json` and one file per event, the LLM `api_key` redacted to `**********` and no Fernet ciphertext, for dashed and hex ids, and leaves no temp zip behind.
-- `F14.trajectory-errors`: an unknown conversation id is 404 `Conversation not found`, a malformed id 422.
-- `F14.trajectory-concurrent`: concurrent downloads of the same trajectory each return 200 and a valid zip (five rounds of six parallel downloads, 30 in all).
-- `F14.trajectory-init-path`: after `POST /api/init` sets `conversations_path` on a deferred-init server, trajectories stored there are downloadable.
-- `F14.scoped-transfer`: conversation-scoped upload, download and `create_directory` work inside the conversation's workspace, and the scoped download returns the file the agent wrote.
-- `F14.scoped-path-guard`: scoped routes reject paths outside the workspace (another conversation's workspace, `..` traversal, a symlink escape, a sibling with the same prefix, a relative path) with 422 and write nothing, while the global route serves the same path.
-- `F14.scoped-conversation-errors`: a scoped route for an unknown conversation is 404 and does nothing; a malformed conversation id is 422.
-- `F14.scoped-trajectory-archive`: the scoped trajectory route serves only its own conversation (another or malformed id is 422), and the scoped archive packs the workspace, including the agent's file, but refuses a path outside it with 422.
-- `F14.sdk-workspace`: the SDK's `RemoteWorkspace.file_upload`/`file_download` round-trip bytes through the global routes and, with `runtime_conversation_id`, through the scoped routes; a scoped upload outside the workspace returns `success=False` with the 422 and writes nothing.
-- `F14.restart`: after a restart, uploaded files, the scoped download and the trajectory are still served.
+## 子功能
 
-## How to get to it (agent POV)
+- `F14.auth`：每个全局和对话范围的文件路由都会在没有有效会话密钥的情况下回答 401，并且不写入任何内容。
+- `F14.upload-download`：多部分上传创建缺失的父目录，下载返回以字节形式相同的字节作为`application/octet-stream`附件，且同一路径的第二次上传会替换内容。
+- `F14.upload-errors`：没有`file`部分或没有`path`的上传是422，相对的`path`是400`Path must be absolute`。
+- `F14.upload-onto-directory`：上传到现有目录或父级为文件的路径是客户端错误 (400)，正如 `create_directory` 对相同冲突的回答一样。
+- `F14.upload-size`：SDK的`RemoteWorkspace.file_upload`和TypeScript`RemoteWorkspace.fileUpload`报告上传的`file_size`，与`LocalWorkspace.file_upload`一样； 上传响应将其携带为`{"success": true, "file_size": N}`。
+- `F14.upload-atomic`：写入过程中失败的覆盖使前一个文件完好无损； 今天，目标在流式传输之前被截断并保留部分文件。
+- `F14.download-errors`：下载缺失文件为404`File not found`，目录400`Path is not a file`，相对路径400。
+- `F14.mkdir`: `create_directory` 创建缺失的父目录，是幂等的，并且保持现有内容。新的目录通过 `search_subdirs` 列出，且路径或运行在文件上会返回 400。
+- `F14.home`: `GET /api/file/home` 报告服务器用户的 `HOME`其可见的顶级目录按不区分大小写的排序显示 `favorites` (没有文件，没有符号链接) `/` 作为唯一的位置，仅隐藏的目录只有 `include_hidden=true`.
+- `F14.subdirs`: `search_subdirs` 只列出绝对路径的直接实际子目录（没有文件，没有符号链接，只有以 `include_hidden=true` 为隐藏标志），不区分大小写，以绝对路径排序。
+- `F14.subdirs-pagination`：`limit`和`next_page_id`光标翻页条目； `limit` 1..100 之外是 422。
+- `F14.subdirs-errors`: `search_subdirs` 在缺失目录上为 404，在文件上为 400，在相对路径上为 400。
+- `F14.subdirs-case-pagination`：在两个仅大小写不同的目录（`Foo`，`foo`）中跟随`next_page_id`到达第二个目录，而不是永远重复第一页。
+- `F14.archive-tar`: `format=tar.gz` 返回一个名为 `application/gzip` 的 `<dir>.tar.gz` 归档，根目录为 `<dir>/`，包含 `archive_manifest.json`，即仓库身份头，但没有 `X-Archive-Base-*`，即默认排除，`.git/` 和 `node_modules/`，软链接被跳过，且在父目录中没有留下临时文件。
+- `F14.archive-excludes`: `use_default_excludes=false` 保留 `node_modules` 和 `.git` 内部结构，但从不 `.git/config` 或引用日志； `exclude=<glob>`（可重复）删除匹配的文件并记录在清单中。
+- `F14.archive-git-delta`：默认的 `git-delta` 格式是 `base_ref=HEAD` 的 `text/x-patch`，适用于克隆的 HEAD 的未提交和未跟踪更改，包含 `X-Archive-Base-Commit`、`X-Archive-Base-Ref`、`X-Archive-Branch` 和 `X-Archive-Head-Commit`，且不会影响仓库的索引。 如果在无远程存储库上没有 `base_ref`，则该补丁是针对空树的，并且没有基本标头； 存储库的子目录仅生成该子树的增量。
+- `F14.archive-auto-base`：没有`base_ref`，具有`origin`远程的克隆与`origin/<branch>`不同（补丁保存本地提交和未提交的编辑，适用于原始提示的克隆，并带有`X-Archive-Base-Ref: auto`，`X-Archive-Base-Commit` =原始提示和`X-Archive-Repo-Remote`）； 分离的HEAD与HEAD本身不同。
+- `F14.archive-nested-repo`：归档一个恰好包含一个 git 存储库的非存储库目录，归档该存储库； 有两个存储库 `git-delta` 是 400，`tar.gz` 归档目录本身。
+- `F14.archive-format-doc`: OpenAPI描述了`format`，这与一个只包含一个仓库归档的非仓库目录不一致：它没有承诺“整个目录”，只说内部的仓库是压缩的。
+- `F14.archive-errors`：相对路径为400，缺失目录为404，文件为400，以`base_ref`开头的`-`为400，未知`base_ref`为400，未知`format`为422，以及非仓库目录的`git-delta`为400。
+- `F14.trajectory`: `GET /api/file/download-trajectory/{id}` 返回 `<hex>.zip`，`meta.json`，`base_state.json`，每个事件一个文件，使用 LLM `api_key` 已脱敏到 `**********`，没有 Fernet 密文，对于带点和十六进制 ID，不会留下临时的 zip 文件。
+- `F14.trajectory-errors`：未知对话 ID 为 404 `Conversation not found`，格式错误的 ID 422。
+- `F14.trajectory-concurrent`：并发相同轨迹的下载每次返回200和一个有效的zip（五轮六次并行下载，总共30个）。
+- `F14.trajectory-init-path`：在延迟初始化服务器上​​`POST /api/init`设置`conversations_path`之后，存储在那里的轨迹是可下载的。
+- `F14.scoped-transfer`：对话范围的上传、下载和 `create_directory` 在对话的工作区内工作，范围下载返回智能体写入的文件。
+- `F14.scoped-path-guard`: 范围内的路由拒绝路径之外的工作区（另一个对话的工作区、`..` 递归、符号链接逃逸、同前缀的兄弟、相对路径）并返回 422，而全局路由则提供相同的路径。
+- `F14.scoped-conversation-errors`：未知会话的作用域路由为 404，不执行任何操作； 格式错误的对话 ID 为 422。
+- `F14.scoped-trajectory-archive`：仅服务于其自身的会话（另一个或无效的ID是422），并且工作区包含智能体的文件，但拒绝路径之外的路径，返回422。
+- `F14.sdk-workspace`：SDK 的 `RemoteWorkspace.file_upload`/`file_download` 通过全局路由的往返字节，以及 `runtime_conversation_id` 通过作用域路由的往返字节； 工作区之外的范围上传返回带有 422 的 `success=False` 并且不写入任何内容。
+- `F14.restart`：重启后，上传的文件、范围下载和轨迹仍然有效。
 
-- REST, global: `POST /api/file/upload?path=...` (multipart field `file`),
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST，全局：`POST /api/file/upload?path=...`（多部分字段`file`），
   `GET /api/file/download?path=...`, `POST /api/file/create_directory?path=...`,
   `GET /api/file/archive?path=...&format=git-delta|tar.gz&base_ref=...&use_default_excludes=...&exclude=...`,
-  `GET /api/file/download-trajectory/{conversation_id}`. Every recipe below
-  drives these.
-- REST, conversation-scoped: the same five operations under
-  `/api/conversations/{runtime_conversation_id}/file/...`; a dependency
-  (`bind_local_conversation_runtime`) resolves `path` and refuses anything
-  outside `workspace.working_dir`, and the trajectory id must equal the
-  runtime id. Driven by the `F14.scoped-*` and `F14.restart` bullets.
-- REST, discovery (global only, there is no scoped variant):
-  `GET /api/file/home?include_hidden=...` and
+  `GET /api/file/download-trajectory/{conversation_id}`. 下面的每个食谱都驱动这些。
+- REST，对话范围：下相同的五个操作
+  `/api/conversations/{runtime_conversation_id}/file/...`; 依赖项 (`bind_local_conversation_runtime`) 解析 `path` 并拒绝 `workspace.working_dir` 之外的任何内容，并且轨迹 id 必须等于运行时 id。 由`F14.scoped-*`和`F14.restart`子弹驱动。
+- REST，发现（仅限全局，没有范围变体）：
+  `GET /api/file/home?include_hidden=...` 和
   `GET /api/file/search_subdirs?path=...&limit=...&page_id=...&include_hidden=...`.
-- SDK: `RemoteWorkspace.file_upload()` / `file_download()` (and the async
-  `AsyncRemoteWorkspace` versions) call `/api/file/upload|download`, or the
-  scoped routes when the workspace has `runtime_conversation_id`. Driven by
-  `F14.sdk-workspace` (an `exec` program, both scopes) and `F14.upload-size`
-  (the upload result's `file_size`, against `LocalWorkspace.file_upload`).
-- TypeScript client: `FileClient.uploadFile`, `uploadTextFile`, `downloadFile`,
-  `downloadTextFile`, `downloadTrajectory` (scoped through the runtime
-  transport when a `conversationId` is set), `getHome`,
-  `searchSubdirectories`; `RemoteConversation.downloadTrajectory()` uses the
-  global trajectory route; `RemoteWorkspace.fileUpload`/`fileDownload` call
-  `/api/file/upload|download` (the TypeScript `write_file` tool reports
-  `fileUpload`'s `file_size`). `F14.upload-size` drives
-  `RemoteWorkspace.fileUpload` from the built `clients/typescript/dist`.
-- Agent Canvas (context only): the workspace picker uses `home` and
-  `search_subdirs`; file upload and "download trajectory" use the transfer
-  routes. `archive` and `create_directory` have no in-repo consumer; the
-  hosting app calls them to persist a workspace before deleting a runtime.
+- SDK: `RemoteWorkspace.file_upload()` / `file_download()`（和异步
+  `AsyncRemoteWorkspace` 版本）调用 `/api/file/upload|download`，或者当工作区具有 `runtime_conversation_id` 时的作用域路由。 驱动力
+  `F14.sdk-workspace`（`exec` 程序，两个范围）和 `F14.upload-size`（上传结果的 `file_size`，针对 `LocalWorkspace.file_upload`）。
+- TypeScript 客户端：`FileClient.uploadFile`、`uploadTextFile`、`downloadFile`、
+  `downloadTextFile`、`downloadTrajectory`（当设置 `conversationId` 时，其作用范围为运行时传输层）、`getHome`、
+  `searchSubdirectories`; `RemoteConversation.downloadTrajectory()`采用全局轨迹路线； `RemoteWorkspace.fileUpload`/`fileDownload` 通话
+  `/api/file/upload|download`（TypeScript`write_file`工具报告
+  `fileUpload`'s `file_size`). `F14.upload-size` 驱动器
+  `RemoteWorkspace.fileUpload`来自构建的`clients/typescript/dist`。
+- Agent Canvas（仅上下文）：工作区选择器使用`home`和
+  `search_subdirs`; 文件上传和“下载轨迹”使用传输路径。 `archive` 和 `create_directory` 没有回购内消费者； 托管应用程序在删除运行时之前将它们调用持久化 a 工作区。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A run is live and exported, `doctor` is ok, `$DEEPSEEK_API_KEY` is set and
-  `git` is installed. No launch flags are needed; the init bullet starts its
-  own deferred-init server and stops it.
-- The block below first restarts the server with
-  `GIT_CEILING_DIRECTORIES` set to the run directory, so git on the server
-  cannot discover a repository above the run (a stray `/tmp/.git` turns every
-  "non-repo" fixture into part of that repository and stops the server from
-  `git init`ing workspaces; see Gotchas). It then activates `deepseek-flash`,
-  creates the run-owned fixtures
-  under `$AGENT_SERVER_VERIFY_RUN/fixtures/` (a 70 kB random blob, a small text
-  file, the `qa-f14-repo` git fixture with a `node_modules/` and a `qa.log`
-  added), runs one tiny model conversation `CID` whose agent writes
-  `qa-f14-agent.txt` with the file editor (no `tmux` needed), and creates a
-  second, never-run conversation `CID2` with its own workspace.
+前提条件：
+
+- 运行已实时并导出，`doctor` 正常，`$DEEPSEEK_API_KEY` 已设置并且
+  `git` 已安装。 不需要启动标志； init 项目符号启动并停止它自己的 deferred-init 服务器。
+- 下面的块首先重新启动服务器
+  `GIT_CEILING_DIRECTORIES` 设置为运行目录，因此服务器上的 git 无法发现运行之上的存储库（杂散 `/tmp/.git` 将每个“非存储库”测试夹具变成该存储库的一部分，并停止服务器
+  `git init`ing工作区； 请参阅陷阱）。 它然后激活`deepseek-flash`，在`$AGENT_SERVER_VERIFY_RUN/fixtures/`下创建运行所有者测试夹具（一个70 kB的随机blob，一个小文本文件，`qa-f14-repo`的git测试夹具，`node_modules/`和`qa.log`添加），运行一个小型模型对话`CID`，其智能体写入
+  `qa-f14-agent.txt` 使用文件编辑器（不需要 `tmux`），并使用它自己的工作区创建第二个从未运行的对话 `CID2`。
   ```sh
   control-agent-server restart --env GIT_CEILING_DIRECTORIES="$AGENT_SERVER_VERIFY_RUN"
   control-agent-server llm preset deepseek
@@ -131,8 +112,7 @@ Preconditions:
   WS2=$(control-agent-server api GET "/api/conversations/$CID2" --field workspace.working_dir)
   ```
 
-- **Session key required (`F14.auth`).** Call every route without a key (one
-  with a wrong key).
+- **需要会话密钥 (`F14.auth`)。**呼叫每条没有钥匙的路线（钥匙错误的路线）。
   ```sh
   control-agent-server api GET /api/file/home --auth none --expect 401
   control-agent-server api GET /api/file/search_subdirs --auth none --query path="$F" --expect 401
@@ -152,10 +132,8 @@ Preconditions:
   test ! -e "$WS/noauth.bin"
   test ! -e "$WS/noauth-dir"
   ```
-  All twelve answer `401 {"detail": "Unauthorized"}` and no file or
-  directory appears.
-- **Upload and download round trip (`F14.upload-download`).** Upload a binary
-  blob three directories deep, download it, then overwrite it.
+  所有十二个答案都为`401 {"detail": "Unauthorized"}`，没有文件或目录出现。
+- **上传和下载往返 (`F14.upload-download`)。**上传三个目录深的二进制 blob，下载它，然后覆盖它。
   ```sh
   control-agent-server api POST /api/file/upload --query path="$F/xfer/a/b/blob.bin" --file file="$F/blob.bin" \
     --expect 200 --check success eq true --save F14.upload-download/upload
@@ -170,11 +148,9 @@ Preconditions:
     --raw-out "$F/v2.out" --save F14.upload-download/overwritten
   cmp "$F/v2.txt" "$F/v2.out"
   ```
-  Upload answers `{"success": true}` (no size field), the parents exist, the
-  downloaded bytes equal the 70 kB blob, the response is an attachment named
-  `blob.bin`, and after the second upload the same path holds the text file.
-- **Upload validation (`F14.upload-errors`).** Missing parts and a relative
-  path.
+  上传答案 `{"success": true}`（没有大小字段），父节点存在，下载的字节数等于70 kB的blob，响应是一个名为的附件
+  `blob.bin`，第二次上传后，相同的路径保存文本文件。
+- **上传验证（`F14.upload-errors`）。**缺少部分和相对路径。
   ```sh
   control-agent-server api POST /api/file/upload --query path="$F/xfer/no-part.txt" --expect 422 --check detail.0.loc contains file
   control-agent-server api POST /api/file/upload --file file="$F/blob.bin" --expect 422 --check detail.0.loc contains path
@@ -184,11 +160,9 @@ Preconditions:
   test ! -e "$F/xfer/no-part.txt"
   test ! -e "$F/xfer/wrong-field.txt"
   ```
-  A missing `file` part (or one sent under another field name) and a missing
-  `path` are 422 with the missing location; a relative path is 400.
-- **Upload onto a directory (`F14.upload-onto-directory`).** The caller's
-  path is wrong, which `create_directory` reports as 400 for the same
-  collision.
+  缺少 `file` 部分（或另一个字段名称下的缺失部分）
+  `path` 为 422，缺少位置； 相对路径为 400。
+- **上传到目录(`F14.upload-onto-directory`)。**调用者的路径是错误的，`create_directory` 对于相同的冲突报告为 400。
   ```sh
   mkdir -p "$F/xfer/is-a-dir"
   control-agent-server api POST /api/file/create_directory --query path="$F/v2.txt/child" --expect 400 \
@@ -199,14 +173,8 @@ Preconditions:
     --expect 400 --check detail eq 'A parent of the path is not a directory' --save F14.upload-onto-directory/parent-is-file
   test -d "$F/xfer/is-a-dir"
   ```
-  Uploading onto an existing directory is 400 `Path is a directory`, and a path
-  whose parent is a file (`$F/v2.txt/child`) is 400 `A parent of the path is
-  not a directory`; neither touches what is already there.
-- **Upload size in the consumers' result (`F14.upload-size`).**
-  The same 70 kB blob through `LocalWorkspace.file_upload` (the contract the
-  remote workspaces mirror), the SDK's `RemoteWorkspace.file_upload` and the
-  TypeScript client's `RemoteWorkspace.fileUpload`; each program checks the
-  upload landed byte for byte and writes the `file_size` it got.
+  上传到现有目录返回400 `Path is a directory`，而路径的父目录是一个文件 `$F/v2.txt/child` 时返回400 `A parent of the path is not a directory`。 它既不触及已经存在的东西。
+- ** 消费者结果中的上传大小 (`F14.upload-size`)。** 同样的 70 kB 块通过 `LocalWorkspace.file_upload` (远程工作区镜像的合约)，SDK's `RemoteWorkspace.file_upload` 和 TypeScript 客户的 `RemoteWorkspace.fileUpload`。 每个程序逐字节检查上传的登陆并写入它得到的`file_size`。
   ```sh
   cat > "$F/sdk_size.py" <<'PY'
   import os
@@ -255,16 +223,12 @@ Preconditions:
   control-agent-server assert --value "$(cat "$F/sdk-size.txt")" --check . eq 70000
   control-agent-server assert --value "$(cat "$F/ts-size.txt")" --check . eq 70000
   ```
-  Expected: every upload lands intact, the server answers
-  `{"success": true, "file_size": 70000}` (the bytes it wrote), and both
-  remote workspaces copy that `file_size` into their result, as
-  `LocalWorkspace` reports it (the TypeScript `write_file` tool then says
+  预期：每次上传都完好无损，服务器应答
+  `{"success": true, "file_size": 70000}`（它写入的字节），并且两个远程工作区都将 `file_size` 复制到其结果中，如下所示
+  `LocalWorkspace` 报告它（TypeScript `write_file` 工具然后说
   `Successfully wrote 70000 bytes`).
-- **Failed overwrite (`F14.upload-atomic`), known bug.** A second server
-  (stopped by the trap) has its file-size limit lowered to 500 kB with
-  `prlimit`, the way a full disk or a quota fails a write mid-stream, while a
-  900 kB upload overwrites a small file. The limit is lifted before the final
-  check.
+- **覆盖失败 (`F14.upload-atomic`)，已知错误。**第二台服务器（被陷阱停止）的文件大小限制降低到 500 kB
+  `prlimit`，整个磁盘或配额在中途写入失败，而 900 kB 上传会覆盖小文件。 在最终检查之前解除限制。
   ```sh
   B2=$(control-agent-server launch --new --name f14-atomic --print-run)
   trap 'control-agent-server stop --run "$B2" > /dev/null' EXIT
@@ -281,18 +245,12 @@ Preconditions:
     --expect 5xx --check exception contains 'File too large' --save F14.upload-atomic/failed-overwrite
   prlimit --pid "$B2_PID" --fsize=unlimited:
   control-agent-server doctor --run "$B2"
-  control-agent-server assert --value "{\"same\": $(cmp -s "$F/v2.txt" "$AT/target.txt" && echo true || echo false), \"size\": $(wc -c < "$AT/target.txt")}" --check same eq true  # bug: value.same eq false && value.size eq 500000
+  control-agent-server assert --value "{\"same\": $(cmp -s "$F/v2.txt" "$AT/target.txt" && echo true || echo false), \"size\": $(wc -c < "$AT/target.txt")}" --check same eq true  # 错误：value.same eq False && value.size eq 500000
   ```
-  Without the limit the 900 kB blob uploads intact (so the size alone is not
-  the problem) and the small file is in place. Under the limit the overwrite
-  fails with `500 ... [Errno 27] File too large`, and the server is healthy
-  once the limit is lifted. Expected: the failed upload leaves `target.txt`
-  holding the previous small file (write to a temporary file, then rename).
-  Actual: `_upload_file` opens the target with `"wb"` before streaming, so
-  `target.txt` now holds the first 500000 bytes of the blob: the old content
-  is gone and a partial file is left behind.
-- **Download errors (`F14.download-errors`).** Missing file, directory,
-  relative path, no path.
+  没有限制的情况下，900 kB大小的文件可以完整上传（因此，大小本身不是问题），小文件也已到位。 在限值内，覆盖操作会失败，`500 ... [Errno 27] File too large`，而限值解除后服务器是健康的。 预期：失败的上传会留下 `target.txt` 持有之前的较小文件（写入临时文件，然后重命名）。
+  实际：`_upload_file`在流式传输之前用`"wb"`打开目标，所以
+  `target.txt` 现在保存 blob 的前 500000 个字节：旧内容消失了，留下了部分文件。
+- **下载错误 (`F14.download-errors`)。**缺少文件、目录、相对路径、无路径。
   ```sh
   control-agent-server api GET /api/file/download --query path="$F/xfer/missing.bin" --expect 404 \
     --check detail eq 'File not found' --save F14.download-errors/missing
@@ -300,8 +258,8 @@ Preconditions:
   control-agent-server api GET /api/file/download --query path=xfer/a/b/blob.bin --expect 400 --check detail eq 'Path must be absolute'
   control-agent-server api GET /api/file/download --expect 422
   ```
-  The statuses are 404, 400, 400 and 422.
-- **Create directories (`F14.mkdir`).** `mkdir -p`, idempotent, then collisions
+  状态码为 404、400 和 422。
+- **创建目录(`F14.mkdir`)。** `mkdir -p`、幂等、则碰撞
   with files.
   ```sh
   control-agent-server api POST /api/file/create_directory --query path="$F/tree/x/y/z" --expect 200 \
@@ -318,12 +276,9 @@ Preconditions:
     --check detail eq 'Path exists and is not a directory'
   control-agent-server api POST /api/file/create_directory --query path=qa-f14/relative --expect 400 --check detail eq 'Path must be absolute'
   ```
-  Both creates answer `{"success": true}`, the file inside survives the second
-  one, `search_subdirs` lists `z` with its absolute path, and a file in the
-  way (as the target or as a parent) is 400.
-- **Home and favorites (`F14.home`).** The launcher gives the server a private
-  `HOME` that holds only hidden entries, so the favorites are exactly what
-  this bullet creates.
+  两个都创建了答案 `{"success": true}`，文件内部存活第二个，`search_subdirs` 列出了 `z` 的绝对路径，而一个在路途上（目标或父文件）是 400。
+- **主页和收藏夹 (`F14.home`)。**启动器为服务器提供了一个私有的
+  `HOME` 仅包含隐藏条目，因此收藏夹正是该项目符号创建的内容。
   ```sh
   H="$AGENT_SERVER_VERIFY_RUN/home"
   mkdir -p "$H/qa-f14-Beta" "$H/qa-f14-alpha" "$H/.qa-f14-hidden"
@@ -337,12 +292,10 @@ Preconditions:
     --check favorites contains .qa-f14-hidden --check favorites not-contains qa-f14-link \
     --check favorites not-contains qa-f14-file.txt --save F14.home/include-hidden
   ```
-  `home` is the run's private home; `favorites` are `qa-f14-alpha` then
-  `qa-f14-Beta` (case-insensitive order), without the symlink and the file;
-  `locations` is `[{"label": "/", "path": "/"}]`. With `include_hidden=true`
-  the hidden directories (`.qa-f14-hidden`, `.config`, ...) are added.
-- **List subdirectories (`F14.subdirs`).** A tree with mixed case, a hidden
-  directory, a file and a symlink.
+  `home` 是跑步者的私人住宅； `favorites` 是 `qa-f14-alpha` 那么
+  `qa-f14-Beta`（不区分大小写的顺序），不带符号链接和文件；
+  `locations` 是 `[{"label": "/", "path": "/"}]`。 使用 `include_hidden=true` 添加隐藏目录（`.qa-f14-hidden`、`.config`、...）。
+- **列出子目录 (`F14.subdirs`).**一棵大小写混合的树，一个隐藏目录，一个文件和一个符号链接。
   ```sh
   T="$F/subdirs"
   mkdir -p "$T/b" "$T/A" "$T/c" "$T/.hid"
@@ -354,11 +307,11 @@ Preconditions:
   control-agent-server api GET /api/file/search_subdirs --query path="$T" --query include_hidden=true --expect 200 \
     --check items len-eq 4 --check items.0.name eq .hid
   ```
-  Only `A`, `b`, `c` (case-insensitive order, absolute paths, no
-  `next_page_id`); `.hid` appears first with `include_hidden=true`.
-- **Pagination (`F14.subdirs-pagination`).** Two per page.
+  仅 `A`, `b`, `c`（不区分大小写，绝对路径，无文件名）
+  `next_page_id`); `.hid` 与 `include_hidden=true` 一起首先出现。
+- **分页 (`F14.subdirs-pagination`).**每页两个。
 
-  Requires: `F14.subdirs`
+  需要：`F14.subdirs`
   ```sh
   NEXT=$(control-agent-server api GET /api/file/search_subdirs --query path="$T" --query limit=2 --expect 200 \
     --check items len-eq 2 --check items.1.name eq b --field next_page_id)
@@ -369,11 +322,10 @@ Preconditions:
   control-agent-server api GET /api/file/search_subdirs --query path="$T" --query limit=0 --expect 422
   control-agent-server api GET /api/file/search_subdirs --query path="$T" --query limit=101 --expect 422
   ```
-  Page one is `A`, `b` with `next_page_id` `c` (the lowercase name of the next
-  entry); page two is `c` with no cursor; `limit` 0 and 101 are 422.
-- **Listing errors (`F14.subdirs-errors`).** Missing, file, relative, no path.
+  第一页是 `A`、`b`，`next_page_id` `c`（下一个条目的小写字母名称）； 第二页是`c`，没有光标。 `limit` 0和101是422。
+- **列出错误 (`F14.subdirs-errors`)。**缺少文件、相对路径、无路径。
 
-  Requires: `F14.subdirs`
+  需要：`F14.subdirs`
   ```sh
   control-agent-server api GET /api/file/search_subdirs --query path="$T/missing" --expect 404 \
     --check detail eq 'Directory not found' --save F14.subdirs-errors/missing
@@ -381,11 +333,10 @@ Preconditions:
   control-agent-server api GET /api/file/search_subdirs --query path=qa-f14 --expect 400 --check detail eq 'Path must be absolute'
   control-agent-server api GET /api/file/search_subdirs --expect 422
   ```
-  The statuses are 404, 400, 400 and 422.
-- **Paging past a case-only twin (`F14.subdirs-case-pagination`).**
-  `Foo` and `foo` with one entry per page. Ties sort by the exact name, so
-  `Foo` comes first; the recipe still reads page one and expects the other
-  twin on page two.
+  状态码为 404、400 和 422。
+- **分页经过仅案例双胞胎 (`F14.subdirs-case-pagination`)。**
+  `Foo` 和 `foo` 每页一个条目。 领带按确切名称排序，所以
+  `Foo` 排在第一位； 食谱仍然显示第一页，并期望第二页上有另一个双胞胎。
   ```sh
   CASE_DIR="$F/case"
   mkdir -p "$CASE_DIR/Foo" "$CASE_DIR/foo"
@@ -399,14 +350,10 @@ Preconditions:
     --expect 200 --check items len-eq 1 --check items.0.name eq "$CASE_OTHER" --check next_page_id missing \
     --save F14.subdirs-case-pagination/page-2
   ```
-  Page one holds one twin and a cursor. Page two holds exactly the other twin
-  and no cursor: ties in the case-insensitive order break by the exact name,
-  and the cursor is the exact name of the next entry, so it tells the twins
-  apart.
-- **tar.gz archive (`F14.archive-tar`).** Archive the fixture repo, then a
-  plain tree whose symlinks point inside and outside it.
+  页面一只有一个双胞胎和一个光标。 第二页恰好包含另一个双胞胎，没有光标：不区分大小写的精确名称匹配会打破双胞胎，光标是下一个条目的精确名称，因此它能区分双胞胎。
+- **tar.gz 存档 (`F14.archive-tar`).**归档测试夹具存储库，然后是一个符号链接指向其内部和外部的普通树。
 
-  Requires: `F14.subdirs`
+  需要：`F14.subdirs`
   ```sh
   control-agent-server api GET /api/file/archive --query path="$REPO" --query format=tar.gz --expect 200 \
     --check-header content-disposition eq 'attachment; filename="qa-f14-repo.tar.gz"' \
@@ -429,16 +376,9 @@ Preconditions:
   for i in 1 2 3 4 5; do test -z "$(find "$AGENT_SERVER_VERIFY_RUN/fixtures" "$F" -maxdepth 1 -name 'tmp*')" && break; sleep 0.2; done
   test -z "$(find "$AGENT_SERVER_VERIFY_RUN/fixtures" "$F" -maxdepth 1 -name 'tmp*')"
   ```
-  The repo archive is `qa-f14-repo.tar.gz` with the five working-tree files
-  (tracked, modified, untracked and `qa.log`) and the manifest
-  (`file_count` 5), but no `.git/` and no `node_modules/`; it carries the
-  repository identity (`X-Archive-Head-Commit`, `X-Archive-Branch`) but no
-  `X-Archive-Base-*`, which only describe a patch. The tree archive
-  holds `f.txt` and the real directories (empty ones too) but neither symlink.
-  The temp archive the server builds in the parent directory is gone (the
-  short poll waits for the server's own after-response cleanup).
-- **Exclude controls (`F14.archive-excludes`).** Full capture, then one extra
-  glob.
+  仓库归档文件`qa-f14-repo.tar.gz`包含五个工作目录文件（已跟踪、修改、未跟踪的和`qa.log`），以及`file_count` 5的manifest，但没有`.git/`和`node_modules/`。 它携带了仓库标识 (`X-Archive-Head-Commit`, `X-Archive-Branch`)，但没有
+  `X-Archive-Base-*`，仅描述一个补丁。 树存档包含 `f.txt` 和真实目录（也是空目录），但没有符号链接。 服务器在父目录中构建的临时存档已消失（短轮询等待服务器自己的响应后清理）。
+- **排除控件 (`F14.archive-excludes`)。**完全捕获，然后是一个额外的 glob。
   ```sh
   control-agent-server api GET /api/file/archive --query path="$REPO" --query format=tar.gz --query use_default_excludes=false \
     --expect 200 --raw-out "$F/full.tgz" --save F14.archive-excludes/full
@@ -460,12 +400,11 @@ Preconditions:
   grep -qx 'qa-f14-repo/README.md' "$F/two-ex.list"
   test -z "$(grep -E 'qa\.log|notes\.txt' "$F/two-ex.list")"
   ```
-  The full capture has `node_modules/pkg/j.js` and `.git/HEAD` but no
-  `.git/config` and no `.git/logs/` although both exist on disk; `exclude=*.log`
-  drops `qa.log`, keeps the defaults, and the manifest lists `*.log` last.
-  `exclude` is repeatable: with `*.log` and `notes.txt` both files are gone.
-- **git-delta patch (`F14.archive-git-delta`).** The default format against
-  `HEAD`, then against the automatic base.
+  完整的捕获 `node_modules/pkg/j.js` 和 `.git/HEAD`，但没有
+  `.git/config` 和无 `.git/logs/`，尽管两者都存在于磁盘上； `exclude=*.log` 删除 `qa.log`，保留默认值，清单最后列出 `*.log`。
+  `exclude` 是可重复的：`*.log` 和 `notes.txt` 两个文件都消失了。
+- **git-delta 补丁 (`F14.archive-git-delta`).**默认格式反对
+  `HEAD`，然后对着自动基地。
   ```sh
   HEAD_SHA=$(git -C "$REPO" rev-parse HEAD)
   control-agent-server api GET /api/file/archive --query path="$REPO" --query base_ref=HEAD --expect 200 \
@@ -493,23 +432,14 @@ Preconditions:
   test "$(grep -c '^diff --git' "$F/src.patch")" = 1
   grep -q '^diff --git a/src/util.py b/src/util.py' "$F/src.patch"
   ```
-  With `base_ref=HEAD` the patch (`qa-f14-repo.patch`, `text/x-patch`) holds
-  the modified `README.md` and the untracked `notes.txt` and `qa.log`, not the
-  committed `src/` files or `node_modules`; it applies to a fresh clone, and
-  the fixture's index has nothing staged afterwards. The headers name the base
-  and head commit, `HEAD` and `main`, and `X-Archive-Repo-Root` is the
-  percent-encoded repository path; the fixture has no remote, so there is no
-  `X-Archive-Repo-Remote`. Without `base_ref` the base is therefore the empty
-  tree: every file appears as new and there is no `X-Archive-Base-*` header
-  (a clone with a remote is `F14.archive-auto-base`). A subdirectory of the
-  repository (`src`, against `HEAD~1`) yields `src.patch` with only that
-  subtree's change
-  (`src/util.py`, paths still relative to the repository root), not the
-  `README.md`, `notes.txt` and `qa.log` changes beside it.
-- **Automatic base with a remote (`F14.archive-auto-base`).** The production
-  path: archiving a cloned repository before its runtime is deleted. A clone
-  of the fixture (its `origin` is the fixture path) gets one local commit and
-  an uncommitted edit, then the same clone with a detached HEAD.
+  与 `base_ref=HEAD` patch (`qa-f14-repo.patch`, `text/x-patch`) 持有修改后的 `README.md` and the untracked `notes.txt` 和 `qa.log`不是已承诺的 `src/` 文件或 `node_modules`; 它适用于新克隆的仓库，而测试夹具'索引之后没有要提交的更改。' headers命名基础和头部提交 `HEAD` 和 `main`, and `X-Archive-Repo-Root` 是百分号编码的仓库路径。 的测试夹具没有远程，所以没有
+  `X-Archive-Repo-Remote`. 如果没有 `base_ref`，基数就是空的
+  树：每个文件都显示为新文件，并且没有 `X-Archive-Base-*` 标头
+  （带有遥控器的克隆是`F14.archive-auto-base`）。 `src` 仓库的一个子目录，`HEAD~1` 与之相对，`src.patch` 仅包含该子目录的更改，`src/util.py` 路径仍然相对于仓库根目录
+  `README.md`、`notes.txt` 和 `qa.log` 在其旁边发生变化。
+- **带遥控器的自动底座 (`F14.archive-auto-base`)。**生产
+  路径：在删除运行时之前归档克隆存储库。 克隆人
+  测试夹具的（其 `origin` 是测试夹具路径）获得一个本地提交和一个未提交的编辑，然后是具有分离的 HEAD 的相同克隆。
   ```sh
   AB="$F/auto-clone"
   git clone -q "$REPO" "$AB"
@@ -538,18 +468,10 @@ Preconditions:
   test "$(grep -c '^diff --git' "$F/detached.patch")" = 1
   grep -q '^diff --git a/README.md b/README.md' "$F/detached.patch"
   ```
-  On the branch, the omitted `base_ref` resolves to `origin/main`: the patch
-  holds the committed-but-unpushed `local.txt` and the `README.md` edit, but
-  none of the `src/` files both sides share, and it applies to a fresh clone
-  of the origin tip. The headers say `X-Archive-Base-Ref: auto`, the origin
-  tip as `X-Archive-Base-Commit`, the local commit as `X-Archive-Head-Commit`,
-  and the percent-encoded origin URL as `X-Archive-Repo-Remote`. With HEAD
-  detached on the local commit, the base is HEAD itself (not the origin tip):
-  `X-Archive-Base-Commit` is the local commit, `X-Archive-Branch` is
-  `DETACHED`, `X-Archive-Base-Ref` is still `auto`, and the patch holds only
-  the uncommitted `README.md` edit.
-- **Nested repository (`F14.archive-nested-repo`).** A non-repo parent with one
-  copy of the repo two levels down, then a second copy.
+  在分支中，缺失的部分 `base_ref` 解析为 `origin/main`: 该补丁包含了已提交但未推送的 `local.txt` 和 `README.md` 编辑，但 None of the `src/` 双方都共享的文件，以及适用于从源头获取的最新克隆。 headers says `X-Archive-Base-Ref: auto`, 起始点 `X-Archive-Base-Commit`, 当前本地提交为 `X-Archive-Head-Commit`百分编码的起源 URL as `X-Archive-Repo-Remote`. 与 HEAD 在本地提交上脱离的，基线是 HEAD 它（不是起源点）：
+  `X-Archive-Base-Commit` 是本地提交，`X-Archive-Branch` 是
+  `DETACHED`、`X-Archive-Base-Ref` 仍然是 `auto`，并且补丁仅包含未提交的 `README.md` 编辑。
+- **嵌套存储库 (`F14.archive-nested-repo`).**一个非仓库父级，其中一份仓库副本向下两层，然后是第二个副本。
   ```sh
   P="$F/parent"
   mkdir -p "$P/group"
@@ -571,13 +493,11 @@ Preconditions:
   grep -qx 'parent/top.txt' "$F/parent2.list"
   grep -qx 'parent/proj2/notes.txt' "$F/parent2.list"
   ```
-  With one repository below it, both formats archive `group/proj` (named
-  `proj.patch` / `proj.tar.gz`, rooted at `proj/`) and the parent's own
-  `top.txt` is not in the tar. With two, the server refuses to guess:
-  `git-delta` is 400 and `tar.gz` archives the parent as given.
-- **What `format` promises (`F14.archive-format-doc`).** The
-  OpenAPI description of the `format` parameter, against a `tar.gz` of a
-  non-repository directory that holds one repository and a file of its own.
+  在它下面有一个仓库，两种格式都支持 `group/proj` (named)
+  `proj.patch` / `proj.tar.gz`，植根于 `proj/`) 和父级自己的
+  `top.txt` 不在 tar 中。 有了两个，服务器就拒绝猜测：
+  `git-delta` 是 400，`tar.gz` 归档给定的父级。
+- **What `format` promises (`F14.archive-format-doc`).** 的 OpenAPI 端点描述 `format` 参数，与相反 `tar.gz` 一个非仓库目录，包含一个仓库和一个自己的文件。
   ```sh
   control-agent-server api GET /openapi.json --expect 200 --quiet --raw-out "$F/openapi.json"
   DOC_FORMAT=$(python3 -c 'import json,sys; ps=json.load(open(sys.argv[1]))["paths"]["/api/file/archive"]["get"]["parameters"]; print(next(p["description"] for p in ps if p["name"] == "format"))' "$F/openapi.json")
@@ -593,15 +513,11 @@ Preconditions:
   jq -n --arg doc "$DOC_FORMAT" --rawfile list "$F/doc-parent.list" '{doc_entire_directory: ($doc | contains("entire directory")), tar_has_top: ($list | contains("top.txt"))} | .agree = (.tar_has_top or (.doc_entire_directory | not))' \
     | control-agent-server assert --check agree eq true
   ```
-  The description and the archive agree: the tar holds only `proj/` and not
-  `top.txt`, and the `format` (and `path`) description says that a
-  non-repository path holding exactly one git repository (up to three levels
-  down) is archived as that repository, so files beside it are not included,
-  instead of promising "the entire directory". The resolution to the nested
-  repository is deliberate (see `archive_directory`).
-- **Archive validation (`F14.archive-errors`).**
+  描述和归档一致：tar只包含`proj/`，而不是
+  `top.txt`，且`format`（`path`）描述说，一个恰好包含一个git仓库（最多向下三层）的非仓库路径会被作为该仓库进行归档，因此，除了它之外的文件不会被包括，而是承诺“整个目录”。 对嵌套存储库的解析是经过深思熟虑的（参见`archive_directory`）。
+- **存档验证 (`F14.archive-errors`).**
 
-  Requires: `F14.subdirs`
+  需要：`F14.subdirs`
   ```sh
   control-agent-server api GET /api/file/archive --query path=qa-f14/relative --expect 400 --check detail eq 'Path must be absolute'
   control-agent-server api GET /api/file/archive --query path="$F/missing-dir" --expect 404 \
@@ -616,10 +532,8 @@ Preconditions:
   control-agent-server api GET /api/file/archive --query path="$T" --expect 400 --check detail contains 'Not a git repository'
   control-agent-server api GET /api/file/archive --expect 422
   ```
-  400, 404, 400, 400 (an option-shaped `base_ref` never reaches git), 400,
-  422 (`format` is `git-delta` or `tar.gz`), 400 and 422.
-- **Trajectory zip (`F14.trajectory`).** Download the model conversation's
-  trajectory and compare it with the event count and the file on disk.
+  400, 404, 400, 400 (an option-shaped) `base_ref` 永远无法到达 git)，400，422`format` 是 `git-delta` 或 `tar.gz`, 400和422。
+- **轨迹拉链 (`F14.trajectory`).**下载模型对话的轨迹并将其与事件计数和磁盘上的文件进行比较。
   ```sh
   HEX=$(printf '%s' "$CID" | tr -d -)
   NEV=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
@@ -632,23 +546,16 @@ Preconditions:
   for i in 1 2 3 4 5; do test -z "$(find "$AGENT_SERVER_VERIFY_RUN/server/workspace/conversations" -maxdepth 1 -name '*.zip')" && break; sleep 0.2; done
   test -z "$(find "$AGENT_SERVER_VERIFY_RUN/server/workspace/conversations" -maxdepth 1 -name '*.zip')"
   ```
-  The zip is `<hex>.zip` with `<hex>/meta.json`, `<hex>/base_state.json` and
-  one `events/event-*.json` per event (the count matches `events/count`). On
-  disk the LLM key is Fernet ciphertext (`gAAAAA...`); in the zip it is
-  `**********` and no ciphertext remains anywhere. The hex form of the id
-  works too, and the temp zip under the conversations directory is removed.
-- **Trajectory errors (`F14.trajectory-errors`).**
+  `<hex>.zip`个压缩包，`<hex>/meta.json`个，`<hex>/base_state.json`个，还有每个事件一个`events/event-*.json`（数量与`events/count`相符）。 在磁盘上，LLM键是fernet密文(`gAAAAA...`)。 在拉链里
+  `**********` 并且任何地方都没有留下密文。 十六进制形式的 id 也可以使用，并且对话目录下的临时 zip 会被删除。
+- **轨迹误差 (`F14.trajectory-errors`)。**
   ```sh
   control-agent-server api GET /api/file/download-trajectory/00000000-0000-4000-8000-00000000f14a --expect 404 \
     --check detail eq 'Conversation not found' --save F14.trajectory-errors/unknown
   control-agent-server api GET /api/file/download-trajectory/qa-f14-not-a-uuid --expect 422
   ```
-  404 for an unknown id, 422 for a malformed one.
-- **Concurrent trajectory downloads (`F14.trajectory-concurrent`), known bug.**
-  Up to five rounds of six parallel downloads of the same conversation (two
-  browser tabs or a retry are enough in practice). The burst stops after the
-  first round with a broken download, so the bug reproduces almost surely
-  and passing needs 30 clean concurrent downloads.
+  404 未知 ID，422 错误的 ID。
+- ** 并发轨迹下载 (`F14.trajectory-concurrent`)，已知 bug。** 实际上，最多可以进行五轮六平行下载（两个浏览器标签或一个重试就足够了）。 在第一轮下载失败后，爆发就会停止，因此该错误几乎肯定会重现，并且需要 30 次干净的并发下载。
   ```sh
   CC="$F/concurrent"
   mkdir -p "$CC"
@@ -674,19 +581,8 @@ Preconditions:
   BROKEN=$(for s in "$CC"/[1-5]-[1-6].status; do n=$(basename "$s" .status); z="${s%.status}.zip"; c=$(cat "$s"); if [ "$c" != 200 ]; then echo "$n:$c"; elif ! test -s "$z"; then echo "$n:200-empty"; elif ! python3 -m zipfile -t "$z" > /dev/null 2>&1; then echo "$n:200-badzip"; fi; done)
   control-agent-server assert --value="$BROKEN" --check . eq ''  # bug: value matches ':(500|200-empty|200-badzip)'
   ```
-  A single download is a valid zip. Expected: every concurrent download is
-  200 with a valid zip, in all five rounds. Actual: every handler writes the
-  same temp file `<conversations_path>/<hex>.zip` and unlinks it after
-  sending, so some requests get 500 (`File at path ... does not exist`, or
-  the unlink's `FileNotFoundError`) and some 200 responses are truncated,
-  sometimes to no body at all, so curl writes no file (`curl: (18) transfer
-  closed with ... bytes remaining`, `Response content longer than
-  Content-Length` in the log). Usually the first round already has a broken
-  download; the burst's output names it, and each `<round>-<n>.err` holds
-  curl's error.
-- **Conversation-scoped transfer (`F14.scoped-transfer`).** Read the file the
-  agent wrote, then upload, download and create a directory inside the
-  workspace.
+  单个下载是有效的 zip。 预期：每并发次下载都应为 200 状态码，并且是有效的 zip 文件，在所有五轮中。 实际上，每个处理器都会写同一个临时文件 `<conversations_path>/<hex>.zip`，并在发送后删除它，因此一些请求会收到 500 `File at path ... does not exist`（或删除的 `FileNotFoundError`），一些响应会被截断，有时甚至没有内容，因此 curl 会写入一个文件 `curl: (18) transfer closed with ... bytes remaining`，在日志中也会出现 `Response content longer than Content-Length`。 通常第一轮就已经出现下载失败。 `<round>-<n>.err` 持有 curl 的错误。
+- **会话范围的传输 (`F14.scoped-transfer`)。**读取智能体编写的文件，然后上传、下载并在工作区中创建一个目录。
   ```sh
   control-agent-server api GET "/api/conversations/$CID/file/download" --query path="$WS/qa-f14-agent.txt" --expect 200 \
     --raw-out "$F/agent.txt" --save F14.scoped-transfer/agent-file
@@ -702,12 +598,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/file/download" --query path="$WS/qa-f14-missing.txt" --expect 404 --check detail eq 'File not found'
   control-agent-server api GET "/api/conversations/$CID/file/download" --query path="$WS" --expect 400 --check detail eq 'Path is not a file'
   ```
-  The scoped download returns the agent's `hi`; the scoped upload lands in the
-  workspace (the global route reads the same bytes); the scoped
-  `create_directory` creates the nested directory; inside the workspace the
-  handler's own 404 and 400 apply.
-- **Workspace path guard (`F14.scoped-path-guard`).** Address `CID`'s
-  workspace through `CID2`'s scope in every way that should escape.
+  该端点返回智能体's `hi`。 scoped upload 落在了工作区（全局路由读取相同字节）。 的作用域
+  `create_directory` 创建嵌套目录； 在工作区内，处理程序自己的 404 和 400 适用。
+- **工作区路径守卫 (`F14.scoped-path-guard`).** Address `CID`'s 工作区 through `CID2`'s scope in every way that should escape.
   ```sh
   control-agent-server api GET "/api/conversations/$CID2/file/download" --query path="$WS/qa-f14-agent.txt" --expect 422 \
     --check detail eq 'path must be inside the conversation workspace' --save F14.scoped-path-guard/other-workspace
@@ -724,14 +617,10 @@ Preconditions:
   control-agent-server api GET /api/file/download --query path="$WS2/qa-f14-escape/qa-f14-agent.txt" --expect 200 \
     --save F14.scoped-path-guard/global-same-path
   ```
-  Another workspace, `..` traversal, a symlink inside `WS2` that points at
-  `WS`, a sibling directory sharing `WS2`'s prefix, and a relative path are all
-  `422 path must be inside the conversation workspace` (the dependency runs
-  before the handler, so a relative path is 422 here, not 400); the refused
-  upload and directory never appear. The guard resolves the path rather than
-  refusing every `..`: `$WS/qa-f14-up/../qa-f14-agent.txt` through `CID`'s
-  own scope is 200. The global route serves the same symlinked path with 200.
-- **Unknown or malformed conversation (`F14.scoped-conversation-errors`).**
+  另一个工作区，`..` 在内部的导航，一个符号链接 `WS2` 指向的那部分
+  `WS`、共享`WS2`前缀的同级目录和相对路径都是
+  `422 path must be inside the conversation workspace`（依赖项在处理程序之前运行，因此这里的相对路径是 422，而不是 400）； 被拒绝的上传和目录永远不会出现。 守卫解析路径而不是拒绝每个 `..`：`$WS/qa-f14-up/../qa-f14-agent.txt` 到 `CID` 自己的范围是 200。 全局路由与 200 提供相同的符号链接路径。
+- **未知或格式错误的对话 (`F14.scoped-conversation-errors`)。**
   ```sh
   control-agent-server api GET /api/conversations/00000000-0000-4000-8000-00000000f14b/file/download --query path="$WS/qa-f14-agent.txt" \
     --expect 404 --check detail contains 'Conversation not found' --save F14.scoped-conversation-errors/unknown
@@ -740,9 +629,8 @@ Preconditions:
   control-agent-server api GET /api/conversations/qa-f14-not-a-uuid/file/download --query path="$WS/qa-f14-agent.txt" --expect 422
   control-agent-server api GET "/api/conversations/$CID/file/download" --expect 422
   ```
-  An unknown runtime conversation is 404 and creates nothing; a malformed id
-  and a missing `path` are 422.
-- **Scoped trajectory and archive (`F14.scoped-trajectory-archive`).**
+  一个未知的运行时对话是 404 并且创建了 nothing。 一个非法的 id 和一个缺失的 `path` 是 422。
+- **范围轨迹和存档 (`F14.scoped-trajectory-archive`)。**
   ```sh
   control-agent-server api GET "/api/conversations/$CID/file/download-trajectory/$CID" --expect 200 \
     --raw-out "$F/scoped-traj.zip" --save F14.scoped-trajectory-archive/trajectory
@@ -762,15 +650,9 @@ Preconditions:
     --check detail eq 'path must be inside the conversation workspace'
   control-agent-server api GET "/api/conversations/$CID2/file/archive" --query path="$WS" --query format=tar.gz --expect 422
   ```
-  The conversation's own trajectory downloads as a valid zip; `CID2`'s id
-  through `CID`'s scope and a malformed id are 422. The server `git init`s
-  every conversation workspace without a commit, so the scoped `git-delta`
-  is against the empty tree and lists the agent's `qa-f14-agent.txt` as a new
-  file; the `tar.gz` holds it and the uploaded blob. Archiving the fixture
-  repo or another workspace through this scope is 422.
-- **SDK workspace (`F14.sdk-workspace`).** `RemoteWorkspace.file_upload` and
-  `file_download`, first on the host (`/api/file/...`), then scoped to `CID`
-  (`runtime_conversation_id`, `/api/conversations/{id}/file/...`).
+  该对话的自身轨迹下载为有效的压缩包。 `CID2`通过 [id] `CID`其作用范围和非法的ID都是422。 服务器 `git init`在每一场对话中工作区没有提交，所以这个 scoped `git-delta` 与空树对立，并列出智能体's `qa-f14-agent.txt` 作为新文件。 的 `tar.gz` 它持有它和上传的blob。 归档测试夹具 repo 或者另一个工作区通过此范围是 422。
+- **SDK工作区(`F14.sdk-workspace`).** `RemoteWorkspace.file_upload` 和
+  `file_download`，首先在主机 (`/api/file/...`) 上，然后作用域为 `CID` (`runtime_conversation_id`, `/api/conversations/{id}/file/...`)。
   ```sh
   cat > "$F/sdk_files.py" <<'PY'
   import os
@@ -803,13 +685,11 @@ Preconditions:
   PY
   control-agent-server exec --expect-output SDK_FILES_OK --save F14.sdk-workspace/program -- .venv/bin/python "$F/sdk_files.py" "$F" "$WS" "$CID"
   ```
-  Both workspaces upload the blob (the file on disk matches) and download it
-  back byte for byte; the scoped workspace's upload outside `WS` returns
-  `success=False` with the 422 in `error` (the SDK swallows HTTP errors into
-  the result) and writes nothing.
-- **Restart (`F14.restart`).** Restart the server and read everything back.
+  两者工作区上传 blob（硬盘上的文件匹配），并按字节下载它。 的作用域工作区'上传外部 `WS` 返回
+  `success=False` 与 `error` 中的 422（SDK 将 HTTP 个错误吞入结果中）并且不写入任何内容。
+- **重新启动 (`F14.restart`)。**重新启动服务器并读回所有内容。
 
-  Requires: `F14.trajectory`
+  需要：`F14.trajectory`
   ```sh
   control-agent-server restart
   control-agent-server api GET /api/file/download --query path="$F/xfer/a/b/blob.bin" --expect 200 --raw-out "$F/after-restart.out"
@@ -823,16 +703,11 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID2/file/download" --query path="$WS/qa-f14-agent.txt" --expect 422
   control-agent-server doctor
   ```
-  The overwritten global file, the scoped upload and the trajectory (at least
-  as many events as before) are all served after the restart, the restored
-  conversation still binds its scope (the guard still refuses `WS` through
-  `CID2`), and `doctor` is ok.
-- **Init-time conversations path (`F14.trajectory-init-path`).**
-  A second server starts dormant;
-  `POST /api/init` (`--auth init` sends that run's secret key in
-  `X-Init-API-Key`) moves its conversations to a fixture directory. The trap
-  stops the second server even when an assertion fails; its evidence stays in
-  its own run directory.
+  重写全局文件、受控上传以及轨迹（至少与之前相同数量的事件）在重启后被服务，恢复的对话仍然绑定其范围（保护仍然拒绝 `WS`）
+  `CID2`），`doctor` 即可。
+- **初始时对话路径 (`F14.trajectory-init-path`).**第二台服务器开始休眠；
+  `POST /api/init`（`--auth init` 发送该运行的机密键
+  `X-Init-API-Key`) 将其对话移动到测试夹具目录。 即使断言失败，陷阱也会停止第二个服务器； 它的证据保留在它自己的运行目录中。
   ```sh
   B=$(control-agent-server launch --new --name f14-init --deferred-init --print-run)
   trap 'control-agent-server stop --run "$B" > /dev/null' EXIT
@@ -848,86 +723,40 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$BCID/file/download-trajectory/$BCID" --run "$B" --expect 200 \
     --save F14.trajectory-init-path/scoped
   ```
-  The conversation is persisted under the init-time path and `GET` finds it.
-  Both trajectory routes return its zip: `download_trajectory` reads
-  `conversations_path` from the config `POST /api/init` installed on
-  `app.state`, not the launch-time default.
+  对话在初始化路径下已持久化，而 `GET` 找到了它。 两者轨迹路线都返回其 zip：`download_trajectory` 读取
+  `conversations_path` 来自安装的配置 `POST /api/init`
+  `app.state`，不是启动时默认值。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- The upload destination is the `path` query parameter, not a form field, and
-  the multipart field must be named `file`. The response is
-  `{"success": true, "file_size": N}`, the bytes written; the SDK and
-  TypeScript consumers report that `file_size` (`F14.upload-size`).
-- Upload truncates the target before streaming, so a failed upload can leave
-  a partial file; it is not atomic (`F14.upload-atomic`). That recipe lowers
-  the second server's `RLIMIT_FSIZE` with `prlimit` (util-linux, Linux only);
-  Python ignores `SIGXFSZ`, so the write fails with `EFBIG` instead of
-  killing the server. A body under 1 MB stays in Starlette's in-memory
-  spool, so the limit hits the handler's write, not the multipart parser.
-- The global routes accept any absolute path the server user can reach
-  (including `/etc`); only the scoped routes confine paths. Keep fixtures under
-  the run directory or `/tmp/qa-f14-*`.
-- Scoped path checks happen in a router dependency: relative and outside paths
-  are 422 there, while the same relative path on a global route is 400.
-  `home` and `search_subdirs` have no scoped variant.
-- `search_subdirs`' cursor is the exact name of the next entry (a lowercase
-  cursor still resumes case-insensitively); an unknown `page_id` silently
-  restarts at the first page. Case-only twins page apart
-  (`F14.subdirs-case-pagination`). `home` lists at most 50 favorites, with no
-  pagination. 403 (`Permission denied`) cannot be reproduced as root.
-- `F14.home` counts favorites exactly: it relies on the launcher's private
-  `HOME` holding only hidden entries (`.config`, `.gitconfig`, `.openhands`).
-- `archive` resolves the repository to archive: if `path` is not a repository
-  but holds exactly one up to three levels down (skipping hidden and vendored
-  directories), both formats archive only that repository, so files beside it
-  are not in the `tar.gz`; the `format` and `path` descriptions say so
-  (`F14.archive-format-doc`). Callers that need everything
-  must pass a path with zero or several repositories, or the repository
-  itself.
-- `git-delta` honors the repo's `.gitignore` (`git add -A` on a scratch index);
-  `tar.gz` does not and only applies the exclude globs. The automatic base is
-  `origin/<branch>`, then `origin/<default branch>` or the merge base with it,
-  then the empty tree, so a remote-less repository gives a full-repository
-  patch unless `base_ref=HEAD`; a detached HEAD uses `HEAD`
-  (`F14.archive-auto-base`). Either way `X-Archive-Base-Ref` is `auto`.
-- The repository identity headers (`X-Archive-Repo-Root`, `-Branch`,
-  `-Head-Commit`, `-Repo-Remote`) are sent only when the archived directory
-  itself holds `.git`; archiving a subdirectory of a repository returns the
-  `X-Archive-Base-*` headers but no identity headers.
-- Header values such as `X-Archive-Repo-Root` are percent-encoded.
-  `api --check-header` asserts on any response header (the saved exchange
-  keeps only a few unless `--all-headers` is given), and repeated `--query`
-  flags keep every value, so `exclude=a&exclude=b` is two `--query exclude=`
-  flags.
-- git discovery walks up from `path`. If any ancestor of the runs home is a
-  repository (a conversation whose workspace was `/tmp` leaves `/tmp/.git`,
-  because the server `git init`s workspaces that are not inside a repo), a
-  plain directory is "inside a repo": `git-delta` of it answers 200 with a
-  patch relative to that ancestor, and the server skips `git init` for new
-  workspaces, so scoped patches carry long ancestor-relative paths. The
-  preconditions therefore restart the run with
-  `GIT_CEILING_DIRECTORIES=<run>` and check that `CID`'s workspace got its own
-  `.git`; drop that line only on a machine with no repository above the runs
-  home.
-- The archive's temp file is created in `path`'s parent directory (the system
-  temp directory when the parent is not writable) and removed after the
-  response; for a scoped archive of the workspace root it lives outside the
-  workspace.
-- Every conversation workspace is `git init`ed by the server on start (no
-  commit), so scoped `git-delta` archives of a workspace are always against
-  the empty tree.
-- `download-trajectory` only checks that `<conversations_path>/<hex>/` exists,
-  not that the conversation is loaded; it includes lease files and every
-  event file, skips a top-level `acp/` directory, and redacts JSON/JSONL
-  credential fields plus any Fernet token. It writes a fixed temp name
-  (`F14.trajectory-concurrent`) and reads `conversations_path` from the live
-  `app.state.config`, so it follows an init-time path
-  (`F14.trajectory-init-path`).
-- No file route emits conversation events or WebSocket frames; their second
-  views are downloads, listings, archives and the disk.
-- On a deferred-init server every route here is 503 until `POST /api/init`
-  (the deferred-init family owns that gate).
-- The agent gets only `file_editor` (`conversation start --tools file_editor`),
-  so the family needs no `tmux`; the model's one job is to write
-  `qa-f14-agent.txt`, which the scoped download and archives then read.
+## 陷阱
+
+- 上传目的地是`path`查询参数，而不是表单字段，并且多部分字段必须命名为`file`。 响应是
+  `{"success": true, "file_size": N}`，写入的字节数； SDK和TypeScript的消费者报告说`file_size`(`F14.upload-size`)。
+- 上传会在流式传输之前截断目标，因此上传失败可能会留下部分文件； 它不是原子的（`F14.upload-atomic`）。 该配方降低了第二个服务器的 `RLIMIT_FSIZE` 和 `prlimit`（util-linux，仅限 Linux）； Python 忽略 `SIGXFSZ`，因此写入失败并显示 `EFBIG`，而不是终止服务器。 小于 1 MB 的主体保留在 Starlette 的内存中假脱机中，因此该限制会影响处理程序的写入，而不是多部分解析器。
+- 全局路由接受服务器用户可以到达的任何绝对路径（包括`/etc`）； 只有受保护的路由才能限制路径。 将测试夹具保留在运行目录或 `/tmp/qa-f14-*` 下。
+- 作用域路径检查发生在路由器依赖项中：相对路径和外部路径为 422，而全局路由上的相同相对路径为 400。
+  `home` 和 `search_subdirs` 没有作用域变体。
+- `search_subdirs`' 光标是下一个条目的确切名称（小写光标仍然不区分大小写地恢复）； 未知的 `page_id` 默默地从第一页重新开始。 仅案例双胞胎分页 (`F14.subdirs-case-pagination`)。 `home` 最多列出 50 个收藏夹，没有分页。 403 (`Permission denied`) 无法以 root 身份复制。
+- `F14.home` 准确计算收藏夹：它依赖于启动器的私有
+  `HOME` 仅保存隐藏条目（`.config`、`.gitconfig`、`.openhands`）。
+- `archive` 解决仓库以归档：如果 `path` 不是仓库，但位于仓库的最上层（跳过隐藏和 vendored 目录），两种格式归档的只是那个仓库，因此仓库以外的文件不在 `tar.gz`。 `format` 和 `path` 的描述是这样说的 (`F14.archive-format-doc`)。 需要一切的调用者必须传递包含零个或多个存储库或存储库本身的路径。
+- `git-delta` 尊重存储库的 `.gitignore`（临时索引上的 `git add -A`）；
+  `tar.gz` 不适用且仅适用排除 glob。 自动底座是
+  `origin/<branch>`，然后是 `origin/<default branch>` 或与之合并的基础，然后是空树，因此无远程存储库会提供完整存储库补丁，除非 `base_ref=HEAD`； 分离的 HEAD 使用 `HEAD` (`F14.archive-auto-base`)。 不管怎样，`X-Archive-Base-Ref`就是`auto`。
+- 存储库身份标头（`X-Archive-Repo-Root`、`-Branch`、
+  `-Head-Commit`, `-Repo-Remote`) 仅当归档目录本身包含 `.git` 时才发送； 归档存储库的子目录返回
+  `X-Archive-Base-*` 标头，但没有身份标头。
+- 诸如 `X-Archive-Repo-Root` 之类的标头值是百分比编码的。
+  `api --check-header` 在任何响应头（保存的交换仅保留少数几个，除非`--all-headers`给出）上进行断言，而重复的`--query`标志会保留每个值，因此`exclude=a&exclude=b`是两个`--query exclude=`标志。
+- git discovery 从 `path` 开始。 如果任何运行家的祖先是一个仓库（一个工作区的`/tmp`会离开`/tmp/.git`，因为服务器`git init`的工作区不在一个仓库内），一个普通的目录“在仓库内”：`git-delta`会返回200，并带有相对于那个祖先的补丁，服务器跳过`git init`，对于新的工作区，所以 scoped patches会携带长的祖先相对路径。 因此，前提条件是重新启动运行
+  `GIT_CEILING_DIRECTORIES=<run>` 并检查 `CID` 的工作区是否有自己的
+  `.git`; 仅将该行放在运行主目录上方没有存储库的计算机上。
+- 该档案的临时文件创建在 `path`其父目录（当父目录不可写时为系统临时目录）和在响应后移除。 的范围存档工作区它生活在外部工作区。
+- 每个会话工作区都会在启动时由服务器进行 `git init` 编辑（无提交），因此工作区的范围 `git-delta` 存档始终针对空树。
+- `download-trajectory`仅检查`<conversations_path>/<hex>/`是否存在，而不检查对话是否已加载； 它包括租赁文件和每个事件文件，跳过顶级 `acp/` 目录，并编辑 JSON/JSONL 凭据字段以及任何 Fernet token。 它写入固定的临时名称（`F14.trajectory-concurrent`）并从实时读取`conversations_path`
+  `app.state.config`，因此它遵循初始化时路径 (`F14.trajectory-init-path`)。
+- 没有文件路由发出对话事件或 WebSocket 帧； 他们的第二个视图是下载、列表、档案和磁盘。
+- 在 deferred-init 服务器上，这里的每条路由都是 503 直到 `POST /api/init`（deferred-init 系列拥有该门）。
+- 智能体只得到`file_editor`（`conversation start --tools file_editor`），所以家庭不需要`tmux`； 模型的一项工作就是编写
+  `qa-f14-agent.txt`，然后由范围下载和存档读取。

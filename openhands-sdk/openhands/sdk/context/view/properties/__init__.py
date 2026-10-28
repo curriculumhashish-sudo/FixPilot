@@ -17,7 +17,7 @@ ALL_PROPERTIES: list[ViewPropertyBase] = [
     ToolCallMatchingProperty(),
     ToolLoopAtomicityProperty(),
 ]
-"""A list of all existing properties."""
+"""所有现有属性的列表。"""
 
 __all__ = [
     "ViewPropertyBase",

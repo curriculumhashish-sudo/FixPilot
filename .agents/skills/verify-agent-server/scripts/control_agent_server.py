@@ -1,14 +1,15 @@
-"""control-agent-server: the lever behind the verify-agent-server skill.
+"""control-智能体-server：verify-智能体-server 技能背后的杠杆。
 
-Launches an isolated OpenHands Agent Server from a checkout, keeps per-run
-state on disk, and turns every agent-facing API step (REST, WebSocket, SDK
-example) into a rerunnable command that prints exactly one JSON object.
+启动一个隔离的 OpenHands Agent Server，在磁盘上保留每次运行的状态，将每个智能体-面向
+API 步骤（REST、WebSocket、SDK 示例）转换
+为一个打印出一个 JSON 对象的可重跑命令。
 
-Exit codes: 0 ok, 1 action failed, 2 usage, 3 environment.
-Run `control-agent-server --help`, then `control-agent-server <command> --help`.
+退出代码：0 正常，1 操作失败，2 使用情况，3 环境。 运行 `control-agent-server --help`
+，然后运行
+`control-agent-server <command> --help`。
 """
 
-# Help epilogs hold copy-pasteable example commands; keep each on one line.
+# 帮助 Epilog 保存可复制粘贴的示例命令； 让每个人都排在一条线上。
 # ruff: noqa: E501
 
 from __future__ import annotations
@@ -52,9 +53,9 @@ CLI = "control-agent-server"
 RUN_ENV = "AGENT_SERVER_VERIFY_RUN"
 HOME_ENV = "AGENT_SERVER_VERIFY_HOME"
 CHECKOUT_ENV = "AGENT_SERVER_VERIFY_CHECKOUT"
-# Set by `map run` for each bullet: every CLI call empties this file when it
-# starts and writes the JSON object it prints, so a `# bug: PATH OP VALUE`
-# predicate can be matched against what the failing command observed.
+# `map run` 每个条目设置为：每次 CLI 调用都会清空这个文件，并将打印的 JSON 对象写入它，
+# 因此一个 `# bug: PATH OP VALUE` 判断可以匹配失败命令观察到的内容。
+#
 OBSERVATION_ENV = "AGENT_SERVER_VERIFY_OBSERVATION"
 SESSION_HEADER = "X-Session-API-Key"
 FAMILY_FILE_RE = re.compile(r"^F(\d{2})-[a-z0-9-]+\.md$")
@@ -62,11 +63,12 @@ SUB_FEATURE_RE = re.compile(r"^- `(F\d{2}\.[a-z0-9][a-z0-9-]*)`: \S")
 RESULTS = ("pass", "fail", "xfail", "xpass", "blocked", "not-run")
 FERNET_TOKEN = re.compile(r"gAAAAA[A-Za-z0-9_\-]{40,}={0,2}")
 
-# Environment forwarded from the caller into a launched server. Everything
+# 环境从调用者转发到启动的服务器。 一切
 # else (LLM keys, OH_* overrides, cloud tokens) stays out unless passed with
-# --env or --pass-env, so a run never inherits a developer's configuration.
-# PLAYWRIGHT_BROWSERS_PATH stays out too: the server's browser probe reads it,
-# and the browser recipes decide where the server finds Chromium.
+# --env 或 --pass-env，因此运行永远不会继承开发人员的配置。
+# PLAYWRIGHT_BROWSERS_PATH 也保留在外面：服务器的浏览器探针读取它，浏览器配方决定服务器
+# 在哪里找到 Chromium。
+#
 FORWARDED_ENV = re.compile(
     r"^(PATH|LANG|LC_[A-Z]+|TZ|TERM|SHELL|USER|LOGNAME|TMPDIR"
     r"|(HTTP|HTTPS|NO|ALL)_PROXY|(http|https|no|all)_proxy"
@@ -76,12 +78,12 @@ FORWARDED_ENV = re.compile(
 
 
 # --------------------------------------------------------------------------
-# Output, errors, redaction
+# 输出，错误，脱敏
 # --------------------------------------------------------------------------
 
 
 class CliError(Exception):
-    """A failure reported as one JSON object with an actionable hint."""
+    """故障报告为一个 JSON 对象，并带有可操作的提示。"""
 
     def __init__(
         self,
@@ -108,7 +110,7 @@ def env_error(message: str, hint: str | None = None) -> NoReturn:
 
 
 class Redactor:
-    """Replaces every known secret value with a stable label in all output."""
+    """在所有输出中用稳定标签替换每个已知的机密值。"""
 
     def __init__(self) -> None:
         self._secrets: dict[str, str] = {}
@@ -121,7 +123,7 @@ class Redactor:
         for secret in sorted(self._secrets, key=len, reverse=True):
             if secret in value:
                 value = value.replace(secret, f"<redacted:{self._secrets[secret]}>")
-        # Cipher-encrypted secrets (X-Expose-Secrets: encrypted) are Fernet tokens.
+        # 密码加密机密（X-Expose-机密：加密）是 Fernet token。
         return FERNET_TOKEN.sub("<redacted:encrypted>", value)
 
     def obj(self, value: Any) -> Any:
@@ -184,7 +186,7 @@ def git(*args: str, cwd: Path = REPO_ROOT) -> str:
 
 
 # --------------------------------------------------------------------------
-# Runs
+# 跑步
 # --------------------------------------------------------------------------
 
 
@@ -195,7 +197,7 @@ def runs_home() -> Path:
 
 @dataclass
 class Run:
-    """One launched (or attached) agent server and everything it owns."""
+    """一个已启动（或附加）Agent Server 及其拥有的一切。"""
 
     dir: Path
     data: dict[str, Any] = field(default_factory=dict)
@@ -283,7 +285,7 @@ def all_runs() -> list[Run]:
 
 
 def resolve_run(explicit: str | None, *, require_alive: bool = True) -> Run:
-    """--run DIR, else $AGENT_SERVER_VERIFY_RUN, else the only live run."""
+    """--run DIR，否则$AGENT_SERVER_VERIFY_RUN，否则唯一的实时运行。"""
     chosen = explicit or os.environ.get(RUN_ENV)
     if chosen:
         candidate = Path(chosen)
@@ -378,7 +380,7 @@ def status_matches(status: int, expect: str | None) -> bool:
 
 
 def dig(value: Any, path: str) -> Any:
-    """Follow a dotted path (`items.0.id`) through dicts and lists."""
+    """沿着虚线路径 (`items.0.id`) 浏览字典和列表。"""
     current = value
     for part in [p for p in path.split(".") if p]:
         if isinstance(current, list) and part.lstrip("-").isdigit():
@@ -395,11 +397,11 @@ def dig(value: Any, path: str) -> Any:
 
 
 def has_path(value: Any, path: str) -> bool:
-    """Whether every step of a dotted path exists; a stored `null` counts.
+    """虚线路径的每一步是否存在； 存储的 `null` 计数。
 
-    `dig` answers `None` both for a missing key and for a `null` value, so a
-    `# bug:` predicate checks this first: an error object without `checks`
-    must not match `checks.0.actual eq null`.
+    `dig` 对于缺失键和 `null` 值均回答 `None`，因此
+    `# bug:` 谓词首先检查这一点：没有 `checks` 的错误对象一定不匹配
+    `checks.0.actual eq null`。
     """
     current = value
     for part in [p for p in path.split(".") if p]:
@@ -415,7 +417,7 @@ def has_path(value: Any, path: str) -> bool:
 
 
 def save_evidence(run: Run, target: str, payload: Any, suffix: str = ".json") -> Path:
-    """Save under evidence/<feature>/<name>; never overwrite (name-2, name-3)."""
+    """保存在证据/<feature>/<name>下； 切勿覆盖 (name-2, name-3)。"""
     if "/" not in target:
         usage_error(
             "--save needs FEATURE/NAME", example="--save F03.create/start-response"
@@ -465,7 +467,7 @@ def api_call(
 
 
 def api_json(run: Run, method: str, path: str, **kwargs: Any) -> Any:
-    """Call the API and return JSON, raising CliError on a non-2xx status."""
+    """调用 API 并返回 JSON，在非 2xx 状态下引发 CliError。"""
     response = api_call(run, method, path, **kwargs)
     body, _ = decode_body(response, 2000)
     if response.status_code >= 400:
@@ -477,7 +479,7 @@ def api_json(run: Run, method: str, path: str, **kwargs: Any) -> Any:
 
 
 # --------------------------------------------------------------------------
-# launch / attach / stop / restart / runs / logs
+# 启动/附加/停止/重新启动/运行/日志
 # --------------------------------------------------------------------------
 
 
@@ -494,8 +496,8 @@ def checkout_python(checkout: Path) -> list[str]:
 
 
 def tmux_dir(run: Run) -> str:
-    """A short per-run tmux dir: sockets live at <dir>/tmux-<uid>/<name>, and a
-    Unix socket path must stay under 108 bytes, which <run>/tmux overflows."""
+    """每次运行的简短 tmux 目录：套接字位于 <dir>/tmux-<uid>/<name>，并且
+    Unix 套接字路径必须保持在 108 字节以下，<run>/tmux 会溢出。"""
     path = run.data.get("tmux_dir")
     if not path:
         path = f"/tmp/ohv-{secrets.token_hex(3)}"
@@ -610,8 +612,9 @@ def start_server(run: Run, timeout: float) -> dict[str, Any]:
                 )
             try:
                 response = client.get(run.url + ready_path)
-                # A parallel launch can be handed the same free port; only our
-                # own listener counts as ready (unknown owners are accepted).
+                # 并行启动可以分配相同的空闲端口； 只有我们自己的侦听器才算准备就绪（接
+                # 受未知所有者）。
+                #
                 owners = listening_pids(int(run.data["port"]))
                 ours = not owners or any(
                     _pgid(pid) == run.data["pgid"] for pid in owners
@@ -785,7 +788,7 @@ def stop_process_group(pgid: int, grace: float = 15.0) -> str:
         return "already-exited"
     deadline = time.monotonic() + grace
     while time.monotonic() < deadline:
-        # Reap an owned leader before probing; macOS rejects zombie-only groups.
+        # 在探测之前收获一个拥有的领导者； macOS 拒绝仅僵尸组。
         with contextlib.suppress(ChildProcessError):
             os.waitpid(pgid, os.WNOHANG)
         try:
@@ -814,11 +817,11 @@ def stop_helpers(run: Run) -> list[dict[str, Any]]:
 
 
 def reap_orphans(run: Run) -> list[dict[str, Any]]:
-    """Kill leftover processes whose HOME is inside this run.
+    """杀死 HOME 在此运行中的剩余进程。
 
-    The server and everything it spawns (tmux, MCP servers, Canvas App
-    backends) run with HOME under the run's private home directory, which no
-    other run or agent shell shares; a SIGKILLed server leaves them behind.
+    tmux服务器及其所有子进程（MCP个服务器，Canvas App后台）都在HOME的私有家目录下运行
+    ，其他运行或智能体shell均无法共享。 SIGKILLed台
+    服务器被他们遗弃了。
     """
     home = str(run.dir / "home")
     own = {os.getpid(), *(p.pid for p in psutil.Process().parents())}
@@ -897,7 +900,7 @@ def cmd_restart(args: argparse.Namespace) -> dict[str, Any]:
         and not (run.private / "previous_secret_key").exists()
     ):
         usage_error("--keep-previous-secret-key needs an earlier --rotate-secret-key")
-    # Per restart: a later restart without the flag drops the previous key.
+    # 每次重新启动：稍后重新启动而不使用该标志会删除之前的密钥。
     run.data["keep_previous_secret_key"] = bool(args.keep_previous_secret_key)
     if args.reset_config:
         run.data["config_overrides"] = {}
@@ -961,7 +964,7 @@ def cmd_logs(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# doctor
+# 医生
 # --------------------------------------------------------------------------
 
 
@@ -982,7 +985,7 @@ def ws_url(run: Run, path: str) -> str:
 
 
 def ws_probe(run: Run, path: str, auth: str) -> dict[str, Any]:
-    """Open a socket, authenticate, and report whether it stayed open."""
+    """打开套接字、进行身份验证并报告它是否保持打开状态。"""
     result: dict[str, Any] = {"path": path, "auth": auth}
     try:
         with connect(ws_url(run, path), open_timeout=5, close_timeout=2) as ws:
@@ -1141,13 +1144,13 @@ def _dormant(run: Run) -> bool:
 
 
 # --------------------------------------------------------------------------
-# api
+# API
 # --------------------------------------------------------------------------
 
 
 class CookieJar:
-    """A small browser-like jar: Path and Max-Age/Expires honored, Secure
-    cookies sent to loopback (as browsers treat localhost), stored per run."""
+    """一个类似浏览器的小 jar：尊重路径和 Max-Age/Expires，安全
+    发送到环回的cookie（浏览器对待本地主机），每次运行时存储。"""
 
     def __init__(self, run: Run, name: str) -> None:
         self.path = run.fixtures / "jars" / f"{name}.json"
@@ -1235,7 +1238,7 @@ def _as_text(value: Any) -> str:
 
 
 def evaluate_check(body: Any, spec: Sequence[str]) -> dict[str, Any]:
-    """One `--check FIELD OP [VALUE]` assertion against a JSON body."""
+    """针对 JSON 主体的一个 `--check FIELD OP [VALUE]` 断言。"""
     if len(spec) < 2 or spec[1] not in CHECK_OPS:
         usage_error(
             f"--check needs FIELD OP [VALUE] with OP in {', '.join(CHECK_OPS)}",
@@ -1445,12 +1448,12 @@ def cmd_api(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# ws
+# WS
 # --------------------------------------------------------------------------
 
 
 def parse_sse(text: str) -> list[Any]:
-    """`data:` payloads of a text/event-stream body (JSON-decoded when possible)."""
+    """文本/事件流主体的 `data:` 载荷（如果可能的话，进行 JSON 解码）。"""
     frames: list[Any] = []
     for block in text.split("\n\n"):
         data = "\n".join(
@@ -1505,8 +1508,8 @@ SESSION_FRAME_TYPES = {
 
 
 def frame_kind(frame: Any) -> str:
-    """Event kind for /sockets/events frames; envelope type for session frames
-    (`durable:MessageEvent` for durable and transient event envelopes)."""
+    """/sockets/events 帧的事件类型； 会话帧的信封类型
+    （`durable:MessageEvent` 用于持久和瞬态事件包络）。"""
     if not isinstance(frame, dict):
         return type(frame).__name__
     if frame.get("type") in SESSION_FRAME_TYPES:
@@ -1724,7 +1727,7 @@ def _brief(frame: Any) -> Any:
 
 
 def cmd_ws_start(args: argparse.Namespace) -> dict[str, Any]:
-    """Record a socket in a background process until `ws stop` or --duration."""
+    """在后台进程中记录套接字，直到 `ws stop` 或 --duration。"""
     run = resolve_run(args.run)
     name = args.name or f"ws-{secrets.token_hex(3)}"
     out = run.dir / "captures" / f"{name}.jsonl"
@@ -1899,7 +1902,7 @@ def cmd_ws_stop(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# llm
+# 勒姆
 # --------------------------------------------------------------------------
 
 PRESETS: dict[str, dict[str, Any]] = {
@@ -1960,7 +1963,7 @@ def save_llm_profile(
         llm["base_url"] = base_url
     row: dict[str, Any] = {"profile": name, "model": model}
     if validate:
-        # Pre-flight: a one-token completion with the draft, before saving.
+        # 飞行前：在保存之前以一token的方式完成草稿。
         checked = api_call(
             run,
             "POST",
@@ -2030,7 +2033,7 @@ def cmd_llm_show(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# conversation
+# 谈话
 # --------------------------------------------------------------------------
 
 
@@ -2106,7 +2109,7 @@ def build_start_body(run: Run, args: argparse.Namespace) -> dict[str, Any]:
     if args.workspace:
         working_dir = Path(args.workspace).resolve()
     elif "workspace" not in body:
-        # The request requires a workspace; give each conversation its own.
+        # 该请求需要工作区； 让每一次对话都有自己的特色。
         working_dir = (
             run.fixtures / "workspaces" / datetime.now(UTC).strftime("%H%M%S-%f")
         )
@@ -2114,8 +2117,9 @@ def build_start_body(run: Run, args: argparse.Namespace) -> dict[str, Any]:
     if "workspace" not in body or args.workspace:
         body["workspace"] = {"kind": "LocalWorkspace", "working_dir": str(working_dir)}
     if args.prompt and not args.no_run:
-        # The server always runs initial_message; --no-run sends the prompt
-        # afterwards with POST /events run=false instead.
+        # 服务器始终运行initial_message； --no-run 之后发送提示词，并用 POST /events run
+        # =False 代替。
+        #
         body["initial_message"] = {
             "role": "user",
             "content": [{"type": "text", "text": args.prompt}],
@@ -2334,7 +2338,7 @@ def _event_brief(event: dict[str, Any], full: bool) -> Any:
 
 
 # --------------------------------------------------------------------------
-# fixtures
+# 测试夹具
 # --------------------------------------------------------------------------
 
 
@@ -2454,7 +2458,7 @@ def git_commit_all(repo: Path, run: Run, message: str) -> str:
 
 
 def fixture_git_source(run: Run, name: str) -> dict[str, Any]:
-    """A local git repository holding a skill and a plugin (install from git)."""
+    """本地 git 存储库包含技能和插件（从 gi​​t 安装）。"""
     repo = run.fixtures / "git" / name
     env = {"GIT_CONFIG_GLOBAL": str(run.dir / "home" / ".gitconfig")}
     if (repo / ".git").exists():
@@ -2512,7 +2516,7 @@ def fixture_marketplace(run: Run, name: str) -> dict[str, Any]:
 
 
 def fixture_project(run: Run, name: str) -> dict[str, Any]:
-    """A git project with project skills, AGENTS.md, a sub-agent and hooks."""
+    """一个具有项目技能、AGENTS.md、子智能体和钩子的 git 项目。"""
     root = run.fixtures / "projects" / name
     env = {"GIT_CONFIG_GLOBAL": str(run.dir / "home" / ".gitconfig")}
     if not root.exists():
@@ -2581,7 +2585,7 @@ def fixture_mcp_server(run: Run, name: str) -> dict[str, Any]:
 
 
 def serve_http_sink(port: int, out: Path) -> None:
-    """Hidden helper process: record every request as one JSONL line."""
+    """隐藏辅助进程：将每个请求记录为一行JSONL。"""
 
     class Handler(BaseHTTPRequestHandler):
         def _record(self) -> None:
@@ -2668,7 +2672,7 @@ def start_http_sink(
 
 
 def stub_completion(step: dict[str, Any], model: str) -> dict[str, Any]:
-    """An OpenAI chat.completion for one scripted step."""
+    """OpenAI chat.completion 表示一个脚本化步骤。"""
     usage = step.get("usage") or [10, 5]
     message: dict[str, Any] = {"role": "assistant", "content": step.get("reply")}
     finish = "stop"
@@ -2700,7 +2704,7 @@ def stub_completion(step: dict[str, Any], model: str) -> dict[str, Any]:
 
 
 def stub_stream(completion: dict[str, Any]) -> bytes:
-    """The same completion as server-sent events, for stream=true requests."""
+    """对于stream=True请求，与服务器发送事件相同的完成。"""
     choice = completion["choices"][0]
     delta = dict(choice["message"])
     if "tool_calls" in delta:
@@ -2727,7 +2731,7 @@ def stub_stream(completion: dict[str, Any]) -> bytes:
 
 
 def serve_llm_stub(port: int, script: Path, out: Path) -> None:
-    """Hidden helper process: an OpenAI-compatible provider that replays a script."""
+    """隐藏帮助程序进程：重播脚本的 OpenAI 兼容提供程序。"""
     calls = {"n": 0}
 
     class Handler(BaseHTTPRequestHandler):
@@ -2995,7 +2999,7 @@ def cmd_state_cat(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def cmd_assert(args: argparse.Namespace) -> dict[str, Any]:
-    """`--check` a value a recipe computed, so a `# bug:` predicate can name it."""
+    """`--check` 一个计算出的值，因此一个 `# bug:` 谓语可以命名它。"""
     if not args.check:
         usage_error(
             "assert needs at least one --check",
@@ -3124,7 +3128,7 @@ web.run_app(app, host="127.0.0.1", port=port, print=None)
 
 
 def fixture_canvas_app(run: Run, name: str, backend: str | None) -> dict[str, Any]:
-    """An Agent Canvas app: manifest, bundle, icon, and optionally a backend."""
+    """一个 Agent Canvas 应用程序：清单、捆绑包、图标和可选的后端。"""
     root = run.fixtures / "canvas" / name
     (root / "dist").mkdir(parents=True, exist_ok=True)
     (root / "assets").mkdir(exist_ok=True)
@@ -3246,7 +3250,7 @@ def cmd_fixture(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# helper (recipe-local processes that outlive one bullet)
+# helper（比一颗子弹寿命更长的本地配方进程）
 # --------------------------------------------------------------------------
 
 
@@ -3280,16 +3284,17 @@ def cmd_helper_start(args: argparse.Namespace) -> dict[str, Any]:
     )
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("ab") as log:
-        # Its own session: the map runner stops each bullet's process group
-        # when the bullet ends, and `stop` stops registered helpers.
+        # 它自己的会话：当项目符号结束时，地图运行程序会停止每个项目符号的进程组，并且
+        # `stop` 会停止注册的助手。
+        #
         process = subprocess.Popen(
             command,
             stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=subprocess.STDOUT,
             start_new_session=True,
-            # A helper outlives the bullet: keep its output out of the
-            # observation that `# bug:` predicates read.
+            # 帮助器比子弹寿命更长：将其输出保留在 `# bug:` 谓词读取的观测结果之外。
+            #
             env={k: v for k, v in os.environ.items() if k != OBSERVATION_ENV},
         )
     entry = {
@@ -3346,7 +3351,7 @@ def cmd_helper_stop(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# exec (SDK / TypeScript client lanes)
+# exec（SDK / TypeScript 客户端通道）
 # --------------------------------------------------------------------------
 
 
@@ -3425,7 +3430,7 @@ def cmd_exec(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# evidence
+# 证据
 # --------------------------------------------------------------------------
 
 
@@ -3488,11 +3493,10 @@ FAILING = {"fail", "xpass"}
 def compare_ledgers(
     before_rows: Iterable[dict[str, Any]], after_rows: Iterable[dict[str, Any]]
 ) -> dict[str, list[dict[str, Any]]]:
-    """Latest result per sub-feature in each ledger, and what moved between them.
+    """每个分类账中每个子功能的最新结果，以及它们之间的移动内容。
 
-    "Latest" is by each row's recorded time, never by the order the runs were
-    given in, so an older pass cannot hide a newer failure; attempts in the
-    current runs that disagree are listed under "conflicting".
+    “最新”是按每行记录的时间，而不是按运行的顺序，因此较旧的传递不能隐藏较新的失败；
+    当前运行中不一致的尝试列在“冲突”下。
     """
 
     def by_time(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -3632,7 +3636,7 @@ def cmd_evidence_report(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# map
+# 地图
 # --------------------------------------------------------------------------
 
 
@@ -3667,7 +3671,7 @@ def collect_ids(files: Sequence[Path] | None = None) -> list[dict[str, Any]]:
 
 
 def route_templates(checkout: Path | None = None) -> list[dict[str, Any]]:
-    """Every HTTP and WebSocket route of the app, by importing it in a subprocess."""
+    """应用程序的每个 HTTP 和 WebSocket 路由，通过将其导入到子进程中。"""
     checkout = checkout or REPO_ROOT
     code = (
         "import json, logging\n"
@@ -3747,10 +3751,10 @@ CMD_START_RE = re.compile(rf"(?:^|[`\s($|&;]){CLI} ")
 
 
 def extract_commands(text: str) -> list[str]:
-    """Every `control-agent-server ...` invocation in markdown text.
+    """Markdown 文本中的每个 `control-agent-server ...` 调用。
 
-    Finds commands in inline code, fenced blocks, `$(...)` substitutions and
-    `&&` chains, stopping at the end of the shell word sequence.
+    查找内联代码、隔离块、`$(...)` 替换和中的命令
+    `&&` 链，停在 shell 字序列的末尾。
     """
     commands = []
     for match in CMD_START_RE.finditer(text):
@@ -3801,8 +3805,9 @@ def match_route(
     method: str, concrete: str, routes: Sequence[dict[str, Any]]
 ) -> dict[str, Any] | None:
     concrete = SHELL_EXPANSION_RE.sub("X", concrete.split("?", 1)[0])
-    # Config-only catch-all proxies (the Docker runtime's {tail:path}) would
-    # match any typo, so recipe paths never resolve to them.
+    # 仅配置包罗万象的代理（Docker运行时的{tail:path}）将匹配任何拼写错误，因此配方路径
+    # 永远不会解析为它们。
+    #
     candidates = [
         r
         for r in routes
@@ -3848,7 +3853,7 @@ REDIRECT_WITH_TARGET_RE = re.compile(r"^\d?>>?\S+$")
 
 
 def drop_redirections(argv: list[str]) -> list[str]:
-    """Remove shell redirections (`> file`, `2>&1`, `>/dev/null`) from argv."""
+    """从 argv 中删除 shell 重定向（`> file`、`2>&1`、`>/dev/null`）。"""
     kept: list[str] = []
     skip = False
     for token in argv:
@@ -3862,7 +3867,7 @@ def drop_redirections(argv: list[str]) -> list[str]:
 
 
 def validate_command(command: str) -> str | None:
-    """Parse one recipe command with the real parser, without executing it."""
+    """使用真实解析器解析一个配方命令，但不执行它。"""
     text = command.strip()
     if text.endswith("`"):
         text = text[:-1]
@@ -3886,8 +3891,9 @@ def validate_command(command: str) -> str | None:
                 if stderr.getvalue()
                 else "invalid"
             )
-            # A value that comes from the shell ('$N', '$(...)') is only known
-            # at run time, so a type or choice error about it is not a defect.
+            # 来自 shell 的值（'$N'、'$(...)'）仅在运行时才知道，因此有关它的类型或选择
+            # 错误不是缺陷。
+            #
             if "invalid" in message and "'$" in message:
                 return None
             return message
@@ -4038,7 +4044,7 @@ def check_family(path: Path, routes: Sequence[dict[str, Any]] | None) -> list[st
                 )
         http_methods = {r["method"] for r in routes} - {"WS"}
         for method, concrete in API_CMD_RE.findall(text):
-            # HEAD and OPTIONS (CORS preflight) are answered on any served path.
+            # HEAD 和 OPTIONS（CORS 预检）在任何服务路径上得到应答。
             candidates = http_methods if method in ("HEAD", "OPTIONS") else {method}
             if not any(match_route(m, concrete, routes) for m in candidates):
                 problems.append(
@@ -4219,14 +4225,14 @@ class Bullet:
     needs: list[str] = field(default_factory=list)
 
 
-# Shapes that pass when the command breaks: `if cmd; then false; fi`, `! cmd`,
-# `test ! -e X`, or a check run only `if` something else holds.
+# 命令中断时经过的形状：`if cmd; then false; fi`、`! cmd`、
+# `test ! -e X`，或仅检查运行 `if` 其他内容成立。
 NEGATIVE_BUG_RE = re.compile(r"(?:^|[;&|(]\s*)(?:if|!)\s|\btest\s+!|\[\s+!\s")
 
 
 @dataclass
 class BugMark:
-    """A command marked `# bug: PREDICATE`, as lines of the bullet script."""
+    """标记为 `# bug: PREDICATE` 的命令，作为项目符号脚本的行。"""
 
     first: int
     last: int
@@ -4235,10 +4241,9 @@ class BugMark:
 
 
 def bug_marks(script: str) -> list[BugMark]:
-    """Commands marked `# bug` (1-based line ranges in the bullet script).
+    """标记为 `# bug` 的命令（项目符号脚本中从 1 开始的行范围）。
 
-    The marker ends the command's last line; a command continued with `\\`
-    starts at the first line of the continuation.
+    标记结束命令的最后一行； 以 `\\` 继续的命令从延续的第一行开始。
     """
     lines = script.splitlines()
     marks = []
@@ -4260,16 +4265,17 @@ def bug_marks(script: str) -> list[BugMark]:
 
 
 def parse_bug_predicate(text: str) -> list[list[str]]:
-    """The clauses of a `# bug:` predicate: the documented failure's identity.
+    """`# bug:` 谓词的子句：记录的故障的身份。
 
-    Either `exit N` (the marked command's exit status, for `test`, `jq -e`
-    and other plain commands) or one or more `PATH OP [VALUE]` clauses joined
-    by `&&`, matched like `--check` against the JSON object the last
-    control-agent-server call on the marked line printed, for example
-    `status eq 500 && response.body.exception contains 'has no attribute'`.
-    Every clause but a `missing` one also needs its path present in that
-    output (a stored `null` is present), and at least one clause must not be
-    `missing`, so an error object never reads as the bug.
+    Either `exit N` (标记的命令的退出状态，对于 `test`, `jq -e` 以及其他简单的命令)
+    或者一个或多个
+    `PATH OP [VALUE]` 由连接的 `&&`, 匹配如 `--check` against the JSON 最后一个控制对
+    象智能体在标记的行上打印服务器
+    调用，例如
+    `status eq 500 && response.body.exception contains 'has no attribute'`. 除
+    `missing` 之外的每个子句也需要在该输出中存在其路径（存在存储的 `null`），并且至少
+    有一个子句不得存在
+    `missing`，因此错误对象永远不会被读取为错误。
     """
     if not text:
         raise ValueError(
@@ -4316,7 +4322,7 @@ def parse_bug_predicate(text: str) -> list[list[str]]:
 def bug_predicate_matches(
     clauses: list[list[str]], exit_status: int | None, observation: Any
 ) -> bool:
-    """Whether the observed failure is the one the `# bug` predicate documents."""
+    """观察到的故障是否是 `# bug` 谓词文档中的故障。"""
     if clauses[0][0] == "exit" and len(clauses[0]) == 2:
         return exit_status == int(clauses[0][1])
     if not isinstance(observation, dict):
@@ -4329,7 +4335,7 @@ def bug_predicate_matches(
 
 
 def requires_closure(bullet: Bullet, bullets: Sequence[Bullet]) -> set[str]:
-    """Every feature `bullet` needs, directly or through its `Requires:`."""
+    """每个功能 `bullet` 都需要直接或通过其 `Requires:`。"""
     by_id = {feature: other for other in bullets for feature in other.ids}
     closure: set[str] = set()
     stack = list(bullet.requires)
@@ -4344,10 +4350,10 @@ def requires_closure(bullet: Bullet, bullets: Sequence[Bullet]) -> set[str]:
 
 
 def driving_bullets(path: Path) -> list[Bullet]:
-    """The fenced `sh` blocks of the Driving section, grouped by bullet.
+    """驾驶部分的围栏 `sh` 块，按项目符号分组。
 
-    Shell blocks under `Preconditions:` form a first pseudo-bullet labelled
-    `Preconditions`. Prose and inline code are never executed.
+    `Preconditions:` 下的外壳块形成第一个标记为伪项目符号
+    `Preconditions`. 散文和内联代码永远不会被执行。
     """
     lines = path.read_text().splitlines()
     try:
@@ -4425,8 +4431,8 @@ LOCAL_ASSIGN_RE = re.compile(r"(?:^|[\s;&|(])([A-Za-z_][A-Za-z0-9_]*)\+?=")
 LOCAL_BIND_RE = re.compile(
     r"\b(?:for|local|export|declare(?:\s+-\w+)*)\s+([A-Za-z_][A-Za-z0-9_]*)"
 )
-# `read [-ers] [-adinNptu ARG] NAME...`; only the letters in the second set
-# take an argument.
+# `read [-ers] [-adinNptu ARG] NAME...`; 只有第二组中的字母带有参数。
+#
 READ_RE = re.compile(
     r"\bread\b((?:\s+-[ers]*(?:[adinNptu]\s*(?:'[^']*'|[^\s;]+))?)*)"
     r"((?:\s+[A-Za-z_]\w*)+)"
@@ -4435,13 +4441,13 @@ QUOTED_HEREDOC_RE = re.compile(r"<<-?\s*(?:'(\w+)'|\"(\w+)\"|\\(\w+))")
 
 
 def outside_reads(script: str) -> set[str]:
-    """Variables a bullet expands before it binds them itself.
+    """项目符号在绑定变量之前会展开变量。
 
-    A name read before the bullet's first binding of it (or in the value of
-    that binding, as in `TOKEN=$(... "$TOKEN")`) comes from outside: in a full
-    replay, from an earlier bullet. `for`, `read`, `local`, `export` and
-    `declare` bind where they appear. Quoted heredoc bodies (`<<'EOF'`) are
-    program text, not shell, and are skipped.
+    在 bullet 的第一个绑定之前读取的名字（或者在那个绑定的值中，如请输出简体中文译文
+    `TOKEN=$(... "$TOKEN")`）来自外部：在全回放中，来自
+    先前的子弹。 `for`, `read`, `local`, `export` 和
+    `declare` 绑定在它们出现的地方。 引用的heredoc主体(`<<'EOF'`)是程序文本，而不是
+    shell，并且被跳过。
     """
     reads: set[str] = set()
     bound: set[str] = set()
@@ -4468,14 +4474,14 @@ def outside_reads(script: str) -> set[str]:
 
 
 def undeclared_dependencies(bullets: list[Bullet]) -> list[str]:
-    """Recipes that read a variable an earlier recipe sets, without `Requires:`.
+    """读取早期配方设置的变量的配方，不带 `Requires:`。
 
-    `map run` carries line-start assignments from one bullet to the next, so in
-    a full replay a bullet sees the value set by the last earlier bullet that
-    assigned it. `--only` runs Preconditions, the selected bullets and their
-    `Requires:` closure; anything else leaves the variable empty, and an empty
-    id or path can fail the `# bug` line for the wrong reason. Blocked and
-    known-bug bullets never save their variables, so they are not producers.
+    `map run` 会从一个项目符号项的起始位置传递到下一个项目符号项的起始位置，因此在完
+    整的回放中，一个项目符号项会看到由最早为它分配值的项目符号项设置的值。
+    `--only` 运行先决条件、选定的项目符号及其
+    `Requires:` 关闭； 其他任何内容都会使变量为空，并且空的 id 或路径可能会因错误的原
+    因而使 `# bug` 行失败。 被阻止和已知错误的项目符号永远不
+    会保存它们的变量，因此它们不是生产者。
     """
     problems = []
     for index, bullet in enumerate(bullets):
@@ -4549,7 +4555,7 @@ def needs_tokens(text: str) -> list[str]:
 
 
 def family_needs(path: Path) -> list[str]:
-    """Tokens from the family's optional `Needs:` line."""
+    """token来自家庭可选的`Needs:`行。"""
     for line in path.read_text().splitlines():
         if line.startswith("Needs:"):
             return needs_tokens(line[len("Needs:") :])
@@ -4557,7 +4563,7 @@ def family_needs(path: Path) -> list[str]:
 
 
 def recipe_needs(bullets: list[Bullet]) -> dict[int, list[str]]:
-    """Each bullet's own `Needs:` plus those of its `Requires:` closure."""
+    """每个项目符号自己的 `Needs:` 加上其 `Requires:` 闭合的项目符号。"""
     by_id = {feature: bullet for bullet in bullets for feature in bullet.ids}
     needs: dict[int, list[str]] = {}
     for index, bullet in enumerate(bullets):
@@ -4578,7 +4584,7 @@ def recipe_needs(bullets: list[Bullet]) -> dict[int, list[str]]:
 def blocked_recipes(
     bullets: list[Bullet], machine: dict[str, dict[str, Any]]
 ) -> dict[int, list[str]]:
-    """Bullets whose recipe needs a capability this machine lacks."""
+    """其配方需要该机器缺乏的功能的子弹。"""
     return {
         index: missing
         for index, wanted in recipe_needs(bullets).items()
@@ -4587,7 +4593,7 @@ def blocked_recipes(
 
 
 def network_reachable(url: str) -> tuple[bool, str]:
-    """Outbound HTTPS, for recipes that need github.com or a provider's auth host."""
+    """出站 HTTPS，用于需要 github.com 或提供商的身份验证主机的配方。"""
     try:
         httpx.head(url, timeout=5, follow_redirects=False)
     except httpx.HTTPError as exc:
@@ -4664,7 +4670,7 @@ def cmd_capabilities(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def launch_flags(path: Path) -> list[str]:
-    """Flags from the family's optional `Launch:` line (for `map run --fresh`)."""
+    """来自系列可选 `Launch:` 行的标志（对于 `map run --fresh`）。"""
     for line in path.read_text().splitlines():
         if line.startswith("Launch:"):
             return shlex.split(line[len("Launch:") :].replace("`", " "))
@@ -4812,8 +4818,9 @@ def replay_family(run: Run, path: Path, args: argparse.Namespace) -> dict[str, A
     results = []
     failed = False
     xpassed = False
-    # Labels and ids of bullets that failed: a known bug whose arrange did not
-    # run (with --keep-going) cannot show the correct behavior.
+    # 失败的项目符号的标签和 ID：未运行程序（使用 --keep-going）的已知错误无法显示正确的
+    # 行为。
+    #
     broken: set[str] = set()
     unavailable: dict[int, list[str]] = {}
     if not args.dry_run and any(recipe_needs(bullets).values()):
@@ -4882,8 +4889,9 @@ def replay_family(run: Run, path: Path, args: argparse.Namespace) -> dict[str, A
         failure.unlink(missing_ok=True)
         observation = run.dir / "map-run" / f"{path.stem}.observation.json"
         observation.unlink(missing_ok=True)
-        # The ERR trap copies the observation at the failing command, before a
-        # recipe's own EXIT cleanup calls the CLI again.
+        # 在配方自己的 EXIT 清理再次调用 CLI 之前，ERR 陷阱会在失败的命令处复制观测结果
+        # 。
+        #
         observed_at_failure = observation.with_suffix(".failed.json")
         observed_at_failure.unlink(missing_ok=True)
         preamble = [
@@ -5145,7 +5153,7 @@ def source_prefixes(path: Path) -> list[str]:
 def cmd_map_owners(args: argparse.Namespace) -> dict[str, Any]:
     diff_range = args.changed
     if not diff_range and not args.paths:
-        # Since the recorded baseline: the daily pass's changed families.
+        # 自记录基线以来：每日通行证改变了家庭。
         baseline = read_baseline()
         if not baseline:
             usage_error(
@@ -5187,10 +5195,10 @@ def cmd_map_owners(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-# The maintenance baseline recorded in the map index, on a line of the form
-#   Maintenance baseline: main@<sha> (<YYYY-MM-DD>). <prose>
-# A pass reads it as BASE; a pass that finished its changed families moves it
-# to its TARGET in its PR, and merging the PR accepts the new baseline.
+# 维护基线记录在地图索引中，在表格的一行上
+#   维护基线：main@<sha> (<YYYY-MM-DD>)。 <prose>
+# 通行证读作BASE； 完成其更改系列的传递将其移至 PR 中的 TARGET，并合并 PR 接受新基线。
+#
 BASELINE_LINE_RE = re.compile(
     r"^Maintenance baseline: main@([0-9a-f]{7,40}) \((\d{4}-\d{2}-\d{2})\)(.*)$",
     re.M,
@@ -5265,7 +5273,7 @@ def cmd_map_baseline(args: argparse.Namespace) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
-# Parser
+# 解析器
 # --------------------------------------------------------------------------
 
 TOP_HELP = f"""\
@@ -5349,7 +5357,7 @@ def sub(
 
 @functools.cache
 def recipe_parser() -> argparse.ArgumentParser:
-    """One parser for validating every recipe command (building it is slow)."""
+    """一个解析器用于验证每个配方命令（构建它很慢）。"""
     return build_parser()
 
 
@@ -6501,7 +6509,7 @@ reported and not executed. Transcripts are saved under <run>/evidence/map-run/."
 
 
 def extract_run_flag(argv: list[str]) -> tuple[list[str], str | None]:
-    """--run DIR may appear anywhere on the line."""
+    """--run DIR 可能出现在该行的任何位置。"""
     out, run = [], None
     skip = False
     for i, token in enumerate(argv):
@@ -6544,7 +6552,7 @@ def main(argv: list[str] | None = None) -> int:
     args.run = run_flag
     func = args.func
     if func is None:
-        # A group like `ws` or `map` without a subcommand: show its help.
+        # 不带子命令的组（如 `ws` 或 `map`）：显示其帮助。
         parser.parse_args([*head, "--help"])
         return 2
     try:

@@ -21,12 +21,12 @@ export function ChatInterface({ llm, model }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom when messages change
+  // 消息更改时自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-resize textarea
+  // 自动调整文本区域大小
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -49,19 +49,19 @@ export function ChatInterface({ llm, model }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
-      // Build conversation history for context (use plain strings for content)
+      // 构建上下文的对话历史记录（使用纯字符串作为内容）
       const conversationMessages = [...messages, userMessage].map((msg) => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       }));
 
-      // Call the LLM
+      // 拨打LLM
       const response = await llm.chatCompletion({
         messages: conversationMessages,
         model,
       });
 
-      // Extract the assistant's response
+      // 提取助理的回复
       const assistantContent =
         response.choices[0]?.message?.content ||
         'Sorry, I could not generate a response.';

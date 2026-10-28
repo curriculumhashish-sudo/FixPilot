@@ -1,5 +1,5 @@
 /**
- * Regression tests for the package import surface when `ws` is unavailable.
+ * 当 `ws` 不可用时，回归测试包导入表面。
  */
 
 import Module from 'node:module';

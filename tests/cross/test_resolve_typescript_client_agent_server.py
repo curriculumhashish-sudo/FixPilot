@@ -1,4 +1,4 @@
-"""Tests for the TypeScript client pinned Agent Server resolver."""
+"""测试 TypeScript 客户端固定 Agent Server 解析器。"""
 
 from __future__ import annotations
 

@@ -1,9 +1,8 @@
-"""Shared helpers for the release security-scan checks.
+"""用于发布安全扫描检查的共享助手。
 
-Deterministic-first by design: these helpers only read git history and query
-read-only HTTP APIs (GitHub REST, OSV). They never execute the code under
-review. That is the whole point of a security gate — a scanner that runs (or
-asks an LLM to reason over) untrusted PR content is itself an injection target.
+设计上是确定性的：这些助手只读取 git 历史并查询只读 HTTP APIs (GitHub REST, OSV)。 他
+们从不执行正在审查的代码。 这就是安全门的全部意义—
+—一个扫描器（或要求一个 LLM 进行推理）处理未经验证的 PR 内容本身就是一个注入目标。
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ GITHUB_API = "https://api.github.com"
 
 
 def run_git(*args: str) -> str:
-    """Run a git command and return stripped stdout."""
+    """运行 git 命令并返回剥离的标准输出。"""
     result = subprocess.run(
         ["git", *args],
         check=True,
@@ -31,13 +30,13 @@ def run_git(*args: str) -> str:
 
 
 def last_release_tag() -> str | None:
-    """Most recent ``vX.Y.Z`` tag reachable from HEAD, or None if there is none.
+    """可从 HEAD 或 None（如果有 None）访问的最新 ``vX.Y.Z`` 标签。
 
-    The release scan compares "what ships now" against the last thing that
-    shipped, so the previous release tag is the natural, immutable baseline.
+    发布扫描将“现在发布的内容”与最后发布的内容进行比较，因此之前的发布标签是自然的、
+    不可变的基线。
     """
     try:
-        # --merged HEAD keeps us on this line of history; sort by version.
+        # --merged HEAD 让我们保持在这条历史线上； 按版本排序。
         tags = run_git(
             "tag", "--list", "v*", "--merged", "HEAD", "--sort=-v:refname"
         ).splitlines()
@@ -47,7 +46,7 @@ def last_release_tag() -> str | None:
 
 
 def _github_get(url: str, token: str | None) -> tuple[object, str | None]:
-    """GET one GitHub REST page; return ``(parsed_json, link_header)``."""
+    """GET GitHub REST 页； 返回``(parsed_json, link_header)``。"""
     req = urllib.request.Request(url)
     req.add_header("Accept", "application/vnd.github+json")
     req.add_header("X-GitHub-Api-Version", "2022-11-28")
@@ -58,7 +57,7 @@ def _github_get(url: str, token: str | None) -> tuple[object, str | None]:
 
 
 def github_request(path_or_url: str, token: str | None) -> object:
-    """GET a GitHub REST endpoint and parse JSON. Raises on HTTP error."""
+    """GETaGitHubREST端点并解析JSON。 引发 HTTP 错误。"""
     url = path_or_url
     if url.startswith("/"):
         url = f"{GITHUB_API}{url}"
@@ -67,7 +66,7 @@ def github_request(path_or_url: str, token: str | None) -> object:
 
 
 def _next_link(link_header: str | None) -> str | None:
-    """The ``rel="next"`` URL from a REST ``Link`` header, or None."""
+    """REST ``Link`` 标头中的 ``rel="next"`` URL 或 None。"""
     if not link_header:
         return None
     for part in link_header.split(","):
@@ -81,12 +80,11 @@ def _next_link(link_header: str | None) -> str | None:
 
 
 def github_request_all(path_or_url: str, token: str | None) -> list[object]:
-    """GET a paginated GitHub REST list endpoint, following ``Link: next``.
+    """GET 分页的 GitHub REST 列表端点，位于 ``Link: next`` 之后。
 
-    Concatenates every page into one list. A security gate must see *all*
-    reviews — if a human APPROVED sits past the first page, truncating to a
-    single page would misclassify the PR as unapproved (a false-positive
-    block). A non-list response is returned wrapped as a single-item list.
+    将每一页连接到一个列表中。 必须 * 识别所有 * 评论 — 如果人类 APPROVED 坐过第一页
+    ，会将 PR 误判为未通过（一个 False-正的块）。 返回一
+    个非列表响应，包装成一个包含单个元素的列表。
     """
     url = path_or_url
     if url.startswith("/"):
@@ -105,13 +103,11 @@ def github_request_all(path_or_url: str, token: str | None) -> list[object]:
 def osv_query_batch(
     queries: list[dict[str, object]],
 ) -> list[dict[str, object]] | None:
-    """Query the OSV batched vulnerability API. Returns None on network failure.
+    """查询OSV批量漏洞API。 网络故障时返回 None。
 
-    OSV is public and needs no auth. A None return means the release diff could
-    not be verified against known vulnerabilities; the dependency-diff caller
-    treats that as blocking (fail-closed — a release that can't be checked
-    shouldn't ship), and an actual known-vulnerable hit is likewise a hard
-    finding.
+    OSV 是公开的，无需身份验证。 None 返回意味着无法针对已知漏洞验证版本差异； 依赖差
+    异调用者将它视为阻塞（失败关闭 —— 不能检查的发布不应发布），而实际已
+    知漏洞的发现同样被视为硬发现。
     """
     payload = json.dumps({"queries": queries}).encode("utf-8")
     req = urllib.request.Request(
@@ -131,7 +127,7 @@ def osv_query_batch(
 
 @dataclass
 class Report:
-    """Accumulates a markdown report plus a blocking/ok verdict."""
+    """累积 Markdown 报告以及阻止/正常判决。"""
 
     title: str
     lines: list[str] = field(default_factory=list)
@@ -160,7 +156,7 @@ class Report:
 
 
 def resolve_repo() -> str:
-    """`owner/name` from GITHUB_REPOSITORY, falling back to the git remote."""
+    """`owner/name` 从 GITHUB_REPOSITORY，回落到 git 远程。"""
     env_repo = os.environ.get("GITHUB_REPOSITORY")
     if env_repo:
         return env_repo

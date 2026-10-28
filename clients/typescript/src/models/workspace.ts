@@ -1,5 +1,5 @@
 /**
- * Workspace and bash operation result models
+ * 工作区与bash运行结果模型
  */
 import type { GitChangeStatus } from '../generated/agent-server-schema';
 
@@ -31,7 +31,7 @@ export type { GitChangeStatus };
 
 export interface GitChange {
   path: string;
-  /** The server's wire value: 'ADDED', 'UPDATED', 'DELETED' or 'MOVED'. */
+  /** 服务器的连线值：“ADDED”、“UPDATED”、“DELETED”或“MOVED”。*/
   status: GitChangeStatus;
   [key: string]: unknown;
 }

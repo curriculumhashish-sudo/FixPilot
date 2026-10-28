@@ -25,7 +25,7 @@ from openhands.sdk.llm.utils.telemetry import (
 
 
 def _snapshot(usage: Usage) -> UsageSnapshot:
-    """Normalize provider usage the way Telemetry does before recording it."""
+    """在记录之前按照遥测的方式规范提供程序的使用情况。"""
     snapshot = normalize_usage(usage)
     assert snapshot is not None
     return snapshot
@@ -33,19 +33,19 @@ def _snapshot(usage: Usage) -> UsageSnapshot:
 
 @pytest.fixture
 def mock_metrics():
-    """Create a mock Metrics instance."""
+    """创建一个模拟对象 Metrics 实例。"""
     return Metrics()
 
 
 @pytest.fixture
 def basic_telemetry(mock_metrics):
-    """Create a basic Telemetry instance for testing."""
+    """创建一个基本的遥测实例以进行测试。"""
     return Telemetry(model_name="gpt-4o", log_enabled=False, metrics=mock_metrics)
 
 
 @pytest.fixture
 def mock_response():
-    """Create a mock ModelResponse for testing."""
+    """创建模拟对象 ModelResponse 进行测试。"""
     return ModelResponse(
         id="test-response-id",
         choices=[],
@@ -57,10 +57,10 @@ def mock_response():
 
 
 class TestTelemetryInitialization:
-    """Test Telemetry class initialization and configuration."""
+    """测试遥测类的初始化和配置。"""
 
     def test_telemetry_default_initialization(self, mock_metrics):
-        """Test Telemetry initialization with default values."""
+        """测试测迹初始化，使用默认值。"""
         telemetry = Telemetry(metrics=mock_metrics)
 
         assert telemetry.model_name == "unknown"
@@ -71,7 +71,7 @@ class TestTelemetryInitialization:
         assert telemetry.metrics == mock_metrics
 
     def test_telemetry_custom_initialization(self, mock_metrics):
-        """Test Telemetry initialization with custom values."""
+        """使用自定义值测试遥测初始化。"""
         telemetry = Telemetry(
             model_name="custom-model",
             log_enabled=True,
@@ -89,45 +89,45 @@ class TestTelemetryInitialization:
         assert telemetry.metrics == mock_metrics
 
     def test_telemetry_validation_error(self):
-        """Test that Telemetry raises ValidationError when metrics is missing."""
+        """测试当指标缺失时遥测是否会引发 ValidationError。"""
         with pytest.raises(ValidationError):
             Telemetry()  # type: ignore
 
     def test_telemetry_private_attributes(self, basic_telemetry):
-        """Test that private attributes are initialized correctly."""
-        # Private attributes should be accessible but not serialized
+        """测试私有属性是否正确初始化。"""
+        # 私有属性应该可以访问，但不能访问已序列化
         assert hasattr(basic_telemetry, "_req_start")
         assert hasattr(basic_telemetry, "_req_ctx")
         assert hasattr(basic_telemetry, "_last_latency")
 
-        # Check default values
+        # 检查默认值
         assert basic_telemetry._req_start == 0.0
         assert basic_telemetry._req_ctx == {}
         assert basic_telemetry._last_latency == 0.0
 
 
 class TestTelemetryLifecycle:
-    """Test Telemetry lifecycle methods."""
+    """测试遥测生命周期方法。"""
 
     def test_on_request_basic(self, basic_telemetry):
-        """Test on_request method with basic functionality."""
+        """测试on_request方法的基本功能。"""
         start_time = time.time()
         basic_telemetry.on_request(None)
 
-        # Should set request start time
+        # 应设置请求开始时间
         assert basic_telemetry._req_start >= start_time
         assert basic_telemetry._req_ctx == {}
 
     def test_on_request_with_context(self, basic_telemetry):
-        """Test on_request method with telemetry context."""
+        """使用遥测上下文测试 on_request 方法。"""
         telemetry_ctx = {"context_window": 4096, "user_id": "test-user"}
         basic_telemetry.on_request(telemetry_ctx)
 
         assert basic_telemetry._req_ctx == telemetry_ctx
 
     def test_on_error_noop_when_logging_disabled(self, basic_telemetry):
-        """Test on_error method when logging is disabled."""
-        # Should not raise any exceptions
+        """禁用日志记录时测试 on_error 方法。"""
+        # 不应引发任何异常
         basic_telemetry.on_request({"context_window": 4096})
         basic_telemetry.on_error(Exception("test error"))
 
@@ -135,9 +135,9 @@ class TestTelemetryLifecycle:
     def test_on_response_latency_tracking(
         self, mock_time, basic_telemetry, mock_response
     ):
-        """Test that on_response correctly tracks latency."""
-        # Set up time sequence
-        mock_time.side_effect = [1000.0, 1002.5]  # 2.5 second latency
+        """测试 on_response 是否正确跟踪延迟。"""
+        # 设置时间顺序
+        mock_time.side_effect = [1000.0, 1002.5]  # 2.5 秒延迟
 
         basic_telemetry.on_request(None)
         metrics = basic_telemetry.on_response(mock_response)
@@ -146,10 +146,10 @@ class TestTelemetryLifecycle:
         assert isinstance(metrics.accumulated_cost, float)
 
     def test_on_response_with_usage(self, basic_telemetry):
-        """Test on_response with usage information."""
+        """使用使用信息测试 on_response。"""
         basic_telemetry.on_request({"context_window": 4096})
 
-        # Create a ModelResponse with usage data
+        # 使用使用数据创建 ModelResponse
         response = ModelResponse(
             id="test-response-id",
             usage=Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150),
@@ -157,7 +157,7 @@ class TestTelemetryLifecycle:
 
         basic_telemetry.on_response(response)
 
-        # Should record token usage
+        # 应记录词元用量
         assert len(basic_telemetry.metrics.token_usages) == 1
         token_usage = basic_telemetry.metrics.token_usages[0]
         assert token_usage.prompt_tokens == 100
@@ -165,10 +165,10 @@ class TestTelemetryLifecycle:
 
 
 class TestTelemetryTokenUsage:
-    """Test token usage recording functionality."""
+    """测试词元用量录音功能。"""
 
     def test_record_usage_basic(self, basic_telemetry):
-        """Test basic token usage recording."""
+        """测试基本词元用量录音。"""
         usage = Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150)
 
         basic_telemetry._record_usage(_snapshot(usage), "test-id", 4096)
@@ -183,11 +183,11 @@ class TestTelemetryTokenUsage:
         assert token_usage.response_id == "test-id"
 
     def test_record_usage_with_cache_read(self, basic_telemetry):
-        """Test token usage recording with cache read tokens."""
-        # Create a mock usage with prompt_tokens_details
+        """使用缓存读取 token 测试词元用量记录。"""
+        # 使用 prompt_tokens_details 创建模拟对象用法
         usage = Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150)
 
-        # Mock the prompt_tokens_details attribute
+        # 模拟对象 prompt_tokens_details 属性
         mock_details = MagicMock()
         mock_details.cached_tokens = 25
         usage.prompt_tokens_details = mock_details
@@ -198,7 +198,7 @@ class TestTelemetryTokenUsage:
         assert token_usage.cache_read_tokens == 25
 
     def test_record_usage_with_cache_write(self, basic_telemetry):
-        """Test token usage recording with cache write tokens."""
+        """使用缓存写入 token 测试词元用量记录。"""
         from litellm import Usage
 
         usage = Usage(
@@ -214,8 +214,8 @@ class TestTelemetryTokenUsage:
         assert token_usage.cache_write_tokens == 30
 
     def test_record_usage_missing_tokens(self, basic_telemetry):
-        """Test token usage recording with missing token counts."""
-        usage = Usage()  # Empty usage
+        """测试词元用量记录，但缺少 token 计数。"""
+        usage = Usage()  # 空用
 
         basic_telemetry._record_usage(_snapshot(usage), "test-id", 4096)
 
@@ -224,17 +224,17 @@ class TestTelemetryTokenUsage:
         assert token_usage.completion_tokens == 0
 
     def test_record_usage_with_none_context_window(self, basic_telemetry):
-        """Test token usage recording with None context_window.
+        """使用 None context_window 测试词元用量录音。
 
-        This tests issue #905 where unmapped models have
+        此测试问题 #905，其中未映射的模型有
         max_input_tokens=None. The fix ensures that None values
-        are handled by converting them to 0 before reaching telemetry.
+        通过在到达遥测之前将它们转换为 0 来处理。
         """
         usage = Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30)
 
-        # Simulate the case where context_window is None (unmapped model)
-        # This should raise a validation error at the telemetry level
-        # The fix is applied at the LLM level before calling _record_usage
+        # 模拟 context_window 为 None（未映射的模型）的情况。这应在验证级别引发错误。修
+        # 复措施在调用 _record_usage 之前应用在 LLM 级别
+        #
         with pytest.raises(ValidationError, match="Input should be a valid integer"):
             basic_telemetry._record_usage(  # type: ignore[arg-type]
                 _snapshot(usage), "test-id", None
@@ -242,7 +242,7 @@ class TestTelemetryTokenUsage:
 
 
 class TestUsageNormalization:
-    """The typed boundary that both provider usage shapes funnel through."""
+    """两个提供者使用塑造的类型化边界都通过。"""
 
     def test_chat_completions_shape_is_normalized(self):
         snapshot = normalize_usage(
@@ -274,7 +274,7 @@ class TestUsageNormalization:
         assert normalize_usage(None) is None
 
     def test_on_response_records_responses_api_usage(self, basic_telemetry):
-        """A Responses API response reaches metrics through the same boundary."""
+        """响应 API 响应通过相同的边界达到指标。"""
         response = ResponsesAPIResponse(
             id="responses-id",
             status="completed",
@@ -301,7 +301,7 @@ class TestUsageNormalization:
         assert token_usage.cache_write_tokens == 0
 
     def test_log_usage_summary_comes_from_the_same_snapshot(self, mock_metrics):
-        """The logged usage summary and metrics cannot disagree."""
+        """记录的使用情况摘要和指标不能不一致。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="gpt-4o",
@@ -335,10 +335,10 @@ class TestUsageNormalization:
 
 
 class TestTelemetryCostCalculation:
-    """Test cost calculation functionality."""
+    """测试成本计算功能。"""
 
     def test_compute_cost_with_custom_rates(self, mock_metrics):
-        """Test cost computation with custom input/output rates."""
+        """使用自定义输入/输出率测试成本计算。"""
         telemetry = Telemetry(
             model_name="gpt-4o",
             input_cost_per_token=0.001,
@@ -361,17 +361,17 @@ class TestTelemetryCostCalculation:
             mock_cost.return_value = 0.25
             telemetry._compute_cost(mock_response)
 
-            # Should call litellm with custom cost per token
+            # 应按 token 的自定义成本调用 LiteLLM
             mock_cost.assert_called_once()
             call_kwargs = mock_cost.call_args[1]
             assert "custom_cost_per_token" in call_kwargs
-            # CostPerToken is a TypedDict, so check it has the expected keys
+            # CostPerToken 是 TypedDict，因此检查它是否具有预期的键
             cost_per_token = call_kwargs["custom_cost_per_token"]
             assert "input_cost_per_token" in cost_per_token
             assert "output_cost_per_token" in cost_per_token
 
     def test_compute_cost_from_headers(self, basic_telemetry):
-        """Test cost extraction from response headers."""
+        """测试从响应标头中提取成本。"""
         mock_response = MagicMock()
         mock_response._hidden_params = {
             "additional_headers": {"llm_provider-x-litellm-response-cost": "0.15"}
@@ -381,7 +381,7 @@ class TestTelemetryCostCalculation:
         assert cost == 0.15
 
     def test_compute_cost_litellm_fallback(self, basic_telemetry):
-        """Test fallback to litellm cost calculator."""
+        """测试回退方案到 LiteLLM 成本计算器。"""
         mock_response = ModelResponse(
             id="test-id",
             choices=[],
@@ -400,7 +400,7 @@ class TestTelemetryCostCalculation:
             mock_cost.assert_called_once()
 
     def test_compute_cost_failure_handling(self, basic_telemetry):
-        """Test cost calculation failure handling."""
+        """测试成本计算失败处理。"""
         mock_response = ModelResponse(
             id="test-id",
             choices=[],
@@ -423,7 +423,7 @@ class TestTelemetryCostCalculation:
                 assert "Cost calculation failed" in str(w[0].message)
 
     def test_compute_cost_model_name_processing(self, mock_metrics):
-        """Test that parsed provider/model info is sent to LiteLLM cost calc."""
+        """测试解析的提供商/模型信息是否发送到 LiteLLM 成本计算。"""
         telemetry = Telemetry(model_name="gpt-4o-mini", metrics=mock_metrics)
 
         mock_response = ModelResponse(
@@ -440,7 +440,7 @@ class TestTelemetryCostCalculation:
             mock_cost.return_value = 0.10
             telemetry._compute_cost(mock_response)
 
-            # Should send LiteLLM's parsed provider/model pair
+            # 应该发送 LiteLLM 的解析提供者/模型对
             call_kwargs = mock_cost.call_args[1]
             assert call_kwargs["model"] == "gpt-4o-mini"
             assert call_kwargs["custom_llm_provider"] == "openai"
@@ -501,32 +501,32 @@ class TestTelemetryCostCalculation:
 
 
 class TestTelemetryLogging:
-    """Test telemetry logging functionality."""
+    """测试遥测记录功能。"""
 
     def test_log_completion_disabled(self, basic_telemetry, mock_response):
-        """Test that logging is skipped when disabled."""
+        """测试禁用时是否会跳过日志记录。"""
         basic_telemetry.on_request({"test": "context"})
 
-        # Should not create any files when log_enabled is False
+        # 当 log_enabled 为 False 时不应创建任何文件
         with tempfile.TemporaryDirectory() as temp_dir:
             basic_telemetry.log_dir = temp_dir
-            # Use on_response instead of _log_completion directly to test the full flow
+            # 直接使用on_response代替_log_completion测试全流程
             basic_telemetry.on_response(mock_response)
 
-            # No files should be created since logging is disabled
+            # 由于禁用日志记录，不应创建任何文件
             assert len(os.listdir(temp_dir)) == 0
 
     def test_log_completion_no_directory(self, mock_metrics, mock_response):
-        """Test logging when no log directory is set."""
+        """未设置日志目录时测试日志记录。"""
         telemetry = Telemetry(
             model_name="gpt-4o", log_enabled=True, log_dir=None, metrics=mock_metrics
         )
 
-        # Should return early without error
+        # 应该尽早返回而不会出现错误
         telemetry.log_llm_call(mock_response, 0.25)
 
     def test_log_completion_success(self, mock_metrics, mock_response):
-        """Test successful completion logging."""
+        """测试成功完成日志记录。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="gpt-4o",
@@ -535,17 +535,17 @@ class TestTelemetryLogging:
                 metrics=mock_metrics,
             )
 
-            # Set up context and latency
+            # 设置上下文和延迟
             telemetry.on_request({"user_id": "test-user", "context_window": 4096})
             telemetry._last_latency = 1.5
 
             telemetry.log_llm_call(mock_response, 0.25)
 
-            # Should create a log file
+            # 应该创建一个日志文件
             files = os.listdir(temp_dir)
             assert len(files) == 1
 
-            # Check file content
+            # 检查文件内容
             with open(os.path.join(temp_dir, files[0])) as f:
                 data = json.loads(f.read())
 
@@ -557,7 +557,7 @@ class TestTelemetryLogging:
             assert "timestamp" in data
 
     def test_log_error_success(self, mock_metrics):
-        """Test that failed requests are logged when logging is enabled."""
+        """测试启用日志记录时是否记录失败的请求。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="gpt-4o",
@@ -605,7 +605,7 @@ class TestTelemetryLogging:
             assert "latency_sec" in data
 
     def test_log_completion_with_raw_response(self, mock_metrics, mock_response):
-        """Test logging with raw response included."""
+        """包含原始响应的测试日志记录。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="gpt-4o",
@@ -635,16 +635,15 @@ class TestTelemetryLogging:
         self, mock_metrics, mock_response
     ):
         """
-        Ensure logging works when log_ctx contains Pydantic models with
-        excluded fields. This simulates the remote-run case where tools
-        (Pydantic models with excluded runtime-only fields like executors)
-        are included in the log context. Using Pydantic's model_dump should
-        avoid circular references.
+        确保当 log_ctx 包含 Pydantic 个具有排除字段的模型时日志记录有效。 这模拟了远
+        程运行情况，其中工具（Pydantic 具有排除的仅运行时字
+        段（如执行器）的模型）包含在日志上下文中。 使用Pydantic的model_dump应该避免循
+        环引用。
         """
 
         class SelfReferencingModel(BaseModel):
             name: str
-            # Simulate an executor-like field that should not be serialized
+            # 模拟不应该是已序列化的类执行器字段
             executor: object | None = Field(default=None, exclude=True)
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -655,9 +654,9 @@ class TestTelemetryLogging:
                 metrics=mock_metrics,
             )
 
-            # Create a self-referencing instance via an excluded field
+            # 通过排除字段创建自引用实例
             m = SelfReferencingModel(name="tool-like")
-            m.executor = m  # would create a cycle if serialized via __dict__
+            m.executor = m  # 将创建一个循环 if 已序列化 via __dict__
 
             telemetry.on_request({"tools": [m]})
 
@@ -665,18 +664,18 @@ class TestTelemetryLogging:
                 warnings.simplefilter("always")
                 telemetry.log_llm_call(mock_response, 0.25)
 
-            # Should not raise circular reference warnings
+            # 不应引发循环引用警告
             msgs = [str(x.message) for x in w]
             assert not any("Circular reference detected" in s for s in msgs)
 
-            # Log file should be created and readable JSON
+            # 应创建且可读的日志文件 JSON
             files = os.listdir(temp_dir)
             assert len(files) == 1
             with open(os.path.join(temp_dir, files[0])) as f:
                 data = json.loads(f.read())
             assert "response" in data
 
-        """Test that model names with slashes are sanitized in filenames."""
+        """测试文件名中带有斜杠的模型名称是否已被清理。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="provider/gpt-4o",
@@ -690,14 +689,14 @@ class TestTelemetryLogging:
 
             files = os.listdir(temp_dir)
             assert len(files) == 1
-            # Should replace '/' with '__'
+            # 应将“/'”替换为“__”
             assert "provider__gpt-4o" in files[0]
 
     def test_log_completion_error_handling(self, mock_metrics, mock_response):
-        """Test logging error handling."""
-        # Use a guaranteed-invalid log_dir by pointing at a regular file path
-        # rather than a directory. This avoids reliance on environment-specific
-        # directories that may unexpectedly exist or be writable in CI.
+        """测试日志记录错误处理。"""
+        # 通过指向常规文件路径而不是目录来使用保证无效的 log_dir。 这避免了对可能意外存
+        # 在或在 CI 中可写的环境特定目录的依赖。
+        #
         tmp = tempfile.NamedTemporaryFile(delete=False)
         try:
             bogus_path = tmp.name
@@ -714,7 +713,7 @@ class TestTelemetryLogging:
                 warnings.simplefilter("always")
                 telemetry.log_llm_call(mock_response, 0.25)
 
-                # Should issue a warning but not crash
+                # 应该发出警告但不崩溃
                 assert len(w) == 1
                 assert "Telemetry logging failed" in str(w[0].message)
         finally:
@@ -729,10 +728,10 @@ class TestTelemetryLogging:
 
 
 class TestTelemetryIntegration:
-    """Test full telemetry integration scenarios."""
+    """测试完整的遥测集成场景。"""
 
     def test_full_request_response_cycle(self, mock_metrics):
-        """Test complete request-response cycle with all features."""
+        """使用所有功能测试完整的请求-响应周期。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             telemetry = Telemetry(
                 model_name="gpt-4o",
@@ -743,11 +742,11 @@ class TestTelemetryIntegration:
                 metrics=mock_metrics,
             )
 
-            # Start request
+            # 开始请求
             telemetry_ctx = {"user_id": "test-user", "context_window": 4096}
             telemetry.on_request(telemetry_ctx)
 
-            # Create response with usage (ModelResponse format)
+            # 创建使用情况的响应（ModelResponse 格式）
             response = ModelResponse(
                 id="test-response-id",
                 usage=Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150),
@@ -759,18 +758,18 @@ class TestTelemetryIntegration:
                 mock_cost.return_value = 0.25
                 metrics = telemetry.on_response(response)  # type: ignore
 
-            # Verify all aspects
+            # 验证各方面
             assert metrics.accumulated_cost == 0.25
             assert len(telemetry.metrics.token_usages) == 1
             assert len(telemetry.metrics.costs) == 1
             assert len(telemetry.metrics.response_latencies) == 1
 
-            # Verify log file was created
+            # 验证日志文件已创建
             files = os.listdir(temp_dir)
             assert len(files) == 1
 
     def test_multiple_requests(self, basic_telemetry):
-        """Test handling multiple sequential requests."""
+        """测试处理多个连续请求。"""
         responses = []
 
         for i in range(3):
@@ -792,21 +791,21 @@ class TestTelemetryIntegration:
                 cost = basic_telemetry.on_response(response)
                 responses.append((response, cost))
 
-        # Should have recorded all requests
+        # 应该记录所有请求
         assert len(basic_telemetry.metrics.token_usages) == 3
         assert len(basic_telemetry.metrics.costs) == 3
         assert len(basic_telemetry.metrics.response_latencies) == 3
 
-        # Verify accumulated metrics
+        # 验证累积指标
         total_cost = sum(cost.cost for cost in basic_telemetry.metrics.costs)
-        assert abs(total_cost - 0.45) < 1e-10  # Handle floating point precision
+        assert abs(total_cost - 0.45) < 1e-10  # 处理浮点精度
 
 
 class TestSafeJsonFunction:
-    """Test the _safe_json utility function."""
+    """测试 _safe_json 效用函数。"""
 
     def test_safe_json_with_dict_object(self):
-        """Test _safe_json with object that has __dict__."""
+        """使用具有 __dict__ 的对象测试 _safe_json。"""
 
         class TestObj:
             def __init__(self):
@@ -819,14 +818,14 @@ class TestSafeJsonFunction:
         assert result == {"attr1": "value1", "attr2": 42}
 
     def test_safe_json_without_dict(self):
-        """Test _safe_json with object that doesn't have __dict__."""
+        """使用不具有 __dict__ 的对象测试 _safe_json。"""
         obj = 42
         result = _safe_json(obj)
 
         assert result == "42"
 
     def test_safe_json_with_exception(self):
-        """Test _safe_json when __dict__ access raises exception."""
+        """当 __dict__ 访问引发异常时测试 _safe_json。"""
 
         class BadObj:
             def __getattribute__(self, name):  # type: ignore
@@ -837,18 +836,19 @@ class TestSafeJsonFunction:
         obj = BadObj()
         result = _safe_json(obj)
 
-        # Should fall back to str()
+        # 应该回落到 str()
         assert isinstance(result, str)
 
 
 class TestTelemetryEdgeCases:
-    """Test edge cases and error conditions."""
+    """测试边缘情况和错误条件。"""
 
     def test_log_completions_no_serialization_warnings(self, mock_metrics):
-        """Test logging completions without Pydantic serialization warnings.
+        """测试日志记录完成情况，没有 Pydantic 序列化警告。
 
-        This reproduces the issue where logging completions with nested Message
-        and Choices objects caused PydanticSerializationUnexpectedValue warnings.
+        这会重现使用嵌套 Message 和 Choices 对象记录完成情况导致
+        PydanticSerializationUnexpectedValue 警告的
+        问题。
         """
         from litellm.types.utils import (
             Choices,
@@ -865,7 +865,7 @@ class TestTelemetryEdgeCases:
                 metrics=mock_metrics,
             )
 
-            # Create a realistic ModelResponse with nested Message and Choices
+            # 使用嵌套消息和选择创建现实的 ModelResponse
             message = LiteLLMMessage(
                 content="Test response content",
                 role="assistant",
@@ -895,12 +895,12 @@ class TestTelemetryEdgeCases:
             telemetry.on_request({"user_id": "test-user", "context_window": 4096})
             telemetry._last_latency = 1.5
 
-            # This should not produce any Pydantic serialization warnings
+            # 这不应产生任何 Pydantic 序列化警告
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
                 telemetry.log_llm_call(response, 0.25)
 
-                # Check that no Pydantic serialization warnings were raised
+                # 检查是否未发出 Pydantic 序列化警告
                 pydantic_warnings = [
                     warning
                     for warning in w
@@ -914,50 +914,50 @@ class TestTelemetryEdgeCases:
                     f"Got unexpected serialization warnings: {pydantic_warnings}"
                 )
 
-            # Verify the log file was created successfully
+            # 验证日志文件是否已成功创建
             files = os.listdir(temp_dir)
             assert len(files) == 1
 
-            # Verify the content can be read back
+            # 验证内容是否可以读回
             with open(os.path.join(temp_dir, files[0])) as f:
                 data = json.loads(f.read())
                 assert "response" in data
                 assert data["cost"] == 0.25
 
     def test_on_response_without_on_request(self, basic_telemetry, mock_response):
-        """Test on_response called without prior on_request."""
-        # Should not crash, should use current time for latency calculation
+        """测试 on_response 在没有事先 on_request 的情况下调用。"""
+        # 不应崩溃，应使用当前时间进行延迟计算
         metrics = basic_telemetry.on_response(mock_response)
 
         assert isinstance(metrics.accumulated_cost, float)
-        # Latency might be very small or even negative due to timing precision
-        # The important thing is that it doesn't crash
+        # 由于计时精度，延迟可能非常小甚至为负值，重要的是它不会崩溃
+        #
         assert isinstance(basic_telemetry._last_latency, float)
 
     def test_response_id_extraction_edge_cases(self, basic_telemetry):
-        """Test response ID extraction from various response formats."""
-        # Test with ModelResponse with ID
+        """测试从各种响应格式中提取响应 ID。"""
+        # 使用 ModelResponse 和 ID 进行测试
         response_with_id = ModelResponse(id="model-response-id", usage=None)
         basic_telemetry.on_request({})
         basic_telemetry.on_response(response_with_id)
 
-        # Test with ModelResponse missing ID
+        # 测试 ModelResponse 缺少 ID
         response_no_id = ModelResponse(usage=None)
         basic_telemetry.on_request({})
         basic_telemetry.on_response(response_no_id)
 
-        # Test with non-ModelResponse object
+        # 使用非ModelResponse对象进行测试
         with pytest.raises(ValidationError):
             mock_response = MagicMock()
             basic_telemetry.on_request({})
             basic_telemetry.on_response(mock_response)
 
-        # Should have recorded latencies for all cases
+        # 应该记录所有情况的延迟
         assert len(basic_telemetry.metrics.response_latencies) == 2
 
     def test_usage_extraction_edge_cases(self, basic_telemetry):
-        """Test usage extraction from various response formats."""
-        # Test with dict response containing usage
+        """测试从各种响应格式中提取用法。"""
+        # 使用包含用法的字典响应进行测试
         response = ModelResponse(
             id="test-id",
             usage={
@@ -971,36 +971,36 @@ class TestTelemetryEdgeCases:
         basic_telemetry.on_response(response)
         assert len(basic_telemetry.metrics.token_usages) == 1
 
-        # Test with dict response without usage
+        # 在不使用的情况下使用 dict 响应进行测试
         response_no_usage = ModelResponse(id="no-usage-id", usage=None)
         basic_telemetry.on_request({})
         basic_telemetry.on_response(response_no_usage)
 
-        # Should still have only one token usage record
+        # 应该仍然只有一条词元用量记录
         assert len(basic_telemetry.metrics.token_usages) == 1
 
     def test_cost_calculation_with_zero_cost(self, basic_telemetry, mock_response):
-        """Test cost calculation when cost is zero or None."""
+        """测试成本为零或 None 时的成本计算。"""
         with patch.object(basic_telemetry, "_compute_cost", return_value=None):
             metrics = basic_telemetry.on_response(mock_response)
 
             assert metrics.accumulated_cost == 0.0
-            # Should not add to costs list when cost is None
+            # 当成本为 None 时不应添加到成本列表
             assert len(basic_telemetry.metrics.costs) == 0
 
         with patch.object(basic_telemetry, "_compute_cost", return_value=0.0):
             metrics = basic_telemetry.on_response(mock_response)
 
             assert metrics.accumulated_cost == 0.0
-            # Should NOT add zero cost to costs list (0.0 is falsy)
+            # 应该不将零成本添加到成本列表中（0.0 是错误的）
             assert len(basic_telemetry.metrics.costs) == 0
 
 
 class TestTelemetryCallbacks:
-    """Test callback functionality for log streaming and stats updates."""
+    """测试日志流式传输和统计更新的回调功能。"""
 
     def test_set_log_callback(self, basic_telemetry):
-        """Test setting log callback."""
+        """测试设置日志回调。"""
         callback_called = []
 
         def log_callback(filename: str, log_data: str):
@@ -1009,12 +1009,12 @@ class TestTelemetryCallbacks:
         basic_telemetry.set_log_completions_callback(log_callback)
         assert basic_telemetry._log_completions_callback == log_callback
 
-        # Clear callback
+        # 清除回调
         basic_telemetry.set_log_completions_callback(None)
         assert basic_telemetry._log_completions_callback is None
 
     def test_set_stats_update_callback(self, basic_telemetry):
-        """Test setting stats update callback."""
+        """测试设置统计数据更新回调。"""
         callback_called = []
 
         def stats_callback():
@@ -1023,14 +1023,14 @@ class TestTelemetryCallbacks:
         basic_telemetry.set_stats_update_callback(stats_callback)
         assert basic_telemetry._stats_update_callback == stats_callback
 
-        # Clear callback
+        # 清除回调
         basic_telemetry.set_stats_update_callback(None)
         assert basic_telemetry._stats_update_callback is None
 
     def test_stats_update_callback_triggered_on_response(
         self, basic_telemetry, mock_response
     ):
-        """Test that stats update callback is triggered on response."""
+        """测试响应时是否触发统计更新回调。"""
         callback_called = []
 
         def stats_callback():
@@ -1040,13 +1040,13 @@ class TestTelemetryCallbacks:
         basic_telemetry.on_request(None)
         basic_telemetry.on_response(mock_response)
 
-        # Callback should be triggered once after response
+        # 回调响应后应触发一次
         assert len(callback_called) == 1
 
     def test_stats_update_callback_exception_handling(
         self, basic_telemetry, mock_response
     ):
-        """Test that exceptions in stats callback don't break on_response."""
+        """测试 stats 回调中的异常不会破坏 on_response。"""
 
         def failing_callback():
             raise Exception("Callback failed")
@@ -1054,6 +1054,6 @@ class TestTelemetryCallbacks:
         basic_telemetry.set_stats_update_callback(failing_callback)
         basic_telemetry.on_request(None)
 
-        # Should not raise exception even if callback fails
+        # 即使回调失败也不应引发异常
         metrics = basic_telemetry.on_response(mock_response)
         assert isinstance(metrics, Metrics)

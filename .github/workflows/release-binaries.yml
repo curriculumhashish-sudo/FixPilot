@@ -1,15 +1,11 @@
 ---
 name: Publish agent-server release artifacts
 
-# On push to main or explicit release dispatch:
-#   1. Build the agent-server PyInstaller binary on Linux + macOS for both
-#      x86_64 and arm64, smoke-test it, and upload workflow artifacts.
-#   2. On explicit release dispatches, attach those binaries plus a combined
-#      SHA256SUMS file to the GitHub release.
-#   3. Smoke-test the multi-arch Docker images pushed by `server.yml`,
-#      verifying that every published variant has a manifest covering both
-#      linux/amd64 and linux/arm64 and that the container actually boots
-#      and answers /health on each architecture.
+# 在推送到主要或显式发布调度时：
+#   1. 在 Linux + macOS 上为 x86_64 和 arm64 构建智能体-server PyInstaller 二进制文件，对其进行冒烟测试，并上传工作流程工件。
+#   2. 在显式发布调度中，将这些二进制文件加上组合的 SHA256SUMS 文件附加到 GitHub 版本。
+#   3. Docker 针对由 `server.yml` 推送的多架构镜像进行烟雾测试，验证每个发布的变体都有覆盖 Linux/amd64 和 Linux/arm64 的 manifest，并且容器能够正确启动并回答 /health 在每个架构上。
+#
 
 on:
     push:
@@ -75,8 +71,8 @@ jobs:
                     - runner: ubuntu-24.04-arm
                       os_label: linux
                       arch: arm64
-                    # macos-13 (Intel) was retired by GitHub on 2025-12-04;
-                    # macos-15-intel is the last x86_64 macOS image (until ~2027).
+                    # macos-13（英特尔）于 2025 年 12 月 4 日由 GitHub 退役； macos-15-intel 是最后一个 x86_64 macOS 映像（直到 2027 年）。
+                    #
                     - runner: macos-15-intel
                       os_label: macos
                       arch: x86_64
@@ -233,10 +229,8 @@ jobs:
     publish-binaries:
         name: Publish binaries, OpenAPI + SHA256SUMS
         needs: [resolve-tag, build-binary, build-openapi]
-        # always() so one dead/failed build leg (e.g. a retired runner that
-        # queues until timeout) can't skip publishing the binaries that did
-        # build. download-artifact's `pattern: binary-*` uploads whatever set
-        # succeeded; if nothing built the checksum step fails the job loudly.
+        # always() 所以一条死/失败的构建腿 (e.g. 排队等待超时的退休跑步者无法跳过发布已构建的二进制文件。 download-artifact 的 `pattern: binary-*` 上传成功的任何集合； 如果没有构建任何内容，则校验和步骤会导致作业失败。
+        #
         if: ${{ always() && github.event_name != 'push' }}
         runs-on: ubuntu-24.04
         steps:

@@ -10,7 +10,7 @@ from openhands.sdk.io.local import LocalFileStore
 from openhands.sdk.llm.utils.metrics import Metrics
 
 
-# Test UUIDs
+# 测试 UUIDs
 TEST_CONVERSATION_ID = uuid.UUID("12345678-1234-5678-9abc-123456789abc")
 CONV_MERGE_A_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 CONV_MERGE_B_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
@@ -18,34 +18,34 @@ CONV_MERGE_B_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 
 @pytest.fixture
 def mock_file_store():
-    """Create a mock file store for testing."""
+    """创建模拟对象文件存储以进行测试。"""
     return LocalFileStore(root=tempfile.mkdtemp())
 
 
 @pytest.fixture
 def conversation_stats(mock_file_store):
-    """Create a ConversationStats instance for testing."""
+    """创建一个 ConversationStats 实例用于测试。"""
     return ConversationStats()
 
 
 @pytest.fixture
 def mock_llm_registry():
-    """Create a mock LLM registry that properly simulates LLM registration."""
+    """创建正确模拟 LLM 注册的模拟对象 LLM 注册表。"""
     registry = LLMRegistry()
     return registry
 
 
 @pytest.fixture
 def connected_registry_and_stats(mock_llm_registry, conversation_stats):
-    """Connect the LLMRegistry and ConversationStats properly."""
-    # Subscribe to LLM registry events to track metrics
+    """正确连接 LLMRegistry 和 ConversationStats。"""
+    # 订阅 LLM 注册表事件以跟踪指标
     mock_llm_registry.subscribe(conversation_stats.register_llm)
     return mock_llm_registry, conversation_stats
 
 
 def test_get_combined_metrics(conversation_stats):
-    """Test that combined metrics are calculated correctly."""
-    # Add multiple usage groups with metrics
+    """测试组合指标的计算是否正确。"""
+    # 添加具有指标的多个使用组
     usage1 = "usage1"
     metrics1 = Metrics(model_name="gpt-4")
     metrics1.add_cost(0.05)
@@ -73,42 +73,40 @@ def test_get_combined_metrics(conversation_stats):
     conversation_stats.usage_to_metrics[usage1] = metrics1
     conversation_stats.usage_to_metrics[usage2] = metrics2
 
-    # Get combined metrics
+    # 获取组合指标
     combined = conversation_stats.get_combined_metrics()
 
-    # Verify combined metrics
+    # 验证组合指标
     assert combined.accumulated_cost == 0.07  # 0.05 + 0.02
     assert combined.accumulated_token_usage.prompt_tokens == 300  # 100 + 200
     assert combined.accumulated_token_usage.completion_tokens == 150  # 50 + 100
-    assert (
-        combined.accumulated_token_usage.context_window == 8000
-    )  # max of 8000 and 4000
+    assert combined.accumulated_token_usage.context_window == 8000  # 最大 8000 和 4000
 
 
 def test_get_metrics_for_usage(conversation_stats):
-    """Test that metrics for a specific usage are retrieved correctly."""
-    # Add a usage with metrics
+    """测试是否正确检索特定用途的指标。"""
+    # 添加带有指标的用法
     usage_id = "test-usage"
     metrics = Metrics(model_name="gpt-4")
     metrics.add_cost(0.05)
     conversation_stats.usage_to_metrics[usage_id] = metrics
 
-    # Get metrics for the usage
+    # 获取使用情况的指标
     retrieved_metrics = conversation_stats.get_metrics_for_usage(usage_id)
 
-    # Verify metrics
+    # 验证指标
     assert retrieved_metrics.accumulated_cost == 0.05
-    assert retrieved_metrics is metrics  # Should be the same object
+    assert retrieved_metrics is metrics  # 应该是同一个对象
 
-    # Test getting metrics for non-existent usage
-    # Use a specific exception message pattern instead of a blind Exception
+    # 测试获取不存在的使用情况的指标使用特定的异常消息模式而不是盲目的异常
+    #
     with pytest.raises(Exception, match="LLM usage does not exist"):
         conversation_stats.get_metrics_for_usage("non-existent-usage")
 
 
 def test_register_llm_with_new_usage(conversation_stats):
-    """Test registering a new LLM usage."""
-    # Patch the LLM class to avoid actual API calls
+    """测试注册新的 LLM 用法。"""
+    # 修补 LLM 类以避免实际的 API 调用
     with patch("openhands.sdk.llm.llm.litellm_completion"):
         llm = LLM(
             usage_id="new-service",
@@ -119,27 +117,27 @@ def test_register_llm_with_new_usage(conversation_stats):
             retry_max_wait=2,
         )
 
-        # Create a registry event for this usage
+        # 为此用途创建一个注册表事件
         usage_id = "new-service"
         event = RegistryEvent(llm=llm)
 
-        # Register the LLM
+        # 注册 LLM
         conversation_stats.register_llm(event)
 
-        # Verify the usage was registered
+        # 验证使用情况是否已注册
         assert usage_id in conversation_stats.usage_to_metrics
         assert conversation_stats.usage_to_metrics[usage_id] is llm.metrics
 
 
 def test_register_llm_with_restored_metrics(conversation_stats):
-    """Test registering an LLM usage with restored metrics."""
-    # Create restored metrics
+    """测试使用恢复的指标注册 LLM 使用情况。"""
+    # 创建恢复的指标
     usage_id = "restored-service"
     restored_metrics = Metrics(model_name="gpt-4")
     restored_metrics.add_cost(0.1)
     conversation_stats.usage_to_metrics = {usage_id: restored_metrics}
 
-    # Patch the LLM class to avoid actual API calls
+    # 修补 LLM 类以避免实际的 API 调用
     with patch("openhands.sdk.llm.llm.litellm_completion"):
         llm = LLM(
             usage_id=usage_id,
@@ -150,29 +148,29 @@ def test_register_llm_with_restored_metrics(conversation_stats):
             retry_max_wait=2,
         )
 
-        # Create a registry event
+        # 创建注册表事件
         event = RegistryEvent(llm=llm)
 
-        # Register the LLM
+        # 注册 LLM
         conversation_stats.register_llm(event)
 
-        # Verify the usage was registered with restored metrics
+        # 验证使用情况是否已通过恢复的指标进行注册
         assert usage_id in conversation_stats.usage_to_metrics
         assert conversation_stats.usage_to_metrics[usage_id] is llm.metrics
         assert llm.metrics is not None
-        assert llm.metrics.accumulated_cost == 0.1  # Restored cost
+        assert llm.metrics.accumulated_cost == 0.1  # 恢复成本
 
         assert usage_id in conversation_stats._restored_usage_ids
 
 
 def test_llm_registry_notifications(connected_registry_and_stats):
-    """Test that LLM registry notifications update usage metrics."""
+    """测试 LLM 注册表通知是否更新使用指标。"""
     mock_llm_registry, conversation_stats = connected_registry_and_stats
 
-    # Create a new LLM through the registry
+    # 通过注册表创建一个新的LLM
     usage_id = "test-usage"
 
-    # Create LLM directly
+    # 直接创建LLM
     llm = LLM(
         usage_id=usage_id,
         model="gpt-4o",
@@ -182,14 +180,14 @@ def test_llm_registry_notifications(connected_registry_and_stats):
         retry_max_wait=2,
     )
 
-    # Add LLM to registry (this should trigger the notification)
+    # 将 LLM 添加到注册表（这应该会触发通知）
     mock_llm_registry.add(llm)
 
-    # Verify the usage was registered in conversation stats
+    # 验证对话统计中已注册使用情况
     assert usage_id in conversation_stats.usage_to_metrics
     assert conversation_stats.usage_to_metrics[usage_id] is llm.metrics
 
-    # Add some metrics to the LLM
+    # 将一些指标添加到 LLM
     assert llm.metrics is not None
     llm.metrics.add_cost(0.05)
     llm.metrics.add_token_usage(
@@ -201,7 +199,7 @@ def test_llm_registry_notifications(connected_registry_and_stats):
         response_id="resp1",
     )
 
-    # Verify the metrics are reflected in conversation stats
+    # 验证指标是否反映在对话统计信息中
     assert conversation_stats.usage_to_metrics[usage_id].accumulated_cost == 0.05
     assert (
         conversation_stats.usage_to_metrics[
@@ -216,7 +214,7 @@ def test_llm_registry_notifications(connected_registry_and_stats):
         == 50
     )
 
-    # Get combined metrics and verify
+    # 获取组合指标并验证
     combined = conversation_stats.get_combined_metrics()
     assert combined.accumulated_cost == 0.05
     assert combined.accumulated_token_usage.prompt_tokens == 100
@@ -224,14 +222,14 @@ def test_llm_registry_notifications(connected_registry_and_stats):
 
 
 def test_multiple_llm_usages(connected_registry_and_stats):
-    """Test tracking metrics for multiple LLM usages."""
+    """测试多个 LLM 用途的跟踪指标。"""
     mock_llm_registry, conversation_stats = connected_registry_and_stats
 
-    # Create multiple LLMs through the registry
+    # 通过注册表创建多个LLMs
     usage1 = "usage1"
     usage2 = "usage2"
 
-    # Create LLMs directly
+    # 直接创建LLMs
     llm1 = LLM(
         usage_id=usage1,
         model="gpt-4o",
@@ -250,11 +248,11 @@ def test_multiple_llm_usages(connected_registry_and_stats):
         retry_max_wait=2,
     )
 
-    # Add LLMs to registry (this should trigger notifications)
+    # 将 LLMs 添加到注册表中（这应该触发通知）
     mock_llm_registry.add(llm1)
     mock_llm_registry.add(llm2)
 
-    # Add different metrics to each LLM
+    # 为每个 LLM 添加不同的指标
     assert llm1.metrics is not None
     llm1.metrics.add_cost(0.05)
     llm1.metrics.add_token_usage(
@@ -277,32 +275,29 @@ def test_multiple_llm_usages(connected_registry_and_stats):
         response_id="resp2",
     )
 
-    # Verify usages were registered in conversation stats
+    # 验证对话统计中已注册使用情况
     assert usage1 in conversation_stats.usage_to_metrics
     assert usage2 in conversation_stats.usage_to_metrics
     assert usage2 in conversation_stats.usage_to_metrics
 
-    # Verify individual metrics
+    # 验证各个指标
     assert conversation_stats.usage_to_metrics[usage1].accumulated_cost == 0.05
     assert conversation_stats.usage_to_metrics[usage2].accumulated_cost == 0.02
 
-    # Get combined metrics and verify
+    # 获取组合指标并验证
     combined = conversation_stats.get_combined_metrics()
     assert combined.accumulated_cost == 0.07  # 0.05 + 0.02
     assert combined.accumulated_token_usage.prompt_tokens == 300  # 100 + 200
     assert combined.accumulated_token_usage.completion_tokens == 150  # 50 + 100
-    assert (
-        combined.accumulated_token_usage.context_window == 8000
-    )  # max of 8000 and 4000
+    assert combined.accumulated_token_usage.context_window == 8000  # 最大 8000 和 4000
 
 
 def test_register_llm_with_multiple_restored_usage_ids(conversation_stats):
     """
-    Test that reproduces the bug where del self.restored_metrics
-    deletes entire dict instead of specific usage.
+    测试重现 del self.restored_metrics 删除整个字典而不是特定用法的错误。
     """
 
-    # Create restored metrics for multiple usages
+    # 创建用于多种用途的恢复指标
     usage_id_1 = "usage-1"
     usage_id_2 = "usage-2"
 
@@ -312,13 +307,13 @@ def test_register_llm_with_multiple_restored_usage_ids(conversation_stats):
     restored_metrics_2 = Metrics(model_name="gpt-3.5")
     restored_metrics_2.add_cost(0.05)
 
-    # Set up restored metrics for both usages
+    # 为两种用途设置恢复指标
     conversation_stats.usage_to_metrics = {
         usage_id_1: restored_metrics_1,
         usage_id_2: restored_metrics_2,
     }
 
-    # Patch the LLM class to avoid actual API calls
+    # 修补 LLM 类以避免实际的 API 调用
     with patch("openhands.sdk.llm.llm.litellm_completion"):
         # Register first LLM
         llm_1 = LLM(
@@ -332,16 +327,16 @@ def test_register_llm_with_multiple_restored_usage_ids(conversation_stats):
         event_1 = RegistryEvent(llm=llm_1)
         conversation_stats.register_llm(event_1)
 
-        # Verify first usage was registered with restored metrics
+        # 验证首次使用是否已使用恢复的指标进行注册
         assert usage_id_1 in conversation_stats.usage_to_metrics
         assert llm_1.metrics is not None
         assert llm_1.metrics.accumulated_cost == 0.1
 
-        # After registering first usage,
-        # restored_metrics should still not contain usage_id_2
+        # 注册第一次使用后，restored_metrics 仍不应包含 usage_id_2
+        #
         assert usage_id_2 not in conversation_stats._restored_usage_ids
 
-        # Register second LLM - this should also work with restored metrics
+        # 注册第二个 LLM - 这也应该适用于恢复的指标
         llm_2 = LLM(
             usage_id=usage_id_2,
             model="gpt-3.5-turbo",
@@ -353,11 +348,11 @@ def test_register_llm_with_multiple_restored_usage_ids(conversation_stats):
         event_2 = RegistryEvent(llm=llm_2)
         conversation_stats.register_llm(event_2)
 
-        # Verify second usage was registered with restored metrics
+        # 验证第二次使用是否已使用恢复的指标进行注册
         assert usage_id_2 in conversation_stats.usage_to_metrics
         assert llm_2.metrics is not None
         assert llm_2.metrics.accumulated_cost == 0.05
 
-        # After both usages are marked restored
+        # 两种用途都标记为恢复后
         assert usage_id_2 in conversation_stats._restored_usage_ids
         assert len(conversation_stats._restored_usage_ids) == 2

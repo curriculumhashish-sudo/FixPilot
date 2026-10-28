@@ -1,4 +1,4 @@
-"""Test that an agent can write a git commit message and commit changes."""
+"""测试智能体是否可以写入 git 提交消息并提交更改。"""
 
 import os
 import subprocess
@@ -16,18 +16,18 @@ logger = get_logger(__name__)
 
 
 class GitStagingTest(BaseIntegrationTest):
-    """Test that an agent can write a git commit message and commit changes."""
+    """测试智能体是否可以写入 git 提交消息并提交更改。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     def setup(self) -> None:
-        """Set up git repository with staged changes."""
-        # Initialize git repository
+        """设置包含分阶段更改的 git 存储库。"""
+        # 初始化git仓库
         subprocess.run(
             ["git", "init"], cwd=self.workspace, check=True, capture_output=True
         )
 
-        # Configure git user (required for commits)
+        # 配置 git 用户（提交所需）
         subprocess.run(
             ["git", "config", "user.name", "Test User"],
             cwd=self.workspace,
@@ -41,12 +41,12 @@ class GitStagingTest(BaseIntegrationTest):
             capture_output=True,
         )
 
-        # Create a Python file
+        # 创建Python文件
         hello_py_path = os.path.join(self.workspace, "hello.py")
         with open(hello_py_path, "w") as f:
             f.write('print("hello world")\n')
 
-        # Stage the file
+        # 暂存文件
         subprocess.run(
             ["git", "add", "hello.py"],
             cwd=self.workspace,
@@ -57,10 +57,10 @@ class GitStagingTest(BaseIntegrationTest):
         logger.info("Set up git repository with staged hello.py file")
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully committed the staged changes."""
+        """验证智能体是否成功提交了分阶段更改。"""
 
         try:
-            # Check git status to see if there are any staged changes left
+            # 检查 git status 以查看是否还有任何暂存的更改
             status_result = subprocess.run(
                 ["git", "status", "--porcelain"],
                 cwd=self.workspace,
@@ -69,14 +69,14 @@ class GitStagingTest(BaseIntegrationTest):
                 check=True,
             )
 
-            # If there are still staged changes, the commit didn't happen
+            # 如果仍然存在分阶段更改，则提交未发生
             if "hello.py" in status_result.stdout.strip():
                 return TestResult(
                     success=False,
                     reason=f"File to commit still staged: {status_result.stdout}",
                 )
 
-            # Check if there are any commits
+            # 检查是否有任何提交
             log_result = subprocess.run(
                 ["git", "log", "--oneline"],
                 cwd=self.workspace,
@@ -91,7 +91,7 @@ class GitStagingTest(BaseIntegrationTest):
                     reason=f"No commits found in repository: {log_result.stdout}",
                 )
 
-            # Get the latest commit message
+            # 获取最新的提交消息
             commit_msg_result = subprocess.run(
                 ["git", "log", "-1", "--pretty=format:%s"],
                 cwd=self.workspace,
@@ -102,7 +102,7 @@ class GitStagingTest(BaseIntegrationTest):
 
             commit_message = commit_msg_result.stdout.strip()
 
-            # Verify the commit contains the hello.py file
+            # 验证提交包含 hello.py 文件
             show_result = subprocess.run(
                 ["git", "show", "--name-only", "--pretty=format:"],
                 cwd=self.workspace,

@@ -1,10 +1,11 @@
-"""The ``limit`` bound on every paginated search endpoint must be enforced.
+"""每个分页搜索端点上的 ``limit`` 绑定都必须强制执行。
 
-These endpoints used to declare ``Query(gt=0, lte=100)``. ``lte`` is not a
-FastAPI/Pydantic constraint keyword (``le`` is), so the bound was silently
-dropped: it never reached the OpenAPI schema and was never validated. An
-oversized ``limit`` then hit a bare ``assert`` in the handler and surfaced as an
-unhandled ``AssertionError`` — HTTP 500 for what is a client error.
+这些端点用来声明``Query(gt=0, lte=100)``。 ``lte`` 不是 FastAPI/Pydantic 约束关键字（
+``le`` 是），因此绑定是静默的
+dropped: 它从未达到 OpenAPI 模式并且从未被验证。 安
+过大的 ``limit`` 然后在处理程序中遇到了裸露的 ``assert``，并显示为未处理的
+``AssertionError`` — HTTP 500，这是什么客户端
+错误。
 """
 
 from unittest.mock import AsyncMock
@@ -42,18 +43,18 @@ def _limit_schema(router, path: str) -> dict:
     "router, path", SEARCH_ROUTES, ids=[path for _, path in SEARCH_ROUTES]
 )
 def test_search_limit_bounds_are_published_in_the_schema(router, path):
-    """The bound has to be in the schema, or generated clients cannot see it."""
+    """绑定必须在模式中，否则生成的客户端无法看到它。"""
     schema = _limit_schema(router, path)
 
     assert schema["maximum"] == 100
     assert schema["exclusiveMinimum"] == 0
-    # A misspelled constraint rides along into the schema instead of raising.
+    # 拼写错误的约束会进入模式而不是提升。
     assert "lte" not in schema
 
 
 @pytest.mark.parametrize("limit", [0, 101])
 def test_search_events_rejects_out_of_range_limit(limit):
-    """An out-of-range ``limit`` is a client error, not a server fault."""
+    """超出范围 ``limit`` 是客户端错误，而不是服务器故障。"""
     app = FastAPI()
     app.include_router(event_router, prefix="/api")
     service = AsyncMock(spec=EventService)

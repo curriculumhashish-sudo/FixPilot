@@ -29,13 +29,12 @@ logger = get_logger(__name__)
 
 
 def _leading_system_prompt_index(events: Sequence[LLMConvertibleEvent]) -> int | None:
-    """Index of the first ``SystemPromptEvent`` in ``events``, or ``None``.
+    """``events`` 或 ``None`` 中第一个 ``SystemPromptEvent`` 的索引。
 
-    The agent loop guarantees the ``SystemPromptEvent`` sits at the head of the
-    view (index 0), so condensation must never forget it -- otherwise the
-    condensed view would open with a non-system message and violate the
-    repo-wide "system before first user" invariant. Returns ``None`` when no
-    system prompt is present (e.g. unit-test views built without one).
+    智能体循环确保 ``SystemPromptEvent`` 总是位于视图的头部（索引 0），因此上下文压缩
+    必须记住这一点——否则压缩视图将以非系统消息打开，并违反全
+    局“系统在第一个用户之前” 不变量的规定。 当不存在系统提示词时返回 ``None`` (e.g.
+    无需构建单元测试视图）。
     """
     for i, event in enumerate(events):
         if isinstance(event, SystemPromptEvent):
@@ -44,7 +43,7 @@ def _leading_system_prompt_index(events: Sequence[LLMConvertibleEvent]) -> int |
 
 
 class Reason(Enum):
-    """Reasons for condensation."""
+    """原因上下文压缩。"""
 
     REQUEST = "request"
     TOKENS = "tokens"
@@ -52,12 +51,11 @@ class Reason(Enum):
 
 
 class LLMSummarizingCondenser(RollingCondenser):
-    """LLM-based condenser that summarizes forgotten events.
+    """基于 LLM 的上下文压缩器总结了被遗忘的事件。
 
-    Uses an independent LLM (stored in the `llm` attribute) for generating summaries
-    of forgotten events. The optional `agent_llm` parameter passed to condense() is
-    the LLM used by the agent for token counting purposes, and you should not assume
-    it is the same as the one defined in this condenser.
+    使用独立的 LLM（存储在 `llm` 属性中）来生成遗忘事件的摘要。 传递给 condense() 的
+    可选 `agent_llm` 参数是智能体用于 token
+    计数目的 LLM，你应该不假设它与定义于此上下文压缩器中的参数相同。
     """
 
     llm: LLM
@@ -65,25 +63,25 @@ class LLMSummarizingCondenser(RollingCondenser):
     max_tokens: int | None = None
 
     keep_first: int = Field(default=2, ge=0)
-    """Minimum number of events to preserve at the start of the view. The first
-    `keep_first` events in the conversation will never be condensed or summarized.
+    """视图开始时要保留的最小事件数。 第一个
+    `keep_first` 对话中的事件永远不会被浓缩或总结。
     """
 
     minimum_progress: float = Field(default=0.1, gt=0.0, lt=1.0)
-    """Minimum fraction of events that must be condensed (0.0-1.0). If fewer than
-    this proportion of events would be forgotten, condensation is treated as an error.
-    Default 0.1 means at least 10% of events must be condensed.
+    """必须压缩的事件的最小分数 (0.0-1.0)。 如果少于
+    这部分事件将被遗忘，上下文压缩被视为错误。 默认值 0.1 表示至少 10% 的事件必须压缩
+    。
     """
-    """Minimum ratio of the view to be condensed. Condensations below this threshold
-    are treated as errors.
+    """要压缩的视图的最小比例。 低于此阈值的凝结
+    被视为错误。
     """
 
     hard_context_reset_max_retries: int = Field(default=5, gt=0)
-    """Number of attempts to perform hard context reset before raising an error."""
+    """在引发错误之前尝试执行硬上下文重置的次数。"""
 
     hard_context_reset_context_scaling: float = Field(default=0.8, gt=0.0, lt=1.0)
-    """When performing hard context reset, if the summarization fails, reduce the max
-    size of each event string by this factor and retry.
+    """执行硬上下文复位时，如果汇总失败，则减少max
+    每个事件字符串的大小由该因子和重试决定。
     """
 
     @model_validator(mode="after")
@@ -98,13 +96,12 @@ class LLMSummarizingCondenser(RollingCondenser):
 
     @model_validator(mode="after")
     def _disable_streaming_for_summary(self):
-        # Summaries are consumed whole with no on_token callback, which a
-        # streaming LLM requires. Disable streaming once so every summary path
-        # is covered. model_copy is non-mutating and shares usage_id/metrics,
-        # so summary tokens stay attributed to the conversation.
-        # Providers that require streaming are exempt: the Codex API requires
+        # 摘要被整个消耗，没有 on_token 回调，而流式传输 LLM 需要。 禁用流式传输一次，以
+        # 便覆盖每个摘要路径。 model_copy 是非变异的并且共享 usage_id/指标，因此摘要
+        # token 仍归因于对话。 要求流式传输的提供者可以豁免：法典 API 要求
+        #
         # stream=True, and the responses() method drains the stream internally
-        # without an on_token callback.
+        # 没有 on_token 回调。
         if self.llm.stream and not self.llm.requires_streaming:
             self.llm = self.llm.model_copy(update={"stream": False})
         return self
@@ -113,19 +110,18 @@ class LLMSummarizingCondenser(RollingCondenser):
         return True
 
     def get_llm(self) -> LLM | None:
-        """The LLM used by the condenser, if any."""
+        """上下文压缩器使用的 LLM（如果有）。"""
         return self.llm
 
     def _effective_max_tokens(self, agent_llm: LLM | None) -> int | None:
-        """Return the effective token cap that triggers token-based condensation.
+        """返回触发基于 token 的上下文压缩的有效 token 上限。
 
-        Takes the stricter (i.e. smaller) of the condenser's configured
-        ``max_tokens`` and the agent LLM's effective input limit. ``agent_llm``
-        is optional throughout the public API -- callers that only assess
-        request/event-count pressure may pass ``None`` -- in which case only the
-        condenser's own ``max_tokens`` applies.
+        采取更严格的(i.e. 上下文压缩器配置的较小）
+        ``max_tokens``和智能体LLM的有效输入限制。 ``agent_llm`` 在公共 API 中是可选的
+         -- 只评估请求/事件压力的调用者可以传
+        递 ``None`` -- 在这种情况下，只有上下文压缩器's own ``max_tokens`` 适用。
 
-        Returns ``None`` when no limit is configured.
+        未配置限制时返回 ``None``。
         """
         limits = [
             limit
@@ -140,23 +136,23 @@ class LLMSummarizingCondenser(RollingCondenser):
     def get_condensation_reasons(
         self, view: View, agent_llm: LLM | None = None
     ) -> set[Reason]:
-        """Determine the reasons why the view should be condensed.
+        """确定应该压缩视图的原因。
 
         Args:
-            view: The current view to evaluate.
-            agent_llm: The LLM used by the agent. Required if token counting is needed.
+            view: 目前的观点来评价。
+            agent_llm: 智能体使用 LLM。 如果需要 token 计数，则为必需。
 
         Returns:
-            A set of Reason enums indicating why condensation is needed.
+            一组原因枚举，指示为什么需要上下文压缩。
         """
         reasons = set()
 
-        # Reason 1: Unhandled condensation request. The view handles the detection of
-        # these requests while processing the event stream.
+        # 原因 1：未处理的上下文压缩请求。 该视图在处理事件流时处理这些请求的检测。
+        #
         if view.unhandled_condensation_request:
             reasons.add(Reason.REQUEST)
 
-        # Reason 2: Token limit is provided and exceeded.
+        # 原因 2：提供了 token 限制并超出了限制。
         max_tokens = self._effective_max_tokens(agent_llm)
         if max_tokens is not None and agent_llm is not None:
             total_tokens = get_total_token_count(view.events, agent_llm)
@@ -170,7 +166,7 @@ class LLMSummarizingCondenser(RollingCondenser):
                 )
                 reasons.add(Reason.TOKENS)
 
-        # Reason 3: View exceeds maximum size in number of events.
+        # 原因 3：视图超过事件数量的最大大小。
         if len(view) > self.max_size:
             reasons.add(Reason.EVENTS)
 
@@ -181,39 +177,38 @@ class LLMSummarizingCondenser(RollingCondenser):
     ) -> CondensationRequirement | None:
         reasons = self.get_condensation_reasons(view, agent_llm)
 
-        # No reasons => no condensation needed.
+        # 没有理由 => 不需要上下文压缩。
         if reasons == set():
             return None
 
-        # Token pressure is a hard requirement in benchmark runs that use a fixed
-        # local model context: sending the next request can fail before the recovery
-        # path has a chance to run. Treat event-count pressure as soft because that
-        # threshold is only a history-management heuristic.
+        # token 压力是硬性要求基准测试使用固定本地模型运行的脚本上下文发送下一个请求可能
+        # 会在恢复路径有机会运行之前就失败。 将事件计数压力视为软压力，因为该阈值只是历
+        # 史管理启发式的。
+        #
         if Reason.TOKENS in reasons:
             return CondensationRequirement.HARD
 
-        # If the remaining reasons are for resource constraints, we can treat them as
-        # a soft requirement. We want to condense when we can, but there's still space
-        # in the context window or we'd also see Reason.REQUEST.
+        # 如果剩下的原因是资源限制，我们可以将它们视为软需求。 我们希望尽可能压缩，但上
+        # 下文窗口中仍然有空间，否则我们也会看到 Reason.REQUEST。
+        #
         resource_reasons = {Reason.EVENTS}
         if reasons.issubset(resource_reasons):
             return CondensationRequirement.SOFT
 
-        # Requests -- whether they come from the user or the agent -- are always hard
-        # requirements. We need to condense now because:
-        # 1. the user expects it
-        # 2. the agent has no more room in the context window and can't continue
+        # 请求——无论它们来自用户还是智能体——始终是硬性要求。 我们现在需要压缩，因为：
+        # 1. 用户期望它
+        # 2. 智能体在上下文窗口中没有更多空间，无法继续
         if Reason.REQUEST in reasons:
             return CondensationRequirement.HARD
 
     def _build_summary_messages(self, event_strings: Sequence[str]) -> list[Message]:
-        """Build the messages sent to the summarization LLM.
+        """构建发送到摘要 LLM 的消息。
 
-        The summarization instructions are sent as a ``system`` message and the
-        events to summarize as a ``user`` message. Splitting roles keeps the
-        steering instructions in the provider's ``instructions``/``system`` slot
-        and the event payload in the ``input``/``user`` slot, which is the
-        canonical shape for both the Chat Completions and Responses APIs.
+        总结指令以发送 ``system`` 消息和总结事件的 ``user`` message. 将角色拆分后，控
+        制指令留在提供者的手中
+        ``instructions``/``system`` 槽和事件载荷在 ``input``/``user`` 槽，是 Chat
+        Completions 和
+        Responses 的标准形状 APIs.
         """
         prompt_dir = os.path.join(os.path.dirname(__file__), "prompts")
         system_prompt = render_template(prompt_dir, "summarizing_system.j2")
@@ -231,24 +226,24 @@ class LLMSummarizingCondenser(RollingCondenser):
         summary_offset: int,
         max_event_str_length: int | None = None,
     ) -> Condensation:
-        """Generate a condensation by using the condenser's LLM to summarize forgotten
-        events.
+        """利用上下文压缩器的LLM生成上下文压缩来总结遗忘
+        事件。
 
         Args:
-            forgotten_events: The list of events to be summarized.
-            summary_offset: The index where the summary event should be inserted.
-            max_event_str_length: Optional maximum length for each event string. If
-                provided, event strings longer than this will be truncated.
+            forgotten_events: 要总结的事件列表。
+            summary_offset: 应插入摘要事件的索引。
+            max_event_str_length: 每个事件字符串的可选最大长度。 如果
+                如果事件字符串长于此，则将被截断。
 
         Returns:
-            Condensation: The generated condensation object.
+            Condensation: 生成的上下文压缩对象。
 
         Raises:
-            ValueError: If forgotten_events is empty (0 events to condense).
+            ValueError: 如果 forgotten_events 为空（0个事件合并）。
         """
         assert len(forgotten_events) > 0, "No events to condense."
 
-        # Convert events to strings for the template
+        # 将事件转换为模板的字符串
         event_strings = [
             maybe_truncate(str(forgotten_event), truncate_after=max_event_str_length)
             for forgotten_event in forgotten_events
@@ -256,8 +251,8 @@ class LLMSummarizingCondenser(RollingCondenser):
 
         messages = self._build_summary_messages(event_strings)
 
-        # Do not pass extra_body explicitly. The LLM handles forwarding
-        # litellm_extra_body only when it is non-empty.
+        # 不要显式传递 extra_body。 仅当LLM非空时才处理转发litellm_extra_body。
+        #
         try:
             llm_response = self.llm.generate(messages=messages, store=False)
         except Exception as e:
@@ -265,7 +260,7 @@ class LLMSummarizingCondenser(RollingCondenser):
                 f"Summarization LLM call failed: {e}"
             ) from e
 
-        # Extract summary from the LLMResponse message
+        # 从LLMResponse消息中提取摘要
         summary = None
         if llm_response.message.content:
             first_content = llm_response.message.content[0]
@@ -282,18 +277,17 @@ class LLMSummarizingCondenser(RollingCondenser):
     def _get_forgotten_events(
         self, view: View, agent_llm: LLM | None = None
     ) -> tuple[Sequence[LLMConvertibleEvent], int]:
-        """Identify events to be forgotten and the summary offset.
+        """确定要忘记的事件和摘要偏移。
 
-        Relies on the condensation reasons to determine how many events we need to drop
-        in order to maintain our resource constraints. Uses manipulation indices to
-        ensure forgetting ranges respect atomic unit boundaries.
+        依靠上下文压缩原因来确定我们需要删除为了多少事件来维持我们的资源限制。 使用操
+        作索引来确保遗忘范围尊重原子单元边界。
 
         Args:
-            view: The current view from which to identify forgotten events.
-            agent_llm: The LLM used by the agent, required for token-based calculations.
+            view: 从中识别被遗忘事件的当前视图。
+            agent_llm: 智能体使用的 LLM，是基于 token 的计算所需的。
 
         Returns:
-            A tuple of (events to forget, summary_offset).
+            一个元组（要忘记的事件，summary_offset）。
         """
         reasons = self.get_condensation_reasons(view, agent_llm=agent_llm)
         assert reasons != set(), "No condensation reasons found."
@@ -309,9 +303,9 @@ class LLMSummarizingCondenser(RollingCondenser):
             suffix_events_to_keep.add(target_size - self.keep_first - 1)
 
         if Reason.TOKENS in reasons:
-            # Compute the number of tokens we need to eliminate to be under half the
-            # effective max_tokens value. We know both are not None here because we
-            # cannot have Reason.TOKENS without them.
+            # 计算我们需要消除的 token 数量，使其低于有效 max_tokens 值的一半。 我们知道
+            # 两者都不在这里 None，因为没有它们我们就不可能拥有 Reason.TOKENS。
+            #
             max_tokens = self._effective_max_tokens(agent_llm)
             assert max_tokens is not None
             assert agent_llm is not None
@@ -328,31 +322,31 @@ class LLMSummarizingCondenser(RollingCondenser):
                 )
             )
 
-        # We might have multiple reasons to condense, so pick the strictest condensation
-        # to ensure all resource constraints are met.
+        # 我们可能有多种压缩原因，因此选择最严格的上下文压缩以确保满足所有资源限制。
+        #
         events_from_tail = min(suffix_events_to_keep)
 
-        # Calculate naive forgetting end (without considering atomic boundaries)
+        # 计算朴素遗忘终点（不考虑原子边界）
         naive_end = len(view) - events_from_tail
 
-        # The leading SystemPromptEvent must never be forgotten, otherwise the
-        # condensed view would open with a non-system message. Floor the start
-        # of the forgetting range just past it (this also covers keep_first=0).
+        # 决不能忘记前导 SystemPromptEvent，否则压缩视图将打开并显示非系统消息。 将遗忘
+        # 范围的起点放在刚刚过去的位置（这也涵盖 keep_first=0）。
+        #
         protected_prefix = self.keep_first
         system_idx = _leading_system_prompt_index(view.events)
         if system_idx is not None:
             protected_prefix = max(protected_prefix, system_idx + 1)
 
-        # Find actual forgetting_start: smallest manipulation index >= protected_prefix
+        # 查找实际forgetting_start：最小操纵索引>=protected_prefix
         forgetting_start = view.manipulation_indices.find_next(protected_prefix)
 
-        # Find actual forgetting_end: smallest manipulation index >= naive_end
+        # 查找实际forgetting_end：最小操纵索引>=naive_end
         forgetting_end = view.manipulation_indices.find_next(naive_end)
 
-        # Extract events to forget using boundary-aware indices
+        # 使用边界感知索引提取要忘记的事件
         forgotten_events = view[forgetting_start:forgetting_end]
 
-        # Summary offset is the same as forgetting_start
+        # 摘要偏移量与 forgetting_start 相同
         return forgotten_events, forgetting_start
 
     @observe(ignore_inputs=["view", "agent_llm"])
@@ -361,15 +355,14 @@ class LLMSummarizingCondenser(RollingCondenser):
         view: View,
         agent_llm: LLM | None = None,  # noqa: ARG002
     ) -> Condensation | None:
-        """Perform a hard context reset by summarizing all events in the view.
+        """通过汇总视图中的所有事件来执行硬上下文重置。
 
-        Depending on how the hard context reset is triggered, this may fail (e.g., if
-        the view is too large for the summarizing LLM to handle). In that case, we keep
-        trimming down the contents until a summary can be generated.
+        根据硬上下文重置的触发方式，这可能会失败（e.g.，如果视图太大而汇总 LLM 无法处
+        理）。 在这种情况下，我们会不断删减内容，直到生成摘要。
         """
-        # Preserve the leading SystemPromptEvent: it must stay at the head of the
-        # view so the request still opens with a system message. Summarize the
-        # events *after* it and insert the summary right behind it.
+        # 保留前导 SystemPromptEvent：它必须保留在视图的头部，以便请求仍然以系统消息打开
+        # 。 总结*之后*的事件，并将摘要插入到其后面。
+        #
         system_idx = _leading_system_prompt_index(view.events)
         preserve = (system_idx + 1) if system_idx is not None else 0
         forgotten_events = view.events[preserve:]
@@ -386,18 +379,19 @@ class LLMSummarizingCondenser(RollingCondenser):
                     max_event_str_length=max_event_str_length,
                 )
             except Exception as e:
-                # If we haven't set a max_event_str_length yet, set it as the largest
-                # event string length.
+                # 如果我们还没有设置 max_event_str_length，请将其设置为最大事件字符串长
+                # 度。
+                #
                 if max_event_str_length is None:
                     max_event_str_length = max(len(str(event)) for event in view.events)
 
-                # Since the summarization failed, reduce the max_event_str_length by 20%
+                # 由于汇总失败，将max_event_str_length减少20%
                 assert max_event_str_length is not None
                 max_event_str_length = int(
                     max_event_str_length * self.hard_context_reset_context_scaling
                 )
 
-                # Log the exception so we can track these failures
+                # 记录异常，以便我们可以跟踪这些故障
                 logger.warning(
                     f"Hard context reset summarization failed with exception: {e}. "
                     f"Reducing max event size to {max_event_str_length} and retrying."
@@ -412,9 +406,9 @@ class LLMSummarizingCondenser(RollingCondenser):
     def get_condensation(
         self, view: View, agent_llm: LLM | None = None
     ) -> Condensation:
-        # The condensation is dependent on the events we want to drop and the previous
-        # summary. If we fail to find an appropriate set of events to forget raise an
-        # exception so the conversation can keep going until conditions change.
+        # 上下文压缩取决于我们要删除的事件和之前的摘要。 如果我们未能找到一组适当的事件
+        # 来忘记引发异常，以便对话可以继续进行，直到情况发生变化。
+        #
         try:
             forgotten_events, summary_offset = self._get_forgotten_events(
                 view, agent_llm=agent_llm
@@ -443,7 +437,7 @@ class LLMSummarizingCondenser(RollingCondenser):
         )
 
     # ------------------------------------------------------------------
-    # Async variants
+    # 异步变种
     # ------------------------------------------------------------------
 
     async def _agenerate_condensation(
@@ -452,7 +446,7 @@ class LLMSummarizingCondenser(RollingCondenser):
         summary_offset: int,
         max_event_str_length: int | None = None,
     ) -> Condensation:
-        """Async variant of :meth:`_generate_condensation`."""
+        """异步：meth:`_generate_condensation` 的变体。"""
         assert len(forgotten_events) > 0, "No events to condense."
 
         event_strings = [
@@ -485,7 +479,7 @@ class LLMSummarizingCondenser(RollingCondenser):
     async def aget_condensation(
         self, view: View, agent_llm: LLM | None = None
     ) -> Condensation:
-        """Async variant of :meth:`get_condensation`."""
+        """异步：meth:`get_condensation` 的变体。"""
         try:
             forgotten_events, summary_offset = self._get_forgotten_events(
                 view, agent_llm=agent_llm
@@ -519,8 +513,8 @@ class LLMSummarizingCondenser(RollingCondenser):
         view: View,
         agent_llm: LLM | None = None,  # noqa: ARG002
     ) -> Condensation | None:
-        """Async variant of :meth:`hard_context_reset`."""
-        # Preserve the leading SystemPromptEvent (see hard_context_reset).
+        """异步：meth:`hard_context_reset` 的变体。"""
+        # 保留前导 SystemPromptEvent（参见 hard_context_reset）。
         system_idx = _leading_system_prompt_index(view.events)
         preserve = (system_idx + 1) if system_idx is not None else 0
         forgotten_events = view.events[preserve:]
@@ -553,14 +547,15 @@ class LLMSummarizingCondenser(RollingCondenser):
         return None
 
 
-# Sizing for the standard summarizing condenser. Kept here so the default agent and
-# spawned sub-agents stay in sync.
+# 标准总结的尺寸调整上下文压缩器。 保留在这里，以便默认的智能体和生成的子智能体保留在同
+# 步中。
+#
 _DEFAULT_MAX_SIZE: Final[int] = 80
 _DEFAULT_KEEP_FIRST: Final[int] = 4
 
 
 def default_condenser(llm: LLM) -> LLMSummarizingCondenser:
-    """Standard summarizing condenser used by the default agent and sub-agents."""
+    """默认使用智能体和子智能体的标准汇总上下文压缩器。"""
     return LLMSummarizingCondenser(
         llm=llm, max_size=_DEFAULT_MAX_SIZE, keep_first=_DEFAULT_KEEP_FIRST
     )

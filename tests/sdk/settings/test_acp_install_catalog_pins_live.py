@@ -1,16 +1,15 @@
-"""Live installability checks for ACP_INSTALL_CATALOG's pinned npm versions.
+"""实时可安装性检查 ACP_INSTALL_CATALOG 固定的 npm 版本。
 
-Runs ``npm view <pkg>@<version>`` against the real npm registry so a yanked
-version or a security deprecation is caught here instead of breaking the next
-agent-server image build. Credential-free; needs ``npm`` and network access to
-the registry (skipped when unavailable). See OpenHands/software-agent-sdk#4830
-P0-3.
+针对真实的 npm 注册表运行 ``npm view <pkg>@<version>``，因此此处捕获了拉出的版本或安
+全性弃用，而不是破坏下一个智能体服务器映像构建。 凭据
+-免费； 需要 ``npm`` 和对注册表的网络访问（不可用时跳过）。 参见OpenHands/软件-智能体
+-SDK#4830 P0-3。
 
-Deselected from the default run via the ``acp_live`` marker (see
-``tests/sdk/agent/test_acp_conformance.py`` for why): the SDK's default test
-job is a required merge check, and a live registry dependency must not be
-able to block unrelated PRs. Run explicitly with ``pytest -m acp_live``; CI
-runs it in the separate, non-required ``acp-live-tests`` job.
+通过 ``acp_live`` 标记取消选择默认运行（请参阅
+``tests/sdk/agent/test_acp_conformance.py`` 原因）：SDK 的默认测试作业是必需的合并检
+查，并且实时注册表依赖项必须无法阻止不相
+关的 PR。 使用 ``pytest -m acp_live`` 显式运行； CI 在单独的、非必需的
+``acp-live-tests`` 作业中运行它。
 """
 
 from __future__ import annotations
@@ -48,9 +47,10 @@ _ALL_PINS = [
 
 
 def _npm_view_version_deprecated(pinned: str) -> tuple[str, str | None]:
-    """Return ``(resolved_version, deprecation_message_or_None)`` for a
-    ``name@version`` npm spec, raising ``AssertionError`` if it doesn't
-    resolve (yanked, typo'd, never published)."""
+    """返回 ``(resolved_version, deprecation_message_or_None)`` 表示
+    ``name@version`` npm 规范，如果无法解决（被拉出、拼写错误、从未发布），则提出
+    ``AssertionError``。
+    """
     result = subprocess.run(
         ["npm", "view", pinned, "version", "deprecated", "--json"],
         capture_output=True,
@@ -91,10 +91,10 @@ def test_pinned_version_resolves_and_is_not_deprecated(
 
 
 def _npm_view_bins(pinned: str) -> set[str]:
-    """Return the executable names ``name@version`` declares in its ``bin`` field.
+    """返回 ``name@version`` 在其 ``bin`` 字段中声明的可执行文件名称。
 
     npm accepts either a string (one bin, named after the package) or an
-    object mapping bin name to path.
+    将 bin 名称映射到路径的对象。
     """
     result = subprocess.run(
         ["npm", "view", pinned, "bin", "--json"],
@@ -124,13 +124,12 @@ def _npm_view_bins(pinned: str) -> set[str]:
     "spec", ACP_INSTALL_CATALOG.values(), ids=list(ACP_INSTALL_CATALOG)
 )
 def test_binary_name_is_declared_by_one_of_the_pinned_packages(spec) -> None:
-    """``binary_name`` must be a bin some pinned package actually declares.
+    """``binary_name`` 必须是某个固定包实际声明的 bin。
 
-    The image build's own guard only covers providers a given build installs,
-    so a registry-only provider's ``binary_name`` is otherwise validated
-    nowhere — and a wrong one silently costs it the pinned-binary path
-    (``resolve_acp_command`` keeps the npx invocation) or, when preinstalled,
-    ships a wrapper pointing at nothing.
+    该图像构建的自护机制仅覆盖给定构建安装的提供者，所以注册表-仅提供者
+    ``binary_name`` 它在其他地方也没有被验证过——一个错误的版本就会悄悄地失去固定
+    二进制路径``resolve_acp_command`` 或者，当预先安装时，它会提供一个指向空的包装器
+    。
     """
     declared: set[str] = set()
     for pkg in spec.packages:

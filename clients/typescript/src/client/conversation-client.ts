@@ -30,17 +30,17 @@ export interface ConversationClientOptions {
 }
 
 /**
- * Payload for creating a new conversation.
+ * 载荷用于创建新对话。
  *
- * Mutually exclusive sources for the agent:
- * - `agent_profile_id` — stable UUID; server resolves the profile server-side.
- * - `agent` / `agent_settings` — direct agent spec (legacy path).
+ * 智能体的互斥来源：
+ * - `agent_profile_id` — 稳定 UUID； 服务器在服务器端解析配置文件。
+ * - `agent` / `agent_settings` — 直接智能体规范（旧路径）。
  *
- * Additional fields (e.g. `initial_message`, `max_iterations`) are forwarded
- * as-is. `agent_profile_id` support lands with SDK PR #3784.
+ * 附加字段 (e.g. `initial_message`、`max_iterations`) 已转发
+ * 按原样。 `agent_profile_id` 支持土地 SDK PR #3784。
  */
 export interface CreateConversationPayload {
-  /** Stable UUID of an agent profile to resolve server-side. */
+  /** 用于解析服务器端的智能体配置文件的稳定 UUID。*/
   agent_profile_id?: string;
   agent?: unknown;
   agent_settings?: unknown;
@@ -73,13 +73,8 @@ export class ConversationClient {
       const response = await this.client.post<TConversation>('/api/conversations', payload);
       return response.data;
     } catch (error) {
-      // A lost response does not mean the create was not applied: the server
-      // may have committed it and the initial message may already be running.
-      // Re-sending is only safe where the server deduplicates concurrent
-      // creates for one id, which it advertises as a capability. There is no
-      // caller-supplied id to reconcile against otherwise, and even with one, a
-      // server without the capability would double-create on a re-send, so
-      // surface the original transport error instead.
+      // 丢失响应并不意味着创建没有被应用：服务器可能已经提交了它并且初始消息可能已经在运行。 仅当服务器为一个 ID 创建的重复数据删除并发时，重新发送才是安全的，并将其宣传为一种功能。 没有供调用者提供的标识符来匹配，即使有，没有该能力的服务器也会在重发时双倍创建，因此，应表面原始错误传输层。
+      //
       if (
         error instanceof HttpError ||
         typeof payload.conversation_id !== 'string' ||
@@ -94,11 +89,11 @@ export class ConversationClient {
   }
 
   /**
-   * Whether the server deduplicates concurrent creates for one conversation id.
+   * 服务器是否对并发为一个会话 ID 创建的重复数据进行删除。
    *
-   * A server that cannot be probed is treated as unsupported, so an older or
-   * unreachable backend keeps the previous behavior rather than risking a
-   * duplicate conversation.
+   * 无法探测到的服务器被视为不受支持，因此较旧的或
+   * 无法访问的后端会保留之前的行为，而不是冒着
+   * 重复的对话。
    */
   private async supportsCreateRetry(): Promise<boolean> {
     try {
@@ -233,10 +228,10 @@ export class ConversationClient {
   }
 
   /**
-   * Start a `/goal` loop inside an existing conversation. The loop runs in the
-   * conversation's own history and event stream (it does not fork). The server
-   * returns 409 if a run or goal loop is already active and 400 for an invalid
-   * objective (e.g. empty); a missing conversation yields 404.
+   * 在现有对话中启动 `/goal` 循环。 循环运行在
+   * 对话自己的历史记录和事件流（它不会分叉）。 服务器
+   * 如果运行或目标循环已处于活动状态，则返回 409；如果运行或目标循环无效，则返回 400
+   * 目标（e.g. 空）； 缺少对话会产生 404。
    */
   async startGoal(conversationId: string, request: StartGoalRequest): Promise<Success> {
     const response = await this.client.post<Success>(
@@ -247,10 +242,10 @@ export class ConversationClient {
   }
 
   /**
-   * Stop the active `/goal` loop in this conversation. Cancels only the
-   * background goal loop (not the conversation) and records an `interrupted`
-   * status so {@link resumeGoal} can continue it. Succeeds even when no loop is
-   * running; a missing conversation yields 404.
+   * 停止此对话中的活动 `/goal` 循环。 仅取消
+   * 后台目标循环（不是对话）并记录 `interrupted`
+   * 状态，以便 {@link resumeGoal} 可以继续。 即使没有循环也会成功
+   * 跑步； 缺少对话会产生 404。
    */
   async stopGoal(conversationId: string): Promise<Success> {
     const response = await this.client.post<Success>(
@@ -261,10 +256,10 @@ export class ConversationClient {
   }
 
   /**
-   * Resume the last interrupted `/goal` loop in this conversation. The server
-   * returns 409 if a run or goal loop is already active and 400 when there is
-   * no resumable goal (none started, or it already completed); a missing
-   * conversation yields 404.
+   * 恢复此对话中最后一个中断的 `/goal` 循环。 服务器
+   * 如果运行或目标循环已处于活动状态，则返回 409；如果存在，则返回 400
+   * 没有可恢复的目标（None已开始，或已完成）； 失踪的
+   * 对话结果为 404。
    */
   async resumeGoal(conversationId: string): Promise<Success> {
     const response = await this.client.post<Success>(
@@ -373,14 +368,14 @@ export class ConversationClient {
   }
 
   /**
-   * Move a conversation's HEAD to an existing event, re-rooting the active
-   * branch the agent runs on next. Unlike {@link forkConversation}, this
-   * creates no new conversation — all branches stay on disk. Pass
-   * `{ event_id: null }` (or an empty request) to select the empty tree.
+   * 将对话的 HEAD 移至现有事件，重新确定活动根
+   * 智能体的分支将在下一个运行。 与 {@link forkConversation} 不同，这
+   * 不创建新的对话——所有分支都保留在磁盘上。 通行证
+   * `{ event_id: null }`（或空请求）选择空树。
    *
-   * Returns the updated {@link ConversationInfo}, carrying the new
-   * `leaf_event_id`. The server answers 404 for an unknown conversation or an
-   * unknown `event_id`.
+   * 返回更新后的{@linkConversationInfo}，携带新的
+   * `leaf_event_id`. 服务器针对未知对话或错误应答 404
+   * 未知`event_id`。
    */
   async navigateConversation<TConversation = ConversationInfo>(
     conversationId: string,
@@ -411,11 +406,11 @@ export class ConversationClient {
   }
 
   /**
-   * Switch the model of an ACP conversation (the ACP analog of
-   * {@link switchLLM}). On a live session the server calls the wrapper's
-   * `session/set_model` in place; context is preserved. Before the first run
-   * there is no session yet, so the server answers 200 and stores the model for
-   * the first session. Non-ACP conversations get 400.
+   * 切换 ACP 对话的模型（ACP 模拟
+   * {@链接switchLLM}）。 在实时会话中，服务器调用包装器
+   * `session/set_model`到位； 上下文被保留。 第一次运行之前
+   * 还没有会话，因此服务器回答 200 并存储模型
+   * 第一次会话。 非 ACP 对话得到 400。
    */
   async switchAcpModel(conversationId: string, model: string): Promise<void> {
     await this.client.post<Success>(`/api/conversations/${conversationId}/switch_acp_model`, {
@@ -428,9 +423,9 @@ export class ConversationClient {
   }
 
   /**
-   * Update conversation metadata (e.g. title) and resolve with the updated
-   * conversation. The PATCH endpoint answers only `Success`, so the
-   * conversation is read back after the update.
+   * 更新对话元数据 (e.g. 标题）并用更新后的解决
+   * 谈话。 PATCH 端点只回答 `Success`，所以
+   * 更新后会回读对话。
    */
   async updateConversation<TConversation = ConversationInfo>(
     conversationId: string,

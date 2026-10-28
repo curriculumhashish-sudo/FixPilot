@@ -1,4 +1,4 @@
-"""The gateway's wait on a continued conversation stops where a new one stops."""
+"""网关对继续对话的等待会在新对话停止时停止。"""
 
 import asyncio
 from types import SimpleNamespace
@@ -15,7 +15,7 @@ from openhands.sdk.conversation.state import ConversationExecutionStatus
 
 
 class _StatusSequence:
-    """Stands in for EventService: each get_state() returns the next status."""
+    """代表 EventService：每个 get_state() 返回下一个状态。"""
 
     def __init__(self, *statuses: ConversationExecutionStatus, events: int = 0):
         self._statuses = list(statuses)
@@ -57,8 +57,9 @@ def test_a_continued_run_that_stops_for_the_user_answers_409_at_once(stopped):
 
 
 def test_a_conversation_left_waiting_before_the_new_turn_is_not_the_answer():
-    # The run for this turn has not started yet: no RUNNING seen and no new
-    # events, so the earlier turn's waiting status must not end the wait.
+    # 本回合的运行尚未开始：未看到 RUNNING，也没有新事件，因此较早回合的等待状态不得结束
+    # 等待。
+    #
     events = _StatusSequence(ConversationExecutionStatus.WAITING_FOR_CONFIRMATION)
 
     with pytest.raises(HTTPException) as exc_info:

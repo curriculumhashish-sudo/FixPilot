@@ -194,7 +194,7 @@ async def test_http_structured_quota_skips_retries(
             llm.generate(messages)
 
     assert len(requests) == (1 if exhausted else llm.num_retries)
-    # Profile pre-flight classifies the SDK exception after transport mapping.
+    # 配置文件预检对传输层映射后的 SDK 异常进行分类。
     assert is_quota_exhaustion_error(caught.value) is exhausted
 
 
@@ -210,7 +210,7 @@ def test_http_structured_quota_fallback(
     provider, tmp_path, monkeypatch, error_code, fallback_rate_limited
 ):
     base_url, replies, requests = provider
-    # Profiles omit API keys without a cipher; the fallback resolves this fake key.
+    # 配置文件省略 API 个没有密码的密钥； 回退方案解决了这个假密钥的问题。
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     replies.append(
         (429, {"error": {"message": "Allowance exhausted", "type": error_code}})

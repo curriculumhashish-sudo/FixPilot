@@ -1,4 +1,4 @@
-"""Persistent storage for browser recording events."""
+"""浏览器记录事件的持久存储。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class EventStorage:
-    """Handles persistent storage of recording events to disk."""
+    """处理记录事件到磁盘的持久存储。"""
 
     output_dir: str | None = None
     _session_dir: str | None = field(default=None, repr=False)
@@ -35,7 +35,7 @@ class EventStorage:
         return self._total_events
 
     def create_session_subfolder(self) -> str | None:
-        """Create a timestamped subfolder for this recording session."""
+        """为此记录会话创建带时间戳的子文件夹。"""
         if not self.output_dir:
             return None
         timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
@@ -45,7 +45,7 @@ class EventStorage:
         return subfolder
 
     def save_events(self, events: list[dict]) -> str | None:
-        """Save events to a timestamped JSON file."""
+        """将事件保存到带时间戳的 JSON 文件。"""
         if not self._session_dir or not events:
             return None
 
@@ -62,7 +62,7 @@ class EventStorage:
         return filepath
 
     def reset(self) -> None:
-        """Reset storage state for a new session."""
+        """重置新会话的存储状态。"""
         self._session_dir = None
         self._files_written = 0
         self._total_events = 0

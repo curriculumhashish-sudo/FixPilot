@@ -1,4 +1,4 @@
-"""Tests for write_file tool."""
+"""测试 write_file 工具。"""
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from openhands.tools.gemini.write_file.impl import WriteFileExecutor
 
 
 def test_write_file_create_new(tmp_path):
-    """Test creating a new file."""
+    """测试创建一个新文件。"""
     executor = WriteFileExecutor(workspace_root=str(tmp_path))
     action = WriteFileAction(file_path="new.txt", content="hello world\n")
     obs = executor(action)
@@ -18,14 +18,14 @@ def test_write_file_create_new(tmp_path):
     assert obs.old_content is None
     assert obs.new_content == "hello world\n"
 
-    # Verify file was created
+    # 验证文件已创建
     assert (tmp_path / "new.txt").exists()
     assert (tmp_path / "new.txt").read_text() == "hello world\n"
 
 
 def test_write_file_overwrite_existing(tmp_path):
-    """Test overwriting an existing file."""
-    # Create existing file
+    """测试覆盖现有文件。"""
+    # 创建现有文件
     test_file = tmp_path / "existing.txt"
     test_file.write_text("old content\n")
 
@@ -38,12 +38,12 @@ def test_write_file_overwrite_existing(tmp_path):
     assert obs.old_content == "old content\n"
     assert obs.new_content == "new content\n"
 
-    # Verify file was overwritten
+    # 验证文件是否被覆盖
     assert test_file.read_text() == "new content\n"
 
 
 def test_write_file_create_directories(tmp_path):
-    """Test creating parent directories."""
+    """测试创建父目录。"""
     executor = WriteFileExecutor(workspace_root=str(tmp_path))
     action = WriteFileAction(file_path="subdir/nested/file.txt", content="content\n")
     obs = executor(action)
@@ -51,14 +51,14 @@ def test_write_file_create_directories(tmp_path):
     assert not obs.is_error
     assert obs.is_new_file
 
-    # Verify directories and file were created
+    # 验证目录和文件已创建
     assert (tmp_path / "subdir" / "nested" / "file.txt").exists()
     assert (tmp_path / "subdir" / "nested" / "file.txt").read_text() == "content\n"
 
 
 def test_write_file_directory_error(tmp_path):
-    """Test writing to a directory path returns error."""
-    # Create a directory
+    """测试写入目录路径会返回错误。"""
+    # 创建目录
     test_dir = tmp_path / "testdir"
     test_dir.mkdir()
 
@@ -71,7 +71,7 @@ def test_write_file_directory_error(tmp_path):
 
 
 def test_write_file_absolute_path(tmp_path):
-    """Test writing with absolute path."""
+    """测试用绝对路径编写。"""
     test_file = tmp_path / "test.txt"
 
     executor = WriteFileExecutor(workspace_root=str(tmp_path))
@@ -84,7 +84,7 @@ def test_write_file_absolute_path(tmp_path):
 
 
 def test_write_file_empty_content(tmp_path):
-    """Test writing empty content."""
+    """测试写空内容。"""
     executor = WriteFileExecutor(workspace_root=str(tmp_path))
     action = WriteFileAction(file_path="empty.txt", content="")
     obs = executor(action)
@@ -96,7 +96,7 @@ def test_write_file_empty_content(tmp_path):
 
 
 def test_declared_resources_locks_on_file_path(fake_conv_state):
-    """declared_resources returns a file-path key for per-file locking."""
+    """declared_resources 返回用于每个文件锁定的文件路径密钥。"""
     tool = WriteFileTool.create(conv_state=fake_conv_state)[0]
     absolute_path = Path(fake_conv_state.workspace.working_dir) / "a" / "b.py"
     action = WriteFileAction(file_path=str(absolute_path), content="x")
@@ -107,7 +107,7 @@ def test_declared_resources_locks_on_file_path(fake_conv_state):
 
 
 def test_declared_resources_different_files_different_keys(fake_conv_state):
-    """Different file paths produce different resource keys."""
+    """不同的文件路径产生不同的资源密钥。"""
     tool = WriteFileTool.create(conv_state=fake_conv_state)[0]
     a = tool.declared_resources(WriteFileAction(file_path="/a.py", content="x"))
     b = tool.declared_resources(WriteFileAction(file_path="/b.py", content="x"))
@@ -115,7 +115,7 @@ def test_declared_resources_different_files_different_keys(fake_conv_state):
 
 
 def test_declared_resources_relative_path_resolves_against_workspace(fake_conv_state):
-    """Relative paths must resolve against workspace_root, not process CWD."""
+    """相对路径必须针对 workspace_root 进行解析，而不是针对 CWD 进行解析。"""
     tool = WriteFileTool.create(conv_state=fake_conv_state)[0]
     workspace = fake_conv_state.workspace.working_dir
     resources = tool.declared_resources(

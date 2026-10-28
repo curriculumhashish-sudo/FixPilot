@@ -1,36 +1,39 @@
-# Prompt-based Hooks Example
+<a id="prompt-based-hooks-example"></a>
 
-This example demonstrates `type="prompt"`: a lifecycle hook evaluated by one
-LLM completion instead of a shell command or tool-using sub-agent.
+# 基于提示词的 Hook 示例
 
-The script sends two synthetic `PreToolUse` events through `HookManager`:
+此示例演示了 `type="prompt"`：通过一个 LLM 完成而不是 shell 命令或使用工具子智能体来评估的生命周期挂钩。
 
-- a test command that the policy should allow
-- a destructive command that the policy should deny
+该脚本通过 `HookManager` 发送两个合成 `PreToolUse` 事件：
 
-The commands are event data only and are never executed.
+- 策略应允许的测试命令
+- 政策应拒绝的破坏性命令
 
-## When to use a prompt hook
+这些命令只是事件数据，永远不会执行。
 
-Prompt hooks fit policy decisions that can be made from the `HookEvent` payload
-alone. They are cheaper and more predictable than agent hooks because they make
-one completion and cannot call tools.
+<a id="when-to-use-a-prompt-hook"></a>
 
-Use an agent hook when the evaluator must inspect files, run a command, or gather
-other workspace context before deciding. Use a command hook for deterministic
-checks that do not need model judgment.
+## 何时使用提示词挂钩
 
-## Running
+提示词钩子适合可以单独从 `HookEvent` 载荷做出的政策决策。 它们比智能体钩子更便宜、更可预测，因为它们完成一次并且无法调用工具。
+
+当评估者在做出决定之前必须检查文件、运行命令或收集其他工作区上下文时，请使用智能体挂钩。 使用命令钩子进行不需要模型判断的确定性检查。
+
+<a id="running"></a>
+
+## 跑步
 
 ```bash
 export LLM_API_KEY="your-key"
-export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"  # optional
-export LLM_BASE_URL="https://your-endpoint"              # optional
+export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"  # 可选的
+export LLM_BASE_URL="https://your-endpoint"              # 可选的
 
 python main.py
 ```
 
-## Configuration
+<a id="configuration"></a>
+
+## 配置
 
 ```python
 HookDefinition(
@@ -41,21 +44,16 @@ HookDefinition(
 )
 ```
 
-Prompt hooks use the conversation's current LLM. A copied LLM isolates timeout,
-metrics, and the stable `prompt-hook:<name>` usage bucket from the main agent.
-The configured policy is sent as trusted system context; the serialized hook
-event is sent separately and marked as untrusted data.
+提示词挂钩使用对话的当前 LLM。 复制的 LLM 将超时、指标和稳定 `prompt-hook:<name>` 使用存储桶与主智能体隔离开来。 配置的策略作为可信系统发送上下文； 已序列化钩子事件单独发送并标记为不可信数据。
 
-The SDK automatically selects Chat Completions or the Responses API from the
-model's capabilities. Prompt hooks are single-shot and non-streaming, regardless
-of the parent LLM's streaming setting.
+SDK 自动从模型的功能中选择聊天完成或响应 API。 提示词挂钩是单次且非流式传输的，无论父级 LLM 的流式传输设置如何。
 
-The executor asks the model for this shared hook result contract:
+执行器向模型询问此共享钩子结果合约：
 
 ```json
 {"decision": "allow" | "deny", "reason": "<short explanation>"}
 ```
 
-Missing LLM configuration, provider failures, and invalid responses fail open
+缺少 LLM 配置、提供程序故障和无效响应无法打开
 with `decision="allow"` and `success=False`, so callers can distinguish an
-execution failure from a deliberate allow verdict.
+故意允许判决导致执行失败。

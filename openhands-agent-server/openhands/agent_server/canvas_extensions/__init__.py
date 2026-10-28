@@ -1,4 +1,4 @@
-"""Canvas Extensions: installable UI bundles that contribute pages to Canvas."""
+"""Canvas 扩展：可安装的 UI 包，将页面贡献给 Canvas。"""
 
 from openhands.agent_server.canvas_extensions.installed import (
     CanvasExtensionUpdateCheck,

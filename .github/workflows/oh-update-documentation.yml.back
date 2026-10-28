@@ -2,9 +2,9 @@ name: Update Documentation (by OpenHands)
 
 on:
   schedule:
-    # Run every 7 days at 2 AM UTC on Sundays
+    # 每周日 UTC 02:00 运行，即每 7 天一次
     - cron: '0 2 * * 0'
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   update-docs:

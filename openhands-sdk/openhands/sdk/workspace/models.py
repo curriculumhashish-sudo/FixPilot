@@ -1,4 +1,4 @@
-"""Pydantic models for workspace operation results and build types."""
+"""工作区操作结果和构建类型的 Pydantic 模型。"""
 
 from typing import Literal
 
@@ -18,7 +18,7 @@ PlatformType = Literal["linux/amd64", "linux/arm64"]
 
 
 class CommandResult(BaseModel):
-    """Result of executing a command in the workspace."""
+    """执行工作区中命令的结果。"""
 
     command: str = Field(description="The command that was executed")
     exit_code: int = Field(description="Exit code of the command")
@@ -30,7 +30,7 @@ class CommandResult(BaseModel):
 
 
 class FileOperationResult(BaseModel):
-    """Result of a file upload or download operation."""
+    """文件上传或下载操作的结果。"""
 
     success: bool = Field(description="Whether the operation was successful")
     source_path: str = Field(description="Path to the source file")

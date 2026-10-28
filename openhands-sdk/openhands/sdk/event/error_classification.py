@@ -1,4 +1,4 @@
-"""Small, privacy-safe failure contract shared by SDK, UI, and telemetry."""
+"""由 SDK、UI 和遥测技术共享的小型、隐私安全的故障合约。"""
 
 from enum import StrEnum
 from typing import Literal
@@ -21,11 +21,10 @@ FailureAction = Literal["none", "retry", "settings"]
 
 
 class ErrorClassification(BaseModel):
-    """The only failure metadata that crosses the event/API boundary.
+    """唯一跨越事件/API 边界的失败元数据。
 
-    It is intentionally small. ``detail`` is inspected locally only to map
-    broad third-party errors to this closed vocabulary; it is never copied
-    here or sent to telemetry.
+    它是故意很小的。 ``detail`` 仅在本地进行检查，以将广泛的第三方错误映射到此封闭词
+    汇表； 它永远不会被复制到这里或发送到遥测。
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -42,32 +41,32 @@ def _failure(
     return ErrorClassification(kind=kind, retryable=retryable, user_action=user_action)
 
 
-#: Expected, agent-correctable failure — the agent can retry (for example, a
-#: malformed tool call or tool validation error).
+# ：预期的，智能体-可纠正的故障 - 智能体可以重试（例如：格式错误的工具调用或工具验证错误
+# ）。
+#
 AGENT_OUTCOME = ErrorClassification(
     kind=FailureKind.AGENT_ACTION, retryable=True, user_action="retry"
 )
 
 
 def classify_error(code: str, detail: str = "") -> ErrorClassification:
-    """Classify known failures from typed code and local provider metadata text.
+    """根据键入的代码和本地提供程序元数据文本对已知故障进行分类。
 
-    Exception classes whose name alone is authoritative (``KeyError``,
-    ``AssertionError``, SDK-specific errors like ``LLMAuthenticationError``,
-    ``MaxIterationsReached``, …) are checked **first**, so incidental wording
-    in ``detail`` cannot override them. Opaque/generic wrapper codes
-    (``OpenAIError``, ``APIError``, ``HTTPStatusError``, …) are checked
-    **after** the detail heuristics, because the class name alone is not
-    specific enough — the detail text is needed to distinguish auth from
-    rate-limit from transient.
+    异常类，其名称本身就是权威的（``KeyError``，
+    ``AssertionError``、SDK 特定错误，例如 ``LLMAuthenticationError``、
+    ``MaxIterationsReached``, …) 首先检查 ****，因此 ``detail`` 中的附带措辞不能覆盖
+    它们。 检查不透明/通用包装代码（
+    ``OpenAIError``、``APIError``、``HTTPStatusError``、...）
+    **在**详细启发式之后，因为单独的类名不是
+    足够具体——需要详细的文本来区分身份验证、速率限制和瞬态。
     """
-    # ── authoritative code-based classification (checked first) ──────────
+    # ── 权威的基于代码的分类（先检查）──────────
     if code in {"LLMAuthenticationError", "ACPAuthRequired"}:
         return _failure(FailureKind.AUTH, user_action="settings")
     if code in {"LLMRateLimitError"}:
         return _failure(FailureKind.RATE_LIMIT, retryable=True, user_action="retry")
-    # Budget exhaustion is a quota outcome; consumers can direct users to
-    # raise the configured limit rather than treating this as an SDK failure.
+    # 预算耗尽是配额的结果； 消费者可以引导用户提高配置的限制，而不是将其视为 SDK 失败。
+    #
     if code in {"MaxBudgetReached"}:
         return _failure(FailureKind.QUOTA, user_action="settings")
     if code in {
@@ -79,11 +78,12 @@ def classify_error(code: str, detail: str = "") -> ErrorClassification:
         "LibTmuxException",
     }:
         return _failure(FailureKind.CONFIG, user_action="settings")
-    # Context-window / conversation-history errors are recoverable via
-    # condensation, so classify them as agent outcomes, not diagnostics.
+    # 上下文-窗口/对话历史记录错误可通过上下文压缩恢复，因此将它们分类为智能体结果，而不
+    # 是诊断。
+    #
     if code in {"LLMContextWindowExceedError", "LLMMalformedConversationHistoryError"}:
         return _failure(FailureKind.AGENT_ACTION, retryable=True, user_action="retry")
-    # Run-limit and ownership-loss are known product outcomes, not diagnostics.
+    # 运行限制和所有权损失是已知的产品结果，而不是诊断。
     if code in {"MaxIterationsReached", "ConversationOwnershipLostError"}:
         return _failure(FailureKind.AGENT_ACTION)
     if code in {
@@ -95,7 +95,7 @@ def classify_error(code: str, detail: str = "") -> ErrorClassification:
     }:
         return _failure(FailureKind.INTERNAL)
 
-    # ── detail-based classification (for opaque/generic wrapper codes) ───
+    # ── 基于细节的分类（针对不透明/通用包装代码）──
     text = detail.casefold()
 
     if any(
@@ -169,7 +169,7 @@ def classify_error(code: str, detail: str = "") -> ErrorClassification:
     ):
         return _failure(FailureKind.INTERNAL)
 
-    # ── fallback code-based classification (generic wrapper codes) ───────
+    # ── 回退方案基于代码的分类（通用包装代码）────────
     if code in {
         "LLMServiceUnavailableError",
         "LLMTimeoutError",

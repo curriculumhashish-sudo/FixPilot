@@ -103,7 +103,7 @@ __all__ = [
     "OpenHandsAgentSettings",
     "SETTINGS_METADATA_KEY",
     "SETTINGS_SECTION_METADATA_KEY",
-    # API models for settings endpoints
+    # API 设置模型端点
     "SecretCreateRequest",
     "SecretItemResponse",
     "SecretsListResponse",

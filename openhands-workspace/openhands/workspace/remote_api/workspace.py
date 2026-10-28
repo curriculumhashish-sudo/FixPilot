@@ -1,4 +1,4 @@
-"""API-based remote workspace implementation using runtime API."""
+"""使用运行时 API 基于 API 的远程工作区实现。"""
 
 import os
 import uuid
@@ -17,9 +17,9 @@ logger = get_logger(__name__)
 
 
 class APIRemoteWorkspace(RemoteWorkspace):
-    """Remote workspace using OpenHands runtime API.
+    """使用 OpenHands 运行时 API 进行远程工作区。
 
-    Runtime API: https://runtime.all-hands.dev/
+    运行时 API:  https://runtime.all-hands.dev/
 
     Example:
         workspace = APIRemoteWorkspace(
@@ -29,7 +29,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         )
     """  # noqa: E501
 
-    # Parent fields
+    # 父字段
     working_dir: str = Field(
         default="/workspace",
         description="Working directory inside the remote workspace",
@@ -40,7 +40,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         " It will be set to the runtime URL after connecting.",
     )
 
-    # Runtime API fields
+    # 运行时 API 字段
     runtime_api_url: str = Field(description="Base URL of the runtime API")
     runtime_api_key: str = Field(description="API key for authentication")
     server_image: str = Field(
@@ -91,10 +91,10 @@ class APIRemoteWorkspace(RemoteWorkspace):
 
     @property
     def client(self) -> httpx.Client:
-        """Override client property to use api_timeout for HTTP requests."""
+        """覆盖客户端属性以将 api_timeout 用于 HTTP 请求。"""
         client = self._client
         if client is None:
-            # Use api_timeout for the read timeout to allow longer operations
+            # 使用 api_timeout 进行读取超时以允许更长的操作
             timeout = httpx.Timeout(
                 connect=10.0,
                 read=self.api_timeout,
@@ -109,13 +109,12 @@ class APIRemoteWorkspace(RemoteWorkspace):
 
     @property
     def _api_headers(self):
-        """Headers for runtime API requests."
+        """运行时 API 请求的标头。”
 
-        This is used to manage new container runtimes via Runtime API.
+        这用于通过运行时 API 管理新的容器运行时。
 
-        For actual interaction with the remote agent server, the
-        `client` property is used, which includes the session API key
-        defined by ._headers property.
+        对于与遥控器 Agent Server 的实际交互，
+        使用 `client` 属性，其中包括 ._headers 属性定义的会话 API 键。
         """
         headers = {}
         if self.runtime_api_key:
@@ -123,7 +122,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         return headers
 
     def model_post_init(self, context: Any) -> None:
-        """Set up the remote runtime and initialize the workspace."""
+        """设置远程运行时并初始化工作区。"""
         if self.resource_factor not in [1, 2, 4, 8]:
             raise ValueError(
                 f"resource_factor must be 1, 2, 4, or 8, got {self.resource_factor}"
@@ -139,7 +138,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
             raise
 
     def _start_or_attach_to_runtime(self) -> None:
-        """Start or attach to an existing runtime."""
+        """启动或附加到现有运行时。"""
         if not self._check_existing_runtime():
             self._start_runtime()
 
@@ -148,14 +147,14 @@ class APIRemoteWorkspace(RemoteWorkspace):
         logger.info(f"Runtime ready at {self._runtime_url}")
         self.host = self._runtime_url.rstrip("/")
         self.api_key = self._session_api_key
-        # Reset HTTP client with new host and API key
+        # 使用新主机和 API 密钥重置 HTTP 客户端
         self.reset_client()
-        # Verify client is properly initialized
+        # 验证客户端是否正确初始化
         assert self.client is not None
         assert self.client.base_url == self.host
 
     def _check_existing_runtime(self) -> bool:
-        """Check if there's an existing runtime for this session."""
+        """检查此会话是否存在现有运行时。"""
         try:
             resp = self._send_api_request(
                 "GET",
@@ -182,23 +181,23 @@ class APIRemoteWorkspace(RemoteWorkspace):
             raise
 
     def _start_runtime(self) -> None:
-        """Start a new runtime."""
+        """启动新的运行时。"""
         if self.target_type == "binary":
             executable = "/usr/local/bin/openhands-agent-server"
         else:
             executable = "/agent-server/.venv/bin/python -m openhands.agent_server"
 
-        # Build environment dict from forward_env
+        # 从 forward_env 构建环境字典
         environment: dict[str, str] = {}
         for key in self.forward_env:
             if key in os.environ:
                 environment[key] = os.environ[key]
 
-        # For binary target, use the standalone binary
+        # 对于二进制目标，请使用独立的二进制文件
         payload: dict[str, Any] = {
             "image": self.server_image,
             "command": f"{executable} --port 60000",
-            "working_dir": "/",  # Match Dockerfile WORKDIR
+            "working_dir": "/",  # 匹配 Dockerfile WORKDIR
             "environment": environment,
             "session_id": self.session_id,
             "run_as_user": 10001,
@@ -233,7 +232,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         logger.info(f"Runtime {self._runtime_id} at {self._runtime_url}")
 
     def _resume_runtime(self) -> None:
-        """Resume a paused runtime."""
+        """恢复暂停的运行时。"""
         self._send_api_request(
             "POST",
             f"{self.runtime_api_url}/resume",
@@ -243,13 +242,13 @@ class APIRemoteWorkspace(RemoteWorkspace):
         )
 
     def pause(self) -> None:
-        """Pause the runtime to conserve resources.
+        """暂停运行时以节省资源。
 
-        Calls the /pause endpoint on the runtime API to pause the container.
-        The runtime can be resumed later with `resume()`.
+        调用运行时 API 上的 /pause 端点来暂停容器。 稍后可以使用 `resume()` 恢复运行
+        时。
 
         Raises:
-            RuntimeError: If the runtime is not running.
+            RuntimeError: 如果运行时未运行。
         """
         if not self._runtime_id:
             raise RuntimeError("Cannot pause: runtime is not running")
@@ -265,12 +264,12 @@ class APIRemoteWorkspace(RemoteWorkspace):
         logger.info(f"Runtime paused: {self._runtime_id}")
 
     def resume(self) -> None:
-        """Resume a paused runtime.
+        """恢复暂停的运行时。
 
-        Calls the /resume endpoint on the runtime API to resume the container.
+        调用运行时 API 上的 /resume 端点以恢复容器。
 
         Raises:
-            RuntimeError: If the runtime is not running.
+            RuntimeError: 如果运行时未运行。
         """
         if not self._runtime_id:
             raise RuntimeError("Cannot resume: runtime is not running")
@@ -281,7 +280,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         logger.info(f"Runtime resumed: {self._runtime_id}")
 
     def _parse_runtime_response(self, response: httpx.Response) -> None:
-        """Parse the runtime response and extract connection info."""
+        """解析运行时响应并提取连接信息。"""
         data = response.json()
         self._runtime_id = data.get("runtime_id") or data.get("id")
         self._runtime_url = data.get("url")
@@ -290,7 +289,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
             raise ValueError(f"Invalid runtime response: {data}")
 
     def _wait_until_runtime_alive(self) -> None:
-        """Wait until the runtime becomes alive and responsive."""
+        """等待运行时变得活跃并且有响应。"""
         retryer = tenacity.Retrying(
             stop=tenacity.stop_after_delay(self.startup_wait_timeout),
             wait=tenacity.wait_exponential(multiplier=1, min=2, max=10),
@@ -302,7 +301,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
                 self._wait_until_runtime_alive_once()
 
     def _wait_until_runtime_alive_once(self) -> None:
-        """Single attempt to check runtime readiness."""
+        """单次尝试检查运行时准备情况。"""
         logger.info("Waiting for runtime to become alive...")
 
         resp = self._send_api_request(
@@ -314,7 +313,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         pod_status = data.get("pod_status", "").lower()
         logger.info(f"Pod status: {pod_status}")
 
-        # Log additional details for debugging
+        # 记录用于调试的附加详细信息
         if pod_status == "pending":
             container_statuses = data.get("container_statuses", [])
             events = data.get("events", [])
@@ -329,9 +328,9 @@ class APIRemoteWorkspace(RemoteWorkspace):
             restart_reasons = data.get("restart_reasons", [])
             logger.warning(f"Pod restarts: {restart_count}, reasons: {restart_reasons}")
 
-        # Handle different pod states
+        # 处理不同的 Pod 状态
         if pod_status == "ready":
-            # Pod is ready, check health endpoint
+            # Pod 已准备就绪，检查运行状况端点
             health_url = f"{self._runtime_url}/health"
             logger.info(f"Checking health at: {health_url}")
             try:
@@ -346,11 +345,11 @@ class APIRemoteWorkspace(RemoteWorkspace):
                 logger.warning(f"Health check failed: {e}")
                 raise RuntimeError(f"Runtime /health failed: {e}")
         elif pod_status in ("not found", "pending", "running"):
-            # Transient states - continue retrying
+            # 瞬态 - 继续重试
             logger.debug(f"Runtime not yet ready. Status: {pod_status}")
             raise RuntimeError(f"Runtime not yet ready (status: {pod_status})")
         elif pod_status in ("failed", "unknown", "crashloopbackoff"):
-            # Terminal failure states
+            # 终端故障状态
             pod_logs = data.get("pod_logs", "")
             error_msg = f"Runtime failed (status: {pod_status})"
             if pod_logs:
@@ -362,12 +361,12 @@ class APIRemoteWorkspace(RemoteWorkspace):
                 )
             raise ValueError(error_msg)
         else:
-            # Unknown status - log and retry
+            # 未知状态 - 日志和重试
             logger.warning(f"Unknown pod status: {pod_status}, full response: {data}")
             raise RuntimeError(f"Unknown pod status: {pod_status}")
 
     def _send_api_request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
-        """Send an API request with error handling."""
+        """发送带有错误处理的 API 请求。"""
         logger.debug(f"Sending {method} request to {url}")
         logger.debug(f"Request kwargs: {kwargs.keys()}")
 
@@ -375,7 +374,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError:
-            # Log only header keys, not values (to avoid exposing API keys)
+            # 仅记录标头键，而不记录值（以避免暴露 API 键）
             header_keys = list(response.request.headers.keys())
             logger.debug(f"Request header keys: {header_keys}")
             try:
@@ -387,7 +386,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         return response
 
     def cleanup(self) -> None:
-        """Clean up the remote runtime."""
+        """清理远程运行时。"""
         if not self._runtime_id:
             return
 

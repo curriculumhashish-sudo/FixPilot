@@ -1,121 +1,147 @@
-# Routine Maintenance Workflow
+<a id="routine-maintenance-workflow"></a>
 
-This example demonstrates how to set up a GitHub Actions workflow for automated routine maintenance tasks using the OpenHands agent SDK.
+# 日常维护工作流程
 
-## Files
+此示例演示如何使用 OpenHands 智能体 SDK 为自动化日常维护任务设置 GitHub 操作工作流程。
 
-- **`workflow.yml`**: GitHub Actions workflow file that can be copied to `.github/workflows/` in your repository
-- **`agent_script.py`**: Python script that runs the OpenHands agent with a custom prompt
+<a id="files"></a>
 
-## Setup
+## 文件
 
-### 1. Copy the workflow file
+- **`workflow.yml`**：GitHub 可复制到存储库中 `.github/workflows/` 的操作工作流程文件
+- **`agent_script.py`**：使用自定义提示词运行 OpenHands 智能体的 Python 脚本
 
-Copy `workflow.yml` to `.github/workflows/maintenance-task.yml` in your repository:
+<a id="setup"></a>
+
+## 设置
+
+<a id="1-copy-the-workflow-file"></a>
+
+### 1. 复制工作流程文件
+
+将存储库中的 `workflow.yml` 复制到 `.github/workflows/maintenance-task.yml`：
 
 ```bash
 cp examples/03_github_workflows/01_routine_maintenance/workflow.yml .github/workflows/maintenance-task.yml
 ```
 
-### 2. Configure the workflow
+<a id="2-configure-the-workflow"></a>
 
-Edit `.github/workflows/maintenance-task.yml` and set your configuration in the `env` section.
+### 2. 配置工作流程
 
-You can provide the prompt in two ways (choose one):
+编辑 `.github/workflows/maintenance-task.yml` 并在 `env` 部分中设置您的配置。
 
-**Option A: Direct prompt text (PROMPT_STRING)**
+您可以通过两种方式提供提示词（选择一种）：
+
+**选项 A：直接提示词文本 (PROMPT_STRING)**
 ```yaml
 jobs:
   run-maintenance-task:
     runs-on: ubuntu-latest
     env:
-      # Provide prompt as direct text
+      # 提供提示词作为直接文本
       PROMPT_STRING: 'Check for any changes that were made over the past week. If they have not been properly documented, create a PR to concisely update the documentation.'
       
-      # Optional: Customize other settings
+      # 可选：自定义其他设置
       LLM_MODEL: gpt-5.5
-      # LLM_BASE_URL: 'https://custom-api.example.com'
+      # LLM_BASE_URL: ' https://custom-api.example.com'
 ```
 
-**Option B: Prompt from URL or file (PROMPT_LOCATION)**
+**选项 B：提示词来自 URL 或文件 (PROMPT_LOCATION)**
 ```yaml
 jobs:
   run-maintenance-task:
     runs-on: ubuntu-latest
     env:
-      # Provide prompt from URL or file path
+      # 提供 URL 中的提示词或文件路径
       PROMPT_LOCATION: 'https://example.com/prompts/maintenance.txt'
       
-      # Optional: Customize other settings
+      # 可选：自定义其他设置
       LLM_MODEL: gpt-5.5
-      # LLM_BASE_URL: 'https://custom-api.example.com'
+      # LLM_BASE_URL: ' https://custom-api.example.com'
 ```
 
-**Note**: Provide either `PROMPT_STRING` or `PROMPT_LOCATION`, not both.
+**注**：提供`PROMPT_STRING`或`PROMPT_LOCATION`之一，而不是两者都提供。
 
-### 3. Configure secrets
+<a id="3-configure-secrets"></a>
 
-Set the following secret in your GitHub repository settings:
+### 3. 配置机密
 
-- **`LLM_API_KEY`** (required): Your LLM API key
-  - Get one from the [OpenHands LLM Provider](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms)
+在 GitHub 存储库设置中设置以下机密：
 
-### 4. Test locally (optional)
+- **`LLM_API_KEY`**（必填）：您的 LLM API 密钥
+  - 从 [OpenHands LLM 提供商 ](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms) 获取一个
 
-Before setting up automated runs, test the script locally:
+<a id="4-test-locally-optional"></a>
+
+### 4. 本地测试（可选）
+
+在设置自动运行之前，请在本地测试脚本：
 
 ```bash
 export LLM_API_KEY="your-api-key"
 export LLM_MODEL="gpt-5.5"
 
-# Create a test prompt
+# 创建测试提示词
 echo "Check for outdated dependencies in requirements.txt and create a PR to update them" > prompt.txt
 
-# Run the agent
+# 运行智能体
 python examples/03_github_workflows/01_routine_maintenance/agent_script.py prompt.txt
 ```
 
-## Usage
+<a id="usage"></a>
 
-The workflow configuration in the `env` section is used for both manual and scheduled runs.
+## 用途
 
-### Manual runs
+`env` 部分中的工作流配置用于手动运行和计划运行。
 
-You can trigger the workflow manually and optionally override the default configuration:
+<a id="manual-runs"></a>
 
-1. Go to Actions → "Scheduled Maintenance Task"
-2. Click "Run workflow"
-3. (Optional) Override prompt location or other settings
-4. Click "Run workflow"
+### 手动运行
 
-### Scheduled runs
+您可以手动触发工作流程并可选择覆盖默认配置：
 
-To enable automated scheduled runs, edit `.github/workflows/maintenance-task.yml` and uncomment the schedule section:
+1. 转到操作→“计划维护任务”
+2. 单击“运行工作流程”
+3. （可选）覆盖提示词位置或其他设置
+4. 单击“运行工作流程”
+
+<a id="scheduled-runs"></a>
+
+### 预定运行
+
+要启用自动计划运行，请编辑 `.github/workflows/maintenance-task.yml` 并取消注释计划部分：
 
 ```yaml
 on:
   schedule:
-    # Run at 2 AM UTC every day
+    # 每天凌晨 2 点 UTC 运行
     - cron: "0 2 * * *"
 ```
 
-Customize the cron schedule as needed. See [Cron syntax reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
+根据需要自定义 cron 计划。 请参阅 [Cron 语法参考 ](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule)。
 
-The scheduled runs will use the configuration from the `env` section you set in step 2.
+计划的运行将使用您在步骤 2 中设置的 `env` 部分中的配置。
 
-## Example Use Cases
+<a id="example-use-cases"></a>
 
-- **Dependency Update:** Check for outdated dependencies in requirements.txt and create a PR to update them if any are found.
-- **Test Coverage:** Run the test coverage script and find one place that seems to particularly be lacking tests. If you find any, send a PR improving the test coverage there.
-- **Dependency Updates:** Review the README.md and update it to reflect any changes in the codebase since the last update.
-- **Linting:** Run linting and formatting checks on all Python files and create a PR with any fixes.
-- **Link Validation:** Check all links in Markdown files and create an issue listing any broken links.
+## 示例用例
 
-## Customization
+- **依赖项更新：**检查requirements.txt中是否有过时的依赖项，并创建PR来更新它们（如果找到）。
+- **测试覆盖率：**运行测试覆盖率脚本并找到一处似乎特别缺乏测试的地方。 如果您发现任何问题，请发送 PR 改进那里的测试覆盖率。
+- **依赖项更新：**查看 README.md 并更新它以反映自上次更新以来代码库中的任何更改。
+- **静态检查：** 对所有 Python 文件运行静态检查和格式检查，并创建包含任何修复的 PR。
+- **链接验证：** 检查 Markdown 文件中的所有链接并创建一个问题，列出所有损坏的链接。
 
-### Using a custom agent script
+<a id="customization"></a>
 
-You can specify a custom agent script in the workflow inputs:
+## 定制化
+
+<a id="using-a-custom-agent-script"></a>
+
+### 使用自定义智能体脚本
+
+您可以在工作流程输入中指定自定义智能体脚本：
 
 ```yaml
 with:
@@ -123,24 +149,28 @@ with:
   prompt_location: path/to/prompt.txt
 ```
 
-Your custom script should accept a prompt location as a command-line argument and use the OpenHands SDK to run the agent.
+您的自定义脚本应接受提示词位置作为命令行参数，并使用 OpenHands SDK 运行智能体。
 
-### Using remote prompts
+<a id="using-remote-prompts"></a>
 
-You can host prompts remotely (e.g., on GitHub, S3, or any HTTP server) and reference them by URL:
+### 使用遥控器提示词
+
+您可以远程托管提示词（e.g.，在 GitHub、S3 或任何 HTTP 服务器上）并通过 URL 引用它们：
 
 ```bash
-# Example with GitHub raw URL
+# GitHub 原始 URL 的示例
 https://raw.githubusercontent.com/your-org/prompts/main/weekly-maintenance.txt
 
-# Example with Gist
+# 要点示例
 https://gist.githubusercontent.com/username/abc123/raw/prompt.txt
 ```
 
-This allows you to update prompts without modifying the workflow file.
+这允许您更新提示词而无需修改工作流程文件。
 
-## References
+<a id="references"></a>
 
-- [OpenHands SDK Documentation](https://docs.all-hands.dev/)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [LLM Provider Setup](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms)
+## 参考文献
+
+- [OpenHands SDK 文档](https://docs.all-hands.dev/)
+- [GitHub 操作文档](https://docs.github.com/en/actions)
+- [LLM 提供商设置](https://docs.all-hands.dev/openhands/usage/llms/openhands-llms)

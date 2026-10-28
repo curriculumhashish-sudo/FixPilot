@@ -1,6 +1,6 @@
-"""Every id field on an Event or Observation must opt out of secret masking.
+"""事件或观测结果上的每个 id 字段都必须选择退出机密屏蔽。
 
-Type a new id field as ``EventID``, ``ToolCallID`` or ``UnmaskedID`` from
+输入新的 id 字段作为 ``EventID``、``ToolCallID`` 或 ``UnmaskedID``
 ``openhands.sdk.event.types``.
 """
 
@@ -24,14 +24,14 @@ SECRET = "a1b"
 MASK = "<secret-hidden>"
 ID = "fa1b4e36-bdd7-42bf-99df-e184c9dc0d9a"
 
-# "Class.field" names of id fields that can really hold a secret.
+# “Class.field”真正可以容纳机密的id字段的名称。
 _ALLOWLIST: set[str] = set()
 
 
 def _registry() -> SecretRegistry:
     registry = SecretRegistry()
     registry.update_secrets({"SHORT": SECRET})
-    registry.get_secret_value("SHORT")  # resolve -> tracked for masking
+    registry.get_secret_value("SHORT")  # 解析 -> 跟踪掩码
     return registry
 
 
@@ -40,12 +40,12 @@ def _is_id_name(name: str) -> bool:
 
 
 def _can_hold_str(annotation: object) -> bool:
-    # ``list[int]`` token ids are never masked, so they need no marker.
+    # ``list[int]`` token id 永远不会被屏蔽，因此它们不需要标记。
     return annotation is str or any(_can_hold_str(a) for a in get_args(annotation))
 
 
 def _unmarked_id_fields(cls: type[BaseModel]) -> list[str]:
-    """Return the id fields of ``cls`` that secret masking would rewrite."""
+    """返回机密屏蔽将重写的 ``cls`` 的 id 字段。"""
     return [
         f"{cls.__qualname__}.{name}"
         for name, field in cls.model_fields.items()
@@ -56,7 +56,7 @@ def _unmarked_id_fields(cls: type[BaseModel]) -> list[str]:
 
 
 def _all_subclasses(*bases: type[BaseModel]) -> set[type[BaseModel]]:
-    """Import every shipped sdk and tools module, then collect subclasses."""
+    """导入每个已发布的 SDK 和工具模块，然后收集子类。"""
     import openhands.sdk
     import openhands.tools
 
@@ -66,7 +66,7 @@ def _all_subclasses(*bases: type[BaseModel]) -> set[type[BaseModel]]:
         ):
             try:
                 importlib.import_module(module.name)
-            except Exception:  # optional extras must not fail the guard
+            except Exception:  # 可选的附加设施不能让警卫失望
                 continue
 
     def walk(cls):

@@ -1,4 +1,4 @@
-"""Common test fixtures and utilities."""
+"""通用测试测试夹具和实用程序。"""
 
 import os
 import re
@@ -23,8 +23,9 @@ QWEN3_TOKENIZER_CONFIG = (
     TOKENIZER_FIXTURES_DIR / "qwen3-4b-instruct-2507-tokenizer_config.json"
 )
 
-# Settings that point an agent server at, or authenticate it to, a live
-# deployment. A run inside an OpenHands sandbox inherits them from the sandbox.
+# 将 Agent Server 指向实时部署或对其进行身份验证的设置。 OpenHands 沙箱内的运行会从沙箱
+# 继承它们。
+#
 _LIVE_DEPLOYMENT_ENV = re.compile(
     r"SESSION_API_KEY|OH_SESSION_API_KEYS_\d+|OH_WEBHOOKS(_\w+)?"
     r"|OH_CONVERSATIONS_PATH|OH_BASH_EVENTS_DIR|OH_INTERNAL_SERVER_URL"
@@ -33,7 +34,7 @@ _LIVE_DEPLOYMENT_ENV = re.compile(
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    # Before collection: some modules read the agent-server config at import.
+    # 收集之前：某些模块在导入时读取智能体-服务器配置。
     for name in [n for n in os.environ if _LIVE_DEPLOYMENT_ENV.fullmatch(n)]:
         del os.environ[name]
 
@@ -79,19 +80,19 @@ def examples_results_dir(pytestconfig: pytest.Config) -> Path:
 
 @pytest.fixture(scope="session")
 def tokenizer_fixtures_dir() -> Path:
-    """Get the tokenizer fixtures directory path."""
+    """获取分词器测试夹具目录路径。"""
     return TOKENIZER_FIXTURES_DIR
 
 
 @pytest.fixture(scope="session")
 def qwen3_tokenizer_config_path(tokenizer_fixtures_dir: Path) -> Path:
-    """Path to the cached Qwen3 tokenizer config fixture."""
+    """缓存的 Qwen3 tokenizer 配置的路径测试夹具。"""
     return tokenizer_fixtures_dir / "qwen3-4b-instruct-2507-tokenizer_config.json"
 
 
 @pytest.fixture
 def mock_llm():
-    """Create a standard mock LLM instance for testing."""
+    """创建标准模拟对象 LLM 实例进行测试。"""
     return LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -104,7 +105,7 @@ def mock_llm():
 
 @pytest.fixture
 def mock_conversation_state(mock_llm, tmp_path):
-    """Create a standard mock ConversationState for testing."""
+    """创建用于测试的标准模拟对象 ConversationState。"""
     agent = Agent(llm=mock_llm)
     workspace = LocalWorkspace(working_dir=str(tmp_path))
 
@@ -115,7 +116,7 @@ def mock_conversation_state(mock_llm, tmp_path):
         agent=agent,
     )
 
-    # Set up filestore for state persistence
+    # 为状态持久化设置文件存储
     state._fs = InMemoryFileStore()
     state._autosave_enabled = False
 
@@ -124,13 +125,13 @@ def mock_conversation_state(mock_llm, tmp_path):
 
 @pytest.fixture
 def mock_tool():
-    """Create a mock tool for testing."""
+    """创建一个模拟对象工具进行测试。"""
 
     class MockExecutor(ToolExecutor):
         def __call__(self, action, conversation=None):
             return MagicMock(output="mock output", metadata=MagicMock(exit_code=0))
 
-    # Create a simple mock tool without complex dependencies
+    # 创建一个简单的模拟对象工具，无需复杂的依赖项
     mock_tool = MagicMock()
     mock_tool.name = "mock_tool"
     mock_tool.executor = MockExecutor()
@@ -145,15 +146,15 @@ def create_mock_litellm_response(
     completion_tokens: int = 5,
     finish_reason: str = "stop",
 ):
-    """Helper function to create properly structured LiteLLM mock responses.
+    """用于创建结构正确的 LiteLLM 模拟对象响应的辅助函数。
 
     Args:
-        content: Response content
-        response_id: Unique response ID
-        model: Model name
-        prompt_tokens: Number of prompt tokens
-        completion_tokens: Number of completion tokens
-        finish_reason: Reason for completion
+        content: 回复内容
+        response_id: 唯一响应 ID
+        model: 型号名称
+        prompt_tokens: 提示词 token 数量
+        completion_tokens: 完成数量 token
+        finish_reason: 完成原因
     """
     from litellm.types.utils import (
         Choices,
@@ -162,20 +163,20 @@ def create_mock_litellm_response(
         Usage,
     )
 
-    # Create proper LiteLLM message
+    # 创建正确的 LiteLLM 消息
     message = LiteLLMMessage(content=content, role="assistant")
 
-    # Create proper choice
+    # 创造正确的选择
     choice = Choices(finish_reason=finish_reason, index=0, message=message)
 
-    # Create proper usage
+    # 创建正确的用法
     usage = Usage(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=prompt_tokens + completion_tokens,
     )
 
-    # Create proper ModelResponse
+    # 创建适当的ModelResponse
     response = ModelResponse(
         id=response_id,
         choices=[choice],
@@ -190,20 +191,21 @@ def create_mock_litellm_response(
 
 @pytest.fixture(autouse=True)
 def suppress_logging(monkeypatch):
-    """Suppress logging during tests to reduce noise."""
+    """在测试期间禁止记录以减少噪音。"""
     mock_logger = MagicMock()
     monkeypatch.setattr("openhands.sdk.llm.llm.logger", mock_logger)
 
 
 @pytest.fixture(autouse=True)
 def restore_observability_latch():
-    """Keep one test's tracing setup from changing how every later test behaves.
+    """防止一个测试的跟踪设置改变每个后续测试的行为方式。
 
-    ``should_enable_observability`` caches ``True`` in a module global that is
-    never re-checked, and ``Laminar.shutdown()`` does not clear it. A test that
-    brings lmnr up therefore leaves every later ``@observe`` building its real
-    wrapper on first call — which silently breaks tests that trigger that lazy
-    build themselves, and only when they share an xdist worker.
+    ``should_enable_observability`` 将 ``True`` 缓存在模块全局中，并且不会重新检查，
+    并且
+    ``Laminar.shutdown()`` 不会清除它。 ``@observe`` 这个测试会把 lmnr 提升起来，因此
+    ，它会让每个后续的构建都使用真实包装器，
+    第一次调用时就这样做——这会悄悄地破坏那些触发懒加载构建的测试，只有当它们共享一个
+    xdist 工作进程时才会这样做。
     """
     from openhands.sdk.observability import laminar
 

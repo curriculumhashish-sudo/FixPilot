@@ -1,17 +1,15 @@
-"""Stress test: listing many conversations.
+"""压力测试：列出许多对话。
 
-Bug class this catches:
-    - O(N) listing where pagination should be O(page_size).
-    - Pagination off-by-one or duplication.
-    - Accidental global locks held during list (would serialize concurrent
-      list calls and inflate p95).
-    - Per-call leaks: listing N times shouldn't grow RSS proportionally.
+捕获的错误类：
+    - O(N) 列出分页应为 O(page_size) 的位置。
+    - 分页相差一位或重复。
+    - 列表期间意外保留全局锁（将序列化并发列出调用并导致 p95 膨胀）。
+    - 每次调用泄漏：列出 N 次不应按比例增长 RSS。
 
-Why N=2000 and not 10k:
-    Going through start_conversation 10k times takes minutes; loading them
-    through ``ConversationService.__aenter__`` after that takes minutes
-    again. N=2000 still surfaces O(N) regressions strongly while keeping
-    the test under a minute.
+为什么 N=2000 而不是 10k：
+    遍历 start_conversation 10k 次需要几分钟； 之后通过
+    ``ConversationService.__aenter__`` 加载它们又需要几
+    分钟。 N=2000 仍然表面 O(N) 回归强烈，同时将测试保持在一分钟以内。
 """
 
 import asyncio
@@ -40,20 +38,20 @@ async def _seed_conversations(
     n: int,
     workspace_dir: str,
 ) -> set[UUID]:
-    """Seed n conversations through the public service path.
+    """通过公共服务路径进行n次对话。
 
     Concurrency=8 is enough to amortize the per-conversation fixed cost
-    without overwhelming the lease layer. We use the placeholder LLM and
+    不会压垮租赁层。 我们使用占位符 LLM 和
     autotitle=False so seeding never hits the network.
     """
     semaphore = asyncio.Semaphore(8)
 
     async def _one(i: int) -> UUID:
         async with semaphore:
-            # No initial_message: start_conversation would otherwise call
-            # event_service.send_message(..., run_after_send=True), which
-            # invokes the placeholder LLM and fails with a real auth error.
-            # We only need the persistence row to exist for listing.
+            # 否则，No initial_message: start_conversation 会调用
+            # event_service.send_message(..., run_after_send=True)，这会调用占位符 LLM
+            # 并因真正的身份验证错误而失败。 我们只需要持久化行存在即可列出。
+            #
             request = StartConversationRequest(
                 agent=Agent(llm=placeholder_llm(f"seed-{i}"), tools=[]),
                 workspace=LocalWorkspace(working_dir=workspace_dir),
@@ -72,18 +70,18 @@ _MAX_PAGINATION_ITERATIONS = 10_000
 async def _walk_pages(
     client, *, page_size: int, sort_order: str
 ) -> list[tuple[UUID, str]]:
-    """Walk every page of /api/conversations/search.
+    """遍历 /api/conversations/search. 的每一页
 
-    Returns ``(id, created_at)`` pairs in API-returned order. ``created_at``
-    is the raw ISO string from the response; callers compare it pairwise to
-    verify ``sort_order`` was actually honoured. UTC-only timestamps make
-    lexicographic comparison equivalent to chronological.
+    按 API 返回顺序返回 ``(id, created_at)`` 对。 ``created_at`` 是响应中的原始 ISO
+    字符串； 调用者将其两两进行比较，以
+    验证 ``sort_order`` 确实得到了尊重。 UTC-only 时间戳使字典比较相当于按时间顺序比
+    较。
     """
     seen: list[tuple[UUID, str]] = []
     page_id: str | None = None
-    # No `pytest.mark.timeout` on this file, so a circular `next_page_id`
-    # would otherwise hang indefinitely. At N=2000 / limit=50 we expect
-    # ~40 iterations; 10k is a 250× safety margin.
+    # 此文件上没有 `pytest.mark.timeout`，因此循环 `next_page_id` 将无限期挂起。 在 N=
+    # 2000 / limit=50 时，我们预计
+    # ~40 次迭代； 10k 是 250 倍的安全裕度。
     for _ in range(_MAX_PAGINATION_ITERATIONS):
         params: dict[str, object] = {
             "limit": page_size,
@@ -106,8 +104,8 @@ async def _walk_pages(
 
 
 async def _find_last_page_id(client, *, page_size: int, sort_order: str) -> str | None:
-    """Return the page_id cursor for the final page, or None if pagination
-    fits in a single page."""
+    """返回最后一页的 page_id 光标，如果分页则返回 None
+    适合单页。"""
     page_id: str | None = None
     for _ in range(_MAX_PAGINATION_ITERATIONS):
         params: dict[str, object] = {"limit": page_size, "sort_order": sort_order}
@@ -155,7 +153,7 @@ async def test_pagination_is_correct_and_bounded(
     tmp_path,
     probe: ResourceProbe,
 ):
-    """Seed N, walk pages, assert correctness + latency + memory bounds."""
+    """种子 N，遍历页面，断言正确性 + 延迟 + 内存边界。"""
     n = CONVERSATION_LISTING.n_conversations
     page_size = CONVERSATION_LISTING.page_size
     workspace = str(tmp_path / "ws")
@@ -166,7 +164,7 @@ async def test_pagination_is_correct_and_bounded(
     )
     assert len(seeded) == n, "seeding hit a UUID collision (cosmically unlikely)"
 
-    # 1. Correctness: paginated set == seeded set, no duplicates.
+    # 1. 正确性：分页集 == 种子集，无重复。
     paged = await _walk_pages(client, page_size=page_size, sort_order="CREATED_AT_DESC")
     paged_ids = [u for u, _ in paged]
     assert len(paged_ids) == n, (
@@ -179,9 +177,10 @@ async def test_pagination_is_correct_and_bounded(
         f"extra={set(paged_ids) - seeded}."
     )
 
-    # 1b. Sort order: CREATED_AT_DESC must actually be descending. Without
-    # this, a regression that ignores sort_order would still pass set/count
-    # checks. created_at strings are UTC ISO so lexicographic == chronological.
+    # 1b. 排序顺序：CREATED_AT_DESC 实际上必须是降序。 如果没有这个，忽略 sort_order 的
+    # 回归仍然会通过集合/计数检查。 created_at 字符串是 UTC ISO，所以字典顺序 == 按时间
+    # 顺序排列。
+    #
     timestamps = [t for _, t in paged]
     first_break = next(
         (i for i in range(len(timestamps) - 1) if timestamps[i] < timestamps[i + 1]),
@@ -193,9 +192,9 @@ async def test_pagination_is_correct_and_bounded(
         f"{timestamps[first_break]} < {timestamps[first_break + 1]}."
     )
 
-    # 1c. Sort order: CREATED_AT (ASC) must actually be ascending. Together
-    # with 1b above, this catches a regression that ignores sort_order and
-    # always returns one fixed direction (which 1b alone wouldn't notice).
+    # 1c. 排序顺序：CREATED_AT (ASC) 实际上必须是升序。 与上面的 1b 一起，这捕获了一个忽
+    # 略 sort_order 的回归，并且始终返回一个固定方向（单独的 1b 不会注意到）。
+    #
     paged_asc = await _walk_pages(client, page_size=page_size, sort_order="CREATED_AT")
     timestamps_asc = [t for _, t in paged_asc]
     first_break_asc = next(
@@ -212,17 +211,16 @@ async def test_pagination_is_correct_and_bounded(
         f"{timestamps_asc[first_break_asc]} > {timestamps_asc[first_break_asc + 1]}."
     )
 
-    # 2. Count endpoint matches.
+    # 2. 计数端点个匹配项。
     count_resp = await client.get("/api/conversations/count")
     assert count_resp.status_code == 200
     assert count_resp.json() == n
 
-    # 3. First-page latency budget. On shared CI runners (2-vCPU) the
-    # constant-time-per-item work is meaningfully slower than on developer
-    # laptops, so loosen the absolute ceiling under CI=true. A real O(N)
-    # regression at N=2000 produces a 10-100x slowdown, so 4x headroom
-    # still catches it loudly. The deep-page check below is already a
-    # ratio (relative-to-baseline) and stays portable.
+    # 3. 首页延迟预算。 在共享 CI 运行器 (2-vCPU) 上
+    # 每个项目的恒定时间工作比开发人员笔记本电脑慢得多，因此放宽 CI=True 下的绝对上限。
+    # N=2000 时的真实 O(N) 回归会产生 10-100 倍的减速，因此 4 倍的余量仍然可以大声捕捉到
+    # 它。 下面的深度页面检查已经是一个比率（相对于基线）并且保持可移植性。
+    #
     p95_budget = CONVERSATION_LISTING.p95_first_page_s * (
         4.0 if os.getenv("CI") else 1.0
     )
@@ -236,11 +234,11 @@ async def test_pagination_is_correct_and_bounded(
         f"O(N)."
     )
 
-    # 4. Deep-page latency degradation: should be graceful, not a cliff.
-    # With N=2000 and page_size=50 we expect ~40 pages, so _find_last_page_id
-    # must return a non-None cursor. None here means the API returned
-    # everything in one page (pagination broken) — assert loudly so the
-    # deep-page block doesn't silently no-op.
+    # 4. 深页延迟降低：应该是平稳的，而不是悬崖。
+    # 当 N=2000 且 page_size=50 时，我们预计约为 40 页，因此 _find_last_page_id 必须返回
+    # 非 None 游标。 None 这里意味着 API 返回一页中的所有内容（分页损坏） - 大声断言，以
+    # 便深页块不会默默无操作。
+    #
     deep_page_id = await _find_last_page_id(
         client, page_size=page_size, sort_order="CREATED_AT_DESC"
     )
@@ -260,15 +258,13 @@ async def test_pagination_is_correct_and_bounded(
         f"call."
     )
 
-    # 5. RSS during a tight listing loop. Per-call slope is too noisy
-    #    in-process (allocator behaviour, fragmentation), so we measure
-    #    listing-start vs peak-during-listing. A "list everything into
-    #    memory each call" regression overruns this; allocator noise does
-    #    not.
+    # 5. RSS 在紧密的列表循环期间。 每次调用斜率在进程中噪音太大（分配器行为、碎片），因
+    # 此我们测量列表开始与列表期间峰值。 “每次调用时将所有内容都列出到内存中”回归会超出
+    # 此范围； 分配器噪音则不然。
     #
-    # Use only samples captured during the loop — `probe.peak_rss_mb()`
-    # returns the all-time peak, which would include the seeding spike from
-    # earlier in the test and inflate the delta artificially.
+    # 仅使用在循环中捕获的样本 — `probe.peak_rss_mb()` 返回所有时间的峰值，这将包括测试
+    # 早期的种子峰并人为夸大了差异。
+    #
     pre_loop_idx = len(probe.samples)
     assert pre_loop_idx > 0, "ResourceProbe yielded no samples — fixture not entered?"
     pre_loop_rss = probe.samples[-1].rss_mb

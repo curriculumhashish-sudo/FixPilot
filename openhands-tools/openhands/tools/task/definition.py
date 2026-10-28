@@ -1,12 +1,11 @@
-"""Task tool definitions and registration.
+"""任务工具定义和注册。
 
-This module defines the schema and tool classes for sub-agent task
-delegation. It contains:
-- the action/observation models (TaskAction, TaskObservation) for the TaskTool
-- the tool description for the TaskTool
+该模块定义了模式和子智能体任务委托的工具类。 它包含：
+- TaskTool 的行动/观察模型 (TaskAction, TaskObservation)
+- TaskTool 的工具说明
 
-Moreover, it registers the two tool classes TaskTool (the individual tool)
-and TaskToolSet (the entry-point that wires up a TaskManager-backed executor).
+此外，它还注册了两个工具类 TaskTool（单个工具）和 TaskToolSet（连接 TaskManager 支持
+的执行器的入口点）。
 """
 
 from collections.abc import Sequence
@@ -46,7 +45,7 @@ logger = get_logger(__name__)
 
 
 class TaskAction(Action):
-    """Schema for launching a sub-agent task."""
+    """模式用于启动子智能体任务。"""
 
     description: str | None = Field(
         default=None,
@@ -74,7 +73,7 @@ class TaskAction(Action):
 
 
 class TaskObservation(Observation):
-    """Observation from a task execution."""
+    """观测结果来自任务执行。"""
 
     task_id: UnmaskedID = Field(description="The unique identifier of the task.")
     subagent: str = Field(description="The subagent of the task.")
@@ -101,18 +100,18 @@ class TaskObservation(Observation):
     @property
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
         """
-        Default content formatting for converting observation to LLM readable content.
-        Subclasses can override to provide richer content (e.g., images, diffs).
+        用于将观测结果转换为 LLM 可读内容的默认内容格式。 子类可以重写以提供更丰富的
+        内容（e.g.、图像、差异）。
         """
         llm_content: list[TextContent | ImageContent] = [
             TextContent(text=self._get_task_info())
         ]
 
-        # If is_error is true, prepend error message
+        # 如果 is_error 为 True，则添加错误消息
         if self.is_error:
             llm_content.append(TextContent(text=self.ERROR_MESSAGE_HEADER))
 
-        # Add content (now always a list)
+        # 添加内容（现在始终是列表）
         llm_content.extend(self.content)
 
         return llm_content
@@ -178,7 +177,7 @@ Example — Perform a multi-step task involving code editing and shell commands:
 
 
 class TaskTool(ToolDefinition[TaskAction, TaskObservation]):
-    """Tool for launching (blocking) sub-agent tasks."""
+    """用于启动（阻止）子智能体任务的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
@@ -209,11 +208,11 @@ class TaskTool(ToolDefinition[TaskAction, TaskObservation]):
 
 
 class TaskToolSet(ToolDefinition[TaskAction, TaskObservation]):
-    """Task tool set.
+    """任务工具集。
 
-    Creates the Task tool backed by a shared TaskManager.
+    创建由共享 TaskManager 支持的任务工具。
 
-    Usage:
+    用途：
         from openhands.tools.task import TaskToolSet
 
         agent = Agent(
@@ -237,20 +236,19 @@ class TaskToolSet(ToolDefinition[TaskAction, TaskObservation]):
         confirmation_handler: "ConfirmationHandler | None" = None,
         sub_agent_scope: SubAgentScope | dict[str, bool] | None = None,
     ) -> list[ToolDefinition]:
-        """Create the task tool.
+        """创建任务工具。
 
         Args:
-            conv_state: Conversation state for workspace info.
-            confirmation_handler: Optional callback invoked when a sub-agent's
-                confirmation policy requires user approval.  Receives
-                `(task_id, pending_actions)` and must return `True` to
-                approve or `False` to reject.
-            sub_agent_scope: Whether the sub-agents it offers and starts must
-                stay within this agent's tools. Sub-agents always inherit this
-                agent's MCP servers.
+            conv_state: 工作区信息的对话状态。
+            confirmation_handler: 当子智能体的时候调用可选的回调
+                确认策略需要用户批准。 收到
+                `(task_id, pending_actions)` 并且必须返回 `True` 表示批准或返回
+                `False` 表示拒绝。
+            sub_agent_scope: 它提供和启动的子智能体是否必须
+                留在这个智能体的工具中。 子智能体始终继承此智能体的 MCP 服务器。
 
         Returns:
-            List containing a single TaskTool.
+            包含单个 TaskTool 的列表。
         """
         from openhands.tools.task.impl import TaskExecutor, TaskManager
 
@@ -306,6 +304,6 @@ def _offered(
     return not missing
 
 
-# Automatically register when this module is imported
+# 导入该模块时自动注册
 register_tool(TaskToolSet.name, TaskToolSet)
 register_tool(TaskTool.name, TaskTool)

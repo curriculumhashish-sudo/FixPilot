@@ -1,4 +1,4 @@
-"""Factory for creating appropriate terminal sessions based on system capabilities."""
+"""用于根据系统功能创建适当的终端会话的工厂。"""
 
 import platform
 import subprocess
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 def _is_tmux_available() -> bool:
-    """Check if tmux is available on the system."""
+    """检查系统上是否可用 tmux。"""
     try:
         result = subprocess.run(
             ["tmux", "-V"],
@@ -30,7 +30,7 @@ def _is_tmux_available() -> bool:
 
 
 def _get_powershell_command(explicit_shell_path: str | None = None) -> str | None:
-    """Return a usable PowerShell executable for the current platform."""
+    """返回当前平台可用的 PowerShell 可执行文件。"""
     candidates = [explicit_shell_path] if explicit_shell_path else []
     if platform.system() == "Windows":
         candidates.extend(["pwsh.exe", "pwsh", "powershell.exe", "powershell"])
@@ -56,7 +56,7 @@ def _get_powershell_command(explicit_shell_path: str | None = None) -> str | Non
 
 
 def _is_powershell_available() -> bool:
-    """Check if PowerShell is available on the system."""
+    """检查系统上是否可用 PowerShell。"""
     return _get_powershell_command() is not None
 
 
@@ -90,23 +90,23 @@ def create_terminal_session(
     shell_path: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> TerminalSession:
-    """Create an appropriate terminal session based on system capabilities.
+    """根据系统功能创建适当的终端会话。
 
     Args:
-        work_dir: Working directory for the session
-        username: Optional username for the session
-        no_change_timeout_seconds: Timeout for no output change
-        terminal_type: Force a specific session type ('tmux', 'subprocess',
-            or 'powershell'). If None, auto-detect based on system capabilities.
-        shell_path: Path to the shell binary. On Unix this is used for the
-            subprocess backend; on Windows it can point to a PowerShell binary.
-        env: Extra environment variables to add to the terminal session.
+        work_dir: 工作目录会议
+        username: 会话的可选用户名
+        no_change_timeout_seconds: 超时表示无输出变化
+        terminal_type: 强制指定特定会话类型（'tmux'、'子进程'、
+            或“powershell”）。 如果为 None，则根据系统功能自动检测。
+        shell_path: shell 二进制文件的路径。 在 Unix 上，这用于
+            子进程后端； 在 Windows 上，它可以指向 PowerShell 二进制文件。
+        env: 添加到终端会话的额外环境变量。
 
     Returns:
-        TerminalSession instance
+        TerminalSession 实例
 
     Raises:
-        RuntimeError: If the requested session type is not available
+        RuntimeError: 如果请求的会话类型不可用
     """
     if terminal_type:
         if terminal_type == "tmux":

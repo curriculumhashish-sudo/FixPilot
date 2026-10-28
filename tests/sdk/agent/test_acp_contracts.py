@@ -1,4 +1,4 @@
-"""Unit tests for typed ACP capability and session contracts."""
+"""单元测试用于类型化的 ACP 功能和会话合同。"""
 
 from __future__ import annotations
 

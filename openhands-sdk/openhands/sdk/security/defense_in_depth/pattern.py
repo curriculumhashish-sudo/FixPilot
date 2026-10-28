@@ -1,16 +1,15 @@
-"""Classify agent actions by matching content against known threat signatures.
+"""通过将内容与已知威胁签名进行匹配来对智能体操作进行分类。
 
-When an agent is about to run ``rm -rf /``, you want to catch it. When
-the agent merely *thinks about* ``rm -rf /`` while running ``ls /tmp``,
-you do not. This module solves that with two scanning corpora:
+当智能体即将运行 ``rm -rf /`` 时，你想抓住它。 当智能体在运行``ls /tmp``时仅仅*思考*
+``rm -rf /``时，你不会。 该模块通过两个扫描语料
+库来解决这个问题。
 
-- **Executable corpus** (tool_name, tool_call arguments): scanned for
-  shell-destructive, code-execution, and network-to-exec patterns.
-- **All-field corpus** (executable + thought/reasoning/summary): scanned
-  for injection and social-engineering patterns that are dangerous
-  wherever they appear.
+- **可执行语料库**（tool_name、tool_call参数）：扫描 shell 破坏性、代码执行和网络执行
+模式。
+- **所有字段语料库**（包含可执行代码 + 思考/推理/总结）：扫描以识别任何危险的注入和社
+会工程模式。
 
-Each pattern carries a stable detector ID for telemetry readiness.
+每个模式都带有一个稳定的探测器 ID，用于遥测准备。
 """
 
 from __future__ import annotations
@@ -38,8 +37,8 @@ from openhands.sdk.security.risk import SecurityRisk
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Stable detector IDs -- do not change between releases without documentation.
-# Format: DET_{CORPUS}_{FAMILY}_{SPECIFIC}
+# 稳定的检测器 ID——在没有文档的情况下不要在版本之间进行更改。
+# 格式：DET_{CORPUS}_{FAMILY}_{SPECIFIC}
 # ---------------------------------------------------------------------------
 
 DET_EXEC_DESTRUCT_RM_RF = "exec.destruct.rm_rf"
@@ -59,20 +58,20 @@ DET_INJECT_MODE_SWITCH = "inject.mode_switch"
 DET_INJECT_IDENTITY = "inject.identity"
 
 # ---------------------------------------------------------------------------
-# Pattern definitions
+# 模式定义
 #
-# Format: (regex_pattern, description, detector_id)
+# 格式：(regex_pattern、描述、detector_id)
 #
-# Pattern design constraints:
-# - No unbounded .* or .+ around alternations (catastrophic backtracking)
-# - Risky spans are bounded ({0,N}) to prevent ReDoS
-# - \s* and \w+ are acceptable in non-alternation positions
-# - \b-anchored to avoid substring matches
-# - IGNORECASE compiled in
+# 图案设计限制：
+# - 没有无限的 .* 或 .+ 围绕交替（灾难性回溯）
+# - 风险跨度有界 ({0,N}) 以防止 ReDoS
+# - \s* 和 \w+ 在非交替位置是可接受的
+# - \b-锚定以避免子字符串匹配
+# - IGNORECASE 编译于
 # ---------------------------------------------------------------------------
 
 DEFAULT_HIGH_PATTERNS: list[tuple[str, str, str]] = [
-    # Destructive filesystem operations
+    # 破坏性文件系统操作
     (
         r"\brm\s+(?:-[frR]{2,}|-[rR]\s+-f|-f\s+-[rR]"
         r"|--recursive\s+--force|--force\s+--recursive)\b",
@@ -82,7 +81,7 @@ DEFAULT_HIGH_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bsudo\s+rm\b", "Privileged file deletion", DET_EXEC_DESTRUCT_SUDO_RM),
     (r"\bmkfs\.\w+", "Filesystem format command", DET_EXEC_DESTRUCT_MKFS),
     (r"\bdd\b.{0,100}of=/dev/", "Raw disk write", DET_EXEC_DESTRUCT_DD),
-    # Code invocation via dynamic interpreters
+    # 通过动态解释器调用代码
     (r"\beval\s*\(", "Dynamic code evaluation", DET_EXEC_CODE_EVAL),
     (r"\bexec\s*\(", "Dynamic code execution", DET_EXEC_CODE_EXEC),
     (r"\bos\.system\s*\(", "OS-level command execution", DET_EXEC_CODE_OS_SYSTEM),
@@ -91,7 +90,7 @@ DEFAULT_HIGH_PATTERNS: list[tuple[str, str, str]] = [
         "Subprocess invocation",
         DET_EXEC_CODE_SUBPROCESS,
     ),
-    # Download-and-run
+    # 下载并运行
     (
         r"\bcurl\b[^|]{0,200}\|\s*(?:ba)?sh\b",
         "Download and run (curl | sh)",
@@ -105,13 +104,14 @@ DEFAULT_HIGH_PATTERNS: list[tuple[str, str, str]] = [
 ]
 
 DEFAULT_MEDIUM_PATTERNS: list[tuple[str, str, str]] = [
-    # Network access without invocation pipe
+    # 无需调用管道的网络访问
     (r"\bcurl\b.{0,100}https?://", "HTTP request via curl", DET_EXEC_NET_CURL),
     (r"\bwget\b.{0,100}https?://", "Download via wget", DET_EXEC_NET_WGET),
 ]
 
-# Injection patterns: scanned against ALL fields (invocation + reasoning).
-# These are textual attacks targeting instruction-following, not the OS.
+# 注入模式：针对全部字段进行扫描（调用 + 推理）。 这些是针对指令跟踪的文本攻击，而不是针
+# 对操作系统。
+#
 
 DEFAULT_INJECTION_HIGH_PATTERNS: list[tuple[str, str, str]] = [
     (
@@ -142,23 +142,20 @@ DEFAULT_INJECTION_MEDIUM_PATTERNS: list[tuple[str, str, str]] = [
 
 
 class PatternSecurityAnalyzer(SecurityAnalyzerBase):
-    """Catch dangerous agent actions through deterministic signature scanning.
+    """通过确定性签名扫描捕获危险的智能体操作。
 
-    Use this when you want fast, local, no-network threat detection at the
-    action boundary. It returns ``SecurityRisk.HIGH``, ``MEDIUM``, or ``LOW``.
-    It returns ``UNKNOWN`` when the shell scan cannot resolve relevant
-    destructive structure. Pair it with ``ConfirmRisky`` to decide what gets
-    confirmed.
+    当您希望在操作边界进行快速、本地、无网络威胁检测时，请使用此选项。 它返回
+    ``SecurityRisk.HIGH``、``MEDIUM`` 或 ``LOW``。
+    当shell扫描无法解析相关破坏性结构时，返回``UNKNOWN``。 将其与 ``ConfirmRisky`` 配
+    对来决定要确认的内容。
 
-    The key design choice: shell-destructive patterns only scan what the
-    agent will *execute* (tool arguments), never what it *thought about*
-    (reasoning text). Injection patterns scan everything, because
-    "ignore all previous instructions" is dangerous wherever it appears.
+    关键的设计选择：外壳破坏性模式仅扫描智能体 will *execute* (工具参数)，而不是它 *
+    thought about* (reasoning text).
+     注入模式会扫描一切，因为“忽略所有先前的指令”无论出现在哪里都是危险的。
 
-    Normalization is always on -- invisible characters and fullwidth
-    substitutions are collapsed before matching.
+    规范化始终处于开启状态——不可见字符和全角替换在匹配之前被折叠。
 
-    Example::
+    示例：:
 
         from openhands.sdk.security import PatternSecurityAnalyzer, ConfirmRisky
 
@@ -197,7 +194,7 @@ class PatternSecurityAnalyzer(SecurityAnalyzerBase):
     )
 
     def model_post_init(self, __context: Any) -> None:
-        """Compile regex patterns after model initialization."""
+        """模型初始化后编译正则表达式模式。"""
         self._compiled_high = [
             (re.compile(p, re.IGNORECASE), d, det_id)
             for p, d, det_id in self.high_patterns
@@ -216,28 +213,28 @@ class PatternSecurityAnalyzer(SecurityAnalyzerBase):
         ]
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Evaluate security risk via two-corpus pattern matching."""
+        """通过两个语料库模式匹配评估安全风险。"""
         exec_content = _normalize(_extract_exec_content(action))
         all_content = _normalize(_extract_content(action))
 
         if not exec_content and not all_content:
             return SecurityRisk.LOW
 
-        # HIGH: patterns on executable fields only
+        # HIGH：仅适用于可执行字段的模式
         for pattern, _desc, det_id in self._compiled_high:
             if pattern.search(exec_content):
                 logger.debug("Pattern matched: %s -> HIGH", det_id)
                 return SecurityRisk.HIGH
 
-        # HIGH: injection patterns on all fields
+        # HIGH：所有字段的注入模式
         for pattern, _desc, det_id in self._compiled_injection_high:
             if pattern.search(all_content):
                 logger.debug("Pattern matched: %s -> HIGH", det_id)
                 return SecurityRisk.HIGH
 
-        # HIGH: AST resolution on executable fields, catching quoted,
-        # path-qualified and nested command names that word-boundary
-        # anchors cannot see.
+        # HIGH: AST 可执行字段解析，捕获引用，
+        # 单词边界锚点看不到的路径限定和嵌套命令名称。
+        #
         shell_scans = (
             scan_shell_command(segment, DET_EXEC_DESTRUCT_RM_RF)
             for segment in _extract_exec_segments(action)
@@ -249,21 +246,21 @@ class PatternSecurityAnalyzer(SecurityAnalyzerBase):
                 return SecurityRisk.HIGH
             shell_scan_uncertain = shell_scan_uncertain or shell_scan.uncertain
 
-        # MEDIUM: patterns on executable fields only
+        # MEDIUM：仅适用于可执行字段的模式
         for pattern, _desc, det_id in self._compiled_medium:
             if pattern.search(exec_content):
                 logger.debug("Pattern matched: %s -> MEDIUM", det_id)
                 return SecurityRisk.MEDIUM
 
-        # MEDIUM: injection patterns on all fields
+        # MEDIUM：所有字段的注入模式
         for pattern, _desc, det_id in self._compiled_injection_medium:
             if pattern.search(all_content):
                 logger.debug("Pattern matched: %s -> MEDIUM", det_id)
                 return SecurityRisk.MEDIUM
 
-        # The destructive flag shape on a verb the scan could not resolve:
-        # UNKNOWN rather than a false LOW. ConfirmRisky prompts for UNKNOWN by
-        # default. Text that merely fails to parse stays LOW.
+        # 扫描无法解析的动词上的破坏性标志形状：UNKNOWN 而不是 False LOW。 默认情况下，
+        # ConfirmRisky 提示词代表 UNKNOWN。 仅仅无法解析的文本仍保留在LOW中。
+        #
         if shell_scan_uncertain:
             logger.debug("Shell AST uncertain (unresolvable verb) -> UNKNOWN")
             return SecurityRisk.UNKNOWN

@@ -1,4 +1,4 @@
-"""Tests for VSCode router."""
+"""测试 VSCode 路由器。"""
 
 from unittest.mock import patch
 
@@ -16,22 +16,22 @@ from openhands.agent_server.vscode_router import (
 
 @pytest.fixture
 def client():
-    """Create a test client."""
-    config = Config(session_api_keys=[])  # Disable authentication for tests
+    """创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证进行测试
     app = create_app(config)
     return TestClient(app)
 
 
 @pytest.fixture
 def mock_vscode_service():
-    """Mock VSCode service for testing."""
+    """模拟对象 VSCode 测试服务。"""
     with patch("openhands.agent_server.vscode_router.get_vscode_service") as mock:
         yield mock.return_value
 
 
 @pytest.mark.asyncio
 async def test_get_vscode_url_success(mock_vscode_service):
-    """Test getting VSCode URL successfully."""
+    """成功获取 VSCode URL。"""
     mock_vscode_service.get_connection_token.return_value = "test-token"
     mock_vscode_service.get_vscode_url.return_value = (
         "http://localhost:8001/?tkn=test-token&folder=/workspace"
@@ -47,11 +47,11 @@ async def test_get_vscode_url_success(mock_vscode_service):
 
 @pytest.mark.asyncio
 async def test_get_vscode_url_default_uses_configured_port(mock_vscode_service):
-    """Omitting base_url must defer to the service (None), not hardcode :8001.
+    """省略 base_url 必须遵循服务 (None)，而不是硬编码：8001。
 
-    The service builds ``http://localhost:{self.port}`` when base_url is None,
-    so clients that don't know the deployment topology receive the port the
-    server actually binds (e.g. OH_VSCODE_PORT) rather than a fixed default.
+    当 base_url 为 None 时，服务会构建 ``http://localhost:{self.port}``，因此不知道部
+    署拓扑的客户端会收到服务器实际绑定
+    的端口 (e.g. OH_VSCODE_PORT）而不是固定的默认值。
     """
     mock_vscode_service.get_vscode_url.return_value = (
         "http://localhost:19000/?tkn=test-token&folder=workspace"
@@ -65,7 +65,7 @@ async def test_get_vscode_url_default_uses_configured_port(mock_vscode_service):
 
 @pytest.mark.asyncio
 async def test_get_vscode_url_error(mock_vscode_service):
-    """Test getting VSCode URL with service error."""
+    """测试 VSCode URL 与服务错误。"""
     mock_vscode_service.get_connection_token.side_effect = Exception("Service error")
 
     with pytest.raises(HTTPException) as exc_info:
@@ -77,7 +77,7 @@ async def test_get_vscode_url_error(mock_vscode_service):
 
 @pytest.mark.asyncio
 async def test_get_vscode_status_running(mock_vscode_service):
-    """Test getting VSCode status when running."""
+    """测试运行时获取 VSCode 状态。"""
     mock_vscode_service.is_running.return_value = True
 
     response = await get_vscode_status()
@@ -88,7 +88,7 @@ async def test_get_vscode_status_running(mock_vscode_service):
 
 @pytest.mark.asyncio
 async def test_get_vscode_status_not_running(mock_vscode_service):
-    """Test getting VSCode status when not running."""
+    """测试 VSCode 状态获取时未运行。"""
     mock_vscode_service.is_running.return_value = False
 
     response = await get_vscode_status()
@@ -98,7 +98,7 @@ async def test_get_vscode_status_not_running(mock_vscode_service):
 
 @pytest.mark.asyncio
 async def test_get_vscode_status_error(mock_vscode_service):
-    """Test getting VSCode status with service error."""
+    """测试 VSCode 状态获取服务错误。"""
     mock_vscode_service.is_running.side_effect = Exception("Service error")
 
     with pytest.raises(HTTPException) as exc_info:
@@ -109,8 +109,8 @@ async def test_get_vscode_status_error(mock_vscode_service):
 
 
 def test_vscode_router_endpoints_integration(client):
-    """Test VSCode router endpoints through the API."""
-    # Patch both the router import and the service module
+    """测试路由器端点 VSCode API。"""
+    # 修补路由器导入和服务模块
     with (
         patch(
             "openhands.agent_server.vscode_router.get_vscode_service"
@@ -123,21 +123,21 @@ def test_vscode_router_endpoints_integration(client):
         )
         mock_service.is_running.return_value = True
 
-        # Mock the API service to avoid startup
+        # 模拟对象 API 服务避免启动
         mock_api_service.return_value.start.return_value = True
         mock_api_service.return_value.stop.return_value = None
 
-        # Test URL endpoint
+        # 测试 URL 端点
         response = client.get("/api/vscode/url")
         assert response.status_code == 200
         data = response.json()
         assert data["url"] == "http://localhost:8001/?tkn=integration-token"
 
-        # Test URL endpoint with custom base URL
+        # 使用自定义基础 URL 测试 URL 端点
         response = client.get("/api/vscode/url?base_url=http://example.com")
         assert response.status_code == 200
 
-        # Test status endpoint
+        # 测试状态端点
         response = client.get("/api/vscode/status")
         assert response.status_code == 200
         data = response.json()
@@ -145,8 +145,8 @@ def test_vscode_router_endpoints_integration(client):
 
 
 def test_vscode_router_endpoints_with_errors(client):
-    """Test VSCode router endpoints with service errors."""
-    # Patch both the router import and the service module
+    """测试路由器 VSCode 和服务错误端点。"""
+    # 修补路由器导入和服务模块
     with (
         patch(
             "openhands.agent_server.vscode_router.get_vscode_service"
@@ -156,17 +156,17 @@ def test_vscode_router_endpoints_with_errors(client):
         mock_service = mock_service_getter.return_value
         mock_service.is_running.side_effect = Exception("Service down")
 
-        # Mock the API service to avoid startup
+        # 模拟对象 API 服务避免启动
         mock_api_service.return_value.start.return_value = True
         mock_api_service.return_value.stop.return_value = None
 
-        # Test URL endpoint error
+        # 测试 URL 端点错误
         response = client.get("/api/vscode/url")
         assert response.status_code == 500
         data = response.json()
         assert data["detail"] == "Internal Server Error"
 
-        # Test status endpoint error
+        # 测试状态端点错误
         response = client.get("/api/vscode/status")
         assert response.status_code == 500
         data = response.json()
@@ -175,7 +175,7 @@ def test_vscode_router_endpoints_with_errors(client):
 
 @pytest.mark.asyncio
 async def test_get_vscode_url_disabled():
-    """Test getting VSCode URL when VSCode is disabled."""
+    """测试 VSCode URL 当 VSCode 时。"""
     with patch(
         "openhands.agent_server.vscode_router.get_vscode_service"
     ) as mock_service:
@@ -190,7 +190,7 @@ async def test_get_vscode_url_disabled():
 
 @pytest.mark.asyncio
 async def test_get_vscode_status_disabled():
-    """Test getting VSCode status when VSCode is disabled."""
+    """测试 VSCode 时获取 VSCode 状态。"""
     with patch(
         "openhands.agent_server.vscode_router.get_vscode_service"
     ) as mock_service:
@@ -206,32 +206,32 @@ async def test_get_vscode_status_disabled():
 
 
 def test_vscode_router_disabled_integration(client):
-    """Test VSCode router endpoints when VSCode is disabled."""
+    """Test VSCode router 端点当 VSCode 已禁用。"""
     with (
         patch(
             "openhands.agent_server.vscode_router.get_vscode_service"
         ) as mock_router_service,
         patch("openhands.agent_server.api.get_vscode_service") as mock_api_service,
     ):
-        # Configure VSCode as disabled
+        # 将 VSCode 配置为禁用
         mock_router_service.return_value = None
 
-        # Mock the API service to avoid startup
+        # 模拟对象 API 服务避免启动
         mock_api_service.return_value = None
 
-        # Test URL endpoint returns 503 when disabled
+        # 禁用时测试 URL 端点返回 503
         response = client.get("/api/vscode/url")
         assert response.status_code == 503
         data = response.json()
-        # The error message might be in different fields depending on FastAPI error
-        # handling
+        # 根据 FastAPI 错误处理，错误消息可能位于不同字段中
+        #
         error_message = data.get("detail", data.get("message", ""))
         assert (
             "VSCode is disabled" in error_message
             or "Internal Server Error" in error_message
         )
 
-        # Test status endpoint returns disabled status
+        # 测试状态端点返回禁用状态
         response = client.get("/api/vscode/status")
         assert response.status_code == 200
         data = response.json()

@@ -32,18 +32,18 @@ export const ServerStatus: React.FC<ServerStatusProps> = ({ settings, onRefresh 
     }
   };
 
-  // Initial status check
+  // 初始状态检查
   useEffect(() => {
     checkStatus();
   }, [settings.agentServerUrl, settings.agentServerApiKey, settings.apiKey, settings.modelName]);
 
-  // Auto-refresh functionality
+  // 自动刷新功能
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
       checkStatus();
-    }, 30000); // Refresh every 30 seconds
+    }, 30000); // 每 30 秒刷新一次
 
     return () => clearInterval(interval);
   }, [autoRefresh, settings]);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the deterministic public Agent Server OpenAPI contract."""
+"""导出确定性公共 Agent Server OpenAPI 合约。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for the Cipher utility class."""
+"""Cipher 实用程序类的测试。"""
 
 from base64 import urlsafe_b64encode
 
@@ -9,27 +9,27 @@ from openhands.sdk.utils.cipher import Cipher
 
 
 def test_cipher_encrypt_decrypt():
-    """Test basic encryption and decryption functionality."""
-    # Generate a proper Fernet key
+    """测试基本的加密和解密功能。"""
+    # 生成正确的 Fernet 密钥
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
     secret = SecretStr("my-secret-api-key")
 
-    # Test encryption
+    # 测试加密
     encrypted = cipher.encrypt(secret)
     assert encrypted is not None
     assert encrypted != secret.get_secret_value()
     assert isinstance(encrypted, str)
 
-    # Test decryption
+    # 测试解密
     decrypted = cipher.decrypt(encrypted)
     assert decrypted is not None
     assert decrypted.get_secret_value() == secret.get_secret_value()
 
 
 def test_cipher_encrypt_none():
-    """Test that encrypting None returns None."""
+    """测试加密 None 返回 None。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
@@ -38,7 +38,7 @@ def test_cipher_encrypt_none():
 
 
 def test_cipher_decrypt_none():
-    """Test that decrypting None returns None."""
+    """测试解密 None 返回 None。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
@@ -47,22 +47,22 @@ def test_cipher_decrypt_none():
 
 
 def test_cipher_decrypt_invalid_data():
-    """Test that decrypting invalid data returns None and logs warning."""
+    """测试解密无效数据是否返回 None 并记录警告。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
-    # Test with completely invalid data
+    # 使用完全无效的数据进行测试
     result = cipher.decrypt("invalid-encrypted-data")
     assert result is None
 
-    # Test with malformed base64
+    # 使用格式错误的 base64 进行测试
     result = cipher.decrypt("not-base64!")
     assert result is None
 
 
 def test_cipher_decrypt_wrong_key():
-    """Test that decrypting with wrong key returns None and logs warning."""
-    # Create two different keys
+    """测试使用错误密钥解密是否返回 None 并记录警告。"""
+    # 创建两个不同的密钥
     key1 = urlsafe_b64encode(b"a" * 32).decode("ascii")
     key2 = urlsafe_b64encode(b"b" * 32).decode("ascii")
 
@@ -71,39 +71,39 @@ def test_cipher_decrypt_wrong_key():
 
     secret = SecretStr("test-secret")
 
-    # Encrypt with first cipher
+    # 使用第一个密码进行加密
     encrypted = cipher1.encrypt(secret)
     assert encrypted is not None
 
-    # Try to decrypt with second cipher (wrong key)
+    # 尝试用第二个密码解密（密钥错误）
     result = cipher2.decrypt(encrypted)
     assert result is None
 
 
 def test_cipher_fernet_caching():
-    """Test that Fernet instance is cached properly."""
+    """测试 Fernet 实例是否正确缓存。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
-    # Get Fernet instance twice
+    # 获取 Fernet 实例两次
     fernet1 = cipher._get_fernet()
     fernet2 = cipher._get_fernet()
 
-    # Should be the same instance (cached)
+    # 应该是同一个实例（缓存）
     assert fernet1 is fernet2
     assert isinstance(fernet1, Fernet)
 
 
 def test_cipher_with_real_fernet_key():
-    """Test cipher with a real Fernet-generated key."""
-    # Generate a proper Fernet key
+    """使用 Fernet 生成的真实密钥测试密码。"""
+    # 生成正确的 Fernet 密钥
     fernet_key = Fernet.generate_key()
     key = fernet_key.decode("ascii")
 
     cipher = Cipher(key)
     secret = SecretStr("test-api-key-12345")
 
-    # Test round-trip encryption/decryption
+    # 测试往返加密/解密
     encrypted = cipher.encrypt(secret)
     decrypted = cipher.decrypt(encrypted)
 
@@ -112,20 +112,20 @@ def test_cipher_with_real_fernet_key():
 
 
 def test_cipher_multiple_encryptions_different():
-    """Test that multiple encryptions of the same value produce different results."""
+    """测试相同值的多次加密是否会产生不同的结果。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
     secret = SecretStr("same-secret")
 
-    # Encrypt the same secret multiple times
+    # 多次加密相同的机密
     encrypted1 = cipher.encrypt(secret)
     encrypted2 = cipher.encrypt(secret)
 
-    # Results should be different (due to Fernet's built-in randomness)
+    # 结果应该不同（由于 Fernet 内置的随机性）
     assert encrypted1 != encrypted2
 
-    # But both should decrypt to the same value
+    # 但两者都应该解密为相同的值
     decrypted1 = cipher.decrypt(encrypted1)
     decrypted2 = cipher.decrypt(encrypted2)
 
@@ -137,7 +137,7 @@ def test_cipher_multiple_encryptions_different():
 
 
 def test_cipher_empty_string():
-    """Test encryption/decryption of empty string."""
+    """测试空字符串的加密/解密。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
@@ -153,7 +153,7 @@ def test_cipher_empty_string():
 
 
 def test_cipher_unicode_content():
-    """Test encryption/decryption of unicode content."""
+    """测试 unicode 内容的加密/解密。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
@@ -167,11 +167,11 @@ def test_cipher_unicode_content():
 
 
 def test_cipher_long_content():
-    """Test encryption/decryption of long content."""
+    """测试长内容的加密/解密。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     cipher = Cipher(key)
 
-    # Create a long secret (1KB)
+    # 创建一个长的机密 (1KB)
     long_secret = "x" * 1024
     secret = SecretStr(long_secret)
 
@@ -197,7 +197,7 @@ def test_cipher_decrypts_with_previous_key_and_encrypts_with_current():
     fresh = rotated.encrypt(SecretStr("value"))
     assert fresh is not None
     assert rotated.is_current(fresh)
-    # A new token is under the new key only: the old key cannot read it.
+    # 新的 token 仅位于新密钥下：旧密钥无法读取它。
     assert old.decrypt(fresh) is None
     assert Cipher("new-key").try_decrypt_str(fresh) == "value"
 
@@ -210,11 +210,11 @@ def test_cipher_rotate():
     new_token = rotated.rotate(token)
     assert new_token is not None and new_token != token
     assert rotated.is_current(new_token)
-    # After rotation the previous key is no longer needed.
+    # 轮换后，不再需要之前的密钥。
     assert Cipher("new-key").try_decrypt_str(new_token) == "value"
-    # A token already under the current key is returned unchanged.
+    # 已在当前键下的 token 将原样返回。
     assert rotated.rotate(new_token) == new_token
-    # No configured key can decrypt it: nothing to rotate to.
+    # 没有配置的密钥可以解密它：没有可旋转的对象。
     assert Cipher("new-key", previous_keys=["other"]).rotate(token) is None
 
 

@@ -1,49 +1,61 @@
-# Validation Checklist
+<a id="validation-checklist"></a>
 
-## Package
+# 验证清单
 
-- [ ] `plugin.json` is a regular file at the plugin root.
-- [ ] Every packaged or resolved path remains inside the plugin root.
-- [ ] Symlinks, junctions, and reparse points do not escape the package.
-- [ ] No credentials, tokens, or private keys are embedded in the package.
+<a id="package"></a>
 
-## Manifest
+## 套餐
 
-- [ ] `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`.
-- [ ] `name` satisfies the v1 length and character rules.
-- [ ] Only `$schema`, `name`, `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, and `extensions` appear at the top level.
-- [ ] Every `extensions` member is an object keyed by a reverse-domain namespace.
-- [ ] Optional metadata has the type required by the schema.
+- [ ] `plugin.json` 是插件根目录下的常规文件。
+- [ ] 每个打包或解析的路径都保留在插件根目录内。
+- [ ] 符号链接、连接点和重分析点不会逃逸包。
+- [ ] 包中未嵌入凭据、token 或私钥。
 
-## Skills
+<a id="manifest"></a>
 
-- [ ] Each skill is an immediate child directory of `skills/`.
-- [ ] Each skill contains a regular file named exactly `SKILL.md`.
-- [ ] The frontmatter `name` matches the directory name and Agent Skills naming rules.
-- [ ] `description` explains both what the skill does and when to use it.
-- [ ] Referenced scripts, references, and assets exist within the skill directory.
-- [ ] Each skill validates independently; one invalid skill should not hide failures in another.
+## 清单
 
-## MCP, when present
+- []`$schema`是`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`。
+- [ ] `name` 满足v1长度和字符规则。
+- [ ] 仅 `$schema`、`name`、`version`、`description`、`author`、`homepage`、`repository`、`license`、`keywords` 和 `extensions` 出现在顶层。
+- [ ] 每个 `extensions` 成员都是一个由反向域命名空间作为键控的对象。
+- [ ] 可选元数据具有模式所需的类型。
 
-- [ ] Root `mcp.json` uses `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`.
-- [ ] Its specification version matches `plugin.json`.
-- [ ] Every server declares exactly one supported transport variant.
-- [ ] `command` is one executable token, not a shell command string.
-- [ ] Plugin-relative executable paths and working directories begin with `./`.
-- [ ] `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` appear only in fields where expansion is defined.
-- [ ] Remote non-loopback URLs use HTTPS and contain no embedded credentials.
+<a id="skills"></a>
+
+## 技能
+
+- [ ] 每个技能都是 `skills/` 的直接子目录。
+- [ ] 每个技能都包含一个名为 `SKILL.md` 的常规文件。
+- [ ] 前置元数据 `name` 匹配目录名称和智能体技能命名规则。
+- [ ] `description` 解释了该技能的作用以及何时使用它。
+- [ ] 引用的脚本、引用和资产存在于技能目录中。
+- [ ] 每个技能独立验证； 一项无效技能不应掩盖另一项技能的失败。
+
+<a id="mcp-when-present"></a>
+
+## MCP，当存在时
+
+- [ ] 根 `mcp.json` 使用 `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`。
+- [ ] 其规格版本与`plugin.json` 匹配。
+- [ ] 每个服务器都声明一个受支持的传输层变体。
+- [ ] `command` 是一个可执行文件 token，而不是 shell 命令字符串。
+- [ ] 插件相关的可执行路径和工作目录以 `./` 开头。
+- [ ] `${PLUGIN_ROOT}` 和 `${PLUGIN_DATA}` 仅出现在定义了扩展的字段中。
+- [ ] 远程非环回 URLs 使用 HTTPS 和包含凭据。
 
 ## Client compatibility
 
-- [ ] Every client extension uses a namespace implemented and documented by its owning client.
-- [ ] Hooks, agents, commands, LSP, UI, and marketplace metadata are not presented as portable v1 components.
-- [ ] A compatibility package remains available for clients that still require a legacy layout.
-- [ ] Portable and legacy manifests are generated from one metadata source where practical.
-- [ ] Installation, update, rollback, and behavior smoke tests pass for every supported client.
+- [ ] 每个客户端扩展都使用由其所属客户端实现和记录的命名空间。
+- [ ] 挂钩、智能体、命令、LSP、UI 和市场元数据不作为可移植 v1 组件呈现。
+- [ ] 兼容性包仍然可供仍需要旧版布局的客户端使用。
+- [ ] 在可行的情况下，可移植清单和遗留清单是从一个元数据源生成的。
+- [ ] 每个受支持的客户端都通过了安装、更新、回滚和行为冒烟测试。
 
-## Handoff
+<a id="handoff"></a>
 
-- [ ] The migration report maps every original artifact to its new owner and location.
-- [ ] Removed files have a verified replacement and recovery path.
-- [ ] Remaining limitations and manual release steps are documented.
+## 切换
+
+- [ ] 迁移报告将每个原始工件映射到其新所有者和位置。
+- [ ] 已删除的文件具有经过验证的替换和恢复路径。
+- [ ] 记录了其余限制和手动发布步骤。

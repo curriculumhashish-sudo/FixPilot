@@ -1,9 +1,8 @@
-"""The ``X-OpenHands-Telemetry-Distinct-Id`` request header.
+"""``X-OpenHands-Telemetry-Distinct-Id`` 请求标头。
 
-Request-scoped activity (a failed request, and later e.g. LLM-profile creation)
-has no conversation ``user_id``. The frontend attaches its PostHog distinct id
-as this header so that activity attributes to the same person instead of an
-anonymous per-process id.
+请求范围的活动（失败的请求，以及稍后的 e.g。 LLM-配置文件创建）没有对话``user_id``。
+前端将其 PostHog 不同的 id 附加为此标头，以便活动属性
+属于同一个人，而不是匿名的每个进程 id。
 """
 
 import pytest

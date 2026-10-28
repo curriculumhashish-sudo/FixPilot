@@ -22,13 +22,13 @@ export interface LLMTestResponse {
 }
 
 /**
- * Check if the agent server is reachable using the SDK
+ * 使用 SDK 检查是否可以到达 Agent Server
  */
 export const checkServerHealth = async (serverUrl: string, apiKey?: string): Promise<{ isConnected: boolean; error?: string }> => {
   try {
     const client = new HttpClient({ baseUrl: serverUrl, apiKey });
     
-    // Use the SDK's HTTP client to check health
+    // 使用SDK的HTTP客户端检查健康状况
     await client.get('/health');
     
     return { isConnected: true };
@@ -41,24 +41,24 @@ export const checkServerHealth = async (serverUrl: string, apiKey?: string): Pro
 };
 
 /**
- * Test LLM configuration using the SDK
+ * 使用 SDK 测试 LLM 配置
  */
 export const testLLMConfiguration = async (settings: Settings): Promise<{ success: boolean; error?: string }> => {
   try {
-    // First check if server is reachable
+    // 首先检查服务器是否可达
     const healthCheck = await checkServerHealth(settings.agentServerUrl, settings.agentServerApiKey);
     if (!healthCheck.isConnected) {
       return { success: false, error: `Server not reachable: ${healthCheck.error}` };
     }
 
-    // Create a workspace for the test conversation
+    // 为测试对话创建工作区
     const workspace = new RemoteWorkspace({
       host: settings.agentServerUrl,
       workingDir: '/tmp/test-workspace',
       apiKey: settings.agentServerApiKey,
     });
 
-    // Create a test conversation using the SDK
+    // 使用 SDK 创建测试对话
     const conversation = new RemoteConversation(
       {
         kind: 'Agent',
@@ -73,21 +73,21 @@ export const testLLMConfiguration = async (settings: Settings): Promise<{ succes
     await conversation.start();
 
     try {
-      // Send a simple test message to validate LLM configuration
+      // 发送一条简单的测试消息来验证 LLM 配置
       await conversation.sendMessage({
         role: 'user',
         content: [{ type: 'text', text: 'Hello, respond with just "OK" to confirm you are working.' }]
       });
       
-      // If we get here, the LLM configuration is working
+      // 如果我们到达这里，则 LLM 配置正在工作
       return { success: true };
       
     } finally {
-      // Always try to clean up the test conversation
+      // 始终尝试清理测试对话
       try {
         await conversation.close();
       } catch {
-        // Ignore cleanup errors
+        // 忽略清理错误
       }
     }
   } catch (error) {
@@ -99,27 +99,27 @@ export const testLLMConfiguration = async (settings: Settings): Promise<{ succes
 };
 
 /**
- * Get comprehensive server status
+ * 获取全面的服务器状态
  */
 export const getServerStatus = async (settings: Settings): Promise<ServerStatus> => {
   const startTime = new Date();
   
-  // Check server connection
+  // 检查服务器连接
   const healthCheck = await checkServerHealth(settings.agentServerUrl, settings.agentServerApiKey);
   
   let llmStatus: 'unknown' | 'working' | 'error' = 'unknown';
   let llmError: string | undefined;
   
-  // Check if LLM settings are configured
+  // 检查是否配置了LLM设置
   if (!settings.apiKey || !settings.modelName) {
     llmStatus = 'unknown';
     llmError = 'LLM API key or model name not configured';
   } else if (!healthCheck.isConnected) {
-    // Settings are configured but server is not reachable
+    // 设置已配置但无法访问服务器
     llmStatus = 'unknown';
     llmError = 'Cannot test LLM configuration - server not reachable';
   } else {
-    // Server is reachable and settings are configured - test LLM
+    // 服务器可访问并且设置已配置 - 测试 LLM
     const llmTest = await testLLMConfiguration(settings);
     llmStatus = llmTest.success ? 'working' : 'error';
     llmError = llmTest.error;

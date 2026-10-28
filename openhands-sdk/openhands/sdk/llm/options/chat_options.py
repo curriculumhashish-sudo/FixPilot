@@ -24,22 +24,22 @@ def select_chat_options(
     has_tools: bool,
     call_context: LLMCallContext | None = None,
 ) -> dict[str, Any]:
-    """Behavior-preserving extraction of _normalize_call_kwargs.
+    """_normalize_call_kwargs 的行为保留提取。
 
-    This keeps the exact provider-aware mappings and precedence.
+    这可以保持准确的提供者感知映射和优先级。
     """
-    # First pass: apply simple defaults without touching user-supplied values
+    # 第一遍：应用简单的默认值而不触及用户提供的值
     max_output_tokens = llm.effective_max_output_tokens
     defaults: dict[str, Any] = {
         "top_k": llm.top_k,
         "top_p": llm.top_p,
         "temperature": llm.temperature,
-        # OpenAI-compatible param is `max_completion_tokens`
+        # OpenAI 兼容参数为 `max_completion_tokens`
         "max_completion_tokens": max_output_tokens,
     }
     out = apply_defaults_if_absent(user_kwargs, defaults)
 
-    # Azure -> uses max_tokens instead
+    # Azure -> 使用 max_tokens 代替
     if llm.model.startswith("azure"):
         if "max_completion_tokens" in out:
             out["max_tokens"] = out.pop("max_completion_tokens")
@@ -82,12 +82,12 @@ def select_chat_options(
         out.pop("top_p", None)
         out.pop("top_k", None)
 
-    # Tools: if not using native, strip tool_choice so we don't confuse providers
+    # 工具：如果不使用本机，请删除 tool_choice，这样我们就不会混淆提供者
     if not has_tools:
         out.pop("tools", None)
         out.pop("tool_choice", None)
 
-    # Send prompt_cache_retention only if model supports it
+    # 仅当型号支持时才发送 prompt_cache_retention
     if model_features.supports_prompt_cache_retention and llm.prompt_cache_retention:
         out["prompt_cache_retention"] = llm.prompt_cache_retention
 

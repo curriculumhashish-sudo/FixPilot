@@ -1,57 +1,77 @@
-# PostHog Error Debugging Workflow
+<a id="posthog-error-debugging-workflow"></a>
 
-This example demonstrates how to use OpenHands agents to automatically debug errors from PostHog in a GitHub Actions workflow.
+# PostHog 错误调试工作流程
 
-## Overview
+此示例演示如何使用 OpenHands 智能体自动调试 GitHub 操作工作流程中 PostHog 中的错误。
 
-The workflow:
-1. Fetches events from PostHog based on configurable queries
-2. Searches for or creates GitHub issues to track errors
-3. Clones relevant repositories for comprehensive analysis
-4. Uses OpenHands AI agents to analyze code and identify root causes
-5. Posts debugging insights as comments on GitHub issues
+<a id="overview"></a>
 
-## Files
+## 概述
 
-- `workflow.yml` - GitHub Actions workflow with manual trigger
-- `posthog_debugging.py` - Main debugging script
-- `debug_prompt.jinja` - Template for AI debugging prompts
+工作流程：
+1. 根据可配置查询从 PostHog 获取事件
+2. 搜索或创建 GitHub 个问题以跟踪错误
+3. 克隆相关存储库以进行综合分析
+4. 使用 OpenHands AI 智能体分析代码并确定根本原因
+5. 将调试见解作为对 GitHub 问题的评论发布
 
-## Features
+<a id="files"></a>
 
-### Manual Trigger
-Run on-demand via GitHub Actions UI with configurable inputs:
-- **Query Type**: Choose between `event-query` (event name) or `event-id` (specific event ID)
-- **PostHog Query**:
-  - For `event-query`: Event name like `$exception`, `error`, or custom event names
-  - For `event-id`: Specific event ID
-- Repository list to analyze
-- Issue repository for tracking
-- Parent issue for organization
-- LLM model selection
+## 文件
 
-### Smart Issue Management
-- Searches for existing issues before creating duplicates
-- Uses URL encoding for proper GitHub API queries
-- Selects oldest matching issue when duplicates exist
-- Links to parent tracking issue
+- `workflow.yml` - GitHub 手动触发的操作工作流程
+- `posthog_debugging.py` - 主要调试脚本
+- `debug_prompt.jinja` - AI 调试模板提示词
 
-### Multi-Repository Analysis
-- Clone multiple repositories for comprehensive context
-- Agent has full view of all relevant codebases
-- Identifies root causes across repository boundaries
+<a id="features"></a>
 
-### AI-Powered Debugging
-- Automatic code analysis using OpenHands agents
-- Identifies error locations and root causes
-- Provides actionable fix recommendations
-- Posts detailed findings as GitHub comments
+## 特点
 
-## Setup
+<a id="manual-trigger"></a>
 
-### Required Secrets
+### 手动触发
+通过具有可配置输入的 GitHub Actions UI 按需运行：
+- **查询类型**：选择`event-query`（事件名称）或`event-id`（特定事件ID）
+- **PostHog查询**：
+  - 对于 `event-query`：事件名称，如 `$exception`、`error` 或自定义事件名称
+  - 对于 `event-id`：特定事件 ID
+- 要分析的存储库列表
+- 用于跟踪的问题存储库
+- 组织的父级问题
+- LLM 型号选择
 
-Configure these in your repository Settings → Secrets and variables → Actions:
+<a id="smart-issue-management"></a>
+
+### 智能问题管理
+- 在创建重复项之前搜索现有问题
+- 使用 URL 编码进行正确的 GitHub API 查询
+- 存在重复项时选择最旧的匹配问题
+- 家长跟踪问题的链接
+
+<a id="multi-repository-analysis"></a>
+
+### 多存储库分析
+- 克隆多个存储库以实现综合性上下文
+- 智能体拥有所有相关代码库的完整视图
+- 识别跨存储库边界的根本原因
+
+<a id="ai-powered-debugging"></a>
+
+### AI 支持的调试
+- 使用 OpenHands 智能体自动代码分析
+- 识别错误位置和根本原因
+- 提供可行的修复建议
+- 将详细调查结果发布为 GitHub 条评论
+
+<a id="setup"></a>
+
+## 设置
+
+<a id="required-secrets"></a>
+
+### 必填机密
+
+在存储库中配置这些设置 → 机密和变量 → 操作：
 
 ```yaml
 POSTHOG_API_KEY: Your PostHog Personal API key
@@ -61,48 +81,58 @@ LLM_API_KEY: API key for LLM service
 LLM_BASE_URL: Base URL for LLM service (optional)
 ```
 
-**Note**: `GITHUB_TOKEN` is automatically provided by GitHub Actions.
+**注**：`GITHUB_TOKEN`由GitHub操作自动提供。
 
-### Getting PostHog Credentials
+<a id="getting-posthog-credentials"></a>
 
-1. **API Key**: Go to your PostHog instance → Settings → Personal API Keys → Create new key
-   - Ensure the key has `query:read` scope
-2. **Project ID**: Found in your project URL: `https://app.posthog.com/project/{PROJECT_ID}/...`
-3. **Host**: 
-   - US Cloud: `us.posthog.com`
-   - EU Cloud: `eu.posthog.com`
-   - Self-hosted: Your instance hostname
+### 获取 PostHog 凭据
 
-### Installation
+1. **API密钥**：转到您的PostHog实例→设置→个人API密钥→创建新密钥
+   - 确保密钥具有 `query:read` 范围
+2. **项目 ID**：在您的项目中找到 URL：`https://app.posthog.com/project/{PROJECT_ID}/...`
+3. **主机**：
+   - 美国云：`us.posthog.com`
+   - 欧盟云：`eu.posthog.com`
+   - 自托管：您的实例主机名
 
-1. Copy `workflow.yml` to your repository's `.github/workflows/` directory (e.g., `.github/workflows/posthog-debugging.yml`)
-2. Configure the required secrets in repository Settings → Secrets and variables → Actions
-3. Optionally, customize the workflow inputs and defaults in the YAML file
+<a id="installation"></a>
 
-**Note**: The workflow automatically downloads the latest version of `posthog_debugging.py` and `debug_prompt.jinja` from the SDK repository at runtime. No need to copy these files to your repository unless you want to customize them.
+### 安装
 
-## Usage
+1. 将 `workflow.yml` 复制到存储库的 `.github/workflows/` 目录（e.g., `.github/workflows/posthog-debugging.yml`）
+2. 在仓库设置 → 机密和变量 → 操作中配置所需的机密
+3. （可选）在 YAML 文件中自定义工作流程输入和默认值
 
-### Via GitHub Actions UI
+**注意**：工作流在运行时自动从SDK存储库下载最新版本的`posthog_debugging.py`和`debug_prompt.jinja`。 无需将这些文件复制到您的存储库，除非您想自定义它们。
 
-1. Go to the **Actions** tab in your repository
-2. Select **PostHog Error Debugging** workflow
-3. Click **Run workflow**
-4. Configure inputs:
-   - **Query Type**: Choose `event-query` or `event-id` (default: `event-query`)
-   - **PostHog Query**: 
-     - For `event-query`: Event name (default: `$exception`)
-     - For `event-id`: Event ID
-   - **Repository List**: Comma-separated repos to analyze (default: `OpenHands/OpenHands,All-Hands-AI/infra`)
-   - **Issue Repository**: Where to create issues (default: `All-Hands-AI/infra`)
-   - **Parent Issue**: Optional parent issue URL for tracking
-   - **Issue Prefix**: Prefix for issue titles (default: `PostHog Error: `)
-   - **LLM Model**: Model to use (default: `gpt-5.5`)
-5. Click **Run workflow**
+<a id="usage"></a>
 
-### Via GitHub CLI
+## 用途
 
-**Search for exception events:**
+<a id="via-github-actions-ui"></a>
+
+### 通过 GitHub 操作 UI
+
+1. 转到存储库中的 **Actions** 选项卡
+2. 选择 **PostHog 错误调试** 工作流程
+3. 单击**运行工作流程**
+4. 配置输入：
+   - **查询类型**：选择`event-query`或`event-id`（默认：`event-query`）
+   - **PostHog查询**：
+     - 对于 `event-query`：事件名称（默认值：`$exception`）
+     - 对于 `event-id`：事件 ID
+   - **存储库列表**：要分析的以逗号分隔的存储库（默认值：`OpenHands/OpenHands,All-Hands-AI/infra`）
+   - **问题存储库**：创建问题的位置（默认值：`All-Hands-AI/infra`）
+   - **父问题**：用于跟踪的可选父问题URL
+   - **问题前缀**：问题标题的前缀（默认值：`PostHog Error: `）
+   - **LLM 模型**：要使用的模型（默认值：`gpt-5.5`）
+5. 单击**运行工作流程**
+
+<a id="via-github-cli"></a>
+
+### 通过 GitHub CLI
+
+**搜索异常事件：**
 ```bash
 gh workflow run posthog-debugging.yml \
   -f query_type="event-query" \
@@ -111,7 +141,7 @@ gh workflow run posthog-debugging.yml \
   -f issue_repo="All-Hands-AI/infra"
 ```
 
-**Debug a specific event by ID:**
+**按 ID 调试特定事件：**
 ```bash
 gh workflow run posthog-debugging.yml \
   -f query_type="event-id" \
@@ -120,10 +150,12 @@ gh workflow run posthog-debugging.yml \
   -f issue_repo="All-Hands-AI/infra"
 ```
 
-### Via Command Line
+<a id="via-command-line"></a>
+
+### 通过命令行
 
 ```bash
-# Search for exception events
+# 搜索异常事件
 python posthog_debugging.py \
   --query-type event-query \
   --query '$exception' \
@@ -131,7 +163,7 @@ python posthog_debugging.py \
   --issue-repo "All-Hands-AI/infra" \
   --issue-prefix "PostHog Error: "
 
-# Debug custom error events
+# 调试自定义错误事件
 python posthog_debugging.py \
   --query-type event-query \
   --query 'application_error' \
@@ -139,9 +171,13 @@ python posthog_debugging.py \
   --issue-repo "All-Hands-AI/infra"
 ```
 
-## Example
+<a id="example"></a>
 
-### Input (Search Query)
+## 示例
+
+<a id="input-search-query"></a>
+
+### 输入（搜索查询）
 ```yaml
 query_type: "event-query"
 posthog_query: "$exception"
@@ -150,7 +186,9 @@ issue_repo: "All-Hands-AI/infra"
 issue_parent: "https://github.com/All-Hands-AI/infra/issues/672"
 ```
 
-### Input (Specific Event ID)
+<a id="input-specific-event-id"></a>
+
+### 输入（特定事件 ID）
 ```yaml
 query_type: "event-id"
 posthog_query: "01234567-89ab-cdef-0123-456789abcdef"
@@ -159,21 +197,27 @@ issue_repo: "All-Hands-AI/infra"
 issue_parent: "https://github.com/All-Hands-AI/infra/issues/672"
 ```
 
-### Output
-- **Console**: Progress logs showing event fetching, repository cloning, and agent analysis
-- **GitHub Issue**: Created or updated with event details
-- **GitHub Comment**: AI-generated analysis with root cause and recommendations
-- **Artifacts**: Debugging data and logs saved for 7 days
+<a id="output"></a>
 
-## Configuration
+### 输出
+- **控制台**：显示事件获取、存储库克隆和智能体分析的进度日志
+- **GitHub 问题**：使用事件详细信息创建或更新
+- **GitHub评论**：人工智能生成的分析，包含根本原因和建议
+- **Artifacts**：保存7天的调试数据和日志
 
-### PostHog Event Query Examples
+<a id="configuration"></a>
+
+## 配置
+
+<a id="posthog-event-query-examples"></a>
+
+### PostHog 事件查询示例
 
 ```yaml
-# Exception events (PostHog automatically captures these)
+# 异常事件（PostHog自动捕获这些）
 $exception
 
-# Page view errors
+# 页面浏览错误
 $pageview
 
 # Custom error events
@@ -186,12 +230,14 @@ api_error
 checkout_error
 ```
 
-### Using HogQL for Advanced Queries
+<a id="using-hogql-for-advanced-queries"></a>
 
-For more complex queries, you can modify the script to use HogQL:
+### 使用 HogQL 进行高级查询
+
+对于更复杂的查询，您可以修改脚本以使用HogQL：
 
 ```python
-# Query events with specific properties
+# 查询具有特定属性的事件
 hogql_query = """
 SELECT * FROM events 
 WHERE event = '$exception' 
@@ -200,7 +246,7 @@ ORDER BY timestamp DESC
 LIMIT 10
 """
 
-# Query events in a time range
+# 查询某个时间范围内的事件
 hogql_query = """
 SELECT * FROM events 
 WHERE event = 'application_error'
@@ -209,63 +255,81 @@ ORDER BY timestamp DESC
 """
 ```
 
-### Repository List Format
+<a id="repository-list-format"></a>
 
-Comma-separated list of `owner/repo`:
+### 存储库列表格式
+
+`owner/repo` 的逗号分隔列表：
 ```
 OpenHands/OpenHands,All-Hands-AI/infra,All-Hands-AI/deploy
 ```
 
-### LLM Model Options
+<a id="llm-model-options"></a>
 
-- `gpt-5.5` - Best quality (default)
-- `anthropic/claude-haiku-4-5-20251001` - Faster, cheaper
-- `anthropic/claude-3-5-sonnet-20241022` - Alternative
+### LLM 型号选项
 
-## Workflow Details
+- `gpt-5.5` - 最佳质量（默认）
+- `anthropic/claude-haiku-4-5-20251001` - 更快、更便宜
+- `anthropic/claude-3-5-sonnet-20241022` - 替代方案
 
-### Inputs
+<a id="workflow-details"></a>
 
-| Input | Type | Required | Default | Description |
+## 工作流程详情
+
+<a id="inputs"></a>
+
+### 输入
+
+| 输入 | 类型 | 必填 | 默认 | 描述 |
 |-------|------|----------|---------|-------------|
-| `posthog_query` | string | Yes | `$exception` | PostHog event name or event ID |
-| `query_type` | string | No | `event-query` | Type of query: `event-query` or `event-id` |
-| `repo_list` | string | Yes | `OpenHands/OpenHands,All-Hands-AI/infra` | Comma-separated list of repositories |
-| `issue_repo` | string | Yes | `All-Hands-AI/infra` | Repository to create/update issues in |
-| `issue_parent` | string | No | - | Parent GitHub issue URL for tracking |
-| `issue_prefix` | string | No | `PostHog Error: ` | Prefix for issue titles |
-| `max_events` | string | No | `5` | Maximum number of events to fetch |
-| `llm_model` | string | No | `gpt-5.5` | LLM model to use |
+| `posthog_query` | 字符串 | 是的 | `$exception` | PostHog 事件名称或事件 ID |
+| `query_type` | 字符串 | 否 | `event-query` | 查询类型：`event-query` 或 `event-id` |
+| `repo_list` | 字符串 | 是的 | `OpenHands/OpenHands,All-Hands-AI/infra` | 以逗号分隔的存储库列表 |
+| `issue_repo` | 字符串 | 是的 | `All-Hands-AI/infra` | 用于创建/更新问题的存储库 |
+| `issue_parent` | 字符串 | 否 | - | 用于跟踪的父 GitHub 问题 URL |
+| `issue_prefix` | 字符串 | 否 | `PostHog Error: ` | 问题标题的前缀 |
+| `max_events` | 字符串 | 否 | `5` | 要获取的最大事件数 |
+| `llm_model` | 字符串 | 否 | `gpt-5.5` | LLM 使用型号 |
 
-### Outputs
+<a id="outputs"></a>
 
-- **GitHub Issues**: Created or updated with event details
-- **GitHub Comments**: AI analysis posted to issues
-- **Artifacts**: Debugging data and logs (retained for 7 days)
+### 输出
 
-### Permissions
+- **GitHub 问题**：使用事件详细信息创建或更新
+- **GitHub评论**：人工智能分析发布到问题
+- **Artifacts**：调试数据和日志（保留7天）
+
+<a id="permissions"></a>
+
+### 权限
 
 ```yaml
 permissions:
-  contents: read   # Clone repositories
-  issues: write    # Create/update issues and comments
+  contents: read   # 克隆存储库
+  issues: write    # 创建/更新问题和评论
 ```
 
-## Understanding PostHog Events
+<a id="understanding-posthog-events"></a>
 
-### Common Event Types
+## 了解 PostHog 事件
 
-PostHog automatically captures several event types:
+<a id="common-event-types"></a>
 
-- **`$exception`**: JavaScript errors and exceptions
-- **`$pageview`**: Page views
-- **`$pageleave`**: When users leave pages
-- **`$autocapture`**: Automatically captured user interactions
-- **Custom events**: Events you manually track in your application
+### 常见事件类型
 
-### Event Properties
+PostHog自动捕获多种事件类型：
 
-Exception events typically include:
+- **`$exception`**：JavaScript错误和异常
+- **`$pageview`**：页面浏览量
+- **`$pageleave`**：当用户离开页面时
+- **`$autocapture`**：自动捕获用户交互
+- **自定义事件**：您在应用程序中手动跟踪的事件
+
+<a id="event-properties"></a>
+
+### 事件属性
+
+异常事件通常包括：
 
 ```json
 {
@@ -279,21 +343,27 @@ Exception events typically include:
 }
 ```
 
-Custom events can include any properties you define.
+自定义事件可以包含您定义的任何属性。
 
-## Customization
+<a id="customization"></a>
 
-### For Production Use
+## 定制化
 
-Consider creating a separate configuration repository with:
-- Scheduled runs (daily for critical errors, weekly for comprehensive analysis)
-- Predefined event categories
-- Repository group definitions
-- Environment-specific settings
+<a id="for-production-use"></a>
 
-### Adding Scheduled Runs
+### 用于生产环境
 
-Add to the workflow's `on:` section:
+考虑创建一个单独的配置存储库：
+- 计划运行（每天进行严重错误，每周进行综合分析）
+- 预定义的事件类别
+- 存储库组定义
+- 环境特定设置
+
+<a id="adding-scheduled-runs"></a>
+
+### 添加预定运行
+
+添加到工作流程的 `on:` 部分：
 
 ```yaml
 on:
@@ -301,15 +371,17 @@ on:
     # ... existing inputs ...
   
   schedule:
-    # Daily at 09:00 UTC for exception events
+    # 每天 09:00 UTC 处理例外事件
     - cron: '0 9 * * *'
-    # Weekly on Monday at 09:00 UTC for full scan
+    # 每周一 09:00 UTC 进行全面扫描
     - cron: '0 9 * * 1'
 ```
 
-### Matrix Strategy
+<a id="matrix-strategy"></a>
 
-Run multiple queries in parallel:
+### 矩阵策略
+
+并行运行多个查询：
 
 ```yaml
 jobs:
@@ -323,74 +395,96 @@ jobs:
       fail-fast: false
 ```
 
-## Troubleshooting
+<a id="troubleshooting"></a>
 
-### Workflow Fails to Start
-- Verify all required secrets are configured
-- Check `GITHUB_TOKEN` has necessary permissions
-- Review workflow syntax with `yamllint`
+## 故障排除
 
-### No Events Found
-- Verify the event name is correct (case-sensitive)
-- Check your PostHog project has events of that type
-- Try querying PostHog UI first to confirm events exist
-- Ensure API key has `query:read` scope
+<a id="workflow-fails-to-start"></a>
 
-### API Authentication Errors
-- Verify `POSTHOG_API_KEY` is a Personal API Key (not Project API Key)
-- Check the API key hasn't expired
-- Ensure `POSTHOG_PROJECT_ID` is correct
-- Verify `POSTHOG_HOST` matches your PostHog instance
+### 工作流程无法启动
+- 验证所有必需的机密均已配置
+- 检查`GITHUB_TOKEN`是否具有必要的权限
+- 使用 `yamllint` 检查工作流语法
 
-### No Issues Created
-- Verify issue repository exists and is accessible
-- Check `GITHUB_TOKEN` has `issues: write` permission
-- Review workflow logs for API errors
+<a id="no-events-found"></a>
 
-### Agent Analysis Incomplete
-- Increase workflow timeout if needed
-- Check `LLM_API_KEY` is valid and has quota
-- Try a different LLM model
-- Reduce number of repositories to analyze
+### 未找到活动
+- 验证事件名称是否正确（区分大小写）
+- 检查您的 PostHog 项目是否有该类型的事件
+- 首先尝试查询 PostHog UI 以确认事件存在
+- 确保 API 键具有 `query:read` 范围
 
-### Repository Clone Failures
-- Verify repository names use `owner/repo` format
-- Check `GITHUB_TOKEN` has access to private repos
-- Ensure repositories exist and are accessible
+<a id="api-authentication-errors"></a>
 
-## Comparing with DataDog Example
+### API 身份验证错误
+- 验证 `POSTHOG_API_KEY` 是个人 API 密钥（不是项目 API 密钥）
+- 检查 API 密钥是否已过期
+- 确保`POSTHOG_PROJECT_ID`正确
+- 验证 `POSTHOG_HOST` 与您的 PostHog 实例匹配
 
-This example is analogous to the DataDog debugging example but adapted for PostHog:
+<a id="no-issues-created"></a>
 
-| Feature | DataDog | PostHog |
+### 没有创建任何问题
+- 验证问题存储库是否存在并且可以访问
+- 检查 `GITHUB_TOKEN` 拥有 `issues: write` 权限
+- 查看工作流程日志中是否存在 API 个错误
+
+<a id="agent-analysis-incomplete"></a>
+
+### 智能体分析不完整
+- 如果需要，增加工作流程超时
+- 检查`LLM_API_KEY`有效且有配额
+- 尝试不同的 LLM 模型
+- 减少要分析的存储库数量
+
+<a id="repository-clone-failures"></a>
+
+### 存储库克隆失败
+- 验证存储库名称使用 `owner/repo` 格式
+- 检查 `GITHUB_TOKEN` 有权访问私人存储库
+- 确保存储库存在并且可访问
+
+<a id="comparing-with-datadog-example"></a>
+
+## 与DataDog示例比较
+
+此示例类似于 DataDog 调试示例，但适用于 PostHog：
+
+| 特点 | DataDog | PostHog |
 |---------|---------|---------|
-| **Data Source** | Logs & Error Tracking | Events & Custom Tracking |
-| **Query Types** | Log queries, Error IDs | Event names, Event IDs |
-| **Authentication** | API Key + App Key | Personal API Key |
-| **Query Language** | Datadog Query Syntax | HogQL (SQL-like) |
-| **Time Range** | Filter timestamps | Filter timestamps |
-| **Use Cases** | Server errors, logs | User errors, custom events |
+| **数据来源** | 日志和错误跟踪 | 事件和自定义跟踪 |
+| **Query Types** | 日志查询、错误 ID | 事件名称、事件 ID |
+| **身份验证** | API 仅键和应用密钥 | 个人 API 钥匙 |
+| **查询语言** | Datadog 查询语法 | HogQL（类似SQL） |
+| **时间范围** | 过滤时间戳 | 过滤时间戳 |
+| **用例** | 服务器错误、日志 | 用户错误、自定义事件 |
 
-## Related Examples
+<a id="related-examples"></a>
 
-- **Basic Action**: `examples/03_github_workflows/01_basic_action/` - Simple workflow example
-- **PR Review**: `examples/03_github_workflows/02_pr_review/` - PR automation example
-- **TODO Management**: `examples/03_github_workflows/03_todo_management/` - Automated TODO tracking
-- **DataDog Debugging**: `examples/03_github_workflows/04_datadog_debugging/` - Similar debugging for DataDog
+## 相关示例
 
-## Benefits
+- **基本操作**：`examples/03_github_workflows/01_basic_action/` - 简单工作流程示例
+- **PR评论**：`examples/03_github_workflows/02_pr_review/` - PR自动化示例
+- **TODO 管理**：`examples/03_github_workflows/03_todo_management/` - 自动 TODO 跟踪
+- **DataDog 调试**：`examples/03_github_workflows/04_datadog_debugging/` - DataDog 的类似调试
 
-1. **Automated Debugging**: AI analyzes code without manual intervention
-2. **Reduced MTTR**: Faster root cause identification
-3. **Context-Aware**: Multi-repo analysis for complete picture
-4. **No Duplicates**: Smart issue tracking prevents clutter
-5. **Actionable Insights**: Clear recommendations for fixes
-6. **Scalable**: Easy to add new event categories
-7. **User-Centric**: Track errors as users experience them
+<a id="benefits"></a>
 
-## Learn More
+## 好处
 
-- [PostHog API Documentation](https://posthog.com/docs/api)
-- [PostHog HogQL Documentation](https://posthog.com/docs/hogql)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [OpenHands SDK Documentation](https://github.com/OpenHands/software-agent-sdk)
+1. **自动调试**：AI分析代码，无需人工干预
+2. **减少MTTR**：更快地识别根本原因
+3. **上下文-Aware**：完整图片的多存储库分析
+4. **无重复**：智能问题跟踪可防止混乱
+5. **可行的见解**：明确的修复建议
+6. **可扩展**：轻松添加新的事件类别
+7. **以用户为中心**：跟踪用户遇到的错误
+
+<a id="learn-more"></a>
+
+## 了解更多
+
+- [PostHog API 文档](https://posthog.com/docs/api)
+- [PostHog HogQL 文档](https://posthog.com/docs/hogql)
+- [GitHub 操作文档](https://docs.github.com/en/actions)
+- [OpenHands SDK 文档](https://github.com/OpenHands/software-agent-sdk)

@@ -1,16 +1,16 @@
-"""Example demonstrating the Settings and Secrets API.
+"""演示设置和机密 API 的示例。
 
-This example shows the recommended workflow for managing secrets:
-1. Store secrets via PUT /api/settings/secrets (encrypted at rest)
-2. Reference secrets in conversations via LookupSecret
-3. Agent uses secrets via environment variables ($SECRET_NAME)
-4. Clean up secrets via DELETE /api/settings/secrets/{name}
+此示例显示了管理机密的推荐工作流程：
+1. 通过 PUT /api/settings/secrets 存储机密（在 REST 处加密）
+2. 通过 LookupSecret 进行的对话中参考机密
+3. 智能体通过环境变量使用机密 ($SECRET_NAME)
+4. 通过 DELETE /api/settings/secrets/{name} 清理机密
 
-This pattern enables:
-- Secure secret storage (encrypted at rest with OH_SECRET_KEY)
-- Lazy secret resolution at runtime (via LookupSecret URLs)
-- Fine-grained secret lifecycle management (CRUD operations)
-- Audit trail for secret access
+该模式可以：
+- 安全机密存储（在 REST 处使用 OH_SECRET_KEY 加密）
+- 运行时的懒惰机密解析（通过 LookupSecret URLs）
+- 细粒度机密生命周期管理（CRUD 操作）
+- 机密访问的审核跟踪
 """
 
 import os
@@ -29,11 +29,11 @@ from openhands.tools.terminal import TerminalTool
 logger = get_logger(__name__)
 
 
-# Get LLM configuration from environment
+# 从环境中获取 LLM 配置
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 llm_model = os.getenv("LLM_MODEL", "gpt-5.5")
-llm_base_url = os.getenv("LLM_BASE_URL")  # Optional custom base URL
+llm_base_url = os.getenv("LLM_BASE_URL")  # 可选定制底座 URL
 
 with ManagedAPIServer(
     port=8765,
@@ -46,14 +46,15 @@ with ManagedAPIServer(
     client = httpx.Client(base_url=server.base_url, timeout=120.0)
 
     try:
-        # ══════════════════════════════════════════════════════════════
-        # Part 1: Store LLM Settings via Settings API
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第一部分：通过
+        # 设置 LLM 存储设置 API ════════════════════════════════════════════════════════
+        # ══════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔧 Storing LLM configuration via Settings API")
         logger.info("=" * 60)
 
-        # Store LLM configuration - the API key is encrypted at rest
+        # 存储 LLM 配置 - API 密钥在 REST 处加密
         llm_config: dict[str, str] = {
             "model": llm_model,
             "api_key": api_key,
@@ -74,15 +75,17 @@ with ManagedAPIServer(
             logger.info(f"   - Base URL: {llm_base_url}")
         logger.info(f"   - API key set: {settings['llm_api_key_is_set']}")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 2: Store Custom Secret via Secrets API
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第二部分：通过
+        # 机密存储自定义机密 API ═══════════════════════════════════════════════════════
+        # ═══════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔐 Storing custom secret via Secrets API")
         logger.info("=" * 60)
 
-        # Store a custom secret - this could be an API token, database password, etc.
-        # The secret is encrypted at rest using OH_SECRET_KEY
+        # 存储自定义机密 - 这可以是 API token、数据库密码等。 机密在 REST 处使用
+        # OH_SECRET_KEY 加密
+        #
         secret_name = "MY_PROJECT_TOKEN"
         secret_value = "super-secret-token-12345"
 
@@ -97,7 +100,7 @@ with ManagedAPIServer(
         assert response.status_code == 200, f"PUT secret failed: {response.text}"
         logger.info(f"✅ Created secret: {secret_name}")
 
-        # List secrets to verify (values are not exposed)
+        # 要验证的列表机密（值不公开）
         response = client.get("/api/settings/secrets")
         assert response.status_code == 200
         secrets_list = response.json()["secrets"]
@@ -105,34 +108,37 @@ with ManagedAPIServer(
         for secret in secrets_list:
             logger.info(f"   - {secret['name']}: {secret.get('description', '')}")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 3: Start Conversation with LookupSecret Reference
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第三部分：与
+        # LookupSecret 参考开始对话 ════════════════════════════════════════════════════
+        # ══════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🤖 Starting conversation with secret reference")
         logger.info("=" * 60)
 
-        # Create a workspace directory
+        # 创建工作区目录
         temp_workspace_dir = tempfile.mkdtemp(prefix="secrets_api_demo_")
 
-        # Build the LookupSecret URL - agent server resolves this at runtime
-        # The URL points to the secrets endpoint on the same server
+        # 构建 LookupSecret URL - Agent Server 在运行时解决此问题 URL 指向同一服务器上的
+        # 机密端点
+        #
         lookup_url = f"{server.base_url}/api/settings/secrets/{secret_name}"
 
-        # Start conversation with LookupSecret reference
-        # The secret will be resolved lazily when the agent needs it
+        # 与 LookupSecret 引用开始对话机密将在智能体需要时延迟解析
+        #
         start_request = {
             "agent": {
                 "kind": "Agent",
-                "llm": llm_config,  # Use same LLM config (model, api_key, base_url)
+                "llm": llm_config,  # 使用相同的 LLM 配置（型号、api_key、base_url）
                 "tools": [
                     {"name": TerminalTool.name},
                     {"name": FileEditorTool.name},
                 ],
             },
             "workspace": {"working_dir": temp_workspace_dir},
-            # Reference the stored secret via LookupSecret
-            # This creates an environment variable $MY_PROJECT_TOKEN in the agent
+            # 通过 LookupSecret 引用存储的机密这将在智能体中创建环境变量 $
+            # MY_PROJECT_TOKEN
+            #
             "secrets": {
                 secret_name: {
                     "kind": "LookupSecret",
@@ -150,7 +156,7 @@ with ManagedAPIServer(
                         "If so just respond `YES`, otherwise `NO`.",
                     }
                 ],
-                "run": True,  # Auto-run after sending message
+                "run": True,  # 发送消息后自动运行
             },
         }
 
@@ -165,15 +171,15 @@ with ManagedAPIServer(
         logger.info(f"   - Conversation ID: {conversation_id}")
         logger.info(f"   - Secret '{secret_name}' available as env var")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 4: Wait for Agent to Complete
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第四部分：等待
+        # 智能体完成══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("⏳ Waiting for agent to complete task...")
         logger.info("=" * 60)
 
-        # Poll conversation until agent finishes
-        max_wait = 120  # seconds
+        # 投票对话直至智能体结束
+        max_wait = 120  # 秒
         poll_interval = 2
         elapsed = 0
         execution_status = "unknown"
@@ -193,7 +199,7 @@ with ManagedAPIServer(
 
         logger.info(f"✅ Agent finished with status: {execution_status}")
 
-        # Get the agent's final response to verify the task was completed
+        # 获取智能体的最终响应以验证任务是否已完成
         response = client.get(
             f"/api/conversations/{conversation_id}/agent_final_response"
         )
@@ -202,7 +208,7 @@ with ManagedAPIServer(
             result = response.json()
             agent_response = result.get("response", "")
             if agent_response:
-                # Truncate long responses for display
+                # 截断长响应以供显示
                 display_response = (
                     agent_response[:200] + "..."
                     if len(agent_response) > 200
@@ -211,47 +217,47 @@ with ManagedAPIServer(
                 logger.info(f"   Agent response: {display_response}")
                 logger.info("   ✅ Agent completed the task using the secret!")
 
-        # Get conversation metrics from stats
+        # 从统计数据中获取对话指标
         response = client.get(f"/api/conversations/{conversation_id}")
         if response.status_code == 200:
             conversation_data = response.json()
-            # Metrics are tracked per-LLM usage in stats.usage_to_metrics
+            # 指标按 stats.usage_to_metrics 中的 LLM 使用情况进行跟踪
             stats = conversation_data.get("stats") or {}
             usage_to_metrics = stats.get("usage_to_metrics") or {}
-            # Sum accumulated_cost across all LLM usages
+            # 所有 LLM 次使用的总和 accumulated_cost
             accumulated_cost = sum(
                 m.get("accumulated_cost", 0.0) for m in usage_to_metrics.values()
             )
 
-        # Clean up - delete conversation
+        # 清理 - 删除对话
         client.delete(f"/api/conversations/{conversation_id}")
         logger.info("   Conversation deleted")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 5: Clean Up - Delete the Secret
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第五部分：清理
+        # - 删除机密 ══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🧹 Cleaning up - deleting secret")
         logger.info("=" * 60)
 
-        # Delete the secret after use
+        # 使用后删除机密
         response = client.delete(f"/api/settings/secrets/{secret_name}")
         assert response.status_code == 200, f"DELETE secret failed: {response.text}"
         logger.info(f"✅ Deleted secret: {secret_name}")
 
-        # Verify deletion
+        # 验证删除
         response = client.get(f"/api/settings/secrets/{secret_name}")
         assert response.status_code == 404
         logger.info("✅ Verified deletion (secret no longer accessible)")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 6: Test Secret Name Validation
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第六部分：测试
+        # 机密名称验证 ══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("⚠️  Testing secret name validation")
         logger.info("=" * 60)
 
-        # Invalid: starts with number
+        # 无效：以数字开头
         response = client.put(
             "/api/settings/secrets",
             json={"name": "123_invalid", "value": "test"},
@@ -259,7 +265,7 @@ with ManagedAPIServer(
         assert response.status_code == 422
         logger.info("✅ Rejected '123_invalid' (starts with number)")
 
-        # Invalid: contains hyphen
+        # 无效：包含连字符
         response = client.put(
             "/api/settings/secrets",
             json={"name": "invalid-name", "value": "test"},

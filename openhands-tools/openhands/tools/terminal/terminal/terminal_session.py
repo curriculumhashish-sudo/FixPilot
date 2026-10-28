@@ -1,4 +1,4 @@
-"""Unified terminal session using TerminalInterface backends."""
+"""使用 TerminalInterface 后端的统一终端会话。"""
 
 import re
 import time
@@ -37,7 +37,7 @@ logger = get_logger(__name__)
 
 
 class TerminalCommandStatus(Enum):
-    """Status of a terminal command execution."""
+    """终端命令执行的状态。"""
 
     CONTINUE = "continue"
     COMPLETED = "completed"
@@ -47,23 +47,20 @@ class TerminalCommandStatus(Enum):
 
 
 def _normalize_echo_line(line: str) -> str:
-    """Collapse an echoed line for comparison against what was sent.
+    """折叠回显行以与发送的内容进行比较。
 
-    Different backends alter the echo: readline drops leading tabs (tmux) or
-    substitutes a BEL for each of them (subprocess). Ignore whitespace and
-    control characters so the comparison still recognizes the echo.
+    不同的后端会改变回显：readline 删除前导制表符 (tmux) 或用 BEL 替换每个制表符 (子
+    进程)。 忽略空格和控制字符，以便比较仍然可以识别回声。
     """
     return re.sub(r"[\x00-\x1f\x7f]", "", line).strip()
 
 
 def _remove_command_prefix(command_output: str, command: str) -> str:
-    """Strip the terminal's echo of `command` from the front of the output.
+    """从输出的前面去除终端的 `command` 回显。
 
-    readline consumes or rewrites leading tabs when echoing a line, so the echo
-    can differ from the text that was sent by whitespace alone. An exact prefix
-    match then fails and the whole wrapper (plus both halves of the completion
-    marker) leaks into the observation, so fall back to comparing line by line
-    with whitespace and control characters normalized.
+    readline 在回显一行时会消耗或重写前导制表符，因此回显可能与仅由空格发送的文本不同
+    。 然后进行精确前缀匹配，失败了，整个包装（包括完成标记的两半）会泄露到观
+    测结果，因此需要逐行比较，控制字符和空白字符都进行标准化。
     """
     stripped = command_output.lstrip()
     cmd = command.lstrip()
@@ -78,13 +75,13 @@ def _remove_command_prefix(command_output: str, command: str) -> str:
         if index >= len(out_lines) or _normalize_echo_line(
             out_lines[index]
         ) != _normalize_echo_line(cmd_line):
-            # Not an echo of this command; leave the output untouched.
+            # 不是此命令的回显； 保持输出不变。
             return stripped
     return "\n".join(out_lines[len(cmd_lines) :]).lstrip()
 
 
 def _remove_echoed_line(command_output: str, command: str) -> str:
-    """Remove one generated command echo wherever it appears in the output."""
+    """删除一个生成的命令回显，无论它出现在输出中的何处。"""
     target = _normalize_echo_line(command)
     return "".join(
         line
@@ -104,10 +101,10 @@ def _remove_powershell_echo(command_output: str, command: str) -> str:
 
 
 class TerminalSession(TerminalSessionBase):
-    """Unified bash session that works with any TerminalInterface backend.
+    """适用于任何 TerminalInterface 后端的统一 bash 会话。
 
-    This class contains all the session controller logic (timeouts, command parsing,
-    output processing) while delegating terminal operations to the TerminalInterface.
+    此类包含所有会话控制器逻辑（超时、命令解析、输出处理），同时将终端操作委托给
+    TerminalInterface。
     """
 
     terminal: TerminalInterface
@@ -119,11 +116,11 @@ class TerminalSession(TerminalSessionBase):
         terminal: TerminalInterface,
         no_change_timeout_seconds: int | None = None,
     ):
-        """Initialize the unified session with a terminal backend.
+        """使用终端后端初始化统一会话。
 
         Args:
-            terminal: The terminal backend to use
-            no_change_timeout_seconds: Timeout for no output change
+            terminal: 要使用的终端后端
+            no_change_timeout_seconds: 超时表示无输出变化
         """
         super().__init__(
             terminal.work_dir,
@@ -134,15 +131,16 @@ class TerminalSession(TerminalSessionBase):
         self.no_change_timeout_seconds: int = (
             no_change_timeout_seconds or NO_CHANGE_TIMEOUT_SECONDS
         )
-        # Store the last command for interactive input handling
+        # 存储交互式输入处理的最后一个命令
         self.prev_status = None
         self.prev_output = ""
-        # Completion suffix for a heredoc script. Keep it on the session so a
-        # timeout or follow-up poll can recognize and strip it too.
+        # Heredoc 脚本的完成后缀。 将其保留在会话中，以便超时或后续民意调查也可以识别并
+        # 删除它。
+        #
         self._boundary_marker: re.Pattern[str] | None = None
         self._boundary_echo: str | None = None
         self._wrapper_echo: str | None = None
-        # Stateful filter for terminal query sequences (handles split sequences)
+        # 终端查询序列的状态过滤器（处理分割序列）
         self._query_filter = TerminalQueryFilter()
 
     @classmethod
@@ -151,35 +149,35 @@ class TerminalSession(TerminalSessionBase):
         terminal: TerminalInterface,
         no_change_timeout_seconds: int | None = None,
     ) -> "TerminalSession":
-        """Create a TerminalSession for an already-initialized terminal.
+        """为已初始化的终端创建一个 TerminalSession。
 
-        Use this instead of ``__init__`` + ``initialize()`` when the
-        terminal has already been set up (e.g. by a pane pool) and
-        calling ``initialize()`` again would create a duplicate session.
+        当终端已设置时，请使用此选项代替 ``__init__`` + ``initialize()`` (e.g. 通过窗
+        格池）并再次调用
+        ``initialize()`` 将创建重复的会话。
         """
         session = cls(terminal, no_change_timeout_seconds)
         session._initialized = True
         return session
 
     def initialize(self) -> None:
-        """Initialize the terminal backend."""
+        """初始化终端后端。"""
         self.terminal.initialize()
         self._initialized: bool = True
         logger.debug(f"Unified session initialized with {type(self.terminal).__name__}")
 
     def close(self) -> None:
-        """Clean up the terminal backend."""
+        """清理终端后端。"""
         if self._closed:
             return
         self.terminal.close()
         self._closed: bool = True
 
     def interrupt(self) -> bool:
-        """Interrupt the currently running command (equivalent to Ctrl+C)."""
+        """中断当前正在运行的命令（相当于Ctrl+C）。"""
         return self.terminal.interrupt()
 
     def is_running(self) -> bool:
-        """Check if a command is currently running."""
+        """检查命令当前是否正在运行。"""
         if not self._initialized:
             return False
         return self.prev_status in {
@@ -189,8 +187,8 @@ class TerminalSession(TerminalSessionBase):
         }
 
     def _is_special_key(self, command: str) -> bool:
-        """Check if the command is a special key."""
-        # Special keys are of the form C-<key>
+        """检查命令是否是特殊键。"""
+        # 特殊键的形式为 C-<key>
         _command = command.strip()
         return _command.startswith("C-") and len(_command) == 3
 
@@ -202,38 +200,37 @@ class TerminalSession(TerminalSessionBase):
         continue_prefix: str = "",
         is_final: bool = False,
     ) -> str:
-        """Get the command output with the previous command output removed.
+        """获取删除了先前命令输出的命令输出。
 
-        Also filters terminal query sequences that could cause visible escape
-        code garbage when the output is displayed. Uses stateful filtering to
-        handle escape sequences that may be split across incremental outputs.
+        还过滤显示输出时可能导致可见转义代码垃圾的终端查询序列。 使用状态过滤来处理可
+        能跨增量输出拆分的转义序列。
         See: https://github.com/OpenHands/software-agent-sdk/issues/2244
 
         Args:
-            command: The command being executed
-            raw_command_output: Raw output from terminal
-            metadata: Output metadata to populate
-            continue_prefix: Prefix for continuation output
-            is_final: If True, flush any pending filter state (command completed)
+            command: 正在执行的命令
+            raw_command_output: 终端的原始输出
+            metadata: 输出要填充的元数据
+            continue_prefix: 继续输出的前缀
+            is_final: 如果 True，则刷新任何挂起的过滤器状态（命令已完成）
         """
-        # remove the previous command output from the new output if any
+        # 从新输出中删除先前的命令输出（如果有）
         if self.prev_output:
             command_output = raw_command_output.removeprefix(self.prev_output)
             metadata.prefix = continue_prefix
         else:
             command_output = raw_command_output
-        self.prev_output = raw_command_output  # update current command output anyway
+        self.prev_output = raw_command_output  # 无论如何更新当前命令输出
         if self.terminal.is_powershell():
             command_output = _remove_powershell_echo(command_output, command)
         else:
             command_output = _remove_command_prefix(command_output, command)
 
-        # Filter terminal query sequences that would cause the terminal to
-        # respond when displayed, producing visible garbage.
-        # The filter is stateful to handle sequences split across chunks.
+        # 过滤终端查询序列，这些序列会导致终端在显示时做出响应，从而产生可见的垃圾。 过
+        # 滤器是有状态的，可以处理跨块分割的序列。
+        #
         command_output = self._query_filter.filter(command_output)
         if is_final:
-            # Flush any pending bytes when command completes
+            # 命令完成时刷新所有挂起的字节
             command_output += self._query_filter.flush()
 
         return command_output.rstrip()
@@ -246,14 +243,13 @@ class TerminalSession(TerminalSessionBase):
         echoed_command: str | None = None,
         boundary_exit_code: int | None = None,
     ) -> TerminalObservation:
-        """Handle a completed command."""
+        """处理已完成的命令。"""
         is_special_key = self._is_special_key(command)
         output_command = echoed_command or command
 
-        # When PS1 metadata markers are missing (e.g., corrupted by TUI/ANSI
-        # output or scrolled off-screen), fall back gracefully instead of
-        # crashing. The command likely completed but we can't extract the
-        # exit code or working directory.
+        # 当 PS1 元数据标记丢失时（e.g.、被 TUI/ANSI 输出损坏或滚动到屏幕外），请优雅地
+        # 回退而不是崩溃。 该命令可能已完成，但我们无法提取退出代码或工作目录。
+        #
         if len(ps1_matches) == 0 and boundary_exit_code is None:
             logger.warning(
                 "No PS1 metadata found in terminal output. "
@@ -329,15 +325,15 @@ class TerminalSession(TerminalSessionBase):
             output_command,
             raw_command_output,
             metadata,
-            is_final=True,  # Command completed, flush filter state
+            is_final=True,  # 命令完成，刷新过滤器状态
         )
         command_output = maybe_truncate(
             command_output, truncate_after=MAX_CMD_OUTPUT_SIZE
         )
 
         self.prev_status = TerminalCommandStatus.COMPLETED
-        self.prev_output = ""  # Reset previous command output
-        self._query_filter.reset()  # Reset filter for next command
+        self.prev_output = ""  # 重置之前的命令输出
+        self._query_filter.reset()  # 重置下一个命令的过滤器
         self._ready_for_next_command()
         return TerminalObservation.from_text(
             command=command,
@@ -353,7 +349,7 @@ class TerminalSession(TerminalSessionBase):
         ps1_matches: list[re.Match],
         echoed_command: str | None = None,
     ) -> TerminalObservation:
-        """Handle a command that timed out due to no output change."""
+        """处理由于没有输出更改而超时的命令。"""
         self.prev_status = TerminalCommandStatus.NO_CHANGE_TIMEOUT
         if len(ps1_matches) != 1:
             logger.warning(
@@ -365,7 +361,7 @@ class TerminalSession(TerminalSessionBase):
         raw_command_output = self._combine_outputs_between_matches(
             terminal_content, ps1_matches
         )
-        metadata = CmdOutputMetadata()  # No metadata available
+        metadata = CmdOutputMetadata()  # 没有可用的元数据
         metadata.suffix = (
             f"\n[The command has no new output after "
             f"{self.no_change_timeout_seconds} seconds. {TIMEOUT_MESSAGE_TEMPLATE}]"
@@ -394,7 +390,7 @@ class TerminalSession(TerminalSessionBase):
         timeout: float,
         echoed_command: str | None = None,
     ) -> TerminalObservation:
-        """Handle a command that timed out due to hard timeout."""
+        """处理由于硬超时而超时的命令。"""
         self.prev_status = TerminalCommandStatus.HARD_TIMEOUT
         if len(ps1_matches) != 1:
             logger.warning(
@@ -406,7 +402,7 @@ class TerminalSession(TerminalSessionBase):
         raw_command_output = self._combine_outputs_between_matches(
             terminal_content, ps1_matches
         )
-        metadata = CmdOutputMetadata()  # No metadata available
+        metadata = CmdOutputMetadata()  # 没有可用的元数据
         metadata.suffix = (
             f"\n[The command timed out after {timeout} seconds. "
             f"{TIMEOUT_MESSAGE_TEMPLATE}]"
@@ -428,12 +424,12 @@ class TerminalSession(TerminalSessionBase):
         )
 
     def _ready_for_next_command(self) -> None:
-        """Reset the content buffer for a new command."""
-        # Clear the current content
+        """重置新命令的内容缓冲区。"""
+        # 清除当前内容
         self.terminal.clear_screen()
 
     def _strip_boundary_wrapper(self, terminal_content: str) -> str:
-        """Remove the heredoc completion suffix from a raw screen read."""
+        """从原始屏幕读取中删除heredoc完成后缀。"""
         if self._boundary_marker is not None:
             terminal_content = self._boundary_marker.sub("", terminal_content)
             terminal_content = terminal_content.replace("\x1b[?2004l", "").replace(
@@ -456,24 +452,24 @@ class TerminalSession(TerminalSessionBase):
         ps1_matches: list[re.Match],
         get_content_before_last_match: bool = False,
     ) -> str:
-        """Combine all outputs between PS1 matches."""
+        """合并 PS1 个匹配之间的所有输出。"""
         if len(ps1_matches) == 1:
             if get_content_before_last_match:
-                # The command output is the content before the last PS1 prompt
+                # 命令输出为最后一个PS1提示词之前的内容
                 return terminal_content[: ps1_matches[0].start()]
             else:
-                # The command output is the content after the last PS1 prompt
+                # 命令输出为最后一个PS1提示词之后的内容
                 return terminal_content[ps1_matches[0].end() + 1 :]
         elif len(ps1_matches) == 0:
             return terminal_content
         combined_output = ""
         for i in range(len(ps1_matches) - 1):
-            # Extract content between current and next PS1 prompt
+            # 提取当前和下一个 PS1 提示词之间的内容
             output_segment = terminal_content[
                 ps1_matches[i].end() + 1 : ps1_matches[i + 1].start()
             ]
             combined_output += output_segment + "\n"
-        # Add the content after the last PS1 prompt
+        # 添加最后一个PS1提示词后面的内容
         combined_output += terminal_content[ps1_matches[-1].end() + 1 :]
         logger.debug(
             "Combined terminal output (content_length=%s)", len(combined_output)
@@ -481,11 +477,11 @@ class TerminalSession(TerminalSessionBase):
         return combined_output
 
     def execute(self, action: TerminalAction) -> TerminalObservation:
-        """Execute a command using the terminal backend."""
+        """使用终端后端执行命令。"""
         if not self._initialized:
             raise RuntimeError("Unified session is not initialized")
 
-        # Strip the command of any leading/trailing whitespace
+        # 去除命令中的任何前导/尾随空格
         logger.debug(
             "Received terminal action (is_input=%s, command_length=%s)",
             action.is_input,
@@ -506,8 +502,8 @@ class TerminalSession(TerminalSessionBase):
                 is_error=True,
             )
 
-        # If the previous command is not completed,
-        # we need to check if the command is empty
+        # 如果前面的命令没有完成，我们需要检查命令是否为空
+        #
         if self.prev_status not in {
             TerminalCommandStatus.CONTINUE,
             TerminalCommandStatus.NO_CHANGE_TIMEOUT,
@@ -526,7 +522,7 @@ class TerminalSession(TerminalSessionBase):
                     is_error=True,
                 )
 
-        # Check if the command is a single command or multiple commands
+        # 检查命令是单个命令还是多个命令
         splited_commands = split_bash_commands(command)
         if len(splited_commands) > 1:
             commands_list = "\n".join(
@@ -542,7 +538,7 @@ class TerminalSession(TerminalSessionBase):
                 is_error=True,
             )
 
-        # Get initial state before sending command
+        # 发送命令前获取初始状态
         initial_terminal_output = self.terminal.read_screen()
         initial_ps1_matches = CmdOutputMetadata.matches_ps1_metadata(
             initial_terminal_output
@@ -558,7 +554,7 @@ class TerminalSession(TerminalSessionBase):
         last_change_time = start_time
         last_terminal_output = initial_terminal_output
 
-        # When prev command is still running, and we are trying to send a new command
+        # 当上一个命令仍在运行，并且我们正在尝试发送新命令时
         if (
             self.prev_status
             in {
@@ -571,16 +567,16 @@ class TerminalSession(TerminalSessionBase):
         ):
             last_terminal_output = self._strip_boundary_wrapper(last_terminal_output)
             _ps1_matches = CmdOutputMetadata.matches_ps1_metadata(last_terminal_output)
-            # Use initial_ps1_matches if _ps1_matches is empty,
-            # otherwise use _ps1_matches. This handles the case where
-            # the prompt might be scrolled off screen but existed before
+            # 如果 _ps1_matches 为空，则使用 initial_ps1_matches，否则使用 _ps1_matches
+            # 。 这处理了提示词可能滚动到屏幕之外但之前就存在的情况
+            #
             current_matches_for_output = (
                 _ps1_matches if _ps1_matches else initial_ps1_matches
             )
             raw_command_output = self._combine_outputs_between_matches(
                 last_terminal_output, current_matches_for_output
             )
-            metadata = CmdOutputMetadata()  # No metadata available
+            metadata = CmdOutputMetadata()  # 没有可用的元数据
             metadata.suffix = (
                 f'\n[Your command "{command}" is NOT executed. The previous command '
                 f"is still running - You CANNOT send new commands until the previous "
@@ -635,7 +631,7 @@ class TerminalSession(TerminalSessionBase):
                 self._boundary_echo = boundary_command
                 self._wrapper_echo = command_to_send
 
-        # Send actual command/inputs to the terminal
+        # 将实际命令/输入发送到终端
         sent_command = command != ""
         if command != "":
             is_special_key = self._is_special_key(command)
@@ -658,10 +654,11 @@ class TerminalSession(TerminalSessionBase):
                 if boundary_command is not None:
                     self.terminal.send_keys(boundary_command)
 
-        # Loop until the command completes or times out
+        # 循环直到命令完成或超时
         while True:
-            # A closed terminal never shows the command finishing, and a command with
-            # a timeout skips the no-change timeout, so stop waiting on it here.
+            # 关闭的终端永远不会显示命令完成，并且带有超时的命令会跳过无更改超时，因此请
+            # 停止在此处等待。
+            #
             if self._closed or self.terminal.closed:
                 return TerminalObservation.from_text(
                     text="[The terminal was closed while the command was running.]",
@@ -698,8 +695,8 @@ class TerminalSession(TerminalSessionBase):
                 last_change_time = time.time()
                 logger.debug(f"CONTENT UPDATED DETECTED at {last_change_time}")
 
-            # 1) Execution completed when a prompt appears, or when a heredoc
-            # suffix reaches its tty boundary after stdout has been redirected.
+            # 1) 当出现提示词或heredoc时执行完成
+            # stdout 重定向后，后缀到达其 tty 边界。
             prompt_reached = current_ps1_count > initial_ps1_count or (
                 cur_terminal_output.rstrip().endswith(CMD_OUTPUT_PS1_END.rstrip())
             )
@@ -727,11 +724,11 @@ class TerminalSession(TerminalSessionBase):
                 )
                 return obs
 
-            # Timeout checks should only trigger if a new prompt hasn't appeared yet.
+            # 仅当新的提示词尚未出现时才应触发超时检查。
 
-            # 2) Execution timed out since there's no change in output
-            # for a while (NO_CHANGE_TIMEOUT_SECONDS)
-            # We ignore this if the command is *blocking*
+            # 2) 由于输出没有变化，执行超时
+            # 一段时间 (NO_CHANGE_TIMEOUT_SECONDS) 如果命令是 * 阻塞 *，我们会忽略它
+            #
             time_since_last_change = time.time() - last_change_time
             is_blocking = action.timeout is not None
             logger.debug(
@@ -754,8 +751,8 @@ class TerminalSession(TerminalSessionBase):
                 )
                 return obs
 
-            # 3) Execution timed out since the command has been running for too long
-            # (hard timeout)
+            # 3) 由于命令运行时间过长，执行超时
+            # （硬超时）
             elapsed_time = time.time() - start_time
             logger.debug(
                 f"CHECKING HARD TIMEOUT ({action.timeout}s): elapsed {elapsed_time:.2f}"
@@ -779,6 +776,7 @@ class TerminalSession(TerminalSessionBase):
                     )
                     return obs
 
-            # Poll in proportion to the command's run time so a short command is
-            # noticed within milliseconds, not at the next POLL_INTERVAL tick.
+            # 与命令的运行时间成比例进行轮询，以便在几毫秒内注意到短命令，而不是在下一个
+            #  POLL_INTERVAL 刻度处。
+            #
             time.sleep(min(POLL_INTERVAL, max(MIN_POLL_INTERVAL, elapsed_time / 4)))

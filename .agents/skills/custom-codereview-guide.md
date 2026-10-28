@@ -5,283 +5,191 @@ triggers:
   - /codereview
 ---
 
-# OpenHands/software-agent-sdk review guide
+<a id="openhandssoftware-agent-sdk-review-guide"></a>
 
-Apply this guide with the general code-review skill and the closest `AGENTS.md`
-for every changed package. This file identifies the repository-specific checks
-that should affect the review decision; it does not replace those sources.
+# OpenHands/软件-智能体-SDK审查指南
 
-## Issue triage: ownership and scope
+使用一般代码审查技能和每个更改的包的最接近的 `AGENTS.md` 应用本指南。 该文件标识了应影响审核决策的特定于存储库的检查； 它不会取代这些来源。
 
-Use the ownership guidance below to choose the repository and scope. Ask only
-for missing details needed to understand the problem, expected result,
-reproduction, or agreed scope (including non-goals). Logs, API responses, or a
-small reproducer can explain nonvisual bugs; media is optional.
+<a id="issue-triage-ownership-and-scope"></a>
 
-Issue readiness means the work is clear enough to start—not that the fix is
-complete. Do not require a PR, passing implementation tests, or before-and-after
-fix evidence. Reconsider readiness when new information leaves scope or expected
-behavior unresolved.
+## 问题分类：所有权和范围
 
-## Implementation review: decision
+使用下面的所有权指南来选择存储库和范围。 仅询问理解问题、预期结果、再现或商定范围（包括非目标）所需的缺失细节。 日志、API 响应或小型重现器可以解释非视觉错误； 媒体是可选的。
 
-Use **APPROVE** when the current PR head has no material correctness, security,
-compatibility, or acceptance-criterion defect. Use **COMMENT** when there is a
-material finding or when this guide explicitly requires human review. Do not use
+问题准备就绪意味着工作已经足够清晰，可以开始了，而不是修复已经完成。 不需要 PR、通过实施测试或修复前后证据。 当新信息超出范围或未解决预期行为时，重新考虑准备情况。
+
+<a id="implementation-review-decision"></a>
+
+## 实施审查：决定
+
+当当前 PR 头没有材料正确性、安全性、兼容性或验收标准缺陷时，使用 **APPROVE**。 当有重大发现或本指南明确要求人工审查时，请使用 **COMMENT**。 请勿使用
 **REQUEST_CHANGES**.
 
-A material finding must identify the affected path, the concrete failure, and
-the evidence in the current diff or repository. Suggestions, questions, naming
-preferences, optional refactors, and requests for more tests without an
-unverified behavior do not justify withholding approval. Do not leave them as
-review comments.
+重大发现必须确定受影响的路径、具体故障以及当前差异或存储库中的证据。 没有经过验证的行为的请求、建议、问题、命名偏好、可选重构和测试请求都不足以拒绝批准。 不要将它们留下作为审阅意见。
 
-Before deciding, read the linked issue and all existing PR reviews and comments,
-then verify that each unresolved concern and acceptance criterion is addressed
-by the current head. Check current-head CI; a prior run is not evidence for a
-changed head.
+在做决定之前，请先阅读相关的待办事项，并查看所有现有的PR评论和反馈，然后核实每个未解决的顾虑和验收标准是否已被当前负责人解决。 检查当前头CI； 之前的运行并不能证明改变了头脑。
 
-## Repository ownership and data flow
+<a id="repository-ownership-and-data-flow"></a>
 
-This repository owns the Python SDK and Agent Server: agent and tool behavior,
-conversations, workspaces, events, and the canonical REST/WebSocket API.
-`clients/typescript/` mirrors that API for browser clients. Agent Canvas UI and
-frontend state belong in `OpenHands/OpenHands`; reusable extensions belong in
-`OpenHands/extensions`; automation scheduling, dispatch, and sandbox lifecycle
-belong in `OpenHands/automation`.
+## 存储库所有权和数据流
 
-The normal flow is SDK or Agent Server -> OpenAPI -> TypeScript client -> Canvas.
-Backend behavior and endpoints must be defined in Python before being exposed by
-generated or handwritten clients. If a change belongs to another repository,
-recommend moving it rather than adding a second implementation here.
+该存储库拥有 Python SDK 和 Agent Server：智能体以及工具行为、对话、工作区、事件和规范 REST/WebSocket API。
+`clients/typescript/` 反映了浏览器客户端的 API。 Agent Canvas UI 和前端状态属于 `OpenHands/OpenHands`； 可重用的扩展属于
+`OpenHands/extensions`; 自动化调度、调度和沙箱生命周期属于`OpenHands/automation`。
 
-### New AI providers
+正常流程是SDK或Agent Server->OpenAPI->TypeScript客户端->Canvas。 后端行为和端点必须在 Python 中定义，然后才能由生成的或手写的客户端公开。 如果更改属于另一个存储库，建议移动它而不是在此处添加第二个实现。
 
-Treat new provider-specific integrations as out of scope unless the provider is broadly popular
-and commonly used by OpenHands users. Prefer the existing generic provider interfaces and reusable
-extension points over maintaining a long tail of provider-specific code in the SDK.
+<a id="new-ai-providers"></a>
 
-When reviewing an issue or pull request that adds a provider below this bar, recommend marking it
-out of scope and closing it politely. Do not approve or merge it solely because the implementation
-is technically correct. Reconsider only when there is credible evidence of broad user demand and a
-maintainable integration benefit.
+### 新的人工智能提供商
 
-For a change that crosses layers, trace the value or operation through every
-affected public entry point. Check factories, constructors, registries,
-serialization, REST/WebSocket transport, the TypeScript client, and resume or
-fork paths as applicable. A field added to one model or a method added to one
-client is incomplete if another supported path drops, renames, or ignores it.
+将新的提供商特定集成视为超出范围，除非提供商广受欢迎且被普遍使用 OpenHands 用户。 优先使用现有的通用提供者接口和可重用扩展点，而不是维护一个长尾的特定提供者代码 SDK.
 
-## Acceptance review
+当审查在此栏下方添加提供程序的问题或拉取请求时，建议将其标记为超出范围并礼貌地关闭它。 不要仅仅因为实施在技术上是正确的就批准或合并它。 仅当有可靠证据表明广泛的用户需求和可维护的集成优势时才重新考虑。
 
-Check that the current head delivers each agreed outcome, default, and non-goal.
-An alternative approach does not prove the original goal was met; note any
-agreed scope change. Separate new bugs and unmet requirements from unrelated
-existing bugs; do not require fixing the latter.
+对于跨层的更改，请通过每个受影响的公众来追踪价值或操作入口。 检查工厂、构造函数、注册表、序列化、REST/WebSocket 传输层、TypeScript 客户端以及恢复或分叉路径（如果适用）。 如果另一受支持的路径删除、重命名或忽略添加到一个模型的字段或添加到一个客户端的方法，则该字段或方法不完整。
 
-## Blocking architecture checkpoints
+<a id="acceptance-review"></a>
 
-Check only changed behavior and affected supported paths; report concrete failures.
+## 验收审核
 
-### Versions and agent construction
+检查当前负责人是否交付了每个商定的结果、默认结果和非目标结果。 另一种方法并不能证明最初的目标已经实现； 注意任何商定的范围变更。 将新错误和未满足的需求与不相关的现有错误分开； 不需要修复后者。
 
-When a change crosses repositories, check the SDK, server, client, and app
-versions actually used. A fix on `main` may not be in a pinned release.
-Coordinate API changes with consumers.
+<a id="blocking-architecture-checkpoints"></a>
 
-When settings, tools, or delegation change, extend the cross-layer checks above
-to saved profiles and nested delegates. Check individual tools and toolsets
-(e.g. `workflow` and `workflow_tool_set`) and the agent actually built.
-An `ACPAgent` delegates execution externally: its visible `tools` list does not
-prove tool/MCP restrictions are enforced. Check restricted, rejected, and
-unrestricted requests, including restrictions inherited by nested delegates.
+## 封锁架构个检查点
 
-### Public and persisted compatibility
+仅检查更改的行为和受影响的支持路径； 报告具体故障。
 
-Treat changes to public Python symbols, REST/WebSocket contracts, defaults,
-serialized events, persisted settings, and stored conversations as compatibility
-changes. Follow the deprecation and versioning policies under
+<a id="versions-and-agent-construction"></a>
+
+### 版本和智能体构造
+
+当更改跨存储库时，请检查实际使用的SDK、服务器、客户端和应用程序版本。 对 `main` 的修复可能不在固定版本中。 与消费者协调 API 变更。
+
+当设置、工具或委派发生更改时，将上面的跨层检查扩展到保存的配置文件和嵌套委派。 检查各个工具和工具集 (e.g. `workflow`和`workflow_tool_set`）以及实际建造的智能体。 `ACPAgent` 委托外部执行：其可见的 `tools` 列表并不证明工具/MCP 限制已强制执行。 检查受限制、拒绝和不受限制的请求，包括嵌套委托继承的限制。
+
+<a id="public-and-persisted-compatibility"></a>
+
+### 公共和已持久化兼容性
+
+将公共 Python 符号、REST/WebSocket 合约、默认值、已序列化事件、已持久化设置和存储的对话的更改视为兼容性更改。 遵循弃用和版本控制策略
 [`AGENTS.md` API compatibility pointers](../../AGENTS.md#api-compatibility-pointers)
-and the relevant package `AGENTS.md`.
+以及相关的包`AGENTS.md`。
 
-Verify old and new representations through the real load, migrate, and
-round-trip path. Event fields handled by `extra="forbid"` need the repository's
-permanent deprecated-field handling before old events can load. Persisted
-settings changes must use the existing schema-version migration and golden
-fixture machinery. Do not accept an ad hoc compatibility shim when an existing
-deprecation or migration mechanism owns the transition.
+通过真实负载、迁移和往返路径验证新旧表示。 由 `extra="forbid"` 处理的事件字段需要存储库的永久已弃用字段处理才能加载旧事件。 已持久化设置更改必须使用现有的模式版本迁移和黄金测试夹具机器。 当现有弃用或迁移机制拥有转换时，请勿接受临时兼容性填充程序。
 
-### Conversation and resource lifecycle
+<a id="conversation-and-resource-lifecycle"></a>
 
-Trace create, run, interrupt, close, resume, fork, and failure paths affected by
-the change. Verify that:
+### 对话和资源生命周期
 
-- cancellation or stop operations terminate the underlying task or descendant
-  process rather than only changing status;
-- event loops, background tasks, connections, plugins, and subprocess trees are
-  closed by their owner on success, failure, and cancellation;
-- partial persistent state is rolled back when a later startup step fails;
-- shared mutable conversation state uses its owning synchronization mechanism;
-  `LocalConversation` access to `self._state` must hold `with self._state:`; and
-- resumed or forked conversations preserve the same observable configuration
-  and behavior as newly created conversations.
+跟踪受更改影响的创建、运行、中断、关闭、恢复、分叉和故障路径。 验证：
 
-Start at the first file/database write or resource creation, even before a lock
-or service registration. Check that a losing create/fork cannot overwrite the
-winner's files. Inspect the locked recheck and registration before claiming a
-race. Check rollback after failed startup attaches to a parent or acquires resources.
-On resume, keep old waiters and workers tied to their original run; record its
-result and notify waiters together, without clearing or reusing completion
-signals. Join only owned worker threads, not caller or pool threads.
+- 取消或停止操作终止底层任务或后代进程，而不仅仅是改变状态；
+- 事件循环、后台任务、连接、插件和子进程树在成功、失败和取消时由其所有者关闭；
+- 当稍后的启动步骤失败时，部分持久状态会回滚；
+- 共享可变会话状态使用其拥有的同步机制；
+  `LocalConversation` 访问 `self._state` 必须持有 `with self._state:`； 和
+- 恢复或分叉的对话保留与新创建的对话相同的可观察配置和行为。
 
-When archive, resume, or storage changes, check affected local, Docker, and Cloud
-backends for promised status/error responses, retained history, up-to-date
-shutdown/archive metadata, and matching search/count filters. Their internals
-need not match.
+从第一次文件/数据库写入或资源创建开始，甚至在锁或服务注册之前。 检查失败的创建/分叉是否无法覆盖获胜者的文件。 在领取比赛资格之前检查锁定的复查和注册。 启动失败后检查回滚附加到父级或获取资源。 在恢复时，让旧的等待者和工人与原来的运行保持联系； 记录其结果并一起通知等待者，而不清除或重用完成信号。 仅加入拥有的工作人员线程，而不加入调用者或池线程。
 
-Do not require a speculative cleanup abstraction. Identify a resource that can
-actually outlive its owner or a state transition that produces a wrong result.
+当归档、恢复或存储更改时，检查受影响的本地、Docker 和云后端的承诺状态/错误响应、保留历史、最新关闭/归档元数据以及匹配的搜索/计数过滤器。 它们的内部结构不需要匹配。
 
-### Secrets and authentication
+不需要推测性清理抽象。 识别实际上比其所有者寿命更长的资源或产生错误结果的状态转换。
 
-Trace credentials through input, validation, serialization, persistence,
-logging, and delivery to the consumer. Secret-bearing Pydantic fields must use
-the helpers in `openhands.sdk.utils.pydantic_secrets`; do not accept custom
-redaction sentinels or one-off serializers. Verify that secrets cannot appear in
-logs, exceptions, command strings, persisted plaintext, or ordinary model dumps,
-and that resume and plugin-loading paths apply the same policy as creation.
+<a id="secrets-and-authentication"></a>
 
-When authentication or redaction changes, check the deployed request path:
-`root_path`, route matching, trusted versus untrusted proxy headers, and repeated
-path/host decoding or normalization before trusting either. Check expiry on existing
-connections, not just new handshakes. Use configured trust and expiry rules,
-not hypothetical deployments.
+### 机密和身份验证
 
-### Timeouts and cancellation
+通过输入、验证、序列化、持久化、日志记录和交付给消费者来跟踪凭据。 机密-承载Pydantic字段必须使用`openhands.sdk.utils.pydantic_secrets`中的辅助函数； 不接受定制脱敏哨兵值或一次性序列化器。 机密不应出现在日志、异常、命令字符串、已持久化明文或普通模型 dumps 中，且恢复和插件加载路径应与创建路径遵循相同的策略。
 
-When timeouts or cancellation change, check which layer sets each deadline and
-raises each error: provider/transport, retry attempt, stream idle, or whole run.
-Check error propagation, retries, and cleanup; do not misreport an inner error
-as an outer timeout. Preserve disabled timers (`None` or zero where documented)
-and test the affected enabled/disabled paths.
+当身份验证或脱敏发生变化时，检查部署的请求路径：
+`root_path`、路由匹配、可信与不可信代理标头，以及在信任其中之一之前重复的路径/主机解码或标准化。 检查现有连接的到期时间，而不仅仅是新的握手。 使用配置的信任和过期规则，而不是假设的部署。
 
-### Production runtime parity
+<a id="timeouts-and-cancellation"></a>
 
-Code that imports optional modules, installs dependencies, launches programs,
-uses filesystem paths, or shells out must work in every affected supported
-runtime, including the packaged Agent Server, Docker images, and relevant host
-platforms. Check that the dependency or executable is present in the production
-artifact and that paths and process cleanup do not rely on the developer
-environment. A unit test with mocks is not sufficient evidence for a changed
-packaging or installation path.
+### 超时和取消
 
-### Live evidence for production-facing bug fixes
+当超时或取消更改时，检查哪个层设置每个截止时间并引发每个错误：提供商/传输、重试尝试、流空闲或整个运行。 检查错误传播重试和清理； 不要将内部错误误报为外部错误超时。 保留禁用的计时器（`None` 或记录为零）并测试受影响的启用/禁用路径。
 
-For bug fixes whose claimed failure occurs only through a runtime lifecycle or
-integration path, do not APPROVE from constructed test state alone. This includes
-process restart or pause behavior, conversation recovery, persisted-state
-recovery, deployment/container behavior, external services, and other failures
-whose root cause depends on the running environment.
+<a id="production-runtime-parity"></a>
 
-Require authentic before-and-after evidence that exercises the real supported
-entry point:
+### 生产运行时奇偶校验
 
-- reproduce the original symptom on the base revision through the user-facing or
-  service-facing workflow;
-- repeat the same workflow on the current PR head and show that it succeeds;
-- include enough runtime context, such as commands and API responses, logs,
-  process lifecycle, persisted artifacts, or external-service responses, to tie
-  the observed failure to the proposed root cause; and
-- state any difference between the reported production environment and the
-  reproduction environment. A faithful substitute is acceptable when the exact
-  platform is unavailable, but its limitations must be explicit.
+必须在受影响的所有支持运行时上工作，包括打包的 Agent Server 和 Docker 镜像，以及相关主机平台。 检查依赖项或可执行文件是否存在于生产 artifact 中，以及路径和进程清理是否依赖于开发环境。 单元测试和模拟对象不足以证明包装或安装路径已更改。
 
-Unit and integration tests are still required as regression protection, but a
-test that forges the suspected failure state does not prove that production
-reaches that state. If the linked issue marks the root cause as a hypothesis,
-verify that the runtime evidence confirms it. If this evidence is missing or the
-fix only addresses a narrower scenario than the linked issue, leave a COMMENT
-requesting evidence or corrected scope and defer approval to a human maintainer.
+<a id="live-evidence-for-production-facing-bug-fixes"></a>
 
-### Agent behavior and evaluation
+### 面向生产的错误修复的实时证据
 
-For changes that can plausibly alter agent or benchmark behavior, assess whether
-the linked issue, PR acceptance criteria, or required checks call for a specific
-evaluation. This includes prompts, tool descriptions or execution, model
-capability routing, the agent loop, planning, memory, condensation, terminal
-I/O, and evaluation harnesses.
+对于仅在运行时生命周期或集成路径中发生声称失败的错误修复，请勿单独从构建的测试状态 APPROVE。 这包括重启或暂停行为、会话恢复、已持久化状态恢复、部署/容器行为、外部服务以及依赖于运行环境的其他失败。
 
-Missing optional eval evidence is not a code defect and does not by itself
-justify a COMMENT decision. When the current head has no material finding,
-APPROVE it and identify the eval risk in the review so the subsequently
-requested human maintainer can choose the appropriate lightweight evaluation.
-Use COMMENT when required eval evidence is missing or failing, or when available
-evaluation evidence demonstrates a regression; name the concrete requirement or
-failure.
+需要真实的前后证据来行使真实支持的入口：
 
-For provider/model registries, preserve declared order and capability semantics;
-do not infer behavior from unordered collections or provider-name heuristics when
-the feature registry already owns it.
+- 通过面向用户或面向服务的工作流程在基础修订版上重现原始症状；
+- 在当前 PR 头上重复相同的工作流程并显示它成功；
+- 包括足够的运行时上下文，例如命令和 API 响应、日志、进程生命周期、已持久化产物，或外部服务响应，以将观察到的失败与提出的根本原因联系起来。 和
+- 说明所报告的生产环境和复制环境之间的任何差异。 当确切的平台不可用时，忠实的替代品是可以接受的，但其局限性必须明确。
 
-## Triggered checks
+单元测试和集成测试仍然需要，以保护回归，但伪造怀疑失败状态的测试并不能证明生产系统达到该状态。 如果链接的问题将根本原因标记为假设，请验证运行时证据是否证实了这一点。 如果证据缺失或修复仅解决了关联问题的狭窄场景，则留下 COMMENT 请求证据或修正范围，并推迟批准给人类维护者。
 
-### Release PRs
+<a id="agent-behavior-and-evaluation"></a>
 
-For a release PR, inspect the latest PR-specific results and comments for **Run
-tests**, **Run Examples Scripts**, and **Run Integration Tests**. Confirm that
-each ran on the current head and that its comment agrees with its check result.
-If any is missing, skipped, stale, ambiguous, or failing, COMMENT with the exact
-missing validation and defer approval to a maintainer.
+### 智能体行为与评价
 
-Package version changes belong in dedicated release PRs. Do not approve an
-unrelated PR that changes a distributable package version.
+对于可能影响智能体或基准测试行为的更改，评估相关问题 PR 是否有接受标准或要求检查，是否需要特定的评估。 这包括提示词工具描述或执行，模型能力路由，智能体循环，规划，内存，上下文压缩终端I/O，以及评估框架。
+
+缺少可选的评估证据不是代码缺陷，并且其本身并不能证明 COMMENT 决定是合理的。 当当前的头没有实质性发现时，APPROVE 识别出审查中的评估风险，并让随后请求的人工维护者选择适当的轻量级评估。 当所需的评估证据缺失或失败时，或者当可用的评估证据表明回归时，使用 COMMENT； 指出具体的要求或失败。
+
+对于提供者/模型注册表，保留声明的顺序和能力语义； 当功能注册表已经拥有它时，不要从无序集合或提供者名称启发中推断行为。
+
+<a id="triggered-checks"></a>
+
+## 触发检查
+
+<a id="release-prs"></a>
+
+### 发布PR
+
+对于版本 PR，请检查 **运行测试 **、**运行示例脚本 ** 和 **运行集成测试** 的最新 PR 特定结果和注释。 确认每个都在当前头上运行，并且其注释与其检查结果一致。 如果有任何缺失、跳过、过时、不明确或失败，COMMENT 具有确切的缺失验证并推迟批准给维护者。
+
+软件包版本更改属于专用版本 PR。 请勿批准更改可分发包版本的不相关 PR。
 
 ### Dependency updates
 
-For dependency additions or updates, inspect every changed third-party npm or
-PyPI version, including transitive lockfile changes. Require at least seven days
-since publication of that exact version. Use registry publication/upload metadata
-or the relevant artifact's `uv.lock` `upload-time`; a weekly bot schedule, an old
-package name, or a passing install is not age evidence.
+对于依赖项添加或更新，请检查每个更改的第三方 npm 或 PyPI 版本，包括传递锁文件更改。 需要自该确切版本发布后至少 7 天。 使用注册表发布/上传元数据或相关工件的 `uv.lock` `upload-time`； 每周的机器人时间表、旧的软件包名称或临时安装都不是年龄证据。
 
-For an under-seven-day artifact, leave a COMMENT naming the package, version,
-publication time, and source, and defer approval until it ages out or a maintainer
-explicitly approves a narrowly documented exception. If publication time is
-unavailable, ask for that evidence. Existing named first-party exemptions apply
-only to those packages, not their third-party dependencies or blanket approval
-of the lockfile. Apply this check before any dependency-bump fast path.
+对于七天以内的一次性产品，留下COMMENT，包括包名、版本、发布时间及源，直到它过期或维护者明确批准一个文档化的例外。 如果无法发布时间，请索取该证据。 现有指定的第一方豁免仅适用于这些软件包，而不适用于其第三方依赖项或锁定文件的全面批准。 在任何依赖项碰撞快速路径之前应用此检查。
 
-Flag removal or weakening of seven-day uv/Dependabot guards or new broad
-exemptions. Dependabot security updates bypass cooldown, so review them under
-the explicit maintainer-exception rule in `AGENTS.md`; agents cannot approve
-their own bypass.
+取消或削弱 7 天 uv/Dependabot 防护措施或新的广泛豁免的标志。 Dependabot 安全更新会绕过冷却时间，因此请根据 `AGENTS.md` 中的明确维护者例外规则进行审查； 智能体无法批准自己的绕过。
 
-### Newly provisioned eval models
+<a id="newly-provisioned-eval-models"></a>
 
-For a PR limited to adding a new eval model configuration, a live proxy response
-of `Invalid model name` may reflect out-of-band provisioning lag. Do not treat
-that response alone as a defect. Accept a successful integration-runner check,
-a completed eval-monitor run, or explicit author confirmation that the model is
-reachable. Parameter conflicts, invalid model configuration, regressions in
-existing models, and test failures remain material findings.
+### 新配置的评估模型
 
-### Runnable example directories
+对于仅限于添加新评估模型配置的 PR，`Invalid model name` 的实时代理响应可能反映带外配置滞后。 不要将该反应单独视为缺陷。 接受成功的集成运行程序检查、完成的评估监视器运行或明确的作者确认模型可访问。 参数冲突、无效的模型配置、现有模型的回归以及测试失败仍然是重要的发现。
 
-A runnable example directory under `examples/` uses `main.py`, is included in
-`tests/examples/test_examples.py` when the examples workflow should run it, and
+<a id="runnable-example-directories"></a>
+
+### 可运行的示例目录
+
+`examples/` 下的可运行示例目录使用 `main.py`，包含在
+`tests/examples/test_examples.py` 示例工作流程应何时运行，以及
 prints `EXAMPLE_COST: ...`. Do not apply this convention to support scripts that
-are intentionally invoked by workflows.
+由工作流有意调用。
 
-## Avoid review noise
+<a id="avoid-review-noise"></a>
 
-Do not comment on:
+## 避免评论噪音
 
-- minor style, naming, formatting, or optional refactors;
-- clear code merely to request a comment or docstring;
-- extra tests unless a concrete behavior or regression is unverified;
-- good behavior that needs no change; or
-- `.pr/` artifacts, which the repository cleanup workflow owns.
+请勿评论：
 
-Do not assume that test-only, documentation, configuration, CI, or dependency
-PRs are safe by category. Apply the relevant checkpoint, then approve promptly
-when no material issue remains.
+- 次要样式、命名、格式或可选重构；
+- 清晰的代码只是为了请求评论或文档字符串；
+- 额外的测试，除非具体行为或回归未经验证；
+- 无需改变的良好行为； 或
+- `.pr/` 工件，存储库清理工作流程拥有的。
+
+不要假设仅测试、文档、配置、CI 或依赖项 PR 按类别是安全的。 应用相关检查点，然后在没有重大问题时立即批准。

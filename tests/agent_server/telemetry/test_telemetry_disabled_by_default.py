@@ -1,4 +1,4 @@
-"""Default-off behaviour, including that the vendor SDK is never imported."""
+"""默认关闭行为，包括从不导入供应商 SDK。"""
 
 import subprocess
 import sys
@@ -47,7 +47,7 @@ async def test_building_sink_carries_configured_deployment_kind(
 async def test_salt_falls_back_to_the_secret_key_as_documented(
     config_factory, secret_key
 ):
-    """Without a salt, refs are keyed by the secret key, as `salt` documents."""
+    """如果没有盐，参考文献将由机密键作为键，如 `salt` 文档。"""
     description = TelemetrySpec.model_fields["salt"].description or ""
     assert "OH_SECRET_KEY" in description
     assert "linkable across restarts" in description
@@ -65,7 +65,7 @@ async def test_salt_falls_back_to_the_secret_key_as_documented(
 
 
 async def test_opt_in_without_an_api_key_stays_inactive(config_factory):
-    """No key means no exporter."""
+    """没有钥匙就意味着没有出口商。"""
     sink = await build_telemetry_sink(config_factory("posthog"))
     assert isinstance(sink, NoOpTelemetrySink)
 
@@ -79,18 +79,16 @@ async def test_kill_switch_short_circuits_delivery(config_factory, monkeypatch):
 
 
 def test_importing_the_telemetry_package_does_not_import_posthog():
-    """The optional dependency must stay off the import path by default.
+    """默认情况下，可选依赖项必须远离导入路径。
 
-    Note on scope: this asserts that *this package* does not import posthog,
-    not that ``posthog`` is absent from ``sys.modules`` after a full server
-    startup. It cannot assert the latter, because the unrelated pre-existing
-    ``browser-use`` dependency imports posthog transitively when the tool
-    preload service starts. The claim under test — that a telemetry-disabled
-    server never pulls the vendor SDK in *on telemetry's behalf* — is captured
-    precisely by checking our own exporter module stays unimported.
+    关于范围的注意事项：这断言 * 这个包 * 不导入 posthog，而不是在完整服务器启动后
+    ``sys.modules`` 中不存在 ``posthog``。 它
+    不能断言后者，因为不相关的预先存在的
+    ``browser-use`` 工具预加载服务启动时，依赖项会传递导入 posthog。 测试用例——即，一
+    个没有启用遥测功能的服务器 SDK 从未在 * 上代表
+    * 追踪遥测 —— 精确地通过检查我们的自定义导出器模块是否保持未导入。
 
-    Run in a subprocess so an import elsewhere in the test session cannot mask
-    a regression.
+    在子进程中运行，因此测试会话中其他位置的导入无法屏蔽回归。
     """
     script = """
 import sys
@@ -119,7 +117,7 @@ print("OK")
 
 
 async def test_disabled_server_never_constructs_the_exporter(temp_persistence_dir):
-    """Complements the import test: no exporter object is built either."""
+    """补充导入测试：也没有构建导出器对象。"""
     import openhands.agent_server.telemetry.service as service_mod
 
     built: list[object] = []
@@ -138,14 +136,13 @@ async def test_disabled_server_never_constructs_the_exporter(temp_persistence_di
 async def test_conversation_service_reads_the_live_sink_not_a_captured_one(
     tmp_path, monkeypatch
 ):
-    """Regression: conversation telemetry must gate on the *live* process sink.
+    """Regression: 对话遥测必须控制 *live* 进程接收器。
 
-    ``ConversationService`` is instantiated at import time (``sockets.py`` module
-    scope), before the lifespan builds the telemetry sink. If the gate read a sink
-    captured at construction, every conversation would see the pre-init NoOp and
-    emit nothing regardless of consent. Build the service while the sink is still a
-    NoOp, enable telemetry afterwards, and assert a new conversation still attaches
-    the subscriber and emits ``conversation_created``.
+    ``ConversationService`` 在导入时（``sockets.py`` 模块范围）实例化，在生命周期构建
+    遥测接收器之前。 如果门读取在构造时捕获的接
+    收器，则每次对话都会看到预初始化 NoOp，并且无论是否同意，都不会发出任何内容。 在
+    sink 仍然是 NoOp 时构建服务，之后启用 telemetry，并断言
+    一个新对话仍然附带订阅者并发出 ``conversation_created``。
     """
     from uuid import uuid4
 
@@ -160,13 +157,14 @@ async def test_conversation_service_reads_the_live_sink_not_a_captured_one(
     from openhands.sdk.security.confirmation_policy import NeverConfirm
     from openhands.sdk.workspace import LocalWorkspace
 
-    # 1. Construct the service while telemetry is still the pre-init NoOp — the
-    #    exact ordering sockets.py forces by building the service at import.
+    # 1. 在遥测仍然是预初始化 NoOp 时构建服务 — 通过在导入时构建服务来强制执行精确的顺序
+    #  sockets.py。
+    #
     service_mod.reset_telemetry_sink()
     assert isinstance(get_telemetry_sink(), NoOpTelemetrySink)
     service = ConversationService(conversations_dir=tmp_path)
 
-    # 2. Telemetry is enabled later (lifespan build / consent grant).
+    # 2. 稍后启用遥测（生命周期构建/同意授予）。
     class _RecordingSink:
         enabled = True
 
@@ -190,8 +188,9 @@ async def test_conversation_service_reads_the_live_sink_not_a_captured_one(
         DiagnosticEventFactory(runtime=build_runtime_properties(deferred_init=False)),
     )
 
-    # 3. A brand-new conversation must attach the subscriber and emit started,
-    #    reading the now-enabled sink rather than the NoOp present in step 1.
+    # 3. 一个全新的对话必须附加订阅者并开始发出，读取现在启用的接收器而不是步骤 1 中存在
+    # 的 NoOp。
+    #
     class _FakeEventService:
         def __init__(self):
             self.subscribers: list[object] = []
@@ -228,7 +227,7 @@ def test_app_exposes_a_sink_on_state_after_startup(temp_persistence_dir):
 def test_server_lifecycle_events_are_emitted_when_enabled(
     temp_persistence_dir, monkeypatch
 ):
-    """server_started/stopped bracket the lifespan when telemetry is active."""
+    """server_started/stopped 表示遥测处于活动状态时的寿命。"""
     import openhands.agent_server.telemetry.service as service_mod
     from openhands.agent_server.telemetry import models as m
 
@@ -264,12 +263,12 @@ def test_server_lifecycle_events_are_emitted_when_enabled(
 def test_deferred_pod_does_not_emit_an_unpaired_server_stopped(
     temp_persistence_dir, monkeypatch
 ):
-    """Regression: a warm-pool pod boots with telemetry disabled.
+    """Regression: 禁用遥测功能的暖池吊舱靴子。
 
-    ``server_started`` is emitted by InitService after POST /api/init rebuilds
-    the sink, not at boot. A pod that is never initialised must therefore emit
-    neither event — previously it emitted a lone ``server_stopped``, which
-    corrupts uptime and session metrics.
+    ``server_started`` 是在 POST /api/init 重建接收器之后由 InitService 发出的，而不
+    是在启动时发出的。 因此，必须始终不
+    初始化的pod也不发出任何事件——此前它发出一个``server_stopped``，这破坏了可用性和会
+    话指标。
     """
     import openhands.agent_server.telemetry.service as service_mod
 
@@ -305,11 +304,11 @@ def test_deferred_pod_does_not_emit_an_unpaired_server_stopped(
 async def test_telemetry_init_does_not_hijack_the_settings_store_singleton(
     temp_persistence_dir, monkeypatch
 ):
-    """Regression: telemetry must prime the settings store WITH the config.
+    """Regression: 遥测必须准备设置存储 WITH 配置。
 
-    ``get_settings_store`` is a singleton whose cipher is fixed by the first
-    call. Telemetry initialises during lifespan startup, so a no-arg call here
-    would leave the whole process writing secrets with encryption disabled.
+    ``get_settings_store`` 是一个单例，其密码由第一次调用固定。 遥测在生命周期启动期
+    间初始化，因此这里的无参数调用将使整个进程写入机密并禁用加密
+    。
     """
     from base64 import urlsafe_b64encode
 

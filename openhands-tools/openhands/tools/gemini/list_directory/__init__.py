@@ -1,4 +1,4 @@
-# Core tool interface
+# 核心工具界面
 from openhands.tools.gemini.list_directory.definition import (
     FileEntry,
     ListDirectoryAction,

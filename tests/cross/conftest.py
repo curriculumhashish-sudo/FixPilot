@@ -1,4 +1,4 @@
-"""Shared fixtures for cross package tests."""
+"""共享测试夹具用于跨包测试。"""
 
 import json
 from pathlib import Path
@@ -22,13 +22,13 @@ def write_verification_family(tmp_path, monkeypatch):
 
 @pytest.fixture
 def llm_fixtures_dir():
-    """Get the LLM fixtures directory path."""
+    """获取LLM测试夹具目录路径。"""
     return Path(__file__).parent.parent / "fixtures" / "llm_data"
 
 
 @pytest.fixture
 def fncall_raw_logs(llm_fixtures_dir):
-    """Load function calling raw logs from real data."""
+    """加载函数从真实数据调用原始日志。"""
     logs = []
     log_dir = llm_fixtures_dir / "llm-logs"
     if log_dir.exists():
@@ -40,7 +40,7 @@ def fncall_raw_logs(llm_fixtures_dir):
 
 @pytest.fixture
 def nonfncall_raw_logs(llm_fixtures_dir):
-    """Load non-function calling raw logs from real data."""
+    """从真实数据加载非函数调用原始日志。"""
     logs = []
     log_dir = llm_fixtures_dir / "nonfncall-llm-logs"
     if log_dir.exists():
@@ -52,7 +52,7 @@ def nonfncall_raw_logs(llm_fixtures_dir):
 
 @pytest.fixture
 def run_rest_api_breakage_check(monkeypatch):
-    """Run the check's exit policy with supplied schemas and oasdiff output."""
+    """使用提供的模式和 oasdiff 输出运行检查的退出策略。"""
 
     def run(module, previous_schema, current_schema, changes):
         monkeypatch.setattr(

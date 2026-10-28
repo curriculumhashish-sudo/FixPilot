@@ -1,4 +1,4 @@
-"""Test LLM JSON storage and loading functionality."""
+"""测试 LLM JSON 存储和加载功能。"""
 
 import json
 import tempfile
@@ -10,8 +10,8 @@ from openhands.sdk.llm import LLM
 
 
 def test_llm_store_and_load_json():
-    """Test storing LLM to JSON and loading back with fields unchanged."""
-    # Create original LLM with secrets
+    """测试将 LLM 存储到 JSON 并在字段不变的情况下加载回来。"""
+    # 使用机密创建原始 LLM
     original_llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -25,18 +25,18 @@ def test_llm_store_and_load_json():
         num_retries=3,
     )
 
-    # Store to JSON and load back
+    # 存储到 JSON 并加载回来
     with tempfile.TemporaryDirectory() as temp_dir:
         filepath = Path(temp_dir) / "test_llm.json"
 
-        # Store to JSON with secrets exposed
+        # 存储到 JSON，机密暴露
         data = original_llm.model_dump(context={"expose_secrets": True})
         with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
         loaded_llm = LLM.load_from_json(str(filepath))
 
-        # Verify all fields remain unchanged
+        # 验证所有字段保持不变
         assert loaded_llm.model == original_llm.model
         assert loaded_llm.temperature == original_llm.temperature
         assert loaded_llm.max_output_tokens == original_llm.max_output_tokens
@@ -44,7 +44,7 @@ def test_llm_store_and_load_json():
         assert loaded_llm.base_url == original_llm.base_url
         assert loaded_llm.num_retries == original_llm.num_retries
 
-        # Verify secrets are preserved
+        # 验证机密已保留
         assert loaded_llm.api_key is not None
         assert loaded_llm.aws_access_key_id is not None
         assert loaded_llm.aws_secret_access_key is not None

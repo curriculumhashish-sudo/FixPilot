@@ -1,4 +1,4 @@
-"""Apptainer-based remote workspace implementation."""
+"""Apptainer基于远程工作区实现。"""
 
 import os
 import signal
@@ -26,26 +26,26 @@ logger = get_logger(__name__)
 
 
 class ApptainerWorkspace(RemoteWorkspace):
-    """Remote workspace that sets up and manages an Apptainer container.
+    """设置和管理 Apptainer 容器的远程工作区。
 
-    This workspace creates an Apptainer container running a pre-built OpenHands
-    agent server image, waits for it to become healthy, and then provides remote
-    workspace operations through the container's HTTP API.
+    This 工作区创建了一个 Apptainer 运行预构建的容器 OpenHands  Agent Server 图像，等
+    待它变得健康，然后提供远程工作区通过容器的
+    操作 HTTP  API.
 
-    Apptainer (formerly Singularity) is a container runtime that doesn't require
-    root access, making it ideal for HPC and shared computing environments.
+    Apptainer（以前称为 Singularity）是一个不需要 root 访问权限的容器运行时，非常适合
+     HPC 和共享计算环境。
 
-    Note: This class only works with pre-built images. It does not support
-    building images on-the-fly from a base image.
+    Note: 此类仅适用于预先构建的图像。 它不支持
+    从基本图像即时构建图像。
 
     Example:
         with ApptainerWorkspace(
             server_image="ghcr.io/openhands/agent-server:latest-python"
-        ) as workspace:
+        ) 作为工作区：
             result = workspace.execute_command("ls -la")
     """
 
-    # Override parent fields with defaults
+    # 使用默认值覆盖父字段
     working_dir: str = Field(
         default="/workspace",
         description="Working directory inside the container.",
@@ -55,7 +55,7 @@ class ApptainerWorkspace(RemoteWorkspace):
         description=("Remote host URL (set automatically during container startup)."),
     )
 
-    # Apptainer-specific configuration
+    # Apptainer-具体配置
     server_image: str | None = Field(
         default=None,
         description="Pre-built agent server image to use.",
@@ -153,15 +153,16 @@ class ApptainerWorkspace(RemoteWorkspace):
     _process: subprocess.Popen[str] | None = PrivateAttr(default=None)
 
     def model_post_init(self, context: Any) -> None:
-        """Set up the Apptainer container and initialize the remote workspace."""
-        # Validate that exactly one of server_image or sif_file is provided
-        # This must be done here (not in model_validator) because model_post_init
-        # runs before model_validator in Pydantic
+        """设置 Apptainer 容器并初始化远程工作区。"""
+        # 验证是否提供了 server_image 或 sif_file 之一这必须在此处完成（而不是在
+        # model_validator 中），因为 model_post_init 在 Pydantic 中在 model_validator 之
+        # 前运行
+        #
         sources = [self.server_image, self.sif_file]
         if sum(x is not None for x in sources) != 1:
             raise ValueError("Exactly one of 'server_image' or 'sif_file' must be set.")
 
-        # Determine port
+        # 确定端口
         if self.host_port is None:
             self.host_port = find_available_tcp_port()
         else:
@@ -176,7 +177,7 @@ class ApptainerWorkspace(RemoteWorkspace):
                     f"Port {self.host_port + 1} is not available for VSCode"
                 )
 
-        # Ensure apptainer is available
+        # 确保 Apptainer 可用
         apptainer_ver = execute_command(["apptainer", "version"]).returncode
         if apptainer_ver != 0:
             raise RuntimeError(
@@ -184,12 +185,12 @@ class ApptainerWorkspace(RemoteWorkspace):
                 "https://apptainer.org/docs/user/main/quick_start.html"
             )
 
-        # Set up cache directory
+        # 设置缓存目录
         if self.cache_dir is None:
             self.cache_dir = str(Path.home() / ".apptainer_cache")
         os.makedirs(self.cache_dir, exist_ok=True)
 
-        # Build or use existing SIF file
+        # 构建或使用现有的 SIF 文件
         if self.sif_file:
             if not Path(self.sif_file).exists():
                 raise RuntimeError(f"SIF file not found: {self.sif_file}")
@@ -198,32 +199,32 @@ class ApptainerWorkspace(RemoteWorkspace):
         else:
             self._sif_path = self._prepare_sif_image()
 
-        # Run container
+        # 运行容器
         self._instance_name = f"agent-server-{uuid.uuid4()}"
         self._start_container()
 
-        # Set host for RemoteWorkspace to use
+        # 设置 RemoteWorkspace 使用的主机
         object.__setattr__(self, "host", f"http://localhost:{self.host_port}")
-        # Apptainer inherits SESSION_API_KEY from environment by default
-        # We need to match it if present
+        # Apptainer 默认从环境继承 SESSION_API_KEY 我们需要匹配它（如果存在）
+        #
         session_api_key = os.environ.get("SESSION_API_KEY")
         object.__setattr__(self, "api_key", session_api_key)
 
-        # Wait for container to be healthy
+        # 等待容器健康
         self._wait_for_health(timeout=self.health_check_timeout)
         logger.info("Apptainer workspace is ready at %s", self.host)
 
-        # Now initialize the parent RemoteWorkspace with the container URL
+        # 现在用容器 URL 初始化父级 RemoteWorkspace
         super().model_post_init(context)
 
     def _prepare_sif_image(self) -> str:
-        """Prepare the SIF image file from server_image."""
+        """准备 server_image 中的 SIF 图像文件。"""
         if self.server_image is None:
             raise RuntimeError("server_image must be set")
 
         docker_image = self.server_image
 
-        # Convert Docker image to SIF
+        # 将 Docker 图像转换为 SIF
         assert self.cache_dir is not None, "cache_dir must be set in model_post_init"
         sif_name = docker_image.replace(":", "_").replace("/", "_") + ".sif"
         sif_path = os.path.join(self.cache_dir, sif_name)
@@ -233,8 +234,8 @@ class ApptainerWorkspace(RemoteWorkspace):
             return sif_path
 
         logger.info("Pulling and converting Docker image to SIF: %s", docker_image)
-        # Use apptainer pull to directly convert from Docker registry
-        # This doesn't require Docker daemon
+        # 使用 Apptainer pull 直接从 Docker 转换注册表这不需要 Docker 守护进程
+        #
         pull_cmd = [
             "apptainer",
             "pull",
@@ -251,14 +252,14 @@ class ApptainerWorkspace(RemoteWorkspace):
         return sif_path
 
     def _start_container(self) -> None:
-        """Start the Apptainer container instance."""
-        # Prepare environment variables
+        """启动 Apptainer 容器实例。"""
+        # 准备环境变量
         env_args: list[str] = []
         for key in self.forward_env:
             if key in os.environ:
                 env_args += ["--env", f"{key}={os.environ[key]}"]
 
-        # Prepare bind mounts
+        # 准备绑定安装
         bind_args: list[str] = []
         if self.mount_dir:
             mount_path = "/workspace"
@@ -277,10 +278,10 @@ class ApptainerWorkspace(RemoteWorkspace):
             bind_args += ["--bind", bind_spec]
             logger.info("Adding Apptainer bind mount: %s", bind_spec)
 
-        # Build container options
+        # 构建容器选项
         container_opts: list[str] = []
 
-        # Add fakeroot for consistent file ownership (user appears as root)
+        # 添加 fakeroot 以获得一致的文件所有权（用户显示为 root）
         if self.use_fakeroot:
             container_opts.append("--fakeroot")
         if self.enable_docker_compat:
@@ -292,11 +293,11 @@ class ApptainerWorkspace(RemoteWorkspace):
                 container_opts += [
                     "--no-mount",
                     loc,
-                ]  # Disable specified mount locations
+                ]  # 禁用指定的安装位置
 
-        # Run the agent server using apptainer run to respect the image's entrypoint
-        # This works with both 'source' and 'binary' build targets
-        # Uses the pre-configured entrypoints from agent-server Dockerfile
+        # 运行 Agent Server 使用 Apptainer run 来尊重图像的入口这适用于源和二进制构建目
+        # 标使用入口从智能体-server Dockerfile 预配置的
+        #
         server_cmd = [
             "apptainer",
             "run",
@@ -310,7 +311,7 @@ class ApptainerWorkspace(RemoteWorkspace):
             str(self.host_port),
         ]
 
-        # Start the server process in the background in separate process group
+        # 在单独的进程组中在后台启动服务器进程
         self._process = subprocess.Popen(
             server_cmd,
             stdout=subprocess.PIPE,
@@ -319,13 +320,13 @@ class ApptainerWorkspace(RemoteWorkspace):
             start_new_session=True,
         )
 
-        # Optionally stream logs in background
+        # 可选择在后台流式传输日志
         if self.detach_logs:
             self._logs_thread = threading.Thread(target=self._stream_logs, daemon=True)
             self._logs_thread.start()
 
     def _stream_logs(self) -> None:
-        """Stream container logs to stdout in the background."""
+        """在后台将容器日志流式传输到标准输出。"""
         if not self._process or not self._process.stdout:
             return
         try:
@@ -344,7 +345,7 @@ class ApptainerWorkspace(RemoteWorkspace):
                 pass
 
     def _wait_for_health(self, *, timeout: float) -> None:
-        """Wait for the container to become healthy."""
+        """等待容器变得健康。"""
         start = time.time()
         health_url = f"http://127.0.0.1:{self.host_port}/health"
 
@@ -356,9 +357,9 @@ class ApptainerWorkspace(RemoteWorkspace):
             except Exception:
                 pass
 
-            # Check if process is still running
+            # 检查进程是否仍在运行
             if self._process and self._process.poll() is not None:
-                # Process has terminated
+                # 进程已终止
                 raise RuntimeError(
                     f"Container process stopped unexpectedly with "
                     f"exit code {self._process.returncode}"
@@ -368,28 +369,28 @@ class ApptainerWorkspace(RemoteWorkspace):
         raise RuntimeError("Container failed to become healthy in time")
 
     def __enter__(self) -> "ApptainerWorkspace":
-        """Context manager entry - returns the workspace itself."""
+        """上下文管理器条目 - 返回工作区本身。"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[no-untyped-def]
-        """Context manager exit - cleans up the Apptainer container."""
+        """上下文管理器 exit - 清理 Apptainer 容器。"""
         self.cleanup()
 
     def __del__(self) -> None:
-        """Clean up the Apptainer container when the workspace is destroyed."""
-        # Guard against accessing private attributes during interpreter shutdown
+        """当工作区被破坏时清理Apptainer容器。"""
+        # 防止在解释器关闭期间访问私有属性
         if getattr(self, "__pydantic_private__", None) is not None:
             self.cleanup()
 
     def cleanup(self) -> None:
-        """Stop and remove the Apptainer container."""
+        """停止并移除 Apptainer 容器。"""
         if getattr(self, "_instance_name", None):
-            # Stop logs streaming
+            # 停止日志流式传输
             self._stop_logs.set()
             if self._logs_thread and self._logs_thread.is_alive():
                 self._logs_thread.join(timeout=2)
 
-            # Terminate the server process if running
+            # 如果正在运行，则终止服务器进程
             if self._process:
                 try:
                     logger.info("Terminating Apptainer process...")

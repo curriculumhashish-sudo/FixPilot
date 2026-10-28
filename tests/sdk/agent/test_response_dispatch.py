@@ -1,4 +1,4 @@
-"""Unit tests for LLM response classification and dispatch."""
+"""单元测试用于 LLM 响应分类和调度。"""
 
 from collections.abc import Callable
 from unittest.mock import MagicMock
@@ -36,7 +36,7 @@ class _LoopObservation(Observation):
 
 
 def _msg(**kwargs) -> Message:
-    """Shorthand to build a Message with defaults."""
+    """使用默认值构建消息的简写。"""
     return Message(role="assistant", **kwargs)
 
 
@@ -82,7 +82,7 @@ def _tool_call() -> MessageToolCall:
     ],
 )
 def test_tool_calls_response(kwargs):
-    """Any message with tool_calls classifies as TOOL_CALLS."""
+    """任何带有 tool_calls 的消息都归类为 TOOL_CALLS。"""
     assert classify_response(_msg(**kwargs)) == LLMResponseType.TOOL_CALLS
 
 
@@ -112,7 +112,7 @@ def test_tool_calls_response(kwargs):
     ],
 )
 def test_content_response(kwargs):
-    """No tool_calls + non-blank TextContent classifies as CONTENT."""
+    """无 tool_calls + 非空白 TextContent 分类为 CONTENT。"""
     assert classify_response(_msg(**kwargs)) == LLMResponseType.CONTENT
 
 
@@ -151,7 +151,7 @@ def test_content_response(kwargs):
     ],
 )
 def test_reasoning_only_response(kwargs):
-    """No tool_calls, no visible content, but reasoning classifies as REASONING_ONLY."""
+    """没有tool_calls，没有可见内容，但推理分类为REASONING_ONLY。"""
     assert classify_response(_msg(**kwargs)) == LLMResponseType.REASONING_ONLY
 
 
@@ -170,12 +170,12 @@ def test_reasoning_only_response(kwargs):
     ],
 )
 def test_empty_response(kwargs):
-    """No tool_calls, no content, no reasoning classifies as EMPTY."""
+    """没有tool_calls、没有内容、没有推理归类为EMPTY。"""
     assert classify_response(_msg(**kwargs)) == LLMResponseType.EMPTY
 
 
 # ---------------------------------------------------------------------------
-# ResponseDispatchMixin (via Agent integration)
+# ResponseDispatchMixin（通过智能体积分）
 # ---------------------------------------------------------------------------
 
 
@@ -204,7 +204,7 @@ def _run_single_step(
     secrets: dict[str, str] | None = None,
     prepare: Callable[[LocalConversation], None] | None = None,
 ) -> tuple[list[Event], LocalConversation]:
-    """Run one agent step with a canned LLM response."""
+    """使用预设的 LLM 响应运行一个智能体步骤。"""
     from pydantic import PrivateAttr
 
     class SingleShotLLM(LLM):
@@ -284,7 +284,7 @@ def _repeating_terminal_loop_events(repeat_count: int) -> list[Event]:
 
 
 def test_content_response_sets_finished():
-    """_handle_content_response sets execution status to FINISHED."""
+    """_handle_content_response 将执行状态设置为 FINISHED。"""
     msg = Message(role="assistant", content=[TextContent(text="Done!")])
     events, convo = _run_single_step(_make_llm_response(msg))
     msg_events = [e for e in events if isinstance(e, MessageEvent)]
@@ -295,7 +295,7 @@ def test_content_response_sets_finished():
 
 
 def test_empty_response_sends_nudge():
-    """_handle_no_content_response emits agent message + corrective nudge."""
+    """_handle_no_content_response 发出智能体消息 + 纠正性推动。"""
     msg = Message(role="assistant", content=[])
     events, convo = _run_single_step(_make_llm_response(msg))
     msg_events = [e for e in events if isinstance(e, MessageEvent)]
@@ -311,7 +311,7 @@ def test_empty_response_sends_nudge():
 
 
 def test_reasoning_only_sends_nudge():
-    """_handle_no_content_response sends corrective nudge for reasoning-only."""
+    """_handle_no_content_response 发送纠正性微调仅用于推理。"""
     msg = Message(role="assistant", reasoning_content="Let me think...")
     events, convo = _run_single_step(_make_llm_response(msg))
     msg_events = [e for e in events if isinstance(e, MessageEvent)]
@@ -324,7 +324,7 @@ def test_reasoning_only_sends_nudge():
 
 
 def test_corrective_nudge_does_not_reset_stuck_detection_window():
-    """Framework feedback must not count as a new human turn for stuck detection."""
+    """框架反馈不得算作卡住检测的新人类转向。"""
     seed_events = [
         _user_message("Please keep trying ls"),
         *_repeating_terminal_loop_events(repeat_count=4),
@@ -344,7 +344,7 @@ def test_corrective_nudge_does_not_reset_stuck_detection_window():
 
 
 def test_tool_calls_response_executes_actions():
-    """_handle_tool_calls creates and executes action events."""
+    """_handle_tool_calls 创建并执行动作事件。"""
     tool_call = MessageToolCall(
         id="tc-finish",
         name="finish",
@@ -365,14 +365,14 @@ def test_tool_calls_response_executes_actions():
 
 
 def test_batch_action_events_are_emitted_consecutively():
-    """Pin the invariant the metrics visualizer relies on (#4189).
+    """固定指标可视化工具所依赖的不变量 (#4189)。
 
-    Parallel tool calls from one LLM response are emitted as a consecutive run
-    of ActionEvents that share one llm_response_id, in tool-call order, and only
-    the first carries the turn's thought. ``DefaultConversationVisualizer.
-    _claim_batch_primary`` tracks only the *previous* response id to spot batch
-    siblings in O(1); if emission ever stops being consecutive, that shortcut
-    would silently mislabel metrics -- this test should catch it first.
+    平行工具调用 from one LLM 响应以连续的流形式发出 ActionEvents 它们共享一个
+    llm_response_id在工具调用顺序中，只第一个携带
+    回合的想法。 ``DefaultConversationVisualizer. _claim_batch_primary`` 只追踪 *
+    previous* 在查找批
+    次兄弟时，响应 ID O(1); 如果发射不再是连续的，那么该捷径将默默地错误地标记指标——
+    这个测试应该首先捕获它。
     """
     tool_calls = [
         MessageToolCall(
@@ -397,17 +397,17 @@ def test_batch_action_events_are_emitted_consecutively():
 
     action_events = [e for e in events if isinstance(e, ActionEvent)]
     assert len(action_events) == 2
-    # One LLM response -> one shared llm_response_id for the whole batch.
+    # 一个 LLM 响应 -> 整个批次共享一个 llm_response_id。
     assert len({a.llm_response_id for a in action_events}) == 1
-    # Emitted as a consecutive run (nothing of another response interleaves),
-    # in tool-call order.
+    # 按工具调用顺序作为连续运行发出（没有其他响应交错）。
+    #
     assert [a.tool_call_id for a in action_events] == ["tc-1", "tc-2"]
-    # Only the first event of the batch carries the turn's thought.
+    # 只有批次中的第一个事件才带有回合的想法。
     assert action_events[0].thought and not action_events[1].thought
 
 
 def _agent_message_text(events: list[Event]) -> str:
-    """Text of the single agent MessageEvent emitted by a step."""
+    """步骤发出的单个智能体 MessageEvent 的文本。"""
     msg_event = next(
         e for e in events if isinstance(e, MessageEvent) and e.source == "agent"
     )
@@ -417,11 +417,11 @@ def _agent_message_text(events: list[Event]) -> str:
 
 
 def test_content_response_masks_registered_secret():
-    """The model's own words are masked in the durable MessageEvent.
+    """模特自己的话语被隐藏在持久的MessageEvent中。
 
-    Only tool output was masked before, so a secret the model echoed back was
-    persisted verbatim into the copy that is stored, replayed to the LLM,
-    rendered, exported and POSTed to webhooks.
+    只有工具输出被屏蔽了，所以机密模型回传的内容是已持久化逐字记录到存储的副本中，重
+    播到 LLM, rendered, exported and POSTed to W
+    ebhook.
     """
     msg = Message(
         role="assistant", content=[TextContent(text="the value is supersecret now")]
@@ -436,11 +436,10 @@ def test_content_response_masks_registered_secret():
 
 
 def test_content_response_masks_secret_joined_from_stream_chunks():
-    """A secret straddling two deltas is masked in the durable message.
+    """跨越两个增量的机密在持久消息中被屏蔽。
 
-    The ``Agent`` path accumulates deltas before it builds the ``Message``, so
-    neither chunk matches on its own — only the reassembled text does, and that
-    is what the durable copy is built from.
+    ``Agent``路径在构建``Message``之前累积差异，因此，每个分块都无法单独匹配，只有重
+    新组装的文本才能匹配，这是持久副本构建的基础。
     """
     chunks = ["the value is super", "secret now"]
     msg = Message(role="assistant", content=[TextContent(text="".join(chunks))])
@@ -452,7 +451,7 @@ def test_content_response_masks_secret_joined_from_stream_chunks():
 
 
 def test_content_response_without_secrets_is_left_alone():
-    """With nothing registered, the message text is passed through unchanged."""
+    """如果没有注册任何内容，消息文本将保持不变。"""
     msg = Message(role="assistant", content=[TextContent(text="nothing to hide")])
     events, _ = _run_single_step(_make_llm_response(msg))
 
@@ -460,10 +459,10 @@ def test_content_response_without_secrets_is_left_alone():
 
 
 def test_reasoning_only_response_masks_registered_secret():
-    """The nudge path routes through the same chokepoint.
+    """微移路径穿过相同的阻塞点。
 
-    A reasoning-only message carries no ``content``, so masking that alone
-    would be a no-op here — ``reasoning_content`` is the text that leaks.
+    仅推理消息不携带 ``content``，因此单独屏蔽它在这里将是无效的 -
+    ``reasoning_content`` 是泄漏的文本。
     """
     msg = Message(role="assistant", reasoning_content="the value is supersecret now")
     events, _ = _run_single_step(
@@ -477,16 +476,16 @@ def test_reasoning_only_response_masks_registered_secret():
 
 
 def test_content_response_masks_value_dropped_from_secret_sources():
-    """Masking follows the tracked values, not the registry's source list.
+    """遮罩遵循跟踪的值，而不是注册表的源列表。
 
-    ``EventService.activate_credential_binding`` pops a name from
-    ``secret_sources`` while the resolved value stays tracked for masking, so
-    keying off ``secret_sources`` would leak a live credential here.
+    ``EventService.activate_credential_binding`` 弹出一个名字
+    ``secret_sources`` 而解析的值会保持跟踪以进行屏蔽，因此关闭 ``secret_sources`` 会
+    在此处泄漏实时凭据。
     """
 
     def drop_source(convo: LocalConversation) -> None:
         registry = convo.state.secret_registry
-        registry.get_secret_value("TOKEN")  # resolve -> tracked for masking
+        registry.get_secret_value("TOKEN")  # 解析 -> 跟踪掩码
         with convo.state:
             convo.state.secret_registry = registry.model_copy(
                 update={"secret_sources": {}}

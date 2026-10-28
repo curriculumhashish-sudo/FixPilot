@@ -1,4 +1,4 @@
-"""Common fixtures and utilities for view properties tests."""
+"""用于视图属性测试的通用测试夹具和实用程序。"""
 
 from openhands.sdk.event.llm_convertible import (
     ActionEvent,
@@ -22,7 +22,7 @@ def create_action_event(
     tool_name: str = "test_tool",
     thinking: str | None = None,
 ) -> ActionEvent:
-    """Helper to create an ActionEvent with specified IDs."""
+    """帮助程序创建具有指定 ID 的 ActionEvent。"""
     action = MCPToolAction(data={})
 
     tool_call = MessageToolCall(
@@ -55,7 +55,7 @@ def create_observation_event(
     tool_name: str = "test_tool",
     content: str = "Success",
 ) -> ObservationEvent:
-    """Helper to create an ObservationEvent."""
+    """创建 ObservationEvent 的帮助程序。"""
     observation = MCPToolObservation.from_text(
         text=content,
         tool_name=tool_name,
@@ -71,7 +71,7 @@ def create_observation_event(
 
 
 def create_message_event(event_id: str, content: str) -> MessageEvent:
-    """Helper to create a non-tool-loop event (MessageEvent)."""
+    """创建非工具循环事件的帮助程序 (MessageEvent)。"""
     return MessageEvent(
         id=event_id,
         llm_message=Message(role="user", content=[TextContent(text=content)]),
@@ -80,7 +80,7 @@ def create_message_event(event_id: str, content: str) -> MessageEvent:
 
 
 def message_event(content: str) -> MessageEvent:
-    """Helper to create a MessageEvent."""
+    """创建 MessageEvent 的帮助程序。"""
     return MessageEvent(
         llm_message=Message(role="user", content=[TextContent(text=content)]),
         source="user",
@@ -93,10 +93,10 @@ def create_action_event_with_none_action(
     tool_call_id: str,
     tool_name: str = "missing_tool",
 ) -> ActionEvent:
-    """Helper to create an ActionEvent with action=None (action not executed).
+    """使用 action=None 创建 ActionEvent 的帮助程序（未执行操作）。
 
-    This is used to test the case where an action was not executed (e.g., tool
-    was not found) but still has a matching observation (e.g., AgentErrorEvent).
+    这用于测试未执行操作（e.g.，未找到工具）但仍有匹配的观测结果（e.g.，
+    AgentErrorEvent）的情况。
     """
     tool_call = MessageToolCall(
         id=tool_call_id,
@@ -108,7 +108,7 @@ def create_action_event_with_none_action(
     return ActionEvent(
         id=event_id,
         thought=[TextContent(text="Test thought")],
-        action=None,  # Action was not executed
+        action=None,  # 动作没有被执行
         tool_name=tool_name,
         tool_call_id=tool_call_id,
         tool_call=tool_call,

@@ -1,9 +1,8 @@
-"""In-context learning examples for non-native function calling.
+"""In-上下文非本机函数调用的学习示例。
 
-This module contains the tool example snippets and the logic to assemble them
-into a single in-context learning prompt.  It is intentionally separated from
-the conversion logic in ``fn_call_converter`` so that the large data literals
-don't clutter the algorithmic code.
+该模块包含工具示例片段以及将它们组装成单个内部上下文学习提示词的逻辑。 它有意与
+``fn_call_converter`` 中的转换逻辑分开，以便大数据文字不会使算法代码
+混乱。
 """
 
 import sys
@@ -12,7 +11,7 @@ from typing import Final
 from litellm import ChatCompletionToolParam
 
 
-# Tool name constants used to map tool definitions to example keys
+# 用于将工具定义映射到示例键的工具名称常量
 TERMINAL_TOOL_NAME: Final[str] = "terminal"
 STR_REPLACE_EDITOR_TOOL_NAME: Final[str] = "file_editor"
 BROWSER_TOOL_NAME: Final[str] = "browser"
@@ -27,13 +26,14 @@ def _refine_prompt(prompt: str) -> str:
     return prompt
 
 
-# NOTE: we need to make sure these examples are always in-sync with the tool
-# interface designed in openhands/agenthub/agent/function_calling.py
+# 注意：我们需要确保这些示例始终位于该工具的同步中
+# openhands/agenthub/agent/function_calling.py 设计的接口
 
-# Example snippets for each tool
-# Note: security_risk and summary parameters are included in examples to ensure
-# models learn to provide them when using prompt-based function calling.
-# These parameters are always added to tool schemas for security and transparency.
+# 每个工具的示例片段
+# 注意：示例中包含security_risk和摘要参数以确保
+# 模型在使用基于提示词的函数调用时学习提供它们。 为了安全性和透明度，这些参数始终添加到
+# 工具模式中。
+#
 TOOL_EXAMPLES = {
     "bash": {
         "check_dir": """
@@ -331,7 +331,7 @@ I'll create or update the full plan based on your requirements and current progr
 
 
 def get_example_for_tools(tools: list[ChatCompletionToolParam]) -> str:
-    """Generate an in-context learning example based on available tools."""
+    """根据可用工具生成上下文内学习示例。"""
     available_tools = set()
     for tool in tools:
         if tool["type"] == "function":
@@ -360,7 +360,7 @@ USER: Create a list of numbers from 1 to 10, and display them in a web page at p
 
 """  # noqa: E501
 
-    # Build example based on available tools
+    # 基于可用工具构建示例
     if "terminal" in available_tools:
         example += TOOL_EXAMPLES["bash"]["check_dir"]
 

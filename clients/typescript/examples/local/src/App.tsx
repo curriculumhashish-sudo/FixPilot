@@ -28,7 +28,7 @@ function App() {
   const [llm, setLlm] = useState<LLM | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Load saved config from localStorage
+  // 从 localStorage 加载保存的配置
   useEffect(() => {
     const savedApiKey = localStorage.getItem('openrouter_api_key');
     const savedModel = localStorage.getItem('openrouter_model') || DEFAULT_MODEL;
@@ -44,7 +44,7 @@ function App() {
     }
   }, []);
 
-  // Create LLM instance when config changes
+  // 配置更改时创建 LLM 实例
   useEffect(() => {
     if (config) {
       const newLlm = new LLM({

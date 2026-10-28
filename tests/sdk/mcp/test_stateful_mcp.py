@@ -1,17 +1,16 @@
-"""Test that proves stateful MCP servers work with session persistence.
+"""证明有状态 MCP 服务器可与会话持久化配合使用的测试。
 
-This test creates an MCP server with PER-SESSION state (keyed by session ID).
-It verifies that:
-1. The SDK keeps the same session across multiple tool calls
-2. Authentication set via one tool is available to other tools
-3. Session state is NOT lost between calls
+此测试创建一个状态为 PER-SESSION 的 MCP 服务器（由会话 ID 键入）。 它验证了：
+1. SDK 保持在多个工具调用中的会话
+2. 身份验证通过一个工具进行的设置可用于其他工具
+3. 会话状态在调用之间丢失不
 
-This directly addresses the user's reported issue where session-based auth
-was breaking because each tool call created a new session.
+这直接解决了用户报告的问题，即由于每个工具调用创建了一个新会话，基于会话的身份验证被
+破坏。
 
-The key insight: With the OLD code, each `async with client:` would disconnect
-on exit and reconnect on the next entry, creating a NEW session each time.
-With the FIX, we call `__aenter__` once and keep the connection open.
+关键见解：使用 OLD 代码，每个 `async with client:` 都会在退出时断开连接，并在下一次进
+入时重新连接，每次都会创建一个 NEW 会话。 对于 FIX
+，我们调用 `__aenter__` 一次并保持连接打开。
 
 Related: https://github.com/OpenHands/software-agent-sdk/issues/1739
 """
@@ -38,13 +37,13 @@ def _find_free_port() -> int:
 
 @pytest.fixture
 def stateful_server():
-    """Fixture providing a per-session stateful MCP test server."""
+    """测试夹具提供每个会话有状态的 MCP 测试服务器。"""
     mcp = FastMCP("session-stateful-test-server")
     sessions: dict[str, dict] = {}
 
     @mcp.tool()
     def set_auth_token(token: str) -> str:
-        """Set authentication token for this session."""
+        """为此会话设置身份验证 token。"""
         ctx = get_context()
         session_id = ctx.session_id if ctx else "unknown"
         if session_id not in sessions:
@@ -54,7 +53,7 @@ def stateful_server():
 
     @mcp.tool()
     def get_auth_token() -> str:
-        """Get the current auth token (proves session persistence)."""
+        """获取当前的身份验证令牌（证明会话持久化）。"""
         ctx = get_context()
         session_id = ctx.session_id if ctx else "unknown"
         token = sessions.get(session_id, {}).get("token")
@@ -67,7 +66,7 @@ def stateful_server():
 
     @mcp.tool()
     def increment_counter() -> str:
-        """Increment a per-session counter."""
+        """增加每个会话计数器。"""
         ctx = get_context()
         session_id = ctx.session_id if ctx else "unknown"
         if session_id not in sessions:
@@ -80,7 +79,7 @@ def stateful_server():
 
     @mcp.tool()
     def get_counter() -> str:
-        """Get current counter value for this session."""
+        """获取此会话的当前计数器值。"""
         ctx = get_context()
         session_id = ctx.session_id if ctx else "unknown"
         counter = sessions.get(session_id, {}).get("counter", 0)
@@ -108,18 +107,18 @@ def stateful_server():
 
 
 class TestStatefulMCPSessionPersistence:
-    """Tests proving that session-based MCP servers work correctly.
+    """测试证明基于会话的 MCP 服务器正常工作。
 
-    These tests use a server that tracks state PER SESSION ID.
-    If the SDK creates a new session for each tool call, the state is lost.
-    The fix keeps the session open, preserving state across calls.
+    这些测试使用跟踪状态 PER SESSION ID 的服务器。 如果 SDK 为每个工具调用创建一个新
+    会话，则状态将丢失。 该修复使会话保持打开状态，从而保留调用之
+    间的状态。
     """
 
     def test_counter_persists_across_calls(self, stateful_server):
-        """Test that per-session counter persists across multiple tool calls.
+        """测试每个会话计数器是否在多个工具调用中持续存在。
 
-        This is the CORE test - if sessions were being reset, the counter
-        would reset to 0 between calls because each new session has no state.
+        这是 CORE 测试 - 如果会话被重置，计数器将在调用之间重置为 0，因为每个新会话没
+        有状态。
         """
         sessions, port = stateful_server
         sessions.clear()
@@ -142,13 +141,13 @@ class TestStatefulMCPSessionPersistence:
             executor = increment_tool.executor
             assert isinstance(executor, MCPToolExecutor)
 
-            # Increment 3 times - all should use SAME session
+            # 增加 3 倍 - 全部应该使用 SAME 会话
             for i in range(3):
                 action = increment_tool.action_from_arguments({})
                 result = executor(action)
                 assert f"Counter is now {i + 1}" in result.text
 
-            # Verify counter is at 3 (not reset due to new session)
+            # 验证计数器为 3（未因新会话而重置）
             get_executor = get_tool.executor
             assert isinstance(get_executor, MCPToolExecutor)
             action = get_tool.action_from_arguments({})
@@ -156,11 +155,10 @@ class TestStatefulMCPSessionPersistence:
             assert "Counter value is 3" in result.text
 
     def test_auth_token_persists_across_tools(self, stateful_server):
-        """Test that authentication set in one call is available in subsequent calls.
+        """测试一次调用中设置的身份验证在后续调用中是否可用。
 
-        This simulates the user's exact use case: setting a token via set_token
-        and then using it in subsequent operations. With the old code, each
-        tool call created a new session, losing the auth token.
+        这模拟了用户的确切用例：通过 set_token 设置 token，然后在后续操作中使用它。
+        使用旧代码，每个工具调用创建一个新会话，丢失身份验证令牌。
         """
         sessions, port = stateful_server
         sessions.clear()
@@ -185,23 +183,23 @@ class TestStatefulMCPSessionPersistence:
             assert isinstance(set_executor, MCPToolExecutor)
             assert isinstance(get_executor, MCPToolExecutor)
 
-            # Set auth token
+            # 设置身份验证令牌
             action = set_auth_tool.action_from_arguments({"token": "secret-123"})
             result = set_executor(action)
             assert "Auth token set to secret-123" in result.text
 
-            # Verify auth token persists
-            # WITH OLD CODE: This would fail with "ERROR - No auth token!"
-            # WITH FIX: Same session is used, token is preserved
+            # 验证身份验证令牌持续存在 WITH OLD CODE：这将失败并显示“ERROR - 否身份验证
+            # 令牌！” WITH FIX：使用相同的会话，保留token
+            #
             action = get_auth_tool.action_from_arguments({})
             result = get_executor(action)
 
-            # THE KEY ASSERTION: Token must still be there
+            # THE KEY ASSERTION: token 必须仍然存在
             assert "secret-123" in result.text
-            assert "ERROR" not in result.text  # No session reset error
+            assert "ERROR" not in result.text  # 无会话重置错误
 
     def test_multiple_operations_same_session(self, stateful_server):
-        """Test a realistic workflow: authenticate, then perform multiple operations."""
+        """测试真实的工作流程：进行身份验证，然后执行多个操作。"""
         sessions, port = stateful_server
         sessions.clear()
 
@@ -217,35 +215,35 @@ class TestStatefulMCPSessionPersistence:
         with create_mcp_tools(
             coerce_mcp_config(config["mcpServers"]), timeout=10.0
         ) as client:
-            # Get all tools
+            # 获取所有工具
             set_auth = next(t for t in client if t.name == "set_auth_token")
             get_auth = next(t for t in client if t.name == "get_auth_token")
             increment = next(t for t in client if t.name == "increment_counter")
             get_counter = next(t for t in client if t.name == "get_counter")
 
-            # Verify executors exist
+            # 验证执行者是否存在
             assert set_auth.executor is not None
             assert get_auth.executor is not None
             assert increment.executor is not None
             assert get_counter.executor is not None
 
-            # Simulate realistic workflow:
-            # 1. Authenticate
+            # 模拟真实的工作流程：
+            # 1. 认证
             action = set_auth.action_from_arguments({"token": "my-api-key"})
             result = set_auth.executor(action)
             assert "my-api-key" in result.text
 
-            # 2. Do some operations (all should use same session)
+            # 2. 做一些操作（所有操作都应该使用同一个会话）
             for _ in range(5):
                 action = increment.action_from_arguments({})
                 increment.executor(action)
 
-            # 3. Verify everything still works in same session
+            # 3. 验证同一会话中的所有内容仍然有效
             action = get_counter.action_from_arguments({})
             result = get_counter.executor(action)
             assert "Counter value is 5" in result.text
 
             action = get_auth.action_from_arguments({})
             result = get_auth.executor(action)
-            assert "my-api-key" in result.text  # Auth still there!
+            assert "my-api-key" in result.text  # 授权还在！
             assert "ERROR" not in result.text

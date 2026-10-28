@@ -1,5 +1,5 @@
 ---
-# .github/workflows/check-docstrings.yml
+# .github/工作流程/check-docstrings.yml
 name: Check Docstrings
 
 on:

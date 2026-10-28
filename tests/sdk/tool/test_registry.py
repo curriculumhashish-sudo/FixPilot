@@ -25,7 +25,7 @@ from openhands.sdk.tool.tool import ToolExecutor
 
 
 def _create_mock_conv_state() -> ConversationState:
-    """Create a mock ConversationState for testing."""
+    """创建模拟对象 ConversationState 进行测试。"""
     mock_conv_state = MagicMock(spec=ConversationState)
     mock_conv_state.workspace = "workspace/project"
     mock_conv_state.persistence_dir = None
@@ -80,7 +80,7 @@ class _ConfigurableHelloTool(ToolDefinition):
 
 
 class _SimpleHelloTool(ToolDefinition[_HelloAction, _HelloObservation]):
-    """Simple concrete tool for registry testing."""
+    """用于注册表测试的简单具体工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params) -> Sequence["_SimpleHelloTool"]:
@@ -135,9 +135,9 @@ def _hello_tool_factory(conv_state=None, **params) -> list[ToolDefinition]:
 
 
 def test_register_tool_rejects_callable_factory():
-    # Callable factories were removed in v1.24.0; register_tool now accepts only
-    # a ToolDefinition instance or a ToolDefinition subclass. Passing a callable
-    # is now both a static type error and a runtime TypeError.
+    # 可调用工厂在 v1.24.0 中被删除； register_tool 现在仅接受 ToolDefinition 实例或
+    # ToolDefinition 子类。 传递可调用对象现在既是静态类型错误又是运行时 TypeError。
+    #
     with pytest.raises(TypeError, match=r"only accepts"):
         register_tool("say_hello", _hello_tool_factory)  # type: ignore[arg-type]
 
@@ -149,7 +149,7 @@ def test_register_tool_type_respects_is_usable():
 
 
 def test_register_tool_instance_rejects_params():
-    t = _hello_tool_factory()[0]  # Get the single tool from the list
+    t = _hello_tool_factory()[0]  # 从列表中获取单个工具
     register_tool("say_hello_instance", t)
     with pytest.raises(ValueError):
         resolve_tool(
@@ -159,7 +159,7 @@ def test_register_tool_instance_rejects_params():
 
 
 def test_register_tool_instance_returns_same_object():
-    tool = _hello_tool_factory()[0]  # Get the single tool from the list
+    tool = _hello_tool_factory()[0]  # 从列表中获取单个工具
     register_tool("say_hello_instance_same", tool)
 
     resolved_first = resolve_tool(
@@ -196,7 +196,7 @@ def test_register_tool_type_uses_create_params():
 
 
 def test_tool_registration_typed_inspection():
-    """ToolDefinition subclass resolution checks create concrete classmethod."""
+    """ToolDefinition 子类解析检查创建具体类方法。"""
 
     class ValidTool(ToolDefinition[Action, Any]):
         @classmethod
@@ -236,7 +236,7 @@ def test_catalog_reports_selectability_and_usability():
 
 
 def test_catalog_offers_a_builtin_under_its_snake_case_name(monkeypatch):
-    """A built-in is keyed by class name internally but offered like any tool."""
+    """内置函数在内部由类名键入，但像任何工具一样提供。"""
     from openhands.sdk.tool import builtins
 
     catalog = _catalog()
@@ -261,7 +261,7 @@ def test_catalog_does_not_offer_the_meta_profile_router(monkeypatch):
 
 
 def test_a_builtin_registered_by_class_name_is_offered_once(monkeypatch):
-    """A built-in registered under its class name is listed once."""
+    """在其类名下注册的内置函数仅列出一次。"""
     from openhands.sdk.tool import builtins
 
     monkeypatch.setitem(
@@ -299,7 +299,7 @@ def test_catalog_description_defaults_to_empty():
 
 
 def test_catalog_reports_a_selectable_builtin_as_unusable(monkeypatch):
-    """A built-in is listed by class name, so its usability comes from the class."""
+    """内置函数是按类名列出的，因此它的可用性来自于类。"""
     from openhands.sdk.tool import builtins
 
     monkeypatch.setitem(
@@ -374,7 +374,7 @@ def test_a_builtin_class_name_is_not_collapsed_onto_a_registered_tool():
 
 
 def test_sealed_catalog_ignores_later_registrations(monkeypatch):
-    """Registrations after sealing are per-conversation and stay out."""
+    """密封后的注册是按对话进行的，并且不参与其中。"""
     register_tool("catalog_at_startup", _SimpleHelloTool)
     seal_tool_catalog()
 

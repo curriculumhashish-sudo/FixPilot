@@ -9,21 +9,19 @@ def get_total_token_count(
     events: Sequence[LLMConvertibleEvent],
     llm: LLM,
 ) -> int:
-    """Calculate the total token count for a list of LLM convertible events.
+    """计算 LLM 个可转换事件列表的总数词元数量。
 
-    This function converts the events to LLM messages and uses the provided LLM
-    to count the total number of tokens. This is useful for understanding how many
-    tokens a sequence of events will consume in the context window. A view is
-    expected to have one system prompt event; if multiple are present, only the
-    first system prompt's tools are included.
+    此函数将事件转换为 LLM 消息，并使用提供的 LLM 来计算 token 的总数。 这对于了解事
+    件序列将在上下文窗口中消耗多少 token 很有用。 一个视图预计
+    有一个系统提示词事件； 如果存在多个，则仅包括第一个系统提示词的工具。
 
     Args:
-        events: List of LLM convertible events to count tokens for
-        llm: The LLM instance to use for token counting (uses the litellm's token
-            counting utilities)
+        events: 要计数 token 的 LLM 个可转换事件列表
+        llm: 用于 token 计数的 LLM 实例（使用 LiteLLM 的 token
+            计算公用事业）
 
     Returns:
-        Total token count for all events converted to messages
+        转换为消息的所有事件总计词元数量
 
     Example:
         >>> from openhands.sdk.llm import LLM
@@ -45,7 +43,7 @@ def get_total_token_count(
     return llm.get_token_count(
         messages,
         tools=tools or None,
-        # Security-risk tokens are always included in real tool requests.
+        # 安全风险 token 始终包含在实际工具请求中。
         add_security_risk_prediction=bool(tools),
     )
 
@@ -56,21 +54,19 @@ def get_shortest_prefix_above_token_count(
     token_count: int,
     base_events: Sequence[LLMConvertibleEvent] | None = None,
 ) -> int:
-    """Find the length of the shortest prefix whose token count exceeds the target.
+    """求词元数量超过目标的最短前缀的长度。
 
-    This function performs a binary search to efficiently find the shortest prefix
-    of events that, when converted to messages, has a total token count greater than
-    the specified target token count.
+    该函数使用二分查找算法高效地查找事件的最短前缀，该前缀在转换为消息后，总长度词元
+    数量大于指定的目标词元数量。
 
     Args:
-        events: List of LLM convertible events to search through
-        llm: The LLM instance to use for token counting (uses the model's tokenizer)
-        token_count: The target token count threshold
+        events: 要搜索的 LLM 个可转换事件列表
+        llm: 用于 token 计数的 LLM 实例（使用模型的分词器）
+        token_count: 目标词元数量阈值
 
     Returns:
-        The length of the shortest prefix that exceeds the token count.
-        Returns 0 if no events are provided.
-        Returns len(events) if all events combined don't exceed the token count.
+        超过词元数量的最短前缀的长度。 如果未提供事件，则返回 0。 如果所有事件组合不
+        超过词元数量，则返回 len(events)。
 
     Example:
         >>> from openhands.sdk.llm import LLM
@@ -84,7 +80,7 @@ def get_shortest_prefix_above_token_count(
         ...     MessageEvent.from_text("Great!", source="agent"),
         ... ]
         >>> prefix_len = get_shortest_prefix_above_token_count(events, llm, 20)
-        >>> # prefix_len might be 2 if first 2 events exceed 20 tokens
+        >>> # prefix_len 可能是 2，如果前两件事情超过 20 token
     """
     if not events:
         return 0
@@ -92,12 +88,12 @@ def get_shortest_prefix_above_token_count(
     base_events = base_events or []
     base_tokens = get_total_token_count(base_events, llm) if base_events else 0
 
-    # Check if all events combined don't exceed the token count
+    # 检查所有事件的总和是否不超过词元数量
     total_tokens = get_total_token_count([*base_events, *events], llm) - base_tokens
     if total_tokens <= token_count:
         return len(events)
 
-    # Binary search for the shortest prefix
+    # 二分查找最短前缀
     left, right = 1, len(events)
 
     while left < right:
@@ -107,10 +103,10 @@ def get_shortest_prefix_above_token_count(
         )
 
         if prefix_tokens > token_count:
-            # This prefix exceeds the count, try to find a shorter one
+            # 这个前缀超出了计数，尝试找一个更短的
             right = mid
         else:
-            # This prefix doesn't exceed, we need a longer one
+            # 这个前缀不超过，我们需要一个更长的
             left = mid + 1
 
     return left
@@ -122,20 +118,19 @@ def get_suffix_length_for_token_reduction(
     token_reduction: int,
     base_events: Sequence[LLMConvertibleEvent] | None = None,
 ) -> int:
-    """Find how many suffix events can be kept while reducing tokens by target amount.
+    """找出在将 token 减少目标数量的同时可以保留多少个后缀事件。
 
-    This function determines the maximum number of events from the end of the list
-    that can be retained while ensuring the total token count is reduced by at least
-    the specified amount. It uses the get_shortest_prefix_above_token_count function
-    to find the prefix that must be removed.
+    该函数确定从列表末尾可以保留的最大事件数量，同时确保总词元数量减少至少指定的金额
+    。 它使用
+    get_shortest_prefix_above_token_count 函数来查找必须删除的前缀。
 
     Args:
-        events: List of LLM convertible events
-        llm: The LLM instance to use for token counting (uses the model's tokenizer)
-        token_reduction: The minimum number of tokens to reduce by
+        events: LLM 可转换事件列表
+        llm: 用于 token 计数的 LLM 实例（使用模型的分词器）
+        token_reduction: 减少的最小token个数
 
     Returns:
-        The number of events from the end that can be kept (suffix length).
+        从末尾开始可以保留的事件数（后缀长度）。
 
     Example:
         >>> from openhands.sdk.llm import LLM
@@ -148,10 +143,10 @@ def get_suffix_length_for_token_reduction(
         ...     MessageEvent.from_text("Event 3", source="user"),
         ...     MessageEvent.from_text("Event 4", source="agent"),
         ... ]
-        >>> # Suppose total is 100 tokens, and we want to reduce by 40 tokens
+        >>> # 假设总和为100 token，我们希望减少40 token
         >>> suffix_len = get_suffix_length_for_token_reduction(events, llm, 40)
-        >>> # suffix_len tells us how many events from the end we can keep
-        >>> # If first 2 events = 45 tokens, suffix_len = 2 (keep last 2 events)
+        >>> # suffix_len告诉我们我们可以保留多少事件
+        >>> # 如果前两个事件为45 token，suffix_len = 2（保留最后两个事件）
     """
     if not events:
         return 0
@@ -159,7 +154,7 @@ def get_suffix_length_for_token_reduction(
     if token_reduction <= 0:
         return len(events)
 
-    # Find the shortest prefix that exceeds the token reduction target
+    # 找到超过token缩减目标的最短前缀
     prefix_length = get_shortest_prefix_above_token_count(
         events,
         llm,
@@ -167,7 +162,7 @@ def get_suffix_length_for_token_reduction(
         base_events=base_events,
     )
 
-    # The suffix length is what remains after removing the prefix
+    # 后缀长度是去掉前缀后剩下的长度
     suffix_length = len(events) - prefix_length
 
     return suffix_length

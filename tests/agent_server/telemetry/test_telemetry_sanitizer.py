@@ -1,10 +1,9 @@
-"""Proofs that sanitization does what the docstrings claim.
+"""证明去污术真的实现了文档字符串所声称的。
 
-The central test here is
-``test_fingerprint_ignores_the_exception_message``: it demonstrates that two
-exceptions differing *only* in their message — one of which contains a secret —
-produce the same fingerprint. That is only possible if the message is never
-read, which is the whole guarantee.
+这里的中心测试是
+``test_fingerprint_ignores_the_exception_message``它演示了两个不同的异常 *仅* 在他们
+的信息中——其中包含一个机密 —
+产生相同的指纹。 只有当消息从未被阅读时才有可能，这是全部保证。
 """
 
 import json
@@ -41,10 +40,9 @@ def _raise(message: str) -> BaseException:
 
 
 def test_fingerprint_ignores_the_exception_message():
-    """Two errors from the same line fingerprint identically.
+    """来自同一行指纹的两个错误完全相同。
 
-    If the message contributed to the hash, a secret in one of them would
-    change the digest. Identical digests prove the message is never read.
+    如果消息对哈希有贡献，其中之一中的机密将更改摘要。 相同的摘要证明消息从未被读取。
     """
     a = _raise("secret-A")
     b = _raise("secret-B")
@@ -79,8 +77,9 @@ def test_fingerprint_distinguishes_different_raise_sites():
         except RuntimeError as exc:
             return exc
 
-    # Different lines in this (first-party-looking) test module would normally
-    # differ; at minimum the fingerprints must be deterministic per site.
+    # 此（第一方外观）测试模块中的不同行通常会有所不同； 每个站点的指纹至少必须具有确定
+    # 性。
+    #
     assert (
         normalize_exception(site_one()).error_fingerprint
         == normalize_exception(site_one()).error_fingerprint
@@ -99,7 +98,7 @@ def test_no_part_of_the_message_survives_normalization(payload: str):
     serialized = json.dumps(asdict(fingerprint))
 
     assert payload not in serialized
-    # Nor any distinctive fragment of it.
+    # 也没有任何独特的片段。
     for fragment in payload.split()[:3]:
         if len(fragment) > 6:
             assert fragment not in serialized
@@ -115,7 +114,7 @@ def test_normalization_never_emits_a_traceback_or_a_path():
 
 
 def test_third_party_exceptions_collapse_to_package_scope():
-    """An unfamiliar dependency must not blow up cardinality."""
+    """不熟悉的依赖关系一定不能破坏基数。"""
 
     class _FakeVendorError(Exception):
         pass
@@ -157,14 +156,14 @@ def test_unknown_exception_types_get_the_unknown_category():
 
 
 def test_normalize_error_code_rejects_free_text():
-    """ConversationErrorEvent.code is trusted only as far as it validates."""
+    """ConversationErrorEvent.code 仅在验证时才可信。"""
     assert normalize_error_code("LLMAuthError").error_class == "LLMAuthError"
-    # A code that is actually prose degrades rather than leaking.
+    # 实际上是散文的代码会降低质量而不是泄漏。
     assert normalize_error_code(PROMPT).error_class == "UnknownError"
     assert normalize_error_code(None).error_class == "UnknownError"
 
 
-# ── scalar coercion ───────────────────────────────────────────────────────
+# ── 标量强制转换 ────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -197,7 +196,7 @@ def test_safe_version_accepts_real_versions_and_refs():
     assert safe_version("not a version!") == "unknown"
 
 
-# ── bucketing ─────────────────────────────────────────────────────────────
+# ── 装桶──────────────────────────────────────────────────────────────
 
 
 def test_buckets_never_reveal_exact_magnitudes():
@@ -217,7 +216,7 @@ def test_bucket_is_monotonic():
     assert len(set(labels)) == 4
 
 
-# ── pseudonymisation ──────────────────────────────────────────────────────
+# ── 化名────────────────────────────────────────────────────────
 
 
 def test_pseudonymize_is_stable_and_salt_dependent():
@@ -231,12 +230,12 @@ def test_pseudonymize_is_stable_and_salt_dependent():
 
 
 def test_pseudonymize_accepts_an_oversized_salt():
-    """blake2s caps keys at 32 bytes; a long secret must not raise."""
+    """blake2s 将密钥上限限制为 32 字节； 长的机密不能引发。"""
     digest = pseudonymize("x", "s" * 500)
     assert len(digest) == 32
 
 
-# ── model families ────────────────────────────────────────────────────────
+# ── 模范家庭────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(

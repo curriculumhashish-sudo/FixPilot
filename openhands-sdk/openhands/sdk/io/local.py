@@ -27,16 +27,16 @@ class LocalFileStore(FileStore):
         cache_limit_size: int = 500,
         cache_memory_size: int = 20 * 1024 * 1024,
     ) -> None:
-        """Initialize a LocalFileStore with caching.
+        """使用缓存初始化 LocalFileStore。
 
         Args:
-            root: Root directory for file storage.
-            cache_limit_size: Maximum number of cached entries (default: 500).
-            cache_memory_size: Maximum cache memory in bytes (default: 20MB).
+            root: 文件存储的根目录。
+            cache_limit_size: 缓存条目的最大数量（默认值：500）。
+            cache_memory_size: 最大缓存内存（以字节为单位）（默认值：20MB）。
 
         Note:
-            The cache assumes exclusive access to files. External modifications
-            to files will not be detected and may result in stale cache reads.
+            缓存假定对文件的独占访问。 对文件的外部修改将不会被检测到，并且可能会导致
+            缓存读取过时。
         """
         if root.startswith("~"):
             root = os.path.expanduser(root)
@@ -46,15 +46,15 @@ class LocalFileStore(FileStore):
         self.cache = MemoryLRUCache(cache_memory_size, cache_limit_size)
 
     def get_full_path(self, path: str) -> str:
-        # strip leading slash to keep relative under root
+        # 去掉前导斜杠以将相对位置保留在根目录下
         if path.startswith("/"):
             path = path[1:]
-        # normalize path separators to handle both Unix (/) and Windows (\) styles
+        # 规范化路径分隔符以处理 Unix (/) 和 Windows (\) 样式
         normalized_path = to_posix_path(path)
         full = os.path.abspath(
             os.path.normpath(os.path.join(self.root, normalized_path))
         )
-        # ensure sandboxing
+        # 确保沙箱
         if os.path.commonpath([self.root, full]) != self.root:
             raise ValueError(f"path escapes filestore root: {path}")
 
@@ -69,8 +69,9 @@ class LocalFileStore(FileStore):
         else:
             with open(full_path, "wb") as f:
                 f.write(contents)
-            # Don't cache binary content - LocalFileStore is meant for JSON data
-            # If binary data is written and then read, it will error on read
+            # 不缓存二进制内容 - LocalFileStore 代表 JSON 数据如果写入然后读取二进制数据
+            # ，则读取时会出错
+            #
 
     def read(self, path: str) -> str:
         full_path = self.get_full_path(path)
@@ -92,11 +93,11 @@ class LocalFileStore(FileStore):
         if not os.path.exists(full_path):
             return []
 
-        # If path is a file, return the file itself (S3-consistent behavior)
+        # 如果路径是文件，则返回文件本身（S3 一致的行为）
         if os.path.isfile(full_path):
             return [path]
 
-        # Otherwise it's a directory, return its contents
+        # 否则它是一个目录，返回其内容
         files = [os.path.join(path, f) for f in os.listdir(full_path)]
         files = [f + "/" if os.path.isdir(self.get_full_path(f)) else f for f in files]
         return files
@@ -110,8 +111,8 @@ class LocalFileStore(FileStore):
 
             if os.path.isfile(full_path):
                 os.remove(full_path)
-                # Tolerate a cache miss: a file written by another process was
-                # never cached here, and deleting it is not an error.
+                # 容忍缓存未命中：另一个进程写入的文件从未缓存在这里，删除它也不是错误。
+                #
                 self.cache.pop(full_path, None)
                 logger.debug(f"Removed local file: {full_path}")
             elif os.path.isdir(full_path):
@@ -123,16 +124,16 @@ class LocalFileStore(FileStore):
             logger.error(f"Error clearing local file store: {str(e)}")
 
     def exists(self, path: str) -> bool:
-        """Check if a file or directory exists."""
+        """检查文件或目录是否存在。"""
         return os.path.exists(self.get_full_path(path))
 
     def get_absolute_path(self, path: str) -> str:
-        """Get absolute filesystem path."""
+        """获取绝对文件系统路径。"""
         return self.get_full_path(path)
 
     @contextmanager
     def lock(self, path: str, timeout: float = 30.0) -> Iterator[None]:
-        """Acquire file-based lock using flock."""
+        """使用flock获取基于文件的锁。"""
         lock_path = self.get_full_path(path)
         os.makedirs(os.path.dirname(lock_path), exist_ok=True)
         file_lock = FileLock(lock_path)

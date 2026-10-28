@@ -1,13 +1,13 @@
 (function() {
     var events = window.__rrweb_events || [];
 
-    // Stop the recording if active
+    // 如果活动则停止录制
     if (window.__rrweb_stopFn) {
         window.__rrweb_stopFn();
         window.__rrweb_stopFn = null;
     }
 
-    // Clear flags
+    // 清除标志
     window.__rrweb_should_record = false;
     window.__rrweb_events = [];
 

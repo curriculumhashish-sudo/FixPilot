@@ -1,10 +1,10 @@
-"""Telemetry consent stays in ``misc_settings``.
+"""遥测同意保留在 ``misc_settings`` 中。
 
-Consent lives in ``misc_settings.telemetry.consent``, which needs no typed
-field and no dedicated schema change because ``misc_settings`` already exists
-and is already persisted. (The persisted-settings schema version has since
-advanced for unrelated reasons — see ``PERSISTED_SETTINGS_SCHEMA_VERSION`` — but
-never because of consent.)
+同意存在于 ``misc_settings.telemetry.consent``不需要类型字段和专用字段的模式因为改变
+``misc_settings`` 已经存在并且已
+经已持久化。 (The 已持久化-settings 模式版本已经因为无关的原因升级了——请参阅
+``PERSISTED_SETTINGS_SCHEMA_VERSION``
+— 但从未因为同意。
 """
 
 import pytest
@@ -28,7 +28,7 @@ def test_older_settings_still_load(version: int):
     )
     assert settings.schema_version == PERSISTED_SETTINGS_SCHEMA_VERSION
     assert settings.active_profile == "default"
-    # No consent recorded anywhere means no consent.
+    # 任何地方没有记录同意就意味着不同意。
     assert resolve(settings.misc_settings, env={}).enabled is False
 
 

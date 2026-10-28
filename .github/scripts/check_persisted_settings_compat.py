@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-"""Check compatibility of persisted settings payloads across releases.
+"""检查已持久化设置载荷跨版本的兼容性。
 
-This script guards the versioned persisted-settings surfaces that are already
-loaded through explicit migration entry points today:
+此脚本保护今天已通过显式迁移入口加载的版本化已持久化设置表面：
 
 - ``validate_agent_settings(...)``
 - ``validate_agent_profile(...)``
 - ``ConversationSettings.from_persisted(...)``
 - ``PersistedSettings.from_persisted(...)``
 
-It validates two sources of historical payloads:
+它验证了历史载荷的两个来源：
 
-1. checked-in golden fixtures under ``tests/sdk/persisted_settings_baselines/``
-2. payloads generated from the published PyPI baseline release in an isolated
-   virtualenv
+1. 已在 ``tests/sdk/persisted_settings_baselines/`` 下签入基准测试夹具
+2. 载荷从隔离 virtualenv 中发布的 PyPI 基线版本生成
 
-The check is intentionally separate from ``check_sdk_api_breakage.py`` because
-it answers a different question: not whether exported Python symbols changed,
-but whether persisted JSON from older releases still loads at runtime.
+检查是故意与之分开的 ``check_sdk_api_breakage.py`` 因为它回答了不同的问题：不是关于是
+否出口的 Python 符号改变，但是否已持久化
+JSON 从旧版本中仍然在运行时加载。
 """
 
 from __future__ import annotations
@@ -212,7 +210,7 @@ print(json.dumps(payloads))
 
 
 class PersistedSettingsCompatError(RuntimeError):
-    """Raised when a persisted payload no longer loads compatibly."""
+    """当已持久化载荷不再兼容加载时引发。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -548,10 +546,10 @@ def _find_unpreserved_path(
     *,
     path: str = "",
 ) -> str | None:
-    """Return the first historical path missing or changed in ``actual``.
+    """返回 ``actual`` 中缺失或更改的第一个历史路径。
 
-    New mapping keys are compatible, but every value already emitted under the
-    current schema version must survive a load/dump round-trip unchanged.
+    新的映射键是兼容的，但在当前模式版本下已发出的每个值必须在加载/转储往返过程中保持
+    不变。
     """
     if isinstance(expected, Mapping):
         if not isinstance(actual, Mapping):

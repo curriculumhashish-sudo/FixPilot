@@ -1,4 +1,4 @@
-"""Test agent loading (conversation restart) behavior."""
+"""测试智能体加载（对话重新启动）行为。"""
 
 import sys
 import tempfile
@@ -37,10 +37,10 @@ class ModuleScopeOtherAgent(Agent):
     pass
 
 
-# Tests from test_llm_reconciliation.py
+# 测试来自 test_llm_reconciliation.py
 def test_conversation_restart_with_nested_llms(tmp_path):
-    """Test conversation restart with agent containing nested LLMs."""
-    # Create a default agent with dummy LLM + models + keys
+    """智能体包含嵌套的LLMs 的测试对话重置。"""
+    # 使用虚拟 LLM + 模型 + 键创建默认智能体
 
     working_dir = str(tmp_path)
 
@@ -48,19 +48,19 @@ def test_conversation_restart_with_nested_llms(tmp_path):
         model="gpt-4o-mini", api_key=SecretStr("llm-api-key"), usage_id="main-llm"
     )
 
-    # Use the standard Agent class to avoid polymorphic deserialization issues
+    # 使用标准智能体类来避免多态反序列化问题
     agent = get_default_agent(llm)
 
     conversation_id = uuid.uuid4()
 
-    # Create a conversation with the default agent + persistence
+    # 创建对话，默认智能体 + 持久化
     conversation1 = Conversation(
         agent=agent,
         persistence_dir=working_dir,
         conversation_id=conversation_id,
     )
 
-    # Verify the conversation was created successfully
+    # 验证对话已成功创建
     assert conversation1.id == conversation_id
     assert conversation1.agent.llm.api_key is not None
     assert isinstance(conversation1.agent.llm.api_key, SecretStr)
@@ -70,14 +70,14 @@ def test_conversation_restart_with_nested_llms(tmp_path):
     assert isinstance(conversation1.agent.condenser.llm.api_key, SecretStr)
     assert conversation1.agent.condenser.llm.api_key.get_secret_value() == "llm-api-key"
 
-    # Attempt to restart the conversation - this should work without errors
+    # 尝试重新启动对话 - 这应该不会出现错误
     conversation2 = Conversation(
         agent=agent,
         persistence_dir=working_dir,
-        conversation_id=conversation_id,  # Same conversation_id
+        conversation_id=conversation_id,  # 相同 conversation_id
     )
 
-    # Make sure the conversation gets initialized properly with no errors
+    # 确保对话正确初始化，没有错误
     assert conversation2.id == conversation_id
     assert conversation2.agent.llm.api_key is not None
     assert isinstance(conversation2.agent.llm.api_key, SecretStr)
@@ -87,7 +87,7 @@ def test_conversation_restart_with_nested_llms(tmp_path):
     assert isinstance(conversation2.agent.condenser.llm.api_key, SecretStr)
     assert conversation2.agent.condenser.llm.api_key.get_secret_value() == "llm-api-key"
 
-    # Verify that the agent configuration is properly reconciled
+    # 验证智能体配置是否正确协调
     assert conversation2.agent.llm.model == "gpt-4o-mini"
     assert conversation2.agent.condenser.llm.model == "gpt-4o-mini"
     assert conversation2.agent.condenser.max_size == 80
@@ -109,25 +109,25 @@ def test_conversation_restarted_with_changed_working_directory(tmp_path_factory)
         agent=agent1, persistence_dir=working_dir, conversation_id=conversation_id
     )
 
-    # agent built in a *different* temp dir
+    # 智能体内置于 * 不同的 * 临时目录中
     agent2 = get_default_agent(llm)
 
-    # restart with new agent working dir but same conversation id
+    # 使用新的智能体工作目录重新启动，但对话 ID 相同
     _ = Conversation(
         agent=agent2, persistence_dir=working_dir, conversation_id=conversation_id
     )
 
 
-# Tests for agent tools restriction and LLM flexibility
+# 测试智能体工具限制和 LLM 灵活性
 def test_conversation_fails_when_removing_tools():
-    """Test that removing tools fails even if they weren't used.
+    """测试即使未使用工具，删除工具也会失败。
 
-    Tools are part of the system prompt and cannot be changed mid-conversation.
-    To use different tools, start a new conversation or use conversation forking.
+    工具是系统提示词的一部分，无法在对话中更改。 要使用不同的工具，请开始新对话或使用
+    对话分叉。
     See: https://github.com/OpenHands/OpenHands/issues/8560
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create conversation with original agent having 2 tools
+        # 使用 2 个工具与原始智能体创建对话
         original_tools = [
             Tool(name="TerminalTool"),
             Tool(name="FileEditorTool"),
@@ -143,7 +143,7 @@ def test_conversation_fails_when_removing_tools():
             visualizer=None,
         )
 
-        # Send a message but NO tool is used (no ActionEvent in history)
+        # 发送消息但未使用任何工具（历史上没有ActionEvent）
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test message")])
         )
@@ -151,8 +151,8 @@ def test_conversation_fails_when_removing_tools():
         conversation_id = conversation.state.id
         del conversation
 
-        # Resume with only one tool - should FAIL (tools must match exactly)
-        reduced_tools = [Tool(name="TerminalTool")]  # Removed FileEditorTool
+        # 仅使用一种工具继续 - 应该 FAIL（工具必须完全匹配）
+        reduced_tools = [Tool(name="TerminalTool")]  # 已删除 FileEditorTool
         llm2 = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
@@ -173,12 +173,12 @@ def test_conversation_fails_when_removing_tools():
 
 
 def test_conversation_succeeds_when_adding_tools():
-    """Test that adding new tools succeeds on resume.
+    """测试恢复时添加新工具是否成功。
 
-    Adding tools is allowed — only removing tools is rejected.
+    允许添加工具——只拒绝删除工具。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create conversation with only one tool
+        # 仅使用一种工具即可创建对话
         original_tools = [Tool(name="TerminalTool")]
         llm = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -191,7 +191,7 @@ def test_conversation_succeeds_when_adding_tools():
             visualizer=None,
         )
 
-        # Send a message (no tools used)
+        # 发送消息（不使用任何工具）
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test message")])
         )
@@ -199,10 +199,10 @@ def test_conversation_succeeds_when_adding_tools():
         conversation_id = conversation.state.id
         del conversation
 
-        # Resume with additional tools - should SUCCEED (adding tools is allowed)
+        # 使用附加工具继续 - 应该 SUCCEED（允许添加工具）
         expanded_tools = [
             Tool(name="TerminalTool"),
-            Tool(name="FileEditorTool"),  # New tool added
+            Tool(name="FileEditorTool"),  # 添加了新工具
         ]
         llm2 = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -220,16 +220,14 @@ def test_conversation_succeeds_when_adding_tools():
 
 
 def test_conversation_fails_when_used_tool_is_missing():
-    """Test that removing a tool that WAS used in history fails.
+    """测试删除历史记录中使用过的 WAS 工具是否失败。
 
-    Tools cannot be changed mid-conversation, regardless of whether they
-    were used or not. This test verifies the behavior when a used tool
-    is removed.
+    无论是否使用工具，都不能在对话中更改。 此测试验证移除使用过的工具时的行为。
     """
     from openhands.sdk.event import ActionEvent
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create conversation with two tools
+        # 使用两个工具创建对话
         original_tools = [
             Tool(name="TerminalTool"),
             Tool(name="FileEditorTool"),
@@ -245,10 +243,10 @@ def test_conversation_fails_when_used_tool_is_missing():
             visualizer=None,
         )
 
-        # Initialize the agent to get actual tool definitions
+        # 初始化智能体以获取实际的工具定义
         conversation.agent.init_state(conversation.state, lambda e: None)
 
-        # Simulate that TerminalTool was used by adding an ActionEvent
+        # 通过添加 ActionEvent 来模拟使用 TerminalTool
         from openhands.sdk.llm import MessageToolCall, TextContent
 
         action_event = ActionEvent(
@@ -268,14 +266,14 @@ def test_conversation_fails_when_used_tool_is_missing():
         conversation_id = conversation.state.id
         del conversation
 
-        # Try to resume WITHOUT TerminalTool - should fail
-        reduced_tools = [Tool(name="FileEditorTool")]  # Missing TerminalTool
+        # 尝试恢复 WITHOUT TerminalTool - 应该会失败
+        reduced_tools = [Tool(name="FileEditorTool")]  # 失踪TerminalTool
         llm2 = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
         reduced_agent = Agent(llm=llm2, tools=reduced_tools)
 
-        # This should raise - tools were removed mid-conversation
+        # 这应该会引发 - 工具在对话中被删除
         with pytest.raises(ValueError, match="tools were removed mid-conversation"):
             LocalConversation(
                 agent=reduced_agent,
@@ -287,9 +285,9 @@ def test_conversation_fails_when_used_tool_is_missing():
 
 
 def test_conversation_with_same_agent_succeeds():
-    """Test that using the same agent configuration succeeds."""
+    """测试使用相同的智能体配置是否成功。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create and save conversation
+        # 创建并保存对话
         tools = [
             Tool(name="TerminalTool"),
             Tool(name="FileEditorTool"),
@@ -305,18 +303,18 @@ def test_conversation_with_same_agent_succeeds():
             visualizer=None,
         )
 
-        # Send a message
+        # 发送消息
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test message")])
         )
 
-        # Get the conversation ID for reuse
+        # 获取对话 ID 以供重复使用
         conversation_id = conversation.state.id
 
-        # Delete conversation
+        # 删除对话
         del conversation
 
-        # Create new conversation with same agent configuration
+        # 使用相同的智能体配置创建新对话
         same_tools = [
             Tool(name="TerminalTool"),
             Tool(name="FileEditorTool"),
@@ -326,23 +324,23 @@ def test_conversation_with_same_agent_succeeds():
         )
         same_agent = Agent(llm=llm2, tools=same_tools)
 
-        # This should succeed
+        # 这应该会成功
         new_conversation = LocalConversation(
             agent=same_agent,
             workspace=temp_dir,
             persistence_dir=temp_dir,
-            conversation_id=conversation_id,  # Use same ID
+            conversation_id=conversation_id,  # 使用相同的ID
             visualizer=None,
         )
 
-        # Verify state was loaded
+        # 验证状态已加载
         assert len(new_conversation.state.events) > 0
 
 
 def test_conversation_with_different_llm_succeeds():
-    """Test that using an agent with different LLM succeeds (LLM can change)."""
+    """测试使用具有不同 LLM 的智能体是否成功（LLM 可以更改）。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create and save conversation with original agent
+        # 创建并保存与原始对话智能体
         tools = [Tool(name="TerminalTool")]
         llm1 = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -355,7 +353,7 @@ def test_conversation_with_different_llm_succeeds():
             visualizer=None,
         )
 
-        # Send a message to create some state
+        # 发送消息以创建某种状态
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test message")])
         )
@@ -363,15 +361,15 @@ def test_conversation_with_different_llm_succeeds():
         conversation_id = conversation.state.id
         del conversation
 
-        # Create new conversation with different LLM - this should succeed
+        # 使用不同的 LLM 创建新对话 - 这应该会成功
         llm2 = LLM(
-            model="gpt-4o",  # Different model
-            api_key=SecretStr("different-key"),  # Different key
+            model="gpt-4o",  # 型号不同
+            api_key=SecretStr("different-key"),  # 不同的钥匙
             usage_id="different-llm",
         )
         different_agent = Agent(llm=llm2, tools=tools)
 
-        # This should succeed - LLM can be freely changed between sessions
+        # 这应该会成功 - LLM 可以在会话之间自由更改
         new_conversation = LocalConversation(
             agent=different_agent,
             workspace=temp_dir,
@@ -380,20 +378,20 @@ def test_conversation_with_different_llm_succeeds():
             visualizer=None,
         )
 
-        # Verify state was loaded and new agent with new LLM is used
+        # 验证状态已加载并且使用了新的智能体和新的 LLM
         assert len(new_conversation.state.events) > 0
         assert new_conversation.agent.llm.model == "gpt-4o"
         assert new_conversation.agent.llm.usage_id == "different-llm"
 
 
 def test_conversation_fails_when_agent_type_changes():
-    """Test that resuming with a different Agent class fails.
+    """测试使用不同的智能体类恢复是否失败。
 
-    This is a hard compatibility requirement: we can only resume if the runtime
-    agent is the same class as the persisted agent.
+    这是一个硬兼容性要求：只有当运行时智能体与已持久化智能体是同一类时，我们才能恢复
+    。
 
-    Note: we define the alternative Agent at module scope to ensure the persisted
-    snapshot can be deserialized; otherwise, Pydantic rejects local classes.
+    Note: 我们在模块范围定义替代方案智能体以确保已持久化
+    快照可以是已反序列化； 否则，Pydantic 会拒绝本地类。
     """
 
     tools = [Tool(name="TerminalTool")]
@@ -423,10 +421,10 @@ def test_conversation_fails_when_agent_type_changes():
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_conversation_persistence_lifecycle(mock_completion):
-    """Test full conversation persistence lifecycle similar to examples/10_persistence.py."""  # noqa: E501
+    """测试完整的对话生命周期持久化类似于 examples/10_persistence.py."""  # noqa: E501
     from tests.conftest import create_mock_litellm_response
 
-    # Mock the LLM completion call
+    # 模拟对象 LLM 完成调用
     mock_response = create_mock_litellm_response(
         content="I'll help you with that task.", finish_reason="stop"
     )
@@ -442,72 +440,72 @@ def test_conversation_persistence_lifecycle(mock_completion):
         )
         agent = Agent(llm=llm, tools=tools)
 
-        # Create conversation and send messages
+        # 创建对话并发送消息
         conversation = LocalConversation(
             agent=agent, workspace=temp_dir, persistence_dir=temp_dir, visualize=False
         )
 
-        # Send first message
+        # 发送第一条消息
         conversation.send_message(
             Message(role="user", content=[TextContent(text="First message")])
         )
         conversation.run()
 
-        # Send second message
+        # 发送第二条消息
         conversation.send_message(
             Message(role="user", content=[TextContent(text="Second message")])
         )
         conversation.run()
 
-        # Store conversation ID and event count
+        # 存储对话 ID 和事件计数
         original_id = conversation.id
         original_event_count = len(conversation.state.events)
         original_state_dump = conversation._state.model_dump(
             mode="json", exclude={"events"}
         )
 
-        # Delete conversation to simulate restart
+        # 删除对话以模拟重启
         del conversation
 
-        # Create new conversation (should load from persistence)
+        # 创建新对话（应从持久化加载）
         new_conversation = LocalConversation(
             agent=agent,
             workspace=temp_dir,
             persistence_dir=temp_dir,
-            conversation_id=original_id,  # Use same ID to load existing state
+            conversation_id=original_id,  # 使用相同的 ID 加载现有状态
             visualizer=None,
         )
 
-        # Verify state was restored
+        # 验证状态已恢复
         assert new_conversation.id == original_id
-        # When loading from persistence, the state should be exactly the same
+        # 从持久化加载时，状态应该完全相同
         assert len(new_conversation.state.events) == original_event_count
         # Test model_dump equality (excluding events which may have different timestamps)  # noqa: E501
         new_dump = new_conversation._state.model_dump(mode="json", exclude={"events"})
         assert new_dump == original_state_dump
 
-        # Send another message to verify conversation continues
+        # 发送另一条消息以验证对话是否继续
         new_conversation.send_message(
             Message(role="user", content=[TextContent(text="Third message")])
         )
         new_conversation.run()
 
-        # Verify new event was added
-        # We expect: original_event_count + 1 (system prompt from init) + 2
-        # (user message + agent response)
+        # 验证新事件已添加我们期望：original_event_count + 1（来自 init 的系统提示词）+
+        # 2（用户消息 + 智能体响应）
+        #
         assert len(new_conversation.state.events) >= original_event_count + 2
 
 
 def test_conversation_resume_overrides_agent_llm_but_preserves_state_settings():
-    """Test resume behavior when changing runtime Agent/LLM settings.
+    """测试更改运行时 Agent/LLM 设置时的恢复行为。
 
-    Expectations:
-    - Some conversation *state* settings are persisted and should not be overridden
-      on resume (e.g., confirmation_policy, execution_status).
-    - Agent/LLM settings should come from the runtime-provided Agent on resume
+    期望：
+    - 某些对话 *state* 设置为已持久化，不应在恢复时覆盖（e.g.、confirmation_policy、
+    execution_status）。
+    - Agent/LLM 设置应来自恢复时运行时提供的智能体
 
-    This test covers the common workflow: start a persisted conversation, tweak a
-    couple of state settings, then resume with a different LLM configuration.
+    此测试涵盖常见工作流程：启动已持久化对话，调整几个状态设置，然后使用不同的 LLM 配
+    置恢复。
     """
 
     from openhands.sdk.security.confirmation_policy import AlwaysConfirm
@@ -515,8 +513,9 @@ def test_conversation_resume_overrides_agent_llm_but_preserves_state_settings():
     with tempfile.TemporaryDirectory() as temp_dir:
         tools = [Tool(name="TerminalTool")]
 
-        # Initial agent (persisted snapshot contains this agent config, but on resume
-        # we should use the runtime-provided agent).
+        # 初始智能体（已持久化快照包含此智能体配置，但在恢复时我们应该使用运行时提供的智
+        # 能体）。
+        #
         llm1 = LLM(
             model="gpt-5.1-codex-max",
             api_key=SecretStr("test-key-1"),
@@ -532,14 +531,14 @@ def test_conversation_resume_overrides_agent_llm_but_preserves_state_settings():
             visualizer=None,
         )
 
-        # Persisted state settings (these should be restored from persistence).
+        # 已持久化状态设置（这些应该从持久化恢复）。
         conversation.state.confirmation_policy = AlwaysConfirm()
         conversation.state.execution_status = ConversationExecutionStatus.STUCK
 
         conversation_id = conversation.state.id
         del conversation
 
-        # Resume with a different runtime Agent + LLM settings.
+        # 使用不同的运行时间智能体 + LLM 设置继续。
         llm2 = LLM(
             model="gpt-5.2",
             api_key=SecretStr("test-key-2"),
@@ -556,11 +555,11 @@ def test_conversation_resume_overrides_agent_llm_but_preserves_state_settings():
             visualizer=None,
         )
 
-        # Persisted settings should remain.
+        # 应保留已持久化设置。
         assert resumed.state.execution_status == ConversationExecutionStatus.STUCK
         assert resumed.state.confirmation_policy.should_confirm()
 
-        # Runtime agent/LLM settings should override persisted agent snapshot.
+        # 运行时代理/LLM 设置应覆盖已持久化智能体快照。
         assert resumed.agent.llm.model == "gpt-5.2"
         assert resumed.agent.llm.max_input_tokens == 50_000
         assert resumed.agent.llm.usage_id == "llm-2"
@@ -568,12 +567,12 @@ def test_conversation_resume_overrides_agent_llm_but_preserves_state_settings():
 
 def test_conversation_restart_with_different_agent_context():
     """
-    Test conversation restart when agent_context differs.
+    当 agent_context 不同时测试对话重新启动。
 
-    This simulates resuming an ACP conversation in regular CLI mode.
+    这模拟在常规 CLI 模式下恢复 ACP 对话。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Simulate ACP mode: Create agent with user_provided_resources skill
+        # 模拟ACP模式：用user_provided_resources技能创造智能体
         acp_skill = Skill(
             name="user_provided_resources",
             content=(
@@ -598,7 +597,7 @@ def test_conversation_restart_with_different_agent_context():
         )
         acp_agent = Agent(llm=llm, tools=tools, agent_context=acp_context)
 
-        # Create conversation with ACP agent
+        # 与 ACP 智能体创建对话
         conversation = LocalConversation(
             agent=acp_agent,
             workspace=temp_dir,
@@ -606,7 +605,7 @@ def test_conversation_restart_with_different_agent_context():
             visualizer=None,
         )
 
-        # Send a message to create state
+        # 发送消息以创建状态
         conversation.send_message(
             Message(role="user", content=[TextContent(text="test message")])
         )
@@ -614,8 +613,9 @@ def test_conversation_restart_with_different_agent_context():
         conversation_id = conversation.state.id
         del conversation
 
-        # Simulate regular CLI mode: Create agent without user_provided_resources skill
-        # and different working directory
+        # 模拟常规 CLI 模式：在没有 user_provided_resources 技能和不同工作目录的情况下创
+        # 建智能体
+        #
         cli_skill = Skill(
             name="project_info",
             content="Information about the current project",
@@ -628,7 +628,7 @@ def test_conversation_restart_with_different_agent_context():
 
         cli_agent = Agent(llm=llm, tools=tools, agent_context=cli_context)
 
-        # This should succeed - agent_context differences should be reconciled
+        # 这应该会成功 - agent_context 分歧应该得到协调
         new_conversation = LocalConversation(
             agent=cli_agent,
             workspace=temp_dir,
@@ -637,10 +637,10 @@ def test_conversation_restart_with_different_agent_context():
             visualizer=None,
         )
 
-        # Verify state was loaded and agent_context was updated
+        # 验证状态已加载并且 agent_context 已更新
         assert new_conversation.id == conversation_id
         assert len(new_conversation.state.events) > 0
-        # The new conversation should use the CLI agent's context
+        # 新对话应使用 CLI 智能体的上下文
         assert new_conversation.agent.agent_context is not None
         assert len(new_conversation.agent.agent_context.skills) == 1
         assert new_conversation.agent.agent_context.skills[0].name == "project_info"

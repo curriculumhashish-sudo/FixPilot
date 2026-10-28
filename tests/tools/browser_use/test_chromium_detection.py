@@ -1,4 +1,4 @@
-"""Tests for Chromium detection and availability errors."""
+"""测试 Chromium 检测和可用性错误。"""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -16,10 +16,10 @@ def clear_chromium_detection_cache():
 
 
 class TestChromiumDetection:
-    """Test Chromium detection functionality."""
+    """测试 Chromium 检测功能。"""
 
     def test_check_chromium_available_system_binary(self):
-        """Test detection of system-installed Chromium binary."""
+        """测试检测系统安装的 Chromium 二进制文件。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         with (
             patch.object(Path, "exists", return_value=False),
@@ -29,7 +29,7 @@ class TestChromiumDetection:
             assert result == "/usr/bin/chromium"
 
     def test_check_chromium_available_is_cached(self):
-        """Test that Chromium detection is memoized across repeated calls."""
+        """测试 Chromium 检测是否在重复调用中被记忆。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         with (
             patch.object(Path, "exists", return_value=False),
@@ -41,7 +41,7 @@ class TestChromiumDetection:
         assert mock_which.call_count == 1
 
     def test_check_chromium_available_multiple_binaries(self):
-        """Test that first available binary is returned."""
+        """测试是否返回第一个可用的二进制文件。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
 
         def mock_which(binary):
@@ -58,7 +58,7 @@ class TestChromiumDetection:
             assert result == "/usr/bin/chromium"
 
     def test_check_chromium_available_chrome_binary(self):
-        """Test detection of Chrome binary when Chromium not available."""
+        """当 Chromium 不可用时测试 Chrome 二进制文件的检测。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
 
         def mock_which(binary):
@@ -75,7 +75,7 @@ class TestChromiumDetection:
             assert result == "/usr/bin/google-chrome"
 
     def test_check_chromium_available_standard_linux_path(self):
-        """Test detection via standard Linux installation paths."""
+        """通过标准 Linux 安装路径进行测试检测。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         chrome_path = Path("/usr/bin/google-chrome")
 
@@ -91,7 +91,7 @@ class TestChromiumDetection:
             assert result == str(chrome_path)
 
     def test_check_chromium_available_standard_macos_path(self):
-        """Test detection via standard macOS installation paths."""
+        """通过标准 macOS 安装路径测试检测。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         chrome_path = Path(
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -109,7 +109,7 @@ class TestChromiumDetection:
             assert result == str(chrome_path)
 
     def test_check_chromium_available_standard_windows_edge_path(self):
-        """Test detection via standard Windows Edge installation path."""
+        """通过标准 Windows Edge 安装路径测试检测。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         edge_path = Path("C:/Program Files/Microsoft/Edge/Application/msedge.exe")
 
@@ -135,7 +135,7 @@ class TestChromiumDetection:
             assert result == str(edge_path)
 
     def test_check_chromium_available_playwright_linux(self):
-        """Test detection of Playwright-installed Chromium on Linux."""
+        """在 Linux 上测试检测 Playwright 安装的 Chromium。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         mock_cache_dir = Path("/home/user/.cache/ms-playwright")
         mock_chromium_dir = mock_cache_dir / "chromium-1234"
@@ -157,7 +157,7 @@ class TestChromiumDetection:
             assert result == str(mock_chrome_path)
 
     def test_check_chromium_available_playwright_macos(self):
-        """Test detection of Playwright-installed Chromium on macOS."""
+        """在 macOS 上测试检测 Playwright 安装的 Chromium。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         mock_cache_dir = Path("/Users/user/Library/Caches/ms-playwright")
         mock_chromium_dir = mock_cache_dir / "chromium-1234"
@@ -186,7 +186,7 @@ class TestChromiumDetection:
             assert result == str(mock_chrome_path)
 
     def test_check_chromium_available_playwright_windows(self):
-        """Test detection of Playwright-installed Chromium on Windows."""
+        """在 Windows 上测试检测 Playwright 安装的 Chromium。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         mock_cache_dir = Path("C:/Users/user/AppData/Local/ms-playwright")
         mock_chromium_dir = mock_cache_dir / "chromium-1234"
@@ -196,7 +196,7 @@ class TestChromiumDetection:
             return str(self) in [str(mock_cache_dir), str(mock_chrome_path)]
 
         def mock_environ_get(key, default=None):
-            """Mock environment variable getter for Windows-specific tests."""
+            """模拟对象环境变量用于 Windows 特定测试的 getter。"""
             if key == "LOCALAPPDATA":
                 return "C:/Users/user/AppData/Local"
             return default
@@ -216,7 +216,7 @@ class TestChromiumDetection:
     def test_check_chromium_available_playwright_browsers_path(
         self, tmp_path, monkeypatch
     ):
-        """Chromium installed only under $PLAYWRIGHT_BROWSERS_PATH is found."""
+        """发现仅安装在 $PLAYWRIGHT_BROWSERS_PATH 下的 Chromium。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         browsers = tmp_path / "pw-browsers"
         chrome = browsers / "chromium-1234" / "chrome-linux" / "chrome"
@@ -268,7 +268,7 @@ class TestChromiumDetection:
             assert executor.check_chromium_available() == str(chrome)
 
     def test_check_chromium_available_not_found(self):
-        """Test when no Chromium binary is found."""
+        """当未找到 Chromium 二进制文件时进行测试。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         with (
             patch("openhands.tools.browser_use.impl.sys.platform", "linux"),
@@ -281,10 +281,10 @@ class TestChromiumDetection:
 
 
 class TestEnsureChromiumAvailable:
-    """Test ensure Chromium available functionality."""
+    """测试确保 Chromium 可用功能。"""
 
     def test_ensure_chromium_available_already_available(self):
-        """Test when Chromium is already available."""
+        """当 Chromium 可用时进行测试。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         with patch.object(
             executor, "check_chromium_available", return_value="/usr/bin/chromium"
@@ -293,7 +293,7 @@ class TestEnsureChromiumAvailable:
             assert result == "/usr/bin/chromium"
 
     def test_ensure_chromium_available_not_found_raises_error(self):
-        """Test that clear error is raised when Chromium is not available."""
+        """测试当 Chromium 不可用时是否会引发明显的错误。"""
         executor = BrowserToolExecutor.__new__(BrowserToolExecutor)
         with patch.object(executor, "check_chromium_available", return_value=None):
             with pytest.raises(Exception) as exc_info:

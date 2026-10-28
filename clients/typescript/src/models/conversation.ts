@@ -1,5 +1,5 @@
 /**
- * Conversation-related models and interfaces
+ * 对话相关模型和接口
  */
 
 import {
@@ -39,15 +39,15 @@ export interface ConversationRuntimeInfo {
 
 export interface ConversationInfo {
   id: ConversationID;
-  /** Availability of the execution runtime backing this catalog entry. */
+  /** 支持此目录条目的执行运行时的可用性。*/
   runtime_info?: ConversationRuntimeInfo | null;
   /**
-   * Current execution status of the conversation.
-   * Note: This field was renamed from agent_status to execution_status in the API.
+   * 会话的当前执行状态。
+   * 注意：该字段在API中从agent_status重命名为execution_status。
    */
   execution_status: ConversationExecutionStatus;
   /**
-   * @deprecated Use execution_status instead. This field is kept for backward compatibility.
+   * @已弃用使用 execution_status 代替。 该字段保留用于向后兼容性。
    */
   agent_status?: AgentExecutionStatus;
   confirmation_policy: ConfirmationPolicyBase;
@@ -59,7 +59,7 @@ export interface ConversationInfo {
   max_iterations?: number;
   stuck_detection?: boolean;
   conversation_stats?: ConversationStats;
-  /** API may return stats instead of conversation_stats */
+  /** API 可能会返回统计信息而不是 conversation_stats*/
   stats?: ConversationStats;
   hook_config?: HookConfig | null;
   blocked_actions?: Record<string, string>;
@@ -69,22 +69,22 @@ export interface ConversationInfo {
   updated_at?: string;
   tags?: Record<string, string>;
   /**
-   * HEAD of the conversation tree: the parent of the next appended event.
-   * `null` means an empty tree (or, for pre-feature conversations, the linear
-   * tail). Moving it via `navigate` re-roots the active branch the agent runs
-   * on. See {@link ConversationClient.navigateConversation}.
+   * 对话树的 HEAD：下一个附加事件的父级。
+   * `null` 表示一棵空树（或者，对于预告片对话，线性
+   * 尾巴）。 通过 `navigate` 移动它会重新定位智能体运行的活动分支
+   * 上。 请参阅{@link ConversationClient.navigateConversation}。
    */
   leaf_event_id?: string | null;
   /**
-   * Provenance of the agent profile that launched this conversation.
-   * Present when the conversation was started via `agent_profile_id`; absent
-   * for conversations started directly with `agent` or `agent_settings`.
+   * 发起此对话的智能体个人资料的出处。
+   * 当对话通过 `agent_profile_id` 开始时出现； 缺席
+   * 用于直接从 `agent` 或 `agent_settings` 开始的对话。
    */
   launched_agent_profile?: LaunchedAgentProfile | null;
   /** @deprecated Use launched_agent_profile, the canonical server field. */
   launched_profile?: LaunchedProfile | null;
   /**
-   * @deprecated Use execution_status instead. This field is kept for backward compatibility.
+   * @已弃用使用 execution_status 代替。 该字段保留用于向后兼容性。
    */
   status?: ConversationExecutionStatus;
   [key: string]: unknown;
@@ -151,11 +151,11 @@ export interface LookupSecret {
   headers?: Record<string, string>;
   description?: string | null;
   /**
-   * @deprecated v1.23.0 agent servers use `url` and optional `headers`.
+   * @已弃用 v1.23.0 智能体服务器使用 `url` 和可选 `headers`。
    */
   source?: string;
   /**
-   * @deprecated v1.23.0 agent servers use `url` and optional `headers`.
+   * @已弃用 v1.23.0 智能体服务器使用 `url` 和可选 `headers`。
    */
   key?: string;
 }
@@ -179,18 +179,18 @@ export interface AskAgentRequest {
 }
 
 /**
- * Payload to start a `/goal` loop inside a conversation.
+ * 载荷在对话中启动 `/goal` 循环。
  *
- * Mirrors the agent-server's `StartGoalRequest`. The loop appends messages and
- * runs the agent in the same conversation history/event stream as the main
- * chat; it does not fork or create a separate conversation.
+ * 镜像智能体服务器的 `StartGoalRequest`。 循环附加消息并
+ * 在与主程序相同的对话历史/事件流中运行智能体
+ * 聊天； 它不会分叉或创建单独的对话。
  */
 export interface StartGoalRequest {
-  /** The goal objective to pursue and audit. Must not be empty server-side. */
+  /** 目标目标追求和审核。 服务器端不能为空。*/
   objective: string;
   /**
-   * Maximum audit rounds before giving up. Server requires `>= 1` and defaults
-   * to `10` when omitted.
+   * 放弃之前的最大审核轮次。 服务器需要 `>= 1` 和默认值
+   * 省略时为 `10`。
    */
   max_iterations?: number;
 }
@@ -243,14 +243,14 @@ export interface ForkConversationRequest {
 }
 
 /**
- * Payload to move a conversation's HEAD to an existing event (in-place
- * re-root). Unlike a fork, this creates no new conversation — all branches
- * stay on disk and only the active branch the agent runs on next changes.
+ * 载荷将对话的 HEAD 移至现有事件（就地
+ * 重新root）。 与分叉不同，这不会创建新的对话 - 所有分支
+ * 保留在磁盘上，并且仅智能体的活动分支在下次更改时运行。
  */
 export interface NavigateConversationRequest {
   /**
-   * Event to make the new HEAD, re-rooting the active branch. Omit or pass
-   * `null` to select the empty tree (a deliberate new root).
+   * 生成新的 HEAD 的事件，重新确定活动分支的根。 省略或通过
+   * `null` 选择空树（故意的新根）。
    */
   event_id?: string | null;
 }

@@ -1,4 +1,4 @@
-"""Tests for the tool preset selection logic in integration tests."""
+"""测试集成测试中的工具预设选择逻辑。"""
 
 import argparse
 
@@ -8,23 +8,23 @@ from tests.integration.base import ToolPresetType, get_tools_for_preset
 
 
 def test_get_tools_for_preset_default():
-    """Test that default preset returns expected tools."""
+    """测试默认预设是否返回预期工具。"""
     tools = get_tools_for_preset("default", enable_browser=False)
     tool_names = {t.name for t in tools}
 
     assert "terminal" in tool_names
     assert "file_editor" in tool_names
     assert "task_tracker" in tool_names
-    # Browser tools should not be present
+    # 不应存在浏览器工具
     assert "browser_navigate" not in tool_names
 
 
 def test_get_tools_for_preset_default_with_browser():
-    """Test that default preset with browser enabled includes browser tools.
+    """测试启用浏览器的默认预设是否包含浏览器工具。
 
-    Note: This test is skipped during integration test runs because browser
-    tools cause process cleanup issues with ProcessPoolExecutor. The browser
-    functionality itself works, but cleanup during parallel test execution hangs.
+    Note: 在集成测试运行期间跳过此测试，因为浏览器
+    工具会导致 ProcessPoolExecutor 出现进程清理问题。 浏览器功能本身可以工作，但并行
+    测试执行期间的清理工作会挂起。
     """
     pytest.skip(
         "Browser tools disabled in integration tests due to ProcessPoolExecutor "
@@ -33,7 +33,7 @@ def test_get_tools_for_preset_default_with_browser():
 
 
 def test_get_tools_for_preset_gemini():
-    """Test that gemini preset returns gemini-style file editing tools."""
+    """测试 Gemini 预设返回 Gemini 风格的文件编辑工具。"""
     tools = get_tools_for_preset("gemini", enable_browser=False)
     tool_names = {t.name for t in tools}
 
@@ -43,63 +43,63 @@ def test_get_tools_for_preset_gemini():
     assert "edit" in tool_names
     assert "list_directory" in tool_names
     assert "task_tracker" in tool_names
-    # Default file_editor should NOT be present
+    # 默认 file_editor 应该存在不
     assert "file_editor" not in tool_names
 
 
 def test_get_tools_for_preset_gpt5():
-    """Test that gpt5 preset returns apply_patch tool."""
+    """测试 gpt5 预设返回 apply_patch 工具。"""
     tools = get_tools_for_preset("gpt5", enable_browser=False)
     tool_names = {t.name for t in tools}
 
     assert "terminal" in tool_names
     assert "apply_patch" in tool_names
     assert "task_tracker" in tool_names
-    # Default file_editor should NOT be present
+    # 默认 file_editor 应该存在不
     assert "file_editor" not in tool_names
 
 
 def test_get_tools_for_preset_planning():
-    """Test that planning preset returns read-only tools."""
+    """测试计划预设是否返回只读工具。"""
     tools = get_tools_for_preset("planning", enable_browser=False)
     tool_names = {t.name for t in tools}
 
     assert "glob" in tool_names
     assert "grep" in tool_names
     assert "planning_file_editor" in tool_names
-    # Default file_editor should NOT be present
+    # 默认 file_editor 应该存在不
     assert "file_editor" not in tool_names
-    # Browser tools should not be present (planning is read-only)
+    # 不应存在浏览器工具（计划为只读）
     assert "browser_navigate" not in tool_names
 
 
 def test_get_tools_for_preset_invalid():
-    """Test that invalid preset raises ValueError."""
+    """测试无效预设是否会引发 ValueError。"""
     with pytest.raises(ValueError, match="Unknown `preset` parameter"):
         # type: ignore is used here intentionally to test runtime behavior
         get_tools_for_preset("invalid_preset", enable_browser=False)  # type: ignore[arg-type]
 
 
 def test_tool_preset_type_literal_values():
-    """Verify ToolPresetType includes all expected values."""
-    # This is a compile-time check but we document expected values here
+    """验证 ToolPresetType 包括所有预期值。"""
+    # 这是编译时检查，但我们在此处记录预期值
     valid_presets: list[ToolPresetType] = ["default", "gemini", "gpt5", "planning"]
     for preset in valid_presets:
-        # Should not raise
+        # 不应该提高
         tools = get_tools_for_preset(preset, enable_browser=False)
         assert len(tools) > 0
 
 
 def test_run_infer_argparse_accepts_all_tool_presets():
-    """Verify that run_infer.py argparse accepts all ToolPresetType values.
+    """验证 run_infer.py argparse 接受所有 ToolPresetType 值。
 
-    This test ensures that the argparse choices in run_infer.py are in sync
-    with the ToolPresetType literal definition, preventing issues where valid
-    tool presets are rejected by the CLI argument parser.
+    该测试确保了 run_infer.py 中 argparse 选择项与同步中的 ToolPresetType 字面定义一
+    致，从而避免了工具预设被 CLI 参数解析器
+    拒绝的问题。
 
-    Regression test for issue #2305.
+    回归测试问题 #2305。
     """
-    # Create a simple argparse parser that mimics run_infer.py's tool-preset argument
+    # 创建一个简单的 argparse 解析器来模仿 run_infer.py 的工具预设参数
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--tool-preset",
@@ -108,14 +108,14 @@ def test_run_infer_argparse_accepts_all_tool_presets():
         default="default",
     )
 
-    # Test each valid preset value
+    # 测试每个有效的预设值
     valid_presets: list[ToolPresetType] = ["default", "gemini", "gpt5", "planning"]
 
     for preset in valid_presets:
-        # This should not raise an error
+        # 这不应该引发错误
         args = parser.parse_args(["--tool-preset", preset])
         assert args.tool_preset == preset
 
-    # Test that an invalid preset raises an error
+    # 测试无效预设是否会引发错误
     with pytest.raises(SystemExit):
         parser.parse_args(["--tool-preset", "invalid"])

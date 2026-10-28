@@ -1,4 +1,4 @@
-"""Test that ConversationStateUpdateEvent for stats uses MetricsSnapshot."""
+"""测试统计数据的 ConversationStateUpdateEvent 使用 MetricsSnapshot。"""
 
 import uuid
 
@@ -16,7 +16,7 @@ from openhands.sdk.workspace import LocalWorkspace
 
 @pytest.fixture
 def state():
-    """Create a ConversationState for testing."""
+    """创建一个 ConversationState 进行测试。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm)
     workspace = LocalWorkspace(working_dir="/tmp/test")
@@ -28,7 +28,7 @@ def state():
         agent=agent,
     )
 
-    # Set up filestore and enable autosave so callbacks are triggered
+    # 设置文件存储并启用自动保存，以便触发回调
     state._fs = InMemoryFileStore()
     state._autosave_enabled = True
 
@@ -36,20 +36,20 @@ def state():
 
 
 def test_stats_update_event_uses_snapshot_not_full_metrics(state):
-    """Test that stats update event contains snapshot without lengthy lists."""
+    """测试统计更新事件是否包含快照，而无需冗长的列表。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
         callback_calls.append(event)
 
-    # Set the callback
+    # 设置回调
     state.set_on_state_change(callback)
 
-    # Create stats with multiple cost entries
+    # 创建包含多个成本条目的统计数据
     stats = ConversationStats()
     metrics = Metrics(model_name="gpt-4")
 
-    # Add multiple cost entries to simulate a long conversation
+    # 添加多个成本条目来模拟长对话
     for i in range(10):
         metrics.add_cost(0.01)
         metrics.add_token_usage(
@@ -64,35 +64,35 @@ def test_stats_update_event_uses_snapshot_not_full_metrics(state):
 
     stats.usage_to_metrics["default"] = metrics
 
-    # Change state - should trigger callback
+    # 更改状态 - 应触发回调
     with state:
         state.stats = stats
 
-    # Verify callback was called
+    # 验证回调被调用
     assert len(callback_calls) == 1
     event = callback_calls[0]
     assert isinstance(event, ConversationStateUpdateEvent)
     assert event.key == "stats"
 
-    # The event value should be a dict (already serialized as snapshot)
+    # 事件值应该是一个字典（已经已序列化作为快照）
     stats_value = event.value
     assert isinstance(stats_value, dict)
 
-    # Verify that stats_dict has the structure we expect
+    # 验证 stats_dict 是否具有我们期望的结构
     assert "usage_to_metrics" in stats_value
     assert "default" in stats_value["usage_to_metrics"]
 
     metrics_data = stats_value["usage_to_metrics"]["default"]
 
-    # After the fix, these lists should NOT be present
-    # They grow with conversation length and cause bloat
+    # 修复后，这些列表应该不存在它们随着对话长度而增长并导致膨胀
+    #
     assert "costs" not in metrics_data, "costs list should not be present"
     assert "response_latencies" not in metrics_data, (
         "response_latencies list should not be present"
     )
     assert "token_usages" not in metrics_data, "token_usages list should not be present"
 
-    # These should always be present (the snapshot data)
+    # 这些总是应该存在（快照数据）
     assert "accumulated_cost" in metrics_data
     assert metrics_data["accumulated_cost"] == pytest.approx(0.1)
     assert "accumulated_token_usage" in metrics_data
@@ -101,12 +101,12 @@ def test_stats_update_event_uses_snapshot_not_full_metrics(state):
 
 
 def test_stats_model_dump_preserves_full_history():
-    """Test that model_dump() preserves full metrics history for persistence."""
-    # Create stats with multiple cost entries
+    """测试 model_dump() 是否保留持久化的完整指标历史记录。"""
+    # 创建包含多个成本条目的统计数据
     stats = ConversationStats()
     metrics = Metrics(model_name="gpt-4")
 
-    # Add multiple entries to simulate a conversation
+    # 添加多个条目来模拟对话
     for i in range(5):
         metrics.add_cost(0.01)
         metrics.add_token_usage(
@@ -121,7 +121,7 @@ def test_stats_model_dump_preserves_full_history():
 
     stats.usage_to_metrics["default"] = metrics
 
-    # Use model_dump() without context - should preserve full history
+    # 使用 model_dump() 而不使用上下文 - 应保留完整历史记录
     stats_dict = stats.model_dump(mode="json")
 
     assert "usage_to_metrics" in stats_dict
@@ -129,7 +129,7 @@ def test_stats_model_dump_preserves_full_history():
 
     metrics_data = stats_dict["usage_to_metrics"]["default"]
 
-    # Full dump should contain all the lists
+    # 完整转储应包含所有列表
     assert "costs" in metrics_data, "costs list should be present in full dump"
     assert "response_latencies" in metrics_data, (
         "response_latencies list should be present in full dump"
@@ -138,23 +138,23 @@ def test_stats_model_dump_preserves_full_history():
         "token_usages list should be present in full dump"
     )
 
-    # Verify the lists have the correct number of entries
+    # 验证列表中的条目数是否正确
     assert len(metrics_data["costs"]) == 5
     assert len(metrics_data["response_latencies"]) == 5
     assert len(metrics_data["token_usages"]) == 5
 
-    # Verify accumulated values are also present
+    # 验证累计值也存在
     assert "accumulated_cost" in metrics_data
     assert metrics_data["accumulated_cost"] == pytest.approx(0.05)
 
 
 def test_stats_model_dump_with_snapshot_context_excludes_history():
-    """Test that model_dump() with use_snapshot context excludes lengthy lists."""
-    # Create stats with multiple cost entries
+    """测试 model_dump() 与 use_snapshot 上下文排除冗长的列表。"""
+    # 创建包含多个成本条目的统计数据
     stats = ConversationStats()
     metrics = Metrics(model_name="gpt-4")
 
-    # Add multiple entries to simulate a conversation
+    # 添加多个条目来模拟对话
     for i in range(5):
         metrics.add_cost(0.01)
         metrics.add_token_usage(
@@ -169,7 +169,7 @@ def test_stats_model_dump_with_snapshot_context_excludes_history():
 
     stats.usage_to_metrics["default"] = metrics
 
-    # Use model_dump() with snapshot context - should exclude lists
+    # 将 model_dump() 与快照上下文一起使用 - 应排除列表
     stats_dict = stats.model_dump(mode="json", context={"use_snapshot": True})
 
     assert "usage_to_metrics" in stats_dict
@@ -177,7 +177,7 @@ def test_stats_model_dump_with_snapshot_context_excludes_history():
 
     metrics_data = stats_dict["usage_to_metrics"]["default"]
 
-    # Snapshot should NOT contain the lists
+    # 快照应不包含列表
     assert "costs" not in metrics_data, "costs list should not be in snapshot"
     assert "response_latencies" not in metrics_data, (
         "response_latencies list should not be in snapshot"
@@ -186,7 +186,7 @@ def test_stats_model_dump_with_snapshot_context_excludes_history():
         "token_usages list should not be in snapshot"
     )
 
-    # Verify accumulated values are present
+    # 验证累计值是否存在
     assert "accumulated_cost" in metrics_data
     assert metrics_data["accumulated_cost"] == pytest.approx(0.05)
     assert "accumulated_token_usage" in metrics_data

@@ -1,23 +1,21 @@
-"""Example: Loading Skills from Disk (AgentSkills Standard)
+"""Example: 从磁盘加载技能（AgentSkills标准）
 
-This example demonstrates how to load skills following the AgentSkills standard
+此示例演示如何按照 AgentSkills 标准加载技能
 from a directory on disk.
 
-Skills are modular, self-contained packages that extend an agent's capabilities
-by providing specialized knowledge, workflows, and tools. They follow the
-AgentSkills standard which includes:
-- SKILL.md file with frontmatter metadata (name, description, triggers)
-- Optional resource directories: scripts/, references/, assets/
+技能是模块化的、独立的包，通过提供专业知识、工作流程和工具来扩展智能体的功能。 它们遵
+循 AgentSkills 标准，其中包括：
+- SKILL.md 个文件，包含前置元数据个元数据（名称、描述、触发器）
+- 可选资源目录：scripts/、references/、assets/
 
-The example_skills/ directory contains two skills:
-- rot13-encryption: Has triggers (encrypt, decrypt) - listed in <available_skills>
-  AND content auto-injected when triggered
-- code-style-guide: No triggers - listed in <available_skills> for on-demand access
+example_skills/目录包含两个技能：
+- rot13-加密：具有触发器（加密、解密）- 在 <available_skills> AND 中列出，触发时自动
+注入内容
+- 代码风格指南：无触发器 - 在 <available_skills> 中列出用于按需访问
 
-All SKILL.md files follow the AgentSkills progressive disclosure model:
-they are listed in <available_skills> with name, description, and location.
-Skills with triggers get the best of both worlds: automatic content injection
-when triggered, plus the agent can proactively read them anytime.
+所有 SKILL.md 文件都遵循 AgentSkills 渐进式披露模型：它们在 <available_skills> 中列出
+，并包含名称、描述和位置。 带触发器的技能可
+以两全其美：触发时自动注入内容，而且智能体可以随时主动读取它们。
 """
 
 import os
@@ -36,12 +34,12 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Get the directory containing this script
+# 获取包含该脚本的目录
 script_dir = Path(__file__).parent
 example_skills_dir = script_dir / "example_skills"
 
 # =========================================================================
-# Part 1: Loading Skills from a Directory
+# 第 1 部分：从目录加载技能
 # =========================================================================
 print("=" * 80)
 print("Part 1: Loading Skills from a Directory")
@@ -49,7 +47,7 @@ print("=" * 80)
 
 print(f"Loading skills from: {example_skills_dir}")
 
-# Discover resources in the skill directory
+# 发现技能目录中的资源
 skill_subdir = example_skills_dir / "rot13-encryption"
 resources = discover_skill_resources(skill_subdir)
 print("\nDiscovered resources in rot13-encryption/:")
@@ -57,7 +55,7 @@ print(f"  - scripts: {resources.scripts}")
 print(f"  - references: {resources.references}")
 print(f"  - assets: {resources.assets}")
 
-# Load skills from the directory
+# 从目录加载技能
 repo_skills, knowledge_skills, agent_skills = load_skills_from_dir(example_skills_dir)
 
 print("\nLoaded skills from directory:")
@@ -65,7 +63,7 @@ print(f"  - Repo skills: {list(repo_skills.keys())}")
 print(f"  - Knowledge skills: {list(knowledge_skills.keys())}")
 print(f"  - Agent skills (SKILL.md): {list(agent_skills.keys())}")
 
-# Access the loaded skill and show all AgentSkills standard fields
+# 访问加载的技能并显示所有 AgentSkills 个标准字段
 if agent_skills:
     skill_name = next(iter(agent_skills))
     loaded_skill = agent_skills[skill_name]
@@ -84,13 +82,13 @@ if agent_skills:
         print(f"    - Skill root: {loaded_skill.resources.skill_root}")
 
 # =========================================================================
-# Part 2: Using Skills with an Agent
+# 第 2 部分：使用智能体的技能
 # =========================================================================
 print("\n" + "=" * 80)
 print("Part 2: Using Skills with an Agent")
 print("=" * 80)
 
-# Check for API key
+# 检查API键
 api_key = os.getenv("LLM_API_KEY")
 if not api_key:
     print("Skipping agent demo (LLM_API_KEY not set)")
@@ -98,7 +96,7 @@ if not api_key:
     print("  export LLM_API_KEY=your-api-key")
     sys.exit(0)
 
-# Configure LLM
+# 配置LLM
 model = os.getenv("LLM_MODEL", "gpt-5.5")
 llm = LLM(
     usage_id="skills-demo",
@@ -107,25 +105,25 @@ llm = LLM(
     base_url=os.getenv("LLM_BASE_URL"),
 )
 
-# Create agent context with loaded skills
+# 使用已加载的技能创建智能体上下文
 agent_context = AgentContext(
     skills=list(agent_skills.values()),
-    # Disable public skills for this demo to keep output focused
+    # 禁用此演示的公共技能以保持输出重点
     load_public_skills=False,
 )
 
-# Create agent with tools so it can read skill resources
+# 使用工具创建智能体，以便它可以读取技能资源
 tools = [
     Tool(name=TerminalTool.name),
     Tool(name=FileEditorTool.name),
 ]
 agent = Agent(llm=llm, tools=tools, agent_context=agent_context)
 
-# Create conversation
+# 创建对话
 conversation = Conversation(agent=agent, workspace=os.getcwd())
 
-# Test the skill (triggered by "encrypt" keyword)
-# The skill provides instructions and a script for ROT13 encryption
+# 测试技能（由“加密”关键字触发） 该技能提供 ROT13 加密的说明和脚本
+#
 print("\nSending message with 'encrypt' keyword to trigger skill...")
 conversation.send_message("Encrypt the message 'hello world'.")
 conversation.run()

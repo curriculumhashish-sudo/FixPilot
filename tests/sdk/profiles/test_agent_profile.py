@@ -1,9 +1,10 @@
-"""Tests for the ``AgentProfile`` kind-discriminated union.
+"""对 ``AgentProfile`` 类型歧视联合的测试。
 
-Mirrors the ``AgentSettingsConfig`` union tests in ``tests/sdk/test_settings.py``:
-round-trip both variants, confirm narrowing on ``agent_kind``, confirm the
-cross-variant fields are rejected, and confirm the ``mcp_server_refs`` null/[]
-distinction. Adds the profile-specific contract: secret-free at rest.
+镜像 ``AgentSettingsConfig`` 测试 union ``tests/sdk/test_settings.py``确认两种变体的
+往返传输
+``agent_kind``确认交叉变异字段被拒绝，并确认  ``mcp_server_refs`` null/[] 区分。 添加
+了针对特定配置文件的合同： 机密免费的
+REST.
 """
 
 import json
@@ -78,7 +79,7 @@ def test_agent_profile_list_response_validates_profile_summaries() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Construction + round-trip
+# 施工+往返
 # ---------------------------------------------------------------------------
 
 
@@ -106,10 +107,10 @@ def test_openhands_profile_round_trips() -> None:
 
 
 def test_openhands_profile_new_field_defaults() -> None:
-    """``enable_switch_llm_tool`` defaults True (global parity); ``disabled_skills``
-    defaults ``[]`` — the deny-list starts empty, so an unset field means "all
-    discovered skills" (#4017). Skills are selected by exclusion, never an
-    allow-list of names that could dangle."""
+    """``enable_switch_llm_tool`` 默认值 True（全局奇偶校验）； ``disabled_skills``
+    默认值 ``[]`` — 拒绝列表从空开始，因此未设置的字段意味着“所有发现的技能”(#4017)。
+     技能是通过排除来选择的，而不是可能悬而未决的允许名单。
+    """
     profile = OpenHandsAgentProfile(name="oh", llm_profile_ref="default")
     assert profile.disabled_skills == []
     reloaded = validate_agent_profile(
@@ -128,7 +129,7 @@ def test_default_profile_preserves_explicit_empty_tools() -> None:
 
 
 def test_disabled_skills_round_trips() -> None:
-    """A non-empty deny-list survives the JSON round-trip verbatim."""
+    """非空拒绝列表在 JSON 往返中逐字保留。"""
     profile = validate_agent_profile(
         OpenHandsAgentProfile(
             name="oh", llm_profile_ref="default", disabled_skills=["a", "b"]
@@ -139,9 +140,9 @@ def test_disabled_skills_round_trips() -> None:
 
 
 def test_acp_profile_has_no_skill_field() -> None:
-    """ACP profiles carry no skill-selection field at all — the subprocess owns
-    its tooling and prompt context (#4017). ``extra="forbid"`` rejects a stray
-    ``skill_refs``/``disabled_skills`` on an ACP payload."""
+    """ACP 个人资料根本不包含技能选择字段 — 子进程拥有
+    它的工具和提示词上下文 (#4017)。 ``extra="forbid"`` 拒绝流浪者
+    ``skill_refs``/``disabled_skills`` 上的 ACP 载荷。"""
     from openhands.sdk.profiles import ACPAgentProfile
 
     profile = ACPAgentProfile(name="acp", acp_server="claude-code")
@@ -223,14 +224,14 @@ def test_acp_profile_minimal_defaults() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Discriminator + validation
+# 鉴别器 + 验证
 # ---------------------------------------------------------------------------
 
 
 def test_agent_profile_discriminator_declared_on_base():
-    """AgentProfileBase declares agent_kind.
+    """AgentProfileBase 声明 agent_kind。
 
-    The discriminator accesses it directly without getattr.
+    判别器直接访问它，无需 getattr。
     """
     base = AgentProfileBase(name="test-profile")
     assert base.agent_kind == "openhands"
@@ -268,7 +269,7 @@ def test_missing_discriminator_defaults_to_openhands() -> None:
 
 
 def test_type_adapter_narrows_directly() -> None:
-    """A bare ``TypeAdapter(AgentProfile)`` (no migration) narrows correctly."""
+    """裸 ``TypeAdapter(AgentProfile)``（无迁移）正确缩小。"""
     acp = _ADAPTER.validate_python({"agent_kind": "acp", "name": "acp"})
     assert isinstance(acp, ACPAgentProfile)
 
@@ -284,7 +285,7 @@ def test_validate_rejects_non_mapping() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Cross-variant field rejection (extra="forbid")
+# 跨变体字段拒绝（extra=“forbid”）
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +329,7 @@ def test_acp_rejects_unknown_acp_server() -> None:
 
 
 # ---------------------------------------------------------------------------
-# mcp_server_refs: null vs [] are distinct
+# mcp_server_refs: null 与 [] 不同
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +348,7 @@ def test_mcp_server_refs_null_vs_empty_are_distinct() -> None:
     assert use_none.mcp_server_refs == []
     assert subset.mcp_server_refs == ["fetch"]
 
-    # The distinction must survive a serialize → reload round-trip.
+    # 该区别必须在序列化 → 重新加载往返过程中保持不变。
     assert (
         validate_agent_profile(use_all.model_dump(mode="json")).mcp_server_refs is None
     )
@@ -362,7 +363,7 @@ def test_mcp_server_refs_default_is_null() -> None:
 
 
 # ---------------------------------------------------------------------------
-# schema_version + migration
+# schema_version + 迁移
 # ---------------------------------------------------------------------------
 
 
@@ -490,7 +491,7 @@ def test_v2_sub_agents_switch_pins_the_standard_set_plus_delegation() -> None:
 
 
 def test_v2_sub_agents_switch_does_not_reach_an_explicit_list() -> None:
-    """The switch only ever fed the default set."""
+    """该交换机仅馈送默认设置。"""
     profile = validate_agent_profile(
         {
             "schema_version": 2,
@@ -506,7 +507,7 @@ def test_v2_sub_agents_switch_does_not_reach_an_explicit_list() -> None:
 
 
 def test_v2_default_switch_llm_needs_no_pinned_list() -> None:
-    """The default set carries switch_llm, so nothing has to be pinned."""
+    """默认集带有 switch_llm，因此无需固定任何内容。"""
     profile = validate_agent_profile(
         {
             "schema_version": 2,
@@ -521,7 +522,7 @@ def test_v2_default_switch_llm_needs_no_pinned_list() -> None:
 
 
 def test_v2_fold_recognises_the_switch_llm_class_alias() -> None:
-    """A stored list naming the built-in by class name already has the tool."""
+    """按类名命名内置函数的存储列表已经包含该工具。"""
     profile = validate_agent_profile(
         {
             "schema_version": 2,
@@ -536,7 +537,7 @@ def test_v2_fold_recognises_the_switch_llm_class_alias() -> None:
 
 
 def test_v2_switch_llm_turned_off_pins_a_list_without_it() -> None:
-    """Off is not the default, so it has to be said explicitly."""
+    """关闭不是默认值，因此必须明确说明。"""
     profile = validate_agent_profile(
         {
             "schema_version": 2,
@@ -777,7 +778,7 @@ def test_rejects_negative_schema_version() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Identity: id (stable UUID) vs name (renameable)
+# 身份：id（稳定UUID）与名称（可重命名）
 # ---------------------------------------------------------------------------
 
 
@@ -803,7 +804,7 @@ def test_name_is_required() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Secret-free at rest
+# 机密-免费，位于 REST
 # ---------------------------------------------------------------------------
 
 
@@ -811,7 +812,7 @@ def test_openhands_profile_persists_no_secret_fields() -> None:
     dumped = OpenHandsAgentProfile(name="oh", llm_profile_ref="default").model_dump(
         mode="json"
     )
-    # The profile carries a *reference*, never the credential itself.
+    # 配置文件带有 * 引用 *，而不是凭据本身。
     assert "llm" not in dumped
     assert "api_key" not in dumped
     assert "llm_profile_ref" in dumped
@@ -821,14 +822,14 @@ def test_acp_profile_persists_no_secret_fields() -> None:
     dumped = ACPAgentProfile(name="acp", acp_server="claude-code").model_dump(
         mode="json"
     )
-    # No embedded credential and no secret bag on the profile.
+    # 型材上没有嵌入凭据且没有机密包。
     for key in ("llm", "api_key", "secrets", "agent_context"):
         assert key not in dumped
 
 
 def test_verification_field_cannot_carry_a_secret() -> None:
-    """The verification block is secret-free: ``critic_api_key`` is not a field,
-    so a payload supplying it is stripped and can never be exposed at rest."""
+    """验证块是机密-free：``critic_api_key``不是一个字段，
+    因此提供它的载荷被剥离并且永远不会暴露在 REST 处。"""
     profile = validate_agent_profile(
         {
             "name": "oh",
@@ -845,18 +846,18 @@ def test_verification_field_cannot_carry_a_secret() -> None:
     assert profile.verification.critic_enabled is True
     assert profile.verification.critic_model_name == "gpt-5.5"
 
-    # Even forcing secret exposure must not surface the value (it isn't stored).
+    # 即使强制机密曝光也不得显示该值（不存储该值）。
     exposed = profile.model_dump(mode="json", context={"expose_secrets": True})
     assert "critic_api_key" not in exposed["verification"]
     assert "sk-real-secret-value" not in json.dumps(exposed)
 
 
 def test_openhands_profile_has_no_embedded_skills_field() -> None:
-    """Profiles no longer carry embedded ``skills`` (#4017): the field is gone,
-    and ``extra="forbid"`` rejects a stray one rather than silently accepting
-    or dropping it. This is what makes the profile genuinely secret-free at
-    rest — the only field that could ever carry a secret (``skills[].mcp_tools``)
-    is gone."""
+    """配置文件不再带有嵌入的 ``skills`` (#4017)：该字段消失了，
+    ``extra="forbid"`` 拒绝流浪者，而不是默默地接受或丢弃它。 这就是使配置文件在 REST
+     处真正摆脱机密的原因——唯一可以携带机密 (
+    ``skills[].mcp_tools``) 的字段消失了。
+    """
     with pytest.raises(ValidationError):
         validate_agent_profile(
             {
@@ -870,13 +871,13 @@ def test_openhands_profile_has_no_embedded_skills_field() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Removed fields remain invalid in current-version payloads.  ``skills`` is an
-# exception for v1 payloads because the v1-to-v2 migration explicitly retires it.
+# 当前版本中仍保留无效字段载荷。 ``skills`` 这是 v1 版本的例外载荷因为 v1 到 v2 迁移明确
+# 退役了它。
 # ---------------------------------------------------------------------------
 
 
 def test_current_profile_with_skills_field_is_rejected() -> None:
-    """A v2 payload must not retain the retired embedded ``skills`` field."""
+    """v2 载荷不得保留已停用的嵌入 ``skills`` 字段。"""
     with pytest.raises(ValidationError):
         validate_agent_profile(
             {
@@ -890,8 +891,8 @@ def test_current_profile_with_skills_field_is_rejected() -> None:
 
 
 def test_removed_skill_refs_field_is_rejected() -> None:
-    """The allow-list ``skill_refs`` was replaced by the ``disabled_skills``
-    deny-list and never shipped, so a payload carrying it is rejected."""
+    """允许列表 ``skill_refs`` 已替换为 ``disabled_skills``
+    拒绝列表并且从未发货，因此携带它的载荷被拒绝。"""
     with pytest.raises(ValidationError):
         validate_agent_profile(
             {
@@ -905,8 +906,8 @@ def test_removed_skill_refs_field_is_rejected() -> None:
 
 
 def test_payload_without_disabled_skills_adopts_empty_default() -> None:
-    """A payload that omits ``disabled_skills`` picks up the model default —
-    ``[]`` (all discovered skills)."""
+    """一个载荷会忽略 ``disabled_skills``，然后会使用模型默认值
+    ``[]``（所有已发现的技能）。"""
     profile = validate_agent_profile(
         {
             "schema_version": 1,

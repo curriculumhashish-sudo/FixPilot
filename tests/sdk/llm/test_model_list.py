@@ -24,11 +24,11 @@ def test_organize_models_and_providers():
         "gpt-6-astra",
         "devstral-2512",
         "mistral/devstral-2512",
-        "anthropic.claude-3-5",  # Ignore dot separator for anthropic
+        "anthropic.claude-3-5",  # 忽略 Anthropic 的点分隔符
         "unknown-model",
-        "custom-provider/custom-model",  # invalid provider -> bucketed under "other"
-        "us.anthropic.claude-3-5-sonnet-20241022-v2:0",  # invalid provider prefix
-        "1024-x-1024/gpt-image-1.5",  # invalid provider prefix
+        "custom-provider/custom-model",  # 无效的提供者 -> 存储在“其他”下
+        "us.anthropic.claude-3-5-sonnet-20241022-v2:0",  # 无效的提供商前缀
+        "1024-x-1024/gpt-image-1.5",  # 无效的提供商前缀
         "openai/another-model",
     ]
 
@@ -39,7 +39,7 @@ def test_organize_models_and_providers():
         result = get_unverified_models()
 
         assert "openai" in result
-        assert "anthropic" not in result  # don't include verified models
+        assert "anthropic" not in result  # 不包括经过验证的模型
         assert "mistral" not in result
         assert "other" in result
 
@@ -54,11 +54,11 @@ def test_organize_models_and_providers():
 
 
 def test_list_bedrock_models_without_boto3(monkeypatch):
-    """Should warn and return empty list if boto3 is missing."""
-    # Pretend boto3 is not installed
+    """如果 boto3 丢失，应该发出警告并返回空列表。"""
+    # 假装boto3未安装
     monkeypatch.setitem(sys.modules, "boto3", None)
 
-    # Mock the logger to verify warning is called
+    # 模拟对象调用验证警告的记录器
     with patch("openhands.sdk.llm.utils.unverified_models.logger") as mock_logger:
         result = _list_bedrock_foundation_models("us-east-1", "key", "secret")
 
@@ -70,7 +70,7 @@ def test_list_bedrock_models_without_boto3(monkeypatch):
 
 
 def test_list_bedrock_models_with_boto3(monkeypatch):
-    """Should return prefixed bedrock model IDs if boto3 is present."""
+    """如果存在 boto3，则应返回带前缀的基岩模型 ID。"""
 
     class FakeClient:
         def list_foundation_models(self, **kwargs):
@@ -80,7 +80,7 @@ def test_list_bedrock_models_with_boto3(monkeypatch):
         def client(self, *args, **kwargs):
             return FakeClient()
 
-    # Inject fake boto3
+    # 注入假boto3
     monkeypatch.setitem(sys.modules, "boto3", FakeBoto3())
 
     result = _list_bedrock_foundation_models("us-east-1", "key", "secret")
@@ -89,11 +89,11 @@ def test_list_bedrock_models_with_boto3(monkeypatch):
 
 
 def test_openhands_models_all_have_provider_list():
-    """Every model in VERIFIED_OPENHANDS_MODELS must also appear in at least one
-    provider-specific list so that the UI can display it under its actual provider.
+    """VERIFIED_OPENHANDS_MODELS 中的每个模型还必须至少出现在一个
+    特定于提供者的列表，以便 UI 可以在其实际提供者下显示它。
 
-    Exception: models that are only available through the OpenHands provider
-    (e.g. ``trinity-large-thinking``) are not exposed under any other provider.
+    Exception: 仅可通过 OpenHands 提供商获得的模型
+    (e.g. ``trinity-large-thinking``) 不会暴露在任何其他提供商之下。
     """
     openhands_only_models = {"trinity-large-thinking"}
 
@@ -131,19 +131,20 @@ def test_kimi_k3_and_claude_opus_5_are_verified():
 
 
 def test_openrouter_is_a_verified_provider():
-    """OpenRouter must be a verified provider (alongside openai/openhands) so the
-    provider picker shows it as verified on the local backend. Its entries are
-    namespaced ids with the ``openrouter/`` prefix stripped.
+    """OpenRouter 必须是经过验证的提供商（与 openai/openhands 一起），因此
+    提供商选择器将其显示为已在本地后端验证。 它的条目是带有命名空间的 id，并且去掉了
+    ``openrouter/`` 前缀。
     """
     assert "openrouter" in VERIFIED_MODELS
-    # The picker treats any key in VERIFIED_MODELS as a verified provider, so a
-    # non-empty list is required for the OpenRouter section to render models.
+    # 选择器将 VERIFIED_MODELS 中的任何键视为经过验证的提供者，因此 OpenRouter 部分需要
+    # 一个非空列表来渲染模型。
+    #
     assert VERIFIED_MODELS["openrouter"]
     assert "anthropic/claude-opus-5" in VERIFIED_MODELS["openrouter"]
     assert "openai/gpt-6-astra" in VERIFIED_MODELS["openrouter"]
-    # Entries must be real catalog ids (no alias-only ids like ``openai/gpt-5.6``).
+    # 条目必须是真实的目录 ID（没有像 ``openai/gpt-5.6`` 这样的仅别名 ID）。
     assert "openai/gpt-5.6-sol" in VERIFIED_MODELS["openrouter"]
-    # Entries must not carry the openrouter/ prefix (it is the provider key).
+    # 条目不得带有 openrouter/ 前缀（它是提供商密钥）。
     assert not any(m.startswith("openrouter/") for m in VERIFIED_MODELS["openrouter"])
 
 
@@ -165,8 +166,8 @@ def test_openrouter_models_remain_discoverable_without_litellm_catalog(monkeypat
 
 
 def test_bedrock_ids_without_bedrock_prefix_are_excluded(monkeypatch):
-    """LiteLLM files Bedrock ids like ``deepseek.r1-v1:0`` under a Bedrock
-    provider; they must not leak into the list as other providers' models."""
+    """LiteLLM 在基岩下文件基岩 ID，例如 ``deepseek.r1-v1:0``
+    提供者； 它们不得像其他提供商的型号一样泄漏到列表中。"""
     monkeypatch.setattr(litellm, "model_list", ["deepseek/deepseek-chat"])
     monkeypatch.setattr(
         litellm,
@@ -213,8 +214,8 @@ def test_bedrock_models_from_aws_are_kept_when_credentials_are_set(monkeypatch):
 
 
 def test_nemotron_3_super_uses_full_infra_name():
-    """The verified Nemotron Super entry must match the infra model name
-    (``nemotron-3-super-120b-a12b``) and the short alias should not be listed.
+    """已验证的 Nemotron Super 条目必须与基础型号名称匹配
+    (``nemotron-3-super-120b-a12b``) 和短别名不应列出。
     """
     full_name = "nemotron-3-super-120b-a12b"
     assert full_name in VERIFIED_MODELS["nvidia"]
@@ -226,20 +227,19 @@ def test_nemotron_3_super_uses_full_infra_name():
 
 
 def test_openhands_haiku_uses_full_infra_name():
-    """The OpenHands proxy serves dated snapshots for some Anthropic models
-    (``claude-haiku-4-5-20251001``); bare aliases that the proxy does not know
-    must not be offered under the OpenHands provider.
+    """OpenHands 代理为某些 Anthropic 模型提供过时的快照
+    (``claude-haiku-4-5-20251001``); 代理不知道的裸别名不得在 OpenHands 提供程序下提
+    供。
     """
     assert "claude-haiku-4-5" not in VERIFIED_OPENHANDS_MODELS
-    # VERIFIED_ANTHROPIC_MODELS keeps the dated name; direct-Anthropic BYOK is fine.
+    # VERIFIED_ANTHROPIC_MODELS 保留带日期的名称； 直接-Anthropic BYOK 就可以了。
     assert "claude-haiku-4-5-20251001" in VERIFIED_MODELS["anthropic"]
 
 
 def test_verified_lists_keep_two_latest_versions_per_line():
-    """Check the curation rule for every provider: the two latest versions of a
-    line are present and the version before them is gone (see the module
-    docstring and ``llm/utils/AGENTS.md``). Update the table when a new version
-    lands.
+    """检查每个提供商的管理规则：一个的两个最新版本
+    行存在，并且之前的版本消失（请参阅模块文档字符串和 ``llm/utils/AGENTS.md``）。 当
+    新版本发布时更新该表。
     """
     expectations = {
         "openai": ({"gpt-6-astra", "gpt-5.6"}, {"gpt-5.5", "gpt-5.4", "gpt-4o", "o3"}),
@@ -267,8 +267,9 @@ def test_verified_lists_keep_two_latest_versions_per_line():
         "glm": ({"glm-5.3", "glm-5.2"}, {"glm-5.1"}),
         "nvidia": ({"nemotron-3.5-lightning-30b-a3b", "nemotron-3-nano"}, set()),
         "qwen": ({"qwen3.8-max", "qwen3.7-max"}, {"qwen3-max", "qwen3-6-plus"}),
-        # OpenRouter routes other vendors' models, so entries are namespaced
-        # ids (``anthropic/claude-opus-5``) rather than bare model names.
+        # OpenRouter 路由其他供应商的模型，因此条目是命名空间 id (
+        # ``anthropic/claude-opus-5``)，而不是裸露的模型名称。
+        #
         "openrouter": (
             {"anthropic/claude-opus-5", "openai/gpt-6-astra"},
             {"anthropic/claude-opus-4-7"},
@@ -292,8 +293,8 @@ def test_verified_lists_keep_two_latest_versions_per_line():
 
 
 def test_trinity_model_is_openhands_only():
-    """trinity-large-thinking should be available only via the OpenHands provider
-    and must not be listed under any other provider.
+    """trinity-large-thinking 只能通过 OpenHands 提供者获得
+    并且不得列在任何其他提供商下。
     """
     assert "trinity-large-thinking" in VERIFIED_OPENHANDS_MODELS
     assert "trinity" not in VERIFIED_MODELS

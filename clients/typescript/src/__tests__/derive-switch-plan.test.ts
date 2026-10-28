@@ -154,7 +154,7 @@ describe('deriveSwitchPlan', () => {
       };
       const target: ACPAgentProfile = { ...codexSnapshot, revision: 1, acp_model: 'o4' };
       const plan = deriveSwitchPlan(codexSnapshot, target, codexProvider);
-      // codex supports_runtime_model_switch check
+      // 法典 supports_runtime_model_switch 检查
       const expected = codexProvider.supports_runtime_model_switch ? 'switch-live' : 'start-new';
       expect(plan.action).toBe(expected);
     });
@@ -189,9 +189,9 @@ describe('deriveSwitchPlan', () => {
     });
 
     it('current when ACP content identical even if provider lacks runtime switch', () => {
-      // Regression: an unchanged profile must be "current" regardless of the
-      // provider's runtime-switch capability. providerInfo=null (custom server)
-      // previously returned a spurious "start-new".
+      // 回归：未更改的配置文件必须是“当前”的，无论
+      // 提供者的运行时切换能力。 providerInfo=null（自定义服务器）之前返回了一个虚假的“start-new”。
+      //
       const target: ACPAgentProfile = { ...acpBase, id: 'profile-9', revision: 5 };
       const plan = deriveSwitchPlan(acpBase, target, null);
       expect(plan.action).toBe('current');

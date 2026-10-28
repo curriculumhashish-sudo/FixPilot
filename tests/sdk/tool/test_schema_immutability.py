@@ -1,4 +1,4 @@
-"""Tests for the Schema immutability contract."""
+"""测试模式不变性合约。"""
 
 import pytest
 from pydantic import Field, ValidationError

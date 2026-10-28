@@ -1,12 +1,10 @@
-"""Tests for the per-app service getters in sockets.py.
+"""在 sockets.py 中测试每个应用程序服务 getter。
 
-The websocket handlers must read ``ConversationService`` and
-``BashEventService`` from ``app.state`` (set by the lifespan or by
-``POST /api/init`` in deferred-init mode) rather than the module-level
-singletons captured at import time. These helpers encapsulate that lookup
-and gracefully fall back to the module-level default when ``app.state``
-is not configured (e.g. when sockets.py is imported as a library without
-a lifespan).
+WebSocket 处理程序必须读取 ``ConversationService`` 和
+``BashEventService`` 来自 ``app.state``（由寿命或由
+``POST /api/init`` 在 deferred-init 模式下）而不是导入时捕获的模块级单例。 这些帮助器
+封装了该查找，并在未配置 ``app.state``
+ 时优雅地回退到模块级默认值（e.g. 当sockets.py作为没有生命周期的库导入时）。
 """
 
 from types import SimpleNamespace
@@ -28,7 +26,7 @@ from openhands.agent_server.sockets import (
 
 
 def _make_ws(state: dict[str, object] | None = None) -> MagicMock:
-    """Build a mock WebSocket whose ``app.state`` exposes ``state``."""
+    """构建一个模拟对象 WebSocket，其 ``app.state`` 暴露 ``state``。"""
     ws = MagicMock()
     ws.app.state = SimpleNamespace()
     if state is not None:
@@ -50,27 +48,27 @@ def bash_service():
 
 
 def test_get_conversation_service_prefers_app_state(conv_service):
-    """When the app registers a service, that one is returned (not the
-    module-level singleton)."""
+    """当应用程序注册一项服务时，会返回该服务（而不是
+    模块级单例）。"""
     ws = _make_ws({"conversation_service": conv_service})
     assert _get_conversation_service(ws) is conv_service
 
 
 def test_get_conversation_service_falls_back_to_module_singleton():
-    """When ``app.state`` has no conversation service, the module-level
-    default is returned (preserves the behaviour of tests that patch the
-    module-level singleton)."""
+    """当``app.state``没有会话服务时，模块级
+    返回默认值（保留修补模块级单例的测试的行为）。
+    """
     ws = _make_ws()
     assert _get_conversation_service(ws) is sockets_mod.conversation_service
 
 
 def test_get_conversation_service_ignores_wrong_type():
-    """If ``app.state.conversation_service`` is set to something that is not
-    a ConversationService (e.g. None or some other object), fall back to the
-    module-level default rather than blow up."""
+    """如果 ``app.state.conversation_service`` 设置为非
+    a ConversationService (e.g. None 或其他一些对象），回退到模块级默认值而不是炸毁。
+    """
     for bogus in (None, "not a service", 42):
         ws = _make_ws({"conversation_service": bogus})
-        # Must not raise — just return the module-level default.
+        # 不能引发——只返回模块级默认值。
         result = _get_conversation_service(ws)
         assert isinstance(result, ConversationService)
 
@@ -95,11 +93,11 @@ def test_get_bash_event_service_ignores_wrong_type():
         assert isinstance(result, BashEventService)
 
 
-# -- Integration with Config --
+# -- 与配置集成 --
 
 
 def test_get_conversation_service_handles_real_config(tmp_path):
-    """Sanity check: the helper returns a real ConversationService built
+    """健全性检查：助手返回一个真实的 ConversationService 构建的
     from a Config on ``app.state`` rather than the import-time default."""
     from openhands.agent_server import conversation_service as cs_mod
 
@@ -121,7 +119,7 @@ def test_get_conversation_service_handles_real_config(tmp_path):
 
 
 def test_get_bash_event_service_handles_real_config(tmp_path):
-    """Sanity check: the helper returns a real BashEventService built
+    """健全性检查：助手返回一个真实的 BashEventService 构建的
     from a Config on ``app.state`` rather than the import-time default."""
     from openhands.agent_server import bash_service as bash_mod
 
@@ -140,13 +138,13 @@ def test_get_bash_event_service_handles_real_config(tmp_path):
         bash_mod._bash_event_service = None
 
 
-# -- End-to-end: WebSocket handlers use per-app services after /api/init --
+# -- 端到端：WebSocket 处理程序在 /api/init 之后使用每个应用程序服务 --
 
 
 @pytest.mark.asyncio
 async def test_events_socket_uses_app_state_conversation_service():
-    """events_socket must use app.state.conversation_service (set by /api/init)
-    rather than the module-level singleton captured at import time."""
+    """events_socket 必须使用 app.state.conversation_service（由 /api/init) 设置）
+    而不是在导入时捕获的模块级单例。"""
     from openhands.agent_server.sockets import events_socket
 
     mock_event_svc = MagicMock(spec=EventService)
@@ -163,7 +161,7 @@ async def test_events_socket_uses_app_state_conversation_service():
     ws.send_json = AsyncMock()
     ws.close = AsyncMock()
     ws.headers = {}
-    # Simulate app.state after /api/init delivers a per-user service.
+    # 在 /api/init 提供每用户服务后模拟 app.state。
     ws.app.state = SimpleNamespace(
         conversation_service=per_app_conv_svc,
         config=Config(session_api_keys=[]),
@@ -178,8 +176,8 @@ async def test_events_socket_uses_app_state_conversation_service():
 
 @pytest.mark.asyncio
 async def test_bash_events_socket_uses_app_state_bash_event_service():
-    """bash_events_socket must use app.state.bash_event_service (set by /api/init)
-    rather than the module-level singleton captured at import time."""
+    """bash_events_socket 必须使用 app.state.bash_event_service（由 /api/init) 设置）
+    而不是在导入时捕获的模块级单例。"""
     from openhands.agent_server.sockets import bash_events_socket
 
     per_app_bash_svc = MagicMock(spec=BashEventService)
@@ -193,7 +191,7 @@ async def test_bash_events_socket_uses_app_state_bash_event_service():
     ws.send_json = AsyncMock()
     ws.close = AsyncMock()
     ws.headers = {}
-    # Simulate app.state after /api/init delivers a per-user service.
+    # 在 /api/init 提供每用户服务后模拟 app.state。
     ws.app.state = SimpleNamespace(
         bash_event_service=per_app_bash_svc,
         config=Config(session_api_keys=[]),

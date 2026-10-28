@@ -1,15 +1,15 @@
 /**
- * Hook configuration loading and management.
+ * 钩子配置加载和管理。
  *
- * Mirrors the Python SDK's openhands.sdk.hooks.config module.
- * Browser-safe: no file I/O operations (those happen server-side).
+ * 镜像 Python SDK 的 openhands.sdk.hooks.config 模块。
+ * 浏览器安全：无文件 I/O 操作（这些操作发生在服务器端）。
  */
 
 import { HookEventType, HookType } from './types';
 
 /**
- * Valid snake_case field names for hook events.
- * This is the single source of truth for hook event types.
+ * 挂钩事件的有效 snake_case 字段名称。
+ * 这是挂钩事件类型的唯一事实来源。
  */
 export const HOOK_EVENT_FIELDS: ReadonlySet<string> = new Set([
   'pre_tool_use',
@@ -21,7 +21,7 @@ export const HOOK_EVENT_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * A single hook definition.
+ * 单个钩子定义。
  */
 export interface HookDefinition {
   type?: HookType;
@@ -31,9 +31,9 @@ export interface HookDefinition {
 }
 
 /**
- * Matches events to hooks based on patterns.
+ * 根据模式将事件与挂钩匹配。
  *
- * Supports exact match, wildcard (*), and regex (auto-detected or /pattern/).
+ * 支持精确匹配、通配符 (*) 和正则表达式（自动检测或 /pattern/).
  */
 export interface HookMatcher {
   matcher?: string;
@@ -41,7 +41,7 @@ export interface HookMatcher {
 }
 
 /**
- * Configuration for all hooks.
+ * 所有钩子的配置。
  */
 export interface HookConfig {
   pre_tool_use: HookMatcher[];
@@ -53,11 +53,11 @@ export interface HookConfig {
   [key: string]: HookMatcher[];
 }
 
-/** Regex metacharacters that indicate a pattern should be treated as regex. */
+/** 指示模式的正则表达式元字符应被视为正则表达式。*/
 const REGEX_METACHARACTERS = new Set('|.*+?[]()^$\\'.split(''));
 
 /**
- * Check if a matcher matches the given tool name.
+ * 检查匹配器是否与给定的工具名称匹配。
  */
 export function matcherMatches(matcherDef: HookMatcher, toolName?: string | null): boolean {
   const pattern = matcherDef.matcher ?? '*';
@@ -65,7 +65,7 @@ export function matcherMatches(matcherDef: HookMatcher, toolName?: string | null
   if (pattern === '*' || pattern === '') return true;
   if (toolName == null) return pattern === '*' || pattern === '';
 
-  // Explicit regex: /pattern/
+  // 显式正则表达式：/pattern/
   if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) {
     const regexStr = pattern.slice(1, -1);
     try {
@@ -75,12 +75,12 @@ export function matcherMatches(matcherDef: HookMatcher, toolName?: string | null
     }
   }
 
-  // Auto-detect regex: contains metacharacters
+  // 自动检测正则表达式：包含元字符
   if ([...pattern].some((c) => REGEX_METACHARACTERS.has(c))) {
     try {
       return new RegExp(`^${pattern}$`).test(toolName);
     } catch {
-      // Invalid regex, fall through to exact match
+      // 正则表达式无效，无法完全匹配
     }
   }
 
@@ -88,7 +88,7 @@ export function matcherMatches(matcherDef: HookMatcher, toolName?: string | null
 }
 
 /**
- * Create an empty HookConfig.
+ * 创建一个空的 HookConfig。
  */
 export function createEmptyHookConfig(): HookConfig {
   return {
@@ -102,7 +102,7 @@ export function createEmptyHookConfig(): HookConfig {
 }
 
 /**
- * Check if a HookConfig has no hooks configured.
+ * 检查 HookConfig 是否没有配置钩子。
  */
 export function isHookConfigEmpty(config: HookConfig): boolean {
   return ![
@@ -115,18 +115,18 @@ export function isHookConfigEmpty(config: HookConfig): boolean {
   ].some((list) => list.length > 0);
 }
 
-/** Convert PascalCase to snake_case. */
+/** 将 PascalCase 转换为 snake_case。*/
 function pascalToSnake(name: string): string {
   return name.replace(/(?<!^)(?=[A-Z])/g, '_').toLowerCase();
 }
 
 /**
- * Normalize raw hooks data, supporting PascalCase keys and the legacy `{hooks: ...}` wrapper.
+ * 标准化原始钩子数据，支持 PascalCase 键和旧的 `{hooks: ...}` 包装器。
  */
 export function normalizeHooksInput(data: Record<string, unknown>): Record<string, unknown> {
   let unwrapped = data;
 
-  // Unwrap legacy format: {"hooks": {"PreToolUse": [...]}}
+  // 解开旧格式：{"hooks": {"PreToolUse": [...]}}
   if ('hooks' in unwrapped && typeof unwrapped.hooks === 'object' && unwrapped.hooks !== null) {
     unwrapped = unwrapped.hooks as Record<string, unknown>;
   }
@@ -157,8 +157,8 @@ export function normalizeHooksInput(data: Record<string, unknown>): Record<strin
 }
 
 /**
- * Create a HookConfig from a raw data object.
- * Supports both PascalCase and snake_case keys, and the legacy "hooks" wrapper.
+ * 从原始数据对象创建 HookConfig。
+ * 支持 PascalCase 和 snake_case 键，以及传统的“hooks”包装器。
  */
 export function hookConfigFromData(data: Record<string, unknown>): HookConfig {
   const normalized = normalizeHooksInput(data);
@@ -174,7 +174,7 @@ export function hookConfigFromData(data: Record<string, unknown>): HookConfig {
 }
 
 /**
- * Get all hook definitions that match a given event type and optional tool name.
+ * 获取与给定事件类型和可选工具名称匹配的所有挂钩定义。
  */
 export function getHooksForEvent(
   config: HookConfig,
@@ -195,7 +195,7 @@ export function getHooksForEvent(
 }
 
 /**
- * Check if there are any hooks configured for an event type.
+ * 检查是否有为事件类型配置的任何钩子。
  */
 export function hasHooksForEvent(config: HookConfig, eventType: HookEventType): boolean {
   const fieldName = pascalToSnake(eventType);
@@ -204,8 +204,8 @@ export function hasHooksForEvent(config: HookConfig, eventType: HookEventType): 
 }
 
 /**
- * Merge multiple hook configs by concatenating handlers per event type.
- * Returns null if the result is empty.
+ * 通过连接每个事件类型的处理程序来合并多个挂钩配置。
+ * 如果结果为空，则返回 null。
  */
 export function mergeHookConfigs(configs: HookConfig[]): HookConfig | null {
   if (configs.length === 0) return null;
@@ -222,8 +222,8 @@ export function mergeHookConfigs(configs: HookConfig[]): HookConfig | null {
 }
 
 /**
- * Serialize a HookConfig to a plain object suitable for JSON/API payloads.
- * Only includes non-empty fields.
+ * 序列化 a HookConfig 到适合 JSON/API 载荷的普通对象。
+ * 仅包含非空字段。
  */
 export function hookConfigToJSON(config: HookConfig): Record<string, unknown> {
   const result: Record<string, unknown> = {};

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Iterative Refinement Example: COBOL to Java Refactoring
+迭代细化示例：COBOL 到 Java 重构
 
-This example demonstrates an iterative refinement workflow where:
-1. A refactoring agent converts COBOL files to Java files
-2. A critique agent evaluates the quality of each conversion and provides scores
-3. If the average score is below 90%, the process repeats with feedback
+此示例演示了迭代细化工作流程，其中：
+1. 重构智能体将 COBOL 个文件转换为 Java 文件
+2. 评论智能体评估每次转化的质量并提供分数
+3. 如果平均分数低于 90%，则重复该过程并提供反馈
 
-The workflow continues until the refactoring meets the quality threshold.
+工作流程继续进行，直到重构达到质量阈值。
 
-Source COBOL files can be obtained from:
+源 COBOL 文件可以从以下位置获取：
 https://github.com/aws-samples/aws-mainframe-modernization-carddemo/tree/main/app/cbl
 """
 
@@ -31,7 +31,7 @@ COBOL_SAMPLE_LIMIT = max(1, int(os.getenv("COBOL_SAMPLE_LIMIT", "1")))
 
 
 def setup_workspace() -> tuple[Path, Path, Path]:
-    """Create workspace directories for the refactoring workflow."""
+    """为重构工作流程创建工作区目录。"""
     workspace_dir = Path(tempfile.mkdtemp())
     cobol_dir = workspace_dir / "cobol"
     java_dir = workspace_dir / "java"
@@ -45,11 +45,11 @@ def setup_workspace() -> tuple[Path, Path, Path]:
 
 
 def create_sample_cobol_files(cobol_dir: Path) -> list[str]:
-    """Create sample COBOL files for demonstration.
+    """创建示例 COBOL 文件以进行演示。
 
-    In a real scenario, you would clone files from:
+    在实际场景中，您可以从以下位置克隆文件：
     https://github.com/aws-samples/aws-mainframe-modernization-carddemo/tree/main/app/cbl
-    """
+    """  # noqa: E501
     sample_files = {
         "CBACT01C.cbl": """       IDENTIFICATION DIVISION.
        PROGRAM-ID. CBACT01C.
@@ -245,7 +245,7 @@ def get_refactoring_prompt(
     cobol_files: list[str],
     critique_file: Path | None = None,
 ) -> str:
-    """Generate the prompt for the refactoring agent."""
+    """生成用于重构智能体的提示词。"""
     files_list = "\n".join(f"  - {f}" for f in cobol_files)
 
     base_prompt = f"""Convert the following COBOL files to Java:
@@ -289,7 +289,7 @@ def get_critique_prompt(
     java_dir: Path,
     cobol_files: list[str],
 ) -> str:
-    """Generate the prompt for the critique agent."""
+    """生成批评智能体的提示词。"""
     files_list = "\n".join(f"  - {f}" for f in cobol_files)
 
     return f"""Evaluate the quality of COBOL to Java refactoring.
@@ -346,13 +346,13 @@ After saving the report, finish without starting any additional work.
 
 
 def parse_critique_score(critique_file: Path) -> float:
-    """Parse the average score from the critique report."""
+    """解析评论报告中的平均分。"""
     if not critique_file.exists():
         return 0.0
 
     content = critique_file.read_text()
 
-    # Look for "Average Score: X" pattern
+    # 寻找“平均分：X”模式
     patterns = [
         r"\*\*Average Score\*\*:\s*(\d+(?:\.\d+)?)",
         r"Average Score:\s*(\d+(?:\.\d+)?)",
@@ -368,8 +368,8 @@ def parse_critique_score(critique_file: Path) -> float:
 
 
 def run_iterative_refinement() -> None:
-    """Run the iterative refinement workflow."""
-    # Setup
+    """运行迭代细化工作流程。"""
+    # 设置
     api_key = os.getenv("LLM_API_KEY")
     assert api_key is not None, "LLM_API_KEY environment variable is not set."
     model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -394,7 +394,7 @@ def run_iterative_refinement() -> None:
     print(f"Sample COBOL files: {COBOL_SAMPLE_LIMIT}")
     print()
 
-    # Create sample COBOL files
+    # 创建示例 COBOL 文件
     cobol_files = create_sample_cobol_files(cobol_dir)
     print(f"Created {len(cobol_files)} sample COBOL files:")
     for f in cobol_files:
@@ -411,7 +411,7 @@ def run_iterative_refinement() -> None:
         print(f"ITERATION {iteration}")
         print("=" * 80)
 
-        # Phase 1: Refactoring
+        # 第一阶段：重构
         print("\n--- Phase 1: Refactoring Agent ---")
         refactoring_agent = get_default_agent(llm=llm, cli_mode=True)
         refactoring_conversation = Conversation(
@@ -429,7 +429,7 @@ def run_iterative_refinement() -> None:
         refactoring_conversation.run()
         print("Refactoring phase complete.")
 
-        # Phase 2: Critique
+        # 第二阶段：批评
         print("\n--- Phase 2: Critique Agent ---")
         critique_agent = get_default_agent(llm=llm, cli_mode=True)
         critique_conversation = Conversation(
@@ -443,7 +443,7 @@ def run_iterative_refinement() -> None:
         critique_conversation.run()
         print("Critique phase complete.")
 
-        # Parse the score
+        # 解析分数
         current_score = parse_critique_score(critique_file)
         print(f"\nCurrent Score: {current_score:.1f}%")
 
@@ -455,7 +455,7 @@ def run_iterative_refinement() -> None:
                 "Continuing refinement..."
             )
 
-    # Final summary
+    # 最后总结
     print("\n" + "=" * 80)
     print("ITERATIVE REFINEMENT COMPLETE")
     print("=" * 80)
@@ -463,16 +463,16 @@ def run_iterative_refinement() -> None:
     print(f"Final score: {current_score:.1f}%")
     print(f"Workspace: {workspace_dir}")
 
-    # List created Java files
+    # 列出已创建的 Java 文件
     print("\nCreated Java files:")
     for java_file in java_dir.glob("*.java"):
         print(f"  - {java_file.name}")
 
-    # Show critique file location
+    # 显示批评文件位置
     if critique_file.exists():
         print(f"\nFinal critique report: {critique_file}")
 
-    # Report cost
+    # 报告费用
     cost = llm.metrics.accumulated_cost
     print(f"\nEXAMPLE_COST: {cost}")
 

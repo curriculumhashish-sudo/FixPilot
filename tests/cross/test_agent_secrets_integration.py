@@ -1,4 +1,4 @@
-"""Tests for agent integration with secrets manager."""
+"""测试智能体与机密管理器的集成。"""
 
 import sys
 from typing import cast
@@ -61,7 +61,7 @@ class MyChangingFailingDynamicSecretSource(SecretSource):
 
 
 # -----------------------
-# Fixtures
+# 测试夹具
 # -----------------------
 
 
@@ -88,7 +88,7 @@ def conversation(agent: Agent, tmp_path) -> LocalConversation:
 
 @pytest.fixture
 def terminal_executor(conversation: LocalConversation) -> TerminalExecutor:
-    # Trigger lazy initialization before accessing tools_map
+    # 访问 tools_map 之前触发延迟初始化
     conversation._ensure_agent_ready()
     tools_map = conversation.agent.tools_map
     terminal_tool = tools_map["terminal"]
@@ -108,8 +108,8 @@ def conversation_no_bash(agent_no_bash: Agent, tmp_path) -> LocalConversation:
 def test_agent_configures_bash_tools_env_provider(
     conversation: LocalConversation, terminal_executor: TerminalExecutor, agent: Agent
 ):
-    """Test that bash executor works with conversation secrets."""
-    # Add secrets to conversation
+    """测试 bash 执行器是否可以与对话一起使用机密。"""
+    # 将机密添加到对话
     conversation.update_secrets(
         {
             "API_KEY": "test-api-key",
@@ -117,13 +117,13 @@ def test_agent_configures_bash_tools_env_provider(
         }
     )
 
-    # Get the bash tool from agent
+    # 从智能体获取 bash 工具
     bash_tool = agent.tools_map["terminal"]
 
     assert bash_tool is not None
     assert bash_tool.executor is not None
 
-    # Test that secrets are accessible via conversation
+    # 测试是否可以通过对话访问机密
     secret_registry = conversation.state.secret_registry
     env_vars = secret_registry.get_secrets_as_env_vars("echo $API_KEY")
     assert env_vars == {"API_KEY": "test-api-key"}
@@ -135,7 +135,7 @@ def test_agent_configures_bash_tools_env_provider(
 def test_agent_env_provider_with_callable_secrets(
     conversation: LocalConversation, terminal_executor: TerminalExecutor
 ):
-    """Test that conversation secrets work with callable secrets."""
+    """测试机密与可调用机密的对话是否正常。"""
 
     conversation.update_secrets(
         {
@@ -154,7 +154,7 @@ def test_agent_env_provider_with_callable_secrets(
 def test_agent_env_provider_handles_exceptions(
     conversation: LocalConversation, terminal_executor: TerminalExecutor
 ):
-    """Test that conversation secrets handle exceptions gracefully."""
+    """测试对话机密是否优雅地处理异常。"""
 
     conversation.update_secrets(
         {
@@ -165,13 +165,13 @@ def test_agent_env_provider_handles_exceptions(
 
     secret_registry = conversation.state.secret_registry
 
-    # Should not raise exception, should return empty dict
+    # 不应引发异常，应返回空字典
     env_vars = secret_registry.get_secrets_as_env_vars(
         "export FAILING_KEY=$FAILING_KEY"
     )
     assert env_vars == {}
 
-    # Working key should still work
+    # 工作键应该仍然有效
     env_vars = secret_registry.get_secrets_as_env_vars(
         "export WORKING_KEY=$WORKING_KEY"
     )
@@ -181,11 +181,11 @@ def test_agent_env_provider_handles_exceptions(
 def test_agent_env_provider_no_matches(
     conversation: LocalConversation, terminal_executor: TerminalExecutor
 ):
-    """Test conversation secrets when command has no secret matches."""
+    """当命令没有机密匹配时测试对话机密。"""
 
     conversation.update_secrets({"API_KEY": "test-value"})
 
-    # Test secrets manager with command that doesn't reference secrets
+    # 使用未引用机密的命令测试机密管理器
     secret_registry = conversation.state.secret_registry
     env_vars = secret_registry.get_secrets_as_env_vars("echo hello world")
 
@@ -193,27 +193,27 @@ def test_agent_env_provider_no_matches(
 
 
 def test_agent_without_bash_throws_warning(llm):
-    """Test that agent works correctly when no bash tools are present."""
-    # This test is no longer relevant since we removed
-    # _configure_bash_tools_env_provider
-    # Agent no longer logs warnings about missing bash tools
-    # Creating conversation without bash tools should work fine
+    """当不存在 bash 工具时，测试智能体是否正常工作。"""
+    # 由于我们移除了 _configure_bash_tools_env_provider 智能体不再记录缺少 bash 工具的警
+    # 告，这个测试已经不再相关了。创建没有 bash 工具的对话应该可以正常工作
+    #
     conversation = Conversation(agent=Agent(llm=llm, tools=[]))
     assert conversation is not None
     conversation.close()
 
 
 # ---------------------------------------------------------------------------
-# agent_context.secrets → secret_registry lift (canvas / TypeScript gap fix)
+# agent_context.secrets → secret_registry 提升（画布/TypeScript 间隙固定）
 # ---------------------------------------------------------------------------
 
 
 def test_agent_context_secrets_seeded_into_registry_at_init(llm, tmp_path):
-    """agent_context.secrets land in secret_registry without any request.secrets.
+    """agent_context.secrets 登陆 secret_registry，没有任何 request.secrets。
 
-    Covers callers (e.g. canvas / TypeScript) that build StartConversationRequest
-    directly without going through create_request(), so agent_context.secrets
-    would otherwise only be visible via the _start_acp_server() drain.
+    覆盖调用者 (e.g. canvas / TypeScript) 直接构建 StartConversationRequest 而无需经
+    过
+    create_request()，因此 agent_context.secrets 只能通过 _start_acp_server() 排水管
+    可见。
     """
     agent = Agent(
         llm=llm,
@@ -231,9 +231,9 @@ def test_agent_context_secrets_seeded_into_registry_at_init(llm, tmp_path):
 
 
 def test_request_secrets_win_over_agent_context_secrets_on_collision(llm, tmp_path):
-    """request.secrets overrides agent_context.secrets when both name the same key.
+    """当两者命名相同的键时，request.secrets 会覆盖 agent_context.secrets。
 
-    request.secrets is the canonical channel and must have higher priority.
+    request.secrets 是规范通道，必须具有更高的优先级。
     """
     agent = Agent(
         llm=llm,
@@ -254,7 +254,7 @@ def test_request_secrets_win_over_agent_context_secrets_on_collision(llm, tmp_pa
 
 
 def test_agent_context_and_request_secrets_are_merged(llm, tmp_path):
-    """Non-conflicting keys from both channels appear in secret_registry."""
+    """两个通道中不冲突的密钥显示在 secret_registry 中。"""
     agent = Agent(
         llm=llm,
         tools=[],
@@ -273,7 +273,7 @@ def test_agent_context_and_request_secrets_are_merged(llm, tmp_path):
 
 
 def test_no_agent_context_does_not_raise(llm, tmp_path):
-    """Conversation init succeeds when agent has no agent_context."""
+    """当智能体没有 agent_context 时，会话初始化成功。"""
     agent = Agent(llm=llm, tools=[], agent_context=None)
     conv = LocalConversation(agent, workspace=str(tmp_path))
     try:
@@ -285,9 +285,9 @@ def test_no_agent_context_does_not_raise(llm, tmp_path):
 def test_agent_secrets_integration_workflow(
     conversation: LocalConversation, terminal_executor: TerminalExecutor, agent: Agent
 ):
-    """Test complete workflow of conversation secrets integration."""
+    """测试对话机密集成的完整工作流程。"""
 
-    # Add secrets with mixed types
+    # 将机密与混合类型相加
 
     with patch("httpx.get") as mock_get:
         mock_get.return_value.text = "bearer-token-456"
@@ -302,13 +302,13 @@ def test_agent_secrets_integration_workflow(
 
         secret_registry = conversation.state.secret_registry
 
-        # Single secret
+        # 单曲机密
         env_vars = secret_registry.get_secrets_as_env_vars(
             "curl -H 'X-API-Key: $API_KEY'"
         )
         assert env_vars == {"API_KEY": "static-api-key-123"}
 
-        # Multiple secrets
+        # 多个机密
         command = "export API_KEY=$API_KEY && export AUTH_TOKEN=$AUTH_TOKEN"
         env_vars = secret_registry.get_secrets_as_env_vars(command)
         assert env_vars == {
@@ -316,11 +316,11 @@ def test_agent_secrets_integration_workflow(
             "AUTH_TOKEN": "bearer-token-456",
         }
 
-        # No secrets referenced
+        # 没有引用机密
         env_vars = secret_registry.get_secrets_as_env_vars("echo hello world")
         assert env_vars == {}
 
-    # Step 5: Update secrets and verify changes propagate
+    # 第 5 步：更新机密并验证更改是否已传播
     conversation.update_secrets({"API_KEY": "updated-api-key-789"})
 
     secret_registry = conversation.state.secret_registry
@@ -331,9 +331,9 @@ def test_agent_secrets_integration_workflow(
 def test_mask_secrets(
     conversation: LocalConversation, terminal_executor: TerminalExecutor, agent: Agent
 ):
-    """Test that bash executor masks secrets when conversation is passed."""
+    """测试会话通过时 bash 执行器是否屏蔽机密。"""
 
-    # Add secrets to conversation
+    # 将机密添加到对话
     conversation.update_secrets(
         {
             "API_KEY": "test-api-key",
@@ -408,13 +408,13 @@ def test_masking_persists(
 
 
 # -----------------------
-# Tests for secrets in system prompt
+# 测试系统提示词中的机密
 # -----------------------
 
 
 def test_update_secrets_adds_to_registry(conversation: LocalConversation):
-    """Test that update_secrets adds secrets to the secret_registry."""
-    # Add secrets
+    """测试 update_secrets 将机密添加到 secret_registry。"""
+    # 添加机密
     conversation.update_secrets(
         {
             "API_KEY": StaticSecret(
@@ -424,7 +424,7 @@ def test_update_secrets_adds_to_registry(conversation: LocalConversation):
         }
     )
 
-    # Verify secrets are in secret_registry
+    # 验证机密在 secret_registry 中
     secret_infos = conversation.state.secret_registry.get_secret_infos()
     secret_names = [s["name"] for s in secret_infos]
     assert "API_KEY" in secret_names
@@ -432,8 +432,8 @@ def test_update_secrets_adds_to_registry(conversation: LocalConversation):
 
 
 def test_update_secrets_appears_in_dynamic_context(conversation: LocalConversation):
-    """Test that secrets added via update_secrets appear in agent's dynamic context."""
-    # Add secrets with descriptions
+    """测试通过 update_secrets 添加的机密是否出现在智能体的动态上下文中。"""
+    # 添加机密和说明
     conversation.update_secrets(
         {
             "GITHUB_TOKEN": StaticSecret(
@@ -445,11 +445,11 @@ def test_update_secrets_appears_in_dynamic_context(conversation: LocalConversati
         }
     )
 
-    # Agent pulls secrets from state when building dynamic context
+    # 智能体在构建动态上下文时从状态中拉出机密
     agent = cast(Agent, conversation.agent)
     dynamic_context = agent.get_dynamic_context(conversation.state)
 
-    # Verify secrets appear in the dynamic context
+    # 验证机密出现在动态上下文中
     assert dynamic_context is not None
     assert "<CUSTOM_SECRETS>" in dynamic_context
     assert "GITHUB_TOKEN" in dynamic_context
@@ -460,8 +460,8 @@ def test_update_secrets_appears_in_dynamic_context(conversation: LocalConversati
 
 
 def test_secrets_merges_with_existing_context(llm: LLM, tmp_path):
-    """Test that registry secrets merge with existing agent_context secrets."""
-    # Create agent with existing context and secrets
+    """测试注册表机密与现有 agent_context 机密合并。"""
+    # 使用现有的上下文和机密创建智能体
     existing_secrets = {
         "EXISTING_SECRET": StaticSecret(
             value=SecretStr("existing-value"), description="Pre-existing secret"
@@ -477,7 +477,7 @@ def test_secrets_merges_with_existing_context(llm: LLM, tmp_path):
     )
     conversation = LocalConversation(agent, workspace=str(tmp_path))
 
-    # Add new secrets via update_secrets (goes to registry)
+    # 通过 update_secrets 添加新的机密（转到注册表）
     conversation.update_secrets(
         {
             "NEW_SECRET": StaticSecret(
@@ -486,25 +486,25 @@ def test_secrets_merges_with_existing_context(llm: LLM, tmp_path):
         }
     )
 
-    # Agent should merge secrets from agent_context and registry
+    # 智能体应合并 agent_context 和注册表中的机密
     dynamic_context = agent.get_dynamic_context(conversation.state)
 
-    # Both secrets should appear in dynamic context
+    # 两个机密都应该出现在动态上下文中
     assert dynamic_context is not None
     assert "EXISTING_SECRET" in dynamic_context
     assert "Pre-existing secret" in dynamic_context
     assert "NEW_SECRET" in dynamic_context
     assert "Newly added secret" in dynamic_context
 
-    # Verify existing context properties are preserved
+    # 验证现有的上下文属性是否已保留
     assert "Custom instructions here" in dynamic_context
 
     conversation.close()
 
 
 def test_update_secrets_overrides_existing_secret(conversation: LocalConversation):
-    """Test that update_secrets overrides existing secrets with the same key."""
-    # Add initial secret
+    """测试 update_secrets 是否使用相同的密钥覆盖现有的机密。"""
+    # 添加首字母机密
     conversation.update_secrets(
         {
             "API_KEY": StaticSecret(
@@ -513,7 +513,7 @@ def test_update_secrets_overrides_existing_secret(conversation: LocalConversatio
         }
     )
 
-    # Update with new value
+    # 使用新值更新
     conversation.update_secrets(
         {
             "API_KEY": StaticSecret(
@@ -522,7 +522,7 @@ def test_update_secrets_overrides_existing_secret(conversation: LocalConversatio
         }
     )
 
-    # Verify the secret was updated in dynamic context
+    # 验证机密已在动态上下文中更新
     agent = cast(Agent, conversation.agent)
     dynamic_context = agent.get_dynamic_context(conversation.state)
     assert dynamic_context is not None
@@ -530,7 +530,7 @@ def test_update_secrets_overrides_existing_secret(conversation: LocalConversatio
 
 
 def test_secrets_via_constructor_appear_in_prompt(llm: LLM, tmp_path):
-    """Test that secrets passed via constructor appear in the prompt."""
+    """测试通过构造函数传递的机密是否出现在提示词中。"""
     agent = Agent(llm=llm, tools=[])
     secrets = {
         "CONSTRUCTOR_SECRET": StaticSecret(
@@ -540,12 +540,12 @@ def test_secrets_via_constructor_appear_in_prompt(llm: LLM, tmp_path):
     }
     conversation = LocalConversation(agent, workspace=str(tmp_path), secrets=secrets)
 
-    # Verify secrets are in registry
+    # 验证机密在注册表中
     secret_infos = conversation.state.secret_registry.get_secret_infos()
     secret_names = [s["name"] for s in secret_infos]
     assert "CONSTRUCTOR_SECRET" in secret_names
 
-    # Verify secrets appear in dynamic context
+    # 验证机密出现在动态上下文中
     dynamic_context = agent.get_dynamic_context(conversation.state)
     assert dynamic_context is not None
     assert "CONSTRUCTOR_SECRET" in dynamic_context

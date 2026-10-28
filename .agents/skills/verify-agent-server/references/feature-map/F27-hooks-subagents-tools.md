@@ -1,172 +1,110 @@
-# Hooks, sub-agents and tool catalogs
+<a id="hooks-sub-agents-and-tool-catalogs"></a>
 
-Read-only discovery routes a client calls before it configures or starts an
-agent. `POST /api/hooks` reads a workspace's `.openhands/hooks.json` and
-returns it as a normalized `HookConfig` (or `null`), which the client then
-passes as `hook_config` when it creates a conversation; only then do the hooks
-run and emit `HookExecutionEvent`s. `POST /api/sub-agents` lists the delegate
-agents a workspace offers (project, user and built-in Markdown definitions,
-first wins by name). `GET /api/tools/` lists the names in the process-wide
-tool registry, and `GET /api/tools/catalog` lists the tools a client may offer
-when configuring an agent, with selectability, usability on this server and
-default-set membership. None of them changes state. The family also covers
-what a client registers through the create request and the server's startup
-flags: hooks that block a tool call or a prompt, client-side tools
-(`client_tools`) whose calls the client executes, forwarded sub-agent
-definitions (`agent_definitions`), and custom Python tool modules
-(`tool_module_qualnames`, `OH_EXTRA_PYTHON_PATH`, `--import-modules`), and
-the internal `start_child_conversation` tool, when a host attaches it.
+# 挂钩、子智能体和工具目录
 
-Source: `openhands-agent-server/openhands/agent_server/tool_router.py`, `openhands-agent-server/openhands/agent_server/hooks_router.py`, `openhands-agent-server/openhands/agent_server/hooks_service.py`, `openhands-agent-server/openhands/agent_server/sub_agents_router.py`, `openhands-agent-server/openhands/agent_server/launch.py`, `openhands-agent-server/openhands/agent_server/__main__.py`, `openhands-sdk/openhands/sdk/tool/registry.py`, `openhands-sdk/openhands/sdk/tool/client_tool.py`, `openhands-sdk/openhands/sdk/hooks/`, `openhands-sdk/openhands/sdk/subagent/`, `openhands-tools/openhands/tools/preset/`, `openhands-tools/openhands/tools/task/`, `openhands-tools/openhands/tools/child_conversation/`, `openhands-tools/openhands/tools/browser_use/`, `clients/typescript/src/client/tool-client.ts`, `clients/typescript/src/client/hooks-client.ts`, `clients/typescript/src/client/sub-agents-client.ts`
+只读发现在配置或启动智能体之前路由客户端呼叫。 `POST /api/hooks` 读取工作区的 `.openhands/hooks.json` 并将其作为规范化的 `HookConfig`（或 `null`）返回，然后客户端在创建对话时将其作为 `hook_config` 传递； 只有这样钩子才会运行并发出 `HookExecutionEvent` 。 `POST /api/sub-agents` 列出了委托智能体和工作区提供的内容（项目、用户和内置 Markdown 定义，按名称优先）。 `GET /api/tools/` 列出了全局工具注册表中的名称，`GET /api/tools/catalog` 列出了客户端在配置智能体时可提供的工具，这些工具具有可选性、易用性和默认集成员资格。 None 其中改变状态。 该系列还涵盖了客户端通过创建请求注册的内容以及服务器的启动
+flags：阻止工具调用或提示词的钩子，客户端工具
+(`client_tools`) 客户执行的呼叫，转发子智能体定义(`agent_definitions`)，以及定制Python工具模块(`tool_module_qualnames`、`OH_EXTRA_PYTHON_PATH`、`--import-modules`)，以及内部`start_child_conversation`工具，当主机附加时。
 
-Needs: `llm`, `git`, `tmux`, `chromium`
+资料来源：`openhands-agent-server/openhands/agent_server/tool_router.py`、`openhands-agent-server/openhands/agent_server/hooks_router.py`、`openhands-agent-server/openhands/agent_server/hooks_service.py`、`openhands-agent-server/openhands/agent_server/sub_agents_router.py`、`openhands-agent-server/openhands/agent_server/launch.py`、`openhands-agent-server/openhands/agent_server/__main__.py`、`openhands-sdk/openhands/sdk/tool/registry.py`、`openhands-sdk/openhands/sdk/tool/client_tool.py`、`openhands-sdk/openhands/sdk/hooks/`、`openhands-sdk/openhands/sdk/subagent/`、`openhands-tools/openhands/tools/preset/`、`openhands-tools/openhands/tools/task/`、`openhands-tools/openhands/tools/child_conversation/`、`openhands-tools/openhands/tools/browser_use/`、`clients/typescript/src/client/tool-client.ts`、`clients/typescript/src/client/hooks-client.ts`、`clients/typescript/src/client/sub-agents-client.ts`
 
-Routes: `GET /api/tools/`, `GET /api/tools/catalog`, `POST /api/sub-agents`,
+需求：`llm`、`git`、`tmux`、`chromium`
+
+路线：`GET /api/tools/`、`GET /api/tools/catalog`、`POST /api/sub-agents`、
 `POST /api/hooks`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F27.auth`: every route answers 401 without a session key or with a wrong one; the slash redirect of `/api/tools` answers before authentication but its target still needs the key.
-- `F27.validation`: a missing body or a wrongly typed field is 422 on `POST /api/hooks` and `POST /api/sub-agents`.
-- `F27.tools-list`: `GET /api/tools/` lists the registered tool names, including the default tools, `browser_tool_set`, the task and planning tools and registrations under a class name (`ClassifyAndSwitchLLMTool`).
-- `F27.tools-redirect`: `GET /api/tools` (no trailing slash) answers 307 to `/api/tools/`, and `/api/tools/catalog/` answers 307 to `/api/tools/catalog`; the CLI does not follow redirects.
-- `F27.catalog`: `GET /api/tools/catalog` describes each offered tool with `user_selectable`, `usable`, `description` and `in_default_set`: the default tools are selectable default-set entries, internal tools are not selectable, and built-ins appear under their tool names.
-- `F27.child-conversation-tool`: the registered internal tool is usable, non-selectable and outside the default set; explicitly attaching it lets a real model start a child whose observation, parent link and shared workspace agree.
-- `F27.hooks-project`: the project fixture's `hooks.json` (legacy `{"hooks": {...}}` wrapper with PascalCase keys) comes back as snake_case `HookConfig` with defaults filled in.
-- `F27.hooks-formats`: a snake_case `hooks.json` keeps its matcher, timeout and `async` flag, a PascalCase key next to it is normalized, a `prompt` hook keeps its prompt, and a matcher left out becomes `*`.
-- `F27.hooks-absent`: no `project_dir`, a misspelled field (`projectDir`), a missing directory, a directory without `.openhands/hooks.json`, a `hooks.json` only under `.agents/`, and an empty `{}` file all return 200 with `hook_config: null`.
-- `F27.hooks-invalid`: unparsable JSON, an unknown event (PascalCase or snake_case), both spellings of one event, and a command hook without a command return 200 with `hook_config: null` and log `Failed to load hooks`.
-- `F27.hooks-conversation`: the config `POST /api/hooks` returns, passed as `hook_config` to a DeepSeek conversation in that project, runs: a `HookExecutionEvent` with the hook's stdout appears over REST and the WebSocket replay, and the conversation keeps its `hook_config` across a restart.
-- `F27.hooks-not-automatic`: a conversation in the same project started without `hook_config` runs no hook, although the project has `hooks.json` and the agent used the terminal.
-- `F27.hooks-block`: a `PreToolUse` hook that exits 2 stops the agent's terminal call (a `HookExecutionEvent` with `blocked: true`, a `UserRejectObservation` from the hook with its stderr as the reason, no terminal observation, no file) and records the action in `blocked_actions` until the agent consumes it; a `UserPromptSubmit` hook that exits 2 records the queued message in `blocked_messages`, and running finishes at once without a model call.
-- `F27.subagents-builtin`: without project and user agents (switched off, or a `project_dir` that does not exist) the catalog is exactly the four built-ins (`bash-runner`, `code-explorer`, `general-purpose`, `web-researcher`) with `level: builtin` and `is_builtin: true`, `mcp_servers` mirrors `mcp_config`, and `load_builtin: false` empties it.
-- `F27.subagents-project`: project agents from `.agents/agents` and `.openhands/agents` are listed with `level: project`, their `source` file, and every frontmatter field (tools, skills, color, permission mode, iteration limit, `<example>` triggers, unknown keys in `metadata`, the body as `system_prompt`).
-- `F27.subagents-user`: user agents from `~/.agents/agents` and `$OH_PERSISTENCE_DIR/agents` are listed with `level: user` only while `load_user` is on, and `load_project: false` hides the project's agents.
-- `F27.subagents-precedence`: names are unique and the first source wins: a project agent shadows the built-in and the user agent of the same name, and `.agents/agents` shadows `.openhands/agents`.
-- `F27.subagents-invalid`: definitions that do not validate (bad `permission_mode`, `max_iteration_per_run: 0`) are skipped with a logged warning, and `README.md`, subdirectories and non-`.md` files are ignored, while the request still answers 200.
-- `F27.subagents-bad-skill`: a project agent whose `skills` names a skill that does not exist does not break conversations in that workspace: the catalog lists it (it validates frontmatter only), and the conversation skips it with a logged warning and accepts every message.
-- `F27.catalog-sealed`: a client tool registered by a conversation (`client_tools`) is part of that conversation's agent but never enters the catalog, which is sealed at startup.
-- `F27.client-tool-call`: when the agent calls a client tool, the events socket delivers a `ClientAction_<name>` `ActionEvent` with the model's arguments, the server answers it with the `Tool call dispatched to client.` acknowledgment and the run finishes; the tool is registered again when the conversation resumes after a restart; a duplicate name in one request, a name that collides with `terminal` and a reused name with a different schema are each 422 and create nothing, while the same name with the same schema is accepted.
-- `F27.agent-definitions`: `agent_definitions` in the create request make that sub-agent available to the conversation's task tool, which delegates to it by name (the delegate runs the command, the `TaskObservation` names it); the definition is stored with the conversation and is not listed by `POST /api/sub-agents`.
-- `F27.custom-tool-modules`: with `OH_EXTRA_PYTHON_PATH` naming a directory, `tool_module_qualnames` imports a module from it at create, the agent runs its tool, the conversation reports the mapping and `GET /api/tools/` lists the tool (the sealed catalog does not); after a restart the tool is gone until the conversation is loaded again, and a new message runs it again; an unimportable module is a logged warning and the create still succeeds.
-- `F27.import-modules`: a server started with `--import-modules` (and `OH_EXTRA_PYTHON_PATH`) lists the module's tool in `GET /api/tools/` and offers it in the catalog before any conversation exists; a module that cannot be imported stops the server before it binds its port.
-- `F27.custom-tool-missing-on-resume`: when a conversation's tool module can no longer be imported after a restart, the server should drop the tool with its warning and keep the conversation readable; today its event search and a new message are 500 (`Unknown kind`).
-- `F27.browser-playwright-path`: the browser probe finds a Playwright Chromium in `$PLAYWRIGHT_BROWSERS_PATH` as well as in standard paths, `~/.cache/ms-playwright` and `PATH`, and reports `browser_tool_set` usable.
-- `F27.browser-probe`: without a Chromium the server can find, the catalog reports `browser_tool_set` unusable and `/server_info` `usable_tools` leaves it out; with a Playwright Chromium in the server's `~/.cache/ms-playwright` and a restart, the catalog reports it usable and `usable_tools` lists it.
-- `F27.browser-disabled-launch`: a conversation started from the saved settings (default tools) gets `browser_tool_set` while the server finds Chromium, and leaves it out after a restart with `enable_browser: false`; a conversation created before keeps its stored tools.
-- `F27.browser-disabled`: with `enable_browser: false` the catalog reports `browser_tool_set` unusable although Chromium is present, while `GET /api/tools/` still lists it.
-- `F27.server-info-browser-disabled`: with `enable_browser: false`, `/server_info` `usable_tools` agrees with the catalog and leaves out `browser_tool_set`, although Chromium is present.
-- `F27.subagents-browser-disabled`: with `enable_browser: false`, the sub-agents catalog leaves out the browser-only `web-researcher` and keeps the other built-ins.
-- `F27.catalog-docker-runtime`: with `conversation_runtime: docker` the catalog probes nothing in the server process: `browser_tool_set` is usable for the stock image although the server finds no Chromium, and unusable for a `-minimal` image tag or with `conversation_image_has_browser: false`; `/server_info` `usable_tools` follows it for the browser.
+## 子功能
 
-## How to get to it (agent POV)
+- `F27.auth`：每条路由都回答401，没有会话密钥或会话密钥错误； `/api/tools` 的斜杠重定向在身份验证之前应答，但其目标仍然需要密钥。
+- `F27.validation`：`POST /api/hooks` 和 `POST /api/sub-agents` 上缺少正文或输入错误的字段为 422。
+- `F27.tools-list`: `GET /api/tools/` 列出注册的工具名称，包括默认工具 `browser_tool_set`, 任务和规划工具及其注册   `ClassifyAndSwitchLLMTool`).
+- `F27.tools-redirect`：`GET /api/tools`（无尾部斜杠）回答 307 到 `/api/tools/`，`/api/tools/catalog/` 回答 307 到 `/api/tools/catalog`； CLI 不遵循重定向。
+- `F27.catalog`: `GET /api/tools/catalog` 描述每个提供的工具 `user_selectable`, `usable`, `description` 和 `in_default_set`默认工具可选，默认设置项不可选，内置工具则以工具名显示。
+- `F27.child-conversation-tool`：注册的内部工具可用，不可选择，不在默认设置范围内； 显式附加它可以让真实模型启动一个观测结果、父链接和共享工作区一致的子模型。
+- `F27.hooks-project`：项目测试夹具的 `hooks.json`（带有 PascalCase 键的旧 `{"hooks": {...}}` 包装器）返回为 snake_case `HookConfig`，并填充了默认值。
+- `F27.hooks-formats`: a snake_case  `hooks.json` 保留其匹配器超时和 `async` flag, a PascalCase 旁边的那个键是规范化后的 `prompt` hook 保持其提示词，一个匹配器缺失就会 `*`.
+- `F27.hooks-absent`无 `project_dir`, 错拼的字段 (`projectDir`, 一个缺失的目录，一个没有文件的目录 `.openhands/hooks.json`, a `hooks.json` 仅限于 `.agents/`, 和一个空的 `{}` 返回200，并将文件全部返回 `hook_config: null`.
+- `F27.hooks-invalid` 无法解析的 JSON，未知事件（PascalCase 或 snake_case），两种拼写相同的一个事件，以及一个没有命令返回的命令钩子，返回状态码 200 并附带 `hook_config: null` 和日志 `Failed to load hooks`。
+- `F27.hooks-conversation`：配置返回，作为`POST /api/hooks`传递给项目中的`hook_config`对话，运行：一个DeepSeek，钩子的`HookExecutionEvent`在REST上出现，WebSocket回放，对话在重启后保持其`hook_config`。
+- `F27.hooks-not-automatic`：同一项目中在没有 `hook_config` 的情况下启动的对话不会运行挂钩，尽管项目有 `hooks.json` 并且智能体使用了终端。
+- `F27.hooks-block`: 一个 `PreToolUse` 挂起 2 次，终止智能体的终端调用（一个 `HookExecutionEvent` 与 `blocked: true`，一个 `UserRejectObservation` 从 `blocked_actions` 中，其标准错误作为原因，没有终端观测结果，没有文件）并记录动作直到智能体消耗它； 退出 2 的 `UserPromptSubmit` 钩子记录 `blocked_messages` 中排队的消息，并且运行立即完成，无需模型调用。
+- `F27.subagents-builtin`：没有项目和用户智能体（关闭，或不存在的`project_dir`）目录正是四个内置函数（`bash-runner`，`code-explorer`，`general-purpose`，`web-researcher`），`level: builtin`和`is_builtin: true`，`mcp_servers`镜像`mcp_config`，`load_builtin: false`清空它。
+- `F27.subagents-project`项目智能体从 `.agents/agents` 和 `.openhands/agents` 列出的 `level: project`, their `source` 文件，以及每一个前置元数据 tools, skills, color, permission mode, iteration limit, `<example>` 触发器，未知键 `metadata`, the body as `system_prompt`).
+- `F27.subagents-user`：仅当`load_user`打开时，`~/.agents/agents`和`$OH_PERSISTENCE_DIR/agents`中的用户智能体与`level: user`一起列出，并且`load_project: false`隐藏项目的智能体。
+- `F27.subagents-precedence`：名称是唯一的，第一个源获胜：项目智能体隐藏同名的内置和用户智能体，并且 `.agents/agents` 隐藏 `.openhands/agents`。
+- `F27.subagents-invalid`不验证的定义（bad `permission_mode`, `max_iteration_per_run: 0` 被跳过，并记录警告 `README.md`, 子目录和非-`.md` 文件被忽略，但请求仍然返回200。
+- `F27.subagents-bad-skill`: 一个项目智能体名称一个不存在的技能的 `skills` 不会破坏对话工作区：该目录列出它 (它只验证前置元数据)，对话会跳过它并记录警告，接受所有消息。
+- `F27.catalog-sealed`：由会话 (`client_tools`) 注册的客户端工具是该会话智能体的一部分，但从未进入目录，该目录在启动时被密封。
+- `F27.client-tool-call`: 当智能体调用客户端工具时，事件套接字会发送一个带有模型参数的 `ClientAction_<name>` `ActionEvent`，服务器会用 `Tool call dispatched to client.` 确认来回答，然后运行结束。 当会话重新启动后恢复时，该工具会再次注册； 在一次请求中重复的名称，与`terminal`冲突的名称，以及名称与模式不同但重复使用的名称，都会返回422错误，没有任何结果，而与模式相同的名称则会被接受。
+- `F27.agent-definitions`: `agent_definitions` 在创建请求中添加那个子智能体可用作对话任务工具的一部分，该工具通过名称调用它（委托方运行命令， 代理方运行命令，   ) `TaskObservation` names it); 定义与会话一起存储，不会列出 `POST /api/sub-agents`.
+- `F27.custom-tool-modules`: 以 `OH_EXTRA_PYTHON_PATH` 命名一个目录，`tool_module_qualnames` 在创建时导入该目录中的模块，智能体运行工具，`GET /api/tools/` 列出工具（密封的目录不报告映射）。 重新启动后，该工具就会消失，直到再次加载对话，并且有新消息再次运行它； 不可导入的模块是一个记录的警告，并且创建仍然成功。
+- `F27.import-modules`：以`--import-modules`（和`OH_EXTRA_PYTHON_PATH`）启动的服务器在`GET /api/tools/`中列出模块的工具，并在任何对话存在之前将其提供在目录中； 无法导入的模块会在绑定其端口之前停止服务器。
+- `F27.custom-tool-missing-on-resume` 当重启后无法导入会话的工具模块时，服务器应丢弃工具并警告，同时保持会话可读。 今天，其事件搜索和新消息为 500 (`Unknown kind`)。
+- `F27.browser-playwright-path`：浏览器探测器在 `$PLAYWRIGHT_BROWSERS_PATH` 以及标准路径 `~/.cache/ms-playwright` 和 `PATH` 中找到 Playwright Chromium，并报告 `browser_tool_set` 可用。
+- `F27.browser-probe`：如果没有 Chromium，服务器可以找到，目录报告 `browser_tool_set` 不可用，`/server_info` `usable_tools` 忽略它； 在服务器的 `~/.cache/ms-playwright` 中安装 Playwright Chromium 并重新启动后，目录报告它可用并 `usable_tools` 列出它。
+- `F27.browser-disabled-launch`：从保存的设置（默认工具）发起的对话在重启后会 `browser_tool_set`，而服务器发现 Chromium 时则会 `enable_browser: false`。 之前创建的对话保留其存储的工具。
+- `F27.browser-disabled`：`enable_browser: false` 目录报告 `browser_tool_set` 不可用，尽管存在 Chromium，而 `GET /api/tools/` 仍然列出它。
+- `F27.server-info-browser-disabled`：与 `enable_browser: false`、`/server_info` `usable_tools` 与目录一致并省略 `browser_tool_set`，尽管存在 Chromium。
+- `F27.subagents-browser-disabled`：与`enable_browser: false`相比，子智能体目录省略了仅限浏览器的`web-researcher`并保留其他内置内容。
+- `F27.catalog-docker-runtime`: `conversation_runtime: docker`使用`browser_tool_set`时，虽然服务器找不到Chromium，但可以用于库存图片，但无法用于`-minimal`标签或`conversation_image_has_browser: false`。 `/server_info``usable_tools`对于浏览器来说遵循它。
 
-- REST, hooks: `POST /api/hooks` with `{"project_dir": "<abs path>"}`
-  (`HooksRequest`) returns `{"hook_config": HookConfig | null}`. Only
-  `<project_dir>/.openhands/hooks.json` is read. Driven by the `F27.hooks-*`
-  bullets.
-- REST, conversations (second view, owned by the conversation family):
-  `StartConversationRequest.hook_config` carries the returned config into
-  `POST /api/conversations`; `GET /api/conversations/{id}` echoes
-  `hook_config`, and `GET /api/conversations/{id}/events/search` and the
-  WebSocket below carry `HookExecutionEvent` (`hook_event_type`,
-  `hook_command`, `stdout`, `exit_code`, `blocked`, `action_id`). The server
-  never loads a project's `hooks.json` into a conversation on its own.
-  Driven by `F27.hooks-conversation` and `F27.hooks-not-automatic`. A hook
-  that exits 2 blocks: `PreToolUse` turns the call into a
-  `UserRejectObservation` (`rejection_source: hook`), `UserPromptSubmit`
-  makes the next run finish without a model call; the pending entries are
-  `blocked_actions` and `blocked_messages` on `GET /api/conversations/{id}`
-  and in `ConversationStateUpdateEvent`s (`F27.hooks-block`).
-- REST, create-time registrations (second view, the route is owned by the
-  conversation family): `StartConversationRequest.client_tools`
-  (`ClientToolSpec`: `name`, `description`, object `parameters`,
-  `annotations`), `agent_definitions` (`AgentDefinition` list, the same shape
-  `POST /api/sub-agents` returns) and `tool_module_qualnames` (tool name to
-  module path, imported at create and again on resume).
-  `GET /api/conversations/{id}` echoes `client_tools` and
-  `tool_module_qualnames`; `agent_definitions` is kept in `meta.json` only.
-  A registration error is `422` with the reason in `detail`. Driven by
-  `F27.client-tool-call`, `F27.agent-definitions` and
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST，钩子：`POST /api/hooks` 与 `{"project_dir": "<abs path>"}` (`HooksRequest`) 返回 `{"hook_config": HookConfig | null}`。 仅
+  `<project_dir>/.openhands/hooks.json` 已读取。 由`F27.hooks-*`子弹驱动。
+- REST，对话（第二个视图，由对话家族拥有）：
+  `StartConversationRequest.hook_config` 将返回的配置携带到
+  `POST /api/conversations`; `GET /api/conversations/{id}` 回声
+  `hook_config`、`GET /api/conversations/{id}/events/search` 和下面的 WebSocket 进位 `HookExecutionEvent` (`hook_event_type`,
+  `hook_command`, `stdout`, `exit_code`, `blocked`, `action_id`). 服务器永远不会自行将项目的 `hooks.json` 加载到对话中。 由`F27.hooks-conversation`和`F27.hooks-not-automatic`驱动。 退出 2 个块的钩子：`PreToolUse` 将调用变成
+  `UserRejectObservation` (`rejection_source: hook`), `UserPromptSubmit` 使下一次运行无需模型调用即可完成； 待处理的条目是
+  `GET /api/conversations/{id}` 上的 `blocked_actions` 和 `blocked_messages` 以及 `ConversationStateUpdateEvent` 秒 (`F27.hooks-block`) 中。
+- REST，创建时注册（第二个视图，路由由会话族拥有）：`StartConversationRequest.client_tools`（`ClientToolSpec`：`name`，`description`，对象`parameters`，
+  `annotations`), `agent_definitions` (`AgentDefinition`列表，形状相同
+  `POST /api/sub-agents` 返回）和 `tool_module_qualnames`（工具名称到模块路径，在创建时导入并在恢复时再次导入）。
+  `GET /api/conversations/{id}` 呼应 `client_tools` 和
+  `tool_module_qualnames`; `agent_definitions` 仅保留在`meta.json` 中。 注册错误为 `422`，原因在 `detail` 中。 驱动力
+  `F27.client-tool-call`、`F27.agent-definitions` 和
   `F27.custom-tool-modules`.
-- REST, sub-agents: `POST /api/sub-agents` with `SubAgentsRequest`
-  (`load_user`, `load_project`, `load_builtin`, all default `true`, and
-  `project_dir`) returns `{"agents": [SubAgentInfo]}` with every
-  `AgentDefinition` field plus `level`, `source` and `is_builtin`. Driven by
-  the `F27.subagents-*` bullets.
-- REST, tools: `GET /api/tools/` returns a plain JSON array of registered
-  names; `GET /api/tools/catalog` returns `{"tools": [ToolCatalogEntry]}`.
-  `/server_info` `usable_tools` (owned by the server status family) is the
-  older usability view; the tool bullets compare it with the catalog.
-- Agent tool: `start_child_conversation` accepts `task`, optional `title` and
-  `isolation` (`worktree` by default, or `shared`). The server registers it
-  but does not attach it to the default tool set: the host must include it
-  in the parent agent. Its internal authenticated launcher calls the child
-  REST route owned by F04 and returns `StartChildConversationObservation`
-  with the child id, parent id, status, workspace and isolation
-  (`F27.child-conversation-tool`).
-- WebSocket: `/sockets/events/{conversation_id}` delivers the
-  `HookExecutionEvent` live and on replay (`resend_mode=all`); owned by the
-  events family, replayed by `F27.hooks-conversation`. It is also how a
-  client learns that the agent called one of its client tools: an
-  `ActionEvent` whose action `kind` is `ClientAction_<name>`
-  (`F27.client-tool-call`).
-- Server process: `OH_EXTRA_PYTHON_PATH` (or `--extra-python-path`) adds
-  directories to `sys.path`; `--import-modules a,b` imports modules at
-  startup, before the catalog is sealed, and a failed import is fatal. The
-  documented custom-tool image sets `OH_EXTRA_PYTHON_PATH`
-  (`examples/02_remote_agent_server/06_custom_tool/Dockerfile`).
-  `control-agent-server launch` and `restart` pass environment variables but
-  no server arguments, so `F27.import-modules` starts that server in plain
-  shell and attaches to it.
-- Configuration: `enable_browser` (config file, or `OH_ENABLE_BROWSER`) forces
-  the catalog's browser entry to unusable and drops the browser from the
-  default tools of conversations created afterwards
-  (`F27.browser-disabled-launch`); with `conversation_runtime: docker`
-  nothing is probed and browser usability comes from `conversation_image` and
-  `conversation_image_has_browser` (`F27.catalog-docker-runtime`, which
-  needs no Docker daemon because no conversation starts). The browser probe
-  reads the server process's `HOME`.
-- TypeScript client: `HooksClient.loadHooks()` and
-  `RemoteConversation.loadHooks(projectDir)` (defaults to the workspace's
-  working directory), `SubAgentsClient.getSubAgents()` (also on
-  `ConversationManager.subAgents` and `OpenHandsClient.subAgents`),
-  `ToolClient.listTools()` and `ToolClient.getToolCatalog()`. The Python SDK
-  has no method for these routes; `RemoteConversation` forwards its process's
-  `tool_module_qualnames` and registered agent definitions on create. The
-  TypeScript consumer lane, with its build, runs in the TypeScript client
-  family; `HooksClient` is driven there.
-- Agent Canvas (context only): the conversation start flow loads hooks for the
-  workspace, the sub-agent picker reads the sub-agents catalog, and the
-  agent-profile tool picker reads the tool catalog.
+- REST、子智能体：`POST /api/sub-agents` 和 `SubAgentsRequest`（`load_user`、`load_project`、`load_builtin`，全部默认 `true`，以及
+  `project_dir`) 每次返回 `{"agents": [SubAgentInfo]}`
+  `AgentDefinition` 字段加上 `level`、`source` 和 `is_builtin`。 由`F27.subagents-*`子弹驱动。
+- REST，工具：`GET /api/tools/` 返回一个简单的 JSON 注册名称数组； `GET /api/tools/catalog` 返回 `{"tools": [ToolCatalogEntry]}`。
+  `/server_info` `usable_tools`（由服务器状态系列拥有）是较旧的可用性视图； 工具项目符号将其与目录进行比较。
+- 智能体工具：`start_child_conversation` 接受 `task`，可选 `title` 和
+  `isolation` `worktree` 默认情况下，或者 `shared`。 服务器注册它，但不将其附加到默认工具集：主机必须将其包含在父级中智能体。 其内部认证启动器调用 F04 所拥有的子 REST 路由，并返回 `StartChildConversationObservation`，包含子 id、父 id、状态、工作区和隔离 (`F27.child-conversation-tool`)。
+- WebSocket: `/sockets/events/{conversation_id}` 交付
+  `HookExecutionEvent` 实时和回放 (`resend_mode=all`); 由事件家族拥有，由 `F27.hooks-conversation` 重播。 这也是客户端了解智能体调用其客户端工具之一的方式：
+  `ActionEvent`，其动作 `kind` 为 `ClientAction_<name>` (`F27.client-tool-call`)。
+- 服务器进程：`OH_EXTRA_PYTHON_PATH`（或`--extra-python-path`）将目录添加到`sys.path`； `--import-modules a,b` 在启动时、在目录被密封之前导入模块，导入失败是致命的。 记录的自定义工具图像集 `OH_EXTRA_PYTHON_PATH` (`examples/02_remote_agent_server/06_custom_tool/Dockerfile`)。
+  `control-agent-server launch` 和 `restart` 传递环境变量但没有服务器参数，因此 `F27.import-modules` 在普通 shell 中启动该服务器并附加到它。
+- 配置：`enable_browser`（配置文件，或`OH_ENABLE_BROWSER`）强制使目录的浏览器入口不可用，并从之后创建的对话的默认工具中删除浏览器的`F27.browser-disabled-launch`。 `conversation_runtime: docker` 没有任何内容被探测，浏览器可用性来自 `conversation_image` 和
+  `conversation_image_has_browser`（`F27.catalog-docker-runtime`，不需要 Docker 守护进程，因为没有对话开始）。 浏览器探针读取服务器进程的`HOME`。
+- TypeScript 客户端：`HooksClient.loadHooks()` 和
+  `RemoteConversation.loadHooks(projectDir)`（默认为工作区的工作目录），`SubAgentsClient.getSubAgents()`（也可以
+  `ConversationManager.subAgents` 和 `OpenHandsClient.subAgents`),
+  `ToolClient.listTools()` 和 `ToolClient.getToolCatalog()`。 PythonSDK没有这些路线的方法； `RemoteConversation` 转发其进程的
+  `tool_module_qualnames` 和创建时注册的智能体定义。 TypeScript 消费者通道及其构建在 TypeScript 客户端系列中运行； `HooksClient`被驱动到那里。
+- Agent Canvas (上下文 only): 对话开始流程加载工作区的钩子，子智能体选择器读取子智能体目录，以及智能体-profile 工具选择器读取工具目录。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A run is live and exported, `doctor` is ok, `$DEEPSEEK_API_KEY` is set,
-  `git` and `tmux` are installed, and `control-agent-server capabilities`
-  reports a Chromium binary (`machine.chromium`) that the server cannot find
-  on its own: not at a standard path (`/usr/bin/chromium`,
-  `/usr/bin/google-chrome`, ...) and not on `PATH`, for example a Playwright
-  install under `$PLAYWRIGHT_BROWSERS_PATH` (`launch` does not pass that
-  variable on). Otherwise the browser bullets cannot show the unusable state
-  (see Gotchas). No launch flags are needed. Several bullets restart the run
-  (`F27.hooks-conversation`, `F27.client-tool-call`, the custom-tool
-  bullets with `--env OH_EXTRA_PYTHON_PATH`, the browser bullets with
-  `--env` and `--config-json`), and a restart empties the process-wide tool
-  and sub-agent registries; the browser bullets come last.
-  `F27.import-modules` also starts and stops a second server of this
-  checkout in plain shell, on a free loopback port.
-- The block below activates `deepseek-flash`, creates the `qa-f27-proj`
-  project fixture (its `.agents/agents/qa-helper.md`, its
-  `.openhands/hooks.json` with a `PreToolUse` hook `echo QA_PROJECT_HOOK`,
-  and its skill `qa-f27-proj-skill`), adds more project agents, user agents
-  in the run's `HOME`, `hooks.json` variants under `fixtures/qa-f27/`, a
-  `badskill` project whose agent names a missing skill, a run-owned
-  Playwright browsers directory that links the machine's Chromium binary,
-  and `pytools/qa_f27_tools.py`: a custom tool module that registers the
-  tool `qa_f27_echo` on import (it answers `QA_F27_ECHO_RAN <marker>`).
+前提条件：
+
+- 运行已实时并导出，`doctor` 正常，`$DEEPSEEK_API_KEY` 已设置，
+  `git` 和 `tmux` 已安装，`control-agent-server capabilities` 报告服务器无法自行找到的 Chromium 二进制文件 (`machine.chromium`)：不在标准路径 (`/usr/bin/chromium`，
+  `/usr/bin/google-chrome`，...）而不是在 `PATH` 上，例如 Playwright 安装在 `$PLAYWRIGHT_BROWSERS_PATH` 下（`launch` 不会传递该变量）。 否则，浏览器项目符号无法显示不可用状态（请参阅陷阱）。 不需要启动标志。 几个项目符号重新启动运行（`F27.hooks-conversation`、`F27.client-tool-call`，自定义工具项目符号为 `--env OH_EXTRA_PYTHON_PATH`，浏览器项目符号为
+  `--env` 和 `--config-json`），重启会清空进程范围的工具和子智能体注册表； 浏览器项目符号排在最后。
+  `F27.import-modules` 还在普通 shell 中的空闲环回端口上启动和停止此结帐的第二个服务器。
+- 下面的块激活 `deepseek-flash`，创建 `qa-f27-proj` 项目测试夹具（其 `.agents/agents/qa-helper.md`，其
+  `.openhands/hooks.json` 带有 `PreToolUse` 钩子 `echo QA_PROJECT_HOOK` 及其技能 `qa-f27-proj-skill`），在运行的 `HOME` 中添加更多项目智能体、用户智能体，`fixtures/qa-f27/` 下的 `hooks.json` 变体，
+  `badskill` 项目的智能体命名了一个缺失的技能，一个由运行者拥有的 Playwright 浏览器目录，该目录链接了机器的 Chromium 二进制文件 `pytools/qa_f27_tools.py`一个自定义工具模块，用于注册工具 `qa_f27_echo` 在导入时（它回答了） `QA_F27_ECHO_RAN <marker>`).
   ```sh
   control-agent-server llm preset deepseek
   P=$(control-agent-server fixture project --name qa-f27-proj --print-path)
@@ -234,8 +172,7 @@ Preconditions:
   .venv/bin/python -I -c 'import sys; sys.path.insert(0, sys.argv[1]); import qa_f27_tools' "$F/pytools"
   ```
 
-- **Session key required (`F27.auth`).** Call every route without a key and
-  with a wrong one, then the list with the run's key as the positive control.
+- **需要会话密钥 (`F27.auth`)。**调用每条没有密钥和错误密钥的路线，然后将运行密钥的列表作为阳性对照。
   ```sh
   control-agent-server api GET /api/tools/ --auth none --expect 401 --save F27.auth/tools-no-key
   control-agent-server api GET /api/tools/ --auth bad --expect 401
@@ -249,10 +186,8 @@ Preconditions:
   control-agent-server api GET "$NOSLASH" --auth none --expect 307 --check-header location matches '/api/tools/$'
   control-agent-server api GET /api/tools/ --expect 200 --check . contains terminal
   ```
-  Every call without a valid key is `401`; with the key the list is `200`.
-  The slash redirect answers `307` without a key (it reveals nothing), and its
-  target is the `401` above.
-- **Bad bodies (`F27.validation`).** Send no body and wrong types.
+  没有有效密钥的每项请求 `401`。 使用密钥时，列表为 `200`。 斜杠 redirect 答案 `307` 无密钥（它什么也没揭示），目标是 `401` 上面的。
+- **坏尸体 (`F27.validation`).**不发送正文且类型错误。
   ```sh
   control-agent-server api POST /api/hooks --expect 422 --check detail.0.loc.0 eq body --save F27.validation/hooks-no-body
   control-agent-server api POST /api/hooks --json '{"project_dir": 123}' --expect 422 --check detail.0.loc.1 eq project_dir
@@ -261,30 +196,23 @@ Preconditions:
     --save F27.validation/sub-agents-bad-bool
   control-agent-server api POST /api/sub-agents --json '{"project_dir": ["x"]}' --expect 422 --check detail.0.loc.1 eq project_dir
   ```
-  Each answer is `422` and names the offending location.
-- **Registered tools (`F27.tools-list`).** Read the raw registry.
+  每个答案是 `422`，并指出了违规地点。
+- **注册工具(`F27.tools-list`)。**阅读原始资料注册表。
   ```sh
   control-agent-server api GET /api/tools/ --expect 200 --check . len-ge 10 --check . contains terminal \
     --check . contains file_editor --check . contains task_tracker --check . contains browser_tool_set \
     --check . contains task_tool_set --check . contains planning_file_editor --check . contains glob \
     --check . contains ClassifyAndSwitchLLMTool --save F27.tools-list/tools
   ```
-  The body is a plain array of names in registration order. `browser_tool_set`
-  is listed whether or not Chromium is available, and some entries are class
-  names (`ClassifyAndSwitchLLMTool`) that the catalog offers under their tool
-  names.
-- **Slash redirects (`F27.tools-redirect`).** Call both paths with the
-  other trailing-slash form.
+  身体是一个按注册顺序排列的姓名的简单数组。 `browser_tool_set` 是否可用，都会列出；一些条目是类名(`ClassifyAndSwitchLLMTool`)，这些条目是工具名下的。
+- **斜杠重定向 (`F27.tools-redirect`)。** Call both paths with the other trailing-slash form.
   ```sh
   NOSLASH=/api/tools
   control-agent-server api GET "$NOSLASH" --expect 307 --check-header location matches '/api/tools/$' --save F27.tools-redirect/no-slash
   control-agent-server api GET /api/tools/catalog/ --expect 307 --check-header location matches '/api/tools/catalog$'
   ```
-  Both are `307` with a `Location` on this server. `api` reports the redirect
-  instead of following it; HTTP clients that follow redirects (the TypeScript
-  client calls `/api/tools/` directly) see the target.
-- **Tool catalog (`F27.catalog`).** Read the catalog and compare it with the
-  registry.
+  两者都是 `307` with a `Location` 在本服务器上。 `api` 报告重定向，而不是跟随。 HTTP 遵循重定向的客户端（） TypeScript 客户端调用 `/api/tools/` 直接）查看目标。
+- **工具目录(`F27.catalog`).**阅读目录并与注册表进行比较。
   ```sh
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet --check tools len-ge 10 \
     --check tools matches '"name": "terminal", "user_selectable": true, "usable": true, "description": "[^"]+", "in_default_set": true' \
@@ -300,15 +228,11 @@ Preconditions:
     --check tools not-contains '"user_selectable": true, "usable": true, "description": ""' \
     --check tools not-contains '"user_selectable": true, "usable": false, "description": ""' --save F27.catalog/catalog
   ```
-  `terminal`, `file_editor`, `task_tracker` and `switch_llm` (a built-in that
-  is not in the registry) are selectable, usable and in the default set;
-  `glob`/`grep` are selectable but not default; `task`,
-  `planning_file_editor` and `route_task_to_model` (registered as
-  `ClassifyAndSwitchLLMTool`) are internal. Every selectable entry has a
-  description (internal entries have an empty one).
-- **Child conversation tool (`F27.child-conversation-tool`).** The server
-  registers the host-provided tool without adding it to the user-selectable
-  default set. Attach it explicitly and let a real model start one child.
+  `terminal`、`file_editor`、`task_tracker`和`switch_llm`（注册表中没有的内置）是可选的、可用的并且是默认设置；
+  `glob`/`grep`可以选择，但不是默认的； `task`,
+  `planning_file_editor` 和 `route_task_to_model`（注册为
+  `ClassifyAndSwitchLLMTool`) 是内部的。 每个可选条目都有一个描述（内部条目有一个空条目）。
+- **儿童对话工具(`F27.child-conversation-tool`).**服务器注册主机提供的工具，而不将其添加到用户可选择的默认集中。 明确地附加它并让一个真实的模型启动一个孩子。
   ```sh
   control-agent-server api GET /api/tools/ --expect 200 --check . contains start_child_conversation \
     --save F27.child-conversation-tool/registry
@@ -336,11 +260,8 @@ Preconditions:
   control-agent-server api DELETE "/api/conversations/$CHILD" --expect 200
   control-agent-server api DELETE "/api/conversations/$CPARENT" --expect 200
   ```
-  The tool's observation and the two conversation views agree on the child
-  id, parent link and shared workspace. F04 owns the child REST route's
-  worktree, validation and capacity cases; this bullet proves model-driven
-  dispatch through the server's internal authenticated launcher.
-- **Project hooks (`F27.hooks-project`).** Load the fixture project's hooks.
+  工具的观测结果和两个会话视图一致，都认为子 ID、父链接和共享工作区。 F04拥有REST路由的工作树、验证和容量案例。 这个子弹证明了通过服务器内部的认证启动器实现模型驱动调度。
+- **项目挂钩 (`F27.hooks-project`).**加载测试夹具项目的钩子。
   ```sh
   control-agent-server api POST /api/hooks --json '{"project_dir": "'"$P"'"}' --expect 200 \
     --check hook_config.pre_tool_use len-eq 1 --check hook_config.pre_tool_use.0.matcher eq '*' \
@@ -350,11 +271,9 @@ Preconditions:
     --check hook_config.post_tool_use len-eq 0 --check hook_config.stop len-eq 0 --save F27.hooks-project/hooks
   jq -e '.hooks.PreToolUse[0].hooks[0].command == "echo QA_PROJECT_HOOK"' "$P/.openhands/hooks.json"
   ```
-  The file on disk uses the legacy wrapper and `PreToolUse`; the answer uses
-  `pre_tool_use`, the default timeout `60`, `async: false` and empty lists
-  for the other five events.
-- **Formats (`F27.hooks-formats`).** A snake_case file with a regex matcher
-  and a PascalCase `Stop` next to it.
+  硬盘上的文件使用了旧的包装 `PreToolUse`。 答案是
+  `pre_tool_use`、默认超时、`60`、`async: false` 以及其他五个事件的空列表。
+- **格式 (`F27.hooks-formats`).**带有正则表达式匹配器的 snake_case 文件和旁边的 PascalCase `Stop`。
   ```sh
   control-agent-server api POST /api/hooks --json '{"project_dir": "'"$F/snake"'"}' --expect 200 \
     --check hook_config.pre_tool_use.0.matcher eq 'terminal|file_editor' \
@@ -365,10 +284,10 @@ Preconditions:
     --check hook_config.stop.0.hooks.0.prompt eq 'QA done?' --check hook_config.stop.0.hooks.0.command eq '' \
     --save F27.hooks-formats/snake
   ```
-  The matcher, timeout and `async` survive, the `type` defaults to `command`,
-  `Stop` becomes `stop` with matcher `*`, and the prompt hook has an empty
+  匹配器、超时和 `async` 仍然存活，`type` 默认为 `command`
+  `Stop` 与匹配器 `*` 变为 `stop`，并且提示词钩子有一个空
   `command`.
-- **No hooks (`F27.hooks-absent`).** Every way of having no project hooks.
+- **无挂钩 (`F27.hooks-absent`)。**没有项目挂钩的各种方式。
   ```sh
   control-agent-server api POST /api/hooks --json '{}' --expect 200 --check hook_config missing --save F27.hooks-absent/no-project-dir
   control-agent-server api POST /api/hooks --json '{"project_dir": null}' --expect 200 --check hook_config missing
@@ -381,12 +300,11 @@ Preconditions:
     --save F27.hooks-absent/empty-file
   test -s "$F/agentsdir/.agents/hooks.json"
   ```
-  All seven answer `200 {"hook_config": null}`; a valid file under
-  `.agents/hooks.json` is not read. `projectDir` names the same project that
-  `F27.hooks-project` loads, but unknown fields are ignored, so the request
-  reads as "no project".
-- **Broken hooks.json (`F27.hooks-invalid`).** Errors are swallowed into
-  `null`; only the log tells them apart from "no hooks".
+  七个人都回答`200 {"hook_config": null}`； 下的有效文件
+  `.agents/hooks.json` 未读。 `projectDir` 命名相同的项目
+  `F27.hooks-project` 加载，但未知字段被忽略，因此请求读取为“无项目”。
+- **损坏 hooks.json (`F27.hooks-invalid`).**错误被吞没
+  `null`; 只有日志告诉他们“没有钩子”。
   ```sh
   H0=$(control-agent-server logs --grep 'Failed to load hooks' | jq -r .total_matching)
   for d in badjson unknown snakeunknown both nocmd; do
@@ -395,11 +313,9 @@ Preconditions:
   done
   control-agent-server logs --grep 'Failed to load hooks' --expect-min "$((H0 + 5))"
   ```
-  Each answer is `200 {"hook_config": null}` and these five requests add a
-  `Failed to load hooks from ...` warning each to the server log. The log is
-  appended across restarts and replays, hence the count from `H0`.
-- **Sub-agent built-ins (`F27.subagents-builtin`).** List with only the
-  built-ins, then with none.
+  每个答案是 `200 {"hook_config": null}` 并且这五条请求添加了
+  `Failed to load hooks from ...` 将每个警告记录到服务器日志中。 日志会在重新启动和重播期间附加，因此计数来自 `H0`。
+- **子智能体内置函数 (`F27.subagents-builtin`).**仅列出内置函数，然后列出 None。
   ```sh
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "load_project": false}' --expect 200 \
     --check agents len-eq 4 --check agents.0.name eq bash-runner --check agents.1.name eq code-explorer \
@@ -413,12 +329,8 @@ Preconditions:
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "load_project": false, "load_builtin": false}' \
     --expect 200 --check agents len-eq 0
   ```
-  Four built-ins in file order (the browser is enabled), all `level: builtin` with their bundled
-  source file; `web-researcher` needs `browser_tool_set` and an MCP fetch
-  server. A `project_dir` that does not exist is not an error and adds
-  nothing. Without built-ins the list is empty.
-- **Project sub-agents (`F27.subagents-project`).** List the project's agents
-  without user agents.
+  四个内置函数（浏览器已启用），全部 `level: builtin` 带有其捆绑的源文件。 `web-researcher` needs `browser_tool_set` and an MCP 获取服务器。 A `project_dir` 不存在的东西不是错误，也没有什么意义。 没有内置函数，列表为空。
+- **项目子智能体 (`F27.subagents-project`).**列出没有用户智能体的项目智能体。
   ```sh
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "project_dir": "'"$P"'"}' --expect 200 \
     --check agents len-eq 7 --check agents.1.name eq qa-helper --check agents.1.level eq project \
@@ -431,12 +343,9 @@ Preconditions:
     --check agents.3.name eq qa-legacy-agent --check agents.3.source eq "$P/.openhands/agents/qa-legacy-agent.md" \
     --check agents.4.name eq bash-runner --save F27.subagents-project/project
   ```
-  Project agents come first in file order (`.agents/agents`, then
-  `.openhands/agents`), then the built-ins. `qa-legacy-agent` has no `name`
-  in its frontmatter and is named after its file; unknown frontmatter keys
-  land in `metadata`.
-- **User sub-agents (`F27.subagents-user`).** User agents alone, then
-  switched off.
+  项目智能体在文件顺序中排在第一位 (`.agents/agents` 然后)
+  `.openhands/agents`)，然后是内置函数。 `qa-legacy-agent`的前置元数据中没有`name`，并以其文件命名； 未知的前置元数据键落在 `metadata` 中。
+- **用户子智能体 (`F27.subagents-user`).**用户智能体独自一人，然后关机。
   ```sh
   control-agent-server api POST /api/sub-agents --json '{"load_project": false, "load_builtin": false, "project_dir": "'"$P"'"}' \
     --expect 200 --check agents len-eq 3 --check agents.0.name eq qa-helper --check agents.0.level eq user \
@@ -447,12 +356,8 @@ Preconditions:
     --expect 200 --check agents not-contains qa-user-agent --check agents not-contains qa-persist-agent \
     --check agents not-contains QA_USER_COPY
   ```
-  `~/.agents/agents` comes before `$OH_PERSISTENCE_DIR/agents` (both under
-  the run's `HOME` here), every entry is `level: user`, and the project's
-  agents stay out with `load_project: false`. With `load_user: false` no user
-  agent is listed.
-- **Precedence (`F27.subagents-precedence`).** Everything on: project, user
-  and built-in names collide.
+  `~/.agents/agents` 位于 `$OH_PERSISTENCE_DIR/agents` 之前（此处均位于运行的 `HOME` 下），每个条目都是 `level: user`，并且项目的智能体与 `load_project: false` 无关。 对于 `load_user: false`，未列出用户智能体。
+- **Precedence (`F27.subagents-precedence`).**一切都在：项目、用户和内置名称发生冲突。
   ```sh
   control-agent-server api POST /api/sub-agents --json '{"project_dir": "'"$P"'"}' --expect 200 --check agents len-eq 9 \
     --check agents.0.name eq general-purpose --check agents.0.level eq project \
@@ -463,11 +368,8 @@ Preconditions:
     --check agents.4.name eq qa-user-agent --check agents.5.name eq qa-persist-agent \
     --check agents.6.name eq bash-runner --check agents.8.name eq web-researcher --save F27.subagents-precedence/all
   ```
-  Nine unique names: the project's `general-purpose` replaces the built-in,
-  the project's `qa-helper` hides the user copy, and the `.openhands/agents`
-  copy of `qa-reviewer` is hidden by the `.agents/agents` one.
-- **Invalid definitions (`F27.subagents-invalid`).** The project holds two
-  invalid agents, a README, a nested directory and a text file.
+  九个独特的名称：`general-purpose` 项目名称替换内置名称，`qa-helper` 项目名称隐藏用户副本，`.openhands/agents` `qa-reviewer` 的副本被`.agents/agents` 的副本隐藏。
+- **无效定义 (`F27.subagents-invalid`)。**该项目包含两个无效的智能体、一个README、一个嵌套目录和一个文本文件。
   ```sh
   W0=$(control-agent-server logs --grep 'Failed to load agent definition' | jq -r .total_matching)
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "load_builtin": false, "project_dir": "'"$P"'"}' \
@@ -477,13 +379,9 @@ Preconditions:
   test -f "$P/.agents/agents/qa-bad-mode.md"
   control-agent-server logs --grep 'Failed to load agent definition' --expect-min "$((W0 + 2))"
   ```
-  Only the four valid project agents are listed; this request adds two
-  `Failed to load agent definition from ...` warnings to the log, one per
-  invalid file (the file name wraps onto the next log line). Every earlier
-  request that read the project logged them too, hence the count from `W0`.
-- **Agent with a missing skill (`F27.subagents-bad-skill`).** The catalog
-  accepts the agent; a conversation in that workspace skips it and takes
-  messages.
+  只列出四个有效的项目智能体。 这个请求添加了两个
+  `Failed to load agent definition from ...` 向日志发出警告，每个无效文件发出一个警告（文件名换行到下一个日志行）。 每个早期读取该项目的请求也会记录它们，因此计数来自 `W0`。
+- **智能体缺少技能 (`F27.subagents-bad-skill`)。**目录接受智能体； 工作区中的对话会跳过它并接收消息。
   ```sh
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "load_builtin": false, "project_dir": "'"$F/badskill"'"}' \
     --expect 200 --check agents len-eq 1 --check agents.0.name eq qa-bad-skill --check agents.0.skills.0 eq qa-f27-missing-skill
@@ -496,15 +394,9 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$BCID/events" --json '{"role": "user", "content": [{"type": "text", "text": "again"}], "run": false}' --expect 2xx --save F27.subagents-bad-skill/send-again
   control-agent-server logs --grep 'Skipping file-based agent' --expect-min 1
   ```
-  The same message to a conversation in a workspace without project agents
-  is accepted (the control). The conversation registers every project and
-  user agent file on its first message; a definition that cannot be
-  registered (here `Skill 'qa-f27-missing-skill' not found but was given to
-  agent 'qa-bad-skill'.`) costs only that sub-agent: it is skipped with a
-  `Skipping file-based agent ...` warning naming its file (the agent name
-  wraps onto the next log line), and the other agents register. Plugin agents are skipped the same way.
-- **Hooks in a conversation (`F27.hooks-conversation`).** Load the project's
-  hooks, start a DeepSeek conversation with them, and look for the hook.
+  同一消息发送到一个 [conversation] 工作区没有项目智能体被接受（控制）。 对话记录每个项目和用户智能体在第一次消息中，文件。 一个无法注册的定义（这里 `Skill 'qa-f27-missing-skill' not found but was given to agent 'qa-bad-skill'.`) 成本仅此而已子智能体跳过
+  `Skipping file-based agent ...` 警告命名其文件（智能体名称换行到下一个日志行），另一个智能体寄存器。 插件智能体以同样的方式被跳过。
+- **对话中的挂钩 (`F27.hooks-conversation`)。**加载项目的钩子，与它们开始 DeepSeek 对话，然后查找钩子。
   ```sh
   HC=$(control-agent-server api POST /api/hooks --json '{"project_dir": "'"$P"'"}' --field hook_config)
   HCID=$(control-agent-server conversation start --workspace "$P" --tools terminal --no-autotitle \
@@ -521,13 +413,11 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$HCID" --expect 200 --check hook_config.pre_tool_use.0.matcher eq '*' \
     --check hook_config.pre_tool_use.0.hooks.0.command eq 'echo QA_PROJECT_HOOK' --quiet --save F27.hooks-conversation/after-restart
   ```
-  The agent's `ls` observation lists `AGENTS.md`, and a `HookExecutionEvent`
+  智能体的`ls` 观测结果列表`AGENTS.md`，以及`HookExecutionEvent`
   with `hook_event_type: PreToolUse`, `tool_name: terminal`, `hook_command:
   echo QA_PROJECT_HOOK`, the command's output in `stdout` and `exit_code: 0`
-  is in the event log and in the WebSocket replay. The conversation still
-  reports the same `hook_config` after the restart.
-- **Hooks are not loaded implicitly (`F27.hooks-not-automatic`).** The same
-  project and prompt, without `hook_config`.
+  位于事件日志和 WebSocket 重播中。 重启后对话仍然报告相同的`hook_config`。
+- **挂钩不会隐式加载 (`F27.hooks-not-automatic`)。**与提示词相同的项目，没有`hook_config`。
   ```sh
   NCID=$(control-agent-server conversation start --workspace "$P" --tools terminal --no-autotitle \
     --prompt 'Run this exact shell command with the terminal tool: ls' --wait --timeout 300 --print-id)
@@ -535,13 +425,9 @@ Preconditions:
   control-agent-server conversation events "$NCID" --kinds HookExecutionEvent --expect-count 0 --save F27.hooks-not-automatic/no-hooks
   control-agent-server api GET "/api/conversations/$NCID" --expect 200 --check hook_config missing --quiet
   ```
-  The terminal ran (`AGENTS.md` observed) but no `HookExecutionEvent` exists
-  and `hook_config` is `null`: a client that wants project hooks must call
-  `POST /api/hooks` and pass the result, as `RemoteConversation.loadHooks`
-  callers do.
-- **Blocking hooks (`F27.hooks-block`).** A `PreToolUse` hook on `terminal`
-  that exits 2, then a `UserPromptSubmit` hook that exits 2 on a queued
-  message.
+  终端运行了（`AGENTS.md`），但没有（`HookExecutionEvent`），且`hook_config`是`null`：一个想要项目钩子的客户端必须调用
+  `POST /api/hooks` 并传递结果，就像 `RemoteConversation.loadHooks` 调用者所做的那样。
+- **阻塞挂钩 (`F27.hooks-block`).** `terminal` 上的 `PreToolUse` 挂钩退出 2，然后是 `UserPromptSubmit` 挂钩在排队消息上退出 2。
   ```sh
   mkdir -p "$F/blockws"
   BLK=$(control-agent-server conversation start --workspace "$F/blockws" --tools terminal --no-autotitle --max-iterations 6 \
@@ -573,20 +459,11 @@ Preconditions:
     --save F27.hooks-block/prompt-no-agent-turn
   test ! -e "$F/blockws/qa_f27_prompt.txt"
   ```
-  The agent asked for the terminal (its `ActionEvent` is there), the hook
-  ran first with `blocked: true` and `exit_code: 2`, and the agent got a
-  `UserRejectObservation` with `rejection_source: hook` and the hook's stderr
-  as `rejection_reason`; no terminal observation exists and the file was not
-  created. `blocked_actions` held the action id while the step ran (a
-  `ConversationStateUpdateEvent`) and is empty once the agent consumed it, so
-  a client reads it from the events, not from a later GET. The blocked
-  prompt is held in `blocked_messages` (keyed by the message id) while the
-  conversation is idle; running it consumes the entry and finishes with no
-  agent event and no model call. The positive control is
-  `F27.hooks-conversation`: the same terminal call with a hook that exits 0
-  runs.
-- **Client tools stay out of the catalog (`F27.catalog-sealed`).** Register a
-  client tool through a conversation (no model needed).
+  智能体要求终端（它的`ActionEvent` 在那里），钩子首先运行了`blocked: true` 和`exit_code: 2`，然后智能体得到了一个
+  `UserRejectObservation` 与 `rejection_source: hook` 且钩子的 stderr 为 `rejection_reason`； 不存在终端观测结果并且未创建文件。 `blocked_actions` 在步骤运行时保存操作 ID（a
+  `ConversationStateUpdateEvent`），一旦智能体消耗它，它就为空，因此客户端从事件中读取它，而不是从后面的 GET 中读取它。 当对话空闲时，被阻止的提示词被保存在 `blocked_messages` 中（由消息 ID 键入）； 运行它会消耗该条目并在没有智能体事件和模型调用的情况下完成。 阳性对照是
+  `F27.hooks-conversation`：带有退出 0 的钩子的相同终端调用运行。
+- **客户端工具不在目录中 (`F27.catalog-sealed`)。**通过对话注册客户端工具（无需模型）。
   ```sh
   CCID=$(control-agent-server conversation start --no-run --no-autotitle --tools terminal \
     --body-json '{"client_tools": [{"name": "qa_f27_client_tool", "description": "QA client-side tool"}]}' --print-id)
@@ -594,13 +471,9 @@ Preconditions:
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet --check tools not-contains qa_f27_client_tool \
     --check tools contains '"name": "terminal"' --save F27.catalog-sealed/catalog
   ```
-  The conversation's agent has the client tool (with its spec in `params`);
-  the catalog, sealed when the server started, does not.
-- **Client tool call (`F27.client-tool-call`).** A client registers
-  `qa_f27_call_tool` (one required `marker` argument), listens on the events
-  socket and runs the conversation; then the registration errors; then a
-  restart and a second call. The conversation has no server tools
-  (`--tools none`), so the client tool is the only one it can call.
+  智能体会话中的客户端工具（其规格见 `params`） 服务器启动时封存的目录。
+- **客户端工具调用 (`F27.client-tool-call`).**客户注册
+  `qa_f27_call_tool`（一个必需的 `marker` 参数），侦听事件套接字并运行对话； 然后是注册错误； 然后重新启动并第二次调用。 该对话没有服务器工具（`--tools none`），因此客户端工具是它唯一可以调用的工具。
   ```sh
   CTW="$F/clienttool"
   mkdir -p "$CTW"
@@ -641,21 +514,11 @@ Preconditions:
     --save F27.client-tool-call/after-restart
   control-agent-server api GET /api/tools/ --expect 200 --check . contains qa_f27_call_tool --quiet
   ```
-  A client sees its tool call on the socket as an `ActionEvent` with
-  `tool_name: qa_f27_call_tool`, an action of kind
-  `ClientAction_qa_f27_call_tool` and the model's `marker`; the server
-  answers it at once with a `ClientToolObservation` (`Tool call dispatched to
-  client.`) and the agent finishes, so the client's own result never
-  reaches the model through this path. The second create shows that the same
-  name with the same schema is accepted; the duplicate, the server-tool name
-  and the changed schema are each `422` with the reason, and the count grows
-  by that one create only. After a restart nothing registers the tool until
-  its conversation is loaded; the next message re-registers it from the
-  stored `client_tools` and the agent calls it again. Forks keep
-  `client_tools` too (fork family).
-- **Forwarded sub-agent definitions (`F27.agent-definitions`).** A client
-  forwards `qa-f27-delegate` with the create request and asks the agent to
-  delegate a command to it through the task tool.
+  客户端在套接字上看到它的工具调用作为 `ActionEvent`
+  `tool_name: qa_f27_call_tool`，善意的行动
+  `ClientAction_qa_f27_call_tool` 和模型的 `marker`； 服务器立即用 `ClientToolObservation` (`Tool call dispatched to client.`) 回答它，并且智能体完成，因此客户端自己的结果永远不会通过此路径到达模型。 第二次创建显示接受同名同模式； 重复项、服务器工具名称和更改的模式均为 `422`，并附有原因，并且计数仅随着创建的一项而增长。 重新启动后，在加载其对话之前，不会注册该工具； 下一条消息从存储的 `client_tools` 中重新注册它，并且智能体再次调用它。 叉子保持
+  `client_tools` 太（叉族）。
+- ** 子智能体定义（`F27.agent-definitions`）。** 客户在创建请求中将 `qa-f27-delegate` 通过任务工具转发给智能体。
   ```sh
   DW="$F/delegate"
   mkdir -p "$DW"
@@ -673,16 +536,9 @@ Preconditions:
   control-agent-server api POST /api/sub-agents --json '{"project_dir": "'"$DW"'"}' --expect 200 --check agents contains bash-runner \
     --check agents not-contains qa-f27-delegate --save F27.agent-definitions/catalog
   ```
-  The task tool's description in the conversation's system prompt lists
-  `qa-f27-delegate` with the forwarded description, the agent's `task`
-  action names it, and the `TaskObservation` reports `subagent:
-  qa-f27-delegate`; the delegate ran the command in the same workspace, so
-  the file holds `QA_F27_DELEGATED`. The definition is stored in the
-  conversation's `meta.json` for resume, and the sub-agents catalog, which
-  reads only files and built-ins, does not list it.
-- **Custom tool module (`F27.custom-tool-modules`).** The documented
-  custom-tool deployment: `OH_EXTRA_PYTHON_PATH` names the module directory
-  and the client sends `tool_module_qualnames`.
+  对话系统中的任务工具描述提示词列出了
+  `qa-f27-delegate` 使用转发的描述，智能体的 `task` 操作为其命名，`TaskObservation` 报告 `subagent: qa-f27-delegate`； 委托人在同一个工作区中运行命令，因此文件包含 `QA_F27_DELEGATED`。 该定义存储在对话的`meta.json`中用于恢复，而子智能体目录仅读取文件和内置文件，不会列出它。
+- **自定义工具模块(`F27.custom-tool-modules`)。**记录的自定义工具部署：`OH_EXTRA_PYTHON_PATH` 命名模块目录，客户端发送 `tool_module_qualnames`。
   ```sh
   MW="$F/modulews"
   mkdir -p "$MW"
@@ -715,21 +571,9 @@ Preconditions:
     --save F27.custom-tool-modules/after-restart
   control-agent-server api GET /api/tools/ --expect 200 --check . contains qa_f27_echo --quiet
   ```
-  `OH_EXTRA_PYTHON_PATH` only extends `sys.path` (logged at startup); the
-  create imports `qa_f27_tools`, whose import registers `qa_f27_echo`, and
-  the agent's call returns the module's `QaF27EchoObservation`. The
-  conversation reports the mapping, and the registry lists the tool from
-  then on for every caller, while the catalog, sealed at startup, does not
-  offer it. An unimportable module is only a warning: the create is `201`
-  and keeps the mapping (a create whose agent names that tool is a 422,
-  `F33.custom-tool-module-unimportable`). After a restart the registry no longer has the tool; loading the
-  conversation for the next message imports the module again and the tool
-  runs.
-- **Startup imports (`F27.import-modules`).** `--import-modules` is a
-  server argument passed by the owned shell-and-attach workflow: the bullet
-  starts this checkout's server in plain shell with a private `HOME`, state
-  directory and key, attaches to it, and stops it before the bullet ends; a
-  second start with a missing module must fail.
+  `OH_EXTRA_PYTHON_PATH`仅扩展`sys.path`（在启动时记录）； create 导入 `qa_f27_tools`，其导入注册 `qa_f27_echo`，智能体的调用返回模块的 `QaF27EchoObservation`。 对话报告映射，而注册表列出了此后每个呼叫者的工具，而启动时封存的目录则没有提供。 不可导入的模块只是一个警告：创建是 `201` 并保留映射（一个创建，其智能体将该工具命名为 422，
+  `F33.custom-tool-module-unimportable`). 重新启动后，注册表不再有该工具； 加载下一条消息的对话再次导入模块并且工具运行。
+- **启动时导入了`F27.import-modules`。** `--import-modules` 是由拥有者控制的 shell-and-attach 工作流传递的服务器参数：子弹启动这个检查点的服务器，以纯 shell 形式，带有私有 `HOME`、状态目录和密钥，连接到它，然后在子弹结束之前停止它； 缺少模块的第二次启动必定会失败。
   ```sh
   QA_PY="$(jq -r .checkout "$AGENT_SERVER_VERIFY_RUN/run.json")/.venv/bin/python"
   IMP="$F/import-server"
@@ -762,38 +606,26 @@ Preconditions:
   if grep -q 'Uvicorn running' "$F/import-missing/server.log"; then false; fi
   test ! -e "$F/import-missing/persist"
   ```
-  With `--import-modules qa_f27_tools` the tool is registered before the
-  app starts: `GET /api/tools/` lists `qa_f27_echo` with no conversation on
-  the server, and the catalog, sealed after startup imports, offers it as a
-  selectable, usable tool (with an empty `description`: the tool sets no
-  `catalog_description`). A missing module is fatal: the process exits
-  non-zero with the `ModuleNotFoundError` before uvicorn starts, so nothing
-  is served and no state is written. `api --until-ok` gives up on a refused connection,
-  hence the `curl --retry-connrefused` wait.
-- **Tool module gone on resume (`F27.custom-tool-missing-on-resume`), known bug.**
-  Restart the run without `OH_EXTRA_PYTHON_PATH` and use the conversation of
-  `F27.custom-tool-modules`, whose events include `qa_f27_echo` calls.
+  `--import-modules qa_f27_tools` 时，工具在应用启动前已注册：`GET /api/tools/` 列出 `qa_f27_echo`，服务器上没有对话，启动后封存的目录提供它作为可选择和可用的工具（有一个空的 `description`：工具设置为空）
+  `catalog_description`). 缺少的模块是致命的：进程在 uvicorn 启动之前以非零值 `ModuleNotFoundError` 退出，因此没有提供任何服务，也没有写入任何状态。 `api --until-ok` 放弃拒绝的连接，因此 `curl --retry-connrefused` 等待。
+- **工具模块在恢复时消失（`F27.custom-tool-missing-on-resume`），已知错误。**在没有 `OH_EXTRA_PYTHON_PATH` 的情况下重新启动运行并使用以下对话
+  `F27.custom-tool-modules`，其事件包括 `qa_f27_echo` 个调用。
 
-  Requires: `F27.custom-tool-modules`
+  需要：`F27.custom-tool-modules`
   ```sh
   W0=$(control-agent-server logs --grep 'Failed to import module' | jq -r .total_matching)
   control-agent-server restart --reset-config
   control-agent-server api GET "/api/conversations/$MCID" --expect 200 --check tool_module_qualnames.qa_f27_echo eq qa_f27_tools --quiet
-  control-agent-server api POST "/api/conversations/$MCID/events" --json '{"role": "user", "content": [{"type": "text", "text": "Reply with the single word ok."}], "run": false}' --expect 2xx,4xx --save F27.custom-tool-missing-on-resume/send  # bug: status eq 500 && response.body.exception contains "Unknown kind 'QaF27EchoObservation'"
+  control-agent-server api POST "/api/conversations/$MCID/events" --json '{"role": "user", "content": [{"type": "text", "text": "Reply with the single word ok."}], "run": false}' --expect 2xx,4xx --save F27.custom-tool-missing-on-resume/send  # bug：状态 eq 500 && response.body.exception 包含“未知种类 'QaF27EchoObservation'”
   control-agent-server logs --grep 'Failed to import module' --expect-min "$((W0 + 1))"
-  control-agent-server api GET "/api/conversations/$MCID/events/search" --expect 200 --check items len-ge 1 --quiet  # bug: status eq 500
+  control-agent-server api GET "/api/conversations/$MCID/events/search" --expect 200 --check items len-ge 1 --quiet  # 错误：状态 eq 500
   ```
-  `_prepare_persisted_runtime` logs `Failed to import module 'qa_f27_tools'
+  `_prepare_persisted_runtime` 记录“无法导入模块‘qa_f27_tools’”
   ... Tool will not be available.` and promises to go on without the tool.
-  Today the conversation cannot be loaded at all: its stored events hold a
-  `QaF27EchoObservation`, whose class only that module defines, so the
-  message `POST` and `GET .../events/search` are `500` with `Unknown kind
-  'QaF27EchoObservation'`. Only `GET /api/conversations/{id}`, which reads
-  the metadata without loading, still answers. A deployment that drops or
-  renames a custom tool module loses every conversation that used it.
-- **Playwright browsers directory (`F27.browser-playwright-path`).**
-  Point the server at the run-owned Playwright directory through
-  `PLAYWRIGHT_BROWSERS_PATH` only.
+  今天，对话根本无法加载：其存储的事件包含
+  `QaF27EchoObservation`，其类仅由该模块定义，因此消息 `POST` 和 `GET .../events/search` 是 `500` 和 `Unknown kind 'QaF27EchoObservation'`。 只有`GET /api/conversations/{id}`，在不加载的情况下读取元数据，仍然回答。 删除或重命名自定义工具模块的部署会丢失使用该模块的每个对话。
+- **剧作家浏览器目录(`F27.browser-playwright-path`)。**通过以下方式将服务器指向运行拥有的 Playwright 目录
+  仅 `PLAYWRIGHT_BROWSERS_PATH`。
   ```sh
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet \
     --check tools contains '{"name": "browser_tool_set", "user_selectable": true, "usable": false'
@@ -801,16 +633,8 @@ Preconditions:
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet --check tools contains '{"name": "terminal", "user_selectable": true, "usable": true'
   control-agent-server api GET /api/tools/catalog --expect 200 --check tools contains '{"name": "browser_tool_set", "user_selectable": true, "usable": true' --save F27.browser-playwright-path/catalog
   ```
-  The first check shows this server finds no Chromium on its own (no
-  standard path, nothing in its private `~/.cache/ms-playwright`). Playwright
-  installs browsers into `$PLAYWRIGHT_BROWSERS_PATH` when it is set, so the
-  probe looks there too (before the default cache): after the restart the
-  catalog reports `usable: true` and the browser tool can start with that
-  binary. Playwright's special value `0` (browsers inside the installed
-  package) is not a directory and is not probed.
-- **Browser probe (`F27.browser-probe`).** Restart without the earlier
-  overrides and see the browser unusable, then put the same Chromium where
-  the probe looks (the server's `HOME`) and restart again.
+  第一个检查发现，该服务器没有在自己的系统上找到Chromium（没有标准路径，也没有在私有路径中找到） `~/.cache/ms-playwright`). Playwright 安装浏览器到 `$PLAYWRIGHT_BROWSERS_PATH` 当设置时，探针也会检查那里（在默认缓存之前）：重启后，目录报告 `usable: true` 浏览器工具可以以那个二进制文件启动。 Playwright的特殊值 `0` （安装包内的浏览器）不是一个目录，也不进行探测。
+- **浏览器探针 `F27.browser-probe`。** 重启而不使用之前的配置，然后让浏览器不可用，然后将探针查看的 Chromium 重新放回服务器端 `HOME`，再重启一次。
   ```sh
   control-agent-server restart --reset-config
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet \
@@ -827,15 +651,8 @@ Preconditions:
   control-agent-server api GET /server_info --auth none --expect 200 --check usable_tools contains browser_tool_set \
     --save F27.browser-probe/server-info
   ```
-  Before the link both views leave the browser out; after it the catalog
-  reports the browser usable and `usable_tools` lists it. The probe result is
-  cached per process, so a Chromium installed while the server runs shows up
-  only after a restart.
-- **Default tools follow the browser setting (`F27.browser-disabled-launch`).**
-  Start conversations from the saved settings (no `--tools`, so the server
-  picks the default tool set) with a run-owned Chromium link, then after a
-  restart with `enable_browser: false`. Set up the positive control locally
-  so this lane also works when the browser-negative precondition is absent.
+  在链接之前，两个视图都离开了浏览器。 在之后，目录报告浏览器可用，并且 `usable_tools` 列出了它。 探针结果按进程缓存，因此，当服务器运行时安装的Chromium只在重启后才会显示。
+- **默认工具遵循浏览器设置 (`F27.browser-disabled-launch`)。**使用运行拥有的 Chromium 链接从保存的设置（否 `--tools`，因此服务器选择默认工具集）开始对话，然后在重新启动后使用 `enable_browser: false`。 在本地设置正控制，以便在不存在浏览器负前提条件时该通道也可以工作。
   ```sh
   mkdir -p "$H/.cache"
   ln -sfn "$PW" "$H/.cache/ms-playwright"
@@ -850,15 +667,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$BON" --expect 200 --check agent.tools contains browser_tool_set --quiet
   test -L "$H/.cache/ms-playwright"
   ```
-  With Chromium found, the default set is `terminal`, `file_editor`,
-  `task_tracker` and `browser_tool_set`; with `enable_browser: false` the
-  same request gets the first three only, although Chromium is still in
-  place. The setting applies when a conversation is created: the earlier
-  conversation keeps the browser in its stored agent. A materialized agent
-  profile's resolved tools are the agent-profile family's view.
-- **Browser disabled by config (`F27.browser-disabled`).** Same machine,
-  `enable_browser: false`; the run-owned Chromium link supplies the positive
-  probe prerequisite even when this bullet runs on its own.
+  找到了Chromium，默认设置为`terminal`，`file_editor`
+  `task_tracker`和`browser_tool_set`； 与 `enable_browser: false` 相同的请求仅获得前三个，尽管 Chromium 仍然存在。 该设置在创建对话时应用：较早的对话将浏览器保留在其存储的智能体中。 物化智能体配置文件的解析工具是智能体配置文件系列的视图。
+- **浏览器被配置禁用(`F27.browser-disabled`)。**同一台机器，
+  `enable_browser: false`; 即使该子弹单独运行，运行的 Chromium 链接也提供了积极的探测先决条件。
   ```sh
   mkdir -p "$H/.cache"
   ln -sfn "$PW" "$H/.cache/ms-playwright"
@@ -869,40 +681,28 @@ Preconditions:
   control-agent-server api GET /api/tools/ --expect 200 --check . contains browser_tool_set
   test -L "$H/.cache/ms-playwright"
   ```
-  The catalog forces `usable: false` although the probe of the previous
-  bullet finds Chromium, while the raw registry still lists
-  `browser_tool_set` (tools register at import, always with the browser).
-- **Usable tools with the browser disabled (`F27.server-info-browser-disabled`).**
-  Compare `/server_info` with the catalog on the same server.
+  尽管前一子弹的探针发现是Chromium，但目录强制`usable: false`，而原始注册表仍然列出
+  `browser_tool_set`（工具在导入时注册，始终通过浏览器注册）。
+- **禁用浏览器时可用的工具 (`F27.server-info-browser-disabled`)。**将 `/server_info` 与同一服务器上的目录进行比较。
 
-  Requires: `F27.browser-probe`, `F27.browser-disabled`
+  需要：`F27.browser-probe`、`F27.browser-disabled`
   ```sh
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet --check tools contains '{"name": "browser_tool_set", "user_selectable": true, "usable": false'
   control-agent-server api GET /server_info --auth none --expect 200 --check usable_tools contains terminal --check usable_tools not-contains browser_tool_set --save F27.server-info-browser-disabled/server-info
   ```
-  Conversations on this server never get the browser, and the catalog says
-  so; `usable_tools` agrees and leaves out `browser_tool_set` although the
-  Chromium probe finds it: `/server_info` applies the same config decision
-  (`configured_browser_available`) as the catalog route.
-- **Browser-only sub-agent with the browser disabled (`F27.subagents-browser-disabled`).**
-  List the built-ins on a server with `enable_browser: false` (the restart
-  makes the recipe hold under `--only`, too).
+  在本服务器上进行的对话从未得到浏览器，且目录也这么说。 `usable_tools` 一致同意并省略了 `browser_tool_set`，尽管 Chromium 检测到 `/server_info` 也应用了相同的配置决策 (`configured_browser_available`)。
+- **仅限浏览器子智能体，禁用浏览器 (`F27.subagents-browser-disabled`)。**使用 `enable_browser: false` 列出服务器上的内置程序（重新启动也使配方保持在 `--only` 下）。
   ```sh
   control-agent-server restart --config-json '{"enable_browser": false}'
   control-agent-server api GET /api/tools/catalog --expect 200 --quiet --check tools contains '{"name": "browser_tool_set", "user_selectable": true, "usable": false'
   control-agent-server api POST /api/sub-agents --json '{"load_user": false, "load_project": false}' --expect 200 --check agents contains '"name": "bash-runner"' --check agents not-contains '"name": "web-researcher"' --save F27.subagents-browser-disabled/builtins
   ```
-  The route passes the configured browser availability (the catalog's
-  `configured_browser_available`) to `discover_builtin_agents`, so
-  `web-researcher`, whose only tool is `browser_tool_set`, is left out and
-  a client never offers a sub-agent without a usable tool; the other three
-  built-ins stay. The server also registers the built-in agents for conversations with
-  `enable_browser=True` at import (`tool_router.py`), so by source the
-  delegation registry that a conversation's task tool reads still holds
-  `web-researcher` (not driven here).
-- **Docker conversation runtime (`F27.catalog-docker-runtime`).** Remove the
-  Chromium link and restart as an orchestrator whose conversations would run
-  in containers; no container starts, so no Docker daemon is needed.
+  该路由通过配置的浏览器可用性（即目录的）
+  `configured_browser_available`) 到 `discover_builtin_agents`，所以
+  `web-researcher`，其唯一的工具是`browser_tool_set`，被排除在外，并且客户绝不会在没有可用工具的情况下提供子智能体； 其他三个内置组件保留。 服务器还注册内置智能体以进行对话
+  `enable_browser=True` 在导入 (`tool_router.py`) 时，因此根据源，会话的任务工具读取的委托注册表仍然有效
+  `web-researcher`（此处未驱动）。
+- **Docker 对话运行时间 (`F27.catalog-docker-runtime`).**删除 Chromium 链接并作为协调器重新启动，其对话将在容器中运行； 没有容器启动，因此不需要 Docker 守护进程。
   ```sh
   rm -f "$H/.cache/ms-playwright"
   control-agent-server restart --reset-config \
@@ -923,76 +723,38 @@ Preconditions:
     --save F27.catalog-docker-runtime/stock-image
   test ! -e "$H/.cache/ms-playwright"
   ```
-  A `-minimal` tag of the stock image and `conversation_image_has_browser:
-  false` make the browser unusable; the stock image (the default
-  `conversation_image`) makes it usable although the server process has no
-  Chromium when the documented browser-negative precondition holds, and
-  `/server_info` `usable_tools` follows the catalog for the browser, so it
-  lists `browser_tool_set` here too. Its other entries still come from the
-  server process's own probes.
+  `-minimal` 标签和`conversation_image_has_browser: false` 会使浏览器无法使用。 股票图片（默认）
+  `conversation_image`) 使其可用，尽管当记录的浏览器否定先决条件成立时，服务器进程没有 Chromium，并且
+  `/server_info` `usable_tools` 遵循浏览器的目录，因此这里也列出了 `browser_tool_set`。 它的其他条目仍然来自服务器进程自己的探测。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `POST /api/hooks` never reports an error: a missing, empty or broken
-  `hooks.json` is the same `{"hook_config": null}`. Check the server log
-  (`logs --grep 'Failed to load hooks'`) to tell them apart.
-- Only `<project_dir>/.openhands/hooks.json` is read by the route. The SDK's
-  `HookConfig.load()` also falls back to `$OH_PERSISTENCE_DIR/hooks.json`, but
-  the route does not, and conversations load no hooks unless `hook_config`
-  (or a plugin) brings them.
-- Hook event keys are snake_case in responses (`pre_tool_use`, ...); PascalCase
-  and the `{"hooks": {...}}` wrapper are accepted on disk. `HookExecutionEvent`
-  reports the PascalCase name (`hook_event_type: PreToolUse`). The `async`
-  flag is serialized as `async`.
-- The sub-agents catalog validates frontmatter only. It does not resolve
-  `skills`, `tools` or `model` (a profile name); a missing skill is skipped
-  with a warning when a conversation registers the agents
-  (`F27.subagents-bad-skill`), the others fail when it spawns one. Plugin agents and programmatic registrations are not listed.
-- `$OH_PERSISTENCE_DIR/agents` replaces `~/.openhands/agents` for user
-  agents; in a launched run both are `<run>/home/.openhands/agents`, so the
-  bullets cannot tell the two apart.
-- `web-researcher`'s MCP `env` values come back masked (`**********`), even
-  the `${TAVILY_API_KEY}` placeholder, because MCP env values are secrets.
-- Catalog entries have no stable index (registration order), so the recipes
-  match an entry's serialized prefix with `--check tools contains` or
-  `matches`; field order is `name`, `user_selectable`, `usable`,
+## 陷阱
+
+- `POST /api/hooks` 从不报告错误：缺失、空或损坏
+  `hooks.json` 与 `{"hook_config": null}` 相同。 检查服务器日志 (`logs --grep 'Failed to load hooks'`) 以区分它们。
+- 该路由仅读取 `<project_dir>/.openhands/hooks.json`。 SDK 的
+  `HookConfig.load()` 也会回退到 `$OH_PERSISTENCE_DIR/hooks.json`，但路由不会，并且对话不会加载钩子，除非 `hook_config` （或插件）带来它们。
+- 钩子事件键是响应中的 snake_case (`pre_tool_use`, ...)； PascalCase 和 `{"hooks": {...}}` 包装器在磁盘上被接受。 `HookExecutionEvent` 报告 PascalCase 名称 (`hook_event_type: PreToolUse`)。 `async` 标志是已序列化和 `async`。
+- 子智能体目录仅验证前置元数据。 它没有解决
+  `skills`、`tools` 或 `model`（配置文件名称）； 当对话注册智能体 (`F27.subagents-bad-skill`) 时，会跳过缺少的技能并发出警告，而当它生成一项时，其他技能会失败。 插件智能体和编程注册未列出。
+- `$OH_PERSISTENCE_DIR/agents` 替换用户智能体的 `~/.openhands/agents`； 在发射的运行中，两者都是`<run>/home/.openhands/agents`，因此子弹无法区分两者。
+- `web-researcher` 的 MCP `env` 值返回时被屏蔽 (`**********`)，甚至 `${TAVILY_API_KEY}` 占位符，因为 MCP 环境值为机密。
+- 目录条目没有稳定的索引（注册顺序），因此配方将条目的已序列化前缀与 `--check tools contains` 或
+  `matches`; 场序为 `name`、`user_selectable`、`usable`、
   `description`, `in_default_set`.
-- Browser usability depends on the machine: a Chromium at a standard path
-  (`/usr/bin/chromium`, `/usr/bin/google-chrome`, ...) or on the server's
-  `PATH` is always found. On such a machine the negative control of
-  `F27.browser-probe` fails, and so does the first check of
-  `F27.browser-playwright-path`; run the family where Chromium lives only
-  in a Playwright directory (`capabilities` names it). `launch` does not
+- 浏览器可用性取决于机器：标准路径（`/usr/bin/chromium`、`/usr/bin/google-chrome`、...）或服务器上的 Chromium
+  `PATH` 总是能找到。 在这样的机器上，负控制
+  `F27.browser-probe` 失败，第一次检查也失败
+  `F27.browser-playwright-path`; 运行 Chromium 仅位于 Playwright 目录中的家族（`capabilities` 对其进行命名）。 `launch` 不
   pass `$PLAYWRIGHT_BROWSERS_PATH` on to the server, so the server sees only
-  what a recipe gives it with `--env`. The probe is cached
-  per process (`functools.cache`), so restart after changing what is
-  installed. With `conversation_runtime: docker` nothing is probed and every
-  tool is reported usable except as the image settings say.
-- Client tools register process-wide on conversation start and disappear from
-  `GET /api/tools/` after a restart until their conversation is loaded again;
-  the catalog never shows them. A client tool named like a registered server
-  tool (`terminal`, `file_editor`) makes `POST /api/conversations` a 422, and
-  so does a name that another conversation in the same process registered
-  with a different `parameters` schema (the generated action kind
-  `ClientAction_<name>` is process-global); a restart clears that.
-- The server acknowledges a client tool call itself (`Tool call dispatched to
-  client.`) and the agent loop goes on; there is no route that posts the
-  client's result back into that call.
-- `blocked_actions` is consumed in the same agent step that the hook blocked,
-  so after a run a GET shows `{}`; read the `ConversationStateUpdateEvent`
-  with key `blocked_actions` (or the `UserRejectObservation`) instead.
-  `blocked_messages` stays visible only while the blocked message waits for
-  a run. A model may retry a blocked call; the recipes allow several blocked
-  attempts (`--expect-min`).
-- `tool_module_qualnames` changes process-wide registries, and a custom
-  tool's events need its module to deserialize
-  (`F27.custom-tool-missing-on-resume`). The server
-  log wraps long lines, so the recipes grep for short phrases
-  (`Extended sys.path with 1 directory`, `Failed to import module`).
-- `OH_EXTRA_PYTHON_PATH` only extends `sys.path`; nothing is imported until a
-  create names the module or `--import-modules` does at startup. A
-  launched run gets the variable with `restart --env`, but `--import-modules`
-  needs a server started outside `launch` (`F27.import-modules`).
-- `GET /api/tools` and `/api/tools/catalog/` redirect (307) before
-  authentication; `map check` validates recipe paths against the route table,
-  so the recipes call the slash-less path through a shell variable.
+  食谱给出的内容是`--env`。 探针按进程缓存 (`functools.cache`)，因此在更改安装内容后重新启动。 对于`conversation_runtime: docker`，没有任何东西被探测，并且每个工具都被报告为可用，除非图像设置所示。
+- 客户端工具在对话开始和消失时在整个进程范围内进行注册
+  `GET /api/tools/` 重启后，直到他们的对话重新加载。 目录从未显示过它们。 一个像注册服务器工具的客户端工具`terminal`, `file_editor`) makes `POST /api/conversations` 422，另一个过程中的不同会话注册的名字也一样 `parameters`  模式生成的动作类型
+  `ClientAction_<name>` 是进程全局的）； 重新启动可以清除该问题。
+- 服务器确认客户端工具调用本身 (`Tool call dispatched to client.`)，并且智能体循环继续； 没有路由将客户端的结果返回到该调用中。
+- `blocked_actions` 在钩子阻塞的同一个智能体步骤中被消耗，因此运行后 GET 显示 `{}`； 使用键 `blocked_actions`（或 `UserRejectObservation`）读取 `ConversationStateUpdateEvent`。
+  仅当被阻止的消息等待运行时，`blocked_messages` 才保持可见。 模型可能重试阻塞调用； 配方允许多次被阻止的尝试 (`--expect-min`)。
+- `tool_module_qualnames` 更改流程范围注册表，并且自定义工具的事件需要其模块更改反序列化 (`F27.custom-tool-missing-on-resume`)。 服务器日志包含长行，因此配方 grep 可以查找短语 (`Extended sys.path with 1 directory`, `Failed to import module`)。
+- `OH_EXTRA_PYTHON_PATH`仅扩展`sys.path`； 在创建命名模块或 `--import-modules` 在启动时执行操作之前，不会导入任何内容。 启动的运行使用 `restart --env` 获取变量，但 `--import-modules` 需要在 `launch` (`F27.import-modules`) 之外启动服务器。
+- `GET /api/tools`和`/api/tools/catalog/`在身份验证之前重定向(307)； `map check` 根据路由表验证配方路径，因此配方通过 shell 变量调用无斜杠路径。

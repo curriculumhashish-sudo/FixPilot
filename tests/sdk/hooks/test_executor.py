@@ -1,4 +1,4 @@
-"""Tests for hook executor."""
+"""测试钩子执行器。"""
 
 import json
 import subprocess
@@ -19,16 +19,16 @@ from tests.command_utils import python_command
 
 
 class TestHookExecutor:
-    """Tests for HookExecutor."""
+    """测试 HookExecutor。"""
 
     @pytest.fixture
     def executor(self, tmp_path):
-        """Create an executor with a temporary working directory."""
+        """创建一个带有临时工作目录的执行器。"""
         return HookExecutor(working_dir=str(tmp_path))
 
     @pytest.fixture
     def sample_event(self):
-        """Create a sample hook event."""
+        """创建示例挂钩事件。"""
         return HookEvent(
             event_type=HookEventType.PRE_TOOL_USE,
             tool_name="BashTool",
@@ -37,7 +37,7 @@ class TestHookExecutor:
         )
 
     def test_execute_simple_command(self, executor, sample_event):
-        """Test executing a simple echo command."""
+        """测试执行简单的 echo 命令。"""
         hook = HookDefinition(command="echo 'success'")
         result = executor.execute(hook, sample_event)
 
@@ -46,7 +46,7 @@ class TestHookExecutor:
         assert "success" in result.stdout
 
     def test_execute_receives_json_stdin(self, executor, sample_event, tmp_path):
-        """Test that hook receives event data as JSON on stdin."""
+        """测试钩子在标准输入上接收事件数据为 JSON。"""
         hook = HookDefinition(
             command=python_command("import sys; sys.stdout.write(sys.stdin.read())")
         )
@@ -72,7 +72,7 @@ class TestHookExecutor:
     def test_non_string_decision_is_ignored_rather_than_fatal(
         self, executor, sample_event
     ):
-        """Any non-string decision means no decision, not a failed hook."""
+        """任何非字符串决策都意味着没有决策，而不是失败的钩子。"""
         hook = HookDefinition(command="""echo '{"decision": 1}'""")
 
         result = executor.execute(hook, sample_event)
@@ -88,7 +88,7 @@ class TestHookExecutor:
         assert result.decision == HookDecision.ALLOW
 
     def test_execute_blocking_exit_code(self, executor, sample_event):
-        """Test that exit code 2 blocks the operation."""
+        """测试退出代码 2 是否阻止操作。"""
         hook = HookDefinition(command=python_command("import sys; sys.exit(2)"))
         result = executor.execute(hook, sample_event)
 
@@ -98,7 +98,7 @@ class TestHookExecutor:
         assert not result.should_continue
 
     def test_execute_json_output_decision(self, executor, sample_event):
-        """Test parsing JSON output with decision field."""
+        """使用决策字段测试解析 JSON 输出。"""
         hook = HookDefinition(
             command=python_command(
                 "import json; print(json.dumps("
@@ -112,7 +112,7 @@ class TestHookExecutor:
         assert result.blocked
 
     def test_execute_environment_variables(self, executor, sample_event, tmp_path):
-        """Test that environment variables are set correctly."""
+        """测试环境变量设置是否正确。"""
         hook = HookDefinition(
             command=python_command(
                 "import os; "
@@ -128,7 +128,7 @@ class TestHookExecutor:
         assert "TOOL=BashTool" in result.stdout
 
     def test_execute_timeout(self, executor, sample_event):
-        """Test that timeout is enforced."""
+        """测试超时是否已强制执行。"""
         hook = HookDefinition(
             command=python_command("import time; time.sleep(10)"), timeout=1
         )
@@ -138,7 +138,7 @@ class TestHookExecutor:
         assert "timed out" in result.error.lower()
 
     def test_execute_all_stops_on_block(self, executor, sample_event):
-        """Test that execute_all stops on blocking hook."""
+        """测试 execute_all 是否停止在阻塞钩子上。"""
         hooks = [
             HookDefinition(command="echo 'first'"),
             HookDefinition(command=python_command("import sys; sys.exit(2)")),
@@ -147,12 +147,12 @@ class TestHookExecutor:
 
         results = executor.execute_all(hooks, sample_event, stop_on_block=True)
 
-        assert len(results) == 2  # Stopped after second hook
+        assert len(results) == 2  # 第二个钩子后停止
         assert results[0].success
         assert results[1].blocked
 
     def test_execute_captures_stderr(self, executor, sample_event):
-        """Test that stderr is captured."""
+        """测试 stderr 是否被捕获。"""
         hook = HookDefinition(
             command=python_command(
                 "import sys; sys.stderr.write('error message\\n'); sys.exit(2)"
@@ -165,16 +165,16 @@ class TestHookExecutor:
 
 
 class TestAsyncHookExecution:
-    """Tests for async hook execution."""
+    """测试异步挂钩执行。"""
 
     @pytest.fixture
     def executor(self, tmp_path):
-        """Create an executor with a temporary working directory."""
+        """创建一个带有临时工作目录的执行器。"""
         return HookExecutor(working_dir=str(tmp_path))
 
     @pytest.fixture
     def sample_event(self):
-        """Create a sample hook event."""
+        """创建示例挂钩事件。"""
         return HookEvent(
             event_type=HookEventType.POST_TOOL_USE,
             tool_name="TestTool",
@@ -183,7 +183,7 @@ class TestAsyncHookExecution:
         )
 
     def test_execute_async_hook_returns_immediately(self, executor, sample_event):
-        """Test that async hooks return immediately without waiting."""
+        """测试异步钩子立即返回，无需等待。"""
         import time
 
         hook = HookDefinition.model_validate(
@@ -196,10 +196,10 @@ class TestAsyncHookExecution:
 
         assert result.success
         assert result.async_started
-        assert elapsed < 1.0  # Should return immediately, not wait 5s
+        assert elapsed < 1.0  # 应立即返回，而不是等待 5 秒
 
     def test_execute_async_hook_result_fields(self, executor, sample_event):
-        """Test that async hook result has expected field values."""
+        """测试异步挂钩结果是否具有预期的字段值。"""
         hook = HookDefinition.model_validate({"command": "echo 'test'", "async": True})
         result = executor.execute(hook, sample_event)
 
@@ -207,11 +207,11 @@ class TestAsyncHookExecution:
         assert result.async_started is True
         assert result.exit_code == 0
         assert result.blocked is False
-        assert result.stdout == ""  # No output captured for async
+        assert result.stdout == ""  # 未捕获异步的输出
         assert result.stderr == ""
 
     def test_execute_async_hook_process_tracked(self, executor, sample_event, tmp_path):
-        """Test that async hooks track processes for cleanup."""
+        """测试异步挂钩跟踪进程以进行清理。"""
         marker = tmp_path / "async_marker.txt"
         hook = HookDefinition.model_validate(
             {
@@ -229,19 +229,19 @@ class TestAsyncHookExecution:
         result = executor.execute(hook, sample_event)
         assert result.async_started
 
-        # Process should be tracked
+        # 应跟踪流程
         assert len(executor.async_process_manager._processes) == 1
 
-        # Wait for process to complete and verify marker file created
+        # 等待进程完成并验证创建的标记文件
         import time
 
         time.sleep(0.5)
         assert marker.exists()
 
     def test_execute_async_hook_receives_stdin(self, executor, sample_event, tmp_path):
-        """Test that async hooks receive event data on stdin."""
+        """测试异步挂钩是否接收 stdin 上的事件数据。"""
         output_file = tmp_path / "stdin_output.json"
-        # Script that reads stdin and writes to file
+        # 读取 stdin 并写入文件的脚本
         hook = HookDefinition.model_validate(
             {
                 "command": python_command(
@@ -257,7 +257,7 @@ class TestAsyncHookExecution:
         result = executor.execute(hook, sample_event)
         assert result.async_started
 
-        # Wait for async process to complete
+        # 等待异步进程完成
         import json
         import time
 
@@ -271,7 +271,7 @@ class TestAsyncHookExecution:
     def test_execute_async_hook_uses_windows_process_group(
         self, executor, sample_event, monkeypatch
     ):
-        """Test Windows process-group kwargs by simulating win32 on any runner."""
+        """通过在任何运行器上模拟 win32 来测试 Windows 进程组 kwargs。"""
         import openhands.sdk.hooks.executor as executor_module
 
         popen_kwargs: dict[str, object] = {}
@@ -296,7 +296,7 @@ class TestAsyncHookExecution:
         assert popen_kwargs["start_new_session"] is False
 
     def test_sync_hook_not_marked_async(self, executor, sample_event):
-        """Test that synchronous hooks are not marked as async_started."""
+        """测试同步挂钩未标记为 async_started。"""
         hook = HookDefinition.model_validate({"command": "echo 'sync'", "async": False})
         result = executor.execute(hook, sample_event)
 
@@ -307,7 +307,7 @@ class TestAsyncHookExecution:
     def test_execute_all_with_mixed_sync_async_hooks(
         self, executor, sample_event, tmp_path
     ):
-        """Test execute_all with a mix of sync and async hooks."""
+        """混合使用同步和异步钩子测试 execute_all。"""
         marker = tmp_path / "async_ran.txt"
         hooks = [
             HookDefinition(command="echo 'sync1'"),
@@ -329,7 +329,7 @@ class TestAsyncHookExecution:
         assert results[1].async_started is True
         assert results[2].async_started is False
 
-        # Wait for async hook to complete
+        # 等待异步挂钩完成
         import time
 
         time.sleep(0.2)
@@ -337,15 +337,15 @@ class TestAsyncHookExecution:
 
 
 class TestAsyncProcessManager:
-    """Tests for AsyncProcessManager."""
+    """测试 AsyncProcessManager。"""
 
     def test_add_process_and_cleanup_all(self, tmp_path):
-        """Test that processes can be added and cleaned up."""
+        """测试是否可以添加和清理进程。"""
         from openhands.sdk.hooks.executor import AsyncProcessManager
 
         manager = AsyncProcessManager()
 
-        # Start a long-running process with new session for process group cleanup
+        # 使用新会话启动长时间运行的进程以进行进程组清理
         process = subprocess.Popen(
             python_command("import time; time.sleep(60)"),
             shell=True,
@@ -358,26 +358,26 @@ class TestAsyncProcessManager:
 
         manager.add_process(process, timeout=30)
         assert len(manager._processes) == 1
-        assert process.poll() is None  # Still running
+        assert process.poll() is None  # 仍在运行
 
         manager.cleanup_all()
         assert len(manager._processes) == 0
 
-        # Give process time to terminate
+        # 给进程一些时间终止
         import time
 
         time.sleep(0.1)
-        assert process.poll() is not None  # Terminated
+        assert process.poll() is not None  # 终止
 
     def test_cleanup_expired_terminates_old_processes(self, tmp_path):
-        """Test that cleanup_expired terminates processes past their timeout."""
+        """测试 cleanup_expired 终止进程超时。"""
         import time
 
         from openhands.sdk.hooks.executor import AsyncProcessManager
 
         manager = AsyncProcessManager()
 
-        # Start a process with very short timeout that's already expired
+        # 启动一个非常短的超时且已过期的进程
         process = subprocess.Popen(
             python_command("import time; time.sleep(60)"),
             shell=True,
@@ -388,20 +388,20 @@ class TestAsyncProcessManager:
             start_new_session=True,
         )
 
-        # Add with a timeout in the past (simulated by setting start time)
+        # 在过去添加超时（通过设置开始时间来模拟）
         manager._processes.append(
             (process, time.time() - 10, 5)
-        )  # Started 10s ago, 5s timeout
+        )  # 10 秒前开始，5 秒前开始超时
 
-        assert process.poll() is None  # Still running
+        assert process.poll() is None  # 仍在运行
         manager.cleanup_expired()
 
         time.sleep(0.1)
-        assert process.poll() is not None  # Terminated
+        assert process.poll() is not None  # 终止
         assert len(manager._processes) == 0
 
     def test_async_process_manager_windows_kill_uses_bounded_wait(self, monkeypatch):
-        """Test that Windows cleanup does not wait indefinitely after kill."""
+        """测试 Windows 清理不会在终止后无限期等待。"""
         import openhands.sdk.hooks.executor as executor_module
         from openhands.sdk.hooks.executor import AsyncProcessManager
 
@@ -432,7 +432,7 @@ class TestAsyncProcessManager:
         process.kill.assert_called_once_with()
 
     def test_cleanup_expired_keeps_active_processes(self, tmp_path):
-        """Test that cleanup_expired keeps processes within their timeout."""
+        """测试 cleanup_expired 是否将进程保留在其超时内。"""
         from openhands.sdk.hooks.executor import AsyncProcessManager
 
         manager = AsyncProcessManager()
@@ -447,22 +447,22 @@ class TestAsyncProcessManager:
             start_new_session=True,
         )
 
-        manager.add_process(process, timeout=60)  # Long timeout
+        manager.add_process(process, timeout=60)  # 长超时
 
         manager.cleanup_expired()
 
-        # Process should still be tracked and running
+        # 进程仍应被跟踪和运行
         assert len(manager._processes) == 1
         assert process.poll() is None
 
-        # Clean up for test teardown
+        # 清理测试拆卸
         process.terminate()
 
 
 class TestAgentHookExecution:
-    """Tests for HookType.AGENT execution path."""
+    """测试 HookType.AGENT 执行路径。"""
 
-    # Patch at the package/module level so lazy `from X import Y` picks up the mock.
+    # 包/模块级别的补丁因此懒惰的 `from X import Y` 选择了模拟对象。
     _AGENT_PATH = "openhands.sdk.agent.Agent"
     _CONV_PATH = "openhands.sdk.conversation.impl.local_conversation.LocalConversation"
     _RESPONSE_PATH = (
@@ -489,7 +489,7 @@ class TestAgentHookExecution:
         )
 
     def test_execute_dispatches_to_agent_hook(self, executor, sample_event):
-        """execute() routes AGENT type to _execute_agent_hook, not subprocess."""
+        """execute() 将 AGENT 类型路由到 _execute_agent_hook，而不是子进程。"""
         from openhands.sdk.hooks.executor import HookResult
 
         hook = HookDefinition(
@@ -511,7 +511,7 @@ class TestAgentHookExecution:
         assert result.should_continue
 
     def test_no_llm_defaults_to_allow(self, executor_no_llm, sample_event):
-        """Agent hook with no LLM configured defaults to allow without error."""
+        """智能体没有配置 LLM 的钩子默认允许，不会出现错误。"""
         hook = HookDefinition(
             type=HookType.AGENT,
             system_prompt="Check something",
@@ -523,7 +523,7 @@ class TestAgentHookExecution:
         assert not result.blocked
 
     def test_deny_decision_blocks(self, executor, sample_event):
-        """_execute_agent_hook parsing deny JSON produces a blocked HookResult."""
+        """_execute_agent_hook 解析拒绝 JSON 会产生阻止的 HookResult。"""
         deny_json = '{"decision": "deny", "reason": "Tasks not complete"}'
 
         with (
@@ -544,7 +544,7 @@ class TestAgentHookExecution:
         assert not result.should_continue
 
     def test_allow_decision_passes(self, executor, sample_event):
-        """_execute_agent_hook parsing allow JSON produces a non-blocking HookResult."""
+        """_execute_agent_hook 解析允许 JSON 产生非阻塞 HookResult。"""
         allow_json = '{"decision": "allow", "reason": "Looks safe"}'
 
         with (
@@ -569,7 +569,7 @@ class TestAgentHookExecution:
         ],
     )
     def test_invalid_decision_falls_open(self, executor, sample_event, payload):
-        """Missing/unknown decision is a fall-open, not a deliberate allow."""
+        """缺失/未知的决定是一种开放性的决定，而不是故意的允许。"""
         with (
             patch(self._AGENT_PATH),
             patch(self._CONV_PATH) as mock_conv_cls,
@@ -586,7 +586,7 @@ class TestAgentHookExecution:
         assert result.error is not None
 
     def test_markdown_wrapped_deny_is_parsed(self, executor, sample_event):
-        """```json fenced JSON is honoured, not treated as non-JSON."""
+        """```JSON fenced JSON 被尊重，而不是被当作非 JSON."""
         fenced = '```json\n{"decision": "deny", "reason": "Sensitive file read"}\n```'
 
         with (
@@ -603,7 +603,7 @@ class TestAgentHookExecution:
         assert result.reason == "Sensitive file read"
 
     def test_plain_fence_without_language_tag_is_parsed(self, executor, sample_event):
-        """Some LLMs use ``` without a language tag — still extract the JSON."""
+        """一些 LLMs 使用 ``` 而没有语言标签 — 仍然提取 JSON。"""
         fenced = '```\n{"decision": "allow", "reason": "ok"}\n```'
 
         with (
@@ -620,7 +620,7 @@ class TestAgentHookExecution:
         assert result.reason == "ok"
 
     def test_prose_prefix_before_json_is_parsed(self, executor, sample_event):
-        """Prose before the JSON object must not defeat the parser."""
+        """JSON 对象之前的散文不能击败解析器。"""
         prose_then_json = (
             "After reviewing the workspace I found REPORT.md is missing.\n\n"
             '{"decision": "deny", "reason": "missing deliverable"}'
@@ -640,7 +640,7 @@ class TestAgentHookExecution:
         assert result.reason == "missing deliverable"
 
     def test_prose_suffix_after_json_is_parsed(self, executor, sample_event):
-        """Trailing chatter after the JSON object must not defeat the parser."""
+        """JSON 对象之后的尾随喋喋不休不能击败解析器。"""
         json_then_prose = (
             '{"decision": "deny", "reason": "sensitive file"}\n\n'
             "Let me know if you need more details."
@@ -660,7 +660,7 @@ class TestAgentHookExecution:
         assert result.reason == "sensitive file"
 
     def test_invalid_json_defaults_to_allow(self, executor, sample_event):
-        """Non-JSON response falls open: ALLOW + success=False + error set."""
+        """非 JSON 响应打开：ALLOW + 成功=False + 错误集。"""
         with (
             patch(self._AGENT_PATH),
             patch(self._CONV_PATH) as mock_conv_cls,
@@ -677,7 +677,7 @@ class TestAgentHookExecution:
         assert result.error is not None
 
     def test_sub_conversation_failure_defaults_to_allow(self, executor, sample_event):
-        """_execute_agent_hook when sub-conversation raises defaults to allow."""
+        """_execute_agent_hook 当子对话引发时默认允许。"""
         with (
             patch(self._AGENT_PATH),
             patch(self._CONV_PATH, side_effect=RuntimeError("workspace error")),
@@ -690,7 +690,7 @@ class TestAgentHookExecution:
         assert result.error is not None
 
     def test_empty_response_defaults_to_allow(self, executor, sample_event):
-        """_execute_agent_hook when agent produces no response defaults to allow."""
+        """_execute_agent_hook 当智能体不产生响应时默认允许。"""
         with (
             patch(self._AGENT_PATH),
             patch(self._CONV_PATH) as mock_conv_cls,
@@ -705,7 +705,7 @@ class TestAgentHookExecution:
         assert result.success is False
 
     def test_timeout_propagated_to_hook_llm(self, executor, sample_event):
-        """hook.timeout is forwarded to the copied LLM, parent's timeout untouched."""
+        """hook.timeout 被转发到复制的 LLM，父级的超时保持不变。"""
         parent_timeout = executor.llm.timeout
         captured_llm = {}
 
@@ -749,7 +749,7 @@ class TestAgentHookExecution:
         assert mock_conv.call_args.kwargs["_parent_llm_call_context"] is context
 
     def test_hook_metrics_under_usage_id(self, executor, sample_event):
-        """Hook LLM uses per-hook usage_id and an isolated Metrics object."""
+        """Hook LLM 使用每个 hook usage_id 和一个独立的 Metrics 对象。"""
         parent_metrics = executor.llm.metrics
 
         captured_llm = {}
@@ -772,8 +772,8 @@ class TestAgentHookExecution:
         assert hook_llm.metrics is not parent_metrics
 
     def test_llm_getter_is_resolved_live(self, tmp_path, sample_event):
-        """An llm_getter is read at execution time, so agent hooks follow
-        switch_llm()/switch_profile() instead of using a stale captured LLM."""
+        """llm_getter 在执行时被读取，因此智能体钩子跟随
+        switch_llm()/switch_profile() 而不是使用捕获的过时的 LLM。"""
         current = {
             "llm": LLM(model="gpt-4o", api_key=SecretStr("k1"), usage_id="first")
         }
@@ -782,7 +782,7 @@ class TestAgentHookExecution:
             llm_getter=lambda: current["llm"],
         )
 
-        # Simulate switch_llm(): the conversation rebinds its agent's LLM.
+        # 模拟 switch_llm()：会话重新绑定其智能体的 LLM。
         current["llm"] = LLM(
             model="gpt-5.5", api_key=SecretStr("k2"), usage_id="second"
         )
@@ -803,13 +803,13 @@ class TestAgentHookExecution:
 
         hook_llm = captured_llm.get("llm")
         assert hook_llm is not None
-        # Copied from the *current* LLM (gpt-5.5), not the one present at init.
+        # 从 *current* LLM (gpt-5.5) 复制，而不是 init 中存在的那个。
         assert hook_llm.model == "gpt-5.5"
 
     def test_hook_metrics_are_merged_into_parent_stats(
         self, tmp_path, mock_llm, sample_event
     ):
-        """Child agent-hook spend is included in parent conversation stats."""
+        """子智能体-hook 支出包含在父对话统计数据中。"""
         parent_stats = ConversationStats()
         existing_hook_metrics = Metrics(model_name="gpt-4o")
         existing_hook_metrics.add_cost(0.25)
@@ -852,7 +852,7 @@ class TestAgentHookExecution:
         )
 
     def test_hook_usage_id_uses_hook_name(self, executor, sample_event):
-        """A named hook gets its own usage_id bucket: agent-hook:<name>."""
+        """命名钩子拥有自己的 usage_id 存储桶：智能体-钩子：<name>。"""
         captured_llm = {}
 
         def capture_agent_init(**kwargs):
@@ -871,10 +871,10 @@ class TestAgentHookExecution:
         assert hook_llm.usage_id == "agent-hook:security-check"
 
     def test_parent_visualizer_instance_is_not_rebound(self, tmp_path, mock_llm):
-        """The parent visualizer instance must never be handed to the hook conv.
+        """父可视化工具实例绝不能交给钩子转换。
 
-        LocalConversation.initialize() rebinds a visualizer instance to its own
-        state, so the executor must request a fresh sub-visualizer instead.
+        LocalConversation.initialize() 将可视化器实例重新绑定到其自己的状态，因此执行
+        器必须请求一个新的子可视化器。
         """
         from openhands.sdk.conversation.visualizer import ConversationVisualizerBase
 
@@ -917,7 +917,7 @@ class TestAgentHookExecution:
 
 
 class TestPromptHookExecution:
-    """Tests for the single-completion HookType.PROMPT execution path."""
+    """测试单完成 HookType.PROMPT 执行路径。"""
 
     @pytest.fixture
     def mock_llm(self):

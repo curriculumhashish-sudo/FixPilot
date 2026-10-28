@@ -1,4 +1,4 @@
-"""Idle-conversation eviction in ``ConversationService`` (OSS-1495)."""
+"""``ConversationService`` (OSS-1495) 中的空闲会话驱逐。"""
 
 import asyncio
 import time
@@ -24,14 +24,14 @@ def _make_request(workspace_dir) -> StartConversationRequest:
 
 
 class _DummySubscriber(Subscriber):
-    """Stand-in for an external (e.g. websocket) subscriber."""
+    """替代外部 (e.g. WebSocket)订户。"""
 
     async def __call__(self, event: Event) -> None:
         return None
 
 
 class _FakeBinding:
-    """Minimal VersionedCredentialBinding stub (only its identity is checked)."""
+    """最小 VersionedCredentialBinding 存根（仅检查其身份）。"""
 
     async def load(self) -> ResolvedCredential:
         return ResolvedCredential(value="v", version="1")
@@ -54,17 +54,16 @@ async def test_eviction_task_started_only_when_configured(tmp_path):
         assert service._eviction_task is not None
         assert not service._eviction_task.done()
 
-    # The task is cancelled and cleared on shutdown.
+    # 该任务在关闭时被取消并清除。
     assert service._eviction_task is None
 
 
 @pytest.mark.asyncio
 async def test_idle_conversation_is_evicted_and_rehydrated(tmp_path):
-    """An idle conversation is evicted from memory but re-hydrates on access.
+    """空闲的对话会从内存中清除，但在访问时会重新恢复。
 
-    This reproduces the reported leak: without eviction a finished
-    conversation stays fully loaded in ``_event_services`` until it is
-    explicitly deleted or the server restarts.
+    这重现了报告的泄露：在没有驱逐的情况下，一个完成的对话在``_event_services``中保持
+    完全加载，直到它被显式删除或服务器重启。
     """
     conversations_dir = tmp_path / "conversations"
     request = _make_request(tmp_path / "workspace")
@@ -80,16 +79,16 @@ async def test_idle_conversation_is_evicted_and_rehydrated(tmp_path):
         event_service = service._event_services[conversation_id]
         assert event_service.is_open()
 
-        # Simulate the conversation having gone idle well past the TTL.
+        # 模拟对话在 TTL 后闲置。
         event_service._last_active_monotonic = time.monotonic() - 10_000
         await service._evict_idle_conversations(1800)
 
-        # The runtime is gone from memory, but the catalog record survives.
+        # 运行时已从内存中消失，但目录记录仍然存在。
         assert conversation_id not in service._event_services
         assert conversation_id in service._conversation_records
         assert not event_service.is_open()
 
-        # Next access transparently re-hydrates a fresh runtime from disk.
+        # 下一次访问会透明地从磁盘重新补充新的运行时。
         rehydrated = await service.get_event_service(conversation_id)
         assert rehydrated is not None
         assert rehydrated is not event_service
@@ -108,7 +107,7 @@ async def test_recently_active_conversation_is_not_evicted(tmp_path):
         info, _ = await service.start_conversation(request)
         conversation_id = info.id
 
-        # Freshly started: idle time is ~0, so it stays resident.
+        # 刚开始：空闲时间约为 0，因此它保持驻留。
         await service._evict_idle_conversations(1800)
 
         assert service._event_services is not None
@@ -117,7 +116,7 @@ async def test_recently_active_conversation_is_not_evicted(tmp_path):
 
 @pytest.mark.asyncio
 async def test_access_defers_eviction(tmp_path):
-    """Accessing a live runtime refreshes its idle clock (touch)."""
+    """访问实时运行时会刷新其空闲时钟（触摸）。"""
     conversations_dir = tmp_path / "conversations"
     request = _make_request(tmp_path / "workspace")
 
@@ -130,12 +129,12 @@ async def test_access_defers_eviction(tmp_path):
         assert service._event_services is not None
         event_service = service._event_services[conversation_id]
 
-        # Age the conversation past the TTL, then access it.
+        # 将对话老化到TTL之后，然后访问它。
         event_service._last_active_monotonic = time.monotonic() - 10_000
         assert await service.get_event_service(conversation_id) is event_service
         assert event_service.idle_seconds() < 1800
 
-        # Because the access refreshed the clock, eviction leaves it in place.
+        # 由于访问刷新了时钟，驱逐将其留在原地。
         await service._evict_idle_conversations(1800)
         assert conversation_id in service._event_services
 
@@ -155,7 +154,7 @@ async def test_running_conversation_is_not_evicted(tmp_path):
         event_service = service._event_services[conversation_id]
 
         event_service._last_active_monotonic = time.monotonic() - 10_000
-        # Simulate an in-flight agent run.
+        # 模拟飞行中的智能体运行。
         run_task = asyncio.create_task(asyncio.sleep(3600))
         event_service._run_task = run_task
         try:
@@ -181,7 +180,7 @@ async def test_conversation_with_external_subscriber_is_not_evicted(tmp_path):
         assert service._event_services is not None
         event_service = service._event_services[conversation_id]
 
-        # A websocket-style external subscriber attaches after startup.
+        # WebSocket 样式的外部订阅者在启动后连接。
         assert not event_service.has_external_subscribers()
         subscriber_id = await event_service.subscribe_to_events(_DummySubscriber())
         assert event_service.has_external_subscribers()
@@ -191,7 +190,7 @@ async def test_conversation_with_external_subscriber_is_not_evicted(tmp_path):
         assert conversation_id in service._event_services
         assert event_service.is_open()
 
-        # Once the subscriber disconnects, the conversation becomes evictable.
+        # 一旦订阅者断开连接，对话就可以被驱逐。
         await event_service.unsubscribe_from_events(subscriber_id)
         assert not event_service.has_external_subscribers()
         await service._evict_idle_conversations(1800)
@@ -201,7 +200,7 @@ async def test_conversation_with_external_subscriber_is_not_evicted(tmp_path):
 
 @pytest.mark.asyncio
 async def test_eviction_preserves_credential_bindings(tmp_path):
-    """Runtime-only credential bindings survive eviction so rehydration keeps them."""
+    """仅运行时的凭据绑定不会被逐出，因此补水可以保留它们。"""
     conversations_dir = tmp_path / "conversations"
     request = _make_request(tmp_path / "workspace")
 
@@ -214,8 +213,9 @@ async def test_eviction_preserves_credential_bindings(tmp_path):
         assert service._event_services is not None
         event_service = service._event_services[conversation_id]
 
-        # A binding activated at runtime lives only on the EventService and is
-        # cleared by close(); it cannot be re-derived from disk.
+        # 在运行时激活的绑定仅存在于 EventService 上并被 close() 清除； 它不能从磁盘重新
+        # 派生。
+        #
         binding = _FakeBinding()
         event_service.credential_bindings = {"MY_SECRET": binding}
 
@@ -223,7 +223,7 @@ async def test_eviction_preserves_credential_bindings(tmp_path):
         await service._evict_idle_conversations(1800)
 
         assert conversation_id not in service._event_services
-        # The binding is handed back to the catalog for the next hydration.
+        # 装订被交回目录以进行下一次水合。
         assert (
             service._credential_bindings.get(conversation_id, {}).get("MY_SECRET")
             is binding
@@ -232,7 +232,7 @@ async def test_eviction_preserves_credential_bindings(tmp_path):
 
 @pytest.mark.asyncio
 async def test_eviction_preserves_reassigned_stored_metadata(tmp_path):
-    """A stored replaced at runtime (e.g. switch_acp_model) survives rehydration."""
+    """A 存储在运行时替换 (e.g. switch_acp_model) 经补水后仍可存活。"""
     conversations_dir = tmp_path / "conversations"
     request = _make_request(tmp_path / "workspace")
 
@@ -245,8 +245,9 @@ async def test_eviction_preserves_reassigned_stored_metadata(tmp_path):
         assert service._event_services is not None
         event_service = service._event_services[conversation_id]
 
-        # switch_acp_model / secret updates *replace* event_service.stored and
-        # persist it; the stale catalog object must not be used on rehydration.
+        # switch_acp_model / 机密更新 * 替换 * event_service.stored 和持久化； 过时的目
+        # 录对象不得用于再水化。
+        #
         event_service.stored = event_service.stored.model_copy(
             update={"title": "new-title"}
         )

@@ -23,11 +23,10 @@ if TYPE_CHECKING:
 
 
 class PreflightLLM(LLM):
-    """OpenRouter LLM that seeds a route-aware runtime limit on resolution.
+    """OpenRouter LLM 为解析设置路由感知运行时限制。
 
-    Mirrors what a real provider-aware resolution would publish so tests can
-    assert the agent establishes the route before the condenser sees the
-    context window (the regression for review re: wiring).
+    显示了一个真正的提供者感知的解决方法会发布的内容，这样测试可以断言智能体之前上下
+    文压缩器看到上下文窗口（审查中关于布线的回归）。
     """
 
     _route_limit: int = PrivateAttr(default=262144)
@@ -72,7 +71,7 @@ class RaisingLLM(LLM):
         super().__init__(model=model, usage_id="test-llm")
         self._force_responses = force_responses
 
-    def uses_responses_api(self) -> bool:  # override gating
+    def uses_responses_api(self) -> bool:  # 超越门控
         return self._force_responses
 
     def completion(self, *, messages, tools=None, **kwargs):  # type: ignore[override]
@@ -89,7 +88,7 @@ class MalformedHistoryRaisingLLM(LLM):
         super().__init__(model=model, usage_id="test-llm")
         self._force_responses = force_responses
 
-    def uses_responses_api(self) -> bool:  # override gating
+    def uses_responses_api(self) -> bool:  # 超越门控
         return self._force_responses
 
     def completion(self, *, messages, tools=None, **kwargs):  # type: ignore[override]
@@ -216,7 +215,7 @@ def test_agent_raises_malformed_history_error_when_no_condenser(
 def test_agent_logs_warning_when_no_condenser_on_ctx_exceeded(
     force_responses: bool, caplog
 ):
-    """Test that warning is logged when context window exceeded without condenser."""
+    """测试当超出上下文窗口而没有上下文压缩器时是否记录警告。"""
     llm = RaisingLLM(force_responses=force_responses)
     agent = Agent(llm=llm, tools=[], condenser=None)
     convo = Conversation(agent=agent)
@@ -240,7 +239,7 @@ def test_agent_logs_warning_when_no_condenser_on_ctx_exceeded(
 def test_agent_rebuilds_view_on_malformed_history_recovery(
     force_responses: bool,
 ):
-    """rebuild_view is called before CondensationRequest on malformed history."""
+    """对于格式错误的历史记录，rebuild_view 在 CondensationRequest 之前被调用。"""
     llm = MalformedHistoryRaisingLLM(force_responses=force_responses)
     agent = Agent(llm=llm, tools=[], condenser=HandlesRequestsCondenser())
     convo = Conversation(agent=agent)
@@ -263,7 +262,7 @@ def test_agent_rebuilds_view_on_malformed_history_recovery(
 async def test_agent_rebuilds_view_on_malformed_history_recovery_async(
     force_responses: bool,
 ):
-    """Async parity: astep calls rebuild_view before condensation retry."""
+    """异步奇偶校验：astep 在上下文压缩重试之前调用 rebuild_view。"""
     llm = MalformedHistoryRaisingLLM(force_responses=force_responses)
     agent = Agent(llm=llm, tools=[], condenser=HandlesRequestsCondenser())
     convo = Conversation(agent=agent)
@@ -282,7 +281,7 @@ async def test_agent_rebuilds_view_on_malformed_history_recovery_async(
 
 
 class NoHandlesRequestsCondenser(CondenserBase):
-    """A condenser that doesn't handle condensation requests."""
+    """不处理上下文压缩请求的上下文压缩器。"""
 
     def condense(
         self, view: View, agent_llm: "LLM | None" = None
@@ -297,7 +296,7 @@ class NoHandlesRequestsCondenser(CondenserBase):
 def test_agent_logs_warning_with_non_handling_condenser_on_ctx_exceeded(
     force_responses: bool, caplog
 ):
-    """Test that a helpful warning is logged when condenser doesn't handle requests."""
+    """测试当上下文压缩器不处理请求时是否记录有用的警告。"""
     llm = RaisingLLM(force_responses=force_responses)
     condenser = NoHandlesRequestsCondenser()
     agent = Agent(llm=llm, tools=[], condenser=condenser)
@@ -325,8 +324,8 @@ def test_agent_logs_warning_with_non_handling_condenser_on_ctx_exceeded(
 
 
 # ---------------------------------------------------------------------------
-# Route metadata must be established before the condenser's token decision.
-# See: https://github.com/OpenHands/software-agent-sdk/issues/4421
+# 路由元数据必须在上下文压缩器的 token 决策之前建立。
+# 请参阅： https://github.com/OpenHands/software-agent-sdk/issues/4421
 # ---------------------------------------------------------------------------
 
 
@@ -349,8 +348,9 @@ def test_step_resolves_runtime_metadata_before_condensation(monkeypatch):
 
     agent.step(convo, on_event=lambda e: None)
 
-    # Resolution must have run before prepare_llm_messages so the condenser /
-    # condensation logic sees the route-aware context window on the first step.
+    # 解析必须在 prepare_llm_messages 之前运行，以便上下文压缩器 / 上下文压缩逻辑在第一
+    # 步中看到路由感知上下文窗口。
+    #
     assert observed.get("resolved") is True
     assert observed.get("limit") == 262144
 

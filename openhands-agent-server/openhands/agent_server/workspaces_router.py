@@ -1,9 +1,8 @@
-"""HTTP endpoints for managing the user's saved workspaces.
+"""HTTP 端点用于管理用户已保存的工作区。
 
-Workspaces are local directories the GUI surfaces in its workspace picker.
-They are persisted on the agent-server (file-backed JSON) rather than in
-each browser's localStorage so that every client connected to the same
-agent-server sees the same list.
+工作区本地目录是 GUI 它表面工作区 picker. 他们已持久化在智能体-server (file-backed
+JSON而不是在每个浏览器中 localStorage
+ 以便所有连接到同一端点的客户端都能使用智能体服务器看到相同的列表。
 """
 
 from typing import Annotated
@@ -61,7 +60,7 @@ def _to_response(persisted: PersistedWorkspaces) -> WorkspacesListResponse:
     response_model_exclude_none=True,
 )
 async def list_workspaces(request: Request) -> WorkspacesListResponse:
-    """Return the saved workspaces and workspace parents."""
+    """返回保存的工作区和工作区父母。"""
     config = get_config(request)
     store = get_workspaces_store(config)
     try:
@@ -70,10 +69,10 @@ async def list_workspaces(request: Request) -> WorkspacesListResponse:
         logger.error("Workspaces list failed - file I/O error")
         raise HTTPException(status_code=500, detail="Failed to read workspaces")
     if persisted is None:
-        # ``load()`` collapses "file missing" and "file present but
-        # unreadable/corrupted/future-schema" into the same ``None``. Returning
-        # an empty list for the second case would hide the user's data and let
-        # a subsequent POST overwrite the still-on-disk file with defaults.
+        # ``load()`` 将“文件丢失”和“文件存在但不可读/损坏/未来-模式”折叠到相同的
+        # ``None`` 中。 对于第二种情况返回空列表将隐藏用户的数据，并让后续的 POST 使用默
+        # 认值覆盖仍在磁盘上的文件。
+        #
         if store._path.exists():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -91,14 +90,15 @@ async def list_workspaces(request: Request) -> WorkspacesListResponse:
 async def add_workspaces(
     request: Request, payload: AddWorkspacesRequest
 ) -> WorkspacesListResponse:
-    """Append workspaces to the saved list. Idempotent — dedupes by ``path``."""
+    """将工作区附加到已保存的列表。 幂等 — 按 ``path`` 进行重复数据删除。"""
     config = get_config(request)
     store = get_workspaces_store(config)
 
     def apply(current: PersistedWorkspaces) -> PersistedWorkspaces:
-        # Dedupe against the existing list AND within the incoming payload,
-        # otherwise a body like ``[{"path": "/a"}, {"path": "/a"}]`` would
-        # persist both entries despite the endpoint contract.
+        # 对传入载荷中的现有列表 AND 进行重复数据删除，否则像
+        # ``[{"path": "/a"}, {"path": "/a"}]`` 这样的主体将持久化两个条目，尽管有端点合
+        # 同。
+        #
         seen_paths = {w.path for w in current.workspaces}
         new_items: list[WorkspaceItem] = []
         for w in payload.workspaces:
@@ -132,7 +132,7 @@ async def delete_workspace(
     request: Request,
     path: Annotated[str, Query(description="Absolute workspace path to remove")],
 ) -> DeleteResponse:
-    """Remove a workspace by its absolute path."""
+    """通过绝对路径删除工作区。"""
     config = get_config(request)
     store = get_workspaces_store(config)
 
@@ -171,13 +171,14 @@ async def delete_workspace(
 async def add_workspace_parents(
     request: Request, payload: AddWorkspaceParentsRequest
 ) -> WorkspacesListResponse:
-    """Append workspace parents. Idempotent — dedupes by ``path``."""
+    """附上工作区父母。 幂等 — 按 ``path`` 进行重复数据删除。"""
     config = get_config(request)
     store = get_workspaces_store(config)
 
     def apply(current: PersistedWorkspaces) -> PersistedWorkspaces:
-        # Dedupe against the existing list AND within the incoming payload —
-        # see ``add_workspaces`` above for the same rationale.
+        # 针对传入载荷内的现有列表 AND 进行重复数据删除 — 请参阅上面的
+        # ``add_workspaces`` 以了解相同的原理。
+        #
         seen_paths = {p.path for p in current.workspace_parents}
         new_items: list[WorkspaceParentItem] = []
         for p in payload.parents:
@@ -213,7 +214,7 @@ async def delete_workspace_parent(
     request: Request,
     path: Annotated[str, Query(description="Absolute workspace parent path to remove")],
 ) -> DeleteResponse:
-    """Remove a workspace parent by its absolute path."""
+    """通过绝对路径删除工作区父级。"""
     config = get_config(request)
     store = get_workspaces_store(config)
 

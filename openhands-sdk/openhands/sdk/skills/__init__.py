@@ -1,45 +1,45 @@
-"""Skill management for OpenHands SDK.
+"""OpenHands SDK 的技能管理。
 
-This module provides the unified API for working with skills:
+该模块提供了统一的API来使用技能：
 
-**Core Skill Model & Loading:**
-- `Skill` - The skill data model
-- `SkillResources` - Resource directories for a skill (scripts/, references/, assets/)
-- `load_skills_from_dir` - Load skills from a directory
-- `load_project_skills` - Load skills from project's .agents/skills/
-- `load_user_skills` - Load skills from ~/.openhands/skills/
-- `load_public_skills` - Load skills from the public OpenHands extensions repo
-- `load_available_skills` - Load and merge skills from multiple sources
-- `merge_skills_by_name` - Merge two skill collections by name (primary wins)
+**核心技能模型及加载：**
+- `Skill` - 技能数据模型
+- `SkillResources` - 技能的资源目录（scripts/、references/、assets/）
+- `load_skills_from_dir` - 从目录加载技能
+- `load_project_skills` - 从项目的 .agents/skills/ 加载技能
+- `load_user_skills` - 从 ~/.openhands/skills/ 加载技能
+- `load_public_skills` - 从公共 OpenHands 扩展存储库加载技能
+- `load_available_skills` - 从多个来源加载和合并技能
+- `merge_skills_by_name` - 按名称合并两个技能集合（主要获胜）
 
-**Triggers:**
-- `BaseTrigger`, `KeywordTrigger`, `TaskTrigger`, `PathTrigger` - activation triggers
+**触发器：**
+- `BaseTrigger`、`KeywordTrigger`、`TaskTrigger`、`PathTrigger` - 激活触发器
 
-**Installed Skills Management:**
-- `install_skill` - Install a skill from a source
-- `uninstall_skill` - Uninstall a skill
-- `list_installed_skills` - List all installed skills
-- `load_installed_skills` - Load enabled installed skills
-- `enable_skill`, `disable_skill` - Toggle skill enabled state
-- `update_skill` - Update an installed skill
+**已安装的技能管理：**
+- `install_skill` - 从源安装技能
+- `uninstall_skill` - 卸载技能
+- `list_installed_skills` - 列出所有已安装的技能
+- `load_installed_skills` - 加载已启用的已安装技能
+- `enable_skill`、`disable_skill` - 切换技能启用状态
+- `update_skill` - 更新已安装的技能
 
-**Types:**
-- `SkillKnowledge` - Represents knowledge from a triggered skill
-- `InputMetadata` - Metadata for task skill inputs
+**类型：**
+- `SkillKnowledge` - 代表来自触发技能的知识
+- `InputMetadata` - 任务技能输入的元数据
 
-**Utilities:**
-- `discover_skill_resources` - Discover resource directories in a skill
-- `validate_skill_name` - Validate skill name per AgentSkills spec
-- `to_prompt` - Generate XML prompt block for available skills
+**公用事业：**
+- `discover_skill_resources` - 发现技能中的资源目录
+- `validate_skill_name` - 根据 AgentSkills 规范验证技能名称
+- `to_prompt` - 生成可用技能的 XML 提示词块
 """
 
-# Exceptions
+# 例外情况
 from openhands.sdk.skills.exceptions import SkillError, SkillValidationError
 
-# Fetch utilities
+# 获取实用程序
 from openhands.sdk.skills.fetch import SkillFetchError, fetch_skill_with_resolution
 
-# Installed skills management
+# 已安装技能管理
 from openhands.sdk.skills.installed import (
     InstalledSkillInfo,
     disable_skill,
@@ -55,7 +55,7 @@ from openhands.sdk.skills.installed import (
     update_skill,
 )
 
-# Core skill model and loading
+# 核心技能模型及加载
 from openhands.sdk.skills.skill import (
     Skill,
     SkillInfo,
@@ -69,7 +69,7 @@ from openhands.sdk.skills.skill import (
     to_prompt,
 )
 
-# Triggers
+# 触发器
 from openhands.sdk.skills.trigger import (
     BaseTrigger,
     KeywordTrigger,
@@ -77,7 +77,7 @@ from openhands.sdk.skills.trigger import (
     TaskTrigger,
 )
 
-# Types
+# 类型
 from openhands.sdk.skills.types import (
     InputMetadata,
     SkillContentResponse,
@@ -85,7 +85,7 @@ from openhands.sdk.skills.types import (
     SkillResponse,
 )
 
-# Utilities
+# 公用事业
 from openhands.sdk.skills.utils import (
     RESOURCE_DIRECTORIES,
     discover_skill_resources,
@@ -94,13 +94,13 @@ from openhands.sdk.skills.utils import (
 
 
 __all__ = [
-    # Exceptions
+    # 例外情况
     "SkillError",
     "SkillValidationError",
-    # Fetch
+    # 获取
     "SkillFetchError",
     "fetch_skill_with_resolution",
-    # Installed skills management
+    # 已安装技能管理
     "InstalledSkillInfo",
     "install_skill",
     "install_skills_from_marketplace",
@@ -113,7 +113,7 @@ __all__ = [
     "enable_skill",
     "disable_skill",
     "update_skill",
-    # Core skill model and loading
+    # 核心技能模型及加载
     "Skill",
     "SkillInfo",
     "SkillResources",
@@ -124,17 +124,17 @@ __all__ = [
     "load_available_skills",
     "merge_skills_by_name",
     "to_prompt",
-    # Triggers
+    # 触发器
     "BaseTrigger",
     "KeywordTrigger",
     "PathTrigger",
     "TaskTrigger",
-    # Types
+    # 类型
     "SkillKnowledge",
     "InputMetadata",
     "SkillResponse",
     "SkillContentResponse",
-    # Utilities
+    # 公用事业
     "discover_skill_resources",
     "RESOURCE_DIRECTORIES",
     "validate_skill_name",

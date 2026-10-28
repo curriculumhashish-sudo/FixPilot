@@ -1,4 +1,4 @@
-"""Tests for LLM timeout configuration."""
+"""测试 LLM 超时配置。"""
 
 import asyncio
 import json
@@ -19,19 +19,18 @@ from openhands.sdk.llm import LLM, Message, TextContent
 from openhands.sdk.llm.exceptions import LLMTimeoutError
 
 
-# Default timeout in seconds (5 minutes)
+# 默认超时，以秒为单位（5 分钟）
 DEFAULT_LLM_TIMEOUT_SECONDS = 300
 
 
 class TestLLMTimeoutDefaults:
-    """Tests for default LLM timeout behavior."""
+    """测试默认的 LLM 超时行为。"""
 
     def test_default_timeout_is_5_minutes(self):
-        """Test that the default LLM timeout is 300 seconds (5 minutes).
+        """测试默认 LLM 超时是否为 300 秒（5 分钟）。
 
-        This test ensures that LLM requests have a reasonable default timeout
-        to prevent indefinitely hanging requests that could cause runtime
-        idle detection to kill active runtimes.
+        该测试确保 LLM 请求具有合理的默认超时，以防止无限挂起请求，这些请求可能导致运
+        行时检测杀死活跃运行时。
 
         See: https://github.com/OpenHands/software-agent-sdk/issues/1633
         """
@@ -60,40 +59,40 @@ class TestLLMTimeoutDefaults:
         assert llm.stream_idle_timeout is None
 
     def test_timeout_can_be_overridden(self):
-        """Test that the timeout can be explicitly set to a custom value."""
-        custom_timeout = 600  # 10 minutes
+        """测试超时是否可以显式设置为自定义值。"""
+        custom_timeout = 600  # 10分钟
         llm = LLM(model="gpt-4o-mini", usage_id="test-llm", timeout=custom_timeout)
 
         assert llm.timeout == custom_timeout
 
     def test_timeout_can_be_set_to_none_for_no_timeout(self):
-        """Test that timeout can be explicitly set to None to disable timeout.
+        """测试超时是否可以显式设置为 None 以禁用超时。
 
-        Users who need very long LLM calls (e.g., extended reasoning with high
-        thinking budgets) can explicitly disable the timeout by setting it to None.
+        需要很长的 LLM 调用（e.g.，具有高思维预算的扩展推理）的用户可以通过将超时设置
+        为 None 来显式禁用它。
         """
         llm = LLM(model="gpt-4o-mini", usage_id="test-llm", timeout=None)
 
-        # When explicitly set to None, it should remain None
+        # 当明确设置为 None 时，应保留 None
         assert llm.timeout is None
 
     def test_timeout_validation_rejects_negative_values(self):
-        """Test that negative timeout values are rejected."""
-        with pytest.raises(Exception):  # ValidationError from pydantic
+        """测试负超时值是否被拒绝。"""
+        with pytest.raises(Exception):  # ValidationError 来自 Pydantic
             LLM(model="gpt-4o-mini", usage_id="test-llm", timeout=-1)
 
     def test_timeout_accepts_zero(self):
-        """Test that zero timeout is valid (immediate timeout)."""
+        """测试零超时是否有效（立即数超时）。"""
         llm = LLM(model="gpt-4o-mini", usage_id="test-llm", timeout=0)
         assert llm.timeout == 0
 
 
 class TestLLMTimeoutPassthrough:
-    """Tests that timeout is correctly passed to litellm."""
+    """测试超时是否正确传递到 LiteLLM。"""
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_default_timeout_passed_to_litellm(self, mock_completion):
-        """Test that the default timeout is passed to litellm completion calls."""
+        """测试默认的超时是否传递给 LiteLLM 完成调用。"""
         from litellm.types.utils import (
             Choices,
             Message as LiteLLMMessage,
@@ -101,7 +100,7 @@ class TestLLMTimeoutPassthrough:
             Usage,
         )
 
-        # Create a proper mock response
+        # 创建正确的模拟对象响应
         mock_response = ModelResponse(
             id="test-id",
             choices=[
@@ -127,7 +126,7 @@ class TestLLMTimeoutPassthrough:
         messages = [Message(role="user", content=[TextContent(text="Hello")])]
         llm.completion(messages=messages)
 
-        # Verify that timeout was passed to litellm
+        # 验证超时已传递给 LiteLLM
         mock_completion.assert_called_once()
         call_kwargs = mock_completion.call_args[1]
 
@@ -139,7 +138,7 @@ class TestLLMTimeoutPassthrough:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_custom_timeout_passed_to_litellm(self, mock_completion):
-        """Test that a custom timeout is passed to litellm completion calls."""
+        """测试是否将自定义超时传递给 LiteLLM 完成调用。"""
         from litellm.types.utils import (
             Choices,
             Message as LiteLLMMessage,
@@ -181,7 +180,7 @@ class TestLLMTimeoutPassthrough:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_none_timeout_passed_to_litellm(self, mock_completion):
-        """Test that None timeout is passed to litellm (no timeout)."""
+        """测试 None 超时是否传递到 LiteLLM（没有超时）。"""
         from litellm.types.utils import (
             Choices,
             Message as LiteLLMMessage,
@@ -209,7 +208,7 @@ class TestLLMTimeoutPassthrough:
             model="gpt-4o-mini",
             api_key=SecretStr("test_key"),
             usage_id="test-llm",
-            timeout=None,  # Explicitly set to None
+            timeout=None,  # 明确设置为 None
         )
 
         messages = [Message(role="user", content=[TextContent(text="Hello")])]
@@ -277,10 +276,11 @@ def _streaming_llm(base_url: str, **kwargs) -> LLM:
 @pytest.mark.asyncio
 async def test_async_stream_idle_timeout_retries_real_http_stream() -> None:
     async with _hung_chat_completion_server() as (base_url, attempts):
-        # The hard timeout needs real headroom: the idle-trigger path takes a
-        # couple of seconds here (two attempts to first chunk), so a tight
-        # `timeout` would let the outer hard timeout win under CPU contention
-        # and the error would read "hard timeout" instead of "idle timeout".
+        # 硬超时需要真正的余量：空闲触发路径在这里需要几秒钟（两次尝试第一个块），所以一
+        # 个紧张的
+        # `timeout` 将使外部硬超时在 CPU 争用下获胜，并且错误将显示为“硬超时”而不是“空闲
+        # 超时”。
+        #
         llm = _streaming_llm(
             base_url,
             timeout=30,
@@ -298,7 +298,7 @@ async def test_async_stream_idle_timeout_retries_real_http_stream() -> None:
 
 
 class _TransportTimeoutStream:
-    """Async iterator whose first chunk raises a transport-level TimeoutError."""
+    """异步迭代器，其第一个块引发传输层级 TimeoutError。"""
 
     def __init__(self, message: str = "transport read timed out") -> None:
         self.message = message
@@ -312,7 +312,7 @@ class _TransportTimeoutStream:
 
 @pytest.mark.asyncio
 async def test_idle_timeout_disabled_preserves_transport_timeout() -> None:
-    """With `stream_idle_timeout=None` a real TimeoutError must pass through."""
+    """对于 `stream_idle_timeout=None`，真实的 TimeoutError 必须通过。"""
     llm = LLM(
         model="gpt-4o-mini",
         usage_id="test-llm",
@@ -329,7 +329,7 @@ async def test_idle_timeout_disabled_preserves_transport_timeout() -> None:
 
 @pytest.mark.asyncio
 async def test_transport_timeout_is_not_relabelled_as_idle_timeout() -> None:
-    """An enabled idle timer must not claim a transport TimeoutError."""
+    """启用的空闲定时器不得声明传输层 TimeoutError。"""
     llm = LLM(
         model="gpt-4o-mini",
         usage_id="test-llm",
@@ -347,7 +347,7 @@ async def test_transport_timeout_is_not_relabelled_as_idle_timeout() -> None:
 
 @pytest.mark.asyncio
 async def test_idle_timeout_still_fires_for_stalled_stream() -> None:
-    """The idle timer itself still raises the idle-timeout error."""
+    """空闲计时器本身仍然会引发空闲超时错误。"""
     llm = LLM(
         model="gpt-4o-mini",
         usage_id="test-llm",
@@ -366,7 +366,7 @@ async def test_idle_timeout_still_fires_for_stalled_stream() -> None:
 
 @pytest.mark.asyncio
 async def test_hard_timeout_keeps_attribution_over_idle_timeout() -> None:
-    """An outer hard timeout must not be reported as an idle timeout."""
+    """外部硬超时不得报告为空闲超时。"""
     llm = LLM(
         model="gpt-4o-mini",
         usage_id="test-llm",
@@ -392,7 +392,7 @@ async def test_hard_timeout_keeps_attribution_over_idle_timeout() -> None:
 async def test_transport_timeout_survives_both_timeout_layers(
     idle_timeout: float | None,
 ) -> None:
-    """A transport TimeoutError reaches the caller unchanged, with either setting."""
+    """无论设置如何，传输层 TimeoutError 都会以不变的方式到达调用者。"""
     llm = LLM(
         model="gpt-4o-mini",
         usage_id="test-llm",

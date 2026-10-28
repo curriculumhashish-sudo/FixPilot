@@ -1,11 +1,11 @@
-"""End-to-end validation of the three scenarios the feature must demonstrate.
+"""该功能必须演示的三个场景的端到端验证。
 
-1. An opted-in local session produces sanitized lifecycle and error events.
-2. An opted-out session produces none.
-3. An exporter that always fails leaves conversation execution unaffected.
+1. 选择加入的本地会话会产生经过净化的生命周期和错误事件。
+2. 选择退出的会话会生成 None。
+3. 总是失败的导出器不会影响对话的执行。
 
-These drive the real sink and subscriber wiring rather than mocks, and assert
-on the *serialized payloads* — the bytes that would actually leave the process.
+它们驱动真正的接收器和订阅者接线，而不是模拟对象，并在 *已序列化载荷* 上断言 - 实际离
+开进程的字节。
 """
 
 import asyncio
@@ -31,7 +31,7 @@ from openhands.agent_server.telemetry.subscriber import (
 from openhands.sdk.event import AgentErrorEvent, ConversationStateUpdateEvent
 
 
-# Values that must never appear in any emitted payload.
+# 任何发出的载荷中必须不存在的值。
 PROMPT = "Refactor the billing module in /Users/alice/acme/billing.py"
 SECRET = "sk-ant-api03-DO-NOT-LEAK-THIS"
 WORKSPACE_PATH = "/Users/alice/acme"
@@ -93,10 +93,10 @@ def build_subscriber(sink, user_id: str | None = "canvas-user-7"):
 
 
 async def run_session(subscriber: TelemetrySubscriber) -> None:
-    """Simulate a conversation that does some work, errors, then finishes."""
+    """模拟进行一些工作、出错、然后结束的对话。"""
     subscriber.emit_started()
-    # subscribe_to_events pushes the current state on attach; for a new
-    # conversation that baseline is non-terminal.
+    # subscribe_to_events 在附加时推送当前状态； 对于新的对话，基线是非终端的。
+    #
     await subscriber(ConversationStateUpdateEvent(key="execution_status", value="idle"))
     await subscriber(
         AgentErrorEvent(
@@ -111,7 +111,7 @@ async def run_session(subscriber: TelemetrySubscriber) -> None:
     await subscriber.close()
 
 
-# ── 1. opted in ───────────────────────────────────────────────────────────
+# ── 1. 选择了────────────────────────────────────────────────────────────
 
 
 async def test_opted_in_session_emits_sanitized_lifecycle_and_error_events():
@@ -137,18 +137,18 @@ async def test_opted_in_session_emits_sanitized_lifecycle_and_error_events():
 
     serialized = json.dumps(exporter.payloads)
 
-    # Nothing sensitive survived.
+    # 没有任何敏感的东西幸存下来。
     for forbidden in FORBIDDEN:
         assert forbidden not in serialized, f"leaked {forbidden!r}"
 
-    # The raw conversation id is never shipped.
+    # 原始对话 ID 永远不会被发送。
     assert str(conversation_id) not in serialized
     assert conversation_id.hex not in serialized
 
-    # Correlation identity is the host's, verbatim.
+    # 相关标识是主机的逐字标识。
     assert all(p["distinct_id"] == "canvas-user-7" for p in exporter.payloads)
 
-    # Only allowlisted properties, and every event carries the schema version.
+    # 仅允许列入许可名单的属性，并且每个事件都带有模式版本。
     for payload in exporter.payloads:
         assert set(payload["properties"]) <= set(m.EXPECTED_PROPERTY_NAMES)
         assert payload["properties"]["schema_version"] == m.TELEMETRY_SCHEMA_VERSION
@@ -156,7 +156,7 @@ async def test_opted_in_session_emits_sanitized_lifecycle_and_error_events():
 
 
 async def test_opted_in_session_reports_useful_diagnostics():
-    """Sanitization must not render the events useless."""
+    """清理工作不得使活动变得毫无用处。"""
     exporter = CapturingExporter()
     sink = BufferedTelemetrySink(
         exporter,
@@ -187,13 +187,13 @@ async def test_opted_in_session_reports_useful_diagnostics():
 
     finished = by_name[m.EventName.CONVERSATION_FINISHED]
     assert finished["terminal_status"] == "finished"
-    # Bucketed, not exact.
+    # 桶装的，不准确。
     assert "-" in finished["duration_bucket"] or finished["duration_bucket"].startswith(
         ("lt-", "unknown")
     )
 
 
-# ── 2. opted out ──────────────────────────────────────────────────────────
+# ── 2. 选择退出──────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("consent", ["denied", "unset"])
@@ -224,7 +224,7 @@ async def test_revocation_mid_session_stops_delivery_and_drops_the_backlog():
         decision=TelemetryDecision(
             consent=TelemetryConsent.GRANTED, enabled=True, reason="settings"
         ),
-        flush_delay=3600,  # nothing flushes on its own
+        flush_delay=3600,  # 没有任何东西会自行冲洗
         shutdown_flush_timeout=1.0,
     )
     sink.start()
@@ -249,11 +249,11 @@ async def test_revocation_mid_session_stops_delivery_and_drops_the_backlog():
     assert exporter.payloads == [], "events survived a revocation"
 
 
-# ── 3. exporter failure ───────────────────────────────────────────────────
+# ── 3. 出口商失败────────────────────────────────────────────────────
 
 
 async def test_exporter_failure_leaves_conversation_execution_unaffected():
-    """A broken analytics backend must be invisible to the conversation."""
+    """损坏的分析后端必须对对话不可见。"""
     exporter = AlwaysFailingExporter()
     sink = BufferedTelemetrySink(
         exporter,
@@ -269,7 +269,7 @@ async def test_exporter_failure_leaves_conversation_execution_unaffected():
 
     _, subscriber = build_subscriber(sink)
 
-    # The session runs to completion despite every send raising.
+    # 尽管每次发送都会增加，但会话仍会运行完成。
     await asyncio.wait_for(run_session(subscriber), timeout=5)
     await asyncio.sleep(0.3)
 
@@ -277,7 +277,7 @@ async def test_exporter_failure_leaves_conversation_execution_unaffected():
     assert sink._drain_task is not None
     assert not sink._drain_task.done(), "drain task died"
 
-    # Even aclose(), whose exporter.aclose() also raises, must not propagate.
+    # 即使 aclose()（其 exporter.aclose() 也引发）也不得传播。
     await asyncio.wait_for(sink.aclose(), timeout=10)
 
 
@@ -300,6 +300,6 @@ async def test_a_hanging_exporter_does_not_delay_the_conversation():
     sink.start()
     _, subscriber = build_subscriber(sink)
 
-    # If emission were synchronous with delivery, this would hang for an hour.
+    # 如果交付时排放量为同步，则会挂起一个小时。
     await asyncio.wait_for(run_session(subscriber), timeout=2)
     await asyncio.wait_for(sink.aclose(), timeout=10)

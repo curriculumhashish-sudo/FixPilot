@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Utils used by the integration workflow (integration-runner.yml) to consolidate
-integration test results from multiple JSON files into a markdown report.
-This script processes test result JSON files and generates a consolidated markdown
-report suitable for GitHub PR comments.
+集成工作流程 (integration-runner.yml) 使用的实用程序将多个 JSON 文件的集成测试结果合
+并到 Markdown 报告中。 此脚本处理测试结果
+JSON 文件并生成适合 GitHub PR 注释的综合 Markdown 报告。
 """
 
 import glob
@@ -17,16 +16,16 @@ from tests.integration.utils.format_costs import format_cost
 
 
 def find_result_files(results_dir="all_results"):
-    """Find all result JSON files using simple glob patterns."""
+    """使用简单的 glob 模式查找所有结果 JSON 文件。"""
     patterns = [f"{results_dir}/*_results.json", f"{results_dir}/*.json"]
     files = []
     for pattern in patterns:
         files.extend(glob.glob(pattern))
-    return list(set(files))  # Remove duplicates
+    return list(set(files))  # 删除重复项
 
 
 def extract_success_rate(test_report):
-    """Extract success rate from test report."""
+    """从测试报告中提取成功率。"""
     if not test_report or test_report == "No report available":
         return "N/A"
     match = re.search(r"Success rate: (\d+\.\d+%)", test_report)
@@ -34,7 +33,7 @@ def extract_success_rate(test_report):
 
 
 def process_result_file(filepath):
-    """Process a single result file and return extracted data."""
+    """处理单个结果文件并返回提取的数据。"""
     try:
         with open(filepath) as f:
             data = json.load(f)
@@ -53,10 +52,10 @@ def process_result_file(filepath):
 
 
 def generate_report(results, trigger_text, commit_sha):
-    """Generate the consolidated markdown report."""
+    """生成综合 Markdown 报告。"""
     timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
-    # Calculate total cost
+    # 计算总成本
     total_cost = sum(result.get("total_cost", 0.0) for result in results)
 
     report = f"""# Integration Tests Report
@@ -97,34 +96,34 @@ def generate_report(results, trigger_text, commit_sha):
 
 
 def determine_trigger_info(event_name, pr_number, manual_reason):
-    """Determine trigger text and final PR number based on event type."""
+    """根据事件类型确定触发文本和最终 PR 数字。"""
     if event_name == "pull_request":
         trigger_text = f"Pull Request (integration-test label on PR #{pr_number})"
         final_pr_number = pr_number
     elif event_name == "workflow_dispatch":
         trigger_text = f"Manual Trigger: {manual_reason}"
-        final_pr_number = "9745"  # fallback issue number
+        final_pr_number = "9745"  # 回退方案期号
     else:
         trigger_text = "Nightly Scheduled Run"
-        final_pr_number = "9745"  # fallback issue number
+        final_pr_number = "9745"  # 回退方案期号
 
     return trigger_text, final_pr_number
 
 
 def main():
-    """Main function to consolidate test results."""
-    # Get environment variables
+    """主要功能是合并测试结果。"""
+    # 获取环境变量
     event_name = os.environ.get("EVENT_NAME", "")
     pr_number = os.environ.get("PR_NUMBER", "")
     manual_reason = os.environ.get("MANUAL_REASON", "")
     commit_sha = os.environ.get("COMMIT_SHA", "")
 
-    # Determine trigger text and PR number
+    # 确定触发文本和PR数字
     trigger_text, final_pr_number = determine_trigger_info(
         event_name, pr_number, manual_reason
     )
 
-    # Find and process result files
+    # 查找并处理结果文件
     result_files = find_result_files()
     print(f"Found {len(result_files)} result files")
 
@@ -134,14 +133,14 @@ def main():
         if result:
             results.append(result)
 
-    # Generate report
+    # 生成报告
     report = generate_report(results, trigger_text, commit_sha)
 
-    # Save report to file
+    # 将报告保存到文件
     with open("consolidated_report.md", "w") as f:
         f.write(report)
 
-    # Set environment variables for next step
+    # 设置环境变量进行下一步
     github_env = os.environ.get("GITHUB_ENV")
     if github_env:
         with open(github_env, "a") as f:

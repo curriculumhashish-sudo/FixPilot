@@ -1,8 +1,8 @@
-"""Every agent-settings field has exactly one owner in the launch pipeline.
+"""每个智能体-设置字段在启动管道中只有一个所有者。
 
-An unclassified field fails here, before it can reach one launch path and not
-another: a field added to the settings but not to the profile is caught the day
-it lands.
+未分类的字段在到达一条发射路径之前在此失败，而不是
+another: 当天捕获了添加到设置但未添加到配置文件的字段
+它着陆了。
 """
 
 from __future__ import annotations
@@ -34,12 +34,12 @@ from tests.sdk.launch import fakes
 
 @dataclass(frozen=True)
 class Profile:
-    """Copied from the profile field of the same name."""
+    """从同名的配置文件字段复制。"""
 
 
 @dataclass(frozen=True)
 class Reference:
-    """Resolved from the named profile field(s)."""
+    """从命名的配置文件 field(s) 解析。"""
 
     ref: str
     also: tuple[str, ...] = ()
@@ -51,26 +51,26 @@ class Reference:
 
 @dataclass(frozen=True)
 class Fixed:
-    """Set to ``value`` by resolve for every profile."""
+    """通过解析每个配置文件设置为 ``value``。"""
 
     value: Any
 
 
 @dataclass(frozen=True)
 class Stores:
-    """Copied from the launching server's stores, never from the profile."""
+    """从启动服务器的存储中复制，而不是从配置文件中复制。"""
 
     field: str
 
 
 @dataclass(frozen=True)
 class Launch:
-    """Set by finalize, or later by the running conversation."""
+    """由最终确定或稍后由正在运行的对话设置。"""
 
 
 @dataclass(frozen=True)
 class NotOnProfile:
-    """Settings-only: a profile launch gets the default. Must say why."""
+    """仅设置：配置文件启动获取默认值。 一定要说为什么。"""
 
     reason: str
 

@@ -1,13 +1,13 @@
-"""Custom Visualizer Example
+"""自定义展示台示例
 
-This example demonstrates how to create and use a custom visualizer by subclassing
-ConversationVisualizer. This approach provides:
-- Clean, testable code with class-based state management
-- Direct configuration (just pass the visualizer instance to visualizer parameter)
-- Reusable visualizer that can be shared across conversations
+此示例演示如何通过子类化 ConversationVisualizer 创建和使用自定义可视化工具。 这种方法
+提供：
+- 具有基于类的状态管理的干净、可测试的代码
+- 直接配置（只需将可视化器实例传递给可视化器参数）
+- 可在对话中共享的可重复使用的可视化工具
 
-This demonstrates how you can pass a ConversationVisualizer instance directly
-to the visualizer parameter for clean, reusable visualization logic.
+这演示了如何将 ConversationVisualizer 实例直接传递给可视化器参数，以获得干净、可重用
+的可视化逻辑。
 """
 
 import logging
@@ -24,10 +24,10 @@ from openhands.tools.preset.default import get_default_agent
 
 
 class MinimalVisualizer(ConversationVisualizerBase):
-    """A minimal visualizer that print the raw events as they occur."""
+    """一个最小的可视化工具，可以在原始事件发生时打印它们。"""
 
     def on_event(self, event: Event) -> None:
-        """Handle events for minimal progress visualization."""
+        """处理事件以实现最小进度可视化。"""
         print(f"\n\n[EVENT] {type(event).__name__}: {event.model_dump_json()[:200]}...")
 
 
@@ -44,12 +44,12 @@ llm = LLM(
 agent = get_default_agent(llm=llm, cli_mode=True)
 
 # ============================================================================
-# Configure Visualization
+# 配置可视化
 # ============================================================================
-# Set logging level to reduce verbosity
+# 设置日志记录级别以减少冗长
 logging.getLogger().setLevel(logging.WARNING)
 
-# Start a conversation with custom visualizer
+# 与自定义可视化工具开始对话
 cwd = os.getcwd()
 conversation = Conversation(
     agent=agent,
@@ -57,12 +57,12 @@ conversation = Conversation(
     visualizer=MinimalVisualizer(),
 )
 
-# Send a message and let the agent run
+# 发送消息并让智能体运行
 print("Sending task to agent...")
 conversation.send_message("Write 3 facts about the current project into FACTS.txt.")
 conversation.run()
 print("Task completed!")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost:.4f}")

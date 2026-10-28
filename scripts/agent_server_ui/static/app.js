@@ -1,6 +1,6 @@
 class OpenHandsWebChat {
     constructor() {
-        // In Docker setup, API calls go through nginx proxy
+        // 在Docker设置中，API调用通过nginx代理
         this.apiBaseUrl = window.location.origin + '/api';
         this.wsBaseUrl = window.location.protocol === 'https:' 
             ? `wss://${window.location.host}`
@@ -15,12 +15,12 @@ class OpenHandsWebChat {
         this.attachEventListeners();
         this.loadConversations();
         
-        // Auto-resize textarea
+        // 自动调整文本区域大小
         this.setupTextareaAutoResize();
     }
 
     initializeElements() {
-        // Main elements
+        // 主要内容
         this.conversationsContainer = document.getElementById('conversations-container');
         this.chatMessages = document.getElementById('chat-messages');
         this.messageInput = document.getElementById('message-input');
@@ -28,14 +28,14 @@ class OpenHandsWebChat {
         this.connectionStatus = document.getElementById('connection-status');
         this.typingIndicator = document.getElementById('typing-indicator');
         
-        // Header elements
+        // 标题元素
         this.conversationTitle = document.getElementById('current-conversation-title');
         this.conversationStatus = document.getElementById('conversation-status');
         this.pauseBtn = document.getElementById('pause-btn');
         this.resumeBtn = document.getElementById('resume-btn');
         this.deleteBtn = document.getElementById('delete-conversation-btn');
         
-        // Modal elements
+        // 情态元素
         this.newConversationModal = document.getElementById('new-conversation-modal');
         this.newConversationForm = document.getElementById('new-conversation-form');
         this.initialMessageInput = document.getElementById('initial-message');
@@ -44,12 +44,12 @@ class OpenHandsWebChat {
         this.resetJsonBtn = document.getElementById('reset-json-btn');
         this.showJsonHelpBtn = document.getElementById('show-json-help');
         
-        // Loading overlay
+        // 加载叠加层
         this.loadingOverlay = document.getElementById('loading-overlay');
     }
 
     attachEventListeners() {
-        // Sidebar buttons
+        // 侧边栏按钮
         document.getElementById('new-conversation-btn').addEventListener('click', () => {
             this.showNewConversationModal();
         });
@@ -58,12 +58,12 @@ class OpenHandsWebChat {
             this.loadConversations();
         });
 
-        // Chat controls
+        // 聊天控件
         this.pauseBtn.addEventListener('click', () => this.pauseConversation());
         this.resumeBtn.addEventListener('click', () => this.resumeConversation());
         this.deleteBtn.addEventListener('click', () => this.deleteConversation());
 
-        // Message input
+        // 留言输入
         this.messageInput.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') {
                 e.preventDefault();
@@ -73,7 +73,7 @@ class OpenHandsWebChat {
         
         this.sendBtn.addEventListener('click', () => this.sendMessage());
 
-        // Modal events
+        // 模态事件
         document.getElementById('create-conversation').addEventListener('click', () => {
             this.createNewConversation();
         });
@@ -86,14 +86,14 @@ class OpenHandsWebChat {
             this.hideNewConversationModal();
         });
         
-        // Close modal on outside click
+        // 外部点击时关闭模式
         this.newConversationModal.addEventListener('click', (e) => {
             if (e.target === this.newConversationModal) {
                 this.hideNewConversationModal();
             }
         });
 
-        // JSON parameters controls
+        // JSON 参数控制
         this.resetJsonBtn.addEventListener('click', () => {
             this.resetJsonParameters();
         });
@@ -103,7 +103,7 @@ class OpenHandsWebChat {
             this.showJsonExample();
         });
 
-        // JSON validation on input
+        // JSON 验证输入
         this.jsonParametersInput.addEventListener('input', () => {
             this.validateJsonParameters();
         });
@@ -230,7 +230,7 @@ class OpenHandsWebChat {
         
         this.currentConversationId = conversationId;
         
-        // Update UI
+        // 更新用户界面
         document.querySelectorAll('.conversation-item').forEach(item => {
             item.classList.remove('active');
         });
@@ -247,7 +247,7 @@ class OpenHandsWebChat {
             this.enableChatControls();
         }
         
-        // Load conversation events and connect WebSocket
+        // 加载对话事件并连接 WebSocket
         await this.loadConversationEvents(conversationId);
         this.connectWebSocket(conversationId);
     }
@@ -312,7 +312,7 @@ class OpenHandsWebChat {
             this.displayEvent(data.event);
             this.scrollToBottom();
             
-            // Update agent running status based on event type
+            // 根据事件类型更新智能体运行状态
             if (data.event.kind === 'agent_start') {
                 this.isAgentRunning = true;
                 this.showTypingIndicator();
@@ -391,7 +391,7 @@ class OpenHandsWebChat {
     }
 
     formatMessageContent(content) {
-        // Basic HTML escaping and formatting
+        // 基本 HTML 转义和格式化
         return content
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -449,7 +449,7 @@ class OpenHandsWebChat {
         this.conversationStatus.textContent = status;
         this.conversationStatus.className = `status-badge ${status.toLowerCase()}`;
         
-        // Update conversation in sidebar
+        // 更新侧边栏中的对话
         if (this.currentConversationId) {
             const conversationItem = document.querySelector(`[data-conversation-id="${this.currentConversationId}"]`);
             if (conversationItem) {
@@ -529,7 +529,7 @@ class OpenHandsWebChat {
                 method: 'DELETE'
             });
             
-            // Remove from UI
+            // 从用户界面中删除
             const conversationItem = document.querySelector(`[data-conversation-id="${this.currentConversationId}"]`);
             if (conversationItem) {
                 conversationItem.remove();
@@ -537,7 +537,7 @@ class OpenHandsWebChat {
             
             this.conversations.delete(this.currentConversationId);
             
-            // Reset UI
+            // 重置用户界面
             this.currentConversationId = null;
             this.chatMessages.innerHTML = `
                 <div class="welcome-message">
@@ -564,7 +564,7 @@ class OpenHandsWebChat {
         }
     }
 
-    // Local storage functions for dialog settings
+    // 对话框设置的本地存储功能
     saveDialogSettings() {
         const settings = {
             initialMessage: this.initialMessageInput.value,
@@ -582,20 +582,20 @@ class OpenHandsWebChat {
                 this.jsonParametersInput.value = settings.jsonParameters || '';
                 this.validateJsonParameters();
             } else {
-                // If no saved settings, use the first example from START_CONVERSATION_EXAMPLES
+                // 如果没有保存的设置，请使用 START_CONVERSATION_EXAMPLES 中的第一个示例
                 this.jsonParametersInput.value = this.getDefaultJsonParameters();
                 this.validateJsonParameters();
             }
         } catch (error) {
             console.warn('Failed to load dialog settings from localStorage:', error);
-            // Fallback to default if localStorage fails
+            // 如果 localStorage 失败，则回退方案默认
             this.jsonParametersInput.value = this.getDefaultJsonParameters();
             this.validateJsonParameters();
         }
     }
 
     getDefaultJsonParameters() {
-        // Based on the first example from START_CONVERSATION_EXAMPLES (without initial_message)
+        // 基于 START_CONVERSATION_EXAMPLES 中的第一个示例（不含 initial_message）
         return JSON.stringify({
             agent: {
                 llm: {
@@ -628,7 +628,7 @@ class OpenHandsWebChat {
             this.jsonParametersInput.value = example;
             this.validateJsonParameters();
         } else {
-            // Show example in a simple alert for now
+            // 现在在简单的警报中显示示例
             alert('Example JSON Parameters:\n\n' + example);
         }
     }
@@ -636,12 +636,12 @@ class OpenHandsWebChat {
     validateJsonParameters() {
         const jsonText = this.jsonParametersInput.value.trim();
         
-        // Clear previous error
+        // 清除之前的错误
         this.jsonValidationError.style.display = 'none';
         this.jsonParametersInput.style.borderColor = '';
         
         if (!jsonText) {
-            return true; // Empty is valid (will use defaults)
+            return true; // 空有效（将使用默认值）
         }
         
         try {
@@ -667,7 +667,7 @@ class OpenHandsWebChat {
     }
 
     async createNewConversation() {
-        // Validate JSON parameters first
+        // 首先验证 JSON 参数
         if (!this.validateJsonParameters()) {
             return;
         }
@@ -681,7 +681,7 @@ class OpenHandsWebChat {
             let requestBody;
             
             if (jsonParameters) {
-                // Use custom JSON parameters
+                // 使用自定义 JSON 参数
                 try {
                     requestBody = JSON.parse(jsonParameters);
                 } catch (error) {
@@ -689,11 +689,11 @@ class OpenHandsWebChat {
                     return;
                 }
             } else {
-                // Use default parameters based on START_CONVERSATION_EXAMPLES
+                // 使用基于START_CONVERSATION_EXAMPLES的默认参数
                 requestBody = JSON.parse(this.getDefaultJsonParameters());
             }
             
-            // Always build initial_message from UI input if provided
+            // 始终从 UI 输入构建 initial_message（如果提供）
             if (initialMessage) {
                 requestBody.initial_message = {
                     role: "user",
@@ -707,12 +707,12 @@ class OpenHandsWebChat {
                 body: JSON.stringify(requestBody)
             });
             
-            // Save settings to localStorage
+            // 将设置保存到 localStorage
             this.saveDialogSettings();
             
             this.hideNewConversationModal();
             
-            // Reload conversations and select the new one
+            // 重新加载对话并选择新对话
             await this.loadConversations();
             
             if (response.conversation_id) {
@@ -728,7 +728,7 @@ class OpenHandsWebChat {
     }
 
     showError(message) {
-        // Simple error display - in a real app you might want a more sophisticated notification system
+        // 简单的错误显示 - 在真实的应用程序中，您可能需要更复杂的通知系统
         const errorDiv = document.createElement('div');
         errorDiv.style.cssText = `
             position: fixed;
@@ -759,7 +759,7 @@ class OpenHandsWebChat {
     }
 }
 
-// Initialize the application when the DOM is loaded
+// 加载DOM时初始化应用程序
 document.addEventListener('DOMContentLoaded', () => {
     new OpenHandsWebChat();
 });

@@ -1,1 +1,1 @@
-"""LLM tests for agent-sdk."""
+"""LLM 测试智能体-SDK。"""

@@ -63,7 +63,7 @@ _MSGS = [Message(role="user", content=[TextContent(text="hi")])]
 
 
 def _patch_resolve(primary: LLM, fallback_instances: list[LLM]):
-    """Pre-populate the resolved fallback cache, bypassing LLMProfileStore."""
+    """填充已解决的回退方案缓存，绕过LLMProfileStore。"""
     assert primary.fallback_strategy is not None
     primary.fallback_strategy._resolved = fallback_instances
 
@@ -81,7 +81,7 @@ def test_primary_succeeds_fallback_not_tried(mock_comp):
     content = resp.message.content[0]
     assert isinstance(content, TextContent)
     assert content.text == "primary ok"
-    # Only one call – no fallback attempted
+    # 仅一次呼叫 – 未尝试回退方案
     assert mock_comp.call_count == 1
 
 
@@ -121,8 +121,8 @@ def test_all_fallbacks_fail_raises_primary_error(mock_comp):
     primary = _get_llm("gpt-4o", fallback_strategy=strategy)
     _patch_resolve(primary, [fb1, fb2])
 
-    # APIConnectionError is mapped to
-    # LLMServiceUnavailableError by map_provider_exception
+    # APIConnectionError 被 LLMServiceUnavailableError 映射到 map_provider_exception
+    #
     with pytest.raises(LLMServiceUnavailableError):
         _ = primary.completion(_MSGS)
 
@@ -135,11 +135,11 @@ def test_all_fallbacks_fail_raises_primary_error(mock_comp):
 async def test_quota_exhaustion_fails_over_without_retries(
     mock_comp, mock_acomp, use_async, quota_code
 ):
-    """A hard quota error must fail over immediately, not retry the primary.
+    """硬配额错误必须立即故障转移，而不是重试主故障转移。
 
-    ``usage_limit_reached`` is deterministic (won't recover until the limit
-    resets/raises), so the retry loop should skip retries and hand control to
-    the FallbackStrategy on the first attempt.
+    ``usage_limit_reached`` 是确定的（直到限值重置或提高才会恢复），因此重试循环应该
+    在第一次尝试时跳过重试并将控制权交给
+    FallbackStrategy。
     """
     primary_error = RateLimitError(
         message=(
@@ -160,7 +160,7 @@ async def test_quota_exhaustion_fails_over_without_retries(
 
     fb = _get_llm("fallback-model")
     strategy = FallbackStrategy(fallback_llms=["fallback-profile"])
-    # num_retries > 0 proves the quota error is not retried before fallback.
+    # num_retries > 0 证明配额错误在回退方案之前没有重试。
     primary = LLM(
         model="gpt-5.6-sol",
         api_key=SecretStr("k"),
@@ -176,7 +176,7 @@ async def test_quota_exhaustion_fails_over_without_retries(
     content = resp.message.content[0]
     assert isinstance(content, TextContent)
     assert content.text == "fallback ok"
-    # Primary was attempted exactly once (no retries), then the fallback.
+    # 主要尝试了一次（没有重试），然后是回退方案。
     assert mock_comp.call_count + mock_acomp.await_count == 2
     assert mock_comp.call_args.kwargs["model"] == "fallback-model"
     if use_async:
@@ -190,7 +190,7 @@ async def test_quota_exhaustion_fails_over_without_retries(
 async def test_transient_quota_rate_limit_still_retries(
     mock_comp, mock_acomp, use_async
 ):
-    """A transient provider quota is still retried before any fallback."""
+    """暂时提供程序配额仍会在任何回退方案之前重试。"""
     transient = RateLimitError(
         message=(
             "Quota exceeded for quota metric Generate Content API requests per minute"
@@ -221,7 +221,7 @@ async def test_transient_quota_rate_limit_still_retries(
         else:
             primary.completion(_MSGS)
     # num_retries=2 → 2 primary attempts, then 1 fallback attempt (which also
-    # fails). This proves the transient 429 was retried before fallback.
+    # 失败）。 这证明瞬态429在回退方案之前被重试过。
     assert mock_comp.call_count + mock_acomp.await_count == 3
     assert mock_comp.call_args.kwargs["model"] == "fallback-model"
     if use_async:
@@ -290,8 +290,8 @@ async def test_budget_denial_stops_retries_and_fallbacks(
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_non_transient_error_skips_fallback(mock_comp):
-    """A plain Exception is NOT in LLM_FALLBACK_EXCEPTIONS, so fallback
-    should be skipped."""
+    """一个普通的异常是 LLM_FALLBACK_EXCEPTIONS 中的不，所以回退方案
+    应该被跳过。"""
     mock_comp.side_effect = Exception("bad request")
 
     fb = _get_llm("fb")
@@ -302,7 +302,7 @@ def test_non_transient_error_skips_fallback(mock_comp):
     with pytest.raises(Exception, match="bad request"):
         _ = primary.completion(_MSGS)
 
-    # Only the primary call – fallback never attempted
+    # 仅主要呼叫 – 回退方案从未尝试过
     assert mock_comp.call_count == 1
 
 
@@ -312,9 +312,9 @@ def test_no_fallbacks_configured_normal_error(mock_comp):
         message="down", llm_provider="openai", model="gpt-4o"
     )
 
-    primary = _get_llm("gpt-4o")  # no fallback_strategy
-    # APIConnectionError is mapped to
-    # LLMServiceUnavailableError by map_provider_exception
+    primary = _get_llm("gpt-4o")  # 没有 fallback_strategy
+    # APIConnectionError 被 LLMServiceUnavailableError 映射到 map_provider_exception
+    #
     with pytest.raises(LLMServiceUnavailableError):
         _ = primary.completion(_MSGS)
 
@@ -344,12 +344,13 @@ def test_metrics_merged_from_fallback(mock_comp):
     content = resp.message.content[0]
     assert isinstance(content, TextContent)
     assert content.text == "ok"
-    # The fallback's telemetry adds cost/tokens; verify they got merged
-    # into the primary's metrics (accumulated_cost should be >= what it was).
+    # 回退方案的遥测增加了成本/代币； 验证它们已合并到主节点的指标中（accumulated_cost
+    # 应该 >= 原来的值）。
+    #
     assert primary.metrics.accumulated_cost >= cost_before
 
-    # Individual token_usage records carry the fallback model name,
-    # so callers can distinguish which LLM produced the usage.
+    # 各个 token_usage 记录带有回退方案模型名称，因此调用者可以区分哪个 LLM 产生了用法。
+    #
     new_usages = primary.metrics.token_usages[token_usages_before:]
     assert len(new_usages) >= 1
     assert any(u.model == "fb" for u in new_usages), (
@@ -359,7 +360,7 @@ def test_metrics_merged_from_fallback(mock_comp):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_second_fallback_succeeds(mock_comp):
-    # Second fallback succeeds after first fallback fails
+    # 第一个回退方案失败后第二个回退方案成功
     call_count = {"n": 0}
 
     def side_effect(**kwargs):
@@ -387,14 +388,14 @@ def test_second_fallback_succeeds(mock_comp):
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_fallback_succeeds(mock_resp):
-    """Ensure fallback works through the responses() code path too."""
+    """确保回退方案也可以通过 responses() 代码路径工作。"""
     from litellm.types.llms.openai import ResponsesAPIResponse
 
     primary_error = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
 
-    # Build a minimal ResponsesAPIResponse for the fallback
+    # 为回退方案构建最小 ResponsesAPIResponse
     fallback_response = ResponsesAPIResponse(
         id="resp-fb",
         created_at=1,
@@ -451,7 +452,7 @@ def test_responses_non_transient_skips_fallback(mock_resp):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_fallback_profiles_resolved_via_store(mock_comp, tmp_path):
-    """Verify that fallback profile names are resolved through LLMProfileStore."""
+    """回退方案配置名称应通过 LLMProfileStore 进行验证。"""
     from openhands.sdk.llm.llm_profile_store import LLMProfileStore
 
     primary_error = APIConnectionError(
@@ -465,7 +466,7 @@ def test_fallback_profiles_resolved_via_store(mock_comp, tmp_path):
 
     mock_comp.side_effect = side_effect
 
-    # Save a fallback profile to a temp store
+    # 将回退方案配置文件保存到临时存储区
     store = LLMProfileStore(base_dir=tmp_path)
     fb_llm = _get_llm("claude-sonnet-4-20250514")
     store.save("my-fallback", fb_llm, include_secrets=True)
@@ -482,7 +483,7 @@ def test_fallback_profiles_resolved_via_store(mock_comp, tmp_path):
 
 
 # =========================================================================
-# Async error-handling parity tests (acompletion / aresponses)
+# 异步错误处理奇偶校验测试（完成/响应）
 # =========================================================================
 
 
@@ -490,13 +491,13 @@ def test_fallback_profiles_resolved_via_store(mock_comp, tmp_path):
 @patch("openhands.sdk.llm.llm.litellm_completion")
 @patch("openhands.sdk.llm.llm.litellm_acompletion", new_callable=AsyncMock)
 async def test_acompletion_fallback_on_transport_error(mock_acomp, mock_comp):
-    """acompletion must invoke fallback when the primary transport raises."""
+    """当主传输层引发时，完成必须调用回退方案。"""
     primary_error = APIConnectionError(
         message="connection reset", llm_provider="openai", model="gpt-4o"
     )
     mock_acomp.side_effect = primary_error
 
-    # Fallback uses sync completion path
+    # 回退方案使用同步完成路径
     mock_comp.return_value = _get_mock_response("fallback ok", model="fallback-model")
 
     fb = _get_llm("fallback-model")
@@ -513,7 +514,7 @@ async def test_acompletion_fallback_on_transport_error(mock_acomp, mock_comp):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_acompletion", new_callable=AsyncMock)
 async def test_acompletion_maps_context_window_error(mock_acomp):
-    """acompletion must map ContextWindowExceededError to SDK type."""
+    """补全必须将 ContextWindowExceededError 映射到 SDK 类型。"""
     mock_acomp.side_effect = ContextWindowExceededError(
         message="context window exceeded",
         llm_provider="openai",
@@ -527,7 +528,7 @@ async def test_acompletion_maps_context_window_error(mock_acomp):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_acompletion", new_callable=AsyncMock)
 async def test_acompletion_maps_connection_error(mock_acomp):
-    """acompletion must map APIConnectionError to LLMServiceUnavailableError."""
+    """APIConnectionError 必须映射到 LLMServiceUnavailableError。"""
     mock_acomp.side_effect = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
@@ -540,7 +541,7 @@ async def test_acompletion_maps_connection_error(mock_acomp):
 @patch("openhands.sdk.llm.llm.litellm_responses")
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_fallback_on_transport_error(mock_aresp, mock_resp):
-    """aresponses must invoke fallback when the primary transport raises."""
+    """当主要传输层提高时，响应必须调用回退方案。"""
 
     primary_error = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
@@ -583,7 +584,7 @@ async def test_aresponses_fallback_on_transport_error(mock_aresp, mock_resp):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_maps_context_window_error(mock_aresp):
-    """aresponses must map ContextWindowExceededError to SDK type."""
+    """响应必须将 ContextWindowExceededError 映射到 SDK 类型。"""
     mock_aresp.side_effect = ContextWindowExceededError(
         message="context window exceeded",
         llm_provider="openai",
@@ -597,7 +598,7 @@ async def test_aresponses_maps_context_window_error(mock_aresp):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_maps_connection_error(mock_aresp):
-    """aresponses must map APIConnectionError to LLMServiceUnavailableError."""
+    """aresponses必须映射APIConnectionError到LLMServiceUnavailableError。"""
     mock_aresp.side_effect = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
@@ -608,11 +609,11 @@ async def test_aresponses_maps_connection_error(mock_aresp):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_fallback_forwards_caller_kwargs(mock_comp):
-    """Caller kwargs (e.g. ``metadata``) must reach the fallback LLM call.
+    """调用者 kwargs (e.g. ``metadata``) 必须到达回退方案 LLM 调用。
 
-    Regression guard for the ``_caller_kwargs`` forwarding added alongside
-    the prompt-cache-too-small retry: the fallback path now receives the
-    same kwargs the caller passed to the primary's ``completion()``.
+    回归  ``_caller_kwargs`` 同时添加了转发提示词-cache-too-small 重试：the 回退方案
+    现在，路径接收与调用者传递给主调用者相同的
+     kwargs ``completion()``.
     """
     primary_error = APIConnectionError(
         message="connection reset", llm_provider="openai", model="gpt-4o"
@@ -635,14 +636,14 @@ def test_fallback_forwards_caller_kwargs(mock_comp):
     assert isinstance(content, TextContent)
     assert content.text == "fallback ok"
 
-    # Primary call (failed) + fallback call (succeeded).
+    # 主调用（失败）+ 回退方案调用（成功）。
     assert mock_comp.call_count == 2
     fallback_call_kwargs = mock_comp.call_args_list[1].kwargs
     assert fallback_call_kwargs.get("metadata") == {"trace": "fallback-kwargs"}
 
 
 # =========================================================================
-# call_context propagation through fallback paths (#3443)
+# call_context 通过回退方案路径传播 (#3443)
 # =========================================================================
 
 _CTX = LLMCallContext(prompt_cache_key="cache-abc", session_id="sess-xyz")
@@ -650,7 +651,7 @@ _CTX = LLMCallContext(prompt_cache_key="cache-abc", session_id="sess-xyz")
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_completion_fallback_receives_call_context(mock_comp):
-    """call_context must reach the fallback LLM's completion call."""
+    """call_context 必须到达回退方案 LLM 的完成调用。"""
     primary_error = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
@@ -662,7 +663,7 @@ def test_completion_fallback_receives_call_context(mock_comp):
 
     mock_comp.side_effect = side_effect
 
-    # OpenAI fallback so prompt_cache_key is supported and forwarded.
+    # OpenAI 回退方案因此 prompt_cache_key 得到支持并转发。
     fb = _get_llm("gpt-4o-mini")
     strategy = FallbackStrategy(fallback_llms=["fb-profile"])
     primary = _get_llm("gpt-4o", fallback_strategy=strategy)
@@ -671,7 +672,7 @@ def test_completion_fallback_receives_call_context(mock_comp):
     resp = primary.completion(_MSGS, call_context=_CTX)
     assert resp.message.content[0].text == "fb ok"  # type: ignore[union-attr]
 
-    # The fallback call (second call) must carry the context values
+    # 回退方案调用（第二次调用）必须携带上下文值
     fb_call_kwargs = mock_comp.call_args_list[-1].kwargs
     assert fb_call_kwargs.get("prompt_cache_key") == "cache-abc"
     assert fb_call_kwargs["extra_headers"]["x-litellm-session-id"] == "sess-xyz"
@@ -679,7 +680,7 @@ def test_completion_fallback_receives_call_context(mock_comp):
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_fallback_receives_call_context(mock_resp):
-    """call_context must reach the fallback LLM's responses call."""
+    """call_context 必须到达回退方案 LLM 的响应呼叫。"""
     primary_error = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
@@ -711,7 +712,7 @@ def test_responses_fallback_receives_call_context(mock_resp):
 
     mock_resp.side_effect = side_effect
 
-    # OpenAI fallback so prompt_cache_key is supported and forwarded.
+    # OpenAI 回退方案因此 prompt_cache_key 得到支持并转发。
     fb = _get_llm("gpt-4o-mini")
     strategy = FallbackStrategy(fallback_llms=["fb-profile"])
     primary = _get_llm("gpt-4o", fallback_strategy=strategy)
@@ -729,13 +730,13 @@ def test_responses_fallback_receives_call_context(mock_resp):
 @patch("openhands.sdk.llm.llm.litellm_completion")
 @patch("openhands.sdk.llm.llm.litellm_acompletion", new_callable=AsyncMock)
 async def test_acompletion_fallback_receives_call_context(mock_acomp, mock_comp):
-    """call_context must reach the fallback through acompletion."""
+    """call_context 必须通过完成到达回退方案。"""
     mock_acomp.side_effect = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
     mock_comp.return_value = _get_mock_response("fb ok", model="gpt-4o-mini")
 
-    # OpenAI fallback so prompt_cache_key is supported and forwarded.
+    # OpenAI 回退方案因此 prompt_cache_key 得到支持并转发。
     fb = _get_llm("gpt-4o-mini")
     strategy = FallbackStrategy(fallback_llms=["fb-profile"])
     primary = _get_llm("gpt-4o", fallback_strategy=strategy)
@@ -753,7 +754,7 @@ async def test_acompletion_fallback_receives_call_context(mock_acomp, mock_comp)
 @patch("openhands.sdk.llm.llm.litellm_responses")
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_fallback_receives_call_context(mock_aresp, mock_resp):
-    """call_context must reach the fallback through aresponses."""
+    """call_context 必须通过响应到达回退方案。"""
     mock_aresp.side_effect = APIConnectionError(
         message="down", llm_provider="openai", model="gpt-4o"
     )
@@ -779,7 +780,7 @@ async def test_aresponses_fallback_receives_call_context(mock_aresp, mock_resp):
     )
     mock_resp.return_value = fallback_response
 
-    # OpenAI fallback so prompt_cache_key is supported and forwarded.
+    # OpenAI 回退方案因此 prompt_cache_key 得到支持并转发。
     fb = _get_llm("gpt-4o-mini")
     strategy = FallbackStrategy(fallback_llms=["fb-profile"])
     primary = _get_llm("gpt-4o", fallback_strategy=strategy)

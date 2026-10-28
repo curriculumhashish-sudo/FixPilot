@@ -1,28 +1,34 @@
-# greeting-helper
+<a id="greeting-helper"></a>
 
-A local skill that helps generate creative greetings for different occasions.
+# 问候助手
 
-## Description
+一种本地技能，有助于为不同场合生成创意问候语。
 
-This skill provides guidance on creating thoughtful, creative greetings for various occasions
-like birthdays, holidays, work events, and casual encounters. It is an example of a locally
-hosted skill in a mixed marketplace.
+<a id="description"></a>
 
-## Usage
+## 描述
 
-Use this skill when you need to:
-- Create personalized birthday messages
-- Write holiday greetings
-- Craft professional congratulations
-- Generate casual, friendly hellos
+该技能提供关于为各种场合如生日、节日、工作事件和随意的会面等创建有思想、有创意的问候的指导。 这是混合市场中本地托管技能的示例。
 
-## Examples
+<a id="usage"></a>
 
-**Birthday greeting:**
-"Happy Birthday! May this year bring you endless joy and all the things that make you smile."
+## 用途
 
-**Holiday greeting:**
-"Wishing you warmth and happiness this holiday season, and a new year filled with possibilities."
+当您需要执行以下操作时，请使用此技能：
+- 创建个性化的生日留言
+- 写下节日祝福
+- 工艺专业祝贺
+- 发出随意、友好的问候
 
-**Professional congratulations:**
-"Congratulations on your achievement! Your dedication and hard work have truly paid off."
+<a id="examples"></a>
+
+## 示例
+
+**生日祝福：**
+“生日快乐！ 愿今年给你带来无尽的欢乐和所有让你微笑的事情。”
+
+**节日祝福：**
+“祝您这个假期温暖幸福，新年充满无限可能。”
+
+**职业祝贺：**
+“祝贺你取得的成就！ 你们的奉献和努力确实得到了回报。”

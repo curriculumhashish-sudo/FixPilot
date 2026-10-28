@@ -1,8 +1,8 @@
-"""Compatibility shim for model resolution now owned by OpenHands/evaluation.
+"""用于模型分辨率的兼容性垫片现在归 OpenHands/evaluation 所有。
 
-The model registry was moved to OpenHands/evaluation. This file exists only so
-base-branch `pull_request_target` workflows that still import this path can run
-against PR branches while the workflow migration is in flight.
+模型注册表已移至 OpenHands/评估。 该文件仅存在以便在迁移工作流的同时，仍然导入此路径
+的基分支 `pull_request_target` 工作流程可以运行在 P
+R 分支上。
 """
 
 from __future__ import annotations

@@ -1,11 +1,14 @@
-# html-craft - how to build the page
+<a id="html-craft---how-to-build-the-page"></a>
 
-Shared craft for every show-me dimension. One self-contained, offline, editorial HTML
-page with hand-drawn SVG figures and code-grounded claims.
+# HTML-craft - 如何构建页面
 
-## The look (editorial document, light theme)
+每个展示维度的共享工艺。 一个独立的、离线的社论 HTML 页面，包含手绘 SVG 图形和基于代码的声明。
 
-Calm, readable, document-like - not a dark dashboard. Skeleton:
+<a id="the-look-editorial-document-light-theme"></a>
+
+## 外观（编辑文档，浅色主题）
+
+平静、可读、像文档一样——而不是黑暗的仪表板。 骨架：
 
 ```html
 <!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -69,76 +72,63 @@ Calm, readable, document-like - not a dark dashboard. Skeleton:
 </div></body></html>
 ```
 
-Numbered sticky TOC + one-paragraph mental model up top + sectioned body. No JS needed
+编号粘性 TOC + 顶部的一段心理模型 + 正文部分。 不需要JS
 for this shell.
 
-## First screen: 15-second orientation
+<a id="first-screen-15-second-orientation"></a>
 
-The reader's attention is the budget. The first viewport should answer four questions
-without requiring a full read:
+## 第一个屏幕：15 秒定向
 
-1. **What is this?** A one-paragraph mental model in the title subtitle.
-2. **Why does it matter?** The highest-impact conclusion, risk, or action in a `★`
-   callout near the top.
-3. **Where should I jump?** A numbered sticky TOC whose labels carry information, not
-   just categories.
-4. **Why should I trust it?** Nearby source links (`path:line`, test, command, commit,
-   or fixture) for the first substantive claim.
+读者的注意力是预算。 第一个视口应回答四个问题，无需完整阅读：
 
-Do not open with "I read these files" or a chronological work log. Start with the
-reader's decision: what changed, how the system works, what path matters, or where to
-look next. Put methods, command output, and raw diffs behind `<details>` unless they
-are the point of the report.
+1. **这是什么？**标题副标题中的一段心理模型。
+2. ** 为什么它很重要？** 顶部附近的 `★` 标注中影响最大的结论、风险或行动。
+3. **我应该跳到哪里？**一个编号的便利贴TOC，其标签包含信息，而不仅仅是类别。
+4. **为什么我应该信任它？**第一个实质性声明的附近源链接（`path:line`、测试、命令、提交或测试夹具）。
 
-## Skimmable structure
+不要以“我读了这些文件”或按时间顺序排列的工作日志打开。 从读者的决定开始：发生了什么变化，系统如何工作，什么路径重要，或者下一步看哪里。 将方法、命令输出和原始差异放在 `<details>` 后面，除非它们是报告的重点。
 
-Design the page so a busy reader can scan headings, captions, callouts, and tables
-before choosing where to dive:
+<a id="skimmable-structure"></a>
 
-- **Headings make claims.** Prefer "Writes only cross the queue" over "Architecture",
-  when the section has a specific finding. Generic labels are acceptable only when the
-  title/subtitle already carries the finding.
-- **One paragraph, one judgment.** Keep paragraphs short; split when a sentence starts
-  proving a different point.
-- **Number parallel points.** If you say "three rules" or "two risks", number them so
-  the reader can reconcile the claim with the list.
-- **Use tables only for stable comparison axes.** A table should reduce cognitive
-  work, not force subtle judgments into neat boxes.
-- **Make captions do work.** A caption states the takeaway of the figure, not merely
-  its type.
+## 可略读结构
 
-## Callouts (give them semantic types)
+设计页面，以便忙碌的读者可以在选择深入之前浏览标题、说明文字、标注和表格：
 
-The `.callout` / `.callout.warn` / `.callout.note` styles aren't interchangeable - assign
-each a fixed job and the reader learns to skim by them:
+- **标题提出主张。**当该部分有特定发现时，优先选择“仅跨队列写入”而不是“架构”。 仅当标题/副标题已包含发现结果时，通用标签才可接受。
+- **一段，一个判断。**保持段落简短； 当一个句子开始证明不同的观点时就分裂。
+- **平行点数。**如果你说“三个规则”或“两个风险”，请给它们编号，以便读者可以将声明与列表进行核对。
+- **仅对稳定的比较轴使用表格。**表格应该减少认知工作，而不是将微妙的判断强加在整齐的盒子里。
+- **使字幕发挥作用。**标题说明了该图的要点，而不仅仅是其类型。
 
-- **`★` key takeaway** (accent) - the one load-bearing sentence of a section. At most one per
-  section; it's what the reader should remember if they read nothing else.
-- **`ⓘ` note** (`.note`, muted) - a reading hint for a figure, an aside, a "why we did it this
-  way" that isn't on the critical path.
-- **`⚠` warning** (`.warn`) - a boundary, a risk, a gotcha, a guardrail: trust boundaries,
-  "this does NOT do X", "never commit the secret". Reserve it for things that bite.
+<a id="callouts-give-them-semantic-types"></a>
 
-Don't let callouts become wallpaper - if every paragraph is a colored box, none of them carry
-weight. A glyph prefix (`★ ⓘ ⚠`) makes the type legible before the reader parses the text.
+## 标注（给它们语义类型）
 
-## Hand-drawn SVG figures (the diagrams that carry the argument)
+`.callout` / `.callout.warn` / `.callout.note` 样式不可互换 - 为每个样式分配一个固定的工作，读者学会浏览它们：
 
-Draw bespoke inline `<svg viewBox="0 0 W H">` with a `<defs>` for arrow markers and a
-scoped `<style>`. You place every box → before/after stays aligned, legible, and the
-delta is unmistakable. Semantic class system:
+- **`★` 关键要点**（重音） - 一节中唯一的承载句子。 每节最多一个； 这是读者在不读其他内容的情况下应该记住的内容。
+- **`ⓘ` note**（`.note`，静音） - 一个数字的阅读提示，旁白，“为什么我们这样做”，不在关键路径上。
+- **`⚠`警告**（`.warn`）-边界，风险，陷阱，约束检查：信任边界，“这确实不做X”，“永远不要提交机密”。 为会咬人的东西保留它。
+
+不要让标注成为壁纸 - 如果每个段落都是一个彩色框，那么其中 None 就具有分量。 字形前缀 (`★ ⓘ ⚠`) 使类型在读者解析文本之前清晰可辨。
+
+<a id="hand-drawn-svg-figures-the-diagrams-that-carry-the-argument"></a>
+
+## 手绘SVG图（带有论点的图）
+
+绘制定制的内联 `<svg viewBox="0 0 W H">`，其中 `<defs>` 用于箭头标记和范围 `<style>`。 您将每个框→之前/之后保持对齐、清晰，并且增量是明确无误的。 语义类别系统：
 
 ```html
 <svg viewBox="0 0 960 460" role="img" aria-labelledby="f1-t f1-d">
  <title id="f1-t">moduleA call path - before vs after</title>
  <desc id="f1-d">Old direct call is replaced by a routed path through the new resolver.</desc>
  <defs>
-  <!-- one marker per semantic color; marker fills read the page palette -->
+  <!-- 每种语义颜色一个标记； 标记填充读取页面调色板-->
   <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
     <path d="M0,0 L10,5 L0,10 Z" fill="var(--subtle)"/></marker>
   <marker id="arr-chg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
     <path d="M0,0 L10,5 L0,10 Z" fill="var(--warn)"/></marker>
-  <!-- subtle "elevated" wash for the box that is the figure's subject -->
+  <!-- 对人物主题的盒子进行微妙的“升高”清洗-->
   <linearGradient id="subj" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="var(--accent)" stop-opacity=".10"/>
     <stop offset="1" stop-color="var(--accent)" stop-opacity=".02"/></linearGradient>
@@ -153,173 +143,140 @@ delta is unmistakable. Semantic class system:
     .lbl{font:600 10.5px var(--mono);fill:var(--accent)} .gap{font:700 11.5px var(--mono);fill:var(--warn)}
   </style>
  </defs>
- <!-- ===== BEFORE: direct call ===== -->
+ <!-- =====之前：直接调用===== -->
  <g>
   <rect class="existing" x="40" y="60" width="180" height="74" rx="6"/>
   <text class="ex-title"  x="130" y="90"  text-anchor="middle">moduleA.fn()</text>
   <text class="ex-detail" x="130" y="110" text-anchor="middle">old behavior · a.py:42</text>
  </g>
- <!-- ===== AFTER: routed call (the change) ===== -->
+ <!-- ===== 之后：路由呼叫（更改）===== -->
  <g>
   <rect class="new" x="300" y="60" width="180" height="74" rx="6"/>
   <text class="new-title" x="390" y="90" text-anchor="middle">moduleA.fn()</text>
   <path class="edge-chg" d="M220,97 L300,97" marker-end="url(#arr-chg)"/>
-  <!-- pill behind an on-edge label so it stays legible over the line -->
+  <!-- 药丸位于边缘标签后面，因此在线上仍清晰可见-->
   <rect x="236" y="79" width="48" height="16" rx="5" fill="var(--elevated)" stroke="var(--rule)"/>
   <text class="gap" x="260" y="91" text-anchor="middle">new path</text>
  </g>
 </svg>
 ```
 
-**Five craft moves in that skeleton - they're what make a figure read like a designed
-diagram instead of a sketch:**
-- **Drive every fill/stroke from `var(--token)`.** Define the palette once in `:root`; the
-  SVG references it. One source of truth - prose and figures stay in lockstep, and a palette
-  tweak reflows every diagram. Never paste a raw hex into a figure.
-- **Three text weights, always the same three.** `--fg` for the node title (the real symbol),
-  `--muted` for the detail line, `--subtle` for sublabels/`path:line`. The eye sorts the
-  hierarchy without reading. Mixing weights ad-hoc is what makes a diagram look noisy.
-- **`<title>` + `<desc>` with `aria-labelledby`.** Not decoration: it's the figure's own
-  caption-of-record (screen readers, and a note-to-self of what the figure claims).
-- **A gradient wash marks the subject.** The one container the figure is *about* gets the
-  `#subj` wash (accent 10%→2%); everything else is flat. The reader's eye lands on the
-  protagonist before reading a word.
-- **`<g>` groups + `<!-- section -->` comments + on-edge label pills.** Author the SVG like
-  code: one `<g>` per logical unit, a comment naming it, and a small `rect` pill behind any
-  label that sits on a line (a bare label over an edge turns to mush). It stays editable when
-  you revise the layout three times.
+**该骨架中的五个工艺动作 - 它们使人物看起来像设计好的一样
+图表而不是草图：**
+- **驱动`var(--token)`.**中的每个填充/描边在`:root`中定义一次调色板； SVG 引用了它。 事实的一个来源 - 散文和图表保持同步，调色板调整重排每个图表。 切勿将原始六角形粘贴到图形中。
+- **三个文本粗细，始终是相同的三个。** `--fg` 为节点标题（真实符号），
+  `--muted` 表示详细信息行，`--subtle` 表示子标签/`path:line`。 眼睛无需阅读即可对层次结构进行排序。 临时混合权重会让图表看起来很嘈杂。
+- **`<title>` + `<desc>` 与 `aria-labelledby`.**不是装饰：它是人物自己的记录标题（屏幕阅读器，以及人物声称的自我注释）。
+- **梯度清洗标记了主题。**图中的一个容器 *about* 得到
+  `#subj`洗（重音10%→2%）； 其他一切都很平淡。 在阅读一个单词之前，读者的目光会落在主角身上。
+- **`<g>` 个群组 + `<!-- section -->` 个评论 + 边缘标签药丸。**作者 SVG 喜欢
+  代码：每个逻辑单元一个 `<g>`，一个命名它的注释，以及任何后面的一个小 `rect` 药丸
+  位于一条线上的标签（边缘上的裸标签会变成糊状）。 当您修改布局三次后，它仍然可编辑。
 
-**The before/after encoding (use consistently):**
-- **dashed gray** (`.existing`, `.edge` muted) = what was there before / unchanged context.
-- **solid accent** (`.new`) = what this change adds / the after-state.
-- **orange dashed** (`.edge-chg`, `.gap`) = the *delta* - the new/changed flow, the gap being filled. This is what the eye should land on.
+**编码前后（一致使用）：**
+- **灰色虚线**（`.existing`、`.edge`静音）= 之前的内容/未更改的上下文。
+- **实心重音** (`.new`) = 此更改添加的内容/后状态。
+- **橙色虚线** (`.edge-chg`, `.gap`) = *delta* - 新的/更改的流，正在填充的间隙。 这才是眼睛应该关注的地方。
 
-Node boxes carry a **title (real symbol) + a detail line (behavior + `file:line`)**, so the
-diagram is already half-grounded to code.
+节点框带有 ** 标题（真实符号）+ 详细信息行（行为 + `file:line`）**，因此该图已经半接地到代码。
 
-Two ways to show before/after:
-1. **Side-by-side figures** in a `.ba` grid - `<figure>` "Before" | `<figure>` "After". Best when layouts differ a lot.
-2. **One overlaid figure** - existing nodes dashed-gray, new nodes/edges solid-accent + orange delta, in the same coordinate space. Best when the change is *additive* to an existing structure (most legible "what's new" read).
+显示之前/之后的两种方式：
+1. **并排的图表**在`.ba`网格中 - `<figure>`“Before”| `<figure>`“After”。 当布局差异很大时最好。
+2. **一个重叠图** - 现有节点为灰色虚线，新节点/边为实线 + 橙色增量，位于同一坐标空间中。 最好的变化是*附加*到现有结构（最清晰的“新增内容”阅读）。
 
-## Caption every figure, and hint how to read the hard ones
+<a id="caption-every-figure-and-hint-how-to-read-the-hard-ones"></a>
 
-A figure with no caption makes the reader reverse-engineer your intent. Two cheap habits
-fix it:
+## 给每个图加上标题，并提示如何阅读困难的图
 
-- **The `<figcaption>` states the takeaway, not a label.** Not "Architecture diagram" -
-  *"Requests never touch the DB directly; every write goes through the queue."* The caption
-  is the one sentence you'd say pointing at the figure. Number them (`Fig 3 ·`) and
-  **cross-reference between figures** (`state machine in Fig 2`, `evolve timing in Fig 5`) so
-  a multi-figure report reads as one system at different altitudes, not five loose pictures.
-- **For a figure with a non-obvious convention, add a one-line reading hint** in a `.callout.note`
-  right under it, naming the single thing that unlocks it: *"Every arrow enters or leaves the
-  bus - there are no agent-to-agent arrows, because the protocol is 'read/write the bus'."*
-  One sentence that says *how to look* saves the reader a minute of squinting. Put the hint in
-  the figure too when you can - an in-diagram `→ §3.2 / Fig 2` link (accent mono) turns the
-  picture into a table of contents.
+没有标题的图会让读者对你的意图进行逆向工程。 两个廉价的习惯可以解决这个问题：
 
-## Ground every claim to code (clickable)
+- **`<figcaption>` 说明要点，而不是标签。**不是“架构图”-
+  *“请求永远不会直接接触数据库； 每次写入都会经过队列。”* 标题
+  这是你指着图说的一句话。 将它们编号 (`Fig 3 ·`) 并
+  **图之间的交叉引用**（`state machine in Fig 2`，`evolve timing in Fig 5`）所以
+  一份多数字报告读起来就像是不同高度的一个系统，而不是五张松散的图片。
+- **对于一个非显而易见的惯例，添加一句话的阅读提示** in a `.callout.note` 在旁边，命名解锁它的唯一事物： *每支箭都进入或离开巴士 - 没有智能体-智能体因为协议是“读写总线”。* 一句话说 *如何查看* 节省读者一秒钟的眯眼。 当可能时，把提示放在图中 `→ §3.2 / Fig 2` 斜杠（单横杠）将图片转换为目录。
 
-A picture the human can't verify is a liability. Make claims droppable to source:
+<a id="ground-every-claim-to-code-clickable"></a>
 
-- Resolve both repository web bases explicitly. For a fork PR, before-state evidence belongs
-  to the base repository and merge-base SHA; after-state evidence belongs to the head
-  repository and verified head SHA. Query each with
-  `gh repo view <owner>/<repo> --json url`, then build links as
-  `https://github.com/<o>/<r>/blob/<sha>/<path>#L<n>`. A deleted file must link to the base
-  repository at the merge-base SHA; a newly added file has no before-state link.
-- Render locations as `<a class="src" href="{{blobURL}}">path:line</a>` in node detail lines, section text, and a per-component "source" link.
-- Rule: if a box can't be tied to a symbol+location, it's a *concept* box - style it differently and say so; don't fake a link.
-- Put evidence beside the claim it supports. The reader should not have to scroll to a
-  bibliography to verify a behavior statement, edge, risk, metric, or test result.
-- Commands count as evidence when behavior must be observed: show the command and the
-  relevant result near the claim, with full logs collapsed if noisy.
+## 依据代码的每一个声明（可点击）
 
-### Grounding discipline (borrowed from DeepWiki)
+人类无法验证的图片是一种责任。 使声明可删除至来源：
 
-DeepWiki-style wikis enforce grounding hard - worth copying:
+- 显式解析两个存储库 Web 库。 对于分叉PR，前状态证据属于基础存储库和合并基础SHA； 后态证据属于 head 存储库并经过验证的 head SHA。 查询每个
+  `gh repo view <owner>/<repo> --json url`，然后将链接构建为
+  `https://github.com/<o>/<r>/blob/<sha>/<path>#L<n>`. 删除的文件必须链接到 merge-base 处的基础存储库 SHA； 新添加的文件没有之前状态链接。
+- 将节点详细信息行、部分文本和每个组件“源”链接中的位置渲染为 `<a class="src" href="{{blobURL}}">path:line</a>`。
+- 规则：如果一个盒子不能绑定到符号+位置，那么它就是一个 * 概念 * 盒子 - 对其进行不同的样式并如此说； 不要伪造链接。
+- 将证据放在其支持的主张旁边。 读者不必滚动到参考书目来验证行为陈述、优势、风险、指标或测试结果。
+- 当行为必须观察时，命令被视为证据：在声明附近显示命令和相关结果，如果噪音，则将详细日志折叠。
 
-- **Source manifest per section.** Open each major section / component card with a small
-  collapsed list of the exact files it's built from:
-  `<details><summary>Sources</summary> path/a.py · path/b.py …</details>`. The reader sees
-  what the claim rests on before trusting it.
-- **Cite after every substantive claim, diagram, table, and snippet.** Inline format:
-  `Sources: [path:start-end]` (range) or `[path:line]` (single), multiple allowed. A
-  section with no citations is a smell - either ground it or cut it.
-- **Solely from the code. Do not invent.** Every statement, box, edge, and number must be
-  derived from files you actually read - not from how "similar systems usually work." If
-  something important isn't in the code, say so explicitly rather than guessing. Mark genuine
-  inferences as inferences.
-- **Breadth check.** Decide if necessary, depending on PR. A "comprehensive" page that cites only 1-2 files is probably shallow -
-  pull in the related files (callers, callees, config, tests) until the picture is real.
+<a id="grounding-discipline-borrowed-from-deepwiki"></a>
 
-## Code excerpts (when shown)
+### 接地纪律（借用DeepWiki）
 
-Keep them short and hand-highlight with spans (no JS highlighter): wrap keywords
-`<span class="kw">`, strings `<span class="str">`, comments `<span class="com">`.
-**Escape for the insertion context before wrapping** - source text is untrusted. In text
-nodes, escape `&`, `<`, and `>`. In quoted HTML or SVG attributes, additionally escape `"`
-as `&quot;` and `'` as `&#39;`; always quote attributes. For source URLs, percent-encode the
-dynamic owner, repository, and ref as URL path segments; encode each source-path segment
-separately and rejoin with `/`. Then attribute-escape the completed URL. Put long diffs/code
-inside `<details>` (collapsed). Escape every source-derived value
-inserted into HTML or SVG, including titles, symbol names, paths, labels, link text, and
-attribute values. Never treat source-derived text as markup.
+DeepWiki 风格的 wiki 强制接地 - 值得复制：
 
-## Self-contained
+- **每个部分的源清单。**打开每个主要部分/组件卡，其中包含其构建的确切文件的小折叠列表：
+  `<details><summary>Sources</summary> path/a.py · path/b.py …</details>`. 读者在相信该主张之前先了解该主张的依据。
+- **在每个实质性主张、图表、表格和片段后引用。**内联格式：
+  `Sources: [path:start-end]`（范围）或 `[path:line]`（单个），允许多个。 没有引用的部分是一种味道——要么磨碎它，要么剪掉它。
+- **仅来自代码。 不要胡编乱造。** 每个陈述、方框、边和数字都必须来自你实际阅读的文件，而不是从“相似系统通常如何工作”的角度。如果代码中没有重要的东西，要明确指出，而不是猜测。 将真正的推论标记为推论。
+- **广度检查。**如有必要，请根据PR做出决定。 一个只引用1-2个文件的“全面”页面很可能肤浅 - 将相关的文件（调用者、被调用者、配置、测试）拉进来，直到画面真实。
 
-- One `.html` file. Inline all CSS and SVG. No build, no framework.
-- No external scripts, styles, fonts, images, or other assets. Besides breaking offline use,
-  third-party active content can read and disclose a private design document opened locally.
+<a id="code-excerpts-when-shown"></a>
 
-## Mermaid (quick / auxiliary only)
+## 代码摘录（如果显示）
 
-For drafting a throwaway or simple auxiliary graph, locally installed Mermaid can be faster
-than hand-SVG. Render it locally to static SVG, inspect and sanitize the output, then inline
-that SVG. Never ship a Mermaid runtime or CDN script in the page. For the **carrying**
-before/after diagram, hand-SVG wins - auto-layout drifts and breaks the side-by-side alignment
-that makes the delta readable.
+保持简短并使用跨度手动突出显示（无 JS 突出显示）：换行关键字
+`<span class="kw">`、字符串 `<span class="str">`、注释 `<span class="com">`。
+**在换行之前对插入上下文进行转义 ** - 源文本不受信任。 在文字中
+节点，转义 `&`, `<`, and `>`. 在引号中 HTML 或 SVG 此外，需要转义 `"` as `&quot;` 和 `'` as `&#39;`; 始终引用属性。 对于源 URLs百分号编码动态的所有者、仓库和引用 URL 路径片段。 分别编码每个源路径段，并重新连接 `/`. 然后属性-转义完成的 URL. 将长的差异/代码放在里面 `<details>` (展开) 将每个源生成的值都进行脱逃 HTML 或 SVG包括标题、符号名称、路径、标签、链接文本和属性值。 切勿将源自源的文本视为标记。
 
-### Public repositories: commit under `.pr/` and use an htmlpreview link
+<a id="self-contained"></a>
 
-Because the page is **self-contained**, GitHub can render it through `htmlpreview.github.io`
-(it fetches the raw HTML and serves it with the right content-type - plain `raw.githubusercontent.com`
-won't, it returns `text/plain`). Commit the file to the PR branch under the temporary `.pr/`
-directory, then build the link and paste it in the PR description:
+## 独立的
+
+- 一个 `.html` 文件。 内联所有 CSS 和 SVG。 没有构建，没有框架。
+- 没有外部脚本、样式、字体、图像或其他资源。 除了打破离线使用之外，第三方活动内容还可以读取和泄露本地打开的私有设计文档。
+
+<a id="mermaid-quick--auxiliary-only"></a>
+
+## 美人鱼（仅快速/辅助）
+
+对于草图或简单辅助图的绘制，本地安装的 Mermaid 可能比手工绘制更快SVG. 本地渲染为静态 SVG检查并清理输出，然后在行内插入 SVG. 从未发货 Mermaid 运行时或 CDN 页面中的脚本。 For the **carrying** 之前/之后图，手工SVG wins - 自动布局漂移，破坏了使差异可读的并排对齐。
+
+<a id="public-repositories-commit-under-pr-and-use-an-htmlpreview-link"></a>
+
+### 公共存储库：在 `.pr/` 下提交并使用 htmlpreview 链接
+
+因为页面是 ** 自包含的 **，GitHub 可以通过 `htmlpreview.github.io`（它从 HTML 中获取原始内容并以正确的内容类型 - 仅 `raw.githubusercontent.com` 不会，它返回 `text/plain`）来渲染。 将文件提交到临时 `.pr/` 目录下的 PR 分支，然后构建链接并将其粘贴到 PR 描述中：
 
 ```bash
-# commit the html under .pr/ on your PR branch (this dir is temporary, see the skill)
+# 提交 PR 分支上 .pr/ 下的 HTML（该目录是临时的，请参阅技巧）
 git add .pr/design.html && git commit -m "docs(.pr): design doc" && git push <your-fork> <branch>
-# use the full SHA of the pushed document commit in the link:
+# 在链接中使用推送文档提交的完整 SHA：
 git rev-parse HEAD
-#   https://htmlpreview.github.io/?https://github.com/<fork-owner>/<repo>/blob/<doc-commit-sha>/.pr/design.html
+#   https://htmlpreview.github.io/?https://github.com/ <fork-owner>/<repo>/blob/<doc-commit-sha>/.pr/design.html
 ```
 
-Example shape:
+形状示例：
 `https://htmlpreview.github.io/?https://github.com/FORK_OWNER/REPO/blob/DOC_COMMIT_SHA/.pr/design.html`
 
-Point the URL at the **PR head repository and full commit SHA containing the document**.
-A branch-based link can break after merge when `.pr/` is cleaned up; a commit-pinned link
-continues to reference the document before cleanup. Refresh the document and its link when
-substantive changes affect the design.
+将 URL 指向 **PR 头存储库和包含文档 ** 的完整提交 SHA。 当 `.pr/` 被清理时，基于分支的链接可能会在合并后中断； 提交固定链接在清理之前继续引用文档。 当实质性更改影响设计时，刷新文档及其链接。
 
-For public repositories, anyone can open the rendered page without a download or local server.
-This works with self-contained pages containing only inline CSS and SVG.
+对于公共存储库，任何人都可以打开呈现的页面，而无需下载或本地服务器。 这适用于仅包含内联 CSS 和 SVG 的独立页面。
 
-### Private repositories: keep the preview private
+<a id="private-repositories-keep-the-preview-private"></a>
 
-`htmlpreview` cannot fetch private repository content. Do not work around that by publishing
-the design doc to GitHub Pages or another public host. Keep the document free of external
-scripts and assets: opening a local file does not make third-party active content private.
+### 私有存储库：保持预览私有
 
-- Link reviewers to the GitHub blob at the full document commit SHA and ask them to download
-  and open the self-contained HTML file locally; or use an existing artifact service such as
-  htmlpreview.github.io.
-- For a local browser preview, open `.pr/design.html` directly. If the browser needs HTTP,
-  serve only on loopback:
+`htmlpreview` 无法获取私有存储库内容。 请勿通过将设计文档发布到 GitHub Pages 或其他公共主机来解决此问题。 保持文档不含外部脚本和资源：打开本地文件不会使第三方活动内容变为私有。
+
+- 将审阅者链接到完整文档提交 SHA 处的 GitHub blob，并要求他们在本地下载并打开独立的 HTML 文件； 或使用现有的工件服务，例如 htmlpreview.github.io。
+- 如需本地浏览器预览，请直接打开 `.pr/design.html`。 如果浏览器需要 HTTP，则仅在环回上提供服务：
   ```bash
   python -m http.server 8000 --bind 127.0.0.1 --directory .pr
-  # open http://127.0.0.1:8000/design.html
+  # 打开 http://127.0.0.1:8000/design.html
   ```
-- Use GitHub Pages only when the user explicitly authorizes publication and you 
-  confirm that private Pages access control is enabled for this repository.
+- 仅当用户明确授权发布并且您确认为此存储库启用了私有页面访问控制时，才使用 GitHub 页面。

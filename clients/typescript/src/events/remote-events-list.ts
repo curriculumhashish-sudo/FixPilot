@@ -1,9 +1,9 @@
 /**
- * Remote events list — thin wrapper around the events search API.
+ * 远程事件列表——事件搜索的薄包装API。
  *
- * Events received via WebSocket are kept in a local cache so callers can
- * iterate them without extra network calls. For historical events use
- * `search()` or `getEvents()` which hit the server on demand.
+ * 通过 WebSocket 接收的事件保存在本地缓存中，以便调用者可以
+ * 无需额外的网络调用即可迭代它们。 对于历史事件使用
+ * `search()` 或 `getEvents()` 按需访问服务器。
  */
 
 import { HttpClient, HttpError } from '../client/http-client';
@@ -12,24 +12,24 @@ import { Event, ConversationCallbackType } from '../types/base';
 import { EventPage } from '../types/base';
 
 /**
- * Options for searching events
+ * 搜索事件的选项
  */
 export interface EventSearchOptions {
-  /** Maximum number of events to return per page */
+  /** 每页返回的最大事件数*/
   limit?: number;
-  /** Page ID for pagination */
+  /** 分页的页面 ID*/
   page_id?: string;
-  /** Filter by event kind/type (e.g., ActionEvent, MessageEvent) */
+  /** 按事件种类/类型过滤（e.g.、ActionEvent、MessageEvent）*/
   kind?: string;
-  /** Filter by event source (e.g., agent, user, environment) */
+  /** 按事件源过滤（e.g.、智能体、用户、环境）*/
   source?: string;
-  /** Filter by message content (case-insensitive) */
+  /** 按消息内容过滤（不区分大小写）*/
   body?: string;
-  /** Sort order for events */
+  /** 事件排序*/
   sort_order?: 'TIMESTAMP' | 'TIMESTAMP_DESC';
-  /** Filter: event timestamp >= this datetime (ISO 8601 format) */
+  /** 过滤器：事件时间戳 >= 此日期时间（ISO 8601 格式） */
   timestamp__gte?: string;
-  /** Filter: event timestamp < this datetime (ISO 8601 format) */
+  /** 过滤器：事件时间戳 < 此日期时间（ISO 8601 格式） */
   timestamp__lt?: string;
 }
 
@@ -48,8 +48,8 @@ export class RemoteEventsList {
   }
 
   /**
-   * Search events with optional filters.
-   * Queries the server directly.
+   * 使用可选过滤器搜索事件。
+   * 直接查询服务器。
    */
   async search(options: EventSearchOptions = {}): Promise<EventPage> {
     const params: Record<string, unknown> = {
@@ -73,7 +73,7 @@ export class RemoteEventsList {
   }
 
   /**
-   * Count events matching the given filters.
+   * 计算与给定过滤器匹配的事件数。
    */
   async count(
     options: Omit<EventSearchOptions, 'limit' | 'page_id' | 'sort_order'> = {}
@@ -95,7 +95,7 @@ export class RemoteEventsList {
   }
 
   /**
-   * Get a server event by ID.
+   * 通过 ID 获取服务器事件。
    */
   async getEventById(eventId: string): Promise<Event> {
     const response = await this.client.get<Event>(
@@ -105,7 +105,7 @@ export class RemoteEventsList {
   }
 
   /**
-   * Batch get server events by ID.
+   * 通过ID批量获取服务器事件。
    */
   async getEventsById(eventIds: string[]): Promise<Array<Event | null>> {
     return Promise.all(
@@ -129,7 +129,7 @@ export class RemoteEventsList {
     }
   }
 
-  // Alias for compatibility with EventLog interface
+  // 与 EventLog 接口兼容的别名
   async append(event: Event): Promise<void> {
     await this.addEvent(event);
   }
@@ -155,8 +155,8 @@ export class RemoteEventsList {
   }
 
   /**
-   * Fetch all events from the server, merged with any locally cached
-   * events received via WebSocket.
+   * 从服务器获取所有事件，并与本地缓存的任何事件合并
+   * 通过 WebSocket 收到的事件。
    */
   async getEvents(start?: number, end?: number): Promise<Event[]> {
     const remote: Event[] = [];

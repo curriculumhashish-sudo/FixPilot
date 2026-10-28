@@ -1,4 +1,4 @@
-# Core tool interface
+# 核心工具界面
 from openhands.tools.gemini.write_file.definition import (
     WriteFileAction,
     WriteFileObservation,

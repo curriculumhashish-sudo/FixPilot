@@ -1,10 +1,9 @@
-"""Regression test: static system message must be constant across conversations.
+"""回归测试：静态系统消息在对话中必须保持不变。
 
-This test prevents accidental introduction of dynamic content into the static
-system prompt, which would break cross-conversation prompt caching.
+此测试可防止将动态内容意外引入静态系统提示词，这会破坏交叉对话提示词缓存。
 
-For prompt caching to work across conversations, the system message must be
-identical for all conversations regardless of per-conversation context.
+为了使提示词缓存能够跨对话工作，所有对话的系统消息都必须相同，无论每个对话如何上下文
+。
 """
 
 import pytest
@@ -16,13 +15,13 @@ from openhands.sdk.skills import Skill
 
 
 def test_static_system_message_is_constant_across_different_contexts():
-    """REGRESSION TEST: Static system message must be identical regardless of context.
+    """REGRESSION TEST：无论上下文如何，静态系统消息都必须相同。
 
-    If this test fails, it means dynamic content has been accidentally included
-    in the static system message, which will break cross-conversation prompt caching.
+    如果测试失败，这意味着动态内容意外地包含在静态系统消息中，这将破坏跨会话提示词缓
+    存。
 
-    The static_system_message property should return the exact same string for all
-    agents, regardless of what AgentContext they are configured with.
+    static_system_message 属性应该为所有智能体返回完全相同的字符串，无论它们配置了什
+    么 AgentContext。
     """
     llm = LLM(
         model="claude-sonnet-4-20250514",
@@ -30,7 +29,7 @@ def test_static_system_message_is_constant_across_different_contexts():
         usage_id="test",
     )
 
-    # Create agents with vastly different contexts to stress-test the separation
+    # 创建具有截然不同的上下文的智能体以对分离进行压力测试
     contexts = [
         None,
         AgentContext(system_message_suffix="User: alice"),
@@ -51,7 +50,7 @@ def test_static_system_message_is_constant_across_different_contexts():
 
     agents = [Agent(llm=llm, agent_context=ctx) for ctx in contexts]
 
-    # All static system messages must be identical
+    # 所有静态系统消息必须相同
     first_static_message = agents[0].static_system_message
 
     for i, agent in enumerate(agents[1:], 1):
@@ -70,10 +69,9 @@ def test_static_system_message_is_constant_across_different_contexts():
     ],
 )
 def test_end_to_end_caching_flow(tmp_path, dynamic_context, expect_dynamic):
-    """Integration test: init_state → events_to_messages → caching.
+    """集成测试：init_state→events_to_messages→缓存。
 
-    Verifies the system prompt is emitted with the correct number of blocks and
-    that caching marks the static block (and the last user block) only.
+    验证系统提示词发出的块数是否正确，并且缓存仅标记静态块（和最后一个用户块）。
     """
     import uuid
 
@@ -145,11 +143,11 @@ def test_end_to_end_caching_flow(tmp_path, dynamic_context, expect_dynamic):
 
 
 def test_gemini_prompt_caching_emits_no_markers():
-    """REGRESSION: Gemini must not emit explicit cache_control markers.
+    """REGRESSION: Gemini 不得发出明确的 cache_control 标记。
 
-    Explicit markers freeze Gemini's cache at the static prefix and disable
-    Google's implicit caching on the growing body (~6-14x cost). No markers keeps
-    Gemini on the implicit-caching path, where the cached prefix grows.
+    显式标记会冻结 Gemini 在静态前缀处的缓存，并禁用 Google 在增长主体上的隐式缓存（
+    约 6-14 倍成本）。 没有标记将 Gemini 保留在隐式缓存路
+    径上，缓存的前缀在此增长。
     """
     llm = LLM(
         model="litellm_proxy/gemini-3.1-pro-preview",
@@ -157,11 +155,12 @@ def test_gemini_prompt_caching_emits_no_markers():
         caching_prompt=True,
     )
 
-    # Explicit-breakpoint caching must be inactive for Gemini.
+    # 对于 Gemini，显式断点缓存必须处于非活动状态。
     assert llm.is_caching_prompt_active() is False
 
-    # System (index 0) and last user message (index 3) are non-adjacent — the
-    # case that froze the LiteLLM/Vertex cache at the static prefix.
+    # 系统（索引 0）和最后一个用户消息（索引 3）不相邻 - 这种情况冻结了静态前缀处的
+    # LiteLLM/顶点缓存。
+    #
     messages = [
         Message(
             role="system",
@@ -177,7 +176,7 @@ def test_gemini_prompt_caching_emits_no_markers():
 
     formatted_messages = llm.format_messages_for_llm(messages)
 
-    # No cache_control marker anywhere in the formatted payload.
+    # 格式化的载荷中的任何位置都没有 cache_control 标记。
     for message in formatted_messages:
         assert "cache_control" not in message
         content = message.get("content")
@@ -195,7 +194,7 @@ def test_gemini_prompt_caching_emits_no_markers():
     ],
 )
 def test_cross_conversation_cache_sharing(tmp_path, first_suffix, second_suffix):
-    """Two conversations should share identical static prompts and cache marks."""
+    """两个会话应共享相同的静态提示词和缓存标记。"""
     import uuid
 
     from openhands.sdk.conversation import ConversationState

@@ -1,7 +1,7 @@
-"""Tests for EXTENSIONS_REF environment variable support.
+"""测试 EXTENSIONS_REF 环境变量支持。
 
-Subprocess-based tests isolate module-level state (PUBLIC_SKILLS_REF is read
-at import time). In-process tests cover runtime cache behaviour.
+基于子进程的测试隔离模块级状态（PUBLIC_SKILLS_REF 在导入时读取）。 进程内测试涵盖运行
+时缓存行为。
 """
 
 import subprocess
@@ -15,7 +15,7 @@ from openhands.sdk.skills.utils import is_skills_repo_pinned
 
 
 def _run_in_subprocess(test_code: str, env_extra: dict | None = None) -> None:
-    """Run test code in a subprocess with the given environment variables."""
+    """使用给定的环境变量运行子进程中的测试代码。"""
     import os
 
     env = os.environ.copy()
@@ -35,7 +35,7 @@ def _run_in_subprocess(test_code: str, env_extra: dict | None = None) -> None:
 
 
 def test_extensions_ref_default():
-    """PUBLIC_SKILLS_REF should default to 'main' when EXTENSIONS_REF is not set."""
+    """PUBLIC_SKILLS_REF 应默认为 'main' EXTENSIONS_REF 未设置。"""
     code = """
 import os
 if "EXTENSIONS_REF" in os.environ:
@@ -49,7 +49,7 @@ assert PUBLIC_SKILLS_REF == "main", (
 
 
 def test_extensions_ref_custom_branch():
-    """PUBLIC_SKILLS_REF should use EXTENSIONS_REF when set to a branch name."""
+    """当设置为分支名称时，PUBLIC_SKILLS_REF 应使用 EXTENSIONS_REF。"""
     code = """
 from openhands.sdk.skills.skill import PUBLIC_SKILLS_REF
 assert PUBLIC_SKILLS_REF == "feature-branch", (
@@ -60,7 +60,7 @@ assert PUBLIC_SKILLS_REF == "feature-branch", (
 
 
 def test_extensions_ref_with_load_public_skills():
-    """load_public_skills should respect EXTENSIONS_REF environment variable."""
+    """load_public_skills 应该尊重 EXTENSIONS_REF 环境变量。"""
     code = """
 from unittest import mock
 from openhands.sdk.skills.skill import (
@@ -86,7 +86,7 @@ with mock.patch(
 
 
 def test_extensions_ref_with_tag():
-    """PUBLIC_SKILLS_REF should accept a tag value via EXTENSIONS_REF."""
+    """PUBLIC_SKILLS_REF 应该通过 EXTENSIONS_REF 接受标签值。"""
     code = """
 from openhands.sdk.skills.skill import PUBLIC_SKILLS_REF
 assert PUBLIC_SKILLS_REF == "v1.2.3", (
@@ -97,7 +97,7 @@ assert PUBLIC_SKILLS_REF == "v1.2.3", (
 
 
 def test_extensions_ref_with_commit_sha():
-    """PUBLIC_SKILLS_REF should accept a full commit SHA via EXTENSIONS_REF."""
+    """PUBLIC_SKILLS_REF 应该通过 EXTENSIONS_REF 接受完整提交 SHA。"""
     sha = "a" * 40
     code = f"""
 from openhands.sdk.skills.skill import PUBLIC_SKILLS_REF
@@ -109,7 +109,7 @@ assert PUBLIC_SKILLS_REF == "{sha}", (
 
 
 def test_extensions_ref_empty_string():
-    """Empty EXTENSIONS_REF falls back to an empty string (os.environ.get behaviour)."""
+    """空 EXTENSIONS_REF 回退为空字符串（os.environ.get 行为）。"""
     code = """
 from openhands.sdk.skills.skill import PUBLIC_SKILLS_REF
 assert PUBLIC_SKILLS_REF == "", (
@@ -120,7 +120,7 @@ assert PUBLIC_SKILLS_REF == "", (
 
 
 # ---------------------------------------------------------------------------
-# In-process tests for pinned-ref cache behaviour
+# 固定引用缓存行为的进程内测试
 # ---------------------------------------------------------------------------
 
 
@@ -220,16 +220,15 @@ def _seed_cache(
     *,
     timestamp: float,
 ) -> None:
-    """Seed the public-skills cache with a synthetic entry."""
+    """使用合成条目为公共技能缓存播种。"""
     with lock:
         cache[cache_key] = (timestamp, skills)
 
 
 def test_pinned_cache_entry_never_expires():
-    """A pinned entry (timestamp=inf) is returned even after the TTL would have elapsed.
+    """即使 TTL 已经过去，也会返回固定条目 (timestamp=inf)。
 
-    This verifies that pinned tags and commit SHAs do not trigger remote
-    polling after the first load.
+    这验证了已锁定的标签和提交 SHAs 在首次加载后不会触发远程推送。
     """
     from openhands.sdk.skills.skill import (
         _PUBLIC_SKILLS_CACHE,
@@ -260,7 +259,7 @@ def test_pinned_cache_entry_never_expires():
 
 
 def test_mutable_cache_entry_expires_after_ttl():
-    """A branch entry (finite timestamp) IS re-fetched once the TTL has passed."""
+    """一旦 TTL 过去，就会重新获取分支条目（有限时间戳）。"""
     from openhands.sdk.skills.skill import (
         _PUBLIC_SKILLS_CACHE,
         _PUBLIC_SKILLS_CACHE_LOCK,
@@ -283,6 +282,6 @@ def test_mutable_cache_entry_expires_after_ttl():
     )
 
     with patch("openhands.sdk.skills.skill.update_skills_repository") as mock_update:
-        mock_update.return_value = None  # simulates transient failure
+        mock_update.return_value = None  # 模拟瞬态故障
         load_public_skills(ref="main", marketplace_path=None)
         mock_update.assert_called_once()

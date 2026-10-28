@@ -1,5 +1,5 @@
 /**
- * Models for auxiliary Agent Server APIs.
+ * Agent Server APIs 的辅助模型。
  */
 
 import type { HookConfig } from '../hooks';
@@ -160,30 +160,30 @@ export interface MarketplaceResponse {
 }
 
 /**
- * Sub-agents: the catalog of file-based and built-in delegate agents available
- * to a workspace, served by the agent-server's read-only `POST /api/sub-agents`
- * (mirrors `POST /api/skills`). "Sub-agents" are the delegate agents distinct
- * from the top-level agent and from `agent-profiles`.
+ * 子智能体：基于文件的内置委托智能体可用的目录
+ * 到工作区，由智能体服务器的只读 `POST /api/sub-agents` 提供服务
+ * （镜子`POST /api/skills`）。 “子智能体”与代表智能体不同
+ * 来自顶层智能体和 `agent-profiles`。
  */
 
-/** Scope where a sub-agent was discovered (server `AgentDefinitionLevel`). */
+/** 发现子智能体的范围（服务器 `AgentDefinitionLevel`）。*/
 export type SubAgentLevel = 'project' | 'user' | 'builtin' | 'plugin' | 'programmatic';
 
 export interface SubAgentsRequest {
-  /** Load user agents from `~/.agents/agents` and `~/.openhands/agents`. */
+  /** 从`~/.agents/agents`和`~/.openhands/agents`加载用户智能体。*/
   load_user?: boolean;
-  /** Load project agents from the workspace. */
+  /** 从工作区加载项目智能体。*/
   load_project?: boolean;
-  /** Load SDK built-in agents (general-purpose, code-explorer, ...). */
+  /** 加载 SDK 内置智能体（通用、代码浏览器等）。*/
   load_builtin?: boolean;
-  /** Workspace directory path for project agents. */
+  /** 工作区项目智能体的目录路径。*/
   project_dir?: string | null;
 }
 
 /**
- * Lossless view of a server `AgentDefinition`: every frontmatter field plus the
- * discovered `level`/`source`, an `is_builtin` flag, and the inline
- * `system_prompt` (Markdown body) so a detail view needs no extra fetch.
+ * 服务器 `AgentDefinition` 的无损视图：每个前置元数据字段加上
+ * 发现了 `level`/`source`、`is_builtin` 标志和内联
+ * `system_prompt` (Markdown body) 因此详细视图不需要额外的获取。
  */
 export interface SubAgentInfo {
   name: string;
@@ -200,7 +200,7 @@ export interface SubAgentInfo {
   mcp_servers: Record<string, unknown> | null;
   profile_store_dir: string | null;
   hooks: HookConfig | null;
-  /** Context condenser spec (opaque discriminated union), or null for default. */
+  /** 上下文上下文压缩器规范（不透明可区分联合），或 null 默认。*/
   condenser: unknown;
   metadata: Record<string, unknown>;
   level: SubAgentLevel | null;
@@ -323,10 +323,10 @@ export interface SaveProfileRequest {
 }
 
 /**
- * Structured error from the LLM pre-flight validation endpoint
- * (``POST /api/profiles/{name}/validate``). ``type`` carries the SDK's typed
- * LLM exception class name (e.g. ``LLMAuthenticationError``,
- * ``LLMBadRequestError``) and ``message`` the human-readable detail.
+ * LLM 飞行前验证端点的结构性错误
+ * (``POST /api/profiles/{name}/validate``). ``type`` 带有 SDK 的键入内容
+ * LLM 异常类名 (e.g. ``LLMAuthenticationError``,
+ * ``LLMBadRequestError``) 和 ``message`` 人类可读的细节。
  */
 export interface ValidateProfileError {
   type: string;
@@ -334,10 +334,10 @@ export interface ValidateProfileError {
 }
 
 /**
- * Result of an LLM pre-flight check. ``valid`` is ``false`` with an ``error``
- * detail when the submitted LLM configuration is rejected (invalid model,
- * missing provider prefix, bad base URL, invalid API key); transient
- * rate-limit/timeout responses are reported as ``valid: true`` with no error.
+ * LLM 飞行前检查的结果。 ``valid`` 是 ``false`` 和 ``error``
+ * 提交的 LLM 配置被拒绝时的详细信息（无效模型，
+ * 缺少提供者前缀、错误的基 URL、无效的 API 键）； 瞬态
+ * 速率限制/超时响应报告为 ``valid: true``，没有错误。
  */
 export interface ValidateProfileResponse {
   valid: boolean;
@@ -349,29 +349,29 @@ export interface RenameProfileRequest {
 }
 
 /**
- * Meta-profiles: declarative model-routing configurations consumed by the
- * ``route_task_to_model`` tool (agent-server ``/api/meta-profiles``).
+ * 元配置文件：使用的声明性模型路由配置
+ * ``route_task_to_model`` 工具（智能体-服务器 ``/api/meta-profiles``）。
  *
- * Every model reference (``classifier_model`` and each class's ``model``) is
- * the name of a saved LLM profile, not a raw model string. Direct-routing
- * meta-profiles set ``prompt_template`` (rendered with ``{{ instance_text }}``
- * and optional ``{{ model_table }}``) instead of ``classes``; the two modes are
- * mutually exclusive.
+ * 每个模型参考（``classifier_model`` 和每个类的 ``model``）是
+ * 已保存的 LLM 配置文件的名称，而不是原始模型字符串。 直接路由
+ * 元配置文件集 ``prompt_template``（使用 ``{{ instance_text }}`` 渲染
+ * 和可选的 ``{{ model_table }}``) 代替 ``classes``； 这两种模式是
+ * 相互排斥的。
  */
 export interface MetaProfileClass {
   description: string;
-  /** Name of the saved LLM profile to switch to for this class. */
+  /** 为此类切换到的已保存 LLM 配置文件的名称。*/
   model: string;
 }
 
 export interface MetaProfile {
-  /** Name of the saved LLM profile used to classify the task. */
+  /** 用于对任务进行分类的已保存 LLM 配置文件的名称。*/
   classifier_model: string;
-  /** Ordered list of task classes and their target profiles (structured mode). */
+  /** 任务类及其目标配置文件的有序列表（结构化模式）。*/
   classes?: MetaProfileClass[];
-  /** Direct-routing prompt template; must include ``{{ instance_text }}``. */
+  /** 直接路由提示词模板； 必须包含 ``{{ instance_text }}``。*/
   prompt_template?: string | null;
-  /** Text inserted into ``{{ model_table }}`` for direct-routing prompts. */
+  /** 插入 ``{{ model_table }}`` 的文本用于直接路由提示词。*/
   model_table?: string | null;
 }
 
@@ -399,7 +399,7 @@ export interface MetaProfileMutationResponse {
 export interface ActivateMetaProfileResponse {
   name: string;
   message: string;
-  /** False when the agent settings cannot route (e.g. ACP), so nothing was activated. */
+  /** False 当智能体设置无法路由时 (e.g. ACP)，因此没有任何内容被激活。*/
   applied?: boolean;
 }
 
@@ -484,14 +484,14 @@ export interface FileHomeResponse {
 }
 
 export interface FileHomeOptions {
-  /** Include hidden top-level directories in the response's `favorites`. */
+  /** 在响应的 `favorites` 中包含隐藏的顶级目录。*/
   includeHidden?: boolean;
 }
 
 export interface FileSearchSubdirsOptions {
   pageId?: string | null;
   limit?: number;
-  /** Include hidden subdirectories (names starting with '.'). */
+  /** 包括隐藏的子目录（名称以“.”开头）。*/
   includeHidden?: boolean;
 }
 
@@ -579,9 +579,9 @@ export interface MCPServer {
   headers?: Record<string, string> | null;
   auth?: MCPAuthCredential | null;
   /**
-   * Whether the server is exposed to the agent. A disabled server stays fully
-   * configured -- secrets included -- but is skipped when MCP tools are created
-   * and when servers are forwarded to an ACP subprocess. Defaults to true.
+   * 服务器是否暴露于智能体。 禁用的服务器完全保持不变
+   * 已配置 -- 包含机密 -- 但在创建 MCP 工具时会被跳过
+   * 当服务器转发到 ACP 子进程时。 默认为 True。
    */
   enabled?: boolean | null;
 }

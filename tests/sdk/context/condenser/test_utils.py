@@ -16,7 +16,7 @@ from openhands.sdk.tool.builtins.finish import FinishTool
 
 
 def message_event(content: str) -> MessageEvent:
-    """Helper function to create a MessageEvent for testing."""
+    """用于创建 MessageEvent 进行测试的辅助函数。"""
     return MessageEvent(
         llm_message=Message(role="user", content=[TextContent(text=content)]),
         source="user",
@@ -25,14 +25,15 @@ def message_event(content: str) -> MessageEvent:
 
 @pytest.fixture
 def mock_llm() -> LLM:
-    """Create a mock LLM with token counting capability."""
+    """创建具有 token 计数功能的模拟对象 LLM。"""
     mock_llm = MagicMock(spec=LLM)
     mock_llm.model = "test-model"
 
-    # Mock get_token_count to return predictable values based on message content length
+    # 模拟对象 get_token_count 根据消息内容长度返回可预测的值
     def mock_token_count(messages, **_kwargs):
-        # Simple heuristic: count characters in all text content
-        # Each character = 0.25 tokens (roughly 4 chars per token)
+        # 简单启发式：计算所有文本内容中的字符数每个字符 = 0.25 token（每个 token 大约 4
+        #  个字符）
+        #
         total_chars = 0
         for msg in messages:
             for content in msg.content:
@@ -46,44 +47,44 @@ def mock_llm() -> LLM:
 
 
 class TestGetTotalTokenCount:
-    """Tests for get_total_token_count function."""
+    """测试 get_total_token_count 功能。"""
 
     def test_empty_events(self, mock_llm: LLM):
-        """Test with empty event list."""
+        """使用空事件列表进行测试。"""
         events = []
         token_count = get_total_token_count(events, mock_llm)
         assert token_count == 0
 
     def test_single_event(self, mock_llm: LLM):
-        """Test with a single event."""
-        events = [message_event("Hello world")]  # 11 chars -> 2 tokens
+        """使用单个事件进行测试。"""
+        events = [message_event("Hello world")]  # 11 个字符 -> 2 token
         token_count = get_total_token_count(events, mock_llm)
         assert token_count == 2
 
     def test_multiple_events(self, mock_llm: LLM):
-        """Test with multiple events."""
+        """使用多个事件进行测试。"""
         events = [
-            message_event("Hello"),  # 5 chars -> 1 token
-            message_event("World"),  # 5 chars -> 1 token
-            message_event("Test message"),  # 12 chars -> 3 tokens
+            message_event("Hello"),  # 5 个字符 -> 1 token
+            message_event("World"),  # 5 个字符 -> 1 token
+            message_event("Test message"),  # 12 个字符 -> 3 token
         ]
         token_count = get_total_token_count(events, mock_llm)
         assert token_count == 5  # (5 + 5 + 12) // 4 = 5
 
     def test_events_converted_to_messages(self, mock_llm: LLM):
-        """Test that events are properly converted to messages."""
+        """测试事件是否正确转换为消息。"""
         events = [message_event("Test")]
         get_total_token_count(events, mock_llm)
 
-        # Verify get_token_count was called
+        # 验证 get_token_count 被调用
         assert mock_llm.get_token_count.called  # type: ignore
-        # Verify it was called with a list of messages
+        # 验证它是通过消息列表调用的
         call_args = mock_llm.get_token_count.call_args[0][0]  # type: ignore
         assert isinstance(call_args, list)
         assert all(isinstance(msg, Message) for msg in call_args)
 
     def test_system_prompt_tools_are_counted(self, mock_llm: LLM):
-        """Test that agent tool schemas are included in token counting."""
+        """测试智能体工具模式是否包含在 token 计数中。"""
         tools = cast(list[ToolDefinition], list(FinishTool.create()))
         events = [
             SystemPromptEvent(
@@ -104,7 +105,7 @@ class TestGetTotalTokenCount:
         assert kwargs["add_security_risk_prediction"] is True
 
     def test_system_prompt_empty_tools_are_not_counted(self, mock_llm: LLM):
-        """Test that empty tool lists do not add tool schema tokens."""
+        """测试空工具列表不添加工具模式 token。"""
         events = [
             SystemPromptEvent(
                 source="agent",
@@ -125,77 +126,77 @@ class TestGetTotalTokenCount:
 
 
 class TestGetShortestPrefixAboveTokenCount:
-    """Tests for get_shortest_prefix_above_token_count function."""
+    """测试 get_shortest_prefix_above_token_count 功能。"""
 
     def test_empty_events(self, mock_llm: LLM):
-        """Test with empty event list."""
+        """使用空事件列表进行测试。"""
         events = []
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 10)
         assert prefix_length == 0
 
     def test_no_prefix_exceeds_token_count(self, mock_llm: LLM):
-        """Test when total tokens don't exceed the target."""
+        """当总计 token 不超过目标时进行测试。"""
         events = [
-            message_event("Hi"),  # 2 chars -> 0 tokens
-            message_event("Bye"),  # 3 chars -> 0 tokens
+            message_event("Hi"),  # 2 个字符 -> 0 token
+            message_event("Bye"),  # 3 个字符 -> 0 token
         ]
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 100)
         assert prefix_length == len(events)
 
     def test_single_event_exceeds(self, mock_llm: LLM):
-        """Test when first event alone exceeds the token count."""
+        """测试当第一个事件单独超过词元数量时。"""
         events = [
-            message_event("A" * 100),  # 100 chars -> 25 tokens
-            message_event("B" * 100),  # 100 chars -> 25 tokens
+            message_event("A" * 100),  # 100 个字符 -> 25 token
+            message_event("B" * 100),  # 100 个字符 -> 25 token
         ]
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 20)
         assert prefix_length == 1
 
     def test_multiple_events_needed(self, mock_llm: LLM):
-        """Test when multiple events are needed to exceed token count."""
+        """测试何时需要多个事件超过词元数量。"""
         events = [
-            message_event("A" * 20),  # 20 chars -> 5 tokens
-            message_event("B" * 20),  # 20 chars -> 5 tokens
-            message_event("C" * 20),  # 20 chars -> 5 tokens
-            message_event("D" * 20),  # 20 chars -> 5 tokens
+            message_event("A" * 20),  # 20 个字符 -> 5 token
+            message_event("B" * 20),  # 20 个字符 -> 5 token
+            message_event("C" * 20),  # 20 个字符 -> 5 token
+            message_event("D" * 20),  # 20 个字符 -> 5 token
         ]
-        # Need prefix of 3 events to exceed 10 tokens (15 > 10)
+        # 需要 3 个事件的前缀才能超过 10 token (15 > 10)
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 10)
         assert prefix_length == 3
 
     def test_exact_boundary(self, mock_llm: LLM):
-        """Test behavior at exact token count boundary."""
+        """在精确的词元数量边界测试行为。"""
         events = [
-            message_event("A" * 40),  # 40 chars -> 10 tokens
-            message_event("B" * 40),  # 40 chars -> 10 tokens
+            message_event("A" * 40),  # 40 个字符 -> 10 token
+            message_event("B" * 40),  # 40 个字符 -> 10 token
         ]
-        # 10 tokens is not > 10, need 2 events for 20 tokens
+        # 10 token 不 > 10，20 token 需要 2 个事件
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 10)
         assert prefix_length == 2
 
     def test_all_events_needed(self, mock_llm: LLM):
-        """Test when all events together just exceed the token count."""
+        """当所有事件加起来刚好超过词元数量时进行测试。"""
         events = [
-            message_event("A" * 16),  # 16 chars -> 4 tokens
-            message_event("B" * 16),  # 16 chars -> 4 tokens
-            message_event("C" * 16),  # 16 chars -> 4 tokens
+            message_event("A" * 16),  # 16 个字符 -> 4 token
+            message_event("B" * 16),  # 16 个字符 -> 4 token
+            message_event("C" * 16),  # 16 个字符 -> 4 token
         ]
-        # Total 12 tokens, need all 3 to exceed 10
+        # 总共 12 个 token，需要全部 3 个才能超过 10
         prefix_length = get_shortest_prefix_above_token_count(events, mock_llm, 10)
         assert prefix_length == 3
 
 
 class TestGetSuffixLengthForTokenReduction:
-    """Tests for get_suffix_length_for_token_reduction function."""
+    """测试 get_suffix_length_for_token_reduction 功能。"""
 
     def test_empty_events(self, mock_llm: LLM):
-        """Test with empty event list."""
+        """使用空事件列表进行测试。"""
         events = []
         suffix_length = get_suffix_length_for_token_reduction(events, mock_llm, 10)
         assert suffix_length == 0
 
     def test_zero_token_reduction(self, mock_llm: LLM):
-        """Test with zero token reduction requested."""
+        """要求减少零 token 进行测试。"""
         events = [
             message_event("Test"),
             message_event("Message"),
@@ -204,7 +205,7 @@ class TestGetSuffixLengthForTokenReduction:
         assert suffix_length == len(events)
 
     def test_negative_token_reduction(self, mock_llm: LLM):
-        """Test with negative token reduction (edge case)."""
+        """使用负 token 减少进行测试（边缘情况）。"""
         events = [
             message_event("Test"),
             message_event("Message"),
@@ -213,60 +214,61 @@ class TestGetSuffixLengthForTokenReduction:
         assert suffix_length == len(events)
 
     def test_small_reduction(self, mock_llm: LLM):
-        """Test with small token reduction that removes few events."""
+        """使用小的 token 减少进行测试，删除很少的事件。"""
         events = [
-            message_event("A" * 40),  # 40 chars -> 10 tokens
-            message_event("B" * 40),  # 40 chars -> 10 tokens
-            message_event("C" * 40),  # 40 chars -> 10 tokens
-            message_event("D" * 40),  # 40 chars -> 10 tokens
+            message_event("A" * 40),  # 40 个字符 -> 10 token
+            message_event("B" * 40),  # 40 个字符 -> 10 token
+            message_event("C" * 40),  # 40 个字符 -> 10 token
+            message_event("D" * 40),  # 40 个字符 -> 10 token
         ]
-        # Total 40 tokens, reduce by 15 means keep suffix after removing 1 event (10
-        # tokens). Actually need to remove 2 events (20 tokens) to exceed 15 token
-        # reduction
+        # 总计 40 token，减少 15 表示删除 1 个事件（10 token）后保留后缀。 实际上需要删
+        # 除 2 个事件（20 token）才能超过 15 token 减少
+        #
         suffix_length = get_suffix_length_for_token_reduction(events, mock_llm, 15)
-        assert suffix_length == 2  # Keep last 2 events
+        assert suffix_length == 2  # 保留最后 2 个事件
 
     def test_large_reduction(self, mock_llm: LLM):
-        """Test with large token reduction that removes most events."""
+        """使用大的 token 减少进行测试，以删除大多数事件。"""
         events = [
-            message_event("A" * 20),  # 20 chars -> 5 tokens
-            message_event("B" * 20),  # 20 chars -> 5 tokens
-            message_event("C" * 20),  # 20 chars -> 5 tokens
-            message_event("D" * 20),  # 20 chars -> 5 tokens
+            message_event("A" * 20),  # 20 个字符 -> 5 token
+            message_event("B" * 20),  # 20 个字符 -> 5 token
+            message_event("C" * 20),  # 20 个字符 -> 5 token
+            message_event("D" * 20),  # 20 个字符 -> 5 token
         ]
-        # Total 20 tokens, reduce by 18 tokens means remove 4 events (20 tokens)
+        # 总共 20 token，减少 18 token 意味着删除 4 个事件 (20 token)
         suffix_length = get_suffix_length_for_token_reduction(events, mock_llm, 18)
-        assert suffix_length == 0  # Keep nothing
+        assert suffix_length == 0  # 什么都不保留
 
     def test_exact_reduction(self, mock_llm: LLM):
-        """Test with exact token reduction matching some events."""
+        """使用与某些事件匹配的精确 token 减少进行测试。"""
         events = [
-            message_event("A" * 40),  # 40 chars -> 10 tokens
-            message_event("B" * 40),  # 40 chars -> 10 tokens
-            message_event("C" * 40),  # 40 chars -> 10 tokens
+            message_event("A" * 40),  # 40 个字符 -> 10 token
+            message_event("B" * 40),  # 40 个字符 -> 10 token
+            message_event("C" * 40),  # 40 个字符 -> 10 token
         ]
-        # Total 30 tokens, reduce by exactly 10 tokens
-        # Need to remove 2 events (20 tokens) to exceed 10 token reduction
+        # 总计 30 token，减少正好 10 token 需要删除 2 个事件 (20 token) 才能超过 10
+        # token 减少
+        #
         suffix_length = get_suffix_length_for_token_reduction(events, mock_llm, 10)
-        assert suffix_length == 1  # Keep last 1 event
+        assert suffix_length == 1  # 保留最后 1 个事件
 
     def test_impossible_reduction(self, mock_llm: LLM):
-        """Test when requested reduction exceeds total tokens."""
+        """当请求的减少量超过总数 token 时进行测试。"""
         events = [
-            message_event("Hi"),  # 2 chars -> 0 tokens
-            message_event("Bye"),  # 3 chars -> 0 tokens
+            message_event("Hi"),  # 2 个字符 -> 0 token
+            message_event("Bye"),  # 3 个字符 -> 0 token
         ]
-        # Total ~0 tokens, but asking to reduce by 100
+        # 总计 ~0 token，但要求减少 100
         suffix_length = get_suffix_length_for_token_reduction(events, mock_llm, 100)
-        assert suffix_length == 0  # Can't keep anything
+        assert suffix_length == 0  # 无法保留任何东西
 
     def test_consistency_with_prefix_function(self, mock_llm: LLM):
-        """Test that suffix calculation is consistent with prefix calculation."""
+        """测试后缀计算与前缀计算是否一致。"""
         events = [
-            message_event("A" * 40),  # 40 chars -> 10 tokens
-            message_event("B" * 40),  # 40 chars -> 10 tokens
-            message_event("C" * 40),  # 40 chars -> 10 tokens
-            message_event("D" * 40),  # 40 chars -> 10 tokens
+            message_event("A" * 40),  # 40 个字符 -> 10 token
+            message_event("B" * 40),  # 40 个字符 -> 10 token
+            message_event("C" * 40),  # 40 个字符 -> 10 token
+            message_event("D" * 40),  # 40 个字符 -> 10 token
         ]
         token_reduction = 25
 
@@ -277,19 +279,19 @@ class TestGetSuffixLengthForTokenReduction:
             events, mock_llm, token_reduction
         )
 
-        # Suffix + prefix should equal total length
+        # 后缀+前缀总长度应相等
         assert suffix_length + prefix_length == len(events)
 
     def test_base_events_are_included_for_prefix_token_counting(self, mock_llm: LLM):
-        """Token reduction should count suffixes in the context of kept events."""
+        """token 减少应计算保留事件的上下文中的后缀。"""
         base_events = [
             message_event("system-like prefix"),
             message_event("kept user request"),
         ]
         events = [
-            message_event("A" * 40),  # 40 chars -> 10 tokens
-            message_event("B" * 40),  # 40 chars -> 10 tokens
-            message_event("C" * 40),  # 40 chars -> 10 tokens
+            message_event("A" * 40),  # 40 个字符 -> 10 token
+            message_event("B" * 40),  # 40 个字符 -> 10 token
+            message_event("C" * 40),  # 40 个字符 -> 10 token
         ]
 
         suffix_length = get_suffix_length_for_token_reduction(

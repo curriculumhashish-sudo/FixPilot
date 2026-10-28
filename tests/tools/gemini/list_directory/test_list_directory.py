@@ -1,4 +1,4 @@
-"""Tests for list_directory tool."""
+"""测试 list_directory 工具。"""
 
 import threading
 
@@ -14,8 +14,8 @@ from openhands.tools.gemini.list_directory.impl import ListDirectoryExecutor
 
 
 def test_list_directory_basic(tmp_path):
-    """Test listing directory contents."""
-    # Create some files and directories
+    """测试列出目录内容。"""
+    # 创建一些文件和目录
     (tmp_path / "file1.txt").write_text("content")
     (tmp_path / "file2.py").write_text("code")
     (tmp_path / "subdir").mkdir()
@@ -28,19 +28,19 @@ def test_list_directory_basic(tmp_path):
     assert obs.total_count == 3
     assert not obs.is_truncated
 
-    # Check entries
+    # 检查条目
     names = [e.name for e in obs.entries]
     assert "file1.txt" in names
     assert "file2.py" in names
     assert "subdir" in names
 
-    # Check that subdir is marked as directory
+    # 检查子目录是否被标记为目录
     subdir_entry = next(e for e in obs.entries if e.name == "subdir")
     assert subdir_entry.is_directory
 
 
 def test_list_directory_empty(tmp_path):
-    """Test listing empty directory."""
+    """测试列出空目录。"""
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
 
@@ -54,8 +54,8 @@ def test_list_directory_empty(tmp_path):
 
 
 def test_list_directory_recursive(tmp_path):
-    """Test recursive directory listing."""
-    # Create nested structure
+    """测试递归目录列表。"""
+    # 创建嵌套结构
     (tmp_path / "file1.txt").write_text("content")
     (tmp_path / "subdir1").mkdir()
     (tmp_path / "subdir1" / "file2.txt").write_text("content")
@@ -67,22 +67,21 @@ def test_list_directory_recursive(tmp_path):
     obs = executor(action)
 
     assert not obs.is_error
-    # Should include files and directories up to 2 levels deep
-    # Level 0: . (tmp_path)
-    # Level 1: file1.txt, subdir1
-    # Level 2: file2.txt (in subdir1), subdir2 (in subdir1)
-    # file3.txt is at level 3 (in subdir2) so it won't be included
+    # 应包括深度为2的文件和目录。Level 0: . (tmp_path) Level 1: file1.txt, subdir1 Level
+    #  2: file2.txt (在 subdir1), subdir2 (在 subdir1) file3.txt 在 level 3 (在 subdir2)
+    #  位置，因此不会被包括
+    #
     names = [e.name for e in obs.entries]
     assert "file1.txt" in names
     assert "subdir1" in names
     assert "file2.txt" in names
     assert "subdir2" in names
-    # file3.txt is at level 3, which is beyond our 2-level limit
+    # file3.txt 处于 3 级，超出了我们的 2 级限制
     assert "file3.txt" not in names
 
 
 def test_list_directory_not_found(tmp_path):
-    """Test listing non-existent directory."""
+    """测试列出不存在的目录。"""
     executor = ListDirectoryExecutor(workspace_root=str(tmp_path))
     action = ListDirectoryAction(dir_path="nonexistent")
     obs = executor(action)
@@ -92,7 +91,7 @@ def test_list_directory_not_found(tmp_path):
 
 
 def test_list_directory_not_a_directory(tmp_path):
-    """Test listing a file instead of directory."""
+    """测试列出文件而不是目录。"""
     test_file = tmp_path / "file.txt"
     test_file.write_text("content")
 
@@ -105,8 +104,8 @@ def test_list_directory_not_a_directory(tmp_path):
 
 
 def test_list_directory_file_metadata(tmp_path):
-    """Test that file metadata is included."""
-    # Create a file
+    """测试是否包含文件元数据。"""
+    # 创建文件
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world")
 
@@ -125,7 +124,7 @@ def test_list_directory_file_metadata(tmp_path):
 
 
 def test_list_directory_absolute_path(tmp_path):
-    """Test listing with absolute path."""
+    """使用绝对路径测试列表。"""
     (tmp_path / "file.txt").write_text("content")
 
     executor = ListDirectoryExecutor(workspace_root=str(tmp_path))
@@ -153,7 +152,7 @@ def test_list_directory_absolute_path(tmp_path):
     ],
 )
 def test_list_directory_declared_resources(tmp_path, dir_path, recursive):
-    """Test that ListDirectoryTool declares parallel-safe resources."""
+    """测试 ListDirectoryTool 声明并行安全资源。"""
     executor = ListDirectoryExecutor(workspace_root=str(tmp_path))
     tool = ListDirectoryTool(
         action_type=ListDirectoryAction,
@@ -171,10 +170,9 @@ def test_list_directory_declared_resources(tmp_path, dir_path, recursive):
 
 
 def test_list_directory_executor_concurrent(tmp_path):
-    """Test that concurrent list_directory calls return correct results.
+    """测试并发 list_directory 调用是否返回正确的结果。
 
-    Each call uses independent read-only filesystem operations, so
-    concurrent calls are inherently thread-safe.
+    每个调用都使用独立的只读文件系统操作，因此并发调用本质上是线程安全。
     """
     dir_a = tmp_path / "dir_a"
     dir_a.mkdir()

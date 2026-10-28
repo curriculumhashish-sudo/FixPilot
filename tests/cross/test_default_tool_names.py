@@ -1,10 +1,11 @@
-"""Parity between the SDK's canonical default tool names and openhands-tools.
+"""SDK 的规范默认工具名称和 OpenHands 工具之间的奇偶性。
 
-``openhands.sdk.tool.defaults`` owns the default tool *names* as data (the SDK
-cannot import ``openhands-tools``); the implementations and the historical
-``get_default_tools`` constructor live in ``openhands-tools``. These tests pin
-the two together so a tool rename cannot silently drift the SDK-side defaults
-(the review concern on #3968, resolved per #3978).
+``openhands.sdk.tool.defaults`` 拥有默认工具 *names* 作为数据（SDK 无法导入
+``openhands-tools``）； 实施和
+历史
+``get_default_tools`` 构造函数位于 ``openhands-tools`` 中。 这些测试将两者固定在一起
+，因此工具重命名不能默默地漂移 SDK 端默
+认值（#3968 上的审查问题，已根据 #3978 解决）。
 """
 
 from openhands.sdk.tool.defaults import (

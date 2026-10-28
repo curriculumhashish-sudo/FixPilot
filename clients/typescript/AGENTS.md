@@ -1,85 +1,103 @@
-# Agent Server TypeScript Client (`clients/typescript`)
+<a id="agent-server-typescript-client-clientstypescript"></a>
 
-## General Purpose
+# Agent Server TypeScript 客户端 (`clients/typescript`)
 
-This directory contains the TypeScript client library for the OpenHands Agent Server. It provides a complete, type-safe interface for interacting with the OpenHands Agent Server API, enabling developers to build applications that can create and manage AI agent conversations, workspaces, and real-time event streams.
+<a id="general-purpose"></a>
 
-The client is designed to mirror the structure and functionality of the Python SDK in this monorepo while providing idiomatic TypeScript/JavaScript APIs with full type safety and modern development tooling.
+## 通用型
 
-## Cross-Repository Boundaries
+此目录包含 OpenHands Agent Server 的 TypeScript 客户端库。 它提供了一个完整的、类型安全的接口来与 OpenHands Agent Server API 交互，使开发者能够构建能够创建和管理 AI 智能体对话、工作区和实时事件流的应用程序。
 
-This directory owns the browser-compatible TypeScript client for the OpenHands Agent Server API. The canonical API implementation and behavior live in the Python SDK and Agent Server packages in this repository; [`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands) consumes this client for Agent Canvas UI; and [`OpenHands/extensions`](https://github.com/OpenHands/extensions) owns reusable skills, plugins, automations, and integrations; [`OpenHands/automation`](https://github.com/OpenHands/automation) owns scheduling, webhooks, run history, and dispatching.
+客户端设计模仿了的结构和功能 Python  SDK 在这个单体仓库在提供自然语言的同时 TypeScript/JavaScript  APIs 具有完整类型安全性和现代开发工具。
 
-The normal flow is SDK/Agent Server → OpenAPI contract → this client → Agent Canvas. Keep backend behavior and endpoints in the Python SDK or Agent Server packages, typed API access in this directory, UI in Agent Canvas, and automation lifecycle behavior in `automation`.
+<a id="cross-repository-boundaries"></a>
 
-All pull requests must follow the repository's contribution and applicable code-review guidance.
+## 跨存储库边界
 
-## Key Features
+此目录拥有 OpenHands Agent Server API 的浏览器兼容的 TypeScript 客户端。 规范的 API 实现和行为位于此存储库的 Python SDK 和 Agent Server 包中； [`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands) 使用此客户端来获取 Agent Canvas UI； [`OpenHands/extensions`](https://github.com/OpenHands/extensions) 拥有可重用的技能、插件、自动化和集成； [`OpenHands/automation`](https://github.com/OpenHands/automation) 拥有调度、Webhook、运行历史记录和调度。
 
-- **Complete API Coverage**: Implements all endpoints from the OpenHands Agent Server OpenAPI specification
-- **Type Safety**: Full TypeScript support with comprehensive interfaces and type definitions
-- **Real-time Events**: WebSocket client for streaming conversation events and agent status updates
-- **Workspace Management**: File operations, uploads, downloads, and workspace state management
-- **Conversation Lifecycle**: Create, start, stop, and manage AI agent conversations
-- **Error Handling**: Robust error handling with custom exception classes and retry logic
-- **Modern Tooling**: ESLint, Prettier, Vitest, and GitHub Actions CI/CD
+正常流程是SDK/Agent Server→OpenAPI合约→该客户端→Agent Canvas。 保持后端行为和端点在Python SDK或Agent Server包中，API访问类型在本目录中，UI在Agent Canvas，自动化生命周期行为在`automation`。
 
-## Browser Compatibility Requirement
+所有拉取请求都必须遵循存储库的贡献和适用的代码审查指南。
 
-**All code in this library must be browser-compatible.** This is a hard constraint — the SDK is designed to run in browser environments and must never depend on Node.js-specific APIs.
+<a id="key-features"></a>
 
-**Do NOT use:**
+## 主要特点
 
-- `fs`, `fs/promises`, or any filesystem APIs
-- `child_process`, `spawn`, `exec`, or any process execution APIs
-- `path` (Node.js module — use string manipulation or URL APIs instead)
-- `os`, `net`, `http`, `https`, `stream`, `buffer` (Node.js built-in), `crypto` (Node.js built-in), or any other Node.js built-in modules
-- Any npm package that depends on Node.js built-in modules
+- **完整的 API 覆盖范围**：实现 OpenHands Agent Server OpenAPI 规范中的所有端点
+- **类型安全**：全面TypeScript支持全面的接口和类型定义
+- **实时事件**：WebSocket客户端用于流式传输对话事件和智能体状态更新
+- **工作区管理**：文件操作、上传、下载和工作区状态管理
+- **对话生命周期**：创建、启动、停止和管理 AI 智能体对话
+- **错误处理**：使用自定义异常类和重试逻辑进行强大的错误处理
+- **现代工具**：ESLint、Prettier、Vitest和GitHub Actions CI/CD
 
-**DO use:**
+<a id="browser-compatibility-requirement"></a>
 
-- `fetch` for HTTP requests
-- `WebSocket` for real-time communication
-- Web-standard APIs (`URL`, `Blob`, `File`, `FormData`, `TextEncoder`/`TextDecoder`, etc.)
-- Browser-compatible npm packages only
+## 浏览器兼容性要求
 
-This applies to all source code under `src/`. Test files (`src/__tests__/`) are an exception since they run in Node.js via Vitest.
+** 本库中的所有代码都必须兼容浏览器。** 这是一个硬性约束——SDK 设计用于浏览器环境运行，并且必须永远不依赖于Node.js 特定的APIs。
 
-## Source Material
+**不使用：**
 
-This TypeScript client is based on the following source materials:
+- `fs`、`fs/promises` 或任何文件系统 APIs
+- `child_process`、`spawn`、`exec` 或任何进程执行 APIs
+- `path`（Node.js 模块 — 使用字符串操作或 URL APIs 代替）
+- `os`、`net`、`http`、`https`、`stream`、`buffer`（Node.js内置的），`crypto`（Node.js内置的），或者任何内置的Node.js模块
+- 任何依赖于 Node.js 内置模块的 npm 包
 
-### 1. OpenAPI Specification
+**请使用：**
 
-- **Source**: The `openapi.json` artifact for the exact SDK release pinned by
+- `fetch` 用于 HTTP 个请求
+- `WebSocket` 实时通讯
+- Web 标准 APIs (`URL`, `Blob`, `File`, `FormData`, `TextEncoder`/`TextDecoder`, etc.)
+- 仅与浏览器兼容的 npm 包
+
+这适用于 `src/` 下的所有源代码。 测试文件 (`src/__tests__/`) 是一个例外，因为它们通过 Vitest 在 Node.js 中运行。
+
+<a id="source-material"></a>
+
+## 源材料
+
+此 TypeScript 客户端基于以下源材料：
+
+<a id="1-openapi-specification"></a>
+
+### 1. OpenAPI 规格
+
+- **来源**：固定的确切SDK版本的`openapi.json`工件
   `package.json` → `config.agentServerImage`
-- **Purpose**: Defines the complete REST API specification for the OpenHands Agent Server
-- **Usage**: Generates `src/generated/agent-server-schema.ts`, whose selected
-  operations and components are exposed through stable aliases and checked
-  against handwritten client methods
+- **用途**：定义 OpenHands Agent Server 的完整 REST API 规范
+- **用法**：生成`src/generated/agent-server-schema.ts`，其选定的操作和组件通过稳定别名暴露，并与手写客户端方法进行检查
 
-### 2. Python SDK Reference Implementation
+<a id="2-python-sdk-reference-implementation"></a>
 
-- **Source**: `openhands-sdk/` in this repository
-- **Key Components**:
-  - `RemoteConversation` class - Main conversation management
-  - `RemoteWorkspace` class - Workspace file operations
-  - `RemoteState` class - Agent state and configuration management
-- **Purpose**: Provides the architectural blueprint and API design patterns
-- **Usage**: Ensures consistent class names, method signatures, and behavior across language implementations
+### 2. Python SDK 参考实现
 
-### 3. Agent Server Implementation
+- **来源**：`openhands-sdk/`在此存储库中
+- **关键组件**：
+  - `RemoteConversation`类-主会话管理
+  - `RemoteWorkspace` 类 - 工作区文件操作
+  - `RemoteState` 类 - 智能体状态和配置管理
+- **目的**：提供架构方面的蓝图和API设计模式
+- **用法**：确保跨语言实现的类名、方法签名和行为一致
 
-- **Source**: `openhands-agent-server/` in this repository
-- **Purpose**: The actual server implementation that this client communicates with
-- **Usage**: Reference for understanding expected request/response formats and WebSocket event structures
+<a id="3-agent-server-implementation"></a>
 
-## Architecture Alignment
+### 3. Agent Server 实施
 
-The TypeScript client maintains architectural consistency with the Python SDK:
+- **来源**：`openhands-agent-server/`在此存储库中
+- **目的**：该客户端与之通信的实际服务器实现
+- **用法**：了解预期请求/响应格式和WebSocket事件结构的参考
+
+<a id="architecture-alignment"></a>
+
+## 架构对齐
+
+TypeScript客户端保持架构方面的与PythonSDK的一致性：
 
 ```typescript
-// TypeScript Client (this repo)
+// TypeScript 客户端（本仓库）
 const conversation = new RemoteConversation(config);
 await conversation.start();
 await conversation.workspace.write_file('/path/file.txt', 'content');
@@ -87,65 +105,69 @@ const state = conversation.state;
 ```
 
 ```python
-# Python SDK (reference implementation)
+# PythonSDK（参考实现）
 conversation = RemoteConversation(config)
 await conversation.start()
 await conversation.workspace.write_file('/path/file.txt', 'content')
 state = conversation.state
 ```
 
-### Workspace Architecture
+<a id="workspace-architecture"></a>
 
-The workspace module follows the Python SDK's architecture with a common interface and multiple implementations:
+### 工作区架构
+
+工作区模块遵循 Python SDK 的架构，具有通用接口和多种实现：
 
 ```
 src/workspace/
-├── base.ts           # IWorkspace interface defining the contract
-├── remote-workspace.ts  # RemoteWorkspace - connects to remote agent server
-├── local-workspace.ts   # LocalWorkspace - stub (throws errors, directs to RemoteWorkspace)
-└── workspace.ts      # Factory functions and Workspace class (backwards compatible)
+├── base.ts           # 定义合约的 IWorkspace 接口
+├── remote-workspace.ts  # RemoteWorkspace - 连接到远程 Agent Server
+├── local-workspace.ts   # LocalWorkspace - 存根（抛出错误，定向到 RemoteWorkspace）
+└── workspace.ts      # 工厂函数和工作区类（向后兼容）
 ```
 
-**IWorkspace Interface**: Defines the common contract for all workspace implementations:
+**IWorkspace 接口**：定义所有工作区实现的通用契约：
 
-- `executeCommand()` - Execute bash commands
-- `fileUpload()` / `fileDownload()` - File operations
-- `gitChanges()` / `gitDiff()` - Git operations
-- `close()` - Cleanup resources
+- `executeCommand()` - 执行 bash 命令
+- `fileUpload()` / `fileDownload()` - 文件操作
+- `gitChanges()` / `gitDiff()` - Git 操作
+- `close()` - 清理资源
 
-**RemoteWorkspace**: Fully implemented class that connects to a remote OpenHands agent server via HTTP API.
+**RemoteWorkspace**：完全实现的类，通过 HTTP API 连接到远程 OpenHands Agent Server。
 
-**LocalWorkspace**: Stub implementation that throws descriptive errors directing users to RemoteWorkspace.
+**LocalWorkspace**：存根实现，抛出描述性错误，将用户引导至 RemoteWorkspace。
 
-**Factory Functions**:
+**工厂功能**：
 
-- `createWorkspace({ type, options })` - Explicit type selection
-- `createWorkspaceAuto(options)` - Auto-detect based on presence of `host` option
+- `createWorkspace({ type, options })` - 显式类型选择
+- `createWorkspaceAuto(options)` - 根据 `host` 选项的存在自动检测
 
-**Ergonomic API note**: Keep `Workspace`/`RemoteWorkspace` as the main user-facing entry point for remote execution. Lower-level bash endpoint access should hang off `workspace.bash`, while direct endpoint-specific clients belong in the secondary `@openhands/typescript-client/clients` entrypoint instead of the root SDK surface.
+**Ergonomic API note**保持 `Workspace`/`RemoteWorkspace` 作为主要的用户界面入口远程执行。 bash底层端点访问应挂起 `workspace.bash`, while direct 端点-特定的客户端应归入次要部分 `@openhands/typescript-client/clients`  入口而不是根节点 SDK 表面。
 
-### LLM Architecture
+<a id="llm-architecture"></a>
 
-The LLM module provides a unified interface for interacting with Large Language Models:
+### LLM 架构
+
+LLM模块提供了与大型语言模型交互的统一接口：
 
 ```
 src/llm/
-├── base.ts           # ILLM interface and message types
-├── openrouter-llm.ts # OpenRouterLLM - implementation using @openrouter/sdk
-├── llm.ts            # Factory functions and LLM class
-└── index.ts          # Module exports
+├── base.ts           # ILLM 接口和消息类型
+├── openrouter-llm.ts # OpenRouterLLM - 使用@openrouter/sdk实现
+├── llm.ts            # 工厂函数和 LLM 类
+└── index.ts          # 模块出口
 ```
 
-**ILLM Interface**: Defines the common contract for all LLM implementations:
+**ILLM接口**：定义所有LLM实现的通用契约：
 
-- `chatCompletion()` - Send a chat completion request
-- `chatCompletionStream()` - Stream a chat completion response
-- `generate()` - Simple helper for single-turn generation
-- `close()` - Cleanup resources
+- `chatCompletion()` - 发送聊天完成请求
+- `chatCompletionStream()` - 流式传输聊天完成响应
+- `generate()` - 单轮生成的简单助手
+- `close()` - 清理资源
 
-**OpenRouterLLM**: Implementation using the official `@openrouter/sdk` package, providing access to 300+ models.
+**OpenRouterLLM**：使用官方`@openrouter/sdk`包实现，提供对300多个模型的访问。
 
-**Usage Example**:
+**使用示例**：
 
 ```typescript
 import { createOpenRouterLLM } from '@openhands/typescript-client';
@@ -155,68 +177,70 @@ const llm = createOpenRouterLLM({
   defaultModel: 'anthropic/claude-3.5-sonnet',
 });
 
-// Simple generation
+// 简单生成
 const response = await llm.generate('Hello, how are you?');
 
-// Full chat completion
+// 完整聊天完成
 const completion = await llm.chatCompletion({
   messages: [{ role: 'user', content: 'Explain quantum computing' }],
   temperature: 0.7,
   maxTokens: 1000,
 });
 
-// Streaming
+// 流式传输
 for await (const chunk of llm.chatCompletionStream({ messages })) {
   process.stdout.write(chunk.choices[0]?.delta?.content || '');
 }
 ```
 
-### Conversation Architecture
+<a id="conversation-architecture"></a>
 
-The conversation module follows the same pattern as workspaces:
+### 对话架构
+
+对话模块遵循与工作区相同的模式：
 
 ```
 src/conversation/
-├── base.ts               # IConversation interface defining the contract
-├── remote-conversation.ts   # RemoteConversation - connects to remote agent server
-├── local-conversation.ts    # LocalConversation - local agent execution with LLM
-├── conversation.ts       # Factory functions and Conversation class (backwards compatible)
-├── remote-state.ts       # State management for remote conversations
-└── conversation-manager.ts  # Manager for multiple conversations
+├── base.ts               # 定义合约的 IConversation 接口
+├── remote-conversation.ts   # RemoteConversation - 连接到远程 Agent Server
+├── local-conversation.ts    # LocalConversation - 本地智能体执行 LLM
+├── conversation.ts       # 工厂函数和Conversation类（向后兼容）
+├── remote-state.ts       # 远程会话的状态管理
+└── conversation-manager.ts  # 多个对话的管理器
 ```
 
-**IConversation Interface**: Defines the common contract for all conversation implementations:
+**IConversation Interface**：定义所有对话实现的通用契约：
 
-- `start()` - Initialize or resume a conversation
-- `sendMessage()` - Send a message to the agent
-- `run()` / `pause()` - Control agent execution
-- `generateTitle()` - Generate a title using LLM
-- `close()` - Cleanup resources
+- `start()` - 初始化或恢复对话
+- `sendMessage()` - 向智能体发送消息
+- `run()` / `pause()` - 控制智能体执行
+- `generateTitle()` - 使用 LLM 生成标题
+- `close()` - 清理资源
 
-**RemoteConversation**: Fully implemented class that connects to a remote OpenHands agent server via HTTP/WebSocket.
+**RemoteConversation**：完全实现的类，通过 HTTP/WebSocket 连接到远程 OpenHands Agent Server。
 
-**LocalConversation**: Fully implemented class for local agent execution:
+**LocalConversation**：用于本地智能体执行的完全实现的类：
 
-- Integrates with ILLM interface for LLM communication
-- Implements agent loop with tool calling support
-- Built-in tools: `execute_command`, `read_file`, `write_file`, `finish`
-- Maintains message history for multi-turn conversations
-- Supports pause/resume functionality
-- Event emission with callback support
+- 与 ILLM 接口集成以进行 LLM 通信
+- 通过工具调用支持实现智能体循环
+- 内置工具：`execute_command`、`read_file`、`write_file`、`finish`
+- 维护多轮对话的消息历史记录
+- 支持暂停/恢复功能
+- 支持回调的事件发射
 
-**Local Conversation Example**:
+**本地对话示例**：
 
 ```typescript
 import { LocalWorkspace, LocalConversation, OpenRouterLLM } from '@openhands/typescript-client';
 
-// Create components
+// 创建组件
 const workspace = new LocalWorkspace({ workingDir: '/path/to/project' });
 const llm = new OpenRouterLLM({
   apiKey: 'your-key',
   defaultModel: 'anthropic/claude-3.5-sonnet',
 });
 
-// Create and run conversation
+// 创建并运行对话
 const conversation = new LocalConversation({ kind: 'local-agent' }, workspace, {
   llm,
   maxIterations: 50,
@@ -227,98 +251,88 @@ await conversation.run();
 await conversation.close();
 ```
 
-**Factory Functions**:
+**工厂功能**：
 
-**Ergonomic API note**: Keep `ConversationManager` as the main server-scoped entry point. Server/LLM/settings/skills/tools/VSCode operations should be reachable through manager namespaces such as `manager.server`, `manager.llm`, and `manager.vscode`; ACP-specific operations should be reachable via `manager.acp`.
+**人体工学 API提示 **: 将 `ConversationManager`设为主服务器范围内的入口。 服务器端/LLM/设置/技能/工具/VSCode的操作应该通过管理器命名空间，例如`manager.server`、`manager.llm`和`manager.vscode`访问。 ACP 特定操作应通过 `manager.acp` 访问。
 
-- `createConversation({ type, agent, workspace, options })` - Explicit type selection
-- `createConversationAuto(agent, workspace, options)` - Auto-detect based on workspace type
+- `createConversation({ type, agent, workspace, options })` - 显式类型选择
+- `createConversationAuto(agent, workspace, options)` - 根据工作区类型自动检测
 
-### Hooks Architecture
+<a id="hooks-architecture"></a>
 
-The hooks module provides type-safe interfaces for the agent-server's hook system. Hooks are event-driven shell scripts that execute at specific lifecycle events during agent execution, enabling deterministic control over agent behavior.
+### 挂钩架构
+
+hooks 模块为智能体-server 的钩子系统提供类型安全的接口。 钩子是事件驱动的脚本，会在智能体执行期间在特定的生命周期事件中执行，从而提供对智能体行为的可预测控制。
 
 ```
 src/hooks/
-├── types.ts          # Enums (HookEventType, HookType, HookDecision) and interfaces (HookEvent, HookResult)
-├── config.ts         # HookConfig interface and pure functions (matching, normalization, merging)
-└── index.ts          # Module exports
+├── types.ts          # 枚举（HookEventType、HookType、HookDecision）和接口（HookEvent、HookResult）
+├── config.ts         # HookConfig接口和纯函数（匹配、归一化、合并）
+└── index.ts          # 模块出口
 ```
 
-**Key Design Decisions:**
+**关键设计决策：**
 
-- **Browser-compatible**: No file I/O or subprocess execution — hooks execute server-side
-- **Pure functions**: Config parsing, matching, and merging are all pure functions operating on plain data
-- **Type-safe**: Full TypeScript interfaces matching the Python SDK's Pydantic models
-- **Server-side execution**: Hook commands run on the agent-server; the client only sends configuration and receives `HookExecutionEvent` via WebSocket
+- **浏览器兼容**：无文件 I/O 或子进程执行 — 钩子在服务器端执行
+- **纯函数**：配置解析、匹配、合并都是对纯数据进行操作的纯函数
+- **类型安全**：与 Python SDK 的 Pydantic 型号匹配的完整 TypeScript 接口
+- **服务器端执行**：Hook命令在智能体-服务器上运行； 客户端仅发送配置并通过WebSocket接收`HookExecutionEvent`
 
-**Integration Points:**
+**集成点：**
 
-- `CreateConversationRequest.hook_config` - Send hooks when creating a conversation
-- `RemoteConversation.loadHooks()` - Load hooks from server's `.openhands/hooks.json`
-- `RemoteConversation.getHookConfig()` - Get hooks from current conversation info
-- `HookExecutionEvent` - Received via WebSocket when hooks execute server-side
+- `CreateConversationRequest.hook_config` - 创建对话时发送挂钩
+- `RemoteConversation.loadHooks()` - 从服务器的 `.openhands/hooks.json` 加载钩子
+- `RemoteConversation.getHookConfig()` - 从当前对话信息中获取钩子
+- `HookExecutionEvent` - 当钩子在服务器端执行时通过 WebSocket 接收
 
-**Event Types:** `HookExecutionEvent` is emitted by the server for each hook execution, providing observability into hook results (success, blocked, stdout, stderr, etc.)
+**事件类型：** `HookExecutionEvent` 由服务器在每次钩子执行时发出，提供钩子结果的可观测性（成功、阻塞、stdout、stderr等）。
 
-## Development Workflow
+<a id="development-workflow"></a>
 
-1. **API Changes**: When the OpenAPI specification is updated, corresponding TypeScript interfaces and client methods should be updated
-2. **Feature Parity**: New features added to the Python SDK should be implemented in this TypeScript client
-3. **Testing**: All functionality should be tested against a running OpenHands Agent Server instance
-4. **Documentation**: API changes should be reflected in the README.md and example code
+## 开发流程
 
-## Release Process
+1. **API变更**：当OpenAPI规范更新时，相应的TypeScript接口和客户端方法也应更新
+2. **功能奇偶性**：添加到 Python SDK 的新功能应在此 TypeScript 客户端中实现
+3. **测试**：所有功能都应该针对正在运行的OpenHands Agent Server实例进行测试
+4. **文档**：API更改应反映在README.md和示例代码中
 
-The TypeScript client is versioned with the Python packages by the monorepo's
-release process. `.github/workflows/prepare-release.yml` updates
-`clients/typescript/package.json` and its lockfile on the shared `rel-X.Y.Z`
-release branch. Merging that release PR publishes a `vX.Y.Z` GitHub release.
+<a id="release-process"></a>
 
-Publishing the GitHub release triggers
-`.github/workflows/typescript-client-npm-publish.yml` and
-`.github/workflows/typescript-client-github-packages-publish.yml`; both workflows
-also accept a `workflow_dispatch` version for manual recovery. The tracked Agent
-Server image version remains independent and may lag the client package version.
+## 发布流程
 
-### Tracking the agent-server / SDK version
+TypeScript 客户端由单体仓库的发布流程使用 Python 包进行版本控制。 `.github/workflows/prepare-release.yml` 更新
+`clients/typescript/package.json` 及其共享 `rel-X.Y.Z` 发布分支上的锁定文件。 合并该版本 PR 会发布 `vX.Y.Z` GitHub 版本。
 
-This client is tested and documented against a specific `software-agent-sdk`
-release, expressed as the agent-server image tag
-(`ghcr.io/openhands/agent-server:<version>-python`, where `<version>` equals the
-SDK release `vX.Y.Z`). The **source of truth** is `package.json` →
-`config.agentServerImage`; the README and generated schema should reflect that pin.
+发布 GitHub 发布触发器
+`.github/workflows/typescript-client-npm-publish.yml` 和
+`.github/workflows/typescript-client-github-packages-publish.yml`; 两个工作流程还接受 `workflow_dispatch` 版本进行手动恢复。 跟踪的 Agent Server 镜像版本保持独立，可能落后于客户端包版本。
 
-After an SDK release, the root `.github/workflows/version-bump-prs.yml` workflow
-opens a `bump-typescript-agent-server-X.Y.Z` PR in this repository. It updates
-the pinned image and mirrors, regenerates the transport contract from the
-release's `openapi.json`, and includes an API-change summary. The client CI and
-integration workflows validate that PR against the new image. This is
-independent of the npm package version — bumping the tracked server does **not**
-cut a client release.
+<a id="tracking-the-agent-server--sdk-version"></a>
 
-The generated transport contract in
-`src/generated/agent-server-schema.ts` comes from that same exact pin. Run
-`npm run generate:agent-server-api` after changing the pin and
-`npm run check:agent-server-api` to enforce a clean regeneration. Released SDK
-versions use the `openapi.json` release artifact. Legacy releases without the
-artifact are exported from an isolated temporary container of the exact pinned
-image. Run `npm run test:agent-server-api-tooling` when changing generation or
-drift automation. The scheduled `agent-server-sdk-main-audit` records the exact
-SDK commit it tests and reports upcoming drift informationally; ordinary PR CI
-never reads from that moving target. The generator never reads from an unpinned
-`latest` endpoint.
+### 追踪智能体-服务器 / SDK 版本
 
-## Local Setup and Validation
+该客户端是针对特定`software-agent-sdk`版本测试和文档的，该版本以智能体-server图像标签表示（`ghcr.io/openhands/agent-server:<version>-python`，其中`<version>`等于SDK版本`vX.Y.Z`）。 **真相来源**是`package.json` →
+`config.agentServerImage`; README 和生成的模式应反映该引脚。
 
-Run client commands from `clients/typescript/`. Install dependencies with the
-same command used by `.github/workflows/typescript-client-ci.yml`:
+SDK 版本发布后，根 `.github/workflows/version-bump-prs.yml` 工作流程在此存储库中打开 `bump-typescript-agent-server-X.Y.Z` PR。 它更新固定图像和镜像，从发布的 `openapi.json` 重新生成传输层合约，并包含 API 更改摘要。 客户端 CI 和集成工作流程根据新映像验证 PR。 这与 npm 包版本无关——更改被跟踪的服务器**不会**削减客户端版本。
+
+生成的传输层合约在
+`src/generated/agent-server-schema.ts` 来自同一个引脚。 运行
+`npm run generate:agent-server-api` 更改引脚后
+`npm run check:agent-server-api` 强制执行清洁再生。 已发布的 SDK 版本使用 `openapi.json` 发布工件。 没有工件的旧版本将从精确固定图像的隔离临时容器中导出。 更改生成或漂移自动化时运行 `npm run test:agent-server-api-tooling`。 预定的 `agent-server-sdk-main-audit` 记录准确的 SDK 提交测试并报告即将发生的漂移信息； 普通的PRCI永远不会从那个移动目标中读取数据。 生成器从不读取未固定的
+`latest` 端点。
+
+<a id="local-setup-and-validation"></a>
+
+## 本地设置和验证
+
+从 `clients/typescript/` 运行客户端命令。 使用 `.github/workflows/typescript-client-ci.yml` 使用的相同命令安装依赖项：
 
 ```bash
 npm ci
 ```
 
-Before committing, run the client CI checks:
+在提交之前，运行客户端 CI 检查：
 
 ```bash
 npm run lint
@@ -327,110 +341,126 @@ npm run test:coverage
 npm run format:check
 ```
 
-For Docker-backed server coverage, run the deterministic integration subset from
-`.github/workflows/typescript-client-integration-tests.yml` first:
+对于 Docker 支持的服务器覆盖范围，运行确定性集成子集
+`.github/workflows/typescript-client-integration-tests.yml` 第一：
 
 ```bash
 npm run test:integration:deterministic
 ```
 
-LLM-backed integration tests additionally require `LLM_API_KEY`, with optional
-`LLM_MODEL` and `LLM_BASE_URL` overrides.
+LLM 支持集成测试额外需要 `LLM_API_KEY`，可选
+`LLM_MODEL` 和 `LLM_BASE_URL` 覆盖。
 
-## Testing
+<a id="testing"></a>
 
-### Unit Tests
+## 测试
 
-Unit tests are located in `src/__tests__/` and test basic functionality without requiring external services:
+<a id="unit-tests"></a>
+
+### 单元测试
+
+单元测试位于 `src/__tests__/` 中，无需外部服务即可测试基本功能：
 
 ```bash
-npm test                  # Run unit tests
-npm run test:coverage     # Run with coverage report
+npm test                  # 运行单元测试
+npm run test:coverage     # 运行覆盖率报告
 ```
 
-### Integration Tests
+<a id="integration-tests"></a>
 
-Integration tests are in `src/__tests__/integration/` and require a running agent-server in Docker:
+### 集成测试
+
+集成测试在 `src/__tests__/integration/` 中，并且需要 Docker 中正在运行的智能体服务器：
 
 ```bash
-# Set up environment
+# 设置环境
 export LLM_API_KEY="your-api-key"
 export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"
 
-# Start agent-server in Docker (matching the pinned image in package.json -> config.agentServerImage)
+# 在 Docker 中启动智能体-服务器（与 package.json -> config.agentServerImage 中的固定图像匹配）
 IMAGE=$(node -p "require('./package.json').config.agentServerImage")
 docker run -d --name agent-server -p 127.0.0.1:8010:8000 \
   -v /tmp/agent-workspace:/workspace \
   "$IMAGE" --host 0.0.0.0
 
-# Run integration tests
+# 运行集成测试
 npm run test:integration
 ```
 
-Integration tests cover:
+集成测试封面：
 
-- **workspace.integration.test.ts**: Command execution, file upload/download
-- **conversation.integration.test.ts**: Conversation lifecycle, messaging, agent execution
-- **websocket.integration.test.ts**: Real-time event streaming
-- **http-client.integration.test.ts**: HTTP client functionality
-- **e2e.integration.test.ts**: End-to-end agent workflows
+- **workspace.integration.test.ts**：命令执行，文件上传/下载
+- **conversation.integration.test.ts**：对话生命周期、消息传递、智能体执行
+- **websocket.integration.test.ts**：实时事件流式传输
+- **http-client.integration.test.ts**：HTTP客户端功能
+- **e2e.integration.test.ts**：端到端智能体工作流程
 
 ### CI/CD
 
-The root GitHub Actions workflow
-`.github/workflows/typescript-client-integration-tests.yml` automatically:
+根 GitHub 操作工作流程
+`.github/workflows/typescript-client-integration-tests.yml` 自动：
 
-1. Starts an agent-server container with a mounted workspace
-2. Runs all integration tests against the real server
-3. Reports results and logs on failure
+1. 启动一个已安装工作区的智能体服务器容器
+2. 针对真实服务器运行所有集成测试
+3. 报告结果并记录失败
 
-Required GitHub secrets:
+必需的 GitHub 机密：
 
-- `LLM_API_KEY`: API key for the LLM provider
-- `LLM_MODEL` (optional): Override the default model
+- `LLM_API_KEY`：LLM 提供商的 API 密钥
+- `LLM_MODEL`（可选）：覆盖默认模型
 
-### CI Image Version
+<a id="ci-image-version"></a>
 
-- The pinned agent-server image for the TypeScript client is `package.json` → `config.agentServerImage` (read its current value rather than hard-coding a tag), which is the source of truth the generated schema and integration workflows use.
-- Keep the TypeScript client tests strict against that released server image rather than adding compatibility fallbacks for older prerelease builds.
+### CI 图片版本
 
-## Agent Behavior Guidelines
+- 智能体端点的TypeScript客户端的`package.json` → `config.agentServerImage`（而不是硬编码标签），这是生成模式和集成工作流所使用的事实上的来源。
+- 保持 TypeScript 客户端测试严格针对已发布的服务器映像，而不是为较旧的预发布版本添加兼容性回退方案。
 
-**IMPORTANT**: The agent should NEVER start the server or browse to view the app unless the user explicitly asks for it. This includes:
+<a id="agent-behavior-guidelines"></a>
 
-- Running development servers (e.g., `npm run dev`, `npm start`)
-- Opening browsers or navigating to application URLs
-- Starting any web servers or applications automatically
-- Viewing the running application in a browser
+## 智能体行为准则
 
-The agent should focus on code development, testing, and documentation tasks. Only when the user specifically requests to run or view the application should the agent start servers or open browsers.
+**重要**：智能体应该绝不启动服务器或浏览以查看应用程序，除非用户明确要求。 这包括：
 
-## Related Repositories
+- 运行开发服务器（e.g.、`npm run dev`、`npm start`）
+- 打开浏览器或导航到应用 URLs
+- 自动启动任何网络服务器或应用程序
+- 在浏览器中查看正在运行的应用程序
 
-- **[OpenHands/OpenHands](https://github.com/OpenHands/OpenHands)**: Agent Canvas application
-- **[OpenHands/docs](https://github.com/OpenHands/docs)**: User documentation
+智能体应侧重于代码开发、测试和文档任务。 仅当用户明确请求运行或查看应用程序时，智能体才应启动服务器或打开浏览器。
 
-## Usage Context
+<a id="related-repositories"></a>
 
-This client is intended for developers who want to:
+## 相关存储库
 
-- Build web applications that interact with OpenHands agents
-- Create Node.js services that manage agent conversations
-- Integrate OpenHands capabilities into existing TypeScript/JavaScript applications
-- Develop custom frontends for the OpenHands Agent Server
+- **[OpenHands/OpenHands](https://github.com/OpenHands/OpenHands)**：Agent Canvas应用
+- **[OpenHands/docs](https://github.com/OpenHands/docs)**：用户文档
 
-The client abstracts away the complexity of HTTP requests, WebSocket management, and API authentication, providing a clean, type-safe interface for all OpenHands Agent Server functionality.
+<a id="usage-context"></a>
 
-## Example Application
+## 用途上下文
 
-The `example/` directory contains a React application built with Vite that demonstrates how to integrate the TypeScript SDK into a modern web application. This example serves as both a reference implementation and a verification tool to ensure the SDK works correctly in browser environments.
+该客户端适用于希望实现以下目标的开发人员：
 
-The example application showcases:
+- 构建与 OpenHands 智能体交互的 Web 应用程序
+- 创建管理智能体个对话的 Node.js 个服务
+- 将 OpenHands 功能集成到现有 TypeScript/JavaScript 应用程序中
+- 为 OpenHands Agent Server 开发自定义前端
 
-- Proper SDK integration with ES module compatibility
-- TypeScript configuration for client-side development
-- Build processes that compile the SDK before running the application
-- Import verification of all major SDK classes and enums
-- Modern React development patterns with Vite tooling
+客户端抽象了 HTTP 请求、WebSocket 管理和 API 身份验证的复杂性，提供了一个干净、类型安全的接口来访问所有 OpenHands Agent Server 功能。
 
-This provides developers with a working template for building their own applications using the OpenHands Agent Server TypeScript Client.
+<a id="example-application"></a>
+
+## 应用示例
+
+`example/` 目录包含一个使用 Vite 构建的 React 应用程序，演示如何将 TypeScript SDK 集成到现代 Web 应用程序中。 此示例既作为参考实现又作为验证工具，以确保 SDK 在浏览器环境中正常工作。
+
+该示例应用程序展示了：
+
+- 与 ES 模块兼容性的正确 SDK 集成
+- TypeScript客户端开发配置
+- 构建在运行应用程序之前编译 SDK 的进程
+- 所有主要 SDK 类和枚举的进口验证
+- 使用 Vite 工具的现代 React 开发模式
+
+这为开发人员提供了一个工作模板，用于使用 OpenHands Agent Server TypeScript 客户端构建自己的应用程序。

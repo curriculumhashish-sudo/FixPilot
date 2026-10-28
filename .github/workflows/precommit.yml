@@ -1,5 +1,5 @@
 ---
-# .github/workflows/precommit.yml
+# .github/工作流程/precommit.yml
 name: Pre-commit checks
 
 on:

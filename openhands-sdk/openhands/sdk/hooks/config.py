@@ -1,4 +1,4 @@
-"""Hook configuration loading and management."""
+"""钩子配置加载和管理。"""
 
 import json
 import logging
@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 def _pascal_to_snake(name: str) -> str:
-    """Convert PascalCase to snake_case."""
-    # Insert underscore before uppercase letters and lowercase everything
+    """将 PascalCase 转换为 snake_case。"""
+    # 在大写字母前插入下划线并将所有内容小写
     result = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
     return result
 
 
-# Valid snake_case field names for hook events.
-# This is the single source of truth for hook event types.
+# 挂钩事件的有效 snake_case 字段名称。 这是挂钩事件类型的唯一事实来源。
+#
 HOOK_EVENT_FIELDS: frozenset[str] = frozenset(
     {
         "pre_tool_use",
@@ -38,42 +38,41 @@ HOOK_EVENT_FIELDS: frozenset[str] = frozenset(
 
 
 class HookType(StrEnum):
-    """Types of hooks that can be executed."""
+    """可以执行的钩子类型。"""
 
-    COMMAND = "command"  # Shell command executed via subprocess
-    PROMPT = "prompt"  # Single-completion LLM evaluation
-    AGENT = "agent"  # Agent-based evaluation with tool access
+    COMMAND = "command"  # 通过子进程执行的 Shell 命令
+    PROMPT = "prompt"  # 单次完成LLM评价
+    AGENT = "agent"  # 具有工具访问权限的基于智能体的评估
 
 
 class HookDefinition(BaseModel):
-    """A single hook definition."""
+    """单个钩子定义。"""
 
     type: HookType = HookType.COMMAND
     name: str | None = None
-    # `command` is kept a non-nullable string that is always present in the
-    # serialized output and reported as required in the JSON schema (see
-    # __get_pydantic_json_schema__). This preserves the published REST response
-    # contract for ConversationInfo.hook_config: making it optional/nullable
-    # would be flagged as a breaking change by the oasdiff REST API check.
-    # Command-less hook types (PROMPT/AGENT) simply leave it as "".
+    # `command` 保留为非空字符串，始终存在于已序列化输出中，并在JSON 模式（参见__
+    # get_pydantic_json_schema__）中报告为必需。 这保留了 ConversationInfo.hook_config
+    # 已发布的 REST 响应契约：使其可选/可空将被 oasdiff REST API 检查标记为不兼容变更。
+    # 无命令钩子类型（PROMPT/AGENT）只需将其保留为“”。
+    #
     command: str = ""
     prompt: str | None = None
     system_prompt: str | None = None
     tools: list[str] = Field(default_factory=list)
     timeout: int = 60
     max_iterations: int = 3
-    async_: bool = Field(default=False, alias="async")  # 'async' is a reserved keyword
+    async_: bool = Field(default=False, alias="async")  # “异步”是保留关键字
 
     model_config = {
-        "populate_by_name": True,  # Allow both 'async' and 'async_' in input
+        "populate_by_name": True,  # 输入中允许同时使用“异步”和“async_”
     }
 
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema, handler):  # type: ignore[override]
-        # Report `command` as a required, non-defaulted string to keep the
-        # published REST response contract identical to releases where the field
-        # had no default. The runtime default ("") only eases construction of
-        # command-less hook types; it never surfaces as null in responses.
+        # 将 `command` 报告为必需的非默认字符串，以保持已发布的 REST 响应合同与该字段没
+        # 有默认值的版本相同。 运行时默认值（“”）仅简化无命令钩子类型的构造； 它永远不会
+        # 在响应中以 null 的形式出现。
+        #
         json_schema = handler(core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
         command_schema = json_schema.get("properties", {}).get("command")
@@ -105,7 +104,7 @@ class HookDefinition(BaseModel):
 
     @property
     def display_command(self) -> str:
-        """Human-readable label for this hook used in logs and events."""
+        """该挂钩在日志和事件中使用的人类可读标签。"""
         if self.command:
             return self.command
         prefix = f"{self.type.value}-hook"
@@ -119,27 +118,27 @@ class HookDefinition(BaseModel):
 
 
 class HookMatcher(BaseModel):
-    """Matches events to hooks based on patterns.
+    """根据模式将事件与挂钩匹配。
 
-    Supports exact match, wildcard (*), and regex (auto-detected or /pattern/).
+    支持精确匹配、通配符 (*) 和正则表达式（自动检测或 /pattern/).
     """
 
     matcher: str = "*"
     hooks: list[HookDefinition] = Field(default_factory=list)
 
-    # Regex metacharacters that indicate a pattern should be treated as regex
+    # 指示模式的正则表达式元字符应被视为正则表达式
     _REGEX_METACHARACTERS = set("|.*+?[]()^$\\")
 
     def matches(self, tool_name: str | None) -> bool:
-        """Check if this matcher matches the given tool name."""
-        # Wildcard matches everything
+        """检查此匹配器是否与给定的工具名称匹配。"""
+        # 通配符匹配所有内容
         if self.matcher == "*" or self.matcher == "":
             return True
 
         if tool_name is None:
             return self.matcher in ("*", "")
 
-        # Check for explicit regex pattern (enclosed in /)
+        # 检查显式正则表达式模式（包含在 /) 中）
         is_regex = (
             self.matcher.startswith("/")
             and self.matcher.endswith("/")
@@ -152,25 +151,24 @@ class HookMatcher(BaseModel):
             except re.error:
                 return False
 
-        # Auto-detect regex: if matcher contains metacharacters, treat as regex
+        # 自动检测正则表达式：如果匹配器包含元字符，则视为正则表达式
         if any(c in self.matcher for c in self._REGEX_METACHARACTERS):
             try:
                 return bool(re.fullmatch(self.matcher, tool_name))
             except re.error:
-                # Invalid regex, fall through to exact match
+                # 正则表达式无效，无法完全匹配
                 pass
 
-        # Exact match
+        # 精确匹配
         return self.matcher == tool_name
 
 
 class HookConfig(BaseModel):
-    """Configuration for all hooks.
+    """所有钩子的配置。
 
-    Hooks can be configured either by loading from `.openhands/hooks.json` or
-    by directly instantiating with typed fields:
+    可以通过从 `.openhands/hooks.json` 加载或直接使用类型化字段实例化来配置挂钩：
 
-        # Direct instantiation with typed fields (recommended):
+        # 使用类型化字段直接实例化（推荐）：
         config = HookConfig(
             pre_tool_use=[
                 HookMatcher(
@@ -180,7 +178,7 @@ class HookConfig(BaseModel):
             ]
         )
 
-        # Load from JSON file:
+        # 从 JSON 文件加载：
         config = HookConfig.load(".openhands/hooks.json")
     """
 
@@ -214,7 +212,7 @@ class HookConfig(BaseModel):
     )
 
     def is_empty(self) -> bool:
-        """Check if this config has no hooks configured."""
+        """检查此配置是否没有配置钩子。"""
         return not any(
             [
                 self.pre_tool_use,
@@ -229,15 +227,15 @@ class HookConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_hooks_input(cls, data: Any) -> Any:
-        """Support JSON format with PascalCase keys and 'hooks' wrapper.
+        """支持带有 PascalCase 键和“hooks”包装的 JSON 格式。
 
-        We intentionally continue supporting these formats for interoperability with
-        existing integrations (e.g. Claude Code plugin hook files).
+        我们有意继续支持这些格式，以实现与现有集成的互操作性 (e.g. 克劳德代码插件挂钩
+        文件）。
         """
         if not isinstance(data, dict):
             return data
 
-        # Unwrap legacy format: {"hooks": {"PreToolUse": [...]}}
+        # 解开旧格式：{"hooks": {"PreToolUse": [...]}}
         if "hooks" in data:
             if len(data) != 1:
                 logger.warning(
@@ -246,7 +244,7 @@ class HookConfig(BaseModel):
                 )
             data = data["hooks"]
 
-        # Convert PascalCase keys to snake_case field names
+        # 将 PascalCase 键转换为 snake_case 字段名称
         normalized: dict[str, Any] = {}
         seen_fields: set[str] = set()
 
@@ -255,14 +253,14 @@ class HookConfig(BaseModel):
             is_pascal_case = snake_key != key
 
             if is_pascal_case:
-                # Validate that PascalCase key maps to a known field
+                # 验证 PascalCase 键映射到已知字段
                 if snake_key not in HOOK_EVENT_FIELDS:
                     valid_types = ", ".join(sorted(HOOK_EVENT_FIELDS))
                     raise ValueError(
                         f"Unknown event type '{key}'. Valid types: {valid_types}"
                     )
 
-            # Check for duplicate keys (both PascalCase and snake_case provided)
+            # 检查重复的键（同时提供 PascalCase 和 snake_case）
             if snake_key in seen_fields:
                 raise ValueError(
                     f"Duplicate hook event: both '{key}' and its snake_case "
@@ -271,9 +269,9 @@ class HookConfig(BaseModel):
             seen_fields.add(snake_key)
             normalized[snake_key] = value
 
-        # Preserve backwards compatibility without deprecating any supported formats.
-        # The legacy 'hooks' wrapper and PascalCase keys are accepted for
-        # interoperability and should not emit a deprecation warning.
+        # 保留向后兼容性而不弃用任何支持的格式。 传统的“hooks”包装器和 PascalCase 键被接
+        # 受以实现互操作性，并且不应发出弃用警告。
+        #
 
         return normalized
 
@@ -281,15 +279,15 @@ class HookConfig(BaseModel):
     def load(
         cls, path: str | Path | None = None, working_dir: str | Path | None = None
     ) -> "HookConfig":
-        """Load config from path or search .openhands/hooks.json locations.
+        """从路径加载配置，或搜索 openhands/hooks.json 位置。
 
         Args:
-            path: Explicit path to hooks.json file. If provided, working_dir is ignored.
-            working_dir: Project directory for discovering .openhands/hooks.json.
-                Falls back to cwd if not provided.
+            path: hooks.json 文件的显式路径。 如果提供，working_dir 将被忽略。
+            working_dir: openhands/hooks.json. 发现项目的目录
+                如果未提供，则回退到 cwd。
         """
         if path is None:
-            # Search for hooks.json in standard locations
+            # 在标准位置搜索 hooks.json
             base_dir = Path(working_dir) if working_dir else Path.cwd()
             search_paths = [
                 base_dir / ".openhands" / "hooks.json",
@@ -309,24 +307,24 @@ class HookConfig(BaseModel):
 
         with open(path) as f:
             data = json.load(f)
-        # Use model_validate which triggers the model_validator
+        # 使用 model_validate 触发 model_validator
         return cls.model_validate(data)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "HookConfig":
-        """Create HookConfig from a dictionary.
+        """从字典创建 HookConfig。
 
-        Supports both legacy format with "hooks" wrapper and direct format:
-            # Legacy format:
+        支持带有“hooks”包装器的传统格式和直接格式：
+            # 旧格式：
             {"hooks": {"PreToolUse": [...]}}
 
-            # Direct format:
+            # 直接格式：
             {"PreToolUse": [...]}
         """
         return cls.model_validate(data)
 
     def _get_matchers_for_event(self, event_type: HookEventType) -> list[HookMatcher]:
-        """Get matchers for an event type."""
+        """获取事件类型的匹配器。"""
         match event_type:
             case HookEventType.PRE_TOOL_USE:
                 return self.pre_tool_use
@@ -346,7 +344,7 @@ class HookConfig(BaseModel):
     def get_hooks_for_event(
         self, event_type: HookEventType, tool_name: str | None = None
     ) -> list[HookDefinition]:
-        """Get all hooks that should run for an event."""
+        """获取应该为事件运行的所有挂钩。"""
         matchers = self._get_matchers_for_event(event_type)
 
         result: list[HookDefinition] = []
@@ -357,12 +355,12 @@ class HookConfig(BaseModel):
         return result
 
     def has_hooks_for_event(self, event_type: HookEventType) -> bool:
-        """Check if there are any hooks configured for an event type."""
+        """检查是否有为事件类型配置的任何钩子。"""
         matchers = self._get_matchers_for_event(event_type)
         return len(matchers) > 0
 
     def save(self, path: str | Path) -> None:
-        """Save hook configuration to a JSON file using snake_case field names."""
+        """使用 snake_case 字段名称将挂钩配置保存到 JSON 文件。"""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -371,24 +369,23 @@ class HookConfig(BaseModel):
 
     @classmethod
     def merge(cls, configs: list["HookConfig"]) -> "HookConfig | None":
-        """Merge multiple hook configs by concatenating handlers per event type.
+        """通过连接每个事件类型的处理程序来合并多个挂钩配置。
 
-        Each hook config may have multiple event types (pre_tool_use,
-        post_tool_use, etc.). This method combines all matchers from all
-        configs for each event type.
+        每个挂钩配置可能有多种事件类型（pre_tool_use、post_tool_use 等）。 此方法组合
+        了每个事件类型的所有配置中的所有匹配器。
 
         Args:
-            configs: List of HookConfig objects to merge.
+            configs: 要合并的 HookConfig 个对象的列表。
 
         Returns:
-            A merged HookConfig with all matchers concatenated, or None if no configs
-            or if the result is empty.
+            所有匹配器连接在一起的合并 HookConfig，如果没有配置或结果为空，则为 None
+            。
 
         Example:
             >>> config1 = HookConfig(pre_tool_use=[HookMatcher(matcher="*")])
             >>> config2 = HookConfig(pre_tool_use=[HookMatcher(matcher="terminal")])
             >>> merged = HookConfig.merge([config1, config2])
-            >>> len(merged.pre_tool_use)  # Both matchers combined
+            >>> len(merged.pre_tool_use)  # 两者结合使用
             2
         """
         if not configs:
@@ -403,7 +400,7 @@ class HookConfig(BaseModel):
             stop=[m for c in configs for m in c.stop],
         )
 
-        # Return None if the merged config is empty
+        # 如果合并的配置为空，则返回 None
         if merged.is_empty():
             return None
 

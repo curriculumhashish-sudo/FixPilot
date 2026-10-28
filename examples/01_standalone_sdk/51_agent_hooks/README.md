@@ -1,60 +1,61 @@
-# Agent-based Hooks Example
+<a id="agent-based-hooks-example"></a>
 
-This folder demonstrates the `type="agent"` hook — a lifecycle hook whose
-decision is produced by an LLM-driven sub-agent rather than a shell script.
+# 基于智能体的 Hook 示例
 
-For shell-command hooks see [`../33_hooks/`](../33_hooks).
+此文件夹演示了 `type="agent"` 挂钩 — 一个生命周期挂钩，其决策由 LLM 驱动的子智能体而不是 shell 脚本生成。
 
-## Why an agent hook
+有关 shell 命令挂钩，请参阅 [`../33_hooks/`](../33_hooks)。
 
-A shell-based PreToolUse hook can only block what its blacklist literally
-matches. The agent rewrites `cat /etc/passwd` as `awk '{print}' /etc/passwd`
-and slips through. An agent hook reasons about the **semantic intent** of the
-command — "reading a sensitive system file" — and denies regardless of the
-exact tool name used.
+<a id="why-an-agent-hook"></a>
 
-## Example
+## 为什么要使用智能体钩子
 
-- **main.py** — Two agent hooks, each in its own conversation:
-  - **PreToolUse** "security reviewer" denies a command whose intent is to
-    read `/etc/passwd`, even though no obvious keyword appears in a blacklist.
-  - **Stop** "quality reviewer" refuses to let the main agent finish until
-    the required deliverable (`REPORT.md`) is present in the workspace.
+基于 shell 的 PreToolUse 挂钩只能阻止其黑名单字面匹配的内容。 智能体将 `cat /etc/passwd` 重写为 `awk '{print}' /etc/passwd` 并跳过。 智能体钩子会分析命令的**语义意图**，无论使用什么工具名称，都拒绝。
 
-Each hook decision is printed to the console via a `HookExecutionEvent`
-callback, so you can watch the allow/deny outcomes as the demo runs.
+<a id="example"></a>
 
-## Running
+## 示例
+
+- **main.py** — 两个智能体钩子，每个钩子都有自己的对话：
+  - **PreToolUse**“安全审查者”拒绝意图读取`/etc/passwd`的命令，即使黑名单中没有出现明显的关键字。
+  - **Stop**“质量审核员”拒绝让主智能体完成，直到工作区中出现所需的可交付成果 (`REPORT.md`)。
+
+每个钩子决策都通过 `HookExecutionEvent` 回调打印到控制台，因此您可以在演示运行时观看允许/拒绝结果。
+
+<a id="running"></a>
+
+## 跑步
 
 ```bash
 export LLM_API_KEY="your-key"
-export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"  # optional
-export LLM_BASE_URL="https://your-endpoint"              # optional
+export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"  # 可选的
+export LLM_BASE_URL="https://your-endpoint"              # 可选的
 
 python main.py
 ```
 
-## How an agent hook is configured
+<a id="how-an-agent-hook-is-configured"></a>
+
+## 如何配置智能体挂钩
 
 ```python
 HookDefinition(
     type=HookType.AGENT,
-    name="security-reviewer",      # bucket for cost metrics (agent-hook:<name>)
-    system_prompt="...",           # instructs the hook agent; must request JSON
-    tools=["file_editor"],         # optional tools the hook agent may use
-                                   # (use registered names, e.g. "file_editor",
-                                   # "terminal" — not class names like
-                                   # "FileEditorTool")
-    timeout=60,                    # forwarded to the per-hook LLM copy
-    max_iterations=3,              # cap on hook sub-conversation steps
+    name="security-reviewer",      # 成本指标桶（智能体-hook:<name>）
+    system_prompt="...",           # 指示钩子智能体； 必须请求 JSON
+    tools=["file_editor"],         # 钩子智能体可能使用的可选工具
+                                   # （使用注册名称，e.g。 “file_editor”、“terminal”——不是像“FileEditorTool”这样的类名）
+                                   #
+    timeout=60,                    # 转发到每个钩子 LLM 副本
+    max_iterations=3,              # 子对话步骤
 )
 ```
 
-The hook agent receives the event JSON and must reply with:
+钩子智能体接收事件 JSON 并且必须回复：
 
 ```json
 {"decision": "allow" | "deny", "reason": "<short explanation>"}
 ```
 
-Anything else (non-JSON, missing field, sub-conversation error) defaults to
-`allow` so a broken hook cannot wedge the main agent.
+其他任何内容（非 JSON、缺少字段、子对话错误）默认为
+`allow` 因此破损的钩子无法楔入主钩智能体。

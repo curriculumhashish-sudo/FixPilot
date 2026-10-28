@@ -1,6 +1,6 @@
-"""Unit tests for :class:`PromptRegistry` (``registry.py``).
+"""单元测试为：class:`PromptRegistry` (``registry.py``)。
 
-Pure assembly logic, exercised with fake sections.
+纯汇编逻辑，用假部分进行练习。
 """
 
 import pytest
@@ -33,7 +33,7 @@ def test_static_sections_joined_in_registration_order() -> None:
 
 
 def test_build_groups_by_tier_preserving_order() -> None:
-    """Interleaved registration still groups per tier, order preserved."""
+    """交错注册仍按层分组，顺序保留。"""
     reg = PromptRegistry()
     reg.register(FakeSection("s1", CacheTier.STATIC, "S1"))
     reg.register(FakeSection("d1", CacheTier.DYNAMIC, "D1"))
@@ -57,7 +57,7 @@ def test_replace_overrides_in_place() -> None:
     reg.register(FakeSection("b", CacheTier.STATIC, "b"))
     reg.replace(FakeSection("a", CacheTier.STATIC, "new"))
     static, _ = reg.build(CTX)
-    # content overridden, original position preserved
+    # 内容被覆盖，原始位置保留
     assert static == "new\n\nb"
 
 
@@ -100,7 +100,7 @@ def test_render_output_is_stripped() -> None:
 
 
 def test_build_threads_ctx_to_sections() -> None:
-    """guard and render receive the ctx passed to build()."""
+    """Guard 和 render 接收传递给 build() 的 ctx。"""
 
     class _CliGated:
         name = "cli"

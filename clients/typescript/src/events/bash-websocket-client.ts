@@ -1,5 +1,5 @@
 /**
- * WebSocket client for bash event streaming.
+ * WebSocket bash 事件的客户端流式传输。
  */
 
 import { BashEvent } from '../models/workspace';

@@ -68,13 +68,12 @@ def automation_observability_context(
     span_name: str | None = None,
     parent_span_context: str | None = None,
 ) -> AutomationObservabilityContext:
-    """Collect generic automation observability fields for SDK conversations.
+    """收集 SDK 对话的通用自动化可观察性字段。
 
-    The automation service owns automation-specific values and supplies them via
-    generic ``OPENHANDS_OBSERVABILITY_*`` environment variables. This helper
-    collects those generic values and merges caller-provided additions, so custom
-    automation scripts do not need to duplicate the boilerplate for every
-    ``Conversation(...)`` call.
+    自动化服务拥有特定于自动化的值，并通过通用 ``OPENHANDS_OBSERVABILITY_*`` 环境变量
+    提供它们。 这个辅助程序收集那些通用值，并合并调用者
+    提供的附加值，因此，自定义自动化脚本不需要为每项重复复制样板
+    ``Conversation(...)`` 呼叫。
     """
     context: AutomationObservabilityContext = {}
 
@@ -102,7 +101,7 @@ def automation_observability_context(
 def automation_conversation_tags(
     metadata: Mapping[str, TraceMetadataValue] | None = None,
 ) -> dict[str, str]:
-    """Build product conversation tags from automation observability metadata."""
+    """从自动化可观察性元数据构建产品对话标签。"""
     merged_metadata = _merge_metadata(metadata)
     tags: dict[str, str] = {}
 
@@ -132,7 +131,7 @@ def automation_conversation_kwargs(
     parent_span_context: str | None = None,
     include_conversation_tags: bool = True,
 ) -> AutomationConversationKwargs:
-    """Return kwargs to pass into ``Conversation(...)`` from an automation script.
+    """返回 kwargs 以从自动化脚本传递到 ``Conversation(...)``。
 
     Example:
         ``Conversation(..., **automation_conversation_kwargs())``
@@ -175,7 +174,7 @@ def automation_observability_headers(
     span_name: str | None = None,
     parent_span_context: str | None = None,
 ) -> dict[str, str]:
-    """Return observability headers for direct agent-server API calls."""
+    """返回直接智能体-服务器 API 调用的可观察性标头。"""
     context = automation_observability_context(
         metadata=metadata,
         tags=tags,

@@ -1,4 +1,4 @@
-"""Tests for marketplace module (canonical location) and removed shims."""
+"""测试市场模块（规范位置）和删除的垫片。"""
 
 import pytest
 
@@ -15,12 +15,12 @@ from openhands.sdk.marketplace import (
 
 
 def test_new_import_location_has_all_exports():
-    """Test that all marketplace classes are available from the new location."""
-    # Constants
+    """测试所有市场类别是否可从新位置使用。"""
+    # 常数
     assert MARKETPLACE_MANIFEST_DIRS == [".plugin", ".claude-plugin"]
     assert MARKETPLACE_MANIFEST_FILE == "marketplace.json"
 
-    # Classes
+    # 课程
     assert Marketplace is not None
     assert MarketplaceEntry is not None
     assert MarketplaceOwner is not None
@@ -30,7 +30,7 @@ def test_new_import_location_has_all_exports():
 
 
 def test_removed_import_from_plugin_raises():
-    """Test that importing marketplace classes from plugin raises AttributeError."""
+    """测试从插件导入市场类会引发 AttributeError。"""
     from openhands.sdk import plugin
 
     with pytest.raises(AttributeError):
@@ -38,7 +38,7 @@ def test_removed_import_from_plugin_raises():
 
 
 def test_removed_import_from_plugin_types_raises():
-    """Test that importing marketplace classes from plugin.types raises."""
+    """测试从 plugin.types 导入市场类是否会引发问题。"""
     from openhands.sdk.plugin import types
 
     with pytest.raises(AttributeError):
@@ -46,7 +46,7 @@ def test_removed_import_from_plugin_types_raises():
 
 
 def test_marketplace_functionality_preserved():
-    """Test that Marketplace class functionality works from canonical location."""
+    """测试 Marketplace 类功能是否可以在规范位置工作。"""
     owner = MarketplaceOwner(name="Test Team")
     assert owner.name == "Test Team"
 

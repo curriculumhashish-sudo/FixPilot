@@ -1,7 +1,6 @@
 ---
-# Pre-warms agent-server pods so AgentSandboxWorkspace claims are near-instant.
-# Set replicas to how many ready pods you want kept available; 0 turns this into a
-# plain on-demand pool (a pod is created per claim, paying full cold-start).
+# 预热智能体服务器 Pod，因此 AgentSandboxWorkspace 声明几乎是即时的。 将副本设置为保留多少个就绪Pod；0将此转换为一个普通按需池（一个Pod对应一个请求，会支付冷启动费用）。
+#
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxWarmPool
 metadata:

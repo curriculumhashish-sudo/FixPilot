@@ -1,11 +1,10 @@
-"""Tests for wiring the SDK refresh-on-401 hook onto managed-proxy LLMs.
+"""测试布线 SDK 在401刷新钩子上绑定管理代理 LLMs.
 
-``register_managed_llm_key_refresh`` is the agent-server half of
-OpenHands/software-agent-sdk#5189: it registers
-:meth:`openhands.sdk.llm.LLM.set_api_key_refresh_hook` on the managed LLMs so a
-stale managed key recovers in place. These tests assert the wiring is inert
-unless the control plane opts in, that it targets only the managed-proxy LLMs,
-and that the registered hook actually feeds the SDK's re-resolution path.
+``register_managed_llm_key_refresh`` 是 OpenHands/software-智能体-SDK#5189 的智能体-
+服务器一半：它注册
+在托管的LLMs上调用[meth:`openhands.sdk.llm.LLM.set_api_key_refresh_hook`]
+过时的托管密钥恢复到位。 这些测试断言，除非控制平面选择加入，否则布线是无害的，它只针
+对管理代理 LLMs，并且注册的钩子实际上提供 SDK 的重新解析路径。
 """
 
 from collections.abc import Iterator
@@ -73,7 +72,7 @@ def _agent(llm: LLM) -> Agent:
 
 @contextmanager
 def _served_key(url: str, value: str) -> Iterator[None]:
-    """Answer ``url`` locally so LookupSecret resolves without real HTTP."""
+    """在本地回答 ``url``，因此 LookupSecret 在没有实际 HTTP 的情况下解析。"""
 
     def resolver(requested: str) -> str | None:
         return value if requested == url else None
@@ -91,7 +90,7 @@ def test_no_env_is_noop(monkeypatch):
     agent = _agent(llm)
 
     assert register_managed_llm_key_refresh(agent) == 0
-    # Hook untouched: a 401 does not resolve a refreshed key.
+    # 未触及的挂钩：401 无法解析刷新的密钥。
     assert llm._resolve_refreshed_api_key(_auth_error()) is None
 
 
@@ -115,7 +114,7 @@ def test_scopes_to_managed_base_url(monkeypatch):
     byok = _llm("byok", BYOK_BASE_URL)
     agent = _agent(byok)
 
-    # A BYOK LLM (different base_url) must not receive the managed hook.
+    # BYOK LLM（不同的 base_url）不得接收托管挂钩。
     assert register_managed_llm_key_refresh(agent) == 0
     with _served_key(REFRESH_URL, "fresh_key"):
         assert byok._resolve_refreshed_api_key(_auth_error()) is None
@@ -165,8 +164,8 @@ def test_skips_subscription_auth(monkeypatch):
 
 
 def test_without_allowlist_feature_stays_off(monkeypatch):
-    # Fail closed: the operator must enumerate the managed proxies explicitly,
-    # otherwise the hook would also attach to BYOK LLMs.
+    # 失败：操作员必须显式枚举管理的代理，否则钩子也会附加到 BYOK LLMs。
+    #
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
     monkeypatch.delenv(REFRESH_BASE_URLS_ENV, raising=False)
     llm = _llm("m", MANAGED_BASE_URL)
@@ -178,7 +177,7 @@ def test_without_allowlist_feature_stays_off(monkeypatch):
 
 
 def test_blank_allowlist_feature_stays_off(monkeypatch):
-    # A set-but-empty allow-list is as unconfigured as an absent one.
+    # 已设置但为空的允许列表与不存在的允许列表一样未配置。
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, " , ")
     llm = _llm("m", MANAGED_BASE_URL)
@@ -187,8 +186,9 @@ def test_blank_allowlist_feature_stays_off(monkeypatch):
 
 
 def test_hook_failure_surfaces_original_error(monkeypatch):
-    # Unreachable address, no local resolver: the fetch fails, and the hook must
-    # swallow it (return None) rather than mask the original 401.
+    # 无法到达的地址，没有本地解析器：获取失败，钩子必须吞掉它（返回None）而不是屏蔽原始
+    # 的401。
+    #
     monkeypatch.setenv(REFRESH_URL_ENV, "http://127.0.0.1:1/managed-llm-key")
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, MANAGED_BASE_URL)
     llm = _llm("m", MANAGED_BASE_URL)
@@ -206,13 +206,13 @@ def test_empty_served_key_does_not_retry(monkeypatch):
     assert register_managed_llm_key_refresh(agent) == 1
 
     with _served_key(REFRESH_URL, "   "):
-        # Whitespace-only body strips to empty -> no usable key -> no retry.
+        # 仅空白的正文将被剥离为空 -> 没有可用的键 -> 没有重试。
         assert llm._resolve_refreshed_api_key(_auth_error()) is None
 
 
 def test_base_url_match_ignores_trailing_slash(monkeypatch):
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
-    # Allow-list has no trailing slash, LLM base_url does — must still match.
+    # 允许列表没有尾部斜杠，LLM base_url 有 - 必须仍然匹配。
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, MANAGED_BASE_URL)
     llm = _llm("m", MANAGED_BASE_URL + "/")
     assert register_managed_llm_key_refresh(_agent(llm)) == 1
@@ -220,7 +220,7 @@ def test_base_url_match_ignores_trailing_slash(monkeypatch):
 
 def test_allowlist_entry_trailing_slash_ignored(monkeypatch):
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
-    # Allow-list has a trailing slash, LLM base_url does not — must still match.
+    # 允许列表有一个尾部斜杠，LLM base_url 没有 - 必须仍然匹配。
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, MANAGED_BASE_URL + "/")
     llm = _llm("m", MANAGED_BASE_URL)
     assert register_managed_llm_key_refresh(_agent(llm)) == 1
@@ -228,7 +228,7 @@ def test_allowlist_entry_trailing_slash_ignored(monkeypatch):
 
 def test_non_object_headers_env_is_ignored(monkeypatch):
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
-    # Valid JSON that isn't an object must be ignored, not crash registration.
+    # 必须忽略不是对象的有效 JSON，而不是崩溃注册。
     monkeypatch.setenv(REFRESH_HEADERS_ENV, '["a", "b"]')
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, MANAGED_BASE_URL)
     llm = _llm("m", MANAGED_BASE_URL)
@@ -247,7 +247,7 @@ def test_bad_headers_env_is_ignored(monkeypatch):
     llm = _llm("m", MANAGED_BASE_URL)
     agent = _agent(llm)
 
-    # Malformed headers must not break registration; the hook still resolves.
+    # 格式错误的标头不得破坏注册； 钩子仍然解析。
     assert register_managed_llm_key_refresh(agent) == 1
     with _served_key(REFRESH_URL, "fresh_key"):
         refreshed = llm._resolve_refreshed_api_key(_auth_error())
@@ -256,8 +256,8 @@ def test_bad_headers_env_is_ignored(monkeypatch):
 
 
 def test_headers_expand_env_references(monkeypatch):
-    """Header values may reference env vars so the control plane can point at a
-    per-sandbox credential (e.g. the session key) it cannot know up front."""
+    """标头值可以引用环境变量，因此控制平面可以指向
+    每个沙箱凭据 (e.g. 会话密钥）它无法预先知道。"""
     monkeypatch.setenv("OH_SESSION_API_KEYS_0", "sess-abc123")
     headers = _load_headers(
         '{"X-Session-API-Key": "${OH_SESSION_API_KEYS_0}", "X-Static": "plain"}'
@@ -266,7 +266,7 @@ def test_headers_expand_env_references(monkeypatch):
 
 
 def test_headers_bare_dollar_reference_expands(monkeypatch):
-    """The ``$VAR`` form (no braces) expands too."""
+    """``$VAR`` 形式（无大括号）也会扩展。"""
     monkeypatch.setenv("OH_SESSION_API_KEYS_0", "sess-xyz")
     assert _load_headers('{"X-Session-API-Key": "$OH_SESSION_API_KEYS_0"}') == {
         "X-Session-API-Key": "sess-xyz"
@@ -275,7 +275,7 @@ def test_headers_bare_dollar_reference_expands(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_switched_llm_keeps_refresh_hook(monkeypatch, tmp_path):
-    """switch_llm on a loaded conversation re-registers the hook (#5890)."""
+    """switch_llm 在加载的对话上重新注册挂钩 (#5890)。"""
     monkeypatch.setenv(REFRESH_URL_ENV, REFRESH_URL)
     monkeypatch.setenv(REFRESH_BASE_URLS_ENV, MANAGED_BASE_URL)
     workspace = tmp_path / "ws"
@@ -301,14 +301,14 @@ async def test_switched_llm_keeps_refresh_hook(monkeypatch, tmp_path):
         assert refreshed is not None
         assert refreshed.get_secret_value() == "fresh_key"
 
-        # A switch to a BYOK base_url still gets no managed hook.
+        # 切换到 BYOK base_url 仍然得不到托管挂钩。
         conversation.switch_llm(_llm("byok", BYOK_BASE_URL))
         byok = conversation.agent.llm
         assert byok.usage_id == "byok"
         with _served_key(REFRESH_URL, "fresh_key"):
             assert byok._resolve_refreshed_api_key(_auth_error()) is None
 
-        # Not opted in: a switch registers nothing.
+        # 未选择加入：交换机不记录任何内容。
         monkeypatch.delenv(REFRESH_URL_ENV)
         conversation.switch_llm(_llm("off", MANAGED_BASE_URL))
         off = conversation.agent.llm

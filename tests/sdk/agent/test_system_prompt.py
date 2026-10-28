@@ -1,4 +1,4 @@
-"""Tests for the system_prompt inline override on Agent / AgentBase."""
+"""测试智能体 / AgentBase 上的 system_prompt 内联覆盖。"""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _make_llm() -> LLM:
 
 
 class _CustomPromptDirAgent(Agent):
-    """Agent subclass whose ``prompt_dir`` points at a per-test directory."""
+    """智能体子类，其 ``prompt_dir`` 指向每个测试目录。"""
 
     custom_prompt_dir: ClassVar[str] = ""
 
@@ -40,7 +40,7 @@ def test_system_prompt_defaults_to_none() -> None:
     assert agent.system_prompt is None
 
 
-# --- static_system_message uses inline prompt ---
+# --- static_system_message 使用内联提示词 ---
 
 
 def test_static_system_message_returns_inline_prompt() -> None:
@@ -50,12 +50,12 @@ def test_static_system_message_returns_inline_prompt() -> None:
 
 def test_static_system_message_falls_back_to_template_when_none() -> None:
     agent = Agent(llm=_make_llm(), tools=[])
-    # The default template renders a non-empty string
+    # 默认模板呈现非空字符串
     assert len(agent.static_system_message) > 0
     assert agent.static_system_message != ""
 
 
-# --- mutual-exclusivity validation ---
+# --- 互斥性验证 ---
 
 
 def test_system_prompt_and_custom_filename_are_mutually_exclusive() -> None:
@@ -69,7 +69,7 @@ def test_system_prompt_and_custom_filename_are_mutually_exclusive() -> None:
 
 
 def test_system_prompt_with_default_filename_is_ok() -> None:
-    """system_prompt + the default filename should be accepted."""
+    """system_prompt + 应接受默认文件名。"""
     agent = Agent(
         llm=_make_llm(),
         tools=[],
@@ -80,14 +80,14 @@ def test_system_prompt_with_default_filename_is_ok() -> None:
     assert agent.static_system_message == "inline"
 
 
-# --- custom prompt_dir escape hatch (registry cutover) ---
+# --- 自定义 prompt_dir 逃生舱口（注册表切换）---
 
 
 def test_subclass_default_named_template_renders_through_jinja(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A subclass shipping its own default-named template renders it, not the
-    registry prompt."""
+    """一个子类传送它自己的默认命名模板来渲染它，而不是
+    注册表提示词。"""
     prompts = tmp_path / "prompts"
     prompts.mkdir()
     (prompts / "system_prompt.j2").write_text(
@@ -100,19 +100,19 @@ def test_subclass_default_named_template_renders_through_jinja(
 
 
 def test_builtin_default_prompt_uses_registry() -> None:
-    """The built-in prompt dir + default filename still routes through the registry."""
+    """内置的提示词目录 + 默认文件名仍然通过注册表进行路由。"""
     agent = Agent(llm=_make_llm(), tools=[])
     expected = create_registry().build(agent._build_prompt_context()).static
     assert agent.static_system_message == expected
 
 
-# --- planning preset (sentinel-filename routing) ---
+# --- 规划预设 (哨兵值-文件名路由) ---
 
 
 def test_prompt_preset_resolves_from_builtin_filename(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Built-in sentinel filenames map to a preset; anything else escapes to Jinja."""
+    """内置哨兵值文件名映射到预设； 其他任何东西都会逃到 Jinja。"""
     assert Agent(llm=_make_llm(), tools=[])._prompt_preset is PromptPreset.DEFAULT
     planning = Agent(
         llm=_make_llm(),
@@ -121,14 +121,14 @@ def test_prompt_preset_resolves_from_builtin_filename(
         system_prompt_kwargs={"plan_structure": "X"},
     )
     assert planning._prompt_preset is PromptPreset.PLANNING
-    # A non-sentinel filename takes the Jinja escape hatch (preset None).
+    # 非哨兵值文件名采用 Jinja 逃生舱口（预设 None）。
     assert (
         Agent(
             llm=_make_llm(), tools=[], system_prompt_filename="custom.j2"
         )._prompt_preset
         is None
     )
-    # So does a subclass with its own prompt_dir, even with a sentinel filename.
+    # 一个有自己prompt_dir的子类，即使有哨兵值文件名也是如此。
     prompts = tmp_path / "prompts"
     prompts.mkdir()
     monkeypatch.setattr(_CustomPromptDirAgent, "custom_prompt_dir", str(prompts))
@@ -139,7 +139,7 @@ def test_prompt_preset_resolves_from_builtin_filename(
 
 
 def test_planning_filename_routes_through_registry() -> None:
-    """The planning sentinel renders the planning registry preset, not the default."""
+    """规划哨兵值呈现预设的规划注册表，而不是默认值。"""
     agent = Agent(
         llm=_make_llm(),
         tools=[],
@@ -154,13 +154,13 @@ def test_planning_filename_routes_through_registry() -> None:
     )
     assert static == expected
     assert static.startswith("You are a Planning Agent")
-    # Standalone composition: the default OpenHands identity must not leak in.
+    # 独立组合：默认的 OpenHands 身份不得泄漏。
     assert "<SOUL>" not in static
 
 
 def test_custom_security_policy_is_resolved_by_registry(tmp_path: Path) -> None:
-    """A custom security_policy_filename is honored via the registry (no Jinja escape
-    hatch), and the built-in default policy does not leak in alongside it."""
+    """自定义 security_policy_filename 通过注册表得到尊重（没有 Jinja 逃逸）
+    孵化），并且内置默认策略不会随之泄漏。"""
     policy = tmp_path / "custom_policy.j2"
     policy.write_text("CUSTOM POLICY", encoding="utf-8")
 
@@ -168,11 +168,11 @@ def test_custom_security_policy_is_resolved_by_registry(tmp_path: Path) -> None:
     static = agent.static_system_message
 
     assert "CUSTOM POLICY" in static
-    # The default policy must NOT leak in alongside the custom one.
+    # 默认策略必须不与自定义策略一起泄漏。
     assert "🔐 Security Policy" not in static
 
 
-# --- serialization round-trip ---
+# --- 序列化往返 ---
 
 
 def test_system_prompt_survives_json_round_trip() -> None:

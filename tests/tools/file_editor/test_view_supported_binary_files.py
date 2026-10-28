@@ -8,10 +8,10 @@ from .conftest import assert_successful_result
 
 
 def test_view_simple_pdf_file():
-    """Test that viewing a simple ASCII-based PDF file works."""
-    # Create a temporary PDF file with ASCII content (no binary streams)
+    """测试查看基于 ASCII 的简单 PDF 文件是否有效。"""
+    # 创建一个包含 ASCII 内容的临时 PDF 文件（无二进制流）
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
-        # Create a minimal PDF content that is mostly ASCII
+        # 创建最少的 PDF 内容，其中大部分内容为 ASCII
         pdf_content = b"""%PDF-1.4
 1 0 obj
 <<
@@ -75,21 +75,21 @@ startxref
         assert_successful_result(result)
         assert f"Here's the result of running `cat -n` on {test_file}" in result.text
 
-        # Check for specific content present in the PDF
+        # 检查 PDF 中存在的特定内容
         assert (
             result.text is not None
             and "Printer-Friendly Caltrain Schedule" in result.text
         )
     finally:
-        # Clean up the temporary file
+        # 清理临时文件
         Path(test_file).unlink(missing_ok=True)
 
 
 def test_view_binary_pdf_file_returns_error():
-    """Test that viewing a binary PDF file returns an error observation."""
-    # Create a temporary PDF file with binary content that cannot be decoded as text
+    """测试查看二进制 PDF 文件是否返回错误观测结果。"""
+    # 创建一个临时 PDF 文件，其中包含无法解码为文本的二进制内容
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
-        # Create a PDF with binary content (compressed stream with non-UTF8 bytes)
+        # 创建具有二进制内容的 PDF（具有非 UTF8 字节的压缩流）
         pdf_content = b"""%PDF-1.4
 1 0 obj
 <<
@@ -149,12 +149,13 @@ startxref
         assert isinstance(result, FileEditorObservation)
         assert result.is_error is True
         assert result.text is not None
-        # The error can come from either validate_file (binary detection) or
-        # _count_lines (UnicodeDecodeError), both are valid error paths
+        # 错误可能来自 validate_file（二进制检测）或 _count_lines (UnicodeDecodeError)，
+        # 两者都是有效的错误路径
+        #
         assert (
             "binary" in result.text.lower()
             or "cannot be decoded" in result.text.lower()
         )
     finally:
-        # Clean up the temporary file
+        # 清理临时文件
         Path(test_file).unlink(missing_ok=True)

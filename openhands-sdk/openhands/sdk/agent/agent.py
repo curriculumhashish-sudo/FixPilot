@@ -102,11 +102,11 @@ maybe_init_laminar()
 
 
 def _tool_has_summary_param(tool: ToolDefinition) -> bool:
-    """Return True if the tool's own schema declares ``summary`` as a parameter.
+    """如果工具自己的模式将 ``summary`` 声明为参数，则返回 True。
 
-    Checks both regular tool action_type model_fields and MCP tool inputSchema
-    so that ``_extract_summary`` can avoid popping the field when it belongs
-    to the tool (e.g. Jira's ticket title).
+    检查常规工具 action_type model_fields 和 MCP 工具 inputSchema，以便
+    ``_extract_summary`` 可以避免在
+    属于该工具时弹出该字段 (e.g. Jira 的票证标题）。
     """
     if "summary" in tool.action_type.model_fields:
         return True
@@ -117,23 +117,23 @@ def _tool_has_summary_param(tool: ToolDefinition) -> bool:
     return False
 
 
-# Maximum number of events to scan during init_state defensive checks.
-# SystemPromptEvent must appear within this prefix (at index 0 or 1).
+# init_state 防御检查期间要扫描的最大事件数。 SystemPromptEvent 必须出现在此前缀内（索引
+#  0 或 1）。
+#
 INIT_STATE_PREFIX_SCAN_WINDOW = 3
 
 
 def _latest_user_message_contains_image(messages: list[Message]) -> bool:
-    """Check if the most recent user message contains image content.
+    """检查最近的用户消息是否包含图片内容。
 
-    Scans the message list in reverse order to find the latest user message
-    and checks whether it contains any image attachments.
+    逆序扫描消息列表，查找最新的用户消息，并检查是否包含图片附件。
 
     Args:
-        messages: List of conversation messages to search.
+        messages: 要搜索的对话消息列表。
 
     Returns:
-        True if the most recent user message contains images, False otherwise.
-        Returns False if no user messages are found.
+        如果最近的用户消息包含图像，则为 True，否则为 False。 如果未找到用户消息，则
+        返回 False。
     """
     for message in reversed(messages):
         if message.role == "user":
@@ -142,17 +142,16 @@ def _latest_user_message_contains_image(messages: list[Message]) -> bool:
 
 
 def _non_multimodal_image_message(model: str) -> Message:
-    """Create an error message for when images are sent to a non-vision model.
+    """当图像发送到非视觉模型时创建错误消息。
 
-    Constructs a user-friendly assistant message explaining that the current
-    model does not support image understanding and suggesting the user switch
-    to a multimodal model.
+    构建一个用户友好的助手消息，解释当前模型不支持图像理解，并建议用户切换到多模态模
+    型。
 
     Args:
-        model: The name of the current model that does not support vision.
+        model: 当前不支持视觉的模型名称。
 
     Returns:
-        A Message object containing an assistant response with the error explanation.
+        包含带有错误解释的助理响应的消息对象。
     """
     return Message(
         role="assistant",
@@ -171,19 +170,18 @@ def _non_multimodal_image_message(model: str) -> Message:
 def _replace_latest_user_images_with_references(
     messages: list[Message],
 ) -> list[Message]:
-    """Replace images in the most recent user message containing images.
+    """替换最近包含图像的用户消息中的图像。
 
-    Searches backward, skipping user messages without images. Each image URL
-    becomes a textual reference to the inspect_image_with_vision tool, with a
-    zero-based image index within the selected message.
+    向后搜索，跳过没有图像的用户消息。 每个图像 URL 都成为对
+    inspect_image_with_vision 工具的文本引用，并在所选消息中具有从零开始的图像
+    索引。
 
     Args:
-        messages: List of conversation messages to process.
+        messages: 要处理的对话消息列表。
 
     Returns:
-        A new list with the selected message copied and its images replaced.
-        Other messages and non-image content are unchanged. If no user message
-        contains images, returns a shallow copy of the original list.
+        复制所选消息并替换其图像的新列表。 其他消息和非图像内容不变。 如果没有用户消
+        息包含图像，则返回原始列表的浅表副本。
     """
     rewritten = list(messages)
     for index in range(len(rewritten) - 1, -1, -1):
@@ -224,13 +222,12 @@ def _should_handle_non_multimodal_image_input(
 
 @dataclass(frozen=True, slots=True)
 class _ActionBatch:
-    """Immutable result of preparing a batch of actions for execution.
+    """准备执行一批操作的不可变结果。
 
-    Owns the full lifecycle of a tool-call batch: preparation (truncation,
-    blocked-action partitioning, execution), event emission, and post-batch
-    state transitions. Agent-specific logic (iterative refinement, state
-    mutation) is injected via callables so the batch stays decoupled from
-    the Agent class.
+    拥有工具调用批次的整个生命周期：准备（截断、阻塞动作分区、执行），事件发布，以及
+    批次之后的状态转换。 智能体特定逻辑（迭代细化、状态突变）通过可调用注入，因此批处
+    理
+    与智能体类保持解耦。
     """
 
     action_events: list[ActionEvent]
@@ -243,8 +240,8 @@ class _ActionBatch:
         action_events: list[ActionEvent],
     ) -> tuple[list[ActionEvent], bool]:
         """
-        Return (events[:finish+1], True) or (events, False).
-        Discards and logs any calls after FinishTool.
+        返回 (events[:finish+1], True) 或 (events, False)。 丢弃并记录 FinishTool 之
+        后的所有调用。
         """
         finish_idx = next(
             (
@@ -277,7 +274,7 @@ class _ActionBatch:
         cancel_token: CancellationToken | None = None,
         span_owner: object | None = None,
     ) -> _ActionBatch:
-        """Truncate, partition blocked actions, execute the rest, return the batch."""
+        """截断、分区阻塞操作，执行REST，返回批处理。"""
         action_events, has_finish = cls._truncate_at_finish(action_events)
 
         blocked_reasons: dict[str, str] = {}
@@ -316,11 +313,11 @@ class _ActionBatch:
         cancel_token: CancellationToken | None = None,
         span_owner: object | None = None,
     ) -> _ActionBatch:
-        """Async variant of :meth:`prepare`.
+        """异步：meth:`prepare` 的变体。
 
-        Uses :meth:`ParallelToolExecutor.aexecute_batch` so that each
-        tool call runs in its own thread and multiple calls are
-        dispatched concurrently via :func:`asyncio.gather`.
+        使用：meth:`ParallelToolExecutor.aexecute_batch` 以便每个工具调用在其自己的线
+        程中运行，并且通过：func:
+        `asyncio.gather` 同时调度多个调用。
         """
         action_events, has_finish = cls._truncate_at_finish(action_events)
 
@@ -354,7 +351,7 @@ class _ActionBatch:
         conversation: LocalConversation,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Emit all events in original action order."""
+        """按原始操作顺序发出所有事件。"""
         for ae in self.action_events:
             reason = self.blocked_reasons.get(ae.id)
             if reason is not None:
@@ -384,16 +381,16 @@ class _ActionBatch:
         check_iterative_refinement: Callable[[ActionEvent], tuple[bool, str | None]],
         mark_finished: Callable[[], None],
     ) -> None:
-        """Transition state after FinishTool, or inject iterative-refinement followup.
+        """FinishTool 之后的过渡状态，或注入迭代细化后续操作。
 
         Args:
-            on_event: Callback for emitting events.
-            check_iterative_refinement: Returns (should_continue, followup)
-                for a FinishTool action event.
-            mark_finished: Called to set the conversation execution status
-                to FINISHED when the agent is done.
+            on_event: 回调用于发出事件。
+            check_iterative_refinement: 返回（should_continue，后续）
+                对于 FinishTool 动作事件。
+            mark_finished: 调用设置会话执行状态
+                当智能体完成时，到 FINISHED。
         """
-        # Nothing to finalise: no FinishTool, or it was blocked by a hook.
+        # 没有什么可以确定的：没有FinishTool，或者它被钩子挡住了。
         if not self.has_finish or self.action_events[-1].id in self.blocked_reasons:
             return
 
@@ -413,26 +410,24 @@ class _ActionBatch:
 
 
 class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
-    """Main agent implementation for OpenHands.
+    """OpenHands 的主要智能体实现。
 
-    The Agent class provides the core functionality for running AI agents that can
-    interact with tools, process messages, and execute actions. It inherits from
-    AgentBase and implements the agent execution logic. Critic-related functionality
-    is provided by CriticMixin.
+    智能体类提供运行 AI 智能体的核心功能，可以与工具交互、处理消息和执行操作。 它继承
+    自AgentBase并实现了智能体执行逻辑。 CriticMixin 提供了与
+    评论家相关的功能。
 
     Attributes:
-        llm: The language model instance used for reasoning.
-        tools: List of tools available to the agent.
-        system_prompt: Inline system prompt string. When provided the agent
-            uses this text verbatim instead of rendering from a template.
-            Mutually exclusive with a non-default ``system_prompt_filename``.
-            **Not recommended** unless you know what you are doing (e.g.
-            customising agent behaviour for a completely different task) —
-            this will override OpenHands' built-in system instructions.
-        system_prompt_filename: Jinja2 template filename resolved relative to
-            the agent's prompts directory, or an absolute path. Defaults to
+        llm: 用于推理的语言模型实例。
+        tools: 智能体可用的工具列表。
+        system_prompt: 内联系统提示词字符串。 当提供智能体时
+            逐字使用此文本而不是从模板渲染。 与非默认 ``system_prompt_filename`` 互斥
+            。
+            **不推荐**，除非您知道自己在做什么（e.g。
+            为完全不同的任务定制智能体行为）——这将覆盖 OpenHands 的内置系统指令。
+        system_prompt_filename: Jinja2 模板文件名相对于解析
+            智能体的提示词目录，或绝对路径。 默认为
             ``"system_prompt.j2"``.
-        system_prompt_kwargs: Extra kwargs forwarded to the Jinja2 template.
+        system_prompt_kwargs: 额外的 kwargs 转发到 Jinja2 模板。
 
     Example:
         ```python
@@ -444,7 +439,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         agent = Agent(llm=llm, tools=tools)
         ```
 
-        To override the system prompt entirely::
+        要完全覆盖系统提示词：
 
             agent = Agent(
                 llm=llm,
@@ -483,7 +478,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
     @model_validator(mode="before")
     @classmethod
     def _add_security_prompt_as_default(cls, data):
-        """Ensure llm_security_analyzer=True is always set before initialization."""
+        """确保在初始化之前始终设置 llm_security_analyzer=True。"""
         if not isinstance(data, dict):
             return data
 
@@ -500,51 +495,49 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         state: ConversationState,
         on_event: ConversationCallbackType,
     ) -> None:
-        """Initialize conversation state.
+        """初始化对话状态。
 
-        Invariants enforced by this method:
-        - If a SystemPromptEvent is already present, it must be within the first 3
-          events (index 0 or 1 in practice; index 2 is included in the scan window
-          to detect a user message appearing before the system prompt).
-        - A user MessageEvent should not appear before the SystemPromptEvent.
+        不变量通过此方法强制执行：
+        - 如果 SystemPromptEvent 已经存在，则它必须在前 3 个事件内（实际上是索引 0 或
+         1； 索引 2 包含在扫描窗口中，用于检测系统之前
+        出现的用户消息提示词)。
+        - 用户 MessageEvent 不应出现在 SystemPromptEvent 之前。
 
-        These invariants keep event ordering predictable for downstream components
-        (condenser, UI, etc.) and also prevent accidentally materializing the full
-        event history during initialization.
+        这些不变量保持下游组件（如上下文压缩器，UI 等）的事件顺序可预测，并且防止在初
+        始化过程中意外地生成整个事件历史。
         """
         self._initialize(state)
 
-        # Defensive check: Analyze state to detect unexpected initialization scenarios
-        # These checks help diagnose issues related to lazy loading and event ordering
-        # See: https://github.com/OpenHands/software-agent-sdk/issues/1785
+        # 防御性检查：分析状态以检测意外的初始化场景。这些检查有助于诊断与懒加载和事件顺
+        # 序相关的问题
+        # 请参阅： https://github.com/OpenHands/software-agent-sdk/issues/1785
         #
-        # NOTE: len() is O(1) for EventLog (file-backed implementation).
+        # 注意：len() 是 EventLog 的 O(1)（文件支持的实现）。
         event_count = len(state.events)
 
-        # NOTE: state.events is intentionally an EventsListBase (Sequence-like), not
-        # a plain list. Avoid materializing the full history via list(state.events)
-        # here (conversations can reach 30k+ events).
+        # 注意：state.events 故意是 EventsListBase （类似序列），而不是
+        # 一个简单的列表。 避免通过此处的 list(state.events) 实现完整历史记录（对话可以
+        # 达到 30k+ 事件）。
         #
-        # Invariant: when init_state is called, SystemPromptEvent (if present) must be
-        # at index 0 or 1.
+        # 不变量：当调用init_state时，SystemPromptEvent（如果存在）必须是
+        # 在索引 0 或 1 处。
         #
-        # Rationale:
-        # - Local conversations start empty and init_state is responsible for adding
-        #   the SystemPromptEvent as the first event.
-        # - Remote conversations may receive an initial ConversationStateUpdateEvent
+        # 理由：
+        # - 本地对话开始为空，init_state 负责将 SystemPromptEvent 添加为第一个事件。
+        # - 远程对话可能会收到初始 ConversationStateUpdateEvent
         #   from the agent-server immediately after subscription. In a typical remote
-        #   session prefix you may see:
+        #   您可能会看到会话前缀：
         #     [ConversationStateUpdateEvent, SystemPromptEvent, MessageEvent, ...]
         #
-        # We intentionally only inspect the first few events (cheap for both local and
-        # remote) to enforce this invariant.
+        # 我们有意只检查前几个事件（对于本地和远程来说都很便宜）来强制执行此不变量。
+        #
         prefix_events = state.events[:INIT_STATE_PREFIX_SCAN_WINDOW]
 
         has_system_prompt = any(isinstance(e, SystemPromptEvent) for e in prefix_events)
         has_user_message = any(
             isinstance(e, MessageEvent) and e.source == "user" for e in prefix_events
         )
-        # Log state for debugging initialization order issues
+        # 用于调试初始化顺序问题的日志状态
         logger.debug(
             f"init_state called: conversation_id={state.id}, "
             f"event_count={event_count}, "
@@ -553,19 +546,20 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         )
 
         if has_system_prompt:
-            # Restoring/resuming conversations is normal: a system prompt already
-            # present means this conversation was initialized previously.
+            # 恢复/恢复对话是正常的：系统提示词已存在意味着此对话之前已初始化。
+            #
             logger.debug(
                 "init_state: SystemPromptEvent already present; skipping init. "
                 f"conversation_id={state.id}, event_count={event_count}."
             )
             return
 
-        # Assert: A user message should never appear before the system prompt.
+        # 断言：用户消息不应出现在系统提示词之前。
         #
-        # NOTE: This is a best-effort check based on the first few events only.
-        # Remote conversations can include a ConversationStateUpdateEvent near the
-        # start, so we scan a small prefix window.
+        # 注意：这是仅基于前几个事件的尽力检查。
+        # 远程对话可以在开头附近包含 ConversationStateUpdateEvent，因此我们扫描一个小的
+        # 前缀窗口。
+        #
         if has_user_message:
             event_types = [type(e).__name__ for e in prefix_events]
             logger.error(
@@ -578,21 +572,19 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 f"prefix_event_types={event_types}."
             )
 
-        # Prepare system message with separate static and dynamic content.
-        # The dynamic_context is included as a second content block in the
-        # system message (without a cache marker) to enable cross-conversation
-        # prompt caching of the static system prompt.
+        # 准备具有单独的静态和动态内容的系统消息。 的 dynamic_context 作为系统消息中的第
+        # 二部分内容块（不带缓存标记），以实现跨对话功能提示词静态系统的缓存提示词。
         #
-        # Agent pulls secrets from conversation's secret_registry to include
-        # them in the dynamic context. This ensures secret names and descriptions
-        # appear in the system prompt.
+        # 智能体从对话的 secret_registry 中提取机密，将其包含在动态上下文中。 这可确保机
+        # 密名称和描述出现在系统提示词中。
+        #
         dynamic_context = self.get_dynamic_context(state)
         event = SystemPromptEvent(
             source="agent",
             system_prompt=TextContent(text=self.static_system_message),
-            # Tools are stored as ToolDefinition objects and converted to
-            # OpenAI format with security_risk parameter during LLM completion.
-            # Agent calls always expose security risk prediction in tool schemas.
+            # 工具存储为 ToolDefinition 对象，并在 LLM 完成期间使用 security_risk 参数转
+            # 换为 OpenAI 格式。 智能体调用总是会暴露工具模式中的安全风险预测。
+            #
             tools=list(self.tools_map.values()),
             dynamic_context=TextContent(text=dynamic_context)
             if dynamic_context
@@ -601,27 +593,26 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         on_event(event)
 
     def get_dynamic_context(self, state: ConversationState) -> str | None:
-        """Get dynamic context for the system prompt, including secrets from state.
+        """获取系统提示词的动态上下文，包括状态中的机密。
 
-        This method pulls secrets from the conversation's secret_registry and
-        merges them with agent_context to build the dynamic portion of the
-        system prompt, assembled from the dynamic-tier sections of the default
-        registry. ``_build_prompt_context`` reproduces the legacy no-agent_context
-        path: with no agent_context but registry secrets present, it resolves a
-        default ``AgentContext()`` so the secrets (and its datetime) still render.
+        该方法从会话的secret_registry中拉取机密，并与agent_context合并，构建系统提示
+        词的动态部分，该部分由默认的注册表中的动态层级组成。
+         ``_build_prompt_context`` 再现遗产 no-agent_context
+        path: 没有 agent_context 但存在注册表机密，它解决了
+        默认 ``AgentContext()``，因此机密（及其日期时间）仍然呈现。
 
         Args:
-            state: The conversation state containing the secret_registry.
+            state: 包含secret_registry的对话状态。
 
         Returns:
-            The dynamic context string, or None if no context is configured.
+            动态上下文字符串，如果未配置上下文，则为 None。
         """
-        # Get secret infos from conversation's secret_registry
+        # 从对话的 secret_registry 获取机密信息
         secret_infos = state.secret_registry.get_secret_infos()
 
         ctx = self._build_prompt_context(additional_secret_infos=secret_infos)
-        # The dynamic tier is preset-independent; fall back to the default tier for a
-        # custom Jinja template (preset None), as before.
+        # 动态层与预设无关； 像以前一样，回退到自定义 Jinja 模板的默认层（预设 None）。
+        #
         preset = self._prompt_preset or PromptPreset.DEFAULT
         return create_registry(preset).build(ctx).dynamic
 
@@ -635,7 +626,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         action_events: list[ActionEvent],
         on_event: ConversationCallbackType,
     ) -> None:
-        """Prepare a batch, emit results, and handle finish."""
+        """准备批次、发出结果并处理完成。"""
         state = conversation.state
         batch = _ActionBatch.prepare(
             action_events,
@@ -661,11 +652,11 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         action_events: list[ActionEvent],
         on_event: ConversationCallbackType,
     ) -> None:
-        """Async variant of :meth:`_execute_actions`.
+        """异步：meth:`_execute_actions` 的变体。
 
-        Each tool call runs in its own thread via
-        :meth:`ParallelToolExecutor.aexecute_batch`, giving the event
-        loop an ``await`` boundary between every tool invocation.
+        每个工具调用在其自己的线程中运行
+        :meth:`ParallelToolExecutor.aexecute_batch`，给出事件
+        在每个工具调用之间循环一个 ``await`` 边界。
         """
         state = conversation.state
         batch = await _ActionBatch.aprepare(
@@ -707,8 +698,8 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         stream: StreamContext,
     ) -> None:
         state = conversation.state
-        # Check for pending actions (implicit confirmation)
-        # and execute them before sampling new actions.
+        # 检查待处理的操作（隐式确认）并在对新操作进行采样之前执行它们。
+        #
         pending_actions = ConversationState.get_unmatched_actions(state.active_branch())
         if pending_actions:
             logger.info(
@@ -718,8 +709,9 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             self._execute_actions(conversation, pending_actions, on_event)
             return
 
-        # Check if the last user message was blocked by a UserPromptSubmit hook
-        # If so, skip processing and mark conversation as finished
+        # 检查最后一条用户消息是否被 UserPromptSubmit 挂钩阻止如果是，则跳过处理并将对话
+        # 标记为已完成
+        #
         if state.last_user_message_id is not None:
             reason = state.pop_blocked_message(state.last_user_message_id)
             if reason is not None:
@@ -732,22 +724,24 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 "skipping hook check for legacy conversation state."
             )
 
-        # Build per-conversation context once and thread it through all
-        # LLM calls in this step (avoids shared mutable state on the LLM).
+        # 构建每个对话上下文一次，并通过此步骤中的所有 LLM 调用构建线程（避免 LLM 上共享
+        # 可变状态）。
+        #
         call_context: LLMCallContext = conversation.get_llm_call_context()
 
-        # Establish route-aware runtime metadata (cached, no I/O on a hit)
-        # before the condenser decides a token threshold, so a routed model's
-        # real endpoint limit drives condensation on the first step.
+        # 在上下文压缩器决定 token 门限之前，先建立基于路由的运行时元数据（缓存，命中时
+        # 不进行 I/O），这样路由模型的实际端点限制驱动上下文压缩的第一步。
+        #
         self.llm.resolve_runtime_metadata()
 
-        # Prepare LLM messages from the cached, incrementally-maintained view.
-        # See https://github.com/OpenHands/software-agent-sdk/issues/3053.
+        # 从缓存的增量维护视图中准备 LLM 条消息。 参见
+        # https://github.com/OpenHands/software-agent-sdk/issues/3053.
+        #
         _messages_or_condensation = prepare_llm_messages(
             state.view, condenser=self.condenser, llm=self.llm
         )
 
-        # Process condensation event before agent sampels another action
+        # 在智能体采样另一个操作之前处理上下文压缩事件
         if isinstance(_messages_or_condensation, Condensation):
             on_event(_messages_or_condensation)
             return
@@ -803,8 +797,8 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             on_event(error_message)
             return
         except LLMContentPolicyViolationError as e:
-            # Content-policy blocks are deterministic; nudge the model and let the
-            # run loop continue instead of emitting a fatal error.
+            # 内容策略块是确定性的； 轻推模型并让运行循环继续，而不是发出致命错误。
+            #
             logger.warning(f"LLM output blocked by content filter: {e}")
             on_event(
                 MessageEvent(
@@ -825,11 +819,10 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             )
             return
         except LLMMalformedConversationHistoryError as e:
-            # The provider rejected the current message history as structurally
-            # invalid (for example, broken tool_use/tool_result pairing). Route
-            # this into condensation recovery, but keep the logs distinct from
-            # true context-window exhaustion so upstream event-stream bugs remain
-            # visible.
+            # 提供程序拒绝当前消息历史记录，因为其结构无效（例如，tool_use/tool_result
+            # 配对损坏）。 将其路由到上下文压缩恢复，但保持日志与 True 上下文窗口耗尽不
+            # 同，以便上游事件流错误保持可见。
+            #
             if (
                 self.condenser is not None
                 and self.condenser.handles_condensation_requests()
@@ -839,9 +832,9 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                     "triggering condensation retry with condensed history: "
                     f"{e}"
                 )
-                # The incremental view may itself be the source of the
-                # malformed history.  Re-derive with full enforcement so
-                # the condenser operates on a clean view.
+                # 增量视图本身可能就是畸形历史的根源。 完全执行重新推导，以便上下文压缩
+                # 器在干净的视图上运行。
+                #
                 state.rebuild_view()
                 on_event(CondensationRequest())
                 return
@@ -853,7 +846,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             )
             raise e
         except LLMContextWindowExceedError as e:
-            # If condenser is available and handles requests, trigger condensation
+            # 如果上下文压缩器可用并处理请求，则触发上下文压缩
             if (
                 self.condenser is not None
                 and self.condenser.handles_condensation_requests()
@@ -863,11 +856,11 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 )
                 on_event(CondensationRequest())
                 return
-            # No condenser available or doesn't handle requests; log helpful warning
+            # 没有可用的上下文压缩器或不处理请求； 记录有用的警告
             self._log_context_window_exceeded_warning()
             raise e
 
-        # LLMResponse already contains the converted message and metrics snapshot
+        # LLMResponse 已经包含了转换后的消息和指标快照
         message: Message = llm_response.message
         response_type = classify_response(message)
 
@@ -898,14 +891,14 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ) -> None:
-        """Async variant of :meth:`step`.
+        """异步：meth:`step` 的变体。
 
-        The LLM completion is performed asynchronously via
-        :meth:`LLM.agenerate`.  Tool dispatch uses
-        :meth:`_aexecute_actions` which runs each tool call in its own
-        thread via :func:`asyncio.loop.run_in_executor` and schedules
-        parallel calls with :func:`asyncio.gather`, keeping the event
-        loop responsive during blocking tool I/O.
+        LLM 完成是通过异步执行的
+        ：方法：`LLM.agenerate`。 工具调度用途
+        :meth:`_aexecute_actions` 单独运行每个工具调用
+        线程通过：func:`asyncio.loop.run_in_executor` 并使用：func:`asyncio.gather`
+        安排并行调用，在阻塞工
+        具 I/O 期间保持事件循环响应。
         """
         call_context = conversation.get_llm_call_context()
         with (
@@ -921,7 +914,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         stream: StreamContext,
     ) -> None:
         state = conversation.state
-        # Check for pending actions (implicit confirmation)
+        # 检查待处理的操作（隐式确认）
         pending_actions = ConversationState.get_unmatched_actions(state.active_branch())
         if pending_actions:
             logger.info(
@@ -945,13 +938,14 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
 
         call_context: LLMCallContext = conversation.get_llm_call_context()
 
-        # Establish route-aware runtime metadata (cached, no I/O on a hit)
-        # before the condenser decides a token threshold, so a routed model's
-        # real endpoint limit drives condensation on the first step.
+        # 在上下文压缩器决定 token 门限之前，先建立基于路由的运行时元数据（缓存，命中时
+        # 不进行 I/O），这样路由模型的实际端点限制驱动上下文压缩的第一步。
+        #
         await self.llm.aresolve_runtime_metadata()
 
-        # Prepare LLM messages from the cached, incrementally-maintained view.
-        # See https://github.com/OpenHands/software-agent-sdk/issues/3053.
+        # 从缓存的增量维护视图中准备 LLM 条消息。 参见
+        # https://github.com/OpenHands/software-agent-sdk/issues/3053.
+        #
         _messages_or_condensation = await aprepare_llm_messages(
             state.view, condenser=self.condenser, llm=self.llm
         )
@@ -991,9 +985,9 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         )
 
         try:
-            # Release the state lock for just the network wait so send_message()
-            # and state snapshots aren't blocked for the whole response. No-op
-            # unless the run loop holds the lock (e.g. direct astep() in tests).
+            # 仅在网络等待期间释放状态锁，因此 send_message() 和状态快照不会在整个响应期
+            # 间被阻止。 除非运行循环持有锁 (e.g. 直接在测试中astep()）。
+            #
             async with conversation._released_state_lock_during_io():
                 llm_response = await self.llm.agenerate(
                     messages=_messages,
@@ -1015,8 +1009,8 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             on_event(error_message)
             return
         except LLMContentPolicyViolationError as e:
-            # Content-policy blocks are deterministic; nudge the model and let the
-            # run loop continue instead of emitting a fatal error.
+            # 内容策略块是确定性的； 轻推模型并让运行循环继续，而不是发出致命错误。
+            #
             logger.warning(f"LLM output blocked by content filter: {e}")
             on_event(
                 MessageEvent(
@@ -1037,12 +1031,10 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             )
             return
         except LLMMalformedConversationHistoryError as e:
-            # The provider rejected the current message history as
-            # structurally invalid (for example, broken
-            # tool_use/tool_result pairing).  Route this into
-            # condensation recovery, but keep the logs distinct from
-            # true context-window exhaustion so upstream event-stream
-            # bugs remain visible.
+            # 提供程序拒绝当前消息历史记录，因为其结构无效（例如，tool_use/tool_result
+            # 配对损坏）。 将其路由到上下文压缩恢复，但保持日志与 True 上下文窗口耗尽不
+            # 同，以便上游事件流错误保持可见。
+            #
             if (
                 self.condenser is not None
                 and self.condenser.handles_condensation_requests()
@@ -1053,8 +1045,8 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                     "history: %s",
                     e,
                 )
-                # Mirror step(): re-derive the cached view with full
-                # enforcement before the condensation retry.
+                # step()：重新导出缓存视图，并在上下文压缩重试之前进行完全执行。
+                #
                 state.rebuild_view()
                 on_event(CondensationRequest())
                 return
@@ -1067,8 +1059,8 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             )
             raise e
         except LLMContextWindowExceedError as e:
-            # If condenser is available and handles requests, trigger
-            # condensation
+            # 如果上下文压缩器可用并处理请求，则触发上下文压缩
+            #
             if (
                 self.condenser is not None
                 and self.condenser.handles_condensation_requests()
@@ -1078,16 +1070,17 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 )
                 on_event(CondensationRequest())
                 return
-            # No condenser available; log helpful warning
+            # 没有上下文压缩器可用； 记录有用的警告
             self._log_context_window_exceeded_warning()
             raise e
 
         message: Message = llm_response.message
         response_type = classify_response(message)
         if response_type is not LLMResponseType.TOOL_CALLS:
-            # Resolve outside the event loop and state lock. A lookup may call
-            # this server, and update_secrets() may register another source while
-            # we await it. Repeat until the registry is stable under the lock.
+            # 解决事件循环之外的问题并陈述锁。 查找可能会调用此服务器，并且
+            # update_secrets() 可能会在我们等待时注册另一个源。 重复此操作，直至注册表在
+            # 锁下方稳定。
+            #
             while True:
                 sources = dict(state.secret_registry.secret_sources)
                 async with conversation._released_state_lock_during_io():
@@ -1130,7 +1123,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         action_events: list[ActionEvent],
         on_event: ConversationCallbackType | None = None,
     ) -> bool:
-        """Analyze actions and record the verdict before applying the policy."""
+        """在应用策略之前分析操作并记录结论。"""
         risks, event = self._analyze_for_confirmation(state, action_events)
         if event is not None and on_event is not None:
             on_event(state.secret_registry.mask_secrets_in_model(event))
@@ -1143,7 +1136,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         action_events: list[ActionEvent],
         on_event: ConversationCallbackType,
     ) -> bool:
-        """Resolve audit secrets without blocking the loop or holding state."""
+        """解决审核机密，而不阻塞循环或保持状态。"""
         risks, event = self._analyze_for_confirmation(state, action_events)
         if event is not None:
             while True:
@@ -1160,7 +1153,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
     def _analyze_for_confirmation(
         self, state: ConversationState, action_events: list[ActionEvent]
     ) -> tuple[list[risk.SecurityRisk], SecurityAnalysisEvent | None]:
-        # A single `FinishAction` or `ThinkAction` never requires confirmation
+        # 单个 `FinishAction` 或 `ThinkAction` 不需要确认
         if len(action_events) == 1 and isinstance(
             action_events[0].action, (FinishAction, ThinkAction)
         ):
@@ -1205,22 +1198,22 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
     ) -> risk.SecurityRisk:
         raw = arguments.pop("security_risk", None)
 
-        # Default risk value for action event
-        # Tool is marked as read-only so security risk can be ignored
+        # 操作事件 Tool 的默认风险值标记为只读，因此可以忽略安全风险
+        #
         if read_only_tool:
             return risk.SecurityRisk.UNKNOWN
 
-        # When no security analyzer is configured, ignore any security_risk field
+        # 当没有配置安全分析器时，忽略任何security_risk字段
         # from LLM and return UNKNOWN. This ensures that security_risk is only
-        # evaluated when a security analyzer is explicitly set.
+        # 当显式设置安全分析器时进行评估。
         if security_analyzer is None:
             return risk.SecurityRisk.UNKNOWN
 
-        # security_risk is optional: if the LLM omits it, default to UNKNOWN.
+        # security_risk是可选的：如果LLM省略，则默认为UNKNOWN。
         if raw is None:
             return risk.SecurityRisk.UNKNOWN
 
-        # Raises exception if invalid risk enum passed by LLM
+        # 如果无效风险枚举通过 LLM，则会引发异常
         security_risk = risk.SecurityRisk(raw)
         return security_risk
 
@@ -1230,31 +1223,30 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         arguments: dict,
         tool: ToolDefinition | None = None,
     ) -> str:
-        """Extract and validate the summary field from tool arguments.
+        """从工具参数中提取并验证汇总字段。
 
-        Summary field is always requested but optional - if LLM doesn't provide
-        it or provides invalid data, we generate a default summary using the
-        tool name and arguments.
+        摘要字段总是请求的，但可选的 - 如果 LLM 不提供它或提供无效数据，我们将使用工
+        具名称和参数生成默认摘要。
 
-        When the tool's own schema declares ``summary`` as a real parameter
-        (e.g. Jira's ticket title), the value is **read but not removed** so
-        that ``action_from_arguments`` validation still succeeds.  The tool's
-        own ``summary`` value is reused as the event-level summary because it
-        is usually descriptive (e.g. a Jira ticket title).
+        当工具自己的模式将 ``summary`` 声明为实参数时 (e.g. Jira 的工单标题），该值为
+         ** 已读取但未删除 **，因此
+        ``action_from_arguments`` 验证仍然会成功。 该工具自己的 ``summary`` 值被重用
+        为事件级摘要，因为它通常是描述性的 (
+        e.g. Jira 票证标题）。
 
         Args:
-            tool_name: Name of the tool being called
-            arguments: Dictionary of tool arguments from LLM
-            tool: The tool definition (used to check if "summary" is a
-                declared parameter of the tool's schema)
+            tool_name: 被调用的工具名称
+            arguments: 来自 LLM 的工具参数字典
+            tool: 工具定义（用于检查“summary”是否为
+                工具的声明参数模式)
 
         Returns:
-            The summary string - either from LLM or a default generated one
+            摘要字符串 - 来自 LLM 或默认生成的字符串
         """
         if tool is not None and _tool_has_summary_param(tool):
-            # "summary" belongs to the tool — read it but don't pop it.
-            # Reuse the tool's own value as the event summary (e.g. a Jira
-            # ticket title is a reasonable description of the action).
+            # “摘要”属于工具——阅读它但不要弹出它。 重用工具自身的值作为事件摘要 (e.g.
+            # Jira 票证标题是对操作的合理描述）。
+            #
             summary = arguments.get("summary")
             if isinstance(summary, str) and summary.strip():
                 return summary.strip()
@@ -1263,11 +1255,11 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
 
         summary = arguments.pop("summary", None)
 
-        # If valid summary provided by LLM, use it
+        # 如果 LLM 提供了有效的摘要，请使用它
         if summary is not None and isinstance(summary, str) and summary.strip():
             return summary
 
-        # Generate default summary: {tool_name}: {arguments}
+        # 生成默认摘要：{tool_name}：{arguments}
         args_str = json.dumps(arguments)
         return f"{tool_name}: {args_str}"
 
@@ -1348,24 +1340,24 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         responses_reasoning_item: ReasoningItemModel | None = None,
         stream: StreamContext | None = None,
     ) -> ActionEvent | None:
-        """Converts a tool call into an ActionEvent, validating arguments.
+        """将工具调用转换为 ActionEvent，验证参数。
 
-        NOTE: state will be mutated in-place.
+        NOTE: 状态将就地突变。
         """
-        # Track the originally-requested tool name (before normalization) for
-        # error messages when the tool is not found or validation fails.
+        # 当找不到工具或验证失败时，跟踪最初请求的工具名称（规范化之前）以获取错误消息。
+        #
         requested_tool_name = tool_call.name
         tool: ToolDefinition | None = None
-        # Store the normalized tool call to persist correct name/args in events.
+        # 将标准化的工具调用到持久化正确名称/参数存储在事件中。
         normalized_tool_call = tool_call
         arguments: dict[str, object] | None = None
 
         security_risk: risk.SecurityRisk = risk.SecurityRisk.UNKNOWN
         try:
-            # Parse arguments inside the try block so JSONDecodeError is caught.
+            # 在 try 块中解析参数，以便 JSONDecodeError 被捕获。
             arguments = parse_tool_call_arguments(tool_call.arguments)
 
-            # Normalize tool call (handles aliasing, terminal fallback, etc.)
+            # 规范化工具调用（处理别名、终端回退方案等）
             tool_name, arguments = normalize_tool_call(
                 requested_tool_name,
                 arguments,
@@ -1418,14 +1410,14 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             action: Action = tool.action_from_arguments(arguments)
 
         except (ValueError, json.JSONDecodeError, ValidationError) as e:
-            # normalize_tool_call or Pydantic validation raised an error.
-            # Build concise error message with parameter names only (not values).
-            # Try to extract keys for the error message, but gracefully handle
-            # truly unparseable JSON by showing "unparseable JSON" instead.
+            # normalize_tool_call 或 Pydantic 验证出现错误。 仅使用参数名称（而不是值）
+            # 构建简洁的错误消息。 尝试提取错误消息的键，但通过显示“无法解析JSON”来优雅
+            # 地处理真正无法解析的JSON。
+            #
 
-            # When normalize_tool_call raises about file_editor "Cannot infer",
-            # the error message contains the alias target (e.g. "file_editor"),
-            # not the original tool name. Extract it so error messages match.
+            # 当 normalize_tool_call 引发 file_editor“无法推断”时，错误消息包含别名目标
+            # (e.g. “file_editor”），不是原始工具名称。 提取它以便错误消息匹配。
+            #
             err_str = str(e)
             display_tool_name = requested_tool_name
             if "Cannot infer" in err_str:
@@ -1456,9 +1448,9 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             )
             return
 
-        # Create initial action event. Claimed here rather than at the call
-        # site so an error path, which never builds this event, leaves the slot
-        # open for the abort in StreamContext.__exit__.
+        # 创建初始操作事件。 在此声明而不是在调用站点声明，因此永远不会构建此事件的错误
+        # 路径会在 StreamContext.__exit__ 中为中止保留开放的插槽。
+        #
         minted: dict[str, Any] = {}
         if stream is not None and (item_id := stream.claim()):
             minted["id"] = item_id
@@ -1478,11 +1470,11 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             summary=summary,
         )
 
-        # Run critic evaluation if configured
+        # 如果已配置，则运行批评家评估
         if self._should_evaluate_with_critic(action):
             critic_result = self._evaluate_with_critic(conversation, action_event)
             if critic_result is not None:
-                # Create new event with critic result
+                # 使用评论结果创建新事件
                 action_event = action_event.model_copy(
                     update={"critic_result": critic_result}
                 )
@@ -1497,19 +1489,17 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
         conversation: LocalConversation,
         action_event: ActionEvent,
     ) -> list[Event]:
-        """Execute a single tool and return the resulting events.
+        """执行单个工具并返回结果事件。
 
-        Called from parallel threads by _execute_actions. This method must
-        not mutate shared conversation state (blocked_actions,
-        execution_status) — those transitions are handled by the caller
-        on the main thread.
+        由 _execute_actions 从并行线程调用。 此方法不得改变共享对话状态 (
+        blocked_actions, execution_status)
+        — 这些转换由主线程上的调用者处理。
 
-        Note: the tool itself receives ``conversation`` and may mutate it
-        (e.g. filesystem, working directory). Thread safety of individual
-        tools is the tool's responsibility.
+        Note: 该工具本身接收 ``conversation`` 并可能会改变它
+        (e.g. 文件系统，工作目录）。 线程安全个别工具的责任是工具的责任。
 
-        Returns a list of events (observation or error). Events are NOT
-        emitted here — the caller is responsible for emitting them in order.
+        返回事件列表（观测结果或错误）。 事件在此处发出不 — 调用者负责按顺序发出它们
+        。
         """
         tool = self.tools_map.get(action_event.tool_name, None)
         if tool is None:
@@ -1518,15 +1508,15 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 "as it was checked earlier."
             )
 
-        # Execute actions!
+        # 执行行动！
         try:
             if should_enable_observability():
                 tool_name = extract_action_name(action_event)
                 observation: Observation = observe(
                     name=tool_name,
                     span_type="TOOL",
-                    # Only the action is input; the conversation would serialize
-                    # as a bare object repr carrying a memory address.
+                    # 仅输入动作； 对话将序列化作为携带内存地址的裸对象 repr。
+                    #
                     ignore_inputs=["conversation"],
                     metadata={"tool_call_id": action_event.tool_call.id},
                 )(tool)(action_event.action, conversation)
@@ -1536,8 +1526,9 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
                 f"Tool '{tool.name}' executor must return an Observation"
             )
         except ValueError as e:
-            # Tool execution raised a ValueError (e.g., invalid argument combination)
-            # Convert to AgentErrorEvent so the agent can correct itself
+            # 工具执行引发 ValueError（e.g.，无效参数组合）转换为 AgentErrorEvent，以便
+            # 智能体可以自行更正
+            #
             err = f"Error executing tool '{tool.name}': {e}"
             logger.warning(err)
             error_event = AgentErrorEvent(
@@ -1572,7 +1563,7 @@ class Agent(CriticMixin, ResponseDispatchMixin, AgentBase):
             on_event(token_event)
 
     def _log_context_window_exceeded_warning(self) -> None:
-        """Log a helpful warning when context window is exceeded without a condenser."""
+        """当超出上下文窗口而没有上下文压缩器时，记录有用的警告。"""
         if self.condenser is None:
             situation = (
                 "The LLM's context window has been exceeded, but no condenser is "

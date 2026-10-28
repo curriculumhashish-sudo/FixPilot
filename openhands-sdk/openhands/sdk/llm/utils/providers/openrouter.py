@@ -1,8 +1,7 @@
-"""OpenRouter runtime metadata adapter.
+"""OpenRouter 运行时元数据适配器。
 
-Queries OpenRouter's per-endpoint catalog to determine the context/output
-limits of the routes an ``LLM`` is actually configured to use, rather than the
-model-level catalog value (which can overstate an endpoint's context).
+查询 OpenRouter 的端点目录以确定 ``LLM`` 实际上配置的路由的上下文/输出限制，而不是模
+型级别的目录值（这可能会夸大端点的上下文）。
 
 See: https://github.com/OpenHands/software-agent-sdk/issues/4421
 """
@@ -29,11 +28,11 @@ OPENROUTER_ENDPOINTS_BASE = "https://openrouter.ai/api/v1/models"
 
 
 def _openrouter_model_id(llm: LLM) -> str | None:
-    """Return the OpenRouter model id for the endpoints API, or None.
+    """返回端点、API 或 None 的 OpenRouter 模型 ID。
 
-    Prefers the ``openrouter/<id>`` prefix form. When the base URL identifies
-    OpenRouter and the model already looks like an OpenRouter id
-    (``provider/model``), it is used as-is.
+    首选 ``openrouter/<id>`` 前缀形式。 当基础 URL 标识 OpenRouter 并且模型已经看起来
+    像 OpenRouter id (
+    ``provider/model``) 时，将按原样使用。
     """
     model = llm.model or ""
     base_url = llm.base_url or ""
@@ -59,14 +58,14 @@ def _provider_routing(llm: LLM) -> dict[str, Any]:
 def _eligible_endpoints(
     endpoints: list[dict[str, Any]], routing: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Filter and rank the endpoint list to the routes the routing config permits.
+    """对端点列表进行过滤并排序为路由配置允许的路由。
 
-    Matches OpenRouter's provider-selection semantics: ``only`` and ``ignore``
-    are *eligibility* filters applied first, and ``order`` ranks the survivors.
-    ``only`` overrides ``order`` (order is ignored when ``only`` is present).
-    When ``allow_fallbacks`` is false and an ``order`` is given, routing pins
-    to the first surviving ordered provider; otherwise ordered providers come
-    first and the remaining survivors are appended as fallbacks.
+    匹配 OpenRouter 的提供者选择语义：``only`` 和 ``ignore`` 是首先应用的 *资格* 过滤
+    器，``order`` 对幸存者进行排名。
+    ``only`` 覆盖 ``order``（当 ``only`` 存在时，顺序被忽略）。 当
+    ``allow_fallbacks`` 为 False 且给出
+    ``order`` 时，将引脚路由到第一个幸存的有序提供者； 否则排序的提供者优先，其余的幸
+    存者被附加为回退方案。
     """
     only = [p for p in (routing.get("only") or [])]
     ignore = [p for p in (routing.get("ignore") or [])]
@@ -76,8 +75,9 @@ def _eligible_endpoints(
     only_set = {_normalize(p) for p in only}
     ignore_set = {_normalize(p) for p in ignore}
 
-    # (1) Eligibility: keep routes allowed by `only` and not `ignore`. A route
-    # listed in both is excluded.
+    # (1) 资格：保留`only`允许的路线，而不是`ignore`允许的路线。 两者中列出的路线均被排
+    # 除。
+    #
     eligible = [
         e
         for e in endpoints
@@ -87,7 +87,7 @@ def _eligible_endpoints(
     if not eligible:
         return []
 
-    # (2) `only` overrides `order`: with `only` set, order never applies.
+    # (2) `only` 覆盖 `order`：设置 `only` 后，顺序不再适用。
     if only_set or not order:
         return eligible
 
@@ -99,14 +99,14 @@ def _eligible_endpoints(
         e for e in eligible if _normalize(e.get("provider_name")) not in order_idx
     ]
     if not present_order:
-        # An explicit order referencing none of the surviving providers is not
-        # safely interpretable; leave it to the caller to fall back to model
-        # metadata rather than guessing a pin.
+        # 引用幸存提供者 None 的显式订单无法安全地解释； 让调用者回退到模型元数据而不是
+        # 猜测引脚。
+        #
         return []
     if allow_fallbacks:
         present_order.sort(key=lambda e: order_idx[_normalize(e.get("provider_name"))])
         return present_order + others
-    # Pins to the first surviving ordered provider.
+    # 固定到第一个幸存的订购提供商。
     present_order.sort(key=lambda e: order_idx[_normalize(e.get("provider_name"))])
     return present_order[:1]
 
@@ -115,10 +115,9 @@ def parse_openrouter_payload(
     payload: dict[str, Any],
     routing: dict[str, Any],
 ) -> ModelRuntimeMetadata | None:
-    """Turn the OpenRouter endpoints response into runtime metadata.
+    """将 OpenRouter 端点响应转换为运行时元数据。
 
-    Returns ``None`` when routing cannot be interpreted safely, so the caller
-    falls back to model-level metadata rather than guessing.
+    当无法安全地解释路由时返回 ``None``，因此调用者会退回到模型级元数据而不是猜测。
     """
     data = payload.get("data")
     if isinstance(data, list):
@@ -139,8 +138,8 @@ def parse_openrouter_payload(
 
     eligible = _eligible_endpoints(valid, routing)
     if not eligible:
-        # The config references routes not present in the catalog, or pins/skips
-        # everything. Do not guess a limit.
+        # 配置引用目录中不存在的路由，或者固定/跳过所有内容。 不要猜测极限。
+        #
         return None
 
     provider_names = [e.get("provider_name", "") for e in eligible]
@@ -156,10 +155,10 @@ def parse_openrouter_payload(
             confidence="exact",
         )
 
-    # Multiple eligible routes: routing may pick any of them, so the runtime
-    # provider is not known ahead of time and no single ``selected_provider``
-    # should be implied. The input context is the minimum unless every route
-    # agrees (in which case that value is exact).
+    # 多个符合条件的路由：路由可能会选择其中任何一个，因此运行时提供程序无法提前知道，并
+    # 且不应隐含任何单个 ``selected_provider``。 输入上下文是最小值，除非每条路线都一致
+    # （在这种情况下该值是准确的）。
+    #
     contexts_equal = len(set(contexts)) == 1
     return ModelRuntimeMetadata(
         max_input_tokens=contexts[0] if contexts_equal else min(contexts),

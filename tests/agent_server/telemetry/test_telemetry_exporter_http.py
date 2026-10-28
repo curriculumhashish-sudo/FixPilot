@@ -1,9 +1,8 @@
-"""Generic HTTP exporter.
+"""通用 HTTP 导出器。
 
-Mirrors the PostHog exporter tests: payload shape, auth, allowlist compliance,
-and failure isolation. The retry/drop/shutdown guarantees live in
-``BufferedTelemetrySink`` and are covered there, so this asserts only that
-failures propagate to it rather than being swallowed.
+镜像 PostHog 导出器测试：载荷形状、身份验证、许可名单合规性和故障隔离。 重试/丢弃/关
+闭保证存活
+``BufferedTelemetrySink`` 并被覆盖在那里，因此这仅断言故障会传播到它而不是被吞没。
 """
 
 import json
@@ -86,7 +85,7 @@ async def test_sent_properties_stay_within_the_allowlist():
 
     props = captured["body"]["events"][0]["properties"]
     assert set(props) <= set(m.EXPECTED_PROPERTY_NAMES)
-    # distinct_id is the addressing field, not a property.
+    # distinct_id 是寻址字段，而不是属性。
     assert "distinct_id" not in props
 
 
@@ -114,7 +113,7 @@ async def test_no_auth_header_without_a_token():
 
 @pytest.mark.parametrize("status", [400, 401, 429, 500, 503])
 async def test_error_responses_propagate_to_the_sink(status: int):
-    """The sink owns retry and drop; the exporter must not swallow failures."""
+    """接收器拥有重试并丢弃； 出口商决不能容忍失败。"""
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(status)
@@ -138,7 +137,7 @@ async def test_aclose_is_safe_to_call_twice():
 
 
 async def test_the_payload_carries_no_raw_identifiers():
-    """Same guarantee as PostHog: the transport does not re-add anything."""
+    """与 PostHog 相同的保证：传输层不会重新添加任何内容。"""
     captured: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:

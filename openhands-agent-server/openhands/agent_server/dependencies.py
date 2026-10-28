@@ -12,10 +12,9 @@ from openhands.agent_server.conversation_service import ConversationService
 from openhands.agent_server.event_service import EventService
 
 
-# Cookie name used to authenticate the workspace static-file routes.
-# Intentionally distinct from the header name: the cookie is ONLY honored
-# by the workspace router (so iframes / <img> can load workspace files),
-# and is rejected by every other API endpoint.
+# 用于验证工作区静态文件路由的 Cookie 名称。 故意与头部名称不同：cookie 仅被工作区路由器
+# （因此如果帧/ <img> 可以加载工作区文件）接受，但被其他所有 API 端点拒绝。
+#
 WORKSPACE_SESSION_COOKIE_NAME = "oh_workspace_session_key"
 
 _SESSION_API_KEY_HEADER = APIKeyHeader(name="X-Session-API-Key", auto_error=False)
@@ -28,11 +27,11 @@ def check_session_api_key(
     request: Request,
     session_api_key: str | None = Depends(_SESSION_API_KEY_HEADER),
 ) -> None:
-    """Reject the request if the supplied key is not in the current session keys.
+    """如果提供的密钥不在当前会话密钥中，则拒绝请求。
 
-    Reads ``session_api_keys`` from ``request.app.state.config`` at request time
-    so that keys delivered via ``POST /api/init`` take effect immediately without
-    restarting the server or re-registering routes.
+    在请求时从``request.app.state.config``读取``session_api_keys``，以便通过
+    ``POST /api/init``传递的密
+    钥立即生效，而无需重新启动服务器或重新注册路由。
     """
     config: Config = request.app.state.config
     if config.session_api_keys and session_api_key not in config.session_api_keys:
@@ -44,15 +43,15 @@ def check_workspace_session(
     header_key: str | None = Depends(_SESSION_API_KEY_HEADER),
     cookie_key: str | None = Depends(_WORKSPACE_SESSION_COOKIE),
 ) -> None:
-    """Auth dependency for the workspace static-file routes.
+    """工作区静态文件路由的身份验证依赖项。
 
-    Accepts EITHER the standard ``X-Session-API-Key`` header OR the
-    ``oh_workspace_session_key`` cookie (minted by
-    ``POST /api/auth/workspace-session``).
-    The cookie is required because browsers cannot attach custom headers to
-    ``<iframe src>`` or ``<img src>`` requests, which is how the canvas
-    frontend embeds workspace artifacts. The cookie is deliberately scoped
-    to this router only; no other endpoint honors it.
+    接受 EITHER 标准 ``X-Session-API-Key`` 标头或
+    ``oh_workspace_session_key`` cookie（由
+    ``POST /api/auth/workspace-session``). cookie 是必需的，因为浏览器无法将自定义标
+    头附加到
+    ``<iframe src>`` 或 ``<img src>`` 请求，这就是画布前端嵌入工作区工件的方式。
+    cookie 的作用域被特意限定为仅此路由器； 没有其
+    他端点尊重它。
     """
     config: Config = request.app.state.config
     if not config.session_api_keys:
@@ -79,9 +78,9 @@ async def get_bash_event_service(request: Request) -> BashEventService:
             request.state, "runtime_event_service", None
         )
         if event_service is None:
-            # FastAPI still resolves this dependency when the router dependency
-            # bind_local_conversation_runtime failed validation, so report that
-            # validation error instead of reading state it never set.
+            # 当路由器依赖项 bind_local_conversation_runtime 失败验证时，FastAPI 仍然解
+            # 决此依赖项，因此报告验证错误，而不是读取它从未设置的状态。
+            #
             raw_id = request.path_params["runtime_conversation_id"]
             try:
                 TypeAdapter(UUID).validate_python(raw_id)

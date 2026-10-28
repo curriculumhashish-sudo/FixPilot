@@ -1,4 +1,4 @@
-"""Tests for ``POST /api/acp/models``."""
+"""测试 ``POST /api/acp/models``。"""
 
 from __future__ import annotations
 

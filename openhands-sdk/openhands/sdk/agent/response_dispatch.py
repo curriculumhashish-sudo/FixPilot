@@ -1,9 +1,9 @@
-"""Classify LLM responses and dispatch to type-specific handlers.
+"""对 LLM 响应进行分类并分派到特定于类型的处理程序。
 
-Contains:
-  - ``LLMResponseType`` — enum for response classification.
-  - ``classify_response`` — pure classifier function (no side effects).
-  - ``ResponseDispatchMixin`` — handler methods mixed into ``Agent``.
+包含：
+  - ``LLMResponseType`` — 枚举用于响应分类。
+  - ``classify_response`` — 纯分类器函数（无副作用）。
+  - ``ResponseDispatchMixin`` — 处理程序方法混合到 ``Agent`` 中。
 """
 
 from __future__ import annotations
@@ -38,12 +38,12 @@ logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Classification
+# 分类
 # ---------------------------------------------------------------------------
 
 
 class LLMResponseType(StrEnum):
-    """Mutually exclusive classification of an LLM response."""
+    """LLM 响应的互斥分类。"""
 
     TOOL_CALLS = "tool_calls"
     CONTENT = "content"
@@ -52,15 +52,15 @@ class LLMResponseType(StrEnum):
 
 
 def classify_response(message: Message) -> LLMResponseType:
-    """Classify an LLM response message into exactly one type.
+    """将 LLM 响应消息准确分类为一种类型。
 
-    Decision priority (first match wins):
-      1. TOOL_CALLS  — message contains tool calls
-      2. CONTENT     — message contains non-blank TextContent
-      3. REASONING_ONLY — message has reasoning but no visible content
-      4. EMPTY       — nothing useful
+    判定优先级（第一场比赛获胜）：
+      1. TOOL_CALLS — 消息包含工具调用
+      2. CONTENT — 消息包含非空白 TextContent
+      3. REASONING_ONLY — 消息有推理但没有可见内容
+      4. EMPTY — 没有什么用处
 
-    This function is pure: no side effects, no logging, no mutation.
+    这个函数是纯粹的：没有副作用，没有日志记录，没有突变。
     """
     if message.tool_calls:
         return LLMResponseType.TOOL_CALLS
@@ -79,18 +79,18 @@ def classify_response(message: Message) -> LLMResponseType:
 
 
 # ---------------------------------------------------------------------------
-# Dispatch mixin
+# 调度混合
 # ---------------------------------------------------------------------------
 
 
 class ResponseDispatchMixin:
-    """Handler methods for each ``LLMResponseType``. Mixed into ``Agent``.
+    """每个 ``LLMResponseType`` 的处理程序方法。 混入``Agent``。
 
-    Expects the host class (``Agent``) to provide the members declared in the
-    ``TYPE_CHECKING`` block below.
+    期望宿主类（``Agent``）提供在
+    下面的 ``TYPE_CHECKING`` 块。
     """
 
-    # Declared for pyright — the actual implementations live on Agent.
+    # 为 Pyright 声明 — 实际实现位于智能体上。
     if TYPE_CHECKING:
         critic: CriticBase | None
 
@@ -160,7 +160,7 @@ class ResponseDispatchMixin:
         on_event: ConversationCallbackType,
         stream: StreamContext | None = None,
     ) -> None:
-        """Handle LLM response containing tool calls."""
+        """处理包含工具调用的 LLM 响应。"""
         if not all(isinstance(c, TextContent) for c in message.content):
             logger.warning(
                 "LLM returned tool calls but message content is not all "
@@ -184,8 +184,8 @@ class ResponseDispatchMixin:
                 responses_reasoning_item=(
                     message.responses_reasoning_item if i == 0 else None
                 ),
-                # The streamed text is this action's thought, so the first
-                # action event is what retires the slot.
+                # 流式文本是该操作的思想，因此第一个操作事件是使槽退出的原因。
+                #
                 stream=stream if i == 0 else None,
             )
             if action_event is None:
@@ -209,11 +209,11 @@ class ResponseDispatchMixin:
         on_event: ConversationCallbackType,
         stream: StreamContext | None = None,
     ) -> None:
-        """Async variant of :meth:`_handle_tool_calls`.
+        """异步：meth:`_handle_tool_calls` 的变体。
 
-        Delegates tool execution to :meth:`_aexecute_actions` so each
-        tool call runs in its own thread and multiple calls are scheduled
-        concurrently via :func:`asyncio.gather`.
+        将工具执行委托给：meth:`_aexecute_actions`，以便每个工具调用在自己的线程中运
+        行，并且通过：func:`asyncio.gather`
+         同时调度多个调用。
         """
         if not all(isinstance(c, TextContent) for c in message.content):
             logger.warning(
@@ -238,8 +238,8 @@ class ResponseDispatchMixin:
                 responses_reasoning_item=(
                     message.responses_reasoning_item if i == 0 else None
                 ),
-                # The streamed text is this action's thought, so the first
-                # action event is what retires the slot.
+                # 流式文本是该操作的思想，因此第一个操作事件是使槽退出的原因。
+                #
                 stream=stream if i == 0 else None,
             )
             if action_event is None:
@@ -267,7 +267,7 @@ class ResponseDispatchMixin:
         *,
         mask_secrets: bool = True,
     ) -> None:
-        """Handle LLM response with text content — finishes conversation."""
+        """使用文本内容处理 LLM 响应 — 结束对话。"""
         self._emit_message_event(
             message,
             llm_response,
@@ -292,11 +292,10 @@ class ResponseDispatchMixin:
         response_type: LLMResponseType,
         mask_secrets: bool = True,
     ) -> None:
-        """Handle LLM response with no user-facing content.
+        """处理没有面向用户的内容的 LLM 响应。
 
-        Covers both reasoning-only and empty responses. Emits the message
-        event and sends corrective feedback so the model knows it must
-        produce a tool call or user-facing content.
+        涵盖仅推理和空洞的回答。 发出消息事件并发送纠正反馈，以便模型知道它必须生成工
+        具调用或面向用户的内容。
         """
         if response_type is LLMResponseType.EMPTY:
             logger.warning("LLM produced empty response - continuing agent loop")
@@ -321,10 +320,10 @@ class ResponseDispatchMixin:
         *,
         mask_secrets: bool = True,
     ) -> MessageEvent:
-        """Create and emit a MessageEvent, running critic if configured.
+        """创建并发出一个 MessageEvent，如果已配置，则运行批评家。
 
-        The message carries the id its own stream minted, so a client holding
-        an open slot retires it on ``frame.event.id == slot.item_id``.
+        该消息携带其自己的流铸造的 id，因此持有开放槽的客户端将其在
+        ``frame.event.id == slot.item_id`` 上退役。
         """
         minted: dict[str, Any] = {}
         if stream is not None and (item_id := stream.claim()):
@@ -344,19 +343,20 @@ class ResponseDispatchMixin:
                     update={"critic_result": critic_result}
                 )
         on_event(msg_event)
-        # Retired only now: on_event can raise while persisting, and a slot
-        # retired before that leaves the client holding it open forever.
+        # 现在才退休：on_event 可以在坚持的同时提高，并且在此之前退休的槽位会让客户端永
+        # 远保持开放状态。
+        #
         if stream is not None and minted:
             stream.commit()
         return msg_event
 
     @staticmethod
     def _mask_secrets(message: Message, conversation: LocalConversation) -> Message:
-        """Return ``message`` with registered secret values masked in its text.
+        """返回 ``message``，并在其文本中屏蔽注册的机密值。
 
-        ``thinking_blocks`` and ``responses_reasoning_item`` are left alone:
-        they are signed provider payloads, and rewriting them invalidates the
-        signature replayed on the next request.
+        ``thinking_blocks`` 和 ``responses_reasoning_item`` 保持不变：它们是签名的提
+        供者载荷，重写它们会使下一个请
+        求时重放的签名无效。
         """
         mask = conversation.state.secret_registry.mask_secrets_in_output
         reasoning = message.reasoning_content
@@ -373,10 +373,9 @@ class ResponseDispatchMixin:
         )
 
     def _send_corrective_nudge(self, on_event: ConversationCallbackType) -> None:
-        """Inject corrective feedback when no tool call and no content.
+        """当没有工具调用且没有内容时注入纠正反馈。
 
-        The model still receives this as a user-role message, but the event
-        source marks that it came from the framework rather than the human.
+        该模型仍然将其作为用户角色消息接收，但事件源标记它来自框架而不是人类。
         """
         logger.warning(
             "LLM response contained no tool call and no content"

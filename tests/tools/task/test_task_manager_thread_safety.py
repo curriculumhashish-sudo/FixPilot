@@ -1,13 +1,12 @@
-"""Thread-safety tests for TaskManager under parallel tool execution.
+"""线程-并行工具执行下 TaskManager 的安全测试。
 
-These tests verify that guarantee by routing concurrent ``_create_task``
-calls through the real ``ParallelToolExecutor`` and the real
-``TaskTool.declared_resources()``.  A threading barrier inside
-``_generate_ids`` forces all threads to read ``len(_tasks)`` at the same
-instant, maximising the window for races.
+这些测试通过将并发 ``_create_task`` 呼叫路由到真实的 ``ParallelToolExecutor`` 和真实
+的来验证这一保证
+``TaskTool.declared_resources()``. 内部有线程屏障
+``_generate_ids`` 强制所有线程同时读取 ``len(_tasks)``，从而最大化竞争窗口。
 
-If the internal locking in TaskManager is removed or broken, these tests
-will fail with duplicate task IDs and lost dict updates.
+如果 TaskManager 中的内部锁定被删除或破坏，这些测试将失败，并出现重复的任务 ID 和丢失
+的字典更新。
 """
 
 import threading
@@ -50,7 +49,7 @@ def _make_parent_conversation(tmp_path: Path) -> LocalConversation:
 
 
 def _make_action_event(call_id: str) -> Any:
-    """Create a mock ActionEvent carrying a real TaskAction."""
+    """创建一个带有真实TaskAction的模拟对象ActionEvent。"""
     ae = MagicMock()
     ae.tool_name = TaskTool.name
     ae.tool_call_id = call_id
@@ -72,11 +71,10 @@ NUM_CALLS = 10
 def _run_concurrent_create_tasks(
     tmp_path: Path,
 ) -> tuple[TaskManager, list[str]]:
-    """Run NUM_CALLS concurrent _create_task calls through
-    ParallelToolExecutor using the real TaskTool.
+    """运行 NUM_CALLS 并发 _create_task 调用
+    ParallelToolExecutor使用真实的TaskTool。
 
-    A barrier inside _generate_ids forces threads to hit
-    len(_tasks) simultaneously, stressing the lock.
+    _generate_ids 内部的障碍迫使线程同时撞击 len(_tasks)，从而对锁施加压力。
     """
     manager = TaskManager()
     parent = _make_parent_conversation(tmp_path)
@@ -128,10 +126,10 @@ def _run_concurrent_create_tasks(
 
 
 def test_concurrent_task_ids_are_unique(tmp_path: Path):
-    """Concurrent _create_task calls must each produce a unique task ID.
+    """并发 _create_task 调用必须每次生成一个唯一的任务 ID。
 
-    Without _tasks_lock, threads would read the same len(_tasks) and
-    generate duplicate IDs like 'task_00000001' for every thread.
+    如果没有 _tasks_lock，线程将读取相同的 len(_tasks) 并为每个线程生成重复的 ID，例
+    如“task_00000001”。
     """
     _, created_ids = _run_concurrent_create_tasks(tmp_path)
 
@@ -143,10 +141,9 @@ def test_concurrent_task_ids_are_unique(tmp_path: Path):
 
 
 def test_concurrent_tasks_all_preserved_in_dict(tmp_path: Path):
-    """Concurrent _create_task calls must all survive in the _tasks dict.
+    """并发 _create_task 调用必须全部存在于 _tasks 字典中。
 
-    Without _tasks_lock, two threads generating the same ID would
-    silently overwrite each other, losing tasks.
+    如果没有 _tasks_lock，两个生成相同 ID 的线程会默默地互相覆盖，从而丢失任务。
     """
     manager, _ = _run_concurrent_create_tasks(tmp_path)
 

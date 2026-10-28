@@ -1,9 +1,9 @@
-"""A user message sent while the agent streams its final response must be seen.
+"""在智能体传输其最终响应时发送的用户消息必须可见。
 
-Regression for agent-canvas#1900: ``astep`` releases the state lock for the LLM
-call, so a message can land mid-step with status still RUNNING; ``arun()`` used
-to break on FINISHED without rescanning, stranding it. Sync ``run()`` holds the
-lock across the step and never had the gap, and is used here as a control.
+回归对于智能体-canvas#1900：``astep`` 释放 LLM 调用的状态锁，因此消息可以在状态仍为
+RUNNING 的情况下到达中间； ``arun()``用于
+在FINISHED上断开而无需重新扫描，将其搁浅。 同步 ``run()`` 使锁跨过台阶，并且从未有间
+隙，并在此处用作对照。
 """
 
 import asyncio
@@ -33,7 +33,7 @@ MODEL = "test-model"
 
 
 def _finishing_response(text: str = "done") -> LLMResponse:
-    """A plain text response with NO tool calls -> agent goes FINISHED."""
+    """带有 NO 工具调用 -> 智能体的纯文本响应变为 FINISHED。"""
     return LLMResponse(
         message=Message(role="assistant", content=[TextContent(text=text)]),
         metrics=MetricsSnapshot(
@@ -53,12 +53,12 @@ def _make_conversation(llm: LLM, tmp_path) -> LocalConversation:
 
 
 def _saw(calls: list[str], marker: str) -> list[int]:
-    """Indices of LLM calls whose prompt contained `marker`."""
+    """提示词包含 `marker` 的 LLM 个调用的索引。"""
     return [i for i, prompt in enumerate(calls) if marker in prompt]
 
 
 class _InjectingAsyncLLM(LLM):
-    """Sends a user message from another thread during the (async) LLM call."""
+    """在 (异步) LLM 呼叫期间从另一个线程发送用户消息。"""
 
     _convo_box: list = PrivateAttr(default_factory=list)
     _calls: list = PrivateAttr(default_factory=list)
@@ -67,7 +67,7 @@ class _InjectingAsyncLLM(LLM):
     def __init__(self):
         super().__init__(model=MODEL, usage_id="test-llm")
 
-    def uses_responses_api(self) -> bool:  # keep agenerate on acompletion
+    def uses_responses_api(self) -> bool:  # 完成后保持生成
         return False
 
     async def acompletion(self, *, messages, tools=None, **kwargs):  # type: ignore[override]
@@ -79,7 +79,7 @@ class _InjectingAsyncLLM(LLM):
             self._probe["locked_during_call"] = lock.locked()
             self._probe["status_during_call"] = convo._state.execution_status
 
-            # A message lands mid-stream from another thread (mimics run_in_executor).
+            # 一条消息从另一个线程（模仿 run_in_executor）到达中流。
             def _send():
                 convo.send_message("second message")
 
@@ -93,7 +93,7 @@ class _InjectingAsyncLLM(LLM):
 
 
 class _InjectingSyncLLM(LLM):
-    """Control: injects during the *sync* step, where the lock IS held."""
+    """Control: 在 *同步* 步骤期间注入，锁在此步骤中保持。"""
 
     _convo_box: list = PrivateAttr(default_factory=list)
     _calls: list = PrivateAttr(default_factory=list)
@@ -111,15 +111,16 @@ class _InjectingSyncLLM(LLM):
 
         if len(self._calls) == 1:
             lock = convo._state._lock
-            # The sync run loop holds the state lock across the whole step.
+            # 同步运行循环在整个步骤中保持状态锁。
             self._probe["locked_during_call"] = lock.locked()
 
             threading.Thread(
                 target=lambda: convo.send_message("second message")
             ).start()
 
-            # Wait until the sender is queued on the FIFO lock, so the run loop
-            # provably can't overtake it — deterministic, no sleep-and-hope.
+            # 等到发送者在 FIFO 锁上排队，因此运行循环可能无法超越它 - 确定性的，没有睡
+            # 眠和希望。
+            #
             deadline = time.monotonic() + 5.0
             while not lock._waiters:
                 assert time.monotonic() < deadline, "send_message never queued"
@@ -131,7 +132,7 @@ class _InjectingSyncLLM(LLM):
 
 @pytest.mark.asyncio
 async def test_message_during_streaming_is_acted_upon(tmp_path):
-    """arun() rescans for a message that arrived while the lock was released."""
+    """arun() 重新扫描锁释放时到达的消息。"""
     llm = _InjectingAsyncLLM()
     convo = _make_conversation(llm, tmp_path)
     llm._convo_box.append(convo)
@@ -139,7 +140,7 @@ async def test_message_during_streaming_is_acted_upon(tmp_path):
 
     await convo.arun()
 
-    # The race happened: lock free mid-call, status still RUNNING.
+    # 比赛发生：锁通话中免费，状态仍为 RUNNING。
     assert llm._probe["locked_during_call"] is False
     assert llm._probe["status_during_call"] == ConversationExecutionStatus.RUNNING
     assert llm._probe["status_after_inject"] == ConversationExecutionStatus.RUNNING
@@ -151,7 +152,7 @@ async def test_message_during_streaming_is_acted_upon(tmp_path):
     ]
     assert any("second message" in t for t in user_texts)
 
-    # The agent acted on it: a second round-trip ran and carried it to the model.
+    # 智能体对其进行操作：第二次往返运行并将其传送给模型。
     assert len(llm._calls) == 2, (
         f"expected the message to be picked up (2 LLM calls), got {len(llm._calls)}"
     )
@@ -161,7 +162,7 @@ async def test_message_during_streaming_is_acted_upon(tmp_path):
 
 
 def test_sync_run_absorbs_message_sent_during_step(tmp_path):
-    """CONTROL: the sync run() path does NOT drop the message."""
+    """CONTROL: 同步 run() 路径确实不丢弃消息。"""
     llm = _InjectingSyncLLM()
     convo = _make_conversation(llm, tmp_path)
     llm._convo_box.append(convo)
@@ -169,11 +170,11 @@ def test_sync_run_absorbs_message_sent_during_step(tmp_path):
 
     convo.run()
 
-    # Lock held across the sync step, so send_message() had to wait.
+    # 锁跨过同步步骤，因此 send_message() 必须等待。
     assert llm._probe["locked_during_call"] is True
     assert llm._probe["sender_enqueued"] is True
 
-    # It observed FINISHED, rewound to IDLE, and ran again with the message.
+    # 它观察到 FINISHED，后退到 IDLE，然后再次运行该消息。
     assert len(llm._calls) == 2, (
         f"sync path should absorb the message (2 LLM calls), got {len(llm._calls)}"
     )
@@ -217,7 +218,7 @@ register_tool("async_confirm_tool", _ConfirmTool)
 
 
 def _tool_call_response(command: str = "run-once") -> LLMResponse:
-    """A tool-call response -> agent goes WAITING_FOR_CONFIRMATION."""
+    """工具调用响应 -> 智能体变为 WAITING_FOR_CONFIRMATION。"""
     return LLMResponse(
         message=Message(
             role="assistant",
@@ -242,9 +243,9 @@ def _tool_call_response(command: str = "run-once") -> LLMResponse:
 
 
 class _InjectingAsyncConfirmLLM(LLM):
-    """First call proposes an action needing confirmation while a message
-    lands mid-call; second call (after the pending action is superseded)
-    finishes normally."""
+    """第一次通话提出需要确认的操作，同时显示一条消息
+    通话中降落； 第二次调用（待处理操作被取代后）正常完成。
+    """
 
     _convo_box: list = PrivateAttr(default_factory=list)
     _calls: list = PrivateAttr(default_factory=list)
@@ -274,9 +275,9 @@ class _InjectingAsyncConfirmLLM(LLM):
 
 @pytest.mark.asyncio
 async def test_message_during_confirmation_wait_supersedes_pending_action(tmp_path):
-    """A message landing while astep() ends WAITING_FOR_CONFIRMATION must reject
-    the stale pending action instead of letting the run loop silently execute it
-    as an implicit confirmation on the next iteration."""
+    """astep() 结束 WAITING_FOR_CONFIRMATION 时登陆的消息必须拒绝
+    过时的挂起操作，而不是让运行循环默默地执行它作为下一次迭代的隐式确认。
+    """
     llm = _InjectingAsyncConfirmLLM()
     convo = LocalConversation(
         agent=Agent(llm=llm, tools=[Tool(name="async_confirm_tool")]),
@@ -305,11 +306,11 @@ async def test_message_during_confirmation_wait_supersedes_pending_action(tmp_pa
 async def test_message_during_confirmation_wait_on_final_iteration_still_rejects(
     tmp_path,
 ):
-    """Same race as above, but the step that lands in WAITING_FOR_CONFIRMATION
-    is also the run's final iteration. The loop must still reject the pending
-    action before going IDLE -- otherwise astep() executes it as an implicit
-    confirmation on the very next run() call, the same bug the FINISHED/
-    WAITING_FOR_CONFIRMATION rescan exists to prevent."""
+    """与上面相同的种族，但落在 WAITING_FOR_CONFIRMATION 的步数
+    也是运行的最后一次迭代。 循环仍需在继续之前拒绝待处理的动作 IDLE -- 除此之外
+    astep() 立即执行作为隐式确认 run() 调用，同样的错误
+    FINISHED/ WAITING_FOR_CONFIRMATION 重新扫描是为了防止。
+    """
     llm = _InjectingAsyncConfirmLLM()
     convo = LocalConversation(
         agent=Agent(llm=llm, tools=[Tool(name="async_confirm_tool")]),
@@ -338,8 +339,8 @@ async def test_message_during_confirmation_wait_on_final_iteration_still_rejects
 
 
 class _InjectingAsyncBudgetLLM(LLM):
-    """Finishing response with a message landing mid-call, while the run's
-    accumulated cost is already over budget."""
+    """通过在呼叫中着陆的消息来完成响应，而跑步的
+    累计成本已经超出预算。"""
 
     _convo_box: list = PrivateAttr(default_factory=list)
     _calls: list = PrivateAttr(default_factory=list)
@@ -370,9 +371,10 @@ class _InjectingAsyncBudgetLLM(LLM):
 async def test_message_during_final_step_does_not_trigger_spurious_budget_error(
     tmp_path,
 ):
-    """A message arriving during a step that finishes within its own budget must
-    not turn into a MaxBudgetReached error just because the mid-step rescan
-    flips status back to RUNNING in order to pick up the message."""
+    """在其自身预算内完成的步骤期间到达的消息必须
+    不会仅仅因为中间步骤重新扫描将状态翻转回 RUNNING 为了拾取消息而变成
+    MaxBudgetReached 错误。
+    """
     llm = _InjectingAsyncBudgetLLM()
     convo = LocalConversation(
         agent=Agent(llm=llm, tools=[]),
@@ -381,13 +383,13 @@ async def test_message_during_final_step_does_not_trigger_spurious_budget_error(
         max_budget_per_run=0.01,
     )
     llm._convo_box.append(convo)
-    # Test-double LLMs are subclasses, and get_all_llms() only ever yields
-    # objects whose type is exactly LLM, so this one is never registered by
-    # the normal _ensure_agent_ready() path; wire it in directly so the
-    # budget check has metrics to read.
+    # 测试双胞胎 LLMs 都是子类 get_all_llms() 只会返回类型完全一致的对象 LLM所以这个不会
+    # 被正常注册 _ensure_agent_ready() path; 直接将其连接起来，以便预算检查有可供读取的
+    # 指标。
+    #
     convo.conversation_stats.usage_to_metrics[llm.usage_id] = llm.metrics
-    # Simulate accumulated spend already over budget by the time this
-    # (otherwise graceful) finishing step lands.
+    # 模拟在完成此（否则是优雅的）完成步骤时已经超出预算的累计支出。
+    #
     llm.metrics.add_cost(1.0)
     convo.send_message("first message")
 
@@ -404,8 +406,8 @@ async def test_message_during_final_step_does_not_trigger_spurious_budget_error(
 
 
 class _NavigateAwayDuringStepLLM(LLM):
-    """Rebases the active branch mid-call, via navigate_to(), without sending
-    any new message -- proves the rescan isn't fooled by the rebase alone."""
+    """通过 navigate_to() 对活动分支进行变基，而不发送
+    任何新消息——证明重新扫描不会被单独的变基愚弄。"""
 
     _convo_box: list = PrivateAttr(default_factory=list)
     _calls: list = PrivateAttr(default_factory=list)
@@ -436,11 +438,11 @@ class _NavigateAwayDuringStepLLM(LLM):
 
 @pytest.mark.asyncio
 async def test_navigate_to_during_step_does_not_spuriously_continue(tmp_path):
-    """A concurrent navigate_to() rebase mid-step must not be mistaken for a
-    new user message. Rebasing the active branch changes which user message
-    is "latest" on that branch even though nothing new was ever sent, which
-    is exactly what the old active_branch()-scanning check couldn't tell
-    apart from a real new message."""
+    """并发 navigate_to() 变基中间步骤不得被误认为是
+    新用户消息。 重新合并活跃分支的更改，即使没有发送任何新内容，该用户消息仍然是“最
+    新”的，这正是旧的active_branch()-扫描检查无法区分的，它看起来像一
+    个真正的新消息。
+    """
     llm = _NavigateAwayDuringStepLLM()
     convo = _make_conversation(llm, tmp_path)
     llm._convo_box.append(convo)
@@ -453,8 +455,9 @@ async def test_navigate_to_during_step_does_not_spuriously_continue(tmp_path):
     )
     convo.send_message("second message")
 
-    # Mid-step, rebase HEAD back to the first message. This drops the second
-    # message from the active branch without sending anything new.
+    # 中间步骤，将 HEAD 变基回到第一条消息。 这将从活动分支中删除第二条消息，而不发送任
+    # 何新消息。
+    #
     llm._rebase_to.append(first_message_id)
 
     await convo.arun()

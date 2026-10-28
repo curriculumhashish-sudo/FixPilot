@@ -54,11 +54,11 @@ type ResponseSchema = type[BaseModel] | dict[str, Any]
 _action_types_with_risk: dict[type, type] = {}
 _action_types_with_summary: dict[type, type] = {}
 _action_type_lock = threading.Lock()
-# JSON schema for Pydantic-model response schemas, cached by the immutable class
-# so model_json_schema() runs at most once per class. Dict schemas are not cached
-# (they are not safely identity-keyed); they use the cheap deepcopy path below.
-# Guarded by its own lock rather than _action_type_lock: the two never nest, and
-# a separate lock keeps schema building off the action-type critical section.
+# JSON 模式用于 Pydantic-模型响应模式，由不可变类缓存，因此 model_json_schema() 每个类最
+# 多运行一次。 Dict 模式没有被缓存（它们没有安全地使用身份密钥）； 他们使用下面的廉价深
+# 度复制路径。 由它自己的锁而不是 _action_type_lock 守护：两者从不嵌套，并且单独的锁使模
+# 式构建动作类型关键部分。
+#
 _response_schema_json_cache: dict[type[BaseModel], dict[str, Any]] = {}
 _response_schema_json_lock = threading.Lock()
 _RESERVED_RESPONSE_FIELDS = frozenset(
@@ -106,8 +106,9 @@ def _response_schema_json(response_schema: ResponseSchema) -> dict[str, Any]:
     ):
         raise TypeError("response_schema must be a Pydantic model or JSON Schema")
 
-    # Build under the lock so model_json_schema() really does run at most once
-    # per class, and hand back a private copy so callers cannot mutate the cache.
+    # 在锁下构建，因此 model_json_schema() 实际上每个类最多运行一次，并交回私有副本，以
+    # 便调用者无法改变缓存。
+    #
     with _response_schema_json_lock:
         cached = _response_schema_json_cache.get(response_schema)
         if cached is None:
@@ -199,30 +200,29 @@ def _shallow_response_ref(node: dict[str, Any]) -> dict[str, Any]:
 
 
 def _camel_to_snake(name: str) -> str:
-    """Convert CamelCase to snake_case.
+    """将 CamelCase 转换为 snake_case。
 
     Examples:
-        TerminalTool -> bash_tool
-        FileEditorTool -> file_editor_tool
-        XMLHttpRequest -> xml_http_request
-    """
-    # Insert underscore before uppercase letters (except the first one)
+        TerminalTool -> bash_tool FileEditorTool -> file_editor_tool XMLHttpRequest -> xml_http_request
+    """  # noqa: E501
+    # 在大写字母前插入下划线（第一个字母除外）
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    # Insert underscore before uppercase letters that follow lowercase letters
+    # 在小写字母后面的大写字母之前插入下划线
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
 class ToolAnnotations(BaseModel):
-    """Annotations to provide hints about the tool's behavior.
+    """提供有关工具行为的提示的注释。
 
-    Based on Model Context Protocol (MCP) spec:
+    根据模型上下文协议(MCP)说明：
     https://github.com/modelcontextprotocol/modelcontextprotocol/blob/caf3424488b10b4a7b1f8cb634244a450a1f4400/schema/2025-06-18/schema.ts#L838
-    """
+    """  # noqa: E501
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         frozen=True,
-        # We need to define the title here to avoid conflict with MCP's ToolAnnotations
-        # when both are included in the same JSON schema for openapi.json
+        # 需要在此定义标题，避免与 MCP's ToolAnnotations 当两者都包含在同一个中 JSON  模
+        # 式为了 openapi.json
+        #
         title="openhands.sdk.tool.tool.ToolAnnotations",
     )
 
@@ -249,29 +249,27 @@ class ToolAnnotations(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class DeclaredResources:
-    """Resources a tool accesses for a given action.
+    """工具为给定操作访问的资源。
 
-    Used by ``ParallelToolExecutor`` to decide what locks (if any) to
-    acquire before running a tool.
+    由 ``ParallelToolExecutor`` 用于决定在运行工具之前要获取什么锁（如果有）。
 
     Examples:
 
-        DeclaredResources(keys=(), declared=False)       # unknown → serialize
-        DeclaredResources(keys=(), declared=True)         # safe, no resources
-        DeclaredResources(keys=("file:/a.py",), declared=True)  # lock these
+        DeclaredResources(keys=(), declared=False)       # 未知序列化
+        DeclaredResources(keys=(), declared=True)         # 安全，无资源
+        DeclaredResources(keys=("file:/a.py",), declared=True)  # 锁这些
 
     Note:
-        The distinction between `declared=True` with empty keys and
-        `declared=False` is subtle but important:
+        `declared=True` 与空键的区别
+        `declared=False` 很微妙但很重要：
 
-        - `declared=True, keys=()`: the tool has explicitly analysed its
-          resource usage and determined it touches nothing shared.  The
-          executor trusts this and skips locking entirely.
-        - `declared=False`: the tool has *not* declared its resources
-          (the default).  The executor cannot assume safety, so it falls
-          back to a tool-wide mutex that serializes all calls to this tool.
+        - `declared=True, keys=()`：该工具已明确分析其资源使用情况并确定它没有触及任
+        何共享内容。 执行者信任这一点并完全跳过锁定。
+        - `declared=False`：该工具*未*声明其资源（默认）。 执行器无法保证安全，因此它
+        会退回到工具范围的互斥体，该互斥体序列化对此工具的所有调用
+        。
 
-        In short: `declared=False` means "I haven't thought about it"
+        简而言之：`declared=False` 表示“我还没有考虑过”
         while `declared=True, keys=()` means "I have, and I'm safe."
 
     """
@@ -281,97 +279,92 @@ class DeclaredResources:
 
 
 class ToolExecutor[ActionT, ObservationT](ABC):
-    """Executor function type for a Tool."""
+    """工具的执行器函数类型。"""
 
     @abstractmethod
     def __call__(
         self, action: ActionT, conversation: "LocalConversation | None" = None
     ) -> ObservationT:
-        """Execute the tool with the given action and return an observation.
+        """使用给定操作执行该工具并返回观测结果。
 
         Args:
-            action: The action to execute, containing the parameters and context
-                   needed for the tool operation.
-            conversation: The conversation context for the tool execution.
-                         Note: This is typed as LocalConversation (not
-                         BaseConversation) because all tool executions happen
-                         within a LocalConversation context. Even when tools are
-                         invoked via RemoteConversation, the remote agent server
-                         creates a LocalConversation instance to handle the actual
-                         tool execution. See https://github.com/OpenHands/agent-sdk/pull/925
+            action: 要执行的操作，包含参数和上下文
+                   工具操作所需的。
+            conversation: 用于工具执行的对话上下文。
+                         Note: 其类型为 LocalConversation（不是
+                         BaseConversation)，因为所有工具执行都发生在
+                         LocalConversation 上下文内。 即使通过
+                         RemoteConversation 调用工具，远程 Agent Server 也会创建一个
+                         LocalConversation 实例来处理实际的工具执行。 参见
+                         https://github.com/OpenHands/agent-sdk/pull/925
                          for more details.
 
         Returns:
-            An observation containing the results of the tool execution.
+            包含工具执行结果的观测结果。
         """
 
     def close(self) -> None:
-        """Close the executor and clean up resources.
+        """关闭执行器并清理资源。
 
-        Default implementation does nothing. Subclasses should override
-        this method to perform cleanup (e.g., closing connections,
-        terminating processes, etc.).
+        默认实现不执行任何操作。 子类应该重写此方法来执行清理（e.g.、关闭连接、终止进
+        程等）。
         """
         pass
 
     def interrupt(self) -> None:
-        """Interrupt any in-flight execution (e.g., send Ctrl+C).
+        """中断任何正在进行的执行（e.g.，发送 Ctrl+C）。
 
-        Called from a *different* thread when a conversation interrupt
-        fires while this tool is still executing.  Implementations should
-        be thread-safe and idempotent.
+        当此工具仍在执行时触发对话中断时，从 * 不同的 * 线程调用。 实现应该是线程安全
+        并且是幂等的。
 
-        The default is a no-op; tools with long-running operations
-        (terminal subprocesses, browser navigations, …) should override.
+        默认为无操作； 具有长时间运行操作的工具（终端子进程、浏览器导航等）应覆盖。
         """
         pass
 
 
 class ExecutableTool(Protocol):
-    """Protocol for tools that are guaranteed to have a non-None executor.
+    """保证具有非None执行器的工具的协议。
 
-    This eliminates the need for runtime None checks and type narrowing
-    when working with tools that are known to be executable.
+    当使用已知可执行的工具时，这消除了运行时 None 检查和类型缩小的需要。
     """
 
     name: str
-    executor: ToolExecutor[Any, Any]  # Non-optional executor
+    executor: ToolExecutor[Any, Any]  # 非可选执行人
 
     def __call__(
         self, action: Action, conversation: "LocalConversation | None" = None
     ) -> Observation:
-        """Execute the tool with the given action."""
+        """使用给定的操作执行该工具。"""
         ...
 
 
 class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
-    """Base class for all tool implementations.
+    """所有工具实现的基类。
 
-    This class serves as a base for the discriminated union of all tool types.
-    All tools must inherit from this class and implement the .create() method for
-    proper initialization with executors and parameters.
+    此类充当所有工具类型的可区分联合的基础。 所有工具都必须从此类继承并实现 .create()
+     方法，以便使用执行器和参数进行正确的初始化。
 
-    Features:
-    - Normalize input/output schemas (class or dict) into both model+schema.
-    - Validate inputs before execute.
-    - Coerce outputs only if an output model is defined; else return vanilla JSON.
-    - Export MCP tool description.
+    特点：
+    - 将输入/输出模式（类或字典）规范化为模型+模式。
+    - 执行前验证输入。
+    - 仅当定义了输出模型时才强制输出； 否则返回原版 JSON。
+    - 导出 MCP 工具说明。
 
     Examples:
-        Simple tool with no parameters:
+        没有参数的简单工具：
             class FinishTool(ToolDefinition[FinishAction, FinishObservation]):
                 @classmethod
                 def create(cls, conv_state=None, **params):
                     return [cls(name="finish", ..., executor=FinishExecutor())]
 
-        Complex tool with initialization parameters:
+        具有初始化参数的复杂工具：
             class TerminalTool(ToolDefinition[TerminalAction,
                 TerminalObservation]):
                 @classmethod
                 def create(cls, conv_state, **params):
                     executor = TerminalExecutor(
                         working_dir=conv_state.workspace.working_dir,
-                        **params,
+                        **参数，
                     )
                     return [cls(name="terminal", ..., executor=executor)]
     """
@@ -380,22 +373,22 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         frozen=True, arbitrary_types_allowed=True
     )
 
-    # Automatic tool naming - set by __init_subclass__
+    # 自动工具命名 - 由 __init_subclass__ 设置
     name: ClassVar[str] = ""
 
     user_selectable: ClassVar[bool] = True
-    """Whether a user may pick this tool when configuring an agent's toolset."""
+    """用户在配置智能体的工具集时是否可以选择此工具。"""
 
     catalog_description: ClassVar[str] = ""
-    """User-facing catalog blurb; ``description`` is what the LLM reads."""
+    """面向用户的目录简介； ``description`` 是 LLM 读取的内容。"""
 
     conversation_local: ClassVar[bool] = False
-    """Whether the tool only reads and writes its own conversation's state."""
+    """该工具是否仅读取和写入其自己的对话状态。"""
 
     def __init_subclass__(cls, **kwargs):
-        """Automatically set name from class name when subclass is created."""
+        """创建子类时自动根据类名设置名称。"""
         super().__init_subclass__(**kwargs)
-        # Only set automatically if not explicitly defined in the current class
+        # 仅当当前类中未显式定义时才自动设置
         if "name" not in cls.__dict__:
             cls.name = _camel_to_snake(cls.__name__).removesuffix("_tool")
 
@@ -406,7 +399,7 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
     annotations: ToolAnnotations | None = None
     meta: dict[str, Any] | None = None
 
-    # runtime-only; always hidden on dumps
+    # 仅运行时； 总是隐藏在垃圾场
     executor: SkipJsonSchema[ToolExecutor | None] = Field(
         default=None, repr=False, exclude=True
     )
@@ -424,25 +417,24 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
 
     @classmethod
     def is_usable(cls) -> bool:
-        """Return whether the tool can be used in the current environment."""
+        """返回该工具是否可以在当前环境中使用。"""
         return True
 
     @classmethod
     @abstractmethod
     def create(cls, *args, **kwargs) -> Sequence[Self]:
-        """Create a sequence of Tool instances.
+        """创建一系列工具实例。
 
-        This method must be implemented by all subclasses to provide custom
-        initialization logic, typically initializing the executor with parameters
+        该方法必须由所有子类实现，以提供自定义初始化逻辑，通常使用参数初始化执行器
         from conv_state and other optional parameters.
 
         Args:
-            *args: Variable positional arguments (typically conv_state as first arg).
-            **kwargs: Optional parameters for tool initialization.
+            *args: 可变位置参数（通常将 conv_state 作为第一个参数）。
+            **kwargs: 用于工具初始化的可选参数。
 
         Returns:
-            A sequence of Tool instances. Even single tools are returned as a sequence
-            to provide a consistent interface and eliminate union return types.
+            一系列工具实例。 即使单个工具也会作为序列返回，以提供一致的接口并消除联合
+            返回类型。
         """
         raise NotImplementedError("ToolDefinition subclasses must implement .create()")
 
@@ -455,7 +447,7 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
 
     @field_serializer("action_type")
     def _ser_action_type(self, t: type[Action]) -> str:
-        # serialize as a plain kind string
+        # 序列化作为普通字符串
         return kind_of(t)
 
     @field_serializer("observation_type")
@@ -485,11 +477,11 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         return v
 
     def set_executor(self, executor: ToolExecutor) -> Self:
-        """Create a new Tool instance with the given executor."""
+        """使用给定的执行器创建一个新的 Tool 实例。"""
         return self.model_copy(update={"executor": executor})
 
     def set_response_schema(self, response_schema: ResponseSchema | None) -> Self:
-        """Return a copy configured for structured output."""
+        """返回为结构化输出配置的副本。"""
         if response_schema is None:
             return self.model_copy(update={"response_schema": None})
 
@@ -511,33 +503,32 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         return self.model_copy(update={"response_schema": response_schema})
 
     def as_executable(self) -> ExecutableTool:
-        """Return this tool as an ExecutableTool, ensuring it has an executor.
+        """将此工具作为 ExecutableTool 返回，确保它有一个执行器。
 
-        This method eliminates the need for runtime None checks by guaranteeing
-        that the returned tool has a non-None executor.
+        此方法通过保证返回的工具具有非 None 执行器来消除运行时 None 检查的需要。
 
         Returns:
-            This tool instance, typed as ExecutableTool.
+            该工具实例，类型为ExecutableTool。
 
         Raises:
-            NotImplementedError: If the tool has no executor.
+            NotImplementedError: 如果该工具没有执行器。
         """
         if self.executor is None:
             raise NotImplementedError(f"Tool '{self.name}' has no executor")
         return self  # type: ignore[return-value]
 
     def declared_resources(self, action: Action) -> DeclaredResources:  # noqa: ARG002
-        """Declare the resources this tool accesses for a given action.
+        """声明该工具针对给定操作访问的资源。
 
-        Override in subclasses to enable fine-grained parallel execution.
+        在子类中重写以启用细粒度并行执行。
 
-        Keys should use the format ``"<type>:<identifier>"``, e.g.
-        ``"file:/absolute/path"`` or ``"terminal:session"``.
+        键应使用格式 ``"<type>:<identifier>"``、e.g。
+        ``"file:/absolute/path"`` 或 ``"terminal:session"``。
         """
         return DeclaredResources(keys=(), declared=False)
 
     def action_from_arguments(self, arguments: dict[str, Any]) -> Action:
-        """Create an action from parsed arguments."""
+        """从解析的参数创建一个操作。"""
         action_arguments, structured_output = self._split_response_arguments(arguments)
         action = self.action_type.model_validate(action_arguments)
         action._structured_output = structured_output
@@ -572,7 +563,7 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         return action_arguments, structured_output
 
     def parse_response(self, action: Action) -> BaseModel | dict[str, Any]:
-        """Parse structured output from an action."""
+        """解析操作的结构化输出。"""
         if self.response_schema is None:
             raise ValueError(f"Tool '{self.name}' has no response_schema configured.")
         if action.structured_output is None:
@@ -596,7 +587,7 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
     def parse_last_response(
         self, events: "Sequence[Any]"
     ) -> BaseModel | dict[str, Any] | None:
-        """Parse the most recent action for this tool."""
+        """解析此工具的最新操作。"""
         from openhands.sdk.event import ActionEvent
 
         event = next(
@@ -623,18 +614,17 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
     def __call__(
         self, action: ActionT, conversation: "LocalConversation | None" = None
     ) -> Observation:
-        """Validate input, execute, and coerce output.
+        """验证输入、执行和强制输出。
 
-        We always return some Observation subclass, but not always the
-        generic ObservationT.
+        我们总是返回一些观测结果子类，但并不总是通用 ObservationT。
         """
         if self.executor is None:
             raise NotImplementedError(f"Tool '{self.name}' has no executor")
 
-        # Execute
+        # 执行
         result = self.executor(action, conversation)
 
-        # Coerce output only if we declared a model; else wrap in base Observation
+        # 仅当我们声明模型时才强制输出； 否则包裹在基数观测结果中
         if self.observation_type:
             if isinstance(result, self.observation_type):
                 observation = result
@@ -651,8 +641,9 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
                 "Output must be dict or BaseModel when no output schema is defined"
             )
 
-        # Every tool's output funnels through here, so masking once keeps a new
-        # tool covered by default instead of by remembering to patch it.
+        # 每个工具的输出都通过这里进行，因此屏蔽一次可以默认覆盖新工具，而不是记住修补它
+        # 。
+        #
         if conversation is None:
             return observation
         registry = conversation.state.secret_registry
@@ -661,14 +652,13 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
     async def acall(
         self, action: ActionT, conversation: "LocalConversation | None" = None
     ) -> Observation:
-        """Run this tool asynchronously when called directly.
+        """直接调用时异步运行此工具。
 
-        The default implementation runs :meth:`__call__` in a thread via the
-        event loop's executor, so callers can await a single tool invocation
-        without blocking the event loop.
+        默认实现通过事件循环的执行器在线程中运行：meth:`__call__`，因此调用者可以等待
+        单个工具调用，而不会阻塞事件循环。
 
-        The SDK's internal async dispatch path does not call this hook; it
-        dispatches through :meth:`__call__` directly from its own executor.
+        SDK的内部异步调度路径不调用此钩子； 它直接从自己的执行器通过：meth:`__call__`
+         调度。
         """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self, action, conversation)
@@ -678,13 +668,13 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         input_schema: dict[str, Any] | None = None,
         output_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Convert a Tool to an MCP tool definition.
+        """将工具转换为 MCP 工具定义。
 
-        Allow overriding input/output schemas (usually by subclasses).
+        允许覆盖输入/输出模式（通常由子类）。
 
         Args:
-            input_schema: Optionally override the input schema.
-            output_schema: Optionally override the output schema.
+            input_schema: 可以选择覆盖输入模式。
+            output_schema: 可以选择覆盖输出模式。
         """
         input_schema = (
             self.action_type.to_mcp_schema() if input_schema is None else input_schema
@@ -717,14 +707,14 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
     ) -> dict[str, Any]:
         action_type = action_type or self.action_type
 
-        # Apply security risk enhancement if enabled
+        # 如果启用，则应用安全风险增强
         add_security_risk_prediction = add_security_risk_prediction and (
             self.annotations is None or (not self.annotations.readOnlyHint)
         )
         if add_security_risk_prediction:
             action_type = create_action_type_with_risk(action_type)
 
-        # Always add summary field for transparency and explainability
+        # 始终添加摘要字段以提高透明度和可解释性
         action_type = _create_action_type_with_summary(action_type)
 
         schema = self._merge_response_schema(action_type.to_mcp_schema())
@@ -762,20 +752,17 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,
     ) -> ChatCompletionToolParam:
-        """Convert a Tool to an OpenAI tool.
+        """将工具转换为 OpenAI 工具。
 
         Args:
-            add_security_risk_prediction: Whether to add a `security_risk` field
-                to the action schema for LLM to predict. This is useful for
-                tools that may have safety risks, so the LLM can reason about
-                the risk level before calling the tool.
-            action_type: Optionally override the action_type to use for the schema.
-                This is useful for MCPTool to use a dynamically created action type
-                based on the tool's input schema.
+            add_security_risk_prediction: 是否添加`security_risk`字段
+                到 LLM 的动作模式进行预测。 这对于可能存在安全风险的工具很有用，因此
+                LLM可以在调用该工具之前推断出风险级别。
+            action_type: 可以选择覆盖 action_type 以用于模式。
+                这很有用 MCPTool 使用基于工具输入动态创建的动作类型模式。
 
         Note:
-            Summary field is always added to the schema for transparency and
-            explainability of agent actions.
+            摘要字段始终添加到模式，以提高智能体操作的透明度和可解释性。
         """
         return ChatCompletionToolParam(
             type="function",
@@ -794,18 +781,17 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,
     ) -> FunctionToolParam:
-        """Convert a Tool to a Responses API function tool (LiteLLM typed).
+        """将工具转换为响应 API 功能工具（输入 LiteLLM）。
 
-        For Responses API, function tools expect top-level keys:
+        对于响应 API，功能工具需要顶级键：
         { "type": "function", "name": ..., "description": ..., "parameters": ... }
 
         Args:
-            add_security_risk_prediction: Whether to add a `security_risk` field
-            action_type: Optional override for the action type
+            add_security_risk_prediction: 是否添加`security_risk`字段
+            action_type: 操作类型的可选覆盖
 
         Note:
-            Summary field is always added to the schema for transparency and
-            explainability of agent actions.
+            摘要字段始终添加到模式，以提高智能体操作的透明度和可解释性。
         """
 
         return {
@@ -821,22 +807,22 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
 
     @classmethod
     def resolve_kind(cls, kind: str) -> type:
-        """Resolve a kind string to its corresponding tool class.
+        """将种类字符串解析为其相应的工具类。
 
         Args:
-            kind: The name of the tool class to resolve
+            kind: 要解析的工具类的名称
 
         Returns:
-            The tool class corresponding to the kind
+            kind对应的工具类
 
         Raises:
-            ValueError: If the kind is unknown
+            ValueError: 如果种类未知
         """
         for subclass in get_known_concrete_subclasses(cls):
             if subclass.__name__ == kind:
                 return subclass
 
-        # Get all possible kinds for the error message
+        # 获取错误消息的所有可能类型
         possible_kinds = [
             subclass.__name__ for subclass in get_known_concrete_subclasses(cls)
         ]
@@ -858,11 +844,11 @@ class ToolDefinition[ActionT, ObservationT](DiscriminatedUnionMixin, ABC):
 def _prioritize_schema_fields(
     schema: dict[str, Any], priority: tuple[str, ...]
 ) -> None:
-    """Move *priority* fields to the front of ``schema["properties"]``.
+    """将 *priority* 字段移至 ``schema["properties"]`` 的前面。
 
-    This ensures the LLM generates short metadata fields before large content
-    parameters, so output-token truncation does not cut required fields.
-    See https://github.com/OpenHands/software-agent-sdk/issues/1911
+    这确保 LLM 在大内容参数之前生成短元数据字段，因此输出 token 截断不会剪切所需字段
+    。 参见
+    https://github.com/OpenHands/software-agent-sdk/issues/1911
     """
     if "properties" not in schema:
         return
@@ -879,8 +865,8 @@ def create_action_type_with_risk(action_type: type[Schema]) -> type[Schema]:
         if action_type_with_risk:
             return action_type_with_risk
 
-        # Re-use a WithRisk class that already exists in the hierarchy
-        # but whose cache entry was lost (fixes #2642).
+        # 重新使用层次结构中已存在但其缓存条目丢失的 WithRisk 类（修复#2642）。
+        #
         target_name = f"{action_type.__name__}WithRisk"
         for sub in action_type.__subclasses__():
             if sub.__name__ == target_name:
@@ -903,24 +889,21 @@ def create_action_type_with_risk(action_type: type[Schema]) -> type[Schema]:
 
 
 def _create_action_type_with_summary(action_type: type[Schema]) -> type[Schema]:
-    """Create a new action type with summary field for LLM to predict.
+    """创建一个新的操作类型，其中包含要预测的 LLM 的摘要字段。
 
-    This dynamically adds a 'summary' field to the action schema, allowing
-    the LLM to provide a brief explanation of what each action does.
+    这会动态地将“摘要”字段添加到操作模式，从而允许 LLM 提供每个操作的简要说明。
 
-    If the action_type already declares ``summary`` in its own schema
-    (e.g. an MCP tool like Jira whose ``summary`` is the ticket title),
-    the original type is returned unchanged to avoid shadowing the real
-    parameter.
+    如果 action_type 已在其自己的模式中声明了 ``summary`` (e.g. 像 Jira 这样的 MCP 工
+    具，其 ``summary`` 是工单标
+    题），原始类型将原封不动地返回，以避免隐藏真实参数。
 
     Args:
-        action_type: The original action type to enhance
+        action_type: 原有动作类型强化
 
     Returns:
-        A new type that includes the summary field, or the original type
-        if it already declares ``summary``.
+        包含摘要字段的新类型，如果已声明 ``summary``，则为原始类型。
     """
-    # Don't shadow a tool's own "summary" parameter with the meta-field.
+    # 不要使用元字段来隐藏工具自己的“摘要”参数。
     if "summary" in action_type.model_fields:
         return action_type
 
@@ -929,8 +912,8 @@ def _create_action_type_with_summary(action_type: type[Schema]) -> type[Schema]:
         if action_type_with_summary:
             return action_type_with_summary
 
-        # Re-use a WithSummary class that already exists in the hierarchy
-        # but whose cache entry was lost (fixes #2642).
+        # 重新使用层次结构中已存在但其缓存条目丢失的 WithSummary 类（修复#2642）。
+        #
         target_name = f"{action_type.__name__}WithSummary"
         for sub in action_type.__subclasses__():
             if sub.__name__ == target_name:

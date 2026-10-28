@@ -74,22 +74,21 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         full_output_save_dir: str | None = None,
         max_panes: int = DEFAULT_MAX_PANES,
     ):
-        """Initialize TerminalExecutor with auto-detected or specified session type.
+        """使用自动检测或指定的会话类型初始化 TerminalExecutor。
 
         Args:
-            working_dir: Working directory for shell commands
-            username: Optional username for the shell session
-            no_change_timeout_seconds: Timeout for no output change
-            terminal_type: Force a specific session type:
-                         ('tmux', 'subprocess', or 'powershell').
-                         If None, auto-detect based on system capabilities.
-            shell_path: Path to the shell binary. On Unix this applies to the
-                       subprocess backend; on Windows it can point to a
-                       PowerShell executable.
-            env: Extra environment variables to add to the terminal session.
-            full_output_save_dir: Path to directory to save full output
-                                  logs and files, used when truncation is needed.
-            max_panes: Maximum number of concurrent panes in pool mode.
+            working_dir: 工作目录用于 shell 命令
+            username: shell 会话的可选用户名
+            no_change_timeout_seconds: 超时表示无输出变化
+            terminal_type: 强制指定特定会话类型：
+                         （“tmux”、“子进程”或“powershell”）。 如果是None，则根据系统
+                         功能自动检测。
+            shell_path: shell 二进制文件的路径。 在 Unix 上这适用于
+                       子进程后端； 在 Windows 上，它可以指向 PowerShell 可执行文件。
+            env: 添加到终端会话的额外环境变量。
+            full_output_save_dir: 保存完整输出的目录路径
+                                  日志和文件，在需要截断时使用。
+            max_panes: 池模式下的最大并发窗格数。
         """
         self.shell_path = shell_path
         self._working_dir = working_dir
@@ -100,7 +99,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         self._max_panes = max_panes
         self.full_output_save_dir: str | None = full_output_save_dir
 
-        # Pool mode: use TmuxPanePool for parallel execution
+        # Pool模式：使用TmuxPanePool并行执行
         self._pool: TmuxPanePool | None = None
         self._session: TerminalSession | None = None
         self._sessions: dict[int, TerminalSession] = {}
@@ -131,7 +130,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
 
     @property
     def is_pooled(self) -> bool:
-        """Whether this executor is using the tmux pane pool for concurrency."""
+        """此执行程序是否正在将 tmux 窗格池用于并发。"""
         return self._pool is not None
 
     def _initialize_pool(self) -> None:
@@ -181,15 +180,15 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
 
     @property
     def working_dir(self) -> str:
-        """Return the working directory for this executor."""
+        """返回此执行器的工作目录。"""
         return self._working_dir
 
     @property
     def session(self) -> TerminalSession:
-        """Access the single-session terminal.
+        """访问单会话终端。
 
         Raises:
-            AttributeError: If the executor is in pool mode.
+            AttributeError: 如果执行器处于池模式。
         """
         if self._pool is not None:
             raise AttributeError(
@@ -201,17 +200,17 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         return self._session
 
     # ------------------------------------------------------------------
-    # Pool helpers
+    # 泳池助手
     # ------------------------------------------------------------------
 
     def _wrap_session(self, terminal: PooledTmuxTerminal) -> TerminalSession:
-        """Get or create a TerminalSession for a pooled PooledTmuxTerminal."""
+        """获取或创建池 PooledTmuxTerminal 的 TerminalSession。"""
         pane_id = id(terminal)
         with self._sessions_lock:
             if pane_id not in self._sessions:
-                # The pool already initialized the terminal — use
-                # attach_to_existing to skip session.initialize() which
-                # would create a duplicate tmux session.
+                # 池已经初始化了终端 - 使用 attach_to_existing 跳过 session.initialize()
+                # ，这将创建重复的 tmux 会话。
+                #
                 session = TerminalSession.attach_to_existing(
                     terminal, self._no_change_timeout_seconds
                 )
@@ -219,37 +218,36 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
             return self._sessions[pane_id]
 
     def _discard_session(self, terminal: PooledTmuxTerminal) -> None:
-        """Remove cached TerminalSession for a terminal being replaced.
+        """删除要更换的终端的缓存 TerminalSession。
 
-        We mark the session (and its underlying terminal) as closed
-        *before* dropping the reference.  This prevents
-        ``TerminalSessionBase.__del__`` from calling ``close()`` which
-        would kill the pooled terminal's window — and potentially the
-        entire shared tmux session if that window is the last one.
+        我们将会话（及其底层终端）标记为关闭
+        *在*删除引用之前。 这可以防止
+        ``TerminalSessionBase.__del__`` 调用 ``close()``，这会杀死池终端的窗口 - 如果
+        该窗口是最后一个窗口，则可能会杀
+        死整个共享 tmux 会话。
         """
         with self._sessions_lock:
             session = self._sessions.pop(id(terminal), None)
             if session is not None:
                 session._closed = True
-                # Also mark the terminal so the pooled close() is a no-op
+                # 还要标记终端，以便池化的 close() 是无操作的
                 terminal._closed = True
 
     @staticmethod
     def _prepare_pooled_session(session: TerminalSession) -> None:
-        """Reset mutable session state so this checkout is independent.
+        """重置可变会话状态，以便此签出是独立的。
 
-        Without this, leftover ``prev_status`` from a timed-out command
-        would cause the next independent call to be treated as a
-        follow-up interaction, and stale screen content could corrupt
-        PS1 counting.
+        没有这个，超时命令遗留的``prev_status``会导致下一个独立调用被当作后续交互处理
+        ，PS1计数可能会被破坏。
         """
         if session.prev_status in (
             TerminalCommandStatus.NO_CHANGE_TIMEOUT,
             TerminalCommandStatus.HARD_TIMEOUT,
             TerminalCommandStatus.CONTINUE,
         ):
-            # Previous command didn't finish — interrupt and poll until
-            # the prompt reappears instead of sleeping a fixed duration.
+            # 上一个命令未完成 - 中断并轮询，直到提示词重新出现，而不是休眠固定的持续时
+            # 间。
+            #
             session.terminal.interrupt()
             _max_wait = 2.0
             _poll = 0.05
@@ -277,7 +275,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
 
     @staticmethod
     def _bash_quote(value: str) -> str:
-        """Quote a value for bash using $'...' ANSI-C quoting."""
+        """使用 $'...' ANSI-C 引用为 bash 引用一个值。"""
         escaped = value.replace("\\", "\\\\")
         escaped = escaped.replace("'", "\\'")
         escaped = escaped.replace("\n", "\\n")
@@ -314,7 +312,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         return " && ".join(assignments)
 
     # ------------------------------------------------------------------
-    # Env export / secret masking
+    # 环境导出/机密掩蔽
     # ------------------------------------------------------------------
 
     def _export_envs(
@@ -329,7 +327,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         if action.is_input:
             return
 
-        # Get secrets from conversation
+        # 从对话中获取机密
         env_vars = {}
         if conversation is not None:
             try:
@@ -348,7 +346,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
             return
 
         logger.debug(f"Exporting {len(env_vars)} environment variables before command")
-        # Execute the export command separately to persist env in the session
+        # 分别对会话中的持久化 env执行export命令
         _ = target.execute(
             TerminalAction(
                 command=exports_cmd,
@@ -362,7 +360,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         observation: TerminalObservation,
         conversation: "LocalConversation | None" = None,
     ) -> TerminalObservation:
-        """Apply automatic secrets masking to *observation*."""
+        """将自动机密屏蔽应用到 *观测结果*。"""
         content_text = observation.text
 
         if content_text and conversation is not None:
@@ -384,15 +382,15 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         return observation
 
     # ------------------------------------------------------------------
-    # Reset
+    # 重置
     # ------------------------------------------------------------------
 
     def reset(self) -> TerminalObservation:
-        """Public reset – delegates to the appropriate backend."""
+        """公共重置——委托给适当的后端。"""
         return self._reset_single_session()
 
     def _reset_single_session(self) -> TerminalObservation:
-        """Reset the single-session terminal."""
+        """重置单会话终端。"""
         assert self._session is not None
         original_work_dir = self._session.work_dir
         original_username = self._session.username
@@ -428,7 +426,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
     )
 
     # ------------------------------------------------------------------
-    # Execution paths
+    # 执行路径
     # ------------------------------------------------------------------
 
     def _execute_single_session(
@@ -436,12 +434,12 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         action: TerminalAction,
         conversation: "LocalConversation | None" = None,
     ) -> TerminalObservation:
-        """Execute *action* in single-session (non-pool) mode."""
+        """在单会话（非池）模式下执行 *action*。"""
         if action.reset or self.session._closed:
             reset_result = self._reset_single_session()
 
             if action.command.strip():
-                session = self.session  # reset created a fresh one
+                session = self.session  # 重置创建了一个新的
                 command_action = TerminalAction(
                     command=action.command,
                     timeout=action.timeout,
@@ -474,11 +472,10 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         action: TerminalAction,
         conversation: "LocalConversation | None" = None,
     ) -> TerminalObservation:
-        """Execute *action* in pool mode with proper checkout/checkin.
+        """在池模式下执行 *action*，并进行正确的签出/签入。
 
-        All pane lifecycle (checkout, optional replace, checkin) is
-        managed by the pool's context manager so there is exactly one
-        checkout and one checkin per call.
+        所有窗格生命周期（签出、可选替换、签入）均由池的上下文管理器管理，因此每次调
+        用恰好有一次签出和一次签入。
         """
         pool = self._pool
         assert pool is not None
@@ -546,12 +543,12 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
         if action.reset and action.is_input:
             raise ValueError("Cannot use reset=True with is_input=True")
 
-        # Short-circuit obvious tool-call malformation: Python/JSON literals
-        # passed where the model should have sent a shell command. The shell
-        # would otherwise echo a confusing `command not found` and the model
-        # rarely self-corrects without a structured hint. Skip the check when
-        # `is_input=True` because that path forwards raw bytes (e.g. keystrokes
-        # like `C-c`) to a running process and is not a fresh shell command.
+        # 短路明显的工具调用畸形：Python/JSON 文字传递到模型应发送 shell 命令的位置。 否
+        # 则，shell 会回显令人困惑的 `command not found`，并且模型很少在没有结构化提示的
+        # 情况下进行自我纠正。 当以下情况时跳过检查
+        # `is_input=True` 因为该路径转发原始字节 (e.g. 像 `C-c` 这样的击键）对正在运行的
+        # 进程来说并不是一个新的 shell 命令。
+        #
         if not action.is_input:
             literal_kind = looks_like_python_literal_argument(action.command)
             if literal_kind is not None:
@@ -579,11 +576,10 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
             return self._execute_single_session(action, conversation)
 
     def interrupt(self) -> None:
-        """Send Ctrl+C to all active terminal sessions.
+        """将 Ctrl+C 发送到所有活动的终端会话。
 
-        Called from a different thread when the conversation is
-        interrupted, so the blocking ``session.execute()`` poll loop
-        sees the command terminate and the worker thread can exit.
+        当对话被打断时，从另一个线程调用，因此阻塞``session.execute()``的轮询循环会看
+        到命令终止，从而worker线程可以退出。
         """
         if self._pool is not None:
             with self._sessions_lock:
@@ -595,7 +591,7 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
                 self._session.interrupt()
 
     def close(self) -> None:
-        """Close the terminal session and clean up resources."""
+        """关闭终端会话并清理资源。"""
         if self._pool is not None:
             self._pool.close()
             with self._sessions_lock:

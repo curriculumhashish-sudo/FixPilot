@@ -1,4 +1,4 @@
-"""Implementation of the dynamic workflow tool."""
+"""动态工作流工具的实现。"""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _MAX_SCRIPT_CHARS = 20_000
 _MAX_REDUCE_INPUT_CHARS = 12_000
 _TRUNCATION_MARKER = "\n... [truncated workflow intermediate results]"
-_WORKFLOW_TIMEOUT_SECONDS = 3600.0  # 1 hour; prevents indefinitely hung workflows
+_WORKFLOW_TIMEOUT_SECONDS = 3600.0  # 1小时； 防止无限期挂起的工作流程
 _UNSAFE_CALLS = frozenset(
     {
         "breakpoint",
@@ -44,15 +44,14 @@ _UNSAFE_CALLS = frozenset(
         "__import__",
     }
 )
-# Attribute-root deny-list is intentionally narrow: scripts cannot import
-# modules, so only names that are pre-injected via _safe_globals() need to
-# be listed here. os and subprocess are the two that would be most harmful
-# if they were ever inadvertently exposed.
+# 属性根拒绝列表是故意狭窄的：脚本不能导入模块，因此仅需在这里列出通过 _safe_globals()
+# 预注入的名称。 os 和子进程是如果不经意暴露的话危害最大的两个。
+#
 _UNSAFE_ATTRIBUTE_ROOTS = frozenset({"os", "subprocess"})
 
 
 class WorkflowScriptError(ValueError):
-    """Raised when a workflow script is invalid or unsafe."""
+    """当工作流脚本无效或不安全时引发。"""
 
 
 class _TaskLike(Protocol):
@@ -74,7 +73,7 @@ class _TaskStarter(Protocol):
 
 
 class WorkflowContext:
-    """Small capability object exposed to generated workflow scripts."""
+    """向生成的工作流脚本公开的小型功能对象。"""
 
     def __init__(
         self,
@@ -108,7 +107,7 @@ class WorkflowContext:
         subagent_type: str = "general-purpose",
         description: str | None = None,
     ) -> str:
-        """Run a single sub-agent task and return its final result."""
+        """运行单个子智能体任务并返回其最终结果。"""
         async with self._default_semaphore:
             return await self._run_agent_task(
                 prompt=prompt,
@@ -122,9 +121,10 @@ class WorkflowContext:
         subagent_type: str,
         description: str | None,
     ) -> str:
-        # Note: `_TaskStarter.start_task` accepts a `resume` parameter, but
-        # workflow sub-agents are always fresh tasks; resumption is intentionally
-        # not exposed through WorkflowContext in the MVP.
+        # 注意：`_TaskStarter.start_task` 接受 `resume` 参数，但是
+        # 工作流程子智能体始终是新鲜任务； 故意不通过 MVP 中的 WorkflowContext 暴露恢复
+        # 。
+        #
         if self._closed:
             raise WorkflowScriptError("WorkflowContext is already closed")
         task = await asyncio.to_thread(
@@ -146,10 +146,10 @@ class WorkflowContext:
         max_concurrency: int | None = None,
         description: Callable[[Any], str] | str | None = None,
     ) -> list[str]:
-        """Run one sub-agent task per item and return results in item order.
+        """每个项目运行一个子智能体任务并按项目顺序返回结果。
 
-        A per-call ``max_concurrency`` caps concurrency for this map operation
-        only; it is silently capped at the context's ``max_concurrency`` limit.
+        每次调用 ``max_concurrency`` caps 并发仅适用于此映射操作； 它默默地限制在上下
+        文的 ``max_concurrency`` 限制。
         """
         if max_concurrency is not None and max_concurrency < 1:
             raise ValueError("max_concurrency must be at least 1")
@@ -195,16 +195,15 @@ class WorkflowContext:
         items: Sequence[Any],
         *stages: Callable[[Any], Any],
     ) -> list[Any]:
-        """Run each item through all stages independently, with no barrier between
-        stages: a fast item can reach a later stage while a slow item is still in an
-        earlier one. The first stage receives the original item; each later stage
-        receives the previous stage's result. Stages may be sync or async. A stage
-        that raises drops that item to ``None`` and skips its remaining stages; other
-        items are unaffected.
+        """独立运行每个项目通过所有阶段，之间没有障碍
+        stages: 快的项目可以到达较晚的阶段，而慢的项目仍处于较晚的阶段
+        较早的一个。 第一阶段接收原始物品； 每个后面的阶段都会收到前一个阶段的结果。
+        阶段可以是同步或异步。 提升的阶段会将该项目降至 ``None`` 并跳过其
+        剩余阶段； 其他项目不受影响。
 
-        Concurrency is bounded by the agent calls inside stages (which acquire the
-        shared semaphore), so pipeline adds no barrier of its own. Do not have a
-        stage re-acquire the semaphore directly; call ``run_agent``/``map_agents``.
+        并发受到阶段内的智能体调用（获取共享信号量）的限制，因此管道不会添加自己的屏
+        障。 没有阶段直接重新获取信号量； 呼叫``run_agent``
+        /``map_agents``.
         """
         if not stages:
             raise ValueError("pipeline requires at least one stage")
@@ -231,11 +230,11 @@ class WorkflowContext:
         subagent_type: str = "general-purpose",
         description: str | None = None,
     ) -> str:
-        """Run a single reducer sub-agent with serialized intermediate results.
+        """运行具有已序列化中间结果的单个减速器子智能体。
 
-        Delegates to ``run_agent``, which acquires ``_default_semaphore``.
-        Workflow scripts always await operations sequentially, so the semaphore
-        is always fully available when ``reduce_agent`` is called.
+        委托给 ``run_agent``，它获取 ``_default_semaphore``。 工作流脚本始终按顺序等
+        待操作，因此在调用
+        ``reduce_agent`` 时信号量始终完全可用。
         """
         return await self.run_agent(
             prompt=f"{prompt}\n\nInput:\n{_format_value(items)}",
@@ -244,7 +243,7 @@ class WorkflowContext:
         )
 
     def flatten(self, values: list[Any]) -> list[Any]:
-        """Flatten one list level."""
+        """展平一个列表级别。"""
         flattened: list[Any] = []
         for value in values:
             if isinstance(value, list):
@@ -263,15 +262,17 @@ class WorkflowContext:
 def _render_required_template(template: Callable[[Any], str] | str, item: Any) -> str:
     if callable(template):
         return str(template(item))
-    # Plain replace avoids Python's format mini-language attribute traversal
-    # (e.g. "{item._manager}"), which would bypass the AST private-attribute guard.
+    # 普通替换避免了 Python 的格式迷你语言属性遍历 (e.g. “{item._manager}”），这将绕过
+    # AST 私有属性保护。
+    #
     if "{item}" not in template:
         logger.debug(
             "map_agents string template does not contain '{item}'; "
             "all sub-agents will receive the same prompt."
         )
-    # Use json.dumps for non-str items so dicts/lists and scalars are consistently
-    # serialised as JSON (booleans → true/false, None → null), matching reduce_agent.
+    # 对非 str 项使用 json.dumps，以便字典/列表和标量一致序列化为 JSON（布尔值 → true/
+    # false，None → null），匹配 reduce_agent。
+    #
     serialised = item if isinstance(item, str) else jsonlib.dumps(item, default=str)
     return template.replace("{item}", serialised)
 
@@ -285,10 +286,11 @@ def _render_template(
 
 
 def _format_value(value: Any) -> str:
-    """Serialize reduce input for the reducer prompt, bounded by
-    ``_MAX_REDUCE_INPUT_CHARS``. For lists/dicts, drop whole trailing elements
-    (keeping valid JSON) and report how many were omitted, instead of slicing
-    mid-token; everything else falls back to character truncation."""
+    """序列化减少减速器提示词的输入，边界为
+    ``_MAX_REDUCE_INPUT_CHARS``. 对于列表/字典，删除整个尾随元素（保持有效 JSON）并报
+    告省略了多少个元素，而不是切片中间 token；
+     其他一切都回到字符截断。
+    """
     if isinstance(value, (list, dict)):
         return _truncate_structured(value)
     text = value if isinstance(value, str) else jsonlib.dumps(value, default=str)
@@ -302,9 +304,9 @@ def _truncate_text(text: str) -> str:
 
 
 def _truncate_structured(value: list | dict) -> str:
-    """Keep as many leading elements as fit, dropping whole elements so the JSON
-    stays valid. Always keeps at least one element; a single oversized element is
-    char-truncated as a last resort."""
+    """保留尽可能多的前导元素，删除整个元素，以便 JSON
+    保持有效。 始终保留至少一个元素； 作为最后的手段，单个超大元素会被字符截断。
+    """
     full = jsonlib.dumps(value, indent=2, default=str)
     if len(full) <= _MAX_REDUCE_INPUT_CHARS:
         return full
@@ -323,9 +325,9 @@ def _truncate_structured(value: list | dict) -> str:
             "reduce input limit]"
         )
 
-    # Greedy fill by per-element estimate, then correct against the actual
-    # combined serialization (which is larger than the sum of parts) so the
-    # result fits without slicing mid-token.
+    # 通过逐元素估计填充，然后纠正以与实际的总和序列化 （大于部分之和）相匹配，以确保结
+    # 果在不切分 token 时无缝拼接。
+    #
     kept: list = []
     used = 0
     for item in items:
@@ -337,17 +339,17 @@ def _truncate_structured(value: list | dict) -> str:
     while len(kept) > 1 and len(render(kept)) > _MAX_REDUCE_INPUT_CHARS:
         kept.pop()
 
-    # Safety net: a single oversized element can still exceed the budget.
+    # 安全网：单个超大元素仍然可能超出预算。
     return _truncate_text(render(kept))
 
 
 def validate_workflow_script(script: str) -> None:
-    """Perform best-effort validation for generated workflow scripts.
+    """对生成的工作流脚本执行尽力而为验证。
 
-    Note: The private-attribute guard checks the literal name ``wf``, so aliasing
-    (e.g. ``x = wf; x._attr``) can bypass the check. The attributes accessible
-    through ``WorkflowContext`` do not expose dangerous capabilities, so this is
-    a documentation gap rather than a security gap.
+    Note: 私有属性保护检查字面名称 ``wf``，因此别名
+    (e.g. ``x = wf; x._attr``) 可以绕过检查。 通过``WorkflowContext``访问的属性不会暴
+    露危险的功能，因此这是一个文档漏洞而
+    不是安全漏洞。
     """
     if len(script) > _MAX_SCRIPT_CHARS:
         raise WorkflowScriptError(
@@ -419,7 +421,7 @@ def _attribute_root_name(node: ast.Attribute) -> str | None:
 
 
 def execute_workflow_script(script: str, context: WorkflowContext) -> Any:
-    """Validate and execute a workflow script from a synchronous context."""
+    """验证并执行同步上下文中的工作流脚本。"""
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -487,10 +489,10 @@ def _safe_globals() -> dict[str, Any]:
         "sum": sum,
         "tuple": tuple,
         # type() is included for 1-arg introspection (e.g. type(x).__name__).
-        # 3-arg class creation is permitted; methods DEFINED IN THE SCRIPT execute in
-        # restricted globals, and the AST validator blocks __dunder__ attribute access
-        # (closing __subclasses__()-based escapes). Calls to pre-existing injected
-        # objects such as wf are not re-sandboxed, but those expose only public wf API.
+        # 允许创建 3-arg 类； 方法 DEFINED IN THE  SCRIPT 在受限全局中执行，以及 AST  验
+        # 证器块 __dunder__ 属性访问 (关闭) __子类__-based escapes) 调用现有的注入对象，
+        # 如 wf，不会重新沙盒化，但它们只暴露公共 wf API.
+        #
         "type": type,
         "TypeError": TypeError,
         "ValueError": ValueError,
@@ -501,7 +503,7 @@ def _safe_globals() -> dict[str, Any]:
 
 
 class WorkflowExecutor(ToolExecutor["WorkflowAction", WorkflowObservation]):
-    """Executor for the dynamic workflow tool."""
+    """动态工作流工具的执行器。"""
 
     def __init__(self, sub_agent_scope: SubAgentScope | None = None) -> None:
         self._sub_agent_scope = sub_agent_scope

@@ -5,23 +5,23 @@ from uuid import UUID
 
 
 class Tier(IntEnum):
-    """What may be dropped from a stopped runtime; each tier includes the lower."""
+    """停止运行时可能会丢弃什么； 每一层都包括较低层。"""
 
-    # Package caches in the sandbox home ($HOME/.cache, $HOME/.npm).
+    # 沙盒主目录中的包缓存（$HOME/.cache、$HOME/.npm）。
     CACHES = 1
-    # Git-ignored dirs in the workspace (node_modules, .venv, build output).
+    # 工作区中 Git 忽略的目录（node_modules、.venv、构建输出）。
     DEPENDENCIES = 2
-    # The whole runtime; the conversation's history and identity are kept.
+    # 整个运行时间； 对话的历史记录和身份都会被保留。
     RUNTIME = 3
 
 
 @dataclass(frozen=True, slots=True)
 class StoredRuntime:
-    """A conversation's storage on this host, limited to what the server owns."""
+    """该主机上的对话存储，仅限于服务器拥有的内容。"""
 
     id: UUID
     last_active: float
-    # The sandbox's own $HOME, if it has one apart from the host's.
+    # 沙盒自己的$HOME如果有，它就不是主机的。
     home: Path | None = None
-    # Workspaces the server created; never a caller-supplied checkout.
+    # 工作区服务器已创建； 从来没有来电者提供的结帐。
     workspaces: tuple[Path, ...] = ()

@@ -1,7 +1,7 @@
-"""Testing utilities for OpenHands SDK.
+"""测试 OpenHands SDK 的实用程序。
 
-This module provides test utilities that make it easy to write tests for
-code that uses the OpenHands SDK, without needing to mock LiteLLM internals.
+该模块提供了测试实用程序，可以轻松地为使用 OpenHands SDK 的代码编写测试，而无需模拟对
+象 LiteLLM 内部结构。
 """
 
 from openhands.sdk.testing.test_llm import TestLLM, TestLLMExhaustedError

@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# Colors for output
+# 输出颜色
 ECHO := printf '%b\n'
 GREEN := \033[32m
 YELLOW := \033[33m
@@ -10,13 +10,13 @@ CYAN := \033[36m
 RESET := \033[0m
 UNDERLINE := \033[4m
 
-# Required uv version
+# 所需的 uv 版本
 REQUIRED_UV_VERSION := 0.8.13
 PKGS ?= openhands-sdk openhands-tools openhands-workspace openhands-agent-server
 
 .PHONY: build format lint clean help check-uv-version
 
-# Default target
+# 默认目标
 .DEFAULT_GOAL := help
 
 
@@ -64,7 +64,7 @@ clean:
 	@$(ECHO) "$(GREEN)Cache files cleaned.$(RESET)"
 
 
-# Show help
+# 显示帮助
 help:
 	@$(ECHO) "$(CYAN)OpenHands V1 Makefile$(RESET)"
 	@$(ECHO) ""

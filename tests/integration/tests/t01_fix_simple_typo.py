@@ -1,4 +1,4 @@
-"""Test that an agent can fix typos in a text file using BaseIntegrationTest."""
+"""测试智能体是否可以使用 BaseIntegrationTest 修复文本文件中的拼写错误。"""
 
 import os
 
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 
 class TypoFixTest(BaseIntegrationTest):
-    """Test that an agent can fix typos in a text file."""
+    """测试智能体是否可以修复文本文件中的拼写错误。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -32,8 +32,8 @@ class TypoFixTest(BaseIntegrationTest):
         self.document_path: str = os.path.join(self.workspace, "document.txt")
 
     def setup(self) -> None:
-        """Create a text file with typos for the agent to fix."""
-        # Create the test file with typos
+        """创建一个包含拼写错误的文本文件，智能体用于修复。"""
+        # 创建带有拼写错误的测试文件
         typo_content = TYPO_CONTENT
         with open(self.document_path, "w") as f:
             f.write(typo_content)
@@ -41,7 +41,7 @@ class TypoFixTest(BaseIntegrationTest):
         logger.info(f"Created test document with typos at: {self.document_path}")
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully fixed the typos."""
+        """验证智能体是否成功修复了拼写错误。"""
         if not os.path.exists(self.document_path):
             return TestResult(
                 success=False, reason="Document file not found after agent execution"

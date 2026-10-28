@@ -15,43 +15,42 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Seconds between passes that apply the disk budget and retention.
+# 应用磁盘预算和保留的传递之间的秒数。
 MAINTENANCE_INTERVAL: Final[float] = 300.0
 
 
 class ReclaimableStorage(Protocol):
-    """How one ``Config.conversation_runtime`` (local, docker) stores
-    conversations on this host."""
+    """一个``Config.conversation_runtime``（本地，Docker）如何存储
+    该主机上的对话。"""
 
     @property
     def root(self) -> Path:
-        """Where the runtimes live; the trash goes here, on the same filesystem."""
+        """运行时所在的地方； 垃圾放在这里，在同一个文件系统上。"""
         ...
 
     def runtime(self, conversation_id: UUID) -> StoredRuntime | None:
-        """The conversation's stored runtime, or None if it has none here."""
+        """对话的存储运行时间，如果此处有 None，则为 None。"""
         ...
 
     def runtimes(self) -> list[StoredRuntime]:
-        """Every stored runtime, least recently active first."""
+        """每个存储的运行时间，最近最少活动的在前。"""
         ...
 
     def idle(self, conversation_id: UUID) -> AbstractAsyncContextManager[bool]:
-        """Hold the runtime still; True if nothing runs or starts in it."""
+        """保持运行时间静止； True 如果其中没有任何运行或启动。"""
         ...
 
     def archive(self, conversation_id: UUID) -> list[Path]:
-        """Record the runtime as archived; return what to discard. Called idle."""
+        """将运行时间记录为存档； 返回要丢弃的内容。 谓之闲。"""
         ...
 
     async def on_archived(self, conversation_id: UUID) -> None: ...
 
 
 class Reclaimer:
-    """Frees what a runtime mode stores per conversation, by tier.
+    """按层释放运行时模式为每个对话存储的内容。
 
-    Files are only moved into the trash, and only while the storage holds the
-    runtime idle; the trash deletes them in the background.
+    仅当存储保持运行时空闲时，文件才会移至垃圾箱； 垃圾箱会在后台删除它们。
     """
 
     def __init__(
@@ -69,7 +68,7 @@ class Reclaimer:
         self._over_budget_warned = False
 
     async def start(self) -> None:
-        """Only safe before any runtime starts: every one is reclaimed."""
+        """仅在任何运行时开始之前才是安全的：每个都被回收。"""
         for runtime in await asyncio.to_thread(self.storage.runtimes):
             await self.reclaim(runtime, Tier.CACHES)
         self.trash.empty_soon()
@@ -85,9 +84,9 @@ class Reclaimer:
         await self.trash.close()
 
     async def run_pass(self) -> None:
-        """Apply the configured policies once; log only if something was freed."""
+        """应用一次配置的策略； 仅在释放某些内容时才记录。"""
         free_before = _free_bytes(self.storage.root)
-        # Retention first: what it archives no longer counts against the budget.
+        # 保留第一：归档的内容不再计入预算。
         archived = await self._enforce_retention()
         shed = await self._enforce_disk_budget()
         if not (archived or shed):
@@ -96,7 +95,7 @@ class Reclaimer:
         logger.info(
             "Conversation storage: freed %.1f GB (archived %d runtimes, shed "
             "dependencies of %d), %s at %.0f%%",
-            # Other writes on the filesystem can outweigh a small reclaim.
+            # 文件系统上的其他写入可能比少量回收更重要。
             max(0, _free_bytes(self.storage.root) - free_before) / 1e9,
             archived,
             shed,
@@ -118,12 +117,12 @@ class Reclaimer:
                 logger.exception("error_reclaiming_conversation_storage")
 
     async def _enforce_retention(self) -> int:
-        """Archive runtimes inactive for longer than the retention period."""
+        """存档运行时间处于非活动状态的时间超过保留期。"""
         if not self.retention_days:
             return 0
         cutoff = time.time() - self.retention_days * 86400
         runtimes = await asyncio.to_thread(self.storage.runtimes)
-        # Least recently active first, so the stale ones are a prefix.
+        # 最近最不活跃的优先，所以过时的是前缀。
         stale = itertools.takewhile(lambda r: r.last_active <= cutoff, runtimes)
         archived = sum([await self.reclaim(r, Tier.RUNTIME) for r in stale])
         if archived:
@@ -131,7 +130,7 @@ class Reclaimer:
         return archived
 
     async def _enforce_disk_budget(self) -> int:
-        """Shed dependencies of stopped runtimes, oldest first, until under budget."""
+        """摆脱对已停止运行时的依赖，最旧的首先，直到低于预算。"""
         budget = self.disk_budget
         root = self.storage.root
         if not budget or disk_usage(root) <= budget:
@@ -142,7 +141,7 @@ class Reclaimer:
             if not await self.reclaim(runtime, Tier.DEPENDENCIES):
                 continue
             shed += 1
-            # Usage only drops once the trash is actually emptied.
+            # 只有当垃圾真正清空后，使用量才会下降。
             self.trash.empty_soon()
             await self.trash.drain()
             if disk_usage(root) <= budget:
@@ -158,9 +157,9 @@ class Reclaimer:
         return shed
 
     async def reclaim(self, runtime: StoredRuntime, tier: Tier) -> bool:
-        """Discard what ``tier`` allows, unless the runtime is in use."""
+        """放弃 ``tier`` 允许的内容，除非正在使用运行时。"""
         archiving = tier >= Tier.RUNTIME
-        # Archiving takes the whole runtime, so there is nothing to select.
+        # 归档需要整个运行时间，所以没有什么可以选择的。
         paths = [] if archiving else await asyncio.to_thread(_select, runtime, tier)
         if not (paths or archiving):
             return False
@@ -169,7 +168,7 @@ class Reclaimer:
                 return False
             if archiving:
                 paths = self.storage.archive(runtime.id)
-            # Only renames here: the lock is held for microseconds.
+            # 仅在此处重命名：锁保留微秒。
             moved = [path for path in paths if self.trash.discard(path)]
         if archiving and moved:
             await self.storage.on_archived(runtime.id)

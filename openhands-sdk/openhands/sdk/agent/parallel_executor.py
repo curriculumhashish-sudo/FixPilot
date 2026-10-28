@@ -1,19 +1,18 @@
-"""Parallel tool execution for agent.
+"""智能体的并行工具执行。
 
-This module provides utilities for executing multiple tool calls concurrently
-with a configurable per-agent concurrency limit and resource-level locking.
+该模块提供了用于同时执行多个工具调用的实用程序，以及可配置的每智能体并发限制和资源级
+锁定。
 
-Resource locking (via ``ResourceLockManager``) ensures that tools operating on
-the same shared state (files, terminal session, browser, …) are serialized,
+资源锁定（通过``ResourceLockManager``）确保在相同共享状态（文件、终端会话、浏览器等）
+上运行的工具是已序列化，
 while tools touching *different* resources can run concurrently.
 
-.. warning:: Thread safety of individual tools
+.. 个别工具的警告：: 线程安全
 
-   When ``tool_concurrency_limit > 1``, multiple tools run in parallel
-   threads sharing the same ``conversation`` object. The executor uses
-   ``ResourceLockManager`` to serialize access to shared resources, but
-   tools must correctly implement ``declared_resources()`` for this
-   to be effective.
+   当 ``tool_concurrency_limit > 1`` 时，多个工具并行运行线程，共享相同的
+   ``conversation`` 对象。 执行者使用
+   ``ResourceLockManager`` 到序列化访问共享资源，但工具必须正确实现
+   ``declared_resources()`` 才能有效。
 """
 
 from __future__ import annotations
@@ -44,16 +43,15 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-#: Unexpected internal failure - should surface as a diagnostic, not an outcome.
+# ：意外的内部故障 - 应作为诊断而不是结果出现。
 _INTERNAL = ErrorClassification(kind=FailureKind.INTERNAL, retryable=False)
 
 
 class ParallelToolExecutor:
-    """Executes a batch of tool calls concurrently with resource locking.
+    """与资源锁定同时执行一批工具调用。
 
-    Each instance has its own thread pool, concurrency limit, and
-    ``ResourceLockManager``, so nested execution (e.g., subagents) cannot
-    deadlock the parent.
+    每个实例都有自己的线程池、并发限制，以及
+    ``ResourceLockManager``，因此嵌套执行 (e.g., 子智能体) 不能死锁父级。
     """
 
     def __init__(
@@ -72,22 +70,21 @@ class ParallelToolExecutor:
         cancel_token: CancellationToken | None = None,
         span_owner: object | None = None,
     ) -> list[list[Event]]:
-        """Execute a batch of action events concurrently.
+        """同时执行一批动作事件。
 
         Args:
-            action_events: Sequence of ActionEvent objects to execute.
-            tool_runner: A callable that takes an ActionEvent and returns
-                        a list of Event objects produced by the execution.
-            tools: Optional mapping of tool name to ToolDefinition used
-                   to derive resource keys for locking. When *None*,
-                   locking is skipped (backward-compatible).
-            cancel_token: If set and cancelled, pending tool calls are
-                          skipped and return a synthetic error event.
-            span_owner: Object carrying the conversation root span for
-                        synthetic cancellation results.
+            action_events: 要执行的 ActionEvent 个对象的序列。
+            tool_runner: 接受 ActionEvent 并返回的可调用对象
+                        由执行产生的事件对象列表。
+            tools: 使用工具名称到 ToolDefinition 的可选映射
+                   派生用于锁定的资源密钥。 当 *None* 时，跳过锁定 (向后兼容)。
+            cancel_token: 如果设置和取消，待处理的工具调用是
+                          跳过并返回合成错误事件。
+            span_owner: 携带对话根跨度的对象
+                        综合取消结果。
 
         Returns:
-            List of event lists in the same order as the input action_events.
+            事件列表的列表与输入 action_events 的顺序相同。
         """
         if not action_events:
             return []
@@ -108,8 +105,9 @@ class ParallelToolExecutor:
             ]
 
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
-            # submit() itself propagates no contextvars; a fresh copy per task
-            # because one Context cannot be entered by two threads.
+            # submit() 本身不传播上下文变量； 每个任务一个新副本，因为一个上下文不能由两
+            # 个线程输入。
+            #
             futures = [
                 executor.submit(
                     contextvars.copy_context().run,
@@ -133,24 +131,22 @@ class ParallelToolExecutor:
         cancel_token: CancellationToken | None = None,
         span_owner: object | None = None,
     ) -> list[list[Event]]:
-        """Async variant of :meth:`execute_batch`.
+        """异步：meth:`execute_batch` 的变体。
 
-        Each tool call is dispatched to a dedicated
-        :class:`~concurrent.futures.ThreadPoolExecutor` (sized to
-        ``max_workers``) via :func:`asyncio.loop.run_in_executor` and
-        scheduled concurrently with :func:`asyncio.gather`. The pool
-        itself bounds concurrency, matching the sync path's per-batch
-        :class:`ThreadPoolExecutor`; using a dedicated pool avoids
-        serializing on asyncio's shared default executor (small and
-        process-wide), which could throttle previously-parallel tool
-        calls when other ``run_in_executor`` users contend for it.
+        每个工具调用被分派到一个专用的
+        :class:`~concurrent.futures.ThreadPoolExecutor` （大小为
+        ``max_workers``）通过：func:`asyncio.loop.run_in_executor` 并与：func:
+        `asyncio.gather` 同时调度。 池本身边界并发，匹配同步路径的每批次
+        ：类：`ThreadPoolExecutor`； 使用专用池可以避免
+        在 asyncio 的共享默认执行器上序列化（小且全局的），这可能会 throttling 之前并
+        行的请求工具调用 when other
+        ``run_in_executor`` 用户为它争抢。
 
-        The *tool_runner* is the same **synchronous** callable used by
-        :meth:`execute_batch` (i.e. ``_execute_action_event``).
-        ``span_owner`` anchors synthetic cancellation results to their root span.
-        Resource locking via :class:`ResourceLockManager` (threading
-        locks) works correctly because each tool call runs in its own
-        thread.
+        *tool_runner* 与 **同步** 所使用的可调用相同
+        ：方法：`execute_batch`（i.e。 ``_execute_action_event``).
+        ``span_owner`` 将综合取消结果锚定到其根跨度。 通过：class:
+        `ResourceLockManager`（线程锁）进行的资源锁定可以正常工
+        作，因为每个工具调用都在自己的线程中运行。
         """
         if not action_events:
             return []
@@ -199,29 +195,23 @@ class ParallelToolExecutor:
         executor: ThreadPoolExecutor | None = None,
         span_owner: object | None = None,
     ) -> list[Event]:
-        """Run :meth:`_run_safe` in a thread via ``run_in_executor``.
+        """通过 ``run_in_executor`` 在线程中运行：meth:`_run_safe`。
 
-        This keeps the event loop free while the (blocking) tool
-        executes and ensures that ``ResourceLockManager``'s threading
-        locks are acquired on the worker thread, not the event-loop
-        thread.
+        这样保持了事件循环的自由，而 (阻塞) 工具执行时确保了 ``ResourceLockManager``
+        的线程锁在工作线程线程上获取，而不是事件循环线程。
 
-        When *executor* is ``None`` the asyncio default pool is used
-        (suitable for one-off / single-action calls); batch callers
-        should pass a dedicated pool so concurrent tool calls don't
-        contend with other ``run_in_executor`` users on the shared
-        default pool.
+        当 *executor* 为 ``None`` 时，使用 asyncio 默认池（适合一次性/单操作调用）；
+        批处理调用者应传递专用池，以便并发工具调用不会
+        与共享默认池上的其他 ``run_in_executor`` 用户竞争。
 
-        If the asyncio task is cancelled while the thread is running
-        (e.g. via ``conversation.interrupt()``), we call
-        ``tool.executor.interrupt()`` to signal the tool to abort
-        (e.g. send Ctrl+C to a terminal subprocess).  The thread
-        still runs to completion, but the interrupted command
-        finishes quickly rather than blocking until its original
-        timeout.
+        如果在线程运行时取消 asyncio 任务 (e.g. 通过``conversation.interrupt()``），
+        我们称
+        ``tool.executor.interrupt()`` 向工具发出信号以中止 (e.g. 将 Ctrl+C 发送到终端
+        子进程)。 线程仍然运行完成，但被
+        中断的命令很快完成，而不是阻塞到原来的超时。
         """
         loop = asyncio.get_running_loop()
-        # run_in_executor copies no contextvars, unlike asyncio.to_thread.
+        # 与 asyncio.to_thread 不同，run_in_executor 不复制上下文变量。
         ctx = contextvars.copy_context()
 
         def run_in_caller_context() -> list[Event]:
@@ -238,9 +228,9 @@ class ParallelToolExecutor:
         try:
             return await fut
         except asyncio.CancelledError:
-            # The asyncio task was cancelled (interrupt), but the
-            # thread-pool worker is still running.  Signal the tool
-            # to abort its in-flight work so the thread exits quickly.
+            # asyncio 任务已取消（中断），但线程-池工作线程仍在运行。 向工具发出信号以中
+            # 止其正在进行的工作，以便线程快速退出。
+            #
             if tool is not None and tool.executor is not None:
                 try:
                     tool.executor.interrupt()
@@ -256,7 +246,7 @@ class ParallelToolExecutor:
     def _cancelled_error(
         action: ActionEvent, span_owner: object | None = None
     ) -> list[Event]:
-        """Return a synthetic error for a tool call skipped due to cancellation."""
+        """返回因取消而跳过的工具调用的综合错误。"""
         error = AgentErrorEvent(
             error="Tool call cancelled by interrupt.",
             tool_name=action.tool_name,
@@ -280,17 +270,16 @@ class ParallelToolExecutor:
         cancel_token: CancellationToken | None = None,
         span_owner: object | None = None,
     ) -> list[Event]:
-        """Run tool_runner with resource locking.
+        """使用资源锁定运行 tool_runner。
 
-        Converts exceptions to ``AgentErrorEvent``.
-        If *cancel_token* is set before the tool begins, the call is
-        skipped and a synthetic error is returned.
+        将异常转换为 ``AgentErrorEvent``。 如果在工具开始之前设置了 *cancel_token*，
+        则会跳过调用并返回综合错误。
 
-        Locking strategy:
+        锁定策略：
 
-        - ``declared=False`` → ``tool:<name>`` mutex.
-        - ``declared=True``, empty keys → no locking.
-        - ``declared=True``, keys present → lock those resources.
+        - ``declared=False`` → ``tool:<name>`` 互斥体。
+        - ``declared=True``，空键→无锁定。
+        - ``declared=True``，键存在 → 锁这些资源。
         """
         if cancel_token is not None and cancel_token.is_cancelled:
             logger.info(
@@ -339,7 +328,7 @@ class ParallelToolExecutor:
         action: ActionEvent,
         tool: ToolDefinition,
     ) -> DeclaredResources | None:
-        """Call ``tool.declared_resources()`` if the action is parsed."""
+        """如果解析了操作，则调用 ``tool.declared_resources()``。"""
         parsed_action = action.action
         return tool.declared_resources(parsed_action) if parsed_action else None
 
@@ -348,9 +337,9 @@ class ParallelToolExecutor:
         resources: DeclaredResources | None,
         tool: ToolDefinition,
     ) -> list[str]:
-        """Turn declared resources into lock keys.
+        """将声明的资源转换为锁键。
 
-        Returns an empty list when no locking is needed.
+        当不需要锁定时返回一个空列表。
         """
         if resources is None or not resources.declared:
             return [f"tool:{tool.name}"]

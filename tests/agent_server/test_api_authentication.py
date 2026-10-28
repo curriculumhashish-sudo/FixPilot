@@ -1,6 +1,6 @@
 """
-Integration tests for API authentication using dependency-based authentication.
-Tests the complete authentication flow through the FastAPI application.
+集成测试对于 API 身份验证，使用基于依赖关系的身份验证。 测试 FastAPI 应用程序的完整身
+份验证流程。
 """
 
 import json
@@ -17,13 +17,13 @@ from openhands.agent_server.openai.router import _parse_observability_overrides
 
 @pytest.fixture
 def client():
-    """Create a test client for the API without authentication."""
+    """为没有身份验证的 API 创建一个测试客户端。"""
     return TestClient(create_app())
 
 
 @pytest.fixture
 def client_with_auth():
-    """Create a test client with session API key authentication."""
+    """使用会话 API 密钥身份验证创建测试客户端。"""
     config = Config(session_api_keys=["test-key-123"])
     app = create_app(config)
     return TestClient(app, raise_server_exceptions=False)
@@ -31,35 +31,35 @@ def client_with_auth():
 
 @pytest.fixture
 def client_with_multiple_keys():
-    """Create a test client with multiple session API keys."""
+    """创建具有多个会话 API 密钥的测试客户端。"""
     config = Config(session_api_keys=["key-1", "key-2", "key-3"])
     app = create_app(config)
     return TestClient(app, raise_server_exceptions=False)
 
 
 def test_find_http_exception():
-    """Test the helper function for finding HTTPExceptions in ExceptionGroups."""
-    # Test with single HTTPException
+    """测试用于查找 HTTPExceptions 在 ExceptionGroups 中的辅助函数。"""
+    # HTTPException
     http_exc = HTTPException(status_code=401, detail="Unauthorized")
     exc_group = BaseExceptionGroup("test", [http_exc])
 
     found = _find_http_exception(exc_group)
     assert found is http_exc
 
-    # Test with multiple exceptions, HTTPException first
+    # HTTPException 首先测试多个异常
     other_exc = ValueError("Some error")
     exc_group = BaseExceptionGroup("test", [http_exc, other_exc])
 
     found = _find_http_exception(exc_group)
     assert found is http_exc
 
-    # Test with no HTTPException
+    # 测试无 HTTPException
     exc_group = BaseExceptionGroup("test", [other_exc])
 
     found = _find_http_exception(exc_group)
     assert found is None
 
-    # Test with nested ExceptionGroup
+    # 使用嵌套 ExceptionGroup 进行测试
     nested_group = BaseExceptionGroup("nested", [http_exc])
     outer_group = BaseExceptionGroup("outer", [other_exc, nested_group])
 
@@ -68,21 +68,21 @@ def test_find_http_exception():
 
 
 def test_api_no_auth_required(client):
-    """Test that API works without authentication when no keys are configured."""
-    # Test server details endpoint (should always be accessible)
+    """当未配置任何键时，测试 API 是否可以在没有身份验证的情况下工作。"""
+    # 测试服务器详细信息端点（应始终可访问）
     response = client.get("/server_info")
-    # This might return 404 if endpoint doesn't exist, but should not be 401
+    # 如果端点不存在，则可能返回 404，但不应返回 401
     assert response.status_code != 401
 
 
 def test_api_auth_missing_key(client_with_auth):
-    """Integration test: missing X-Session-API-Key should return 401."""
+    """集成测试：缺少 X-Session-API-Key 应返回 401。"""
     response = client_with_auth.get("/api/conversations")
     assert response.status_code == 401
 
 
 def test_api_auth_invalid_key(client_with_auth):
-    """Integration test: invalid X-Session-API-Key should return 401."""
+    """集成测试：无效的 X-Session-API-Key 应返回 401。"""
     response = client_with_auth.get(
         "/api/conversations", headers={"X-Session-API-Key": "wrong-key"}
     )
@@ -90,16 +90,16 @@ def test_api_auth_invalid_key(client_with_auth):
 
 
 def test_api_auth_valid_key(client_with_auth):
-    """Integration test: valid X-Session-API-Key should allow access."""
+    """集成测试：有效的 X-Session-API-Key 应允许访问。"""
     response = client_with_auth.get(
         "/api/conversations", headers={"X-Session-API-Key": "test-key-123"}
     )
-    # Should not be 401 (might be other status depending on endpoint implementation)
+    # 不应是 401（可能是其他状态，具体取决于端点实现）
     assert response.status_code != 401
 
 
 def test_api_auth_multiple_keys_all_valid(client_with_multiple_keys):
-    """Integration test: all configured keys should work."""
+    """集成测试：所有配置的键都应该起作用。"""
     for key in ["key-1", "key-2", "key-3"]:
         response = client_with_multiple_keys.get(
             "/api/conversations", headers={"X-Session-API-Key": key}
@@ -108,7 +108,7 @@ def test_api_auth_multiple_keys_all_valid(client_with_multiple_keys):
 
 
 def test_api_auth_multiple_keys_invalid(client_with_multiple_keys):
-    """Integration test: invalid key should fail with multiple keys configured."""
+    """集成测试：配置多个密钥时无效密钥应该失败。"""
     response = client_with_multiple_keys.get(
         "/api/conversations", headers={"X-Session-API-Key": "invalid-key"}
     )
@@ -116,8 +116,8 @@ def test_api_auth_multiple_keys_invalid(client_with_multiple_keys):
 
 
 def test_api_server_details_no_auth_required(client_with_auth):
-    """Integration test: server details endpoints should not require authentication."""
-    # Server info endpoint should be accessible without auth
+    """集成测试：服务器详细信息端点不应需要身份验证。"""
+    # 服务器信息端点无需授权即可访问
     response = client_with_auth.get("/server_info")
     assert response.status_code != 401
 
@@ -200,7 +200,7 @@ def test_openai_route_invalid_observability_header_returns_422(monkeypatch):
 
 
 def test_api_protected_endpoints_require_auth(client_with_auth):
-    """Test that API endpoints under /api prefix require authentication."""
+    """测试 /api 前缀下的 API 端点是否需要身份验证。"""
     protected_endpoints = [
         ("/api/conversations", None),
         ("/api/tools/", None),
@@ -208,11 +208,11 @@ def test_api_protected_endpoints_require_auth(client_with_auth):
     ]
 
     for endpoint, params in protected_endpoints:
-        # Without auth header
+        # 没有 auth 标头
         response = client_with_auth.get(endpoint, params=params)
         assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
 
-        # With valid auth header
+        # 具有有效的身份验证标头
         response = client_with_auth.get(
             endpoint, params=params, headers={"X-Session-API-Key": "test-key-123"}
         )
@@ -222,19 +222,19 @@ def test_api_protected_endpoints_require_auth(client_with_auth):
 
 
 def test_api_case_sensitive_keys(client_with_auth):
-    """Test that API key matching is case-sensitive."""
-    # Create client with mixed-case key
+    """测试 API 键匹配是否区分大小写。"""
+    # 使用混合大小写密钥创建客户端
     config = Config(session_api_keys=["Test-Key-123"])
     app = create_app(config)
     client = TestClient(app, raise_server_exceptions=False)
 
-    # Exact match should work
+    # 精确匹配应该有效
     response = client.get(
         "/api/conversations", headers={"X-Session-API-Key": "Test-Key-123"}
     )
     assert response.status_code != 401
 
-    # Case mismatch should fail
+    # 大小写不匹配应该会失败
     response = client.get(
         "/api/conversations", headers={"X-Session-API-Key": "test-key-123"}
     )
@@ -242,7 +242,7 @@ def test_api_case_sensitive_keys(client_with_auth):
 
 
 def test_api_header_case_insensitive():
-    """Test that HTTP header names are case-insensitive."""
+    """测试 HTTP 标头名称不区分大小写。"""
     config = Config(session_api_keys=["test-key"])
     app = create_app(config)
     client = TestClient(app, raise_server_exceptions=False)
@@ -260,7 +260,7 @@ def test_api_header_case_insensitive():
 
 
 def test_api_special_character_keys():
-    """Test API keys with special characters."""
+    """测试带有特殊字符的 API 键。"""
     special_keys = [
         "key-with-dashes",
         "key_with_underscores",
@@ -278,47 +278,47 @@ def test_api_special_character_keys():
 
 
 def test_api_empty_key_list():
-    """Test that empty session_api_keys list disables authentication."""
+    """测试空的 session_api_keys 列表禁用身份验证。"""
     config = Config(session_api_keys=[])
     app = create_app(config)
     client = TestClient(app)
 
-    # Should work without any authentication
+    # 应该可以在没有任何身份验证的情况下工作
     response = client.get("/api/conversations")
     assert response.status_code != 401
 
 
 def test_api_websocket_authentication():
-    """Test that WebSocket connections also respect authentication."""
+    """测试 WebSocket 连接也遵循身份验证。"""
     config = Config(session_api_keys=["test-key"])
     app = create_app(config)
     client = TestClient(app)
 
-    # Without authentication -> should fail
+    # 没有身份验证 -> 应该失败
     with pytest.raises(Exception):
         with client.websocket_connect("/sockets/bash-events"):
             assert False, "WebSocket connection should have failed without auth"
 
-    # Query-param authentication -> should work (browser-compatible)
+    # Query-param 身份验证 -> 应该可以工作（浏览器兼容）
     with client.websocket_connect("/sockets/bash-events?session_api_key=test-key"):
         pass
 
-    # Header authentication -> should work for non-browser clients
+    # 标头身份验证 -> 应该适用于非浏览器客户端
     with client.websocket_connect(
         "/sockets/bash-events",
         headers={"X-Session-API-Key": "test-key"},
     ):
         pass
 
-    # Query param should take precedence over headers (browser-compatible escape hatch).
+    # 查询参数应优先于标头（浏览器兼容的逃生舱口）。
     with client.websocket_connect(
         "/sockets/bash-events?session_api_key=test-key",
         headers={"X-Session-API-Key": "wrong-key"},
     ):
         pass
 
-    # If query param is present and wrong, connection should fail even if the
-    # header is correct.
+    # 如果查询参数存在且错误，即使标头正确，连接也会失败。
+    #
     with pytest.raises(Exception):
         with client.websocket_connect(
             "/sockets/bash-events?session_api_key=wrong-key",
@@ -326,7 +326,7 @@ def test_api_websocket_authentication():
         ):
             assert False, "WebSocket connection should have failed with wrong query key"
 
-    # Wrong header -> should fail
+    # 错误的标头 -> 应该失败
     with pytest.raises(Exception):
         with client.websocket_connect(
             "/sockets/bash-events",
@@ -336,7 +336,7 @@ def test_api_websocket_authentication():
 
 
 def test_api_websocket_no_auth_required():
-    """Test that WebSocket connections work when auth is disabled."""
+    """测试禁用身份验证时 WebSocket 连接是否正常工作。"""
     config = Config(session_api_keys=[])
     app = create_app(config)
     client = TestClient(app)
@@ -346,59 +346,59 @@ def test_api_websocket_no_auth_required():
 
 
 def test_api_options_requests():
-    """Test that OPTIONS requests work for CORS preflight."""
+    """测试 OPTIONS 请求为 CORS 预检工作。"""
     config = Config(session_api_keys=["test-key"])
     app = create_app(config)
     client = TestClient(app)
 
-    # OPTIONS requests should work without authentication for CORS
+    # OPTIONS 请求应该在没有身份验证的情况下对 CORS 起作用
     response = client.options("/api/conversations")
-    # Should not be 401, might be 405 (Method Not Allowed) or 200
+    # 不应是 401，可能是 405（不允许的方法）或 200
     assert response.status_code != 401
 
 
 def test_api_dependency_injection_openapi():
-    """Test that the dependency appears in OpenAPI documentation."""
+    """测试依赖项是否出现在 OpenAPI 文档中。"""
     config = Config(session_api_keys=["test-key"])
     app = create_app(config)
     client = TestClient(app)
 
-    # Get OpenAPI schema
+    # 获取OpenAPI模式
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
     openapi_schema = response.json()
 
-    # Check that security is defined in the schema
-    # The exact structure depends on how FastAPI generates the schema
-    # This is a basic check that the schema is generated successfully
+    # 检查模式中是否定义了安全。具体结构取决于 FastAPI 如何生成模式。这是一个基本检查，
+    # 确保模式成功生成
+    #
     assert "openapi" in openapi_schema
     assert "paths" in openapi_schema
 
 
 def test_api_multiple_concurrent_requests():
-    """Test that multiple concurrent requests with different keys work correctly."""
+    """测试使用不同键的多个并发请求是否正常工作。"""
     config = Config(session_api_keys=["key-1", "key-2"])
     app = create_app(config)
     client = TestClient(app, raise_server_exceptions=False)
 
-    # Simulate concurrent requests with different keys
+    # 使用不同的键模拟并发个请求
     responses = []
 
     for key in ["key-1", "key-2", "invalid-key"]:
         response = client.get("/api/conversations", headers={"X-Session-API-Key": key})
         responses.append((key, response.status_code))
 
-    # Valid keys should work
-    assert responses[0][1] != 401  # key-1
-    assert responses[1][1] != 401  # key-2
+    # 有效的密钥应该有效
+    assert responses[0][1] != 401  # 键1
+    assert responses[1][1] != 401  # 键2
 
-    # Invalid key should fail
-    assert responses[2][1] == 401  # invalid-key
+    # 无效密钥应该会失败
+    assert responses[2][1] == 401  # 无效密钥
 
 
 def test_api_error_response_format():
-    """Test that authentication errors return proper HTTP 401 status."""
+    """测试身份验证错误是否返回正确的 HTTP 401 状态。"""
     config = Config(session_api_keys=["test-key"])
     app = create_app(config)
     client = TestClient(app, raise_server_exceptions=False)
@@ -406,5 +406,6 @@ def test_api_error_response_format():
     response = client.get("/api/conversations")
     assert response.status_code == 401
 
-    # The response might have additional details, but status code is most important
-    # FastAPI's HTTPException with 401 should return proper HTTP status
+    # 响应可能包含额外详情，但状态码是最重要FastAPI的HTTPException，状态码为401时应返回
+    # 正确HTTP状态
+    #

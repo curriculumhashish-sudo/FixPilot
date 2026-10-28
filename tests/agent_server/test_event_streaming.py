@@ -1,4 +1,4 @@
-"""Tests for the token streaming callback wiring in EventService."""
+"""测试 EventService 中的 token 流式传输回调接线。"""
 
 import asyncio
 import time
@@ -25,7 +25,7 @@ from openhands.sdk.workspace import LocalWorkspace
 def _make_chunk(
     content: str | None = None, reasoning_content: str | None = None
 ) -> ModelResponseStream:
-    """Build a minimal ModelResponseStream chunk for testing."""
+    """构建一个最小的 ModelResponseStream 块进行测试。"""
     delta_kwargs: dict = {"role": "assistant"}
     if content is not None:
         delta_kwargs["content"] = content
@@ -37,7 +37,7 @@ def _make_chunk(
 
 
 class _CollectorSubscriber(Subscriber):
-    """Subscriber that opts into deltas and collects events for assertions."""
+    """选择增量并收集断言事件的订阅者。"""
 
     receives_streaming_deltas = True
 
@@ -52,7 +52,7 @@ class _CollectorSubscriber(Subscriber):
 
 
 class _PlainSubscriber(_CollectorSubscriber):
-    """Collector that keeps the default: it must never observe a delta."""
+    """保持默认值的收集器：它绝不能观察到增量。"""
 
     receives_streaming_deltas = False
 
@@ -81,14 +81,13 @@ def event_service(tmp_path):
 
 
 def _mock_local_conversation():
-    """Return a patch context manager for LocalConversation."""
+    """返回 LocalConversation 的补丁上下文管理器。"""
     return patch("openhands.agent_server.event_service.LocalConversation")
 
 
 async def _start_and_capture_callback(event_service, tmp_path):
     """
-    Start the event service with a mocked LocalConversation
-    and return the token callback.
+    使用模拟的 LocalConversation 启动事件服务并返回 token 回调。
     """
     (tmp_path / "workspace").mkdir(exist_ok=True)
 
@@ -152,7 +151,7 @@ async def test_callback_publishes_delta(
 
 @pytest.mark.asyncio
 async def test_callback_ignores_delta_with_no_content_fields(event_service, tmp_path):
-    """Chunks where both content and reasoning_content are None are dropped."""
+    """内容和 reasoning_content 均为 None 的块将被丢弃。"""
     collector = _CollectorSubscriber()
     event_service._pub_sub.subscribe(collector)
 
@@ -167,7 +166,7 @@ async def test_callback_ignores_delta_with_no_content_fields(event_service, tmp_
 
 @pytest.mark.asyncio
 async def test_callback_forwards_empty_string_delta(event_service, tmp_path):
-    """Empty-string chunks (legitimate at stream boundaries) must be forwarded."""
+    """必须转发空字符串块（在流边界合法）。"""
     collector = _CollectorSubscriber()
     event_service._pub_sub.subscribe(collector)
 
@@ -182,7 +181,7 @@ async def test_callback_forwards_empty_string_delta(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_callback_handles_none_choices(event_service, tmp_path):
-    """Some providers emit keepalive chunks with choices=None."""
+    """一些提供者会发出 choice=None 的 keepalive 块。"""
     collector = _CollectorSubscriber()
     event_service._pub_sub.subscribe(collector)
 
@@ -198,7 +197,7 @@ async def test_callback_handles_none_choices(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_token_callbacks_not_wired_when_stream_disabled(tmp_path):
-    """If no LLM has stream=True, don't attach the streaming callback at all."""
+    """如果没有LLM具有stream=True，则根本不附加流式传输回调。"""
     with patch("openhands.sdk.llm.utils.model_info.httpx.get") as mock_get:
         mock_get.return_value = MagicMock(json=lambda: {"data": []})
         service = EventService(
@@ -232,7 +231,7 @@ async def test_token_callbacks_not_wired_when_stream_disabled(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_agents_wire_token_callback_without_llm_streaming(tmp_path):
-    """ACP AgentMessageChunk text should stream even though ACPAgent has no LLM."""
+    """ACP AgentMessageChunk 文本应该流式传输，尽管 ACPAgent 没有 LLM。"""
     service = EventService(
         stored=StoredConversation(
             id=uuid4(),
@@ -256,7 +255,7 @@ async def test_acp_agents_wire_token_callback_without_llm_streaming(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_string_token_callback_publishes_delta(tmp_path):
-    """ACPAgent invokes token callbacks with plain text chunks."""
+    """ACPAgent invokes token  回调以纯文本块。"""
     service = EventService(
         stored=StoredConversation(
             id=uuid4(),
@@ -308,7 +307,7 @@ async def test_multiple_chunks_produce_multiple_events(event_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_deltas_only_reach_subscribers_that_opted_in(event_service, tmp_path):
-    """Deltas reach only subscribers that opted in, never the rest of the bus."""
+    """Delta 只到达选择加入的订阅者，而不是总线的 REST。"""
     streaming = _CollectorSubscriber()
     plain = _PlainSubscriber()
     event_service._pub_sub.subscribe(streaming)
@@ -322,8 +321,9 @@ async def test_deltas_only_reach_subscribers_that_opted_in(event_service, tmp_pa
     assert not [e for e in plain.events if isinstance(e, StreamingDeltaEvent)]
 
 
-# The runtime-api reaps a managed pod once /server_info reports this much
-# idle time; the value it injects is ~20 min.
+# 一旦 /server_info 报告这么多空闲时间，运行时 API 就会获得一个托管 Pod； 它注入的值约为
+#  20 分钟。
+#
 _IDLE_THRESHOLD = 20 * 60.0
 
 
@@ -331,15 +331,15 @@ _IDLE_THRESHOLD = 20 * 60.0
 async def test_deltas_keep_idle_time_below_the_threshold(
     event_service, tmp_path, monkeypatch
 ):
-    """A completion that streams past the idle threshold keeps the pod alive.
+    """超过空闲阈值的完成使 Pod 保持活动状态。
 
-    Deltas are never persisted, so nothing on the durable-event path refreshes
-    the idle clock for the length of a single streamed completion.
+    增量永远不会是已持久化，因此持久事件路径上没有任何内容会在单个流式完成的长度内刷
+    新空闲时钟。
     """
     callback = await _start_and_capture_callback(event_service, tmp_path)
 
-    # Where a stream longer than the idle threshold, emitting no durable
-    # event, leaves the server: one reap away from losing the completion.
+    # 如果流长于空闲阈值且不发出持久事件，则离开服务器：人们会失去完成度。
+    #
     monkeypatch.setattr(
         server_details_router,
         "_last_event_time",
@@ -353,14 +353,14 @@ async def test_deltas_keep_idle_time_below_the_threshold(
 
 @pytest.mark.asyncio
 async def test_delta_idle_signal_is_throttled(event_service, tmp_path, monkeypatch):
-    """The first delta touches the idle timer; the rest of the interval does not."""
+    """第一个增量触及空闲计时器； 区间的 REST 则不然。"""
     callback = await _start_and_capture_callback(event_service, tmp_path)
 
     stale = time.time() - 2 * ACTIVITY_SIGNAL_INTERVAL
     monkeypatch.setattr(server_details_router, "_last_event_time", stale)
 
-    # A service that has never signalled must not throttle its own first
-    # delta, however long the process clock has been running.
+    # 无论进程时钟运行了多久，从未发出信号的服务都不得限制其自己的第一个增量。
+    #
     callback(_make_chunk(content="first"))
     assert server_details_router._last_event_time > stale
 
@@ -370,7 +370,7 @@ async def test_delta_idle_signal_is_throttled(event_service, tmp_path, monkeypat
 
 
 async def _start_and_capture_stream_callback(event_service, tmp_path):
-    """Start the service and return the wired stream-progress callback."""
+    """启动服务并返回有线流进度回调。"""
     (tmp_path / "workspace").mkdir(exist_ok=True)
 
     with _mock_local_conversation() as MockConv:
@@ -398,7 +398,7 @@ class _ProgressCollector(Subscriber[StreamProgress]):
 
 @pytest.mark.asyncio
 async def test_stream_progress_reaches_its_own_subscribers(event_service, tmp_path):
-    """Progress rides a separate fan-out, so no event-bus consumer sees it."""
+    """进度依赖于单独的扇出，因此事件总线消费者不会看到它。"""
     callback = await _start_and_capture_stream_callback(event_service, tmp_path)
 
     progress = _ProgressCollector()

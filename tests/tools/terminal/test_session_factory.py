@@ -1,4 +1,4 @@
-"""Tests for session factory and auto-detection logic."""
+"""测试会话工厂和自动检测逻辑。"""
 
 import platform
 import tempfile
@@ -26,22 +26,22 @@ from openhands.tools.terminal.terminal.factory import (
 
 
 def test_tmux_detection():
-    """Test tmux availability detection."""
-    # This will depend on the test environment
+    """测试tmux可用性检测。"""
+    # 这取决于测试环境
     result = _is_tmux_available()
     assert isinstance(result, bool)
 
 
 def test_forced_terminal_types():
-    """Test forcing specific session types."""
+    """测试强制特定会话类型。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Test forced subprocess session
+        # 测试强制子进程会话
         session = create_terminal_session(work_dir=temp_dir, terminal_type="subprocess")
         assert isinstance(session, TerminalSession)
         assert isinstance(session.terminal, SubprocessTerminal)
         session.close()
 
-        # Test forced tmux session (if available)
+        # 测试强制 tmux 会话（如果可用）
         if _is_tmux_available():
             session = create_terminal_session(work_dir=temp_dir, terminal_type="tmux")
             assert isinstance(session, TerminalSession)
@@ -50,16 +50,16 @@ def test_forced_terminal_types():
 
 
 def test_invalid_terminal_type():
-    """Test error handling for invalid session types."""
+    """测试无效会话类型的错误处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         with pytest.raises(ValueError, match="Unknown session type"):
             create_terminal_session(work_dir=temp_dir, terminal_type="invalid")  # type: ignore
 
 
 def test_unavailable_terminal_type():
-    """Test error handling when requested session type is unavailable."""
+    """当请求的会话类型不可用时测试错误处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Mock tmux as unavailable
+        # 模拟对象 tmux 不可用
         with patch(
             "openhands.tools.terminal.terminal.factory._is_tmux_available",
             return_value=False,
@@ -70,11 +70,11 @@ def test_unavailable_terminal_type():
 
 @patch("platform.system")
 def test_auto_detection_unix(mock_system):
-    """Test auto-detection on Unix-like systems."""
+    """在类 Unix 系统上测试自动检测。"""
     mock_system.return_value = "Linux"
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Mock tmux as available
+        # 模拟对象 tmux 可用
         with patch(
             "openhands.tools.terminal.terminal.factory._is_tmux_available",
             return_value=True,
@@ -84,7 +84,7 @@ def test_auto_detection_unix(mock_system):
             assert isinstance(session.terminal, TmuxTerminal)
             session.close()
 
-        # Mock tmux as unavailable
+        # 模拟对象 tmux 不可用
         with patch(
             "openhands.tools.terminal.terminal.factory._is_tmux_available",
             return_value=False,
@@ -97,7 +97,7 @@ def test_auto_detection_unix(mock_system):
 
 @patch("platform.system")
 def test_warning_when_tmux_not_available(mock_system):
-    """Test that a warning is emitted when tmux is not installed."""
+    """测试未安装 tmux 时发出警告。"""
     mock_system.return_value = "Linux"
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -116,7 +116,7 @@ def test_warning_when_tmux_not_available(mock_system):
 
 
 def test_session_parameters_passed():
-    """Test that session parameters are properly passed."""
+    """测试会话参数是否正确传递。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         session = create_terminal_session(
             work_dir=temp_dir,
@@ -129,7 +129,7 @@ def test_session_parameters_passed():
         assert session.work_dir == temp_dir
         assert session.username == "testuser"
         assert session.no_change_timeout_seconds == 60
-        # Check terminal parameters too
+        # 也检查终端参数
         assert session.terminal.work_dir == temp_dir
         assert session.terminal.username == "testuser"
         session.close()

@@ -1,4 +1,4 @@
-"""Shared utilities."""
+"""共享公用设施。"""
 
 import shutil
 import subprocess
@@ -14,7 +14,7 @@ def _check_command_available(
     command: str,
     probe_args: Sequence[str] | None = ("--version",),
 ) -> bool:
-    """Check if a command is available and optionally responds to a probe."""
+    """检查命令是否可用并可选择响应探测。"""
 
     try:
         if shutil.which(command) is None:
@@ -34,23 +34,23 @@ def _check_command_available(
 
 
 def _check_ripgrep_available() -> bool:
-    """Check if ripgrep (rg) is available on the system."""
+    """检查系统上是否有 ripgrep (rg)。"""
 
     return _check_command_available("rg")
 
 
 def _check_grep_available() -> bool:
-    """Check if grep is available on the system."""
+    """检查系统上是否有 grep 可用。"""
 
     return _check_command_available("grep", probe_args=None)
 
 
 def _log_ripgrep_fallback_warning(tool_name: str, fallback_method: str) -> None:
-    """Log a warning about falling back from ripgrep to alternative method.
+    """记录有关从 ripgrep 回退到替代方法的警告。
 
     Args:
-        tool_name: Name of the tool (e.g., "glob", "grep")
-        fallback_method: Description of the fallback method being used
+        tool_name: 工具名称（e.g.、“glob”、“grep”）
+        fallback_method: 正在使用的回退方案方法的描述
     """
     logger.warning(
         f"{tool_name}: ripgrep (rg) not available. "

@@ -526,14 +526,13 @@ _FILE_CREDENTIAL_VALIDATORS: dict[str, Callable[[str], bool]] = {
 
 
 def file_credential_looks_usable(secret_name: str, text: str) -> bool:
-    """Whether a materialised credential file is plausibly usable.
+    """物化凭据文件是否合理可用。
 
-    Only a *present* file can be checked here, and only for the few secrets the
-    SDK knows the shape of. An unrecognised secret gets the benefit of the
-    doubt: the CLI owns the format, and refusing to believe a credential we
-    cannot parse would warn on every provider we have not special-cased —
-    which is the noise this is meant to avoid. Returning ``True`` for unknown
-    names keeps that judgement with the provider.
+    这里只能检查 *present* 文件，并且只有少数机密文件 SDK 知道其形状。 未被认可的机密
+    获得了以下好处
+    doubt: CLI 拥有该格式，并且拒绝相信凭据我们
+    无法解析会对我们没有特殊处理的每个提供程序发出警告 - 这是旨在避免的噪音。 对于未
+    知名称返回 ``True`` 让提供者保留该判断。
     """
     validator = _FILE_CREDENTIAL_VALIDATORS.get(secret_name)
     return True if validator is None else validator(text)

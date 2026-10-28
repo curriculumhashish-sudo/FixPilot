@@ -1,19 +1,19 @@
 /**
- * LLM factory and utility functions
+ * LLM 工厂和实用功能
  *
- * This module provides a convenient factory pattern for creating LLM instances.
+ * 该模块提供了一个方便的工厂模式来创建 LLM 实例。
  */
 
 import type { ILLM, LLMProviderType } from './base';
 import { OpenRouterLLM, OpenRouterLLMOptions } from './openrouter-llm';
 
 /**
- * Union type for all LLM options
+ * 所有 LLM 选项的联合类型
  */
 export type LLMOptions = OpenRouterLLMOptions;
 
 /**
- * Options for creating an LLM with explicit provider selection
+ * 用于创建具有显式提供者选择的 LLM 的选项
  */
 export interface CreateLLMOptions {
   provider: LLMProviderType;
@@ -21,31 +21,31 @@ export interface CreateLLMOptions {
 }
 
 /**
- * Factory function to create an LLM instance based on provider.
+ * 用于根据提供程序创建 LLM 实例的工厂函数。
  *
- * Currently supports:
- * - 'openrouter': OpenRouter API (300+ models)
+ * 目前支持：
+ * - 'openrouter': OpenRouter API (300+型号)
  *
- * Future support planned for:
- * - 'openai': Direct OpenAI API
- * - 'anthropic': Direct Anthropic API
- * - 'custom': Custom endpoints
+ * 未来的支持计划：
+ * - 'OpenAI'：直接 OpenAI API
+ * -“Anthropic”：直接 Anthropic API
+ * -“自定义”：自定义端点
  *
- * Example:
- * ```typescript
- * const llm = createLLM({
- *   provider: 'openrouter',
- *   options: {
- *     apiKey: 'your-api-key',
- *     defaultModel: 'anthropic/claude-3.5-sonnet'
+ * 示例：
+ * ```TypeScript
+ * 常量 llm = createLLM({
+ *   提供者：'开放路由器'，
+ *   选项：{
+ *     apiKey: '你的-API-密钥',
+ *     defaultModel: '人类/克劳德-3.5-十四行诗'
  *   }
  * });
  *
- * const response = await llm.generate('Hello!');
+ * const response = wait llm.generate('你好！');
  * ```
  *
- * @param config - The LLM configuration including provider and options
- * @returns An LLM instance implementing ILLM
+ * @param config - LLM 配置，包括提供程序和选项
+ * @returns 实现 ILLM 的 LLM 实例
  */
 export function createLLM(config: CreateLLMOptions): ILLM {
   switch (config.provider) {
@@ -53,21 +53,21 @@ export function createLLM(config: CreateLLMOptions): ILLM {
       return new OpenRouterLLM(config.options as OpenRouterLLMOptions);
 
     case 'openai':
-      // TODO: Implement OpenAI direct support
+      // TODO：实施OpenAI直接支持
       throw new Error(
         'OpenAI direct support not yet implemented. ' +
           'Use OpenRouter with openai/* models instead.'
       );
 
     case 'anthropic':
-      // TODO: Implement Anthropic direct support
+      // TODO：实施Anthropic直接支持
       throw new Error(
         'Anthropic direct support not yet implemented. ' +
           'Use OpenRouter with anthropic/* models instead.'
       );
 
     case 'custom':
-      // TODO: Implement custom endpoint support
+      // TODO：实现自定义端点支持
       throw new Error('Custom LLM endpoints not yet implemented.');
 
     default:
@@ -76,34 +76,34 @@ export function createLLM(config: CreateLLMOptions): ILLM {
 }
 
 /**
- * Create an OpenRouter LLM instance directly.
+ * 直接创建一个OpenRouterLLM实例。
  *
- * This is a convenience function for the most common use case.
+ * 这是最常见用例的便利功能。
  *
- * Example:
- * ```typescript
- * const llm = createOpenRouterLLM({
- *   apiKey: 'your-api-key',
+ * 示例：
+ * ```TypeScript
+ * 常量 llm = createOpenRouterLLM({
+ *   apiKey: '你的-API-密钥',
  *   defaultModel: 'openai/gpt-4o'
  * });
  * ```
  *
- * @param options - OpenRouter-specific options
- * @returns An OpenRouterLLM instance
+ * @param options - OpenRouter 特定选项
+ * @returns 一个 OpenRouterLLM 实例
  */
 export function createOpenRouterLLM(options: OpenRouterLLMOptions): OpenRouterLLM {
   return new OpenRouterLLM(options);
 }
 
 /**
- * LLM class that extends OpenRouterLLM for backwards compatibility
- * and provides a simple default LLM implementation.
+ * LLM 类将 OpenRouterLLM 扩展为向后兼容性
+ * 并提供了一个简单的默认LLM实现。
  *
- * Example:
- * ```typescript
- * const llm = new LLM({
- *   apiKey: 'your-api-key',
- *   defaultModel: 'anthropic/claude-3.5-sonnet'
+ * 示例：
+ * ```TypeScript
+ * 常量 llm = 新 LLM({
+ *   apiKey: '你的-API-密钥',
+ *   defaultModel: '人类/克劳德-3.5-十四行诗'
  * });
  * ```
  */

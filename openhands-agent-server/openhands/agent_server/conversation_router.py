@@ -1,4 +1,4 @@
-"""Conversation router for OpenHands SDK."""
+"""OpenHands SDK 的对话路由器。"""
 
 import json
 from typing import Annotated
@@ -123,7 +123,7 @@ def _request_with_observability_headers(
     return request.model_copy(update=updates) if updates else request
 
 
-# Examples
+# 示例
 
 START_CONVERSATION_EXAMPLES = [
     {
@@ -143,7 +143,7 @@ START_CONVERSATION_EXAMPLES = [
 ]
 
 
-# Read methods
+# 读取方法
 
 
 def _with_runtime_info(
@@ -180,15 +180,15 @@ async def search_conversations(
     include_skills: Annotated[bool, Query(title=INCLUDE_SKILLS_PARAM_TITLE)] = False,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationPage:
-    """Search / List conversations"""
+    """搜索/列出对话"""
     page = await conversation_service.search_conversations(
         page_id, limit, status, sort_order
     )
     if not include_skills:
-        # ``model_copy`` rather than in-place mutation so we never
-        # write back into whatever the upstream service handed us
-        # (matters for services that cache their return value,
-        # including the ``AsyncMock`` used in route tests).
+        # ``model_copy`` 而不是在源服务给我们的东西上进行原地修改，因此我们从不写回源服
+        # 务给我们的东西（对于缓存其返回值的服务，包括我们自己） ``AsyncMock`` 用于路由
+        # 测试。
+        #
         page = page.model_copy(
             update={
                 "items": [
@@ -211,7 +211,7 @@ async def count_conversations(
     ] = None,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> int:
-    """Count conversations matching the given filters"""
+    """计算与给定过滤器匹配的对话数量"""
     count = await conversation_service.count_conversations(status)
     return count
 
@@ -225,7 +225,7 @@ async def get_conversation(
     include_skills: Annotated[bool, Query(title=INCLUDE_SKILLS_PARAM_TITLE)] = False,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationInfo:
-    """Given an id, get a conversation"""
+    """给定一个 id，进行对话"""
     conversation = await conversation_service.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -240,7 +240,7 @@ async def get_local_conversation_runtime(
     request: Request,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationRuntimeInfo:
-    """Inspect the always-available in-process runtime."""
+    """检查始终可用的进程内运行时。"""
     if await conversation_service.get_conversation(conversation_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     registry = getattr(request.app.state, "conversation_registry", None)
@@ -257,7 +257,7 @@ async def reprovision_local_conversation_runtime(
     request: Request,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationRuntimeInfo:
-    """Return local runtime state; local mode has no infrastructure to provision."""
+    """返回本地运行时状态； 本地模式无需提供基础设施。"""
     return await get_local_conversation_runtime(
         conversation_id, request, conversation_service
     )
@@ -271,11 +271,11 @@ async def get_conversation_agent_final_response(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> AgentResponseResult:
-    """Get the agent's final response for a conversation.
+    """获取智能体对对话的最终回复。
 
-    Returns the text of the last agent finish message (FinishAction) or
-    the last agent text response (MessageEvent). Returns an empty string
-    if the agent has not produced a final response yet.
+    返回最后一个智能体完成消息 (FinishAction) 或最后一个智能体文本响应 (MessageEvent)
+     的文本。 如果智能体尚未产生最终响应，则返回空字符
+    串。
     """
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
@@ -291,8 +291,8 @@ async def batch_get_conversations(
     include_skills: Annotated[bool, Query(title=INCLUDE_SKILLS_PARAM_TITLE)] = False,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> list[ConversationInfo | None]:
-    """Get a batch of up to 99 conversations given their ids, returning null
-    for any missing item"""
+    """根据给定的 id 获取一批最多 99 个对话，返回 null
+    对于任何缺失的物品"""
     conversations = await conversation_service.batch_get_conversations(ids)
     conversations = [
         _with_runtime_info(request, conversation) if conversation is not None else None
@@ -306,7 +306,7 @@ async def batch_get_conversations(
     return conversations
 
 
-# Write Methods
+# 编写方法
 
 
 @conversation_router.post(
@@ -332,7 +332,7 @@ async def start_conversation(
     ] = None,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationInfo:
-    """Start a conversation in the local environment."""
+    """在本地环境中开始对话。"""
     if request.conversation_runtime not in (None, "local"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -370,7 +370,7 @@ async def pause_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Pause a conversation, allowing it to be resumed later."""
+    """暂停对话，以便稍后恢复。"""
     paused = await conversation_service.pause_conversation(conversation_id)
     if not paused:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -385,11 +385,11 @@ async def interrupt_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Immediately interrupt a running conversation.
+    """立即打断正在进行的对话。
 
-    Unlike ``/pause``, which waits for the current LLM call to finish,
-    ``/interrupt`` cancels the in-flight request so the effect is instant.
-    The conversation transitions to *paused* and can be resumed later.
+    不像 ``/pause``, 这个等待当前 LLM 呼叫结束，
+    ``/interrupt`` 取消正在进行的请求，因此效果是即时的。 对话将转换为 * 已暂停 *，稍
+    后可以恢复。
     """
     interrupted = await conversation_service.interrupt_conversation(conversation_id)
     if not interrupted:
@@ -404,7 +404,7 @@ async def delete_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Permanently delete a conversation."""
+    """永久删除对话。"""
     deleted = await conversation_service.delete_conversation(conversation_id)
     if not deleted:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -423,7 +423,7 @@ async def run_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Start running the conversation in the background."""
+    """开始在后台运行对话。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -456,11 +456,10 @@ async def start_goal_in_conversation(
     request: StartGoalRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Start a ``/goal`` loop inside an existing conversation.
+    """在现有对话中启动 ``/goal`` 循环。
 
-    The loop appends messages and starts agent runs in the same conversation
-    history and event stream as the main chat. It does not create a separate
-    conversation for the goal or fork the existing one.
+    循环附加消息并开始智能体在与主聊天相同的对话历史记录和事件流中运行。 它不会为目标
+    创建单独的对话，也不会分叉现有的对话。
     """
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
@@ -490,10 +489,10 @@ async def stop_goal_in_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Stop the active ``/goal`` loop inside this conversation.
+    """停止此对话中的活动 ``/goal`` 循环。
 
-    This cancels only the background goal loop, not the conversation itself, and
-    records an ``interrupted`` goal status so ``/goal/resume`` can continue it.
+    这仅取消后台目标循环，而不是对话本身，并记录 ``interrupted`` 目标状态，以便
+    ``/goal/resume`` 可以继续它。
     """
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
@@ -514,7 +513,7 @@ async def resume_goal_in_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Resume the last interrupted ``/goal`` loop inside this conversation."""
+    """恢复此对话中最后一个中断的 ``/goal`` 循环。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -541,11 +540,11 @@ async def update_conversation_secrets(
     request: UpdateSecretsRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Update secrets for a conversation."""
+    """更新对话的机密。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
-    # Strings are valid SecretValue (SecretValue = str | SecretProvider)
+    # 字符串有效 SecretValue (SecretValue = str | SecretProvider)
     from typing import cast
 
     from openhands.sdk.conversation.secret_registry import SecretValue
@@ -564,7 +563,7 @@ async def set_conversation_confirmation_policy(
     request: SetConfirmationPolicyRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Set the confirmation policy for a conversation."""
+    """设置对话的确认策略。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -581,7 +580,7 @@ async def set_conversation_security_analyzer(
     request: SetSecurityAnalyzerRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Set the security analyzer for a conversation."""
+    """设置对话的安全分析器。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -601,7 +600,7 @@ async def switch_conversation_profile(
     profile_name: str = Body(..., embed=True),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Switch the conversation's LLM profile to a named profile."""
+    """将对话的 LLM 配置文件切换到命名配置文件。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -631,13 +630,11 @@ async def switch_conversation_llm(
     llm: LLM = Body(..., embed=True),  # noqa: B008
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Swap the conversation's LLM to a caller-supplied object.
+    """将对话的 LLM 交换为调用者提供的对象。
 
-    Used by app-servers that own the LLM directly and don't push profiles
-    to the agent-server's filesystem (see #3017), and by the frontend's
-    per-conversation model switch, which forwards a profile config that may
-    reference a saved provider connection by id instead of carrying an inline
-    API key.
+    由直接拥有 LLM 且不将配置文件推送到智能体服务器的文件系统的应用程序服务器使用（请
+    参阅#3017），以及由前端的每个会话模型开关使用，该开关转发配置文件配置，该
+    配置文件配置可能通过 id 引用已保存的提供程序连接，而不是携带内联 API 键。
     """
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
@@ -646,12 +643,11 @@ async def switch_conversation_llm(
     cipher = get_cipher(request)
     if cipher is not None:
         llm = decrypt_incoming_llm_secrets(llm, cipher)
-    # Resolve a referenced provider connection before installing the LLM, so a
-    # profile linked to a shared connection runs with its api_key / base_url
-    # instead of a keyless config (mirrors LLMProfileStore.load). A dangling
-    # reference or missing credential surfaces as 422 before the working LLM
-    # is replaced. Inline-key configs without a provider_connection_id are
-    # byte-identical to the old path.
+    # 在安装之前，先解决引用的提供者连接 LLM因此，与共享连接关联的配置文件运行在
+    # api_key / base_url 而不是一个无密钥的配置 (镜像) LLMProfileStore.load). 一个悬垂的
+    # 引用或缺失的引用凭据在工作之前，表面为422 LLM 已被取代。 没有配置文件的 inline-key
+    #  配置 provider_connection_id 与旧路径完全相同。
+    #
     with store_errors():
         llm = get_llm_profile_store().resolve_provider_connection(llm, cipher=cipher)
     conversation.switch_llm(llm)
@@ -670,7 +666,7 @@ async def load_conversation_plugin(
     plugin_ref: str = Body(..., embed=True),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Load a plugin from the conversation's registered marketplaces."""
+    """从对话的注册市场加载插件。"""
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -707,14 +703,13 @@ async def switch_conversation_acp_model(
     model: str = Body(..., embed=True),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Switch the model of an ACP conversation.
+    """切换 ACP 对话的模型。
 
-    For a conversation that has already started, issues a protocol-level
-    ``session/set_model`` call to the ACP subprocess so the new model applies to
-    subsequent turns without losing context. For one created but not yet run,
-    the value is persisted and applied when the first session starts (returns
-    ``200`` either way). Only valid for ACP conversations whose provider
-    supports model switching.
+    对于已经开始的对话，发出协议级
+    ``session/set_model`` 调用 ACP 子进程，因此新模型适用于后续回合而不会丢失上下文。
+     对于已创建但尚未运行的会话，该值为已持久化并在第一个会
+    话启动时应用（返回
+    ``200`` 无论如何）。 仅对提供商支持模型切换的 ACP 对话有效。
     """
     event_service = await conversation_service.get_event_service(conversation_id)
     if event_service is None:
@@ -727,9 +722,9 @@ async def switch_conversation_acp_model(
             detail=str(e),
         )
     except TimeoutError as e:
-        # The bounded session/set_model round-trip expired. The ACP server is
-        # wedged/slow rather than rejecting the request, so surface a 504
-        # instead of an opaque 500.
+        # 有界会话/set_model 往返已过期。 ACP 服务器被楔入/缓慢而不是拒绝请求，因此显示
+        # 504 而不是不透明的 500。
+        #
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=str(e),
@@ -745,9 +740,9 @@ async def update_conversation(
     request: UpdateConversationRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Update conversation metadata.
+    """更新对话元数据。
 
-    This endpoint allows updating conversation details like title.
+    此端点允许更新标题等对话详细信息。
     """
     updated = await conversation_service.update_conversation(conversation_id, request)
     if not updated:
@@ -764,7 +759,7 @@ async def ask_agent(
     request: AskAgentRequest,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> AskAgentResponse:
-    """Ask the agent a simple question without affecting conversation state."""
+    """向智能体询问一个简单的问题，而不影响对话状态。"""
     response = await conversation_service.ask_agent(conversation_id, request.question)
     if response is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Conversation not found")
@@ -782,7 +777,7 @@ async def condense_conversation(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> Success:
-    """Force condensation of the conversation history."""
+    """强制对话历史记录上下文压缩。"""
     try:
         success = await conversation_service.condense(conversation_id)
     except CondensationUnavailable as exc:
@@ -807,11 +802,10 @@ async def fork_conversation(
     include_skills: Annotated[bool, Query(title=INCLUDE_SKILLS_PARAM_TITLE)] = False,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationInfo:
-    """Fork a conversation, deep-copying its event history.
+    """分叉对话，深度复制其事件历史记录。
 
-    The fork starts in ``idle`` status with a fresh event loop.
-    Calling ``run`` on the fork resumes from the copied state, meaning
-    the agent has full event memory of the source conversation.
+    分叉以 ``idle`` 状态开始，并具有新的事件循环。 在分叉上​​调用 ``run`` 将从复制状
+    态恢复，这意味着智能体具有源会话的完整事件内存。
     """
     try:
         info = await conversation_service.fork_conversation(
@@ -825,8 +819,8 @@ async def fork_conversation(
     except ValueError as exc:
         if "already exists" in str(exc):
             raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-        # An unknown ``from_event_id`` is a bad request against an existing
-        # source conversation, not a missing conversation.
+        # 未知 ``from_event_id`` 是针对现有源对话的错误请求，而不是丢失的对话。
+        #
         if "from_event_id" in str(exc):
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         raise
@@ -854,12 +848,11 @@ async def start_child_conversation(
     request: Annotated[StartChildConversationRequest, Body()],
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> StartChildConversationResponse:
-    """Start a child conversation of ``conversation_id`` on this server.
+    """在此服务器上启动 ``conversation_id`` 的子对话。
 
-    The child inherits the parent's configuration and workspace (optionally
-    isolated in a git worktree), is linked via ``parent_conversation_id`` and
-    receives ``task`` as its first user message. This is the default launcher
-    behind the ``start_child_conversation`` tool.
+    该子类继承了父类的配置，并工作区（可选地隔离在git工作树中），通过
+    ``parent_conversation_id``链接，并以``task``作为其第一个用户消
+    息。 这是 ``start_child_conversation`` 工具背后的默认启动器。
     """
     try:
         result = await conversation_service.start_child_conversation(
@@ -888,19 +881,20 @@ async def navigate_conversation(
     include_skills: Annotated[bool, Query(title=INCLUDE_SKILLS_PARAM_TITLE)] = False,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationInfo:
-    """Move a conversation's HEAD to an existing event, re-rooting the branch.
+    """将对话的 HEAD 移动到现有事件，重新建立分支。
 
-    All branches stay on disk; only the active branch the agent runs on next
-    changes. Unlike ``fork``, no new conversation is created. Returns the
-    updated conversation info (carrying the new ``leaf_event_id``).
+    所有分支都保留在磁盘上； 仅智能体的活动分支在下一次更改时运行。 与 ``fork`` 不同
+    ，不会创建新对话。 返回更新后的对话信息（携带新的
+    ``leaf_event_id``）。
     """
     try:
         info = await conversation_service.navigate_conversation(
             conversation_id, event_id=request.event_id
         )
     except ValueError as exc:
-        # An unknown ``event_id`` against an existing conversation is a 404;
-        # other ValueErrors (e.g. inactive_service) are genuine server errors.
+        # 针对现有对话的未知 ``event_id`` 是 404； 其他 ValueErrors (e.g.
+        # inactive_service) 是真正的服务器错误。
+        #
         if "event_id" in str(exc):
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         raise

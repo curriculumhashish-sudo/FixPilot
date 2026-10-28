@@ -1,4 +1,4 @@
-"""Tests for AgentSandboxWorkspace (no cluster required)."""
+"""测试 AgentSandboxWorkspace（不需要集群）。"""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -7,14 +7,14 @@ import pytest
 
 
 def test_agent_sandbox_workspace_import():
-    """AgentSandboxWorkspace can be imported from the package."""
+    """AgentSandboxWorkspace可以从包中导入。"""
     from openhands.workspace import AgentSandboxWorkspace
 
     assert AgentSandboxWorkspace is not None
 
 
 def test_agent_sandbox_workspace_inheritance():
-    """AgentSandboxWorkspace is a RemoteWorkspace."""
+    """AgentSandboxWorkspace是RemoteWorkspace。"""
     from openhands.sdk.workspace import RemoteWorkspace
     from openhands.workspace import AgentSandboxWorkspace
 
@@ -22,7 +22,7 @@ def test_agent_sandbox_workspace_inheritance():
 
 
 def test_agent_sandbox_workspace_fields():
-    """The key agent-sandbox knobs are exposed as fields."""
+    """键智能体-沙盒旋钮作为字段公开。"""
     from openhands.workspace import AgentSandboxWorkspace
 
     for field in ("warmpool", "namespace", "server_port", "connection", "host_port"):
@@ -39,7 +39,7 @@ def test_direct_connection_requires_host():
 
 @pytest.fixture
 def k8s_mocks():
-    """Install a fake k8s_agent_sandbox module for the duration of the test."""
+    """在测试期间安装假的 k8s_agent_sandbox 模块。"""
     fake_handle = MagicMock()
     fake_handle.sandbox_id = "sandbox-abc"
     fake_handle.claim_name = "sandbox-claim-abc"
@@ -51,7 +51,7 @@ def k8s_mocks():
     fake_module = MagicMock()
     fake_module.SandboxClient.return_value = fake_client
 
-    # `_patch_operating_mode` does `from k8s_agent_sandbox.constants import ...`.
+    # `_patch_operating_mode` 与 `from k8s_agent_sandbox.constants import ...` 相同。
     fake_constants = MagicMock(
         SANDBOX_API_GROUP="agents.x-k8s.io",
         SANDBOX_API_VERSION="v1beta1",
@@ -69,7 +69,7 @@ def k8s_mocks():
 
 
 def _make_ws(**overrides):
-    """Construct a workspace with connection + parent init mocked out."""
+    """用connection+parent init模拟的构建一个工作区out。"""
     from openhands.workspace import AgentSandboxWorkspace
 
     kwargs = {"warmpool": "openhands-pool", "detach_logs": False}
@@ -77,7 +77,7 @@ def _make_ws(**overrides):
     with (
         patch.object(AgentSandboxWorkspace, "_start_port_forward"),
         patch.object(AgentSandboxWorkspace, "_wait_for_health"),
-        # RemoteWorkspace.model_post_init would open a real HTTP client; skip it.
+        # RemoteWorkspace.model_post_init 将打开一个真实的 HTTP 客户端； 跳过它。
         patch(
             "openhands.sdk.workspace.remote.base.RemoteWorkspace.model_post_init",
             return_value=None,
@@ -87,7 +87,7 @@ def _make_ws(**overrides):
 
 
 def test_claims_from_warmpool_on_init(k8s_mocks):
-    """model_post_init claims a sandbox from the configured warm pool."""
+    """model_post_init 从配置的热池中声明一个沙箱。"""
     _make_ws(namespace="ns1", shutdown_after_seconds=600)
 
     k8s_mocks.client.create_sandbox.assert_called_once()
@@ -98,7 +98,7 @@ def test_claims_from_warmpool_on_init(k8s_mocks):
 
 
 def test_pause_and_resume_flip_operating_mode(k8s_mocks):
-    """pause()/resume() patch the Sandbox operatingMode."""
+    """pause()/resume() 修补沙箱 operatingMode。"""
     ws = _make_ws()
     patch_call = (
         k8s_mocks.client.k8s_helper.custom_objects_api.patch_namespaced_custom_object
@@ -119,7 +119,7 @@ def test_pause_and_resume_flip_operating_mode(k8s_mocks):
 
 
 def test_failed_connect_terminates_claim(k8s_mocks):
-    """A failure after the claim is created must not leak the sandbox."""
+    """创建声明后的失败不得泄漏沙箱。"""
     from openhands.workspace import AgentSandboxWorkspace
 
     with (
@@ -137,7 +137,7 @@ def test_failed_connect_terminates_claim(k8s_mocks):
 
 
 def test_resume_reconnects_on_a_fresh_port(k8s_mocks):
-    """resume() must not reuse the previous session's local port."""
+    """resume() 不得重复使用先前会话的本地端口。"""
     ws = _make_ws(host_port=45000)
 
     with (
@@ -151,7 +151,7 @@ def test_resume_reconnects_on_a_fresh_port(k8s_mocks):
 
 
 def test_exit_preserves_parent_lifecycle_and_cleanup(k8s_mocks):
-    """Context exit delegates to RemoteWorkspace and always cleans up."""
+    """上下文退出委托给 RemoteWorkspace 并始终进行清理。"""
     from openhands.sdk.workspace import RemoteWorkspace
 
     ws = _make_ws()
@@ -169,11 +169,11 @@ def test_exit_preserves_parent_lifecycle_and_cleanup(k8s_mocks):
 
 
 def test_cleanup_terminates_sandbox(k8s_mocks):
-    """cleanup() deletes the claim via the handle and is idempotent."""
+    """cleanup() 通过句柄删除声明并且是幂等的。"""
     ws = _make_ws()
 
     with patch.object(type(ws), "_stop_port_forward"):
         ws.cleanup()
-        ws.cleanup()  # second call is a no-op
+        ws.cleanup()  # 第二次调用是空操作
 
     k8s_mocks.handle.terminate.assert_called_once()

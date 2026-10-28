@@ -1,4 +1,4 @@
-"""Test agent behavior with reasoning-only responses (e.g., GPT-5 codex)."""
+"""使用仅推理响应测试智能体行为（e.g.、GPT-5 法典）。"""
 
 from unittest.mock import MagicMock
 
@@ -14,7 +14,7 @@ from openhands.sdk.llm.utils.metrics import MetricsSnapshot, TokenUsage
 
 
 class ReasoningOnlyLLM(LLM):
-    """Test LLM that returns reasoning-only response first, then finish."""
+    """测试 LLM 首先返回仅推理响应，然后完成。"""
 
     _call_count: int = PrivateAttr(default=0)
 
@@ -27,7 +27,7 @@ class ReasoningOnlyLLM(LLM):
         self._call_count += 1
 
         if self._call_count == 1:
-            # First call: return reasoning-only response
+            # 第一次调用：返回仅推理响应
             message = Message(role="assistant")
             message.reasoning_content = "Let me think about this..."
             return LLMResponse(
@@ -41,7 +41,7 @@ class ReasoningOnlyLLM(LLM):
                 raw_response=MagicMock(spec=ModelResponse, id="r1"),
             )
         else:
-            # Second call: return finish action
+            # 第二次调用：返回完成操作
             message = Message(role="assistant")
             message.tool_calls = [
                 MessageToolCall(
@@ -64,26 +64,26 @@ class ReasoningOnlyLLM(LLM):
 
 
 def test_agent_continues_after_reasoning_only_response():
-    """Test that agent continues looping after receiving reasoning-only response."""
+    """测试智能体在收到仅推理响应后是否继续循环。"""
     llm = ReasoningOnlyLLM()
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Send initial user message
+    # 发送初始用户消息
     conversation.send_message("Please solve this task")
 
-    # Run the conversation
+    # 运行对话
     conversation.run()
 
-    # Verify agent was called twice (reasoning-only, then finish)
+    # 验证智能体被调用两次（仅推理，然后完成）
     assert llm._call_count == 2
 
-    # Verify conversation finished
+    # 验证对话已完成
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 class ContentOnlyLLM(LLM):
-    """Test LLM that returns content-only response (should finish immediately)."""
+    """返回仅内容响应的测试 LLM（应立即完成）。"""
 
     _call_count: int = PrivateAttr(default=0)
 
@@ -95,7 +95,7 @@ class ContentOnlyLLM(LLM):
     ) -> LLMResponse:
         self._call_count += 1
 
-        # Return content-only response - should finish conversation immediately
+        # 仅返回内容响应 - 应立即结束对话
         message = Message(role="assistant")
         message.content = [TextContent(text="I'm thinking about this...")]
         return LLMResponse(
@@ -111,7 +111,7 @@ class ContentOnlyLLM(LLM):
 
 
 def test_agent_finishes_after_content_only_response():
-    """Test that agent finishes immediately after receiving content-only response."""
+    """测试智能体在收到纯内容响应后立即完成。"""
     llm = ContentOnlyLLM()
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
@@ -119,11 +119,11 @@ def test_agent_finishes_after_content_only_response():
     conversation.send_message("Analyze this")
     conversation.run()
 
-    # Verify agent was called once - content responses finish immediately
+    # 验证智能体被调用一次 - 内容响应立即完成
     assert llm._call_count == 1
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Verify the content message was emitted
+    # 验证内容消息已发出
     msg_events = [
         e
         for e in conversation.state.events
@@ -137,7 +137,7 @@ def test_agent_finishes_after_content_only_response():
 
 
 class EmptyResponseLLM(LLM):
-    """Test LLM that returns empty response first, then finish."""
+    """首先测试LLM返回空响应，然后完成。"""
 
     _call_count: int = PrivateAttr(default=0)
 
@@ -150,7 +150,7 @@ class EmptyResponseLLM(LLM):
         self._call_count += 1
 
         if self._call_count == 1:
-            # First call: return empty response (edge case)
+            # 第一次调用：返回空响应（边缘情况）
             message = Message(role="assistant")
             message.content = []
             return LLMResponse(
@@ -164,7 +164,7 @@ class EmptyResponseLLM(LLM):
                 raw_response=MagicMock(spec=ModelResponse, id="r1"),
             )
         else:
-            # Second call: return finish action
+            # 第二次调用：返回完成操作
             message = Message(role="assistant")
             message.tool_calls = [
                 MessageToolCall(
@@ -187,7 +187,7 @@ class EmptyResponseLLM(LLM):
 
 
 def test_agent_handles_empty_response():
-    """Test that agent continues even with completely empty response."""
+    """测试智能体是否继续，即使响应完全为空。"""
     llm = EmptyResponseLLM()
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
@@ -195,6 +195,6 @@ def test_agent_handles_empty_response():
     conversation.send_message("Test")
     conversation.run()
 
-    # Verify agent continued after empty response
+    # 验证智能体空响应后继续
     assert llm._call_count == 2
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED

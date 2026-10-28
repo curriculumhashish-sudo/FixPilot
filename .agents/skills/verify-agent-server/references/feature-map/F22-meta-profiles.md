@@ -1,117 +1,98 @@
-# Meta-profiles (model router)
+<a id="meta-profiles-model-router"></a>
 
-A meta-profile is a named, secret-free model-routing configuration: a
-`classifier_model` plus either an ordered list of `classes`
-(`{description, model}`, the classifier answers a class number) or a direct
-`prompt_template` containing `{{ instance_text }}` (and optionally
-`{{ model_table }}`), where the classifier answers `{"model": "<name>"}`.
-Every model reference is the name of a saved LLM profile. Consumers list,
-read, save (create or overwrite), delete and activate meta-profiles; each is
-one JSON file under `OH_PERSISTENCE_DIR/meta-profiles`, at most 50 of them.
-Activation records `active_meta_profile` in the server's settings and wires
-`agent_settings` (`active_meta_profile`, `enable_classify_and_switch_llm_tool:
-true` and an inline copy in `meta_profile`), so every conversation started
+# 元配置文件（模型路由器）
+
+元配置文件是一个命名的、无机密的模型路由配置：
+`classifier_model` 加上 `classes` 的有序列表（`{description, model}`，分类器回答类别号）或直接
+`prompt_template` 包含 `{{ instance_text }}`（并且可选
+`{{ model_table }}`），其中分类器回答 `{"model": "<name>"}`。 每个模型参考都是已保存的 LLM 配置文件的名称。 消费者列出、读取、保存（创建或覆盖）、删除和激活元配置文件； 每个是`OH_PERSISTENCE_DIR/meta-profiles`下的一个JSON文件，最多50个。 服务器设置和线路中的激活记录 `active_meta_profile`
+`agent_settings`（`active_meta_profile`、`enable_classify_and_switch_llm_tool: true` 和 `meta_profile` 中的内联副本），因此每个对话都开始
 from those settings gets the `route_task_to_model` tool
-(`ClassifyAndSwitchLLMTool`). When the agent calls it, the classifier profile
-picks a class and the conversation switches to that class's LLM profile for
-its next steps. Deleting the active meta-profile turns routing off again.
+(`ClassifyAndSwitchLLMTool`). 当智能体调用它时，分类器配置文件会选择一个类，并且对话会切换到该类的 LLM 配置文件以进行后续步骤。 删除活动元配置文件会再次关闭路由。
 
-Source: `openhands-agent-server/openhands/agent_server/meta_profiles_router.py`, `openhands-sdk/openhands/sdk/llm/meta_profile_store.py`, `openhands-sdk/openhands/sdk/tool/builtins/classify_and_switch_llm.py`, `openhands-agent-server/openhands/agent_server/persistence/models.py`, `clients/typescript/src/client/meta-profiles-client.ts`
+资料来源：`openhands-agent-server/openhands/agent_server/meta_profiles_router.py`、`openhands-sdk/openhands/sdk/llm/meta_profile_store.py`、`openhands-sdk/openhands/sdk/tool/builtins/classify_and_switch_llm.py`、`openhands-agent-server/openhands/agent_server/persistence/models.py`、`clients/typescript/src/client/meta-profiles-client.ts`
 
-Needs: `llm`, `node`
+需求：`llm`、`node`
 
 Routes: `GET /api/meta-profiles`, `GET /api/meta-profiles/{name}`,
 `POST /api/meta-profiles/{name}`, `DELETE /api/meta-profiles/{name}`,
 `POST /api/meta-profiles/{name}/activate`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F22.auth-required`: every meta-profile route answers 401 without a valid `X-Session-API-Key`, and nothing is stored.
-- `F22.save-classes`: `POST /api/meta-profiles/{name}` with `classifier_model` and `classes` answers 201 `Meta-profile '<name>' saved`; the list shows `{name, classifier_model, num_classes}`, `GET` returns the full config, and the file `meta-profiles/<name>.json` is mode `600`.
-- `F22.save-direct`: a direct-routing body (`prompt_template` with `{{ instance_text }}`, `model_table`, no `classes`) is saved; the list reports `num_classes: 0` and `GET` returns the template and table.
-- `F22.validation`: a template without `{{ instance_text }}`, a template together with `classes`, a missing `classifier_model` and a class without `model` are 422 and save nothing.
-- `F22.empty-router`: a body with neither `classes` nor `prompt_template` (a router that can never route) is refused with 422.
-- `F22.overwrite`: saving an existing name replaces the whole config (here classes mode becomes direct mode) without adding a list entry.
-- `F22.name-rules`: names must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`: a leading `-` is 422 on all four named routes, 64 characters are accepted and 65 are 422.
-- `F22.not-found`: `GET` and `activate` of an unknown name answer 404 `Meta-profile '<name>' not found` and the active pointer stays; `DELETE` of an unknown name is 200 (idempotent).
-- `F22.activate`: `activate` answers 200 `Meta-profile '<name>' activated` with `applied: true`; the list's `active_meta_profile` and `GET /api/settings` (`active_meta_profile`, `agent_settings.active_meta_profile`, `enable_classify_and_switch_llm_tool: true`, inline `meta_profile`) follow, the agent's LLM is unchanged, and `settings.json` stores it.
-- `F22.route-classes`: a conversation started from the settings carries the `ClassifyAndSwitchLLMTool` spec; when the agent calls `route_task_to_model`, the classifier profile picks the class, the observation names the class, profile and model, the conversation switches to `deepseek-pro`, both LLMs' usage is metered, and the events socket shows the switch live.
-- `F22.route-direct`: with a direct-routing meta-profile active, the classifier's JSON answer switches the conversation to the named profile (`chosen_class` `model: deepseek-pro`).
-- `F22.route-missing-profile`: a meta-profile whose `classifier_model` names no saved LLM profile is accepted at save time; overwriting the active one takes effect without re-activation (the store wins over the inline copy), and the tool then answers an error observation naming the missing profile while the conversation keeps its LLM.
-- `F22.persist-restart`: meta-profiles, the active pointer, the settings' routing flag and a routed conversation's switched LLM survive a restart.
-- `F22.delete`: deleting an inactive meta-profile removes the file and the list entry, keeps the active pointer, and a repeated delete is 200.
-- `F22.delete-active-clears`: deleting the active meta-profile clears `active_meta_profile` in the list and settings, disables the routing tool and drops the inline copy; new conversations no longer get the tool.
-- `F22.acp-clears-pointer`: switching the settings' agent kind to ACP clears the active pointer; back on OpenHands settings the meta-profile can be activated again.
-- `F22.activate-acp`: on ACP agent settings, where no routing tool can be attached, activation answers 200 `applied: false` with `Meta-profile '<name>' not activated: ...`, and `active_meta_profile` stays `null` in the list and in settings (as LLM-profile activation reports `llm_applied: false`).
-- `F22.corrupt-files`: a meta-profile file that is not valid JSON or not an object is left out of the list and answers 400 `Failed to load meta-profile ...` on `GET` and `activate`; saving over it repairs it.
-- `F22.corrupt-settings`: with an unreadable `settings.json`, activation is refused with 409 (as LLM-profile activation does) and the file is left untouched.
-- `F22.store-busy`: while another process holds the meta-profile store's lock, a save and a delete each wait out the 30-second lock timeout and answer 503 `Meta-profile store is busy. Please retry.` without changing anything; once the lock is free the same save is 201.
-- `F22.store-busy-responsive`: while a meta-profile save waits for the store lock, the server keeps answering other requests (`GET /alive` within 3 seconds).
-- `F22.limit`: with 50 meta-profiles stored, creating another is 409 `Meta-profile limit reached (50)` while overwriting an existing one still answers 201.
-- `F22.ts-client`: the TypeScript `MetaProfilesClient` saves, reads, lists, activates and deletes a meta-profile and surfaces 404 and 422 as `HttpError`s.
-- `F22.persistence-dir`: with `OH_PERSISTENCE_DIR=~/<dir>`, meta-profiles are stored under the expanded directory next to `settings.json`, like every other store.
+## 子功能
 
-## How to get to it (agent POV)
+- `F22.auth-required`：每个元配置文件路由都回答 401，没有有效的 `X-Session-API-Key`，并且不存储任何内容。
+- `F22.save-classes`：`POST /api/meta-profiles/{name}`与`classifier_model`和`classes`答案201 `Meta-profile '<name>' saved`； 列表显示`{name, classifier_model, num_classes}`，`GET`返回完整配置，文件`meta-profiles/<name>.json`是模式`600`。
+- `F22.save-direct`：保存直接路由主体（`prompt_template`有`{{ instance_text }}`、`model_table`，无`classes`）； 列表报告 `num_classes: 0` 和 `GET` 返回模板和表格。
+- `F22.validation`：没有`{{ instance_text }}`的模板、带有`classes`的模板、缺少`classifier_model`和没有`model`的类是422并且没有保存任何内容。
+- `F22.empty-router`：既没有 `classes` 也没有 `prompt_template` 的主体（永远无法路由的路由器）会被拒绝，返回 422。
+- `F22.overwrite`：保存现有名称将替换整个配置（此处类模式变为直接模式），而不添加列表条目。
+- `F22.name-rules`：名称必须匹配 `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`：所有四个命名路由上的前导 `-` 均为 422，接受 64 个字符，65 个字符为 422。
+- `F22.not-found`：未知名称答案404的`GET`和`activate``Meta-profile '<name>' not found`并且活动指针保持不变； `DELETE`未知名称是200（幂等）。
+- `F22.activate`：`activate`用`applied: true`回答200`Meta-profile '<name>' activated`； 列表的 `active_meta_profile` 和 `GET /api/settings`（`active_meta_profile`、`agent_settings.active_meta_profile`、`enable_classify_and_switch_llm_tool: true`、内联 `meta_profile`）紧随其后，智能体的 LLM 不变，`settings.json` 存储它。
+- `F22.route-classes`：从设置开始的会话带有`ClassifyAndSwitchLLMTool`规范； 当智能体调用 `route_task_to_model` 时，分类器配置会选择类别，类别名称由观测结果提供，配置和模型也会切换，对话会切换到 `deepseek-pro`， LLMs 的使用都会被计量，事件套接字会实时显示切换。
+- `F22.route-direct`：当直接路由元配置文件处于活动状态时，分类器的 JSON 答案会将对话切换到指定配置文件 (`chosen_class` `model: deepseek-pro`)。
+- `F22.route-missing-profile`：保存时接受其`classifier_model`名称未保存的LLM配置文件的元配置文件； 覆盖现有内容后立即生效（存储覆盖了嵌入式复制），然后工具会返回一个错误观测结果，指出缺失的配置，而对话继续使用 LLM。
+- `F22.persist-restart`：元配置文件、活动指针、设置的路由标志和路由对话的切换 LLM 在重新启动后仍然存在。
+- `F22.delete`：删除非活动元配置文件会删除文件和列表条目，保留活动指针，重复删除次数为 200。
+- `F22.delete-active-clears`：删除活动元配置文件会清除列表和设置中的`active_meta_profile`，禁用路由工具并删除内联副本； 新的对话不再获得该工具。
+- `F22.acp-clears-pointer`：将设置的智能体类型切换为ACP，清除活动指针； 返回 OpenHands 设置，可以再次激活元配置文件。
+- `F22.activate-acp`: on ACP  智能体在没有路由工具可附加的情况下，激活返回200 `applied: false` 与 `Meta-profile '<name>' not activated: ...`, and `active_meta_profile` stays `null` 在列表中和设置中（as LLM-profile激活报告 `llm_applied: false`).
+- `F22.corrupt-files`：无效 JSON 或不是对象的元配置文件被排除在列表之外，并在 `GET` 和 `activate` 上回答 400 `Failed to load meta-profile ...`； 保存它可以修复它。
+- `F22.corrupt-settings`：如果 `settings.json` 不可读，激活将被拒绝，返回 409（与 LLM-配置文件激活一样），并且文件保持不变。
+- `F22.store-busy`：另一个进程持有元配置存储的锁时，保存与删除操作都会等待 30 秒的锁超时后返回 503 `Meta-profile store is busy. Please retry.`，并且不做任何变更； 一旦锁空闲，同样的保存是201。
+- `F22.store-busy-responsive`：当元配置文件保存等待存储锁时，服务器不断应答其他请求（3秒内`GET /alive`）。
+- `F22.limit`：存储了 50 个元配置文件，创建另一个元配置文件的结果是 409 `Meta-profile limit reached (50)`，而覆盖现有元配置文件的结果仍然是 201。
+- `F22.ts-client`：TypeScript`MetaProfilesClient`保存、读取、列出、激活和删除元配置文件以及表面404和422作为`HttpError`。
+- `F22.persistence-dir`：对于`OH_PERSISTENCE_DIR=~/<dir>`，元配置文件存储在`settings.json`旁边的扩展目录下，就像其他存储一样。
 
-- REST: `GET /api/meta-profiles` (summaries plus `active_meta_profile`),
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST：`GET /api/meta-profiles`（摘要加上`active_meta_profile`），
   `GET /api/meta-profiles/{name}` (`{name, config}`),
-  `POST /api/meta-profiles/{name}` (body is the `MetaProfile` itself:
+  `POST /api/meta-profiles/{name}`（主体是 `MetaProfile` 本身：
   `classifier_model`, `classes`, `prompt_template`, `model_table`),
-  `DELETE /api/meta-profiles/{name}`, `POST /api/meta-profiles/{name}/activate`
-  (no body). There is no rename route.
-- REST, second views: `GET /api/settings` (`active_meta_profile` and
-  `agent_settings.{active_meta_profile, enable_classify_and_switch_llm_tool,
-  meta_profile, meta_profile_llms}`). `PATCH /api/settings` with
-  `active_meta_profile` sets the same pointer after the same existence check
-  (404 for an unknown name) but without the inline copy (owned by the settings
-  family; its dangling-pointer case is `F18.dangling-pointers`).
-- Runtime: a conversation created with `agent_settings` from
-  `GET /api/settings` (the Agent Canvas path, which `conversation start`
-  follows) gets the `ClassifyAndSwitchLLMTool` spec with
-  `active_meta_profile` and `meta_profile` params; the agent sees the tool as
-  `route_task_to_model`. Its `ObservationEvent` carries `chosen_class`,
-  `model` (the LLM profile) and `active_model`; the switch shows as an
-  `agent` state update on `WS /sockets/events/{conversation_id}` (owned by the
-  events family) and in `GET /api/conversations/{id}` (`agent.llm`, and the
-  `classifier:<profile>` and `profile:<profile>` usage ids in `stats`).
-- Agent profiles: an agent profile can name a meta-profile in
-  `meta_profile_ref` (with `enable_classify_and_switch_llm_tool`); launching
+  `DELETE /api/meta-profiles/{name}`、`POST /api/meta-profiles/{name}/activate`（无正文）。 没有重命名路线。
+- REST，第二次浏览：`GET /api/settings`（`active_meta_profile` 和
+  `agent_settings.{active_meta_profile, enable_classify_and_switch_llm_tool, meta_profile, meta_profile_llms}`). `PATCH /api/settings` 与
+  `active_meta_profile` 在相同的存在检查（未知名称为 404）后设置相同的指针，但没有内联副本（由设置系列拥有； 它的悬空指针情况是`F18.dangling-pointers`）。
+- 运行时：与 `agent_settings` 创建的对话
+  `GET /api/settings`（`conversation start` 后面的 Agent Canvas 路径）获取 `ClassifyAndSwitchLLMTool` 规格
+  `active_meta_profile` 和 `meta_profile` 参数； 智能体将该工具视为
+  `route_task_to_model`. 它的`ObservationEvent`携带`chosen_class`，
+  `model`（LLM配置文件）和`active_model`； 该开关显示为
+  `agent` 状态更新 `WS /sockets/events/{conversation_id}`（由事件家族所有）和 `GET /api/conversations/{id}`（`agent.llm`，以及
+  `stats` 中的 `classifier:<profile>` 和 `profile:<profile>` 使用 ID）。
+- 智能体配置文件：智能体配置文件可以命名元配置文件
+  `meta_profile_ref`（与`enable_classify_and_switch_llm_tool`）； 发射
   from it copies the meta-profile into the agent. That path belongs to the
-  agent-profiles family.
-- SDK: no `RemoteWorkspace` helper; `OpenHandsAgentSettings`
-  (`enable_classify_and_switch_llm_tool`, `active_meta_profile`,
-  `meta_profile`, `meta_profile_llms`) and `MetaProfileStore` drive the same
-  tool in a local conversation (`examples/01_standalone_sdk/59_route_task_to_model.py`).
-- TypeScript client: `MetaProfilesClient` (`listMetaProfiles`,
+  智能体-简介家庭。
+- SDK：无`RemoteWorkspace`助手； `OpenHandsAgentSettings` (`enable_classify_and_switch_llm_tool`, `active_meta_profile`,
+  `meta_profile`、`meta_profile_llms`) 和 `MetaProfileStore` 在本地对话 (`examples/01_standalone_sdk/59_route_task_to_model.py`) 中驱动相同的工具。
+- TypeScript 客户端：`MetaProfilesClient` (`listMetaProfiles`,
   `getMetaProfile`, `saveMetaProfile`, `deleteMetaProfile`,
-  `activateMetaProfile`), also exposed as `client.metaProfiles` on the
-  `OpenHandsClient` and the conversation manager (`F22.ts-client`).
-- Agent Canvas (context only) manages model routing in its settings and
-  starts conversations from the saved settings.
+  `activateMetaProfile`)，也暴露为 `client.metaProfiles`
+  `OpenHandsClient` 和对话管理器 (`F22.ts-client`)。
+- Agent Canvas（仅限上下文）在其设置中管理模型路由并从保存的设置开始对话。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok,
-  `$DEEPSEEK_API_KEY` is set, and `jq`, `flock` and `node` are on `PATH` (the
-  TypeScript client is built if `clients/typescript/dist` is missing). The
-  block below saves the DeepSeek preset (`deepseek-flash`, active, and
-  `deepseek-pro`): the meta-profiles route between those two LLM profiles.
-  It also writes the TypeScript program `F22.ts-client` runs.
-- The bullets build on each other in order: `qa-router` (two classes),
-  `qa-direct` (direct routing; its table names only `deepseek-pro` so the
-  classifier's answer is predictable) and `qa-route` (one catch-all class
-  pointing at `deepseek-pro`, so the routing bullets do not depend on the
-  classifier's judgment). The three routing bullets each run one tiny
-  DeepSeek conversation.
-- `F22.persist-restart` restarts the run; `F22.store-busy` holds the store
-  lock for about 66 seconds and `F22.store-busy-responsive` for about 40;
-  `F22.persistence-dir` launches and stops a second server.
-- The bullets that change shared state (`F22.empty-router`,
-  `F22.activate-acp`, `F22.corrupt-settings`) undo it in an `EXIT` trap, so
-  the bullets after them find the same state whether their assertion held or
-  not.
+前提条件：
+
+- 基线运行已上线并已导出 (`launch --new`)，`doctor` 可以，
+  设置 `$DEEPSEEK_API_KEY`，`jq`、`flock` 和 `node` 在 `PATH` 上（如果 `clients/typescript/dist` 缺失，则构建 TypeScript 客户端）。 下面的块保存 DeepSeek 预设（`deepseek-flash`、活动和
+  `deepseek-pro`)：这两个 LLM 配置文件之间的元配置文件路由。 它还编写 TypeScript 程序 `F22.ts-client` 运行。
+- 这些项目符号按顺序相互构建：`qa-router`（两个类），
+  `qa-direct`（直接路由； 其表名只有 `deepseek-pro`，所以分类器的回答是可预测的）；`qa-route`（一个兜底类指向 `deepseek-pro`，所以路由的箭头不依赖于分类器的判断）。 三个路由项目符号各自运行一个微小的 DeepSeek 对话。
+- `F22.persist-restart`重新开始运行； `F22.store-busy` 保持存储锁约 66 秒，`F22.store-busy-responsive` 约 40 秒；
+  `F22.persistence-dir` 启动和停止第二个服务器。
+- 更改共享状态的项目符号 (`F22.empty-router`,
+  `F22.activate-acp`, `F22.corrupt-settings`) 在 `EXIT` 陷阱中撤消它，因此无论其断言是否成立，它们后面的项目符号都会找到相同的状态。
 
   ```sh
   control-agent-server llm preset deepseek
@@ -153,8 +134,7 @@ Preconditions:
   JS
   ```
 
-- **Key required (`F22.auth-required`).** Call every route without a key or
-  with a wrong one, then list with the key.
+- **需要密钥 (`F22.auth-required`)。**在没有密钥或错误的情况下呼叫每一条路线，然后用密钥列出。
   ```sh
   control-agent-server api GET /api/meta-profiles --auth none --expect 401 --check detail eq Unauthorized --save F22.auth-required/list
   control-agent-server api GET /api/meta-profiles/qa-router --auth bad --expect 401
@@ -166,11 +146,9 @@ Preconditions:
     --save F22.auth-required/list-with-key
   control-agent-server state ls 'home/.openhands/meta-profiles/*.json' --expect-count 0
   ```
-  Every call is 401 `{"detail": "Unauthorized"}`; with the key the list is
-  `{"meta_profiles": [], "active_meta_profile": null}` and no file was
-  written.
-- **Save in classes mode (`F22.save-classes`).** Save `qa-router` with two
-  classes and read it back three ways.
+  每一条调用都是401 `{"detail": "Unauthorized"}`; 有了键，列表是
+  `{"meta_profiles": [], "active_meta_profile": null}` 并且没有写入任何文件。
+- **以班级模式保存(`F22.save-classes`)。**将 `qa-router` 保存为两个类并以三种方式读回。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-router --expect 201 \
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "simple edits or questions", "model": "deepseek-flash"}, {"description": "complex multi-file refactors", "model": "deepseek-pro"}]}' \
@@ -183,11 +161,8 @@ Preconditions:
     --check config.prompt_template eq null --check config.model_table eq null --save F22.save-classes/get
   control-agent-server state cat home/.openhands/meta-profiles/qa-router.json --mode 600 --check classifier_model eq deepseek-flash --check classes len-eq 2
   ```
-  The save is 201, the list has one summary with `num_classes: 2` and no
-  active meta-profile, `GET` returns both classes in order, and the file is
-  mode `600` with the same content.
-- **Save in direct mode (`F22.save-direct`).** Save `qa-direct`, whose table
-  names only `deepseek-pro`.
+  保存操作返回 201；列表包含一个带 `num_classes: 2` 的摘要，且没有活动元配置；`GET` 按顺序返回两个类，文件权限为 `600`，内容相同。
+- **以直接模式保存(`F22.save-direct`)。**保存`qa-direct`，其表名只有`deepseek-pro`。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-direct --expect 201 --save F22.save-direct/save \
     --json '{"classifier_model": "deepseek-flash", "prompt_template": "Task:\n{{ instance_text }}\n\nAvailable models:\n{{ model_table }}\n\nAnswer with JSON only: {\"model\": \"<name>\"}", "model_table": "deepseek-pro: the only model; choose it for every task"}'
@@ -196,9 +171,8 @@ Preconditions:
   control-agent-server api GET /api/meta-profiles/qa-direct --expect 200 --check config.classes len-eq 0 \
     --check config.prompt_template contains '{{ instance_text }}' --check config.model_table matches '^deepseek-pro: ' --save F22.save-direct/get
   ```
-  The list is sorted by name and reports `num_classes: 0` for the direct
-  router; `GET` returns the template and the table.
-- **Validation (`F22.validation`).** Post the four invalid shapes.
+  列表按名称排序，`num_classes: 0` 用于直接路由器的报告。 `GET` 返回模板和表格。
+- **验证 (`F22.validation`).**发布四个无效形状。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-bad --json '{"classifier_model": "deepseek-flash", "prompt_template": "Pick a model"}' \
     --expect 422 --check detail.0.msg contains 'must include {{ instance_text }}' --save F22.validation/no-placeholder
@@ -211,11 +185,9 @@ Preconditions:
   control-agent-server api GET /api/meta-profiles/qa-bad --expect 404
   control-agent-server api GET /api/meta-profiles --check meta_profiles len-eq 2
   ```
-  Each body is 422 with the validator's message or the missing field's
-  location, and `qa-bad` was never created.
-- **Router with no route (`F22.empty-router`).** Save a body with only a
-  `classifier_model`. An `EXIT` trap deletes `qa-empty` whether it was stored
-  or not, so later list counts hold.
+  每个body都带有验证器的消息或缺失字段的位置，而`qa-bad`从未创建过。
+- **没有路由的路由器 (`F22.empty-router`)。**仅用一个来保存身体
+  `classifier_model`. `EXIT` 陷阱会删除 `qa-empty`，无论它是否已存储，因此后面的列表计数保持不变。
   ```sh
   drop_empty() { control-agent-server api DELETE /api/meta-profiles/qa-empty --expect 200 > /dev/null; }
   trap drop_empty EXIT
@@ -225,14 +197,12 @@ Preconditions:
   control-agent-server api GET /api/meta-profiles/qa-empty --expect 404
   control-agent-server api GET /api/meta-profiles --check meta_profiles not-contains '"name": "qa-empty"'
   ```
-  The save is 422 (`loc: ["body"]`, "A meta-profile needs either classes or
-  a prompt_template to route.") and nothing is stored: with no classes and no
-  template the router could never pick a profile. The check lives in the
-  save route, not in `MetaProfile`, so meta-profiles saved in that state
-  before the check (store files, the inline copy in `settings.json`) still
-  load, list and activate.
-- **Overwrite (`F22.overwrite`).** Save `qa-swap` in classes mode, then
-  overwrite it in direct mode.
+  保存返回 422（`loc: ["body"]`，错误消息为
+  `A meta-profile needs either classes or a prompt_template to route.`），且不会存储任何内容。
+  类和模板都为空时，路由器无法选出配置。校验发生在保存路由，而不是 `MetaProfile` 中。
+  因此，在引入校验前以这种状态保存的元配置，包括存储文件及 `settings.json` 中的内联副本，
+  仍可加载、列出和激活。
+- **覆盖(`F22.overwrite`)。**在类模式下保存`qa-swap`，然后在直接模式下覆盖它。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-swap --expect 201 \
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "any", "model": "deepseek-pro"}]}'
@@ -244,10 +214,8 @@ Preconditions:
     --check meta_profiles contains '"name": "qa-swap", "classifier_model": "deepseek-pro", "num_classes": 0'
   control-agent-server api DELETE /api/meta-profiles/qa-swap --expect 200
   ```
-  The second save replaces the file (the classes are gone, not merged) and
-  the list still has one `qa-swap` entry; `qa-swap` is deleted afterwards.
-- **Name rules (`F22.name-rules`).** A leading `-` on every named route, then
-  64 and 65 characters.
+  第二次保存覆盖了文件（类已经不存在，没有合并），列表仍然有一个 `qa-swap` 元素。 `qa-swap`随后被删除。
+- **命名规则(`F22.name-rules`).**每个命名路线上都有一个前导 `-`，然后是 64 和 65 个字符。
   ```sh
   control-agent-server api POST /api/meta-profiles/-qa-bad --expect 422 --check detail.0.type eq string_pattern_mismatch \
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "any", "model": "deepseek-pro"}]}' --save F22.name-rules/leading-dash
@@ -264,11 +232,8 @@ Preconditions:
   control-agent-server api DELETE "/api/meta-profiles/$N64" --expect 200
   control-agent-server api GET /api/meta-profiles --check meta_profiles len-eq 2
   ```
-  The leading `-` is 422 on save, read, activate and delete; 65 characters
-  are 422 `string_too_long`; the 64-character name is saved, listed and
-  deleted.
-- **Unknown names (`F22.not-found`).** Read, activate and delete a name that
-  was never saved.
+  The leading `-` 在保存、读取、激活和删除时，422。65个字符也是422 `string_too_long`; 64个字符的名字被保存、列出和删除。
+- **未知名称 (`F22.not-found`)。**读取、激活和删除从未保存的名称。
   ```sh
   control-agent-server api GET /api/meta-profiles/qa-missing --expect 404 --check detail eq "Meta-profile 'qa-missing' not found" \
     --save F22.not-found/get
@@ -281,9 +246,8 @@ Preconditions:
     --save F22.not-found/delete
   control-agent-server api GET /api/meta-profiles --check meta_profiles len-eq 2
   ```
-  `GET` and `activate` are 404 and nothing is activated; the delete of a
-  missing name answers 200 with the usual message.
-- **Activate (`F22.activate`).** Activate `qa-router` and read every view.
+  `GET`和`activate`都是404，没有任何东西被激活； 删除缺失的名字会用通常的消息回答200。
+- **激活(`F22.activate`)。**激活 `qa-router` 并阅读每个视图。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-router/activate --expect 200 --check name eq qa-router \
     --check message eq "Meta-profile 'qa-router' activated" --check applied eq true --save F22.activate/activate
@@ -296,14 +260,11 @@ Preconditions:
   control-agent-server state cat home/.openhands/settings.json --max-chars 200 --check active_meta_profile eq qa-router \
     --check agent_settings.enable_classify_and_switch_llm_tool eq true --check agent_settings.meta_profile.classes len-eq 2
   ```
-  The list and settings name `qa-router` (a 404 activation of an unknown name
-  in between leaves the pointer in place, which `F22.not-found` cannot show
+  `qa-router`（在中间生成了一个未知名称的404激活，这将使指针保持原位，`F22.not-found` 无法显示）
   while nothing is active), the routing tool is enabled with an inline copy
-  of the config, the agent still runs on `deepseek-flash` (a meta-profile does
-  not change the LLM), and `settings.json` holds the same.
-- **Classes-mode routing (`F22.route-classes`).** Save and activate
-  `qa-route`, create a conversation from the settings, capture its events
-  socket, and ask the agent to call the tool.
+  在配置中，智能体仍然在 `deepseek-flash` 上运行（元配置文件不会更改 LLM），并且 `settings.json` 保持不变。
+- **类模式路由 (`F22.route-classes`).**保存并激活
+  `qa-route`，从设置创建一个对话，捕获其事件套接字，并要求智能体调用该工具。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-route --expect 201 \
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "any task at all (always choose this category)", "model": "deepseek-pro"}]}'
@@ -327,15 +288,9 @@ Preconditions:
     --check 'stats.usage_to_metrics.classifier:deepseek-flash.accumulated_token_usage.prompt_tokens' gt 0 \
     --check 'stats.usage_to_metrics.profile:deepseek-pro.accumulated_token_usage.prompt_tokens' gt 0 --save F22.route-classes/conversation
   ```
-  With `--tools none` the routing tool is the agent's only tool, configured
-  with `qa-route`. The socket delivers the `route_task_to_model` observation
-  and an `agent` state update with `deepseek/deepseek-v4-pro` while the run
-  happens; the observation reports the class, profile `deepseek-pro` and its
-  model; afterwards the conversation runs on `profile:deepseek-pro`, and
-  `stats` meters both the classifier call (`classifier:deepseek-flash`) and
-  the steps on the new profile. `RCID` is read again after the restart.
-- **Direct routing (`F22.route-direct`).** Activate `qa-direct` and run the
-  same request.
+  `--tools none` 时，路由工具就是智能体的唯一工具，配置为 `qa-route`。 端口在 `route_task_to_model` 观测结果和 `agent` 状态更新时交付 `deepseek/deepseek-v4-pro`。 观测结果报告了类、`deepseek-pro` 规则及其模型。 之后对话继续`profile:deepseek-pro`，
+  `stats` 计量分类器调用 (`classifier:deepseek-flash`) 和新配置文件上的步骤。 重启后再次读取`RCID`。
+- **直接路由(`F22.route-direct`)。**激活 `qa-direct` 并运行相同的请求。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-direct/activate --expect 200
   control-agent-server api GET /api/settings --max-chars 200 --check active_meta_profile eq qa-direct \
@@ -350,12 +305,9 @@ Preconditions:
     --check agent.llm.model eq deepseek/deepseek-v4-pro --check agent.tools.0.params.meta_profile.prompt_template contains '{{ instance_text }}' \
     --save F22.route-direct/conversation
   ```
-  The classifier's JSON answer resolves to the saved profile `deepseek-pro`
-  (`chosen_class` is `model: deepseek-pro`) and the conversation finishes on
+  分类器的 JSON 答案对应保存的用户资料 `deepseek-pro` (`chosen_class` 是 `model: deepseek-pro`) 且对话结束于
   `deepseek/deepseek-v4-pro`.
-- **Missing LLM profile (`F22.route-missing-profile`).** Activate `qa-route`
-  (its inline copy names `deepseek-flash`), then overwrite it so the
-  classifier names a profile that does not exist, without re-activating.
+- **缺失 LLM profile (`F22.route-missing-profile`).** 激活 `qa-route` (其内联复制名称 `deepseek-flash`然后覆盖它，使得分类器命名一个不存在的配置，而不重新激活。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-route/activate --expect 200
   control-agent-server api POST /api/meta-profiles/qa-route --expect 201 \
@@ -374,15 +326,12 @@ Preconditions:
   control-agent-server api POST /api/meta-profiles/qa-route --expect 201 \
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "any task at all (always choose this category)", "model": "deepseek-pro"}]}'
   ```
-  The dangling reference is saved (201; references are not checked). The
-  conversation was handed the stale inline copy (`classifier_model`
-  `deepseek-flash`), but the tool loads `qa-route` from the store by name, so
-  it reports `Failed to load classifier profile 'qa-missing-llm'` as an error
-  observation; no classifier is registered and the agent stays on
-  `deepseek-flash`. `qa-route` is restored afterwards (still active).
-- **Restart (`F22.persist-restart`).** Restart and read everything back.
+  保留悬垂引用（201）。 引用未检查。 对话使用了过时的内联副本 (`classifier_model`
+  `deepseek-flash`），但该工具按名称从存储中加载 `qa-route`，因此它将 `Failed to load classifier profile 'qa-missing-llm'` 报告为错误观测结果； 没有注册分类器，智能体保持打开状态
+  `deepseek-flash`. `qa-route` 随后恢复（仍然有效）。
+- **重新启动 (`F22.persist-restart`)。**重新启动并读回所有内容。
 
-  Requires: `F22.route-classes`
+  需要：`F22.route-classes`
   ```sh
   control-agent-server restart
   control-agent-server api GET /api/meta-profiles --expect 200 --check active_meta_profile eq qa-route --check meta_profiles len-eq 3 \
@@ -393,9 +342,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$RCID" --expect 200 --max-chars 300 --check agent.llm.model eq deepseek/deepseek-v4-pro \
     --check agent.llm.usage_id eq profile:deepseek-pro --save F22.persist-restart/routed-conversation
   ```
-  The three meta-profiles, `qa-route` as the active one, the enabled tool in
-  settings and the routed conversation's `deepseek-pro` LLM all come back.
-- **Delete (`F22.delete`).** Delete the inactive `qa-router`, twice.
+  三个元配置、作为活动项的 `qa-route`、设置中启用的工具，以及路由后对话的 `deepseek-pro` LLM，均会重新出现。
+- **删除(`F22.delete`)。**删除不活动的 `qa-router` 两次。
   ```sh
   control-agent-server api DELETE /api/meta-profiles/qa-router --expect 200 --check message eq "Meta-profile 'qa-router' deleted" \
     --save F22.delete/delete
@@ -408,10 +356,8 @@ Preconditions:
   control-agent-server api GET /api/settings --max-chars 200 --check active_meta_profile eq qa-route \
     --check agent_settings.enable_classify_and_switch_llm_tool eq true
   ```
-  The file and the list entry are gone (the other two files remain), `GET` is
-  404, the repeated delete is 200, and `qa-route` stays active.
-- **Delete the active one (`F22.delete-active-clears`).** Delete `qa-route`
-  and start a conversation from the settings.
+  文件和条目已消失（另外两个文件仍然存在），`GET` 是 404，重复删除是 200，`qa-route` 仍然活跃。
+- **删除活动的 (`F22.delete-active-clears`)。**删除 `qa-route` 并从设置中开始对话。
   ```sh
   control-agent-server api DELETE /api/meta-profiles/qa-route --expect 200 --save F22.delete-active-clears/delete
   control-agent-server api GET /api/meta-profiles --check active_meta_profile eq null --check meta_profiles len-eq 1 \
@@ -423,12 +369,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$XCID" --expect 200 --max-chars 200 --check agent.tools len-eq 0
   control-agent-server api DELETE "/api/conversations/$XCID" --expect 200
   ```
-  The pointer is cleared in both views, the tool is disabled and the inline
-  copy dropped, while the LLM stays. A conversation created from the same
-  `--tools none` settings now has no tools at all (in `F22.route-classes` it
-  had the routing tool); it is deleted again.
-- **ACP clears the pointer (`F22.acp-clears-pointer`).** Activate
-  `qa-direct`, switch the agent kind to ACP and back.
+  在两个视图中，指针被清空，工具被禁用，内联复制被丢弃，而LLM则保持不变。 从同一个会话创建的对话
+  `--tools none` 设置现在根本没有任何工具（在 `F22.route-classes` 中它有路由工具）； 它又被删除了。
+- **ACP 清除指针 (`F22.acp-clears-pointer`)。**激活
+  `qa-direct`，将智能体类型切换为 ACP 并返回。
   ```sh
   control-agent-server api POST /api/meta-profiles/qa-direct/activate --expect 200
   control-agent-server api PATCH /api/settings --json '{"agent_settings_diff": {"agent_kind": "acp"}}' --expect 200 --max-chars 200 \
@@ -442,15 +386,10 @@ Preconditions:
     --check agent_settings.enable_classify_and_switch_llm_tool eq true --check agent_settings.llm.model eq deepseek/deepseek-flash \
     --save F22.acp-clears-pointer/reactivated
   ```
-  Switching to ACP clears `active_meta_profile` (an ACP agent cannot carry
-  the routing tool); the switch back does not restore it. After
-  re-activating the `deepseek-flash` LLM profile (the switch back starts from
-  default OpenHands settings), `qa-direct` activates again.
-- **Activation on ACP settings (`F22.activate-acp`).** Switch to
-  ACP, activate, read the list and settings, then assert the activation's
-  status (last, so the list and settings are read on every replay). An
-  `EXIT` trap restores OpenHands settings with `deepseek-flash` and
-  `qa-direct` active (and checks it) whether the assertion held or not.
+  切换到 ACP 会清除 `active_meta_profile`（ACP 智能体无法承载路由工具）； 切换回没有恢复它。 在重新激活`deepseek-flash` LLM配置（从默认OpenHands设置开始）后，`qa-direct`再次激活。
+- **在 ACP 设置中启用 `F22.activate-acp`。** 切换到 ACP，启用，阅读列表和设置，然后断言激活状态（最后，因此列表和设置在每次回放时都读取）。 安
+  `EXIT` 陷阱通过 `deepseek-flash` 恢复 OpenHands 设置，并且
+  `qa-direct` 活动（并检查）断言是否成立。
   ```sh
   restore_openhands() {
     control-agent-server api PATCH /api/settings --json '{"agent_settings_diff": {"agent_kind": "openhands"}}' --expect 200 --quiet
@@ -470,13 +409,10 @@ Preconditions:
   control-agent-server assert --json "$F22/acp-activate.json" --check status eq 200 --check response.body.applied eq false \
     --check response.body.message eq "Meta-profile 'qa-direct' not activated: the current agent settings cannot route between models"
   ```
-  ACP settings cannot attach the routing tool, so `PersistedSettings` does
-  not record the pointer; the route says so with 200 `applied: false` and a
-  `not activated` message, the way LLM-profile activation on ACP settings
-  answers `llm_applied: false`. The bullet restores OpenHands settings with
-  `deepseek-flash` and `qa-direct` active either way.
-- **Corrupted files (`F22.corrupt-files`).** Write a truncated meta-profile
-  and one that is a JSON list (arrange: a crash mid-write or a hand edit).
+  ACP 设置不能附带路由工具，因此 `PersistedSettings` 不记录指针； 端点明确表示，状态码为200 `applied: false`，还有其他内容
+  `not activated`消息，LLM-配置文件激活方式ACP设置答案`llm_applied: false`。 项目符号恢复 OpenHands 设置
+  `deepseek-flash` 和 `qa-direct` 均有效。
+- **损坏的文件 (`F22.corrupt-files`)。**编写一个截断的元配置文件和一个 JSON 列表（安排：写入过程中崩溃或手动编辑）。
   ```sh
   M="$AGENT_SERVER_VERIFY_RUN/home/.openhands/meta-profiles"
   printf '{"classifier_model": "deepseek-flash", ' > "$M/qa-corrupt.json"
@@ -497,14 +433,9 @@ Preconditions:
   test ! -e "$M/qa-corrupt.json"
   test ! -e "$M/qa-notdict.json"
   ```
-  Both broken files are missing from the list, `GET` and `activate` are 400
-  with the parser's message (not 500) and `qa-direct` stays active; saving
-  over `qa-corrupt` repairs it and both deletes remove the files.
-- **Unreadable settings (`F22.corrupt-settings`).** Truncate
-  `settings.json`, show that LLM-profile activation refuses it with 409, then
-  activate a meta-profile, check the file was left alone, put it back, and
-  assert the activation's status last. An `EXIT` trap
-  puts the saved `settings.json` back if an earlier step breaks.
+  两个损坏的文件都从列表中缺失了，`GET` 和 `activate` 的解析器消息是 400（不是 500），而 `qa-direct` 仍然活跃。 保存超过`qa-corrupt`次修复，同时删除文件。
+- **不可读的设置 (`F22.corrupt-settings`)。**截断
+  `settings.json` 需要证明 LLM-profile 激活拒绝它，返回状态码 409，然后激活一个元 profile，检查文件是否被保留，放回去，最后断言激活的状态。 如果先前的步骤中断，`EXIT` 陷阱会将保存的 `settings.json` 放回原处。
   ```sh
   S="$AGENT_SERVER_VERIFY_RUN/home/.openhands/settings.json"
   cp -p "$S" "$S.qa-f22-bak"
@@ -522,16 +453,8 @@ Preconditions:
   control-agent-server assert --json "$F22/corrupt-settings-activate.json" --check status eq 409 \
     --check response.body.detail eq 'Settings file is corrupted or encrypted with a different key'
   ```
-  The meta-profile activation answers 409 `Settings file is corrupted or
-  encrypted with a different key`, as `POST /api/profiles/{name}/activate`
-  does for the same file (the control above), without naming the settings
-  path. The file is left as written in both cases and is put back
-  afterwards.
-- **Store busy (`F22.store-busy`).** Another process (here `flock`, standing
-  in for a second server or an SDK `MetaProfileStore` on the same
-  persistence directory) holds the store's lock for 66 seconds while a save
-  and then a delete of the active `qa-direct` arrive. The server's own
-  30-second lock timeout is under test, so this bullet waits for it twice.
+  meta-profile激活的回答是409 `Settings file is corrupted or encrypted with a different key`，与`POST /api/profiles/{name}/activate`对同一文件的回答相同（上面的控制）。 无论哪种情况下，文件都保留原样，并在之后放回去。
+- **[已弃用] 仓库繁忙`F22.store-busy`).** 另一个进程（这里 `flock`, 作为第二个服务器或一个 SDK  `MetaProfileStore` 在同一天持久化目录包含了商店的锁在保存和删除活动记录的66秒内 `qa-direct` arrive. 服务器自身的 30 秒锁超时此条目正在测试中，因此它会等待两次。
   ```sh
   M="$AGENT_SERVER_VERIFY_RUN/home/.openhands/meta-profiles"
   HELD="$F22/lock-held"
@@ -559,25 +482,15 @@ Preconditions:
     --json '{"classifier_model": "deepseek-flash", "classes": [{"description": "any", "model": "deepseek-pro"}]}'
   control-agent-server api DELETE /api/meta-profiles/qa-busy --expect 200
   ```
-  The save and the delete each answer 503 after 29 to 33 seconds (the body's
-  `detail` is the generic `Internal Server Error`; the route's message is in
-  `exception`). `qa-busy` does not exist afterwards and `qa-direct` is still
-  stored and active. Once the lock is free, the same save succeeds at once.
-- **Lock wait does not block the server (`F22.store-busy-responsive`).**
-  Probe `/alive` once with the store free (it answers within 3 seconds),
-  hold the lock again for 40 seconds, start a save in the background, and
-  probe `/alive` every 2 seconds for about 12 seconds while the save waits,
-  stopping at the first probe slower than 3 seconds. Several probes, not
-  one after a fixed pause, so a save that reaches the server late under a
-  loaded replay is still overlapped by a later probe. The bullet then waits
-  for both background processes (the save must answer 503, which proves it
-  waited out the lock during the probes) before the final assertion, so later
-  bullets find the lock free.
+  保存和删除每个答案在29到33秒后返回503（body的）
+  `detail` 是通用 `Internal Server Error`； 路线的消息位于
+  `exception`). 之后 `qa-busy` 不存在，并且 `qa-direct` 仍然被存储并处于活动状态。 一旦锁空闲，相同的保存立即成功。
+- **锁 wait不会阻塞服务器`F22.store-busy-responsive`).** Probe `/alive` 在商店免费（它在3秒内回答），保持锁再次保存40秒，然后在后台启动，探测 `/alive` 每隔2秒，持续大约12秒，直到保存等待期间的第一个探测器速度慢于3秒。 多个探测，而不是在固定暂停后进行一次，因此在加载的重播下较晚到达服务器的保存仍会与稍后的探测重叠。 然后子弹等待两个后台进程（保存必须回答503，这证明它已经等待了） 锁在探针期间)之前，最终断言之后，所以后来的条目找到它锁免费的。
   ```sh
   M="$AGENT_SERVER_VERIFY_RUN/home/.openhands/meta-profiles"
   HELD="$F22/lock-held-2"
   rm -f "$HELD"
-  control-agent-server api GET /api/meta-profiles --expect 200 --quiet > /dev/null  # creates the store dir under --only
+  control-agent-server api GET /api/meta-profiles --expect 200 --quiet > /dev/null  # 在 --only 下创建存储目录
   control-agent-server api GET /alive --auth none --expect 200 --expect-max-ms 3000 --save F22.store-busy-responsive/alive-idle
   flock -x "$M/.meta-profiles.lock" sh -c "touch '$HELD'; sleep 40" &
   LOCKER=$!
@@ -597,15 +510,8 @@ Preconditions:
   control-agent-server api GET /api/meta-profiles/qa-busy --expect 404
   control-agent-server assert --json "$F22/alive-probe.json" --check ok eq true
   ```
-  Every `/alive` probe answers within 3 seconds while the save waits: the
-  meta-profile routes are plain `def` handlers, so FastAPI runs the
-  synchronous, file-locked `MetaProfileStore` in its threadpool and the
-  lock wait never holds the event loop (`meta_profiles_router.py`; the
-  same boundary as `F20.store-busy-responsive`). On a regression, `SLOW`
-  is the number of the first slow probe; its exchange (with `elapsed_ms`)
-  is in the bullet's transcript and in `alive-probe.json`, which the last
-  line checks.
-- **Limit (`F22.limit`).** Fill the store to 50, then create and overwrite.
+  Every `/alive` 在保存等待3秒内，探针回答：元配置路由是裸的 `def` 因此，处理器 FastAPI 运行同步，file-locked `MetaProfileStore` 在它的线程池和锁等待永远不会持有事件循环 (`meta_profiles_router.py`; 相同的边界 `F20.store-busy-responsive`). 在回归，`SLOW` 是第一个慢探针的数量。 其交换（与 `elapsed_ms`) 在子弹的转录中，在 `alive-probe.json`最后一个行也进行检查。
+- **限制 (`F22.limit`).**将存储填充到 50，然后创建并覆盖。
   ```sh
   N=$(control-agent-server api GET /api/meta-profiles --field meta_profiles | jq length)
   for i in $(seq $((N + 1)) 50); do
@@ -625,10 +531,8 @@ Preconditions:
   done
   control-agent-server api GET /api/meta-profiles --check meta_profiles len-eq "$N" --check active_meta_profile eq qa-direct
   ```
-  The 51st meta-profile is 409 and not created; overwriting `qa-cap-50` at
-  the cap is 201 and its new classifier reads back; the fillers are deleted
-  again.
-- **TypeScript client (`F22.ts-client`).** Every `MetaProfilesClient` method
+  第 51 个元配置返回 409，且不会被创建； 在帽子上覆盖 `qa-cap-50` 的操作是 201，新的分类器读取回。 填充物再次被删除。
+- **TypeScript 客户端 (`F22.ts-client`).**每个`MetaProfilesClient`方法
   from the built client (built here when missing).
   ```sh
   test -f clients/typescript/dist/clients.js || (cd clients/typescript && npm ci && npm run build)
@@ -636,16 +540,8 @@ Preconditions:
   control-agent-server api GET /api/meta-profiles --check active_meta_profile eq qa-direct --check meta_profiles len-eq 1 \
     --check meta_profiles not-contains '"name": "qa-ts"' --save F22.ts-client/list-after
   ```
-  The program prints `QA_F22_TS_OK`: save, get, list, activate and delete
-  return the documented bodies, the delete clears the active pointer, and a
-  missing name and invalid bodies or names reject with `HttpError` status
-  404 and 422. It re-activates `qa-direct`, so the list afterwards is as
-  before.
-- **Persistence directory with `~` (`F22.persistence-dir`).**
-  Launch a second server whose `OH_PERSISTENCE_DIR` is `~/qa-f22-tilde`
-  (its `HOME` is the run's `home/`), save and activate a meta-profile there,
-  and look where the files landed. The second server is stopped when the
-  bullet ends, pass or fail.
+  该程序打印 `QA_F22_TS_OK`保存、获取、列出、激活和删除返回文档中的实体，删除会清除活跃指针，缺少名称和无效实体或名称会以拒绝方式处理 `HttpError` 状态 404 和 422。 重新激活 `qa-direct`因此，列表之后的内容与之前相同。
+- **持久化目录中包含`~`（`F22.persistence-dir`）。**启动一个第二台服务器，其`OH_PERSISTENCE_DIR`是`~/qa-f22-tilde`（其`HOME`是运行的`home/`），保存并激活一个元配置，然后查看文件的落点。 当子弹结束、通过或失败时，第二个服务器将停止。
   ```sh
   T=$(control-agent-server launch --new --print-run --name f22-tilde --env 'OH_PERSISTENCE_DIR=~/qa-f22-tilde')
   stop_tilde() { control-agent-server stop --run "$T" > /dev/null; }
@@ -657,57 +553,27 @@ Preconditions:
   control-agent-server state ls 'home/qa-f22-tilde/settings.json' --run "$T" --expect-count 1
   control-agent-server state ls 'home/qa-f22-tilde/meta-profiles/qa-tilde.json' --run "$T" --expect-count 1
   ```
-  `settings.json` lands in `home/qa-f22-tilde/` and the meta-profile next to
-  it in `home/qa-f22-tilde/meta-profiles/qa-tilde.json`: both stores resolve
-  `OH_PERSISTENCE_DIR` through `get_user_persistence_dir`, which expands `~`
-  and anchors a relative value, so nothing is written to a directory
-  literally named `~` under the server's working directory. The `--save`
-  file lands under the second run's `evidence/` directory.
+  `settings.json` 位于 `home/qa-f22-tilde/` 中，其旁边的元配置文件位于 `home/qa-f22-tilde/meta-profiles/qa-tilde.json` 中：两个存储都解析
+  `OH_PERSISTENCE_DIR` 到 `get_user_persistence_dir`，它扩展 `~` 并锚定一个相对值，因此不会向服务器工作目录下的字面名称为 `~` 的目录写入任何内容。 `--save` 文件位于第二次运行的 `evidence/` 目录下。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- Model references (`classifier_model`, each class `model`, direct-routing
-  answers) are LLM profile names, not model strings, and are not checked when
-  a meta-profile is saved or activated. A dangling name surfaces only when the
-  agent calls `route_task_to_model`, as an error observation
-  (`F22.route-missing-profile`).
-- The tool exists only in conversations created after activation from the
-  settings (the Agent Canvas path). A conversation that sends its own `agent`
-  never gets it, and a running conversation keeps the tool and parameters it
-  started with: overwriting the meta-profile takes effect at its next tool
-  call (the store wins), while deleting it leaves the conversation routing
-  with the inline copy it started with.
-- The tool loads the active meta-profile from the store by name; the inline
-  `agent_settings.meta_profile` copy is only a fallback for runtimes without
-  the store. Overwriting the active meta-profile does not refresh the inline
-  copy (re-activate to refresh it), and `PATCH /api/settings` with
-  `active_meta_profile` sets the pointer and enables the tool without the
-  inline copy; an unknown name is 404 (`F18.dangling-pointers`). With the tool
-  enabled, no pointer and no inline copy, it falls back to the alphabetically
-  first meta-profile in the store.
-- Routing needs the agent to call `route_task_to_model`; the classifier then
-  makes one extra LLM call (metered as `classifier:<profile>`), and the switch
-  takes effect from the next step. A classifier answer outside the classes
-  (or a direct answer naming no saved profile) is an error observation, never
-  a silent default. Keep prompts explicit ("Call the route_task_to_model tool
-  once") and class sets unambiguous when a recipe must be deterministic.
-- `GET /api/meta-profiles` lists files without full validation: unparseable
-  and non-object files are skipped, but a valid JSON object that fails the
-  schema (for example `{"classes": "x"}`) is listed with `classifier_model:
-  null` and is then 400 on `GET` and `activate`. With an unreadable
-  `settings.json` the list reports `active_meta_profile: null`.
-- Deleting a meta-profile is not guarded the way LLM-profile deletion is:
-  `DELETE` answers 200 even while an agent profile names it in
-  `meta_profile_ref`, leaving that reference dangling.
-- A name ending in `.json` is stored without the suffix: saving `qa-x.json`
-  answers `Meta-profile 'qa-x.json' saved` but the file and the list entry
-  are `qa-x`, so `qa-x` and `qa-x.json` overwrite each other.
-- Switching the settings to ACP clears `active_meta_profile` for good;
-  switching back to OpenHands starts from default agent settings (no LLM), so
-  re-activate an LLM profile and the meta-profile afterwards.
-- `503` and `500` bodies use the server's generic shape: `detail` is
-  `Internal Server Error` and the route's message is in `exception`.
-- The store directory comes from `OH_PERSISTENCE_DIR` read at call time
-  (`default_meta_profile_dir()`, through `get_user_persistence_dir`, so `~`
-  is expanded like in every other store), falling back to
-  `~/.openhands/meta-profiles` when it is unset (`F22.persistence-dir`).
+## 陷阱
+
+- 模型引用 (`classifier_model`, 每个类 `model`直接路由答案] LLM 不包括模型字符串，也不在保存或激活元模式时进行检查。 只有当时，才会出现悬空的名称智能体 calls `route_task_to_model`, as an error 观测结果 (`F22.route-missing-profile`).
+- 该工具仅在从设置激活后创建的对话中存在 Agent Canvas path). 一个发送了自己对话 `agent` 它从不理解，运行中的对话会保留工具和参数：下次运行，meta-profile会被覆盖工具调用 （商店获胜），而删除它会保留对话的路由，与它开始时的内联复制。
+- 该工具按名称从商店加载活动元配置文件； 内联
+  `agent_settings.meta_profile` 副本只是没有存储的运行时的回退方案。 覆盖活动元配置文件不会刷新内联副本（重新激活以刷新它），并且 `PATCH /api/settings`
+  `active_meta_profile` 设置指针并启用该工具而不进行内联复制； 未知名称是 404 (`F18.dangling-pointers`)。 启用该工具后，没有指针，也没有内联复制，它会退回到商店中按字母顺序排列的第一个元配置文件。
+- 路由需要智能体调用`route_task_to_model`； 然后分类器进行一次额外的 LLM 调用（按 `classifier:<profile>` 计量），并且切换从下一步开始生效。 类之外的分类器答案（或未命名已保存配置文件的直接答案）是错误观测结果，而不是静默默认值。 当配方必须是确定性的时，保持提示词明确（“调用 route_task_to_model 工具一次”）和类集明确。
+- `GET /api/meta-profiles` 列出不完整的文件验证：跳过不可解析的非对象文件，但未通过模式的有效 JSON 对象（例如 `{"classes": "x"}`）与 `classifier_model: null` 一起列出，然后在 `GET` 和 `activate` 上为 400。 带着不可读的
+  `settings.json`列表报道`active_meta_profile: null`。
+- 删除元配置文件不会像 LLM-配置文件删除那样受到保护：
+  `DELETE` 回答了 200，即使智能体个人资料中提到了它
+  `meta_profile_ref`，使该引用悬空。
+- 以结尾的名称 `.json` 保存时，该字段不带后缀：保存 `qa-x.json` 答案 `Meta-profile 'qa-x.json' saved` 但文件和条目列表项是 `qa-x`, so `qa-x` 和 `qa-x.json` 互相覆盖。
+- 将设置切换为 ACP 会永久清除 `active_meta_profile`； 切换回 OpenHands 从默认智能体设置（无 LLM）开始，因此之后重新激活 LLM 配置文件和元配置文件。
+- `503` 和 `500` 主体使用服务器的通用形状：`detail` 是
+  `Internal Server Error` 且路由的消息在 `exception` 中。
+- 存储目录来自在调用时读取的 `OH_PERSISTENCE_DIR`（`default_meta_profile_dir()`，通过 `get_user_persistence_dir`，因此 `~` 像在所有其他存储中一样展开），回退到
+  `~/.openhands/meta-profiles` 未设置时 (`F22.persistence-dir`)。

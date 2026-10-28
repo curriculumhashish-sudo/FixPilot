@@ -1,12 +1,11 @@
-"""Two-tier persistent-memory loader.
+"""两层持久内存加载器。
 
-Reads the agent-maintained ``MEMORY.md`` indexes -- ``~/.openhands/memory/``
-(user tier) and ``<workspace>/.openhands/memory/`` (project tier) -- into one
-prompt-ready string. LocalConversation resolves this on the first
-``send_message()`` / ``run()`` (the workspace path is unknown when AgentContext
-validates); AgentContext only carries the resolved text. Daily logs
-(``YYYY-MM-DD.md``) in the same directories are deliberately NOT loaded -- the
-agent reads them on demand.
+将智能体维护的 ``MEMORY.md`` 索引 - ``~/.openhands/memory/``（用户层）和
+``<workspace>/.openhands/memory/``（项目层） - 读取到一个提示词就绪字符串中。
+LocalConversation首先解决了这个问题
+``send_message()`` / ``run()``（当AgentContext有效时，工作区路径未知）； AgentContext
+仅包含已解析的文本。 同一目录中
+的每日日志 (``YYYY-MM-DD.md``) 会被有意地不加载——智能体按需读取它们。
 """
 
 from pathlib import Path
@@ -37,10 +36,9 @@ def _read_index(path: Path) -> str | None:
 
 
 def _truncate_top(body: str, budget: int) -> str:
-    """Drop whole lines from the top of ``body`` until it fits ``budget``.
+    """从 ``body`` 顶部删除整行，直到适合 ``budget``。
 
-    A truncated body starts with the truncation notice (which counts toward
-    the budget); partial lines never survive.
+    截断正文以截断通知开始（计入预算）； 部分线路永远不会生存。
     """
     if len(body) <= budget:
         return body
@@ -56,24 +54,22 @@ def _truncate_top(body: str, budget: int) -> str:
 def load_memory(
     working_dir: str | Path, char_budget: int = MEMORY_CHAR_BUDGET
 ) -> str | None:
-    """Load the combined memory-index text for ``working_dir``.
+    """加载 ``working_dir`` 的组合内存索引文本。
 
-    User tier first, project tier second (the later position gets more model
-    attention). Returns ``None`` when neither index has content. Over-budget
-    tiers are truncated line-wise from the top, keeping the most recent tail
-    -- the maintenance instructions tell the agent to append -- while tier
-    headers (and truncation notices) always survive. That skeleton is the
-    budget's effective floor: ``char_budget`` is honored whenever it covers
-    the headers plus one notice per tier (~150 chars for both tiers).
+    用户层第一，项目层第二（后面的位置得到更多模型关注）。 当两个索引都没有内容时返回
+     ``None``。 超出预算的层从顶部开始逐行截断，保留最新的尾部
+    -- 维护说明告诉智能体追加 -- while tier
+    标题（和截断通知）始终保留。 该框架是预算的有效下限：每当 ``char_budget`` 覆盖标
+    题以及每层一个通知（两层约 150 个字符）时，就会受到尊重。
     """
     tiers: list[tuple[str, str]] = []
     user_memory_path = get_user_persistence_dir() / "memory" / "MEMORY.md"
     user_index = _read_index(user_memory_path)
     if user_index is not None:
-        # Name the tier by the path it was actually read from so it matches the
-        # write location advertised in the <MEMORY> guidance. The unexpanded
-        # ``~/.openhands`` fallback keeps the per-user home path out of the
-        # prompt, exactly as MemorySection._user_memory_line does.
+        # 按实际读取的路径命名层，使其与 <MEMORY> 指南中公布的写入位置相匹配。 未展开的
+        # ``~/.openhands`` 回退方案将每个用户的主路径保留在提示词之外，与
+        # MemorySection._user_memory_line 完全相同。
+        #
         user_header_path = to_posix_path(
             get_user_persistence_dir(Path("~/.openhands")) / "memory" / "MEMORY.md"
         )
@@ -88,9 +84,9 @@ def load_memory(
     if len(combined) <= char_budget:
         return combined
 
-    # Headers and blank-line separators are always emitted; the remaining
-    # budget is split evenly across tier bodies, a short tier's unused share
-    # rolling over to the other.
+    # 始终发出标头和空行分隔符； 剩余的预算在各个层级机构之间平均分配，一个短层级的未使
+    # 用份额将滚动到另一个层级。
+    #
     overhead = sum(len(header) + 1 for header, _ in tiers) + 2 * (len(tiers) - 1)
     body_budget = char_budget - overhead
     fair_share = body_budget // len(tiers)

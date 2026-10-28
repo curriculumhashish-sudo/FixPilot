@@ -1,9 +1,9 @@
-"""Tests for workspaces_router endpoints.
+"""测试 workspaces_router 端点。
 
-Workspaces persisted on the agent-server (workspace/.openhands/workspaces.json)
-replace the previous browser-local Zustand store, so every client connected to
-the same server sees the same list. These tests cover the HTTP surface the
-GUI consumes plus the file-locked persistence underneath it.
+工作区已持久化在智能体-服务器（workspace/.openhands/workspaces.json）上替换之前的浏览
+器本地 Zustand 存储，这样连接到同一服务器
+的所有客户端都会看到相同的列表。 这些测试涵盖 GUI 消耗的 HTTP 表面以及其下方的文件锁
+定持久化。
 """
 
 import json
@@ -32,9 +32,9 @@ def client(monkeypatch):
 
 @pytest.fixture
 def client_with_auth(monkeypatch):
-    """Same as ``client`` but with ``session_api_keys`` configured so the
-    ``/api`` header-only auth dependency is active. Used to prove that the
-    workspaces router inherits the same auth as the rest of ``/api``.
+    """与 ``client`` 相同，但配置了 ``session_api_keys``，因此
+    ``/api`` 仅标头身份验证依赖项处于活动状态。 用于证明工作区路由器继承了与 ``/api``
+     的 REST 相同的身份验证。
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         reset_stores()
@@ -50,16 +50,16 @@ def client_with_auth(monkeypatch):
 
 
 def test_list_workspaces_empty_when_no_file(client):
-    # Act
+    # 法案
     response = client.get("/api/workspaces")
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     assert response.json() == {"workspaces": [], "workspaceParents": []}
 
 
 def test_add_workspaces_persists_camelcase_parent_path_and_dedupes_by_path(client):
-    # Arrange
+    # 安排
     payload = {
         "workspaces": [
             {"id": "/a", "name": "a", "path": "/a"},
@@ -72,7 +72,7 @@ def test_add_workspaces_persists_camelcase_parent_path_and_dedupes_by_path(clien
         ]
     }
 
-    # Act: first add seeds the list; second add with an overlapping path is a no-op
+    # 做法：先添加种子列表； 第二个具有重叠路径的添加是无操作
     first = client.post("/api/workspaces", json=payload)
     second = client.post(
         "/api/workspaces",
@@ -80,29 +80,29 @@ def test_add_workspaces_persists_camelcase_parent_path_and_dedupes_by_path(clien
     )
     listed = client.get("/api/workspaces")
 
-    # Assert
+    # 断言
     assert first.status_code == 200
     assert second.status_code == 200
     assert listed.status_code == 200
     body = listed.json()
     assert [w["path"] for w in body["workspaces"]] == ["/a", "/b"]
-    # camelCase wire format preserved — TS LocalWorkspace shape is unchanged.
+    # camelCase 线路格式保留 — TS LocalWorkspace 形状不变。
     assert body["workspaces"][1]["parentPath"] == "/parents/root"
 
 
 def test_delete_workspace_returns_404_when_path_absent(client):
-    # Arrange
+    # 安排
     client.post(
         "/api/workspaces",
         json={"workspaces": [{"id": "/a", "name": "a", "path": "/a"}]},
     )
 
-    # Act
+    # 法案
     removed_present = client.delete("/api/workspaces", params={"path": "/a"})
     removed_missing = client.delete("/api/workspaces", params={"path": "/nope"})
     remaining = client.get("/api/workspaces").json()
 
-    # Assert
+    # 断言
     assert removed_present.status_code == 200
     assert removed_present.json() == {"deleted": True}
     assert removed_missing.status_code == 404
@@ -110,14 +110,14 @@ def test_delete_workspace_returns_404_when_path_absent(client):
 
 
 def test_workspace_parents_add_and_remove_independent_of_workspaces(client):
-    # Arrange: seed one workspace and one parent so we can prove they don't
-    # collide when mutated independently.
+    # 安排：种子一工作区和一位父母，这样我们就可以证明他们没有
+    # 独立突变时发生碰撞。
     client.post(
         "/api/workspaces",
         json={"workspaces": [{"id": "/w", "name": "w", "path": "/w"}]},
     )
 
-    # Act
+    # 法案
     added = client.post(
         "/api/workspaces/parents",
         json={"parents": [{"id": "/p", "name": "p", "path": "/p"}]},
@@ -127,44 +127,43 @@ def test_workspace_parents_add_and_remove_independent_of_workspaces(client):
     missing = client.delete("/api/workspaces/parents", params={"path": "/p"})
     after_remove = client.get("/api/workspaces").json()
 
-    # Assert
+    # 断言
     assert added.status_code == 200
     assert [p["path"] for p in after_add["workspaceParents"]] == ["/p"]
     assert [w["path"] for w in after_add["workspaces"]] == ["/w"]
     assert removed.status_code == 200
     assert missing.status_code == 404
     assert after_remove["workspaceParents"] == []
-    # Workspace survived the parent's removal.
+    # 工作区在父级被移除后仍然存在。
     assert [w["path"] for w in after_remove["workspaces"]] == ["/w"]
 
 
 def test_workspaces_survive_across_requests_via_disk_persistence(client):
-    # Arrange: write something
+    # 整理：写一些东西
     client.post(
         "/api/workspaces",
         json={"workspaces": [{"id": "/keep", "name": "keep", "path": "/keep"}]},
     )
 
-    # Act: confirm it's on disk, then reset the in-memory singleton (simulating
-    # a server restart) and re-read.
+    # 行动：确认它在磁盘上，然后重置内存中的单例（模拟
+    # 服务器重新启动）并重新读取。
     persist_dir = Path(os.environ["OH_PERSISTENCE_DIR"])
     assert (persist_dir / "workspaces.json").exists()
 
     reset_stores()
     listed_again = client.get("/api/workspaces").json()
 
-    # Assert
+    # 断言
     assert [w["path"] for w in listed_again["workspaces"]] == ["/keep"]
 
 
 def test_add_workspaces_dedupes_duplicate_paths_within_single_payload(client):
-    """A single POST body with the same ``path`` twice must persist only once.
+    """具有相同 ``path`` 两次的单个 POST 主体必须仅持久化一次。
 
-    Regression for the case where the dedupe set was computed from the
-    pre-existing list only, so duplicates inside the incoming payload slipped
-    through.
+    回归用于仅根据预先存在的列表计算重复数据删除集的情况，因此传入载荷内的重复项会被
+    漏掉。
     """
-    # Arrange
+    # 安排
     payload = {
         "workspaces": [
             {"id": "first", "name": "first", "path": "/dup"},
@@ -172,21 +171,21 @@ def test_add_workspaces_dedupes_duplicate_paths_within_single_payload(client):
         ]
     }
 
-    # Act
+    # 法案
     response = client.post("/api/workspaces", json=payload)
     listed = client.get("/api/workspaces")
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     body = listed.json()
     assert [w["path"] for w in body["workspaces"]] == ["/dup"]
-    # The first occurrence wins.
+    # 第一次出现获胜。
     assert body["workspaces"][0]["id"] == "first"
 
 
 def test_add_workspace_parents_dedupes_duplicate_paths_within_single_payload(client):
-    """Same dedupe contract for the ``/parents`` endpoint."""
-    # Arrange
+    """``/parents`` 端点的重复数据删除合同相同。"""
+    # 安排
     payload = {
         "parents": [
             {"id": "first", "name": "first", "path": "/p"},
@@ -194,11 +193,11 @@ def test_add_workspace_parents_dedupes_duplicate_paths_within_single_payload(cli
         ]
     }
 
-    # Act
+    # 法案
     response = client.post("/api/workspaces/parents", json=payload)
     listed = client.get("/api/workspaces")
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     body = listed.json()
     assert [p["path"] for p in body["workspaceParents"]] == ["/p"]
@@ -206,15 +205,15 @@ def test_add_workspace_parents_dedupes_duplicate_paths_within_single_payload(cli
 
 
 def test_workspace_with_id_equal_to_long_path_is_accepted(client):
-    """The GUI sends ``id == path``; a path longer than the old 512-char
-    ``id`` cap must still validate now that the cap matches ``path`` (4096).
-    Covers both ``WorkspaceItem`` and ``WorkspaceParentItem``.
+    """GUI发送``id == path``； 比旧的 512 字符更长的路径
+    ``id`` cap 现在仍必须验证 cap 是否匹配 ``path`` (4096)。 涵盖``WorkspaceItem``和
+    ``WorkspaceParentItem``。
     """
-    # Arrange: a 1024-char path — comfortably past the old 512 cap, well
-    # under the 4096 ceiling shared with ``path``.
+    # 安排：1024 个字符的路径 — 轻松超过旧的 512 字符上限，很好
+    # 低于与 ``path`` 共享的 4096 上限。
     long_path = "/" + ("a" * 1023)
 
-    # Act
+    # 法案
     add_workspace = client.post(
         "/api/workspaces",
         json={"workspaces": [{"id": long_path, "name": "deep", "path": long_path}]},
@@ -225,7 +224,7 @@ def test_workspace_with_id_equal_to_long_path_is_accepted(client):
     )
     listed = client.get("/api/workspaces").json()
 
-    # Assert
+    # 断言
     assert add_workspace.status_code == 200, add_workspace.text
     assert add_parent.status_code == 200, add_parent.text
     assert [w["path"] for w in listed["workspaces"]] == [long_path]
@@ -234,14 +233,14 @@ def test_workspace_with_id_equal_to_long_path_is_accepted(client):
 
 
 def test_unset_parent_path_is_omitted_from_response_and_on_disk_json(client):
-    """A workspace without ``parentPath`` must serialize as an absent key,
-    not ``"parentPath": null``.
+    """没有 ``parentPath`` 的工作区必须序列化作为缺席键，
+    不是``"parentPath": null``。
 
-    Both the wire format and ``workspaces.json`` must match the GUI's
-    ``LocalWorkspace.parentPath?: string`` shape — emitting ``null`` violates
-    the contract and breaks strict TS clients.
+    线路格式和 ``workspaces.json`` 都必须与 GUI 匹配
+    ``LocalWorkspace.parentPath?: string`` 形状 — 发射 ``null`` 违反合同并破坏严格的
+    TS 客户端。
     """
-    # Arrange
+    # 安排
     client.post(
         "/api/workspaces",
         json={
@@ -257,12 +256,12 @@ def test_unset_parent_path_is_omitted_from_response_and_on_disk_json(client):
         },
     )
 
-    # Act
+    # 法案
     listed = client.get("/api/workspaces").json()
     on_disk_path = Path(os.environ["OH_PERSISTENCE_DIR"]) / "workspaces.json"
     on_disk = json.loads(on_disk_path.read_text(encoding="utf-8"))
 
-    # Assert: wire format
+    # 断言：有线格式
     no_parent_wire = next(w for w in listed["workspaces"] if w["path"] == "/no-parent")
     has_parent_wire = next(
         w for w in listed["workspaces"] if w["path"] == "/has-parent"
@@ -270,7 +269,7 @@ def test_unset_parent_path_is_omitted_from_response_and_on_disk_json(client):
     assert "parentPath" not in no_parent_wire
     assert has_parent_wire["parentPath"] == "/parents/root"
 
-    # Assert: on-disk format mirrors the wire shape.
+    # 断言：磁盘格式反映了线的形状。
     no_parent_disk = next(w for w in on_disk["workspaces"] if w["path"] == "/no-parent")
     has_parent_disk = next(
         w for w in on_disk["workspaces"] if w["path"] == "/has-parent"
@@ -280,41 +279,40 @@ def test_unset_parent_path_is_omitted_from_response_and_on_disk_json(client):
 
 
 def test_list_workspaces_returns_409_when_persisted_file_is_corrupted(client):
-    """A corrupted ``workspaces.json`` must NOT be silently masked as empty.
+    """损坏的 ``workspaces.json`` 必须将不默默地屏蔽为空。
 
-    Returning an empty list on corruption would let a subsequent POST
-    overwrite the still-on-disk (potentially recoverable) data with defaults.
+    在损坏时返回空列表将使后续的 POST 用默认值覆盖仍在磁盘上（可能可恢复）的数据。
     """
-    # Arrange: seed a real workspace, then clobber the file with garbage.
+    # 安排：播种真实的工作区，然后用垃圾破坏文件。
     client.post(
         "/api/workspaces",
         json={"workspaces": [{"id": "/a", "name": "a", "path": "/a"}]},
     )
     persist_dir = Path(os.environ["OH_PERSISTENCE_DIR"])
     (persist_dir / "workspaces.json").write_text("{not valid json", encoding="utf-8")
-    # Force the next request to re-read from disk rather than the in-memory store.
+    # 强制下一个请求从磁盘而不是内存中重新读取。
     reset_stores()
 
-    # Act
+    # 法案
     response = client.get("/api/workspaces")
 
-    # Assert
+    # 断言
     assert response.status_code == 409
     assert "corrupt" in response.json()["detail"].lower()
 
 
-# ── Auth ─────────────────────────────────────────────────────────────────
+# ── 认证──────────────────────────────────────────────────────────────────
 #
-# The /api router applies a header-only ``X-Session-API-Key`` dependency when
-# ``session_api_keys`` is configured. These tests prove the workspaces router
-# inherits that gate — i.e. an unauthenticated client cannot read or mutate
-# server-side workspace state.
+# /api 路由器在以下情况下应用仅标头 ``X-Session-API-Key`` 依赖项：
+# ``session_api_keys``已配置。 这些测试证明工作区路由器继承了该门 — i.e。 未经身份验证的
+# 客户端无法读取或改变服务器端工作区状态。
+#
 
 
 def test_workspaces_endpoints_require_session_api_key_when_configured(
     client_with_auth,
 ):
-    # Act: hit every state-changing endpoint plus GET without the header.
+    # 行为：击中每个状态改变的端点加GET，不带标题。
     no_header_get = client_with_auth.get("/api/workspaces")
     no_header_post = client_with_auth.post(
         "/api/workspaces",
@@ -332,7 +330,7 @@ def test_workspaces_endpoints_require_session_api_key_when_configured(
         "/api/workspaces", headers={"X-Session-API-Key": "wrong-key"}
     )
 
-    # Assert
+    # 断言
     assert no_header_get.status_code == 401
     assert no_header_post.status_code == 401
     assert no_header_delete.status_code == 401
@@ -342,11 +340,11 @@ def test_workspaces_endpoints_require_session_api_key_when_configured(
 
 
 def test_workspaces_endpoints_accept_valid_session_api_key(client_with_auth):
-    """A valid ``X-Session-API-Key`` lets the same endpoints serve normally."""
-    # Arrange
+    """有效的 ``X-Session-API-Key`` 可以让相同的端点正常服务。"""
+    # 安排
     headers = {"X-Session-API-Key": "test-key-123"}
 
-    # Act
+    # 法案
     listed = client_with_auth.get("/api/workspaces", headers=headers)
     added = client_with_auth.post(
         "/api/workspaces",
@@ -357,21 +355,21 @@ def test_workspaces_endpoints_accept_valid_session_api_key(client_with_auth):
         "/api/workspaces", headers=headers, params={"path": "/a"}
     )
 
-    # Assert
+    # 断言
     assert listed.status_code == 200
     assert added.status_code == 200
     assert deleted.status_code == 200
 
 
 def test_refused_deletes_on_fresh_directory_create_no_workspaces_file(client):
-    # Arrange
+    # 安排
     persist_dir = Path(os.environ["OH_PERSISTENCE_DIR"])
 
-    # Act
+    # 法案
     workspace = client.delete("/api/workspaces", params={"path": "/never"})
     parent = client.delete("/api/workspaces/parents", params={"path": "/never"})
 
-    # Assert: both are 404 and, like a read, write no registry file.
+    # 断言：两者都是404，并且像读、写没有注册表文件一样。
     assert workspace.status_code == 404
     assert workspace.json()["detail"] == "Workspace not found"
     assert parent.status_code == 404
@@ -380,8 +378,8 @@ def test_refused_deletes_on_fresh_directory_create_no_workspaces_file(client):
 
 
 def test_noop_writes_do_not_save_and_keep_their_answer(client, monkeypatch):
-    # Arrange: seed one workspace and one parent, then make every save fail,
-    # standing in for storage the server cannot write.
+    # 安排：种子一工作区和一个父级，然后使每次保存失败，
+    # 代表服务器无法写入的存储。
     from openhands.agent_server.persistence.store import FileWorkspacesStore
 
     workspace = {"id": "/a", "name": "a", "path": "/a"}
@@ -396,7 +394,7 @@ def test_noop_writes_do_not_save_and_keep_their_answer(client, monkeypatch):
 
     monkeypatch.setattr(FileWorkspacesStore, "save", failing_save)
 
-    # Act
+    # 法案
     readd = client.post("/api/workspaces", json={"workspaces": [workspace]})
     readd_parent = client.post("/api/workspaces/parents", json={"parents": [parent]})
     delete_unknown = client.delete("/api/workspaces", params={"path": "/never"})
@@ -408,7 +406,7 @@ def test_noop_writes_do_not_save_and_keep_their_answer(client, monkeypatch):
         json={"workspaces": [{"id": "/b", "name": "b", "path": "/b"}]},
     )
 
-    # Assert: only the real change tries to write.
+    # 断言：只有真正的改变才尝试写入。
     assert readd.status_code == 200
     assert [w["path"] for w in readd.json()["workspaces"]] == ["/a"]
     assert readd_parent.status_code == 200

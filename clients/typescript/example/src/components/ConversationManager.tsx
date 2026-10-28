@@ -15,7 +15,7 @@ interface ConversationData extends ConversationInfo {
   events?: Event[];
 }
 
-// Utility function to extract displayable content from events
+// 从事件中提取可显示内容的实用函数
 const getEventDisplayContent = (event: Event): { title: string; content: string; details?: any } => {
   switch (event.kind) {
     case 'MessageEvent':
@@ -101,10 +101,10 @@ export const ConversationManager: React.FC = () => {
   const [messageInput, setMessageInput] = useState('');
   const [showAllEvents, setShowAllEvents] = useState(false);
 
-  // Get selected conversation data
+  // 获取选定的对话数据
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
-  // Initialize conversation manager
+  // 初始化对话管理器
   useEffect(() => {
     if (settings.agentServerUrl) {
       const conversationManager = new SDKConversationManager({
@@ -116,7 +116,7 @@ export const ConversationManager: React.FC = () => {
     }
   }, [settings.agentServerUrl, settings.agentServerApiKey]);
 
-  // Cleanup WebSocket connections on unmount
+  // 卸载时清理 WebSocket 个连接
   useEffect(() => {
     return () => {
       if (selectedConversation?.remoteConversation) {
@@ -127,7 +127,7 @@ export const ConversationManager: React.FC = () => {
     };
   }, [selectedConversation?.remoteConversation]);
 
-  // Periodic status refresh for running conversations
+  // 定期刷新运行对话的状态
   useEffect(() => {
     if (!selectedConversation?.remoteConversation) return;
 
@@ -144,7 +144,7 @@ export const ConversationManager: React.FC = () => {
       }
     };
 
-    // Refresh every 2 seconds if the agent is running
+    // 如果智能体正在运行，则每 2 秒刷新一次
     const interval = setInterval(() => {
       if (selectedConversation.status === 'running') {
         refreshStatus();
@@ -164,15 +164,15 @@ export const ConversationManager: React.FC = () => {
       const conversationList = await mgr.getAllConversations();
       console.log('Loaded conversations:', conversationList);
       
-      // Convert to our data structure
+      // 转换为我们的数据结构
       const conversationData: ConversationData[] = conversationList.map((conv: ConversationInfo) => ({
         ...conv,
-        // Ensure we have the basic properties
+        // 确保我们拥有基本属性
         id: conv.id,
         agent: conv.agent,
         created_at: conv.created_at,
         updated_at: conv.updated_at,
-        // Map agent_status to status for display
+        // 将 agent_status 映射到状态以进行显示
         status: conv.agent_status || conv.status
       }));
       
@@ -191,7 +191,7 @@ export const ConversationManager: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Create a simple agent configuration
+      // 创建一个简单的智能体配置
       const agent = new Agent({
         llm: {
           model: settings.modelName,
@@ -199,7 +199,7 @@ export const ConversationManager: React.FC = () => {
         }
       });
 
-      // Create a remote workspace
+      // 创建远程工作区
       const workspace = new Workspace({
         host: manager.host,
         workingDir: '/tmp',
@@ -211,7 +211,7 @@ export const ConversationManager: React.FC = () => {
         callback: (event: Event) => {
           console.log('Received WebSocket event for new conversation:', event);
             
-            // Update the conversation's events in real-time
+            // 实时更新对话事件
             setConversations(prev => prev.map(conv => {
               if (conv.id === conversation.id && conv.events) {
                 const updatedEvents = [...conv.events, event];
@@ -225,12 +225,12 @@ export const ConversationManager: React.FC = () => {
 
       console.log('Created conversation:', conversation);
 
-      // Start the conversation with initial message
+      // 使用初始消息开始对话
       await conversation.start({
         initialMessage: 'Hello! I\'m ready to help you with your tasks.'
       });
       
-      // Start WebSocket client for real-time updates
+      // 启动WebSocket客户端进行实时更新
       try {
         await conversation.startWebSocketClient();
         console.log('WebSocket client started for new conversation');
@@ -238,7 +238,7 @@ export const ConversationManager: React.FC = () => {
         console.warn('Failed to start WebSocket client for new conversation:', wsErr);
       }
       
-      // Run the initial message to start the conversation
+      // 运行初始消息以开始对话
       try {
         await conversation.run();
         console.log('Started conversation with initial message');
@@ -246,7 +246,7 @@ export const ConversationManager: React.FC = () => {
         console.warn('Failed to run initial message:', runErr);
       }
       
-      // Reload conversations to show the new one
+      // 重新加载对话以显示新对话
       await loadConversations();
     } catch (err) {
       console.error('Failed to create conversation:', err);
@@ -264,12 +264,12 @@ export const ConversationManager: React.FC = () => {
     try {
       await manager.deleteConversation(conversationId);
       
-      // Clear selection if this conversation was selected
+      // 如果选择了此对话，则清除选择
       if (selectedConversationId === conversationId) {
         setSelectedConversationId(null);
       }
 
-      // Reload conversations list
+      // 重新加载对话列表
       await loadConversations();
     } catch (err) {
       console.error('Failed to delete conversation:', err);
@@ -282,7 +282,7 @@ export const ConversationManager: React.FC = () => {
   const selectConversation = async (conversationId: string) => {
     if (!manager) return;
 
-    // Clean up previous conversation's WebSocket if any
+    // 清除之前对话的 WebSocket（如果有）
     if (selectedConversation?.remoteConversation) {
       try {
         await selectedConversation.remoteConversation.stopWebSocketClient();
@@ -295,31 +295,31 @@ export const ConversationManager: React.FC = () => {
     console.log('Selecting conversation:', conversationId);
     setSelectedConversationId(conversationId);
     
-    // Load conversation details
+    // 加载对话详细信息
     try {
-      // Get the conversation info to extract the agent
+      // 获取对话信息提取智能体
       const conversationInfo = conversations.find(c => c.id === conversationId);
       if (!conversationInfo) {
         throw new Error('Conversation not found');
       }
 
-      // Create a callback to handle real-time events
+      // 创建回调来处理实时事件
       const eventCallback = (event: Event) => {
         console.log('Received WebSocket event:', event);
         
-        // Update the conversation's events in real-time
+        // 实时更新对话事件
         setConversations(prev => prev.map(conv => {
           if (conv.id === conversationId && conv.events) {
-            // Add the new event to the existing events
+            // 将新事件添加到现有事件中
             const updatedEvents = [...conv.events, event];
             return { ...conv, events: updatedEvents };
           }
           return conv;
         }));
         
-        // If it's a status change event, update the agent status
+        // 如果是状态更改事件，则更新智能体状态
         if (event.type === 'agent_status_change' || event.type === 'agent_state_changed') {
-          // Refresh agent status after a short delay to ensure the server has updated
+          // 短暂延迟后刷新智能体状态以确保服务器已更新
           setTimeout(() => {
             if (remoteConversation) {
               remoteConversation.state.getAgentStatus().then(status => {
@@ -334,41 +334,41 @@ export const ConversationManager: React.FC = () => {
         }
       };
       
-      // Create a remote workspace for the existing conversation
+      // 为现有对话创建远程工作区
       const workspace = new Workspace({
         host: manager.host,
         workingDir: '/tmp',
         apiKey: manager.apiKey
       });
 
-      // Load conversation with callback
+      // 加载与回调的对话
       const remoteConversation = new Conversation(conversationInfo.agent, workspace, {
         conversationId: conversationId,
         callback: eventCallback,
       });
 
-      // Connect to the existing conversation
+      // 连接到现有对话
       await remoteConversation.start();
       console.log('Loaded remote conversation:', remoteConversation);
       
-      // Start WebSocket client for real-time updates
+      // 启动WebSocket客户端进行实时更新
       try {
         await remoteConversation.startWebSocketClient();
         console.log('WebSocket client started for conversation:', conversationId);
       } catch (wsErr) {
         console.warn('Failed to start WebSocket client:', wsErr);
-        // Don't fail the whole operation if WebSocket fails
+        // 如果 WebSocket 失败，整个操作不会失败
       }
       
-      // Get events
+      // 获取事件
       const events = await remoteConversation.state.events.getEvents();
       console.log('Loaded events:', events);
       
-      // Get agent status
+      // 获取智能体状态
       const agentStatus = await remoteConversation.state.getAgentStatus();
       console.log('Agent status:', agentStatus);
       
-      // Update the conversation in our state with additional details
+      // 更新我们州的对话并提供更多详细信息
       setConversations(prev => prev.map(conv => 
         conv.id === conversationId 
           ? { ...conv, remoteConversation, events, status: agentStatus }
@@ -385,16 +385,16 @@ export const ConversationManager: React.FC = () => {
     if (!selectedConversation?.remoteConversation || !messageInput.trim()) return;
 
     try {
-      // Send the message
+      // 发送消息
       await selectedConversation.remoteConversation.sendMessage(messageInput);
       setMessageInput('');
       
-      // Start the agent to process the message (non-blocking)
+      // 启动智能体处理消息（非阻塞）
       await selectedConversation.remoteConversation.run();
       console.log('Agent started to process the message');
       
-      // The WebSocket will receive events as the agent works
-      // No need to reload immediately - events will come via WebSocket
+      // WebSocket 将在智能体工作时接收事件无需立即重新加载 - 事件将通过 WebSocket 发送
+      //
     } catch (err) {
       console.error('Failed to send message or start agent:', err);
       setError(err instanceof Error ? err.message : 'Failed to send message or start agent');
@@ -573,12 +573,12 @@ export const ConversationManager: React.FC = () => {
                 <div className="max-h-64 overflow-y-auto space-y-3">
                   {selectedConversation.events && selectedConversation.events.length > 0 ? (
                     (() => {
-                      // Sort events by timestamp (most recent first)
+                      // 按时间戳对事件进行排序（最近的在前）
                       const sortedEvents = [...selectedConversation.events].sort((a, b) => 
                         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
                       );
                       
-                      // Show only the most recent event unless expanded
+                      // 仅显示最近的事件，除非展开
                       const eventsToShow = showAllEvents ? sortedEvents : sortedEvents.slice(0, 1);
                       
                       return eventsToShow.map((event, index) => {
@@ -676,7 +676,7 @@ export const ConversationManager: React.FC = () => {
                           try {
                             await selectedConversation.remoteConversation.run();
                             console.log('Agent started manually');
-                            // Reload conversation details
+                            // 重新加载对话详细信息
                             await selectConversation(selectedConversation.id);
                           } catch (err) {
                             console.error('Failed to start agent:', err);
@@ -696,7 +696,7 @@ export const ConversationManager: React.FC = () => {
                           try {
                             await selectedConversation.remoteConversation.pause();
                             console.log('Agent paused manually');
-                            // Reload conversation details
+                            // 重新加载对话详细信息
                             await selectConversation(selectedConversation.id);
                           } catch (err) {
                             console.error('Failed to pause agent:', err);

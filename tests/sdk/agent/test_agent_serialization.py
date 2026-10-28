@@ -1,4 +1,4 @@
-"""Test agent JSON serialization with DiscriminatedUnionMixin."""
+"""使用 DiscriminatedUnionMixin 测试智能体 JSON 序列化。"""
 
 import json
 from collections.abc import Mapping
@@ -33,7 +33,7 @@ def dump_agent_mcp_config(agent: AgentBase) -> dict[str, dict[str, Any]]:
 
 
 def create_mock_mcp_tool(name: str) -> MCPToolDefinition:
-    # Create mock MCP tool and client
+    # 创建模拟对象 MCP 工具和客户端
     mock_mcp_tool = mcp.types.Tool(
         name=name,
         description=f"A test MCP tool named {name}",
@@ -47,22 +47,22 @@ def create_mock_mcp_tool(name: str) -> MCPToolDefinition:
     )
     mock_client = Mock(spec=MCPClient)
     tools = MCPToolDefinition.create(mock_mcp_tool, mock_client)
-    return tools[0]  # Extract single tool from sequence
+    return tools[0]  # 从序列中提取单个工具
 
 
 def test_agent_supports_polymorphic_json_serialization() -> None:
-    """Test that Agent supports polymorphic JSON serialization/deserialization."""
-    # Create a simple LLM instance and agent with empty tools
+    """测试智能体支持多态 JSON 序列化/反序列化。"""
+    # 使用空工具创建一个简单的 LLM 实例和智能体
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Serialize to JSON (excluding non-serializable fields)
+    # 序列化到 JSON（不包括不可序列化字段）
     agent_json = agent.model_dump_json()
 
-    # Deserialize from JSON using the base class
+    # 反序列化来自 JSON 使用基类
     deserialized_agent = AgentBase.model_validate_json(agent_json)
 
-    # Should deserialize to the correct type and have same core fields
+    # 应该反序列化为正确的类型并具有相同的核心字段
     assert isinstance(deserialized_agent, Agent)
     assert deserialized_agent.model_dump() == agent.model_dump()
 
@@ -75,7 +75,7 @@ def test_mcp_tool_serialization():
 
 
 def test_agent_serialization_redacts_mcp_config_by_default() -> None:
-    """MCP SecretStr values are redacted during default serialization."""
+    """默认序列化期间，MCP SecretStr 值为已脱敏。"""
     llm = LLM(model="test-model", usage_id="test-llm")
     config = {
         "mcpServers": {
@@ -89,7 +89,7 @@ def test_agent_serialization_redacts_mcp_config_by_default() -> None:
     }
     agent = Agent(llm=llm, tools=[], mcp_config=mcp_config_model(config))
 
-    # mcp_config should be accessible in memory with full secrets
+    # mcp_config 应该可以在内存中通过完整的机密进行访问
     assert dump_agent_mcp_config(agent) == config["mcpServers"]
     dumped_env = dump_agent_mcp_config(agent)["dummy"]["env"]
     assert isinstance(dumped_env, dict)
@@ -107,7 +107,7 @@ def test_agent_serialization_redacts_mcp_config_by_default() -> None:
 
 
 def test_agent_serialization_exposes_mcp_config_with_expose_secrets() -> None:
-    """Test that mcp_config is exposed when expose_secrets=True."""
+    """测试当expose_secrets=True时mcp_config暴露。"""
     llm = LLM(model="test-model", usage_id="test-llm")
     config = {
         "mcpServers": {
@@ -120,7 +120,7 @@ def test_agent_serialization_exposes_mcp_config_with_expose_secrets() -> None:
     }
     agent = Agent(llm=llm, tools=[], mcp_config=mcp_config_model(config))
 
-    # With expose_secrets=True, mcp_config should be returned as-is
+    # 当 expose_secrets=True 时，mcp_config 应按原样返回
     agent_dump = agent.model_dump(mode="json", context={"expose_secrets": True})
     server = agent_dump["mcp_config"]["dummy"]
     assert isinstance(server["env"], dict)
@@ -128,7 +128,7 @@ def test_agent_serialization_exposes_mcp_config_with_expose_secrets() -> None:
     assert server["args"] == ["dummy-mcp"]
     assert server["env"]["API_KEY"] == "super-secret-key"
 
-    # Round-trip should preserve the config
+    # 往返应该保留配置
     agent_json = agent.model_dump_json(context={"expose_secrets": True})
     deserialized_agent = AgentBase.model_validate_json(agent_json)
     assert isinstance(deserialized_agent, Agent)
@@ -136,7 +136,7 @@ def test_agent_serialization_exposes_mcp_config_with_expose_secrets() -> None:
 
 
 def test_agent_serialization_encrypts_mcp_config_with_cipher() -> None:
-    """MCP SecretStr values are encrypted when cipher context is provided."""
+    """当提供密码上下文时，MCP SecretStr 值将被加密。"""
     from openhands.sdk.utils.cipher import Cipher
 
     llm = LLM(model="test-model", usage_id="test-llm")
@@ -164,7 +164,7 @@ def test_agent_serialization_encrypts_mcp_config_with_cipher() -> None:
 
 
 def test_agent_mcp_config_encryption_decryption_roundtrip() -> None:
-    """Test full roundtrip: encrypt on serialize, decrypt on deserialize."""
+    """测试完整往返：在序列化上加密，在反序列化上解密。"""
     from openhands.sdk.utils.cipher import Cipher
 
     llm = LLM(model="test-model", usage_id="test-llm")
@@ -181,15 +181,15 @@ def test_agent_mcp_config_encryption_decryption_roundtrip() -> None:
     agent = Agent(llm=llm, tools=[], mcp_config=mcp_config_model(config))
     cipher = Cipher(secret_key="test-encryption-key-roundtrip")
 
-    # Serialize with cipher
+    # 序列化带密码
     agent_json = agent.model_dump_json(context={"cipher": cipher})
 
-    # Deserialize with same cipher
+    # 反序列化具有相同的密码
     restored_agent = AgentBase.model_validate_json(
         agent_json, context={"cipher": cipher}
     )
 
-    # mcp_config should be restored correctly
+    # mcp_config应该正确恢复
     assert isinstance(restored_agent, Agent)
     assert dump_agent_mcp_config(restored_agent) == config["mcpServers"]
 
@@ -203,7 +203,7 @@ def test_agent_mcp_config_accepts_plaintext_dict() -> None:
         "kind": "Agent",
     }
 
-    # Deserialize - should work without cipher
+    # 反序列化 - 无需密码即可工作
     agent = AgentBase.model_validate(agent_dict)
 
     assert isinstance(agent, Agent)
@@ -211,7 +211,7 @@ def test_agent_mcp_config_accepts_plaintext_dict() -> None:
 
 
 def test_agent_mcp_config_decrypts_nested_env_and_headers_with_cipher() -> None:
-    """Encrypted per-value MCP env/header settings decrypt at agent validation."""
+    """加密的每个值 MCP 环境/标头设置在智能体验证处解密。"""
     from pydantic import SecretStr
 
     from openhands.sdk.utils.cipher import Cipher
@@ -283,47 +283,47 @@ def test_agent_mcp_config_rejects_malformed_secret_containers() -> None:
 
 
 def test_agent_supports_polymorphic_field_json_serialization() -> None:
-    """Test that Agent supports polymorphic JSON serialization when used as a field."""
+    """测试智能体在用作字段时是否支持多态 JSON 序列化。"""
 
     class Container(BaseModel):
-        agent: Agent  # Use direct Agent type instead of DiscriminatedUnionType
+        agent: Agent  # 直接使用智能体类型而不是 DiscriminatedUnionType
 
-    # Create container with agent
+    # 使用智能体创建容器
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     container = Container(agent=agent)
 
-    # Serialize to JSON (excluding non-serializable fields)
+    # 序列化到 JSON（不包括不可序列化字段）
     container_json = container.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_container = Container.model_validate_json(container_json)
 
-    # Should preserve the agent type and core fields
+    # 应保留智能体类型和核心字段
     assert isinstance(deserialized_container.agent, Agent)
     assert deserialized_container.agent.model_dump() == agent.model_dump()
 
 
 def test_agent_supports_nested_polymorphic_json_serialization() -> None:
-    """Test that Agent supports nested polymorphic JSON serialization."""
+    """测试智能体支持嵌套多态 JSON 序列化。"""
 
     class NestedContainer(BaseModel):
-        agents: list[Agent]  # Use direct Agent type
+        agents: list[Agent]  # 使用直接智能体类型
 
-    # Create container with multiple agents
+    # 创建具有多个智能体的容器
     llm1 = LLM(model="model-1", usage_id="test-llm")
     llm2 = LLM(model="model-2", usage_id="test-llm")
     agent1 = Agent(llm=llm1, tools=[])
     agent2 = Agent(llm=llm2, tools=[])
     container = NestedContainer(agents=[agent1, agent2])
 
-    # Serialize to JSON (excluding non-serializable fields)
+    # 序列化到 JSON（不包括不可序列化字段）
     container_json = container.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_container = NestedContainer.model_validate_json(container_json)
 
-    # Should preserve all agent types and core fields
+    # 应保留所有智能体类型和核心字段
     assert len(deserialized_container.agents) == 2
     assert isinstance(deserialized_container.agents[0], Agent)
     assert isinstance(deserialized_container.agents[1], Agent)
@@ -332,16 +332,16 @@ def test_agent_supports_nested_polymorphic_json_serialization() -> None:
 
 
 def test_agent_model_validate_json_dict() -> None:
-    """Test that Agent.model_validate works with dict from JSON."""
-    # Create agent
+    """测试 Agent.model_validate 是否适用于 JSON 中的 dict。"""
+    # 创建智能体
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Serialize to JSON, then parse to dict
+    # 序列化到JSON，然后解析为dict
     agent_json = agent.model_dump_json()
     agent_dict = json.loads(agent_json)
 
-    # Deserialize from dict
+    # 反序列化来自字典
     deserialized_agent = AgentBase.model_validate(agent_dict)
 
     assert deserialized_agent.model_dump() == agent.model_dump()
@@ -349,26 +349,26 @@ def test_agent_model_validate_json_dict() -> None:
 
 
 def test_agent_fallback_behavior_json() -> None:
-    """Test that Agent handles unknown types gracefully in JSON."""
-    # Create JSON with unknown kind
+    """测试智能体是否能够在 JSON 中优雅地处理未知类型。"""
+    # 创建类型未知的 JSON
     agent_dict = {"llm": {"model": "test-model"}, "kind": "UnknownAgentType"}
     agent_json = json.dumps(agent_dict)
 
-    # Should throw validation error
+    # 应该抛出验证错误
     with pytest.raises(ValueError):
         AgentBase.model_validate_json(agent_json)
 
 
 def test_agent_preserves_pydantic_parameters_json() -> None:
-    """Test that Agent preserves Pydantic parameters through JSON serialization."""
-    # Create agent with extra data
+    """测试智能体是否保留 Pydantic 到 JSON 序列化的参数。"""
+    # 使用额外数据创建智能体
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Serialize to JSON
+    # 序列化至JSON
     agent_json = agent.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_agent = AgentBase.model_validate_json(agent_json)
 
     assert deserialized_agent.model_dump() == agent.model_dump()
@@ -376,62 +376,62 @@ def test_agent_preserves_pydantic_parameters_json() -> None:
 
 
 def test_agent_type_annotation_works_json() -> None:
-    """Test that AgentType annotation works correctly with JSON."""
-    # Create agent
+    """测试 AgentType 注释是否与 JSON 一起正常工作。"""
+    # 创建智能体
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Use AgentType annotation
+    # 使用AgentType注释
     class TestModel(OpenHandsModel):
         agent: AgentBase
 
     model = TestModel(agent=agent)
 
-    # Serialize to JSON
+    # 序列化至JSON
     model_json = model.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_model = TestModel.model_validate_json(model_json)
 
-    # Should work correctly
+    # 应该可以正常工作
     assert isinstance(deserialized_model.agent, Agent)
     assert deserialized_model.agent.model_dump() == agent.model_dump()
     assert deserialized_model.model_dump() == model.model_dump()
 
 
 def test_agent_type_annotation_on_basemodel_works_json() -> None:
-    """Test that AgentType annotation works correctly with JSON."""
-    # Create agent
+    """测试 AgentType 注释是否与 JSON 一起正常工作。"""
+    # 创建智能体
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Use AgentType annotation
+    # 使用AgentType注释
     class TestModel(BaseModel):
         agent: AgentBase
 
     model = TestModel(agent=agent)
 
-    # Serialize to JSON
+    # 序列化至JSON
     model_json = model.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_model = TestModel.model_validate_json(model_json)
 
-    # Should work correctly
+    # 应该可以正常工作
     assert isinstance(deserialized_model.agent, Agent)
     assert deserialized_model.agent.model_dump() == agent.model_dump()
     assert deserialized_model.model_dump() == model.model_dump()
 
 
 def test_include_default_tools_serialization_default() -> None:
-    """Test that include_default_tools serializes correctly with default value."""
+    """测试 include_default_tools 使用默认值是否正确序列化。"""
     llm = LLM(model="test-model", usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
 
-    # Serialize to JSON
+    # 序列化至JSON
     agent_json = agent.model_dump_json()
     agent_dict = json.loads(agent_json)
 
-    # Default should include both FinishTool and ThinkTool as strings
+    # 默认应包含 FinishTool 和 ThinkTool 作为字符串
     assert "include_default_tools" in agent_dict
     assert set(agent_dict["include_default_tools"]) == {"FinishTool", "ThinkTool"}

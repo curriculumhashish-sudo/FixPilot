@@ -1,19 +1,18 @@
-"""Versioned, allowlisted diagnostic-event contract for product analytics.
+"""用于产品分析的版本化、允许的诊断事件合同。
 
-Everything that can ever leave this process as product analytics is declared
-here as a frozen Pydantic model whose every field is a *constrained* scalar.
-This is deliberate: a plain ``str`` field can hold a prompt, a traceback, or an
-API key, so no property field is typed ``str``, ``Any``, ``dict`` or ``list``.
-A leak therefore becomes a construction-time :class:`ValidationError` rather
-than something a reviewer has to notice.
+Pydantic模型在这里被声明为冻结模型，其中每个字段都是*约束*的标量。 这是故意的：普通的
+ ``str`` 字段可以保存提示词、回溯或 API 键，因此不会键入属性字
+段 ``str``、``Any``、``dict`` 或 ``list``。 因此，泄漏变成了构建时：class:
+`ValidationError` 而不是审阅者必须注意到
+的事情。
 
-The single intentional exception is :attr:`DiagnosticEvent.distinct_id`, which
-carries the caller-supplied ``user_id`` verbatim so events correlate with the
-identity the hosting deployment already owns. It is documented as a
+唯一的 intentional exception 是：attr:`DiagnosticEvent.distinct_id`，它保留了调用者提
+供的 ``user_id``，
+因此事件与托管部署已拥有的身份相关联。 它被记录为
 pass-through and excluded from the "no bare str" rule by design, not by
-oversight.
+监督。
 
-This module must not import any analytics vendor SDK.
+该模块不得导入任何分析供应商 SDK。
 """
 
 from datetime import datetime
@@ -28,7 +27,7 @@ from openhands.agent_server.telemetry_types import DeploymentKind
 TELEMETRY_SCHEMA_VERSION: Final[int] = 1
 
 SafeToken = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:\-]{0,63}$")]
-"""Lowercase enum-ish token: ``finished``, ``anthropic``, ``0-5s``."""
+"""小写枚举-ish token：``finished``、``anthropic``、``0-5s``。"""
 
 SafeIdentifier = Annotated[
     str,
@@ -37,34 +36,33 @@ SafeIdentifier = Annotated[
         pattern=r"^[A-Za-z_][A-Za-z0-9_]*([.:][A-Za-z_][A-Za-z0-9_]*)*$",
     ),
 ]
-"""A dotted Python identifier: ``ValueError``, ``litellm:RateLimitError``.
+"""点线 Python 标识符：``ValueError``、``litellm:RateLimitError``。
 
-Deliberately *stricter* than a general token — no dashes, spaces, slashes or
-``@``. That rules out the shapes secrets and paths actually take: an API key
-(``sk-ant-api03-…``) and a filesystem path both fail this pattern, so neither
-can occupy an ``error_class`` field even if a future caller passes one in.
+刻意 * 比一般 token 更严格 * — 没有破折号、空格、斜线或
+``@``. 这就排除了形状机密和路径：一个API键（``sk-ant-api03-…``）和一个文件系统路径都
+失败了这个模式，因此即使未来的调用者传递一个，也无法占用
+``error_class``字段。
 """
 
 VersionToken = Annotated[
     str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.+\-/]{0,63}$")
 ]
-"""A release identifier: ``1.36.1``, ``refs/heads/main``, ``unknown``.
+"""版本标识符：``1.36.1``、``refs/heads/main``、``unknown``。
 
-Separate from :data:`SafeIdentifier` because versions legitimately start with a
-digit and contain dots, dashes and slashes. These values come from
-``importlib.metadata`` and build-time environment variables, never from user
-input.
+与：data:`SafeIdentifier` 分开，因为版本合法地以数字开头并包含点、破折号和斜杠。 这些
+值来自
+``importlib.metadata`` 和构建时环境变量，绝不来自用户输入。
 """
 
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{16,64}$")]
-"""Lowercase hex digest produced by :mod:`.sanitizer`."""
+"""由：mod:`.sanitizer` 生成的小写十六进制摘要。"""
 
 Bucket = SafeToken
-"""A bucketed magnitude such as ``11-50``. Never a raw count."""
+"""分桶大小，例如 ``11-50``。 从未计数。"""
 
 
 class EventName(StrEnum):
-    """Stable event names. The wire value is the member value."""
+    """稳定的事件名称。 连线值是成员值。"""
 
     SERVER_STARTED = "agent_server.server_started"
     SERVER_STOPPED = "agent_server.server_stopped"
@@ -134,7 +132,7 @@ ERROR_CATEGORY_BY_CLASS_NAME: Final[dict[str, ErrorCategory]] = {
 
 
 class RuntimeProperties(BaseModel):
-    """Coarse, non-identifying facts about the process emitting the event."""
+    """有关发出事件的进程的粗略的、非识别性的事实。"""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -173,10 +171,10 @@ class ConversationStartedProperties(_BaseProperties):
 
 
 class ConversationOutcomeProperties(_BaseProperties):
-    """Terminal outcome. Magnitudes are bucketed, never raw.
+    """最终结果。 数量级是桶装的，而不是原始的。
 
-    Raw counts joined with a timestamp are a re-identification vector, so
-    duration/iterations/tokens/cost are all reported as coarse buckets.
+    与时间戳连接的原始计数是一个重新识别向量，因此持续时间/迭代/令牌/成本都被报告为粗
+    桶。
     """
 
     kind: Literal["conversation_outcome"] = "conversation_outcome"
@@ -191,10 +189,10 @@ class ConversationOutcomeProperties(_BaseProperties):
 
 
 class ErrorProperties(_BaseProperties):
-    """A failure, reduced to a groupable shape.
+    """失败，沦为可分组的形状。
 
-    Notably absent: the exception message, the traceback, and any path. See
-    :func:`openhands.agent_server.telemetry.sanitizer.normalize_exception`.
+    值得注意的是，不存在：异常消息、回溯和任何路径。 参见
+    :func:`openhands.agent_server.telemetry.sanitizer.normalize_exception`。
     """
 
     kind: Literal["error"] = "error"
@@ -213,10 +211,10 @@ class ErrorProperties(_BaseProperties):
 
 
 class RequestFailedProperties(_BaseProperties):
-    """An unhandled 5xx.
+    """未处理的 5xx。
 
-    ``route_template`` is the parametrised route (``/api/conversations/{id}``),
-    never the concrete path, which embeds identifiers.
+    ``route_template`` 是参数化路径 (``/api/conversations/{id}``)，而不是嵌入标识符的
+    具体路径。
     """
 
     kind: Literal["request_failed"] = "request_failed"
@@ -243,7 +241,7 @@ DiagnosticProperties = Annotated[
 
 
 class DiagnosticEvent(BaseModel):
-    """One sanitized analytics event. The only thing a sink ever accepts."""
+    """一项经过净化的分析事件。 水槽唯一接受的东西。"""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -253,13 +251,13 @@ class DiagnosticEvent(BaseModel):
     insert_id: SafeToken | None = None
 
     distinct_id: Annotated[str, StringConstraints(min_length=1, max_length=256)]
-    """Correlation identity, passed through verbatim.
+    """相关恒等式，逐字传递。
 
-    This is the deployment-supplied ``user_id`` when present, so events land on
-    the person the hosting deployment already identified, or ``anon:<hex>`` for
-    an unidentified local session. It is the one field intentionally exempt
+    这是部署提供的 ``user_id``，如果存在的话，事件会落在已经识别的托管部署所标识的人
+    身上，或者 ``anon:<hex>`` 对于一个未标识的本地会话。 这
+    是有意豁免的一个领域
     from the constrained-token rule — correlation requires the value to match
-    the host's id byte for byte. It is never used to *create* an identity; see
+    主机的 id 字节为字节。 它绝不会用于*创建*身份； 看到
     ``posthog_exporter``.
     """
 
@@ -267,10 +265,9 @@ class DiagnosticEvent(BaseModel):
     properties: DiagnosticProperties
 
     def to_payload(self) -> dict[str, object]:
-        """Flatten to the property bag an exporter sends.
+        """压平至出口商发送的财产袋。
 
-        ``distinct_id`` is excluded — it is the transport's addressing field,
-        not an event property.
+        ``distinct_id`` 被排除——它是传输层的寻址字段，而不是事件属性。
         """
         payload: dict[str, object] = {
             "schema_version": self.schema_version,
@@ -282,7 +279,7 @@ class DiagnosticEvent(BaseModel):
         return payload
 
 
-#: A deny test asserts the models produce exactly this set.
+# ：拒绝测试断言模型准确地生成了该组。
 EXPECTED_PROPERTY_NAMES: Final[frozenset[str]] = frozenset(
     {
         "schema_version",

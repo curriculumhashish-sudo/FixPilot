@@ -106,7 +106,7 @@ async function loadFromPinnedImage(repositoryRoot, image, version) {
       try {
         docker(repositoryRoot, 'stop', containerId);
       } catch {
-        // The --rm container may already have stopped itself.
+        // --rm 容器可能已经自行停止。
       }
     }
   }

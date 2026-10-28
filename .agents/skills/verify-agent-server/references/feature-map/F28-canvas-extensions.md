@@ -1,25 +1,18 @@
-# Canvas apps: install, catalog and backend lifecycle
+<a id="canvas-apps-install-catalog-and-backend-lifecycle"></a>
 
-Agent Canvas apps ("canvas extensions") are UI bundles the server installs and
-serves: a directory with a `canvas-extension.json` manifest (schema 1), an
-entrypoint bundle, an optional SVG icon and an optional backend. A consumer
-installs one from a local directory, a git URL (`file://` included) or the
-`github:owner/repo` shorthand; it always lands disabled, keyed by the
-manifest's `name`, and is listed with its manifest re-validated from disk on
-every read. The bundle and icon are served byte for byte. An app that
-declares a `backend` gets an explicit, revision-pinned lifecycle: `GET .../backend`
-reports the state and the revision, `prepare` verifies the artifact's sha256
-and extracts it read-only (the approval), `start` runs the prepared revision in
-its own process group with only `HOME` (plus the allow-listed variables the
-manifest asks to inherit) in its environment and waits for its health check, `stop` kills the group, `logs` returns bounded stdout/stderr and
-`DELETE .../backend/data` wipes the app's mutable data. Installs and approvals
-persist across restarts; running backends do not.
+# Canvas 应用程序：安装、目录和后端生命周期
 
-Source: `openhands-agent-server/openhands/agent_server/canvas_extensions_router.py`, `openhands-agent-server/openhands/agent_server/canvas_extensions/`, `openhands-sdk/openhands/sdk/extensions/`
+Agent Canvas 应用程序（“画布扩展”）是服务器安装的 UI 捆绑包，
+服务：具有 `canvas-extension.json` 清单 (模式 1) 的目录，
+入口捆绑包、可选的 SVG 图标和可选的后端。 消费者从本地目录、git URL（包括 `file://`）或
+`github:owner/repo` 简写； 它总是被禁用，由清单的 `name` 键入，并在每次读取时从磁盘重新验证其清单。 捆绑包和图标按字节提供。 声明了 `backend` 的应用会获得一个明确的、修订锁定的生命周期：`GET .../backend` 报告状态和修订号，`prepare` 验证其 sha256 哈希并提取它只读（批准），`start` 在自己的进程组中运行准备好的修订，只使用 `HOME`（加上 manifest 要继承的允许列表变量）作为环境变量，等待健康检查，`stop` 杀死组，`logs` 返回有界标准输出和标准错误
+`DELETE .../backend/data` 擦除应用程序的可变数据。 重新启动后的安装和批准持久化； 运行后端则不会。
 
-Needs: `git`, `node`
+资料来源：`openhands-agent-server/openhands/agent_server/canvas_extensions_router.py`、`openhands-agent-server/openhands/agent_server/canvas_extensions/`、`openhands-sdk/openhands/sdk/extensions/`
 
-Launch: `--env TZ=UTC`
+需求：`git`、`node`
+
+发射：`--env TZ=UTC`
 
 Routes: `POST /api/canvas-extensions/install`, `GET /api/canvas-extensions/installed`,
 `GET /api/canvas-extensions/installed/{extension_name}`,
@@ -34,101 +27,80 @@ Routes: `POST /api/canvas-extensions/install`, `GET /api/canvas-extensions/insta
 `GET /api/canvas-extensions/installed/{extension_name}/bundle`,
 `GET /api/canvas-extensions/installed/{extension_name}/icon`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F28.install-local`: installing from a local directory answers 200 with the app disabled (even when the body says `"enabled": true`), `resolved_ref` null and the validated manifest, copies it under `canvas-extensions/installed/<name>/` and records it in `.installed.json`, and the list and GET views agree.
-- `F28.install-git`: a `file://` git URL installs as a git source: `resolved_ref` is the repository's HEAD commit and the clone is cached under `cache/extensions/`.
-- `F28.install-ref`: `ref` pins a git install to that commit (`version` and `resolved_ref` are the pinned commit's, `.installed.json` records `requested_ref`), a forced install without `ref` moves to the branch head, and an unknown ref on a source that was never fetched is 400 and installs nothing.
-- `F28.install-repo-path`: `repo_path` installs a subdirectory of the source and is echoed back; a missing subdirectory or one that escapes the source is 400, and a source root without a manifest is 422.
-- `F28.install-errors`: an unreadable source is 400 (missing path, unparseable string, bad `github:` shorthand, `file://` URL of a non-repository), a missing or empty `source` or an invalid manifest (bad JSON, bad name, escaping or missing entrypoint, wrong `schema_version`) is 422, no key is 401, and nothing is installed.
-- `F28.bundle`: `GET .../bundle` serves the installed entrypoint byte for byte with `Cache-Control: no-cache`, an `ETag` and a JavaScript content type, whether or not the app is enabled.
-- `F28.icon`: `GET .../icon` serves the declared SVG byte for byte as `image/svg+xml` with a sandboxing CSP and `nosniff`; an app without an icon is 404.
-- `F28.enable-disable`: `PATCH .../installed/{name}` toggles `enabled`, and both GET and `.installed.json` show the new value; a non-boolean body is 422.
-- `F28.unknown-name`: an unknown name is 404 on GET, PATCH, DELETE, bundle and icon, a non-kebab-case name is 422 on every route, and the routes need the session key.
-- `F28.list-discovery`: a valid app directory copied into `installed/` by hand is invisible to GET by name until a list call registers it (disabled, `source` `local`), and a list call prunes an entry whose directory was deleted.
-- `F28.broken-install`: an installed app whose manifest stops validating, or whose entrypoint becomes a symlink out of the package, stays listed with `manifest` null; its bundle and icon are 404 and its backend reports `missing`, while PATCH and DELETE still work. An icon that becomes a symlink out of the package is 404 while the manifest and bundle stay valid.
-- `F28.backend-status`: `GET .../backend` reports `missing` for an unknown name, `unsupported` for a browser-only app and `stopped` with a revision for a backend app (`sha256:<hex>` of the manifest for a local install, the commit SHA for a git install), never 404.
-- `F28.backend-approval-gate`: starting an unprepared revision, preparing a wrong revision, preparing a tampered archive, preparing an archive with an escaping member and preparing a remote (`url`) artifact that cannot be downloaded are all 409, and none of them writes an approval or extracts or keeps a file.
-- `F28.backend-prepare`: preparing the current revision verifies the checksum, extracts the artifact into a read-only `artifacts/<name>/<sha256>/` directory, records the approval (shown as `prepared_revision`), and is idempotent.
-- `F28.backend-start`: starting the prepared revision returns `ready` with a pid and port; the backend answers on `127.0.0.1:<port>`, runs in its own process group from the installed package directory with only `HOME=<data>/home` in its environment; a repeated start keeps the same pid, a different revision is 409, and a forced install or a data deletion is 409 while it runs.
-- `F28.backend-stop`: `POST .../backend/stop` kills the process group (a child the backend forked dies too) and reports `stopped`; the port closes, and a second stop is a harmless 200.
-- `F28.force-reinstall`: installing an already installed app without `force` is 409 and leaves the record untouched; `force: true` replaces the files (new bundle bytes and ETag, new `installed_at`), keeps the previous `enabled` value, and deletes the backend approval so the revision must be prepared again.
-- `F28.backend-logs`: while a backend is `starting` its stdout and stderr lines are readable with `[stdout] `/`[stderr] ` prefixes; `stop` abandons the pending start, the logs stay readable after it, `limit_bytes` bounds the tail and sets `truncated`, values outside 1..262144 are 422, and an unknown app has empty logs.
-- `F28.ts-client`: the TypeScript `CanvasExtensionsClient` takes a backend app through `getBackendStatus`, `prepareBackend`, `startBackend`, `getBackendLogs`, `stopBackend` and `deleteBackendData` with the REST results, rejects refusals as `HttpError` with the server's status and detail, and a client timeout shorter than the backend's health wait rejects `startBackend` while the server keeps the backend `starting`.
-- `F28.backend-start-fails`: a backend whose health check never passes ends `unhealthy` with `backend health check timed out` after `health.timeout_seconds`, one that exits ends `unhealthy` with its exit code, and neither leaves a process behind.
-- `F28.backend-inherit-environment`: a manifest whose backend asks to inherit a variable outside the allow-list (`OH_SECRET_KEY`) or names one twice is refused at install with 422, and a backend that asks for `PATH`, `TZ` and `LANG` runs with exactly `HOME` plus the server's values of those it has, none of the server's secrets.
-- `F28.disable-stops-backend`: disabling an app with a running backend stops its process group, and the backend reports `stopped`.
-- `F28.restart-persistence`: after a graceful restart the installs, their `enabled` values and the backend approval are still there, the backend that was running is gone, and `start` works without a new `prepare`.
-- `F28.uninstall`: `DELETE .../installed/{name}` stops the backend and removes the package and its record, keeps the backend data, approval and artifact, reports the backend `missing`, and a second DELETE is 404; `DELETE .../backend/data` then removes the data directory.
-- `F28.prepare-corrupt-archive`: an artifact that is not a gzip archive, with a matching sha256, is refused with 409 like any other bad artifact.
-- `F28.install-ref-cached`: an unknown `ref` is 400 and leaves the installed app alone even when the source's clone is already cached.
-- `F28.status-probe-latch`: a backend that missed one status health probe (it answered slower than the 1 s probe timeout) is reported `ready` again once it answers its health check.
-- `F28.status-exit-hang`: when a backend's leader process exits while a child it forked still holds its stdout, `GET .../backend` answers promptly with `unhealthy` and `stop` reaps the child.
-- `F28.hard-restart-orphan`: a backend that was running when the server was SIGKILLed does not survive the server's restart.
+## 子功能
 
-## How to get to it (agent POV)
+- `F28.install-local` 从本地目录安装时，会返回 200 状态码，即使身体说 `"enabled": true`，`resolved_ref` null 和验证过的 manifest，会将其复制到 `canvas-extensions/installed/<name>/`，并记录在 `.installed.json`，并且列表和 GET 视图都一致。
+- `F28.install-git`：`file://` git URL 作为 git 源安装：`resolved_ref` 是存储库的 HEAD 提交，克隆缓存在 `cache/extensions/` 下。
+- `F28.install-ref`: `ref`将git安装固定在该提交上(`version`和`resolved_ref`是被固定提交的，`.installed.json`记录了`requested_ref`），强制安装，没有`ref`，移动到分支头，源中从未被拉取的未知引用返回400并安装了什么。
+- `F28.install-repo-path`：`repo_path`安装源的子目录并回显； 缺少子目录或转义源的子目录为 400，没有清单的源根目录为 422。
+- `F28.install-errors`：无法读取的源为 400（缺少路径、无法解析的字符串、错误的 `github:` 简写、非存储库的 `file://` URL）、丢失或空的 `source` 或无效清单（错误的 JSON、错误的名称、转义或丢失入口、错误的 `schema_version`）为 422，没有密钥为 401，并且未安装任何内容。
+- `F28.bundle`: `GET .../bundle` 以 `Cache-Control: no-cache`、`ETag` 和 JavaScript 内容类型逐字节服务已安装的入口，无论应用程序是否启用。
+- `F28.icon`：`GET .../icon` 将声明的 SVG 逐字节服务为 `image/svg+xml`，并带有沙箱 CSP 和 `nosniff`； 没有图标的应用程序是 404。
+- `F28.enable-disable`：`PATCH .../installed/{name}`切换`enabled`，GET和`.installed.json`都显示新值； 非布尔体是 422。
+- `F28.unknown-name`：GET、PATCH、DELETE、包和图标上的未知名称为 404，每条路由上的非短横线命名为 422，并且路由需要会话密钥。
+- `F28.list-discovery`一个有效的应用目录复制到 `installed/` 手动操作是不可见的 GET 直到一个列表调用注册为止，才按名称进行。  `source`  `local`), 并且一个列表调用会修剪一个目录被删除的条目。
+- `F28.broken-install`：已安装的应用程序，其清单停止验证，或其入口成为包外的符号链接，仍与 `manifest` null 一起列出； 它的捆绑包和图标是 404，其后端报告 `missing`，而 PATCH 和 DELETE 仍然有效。 当清单和捆绑包保持有效时，成为包外符号链接的图标为 404。
+- `F28.backend-status`: `GET .../backend` reports `missing` 对于未知的名字， `unsupported` 仅限浏览器的应用 `stopped` 修订版的后端应用（`sha256:<hex>` 本地安装的 manifest 中的 commit SHA 对于 Git 安装，永远不要 404。
+- `F28.backend-approval-gate`：开始准备一个未准备的修订、准备一个错误的修订、准备一个被篡改的归档、准备一个带有转义成员的归档以及准备一个远程(`url`)无法下载的文件，所有这些都返回409，其中(None)个写入了批准或提取或保留了一个文件。
+- `F28.backend-prepare`：准备当前修订版本时会验证校验和，提取该文件到一个只读 `artifacts/<name>/<sha256>/` 目录中，记录批准（显示为 `prepared_revision`），并且是幂等的。
+- `F28.backend-start`：启动准备好的修订版本返回`ready`，并带有 pid 和端口； 后端在 `127.0.0.1:<port>` 上回答，从已安装的包目录在其自己的进程组中运行，其环境中仅 `HOME=<data>/home`； 重复启动会保持相同的 pid，不同的修订版是 409，强制安装或数据删除在运行时是 409。
+- `F28.backend-stop`：`POST .../backend/stop`杀死进程组（后端分叉的子进程也死亡）并报告`stopped`； 港口关闭，第二站是无害的 200。
+- `F28.force-reinstall`：安装已安装的应用程序，如果没有`force`，则为409，并且记录不变； `force: true` 替换文件（新的包字节和 ETag，新的 `installed_at`），保留之前的 `enabled` 值，删除后端审批，因此修订必须重新准备。
+- `F28.backend-logs`: 当一个后端 `starting` stdout 和 stderr 的行是可读的 `[stdout] `/`[stderr] ` prefixes; `停止 ` abandons the pending start, the logs stay readable after it, `limit_bytes` bounds the tail and sets ` 被截断，值不在 1..262144 范围内为 422，而未知的应用没有日志。
+- `F28.ts-client`: the TypeScript  `CanvasExtensionsClient` 将后端应用带入 `getBackendStatus`, `prepareBackend`, `startBackend`, `getBackendLogs`, `stopBackend` 和 `deleteBackendData` with the REST 结果、拒绝和拒绝作为 `HttpError` 带有服务器状态和详细信息，以及客户端超时短于后端健康检查的等待拒绝 `startBackend` 尽管服务器仍在后端 `starting`.
+- `F28.backend-start-fails`：一个健康检查永远通过的后端 `unhealthy` 结束，`backend health check timed out` 一个在 `health.timeout_seconds` 后结束的，一个在退出时结束的，`unhealthy` 一个没有留下进程。
+- `F28.backend-inherit-environment`：后端要求继承允许列表 (`OH_SECRET_KEY`) 之外的变量或命名 1 两次的清单在安装时被拒绝，返回值是 422，并且请求 `PATH`、`TZ` 和 `LANG` 的后端运行时恰好是 `HOME` 加上它所拥有的服务器值，即服务器的机密的 None。
+- `F28.disable-stops-backend`：禁用正在运行的后端的应用程序会停止其进程组，并且后端报告`stopped`。
+- `F28.restart-persistence` 在优雅重启后，安装、它们的`enabled` 值和后端审批仍然存在，但正在运行的后端已经消失了，`start` 仍然可以正常工作，没有新的`prepare`。
+- `F28.uninstall`: `DELETE .../installed/{name}` 停止后端，移除包及其记录，保留后端数据、审批和成果，报告后端 `missing`, and a second DELETE 404; `DELETE .../backend/data` 然后删除数据目录。
+- `F28.prepare-corrupt-archive`：非 gzip 存档且具有匹配 sha256 的工件会像任何其他不良工件一样被拒绝并返回 409。
+- `F28.install-ref-cached`：未知的 `ref` 为 400，即使源的克隆已缓存，也不会影响已安装的应用程序。
+- `F28.status-probe-latch`：一个后端服务因错过一次状态健康探针（它比1秒探针慢超时）而被报告 `ready` 一次，该后端服务在回答健康检查时再次被报告。
+- `F28.status-exit-hang`：当后端的领导者进程退出而其分叉的子进程仍保留其标准输出时，`GET .../backend` 立即用 `unhealthy` 进行响应，`stop` 收获该子进程。
+- `F28.hard-restart-orphan`当服务器运行时正在运行的后端 SIGKILLed 无法在服务器重启后存活。
 
-- REST (catalog): `POST /api/canvas-extensions/install` with
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST（目录）：`POST /api/canvas-extensions/install` 与
   `{"source", "ref", "repo_path", "force"}`, `GET /api/canvas-extensions/installed`,
-  `GET|PATCH|DELETE /api/canvas-extensions/installed/{extension_name}`
-  (`PATCH` body `{"enabled": bool}`), `GET .../bundle` and `GET .../icon`.
-  Every recipe here drives these routes directly.
-- REST (backend lifecycle): `GET .../backend`, `POST .../backend/prepare` and
-  `POST .../backend/start` (both `{"revision": "<GET .../backend .revision>"}`),
-  `POST .../backend/stop`, `GET .../backend/logs?limit_bytes=N` and
-  `DELETE .../backend/data`. Driven directly as well.
-- TypeScript client: `OpenHandsClient.canvasExtensions` (`CanvasExtensionsClient`
-  in `clients/typescript/src/client/canvas-extensions-client.ts`) has
+  `GET|PATCH|DELETE /api/canvas-extensions/installed/{extension_name}`（`PATCH`主体`{"enabled": bool}`）、`GET .../bundle`和`GET .../icon`。 这里的每个食谱都直接驱动这些路线。
+- REST（后端生命周期）：`GET .../backend`、`POST .../backend/prepare` 和
+  `POST .../backend/start`（均为`{"revision": "<GET .../backend .revision>"}`），
+  `POST .../backend/stop`、`GET .../backend/logs?limit_bytes=N` 和
+  `DELETE .../backend/data`. 也可以直接驾驶。
+- TypeScript 客户端：`OpenHandsClient.canvasExtensions`（`clients/typescript/src/client/canvas-extensions-client.ts` 中的 `CanvasExtensionsClient`）有
   `getBackendStatus`, `prepareBackend`, `startBackend`, `stopBackend`,
-  `getBackendLogs` and `deleteBackendData`; it has no install, list, enable,
-  uninstall, bundle or icon methods. Its default 60 s timeout can be shorter
-  than a manifest's `health.timeout_seconds` (up to 300 s): `startBackend`
-  then rejects on the client while the server keeps starting. Driven by
-  `F28.ts-client` from the built `clients/typescript/dist`. Its
-  `createAppBackendSession`/`revokeAppBackendSession` belong to the bridge
-  family (F29).
-- Python SDK: no consumer; the routes wrap
-  `openhands.agent_server.canvas_extensions.installed` and the SDK's generic
-  `InstallationManager` (shared with plugins and skills).
-- Agent Canvas (context only): the Canvas frontend installs and toggles apps,
-  loads `bundle` and `icon`, and runs the prepare and start flow before it
-  routes the browser to a backend through the `/app-backends` bridge (another
-  family).
-- Config: everything lives under `OH_PERSISTENCE_DIR`
-  (`canvas-extensions/installed`, `canvas-extensions/backends/{approvals,artifacts,data,downloads,run}`,
-  `cache/extensions`), which `launch` makes private to the run
-  (`home/.openhands`). Backends run only on Linux amd64/arm64.
+  `getBackendLogs`和`deleteBackendData`； 它没有安装、列出、启用、卸载、捆绑或图标方法。 它的默认 60 秒超时可以比清单的 `health.timeout_seconds` 短（最多 300 秒）：`startBackend` 然后在服务器保持启动的同时在客户端上拒绝。 驱动力
+  `F28.ts-client`来自构建的`clients/typescript/dist`。 其
+  `createAppBackendSession`/`revokeAppBackendSession`属于桥族(F29)。
+- PythonSDK：无消费者； 路线环绕
+  `openhands.agent_server.canvas_extensions.installed` 和 SDK 的通用
+  `InstallationManager`（与插件和技能共享）。
+- Agent Canvas 上下文只有：Canvas前端安装和切换应用，加载 `bundle` 和 `icon`，并在通过 `/app-backends` 桥接（另一个家族）将浏览器路由到后端之前运行准备和启动流程。
+- 配置：所有内容都位于 `OH_PERSISTENCE_DIR` 下（`canvas-extensions/installed`、`canvas-extensions/backends/{approvals,artifacts,data,downloads,run}`、
+  `cache/extensions`)，其中 `launch` 使运行 (`home/.openhands`) 私有。 后端仅在 Linux amd64/arm64 上运行。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new --env TZ=UTC`, the
-  family's `Launch:` flags), `doctor` is ok. No
-  LLM profile is needed; `git` and `python3` are on `PATH`.
-- Fixtures, all owned by the run: `fixture canvas-app --name qa-canvas`
-  (browser-only, with an icon; a git repository), `--name qa-backend --backend ok`
-  (an aiohttp backend artifact with `/health` and an echo route),
-  `--name qa-unhealthy --backend unhealthy` (health answers 503) and
-  `--name qa-exit --backend exit` (exits with code 3). The CLI has no fixture
-  for a backend that prints and hangs, for an archive with an escaping member
-  or for an artifact that is not gzip, so the block below writes small
-  apps under `fixtures/f28/` with a Python heredoc: `qa-f28-logs` (prints one
-  line to each stream, then sleeps without serving HTTP), `qa-f28-unsafe` (a
-  `../qa-f28-escape` member), `qa-f28-notgz` (plain bytes, correct sha256) and
-  `qa-f28-flaky` (a stdlib HTTP backend whose `/slow` and `/fast` routes make
-  its health check take 2 s or answer at once, whose `/fork` route starts a
-  `/bin/sleep 300` child sharing its stdout and prints the child's pid, and
-  whose `/exit` route kills the leader without answering), `qa-f28-env` (the
-  same server, asking to inherit `PATH`, `TZ` and `LANG`), `qa-f28-env-secret`
-  and `qa-f28-env-dup` (asking for `OH_SECRET_KEY`, and for `TZ` twice) and
-  `qa-f28-remote` (a remote `url` artifact on a closed loopback HTTPS port).
-  The family launches with `TZ=UTC` (`Launch:`), so the server has a `TZ` to
+前提条件：
+
+- 基线运行是实时的并已导出（`launch --new --env TZ=UTC`，系列的 `Launch:` 标志），`doctor` 可以。 不需要LLM配置文件； `git`和`python3`在`PATH`上。
+- 测试夹具，全部由运行拥有：`fixture canvas-app --name qa-canvas`（仅限浏览器，带有图标； git 存储库），`--name qa-backend --backend ok`（带有 `/health` 和 echo 路由的 aiohttp 后端工件），
+  `--name qa-unhealthy --backend unhealthy`（健康答案503）和
+  `--name qa-exit --backend exit`（以代码 3 退出）。 CLI 没有测试夹具用于打印和挂起的后端，用于带有转义成员的档案，或者用于不是 gzip 的艺术品，因此下面的块会将小应用程序写入 `fixtures/f28/`，使用 Python 的这里行：`qa-f28-logs`（打印每条流的一行，然后无服务地睡眠 HTTP），`qa-f28-unsafe`（一个
+  `../qa-f28-escape` 成员）、`qa-f28-notgz`（纯字节，正确的 sha256）和
+  `qa-f28-flaky`（一个 stdlib HTTP 后端，其 `/slow` 和 `/fast` 路由使其运行状况检查需要 2 秒或立即回答，其 `/fork` 路由启动一个
+  `/bin/sleep 300` 孩子共享其标准输出，并打印出孩子的进程 ID，以及 `/exit` 路由杀死领导者而没有回答的 `qa-f28-env`（同服务器，要求继承 `PATH`、`TZ` 和 `LANG`），`qa-f28-env-secret` 和 `qa-f28-env-dup`（要求 `OH_SECRET_KEY`，以及 `TZ` 两次）和
+  `qa-f28-remote`（闭合环回 HTTPS 端口上的远程 `url` 工件）。 该系列以 `TZ=UTC` (`Launch:`) 启动，因此服务器有一个 `TZ` 来
   pass on. `node` runs the TypeScript client from `clients/typescript/dist`
-  (a checkout without it builds it with `npm ci && npm run build`, which
-  needs the npm registry). It also commits a
-  two-commit git app `qa-f28-git` (manifest `1.0.0`, then `2.0.0`) for the
-  `ref` bullets, with `GV1` and `GV2` naming the two commits.
+  （没有它的签出会使用 `npm ci && npm run build` 构建它，这需要 npm 注册表）。 它还提交了一个两次提交的 git 应用程序 `qa-f28-git`（清单 `1.0.0`，然后 `2.0.0`）
+  `ref` 个项目符号，其中 `GV1` 和 `GV2` 命名了两个提交。
   ```sh
   FX=$(control-agent-server fixture canvas-app --name qa-canvas --print-path)
   BX=$(control-agent-server fixture canvas-app --name qa-backend --backend ok --print-path)
@@ -220,8 +192,7 @@ Preconditions:
   GV2=$(git -C "$GX" rev-parse HEAD)
   ```
 
-- **Install from a local directory (`F28.install-local`).** Install the
-  browser-only app with a body that asks for `enabled: true`.
+- **从本地目录安装 (`F28.install-local`)。**安装仅浏览器的应用程序，其主体要求 `enabled: true`。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$FX\", \"enabled\": true}" \
     --expect 200 --check name eq qa-canvas --check enabled eq false --check resolved_ref eq null \
@@ -237,10 +208,9 @@ Preconditions:
     --check extensions.qa-canvas.enabled eq false --check extensions.qa-canvas.installed_at eq "$AT0"
   cmp "$INST/qa-canvas/dist/index.js" "$FX/dist/index.js"
   ```
-  The install answers 200 with `enabled: false` although the body asked for
-  `true` (the field is ignored), the GET, the list and `.installed.json`
-  agree, and the package is copied under `installed/qa-canvas/`.
-- **Install from a git URL (`F28.install-git`).** Install the backend app
+  安装回答200，并且body请求的是`enabled: false`
+  `true`（该字段被忽略），GET、列表和`.installed.json`一致，并将包复制到`installed/qa-canvas/`下。
+- **从 git 安装 URL (`F28.install-git`)。**安装后端应用程序
   from its `file://` URL.
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"file://$BX\"}" \
@@ -251,10 +221,9 @@ Preconditions:
   control-agent-server state cat home/.openhands/canvas-extensions/installed/.installed.json \
     --check extensions.qa-backend.resolved_ref eq "$BHEAD"
   ```
-  `resolved_ref` is the fixture's HEAD commit in the response, the GET and
-  `.installed.json`, and a clone sits in `cache/extensions/qa-backend-<hash>/`.
-- **Pin a git ref (`F28.install-ref`).** Ask `qa-f28-git` for a ref that does
-  not exist, pin its first commit, then reinstall it without a ref.
+  `resolved_ref` 是响应中测试夹具的 HEAD 提交，GET 和
+  `.installed.json`，并且一个克隆位于 `cache/extensions/qa-backend-<hash>/` 中。
+- **固定 git 参考 (`F28.install-ref`)。**向 `qa-f28-git` 请求不存在的引用，固定其第一次提交，然后在没有引用的情况下重新安装它。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"file://$GX\", \"ref\": \"qa-no-such-ref\"}" \
     --expect 400 --check detail contains 'Could not read canvas extension source' --save F28.install-ref/unknown-ref
@@ -270,14 +239,8 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-f28-git --check version eq 2.0.0 --check resolved_ref eq "$GV2"
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-git --expect 200
   ```
-  The unknown ref on a source that was never fetched is 400
-  (`Could not read canvas extension source: Failed to fetch extension from file://...`)
-  and installs nothing. `ref` set to the first commit installs `1.0.0` with
-  that commit as `resolved_ref` and `requested_ref`; a forced install without
-  a ref moves to the branch head (`2.0.0`). The app is uninstalled again, so
-  the catalog counts below are unchanged.
-- **Install a subdirectory (`F28.install-repo-path`).** `fixtures/f28/` holds
-  several apps and no manifest of its own.
+  在从未被获取的源中出现的未知引用返回 400 错误码 (`Could not read canvas extension source: Failed to fetch extension from file://...`)，且安装了什么也没有。 `ref` 设置为第一个提交，`1.0.0` 会安装为 `resolved_ref`，`requested_ref`。 强制安装而没有回退移动到分支尾端 (`2.0.0`)。 因此，因为应用程序再次卸载，所以目录计数没有改变。
+- **安装子目录(`F28.install-repo-path`)。** `fixtures/f28/` 拥有多个应用程序，但没有自己的清单。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX\", \"repo_path\": \"qa-f28-logs\"}" \
     --expect 200 --check name eq qa-f28-logs --check repo_path eq qa-f28-logs --save F28.install-repo-path/install
@@ -289,11 +252,8 @@ Preconditions:
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX\"}" \
     --expect 422 --check detail contains canvas-extension.json --save F28.install-repo-path/root
   ```
-  The subdirectory installs as `qa-f28-logs` with `repo_path` recorded; the
-  three bad variants are 400 `... not found ...`, 400 `... escapes ...` and
-  422 `No canvas-extension.json found ...`.
-- **Install errors (`F28.install-errors`).** Unreadable sources, bad bodies and
-  bad manifests; nothing may be installed.
+  `qa-f28-logs`安装，`repo_path`被记录。 这三种不良变体分别是400 `... not found ...`、400 `... escapes ...`和422 `No canvas-extension.json found ...`。
+- **安装错误 (`F28.install-errors`)。**无法阅读的来源、糟糕的身体和糟糕的清单； 不能安装任何东西。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json '{"source": "/nonexistent/qa-f28"}' \
     --expect 400 --check detail contains 'does not exist' --save F28.install-errors/missing-path
@@ -323,11 +283,9 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed --check canvas_extensions len-eq 3
   test ! -e "$INST/qa-f28-bad"
   ```
-  The 400s carry `Could not read canvas extension source: <reason>`, the
-  pydantic 422s name `source`, every bad manifest is 422
-  `Invalid canvas extension. Ensure the manifest is well-formed.`, and the
-  catalog still holds only the three earlier apps.
-- **Bundle (`F28.bundle`).** Download the entrypoint of the (disabled) app.
+  400系列包含 `Could not read canvas extension source: <reason>`, the Pydantic 422s name `source`每个坏的ifest都是422
+  `Invalid canvas extension. Ensure the manifest is well-formed.`，并且目录仍然只包含三个早期的应用程序。
+- **捆绑包 (`F28.bundle`).**下载（已禁用）应用程序的入口。
   ```sh
   BUNDLE="$AGENT_SERVER_VERIFY_RUN/fixtures/f28/bundle-v1.js"
   ETAG1=$(control-agent-server api GET /api/canvas-extensions/installed/qa-canvas/bundle --expect 200 \
@@ -337,9 +295,8 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-canvas/bundle --check-header etag eq "$ETAG1" \
     --quiet --save F28.bundle/bundle
   ```
-  The body is byte-identical to `dist/index.js`, with `Cache-Control: no-cache`,
-  a `text/javascript` content type and a stable ETag; the app is still disabled.
-- **Icon (`F28.icon`).** Download the declared SVG; an app without an icon has none.
+  与体相同 `dist/index.js`, with `Cache-Control: no-cache`, a `text/javascript` 内容类型和一个稳定的 ETag。 该应用程序仍处于禁用状态。
+- **图标 (`F28.icon`).**下载声明的SVG； 没有图标的应用程序有 None。
   ```sh
   ICON="$AGENT_SERVER_VERIFY_RUN/fixtures/f28/icon.svg"
   control-agent-server api GET /api/canvas-extensions/installed/qa-canvas/icon --expect 200 \
@@ -351,11 +308,9 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-f28-logs/icon --expect 404 \
     --check detail contains 'icon not found' --save F28.icon/no-icon
   ```
-  The SVG matches the fixture and carries
-  `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`
-  and `X-Content-Type-Options: nosniff`; `qa-f28-logs` declares no icon and
-  gets 404.
-- **Enable and disable (`F28.enable-disable`).** Toggle the browser-only app.
+  该 SVG 匹配测试夹具并携带
+  `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`和`X-Content-Type-Options: nosniff`； `qa-f28-logs` 声明没有图标并得到 404。
+- **启用和禁用 (`F28.enable-disable`)。**切换仅限浏览器的应用程序。
   ```sh
   control-agent-server api PATCH /api/canvas-extensions/installed/qa-canvas --json '{"enabled": true}' \
     --expect 200 --check name eq qa-canvas --check enabled eq true --save F28.enable-disable/enable
@@ -369,11 +324,8 @@ Preconditions:
   control-agent-server api PATCH /api/canvas-extensions/installed/qa-canvas --json '{}' --expect 422
   control-agent-server api GET /api/canvas-extensions/installed/qa-canvas --check enabled eq false
   ```
-  Each PATCH answers `{"name": "qa-canvas", "enabled": <value>}` and both
-  second views follow it; the bad bodies are 422 and change nothing. The app
-  ends disabled.
-- **Unknown and invalid names (`F28.unknown-name`).** `qa-ghost` was never
-  installed; `Bad_Name` is not kebab-case.
+  每个PATCH回答`{"name": "qa-canvas", "enabled": <value>}`，并且所有第二个视图都跟随它。 糟糕的身体是422，没有任何改变。 应用程序将被禁用。
+- **未知且无效的名称 (`F28.unknown-name`)。** `qa-ghost` 从未安装； `Bad_Name` 不是烤肉串。
   ```sh
   control-agent-server api GET /api/canvas-extensions/installed/qa-ghost --expect 404 \
     --check detail eq "Canvas extension 'qa-ghost' is not installed" --save F28.unknown-name/get
@@ -401,11 +353,9 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-canvas/bundle --expect 200 --quiet
   ```
   404 `Canvas extension 'qa-ghost' is not installed` (`... bundle not found`,
-  `... icon not found`), 422 for the bad names on all eleven routes that take a name
-  (the backend ones blame `extension_name`, not the body), and 401 without the key while
-  the same bundle request with the key is 200.
-- **Discovery by listing (`F28.list-discovery`).** Copy a valid app into
-  `installed/` by hand, as an image build might, then delete it by hand.
+  `... icon not found`), 422 对于所有十一条路线中的所有不良名称（后端的 blame `extension_name`，而不是身体），并且在带有键的同一套请求中是 200。
+- **通过列表发现(`F28.list-discovery`)。**将有效的应用程序复制到
+  `installed/` 手动，就像镜像构建一样，然后手动删除它。
   ```sh
   cp -r "$FX" "$INST/qa-f28-hand"
   sed -i 's/"name": "qa-canvas"/"name": "qa-f28-hand"/' "$INST/qa-f28-hand/canvas-extension.json"
@@ -421,12 +371,9 @@ Preconditions:
     --check canvas_extensions not-contains qa-f28-hand --save F28.list-discovery/pruned
   control-agent-server state cat home/.openhands/canvas-extensions/installed/.installed.json --check extensions.qa-f28-hand missing
   ```
-  Before a list call the copy is 404; the list registers it disabled with
-  `source: "local"`, after which GET finds it. Once the directory is gone, GET
-  is 404 and the next list removes it from `.installed.json`.
-- **Broken installs (`F28.broken-install`).** Corrupt an installed app's
-  manifest, restore it, then swap its entrypoint for a symlink out of the
-  package.
+  在调用列表之前，复制会返回 404。 它将它标记为已禁用
+  `source: "local"`，然后 GET 找到它。 一旦目录消失，GET 就是 404，下一个列表将其从 `.installed.json` 中删除。
+- **安装损坏 (`F28.broken-install`)。**损坏已安装应用程序的清单，恢复它，然后将其入口交换为包外的符号链接。
   ```sh
   KX=$(control-agent-server fixture canvas-app --name qa-broken --print-path)
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$KX\"}" --expect 200 --quiet
@@ -456,15 +403,8 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-broken --expect 404
   test ! -e "$INST/qa-broken"
   ```
-  With an unparseable manifest the record is still served (version from the
-  install record, `manifest: null`), bundle and icon are 404 and the backend
-  is `missing`, but PATCH works. A restored manifest serves the bundle and
-  icon again; an icon symlinked outside the package is 404 while the manifest
-  (icon field included) and the bundle stay valid; an entrypoint symlinked
-  outside the package is 404 at serve time and the manifest reads as null.
-  DELETE still uninstalls it.
-- **Backend status (`F28.backend-status`).** Read the lifecycle state of a
-  missing, a browser-only and a backend app.
+  即使manifest不可解析，记录仍然被服务（安装记录中的版本） `manifest: null`），bundle和icon是404，后端是 `missing`但是 PATCH works. 恢复的ifest文件再次为包和图标服务。 一个包外指向的图标导致404，而manifest（包括icon字段）和bundle仍然有效。 一个入口在包之外的软链在服务时为404，而manifest读取为 null. DELETE 仍然卸载它。
+- **后端状态(`F28.backend-status`)。**读取缺失的、仅浏览器的和后端应用程序的生命周期状态。
   ```sh
   control-agent-server api GET /api/canvas-extensions/installed/qa-ghost/backend --expect 200 --check state eq missing \
     --check revision eq null --check detail contains 'not installed' --save F28.backend-status/missing
@@ -475,10 +415,10 @@ Preconditions:
     --check revision eq "$BHEAD" --check prepared_revision eq null --check pid eq null --check port eq null \
     --save F28.backend-status/stopped
   ```
-  `missing` (with `revision` null) for the unknown name, `unsupported` with a
-  `sha256:` revision for the local browser-only install, and `stopped` with the
+  `missing`（带有 `revision` null）表示未知名称，`unsupported` 带有
+  `sha256:` 版本仅用于本地浏览器安装，`stopped` 带有
   git commit as the revision for the `file://` install, nothing prepared.
-- **Approval gate (`F28.backend-approval-gate`).** Try every shortcut around
+- **审批门 (`F28.backend-approval-gate`).**尝试每一个捷径
   `prepare`.
   ```sh
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$BHEAD\"}" \
@@ -508,14 +448,8 @@ Preconditions:
   test -z "$(find "$P" -name qa-f28-escape)"
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-remote --expect 200 --quiet
   ```
-  Each attempt is 409 with its reason, the bodiless prepare is 422, no
-  approval file exists, no artifact file was extracted or downloaded and the
-  escaping member was never written. `qa-f28-remote` declares a remote
-  (`url`) artifact on a closed loopback HTTPS port, so its prepare takes the
-  download path and fails there. The tampered archive is restored and the
-  remote app uninstalled afterwards, so the catalog counts below are
-  unchanged.
-- **Prepare (`F28.backend-prepare`).** Approve the installed revision.
+  每个尝试都是409，原因，无体准备422，没有审批文件，没有提取或下载文件，没有写入逃脱成员。 `qa-f28-remote`声明了一个远程（`url`）的资源在封闭的环回（HTTPS）端口上，因此其准备阶段会使用下载路径，但在此处失败。 篡改的归档文件恢复后，远程应用也被卸载了，因此目录计数没有改变。
+- **准备 (`F28.backend-prepare`).**批准安装的修订版。
   ```sh
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/prepare --json "{\"revision\": \"$BHEAD\"}" \
     --expect 200 --check state eq stopped --check prepared_revision eq "$BHEAD" --save F28.backend-prepare/prepare
@@ -530,14 +464,11 @@ Preconditions:
     --expect 200 --check prepared_revision eq "$BHEAD" --expect-max-ms 3000
   control-agent-server state ls 'home/.openhands/canvas-extensions/backends/artifacts/**' --expect-count 1
   ```
-  `prepared_revision` equals the revision in the response, the GET and
-  `approvals/qa-backend.json` (with the manifest's sha256); `server.py` is
-  extracted as `r-xr-xr-x` into a `dr-xr-xr-x` directory named after the
-  sha256, and a second prepare answers at once without a second extraction.
-- **Start (`F28.backend-start`).** Start the prepared revision of the
-  (still disabled) app and look at the process it runs.
+  `prepared_revision` 等于响应中的修订，GET 和
+  `approvals/qa-backend.json`（使用清单的 sha256）； `server.py` 作为 `r-xr-xr-x` 提取到以 sha256 命名的 `dr-xr-xr-x` 目录中，第二个立即准备答案，无需第二次提取。
+- **开始 (`F28.backend-start`)。**启动（仍禁用）应用程序的准备修订版并查看其运行的进程。
 
-  Requires: `F28.install-local`
+  需要：`F28.install-local`
   ```sh
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$BHEAD\"}" \
     --expect 200 --check state eq ready --check pid exists --check port exists --check detail eq null \
@@ -562,17 +493,11 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-canvas --check installed_at eq "$AT0"
   kill -0 "$BPID"
   ```
-  `ready` with a pid and port; the backend answers `/health` and reports its
-  `{data_dir}`; its environment is exactly `HOME=<data>/qa-backend/home` (no
-  session or secret keys), its cwd is the installed package and it leads its
-  own process group. It is the only process whose command line holds the
-  run's `artifacts/qa-backend/` path, which is what the later `pgrep` checks
-  for leftover processes rely on. A repeated start returns the same pid, another revision
-  is 409, and a forced install of any app and a data deletion are 409 while
-  it runs. Starting does not require the app to be enabled.
-- **Stop (`F28.backend-stop`).** Stop the running backend twice.
+  `ready` 带有 pid 和端口； 后端回答 `/health` 并报告其
+  `{data_dir}`; 它的环境恰好是`HOME=<data>/qa-backend/home`（没有会话或机密键），它的cwd是已安装的包，并且它引导自己的进程组。 它是命令行保存运行的 `artifacts/qa-backend/` 路径的唯一进程，这是后面的 `pgrep` 检查剩余进程所依赖的。 重复启动返回相同的 pid，另一个修订版本为 409，并且在运行时强制安装任何应用程序和数据删除为 409。 启动不需要启用该应用程序。
+- **停止(`F28.backend-stop`)。** Stop the running backend twice.
 
-  Requires: `F28.backend-start`
+  需要：`F28.backend-start`
   ```sh
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/stop --expect 200 \
     --check state eq stopped --check pid eq null --check port eq null --expect-max-ms 7000 --save F28.backend-stop/stop
@@ -594,16 +519,11 @@ Preconditions:
   if kill -0 "$KCHILD" 2>/dev/null; then false; fi
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-flaky --expect 200 --quiet
   ```
-  The process is gone and its port refuses connections; the approval stays,
-  and stopping again (or stopping an unknown app) is a 200 no-op. A
-  `/bin/sleep` child that `qa-f28-flaky` forked while its leader keeps
-  running dies with the group on `stop`; that app is uninstalled again so
-  the catalog counts below are unchanged.
-- **Reinstall (`F28.force-reinstall`).** Enable the browser-only app,
-  install it again without `force`, then change its bundle at the source and
-  reinstall both apps with `force`.
+  该过程已不存在，其端口拒绝连接。 审批继续，再次停止（或停止一个未知的应用）是200无操作。 A
+  `/bin/sleep` `qa-f28-flaky` 分叉的子进程在其领导者继续运行时与 `stop` 上的组一起死亡； 该应用程序被再次卸载，因此下面的目录计数没有变化。
+- ** 重新安装 (`F28.force-reinstall`).** 启用仅浏览器的应用程序，重新安装它，不要 `force`，然后在源处更改其包，然后重新安装两个应用程序，使用 `force`。
 
-  Requires: `F28.install-local`, `F28.bundle`
+  需要：`F28.install-local`、`F28.bundle`
   ```sh
   control-agent-server api PATCH /api/canvas-extensions/installed/qa-canvas --json '{"enabled": true}' --expect 200
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$FX\"}" \
@@ -626,15 +546,9 @@ Preconditions:
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$BHEAD\"}" \
     --expect 409 --check detail contains 'must be prepared'
   ```
-  Without `force` the install is 409 and the record keeps its `installed_at`.
-  The forced install of the enabled app comes back enabled with a new
-  `installed_at`, and the bundle serves the new bytes under a new ETag. The
-  forced install of the backend app keeps it disabled, deletes its approval
-  (`prepared_revision` null, no approval file) and so refuses `start` until
-  the next `prepare`.
-- **Logs while starting (`F28.backend-logs`).** `qa-f28-logs` prints and
-  never answers its health check (30 s timeout); start it in the background,
-  read its logs while it is `starting`, then stop it.
+  缺少`force`，安装失败，记录保持`installed_at`。 强制安装已启用的应用，会以新状态返回
+  `installed_at`，并且捆绑包在新的 ETag 下提供新字节。 后端应用程序的强制安装会使其保持禁用状态，删除其批准（`prepared_revision` null，无批准文件），因此拒绝 `start` 直到下一个 `prepare`。
+- **启动时记录(`F28.backend-logs`)。** `qa-f28-logs` 打印但从不回答其健康检查（30 s 超时）； 在后台启动它，在 `starting` 时读取其日志，然后停止它。
   ```sh
   LREV=$(control-agent-server api GET /api/canvas-extensions/installed/qa-f28-logs/backend --field revision)
   control-agent-server api POST /api/canvas-extensions/installed/qa-f28-logs/backend/prepare --json "{\"revision\": \"$LREV\"}" \
@@ -662,16 +576,11 @@ Preconditions:
   control-agent-server api GET /api/canvas-extensions/installed/qa-ghost/backend/logs --expect 200 \
     --check logs eq '' --check truncated eq false
   ```
-  The status reads `starting` with a pid while the health wait runs, and the
-  logs hold `[stdout] qa-f28-out` and `[stderr] qa-f28-err`. `stop` returns in
-  well under the 30 s health timeout, the pending start then answers 200
-  `stopped`, the process is gone and the logs are still readable;
-  `limit_bytes=8` returns the last 8 bytes with `truncated: true`, and 0 and
-  262145 are 422.
-- **TypeScript client (`F28.ts-client`).** Every backend method of the built
-  `CanvasExtensionsClient`, on a backend app of its own, then a `startBackend`
-  that outlasts the client's timeout on `qa-f28-logs` (prepared above; it
-  never passes its 30 s health check).
+  状态显示为 `starting`，进程 ID 为 [pid]，健康检查在运行，日志中显示 `[stdout] qa-f28-out` 和 `[stderr] qa-f28-err`。 `stop` 返回时间不到30秒超时，然后 [pending start] 回应200
+  `stopped`，进程消失，日志仍然可读；
+  `limit_bytes=8`与`truncated: true`一起返回最后8个字节，0和262145都是422。
+- **TypeScript 客户端 (`F28.ts-client`).**构建的每个后端方法
+  `CanvasExtensionsClient`，在自己的后端应用程序上，然后 `startBackend` 比客户端 `qa-f28-logs` 上的超时更持久（上面已准备好； 它从未通过 30 秒的健康检查）。
   ```sh
   TX=$(control-agent-server fixture canvas-app --name qa-f28-ts --backend ok --print-path)
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$TX\"}" --expect 200 --quiet
@@ -747,22 +656,12 @@ Preconditions:
   test ! -e "$BK/data/qa-f28-ts"
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-ts --expect 200 --quiet
   ```
-  The program prints `QA_F28_TS_OK`: `getBackendStatus`, `prepareBackend`,
-  `startBackend`, `getBackendLogs`, `stopBackend` and `deleteBackendData`
-  return the states the REST bullets assert (`stopped`, prepared, `ready`
-  with the same pid on a second read, `stopped` without a pid), and the
-  refusals reject with an `HttpError` carrying the server's status and
-  detail (409 unprepared start, wrong revision and data deletion while
-  running; 422 for a bad name). A client built with `timeout: 2000` rejects
-  `startBackend` after 2 s with `Request timeout after 2000ms` (a plain
-  `Error`, not an `HttpError`), while the server keeps the backend
-  `starting` with its logs readable until `stopBackend`: the same happens to
-  the default 60 s timeout against a manifest whose `health.timeout_seconds`
-  is longer (up to 300). The server-side reads confirm both backends are
-  gone and the data directory deleted; the app is uninstalled, so the
-  catalog counts below are unchanged.
-- **Failed starts (`F28.backend-start-fails`).** `qa-unhealthy` answers its
-  health check with 503 (15 s timeout); `qa-exit` exits with code 3.
+  程序打印 `QA_F28_TS_OK`: `getBackendStatus`, `prepareBackend`
+  `startBackend`、`getBackendLogs`、`stopBackend`和`deleteBackendData`返回REST子弹断言的`stopped`、`ready`和`stopped`状态，以及拒绝请求时携带服务器状态和详情的`HttpError`（409未准备启动、错误修订和运行中数据删除；422为坏名称）。 使用 `timeout: 2000` 构建的客户端拒绝
+  `startBackend` 2 秒后 `Request timeout after 2000ms`（简单的
+  `Error`，不是 `HttpError`），而服务器保留后端
+  `starting` 其日志可读直到 `stopBackend`：对于 `health.timeout_seconds` 更长（最多 300）的清单，默认 60 秒超时也会发生同样的情况。 服务器端读取确认两个后端均已消失且数据目录已删除； 该应用程序已卸载，因此下面的目录计数不变。
+- **启动失败 (`F28.backend-start-fails`)。** `qa-unhealthy` 用 503 (15 s 超时) 回答其健康检查； `qa-exit` 以代码 3 退出。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$UX\"}" --expect 200 --quiet
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$EX\"}" --expect 200 --quiet
@@ -786,14 +685,9 @@ Preconditions:
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-unhealthy/backend/data --expect 200 --check state eq unhealthy
   test ! -e "$BK/data/qa-unhealthy"
   ```
-  The unhealthy backend's start blocks for about the 15 s health timeout and
-  ends `unhealthy` / `backend health check timed out`; the exiting one ends
-  `unhealthy` / `backend exited with code 3`. No process of either remains,
-  and the failed backend's data can be deleted.
-- **Inherited environment (`F28.backend-inherit-environment`).** Install the
-  two apps whose `inherit_environment` the manifest schema refuses, then
-  start `qa-f28-env`, which asks for `PATH`, `TZ` and `LANG`, and compare its
-  environment with the server process's own.
+  不健康的后端启动大约持续了15秒的健康检查超时，然后结束 `unhealthy` / `backend health check timed out`。 退出的那个结束了
+  `unhealthy` / `backend exited with code 3`. 任何一个进程都不会保留，并且故障后端的数据可以被删除。
+- **继承环境(`F28.backend-inherit-environment`)。**安装`inherit_environment`清单模式拒绝的两个应用程序，然后启动`qa-f28-env`，它要求`PATH`、`TZ`和`LANG`，并将其环境与服务器进程自己的环境进行比较。
   ```sh
   for BADENV in secret dup; do
     control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX/qa-f28-env-$BADENV\"}" \
@@ -822,22 +716,11 @@ Preconditions:
   if pgrep -f "$BK/artifacts/qa-f28-env/"; then false; fi
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-env --expect 200 --quiet
   ```
-  Both bad manifests are 422 `Invalid canvas extension ...` and leave no
-  install: `OH_SECRET_KEY` is outside the allow-list (`LANG`, `LC_ALL`,
-  `LC_CTYPE`, `PATH`, `TMPDIR`, `TZ`) even next to an allowed name, and a
-  name listed twice is refused too. The started backend's environment is
-  exactly `HOME=<data>/qa-f28-env/home` plus the server's own values of the
-  requested names it has (`PATH` always, `TZ=UTC` from the family's
-  `Launch:` line, `LANG` only when the server has one), while the server
-  process holds `OH_SECRET_KEY` (checked without printing it); the printed
-  line lists the backend's variable names only. The app is stopped and
-  uninstalled, so the catalog counts below are unchanged. Before that, its
-  installed manifest is edited on disk to ask for `OH_SECRET_KEY`: it stops
-  validating (`manifest: null`), so `start` answers `missing` and runs
-  nothing; the start-time check in `_environment` is never reached through
-  the API.
-- **Disable stops the backend (`F28.disable-stops-backend`).** Prepare again
-  (the forced install revoked the approval), enable, start, then disable.
+  两种坏的ifests都是422 `Invalid canvas extension ...`，没有任何影响
+  安装：`OH_SECRET_KEY` 位于允许列表之外（`LANG`、`LC_ALL`、
+  `LC_CTYPE`、`PATH`、`TMPDIR`、`TZ`）甚至在允许的名称旁边，并且列出两次的名称也会被拒绝。 启动的后端环境恰好是`HOME=<data>/qa-f28-env/home`加上服务器自己的所请求名称的值（`PATH`总是，`TZ=UTC`来自家族的
+  `Launch:`行，`LANG`仅当服务器有时），而服务器进程持有`OH_SECRET_KEY`（检查不打印）； 打印行仅列出后端的变量名称。 该应用程序已停止并卸载，因此下面的目录计数不变。 在此之前，在磁盘上编辑其安装的清单以请求 `OH_SECRET_KEY`：它停止验证 (`manifest: null`)，因此 `start` 回答 `missing` 并且不运行任何内容； `_environment` 中的开始时间检查永远不会通过 API 到达。
+- **Disable 停止后端 (`F28.disable-stops-backend`)。**再次准备（强制安装撤销批准），启用，启动，然后禁用。
   ```sh
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/prepare --json "{\"revision\": \"$BHEAD\"}" --expect 200 --quiet
   control-agent-server api PATCH /api/canvas-extensions/installed/qa-backend --json '{"enabled": true}' --expect 200
@@ -851,10 +734,8 @@ Preconditions:
     --save F28.disable-stops-backend/status
   control-agent-server api GET /api/canvas-extensions/installed/qa-backend --check enabled eq false
   ```
-  The disable answers 200 only after the backend's group is gone; the status
-  is `stopped`.
-- **Persistence across a restart (`F28.restart-persistence`).** Enable and
-  start the backend app, then restart the server gracefully.
+  只有在后端组消失后，禁用答案才返回 200。 状态为`stopped`。
+- **持久化重新启动 (`F28.restart-persistence`)。**启用并启动后端应用程序，然后正常重新启动服务器。
   ```sh
   control-agent-server api PATCH /api/canvas-extensions/installed/qa-backend --json '{"enabled": true}' --expect 200
   RPID=$(control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$BHEAD\"}" \
@@ -870,11 +751,10 @@ Preconditions:
     --expect 200 --check state eq ready --check pid ne "$RPID" --save F28.restart-persistence/start-again
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/stop --expect 200 --check state eq stopped
   ```
-  The graceful shutdown stopped the backend; the six installs, both
-  `enabled: true` values and the approval come back, the backend reads
-  `stopped`, and `start` succeeds with a new pid without another `prepare`.
-- **Uninstall (`F28.uninstall`).** Start the backend, uninstall the app, then
-  delete its data.
+  优雅的关闭停止了后端。 6个安装，都是
+  `enabled: true` 值和批准返回，后端读取
+  `stopped` 和 `start` 成功使用新的 pid，无需另一个 `prepare`。
+- **卸载(`F28.uninstall`)。**启动后端，卸载应用程序，然后删除其数据。
   ```sh
   QPID=$(control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$BHEAD\"}" \
     --expect 200 --check state eq ready --field pid)
@@ -896,13 +776,8 @@ Preconditions:
     --check state eq missing --save F28.uninstall/delete-data
   test ! -e "$BK/data/qa-backend"
   ```
-  The uninstall stops the running backend and removes the package and its
-  record; the backend reads `missing` while the data directory, the extracted
-  artifact and the approval survive, a second DELETE is 404, and the data
-  route then removes `backends/data/qa-backend`.
-- **Non-gzip artifact (`F28.prepare-corrupt-archive`).** An
-  artifact whose bytes match the manifest's sha256 but are not a gzip archive
-  is refused like every other bad artifact (409), and nothing is written.
+  卸载会停止运行的后端并移除包及其记录。 后端读取`missing`，数据目录、提取的成果和批准仍然存在，第二个DELETE是404，然后数据路由则删除`backends/data/qa-backend`。
+- **非gzip的文件 (`F28.prepare-corrupt-archive`).** 包含与manifest的sha256哈希值匹配的字节，但不是gzip压缩文件的文件将被拒绝，就像所有其他坏文件一样（409），并且没有任何内容写入。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX/qa-f28-notgz\"}" --expect 200 --quiet
   NREV=$(control-agent-server api GET /api/canvas-extensions/installed/qa-f28-notgz/backend --field revision)
@@ -914,13 +789,9 @@ Preconditions:
   control-agent-server state ls 'home/.openhands/canvas-extensions/backends/approvals/qa-f28-notgz.json' --expect-count 0
   control-agent-server state ls 'home/.openhands/canvas-extensions/backends/artifacts/qa-f28-notgz/**' --expect-count 0
   ```
-  The installed artifact's sha256 matches the manifest, so the checksum gate
-  passes and only the archive format is wrong: the prepare answers 409
-  `backend artifact is not a valid gzip tar archive`, and no approval or
-  extracted artifact is left behind.
-- **Unknown ref on a cached source (`F28.install-ref-cached`).**
-  Pin `qa-f28-git` (which caches its clone), then force a ref that does not
-  exist.
+  安装的 artifact 的 sha256 与 manifest 匹配，因此校验码门通过，只有归档格式有误：prepare 409
+  `backend artifact is not a valid gzip tar archive`，并且不会留下任何批准或提取的工件。
+- **缓存源上的未知引用 (`F28.install-ref-cached`)。** Pin `qa-f28-git`（缓存其克隆），然后强制使用不存在的引用。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"file://$GX\", \"ref\": \"$GV1\", \"force\": true}" \
     --expect 200 --check resolved_ref eq "$GV1" --quiet
@@ -931,12 +802,8 @@ Preconditions:
     --check extensions.qa-f28-git.requested_ref eq "$GV1" --check extensions.qa-f28-git.resolved_ref eq "$GV1"
   control-agent-server api DELETE /api/canvas-extensions/installed/qa-f28-git --expect 200 --quiet
   ```
-  The pinned install leaves exactly one cached clone of the source. The unknown
-  ref returns 400 as on a first fetch (`F28.install-ref`). The requested and
-  resolved refs remain at the prior pinned commit.
-- **Health probe latch (`F28.status-probe-latch`).** Make the
-  running backend answer one status probe slower than the 1 s probe timeout,
-  then fast again.
+  锁定安装留下了源的唯一一个缓存克隆。 未知引用返回了400，类似于第一次请求 (`F28.install-ref`)。 请求和已解决的引用仍然停留在之前的 pinned 命名提交。
+- **运行状况探针锁存器 (`F28.status-probe-latch`)。**使正在运行的后端应答一个状态探测的速度比 1 秒探测超时慢，然后再次加快。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX/qa-f28-flaky\"}" --expect 200,409 --quiet
   FREV=$(control-agent-server api GET /api/canvas-extensions/installed/qa-f28-flaky/backend --field revision)
@@ -952,17 +819,10 @@ Preconditions:
     --save F28.status-probe-latch/after-recovery
   control-agent-server api POST /api/canvas-extensions/installed/qa-f28-flaky/backend/stop --expect 200 --check state eq stopped --quiet
   ```
-  Expected: once `/health` answers in time again (the direct `curl` shows it
-  does), the status returns to `ready` (whether or not the slow probe was
-  reported). The slow-probe status is not asserted, so a server that
-  tolerates one slow probe passes too. Today the slow probe reads `unhealthy`
-  ("Backend health probe failed", saved as `slow-probe`) with the same pid;
-  each later status call probes that live process again, so the status reads
-  `ready` as soon as `/health` answers in time, and `start` with the same
-  revision re-probes the same pid instead of restarting it. A backend whose
-  process exited stays `unhealthy` until `stop` or `start`.
-- **Status after the leader exits (`F28.status-exit-hang`).** The backend
-  forks a child that inherits its stdout, then its leader exits.
+  预期：一旦`/health`再次及时回答（直接`curl`显示它
+  ），状态返回到 `ready`（无论是否报告了慢速探测）。 慢速探测状态未断言，因此容忍一个慢速探测的服务器也会通过。 今天，慢速探针读取`unhealthy`（“后端运行状况探针失败”，保存为`slow-probe`），具有相同的pid； 以后的每个状态调用都会再次探测该实时进程，因此状态会读取
+  `ready` 一旦 `/health` 及时答复，并且具有相同修订版本的 `start` 会重新探测相同的 pid，而不是重新启动它。 进程退出的后端将保持 `unhealthy` 直到 `stop` 或 `start`。
+- **leader退出后的状态（`F28.status-exit-hang`）。**后端分叉一个继承其标准输出的子级，然后其领导者退出。
   ```sh
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$F28FX/qa-f28-flaky\"}" --expect 200,409 --quiet
   FREV=$(control-agent-server api GET /api/canvas-extensions/installed/qa-f28-flaky/backend --field revision)
@@ -983,19 +843,9 @@ Preconditions:
   control-agent-server api POST /api/canvas-extensions/installed/qa-f28-flaky/backend/stop --timeout 10 --expect 200 --check state eq stopped
   if kill -0 "$CHILD" 2>/dev/null; then false; fi
   ```
-  The leader is gone (the server reaped it) while the forked `/bin/sleep`
-  child still runs. The status reports the exit (`unhealthy`, `Backend
-  exited with code 0`) at once and `stop` kills the leftover child.
-  `--until-ok` covers a status call that lands before the server noticed the
-  exit (it would read `Backend health probe failed` once); an `api` call
-  that times out ends the retries. Before #5689 the status call waited for
-  the child to close the pipes (up to 300 s) while it held the app's lock,
-  so `stop`, `logs`, `prepare`, `start` and the data route for that app
-  timed out behind it and the child kept running (baseline `3dcb27b2`
-  reproduced it twice, #5689 passed twice). The exit trap kills the
-  bullet's own child if a regression leaves it behind.
-- **Backend outlives a crash (`F28.hard-restart-orphan`).** Start a
-  backend, SIGKILL the server and restart it on the same state.
+  `/bin/sleep` 子进程仍然在运行，而领导已经离开（服务器杀死了它）。 状态报告立即报告退出(`unhealthy`, `Backend exited with code 0`)，`stop` 会杀死剩余的子进程。
+  `--until-ok` 覆盖了状态查询，该查询在服务器注意到退出之前就完成了（它会读取到） `Backend health probe failed` once); 一个 `api` 超时则结束重试。 在 #5689 之前，状态调用会等待子进程关闭管道（最多 300 秒），而它持有应用的锁，so `stop`, `logs`, `prepare`, `start` 并且该应用的数据路由超时了，而孩子仍在运行（基准） `3dcb27b2` 它被重复测试了两次，#5689 成功了两次。 子弹的子弹头如果被出口陷阱杀死回归留下它。
+- **后端不会崩溃 (`F28.hard-restart-orphan`)。**启动后端，SIGKILL 服务器并在相同状态下重新启动它。
   ```sh
   OX=$(control-agent-server fixture canvas-app --name qa-orphan --backend ok --print-path)
   control-agent-server api POST /api/canvas-extensions/install --json "{\"source\": \"$OX\"}" --expect 200 --quiet
@@ -1009,89 +859,40 @@ Preconditions:
     --check pid eq null --save F28.hard-restart-orphan/status-after-crash
   control-agent-server assert --value "$(pgrep -f "$BK/artifacts/qa-orphan/" || true)" --check . eq ''
   ```
-  Expected: no backend process of the dead server remains once the server is
-  back. The server records each backend it starts (process group, leader
-  start time and its own pid and start time) under `backends/run/`, and at
-  startup, before serving, stops the group of every record whose server is
-  gone and whose leader still matches (same start time, command line under
-  `artifacts/<name>/`), then drops the record. So the restarted server
-  reports `stopped` with no process left, a new `start` launches the only
-  process on the data directory, and `DELETE .../backend/data` runs with no
-  live backend. The leftover check matches the run-private artifact path
-  rather than the pid, so a recycled pid cannot fake a survivor; the `pgrep`
-  before the crash shows the pattern finds the live backend.
+  预期：一旦服务器恢复，死服务器的后端进程就不再保留
+  回来。 `backends/run/` 中记录了服务器启动的每个后端（进程组、领导者启动时间及其自己的进程 ID 和启动时间），以及在启动之前，停止了所有服务器已消失但领导者仍然匹配（相同启动时间、命令行）的记录组
+  `artifacts/<name>/`)，然后删除该记录。 重启后的服务器报告`stopped`，没有进程了，一个新的`start`启动了数据目录中的唯一进程，而`DELETE .../backend/data`则没有活的后端。 剩余的检查匹配运行专用工件路径而不是 pid，因此回收的 pid 无法伪造幸存者； 崩溃之前的 `pgrep` 显示该模式找到了实时后端。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `file://` is a git URL, not a local path: `file:///plain/dir` that is not a
-  repository is 400. Use a bare absolute path for a local install. Relative
-  and `~` sources resolve against the server's cwd and private `HOME`, not the
-  caller's.
-- A fresh install is always disabled and the body has no `enabled` field
-  (extra fields are ignored). `force` keeps the previous `enabled` value but
-  deletes the backend approval, and is refused with 409 while any app's
-  backend is starting or running, not only this app's.
-- `GET /installed` writes: it registers valid hand-copied directories
-  (disabled, `source: "local"`) and prunes records whose directory is gone.
-  GET by name, bundle, icon and the backend routes do not discover; they 404
-  (or report `missing`) until a list call ran.
-- `ref` goes through the SDK's cached git clone (`cache/extensions/<name>-<hash>`).
-  An unknown ref returns 400 and leaves the installed app unchanged on a first
-  fetch and on a cached source (`F28.install-ref-cached`). Every git fetch
-  failure reads
-  `Could not read canvas extension source: Failed to fetch extension from <url>`
-  without naming the ref, although the router avoids "failed to fetch" wording
-  on purpose (the Canvas client treats it as a network outage).
-- Every read re-validates the installed manifest and the entrypoint's
-  containment; `manifest: null` is the signal that an install is broken on
-  disk. A non-`.svg` icon is silently dropped at parse time and the app stays
-  valid.
-- The backend routes never 404: an unknown or broken app reports `missing`,
-  a browser-only app `unsupported`, and prepare/start/stop/logs/data answer
-  200 with that state. Only a non-kebab-case name is 422.
-- The revision is the git commit for git installs and
-  `sha256:<hash of the manifest JSON>` for local ones, so editing an installed
-  manifest of a local install changes the revision (and needs a new prepare),
+## 陷阱
+
+- `file://` 是 git URL，不是本地路径：`file:///plain/dir` 不是存储库，是 400。 使用裸绝对路径进行本地安装。 相对源和 `~` 源根据服务器的 cwd 和私有 `HOME`（而不是调用者的）进行解析。
+- 全新安装始终被禁用，并且主体没有 `enabled` 字段（额外的字段将被忽略）。 `force` 保留了之前的`enabled`值，删除了后端审批，并且在任何应用的后端启动或运行时被拒绝，而不是这个应用。
+- `GET /installed` 写入：它注册有效的手动复制目录（禁用，`source: "local"`）并修剪目录已消失的记录。 GET按名称、捆绑包、图标和后端路由不发现； 他们 404（或报告 `missing`）直到列表调用运行。
+- `ref` 遍历 SDK 的缓存 git 克隆 (`cache/extensions/<name>-<hash>`)。 未知的引用返回 400，并在第一次获取和缓存的源上保持已安装的应用程序不变 (`F28.install-ref-cached`)。 每次 git fetch 失败都会读取
+  `Could not read canvas extension source: Failed to fetch extension from <url>` 没有命名引用，尽管路由器故意避免“无法获取”措辞（Canvas 客户端将其视为网络中断）。
+- 每次读取都会重新验证已安装的清单和入口的遏制； `manifest: null` 是磁盘上的安装已损坏的信号。 非 `.svg` 图标会在解析时默默删除，并且应用程序保持有效。
+- 后端路由从不返回 404：未知或损坏的应用报告 `missing`，仅浏览器的应用报告 `unsupported`，以及准备/启动/停止/日志/数据的应用返回 200 并报告该状态。 只有非 kebab 大小写的名称是 422。
+- 修订版是 git 安装的 git 提交
+  `sha256:<hash of the manifest JSON>` 对于本地安装，因此编辑本地安装的已安装清单会更改修订版（并且需要新的准备），
   while a git install's revision does not change.
-- `prepare` and `start` do not consult `enabled`: a disabled app can be
-  prepared and started (the README makes `prepare` with the exact revision the
-  explicit gate; disabling and uninstalling stop the backend). `prepare` also
-  does not check whether a backend is running.
-- `start` blocks until the health check passes or `health.timeout_seconds`
-  (up to 300) runs out, so give `api` a long enough `--timeout` (default 60 s)
-  for slow fixtures. `stop` abandons a pending start, which then answers
+- `prepare`和`start`不参考`enabled`：可以准备并启动禁用的应用程序（README使`prepare`具有精确的修订版显式门； 禁用和卸载会停止后端）。 `prepare`也不检查后端是否正在运行。
+- `start` 会阻塞，直到健康检查通过或 `health.timeout_seconds`（最多 300）用完，因此为 `api` 提供足够长的 `--timeout`（默认 60 秒）以降低测试夹具的速度。 `stop` 放弃一个待定的开始，然后回答
   `stopped`.
-- Backends get no `PATH` unless they ask: the environment is only
-  `HOME=<data>/<name>/home` plus the server's values of the names
-  `inherit_environment` lists from its allow-list (`LANG`, `LC_ALL`,
-  `LC_CTYPE`, `PATH`, `TMPDIR`, `TZ`; anything else is a 422 at install,
-  `F28.backend-inherit-environment`), so scripts need absolute shebangs and
-  binaries.
-  Python's stdout to a pipe is block-buffered: flush, or `logs` stays empty.
-  The CLI's aiohttp fixture prints nothing, which is why the logs bullet uses
-  its own shell backend.
-- Logs are kept after a stop or a failed start and cleared by the next
-  `start`; each read chunk (not each line) is prefixed with `[stdout] ` or
+- 后端不会得到 `PATH` 除非他们询问：环境只是
+  `HOME=<data>/<name>/home` 加上服务器的名称值
+  `inherit_environment` 从其允许列表中列出 (`LANG`, `LC_ALL`,
+  `LC_CTYPE`, `PATH`, `TMPDIR`, `TZ`; 其他的都是安装时的 422，
+  `F28.backend-inherit-environment`)，因此脚本需要绝对的 shebang 和二进制文件。 Python 到管道的标准输出是块缓冲的：刷新，或者 `logs` 保持为空。 CLI 的 aiohttp 测试夹具不打印任何内容，这就是日志项目符号使用自己的 shell 后端的原因。
+- 日志在停止或启动失败后保留，并由下一次清除
+  `start`; 每个读取块（不是每行）都以 `[stdout] ` 或
   `[stderr] `.
-- Extracted artifacts are read-only (`0555`) and never garbage-collected, not
-  even on uninstall; `DELETE .../backend/data` removes only `backends/data/<name>`.
-  A non-root `rm -rf` of the run's state needs `chmod -R u+w` on
-  `canvas-extensions/backends/artifacts` first.
-- Backends run in their own session, so they outlive a SIGKILLed server
-  until it restarts on the same state (`F28.hard-restart-orphan`).
-  `control-agent-server stop` reaps leftovers whose `HOME` is inside the run.
-- Every `GET .../backend` of a `ready` backend probes its health path with a
-  1 s timeout. One slow answer reads `unhealthy` until a later probe answers
-  in time (`F28.status-probe-latch`), so fixture backends must answer
-  `/health` from a threaded server, never behind a slow request. Before #5689 a backend
-  whose children kept its stdout open after the leader died wedged that
-  app's lifecycle routes; the server now reaps them
-  (`F28.status-exit-hang`).
-- A pending `start` that another command must observe runs as a
-  backgrounded `api` call (`... &`, then `START_JOB=$!`) and is collected
-  with `wait "$START_JOB"`, so its own `--expect`/`--check` still fail the
-  bullet (`F28.backend-logs`).
-- Probing a backend directly (`curl 127.0.0.1:<port>`, `/proc/<pid>`) needs a
-  Linux host where the CLI and the server share a network and pid namespace;
-  an attached remote server cannot be checked this way. The browser route to
-  a backend (`/app-backends/...`) belongs to the bridge family.
+- 提取的工件是只读 (`0555`) 并且永远不会被垃圾收集，即使在卸载时也不会； `DELETE .../backend/data`仅删除`backends/data/<name>`。 运行状态的非根 `rm -rf` 需要 `chmod -R u+w`
+  `canvas-extensions/backends/artifacts` 第一。
+- 后端在自己的会话中运行，因此它们会一个  SIGKILLed 直到服务器重启到相同状态为止`F28.hard-restart-orphan`).
+  `control-agent-server stop` 收获 `HOME` 在运行中的剩余物。
+- `ready` 后端的每个 `GET .../backend` 用 1 s 超时探测其健康路径。 一个缓慢的答案读取 `unhealthy`，直到稍后的探测及时回答 (`F28.status-probe-latch`)，因此测试夹具后端必须回答
+  `/health` 来自线程服务器，永远不会落后于缓慢的请求。 在 #5689 之前，一个后端的孩子在领导者死亡后保持其标准输出打开，楔入了该应用程序的生命周期路线； 服务器现在收获它们（`F28.status-exit-hang`）。
+- 在途的 `start` 另一个命令必须以后台模式运行 `api` call (`... &`, then `START_JOB=$!`) 并且被收集起来 `wait "$START_JOB"`所以它的自己 `--expect`/`--check` 仍然未能击中目标`F28.backend-logs`).
+- 直接探测后端（`curl 127.0.0.1:<port>`、`/proc/<pid>`）需要一台 Linux 主机，其中 CLI 和服务器共享网络和 pid 命名空间； 无法通过这种方式检查连接的远程服务器。 到后端（`/app-backends/...`）的浏览器路由属于桥系列。

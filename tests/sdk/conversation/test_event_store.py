@@ -1,4 +1,4 @@
-"""Comprehensive edge case tests for EventLog class."""
+"""EventLog 类的综合边缘情况测试。"""
 
 import json
 from unittest.mock import Mock
@@ -18,7 +18,7 @@ from openhands.sdk.utils.path import posix_path_name
 
 
 def create_test_event(event_id: str, content: str = "Test content") -> MessageEvent:
-    """Create a test MessageEvent with specific ID."""
+    """创建具有特定 ID 的测试 MessageEvent。"""
     event = MessageEvent(
         id=event_id,
         llm_message=Message(role="user", content=[TextContent(text=content)]),
@@ -28,14 +28,14 @@ def create_test_event(event_id: str, content: str = "Test content") -> MessageEv
 
 
 def test_event_log_empty_initialization():
-    """Test EventLog with empty file store."""
+    """使用空文件存储测试 EventLog。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
     assert len(log) == 0
     assert list(log) == []
 
-    # Test accessing empty log
+    # 测试访问空日志
     with pytest.raises(IndexError):
         log[0]
 
@@ -44,8 +44,8 @@ def test_event_log_empty_initialization():
 
 
 def test_event_log_append_returns_assigned_index():
-    """``append`` returns the sequence number it assigned, so callers don't
-    need a separate ``get_index`` lookup right after appending."""
+    """``append`` 返回它分配的序列号，因此调用者不会
+    附加后需要立即进行单独的 ``get_index`` 查找。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -55,7 +55,7 @@ def test_event_log_append_returns_assigned_index():
 
 
 def test_event_log_id_validation_duplicate_id():
-    """Test that duplicate event IDs are prevented."""
+    """测试是否可以防止重复的事件 ID。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -64,7 +64,7 @@ def test_event_log_id_validation_duplicate_id():
 
     log.append(event1)
 
-    # Duplicate IDs should raise ValueError
+    # 重复的 ID 应引发 ValueError
     with pytest.raises(
         ValueError, match="Event with ID 'test-id-1' already exists at index 0"
     ):
@@ -74,31 +74,31 @@ def test_event_log_id_validation_duplicate_id():
 
 
 def test_event_log_id_validation_existing_id_different_index():
-    """Test behavior when internal state is manually modified."""
+    """测试手动修改内部状态时的行为。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Add first event
+    # 添加第一个事件
     event1 = create_test_event("event-1", "First")
     log.append(event1)
 
-    # Manually corrupt the internal state to simulate edge case
-    log._id_to_idx["event-2"] = 0  # Wrong index for event-2
+    # 手动破坏内部状态以模拟边缘情况
+    log._id_to_idx["event-2"] = 0  # event-2 的索引错误
 
-    # With duplicate prevention, event-2 will be rejected because
-    # "event-2" is already in _id_to_idx
+    # 通过重复预防，event-2 将被拒绝，因为“event-2”已在 _id_to_idx 中
+    #
     event2 = create_test_event("event-2", "Second")
     with pytest.raises(
         ValueError, match="Event with ID 'event-2' already exists at index 0"
     ):
         log.append(event2)
 
-    # Only the first event should be in the log
+    # 只有第一个事件应该记录在日志中
     assert len(log) == 1
 
 
 def test_event_log_negative_indexing():
-    """Test negative indexing works correctly."""
+    """测试负索引是否正常工作。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -111,18 +111,18 @@ def test_event_log_negative_indexing():
     for event in events:
         log.append(event)
 
-    # Test negative indexing
+    # 测试负面索引
     assert log[-1].id == "event-3"
     assert log[-2].id == "event-2"
     assert log[-3].id == "event-1"
 
-    # Test out of bounds negative indexing
+    # 测试越界负索引
     with pytest.raises(IndexError):
         log[-4]
 
 
 def test_event_log_get_index_and_get_id():
-    """Test get_index and get_id methods."""
+    """测试get_index和get_id方法。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -135,22 +135,22 @@ def test_event_log_get_index_and_get_id():
     for event in events:
         log.append(event)
 
-    # Test get_index
+    # 测试 get_index
     assert log.get_index("alpha") == 0
     assert log.get_index("beta") == 1
     assert log.get_index("gamma") == 2
 
-    # Test get_id
+    # 测试 get_id
     assert log.get_id(0) == "alpha"
     assert log.get_id(1) == "beta"
     assert log.get_id(2) == "gamma"
 
-    # Test negative indexing in get_id
+    # 在 get_id 中测试负索引
     assert log.get_id(-1) == "gamma"
     assert log.get_id(-2) == "beta"
     assert log.get_id(-3) == "alpha"
 
-    # Test errors
+    # 测试错误
     with pytest.raises(KeyError, match="Unknown event_id: nonexistent"):
         log.get_index("nonexistent")
 
@@ -162,47 +162,47 @@ def test_event_log_get_index_and_get_id():
 
 
 def test_event_log_missing_event_file():
-    """Test behavior when event file is missing."""
+    """测试事件文件丢失时的行为。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
     event = create_test_event("test-event", "Content")
     log.append(event)
 
-    # Manually delete the file to simulate corruption
+    # 手动删除文件以模拟损坏
     path = log._path(0, event_id="test-event")
     fs.delete(path)
 
-    # Cached access still works — the event was cached on append
+    # 缓存访问仍然有效 - 事件在追加时缓存
     assert log[0].id == "test-event"
 
-    # Clear cache to test the disk-access path
+    # 清除缓存以测试磁盘访问路径
     log._event_cache.clear()
     with pytest.raises(FileNotFoundError):
         log[0]
 
 
 def test_event_log_corrupted_json_in_file():
-    """Test behavior with corrupted JSON in event file."""
+    """测试事件文件中损坏的 JSON 的行为。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Manually create a corrupted event file
+    # 手动创建损坏的事件文件
     fs.write("events/event-00000-test-id.json", "invalid json content")
 
-    # Force rescan
+    # 强制重新扫描
     log._length = log._scan_and_build_index()
 
-    # The corrupted file should not be indexed, so length should be 0
+    # 损坏的文件不应被索引，因此长度应为 0
     assert len(log) == 0
 
-    # Accessing should raise IndexError since no valid events exist
+    # 由于不存在有效事件，访问应引发 IndexError
     with pytest.raises(IndexError):
         log[0]
 
 
 def test_event_log_clear_functionality():
-    """Test that EventLog doesn't have a clear method in current implementation."""
+    """测试EventLog在当前实现中没有明确的方法。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -217,20 +217,20 @@ def test_event_log_clear_functionality():
 
     assert len(log) == 3
 
-    # Current implementation doesn't have a clear method
+    # 目前的实现没有明确的方法
     assert not hasattr(log, "clear")
 
-    # Events should still be accessible
+    # 事件应该仍然可以访问
     assert len(log) == 3
     assert log._id_to_idx != {}
     assert log._idx_to_id != {}
 
 
 def test_event_log_index_gaps_detection():
-    """Test detection and handling of index gaps."""
+    """测试索引差距的检测和处理。"""
     fs = InMemoryFileStore()
 
-    # Create files with gaps (missing event-00001)
+    # 创建有间隙的文件（缺少 event-00001）
     event0 = {
         "id": "event-0",
         "llm_message": {
@@ -253,17 +253,17 @@ def test_event_log_index_gaps_detection():
     }
     fs.write("events/event-00002-event-2.json", json.dumps(event2))
 
-    # Should only load up to the gap
+    # 应该只加载到间隙
     log = EventLog(fs)
 
-    # The current scanning logic is very strict about gaps
-    # If there's a gap at any index, it stops loading events entirely
-    # This is the current behavior, though it could be improved
-    assert len(log) == 0  # No events loaded due to gap detection
+    # 当前扫描逻辑对空隙非常严格。如果在任何索引处有空隙，就会完全停止加载事件。这是当前
+    # 的行为，但可以改进
+    #
+    assert len(log) == 0  # 由于间隙检测，未加载任何事件
 
 
 def test_event_log_file_store_exceptions():
-    """Test handling of file store exceptions."""
+    """测试文件存储异常的处理。"""
     import tempfile
 
     mock_fs = Mock()
@@ -275,11 +275,11 @@ def test_event_log_file_store_exceptions():
 
 
 def test_event_log_iteration_with_missing_files():
-    """Test iteration behavior when some files are missing."""
+    """测试某些文件丢失时的迭代行为。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Add events
+    # 添加事件
     events = [
         create_test_event("event-1", "First"),
         create_test_event("event-2", "Second"),
@@ -289,51 +289,51 @@ def test_event_log_iteration_with_missing_files():
     for event in events:
         log.append(event)
 
-    # Delete middle file
+    # 删除中间文件
     path = log._path(1, event_id="event-2")
     fs.delete(path)
 
-    # Cached iteration still works — all 3 events were cached on append
+    # 缓存的迭代仍然有效——所有 3 个事件都缓存在附加上
     assert [e.id for e in log] == ["event-1", "event-2", "event-3"]
 
-    # Clear cache to test the disk-access path
+    # 清除缓存以测试磁盘访问路径
     log._event_cache.clear()
     with pytest.raises(FileNotFoundError):
         list(log)
 
 
 def test_event_log_iteration_backfills_missing_mappings():
-    """Test that iteration fails when mappings are missing and cache is cold."""
+    """测试当映射丢失且缓存变冷时迭代是否失败。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Add an event through normal append
+    # 通过普通append添加事件
     event = create_test_event("manual-event", "Manual event")
     log.append(event)
 
-    # Verify the event was added
+    # 验证事件已添加
     assert len(log) == 1
     assert log[0].id == "manual-event"
 
-    # Clear mappings and cache to simulate missing data
+    # 清除映射和缓存以模拟丢失的数据
     log._idx_to_id.clear()
     log._id_to_idx.clear()
     log._event_cache.clear()
 
-    # But keep the length so iteration can work
+    # 但保持长度以便迭代可以工作
     log._length = 1
 
-    # Without cache or mappings, iteration fails on _path lookup
+    # 如果没有缓存或映射，迭代在 _path 查找时失败
     with pytest.raises(KeyError):
         list(log)
 
-    # Mappings remain empty
+    # 映射仍为空
     assert 0 not in log._idx_to_id
     assert "manual-event" not in log._id_to_idx
 
 
 def test_event_log_custom_directory():
-    """Test EventLog with custom directory."""
+    """使用自定义目录测试 EventLog。"""
     fs = InMemoryFileStore()
     custom_dir = "custom_events"
     log = EventLog(fs, custom_dir)
@@ -341,28 +341,28 @@ def test_event_log_custom_directory():
     event = create_test_event("custom-event", "Custom content")
     log.append(event)
 
-    # Should create file in custom directory - check by listing files
+    # 应在自定义目录中创建文件 - 通过列出文件进行检查
     files = fs.list(custom_dir)
     assert len(files) > 0
     assert any("custom-event" in f for f in files)
 
-    # Should be able to read back
+    # 应该可以回读
     assert len(log) == 1
     assert log[0].id == "custom-event"
 
 
 def test_event_log_large_index_formatting():
-    """Test proper formatting of large indices."""
+    """测试大型索引的正确格式。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Simulate large index by manually setting length
+    # 通过手动设置长度来模拟大索引
     log._length = 99999
 
     event = create_test_event("large-index-event", "Content")
     log.append(event)
 
-    # Should format with proper zero-padding - check by listing files
+    # 应使用适当的零填充进行格式化 - 通过列出文件进行检查
     files = fs.list("events")
     assert len(files) > 0
     assert any("event-99999-large-index-event" in f for f in files)
@@ -372,7 +372,7 @@ def test_event_log_large_index_formatting():
 
 
 def test_event_log_concurrent_append_thread_safety():
-    """Test concurrent appends from multiple threads."""
+    """测试并发从多个线程追加。"""
     import tempfile
     import threading
 
@@ -409,7 +409,7 @@ def test_event_log_concurrent_append_thread_safety():
 
 
 def test_event_log_concurrent_writes_serialized():
-    """Test two EventLog instances serialize writes correctly."""
+    """测试两个EventLog实例序列化写入正确。"""
     import tempfile
 
     from openhands.sdk.io.local import LocalFileStore
@@ -425,33 +425,33 @@ def test_event_log_concurrent_writes_serialized():
         assert log1._length == 1
         assert log2._length == 2
 
-        # Sidecars (lock file, event-count marker) are dotfiles, not events.
+        # Sidecar（锁文件，事件计数标记）是点文件，而不是事件。
         files = [f for f in fs.list("events") if not posix_path_name(f).startswith(".")]
         assert len(files) == 2
 
 
 def test_get_single_item_recovers_from_stale_index():
-    """_get_single_item rebuilds the index when _idx_to_id is stale."""
+    """当 _idx_to_id 过时时，_get_single_item 重建索引。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
-    # Use UUID-like IDs to match EVENT_NAME_RE pattern
+    # 使用UUID格式的ID来匹配EVENT_NAME_RE模式
     evt_id = "00000000-0000-0000-0000-000000000001"
     event = create_test_event(evt_id, "Should recover")
     log.append(event)
     assert log[0].id == evt_id
 
-    # Simulate a stale in-memory index (e.g., external file modification)
+    # 模拟陈旧的内存索引（e.g.，外部文件修改）
     log._idx_to_id.clear()
     log._id_to_idx.clear()
 
-    # Access should rebuild the index transparently and succeed
+    # Access 应该透明地重建索引并成功
     recovered = log[0]
     assert recovered.id == evt_id
 
 
 def test_get_single_item_stale_index_out_of_range():
-    """After index rebuild, raise IndexError if the index no longer exists."""
+    """重建索引后，如果索引不再存在，则引发 IndexError。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -459,18 +459,18 @@ def test_get_single_item_stale_index_out_of_range():
     event = create_test_event(evt_id, "Only one")
     log.append(event)
 
-    # Clear index AND artificially inflate length to simulate stale state
+    # 清除索引 AND 人为地增加长度以模拟陈旧状态
     log._idx_to_id.clear()
     log._id_to_idx.clear()
-    log._length = 5  # pretend there are 5 events
+    log._length = 5  # 假设有 5 个事件
 
-    # Index 3 doesn't exist on disk; should raise IndexError after rebuild
+    # 索引3在磁盘上不存在； 重建后应提高 IndexError
     with pytest.raises(IndexError, match="Event index out of range"):
         log[3]
 
 
 def test_event_cache_eliminates_repeated_deserialization():
-    """Repeated access to the same event returns the cached object."""
+    """重复访问同一事件将返回缓存的对象。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -479,32 +479,32 @@ def test_event_cache_eliminates_repeated_deserialization():
 
     first = log[0]
     second = log[0]
-    # Same object identity — no re-deserialization
+    # 相同的对象标识 — 无需重新反序列化
     assert first is second
 
 
 def test_event_cache_populated_by_iteration():
-    """Iterating the log populates the cache for subsequent indexed access."""
+    """迭代日志会填充缓存以供后续索引访问。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
     for i in range(3):
         log.append(create_test_event(f"evt-{i}", f"Content {i}"))
 
-    # Clear cache to force cold iteration
+    # 清除缓存以强制冷迭代
     log._event_cache.clear()
     events_from_iter = list(log)
 
-    # Cache should now hold all 3 events
+    # 缓存现在应该保存所有 3 个事件
     assert len(log._event_cache) == 3
 
-    # Indexed access returns the same cached object
+    # 索引访问返回相同的缓存对象
     for i, evt in enumerate(events_from_iter):
         assert log[i] is evt
 
 
 def test_event_cache_survives_across_multiple_iterations():
-    """Multiple iterations return the same cached objects."""
+    """多次迭代返回相同的缓存对象。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
 
@@ -518,7 +518,7 @@ def test_event_cache_survives_across_multiple_iterations():
 
 @pytest.mark.parametrize("idx", [0, 1, 99999, 100000, 100001, 999999, 1_000_000])
 def test_event_filename_writer_reader_agree(idx):
-    """The reader regex must match the exact filename the writer emits."""
+    """读取器正则表达式必须与写入器发出的确切文件名匹配。"""
     event_id = f"{idx:08x}-0000-0000-0000-000000000000"
     name = EVENT_FILE_PATTERN.format(idx=idx, event_id=event_id)
 
@@ -528,17 +528,18 @@ def test_event_filename_writer_reader_agree(idx):
 
 
 def test_event_log_cold_reload_past_100k_events():
-    """A log with >100000 events reloads without dropping the tail.
+    """包含 >100000 个事件的日志会重新加载，而不会丢失尾部。
 
-    Before the fix the cold scan truncated the index at 100000 (silent data
-    loss) and the count/scan paths diverged, corrupting length accounting.
+    在修复之前，冷扫描将索引截断为 100000（静默数据丢失），并且计数/扫描路径出现分歧
+    ，从而破坏了长度统计。
     """
-    # Raise the test-double LRU caps so the in-memory store keeps every file;
-    # this configures only the storage stand-in, not the code under test.
+    # 提高 test-double LRU 上限，以便内存存储保留每个文件； 这仅配置存储替代，而不配置被
+    # 测试的代码。
+    #
     fs = InMemoryFileStore(max_size=500_000, max_memory=2 * 1024 * 1024 * 1024)
     payload = create_test_event("seed", "seed").model_dump_json(exclude_none=True)
 
-    n = 100_002  # straddles the 5-/6-digit boundary
+    n = 100_002  # 跨越 5-/6-digit 边界
     for i in range(n):
         event_id = f"{i:08x}-0000-0000-0000-000000000000"
         path = f"{EVENTS_DIR}/" + EVENT_FILE_PATTERN.format(idx=i, event_id=event_id)
@@ -546,25 +547,24 @@ def test_event_log_cold_reload_past_100k_events():
 
     log = EventLog(fs)
 
-    # No silent truncation: every event survives the cold scan.
+    # 没有静默截断：每个事件都能在冷扫描中幸存下来。
     assert len(log) == n
 
-    # The events straddling the boundary are readable, not unreachable holes.
+    # 跨越边界的事件是可读的，而不是不可到达的洞。
     assert log[99999] is not None
     assert log[100000] is not None
     assert log[100001] is not None
 
-    # Appending after reload keeps length accounting consistent.
+    # 重新加载后追加可以保持长度统计的一致性。
     log.append(create_test_event("after-reload", "after"))
     assert len(log) == n + 1
 
 
 def test_append_does_not_scan_the_directory_as_the_log_grows():
-    """Append cost must not grow with conversation length (issue #4676).
+    """附加成本不得随对话长度而增加（问题#4676）。
 
-    The multi-writer sync used to count every file in the events directory on
-    every append, so appending event N cost O(N) directory work while holding
-    the lock. Listing calls are the proxy for that cost.
+    同步多写入端点用于在每次追加时计数事件目录中的每个文件，因此追加事件N需要O(N)目录
+    工作，同时持有锁。 挂牌电话是该成本的代理。
     """
     fs = InMemoryFileStore()
     log = EventLog(fs)
@@ -581,14 +581,15 @@ def test_append_does_not_scan_the_directory_as_the_log_grows():
     for i in range(50):
         log.append(create_test_event(f"{i:08x}-0000-0000-0000-000000000000"))
 
-    # The first append has no marker to go on and pays for one listing; every
-    # later append is answered by the marker alone.
+    # 第一个追加没有可继续的标记，并支付一个列表的费用； 每个后面的附加都由标记单独回答
+    # 。
+    #
     assert len(listings) <= 1, f"append listed the events dir {len(listings)} times"
     assert len(log) == 50
 
 
 def test_append_still_syncs_when_another_writer_appended():
-    """A second writer's events are still picked up, marker or not."""
+    """第二个作家的事件仍然会被拾取，无论是否有标记。"""
     fs = InMemoryFileStore()
     log1 = EventLog(fs)
     log2 = EventLog(fs)
@@ -596,8 +597,9 @@ def test_append_still_syncs_when_another_writer_appended():
     log1.append(create_test_event("00000000-0000-0000-0000-000000000001"))
     log1.append(create_test_event("00000000-0000-0000-0000-000000000002"))
 
-    # log2 opened at length 0 and never saw those appends; the marker no longer
-    # names its length, so it falls back to counting and lands after them.
+    # log2 以长度 0 打开并且从未看到那些附加； 标记不再命名其长度，因此它会退回到计数并
+    # 落在它们后面。
+    #
     log2.append(create_test_event("00000000-0000-0000-0000-000000000003"))
 
     assert log2._length == 3
@@ -605,12 +607,12 @@ def test_append_still_syncs_when_another_writer_appended():
 
 
 def test_append_syncs_when_marker_is_missing():
-    """A log written before the marker existed keeps the exact-count path."""
+    """在标记存在之前写入的日志保留精确计数路径。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
     log.append(create_test_event("00000000-0000-0000-0000-000000000001"))
 
-    # Simulate a legacy on-disk log: events present, no marker.
+    # 模拟旧的磁盘日志：存在事件，无标记。
     for path in list(fs.files.keys()):
         if posix_path_name(path).startswith("."):
             del fs.files[path]
@@ -619,12 +621,12 @@ def test_append_syncs_when_marker_is_missing():
     reopened.append(create_test_event("00000000-0000-0000-0000-000000000002"))
     assert len(reopened) == 2
 
-    # And the marker is re-established for the appends that follow.
+    # 并为随后的附加内容重新建立标记。
     assert fs.exists(reopened._marker_path(2))
 
 
 def test_scan_does_not_warn_about_sidecar_files(caplog):
-    """The lock file and count marker are ours; they are not malformed events."""
+    """锁文件和计数标记是我们的； 它们不是畸形事件。"""
     fs = InMemoryFileStore()
     log = EventLog(fs)
     log.append(create_test_event("00000000-0000-0000-0000-000000000001"))

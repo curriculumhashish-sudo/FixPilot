@@ -1,18 +1,16 @@
-"""Tests for ``notifications/tools/list_changed`` handling.
+"""测试 ``notifications/tools/list_changed`` 处理。
 
-Some MCP servers (e.g. Datadog's hosted MCP server) use progressive
-disclosure: they expose a small gateway toolset at connect time and register
-additional tools only after a skill-loading tool is invoked, signalling the
-change with ``notifications/tools/list_changed``. These tests verify that
-``create_mcp_tools`` subscribes to that notification, re-lists tools, and
-invokes the ``on_tools_changed`` callback with the newly added tools.
+一些 MCP 服务器 (e.g. Datadog 的托管 MCP 服务器）使用渐进式
+disclosure: 他们在连接时公开一个小型网关工具集并注册
+仅在调用技能加载工具后才使用其他工具，并用 ``notifications/tools/list_changed`` 表示
+更改。 这些测试验证了
+``create_mcp_tools`` 订阅该通知，重新列出工具，并使用新添加的工具调用
+``on_tools_changed`` 回调。
 
-The end-to-end notification delivery over streamable HTTP is exercised
-against a real FastMCP server below. Because delivering a server-initiated
-notification reliably mid-session depends on the server keeping the SSE
-notification stream open (the way Datadog's hosted server does), the core
-diff/refresh logic is additionally covered by focused unit tests that do not
-depend on transport timing.
+通过流式传输 HTTP 进行的端到端通知传递针对下面的真实 FastMCP 服务器进行。 因为要在会
+话中可靠地交付服务器发起的通知，需要服务器保持SSE通知流的打开（Dat
+adog托管服务器的方式），核心的diff/refresh逻辑还被专注于单元测试的逻辑覆盖，这些逻辑
+不依赖于传输层的时间。
 """
 
 import asyncio
@@ -40,7 +38,7 @@ from openhands.sdk.mcp.utils import (
 
 
 def _native_config(raw: dict) -> dict:
-    """Coerce a FastMCP-shaped config dict to native ``dict[str, MCPServer]``."""
+    """将 FastMCP 形状的配置字典强制转换为原生 ``dict[str, MCPServer]``。"""
     return coerce_mcp_config(raw)
 
 
@@ -76,11 +74,11 @@ def _make_mcp_tool(name: str) -> mcp_types.Tool:
 
 
 class _FakeClient:
-    """Minimal stand-in for ``MCPClient`` used by ``_refresh_tools``.
+    """``_refresh_tools`` 使用 ``MCPClient`` 的最小替代。
 
-    ``_refresh_tools`` only needs ``list_tools()`` (async) and the
-    ``_tools`` / ``_closed`` attributes, so a lightweight fake keeps the diff
-    logic unit-testable without spinning up a real server.
+    ``_refresh_tools`` 只需要 ``list_tools()`` (异步) 并且
+    ``_tools`` / ``_closed`` 属性，因此轻量级的 fake 可以保持 diff 逻辑单元可测试，而
+    无需启动真实服务器。
     """
 
     def __init__(self, tools: list[mcp_types.Tool]):
@@ -94,15 +92,14 @@ class _FakeClient:
 
 
 class _ConcreteAgent(AgentBase):
-    """Minimal concrete ``AgentBase`` for unit-testing runtime helpers.
+    """用于单元测试运行时助手的最小具体 ``AgentBase``。
 
-    ``AgentBase`` is abstract (``step``) and a frozen pydantic model, so
-    tests that only exercise runtime tool updates use this stub to bypass full
-    agent construction.
+    ``AgentBase`` 是抽象的 (``step``) 和冻结的 Pydantic 模型，因此仅执行运行时工具更
+    新的测试使用此存根来绕过完整的智能体构造。
     """
 
     def __init__(self, _initialized: bool, _tools):  # noqa: ANN001
-        # Skip pydantic validation; set the attributes the helpers read.
+        # 跳过Pydantic验证； 设置助手读取的属性。
         object.__setattr__(self, "_initialized", _initialized)
         object.__setattr__(self, "_tools", _tools)
         object.__setattr__(self, "_tools_lock", threading.RLock())
@@ -113,9 +110,9 @@ class _ConcreteAgent(AgentBase):
 
 
 def test_refresh_tools_reports_only_new_tools():
-    """``_refresh_tools`` diffs against existing tools and reports additions."""
+    """``_refresh_tools`` 与现有工具的差异和报告的补充。"""
     client = _FakeClient([_make_mcp_tool("a"), _make_mcp_tool("b")])
-    # Simulate a prior connect that already discovered ``a``.
+    # 模拟已发现的先前连接 ``a``。
     client._tools = list(
         MCPToolDefinition.create(mcp_tool=_make_mcp_tool("a"), mcp_client=client)  # type: ignore[arg-type]
     )
@@ -135,7 +132,7 @@ def test_refresh_tools_reports_only_new_tools():
 
 
 def test_refresh_tools_drops_removed_tools():
-    """Tools the server no longer advertises are dropped from the client."""
+    """服务器不再通告的工具将从客户端删除。"""
     client = _FakeClient([_make_mcp_tool("a")])
     client._tools = list(
         MCPToolDefinition.create(mcp_tool=_make_mcp_tool("a"), mcp_client=client)  # type: ignore[arg-type]
@@ -152,7 +149,7 @@ def test_refresh_tools_drops_removed_tools():
 
 
 def test_refresh_tools_reconciles_updates_and_removals():
-    """The full snapshot callback receives updated definitions and removals."""
+    """完整快照回调接收更新的定义和删除。"""
     old_tool = mcp_types.Tool(
         name="changing",
         description="old schema",
@@ -207,7 +204,7 @@ def test_refresh_tools_reconciles_updates_and_removals():
 
 
 def test_refresh_tools_no_callback_still_reconciles():
-    """Without a callback the client tool list is still kept in sync."""
+    """如果没有回调，客户端工具列表仍保留在同步中。"""
     client = _FakeClient([_make_mcp_tool("a"), _make_mcp_tool("b")])
 
     async def run():
@@ -219,7 +216,7 @@ def test_refresh_tools_no_callback_still_reconciles():
 
 
 def test_handler_invokes_refresh_on_list_changed():
-    """``_ToolListChangedHandler`` re-lists and calls back on notification."""
+    """``_ToolListChangedHandler`` 重新列出并根据通知回电。"""
     client = _FakeClient([_make_mcp_tool("a"), _make_mcp_tool("b")])
     client._tools = list(
         MCPToolDefinition.create(mcp_tool=_make_mcp_tool("a"), mcp_client=client)  # type: ignore[arg-type]
@@ -243,7 +240,7 @@ def test_handler_invokes_refresh_on_list_changed():
 
 
 def test_handler_skips_when_client_closed():
-    """A notification arriving after close is ignored."""
+    """关闭后到达的通知将被忽略。"""
     client = _FakeClient([_make_mcp_tool("a")])
     client._closed = True
     handler = _ToolListChangedHandler(
@@ -260,11 +257,11 @@ def test_handler_skips_when_client_closed():
 
 @pytest.fixture
 def progressive_server():
-    """An MCP server that adds a tool and sends ``tools/list_changed``.
+    """添加工具并发送 ``tools/list_changed`` 的 MCP 服务器。
 
-    Calling ``register_extra_tool`` adds a second tool and sends a
-    ``notifications/tools/list_changed`` notification to the current session,
-    mimicking Datadog's progressive-disclosure behavior.
+    调用 ``register_extra_tool`` 添加第二个工具并发送
+    ``notifications/tools/list_changed`` 向当前会话发出通知，模仿 Datadog 的渐进式披
+    露行为。
     """
     mcp = FastMCP("progressive-test-server")
 
@@ -275,27 +272,27 @@ def progressive_server():
 
     @mcp.tool()
     async def gateway() -> str:
-        """Always-available gateway tool."""
+        """始终可用的网关工具。"""
         return "gateway-ok"
 
     @mcp.tool()
     async def register_extra_tool() -> str:
-        """Register a second tool and notify the client the list changed."""
+        """注册第二个工具并通知客户端列表已更改。"""
 
         @mcp.tool()
         def extra(value: int) -> int:
-            """Tool added after the client connected."""
+            """客户端连接后添加的工具。"""
             return value * 2
 
-        # Send the notification as a fire-and-forget task so the tool-call
-        # response is flushed first; the notification rides the long-lived SSE
-        # stream the client keeps open for server notifications.
+        # 将通知作为即发即忘任务发送，以便首先刷新工具调用响应； 通知通过客户端为服务器
+        # 通知保持打开的长期 SSE 流。
+        #
         await notify_list_changed()
         return "registered"
 
     @mcp.tool()
     async def remove_extra_tool() -> str:
-        """Remove the dynamically registered tool and notify the client."""
+        """删除动态注册的工具并通知客户端。"""
         mcp.local_provider.remove_tool("extra")
         await notify_list_changed()
         return "removed"
@@ -322,7 +319,7 @@ def progressive_server():
 
 
 def test_no_callback_still_connects(progressive_server: int):
-    """``on_tools_changed=None`` must not break tool creation."""
+    """``on_tools_changed=None`` 不得破坏工具创建。"""
     port = progressive_server
     config = _native_config(
         {
@@ -343,10 +340,9 @@ def test_no_callback_still_connects(progressive_server: int):
 def test_default_provider_wires_on_tools_reconciled_before_connect(
     progressive_server: int,
 ):
-    """DefaultMCPToolProvider must forward on_tools_reconciled to
-    create_mcp_tools() so it's attached before the client connects, instead
-    of being set on the client after create_tools() already returned (which
-    would drop any notification that arrives during the initial connect).
+    """DefaultMCPToolProvider 必须将 on_tools_reconciled 转发至
+    create_mcp_tools 于是，它在客户端连接之前就附上了，而不是在客户端返回create_tools
+    之后就设置（这将丢弃在初始连接期间到达的通知）。
     """
     from openhands.sdk.mcp.utils import DefaultMCPToolProvider
 
@@ -377,7 +373,7 @@ def test_default_provider_wires_on_tools_reconciled_before_connect(
 def test_list_changed_notification_reconciles_readded_agent_tool(
     progressive_server: int,
 ):
-    """A re-added tool replaces the agent's stale MCP definition."""
+    """重新添加的工具取代了智能体的过时 MCP 定义。"""
     port = progressive_server
     config = _native_config(
         {
@@ -468,7 +464,7 @@ def test_list_changed_notification_reconciles_readded_agent_tool(
 
 
 def test_on_mcp_tools_changed_registers_runtime_tools():
-    """``AgentBase._on_mcp_tools_changed`` forwards to ``add_runtime_tools``."""
+    """``AgentBase._on_mcp_tools_changed`` 转发至 ``add_runtime_tools``。"""
     agent = _ConcreteAgent(_initialized=True, _tools={})
     client = _FakeClient([])
     tool = MCPToolDefinition.create(
@@ -482,10 +478,10 @@ def test_on_mcp_tools_changed_registers_runtime_tools():
 
 
 def test_add_runtime_tools_does_not_leak_into_model_copy():
-    """Registering a tool on a copied Agent must not mutate the original.
+    """在复制的智能体上注册工具不得改变原始工具。
 
-    Agent.model_copy() shares private-attr objects (e.g. _tools) by
-    reference, so mutating the tool map in place would leak across copies.
+    Agent.model_copy() 通过引用共享私有属性对象 (e.g._tools)，因此就地改变工具映射会
+    在副本之间泄漏。
     """
     original = Agent(llm=LLM(model="test-model", api_key=SecretStr("k")), tools=[])
     original._initialized = True
@@ -503,16 +499,15 @@ def test_add_runtime_tools_does_not_leak_into_model_copy():
 
 
 def test_add_runtime_tools_tolerates_notification_installed_before_return():
-    """A tool installed mid-connect by the reconciliation callback must not
-    collide with the caller's own add_runtime_tools() call.
+    """通过协调回调在连接中安装的工具不得
+    与调用者自己的 add_runtime_tools() 调用发生冲突。
 
-    If notifications/tools/list_changed arrives while the initial
-    tools/list request is still in flight, on_tools_changed can install the
-    tool via this same MCPClient before create_tools() returns. The caller
-    (e.g. LocalConversation._ensure_agent_ready()) then calls
-    add_runtime_tools() again with the client's returned snapshot, which
-    already contains that tool; this must be treated as a refresh rather
-    than a duplicate-tool conflict.
+    如果通知/工具/list_changed 到达时，初始工具/请求仍在飞行中 on_tools_changed 可以
+    使用这个相同的工具进行安装 MCPClient 之
+    前 create_tools() 返回。 调用者（e.g. LocalConversation._ensure_agent_ready然后调
+    用
+    add_runtime_tools() 用客户端返回的快照，该快照已经包含了那个工具； 这必须被视为刷
+    新而不是重复工具冲突。
     """
     agent = _ConcreteAgent(_initialized=True, _tools={})
     client = _FakeClient([])
@@ -521,27 +516,28 @@ def test_add_runtime_tools_tolerates_notification_installed_before_return():
         mcp_client=cast(MCPClient, client),
     )[0]
 
-    # Simulates the mid-flight on_tools_changed callback installing the tool
-    # before create_tools() returns.
+    # 模拟在 create_tools() 返回之前安装工具的飞行中 on_tools_changed 回调。
+    #
     agent._on_mcp_tools_changed([tool])
 
-    # Simulates the caller's add_runtime_tools() call using the client's
-    # returned snapshot, which already includes the same tool.
+    # 使用客户端返回的快照模拟调用者的 add_runtime_tools() 调用，该快照已包含相同的工具
+    # 。
+    #
     agent.add_runtime_tools([tool])
 
     assert agent.tools_map["only_tool"] is tool
 
 
 def test_on_mcp_tools_changed_skips_when_not_initialized():
-    """Before initialization, notifications are dropped, not crashed on."""
+    """在初始化之前，通知会被丢弃，而不是崩溃。"""
     agent = _ConcreteAgent(_initialized=False, _tools=None)
 
-    # Must not raise even though add_runtime_tools would warn.
+    # 即使 add_runtime_tools 会发出警告，也不能加注。
     agent._on_mcp_tools_changed([])  # type: ignore[arg-type]
 
 
 def test_on_mcp_tools_reconciled_does_not_remove_other_client_tools():
-    """A client snapshot only replaces tools owned by that client."""
+    """客户端快照仅替换该客户端拥有的工具。"""
     first_client = _FakeClient([])
     second_client = _FakeClient([])
     first_tool = MCPToolDefinition.create(

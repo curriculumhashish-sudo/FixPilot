@@ -1,4 +1,4 @@
-"""Tests for the Conversation class visualize parameter."""
+"""测试 Conversation 类可视化参数。"""
 
 from unittest.mock import Mock, patch
 
@@ -15,7 +15,7 @@ from openhands.sdk.llm import LLM, Message, TextContent
 
 
 def create_test_event(content: str = "Test event content") -> MessageEvent:
-    """Create a test MessageEvent for testing."""
+    """创建一个测试 MessageEvent 进行测试。"""
     return MessageEvent(
         llm_message=Message(role="user", content=[TextContent(text=content)]),
         source="user",
@@ -24,97 +24,97 @@ def create_test_event(content: str = "Test event content") -> MessageEvent:
 
 @pytest.fixture
 def mock_agent():
-    """Create a real agent for testing."""
+    """创建一个真实的智能体进行测试。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return agent
 
 
 def test_conversation_with_default_visualizer(mock_agent):
-    """Test Conversation with default visualizer (omitted parameter)."""
+    """使用默认可视化工具测试对话（省略参数）。"""
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent)
 
-        # Should have a visualizer
+        # 应该有一个可视化工具
         assert conversation._visualizer is not None
         assert isinstance(conversation._visualizer, DefaultConversationVisualizer)
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Agent should be initialized with callbacks that include visualizer
+        # 智能体应使用包含可视化工具的回调进行初始化
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         assert "on_event" in kwargs
 
-        # The on_event callback should be composed of multiple callbacks
+        # on_event回调应该由多个回调组成
         on_event = kwargs["on_event"]
         assert callable(on_event)
 
 
 def test_conversation_with_visualize_false(mock_agent):
-    """Test Conversation with visualizer=None."""
+    """使用可视化工具=None测试对话。"""
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, visualizer=None)
 
-        # Should not have a visualizer
+        # 不应该有可视化工具
         assert conversation._visualizer is None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Agent should still be initialized with callbacks (just not visualizer)
+        # 智能体仍应使用回调进行初始化（只是不是可视化工具）
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         assert "on_event" in kwargs
 
-        # The on_event callback should still exist (for state persistence)
+        # on_event 回调应该仍然存在（对于状态持久化）
         on_event = kwargs["on_event"]
         assert callable(on_event)
 
 
 def test_conversation_default_visualize_is_true(mock_agent):
-    """Test that visualizer defaults to default visualizer."""
+    """测试可视化工具是否默认为默认可视化工具。"""
     with patch.object(Agent, "init_state"):
         conversation = Conversation(agent=mock_agent)
 
-        # Should have a visualizer by default
+        # 默认情况下应该有一个可视化工具
         assert conversation._visualizer is not None
         assert isinstance(conversation._visualizer, DefaultConversationVisualizer)
 
 
 def test_conversation_with_custom_callbacks_and_default_visualizer(mock_agent):
-    """Test Conversation with custom callbacks and default visualizer."""
+    """使用自定义回调和默认可视化工具测试对话。"""
     custom_callback = Mock()
     callbacks = [custom_callback]
 
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, callbacks=callbacks)
 
-        # Should have a visualizer
+        # 应该有一个可视化工具
         assert conversation._visualizer is not None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Test that callbacks are composed correctly by triggering an event
+        # 通过触发事件来测试回调是否正确组成
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Create a test event
+        # 创建测试事件
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Custom callback should have been called
+        # 应该调用自定义回调
         custom_callback.assert_called_once_with(test_event)
 
-        # Event should be in conversation state
+        # 事件应处于对话状态
         assert test_event in conversation.state.events
 
 
 def test_conversation_with_custom_callbacks_and_visualize_false(mock_agent):
-    """Test Conversation with custom callbacks and visualize=False."""
+    """使用自定义回调和 Visualize=False 测试对话。"""
     custom_callback = Mock()
     callbacks = [custom_callback]
 
@@ -123,30 +123,30 @@ def test_conversation_with_custom_callbacks_and_visualize_false(mock_agent):
             agent=mock_agent, callbacks=callbacks, visualizer=None
         )
 
-        # Should not have a visualizer
+        # 不应该有可视化工具
         assert conversation._visualizer is None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Test that callbacks are composed correctly
+        # 测试回调的组成是否正确
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Create a test event and trigger it
+        # 创建测试事件并触发它
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Custom callback should have been called
+        # 应该调用自定义回调
         custom_callback.assert_called_once_with(test_event)
 
-        # Event should be in conversation state
+        # 事件应处于对话状态
         assert test_event in conversation.state.events
 
 
 def test_conversation_callback_order(mock_agent):
-    """Test that callbacks are executed in the correct order."""
+    """测试回调是否以正确的顺序执行。"""
     call_order = []
 
     def callback1(event):
@@ -155,9 +155,9 @@ def test_conversation_callback_order(mock_agent):
     def callback2(event):
         call_order.append("callback2")
 
-    # Create a custom visualizer that tracks when it's called
+    # 创建一个自定义可视化工具来跟踪它的调用时间
     with patch.object(Agent, "init_state") as mock_init_state:
-        # Create a mock visualizer instance
+        # 创建模拟对象可视化工具实例
         mock_visualizer = Mock(spec=DefaultConversationVisualizer)
         mock_visualizer.on_event = Mock(
             side_effect=lambda e: call_order.append("visualizer")
@@ -169,76 +169,76 @@ def test_conversation_callback_order(mock_agent):
             visualizer=mock_visualizer,
         )
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Get the composed callback
+        # 获取组合回调
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Trigger an event
+        # 触发事件
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Check order: visualizer, callback1, callback2, then state persistence
+        # 检查顺序：可视化工具、回调 1、回调 2，然后状态持久化
         assert call_order == ["visualizer", "callback1", "callback2"]
 
-        # Event should be in state (state persistence happens last)
+        # 事件应处于状态（状态持久化最后发生）
         assert test_event in conversation.state.events
 
 
 def test_conversation_no_callbacks_with_default_visualizer(mock_agent):
-    """Test Conversation with no custom callbacks but default visualizer."""
+    """使用默认可视化工具而不是自定义回调来测试对话。"""
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, callbacks=None)
 
-        # Should have a visualizer
+        # 应该有一个可视化工具
         assert conversation._visualizer is not None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Should still work with just visualizer and state persistence
+        # 仍应仅使用可视化工具和状态持久化
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Should be able to handle events
+        # 应该能够处理事件
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Event should be in state
+        # 事件应该处于状态
         assert test_event in conversation.state.events
 
 
 def test_conversation_no_callbacks_with_visualize_false(mock_agent):
-    """Test Conversation with no custom callbacks and visualize=False."""
+    """测试没有自定义回调和 Visualize=False 的对话。"""
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, callbacks=None, visualizer=None)
 
-        # Should not have a visualizer
+        # 不应该有可视化工具
         assert conversation._visualizer is None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Should still work with just state persistence
+        # 仍应仅使用状态持久化
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Should be able to handle events
+        # 应该能够处理事件
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Event should be in state
+        # 事件应该处于状态
         assert test_event in conversation.state.events
 
 
 def test_conversation_with_custom_visualizer_instance(mock_agent):
-    """Test Conversation with a custom DefaultConversationVisualizer instance."""
-    # Create a custom visualizer
+    """使用自定义 DefaultConversationVisualizer 实例测试对话。"""
+    # 创建自定义可视化工具
     custom_visualizer = DefaultConversationVisualizer(
         highlight_regex={"Test:": "bold red"},
         skip_user_messages=True,
@@ -247,29 +247,29 @@ def test_conversation_with_custom_visualizer_instance(mock_agent):
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, visualizer=custom_visualizer)
 
-        # Should use the custom visualizer
+        # 应该使用自定义可视化工具
         assert conversation._visualizer is custom_visualizer
         assert isinstance(conversation._visualizer, DefaultConversationVisualizer)
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Agent should be initialized with callbacks that include the custom visualizer
+        # 智能体应使用包含自定义可视化工具的回调进行初始化
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         assert "on_event" in kwargs
 
-        # The on_event callback should be composed of multiple callbacks
+        # on_event回调应该由多个回调组成
         on_event = kwargs["on_event"]
         assert callable(on_event)
 
 
 def test_conversation_with_custom_visualizer_and_callbacks(mock_agent):
-    """Test Conversation with custom visualizer and custom callbacks."""
+    """使用自定义可视化工具和自定义回调测试对话。"""
     custom_callback = Mock()
     callbacks = [custom_callback]
 
-    # Create a custom visualizer with mocked on_event to track calls
+    # 使用模拟的 on_event 创建自定义可视化工具来跟踪呼叫
     custom_visualizer = Mock(spec=DefaultConversationVisualizer)
     custom_visualizer.on_event = Mock()
 
@@ -278,71 +278,71 @@ def test_conversation_with_custom_visualizer_and_callbacks(mock_agent):
             agent=mock_agent, callbacks=callbacks, visualizer=custom_visualizer
         )
 
-        # Should use the custom visualizer
+        # 应该使用自定义可视化工具
         assert conversation._visualizer is custom_visualizer
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Test that callbacks are composed correctly
+        # 测试回调的组成是否正确
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         on_event = kwargs["on_event"]
 
-        # Create a test event and trigger it
+        # 创建测试事件并触发它
         test_event = create_test_event("Test event content")
         on_event(test_event)
 
-        # Both custom visualizer and custom callback should have been called
+        # 自定义可视化工具和自定义回调都应该被调用
         custom_visualizer.on_event.assert_called_once_with(test_event)
         custom_callback.assert_called_once_with(test_event)
 
-        # Event should be in conversation state
+        # 事件应处于对话状态
         assert test_event in conversation.state.events
 
 
 def test_conversation_with_visualize_none(mock_agent):
-    """Test Conversation with visualize=None (no visualization)."""
+    """使用 Visualize=None 测试对话（无可视化）。"""
     with patch.object(Agent, "init_state") as mock_init_state:
         conversation = Conversation(agent=mock_agent, visualizer=None)
 
-        # Should not have a visualizer
+        # 不应该有可视化工具
         assert conversation._visualizer is None
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Agent should still be initialized with callbacks (just not visualizer)
+        # 智能体仍应使用回调进行初始化（只是不是可视化工具）
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         assert "on_event" in kwargs
 
-        # The on_event callback should still exist (for state persistence)
+        # on_event 回调应该仍然存在（对于状态持久化）
         on_event = kwargs["on_event"]
         assert callable(on_event)
 
 
 def test_conversation_with_visualizer_class(mock_agent):
-    """Test Conversation with a visualizer class (not instance)."""
+    """使用可视化工具类（不是实例）测试对话。"""
     with patch.object(Agent, "init_state") as mock_init_state:
-        # Pass the class itself, not an instance
+        # 传递类本身，而不是实例
         conversation = Conversation(
             agent=mock_agent,
             visualizer=DefaultConversationVisualizer,
         )
 
-        # Should have instantiated the visualizer
+        # 应该实例化可视化工具
         assert conversation._visualizer is not None
         assert isinstance(conversation._visualizer, DefaultConversationVisualizer)
 
-        # Agent initialization is lazy; trigger it explicitly
+        # 智能体初始化是惰性的； 显式触发它
         conversation._ensure_agent_ready()
 
-        # Agent should be initialized with callbacks that include visualizer
+        # 智能体应使用包含可视化工具的回调进行初始化
         mock_init_state.assert_called_once()
         args, kwargs = mock_init_state.call_args
         assert "on_event" in kwargs
 
-        # The on_event callback should be composed of multiple callbacks
+        # on_event回调应该由多个回调组成
         on_event = kwargs["on_event"]
         assert callable(on_event)

@@ -1,4 +1,4 @@
-"""Service logic for the OpenAI-compatible agent-server gateway."""
+"""OpenAI 兼容的智能体服务器网关的服务逻辑。"""
 
 import asyncio
 import json
@@ -60,8 +60,9 @@ from openhands.sdk.workspace import LocalWorkspace
 
 _MODEL_PREFIX = "openhands_"
 _RESPONSE_ID_PREFIX = "resp_"
-# Fixed gateway defaults are sufficient for the initial local-first endpoint;
-# promote them to Config only if clients need deployment-specific tuning.
+# 固定网关默认值足以满足初始本地优先端点； 仅当客户端需要特定于部署的调整时才将它们提升
+# 为 Config。
+#
 _GATEWAY_TIMEOUT_SECONDS = 120.0
 _POLL_INTERVAL_SECONDS = 2
 
@@ -274,7 +275,7 @@ def _create_conversation_request(
     settings = get_settings_store(config).load() or PersistedSettings()
     try:
         additions = AgentLaunchAdditions(
-            # An ACP server runs its own model.
+            # ACP 服务器运行其自己的模型。
             llm_profile_ref=(
                 llm_profile if isinstance(profile, OpenHandsAgentProfile) else None
             ),
@@ -336,8 +337,9 @@ def _response_id() -> str:
     return f"{_RESPONSE_ID_PREFIX}{uuid4().hex}"
 
 
-# A run also stops, without being terminal, when it waits for the user; the
-# fresh-conversation path sees this because its run task ends there.
+# 当运行等待用户时，它也会停止，但不是终止； fresh-conversation 路径看到这一点是因为它的
+# 运行任务在那里结束。
+#
 _STOPPED_RUN_STATUSES = frozenset(
     {
         ConversationExecutionStatus.PAUSED,
@@ -346,9 +348,9 @@ _STOPPED_RUN_STATUSES = frozenset(
 )
 
 
-# Reused Chat Completions conversations do not expose a request-specific run
-# task, so wait for both new events and a stopped state. Fresh conversations
-# use EventService.wait_for_run_completion() below.
+# 重用的聊天完成对话不会公开特定于请求的运行任务，因此请等待新事件和停止状态。 新的对话
+# 使用下面的 EventService.wait_for_run_completion()。
+#
 async def _wait_for_reused_conversation_completion(
     event_service: EventService,
     *,
@@ -560,8 +562,9 @@ async def _run_agent(
         if event_service is not None:
             state_before = await event_service.get_state()
             min_event_count = len(state_before.events) + 1
-            # Claim capacity before saving the message: a 429 must leave
-            # nothing behind so an OpenAI client can retry the same request.
+            # 在保存消息之前声明容量：429 必须不留下任何内容，以便 OpenAI 客户端可以重试
+            # 相同的请求。
+            #
             run_slot = await event_service.reserve_run_slot()
             try:
                 await event_service.send_message(
@@ -627,7 +630,7 @@ async def run_chat_completion(
     observability_overrides: dict[str, object] | None = None,
 ) -> OpenAIChatCompletionResult:
     if request.stream:
-        # SSE streaming needs incremental agent-event forwarding; add it separately.
+        # SSE流式传输需要增量智能体-事件转发； 单独添加。
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Streaming chat completions are not supported yet",
@@ -647,8 +650,9 @@ async def run_chat_completion(
         conversation_service=conversation_service,
         reusable_conversation_id=reusable_conversation_id,
     )
-    # EventService.get_agent_final_response() returns final text from the SDK's
-    # get_agent_final_response(), so the gateway emits assistant text only.
+    # EventService.get_agent_final_response() 从 SDK 的 get_agent_final_response() 返回
+    # 最终文本，因此网关仅发出辅助文本。
+    #
     response = OpenAIChatCompletionResponse(
         id=f"chatcmpl-{uuid4().hex}",
         object="chat.completion",
@@ -685,9 +689,9 @@ async def run_response(
             detail="Streaming responses are not supported yet",
         )
     if request.store:
-        # `store=True` promises server-side persistence retrievable through
-        # GET /v1/responses/{id}, which this gateway does not provide. Rejecting
-        # it is safer than silently returning a response no client can fetch.
+        # `store=True` 承诺服务器端持久化可通过 GET /v1/responses/{id} 检索，但此网关不
+        # 提供。 拒绝它比默默返回客户端无法获取的响应更安全。
+        #
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Persistent response storage (store=True) is not supported yet",

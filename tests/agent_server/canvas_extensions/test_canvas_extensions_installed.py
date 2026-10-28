@@ -1,9 +1,8 @@
-"""Tests for canvas extension installation persistence.
+"""画布扩展安装测试持久化。
 
-Covers the disabled-by-default regression scenarios (fresh install,
-smuggled ``enabled: true`` in stale metadata, manually-placed directory
-discovery), plus force-reinstall state preservation and entrypoint
-containment enforced at load time.
+覆盖默认禁用的情况回归 scenarios (fresh install, smuggled) ``enabled: true`` 在陈旧的
+元数据中，手动放置的目录发现，以
+及强制重安装状态保存和入口在加载时强制执行的隔离。
 """
 
 import inspect
@@ -40,7 +39,7 @@ def test_fresh_install_lands_disabled(extension_dir: Path, installed_dir: Path):
 
     assert info.enabled is False
 
-    # Not just the in-memory return value -- persisted to disk too.
+    # 不仅仅是内存中的返回值 - 已持久化也返回到磁盘。
     on_disk = InstallationMetadata.load_from_dir(installed_dir)
     assert on_disk.extensions["my-extension"].enabled is False
 
@@ -69,8 +68,8 @@ def test_explicit_enable_after_install_makes_it_load(
 def test_smuggled_enabled_true_in_stale_metadata_is_ignored(
     extension_dir: Path, installed_dir: Path
 ):
-    """Otherwise a real install of that name would inherit it as if it
-    were a legitimate force-reinstall.
+    """否则，该名称的实际安装将继承它，就好像它一样
+    是合法的强制重新安装。
     """
     installed_dir.mkdir(parents=True)
     (installed_dir / InstallationMetadata.metadata_filename).write_text(
@@ -99,7 +98,7 @@ def test_smuggled_enabled_true_in_stale_metadata_is_ignored(
 
 
 def test_install_ignores_unexpected_kwargs():
-    """No ``enabled`` parameter exists to pass one through, smuggled or not."""
+    """不存在可传递的 ``enabled`` 参数，无论是否走私。"""
     params = inspect.signature(install_canvas_extension).parameters
     assert "enabled" not in params
 
@@ -110,7 +109,7 @@ def test_manually_placed_directory_discovered_disabled(
     installed_dir.mkdir(parents=True)
     manual = installed_dir / "manual-ext"
     _write_extension(manual, name="manual-ext")
-    # No .installed.json entry at all -- fully bypasses the install API.
+    # 根本没有 .installed.json 条目——完全绕过安装 API。
     assert not (installed_dir / InstallationMetadata.metadata_filename).exists()
 
     discovered = list_installed_canvas_extensions(installed_dir=installed_dir)
@@ -119,7 +118,7 @@ def test_manually_placed_directory_discovered_disabled(
     assert discovered[0].name == "manual-ext"
     assert discovered[0].enabled is False
 
-    # And it stays disabled on a subsequent get(), reading persisted state.
+    # 并且它在后续的 get()、读已持久化状态下保持禁用状态。
     info = get_installed_canvas_extension("manual-ext", installed_dir=installed_dir)
     assert info is not None
     assert info.enabled is False
@@ -128,9 +127,8 @@ def test_manually_placed_directory_discovered_disabled(
 def test_manually_placed_directory_discovered_disabled_excludes_from_load(
     installed_dir: Path,
 ):
-    """load_installed_canvas_extensions() must apply the same
-    disabled-by-default guarantee as list_installed_canvas_extensions() --
-    discovery here must not leave the extension loadable.
+    """load_installed_canvas_extensions() 必须应用相同的
+    默认禁用保证为 list_installed_canvas_extensions() ——此处的发现不得让扩展可加载。
     """
     installed_dir.mkdir(parents=True)
     manual = installed_dir / "manual-ext"
@@ -159,8 +157,8 @@ def test_previously_enabled_tracked_extension_not_reset_by_listing(
 def test_list_handles_mixed_states_across_multiple_extensions(
     tmp_path: Path, installed_dir: Path
 ):
-    """The per-entry force-disable correction must not cross-contaminate
-    sibling entries within the same listing call.
+    """每个条目的强制禁用校正不得交叉污染
+    同一列表调用中的同级条目。
     """
     enabled_src = _write_extension(tmp_path / "source" / "enabled", name="enabled-ext")
     disabled_src = _write_extension(
@@ -252,7 +250,7 @@ def test_install_without_force_raises_when_already_installed(
     with pytest.raises(FileExistsError):
         install_canvas_extension(str(extension_dir), installed_dir=installed_dir)
 
-    # The existing install is untouched by the rejected attempt.
+    # 现有安装不会因尝试被拒绝而受到影响。
     info = get_installed_canvas_extension("my-extension", installed_dir=installed_dir)
     assert info is not None
     assert info.enabled is True
@@ -282,7 +280,7 @@ def test_install_rejects_manifest_with_escaping_entrypoint(
     with pytest.raises(ValueError, match="resolves outside"):
         install_canvas_extension(str(malicious), installed_dir=installed_dir)
 
-    # Rejected before anything was tracked or copied.
+    # 在跟踪或复制任何内容之前被拒绝。
     assert not (installed_dir / "evil-extension").exists()
     assert list_installed_canvas_extensions(installed_dir=installed_dir) == []
 

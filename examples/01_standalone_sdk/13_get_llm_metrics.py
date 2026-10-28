@@ -18,7 +18,7 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -36,7 +36,7 @@ tools = [
     Tool(name=FileEditorTool.name),
 ]
 
-# Add MCP Tools
+# 添加 MCP 工具
 mcp_config = {
     "fetch": MCPServer(
         command="uvx",
@@ -44,10 +44,10 @@ mcp_config = {
     )
 }
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools, mcp_config=mcp_config)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -55,7 +55,7 @@ def conversation_callback(event: Event):
         llm_messages.append(event.to_llm_message())
 
 
-# Conversation
+# 对话
 conversation = Conversation(
     agent=agent,
     callbacks=[conversation_callback],
@@ -82,6 +82,6 @@ print(
     f"Conversation finished. Final LLM metrics with details: {llm.metrics.model_dump()}"
 )
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

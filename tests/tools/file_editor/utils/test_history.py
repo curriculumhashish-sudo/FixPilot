@@ -1,4 +1,4 @@
-"""Tests for file history management."""
+"""文件历史管理测试。"""
 
 import tempfile
 from pathlib import Path
@@ -9,136 +9,136 @@ from openhands.tools.file_editor.utils.history import (
 
 
 def test_default_history_limit():
-    """Test that default history limit is 5 entries."""
+    """测试默认历史限制是否为 5 条。"""
     with tempfile.NamedTemporaryFile() as temp_file:
         path = Path(temp_file.name)
         manager = FileHistoryManager()
 
-        # Add 6 entries - this should trigger removal of the first entry
+        # 添加 6 个条目 - 这应该会触发删除第一个条目
         for i in range(6):
             manager.add_history(path, f"content{i}")
 
-        # Get the metadata
+        # 获取元数据
         metadata = manager.get_metadata(path)
-        assert len(metadata["entries"]) == 5  # Should only keep last 5 entries
-        # First entry should be content1, last should be content5
+        assert len(metadata["entries"]) == 5  # 应该只保留最后 5 个条目
+        # 第一个条目应为 content1，最后一个条目应为 content5
         assert manager.get_all_history(path)[0].startswith("content1")
         assert manager.get_all_history(path)[-1].startswith("content5")
 
 
 def test_history_keys_are_unique():
-    """Test that history keys remain unique even after removing old entries."""
+    """测试即使在删除旧条目后历史记录键仍保持唯一。"""
     with tempfile.NamedTemporaryFile() as temp_file:
         path = Path(temp_file.name)
         manager = FileHistoryManager(max_history_per_file=2)
 
-        # Add 3 entries - this should trigger removal of the first entry
+        # 添加 3 个条目 - 这应该会触发删除第一个条目
         manager.add_history(path, "content1")
         manager.add_history(path, "content2")
         manager.add_history(path, "content3")
 
-        # Get the metadata
+        # 获取元数据
         metadata = manager.get_metadata(path)
-        assert len(metadata["entries"]) == 2  # Should only keep last 2 entries
+        assert len(metadata["entries"]) == 2  # 应该只保留最后 2 个条目
 
-        # Keys should be unique and sequential
+        # 键应该是唯一且连续的
         keys = metadata["entries"]
-        assert len(set(keys)) == len(keys)  # All keys should be unique
-        assert sorted(keys) == keys  # Keys should be sequential
+        assert len(set(keys)) == len(keys)  # 所有键都应该是唯一的
+        assert sorted(keys) == keys  # 键应该是连续的
 
-        # Add another entry
+        # 添加另一个条目
         manager.add_history(path, "content4")
         new_metadata = manager.get_metadata(path)
         new_keys = new_metadata["entries"]
 
-        # New key should be greater than all previous keys
+        # 新密钥应该大于所有以前的密钥
         assert min(new_keys) > min(keys)
-        assert len(set(new_keys)) == len(new_keys)  # All keys should still be unique
+        assert len(set(new_keys)) == len(new_keys)  # 所有键仍然应该是唯一的
 
 
 def test_history_counter_persists():
-    """Test that history counter persists across manager instances."""
+    """测试历史计数器是否在管理器实例中持续存在。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         path = Path(temp_dir) / "test.txt"
         path.write_text("initial")
 
-        # First manager instance
+        # 第一个管理器实例
         manager1 = FileHistoryManager(history_dir=Path(temp_dir))
         manager1.add_history(path, "content1")
         manager1.add_history(path, "content2")
 
-        # Second manager instance using same directory
+        # 使用同一目录的第二个管理器实例
         manager2 = FileHistoryManager(history_dir=Path(temp_dir))
         manager2.add_history(path, "content3")
 
-        # Get metadata
+        # 获取元数据
         metadata = manager2.get_metadata(path)
         keys = metadata["entries"]
 
-        # Keys should be sequential even across instances
-        assert len(set(keys)) == len(keys)  # All keys should be unique
-        assert sorted(keys) == keys  # Keys should be sequential
+        # 即使跨实例，键也应该是连续的
+        assert len(set(keys)) == len(keys)  # 所有键都应该是唯一的
+        assert sorted(keys) == keys  # 键应该是连续的
 
 
 def test_clear_history_resets_counter():
-    """Test that clearing history resets the counter."""
+    """测试清除历史记录是否会重置计数器。"""
     with tempfile.NamedTemporaryFile() as temp_file:
         path = Path(temp_file.name)
         manager = FileHistoryManager()
 
-        # Add some entries
+        # 添加一些条目
         manager.add_history(path, "content1")
         manager.add_history(path, "content2")
 
-        # Clear history
+        # 清除历史记录
         manager.clear_history(path)
 
-        # Counter should be reset
+        # 计数器应重置
         metadata = manager.get_metadata(path)
         assert metadata["counter"] == 0
 
-        # Adding new entries should start from 0
+        # 添加新条目应从 0 开始
         manager.add_history(path, "new_content")
         metadata = manager.get_metadata(path)
         assert len(metadata["entries"]) == 1
-        assert metadata["entries"][0] == 0  # First key should be 0
+        assert metadata["entries"][0] == 0  # 第一个键应该是 0
 
 
 def test_pop_last_history_removes_entry():
-    """Test that pop_last_history removes the latest entry."""
+    """测试 pop_last_history 是否删除最新条目。"""
     with tempfile.NamedTemporaryFile() as temp_file:
         path = Path(temp_file.name)
         manager = FileHistoryManager()
 
-        # Add some entries
+        # 添加一些条目
         manager.add_history(path, "content1")
         manager.add_history(path, "content2")
         manager.add_history(path, "content3")
 
-        # Pop the last history entry
+        # 弹出最后一条历史记录
         last_entry = manager.pop_last_history(path)
         assert last_entry == "content3"
 
-        # Check that the entry has been removed
+        # 检查该条目是否已被删除
         metadata = manager.get_metadata(path)
         assert len(metadata["entries"]) == 2
 
-        # Pop the last history entry again
+        # 再次弹出最后一条历史记录
         last_entry = manager.pop_last_history(path)
         assert last_entry == "content2"
 
-        # Check that the entry has been removed
+        # 检查该条目是否已被删除
         metadata = manager.get_metadata(path)
         assert len(metadata["entries"]) == 1
 
-        # Pop the last history entry one more time
+        # 再次弹出最后一个历史记录条目
         last_entry = manager.pop_last_history(path)
         assert last_entry == "content1"
 
-        # Check that all entries have been removed
+        # 检查所有条目是否已被删除
         metadata = manager.get_metadata(path)
         assert len(metadata["entries"]) == 0
 
-        # Try to pop last history when there are no entries
+        # 当没有条目时尝试弹出最后的历史记录
         last_entry = manager.pop_last_history(path)
         assert last_entry is None

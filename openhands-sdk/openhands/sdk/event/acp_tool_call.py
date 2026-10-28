@@ -1,4 +1,4 @@
-"""ACPToolCallEvent — surfaces ACP tool call trajectories as OpenHands events."""
+"""ACPToolCallEvent — 表面 ACP 工具调用轨迹 OpenHands 为事件。"""
 
 from __future__ import annotations
 
@@ -16,20 +16,21 @@ _MISSING: Any = object()
 
 
 def _block_field(block: Any, *names: str) -> Any:
-    """Read the first matching field from ``names`` on ``block``.
+    """读取 ``block`` 上 ``names`` 中的第一个匹配字段。
 
-    ACP content blocks reach this code in three shapes:
+    ACP 内容块以三种形式到达此代码：
 
-      * Pydantic model (live notifications) — read via ``getattr``;
-      * snake_case dict (after ``model_dump`` persistence) — Pydantic dumps
-        using Python attribute names by default;
-      * camelCase dict (ACP JSON wire format) — the ACP TypeScript spec
-        defines diff blocks as ``{ type: "diff", oldText, newText, path }``,
-        and JSON arriving from an external API or websocket frame keeps
-        those keys verbatim.
+      * Pydantic 模型（实时通知）——通过 ``getattr`` 读取；
+      * snake_case dict (在 ``model_dump`` 持久化之后) — Pydantic 默认使用 Python 属
+      性名称转储；
+      * camelCase dict (ACP JSON wire format) — ACP TypeScript 规范将 diff blocks 视
+      为
+      ``{ type: "diff", oldText, newText, path }``，而 JSON 从外部 API 或 WebSocket
+      帧到达则保留这些
+      键的原始值。
 
-    Multiple aliases (e.g. ``"old_text", "oldText"``) can be passed and the
-    first one present wins. Returns ``None`` if no alias matches.
+    多个别名 (e.g. ``"old_text", "oldText"``) 可以通过，第一个到场的获胜。 如果没有别
+    名匹配，则返回 ``None``。
     """
     if isinstance(block, dict):
         for name in names:
@@ -44,14 +45,13 @@ def _block_field(block: Any, *names: str) -> Any:
 
 
 class ACPToolCallEvent(Event):
-    """Event representing a tool call executed by an ACP server.
+    """表示 ACP 服务器执行的工具调用的事件。
 
-    Captures the tool name, inputs, outputs, and status from ACP
-    ``ToolCallStart`` / ``ToolCallProgress`` notifications so they can
-    be surfaced in the OpenHands event stream and visualizer.
+    从 ACP 捕获工具名称、输入、输出和状态
+    ``ToolCallStart`` / ``ToolCallProgress`` 通知，以便它们可以显示在 OpenHands 事件
+    流和可视化工具中。
 
-    This is *not* an ``LLMConvertibleEvent`` — ACP tool calls do not
-    participate in LLM message conversion.
+    这是 * 不是 * ``LLMConvertibleEvent`` — ACP 工具调用不参与 LLM 消息转换。
     """
 
     source: SourceType = "agent"
@@ -66,37 +66,34 @@ class ACPToolCallEvent(Event):
 
     @property
     def is_patch_edit(self) -> bool:
-        """True if this event represents a patch/diff edit (not a full-file write).
+        """True 如果此事件代表补丁/差异编辑（不是完整文件写入）。
 
-        ACP-spec edit tools emit a ``diff`` content block whose ``old_text``
-        field (``oldText`` on the JSON wire) distinguishes the two cases:
-          * patch edit (e.g. ``Edit``): ``old_text`` is set
-          * full-file create (e.g. ``Write``): ``old_text`` is ``None``
+        ACP-spec 编辑工具发出一个 ``diff`` 内容块，其 ``old_text`` 字段（JSON 线上的
+        ``oldText``）区分两种情况：
+          * 补丁编辑（e.g. ``Edit``): 设置``old_text``
+          * 完整文件创建 (e.g. ``Write``): ``old_text`` 是 ``None``
 
-        This check is provider-agnostic across Claude Code, Codex, and Gemini
-        servers that follow the ACP spec.
+        此检查在遵循 ACP 规范的 Claude Code、Codex 和 Gemini 服务器上与提供者无关。
 
-        Robustness:
-          * ``content`` is a list of mixed block variants (text, diff,
-            terminal, …) in any order — this scans for ``diff`` blocks
-            rather than assuming ``content[0]``.
-          * A single tool call can carry **multiple** ``diff`` blocks (e.g.
-            a multi-file patch that creates one file and edits another).
-            The event is classified as a patch edit if *any* diff block
-            has a non-null ``old_text``; it counts as a write only when
-            *every* diff block is a full-file write.
-          * Block shape may be a Pydantic model (live notifications), a
-            snake_case dict (after ``model_dump``), or a camelCase dict
-            (ACP JSON wire). ``_block_field`` reads from all three, with
-            ``"oldText"`` accepted as an alias of ``"old_text"``.
+        稳健性：
+          * ``content`` 是任意顺序的混合块变体（文本、差异、终端​​等）的列表 - 这会扫
+          描 ``diff`` 块而不是假设
+          ``content[0]``。
+          * 单个工具调用可以承载 ** 多个 ** ``diff`` 块 (e.g. 一个多文件补丁，创建一
+          个文件并编辑另一个文件）。 如果 *any* dif
+          f 块具有非 null ``old_text``，则该事件被归类为补丁编辑； 仅当以下情况时才算
+          作写入
+            *每个* diff 块都是一个完整文件写入。
+          * 块形状可以是 Pydantic 模型（实时通知）、snake_case 字典（``model_dump``
+          之后）或 camelCase 字典（
+          ACP JSON 线）。 ``_block_field`` 读取所有三个内容，其中
+            ``"oldText"`` 接受作为 ``"old_text"`` 的别名。
 
-        For providers that omit the structured content block but still
-        expose the diff intent through raw input keys, the check falls back
-        to ``raw_input``. The fallback requires a non-empty ``old_string`` —
-        a ``new_string``-only payload (or empty ``old_string``) describes a
-        create/write, not a patch. The fallback only applies when *no*
-        ``diff`` block is present in ``content``; structured ACP data
-        always overrides the heuristic.
+        对于省略结构化内容块但仍然通过原始输入键公开差异意图的提供者，检查回退到
+        ``raw_input``。 回退方案需要一个非空的 ``old_string``
+         — 仅 ``new_string`` 的载荷（或空的 ``old_string``）描述创建/写入，而不是补丁
+         。 回退方案仅适用于*否*的情况
+        ``content`` 中存在 ``diff`` 块； 结构化ACP数据总是优先于启发式。
         """
         diff_blocks = [
             b for b in self.content or () if _block_field(b, "type") == "diff"
@@ -111,11 +108,11 @@ class ACPToolCallEvent(Event):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this tool call event."""
+        """返回此工具调用事件的富文本表示。"""
         content = Text()
         content.append(self.title, style="bold")
 
-        # Kind / status metadata line
+        # 种类/状态元数据行
         meta_parts: list[str] = []
         if self.tool_kind:
             meta_parts.append(f"kind={self.tool_kind}")
@@ -124,7 +121,7 @@ class ACPToolCallEvent(Event):
         if meta_parts:
             content.append(f"\n{' | '.join(meta_parts)}", style="dim")
 
-        # Input (skip None and empty containers like {})
+        # 输入（跳过 None 和空容器，如 {}）
         if self.raw_input:
             input_str = str(self.raw_input)
             if len(input_str) > _MAX_DISPLAY_CHARS:
@@ -132,7 +129,7 @@ class ACPToolCallEvent(Event):
             content.append("\nInput: ", style="bold")
             content.append(input_str)
 
-        # Output (skip None and empty containers)
+        # 输出（跳过None和空容器）
         if self.raw_output:
             output_str = str(self.raw_output)
             if len(output_str) > _MAX_DISPLAY_CHARS:

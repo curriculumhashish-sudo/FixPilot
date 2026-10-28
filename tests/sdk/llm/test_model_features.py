@@ -1,14 +1,13 @@
-"""Capability-detection tests.
+"""能力检测测试。
 
-LiteLLM fetches ``model_prices_and_context_window.json`` from its upstream
-``main`` branch at import time, so pinning litellm in ``uv.lock`` pins its code
-but not its model database — and the SDK sets no override, in tests or in
-production. These tests therefore run against data that changes without us.
+LiteLLM 从其上游获取 ``model_prices_and_context_window.json``
+``main`` 在导入时的分支，所以需要打桩 LiteLLM 在 ``uv.lock`` 只锁定代码，但未锁定模型
+数据库——和  SDK 不设置任何覆盖，仅在测试或生产环
+境中使用。 因此，这些测试针对的是那些无需我们而改变的数据。
 
-Assert what the SDK owns: its override lists, its model-name normalization, and
-that a routing wrapper does not change the answer. A bare capability value with
-no SDK rule behind it is upstream's to change, and pinning one here fails the
-day it does (#4877).
+断言 SDK 拥有什么：它的覆盖列表、它的模型名称规范化以及路由包装器不会更改答案。 背后
+没有 SDK 规则的裸能力值是上游要更改的，并且在此处固定一个会在它发生时失败（#
+4877）。
 """
 
 import pytest
@@ -48,26 +47,26 @@ def test_model_matches(name, pattern, expected):
         ("o1", True),
         ("o3-mini", True),
         ("o3", True),
-        # Anthropic Opus 4.5 (dash variant only)
+        # Anthropic Opus 4.5（仅限 dash 版本）
         ("claude-opus-4-5", True),
         ("nova-2-lite", False),
-        # Gemini 3 family
+        # 双子座3家族
         ("gemini-3.1-pro-preview", True),
         ("gemini-3-flash-preview", True),
-        # GPT-5 family
+        # GPT-5家族
         ("gpt-5.2", True),
         ("gpt-5.4", True),
         ("gpt-4o", False),
         ("claude-3-5-sonnet", False),
         ("gemini-1.5-pro", False),
-        # DeepSeek Reasoner
+        # DeepSeek 推理者
         ("deepseek/deepseek-reasoner", True),
-        # Moonshot Kimi thinking models expose reasoning content but do not
-        # accept the reasoning_effort parameter.
+        # Moonshot Kimi 思维模型公开推理内容，但不接受 reasoning_effort 参数。
+        #
         ("moonshot/kimi-k2.5", False),
         ("moonshot/kimi-k2-thinking", False),
         ("litellm_proxy/moonshot/kimi-k2-thinking", False),
-        # Eval LiteLLM proxy wrapper should not affect capability detection.
+        # Eval LiteLLM 代理包装器不应影响功能检测。
         ("litellm_proxy/gpt-5", True),
         ("litellm_proxy/claude-opus-4-5", True),
         ("litellm_proxy/gemini-3-flash-preview", True),
@@ -86,7 +85,7 @@ def test_model_matches(name, pattern, expected):
         ("bedrock/eu.anthropic.claude-opus-4-8-v1:0", True),
         ("bedrock/apac.anthropic.claude-opus-4-8-v1:0", True),
         ("bedrock/global.anthropic.claude-opus-4-8-v1:0", True),
-        # LiteLLM proxy with deployment path prefixes (prod/, dev/, staging/, test/)
+        # LiteLLM 具有部署路径前缀的代理（prod/、dev/、staging/、test/）
         ("litellm_proxy/prod/claude-opus-4-5-20251101", True),
         ("litellm_proxy/dev/claude-opus-4-5", True),
         ("litellm_proxy/staging/gpt-5", True),
@@ -120,15 +119,15 @@ def test_openrouter_reasoning_effort_follows_supported_params(model):
 @pytest.mark.parametrize(
     "model,expected_extended_thinking",
     [
-        # Anthropic extended thinking models
+        # Anthropic扩展思维模型
         ("claude-sonnet-4-5", True),
         ("claude-sonnet-4-6", True),
         ("claude-haiku-4-5", True),
-        # Provider prefixed variants
+        # 提供商前缀变体
         ("anthropic/claude-sonnet-4-5", True),
         ("anthropic/claude-sonnet-4-6", True),
         ("anthropic/claude-haiku-4-5", True),
-        # Models that don't support extended thinking
+        # 不支持扩展思维的模型
         ("claude-3-7-sonnet", False),
         ("claude-sonnet-4", False),
         ("claude-opus-4-5", False),
@@ -139,7 +138,7 @@ def test_openrouter_reasoning_effort_follows_supported_params(model):
     ],
 )
 def test_extended_thinking_support(model, expected_extended_thinking):
-    """Test that extended thinking models are correctly identified."""
+    """测试扩展思维模型是否被正确识别。"""
     features = get_features(model)
     assert features.supports_extended_thinking == expected_extended_thinking
 
@@ -151,10 +150,10 @@ def test_extended_thinking_support(model, expected_extended_thinking):
         ("claude-3-7-sonnet", True),
         ("claude-3-haiku-20240307", True),
         ("claude-3-opus-20240229", True),
-        # AWS Bedrock model ids (provider-prefixed)
+        # AWS 基岩模型 ID（提供商前缀）
         ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", True),
         ("bedrock/anthropic.claude-3-haiku-20240307-v1:0", True),
-        # Anthropic 4.5 and 4.6 variants (dash only; official IDs use hyphens)
+        # Anthropic 4.5 和 4.6 变体（仅限破折号； 官方 ID 使用连字符）
         ("claude-haiku-4-5", True),
         ("us.anthropic.claude-haiku-4-5-20251001", True),
         ("bedrock/anthropic.claude-3-opus-20240229-v1:0", True),
@@ -162,7 +161,7 @@ def test_extended_thinking_support(model, expected_extended_thinking):
         ("claude-sonnet-4-6", True),
         ("claude-opus-4-5", True),
         ("claude-opus-4-6", True),
-        # Claude Fable 5 supports prompt caching across model-name forms.
+        # Claude Fable 5 支持提示词跨模型名称形式的缓存。
         ("claude-fable-5", True),
         ("anthropic/claude-fable-5", True),
         ("litellm_proxy/anthropic/claude-fable-5", True),
@@ -172,26 +171,28 @@ def test_extended_thinking_support(model, expected_extended_thinking):
         ("claude-opus-5-5", True),
         ("anthropic/claude-opus-5-5", True),
         ("litellm_proxy/anthropic/claude-opus-5-5", True),
-        # Claude Opus 5 supports prompt caching across raw, direct-provider,
-        # and proxy-prefixed forms.
+        # Claude Opus 5 支持提示词跨原始、直接提供者和代理前缀形式的缓存。
+        #
         ("claude-opus-5", True),
         ("anthropic/claude-opus-5", True),
         ("litellm_proxy/anthropic/claude-opus-5", True),
-        # claude-sonnet-5 is not matched by any claude-sonnet-4* entry and must
-        # be listed explicitly, same as claude-fable-5.
+        # claude-sonnet-5 与任何 claude-sonnet-4* 条目都不匹配，必须明确列出，与 claude-
+        # fable-5 相同。
+        #
         ("claude-sonnet-5", True),
         ("anthropic/claude-sonnet-5", True),
         ("litellm_proxy/anthropic/claude-sonnet-5", True),
-        # User-facing model names (no provider prefix)
+        # 面向用户的模型名称（无提供商前缀）
         ("anthropic.claude-3-5-sonnet-20241022", True),
         ("anthropic.claude-3-haiku-20240307", True),
         ("anthropic.claude-3-opus-20240229", True),
-        # Gemini must NOT use explicit cache_control markers: they freeze the
-        # cache at the static prefix and disable Google's implicit caching.
+        # Gemini 必须不使用显式 cache_control 标记：它们冻结静态前缀处的缓存并禁用
+        # Google 的隐式缓存。
+        #
         ("gemini-2.5-pro", False),
         ("gemini-3.1-pro-preview", False),
         ("litellm_proxy/gemini-3.1-pro-preview", False),
-        ("gpt-4o", False),  # OpenAI doesn't support explicit prompt caching
+        ("gpt-4o", False),  # OpenAI 不支持显式提示词缓存
         ("gemini-1.5-pro", False),
         ("unknown-model", False),
     ],
@@ -209,9 +210,9 @@ def test_prompt_cache_support(model, expected_cache):
         ("claude-3-5-sonnet", True),
         ("gemini-1.5-pro", True),
         ("llama-3.1-70b", True),
-        ("unknown-model", True),  # Most models support stop words
+        ("unknown-model", True),  # 大多数模型支持停用词
         ("bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0", True),
-        # Models that don't support stop words
+        # 不支持停用词的模型
         ("o1", False),
         ("o1-2024-12-17", False),
         ("grok-4-0709", False),
@@ -226,10 +227,9 @@ def test_stop_words_support(model, expected_stop_words):
 
 
 def test_get_features_with_provider_prefix():
-    """Test that get_features works with provider prefixes.
+    """测试 get_features 是否适用于提供者前缀。
 
-    Reasoning-effort detection delegates provider parsing to LiteLLM (we only
-    strip the `litellm_proxy/` wrapper).
+    推理工作检测将提供程序解析委托给 LiteLLM（我们只剥离 `litellm_proxy/` 包装器）。
     """
     assert get_features("openai/gpt-4o").supports_reasoning_effort is False
     assert (
@@ -237,13 +237,13 @@ def test_get_features_with_provider_prefix():
     )
     assert get_features("litellm_proxy/gpt-4o").supports_reasoning_effort is False
 
-    # Known reasoning-capable model IDs should be recognized.
+    # 已知的具有推理能力的模型 ID 应该被识别。
     assert get_features("claude-sonnet-4-5").supports_reasoning_effort is True
     assert get_features("anthropic/claude-sonnet-4-5").supports_reasoning_effort is True
 
 
 def test_get_features_case_insensitive():
-    """Test that get_features is case insensitive."""
+    """测试 get_features 是否不区分大小写。"""
     features_lower = get_features("gpt-4o")
     features_upper = get_features("GPT-4O")
     features_mixed = get_features("Gpt-4O")
@@ -260,8 +260,8 @@ def test_get_features_case_insensitive():
 
 
 def test_get_features_with_version_suffixes():
-    """Test that get_features handles version suffixes correctly."""
-    # Test that version suffixes are handled properly
+    """测试 get_features 是否正确处理版本后缀。"""
+    # 测试版本后缀是否正确处理
     base_features = get_features("claude-3-5-sonnet")
     versioned_features = get_features("claude-3-5-sonnet-20241022")
 
@@ -276,7 +276,7 @@ def test_get_features_with_version_suffixes():
 
 
 def test_model_matches_multiple_patterns():
-    """Test model_matches with multiple patterns."""
+    """使用多种模式测试 model_matches。"""
     patterns = ["gpt-4", "claude-3", "gemini-"]
 
     assert model_matches("gpt-4o", patterns) is True
@@ -286,25 +286,25 @@ def test_model_matches_multiple_patterns():
 
 
 def test_model_matches_substring_semantics():
-    """Test model_matches uses substring semantics (no globbing)."""
+    """测试 model_matches 使用子字符串语义（无通配）。"""
     patterns = ["gpt-4o", "claude-3-5-sonnet"]
 
     assert model_matches("gpt-4o", patterns) is True
     assert model_matches("claude-3-5-sonnet", patterns) is True
-    # Substring match: 'gpt-4o' matches 'gpt-4o-mini'
+    # 子字符串匹配：“gpt-4o”匹配“gpt-4o-mini”
     assert model_matches("gpt-4o-mini", patterns) is True
     assert model_matches("claude-3-haiku", patterns) is False
 
 
 def test_get_features_unknown_model():
-    """Test get_features with completely unknown model."""
+    """使用完全未知的模型测试 get_features。"""
     features = get_features("completely-unknown-model-12345")
 
-    # Unknown models should have default feature values
+    # 未知模型应具有默认特征值
     assert features.supports_reasoning_effort is False
     assert features.supports_prompt_cache is False
     assert features.supports_vision is False
-    assert features.supports_stop_words is True  # Most models support stop words
+    assert features.supports_stop_words is True  # 大多数模型支持停用词
 
 
 def test_metadata_drives_adaptive_thinking_and_sampling():
@@ -405,11 +405,11 @@ def test_responses_api_is_discovered_from_model_metadata():
 
 
 def test_get_features_empty_model():
-    """Test get_features with empty or None model."""
+    """使用空模型或 None 模型测试 get_features。"""
     features_empty = get_features("")
     features_none = get_features(None)
 
-    # Empty models should have default feature values
+    # 空模型应该有默认的特征值
     assert features_empty.supports_reasoning_effort is False
     assert features_none.supports_reasoning_effort is False
     assert features_empty.supports_vision is False
@@ -461,14 +461,14 @@ def test_vision_overrides_are_not_redundant():
 
 
 def test_model_matches_with_provider_pattern():
-    """model_matches uses substring on raw model name incl. provider prefixes."""
+    """model_matches 在原始模型名称中使用子字符串，包括。 提供者前缀。"""
     assert model_matches("openai/gpt-4", ["openai/"])
     assert model_matches("anthropic/claude-3", ["anthropic/claude"])
     assert not model_matches("openai/gpt-4", ["anthropic/"])
 
 
 def test_stop_words_grok_provider_prefixed():
-    """Test that grok models don't support stop words with and without provider prefixes."""  # noqa: E501
+    """测试 grok 模型不支持带或不带提供商前缀的停用词。"""  # noqa: E501
     assert get_features("xai/grok-4-0709").supports_stop_words is False
     assert get_features("grok-4-0709").supports_stop_words is False
     assert get_features("xai/grok-code-fast-1").supports_stop_words is False
@@ -490,7 +490,7 @@ def test_stop_words_grok_provider_prefixed():
     ],
 )
 def test_supports_stop_words_false_models(model):
-    """Test models that don't support stop words."""
+    """测试不支持停用词的模型。"""
     features = get_features(model)
     assert features.supports_stop_words is False
 
@@ -503,8 +503,9 @@ def test_supports_stop_words_false_models(model):
         ("gpt-5", True),
         ("gpt-5.2", True),
         ("openai/gpt-5-mini", True),
-        # GPT-6 family rejects function tools + reasoning_effort on
-        # /v1/chat/completions; route via /v1/responses (saas-deploy #1144).
+        # GPT-6族拒绝功能工具+reasoning_effort上的/v1/chat/completions； 通过
+        # /v1/responses 路由（saas-deploy #1144）。
+        #
         ("gpt-6-sol", True),
         ("gpt-6-luna", True),
         ("gpt-6-astra", True),
@@ -522,17 +523,17 @@ def test_responses_api_support(model, expected_responses):
 
 
 def test_force_string_serializer_full_model_names():
-    """Ensure full model names match substring patterns for string serializer.
+    """确保完整模型名称与字符串序列化器的子字符串模式匹配。
 
-    Regression coverage for the legacy DeepSeek v3.2 and broad GLM patterns;
-    Kimi should only match when provider-prefixed with groq/.
+    回归遗留 DeepSeek v3.2 和广泛 GLM 模式的覆盖范围； Kimi 仅应在提供商以 groq/ 为前
+    缀时匹配。
     """
     assert get_features("DeepSeek-V3.2-Exp").force_string_serializer is True
     assert get_features("deepseek-v3.2-reasoner").force_string_serializer is True
     assert get_features("GLM-4.5").force_string_serializer is True
-    # Provider-agnostic Kimi should not force string serializer
+    # 与提供商无关的 Kimi 不应强制使用字符串序列化器
     assert get_features("Kimi K2-Instruct-0905").force_string_serializer is False
-    # Groq-prefixed Kimi should force string serializer
+    # Groq 前缀的 Kimi 应该强制字符串序列化器
     assert get_features("groq/kimi-k2-instruct-0905").force_string_serializer is True
 
 
@@ -547,10 +548,10 @@ def test_force_string_serializer_full_model_names():
     ],
 )
 def test_deepseek_v4_models_use_structured_content(model):
-    """DeepSeek v4/v4.1 ids accept structured (list) content, not strings.
+    """DeepSeek v4/v4.1 ids 接受结构化（列表）内容，而不是字符串。
 
-    Only the legacy v3.2 family needs the string serializer; these ids must
-    keep list content so their image parts are preserved (#5360).
+    只有旧版 v3.2 系列需要字符串序列化器； 这些 id 必须保留列表内容，以便保留它们的图
+    像部分 (#5360)。
     """
     assert get_features(model).force_string_serializer is False
 
@@ -558,29 +559,30 @@ def test_deepseek_v4_models_use_structured_content(model):
 @pytest.mark.parametrize(
     "model,expected_key",
     [
-        # OpenAI models accept the prompt_cache_key param
+        # OpenAI 模型接受 prompt_cache_key 参数
         ("gpt-4o", True),
         ("openai/gpt-5.2", True),
-        # Anthropic/Gemini reject it with UnsupportedParamsError
+        # 人择/双子座拒绝它 UnsupportedParamsError
         ("claude-opus-4-5-20251101", False),
         ("claude-sonnet-4-5-20250929", False),
         ("gemini/gemini-2.5-pro", False),
-        # Unresolved alias -> safe default False (call still succeeds)
+        # 未解析的别名 -> 安全默认值 False（调用仍然成功）
         ("prod/my-unknown-alias", False),
     ],
 )
 def test_prompt_cache_key_support(model, expected_key):
-    """supports_prompt_cache_key tracks litellm's supported_openai_params.
+    """supports_prompt_cache_key 跟踪 LiteLLM 的 supported_openai_params。
 
-    Distinct from supports_prompt_cache (Anthropic cache_control breakpoints):
-    Claude models support cache_control but must NOT receive prompt_cache_key.
+    与 supports_prompt_cache 不同（Anthropic cache_control 断点）：Claude 模型支持
+    cache_control，但
+    必须不接收 prompt_cache_key。
     """
     features = get_features(model)
     assert features.supports_prompt_cache_key is expected_key
 
 
 def test_prompt_cache_key_override():
-    """Capability override can force prompt_cache_key on/off."""
+    """能力覆盖可以强制 prompt_cache_key 开/关。"""
     assert (
         get_features(
             "prod/my-openai-alias",
@@ -599,9 +601,9 @@ def test_prompt_cache_key_override():
 @pytest.mark.parametrize(
     "model,provider",
     [
-        # openhands/ aliases: the bare name is unresolvable by LiteLLM, so the
-        # real upstream provider (from the proxy's model_info) must be threaded
-        # into the lookup. These previously regressed to False after #5328.
+        # openhands/ 别名： LiteLLM 无法解析裸名称，因此必须将真正的上游提供者（来自代理
+        # 的 model_info）线程化到查找中。 这些先前在 #5328 之后回归到 False。
+        #
         ("deepseek-chat", "deepseek"),
         ("minimax-m3", "minimax"),
         ("qwen3.8-max", "dashscope"),
@@ -611,23 +613,23 @@ def test_prompt_cache_key_override():
     ],
 )
 def test_prompt_cache_key_resolved_via_provider_hint(model, provider):
-    """Proxied/aliased models resolve prompt_cache_key from the real provider.
+    """代理/别名模型从真实提供者解析 prompt_cache_key。
 
-    Regression test for the #5328 follow-up: ``openhands/`` and
-    ``litellm_proxy/`` aliases strip to a bare name that LiteLLM cannot resolve,
-    so ``get_supported_openai_params`` returns ``None`` and the param was
-    silently dropped even though the upstream provider accepts it.
+    回归 #5328 后续测试：``openhands/`` 和
+    ``litellm_proxy/`` 命名空间被简化为一个裸名，LiteLLM 无法解析，因此
+    ``get_supported_openai_params`` 返回
+     ``None``，尽管上游提供者接受它。
     """
     features = get_features(model, model_info={"litellm_provider": provider})
     assert features.supports_prompt_cache_key is True
 
 
 def test_prompt_cache_key_passthrough_provider_not_used():
-    """litellm_proxy/openhands hints over-report and must be ignored.
+    """litellm_proxy/openhands 提示过度报告，必须忽略。
 
-    LiteLLM returns the full OpenAI param set (including prompt_cache_key) for
-    every model under the litellm_proxy provider -- even Claude. Using it as the
-    hint would re-introduce the 400 UnsupportedParamsError fixed in #5325.
+    LiteLLM 返回 litellm_proxy 提供者下每个模型的完整 OpenAI 参数集（包括
+    prompt_cache_key）——甚至 Claude。 使
+    用它作为提示将重新引入 #5325 中修复的 400 UnsupportedParamsError。
     """
     features = get_features(
         "claude-opus-5-5", model_info={"litellm_provider": "litellm_proxy"}
@@ -636,30 +638,30 @@ def test_prompt_cache_key_passthrough_provider_not_used():
 
 
 def test_prompt_cache_key_no_provider_hint_falls_back():
-    """Without model_info, bare unresolvable names keep the safe False default.
+    """如果没有 model_info，裸露的不可解析名称将保留安全的 False 默认值。
 
-    This preserves the original safe behavior for callers that cannot supply
-    provider metadata (e.g. an unknown alias with no proxy model_info).
+    这为无法提供提供者元数据的调用者保留了原始的安全行为（e.g. 没有代理的未知别名
+    model_info）。
     """
     assert get_features("deepseek-chat").supports_prompt_cache_key is False
     assert get_features("claude-opus-5-5").supports_prompt_cache_key is False
 
 
 def test_provider_hint_does_not_leak_into_reasoning_effort():
-    """The provider hint must only move prompt_cache_key, not reasoning_effort.
+    """提供者提示只能移动 prompt_cache_key，而不是 reasoning_effort。
 
-    Regression test for the #5332 review: the provider-scoped param lookup
-    broadens the whole set (for DeepSeek it also reports ``reasoning_effort``).
-    Threading it into the shared ``supported_params`` flipped
-    ``supports_reasoning_effort`` False -> True for ``deepseek-chat``, which made
-    ``select_chat_options`` emit ``reasoning_effort`` and strip sampling params.
-    Resolving prompt_cache_key separately keeps reasoning_effort on the
-    bare-name set, so only the intended capability moves.
+    回归 #5332 评论测试：提供者范围的参数查找扩大了整个集合（对于 DeepSeek，它还报告
+    ``reasoning_effort``）。 将其线程插入共享
+    ``supported_params`` 翻转
+    ``supports_reasoning_effort`` False -> True 对于 ``deepseek-chat``，这使得
+    ``select_chat_options`` emit ``reasoning_effort`` 并去除采样参数。 解析
+    prompt_cache_key 分别保
+    存 reasoning_effort 在裸名集上，因此只有预期的能力移动。
     """
     features = get_features(
         "deepseek-chat", model_info={"litellm_provider": "deepseek"}
     )
-    # prompt_cache_key is recovered via the provider hint ...
+    # prompt_cache_key 通过提供者提示恢复...
     assert features.supports_prompt_cache_key is True
     # ... but reasoning_effort stays on the unhinted bare-name lookup.
     assert features.supports_reasoning_effort is False
@@ -671,7 +673,7 @@ def test_provider_hint_does_not_leak_into_reasoning_effort():
         ("gpt-5.1", True),
         ("openai/gpt-5.1-codex-mini", True),
         ("gpt-5", True),
-        # New GPT-5.2 family should support extended retention
+        # 新的 GPT-5.2 系列应支持延长保留时间
         ("gpt-5.2", True),
         ("openai/gpt-5.2-chat-latest", True),
         ("openai/gpt-5.2-pro", True),
@@ -693,11 +695,11 @@ def test_prompt_cache_retention_support(model, expected_retention):
     features = get_features(model)
     assert features.supports_prompt_cache_retention is expected_retention
 
-    # piggyback on this test to verify that force_string_serializer is correctly set
+    # 搭载此测试以验证 force_string_serializer 设置正确
     assert get_features("GLM-4.5").force_string_serializer is True
-    # Provider-agnostic Kimi should not force string serializer
+    # 与提供商无关的 Kimi 不应强制使用字符串序列化器
     assert get_features("Kimi K2-Instruct-0905").force_string_serializer is False
-    # Groq-prefixed Kimi should force string serializer
+    # Groq 前缀的 Kimi 应该强制字符串序列化器
     assert get_features("groq/kimi-k2-instruct-0905").force_string_serializer is True
 
 
@@ -706,26 +708,26 @@ def test_prompt_cache_retention_support(model, expected_retention):
     [
         ("kimi-k2-thinking", True),
         ("kimi-k2-thinking-0905", True),
-        ("Kimi-K2-Thinking", True),  # Case insensitive
-        ("moonshot/kimi-k2-thinking", True),  # With provider prefix
+        ("Kimi-K2-Thinking", True),  # 不区分大小写
+        ("moonshot/kimi-k2-thinking", True),  # 带有提供商前缀的
         ("kimi-k3", True),
-        ("Kimi-K3", True),  # Case insensitive
-        ("moonshot/kimi-k3", True),  # With provider prefix
-        ("litellm_proxy/moonshot/kimi-k3", True),  # Through proxy
+        ("Kimi-K3", True),  # 不区分大小写
+        ("moonshot/kimi-k3", True),  # 带有提供商前缀的
+        ("litellm_proxy/moonshot/kimi-k3", True),  # 通过代理
         ("kimi-k2.5", True),
-        ("Kimi-K2.5", True),  # Case insensitive
-        # DeepSeek reasoner model
+        ("Kimi-K2.5", True),  # 不区分大小写
+        # DeepSeek 推理机模型
         ("deepseek/deepseek-reasoner", True),
         ("DeepSeek/deepseek-reasoner", True),
-        # DeepSeek V4 Pro (dual-mode thinking)
+        # DeepSeek V4 Pro（双模思维）
         ("deepseek/deepseek-v4-pro", True),
         ("litellm_proxy/deepseek/deepseek-v4-pro", True),
-        # DeepSeek V4 Flash (dual-mode thinking)
+        # DeepSeek V4 Flash（双模思维）
         ("deepseek/deepseek-v4-flash", True),
         ("litellm_proxy/deepseek/deepseek-v4-flash", True),
-        # Models that should NOT match
-        ("deepseek/deepseek-chat", False),  # Different DeepSeek model
-        ("kimi-k2-instruct", False),  # Different variant
+        # 应不匹配的型号
+        ("deepseek/deepseek-chat", False),  # 不同的 DeepSeek 型号
+        ("kimi-k2-instruct", False),  # 不同的变体
         ("gpt-4o", False),
         ("claude-3-5-sonnet", False),
         ("o1", False),
@@ -733,6 +735,6 @@ def test_prompt_cache_retention_support(model, expected_retention):
     ],
 )
 def test_send_reasoning_content_support(model, expected_send_reasoning):
-    """Test that models like kimi-k2-thinking require send_reasoning_content."""
+    """测试 kimi-k2-thinking 等模型是否需要 send_reasoning_content。"""
     features = get_features(model)
     assert features.send_reasoning_content is expected_send_reasoning

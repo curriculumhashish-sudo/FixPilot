@@ -22,7 +22,7 @@ def message_event(content: str) -> MessageEvent:
 
 
 class MockRollingCondenser(RollingCondenser):
-    """Mock implementation of RollingCondenser for testing."""
+    """模拟对象实施RollingCondenser进行测试。"""
 
     def __init__(
         self,
@@ -44,7 +44,7 @@ class MockRollingCondenser(RollingCondenser):
             raise NoCondensationAvailableException(
                 "No condensation available due to API constraints"
             )
-        # Return a simple condensation for successful case
+        # 成功案例返回简单的上下文压缩
         return Condensation(
             forgotten_event_ids={view.events[0].id},
             summary="Mock summary",
@@ -54,8 +54,8 @@ class MockRollingCondenser(RollingCondenser):
 
 
 def test_rolling_condenser_returns_view_when_no_condensation_needed() -> None:
-    """Test that RollingCondenser returns the original view when
-    condensation_requirement returns None.
+    """测试 RollingCondenser 返回原始视图
+    condensation_requirement 返回 None。
     """
     condenser = MockRollingCondenser(condensation_requirement_value=None)
 
@@ -73,8 +73,8 @@ def test_rolling_condenser_returns_view_when_no_condensation_needed() -> None:
 
 
 def test_rolling_condenser_returns_condensation_when_needed() -> None:
-    """Test that RollingCondenser returns a Condensation when condensation_requirement
-    returns HARD.
+    """测试当 condensation_requirement 时 RollingCondenser 返回上下文压缩
+    返回 HARD。
     """
     condenser = MockRollingCondenser(
         condensation_requirement_value=CondensationRequirement.HARD,
@@ -97,12 +97,12 @@ def test_rolling_condenser_returns_condensation_when_needed() -> None:
 def test_rolling_condenser_returns_view_on_no_condensation_available_exception() -> (
     None
 ):
-    """Test that RollingCondenser returns the original view when
-    NoCondensationAvailableException is raised with SOFT requirement.
+    """测试 RollingCondenser 返回原始视图
+    NoCondensationAvailableException 是根据SOFT 要求提出的。
 
-    This tests the exception handling for SOFT condensation requirements which catches
-    NoCondensationAvailableException from get_condensation() and returns the
-    original view as a fallback.
+    这测试了 SOFT 上下文压缩要求的异常处理，它从 get_condensation() 捕获
+    NoCondensationAvailableException 并
+    将原始视图作为回退方案返回。
     """
     condenser = MockRollingCondenser(
         condensation_requirement_value=CondensationRequirement.SOFT,
@@ -116,8 +116,8 @@ def test_rolling_condenser_returns_view_on_no_condensation_available_exception()
     ]
     view = View.from_events(events)
 
-    # Even though condensation_requirement returns SOFT, the exception should be
-    # caught and the original view should be returned
+    # 即使 condensation_requirement 返回 SOFT，也应该捕获异常并返回原始视图
+    #
     result = condenser.condense(view)
 
     assert isinstance(result, View)
@@ -126,7 +126,7 @@ def test_rolling_condenser_returns_view_on_no_condensation_available_exception()
 
 
 def test_rolling_condenser_with_agent_llm() -> None:
-    """Test that RollingCondenser works with optional agent_llm parameter."""
+    """测试 RollingCondenser 是否与可选的 agent_llm 参数一起使用。"""
     condenser = MockRollingCondenser(
         condensation_requirement_value=CondensationRequirement.HARD,
         raise_exception=False,
@@ -139,10 +139,10 @@ def test_rolling_condenser_with_agent_llm() -> None:
     ]
     view = View.from_events(events)
 
-    # Create a mock LLM
+    # 创建模拟对象 LLM
     mock_llm = MagicMock(spec=LLM)
 
-    # Condense with agent_llm parameter
+    # 使用 agent_llm 参数进行压缩
     result = condenser.condense(view, agent_llm=mock_llm)
 
     assert isinstance(result, Condensation)
@@ -150,7 +150,7 @@ def test_rolling_condenser_with_agent_llm() -> None:
 
 
 def test_no_condensation_available_exception_message() -> None:
-    """Test that NoCondensationAvailableException raisable with custom message."""
+    """测试 NoCondensationAvailableException 可通过自定义消息引发。"""
     exception_message = "Custom error message about API constraints"
 
     with pytest.raises(NoCondensationAvailableException, match=exception_message):
@@ -158,11 +158,11 @@ def test_no_condensation_available_exception_message() -> None:
 
 
 def test_default_hard_context_reset_raises_error() -> None:
-    """Test that default hard_context_reset raises NoCondensationAvailableException.
+    """测试默认值 hard_context_reset 是否升高 NoCondensationAvailableException。
 
-    When there's a hard requirement but no condensation available, and the default
-    hard_context_reset implementation is used (returns None), the
-    NoCondensationAvailableException should be raised.
+    当存在硬性要求但没有可用的上下文压缩且使用默认的 hard_context_reset 实现（返回
+    None）时，应提出
+    NoCondensationAvailableException。
     """
     condenser = MockRollingCondenser(
         condensation_requirement_value=CondensationRequirement.HARD,
@@ -176,13 +176,13 @@ def test_default_hard_context_reset_raises_error() -> None:
     ]
     view = View.from_events(events)
 
-    # The default hard_context_reset returns None, so the exception should be raised
+    # 默认 hard_context_reset 返回 None，因此应该引发异常
     with pytest.raises(NoCondensationAvailableException):
         condenser.condense(view)
 
 
 class MockRollingCondenserWithHardReset(RollingCondenser):
-    """Mock implementation of RollingCondenser with custom hard_context_reset."""
+    """模拟对象使用自定义 hard_context_reset 实现 RollingCondenser。"""
 
     def __init__(self, hard_reset_condensation: Condensation):
         self._hard_reset_condensation = hard_reset_condensation
@@ -206,11 +206,10 @@ class MockRollingCondenserWithHardReset(RollingCondenser):
 
 
 def test_hard_context_reset_condensation_is_returned() -> None:
-    """Test that condensation from hard_context_reset is returned.
+    """测试是否返回 hard_context_reset 中的上下文压缩。
 
-    When there's a hard requirement but no condensation available, and
-    hard_context_reset returns a Condensation, that should be returned
-    instead of raising an exception.
+    当存在硬性要求但没有可用的上下文压缩且 hard_context_reset 返回上下文压缩时，应该
+    返回该值而不是引发异常。
     """
     events: list[Event] = [
         message_event("Event 1"),
@@ -219,7 +218,7 @@ def test_hard_context_reset_condensation_is_returned() -> None:
     ]
     view = View.from_events(events)
 
-    # Create a condensation that will be returned by hard_context_reset
+    # 创建将由 hard_context_reset 返回的上下文压缩
     hard_reset_condensation = Condensation(
         forgotten_event_ids={events[0].id, events[1].id},
         summary="Hard context reset summary",

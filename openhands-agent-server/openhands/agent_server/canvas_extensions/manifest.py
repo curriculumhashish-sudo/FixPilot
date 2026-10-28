@@ -1,17 +1,15 @@
-"""Canvas Extensions manifest: schema, validation, and entrypoint containment.
+"""Canvas 扩展清单：模式、验证和入口遏制。
 
-A Canvas extension is an installable UI bundle that contributes pages to the
-OpenHands Canvas frontend. Extensions are installed and served entirely by
-the agent-server (via ``openhands.sdk.extensions.installation``, the same
-type-agnostic install-tracking framework Plugins/Skills use); nothing here
-is consumed by ``Agent``/``Conversation``.
+Canvas 扩展是一个可安装的 UI 包，它向 OpenHands Canvas 前端提供页面。 扩展完全由智能
+体服务器安装和提供服务（通过
+``openhands.sdk.extensions.installation``，插件/技能使用相同的类型不可知安装跟踪框架
+）； 这里没有任何东西被 ``Agent``
+/``Conversation``. 消耗
 
-This module defines the manifest schema (``canvas-extension.json``) and the
-two security-critical checks around it:
+该模块定义了清单模式 (``canvas-extension.json``) 及其周围的两个安全关键检查：
 
-* Name / contribution-id / page-path validation (syntactic, on the model).
-* Entrypoint containment (filesystem-level, once a package root is known) —
-  rejects both textual path traversal and symlink escapes.
+* 名称/贡献 ID/页面路径验证（语法，在模型上）。
+* 入口遏制（文件系统级，一旦知道包根）——拒绝文本路径遍历和符号链接转义。
 """
 
 import re
@@ -28,17 +26,17 @@ from openhands.sdk.logger import get_logger
 logger = get_logger(__name__)
 
 
-# Filename a canvas extension's manifest is loaded from, at its package root.
+# 画布扩展的清单从其包根加载的文件名。
 MANIFEST_FILENAME: Final[str] = "canvas-extension.json"
 
-# Absolute, kebab-case, multi-segment UI route, e.g. "/dashboard/settings".
+# 绝对、kebab-case、多段 UI 路线，e.g。 "/dashboard/settings".
 _PAGE_PATH_PATTERN: re.Pattern[str] = re.compile(
     r"^/[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$"
 )
 
 
 class CanvasExtensionPage(BaseModel):
-    """A single page contributed to the Canvas UI by an extension."""
+    """通过扩展向 Canvas UI 提供单个页面。"""
 
     id: str = Field(description="Unique contribution id within the extension")
     title: str = Field(description="Page title shown in Canvas navigation")
@@ -67,7 +65,7 @@ class CanvasExtensionPage(BaseModel):
 
 
 class CanvasExtensionContributes(BaseModel):
-    """Contributions an extension makes to the Canvas UI."""
+    """贡献 Canvas UI 的扩展。"""
 
     pages: list[CanvasExtensionPage] = Field(
         default_factory=list, description="Pages contributed to Canvas navigation"
@@ -94,7 +92,7 @@ BackendPlatform = Literal["linux-amd64", "linux-arm64"]
 
 
 class CanvasExtensionBackendArtifact(BaseModel):
-    """Immutable local or HTTPS backend artifact for one platform."""
+    """一个平台的不可变本地或 HTTPS 后端工件。"""
 
     path: str = Field(description="Package-relative .tar.gz artifact path")
     url: str | None = Field(
@@ -152,7 +150,7 @@ class CanvasExtensionBackendArtifact(BaseModel):
 
 
 class CanvasExtensionBackendHealth(BaseModel):
-    """Loopback HTTP readiness probe for a backend process."""
+    """后端进程的环回 HTTP 就绪探测。"""
 
     path: str = Field(default="/health", pattern=r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
     timeout_seconds: float = Field(default=30, gt=0, le=300)
@@ -160,7 +158,7 @@ class CanvasExtensionBackendHealth(BaseModel):
 
 
 class CanvasExtensionBackend(BaseModel):
-    """Optional trusted backend declaration for schema-1 Canvas Apps."""
+    """模式-1 Canvas 应用程序的可选可信后端声明。"""
 
     schema_version: Literal[1]
     artifacts: dict[BackendPlatform, CanvasExtensionBackendArtifact] = Field(
@@ -202,7 +200,7 @@ class CanvasExtensionBackend(BaseModel):
 
 
 class CanvasExtensionManifest(BaseModel):
-    """Canvas extension manifest (``canvas-extension.json``)."""
+    """画布扩展清单 (``canvas-extension.json``)。"""
 
     schema_version: int = Field(description="Manifest schema version")
     name: str = Field(description="Extension name (kebab-case)")
@@ -232,11 +230,10 @@ class CanvasExtensionManifest(BaseModel):
     @field_validator("icon", mode="before")
     @classmethod
     def _validate_icon(cls, v: object) -> str | None:
-        """Drop a non-SVG icon instead of raising.
+        """不要丢一个非SVG的图标。
 
-        The manifest is re-validated on every read, so raising here would hide
-        the whole extension. Containment is checked at serve time by
-        :func:`resolve_icon`.
+        每次读取时都会重新验证清单，因此在此处引发会隐藏整个扩展。 在服务时检查遏制
+        :func:`resolve_icon`。
         """
         if v is None or (isinstance(v, str) and v.endswith(".svg")):
             return v
@@ -259,10 +256,10 @@ class CanvasExtensionManifest(BaseModel):
     @field_validator("entrypoint")
     @classmethod
     def _validate_entrypoint(cls, v: str) -> str:
-        """Reject textual traversal/absolute paths.
+        """拒绝文本遍历/绝对路径。
 
-        Syntactic only — see :func:`resolve_entrypoint` for the real,
-        symlink-aware containment check against the installed package root.
+        仅语法 - 请参阅：func:`resolve_entrypoint` 以了解针对已安装包根的真正的、符号
+        链接感知的包含检查。
         """
         if not v:
             raise ValueError("entrypoint must not be empty")
@@ -276,39 +273,36 @@ class CanvasExtensionManifest(BaseModel):
 
 
 def resolve_entrypoint(manifest: CanvasExtensionManifest, package_root: Path) -> Path:
-    """Resolve ``manifest.entrypoint`` against ``package_root``, safely.
+    """安全地解决 ``manifest.entrypoint`` 与 ``package_root`` 的问题。
 
-    Field-level validation on ``entrypoint`` only rejects textual traversal
-    (``..``) and absolute paths. It cannot catch a symlink inside the
-    package that resolves outside of it. This performs the real
-    filesystem-level containment check (resolving symlinks) and must be
-    called both when an extension is installed and again immediately
-    before its entrypoint is read or served over HTTP.
+    字段级验证在 ``entrypoint`` 仅支持文本遍历 ``..``) 和绝对路径。 它无法捕获包内解
+    析包外部的符号链接。 此操作执行真实的文件系统级隔离检查（
+    包括解析符号链接），必须在扩展安装时调用，并在它的请输出简体中文译文入口读取或服
+    务 HTTP.
 
     Args:
-        manifest: A validated manifest.
-        package_root: The extension's installed package root directory.
+        manifest: 经过验证的清单。
+        package_root: 扩展的安装包根目录。
 
     Returns:
-        The resolved, contained entrypoint path.
+        已解析，包含入口路径。
 
     Raises:
-        ValueError: If the resolved entrypoint escapes ``package_root``, or
-            does not resolve to a regular file within it (covers ``.``,
-            a directory, a dangling symlink, and symlink cycles — none of
-            which ``is_relative_to`` alone rejects).
+        ValueError: 如果已解析的入口转义 ``package_root``，或者
+            不解析为其中的常规文件（涵盖 ``.``、目录、悬空符号链接和符号链接循环 —
+            None，其中 ``is_relative_to`` 单独拒绝）。
     """
     return _resolve_contained_file("entrypoint", manifest.entrypoint, package_root)
 
 
 def resolve_icon(manifest: CanvasExtensionManifest, package_root: Path) -> Path | None:
-    """Resolve ``manifest.icon`` with the same containment check as the entrypoint.
+    """使用与入口相同的收容检查解决 ``manifest.icon``。
 
     Returns:
-        None if the manifest declares no icon.
+        None 如果清单声明没有图标。
 
     Raises:
-        ValueError: If the icon escapes ``package_root`` or is not a file.
+        ValueError: 如果图标转义 ``package_root`` 或不是文件。
     """
     icon = manifest.icon
     return None if icon is None else _resolve_contained_file("icon", icon, package_root)

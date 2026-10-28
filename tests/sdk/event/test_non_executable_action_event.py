@@ -6,7 +6,7 @@ from openhands.sdk.llm import MessageToolCall, TextContent
 
 
 def test_action_event_with_none_action_to_llm_message_round_trip() -> None:
-    """Test ActionEvent with action=None (non-executable) to_llm_message."""
+    """使用 action=None（不可执行）to_llm_message 测试 ActionEvent。"""
     thought: Sequence[TextContent] = [TextContent(text="thinking...")]
     tc = MessageToolCall(
         id="call_xyz",

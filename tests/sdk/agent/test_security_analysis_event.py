@@ -1,5 +1,5 @@
-"""SecurityAnalysisEvent: the analyzer's verdict is recorded on every analyzed
-batch of actions, independent of what the confirmation policy does with it."""
+"""SecurityAnalysisEvent: 分析仪的结论记录在每次分析中
+批量操作，与确认策略对其执行的操作无关。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -67,7 +67,7 @@ register_tool("SecurityAnalysisNoopTool", NoopTool)
 
 
 class DetailedAnalyzer(SecurityAnalyzerBase):
-    """Rates every action MEDIUM and explains itself."""
+    """对每个操作进行评分 MEDIUM 并对其进行解释。"""
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
         return SecurityRisk.MEDIUM
@@ -210,11 +210,11 @@ def test_analyzer_verdict_is_recorded_even_when_policy_never_confirms():
     assert event.source == "environment"
     assert event.analyzer == "LLMSecurityAnalyzer"
     assert event.policy == "NeverConfirm"
-    # LLMSecurityAnalyzer relays the LLM's own label, which the mock set to LOW.
+    # LLMSecurityAnalyzer 传递了 LLM 的自身标签，该标签由模拟对象设置为 LOW。
     assert event.risks == {actions[0].id: SecurityRisk.LOW}
     assert event.details == {}
 
-    # The policy still ran the action: the verdict was recorded, not enforced.
+    # 该政策仍然执行该行动：判决被记录，而不是执行。
     assert any(isinstance(e, ObservationEvent) for e in events)
     assert (
         conversation.state.execution_status
@@ -236,7 +236,7 @@ def test_event_precedes_confirmation_wait_and_carries_analyzer_details():
     assert event.risks == {actions[0].id: SecurityRisk.MEDIUM}
     assert event.details == {actions[0].id: {"confidence": 0.42, "rationale": "test"}}
 
-    # This time the policy consulted the risk and paused.
+    # 这次政策咨询了风险，暂停了。
     assert (
         conversation.state.execution_status
         == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
@@ -278,7 +278,7 @@ def test_event_round_trips_through_the_event_union():
 
 
 def test_analyze_pending_actions_keeps_its_risk_only_shape():
-    """The pre-existing method is a compatibility wrapper over analyze_actions."""
+    """预先存在的方法是 analyze_actions 上的兼容性包装器。"""
     analyzer = DetailedAnalyzer()
     _, events = _run_step(analyzer, NeverConfirm())
     (action,) = [e for e in events if isinstance(e, ActionEvent)]

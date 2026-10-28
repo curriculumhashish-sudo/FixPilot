@@ -31,12 +31,12 @@ def test_mcp_action_from_arguments_validates_and_sanitizes():
         }
     )
 
-    # includes a None that should be dropped
+    # 包含应删除的 None
     args = {"url": "https://example.com", "timeout": None}
     action = tool.action_from_arguments(args)
-    # Note: 'kind' field from DiscriminatedUnionMixin should NOT be in action.data
-    # because it's not part of the MCP tool schema and would cause validation errors
-    # when sent to the MCP server
+    # 注意：DiscriminatedUnionMixin 中的“kind”字段应该在 action.data 中不
+    # 因为它不是 MCP 工具模式的一部分，并且在发送到 MCP 服务器时会导致验证错误
+    #
     assert action.data == {"url": "https://example.com"}
 
 
@@ -92,10 +92,10 @@ def test_mcp_action_from_arguments_raises_on_invalid():
         }
     )
 
-    # missing required url
+    # 缺少必需的网址
     with pytest.raises(ValidationError):
         tool.action_from_arguments({})
 
-    # extra field should also cause validation error
+    # 额外的字段也应该导致验证错误
     with pytest.raises(ValidationError):
         tool.action_from_arguments({"url": "https://x.com", "data": {"x": 1}})

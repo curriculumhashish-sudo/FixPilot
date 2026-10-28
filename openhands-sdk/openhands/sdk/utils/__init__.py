@@ -1,4 +1,4 @@
-"""Utility functions for the OpenHands SDK."""
+"""实用函数为OpenHandsSDK。"""
 
 from .command import sanitized_env
 from .datetime import OpenHandsUUID, utc_now

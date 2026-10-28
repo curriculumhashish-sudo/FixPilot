@@ -1,7 +1,7 @@
-"""OpenHands Agent SDK - prompt-based hooks example.
+"""OpenHands 智能体 SDK - 基于提示词的钩子示例。
 
-Evaluates two synthetic PreToolUse events with one LLM completion each. The
-commands are only event data: this example never executes them.
+评估两个合成 PreToolUse 事件，每个事件完成一个 LLM。 这些命令只是事件数据：此示例从不
+执行它们。
 """
 
 import os

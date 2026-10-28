@@ -1,4 +1,4 @@
-"""Test tool JSON serialization with DiscriminatedUnionMixin."""
+"""测试工具 JSON 序列化和 DiscriminatedUnionMixin。"""
 
 import json
 
@@ -10,64 +10,64 @@ from openhands.sdk.tool.builtins import FinishTool, ThinkTool
 
 
 def test_tool_serialization_deserialization() -> None:
-    """Test that Tool supports polymorphic JSON serialization/deserialization."""
-    # Use FinishTool which is a simple built-in tool
+    """测试工具是否支持多态 JSON 序列化/反序列化。"""
+    # 使用 FinishTool 这个简单的内置工具
     tool_instances = FinishTool.create()
     tool = tool_instances[0]
 
-    # Serialize to JSON
+    # 序列化至JSON
     tool_json = tool.model_dump_json()
 
-    # Deserialize from JSON using the base class
+    # 反序列化来自 JSON 使用基类
     deserialized_tool = ToolDefinition.model_validate_json(tool_json)
 
-    # Should deserialize to the correct type with same serializable data
+    # 应该反序列化为具有相同可序列化数据的正确类型
     assert isinstance(deserialized_tool, ToolDefinition)
     assert tool.model_dump() == deserialized_tool.model_dump()
 
 
 def test_tool_supports_polymorphic_field_json_serialization() -> None:
-    """Test that Tool supports polymorphic JSON serialization when used as a field."""
+    """测试 Tool 在用作字段时是否支持多态 JSON 序列化。"""
 
     class Container(BaseModel):
         tool: ToolDefinition
 
-    # Create container with tool
+    # 使用工具创建容器
     tool_instances = FinishTool.create()
     tool = tool_instances[0]
     container = Container(tool=tool)
 
-    # Serialize to JSON
+    # 序列化至JSON
     container_json = container.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_container = Container.model_validate_json(container_json)
 
-    # Should preserve the tool type with same serializable data
+    # 应保留具有相同可序列化数据的工具类型
     assert isinstance(deserialized_container.tool, ToolDefinition)
     assert tool.model_dump() == deserialized_container.tool.model_dump()
 
 
 def test_tool_supports_nested_polymorphic_json_serialization() -> None:
-    """Test that Tool supports nested polymorphic JSON serialization."""
+    """测试 Tool 是否支持嵌套多态 JSON 序列化。"""
 
     class NestedContainer(BaseModel):
         tools: list[ToolDefinition]
 
-    # Create container with multiple tools
+    # 使用多种工具创建容器
     tool1_instances = FinishTool.create()
     tool1 = tool1_instances[0]
     tool2_instances = ThinkTool.create()
     tool2 = tool2_instances[0]
     container = NestedContainer(tools=[tool1, tool2])
 
-    # Serialize to JSON
+    # 序列化至JSON
     container_json = container.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_container = NestedContainer.model_validate_json(container_json)
 
-    # Should preserve all tool types with same serializable data
+    # 应保留具有相同可序列化数据的所有工具类型
     assert len(deserialized_container.tools) == 2
     assert isinstance(deserialized_container.tools[0], ToolDefinition)
     assert isinstance(deserialized_container.tools[1], ToolDefinition)
@@ -76,26 +76,26 @@ def test_tool_supports_nested_polymorphic_json_serialization() -> None:
 
 
 def test_tool_model_validate_json_dict() -> None:
-    """Test that Tool.model_validate works with dict from JSON."""
-    # Create tool
+    """测试 Tool.model_validate 是否适用于 JSON 中的 dict。"""
+    # 创建工具
     tool_instances = FinishTool.create()
     tool = tool_instances[0]
 
-    # Serialize to JSON, then parse to dict
+    # 序列化到JSON，然后解析为dict
     tool_json = tool.model_dump_json()
     tool_dict = json.loads(tool_json)
 
-    # Deserialize from dict
+    # 反序列化来自字典
     deserialized_tool = ToolDefinition.model_validate(tool_dict)
 
-    # Should have same serializable data
+    # 应该具有相同的可序列化数据
     assert isinstance(deserialized_tool, ToolDefinition)
     assert tool.model_dump() == deserialized_tool.model_dump()
 
 
 def test_tool_no_fallback_behavior_json() -> None:
-    """Test that Tool handles unknown types gracefully in JSON."""
-    # Create JSON with unknown kind
+    """在 JSON 中测试 Tool 是否能够优雅地处理未知类型。"""
+    # 创建类型未知的 JSON
     tool_dict = {
         "name": "test-tool",
         "description": "A test tool",
@@ -112,45 +112,45 @@ def test_tool_no_fallback_behavior_json() -> None:
 
 
 def test_tool_type_annotation_works_json() -> None:
-    """Test that ToolType annotation works correctly with JSON."""
-    # Create tool
+    """测试 ToolType 注释是否与 JSON 一起正常工作。"""
+    # 创建工具
     tool_instances = FinishTool.create()
     tool = tool_instances[0]
 
-    # Use ToolType annotation
+    # 使用ToolType注释
     class TestModel(BaseModel):
         tool: ToolDefinition
 
     model = TestModel(tool=tool)
 
-    # Serialize to JSON
+    # 序列化至JSON
     model_json = model.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_model = TestModel.model_validate_json(model_json)
 
-    # Should work correctly with same serializable data
+    # 应该使用相同的可序列化数据正确工作
     assert isinstance(deserialized_model.tool, ToolDefinition)
     assert tool.model_dump() == deserialized_model.tool.model_dump()
 
 
 def test_tool_kind_field_json() -> None:
-    """Test Tool kind field is correctly set and preserved through JSON."""
-    # Create tool
+    """测试工具种类字段通过JSON正确设置和保存。"""
+    # 创建工具
     tool_instances = FinishTool.create()
     tool = tool_instances[0]
 
-    # Check kind field
+    # 检查种类字段
     assert hasattr(tool, "kind")
     expected_kind = tool.__class__.__name__
     assert tool.kind == expected_kind
 
-    # Serialize to JSON
+    # 序列化至JSON
     tool_json = tool.model_dump_json()
 
-    # Deserialize from JSON
+    # 反序列化来自 JSON
     deserialized_tool = ToolDefinition.model_validate_json(tool_json)
 
-    # Should preserve kind field
+    # 应该保留善良的田野
     assert hasattr(deserialized_tool, "kind")
     assert deserialized_tool.kind == tool.kind

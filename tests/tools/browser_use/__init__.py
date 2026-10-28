@@ -1,1 +1,1 @@
-"""Tests for browser_use tools."""
+"""测试 browser_use 工具。"""

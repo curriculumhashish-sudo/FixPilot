@@ -1,11 +1,9 @@
-"""Resource-level lock manager for parallel tool execution.
+"""用于并行工具执行的资源级锁管理器。
 
-Provides per-resource locking so that tools operating on the same shared state
-(files, terminal session, browser session, …) are serialized while tools
-touching *different* resources can run concurrently.
+提供按资源级别的锁定，以便在同一共享状态（文件、终端会话、浏览器会话等）上的工具可以
+使用已序列化当工具接触时 *不同的* 资源可以并发运行。
 
-Locks are acquired in sorted order to prevent deadlocks and use FIFOLock
-for fairness (no starvation).
+锁按照排序顺序获取，以防止死锁并使用 FIFOLock 以实现公平（不饥饿）。
 """
 
 from __future__ import annotations
@@ -29,17 +27,17 @@ _DEFAULT_TIMEOUT: Final[float] = 30.0
 
 
 class ResourceLockTimeout(TimeoutError):
-    """A lock could not be acquired within the allowed timeout."""
+    """无法在允许的超时范围内获取锁。"""
 
 
 class ResourceLockManager:
-    """Manages per-resource FIFO locks for concurrent tool execution.
+    """管理每个资源 FIFO 锁以执行并发工具。
 
-    Usage::
+    用法：:
 
         mgr = ResourceLockManager()
         with mgr.lock("file:/a.py", "file:/b.py"):
-            # exclusive access to both files
+            # 对两个文件的独占访问
             ...
     """
 
@@ -53,10 +51,9 @@ class ResourceLockManager:
         self._timeouts = timeouts or DEFAULT_TIMEOUTS
 
     def _get_lock(self, key: str) -> FIFOLock:
-        """Return (or lazily create) the FIFOLock for *key*.
+        """返回（或惰性创建） FIFOLock 为了 *key*.
 
-        Also increments the reference count so the lock is not cleaned
-        up while callers still hold or wait on it.
+        还会增加引用计数，以便在调用者仍然保留或等待锁时不会清除它。
         """
         with self._meta_lock:
             if key not in self._locks:
@@ -65,7 +62,7 @@ class ResourceLockManager:
             return self._locks[key]
 
     def _release_lock(self, key: str) -> None:
-        """Release the FIFOLock for *key* and clean up if unreferenced."""
+        """释放 FIFOLock，并清理 *key* 未引用的部分。"""
         with self._meta_lock:
             lock = self._locks.get(key)
             if lock is None:
@@ -77,20 +74,19 @@ class ResourceLockManager:
                 del self._refcounts[key]
 
     def _get_timeout(self, key: str) -> float:
-        """Return the timeout for a resource key based on its prefix."""
+        """根据资源键的前缀返回超时。"""
         prefix = key.split(":", 1)[0] if ":" in key else key
         return self._timeouts.get(prefix, _DEFAULT_TIMEOUT)
 
     @contextmanager
     def lock(self, *resource_keys: str) -> Generator[None]:
-        """Acquire locks for all *resource_keys* in sorted order.
+        """按排序顺序获取所有 *resource_keys* 的锁。
 
-        Sorted acquisition prevents deadlocks when two threads need
-        overlapping sets of resources.
+        当两个线程需要重叠的资源集时，排序获取会阻止死锁。
 
         Raises:
-            ResourceLockTimeout: If a lock cannot be acquired within
-                its timeout.
+            ResourceLockTimeout: 如果无法在锁内获取
+                它的超时。
         """
         sorted_keys = sorted(set(resource_keys))
         acquired: list[str] = []
@@ -98,10 +94,10 @@ class ResourceLockManager:
             for key in sorted_keys:
                 timeout = self._get_timeout(key)
                 if not self._get_lock(key).acquire(timeout=timeout):
-                    # _get_lock() already incremented the refcount for this
-                    # key. Since acquisition failed, this key won't be added
-                    # to acquired[] and the finally block won't clean it up
-                    # — so we must undo the refcount increment here.
+                    # _get_lock() 已经增加了该键的引用计数。 由于收购失败，这个键不会被
+                    # 添加到被收购的[]中，最后块也不会清理它——所以，我们必须在这里撤销计
+                    # 数器的增加。
+                    #
                     with self._meta_lock:
                         self._refcounts[key] -= 1
                         if self._refcounts[key] == 0 and not self._locks[key].locked():

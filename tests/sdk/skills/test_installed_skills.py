@@ -1,8 +1,8 @@
-"""Tests for installed skills management.
+"""测试已安装的技能管理。
 
-These tests verify the public API in ``openhands.sdk.skills.installed``
-delegates correctly to ``InstallationManager``.  Internal metadata and
-sync logic is already covered by ``tests/sdk/extensions/installation/``.
+这些测试验证 ``openhands.sdk.skills.installed`` 中的公共 API 是否正确委托给
+``InstallationManager``。 内部
+元数据和同步逻辑已在 ``tests/sdk/extensions/installation/`` 中涵盖。
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def sample_skill_dir(tmp_path: Path) -> Path:
 
 
 # ============================================================================
-# Public API smoke tests
+# 公共 API 烟雾测试
 # ============================================================================
 
 
@@ -252,7 +252,7 @@ def test_update_nonexistent_skill(installed_dir: Path) -> None:
 
 
 # ============================================================================
-# Marketplace tests
+# 市场测试
 # ============================================================================
 
 
@@ -313,13 +313,13 @@ class TestInstallSkillsFromMarketplace:
             "---\nname: my-skill\ndescription: Updated\n---\n# my-skill"
         )
 
-        # Without force — already exists
+        # 无需武力——已经存在
         installed = install_skills_from_marketplace(
             marketplace_dir, installed_dir=installed_dir, force=False
         )
         assert len(installed) == 0
 
-        # With force — overwrites
+        # 用力——覆盖
         installed = install_skills_from_marketplace(
             marketplace_dir, installed_dir=installed_dir, force=True
         )
@@ -396,7 +396,7 @@ class TestInstallSkillsFromMarketplace:
 
 
 class TestLoadMarketplaceStandaloneSkills:
-    """The shared helper used by both marketplace auto-load paths."""
+    """两个市场自动加载路径使用的共享助手。"""
 
     @staticmethod
     def _marketplace(tmp_path: Path) -> Path:
@@ -443,7 +443,7 @@ class TestLoadMarketplaceStandaloneSkills:
         assert skills == []
 
     def test_missing_skill_md_is_skipped_not_raised(self, tmp_path: Path) -> None:
-        # Skill entry points at a dir with no SKILL.md -> warn-and-skip.
+        # 技能入口在没有 SKILL.md 的目录 -> 警告并跳过。
         d = _create_marketplace(
             tmp_path, skills=[{"name": "broken", "source": "./skills/broken"}]
         )

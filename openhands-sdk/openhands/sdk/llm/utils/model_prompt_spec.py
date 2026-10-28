@@ -1,7 +1,6 @@
-"""Utilities for detecting model families and variants.
+"""用于检测模型系列和变体的实用程序。
 
-These helpers allow prompts and other systems to tailor behavior for specific
-LLM providers while keeping naming heuristics centralized.
+这些助手允许提示词和其他系统为特定的 LLM 提供者定制行为，同时保持命名启发式集中。
 """
 
 from __future__ import annotations
@@ -10,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ModelPromptSpec(BaseModel):
-    """Detected prompt metadata for a given model configuration."""
+    """检测到给定模型配置的提示词元数据。"""
 
     model_config = ConfigDict(frozen=True)
 
@@ -33,7 +32,7 @@ _MODEL_FAMILY_PATTERNS: dict[str, tuple[str, ...]] = {
     "alibaba_qwen": ("qwen",),
 }
 
-# Ordered heuristics to pick the most specific variant available for a family.
+# 有序启发法为一个家庭选择最具体的变体。
 _MODEL_VARIANT_PATTERNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "openai_gpt": (
         (
@@ -75,7 +74,7 @@ def _match_variant(
     if not patterns:
         return None
 
-    # Choose canonical_name if available, otherwise fall back to model_name
+    # 如果可用，请选择 canonical_name，否则返回 model_name
     candidate = _normalize(canonical_name) or _normalize(model_name)
     if not candidate:
         return None
@@ -91,7 +90,7 @@ def get_model_prompt_spec(
     model_name: str,
     canonical_name: str | None = None,
 ) -> ModelPromptSpec:
-    """Return family and variant prompt metadata for the given identifiers."""
+    """返回给定标识符的家族和变体提示词元数据。"""
 
     family = _match_family(model_name)
     if family is None and canonical_name:

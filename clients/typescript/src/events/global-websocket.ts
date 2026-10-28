@@ -1,15 +1,15 @@
 /**
- * WebSocket constructor lookup shared by the callback-style socket clients.
+ * WebSocket 构造函数查找由回调样式套接字客户端共享。
  */
 
 /**
- * The Web-standard WebSocket constructor of the current runtime: browsers,
- * web workers and Node 22+ all expose it as `globalThis.WebSocket`.
+ * 当前运行时的Web标准WebSocket构造函数：浏览器，
+ * Web Workers 和 Node 22+ 都将其公开为 `globalThis.WebSocket`。
  *
- * Looked up on every connect, never at import time, so importing the package
- * barrel neither throws nor pulls in a Node-only module, and a constructor
- * installed on `globalThis` after import (for example the `ws` package on an
- * older Node) is picked up.
+ * 在每次连接时查找，从不在导入时查找，因此导入包
+ * barrel 既不抛出也不拉入 Node-only 模块和构造函数
+ * 导入后安装在 `globalThis` 上（例如 `ws` 包在
+ * 较旧的节点）被拾取。
  */
 export function getGlobalWebSocket(): (new (url: string) => WebSocket) | undefined {
   return (globalThis as { WebSocket?: new (url: string) => WebSocket }).WebSocket;

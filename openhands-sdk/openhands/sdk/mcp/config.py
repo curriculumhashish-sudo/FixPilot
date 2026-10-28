@@ -1,4 +1,4 @@
-"""MCP configuration models and FastMCP normalization."""
+"""MCP配置模型和FastMCP标准化。"""
 
 from __future__ import annotations
 
@@ -441,11 +441,11 @@ class MCPOAuthState(_MCPBaseModel):
         )
 
     def to_plain_dict(self, *, cipher: Cipher | None = None) -> dict[str, Any]:
-        """Dump OAuth state with secret values in plaintext.
+        """以明文形式转储具有机密值的 OAuth 状态。
 
-        When ``cipher`` is provided, encrypted Fernet token strings are first
-        validated back through the DataModel so stored/API ciphertext becomes
-        usable FastMCP token-storage state.
+        当 ``cipher`` 提供加密的 Fernet token 然后通过进行验证 DataModel 所以存储的
+        API 密文变得可用 FastMCP  to
+        ken存储状态。
         """
         if cipher is None:
             return self._to_storage_dict(context={"expose_secrets": "plaintext"})
@@ -456,7 +456,7 @@ class MCPOAuthState(_MCPBaseModel):
         return decrypted._to_storage_dict(context={"expose_secrets": "plaintext"})
 
     def to_response(self, *, cipher: Cipher | None = None) -> MCPOAuthStateResponse:
-        """Dump OAuth state for API responses: plaintext locally, encrypted remotely."""
+        """转储 API 响应的 OAuth 状态：本地明文，远程加密。"""
         context: dict[str, object] = (
             {"expose_secrets": "plaintext"}
             if cipher is None
@@ -495,7 +495,7 @@ MCPTransport = Literal["stdio", "http", "streamable-http", "sse"]
 
 
 class MCPServer(_MCPBaseModel):
-    """One MCP server in the settings DataModel."""
+    """设置 DataModel 中的一台 MCP 服务器。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -521,8 +521,9 @@ class MCPServer(_MCPBaseModel):
             "ACP subprocess."
         ),
     )
-    # Never a field: data from outside must not be able to exempt a server from
-    # expansion. Only code sets it, via ``as_literal()``.
+    # Never a field：来自外部的数据不能免除服务器的扩展。 只有代码通过 ``as_literal()``
+    # 设置它。
+    #
     _literal_values: bool = PrivateAttr(default=False)
 
     @field_validator("env", "headers", mode="after")
@@ -560,14 +561,14 @@ class MCPServer(_MCPBaseModel):
 
     @property
     def literal_values(self) -> bool:
-        """True if built by :meth:`as_literal`: never ``${VAR}``-expanded.
+        """True 如果由：meth:`as_literal` 构建：从不 ``${VAR}`` 扩展。
 
-        In memory only; input cannot set it and dumps do not write it.
+        仅在记忆中； 输入无法设置它，转储也不会写入它。
         """
         return self._literal_values
 
     def as_literal(self) -> MCPServer:
-        """Return a copy exempt from ``${VAR}`` expansion, for package servers."""
+        """对于包服务器，返回不受 ``${VAR}`` 扩展影响的副本。"""
         server = self.model_copy()
         server._literal_values = True
         return server
@@ -633,7 +634,7 @@ def drop_unknown_mcp_server_fields(server: Mapping[str, object]) -> dict[str, ob
 
 
 def _extract_mcp_config(value: object) -> object:
-    """Extract a server map from SDK-native or external FastMCP-shaped input."""
+    """从 SDK 本地或外部 FastMCP 形状的输入中提取服务器映射。"""
     if value in (None, {}):
         return {}
     if isinstance(value, FastMCPConfig):
@@ -672,11 +673,11 @@ def _normalize_server_for_fastmcp(
     server: Mapping[str, Any],
 ) -> dict[str, Any]:
     server = copy.deepcopy(dict(server))
-    # ``enabled`` is an OpenHands-side flag; FastMCP server models are
-    # ``extra="allow"``, so leaving it in would be silently absorbed rather
-    # than rejected. Callers are expected to have dropped disabled servers
-    # already (see ``enabled_mcp_servers``) -- this only keeps the key from
-    # leaking through the public ``to_fastmcp_mcp_config`` boundary.
+    # ``enabled``是OpenHands侧标志； FastMCP 服务器型号为
+    # ``extra="allow"``，所以留下它会被默默地吸收而不是被拒绝。 预计调用者已经删除了禁用
+    # 的服务器（参见 ``enabled_mcp_servers``）——这只能防止密钥通过公共
+    # ``to_fastmcp_mcp_config`` 边界泄漏。
+    #
     server.pop("enabled", None)
     auth = server.pop("auth", None)
     raw_headers = server.get("headers")
@@ -744,12 +745,10 @@ def dump_mcp_config(
 def enabled_mcp_servers(
     mcp_config: Mapping[str, MCPServer],
 ) -> dict[str, MCPServer]:
-    """Drop servers the user has switched off.
+    """删除用户已关闭的服务器。
 
-    Disabled servers stay in the settings map (so their configuration and
-    secrets survive) but must never reach a live MCP connection, whether the
-    agent turns them into SDK tools or an ACP subprocess connects to them
-    itself.
+    禁用的服务器仍然存在于设置图中（因此它们的配置和机密会保存），但必须永远避免与任
+    何MCP连接，无论智能体将它们变成SDK工具还是ACP 子进程自己连接到它们。
     """
     return {name: server for name, server in mcp_config.items() if server.enabled}
 

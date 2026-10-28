@@ -1,8 +1,7 @@
 """
-Standalone unit tests for PubSub class functionality.
+独立单元测试用于 PubSub 类功能。
 
-This test file recreates the PubSub class logic to test it
-without dependencies on the openhands.sdk module.
+此测试文件重新创建 PubSub 类逻辑来测试它，而不依赖于 openhands.sdk 模块。
 """
 
 import asyncio
@@ -14,9 +13,9 @@ from uuid import UUID, uuid4
 import pytest
 
 
-# Mock Event class
+# 模拟对象事件类
 class MockEvent:
-    """Mock Event class for testing purposes."""
+    """模拟对象用于测试目的的事件类。"""
 
     def __init__(self, event_type="test_event", data="test_data"):
         self.type: str = event_type
@@ -26,9 +25,9 @@ class MockEvent:
         return {"type": self.type, "data": self.data}
 
 
-# Mock logger
+# 模拟对象记录器
 class MockLogger:
-    """Mock logger for testing purposes."""
+    """模拟对象用于测试目的的记录器。"""
 
     def __init__(self):
         self.debug_calls: list[Any] = []
@@ -45,33 +44,33 @@ class MockLogger:
         self.error_calls.append((message, exc_info))
 
 
-# Recreate Subscriber ABC for testing
+# 重新创建订阅者 ABC 以进行测试
 class SubscriberForTesting(ABC):
     @abstractmethod
     async def __call__(self, event):
-        """Invoke this subscriber"""
+        """调用该订阅者"""
 
     async def close(self):
-        """Clean up this subscriber"""
+        """清理该订阅者"""
 
 
-# Recreate PubSub for testing
+# 重新创建 PubSub 进行测试
 @dataclass
 class PubSubForTesting:
-    """Testable version of PubSub without external dependencies."""
+    """PubSub 的可测试版本，无需外部依赖。"""
 
     _subscribers: dict[UUID, SubscriberForTesting] = field(default_factory=dict)
     _logger: MockLogger = field(default_factory=MockLogger)
 
     def subscribe(self, subscriber: SubscriberForTesting) -> UUID:
-        """Subscribe a subscriber and return its UUID for later unsubscription."""
+        """订阅订阅者并返回其 UUID 以供以后取消订阅。"""
         subscriber_id = uuid4()
         self._subscribers[subscriber_id] = subscriber
         self._logger.debug(f"Subscribed subscriber with ID: {subscriber_id}")
         return subscriber_id
 
     def unsubscribe(self, subscriber_id: UUID) -> bool:
-        """Unsubscribe a subscriber by its UUID."""
+        """通过 UUID 取消订阅订阅者。"""
         if subscriber_id in self._subscribers:
             del self._subscribers[subscriber_id]
             self._logger.debug(f"Unsubscribed subscriber with ID: {subscriber_id}")
@@ -83,7 +82,7 @@ class PubSubForTesting:
             return False
 
     async def __call__(self, event) -> None:
-        """Invoke all registered callbacks with the given event."""
+        """使用给定事件调用所有已注册的回调。"""
         subscribers = list(self._subscribers.items())
         if not subscribers:
             return
@@ -107,9 +106,9 @@ class PubSubForTesting:
         self._subscribers.clear()
 
 
-# Mock Subscriber class for testing
+# 模拟对象用于测试的订阅者类别
 class MockSubscriber(SubscriberForTesting):
-    """Mock Subscriber for testing purposes."""
+    """模拟对象用于测试目的的订阅者。"""
 
     def __init__(self, name="test_subscriber"):
         self.name: str = name
@@ -120,7 +119,7 @@ class MockSubscriber(SubscriberForTesting):
         self.error_to_raise: Exception | None = None
 
     async def __call__(self, event):
-        """Invoke this subscriber"""
+        """调用该订阅者"""
         self.call_count += 1
         self.received_events.append(event)
 
@@ -128,25 +127,25 @@ class MockSubscriber(SubscriberForTesting):
             raise self.error_to_raise or Exception(f"Error in {self.name}")
 
     async def close(self):
-        """Clean up this subscriber"""
+        """清理该订阅者"""
         self.close_called: bool = True
 
 
 @pytest.fixture
 def pubsub():
-    """Create a PubSub instance for testing."""
+    """创建一个 PubSub 实例用于测试。"""
     return PubSubForTesting()
 
 
 @pytest.fixture
 def sample_event():
-    """Create a sample Event for testing."""
+    """创建一个示例事件以进行测试。"""
     return MockEvent("test_event", "test_data")
 
 
 @pytest.fixture
 def sample_events():
-    """Create multiple sample Events for testing."""
+    """创建多个示例事件以进行测试。"""
     events = []
     for i in range(3):
         events.append(MockEvent(f"test_event_{i}", f"test_data_{i}"))
@@ -155,13 +154,13 @@ def sample_events():
 
 @pytest.fixture
 def mock_subscriber():
-    """Create a mock subscriber for testing."""
+    """创建模拟对象订阅者进行测试。"""
     return MockSubscriber("subscriber_1")
 
 
 @pytest.fixture
 def mock_subscribers():
-    """Create multiple mock subscribers for testing."""
+    """创建多个模拟对象订阅者进行测试。"""
     return [
         MockSubscriber("subscriber_1"),
         MockSubscriber("subscriber_2"),
@@ -170,59 +169,59 @@ def mock_subscribers():
 
 
 class TestPubSubSubscribe:
-    """Test cases for PubSub.subscribe method."""
+    """测试用例代表 PubSub.subscribe 方法。"""
 
     def test_subscribe_single_subscriber(self, pubsub, mock_subscriber):
-        """Test subscribing a single subscriber."""
+        """测试订阅单个订阅者。"""
         subscriber_id = pubsub.subscribe(mock_subscriber)
 
-        # Should return a UUID
+        # 应该返回 UUID
         assert isinstance(subscriber_id, UUID)
 
-        # Subscriber should be in the internal dict
+        # 订阅者应该在内部字典中
         assert subscriber_id in pubsub._subscribers
         assert pubsub._subscribers[subscriber_id] == mock_subscriber
 
-        # Should have exactly one subscriber
+        # 应该只有一个订阅者
         assert len(pubsub._subscribers) == 1
 
-        # Should log the subscription
+        # 应该记录订阅
         assert len(pubsub._logger.debug_calls) == 1
         assert "Subscribed subscriber with ID" in pubsub._logger.debug_calls[0]
 
     def test_subscribe_multiple_subscribers(self, pubsub, mock_subscribers):
-        """Test subscribing multiple subscribers."""
+        """测试订阅多个订阅者。"""
         subscriber_ids = []
 
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-            # Each should return a unique UUID
+            # 每个应该返回一个唯一的 UUID
             assert isinstance(subscriber_id, UUID)
-            assert subscriber_id not in subscriber_ids[:-1]  # Unique from previous IDs
+            assert subscriber_id not in subscriber_ids[:-1]  # 与之前的 ID 不同
 
-        # All subscribers should be in the dict
+        # 所有订阅者都应该在字典中
         assert len(pubsub._subscribers) == len(mock_subscribers)
 
         for i, subscriber_id in enumerate(subscriber_ids):
             assert pubsub._subscribers[subscriber_id] == mock_subscribers[i]
 
     def test_subscribe_same_subscriber_multiple_times(self, pubsub, mock_subscriber):
-        """Test subscribing the same subscriber instance multiple times."""
+        """测试多次订阅同一订阅者实例。"""
         subscriber_id_1 = pubsub.subscribe(mock_subscriber)
         subscriber_id_2 = pubsub.subscribe(mock_subscriber)
 
-        # Should get different UUIDs
+        # 应该得到不同的 UUIDs
         assert subscriber_id_1 != subscriber_id_2
 
-        # Both should be in the dict
+        # 两者都应该在字典中
         assert len(pubsub._subscribers) == 2
         assert pubsub._subscribers[subscriber_id_1] == mock_subscriber
         assert pubsub._subscribers[subscriber_id_2] == mock_subscriber
 
     def test_subscribe_returns_unique_uuids(self, pubsub):
-        """Test that subscribe always returns unique UUIDs."""
+        """测试订阅总是返回唯一的 UUIDs。"""
         subscribers = [MockSubscriber(f"subscriber_{i}") for i in range(10)]
         subscriber_ids = []
 
@@ -230,41 +229,41 @@ class TestPubSubSubscribe:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # All IDs should be unique
+        # 所有 ID 都应该是唯一的
         assert len(set(subscriber_ids)) == len(subscriber_ids)
 
 
 class TestPubSubUnsubscribe:
-    """Test cases for PubSub.unsubscribe method."""
+    """测试用例代表 PubSub.unsubscribe 方法。"""
 
     def test_unsubscribe_existing_subscriber(self, pubsub, mock_subscriber):
-        """Test unsubscribing an existing subscriber."""
+        """测试取消订阅现有订阅者。"""
         subscriber_id = pubsub.subscribe(mock_subscriber)
 
-        # Unsubscribe should return True
+        # 取消订阅应返回 True
         result = pubsub.unsubscribe(subscriber_id)
         assert result is True
 
-        # Subscriber should be removed from dict
+        # 订阅者应该从字典中删除
         assert subscriber_id not in pubsub._subscribers
         assert len(pubsub._subscribers) == 0
 
-        # Should log the unsubscription
-        assert len(pubsub._logger.debug_calls) == 2  # Subscribe + unsubscribe
+        # 应该记录取消订阅
+        assert len(pubsub._logger.debug_calls) == 2  # 订阅+取消订阅
         assert "Unsubscribed subscriber with ID" in pubsub._logger.debug_calls[1]
 
     def test_unsubscribe_nonexistent_subscriber(self, pubsub):
-        """Test unsubscribing a non-existent subscriber."""
+        """测试取消订阅不存在的订阅者。"""
         fake_id = uuid4()
 
-        # Unsubscribe should return False
+        # 取消订阅应返回 False
         result = pubsub.unsubscribe(fake_id)
         assert result is False
 
-        # Dict should remain empty
+        # 字典应保持为空
         assert len(pubsub._subscribers) == 0
 
-        # Should log the warning
+        # 应该记录警告
         assert len(pubsub._logger.warning_calls) == 1
         assert (
             "Attempted to unsubscribe unknown subscriber ID"
@@ -272,57 +271,57 @@ class TestPubSubUnsubscribe:
         )
 
     def test_unsubscribe_multiple_subscribers(self, pubsub, mock_subscribers):
-        """Test unsubscribing multiple subscribers."""
+        """测试取消多个订阅者的订阅。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
         assert len(pubsub._subscribers) == len(mock_subscribers)
 
-        # Unsubscribe first subscriber
+        # 取消订阅第一个订阅者
         result = pubsub.unsubscribe(subscriber_ids[0])
         assert result is True
         assert len(pubsub._subscribers) == len(mock_subscribers) - 1
         assert subscriber_ids[0] not in pubsub._subscribers
 
-        # Other subscribers should still be there
+        # 其他订阅者应该仍然存在
         for i in range(1, len(subscriber_ids)):
             assert subscriber_ids[i] in pubsub._subscribers
 
     def test_unsubscribe_already_unsubscribed(self, pubsub, mock_subscriber):
-        """Test unsubscribing a subscriber that was already unsubscribed."""
+        """测试取消订阅已取消订阅的订阅者。"""
         subscriber_id = pubsub.subscribe(mock_subscriber)
 
-        # First unsubscribe should succeed
+        # 首先取消订阅应该成功
         result1 = pubsub.unsubscribe(subscriber_id)
         assert result1 is True
 
-        # Second unsubscribe should fail
+        # 第二次取消订阅应该会失败
         result2 = pubsub.unsubscribe(subscriber_id)
         assert result2 is False
 
     def test_unsubscribe_partial_removal(self, pubsub, mock_subscribers):
-        """Test that unsubscribing one subscriber doesn't affect others."""
+        """测试取消一位订阅者的订阅不会影响其他订阅者。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # Unsubscribe middle subscriber
+        # 取消订阅中间订阅者
         middle_index = len(subscriber_ids) // 2
         result = pubsub.unsubscribe(subscriber_ids[middle_index])
         assert result is True
 
-        # Check that only the middle subscriber was removed
+        # 检查是否仅删除了中间订阅者
         assert len(pubsub._subscribers) == len(mock_subscribers) - 1
         assert subscriber_ids[middle_index] not in pubsub._subscribers
 
-        # All other subscribers should still be there
+        # 所有其他订阅者应该仍然存在
         for i, subscriber_id in enumerate(subscriber_ids):
             if i != middle_index:
                 assert subscriber_id in pubsub._subscribers
@@ -330,24 +329,24 @@ class TestPubSubUnsubscribe:
 
 
 class TestPubSubCall:
-    """Test cases for PubSub.__call__ method (event distribution)."""
+    """测试用例用于PubSub.__call__方法（事件分发）。"""
 
     @pytest.mark.asyncio
     async def test_call_with_no_subscribers(self, pubsub, sample_event):
-        """Test calling PubSub with no subscribers."""
-        # Should not raise any errors
+        """在没有订阅者的情况下测试呼叫 PubSub。"""
+        # 不应引发任何错误
         await pubsub(sample_event)
 
     @pytest.mark.asyncio
     async def test_call_with_single_subscriber(
         self, pubsub, mock_subscriber, sample_event
     ):
-        """Test calling PubSub with a single subscriber."""
+        """测试使用单个订阅者呼叫 PubSub。"""
         pubsub.subscribe(mock_subscriber)
 
         await pubsub(sample_event)
 
-        # Subscriber should have received the event
+        # 订阅者应该已收到该事件
         assert mock_subscriber.call_count == 1
         assert len(mock_subscriber.received_events) == 1
         assert mock_subscriber.received_events[0] == sample_event
@@ -356,14 +355,14 @@ class TestPubSubCall:
     async def test_call_with_multiple_subscribers(
         self, pubsub, mock_subscribers, sample_event
     ):
-        """Test calling PubSub with multiple subscribers."""
-        # Subscribe all
+        """测试与多个订阅者的呼叫 PubSub。"""
+        # 全部订阅
         for subscriber in mock_subscribers:
             pubsub.subscribe(subscriber)
 
         await pubsub(sample_event)
 
-        # All subscribers should have received the event
+        # 所有订阅者都应该已收到该事件
         for subscriber in mock_subscribers:
             assert subscriber.call_count == 1
             assert len(subscriber.received_events) == 1
@@ -373,13 +372,13 @@ class TestPubSubCall:
     async def test_call_with_multiple_events(
         self, pubsub, mock_subscriber, sample_events
     ):
-        """Test calling PubSub multiple times with different events."""
+        """测试使用不同事件多次调用 PubSub。"""
         pubsub.subscribe(mock_subscriber)
 
         for event in sample_events:
             await pubsub(event)
 
-        # Subscriber should have received all events
+        # 订阅者应该已收到所有事件
         assert mock_subscriber.call_count == len(sample_events)
         assert len(mock_subscriber.received_events) == len(sample_events)
         assert mock_subscriber.received_events == sample_events
@@ -388,17 +387,17 @@ class TestPubSubCall:
     async def test_call_distributes_to_all_current_subscribers(
         self, pubsub, mock_subscribers, sample_event
     ):
-        """Test that events are distributed to all current subscribers."""
+        """测试事件是否分发给所有当前订阅者。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
         await pubsub(sample_event)
 
-        # All should have received the event
+        # 所有人都应该收到该事件
         for subscriber in mock_subscribers:
             assert subscriber.call_count == 1
             assert sample_event in subscriber.received_events
@@ -407,32 +406,32 @@ class TestPubSubCall:
     async def test_call_with_subscriber_error_isolation(
         self, pubsub, mock_subscribers, sample_event
     ):
-        """Test that one subscriber's error doesn't affect others."""
-        # Subscribe all
+        """测试一个订阅者的错误不会影响其他订阅者。"""
+        # 全部订阅
         for subscriber in mock_subscribers:
             pubsub.subscribe(subscriber)
 
-        # Make the middle subscriber raise an error
+        # 让中间订阅者抛出错误
         middle_subscriber = mock_subscribers[len(mock_subscribers) // 2]
         middle_subscriber.should_raise_error = True
         middle_subscriber.error_to_raise = ValueError("Test error")
 
-        # Should not raise an exception
+        # 不应引发异常
         await pubsub(sample_event)
 
-        # All subscribers should have been called (including the failing one)
+        # 所有订阅者都应该被呼叫（包括失败的订阅者）
         for subscriber in mock_subscribers:
             assert subscriber.call_count == 1
             assert sample_event in subscriber.received_events
 
-        # Error should be logged
+        # 应记录错误
         assert len(pubsub._logger.error_calls) == 1
         assert "Error in subscriber" in pubsub._logger.error_calls[0][0]
         assert pubsub._logger.error_calls[0][1] is True  # exc_info=True
 
 
 class _TimedSubscriber(SubscriberForTesting):
-    """Subscriber that records delivery wall-time after an artificial delay."""
+    """订阅者在人为延迟后记录传送墙时间。"""
 
     def __init__(self, name: str, delay: float, log: list[tuple[str, float]]):
         self.name = name
@@ -446,11 +445,11 @@ class _TimedSubscriber(SubscriberForTesting):
 
 
 class TestPubSubConcurrentDispatch:
-    """Test that __call__ dispatches to subscribers concurrently."""
+    """测试 __call__ 是否同时分派给订阅者。"""
 
     @pytest.mark.asyncio
     async def test_slow_subscriber_does_not_block_others(self, pubsub):
-        """A slow subscriber must not delay delivery to faster ones."""
+        """速度较慢的订阅者不得延迟向较快的订阅者交付。"""
         delivery_log: list[tuple[str, float]] = []
 
         pubsub.subscribe(_TimedSubscriber("slow", 0.2, delivery_log))
@@ -460,37 +459,37 @@ class TestPubSubConcurrentDispatch:
         await pubsub(MockEvent())
         elapsed = asyncio.get_event_loop().time() - start
 
-        # Both subscribers were called
+        # 两个订阅者都被称为
         assert len(delivery_log) == 2
-        # Wall time ≈ 0.2s (concurrent), not ≈ 0.2s+ (sequential)
+        # 壁时间 ≈ 0.2s (并发)，而不是 ≈ 0.2s+（顺序）
         assert elapsed < 0.3
 
 
 class TestPubSubEventIsolation:
-    """Test cases ensuring removed subscribers don't receive events."""
+    """测试用例确保已删除的订阅者不会收到事件。"""
 
     @pytest.mark.asyncio
     async def test_unsubscribed_subscriber_no_events(
         self, pubsub, mock_subscribers, sample_event
     ):
-        """Test that unsubscribed subscribers don't receive events."""
+        """测试未订阅的订阅者不会收到事件。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # Unsubscribe first subscriber
+        # 取消订阅第一个订阅者
         pubsub.unsubscribe(subscriber_ids[0])
 
         await pubsub(sample_event)
 
-        # First subscriber should not have received the event
+        # 第一个订阅者不应收到该事件
         assert mock_subscribers[0].call_count == 0
         assert len(mock_subscribers[0].received_events) == 0
 
-        # Other subscribers should have received the event
+        # 其他订阅者应该已经收到该事件
         for i in range(1, len(mock_subscribers)):
             assert mock_subscribers[i].call_count == 1
             assert sample_event in mock_subscribers[i].received_events
@@ -499,36 +498,36 @@ class TestPubSubEventIsolation:
     async def test_unsubscribe_during_event_processing(
         self, pubsub, mock_subscribers, sample_events
     ):
-        """Test unsubscribing between events."""
+        """测试事件之间的取消订阅。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # Send first event
+        # 发送第一个事件
         await pubsub(sample_events[0])
 
-        # All should have received first event
+        # 所有人都应该收到第一个事件
         for subscriber in mock_subscribers:
             assert subscriber.call_count == 1
             assert sample_events[0] in subscriber.received_events
 
-        # Unsubscribe middle subscriber
+        # 取消订阅中间订阅者
         middle_index = len(subscriber_ids) // 2
         pubsub.unsubscribe(subscriber_ids[middle_index])
 
-        # Send second event
+        # 发送第二个事件
         await pubsub(sample_events[1])
 
-        # Middle subscriber should not have received second event
+        # 中间订阅者不应收到第二个事件
         middle_subscriber = mock_subscribers[middle_index]
-        assert middle_subscriber.call_count == 1  # Only first event
+        assert middle_subscriber.call_count == 1  # 仅第一个活动
         assert len(middle_subscriber.received_events) == 1
         assert sample_events[1] not in middle_subscriber.received_events
 
-        # Other subscribers should have received both events
+        # 其他订阅者应该已收到这两个事件
         for i, subscriber in enumerate(mock_subscribers):
             if i != middle_index:
                 assert subscriber.call_count == 2
@@ -539,128 +538,128 @@ class TestPubSubEventIsolation:
     async def test_resubscribe_after_unsubscribe(
         self, pubsub, mock_subscriber, sample_events
     ):
-        """Test resubscribing a subscriber after unsubscribing."""
-        # Subscribe
+        """测试取消订阅后重新订阅订阅者。"""
+        # 订阅
         subscriber_id_1 = pubsub.subscribe(mock_subscriber)
 
-        # Send first event
+        # 发送第一个事件
         await pubsub(sample_events[0])
         assert mock_subscriber.call_count == 1
 
-        # Unsubscribe
+        # 退订
         pubsub.unsubscribe(subscriber_id_1)
 
-        # Send second event (should not be received)
+        # 发送第二个事件（不应接收）
         await pubsub(sample_events[1])
-        assert mock_subscriber.call_count == 1  # Still 1
+        assert mock_subscriber.call_count == 1  # 仍然 1
 
-        # Resubscribe with new ID
+        # 使用新 ID 重新订阅
         subscriber_id_2 = pubsub.subscribe(mock_subscriber)
-        assert subscriber_id_2 != subscriber_id_1  # Different ID
+        assert subscriber_id_2 != subscriber_id_1  # 不同的ID
 
-        # Send third event (should be received)
+        # 发送第三个事件（应该收到）
         await pubsub(sample_events[2])
-        assert mock_subscriber.call_count == 2  # Now 2
+        assert mock_subscriber.call_count == 2  # 现在 2
 
 
 class TestPubSubClose:
-    """Test cases for PubSub.close method."""
+    """测试用例代表 PubSub.close 方法。"""
 
     @pytest.mark.asyncio
     async def test_close_with_no_subscribers(self, pubsub):
-        """Test closing PubSub with no subscribers."""
-        # Should not raise any errors
+        """在没有订阅者的情况下测试关闭 PubSub。"""
+        # 不应引发任何错误
         await pubsub.close()
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_close_with_single_subscriber(self, pubsub, mock_subscriber):
-        """Test closing PubSub with a single subscriber."""
+        """测试用单个订阅者关闭 PubSub。"""
         pubsub.subscribe(mock_subscriber)
 
         await pubsub.close()
 
-        # Subscriber's close method should have been called
+        # 应该调用订阅者的 close 方法
         assert mock_subscriber.close_called is True
 
-        # Subscribers dict should be cleared
+        # 应清除订阅者字典
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_close_with_multiple_subscribers(self, pubsub, mock_subscribers):
-        """Test closing PubSub with multiple subscribers."""
-        # Subscribe all
+        """测试关闭多个订阅者的 PubSub。"""
+        # 全部订阅
         for subscriber in mock_subscribers:
             pubsub.subscribe(subscriber)
 
         await pubsub.close()
 
-        # All subscribers' close methods should have been called
+        # 应该调用所有订阅者的 close 方法
         for subscriber in mock_subscribers:
             assert subscriber.close_called is True
 
-        # Subscribers dict should be cleared
+        # 应清除订阅者字典
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_close_only_calls_current_subscribers(self, pubsub, mock_subscribers):
-        """Test that close only calls close on current subscribers,
-        not unsubscribed ones."""
+        """测试关闭仅调用关闭当前订阅者，
+        不是取消订阅的。"""
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in mock_subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # Unsubscribe first subscriber
+        # 取消订阅第一个订阅者
         pubsub.unsubscribe(subscriber_ids[0])
 
         await pubsub.close()
 
-        # First subscriber's close should NOT have been called
+        # 第一个订阅者的关闭应该不已被调用
         assert mock_subscribers[0].close_called is False
 
-        # Other subscribers' close methods should have been called
+        # 应该调用其他订阅者的 close 方法
         for i in range(1, len(mock_subscribers)):
             assert mock_subscribers[i].close_called is True
 
-        # Subscribers dict should be cleared
+        # 应清除订阅者字典
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_close_handles_subscriber_close_errors(
         self, pubsub, mock_subscribers
     ):
-        """Test that close handles errors in subscriber close methods."""
-        # Subscribe all
+        """测试关闭是否处理订户关闭方法中的错误。"""
+        # 全部订阅
         for subscriber in mock_subscribers:
             pubsub.subscribe(subscriber)
 
-        # Make one subscriber's close method raise an error
+        # 使一个订阅者的 close 方法引发错误
         async def failing_close():
             raise ValueError("Close error")
 
         mock_subscribers[1].close = failing_close
 
-        # Should not raise an exception (asyncio.gather handles it)
+        # 不应引发异常（asyncio.gather 处理它）
         await pubsub.close()
 
-        # Other subscribers should still have their close called
+        # 其他订阅者应该仍然有他们的侥幸心理
         assert mock_subscribers[0].close_called is True
         assert mock_subscribers[2].close_called is True
 
-        # Subscribers dict should be cleared
+        # 应清除订阅者字典
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_close_concurrent_execution(self, pubsub):
-        """Test that close calls all subscriber close methods concurrently."""
-        # Create subscribers with async close methods that track timing
+        """测试 close 同时调用所有订阅者关闭方法。"""
+        # 使用异步跟踪计时的 close 方法创建订阅者
         close_times = []
 
         async def timed_close(subscriber_id):
-            await asyncio.sleep(0.1)  # Simulate some work
+            await asyncio.sleep(0.1)  # 模拟一些工作
             close_times.append(subscriber_id)
 
         subscribers = []
@@ -674,59 +673,59 @@ class TestPubSubClose:
         await pubsub.close()
         end_time = asyncio.get_event_loop().time()
 
-        # Should complete in roughly 0.1 seconds (concurrent)
-        # rather than 0.3 (sequential)
+        # 应在大约 0.1 秒 (并发) 内完成，而不是 0.3 秒（顺序）
+        #
         elapsed_time = end_time - start_time
-        assert elapsed_time < 0.2  # Allow some margin for test execution overhead
+        assert elapsed_time < 0.2  # 为测试执行开销留出一些余量
 
-        # All close methods should have been called
+        # 应该调用所有 close 方法
         assert len(close_times) == 3
 
 
 class TestPubSubErrorHandling:
-    """Test cases for error handling in PubSub."""
+    """测试用例用于 PubSub 中的错误处理。"""
 
     @pytest.mark.asyncio
     async def test_subscriber_exception_isolation(
         self, pubsub, mock_subscribers, sample_event
     ):
-        """Test that exceptions in one subscriber don't affect others."""
-        # Subscribe all
+        """测试一个订阅者中的异常不会影响其他订阅者。"""
+        # 全部订阅
         for subscriber in mock_subscribers:
             pubsub.subscribe(subscriber)
 
-        # Make multiple subscribers raise different errors
+        # 让多个订阅者引发不同的错误
         mock_subscribers[0].should_raise_error = True
         mock_subscribers[0].error_to_raise = ValueError("First error")
 
         mock_subscribers[2].should_raise_error = True
         mock_subscribers[2].error_to_raise = RuntimeError("Third error")
 
-        # Should not raise an exception
+        # 不应引发异常
         await pubsub(sample_event)
 
-        # All subscribers should have been called
+        # 所有订阅者都应该被调用
         for subscriber in mock_subscribers:
             assert subscriber.call_count == 1
             assert sample_event in subscriber.received_events
 
-        # Both errors should be logged
+        # 应该记录这两个错误
         assert len(pubsub._logger.error_calls) == 2
 
     @pytest.mark.asyncio
     async def test_multiple_events_with_errors(
         self, pubsub, mock_subscriber, sample_events
     ):
-        """Test that errors in one event don't prevent processing
-        of subsequent events."""
+        """测试一个事件中的错误不会阻止处理
+        的后续事件。"""
         pubsub.subscribe(mock_subscriber)
 
-        # Make subscriber fail on second event only by setting the error flag
-        # This way the error handling in PubSub will catch it
+        # 仅通过设置错误标志使订阅者在第二个事件上失败这样 PubSub 中的错误处理将捕获它
+        #
 
-        # Process all events
+        # 处理所有事件
         for i, event in enumerate(sample_events):
-            if i == 1:  # Second event should cause error
+            if i == 1:  # 第二个事件应该导致错误
                 mock_subscriber.should_raise_error = True
                 mock_subscriber.error_to_raise = ValueError("Second event error")
             else:
@@ -735,81 +734,81 @@ class TestPubSubErrorHandling:
 
             await pubsub(event)
 
-        # All events should have been processed
+        # 所有事件都应该已被处理
         assert len(mock_subscriber.received_events) == len(sample_events)
         assert mock_subscriber.received_events == sample_events
 
-        # One error should be logged
+        # 应记录一个错误
         assert len(pubsub._logger.error_calls) == 1
 
 
 class TestPubSubIntegration:
-    """Integration test cases for PubSub."""
+    """PubSub 的集成测试个案例。"""
 
     @pytest.mark.asyncio
     async def test_full_lifecycle(self, pubsub, sample_events):
-        """Test complete PubSub lifecycle: subscribe, events, unsubscribe, close."""
+        """测试完整的 PubSub 生命周期：订阅、事件、取消订阅、关闭。"""
         subscribers = [MockSubscriber(f"subscriber_{i}") for i in range(3)]
         subscriber_ids = []
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in subscribers:
             subscriber_id = pubsub.subscribe(subscriber)
             subscriber_ids.append(subscriber_id)
 
-        # Send first event to all
+        # 向所有人发送第一个事件
         await pubsub(sample_events[0])
 
-        # All should receive first event
+        # 所有人都应该收到第一个事件
         for subscriber in subscribers:
             assert subscriber.call_count == 1
             assert sample_events[0] in subscriber.received_events
 
-        # Unsubscribe middle subscriber
+        # 取消订阅中间订阅者
         pubsub.unsubscribe(subscriber_ids[1])
 
-        # Send second event
+        # 发送第二个事件
         await pubsub(sample_events[1])
 
-        # Only first and third should receive second event
+        # 只有第一个和第三个应该接收第二个事件
         assert subscribers[0].call_count == 2
-        assert subscribers[1].call_count == 1  # Still 1
+        assert subscribers[1].call_count == 1  # 仍然 1
         assert subscribers[2].call_count == 2
 
-        # Close PubSub
+        # 关闭 PubSub
         await pubsub.close()
 
-        # Only current subscribers should have close called
+        # 只有当前订阅者才应该有千钧一发的机会
         assert subscribers[0].close_called is True
-        assert subscribers[1].close_called is False  # Was unsubscribed
+        assert subscribers[1].close_called is False  # 已取消订阅
         assert subscribers[2].close_called is True
 
-        # Dict should be empty
+        # 字典应为空
         assert len(pubsub._subscribers) == 0
 
     @pytest.mark.asyncio
     async def test_concurrent_subscribe_unsubscribe(self, pubsub, sample_event):
-        """Test concurrent subscribe/unsubscribe operations."""
+        """测试并发订阅/取消订阅操作。"""
         subscribers = [MockSubscriber(f"subscriber_{i}") for i in range(10)]
 
-        # Subscribe all concurrently
+        # 同时订阅全部
         subscribe_tasks = [
             asyncio.create_task(asyncio.to_thread(pubsub.subscribe, subscriber))
             for subscriber in subscribers
         ]
         subscriber_ids = await asyncio.gather(*subscribe_tasks)
 
-        # All should be subscribed
+        # 全部都应该订阅
         assert len(pubsub._subscribers) == len(subscribers)
 
-        # Send event
+        # 发送事件
         await pubsub(sample_event)
 
-        # All should receive event
+        # 所有人都应该收到事件
         for subscriber in subscribers:
             assert subscriber.call_count == 1
 
-        # Unsubscribe half concurrently
+        # 同时退订一半
         unsubscribe_tasks = [
             asyncio.create_task(
                 asyncio.to_thread(pubsub.unsubscribe, subscriber_ids[i])
@@ -818,36 +817,36 @@ class TestPubSubIntegration:
         ]
         results = await asyncio.gather(*unsubscribe_tasks)
 
-        # All unsubscribe operations should succeed
+        # 所有取消订阅操作都应该成功
         assert all(results)
 
-        # Half should remain subscribed
+        # 一半应保持订阅状态
         assert len(pubsub._subscribers) == len(subscribers) // 2
 
     @pytest.mark.asyncio
     async def test_stress_test_many_subscribers(self, pubsub, sample_event):
-        """Stress test with many subscribers."""
+        """压力测试有很多订阅者。"""
         num_subscribers = 100
         subscribers = [
             MockSubscriber(f"subscriber_{i}") for i in range(num_subscribers)
         ]
 
-        # Subscribe all
+        # 全部订阅
         for subscriber in subscribers:
             pubsub.subscribe(subscriber)
 
-        # Send event
+        # 发送事件
         await pubsub(sample_event)
 
-        # All should receive event
+        # 所有人都应该收到事件
         for subscriber in subscribers:
             assert subscriber.call_count == 1
             assert sample_event in subscriber.received_events
 
-        # Close should handle all subscribers
+        # Close 应该处理所有订阅者
         await pubsub.close()
 
-        # All should have close called
+        # 一切都应该千钧一发
         for subscriber in subscribers:
             assert subscriber.close_called is True
 
@@ -855,7 +854,7 @@ class TestPubSubIntegration:
 
 
 class TestPubSubMaxSubscribers:
-    """Tests for the max_subscribers limit using the real PubSub class."""
+    """使用真实的 PubSub 类测试 max_subscribers 限制。"""
 
     async def test_subscribe_rejected_at_limit(self):
         from openhands.agent_server.pub_sub import (
@@ -887,7 +886,7 @@ class TestPubSubMaxSubscribers:
         pubsub.subscribe(_Sub())
         pubsub.unsubscribe(id_a)
 
-        # Slot freed — should succeed
+        # 插槽已释放——应该会成功
         pubsub.subscribe(_Sub())
         assert len(pubsub._subscribers) == 2
 

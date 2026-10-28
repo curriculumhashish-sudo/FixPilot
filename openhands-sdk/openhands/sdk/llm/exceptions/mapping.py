@@ -29,20 +29,20 @@ from .types import (
 
 def map_provider_exception(exception: Exception) -> Exception:
     """
-    Map provider/LiteLLM exceptions to SDK-typed exceptions.
+    将提供程序/LiteLLM 异常映射到 SDK 类型的异常。
 
-    Returns original exception if no mapping applies.
+    如果没有映射适用，则返回原始异常。
     """
-    # Context window exceeded first (highest priority among normal retries)
+    # 上下文窗口超出第一（正常重试中优先级最高）
     if is_context_window_exceeded(exception):
         return LLMContextWindowExceedError(str(exception))
 
-    # Malformed prompt history is distinct from context-window exhaustion even
-    # though the recovery path still uses condensation.
+    # 尽管恢复路径仍然使用上下文压缩，但格式错误的提示词历史记录与上下文窗口耗尽不同。
+    #
     if looks_like_malformed_conversation_history_error(exception):
         return LLMMalformedConversationHistoryError(str(exception))
 
-    # Auth-like errors often appear as BadRequest/OpenAIError with specific text
+    # 类似 Auth 的错误通常显示为带有特定文本的 BadRequest/OpenAIError
     if looks_like_auth_error(exception):
         return LLMAuthenticationError(str(exception))
 
@@ -52,20 +52,21 @@ def map_provider_exception(exception: Exception) -> Exception:
     if isinstance(exception, LiteLLMTimeout):
         return LLMTimeoutError(str(exception))
 
-    # Connectivity and service-side availability issues → service unavailable
+    # 连接和服务端可用性问题 → 服务不可用
     if isinstance(
         exception, (APIConnectionError, ServiceUnavailableError, InternalServerError)
     ):
         return LLMServiceUnavailableError(str(exception))
 
-    # Content-policy blocks are deterministic 4xx; distinguish them from generic
-    # bad requests so the agent can recover softly instead of hard-erroring.
+    # 内容策略块是确定性的 4xx； 将它们与一般的错误请求区分开来，以便智能体可以软恢复而
+    # 不是硬错误。
+    #
     if is_content_policy_violation(exception):
         return LLMContentPolicyViolationError(str(exception))
 
-    # Generic client-side 4xx errors
+    # 通用客户端 4xx 错误
     if isinstance(exception, BadRequestError):
         return LLMBadRequestError(str(exception))
 
-    # Unknown: let caller re-raise original
+    # 未知：让调用者重新引发原始错误
     return exception

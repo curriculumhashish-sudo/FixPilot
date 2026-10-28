@@ -1,4 +1,4 @@
-"""Tests for the agent-server CORS dispatcher."""
+"""测试智能体-服务器 CORS 调度程序。"""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -68,7 +68,7 @@ def _preflight(
     )
 
 
-# Workspace cookie routes accept any http(s) origin with credentials.
+# 工作区 cookie 路由接受任何带有凭据的 http(s) 来源。
 
 
 def test_workspace_session_preflight_accepts_any_origin(tmp_path):
@@ -100,7 +100,7 @@ def test_workspace_static_preflight_accepts_any_origin(tmp_path):
 
 
 def test_workspace_session_post_response_echoes_origin_no_cookie(tmp_path):
-    """The first mint POST has no Cookie yet; the response must still
+    """第一个薄荷糖POST还没有Cookie； 响应必须仍然
     echo Origin (not ``*``) for the browser to accept it."""
     client = _build_client(
         tmp_path, conversation_id=uuid4(), config=Config(session_api_keys=[SESSION_KEY])
@@ -146,7 +146,7 @@ def test_workspace_static_get_response_echoes_origin(tmp_path):
 
 
 def test_workspace_routes_reject_null_origin(tmp_path):
-    """``Origin: null`` (sandboxed iframes, ``data:`` URLs) must not match."""
+    """``Origin: null`` (sandboxed iframes, ``data:`` URLs) 必须不匹配。"""
     cid = uuid4()
     client = _build_client(
         tmp_path, conversation_id=cid, config=Config(session_api_keys=[SESSION_KEY])
@@ -166,7 +166,7 @@ def test_workspace_routes_reject_null_origin(tmp_path):
     assert "access-control-allow-origin" not in resp.headers
 
 
-# Non-workspace routes honor allow_cors_origins.
+# 非工作区路由荣誉 allow_cors_origins。
 
 
 def test_non_workspace_routes_honor_allow_cors_origins(tmp_path):
@@ -195,10 +195,10 @@ def test_non_workspace_routes_reject_unlisted_origin(tmp_path):
 
 
 def test_non_workspace_regex_echoes_http_origin_on_actual_response(tmp_path):
-    """Regex origin matches must remain credential-compatible.
+    """正则表达式源匹配必须保持凭据兼容。
 
-    Starlette's regex path echoes the concrete origin instead of emitting a
-    literal wildcard, so browsers accept the response together with
+    Starlette 的正则表达式路径与具体来源相呼应，而不是发出文字通配符，因此浏览器接受
+    响应
     ``Access-Control-Allow-Credentials: true``.
     """
     client = _build_client(
@@ -260,8 +260,9 @@ def test_workspace_wildcard_does_not_bleed_into_other_api(tmp_path):
     assert "access-control-allow-origin" not in resp.headers
 
 
-# Localhost / DOCKER_HOST_ADDR auto-allow regression coverage
-# (OpenHands/OpenHands#4624 intent vs the #8675 regression).
+# 本地主机 / DOCKER_HOST_ADDR 自动允许回归覆盖（OpenHands/OpenHands#4624 意图与 #8675 回
+# 归）。
+#
 
 
 @pytest.mark.parametrize("origin", [LOCALHOST_ORIGIN, LOOPBACK_ORIGIN])
@@ -276,8 +277,8 @@ def test_localhost_allowed_with_empty_allow_origins(tmp_path, origin):
 
 @pytest.mark.parametrize("origin", [LOCALHOST_ORIGIN, LOOPBACK_ORIGIN])
 def test_localhost_allowed_when_allow_origins_is_set(tmp_path, origin):
-    """Regression for OpenHands/OpenHands#8675: explicit allowlist must
-    not disable the localhost auto-allow."""
+    """回归对于 OpenHands/OpenHands#8675：必须显式允许名单
+    不禁用本地主机自动允许。"""
     client = _build_client(
         tmp_path,
         conversation_id=uuid4(),
@@ -304,7 +305,7 @@ def test_docker_host_addr_allowed_when_allow_origins_is_set(tmp_path, monkeypatc
     assert resp.headers["access-control-allow-origin"] == DOCKER_HOST_ORIGIN
 
 
-# Dispatcher must use the post-``root_path`` route path.
+# 调度程序必须使用 post-``root_path`` 路由路径。
 
 
 @pytest.mark.asyncio
@@ -343,7 +344,7 @@ async def test_dispatcher_matches_workspace_path_after_root_path_strip():
     assert headers.get("access-control-allow-credentials") == "true"
 
 
-# Unit checks on the path matcher.
+# 单元检查路径匹配器。
 
 
 @pytest.mark.parametrize(
@@ -375,7 +376,7 @@ def test_is_workspace_cookie_path_rejects(path):
     assert not _is_workspace_cookie_path(path)
 
 
-# Unit checks on LocalhostCORSMiddleware.is_allowed_origin.
+# 单位检查 LocalhostCORSMiddleware.is_allowed_origin。
 
 
 async def _noop_app(scope, receive, send):  # pragma: no cover

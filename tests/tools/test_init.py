@@ -1,8 +1,8 @@
-"""Tests for openhands.tools package initialization and import handling."""
+"""测试 openhands.tools 包初始化和导入处理。"""
 
 
 def test_submodule_imports_work():
-    """Tools should be imported via explicit submodules."""
+    """工具应通过显式子模块导入。"""
     from openhands.tools.browser_use import BrowserToolSet
     from openhands.tools.file_editor import FileEditorTool
     from openhands.tools.task_tracker import TaskTrackerTool
@@ -15,10 +15,10 @@ def test_submodule_imports_work():
 
 
 def test_tools_module_has_expected_top_level_exports():
-    """Common tools/presets should be importable from the top-level package.
+    """通用工具/预设应该可以从顶级包导入。
 
-    Note: BrowserToolSet is intentionally NOT exported at the top level to avoid
-    forcing downstream consumers to bundle browser-use and its heavy dependencies.
+    Note: BrowserToolSet 故意在顶层导出不以避免
+    迫使下游消费者捆绑浏览器使用及其严重依赖。
     See: https://github.com/OpenHands/OpenHands-CLI/pull/527
     """
 
@@ -34,6 +34,6 @@ def test_tools_module_has_expected_top_level_exports():
 
 
 def test_from_import_works():
-    """`from openhands.tools import X` should work for exported symbols."""
+    """`from openhands.tools import X` 应该适用于导出的符号。"""
 
     from openhands.tools import TerminalTool  # noqa: F401

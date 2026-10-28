@@ -1,15 +1,15 @@
-"""Critic taxonomy - mapping of features to categories for visualization."""
+"""批评分类法 - 将特征映射到类别以进行可视化。"""
 
 import math
 from typing import Any
 
 
-# Feature to category mapping
+# 特征到类别的映射
 FEATURE_CATEGORIES: dict[str, str] = {
-    # General Context & Task Classification
+    # 一般上下文和任务分类
     "user_goal_summary": "general_context",
     "overall_sentiment": "general_context",
-    # Agent Behavioral Issues
+    # 智能体行为问题
     "misunderstood_intention": "agent_behavioral_issues",
     "did_not_follow_instruction": "agent_behavioral_issues",
     "insufficient_analysis": "agent_behavioral_issues",
@@ -23,7 +23,7 @@ FEATURE_CATEGORIES: dict[str, str] = {
     "scope_creep": "agent_behavioral_issues",
     "risky_actions_or_permission": "agent_behavioral_issues",
     "other_agent_issue": "agent_behavioral_issues",
-    # User Follow-Up Patterns
+    # 用户跟进模式
     "follow_up_timing": "user_followup_patterns",
     "clarification_or_restatement": "user_followup_patterns",
     "correction": "user_followup_patterns",
@@ -33,12 +33,12 @@ FEATURE_CATEGORIES: dict[str, str] = {
     "frustration_or_complaint": "user_followup_patterns",
     "removal_or_reversion_request": "user_followup_patterns",
     "other_user_issue": "user_followup_patterns",
-    # Infrastructure Issues
+    # 基础设施问题
     "infrastructure_external_issue": "infrastructure_issues",
     "infrastructure_agent_caused_issue": "infrastructure_issues",
 }
 
-# Category display names for visualization
+# 用于可视化的类别显示名称
 CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "general_context": "General Context",
     "agent_behavioral_issues": "Detected Agent Behavioral Issues",
@@ -48,13 +48,13 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
 
 
 def _softmax_normalize(probs: dict[str, float]) -> dict[str, float]:
-    """Apply softmax normalization to convert logits to probabilities.
+    """应用 softmax 归一化将 logits 转换为概率。
 
     Args:
-        probs: Dictionary of names to raw probability/logit values
+        probs: 名称到原始概率/logit 值的字典
 
     Returns:
-        Dictionary with softmax-normalized probabilities that sum to 1.0
+        具有总和为 1.0 的 softmax 归一化概率的字典
     """
     if not probs:
         return {}
@@ -71,31 +71,28 @@ def categorize_features(
     probs_dict: dict[str, float],
     display_threshold: float = 0.2,
 ) -> dict[str, Any]:
-    """Categorize features from probability dictionary into taxonomy groups.
+    """将概率字典中的特征分类为分类组。
 
-    This function takes raw probability outputs from the critic model and
-    organizes them into categories ready for visualization.
+    该函数从批评者模型中获取原始概率输出，并将它们组织成可供可视化的类别。
 
     Args:
-        probs_dict: Dictionary of feature names to probability values
-        display_threshold: Minimum probability to include a feature (default: 0.2)
+        probs_dict: 特征名称到概率值的字典
+        display_threshold: 包含某个功能的最小概率（默认值：0.2）
 
     Returns:
-        Dictionary with categorized features ready for visualization:
+        具有可供可视化分类的特征的字典：
         {
-            "sentiment": {
-                "predicted": "Neutral",
-                "probability": 0.77,
-                "all": {"positive": 0.10, "neutral": 0.77, "negative": 0.13}
+            “情绪”：{
+                “预测”：“中性”，“概率”：0.77，“全部”：{“积极”：0.10，“中性”：0.77，“
+                消极”：0.13}
             },
             "agent_behavioral_issues": [
                 {"name": "loop_behavior", "display_name": "Loop Behavior",
-                 "probability": 0.85},
+                 “概率”：0.85}，
                 ...
             ],
-            "user_followup_patterns": [...],
-            "infrastructure_issues": [...],
-            "other": [...]
+            “user_followup_patterns”：[...]，“infrastructure_issues”：[...]，“其他”：
+            [...]
         }
     """
     result: dict[str, Any] = {
@@ -106,7 +103,7 @@ def categorize_features(
         "other": [],
     }
 
-    # Extract sentiment features and apply softmax normalization
+    # 提取情感特征并应用 softmax 归一化
     raw_sentiment_probs = {}
     for feature_name, prob in probs_dict.items():
         if feature_name.startswith("sentiment_"):
@@ -114,7 +111,7 @@ def categorize_features(
             raw_sentiment_probs[short_name] = prob
 
     if raw_sentiment_probs:
-        # Apply softmax normalization to convert logits to probabilities
+        # 应用 softmax 归一化将 logits 转换为概率
         sentiment_probs = _softmax_normalize(raw_sentiment_probs)
         max_sentiment = max(sentiment_probs.items(), key=lambda x: x[1])
         result["sentiment"] = {
@@ -123,17 +120,17 @@ def categorize_features(
             "all": sentiment_probs,
         }
 
-    # Categorize other features
+    # 对其他功能进行分类
     for feature_name, prob in probs_dict.items():
-        # Skip sentiment features (already processed)
+        # 跳过情感特征（已处理）
         if feature_name.startswith("sentiment_"):
             continue
 
-        # Skip 'success' as it's redundant with the score
+        # 跳过“成功”，因为它对分数来说是多余的
         if feature_name == "success":
             continue
 
-        # Skip features below threshold
+        # 跳过低于阈值的特征
         if prob < display_threshold:
             continue
 
@@ -145,7 +142,7 @@ def categorize_features(
         }
 
         if category == "general_context":
-            # Skip general context features for now
+            # 暂时跳过常规上下文功能
             continue
         elif category == "agent_behavioral_issues":
             result["agent_behavioral_issues"].append(feature_entry)
@@ -156,7 +153,7 @@ def categorize_features(
         else:
             result["other"].append(feature_entry)
 
-    # Sort each category by probability (descending)
+    # 按概率对每个类别进行排序（降序）
     for key in [
         "agent_behavioral_issues",
         "user_followup_patterns",

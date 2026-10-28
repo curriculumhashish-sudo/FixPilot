@@ -2,13 +2,13 @@
 name: PR Artifacts
 
 on:
-    workflow_dispatch: # Manual trigger for testing
+    workflow_dispatch: # 手动触发测试
     pull_request_target:
         types: [opened, synchronize, reopened, closed]
         branches: [main]
 
 jobs:
-  # Inspect the fork through the API; never check out untrusted code with a write token.
+  # 通过API检查货叉； 永远不要用 write token 来检查不受信任的代码。
     check-pr-artifacts:
         if: >-
             github.event_name == 'pull_request_target' &&
@@ -92,7 +92,7 @@ jobs:
                         });
                       }
 
-  # Remove merged artifacts through a pull request so branch protections remain enforced.
+  # 通过拉取请求删除合并的工件，以便保持分支保护的执行。
     cleanup-after-merge:
         concurrency:
             group: cleanup-pr-artifacts-${{ github.event.pull_request.base.ref }}

@@ -1,7 +1,6 @@
-"""Commit-history helpers for the display git API: list a repository's
-recent commits, and inspect what a single commit changed (file list and
-per-file content) entirely from git objects — so files deleted by a
-commit, or deleted since, still render.
+"""API 用于显示 git 的历史记录的辅助工具：列出仓库的最近提交，以及检查单个提交更改的
+全部内容（文件列表和文件内容）——即使一个提交删除的文件或自删除的文件，仍然可以显
+示。
 """
 
 import logging
@@ -31,46 +30,45 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_COMMIT_LIMIT = 50
 
-# One line per commit: full sha, short sha, author name, author date
-# (strict ISO 8601), subject — unit-separated (0x1F cannot appear in any
-# of these fields; subjects cannot contain newlines).
+# 每一条提交记录一条：全 sha、短 sha、作者名、作者日期（严格 ISO 8601）；主题 — 单词分隔
+# （0x1F 不能出现在任何这些字段中） 主题不能包含换行符）。
+#
 _LOG_FORMAT = "%H%x1f%h%x1f%an%x1f%aI%x1f%s"
 
 
 def get_git_commits(
     repo_path: str | Path, limit: int = DEFAULT_COMMIT_LIMIT
 ) -> GitCommitsPage:
-    """List a repository's most recent commits (reachable from HEAD),
-    newest first.
+    """列出存储库的最新提交（可从 HEAD 访问），
+    最新的优先。
 
-    Deliberately the branch's plain history — like a Git host's "Commits"
-    page — rather than a base-scoped range: committed work must always be
-    visible, including in states where a conversation-relative range would
-    be empty (e.g. a no-remote repo sitting on its default branch, or a
-    fully-pushed branch).
+    故意地，分支的原始历史 —— 比如 Git 主机的“提交”页面 —— 而不是基于基础的范围：提交
+    的工作必须始终可见，包括在对话相关的范围为空的情况下 (e.g。 位
+    于其默认分支或完全推送分支上的无远程存储库）。
 
     Args:
-        repo_path: Path to the git repository.
-        limit: Maximum number of commits to return.
+        repo_path: git 存储库的路径。
+        limit: 返回的最大提交数。
 
     Returns:
-        GitCommitsPage with at most ``limit`` commits and ``has_more``
-        telling whether the history holds more.
+        GitCommitsPage 最多 ``limit`` 次提交，``has_more`` 告诉历史记录是否包含更多内
+        容。
 
     Raises:
-        GitRepositoryError: If the directory is not a valid git repository.
-        GitCommandError: If git commands fail.
+        GitRepositoryError: 如果该目录不是有效的 git 存储库。
+        GitCommandError: 如果 git 命令失败。
     """
     validated_repo = validate_git_repository(repo_path)
 
     head = _rev_parse(validated_repo, "HEAD")
     if head is None:
-        # Unborn/orphan HEAD: `git log HEAD` would fail, and there is
-        # nothing committed on this branch to list.
+        # Unborn/orphan HEAD：`git log HEAD` 将失败，并且此分支上没有提交任何内容要列出
+        # 。
+        #
         return GitCommitsPage(commits=[], has_more=False)
 
-    # --no-show-signature: a repo with log.showSignature=true would
-    # otherwise interleave GPG output with the formatted lines.
+    # --no-show-signature：带有 log.showSignature=True 的存储库
+    # 否则将 GPG 输出与格式化行交错。
     output = run_git_command(
         [
             "git",
@@ -106,12 +104,12 @@ def get_git_commits(
 
 
 def _resolve_commit(repo: Path, commit: str) -> str:
-    """Resolve ``commit`` to a full commit SHA.
+    """将 ``commit`` 解析为完整提交 SHA。
 
     Raises:
-        GitCommandError: If ``commit`` does not name a commit in this
-            repository (kept strict so a bad SHA surfaces as an error
-            instead of silently rendering "no changes").
+        GitCommandError: 如果 ``commit`` 没有在此命名提交
+            存储库（保持严格，因此错误的 SHA 会显示为错误，而不是默默地呈现“无更改”）
+            。
     """
     return run_git_command(
         ["git", "--no-pager", "rev-parse", "--verify", f"{commit}^{{commit}}"],
@@ -120,19 +118,18 @@ def _resolve_commit(repo: Path, commit: str) -> str:
 
 
 def get_commit_changes(repo_path: str | Path, commit: str) -> list[GitChange]:
-    """Get the files changed by a single commit, vs its first parent.
+    """获取通过单个提交更改的文件，而不是其第一个父级。
 
-    Root commits diff against the empty tree, rendering as all-added.
-    Renames follow the shared name-status parsing: DELETED (old path) +
-    ADDED (new path).
+    Root 针对空树提交 diff，渲染为全部添加。 重命名遵循共享名称状态解析：DELETED（旧
+    路径）+ ADDED（新路径）。
 
     Args:
-        repo_path: Path to the git repository.
-        commit: The commit to inspect (SHA or abbreviation).
+        repo_path: git 存储库的路径。
+        commit: 提交检查（SHA 或缩写）。
 
     Raises:
-        GitRepositoryError: If the directory is not a valid git repository.
-        GitCommandError: If ``commit`` does not resolve or git fails.
+        GitRepositoryError: 如果该目录不是有效的 git 存储库。
+        GitCommandError: 如果 ``commit`` 无法解析或 git 失败。
     """
     validated_repo = validate_git_repository(repo_path)
     sha = _resolve_commit(validated_repo, commit)
@@ -146,11 +143,11 @@ def get_commit_changes(repo_path: str | Path, commit: str) -> list[GitChange]:
 
 
 def _show_file_at_rev(repo: Path, rev: str, relative_path: Path) -> str:
-    """Content of ``relative_path`` at ``rev``; empty string when the file
-    does not exist on that side (added/removed relative to the parent).
+    """``rev``处``relative_path``的内容； 当文件为空字符串
+    该侧不存在（相对于父级添加/删除）。
 
     Raises:
-        GitPathError: If the blob exceeds the diff size cap.
+        GitPathError: 如果 blob 超过差异大小上限。
     """
     spec = f"{rev}:{relative_path.as_posix()}"
     try:
@@ -177,28 +174,26 @@ def _show_file_at_rev(repo: Path, rev: str, relative_path: Path) -> str:
 
 
 def get_commit_file_diff(file_path: str | Path, commit: str) -> GitDiff:
-    """Get the diff of a single file as changed by one commit.
+    """获取由一次提交更改的单个文件的差异。
 
-    Both sides come from git objects — never from disk — so files the
-    commit deleted (or that were deleted afterwards) still render. There
-    is deliberately no on-disk existence check.
+    双方都来自 git 对象 - 绝不来自磁盘 - 因此删除的提交（或之后删除的文件）仍然呈现。
+     故意不进行磁盘上的存在检查。
 
     Args:
-        file_path: Path to the file, relative to the current working
-            directory (absolute paths win the join, mirroring
+        file_path: 文件的路径，相对于当前工作
+            目录（绝对路径赢得连接，镜像
             ``get_git_diff``).
-        commit: The commit to inspect (SHA or abbreviation).
+        commit: 提交检查（SHA 或缩写）。
 
     Returns:
-        GitDiff where ``original`` is the file at the commit's first
-        parent (empty tree for root commits) and ``modified`` is the file
-        at the commit itself.
+        GitDiff 其中 ``original`` 是提交的第一个父级的文件（根提交的空树），
+        ``modified`` 是提交本身的文件。
 
     Raises:
-        GitPathError: If the file is outside the repository or a side
-            exceeds the size cap.
-        GitRepositoryError: If the path is not inside a git repository.
-        GitCommandError: If ``commit`` does not resolve.
+        GitPathError: 如果文件位于存储库或一侧之外
+            超过尺寸上限。
+        GitRepositoryError: 如果路径不在 git 存储库内。
+        GitCommandError: 如果 ``commit`` 没有解决。
     """
     path = Path(os.getcwd(), file_path).resolve()
 

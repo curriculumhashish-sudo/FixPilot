@@ -1,21 +1,18 @@
-"""Per-call-site coverage for ``OH_PERSISTENCE_DIR``.
+"""每个呼叫站点的覆盖范围为 ``OH_PERSISTENCE_DIR``。
 
-Every module that reads or writes user-level ``~/.openhands`` state must route
-through :func:`openhands.sdk.utils.path.get_user_persistence_dir`, so that an
-enterprise ephemeral sandbox pointing ``OH_PERSISTENCE_DIR`` at a persistent
-volume keeps its data across a resume. This module asserts that contract at
-*each* call site rather than trusting the shared helper alone, which guards
-against a future edit reintroducing a bare ``Path.home() / ".openhands"``.
+所有读写用户级 ``~/.openhands`` 状态的模块都必须通过：func:
+`openhands.sdk.utils.path.get_user_persistence_dir` 进行路由，这样，指向持久卷的临时
+沙盒
+``OH_PERSISTENCE_DIR`` 保持数据。 该模块断言该合同位于
+*every* 调用站点，而不是单独信任共享助手，该助手负责保护
+反对未来的编辑重新引入裸露的``Path.home() / ".openhands"``。
 
-Two flavours of call site exist:
+存在两种类型的调用站点：
 
-* **Import-time constants** (e.g. ``_DEFAULT_PROFILE_DIR``) resolve the env var
-  once when their module is first imported. They are verified in a fresh
-  subprocess so the import genuinely happens under the test environment, the
-  way a real process start does. This also keeps module state from leaking
-  between tests.
-* **Call-time functions** resolve on every call and are exercised in-process
-  with a real read/write wherever the API allows it.
+* **导入时间常数** (e.g. ``_DEFAULT_PROFILE_DIR``）在首次导入模块时解析一次环境变量。
+ 它们在新的子进程中进行了验证，因此导入确实在测试
+环境下发生，就像真实流程启动的方式一样。 这也可以防止模块状态在测试之间泄漏。
+* **调用时函数**在每次调用时解析，并在API允许的地方通过真正的读/写在进程中执行。
 """
 
 from __future__ import annotations
@@ -34,12 +31,12 @@ import pytest
 
 
 def _import_roots() -> list[str]:
-    """Directories that make ``openhands`` + its deps importable in a child.
+    """使 ``openhands`` + 其依赖项在子项中可导入的目录。
 
-    Overriding ``HOME`` in the child moves Python's per-user site-packages to
-    ``$HOME/.local/...``, which both bypasses the editable install's
-    ``.pth``-injected finders and hides third-party dependencies. Resolved in
-    the parent (real ``HOME``), these roots pin both to ``PYTHONPATH``.
+    覆盖子级中的 ``HOME`` 会将 Python 的每用户站点包移动到
+    ``$HOME/.local/...``，两者都绕过可编辑安装
+    ``.pth``注入查找器并隐藏第三方依赖项。 在父级（实数 ``HOME``）中解析，这些根都固
+    定到 ``PYTHONPATH``。
     """
     repo_root = Path(__file__).resolve().parents[2]
     roots = [
@@ -63,7 +60,7 @@ _IMPORT_ROOTS = _import_roots()
 
 
 def _subprocess_env(**overrides: str) -> dict[str, str]:
-    """Env for a child interpreter that stays importable with a fake ``HOME``."""
+    """Env 是一个子解释器，通过假``HOME``保持可导入性。"""
     env = dict(os.environ)
     env.update(overrides)
     env["OPENHANDS_SUPPRESS_BANNER"] = "1"
@@ -74,11 +71,11 @@ def _subprocess_env(**overrides: str) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# Import-time constants — verified via subprocess import.
+# 导入时间常数 — 通过子进程导入验证。
 # --------------------------------------------------------------------------- #
 
-# name -> (module, attribute, subpath-relative-to-persistence-root)
-# ``attribute`` may be an index into a list constant via "attr[i]".
+# 名称 -> （模块、属性、相对于持久化-root 的子路径）
+# ``attribute`` 可以是通过“attr[i]”进入列表常量的索引。
 _IMPORT_TIME_CALL_SITES: dict[str, tuple[str, str, str]] = {
     "llm_profile_store": (
         "openhands.sdk.llm.llm_profile_store",
@@ -142,8 +139,8 @@ _IMPORT_TIME_CALL_SITES: dict[str, tuple[str, str, str]] = {
     ),
 }
 
-# Call sites that intentionally keep a ``~/.agents`` entry ahead of the
-# persistence-dir entry. Verified to still point at ``~/.agents`` regardless of
+# 调用故意在持久化-dir 条目之前保留 ``~/.agents`` 条目的站点。 已验证仍然指向
+# ``~/.agents``，无论
 # ``OH_PERSISTENCE_DIR``.
 _AGENTS_DIR_CALL_SITES: dict[str, tuple[str, str, str]] = {
     "skills_user_dirs_agents": (
@@ -160,10 +157,10 @@ _AGENTS_DIR_CALL_SITES: dict[str, tuple[str, str, str]] = {
 
 
 def _probe_constants_in_subprocess(env: dict[str, str]) -> dict[str, str]:
-    """Import each call site's module in a subprocess and return its path.
+    """将每个调用站点的模块导入子进程中并返回其路径。
 
-    Runs under ``env`` so import-time resolution of ``OH_PERSISTENCE_DIR`` /
-    ``HOME`` happens exactly as it would on a real process start.
+    在 ``env`` 下运行，因此导入时间分辨率为 ``OH_PERSISTENCE_DIR`` /
+    ``HOME`` 的发生与实际进程启动时完全相同。
     """
     all_sites = {**_IMPORT_TIME_CALL_SITES, **_AGENTS_DIR_CALL_SITES}
     spec = {name: (mod, attr) for name, (mod, attr, _sub) in all_sites.items()}
@@ -190,7 +187,7 @@ def _probe_constants_in_subprocess(env: dict[str, str]) -> dict[str, str]:
         timeout=180,
     )
     assert result.returncode == 0, result.stderr
-    # The banner/log lines go to stderr; stdout carries only our JSON line.
+    # 横幅/日志行转到 stderr； stdout 仅携带我们的 JSON 行。
     return json.loads(result.stdout.strip().splitlines()[-1])
 
 
@@ -237,23 +234,23 @@ def test_import_time_constant_falls_back_to_home(
 def test_agents_dir_call_sites_ignore_persistence_env(
     name: str, constants_with_persistence_env: dict[str, str]
 ) -> None:
-    """The ``~/.agents`` entries stay on ``$HOME/.agents`` even with the env set."""
+    """即使设置了 env，``~/.agents`` 条目仍保留在 ``$HOME/.agents`` 上。"""
     _mod, _attr, subpath = _AGENTS_DIR_CALL_SITES[name]
     home = Path(constants_with_persistence_env["HOME"])
     resolved = Path(constants_with_persistence_env[name])
-    # Anchored at $HOME/.agents/..., never redirected into the persistence dir.
+    # 锚定在 $HOME/.agents/...，从未重定向到持久化目录。
     assert resolved == home / subpath
     assert ".openhands" not in resolved.parts
 
 
 # --------------------------------------------------------------------------- #
-# Call-time functions — exercised in-process with real reads/writes.
+# 调用时函数——在进程中进行真实的读/写操作。
 # --------------------------------------------------------------------------- #
 
 
 @pytest.fixture
 def persistence_dir(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    """``OH_PERSISTENCE_DIR`` pointed at a clean tempdir for call-time sites."""
+    """``OH_PERSISTENCE_DIR`` 指向调用时站点的干净临时目录。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("OH_PERSISTENCE_DIR", tmpdir)
         yield Path(tmpdir)
@@ -286,7 +283,7 @@ def test_hook_config_reads_user_hooks_json(persistence_dir: Path) -> None:
             }
         )
     )
-    # A project dir with no local hooks forces the user-level lookup.
+    # 没有本地挂钩的项目目录会强制进行用户级查找。
     with tempfile.TemporaryDirectory() as project:
         cfg = HookConfig.load(working_dir=project)
     assert cfg.pre_tool_use[0].hooks[0].command == "echo hi"
@@ -339,8 +336,9 @@ def test_tom_consult_file_store_root(persistence_dir: Path) -> None:
     )
     from openhands.tools.tom_consult.executor import TomConsultExecutor
 
-    # ``create`` ignores ``conv_state`` (state is passed at execution time), so a
-    # typed ``None`` keeps pyright happy without building a full state object.
+    # ``create`` 忽略 ``conv_state``（状态在执行时传递），因此类型化的 ``None`` 可以在不
+    # 构建完整状态对象的情况下保持 Pyright 满意。
+    #
     conv_state = cast(ConversationState, None)
     for tool_cls in (TomConsultTool, SleeptimeComputeTool):
         tools = tool_cls.create(conv_state=conv_state)
@@ -369,13 +367,13 @@ def test_agent_server_profile_persistence_dir(persistence_dir: Path) -> None:
 
 
 def test_default_llm_profile_store_survives_resume() -> None:
-    """End-to-end: a default-constructed store persists across a HOME wipe.
+    """端到端：默认构造的存储在 HOME 擦除中持续存在。
 
-    Reproduces the ephemeral-sandbox resume. ``LLMProfileStore()`` (no
-    ``base_dir``) uses the import-time default, so each run happens in its own
-    subprocess to exercise that resolution honestly. Run 1 writes with a
-    throwaway HOME; the HOME is then deleted and a fresh empty HOME is used for
-    run 2, which must still read the profile back from ``OH_PERSISTENCE_DIR``.
+    复制短暂的沙盒简历。 ``LLMProfileStore()``（无
+    ``base_dir``) 使用导入时默认值，因此每次运行都在其自己的子进程中进行，以诚实地执
+    行该解决方案。 运行 1 使用一次性写入 HOME； 然后删除
+    HOME，并使用新的空 HOME 进行运行 2，该运行仍必须从 ``OH_PERSISTENCE_DIR`` 读回配
+    置文件。
     """
     import shutil
 
@@ -402,7 +400,7 @@ def test_default_llm_profile_store_survives_resume() -> None:
         assert (Path(persist) / "profiles" / "prod.json").is_file()
         assert not (home1 / ".openhands").exists()
 
-        # Resume: destroy the ephemeral HOME, hand run 2 a brand-new empty one.
+        # 恢复：摧毁短暂的HOME，手跑2个全新的空的。
         shutil.rmtree(home1)
         home2 = Path(home_root) / "home2"
         home2.mkdir()

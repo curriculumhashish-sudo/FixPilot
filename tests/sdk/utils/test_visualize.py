@@ -1,4 +1,4 @@
-"""Tests for openhands.sdk.utils.visualize module."""
+"""测试 openhands.sdk.utils.visualize 模块。"""
 
 from rich.text import Text
 
@@ -6,7 +6,7 @@ from openhands.sdk.utils.visualize import display_json
 
 
 def test_display_json_with_dictionary():
-    """Test display_json with a dictionary input."""
+    """使用字典输入测试 display_json。"""
     data = {"key1": "value1", "key2": 42, "key3": None}
     result = display_json(data)
 
@@ -16,12 +16,12 @@ def test_display_json_with_dictionary():
     assert "value1" in text_content
     assert "key2" in text_content
     assert "42" in text_content
-    # None fields should be skipped
+    # 应跳过 None 字段
     assert "key3" not in text_content
 
 
 def test_display_json_with_list():
-    """Test display_json with a list input (this was the bug)."""
+    """使用列表输入测试 display_json（这是错误）。"""
     data = ["item1", "item2", 42, True]
     result = display_json(data)
 
@@ -39,7 +39,7 @@ def test_display_json_with_list():
 
 
 def test_display_json_with_string():
-    """Test display_json with a string input."""
+    """使用字符串输入测试 display_json。"""
     data = "simple string"
     result = display_json(data)
 
@@ -49,7 +49,7 @@ def test_display_json_with_string():
 
 
 def test_display_json_with_multiline_string():
-    """Test display_json with a multiline string input."""
+    """使用多行字符串输入测试 display_json。"""
     data = "line1\nline2\nline3"
     result = display_json(data)
 
@@ -62,7 +62,7 @@ def test_display_json_with_multiline_string():
 
 
 def test_display_json_with_number():
-    """Test display_json with a number input."""
+    """输入数字测试 display_json。"""
     data = 42
     result = display_json(data)
 
@@ -72,7 +72,7 @@ def test_display_json_with_number():
 
 
 def test_display_json_with_float():
-    """Test display_json with a float input."""
+    """使用浮点输入测试 display_json。"""
     data = 3.14159
     result = display_json(data)
 
@@ -82,7 +82,7 @@ def test_display_json_with_float():
 
 
 def test_display_json_with_boolean():
-    """Test display_json with a boolean input."""
+    """使用布尔输入测试 display_json。"""
     data = True
     result = display_json(data)
 
@@ -99,7 +99,7 @@ def test_display_json_with_boolean():
 
 
 def test_display_json_with_none():
-    """Test display_json with None input."""
+    """使用 None 输入测试 display_json。"""
     data = None
     result = display_json(data)
 
@@ -109,7 +109,7 @@ def test_display_json_with_none():
 
 
 def test_display_json_with_nested_structures():
-    """Test display_json with nested dictionaries and lists."""
+    """使用嵌套字典和列表测试 display_json。"""
     data = {
         "simple": "value",
         "nested_dict": {"inner": "data"},

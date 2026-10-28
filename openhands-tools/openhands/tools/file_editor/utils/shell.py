@@ -12,20 +12,20 @@ from openhands.tools.file_editor.utils.constants import (
 
 def run_shell_cmd(
     cmd: str,
-    timeout: float | None = 120.0,  # seconds
+    timeout: float | None = 120.0,  # 秒
     truncate_after: int | None = MAX_RESPONSE_LEN_CHAR,
     truncate_notice: str = CONTENT_TRUNCATED_NOTICE,
 ) -> tuple[int, str, str]:
-    """Run a shell command synchronously with a timeout.
+    """使用超时同步运行 shell 命令。
 
     Args:
-        cmd: The shell command to run.
-        timeout: The maximum time to wait for the command to complete.
-        truncate_after: The maximum number of characters to return for stdout
-            and stderr.
+        cmd: 要运行的 shell 命令。
+        timeout: 等待命令完成的最长时间。
+        truncate_after: stdout 返回的最大字符数
+            和标准错误。
 
     Returns:
-        A tuple containing the return code, stdout, and stderr.
+        包含返回码、stdout 和 stderr 的元组。
     """
 
     start_time = time.time()
@@ -52,7 +52,7 @@ def run_shell_cmd(
                 stderr,
                 truncate_after=truncate_after,
                 truncate_notice=CONTENT_TRUNCATED_NOTICE,
-            ),  # Use generic notice for stderr
+            ),  # 使用 stderr 的通用通知
         )
     except subprocess.TimeoutExpired:
         if process:
@@ -64,7 +64,7 @@ def run_shell_cmd(
 
 
 def check_tool_installed(tool_name: str) -> bool:
-    """Check if a tool is installed."""
+    """检查是否安装了工具。"""
     try:
         subprocess.run(
             [tool_name, "--version"],

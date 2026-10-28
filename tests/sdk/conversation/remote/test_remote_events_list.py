@@ -1,4 +1,4 @@
-"""Tests for RemoteEventsList."""
+"""测试 RemoteEventsList。"""
 
 from datetime import datetime
 from unittest.mock import Mock
@@ -15,18 +15,18 @@ from openhands.sdk.llm import Message, TextContent
 
 @pytest.fixture
 def mock_client():
-    """Create mock HTTP client."""
+    """创建模拟对象 HTTP 客户端。"""
     return Mock(spec=httpx.Client)
 
 
 @pytest.fixture
 def conversation_id():
-    """Test conversation ID."""
+    """测试对话 ID。"""
     return "test-conv-id"
 
 
 def create_mock_event(event_id: str) -> Event:
-    """Create a test event."""
+    """创建一个测试事件。"""
     return MessageEvent(
         id=event_id,
         timestamp=datetime.now().isoformat(),
@@ -38,7 +38,7 @@ def create_mock_event(event_id: str) -> Event:
 
 
 def create_mock_api_response(events: list[Event], next_page_id: str | None = None):
-    """Create a mock API response."""
+    """创建模拟对象 API 响应。"""
     mock_response = Mock()
     mock_response.raise_for_status.return_value = None
     mock_response.json.return_value = {
@@ -49,7 +49,7 @@ def create_mock_api_response(events: list[Event], next_page_id: str | None = Non
 
 
 def test_remote_events_list_single_page(mock_client, conversation_id):
-    """Test loading events from a single page."""
+    """测试从单个页面加载事件。"""
     events = [
         create_mock_event("event-1"),
         create_mock_event("event-2"),
@@ -68,7 +68,7 @@ def test_remote_events_list_single_page(mock_client, conversation_id):
 
 
 def test_remote_events_list_pagination(mock_client, conversation_id):
-    """Test loading events across multiple pages."""
+    """测试跨多个页面的加载事件。"""
     page1_events = [create_mock_event("event-1"), create_mock_event("event-2")]
     page2_events = [create_mock_event("event-3"), create_mock_event("event-4")]
 
@@ -86,7 +86,7 @@ def test_remote_events_list_pagination(mock_client, conversation_id):
 
 
 def test_remote_events_list_indexing_and_slicing(mock_client, conversation_id):
-    """Test list-like indexing and slicing operations."""
+    """测试类似列表的索引和切片操作。"""
     events = [
         create_mock_event("event-1"),
         create_mock_event("event-2"),
@@ -98,21 +98,21 @@ def test_remote_events_list_indexing_and_slicing(mock_client, conversation_id):
 
     events_list = RemoteEventsList(mock_client, conversation_id)
 
-    # Positive and negative indexing
+    # 正向和负向索引
     assert events_list[0].id == "event-1"
     assert events_list[-1].id == "event-3"
 
-    # Slicing
+    # 切片
     slice_result = events_list[1:3]
     assert len(slice_result) == 2
     assert slice_result[0].id == "event-2"
 
-    # Iteration
+    # 迭代
     assert [e.id for e in events_list] == ["event-1", "event-2", "event-3"]
 
 
 def test_remote_events_list_add_event_deduplication(mock_client, conversation_id):
-    """Test adding events with automatic deduplication."""
+    """测试使用自动重复数据删除功能添加事件。"""
     mock_response = create_mock_api_response([])
     mock_client.request.return_value = mock_response
 
@@ -122,11 +122,11 @@ def test_remote_events_list_add_event_deduplication(mock_client, conversation_id
     events_list.add_event(event)
     assert len(events_list) == 1
 
-    # Adding duplicate should be ignored
+    # 应忽略添加重复项
     events_list.add_event(event)
     assert len(events_list) == 1
 
-    # Adding event with same ID should be ignored
+    # 添加具有相同 ID 的事件应被忽略
     duplicate = create_mock_event("new-event")
     events_list.add_event(duplicate)
     assert len(events_list) == 1
@@ -135,7 +135,7 @@ def test_remote_events_list_add_event_deduplication(mock_client, conversation_id
 
 
 def test_remote_events_list_callback_integration(mock_client, conversation_id):
-    """Test callback integration for event streaming."""
+    """测试事件流式传输的回调集成。"""
     mock_response = create_mock_api_response([])
     mock_client.request.return_value = mock_response
 
@@ -145,7 +145,7 @@ def test_remote_events_list_callback_integration(mock_client, conversation_id):
     test_event = create_mock_event("callback-event")
     callback(test_event)
 
-    # Default callback should add event to the list
+    # 默认回调应将事件添加到列表中
     assert len(events_list) == 1
     assert events_list[0].id == "callback-event"
 
@@ -153,8 +153,8 @@ def test_remote_events_list_callback_integration(mock_client, conversation_id):
 def test_remote_events_list_callback_skips_streaming_deltas(
     mock_client, conversation_id
 ):
-    """Streamed deltas are transient: the server never stores them, so the
-    default callback must keep them out of the cached events."""
+    """流式增量是暂时的：服务器从不存储它们，因此
+    默认回调必须将它们排除在缓存事件之外。"""
     mock_client.request.return_value = create_mock_api_response([])
 
     events_list = RemoteEventsList(mock_client, conversation_id)
@@ -168,7 +168,7 @@ def test_remote_events_list_callback_skips_streaming_deltas(
 
 
 def test_remote_events_list_api_error(mock_client, conversation_id):
-    """Test error propagation when API calls fail."""
+    """当 API 调用失败时测试错误传播。"""
     mock_request = Mock()
     mock_error_response = Mock()
     mock_error_response.status_code = 500
@@ -184,7 +184,7 @@ def test_remote_events_list_api_error(mock_client, conversation_id):
 
 
 def test_remote_events_list_empty(mock_client, conversation_id):
-    """Test handling of empty event lists."""
+    """测试空事件列表的处理。"""
     mock_response = create_mock_api_response([])
     mock_client.request.return_value = mock_response
 
@@ -198,42 +198,42 @@ def test_remote_events_list_empty(mock_client, conversation_id):
 
 
 def test_remote_events_list_maintains_timestamp_order(mock_client, conversation_id):
-    """Test that events are inserted in sorted order by timestamp.
+    """测试事件是否按时间戳按排序顺序插入。
 
-    This tests the fix for the race condition where WebSocket might deliver
-    events out of order (e.g., ActionEvent arriving before MessageEvent).
+    这测试了竞态条件的修复，其中 WebSocket 可能会无序地传递事件（e.g.、ActionEvent 在
+     MessageEvent 之前到达）。
     """
     mock_response = create_mock_api_response([])
     mock_client.request.return_value = mock_response
 
     events_list = RemoteEventsList(mock_client, conversation_id)
 
-    # Create events with specific timestamps (out of order)
+    # 创建具有特定时间戳的事件（无序）
     event1 = MessageEvent(
         id="event-1",
-        timestamp="2024-01-01T10:00:00",  # First chronologically
+        timestamp="2024-01-01T10:00:00",  # 首先按时间顺序
         source="user",
         llm_message=Message(role="user", content=[TextContent(text="Hello")]),
     )
     event2 = MessageEvent(
         id="event-2",
-        timestamp="2024-01-01T10:00:02",  # Third chronologically
+        timestamp="2024-01-01T10:00:02",  # 第三按时间顺序
         source="agent",
         llm_message=Message(role="assistant", content=[TextContent(text="Response")]),
     )
     event3 = MessageEvent(
         id="event-3",
-        timestamp="2024-01-01T10:00:01",  # Second chronologically
+        timestamp="2024-01-01T10:00:01",  # 第二按时间顺序
         source="agent",
         llm_message=Message(role="assistant", content=[TextContent(text="Action")]),
     )
 
-    # Add events in wrong order (simulating WebSocket out-of-order delivery)
-    events_list.add_event(event2)  # Add third event first
-    events_list.add_event(event1)  # Add first event second
-    events_list.add_event(event3)  # Add second event last
+    # 以错误的顺序添加事件（模拟 WebSocket 无序交付）
+    events_list.add_event(event2)  # 首先添加第三个事件
+    events_list.add_event(event1)  # 添加第一个事件第二个
+    events_list.add_event(event3)  # 最后添加第二个事件
 
-    # Events should be sorted by timestamp regardless of insertion order
+    # 事件应按时间戳排序，无论插入顺序如何
     assert len(events_list) == 3
     assert events_list[0].id == "event-1"  # 10:00:00
     assert events_list[1].id == "event-3"  # 10:00:01
@@ -243,8 +243,8 @@ def test_remote_events_list_maintains_timestamp_order(mock_client, conversation_
 def test_remote_events_list_timestamp_order_with_existing_events(
     mock_client, conversation_id
 ):
-    """Test that new events are inserted in correct position among existing events."""
-    # Start with some events already loaded
+    """测试新事件是否插入到现有事件中的正确位置。"""
+    # 从已经加载的一些事件开始
     initial_events: list[Event] = [
         MessageEvent(
             id="initial-1",
@@ -266,10 +266,10 @@ def test_remote_events_list_timestamp_order_with_existing_events(
     events_list = RemoteEventsList(mock_client, conversation_id)
     assert len(events_list) == 2
 
-    # Add an event that should be inserted in the middle
+    # 添加应该插入中间的事件
     middle_event = MessageEvent(
         id="middle",
-        timestamp="2024-01-01T10:00:01",  # Between initial-1 and initial-2
+        timestamp="2024-01-01T10:00:01",  # 在初始 1 和初始 2 之间
         source="agent",
         llm_message=Message(role="assistant", content=[TextContent(text="Middle")]),
     )
@@ -284,13 +284,13 @@ def test_remote_events_list_timestamp_order_with_existing_events(
 def test_remote_events_list_identical_timestamps_stable_order(
     mock_client, conversation_id
 ):
-    """Test that events with identical timestamps maintain insertion order."""
+    """测试具有相同时间戳的事件是否保持插入顺序。"""
     mock_response = create_mock_api_response([])
     mock_client.request.return_value = mock_response
 
     events_list = RemoteEventsList(mock_client, conversation_id)
 
-    # Create events with identical timestamps
+    # 创建具有相同时间戳的事件
     same_timestamp = "2024-01-01T10:00:00"
     event1 = MessageEvent(
         id="event-1",
@@ -311,14 +311,14 @@ def test_remote_events_list_identical_timestamps_stable_order(
         llm_message=Message(role="assistant", content=[TextContent(text="Third")]),
     )
 
-    # Add events in order
+    # 按顺序添加事件
     events_list.add_event(event1)
     events_list.add_event(event2)
     events_list.add_event(event3)
 
-    # Events with identical timestamps should maintain insertion order.
-    # bisect_right ensures new events are inserted after existing ones
-    # with the same timestamp.
+    # 具有相同时间戳的事件应保持插入顺序。 bisect_right 确保新事件插入到具有相同时间戳的
+    # 现有事件之后。
+    #
     assert len(events_list) == 3
     assert events_list[0].id == "event-1"
     assert events_list[1].id == "event-2"

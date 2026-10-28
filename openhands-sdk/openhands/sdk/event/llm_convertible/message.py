@@ -23,9 +23,9 @@ from openhands.sdk.llm import (
 
 
 class MessageEvent(LLMConvertibleEvent):
-    """Message from either agent or user.
+    """来自智能体或用户的消息。
 
-    This is originally the "MessageAction", but it suppose not to be tool call."""
+    这原本是“MessageAction”，但它假设不是工具调用。"""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
@@ -41,7 +41,7 @@ class MessageEvent(LLMConvertibleEvent):
         ),
     )
 
-    # context extensions stuff / skill can go here
+    # 上下文扩展内容/技能可以移至此处
     activated_skills: list[str] = Field(
         default_factory=list, description="List of activated skill name"
     )
@@ -67,15 +67,15 @@ class MessageEvent(LLMConvertibleEvent):
 
     @property
     def thinking_blocks(self) -> Sequence[ThinkingBlock | RedactedThinkingBlock]:
-        """Return the Anthropic thinking blocks from the LLM message."""
+        """返回 LLM 消息中的 Anthropic 思维块。"""
         return self.llm_message.thinking_blocks
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this message event."""
+        """返回此消息事件的富文本表示形式。"""
         content = Text()
 
-        # Message text content
+        # 消息文本内容
         text_parts = content_to_str(self.llm_message.content)
         if text_parts:
             full_content = "".join(text_parts)
@@ -83,20 +83,20 @@ class MessageEvent(LLMConvertibleEvent):
         else:
             content.append("[no text content]")
 
-        # Responses API reasoning (plaintext only; never render encrypted_content)
+        # 响应 API 推理（仅限明文； 从不渲染 encrypted_content)
         if has_visible_responses_reasoning(self.llm_message.responses_reasoning_item):
             content.append("\n\n")
         append_visible_responses_reasoning(
             content, self.llm_message.responses_reasoning_item
         )
 
-        # Add skill information if present
+        # 添加技能信息（如果存在）
         if self.activated_skills:
             content.append(
                 f"\n\nActivated Skills: {', '.join(self.activated_skills)}",
             )
 
-        # Add extended content if available
+        # 添加扩展内容（如果有）
         if self.extended_content:
             assert not any(
                 isinstance(c, ImageContent) for c in self.extended_content
@@ -107,7 +107,7 @@ class MessageEvent(LLMConvertibleEvent):
             )
             content.append(" ".join(text_parts))
 
-        # Display critic result if available
+        # 显示评论家结果（如果有）
         if self.critic_result is not None:
             content.append(self.critic_result.visualize)
 
@@ -119,9 +119,9 @@ class MessageEvent(LLMConvertibleEvent):
         return msg
 
     def __str__(self) -> str:
-        """Plain text string representation for MessageEvent."""
+        """MessageEvent 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
-        # Extract text content from the message
+        # 从消息中提取文本内容
         text_parts = []
         message = self.to_llm_message()
         for content in message.content:

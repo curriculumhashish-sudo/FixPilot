@@ -1,4 +1,4 @@
-"""Tests for the LLM-profile <- AgentProfile foreign-key lifecycle."""
+"""测试 LLM-profile <- AgentProfile 外键生命周期。"""
 
 import concurrent.futures
 import json
@@ -35,7 +35,7 @@ def _oh(name: str, llm_profile_ref: str) -> OpenHandsAgentProfile:
 
 
 def _ref(store: AgentProfileStore, name: str) -> str:
-    """Load a profile and return its ``llm_profile_ref`` (narrows the union)."""
+    """加载配置文件并返回其 ``llm_profile_ref``（缩小联合范围）。"""
     loaded = store.load(name)
     assert isinstance(loaded, OpenHandsAgentProfile)
     return loaded.llm_profile_ref
@@ -75,7 +75,7 @@ def test_cascade_rename_rewrites_matching_refs(
     assert sorted(rewritten) == ["a", "b"]
     assert _ref(agent_store, "a") == "renamed"
     assert _ref(agent_store, "b") == "renamed"
-    # Non-matching profile is untouched.
+    # 不匹配的配置文件保持不变。
     assert _ref(agent_store, "c") == "other"
     assert find_referrers(agent_store, "default") == []
 
@@ -89,9 +89,10 @@ def test_cascade_rename_no_match_is_noop(agent_store: AgentProfileStore) -> None
 def test_cascade_rename_preserves_id_and_other_fields(
     agent_store: AgentProfileStore,
 ) -> None:
-    """The surgical raw-JSON edit (``set_llm_profile_ref``) only touches the
-    ref field — id, mcp_server_refs, and everything else survive untouched.
-    No cipher is involved: the profile is secret-free at rest (#4017)."""
+    """手术原始JSON编辑（``set_llm_profile_ref``）仅触及
+    ref 字段 — id、mcp_server_refs 和其他所有内容都保持不变。 不涉及密码：配置文件在
+    REST 处是机密-free (#4017)。
+    """
     profile = OpenHandsAgentProfile(
         name="a", llm_profile_ref="default", mcp_server_refs=["fetch"], revision=3
     )
@@ -125,7 +126,7 @@ def test_profile_referenced_message_names_referrers() -> None:
     assert "b" in str(exc)
 
 
-# ── delete_llm_profile (guarded) ────────────────────────────────────────────
+# ── delete_llm_profile（守护）────────────────────────────────────────────
 
 
 def test_delete_llm_profile_blocked_when_referenced(
@@ -138,14 +139,14 @@ def test_delete_llm_profile_blocked_when_referenced(
         delete_llm_profile(agent_store, llm_store, "default")
 
     assert exc_info.value.referrers == ["a"]
-    # The LLM profile must NOT have been deleted.
+    # LLM 配置文件必须不已被删除。
     assert "default.json" in llm_store.list()
 
 
 def test_delete_llm_profile_blocked_through_json_alias(
     agent_store: AgentProfileStore, llm_store: LLMProfileStore
 ) -> None:
-    """``default.json`` addresses profile ``default``, so the guard must apply."""
+    """``default.json`` 地址配置文件 ``default``，因此警卫必须申请。"""
     llm_store.save("default", LLM(usage_id="x", model="gpt-4-turbo"))
     agent_store.save(_oh("a", "default"))
 
@@ -166,7 +167,7 @@ def test_delete_llm_profile_succeeds_when_unreferenced(
     assert "default.json" not in llm_store.list()
 
 
-# ── rename_llm_profile (guarded cascade) ────────────────────────────────────
+# ── rename_llm_profile（守护级联）────────────────────────────────────
 
 
 def test_rename_llm_profile_renames_and_cascades(
@@ -192,16 +193,16 @@ def test_rename_llm_profile_missing_source_leaves_refs_intact(
     with pytest.raises(FileNotFoundError):
         rename_llm_profile(agent_store, llm_store, "default", "renamed")
 
-    # The LLM rename failed before any cascade, so refs are untouched.
+    # LLM 重命名在任何级联之前失败，因此引用未受影响。
     assert _ref(agent_store, "a") == "default"
 
 
-# ── Concurrency ─────────────────────────────────────────────────────────────
+# ── 并发 ─────────────────────────────────────────────────────────────
 
 
 def test_cascade_rename_atomic_under_concurrent_access(tmp_path: Path) -> None:
-    """A cascade holds the store lock for the whole scan+rewrite, so concurrent
-    reads never observe a half-rewritten set and the final state is consistent."""
+    """级联保存整个扫描+重写的存储锁，因此并发
+    读取永远不会观察到半重写集，并且最终状态是一致的。"""
     store = AgentProfileStore(base_dir=tmp_path)
     num = 20
     for i in range(num):
@@ -212,7 +213,7 @@ def test_cascade_rename_atomic_under_concurrent_access(tmp_path: Path) -> None:
     def reader() -> None:
         try:
             for _ in range(20):
-                # Every profile points at exactly one of the two names.
+                # 每个配置文件都指向这两个名称之一。
                 find_referrers(store, "default")
                 find_referrers(store, "renamed")
         except Exception as e:  # pragma: no cover - failure path

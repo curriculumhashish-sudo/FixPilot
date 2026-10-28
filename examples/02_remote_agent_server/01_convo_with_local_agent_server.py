@@ -14,7 +14,7 @@ from openhands.tools.preset.default import get_default_agent
 
 logger = get_logger(__name__)
 
-# Hook script directory for this example
+# 本例的 Hook 脚本目录
 HOOK_SCRIPTS_DIR = Path(__file__).parent / "hook_scripts"
 
 
@@ -34,28 +34,28 @@ title_gen_llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Use managed API server
+# 使用托管 API 服务器
 with ManagedAPIServer(port=8001) as server:
-    # Create agent
+    # 创建智能体
     agent = get_default_agent(
         llm=llm,
-        cli_mode=True,  # Disable browser tools for simplicity
+        cli_mode=True,  # 为了简单起见，禁用浏览器工具
     )
 
-    # Define callbacks to test the WebSocket functionality
+    # 定义回调以测试 WebSocket 功能
     received_events = []
     event_tracker = {"last_event_time": time.time()}
 
     def event_callback(event):
-        """Callback to capture events for testing."""
+        """回调捕获事件以进行测试。"""
         event_type = type(event).__name__
         logger.info(f"🔔 Callback received event: {event_type}\n{event}")
         received_events.append(event)
         event_tracker["last_event_time"] = time.time()
 
-    # Create RemoteConversation with callbacks
-    # NOTE: Workspace is required for RemoteConversation
-    # Use a temp directory that exists and is accessible in CI environments
+    # 使用回调创建 RemoteConversation
+    # 注意：RemoteConversation 需要工作区
+    # 使用 CI 环境中存在且可访问的临时目录
     temp_workspace_dir = tempfile.mkdtemp(prefix="agent_server_demo_")
     workspace = Workspace(host=server.base_url, working_dir=temp_workspace_dir)
     result = workspace.execute_command("pwd")
@@ -64,19 +64,19 @@ with ManagedAPIServer(port=8001) as server:
     )
     logger.info(f"Output: {result.stdout}")
 
-    # Configure hooks - demonstrating the hooks system with RemoteConversation
-    # Server-side hooks (PreToolUse, PostToolUse, UserPromptSubmit, Stop) are
-    # executed by the agent server. Client-side hooks (SessionStart, SessionEnd)
-    # are executed locally.
+    # 配置钩子 - 使用 RemoteConversation 演示钩子系统服务器端钩子（PreToolUse、
+    # PostToolUse、UserPromptSubmit、Stop）由 Agent Server 执行。 客户端挂钩（
+    # SessionStart、SessionEnd）在本地执行。
+    #
 
     hook_config = HookConfig(
-        # Stop hook - run Python syntax check before allowing agent to finish.
-        # If any Python file has syntax errors, the hook returns "deny" with the
-        # error output, which gets sent back to the agent as feedback, and the
-        # agent continues working to fix the issue.
+        # 停止钩子 - 在允许智能体完成之前运行 Python 语法检查。 如果任何 Python 文件有语
+        # 法错误，钩子返回 "deny" 并输出错误信息，该信息被发送回智能体作为反馈，而智能体
+        # 继续努力解决问题。
+        #
         stop=[
             HookMatcher(
-                matcher="*",  # Match all stop reasons
+                matcher="*",  # 匹配所有停止原因
                 hooks=[
                     HookDefinition(
                         command=str(HOOK_SCRIPTS_DIR / "pycompile_check.sh"),
@@ -95,24 +95,24 @@ with ManagedAPIServer(port=8001) as server:
     )
     assert isinstance(conversation, RemoteConversation)
 
-    # Track hook execution events
+    # 跟踪钩子执行事件
     hook_events: list[HookExecutionEvent] = []
 
     def hook_event_tracker(event):
-        """Additional callback to track hook execution events."""
+        """用于跟踪钩子执行事件的附加回调。"""
         if isinstance(event, HookExecutionEvent):
             hook_events.append(event)
             logger.info(f"🪝 HookExecutionEvent captured: {event.hook_event_type}")
 
-    # Append our hook tracker to the existing callbacks
+    # 将我们的钩子跟踪器附加到现有的回调
     conversation._callbacks.append(hook_event_tracker)
 
     try:
         logger.info(f"\n📋 Conversation ID: {conversation.state.id}")
 
-        # Test scenario: Ask the agent to create a Python file with syntax errors
-        # The stop hook should detect the syntax error and send feedback back
-        # to the agent to fix it
+        # 测试场景：要求智能体创建一个有语法错误的Python文件。停止钩子应该检测到语法错误
+        # ，并将反馈发送回智能体以进行修复
+        #
         logger.info("📝 Sending message to test on_stop hook with syntax check...")
         conversation.send_message(
             "Create a Python file called 'test_broken.py' in the current directory "
@@ -122,7 +122,7 @@ with ManagedAPIServer(port=8001) as server:
             "try to finish again."
         )
 
-        # Generate title using a specific LLM
+        # 使用特定的 LLM 生成标题
         title = conversation.generate_title(max_length=60, llm=title_gen_llm)
         logger.info(f"Generated conversation title: {title}")
 
@@ -133,11 +133,11 @@ with ManagedAPIServer(port=8001) as server:
             "-> agent fixes the syntax error -> tries to finish again -> passes"
         )
 
-        # Keep running until the agent actually finishes
-        # When a stop hook denies, the state goes: running -> finished -> running
-        # The client's run() may return when it sees 'finished', so we need to
-        # check if the agent is still running and continue
-        max_runs = 10  # Allow enough retries for agent to fix issues
+        # 继续运行直到智能体实际上，当一个停止钩子拒绝时，状态会变为：运行 -> 完成 -> 运
+        # 行。客户端的 run() 它可能会在看到 'finished' 时返回，所以我们需要检查是否智能
+        # 体仍然运行并继续
+        #
+        max_runs = 10  # 允许足够的重试供智能体解决问题
         run_count = 0
         while run_count < max_runs:
             run_count += 1
@@ -146,7 +146,7 @@ with ManagedAPIServer(port=8001) as server:
             current_status = conversation.state.execution_status
             logger.info(f"   After run(), status = {current_status}")
 
-            # Small delay to let any pending state updates arrive
+            # 让任何挂起的状态更新到达的小延迟
             time.sleep(0.5)
             current_status = conversation.state.execution_status
             logger.info(f"   After delay, status = {current_status}")
@@ -163,13 +163,13 @@ with ManagedAPIServer(port=8001) as server:
         logger.info("✅ Task completed!")
         logger.info(f"Final agent status: {conversation.state.execution_status}")
 
-        # Wait for events to stop coming (no events for 2 seconds)
+        # 等待事件停止发生（2 秒内没有事件）
         logger.info("⏳ Waiting for events to stop...")
         while time.time() - event_tracker["last_event_time"] < 2.0:
             time.sleep(0.1)
         logger.info("✅ Events have stopped")
 
-        # Analyze hook execution events
+        # 分析钩子执行事件
         logger.info("\n" + "=" * 50)
         logger.info("📊 Hook Execution Events Analysis")
         logger.info("=" * 50)
@@ -183,7 +183,7 @@ with ManagedAPIServer(port=8001) as server:
             logger.info(f"    Blocked: {he.blocked}")
             logger.info(f"    Exit Code: {he.exit_code}")
             if he.additional_context:
-                # Truncate for readability
+                # 为了可读性而截断
                 ctx = (
                     he.additional_context[:500] + "..."
                     if len(he.additional_context) > 500
@@ -193,7 +193,7 @@ with ManagedAPIServer(port=8001) as server:
             if he.error:
                 logger.info(f"    Error: {he.error}")
 
-        # Count stop hooks that were denied (pre-commit failed)
+        # 计数被拒绝的停止挂钩（预提交失败）
         stop_events = [e for e in hook_events if e.hook_event_type == "Stop"]
         denied_stops = [e for e in stop_events if e.blocked]
 
@@ -214,16 +214,16 @@ with ManagedAPIServer(port=8001) as server:
                 "try or the hook didn't work as expected."
             )
 
-        # Demonstrate state.events functionality
+        # 演示 state.events 功能
         logger.info("\n" + "=" * 50)
         logger.info("📊 Demonstrating State Events API")
         logger.info("=" * 50)
 
-        # Count total events using state.events
+        # 使用 state.events 计算事件总数
         total_events = len(conversation.state.events)
         logger.info(f"📈 Total events in conversation: {total_events}")
 
-        # Get recent events (last 10) using state.events
+        # 使用 state.events 获取最近的事件（最后 10 个）
         logger.info("\n🔍 Getting last 10 events using state.events...")
         all_events = conversation.state.events
         recent_events = all_events[-10:] if len(all_events) >= 10 else all_events
@@ -233,7 +233,7 @@ with ManagedAPIServer(port=8001) as server:
             timestamp = getattr(event, "timestamp", "Unknown")
             logger.info(f"  {i}. {event_type} at {timestamp}")
 
-        # Let's see what the actual event types are
+        # 让我们看看实际的事件类型是什么
         logger.info("\n🔍 Event types found in recent events:")
         event_types = set()
         for event in recent_events:
@@ -242,7 +242,7 @@ with ManagedAPIServer(port=8001) as server:
         for event_type in sorted(event_types):
             logger.info(f"  - {event_type}")
 
-        # Print all ConversationStateUpdateEvent
+        # 打印全部 ConversationStateUpdateEvent
         logger.info("\n🗂️  ConversationStateUpdateEvent events:")
         for event in conversation.state.events:
             if isinstance(event, ConversationStateUpdateEvent):
@@ -252,6 +252,6 @@ with ManagedAPIServer(port=8001) as server:
         print(f"EXAMPLE_COST: {cost}")
 
     finally:
-        # Clean up
+        # 清理
         print("\n🧹 Cleaning up conversation...")
         conversation.close()

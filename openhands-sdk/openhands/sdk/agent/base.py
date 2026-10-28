@@ -58,10 +58,10 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-# -- SOUL.md loader -------------------------------------------------------
-# SOUL.md is the agent's identity file, ``SOUL.md`` under the user persistence
-# directory (~/.openhands/SOUL.md absent OH_PERSISTENCE_DIR).  When present it
-# replaces the default identity in the system prompt.
+# -- SOUL.md 装载机 ------------------------------------------------------------------
+# SOUL.md 是智能体的身份文件，``SOUL.md`` 在用户持久化目录下（~/.openhands/SOUL.md 不存
+# 在 OH_PERSISTENCE_DIR）。 当存在时，它会替换系统中的默认身份提示词。
+#
 
 _SOUL_PATH = get_user_persistence_dir() / "SOUL.md"
 _DEFAULT_SOUL = (
@@ -69,16 +69,17 @@ _DEFAULT_SOUL = (
     " with a computer to solve tasks."
 )
 
-# Built-in prompt dir. The registry only stands in for built-in prompts here; a
-# subclass with its own prompts/ keeps the Jinja render path.
+# 内置提示词目录。 这里的注册表仅代表内置的提示词； 具有自己的提示的子类/保留 Jinja 渲染
+# 路径。
+#
 _BUILTIN_PROMPT_DIR = os.path.realpath(
     os.path.join(os.path.dirname(__file__), "prompts")
 )
 
-# Built-in ``system_prompt_filename`` values are back-compat sentinels (the .j2 files
-# were removed) that select a registry preset. ``system_prompt_planning.j2`` keeps its
-# historical name so ``get_planning_agent`` needs no change. Any other filename -- or a
-# subclass's own ``prompt_dir`` -- falls through to the Jinja escape hatch.
+# 内置 ``system_prompt_filename`` 值向后兼容哨兵值（.j2 文件已删除），用于选择注册表预设
+# 。 ``system_prompt_planning.j2`` 保留其历史名称，因此 ``get_planning_agent`` 无需更改
+# 。 任何其他文件名——或者子类自己的``prompt_dir``——都会落入 Jinja 逃生舱口。
+#
 _PRESET_BY_FILENAME: dict[str, PromptPreset] = {
     "system_prompt.j2": PromptPreset.DEFAULT,
     "system_prompt_planning.j2": PromptPreset.PLANNING,
@@ -86,7 +87,7 @@ _PRESET_BY_FILENAME: dict[str, PromptPreset] = {
 
 
 def _load_soul_md() -> str:
-    """Load ``SOUL.md`` from the user persistence dir, else the built-in default."""
+    """从用户持久化目录加载 ``SOUL.md``，否则使用内置默认值。"""
     try:
         with open(_SOUL_PATH, encoding="utf-8") as f:
             content = f.read().strip()
@@ -100,11 +101,10 @@ def _load_soul_md() -> str:
 
 
 class AgentBase(DiscriminatedUnionMixin, ABC):
-    """Abstract base class for OpenHands agents.
+    """OpenHands 智能体的抽象基类。
 
-    Agents are stateless and should be fully defined by their configuration.
-    This base class provides the common interface and functionality that all
-    agent implementations must follow.
+    智能体是无状态的，应该由它们的配置完全定义。 该基类提供所有智能体实现都必须遵循的
+    通用接口和功能。
     """
 
     model_config = ConfigDict(
@@ -269,7 +269,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
     def _drop_retired_enable_browser(
         cls, value: dict[str, object]
     ) -> dict[str, object]:
-        """Old saved conversations may still carry this retired prompt flag."""
+        """旧保存的对话可能仍带有此已停用的提示词标志。"""
         return {key: item for key, item in value.items() if key != "enable_browser"}
 
     condenser: CondenserBase | None = Field(
@@ -310,14 +310,14 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         ),
     )
 
-    # Runtime materialized tools; private and non-serializable
+    # 运行时物化工具； 私有且不可序列化
     _tools: dict[str, ToolDefinition] = PrivateAttr(default_factory=dict)
     _tools_lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
     _initialized: bool = PrivateAttr(default=False)
 
     @property
     def prompt_dir(self) -> str:
-        """Returns the directory where this class's module file is located."""
+        """返回该类的模块文件所在的目录。"""
         module = sys.modules[self.__class__.__module__]
         module_file = module.__file__  # e.g. ".../mypackage/mymodule.py"
         if module_file is None:
@@ -326,16 +326,16 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     @property
     def name(self) -> str:
-        """Returns the name of the Agent."""
+        """返回智能体的名称。"""
         return self.__class__.__name__
 
     @property
     def _prompt_preset(self) -> PromptPreset | None:
-        """The registry preset for this agent's built-in prompt.
+        """注册表预设为此智能体的内置提示词。
 
-        ``None`` means "take the Jinja escape hatch": a subclass with its own
-        ``prompt_dir``, or a ``system_prompt_filename`` that is not a known built-in
-        sentinel (e.g. a custom relative name or an absolute path).
+        ``None`` 表示“乘坐 Jinja 逃生舱口”：具有自己的子类
+        ``prompt_dir``，或不是已知内置哨兵值的 ``system_prompt_filename`` (e.g. 自定
+        义相对名称或绝对路径）。
         """
         if os.path.realpath(self.prompt_dir) != _BUILTIN_PROMPT_DIR:
             return None
@@ -343,27 +343,27 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     @property
     def static_system_message(self) -> str:
-        """Compute the static portion of the system message.
+        """计算系统消息的静态部分。
 
-        This returns only the base system prompt template without any dynamic
-        per-conversation context. This static portion can be cached and reused
-        across conversations for better prompt caching efficiency.
+        这仅返回基本系统提示词模板，没有任何动态的每次对话上下文。 该静态部分可以在对
+        话中缓存和重用，以提高提示词缓存效率。
 
-        Built-in prompts (the ``default`` and ``planning`` presets) are assembled from
-        the typed section registry, which also resolves a custom
-        ``security_policy_filename``. Escape hatches keep the Jinja path: an inline
-        ``system_prompt`` is used verbatim, followed by the loaded tools' guidance; a
-        custom ``system_prompt_filename`` or subclass ``prompt_dir`` renders its own
-        template.
+        内置提示词（``default`` 和 ``planning`` 预设）是从键入的部分注册表组装而成，
+        这也解决了自定义
+        ``security_policy_filename``. 逃生舱口保持神社路径：内联
+        ``system_prompt`` 逐字使用，后面是加载工具的指导； 自定义
+        ``system_prompt_filename`` 或子类
+        ``prompt_dir`` 呈现其自己的模板。
 
         Returns:
-            The static system prompt without dynamic context.
+            没有动态系统上下文的静态系统提示词。
         """
         if self.system_prompt is not None:
             return "\n\n".join((self.system_prompt, *self._tool_guidance()))
 
-        # Escape hatch: a custom filename or a subclass's own prompt_dir renders its
-        # own Jinja template; everything else (incl. custom policies) uses the registry.
+        # 逃生舱口：自定义文件名或子类自己的 prompt_dir 渲染自己的 Jinja 模板； 其他一切
+        # （包括 custom policies) 使用注册表。
+        #
         preset = self._prompt_preset
         if preset is None:
             return render_template(
@@ -375,7 +375,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         return create_registry(preset).build(self._build_prompt_context()).static
 
     def _tool_guidance(self) -> tuple[str, ...]:
-        """Distinct ``prompt_guidance`` texts of the loaded tools, in tool order."""
+        """已加载工具的不同 ``prompt_guidance`` 文本（按工具顺序）。"""
         with self._tools_lock:
             tools = list(self._tools.values())
         return tuple(
@@ -383,14 +383,14 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         )
 
     def _resolved_template_kwargs(self) -> dict[str, object]:
-        """Resolve the system-prompt template kwargs.
+        """解决 system-提示词模板 kwargs。
 
-        Shared by :pyattr:`static_system_message` and
-        :meth:`_build_prompt_context` so the two cannot drift.
+        共享者：pyattr:`static_system_message` 和
+        :meth:`_build_prompt_context` 所以两者不能漂移。
         """
         template_kwargs = dict(self.system_prompt_kwargs)
 
-        # Load SOUL.md identity if not already provided
+        # 如果尚未提供，则加载 SOUL.md 身份
         if "soul_content" not in template_kwargs:
             template_kwargs["soul_content"] = _load_soul_md()
 
@@ -412,17 +412,16 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         return template_kwargs
 
     def _read_custom_security_policy(self) -> str | None:
-        """Raw contents of a custom security policy file -- inserted verbatim, NOT
-        rendered as a Jinja template.
+        """自定义安全策略文件的原始内容——逐字插入，不
+        渲染为 Jinja 模板。
 
-        Returns ``None`` -- so ``SecuritySection`` keeps its built-in default policy
-        -- when ``security_policy_filename`` is the default sentinel
-        ``"security_policy.j2"`` (a string only; the file was removed, so it is never
-        read) or ``""`` (an empty *filename*, which disables the policy). A configured
-        file whose own contents are empty still returns ``""`` (an empty custom
-        policy), not ``None``.
+        返回 ``None`` - 因此 ``SecuritySection`` 保留其内置默认策略
+        -- 当 ``security_policy_filename`` 为默认哨兵值时
+        ``"security_policy.j2"``（仅字符串； 该文件已被删除，因此永远不会被读取）或
+        ``""``（空的*文件名*，这会禁用该策略）。 其内容
+        为空的配置文件仍返回 ``""``（空的自定义策略），而不是 ``None``。
 
-        Relative names resolve against ``prompt_dir``; absolute paths are used as-is.
+        相对名称解析为 ``prompt_dir``； 绝对路径按原样使用。
         """
         filename = self.security_policy_filename
         if not filename or filename == "security_policy.j2":
@@ -433,21 +432,21 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         self,
         additional_secret_infos: list[dict[str, str | None]] | None = None,
     ) -> PromptContext:
-        """Frozen :class:`PromptContext` snapshot for this agent.
+        """冻结此智能体的：class:`PromptContext` 快照。
 
-        ``template_kwargs`` is resolved by the shared
-        :meth:`_resolved_template_kwargs`; the other fields snapshot
-        per-conversation signals. The dynamic-tier fields reuse
-        ``AgentContext._resolve_dynamic_data`` so skills are model-gated and
-        secrets merged exactly as ``get_system_message_suffix`` does;
-        ``additional_secret_infos`` mirrors ``get_dynamic_context(state)``.
+        ``template_kwargs`` 已通过共享解决
+        ：方法：`_resolved_template_kwargs`； 其他字段快照
+        每个对话信号。 动态层字段重用
+        ``AgentContext._resolve_dynamic_data`` 因此技能是模型门控的，并且机密与
+        ``get_system_message_suffix`` 完全一样地合并；
+        ``additional_secret_infos`` 镜子 ``get_dynamic_context(state)``。
         """
         agent_context = self.agent_context
-        # Mirror get_dynamic_context's temp-context path: with no agent_context but
-        # conversation secrets present, the legacy renderer resolves a default
-        # AgentContext() (which carries a default current_datetime), so its dynamic
-        # block advertises the secrets *and* a <CURRENT_DATETIME>. Resolve the same
-        # default here so the registry reproduces both blocks, not just secrets.
+        # 镜像 get_dynamic_context'temp-上下文路径：无 agent_context 但对话机密目前，旧
+        # 版渲染器默认解析 AgentContext()（默认情况下携带） current_datetime), 因此，其
+        # 动态块通告了机密  *和* a <CURRENT_DATETIME>. 在这里解决相同的默认值，以便注册
+        # 表复制两个块，而不是一个机密。
+        #
         if agent_context is None and additional_secret_infos:
             agent_context = AgentContext()
 
@@ -466,10 +465,11 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                 self.llm.model_canonical_name,
                 additional_secret_infos,
             )
-            # Reuse the shared resolver's formatted datetime rather than re-deriving
-            # it: get_system_message_suffix renders this exact string, so the registry
-            # must too (a rounded copy would break byte-for-byte parity for callers
-            # that pass a datetime object instead of a pre-formatted string).
+            # 重用共享解析器的格式化日期时间而不是重新派生
+            # it: get_system_message_suffix 渲染这个确切的字符串，所以注册表
+            # 也必须（对于传递日期时间对象而不是预格式化字符串的调用者来说，四舍五入的副
+            # 本会破坏字节对字节的奇偶校验）。
+            #
             now = data.formatted_datetime
             skill_names = tuple(skill.name for skill in agent_context.skills)
             repo_skills = tuple((s.name, s.content) for s in data.repo_skills)
@@ -479,13 +479,14 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             secret_infos = tuple(
                 (info["name"] or "", info["description"]) for info in data.secret_infos
             )
-            # Derive names from the resolver's merged secret_infos instead of a
-            # second get_secret_infos() walk; this now includes registry-provided
-            # secrets (additional_secret_infos), matching what <CUSTOM_SECRETS> shows.
+            # 从解析器的合并 secret_infos 派生名称，而不是第二个 get_secret_infos() 遍历
+            # ； 现在包括注册表提供的机密 (additional_secret_infos)，与 <CUSTOM_SECRETS>
+            #  显示的内容相匹配。
+            #
             secret_names = tuple(name for name, _ in secret_infos if name)
 
         template_kwargs = self._resolved_template_kwargs()
-        # A custom security policy's content for SecuritySection (registry path only).
+        # SecuritySection 的自定义安全策略内容（仅限注册表路径）。
         policy_content = self._read_custom_security_policy()
         if policy_content is not None:
             template_kwargs = {
@@ -511,27 +512,27 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     @property
     def dynamic_context(self) -> str | None:
-        """Get the dynamic per-conversation context.
+        """获取会话级别的动态上下文。
 
-        This returns the context that varies between conversations, such as:
-        - Repository information and skills
-        - Runtime information (hosts, working directory)
-        - User-specific secrets and settings
-        - Conversation instructions
+        这将返回在对话之间变化的上下文，例如：
+        - 存储库信息和技能
+        - 运行时信息（主机，工作目录）
+        - 用户特定的机密和设置
+        - 对话说明
 
-        This content should NOT be included in the cached system prompt to enable
-        cross-conversation cache sharing. Instead, it is sent as a second content
-        block (without a cache marker) inside the system message.
+        此内容应不包含在缓存系统提示词中，以启用跨会话缓存共享。 相反，它作为系统消息
+        内的第二个内容块（没有缓存标记）发送。
 
-        Assembled from the dynamic-tier sections of the default registry.
+        从默认注册表的动态层部分组装。
 
         Returns:
-            The dynamic context string, or None if no context is configured.
+            动态上下文字符串，如果未配置上下文，则为 None。
         """
         if not self.agent_context:
             return None
-        # The dynamic tier is preset-independent, so a custom Jinja template (preset
-        # None) still gets the default dynamic block, exactly as before.
+        # 动态层是独立于预设的，因此自定义 Jinja 模板（预设 None）仍然获得默认动态块，与
+        # 以前完全相同。
+        #
         preset = self._prompt_preset or PromptPreset.DEFAULT
         return create_registry(preset).build(self._build_prompt_context()).dynamic
 
@@ -540,12 +541,12 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         state: ConversationState,
         on_event: ConversationCallbackType,  # noqa: ARG002
     ) -> None:
-        """Initialize the empty conversation state to prepare the agent for user
-        messages.
+        """初始化空对话状态，为用户准备智能体
+        消息。
 
-        Typically this involves adding system message
+        通常这涉及添加系统消息
 
-        NOTE: state will be mutated in-place.
+        NOTE: 状态将就地突变。
         """
         self._initialize(state)
 
@@ -553,23 +554,23 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         self,
         state: ConversationState,
     ):
-        """Create an AgentBase instance from an AgentSpec."""
+        """从 AgentSpec 创建一个 AgentBase 实例。"""
 
         if self._initialized:
             return
 
         tools: list[ToolDefinition] = []
 
-        # Use ThreadPoolExecutor to parallelize tool resolution
+        # 使用 ThreadPoolExecutor 并行化工具解析
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
 
-            # Submit tool resolution tasks
+            # 提交工具解析任务
             for tool_spec in self.tools:
                 future = executor.submit(resolve_tool, tool_spec, state)
                 futures.append(future)
 
-            # Collect results as they complete
+            # 完成后收集结果
             for future in futures:
                 result = future.result()
                 tools.extend(result)
@@ -580,10 +581,10 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             tools = [tool for tool in tools if pattern.match(tool.name)]
             logger.info("Filtered to %d tools after applying regex filter", len(tools))
 
-        # Include default tools from include_default_tools; not subject to regex
-        # filtering. Use explicit mapping to resolve tool class names.
-        # Auto-attach `InvokeSkillTool` iff an AgentSkills-format skill is
-        # directly invocable and the user hasn't already opted in explicitly.
+        # 包括include_default_tools中的默认工具； 不受正则表达式过滤的影响。 使用显式映
+        # 射来解析工具类名称。 自动附加 `InvokeSkillTool` 当且仅当 AgentSkills 格式的技
+        # 能可直接调用并且用户尚未明确选择加入。
+        #
         has_invocable_agentskills = bool(
             self.agent_context
             and any(
@@ -622,7 +623,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             tool_instances = tool_class.create(state)
             tools.extend(tool_instances)
 
-        # Check tool types
+        # 检查工具类型
         for tool in tools:
             if not isinstance(tool, ToolDefinition):
                 raise ValueError(
@@ -630,13 +631,13 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                     f"Got type: {type(tool)}"
                 )
 
-        # Check name duplicates
+        # 检查姓名重复
         tool_names = [tool.name for tool in tools]
         if len(tool_names) != len(set(tool_names)):
             duplicates = set(name for name in tool_names if tool_names.count(name) > 1)
             raise ValueError(f"Duplicate tool names found: {duplicates}")
 
-        # Store tools in a dict for easy access
+        # 将工具存储在字典中以便于访问
         self._tools = {tool.name: tool for tool in tools}
         self._initialized = True
 
@@ -647,20 +648,19 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ) -> None:
-        """Taking a step in the conversation.
+        """谈话中迈出了一步。
 
-        Typically this involves:
-        1. Making a LLM call
-        2. Executing the tool
-        3. Updating the conversation state with
-            LLM calls (role="assistant") and tool results (role="tool")
-        4.1 If conversation is finished, set state.execution_status to FINISHED
-        4.2 Otherwise, just return, Conversation will kick off the next step
+        通常这涉及：
+        1. 拨打 LLM 电话
+        2. 执行工具
+        3. 使用 LLM 调用 (role="assistant") 和工具结果 (role="tool") 更新对话状态
+        4.1 如果对话结束，将state.execution_status设置为FINISHED 4.2 否则，返回，对话
+        将开始下一步
 
-        If the underlying LLM supports streaming, partial deltas are forwarded to
-        ``on_token`` before the full response is returned.
+        如果底层 LLM 支持流式传输，则部分增量将转发到
+        ``on_token`` 在返回完整响应之前。
 
-        NOTE: state will be mutated in-place.
+        NOTE: 状态将就地突变。
         """
 
     async def astep(
@@ -669,12 +669,11 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         on_event: ConversationCallbackType,
         on_token: ConversationTokenCallbackType | None = None,
     ) -> None:
-        """Async variant of :meth:`step`.
+        """异步：meth:`step` 的变体。
 
-        Default implementation runs the synchronous ``step()`` in a
-        thread via :func:`asyncio.loop.run_in_executor` so that
-        blocking tool I/O does not starve the event loop.
-        Subclasses that perform async LLM calls should override this.
+        默认实现通过：func:`asyncio.loop.run_in_executor` 在线程中运行同步 ``step()``
+        ，以便阻塞工具 I/O 不会导致
+        事件循环匮乏。 执行异步 LLM 调用的子类应该覆盖它。
         """
         import asyncio
 
@@ -686,32 +685,30 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         persisted: AgentBase,
         events: Sequence[Any] | None = None,  # noqa: ARG002
     ) -> AgentBase:
-        """Verify that we can resume this agent from persisted state.
+        """验证我们是否可以从已持久化状态恢复此智能体。
 
-        We do not merge configuration between persisted and runtime Agent
-        instances. Instead, we verify compatibility requirements and then
+        我们不会合并已持久化和运行时智能体实例之间的配置。 相反，我们验证兼容性要求，
+        然后
         continue with the runtime-provided Agent.
 
-        Compatibility requirements:
-        - Agent class/type must match.
-        - Tools may only be added, never removed.
+        兼容性要求：
+        - 智能体类别/类型必须匹配。
+        - 工具只能添加，不能删除。
 
-        Removing tools breaks backward compatibility because the LLM may have
-        already been told about them.  Adding new tools is safe — the LLM
-        simply gains new capabilities on the next turn.
+        删除工具会破坏向后兼容性，因为 LLM 可能已经被告知它们。 添加新工具是安全的 -
+        LLM 只是在下一轮获得新功能。
 
-        All other configuration (LLM, agent_context, condenser, etc.) can be
-        freely changed between sessions.
+        所有其他配置（LLM、agent_context、上下文压缩器等）都可以在会话之间自由更改。
 
         Args:
-            persisted: The agent loaded from persisted state.
-            events: Unused, kept for API compatibility.
+            persisted: 智能体从已持久化状态加载。
+            events: 未使用，保留用于 API 兼容性。
 
         Returns:
-            This runtime agent (self) if verification passes.
+            如果验证通过，则运行时智能体（自身）。
 
         Raises:
-            ValueError: If agent class or tools don't match.
+            ValueError: 如果智能体类或工具不匹配。
         """
         if persisted.__class__ is not self.__class__:
             raise ValueError(
@@ -720,12 +717,13 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                 f"{self.__class__.__name__}."
             )
 
-        # Collect explicit tool names
+        # 收集明确的工具名称
         runtime_names = {tool.name for tool in self.tools}
         persisted_names = {tool.name for tool in persisted.tools}
 
-        # Add builtin tool names from include_default_tools
-        # These are runtime names like 'finish', 'think'
+        # 从 include_default_tools 添加内置工具名称这些是运行时名称，例如“finish”、“
+        # think”
+        #
         for tool_class_name in self.include_default_tools:
             tool_class = BUILT_IN_TOOL_CLASSES.get(tool_class_name)
             if tool_class is not None:
@@ -736,9 +734,9 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             if tool_class is not None:
                 persisted_names.add(tool_class.name)
 
-        # Removing tools breaks backward compatibility because the LLM may
-        # have already been told about them.  Adding new tools is safe — the
-        # LLM simply gains new capabilities on the next turn.
+        # 删除工具会破坏向后兼容性，因为 LLM 可能已经被告知它们。 添加新工具是安全的 -
+        # LLM 只是在下一轮获得新功能。
+        #
         missing_in_runtime = persisted_names - runtime_names
         if missing_in_runtime:
             raise ValueError(
@@ -750,36 +748,35 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         return self
 
     def get_all_llms(self) -> Generator[LLM]:
-        """Recursively yield unique *base-class* LLM objects reachable from `self`.
+        """递归地生成可从 `self` 访问的唯一 * 基类 * LLM 对象。
 
-        - Returns actual object references (not copies).
-        - De-dupes by `id(LLM)`.
-        - Cycle-safe via a visited set for *all* traversed objects.
-        - Only yields objects whose type is exactly `LLM` (no subclasses).
-        - Does not handle dataclasses.
+        - 返回实际对象引用（而不是副本）。
+        - 按 `id(LLM)` 进行重复数据删除。
+        - 通过 *all* 遍历对象的访问集实现循环安全。
+        - 只返回类型为 `LLM`（无子类）的对象。
+        - 不处理数据类。
         """
         yielded_ids: set[int] = set()
         visited: set[int] = set()
 
         def _walk(obj: object) -> Iterable[LLM]:
             oid = id(obj)
-            # Guard against cycles on anything we might recurse into
+            # 防止我们可能递归的任何事情发生循环
             if oid in visited:
                 return ()
             visited.add(oid)
 
-            # Traverse LLM based classes and its fields
-            # e.g., LLMRouter that is a subclass of LLM
-            # yet contains LLM in its fields
+            # 遍历 LLM 类及其字段 e.g，LLMRouter 是 LLM 的子类，但其字段中包含 LLM
+            #
             if isinstance(obj, LLM):
                 llm_out: list[LLM] = []
 
-                # Yield only the *raw* base-class LLM (exclude subclasses)
+                # 仅产生 *raw* 基类 LLM（不包括子类）
                 if type(obj) is LLM and oid not in yielded_ids:
                     yielded_ids.add(oid)
                     llm_out.append(obj)
 
-                # Traverse all fields for LLM objects
+                # 遍历LLM个对象的所有字段
                 for name in type(obj).model_fields:
                     try:
                         val = getattr(obj, name)
@@ -788,7 +785,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                     llm_out.extend(_walk(val))
                 return llm_out
 
-            # Pydantic models: iterate declared fields
+            # Pydantic 模型：迭代声明的字段
             if isinstance(obj, BaseModel):
                 model_out: list[LLM] = []
                 for name in type(obj).model_fields:
@@ -799,7 +796,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                     model_out.extend(_walk(val))
                 return model_out
 
-            # Built-in containers
+            # 内置容器
             if isinstance(obj, dict):
                 dict_out: list[LLM] = []
                 for k, v in obj.items():
@@ -813,10 +810,10 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
                     container_out.extend(_walk(item))
                 return container_out
 
-            # Unknown object types: nothing to do
+            # 未知对象类型：无事可做
             return ()
 
-        # Drive the traversal from self
+        # 从 self 驱动遍历
         yield from _walk(self)
 
     def _close_tool_executor(self, tool: ToolDefinition) -> None:
@@ -829,10 +826,10 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             logger.warning("Error closing executor for tool '%s': %s", tool.name, exc)
 
     def add_runtime_tools(self, tools: Sequence[ToolDefinition]) -> None:
-        """Register tools materialized at runtime (e.g. MCP tools).
+        """注册运行时实现的工具（e.g. MCP 工具）。
 
-        Tools are subject to `filter_tools_regex`; built-in default tools are
-        exempt, matching the behavior of `_initialize()`.
+        工具受`filter_tools_regex`约束； 内置默认工具是豁免的，与 `_initialize()` 的
+        行为相匹配。
         """
         if not self._initialized:
             logger.warning(
@@ -870,14 +867,13 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             }
             raise ValueError(f"Duplicate runtime tool names found: {duplicates}")
         with self._tools_lock:
-            # A tools/list_changed notification can race the caller: if it
-            # arrives while the provider's initial create_tools() call is
-            # still in flight, _on_mcp_tools_changed/_on_mcp_tools_reconciled
-            # may already have installed the same tool via this same client
-            # before the caller's own add_runtime_tools() call (using the
-            # client's returned snapshot) gets here. Treat that as a refresh,
-            # not a conflict, matching the same-client exemption already used
-            # by _on_mcp_tools_changed/_on_mcp_tools_reconciled.
+            # 工具/list_changed 通知可能会与调用者发生竞争：如果通知在提供者的初始请求期
+            # 间到达 create_tools() 仍然在进行中 _on_mcp_tools_changed/
+            # _on_mcp_tools_reconciled 可能之前通过同一个客户端已经安装了相同的工具
+            # add_runtime_tools() 调用 (使用客户端返回的快照) 到这里。 将它视为刷新，而
+            # 不是冲突，与使用的同一客户端豁免一致 _on_mcp_tools_changed/
+            # _on_mcp_tools_reconciled.
+            #
             conflicts: set[str] = set()
             for tool in tools:
                 existing_tool = self._tools.get(tool.name)
@@ -895,18 +891,19 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             if conflicts:
                 raise ValueError(f"Duplicate tool names found: {conflicts}")
 
-            # AgentBase is frozen; replace the tool map rather than mutating
-            # it in place, so Agent.model_copy() snapshots don't share state.
+            # AgentBase 已冻结； 替换工具图而不是就地改变它，因此 Agent.model_copy() 快
+            # 照不共享状态。
+            #
             updated = {**self._tools, **{tool.name: tool for tool in tools}}
             object.__setattr__(self, "_tools", updated)
 
     def _on_mcp_tools_changed(self, tools: Sequence[ToolDefinition]) -> None:
-        """Handle dynamically advertised MCP tools.
+        """处理动态广告的 MCP 工具。
 
-        Invoked on the MCP client's background event-loop thread when an MCP
-        server sends ``notifications/tools/list_changed`` (progressive
-        disclosure, e.g. Datadog's hosted MCP server). Registers new tools and
-        refreshes same-client tools that return after being removed.
+        当 MCP 服务器发送 ``notifications/tools/list_changed``（渐进式披露，e.g）时，
+        在 MCP 客户端的后台事件循环线
+        程上调用。 Datadog 的托管 MCP 服务器）。 注册新工具并刷新删除后返回的同客户端
+        工具。
         """
         if not self._initialized:
             logger.warning(
@@ -975,7 +972,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         client: MCPClient,
         tools: Sequence[MCPToolDefinition],
     ) -> None:
-        """Replace this MCP client's tools with its current server snapshot."""
+        """将此 MCP 客户端的工具替换为其当前服务器快照。"""
         tool_names = [tool.name for tool in tools]
         if len(tool_names) != len(set(tool_names)):
             duplicates = {
@@ -1012,67 +1009,71 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
     @property
     def tools_map(self) -> dict[str, ToolDefinition]:
-        """Get the initialized tools map.
+        """获取初始化的工具图。
         Raises:
-            RuntimeError: If the agent has not been initialized.
+            RuntimeError: 如果智能体尚未初始化。
         """
         if not self._initialized:
             raise RuntimeError("Agent not initialized; call _initialize() before use")
-        # Isolate readers from background MCP tool updates.
+        # 将读者与后台 MCP 工具更新隔离。
         with self._tools_lock:
             return dict(self._tools)
 
-    # -- Capability helpers -----------------------------------------------
-    # Downstream code should branch on these properties rather than doing
-    # ``isinstance(agent, ACPAgent)`` checks.  That keeps the regular/ACP
-    # code paths decoupled from the concrete class hierarchy.
+    # -- 能力帮手 -----------------------------------------------------------
+    # 下游代码应该在这些属性上分支而不是这样做
+    # ``isinstance(agent, ACPAgent)`` 检查。 这使得常规/ACP代码路径与具体的类层次结构分
+    # 离。
+    #
 
     @property
     def supports_openhands_tools(self) -> bool:
-        """``True`` if OpenHands can inject tools into this agent.
+        """``True`` 如果 OpenHands 可以向此智能体注入工具。
 
-        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — the
-        ACP server manages its own toolset.
+        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — ACP 服务器管
+        理自己的工
+        具集。
         """
         return True
 
     @property
     def supports_openhands_mcp(self) -> bool:
-        """``True`` if OpenHands can create in-process MCP tools for this agent.
+        """``True`` 如果 OpenHands 可以为此智能体创建进程内 MCP 工具。
 
-        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — ACP
-        agents pass configured MCP servers through to the ACP subprocess.
+        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — ACP 智能体将
+        配置的
+        MCP 服务器传递到 ACP 子进程。
         """
         return True
 
     @property
     def supports_condenser(self) -> bool:
-        """``True`` if OpenHands context condensing is supported for this agent.
+        """``True`` 如果智能体支持 OpenHands 上下文压缩。
 
-        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — the
-        ACP server manages its own context window.
+        ``False`` for :class:`~openhands.sdk.agent.acp_agent.ACPAgent` — ACP 服务器管
+        理它自己的
+        上下文窗口。
         """
         return True
 
     @property
     def agent_kind(self) -> Literal["openhands", "acp"]:
-        """Agent kind, matching the ``agent_kind`` settings discriminator."""
+        """智能体类型，与 ``agent_kind`` 设置鉴别器匹配。"""
         return "openhands"
 
     def ask_agent(self, question: str) -> str | None:  # noqa: ARG002
-        """Optional override for stateless question answering.
+        """无状态问答的可选覆盖。
 
-        Subclasses (e.g. ACPAgent) may override this to provide their own
-        implementation of ask_agent that bypasses the default LLM-based path.
+        子类 (e.g. ACPAgent 可以在此处进行修改，以提供自己的实现 ask_agent，该实现绕
+        过了默认的 LLM 基于路径。
 
         Returns:
-            Response string, or ``None`` to use the default LLM-based approach.
+            响应字符串，或 ``None`` 以使用默认的基于 LLM 的方法。
         """
         return None
 
     def close(self) -> None:
-        """Clean up agent resources.
+        """清理智能体资源。
 
-        No-op by default; ACPAgent overrides to terminate subprocess.
+        默认无操作； ACPAgent 会终止子进程。
         """
         pass

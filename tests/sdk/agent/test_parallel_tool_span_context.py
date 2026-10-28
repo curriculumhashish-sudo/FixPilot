@@ -1,19 +1,20 @@
-"""Trace-context propagation into ``ParallelToolExecutor`` worker threads.
+"""Trace-上下文传播到 ``ParallelToolExecutor`` 工作人员线程。
 
-Neither ``ThreadPoolExecutor.submit`` nor ``loop.run_in_executor`` copies
-``contextvars`` by itself, so a dispatched tool call inherits nothing from the
-dispatching thread unless the executor copies it explicitly.
+``ThreadPoolExecutor.submit`` 和 ``loop.run_in_executor`` 均不复制
+``contextvars`` 本身，因此调度的工具调用不会从调度线程继承任何内容，除非执行器显式复
+制它。
 
-Two configurations behave differently and are covered separately here:
+两种配置的行为不同，此处分别介绍：
 
-* **lmnr not initialized** — nothing crosses the thread boundary at all, so a
-  span opened in the worker starts its own trace.
-* **lmnr initialized** (the ``lmnr_initialized`` fixture) — lmnr's vendored
-  ``ThreadingInstrumentor`` patches ``ThreadPoolExecutor.submit`` to carry its
-  own *isolated* context across, which is what ``@observe`` parents against, so
-  TOOL spans already nest there without our copy. What lmnr does **not** carry
-  is the OpenTelemetry *global* context or ordinary ``ContextVar``s; those gaps
-  are what the copy closes, and the ``with_lmnr`` tests pin them.
+* **lmnr 未初始化** — 根本没有任何内容跨越线程边界，因此在工作线程中打开的跨度会启动
+自己的跟踪。
+* **lmnr 已初始化**（``lmnr_initialized``测试夹具） — lmnr 的供应商
+  ``ThreadingInstrumentor`` 修补 ``ThreadPoolExecutor.submit`` 以携带其自己的 * 隔离
+  的 * 上下文跨越，这是
+  ``@observe`` 父母所反对的，因此 TOOL 跨度已经嵌套在那里，而没有我们的副本。 **not**
+  携带的lmnr是OpenTelemetry*global*
+  上下文或者普通的``ContextVar``； 这些差距是副本所弥补的，并且 ``with_lmnr`` 测试将
+  其固定。
 """
 
 import asyncio
@@ -79,9 +80,9 @@ def tracing() -> Iterator[tuple[Tracer, InMemorySpanExporter]]:
 
 @pytest.fixture
 def lmnr_initialized() -> Iterator[None]:
-    """Bring up lmnr's real ``TracerWrapper``, as ``maybe_init_laminar()`` does.
+    """像 ``maybe_init_laminar()`` 一样调出 lmnr 的真实 ``TracerWrapper``。
 
-    Its side effects are process-wide monkeypatches, so tear them down again.
+    它的副作用是进程范围内的猴子补丁，因此请再次将其拆除。
     """
     from lmnr.opentelemetry_lib.opentelemetry.instrumentation.threading import (
         ThreadingInstrumentor,
@@ -109,7 +110,7 @@ def lmnr_initialized() -> Iterator[None]:
 
 
 def _assert_lmnr_wraps_submit() -> None:
-    """Guard: these tests are vacuous if lmnr's submit patch is not live."""
+    """Guard: 如果 lmnr 的提交补丁没有上线，这些测试就毫无意义。"""
     assert hasattr(ThreadPoolExecutor.submit, "__wrapped__"), (
         "lmnr's ThreadingInstrumentor did not patch ThreadPoolExecutor.submit; "
         "the with_lmnr tests would silently degrade to the without_lmnr case"
@@ -129,7 +130,7 @@ def _finished(exporter: InMemorySpanExporter, name: str) -> ReadableSpan:
     return matches[0]
 
 
-# ── contextvars reach the worker thread ───────────────────────────
+# ── contextvars到达worker 线程 ────────────────────────────
 
 
 def test_execute_batch_propagates_contextvars(probe) -> None:
@@ -166,10 +167,10 @@ def test_aexecute_batch_propagates_contextvars(probe) -> None:
     assert seen == ["set-by-dispatcher", "set-by-dispatcher"]
 
 
-# ── each task needs its own Context object ────────────────────────
-# A single contextvars.Context cannot be entered by two threads at once
-# (``RuntimeError: cannot enter context: ... is already entered``), so these
-# force genuine overlap via a Barrier.
+# ── 每个任务都需要自己的上下文对象 ──────────────────────── 一个 contextvars.Context 不
+# 能同时被两个线程输入 (``RuntimeError: cannot enter context: ... is already entered``),
+#  因此这些迫使真正的重叠通过一个屏障。
+#
 
 
 def test_execute_batch_overlapping_tasks_each_get_a_fresh_context(probe) -> None:
@@ -214,8 +215,9 @@ def test_aexecute_batch_overlapping_tasks_each_get_a_fresh_context(probe) -> Non
     assert seen == ["set-by-dispatcher"] * 3
 
 
-# ── OTel spans created in the worker nest under the dispatcher ────
-# lmnr not initialized: nothing crosses the thread boundary without the copy.
+# ── 在调度程序下的工作嵌套中创建的 OTel 跨度──── lmnr 未初始化：没有副本，任何内容都不
+# 会跨越线程边界。
+#
 
 
 def _span_nesting_runner(
@@ -276,11 +278,13 @@ def test_aexecute_batch_worker_spans_nest_under_dispatcher_without_lmnr(
         assert span.parent.span_id == parent_ctx.span_id
 
 
-# ── What lmnr's own instrumentation leaves uncovered ──────────────
-# lmnr patches ThreadPoolExecutor.submit to carry its isolated context, so
+# ── lmnr 自己的仪器未发现的东西────────────── lmnr 补丁 ThreadPoolExecutor.submit 来携
+# 带其隔离的上下文，所以
+#
 # @observe spans nest across the boundary with or without this executor's
-# copy. The OTel global context and plain ContextVars are not carried; these
-# pin that the copy closes those two gaps in lmnr's own configuration.
+# 复制。 不携带OTel global上下文和plainContextVars； 这些引脚表明副本弥补了 lmnr 自己的
+# 配置中的这两个差距。
+#
 
 
 def test_execute_batch_worker_spans_nest_under_dispatcher_with_lmnr(
@@ -350,7 +354,7 @@ def test_execute_batch_propagates_contextvars_with_lmnr(
 
 
 def test_lmnr_isolated_context_survives_the_context_copy(lmnr_initialized) -> None:
-    """The copy must not clobber what lmnr already propagates for itself."""
+    """该副本不得破坏 lmnr 已为其自身传播的内容。"""
     from lmnr.opentelemetry_lib.tracing.context import (
         attach_context,
         detach_context,
@@ -376,10 +380,10 @@ def test_lmnr_isolated_context_survives_the_context_copy(lmnr_initialized) -> No
     assert seen == ["isolated-parent", "isolated-parent"]
 
 
-# ── End-to-end through a real Agent with tool_concurrency_limit=2 ──
-# ``observe`` is replaced by a raw-OTel stand-in, so this exercises the
-# no-lmnr path end to end. With lmnr live the real ``observe`` parents against
-# lmnr's isolated context, which lmnr carries across the boundary itself.
+# ── 端到端通过真实的智能体且 tool_concurrency_limit=2 ──
+# ``observe`` 被原始 OTel 替代品取代，因此这会端到端地执行 no-lmnr 路径。 与 lmnr 一起生
+# 活的是真正的``observe``父母，反对 lmnr 的孤立上下文，而 lmnr 则跨越了边界本身。
+#
 
 
 class _SpanCtxAction(Action):
@@ -482,11 +486,10 @@ def test_agent_step_tool_spans_nest_under_dispatcher_without_lmnr(tracing) -> No
         patch(
             "openhands.sdk.agent.agent.should_enable_observability", return_value=True
         ),
-        # Run the undecorated ``step``. Its ``@observe`` wrapper builds a real
-        # lmnr span once observability is on anywhere in the process — and caches
-        # it — which interposes between this test's parent span and the tool
-        # spans. Without this, ambient ``LMNR_*`` env vars decide whether the test
-        # measures what its name claims.
+        # 运行未修饰的 ``step``。 它的``@observe``包装器在任何过程中observability开启时
+        # ，构建一个真实的lmnr范围，并缓存它——它会介于这个测试的父范围和工具范围之间。
+        # 如果没有这个，环境 ``LMNR_*`` 环境变量将决定测试是否测量其名称所声称的内容。
+        #
         patch.object(Agent, "step", inspect.unwrap(Agent.step)),
         patch("openhands.sdk.agent.agent.observe", side_effect=fake_observe),
     ):

@@ -1,4 +1,4 @@
-"""Tests for BrowserToolExecutor integration logic."""
+"""测试 BrowserToolExecutor 集成逻辑。"""
 
 import asyncio
 import builtins
@@ -35,7 +35,7 @@ class _ThreadedSlowServer(ThreadingHTTPServer):
 
 
 class SlowServiceBrowserExecutor(BrowserToolExecutor):
-    """Minimal browser executor that blocks on a live HTTP request."""
+    """阻止实时 HTTP 请求的最小浏览器执行器。"""
 
     def __init__(self, action_timeout_seconds: float):
         self._server = cast(Any, SimpleNamespace(_is_recording=False))
@@ -62,7 +62,7 @@ class SlowServiceBrowserExecutor(BrowserToolExecutor):
 
 @pytest.fixture
 def slow_service():
-    """Serve an endpoint that stays pending long enough to trigger a timeout."""
+    """提供一个端点那要足够长的时间才能触发一个超时。"""
     request_started = threading.Event()
 
     class SlowHandler(BaseHTTPRequestHandler):
@@ -95,7 +95,7 @@ def slow_service():
 
 
 def test_browser_executor_initialization():
-    """Test that BrowserToolExecutor initializes correctly."""
+    """测试 BrowserToolExecutor 初始化是否正确。"""
     with patch.object(
         BrowserToolExecutor,
         "_ensure_chromium_available",
@@ -112,7 +112,7 @@ def test_browser_executor_initialization():
 
 
 def test_browser_executor_config_passing():
-    """Test that configuration is passed correctly."""
+    """测试配置是否正确通过。"""
     with patch.object(
         BrowserToolExecutor,
         "_ensure_chromium_available",
@@ -133,7 +133,7 @@ def test_browser_executor_config_passing():
 
 
 def test_browser_executor_rejects_non_positive_action_timeout():
-    """Test that BrowserToolExecutor validates action timeouts."""
+    """测试 BrowserToolExecutor 是否验证操作超时。"""
     with patch("openhands.tools.browser_use.impl.run_with_timeout"):
         with patch.object(BrowserToolExecutor, "_ensure_chromium_available"):
             with patch("openhands.tools.browser_use.impl.CustomBrowserUseServer"):
@@ -149,7 +149,7 @@ def test_browser_executor_rejects_non_positive_action_timeout():
 async def test_browser_executor_action_routing_navigate(
     mock_navigate, mock_browser_executor
 ):
-    """Test that navigate actions are routed correctly."""
+    """测试导航操作是否正确路由。"""
     mock_navigate.return_value = "Navigation successful"
 
     action = BrowserNavigateAction(url="https://example.com", new_tab=False)
@@ -161,7 +161,7 @@ async def test_browser_executor_action_routing_navigate(
 
 @patch("openhands.tools.browser_use.impl.BrowserToolExecutor.click")
 async def test_browser_executor_action_routing_click(mock_click, mock_browser_executor):
-    """Test that click actions are routed correctly."""
+    """测试单击操作是否正确路由。"""
     mock_click.return_value = "Click successful"
 
     action = BrowserClickAction(index=5, new_tab=True)
@@ -175,7 +175,7 @@ async def test_browser_executor_action_routing_click(mock_click, mock_browser_ex
 async def test_browser_executor_action_routing_get_state(
     mock_get_state, mock_browser_executor
 ):
-    """Test that get_state actions are routed correctly and return directly."""
+    """测试 get_state 操作是否正确路由并直接返回。"""
     expected_observation = BrowserObservation.from_text(
         text="State retrieved", screenshot_data="base64data"
     )
@@ -189,7 +189,7 @@ async def test_browser_executor_action_routing_get_state(
 
 
 async def test_browser_executor_unsupported_action_handling(mock_browser_executor):
-    """Test handling of unsupported action types."""
+    """测试不支持的操作类型的处理。"""
 
     class UnsupportedAction:
         pass
@@ -202,7 +202,7 @@ async def test_browser_executor_unsupported_action_handling(mock_browser_executo
 
 @patch("openhands.tools.browser_use.impl.BrowserToolExecutor.navigate")
 async def test_browser_executor_error_wrapping(mock_navigate, mock_browser_executor):
-    """Test that exceptions are properly wrapped in BrowserObservation."""
+    """测试异常是否正确包装在 BrowserObservation 中。"""
     mock_navigate.side_effect = Exception("Browser error occurred")
 
     action = BrowserNavigateAction(url="https://example.com")
@@ -213,7 +213,7 @@ async def test_browser_executor_error_wrapping(mock_navigate, mock_browser_execu
 
 
 def test_browser_executor_async_execution(mock_browser_executor):
-    """Test that async execution works through the call method."""
+    """通过 call 方法测试异步执行是否有效。"""
     with patch.object(
         mock_browser_executor, "_execute_action", new_callable=AsyncMock
     ) as mock_execute:
@@ -228,7 +228,7 @@ def test_browser_executor_async_execution(mock_browser_executor):
 
 
 def test_browser_executor_timeout_wrapping_live_service(slow_service):
-    """Test that a live slow service timeout becomes a BrowserObservation."""
+    """测试实时慢速服务超时变为 BrowserObservation。"""
     slow_url, request_started = slow_service
     executor = SlowServiceBrowserExecutor(action_timeout_seconds=1)
 
@@ -243,7 +243,7 @@ def test_browser_executor_timeout_wrapping_live_service(slow_service):
 
 
 def test_browser_executor_timeout_wrapping(mock_browser_executor):
-    """Test that browser action timeouts return BrowserObservation errors."""
+    """测试浏览器操作超时返回 BrowserObservation 错误。"""
     mock_browser_executor._action_timeout_seconds = 7
 
     with patch.object(
@@ -259,12 +259,11 @@ def test_browser_executor_timeout_wrapping(mock_browser_executor):
 
 
 def test_issue_2412_consecutive_failures_reset_session(mock_browser_executor):
-    """After MAX_CONSECUTIVE_FAILURES timeouts, the session should be reset.
+    """MAX_CONSECUTIVE_FAILURES 超时之后，应重置会话。
 
-    When a browser crashes, every subsequent action times out against
-    the dead session. After enough consecutive failures the executor
-    should set _initialized=False so the next call re-creates the
-    browser session instead of looping on the dead one.
+    当浏览器崩溃时，每个后续操作都会针对死会话超时。 在连续失败足够多次后，执行器应该
+    设置 _initialized=False，以便下次调用重新创建浏览器会话，而不是
+    继续循环死掉的会话。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2412
     """
@@ -279,7 +278,7 @@ def test_issue_2412_consecutive_failures_reset_session(mock_browser_executor):
     ):
         action = BrowserNavigateAction(url="https://example.com")
 
-        # First (MAX_CONSECUTIVE_FAILURES - 1) failures should NOT reset
+        # 第一个 (MAX_CONSECUTIVE_FAILURES - 1) 次失败应重置不
         for i in range(MAX_CONSECUTIVE_FAILURES - 1):
             result = mock_browser_executor(action)
             assert result.is_error is True
@@ -288,7 +287,7 @@ def test_issue_2412_consecutive_failures_reset_session(mock_browser_executor):
             )
             assert "reset" not in result.text.lower()
 
-        # The next failure triggers the reset
+        # 下一次失败会触发重置
         result = mock_browser_executor(action)
         assert result.is_error is True
         assert mock_browser_executor._initialized is False
@@ -297,13 +296,13 @@ def test_issue_2412_consecutive_failures_reset_session(mock_browser_executor):
 
 
 def test_issue_2412_success_resets_failure_counter(mock_browser_executor):
-    """A successful action should reset the consecutive failure counter.
+    """成功的操作应该重置连续失败计数器。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2412
     """
     mock_browser_executor._initialized = True
 
-    # Simulate 2 failures
+    # 模拟2次失败
     with patch.object(
         mock_browser_executor._async_executor,
         "run_async",
@@ -315,7 +314,7 @@ def test_issue_2412_success_resets_failure_counter(mock_browser_executor):
 
     assert mock_browser_executor._consecutive_failures == 2
 
-    # Now a success
+    # 现在成功了
     success_result = BrowserObservation.from_text(text="OK")
     with patch.object(
         mock_browser_executor._async_executor,
@@ -329,10 +328,10 @@ def test_issue_2412_success_resets_failure_counter(mock_browser_executor):
 
 
 def test_issue_2412_action_errors_do_not_trigger_reset(mock_browser_executor):
-    """Regular action errors should NOT count toward crash detection.
+    """常规操作错误应不计入崩溃检测。
 
-    Only timeouts indicate a potentially dead browser. Errors like
-    invalid selector or missing element are normal agent mistakes.
+    只有超时表示浏览器可能已失效。 诸如无效选择器或缺少元素之类的错误是正常的智能体错
+    误。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2412
     """
@@ -350,13 +349,13 @@ def test_issue_2412_action_errors_do_not_trigger_reset(mock_browser_executor):
         for _ in range(MAX_CONSECUTIVE_FAILURES + 1):
             mock_browser_executor(action)
 
-    # Session should NOT be reset despite many action errors
+    # 尽管存在许多操作错误，但仍应重置会话不
     assert mock_browser_executor._initialized is True
     assert mock_browser_executor._consecutive_failures == 0
 
 
 def test_issue_2412_degraded_timeout_after_failures(mock_browser_executor):
-    """Degraded timeout kicks in after 2+ consecutive timeout failures.
+    """连续 2 次以上超时失败后，降级超时开始生效。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2412
     """
@@ -367,7 +366,7 @@ def test_issue_2412_degraded_timeout_after_failures(mock_browser_executor):
 
     action = BrowserNavigateAction(url="https://example.com")
 
-    # First call fails — uses normal timeout
+    # 第一次调用失败 — 使用正常超时
     with patch.object(
         mock_browser_executor._async_executor,
         "run_async",
@@ -377,7 +376,7 @@ def test_issue_2412_degraded_timeout_after_failures(mock_browser_executor):
         _, kwargs = mock_run.call_args
         assert kwargs["timeout"] == 300.0
 
-    # Second call still uses normal timeout (degraded kicks in at 2+)
+    # 第二次调用仍然使用正常的超时（降级在 2+ 时开始）
     with patch.object(
         mock_browser_executor._async_executor,
         "run_async",
@@ -387,23 +386,23 @@ def test_issue_2412_degraded_timeout_after_failures(mock_browser_executor):
         _, kwargs = mock_run.call_args
         assert kwargs["timeout"] == 300.0
 
-    # Third call should use degraded timeout for the action.
-    # Note: the reset also calls run_async for cleanup, so we check
-    # the first call (the action), not the last (the cleanup).
+    # 第三次调用应使用降级的超时进行操作。
+    # 注意：重置还会调用 run_async 进行清理，因此我们检查
+    # 第一次调用（操作），而不是最后一次调用（清理）。
     with patch.object(
         mock_browser_executor._async_executor,
         "run_async",
         side_effect=builtins.TimeoutError(),
     ) as mock_run:
         mock_browser_executor(action)
-        # First call is the action (degraded timeout),
-        # second call may be cleanup (5s) if reset triggers.
+        # 第一个调用是操作（降级超时），如果重置触发，第二个调用可能是清理（5 秒）。
+        #
         _, kwargs = mock_run.call_args_list[0]
         assert kwargs["timeout"] == DEGRADED_TIMEOUT_SECONDS
 
 
 async def test_browser_executor_initialization_lazy(mock_browser_executor):
-    """Test that browser session initialization is lazy."""
+    """测试浏览器会话初始化是否是惰性的。"""
     assert mock_browser_executor._initialized is False
 
     await mock_browser_executor._ensure_initialized()
@@ -413,29 +412,29 @@ async def test_browser_executor_initialization_lazy(mock_browser_executor):
 
 
 async def test_browser_executor_initialization_idempotent(mock_browser_executor):
-    """Test that initialization is idempotent."""
+    """测试初始化是否幂等。"""
     await mock_browser_executor._ensure_initialized()
     await mock_browser_executor._ensure_initialized()
 
-    # Should only be called once
+    # 应该只被调用一次
     assert mock_browser_executor._server._init_browser_session.call_count == 1
 
 
 async def test_start_recording_initializes_session(mock_browser_executor):
-    """Test that start_recording initializes a recording session with correct state."""
+    """测试 start_recording 是否以正确的状态初始化记录会话。"""
     import tempfile
     from unittest.mock import AsyncMock
 
     from openhands.tools.browser_use.recording import RecordingSession
 
-    # Set up mock CDP session that simulates successful rrweb loading
+    # 设置模拟对象 CDP 会话来模拟成功的 rrweb 加载
     mock_cdp_session = AsyncMock()
     mock_cdp_session.session_id = "test-session"
     mock_cdp_session.cdp_client.send.Runtime.evaluate = AsyncMock(
         side_effect=[
-            # First call: wait for rrweb load (returns success)
+            # 第一次调用：等待rrweb加载（返回成功）
             {"result": {"value": {"success": True}}},
-            # Second call: start recording (returns started)
+            # 第二次调用：开始录音（返回开始）
             {"result": {"value": {"status": "started"}}},
         ]
     )
@@ -449,23 +448,24 @@ async def test_start_recording_initializes_session(mock_browser_executor):
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a real RecordingSession and test its behavior
-        # Use output_dir - start() will create a timestamped subfolder
+        # 创建一个真实的 RecordingSession 并测试其行为使用 output_dir - start() 将创建一
+        # 个带时间戳的子文件夹
+        #
         session = RecordingSession(output_dir=temp_dir)
         result = await session.start(mock_browser_session)
 
-        # Verify the session state was properly initialized
+        # 验证会话状态是否已正确初始化
         assert session.is_active is True
         assert result == "Recording started"
         assert session._scripts_injected is True
-        # Verify a timestamped subfolder was created
+        # 验证是否已创建带时间戳的子文件夹
         assert session.session_dir is not None
         assert session.session_dir.startswith(temp_dir)
         assert "recording-" in session.session_dir
 
 
 async def test_stop_recording_returns_summary_with_event_counts():
-    """Test that stop_recording returns accurate summary with event counts."""
+    """测试 stop_recording 返回包含事件计数的准确摘要。"""
     import json
     import os
     import tempfile
@@ -474,20 +474,20 @@ async def test_stop_recording_returns_summary_with_event_counts():
     from openhands.tools.browser_use.recording import RecordingSession
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a recording session in RECORDING state with some events
+        # 使用一些事件创建处于 RECORDING 状态的记录会话
         session = RecordingSession()
         session._storage._session_dir = temp_dir
         session._is_recording = True
         session._scripts_injected = True
 
-        # Pre-populate the event buffer with some events
+        # 用一些事件预先填充事件缓冲区
         test_events = [{"type": 3, "timestamp": i, "data": {}} for i in range(25)]
         session._events.extend(test_events)
 
-        # Set up mock CDP session for stop
+        # 设置模拟对象 CDP 会话以停止
         mock_cdp_session = AsyncMock()
         mock_cdp_session.session_id = "test-session"
-        # Return additional events from the browser when stopping
+        # 停止时从浏览器返回其他事件
         mock_cdp_session.cdp_client.send.Runtime.evaluate = AsyncMock(
             return_value={
                 "result": {
@@ -503,19 +503,19 @@ async def test_stop_recording_returns_summary_with_event_counts():
             return_value=mock_cdp_session
         )
 
-        # Stop recording
+        # 停止录音
         result = await session.stop(mock_browser_session)
 
-        # Verify the summary contains accurate counts
+        # 验证摘要包含准确的计数
         assert "Recording stopped" in result
-        assert "42 events" in result  # 25 buffered + 17 from browser
+        assert "42 events" in result  # 25 个缓冲 + 17 个来自浏览器
         assert "1 file(s)" in result
         assert temp_dir in result
 
-        # Verify state transition
+        # 验证状态转换
         assert session.is_active is False
 
-        # Verify file was actually created with correct content
+        # 验证文件实际上是使用正确的内容创建的
         files = os.listdir(temp_dir)
         assert len(files) == 1
         with open(os.path.join(temp_dir, files[0])) as f:
@@ -524,12 +524,12 @@ async def test_stop_recording_returns_summary_with_event_counts():
 
 
 async def test_stop_recording_without_active_session_returns_error():
-    """Test that stop_recording returns error when not recording."""
+    """测试stop_recording在不记录时返回错误。"""
     from unittest.mock import AsyncMock
 
     from openhands.tools.browser_use.recording import RecordingSession
 
-    # Create a session that's not recording
+    # 创建一个不录制的会话
     session = RecordingSession()
     assert session.is_active is False
 

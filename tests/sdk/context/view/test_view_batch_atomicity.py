@@ -1,9 +1,8 @@
-"""Tests for batch atomicity in View.from_events().
+"""测试 View.from_events() 中的批次原子性。
 
-This module tests that multi-action batches (multiple ActionEvents from the same
-LLM response) are treated atomically during condensation. This is critical for
-extended thinking models like Claude Sonnet 4.5, where thinking blocks must stay
-with their associated tool calls.
+该模块测试在上下文压缩期间以原子方式处理多操作批次（来自同一 LLM 响应的多个
+ActionEvents）。 这对于像 Claude Sonnet 4.5 这样的扩展思维
+模型至关重要，其中思维块必须与其相关的工具调用保持一致。
 """
 
 from openhands.sdk.context.view import View
@@ -24,14 +23,13 @@ from tests.sdk.context.view.conftest import (  # noqa: F401
 
 
 def test_batch_atomicity_partial_batch_forgotten() -> None:
-    """Test that if one event in a batch is forgotten, all events in that batch are
-    forgotten.
+    """测试如果批次中的一个事件被遗忘，则该批次中的所有事件都会被遗忘
+    忘记了。
 
-    This simulates the scenario where the condenser forgets E44-E46 from a batch
-    of E44-E47, leaving only E47. The batch atomicity logic should ensure that
-    E47 is also forgotten to prevent thinking blocks from being separated.
+    这模拟了上下文压缩器从一批E44-E47中忘记了E44-E46，只留下E47的场景。 批量原子性逻
+    辑应该确保E47也被遗忘，以防止思维块被分离。
     """
-    # Create a batch of 4 actions from the same LLM response
+    # 根据同一 LLM 响应创建一批 4 个操作
     thinking_blocks: list[ThinkingBlock | RedactedThinkingBlock] = [
         ThinkingBlock(
             type="thinking", thinking="Extended thinking...", signature="sig1"
@@ -46,15 +44,15 @@ def test_batch_atomicity_partial_batch_forgotten() -> None:
     action3 = create_action_event(llm_response_id, "tool_call_3")
     action4 = create_action_event(llm_response_id, "tool_call_4")
 
-    # Create matching observations
+    # 创建匹配观测结果
     obs1 = create_observation_event("tool_call_1")
     obs2 = create_observation_event("tool_call_2")
     obs3 = create_observation_event("tool_call_3")
     obs4 = create_observation_event("tool_call_4")
 
-    # Condensation forgets the first 3 actions (E44-E46), but not the 4th (E47)
-    # This simulates what might happen if the condenser uses event indices without
-    # considering batch boundaries
+    # 上下文压缩忘记了前3个动作(E44-E46)，但没有忘记第4个(E47)。这模拟了上下文压缩器在不
+    # 考虑批次边界的情况下使用事件索引可能会发生的情况
+    #
     events = [
         message_event("User message"),
         action1,
@@ -73,8 +71,8 @@ def test_batch_atomicity_partial_batch_forgotten() -> None:
 
     view = View.from_events(events)
 
-    # Batch atomicity should ensure that action4 is also forgotten
-    # even though it wasn't explicitly listed in forgotten_event_ids
+    # 批处理原子性应该确保 action4 也被忘记，即使它没有在 forgotten_event_ids 中明确列出
+    #
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
 
     assert action1.id not in action_ids_in_view
@@ -85,13 +83,13 @@ def test_batch_atomicity_partial_batch_forgotten() -> None:
         "even though it wasn't explicitly in forgotten_event_ids"
     )
 
-    # Verify observations are also filtered out due to unmatched tool calls
+    # 由于工具调用不匹配，验证观测结果也被过滤掉
     obs_ids_in_view = [e.id for e in view.events if isinstance(e, ObservationEvent)]
     assert len(obs_ids_in_view) == 0
 
 
 def test_batch_atomicity_complete_batch_forgotten() -> None:
-    """Test that when all events in a batch are forgotten, they're all removed."""
+    """测试当批次中的所有事件都被遗忘时，它们都会被删除。"""
     thinking_blocks: list[ThinkingBlock | RedactedThinkingBlock] = [
         ThinkingBlock(
             type="thinking", thinking="Extended thinking...", signature="sig1"
@@ -123,17 +121,17 @@ def test_batch_atomicity_complete_batch_forgotten() -> None:
 
     view = View.from_events(events)
 
-    # Both actions should be forgotten
+    # 这两个动作都应该被忘记
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
     assert len(action_ids_in_view) == 0
 
-    # Observations should also be filtered out
+    # 观测结果也应该被过滤掉
     obs_ids_in_view = [e.id for e in view.events if isinstance(e, ObservationEvent)]
     assert len(obs_ids_in_view) == 0
 
 
 def test_batch_atomicity_no_forgetting_preserves_batch() -> None:
-    """Test that when no events in a batch are forgotten, all are preserved."""
+    """测试当批次中没有事件被遗忘时，所有事件都会被保留。"""
     thinking_blocks: list[ThinkingBlock | RedactedThinkingBlock] = [
         ThinkingBlock(
             type="thinking", thinking="Extended thinking...", signature="sig1"
@@ -165,12 +163,12 @@ def test_batch_atomicity_no_forgetting_preserves_batch() -> None:
         obs3,
         Condensation(
             forgotten_event_ids=set(), llm_response_id="condensation_response_1"
-        ),  # Don't forget anything
+        ),  # 不要忘记任何事情
     ]
 
     view = View.from_events(events)
 
-    # All actions should be preserved
+    # 应保留所有操作
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
     assert action1.id in action_ids_in_view
     assert action2.id in action_ids_in_view
@@ -178,14 +176,14 @@ def test_batch_atomicity_no_forgetting_preserves_batch() -> None:
 
 
 def test_batch_atomicity_multiple_batches() -> None:
-    """Test that batch atomicity works correctly with multiple separate batches."""
+    """测试批处理原子性是否可以在多个单独的批处理中正常工作。"""
     thinking_blocks: list[ThinkingBlock | RedactedThinkingBlock] = [
         ThinkingBlock(
             type="thinking", thinking="Extended thinking...", signature="sig1"
         )
     ]
 
-    # First batch
+    # 第一批
     batch1_id = "response_1"
     action1_1 = create_action_event(
         batch1_id, "tool_call_1", thinking_blocks=thinking_blocks
@@ -196,7 +194,7 @@ def test_batch_atomicity_multiple_batches() -> None:
     obs1_1 = create_observation_event("tool_call_1")
     obs1_2 = create_observation_event("tool_call_2")
 
-    # Second batch
+    # 第二批
     batch2_id = "response_2"
     action2_1 = create_action_event(
         batch2_id, "tool_call_3", thinking_blocks=thinking_blocks
@@ -207,8 +205,8 @@ def test_batch_atomicity_multiple_batches() -> None:
     obs2_1 = create_observation_event("tool_call_3")
     obs2_2 = create_observation_event("tool_call_4")
 
-    # Forget only the first action of the first batch
-    # This should cause the entire first batch to be forgotten, but not the second batch
+    # 只忘记第一批的第一个操作这应该会导致整个第一批被忘记，但不会忘记第二批
+    #
     events = [
         message_event("User message"),
         action1_1,
@@ -228,20 +226,20 @@ def test_batch_atomicity_multiple_batches() -> None:
 
     view = View.from_events(events)
 
-    # First batch should be completely forgotten
+    # 第一批应该被完全遗忘
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
     assert action1_1.id not in action_ids_in_view
     assert action1_2.id not in action_ids_in_view, (
         "action1_2 should be forgotten due to batch atomicity"
     )
 
-    # Second batch should be preserved
+    # 第二批应保存
     assert action2_1.id in action_ids_in_view
     assert action2_2.id in action_ids_in_view
 
 
 def test_batch_atomicity_single_action_batch() -> None:
-    """Test that batches with a single action work correctly."""
+    """测试单个操作的批次是否正常工作。"""
     thinking_blocks: list[ThinkingBlock | RedactedThinkingBlock] = [
         ThinkingBlock(
             type="thinking", thinking="Extended thinking...", signature="sig1"
@@ -265,16 +263,15 @@ def test_batch_atomicity_single_action_batch() -> None:
 
     view = View.from_events(events)
 
-    # Single action should be forgotten
+    # 单一动作应该被遗忘
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
     assert action.id not in action_ids_in_view
 
 
 def test_batch_atomicity_no_thinking_blocks() -> None:
-    """Test that batch atomicity works even without thinking blocks.
+    """测试即使没有思维块，批处理原子性也能正常工作。
 
-    While the motivation for batch atomicity is to preserve thinking blocks,
-    the logic should work for all multi-action batches.
+    虽然批处理原子性的动机是保留思维块，但逻辑应该适用于所有多操作批处理。
     """
     llm_response_id = "response_1"
 
@@ -286,7 +283,7 @@ def test_batch_atomicity_no_thinking_blocks() -> None:
     obs2 = create_observation_event("tool_call_2")
     obs3 = create_observation_event("tool_call_3")
 
-    # Forget first two actions
+    # 忘记前两个动作
     events = [
         message_event("User message"),
         action1,
@@ -303,7 +300,7 @@ def test_batch_atomicity_no_thinking_blocks() -> None:
 
     view = View.from_events(events)
 
-    # All actions in the batch should be forgotten due to atomicity
+    # 由于原子性，批处理中的所有操作都应该被忘记
     action_ids_in_view = [e.id for e in view.events if isinstance(e, ActionEvent)]
     assert action1.id not in action_ids_in_view
     assert action2.id not in action_ids_in_view

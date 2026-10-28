@@ -27,20 +27,17 @@ logger = get_logger(__name__)
 
 class RouterLLM(LLM):
     """
-    Base class for multiple LLM acting as a unified LLM.
-    This class provides a foundation for implementing model routing by
-    inheriting from LLM, allowing routers to work with multiple underlying
-    LLM models while presenting a unified LLM interface to consumers.
-    Key features:
-    - Works with multiple LLMs configured via llms_for_routing
-    - Delegates all other operations/properties to the selected LLM
-    - Provides routing interface through select_llm() method
+    多个LLM的基类充当统一的LLM。 该类为实现模型路由提供了基础，继承自LLM，允许路由器
+    与多个底层LLM模型交互，同时向消费者提供统一的LLM接口。 主要特点：
+    - 通过llms_for_routing配置了多个LLMs
+    - 将所有其他操作/属性委托给选定的 LLM
+    - 通过select_llm()方法提供路由接口
     """
 
     router_name: str = Field(default="base_router", description="Name of the router")
     llms_for_routing: dict[str, LLM] = Field(
         default_factory=dict
-    )  # Mapping of LLM name to LLM instance for routing
+    )  # 将 LLM 名称映射到 LLM 实例以进行路由
     active_llm: LLM | None = Field(
         default=None, description="Currently selected LLM instance"
     )
@@ -64,27 +61,26 @@ class RouterLLM(LLM):
         **kwargs,
     ) -> LLMResponse:
         """
-        This method intercepts completion calls and routes them to the appropriate
-        underlying LLM based on the routing logic implemented in select_llm().
+        此方法拦截完成调用，并根据 select_llm() 中实现的路由逻辑将它们路由到适当的底
+        层 LLM。
 
         Args:
-            messages: List of conversation messages
-            tools: Optional list of tools available to the model
-            add_security_risk_prediction: Add security_risk field to tool schemas
-            on_token: Optional callback for streaming tokens
-            **kwargs: Additional arguments passed to the LLM API
+            messages: 对话消息列表
+            tools: 模型可用的可选工具列表
+            add_security_risk_prediction: 将 security_risk 字段添加到工具模式
+            on_token: 流式传输 token 的可选回调
+            **kwargs: 传递给 LLM API 的附加参数
 
         Note:
-            Summary field is always added to tool schemas for transparency and
-            explainability of agent actions.
+            摘要字段始终添加到工具模式中，以提高智能体操作的透明度和可解释性。
         """
-        # Select appropriate LLM
+        # 选择合适的LLM
         selected_model = self.select_llm(messages)
         self.active_llm = self.llms_for_routing[selected_model]
 
         logger.info(f"RouterLLM routing to {selected_model}...")
 
-        # Delegate to selected LLM.
+        # 委托给选定的 LLM。
         return self.active_llm.completion(
             messages=messages,
             tools=tools,
@@ -96,39 +92,38 @@ class RouterLLM(LLM):
 
     @abstractmethod
     def select_llm(self, messages: list[Message]) -> str:
-        """Select which LLM to use based on messages and events.
+        """根据消息和事件选择要使用的 LLM。
 
-        This method implements the core routing logic for the RouterLLM.
-        Subclasses should analyze the provided messages to determine which
-        LLM from llms_for_routing is most appropriate for handling the request.
+        该方法实现了RouterLLM的核心路由逻辑。 子类应该分析所提供的消息，以确定
+        llms_for_routing 中的哪个 LLM 最适合处理请求。
 
         Args:
-            messages: List of messages in the conversation that can be used
-                     to inform the routing decision.
+            messages: 对话中可以使用的消息列表
+                     通知路由决策。
 
         Returns:
-            The key/name of the LLM to use from llms_for_routing dictionary.
+            要使用 llms_for_routing 字典中的 LLM 的键/名称。
         """
 
     def __getattr__(self, name):
-        """Delegate other attributes/methods to the active LLM."""
+        """将其他属性/方法委托给活动的 LLM。"""
         fallback_llm = next(iter(self.llms_for_routing.values()))
         logger.info(f"RouterLLM: No active LLM, using first LLM for attribute '{name}'")
         return getattr(fallback_llm, name)
 
     def __str__(self) -> str:
-        """String representation of the router."""
+        """路由器的字符串表示形式。"""
         return f"{self.__class__.__name__}(llms={list(self.llms_for_routing.keys())})"
 
     @model_validator(mode="before")
     @classmethod
     def set_placeholder_model(cls, data):
-        """Guarantee `model` exists before LLM base validation runs."""
+        """保证 `model` 在 LLM 基验证运行之前存在。"""
         if not isinstance(data, dict):
             return data
         d = dict(data)
 
-        # In router, we don't need a model name to be specified
+        # 在路由器中，我们不需要指定型号名称
         if "model" not in d or not d["model"]:
             d["model"] = d.get("router_name", "router")
 

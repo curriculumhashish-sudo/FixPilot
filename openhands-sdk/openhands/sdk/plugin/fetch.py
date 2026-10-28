@@ -1,8 +1,8 @@
-"""Plugin fetching utilities for remote plugin sources.
+"""用于远程插件源的插件获取实用程序。
 
-Delegates to :mod:`openhands.sdk.extensions.fetch` for the actual fetch logic
-and re-raises errors as :class:`PluginFetchError` to preserve the existing
-public interface.
+委托：mod:`openhands.sdk.extensions.fetch` 执行实际的获取逻辑，并将错误重新引发为：
+class:`PluginFetchError` 以
+保留现有的公共接口。
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ _FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
 class PluginFetchError(Exception):
-    """Raised when fetching a plugin fails."""
+    """获取插件失败时引发。"""
 
 
 def _cached_pinned_plugin(
@@ -59,29 +59,29 @@ def fetch_plugin(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> Path:
-    """Fetch a plugin from a remote source and return the local cached path.
+    """从远程源获取插件并返回本地缓存路径。
 
     Args:
-        source: Plugin source - can be:
-            - Any git URL (GitHub, GitLab, Bitbucket, Codeberg, self-hosted, etc.)
-              e.g., "https://gitlab.com/org/repo", "git@bitbucket.org:team/repo.git"
-            - "github:owner/repo" - GitHub shorthand (convenience syntax)
-            - "/local/path" - Local path (returned as-is)
-        cache_dir: Directory for caching. Defaults to ~/.openhands/cache/plugins/
-        ref: Optional branch, tag, or commit to checkout.
-        update: If True and cache exists, update it. If False, use cached version as-is.
-        repo_path: Subdirectory path within the git repository
-            (e.g., 'plugins/my-plugin' for monorepos). Only relevant for git
-            sources, not local paths. If specified, the returned path will
-            point to this subdirectory instead of the repository root.
-        git_helper: GitHelper instance (for testing). Defaults to global instance.
+        source: 插件源 - 可以是：
+            - 任何 git URL（GitHub、GitLab、Bitbucket、Codeberg、自托管等）e.g., "
+            https://gitlab.com/org/repo",  "git@bitbucket.org:team/repo.git"
+            - "GitHub:owner/repo" - GitHub 简写（方便语法）
+            - “/local/path" - 本地路径（按原样返回）
+        cache_dir: 用于缓存的目录。 默认为~/.openhands/cache/plugins/
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。 如果 False，则按原样使用缓存版本。
+        repo_path: git 存储库中的子目录路径
+            （e.g., 'plugins/my-plugin' 用于 monorepos）。 仅与 git 源相关，与本地路
+            径无关。 如果指定，返回的路径将指
+            向该子目录而不是存储库根目录。
+        git_helper: GitHelper 实例（用于测试）。 默认为全局实例。
 
     Returns:
-        Path to the local plugin directory (ready for Plugin.load()).
-        If repo_path is specified, returns the path to that subdirectory.
+        本地插件目录的路径（为 Plugin.load() 做好准备）。 如果指定 repo_path，则返回
+        该子目录的路径。
 
     Raises:
-        PluginFetchError: If fetching fails or repo_path doesn't exist.
+        PluginFetchError: 如果获取失败或者repo_path不存在。
     """
     path, _ = fetch_plugin_with_resolution(
         source=source,
@@ -102,27 +102,26 @@ def fetch_plugin_with_resolution(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> tuple[Path, str | None]:
-    """Fetch a plugin and return both the path and the resolved commit SHA.
+    """获取插件并返回路径和已解析的提交 SHA。
 
-    This is similar to fetch_plugin() but also returns the actual commit SHA
-    that was checked out. This is useful for persistence - storing the resolved
-    SHA ensures that conversation resume gets exactly the same plugin version.
+    这与 fetch_plugin() 类似，但也返回已签出的实际提交 SHA。 这对于持久化很有用 - 存
+    储已解决的 SHA 确保对话恢复获得完全相同的插件版本。
 
     Args:
-        source: Plugin source (see fetch_plugin for formats).
-        cache_dir: Directory for caching. Defaults to ~/.openhands/cache/plugins/
-        ref: Optional branch, tag, or commit to checkout.
-        update: If True and cache exists, update it. If False, use cached version as-is.
-        repo_path: Subdirectory path within the git repository.
-        git_helper: GitHelper instance (for testing). Defaults to global instance.
+        source: 插件源（有关格式，请参阅 fetch_plugin）。
+        cache_dir: 用于缓存的目录。 默认为~/.openhands/cache/plugins/
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。 如果 False，则按原样使用缓存版本。
+        repo_path: git 存储库中的子目录路径。
+        git_helper: GitHelper 实例（用于测试）。 默认为全局实例。
 
     Returns:
-        Tuple of (path, resolved_ref) where:
-        - path: Path to the local plugin directory
-        - resolved_ref: Commit SHA that was checked out (None for local sources)
+        (path, resolved_ref) 的元组，其中：
+        - path: 本地插件目录的路径
+        - resolved_ref: 提交 SHA 已签出（None 表示本地源）
 
     Raises:
-        PluginFetchError: If fetching fails or repo_path doesn't exist.
+        PluginFetchError: 如果获取失败或者repo_path不存在。
     """
     resolved_cache_dir = cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR
     if ref is not None and _FULL_SHA_RE.fullmatch(ref):

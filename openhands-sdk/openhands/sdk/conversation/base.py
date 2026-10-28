@@ -58,83 +58,82 @@ CallbackType = TypeVar(
 
 
 class ConversationStateProtocol(Protocol):
-    """Protocol defining the interface for conversation state objects."""
+    """定义会话状态对象接口的协议。"""
 
     @property
     def id(self) -> ConversationID:
-        """The conversation ID."""
+        """对话 ID。"""
         ...
 
     @property
     def events(self) -> EventsListBase:
-        """Access to the events list."""
+        """访问事件列表。"""
         ...
 
     @property
     def execution_status(self) -> "ConversationExecutionStatus":
-        """The current conversation execution status."""
+        """当前会话执行状态。"""
         ...
 
     @property
     def confirmation_policy(self) -> ConfirmationPolicyBase:
-        """The confirmation policy."""
+        """确认政策。"""
         ...
 
     @property
     def security_analyzer(self) -> SecurityAnalyzerBase | None:
-        """The security analyzer."""
+        """安全分析器。"""
         ...
 
     @property
     def activated_knowledge_skills(self) -> list[str]:
-        """List of activated knowledge skills."""
+        """激活的知识技能列表。"""
         ...
 
     @property
     def invoked_skills(self) -> list[str]:
-        """Names of progressive-disclosure skills explicitly invoked."""
+        """明确调用的渐进式披露技能的名称。"""
         ...
 
     @property
     def workspace(self) -> BaseWorkspace:
-        """The workspace for agent operations and tool execution."""
+        """工作区用于智能体操作和工具执行。"""
         ...
 
     @property
     def persistence_dir(self) -> str | None:
-        """The persistence directory from the FileStore.
+        """FileStore 的持久化目录。
 
-        If None, it means the conversation is not being persisted.
+        如果为None，则表示对话不是已持久化。
         """
         ...
 
     @property
     def agent(self) -> "AgentBase":
-        """The agent running in the conversation."""
+        """对话中运行的智能体。"""
         ...
 
     @property
     def stats(self) -> ConversationStats:
-        """The conversation statistics."""
+        """会话统计。"""
         ...
 
     @property
     def hook_config(self) -> "HookConfig | None":
-        """The hook configuration for this conversation."""
+        """此对话的挂钩配置。"""
         ...
 
     @property
     def secret_registry(self) -> "SecretRegistry":
-        """The secret registry for this conversation."""
+        """此对话的机密注册表。"""
         ...
 
 
 class BaseConversation(ABC):
-    """Abstract base class for conversation implementations.
+    """对话实现的抽象基类。
 
-    This class defines the interface that all conversation implementations must follow.
-    Conversations manage the interaction between users and agents, handling message
-    exchange, execution control, and state management.
+    此类定义了所有对话实现必须遵循的接口。 对话管理用户和智能体之间的交互，处理消息交
+    换、执行控制和状态管理。
     """
 
     _cleanup_initiated: bool = False
@@ -142,32 +141,31 @@ class BaseConversation(ABC):
     _hook_processor: Any = None
 
     def __init__(self) -> None:
-        """Initialize the base conversation with span tracking."""
+        """使用跨度跟踪初始化基本对话。"""
         self._span_ended = False
         self._cleanup_initiated = False
         self._cleanup_complete = False
         self._hook_processor = None
-        # Owned root span. The ``observe`` decorator looks up this attribute
-        # (by name ``_observability_root_span``) on ``self`` at every entry
-        # point and re-attaches it via ``Laminar.use_span`` so that nested
-        # spans correctly join the conversation trace even when the method
-        # is called from a different asyncio task or thread than the one
-        # that constructed the conversation.
+        # 拥有根跨度。 的 ``observe`` 装饰器查找这个属性（通过名称）
+        # ``_observability_root_span``) on ``self`` 在每一步入口并重新附上它
+        # ``Laminar.use_span`` 以便嵌套的 span 正确地将会话跟踪连接起来，即使方法在不同
+        # 的 asyncio 任务中被调用时也是如此线程比构建对话的那个。
+        #
         self._observability_root_span: RootSpan | None = None
 
     @property
     def cleanup_initiated(self) -> bool:
-        """Whether conversation cleanup has started."""
+        """对话清理是否已开始。"""
         return self._cleanup_initiated
 
     @property
     def cleanup_complete(self) -> bool:
-        """Whether conversation cleanup has finished."""
+        """对话清理是否已完成。"""
         return self._cleanup_complete
 
     @property
     def hook_processor(self) -> Any:
-        """The active hook processor for the conversation, if configured."""
+        """对话的活动挂钩处理器（如果已配置）。"""
         return self._hook_processor
 
     def _start_observability_span(
@@ -180,20 +178,20 @@ class BaseConversation(ABC):
         conversation_tags: Mapping[str, str] | None = None,
         parent_span_context: str | None = None,
     ) -> None:
-        """Start a per-conversation observability root span.
+        """启动每个对话的可观察性根跨度。
 
         Args:
-            session_id: The session ID to associate with the trace
-            span_name: Optional child span name to emit under the conversation root.
-            user_id: Optional user ID to associate with the trace
-            metadata: Optional trace-level metadata to attach to observability backends
-            tags: Optional span tags to attach to the conversation root span
-            conversation_tags: Optional conversation tags to add as root span attributes
+            session_id: 与跟踪关联的会话 ID
+            span_name: 在对话根下发出的可选子范围名称。
+            user_id: 与跟踪关联的可选用户 ID
+            metadata: 附加到可观察性后端的可选跟踪级元数据
+            tags: 用于附加到对话根范围的可选范围标签
+            conversation_tags: 添加为根跨度属性的可选对话标签
         """
         if not should_enable_observability():
             return
         if self._observability_root_span is not None:
-            # Idempotent: never start two roots for one conversation.
+            # 幂等：永远不要为一次对话启动两个根。
             return
         default_span_name = default_observability_span_name_from_env()
         if default_span_name and span_name == "conversation":
@@ -218,7 +216,7 @@ class BaseConversation(ABC):
             start_child_span(self._observability_root_span, span_name, tags=tags)
 
     def _end_observability_span(self) -> None:
-        """End the observability span if it hasn't been ended already."""
+        """如果可观察性跨度尚未结束，则结束它。"""
         if self._span_ended:
             return
         if self._observability_root_span is not None:
@@ -240,52 +238,50 @@ class BaseConversation(ABC):
 
     @abstractmethod
     def send_message(self, message: str | Message, sender: str | None = None) -> None:
-        """Send a message to the agent.
+        """发送消息至智能体。
 
         Args:
-            message: Either a string (which will be converted to a user message)
-                    or a Message object
-            sender: Optional identifier of the sender. Can be used to track
-                   message origin in multi-agent scenarios. For example, when
-                   one agent delegates to another, the sender can be set to
-                   identify which agent is sending the message.
+            message: 一个字符串（将被转换为用户消息）
+                    或消息对象
+            sender: 发件人的可选标识符。 可用于追踪
+                   多智能体场景中的消息来源。 例如，当一个智能体委托给另一个时，可以
+                   将发送者设置为识别哪个智能体正在发送消息。
         """
         ...
 
     @abstractmethod
     def run(self) -> None:
-        """Execute the agent to process messages and perform actions.
+        """执行智能体来处理消息并执行操作。
 
-        This method runs the agent until it finishes processing the current
-        message or reaches the maximum iteration limit.
+        此方法运行智能体，直到完成当前消息的处理或达到最大迭代限制。
         """
         ...
 
     async def arun(self) -> None:
-        """Async variant of :meth:`run`.
+        """异步：meth:`run` 的变体。
 
-        Default implementation delegates to the synchronous ``run()``.
-        Subclasses (e.g., :class:`LocalConversation`) should override this
-        to use async agent steps for non-blocking LLM I/O.
+        默认实现委托给同步``run()``。 子类 (e.g., :class:`LocalConversation`) 应重写
+        此设置，以使用异步智能体个步骤进行
+        非阻塞 LLM I/O。
         """
         self.run()
 
     @contextlib.asynccontextmanager
     async def _released_state_lock_during_io(self) -> AsyncIterator[None]:
-        """Release any run-loop state lock across an awaited LLM call.
+        """在等待的 LLM 调用中释放任何运行循环状态锁。
 
-        No-op by default; :class:`LocalConversation` overrides it.
+        默认无操作； :class:`LocalConversation` 覆盖它。
         """
         yield
 
     @abstractmethod
     def set_confirmation_policy(self, policy: ConfirmationPolicyBase) -> None:
-        """Set the confirmation policy for the conversation."""
+        """设置对话的确认策略。"""
         ...
 
     @abstractmethod
     def set_security_analyzer(self, analyzer: SecurityAnalyzerBase | None) -> None:
-        """Set the security analyzer for the conversation."""
+        """设置对话的安全分析器。"""
         ...
 
     @property
@@ -294,11 +290,11 @@ class BaseConversation(ABC):
 
     @property
     def is_confirmation_mode_active(self) -> bool:
-        """Check if confirmation mode is active.
+        """检查确认模式是否处于活动状态。
 
-        Returns True if BOTH conditions are met:
-        1. The conversation state has a security analyzer set (not None)
-        2. The confirmation policy is active
+        如果满足 BOTH 条件，则返回 True：
+        1. 会话状态有安全分析器集（不是None）
+        2. 确认政策已生效
 
         """
         return (
@@ -314,22 +310,21 @@ class BaseConversation(ABC):
     def pause(self) -> None: ...
 
     def interrupt(self) -> None:
-        """Immediately cancel an in-flight ``arun()`` LLM call.
+        """立即取消飞行中的 ``arun()`` LLM 通话。
 
-        Unlike :meth:`pause`, which waits for the current LLM request to
-        finish, ``interrupt()`` cancels the asyncio task that is driving
-        ``arun()``, so the cancellation takes effect at the very next
-        ``await`` boundary — typically inside the streaming HTTP read.
+        与：meth:`pause` 不同，它等待当前 LLM 请求完成，``interrupt()`` 取消正在驱动
+        的 asyncio 任务
+        ``arun()``，所以取消在下一个生效
+        ``await`` 边界 — 通常在流式传输 HTTP 读取范围内。
 
-        If no async run is in progress (e.g. the synchronous ``run()`` is
-        active instead), the call silently falls back to :meth:`pause`.
+        如果没有异步运行正在进行中 (e.g. 同步 ``run()`` 处于活动状态），调用会默默地
+        退回到：meth:`pause`。
 
-        After an interrupt the conversation status is set to ``PAUSED``
-        and an :class:`~openhands.sdk.event.InterruptEvent` is emitted,
-        so the conversation can be resumed with a subsequent ``run()``
-        or ``arun()`` call.
+        在中断后，会话状态被设置为 ``PAUSED``，并发出
+        `~openhands.sdk.event.InterruptEvent` 类的事件，因此可以使用
+        后续的 ``run()`` 或 ``arun()`` 调用来恢复会话。
         """
-        # Default: fall back to pause for subclasses that don't override.
+        # 默认值：对于不覆盖的子类，回退到暂停。
         self.pause()
 
     @abstractmethod
@@ -340,18 +335,18 @@ class BaseConversation(ABC):
 
     @abstractmethod
     def generate_title(self, llm: LLM | None = None, max_length: int = 50) -> str:
-        """Generate a title for the conversation based on the first user message.
+        """根据第一条用户消息生成对话标题。
 
         Args:
-            llm: Optional LLM to use for title generation. If not provided,
-                 uses the agent's LLM.
-            max_length: Maximum length of the generated title.
+            llm: 可选 LLM 用于标题生成。 如果没有提供，
+                 使用智能体的 LLM。
+            max_length: 生成的标题的最大长度。
 
         Returns:
-            A generated title for the conversation.
+            为对话生成的标题。
 
         Raises:
-            ValueError: If no user messages are found in the conversation.
+            ValueError: 如果在对话中没有找到用户消息。
         """
         ...
 
@@ -359,93 +354,86 @@ class BaseConversation(ABC):
     def get_persistence_dir(
         persistence_base_dir: str | Path, conversation_id: ConversationID
     ) -> str:
-        """Get the persistence directory for the conversation.
+        """获取对话的持久化目录。
 
         Args:
-            persistence_base_dir: Base directory for persistence. Can be a string
-                path or Path object.
-            conversation_id: Unique conversation ID.
+            persistence_base_dir: 持久化的基目录。 可以是字符串
+                路径或路径对象。
+            conversation_id: 唯一的对话 ID。
 
         Returns:
-            String path to the conversation-specific persistence directory.
-            Always returns a normalized string path even if a Path was provided.
+            特定于会话的持久化目录的字符串路径。 即使提供了 Path，也始终返回规范化的
+            字符串路径。
         """
         return str(Path(persistence_base_dir) / conversation_id.hex)
 
     @abstractmethod
     def ask_agent(self, question: str) -> str:
-        """Ask the agent a simple, stateless question and get a direct LLM response.
+        """向智能体提出一个简单的、无状态的问题，并获得直接的 LLM 响应。
 
-        This bypasses the normal conversation flow and does **not** modify, persist,
-        or become part of the conversation state. The request is not remembered by
-        the main agent, no events are recorded, and execution status is untouched.
-        It is also thread-safe and may be called while `conversation.run()` is
-        executing in another thread.
+        这绕过了正常的对话流程，并且 ** 不 ** 修改持久化或成为对话状态的一部分。 主程
+        序智能体不会记住该请求，不会记录任何事件，并且执行状态不变。 它也是线
+        程安全，并且可以在 `conversation.run()` 在另一个线程中执行时被调用。
 
         Args:
-            question: A simple string question to ask the agent
+            question: 一个简单的字符串问题要问智能体
 
         Returns:
-            A string response from the agent
+            来自智能体的字符串响应
         """
         ...
 
     @abstractmethod
     def condense(self) -> None:
-        """Force condensation of the conversation history.
+        """强制对话历史记录上下文压缩。
 
-        This method uses the existing condensation request pattern to trigger
-        condensation. It adds a CondensationRequest event to the conversation
-        and forces the agent to take a single step to process it.
+        此方法使用现有的上下文压缩请求模式来触发上下文压缩。 它将 CondensationRequest
+         事件添加到对话中，并强制智能体采取单个步骤来处理它。
 
-        The condensation will be applied immediately and will modify the conversation
-        state by adding a condensation event to the history.
+        上下文压缩将立即应用，并将通过向历史记录添加上下文压缩事件来修改对话状态。
 
         Raises:
-            ValueError: If no condenser is configured or the condenser doesn't
-                       handle condensation requests.
+            ValueError: 如果没有配置上下文压缩器或者没有配置上下文压缩器
+                       处理上下文压缩个请求。
         """
         ...
 
     @abstractmethod
     def execute_tool(self, tool_name: str, action: Action) -> Observation:
-        """Execute a tool directly without going through the agent loop.
+        """直接执行工具，无需经过智能体循环。
 
-        This method allows executing tools before or outside of the normal
-        conversation.run() flow. It handles agent initialization automatically,
-        so tools can be executed before the first run() call.
+        此方法允许在正常 conversation.run() 流程之前或之外执行工具。 它自动处理智能体
+        初始化，因此可以在第一次 run() 调用之前执行工具。
 
-        Note: This method bypasses the agent loop, including confirmation
-        policies and security analyzer checks. Callers are responsible for
-        applying any safeguards before executing potentially destructive tools.
+        Note: 该方法绕过智能体循环，包括确认
+        策略和安全分析器检查。 调用者有责任在执行潜在破坏性工具之前应用任何保护措施。
 
-        This is useful for:
-        - Pre-run setup operations (e.g., indexing repositories)
-        - Manual tool execution for environment setup
-        - Testing tool behavior outside the agent loop
+        这对于：
+        - 预运行设置操作（e.g.，索引存储库）
+        - 用于环境设置的手动工具执行
+        - 测试智能体循环之外的工具行为
 
         Args:
-            tool_name: The name of the tool to execute (e.g., "sleeptime_compute")
-            action: The action to pass to the tool executor
+            tool_name: 要执行的工具的名称（e.g.，“sleeptime_compute”）
+            action: 传递给工具执行器的操作
 
         Returns:
-            The observation returned by the tool execution
+            工具执行返回的观测结果
 
         Raises:
-            KeyError: If the tool is not found in the agent's tools
-            NotImplementedError: If the tool has no executor
+            KeyError: 如果在智能体的工具中没有找到该工具
+            NotImplementedError: 如果该工具没有执行器
         """
         ...
 
     def load_plugin(self, plugin_ref: str) -> None:
-        """Load a plugin from a registered marketplace.
+        """从注册市场加载插件。
 
-        Implementations that support marketplace-registered plugins resolve the
-        reference against the conversation agent's registered marketplaces and
-        merge the plugin's skills, hooks, and MCP configuration into the agent.
+        支持市场注册插件的实现将参考对话智能体的注册市场，并将插件的技能、钩子和 MCP
+        配置合并到智能体。
 
         Args:
-            plugin_ref: Plugin reference, either ``plugin-name`` or
+            plugin_ref: 插件参考，``plugin-name`` 或
                 ``plugin-name@marketplace-name``.
         """
         raise NotImplementedError("This conversation does not support loading plugins")
@@ -461,59 +449,58 @@ class BaseConversation(ABC):
         reset_metrics: bool = True,
         from_event_id: EventID | None = None,
     ) -> "BaseConversation":
-        """Deep-copy this conversation with a new ID.
+        """使用新 ID 深度复制此对话。
 
-        Events are copied so the source remains immutable. The fork starts
-        in ``execution_status='idle'``; calling ``run()`` resumes from the
-        copied state — meaning the agent has full event memory of the source.
+        事件被复制，因此源保持不变。 分叉从``execution_status='idle'``开始； 调用
+        ``run()`` 从复制状态恢复 — 这意味着智能
+        体具有源的完整事件内存。
 
         Args:
-            conversation_id: ID for the forked conversation (auto-generated
+            conversation_id: 分叉对话的 ID（自动生成
                 if ``None``).
-            agent: Agent for the fork. Defaults to a deep-copy of the
-                source agent.
-            title: Deprecated on ``LocalConversation`` since 1.54.0 — has no
-                effect there and emits a ``DeprecationWarning``. Still
-                honoured by ``RemoteConversation`` (passed to the agent
-                server which stores it on ``StoredConversation``).
-            tags: Optional tags for the forked conversation.
-            reset_metrics: If ``True`` (default), cost/token stats start
-                fresh on the fork.
-            from_event_id: If set, copy only the branch up to this event and set
-                the fork's HEAD there. If ``None`` (default), full copy.
+            agent: 智能体为叉子。 默认为深层复制
+                来源智能体。
+            title: 自 1.54.0 起 ``LocalConversation`` 上的已弃用 — 没有
+                在那里起作用并发出 ``DeprecationWarning``。 仍然受到
+                ``RemoteConversation`` 的尊重（传递给
+                Agent Server，将其存储在 ``StoredConversation`` 上）。
+            tags: 分叉对话的可选标签。
+            reset_metrics: 如果 ``True``（默认），成本/代币统计开始
+                新鲜的在叉子上。
+            from_event_id: 如果设置，则仅复制到此事件的分支并设置
+                叉子就在那里HEAD。 如果 ``None``（默认），则完整副本。
 
         Returns:
-            A new conversation that shares the same event history but has
-            its own identity and independent state going forward.
+            一个新的对话，共享相同的事件历史，但有自己的身份和独立的状态。
         """
         ...
 
     @abstractmethod
     def navigate_to(self, event_id: EventID | None) -> None:
-        """Move the conversation HEAD to an existing event within this conversation.
+        """将对话 HEAD 移至该对话中的现有事件。
 
-        Re-roots the active branch in place: the agent's next context becomes
-        ``path_to_root(event_id)``. All branches stay on disk; unlike
-        :meth:`fork`, no new conversation is created.
+        将活动分支重新定位到位：智能体的下一个上下文变为
+        ``path_to_root(event_id)``. 所有分支都保留在磁盘上； 不像
+        :meth:`fork`，没有创建新对话。
 
         Args:
-            event_id: Event to make the new HEAD, or ``None`` for the empty tree.
+            event_id: 为空树创建新的 HEAD 或 ``None`` 的事件。
 
         Raises:
-            ValueError: If ``event_id`` is not ``None`` and not in this
-                conversation.
+            ValueError: 如果 ``event_id`` 不是 ``None`` 并且不在其中
+                谈话。
         """
         ...
 
     @staticmethod
     def compose_callbacks(callbacks: Iterable[CallbackType]) -> CallbackType:
-        """Compose multiple callbacks into a single callback function.
+        """将多个回调组合成一个回调函数。
 
         Args:
-            callbacks: An iterable of callback functions
+            callbacks: 回调函数的迭代
 
         Returns:
-            A single callback function that calls all provided callbacks
+            调用所有提供的回调的单个回调函数
         """
 
         def composed(event) -> None:

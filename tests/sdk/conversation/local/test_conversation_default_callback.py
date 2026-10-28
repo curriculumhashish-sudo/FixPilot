@@ -49,7 +49,7 @@ def test_default_callback_appends_on_init():
         agent=agent, callbacks=[lambda e: events_seen.append(e.id)]
     )
 
-    # Agent initialization is lazy - trigger it to generate SystemPromptEvent
+    # 智能体初始化是惰性的 - 触发它生成 SystemPromptEvent
     conversation._ensure_agent_ready()
 
     assert len(conversation.state.events) == 1
@@ -68,22 +68,21 @@ def test_send_message_appends_once():
 
     conversation.send_message(Message(role="user", content=[TextContent(text="hi")]))
 
-    # Now we should have two events: initial system prompt and the user message
+    # 现在我们应该有两个事件：初始系统提示词和用户消息
     assert len(conversation.state.events) == 2
     assert isinstance(conversation.state.events[-1], MessageEvent)
 
-    # Ensure the user message event is appended exactly once in state
+    # 确保用户消息事件在状态中准确附加一次
     last_id = conversation.state.events[-1].id
     assert sum(1 for e in conversation.state.events if e.id == last_id) == 1
 
-    # Ensure callback saw both events
+    # 确保回调看到了这两个事件
     assert set(seen_ids) == {e.id for e in conversation.state.events}
 
 
 def test_user_callback_runs_after_event_is_persisted():
-    """A user callback (e.g. a socket publish) must never see an event before
-    it is durable: it should already be able to resolve the event's sequence
-    number via ``EventLog.get_index``.
+    """用户回调 (e.g. 套接字发布）之前绝不能看到事件
+    它是持久的：它应该已经能够通过 ``EventLog.get_index`` 解析事件的序列号。
     """
     agent = ConversationDefaultCallbackDummyAgent()
     seen_indices: list[int] = []
@@ -101,8 +100,8 @@ def test_user_callback_runs_after_event_is_persisted():
 
 
 def test_persist_failure_blocks_downstream_callback():
-    """If persisting an event raises, no user callback runs for it: nothing is
-    announced for an event that never reached disk.
+    """如果引发持续事件，则没有用户回调为其运行：什么都没有
+    宣布了一个从未到达磁盘的事件。
     """
     agent = ConversationDefaultCallbackDummyAgent()
     seen_ids: list[str] = []
@@ -115,8 +114,8 @@ def test_persist_failure_blocks_downstream_callback():
     duplicate = conversation.state.events[0]
     assert seen_ids == [duplicate.id]
 
-    # Re-emitting an event whose ID is already in the log makes
-    # EventLog.append raise. The user callback must not see this attempt.
+    # 重新发出 ID 已在日志中的事件会使 EventLog.append 引发。 用户回调不得看到此尝试。
+    #
     with pytest.raises(ValueError, match="already exists"):
         conversation._on_event(duplicate)
 

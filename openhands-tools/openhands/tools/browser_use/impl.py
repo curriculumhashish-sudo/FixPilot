@@ -1,4 +1,4 @@
-"""Browser tool executor implementation using browser-use MCP server wrapper."""
+"""使用浏览器使用MCP服务器包装器实现浏览器工具执行器。"""
 
 from __future__ import annotations
 
@@ -40,17 +40,17 @@ F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
 def recording_aware(
     func: Callable[..., Coroutine[Any, Any, Any]],
 ) -> Callable[..., Coroutine[Any, Any, Any]]:
-    """Decorator that handles recording flush before/after navigation operations.
+    """处理导航操作之前/之后的记录刷新的装饰器。
 
-    This decorator:
-    1. Flushes recording events before the operation (to preserve them)
-    2. Executes the operation
-    3. Restarts recording on the new page if recording was active
+    这个装饰器：
+    1. 在操作之前刷新记录事件（以保留它们）
+    2. 执行操作
+    3. 如果录制处于活动状态，则在新页面上重新开始录制
 
-    Error Handling Policy (see recording.py module docstring for full details):
-    - Recording is a secondary feature that should never block browser operations
-    - AttributeError: silent pass (recording not initialized - expected)
-    - Other exceptions: log at DEBUG, don't interrupt navigation
+    错误处理策略（有关完整详细信息，请参阅 recording.py 模块文档字符串）：
+    - 录制是次要功能，不应阻止浏览器操作
+    - AttributeError: 无声通过（录音未初始化 - 预期）
+    - 其他例外：登录DEBUG，不中断导航
     """
 
     @functools.wraps(func)
@@ -60,10 +60,10 @@ def recording_aware(
             try:
                 await self._server._flush_recording_events()
             except AttributeError:
-                # Recording not initialized - expected, silent pass
+                # 录音未初始化 - 预期，静默通过
                 pass
             except Exception as e:
-                # Internal operation: log at DEBUG, don't interrupt navigation
+                # 内部操作：登录DEBUG，不中断导航
                 logger.debug(f"Recording flush before {func.__name__} skipped: {e}")
 
         result = await func(self, *args, **kwargs)
@@ -72,10 +72,10 @@ def recording_aware(
             try:
                 await self._server._restart_recording_on_new_page()
             except AttributeError:
-                # Recording not initialized - expected, silent pass
+                # 录音未初始化 - 预期，静默通过
                 pass
             except Exception as e:
-                # Internal operation: log at DEBUG, don't interrupt navigation
+                # 内部操作：登录DEBUG，不中断导航
                 logger.debug(f"Recording restart after {func.__name__} skipped: {e}")
 
         return result
@@ -83,7 +83,7 @@ def recording_aware(
     return wrapper
 
 
-# Suppress browser-use logging for cleaner integration
+# 禁止浏览器使用日志记录以实现更清晰的集成
 if DEBUG:
     logging.getLogger("browser_use").setLevel(logging.DEBUG)
 else:
@@ -92,11 +92,11 @@ else:
 logger = get_logger(__name__)
 
 DEFAULT_BROWSER_ACTION_TIMEOUT_SECONDS: Final[float] = 300.0
-# After this many consecutive failures, reset the browser session
-# (assumes the browser has crashed or become unrecoverable).
+# 在连续多次失败后，重置浏览器会话（假设浏览器已崩溃或变得不可恢复）。
+#
 MAX_CONSECUTIVE_FAILURES: Final[int] = 3
-# Shorter timeout used after a failure to avoid long cascading waits
-# against a dead browser.
+# 在失败后使用较短的超时来避免针对死浏览器的长时间级联等待。
+#
 DEGRADED_TIMEOUT_SECONDS: Final[float] = 30.0
 
 
@@ -147,9 +147,9 @@ def _standard_chromium_paths(platform: str | None = None) -> list[Path]:
 
 
 def _playwright_cache_dirs(platform: str | None = None) -> list[Path]:
-    # Playwright installs browsers into $PLAYWRIGHT_BROWSERS_PATH when set.
-    # "0" is its special value for browsers inside the installed package,
-    # which is not a directory path, so it is ignored here.
+    # 设置后，Playwright 将浏览器安装到 $PLAYWRIGHT_BROWSERS_PATH 中。 “0”是安装包内浏览
+    # 器的特殊值，不是目录路径，所以这里忽略。
+    #
     dirs: list[Path] = []
     if (browsers_path := os.environ.get("PLAYWRIGHT_BROWSERS_PATH")) and (
         browsers_path != "0"
@@ -235,7 +235,7 @@ def _format_browser_operation_error(
 
 
 def _get_chromium_error_message() -> str:
-    """Get the error message for when Chromium is not available."""
+    """获取 Chromium 不可用时的错误消息。"""
     return (
         "Chromium is required for browser operations but is not installed.\n\n"
         "To install Chromium, run one of the following commands:\n"
@@ -251,7 +251,7 @@ def _get_chromium_error_message() -> str:
 
 
 class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
-    """Executor that wraps browser-use MCP server for OpenHands integration."""
+    """包装浏览器使用的 MCP 服务器以进行 OpenHands 集成的执行器。"""
 
     _server: CustomBrowserUseServer
     _config: dict[str, Any]
@@ -264,18 +264,19 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
     @staticmethod
     @functools.cache
     def check_chromium_available() -> str | None:
-        """Check if a Chromium/Chrome binary is available.
+        """检查 Chromium/Chrome 二进制文件是否可用。
 
         Returns:
-            Path to Chromium binary if found, None otherwise
+            如果找到 Chromium 二进制文件的路径，否则为 None
         """
-        # Check standard installation paths (prefer full Chrome installs)
+        # 检查标准安装路径（最好安装完整的 Chrome）
         for path in _standard_chromium_paths():
             if path.exists():
                 return str(path)
 
-        # Check Playwright-installed Chromium (preferred over PATH lookups
-        # because PATH binaries like homebrew chromium may lack CDP support)
+        # 检查 Playwright 安装的 Chromium（优于 PATH 查找，因为像自制 chromium 这样的
+        # PATH 二进制文件可能缺乏 CDP 支持）
+        #
         for playwright_cache in _playwright_cache_dirs():
             if playwright_cache.exists():
                 chromium_dirs = list(playwright_cache.glob("chromium-*"))
@@ -284,7 +285,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                         if path.exists():
                             return str(path)
 
-        # Fallback: check PATH for any chromium-based binary
+        # 回退方案：检查 PATH 是否有任何基于 chromium 的二进制文件
         for binary in _path_binary_candidates():
             if path := shutil.which(binary):
                 return path
@@ -292,16 +293,16 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         return None
 
     def _ensure_chromium_available(self) -> str:
-        """Ensure Chromium is available for browser operations.
+        """确保 Chromium 可用于浏览器操作。
 
         Raises:
-            Exception: If Chromium is not available
+            Exception: 如果 Chromium 不可用
         """
         if path := self.check_chromium_available():
             logger.info(f"Chromium is available for browser operations at {path}")
             return path
 
-        # Chromium not available - provide clear installation instructions
+        # Chromium 不可用 - 提供清晰的安装说明
         raise Exception(_get_chromium_error_message())
 
     def __init__(
@@ -315,21 +316,21 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         inject_scripts: list[str] | None = None,
         **config,
     ):
-        """Initialize BrowserToolExecutor with timeout protection.
+        """使用超时保护初始化 BrowserToolExecutor。
 
         Args:
-            headless: Whether to run browser in headless mode
-            allowed_domains: List of allowed domains for browser operations
-            session_timeout_minutes: Browser session timeout in minutes
-            init_timeout_seconds: Timeout for browser initialization in seconds
-            action_timeout_seconds: Timeout for each browser action in seconds
-            full_output_save_dir: Absolute path to directory to save full output
-                logs and files, used when truncation is needed.
-            inject_scripts: List of JavaScript code strings to inject into every
-                new document. Scripts are injected via CDP's
-                Page.addScriptToEvaluateOnNewDocument and run before page scripts.
-                Useful for injecting recording tools like rrweb.
-            **config: Additional configuration options
+            headless: 是否以无头模式运行浏览器
+            allowed_domains: 浏览器操作允许的域列表
+            session_timeout_minutes: 浏览器会话超时（分钟）
+            init_timeout_seconds: 超时浏览器初始化（以秒为单位）
+            action_timeout_seconds: 超时每个浏览器操作（以秒为单位）
+            full_output_save_dir: 用于保存完整输出的目录的绝对路径
+                日志和文件，在需要截断时使用。
+            inject_scripts: 要注入每个的 JavaScript 代码字符串列表
+                新文件。 脚本通过 CDP 的 Page.addScriptToEvaluateOnNewDocument 注入并
+                在页面脚本之前运行。 对于
+                注入 rrweb 等记录工具很有用。
+            **config: 附加配置选项
         """
 
         self._close_lock = threading.Lock()
@@ -339,16 +340,16 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             self._server = CustomBrowserUseServer(
                 session_timeout_minutes=session_timeout_minutes,
             )
-            # Configure scripts to inject
+            # 配置注入脚本
             if inject_scripts:
                 self._server.set_inject_scripts(inject_scripts)
 
-            # Chromium refuses to run as root with sandboxing enabled.
-            # Disable the sandbox when running as root so CHROME_DOCKER_ARGS
-            # (--no-sandbox, --disable-setuid-sandbox, etc.) are applied.
-            # SECURITY: Running Chrome as root without a sandbox is risky
-            # - a compromised browser has full root access. Use only in
-            # controlled environments.
+            # Chromium 拒绝在启用沙箱的情况下以 root 身份运行。 以 root 身份运行时禁用沙
+            # 箱，因此应用 CHROME_DOCKER_ARGS（--no-sandbox、--disable-setuid-sandbox 等
+            # ）。
+            # SECURITY：在没有沙箱的情况下以 root 身份运行 Chrome 是有风险的
+            # - 受感染的浏览器具有完全的 root 访问权限。 仅用于
+            # 受控环境。
             getuid = getattr(os, "getuid", None)
             running_as_root = getuid is not None and getuid() == 0
             if running_as_root:
@@ -390,9 +391,10 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         action: BrowserAction,
         conversation: LocalConversation | None = None,  # noqa: ARG002
     ):
-        """Submit an action to run in the background loop and wait for result."""
-        # Use a shorter timeout on the last retry before a reset would trigger,
-        # to avoid long cascading waits against a dead browser.
+        """提交一个操作以在后台循环中运行并等待结果。"""
+        # 在触发重置之前，在最后一个重试上使用较短的超时，以避免针对死浏览器的长时间级联
+        # 等待。
+        #
         effective_timeout = (
             DEGRADED_TIMEOUT_SECONDS
             if self._consecutive_failures >= MAX_CONSECUTIVE_FAILURES - 1
@@ -406,10 +408,9 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 timeout=effective_timeout,
             )
         except builtins.TimeoutError as error:
-            # Timeouts indicate the browser may be dead/hung — track them
-            # for crash detection. Regular action errors (invalid selector,
-            # missing element) are NOT counted since those are normal agent
-            # mistakes, not browser crashes.
+            # 超时指示浏览器可能已死/挂起 - 跟踪它们以进行崩溃检测。 常规操作错误（无效
+            # 选择器、缺少元素）被计入不，因为这些是正常的智能体错误，而不是浏览器崩溃。
+            #
             return self._handle_timeout_failure(
                 _format_browser_operation_error(
                     error, timeout_seconds=effective_timeout
@@ -420,7 +421,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         return result
 
     def _handle_timeout_failure(self, error_text: str) -> BrowserObservation:
-        """Track consecutive timeout failures and reset session if needed."""
+        """跟踪连续的超时失败并根据需要重置会话。"""
         self._consecutive_failures += 1
         logger.debug(
             "Browser timeout failure %d/%d",
@@ -434,9 +435,9 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 "Resetting session for automatic recovery.",
                 self._consecutive_failures,
             )
-            # Best-effort cleanup of the old browser process/session.
-            # If the browser truly crashed this will fail fast; if it's
-            # wedged this avoids leaking the process.
+            # 尽最大努力清理旧浏览器进程/会话。 如果浏览器真的崩溃了，这将很快失败； 如
+            # 果它是楔入的，则可以避免泄漏过程。
+            #
             try:
                 self._async_executor.run_async(self.cleanup, timeout=5.0)
             except Exception as e:
@@ -461,7 +462,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         )
 
     async def _execute_action(self, action):
-        """Execute browser action asynchronously."""
+        """异步执行浏览器操作。"""
         from openhands.tools.browser_use.definition import (
             BrowserClickAction,
             BrowserCloseTabAction,
@@ -482,7 +483,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
 
         try:
             result = ""
-            # Route to appropriate method based on action type
+            # 根据操作类型路由到适当的方法
             if isinstance(action, BrowserNavigateAction):
                 result = await self.navigate(action.url, action.new_tab)
             elif isinstance(action, BrowserClickAction):
@@ -536,47 +537,47 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             )
 
     async def _ensure_initialized(self):
-        """Ensure browser session is initialized."""
+        """确保浏览器会话已初始化。"""
         if not self._initialized:
-            # Initialize browser session with our config
+            # 使用我们的配置初始化浏览器会话
             await self._server._init_browser_session(**self._config)
-            # Inject any configured user scripts after session is ready
-            # Note: rrweb scripts are injected lazily when recording starts
+            # 会话准备好后注入任何配置的用户脚本
+            # 注意： rrweb 脚本在录制开始时延迟注入
             await self._server._inject_scripts_to_session()
             self._initialized = True
 
-    # Navigation & Browser Control Methods
+    # 导航和浏览器控制方法
     @recording_aware
     async def navigate(self, url: str, new_tab: bool = False) -> str:
-        """Navigate to a URL."""
+        """导航至 URL。"""
         await self._ensure_initialized()
         return await self._server._navigate(url, new_tab)
 
     @recording_aware
     async def go_back(self) -> str:
-        """Go back in browser history."""
+        """返回浏览器历史记录。"""
         await self._ensure_initialized()
         return await self._server._go_back()
 
-    # Page Interaction
+    # 页面交互
     @recording_aware
     async def click(self, index: int, new_tab: bool = False) -> str:
-        """Click an element by index."""
+        """按索引单击元素。"""
         await self._ensure_initialized()
         return await self._server._click(index, new_tab)
 
     async def type_text(self, index: int, text: str) -> str:
-        """Type text into an element."""
+        """在元素中键入文本。"""
         await self._ensure_initialized()
         return await self._server._type_text(index, text)
 
     async def scroll(self, direction: str = "down") -> str:
-        """Scroll the page."""
+        """滚动页面。"""
         await self._ensure_initialized()
         return await self._server._scroll(direction)
 
     async def get_state(self, include_screenshot: bool = False):
-        """Get current browser state with interactive elements."""
+        """通过交互元素获取当前浏览器状态。"""
         from openhands.tools.browser_use.definition import BrowserObservation
 
         await self._ensure_initialized()
@@ -587,7 +588,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 result_data = json.loads(result_json)
                 screenshot_data = result_data.pop("screenshot", None)
 
-                # Return clean JSON + separate screenshot data
+                # 返回干净的JSON+单独的屏幕截图数据
                 clean_json = json.dumps(result_data, indent=2)
                 return BrowserObservation.from_text(
                     text=clean_json,
@@ -596,7 +597,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                     full_output_save_dir=self.full_output_save_dir,
                 )
             except json.JSONDecodeError:
-                # If JSON parsing fails, return as-is
+                # 如果JSON解析失败，则按原样返回
                 pass
 
         return BrowserObservation.from_text(
@@ -606,46 +607,45 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         )
 
     async def get_storage(self) -> str:
-        """Get browser storage (cookies, local storage, session storage)."""
+        """获取浏览器存储（cookie、本地存储、会话存储）。"""
         await self._ensure_initialized()
         return await self._server._get_storage()
 
     async def set_storage(self, storage_state: dict) -> str:
-        """Set browser storage (cookies, local storage, session storage)."""
+        """设置浏览器存储（cookie、本地存储、会话存储）。"""
         await self._ensure_initialized()
         return await self._server._set_storage(storage_state)
 
-    # Tab Management
+    # 标签管理
     async def list_tabs(self) -> str:
-        """List all open tabs."""
+        """列出所有打开的选项卡。"""
         await self._ensure_initialized()
         return await self._server._list_tabs()
 
     async def switch_tab(self, tab_id: str) -> str:
-        """Switch to a different tab."""
+        """切换到不同的选项卡。"""
         await self._ensure_initialized()
         return await self._server._switch_tab(tab_id)
 
     async def close_tab(self, tab_id: str) -> str:
-        """Close a specific tab."""
+        """关闭特定选项卡。"""
         await self._ensure_initialized()
         return await self._server._close_tab(tab_id)
 
     # Content Extraction
     async def get_content(self, extract_links: bool, start_from_char: int) -> str:
-        """Extract page content, optionally with links."""
+        """提取页面内容，可以选择包含链接。"""
         await self._ensure_initialized()
         return await self._server._get_content(
             extract_links=extract_links, start_from_char=start_from_char
         )
 
-    # Session Recording
+    # 会话录音
     async def start_recording(self) -> str:
-        """Start recording the browser session using rrweb.
+        """使用 rrweb 开始记录浏览器会话。
 
-        Recording events are periodically flushed to timestamped JSON files
-        in a session subfolder under BROWSER_RECORDING_OUTPUT_DIR.
-        Events are flushed every 5 seconds.
+        记录事件会定期刷新到 BROWSER_RECORDING_OUTPUT_DIR 下会话子文件夹中带时间戳的
+        JSON 文件。 事件每 5 秒刷新一次。
         """
         await self._ensure_initialized()
         return await self._server._start_recording(
@@ -653,17 +653,16 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         )
 
     async def stop_recording(self) -> str:
-        """Stop recording and save remaining events to file.
+        """停止记录并将剩余事件保存到文件中。
 
-        Stops the periodic flush, collects any remaining events, and saves
-        them to a final numbered JSON file. Returns a summary message with
-        the total events and file count.
+        停止定期刷新，收集所有剩余事件，并将它们保存到最终编号为 JSON 的文件中。 返回
+        包含事件总数和文件计数的摘要消息。
         """
         await self._ensure_initialized()
         return await self._server._stop_recording()
 
     async def close_browser(self) -> str:
-        """Close the browser session."""
+        """关闭浏览器会话。"""
         if self._initialized:
             result = await self._server._close_browser()
             self._initialized = False
@@ -671,14 +670,14 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         return "No browser session to close"
 
     async def cleanup(self):
-        """Cleanup browser resources."""
+        """清理浏览器资源。"""
         try:
-            # Use _close_all_sessions instead of close_browser because it calls
-            # session.kill() which properly stops the event bus and drains
-            # pending events (including BrowserKillEvent that terminates the
-            # Chromium subprocess). close_browser() alone dispatches
-            # BrowserKillEvent fire-and-forget and returns before it's processed,
-            # which can leave the browser process alive.
+            # 使用 _close_all_sessions instead of close_browser 因为它调用了一个函数
+            # session.kill() 正确地停止事件总线并清除所有待处理事件（包括
+            # BrowserKillEvent 终止 Chromium 的那个子进程). close_browser() 单独执行
+            # BrowserKillEvent fire-and-forget 和在未处理之前就返回，这可能会让浏览器进
+            # 程保持运行。
+            #
             if hasattr(self._server, "_close_all_sessions"):
                 await self._server._close_all_sessions()
             else:
@@ -687,7 +686,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
             logger.warning(f"Error during browser cleanup: {e}")
 
     def close(self):
-        """Close the browser executor and cleanup resources."""
+        """关闭浏览器执行器并清理资源。"""
         with self._close_lock:
             shared_close_lock_acquired = self._detach_shared_executor_for_close()
             if self._cleanup_initiated:
@@ -696,13 +695,14 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 return
             self._cleanup_initiated = True
             try:
-                # Run cleanup in the async executor with a shorter timeout
+                # 使用较短的超时在异步执行器中运行清理
                 self._async_executor.run_async(self.cleanup, timeout=30.0)
             except Exception as e:
                 logger.warning(f"Error during browser cleanup: {e}")
             finally:
-                # Remove the browser profile directory to avoid disk accumulation.
-                # browser_use doesn't clean up the user_data_dir on shutdown.
+                # 删除浏览器配置文件目录以避免磁盘堆积。 browser_use 不会在关闭时清除
+                # user_data_dir。
+                #
                 user_data_dir = self._config.get("user_data_dir")
                 if user_data_dir and "browseruse/profiles/" in user_data_dir:
                     try:
@@ -710,7 +710,7 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                     except Exception:
                         pass
                 try:
-                    # Always close the async executor
+                    # 始终关闭异步执行器
                     self._async_executor.close()
                 finally:
                     if shared_close_lock_acquired:
@@ -740,10 +740,10 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
         BrowserToolSet._shared_executor_creation_lock.release()
 
     def _release_shared_executor_reference(self):
-        # Avoid taking the shared executor lock for ordinary/stale executors.
-        # __del__ can run while BrowserToolSet.create() is creating a new shared
-        # executor; a stale executor finalizer trying to acquire the same lock can
-        # deadlock that create path, especially on Windows.
+        # 避免将共享执行器锁用作普通/陈旧的执行器。 __del__ 可以在 BrowserToolSet.create
+        # () 创建新的共享执行器时运行； 过时的执行器终结器试图获取与创建路径相同的锁 can
+        #  死锁，尤其是在 Windows 上。
+        #
         from openhands.tools.browser_use.definition import BrowserToolSet
 
         if BrowserToolSet._shared_executor is not self:
@@ -753,8 +753,8 @@ class BrowserToolExecutor(ToolExecutor[BrowserAction, BrowserObservation]):
                 BrowserToolSet._shared_executor = None
 
     def __del__(self):
-        """Cleanup on deletion."""
+        """删除时清理。"""
         try:
             self.close()
         except Exception:
-            pass  # Ignore cleanup errors during deletion
+            pass  # 忽略删除期间的清理错误

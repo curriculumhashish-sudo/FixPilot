@@ -1,4 +1,4 @@
-"""Tests for event_router.py endpoints."""
+"""测试 event_router.py 端点。"""
 
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -25,7 +25,7 @@ from openhands.sdk.llm.message import ImageContent, TextContent
 
 
 def test_normalize_datetime_naive_passthrough():
-    """Naive datetimes should be returned unchanged."""
+    """天真的日期时间应原样返回。"""
     naive_dt = datetime(2025, 1, 15, 10, 30, 0)
     result = normalize_datetime_to_server_timezone(naive_dt)
 
@@ -34,7 +34,7 @@ def test_normalize_datetime_naive_passthrough():
 
 
 def test_normalize_datetime_utc_converted_to_naive():
-    """UTC datetime should be converted to server local time and made naive."""
+    """UTC 日期时间应转换为服务器本地时间并使其变得简单。"""
     utc_dt = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
     result = normalize_datetime_to_server_timezone(utc_dt)
 
@@ -44,7 +44,7 @@ def test_normalize_datetime_utc_converted_to_naive():
 
 
 def test_normalize_datetime_preserves_microseconds():
-    """Microseconds should be preserved through conversion."""
+    """应通过转换保留微秒。"""
     utc_dt = datetime(2025, 1, 15, 10, 30, 0, 123456, tzinfo=UTC)
     result = normalize_datetime_to_server_timezone(utc_dt)
 
@@ -52,7 +52,7 @@ def test_normalize_datetime_preserves_microseconds():
 
 
 def test_normalize_datetime_fixed_offset_timezone():
-    """Test with a specific fixed offset timezone (UTC+5:30)."""
+    """使用特定的固定偏移时区 (UTC+5:30) 进行测试。"""
     ist = timezone(timedelta(hours=5, minutes=30))
     ist_dt = datetime(2025, 1, 15, 16, 0, 0, tzinfo=ist)
 
@@ -65,7 +65,7 @@ def test_normalize_datetime_fixed_offset_timezone():
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
     app = FastAPI()
     app.include_router(event_router, prefix="/api")
     return TestClient(app)
@@ -73,27 +73,27 @@ def client():
 
 @pytest.fixture
 def sample_conversation_id():
-    """Return a sample conversation ID."""
+    """返回示例对话 ID。"""
     return uuid4()
 
 
 @pytest.fixture
 def mock_event_service():
-    """Create a mock EventService for testing."""
+    """创建模拟对象 EventService 进行测试。"""
     service = AsyncMock(spec=EventService)
     service.send_message = AsyncMock()
     return service
 
 
 class TestSendMessageEndpoint:
-    """Test cases for the send_message endpoint."""
+    """测试用例为send_message端点。"""
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_true(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test send_message endpoint with run=True."""
-        # Override the dependency to return our mock
+        """使用 run=True 测试 send_message 端点。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
@@ -110,7 +110,7 @@ class TestSendMessageEndpoint:
             assert response.status_code == 200
             assert response.json() == {"success": True}
 
-            # Verify send_message was called with correct parameters
+            # 验证使用正确的参数调用 send_message
             mock_event_service.send_message.assert_called_once()
             call_args = mock_event_service.send_message.call_args
             message, run_flag = call_args[0]
@@ -122,15 +122,15 @@ class TestSendMessageEndpoint:
             assert message.content[0].text == "Hello, world!"
             assert run_flag is True
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_with_run_false(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test send_message endpoint with run=False."""
-        # Override the dependency to return our mock
+        """使用 run=False 测试 send_message 端点。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
@@ -147,7 +147,7 @@ class TestSendMessageEndpoint:
             assert response.status_code == 200
             assert response.json() == {"success": True}
 
-            # Verify send_message was called with run=False
+            # 验证 send_message 是通过 run=False 调用的
             mock_event_service.send_message.assert_called_once()
             call_args = mock_event_service.send_message.call_args
             message, run_flag = call_args[0]
@@ -156,19 +156,19 @@ class TestSendMessageEndpoint:
             assert message.role == "assistant"
             assert run_flag is False
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_default_run_value(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test send_message endpoint with default run value."""
-        # Override the dependency to return our mock
+        """使用默认运行值测试 send_message 端点。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Request without run field should use default value
+            # 没有运行字段的请求应使用默认值
             request_data = {
                 "role": "user",
                 "content": [{"type": "text", "text": "Test message"}],
@@ -181,23 +181,23 @@ class TestSendMessageEndpoint:
             assert response.status_code == 200
             assert response.json() == {"success": True}
 
-            # Verify send_message was called with default run value (False)
+            # 验证使用默认运行值 (False) 调用 send_message
             mock_event_service.send_message.assert_called_once()
             call_args = mock_event_service.send_message.call_args
             message, run_flag = call_args[0]
 
             assert isinstance(message, Message)
             assert message.role == "user"
-            assert run_flag is False  # Default value from SendMessageRequest
+            assert run_flag is False  # 默认值来自 SendMessageRequest
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_conversation_not_found(
         self, client, sample_conversation_id
     ):
-        """Test send_message endpoint when conversation is not found."""
+        """当未找到对话时测试 send_message 端点。"""
         from fastapi import HTTPException, status
 
         def raise_not_found():
@@ -206,7 +206,7 @@ class TestSendMessageEndpoint:
                 detail=f"Conversation not found: {sample_conversation_id}",
             )
 
-        # Override the dependency to raise HTTPException
+        # 重写依赖以 HTTPException
         client.app.dependency_overrides[get_event_service] = raise_not_found
 
         try:
@@ -222,19 +222,19 @@ class TestSendMessageEndpoint:
 
             assert response.status_code == 404
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_with_different_content_types(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test send_message endpoint with different content types."""
-        # Override the dependency to return our mock
+        """使用不同的内容类型测试 send_message 端点。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Test with multiple content items
+            # 使用多个内容项进行测试
             request_data = {
                 "role": "user",
                 "content": [
@@ -251,7 +251,7 @@ class TestSendMessageEndpoint:
             assert response.status_code == 200
             assert response.json() == {"success": True}
 
-            # Verify message content was parsed correctly
+            # 验证消息内容是否正确解析
             mock_event_service.send_message.assert_called_once()
             call_args = mock_event_service.send_message.call_args
             message, run_flag = call_args[0]
@@ -265,15 +265,15 @@ class TestSendMessageEndpoint:
             assert text_content[1].text == "Second part"
             assert run_flag is False
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_with_system_role(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test send_message endpoint with system role."""
-        # Override the dependency to return our mock
+        """使用系统角色测试 send_message 端点。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
@@ -290,7 +290,7 @@ class TestSendMessageEndpoint:
             assert response.status_code == 200
             assert response.json() == {"success": True}
 
-            # Verify system message was processed correctly
+            # 验证系统消息是否已正确处理
             mock_event_service.send_message.assert_called_once()
             call_args = mock_event_service.send_message.call_args
             message, run_flag = call_args[0]
@@ -299,19 +299,19 @@ class TestSendMessageEndpoint:
             assert message.role == "system"
             assert run_flag is True
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_send_message_invalid_request_data(
         self, client, sample_conversation_id
     ):
-        """Test send_message endpoint with invalid request data."""
-        # Override the dependency (though it shouldn't be called for validation errors)
+        """使用无效请求数据测试 send_message 端点。"""
+        # 覆盖依赖项（尽管不应该因验证错误而调用它）
         client.app.dependency_overrides[get_event_service] = lambda: None
 
         try:
-            # Test with invalid role value
+            # 使用无效的角色值进行测试
             invalid_role_data = {
                 "role": "invalid_role",
                 "content": [{"type": "text", "text": "Hello"}],
@@ -323,12 +323,12 @@ class TestSendMessageEndpoint:
                 json=invalid_role_data,
             )
 
-            assert response.status_code == 422  # Validation error
+            assert response.status_code == 422  # 验证错误
 
-            # Test with invalid content structure
+            # 使用无效的内容结构进行测试
             invalid_content_data = {
                 "role": "user",
-                "content": "invalid_content_should_be_list",  # Should be a list
+                "content": "invalid_content_should_be_list",  # 应该是一个列表
                 "run": True,
             }
 
@@ -337,9 +337,9 @@ class TestSendMessageEndpoint:
                 json=invalid_content_data,
             )
 
-            assert response.status_code == 422  # Validation error
+            assert response.status_code == 422  # 验证错误
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     def test_create_message(self):
@@ -357,42 +357,43 @@ class TestSendMessageEndpoint:
 
 
 class TestSearchEventsEndpoint:
-    """Test cases for the search events endpoint with timestamp filtering."""
+    """测试用例用于具有时间戳过滤的搜索事件端点。"""
 
     @pytest.mark.asyncio
     async def test_search_events_with_naive_datetime(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test search events with naive datetime (no timezone)."""
-        # Override the dependency to return our mock
+        """使用简单的日期时间（无时区）测试搜索事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test with naive datetime
+            # 使用朴素日期时间进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
-                    "timestamp__gte": "2025-01-01T12:00:00",  # Naive datetime string
+                    "timestamp__gte": "2025-01-01T12:00:00",  # 天真的日期时间字符串
                     "limit": 10,
                 },
             )
 
             assert response.status_code == 200
             mock_event_service.search_events.assert_called_once()
-            # Verify that the datetime was normalized (converted to datetime object)
+            # 验证日期时间是否已标准化（转换为日期时间对象）
             call_args = mock_event_service.search_events.call_args
-            # Check args: (page_id, limit, kind, source, body, sort_order,
-            # timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 7  # Should have at least 7 positional args
-            assert call_args[0][6] is not None  # timestamp__gte should be normalized
-            assert call_args[0][7] is None  # timestamp__lt should be None
+            # 检查参数：(page_id、限制、种类、来源、正文、sort_order、timestamp__gte、
+            # timestamp__lt)
+            #
+            assert len(call_args[0]) >= 7  # 应该至少有 7 个位置参数
+            assert call_args[0][6] is not None  # timestamp__gte 应该标准化
+            assert call_args[0][7] is None  # timestamp__lt 应该是 None
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
@@ -400,54 +401,55 @@ class TestSearchEventsEndpoint:
     async def test_search_events_with_timezone_aware_datetime(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test search events with timezone-aware datetime."""
-        # Override the dependency to return our mock
+        """使用时区感知的日期时间测试搜索事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test with timezone-aware datetime (UTC)
+            # 使用时区感知日期时间进行测试 (UTC)
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
-                    "timestamp__gte": "2025-01-01T12:00:00Z",  # UTC timezone
+                    "timestamp__gte": "2025-01-01T12:00:00Z",  # UTC 时区
                     "limit": 10,
                 },
             )
 
             assert response.status_code == 200
             mock_event_service.search_events.assert_called_once()
-            # Verify that the datetime was normalized
+            # 验证日期时间是否已标准化
             call_args = mock_event_service.search_events.call_args
-            # Check args: (page_id, limit, kind, source, body, sort_order,
-            # timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 7  # Should have at least 7 positional args
-            assert call_args[0][6] is not None  # timestamp__gte should be normalized
-            assert call_args[0][7] is None  # timestamp__lt should be None
+            # 检查参数：(page_id、限制、种类、来源、正文、sort_order、timestamp__gte、
+            # timestamp__lt)
+            #
+            assert len(call_args[0]) >= 7  # 应该至少有 7 个位置参数
+            assert call_args[0][6] is not None  # timestamp__gte 应该标准化
+            assert call_args[0][7] is None  # timestamp__lt 应该是 None
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_search_events_with_timezone_range(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test search events with both timestamp filters using
-        timezone-aware datetimes."""
-        # Override the dependency to return our mock
+        """使用两个时间戳过滤器测试搜索事件
+        时区感知的日期时间。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test with both timestamp filters using timezone-aware datetimes
+            # 使用时区感知日期时间对两个时间戳过滤器进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
@@ -459,30 +461,31 @@ class TestSearchEventsEndpoint:
 
             assert response.status_code == 200
             mock_event_service.search_events.assert_called_once()
-            # Verify that both datetimes were normalized
+            # 验证两个日期时间是否已标准化
             call_args = mock_event_service.search_events.call_args
-            # Check args: (page_id, limit, kind, source, body, sort_order,
-            # timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 8  # Should have at least 8 positional args
-            assert call_args[0][6] is not None  # timestamp__gte should be normalized
-            assert call_args[0][7] is not None  # timestamp__lt should be normalized
+            # 检查参数：(page_id、限制、种类、来源、正文、sort_order、timestamp__gte、
+            # timestamp__lt)
+            #
+            assert len(call_args[0]) >= 8  # 应该至少有 8 个位置参数
+            assert call_args[0][6] is not None  # timestamp__gte 应该标准化
+            assert call_args[0][7] is not None  # timestamp__lt 应该标准化
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_count_events_with_timezone_aware_datetime(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test count events with timezone-aware datetime."""
-        # Override the dependency to return our mock
+        """使用时区感知日期时间测试计数事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the count_events method to return a sample result
+            # 模拟对象 count_events 方法返回示例结果
             mock_event_service.count_events = AsyncMock(return_value=5)
 
-            # Test with timezone-aware datetime
+            # 使用时区感知的日期时间进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/count",
                 params={
@@ -493,29 +496,29 @@ class TestSearchEventsEndpoint:
             assert response.status_code == 200
             assert response.json() == 5
             mock_event_service.count_events.assert_called_once()
-            # Verify that the datetime was normalized
+            # 验证日期时间是否已标准化
             call_args = mock_event_service.count_events.call_args
-            # Check args: (kind, source, body, timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 4  # Should have at least 4 positional args
-            assert call_args[0][3] is not None  # timestamp__gte should be normalized
-            assert call_args[0][4] is None  # timestamp__lt should be None
+            # 检查参数：（种类、来源、主体、timestamp__gte、timestamp__lt）
+            assert len(call_args[0]) >= 4  # 应该至少有 4 个位置参数
+            assert call_args[0][3] is not None  # timestamp__gte 应该标准化
+            assert call_args[0][4] is None  # timestamp__lt 应该是 None
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_count_events_with_source_filter(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test count events with source filter."""
-        # Override the dependency to return our mock
+        """使用源过滤器测试计数事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the count_events method to return a sample result
+            # 模拟对象 count_events 方法返回示例结果
             mock_event_service.count_events = AsyncMock(return_value=3)
 
-            # Test with source filter
+            # 使用源过滤器进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/count",
                 params={
@@ -526,32 +529,32 @@ class TestSearchEventsEndpoint:
             assert response.status_code == 200
             assert response.json() == 3
             mock_event_service.count_events.assert_called_once()
-            # Verify that the source parameter was passed correctly
+            # 验证源参数是否正确传递
             call_args = mock_event_service.count_events.call_args
-            # Check positional arguments: (kind, source, timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 2  # Should have at least 2 positional args
-            assert call_args[0][0] is None  # kind should be None
-            assert call_args[0][1] == "environment"  # source should be "environment"
+            # 检查位置参数：(kind, source, timestamp__gte, timestamp__lt)
+            assert len(call_args[0]) >= 2  # 应该至少有 2 个位置参数
+            assert call_args[0][0] is None  # 种类应该是None
+            assert call_args[0][1] == "environment"  # 来源应该是“环境”
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_search_events_timezone_normalization_consistency(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test that different timezone representations of the same moment
-        normalize consistently."""
-        # Override the dependency to return our mock
+        """测试同一时刻的不同时区表示
+        持续正常化。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test 1: UTC timezone
+            # 测试 1：UTC 时区
             response1 = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
@@ -560,7 +563,7 @@ class TestSearchEventsEndpoint:
                 },
             )
 
-            # Test 2: EST timezone (UTC-5) - same moment as 12:00 UTC
+            # 测试 2：EST 时区 (UTC-5) - 与 12:00 UTC 相同的时刻
             response2 = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
@@ -573,40 +576,40 @@ class TestSearchEventsEndpoint:
             assert response1.status_code == 200
             assert response2.status_code == 200
 
-            # Both calls should have been made
+            # 两个电话都应该被拨打
             assert mock_event_service.search_events.call_count == 2
 
-            # Get the normalized datetimes from both calls
+            # 从两个调用中获取标准化日期时间
             call1_args = mock_event_service.search_events.call_args_list[0]
             call2_args = mock_event_service.search_events.call_args_list[1]
 
-            # Both should normalize to the same server time
-            # Check positional arguments: (page_id, limit, kind, source, sort_order,
-            # timestamp__gte, timestamp__lt)
-            normalized_time1 = call1_args[0][5]  # timestamp__gte from first call
-            normalized_time2 = call2_args[0][5]  # timestamp__gte from second call
+            # 两者都应该标准化为相同的服务器时间检查位置参数：(page_id, limit, kind,
+            # source, sort_order, timestamp__gte, timestamp__lt)
+            #
+            normalized_time1 = call1_args[0][5]  # timestamp__gte 从第一次通话开始
+            normalized_time2 = call2_args[0][5]  # timestamp__gte 来自第二次调用
 
-            # They should be the same after normalization
+            # 标准化后它们应该是相同的
             assert normalized_time1 == normalized_time2
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_search_events_with_source_filter(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test search events with source filter."""
-        # Override the dependency to return our mock
+        """使用源过滤器测试搜索事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test with source filter
+            # 使用源过滤器进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
@@ -617,31 +620,32 @@ class TestSearchEventsEndpoint:
 
             assert response.status_code == 200
             mock_event_service.search_events.assert_called_once()
-            # Verify that the source parameter was passed correctly
+            # 验证源参数是否正确传递
             call_args = mock_event_service.search_events.call_args
-            # Check args: (page_id, limit, kind, source, body, sort_order,
-            # timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 4  # Should have at least 4 positional args
-            assert call_args[0][3] == "agent"  # source should be "agent"
+            # 检查参数：(page_id、限制、种类、来源、正文、sort_order、timestamp__gte、
+            # timestamp__lt)
+            #
+            assert len(call_args[0]) >= 4  # 应该至少有 4 个位置参数
+            assert call_args[0][3] == "agent"  # 来源应为“智能体”
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_search_events_with_multiple_filters(
         self, client, sample_conversation_id, mock_event_service
     ):
-        """Test search events with multiple filters including source."""
-        # Override the dependency to return our mock
+        """使用多个过滤器（包括源）测试搜索事件。"""
+        # 覆盖依赖项以返回我们的模拟对象
         client.app.dependency_overrides[get_event_service] = lambda: mock_event_service
 
         try:
-            # Mock the search_events method to return a sample result
+            # 模拟对象 search_events 方法返回示例结果
             mock_event_service.search_events = AsyncMock(
                 return_value={"items": [], "next_page_id": None}
             )
 
-            # Test with multiple filters including source
+            # 使用多个过滤器（包括源）进行测试
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={
@@ -654,35 +658,36 @@ class TestSearchEventsEndpoint:
 
             assert response.status_code == 200
             mock_event_service.search_events.assert_called_once()
-            # Verify that all parameters were passed correctly
+            # 验证所有参数是否已正确传递
             call_args = mock_event_service.search_events.call_args
-            # Check args: (page_id, limit, kind, source, body, sort_order,
-            # timestamp__gte, timestamp__lt)
-            assert len(call_args[0]) >= 8  # Should have at least 8 positional args
-            assert call_args[0][1] == 20  # limit
-            assert call_args[0][2] == "MessageEvent"  # kind
-            assert call_args[0][3] == "user"  # source
-            assert call_args[0][4] is None  # body should be None
-            assert call_args[0][6] is not None  # timestamp__gte should be normalized
-            assert call_args[0][7] is None  # timestamp__lt should be None
+            # 检查参数：(page_id、限制、种类、来源、正文、sort_order、timestamp__gte、
+            # timestamp__lt)
+            #
+            assert len(call_args[0]) >= 8  # 应该至少有 8 个位置参数
+            assert call_args[0][1] == 20  # 限制
+            assert call_args[0][2] == "MessageEvent"  # 善良
+            assert call_args[0][3] == "user"  # 来源
+            assert call_args[0][4] is None  # 正文应该是 None
+            assert call_args[0][6] is not None  # timestamp__gte 应该标准化
+            assert call_args[0][7] is None  # timestamp__lt 应该是 None
         finally:
-            # Clean up the dependency override
+            # 清理依赖覆盖
             client.app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_search_events_with_source_filter_real_events(
         self, client, sample_conversation_id
     ):
-        """Test source filtering with real events."""
+        """使用真实事件测试源过滤。"""
         from openhands.agent_server.event_service import EventService
         from openhands.sdk.llm.message import TextContent
 
-        # Create real EventService with sample events
+        # 使用示例事件创建真实的 EventService
         event_service = EventService(
             stored=MagicMock(), conversations_dir=Path("test_dir")
         )
 
-        # Create events with different sources
+        # 创建具有不同来源的事件
         events = [
             MessageEvent(
                 id="user1",
@@ -710,7 +715,7 @@ class TestSearchEventsEndpoint:
             ),
         ]
 
-        # Setup conversation mock
+        # 设置对话模拟对象
         conversation = MagicMock()
         state = MagicMock()
         state.events = events
@@ -722,7 +727,7 @@ class TestSearchEventsEndpoint:
         client.app.dependency_overrides[get_event_service] = lambda: event_service
 
         try:
-            # Test filtering by source="user" - should return 2 events
+            # 按 source="user" 测试过滤 - 应返回 2 个事件
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={"source": "user", "limit": 10},
@@ -742,16 +747,16 @@ class TestSearchEventsEndpoint:
     async def test_search_events_with_body_filter_real_events(
         self, client, sample_conversation_id
     ):
-        """Test body filtering with real events."""
+        """用真实事件测试身体过滤。"""
         from openhands.agent_server.event_service import EventService
         from openhands.sdk.llm.message import TextContent
 
-        # Create real EventService with sample events
+        # 使用示例事件创建真实的 EventService
         event_service = EventService(
             stored=MagicMock(), conversations_dir=Path("test_dir")
         )
 
-        # Create events with different message content
+        # 创建具有不同消息内容的事件
         events = [
             MessageEvent(
                 id="hello1",
@@ -783,7 +788,7 @@ class TestSearchEventsEndpoint:
             ),
         ]
 
-        # Setup conversation mock
+        # 设置对话模拟对象
         conversation = MagicMock()
         state = MagicMock()
         state.events = events
@@ -795,7 +800,7 @@ class TestSearchEventsEndpoint:
         client.app.dependency_overrides[get_event_service] = lambda: event_service
 
         try:
-            # Test filtering by body="hello" (case-insensitive) - should return 2 events
+            # 按 body="hello"（不区分大小写）测试过滤 - 应返回 2 个事件
             response = client.get(
                 f"/api/conversations/{sample_conversation_id}/events/search",
                 params={"body": "hello", "limit": 10},
@@ -813,7 +818,7 @@ class TestSearchEventsEndpoint:
 
 
 def test_unknown_event_id_is_404_and_null_in_batch(client, sample_conversation_id):
-    """An unknown id is a 404 from get-one and null in its batch-get slot."""
+    """未知 id 是来自 get-one 的 404 和其批量获取槽中的 null。"""
     event_log = EventLog(InMemoryFileStore())
     known = MessageEvent(
         id="00000000-0000-0000-0000-000000000001",

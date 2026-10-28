@@ -1,17 +1,17 @@
 /**
- * Integration tests for API compatibility with agent-server
+ * 集成测试用于 API 与智能体服务器兼容
  *
- * These tests verify that the TypeScript client correctly handles
- * breaking changes between different versions of the agent-server API.
+ * 这些测试验证 TypeScript 客户端是否正确处理
+ * 不兼容变更不同版本的智能体-服务器 API 之间。
  *
- * Key changes tested:
- * - AgentExecutionStatus -> ConversationExecutionStatus rename
- * - agent_status -> execution_status field rename
- * - New endpoints: ask_agent, condense, security_analyzer
- * - New event search filters: source, body, timestamp__gte, timestamp__lt
+ * 测试的关键更改：
+ * - AgentExecutionStatus -> ConversationExecutionStatus 重命名
+ * - agent_status -> execution_status 字段重命名
+ * - 新端点：ask_agent、压缩、security_analyzer
+ * - 新的事件搜索过滤器：源、正文、timestamp__gte、timestamp__lt
  *
- * NOTE: Some tests in this file are skipped by default because they depend on
- * LLM behavior which is non-deterministic and can be slow.
+ * 注意：默认情况下会跳过此文件中的一些测试，因为它们依赖于
+ * LLM 行为是不确定的并且可能很慢。
  */
 
 import {
@@ -25,7 +25,7 @@ import { getTestConfig, skipIfNoConfig, createTestLLMConfig } from './test-confi
 import { waitForAgentIdle, sleep } from './test-utils';
 
 const SKIP_TESTS = skipIfNoConfig();
-// Skip flaky tests that depend on LLM behavior in CI
+// 跳过依赖于 CI 中的 LLM 行为的不稳定测试
 const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
 
 describe('API Compatibility Integration Tests', () => {
@@ -41,7 +41,7 @@ describe('API Compatibility Integration Tests', () => {
 
   describe('ConversationExecutionStatus Enum', () => {
     it('should have all expected status values', () => {
-      // Verify the enum has all expected values
+      // 验证枚举具有所有预期值
       expect(ConversationExecutionStatus.IDLE).toBe('idle');
       expect(ConversationExecutionStatus.RUNNING).toBe('running');
       expect(ConversationExecutionStatus.PAUSED).toBe('paused');
@@ -53,7 +53,7 @@ describe('API Compatibility Integration Tests', () => {
     });
 
     it('should have AgentExecutionStatus as an alias', () => {
-      // Verify backward compatibility alias
+      // 验证向后兼容性别名
       expect(AgentExecutionStatus).toBe(ConversationExecutionStatus);
       expect(AgentExecutionStatus.IDLE).toBe('idle');
     });
@@ -77,11 +77,11 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start();
 
-        // Use the new method
+        // 使用新方法
         const status = await conversation.state.getExecutionStatus();
         expect(Object.values(ConversationExecutionStatus)).toContain(status);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -104,11 +104,11 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start();
 
-        // Use the deprecated method (should still work)
+        // 使用已弃用方法（应该仍然有效）
         const status = await conversation.state.getAgentStatus();
         expect(Object.values(ConversationExecutionStatus)).toContain(status);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -116,7 +116,7 @@ describe('API Compatibility Integration Tests', () => {
   });
 
   describe('New API Endpoints', () => {
-    // Skip flaky tests that depend on LLM behavior in CI
+    // 跳过依赖于 CI 中的 LLM 行为的不稳定测试
     const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
@@ -137,7 +137,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message first to establish context
+        // 先发送消息建立上下文
         await conversation.sendMessage('Hello, I am testing the API.');
         await conversation.run();
 
@@ -145,19 +145,19 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Ask a simple question
+        // 问一个简单的问题
         const response = await conversation.askAgent('What is 2 + 2?');
         expect(response).toBeDefined();
         expect(typeof response).toBe('string');
         expect(response.length).toBeGreaterThan(0);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
     );
 
-    // Skip: condense endpoint may not be available in all agent-server versions
+    // 跳过：压缩端点可能不适用于所有智能体服务器版本
     it.skip(
       'should call condense endpoint',
       async () => {
@@ -175,7 +175,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message to create some history
+        // 发送消息以创造一些历史
         await conversation.sendMessage('Hello, this is a test message.');
         await conversation.run();
 
@@ -183,16 +183,16 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Call condense (should not throw)
+        // 调用 condense （不应该抛出）
         await conversation.condense();
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
     );
 
-    // Skip: setSecurityAnalyzer endpoint may not be available in all agent-server versions
+    // 跳过：setSecurityAnalyzer 端点可能不适用于所有智能体服务器版本
     it.skip(
       'should call setSecurityAnalyzer endpoint',
       async () => {
@@ -210,10 +210,10 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 5 });
 
-        // Set security analyzer to null (should not throw)
+        // 将安全分析器设置为 null（不应抛出）
         await conversation.setSecurityAnalyzer(null);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 60000
@@ -221,7 +221,7 @@ describe('API Compatibility Integration Tests', () => {
   });
 
   describe('Event Search Filters', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -241,7 +241,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Say hello.');
         await conversation.run();
 
@@ -249,7 +249,7 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Search for MessageEvent kind
+        // 搜索 MessageEvent 种
         const result = await conversation.state.events.search({
           kind: 'MessageEvent',
           limit: 10,
@@ -259,19 +259,19 @@ describe('API Compatibility Integration Tests', () => {
         expect(result.items).toBeDefined();
         expect(Array.isArray(result.items)).toBe(true);
 
-        // All returned events should be MessageEvent
+        // 所有返回的事件应为 MessageEvent
         for (const event of result.items) {
           expect(event.kind).toBe('MessageEvent');
         }
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
     );
 
-    // Skip: source filter may not be fully supported in all agent-server versions
-    // The server may return events from other sources even when filtering by source
+    // 跳过：所有智能体-服务器版本可能不完全支持源过滤器
+    // 即使按源过滤，服务器也可能返回来自其他源的事件
     it.skip(
       'should search events with source filter',
       async () => {
@@ -289,7 +289,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Hello from user.');
         await conversation.run();
 
@@ -297,7 +297,7 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Search for user events
+        // 搜索用户事件
         const result = await conversation.state.events.search({
           source: 'user',
           limit: 10,
@@ -307,12 +307,12 @@ describe('API Compatibility Integration Tests', () => {
         expect(result.items).toBeDefined();
         expect(Array.isArray(result.items)).toBe(true);
 
-        // All returned events should have source 'user'
+        // 所有返回的事件都应具有源“用户”
         for (const event of result.items) {
           expect(event.source).toBe('user');
         }
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -335,7 +335,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Test message for counting.');
         await conversation.run();
 
@@ -343,18 +343,18 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Count all events
+        // 统计所有事件
         const totalCount = await conversation.state.events.count();
         expect(totalCount).toBeGreaterThan(0);
 
-        // Count MessageEvent events
+        // 计数 MessageEvent 个事件
         const messageCount = await conversation.state.events.count({
           kind: 'MessageEvent',
         });
         expect(messageCount).toBeGreaterThanOrEqual(0);
         expect(messageCount).toBeLessThanOrEqual(totalCount);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -377,10 +377,10 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Record start time
+        // 记录开始时间
         const startTime = new Date().toISOString();
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Test message with timestamp.');
         await conversation.run();
 
@@ -388,13 +388,13 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Wait a bit
+        // 稍等一下
         await sleep(100);
 
-        // Record end time
+        // 记录结束时间
         const endTime = new Date().toISOString();
 
-        // Search for events within the time range
+        // 搜索时间范围内的事件
         const result = await conversation.state.events.search({
           timestamp__gte: startTime,
           timestamp__lt: endTime,
@@ -405,7 +405,7 @@ describe('API Compatibility Integration Tests', () => {
         expect(result.items).toBeDefined();
         expect(Array.isArray(result.items)).toBe(true);
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000
@@ -428,7 +428,7 @@ describe('API Compatibility Integration Tests', () => {
         const conversation = new Conversation(agent, workspace);
         await conversation.start({ maxIterations: 10 });
 
-        // Send a message and run
+        // 发送消息并运行
         await conversation.sendMessage('Test message for sorting.');
         await conversation.run();
 
@@ -436,13 +436,13 @@ describe('API Compatibility Integration Tests', () => {
           return await conversation.state.getExecutionStatus();
         });
 
-        // Search with ascending order
+        // 按升序搜索
         const ascResult = await conversation.state.events.search({
           sort_order: 'TIMESTAMP',
           limit: 10,
         });
 
-        // Search with descending order
+        // 按降序搜索
         const descResult = await conversation.state.events.search({
           sort_order: 'TIMESTAMP_DESC',
           limit: 10,
@@ -451,14 +451,14 @@ describe('API Compatibility Integration Tests', () => {
         expect(ascResult.items).toBeDefined();
         expect(descResult.items).toBeDefined();
 
-        // If we have multiple events, verify the order is different
+        // 如果我们有多个事件，请验证顺序是否不同
         if (ascResult.items.length > 1 && descResult.items.length > 1) {
-          // First event in ascending should be oldest
-          // First event in descending should be newest
+          // 升序排列的第一个事件应该是最旧的降序排列的第一个事件应该是最新的
+          //
           expect(ascResult.items[0].id).not.toBe(descResult.items[0].id);
         }
 
-        // Cleanup
+        // 清理
         await conversation.close();
       },
       config?.testTimeout || 120000

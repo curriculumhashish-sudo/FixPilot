@@ -1,7 +1,7 @@
-"""Tests for the installed-plugin management router (plugins_router).
+"""测试已安装插件管理路由器 (plugins_router)。
 
-Drives the endpoints through a TestClient against a temp install store (the SDK
-default install dir is redirected), so nothing touches the real ~/.openhands.
+通过 TestClient 驱动端点到临时安装存储（SDK 默认安装目录被重定向），因此没有任何内容
+触及真正的 ~/.openhands.
 """
 
 import json
@@ -19,7 +19,7 @@ from openhands.sdk.plugin import Plugin, PluginFetchError
 
 
 def _make_installable_plugin(plugin_dir: Path, name: str) -> Path:
-    """Create a minimal installable plugin directory (manifest only)."""
+    """创建一个最小的可安装插件目录（仅限清单）。"""
     manifest_dir = plugin_dir / ".plugin"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     (manifest_dir / "plugin.json").write_text(
@@ -30,7 +30,7 @@ def _make_installable_plugin(plugin_dir: Path, name: str) -> Path:
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch) -> TestClient:
-    """A TestClient whose install store is an isolated temp directory."""
+    """A TestClient，其安装存储是一个独立的临时目录。"""
     store = tmp_path / "installed-store"
     store.mkdir()
     monkeypatch.setattr(
@@ -163,7 +163,7 @@ def test_refresh_invalid_manifest_is_422_and_keeps_plugin(
 def test_refresh_adopted_local_plugin_is_400(client: TestClient, tmp_path: Path):
     store = tmp_path / "installed-store"
     _make_installable_plugin(store / "demo-plugin", "demo-plugin")
-    # Listing adopts the hand-copied directory with source "local".
+    # 列表采用源为“本地”的手写目录。
     assert client.get("/plugins/installed").status_code == 200
     assert client.get("/plugins/installed/demo-plugin").json()["source"] == "local"
 
@@ -222,8 +222,9 @@ def test_corrupt_installed_plugin_degrades_to_metadata_only(
 def test_list_available_returns_plugin_summaries(
     client: TestClient, tmp_path: Path, monkeypatch
 ):
-    # load_available_plugins ships with a different ticket; inject a stub so the
-    # lazily-imported symbol resolves here.
+    # load_available_plugins 使用不同的机票发货； 注入一个存根，以便延迟导入的符号在这里
+    # 解析。
+    #
     plugin = Plugin.load(
         _make_installable_plugin(tmp_path / "avail", "available-plugin")
     )

@@ -1,7 +1,6 @@
-"""Skills router for OpenHands Agent Server.
+"""OpenHands Agent Server 的技能路由器。
 
-This module defines the HTTP API endpoints for skill operations.
-Business logic is delegated to skills_service.py.
+该模块定义了技能操作的HTTPAPI端点。 业务逻辑委托给skills_service.py。
 """
 
 from typing import Annotated, Literal
@@ -39,8 +38,8 @@ from openhands.sdk.skills.utils import SKILL_NAME_PATTERN
 
 skills_router = APIRouter(prefix="/skills", tags=["Skills"])
 
-# Validated skill name path parameter
-# Prevents empty strings, path traversal, and invalid characters
+# 验证技能名称路径参数防止空字符串、路径遍历和无效字符
+#
 SkillNamePath = Annotated[
     str,
     Path(
@@ -53,7 +52,7 @@ SkillNamePath = Annotated[
 
 
 class ExposedUrl(BaseModel):
-    """Represents an exposed URL from the sandbox."""
+    """代表沙盒中暴露的 URL。"""
 
     name: str
     url: str
@@ -61,7 +60,7 @@ class ExposedUrl(BaseModel):
 
 
 class OrgConfig(BaseModel):
-    """Configuration for loading organization-level skills."""
+    """用于加载组织级技能的配置。"""
 
     repository: str = Field(description="Selected repository (e.g., 'owner/repo')")
     provider: str = Field(
@@ -75,7 +74,7 @@ class OrgConfig(BaseModel):
 
 
 class SandboxConfig(BaseModel):
-    """Configuration for loading sandbox-specific skills."""
+    """用于加载沙箱特定技能的配置。"""
 
     exposed_urls: list[ExposedUrl] = Field(
         default_factory=list,
@@ -84,7 +83,7 @@ class SandboxConfig(BaseModel):
 
 
 class SkillsRequest(BaseModel):
-    """Request body for loading skills."""
+    """请求主体加载技能。"""
 
     load_public: bool = Field(
         default=True, description="Load public skills from OpenHands/extensions repo"
@@ -125,7 +124,7 @@ class SkillsRequest(BaseModel):
 
 
 class SkillsResponse(BaseModel):
-    """Response containing all available skills."""
+    """包含所有可用技能的响应。"""
 
     skills: list[SkillInfo]
     sources: dict[str, int] = Field(
@@ -135,7 +134,7 @@ class SkillsResponse(BaseModel):
 
 
 class SkillCatalogEntry(SkillInfo):
-    """A skill an Agent Profile launch can load."""
+    """智能体 Profile launch 可加载的技能。"""
 
     origin: Literal["public", "user"] = Field(
         description=(
@@ -146,25 +145,25 @@ class SkillCatalogEntry(SkillInfo):
 
 
 class SkillCatalogResponse(BaseModel):
-    """Response for ``GET /api/skills/catalog``."""
+    """``GET /api/skills/catalog`` 的响应。"""
 
     skills: list[SkillCatalogEntry]
 
 
 class SyncResponse(BaseModel):
-    """Response from skill sync operation."""
+    """技能同步操作的响应。"""
 
     status: Literal["success", "error"]
     message: str
 
 
 # ---------------------------------------------------------------------------
-# Installed Skills Management Models
+# 已安装的技能管理模型
 # ---------------------------------------------------------------------------
 
 
 class InstallSkillRequest(BaseModel):
-    """Request body for installing a skill."""
+    """安装技能的请求正文。"""
 
     source: str = Field(
         min_length=1,
@@ -192,7 +191,7 @@ class InstallSkillRequest(BaseModel):
 
 
 class InstalledSkillResponse(BaseModel):
-    """Response containing installed skill information."""
+    """包含已安装技能信息的响应。"""
 
     name: str = Field(description="Skill name")
     version: str = Field(default="", description="Skill version")
@@ -224,39 +223,39 @@ class InstalledSkillResponse(BaseModel):
 
 
 class InstalledSkillsListResponse(BaseModel):
-    """Response containing list of installed skills."""
+    """包含已安装技能列表的响应。"""
 
     skills: list[InstalledSkillResponse]
 
 
 class UpdateSkillStateRequest(BaseModel):
-    """Request body for updating skill state (enable/disable)."""
+    """更新技能状态的请求正文（启用/禁用）。"""
 
     enabled: bool
 
 
 class UpdateSkillStateResponse(BaseModel):
-    """Response from skill state update operation."""
+    """技能状态更新操作的响应。"""
 
     name: str
     enabled: bool
 
 
 class UninstallSkillResponse(BaseModel):
-    """Response from skill uninstall operation."""
+    """技能卸载操作的响应。"""
 
     message: str
 
 
 class UpdateSkillResponse(BaseModel):
-    """Response from skill update operation."""
+    """技能更新操作的响应。"""
 
     message: str
     skill: InstalledSkillResponse
 
 
 class MarketplaceCatalogResponse(BaseModel):
-    """Response containing the marketplace catalog."""
+    """包含市场目录的响应。"""
 
     skills: list[MarketplaceSkillInfo]
 
@@ -276,23 +275,23 @@ def _merge_registered_marketplaces(
 
 @skills_router.post("", response_model=SkillsResponse)
 def get_skills(request: SkillsRequest, http_request: Request) -> SkillsResponse:
-    """Load and merge skills from all configured sources.
+    """从所有配置的来源加载和合并技能。
 
-    Skills are loaded from multiple sources and merged with the following
-    precedence (later overrides earlier for duplicate names):
-    1. Sandbox skills (lowest) - Exposed URLs from sandbox
-    2. Public skills - From GitHub OpenHands/extensions repository
-    3. User skills - From ~/.openhands/skills/
-    4. Organization skills - From {org}/.openhands or equivalent
-    5. Project skills (highest) - From {workspace}/.openhands/skills/
+    技能从多个来源加载并与以下内容合并
+    优先级（对于重复名称，稍后覆盖之前的内容）：
+    1. 最低级的沙盒技能 URLs
+    2. 公共技能 - 来自 GitHub OpenHands/扩展存储库
+    3. 用户技能 - 来自 ~/.openhands/skills/
+    4. 组织技能 - 来自 {org}/.openhands 或同等水平
+    5. 项目技能（最高）- 来自{工作区}/.openhands/skills/
 
     Args:
-        request: SkillsRequest containing configuration for which sources to load.
+        request: SkillsRequest 包含要加载的源的配置。
 
     Returns:
-        SkillsResponse containing merged skills and source counts.
+        SkillsResponse 包含合并的技能和源计数。
     """
-    # Convert Pydantic models to service data types
+    # 将 Pydantic 模型转换为服务数据类型
     sandbox_urls = None
     if request.sandbox_config and request.sandbox_config.exposed_urls:
         sandbox_urls = [
@@ -311,7 +310,7 @@ def get_skills(request: SkillsRequest, http_request: Request) -> SkillsResponse:
         request.registered_marketplaces,
     )
 
-    # Call the service
+    # 致电服务人员
     result = load_all_skills(
         load_public=request.load_public,
         load_user=request.load_user,
@@ -331,11 +330,10 @@ def get_skills(request: SkillsRequest, http_request: Request) -> SkillsResponse:
 
 @skills_router.get("/catalog", response_model=SkillCatalogResponse)
 def get_skill_catalog() -> SkillCatalogResponse:
-    """List the skills an Agent Profile launch can load.
+    """列出智能体个人资料启动可以加载的技能。
 
-    A profile's ``public_skills`` and ``disabled_skills`` select from exactly
-    this list. Project skills load only when a conversation opens its
-    workspace, so they are not listed.
+    配置文件的 ``public_skills`` 和 ``disabled_skills`` 正是从此列表中选择。 项目技能
+    仅在对话打开工作区时加载，因此不会列出。
     """
     public_names = discover_public_skill_names()
     return SkillCatalogResponse(
@@ -351,13 +349,13 @@ def get_skill_catalog() -> SkillCatalogResponse:
 
 @skills_router.post("/sync", response_model=SyncResponse)
 def sync_skills() -> SyncResponse:
-    """Force refresh of public skills from GitHub repository.
+    """从 GitHub 存储库强制刷新公共技能。
 
-    This triggers a git pull on the cached skills repository to get
-    the latest skills from the OpenHands/extensions repository.
+    这会触发缓存技能存储库上的 git pull，以从 OpenHands/extensions 存储库获取最新技能
+    。
 
     Returns:
-        SyncResponse indicating success or failure.
+        SyncResponse表示成功或失败。
     """
     success, message = sync_public_skills()
     return SyncResponse(
@@ -367,7 +365,7 @@ def sync_skills() -> SyncResponse:
 
 
 # ---------------------------------------------------------------------------
-# Installed Skills Management Endpoints
+# 已安装技能管理端点
 # ---------------------------------------------------------------------------
 
 
@@ -381,21 +379,21 @@ def sync_skills() -> SyncResponse:
     },
 )
 def install_skill_endpoint(request: InstallSkillRequest) -> InstalledSkillResponse:
-    """Install a skill from a source.
+    """从源安装技能。
 
-    Installs a skill from a git URL, GitHub shorthand, or local path into
-    the user's installed skills directory (~/.openhands/skills/installed/).
+    将技能从 git URL、GitHub 速记或本地路径安装到用户安装的技能目录 (~
+    /.openhands/skills/installed/).
 
     Args:
-        request: InstallSkillRequest containing source and options.
+        request: InstallSkillRequest 包含源代码和选项。
 
     Returns:
-        InstalledSkillResponse with details about the installation.
+        InstalledSkillResponse 包含有关安装的详细信息。
 
     Raises:
-        HTTPException 409: If skill is already installed and force=False.
-        HTTPException 400: If fetching the skill source fails.
-        HTTPException 422: If the skill is invalid.
+        HTTPException 409: 如果技能已经安装且 force=False。 HTTPException 400: 如果获
+        取技能源失败。
+        HTTPException 422: 如果技能无效。
     """
     try:
         info = service_install_skill(
@@ -424,13 +422,12 @@ def install_skill_endpoint(request: InstallSkillRequest) -> InstalledSkillRespon
 
 @skills_router.get("/installed", response_model=InstalledSkillsListResponse)
 def list_installed_skills_endpoint() -> InstalledSkillsListResponse:
-    """List all installed skills.
+    """列出所有已安装的技能。
 
-    Returns a list of all skills installed in the user's installed skills
-    directory (~/.openhands/skills/installed/).
+    返回用户安装的技能目录中安装的所有技能的列表 (~/.openhands/skills/installed/).
 
     Returns:
-        InstalledSkillsListResponse containing list of installed skills.
+        InstalledSkillsListResponse 包含已安装技能的列表。
     """
     skills = service_list_installed_skills()
     return InstalledSkillsListResponse(
@@ -444,16 +441,16 @@ def list_installed_skills_endpoint() -> InstalledSkillsListResponse:
     responses={404: {"description": "Skill not installed"}},
 )
 def get_installed_skill_endpoint(skill_name: SkillNamePath) -> InstalledSkillResponse:
-    """Get information about a specific installed skill.
+    """获取有关特定已安装技能的信息。
 
     Args:
-        skill_name: Name of the skill to get.
+        skill_name: 要获得的技能名称。
 
     Returns:
-        InstalledSkillResponse with skill details.
+        InstalledSkillResponse 包含技能详细信息。
 
     Raises:
-        HTTPException 404: If the skill is not installed.
+        HTTPException 404: 如果技能未安装。
     """
     info = service_get_installed_skill(name=skill_name)
     if info is None:
@@ -472,17 +469,17 @@ def get_installed_skill_endpoint(skill_name: SkillNamePath) -> InstalledSkillRes
 def set_skill_enabled_endpoint(
     skill_name: SkillNamePath, request: UpdateSkillStateRequest
 ) -> UpdateSkillStateResponse:
-    """Enable or disable an installed skill.
+    """启用或禁用已安装的技能。
 
     Args:
-        skill_name: Name of the skill to update.
-        request: UpdateSkillStateRequest with enabled state.
+        skill_name: 要更新的技能名称。
+        request: UpdateSkillStateRequest 处于启用状态。
 
     Returns:
-        UpdateSkillStateResponse indicating new state.
+        UpdateSkillStateResponse 表示新状态。
 
     Raises:
-        HTTPException 404: If the skill is not installed.
+        HTTPException 404: 如果技能未安装。
     """
     fn = service_enable_skill if request.enabled else service_disable_skill
     if not fn(name=skill_name):
@@ -503,18 +500,18 @@ def set_skill_enabled_endpoint(
     responses={404: {"description": "Skill not installed"}},
 )
 def uninstall_skill_endpoint(skill_name: SkillNamePath) -> UninstallSkillResponse:
-    """Uninstall a skill by name.
+    """按名称卸载技能。
 
-    Removes a skill from the user's installed skills directory.
+    从用户安装的技能目录中删除技能。
 
     Args:
-        skill_name: Name of the skill to uninstall.
+        skill_name: 要卸载的技能名称。
 
     Returns:
-        UninstallSkillResponse with uninstall message.
+        UninstallSkillResponse 带有卸载消息。
 
     Raises:
-        HTTPException 404: If the skill is not installed.
+        HTTPException 404: 如果技能未安装。
     """
     success = service_uninstall_skill(name=skill_name)
     if not success:
@@ -536,21 +533,20 @@ def uninstall_skill_endpoint(skill_name: SkillNamePath) -> UninstallSkillRespons
     },
 )
 def refresh_skill_endpoint(skill_name: SkillNamePath) -> UpdateSkillResponse:
-    """Refresh an installed skill to the latest version.
+    """将已安装的技能刷新到最新版本。
 
-    Re-fetches the skill from its original source and updates the installation.
+    从原始来源重新获取技能并更新安装。
 
     Args:
-        skill_name: Name of the skill to refresh.
+        skill_name: 要刷新的技能名称。
 
     Returns:
-        UpdateSkillResponse with updated skill information.
+        UpdateSkillResponse 更新了技能信息。
 
     Raises:
-        HTTPException 400: If the recorded source cannot be fetched.
-        HTTPException 404: If the skill is not installed.
-        HTTPException 422: If the source no longer holds a valid skill.
-        A failed refresh leaves the installed copy unchanged.
+        HTTPException 400: 如果记录的源无法获取。 HTTPException 404: 如果技能未安装。
+         HTTPException 422:
+        源不再持有有效的技能。 刷新失败会使已安装的副本保持不变。
     """
     try:
         info = service_update_skill(name=skill_name)
@@ -583,15 +579,14 @@ def refresh_skill_endpoint(skill_name: SkillNamePath) -> UpdateSkillResponse:
 
 @skills_router.get("/marketplace", response_model=MarketplaceCatalogResponse)
 def get_marketplace_catalog() -> MarketplaceCatalogResponse:
-    """Get the marketplace catalog with installation status.
+    """获取包含安装状态的市场目录。
 
-    Returns a list of available skills from the OpenHands extensions
-    repository marketplace, along with their installation status.
+    返回 OpenHands 扩展存储库市场中的可用技能列表及其安装状态。
 
-    This enables frontend applications to display a "Marketplace" tab
+    这使得前端应用程序能够显示“市场”选项卡
     with installable skills.
 
     Returns:
-        MarketplaceCatalogResponse containing list of available skills.
+        MarketplaceCatalogResponse 包含可用技能列表。
     """
     return MarketplaceCatalogResponse(skills=service_get_marketplace_catalog())

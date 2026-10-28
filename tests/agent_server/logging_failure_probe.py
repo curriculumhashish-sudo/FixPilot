@@ -1,7 +1,7 @@
-"""Explicitly loaded by the logging regression subprocess, never by production.
+"""由日志记录回归子进程显式加载，从不由生产加载。
 
-Inject a synthetic cyclic exception shape at the service boundary; HTTP, WebSocket,
-logging configuration and signal handling use the stock server entry point.
+在服务边界注入合成循环异常形状； HTTP、WebSocket、日志记录配置和信号处理使用库存服务
+器入口。
 """
 
 import logging

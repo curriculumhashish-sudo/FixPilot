@@ -1,7 +1,7 @@
-"""Installed skills management for OpenHands SDK.
+"""已安装 OpenHands SDK 的技能管理。
 
-Public API for managing AgentSkills installed in the user's home directory.
-All heavy lifting is delegated to ``InstallationManager``.
+公共API用于管理安装在用户主目录中的AgentSkills。 所有繁重的工作都委托给
+``InstallationManager``。
 """
 
 from __future__ import annotations
@@ -29,24 +29,24 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Public type alias — keeps existing import sites working.
+# 公共类型别名 - 保持现有导入站点正常运行。
 InstalledSkillInfo = InstallationInfo
 
 DEFAULT_INSTALLED_SKILLS_DIR = get_user_persistence_dir() / "skills" / "installed"
 
 
 def get_installed_skills_dir() -> Path:
-    """Get the default directory for installed skills."""
+    """获取已安装技能的默认目录。"""
     return DEFAULT_INSTALLED_SKILLS_DIR
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# 内部帮手
 # ---------------------------------------------------------------------------
 
 
 def _load_skill_from_dir(skill_root: Path, strict: bool = True) -> Skill:
-    """Load a skill from its root directory."""
+    """从根目录加载技能。"""
     skill_md = find_skill_md(skill_root)
     if not skill_md:
         raise SkillValidationError(f"Skill directory is missing SKILL.md: {skill_root}")
@@ -61,12 +61,11 @@ def load_marketplace_standalone_skills(
     marketplace_path: Path,
     registration: MarketplaceRegistration,
 ) -> list[Skill]:
-    """Load a marketplace's auto-loadable standalone skills.
+    """加载市场的自动加载独立技能。
 
-    Mirrors the plugin auto-load path for ``marketplace.skills``: each skill the
-    registration auto-loads is resolved (relative to the marketplace repo, or a
-    remote source) and loaded. Unresolvable sources and skills missing SKILL.md
-    are skipped with a warning so one bad entry never blocks the rest.
+    ``marketplace.skills`` 插件自动加载路径的镜像：每个注册的技能在市场库（或远程源）
+    相对于的相对路径中解析并加载。 无法解析的来源和缺少的技能
+    SKILL.md 将被跳过并发出警告，因此一个错误的条目永远不会阻止 REST。
     """
     from openhands.sdk.plugin import resolve_source_path
 
@@ -112,7 +111,7 @@ def _manager(installed_dir: Path) -> InstallationManager[Skill]:
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# 公开 API
 # ---------------------------------------------------------------------------
 
 
@@ -123,18 +122,18 @@ def install_skill(
     installed_dir: Path | None = None,
     force: bool = False,
 ) -> InstalledSkillInfo:
-    """Install a skill from a source.
+    """从源安装技能。
 
     Args:
-        source: Skill source — git URL, GitHub shorthand, or local path.
-        ref: Optional branch, tag, or commit to install.
-        repo_path: Subdirectory path within the repository (for monorepos).
-        installed_dir: Directory for installed skills.
-            Defaults to ``~/.openhands/skills/installed/``.
-        force: If True, overwrite existing installation.
+        source: 技能来源——gitURL、GitHub简写，或者本地路径。
+        ref: 可选的分支、标记或提交安装。
+        repo_path: 存储库内的子目录路径（对于 monorepos）。
+        installed_dir: 安装技能的目录。
+            默认为 ``~/.openhands/skills/installed/``。
+        force: 如果为 True，则覆盖现有安装。
 
     Returns:
-        InstalledSkillInfo with details about the installation.
+        InstalledSkillInfo 包含有关安装的详细信息。
     """
     return _manager(_resolve_installed_dir(installed_dir)).install(
         source, ref=ref, repo_path=repo_path, force=force
@@ -145,10 +144,10 @@ def uninstall_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Uninstall a skill by name.
+    """按名称卸载技能。
 
     Returns:
-        True if the skill was uninstalled, False if it wasn't installed.
+        如果技能已卸载，则为 True；如果未安装，则为 False。
     """
     return _manager(_resolve_installed_dir(installed_dir)).uninstall(name)
 
@@ -157,7 +156,7 @@ def enable_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Enable an installed skill by name."""
+    """按名称启用已安装的技能。"""
     return _manager(_resolve_installed_dir(installed_dir)).enable(name)
 
 
@@ -165,16 +164,16 @@ def disable_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Disable an installed skill by name."""
+    """按名称禁用已安装的技能。"""
     return _manager(_resolve_installed_dir(installed_dir)).disable(name)
 
 
 def list_installed_skills(
     installed_dir: Path | None = None,
 ) -> list[InstalledSkillInfo]:
-    """List all installed skills.
+    """列出所有已安装的技能。
 
-    Self-healing: reconciles metadata with what is on disk.
+    自我修复：使元数据与磁盘上的内容保持一致。
     """
     return _manager(_resolve_installed_dir(installed_dir)).list_installed()
 
@@ -182,7 +181,7 @@ def list_installed_skills(
 def load_installed_skills(
     installed_dir: Path | None = None,
 ) -> list[Skill]:
-    """Load all enabled installed skills as ``Skill`` objects."""
+    """将所有启用的已安装技能加载为 ``Skill`` 对象。"""
     return _manager(_resolve_installed_dir(installed_dir)).load_installed()
 
 
@@ -190,7 +189,7 @@ def get_installed_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledSkillInfo | None:
-    """Get information about a specific installed skill."""
+    """获取有关特定已安装技能的信息。"""
     return _manager(_resolve_installed_dir(installed_dir)).get(name)
 
 
@@ -198,7 +197,7 @@ def update_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledSkillInfo | None:
-    """Update an installed skill to the latest version."""
+    """将已安装的技能更新到最新版本。"""
     return _manager(_resolve_installed_dir(installed_dir)).update(name)
 
 
@@ -207,17 +206,17 @@ def install_skills_from_marketplace(
     installed_dir: Path | None = None,
     force: bool = False,
 ) -> list[InstalledSkillInfo]:
-    """Install all skills defined in a marketplace.json file.
+    """安装 marketplace.json 文件中定义的所有技能。
 
     Args:
-        marketplace_path: Path to the directory containing
+        marketplace_path: 包含目录的路径
             ``.plugin/marketplace.json``.
-        installed_dir: Directory for installed skills.
-            Defaults to ``~/.openhands/skills/installed/``.
-        force: If True, overwrite existing installations.
+        installed_dir: 安装技能的目录。
+            默认为 ``~/.openhands/skills/installed/``。
+        force: 如果为 True，则覆盖现有安装。
 
     Returns:
-        List of InstalledSkillInfo for successfully installed skills.
+        已成功安装技能的 InstalledSkillInfo 列表。
     """
     from openhands.sdk.marketplace import Marketplace
     from openhands.sdk.plugin import resolve_source_path

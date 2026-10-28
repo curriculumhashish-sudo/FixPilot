@@ -55,8 +55,9 @@ def test_switch_llm_tool_description_lists_available_profiles(profile_store):
 
 
 def test_agent_settings_includes_switch_llm_tool_when_profiles_exist(profile_store):
-    # An explicit list (not the None default): these tests resolve tools for
-    # real via _ensure_agent_ready and tests/sdk registers no exec tools.
+    # 一个明确的列表（不是默认的），这些测试通过_ensure_agent_ready和tests/sdk注册了实际
+    # 的工具，而不是None。
+    #
     agent = OpenHandsAgentSettings(
         llm=_make_llm("default-model", "default"), tools=[Tool(name="switch_llm")]
     ).create_agent()

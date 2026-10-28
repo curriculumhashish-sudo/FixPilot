@@ -1,4 +1,4 @@
-"""Test that the agent does not create redundant files when not asked."""
+"""测试智能体在未询问时不会创建冗余文件。"""
 
 from __future__ import annotations
 
@@ -24,21 +24,20 @@ logger = get_logger(__name__)
 
 
 class NoRedundantFilesTest(BaseIntegrationTest):
-    """Ensure the agent does not create any redundant files (e.g., .md files)
-    that are not asked by users when performing the task."""
+    """确保智能体不会创建任何冗余文件（e.g.、.md 文件）
+    用户在执行任务时不会询问的内容。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     def setup(self) -> None:  # noqa: D401
-        """Set up a realistic codebase by cloning the lerobot repo."""
+        """通过克隆 lerobot 存储库来设置现实的代码库。"""
         try:
-            # Clone the lerobot repository
-            # Git clone requires the target directory to be empty or non-existent
-            # The workspace is created as an empty temp directory, but git clone
-            # expects to create the directory itself, so we clone to a subdirectory
+            # 克隆 lerobot 仓库时，Git clone 需要目标目录为空或不存在。工作区会被创建为
+            # 一个空的临时目录，但 Git clone 需要自己创建目录，所以我们克隆到子目录
+            #
             repo_dir = os.path.join(self.workspace, "lerobot")
 
-            # Pin to specific commit on main to ensure test stability
+            # 固定到主要的特定提交以确保测试稳定性
             target_commit = "784cdae55a863b581805ca6060174fa2bae2a85a"
             subprocess.run(
                 [
@@ -53,7 +52,7 @@ class NoRedundantFilesTest(BaseIntegrationTest):
                 timeout=60,
             )
 
-            # Fetch and checkout the pinned commit
+            # 获取并签出固定的提交
             subprocess.run(
                 [
                     "git",

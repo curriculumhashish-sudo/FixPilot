@@ -22,26 +22,25 @@ logger = get_logger(__name__)
 LOCK_FILE_NAME = ".eventlog.lock"
 LOCK_TIMEOUT_SECONDS = 30
 
-# Sidecar marker naming the log's event count, so a writer can check it with one
-# ``exists()``. The count lives in the name because ``FileStore.read`` is cached.
+# Sidecar 标记命名日志的事件计数，以便编写者可以用一个来检查它
+# ``exists()``. 计数器的名字里就有 ``FileStore.read`` 已被缓存。
 LENGTH_MARKER_PATTERN: Final[str] = ".eventlog-len-{length}.marker"
 
-# ROOT_PARENT_ID now lives in event.types (single source of truth); it is used
-# below in _effective_parent_id and re-exported here so existing
-# ``from event_store import ROOT_PARENT_ID`` importers keep working.
+# ROOT_PARENT_ID 现在位于 event.types（单一事实来源）； 它在下面的_effective_parent_id中
+# 使用并在这里重新导出，因此存在
+# ``from event_store import ROOT_PARENT_ID`` 进口商继续工作。
 
 
 class EventLog(EventsListBase):
-    """Persistent event log with locking for concurrent writes.
+    """具有锁定并发写入的持久事件日志。
 
-    This class provides thread-safe and process-safe event storage using
-    the FileStore's locking mechanism. Events are persisted to disk and
-    can be accessed by index or event ID.
+    此类使用 FileStore 的锁定机制提供线程安全和进程安全的事件存储。 事件已持久化存储
+    到磁盘，可以通过索引或事件 ID 进行访问。
 
     Note:
-        For LocalFileStore, file locking via flock() does NOT work reliably
-        on NFS mounts or network filesystems. Users deploying with shared
-        storage should use alternative coordination mechanisms.
+        对于 LocalFileStore，通过 flock() 进行文件锁定确实不在 NFS 安装或网络文件系统
+        上可靠地工作。 使用共享存储部署的用户应使用替代协
+        调机制。
     """
 
     _fs: FileStore
@@ -67,14 +66,14 @@ class EventLog(EventsListBase):
         self._write_guard = write_guard
 
     def get_index(self, event_id: EventID) -> int:
-        """Return the integer index for a given event_id."""
+        """返回给定 event_id 的整数索引。"""
         try:
             return self._id_to_idx[event_id]
         except KeyError:
             raise KeyError(f"Unknown event_id: {event_id}")
 
     def get_id(self, idx: int) -> EventID:
-        """Return the event_id for a given index."""
+        """返回给定索引的 event_id。"""
         if idx < 0:
             idx += self._length
         if idx < 0 or idx >= self._length:
@@ -82,40 +81,39 @@ class EventLog(EventsListBase):
         return self._idx_to_id[idx]
 
     def __contains__(self, item: object) -> bool:
-        """Whether the log contains a given event id or ``Event`` (by id).
+        """日志是否包含给定事件 id 或 ``Event``（按 id）。
 
-        Checking by id (not the ``Sequence`` default of value-equality) keeps
-        ``event in events`` true after the event is stamped with a ``parent_id``
-        on append, and avoids hashing unhashable event payloads.
+        通过 id 检查（不是值相等的默认值 ``Sequence``）
+        ``event in events`` True 事件在追加时被标记为 ``parent_id``，并避免散列不可散
+        列的事件载荷。
         """
         if isinstance(item, Event):
             return item.id in self._id_to_idx
         return item in self._id_to_idx
 
     def _effective_parent_id(self, idx: int, event: Event) -> EventID | None:
-        """Resolve the parent of ``event`` (at ``idx``) for tree traversal.
+        """解析 ``event`` 的父级（在 ``idx`` 处）以进行树遍历。
 
-        Legacy events predating the tree have no ``parent_id``; they fall back to
-        the linear chain (event ``idx - 1``) so old conversations load unbranched
-        with no disk rewrite.
+        该树之前的遗留事件没有 ``parent_id``； 它们回退到线性链（事件 ``idx - 1``），
+        因此旧对话会无分支加载，无需磁盘重写。
         """
         if event.parent_id == ROOT_PARENT_ID:
-            return None  # explicit root (feature-created root at idx > 0)
+            return None  # 显式根（在 idx > 0 处创建的特征根）
         if event.parent_id is not None:
-            return event.parent_id  # explicit (new events)
+            return event.parent_id  # 明确的（新事件）
         if idx == 0:
-            return None  # genuine root
-        return self.get_id(idx - 1)  # legacy linear chain (back-compat)
+            return None  # 正版root
+        return self.get_id(idx - 1)  # 传统线性链（向后兼容）
 
     def path_to_root(
         self, leaf_id: EventID | None, limit: int | None = None
     ) -> list[Event]:
-        """The active branch ``leaf -> ... -> root``, returned root-first.
+        """活动分支 ``leaf -> ... -> root``，首先返回根。
 
-        ``leaf_id=None`` yields ``[]``. ``limit`` keeps only the last ``limit``
-        events (walking back from the leaf), so callers wanting a recent window
-        stay O(limit) instead of O(branch). Raises ValueError on a cycle, KeyError
-        if ``leaf_id`` or an ancestor is missing.
+        ``leaf_id=None`` 产生 ``[]``。 ``limit`` 仅保留最后的 ``limit`` 事件（从叶子
+        返回），因此想要最近窗口的调用者停
+        留在 O(limit) 而不是 O(branch)。 在循环中引发 ValueError，如果 ``leaf_id`` 或
+        祖先缺失则引发 KeyError。
         """
         chain: list[Event] = []
         seen: set[EventID] = set()
@@ -154,8 +152,8 @@ class EventLog(EventsListBase):
         try:
             path = self._path(i)
         except KeyError:
-            # In-memory index is stale (e.g., external file modifications
-            # or concurrent writes).  Rebuild from disk and retry once.
+            # 内存中索引已过时（e.g.、外部文件修改或并发写入）。 从磁盘重建并重试一次。
+            #
             logger.warning("Stale EventLog index at %d; rebuilding from disk.", i)
             self._length = self._scan_and_build_index()
             if i >= self._length:
@@ -186,21 +184,21 @@ class EventLog(EventsListBase):
             yield evt
 
     def append(self, event: Event) -> int:
-        """Append an event with locking for thread/process safety.
+        """附加带有锁定的事件以确保线程/进程安全。
 
         Returns:
-            The sequence number (index) the log assigned to ``event``.
+            日志分配给 ``event`` 的序列号（索引）。
 
         Raises:
-            TimeoutError: If the lock cannot be acquired within LOCK_TIMEOUT_SECONDS.
-            ValueError: If an event with the same ID already exists or its explicit
-                parent does not exist.
+            TimeoutError: 如果在LOCK_TIMEOUT_SECONDS内无法获取锁。
+            ValueError: 如果具有相同 ID 的事件已存在或其显式
+                父级不存在。
         """
         evt_id = event.id
 
         try:
             with self._fs.lock(self._lock_path, timeout=LOCK_TIMEOUT_SECONDS):
-                # Sync with disk only if the marker cannot rule out another writer
+                # 同步仅当标记不能排除另一个写入器时才使用磁盘
                 if not self._marker_matches_length():
                     disk_length = self._count_events_on_disk()
                     if disk_length > self._length:
@@ -247,10 +245,9 @@ class EventLog(EventsListBase):
         return f"{self._dir}/{LENGTH_MARKER_PATTERN.format(length=length)}"
 
     def _marker_matches_length(self) -> bool:
-        """Whether the marker proves no one has appended since we last did.
+        """标记是否证明自我们上次添加以来没有人添加过。
 
-        ``False`` is not proof of divergence, so callers must fall back to the
-        exact count.
+        ``False`` 不是分歧的证明，因此调用者必须回退到确切的计数。
         """
         try:
             return bool(self._fs.exists(self._marker_path(self._length)))
@@ -259,10 +256,10 @@ class EventLog(EventsListBase):
             return False
 
     def _advance_length_marker(self, previous_length: int) -> None:
-        """Move the marker from ``previous_length`` to the current length.
+        """将标记从 ``previous_length`` 移动到当前长度。
 
-        Deleting first is deliberate: an interrupted update leaves no marker
-        rather than a stale one claiming to be current.
+        首先删除是经过深思熟虑的：中断的更新不会留下任何标记，而不是一个声称是最新的
+        陈旧标记。
         """
         try:
             self._fs.delete(self._marker_path(previous_length))
@@ -271,11 +268,11 @@ class EventLog(EventsListBase):
             logger.warning("Error updating event count marker in %s: %s", self._dir, e)
 
     def _count_events_on_disk(self) -> int:
-        """Count event files on disk."""
+        """计算磁盘上的事件文件数。"""
         try:
             paths = self._fs.list(self._dir)
         except FileNotFoundError:
-            # Directory doesn't exist yet - expected for new event logs
+            # 目录尚不存在 - 预计有新事件日志
             return 0
         except Exception as e:
             logger.warning("Error listing event directory %s: %s", self._dir, e)
@@ -287,24 +284,24 @@ class EventLog(EventsListBase):
         )
 
     def _sync_from_disk(self, disk_length: int) -> None:
-        """Sync state for events written by other processes.
+        """同步其他进程写入的事件的状态。
 
-        Preserves existing index mappings and only scans new events.
+        保留现有索引映射并仅扫描新事件。
         """
-        # Preserve existing mappings
+        # 保留现有映射
         existing_idx_to_id = dict(self._idx_to_id)
 
-        # Re-scan to pick up new events
+        # 重新扫描以获取新事件
         scanned_length = self._scan_and_build_index()
 
-        # Restore any mappings that were lost (e.g., for non-UUID event IDs)
+        # 恢复丢失的所有映射（e.g.，对于非 UUID 事件 ID）
         for idx, evt_id in existing_idx_to_id.items():
             if idx not in self._idx_to_id:
                 self._idx_to_id[idx] = evt_id
             if evt_id not in self._id_to_idx:
                 self._id_to_idx[evt_id] = idx
 
-        # Use the higher of scanned length or disk_length
+        # 使用扫描长度或 disk_length 中的较大者
         self._length = max(scanned_length, disk_length)
 
     def __len__(self) -> int:
@@ -335,7 +332,7 @@ class EventLog(EventsListBase):
                 evt_id = m.group("event_id")
                 by_idx[idx] = evt_id
             elif name.startswith("."):
-                # Our own sidecars (lock file, count marker), not event files.
+                # 我们自己的 sidecar（锁文件，计数标记），而不是事件文件。
                 continue
             else:
                 logger.warning(f"Unrecognized event file name: {name}")

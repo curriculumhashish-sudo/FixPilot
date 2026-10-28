@@ -1,10 +1,10 @@
-"""Test delayed condensation with soft requirements.
+"""由于软要求，测试延迟上下文压缩。
 
-This test verifies that:
-1. When a soft condensation requirement is triggered (via max_size)
-2. But condensation cannot be performed (no valid range)
-3. The system gracefully continues without raising an exception
-4. Once sufficient events exist, condensation succeeds
+该测试验证：
+1. 当触发软上下文压缩要求时（通过 max_size）
+2. 但上下文压缩无法执行（无效范围）
+3. 系统优雅地继续运行，不会引发异常
+4. 一旦存在足够的事件，上下文压缩就会成功
 """
 
 from openhands.sdk import Message, TextContent, Tool
@@ -16,64 +16,64 @@ from openhands.tools.terminal import TerminalTool
 from tests.integration.base import BaseIntegrationTest, TestResult
 
 
-# Module-level instruction for test runner
+# 测试运行程序的模块级指令
 INSTRUCTION = """Using the echo command, print the numbers 1 through 10.
 Use exactly 10 separate echo commands, one for each number."""
 
 
 class DelayedCondensationTest(BaseIntegrationTest):
-    """Test that soft requirements allow delayed condensation."""
+    """测试软需求是否允许延迟上下文压缩。"""
 
     INSTRUCTION: str = INSTRUCTION
 
     def __init__(self, *args, **kwargs):
-        """Initialize test with tracking for condensation."""
+        """初始化测试并跟踪上下文压缩。"""
         self.condensations: list[Condensation] = []
         super().__init__(*args, **kwargs)
 
     @property
     def tools(self) -> list[Tool]:
-        """Provide terminal tool."""
+        """提供终端工具。"""
         register_tool("TerminalTool", TerminalTool)
         return [Tool(name="TerminalTool")]
 
     @property
     def condenser(self) -> LLMSummarizingCondenser:
-        """Use LLMSummarizingCondenser with low max_size for soft requirements."""
+        """使用 LLMSummarizingCondenser 低 max_size 对于软需求。"""
         condenser_llm = self.create_llm_copy("test-condenser-llm")
         return LLMSummarizingCondenser(
             llm=condenser_llm,
-            max_size=6,  # Low enough to trigger even with very efficient agents
+            max_size=6,  # 即使效率非常高，也足够低以触发智能体
             keep_first=1,
         )
 
     @property
     def max_iteration_per_run(self) -> int:
-        """Allow sufficient iterations."""
+        """允许足够的迭代。"""
         return 30
 
     def conversation_callback(self, event):
-        """Track condensation events."""
+        """跟踪上下文压缩事件。"""
         super().conversation_callback(event)
 
         if isinstance(event, Condensation):
             self.condensations.append(event)
 
     def run_instructions(self, conversation: LocalConversation) -> None:
-        """Test soft condensation requirements.
+        """测试软上下文压缩要求。
 
-        Steps:
-        1. Execute task that creates multiple tool loops
-        2. Let soft condensation requirements trigger naturally
-        3. Verify system continues even if condensation can't be satisfied immediately
-        4. Verify condensation eventually succeeds once valid ranges exist
+        步骤：
+        1. 执行创建多个工具循环的任务
+        2. 让软上下文压缩需求自然触发
+        3. 即使无法立即满足上下文压缩，也验证系统是否继续
+        4. 一旦存在有效范围，验证上下文压缩最终成功
         """
-        # Execute the main task
+        # 执行主要任务
         conversation.send_message(message=self.instruction_message)
         conversation.run()
 
-        # Add more messages to ensure we build up enough events
-        # This creates more atomic units for potential condensation
+        # 添加更多消息以确保我们建立足够的事件这为潜在的上下文压缩创建了更多的原子单元
+        #
         conversation.send_message(
             message=Message(
                 role="user",
@@ -83,11 +83,11 @@ class DelayedCondensationTest(BaseIntegrationTest):
         conversation.run()
 
     def verify_result(self) -> TestResult:
-        """Verify soft requirement behavior.
+        """验证软需求行为。
 
-        Success criteria:
-        1. Conversation completed successfully (didn't crash on soft requirement)
-        2. At least one condensation occurred (once valid ranges existed)
+        成功标准：
+        1. 对话成功完成（未因软要求而崩溃）
+        2. 至少发生一次上下文压缩（一旦存在有效范围）
         """
         if len(self.condensations) == 0:
             return TestResult(

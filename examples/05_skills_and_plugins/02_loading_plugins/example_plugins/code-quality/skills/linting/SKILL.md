@@ -16,31 +16,39 @@ triggers:
   - ruff
 ---
 
-# Python Linting Skill
+<a id="python-linting-skill"></a>
 
-This skill provides instructions for linting Python code using ruff.
+# Python 静态检查技能
 
-## How to Lint
+此技能提供使用 Ruff 的静态检查 Python 代码的说明。
 
-Run ruff to check for issues:
+<a id="how-to-lint"></a>
+
+## 如何静态检查
+
+运行 Ruff 检查问题：
 
 ```bash
 ruff check .
 ```
 
-To automatically fix issues:
+自动修复问题：
 
 ```bash
 ruff check --fix .
 ```
 
-## Common Options
+<a id="common-options"></a>
 
-- `--select E,W` - Only check for errors and warnings
-- `--ignore E501` - Ignore line length errors
-- `--fix` - Automatically fix fixable issues
+## 常用选项
 
-## Example Output
+- `--select E,W` - 只检查错误和警告
+- `--ignore E501` - 忽略行长度错误
+- `--fix` - 自动修复可修复的问题
+
+<a id="example-output"></a>
+
+## 示例输出
 
 ```
 example.py:1:1: F401 [*] `os` imported but unused

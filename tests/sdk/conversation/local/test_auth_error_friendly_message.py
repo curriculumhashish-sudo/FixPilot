@@ -1,13 +1,13 @@
-"""Tests that LLMAuthenticationError surfaces a user-friendly message.
+"""LLMAuthenticationError 应展示一个用户友好的消息。
 
-Regression tests for:
+回归测试：
   https://github.com/OpenHands/software-agent-sdk/issues/3411
 
-When a user has an invalid/expired API key the raw litellm error (e.g. the
-full AnthropicException JSON) must NOT appear in the ConversationErrorEvent
-detail that is sent to the UI.  Instead, a clear, actionable message should
-be emitted, while the ConversationRunError is still raised so server logs
-remain unaffected.
+当用户拥有无效/过期的 API 密钥时，原始 LiteLLM 错误 (e.g. 完整的 AnthropicException
+JSON) 必须不出现在发送到 UI 的
+ConversationErrorEvent 详细信息中。 相反，应该发出清晰的、可操作的消息，同时仍然引发
+ConversationRunError，以便服务器日志不受影
+响。
 """
 
 import asyncio
@@ -43,12 +43,12 @@ def _make_auth_failing_conversation(tmpdir: str) -> LocalConversation:
 
 
 # ---------------------------------------------------------------------------
-# Sync path (run)
+# 同步路径（运行）
 # ---------------------------------------------------------------------------
 
 
 def test_auth_error_run_raises_conversation_run_error():
-    """ConversationRunError is still raised so server logs are unaffected."""
+    """ConversationRunError 仍会引发，因此服务器日志不受影响。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = _make_auth_failing_conversation(tmpdir)
         with pytest.raises(ConversationRunError) as exc_info:
@@ -57,7 +57,7 @@ def test_auth_error_run_raises_conversation_run_error():
 
 
 def test_auth_error_run_emits_friendly_detail():
-    """ConversationErrorEvent.detail is user-readable, not the raw litellm string."""
+    """ConversationErrorEvent.detail 是用户可读的，而不是原始的 LiteLLM 字符串。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = _make_auth_failing_conversation(tmpdir)
         with pytest.raises(ConversationRunError):
@@ -83,12 +83,12 @@ def test_auth_error_run_emits_friendly_detail():
 
 
 # ---------------------------------------------------------------------------
-# Async path (arun)
+# 异步路径（运行）
 # ---------------------------------------------------------------------------
 
 
 def test_auth_error_arun_raises_conversation_run_error():
-    """Async path: ConversationRunError is still raised."""
+    """异步路径：ConversationRunError仍然被提出。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = _make_auth_failing_conversation(tmpdir)
         with pytest.raises(ConversationRunError) as exc_info:
@@ -97,7 +97,7 @@ def test_auth_error_arun_raises_conversation_run_error():
 
 
 def test_auth_error_arun_emits_friendly_detail():
-    """Async path: ConversationErrorEvent.detail is user-readable."""
+    """异步路径：ConversationErrorEvent.detail是用户可读的。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         conv = _make_auth_failing_conversation(tmpdir)
         with pytest.raises(ConversationRunError):

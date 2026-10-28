@@ -1,6 +1,6 @@
-"""Glob tool executor implementation."""
+"""Glob 工具执行器实现。"""
 
-# Use absolute import to avoid conflict with our local glob module
+# 使用绝对导入以避免与本地 glob 模块发生冲突
 import glob as glob_module
 import os
 import subprocess
@@ -21,19 +21,19 @@ from openhands.tools.utils import (
 
 
 class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
-    """Executor for glob pattern matching operations.
+    """全局模式匹配操作的执行器。
 
-    This implementation prefers ripgrep for performance but falls back to
-    Python's glob module if ripgrep is not available:
-    - Primary: Uses rg --files to list all files, filters by glob pattern with -g flag
-    - Fallback: Uses Python's glob.glob() for pattern matching
+    此实现更喜欢 ripgrep 来提高性能，但如果 ripgrep 不可用，则回退到 Python 的 glob
+    模块：
+    - Primary: 使用 rg --files 列出所有文件，通过带有 -g 标志的 glob 模式进行过滤
+    - Fallback: 使用 Python 的 glob.glob() 进行模式匹配
     """
 
     def __init__(self, working_dir: str):
-        """Initialize the glob executor.
+        """初始化 glob 执行器。
 
         Args:
-            working_dir: The working directory to use as the base for searches
+            working_dir: 用于搜索的基础工作目录
         """
         self.working_dir: Path = Path(working_dir).resolve()
         self._ripgrep_available: bool = _check_ripgrep_available()
@@ -41,10 +41,10 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             _log_ripgrep_fallback_warning("glob", "Python glob module")
 
     def is_parallel_safe(self) -> bool:
-        """Whether the executor is safe for lock-free parallel execution.
+        """执行器对于无锁的并行执行是否安全。
 
-        True when ripgrep is available (independent subprocesses).
-        False for the Python glob fallback (process-global os.chdir()).
+        True 当 ripgrep 可用时（独立子进程）。 False 为 Python glob 回退方案（进程全
+        局 os.chdir()）。
         """
         return self._ripgrep_available
 
@@ -53,16 +53,16 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
         action: GlobAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> GlobObservation:
-        """Execute glob pattern matching using ripgrep or fallback to Python glob.
+        """使用 ripgrep 或回退方案到 Python glob 执行 glob 模式匹配。
 
         Args:
-            action: The glob action containing pattern and optional path
+            action: 包含模式和可选路径的 glob 操作
 
         Returns:
-            GlobObservation with matching files or error information
+            GlobObservation 具有匹配文件或错误信息
         """
         try:
-            original_pattern = action.pattern  # Store original pattern for observation
+            original_pattern = action.pattern  # 存储观测结果的原始模式
 
             if action.path:
                 search_path = Path(action.path).resolve()
@@ -89,7 +89,7 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             else:
                 files, truncated = self._execute_with_glob(pattern, search_path)
 
-            # Format content message
+            # 格式化内容消息
             if not files:
                 content = (
                     f"No files found matching pattern '{original_pattern}' "
@@ -116,7 +116,7 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             )
 
         except Exception as e:
-            # Determine search path for error reporting
+            # 确定错误报告的搜索路径
             try:
                 if action.path:
                     error_search_path = str(Path(action.path).resolve())
@@ -136,19 +136,20 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
     def _execute_with_ripgrep(
         self, pattern: str, search_path: Path
     ) -> tuple[list[str], bool]:
-        """Execute glob pattern matching using ripgrep.
+        """使用 ripgrep 执行全局模式匹配。
 
         Args:
-            pattern: The glob pattern to match
-            search_path: The directory to search in
+            pattern: 要匹配的全局模式
+            search_path: 要搜索的目录
 
         Returns:
-            Tuple of (file_paths, truncated) where file_paths is a list of matching files
-            and truncated is True if results were limited to 100 files
+            (file_paths, truncated) 元组，其中 file_paths 是匹配文件的列表，如果结果
+            限制为 100 个文件，则截断为 Tru
+            e
         """  # noqa: E501
         search_path = search_path.resolve()
 
-        # Build ripgrep command: rg --files {path} -g {pattern} --sortr=modified
+        # 构建 ripgrep 命令： rg --files {path} -g {pattern} --sortr=modified
         cmd = [
             "rg",
             "--files",
@@ -158,7 +159,7 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             "--sortr=modified",
         ]
 
-        # Execute ripgrep
+        # 执行ripgrep
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -168,13 +169,13 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             env=sanitized_env(),
         )
 
-        # Parse output into file paths
+        # 将输出解析为文件路径
         file_paths = []
         if result.stdout:
             for line in result.stdout.strip().split("\n"):
                 if line:
                     file_paths.append(str(Path(line).resolve()))
-                    # Limit to first 100 files
+                    # 限制为前 100 个文件
                     if len(file_paths) >= 100:
                         break
 
@@ -185,42 +186,43 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
     def _execute_with_glob(
         self, pattern: str, search_path: Path
     ) -> tuple[list[str], bool]:
-        """Execute glob pattern matching using Python's glob module.
+        """使用 Python 的 glob 模块执行 glob 模式匹配。
 
         Args:
-            pattern: The glob pattern to match
-            search_path: The directory to search in
+            pattern: 要匹配的全局模式
+            search_path: 要搜索的目录
 
         Returns:
-            Tuple of (file_paths, truncated) where file_paths is a list of matching files
-            and truncated is True if results were limited to 100 files
+            (file_paths, truncated) 元组，其中 file_paths 是匹配文件的列表，如果结果
+            限制为 100 个文件，则截断为 Tru
+            e
         """  # noqa: E501
         search_path = search_path.resolve()
 
-        # Change to search directory for glob to work correctly
+        # 更改为 glob 的搜索目录才能正常工作
         original_cwd = os.getcwd()
         try:
             os.chdir(search_path)
 
-            # Ripgrep's -g flag is always recursive, so we need to make the pattern
-            # recursive if it doesn't already contain **
+            # Ripgrep 的 -g 标志始终是递归的，因此如果它尚未包含 **，我们需要使模式递归
+            #
             if "**" not in pattern:
-                # Convert non-recursive patterns like "*.py" to "**/*.py"
-                # to match ripgrep's recursive behavior
+                # 将非递归模式（如“*.py”）转换为“**/*.py"”以匹配 ripgrep 的递归行为
+                #
                 pattern = f"**/{pattern}"
 
-            # Use glob to find matching files
+            # 使用glob查找匹配文件
             matches = glob_module.glob(pattern, recursive=True)
 
-            # Convert to absolute paths without resolving symlinks and sort by
-            # modification time.
+            # 转换为绝对路径而不解析符号链接并按修改时间排序。
+            #
             file_paths = []
             for match in matches:
                 abs_path = str((search_path / match).absolute())
                 if os.path.isfile(abs_path):
                     file_paths.append((abs_path, os.path.getmtime(abs_path)))
 
-            # Sort by modification time (newest first) and extract paths
+            # 按修改时间排序（最新的在前）和提取路径
             file_paths.sort(key=lambda x: x[1], reverse=True)
             sorted_files = [path for path, _ in file_paths[:100]]
 
@@ -232,23 +234,21 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
 
     @staticmethod
     def _extract_search_path_from_pattern(pattern: str) -> tuple[Path | None, str]:
-        """Extract search path and relative pattern from an absolute path pattern.
+        """从绝对路径模式中提取搜索路径和相对模式。
 
-        This is needed because agents may send absolute path patterns like
-        "/path/to/dir/**/*.py", but ripgrep's -g flag expects a search directory
-        and a relative pattern separately. This function splits the absolute pattern
-        into these two components.
+        这是因为智能体可能发送绝对路径模式，如 `/path/to/dir/**/*.py"`，而 ripgrep 的
+         `-g` 标志期望一个搜索目录和一个相对模式
+        。 该函数将绝对模式分为这两个部分。
 
-        For relative patterns, returns (None, pattern) to indicate the caller should
-        use its default working directory.
+        对于相对模式，返回 (None,pattern) 以指示调用者应使用其默认值工作目录。
 
         Args:
-            pattern: The glob pattern (may be absolute or relative)
+            pattern: 全局模式（可以是绝对的或相对的）
 
         Returns:
-            Tuple of (search_path, adjusted_pattern) where:
-            - search_path: The directory to search in (None for relative patterns)
-            - adjusted_pattern: The pattern relative to search_path
+            (search_path, adjusted_pattern) 的元组，其中：
+            - search_path: 要搜索的目录（None 表示相关模式）
+            - adjusted_pattern: 相对于 search_path 的模式
 
         Examples:
             >>> _extract_search_path_from_pattern("/path/to/dir/**/*.py")
@@ -263,21 +263,22 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
         if not pattern:
             return None, "**/*"
 
-        # Expand ~ for user home directory
+        # 展开 ~ 作为用户主目录
         pattern = os.path.expanduser(pattern)
 
         path_obj = Path(pattern)
 
-        # Check if pattern is an absolute path. Keep POSIX-style absolute paths
-        # working on Windows too, since agents often emit /tmp-style paths.
+        # 检查模式是否是绝对路径。 保持 POSIX 样式的绝对路径在 Windows 上也有效，因为智
+        # 能体经常发出 /tmp-style 路径。
+        #
         if not pattern.startswith("/") and not path_obj.is_absolute():
-            # Relative pattern - caller should use default working directory
+            # 相对模式 - 调用者应使用默认工作目录
             return None, pattern
 
-        # Absolute path pattern - extract the base path
+        # 绝对路径模式 - 提取基本路径
         parts = path_obj.parts
 
-        # Find where the glob characters start using glob.has_magic()
+        # 使用 glob.has_magic() 查找全局字符开始的位置
         search_parts = []
         for part in parts:
             if glob_module.has_magic(part):
@@ -285,12 +286,12 @@ class GlobExecutor(ToolExecutor[GlobAction, GlobObservation]):
             search_parts.append(part)
 
         if not search_parts:
-            # Pattern starts with glob at root (e.g., "/*/*.py")
+            # 模式以 glob 开头 (e.g., "/*/*.py")
             search_path = Path("/")
             adjusted_pattern = pattern.lstrip("/")
         else:
             search_path = Path(*search_parts)
-            # Get the remaining parts as the pattern
+            # 获取剩余部分作为图案
             remaining = parts[len(search_parts) :]
             adjusted_pattern = "/".join(remaining) if remaining else "**/*"
 

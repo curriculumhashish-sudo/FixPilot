@@ -1,15 +1,14 @@
-"""Static webserver for a conversation's workspace.
+"""用于对话的静态网络服务器工作区。
 
-Exposes the contents of a conversation's workspace directory at
-``/conversations/{conversation_id}/workspace/{file_path:path}``.  When the
-``api_router`` mounts this router under the ``/api`` prefix, the public URL
-becomes ``/api/conversations/{conversation_id}/workspace/...``.
+公开对话的工作区目录的内容
+``/conversations/{conversation_id}/workspace/{file_path:path}``. 当
+``api_router``将此路由器挂载在``/api``前缀下，公共URL变为
+``/api/conversations/{conversation_id}/workspace/...``。
 
-Behaves like a plain static file server:
-- A request for a file returns that file with an inferred ``Content-Type``.
-- A request that resolves to a directory serves ``index.html`` if present,
-  otherwise returns 404.
-- Path traversal outside of the workspace is rejected.
+行为就像一个普通的静态文件服务器：
+- 对文件的请求将返回带有推断的 ``Content-Type`` 的文件。
+- 解析为目录的请求将提供 ``index.html``（如果存在），否则返回 404。
+- 工作区之外的路径遍历被拒绝。
 """
 
 from pathlib import Path
@@ -30,10 +29,9 @@ workspace_router = APIRouter(prefix="/conversations", tags=["Workspace"])
 
 
 def conversation_workspace_url_path(conversation_id: UUID | str) -> str:
-    """Return the relative URL prefix that serves a conversation's workspace.
+    """返回服务于会话工作区的相对 URL 前缀。
 
-    The returned path always ends with a trailing slash so callers can
-    join it directly with relative file paths.
+    返回的路径始终以尾部斜杠结尾，因此调用者可以直接将其与相对文件路径连接起来。
     """
     return f"/api/conversations/{conversation_id}/workspace/"
 
@@ -64,9 +62,9 @@ async def _resolve_workspace_dir(
 
 
 def _resolve_target(workspace_dir: Path, file_path: str) -> Path:
-    """Resolve ``file_path`` under ``workspace_dir`` safely.
+    """安全地解决 ``workspace_dir`` 下的 ``file_path``。
 
-    Rejects any path that escapes ``workspace_dir`` after resolution.
+    拒绝解析后逃逸 ``workspace_dir`` 的任何路径。
     """
     candidate = (workspace_dir / file_path).resolve()
     if candidate != workspace_dir and not candidate.is_relative_to(workspace_dir):
@@ -105,7 +103,7 @@ async def serve_workspace_root(
     conversation_id: UUID,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> FileResponse:
-    """Serve ``index.html`` from the conversation's workspace root."""
+    """从对话的工作区根服务 ``index.html``。"""
     workspace_dir = await _resolve_workspace_dir(conversation_id, conversation_service)
     return _serve_path(workspace_dir, "")
 
@@ -119,6 +117,6 @@ async def serve_workspace_file(
     file_path: str,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> FileResponse:
-    """Serve a file (or directory ``index.html``) from the workspace."""
+    """从工作区提供文件（或目录 ``index.html``）。"""
     workspace_dir = await _resolve_workspace_dir(conversation_id, conversation_service)
     return _serve_path(workspace_dir, file_path)

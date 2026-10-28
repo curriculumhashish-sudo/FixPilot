@@ -1,56 +1,72 @@
-# OpenHands Local Agent
+<a id="openhands-local-agent"></a>
 
-A browser-based agent UI that demonstrates the OpenHands TypeScript SDK's `LocalConversation` class with JavaScript evaluation capabilities using OpenRouter.
+# OpenHands 本地智能体
 
-## Features
+基于浏览器的智能体 UI，使用 OpenRouter 演示 OpenHands TypeScript SDK 的 `LocalConversation` 类以及 JavaScript 评估功能。
 
-- 🤖 **LocalConversation Agent Loop** - Uses the SDK's built-in agent loop via `LocalConversation.run()`
-- 🔧 **JavaScript Eval Tool** - Agent can execute JavaScript code in the browser
-- 🔐 **OpenRouter Authentication** - Securely connect with your API key
-- 💬 **Real-time Chat** - Conversational interface with message history
-- 🤖 **Multiple Models** - Switch between Claude, GPT-4, Gemini, Llama, and more
-- 🌙 **Dark Mode** - Beautiful dark theme UI
+<a id="features"></a>
 
-## Quick Start
+## 特点
 
-### Prerequisites
+- 🤖 **LocalConversation 智能体 Loop** - 通过 `LocalConversation.run()` 使用 SDK 的内置智能体循环
+- 🔧 **JavaScript Eval Tool** - 智能体可以在浏览器中执行 JavaScript 代码
+- 🔐 **OpenRouter 身份验证** - 使用您的 API 键安全连接
+- 💬 **实时聊天** - 具有消息历史记录的对话界面
+- 🤖 **多种模型** - 在 Claude、GPT-4、Gemini、Llama 等之间切换
+- 🌙 **深色模式** - 漂亮的深色主题 UI
+
+<a id="quick-start"></a>
+
+## 快速入门
+
+<a id="prerequisites"></a>
+
+### 先决条件
 
 - Node.js 18+
-- An OpenRouter API key ([get one here](https://openrouter.ai/keys))
+- 一把 OpenRouter API 钥匙（[在此处获取一把](https://openrouter.ai/keys)）
 
-### Setup
+<a id="setup"></a>
+
+### 设置
 
 ```bash
-# From the typescript-client directory, build the SDK first
+# 从 TypeScript-client 目录中，首先构建 SDK
 cd /path/to/typescript-client
 npm install
 npm run build
 
-# Then set up the example app
+# 然后设置示例应用程序
 cd examples/local-agent
 npm install
 npm run dev
 ```
 
-### Running
+<a id="running"></a>
 
-1. Open http://localhost:12001 in your browser
-2. Enter your OpenRouter API key
-3. Select a model and start chatting!
+### 跑步
 
-## How It Works
+1. 在浏览器中打开  http://localhost:12001
+2. 输入您的 OpenRouter API 键
+3. 选择一个模型并开始聊天！
 
-This example demonstrates using `LocalConversation` with a custom `eval` tool:
+<a id="how-it-works"></a>
 
-1. **User sends a message** - Creates a `LocalConversation` with the eval tool
-2. **conversation.start()** - Initializes the conversation with the user's message
-3. **conversation.run()** - Runs the agent loop, calling the custom `toolExecutor` for each tool call
-4. **Tool execution** - The `toolExecutor` evaluates JavaScript code and returns results
-5. **Events** - The callback receives events for display in the UI
+## 它是如何运作的
 
-### The Eval Tool
+此示例演示了将 `LocalConversation` 与自定义 `eval` 工具结合使用：
 
-The agent has access to a JavaScript evaluation tool:
+1. **用户发送消息** - 使用 eval 工具创建 `LocalConversation`
+2. **conversation.start()** - 使用用户消息初始化对话
+3. **conversation.run()** - 运行智能体循环，为每个工具调用调用自定义 `toolExecutor`
+4. **工具执行** - `toolExecutor` 计算 JavaScript 代码并返回结果
+5. **事件** - 回调接收事件以在 UI 中显示
+
+<a id="the-eval-tool"></a>
+
+### 评估工具
+
+智能体可以访问 JavaScript 评估工具：
 
 ```typescript
 const TOOLS: Tool[] = [
@@ -85,43 +101,49 @@ const TOOLS: Tool[] = [
 ];
 ```
 
-### Example Prompts
+<a id="example-prompts"></a>
 
-Try these prompts to see the agent in action:
+### 示例提示词
 
-- "What is 2 + 2?"
-- "Calculate the factorial of 10"
-- "Generate an array of the first 10 fibonacci numbers"
-- "What's the current date and time?"
-- "Create a function that reverses a string and test it"
+尝试这些提示词来查看智能体的实际效果：
 
-## Code Structure
+- “2+2是什么？”
+- “计算 10 的阶乘”
+- “生成前 10 个斐波那契数列”
+- “现在的日期和时间是几点？”
+- “创建一个反转字符串的函数并测试它”
+
+<a id="code-structure"></a>
+
+## 代码结构
 
 ```
 examples/local-agent/
-├── index.html           # Entry HTML file
-├── package.json         # Dependencies
-├── tsconfig.json        # TypeScript config
-├── vite.config.ts       # Vite bundler config
-├── README.md            # This file
+├── index.html           # 条目 HTML 文件
+├── package.json         # 依赖关系
+├── tsconfig.json        # TypeScript 配置
+├── vite.config.ts       # Vite 捆绑器配置
+├── README.md            # 这个文件
 └── src/
-    ├── main.tsx         # React entry point
-    ├── App.tsx          # Main app component
-    ├── styles.css       # Global styles
+    ├── main.tsx         # 反应入口
+    ├── App.tsx          # 主要应用程序组件
+    ├── styles.css       # 全局样式
     └── components/
-        ├── AgentChatInterface.tsx  # LocalConversation usage & chat UI
-        ├── AuthScreen.tsx          # API key input
-        └── SettingsModal.tsx       # Model settings
+        ├── AgentChatInterface.tsx  # LocalConversation 使用和聊天界面
+        ├── AuthScreen.tsx          # API按键输入
+        └── SettingsModal.tsx       # 模型设置
 ```
 
-## Using LocalConversation with Custom Tools
+<a id="using-localconversation-with-custom-tools"></a>
 
-The key pattern demonstrated in `AgentChatInterface.tsx`:
+## 将 LocalConversation 与自定义工具结合使用
+
+`AgentChatInterface.tsx` 中演示的关键模式：
 
 ```typescript
 import { LocalConversation, LocalWorkspace, Agent, Tool, ToolCall } from '@openhands/typescript-client';
 
-// Define custom tools
+// 定义自定义工具
 const TOOLS: Tool[] = [
   {
     type: 'function',
@@ -139,7 +161,7 @@ const TOOLS: Tool[] = [
   },
 ];
 
-// Define a tool executor
+// 定义工具执行器
 const toolExecutor = (toolCall: ToolCall): string => {
   const { name, arguments: argsString } = toolCall.function;
   const args = JSON.parse(argsString);
@@ -156,29 +178,33 @@ const toolExecutor = (toolCall: ToolCall): string => {
   return `Unknown tool: ${name}`;
 };
 
-// Create the conversation with custom tools
+// 使用自定义工具创建对话
 const conversation = new LocalConversation(agent, workspace, {
   llm,
   systemPrompt: 'You are a helpful assistant...',
-  tools: TOOLS,           // Custom tools
-  toolExecutor,           // Custom tool executor
+  tools: TOOLS,           // 定制工具
+  toolExecutor,           // 自定义工具执行器
   maxIterations: 10,
   callback: (event) => {
-    // Handle events (assistant_message, tool_result, finish, etc.)
+    // 处理事件（assistant_message、tool_result、完成等）
   },
 });
 
-// Start and run
+// 启动并运行
 await conversation.start({ initialMessage: 'Hello!' });
 await conversation.run();
 ```
 
-## Security Note
+<a id="security-note"></a>
 
-⚠️ **Warning**: This example uses `eval()` which can execute arbitrary JavaScript code. This is intentional for demonstration purposes but should be used with caution. In a production environment, consider sandboxing or restricting the code that can be executed.
+## 安全说明
 
-## Related
+⚠️ **警告**：此示例使用`eval()`，它可以执行任意JavaScript代码。 这是出于演示目的，但应谨慎使用。 在生产环境中，请考虑沙箱或限制可以执行的代码。
 
-- [OpenRouter Documentation](https://openrouter.ai/docs)
+<a id="related"></a>
+
+## 相关
+
+- [OpenRouter 文档](https://openrouter.ai/docs)
 - [OpenHands TypeScript SDK](../../README.md)
-- [Local Chat Example](../local/) - Simpler chat without tool calling
+- [本地聊天示例](../local/) - 无需工具调用的更简单的聊天

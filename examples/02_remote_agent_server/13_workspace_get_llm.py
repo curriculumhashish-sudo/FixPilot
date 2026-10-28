@@ -1,23 +1,22 @@
-"""Example demonstrating workspace.get_llm() for settings-driven conversations.
+"""演示设置驱动对话的 workspace.get_llm() 的示例。
 
-This example shows how to use the new RemoteWorkspace settings methods with
-API key authentication for secure access:
+此示例演示如何使用新的 RemoteWorkspace 设置方法和 API 键身份验证进行安全访问：
 
-1. Spin up an agent-server with a session API key configured
-2. Configure LLM settings via the Settings API (requires API key auth)
-3. Use workspace.get_llm() to retrieve a configured LLM (also authenticated)
-4. Start a conversation using the retrieved LLM
+1. 启动配置了会话 API 密钥的智能体服务器
+2. 通过设置 API 配置 LLM 设置（需要 API 密钥身份验证）
+3. 使用 workspace.get_llm() 检索配置的 LLM （也经过身份验证）
+4. 使用检索到的 LLM 开始对话
 
-Security Model:
-- The agent-server is configured with SESSION_API_KEY env var
-- All requests must include the X-Session-API-Key header
-- RemoteWorkspace.api_key parameter sets this header automatically
-- LookupSecrets include the API key in their headers for resolution
+安全模型：
+- 智能体-服务器配置为 SESSION_API_KEY env var
+- 所有请求必须包含 X-Session-API-Key 标头
+- RemoteWorkspace.api_key 参数自动设置此标头
+- LookupSecrets 在其标头中包含 API 键以进行解析
 
-This pattern enables:
-- Secure centralized LLM configuration on the agent-server
-- Authenticated access to settings and secrets
-- Consistent security across all workspace operations
+该模式可以：
+- 智能体服务器上的安全集中式 LLM 配置
+- 经过身份验证的设置访问和机密
+- 所有工作区操作均保持一致的安全性
 """
 
 import os
@@ -33,11 +32,11 @@ from openhands.tools.preset.default import get_default_agent
 logger = get_logger(__name__)
 
 
-# Get LLM configuration from environment
+# 从环境中获取 LLM 配置
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 llm_model = os.getenv("LLM_MODEL", "gpt-5.5")
-llm_base_url = os.getenv("LLM_BASE_URL")  # Optional custom base URL
+llm_base_url = os.getenv("LLM_BASE_URL")  # 可选定制底座 URL
 
 with ManagedAPIServer(
     port=8766,
@@ -48,9 +47,10 @@ with ManagedAPIServer(
     use_session_api_key=True,
     health_request_timeout=2.0,
 ) as server:
-    # Create HTTP client for settings API - MUST include session API key!
-    # The X-Session-API-Key header authenticates all requests
-    assert server.session_api_key is not None  # set via use_session_api_key=True
+    # 为设置 API - 必须创建 HTTP 客户端，包括会话 API 密钥！ X-Session-API-Key 标头对所
+    # 有请求进行身份验证
+    #
+    assert server.session_api_key is not None  # 通过use_session_api_key=True设置
     client = httpx.Client(
         base_url=server.base_url,
         timeout=120.0,
@@ -58,14 +58,14 @@ with ManagedAPIServer(
     )
 
     try:
-        # ══════════════════════════════════════════════════════════════
-        # Part 0: Demonstrate Authentication Requirement
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第0部分：演示身
+        # 份验证要求 ══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔐 Demonstrating API key authentication")
         logger.info("=" * 60)
 
-        # Request WITHOUT api key should fail (401 Unauthorized)
+        # 请求 WITHOUT API 密钥应该失败（401 未经授权）
         unauthenticated = httpx.Client(base_url=server.base_url, timeout=10.0)
         response = unauthenticated.get("/api/settings")
         assert response.status_code == 401, (
@@ -74,19 +74,20 @@ with ManagedAPIServer(
         logger.info("✅ Request without API key rejected (401 Unauthorized)")
         unauthenticated.close()
 
-        # Request WITH api key should succeed
+        # 请求 WITH API 键应该成功
         response = client.get("/api/settings")
         assert response.status_code == 200, f"Authenticated request failed: {response}"
         logger.info("✅ Request with API key accepted (200 OK)")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 1: Configure LLM Settings on Agent-Server
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第一部分：配置
+        # LLM 设置在智能体-服务器上 ════════════════════════════════════════════════════
+        # ══════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔧 Configuring LLM settings on agent-server")
         logger.info("=" * 60)
 
-        # Store LLM configuration via the Settings API
+        # 通过设置 API 存储 LLM 配置
         llm_config: dict[str, str] = {
             "model": llm_model,
             "api_key": api_key,
@@ -105,57 +106,57 @@ with ManagedAPIServer(
         logger.info(f"   - Model: {settings['agent_settings']['llm']['model']}")
         logger.info(f"   - API key set: {settings['llm_api_key_is_set']}")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 2: Create Workspace and Retrieve LLM via get_llm()
-        # ══════════════════════════════════════════════════════════════
+        # ═══════════════════════════════ Part 2: Create 工作区 and Retrieve LLM via
+        # get_llm() ══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔗 Creating workspace and retrieving LLM configuration")
         logger.info("=" * 60)
 
-        # Create a RemoteWorkspace with API key authentication!
-        # The api_key is used for X-Session-API-Key header on all requests,
-        # including get_llm(), get_secrets(), and get_mcp_config().
+        # 用API键身份验证创建一个RemoteWorkspace！ api_key 用于所有请求上的 X-Session-
+        # API-Key 标头，包括 get_llm()、get_secrets() 和 get_mcp_config()。
+        #
         workspace = RemoteWorkspace(
             host=server.base_url,
             working_dir="/tmp/workspace_get_llm_demo",
-            api_key=server.session_api_key,  # Authenticate workspace requests
+            api_key=server.session_api_key,  # 验证工作区个请求
         )
 
         logger.info("✅ Workspace created with session API key")
 
-        # Use get_llm() to retrieve LLM configured on the agent-server!
-        # This calls GET /api/settings with both:
-        # - X-Session-API-Key (authentication)
-        # - X-Expose-Secrets: plaintext (to get the actual API key value)
+        # 使用 get_llm() 检索智能体服务器上配置的 LLM！ 这调用 GET /api/settings 两者：
+        # - X-会话-API-密钥 (身份验证)
+        # - X-Expose-机密：明文（获取实际的API键值）
         llm = workspace.get_llm()
 
         logger.info("✅ Retrieved LLM from workspace.get_llm()")
         logger.info(f"   - Model: {llm.model}")
         logger.info(f"   - Base URL: {llm.base_url or '(default)'}")
 
-        # You can also override specific settings:
+        # 您还可以覆盖特定设置：
         # llm_custom = workspace.get_llm(model="gpt-4o", temperature=0.5)
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 3: Create Agent and Start Conversation
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第三部分：创建
+        # 智能体并开始对话 ═════════════════════════════════════════════════════════════
+        # ═
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🤖 Creating agent with retrieved LLM")
         logger.info("=" * 60)
 
-        # Create agent using the LLM from workspace settings
+        # 使用工作区设置中的 LLM 创建智能体
         agent = get_default_agent(llm=llm, cli_mode=True)
 
         logger.info("✅ Agent created with workspace LLM settings")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 4: Start Conversation and Run Task
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第四部分：开始
+        # 对话并运行任务 ══════════════════════════════════════════════════════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("💬 Starting conversation")
         logger.info("=" * 60)
 
-        # Create conversation using the workspace and agent
+        # 使用工作区和智能体创建对话
         conversation = Conversation(
             agent=agent,
             workspace=workspace,
@@ -164,7 +165,7 @@ with ManagedAPIServer(
         try:
             logger.info(f"   Conversation ID: {conversation.state.id}")
 
-            # Send a simple task
+            # 发送一个简单的任务
             conversation.send_message("What is 2 + 2? Just respond with the number.")
             logger.info("📝 Sent message, running conversation...")
             conversation.run()
@@ -172,7 +173,7 @@ with ManagedAPIServer(
             logger.info("✅ Conversation completed!")
             logger.info(f"   Status: {conversation.state.execution_status}")
 
-            # Get cost metrics
+            # 获取成本指标
             cost = (
                 conversation.conversation_stats.get_combined_metrics().accumulated_cost
             )
@@ -184,14 +185,15 @@ with ManagedAPIServer(
             conversation.close()
             logger.info("🧹 Conversation closed")
 
-        # ══════════════════════════════════════════════════════════════
-        # Part 5: Demonstrate get_secrets() with API Key Auth
-        # ══════════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════════ 第五部分：演示
+        # get_secrets() 和 API 密钥认证 ════════════════════════════════════════════════
+        # ══════════════
+        #
         logger.info("\n" + "=" * 60)
         logger.info("🔐 Demonstrating get_secrets() and get_mcp_config()")
         logger.info("=" * 60)
 
-        # Store a test secret
+        # 存储测试机密
         response = client.put(
             "/api/settings/secrets",
             json={
@@ -202,9 +204,9 @@ with ManagedAPIServer(
         )
         assert response.status_code == 200
 
-        # Retrieve secrets via workspace.get_secrets()
-        # The returned LookupSecrets include the API key in their headers
-        # so they can authenticate when resolved by the agent-server
+        # 通过 workspace.get_secrets() 检索机密返回的 LookupSecrets 在其标头中包含 API
+        # 密钥，以便在智能体服务器解析时可以进行身份验证
+        #
         workspace_secrets = workspace.get_secrets()
         logger.info(
             f"✅ Retrieved {len(workspace_secrets)} secret(s) via "
@@ -213,16 +215,16 @@ with ManagedAPIServer(
         for name, lookup_secret in workspace_secrets.items():
             logger.info(f"   - {name}: LookupSecret")
             logger.info(f"     URL: {lookup_secret.url}")
-            # The LookupSecret includes the X-Session-API-Key header
-            # so it can authenticate when resolved
+            # LookupSecret 包含 X-Session-API-Key 标头，以便在解析时可以进行身份验证
+            #
             has_auth = "X-Session-API-Key" in (lookup_secret.headers or {})
             logger.info(f"     Has API key header: {has_auth}")
 
-        # Clean up test secret
+        # 清理测试机密
         client.delete("/api/settings/secrets/TEST_SECRET")
         logger.info("   Test secret deleted")
 
-        # get_mcp_config() returns empty dict if no MCP config is set
+        # 如果没有设置 MCP 配置，get_mcp_config() 返回空字典
         mcp_config = workspace.get_mcp_config()
         logger.info(f"✅ MCP config: {mcp_config or '(none configured)'}")
 

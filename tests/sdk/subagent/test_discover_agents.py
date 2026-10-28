@@ -1,4 +1,4 @@
-"""Tests for non-mutating agent discovery (``discover_agents``)."""
+"""测试非突变智能体发现 (``discover_agents``)。"""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -26,7 +26,7 @@ def _write_agent(directory: Path, name: str, description: str = "desc") -> None:
 
 
 def test_discover_agents_sets_level_and_source(tmp_path: Path) -> None:
-    """Discovered project/user agents carry level + source."""
+    """发现项目/用户智能体携带级别+来源。"""
     _write_agent(tmp_path / ".agents" / "agents", "project-agent")
     home = tmp_path / "home"
     _write_agent(home / ".agents" / "agents", "user-agent")
@@ -42,7 +42,7 @@ def test_discover_agents_sets_level_and_source(tmp_path: Path) -> None:
 
 
 def test_discover_agents_project_wins_over_user(tmp_path: Path) -> None:
-    """Project agent shadows a user agent with the same name."""
+    """项目智能体隐藏了同名的用户智能体。"""
     _write_agent(tmp_path / ".agents" / "agents", "shared", description="from project")
     home = tmp_path / "home"
     _write_agent(home / ".agents" / "agents", "shared", description="from user")
@@ -57,7 +57,7 @@ def test_discover_agents_project_wins_over_user(tmp_path: Path) -> None:
 
 
 def test_discover_agents_does_not_mutate_registry(tmp_path: Path) -> None:
-    """Discovery is read-only: the global registry stays untouched."""
+    """发现是只读：全局注册表保持不变。"""
     _write_agent(tmp_path / ".agents" / "agents", "project-agent")
 
     with patch("openhands.sdk.subagent.load.Path.home", return_value=tmp_path / "h"):
@@ -68,7 +68,7 @@ def test_discover_agents_does_not_mutate_registry(tmp_path: Path) -> None:
 
 
 def test_discover_agents_respects_include_flags(tmp_path: Path) -> None:
-    """include_project / include_user gate their respective sources."""
+    """include_project / include_user 选通它们各自的源。"""
     _write_agent(tmp_path / ".agents" / "agents", "project-agent")
     home = tmp_path / "home"
     _write_agent(home / ".agents" / "agents", "user-agent")
@@ -82,7 +82,7 @@ def test_discover_agents_respects_include_flags(tmp_path: Path) -> None:
 
 
 def test_discover_agents_none_project_dir(tmp_path: Path) -> None:
-    """A None project_dir skips project discovery without error."""
+    """A None project_dir 跳过项目发现，不会出现错误。"""
     home = tmp_path / "home"
     _write_agent(home / ".agents" / "agents", "user-agent")
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Endpoint audit — reconciles handwritten Agent Server HTTP calls against the
- * pinned Agent Server OpenAPI spec in both directions:
+ * 端点审计 — 协调手写的 Agent Server HTTP 反对
+ * 在双向中都锁定 Agent Server OpenAPI 的规格。
  *
- *   - client-only: a handwritten Agent Server call is absent from the server;
- *   - server-only: the server exposes an operation with no handwritten call.
+ *   - 仅客户端：服务器不存在手写 Agent Server 调用；
+ *   - 仅服务器：服务器公开一个没有手写调用的操作。
  *
- * Calls owned by another backend, such as CloudClient, are excluded explicitly
- * in endpoint-audit.config.json. Generated transport coverage is checked
- * separately by check:agent-server-api.
+ * 明确排除另一个后端拥有的调用，例如 CloudClient
+ * 在endpoint-audit.config.json中。 检查生成的传输层覆盖范围
+ * 分别通过检查：智能体-服务器-API。
  *
- * Exit code is non-zero on gating violations (see config.gate).
+ * 门控违规时退出代码不为零（请参阅config.gate）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,7 +23,7 @@ const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'endpoint-audit.config.js
 
 const VERBS = ['get', 'post', 'put', 'patch', 'delete'];
 
-// "/api/x/${id}" or "/api/x/{name}" -> "/api/x/{}", strip query + trailing slash
+// "/api/x/${id}" 或 "/api/x/{name}" -> "/api/x/{}"，剥离查询 + 尾部斜杠
 const norm = (verb, p) =>
   `${verb.toUpperCase()} ${
     p
@@ -33,7 +33,7 @@ const norm = (verb, p) =>
   }`;
 
 // ---------------------------------------------------------------------------
-// 1. Agent Server contract
+// 1. Agent Server 合同
 // ---------------------------------------------------------------------------
 async function loadSpec(spec) {
   if (spec.source === 'pinned-agent-server-release') {
@@ -63,7 +63,7 @@ async function loadSpec(spec) {
 }
 
 const specToSet = (doc) => {
-  const set = new Set(); // normalized "VERB /path"
+  const set = new Set(); // 标准化“VERB/path"
   for (const [p, methods] of Object.entries(doc.paths ?? {}))
     for (const verb of Object.keys(methods)) if (VERBS.includes(verb)) set.add(norm(verb, p));
   return set;
@@ -78,7 +78,7 @@ for (const spec of cfg.specs) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Handwritten Agent Server client surface
+// 2. 手写Agent Server客户端界面
 // ---------------------------------------------------------------------------
 function walk(dir) {
   const out = [];
@@ -175,7 +175,7 @@ for (const glob of cfg.clientGlobs) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Diff
+// 3. 差异
 // ---------------------------------------------------------------------------
 const sorted = (it) => [...it].sort();
 const ignoredApi = (k) => (cfg.ignoreServerOnly ?? []).some((pre) => k.includes(pre));
@@ -197,7 +197,7 @@ const serverOnly = sorted(
 );
 
 // ---------------------------------------------------------------------------
-// 4. Report
+// 4. 报告
 // ---------------------------------------------------------------------------
 const section = (title, items) => {
   console.log(`\n${title} (${items.length})`);
@@ -223,7 +223,7 @@ fs.writeFileSync(
       serverOnly,
       allowedClientOnly,
       explicitlyCoveredServerOperations,
-      // Backward-compatible field names for existing artifact consumers.
+      // 向后兼容现有工件使用者的字段名称。
       mismatch: clientOnly,
       missingApi: serverOnly,
       gate: {
@@ -237,7 +237,7 @@ fs.writeFileSync(
 );
 
 // ---------------------------------------------------------------------------
-// 5. Gate
+// 5. 门
 // ---------------------------------------------------------------------------
 const violations = [];
 if (gateConfig.mismatch !== false && clientOnly.length)

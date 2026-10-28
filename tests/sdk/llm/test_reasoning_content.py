@@ -1,4 +1,4 @@
-"""Tests for reasoning content support in LLM and Message classes."""
+"""测试 LLM 和 Message 类中的推理内容支持。"""
 
 from litellm.types.utils import Choices, Message as LiteLLMMessage, ModelResponse, Usage
 
@@ -6,19 +6,18 @@ from openhands.sdk.tool import Action
 
 
 class _TestActionForReasoningContent(Action):
-    """A test action used for testing reasoning content in ActionEvent.
+    """用于测试ActionEvent中推理内容的测试动作。
 
-    This class is defined at module level (rather than inside a test function) to
-    ensure it's importable by Pydantic during serialization/deserialization.
-    Defining it inside a test function causes test pollution when running tests
-    in parallel with pytest-xdist.
+    此类在模块级别定义（而不是在测试函数内部），以确保它在序列化/反序列化期间可由
+    Pydantic 导入。 当与 pytest-xdist 并行运行测试时，在测试函数
+    中定义它会导致测试污染。
     """
 
     action: str = "test"
 
 
 def create_mock_response(content: str = "Test response", response_id: str = "test-id"):
-    """Helper function to create properly structured mock responses."""
+    """用于创建结构正确的模拟对象响应的辅助函数。"""
     return ModelResponse(
         id=response_id,
         choices=[
@@ -36,7 +35,7 @@ def create_mock_response(content: str = "Test response", response_id: str = "tes
 
 
 def test_message_with_reasoning_content():
-    """Test Message with reasoning content fields."""
+    """带有推理内容字段的测试消息。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -49,7 +48,7 @@ def test_message_with_reasoning_content():
 
 
 def test_message_without_reasoning_content():
-    """Test Message without reasoning content (default behavior)."""
+    """测试消息而不推理内容（默认行为）。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(role="assistant", content=[TextContent(text="The answer is 42.")])
@@ -58,12 +57,12 @@ def test_message_without_reasoning_content():
 
 
 def test_message_from_llm_chat_message_with_reasoning():
-    """Test Message.from_llm_chat_message with reasoning content."""
+    """用推理内容测试Message.from_llm_chat_message。"""
     from openhands.sdk.llm.message import Message
 
-    # Create a mock LiteLLM message with reasoning content
+    # 创建一条包含推理内容的模拟对象 LiteLLM 消息
     litellm_message = LiteLLMMessage(role="assistant", content="The answer is 42.")
-    # Add reasoning content as attributes
+    # 添加推理内容作为属性
     litellm_message.reasoning_content = "Let me think about this..."
 
     message = Message.from_llm_chat_message(litellm_message)
@@ -78,7 +77,7 @@ def test_message_from_llm_chat_message_with_reasoning():
 
 
 def test_message_from_llm_chat_message_without_reasoning():
-    """Test Message.from_llm_chat_message without reasoning content."""
+    """测试Message.from_llm_chat_message无推理内容。"""
     from openhands.sdk.llm.message import Message
 
     litellm_message = LiteLLMMessage(role="assistant", content="The answer is 42.")
@@ -95,7 +94,7 @@ def test_message_from_llm_chat_message_without_reasoning():
 
 
 def test_message_serialization_with_reasoning():
-    """Test Message serialization includes reasoning content."""
+    """测试消息序列化包含推理内容。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(
@@ -110,7 +109,7 @@ def test_message_serialization_with_reasoning():
 
 
 def test_message_serialization_without_reasoning():
-    """Test Message serialization without reasoning content."""
+    """测试消息序列化，无推理内容。"""
     from openhands.sdk.llm.message import Message, TextContent
 
     message = Message(role="assistant", content=[TextContent(text="Answer")])
@@ -121,14 +120,14 @@ def test_message_serialization_without_reasoning():
 
 
 def test_action_event_with_reasoning_content():
-    """Test ActionEvent with reasoning content fields."""
+    """使用推理内容字段测试 ActionEvent。"""
     from openhands.sdk.event.llm_convertible import ActionEvent
     from openhands.sdk.llm.message import (
         MessageToolCall,
         TextContent,
     )
 
-    # Create a tool call
+    # 创建一个工具调用
     tool_call = MessageToolCall(
         id="test-id",
         name="test_tool",
@@ -146,9 +145,9 @@ def test_action_event_with_reasoning_content():
         reasoning_content="Let me think about this step by step...",
     )
 
-    # Test that reasoning content is preserved
+    # 测试推理内容是否被保留
     assert action_event.reasoning_content == "Let me think about this step by step..."
 
-    # Test that reasoning content is included in the LLM message
+    # 测试LLM消息中是否包含推理内容
     llm_message = action_event.to_llm_message()
     assert llm_message.reasoning_content == "Let me think about this step by step..."

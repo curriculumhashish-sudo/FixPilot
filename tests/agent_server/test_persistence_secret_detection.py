@@ -1,5 +1,5 @@
-"""Tests for has_any_secret: detect secret-bearing fields via the real
-serialization pipeline, not a hardcoded field checklist.
+"""has_any_secret 测试：通过真实的序列化管道检测机密承载字段，而不是硬编码的字段检查
+表。
 """
 
 import logging
@@ -41,7 +41,7 @@ def test_has_any_secret_detects_llm_api_key():
 
 
 def test_has_any_secret_detects_critic_api_key():
-    """critic_api_key is a separate secret from llm.api_key."""
+    """critic_api_key 是独立于 llm.api_key 的机密。"""
     settings = PersistedSettings.model_validate(
         {"agent_settings": {"verification": {"critic_api_key": "sk-critic"}}}
     )
@@ -68,9 +68,10 @@ def test_has_any_secret_detects_mcp_server_secret():
 
 
 def test_has_any_secret_detects_agent_context_secret():
-    """agent_context.secrets values are plain str at rest (only secret-shaped
-    at serialize time via their own field serializer), so a naive
-    isinstance(v, SecretStr) walk would miss this -- must still be caught."""
+    """agent_context.secrets 值为 REST （仅机密形状的）
+    在序列化时间通过他们自己的场序列化器），所以天真的isinstance(v, SecretStr)步行会
+    错过这一点 - 仍然必须被抓住。
+    """
     settings = PersistedSettings.model_validate(
         {"agent_settings": {"agent_context": {"secrets": {"MY_TOKEN": "sk-ctx"}}}}
     )
@@ -97,9 +98,10 @@ def test_secrets_has_any_secret_false_for_empty_secrets():
 def test_settings_save_warns_for_critic_key_only_without_cipher(
     persistence_dir, caplog
 ):
-    """Regression test: before has_any_secret, the plaintext warning was
-    gated on llm_api_key_is_set alone, so a critic_api_key-only settings
-    object triggered no warning at all."""
+    """回归测试：在has_any_secret之前，明文警告是
+    单独对 llm_api_key_is_set 进行门控，因此仅 critic_api_key 的设置对象根本不会触发
+    任何警告。
+    """
     caplog.set_level(logging.WARNING)
     store = FileSettingsStore(persistence_dir=persistence_dir)
     settings = PersistedSettings.model_validate(

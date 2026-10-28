@@ -1,16 +1,15 @@
-"""CORS middleware for the agent server.
+"""CORS中间件为Agent Server。
 
-``CORSDispatcher`` routes requests to one of two CORS configurations
-based on path:
+``CORSDispatcher`` 根据路径将请求路由到两个 CORS 配置之一：
 
-* Workspace cookie endpoints (``/api/auth/workspace-session`` and
-  ``/api/conversations/{id}/workspace/*``) — wildcard CORS that echoes
-  the request Origin on every response. These are the only routes that
-  authenticate via an ambient (cookie) credential.
-* Everything else — ``LocalhostCORSMiddleware``, which honors the
-  operator's ``allow_cors_origins`` / ``allow_cors_origin_regex`` and always
-  allows localhost and ``DOCKER_HOST_ADDR`` (matches OpenHands/OpenHands#4624
-  intent).
+* 工作区 cookie 端点（``/api/auth/workspace-session`` 和
+  ``/api/conversations/{id}/workspace/*``) — 通配符 CORS，在每个响应上回显请求来源。
+  这些是唯一通过环境 (cookie)
+   进行身份验证的路由凭据。
+* 其他一切 - ``LocalhostCORSMiddleware``，尊重操作员的 ``allow_cors_origins`` /
+``allow_cors_origin_regex`` 并始终允许 localhost 和 ``DOCKER_HOST_ADDR``（匹配
+OpenHands/
+OpenHands#4624 意图）。
 """
 
 import os
@@ -32,7 +31,7 @@ def _is_workspace_cookie_path(path: str) -> bool:
 
 
 class LocalhostCORSMiddleware(CORSMiddleware):
-    """``CORSMiddleware`` that always allows localhost and ``DOCKER_HOST_ADDR``."""
+    """``CORSMiddleware`` 始终允许 localhost 和 ``DOCKER_HOST_ADDR``。"""
 
     def __init__(
         self,
@@ -61,19 +60,19 @@ class LocalhostCORSMiddleware(CORSMiddleware):
 
 
 class CORSDispatcher:
-    """Dispatches each request to the workspace or default CORS middleware.
+    """将每个请求分派到工作区或默认 CORS 中间件。
 
-    The workspace branch uses ``allow_origin_regex=r"https?://.+"`` rather
-    than ``allow_origins=["*"]`` for two reasons:
+    工作区分支使用 ``allow_origin_regex=r"https?://.+"`` 而不是
+    ``allow_origins=["*"]`` 有两个原因：
 
-    1. Starlette emits a literal ``*`` on simple responses when
-       ``allow_all_origins`` is set and the request has no ``Cookie``
-       header — which browsers reject together with
-       ``Access-Control-Allow-Credentials: true``. The regex path always
-       echoes the request Origin (with ``Vary: Origin``).
-    2. Anchoring to ``http(s)://`` excludes ``Origin: null`` (sandboxed
-       iframes, ``data:`` / ``blob:`` URLs), which have no defined CHIPS
-       partition key and are not legitimate clients.
+    1. Starlette 在简单响应时发出文字 ``*``
+       设置了 ``allow_all_origins`` 并且请求没有 ``Cookie`` 标头 — 浏览器会拒绝该标头
+       ``Access-Control-Allow-Credentials: true``. 正则表达式路径始终与请求 Origin 相
+       呼应（带有
+       ``Vary: Origin``）。
+    2. ``http(s)://``锚定排除了``Origin: null``（如果沙盒化，``data:`` / ``blob:``
+    URLs）这些没有定义CHIP
+    S分区键的非法客户端。
     """
 
     def __init__(
@@ -98,8 +97,8 @@ class CORSDispatcher:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") == "http":
-            # Strip FastAPI ``root_path`` so dispatch works behind
-            # reverse proxies mounted under a sub-path.
+            # 剥离 FastAPI ``root_path``，以便调度在安装在子路径下的反向代理后面工作。
+            #
             root_path = scope.get("root_path", "")
             path = scope.get("path", "/")
             route_path = path.removeprefix(root_path) if root_path else path

@@ -1,4 +1,4 @@
-"""Tests for load_user_skills functionality."""
+"""测试 load_user_skills 功能。"""
 
 import tempfile
 from pathlib import Path
@@ -18,15 +18,15 @@ from openhands.sdk.skills.installed import disable_skill, install_skill
 
 @pytest.fixture
 def temp_user_skills_dir():
-    """Create a temporary user skills directory structure."""
+    """创建临时用户技能目录结构。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
 
-        # Create .agents/skills directory
+        # 创建 .agents/skills 目录
         agents_dir = root / ".agents" / "skills"
         agents_dir.mkdir(parents=True)
 
-        # Create .openhands/skills directory
+        # 创建openhands/skills目录
         skills_dir = root / ".openhands" / "skills"
         skills_dir.mkdir(parents=True)
 
@@ -35,11 +35,11 @@ def temp_user_skills_dir():
 
 @pytest.fixture
 def temp_microagents_dir():
-    """Create a temporary microagents directory structure."""
+    """创建临时微代理目录结构。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
 
-        # Create .openhands/microagents directory
+        # 创建openhands/microagents目录
         microagents_dir = root / ".openhands" / "microagents"
         microagents_dir.mkdir(parents=True)
 
@@ -47,8 +47,8 @@ def temp_microagents_dir():
 
 
 def test_load_user_skills_no_directories(tmp_path):
-    """Test load_user_skills when no user skills directories exist."""
-    # Point USER_SKILLS_DIRS to non-existent directories
+    """当不存在用户技能目录时测试 load_user_skills。"""
+    # 将USER_SKILLS_DIRS指向不存在的目录
     from openhands.sdk.skills import skill
 
     original_dirs = skill.USER_SKILLS_DIRS
@@ -64,10 +64,10 @@ def test_load_user_skills_no_directories(tmp_path):
 
 
 def test_load_user_skills_with_agents_directory(temp_user_skills_dir):
-    """Test load_user_skills loads from .agents/skills directory."""
+    """测试 load_user_skills 从 .agents/skills 目录加载。"""
     root, agents_dir, _ = temp_user_skills_dir
 
-    # Create a test skill file
+    # 创建测试技能文件
     skill_file = agents_dir / "agent_skill.md"
     skill_file.write_text(
         "---\nname: agent_skill\ntriggers:\n  - agent\n---\nAgent skill content."
@@ -88,10 +88,10 @@ def test_load_user_skills_with_agents_directory(temp_user_skills_dir):
 
 
 def test_load_user_skills_with_skills_directory(temp_user_skills_dir):
-    """Test load_user_skills loads from .openhands/skills directory."""
+    """load_user_skills 测试从 openhands/skills 目录加载。"""
     root, _, skills_dir = temp_user_skills_dir
 
-    # Create a test skill file
+    # 创建测试技能文件
     skill_file = skills_dir / "test_skill.md"
     skill_file.write_text(
         "---\nname: test_skill\ntriggers:\n  - test\n---\nThis is a test skill."
@@ -112,10 +112,10 @@ def test_load_user_skills_with_skills_directory(temp_user_skills_dir):
 
 
 def test_load_user_skills_with_microagents_directory(temp_microagents_dir):
-    """Test load_user_skills loads from microagents directory (legacy)."""
+    """测试 load_user_skills 从 microagents 目录（旧版）加载。"""
     root, microagents_dir = temp_microagents_dir
 
-    # Create a test microagent file
+    # 创建测试微代理文件
     microagent_file = microagents_dir / "legacy_skill.md"
     microagent_file.write_text(
         "---\n"
@@ -140,7 +140,7 @@ def test_load_user_skills_with_microagents_directory(temp_microagents_dir):
 
 
 def test_load_user_skills_priority_order(tmp_path):
-    """Test precedence .agents/skills > .openhands/skills > microagents."""
+    """测试优先级。agents/skills > openhands/skills > microagents。"""
     agents_dir = tmp_path / ".agents" / "skills"
     skills_dir = tmp_path / ".openhands" / "skills"
     microagents_dir = tmp_path / ".openhands" / "microagents"
@@ -172,8 +172,8 @@ def test_load_user_skills_priority_order(tmp_path):
 
 
 def test_load_user_skills_merges_all_directories(tmp_path):
-    """Test loading unique skills from .agents/skills, .openhands/skills,
-    microagents.
+    """测试加载来自 .agents/skills 和 .openhands/skills 的唯一技能
+    微代理。
     """
     agents_dir = tmp_path / ".agents" / "skills"
     skills_dir = tmp_path / ".openhands" / "skills"
@@ -204,14 +204,14 @@ def test_load_user_skills_merges_all_directories(tmp_path):
 
 
 def test_load_user_skills_handles_errors_gracefully(temp_user_skills_dir):
-    """Test that errors in loading are handled gracefully."""
+    """测试加载错误是否得到妥善处理。"""
     root, _, skills_dir = temp_user_skills_dir
 
-    # Create an invalid skill file
+    # 创建无效的技能文件
     invalid_file = skills_dir / "invalid.md"
     invalid_file.write_text(
         "---\n"
-        "triggers: not_a_list\n"  # Invalid: triggers must be a list
+        "triggers: not_a_list\n"  # 无效：触发器必须是列表
         "---\n"
         "Invalid skill."
     )
@@ -221,7 +221,7 @@ def test_load_user_skills_handles_errors_gracefully(temp_user_skills_dir):
     original_dirs = skill.USER_SKILLS_DIRS
     try:
         skill.USER_SKILLS_DIRS = [skills_dir]
-        # Should not raise exception, just return empty list
+        # 不应引发异常，仅返回空列表
         skills = load_user_skills()
         assert skills == []
     finally:
@@ -229,10 +229,10 @@ def test_load_user_skills_handles_errors_gracefully(temp_user_skills_dir):
 
 
 def test_agent_context_loads_user_skills_by_default(temp_user_skills_dir):
-    """Test that AgentContext loads user skills when enabled."""
+    """测试 AgentContext 启用后是否加载用户技能。"""
     root, _, skills_dir = temp_user_skills_dir
 
-    # Create a test skill
+    # 创建测试技能
     skill_file = skills_dir / "auto_skill.md"
     skill_file.write_text("---\nname: auto_skill\n---\nAutomatically loaded skill.")
 
@@ -249,20 +249,20 @@ def test_agent_context_loads_user_skills_by_default(temp_user_skills_dir):
 
 
 def test_agent_context_can_disable_user_skills_loading():
-    """Test that user skills loading can be disabled."""
+    """测试是否可以禁用用户技能加载。"""
     context = AgentContext(load_user_skills=False)
     assert context.skills == []
 
 
 def test_agent_context_merges_explicit_and_user_skills(temp_user_skills_dir):
-    """Test that explicit skills and user skills are merged correctly."""
+    """测试显性技能和用户技能是否正确合并。"""
     root, _, skills_dir = temp_user_skills_dir
 
-    # Create user skill
+    # 创造用户技能
     user_skill_file = skills_dir / "user_skill.md"
     user_skill_file.write_text("---\nname: user_skill\n---\nUser skill content.")
 
-    # Create explicit skill
+    # 创造显性技能
     explicit_skill = Skill(
         name="explicit_skill",
         content="Explicit skill content.",
@@ -284,14 +284,14 @@ def test_agent_context_merges_explicit_and_user_skills(temp_user_skills_dir):
 
 
 def test_agent_context_explicit_skill_takes_precedence(temp_user_skills_dir):
-    """Test that explicitly provided skills take precedence over user skills."""
+    """测试明确提供的技能是否优先于用户技能。"""
     root, _, skills_dir = temp_user_skills_dir
 
-    # Create user skill with same name
+    # 创建同名用户技能
     user_skill_file = skills_dir / "duplicate.md"
     user_skill_file.write_text("---\nname: duplicate\n---\nUser skill content.")
 
-    # Create explicit skill with same name
+    # 创建同名的显式技能
     explicit_skill = Skill(
         name="duplicate",
         content="Explicit skill content.",
@@ -305,20 +305,20 @@ def test_agent_context_explicit_skill_takes_precedence(temp_user_skills_dir):
         skill.USER_SKILLS_DIRS = [skills_dir]
         context = AgentContext(skills=[explicit_skill], load_user_skills=True)
         assert len(context.skills) == 1
-        # Explicit skill should be used, not the user skill
+        # 应使用显性技能，而不是用户技能
         assert context.skills[0].content == "Explicit skill content."
     finally:
         skill.USER_SKILLS_DIRS = original_dirs
 
 
 def test_load_user_skills_includes_installed_skills(tmp_path, monkeypatch):
-    """Test that load_user_skills also loads enabled installed skills."""
+    """测试 load_user_skills 是否也加载已启用的已安装技能。"""
     skills_dir = tmp_path / "skills"
     skills_dir.mkdir()
     installed_dir = tmp_path / "skills" / "installed"
     installed_dir.mkdir()
 
-    # Create and install a skill
+    # 创建并安装技能
     source_dir = tmp_path / "my-installed-skill"
     source_dir.mkdir()
     (source_dir / "SKILL.md").write_text(
@@ -341,16 +341,16 @@ def test_load_user_skills_includes_installed_skills(tmp_path, monkeypatch):
 def test_load_user_skills_user_skill_takes_precedence_over_installed(
     tmp_path, monkeypatch
 ):
-    """Test that user skills take precedence over installed skills."""
+    """测试用户技能是否优先于已安装的技能。"""
     skills_dir = tmp_path / "skills"
     skills_dir.mkdir()
     installed_dir = tmp_path / "skills" / "installed"
     installed_dir.mkdir()
 
-    # Create a user skill
+    # 创建用户技能
     (skills_dir / "duplicate.md").write_text("---\nname: duplicate\n---\nUser version.")
 
-    # Install a skill with the same name
+    # 安装同名技能
     source_dir = tmp_path / "duplicate"
     source_dir.mkdir()
     (source_dir / "SKILL.md").write_text(
@@ -371,13 +371,13 @@ def test_load_user_skills_user_skill_takes_precedence_over_installed(
 
 
 def test_load_user_skills_disabled_installed_skill_excluded(tmp_path, monkeypatch):
-    """Test that disabled installed skills are not loaded."""
+    """测试已禁用的已安装技能是否未加载。"""
     skills_dir = tmp_path / "skills"
     skills_dir.mkdir()
     installed_dir = tmp_path / "skills" / "installed"
     installed_dir.mkdir()
 
-    # Install and disable a skill
+    # 安装和禁用技能
     source_dir = tmp_path / "disabled-skill"
     source_dir.mkdir()
     (source_dir / "SKILL.md").write_text(

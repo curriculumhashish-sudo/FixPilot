@@ -1,4 +1,4 @@
-"""Test APIRemoteWorkspace timeout configuration."""
+"""测试 APIRemoteWorkspace 超时配置。"""
 
 import os
 from unittest.mock import MagicMock, patch
@@ -7,14 +7,14 @@ import httpx
 
 
 def test_api_timeout_is_used_in_client():
-    """Test that api_timeout parameter is used for the HTTP client timeout."""
+    """测试 api_timeout 参数是否用于 HTTP 客户端超时。"""
     from openhands.workspace import APIRemoteWorkspace
 
-    # Mock the entire initialization process
+    # 模拟对象整个初始化过程
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime") as mock_init:
         mock_init.return_value = None
 
-        # Create a workspace with custom api_timeout
+        # 使用自定义 api_timeout 创建工作区
         custom_timeout = 300.0
         workspace = APIRemoteWorkspace(
             runtime_api_url="https://example.com",
@@ -23,29 +23,29 @@ def test_api_timeout_is_used_in_client():
             api_timeout=custom_timeout,
         )
 
-        # The runtime properties need to be set for client initialization
+        # 需要设置客户端初始化的运行时属性
         workspace._runtime_id = "test-runtime-id"
         workspace._runtime_url = "https://test-runtime.com"
         workspace._session_api_key = "test-session-key"
         workspace.host = workspace._runtime_url
 
-        # Access the client property to trigger initialization
+        # 访问客户端属性触发初始化
         client = workspace.client
 
-        # Verify that the client's timeout uses the custom api_timeout
+        # 验证客户端的超时使用自定义的api_timeout
         assert isinstance(client, httpx.Client)
         assert client.timeout.read == custom_timeout
         assert client.timeout.connect == 10.0
         assert client.timeout.write == 10.0
         assert client.timeout.pool == 10.0
 
-        # Clean up
-        workspace._runtime_id = None  # Prevent cleanup from trying to stop runtime
+        # 清理
+        workspace._runtime_id = None  # 防止清理尝试停止运行时
         workspace.cleanup()
 
 
 def test_api_timeout_default_value():
-    """Test that the default api_timeout is 60 seconds."""
+    """测试默认 api_timeout 是否为 60 秒。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime") as mock_init:
@@ -57,25 +57,25 @@ def test_api_timeout_default_value():
             server_image="test-image",
         )
 
-        # The runtime properties need to be set for client initialization
+        # 需要设置客户端初始化的运行时属性
         workspace._runtime_id = "test-runtime-id"
         workspace._runtime_url = "https://test-runtime.com"
         workspace._session_api_key = "test-session-key"
         workspace.host = workspace._runtime_url
 
-        # Access the client property to trigger initialization
+        # 访问客户端属性触发初始化
         client = workspace.client
 
-        # Verify default timeout is 60 seconds
+        # 验证默认值超时是否为 60 秒
         assert client.timeout.read == 60.0
 
-        # Clean up
+        # 清理
         workspace._runtime_id = None
         workspace.cleanup()
 
 
 def test_different_timeout_values():
-    """Test that different api_timeout values are correctly applied."""
+    """测试是否正确应用了不同的 api_timeout 值。"""
     from openhands.workspace import APIRemoteWorkspace
 
     test_timeouts = [30.0, 120.0, 600.0]
@@ -109,7 +109,7 @@ def test_different_timeout_values():
 
 
 def test_startup_wait_timeout_default_and_override():
-    """Ensure startup_wait_timeout can be configured."""
+    """确保startup_wait_timeout可以配置。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime") as mock_init:
@@ -137,7 +137,7 @@ def test_startup_wait_timeout_default_and_override():
 
 
 def test_forward_env_default_is_empty():
-    """Test that forward_env defaults to an empty list."""
+    """测试 forward_env 默认为空列表。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime") as mock_init:
@@ -156,14 +156,14 @@ def test_forward_env_default_is_empty():
 
 
 def test_forward_env_is_included_in_start_runtime_payload():
-    """Test that forward_env variables are included in the runtime start payload."""
+    """测试 forward_env 变量是否包含在运行时启动载荷中。"""
     from openhands.workspace import APIRemoteWorkspace
 
-    # Set up test environment variables
+    # 设置测试环境变量
     test_env = {
         "TEST_VAR_1": "value1",
         "TEST_VAR_2": "value2",
-        "UNSET_VAR": None,  # This one won't be in os.environ
+        "UNSET_VAR": None,  # 这个不会出现在 os.environ 中
     }
 
     with patch.dict(os.environ, {k: v for k, v in test_env.items() if v is not None}):
@@ -179,7 +179,7 @@ def test_forward_env_is_included_in_start_runtime_payload():
                 forward_env=["TEST_VAR_1", "TEST_VAR_2", "UNSET_VAR"],
             )
 
-            # Mock the API request method to capture the payload
+            # 模拟对象API请求方法捕获载荷
             mock_response = MagicMock()
             mock_response.json.return_value = {
                 "runtime_id": "test-id",
@@ -192,16 +192,16 @@ def test_forward_env_is_included_in_start_runtime_payload():
             ) as mock_request:
                 workspace._start_runtime()
 
-                # Verify the API was called with the correct payload
+                # 验证使用正确的载荷调用 API
                 mock_request.assert_called_once()
                 call_kwargs = mock_request.call_args
                 payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
 
-                # Check that environment contains the forwarded variables
+                # 检查环境是否包含转发的变量
                 assert "environment" in payload
                 assert payload["environment"]["TEST_VAR_1"] == "value1"
                 assert payload["environment"]["TEST_VAR_2"] == "value2"
-                # UNSET_VAR should not be in environment since it's not in os.environ
+                # UNSET_VAR 不应该在环境中，因为它不在 os.environ 中
                 assert "UNSET_VAR" not in payload["environment"]
 
             workspace._runtime_id = None
@@ -209,7 +209,7 @@ def test_forward_env_is_included_in_start_runtime_payload():
 
 
 def test_forward_env_empty_list_results_in_empty_environment():
-    """Test that an empty forward_env results in an empty environment dict."""
+    """测试空的 forward_env 是否会导致空的环境字典。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime") as mock_attach:
@@ -244,7 +244,7 @@ def test_forward_env_empty_list_results_in_empty_environment():
 
 
 def test_start_runtime_logs_environment_keys_without_values(caplog):
-    """Test that start-runtime logs do not include forwarded env values."""
+    """测试启动运行时日志不包含转发的环境值。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.dict(
@@ -289,11 +289,11 @@ def test_start_runtime_logs_environment_keys_without_values(caplog):
             workspace.cleanup()
 
 
-# --- Callback integration tests ---
+# --- 回调集成测试 ---
 
 
 def _make_workspace():
-    """Create a workspace without starting runtime for callback tests."""
+    """创建工作区，而不启动回调测试的运行时。"""
     from openhands.workspace import APIRemoteWorkspace
 
     with patch.object(APIRemoteWorkspace, "_start_or_attach_to_runtime"):
@@ -302,12 +302,12 @@ def _make_workspace():
             runtime_api_key="test-key",
             server_image="test-image",
         )
-        ws._runtime_id = None  # Prevent cleanup from making API calls
+        ws._runtime_id = None  # 防止清理进行 API 调用
         return ws
 
 
 def test_api_remote_workspace_exit_sends_callback(monkeypatch):
-    """Test that APIRemoteWorkspace.__exit__ sends completion callback."""
+    """测试 APIRemoteWorkspace.__exit__ 发送完成回调。"""
     monkeypatch.setenv("AUTOMATION_CALLBACK_URL", "https://svc.test/complete")
     monkeypatch.setenv("AUTOMATION_CALLBACK_API_KEY", "test-api-key")
     ws = _make_workspace()

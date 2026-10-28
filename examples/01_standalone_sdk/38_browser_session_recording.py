@@ -1,15 +1,14 @@
-"""Browser Session Recording Example
+"""浏览器会话录制示例
 
-This example demonstrates how to use the browser session recording feature
-to capture and save a recording of the agent's browser interactions using rrweb.
+示例展示了如何使用浏览器会话录制功能来捕获并保存智能体的浏览器交互记录。
 
-The recording can be replayed later using rrweb-player to visualize the agent's
-browsing session.
+稍后可以使用 rrweb-player 重播该记录，以可视化智能体的浏览会话。
 
-The recording will be automatically saved to the persistence directory when
-browser_stop_recording is called. You can replay it with:
-    - rrweb-player: https://github.com/rrweb-io/rrweb/tree/master/packages/rrweb-player
-    - Online viewer: https://www.rrweb.io/demo/
+当调用browser_stop_recording时，录音会自动保存到持久化目录中。 您可以通过以下方式重播
+：
+    - rrweb 播放器：
+    https://github.com/rrweb-io/rrweb/tree/master/packages/rrweb-player
+    - 在线浏览： https://www.rrweb.io/demo/
 """
 
 import json
@@ -35,7 +34,7 @@ from openhands.tools.browser_use.definition import (
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -47,16 +46,16 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools - including browser tools with recording capability
+# 工具 - 包括具有录制功能的浏览器工具
 cwd = os.getcwd()
 tools = [
     Tool(name=BrowserToolSet.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -64,7 +63,7 @@ def conversation_callback(event: Event):
         llm_messages.append(event.to_llm_message())
 
 
-# Create conversation with persistence_dir set to save browser recordings
+# 创建对话并将 persistence_dir 设置为保存浏览器录音
 conversation = Conversation(
     agent=agent,
     callbacks=[conversation_callback],
@@ -72,10 +71,10 @@ conversation = Conversation(
     persistence_dir="./.conversations",
 )
 
-# The prompt instructs the agent to:
-# 1. Start recording the browser session
-# 2. Navigate to a page and get its content
-# 3. Stop recording (auto-saves to file)
+# 提示词指示智能体：
+# 1. 开始记录浏览器会话
+# 2. 导航到页面并获取其内容
+# 3. 停止录音（自动保存到文件）
 PROMPT = """
 Please complete the following task to demonstrate browser session recording:
 
@@ -92,8 +91,9 @@ print("Browser Session Recording Example")
 print("=" * 80)
 print("\nTask: Record an agent's browser session and save it for replay")
 
-# Pre-initialize the browser so CDP is ready before the agent starts.
-# This avoids wasting LLM calls if the browser fails to connect.
+# 预初始化浏览器，以便 CDP 在智能体启动之前准备就绪。 这可以避免在浏览器无法连接时浪费
+# LLM 调用。
+#
 print("\nInitializing browser...")
 
 init_obs = conversation.execute_tool(
@@ -115,10 +115,10 @@ print("\n" + "=" * 80)
 print("Conversation finished!")
 print("=" * 80)
 
-# Check if the recording files were created
-# Recordings are saved in BROWSER_RECORDING_OUTPUT_DIR/recording-{timestamp}/
+# 检查录音文件是否创建录音保存在BROWSER_RECORDING_OUTPUT_DIR/recording-{timestamp}/
+#
 if os.path.exists(BROWSER_RECORDING_OUTPUT_DIR):
-    # Find recording subdirectories (they start with "recording-")
+    # 查找录音子目录（以“录音-”开头）
     recording_dirs = sorted(
         [
             d
@@ -129,7 +129,7 @@ if os.path.exists(BROWSER_RECORDING_OUTPUT_DIR):
     )
 
     if recording_dirs:
-        # Process the most recent recording directory
+        # 处理最近的录音目录
         latest_recording = recording_dirs[-1]
         recording_path = os.path.join(BROWSER_RECORDING_OUTPUT_DIR, latest_recording)
         json_files = sorted(
@@ -139,7 +139,7 @@ if os.path.exists(BROWSER_RECORDING_OUTPUT_DIR):
         print(f"\n✓ Recording saved to: {recording_path}")
         print(f"✓ Number of files: {len(json_files)}")
 
-        # Count total events across all files
+        # 计算所有文件中的事件总数
         total_events = 0
         all_event_types: dict[int | str, int] = {}
         total_size = 0
@@ -152,7 +152,7 @@ if os.path.exists(BROWSER_RECORDING_OUTPUT_DIR):
             with open(filepath) as f:
                 events = json.load(f)
 
-            # Events are stored as a list in each file
+            # 事件以列表形式存储在每个文件中
             if isinstance(events, list):
                 total_events += len(events)
                 for event in events:
@@ -183,10 +183,10 @@ print("Conversation finished.")
 print(f"Total LLM messages: {len(llm_messages)}")
 print("=" * 100)
 
-# Report cost
+# 报告费用
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
 print(f"Conversation ID: {conversation.id}")
 print(f"EXAMPLE_COST: {cost}")
 
-# Close conversation to shut down browser and other tool executors
+# 关闭对话以关闭浏览器和其他工具执行器
 conversation.close()

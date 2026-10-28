@@ -1,4 +1,4 @@
-"""Runtime-idle-aware terminal timeout policy."""
+"""运行时空闲感知终端超时策略。"""
 
 import os
 from collections.abc import Mapping
@@ -11,11 +11,10 @@ MAX_FOREGROUND_TIMEOUT_RATIO = 0.9
 def get_runtime_idle_timeout_seconds(
     env: Mapping[str, str] | None = None,
 ) -> float | None:
-    """Return configured runtime idle timeout in seconds, if any.
+    """返回配置的运行时空闲超时（以秒为单位）（如果有）。
 
-    The runtime-api injects this value into managed runtime pods. Local and
-    self-hosted deployments that do not have idle cleanup can leave it unset,
-    which disables the foreground terminal timeout cap.
+    runtime-API 将此值注入到托管运行时 pod 中。 没有空闲清理功能的本地和自托管部署可
+    以将其保留为未设置，这会禁用前台终端超时上限。
     """
     raw = (env or os.environ).get(RUNTIME_IDLE_TIMEOUT_SECONDS_ENV)
     if raw is None or raw.strip() == "":
@@ -34,7 +33,7 @@ def get_runtime_idle_timeout_seconds(
 def get_max_foreground_timeout_seconds(
     runtime_idle_timeout_seconds: float | None = None,
 ) -> float | None:
-    """Return max safe foreground terminal timeout, or None when uncapped."""
+    """返回最大安全前台终端超时，或未限制时返回 None。"""
     idle_timeout = (
         get_runtime_idle_timeout_seconds()
         if runtime_idle_timeout_seconds is None
@@ -46,7 +45,7 @@ def get_max_foreground_timeout_seconds(
 
 
 def format_seconds(value: float) -> str:
-    """Format second values compactly for user-facing observations."""
+    """紧凑地格式化第二个值以面向用户观测结果。"""
     return f"{value:g}"
 
 
@@ -54,7 +53,7 @@ def foreground_timeout_rejection_message(
     requested_timeout_seconds: float,
     runtime_idle_timeout_seconds: float,
 ) -> str:
-    """Build the user-facing rejection for unsafe foreground timeouts."""
+    """为不安全的前景构建面向用户的拒绝超时。"""
     max_timeout = get_max_foreground_timeout_seconds(runtime_idle_timeout_seconds)
     assert max_timeout is not None
     ratio_percent = int(MAX_FOREGROUND_TIMEOUT_RATIO * 100)
@@ -79,7 +78,7 @@ def foreground_timeout_rejection_for(
     timeout: float | None,
     runtime_idle_timeout_seconds: float | None = None,
 ) -> str | None:
-    """Return a rejection message if a terminal action is unsafe to run."""
+    """如果终端操作运行不安全，则返回拒绝消息。"""
     if is_input or not command.strip() or timeout is None:
         return None
 

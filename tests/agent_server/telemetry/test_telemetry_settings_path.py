@@ -1,8 +1,8 @@
-"""Consent is written through ``PATCH /api/settings``.
+"""通过 ``PATCH /api/settings`` 书面同意。
 
-There is no dedicated telemetry consent endpoint. Canvas writes
-``misc_settings.telemetry.consent`` like any other frontend preference, and the
-settings-update path re-resolves the telemetry decision before returning.
+没有专门的遥测同意端点。 画布书写
+``misc_settings.telemetry.consent`` 与任何其他前端首选项一样，设置更新路径在返回之前
+重新解析遥测决策。
 """
 
 import pytest
@@ -26,7 +26,7 @@ def client(config_factory):
 
 
 class RecordingSink:
-    """Stands in for the live sink to observe propagation."""
+    """代表实时接收器来观察传播情况。"""
 
     def __init__(self, enabled: bool = True):
         self._enabled = enabled
@@ -50,7 +50,7 @@ class RecordingSink:
         pass
 
 
-# ── persistence ───────────────────────────────────────────────────────────
+# ── 持久化 ───────────────────────────────────────────────────────────
 
 
 def test_consent_is_written_and_read_through_misc_settings(client, config_factory):
@@ -93,7 +93,7 @@ def test_consent_does_not_appear_as_a_typed_settings_field(client):
     assert "telemetry_consent" not in body
 
 
-# ── propagation to the live sink ──────────────────────────────────────────
+# ── 传播至活水槽──────────────────────────────────────────
 
 
 def test_granting_consent_notifies_the_sink(client, monkeypatch):
@@ -101,7 +101,7 @@ def test_granting_consent_notifies_the_sink(client, monkeypatch):
 
     sink = RecordingSink(enabled=False)
     with client as c:
-        # After startup: the lifespan builds its own sink and would clobber this.
+        # 启动后：生命周期会建立自己的水槽并会破坏它。
         monkeypatch.setattr(service_mod, "_telemetry_sink", sink)
         assert c.patch(SETTINGS_URL, json=diff("granted")).status_code == 200
 
@@ -111,7 +111,7 @@ def test_granting_consent_notifies_the_sink(client, monkeypatch):
 
 
 def test_revoking_consent_discards_queued_events(client, monkeypatch):
-    """The unchanged acceptance criterion, now via the settings path."""
+    """不变的接受标准，现在通过设置路径。"""
     import openhands.agent_server.telemetry.service as service_mod
 
     sink = RecordingSink(enabled=True)
@@ -126,7 +126,7 @@ def test_revoking_consent_discards_queued_events(client, monkeypatch):
 
 
 def test_an_unrelated_settings_write_still_re_resolves(client, monkeypatch):
-    """A misc write that does not touch telemetry is harmless but re-resolved."""
+    """不涉及遥测的杂项写入是无害的，但可以重新解决。"""
     import openhands.agent_server.telemetry.service as service_mod
 
     sink = RecordingSink(enabled=False)
@@ -157,11 +157,11 @@ def test_there_is_no_dedicated_consent_endpoint(client):
         assert c.get("/api/telemetry/consent").status_code == 404
 
 
-# ── request-scoped attribution via header ─────────────────────────────────
+# ── 通过 header 进行请求范围归因 ──────────────────────────────────
 
 
 def test_request_failed_uses_the_distinct_id_header(client, monkeypatch):
-    """A 500 attributes to the frontend's PostHog identity when supplied."""
+    """提供时，500 归因于前端的 PostHog 身份。"""
     import openhands.agent_server.telemetry.service as service_mod
     from openhands.agent_server.api import create_app
     from openhands.agent_server.telemetry.factory import (
@@ -254,8 +254,8 @@ def test_request_failed_without_the_header_is_anonymous(client, monkeypatch):
 
 
 def test_request_failed_is_emitted_for_an_exception_group(client, monkeypatch):
-    """Regression: a BaseExceptionGroup with no HTTPException returned a 500 but
-    skipped request_failed telemetry."""
+    """Regression: a BaseExceptionGroup 没有 HTTPException 返回了 500
+    跳过 request_failed 遥测。"""
     import openhands.agent_server.telemetry.service as service_mod
     from openhands.agent_server.api import create_app
     from openhands.agent_server.telemetry import models as m

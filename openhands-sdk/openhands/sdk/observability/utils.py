@@ -4,14 +4,14 @@ from openhands.sdk.event import ActionEvent
 
 
 def get_env(key: str) -> str | None:
-    """Get an environment variable from the process environment.
+    """从进程环境中获取环境变量。
 
-    Loading a ``.env`` file is intentionally left to the host application (for
-    example, the CLI calls ``load_dotenv()`` once at startup). Reading straight
+    加载 ``.env`` 文件是有意留给主机应用程序的（例如，CLI 在启动时调用
+    ``load_dotenv()`` 一次）。 直读
     from ``os.environ`` avoids python-dotenv's ``find_dotenv()`` call-stack
-    walk, which executes ``assert frame.f_back is not None`` and raises an
-    ``AssertionError`` in execution contexts whose frames have no on-disk file
-    (threads running exec'd/embedded code, some async paths). See issue #1325.
+    walk，执行 ``assert frame.f_back is not None`` 并引发
+    ``AssertionError`` 在其帧没有磁盘文件的执行上下文中（线程运行执行/嵌入代码，一些
+    异步路径）。 请参阅问题#1325。
     """
     return os.getenv(key)
 

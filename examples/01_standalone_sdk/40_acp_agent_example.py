@@ -1,16 +1,15 @@
-"""Example: Using ACPAgent with Claude Code ACP server.
+"""Example: 使用ACPAgent与Claude CodeACP服务器。
 
-This example shows how to use an ACP-compatible server (claude-agent-acp)
-as the agent backend instead of direct LLM calls.  It also demonstrates
-``ask_agent()`` — a stateless side-question that forks the ACP session
-and leaves the main conversation untouched — and sending an image alongside
-text to verify multimodal (vision) input support.
+此示例演示如何使用 ACP 兼容服务器 (claude-智能体-ACP) 作为智能体后端，而不是直接 LLM
+调用。 它还演示了
+``ask_agent()`` — 一个状态机侧问题，它会分叉 ACP 会话，但不会影响主对话 — 并通过文本
+和图片一起发送以验证多模态（视觉）输入支持。
 
-Prerequisites:
-    - Node.js / npx available
-    - ANTHROPIC_BASE_URL and ANTHROPIC_API_KEY set (can point to LiteLLM proxy)
+先决条件：
+    - Node.js / npx 可用
+    - ANTHROPIC_BASE_URL和ANTHROPIC_API_KEY设置（可以指向LiteLLM代理）
 
-Usage:
+用途：
     uv run python examples/01_standalone_sdk/40_acp_agent_example.py
 """
 
@@ -30,14 +29,14 @@ try:
     cwd = os.getcwd()
     conversation = Conversation(agent=agent, workspace=cwd)
 
-    # --- Main conversation turn (text only) ---
+    # --- 主要对话轮次（仅限文本）---
     conversation.send_message(
         "List the Python source files under openhands-sdk/openhands/sdk/agent/, "
         "then read the __init__.py and summarize what agent classes are exported."
     )
     conversation.run()
 
-    # --- Image input turn (text + image) ---
+    # --- 图片输入转（文字+图片）---
     print("\n--- image input ---")
     conversation.send_message(
         Message(
@@ -52,17 +51,17 @@ try:
     )
     conversation.run()
 
-    # --- ask_agent: stateless side-question via fork_session ---
+    # --- ask_agent：通过 fork_session 的无状态附带问题 ---
     print("\n--- ask_agent ---")
     response = conversation.ask_agent(
         "Based on what you just saw, which agent class is the newest addition?"
     )
     print(f"ask_agent response: {response}")
-    # Report cost (ACP server reports usage via session_update notifications)
+    # 报告成本（ACP 服务器通过 session_update 通知报告使用情况）
     cost = agent.llm.metrics.accumulated_cost
     print(f"EXAMPLE_COST: {cost:.4f}")
 finally:
-    # Clean up the ACP server subprocess
+    # 清理 ACP 服务器子进程
     agent.close()
 
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost

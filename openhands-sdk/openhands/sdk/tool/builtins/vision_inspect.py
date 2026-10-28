@@ -26,7 +26,7 @@ VISION_PROFILE_USAGE_PREFIX = "vision-profile"
 
 
 class VisionInspectAction(Action):
-    """Action for asking a vision model about an attached image."""
+    """向视觉模型询问附加图像的操作。"""
 
     image_index: int = Field(
         ge=0,
@@ -59,7 +59,7 @@ class VisionInspectAction(Action):
 
 
 class VisionInspectObservation(Observation):
-    """Observation returned after a vision model inspects an image."""
+    """观测结果在视觉模型检查图像后返回。"""
 
     image_index: int = Field(description="Image index that was inspected.")
     question: str = Field(description="Question asked of the vision model.")
@@ -93,7 +93,7 @@ class VisionInspectObservation(Observation):
 
 
 def _candidate_vision_profiles() -> list[str]:
-    """Return saved profile names that appear to support vision."""
+    """返回似乎支持视觉的已保存配置文件名称。"""
     profiles: list[str] = []
     store = LLMProfileStore()
     for summary in store.list_summaries():
@@ -118,7 +118,7 @@ def _candidate_vision_profiles() -> list[str]:
 
 
 def has_vision_profile_available() -> bool:
-    """Return True when at least one saved profile appears vision-capable."""
+    """当至少一个已保存的配置文件显示具有视觉功能时，返回 True。"""
     return bool(_candidate_vision_profiles())
 
 
@@ -291,7 +291,7 @@ _DESCRIPTION_TEMPLATE = (
 
 
 class VisionInspectTool(ToolDefinition[VisionInspectAction, VisionInspectObservation]):
-    """Tool for one-off image inspection through a saved vision profile."""
+    """通过保存的视觉配置文件进行一次性图像检查的工具。"""
 
     user_selectable: ClassVar[bool] = False
 

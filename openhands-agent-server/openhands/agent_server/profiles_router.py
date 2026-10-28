@@ -1,4 +1,4 @@
-"""HTTP endpoints for managing named LLM configurations (profiles)."""
+"""HTTP 端点用于管理命名的 LLM 配置（配置文件）。"""
 
 import asyncio
 from typing import Annotated, Any
@@ -72,7 +72,7 @@ class ProfileListResponse(BaseModel):
 
 
 class ProfileDetailResponse(BaseModel):
-    """Secrets are nulled unless explicitly requested via X-Expose-Secrets."""
+    """除非通过 X-Expose-机密明确请求，否则机密为空。"""
 
     name: str
     config: dict[str, Any]
@@ -108,10 +108,9 @@ def _has_api_key(llm: LLM) -> bool:
 
 
 def _profile_api_key_set(request: Request, llm: LLM) -> bool:
-    """Effective key presence: the profile's own key, or its provider's.
+    """有效的密钥存在：配置文件自己的密钥或其提供商的密钥。
 
-    A profile linked to a provider connection carries no inline key (cleared on
-    save), so its key presence lives on the connection.
+    链接到提供商连接的配置文件不携带内联密钥（保存时清除），因此其密钥存在于连接上。
     """
     if _has_api_key(llm):
         return True
@@ -120,8 +119,9 @@ def _profile_api_key_set(request: Request, llm: LLM) -> bool:
         return False
     config = get_config(request)
     cipher = get_cipher(request)
-    # The provider store read can raise on a corrupted file; map it instead of
-    # letting it surface as an unhandled 500 on GET /profiles/{name}.
+    # 提供程序存储读取可能会引发损坏的文件； 映射它而不是让它作为未处理的 500 出现在 GET
+    #  /profiles/{name}. 上
+    #
     with store_errors():
         connection = get_provider_connections_store(config).get(
             connection_id, cipher=cipher
@@ -136,7 +136,7 @@ def _set_active_profile_if_matches(
     settings_store = get_settings_store(config)
     settings = settings_store.load() or PersistedSettings()
     active = settings.active_profile
-    # ``foo.json`` addresses profile ``foo`` in the store, so compare store keys.
+    # ``foo.json`` 寻址存储中的配置文件 ``foo``，因此比较存储密钥。
     if active is None or canonical_profile_name(active) != canonical_profile_name(
         old_name
     ):
@@ -154,11 +154,10 @@ def _set_active_profile_if_matches(
 
 @profiles_router.get("", response_model=ProfileListResponse)
 def list_profiles(request: Request) -> ProfileListResponse:
-    """List all saved LLM profiles.
+    """列出所有已保存的 LLM 个配置文件。
 
-    Returns the list of profiles along with the currently active profile name,
-    if one has been activated. The active_profile tracks which LLM profile
-    configuration is currently in use.
+    返回配置文件列表以及当前活动的配置文件名称（如果已激活）。 active_profile 跟踪当
+    前正在使用的 LLM 配置文件配置。
     """
     config = get_config(request)
     settings_store = get_settings_store(config)
@@ -176,13 +175,13 @@ def list_profiles(request: Request) -> ProfileListResponse:
 
 @profiles_router.get("/{name}", response_model=ProfileDetailResponse)
 def get_profile(request: Request, name: ProfileName) -> ProfileDetailResponse:
-    """Get a profile's configuration.
+    """获取配置文件的配置。
 
-    Use the ``X-Expose-Secrets`` header to control secret exposure:
-    - ``encrypted``: Returns cipher-encrypted values (safe for frontend clients)
-    - ``plaintext``: Resolves linked providers and returns raw secret values
-      for backend clients constructing a runnable LLM configuration
-    - (absent): Returns nulled ``api_key`` with ``api_key_set`` indicator
+    使用 ``X-Expose-Secrets`` 标头控制机密曝光：
+    - ``encrypted``：返回密码加密值（对于前端客户端来说是安全的）
+    - ``plaintext``：解析链接的提供程序并为构建可运行的 LLM 配置的后端客户端返回原始
+    机密值
+    - （不存在）：返回带有 ``api_key_set`` 指示符的空 ``api_key``
     """
     expose_mode = parse_expose_secrets_header(request)
     cipher = get_cipher(request)
@@ -190,8 +189,8 @@ def get_profile(request: Request, name: ProfileName) -> ProfileDetailResponse:
     store = get_llm_profile_store()
     try:
         with store_errors():
-            # Runtime reads need current provider credentials. Editor reads
-            # retain the stored reference, including dangling references.
+            # 运行时读取需要当前提供程序凭据。 编辑器读取保留存储的引用，包括悬空引用。
+            #
             llm = store.load(
                 name, cipher=cipher, resolve_provider=expose_mode == "plaintext"
             )
@@ -224,14 +223,12 @@ def save_profile(
     name: ProfileName,
     body: SaveProfileRequest,
 ) -> ProfileMutationResponse:
-    """Save an LLM configuration as a named profile.
+    """将 LLM 配置保存为命名配置文件。
 
-    Overwrites an existing profile of the same name. Returns 409 if creating
-    a new profile would exceed ``MAX_PROFILES``.
+    覆盖同名的现有配置文件。 如果创建新配置文件超出 ``MAX_PROFILES``，则返回 409。
 
-    When ``OH_SECRET_KEY`` is configured, secrets are encrypted at rest.
-    Clients can submit cipher-encrypted secrets which will be decrypted
-    server-side before re-encrypting with the storage cipher.
+    当配置``OH_SECRET_KEY``时，机密在REST处加密。 客户端可以提交密码加密的机密，该密
+    码将在使用存储密码重新加密之前在服务器端解密。
     """
     cipher = get_cipher(request)
     llm = decrypt_incoming_llm_secrets(body.llm, cipher) if cipher else body.llm
@@ -259,44 +256,44 @@ def save_profile(
 
 
 class ValidateProfileRequest(BaseModel):
-    """Request body for LLM pre-flight validation.
+    """LLM 飞行前验证的请求正文。
 
-    Accepts an LLM config (same shape as ``SaveProfileRequest.llm``) so the
-    frontend can validate a draft *before* persisting it.
+    接受一个 LLM 配置(相同的形状 ``SaveProfileRequest.llm``）因此前端可以验证草稿 *之
+    前* 坚持它。
     """
 
     llm: LLM
 
 
 class ValidateProfileError(BaseModel):
-    """Structured error returned when validation fails."""
+    """验证失败时返回结构化错误。"""
 
     type: str
     message: str
 
 
 class ValidateProfileResponse(BaseModel):
-    """Result of an LLM pre-flight check."""
+    """LLM 飞行前检查的结果。"""
 
     valid: bool
     error: ValidateProfileError | None = None
 
 
-# Errors that should NOT block saving — they are transient and unrelated to
-# the correctness of the configuration itself.
+# 应不阻止保存的错误 — 它们是暂时的，与配置本身的正确性无关。
+#
 _TRANSIENT_ERROR_TYPES = (LLMRateLimitError, LLMTimeoutError)
 
-# Upper bound, in seconds, on the single pre-flight attempt. A profile's own
-# ``timeout`` (300 s by default) and retry policy are for real conversations;
-# validation answers within this bound instead.
+# 单次飞行前尝试的上限（以秒为单位）。 个人资料自己的
+# ``timeout``（默认300秒）和重试策略用于真实对话； 验证答案在此范围内。
+#
 PREFLIGHT_TIMEOUT_SECONDS = 15
 
 
 def _preflight_llm(llm: LLM) -> LLM:
-    """Copy ``llm`` for one bounded attempt at the configured model.
+    """复制 ``llm`` 以对配置的模型进行一次有限尝试。
 
-    No retries, a short timeout, and no fallback LLMs (each would bring its
-    own retry policy, and a working fallback would hide a broken primary).
+    没有重试，一个短超时，以及没有回退方案 LLMs（每个都会带来自己的重试政策，一个工作
+    回退方案会隐藏一个损坏的主）。
     """
     timeout = PREFLIGHT_TIMEOUT_SECONDS
     if llm.timeout is not None:
@@ -325,26 +322,25 @@ async def validate_profile(
     name: ProfileName,
     body: ValidateProfileRequest,
 ) -> ValidateProfileResponse:
-    """Pre-flight check: fire a minimal LLM completion to catch misconfigurations.
+    """飞行前检查：触发最小 LLM 完成以捕获错误配置。
 
-    Instantiates the submitted LLM config and sends a 1-token completion to
-    surface errors like invalid model names, missing provider prefixes, bad
-    base URLs, and invalid API keys — *before* the profile is saved.
+    实例化提交的 LLM 配置并发送了 1-token 完成表面错误，如无效的模型名称、缺失的提供
+    者前缀、坏的基类 URLs, and invalid API keys
+     — *之前* 该资料已保存。
 
-    The ping is a single attempt bounded by ``PREFLIGHT_TIMEOUT_SECONDS``
-    (or the config's shorter ``timeout``); the config's retry policy is not
-    used, so an unreachable endpoint answers at once.
+    ping 是一次以 ``PREFLIGHT_TIMEOUT_SECONDS``（或更短的配置 ``timeout``）为界的尝试
+    ； 未使用配置的重试策略，因此无法访
+    问的端点立即应答。
 
-    Transient errors (rate limits, timeouts) are treated as non-blocking: the
-    response is ``valid=True`` with no error, since those don't indicate a
-    misconfigured profile. A 429 that reports an exhausted budget or quota is
-    not transient and fails the validation.
+    超时临时错误（速率限制等）被视为非阻塞：响应 ``valid=True``，没有错误，因为这些错
+    误并不表明配置错误。 报告预算或配额耗尽的 429 不是暂时的并且会
+    失败验证。
     """
     cipher = get_cipher(request)
     llm = decrypt_incoming_llm_secrets(body.llm, cipher) if cipher else body.llm
-    # Check a draft linked to a provider connection with the connection's
-    # credentials, as activation and ``switch_llm`` run it. No-op without
-    # ``provider_connection_id``; a dangling link is a 422 naming it.
+    # 检查链接到提供者连接的草稿与连接的凭据，作为激活和 ``switch_llm`` 运行它。 无操作
+    # 无
+    # ``provider_connection_id``; 悬空链接是 422 命名它。
     with store_errors():
         llm = get_llm_profile_store().resolve_provider_connection(llm, cipher=cipher)
 
@@ -360,15 +356,13 @@ async def validate_profile(
     ]
 
     try:
-        # Restore runtime subscription credentials, mirroring ``from_persisted``.
-        # The frontend sends auth_type="subscription" but the OAuth access token
-        # lives in the credential store, not in the serialized LLM config. Without
-        # this, the pre-flight sends api_key=None and fails with
-        # "Incorrect API key provided: None".
+        # 恢复运行时订阅凭据、镜像 ``from_persisted``。 前端发送 auth_type="subscription
+        # " 但 OAuth 访问令牌位于凭据存储中，而不是已序列化 LLM 配置中。 如果没有这个，
+        # 飞行前会发送 api_key=None 并失败，并显示“提供的 API 密钥不正确：None”。
         #
-        # Run the synchronous factory (which may do a network token refresh)
-        # off the event loop and inside the handled path so credential errors
-        # surface as ``valid=False`` instead of a 500.
+        # 在事件循环之外并在处理的路径内运行同步工厂（可能会执行网络 token 刷新），因此
+        # 凭据错误显示为 ``valid=False`` 而不是 500。
+        #
         if getattr(llm, "auth_type", None) == "subscription":
             from openhands.sdk.llm.auth.openai import (
                 create_subscription_llm_from_config,
@@ -377,8 +371,9 @@ async def validate_profile(
             llm = await asyncio.to_thread(create_subscription_llm_from_config, llm)
 
         llm = _preflight_llm(llm)
-        # Mirror the runtime dispatch (see ``LLM.agenerate``) and stay
-        # async so provider I/O doesn't pin the FastAPI event loop.
+        # 镜像运行时分派（参见 ``LLM.agenerate``）并保持异步，以便提供程序 I/O 不会固定
+        # FastAPI 事件循环。
+        #
         if llm.uses_responses_api():
             await llm.aresponses(messages=messages, max_tokens=1)
         else:
@@ -386,24 +381,24 @@ async def validate_profile(
     except _TRANSIENT_ERROR_TYPES as exc:
         if is_quota_exhaustion_error(exc):
             return _invalid(name, exc)
-        # Transient — don't block the save
+        # 瞬态——不阻止保存
         logger.info(
             f"Profile '{name}' pre-flight hit a transient error "
             f"({type(exc).__name__}); not blocking save."
         )
         return ValidateProfileResponse(valid=True)
     except (
-        # LLMServiceUnavailableError (provider 503) is intentionally treated as
-        # a blocking config error: at this layer a provider outage is
-        # indistinguishable from a wrong base URL, so we prefer a false
-        # negative over silently saving a misconfigured profile.
+        # LLMServiceUnavailableError（提供程序 503）被故意视为阻塞配置错误：在这一层，提
+        # 供程序中断与错误的基础 URL 无法区分，因此我们更喜欢 False 否定而不是默默地保存
+        # 错误配置的配置文件。
+        #
         LLMServiceUnavailableError,
         LLMError,
     ) as exc:
         return _invalid(name, exc)
     except Exception as exc:
-        # Unknown errors — block the save and surface the raw message so the
-        # user can debug, but classify generically.
+        # 未知错误 - 阻止保存并显示原始消息，以便用户可以调试，但可以进行一般分类。
+        #
         msg = redact_text_secrets(str(exc) or type(exc).__name__)
         logger.info(f"Profile '{name}' pre-flight failed (unknown): {msg}")
         return ValidateProfileResponse(
@@ -419,10 +414,10 @@ async def validate_profile(
 
 @profiles_router.delete("/{name}", response_model=ProfileMutationResponse)
 def delete_profile(request: Request, name: ProfileName) -> ProfileMutationResponse:
-    """Delete a saved profile (idempotent).
+    """删除已保存的配置文件（幂等）。
 
-    Guarded by the agent-profile FK: returns 409 naming the referrers if any
-    ``AgentProfile`` still cites this LLM profile via ``llm_profile_ref``.
+    由智能体-profile FK 保护：返回 409 命名引用者（如果有）
+    ``AgentProfile`` 仍然通过 ``llm_profile_ref`` 引用此 LLM 简介。
     """
     store = get_llm_profile_store()
     agent_store = get_agent_profile_store()
@@ -443,14 +438,14 @@ def rename_profile(
     name: ProfileName,
     body: RenameProfileRequest,
 ) -> ProfileMutationResponse:
-    """Rename a saved profile atomically.
+    """自动重命名已保存的配置文件。
 
-    Returns 404 if the source does not exist, or 409 if ``new_name`` already
-    exists. A same-name rename is a verified no-op (still 404s if missing).
+    如果源不存在，则返回 404；如果 ``new_name`` 已存在，则返回 409。 同名重命名是经过
+    验证的无操作（如果丢失，仍然是 404）。
 
-    If the renamed profile is the currently active profile, the active_profile
-    setting is updated to the new name. Any ``AgentProfile.llm_profile_ref``
-    citing the old name is cascaded to the new name in lock-step.
+    如果重命名的配置文件是当前活动的配置文件，active_profile 设置将更新为新名称。 任
+    何引用旧名称的
+    ``AgentProfile.llm_profile_ref`` 都会在锁步骤中级联到新名称。
     """
     store = get_llm_profile_store()
     agent_store = get_agent_profile_store()
@@ -482,7 +477,7 @@ def rename_profile(
 
 
 class ActivateProfileResponse(BaseModel):
-    """Response model for profile activation."""
+    """配置文件激活的响应模型。"""
 
     name: str
     message: str
@@ -491,29 +486,30 @@ class ActivateProfileResponse(BaseModel):
 
 @profiles_router.post("/{name}/activate", response_model=ActivateProfileResponse)
 def activate_profile(request: Request, name: ProfileName) -> ActivateProfileResponse:
-    """Activate a saved LLM profile.
+    """激活已保存的 LLM 配置文件。
 
-    This endpoint:
-    1. Loads the named profile's LLM configuration
-    2. Applies it to the current OpenHands agent settings (updates
-       ``agent_settings.llm``); ACP settings have no LLM to update
-    3. Records the profile name as the active profile for frontend tracking
+    这个端点：
+    1. 加载指定配置文件的 LLM 配置
+    2. 将其应用于当前的 OpenHands 智能体设置（更新
+       ``agent_settings.llm``); ACP 设置没有 LLM 需要更新
+    3. 将配置文件名称记录为前端跟踪的活动配置文件
 
-    Returns 404 if the profile does not exist.
+    如果配置文件不存在，则返回 404。
 
-    Use ``GET /api/profiles`` to see which profile is currently active via
-    the ``active_profile`` field.
+    使用 ``GET /api/profiles`` 查看哪个角色是当前激活的，通过 ``active_profile`` 字段
+    。
     """
     cipher = get_cipher(request)
     config = get_config(request)
 
-    # Load the profile. ``load`` resolves any referenced provider connection
-    # (read-at-use), so the LLM applied to settings already carries the shared
-    # api_key / base_url; ``provider_connection_id`` is retained so a later
-    # rotation re-resolves on the next activation or launch.
+    # 加载配置文件。 ``load`` 解析任何引用的提供者连接（使用时读取），因此应用于设置的
+    # LLM 已经携带共享的 api_key / base_url； ``provider_connection_id`` 被保留，以便稍
+    # 后的轮换在下一次激活或启动时重新解析。
+    #
     profile_store = get_llm_profile_store()
-    # A dangling provider_connection_id raises ProviderConnectionNotFound, which
-    # store_errors() maps to 422.
+    # 悬空的 provider_connection_id 引发 ProviderConnectionNotFound，其中 store_errors()
+    #  映射到 422。
+    #
     try:
         with store_errors():
             llm = profile_store.load(name, cipher=cipher)

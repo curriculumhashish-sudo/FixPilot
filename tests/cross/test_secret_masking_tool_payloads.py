@@ -1,4 +1,4 @@
-"""Cross-package tests for secret masking of opaque tool payloads."""
+"""机密不透明工具屏蔽的跨包测试载荷。"""
 
 import base64
 

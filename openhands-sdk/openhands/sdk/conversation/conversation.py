@@ -32,15 +32,16 @@ logger = get_logger(__name__)
 
 
 class Conversation:
-    """Factory class for creating conversation instances with OpenHands agents.
+    """用于使用 OpenHands 智能体创建对话实例的工厂类。
 
-    This factory automatically creates either a LocalConversation or RemoteConversation
-    based on the workspace type provided. LocalConversation runs the agent locally,
+    该工厂根据提供的工作区类型自动创建 LocalConversation 或 RemoteConversation。
+    LocalConversation 在本地运行智
+    能体，
     while RemoteConversation connects to a remote agent server.
 
     Returns:
-        LocalConversation if workspace is local, RemoteConversation if workspace
-        is remote.
+        如果工作区是本地，则为 LocalConversation；如果工作区为远程，则为
+        RemoteConversation。
 
     Example:
         ```python
@@ -156,19 +157,19 @@ class Conversation:
         )
 
         if isinstance(workspace, RemoteWorkspace):
-            # For RemoteConversation, persistence_dir should not be used.
+            # 对于 RemoteConversation，不应使用 persistence_dir。
             if persistence_dir is not None:
                 raise ValueError(
                     "persistence_dir should not be set when using RemoteConversation"
                 )
 
-            # Build effective tags by merging multiple sources:
-            # 1. Workspace default tags (automation context)
-            # 2. Auto-generated tags (plugins/skills)
-            # 3. User-provided tags (highest priority)
+            # 通过合并多个来源构建有效的标签：
+            # 1. 工作区默认标签（自动化上下文）
+            # 2. 自动生成的标签（插件/技能）
+            # 3. 用户提供的标签（最高优先级）
             effective_tags: dict[str, str] = {}
 
-            # 1. Start with workspace default tags
+            # 1. 从工作区个默认标签开始
             default_tags = workspace.default_conversation_tags
             if default_tags:
                 effective_tags.update(default_tags)
@@ -176,9 +177,9 @@ class Conversation:
                     f"Merged workspace default tags: {list(default_tags.keys())}"
                 )
 
-            # 2. Auto-generate plugins/skills tag from plugins parameter
+            # 2. 从插件参数自动生成插件/技能标签
             if plugins:
-                # tags persist verbatim — mask inline creds (${VAR} refs survive).
+                # 标签持久化逐字记录 — 掩码内联信用（${VAR} 引用保留）。
                 plugin_urls = [
                     redact_url_credentials(url, preserve_placeholders=True)
                     for p in plugins
@@ -188,7 +189,7 @@ class Conversation:
                     effective_tags["plugins"] = ",".join(plugin_urls)
                     logger.debug(f"Added plugins tag with {len(plugin_urls)} plugin(s)")
 
-            # 3. User-provided tags override everything
+            # 3. 用户提供的标签会覆盖所有内容
             if tags:
                 effective_tags.update(tags)
 

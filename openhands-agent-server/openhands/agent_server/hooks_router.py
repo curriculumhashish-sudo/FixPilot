@@ -1,7 +1,6 @@
-"""Hooks router for OpenHands Agent Server.
+"""为 OpenHands Agent Server 挂钩路由器。
 
-This module defines the HTTP API endpoints for hook operations.
-Business logic is delegated to hooks_service.py.
+该模块定义了钩子操作的HTTP API 端点。 业务逻辑委托给hooks_service.py。
 """
 
 from fastapi import APIRouter
@@ -15,7 +14,7 @@ hooks_router = APIRouter(prefix="/hooks", tags=["Hooks"])
 
 
 class HooksRequest(BaseModel):
-    """Request body for loading hooks."""
+    """加载钩子的请求主体。"""
 
     project_dir: str | None = Field(
         default=None, description="Workspace directory path for project hooks"
@@ -23,7 +22,7 @@ class HooksRequest(BaseModel):
 
 
 class HooksResponse(BaseModel):
-    """Response containing hooks configuration."""
+    """包含钩子配置的响应。"""
 
     hook_config: HookConfig | None = Field(
         default=None,
@@ -33,16 +32,15 @@ class HooksResponse(BaseModel):
 
 @hooks_router.post("", response_model=HooksResponse)
 def get_hooks(request: HooksRequest) -> HooksResponse:
-    """Load hooks from the workspace .openhands/hooks.json file.
+    """从工作区 .openhands/hooks.json 文件加载钩子。
 
-    This endpoint reads the hooks configuration from the project's
-    .openhands/hooks.json file if it exists.
+    如果项目存在，则该端点从项目的openhands/hooks.json文件中读取钩子配置。
 
     Args:
-        request: HooksRequest containing the project directory path.
+        request: HooksRequest 包含项目目录路径。
 
     Returns:
-        HooksResponse containing the hook configuration or None.
+        HooksResponse 包含钩子配置或 None。
     """
     hook_config = load_hooks_from_workspace(project_dir=request.project_dir)
     return HooksResponse(hook_config=hook_config)

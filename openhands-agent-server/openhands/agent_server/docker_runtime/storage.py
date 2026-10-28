@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class DockerRuntimeStorage:
-    """``runtime-data/<id>/``: the sandbox home and, usually, its workspace."""
+    """``runtime-data/<id>/``：沙箱主页，通常是它的工作区。"""
 
     registry: "DockerConversationRegistry"
 
@@ -41,7 +41,7 @@ class DockerRuntimeStorage:
             try:
                 last_active = runtime_dir.stat().st_mtime
             except OSError:
-                # Deleted since the check above; nothing left to reclaim.
+                # 自上述检查后已删除； 没有什么可以收回的。
                 return None
         try:
             home = self.provisioning.direct_child(runtime_dir, "persistence")
@@ -56,7 +56,7 @@ class DockerRuntimeStorage:
         )
 
     def _owned_workspace(self, conversation_id: UUID, runtime_dir: Path) -> Path | None:
-        """The runtime's workspace, if the server created it inside runtime-data."""
+        """运行时的工作区，如果服务器在运行时数据内创建它。"""
         try:
             identity = self.provisioning.load_optional(conversation_id)
         except Exception:
@@ -64,7 +64,7 @@ class DockerRuntimeStorage:
         if identity is None or identity.workspace_path.is_symlink():
             return None
         workspace = identity.workspace_path.resolve()
-        # A caller-supplied workspace is someone's checkout, not ours to prune.
+        # 调用者提供的工作区是某人的结帐，而不是我们要修剪的。
         return workspace if workspace.is_relative_to(runtime_dir.resolve()) else None
 
     def runtimes(self) -> list[StoredRuntime]:
@@ -80,7 +80,7 @@ class DockerRuntimeStorage:
         return self.registry.runtime_idle(conversation_id)
 
     def archive(self, conversation_id: UUID) -> list[Path]:
-        # Marker first: if the move never happens, the next pass retries it.
+        # 标记优先：如果移动从未发生，则下一次通过重试它。
         self.registry.archived_marker(conversation_id).write_text(
             json.dumps({"archived_at": datetime.now(UTC).isoformat()})
         )

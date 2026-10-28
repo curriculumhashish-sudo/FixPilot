@@ -26,12 +26,14 @@ class SettingsFieldMetadata(BaseModel):
     label: str | None = None
     prominence: SettingProminence = SettingProminence.MINOR
     depends_on: tuple[str, ...] = ()
-    """Fields that must be on for this one to show. ``"field=value"`` instead
-    requires that field to hold that value (for choice fields)."""
+    """必须打开此字段才能显示的字段。 ``"field=value"`` 代替
+    要求该字段保存该值（对于选择字段）。"""
     variant: str | None = None
-    """When set, the field only applies to the named ``AgentSettings``
-    variant (``"openhands"`` or ``"acp"``). Fields with ``variant=None`` are
-    shown regardless of the active ``agent_kind``."""
+    """设置后，该字段仅适用于命名的 ``AgentSettings``
+    变体（``"openhands"`` 或 ``"acp"``）。 无论 ``agent_kind`` 是否处于活动状态，都会
+    显示带 ``variant=None``
+     的字段。
+"""
 
 
 def field_meta(
@@ -40,11 +42,11 @@ def field_meta(
     label: str | None = None,
     depends_on: tuple[str, ...] = (),
 ) -> JsonDict:
-    """Build a ``json_schema_extra`` dict for a Pydantic ``Field``.
+    """为 Pydantic ``Field`` 构建一个 ``json_schema_extra`` 字典。
 
-    Example::
+    示例：:
 
-        model: str = Field(
+        model: 字符串 = 字段（
             ..., json_schema_extra=field_meta(SettingProminence.CRITICAL)
         )
     """

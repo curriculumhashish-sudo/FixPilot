@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 
 def _merge_raw_model_metadata(model_info: Mapping[str, Any]) -> dict[str, Any]:
-    """Preserve raw LiteLLM capability fields."""
+    """保留原始 LiteLLM 功能字段。"""
     key = model_info.get("key")
     raw = model_cost.get(key) if isinstance(key, str) else None
     if not isinstance(raw, dict):
@@ -25,8 +25,9 @@ def _merge_raw_model_metadata(model_info: Mapping[str, Any]) -> dict[str, Any]:
     return {**raw, **model_info}
 
 
-# Pricing fields copied from the underlying model so a custom proxy alias
-# becomes priceable in litellm's global `model_cost` map (#4816).
+# 从底层模型复制的定价字段，以便自定义代理别名在 LiteLLM 的全局 `model_cost` 映射中变得
+# 可定价 (#4816)。
+#
 _PRICING_FIELDS: tuple[str, ...] = (
     "input_cost_per_token",
     "output_cost_per_token",
@@ -44,13 +45,13 @@ def _register_proxy_alias_pricing(
     underlying_model_info: Mapping[str, Any] | None,
     proxy_model_info: Mapping[str, Any] | None,
 ) -> None:
-    """Register a `litellm_proxy/*` alias into litellm's `model_cost` (#4816).
+    """将 `litellm_proxy/*` 别名注册到 LiteLLM 的 `model_cost` 中 (#4816)。
 
-    litellm strips the `litellm_proxy/` prefix and parses the first segment as
-    the provider, so a custom name like `prod/claude-sonnet-4-5-bedrock` makes
-    `cost_per_token` raise and the span is silently priced $0. Registering the
-    alias with the underlying model's pricing makes it priceable without
-    renaming the proxy model.
+    LiteLLM 去掉 `litellm_proxy/` 前缀并将第一个段解析为提供者，因此像
+    `prod/claude-sonnet-4-5-bedrock` 这样
+    的自定义名称使得
+    `cost_per_token` 筹集资金，跨度默默定价为 0 美元。 使用基础模型的定价注册别名可以
+    使其定价，而无需重命名代理模型。
     """
     if not alias or alias in model_cost:
         return
@@ -65,9 +66,10 @@ def _register_proxy_alias_pricing(
         if isinstance(src, Mapping):
             entry.update({f: src[f] for f in _PRICING_FIELDS if f in src})
 
-    # litellm's `get_llm_provider` cannot resolve `bedrock_converse` as a
-    # provider label for an unknown alias id (only ``bedrock`` is accepted), so
-    # normalize it before registering or `cost_per_token` keeps raising.
+    # LiteLLM 的 `get_llm_provider` 不能将 `bedrock_converse` 解析为未知别名标识的提供者
+    # 标签（仅 ``bedrock`` 被接受），因此在注册之前需要对其进行规范化，或者
+    # `cost_per_token` 仍然会报错。
+    #
 
     if entry.get("litellm_provider") == "bedrock_converse":
         entry["litellm_provider"] = "bedrock"
@@ -102,13 +104,13 @@ def _get_model_info_from_litellm_proxy(
 
         response = httpx.get(f"{base_url}/v1/model/info", headers=headers)
         data = response.json().get("data", [])
-        # Match against either the public alias (`model_name`) or the
-        # underlying provider/model_name form (`litellm_params.model`). The proxy itself
-        # accepts requests by either form, and our proxy configs often
-        # advertise a short alias (e.g. `claude-opus-4-8`) for a provider
-        # id (`anthropic/claude-opus-4-8`). Without the second match,
-        # `model_info` overrides set on the proxy are invisible to clients
-        # that address the model by its provider id.
+        # 与公共别名 (`model_name`) 或底层提供者/model_name 形式 (`litellm_params.model`
+        # ) 匹配。 代理本身接受任何一种形式的请求，并且我们的代理配置通常会宣传一个短别
+        # 名（e.g. `claude-opus-4-8`) 获取提供商 ID (`anthropic/claude-opus-4-8`)。 如果
+        # 没有第二场比赛，
+        # `model_info` 代理上设置的覆盖对于通过其提供者 ID 寻址模型的客户端来说是不可见
+        # 的。
+        #
         stripped = model.removeprefix("litellm_proxy/")
         current = next(
             (
@@ -123,8 +125,8 @@ def _get_model_info_from_litellm_proxy(
             model_info = current.get("model_info")
             logger.debug(f"Got model info from litellm proxy: {model_info}")
 
-            # Make custom proxy aliases priceable so cost instrumentation does
-            # not silently record $0 (#4816).
+            # 使自定义代理别名定价，这样成本检测就不会默默地记录 0 美元 (#4816)。
+            #
             underlying_model = current.get("litellm_params", {}).get("model")
             underlying_model_info = None
             if isinstance(underlying_model, str) and underlying_model != stripped:
@@ -156,7 +158,7 @@ def get_litellm_model_info(
     model = call_kwargs["model"]
     base_url = call_kwargs["api_base"]
 
-    # Try to get model info via openrouter or litellm proxy first
+    # 首先尝试通过 openrouter 或 LiteLLM 代理获取模型信息
     try:
         if model.startswith("openrouter"):
             model_info = get_model_info(model)
@@ -166,7 +168,7 @@ def get_litellm_model_info(
         logger.debug(f"get_model_info(openrouter) failed: {e}")
 
     if model.startswith("litellm_proxy/") and base_url:
-        # Use the current hour as a cache key - only refresh hourly
+        # 使用当前小时作为缓存键 - 仅每小时刷新
         cache_key = int(time.time() / 3600)
 
         model_info = _get_model_info_from_litellm_proxy(
@@ -178,7 +180,7 @@ def get_litellm_model_info(
         if model_info:
             return model_info
 
-    # Fallbacks: try base name variants
+    # 回退方案：尝试基本名称变体
     try:
         model_info = get_model_info(model.split(":")[0])
         if model_info:

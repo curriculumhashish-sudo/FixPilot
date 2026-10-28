@@ -1,110 +1,97 @@
-# Model, profile and ACP switching; runtime plugins
+<a id="model-profile-and-acp-switching-runtime-plugins"></a>
 
-What a consumer changes on a conversation that already exists, without
-recreating it: swap the agent's LLM for a caller-supplied config (inline key,
-a cipher token from an `encrypted` read, or a saved provider connection),
-switch it to a saved LLM profile, change the model an ACP conversation's
-subprocess runs, and load a plugin from the conversation's registered
-marketplaces into the live agent (its skills, commands and hooks). Every
-switch answers `{"success": true}`, is written to the conversation's
-`base_state.json`, shows up in `GET /api/conversations/{id}` and as a
-`ConversationStateUpdateEvent` on the events socket, and survives a restart;
-the next turn runs on the new model and its usage is recorded under the new
-LLM's `usage_id`.
+# 型号、配置文件和ACP切换； 运行时插件
 
-Source: `openhands-agent-server/openhands/agent_server/conversation_router.py`, `openhands-agent-server/openhands/agent_server/event_service.py`, `openhands-agent-server/openhands/agent_server/_secrets_exposure.py`, `openhands-sdk/openhands/sdk/conversation/impl/local_conversation.py`, `openhands-sdk/openhands/sdk/llm/llm_registry.py`, `openhands-sdk/openhands/sdk/llm/llm_profile_store.py`, `openhands-sdk/openhands/sdk/marketplace/`, `openhands-sdk/openhands/sdk/plugin/`, `openhands-sdk/openhands/sdk/agent/acp_agent.py`
+消费者在已经存在的对话中所做的任何更改：交换智能体's LLM 对于用户自定义配置（inline key，一种密码） token 从一个 `encrypted` 读取，或者保存的提供商连接），将其切换为保存的 LLM 配置文件，更改型号 ACP 对话的子进程运行插件，并从会话注册的市场places中加载插件到实时环境中智能体 （其技能、命令和钩子）。 每个开关都回答了 `{"success": true}`被写入会话的
+`base_state.json`，出现在 `GET /api/conversations/{id}` 中并作为
+`ConversationStateUpdateEvent` 在事件套接字上，并且在重新启动后仍然存在； 下一回合在新模型上运行，其使用情况记录在新的 LLM 的 `usage_id` 下。
 
-Needs: `llm`, `tmux`, `node`, `network`
+资料来源：`openhands-agent-server/openhands/agent_server/conversation_router.py`、`openhands-agent-server/openhands/agent_server/event_service.py`、`openhands-agent-server/openhands/agent_server/_secrets_exposure.py`、`openhands-sdk/openhands/sdk/conversation/impl/local_conversation.py`、`openhands-sdk/openhands/sdk/llm/llm_registry.py`、`openhands-sdk/openhands/sdk/llm/llm_profile_store.py`、`openhands-sdk/openhands/sdk/marketplace/`、`openhands-sdk/openhands/sdk/plugin/`、`openhands-sdk/openhands/sdk/agent/acp_agent.py`
 
-Routes: `POST /api/conversations/{conversation_id}/switch_profile`,
+需求：`llm`、`tmux`、`node`、`network`
+
+路线：`POST /api/conversations/{conversation_id}/switch_profile`，
 `POST /api/conversations/{conversation_id}/switch_llm`,
 `POST /api/conversations/{conversation_id}/load_plugin`,
 `POST /api/conversations/{conversation_id}/switch_acp_model`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F09.auth-required`: all four routes answer 401 without a valid session key and change nothing.
-- `F09.switch-llm`: `switch_llm` with a fresh `usage_id` answers 200 `{"success": true}`; `GET` and `base_state.json` show the new model and `usage_id`, the condenser LLM that mirrored the old one follows, and the key is never echoed or stored in plaintext.
-- `F09.switch-llm-ws`: a switch pushes a `ConversationStateUpdateEvent` with key `agent` and the new model on the events socket, with the key masked.
-- `F09.switch-llm-errors`: an unknown conversation is 404, a body without `llm` or without `llm.model` is 422, and a dangling `provider_connection_id` is 422; the installed LLM is unchanged.
-- `F09.switch-llm-encrypted-key`: mid-conversation, a switch whose `api_key` is the `gAAAAA` token from an `encrypted` profile read is decrypted before install; the next turn runs on DeepSeek and its usage is recorded under the new `usage_id`.
-- `F09.switch-llm-provider-connection`: a switch that references a saved provider connection instead of a key runs the next turn with the connection's key; `GET` shows the `provider_connection_id` and no key.
-- `F09.switch-llm-registered-usage-id`: after the agent initialized, a switch whose `usage_id` is already registered (the `default` a saved profile's config carries) with a different config installs the posted LLM, never a silent 200 no-op.
-- `F09.switch-llm-before-first-run`: a switch before the conversation's first run is used by that run, and the run's token usage is recorded under the switched LLM's `usage_id`.
-- `F09.switch-llm-mid-run`: a `switch_llm` while a turn is running (the agent is inside a 20 s tool call) answers 200, the socket pushes the new `agent`, and the same run's next LLM call already uses the switched LLM (usage under both `usage_id`s) and the run finishes.
-- `F09.switch-llm-mid-run-get`: right after a mid-run switch answers 200, `GET` and `base_state.json` show the switched LLM, as the socket already does.
-- `F09.switch-profile`: `switch_profile` to the saved `deepseek-pro` profile answers 200, installs it under `usage_id` `profile:deepseek-pro`, and the next turn runs on `deepseek/deepseek-v4-pro` with its usage recorded under that id.
-- `F09.switch-profile-errors`: an unknown profile is 404 `Profile '<name>' not found`, an invalid name and a corrupted profile file are 400, a missing `profile_name` is 422 and an unknown conversation 404; the installed LLM is unchanged.
-- `F09.switch-profile-edited`: switching to a profile again after it was edited installs the edited config, not the copy cached at the first switch.
-- `F09.acp-model-native`: `switch_acp_model` on a regular (non-ACP) conversation is 400 `switch_acp_model is only supported for ACP conversations.`; a missing `model` is 422 and an unknown conversation 404.
-- `F09.acp-model-deferred`: on an ACP conversation that has not run yet, `switch_acp_model` answers 200 without starting the subprocess and persists the model as `agent.acp_model`, `agent_state.acp_current_model_id` and `current_model_id`.
-- `F09.acp-model-blank`: a blank or whitespace-only ACP model is refused before the first run, as it is on a live session, and the stored model is kept.
-- `F09.switch-llm-acp-refused`: `switch_llm` and `switch_profile` on an ACP conversation are refused, as `switch_acp_model` is on a regular one, and leave the ACP agent's placeholder LLM (`usage_id` `acp-managed`) alone.
-- `F09.acp-model-live`: on an ACP conversation with a live session, `switch_acp_model` switches the subprocess's model in place (same ACP session) and `current_model_id`, `acp_model` and `base_state.json` follow; a blank model is 400, a model the provider does not offer is refused and changes nothing, and the next turn runs on the switched model in the same session.
-- `F09.acp-model-live-unknown`: a live switch to a model id the provider does not offer (not in `available_models`) is a client error (400, as for a blank model), not a 500.
-- `F09.acp-model-live-timeout`: a live switch whose `session/set_model` round-trip outlasts `acp_prompt_timeout` is 504 with `detail` `Internal Server Error` and leaves the model unchanged.
-- `F09.ts-client`: the TypeScript client's `ConversationClient.switchLLM`, `switchProfile` and `switchAcpModel` and `ConversationManager.switchProfile` reach the routes: each switch resolves and reads back through `getConversation`, an unknown profile rejects with 404, `switchAcpModel` on a regular conversation with 400, a call without a key with 401, and `switchAcpModel` on an ACP conversation that has not run resolves and stores the model.
-- `F09.ts-client-acp-docs`: the TypeScript client's `switchAcpModel` docstrings describe what the server does before an ACP conversation's first run (200, the model is stored for the first session), not a 409.
-- `F09.load-plugin`: `load_plugin` with `<plugin>@<marketplace>` from a local marketplace registered on the agent's `agent_context` answers 200 and merges the plugin's skill, its command and its hooks into the live agent, visible in `GET`, `base_state.json` and on the socket.
-- `F09.load-plugin-hook-runs`: after a runtime load, the next user turn runs the plugin's `UserPromptSubmit` hook (a `HookExecutionEvent` with its output) and finishes.
-- `F09.load-plugin-errors`: no registered marketplaces and no agent context are 400, a registered marketplace whose source is missing is 400, an unknown marketplace or plugin is 404, empty and malformed refs are 400, a missing `plugin_ref` is 422 and an unknown conversation 404; a bare plugin name resolves across the registered marketplaces.
-- `F09.load-plugin-twice`: loading the same plugin twice leaves one copy of its hooks, so they still run once per message.
-- `F09.load-plugin-sdk`: the Python SDK's `RemoteConversation.load_plugin(ref)`, on a conversation reattached with `RemoteConversation.attach`, raises `HTTPStatusError` 404 for an unknown plugin and then loads the plugin, whose skill and hook `GET` shows.
-- `F09.restart-persist`: after a restart the switched LLM, the switched profile (which the next turn runs on), the deferred ACP model and the loaded plugin's skills and hooks are still in place.
+## 子功能
 
-## How to get to it (agent POV)
+- `F09.auth-required`：所有四个路由均在没有有效会话密钥的情况下回答 401，并且不进行任何更改。
+- `F09.switch-llm`：`switch_llm`用新鲜的`usage_id`回答200个`{"success": true}`； `GET`和`base_state.json`显示了新模型，`usage_id`显示了反映旧模型的上下文压缩器LLM，并且密钥永远不会回显或以明文形式存储。
+- `F09.switch-llm-ws`：开关用键 `agent` 和事件套接字上的新模型推送 `ConversationStateUpdateEvent`，键被屏蔽。
+- `F09.switch-llm-errors`：未知会话为 404，没有 `llm` 或没有 `llm.model` 的正文为 422，悬空的 `provider_connection_id` 为 422； 安装的LLM没有改变。
+- `F09.switch-llm-encrypted-key`：对话中，`api_key` 是从 `encrypted` 配置文件读取的 `gAAAAA` token 的开关在安装前解密； 下一回合在 DeepSeek 上运行，其使用情况记录在新的 `usage_id` 下。
+- `F09.switch-llm-provider-connection`：引用已保存的提供者连接而不是密钥的开关将使用连接的密钥运行下一回合； `GET` 显示 `provider_connection_id` 并且没有键。
+- `F09.switch-llm-registered-usage-id`: 在智能体初始化之后，一个已注册的开关（`usage_id`配置已经保存的`default`配置）安装了帖子中的LLM，而不是无声的200无操作。
+- `F09.switch-llm-before-first-run`：会话第一次运行之前的开关由该运行使用，并且该运行的词元用量记录在切换的LLM的`usage_id`下。
+- `F09.switch-llm-mid-run`: 当一个 `switch_llm` 正在运行（智能体位于一个 20 秒的工具调用）时，会回答 200，然后套接字推送新的 `agent`，而同一个运行的下一个 LLM 调用已经使用了切换后的 LLM（在两个 `usage_id` 中都使用），运行结束。
+- `F09.switch-llm-mid-run-get`：在中间运行开关回答 200 之后，`GET` 和 `base_state.json` 显示已切换的 LLM，就像套接字已经做的那样。
+- `F09.switch-profile`：`switch_profile`对已保存的`deepseek-pro`配置文件回答200，将其安装在`usage_id``profile:deepseek-pro`下，下一回合在`deepseek/deepseek-v4-pro`上运行，其使用情况记录在该id下。
+- `F09.switch-profile-errors`：未知的配置文件为 404 `Profile '<name>' not found`，无效的名称和损坏的配置文件为 400，丢失的 `profile_name` 为 422，未知的对话为 404； 安装的LLM没有改变。
+- `F09.switch-profile-edited`：编辑配置文件后再次切换到配置文件会安装编辑后的配置，而不是第一次切换时缓存的副本。
+- `F09.acp-model-native`： `switch_acp_model` 在常规（非 ACP）对话中为 400 `switch_acp_model is only supported for ACP conversations.`； 缺失的 `model` 为 422，未知对话为 404。
+- `F09.acp-model-deferred`：在尚未运行的 ACP 对话中，`switch_acp_model` 在不启动子进程的情况下回答 200，并将模型保留为 `agent.acp_model`、`agent_state.acp_current_model_id` 和 `current_model_id`。
+- `F09.acp-model-blank`：在第一次运行之前拒绝空白或仅包含空格的 ACP 模型，因为它是在实时会话中，并且保留存储的模型。
+- `F09.switch-llm-acp-refused`：ACP 对话中的 `switch_llm` 和 `switch_profile` 被拒绝，因为 `switch_acp_model` 是常规对话，并且保留 ACP 智能体的占位符 LLM (`usage_id` `acp-managed`)。
+- `F09.acp-model-live`：在 ACP 与实时会话的对话中，`switch_acp_model` 将子进程的模型切换到位（相同的 ACP 会话），并且 `current_model_id`、`acp_model` 和 `base_state.json` 跟随； 一个空模型是400，提供者没有提供的模型被拒绝，并且不会改变任何东西，下一个回合会切换到同一个会话中的其他模型。
+- `F09.acp-model-live-unknown`：实时切换到提供商未提供的模型 ID（不在 `available_models` 中）是客户端错误（400，对于空白模型），而不是 500。
+- `F09.acp-model-live-timeout`：一个实时开关，其 `session/set_model` 往返时间比 `acp_prompt_timeout` 长，`detail` `Internal Server Error` 为 504，并且模型保持不变。
+- `F09.ts-client`: TypeScript客户端的`ConversationClient.switchLLM`、`switchProfile`、`switchAcpModel`和`ConversationManager.switchProfile`到达路由：每个交换机解析并读回`getConversation`，未知的配置拒绝返回404，`switchAcpModel`在常规对话中返回400，没有密钥的呼叫返回401，`switchAcpModel`在没有运行的ACP对话中解析并存储模型。
+- `F09.ts-client-acp-docs`: TypeScript客户端的`switchAcpModel` 文档字符串在一次ACP会话开始之前描述服务器做了什么（200，模型存储在第一次会话中），而不是409。
+- `F09.load-plugin`: `load_plugin` 和 `<plugin>@<marketplace>` 来自在智能体的 `agent_context` 上注册的本地市场，回答 200 并将插件的技能、其命令及其挂钩合并到实时智能体中，在 `GET`、`base_state.json` 和套接字上可见。
+- `F09.load-plugin-hook-runs`：运行时加载后，下一个用户轮流运行插件的 `UserPromptSubmit` 挂钩（`HookExecutionEvent` 及其输出）并完成。
+- `F09.load-plugin-errors`没有注册的市场和没有智能体上下文 400：已注册的市场，来源缺失；400：未知市场或插件；404：空或格式错误的引用；400：缺失 `plugin_ref` 状态码为422，未知对话为404。 裸露的插件名称可以在注册的市场中解析。
+- `F09.load-plugin-twice`：加载同一个插件两次会留下其钩子的一份副本，因此它们仍然每条消息运行一次。
+- `F09.load-plugin-sdk`: Python SDK 的 `RemoteConversation.load_plugin(ref)`，在 `RemoteConversation.attach` 重新连接的对话中，`HTTPStatusError` 404 错误，然后加载该插件，其技能和钩子 `GET` 显示。
+- `F09.restart-persist` 重启后，LLM 仍然生效，ACP 仍然生效，加载的插件的技能和钩子仍然在。
 
-- REST, owned here (bodies are single embedded fields):
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST，此处拥有（主体是单个嵌入字段）：
   `POST /api/conversations/{id}/switch_llm` `{"llm": {...LLM fields...}}`,
   `POST /api/conversations/{id}/switch_profile` `{"profile_name": "..."}`,
   `POST /api/conversations/{id}/switch_acp_model` `{"model": "..."}`,
-  `POST /api/conversations/{id}/load_plugin` `{"plugin_ref": "<plugin>[@<marketplace>]"}`.
-  Each answers `{"success": true}`; every recipe below drives them.
-- Second views: `GET /api/conversations/{id}` (`agent.llm`, `agent.condenser.llm`,
+  `POST /api/conversations/{id}/load_plugin` `{"plugin_ref": "<plugin>[@<marketplace>]"}`. 每个答案`{"success": true}`； 下面的每一个食谱都会驱动他们。
+- 第二次浏览：`GET /api/conversations/{id}` (`agent.llm`, `agent.condenser.llm`,
   `stats.usage_to_metrics.<usage_id>`, `current_model_id`, `agent.acp_model`,
-  `agent_state`, `hook_config`, and `agent.agent_context.skills` with
-  `include_skills=true`), the conversation's `base_state.json` (`state cat`),
-  `WS /sockets/events/{conversation_id}` (`ConversationStateUpdateEvent` keys
-  `agent` and `hook_config`), and the `HookExecutionEvent` a plugin hook emits.
-- Setup routes owned by other families: `POST /api/profiles/{name}` and
-  `GET /api/profiles/{name}` with `X-Expose-Secrets: encrypted` (LLM profiles),
-  `POST`/`DELETE /api/llm/provider-connections` (provider connections),
-  `POST /api/conversations` and `POST /api/conversations/{id}/events`
-  (conversations and runs).
+  `agent_state`、`hook_config` 和 `agent.agent_context.skills` 以及
+  `include_skills=true`), 对话的 `base_state.json` (`state cat`),
+  `WS /sockets/events/{conversation_id}`（`ConversationStateUpdateEvent`键
+  `agent` 和 `hook_config`），以及 `HookExecutionEvent` 插件钩子发出。
+- 设置其他家庭拥有的路线：`POST /api/profiles/{name}` 和
+  `GET /api/profiles/{name}` 与 `X-Expose-Secrets: encrypted`（LLM 个配置文件），
+  `POST`/`DELETE/api/llm/provider-connections`（提供商连接），
+  `POST /api/conversations` 和 `POST /api/conversations/{id}/events`（对话和运行）。
 - SDK: `LocalConversation.switch_llm(llm)`, `switch_profile(name)`,
-  `switch_acp_model(model)` and `load_plugin(ref)` are what the routes call;
-  over HTTP `RemoteConversation.load_plugin(ref)` posts to `load_plugin`
-  (`F09.load-plugin-sdk` drives it).
-  `RemoteConversation` has no `switch_llm`, `switch_profile` or
-  `switch_acp_model` method; Python consumers post to the routes directly.
-- TypeScript client: `ConversationClient.switchProfile(id, name)`,
+  `switch_acp_model(model)` 和 `load_plugin(ref)` 是路由的名称； 超过 HTTP `RemoteConversation.load_plugin(ref)` 个帖子到 `load_plugin`（`F09.load-plugin-sdk` 驱动它）。
+  `RemoteConversation` 没有 `switch_llm`、`switch_profile` 或
+  `switch_acp_model` 方法； Python 消费者直接发布到路线。
+- TypeScript客户端：`ConversationClient.switchProfile(id, name)`，
   `switchLLM(id, llm)`, `switchAcpModel(id, model)`;
   `RemoteConversation.switchProfile`, `switchLlm`, `switchAcpModel`;
-  `ConversationManager.switchProfile`. There is no TypeScript `loadPlugin`.
-  `F09.ts-client` drives the `ConversationClient` methods and
-  `ConversationManager.switchProfile` (the `RemoteConversation` methods post
-  the same bodies to the same routes).
-- Agent Canvas (context only): the per-conversation model picker calls
-  `switch_profile` (or `switch_llm` with a profile config that may reference a
-  provider connection), and `switch_acp_model` for ACP conversations, picking
+  `ConversationManager.switchProfile`. 没有TypeScript`loadPlugin`。
+  `F09.ts-client` 驱动 `ConversationClient` 方法并且
+  `ConversationManager.switchProfile`（`RemoteConversation`方法将相同的主体发布到相同的路线）。
+- Agent Canvas（仅上下文）：每个对话模型选择器调用
+  `switch_profile`（或 `switch_llm` 具有可能引用提供商连接的配置文件配置），以及 `switch_acp_model` 用于 ACP 对话，选择
   from `available_models`.
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok,
-  `$DEEPSEEK_API_KEY` is set, `jq` is on `PATH` and `tmux` is installed (the
-  mid-run bullets give the agent the terminal tool). The live ACP bullets
-  need `node` (`npx` launches the Claude Code adapter) and outbound HTTPS to
-  the npm registry and `api.deepseek.com`; the TypeScript bullet needs
-  `node` (and `npm` with the network only if `clients/typescript/dist` is
-  missing). The block below saves the
-  DeepSeek preset (`deepseek-flash` active, `deepseek-pro`), reads the
-  `deepseek-flash` key back as a cipher token (`ENC`), creates the local
-  marketplace fixture `qa-f09-mkt` (one plugin with a skill, a command and a
-  `UserPromptSubmit` hook that prints `QA_PLUGIN_HOOK`), and starts `CID`, an
-  idle conversation from the saved settings that never runs.
+前提条件：
+
+- 基线运行已上线并已导出 (`launch --new`)，`doctor` 可以，
+  设置 `$DEEPSEEK_API_KEY`，`jq` 在 `PATH` 上，安装 `tmux`（中间运行项目符号为智能体提供终端工具）。 实时 ACP 项目符号需要 `node`（`npx` 启动 Claude Code 适配器）和出站 HTTPS 到 npm 注册表和 `api.deepseek.com`； TypeScript 项目符号需要
+  `node`（仅当 `clients/typescript/dist` 缺失时才使用网络 `npm`）。 下面的块保存 DeepSeek 预设（`deepseek-flash` 活动，`deepseek-pro`），读取
+  `deepseek-flash` 密钥返回作为密码 token (`ENC`)，创建本地市场测试夹具 `qa-f09-mkt`（一个带有技能、命令和
+  `UserPromptSubmit` 挂钩，打印 `QA_PLUGIN_HOOK`)，并启动 `CID`，这是一个从未运行的保存设置中的空闲对话。
 
   ```sh
   control-agent-server llm preset deepseek
@@ -115,7 +102,7 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID" --check agent.llm.model eq deepseek/deepseek-flash --check agent.llm.usage_id eq default --quiet
   ```
 
-- **Key required (`F09.auth-required`).** Call every route without a key.
+- **需要密钥 (`F09.auth-required`)。**无需钥匙即可呼叫每条路线。
   ```sh
   control-agent-server api POST "/api/conversations/$CID/switch_llm" --auth none --json '{"llm": {"model": "openai/qa-f09-noauth", "usage_id": "qa-f09-noauth"}}' --expect 401 --check detail eq Unauthorized --save F09.auth-required/switch-llm
   control-agent-server api POST "/api/conversations/$CID/switch_profile" --auth none --json '{"profile_name": "deepseek-pro"}' --expect 401
@@ -123,11 +110,9 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$CID/load_plugin" --auth none --json '{"plugin_ref": "qa-f09-mkt-plugin@qa-f09-mkt"}' --expect 401
   control-agent-server api GET "/api/conversations/$CID" --check agent.llm.model eq deepseek/deepseek-flash --check agent.llm.usage_id eq default --quiet
   ```
-  Every call is 401 `{"detail": "Unauthorized"}` and the conversation is
-  still on `deepseek-flash`.
+  每次调用都返回401 `{"detail": "Unauthorized"}`，对话仍在继续 `deepseek-flash`。
 
-- **Switch to a caller-supplied LLM (`F09.switch-llm`).** Install an
-  unreachable placeholder model with its own `usage_id` on the idle `CID`.
+- **切换到调用者提供的 LLM (`F09.switch-llm`)。**在空闲 `CID` 上安装一个无法访问的占位符模型，该模型具有自己的 `usage_id`。
   ```sh
   control-agent-server api POST "/api/conversations/$CID/switch_llm" \
     --json '{"llm": {"model": "openai/qa-f09-switched", "api_key": "sk-qa-f09-switched", "base_url": "http://127.0.0.1:9/v1", "usage_id": "qa-f09-switched"}}' \
@@ -142,13 +127,11 @@ Preconditions:
   control-agent-server state cat "server/workspace/conversations/${CID//-/}/meta.json" --max-chars 200 --check agent missing
   control-agent-server state grep sk-qa-f09-switched --glob 'server/**/*' --expect-none
   ```
-  The switch is 200 `{"success": true}`. `GET` shows the new model,
-  `usage_id` and `base_url` with `api_key: null`; the summarizing condenser,
-  whose LLM mirrored the agent's, now runs the same model under its own
-  `usage_id` `condenser`. `base_state.json` holds the key as a Fernet token,
-  `meta.json` has no agent, and the plaintext key is nowhere on disk.
-- **Socket view of a switch (`F09.switch-llm-ws`).** Capture the events
-  socket while switching again.
+  交换机为200`{"success": true}`。 b`GET`是新型号，
+  `usage_id` 和 `base_url` 与 `api_key: null`； 总结性的上下文压缩器，其LLM反映了智能体的，现在在其自己的下运行相同的模型
+  `usage_id` `condenser`. `base_state.json` 作为 Fernet token 持有钥匙，
+  `meta.json` 没有智能体，并且明文密钥在磁盘上不存在。
+- **开关的插座视图 (`F09.switch-llm-ws`)。**再次切换时捕获事件套接字。
   ```sh
   control-agent-server ws start "/sockets/events/$CID" --name qa-f09-switch --duration 120
   control-agent-server api POST "/api/conversations/$CID/switch_llm" \
@@ -160,16 +143,10 @@ Preconditions:
   control-agent-server ws stop qa-f09-switch --contains sk-qa-f09-ws --expect-none
   control-agent-server api GET "/api/conversations/$CID" --quiet --check agent.llm.model eq openai/qa-f09-ws --check agent.llm.usage_id eq qa-f09-ws
   ```
-  A `ConversationStateUpdateEvent` with `key: "agent"` arrives whose value
-  carries `openai/qa-f09-ws` with `api_key` `**********` in that same frame
-  (the positive check: captures are written through the CLI's redactor, which
-  turns the run's keys, `$DEEPSEEK_API_KEY` and every `gAAAAA` token into
-  `<redacted:...>`, so a frame that carried the cipher token instead of the
-  mask would fail it, and the `redacted:encrypted` read finds no such frame).
-  `sk-qa-f09-ws` is not a value the redactor knows, so the last read is a
-  real check that no frame contains the plaintext key.
-- **Switch errors (`F09.switch-llm-errors`).** Unknown conversation, bad
-  bodies and a provider connection that does not exist.
+  `ConversationStateUpdateEvent` `key: "agent"` 到达，其值携带 `openai/qa-f09-ws` `api_key` `**********` 在同一帧中（正检查：捕获通过 CLI 的红actor 转换运行的键 `$DEEPSEEK_API_KEY` 和每个 `gAAAAA` token 为]
+  `<redacted:...>`，因此携带密码 token 而不是掩码的帧会使它失败，并且 `redacted:encrypted` 读取找不到这样的帧）。
+  `sk-qa-f09-ws` 不是编辑器知道的值，因此最后一次读取是真正检查没有帧包含明文密钥。
+- **开关错误 (`F09.switch-llm-errors`)。**未知的对话、坏人以及不存在的提供商连接。
   ```sh
   control-agent-server api POST /api/conversations/00000000-0000-4000-8000-000000000000/switch_llm \
     --json '{"llm": {"model": "openai/qa-f09-x", "usage_id": "qa-f09-x"}}' --expect 404 --save F09.switch-llm-errors/unknown-conversation
@@ -181,11 +158,8 @@ Preconditions:
     --expect 422 --check detail contains "provider connection 'qa-f09-missing', which does not exist" --save F09.switch-llm-errors/dangling-connection
   control-agent-server api GET "/api/conversations/$CID" --quiet --check agent.llm.model eq openai/qa-f09-ws --check agent.llm.usage_id eq qa-f09-ws
   ```
-  404 for the unknown id, 422 for a missing `llm` and a missing `model`, and
-  422 naming the dangling connection; `CID` is still on `openai/qa-f09-ws`.
-- **Mid-conversation switch with a cipher token (`F09.switch-llm-encrypted-key`).**
-  Run one turn on `deepseek-flash`, switch to the same model with the `ENC`
-  token as key under a new `usage_id`, and run again.
+  404 对于未知的 id，422 对于缺少 `llm` 和 `model`，以及 422 命名断开的连接。 `CID`仍然在`openai/qa-f09-ws`上。
+- ** 与密码的中间对话切换 token (`F09.switch-llm-encrypted-key`)。** 在 `deepseek-flash` 进行一轮，切换到新的 `usage_id`，使用 `ENC` token 作为密钥进行新一轮。
   ```sh
   RID=$(control-agent-server conversation start --tools none --no-autotitle --prompt 'Reply with the single word: ok' --wait --until finished --timeout 240 --print-id)
   control-agent-server api GET "/api/conversations/$RID" --quiet --check stats.usage_to_metrics.default.model_name eq deepseek/deepseek-flash
@@ -198,14 +172,10 @@ Preconditions:
     --check stats.usage_to_metrics.qa-f09-enc.model_name eq deepseek/deepseek-flash \
     --check stats.usage_to_metrics.qa-f09-enc.accumulated_token_usage.prompt_tokens gt 0 --save F09.switch-llm-encrypted-key/stats
   ```
-  The second turn finishes and its tokens are recorded under `qa-f09-enc`.
-  Sent as-is, the token would be rejected by DeepSeek; the route decrypted it
-  with the server's cipher before installing the LLM.
-- **Switch through a provider connection (`F09.switch-llm-provider-connection`).**
-  Save the DeepSeek key as a provider connection and switch `RID` to a
-  config that references it instead of carrying a key.
+  第二转弯结束，其token被记录在`qa-f09-enc`中。 原样发送，token 会被 DeepSeek 拒绝。 它在安装 LLM 之前，用服务器的加密密钥解密了路由。
+- **切换到提供商连接（）`F09.switch-llm-provider-connection`).** 保存  DeepSeek 将 key 视为提供者连接和切换的手段 `RID` 使用它而不是引用它。
 
-  Requires: `F09.switch-llm-encrypted-key`
+  需要：`F09.switch-llm-encrypted-key`
   ```sh
   CONN=$(printf '{"display_name": "QA F09", "provider": "deepseek", "api_key": "%s"}' "$DEEPSEEK_API_KEY" \
     | control-agent-server api POST /api/llm/provider-connections --stdin --expect 201 --field id)
@@ -223,14 +193,11 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$RID" --until-ok 60 --quiet --check execution_status eq finished \
     --check stats.usage_to_metrics.qa-f09-conn.accumulated_token_usage.prompt_tokens gt "$CONN1"
   ```
-  The turn finishes on the connection's key (the server does not inherit
-  `DEEPSEEK_API_KEY`, so there is no other key it could use). The
-  connection is resolved once, at the switch: after it is deleted, the next
-  turn still runs on the installed LLM and its token count grows.
-- **Switch to a saved profile (`F09.switch-profile`).** Move `RID` to the
-  preset's `deepseek-pro` profile and run a turn on it.
+  会话结束在连接的密钥上（服务器不会继承）
+  `DEEPSEEK_API_KEY`，因此没有其他可以使用的密钥）。 连接在交换机处解析一次：删除后，下一回合仍在已安装的 LLM 上运行，并且其词元数量增长。
+- **切换到已保存的配置文件 (`F09.switch-profile`)。**将 `RID` 移至预设的 `deepseek-pro` 配置文件并对其运行一圈。
 
-  Requires: `F09.switch-llm-encrypted-key`
+  需要：`F09.switch-llm-encrypted-key`
   ```sh
   control-agent-server api POST "/api/conversations/$RID/switch_profile" --json '{"profile_name": "deepseek-pro"}' \
     --expect 200 --check success eq true --save F09.switch-profile/switch
@@ -244,11 +211,9 @@ Preconditions:
     --check 'stats.usage_to_metrics.profile:deepseek-pro.accumulated_token_usage.prompt_tokens' gt 0 --save F09.switch-profile/stats
   PRO1=$(control-agent-server api GET "/api/conversations/$RID" --field 'stats.usage_to_metrics.profile:deepseek-pro.accumulated_token_usage.prompt_tokens')
   ```
-  The conversation now runs `deepseek/deepseek-v4-pro` under `usage_id`
-  `profile:deepseek-pro`, and that usage id has the turn's tokens. `PRO1`
-  keeps the count for `F09.restart-persist`.
-- **Profile switch errors (`F09.switch-profile-errors`).** Unknown, invalid
-  and corrupted profiles, a missing field and an unknown conversation, on
+  对话现在运行在 `deepseek/deepseek-v4-pro` 下 `usage_id`
+  `profile:deepseek-pro`，并且该用法 ID 具有回合的 token。 `PRO1` 保留 `F09.restart-persist` 的计数。
+- **配置文件切换错误 (`F09.switch-profile-errors`)。**未知、无效和损坏的配置文件、缺失字段和未知对话
   `CID`.
   ```sh
   control-agent-server api POST "/api/conversations/$CID/switch_profile" --json '{"profile_name": "qa-f09-missing"}' \
@@ -264,13 +229,9 @@ Preconditions:
   control-agent-server api POST /api/conversations/00000000-0000-4000-8000-000000000000/switch_profile --json '{"profile_name": "deepseek-pro"}' --expect 404
   control-agent-server api GET "/api/conversations/$CID" --quiet --check agent.llm.model eq openai/qa-f09-ws --check agent.llm.usage_id eq qa-f09-ws
   ```
-  404 with the profile name, 400 for a path-like or empty name and for a
-  profile file that is not JSON (written straight into the run's profile
-  directory and removed again), 422 and 404 for the rest; `CID` keeps
+  404 表示配置文件名称，400 表示类似路径或空名称，以及非 JSON 的配置文件（直接写入运行的配置文件目录并再次删除），422 和 404 表示 REST； `CID`保持
   `openai/qa-f09-ws`.
-- **Switch to an edited profile (`F09.switch-profile-edited`), known bug.**
-  Switch an offline conversation to a profile, edit the profile, switch
-  again.
+- **切换到已编辑的配置文件 (`F09.switch-profile-edited`)，已知错误。**将离线对话切换到个人资料，编辑个人资料，然后再次切换。
   ```sh
   trap 'control-agent-server api DELETE /api/profiles/qa-f09-edit >/dev/null' EXIT
   EID=$(control-agent-server conversation start --placeholder-agent --tools none --no-autotitle --print-id)
@@ -280,24 +241,12 @@ Preconditions:
   control-agent-server api POST /api/profiles/qa-f09-edit --json '{"llm": {"model": "openai/qa-f09-edit-2", "api_key": "sk-qa-f09-edit", "base_url": "http://127.0.0.1:9/v1"}}' --expect 201
   control-agent-server api GET /api/profiles/qa-f09-edit --quiet --check config.model eq openai/qa-f09-edit-2
   control-agent-server api POST "/api/conversations/$EID/switch_profile" --json '{"profile_name": "qa-f09-edit"}' --expect 200 --save F09.switch-profile-edited/switch-again
-  control-agent-server api GET "/api/conversations/$EID" --quiet --check agent.llm.model eq openai/qa-f09-edit-2 --save F09.switch-profile-edited/get  # bug: status eq 200 && checks.0.actual eq openai/qa-f09-edit-1
+  control-agent-server api GET "/api/conversations/$EID" --quiet --check agent.llm.model eq openai/qa-f09-edit-2 --save F09.switch-profile-edited/get  # bug：状态 eq 200 && 检查.0.实际 eq openai/qa-f09-edit-1
   ```
-  The first switch installs `openai/qa-f09-edit-1` and the profile then
-  reads back as `openai/qa-f09-edit-2`. Expected: the second switch installs
-  the edited config. Today it answers 200 and reinstalls `qa-f09-edit-1`:
-  `LocalConversation.switch_profile` looks up `profile:<name>` in the
-  conversation's LLM registry first and only reads the profile file on a
-  miss, so a fixed key or model never reaches a conversation that used the
-  profile before. The SDK docstring states the cache ("cached in the
-  registry under `profile:{profile_name}` after first load"), but the route
-  documents nothing and offers no way to refresh, so a REST consumer can
-  only apply the edit with `switch_llm` and a fresh `usage_id`. The profile
-  is deleted on exit.
-- **Switch onto a registered usage id (`F09.switch-llm-registered-usage-id`).**
-  Forward the saved `deepseek-pro` profile's config, read with
-  `X-Expose-Secrets: encrypted` (the per-conversation model switch the
-  route's docstring describes), to two offline conversations: one fresh, one
-  whose agent was initialized by a queued message.
+  第一个开关安装了 `openai/qa-f09-edit-1`，然后该配置被读取回为 `openai/qa-f09-edit-2`。 预期：第二个开关会安装编辑后的配置。 今天回答200，并重新安装`qa-f09-edit-1`。
+  `LocalConversation.switch_profile` 在对话的`profile:<name>`中查找LLM，注册表第一次且唯一读取了会话文件，因此固定密钥或模型永远不会到达在会话中使用过该文件的对话。 SDK 文档字符串页指出缓存（“缓存于注册表中，`profile:{profile_name}` 之后第一次加载”），但路由文档一无所知，也没有提供刷新的方式，因此，REST 消费者只能通过 `switch_llm` 和 `usage_id` 进行编辑。 退出时删除该配置。
+- **切换到已注册的使用 ID (`F09.switch-llm-registered-usage-id`)。**转发保存的 `deepseek-pro` 配置文件的配置，读取
+  `X-Expose-Secrets: encrypted` (按会话模型切换路由的) 文档字符串描述），与两个离线对话相关：一个是新鲜的，另一个是的智能体由队列消息初始化的。
   ```sh
   PRO=$(control-agent-server api GET /api/profiles/deepseek-pro --header 'X-Expose-Secrets: encrypted' --check config.usage_id eq default --field config --unsafe-unredacted)
   FID=$(control-agent-server conversation start --placeholder-agent --tools none --no-autotitle --print-id)
@@ -308,18 +257,9 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$KID/switch_llm" --json "{\"llm\": $PRO}" --expect 200 --save F09.switch-llm-registered-usage-id/switch
   control-agent-server api GET "/api/conversations/$KID" --quiet --check agent.llm.model eq deepseek/deepseek-v4-pro --check agent.llm.usage_id eq default --save F09.switch-llm-registered-usage-id/get
   ```
-  The profile config carries `usage_id: default`, and the fresh conversation
-  switches to `deepseek/deepseek-v4-pro`. The initialized one switches too,
-  although `default` is already in its LLM registry (agent initialization
-  registered it): `switch_llm` reuses a registered LLM only when its config
-  equals the posted one, and otherwise replaces the entry, keeping the usage
-  already recorded under that `usage_id` in `stats.usage_to_metrics`. This is
-  what makes forwarding a profile config, which carries `default` (also the
-  `LLM` default when `usage_id` is omitted), work on a conversation that has
-  received a message.
-- **Switch before the first run (`F09.switch-llm-before-first-run`), known bug.**
-  Start from an agent whose model is unreachable, switch to DeepSeek before
-  anything ran, then run.
+  配置文件携带了  `usage_id: default`, 并且新的对话切换到 `deepseek/deepseek-v4-pro`. 初始化的那个也切换了，尽管 `default` 已经处于其 LLM  注册表 (智能体初始化已注册。 `switch_llm` 重复使用一个注册的 LLM 只有当其配置等于发布的配置时，才替换条目，否则保留记录的使用 `usage_id` 在 `stats.usage_to_metrics`. 这正是转发配置文件，它携带的内容 `default` （也称为
+  当省略 `usage_id` 时，默认为 `LLM`），处理已收到消息的对话。
+- **在第一次运行 (`F09.switch-llm-before-first-run`) 之前切换，已知错误。**从模型无法访问的智能体开始，在运行任何内容之前切换到 DeepSeek，然后运行。
   ```sh
   BID=$(control-agent-server conversation start --placeholder-agent --tools none --no-autotitle --print-id)
   control-agent-server api POST "/api/conversations/$BID/switch_llm" \
@@ -328,19 +268,11 @@ Preconditions:
   control-agent-server conversation send "$BID" --text 'Reply with the single word: ok' --wait --until finished,error --timeout 240
   control-agent-server api GET "/api/conversations/$BID" --quiet --check execution_status eq finished --check agent.llm.usage_id eq qa-f09-early
   control-agent-server api GET "/api/conversations/$BID" --until-ok 20 --quiet \
-    --check stats.usage_to_metrics.qa-f09-early.accumulated_token_usage.prompt_tokens gt 0 --save F09.switch-llm-before-first-run/stats  # bug: status eq 200 && checks.0.actual eq null
+    --check stats.usage_to_metrics.qa-f09-early.accumulated_token_usage.prompt_tokens gt 0 --save F09.switch-llm-before-first-run/stats  # bug：状态 eq 200 && 检查.0.实际 eq null
   ```
-  The run finishes, which only the switched model can do (the placeholder
-  points at a closed port). Expected: its tokens are recorded under
-  `qa-f09-early`. Today `stats.usage_to_metrics` has only `condenser`: the
-  switch registered the LLM before the registry had its stats subscriber,
-  and agent initialization skips LLMs whose `usage_id` is already
-  registered, so the switched LLM is never added to `ConversationStats` and
-  the conversation's cost and token totals miss every call it makes. The
-  same switch after one message (`F09.switch-llm-encrypted-key`) is counted.
-- **Switch during a running turn (`F09.switch-llm-mid-run`).** Start a run
-  whose first action is a 20 s command, switch once that action exists,
-  and let the run finish.
+  运行结束，只有切换模型才能完成（注释中的点指向一个关闭的端口）。 预期：它的 token 被记录在
+  `qa-f09-early`. 今天 `stats.usage_to_metrics` 只有 `condenser`： LLM 已经注册了注册表的 LLMs，而智能体的初始化跳过了 `usage_id` 已经注册的 LLM，所以 `ConversationStats` 的 `F09.switch-llm-encrypted-key` 从不被添加，对话的成本和 token 总额都漏掉了它所打的所有电话。 同一个开关在接收到第8个消息后被计数。
+- **在跑步转弯时切换 (`F09.switch-llm-mid-run`)。**启动第一个操作是 20 秒命令的运行，一旦该操作存在就切换，然后让运行完成。
   ```sh
   MID=$(control-agent-server conversation start --tools terminal --no-autotitle --prompt 'Run this exact shell command and nothing else: sleep 20' --print-id)
   control-agent-server ws start "/sockets/events/$MID" --name qa-f09-midrun --duration 300
@@ -355,13 +287,10 @@ Preconditions:
     --check stats.usage_to_metrics.default.accumulated_token_usage.prompt_tokens gt 0 \
     --check stats.usage_to_metrics.qa-f09-midrun.accumulated_token_usage.prompt_tokens gt 0 --save F09.switch-llm-mid-run/stats
   ```
-  The switch is 200 while `sleep 20` runs (today at once, without waiting
-  for the tool), the socket carries a state update with `qa-f09-midrun`, and
-  the run finishes. Both `usage_id`s have tokens: the call that chose
-  `sleep 20` ran on `default`, the call after its observation on
-  `qa-f09-midrun`, so the switch applied inside the same run.
-- **GET right after a mid-run switch (`F09.switch-llm-mid-run-get`), known bug.**
-  The same situation, read back at once.
+  开关状态为200 `sleep 20` 今天立即运行（无需等待工具），socket携带状态更新 `qa-f09-midrun`, 并且运行结束。 两者 `usage_id`我们有 token选择的呼叫
+  `sleep 20` 在 `default` 上运行，观测结果之后的调用
+  `qa-f09-midrun`，因此该开关应用于同一运行内。
+- **GET 在运行中切换 (`F09.switch-llm-mid-run-get`) 之后，已知错误。**同样的情况，立刻回读。
   ```sh
   GID=$(control-agent-server conversation start --tools terminal --no-autotitle --prompt 'Run this exact shell command and nothing else: sleep 20' --print-id)
   trap 'control-agent-server conversation wait "$GID" --until finished,error --timeout 240 >/dev/null 2>&1 || true; control-agent-server ws stop qa-f09-midget >/dev/null 2>&1 || true' EXIT
@@ -372,30 +301,17 @@ Preconditions:
     --expect 200 --save F09.switch-llm-mid-run-get/switch
   control-agent-server ws read qa-f09-midget --kinds ConversationStateUpdateEvent --contains '"usage_id": "qa-f09-midget"' --expect-min 1 --wait 10 --save F09.switch-llm-mid-run-get/frames
   control-agent-server api GET "/api/conversations/$GID" --quiet --check execution_status eq running
-  control-agent-server api GET "/api/conversations/$GID" --quiet --check agent.llm.usage_id eq qa-f09-midget --save F09.switch-llm-mid-run-get/get  # bug: status eq 200 && checks.0.actual eq default
-  control-agent-server state cat "server/workspace/conversations/${GID//-/}/base_state.json" --max-chars 200 --check agent.llm.usage_id eq qa-f09-midget  # bug: checks.0.actual eq default
+  control-agent-server api GET "/api/conversations/$GID" --quiet --check agent.llm.usage_id eq qa-f09-midget --save F09.switch-llm-mid-run-get/get  # bug：状态 eq 200 && 检查.0.实际 eq 默认值
+  control-agent-server state cat "server/workspace/conversations/${GID//-/}/base_state.json" --max-chars 200 --check agent.llm.usage_id eq qa-f09-midget  # bug：checks.0.actual eq默认值
   control-agent-server conversation wait "$GID" --until finished,error --timeout 240
   control-agent-server api GET "/api/conversations/$GID" --quiet --check execution_status eq finished --check agent.llm.usage_id eq qa-f09-midget
   ```
-  The switch is 200 while `sleep 20` runs, and the socket pushes the
-  switched `agent` (`usage_id` `qa-f09-midget`) at once. Expected: `GET`
-  shows `qa-f09-midget` from then on. Today the next `GET` (and
-  `base_state.json`, which it serves) still report `default` with the run
-  `running`, and keep it until the running step ends, about 20 s later,
-  although the in-memory agent already switched. (The first `GET` is the
-  control that the reads land inside the step; the marked `GET` is the
-  assertion that should hold. On a failure the `EXIT` trap waits for the run
-  and stops the capture.) The route
-  calls `LocalConversation.switch_llm` on the event-loop thread; `arun()`
-  holds the reentrant state lock on that same thread during the step, so the
-  switch re-enters it and its autosave is deferred to the step's exit (the
-  `arun()` comment says unrelated mutators must go through
-  `run_in_executor`; `load_plugin` and `switch_acp_model` do). A consumer
-  that verifies the switch with `GET` sees the old model for as long as the
-  tool runs, and a `restart --hard` in that window loses the acknowledged
-  switch (seen live: `GET` shows `default` after the restart).
-- **ACP switch on a regular conversation (`F09.acp-model-native`).** `CID`
-  runs an OpenHands `Agent`.
+  断路器为200，`sleep 20`运行时，`agent`和`usage_id`、`qa-f09-midget`同时被插座推入。 预期：`GET` 从那时起显示 `qa-f09-midget`。 今天下一个b`GET`(和
+  `base_state.json`，它所服务的）仍然在运行时报告 `default`
+  `running`，并保持到运行步骤结束，大约20秒后，尽管内存中的智能体已经切换了。（第一个`GET`是控制读操作落在步骤中的控制； 标记的`GET`是应该成立的断言。 失败时，`EXIT` 陷阱等待运行并停止捕获。）路由在事件循环线程上调用 `LocalConversation.switch_llm`； `arun()` 在该步骤期间在同一线程上保持可重入状态锁，因此开关重新进入它，并且其自动保存被推迟到该步骤的退出（
+  `arun()` 评论说不相关的突变必须经过
+  `run_in_executor`; `load_plugin`和`switch_acp_model`做）。 `GET` 检查者看到旧模型运行时，工具在 `restart --hard` 窗口中丢失确认的切换（实际示例：`GET` 在重启后显示 `default`）。
+- **ACP开启常规对话(`F09.acp-model-native`)。** `CID`运行OpenHands`Agent`。
   ```sh
   control-agent-server api POST "/api/conversations/$CID/switch_acp_model" --json '{"model": "opus"}' \
     --expect 400 --check detail eq 'switch_acp_model is only supported for ACP conversations.' --save F09.acp-model-native/native
@@ -403,11 +319,8 @@ Preconditions:
   control-agent-server api POST /api/conversations/00000000-0000-4000-8000-000000000000/switch_acp_model --json '{"model": "opus"}' --expect 404
   control-agent-server api GET "/api/conversations/$CID" --quiet --check agent.kind eq Agent --check agent.llm.model eq openai/qa-f09-ws --check current_model_id missing
   ```
-  400 with the exact message, 422 without `model`, 404 for the unknown id;
-  the conversation is unchanged.
-- **ACP model before the first run (`F09.acp-model-deferred`).** Create a
-  Claude Code ACP conversation with `acp_model: sonnet` and no prompt (no
-  subprocess starts until a run), then switch it.
+  400带有确切的错误信息，422不带`model`，404对于未知的ID。 对话没有改变。
+- **ACP 第一次运行之前的模型 (`F09.acp-model-deferred`)。**创建与 `acp_model: sonnet` 和无提示词的 Claude Code ACP 对话（在跑步之前无子进程开始），然后切换它。
   ```sh
   AID=$(control-agent-server conversation start --no-autotitle --body-json '{"agent_settings": {"agent_kind": "acp", "acp_server": "claude-code", "acp_model": "sonnet"}}' --print-id)
   control-agent-server api GET "/api/conversations/$AID" --quiet --check agent.kind eq ACPAgent --check agent.acp_model eq sonnet \
@@ -418,54 +331,34 @@ Preconditions:
   control-agent-server state cat "server/workspace/conversations/${AID//-/}/base_state.json" --max-chars 200 \
     --check agent.acp_model eq opus --check agent_state.acp_current_model_id eq opus
   ```
-  The switch is 200 although no ACP session exists (`acp_session_id` is
-  absent); `acp_model`, `agent_state.acp_current_model_id` and
-  `current_model_id` all say `opus`, so the first session would start on it.
-- **Blank ACP model (`F09.acp-model-blank`).** A second ACP
-  conversation that has not run.
+  开关状态为200，但没有ACP会话（`acp_session_id`不存在）。 `acp_model``agent_state.acp_current_model_id`和
+  `current_model_id` 都说 `opus`，所以第一个会话将从它开始。
+- **空白ACP模型(`F09.acp-model-blank`)。**尚未运行的第二个 ACP 对话。
   ```sh
   AID2=$(control-agent-server conversation start --no-autotitle --body-json '{"agent_settings": {"agent_kind": "acp", "acp_server": "claude-code", "acp_model": "sonnet"}}' --print-id)
   control-agent-server api GET "/api/conversations/$AID2" --quiet --check agent.kind eq ACPAgent --check agent.acp_model eq sonnet --check execution_status eq idle
   control-agent-server api POST "/api/conversations/$AID2/switch_acp_model" --json '{"model": "   "}' --expect 400,422 --save F09.acp-model-blank/blank
   control-agent-server api GET "/api/conversations/$AID2" --quiet --check agent.acp_model eq sonnet --check current_model_id eq sonnet
   ```
-  The switch is refused with 400 (`model must be a non-empty string`), as
-  on a live session, and `agent.acp_model` and `current_model_id` stay
+  端口拒绝请求，返回状态码 400，类似于在会话中，`model must be a non-empty string` 和 `agent.acp_model` 和 `current_model_id` 保持不变
   `sonnet`.
-- **LLM switches on an ACP conversation (`F09.switch-llm-acp-refused`), known bug.**
-  A third ACP conversation that has not run; its agent carries a
-  placeholder LLM that only names the model.
+- **LLM 打开 ACP 对话 (`F09.switch-llm-acp-refused`)，已知错误。**尚未运行的第三个 ACP 对话； 它的智能体带有一个占位符 LLM，仅命名模型。
   ```sh
   AID3=$(control-agent-server conversation start --no-autotitle --body-json '{"agent_settings": {"agent_kind": "acp", "acp_server": "claude-code", "acp_model": "sonnet"}}' --print-id)
   control-agent-server api GET "/api/conversations/$AID3" --quiet --check agent.llm.usage_id eq acp-managed --check agent.llm.model eq sonnet
-  control-agent-server api POST "/api/conversations/$AID3/switch_profile" --json '{"profile_name": "deepseek-pro"}' --expect 400,409,422 --save F09.switch-llm-acp-refused/switch-profile  # bug: status eq 200 && response.body.success eq true
+  control-agent-server api POST "/api/conversations/$AID3/switch_profile" --json '{"profile_name": "deepseek-pro"}' --expect 400,409,422 --save F09.switch-llm-acp-refused/switch-profile  # 错误：状态 eq 200 && response.body.success eq True
   control-agent-server api POST "/api/conversations/$AID3/switch_llm" \
     --json '{"llm": {"model": "openai/qa-f09-acp", "api_key": "sk-qa-f09-acp", "base_url": "http://127.0.0.1:9/v1", "usage_id": "qa-f09-acp"}}' \
-    --expect 400,409,422 --save F09.switch-llm-acp-refused/switch-llm  # bug: status eq 200 && response.body.success eq true
-  control-agent-server api GET "/api/conversations/$AID3" --quiet --check agent.llm.usage_id eq acp-managed --check agent.acp_model eq sonnet  # bug: status eq 200 && checks.0.actual eq qa-f09-acp && checks.1.ok eq true
+    --expect 400,409,422 --save F09.switch-llm-acp-refused/switch-llm  # 错误：状态 eq 200 && response.body.success eq True
+  control-agent-server api GET "/api/conversations/$AID3" --quiet --check agent.llm.usage_id eq acp-managed --check agent.acp_model eq sonnet  # bug：状态 eq 200 && 检查.0.实际 eq qa-f09-ACP && 检查.1.ok eq True
   ```
-  The ACP agent starts with `usage_id` `acp-managed` and the model name
-  `sonnet`. Expected: both switches are refused with a 4xx (400 would mirror
-  `switch_acp_model` on a regular conversation; the ACP subprocess makes
-  its own model calls and `LocalConversation.switch_acp_model` says
-  `switch_llm` would not affect it). Today both
-  answer 200 and replace the placeholder in `base_state.json` with the
-  posted LLM (`GET` still shows `model: sonnet`, because the ACP agent
-  overwrites the model name with `acp_model` when it is loaded, but
-  `usage_id` becomes `profile:deepseek-pro`, then `qa-f09-acp`). Nothing the
-  subprocess runs changes, and the `acp-managed` marker that
-  `title_utils` uses to avoid calling the placeholder is gone.
-- **Live ACP switch (`F09.acp-model-live`).** Translated environment: the
-  ACP provider is the real Claude Code adapter (`claude-code`, which the
-  server launches with `npx`, so it needs `node` and the network), and
-  DeepSeek's Anthropic-compatible API stands in for an Anthropic account
-  (`ANTHROPIC_BASE_URL` `https://api.deepseek.com/anthropic` with the
-  DeepSeek key as `ANTHROPIC_API_KEY`, passed as conversation secrets, which
-  the adapter honours). `IS_SANDBOX=1` lets Claude Code accept the
-  server's `bypassPermissions` session mode when it runs as root (without
-  it the run errors with `Mode bypassPermissions is not available in this
-  session`). The protocol switch, the session and the persistence are the
-  real ones; only the model behind the Anthropic API differs.
+  ACP 智能体开始于 `usage_id` `acp-managed`，模型名
+  `sonnet`. 预期：两个交换机都被 4xx 拒绝（400 将镜像
+  `switch_acp_model` 在常规谈话中； ACP 子进程进行自己的模型调用，`LocalConversation.switch_acp_model` 说
+  `switch_llm` 这不会影响它。 今天，答案都是200，并替换占位符 `base_state.json` with the posted LLM (`GET` 仍然显示 `model: sonnet`因为  ACP  智能体覆盖了模型名称为 `acp_model` 当加载时，但
+  `usage_id` 变为 `profile:deepseek-pro`，然后变为 `qa-f09-acp`）。 子进程运行没有任何变化，并且 `acp-managed` 标记
+  `title_utils`用来避免调用的占位符消失了。
+- **实时ACP开关(`F09.acp-model-live`)。**翻译后的环境：ACP 提供者是真正的 Claude Code 适配器（`claude-code`，服务器使用 `npx` 启动它，因此需要 `node` 和网络），DeepSeek 的 Anthropic 兼容 API 代表 Anthropic 帐户（`ANTHROPIC_BASE_URL` `https://api.deepseek.com/anthropic`，DeepSeek 密钥作为 `ANTHROPIC_API_KEY`，作为会话机密传递，适配器尊重）。 `IS_SANDBOX=1` 允许 Claude Code 在以 root 身份运行时接受服务器的 `bypassPermissions` 会话模式（如果没有它，`Mode bypassPermissions is not available in this session` 会出现运行错误）。 协议切换、会话和持久化都是真实的； 只有AnthropicAPI背后的模型不同。
   ```sh
   LID=$(control-agent-server conversation start --no-autotitle --body-json '{"agent_settings": {"agent_kind": "acp", "acp_server": "claude-code", "acp_model": "sonnet"}}' \
     --secret ANTHROPIC_API_KEY="$DEEPSEEK_API_KEY" --secret ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic --secret IS_SANDBOX=1 \
@@ -487,45 +380,29 @@ Preconditions:
     --check stats.usage_to_metrics.acp-managed.model_name eq haiku \
     --check stats.usage_to_metrics.acp-managed.accumulated_token_usage.completion_tokens gt "$LC1" --save F09.acp-model-live/second-turn
   ```
-  After the first turn the conversation reports
-  `supports_runtime_model_switch: true` and the adapter's
+  在第一次轮次之后，对话报告
+  `supports_runtime_model_switch: true` 和适配器的
   `available_models` (`default`, `opus[1m]`, `sonnet`, `sonnet[1m]`,
-  `haiku`), on `sonnet`. The switch to `haiku` is 200 and `current_model_id`,
-  `agent.acp_model`, `agent_state.acp_current_model_id` and
-  `base_state.json` follow, with the same `acp_session_id` (switched in
-  place, not a new session). A blank model is 400 `model must be a
-  non-empty string`. An id the adapter does not offer is refused and the
-  model stays `haiku` (which status it is refused with is
-  `F09.acp-model-live-unknown`). The next turn finishes in the same
-  session, and its usage is recorded on `acp-managed` with `model_name`
-  `haiku`. Every built-in provider declares
-  runtime switching, so the route's other 400 (`does not support runtime
-  model switching`) is not reachable with them.
-- **Unknown model on a live session (`F09.acp-model-live-unknown`), known bug.**
-  `LID` from the bullet above, whose adapter lists its models.
+  `haiku`），关于 `sonnet`。 切换到`haiku`是200和`current_model_id`，
+  `agent.acp_model`、`agent_state.acp_current_model_id` 和
+  `base_state.json` 跟随，具有相同的 `acp_session_id`（切换到位，而不是新会话）。 空白模型为 400 `model must be a non-empty string`。 适配器未提供的 ID 将被拒绝，并且模型保持 `haiku`（被拒绝的状态是
+  `F09.acp-model-live-unknown`). 下一回合在同一会话中完成，其使用情况记录在 `acp-managed` 和 `model_name` 上
+  `haiku`. 每个内置提供程序都声明运行时切换，因此它们无法访问路由的其他 400 (`does not support runtime model switching`)。
+- **实时会话中的未知模型 (`F09.acp-model-live-unknown`)，已知错误。**
+  `LID` 来自上面的项目符号，其适配器列出了其型号。
 
-  Requires: `F09.acp-model-live`
+  需要：`F09.acp-model-live`
   ```sh
   control-agent-server api GET "/api/conversations/$LID" --quiet --check supports_runtime_model_switch eq true \
     --check available_models contains '"model_id": "sonnet"' --check available_models not-contains qa-f09-nope
-  control-agent-server api POST "/api/conversations/$LID/switch_acp_model" --json '{"model": "qa-f09-nope"}' --expect 400,422 --save F09.acp-model-live-unknown/switch  # bug: status eq 500 && response.body.exception contains 'Internal error'
+  control-agent-server api POST "/api/conversations/$LID/switch_acp_model" --json '{"model": "qa-f09-nope"}' --expect 400,422 --save F09.acp-model-live-unknown/switch  # bug：状态 eq 500 && response.body.exception 包含“内部错误”
   ```
-  Expected: a client error, as `ACPAgent.set_acp_model` documents ("the ACP
-  server rejects the model-switch call (e.g. ... an invalid model id)" is a
-  `ValueError`, which the route turns into 400) and as a blank model already
-  is. Today it is 500 `Internal Server Error` with `exception` `Internal
-  error`: claude-agent-acp answers `set_config_option(model)` with an id it
-  does not offer with JSON-RPC -32603, and `set_acp_model` re-raises -32603
-  as a server-side failure instead of a `ValueError`, although the session's
-  `available_models` already shows the id is not offered. A consumer that
-  mistypes a model sees a retriable-looking 500 for a request that can
-  never succeed. Nothing changes either way (`F09.acp-model-live` checks
-  that the model stays `haiku`).
-- **Live switch that times out (`F09.acp-model-live-timeout`).** The same
-  translated provider, on a conversation created with
-  `acp_prompt_timeout: 0.001`: the server's own timer is what is under test.
-  The first turn's prompt times out too (the run ends in `error`), but the
-  session it created stays live.
+  预期：客户端错误，如 `ACPAgent.set_acp_model` 文档（“ACP
+  服务器拒绝模型切换调用（e.g. ... 无效的型号 ID）” 是
+  `ValueError`，路线变成 400) 并且作为空白模型已经是。 今天是500 `Internal Server Error`，`exception` `Internal error`：claude-智能体-ACP 以一个它不提供 id 的方式回答 `set_config_option(model)`，-32603，然后 JSON-RPC -32603 作为服务器端失败，而不是 `ValueError`，尽管会话的 `set_acp_model`
+  `available_models` 已显示未提供该 ID。 错误输入模型的消费者会看到一个看起来可重试的 500，该请求永远不会成功。 无论哪种方式都不会改变（`F09.acp-model-live` 检查模型是否保持 `haiku`）。
+- **实时切换超时 (`F09.acp-model-live-timeout`)。**同一个翻译提供商，在与创建的对话中
+  `acp_prompt_timeout: 0.001`：测试的是服务器自己的定时器。 第一回合的提示词也超时（运行以 `error` 结束），但它创建的会话仍然有效。
   ```sh
   TOID=$(control-agent-server conversation start --no-autotitle --body-json '{"agent_settings": {"agent_kind": "acp", "acp_server": "claude-code", "acp_model": "sonnet", "acp_prompt_timeout": 0.001}}' \
     --secret ANTHROPIC_API_KEY="$DEEPSEEK_API_KEY" --secret ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic --secret IS_SANDBOX=1 \
@@ -534,15 +411,10 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$TOID/switch_acp_model" --json '{"model": "haiku"}' --expect 504 --check detail eq 'Internal Server Error' --save F09.acp-model-live-timeout/switch
   control-agent-server api GET "/api/conversations/$TOID" --quiet --check current_model_id eq sonnet --check agent.acp_model eq sonnet --check agent_state.acp_current_model_id eq sonnet
   ```
-  The adapter cannot answer the model switch within 1 ms, so the route
-  answers 504 with `detail` rewritten to `Internal Server Error` (the
-  server's 5xx handler; `exception` is `504: `), and the conversation keeps
-  `sonnet` everywhere: a timed-out switch changes nothing locally.
-- **TypeScript client (`F09.ts-client`).** `ConversationClient` and
-  `ConversationManager` from the built client in `clients/typescript/dist`
-  (built here when missing, which needs `npm` and the network), on a fresh
-  placeholder conversation `TID` and a fresh ACP conversation `AID4` that
-  never runs.
+  适配器在1毫秒内无法回答模型切换，因此路由返回了`detail`重写为`Internal Server Error`（服务器的5xx处理器）； `exception` 是 `504: `，对话继续
+  `sonnet` 无处不在：超时切换不会在本地改变任何内容。
+- **TypeScript 客户端 (`F09.ts-client`).** `ConversationClient` 和
+  `ConversationManager` 从 `clients/typescript/dist` 中的内置客户端 (当缺失时，这里会构建，需要 `npm` 和网络)，在一次全新的占位符对话 `TID` 和一次全新的 ACP 对话 `AID4` 中运行。
   ```sh
   test -f clients/typescript/dist/clients.js || (cd clients/typescript && npm ci && npm run build)
   TID=$(control-agent-server conversation start --placeholder-agent --tools none --no-autotitle --print-id)
@@ -585,30 +457,21 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$TID" --quiet --check agent.llm.model eq deepseek/deepseek-flash --check agent.llm.usage_id eq profile:deepseek-flash
   control-agent-server state cat "server/workspace/conversations/${AID4//-/}/base_state.json" --max-chars 200 --check agent.acp_model eq opus
   ```
-  Every assertion holds: `switchLLM`, `ConversationManager.switchProfile`
-  and `switchProfile` each resolve and `getConversation` shows the model and
-  `usage_id` they installed; the unknown profile is an `HttpError` 404, the
-  ACP switch on a regular conversation 400 and a keyless client 401, none of
-  which changed `TID`; `switchAcpModel` on the ACP conversation that has not
-  run resolves (no 409) and `acp_model` and `current_model_id` become
-  `opus`, also in `base_state.json`.
-- **TypeScript docstrings for a pre-run ACP switch (`F09.ts-client-acp-docs`).**
-  Both `switchAcpModel` methods exist; their docstrings should not promise a
-  409 the server never sends.
+  每个断言都成立：`switchLLM`、`ConversationManager.switchProfile`和`switchProfile`都解析，`getConversation`显示模型
+  `usage_id` 他们安装了； 未知配置文件是 `HttpError` 404，ACP 开启常规对话 400 和无密钥客户端 401，其中 None 已更改 `TID`； `switchAcpModel` 尚未运行的 ACP 对话解析（否 409），`acp_model` 和 `current_model_id` 变为
+  `opus`，也在`base_state.json`中。
+- **TypeScript 文档字符串用于预运行 ACP 开关 (`F09.ts-client-acp-docs`)。** `switchAcpModel` 两种方法都存在； 他们的文档字符串不应该承诺服务器永远不会发送 409。
   ```sh
   grep -n 'async switchAcpModel(' clients/typescript/src/client/conversation-client.ts
   grep -n 'async switchAcpModel(' clients/typescript/src/conversation/remote-conversation.ts
   control-agent-server assert --value "$(cat clients/typescript/src/client/conversation-client.ts clients/typescript/src/conversation/remote-conversation.ts | grep -c 'returns 409 before the first message')" --check . eq 0
   control-agent-server assert --value "$(cat clients/typescript/src/client/conversation-client.ts clients/typescript/src/conversation/remote-conversation.ts | grep -c 'the first session. Non-ACP conversations get 400.')" --check . eq 2
   ```
-  Expected: the docstrings of `ConversationClient.switchAcpModel` and
-  `RemoteConversation.switchAcpModel` say what `F09.acp-model-deferred` and
-  `F09.ts-client` observe: before the first run the server answers 200 and
-  stores the model for the first session, and a non-ACP conversation gets
-  400. Neither promises a 409.
-- **Load a plugin (`F09.load-plugin`).** Start `PID` from the saved settings
-  with the `qa-f09-mkt` marketplace registered on its `agent_context` (not
-  auto-loaded), then load the plugin while capturing the socket.
+  预期：`ConversationClient.switchAcpModel` 的文档字符串和
+  `RemoteConversation.switchAcpModel` 说什么 `F09.acp-model-deferred` 和
+  `F09.ts-client` 观察：在第一次运行之前，服务器回答 200 并存储第一个会话的模型，并且非 ACP 会话得到
+  400. 两者都没有承诺 409。
+- **加载插件 (`F09.load-plugin`).** 开始 `PID` 从保存的设置中 `qa-f09-mkt` 其市场 [注册] 在其上 `agent_context` (未自动加载)，然后在捕获套接字时加载插件。
   ```sh
   AS=$(control-agent-server api GET /api/settings --header 'X-Expose-Secrets: encrypted' --field agent_settings --unsafe-unredacted \
     | jq -c --arg m "$MKT" '.tools = [] | .agent_context.registered_marketplaces = [{"name": "qa-f09-mkt", "source": $m}]')
@@ -628,28 +491,22 @@ Preconditions:
   control-agent-server ws read qa-f09-plugin --kinds ConversationStateUpdateEvent --contains qa-f09-mkt-plugin-skill --expect-min 1 --wait 20 --save F09.load-plugin/agent-frame
   control-agent-server ws stop qa-f09-plugin --kinds ConversationStateUpdateEvent --contains QA_PLUGIN_HOOK --expect-min 1 --wait 20
   ```
-  Before the load the agent has no skills and no hooks. After it, `GET`
-  (with `include_skills=true`) lists the plugin's skill and its command (as
-  the skill `qa-f09-mkt-plugin:qa-hello`), `hook_config` has the plugin's
-  `UserPromptSubmit` hook, `base_state.json` has both, and the socket pushed
-  state updates for `agent` and `hook_config`.
-- **The loaded hook runs (`F09.load-plugin-hook-runs`).** Run one turn on
+  在负载之前智能体没有技能，也没有钩子。 之后， `GET` (with `include_skills=true`) 列出了插件的技能及其命令（即技能） `qa-f09-mkt-plugin:qa-hello`), `hook_config` 该插件的
+  `UserPromptSubmit` 钩子，`base_state.json` 两者都有，并且套接字推送了 `agent` 和 `hook_config` 的状态更新。
+- **加载的钩子运行（`F09.load-plugin-hook-runs`）。**开机运行一圈
   `PID`.
 
-  Requires: `F09.load-plugin`
+  需要：`F09.load-plugin`
   ```sh
   control-agent-server conversation send "$PID" --text 'Reply with the single word: ok' --wait --until finished,error --timeout 240
   control-agent-server api GET "/api/conversations/$PID" --quiet --check execution_status eq finished
   control-agent-server conversation events "$PID" --kinds HookExecutionEvent --contains '"stdout": "QA_PLUGIN_HOOK' --expect-count 1 --save F09.load-plugin-hook-runs/hook-events
   ```
-  One `HookExecutionEvent` (`hook_event_type` `UserPromptSubmit`, `stdout`
-  `QA_PLUGIN_HOOK`) precedes the turn, which finishes.
-- **Plugin load errors (`F09.load-plugin-errors`).** Conversations without
-  marketplaces or without an agent context, then bad refs on `QID`, a fresh
-  conversation with the marketplace registered; a bare name is the positive
-  control.
+  一个`HookExecutionEvent`(`hook_event_type``UserPromptSubmit``stdout`
+  `QA_PLUGIN_HOOK`) 在前，而转接在此结束。
+- ** 插件加载错误 (`F09.load-plugin-errors`)。** 没有市场或没有智能体上下文的对话，然后在 `QID` 上有坏的引用； 裸名是阳性对照。
 
-  Requires: `F09.acp-model-deferred`, `F09.load-plugin`
+  需要：`F09.acp-model-deferred`、`F09.load-plugin`
   ```sh
   control-agent-server api POST "/api/conversations/$CID/load_plugin" --json '{"plugin_ref": "qa-f09-mkt-plugin"}' \
     --expect 400 --check detail contains 'No marketplaces registered' --save F09.load-plugin-errors/no-marketplaces
@@ -676,36 +533,23 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$QID" --query include_skills=true --quiet \
     --check agent.agent_context.skills contains qa-f09-mkt-plugin-skill --check hook_config.user_prompt_submit len-eq 1
   ```
-  400 without marketplaces (`CID`) and without an agent context (the ACP
-  `AID`), 400 `Local plugin path does not exist: ...` when the only
-  registered marketplace points at a missing directory (`NID`, which stays
-  without skills or hooks), 404 for an unregistered marketplace and an unknown plugin (with or
-  without a marketplace), 400 for an empty or half ref, 422 without the
-  field, 404 for the unknown conversation; none of them changed `QID`, and
-  the bare name `qa-f09-mkt-plugin` then resolves through the only
-  registered marketplace and loads.
-- **Load the same plugin twice (`F09.load-plugin-twice`), known bug.** Load
-  the plugin into `QID` again, now by its full ref.
+  400 无市场 (`CID`) 和无智能体上下文 (the ACP)
+  `AID`), 400 `Local plugin path does not exist: ...` 时，表示唯一注册的市场目录缺失（`NID`，该目录没有技能或钩子），404 未注册市场，以及未知插件（有或无市场目录），400 为空或半引用，422 无字段，404 未知对话。 其中 None 发生了更改 `QID`，然后裸名称 `qa-f09-mkt-plugin` 通过唯一注册的市场和负载进行解析。
+- **加载相同的插件两次（`F09.load-plugin-twice`），已知错误。**再次将插件加载到 `QID` 中，现在使用其完整参考。
 
-  Requires: `F09.load-plugin-errors`
+  需要：`F09.load-plugin-errors`
   ```sh
   control-agent-server api POST "/api/conversations/$QID/load_plugin" --json '{"plugin_ref": "qa-f09-mkt-plugin@qa-f09-mkt"}' --expect 200 --save F09.load-plugin-twice/second-load
   control-agent-server api GET "/api/conversations/$QID" --query include_skills=true --quiet \
     --check agent.agent_context.skills len-eq 2 --check agent.agent_context.skills contains qa-f09-mkt-plugin-skill --check hook_config.user_prompt_submit len-ge 1
-  control-agent-server api GET "/api/conversations/$QID" --quiet --check hook_config.user_prompt_submit len-eq 1 --save F09.load-plugin-twice/get  # bug: status eq 200 && checks.0.actual contains 'echo QA_PLUGIN_HOOK'
+  control-agent-server api GET "/api/conversations/$QID" --quiet --check hook_config.user_prompt_submit len-eq 1 --save F09.load-plugin-twice/get  # bug：状态 eq 200 && 检查.0.实际包含“echo QA_PLUGIN_HOOK”
   ```
-  The second load is 200 and the skills are not duplicated (still two).
-  Expected: one copy of the hook as well. Today `hook_config.user_prompt_submit`
-  has two identical entries, because `_merge_runtime_plugin_hooks` appends
-  with `HookConfig.merge` without de-duplicating, and the hook then runs
-  twice per message (seen live: two `HookExecutionEvent`s for one user
-  message). A client that retries `load_plugin` doubles every hook's side
-  effects.
-- **Load a plugin from the Python SDK (`F09.load-plugin-sdk`).** A fresh
-  conversation `SID` with the marketplace registered, reattached from an SDK
-  program.
+  第二个加载是200，技能没有重复（仍然有两个）。
+  预期：还有一份钩子副本。 今天 `hook_config.user_prompt_submit`
+  有两个完全相同的条目，因为`_merge_runtime_plugin_hooks`在`HookConfig.merge`后不进行去重，然后钩子就会在每条消息上运行两次（见实时：一个`HookExecutionEvent`对应两个用户消息）。 一个客户端重试 `load_plugin` 将每个钩子的副作用加倍。
+- **从 Python SDK (`F09.load-plugin-sdk`) 加载插件。**与注册市场的新对话 `SID`，从 SDK 程序重新附加。
 
-  Requires: `F09.load-plugin`
+  需要：`F09.load-plugin`
   ```sh
   SID=$(control-agent-server conversation start --no-autotitle --body-json "{\"agent_settings\": $AS, \"secrets_encrypted\": true}" --print-id)
   control-agent-server api GET "/api/conversations/$SID" --query include_skills=true --quiet --check agent.agent_context.skills len-eq 0 --check hook_config missing
@@ -733,13 +577,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$SID" --query include_skills=true --quiet \
     --check agent.agent_context.skills contains qa-f09-mkt-plugin-skill --check hook_config.user_prompt_submit len-eq 1 --save F09.load-plugin-sdk/get
   ```
-  The unknown plugin raises `httpx.HTTPStatusError` with status 404 (the SDK
-  logs it and re-raises), the real ref returns `None`, and `GET` then shows
-  the plugin's skill and its one `UserPromptSubmit` hook.
-- **Restart (`F09.restart-persist`).** Restart the server and read every
-  switched conversation back; then run a turn on `RID`.
+  未知插件引发 `httpx.HTTPStatusError` 状态为 404 (找不到) SDK 它会记录日志并重新抛出异常，真正的 ref 返回 `None`, and `GET` 然后显示插件的技能和一个 `UserPromptSubmit` hook.
+- **重新启动 (`F09.restart-persist`)。**重新启动服务器并读回每个切换的对话； 然后运行一圈`RID`。
 
-  Requires: `F09.switch-profile`, `F09.acp-model-deferred`, `F09.load-plugin`
+  需要：`F09.switch-profile`、`F09.acp-model-deferred`、`F09.load-plugin`
   ```sh
   control-agent-server restart
   control-agent-server api GET "/api/conversations/$CID" --quiet --check agent.llm.model eq openai/qa-f09-ws --check agent.llm.usage_id eq qa-f09-ws --save F09.restart-persist/cid
@@ -751,74 +592,37 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$RID" --until-ok 60 --quiet --check execution_status eq finished \
     --check 'stats.usage_to_metrics.profile:deepseek-pro.accumulated_token_usage.prompt_tokens' gt "$PRO1" --save F09.restart-persist/rid-stats
   ```
-  All four conversations come back as switched, and the first turn after
-  the restart runs on `deepseek-pro` again (its token count grows past
+  所有四次对话都以切换的形式返回，重启后第一次发言又回到了`deepseek-pro`（词元数量的增长超过了）
   `PRO1`).
 
-## Gotchas
+<a id="gotchas"></a>
 
-- Every switch answers `{"success": true}` and nothing else; read the result
-  back with `GET /api/conversations/{id}` (which serves the autosaved
-  `base_state.json`, so on an idle conversation it shows a switch
-  immediately) or the `ConversationStateUpdateEvent` with key `agent`.
-  While a step is running, `GET` keeps the old LLM until the step ends
-  (`F09.switch-llm-mid-run-get`); the socket and the run itself switch at
-  once, so wait for the run (or read the socket) before asserting on `GET`.
-- `switch_llm` with a `usage_id` that is already registered (the default
-  `default` once the agent initialized, or any id used before) installs the
-  posted config, replacing the registered entry when the config differs and
-  keeping that id's usage in `stats.usage_to_metrics`
-  (`F09.switch-llm-registered-usage-id`); an identical config reuses the
-  registered LLM, so switching back is cheap. `switch_profile` reuses the
-  copy cached under `profile:<name>` at its first use
-  (`F09.switch-profile-edited`).
-- Usage is accounted per `usage_id` in `stats.usage_to_metrics`, but only
-  for LLMs registered after the agent initialized
-  (`F09.switch-llm-before-first-run`); send one message (or create with an
-  initial message) before switching when costs matter.
-- The agent is initialized by the first message (`conversation send
-  --no-run` is enough) or run, not by the create; ACP agents only at the
-  first run, which is when the subprocess starts.
-- A summarizing condenser whose LLM equals the agent's is switched along
-  with it (same model, `usage_id` `condenser`); a condenser with its own
-  config is left alone.
-- `switch_llm` decrypts `gAAAAA` tokens in `api_key` and the other secret
-  fields with the server's cipher, so a config read with
-  `X-Expose-Secrets: encrypted` can be posted back as-is. A
-  `provider_connection_id` is resolved once, at the switch, and the resolved
-  key is stored (encrypted) with the agent; deleting the connection later
-  does not affect the installed LLM, also across a restart.
-- Profiles are read from `OH_PERSISTENCE_DIR/profiles` (here
-  `home/.openhands/profiles`); profile names follow the LLM profile rules
-  (`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`), and a name that breaks them is 400
-  here (not 422 as on `/api/profiles/{name}`).
-- `load_plugin` only searches the marketplaces registered on the
-  conversation agent's `agent_context.registered_marketplaces` (start the
-  conversation with them in `agent_settings.agent_context`); the server
-  config's `registered_marketplaces` and `/api/plugins` installs are not
-  consulted. A registration with `auto_load: true` (as in the
-  `registration` that `fixture marketplace` prints) loads the marketplace's
-  plugins and standalone skills when the agent initializes (the first
-  message), without any `load_plugin`; this family registers without it so
-  that the load is what adds the plugin.
-- Plugin commands become skills named `<plugin>:<command>`, and
-  `GET /api/conversations/{id}` trims `agent.agent_context.skills` to `[]`
-  unless `include_skills=true`.
-- `switch_acp_model` before the first run only persists the model; the
-  provider's capability (`supports_runtime_model_switch`) and
-  `available_models` are unknown (`false`, `[]`) until a session started. A
-  504 from a live switch has its `detail` rewritten to `Internal Server
-  Error`; read `exception`. The TypeScript client's `switchAcpModel`
-  docstrings document this 200-and-defer behaviour (`F09.acp-model-deferred`,
+## 陷阱
+
+- 每个开关都回答 `{"success": true}`，仅此而已； 使用 `GET /api/conversations/{id}` 读回结果（它服务于自动保存的
+  `base_state.json`，因此在空闲对话中它会立即显示切换）或带有键 `agent` 的 `ConversationStateUpdateEvent`。 当步骤运行时，`GET` 保留旧的 LLM 直到步骤结束 (`F09.switch-llm-mid-run-get`)； 套接字和运行本身立即切换，因此在断言 `GET` 之前等待运行（或读取套接字）。
+- `switch_llm` 与已注册的 `usage_id`（默认
+  `default` once the 智能体初始化，或者在注册之前使用的任何 id 安装配置，当配置不同时替换注册的条目，并保留该 id 的使用 `stats.usage_to_metrics` (`F09.switch-llm-registered-usage-id`); 一个完全相同的配置会复用注册的 LLM所以切换回是便宜的。 `switch_profile` 重用了缓存的副本 `profile:<name>` 在首次使用时（`F09.switch-profile-edited`).
+- 按使用情况计 `usage_id` 在 `stats.usage_to_metrics`但仅限于 LLMs 注册后智能体已初始化 (`F09.switch-llm-before-first-run`); 当成本很重要时，在切换之前发送一条消息（或使用初始消息创建）。
+- 智能体由第一条消息初始化（`conversation send
+  --no-run` 就足够了）或运行，而不是通过创建； ACP 智能体仅在
+  第一次运行，即子进程开始时。
+- LLM 等于智能体的汇总上下文压缩器随之切换（相同模型，`usage_id` `condenser`）； 具有自己配置的上下文压缩器被保留。
+- `switch_llm` 使用服务器的密码解密 `api_key` 中的 `gAAAAA` token 和其他机密字段，因此配置读取为
+  `X-Expose-Secrets: encrypted` 可以按原样发回。 A
+  `provider_connection_id` 在交换机处解析一次，解析后的密钥与智能体一起存储（加密）； 稍后删除连接不会影响已安装的LLM，即使重新启动也是如此。
+- 配置文件从 `OH_PERSISTENCE_DIR/profiles` 读取（此处
+  `home/.openhands/profiles`); 配置文件名称遵循 LLM 配置文件规则 (`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)，此处打破这些规则的名称是 400（而不是 `/api/profiles/{name}` 中的 422）。
+- `load_plugin` 仅搜索在对话智能体的 `agent_context.registered_marketplaces` 中注册的市场（在 `agent_settings.agent_context` 中开始与它们的对话）； 不参考服务器配置的 `registered_marketplaces` 和 `/api/plugins` 安装。 注册`auto_load: true`（如
+  `fixture marketplace` 打印的 `registration`）在智能体初始化（第一条消息）时加载市场的插件和独立技能，没有任何 `load_plugin`； 这个系列在没有它的情况下注册，因此负载是添加插件的原因。
+- 插件命令变成名为 `<plugin>:<command>` 的技能，并且
+  `GET /api/conversations/{id}` 将 `agent.agent_context.skills` 修剪为 `[]`，除非 `include_skills=true`。
+- `switch_acp_model` 第一次运行之前仅保留模型； 提供商的能力 (`supports_runtime_model_switch`) 和
+  在会话开始之前，`available_models` 是未知的（`false`、`[]`）。 来自实时交换机的 504 将其 `detail` 重写为 `Internal Server Error`； 阅读`exception`。 TypeScript 客户端的 `switchAcpModel` 文档字符串记录了这个 200-and-defer 行为（`F09.acp-model-deferred`，
   `F09.ts-client`, `F09.ts-client-acp-docs`).
-- A live ACP session needs the provider's CLI and an account for it. For
-  `claude-code`, DeepSeek's Anthropic-compatible API works as the account
-  (secrets `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic` and
-  `ANTHROPIC_API_KEY=$DEEPSEEK_API_KEY`), and as root Claude Code also needs
-  `IS_SANDBOX=1` or the session refuses the `bypassPermissions` mode the
-  server asks for. Each such turn sends Claude Code's own system prompt
-  (about 36k prompt tokens). The ACP agent records its usage under
-  `usage_id` `acp-managed`, with `model_name` following live switches.
-- Placeholder conversations (`conversation start --placeholder-agent`) point
-  at `http://127.0.0.1:9/v1`, so a run that finishes after a switch proves
-  the switched model ran.
+- 实时 ACP 会话需要提供商的 CLI 及其帐户。 对于
+  `claude-code`、DeepSeek 的 Anthropic 兼容 API 作为帐户（机密 `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic` 和
+  `ANTHROPIC_API_KEY=$DEEPSEEK_API_KEY`），并且作为 root 克劳德代码也需要
+  `IS_SANDBOX=1` 或会话拒绝服务器请求的 `bypassPermissions` 模式。 每个这样的回合都会发送 Claude Code 自己的系统提示词（大约 36k 提示词 token）。 ACP智能体记录了其用法
+  `usage_id` `acp-managed`，带电开关后面有 `model_name`。
+- 占位符对话 (`conversation start --placeholder-agent`) 指向 `http://127.0.0.1:9/v1`，因此在切换后完成的运行证明切换后的模型已运行。

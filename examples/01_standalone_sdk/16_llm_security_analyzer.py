@@ -1,7 +1,6 @@
-"""OpenHands Agent SDK — LLM Security Analyzer Example (Simplified)
+"""OpenHands 智能体 SDK — LLM 安全分析器示例（简化）
 
-This example shows how to use the LLMSecurityAnalyzer to automatically
-evaluate security risks of actions before execution.
+示例展示了如何使用 LLMSecurityAnalyzer 在执行之前自动评估操作的安全风险。
 """
 
 import os
@@ -22,16 +21,16 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Clean ^C exit: no stack trace noise
+# Clean ^C 退出：没有堆栈跟踪噪音
 signal.signal(signal.SIGINT, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
 
 
 def _print_blocked_actions(pending_actions) -> None:
     print(f"\n🔒 Security analyzer blocked {len(pending_actions)} high-risk action(s):")
     for i, action in enumerate(pending_actions, start=1):
-        # Prefer the LLM-provided natural-language summary as the headline,
-        # keeping the raw action snippet as secondary detail so users can
-        # still see exactly what will run before approving.
+        # 请使用LLM提供的自然语言摘要作为标题，保留原始的行动片段作为次要细节，这样用户
+        # 就可以在批准前看到确切的运行内容。
+        #
         headline = action.summary or "(no summary provided)"
         snippet = str(action.action)[:100].replace("\n", " ")
         print(f"  {i}. [{action.tool_name}] {headline}")
@@ -40,8 +39,7 @@ def _print_blocked_actions(pending_actions) -> None:
 
 def confirm_high_risk_in_console(pending_actions) -> bool:
     """
-    Return True to approve, False to reject.
-    Matches original behavior: default to 'no' on EOF/KeyboardInterrupt.
+    True批准，False拒绝。 匹配原始行为：EOF/KeyboardInterrupt 上默认为“否”。
     """
     _print_blocked_actions(pending_actions)
     while True:
@@ -71,11 +69,11 @@ def run_until_finished_with_security(
     conversation: BaseConversation, confirmer: Callable[[list], bool]
 ) -> None:
     """
-    Drive the conversation until FINISHED.
-    - If WAITING_FOR_CONFIRMATION: ask the confirmer.
-        * On approve: set execution_status = IDLE (keeps original example’s behavior).
-        * On reject: conversation.reject_pending_actions(...).
-    - If WAITING but no pending actions: print warning and set IDLE (matches original).
+    推动对话直至 FINISHED。
+    - 如果WAITING_FOR_CONFIRMATION：询问确认者。
+        * 在批准时：设置 execution_status = IDLE（保持原始示例的行为）。
+        * 拒绝时：conversation.reject_pending_actions(...)。
+    - 如果 WAITING 但没有待处理的操作：打印警告并设置 IDLE（与原始内容匹配）。
     """
     while conversation.state.execution_status != ConversationExecutionStatus.FINISHED:
         if (
@@ -96,7 +94,7 @@ def run_until_finished_with_security(
         conversation.run()
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -108,7 +106,7 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 tools = [
     Tool(
         name=TerminalTool.name,
@@ -116,10 +114,10 @@ tools = [
     Tool(name=FileEditorTool.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-# Conversation with persisted filestore
+# 与已持久化文件存储对话
 conversation = Conversation(
     agent=agent, persistence_dir="./.conversations", workspace="."
 )

@@ -1,29 +1,25 @@
-"""Shared tree-sitter-bash parsing entry point for the SDK.
+"""共享 tree-sitter-bash 解析入口为 SDK。
 
-Two consumers need a tree-sitter-bash parse of a shell command:
+两个消费者需要对 shell 命令进行 tree-sitter-bash 解析：
 
-- ``openhands-tools`` for command splitting and escape doubling
-  (``terminal.utils.command``).
-- ``openhands-sdk`` for AST-aware security detection
-  (the planned ``security.defense_in_depth.*`` analyzers).
+- ``openhands-tools`` 用于命令分割和转义加倍 (``terminal.utils.command``)。
+- ``openhands-sdk`` 用于 AST 感知安全检测（计划的 ``security.defense_in_depth.*`` 分
+析器）。
 
-Hosting the parser inside ``openhands-sdk`` lets both consumers depend
-on the same tree-sitter version, avoids duplicate ``Language`` setup,
-and keeps the security analyzers from acquiring a transitive
-dependency on the tools package they need to scan.
+将解析器托管在 ``openhands-sdk`` 中，使得消费者都依赖于相同的树-itter 版本，避免了重
+复的 ``Language`` 配置，并且防止了安全分析器从需
+要扫描的工具包中获取其转译依赖。
 
-This module intentionally exposes the minimum surface that both
-consumers need today: a single ``parse(command)`` function returning a
-``ParseResult`` that carries the parsed ``Tree`` and a precomputed
-``has_error`` flag. Convenience iterators and a public ``root_node``
-field are deferred to a follow-up so the first move is a no-behavior
-shared substrate rather than an API surface enlargement.
+该模块有意公开了两个消费者今天需要的最小表面：单个 ``parse(command)`` 函数返回一个
+``ParseResult`` 携带已解析的 ``Tree`` 和预先计算的
+``has_error`` 标志。 便利的迭代器和一个公开的 ``root_node`` 字段被推迟到后续，因此第
+一个动作是一个共享基座，而不是一个 API 表面扩展。
 
-The ``Parser`` is constructed per call. ``Language`` is built once at
+``Parser`` 是每次调用时构造的。 ``Language`` 是一次构建的
 import. This mirrors the convention in
-``openhands-tools/openhands/tools/terminal/utils/command.py``: sharing
-one parser across calls risks interleaved state, while the language
-object is safely reusable.
+``openhands-tools/openhands/tools/terminal/utils/command.py``：跨调用共享一个解析器存
+在交错状态的风险，而语言对
+象是安全可重用的。
 """
 
 from dataclasses import dataclass
@@ -39,16 +35,15 @@ _BASH_LANGUAGE = Language(tree_sitter_bash.language())
 
 @dataclass(frozen=True, slots=True)
 class ParseResult:
-    """Outcome of parsing a bash command with tree-sitter-bash.
+    """使用 tree-sitter-bash 解析 bash 命令的结果。
 
-    ``tree`` is the tree-sitter ``Tree`` produced from the input bytes;
-    callers can walk it via the standard tree-sitter API. ``has_error``
-    mirrors ``tree.root_node.has_error`` and is materialized at parse
-    time so callers can branch without re-traversing the root.
+    ``tree`` 是根据输入字节生成的树守护者 ``Tree``； 呼叫者可以通过标准的树保姆 API
+    行走。 ``has_error`` 镜像
+    ``tree.root_node.has_error`` 并在解析时具体化，因此调用者可以分支而无需重新遍历根
+    。
 
-    Frozen: callers must not mutate the result. Future revisions may
-    add convenience accessors (e.g., ``iter_simple_commands``) without
-    breaking existing consumers.
+    Frozen: 调用者不得改变结果。 未来的修订可能
+    添加便利访问器（e.g., ``iter_simple_commands``）而不破坏现有的消费者。
     """
 
     tree: Tree
@@ -56,20 +51,18 @@ class ParseResult:
 
 
 def parse(command: str) -> ParseResult:
-    """Parse a bash command string into a tree-sitter ``ParseResult``.
+    """将 bash 命令字符串解析为树守护者 ``ParseResult``。
 
-    Returns a ``ParseResult`` whose ``tree`` is the parsed tree-sitter
-    ``Tree`` and whose ``has_error`` flag indicates whether the parser
-    emitted any ``ERROR`` nodes during recovery. tree-sitter itself does
-    not raise on syntactically malformed input; recovery is reported
-    through ``ERROR`` nodes. Encoding the input string can raise:
-    ``command.encode()`` uses strict UTF-8 and rejects lone surrogates
-    with ``UnicodeEncodeError`` before the parser is invoked. Callers
-    that must accept such inputs should normalize them upstream.
+    返回一个 ``ParseResult``，其 ``tree`` 是解析后的树保姆
+    ``Tree`` 及其 ``has_error`` 标志指示解析器在恢复期间是否发出任何 ``ERROR`` 节点。
+     树保姆本身不会对语法错误的输入提出要求； 恢复
+    情况通过 ``ERROR`` 节点报告。 对输入字符串进行编码可以引发：
+    ``command.encode()`` 使用严格的 UTF-8 并在调用解析器之前拒绝使用
+    ``UnicodeEncodeError`` 的单独代理。 必须接受此
+    类输入的调用者应在上游将其规范化。
 
-    Encoding is UTF-8; the parser operates on bytes internally, so
-    callers reasoning about node spans should use byte offsets, not
-    code-point offsets, against ``command.encode()``.
+    编码为UTF-8； 解析器在内部对字节进行操作，因此推理节点跨度的调用者应该使用字节偏
+    移量，而不是代码点偏移量，反对``command.encode()``。
     """
     tree = Parser(_BASH_LANGUAGE).parse(command.encode())
     return ParseResult(tree=tree, has_error=tree.root_node.has_error)

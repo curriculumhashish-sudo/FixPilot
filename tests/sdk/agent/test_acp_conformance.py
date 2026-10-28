@@ -1,28 +1,28 @@
-"""Live, credential-free conformance probes for the built-in ACP providers.
+"""适用于内置 ACP 提供程序的实时、无凭据的一致性探针。
 
-For each entry in ``ACP_PROVIDERS``, launches ``info.default_command``
-verbatim (through ``npx``) with a bogus credential and an isolated data dir,
-then asserts what the live server reports back rather than what the registry
-assumes it reports. Every historical drift this catches (#3772, #3654,
-#4629, #4812) was silent precisely because nothing read state back from the
-server — see OpenHands/software-agent-sdk#4830 P0-1/P0-2.
+对于每个 ``ACP_PROVIDERS``，通过 ``npx`` 启动 ``info.default_command`` 无误（verbatim
+），并使用虚假的凭据和孤立
+的数据目录，然后验证活服务器返回的内容，而不是注册表假设的内容。 它捕捉到的每一个历史
+漂移（#3772，#3654，
+#4629，#4812）之所以保持沉默，正是因为没有从
+服务器 — 请参阅 OpenHands/software-智能体-SDK#4830 P0-1/P0-2。
 
-No API key, subscription, or network credential is required: every built-in
-provider's handshake (initialize / authenticate / new_session /
-set_session_mode / model selection) succeeds with a syntactically-present but
-invalid key, which is what makes this suite safe to run unauthenticated in
-fork PRs. Needs ``npx`` (Node.js) and network access to the npm registry;
-skipped when unavailable.
+无需 API 键、订阅或网络凭据：每种内置提供者的握手（初始化 / 验证 / new_session /
+set_session_mode / 模型选择）都成功了，但使用的
+是一个语法上存在的但无效的键，这使得这个套件在无认证的情况下在 fork PR 中运行是安全的
+。 需要 ``npx`` (Node.js) 和网络访问 npm 注册表； 不
+可用时跳过。
 
-Deselected from the default run via the ``acp_live`` marker (``addopts = -m
-'not stress and not acp_live'`` in pyproject.toml): the SDK's default test
-job is a *required* merge check, and an npm-registry blip or upstream ACP
-handshake hiccup — a real risk distinct from "registry unreachable," which
-the skip above already covers — must not be able to block unrelated PRs. Run
-explicitly with ``pytest -m acp_live``; CI runs it in the separate, non-
-required ``acp-live-tests`` job, gated on changes to ACP registry/catalog
-files (see ``.github/workflows/tests.yml``).
-"""
+通过操作从默认运行中取消选中 ``acp_live`` marker (
+``addopts = -m 'not stress and not acp_live'`` 在
+pyproject.toml:) SDK默认测试作业是  *必需的* 合并检查，以及一个 npm-注册表 blip 或
+upstream ACP 握手失败 —— 一种与
+                                                                                                                         [
+12注册表不可达，“上述跳过已经覆盖了——必须不能阻止无关的” PR. 运行显式地
+``pytest -m acp_live``; CI 在单独的、非必需的环境中运行
+``acp-live-tests`` [job, gated on changes to] ACP 注册表/目录文件（见 ）
+``.github/workflows/tests.yml``).
+"""  # noqa: E501
 
 from __future__ import annotations
 
@@ -65,19 +65,19 @@ requires_npx = pytest.mark.skipif(
 
 pytestmark = pytest.mark.acp_live
 
-# Syntactically valid-looking but non-functional credentials. Enough for each
-# provider's auth-method selection to pick an env-var-backed method and clear
-# the handshake; real inference would reject them, but no turn is ever sent.
+# 语法上看起来有效但不起作用凭据。 足以让每个提供商的身份验证方法选择选择一个环境变量支
+# 持的方法并清除握手； 真正的推理会拒绝它们，但不会发送任何轮次。
+#
 _BOGUS_KEY = "sk-acp-conformance-probe-0000000000000000000000000000"
 
-# Per-call deadline for the model-acceptance probe's set_config_option /
-# set_session_model round-trips — these are metadata writes, not inference
-# calls, so they should return in well under a second even cold.
+# 模型接受度探针的每条调用截止时间 set_config_option / set_session_model 往返 — 这些是元
+# 数据写入，而不是推理调用，因此即使冷启动，也应该在不到一秒内返回。
+#
 _MODEL_CALL_TIMEOUT = 15.0
 
 
 def _node_version() -> tuple[int, ...] | None:
-    """The running ``node``'s version as a comparable tuple, or None."""
+    """正在运行的 ``node`` 的版本作为可比较的元组，或 None。"""
     node = shutil.which("node")
     if node is None:
         return None
@@ -94,16 +94,14 @@ def _node_version() -> tuple[int, ...] | None:
 
 
 def _skip_if_node_below_floor(provider_key: str) -> None:
-    """Skip rather than fail when the host Node is below what this provider's
-    packages declare.
+    """当主机节点低于该提供商的节点时，跳过而不是失败
+    包声明。
 
-    Not a soft-pedal: the CLI's own dependencies break in ways that surface as
-    an unrelated-looking protocol error several calls later (pi's engine dies
-    on `webidl.util.markAsUncloneable`, and the adapter then reports
-    "Cannot call write after a stream was destroyed" from `session/new`), so a
-    plain failure here would read as a conformance regression rather than an
-    unmet prerequisite. The image's own floor is asserted separately, against
-    the Dockerfile pin, in tests/cross/test_agent_server_build_metadata.py.
+    这不是软处理：CLI的自身依赖在几行之后以一个看似无关的协议错误表面（pi引擎在
+    `webidl.util.markAsUncloneable`处崩溃，然后适配器报告
+    “在流被销毁后无法调用write”`session/new`），所以在这里的简单失败会被读作符合回归
+    ，而不是未满足的前提条件。 该图像的自身地板在tests/cro
+    ss/test_agent_server_build_metadata.py.中单独声明，与Dockerfile的版本号进行比较
     """
     floor = ACP_INSTALL_CATALOG[provider_key].min_node_version
     if floor is None:
@@ -118,8 +116,8 @@ def _skip_if_node_below_floor(provider_key: str) -> None:
 
 
 def _isolate_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Give the probe its own HOME and bogus keys so it never touches host
-    credentials (subscription logins, real API keys) or a real proxy."""
+    """为探测器提供自己的 HOME 和虚假密钥，这样它就不会接触主机
+    凭据（订阅登录，真实的API密钥）或真实的代理。"""
     isolated_home = tmp_path / "home"
     isolated_home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("HOME", str(isolated_home))
@@ -128,19 +126,18 @@ def _isolate_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "OPENAI_API_KEY",
         "CODEX_API_KEY",
         "GEMINI_API_KEY",
-        # kimi-code's own KIMI_API_KEY is read only from inside
-        # $KIMI_CODE_HOME/config.toml, never from the environment, so it
-        # cannot clear the auth gate. KIMI_MODEL_NAME is the trigger for the
-        # CLI's env-only provider synthesis, and KIMI_MODEL_API_KEY is the
-        # key it pairs with — together they let session/new succeed with a
-        # bogus credential, which is what this suite needs. Setting the name
-        # without the key makes the CLI exit, so both must be set.
+        # kimi-code 自己的 KIMI_API_KEY 是来自 $KIMI_CODE_HOME/config.toml 内部的只读，
+        # 而不是来自环境，因此它无法清除身份验证门。 KIMI_MODEL_NAME 是 CLI 的仅 env 提
+        # 供程序合成的触发器，KIMI_MODEL_API_KEY 是它配对的密钥 - 它们一起让 session/new
+        #  通过虚假的凭据成功，这正是这个套件所需要的。 不使用该键设置名称会使 CLI 退出
+        # ，因此两者都必须设置。
+        #
         "KIMI_MODEL_API_KEY",
-        # opencode gates its *catalogue* on this, not just auth-method
-        # selection: unauthenticated, ``session/new`` advertises only the free
-        # tier and the live set_config_option call rejects the rest of
-        # available_models. A syntactically-present key is enough to be offered
-        # what a key-holding user sees (verified: 7 model options -> 90).
+        # opencode 在此控制其 *catalogue*，而不仅仅是 auth-method
+        # 选择：未经身份验证，``session/new`` 仅宣传免费
+        # 层并且实时 set_config_option 调用拒绝 available_models 的 REST。 语法上存在的
+        # 密钥足以提供持有密钥的用户所看到的内容（已验证：7 个模型选项 -> 90）。
+        #
         "OPENCODE_API_KEY",
     ):
         monkeypatch.setenv(var, _BOGUS_KEY)
@@ -160,16 +157,16 @@ def _isolate_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "OPENCODE_CONFIG_DIR",
         "OPENCODE_CONFIG",
         "OPENCODE_CONFIG_CONTENT",
-        # Carries an entire opencode auth store by value, so an ambient one
-        # would smuggle host credentials into a credential-free probe.
+        # 按值携带整个开放代码身份验证存储，因此环境会将主机凭据偷运到无凭据的探测器中。
+        #
         "OPENCODE_AUTH_CONTENT",
     ):
         monkeypatch.delenv(var, raising=False)
 
 
 def _spy(monkeypatch: pytest.MonkeyPatch, obj: Any, name: str) -> dict[str, Any]:
-    """Wrap an async attribute of ``obj`` to record its args/return, while
-    still calling through to the real implementation."""
+    """包装 ``obj`` 的异步属性来记录其 args/return，而
+    仍在呼吁真正的实施。"""
     original = getattr(obj, name)
     captured: dict[str, Any] = {}
 
@@ -238,7 +235,7 @@ def test_acp_conformance_probe(
         )
         assert 0 < init_response.protocol_version < 65536
 
-        # agent_name matches agent_name_patterns.
+        # agent_name 匹配 agent_name_patterns。
         assert agent.agent_name, "server did not report an agent name"
         lowered_name = agent.agent_name.lower()
         assert any(pat in lowered_name for pat in provider.agent_name_patterns), (
@@ -246,17 +243,17 @@ def test_acp_conformance_probe(
             f"{provider.agent_name_patterns!r} (upstream renamed the agent?)"
         )
 
-        # agent_version equals the pin.
+        # agent_version 等于引脚。
         pinned_version = ACP_INSTALL_CATALOG[provider.key].packages[0].version
         assert agent.agent_version == pinned_version, (
             f"agent_version={agent.agent_version!r} != pinned {pinned_version!r} — "
             "npx resolved a different version than default_command pins"
         )
 
-        # authMethods contains what _select_auth_method picked. Some
-        # providers (claude-code, per #4830's baseline) require no auth
-        # handshake at all, in which case _select_auth_method is never
-        # called — only assert when the server actually offered methods.
+        # authMethods 包含 _select_auth_method 选择的内容。 一些提供商（如claude-code，
+        # 见#4830的基线）根本不进行身份验证握手，因此_select_auth_method从不被调用——只有
+        # 在服务器实际提供了方法时才进行断言。
+        #
         offered_ids = {m.id for m in init_response.auth_methods or []}
         if offered_ids:
             assert auth_method_calls, (
@@ -271,12 +268,12 @@ def test_acp_conformance_probe(
                     f"{sorted(offered_ids)!r}"
                 )
 
-        # set_session_mode(default_session_mode) succeeded implicitly: a
-        # rejection raises inside _start_acp_server and _launch would have
-        # propagated before this line.
+        # set_session_mode(default_session_mode) 隐式成功：在 _start_acp_server 内部引发
+        # 拒绝，并且 _launch 会在此行之前传播。
+        #
 
-        # The session advertised *some* model-selection mechanism, matching
-        # supports_set_session_model's premise that one exists.
+        # 该会话通告了 *some* 模型选择机制，符合 supports_set_session_model 存在的前提。
+        #
         if provider.supports_set_session_model:
             assert agent._available_models is not None, (
                 f"provider={provider.key} claims supports_set_session_model "
@@ -284,7 +281,7 @@ def test_acp_conformance_probe(
                 "the models capability"
             )
 
-        # The model reads back as requested.
+        # 模型按要求读回。
         if provider.default_model:
             assert agent.current_model_id == provider.default_model, (
                 f"requested default_model={provider.default_model!r} but the "
@@ -293,7 +290,7 @@ def test_acp_conformance_probe(
                 "probe below)"
             )
 
-        # Mid-session set_model works when supports_runtime_model_switch.
+        # 会话中set_model在supports_runtime_model_switch时工作。
         if provider.supports_runtime_model_switch:
             candidates = [
                 m.id
@@ -308,9 +305,10 @@ def test_acp_conformance_probe(
                     f"current_model_id is {agent.current_model_id!r}"
                 )
 
-        # Model-acceptance probe (#4830 P0-2): every curated available_models
-        # id and default_model must be *accepted* by the live protocol call,
-        # not merely appear in our own curated list.
+        # 模型接受度探针 (#4830 P0-2): 每个经过 curated 的 available_models id 和
+        # default_model 必须是 *accepted* 通过实时协议调用，而不是仅仅出现在我们的精选列
+        # 表中。
+        #
         session_id = agent._session_id
         conn = agent._conn
         assert session_id is not None

@@ -1,4 +1,4 @@
-"""Tests for ResourceLockManager."""
+"""测试 ResourceLockManager。"""
 
 import threading
 
@@ -13,20 +13,20 @@ from openhands.sdk.conversation.resource_lock_manager import (
 def test_basic_lock_and_release():
     mgr = ResourceLockManager()
     with mgr.lock("file:/a.py"):
-        pass  # should not raise
+        pass  # 不应该提高
 
 
 def test_no_keys_is_noop():
     mgr = ResourceLockManager()
     with mgr.lock():
-        pass  # zero keys → no locks acquired, no error
+        pass  # 零键 → 未获取锁，无错误
 
 
 def test_serializes_same_resource():
-    """Two threads locking the same resource must not overlap."""
+    """锁定同一资源的两个线程不得重叠。"""
     mgr = ResourceLockManager()
 
-    # Use events to prove strict serialization without sleeps
+    # 使用事件来证明严格序列化，无需睡眠
     inside = threading.Event()
     first_done = threading.Event()
     second_entered = threading.Event()
@@ -35,15 +35,15 @@ def test_serializes_same_resource():
     def first() -> None:
         with mgr.lock("file:/shared.py"):
             inside.set()
-            # Wait until the second thread is *trying* to acquire
-            # (give it a moment to reach the lock call)
+            # 等到第二个线程 *尝试*获取（给它一点时间来到达锁调用）
+            #
             first_done.wait(timeout=5)
 
     def second() -> None:
-        inside.wait(timeout=5)  # ensure first is inside
+        inside.wait(timeout=5)  # 确保第一个在里面
         with mgr.lock("file:/shared.py"):
             if not first_done.is_set():
-                violation.set()  # would mean overlap
+                violation.set()  # 意味着重叠
             second_entered.set()
 
     t1 = threading.Thread(target=first)
@@ -61,7 +61,7 @@ def test_serializes_same_resource():
 
 
 def test_parallel_different_resources():
-    """Two threads locking different resources should overlap."""
+    """两个线程锁定不同的资源应该重叠。"""
     mgr = ResourceLockManager()
     barrier = threading.Barrier(2, timeout=5)
     reached_barrier = [False, False]
@@ -69,7 +69,7 @@ def test_parallel_different_resources():
     def worker(idx: int, key: str) -> None:
         with mgr.lock(key):
             reached_barrier[idx] = True
-            barrier.wait()  # both must reach here concurrently
+            barrier.wait()  # 两者必须同时到达这里
 
     t1 = threading.Thread(target=worker, args=(0, "file:/a.py"))
     t2 = threading.Thread(target=worker, args=(1, "file:/b.py"))
@@ -82,7 +82,7 @@ def test_parallel_different_resources():
 
 
 def test_sorted_order_prevents_deadlock():
-    """Sorted acquisition prevents deadlocks with opposite order."""
+    """排序获取可防止死锁顺序相反。"""
     mgr = ResourceLockManager()
     results: list[str] = []
 
@@ -124,12 +124,12 @@ def test_timeout_raises_custom_exception():
 
 
 def test_timeout_is_subclass_of_timeout_error():
-    """ResourceLockTimeout should be catchable as TimeoutError."""
+    """ResourceLockTimeout 应该可以像 TimeoutError 一样被捕获。"""
     assert issubclass(ResourceLockTimeout, TimeoutError)
 
 
 def test_duplicate_keys_deduplicated():
-    """Passing the same key multiple times should not deadlock."""
+    """多次传递相同的密钥不应死锁。"""
     mgr = ResourceLockManager()
     with mgr.lock("file:/a.py", "file:/a.py"):
         pass
@@ -146,19 +146,19 @@ def test_default_timeouts():
 
 
 def test_release_on_exception():
-    """Lock must be released even if the body raises."""
+    """即使身体抬起，锁也必须释放。"""
     mgr = ResourceLockManager()
     with pytest.raises(RuntimeError):
         with mgr.lock("file:/a.py"):
             raise RuntimeError("boom")
 
-    # Should be able to re-acquire immediately
+    # 应该可以立即重新获得
     with mgr.lock("file:/a.py"):
         pass
 
 
 def test_partial_release_on_timeout():
-    """If the second lock times out, the first must be released."""
+    """如果第二个锁超时，则必须释放第一个。"""
     mgr = ResourceLockManager(timeouts={"r": 0.05})
 
     held = threading.Event()
@@ -175,9 +175,9 @@ def test_partial_release_on_timeout():
 
     with pytest.raises(ResourceLockTimeout):
         with mgr.lock("r:a", "r:b"):
-            pass  # r:a acquired, r:b times out
+            pass  # r:a 已获取，r:b 超时
 
-    # r:a should have been released despite the timeout on r:b
+    # 尽管 r:b 上有超时，但 r:a 应该已被释放
     acquired = threading.Event()
 
     def check() -> None:
@@ -194,17 +194,17 @@ def test_partial_release_on_timeout():
 
 
 def test_cleanup_removes_unused_locks():
-    """After all holders release, the internal lock should be cleaned up."""
+    """所有支架释放后，应清理内部锁。"""
     mgr = ResourceLockManager()
     with mgr.lock("file:/tmp.py"):
         assert "file:/tmp.py" in mgr._locks
 
-    # After release + cleanup, the lock entry should be gone
+    # 释放+清理后，锁条目应该消失
     assert "file:/tmp.py" not in mgr._locks
 
 
 def test_cleanup_preserves_contended_locks():
-    """A lock still waited on by another thread must not be cleaned up."""
+    """仍由另一个线程等待的锁不得被清除。"""
     mgr = ResourceLockManager()
     held = threading.Event()
     second_waiting = threading.Event()
@@ -214,14 +214,14 @@ def test_cleanup_preserves_contended_locks():
         with mgr.lock("file:/x"):
             held.set()
             release.wait(timeout=5)
-        # After first releases, cleanup runs — but second
-        # is still referencing the lock, so it must survive.
+        # 第一个版本发布后，清理运行 - 但第二个版本仍然引用锁，因此它必须生存。
+        #
 
     def second() -> None:
         held.wait(timeout=5)
         second_waiting.set()
         with mgr.lock("file:/x"):
-            pass  # should succeed after first releases
+            pass  # 首次发布后应该会成功
 
     t1 = threading.Thread(target=first)
     t2 = threading.Thread(target=second)
@@ -230,11 +230,10 @@ def test_cleanup_preserves_contended_locks():
 
     held.wait(timeout=5)
     second_waiting.wait(timeout=5)
-    # There is a small race here: second_waiting.set() fires before
-    # _get_lock() increments the refcount. We cannot observe that
-    # increment without test-only hooks in production code, so we
-    # sleep briefly to make it overwhelmingly likely the second
-    # thread has entered _get_lock() before we release the first.
+    # 这里有一个小竞赛：second_waiting.set() 在 _get_lock() 增加引用计数之前触发。 我们
+    # 无法在生产代码中观察到这个递增，所以我们睡一会儿，以确保在我们发布第一个之前，第二
+    # 个线程已经进入_get_lock()。
+    #
     import time
 
     time.sleep(0.1)
@@ -243,6 +242,6 @@ def test_cleanup_preserves_contended_locks():
     t1.join(timeout=5)
     t2.join(timeout=5)
 
-    # Both completed without error — the lock was not prematurely deleted
+    # 两者均顺利完成 — 锁未被过早删除
     assert t1.is_alive() is False
     assert t2.is_alive() is False

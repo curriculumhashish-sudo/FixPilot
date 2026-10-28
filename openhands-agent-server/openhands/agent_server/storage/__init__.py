@@ -1,4 +1,4 @@
-"""Reclaim disk the agent-server itself stores per conversation."""
+"""回收智能体-服务器本身为每个会话存储的磁盘。"""
 
 from openhands.agent_server.storage.model import StoredRuntime, Tier
 from openhands.agent_server.storage.reclaimer import ReclaimableStorage, Reclaimer

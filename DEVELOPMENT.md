@@ -1,6 +1,10 @@
-# Development Guide
+<a id="development-guide"></a>
 
-## Setup
+# 开发指南
+
+<a id="setup"></a>
+
+## 环境配置
 
 ```bash
 git clone https://github.com/OpenHands/software-agent-sdk.git
@@ -8,87 +12,87 @@ cd software-agent-sdk
 make build
 ```
 
-## Repository boundaries
+<a id="repository-boundaries"></a>
 
-This repository owns the Python SDK and Agent Server. Put agent/tool behavior, conversations, workspaces, events, and new REST/WebSocket endpoints here. The API contract flows through `clients/typescript/` to Agent Canvas in [`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands); automation scheduling, webhooks, run history, and dispatch belong in [`OpenHands/automation`](https://github.com/OpenHands/automation). If a PR is opened in the wrong repository, recommend closing and moving it to the owning repository. Follow [`.agents/skills/custom-codereview-guide.md`](.agents/skills/custom-codereview-guide.md) for every PR.
+## 仓库职责边界
 
-## Code Quality
+本仓库负责 Python SDK 和 Agent Server，涵盖智能体与工具行为、对话、工作区、事件，以及新的 REST/WebSocket 端点。API 契约通过 `clients/typescript/` 提供给 [`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands) 中的 Agent Canvas；自动化调度、Webhook、运行历史和任务分发由 [`OpenHands/automation`](https://github.com/OpenHands/automation) 负责。如果 PR 提交到了错误的仓库，应建议关闭并移至负责该功能的仓库。每个 PR 都须遵循 [`.agents/skills/custom-codereview-guide.md`](.agents/skills/custom-codereview-guide.md)。
 
-```bash
-make format                              # Format code
-make lint                                # Lint code
-uv run pre-commit run --all-files        # Run all checks
-```
+<a id="code-quality"></a>
 
-Pre-commit hooks run automatically on commit with type checking and linting.
-
-## Testing
+## 代码质量
 
 ```bash
-uv run pytest                            # All tests
-uv run pytest tests/sdk/                 # SDK tests only
-uv run pytest tests/tools/               # Tools tests only
+make format                              # 格式化代码
+make lint                                # 检查代码
+uv run pre-commit run --all-files        # 运行所有检查
 ```
 
-## Project Structure
+提交时会自动运行 pre-commit 钩子，执行类型检查和代码检查。
+
+<a id="testing"></a>
+
+## 测试
+
+```bash
+uv run pytest                            # 运行所有测试
+uv run pytest tests/sdk/                 # 仅运行 SDK 测试
+uv run pytest tests/tools/               # 仅运行工具测试
+```
+
+<a id="project-structure"></a>
+
+## 项目结构
 
 ```
 software-agent-sdk/
-├── openhands-sdk/          # Core SDK package
-├── openhands-tools/        # Built-in tools
-├── openhands-workspace/    # Workspace management
-├── openhands-agent-server/ # Agent server
-├── examples/               # Usage examples
-└── tests/                  # Test suites
+├── openhands-sdk/          # 核心 SDK 包
+├── openhands-tools/        # 内置工具
+├── openhands-workspace/    # 工作区管理
+├── openhands-agent-server/ # 智能体服务器
+├── examples/               # 用法示例
+└── tests/                  # 测试套件
 ```
 
-## Contributing
+<a id="contributing"></a>
 
-1. Create a new branch
-2. Make your changes
-3. Run tests and checks
-4. Push and create a pull request
+## 参与贡献
 
-For questions, join our [Slack community](https://openhands.dev/joinslack).
+1. 创建新分支
+2. 修改代码
+3. 运行测试和检查
+4. 推送并创建拉取请求
 
-## LLM message construction invariant
+如有问题，请加入我们的 [Slack 社区](https://openhands.dev/joinslack)。
 
-**Every LLM request built in this repository must place a `system` message before
-the first `user` message.**
+<a id="llm-message-construction-invariant"></a>
 
-The canonical enforcement lives in `Agent.init_state()`
-(`openhands-sdk/openhands/sdk/agent/agent.py`): it guarantees the `SystemPromptEvent`
-sits at the head of the event stream (index 0/1) and raises `AssertionError` if a user
-`MessageEvent` appears before it. `LLMConvertibleEvent.events_to_messages()`
-(`openhands-sdk/openhands/sdk/event/base.py`) projects the event stream to messages in
-order, preserving the system lead-in on the main agent loop.
+## LLM 消息构造不变量
 
-This applies to **all** standalone LLM calls, not just the agent loop: condensers, goal
-judges, agent-server profile pre-flight pings, security analyzers, title generation,
-cleanup prompts, hook prompts, toolshield analyzers, and vision inspect. Each must begin
-its message list with a `system` role.
+**本仓库构造的每个 LLM 请求，都必须在第一条 `user` 消息之前放置一条 `system` 消息。**
 
-### Why it matters
+该约束由 `Agent.init_state()`（`openhands-sdk/openhands/sdk/agent/agent.py`）统一执行： 它确保 `SystemPromptEvent` 位于事件流开头（索引 0/1）；如果用户的 `MessageEvent` 出现在它之前，则抛出 `AssertionError`。
+`LLMConvertibleEvent.events_to_messages()`（`openhands-sdk/openhands/sdk/event/base.py`） 按顺序将事件流转换为消息，确保主智能体循环始终以系统消息开头。
 
-- **Consistent steering:** standalone calls that omit a system message lose the shared
-  context/format expectations other paths get.
-- **Correct transport serialization:** on the OpenAI Responses API,
-  `Message.to_responses_value()` returns a string for `system` (→ `instructions`) and a
-  dict list for `user` (→ `input`). Sending steering instructions as a lone `user`
-  message conflates "how" with "what", and a lone `system` message serializes to
-  `instructions` with empty `input`.
-- **Subscription/Codex transport** prepends system chunks onto the first user message;
-  a missing system lead-in produces a bare, unsteered request.
+此要求适用于**所有**独立的 LLM 调用，包括上下文压缩器、目标评估器、Agent Server 配置预检、安全分析器、标题生成、清理提示词、钩子提示词、ToolShield 分析器和视觉检查。 这些调用的消息列表都必须以 `system` 角色开始。
 
-### Documented exceptions
+<a id="why-it-matters"></a>
 
-- **ACP agents:** the real system prompt and tools are managed by the ACP server, not by
-  an SDK-constructed message list; the SDK emits a placeholder `SystemPromptEvent` for
-  the visualizer.
-- **Subscription/Codex transport** (`transform_for_subscription`): system chunks are
-  prepended *into* the first user message's content because Codex-style endpoints reject
-  long/complex `instructions` — ordering intent preserved, shape flattened.
+### 约束的作用
 
-### Reviewer checklist
+- **统一行为指导：** 独立调用若省略系统消息，就会丢失其他调用路径共有的上下文和格式要求。
+- **正确的传输序列化：** 在 OpenAI Responses API 中，`Message.to_responses_value()` 将 `system` 转为字符串（对应 `instructions`），将 `user` 转为字典列表（对应 `input`）。 仅通过一条 `user` 消息发送行为指导，会混淆执行方式和任务内容；仅有一条 `system` 消息则会生成带 `instructions` 但 `input` 为空的请求。
+- **订阅/Codex 传输层**会把系统消息片段添加到第一条用户消息前；缺少系统前导内容时， 请求将缺失必要的行为指导。
 
-The first message role must be `system`, or there must be a documented exception above.
+<a id="documented-exceptions"></a>
+
+### 已记录的例外
+
+- **ACP 智能体：** 实际的系统提示词和工具由 ACP 服务器管理，而非由 SDK 构造的消息列表管理； SDK 会生成一个占位的 `SystemPromptEvent`，供可视化工具使用。
+- **订阅/Codex 传输层**（`transform_for_subscription`）：由于 Codex 风格的端点不接受 过长或过于复杂的 `instructions`，系统片段会被添加到第一条用户消息的*内容内部*。 这种方式将消息结构展平，同时保留原有的顺序要求。
+
+<a id="reviewer-checklist"></a>
+
+### 审查要点
+
+第一条消息的角色必须是 `system`，除非属于上述已记录的例外。

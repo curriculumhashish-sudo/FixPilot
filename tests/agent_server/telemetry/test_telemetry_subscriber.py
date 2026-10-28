@@ -1,4 +1,4 @@
-"""Subscriber behaviour: correct lifecycle events, and total fault isolation."""
+"""订阅者行为：正确的生命周期事件和完全故障隔离。"""
 
 import asyncio
 import json
@@ -87,7 +87,7 @@ def make_subscriber(
     )
 
 
-# ── lifecycle ─────────────────────────────────────────────────────────────
+# ── 生命周期 ──────────────────────────────────────────────────────────────
 
 
 async def test_emits_exactly_one_created_event(factory):
@@ -108,12 +108,11 @@ async def test_created_event_identifies_automation_conversations(factory):
 
 
 def test_started_is_only_emitted_for_genuinely_new_conversations():
-    """Regression: ``_start_event_service`` also runs on rehydration.
+    """Regression: ``_start_event_service`` 也需要补液。
 
-    It is called when an idle conversation is lazily reloaded and when RUNNING
-    conversations are recovered after a restart. Emitting
-    ``conversation_created`` from all of those would inflate the metric on
-    every server bounce, so the flag must default to *not* emitting.
+    当延迟重新加载空闲会话以及重新启动后恢复 RUNNING 个会话时，会调用它。 发射
+    所有这些中的 ``conversation_created`` 都会使每次服务器反弹时的指标膨胀，因此该标
+    志必须默认为 *not* 发出。
     """
     import inspect
 
@@ -136,7 +135,7 @@ async def test_terminal_status_emits_finished_once(factory):
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
-    # Baseline push that subscribe_to_events performs on attach.
+    # subscribe_to_events 在附加时执行的基线推送。
     await sub(ConversationStateUpdateEvent(key="execution_status", value="idle"))
     await sub(ConversationStateUpdateEvent(key="execution_status", value="finished"))
     await sub(ConversationStateUpdateEvent(key="execution_status", value="finished"))
@@ -150,7 +149,7 @@ async def test_failure_statuses_emit_conversation_failed(factory, status):
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
-    # Baseline push that subscribe_to_events performs on attach.
+    # subscribe_to_events 在附加时执行的基线推送。
     await sub(ConversationStateUpdateEvent(key="execution_status", value="idle"))
     await sub(ConversationStateUpdateEvent(key="execution_status", value=status))
     assert sink.names == [m.EventName.CONVERSATION_FAILED]
@@ -161,7 +160,7 @@ async def test_terminal_status_is_read_from_a_full_state_snapshot(factory):
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
-    # Baseline push that subscribe_to_events performs on attach.
+    # subscribe_to_events 在附加时执行的基线推送。
     await sub(ConversationStateUpdateEvent(key="execution_status", value="idle"))
     await sub(
         ConversationStateUpdateEvent(
@@ -172,12 +171,13 @@ async def test_terminal_status_is_read_from_a_full_state_snapshot(factory):
 
 
 async def test_close_is_silent_when_no_run_was_observed(factory):
-    """Regression: opening an existing conversation is not a conversation.
+    """Regression: 打开现有的对话不是对话。
 
-    The subscriber attaches on every _start_event_service path, including the
-    lazy attach when a user merely views an old conversation. Emitting on close
-    produced a conversation_finished with no matching conversation_created,
-    repeated on every view-then-restart cycle for the same conversation_ref.
+    订阅者在每个 _start_event_service 路径上附加，包括用户仅查看旧对话时的惰性附加。
+    关闭时发出会产生一个没有匹配的
+    conversation_created 的 conversation_finished，并在每个视图然后重新启动循环中重复
+    相同的 conversation_ref
+    。
     """
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
@@ -191,7 +191,7 @@ async def test_view_only_rehydration_emits_nothing(factory, baseline):
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
-    # Attach-time baseline push, then the session ends without a run.
+    # 附加时基线推送，然后会话结束而不运行。
     await sub(ConversationStateUpdateEvent(key="execution_status", value=baseline))
     await sub.close()
 
@@ -201,7 +201,7 @@ async def test_view_only_rehydration_emits_nothing(factory, baseline):
 
 
 async def test_a_run_interrupted_before_a_terminal_state_is_still_reported(factory):
-    """The crash-mid-run safety net must survive the noise fix."""
+    """运行中碰撞安全网必须能够经受住噪音修复的考验。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -211,7 +211,7 @@ async def test_a_run_interrupted_before_a_terminal_state_is_still_reported(facto
 
     assert sink.names == [m.EventName.CONVERSATION_FAILED]
     payload = sink.events[0].to_payload()
-    # Never a raw non-terminal status in a field named terminal_status.
+    # 名为 terminal_status 的字段中绝不会出现原始非终止状态。
     assert payload["terminal_status"] == "interrupted"
 
 
@@ -229,7 +229,7 @@ async def test_an_observed_terminal_state_wins_over_the_interrupted_fallback(fac
 
 
 async def test_close_does_not_close_the_shared_sink(factory):
-    """The sink is process-wide and outlives every conversation."""
+    """接收器是进程范围内的，并且比每次对话都存在。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -237,11 +237,11 @@ async def test_close_does_not_close_the_shared_sink(factory):
     assert sink.closed is False
 
 
-# ── errors ────────────────────────────────────────────────────────────────
+# ── 错误────────────────────────────────────────────────────────────────
 
 
 async def test_agent_error_event_reports_only_the_tool_name(factory):
-    """AgentErrorEvent.error carries model text and tool output; never send it."""
+    """AgentErrorEvent.error携带模型文本和工具输出； 永远不要发送它。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -265,7 +265,7 @@ async def test_agent_error_event_reports_only_the_tool_name(factory):
 
 
 async def test_conversation_error_event_reports_only_the_code(factory):
-    """ConversationErrorEvent.detail is free-form prose; never send it."""
+    """ConversationErrorEvent.detail 是自由散文； 永远不要发送它。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -297,7 +297,7 @@ async def test_known_error_outcomes_are_not_diagnostics(factory):
 
 
 async def test_agent_error_with_agent_action_classification_is_outcome(factory):
-    """A tool validation error (agent_action) is an outcome, not a diagnostic."""
+    """工具验证错误 (agent_action) 是结果，而不是诊断。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -316,7 +316,7 @@ async def test_agent_error_with_agent_action_classification_is_outcome(factory):
 
 
 async def test_agent_error_with_internal_classification_is_diagnostic(factory):
-    """An unexpected crash (internal) is a diagnostic, not an outcome."""
+    """意外崩溃（内部）是一种诊断，而不是结果。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -335,7 +335,7 @@ async def test_agent_error_with_internal_classification_is_diagnostic(factory):
 
 
 async def test_agent_error_without_classification_is_diagnostic(factory):
-    """A bare AgentErrorEvent (unknown) defaults to diagnostic."""
+    """裸露的 AgentErrorEvent（未知）默认用于诊断。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
@@ -350,7 +350,7 @@ async def test_agent_error_without_classification_is_diagnostic(factory):
     assert sink.events[0].to_payload()["error_telemetry"] == "diagnostic"
 
 
-# ── isolation ─────────────────────────────────────────────────────────────
+# ── 隔离──────────────────────────────────────────────────────────────
 
 
 async def test_subscriber_never_raises_on_a_malformed_event(factory):
@@ -381,7 +381,7 @@ async def test_a_raising_sink_cannot_break_the_subscriber(factory):
 
 
 async def test_subscriber_does_not_stall_pubsub_fanout(factory):
-    """A telemetry subscriber must not delay delivery to its siblings."""
+    """遥测订阅者不得延迟向其兄弟姐妹传送。"""
 
     class SlowSibling(Subscriber):
         def __init__(self):
@@ -397,7 +397,7 @@ async def test_subscriber_does_not_stall_pubsub_fanout(factory):
     pub_sub: PubSub = PubSub()
     sibling = SlowSibling()
     telemetry_sub = make_subscriber(sink, factory)
-    # Seed the baseline, mirroring subscribe_to_events' initial push.
+    # 播种基线，镜像 subscribe_to_events' 初始推送。
     await telemetry_sub(
         ConversationStateUpdateEvent(key="execution_status", value="idle")
     )
@@ -416,11 +416,11 @@ async def test_disabled_sink_short_circuits_before_building_events(factory):
     sub = make_subscriber(sink, factory)
 
     sub.emit_started()
-    # emit() itself is a no-op on a disabled sink; nothing is recorded.
+    # emit() 本身是对禁用接收器的无操作； 没有记录任何内容。
     assert sink.events == [] or sink.names == [m.EventName.CONVERSATION_CREATED]
 
 
-# ── identity ──────────────────────────────────────────────────────────────
+# ── 身份──────────────────────────────────────────────────────────────
 
 
 async def test_identified_conversations_pass_user_id_through_verbatim(factory):
@@ -450,19 +450,18 @@ async def test_conversation_ref_is_never_the_raw_uuid(factory):
 
 
 async def test_initial_state_push_is_a_baseline_not_a_transition(factory):
-    """Regression: rehydrating a finished conversation must not re-emit.
+    """Regression: 补充已完成的对话不得重新发出。
 
-    ``subscribe_to_events`` synchronously pushes the current state to a new
-    subscriber. For a conversation that already finished — a lazy reload, or a
-    crash-recovered RUNNING->ERROR record after a restart — that push used to
-    look like a fresh terminal transition, producing a duplicate
-    ``conversation_finished`` with a nonsense sub-second duration.
+    ``subscribe_to_events``同步将当前状态推送给新订阅者。 对于已经结束的对话——懒加载
+    、重启后恢复的RUNNING->ERROR记录——推送原本
+    看起来像是一个全新的终端过渡，产生了一个重复项
+    ``conversation_finished`` 具有无意义的亚秒持续时间。
     """
     for persisted_status in ("finished", "error", "stuck"):
         sink = CollectingSink()
         sub = make_subscriber(sink, factory)
 
-        # What subscribe_to_events pushes on attach.
+        # subscribe_to_events 推动附加的内容。
         await sub(
             ConversationStateUpdateEvent(key="execution_status", value=persisted_status)
         )
@@ -471,17 +470,17 @@ async def test_initial_state_push_is_a_baseline_not_a_transition(factory):
             f"{sink.names}"
         )
 
-        # And close() must not invent one either.
+        # 并且 close() 也不能发明一个。
         await sub.close()
         assert sink.names == [], f"close() emitted {sink.names} after rehydration"
 
 
 async def test_a_live_transition_after_the_baseline_still_emits(factory):
-    """The seeding guard must not suppress genuine terminal transitions."""
+    """播种保护不得抑制真正的终端转换。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
 
-    # Baseline: a fresh conversation is idle.
+    # 基线：新的对话是闲置的。
     await sub(ConversationStateUpdateEvent(key="execution_status", value="idle"))
     assert sink.names == []
 
@@ -489,12 +488,13 @@ async def test_a_live_transition_after_the_baseline_still_emits(factory):
     assert sink.names == [m.EventName.CONVERSATION_FINISHED]
 
 
-# ── production event shape ────────────────────────────────────────────────
-# The tests above construct ConversationStateUpdateEvent by hand with
+# ── 生产事件形状────────────────────────────────────────────── 上述测试手动构造
+# ConversationStateUpdateEvent
+#
 # key="execution_status". Production never does that: EventService always
-# publishes via ConversationStateUpdateEvent.from_conversation_state(), which
-# emits key="full_state". These tests drive that real constructor so a bug in
-# the full_state branch cannot hide behind the synthetic shape.
+# 通过 ConversationStateUpdateEvent.from_conversation_state() 发布，发出 key="full_state
+# "。 这些测试驱动真正的构造函数，因此 full_state 分支中的错误无法隐藏在合成形状后面。
+#
 
 
 def _real_state(status=None):
@@ -516,7 +516,7 @@ def _real_state(status=None):
 
 
 async def test_lifecycle_fires_on_the_real_from_conversation_state_event(factory):
-    """End-to-end on the constructor EventService actually uses."""
+    """端到端的构造函数EventService实际使用。"""
     from openhands.sdk.conversation.state import ConversationExecutionStatus
     from openhands.sdk.event.conversation_state import ConversationStateUpdateEvent
 
@@ -537,7 +537,7 @@ async def test_lifecycle_fires_on_the_real_from_conversation_state_event(factory
 
 
 async def test_outcome_reports_real_bucketed_usage(factory):
-    """Regression: token/cost were hardcoded to 'unknown' and never populated."""
+    """Regression: 令牌/成本被硬编码为“未知”并且从未填充。"""
     from openhands.sdk.conversation.state import ConversationExecutionStatus
     from openhands.sdk.event.conversation_state import ConversationStateUpdateEvent
     from openhands.sdk.llm.utils.metrics import Metrics
@@ -558,8 +558,9 @@ async def test_outcome_reports_real_bucketed_usage(factory):
         context_window=200000,
         response_id="r",
     )
-    # usage_to_metrics holds Metrics (not MetricsSnapshot); both serialize
-    # accumulated_cost / accumulated_token_usage, which is what we read.
+    # usage_to_metrics 保存指标（不是 MetricsSnapshot）； 两者都是序列化
+    # accumulated_cost / accumulated_token_usage，这就是我们读到的内容。
+    #
     state.stats.usage_to_metrics["t"] = metrics
     state.execution_status = ConversationExecutionStatus.FINISHED
 
@@ -568,13 +569,13 @@ async def test_outcome_reports_real_bucketed_usage(factory):
 
     assert payload["total_tokens_bucket"] == "10000-50000"
     assert payload["cost_bucket"] == "0p1-1"
-    # Bucketed, never raw.
+    # 桶装的，绝不是生的。
     assert "15000" not in str(payload)
     assert "0.42" not in str(payload)
 
 
 def _stats_update_with_usage():
-    """The ``stats`` update EventService publishes after each LLM call."""
+    """``stats`` 更新 EventService 在每次 LLM 调用后发布。"""
     from openhands.sdk.event.conversation_state import ConversationStateUpdateEvent
     from openhands.sdk.llm.utils.metrics import Metrics
 
@@ -595,12 +596,12 @@ def _stats_update_with_usage():
 
 
 async def test_outcome_reports_usage_from_the_live_event_order(factory):
-    """Regression: a live run's terminal status is a bare string update.
+    """Regression: 实时运行的终端状态是裸字符串更新。
 
-    The server publishes ``stats`` key updates after each LLM call, then the
-    ``execution_status`` update (a bare string), and the ``full_state``
-    snapshot only afterwards. Usage must come from the ``stats`` updates seen
-    before the terminal status, not only from a terminal ``full_state``.
+    服务器在每次 LLM 调用后发布 ``stats`` 密钥更新，然后
+    ``execution_status`` 更新（裸字符串），然后才更新 ``full_state`` 快照。 使用必须
+    来自终端状态之前看到的``stats``更新，
+    而不仅仅是来自终端``full_state``。
     """
     from openhands.sdk.event.conversation_state import ConversationStateUpdateEvent
 
@@ -633,11 +634,11 @@ async def test_interrupted_fallback_reports_usage_seen_before_close(factory):
 
 
 def test_confirmation_policy_is_read_from_the_field_that_exists():
-    """Regression: the field is confirmation_policy, not confirmation_mode.
+    """Regression: 该字段是 confirmation_policy，而不是 confirmation_mode。
 
-    Reading a non-existent ``confirmation_mode`` via getattr silently reported
-    False for every conversation, and a bool would have collapsed ConfirmRisky
-    into NeverConfirm anyway.
+    通过 getattr 读取不存在的 ``confirmation_mode`` 会为每个对话默默地报告 False，并
+    且 bool 无论如何都会将
+    ConfirmRisky 折叠为 NeverConfirm。
     """
     import uuid as _uuid
 
@@ -676,7 +677,7 @@ def test_confirmation_policy_is_read_from_the_field_that_exists():
     assert ctx.confirmation_policy == "alwaysconfirm"
     assert ctx.llm_model_family == "anthropic"
     assert ctx.user_id == "canvas-user-42"
-    # No field silently degraded, and the workspace path did not leak.
+    # 没有字段默默降级，工作区路径也没有泄漏。
     fields = asdict(ctx)
     assert "unknown" not in fields.values()
     assert "secret-project" not in repr(fields)
@@ -726,7 +727,7 @@ def test_is_automation_is_derived_from_allowlisted_tags(tags, is_automation):
 
 
 async def test_event_count_ignores_streaming_deltas(factory):
-    """Deltas must not inflate event_count_bucket (regression for #4673)."""
+    """Delta 不得膨胀 event_count_bucket（#4673 为回归）。"""
     sink = CollectingSink()
     sub = make_subscriber(sink, factory)
     pub_sub: PubSub = PubSub()

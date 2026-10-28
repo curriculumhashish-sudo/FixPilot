@@ -1,5 +1,5 @@
 """
-Test FIFO lock implementation for fairness and correctness.
+测试 FIFO 锁实施的公平性和正确性。
 """
 
 import threading
@@ -12,25 +12,25 @@ from openhands.sdk.conversation.fifo_lock import FIFOLock
 
 
 def test_fifo_lock_basic_functionality():
-    """Test basic lock functionality - acquire, release, reentrancy."""
+    """测试基本锁功能 - 获取、释放、可重入性。"""
     lock = FIFOLock()
 
-    # Test initial state
+    # 测试初始状态
     assert not lock.locked()
     assert not lock.owned()
 
-    # Test acquire/release
+    # 测试获取/释放
     lock.acquire()
     assert lock.locked()
     assert lock.owned()
 
-    # Test reentrancy
+    # 测试可重入性
     lock.acquire()
     assert lock.locked()
     assert lock.owned()
 
     lock.release()
-    assert lock.locked()  # Still locked due to reentrancy
+    assert lock.locked()  # 由于可重入性仍处于锁定状态
     assert lock.owned()
 
     lock.release()
@@ -39,14 +39,14 @@ def test_fifo_lock_basic_functionality():
 
 
 def test_fifo_lock_context_manager():
-    """Test context manager functionality."""
+    """测试上下文管理器功能。"""
     lock = FIFOLock()
 
     with lock:
         assert lock.locked()
         assert lock.owned()
 
-        # Test reentrancy with context manager
+        # 使用上下文管理器测试可重入性
         with lock:
             assert lock.locked()
             assert lock.owned()
@@ -56,14 +56,14 @@ def test_fifo_lock_context_manager():
 
 
 def test_fifo_lock_non_blocking():
-    """Test non-blocking acquire behavior."""
+    """测试非阻塞获取行为。"""
     lock = FIFOLock()
 
-    # Should acquire immediately when free
+    # 空闲时应立即获取
     assert lock.acquire(blocking=False)
     assert lock.locked()
 
-    # Should fail when already owned by another thread
+    # 当已被另一个线程拥有时应该失败
     def try_acquire():
         return lock.acquire(blocking=False)
 
@@ -72,14 +72,14 @@ def test_fifo_lock_non_blocking():
     thread.start()
     thread.join()
 
-    assert result[0] is False  # Should fail to acquire
+    assert result[0] is False  # 应该无法获取
 
     lock.release()
     assert not lock.locked()
 
 
 def test_fifo_lock_timeout():
-    """Test timeout behavior."""
+    """测试超时行为。"""
     lock = FIFOLock()
     lock.acquire()
 
@@ -95,19 +95,18 @@ def test_fifo_lock_timeout():
     thread.join()
 
     acquired, duration = result[0]
-    assert not acquired  # Should timeout
-    assert 0.09 <= duration <= 0.2  # Should be close to timeout value
+    assert not acquired  # 应该超时
+    assert 0.09 <= duration <= 0.2  # 应接近超时值
 
     lock.release()
 
 
 def _wait_for_waiter_count(lock: FIFOLock, expected: int) -> None:
-    """Block until ``expected`` threads are queued on ``lock``.
+    """阻塞直到 ``expected`` 线程在 ``lock`` 上排队。
 
-    Signalling threads with fixed sleeps races the OS scheduler: a signalled
-    thread may not call ``acquire()`` before the next one is signalled, so the
-    enqueue order stops matching the signal order on loaded machines. Polling
-    the queue makes the enqueue order deterministic instead.
+    Signalling 线程在固定睡眠的竞态中，操作系统调度器：一个信号线程不得调用
+    ``acquire()`` 在下一个信号被触发之前，因此加载机器上的队列顺序不再
+    匹配信号顺序。 相反，轮询队列使入队顺序具有确定性。
     """
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
@@ -119,7 +118,7 @@ def _wait_for_waiter_count(lock: FIFOLock, expected: int) -> None:
 
 
 def test_fifo_lock_fairness():
-    """Test that lock provides FIFO ordering."""
+    """测试锁是否提供 FIFO 排序。"""
     lock = FIFOLock()
     acquisition_order = deque()
     threads = []
@@ -128,24 +127,25 @@ def test_fifo_lock_fairness():
         with lock:
             acquisition_order.append(thread_id)
 
-    # Hold the lock so every worker must queue instead of acquiring at once.
+    # 持有锁，这样每个工作人员都必须排队而不是立即获取。
     lock.acquire()
     try:
         for i in range(10):
             thread = threading.Thread(target=worker, args=(i,))
             threads.append(thread)
             thread.start()
-            # Start the next worker only once this one is actually queued,
-            # so the queue order is exactly the creation order.
+            # 仅当下一个工作程序实际排队时才启动下一个工作程序，因此队列顺序正是创建顺序
+            # 。
+            #
             _wait_for_waiter_count(lock, i + 1)
     finally:
         lock.release()
 
-    # Wait for all to complete
+    # 等待全部完成
     for thread in threads:
         thread.join()
 
-    # Check that acquisition order matches creation order (FIFO)
+    # 检查获取顺序是否与创建顺序匹配 (FIFO)
     expected_order = list(range(10))
     actual_order = list(acquisition_order)
 
@@ -155,14 +155,14 @@ def test_fifo_lock_fairness():
 
 
 def test_fifo_lock_error_handling():
-    """Test error conditions."""
+    """测试错误条件。"""
     lock = FIFOLock()
 
-    # Should raise error when releasing unowned lock
+    # 释放无主锁时应引发错误
     with pytest.raises(RuntimeError, match="Cannot release lock not owned"):
         lock.release()
 
-    # Should raise error when releasing from wrong thread
+    # 从错误的线程释放时应该引发错误
     lock.acquire()
 
     def try_release():
@@ -179,53 +179,53 @@ def test_fifo_lock_error_handling():
 
     assert "Cannot release lock not owned" in result[0]
 
-    lock.release()  # Clean up
+    lock.release()  # 清理
 
 
 def test_fifo_lock_stress_test():
-    """Stress test with many threads to verify fairness under load."""
+    """压力测试与许多线程一起验证负载下的公平性。"""
     lock = FIFOLock()
     acquisition_order = deque()
     num_threads = 20
     threads = []
 
     def worker(thread_id: int):
-        # Randomized delay to create more realistic contention
+        # 随机延迟以创建更真实的争用
         time.sleep(0.001 * (thread_id % 5))
         with lock:
             acquisition_order.append(thread_id)
-            # Simulate some work
+            # 模拟一些工作
             time.sleep(0.001)
 
-    # Create and start threads
+    # 创建并启动线程
     for i in range(num_threads):
         thread = threading.Thread(target=worker, args=(i,))
         threads.append(thread)
         thread.start()
 
-    # Wait for completion
+    # 等待完成
     for thread in threads:
         thread.join()
 
-    # Verify all threads acquired the lock
+    # 验证所有线程均已获得锁
     assert len(acquisition_order) == num_threads
 
-    # Verify no duplicates (each thread acquired exactly once)
+    # 验证没有重复项（每个线程只获取一次）
     assert len(set(acquisition_order)) == num_threads
 
-    # Note: We don't check exact FIFO order here due to timing variations,
-    # but the main fairness test above verifies FIFO behavior
+    # 注意：由于时间变化，我们在这里不检查确切的 FIFO 顺序，
+    # 但上面的主要公平性测试验证了 FIFO 行为
 
 
 def run_fairness_test_multiple(num_runs: int = 100) -> list[bool]:
     """
-    Run the fairness test multiple times sequentially to verify consistency.
+    连续多次运行公平性测试以验证一致性。
 
     Args:
-        num_runs: Number of sequential test runs
+        num_runs: 连续测试运行次数
 
     Returns:
-        List of boolean results (True = FIFO order maintained)
+        布尔结果列表（True = FIFO 顺序保持）
     """
     results = []
 
@@ -235,39 +235,39 @@ def run_fairness_test_multiple(num_runs: int = 100) -> list[bool]:
             acquisition_order = deque()
             worker_threads = []
 
-            # Use individual events to control each thread's acquire() call
+            # 使用单独的事件来控制每个线程的 acquire() 调用
             thread_events = [threading.Event() for _ in range(10)]
 
             def worker(thread_id: int):
-                # Wait for this specific thread's signal
+                # 等待这个特定的线程的信号
                 thread_events[thread_id].wait()
 
                 with lock:
                     acquisition_order.append(thread_id)
                     time.sleep(0.001)
 
-            # Create worker threads
+            # 创建工人线程
             for i in range(10):
                 thread = threading.Thread(target=worker, args=(i,))
                 worker_threads.append(thread)
 
-            # Start all worker threads
+            # 启动所有worker 线程
             for thread in worker_threads:
                 thread.start()
 
-            # Give threads a moment to start and wait for their events
+            # 给线程一点时间来开始并等待他们的事件
             time.sleep(0.01)
 
-            # Signal threads to call acquire() in the exact order we want
+            # 信号线程按照我们想要的顺序调用 acquire()
             for i in range(10):
                 thread_events[i].set()
-                time.sleep(0.002)  # Small delay to ensure ordering
+                time.sleep(0.002)  # 延迟小，确保订购
 
-            # Wait for completion
+            # 等待完成
             for thread in worker_threads:
                 thread.join()
 
-            # Check FIFO order
+            # 检查FIFO订单
             expected = list(range(10))
             actual = list(acquisition_order)
             return actual == expected
@@ -275,7 +275,7 @@ def run_fairness_test_multiple(num_runs: int = 100) -> list[bool]:
         except Exception:
             return False
 
-    # Run tests sequentially to avoid excessive thread contention
+    # 按顺序运行测试以避免过多的线程争用
     for i in range(num_runs):
         if i % 20 == 0 and i > 0:
             print(f"  Completed {i}/{num_runs} tests...")
@@ -286,7 +286,7 @@ def run_fairness_test_multiple(num_runs: int = 100) -> list[bool]:
 
 
 def test_release_all_drops_all_reentrant_levels_and_returns_depth():
-    """release_all() fully frees a reentrantly-held lock and reports the depth."""
+    """release_all() 完全释放可重入持有的锁并报告深度。"""
     lock = FIFOLock()
     lock.acquire()
     lock.acquire()
@@ -301,7 +301,7 @@ def test_release_all_drops_all_reentrant_levels_and_returns_depth():
 
 
 def test_release_all_requires_ownership():
-    """release_all() from a non-owning thread raises, like release()."""
+    """release_all() 从非拥有的线程中加注，如 release()。"""
     lock = FIFOLock()
 
     def _grab_and_hold(started: threading.Event, release: threading.Event):
@@ -323,7 +323,7 @@ def test_release_all_requires_ownership():
 
 
 def test_reacquire_restores_reentrancy_depth():
-    """reacquire(depth) restores the counter so releases balance out."""
+    """reacquire(depth) 恢复计数器，从而释放平衡。"""
     lock = FIFOLock()
     lock.acquire()
     lock.acquire()
@@ -333,9 +333,9 @@ def test_reacquire_restores_reentrancy_depth():
     lock.reacquire(depth)
     assert lock.owned()
 
-    # Exactly `depth` releases return the lock to fully free.
+    # 恰好 `depth` 释放将使锁完全释放。
     lock.release()
-    assert lock.owned()  # still held (was reentrant)
+    assert lock.owned()  # 仍然举行（原为可重入）
     lock.release()
     assert not lock.owned()
 
@@ -347,8 +347,8 @@ def test_reacquire_zero_depth_is_noop():
 
 
 def test_release_all_then_reacquire_hands_off_to_waiter_first():
-    """A thread waiting during the released window gets the lock before the
-    releaser reacquires (FIFO fairness is preserved across the hand-off)."""
+    """在释放窗口期间等待的线程在释放窗口之前获取锁
+    释放者重新获取（FIFO在切换过程中保持公平性）。"""
     lock = FIFOLock()
     lock.acquire()
 
@@ -363,11 +363,11 @@ def test_release_all_then_reacquire_hands_off_to_waiter_first():
     t = threading.Thread(target=_waiter)
     t.start()
     waiter_ready.wait()
-    # Give the waiter a moment to actually enqueue on the lock.
+    # 给等待者一点时间来实际在锁上排队。
     time.sleep(0.05)
 
     depth = lock.release_all()
-    # Waiter should now be able to take it; reacquire queues behind it.
+    # 等待者现在应该可以接受了； 重新获取其后面的队列。
     lock.reacquire(depth)
     order.append("releaser")
     lock.release()
@@ -397,6 +397,6 @@ if __name__ == "__main__":
     else:
         print("❌ FIFO lock fairness is insufficient (<80%)")
 
-    # Also run the regular tests
+    # 还运行常规测试
     print("\nRunning regular test suite...")
     pytest.main([__file__, "-v"])

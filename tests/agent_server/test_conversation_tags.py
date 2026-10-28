@@ -1,4 +1,4 @@
-"""Tests for conversation tags in the API layer."""
+"""测试 API 层中的对话标签。"""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -67,7 +67,7 @@ def sample_conversation_info():
 def test_start_conversation_with_tags(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Tags are forwarded to the service when starting a conversation."""
+    """开始对话时，标签将转发到服务。"""
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
@@ -102,7 +102,7 @@ def test_start_conversation_with_tags(
 def test_start_conversation_without_tags(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Starting without tags defaults to empty dict."""
+    """没有标签的情况下默认为空字典。"""
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
@@ -134,7 +134,7 @@ def test_start_conversation_without_tags(
 
 
 def test_start_conversation_invalid_tag_key(client, mock_conversation_service):
-    """Invalid tag keys are rejected with 422."""
+    """无效的标签键将被拒绝并返回 422。"""
     client.app.dependency_overrides[get_conversation_service] = (
         lambda: mock_conversation_service
     )
@@ -159,7 +159,7 @@ def test_start_conversation_invalid_tag_key(client, mock_conversation_service):
 
 
 def test_update_conversation_tags(client, mock_conversation_service):
-    """PATCH endpoint updates tags."""
+    """PATCH 端点更新标签。"""
     mock_conversation_service.update_conversation.return_value = True
     client.app.dependency_overrides[get_conversation_service] = (
         lambda: mock_conversation_service
@@ -184,7 +184,7 @@ def test_update_conversation_tags(client, mock_conversation_service):
 
 
 def test_update_conversation_title_and_tags(client, mock_conversation_service):
-    """PATCH endpoint can update both title and tags."""
+    """PATCH 端点可以更新标题和标签。"""
     mock_conversation_service.update_conversation.return_value = True
     client.app.dependency_overrides[get_conversation_service] = (
         lambda: mock_conversation_service
@@ -209,7 +209,7 @@ def test_update_conversation_title_and_tags(client, mock_conversation_service):
 def test_get_conversation_includes_tags(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """GET endpoint returns tags in response."""
+    """GET 端点返回响应中的标签。"""
     mock_conversation_service.get_conversation.return_value = sample_conversation_info
     client.app.dependency_overrides[get_conversation_service] = (
         lambda: mock_conversation_service
@@ -227,11 +227,12 @@ def test_get_conversation_includes_tags(
 
 @pytest.mark.asyncio
 async def test_event_service_start_forwards_tags_to_local_conversation(tmp_path):
-    """EventService.start() must pass stored tags to LocalConversation.
+    """EventService.start() 必须将存储的标签传递给 LocalConversation。
 
-    Regression test for https://github.com/OpenHands/software-agent-sdk/issues/2821:
-    tags sent via POST /api/conversations were persisted in StoredConversation but
-    not forwarded to the LocalConversation constructor, so state.tags was always {}.
+    回归测试通过 POST /api/conversations 发送的
+    https://github.com/OpenHands/software-agent-sdk/issues/2821:  标记在
+    StoredConversation 中为已持久化，但未转发到 LocalConversation 构造函数，因此
+    state.tags 始终为 {}。
     """
     tags = {"source": "pipeline", "symbol": "gold"}
     stored = StoredConversation(
@@ -266,7 +267,7 @@ async def test_event_service_start_forwards_tags_to_local_conversation(tmp_path)
 
         await event_service.start()
 
-        # Verify LocalConversation was called with the correct tags
+        # 验证使用正确的标签调用 LocalConversation
         MockConversation.assert_called_once()
         call_kwargs = MockConversation.call_args.kwargs
         assert call_kwargs["tags"] == tags
@@ -274,7 +275,7 @@ async def test_event_service_start_forwards_tags_to_local_conversation(tmp_path)
 
 @pytest.mark.asyncio
 async def test_event_service_start_forwards_observability_span_name(tmp_path):
-    """EventService.start() must pass stored child span names to LocalConversation."""
+    """EventService.start() 必须将存储的子范围名称传递给 LocalConversation。"""
     stored = StoredConversation(
         id=uuid4(),
         workspace=LocalWorkspace(working_dir=str(tmp_path)),

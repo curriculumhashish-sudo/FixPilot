@@ -1,9 +1,8 @@
-"""Tests for the supply-chain dependency-diff release check.
+"""测试供应链依赖性差异发布检查。
 
-Exercises the pure source-classification helpers — the part that decides
-whether a resolved dependency is trusted (PyPI / first-party) or must block a
-release (mirror, alternate index, git/url, or an unrecognized shape). No
-network: OSV and GitHub are never touched here.
+测试纯源分类辅助函数 —— 决定一个已解析依赖是否可信（PyPI / 第三方）或必须阻止发布（镜
+像、替代索引、git/URL 或未识别的形状）。 否
+network: 这里从未触及 OSV 和 GitHub。
 """
 
 from __future__ import annotations
@@ -16,8 +15,9 @@ from pathlib import Path
 def _load_script_module(name: str):
     repo_root = Path(__file__).resolve().parents[2]
     scripts_dir = repo_root / ".github" / "scripts"
-    # The check scripts import their sibling ``security_scan_common``; make it
-    # importable by putting the scripts dir on the path before executing.
+    # 检查脚本导入它们的兄弟``security_scan_common``； 在执行之前将脚本目录放在路径上，
+    # 使其可导入。
+    #
     if str(scripts_dir) not in sys.path:
         sys.path.insert(0, str(scripts_dir))
     script_path = scripts_dir / f"{name}.py"
@@ -36,7 +36,7 @@ _registry_host = _dep._registry_host
 _source_label = _dep._source_label
 
 
-# --- trusted sources ------------------------------------------------------
+# --- 可信来源 ------------------------------------------------------
 
 
 def test_canonical_pypi_registry_is_trusted():
@@ -54,16 +54,16 @@ def test_first_party_workspace_members_are_trusted():
     assert _is_trusted_registry({"virtual": "."}) is True
 
 
-# --- sources that must block ----------------------------------------------
+# --- 必须阻止的来源 ----------------------------------------------------------
 
 
 def test_mirror_registry_blocks():
-    # An alternate index / mirror is not the canonical host -> not trusted.
+    # 备用索引/镜像不是规范主机 -> 不可信。
     assert _is_trusted_registry({"registry": "https://mirror.internal/simple"}) is False
 
 
 def test_lookalike_host_is_not_trusted():
-    # The classic substring-match bypass must not slip through.
+    # 经典的子字符串匹配绕过一定不能被忽略。
     assert (
         _is_trusted_registry({"registry": "https://pypi.org.evil.example/simple"})
         is False
@@ -79,14 +79,14 @@ def test_url_source_blocks():
 
 
 def test_missing_or_empty_source_is_not_trusted():
-    # Deliberate: an unknown/empty source shape fails closed (blocks) rather
-    # than being waved through as a default-registry package.
+    # 故意：未知/空的源形状失败关闭（块）而不是
+    # 而不是作为默认的注册表包被挥手通过。
     assert _is_trusted_registry({}) is False
     assert _is_trusted_registry(None) is False
     assert _is_trusted_registry("weird") is False
 
 
-# --- helper: registry host extraction -------------------------------------
+# --- helper: 注册表主机提取------------------------------------
 
 
 def test_registry_host_extracts_and_lowercases():
@@ -98,7 +98,7 @@ def test_registry_host_none_for_non_registry():
     assert _registry_host({}) is None
 
 
-# --- helper: readable source label ----------------------------------------
+# --- helper: 可读源标签 ----------------------------------------------------
 
 
 def test_source_label_prefers_specific_keys():

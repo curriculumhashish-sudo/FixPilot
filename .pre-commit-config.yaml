@@ -2,7 +2,7 @@
 exclude: ^\.pr/
 repos:
     - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
-      rev: 0.2.1 # or other specific tag
+      rev: 0.2.1 # 或其他特定标签
       hooks:
           - id: yamlfmt
     - repo: local

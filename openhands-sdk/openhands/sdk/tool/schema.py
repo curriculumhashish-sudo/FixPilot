@@ -24,11 +24,12 @@ S = TypeVar("S", bound="Schema")
 
 
 def py_type(spec: dict[str, Any]) -> Any:
-    """Map JSON schema types to Python types."""
+    """将 JSON 模式类型映射到 Python 类型。"""
     t = spec.get("type")
 
-    # Normalize union types like ["string", "null"] to a single representative type.
-    # MCP schemas often mark optional fields this way; we keep the non-null type.
+    # 将 ["string"、"null"] 等联合类型规范为单个代表类型。 MCP 模式通常以这种方式标记可
+    # 选字段； 我们保留非null类型。
+    #
     if isinstance(t, (list, tuple, set)):
         types = list(t)
         non_null = [tp for tp in types if tp != "null"]
@@ -54,13 +55,13 @@ def py_type(spec: dict[str, Any]) -> Any:
 
 
 def _shallow_expand_circular_ref(ref_def: dict[str, Any]) -> dict[str, Any]:
-    """Return a simple fallback for circular references.
+    """返回一个简单的回退方案以进行循环引用。
 
     Args:
-        ref_def: The definition of the referenced type.
+        ref_def: 引用类型的定义。
 
     Returns:
-        A generic object schema with description preserved if available.
+        通用对象模式，如果可用，则保留描述。
     """
     result: dict[str, Any] = {"type": "object"}
     if "description" in ref_def:
@@ -73,70 +74,67 @@ def _process_schema_node(
     defs: dict[str, Any],
     _visiting: frozenset[str] | None = None,
 ) -> dict[str, Any]:
-    """Recursively process a schema node to simplify and resolve $ref.
+    """递归处理模式节点，简化解析$ref。
 
-    This function resolves JSON Schema $ref references and simplifies the schema
-    structure for compatibility with MCP tool schemas. It handles circular
-    references by tracking visited refs and stopping recursion when a cycle
-    is detected.
+    此函数解析 JSON 模式 $ref 引用并简化模式结构以与 MCP 工具模式兼容。 它通过跟踪访
+    问的引用并在检测到循环时停止递归来处理循环引用。
 
     Args:
-        node: The schema node to process.
-        defs: The $defs dictionary containing reference definitions.
-        _visiting: Internal parameter tracking refs currently being processed
-            in the current recursion path to detect cycles.
+        node: 要处理的模式节点。
+        defs: $defs 字典包含参考定义。
+        _visiting: 当前正在处理的内部参数跟踪参考
+            在当前递归路径中检测循环。
 
     Returns:
-        A simplified schema dict with $ref resolved (except for circular refs).
+        已解析 $ref 的简化模式字典（循环引用除外）。
 
     Note:
-        When a circular reference is detected, returns a generic
-        ``{"type": "object"}`` placeholder (with description preserved if
-        available). This prevents infinite recursion but loses type information
-        about the recursive structure. Callers should be aware that recursive
-        data types (trees, linked lists) will have simplified schemas that may
-        not fully represent their structure.
+        当检测到循环引用时，返回一个通用的
+        ``{"type": "object"}`` 占位符（如果可用，则保留描述）。 这可以防止无限递归，
+        但会丢失有关递归结构的类型信息。 调用者应该意识到，递归
+        数据类型（树、链表）将具有简化的模式，可能无法完全代表其结构。
 
     References:
         https://www.reddit.com/r/mcp/comments/1kjo9gt/toolinputschema_conversion_from_pydanticmodel/
         https://gist.github.com/leandromoreira/3de4819e4e4df9422d87f1d3e7465c16
-    """
+    """  # noqa: E501
     if _visiting is None:
         _visiting = frozenset()
 
-    # JSON Schema booleans: `true` accepts any value, `false` accepts none.
+    # JSON 模式布尔值：`true` 接受任何值，`false` 接受 None。
     if isinstance(node, bool):
         return {} if node else {"not": {}}
 
-    # Handle $ref references
+    # 处理 $ref 引用
     if "$ref" in node:
         ref_path = node["$ref"]
         if ref_path.startswith("#/$defs/"):
             ref_name = ref_path.split("/")[-1]
             if ref_name in defs:
-                # Check for circular reference - if we're already visiting this
-                # ref in the current path, don't recurse (would cause infinite loop)
+                # 检查循环引用 - 如果我们已经在当前路径中访问此引用，请不要递归（会导致
+                # 无限循环）
+                #
                 if ref_name in _visiting:
                     logger.debug(
                         "Circular reference detected for '%s', using shallow expansion",
                         ref_name,
                     )
-                    # Return generic object to prevent infinite recursion
+                    # 返回通用对象以防止无限递归
                     return _shallow_expand_circular_ref(defs[ref_name])
 
-                # Add this ref to the visiting set for this recursion path
+                # 将此引用添加到此递归路径的访问集中
                 new_visiting = _visiting | {ref_name}
-                # Process the referenced definition
+                # 处理引用的定义
                 return _process_schema_node(defs[ref_name], defs, new_visiting)
 
-    # Start with a new schema object
+    # 从一个新的模式对象开始
     result: dict[str, Any] = {}
 
-    # Copy the basic properties
+    # 复制基本属性
     if "type" in node:
         result["type"] = node["type"]
 
-    # Handle anyOf (often used for optional fields with None)
+    # 句柄 anyOf（通常用于带有 None 的可选字段）
     if "anyOf" in node:
         non_null_types = [
             t
@@ -144,11 +142,12 @@ def _process_schema_node(
             if t is True or (isinstance(t, dict) and t.get("type") != "null")
         ]
         if not non_null_types and any(t is False for t in node["anyOf"]):
-            # Every branch rejects: keep `false`'s reject-all meaning rather
-            # than silently widening the parameter to accept-all.
+            # 每个分支拒绝：保留`false`的reject-all含义，而不是默默地将参数扩大为accept-
+            # all。
+            #
             non_null_types = [False]
         if non_null_types:
-            # Process the first non-null type
+            # 处理第一个非null类型
             processed = _process_schema_node(non_null_types[0], defs, _visiting)
             result.update(processed)
 
@@ -156,27 +155,27 @@ def _process_schema_node(
     if "description" in node:
         result["description"] = node["description"]
 
-    # Handle object properties recursively
+    # 递归处理对象属性
     if node.get("type") == "object" and "properties" in node:
         result["type"] = "object"
         result["properties"] = {}
 
-        # Process each property
+        # 处理每个属性
         for prop_name, prop_schema in node["properties"].items():
             result["properties"][prop_name] = _process_schema_node(
                 prop_schema, defs, _visiting
             )
 
-        # Add required fields if present
+        # 添加必填字段（如果存在）
         if "required" in node:
             result["required"] = node["required"]
 
-    # Handle arrays
+    # 处理数组
     if node.get("type") == "array" and "items" in node:
         result["type"] = "array"
         result["items"] = _process_schema_node(node["items"], defs, _visiting)
 
-    # Handle enum
+    # 手柄枚举
     if "enum" in node:
         result["enum"] = node["enum"]
 
@@ -184,7 +183,7 @@ def _process_schema_node(
 
 
 class Schema(DiscriminatedUnionMixin):
-    """Base schema for input action / output observation."""
+    """用于输入操作/输出观测结果的底座模式。"""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
     mcp_schema_alias_specs: ClassVar[dict[str, dict[str, Any]]] = {}
@@ -198,14 +197,14 @@ class Schema(DiscriminatedUnionMixin):
 
     @classmethod
     def to_mcp_schema(cls) -> dict[str, Any]:
-        """Convert to JSON schema format compatible with MCP."""
+        """转换为与MCP兼容的JSON模式格式。"""
         full_schema = cls.model_json_schema()
-        # This will get rid of all "anyOf" in the schema,
-        # so it is fully compatible with MCP tool schema
+        # 这将摆脱模式中的所有“anyOf”，因此它与MCP工具模式完全兼容
+        #
         result = _process_schema_node(full_schema, full_schema.get("$defs", {}))
 
-        # Remove discriminator fields from properties (not for LLM)
-        # Need to exclude both regular fields and computed fields (like 'kind')
+        # 从属性中删除鉴别器字段（不适用于 LLM） 需要排除常规字段和计算字段（如“kind”）
+        #
         exclude_fields = cls._discriminator_field_names()
         explicit_mcp_aliases = {
             field_info.alias
@@ -219,7 +218,7 @@ class Schema(DiscriminatedUnionMixin):
                 and f not in explicit_mcp_aliases
             ):
                 result["properties"].pop(f)
-                # Also remove from required if present
+                # 如果存在，也从必需的中删除
                 if "required" in result and f in result["required"]:
                     result["required"].remove(f)
 
@@ -245,10 +244,9 @@ class Schema(DiscriminatedUnionMixin):
     def from_mcp_schema(
         cls: type[S], model_name: str, schema: dict[str, Any]
     ) -> type["S"]:
-        """Create a Schema subclass from an MCP/JSON Schema object.
+        """从 MCP/JSON 模式对象创建模式子类。
 
-        For non-required fields, we annotate as `T | None`
-        so explicit nulls are allowed.
+        对于非必填字段，我们注释为 `T | None`，因此允许显式空值。
         """
         assert isinstance(schema, dict), "Schema must be a dict"
         assert schema.get("type") == "object", "Only object schemas are supported"
@@ -266,15 +264,15 @@ class Schema(DiscriminatedUnionMixin):
             spec = spec if isinstance(spec, dict) else {}
             tp = py_type(spec)
 
-            # Add description if present
+            # 添加描述（如果存在）
             desc: str | None = spec.get("description")
             field_name = fname
             field_alias = None
             if fname in discriminator_fields:
-                # MCP tool argument names are user-defined JSON object keys. If
-                # one collides with OpenHands' internal discriminator (e.g.
-                # "kind"), keep the external name as an alias and use a safe
-                # internal field name for Pydantic.
+                # MCP 工具参数名称是用户定义的 JSON 对象键。 如果与 OpenHands' 内部鉴别
+                # 器 (e.g. “kind”），将外部名称保留为别名，并为 Pydantic 使用安全的内部
+                # 字段名称。
+                #
                 field_alias = fname
                 has_aliased_field = True
                 alias_specs[fname] = copy.deepcopy(spec)
@@ -286,13 +284,13 @@ class Schema(DiscriminatedUnionMixin):
                     field_name = f"mcp_arg_{fname}_{suffix}"
                     suffix += 1
 
-            # Required → bare type, ellipsis sentinel
-            # Optional → make nullable via `| None`, default None
+            # 必需 → 裸类型，省略号哨兵值可选 → 通过 `| None` 设为可为空，默认 None
+            #
             if fname in required:
                 anno = tp
                 default = ...
             else:
-                anno = tp | None  # allow explicit null in addition to omission
+                anno = tp | None  # 除了省略之外还允许显式 null
                 default = None
 
             field_kwargs: dict[str, Any] = {}
@@ -331,7 +329,7 @@ class Schema(DiscriminatedUnionMixin):
 
 
 class Action(Schema, ABC):
-    """Base schema for input action."""
+    """输入操作的基数模式。"""
 
     _structured_output: dict[str, Any] | None = PrivateAttr(default=None)
 
@@ -341,20 +339,19 @@ class Action(Schema, ABC):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this action.
+        """返回此操作的富文本表示形式。
 
-        This method can be overridden by subclasses to customize visualization.
-        The base implementation displays all action fields systematically.
+        该方法可以被子类覆盖以定制可视化。 基本实现系统地显示所有操作字段。
         """
         content = Text()
 
-        # Display action name
+        # 显示动作名称
         action_name = self.__class__.__name__
         content.append("Action: ", style="bold")
         content.append(action_name)
         content.append("\n\n")
 
-        # Display all action fields systematically
+        # 系统地显示所有操作字段
         content.append("Arguments:", style="bold")
         action_fields = self.model_dump()
         content.append(display_json(action_fields))
@@ -363,7 +360,7 @@ class Action(Schema, ABC):
 
 
 class Observation(Schema, ABC):
-    """Base schema for output observation."""
+    """输出观测结果的基数模式。"""
 
     ERROR_MESSAGE_HEADER: ClassVar[str] = "[An error occurred during execution.]\n"
 
@@ -386,24 +383,24 @@ class Observation(Schema, ABC):
         is_error: bool = False,
         **kwargs: Any,
     ) -> "Self":
-        """Utility to create an Observation from a simple text string.
+        """用于从简单文本字符串创建观测结果的实用程序。
 
         Args:
-            text: The text content to include in the observation.
-            is_error: Whether this observation represents an error.
-            **kwargs: Additional fields for the observation subclass.
+            text: 要包含在观测结果中的文本内容。
+            is_error: 这个观测结果是否代表错误。
+            **kwargs: 观测结果子类的附加字段。
 
         Returns:
-            An Observation instance with the text wrapped in a TextContent.
+            文本包含在 TextContent 中的观测结果实例。
         """
         return cls(content=[TextContent(text=text)], is_error=is_error, **kwargs)
 
     @property
     def text(self) -> str:
-        """Extract all text content from the observation.
+        """从观测结果中提取所有文本内容。
 
         Returns:
-            Concatenated text from all TextContent items in content.
+            内容中所有 TextContent 项的串联文本。
         """
         return "".join(
             item.text for item in self.content if isinstance(item, TextContent)
@@ -412,26 +409,25 @@ class Observation(Schema, ABC):
     @property
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
         """
-        Default content formatting for converting observation to LLM readable content.
-        Subclasses can override to provide richer content (e.g., images, diffs).
+        用于将观测结果转换为 LLM 可读内容的默认内容格式。 子类可以重写以提供更丰富的
+        内容（e.g.、图像、差异）。
         """
         llm_content: list[TextContent | ImageContent] = []
 
-        # If is_error is true, prepend error message
+        # 如果 is_error 为 True，则添加错误消息
         if self.is_error:
             llm_content.append(TextContent(text=self.ERROR_MESSAGE_HEADER))
 
-        # Add content (now always a list)
+        # 添加内容（现在始终是列表）
         llm_content.extend(self.content)
 
         return llm_content
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation.
+        """返回此观测结果的富文本表示形式。
 
-        Subclasses can override for custom visualization; by default we show the
-        same text that would be sent to the LLM.
+        子类可以覆盖自定义可视化； 默认情况下，我们显示将发送到 LLM 的相同文本。
         """
         text = Text()
 

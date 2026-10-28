@@ -1,4 +1,4 @@
-"""Delivery guarantees: non-blocking, bounded, and safely revocable."""
+"""交付保证：非阻塞、有界、安全可撤销。"""
 
 import asyncio
 import time
@@ -106,22 +106,23 @@ def build_sink(exporter, **kwargs: Any) -> BufferedTelemetrySink:
         "event_buffer_size": 10,
         "num_retries": 0,
         "retry_delay": 0.0,
-        # Kept short so only the test that is *about* the shutdown bound pays
-        # for it; that test overrides this back to a realistic value.
+        # 保持简短，因此只有 * 关于 * 关闭边界的测试才需要付费； 该测试将其覆盖回实际值
+        # 。
+        #
         "shutdown_flush_timeout": 0.1,
     }
     defaults.update(kwargs)
     return BufferedTelemetrySink(exporter, **defaults)
 
 
-# ── non-blocking ──────────────────────────────────────────────────────────
+# ── 非阻塞──────────────────────────────────────────────────────────
 
 
 async def test_emit_never_awaits_even_when_the_exporter_hangs():
-    """The core guarantee: PubSub fan-out cannot be stalled by telemetry.
+    """核心保证：PubSub 扇出不会因遥测而停止。
 
-    The exporter sleeps for an hour. If ``emit`` did any I/O, or awaited the
-    exporter at all, this would time out instead of returning instantly.
+    出口商睡了一个小时。 如果 ``emit`` 执行任何 I/O，或者根本等待导出器，则会超时而不
+    是立即返回。
     """
     sink = build_sink(HangingExporter())
     sink.start()
@@ -137,12 +138,12 @@ async def test_emit_never_awaits_even_when_the_exporter_hangs():
 
 
 async def test_emit_is_a_plain_sync_function():
-    """A coroutine here would silently reintroduce blocking at the call site."""
+    """这里的协程会在调用站点静默地重新引入阻塞。"""
     assert not asyncio.iscoroutinefunction(BufferedTelemetrySink.emit)
     assert not asyncio.iscoroutinefunction(NoOpTelemetrySink.emit)
 
 
-# ── bounded queue ─────────────────────────────────────────────────────────
+# ── 有界队列──────────────────────────────────────────────────────────
 
 
 async def test_queue_is_bounded_on_ingest_and_keeps_the_newest():
@@ -153,7 +154,7 @@ async def test_queue_is_bounded_on_ingest_and_keeps_the_newest():
             sink.emit(make_event(i))
 
         assert len(sink._queue) == 5
-        # Oldest dropped, newest retained.
+        # 最旧的被删除，最新的被保留。
         retained = [e.distinct_id for e in sink._queue]
         assert retained == [f"user-{i}" for i in range(45, 50)]
         assert sink.dropped_count == 45
@@ -162,13 +163,12 @@ async def test_queue_is_bounded_on_ingest_and_keeps_the_newest():
 
 
 async def test_a_backlog_drains_continuously_not_one_batch_per_flush():
-    """Regression: a queue deeper than one batch must not stall between batches.
+    """Regression: 比一个批次更深的队列不得在批次之间停止。
 
-    Previously ``_wake`` was cleared before taking a batch and never re-armed
+    以前 ``_wake`` 在进行批次之前已被清除并且从未重新武装
     while the queue was still non-empty, so each remaining batch waited a full
-    ``flush_delay``. At the production defaults (30s delay, 20-event batch) a
-    full 1000-event queue would have needed ~25 minutes to clear, dropping
-    events it could have delivered.
+    ``flush_delay``. 在生产默认设置（30秒延迟，20个事件批次）下，一个满的1000个事件队
+    列需要大约25分钟才能清空，从而丢弃它本可以发送的事件。
     """
     exporter = RecordingExporter()
     sink = build_sink(exporter, flush_delay=0.5, event_buffer_size=10)
@@ -177,7 +177,7 @@ async def test_a_backlog_drains_continuously_not_one_batch_per_flush():
         for i in range(50):
             sink.emit(make_event(i))
 
-        # Well under two flush_delays: a stalling drain would deliver ~10-20.
+        # 远低于两个flush_delays：一个失速的排水管将提供〜10-20。
         await asyncio.sleep(0.7)
 
         assert len(exporter.sent) == 50, (
@@ -189,7 +189,7 @@ async def test_a_backlog_drains_continuously_not_one_batch_per_flush():
         await asyncio.wait_for(sink.aclose(), timeout=10)
 
 
-# ── exporter failure ──────────────────────────────────────────────────────
+# ── 出口商失败────────────────────────────────────────────────────────
 
 
 async def test_failing_exporter_does_not_kill_the_drain_task():
@@ -208,7 +208,7 @@ async def test_failing_exporter_does_not_kill_the_drain_task():
 
 
 async def test_failed_batches_are_dropped_not_requeued():
-    """Re-queueing would turn an outage into unbounded memory growth."""
+    """重新排队会将中断转变为无限制的内存增长。"""
     exporter = FailingExporter()
     sink = build_sink(exporter, retry_delay=0.01)
     sink.start()
@@ -221,7 +221,7 @@ async def test_failed_batches_are_dropped_not_requeued():
 
 
 async def test_shutdown_is_bounded_when_the_exporter_hangs():
-    """A wedged analytics endpoint must not extend server shutdown."""
+    """楔入分析端点不得延长服务器关闭时间。"""
     sink = build_sink(HangingExporter(), flush_delay=3600, shutdown_flush_timeout=1.0)
     sink.start()
     sink.emit(make_event())
@@ -230,7 +230,7 @@ async def test_shutdown_is_bounded_when_the_exporter_hangs():
     await asyncio.wait_for(sink.aclose(), timeout=15)
     elapsed = time.monotonic() - started
 
-    # Capped by shutdown_flush_timeout, not by the exporter's 3600s sleep.
+    # 上限为 shutdown_flush_timeout，而不是导出器的 3600 秒睡眠。
     assert 0.5 < elapsed < 4, f"shutdown took {elapsed:.1f}s"
 
 
@@ -247,11 +247,11 @@ async def test_healthy_shutdown_flushes_residual_events():
     assert exporter.closed is True
 
 
-# ── consent ───────────────────────────────────────────────────────────────
+# ── 同意────────────────────────────────────────────────────────────────
 
 
 async def test_revocation_discards_the_queue_and_never_delivers():
-    """Events collected under a consent since withdrawn must not be sent."""
+    """自撤回同意后收集的事件不得发送。"""
     exporter = RecordingExporter()
     sink = build_sink(exporter, flush_delay=3600)
     sink.start()
@@ -273,7 +273,7 @@ async def test_revocation_discards_the_queue_and_never_delivers():
 
 
 async def test_emit_while_denied_is_dropped_and_cannot_leak_on_later_grant():
-    """Re-granting must not retroactively ship pre-consent activity."""
+    """重新授予不得追溯性地发布预先同意的活动。"""
     exporter = RecordingExporter()
     sink = build_sink(exporter, decision=denied(), flush_delay=0.05)
     sink.start()
@@ -296,7 +296,7 @@ async def test_emit_while_denied_is_dropped_and_cannot_leak_on_later_grant():
 
 
 async def test_a_managed_decision_still_reports_as_locked():
-    """Cloud enforcement is now a seeded `managed` flag, not a mode."""
+    """云实施现在是一个种子 `managed` 标志，而不是一种模式。"""
     exporter = RecordingExporter()
     sink = build_sink(
         exporter,
@@ -326,7 +326,7 @@ async def test_consent_is_refreshed_from_the_reader_on_the_drain_task():
     try:
         state["decision"] = denied()
         sink.emit(make_event())
-        # Wait past CONSENT_REFRESH_SECONDS-gated first check.
+        # 等待通过 CONSENT_REFRESH_SECONDS 门控的第一次检查。
         await asyncio.sleep(0.3)
 
         assert sink.enabled is False
@@ -334,7 +334,7 @@ async def test_consent_is_refreshed_from_the_reader_on_the_drain_task():
         await asyncio.wait_for(sink.aclose(), timeout=10)
 
 
-# ── no-op ─────────────────────────────────────────────────────────────────
+# ── 无操作──────────────────────────────────────────────────────────────────
 
 
 async def test_noop_sink_is_inert():

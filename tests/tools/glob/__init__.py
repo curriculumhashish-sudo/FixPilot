@@ -1,1 +1,1 @@
-"""Tests for glob tool."""
+"""测试 glob 工具。"""

@@ -1,10 +1,14 @@
-# Agent Plugins Example
+<a id="agent-plugins-example"></a>
 
-A copyable reference package for the [Agent Plugins Specification v1.0.0](https://agent-plugins.org/specification).
+# 智能体插件示例
 
-This repository demonstrates the portable core and includes an Agent Skill that helps migrate existing plugins from client-specific formats. It is a reference example, not a substitute for the normative specification; if they differ, the specification wins.
+[智能体插件规范 v1.0.0](https://agent-plugins.org/specification) 的可复制参考包。
 
-## Layout
+该存储库演示了可移植核心，并包含一项智能体技能，可帮助从特定于客户端的格式迁移现有插件。 仅供参考示例，不能替代规范性规范； 如果它们不同，则规范获胜。
+
+<a id="layout"></a>
+
+## 布局
 
 ```text
 agent-plugins-example/
@@ -20,22 +24,26 @@ agent-plugins-example/
 └── LICENSE
 ```
 
-The smallest valid plugin needs only `plugin.json`. This example includes a skill so it is useful as well as structurally illustrative.
+最小的有效插件只需要 `plugin.json`。 该示例包含一项技能，因此它很有用并且在结构上具有说明性。
 
-## The portable core
+<a id="the-portable-core"></a>
 
-Agent Plugins v1 defines two portable component types:
+## 便携式核心
 
-- Agent Skills under immediate child directories of `skills/`.
-- MCP servers in an optional root `mcp.json` using the matching v1.0.0 MCP schema.
+智能体 Plugins v1 定义了两种可移植组件类型：
 
-The root `plugin.json` schema is closed. Do not add `hooks`, `agents`, `commands`, `mcpServers`, `lspServers`, or arbitrary client fields at its top level. Put portable MCP configuration in `mcp.json` and client-owned manifest data inside `extensions`.
+- 智能体 `skills/` 的直接子目录下的技能。
+- MCP 位于可选根 `mcp.json` 中的服务器，使用匹配的 v1.0.0 MCP 模式。
 
-See the authoritative documentation for the [plugin manifest](https://agent-plugins.org/plugin-authors/manifest), [skills](https://agent-plugins.org/plugin-authors/skills), [MCP servers](https://agent-plugins.org/plugin-authors/mcp-servers), and [client extensions](https://agent-plugins.org/plugin-authors/client-extensions).
+根`plugin.json`模式是封闭的。 请勿在其顶层添加 `hooks`、`agents`、`commands`、`mcpServers`、`lspServers` 或任意客户端字段。 将可移植的 MCP 配置放入 `mcp.json` 中，并将客户端拥有的清单数据放入 `extensions` 中。
 
-## Add client-specific capabilities safely
+请参阅[插件元数据](https://agent-plugins.org/plugin-authors/manifest)、[技能](https://agent-plugins.org/plugin-authors/skills)、[MCP服务器](https://agent-plugins.org/plugin-authors/mcp-servers)和[客户端扩展](https://agent-plugins.org/plugin-authors/client-extensions)的权威文档。
 
-Hooks and similar capabilities are not portable v1 components. A client can add them through a reverse-domain extension namespace it owns and documents:
+<a id="add-client-specific-capabilities-safely"></a>
+
+## 安全地添加特定于客户端的功能
+
+挂钩和类似功能不是可移植的 v1 组件。 客户端可以通过其拥有的反向域扩展命名空间添加它们并记录：
 
 ```text
 your-plugin/
@@ -47,7 +55,7 @@ your-plugin/
         └── hooks.json
 ```
 
-If a client uses both manifest data and files, `plugin.json` can contain an extension object:
+如果客户端同时使用清单数据和文件，`plugin.json` 可以包含扩展对象：
 
 ```json
 {
@@ -61,27 +69,31 @@ If a client uses both manifest data and files, `plugin.json` can contain an exte
 }
 ```
 
-`com.vendor.client` is illustrative. Use only a namespace and fields documented by the client that owns them. Other clients ignore an extension they do not implement, leaving the portable skills and MCP configuration usable.
+`com.vendor.client` 是说明性的。 仅使用命名空间和拥有它们的客户端记录的字段。 其他客户端会忽略他们未实现的扩展，从而使可移植技能和 MCP 配置可用。
 
-## Migrate without breaking the existing plugin
+<a id="migrate-without-breaking-the-existing-plugin"></a>
 
-Use an additive migration:
+## 迁移而不破坏现有插件
 
-1. Add and validate the root `plugin.json` without deleting working platform files.
-2. Move or copy reusable skills into `skills/<skill-name>/SKILL.md`.
-3. Convert portable MCP servers to root `mcp.json` with explicit transport types.
-4. Keep hooks, agents, commands, LSP, UI, and marketplace metadata in a client extension or a separate compatibility package required by that platform.
-5. Test the portable core and every supported client package before removing legacy files.
+使用附加迁移：
 
-The included [`migrate-agent-plugin` skill](skills/migrate-agent-plugin/SKILL.md) contains the full migration workflow, artifact mapping, extension strategy, and validation checklist.
+1. 添加并验证根 `plugin.json`，而不删除工作平台文件。
+2. 将可重复使用的技能移动或复制到`skills/<skill-name>/SKILL.md`。
+3. 将可移植 MCP 服务器转换为具有显式传输层类型的根 `mcp.json`。
+4. 将挂钩、智能体、命令、LSP、UI 和市场元数据保留在客户端扩展或该平台所需的单独兼容性包中。
+5. 在删除旧文件之前测试可移植核心和每个受支持的客户端包。
 
-## Copy this example
+附带的 [`migrate-agent-plugin` 技能 ](skills/migrate-agent-plugin/SKILL.md) 包含完整的迁移工作流程、工件映射、扩展策略和验证检查表。
 
-1. Copy this directory and rename it to match your plugin.
-2. Update `name`, `version`, `description`, `author`, and other allowed metadata in `plugin.json`.
-3. Replace the example skill or add more immediate children under `skills/`.
-4. Add `mcp.json` only if the plugin provides MCP servers.
-5. Add client extensions only for namespaces implemented by your target clients.
-6. Validate paths, schemas, skills, and each supported client integration.
+<a id="copy-this-example"></a>
 
-The directory name and manifest name do not have to match under the portable specification, but keeping them identical is strongly recommended for predictable packaging and discovery.
+## 复制这个例子
+
+1. 复制此目录并将其重命名以匹配您的插件。
+2. 更新 `name`、`version`、`description`、`author` 以及 `plugin.json` 中其他允许的元数据。
+3. 替换示例技能或在 `skills/` 下添加更多直接子技能。
+4. 仅当插件提供 MCP 个服务器时才添加 `mcp.json`。
+5. 仅为您的目标客户端实现的命名空间添加客户端扩展。
+6. 验证路径、模式、技能和每个支持的客户端集成。
+
+在可移植规范中，目录名和元数据名不必完全一致，但保持它们一致对于可预测的打包和发现是强烈推荐的。

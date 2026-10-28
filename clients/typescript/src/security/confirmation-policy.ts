@@ -1,19 +1,19 @@
 /**
- * Confirmation Policy for Conversations
+ * 对话确认政策
  *
- * Defines policies for when actions require user confirmation before execution.
- * This mirrors the Python SDK's confirmation policy system.
+ * 定义操作执行前需要用户确认的策略。
+ * 这反映了PythonSDK的确认政策系统。
  */
 
 import { ActionEvent } from '../events/types';
 
 /**
- * Risk level for an action
+ * 操作的风险级别
  */
 export type RiskLevel = 'low' | 'medium' | 'high' | 'unknown';
 
 /**
- * Convert a risk level to a numeric value for comparison.
+ * 将风险级别转换为数值以进行比较。
  */
 export function riskLevelToNumeric(level: RiskLevel): number {
   switch (level) {
@@ -24,45 +24,45 @@ export function riskLevelToNumeric(level: RiskLevel): number {
     case 'high':
       return 3;
     case 'unknown':
-      return 2; // Treat unknown as medium
+      return 2; // 将未知视为媒介
   }
 }
 
 /**
- * Result of a security analysis
+ * 安全分析的结果
  */
 export interface SecurityAnalysisResult {
-  /** The determined risk level */
+  /** 确定的风险等级*/
   riskLevel: RiskLevel;
-  /** Whether confirmation is required */
+  /** 是否需要确认*/
   requiresConfirmation: boolean;
-  /** Human-readable explanation of the risk assessment */
+  /** 风险评估的人类可读解释*/
   explanation?: string;
-  /** Specific concerns identified */
+  /** 确定的具体问题*/
   concerns?: string[];
 }
 
 /**
- * Base interface for confirmation policies.
- * Policies determine when actions require user confirmation.
+ * 确认策略的基本接口。
+ * 策略确定操作何时需要用户确认。
  */
 export interface ConfirmationPolicy {
-  /** Policy type identifier */
+  /** 策略类型标识符*/
   readonly type: string;
 
   /**
-   * Determine if an action requires confirmation.
+   * 确定某个操作是否需要确认。
    *
-   * @param action - The action to evaluate
-   * @param riskLevel - Optional pre-determined risk level
-   * @returns True if confirmation is required
+   * @param action - 要评估的操作
+   * @param riskLevel - 可选的预先确定的风险级别
+   * @returns True 如果需要确认
    */
   requiresConfirmation(action: ActionEvent, riskLevel?: RiskLevel): boolean;
 }
 
 /**
- * Never require confirmation - all actions are auto-approved.
- * This is the default policy for development/testing.
+ * 无需确认 - 所有操作都会自动批准。
+ * 这是开发/测试的默认策略。
  */
 export class NeverConfirm implements ConfirmationPolicy {
   readonly type = 'never';
@@ -73,8 +73,8 @@ export class NeverConfirm implements ConfirmationPolicy {
 }
 
 /**
- * Always require confirmation for all actions.
- * Use this for maximum safety/oversight.
+ * 所有操作始终需要确认。
+ * 使用此功能可实现最大程度的安全/监督。
  */
 export class AlwaysConfirm implements ConfirmationPolicy {
   readonly type = 'always';
@@ -85,8 +85,8 @@ export class AlwaysConfirm implements ConfirmationPolicy {
 }
 
 /**
- * Require confirmation based on risk level.
- * Actions at or above the threshold require confirmation.
+ * 需要根据风险级别进行确认。
+ * 达到或高于阈值的操作需要确认。
  */
 export class RiskBasedConfirm implements ConfirmationPolicy {
   readonly type = 'risk_based';
@@ -103,7 +103,7 @@ export class RiskBasedConfirm implements ConfirmationPolicy {
 }
 
 /**
- * Require confirmation for specific tools.
+ * 需要确认特定工具。
  */
 export class ToolBasedConfirm implements ConfirmationPolicy {
   readonly type = 'tool_based';
@@ -119,7 +119,7 @@ export class ToolBasedConfirm implements ConfirmationPolicy {
 }
 
 /**
- * Composite policy - requires confirmation if ANY sub-policy requires it.
+ * 复合策略 - 如果 ANY 子策略需要，则需要确认。
  */
 export class CompositeConfirm implements ConfirmationPolicy {
   readonly type = 'composite';
@@ -135,7 +135,7 @@ export class CompositeConfirm implements ConfirmationPolicy {
 }
 
 /**
- * Create a confirmation policy from a type string.
+ * 从类型字符串创建确认策略。
  */
 export function createConfirmationPolicy(type: string, options?: unknown): ConfirmationPolicy {
   switch (type) {

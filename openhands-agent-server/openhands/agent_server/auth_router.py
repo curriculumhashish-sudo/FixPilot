@@ -1,19 +1,17 @@
-"""Workspace static-server cookie auth endpoints.
+"""工作区静态服务器 cookie 身份验证端点。
 
-Browsers cannot attach custom headers to ``<iframe src>``, ``<img src>`` or
-top-level navigation requests, so the workspace static file server cannot
-be authenticated by the ``X-Session-API-Key`` header alone when the canvas
-frontend wants to embed workspace artifacts (HTML reports, plots, PDFs).
+浏览器无法附加自定义头 ``<iframe src>``, ``<img src>`` 或顶级导航请求，因此工作区静态
+文件服务器无法被认证
+``X-Session-API-Key`` 只有头部时，当 canvas 前端想要嵌入时工作区 artifacts (HTML 报告
+，图表 PDFs).
 
-These endpoints let a client that already has a valid session API key
-exchange it for a short-lived cookie which the browser will automatically
-attach to every workspace request — including cross-site iframes, thanks
-to ``SameSite=None; Secure; Partitioned``.
+这些端点让一个已经拥有有效会话 API 的客户端，将其会话密钥交换成一个短生命周期的
+cookie，浏览器会自动将其附加到每个工作区请求 — 包括跨站 iframe，多亏了
+ ``SameSite=None; Secure; Partitioned``。
 
-The cookie is honored by ``workspace_router`` ONLY. Every other API route
-continues to require the ``X-Session-API-Key`` header. This is deliberate:
-keeping cookies off the rest of the API removes the CSRF surface that
-cookie auth would otherwise add.
+该 cookie 受到 ``workspace_router`` 仅的尊重。 所有其他 API 路由仍然需要
+``X-Session-API-Key`` 标头。 这是故意的
+：将 cookie 保留在 API 的 REST 之外会删除 cookie 身份验证本来会添加的 CSRF 表面。
 """
 
 from fastapi import APIRouter, Request, Response, status
@@ -23,31 +21,31 @@ from openhands.agent_server.dependencies import WORKSPACE_SESSION_COOKIE_NAME
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
-# Cookie lifetime in seconds. Set to effectively "never expire" — browsers
-# (per RFC 6265bis, e.g. Chrome) clamp Max-Age to ~400 days regardless of
-# the value sent, so this is the longest persistence the spec allows.
-_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10  # 10 years
+# Cookie 的生命周期以秒为单位。 设置为有效“永不过期”——浏览器（根据 RFC 6265bis，e.g.
+# Chrome）将 Max-Age 限制为约 400 天，无论发送的值如何，因此这是规范允许的最长期限持久化
+# 。
+#
+_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10  # 10年
 
-# Path scope: only sent on workspace-router URLs. Other /api/* endpoints
-# never see the cookie.
+# 路径范围：仅在工作区-路由器URLs上发送。 其他 /api/* 端点从未见过这个 cookie。
+#
 _COOKIE_PATH = "/api/conversations"
 
-# Hostnames the browser treats as "secure contexts" even over plain HTTP, so
-# we can issue ``Secure`` cookies against them in local development without
-# requiring TLS. Matches the platform-secure-contexts list in the WHATWG
-# Secure Contexts spec.
+# 浏览器将某些主机名视为“安全上下文”，即使在 HTTP 中，因此我们可以在本地开发环境中向这些
+# 主机名发送 ``Secure`` 会话 cookie，而无需 TLS。 与 WHATWG 安全上下文规范中的平台安全上
+# 下文列表匹配。
+#
 _LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
 def _request_is_secure_context(request: Request) -> bool:
-    """Whether the request originated from a context where the browser
-    will accept ``Secure`` cookies.
+    """请求是否源自上下文所在浏览器
+    将接受 ``Secure`` cookie。
 
-    That's true for:
-      - HTTPS (honoring ``X-Forwarded-Proto`` set by trusted proxies that
-        terminate TLS in front of us), and
-      - Plain HTTP against loopback hostnames, which browsers (per the
-        Secure Contexts spec) treat as secure.
+    True 表示：
+      - HTTPS（尊重由在我们面前终止 TLS 的可信代理设置的 ``X-Forwarded-Proto``），以
+      及
+      - 针对环回主机名的普通 HTTP，浏览器（根据安全上下文规范）将其视为安全。
     """
     forwarded_proto = request.headers.get("x-forwarded-proto", "").lower()
     scheme = forwarded_proto.split(",")[0].strip() or request.url.scheme
@@ -56,9 +54,10 @@ def _request_is_secure_context(request: Request) -> bool:
 
     forwarded_host = request.headers.get("x-forwarded-host", "")
     host = forwarded_host.split(",")[0].strip() or request.url.hostname or ""
-    # Strip an optional ``:port`` suffix. IPv6 hosts are bracketed in
-    # ``X-Forwarded-Host``; ``request.url.hostname`` returns them bare
-    # (``::1``), so only split on a single colon.
+    # 去掉可选的 ``:port`` 后缀。 IPv6 主机被括在
+    # ``X-Forwarded-Host``; ``request.url.hostname`` 返回它们裸露 (``::1``)，因此仅在单
+    # 个冒号上分割。
+    #
     if host.startswith("["):
         host = host.partition("]")[0].lstrip("[")
     elif host.count(":") == 1:
@@ -69,19 +68,18 @@ def _request_is_secure_context(request: Request) -> bool:
 def _set_workspace_cookie(
     response: Response, *, value: str, secure: bool, max_age: int
 ) -> None:
-    """Issue the workspace session cookie.
+    """发出工作区会话 cookie。
 
-    Cross-site iframe support requires ``SameSite=None; Secure``. Modern
-    Chrome additionally requires ``Partitioned`` (CHIPS) for cookies set
-    in third-party contexts; without it, the cookie may be silently
-    dropped under third-party-cookie phase-out.
+    跨站点 iframe 支持需要 ``SameSite=None; Secure``。 现代 Chrome 还需要
+    ``Partitioned`` (CHIPS) 在
+    第三方上下文中设置 cookie； 如果没有它，cookie 可能会在第三方 cookie 逐步淘汰的情
+    况下被悄悄删除。
 
-    We always set ``SameSite=None`` so the same cookie works for both
-    same-site and cross-site iframes, and always set ``HttpOnly`` so JS
-    in workspace HTML can't read it back. ``Secure`` is set whenever
-    the request comes from a secure context (HTTPS or loopback) — the
-    only contexts where a ``SameSite=None`` cookie will actually be
-    stored by the browser.
+    我们总是设置 ``SameSite=None``，以便同一个 cookie 适用于同站点和跨站点 iframe，并
+    且始终设置 ``HttpOnly``，以便工作区
+    HTML 中的 JS 无法读回它。 当请求来自一个安全的上下文（HTTPS 或回环）时，
+    ``Secure`` 会被设置。——只有在这种情况下，浏览器才会存储
+    ``SameSite=None`` 会话 cookie。
     """
     response.set_cookie(
         key=WORKSPACE_SESSION_COOKIE_NAME,
@@ -92,11 +90,10 @@ def _set_workspace_cookie(
         httponly=True,
         samesite="none",
     )
-    # Starlette plumbs ``partitioned`` through to ``http.cookies.Morsel``,
-    # which only recognized the attribute starting in Python 3.14. We need
-    # the flag on 3.12/3.13 too, so patch the ``Set-Cookie`` header in
-    # place. Only meaningful when Secure is set — browsers ignore
-    # Partitioned on non-Secure cookies.
+    # Starlette 探索 ``partitioned`` 到 ``http.cookies.Morsel``，它只识别从 Python 3.14
+    # 开始的属性。 我们也需要 3.12/3.13 上的标志，因此请修补 ``Set-Cookie`` 标头。 仅当
+    # 设置“安全”时才有意义 — 浏览器会忽略非安全 cookie 上的“分区”。
+    #
     if secure:
         _append_partitioned_to_last_set_cookie(response)
 
@@ -104,11 +101,10 @@ def _set_workspace_cookie(
 def _append_partitioned_to_last_set_cookie(
     response: Response, cookie_name: str = WORKSPACE_SESSION_COOKIE_NAME
 ) -> None:
-    """Append ``; Partitioned`` to the named Set-Cookie header.
+    """将 ``; Partitioned`` 附加到指定的 Set-Cookie 标头。
 
-    ``MutableHeaders`` doesn't expose an "edit by name" helper for
-    duplicate-allowed headers, and we need to be careful not to clobber
-    any other Set-Cookie headers a parent middleware might have queued.
+    ``MutableHeaders`` 不提供“按名称编辑”辅助功能，因为我们需要小心不要覆盖任何其他父
+    级中间件已排队的 Set-Cookie 头。
     """
     raw = response.raw_headers
     for idx in range(len(raw) - 1, -1, -1):
@@ -130,12 +126,11 @@ def _append_partitioned_to_last_set_cookie(
     },
 )
 async def create_workspace_session(request: Request, response: Response) -> Response:
-    """Mint a workspace-scoped session cookie.
+    """创建一个工作区范围的会话 cookie。
 
-    Caller must already be authenticated by the ``X-Session-API-Key``
-    header (enforced by the parent router's dependency). The cookie value
-    is the validated session API key itself; it is HttpOnly so JS in
-    workspace HTML cannot read it back.
+    调用者必须已经通过 ``X-Session-API-Key`` 标头进行身份验证（由父路由器的依赖项强制
+    执行）。 cookie 值是经过验证的会话 API 密钥本身
+    ； 它是HttpOnly，所以工作区HTML中的JS无法读回它。
     """
     session_api_key = request.headers.get("x-session-api-key", "")
     _set_workspace_cookie(
@@ -154,12 +149,11 @@ async def create_workspace_session(request: Request, response: Response) -> Resp
     responses={204: {"description": "Cookie cleared"}},
 )
 async def delete_workspace_session(request: Request, response: Response) -> Response:
-    """Clear the workspace session cookie.
+    """清除工作区会话 cookie。
 
-    Browsers identify cookies by ``(name, domain, path)``; the deletion
-    cookie must therefore share the original cookie's attributes. We
-    overwrite with an empty value and ``max_age=0`` so the browser drops
-    it immediately.
+    浏览器通过``(name, domain, path)``来识别cookies； 因此，删除 cookie 必须共享原始
+    cookie 的属性。 我们用空值和
+    ``max_age=0`` 覆盖，以便浏览器立即删除它。
     """
     _set_workspace_cookie(
         response,

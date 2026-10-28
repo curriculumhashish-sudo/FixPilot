@@ -13,7 +13,7 @@ from openhands.sdk.logger import get_logger
 logger = get_logger(__name__)
 
 _DEFAULT_MAX_SIZE: Final = 100_000
-_DEFAULT_MAX_MEMORY: Final = 20 * 1024 * 1024  # 20 MB
+_DEFAULT_MAX_MEMORY: Final = 20 * 1024 * 1024  # 20MB
 
 
 class InMemoryFileStore(FileStore):
@@ -74,13 +74,13 @@ class InMemoryFileStore(FileStore):
             logger.error(f"Error clearing in-memory file store: {e}")
 
     def exists(self, path: str) -> bool:
-        """Check if a file exists."""
+        """检查文件是否存在。"""
         if path in self.files:
             return True
         return any(f.startswith(path + "/") for f in self.files)
 
     def get_absolute_path(self, path: str) -> str:
-        """Get absolute path (uses temp dir with unique instance ID)."""
+        """获取绝对路径（使用具有唯一实例 ID 的临时目录）。"""
         import tempfile
 
         return os.path.join(
@@ -89,7 +89,7 @@ class InMemoryFileStore(FileStore):
 
     @contextmanager
     def lock(self, path: str, timeout: float = 30.0) -> Iterator[None]:
-        """Acquire thread lock for in-memory store."""
+        """获取内存存储的线程锁。"""
         acquired = self._lock.acquire(timeout=timeout)
         if not acquired:
             raise TimeoutError(f"Lock acquisition timed out: {path}")

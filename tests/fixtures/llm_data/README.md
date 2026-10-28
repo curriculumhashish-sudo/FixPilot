@@ -3,39 +3,53 @@ title: LLM Test Data Fixtures
 description: Real LLM completion data collected for comprehensive testing of the LLM class and related components. Includes function calling and non-function calling data.
 ---
 
-# LLM Test Data Fixtures
+<a id="llm-test-data-fixtures"></a>
 
-This directory contains real LLM completion data collected from `examples/hello_world.py` for comprehensive testing of the LLM class and related components.
+# LLM 测试数据测试夹具
 
-## Structure
+该目录包含从 `examples/hello_world.py` 收集的真实 LLM 完成数据，用于对 LLM 类和相关组件进行全面测试。
+
+<a id="structure"></a>
+
+## 结构
 
 ```
 tests/fixtures/llm_data/
-├── README.mdx                     # This file
-├── fncall-llm-message.json       # Function calling conversation messages
-├── nonfncall-llm-message.json    # Non-function calling conversation messages
-├── llm-logs/                     # Raw function calling completion logs
+├── README.mdx                     # 这个文件
+├── fncall-llm-message.json       # 函数调用对话消息
+├── nonfncall-llm-message.json    # 非功能呼叫对话消息
+├── llm-logs/                     # 原始函数调用完成日志
 │   └── *.json                    # Individual completion log files
-└── nonfncall-llm-logs/           # Raw non-function calling completion logs
+└── nonfncall-llm-logs/           # 原始非函数调用完成日志
     └── *.json                    # Individual completion log files
 ```
 
-## Data Sources
+<a id="data-sources"></a>
 
-### Function Calling Data
-- **Model**: `litellm_proxy/anthropic/claude-sonnet-4-20250514`
-- **Features**: Native function calling support
-- **Files**: `fncall-llm-message.json`, `llm-logs/*.json`
+## 数据来源
 
-### Non-Function Calling Data
-- **Model**: `litellm_proxy/deepseek/deepseek-chat`
-- **Features**: Prompt-based function calling mocking
-- **Files**: `nonfncall-llm-message.json`, `nonfncall-llm-logs/*.json`
+<a id="function-calling-data"></a>
 
-## File Formats
+### 函数调用数据
+- **型号**：`litellm_proxy/anthropic/claude-sonnet-4-20250514`
+- **特性**：原生函数调用支持
+- **文件**：`fncall-llm-message.json`、`llm-logs/*.json`
 
-### Message Files (`*-llm-message.json`)
-Contains conversation messages in OpenHands format:
+<a id="non-function-calling-data"></a>
+
+### 非函数调用数据
+- **型号**：`litellm_proxy/deepseek/deepseek-chat`
+- **功能**：基于提示词的函数调用模拟
+- **文件**：`nonfncall-llm-message.json`、`nonfncall-llm-logs/*.json`
+
+<a id="file-formats"></a>
+
+## 文件格式
+
+<a id="message-files--llm-messagejson"></a>
+
+### 消息文件 (`*-llm-message.json`)
+包含 OpenHands 格式的对话消息：
 ```json
 [
   {
@@ -59,8 +73,10 @@ Contains conversation messages in OpenHands format:
 ]
 ```
 
-### Raw Log Files (`*/logs/*.json`)
-Contains complete LiteLLM completion logs:
+<a id="raw-log-files-logsjson"></a>
+
+### 原始日志文件 (`*/logs/*.json`)
+包含完整的 LiteLLM 完成日志：
 ```json
 {
   "messages": [...],           // Request messages
@@ -80,18 +96,20 @@ Contains complete LiteLLM completion logs:
 ```
 
 
-## Regenerating Test Data
+<a id="regenerating-test-data"></a>
 
-Use the test data generator utility to create new test fixtures:
+## 重新生成测试数据
+
+使用测试数据生成器实用程序创建新测试测试夹具：
 
 ```bash
-# Generate new test data
+# 生成新的测试数据
 python tests/fixtures/llm_data/test_data_generator.py --api-key YOUR_API_KEY
 
-# Validate existing test data
+# 验证现有测试数据
 python tests/fixtures/llm_data/test_data_generator.py --api-key YOUR_API_KEY --validate-only
 
-# Custom models and messages
+# 自定义模型和消息
 python tests/fixtures/llm_data/test_data_generator.py \
   --api-key YOUR_API_KEY \
   --fncall-model "litellm_proxy/openai/gpt-5.5" \

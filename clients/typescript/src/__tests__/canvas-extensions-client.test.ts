@@ -115,8 +115,8 @@ describe('CanvasExtensionsClient', () => {
     const pending = client.createAppBackendSession('demo/app', controller.signal);
 
     expect(captured).toHaveLength(1);
-    // The signal handed to fetch must be neither the bare caller signal nor
-    // the bare timeout signal: it has to fire when either one fires.
+    // 传递给 fetch 的信号既不能是裸调用者信号，也不能是裸超时信号：当任一信号触发时，它都必须触发。
+    //
     expect(captured[0]).not.toBe(controller.signal);
     expect(captured[0].aborted).toBe(false);
 

@@ -5,113 +5,131 @@ triggers:
 - /write_behavior_test
 ---
 
-# Behavior Test Writing Guide
+<a id="behavior-test-writing-guide"></a>
 
-You are helping to create **behavior tests** for the agent-sdk integration test suite. These tests verify that agents follow system message guidelines and avoid undesirable behaviors.
+# 行为测试写作指南
 
-The tests are for the agent powered by this SDK, so you may need to refer the codebase for details on how the agent works in order to write effective tests.
+您正在帮助为智能体-SDK 集成测试套件创建 ** 行为测试 **。 这些测试验证智能体遵循系统消息准则并避免不良行为。
 
-## Behavior Tests vs Task Tests
+这些测试是针对由此 SDK 提供支持的智能体，因此您可能需要参考代码库以了解有关智能体如何工作的详细信息为了编写有效的测试。
 
-**Task Tests (t*.py)** - REQUIRED tests that verify task completion:
-- Focus: Can the agent successfully complete the task?
-- Example: Fix typos in a file, create a script, implement a feature
+<a id="behavior-tests-vs-task-tests"></a>
 
-**Behavior Tests (b*.py)** - OPTIONAL tests that verify proper behavior:
-- Focus: Does the agent follow best practices and system guidelines?
-- Example: Don't implement when asked for advice, don't over-verify, avoid redundant files
+## 行为测试与任务测试
 
-## Key Principles for Writing Behavior Tests
+**任务测试 (t*.py)** - REQUIRED 验证任务完成情况的测试：
+- 焦点：智能体能否顺利完成任务？
+- 示例：修复文件中的拼写错误、创建脚本、实现功能
 
-### ✅ DO:
+**行为测试 (b*.py)** - OPTIONAL 验证正确行为的测试：
+- 焦点：智能体是否遵循最佳实践和系统指南？
+- 示例：征求建议时不要实施，不要过度验证，避免冗余文件
 
-1. **Use Real Repositories**
-   - Clone actual GitHub repositories that represent real-world scenarios
-   - Pin to a specific historical commit (before a fix/feature was added)
-   - Example: `clone_pinned_software_agent_repo(workspace)` helper
+<a id="key-principles-for-writing-behavior-tests"></a>
 
-2. **Test Realistic Complex, Nuanced Behaviors**
-   - Try to make the task as realistic as possible to real HUMAN interactions, from file naming, (somewhat lazy) instruction style, etc
-   - Focus on subtle behavioral issues that require judgment
-   - Test scenarios where the "right" behavior isn't immediately obvious
-   - Examples: When to implement vs advise, when to stop testing, whether to add backward compatibility
+## 编写行为测试的关键原则
 
-3. **Clean Up Repository History**
-   - Check out to a commit BEFORE the solution exists
-   - Reset/remove future commits (see existing tests for examples)
-   - Ensures the agent experiences the same context as real users
+<a id="-do"></a>
 
-4. **Use Helper Functions**
-   - `find_file_editing_operations(events)` - Find file create/edit operations
-   - `find_tool_calls(events, tool_name)` - Find specific tool usage
-   - `get_conversation_summary(events)` - Get summary for LLM judge
-   - `judge_agent_behavior(...)` - Use LLM to evaluate behavior quality
+### ✅ 做：
 
-5. **Leverage LLM Judges**
-   - Use `judge_agent_behavior()` for subjective evaluations
-   - Provide clear evaluation criteria in the judge prompt
-   - Track judge usage costs: `self.add_judge_usage(prompt_tokens, completion_tokens, cost)`
+1. **使用真实存储库**
+   - 克隆代表真实场景的实际 GitHub 存储库
+   - 固定到特定的历史提交（在添加修复/功能之前）
+   - 示例：`clone_pinned_software_agent_repo(workspace)` 助手
 
-6. **Adaptation of Problem Description to Task**
-   - If you find the problem description is not easy to adapt to a behavior test, e.g. it requires complex environment setup like kubernetes, try to come up with a simpler problem description that still captures the essence of the behavior you want to test but is easier to implement in the test framework.
-   - Ensure the instructions naturally lead to the behavior you want to evaluate
+2. **测试现实复杂、细致入微的行为**
+   - 尝试使任务尽可能真实地实现真实的 HUMAN 交互，从文件命名、（有点懒惰）指令风格等
+   - 专注于需要判断的微妙行为问题
+   - “正确”行为并非立即显而易见的测试场景
+   - 示例：何时实施 vs 建议，何时停止测试，是否添加向后兼容性
 
-### ❌ DO NOT:
+3. **清理存储库历史记录**
+   - 检查提交之前解决方案是否存在
+   - 重置/删除未来的提交（请参阅现有测试的示例）
+   - 确保智能体体验与真实用户相同的上下文
 
-1. **Avoid Simple Synthetic Tests**
-   - Don't create artificial scenarios with minimal setup
-   - Don't test behaviors that are too obvious or straightforward
-   - Example: Don't create a single-file test with trivial content
+4. **使用辅助函数**
+   - `find_file_editing_operations(events)` - 查找文件创建/编辑操作
+   - `find_tool_calls(events, tool_name)` - 查找具体工具用法
+   - `get_conversation_summary(events)` - 获取 LLM 法官的摘要
+   - `judge_agent_behavior(...)` - 使用LLM来评估行为质量
 
-2. **Don't Test Basic Functionality**
-   - Behavior tests are NOT for testing if the agent can use tools
-   - Task tests handle basic capability verification
-   - Focus on HOW the agent approaches problems, not IF it can solve them
+5. **杠杆 LLM 法官**
+   - 使用 `judge_agent_behavior()` 进行主观评价
+   - 提供明确的评判标准提示词
+   - 赛道裁判使用费用：`self.add_judge_usage(prompt_tokens, completion_tokens, cost)`
 
-3. **Don't Overcomplicate Static Assertions**
-   - Use assertions for clear-cut checks (e.g., no file edits)
-   - Rely on LLM judges for nuanced behavior evaluations
-   - Avoid trying to encode subjective judgments purely in code or too much static logic
+6. **问题描述适应任务**
+   - 如果您发现问题描述不容易适应行为测试，e.g。 它需要复杂的环境设置，比如 Kubernetes，尝试用一个更简单的描述来捕捉你想要测试的行为的本质，但更容易在测试框架中实现。
+   - 确保说明自然地导致您想要评估的行为
 
-## Tips for Test Difficulty Calibration
+<a id="-do-not"></a>
 
-**Make tests challenging but not impossible and too long:**
+### ❌做不：
 
-1. **Context Complexity**: Use real codebases with multiple files and dependencies, either the software-agent-sdk or other popular open-source repos you find suitable
-2. **Ambiguity**: Prefer instructions that could be interpreted multiple ways
-3. **Temptation**: Set up scenarios where the "easy wrong path" is tempting
-4. **Realism**: Mirror real user interactions and expectations
+1. **避免简单的综合测试**
+   - 不要用最少的设置创建人工场景
+   - 不要测试过于明显或直接的行为
+   - 示例：不要创建包含琐碎内容的单文件测试
 
-**Examples of Good Complexity:**
-- "How to implement X?" (tests if agent implements vs advises)
-- "Update constant Y" (tests if agent over-verifies with excessive test runs)
-- "Rename method A to B" (tests if agent adds unnecessary backward compatibility)
+2. **不要测试基本功能**
+   - 行为测试不用于测试智能体是否可以使用工具
+   - 任务测试处理基本的能力验证
+   - 关注HOW智能体解决问题的方法，而不是如果它可以解决问题
 
-## Example Behavior Test Patterns
+3. **不要使静态断言过于复杂**
+   - 使用断言进行明确检查（e.g.，无文件编辑）
+   - 依靠 LLM 个法官进行细致入微的行为评估
+   - 避免尝试纯粹用代码或太多静态逻辑来编码主观判断
 
-1. **Premature Implementation** - Tests if agent implements when asked for advice only
-2. **Over-verification** - Tests if agent runs excessive tests beyond what's needed
-3. **Unnecessary Compatibility** - Tests if agent adds backward compatibility shims when not needed
-4. **Redundant Artifacts** - Tests if agent creates extra files (docs, READMEs) without being asked
-5. **Communication Quality** - Tests if agent provides explanations for actions
+<a id="tips-for-test-difficulty-calibration"></a>
 
-## File Naming Convention
+## 测试难度校准技巧
 
-Name your test file: `b##_descriptive_name.py`
-- `b` prefix indicates behavior test (auto-detected)
-- `##` is a zero-padded number (e.g., 01, 02, 03)
-- Use snake_case for the descriptive name
+**使测试具有挑战性，但并非不可能且时间太长：**
 
-## Final Checklist
+1. **上下文复杂度**: 使用包含多个文件和依赖项的真实代码库，例如软件-智能体-SDK 或者你找到合适的其他开源仓库
+2. **歧义**：优先选择可以多种方式解释的指令
+3. **诱惑**：设置“容易走错路”具有诱惑力的场景
+4. **现实主义**：反映真实的用户交互和期望
 
-Before submitting your behavior test, verify:
+**良好复杂性的示例：**
+- “如何实现X？” （测试智能体是否实施或建议）
+- “更新常量 Y”（测试智能体是否通过过多的测试运行进行过度验证）
+- “将方法 A 重命名为 B”（测试智能体是否添加了不必要的向后兼容性）
 
-- [ ] Uses a real repository or complex codebase
-- [ ] Tests a nuanced behavior, not basic functionality
-- [ ] Includes clear and not overly complex verification logic (assertions or LLM judge)
-- [ ] Has a descriptive docstring explaining what behavior is tested
-- [ ] Properly tracks judge usage costs if using LLM evaluation
-- [ ] Follows naming convention: `b##_descriptive_name.py`
-- [ ] Test is realistic and based on actual behavioral issues observed
+<a id="example-behavior-test-patterns"></a>
 
-Remember: The goal is to catch subtle behavioral issues that would appear in real-world usage, serving as regression tests for system message improvements.
+## 行为测试模式示例
+
+1. **过早实施** - 仅在征求建议时测试智能体是否实施
+2. **过度验证** - 测试智能体是否运行超出需要的过多测试
+3. **不必要的兼容性** - 测试智能体是否在不需要时添加向后兼容性垫片
+4. **冗余文件** - 检查智能体是否创建了额外的文件（文档、READMEs）而没有被询问
+5. **通信质量** - 测试智能体是否提供操作说明
+
+<a id="file-naming-convention"></a>
+
+## 文件命名约定
+
+将您的测试文件命名为：`b##_descriptive_name.py`
+- `b`前缀表示行为测试（自动检测）
+- `##` 是一个补零数字 (e.g., 01, 02, 03)
+- 使用 snake_case 作为描述性名称
+
+<a id="final-checklist"></a>
+
+## 最终清单
+
+在提交行为测试之前，请验证：
+
+- [ ] 使用真实的存储库或复杂的代码库
+- [ ] 测试细微的行为，而不是基本功能
+- [ ] 包括清晰且不过分复杂的验证逻辑（断言或 LLM 判断）
+- [ ] 有描述性的文档字符串解释测试的行为
+- [ ] 如果使用 LLM 评估，则可以正确跟踪法官使用成本
+- [ ] 遵循命名约定：`b##_descriptive_name.py`
+- [ ] 测试是现实的并且基于观察到的实际行为问题
+
+请记住：目标是捕获实际使用中出现的微妙行为问题，作为系统消息改进的回归测试。

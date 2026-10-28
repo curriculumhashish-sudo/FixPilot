@@ -1,4 +1,4 @@
-"""Tests for EnsembleSecurityAnalyzer fusion logic."""
+"""测试 EnsembleSecurityAnalyzer 融合逻辑。"""
 
 from __future__ import annotations
 
@@ -16,12 +16,13 @@ from openhands.sdk.security.risk import SecurityRisk
 
 
 # ---------------------------------------------------------------------------
-# Test doubles (module-level for DiscriminatedUnionMixin compatibility)
+# 模块级别的测试双 ![alt text](https://example.com/image.jpg) DiscriminatedUnionMixin 兼
+# 容性)
 # ---------------------------------------------------------------------------
 
 
 class FixedRiskTestAnalyzer(SecurityAnalyzerBase):
-    """Returns a fixed risk regardless of input."""
+    """无论输入如何，都会返回固定风险。"""
 
     fixed_risk: SecurityRisk = SecurityRisk.LOW
 
@@ -30,7 +31,7 @@ class FixedRiskTestAnalyzer(SecurityAnalyzerBase):
 
 
 class FailingTestAnalyzer(SecurityAnalyzerBase):
-    """Always raises RuntimeError."""
+    """总是加注 RuntimeError。"""
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
         raise RuntimeError("Analyzer failed")
@@ -52,12 +53,12 @@ def make_action(command: str) -> ActionEvent:
 
 
 # ---------------------------------------------------------------------------
-# Ensemble tests
+# 集成测试
 # ---------------------------------------------------------------------------
 
 
 class TestEnsemble:
-    """Max-severity fusion, fail-closed, UNKNOWN handling."""
+    """最大严重性融合、故障关闭、UNKNOWN 处理。"""
 
     def test_max_severity_low_low(self):
         ensemble = EnsembleSecurityAnalyzer(
@@ -136,7 +137,7 @@ class TestPropagateUnknown:
     """propagate_unknown=True: any child UNKNOWN -> ensemble UNKNOWN."""
 
     def test_default_false_unknown_plus_low(self):
-        """Default: UNKNOWN filtered, concrete LOW wins."""
+        """Default: UNKNOWN 过滤，具体 LOW 获胜。"""
         ensemble = EnsembleSecurityAnalyzer(
             analyzers=[
                 FixedRiskTestAnalyzer(fixed_risk=SecurityRisk.UNKNOWN),
@@ -146,7 +147,7 @@ class TestPropagateUnknown:
         assert ensemble.security_risk(make_action("test")) == SecurityRisk.LOW
 
     def test_propagate_unknown_plus_low(self):
-        """Strict mode: UNKNOWN + LOW -> UNKNOWN."""
+        """严格模式：UNKNOWN + LOW -> UNKNOWN。"""
         ensemble = EnsembleSecurityAnalyzer(
             analyzers=[
                 FixedRiskTestAnalyzer(fixed_risk=SecurityRisk.UNKNOWN),
@@ -157,7 +158,7 @@ class TestPropagateUnknown:
         assert ensemble.security_risk(make_action("test")) == SecurityRisk.UNKNOWN
 
     def test_propagate_unknown_plus_high(self):
-        """Strict mode: UNKNOWN + HIGH -> UNKNOWN."""
+        """严格模式：UNKNOWN + HIGH -> UNKNOWN。"""
         ensemble = EnsembleSecurityAnalyzer(
             analyzers=[
                 FixedRiskTestAnalyzer(fixed_risk=SecurityRisk.UNKNOWN),
@@ -168,7 +169,7 @@ class TestPropagateUnknown:
         assert ensemble.security_risk(make_action("test")) == SecurityRisk.UNKNOWN
 
     def test_all_unknown_both_modes(self):
-        """All UNKNOWN -> UNKNOWN regardless of mode."""
+        """无论模式如何，全部为 UNKNOWN -> UNKNOWN。"""
         for propagate in (False, True):
             ensemble = EnsembleSecurityAnalyzer(
                 analyzers=[
@@ -180,7 +181,7 @@ class TestPropagateUnknown:
             assert ensemble.security_risk(make_action("test")) == SecurityRisk.UNKNOWN
 
     def test_no_unknown_both_modes_agree(self):
-        """No UNKNOWN in results: both modes give same answer."""
+        """结果中没有 UNKNOWN：两种模式给出相同的答案。"""
         for propagate in (False, True):
             ensemble = EnsembleSecurityAnalyzer(
                 analyzers=[

@@ -1,4 +1,4 @@
-"""Tests for ConfirmationPolicy classes and serialization."""
+"""测试 ConfirmationPolicy 类和序列化。"""
 
 import pytest
 from pydantic import BaseModel
@@ -12,21 +12,21 @@ from openhands.sdk.security.risk import SecurityRisk
 
 
 class TestConfirmationPolicyBase:
-    """Tests for the ConfirmationPolicy base class."""
+    """对 ConfirmationPolicy 基类的测试。"""
 
     def test_cannot_instantiate_base_class(self) -> None:
-        """Test that the base class cannot be instantiated directly."""
+        """测试基类不能直接实例化。"""
         with pytest.raises(TypeError):
-            # Of course mypy doesn't want us to do this, so ignore the type check while
-            # we confirm the runtime behavior.
+            # 当然 mypy 不希望我们这样做，因此在我们确认运行时行为时忽略类型检查。
+            #
             ConfirmationPolicyBase()  # type: ignore
 
     @pytest.mark.parametrize("cls", list(ConfirmationPolicyBase.__subclasses__()))
     def test_confirmation_policy_container_serialization(
         self, cls: type[ConfirmationPolicyBase]
     ) -> None:
-        """Test that a container model with ConfirmationPolicy instances as a field can
-        be serialized.
+        """测试以 ConfirmationPolicy 个实例作为字段的容器模型可以
+        是已序列化。
         """
 
         class PolicyContainer(BaseModel):
@@ -42,16 +42,16 @@ class TestConfirmationPolicyBase:
 
 
 class TestAlwaysConfirm:
-    """Tests for the AlwaysConfirm policy."""
+    """测试 AlwaysConfirm 策略。"""
 
     @pytest.mark.parametrize("risk", list(SecurityRisk))
     def test_always_confirm(self, risk: SecurityRisk) -> None:
-        """Test that the policy always confirms, regardless of the inputs."""
+        """测试策略是否始终得到确认，无论输入如何。"""
         policy = AlwaysConfirm()
         assert policy.should_confirm(risk) is True
 
     def test_roundtrip_serialization(self) -> None:
-        """Test that AlwaysConfirm can be serialized and deserialized correctly."""
+        """测试 AlwaysConfirm 是否可以正确为已序列化和已反序列化。"""
         policy = AlwaysConfirm()
         policy_dict = policy.model_dump_json()
         restored_policy = AlwaysConfirm.model_validate_json(policy_dict)
@@ -59,8 +59,8 @@ class TestAlwaysConfirm:
         assert isinstance(restored_policy, AlwaysConfirm)
 
     def test_polymorphic_serialization(self) -> None:
-        """Test polymorphic serialization and deserialization. This requires we
-        deserialize using the base class.
+        """测试多态序列化和反序列化。 这就需要我们
+        反序列化使用基类。
         """
         policy: ConfirmationPolicyBase = AlwaysConfirm()
         policy_dict = policy.model_dump_json()
@@ -70,16 +70,16 @@ class TestAlwaysConfirm:
 
 
 class TestNeverConfirm:
-    """Tests for the NeverConfirm policy."""
+    """测试 NeverConfirm 策略。"""
 
     @pytest.mark.parametrize("risk", list(SecurityRisk))
     def test_never_confirm(self, risk: SecurityRisk) -> None:
-        """Test that the policy never confirms, regardless of the inputs."""
+        """测试该策略永远不会确认，无论输入如何。"""
         policy = NeverConfirm()
         assert policy.should_confirm(risk) is False
 
     def test_roundtrip_serialization(self) -> None:
-        """Test that NeverConfirm can be serialized and deserialized correctly."""
+        """测试 NeverConfirm 是否可以正确为已序列化和已反序列化。"""
         policy = NeverConfirm()
         policy_dict = policy.model_dump_json()
         restored_policy = NeverConfirm.model_validate_json(policy_dict)
@@ -87,8 +87,8 @@ class TestNeverConfirm:
         assert isinstance(restored_policy, NeverConfirm)
 
     def test_polymorphic_serialization(self) -> None:
-        """Test polymorphic serialization and deserialization. This requires we
-        deserialize using the base class.
+        """测试多态序列化和反序列化。 这就需要我们
+        反序列化使用基类。
         """
         policy: ConfirmationPolicyBase = NeverConfirm()
         policy_dict = policy.model_dump_json()

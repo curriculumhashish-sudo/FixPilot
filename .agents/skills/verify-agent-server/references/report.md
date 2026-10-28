@@ -1,50 +1,38 @@
-# Report contract
+<a id="report-contract"></a>
 
-Every verification report, whether for one PR, a mapping session or a
-maintenance pass, has the same shape so a reviewer can scan it in a minute.
+# 报告合同
 
-## Header
+每个验证报告，无论是针对一个 PR、映射会话还是维护通行证，都具有相同的形状，因此审阅者可以在一分钟内扫描它。
 
-- What was verified (PR number, family IDs, or "full pass") and the outcome
-  (`clean`, `changed`, `blocked/partial`, or pass/fail for a PR).
-- Checkout SHA(s) and how each server ran (`launch` from a checkout,
-  `attach` to an image or binary), with the run directories.
-- Server version from `/server_info` and the model(s) used, with approximate
-  spend (`ConversationStateUpdateEvent` stats carry `accumulated_cost`).
-- Date (UTC) and what was deliberately not covered.
+<a id="header"></a>
 
-## Results
+## 标头
 
-Generate the table with `control-agent-server evidence report --out report.md
---print-markdown` (merge several runs with `--runs A B`). Rows are ordered
-fail, blocked, not-run, pass; each row has the sub-feature ID, entry point,
-expected and actual result and the evidence paths.
-Each run retains its own row for a feature, with the run ID and checkout SHA;
-merging baseline and fix runs preserves every attempt and its evidence paths.
-Within one run, a newer result replaces its earlier row.
+- 验证的内容（PR 号码、家庭 ID 或“完全通过”）和结果（`clean`、`changed`、`blocked/partial` 或通过/失败 PR）。
+- 结帐 SHA(s) 以及每个服务器如何运行（`launch` 来自结帐，
+  `attach` 到图像或二进制文件），以及运行目录。
+- 来自 `/server_info` 和使用的 model(s) 的服务器版本，以及大致支出（`ConversationStateUpdateEvent` 统计数据包含 `accumulated_cost`）。
+- 日期 (UTC) 以及故意未涵盖的内容。
 
-Below the table:
+<a id="results"></a>
 
-1. **Product bugs**: a bug counts as confirmed only when it reproduces twice,
-   each time on a fresh run (`map run --only <ID> --fresh --repeat 2`). One
-   block each, with the failing sub-feature IDs, the
-   exact command sequence that reproduces it on a fresh `launch --new`, the
-   observed vs expected result, the evidence paths, and the issue you filed or
-   found (or "not filed: <reason>").
-2. **Harness gaps fixed**: the verbs or flags added and the recipe each
-   unblocked.
-3. **Map drift fixed**: the entries changed and the PR or source line that
-   justifies each change.
-4. **Blocked**: each prerequisite (Docker, OAuth provider, cloud account,
-   binary) with the route attempted.
+## 结果
 
-## Rules
+使用“control-智能体-服务器证据报告--out report.md”生成表
+--print-Markdown` (merge several runs with `--运行 A B`)。 行已排序
+失败、阻塞、未运行、通过； 每行都有子特征 ID、入口、预期结果和实际结果以及证据路径。 每个运行都保留自己的特性行，包含运行 ID 和结帐 SHA； 合并基线和修复运行可以保留每次尝试及其证据路径。 在一次运行中，较新的结果将替换其较早的行。
 
-- `pass` needs evidence a reviewer can open: a saved exchange, a WebSocket
-  capture, a webhook delivery or a transcript. A status line copied into the
-  report is not evidence.
-- Do not report a skipped entry point as verified through a different one: a
-  REST pass does not prove the SDK method or the WebSocket stream.
-- Evidence is not automatically public. Read every file you attach: the CLI
-  redacts the run's keys, `$DEEPSEEK_API_KEY` and encrypted secret values, but
-  a recipe that wrote a secret into a workspace file can still leak it.
+表下方：
+
+1. **产品缺陷**只有当它在两次独立运行中都再现时，一个bug才被确认为已知问题`map run --only <ID> --fresh --repeat 2`). 一个块一个，包含失败的子功能ID，以及重现该功能的精确命令序列 `launch --new`观察结果 vs 预期结果，证据路径，以及你提交或发现的问题（或“未提交”）。 <reason>").
+2. **修复了线束间隙**：添加的动词或标志以及配方均畅通无阻。
+3. **地图漂移已修复**：条目已更改，PR 或源代码行证明每次更改的合理性。
+4. **已阻止**：尝试路由的每个先决条件（Docker、OAuth 提供商、云帐户、二进制文件）。
+
+<a id="rules"></a>
+
+## 规则
+
+- `pass` 需要审阅者可以打开的证据：已保存的交换、WebSocket 捕获、Webhook 交付或记录。 复制到报告中的状态行不是证据。
+- 不要将跳过的入口报告为通过不同的验证进行验证：REST 传递不能证明 SDK 方法或 WebSocket 流。
+- 证据不会自动公开。 读取你附上的每一个文件：CLI 会红帽运行的密钥，`$DEEPSEEK_API_KEY` 和加密的机密值，但一个写入机密到工作区文件的配方仍然可以泄露它。

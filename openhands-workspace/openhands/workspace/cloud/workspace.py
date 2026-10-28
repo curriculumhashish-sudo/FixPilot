@@ -1,4 +1,4 @@
-"""OpenHands Cloud workspace implementation using Cloud API."""
+"""OpenHands 云工作区使用云 API 实现。"""
 
 from __future__ import annotations
 
@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Standard exposed URL names from OpenHands Cloud
+# 来自 OpenHands 云的标准公开 URL 名称
 AGENT_SERVER = "AGENT_SERVER"
 
-# Number of retry attempts for transient API failures
+# 短暂 API 次失败的尝试次数重试
 _MAX_RETRIES = 3
 
-# Default port the agent-server listens on inside a Cloud Runtime
+# 智能体-服务器在 Cloud Runtime 内侦听的默认端口
 DEFAULT_AGENT_SERVER_PORT = 60000
 
 
@@ -44,22 +44,22 @@ def _mcp_api_key_headers(api_key: object) -> dict[str, SecretStr] | None:
 
 
 def _is_retryable_error(error: BaseException) -> bool:
-    """Return True for transient errors that are worth retrying."""
+    """对于值得重试的暂时性错误，返回 True。"""
     if isinstance(error, httpx.HTTPStatusError):
         return error.response.status_code >= 500
     return isinstance(error, (httpx.ConnectError, httpx.TimeoutException))
 
 
 class OpenHandsCloudWorkspace(RemoteWorkspace):
-    """Remote workspace using OpenHands Cloud API.
+    """使用 OpenHands 云 API 进行远程工作区。
 
-    This workspace connects to OpenHands Cloud (app.all-hands.dev) to provision
-    and manage sandboxed environments for agent execution.
+    此工作区连接到 OpenHands 云 (app.all-hands.dev) 以配置和管理用于智能体执行的沙盒
+    环境。
 
-    When ``local_agent_server_mode=True``, the workspace assumes it is already
-    running inside an OpenHands Cloud Runtime sandbox.  Instead of creating or
-    managing a sandbox via the Cloud API it connects directly to the local
-    agent-server at ``http://localhost:<agent_server_port>``.
+    当 ``local_agent_server_mode=True`` 时，工作区假定它已经在 OpenHands Cloud
+    Runtime 沙箱内运行。 它不是通
+    过云 API 创建或管理沙箱，而是直接连接到 ``http://localhost:<agent_server_port>``
+    处的本地智能体服务器。
 
     Example:
         workspace = OpenHandsCloudWorkspace(
@@ -67,14 +67,14 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             cloud_api_key="your-api-key",
         )
 
-        # With custom sandbox spec
+        # 具有自定义沙箱规范
         workspace = OpenHandsCloudWorkspace(
             cloud_api_url="https://app.all-hands.dev",
             cloud_api_key="your-api-key",
             sandbox_spec_id="ghcr.io/openhands/agent-server:main-python",
         )
 
-        # Running inside an OpenHands Cloud Runtime (local agent-server mode)
+        # 在 OpenHands Cloud Runtime 内运行（本地智能体-服务器模式）
         workspace = OpenHandsCloudWorkspace(
             local_agent_server_mode=True,
             cloud_api_url="https://app.all-hands.dev",
@@ -82,7 +82,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         )
     """
 
-    # Parent fields
+    # 父字段
     working_dir: str = Field(
         default="/workspace/project",
         description="Working directory inside the sandbox",
@@ -92,7 +92,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         description=("The agent server URL. Set automatically after sandbox starts."),
     )
 
-    # Local agent-server mode
+    # 本地智能体-服务器模式
     local_agent_server_mode: bool = Field(
         default=False,
         description=(
@@ -109,7 +109,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         ),
     )
 
-    # Cloud API fields
+    # 云 API 字段
     cloud_api_url: str = Field(
         description=(
             "Base URL of OpenHands Cloud API "
@@ -128,7 +128,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         description=("Optional sandbox specification ID (e.g., container image)"),
     )
 
-    # Lifecycle options
+    # 生命周期选项
     init_timeout: float = Field(
         default=300.0,
         description="Sandbox initialization timeout in seconds",
@@ -141,7 +141,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         description=("If True, keep sandbox alive on cleanup instead of deleting"),
     )
 
-    # Sandbox ID - can be provided to resume an existing sandbox
+    # 沙箱 ID - 可以提供以恢复现有沙箱
     sandbox_id: str | None = Field(
         default=None,
         description=(
@@ -151,7 +151,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         ),
     )
 
-    # Private state
+    # 私人国家
     _sandbox_id: str | None = PrivateAttr(default=None)
     _session_api_key: str | None = PrivateAttr(default=None)
     _exposed_urls: list[dict[str, Any]] | None = PrivateAttr(default=None)
@@ -161,17 +161,17 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
     @property
     def default_conversation_tags(self) -> dict[str, str]:
-        """Build default tags from automation env vars for conversation creation.
+        """从自动化环境变量构建默认标签以创建对话。
 
-        Extends ``RemoteWorkspace.default_conversation_tags`` (derived from the
-        dispatcher-injected automation env vars) with the sandbox-scoped
-        ``_automation_run_id`` fallback captured in local agent-server mode.
+        使用沙箱范围扩展 ``RemoteWorkspace.default_conversation_tags``（源自调度程序
+        注入的自动化环境变量）
+        ``_automation_run_id`` 回退方案在本地智能体-服务器模式下捕获。
 
-        Note: Skills/plugins are NOT included here - they are passed when creating
-        the RemoteConversation and merged at that level.
+        Note: 技能/插件包含在此处不 - 它们在创建时传递
+        RemoteConversation 并在该级别合并。
 
-        These tags are automatically merged into conversations created via this
-        workspace, allowing the Cloud platform to track automation context.
+        这些标签会自动合并到通过此工作区创建的对话中，从而允许云平台跟踪自动化上下文
+        。
         """
         tags = dict(super().default_conversation_tags or {})
         if "automationrunid" not in tags and self._automation_run_id:
@@ -180,7 +180,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
     @property
     def client(self) -> httpx.Client:
-        """Override client property to use api_timeout for HTTP requests."""
+        """覆盖客户端属性以将 api_timeout 用于 HTTP 请求。"""
         client = self._client
         if client is None:
             timeout = httpx.Timeout(
@@ -197,14 +197,14 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
     @property
     def _api_headers(self) -> dict[str, str]:
-        """Headers for Cloud API requests.
+        """Cloud API 请求的标头。
 
-        Uses Bearer token authentication as per OpenHands Cloud API.
+        根据 OpenHands 云 API 使用持有者令牌身份验证。
         """
         return {"Authorization": f"Bearer {self.cloud_api_key}"}
 
     def model_post_init(self, context: Any) -> None:
-        """Set up the sandbox and initialize the workspace."""
+        """设置沙箱并初始化工作区。"""
         self.cloud_api_url = self.cloud_api_url.rstrip("/")
 
         if self.local_agent_server_mode:
@@ -218,20 +218,19 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
                 raise
 
     def _init_local_agent_server_mode(self) -> None:
-        """Initialize in local agent-server mode — connect to local agent-server.
+        """在本地智能体服务器模式下初始化 — 连接到本地智能体服务器。
 
-        Reads sandbox identity and automation callback settings from
-        environment variables so that ``get_llm()`` and ``get_secrets()``
-        can call the Cloud API's sandbox-scoped settings endpoints.
+        从环境变量读取沙箱身份和自动化回调设置，以便 ``get_llm()`` 和
+        ``get_secrets()`` 可以调用云 API 的沙箱范围设置端点。
 
-        Expected env vars (injected by the automation dispatcher):
-          ``SANDBOX_ID``                — this sandbox's Cloud API identifier
-          ``SESSION_API_KEY``           — session key for sandbox settings auth
-          ``AUTOMATION_CALLBACK_URL``   — completion callback endpoint (optional)
-          ``AUTOMATION_RUN_ID``         — run ID for callback payload (optional)
+        预期的环境变量（由自动化调度程序注入）：
+          ``SANDBOX_ID`` — 此沙箱的 Cloud API 标识符
+          ``SESSION_API_KEY`` — 沙箱设置身份验证的会话密钥
+          ``AUTOMATION_CALLBACK_URL`` — 完成回调端点（可选）
+          ``AUTOMATION_RUN_ID`` — 回调载荷的运行 ID（可选）
 
-        Falls back to ``OH_SESSION_API_KEYS_0`` (set by the runtime)
-        if ``SESSION_API_KEY`` is not present.
+        如果 ``SESSION_API_KEY`` 不存在，则回退到 ``OH_SESSION_API_KEYS_0``（由运行时
+        设置）。
         """
         port = os.environ.get("AGENT_SERVER_PORT", str(self.agent_server_port))
         self.host = f"http://localhost:{port}"
@@ -239,13 +238,13 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             f"Local agent-server mode: connecting to agent-server at {self.host}"
         )
 
-        # Discover sandbox identity from env vars
+        # 从环境变量中发现沙箱身份
         self._sandbox_id = self.sandbox_id or os.environ.get("SANDBOX_ID")
         self._session_api_key = os.environ.get(
             "SESSION_API_KEY", os.environ.get("OH_SESSION_API_KEYS_0")
         )
 
-        # Automation callback settings from env vars
+        # 环境变量中的自动化回调设置
         self._automation_callback_url = os.environ.get("AUTOMATION_CALLBACK_URL")
         self._automation_run_id = os.environ.get("AUTOMATION_RUN_ID")
 
@@ -261,29 +260,29 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
                 "API calls will fail."
             )
 
-        # Propagate to RemoteWorkspaceMixin.api_key so the shared HTTP
-        # client (used by RemoteConversation) includes X-Session-API-Key.
+        # 传播到 RemoteWorkspaceMixin.api_key，以便共享 HTTP 客户端（由
+        # RemoteConversation 使用）包含 X-Session-API-Key。
+        #
         self.api_key = self._session_api_key
 
         self.reset_client()
-        # Trigger parent mixin init (strips trailing slash, etc.)
+        # 触发父 mixin init （去除尾部斜杠等）
         super().model_post_init(None)
 
     def _start_sandbox(self) -> None:
-        """Start a new sandbox or resume an existing one via Cloud API.
+        """通过云 API 启动一个新的沙箱或恢复现有的沙箱。
 
-        If sandbox_id is provided, attempts to resume the existing sandbox.
-        Otherwise, creates a new sandbox.
+        如果提供 sandbox_id，则尝试恢复现有沙箱。 否则，创建一个新的沙箱。
         """
         if self.sandbox_id:
             self._resume_existing_sandbox()
         else:
             self._create_new_sandbox()
 
-        # Wait for sandbox to become RUNNING
+        # 等待沙箱变成RUNNING
         self._wait_until_sandbox_ready()
 
-        # Extract agent server URL from exposed_urls
+        # 从 exposed_urls 中提取 Agent Server URL
         agent_server_url = self._get_agent_server_url()
         if not agent_server_url:
             raise ValueError(
@@ -292,27 +291,27 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
         logger.info(f"Sandbox ready at {agent_server_url}")
 
-        # Set host and api_key for RemoteWorkspace operations
+        # 设置主机和 api_key 进行 RemoteWorkspace 操作
         self.host = agent_server_url.rstrip("/")
         self.api_key = self._session_api_key
 
-        # Reset HTTP client with new host and API key
+        # 使用新主机和 API 密钥重置 HTTP 客户端
         self.reset_client()
 
-        # Verify client is properly initialized
+        # 验证客户端是否正确初始化
         assert self.client is not None
         assert self.client.base_url == self.host
 
     def _create_new_sandbox(self) -> None:
-        """Create a new sandbox via Cloud API."""
+        """通过云创建一个新的沙箱 API。"""
         logger.info("Starting sandbox via OpenHands Cloud API...")
 
-        # Build request params
+        # 构建请求参数
         params: dict[str, str] = {}
         if self.sandbox_spec_id:
             params["sandbox_spec_id"] = self.sandbox_spec_id
 
-        # POST /api/v1/sandboxes to start a new sandbox
+        # POST /api/v1/sandboxes 启动一个新的沙箱
         resp = self._send_api_request(
             "POST",
             f"{self.cloud_api_url}/api/v1/sandboxes",
@@ -328,9 +327,9 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         )
 
     def _resume_existing_sandbox(self) -> None:
-        """Resume an existing sandbox by ID.
+        """通过 ID 恢复现有沙箱。
 
-        Sets the internal sandbox ID and calls the resume endpoint directly.
+        设置内部沙箱ID，直接调用resume端点。
         """
         assert self.sandbox_id is not None
         self._sandbox_id = self.sandbox_id
@@ -344,7 +343,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         reraise=True,
     )
     def _wait_until_sandbox_ready(self) -> None:
-        """Wait until the sandbox becomes RUNNING and responsive."""
+        """等待沙箱变为 RUNNING 并响应。"""
         logger.debug("Checking sandbox status...")
 
         # GET /api/v1/sandboxes?id=<sandbox_id>
@@ -363,11 +362,11 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         logger.info(f"Sandbox status: {status}")
 
         if status == "RUNNING":
-            # Update session_api_key and exposed_urls from response
+            # 从响应中更新 session_api_key 和 exposed_urls
             self._session_api_key = sandbox.get("session_api_key")
             self._exposed_urls = sandbox.get("exposed_urls") or []
 
-            # Verify agent server is accessible
+            # 验证 Agent Server 可以访问
             agent_server_url = self._get_agent_server_url()
             if agent_server_url:
                 self._check_agent_server_health(agent_server_url)
@@ -380,7 +379,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             raise ValueError(f"Sandbox failed with status: {status}")
 
         elif status == "PAUSED":
-            # Try to resume the sandbox
+            # 尝试恢复沙箱
             logger.info("Sandbox is paused, attempting to resume...")
             self._resume_sandbox()
             raise RuntimeError("Sandbox resuming, waiting for RUNNING status")
@@ -390,7 +389,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             raise RuntimeError(f"Unknown sandbox status: {status}")
 
     def _check_agent_server_health(self, agent_server_url: str) -> None:
-        """Check if the agent server is healthy."""
+        """检查Agent Server是否健康。"""
         health_url = f"{agent_server_url.rstrip('/')}/health"
         logger.debug(f"Checking agent server health at: {health_url}")
         try:
@@ -405,7 +404,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             raise RuntimeError(f"Agent server health check failed: {e}")
 
     def _resume_sandbox(self) -> None:
-        """Resume a paused sandbox."""
+        """恢复暂停的沙箱。"""
         if not self._sandbox_id:
             return
 
@@ -417,7 +416,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         )
 
     def _get_agent_server_url(self) -> str | None:
-        """Extract agent server URL from exposed_urls."""
+        """从 exposed_urls 中提取 Agent Server URL。"""
         if not self._exposed_urls:
             return None
 
@@ -428,13 +427,13 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         return None
 
     def pause(self) -> None:
-        """Pause the sandbox to conserve resources.
+        """暂停沙箱以节省资源。
 
-        Note: OpenHands Cloud does not currently support pausing sandboxes.
-        This method raises NotImplementedError until the API is available.
+        Note: OpenHands Cloud 目前不支持暂停沙箱。
+        此方法会引发 NotImplementedError，直到 API 可用。
 
         Raises:
-            NotImplementedError: Cloud API pause endpoint is not yet available.
+            NotImplementedError: 云 API 暂停端点尚不可用。
         """
         raise NotImplementedError(
             "OpenHandsCloudWorkspace.pause() is not yet supported - "
@@ -442,12 +441,12 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         )
 
     def resume(self) -> None:
-        """Resume a paused sandbox.
+        """恢复暂停的沙箱。
 
-        Calls the /resume endpoint on the Cloud API to resume the sandbox.
+        调用云端API上的/resume端点恢复沙箱。
 
         Raises:
-            RuntimeError: If the sandbox is not running.
+            RuntimeError: 如果沙箱没有运行。
         """
         if not self._sandbox_id:
             raise RuntimeError("Cannot resume: sandbox is not running")
@@ -458,14 +457,14 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         logger.info(f"Sandbox resumed: {self._sandbox_id}")
 
     def _send_api_request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
-        """Send an API request to the Cloud API with error handling."""
+        """向云 API 发送 API 请求并进行错误处理。"""
         logger.debug(f"Sending {method} request to {url}")
 
-        # Ensure headers include API key
+        # 确保标头包含 API 键
         headers = kwargs.pop("headers", {})
         headers.update(self._api_headers)
 
-        # Use a separate client for API requests (not the agent server client)
+        # 对 API 请求使用单独的客户端（不是 Agent Server 客户端）
         timeout = kwargs.pop("timeout", self.api_timeout)
         with httpx.Client(timeout=timeout) as api_client:
             response = api_client.request(method, url, headers=headers, **kwargs)
@@ -483,13 +482,12 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         return response
 
     def cleanup(self) -> None:
-        """Clean up the sandbox by deleting it.
+        """通过删除沙箱来清理它。
 
-        In local agent-server mode the sandbox is managed externally, so only
-        the HTTP client is closed.
+        在本地智能体-服务器模式下，沙箱由外部管理，因此仅关闭 HTTP 客户端。
         """
-        # Guard against __del__ on partially-constructed instances
-        # (e.g. when validation fails before all fields are initialised).
+        # 防止部分构造的实例上的 __del__ (e.g. 当验证在所有字段初始化之前失败时）。
+        #
         try:
             local_mode = self.local_agent_server_mode
         except AttributeError:
@@ -532,17 +530,17 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
                 pass
 
     # -----------------------------------------------------------------
-    # Settings helpers
+    # 设置助手
     # -----------------------------------------------------------------
 
     @property
     def _settings_base_url(self) -> str:
-        """Base URL for sandbox-scoped settings endpoints."""
+        """沙箱范围设置端点的基础 URL。"""
         return f"{self.cloud_api_url}/api/v1/sandboxes/{self._sandbox_id}/settings"
 
     @property
     def _session_headers(self) -> dict[str, str]:
-        """Headers for settings requests (SESSION_API_KEY auth)."""
+        """设置请求的标头（SESSION_API_KEY auth）。"""
         return {"X-Session-API-Key": self._session_api_key or ""}
 
     @tenacity.retry(
@@ -552,27 +550,25 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         reraise=True,
     )
     def get_llm(self, profile_name: str | None = None, **llm_kwargs: Any) -> LLM:
-        """Fetch LLM settings from the user's SaaS account and return an LLM.
+        """从用户的 SaaS 帐户获取 LLM 设置并返回 LLM。
 
-        Calls ``GET /api/v1/users/me?expose_secrets=true`` to retrieve the
-        user's LLM configuration or a named LLM profile and returns a fully
-        usable ``LLM`` instance. Retries up to 3 times on transient errors
-        (network issues, server 5xx).
+        调用 ``GET /api/v1/users/me?expose_secrets=true`` 以检索用户的 LLM 配置或命名
+        的 LLM 配置文件，并返回
+        完全可用的 ``LLM`` 实例。 重试暂时性错误（网络问题、服务器 5xx）最多 3 次。
 
         Args:
-            profile_name: Optional LLM profile name. When provided, loads that
-                named profile instead of the default SaaS LLM fields.
-            **llm_kwargs: Additional keyword arguments passed to the LLM
-                constructor, allowing overrides of any LLM parameter
-                (e.g. ``model``, ``temperature``).
+            profile_name: 可选的 LLM 配置文件名称。 当提供时，加载
+                命名配置文件而不是默认的 SaaS LLM 字段。
+            **llm_kwargs: 传递给 LLM 的附加关键字参数
+                构造函数，允许覆盖任何 LLM 参数 (e.g. ``model``, ``temperature``).
 
         Returns:
-            An LLM instance configured with the user's SaaS credentials.
+            使用用户的 SaaS 凭据配置的 LLM 实例。
 
         Raises:
-            FileNotFoundError: If ``profile_name`` does not exist.
-            httpx.HTTPStatusError: If the API request fails.
-            RuntimeError: If the sandbox is not running.
+            FileNotFoundError: 如果``profile_name``不存在。
+            httpx.HTTPStatusError：如果API请求失败。
+            RuntimeError: 如果沙箱没有运行。
 
         Example:
             >>> with OpenHandsCloudWorkspace(...) as workspace:
@@ -615,7 +611,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             if data.get("llm_base_url"):
                 kwargs["base_url"] = data["llm_base_url"]
 
-        # User-provided kwargs take precedence
+        # 用户提供的 kwargs 优先
         kwargs.update(llm_kwargs)
 
         return LLM(**kwargs)
@@ -626,35 +622,34 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         *,
         agent_profile_id: str | None = None,
     ) -> dict[str, LookupSecret]:
-        """Build ``LookupSecret`` references for the user's SaaS secrets.
+        """为用户的 SaaS 机密构建 ``LookupSecret`` 引用。
 
-        Fetches the list of available secret **names** from the SaaS (no raw
-        values) and returns a dict of ``LookupSecret`` objects whose URLs
-        point to per-secret endpoints.  The agent-server resolves each
-        ``LookupSecret`` lazily, so raw values **never** transit through
-        the SDK client.
+        获取可用的列表机密  **names** 从的 SaaS (无原始值) 并返回一个字典
+        ``LookupSecret`` 具有的对象 URLs 点到 per
+        -机密端点。 的智能体-server 解析每个
+        ``LookupSecret`` 是惰性的，因此原始值 ** 永远不会 ** 通过 SDK 客户端传输。
 
-        The returned dict is compatible with ``conversation.update_secrets()``.
+        返回的字典与``conversation.update_secrets()``兼容。
 
         Args:
-            names: Optional list of secret names to include. If ``None``,
-                all available secrets are returned.
-            agent_profile_id: Optional agent profile whose ``secret_refs``
-                restrict the names returned by the agent server.
+            names: 要包含的机密名称的可选列表。 如果``None``，
+                返回所有可用的机密。
+            agent_profile_id: 可选智能体配置文件，其 ``secret_refs``
+                限制 Agent Server 返回的名称。
 
         Returns:
-            A dictionary mapping secret names to ``LookupSecret`` instances.
+            将机密名称映射到 ``LookupSecret`` 实例的字典。
 
         Raises:
-            httpx.HTTPStatusError: If the API request fails.
-            RuntimeError: If the sandbox is not running.
+            httpx.HTTPStatusError：如果API请求失败。
+            RuntimeError: 如果沙箱没有运行。
 
         Example:
             >>> with OpenHandsCloudWorkspace(...) as workspace:
             ...     secrets = workspace.get_secrets()
             ...     conversation.update_secrets(secrets)
             ...
-            ...     # Or a subset
+            ...     # 或子集
             ...     gh = workspace.get_secrets(names=["GITHUB_TOKEN"])
             ...     conversation.update_secrets(gh)
         """
@@ -691,18 +686,17 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         reraise=True,
     )
     def get_mcp_config(self) -> dict[str, MCPServer]:
-        """Fetch MCP servers from the user's SaaS account.
+        """从用户的 SaaS 帐户获取 MCP 服务器。
 
-        Calls ``GET /api/v1/users/me`` to retrieve the user's MCP configuration
-        and transforms it into the native server map expected by the SDK Agent.
+        调用 ``GET /api/v1/users/me`` 检索用户的 MCP 配置并将其转换为 SDK 智能体所需
+        的本机服务器映射。
 
         Returns:
-            A dictionary mapping server names to server configurations, or an
-            empty dict if no MCP servers are configured.
+            将服务器名称映射到服务器配置的字典，如果没有配置 MCP 服务器，则为空字典。
 
         Raises:
-            httpx.HTTPStatusError: If the API request fails.
-            RuntimeError: If the sandbox is not running.
+            httpx.HTTPStatusError：如果API请求失败。
+            RuntimeError: 如果沙箱没有运行。
 
         Example:
             >>> with OpenHandsCloudWorkspace(...) as workspace:
@@ -762,9 +756,9 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
     def _send_settings_request(
         self, method: str, url: str, **kwargs: Any
     ) -> httpx.Response:
-        """Send a request to sandbox settings endpoints (SESSION_API_KEY auth).
+        """向沙箱设置端点 (SESSION_API_KEY auth) 发送请求。
 
-        Retries up to 3 times on transient errors (network issues, server 5xx).
+        重试暂时性错误最多 3 次（网络问题、服务器 5xx）。
         """
         headers = kwargs.pop("headers", {})
         headers.update(self._session_headers)
@@ -786,24 +780,23 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         return response
 
     def register_conversation(self, conversation_id: str) -> None:
-        """Register a conversation ID with this workspace.
+        """使用此工作区注册对话 ID。
 
-        Called by RemoteConversation after creation to associate the conversation
-        with the workspace. The conversation ID is included in the completion
-        callback sent to the automation service.
+        创建后由 RemoteConversation 调用，将对话与工作区关联。 对话ID包含在发送到自动
+        化服务的完成回调中。
 
         Args:
-            conversation_id: The conversation ID to register
+            conversation_id: 要注册的对话 ID
         """
         self._conversation_id = conversation_id
         logger.debug(f"Registered conversation: {conversation_id}")
 
     @property
     def conversation_id(self) -> str | None:
-        """Get the registered conversation ID.
+        """获取注册的会话ID。
 
         Returns:
-            The conversation ID if one has been registered, None otherwise.
+            如果已注册，则为对话 ID，否则为 None。
         """
         return self._conversation_id
 
@@ -820,13 +813,13 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
     def _send_completion_callback(
         self, exc_type: type | None, exc_val: BaseException | None
     ) -> None:
-        """POST completion status to the automation service (best-effort).
+        """POST 自动化服务的完成状态（尽力而为）。
 
-        Called by ``__exit__`` before ``cleanup()``.  Does nothing when
-        ``AUTOMATION_CALLBACK_URL`` env var was not set.
+        由 ``__exit__`` 在 ``cleanup()`` 之前调用。 当
+        ``AUTOMATION_CALLBACK_URL`` 环境变量未设置。
 
-        Includes ``conversation_id`` in the payload if one was registered via
-        ``register_conversation()``, and ``cost`` if one was registered via
+        如果通过以下方式注册，则在载荷中包含 ``conversation_id``
+        ``register_conversation()`` 和 ``cost``（如果是通过以下方式注册的）
         ``register_cost()``.
         """
         try:
@@ -844,11 +837,11 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         if exc_val is not None:
             payload["error"] = str(exc_val)
 
-        # Include conversation_id if one was registered
+        # 如果已注册，请包含 conversation_id
         if self._conversation_id is not None:
             payload["conversation_id"] = self._conversation_id
 
-        # Include accumulated LLM cost if one was registered
+        # 如果已注册，则包括累计 LLM 费用
         if self._accumulated_cost is not None:
             payload["cost"] = self._accumulated_cost
 
@@ -860,30 +853,29 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         except Exception as e:
             logger.warning(f"Completion callback failed: {e}")
 
-    # --- Repository Cloning Methods ---
+    # --- 存储库克隆方法 ---
 
     def _get_secret_value(self, name: str) -> str | None:
-        """Fetch a secret value directly from the sandbox settings API.
+        """直接从沙箱设置 API 获取机密值。
 
-        Unlike get_secrets() which returns LookupSecret references, this method
-        fetches the actual secret value for use in operations like git cloning.
-        Retries up to 3 times on transient failures.
+        与返回 LookupSecret 引用的 get_secrets() 不同，此方法获取实际的机密值以用于
+        git 克隆等操作。 重试瞬时故障最多 3 次。
 
         Args:
-            name: Name of the secret to fetch (e.g., "github_token", "gitlab_token")
+            name: 要获取的机密的名称（e.g.、“github_token”、“gitlab_token”）
 
         Returns:
-            The secret value as a string, or None if not found or an error occurred.
+            作为字符串的机密值，如果未找到或发生错误，则为 None。
         """
         if not self._sandbox_id or not self._session_api_key:
             return None
 
-        # Validate secret name to prevent path traversal
+        # 验证机密名称以防止路径遍历
         if not name or "/" in name or ".." in name:
             logger.warning(f"Invalid secret name: {name}")
             return None
 
-        # Use retry logic for transient failures
+        # 使用重试逻辑处理暂时性故障
         @tenacity.retry(
             stop=tenacity.stop_after_attempt(_MAX_RETRIES),
             wait=tenacity.wait_exponential(multiplier=1, min=1, max=5),
@@ -908,26 +900,26 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             logger.warning(f"Error fetching secret '{name}': {e}")
             return None
 
-    # --- Repository Cloning and Skill Loading Methods ---
-    # These methods delegate to RemoteWorkspace but are explicitly defined here
-    # to maintain API compatibility (griffe detects method removal from subclass
-    # as a breaking change even when methods are inherited).
+    # --- 存储库克隆和技能加载方法 ---
+    # 这些方法委托给 RemoteWorkspace，但在这里明确定义以保持 API 兼容性（griffe 在检测子
+    # 类方法移除时，即使方法被继承时，也会将其视为不兼容变更）。
+    #
 
     def clone_repos(
         self,
         repos: list[RepoSource | dict[str, Any] | str],
         target_dir: str | Path | None = None,
     ) -> CloneResult:
-        """Clone repositories to the workspace directory.
+        """将存储库克隆到工作区目录。
 
-        See RemoteWorkspace.clone_repos for full documentation.
+        请参阅 RemoteWorkspace.clone_repos 获取完整文档。
         """
         return super().clone_repos(repos, target_dir)
 
     def get_repos_context(self, repo_mappings: dict[str, RepoMapping]) -> str:
-        """Generate context string describing cloned repositories.
+        """生成描述克隆存储库的上下文字符串。
 
-        See RemoteWorkspace.get_repos_context for full documentation.
+        请参阅 RemoteWorkspace.get_repos_context 获取完整文档。
         """
         return super().get_repos_context(repo_mappings)
 
@@ -941,9 +933,9 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         timeout: float = 60.0,
         base_context: AgentContext | None = None,
     ) -> tuple[list[Skill], AgentContext]:
-        """Load skills from the agent server.
+        """从Agent Server加载技能。
 
-        See RemoteWorkspace.load_skills_from_agent_server for full documentation.
+        请参阅 RemoteWorkspace.load_skills_from_agent_server 获取完整文档。
         """
         return super().load_skills_from_agent_server(
             project_dirs=project_dirs,
@@ -964,10 +956,9 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         load_org: bool = False,
         timeout: float = 60.0,
     ) -> list[dict[str, Any]]:
-        """Call the agent-server /api/skills endpoint.
+        """调用智能体-服务器 /api/skills 端点。
 
-        Returns list of skill dicts, or empty list on error.
-        Retries up to 3 times on transient failures.
+        返回技能指令列表，或出错时返回空列表。 重试瞬时故障最多 3 次。
         """
         payload = {
             "load_public": load_public,
@@ -982,7 +973,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         if self._session_api_key:
             headers["X-Session-API-Key"] = self._session_api_key
 
-        # Use retry logic for transient failures
+        # 使用重试逻辑处理暂时性故障
         @tenacity.retry(
             stop=tenacity.stop_after_attempt(_MAX_RETRIES),
             wait=tenacity.wait_exponential(multiplier=1, min=1, max=5),

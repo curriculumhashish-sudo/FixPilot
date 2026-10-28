@@ -1,4 +1,4 @@
-"""Terminal tool utilities."""
+"""终端工具实用程序。"""
 
 from openhands.tools.terminal.utils.command import (
     escape_bash_special_chars,

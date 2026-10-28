@@ -19,8 +19,8 @@ describe('typed conversation event transport', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(0);
     Socket.instances = [];
-    // Browsers and Node 22+ both expose the constructor as globalThis.WebSocket
-    // (there is no `window` in Node).
+    // 浏览器和 Node 22+ 都将构造函数公开为 globalThis.WebSocket（Node 中没有 `window`）。
+    //
     vi.stubGlobal('WebSocket', Socket);
     vi.resetModules();
   });

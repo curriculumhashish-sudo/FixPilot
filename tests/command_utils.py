@@ -1,4 +1,4 @@
-"""Portable command builders for tests that execute through a shell."""
+"""用于通过 shell 执行的测试的可移植命令生成器。"""
 
 from __future__ import annotations
 

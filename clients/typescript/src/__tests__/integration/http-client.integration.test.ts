@@ -1,7 +1,7 @@
 /**
- * Integration tests for HttpClient
+ * 集成测试为 HttpClient
  *
- * Tests HTTP client functionality against a real agent-server.
+ * 针对真实的智能体服务器测试 HTTP 客户端功能。
  */
 
 import { HttpClient, HttpError } from '../../index';
@@ -80,7 +80,7 @@ describe('HttpClient Integration Tests', () => {
 
         expect(response.status).toBe(200);
         expect(response.data).toBeDefined();
-        // Server info should have a version
+        // 服务器信息应该有版本
         expect(response.data.version).toBeDefined();
       },
       config?.testTimeout || 30000
@@ -93,7 +93,7 @@ describe('HttpClient Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Use the search endpoint which supports query params
+        // 使用支持查询参数的搜索端点
         const response = await client.get('/api/conversations/search', {
           params: { limit: 10 },
         });
@@ -110,7 +110,7 @@ describe('HttpClient Integration Tests', () => {
         if (SKIP_TESTS) return;
 
         try {
-          // Use a valid UUID format but non-existent ID
+          // 使用有效的 UUID 格式但 ID 不存在
           await client.get('/api/conversations/00000000-0000-0000-0000-000000000000');
           fail('Expected HttpError to be thrown');
         } catch (error) {
@@ -129,7 +129,7 @@ describe('HttpClient Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation to test POST
+        // 创建对话来测试 POST
         const response = await client.post<CreateConversationResponse>('/api/conversations', {
           agent: {
             kind: 'Agent',
@@ -147,7 +147,7 @@ describe('HttpClient Integration Tests', () => {
           },
         });
 
-        // Accept both 200 and 201 (Created) as valid responses for resource creation
+        // 接受 200 和 201（已创建）作为资源创建的有效响应
         expect([200, 201]).toContain(response.status);
         expect(response.data).toBeDefined();
         expect(response.data.id).toBeDefined();
@@ -163,13 +163,13 @@ describe('HttpClient Integration Tests', () => {
         if (SKIP_TESTS) return;
 
         try {
-          // Send request missing required fields
+          // 发送请求缺少必填字段
           await client.post('/api/conversations', {});
           fail('Expected HttpError to be thrown');
         } catch (error) {
           expect(error).toBeInstanceOf(HttpError);
           const httpError = error as HttpError;
-          // Should get 422 (validation error) or 400 (bad request)
+          // 应该得到 422（验证错误）或 400（错误请求）
           expect([400, 422]).toContain(httpError.status);
         }
       },
@@ -183,14 +183,14 @@ describe('HttpClient Integration Tests', () => {
 
         const shortTimeoutClient = new HttpClient({
           baseUrl: config.agentServerUrl,
-          timeout: 1, // 1ms timeout - should fail
+          timeout: 1, // 1ms 超时 - 应该失败
         });
 
         try {
           await shortTimeoutClient.get('/health');
-          // If it succeeds, the server was very fast
+          // 如果成功的话服务器速度非常快
         } catch (error) {
-          // Timeout error expected
+          // 超时预期错误
           expect(error).toBeDefined();
         } finally {
           shortTimeoutClient.close();
@@ -210,7 +210,7 @@ describe('HttpClient Integration Tests', () => {
 
         expect(response.headers).toBeDefined();
         expect(typeof response.headers).toBe('object');
-        // Should have content-type header
+        // 应该有内容类型标题
         expect(response.headers['content-type']).toBeDefined();
       },
       config?.testTimeout || 30000
@@ -223,7 +223,7 @@ describe('HttpClient Integration Tests', () => {
     beforeAll(async () => {
       if (SKIP_TESTS) return;
 
-      // Create a conversation to test with
+      // 创建一个对话进行测试
       const response = await client.post<CreateConversationResponse>('/api/conversations', {
         agent: {
           kind: 'Agent',
@@ -255,7 +255,7 @@ describe('HttpClient Integration Tests', () => {
 
         expect(response.status).toBe(200);
         expect(response.data).toBeDefined();
-        // Handle both direct response and full_state wrapper
+        // 处理直接响应和 full_state 包装器
         const conversationData = response.data.full_state || response.data;
         expect(conversationData.id || response.data.id).toBe(testConversationId);
       },

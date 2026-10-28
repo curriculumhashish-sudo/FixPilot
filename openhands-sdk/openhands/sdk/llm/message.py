@@ -26,10 +26,9 @@ logger = get_logger(__name__)
 
 
 class MessageToolCall(BaseModel):
-    """Transport-agnostic tool call representation.
+    """传输层-不可知的工具调用表示。
 
-    One canonical id is used for linking across actions/observations and
-    for Responses function_call_output call_id.
+    一个规范 ID 用于跨操作/观察和响应 function_call_output call_id 进行链接。
     """
 
     id: str = Field(..., description="Canonical tool call id")
@@ -47,7 +46,7 @@ class MessageToolCall(BaseModel):
     def from_chat_tool_call(
         cls, tool_call: ChatCompletionMessageToolCall
     ) -> "MessageToolCall":
-        """Create a MessageToolCall from a Chat Completions tool call."""
+        """从聊天完成工具调用创建 MessageToolCall。"""
         if not tool_call.type == "function":
             raise ValueError(
                 f"Unsupported tool call type for {tool_call=}, expected 'function' "
@@ -69,9 +68,9 @@ class MessageToolCall(BaseModel):
     def from_responses_function_call(
         cls, item: ResponseFunctionToolCall | OutputFunctionToolCall
     ) -> "MessageToolCall":
-        """Create a MessageToolCall from a typed OpenAI Responses function_call item.
+        """从键入的 OpenAI 响应 function_call 项目创建 MessageToolCall。
 
-        Note: OpenAI Responses function_call.arguments is already a JSON string.
+        Note: OpenAI 响应 function_call.arguments 已经是 JSON 字符串。
         """
         call_id = item.call_id or item.id or ""
         name = item.name or ""
@@ -91,7 +90,7 @@ class MessageToolCall(BaseModel):
         )
 
     def to_chat_dict(self) -> dict[str, Any]:
-        """Serialize to OpenAI Chat Completions tool_calls format."""
+        """序列化到 OpenAI 聊天完成 tool_calls 格式。"""
         return {
             "id": self.id,
             "type": "function",
@@ -102,13 +101,14 @@ class MessageToolCall(BaseModel):
         }
 
     def to_responses_dict(self) -> dict[str, Any]:
-        """Serialize to OpenAI Responses 'function_call' input item format."""
-        # Echo the original function_call.id verbatim when we have it, so
-        # replays stay byte-identical and OpenAI's prefix cache keeps matching.
+        """序列化至 OpenAI 响应“function_call”输入项格式。"""
+        # 当我们拥有原始的 function_call.id 时，逐字回显它，因此重播保持字节相同，并且
+        # OpenAI 的前缀缓存保持匹配。
+        #
         item_id = self.responses_item_id or (
             self.id if str(self.id).startswith("fc") else f"fc_{self.id}"
         )
-        # Responses requires arguments to be a JSON string
+        # 响应要求参数为 JSON 字符串
         args_str = (
             self.arguments
             if isinstance(self.arguments, str)
@@ -124,11 +124,10 @@ class MessageToolCall(BaseModel):
 
 
 class ThinkingBlock(BaseModel):
-    """Anthropic thinking block for extended thinking feature.
+    """Anthropic 思维块用于扩展思维功能。
 
-    This represents the raw thinking blocks returned by Anthropic models
-    when extended thinking is enabled. These blocks must be preserved
-    and passed back to the API for tool use scenarios.
+    这表示启用扩展思维时 Anthropic 模型返回的原始思维块。 这些块必须保留并传回API以供
+    工具使用场景使用。
     """
 
     type: Literal["thinking"] = "thinking"
@@ -139,10 +138,9 @@ class ThinkingBlock(BaseModel):
 
 
 class RedactedThinkingBlock(BaseModel):
-    """Redacted thinking block for previous responses without extended thinking.
+    """已脱敏先前回复的思维障碍，没有扩展思考。
 
-    This is used as a placeholder for assistant messages that were generated
-    before extended thinking was enabled.
+    它用作在启用扩展思维之前生成的辅助消息的占位符。
     """
 
     type: Literal["redacted_thinking"] = "redacted_thinking"
@@ -150,9 +148,9 @@ class RedactedThinkingBlock(BaseModel):
 
 
 class ReasoningItemModel(BaseModel):
-    """OpenAI Responses reasoning item (non-stream, subset we consume).
+    """OpenAI 响应推理项（非流，我们使用的子集）。
 
-    Do not log or render encrypted_content.
+    不记录或渲染 encrypted_content。
     """
 
     id: str | None = Field(default=None)
@@ -167,35 +165,35 @@ class BaseContent(BaseModel):
 
     @abstractmethod
     def to_llm_dict(self) -> list[dict[str, str | dict[str, str]]]:
-        """Convert to LLM API format. Always returns a list of dictionaries.
+        """转换为LLMAPI格式。 始终返回字典列表。
 
-        Subclasses should implement this method to return a list of dictionaries,
-        even if they only have a single item.
+        子类应该实现此方法以返回字典列表，即使它们只有一个项目。
         """
 
 
 class TextContent(BaseContent):
     type: Literal["text"] = "text"
     text: str
-    # We use populate_by_name since mcp.types.TextContent
-    # alias meta -> _meta, but .model_dumps() will output "meta"
+    # 我们使用 populate_by_name 因为 mcp.types.TextContent 别名元 -> _meta，但是 .
+    # model_dumps() 将输出“meta”
+    #
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid", populate_by_name=True
     )
 
-    # Deprecated fields that are silently removed for backward compatibility when
-    # loading old events. These are kept permanently to ensure old conversations
-    # can always be loaded.
+    # 加载旧事件时，向后兼容性的已弃用字段将被静默删除。 这些将被永久保留，以确保旧的对
+    # 话始终可以加载。
+    #
     _DEPRECATED_FIELDS: ClassVar[tuple[str, ...]] = ("enable_truncation",)
 
     @model_validator(mode="before")
     @classmethod
     def _handle_deprecated_fields(cls, data: Any) -> Any:
-        """Remove deprecated fields for backward compatibility with old events."""
+        """删除包含旧事件的向后兼容性的已弃用字段。"""
         return handle_deprecated_model_fields(data, cls._DEPRECATED_FIELDS)
 
     def to_llm_dict(self) -> list[dict[str, str | dict[str, str]]]:
-        """Convert to LLM API format."""
+        """转换为LLMAPI格式。"""
         data: dict[str, str | dict[str, str]] = {
             "type": self.type,
             "text": self.text,
@@ -210,7 +208,7 @@ class ImageContent(BaseContent):
     image_urls: Annotated[list[str], PreserveDataUrls()]
 
     def to_llm_dict(self) -> list[dict[str, str | dict[str, str]]]:
-        """Convert to LLM API format."""
+        """转换为LLMAPI格式。"""
         images: list[dict[str, str | dict[str, str]]] = []
         for url in self.image_urls:
             images.append({"type": "image_url", "image_url": {"url": url}})
@@ -220,34 +218,34 @@ class ImageContent(BaseContent):
 
 
 class Message(BaseModel):
-    # NOTE: this is not the same as EventSource
-    # These are the roles in the LLM's APIs
+    # 注意：这与EventSource不同
+    # 这些是 LLM 的 APIs 中的角色
     role: Literal["user", "system", "assistant", "tool"]
     content: Sequence[TextContent | ImageContent] = Field(default_factory=list)
-    # - tool calls (from LLM)
+    # - 工具调用（来自LLM）
     tool_calls: list[MessageToolCall] | None = None
-    # - tool execution result (to LLM)
+    # - 工具执行结果（至LLM）
     tool_call_id: str | None = None
-    name: str | None = None  # name of the tool
-    # reasoning content (from reasoning models like o1, Claude thinking, DeepSeek R1)
+    name: str | None = None  # 工具名称
+    # 推理内容（来自o1、克劳德思维、DeepSeek R1等推理模型）
     reasoning_content: str | None = Field(
         default=None,
         description="Intermediate reasoning/thinking content from reasoning models",
     )
-    # Anthropic-specific thinking blocks (not normalized by LiteLLM)
+    # Anthropic特定思维块（未通过LiteLLM标准化）
     thinking_blocks: Sequence[ThinkingBlock | RedactedThinkingBlock] = Field(
         default_factory=list,
         description="Raw Anthropic thinking blocks for extended thinking feature",
     )
-    # OpenAI Responses reasoning item (when provided via Responses API output)
+    # OpenAI 响应推理项（通过响应 API 输出提供时）
     responses_reasoning_item: ReasoningItemModel | None = Field(
         default=None,
         description="OpenAI Responses reasoning item from model output",
     )
 
-    # Deprecated fields that were moved to to_chat_dict() parameters.
-    # These are silently removed for backward compatibility when loading old events.
-    # Kept permanently to ensure old conversations can always be loaded.
+    # 已弃用字段已移至 to_chat_dict() 参数。 当加载旧事件时，这些会被默默地删除向后兼容
+    # 性。 永久保留以确保旧对话始终可以加载。
+    #
     _DEPRECATED_FIELDS: ClassVar[tuple[str, ...]] = (
         "cache_enabled",
         "vision_enabled",
@@ -261,7 +259,7 @@ class Message(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _handle_deprecated_fields(cls, data: Any) -> Any:
-        """Remove deprecated fields for backward compatibility with old events."""
+        """删除包含旧事件的向后兼容性的已弃用字段。"""
         return handle_deprecated_model_fields(data, cls._DEPRECATED_FIELDS)
 
     @property
@@ -271,10 +269,10 @@ class Message(BaseModel):
     @field_validator("content", mode="before")
     @classmethod
     def _coerce_content(cls, v: Any) -> Sequence[TextContent | ImageContent] | Any:
-        # Accept None → []
+        # 接受 None → []
         if v is None:
             return []
-        # Accept a single string → [TextContent(...)]
+        # 接受单个字符串 → [TextContent(...)]
         if isinstance(v, str):
             return [TextContent(text=v)]
         return v
@@ -288,22 +286,22 @@ class Message(BaseModel):
         force_string_serializer: bool,
         send_reasoning_content: bool,
     ) -> dict[str, Any]:
-        """Serialize message for OpenAI Chat Completions.
+        """序列化用于 OpenAI 会话完成的消息。
 
         Args:
-            cache_enabled: Whether prompt caching is active.
-            vision_enabled: Whether vision/image processing is enabled.
-            function_calling_enabled: Whether native function calling is enabled.
-            force_string_serializer: Force string serializer instead of list format.
-            send_reasoning_content: Whether to include reasoning_content in output.
+            cache_enabled: 提示词缓存是否处于活动状态。
+            vision_enabled: 是否启用视觉/图像处理。
+            function_calling_enabled: 是否启用本机函数调用。
+            force_string_serializer: 强制使用字符串序列化器而不是列表格式。
+            send_reasoning_content: 输出中是否包含 reasoning_content。
 
-        Chooses the appropriate content serializer and then injects threading keys:
-        - Assistant tool call turn: role == "assistant" and self.tool_calls
-        - Tool result turn: role == "tool" and self.tool_call_id (with name)
+        选择适当的内容序列化器，然后注入线程键：
+        - 助理工具调用转：角色==“助理”和self.tool_calls
+        - 工具结果转：角色==“工具”和self.tool_call_id（带名称）
         """
-        # The string serializer emits text only, so it would silently discard
-        # images. When the model can accept them, keep the list format for
-        # messages carrying image content even if string serialization is forced.
+        # 字符串序列化器仅发出文本，因此它会默默地丢弃图像。 当模型可以接受它们时，即使
+        # 强制使用字符串序列化，也保留携带图像内容的消息的列表格式。
+        #
         preserve_images = vision_enabled and self.contains_image
 
         if not force_string_serializer and (
@@ -313,18 +311,18 @@ class Message(BaseModel):
         elif preserve_images:
             message_dict = self._list_serializer(vision_enabled=vision_enabled)
         else:
-            # some providers, like HF and Groq/llama, don't support a list here, but a
-            # single string
+            # 一些提供商，例如 HF 和 Groq/llama，不支持此处的列表，但支持单个字符串
+            #
             message_dict = self._string_serializer()
 
-        # Assistant function_call(s)
+        # 助理 function_call(s)
         if self.role == "assistant" and self.tool_calls:
             message_dict["tool_calls"] = [tc.to_chat_dict() for tc in self.tool_calls]
             self._remove_content_if_empty(message_dict)
         else:
             self._normalize_empty_assistant_content(message_dict)
 
-        # Tool result (observation) threading
+        # 工具结果 (观测结果) 螺纹加工
         if self.role == "tool" and self.tool_call_id is not None:
             assert self.name is not None, (
                 "name is required when tool_call_id is not None"
@@ -332,14 +330,14 @@ class Message(BaseModel):
             message_dict["tool_call_id"] = self.tool_call_id
             message_dict["name"] = self.name
 
-        # Required for model like kimi-k2-thinking
+        # 对于 kimi-k2-thinking 等模型是必需的
         if send_reasoning_content and self.reasoning_content:
             message_dict["reasoning_content"] = self.reasoning_content
 
         return message_dict
 
     def _string_serializer(self) -> dict[str, Any]:
-        # convert content to a single string
+        # 将内容转换为单个字符串
         content = "\n".join(
             item.text for item in self.content if isinstance(item, TextContent)
         )
@@ -347,26 +345,24 @@ class Message(BaseModel):
             content = self._maybe_truncate_tool_text(content)
         message_dict: dict[str, Any] = {"content": content, "role": self.role}
 
-        # tool call keys are added in to_chat_dict to centralize behavior
+        # to_chat_dict 中添加了工具调用个键以集中行为
         return message_dict
 
     def _list_serializer(self, *, vision_enabled: bool) -> dict[str, Any]:
         content: list[dict[str, Any]] = []
         role_tool_with_prompt_caching = False
 
-        # Add thinking blocks first (for Anthropic extended thinking)
-        # Only add thinking blocks for assistant messages
+        # 先添加思维块（用于Anthropic扩展思维） 只为辅助消息添加思维块
+        #
         thinking_blocks_dicts = []
         if self.role == "assistant":
-            thinking_blocks = list(
-                self.thinking_blocks
-            )  # Copy to avoid modifying original
+            thinking_blocks = list(self.thinking_blocks)  # 复制以避免修改原始内容
             for thinking_block in thinking_blocks:
                 thinking_dict = thinking_block.model_dump()
                 thinking_blocks_dicts.append(thinking_dict)
 
         for item in self.content:
-            # All content types now return list[dict[str, Any]]
+            # 所有内容类型现在都返回 list[dict[str、Any]]
             item_dicts = item.to_llm_dict()
 
             if self.role == "tool" and item_dicts:
@@ -375,19 +371,20 @@ class Message(BaseModel):
                     if d.get("type") == "text" and isinstance(text_val, str):
                         d["text"] = self._maybe_truncate_tool_text(text_val)
 
-            # We have to remove cache_prompt for tool content and move it up to the
-            # message level
-            # See discussion here for details: https://github.com/BerriAI/litellm/issues/6422#issuecomment-2438765472
+            # 我们必须删除工具内容的 cache_prompt 并将其移至消息级别，有关详细信息，请参
+            # 阅此处的讨论：
+            # https://github.com/BerriAI/litellm/issues/6422#issuecomment-2438765472
+            #
             if self.role == "tool" and item.cache_prompt:
                 role_tool_with_prompt_caching = True
                 for d in item_dicts:
                     d.pop("cache_control", None)
 
-            # Handle vision-enabled filtering for ImageContent
+            # 处理 ImageContent 的视觉过滤
             if isinstance(item, ImageContent) and vision_enabled:
                 content.extend(item_dicts)
             elif not isinstance(item, ImageContent):
-                # Add non-image content (TextContent, etc.)
+                # 添加非图像内容（TextContent等）
                 content.extend(item_dicts)
 
         message_dict: dict[str, Any] = {"content": content, "role": self.role}
@@ -397,16 +394,15 @@ class Message(BaseModel):
         if thinking_blocks_dicts:
             message_dict["thinking_blocks"] = thinking_blocks_dicts
 
-        # tool call keys are added in to_chat_dict to centralize behavior
+        # to_chat_dict 中添加了工具调用个键以集中行为
         return message_dict
 
     def _remove_content_if_empty(self, message_dict: dict[str, Any]) -> None:
-        """Remove empty text content entries from assistant tool-call messages.
+        """从辅助工具调用消息中删除空文本内容条目。
 
-        Mutates the provided message_dict in-place:
-        - If content is a string of only whitespace, drop the 'content' key
-        - If content is a list, remove any text items with empty text; if the list
-          becomes empty, drop the 'content' key
+        就地改变提供的 message_dict：
+        - 如果内容是仅包含空格的字符串，则删除“内容”键
+        - 如果内容是列表，则删除任何带有空文本的文本项； 如果列表变空，则删除“内容”键
         """
         if "content" not in message_dict:
             return
@@ -444,10 +440,10 @@ class Message(BaseModel):
                 message_dict.pop("content", None)
             return
 
-        # Any other content shape is left as-is
+        # 任何其他内容形状均保持原样
 
     def _normalize_empty_assistant_content(self, message_dict: dict[str, Any]) -> None:
-        """Normalize empty plain assistant content for Chat Completions."""
+        """标准化聊天完成的空普通助理内容。"""
         if self.role != "assistant":
             return
 
@@ -455,9 +451,9 @@ class Message(BaseModel):
             message_dict["content"] = ""
 
     def to_responses_value(self, *, vision_enabled: bool) -> str | list[dict[str, Any]]:
-        """Return serialized form.
+        """返回已序列化表格。
 
-        Either an instructions string (for system) or input items (for other roles)."""
+        指令字符串（对于系统）或输入项（对于其他角色）。"""
         if self.role == "system":
             parts: list[str] = []
             for c in self.content:
@@ -467,12 +463,12 @@ class Message(BaseModel):
         return self.to_responses_dict(vision_enabled=vision_enabled)
 
     def to_responses_dict(self, *, vision_enabled: bool) -> list[dict[str, Any]]:
-        """Serialize message for OpenAI Responses (input parameter).
+        """序列化 OpenAI 响应消息（输入参数）。
 
-        Delegates to ``llm.utils.responses_serialization``; see that module
-        for the per-role mapping.
+        Delegates to ``llm.utils.responses_serialization``; 请参阅该模块以了解每个角
+        色的映射。
         """
-        # Lazy import to break circular dependency on message.py.
+        # 延迟导入以打破对 message.py 的循环依赖。
         from openhands.sdk.llm.utils.responses_serialization import (
             message_to_responses_dict,
         )
@@ -491,11 +487,11 @@ class Message(BaseModel):
 
     @classmethod
     def from_llm_chat_message(cls, message: LiteLLMMessage) -> "Message":
-        """Convert a LiteLLMMessage (Chat Completions) to our Message class.
+        """将 LiteLLMMessage（聊天完成）转换为我们的 Message 类。
 
-        Provider-agnostic mapping for reasoning:
-        - Prefer `message.reasoning_content` if present (LiteLLM normalized field)
-        - Extract `thinking_blocks` from content array (Anthropic-specific)
+        用于推理的与提供者无关的映射：
+        - 首选 `message.reasoning_content`（如果存在）（LiteLLM 标准化字段）
+        - 从内容数组中提取 `thinking_blocks`（特定于 Anthropic）
         """
         assert message.role != "function", "Function role is not supported"
 
@@ -510,7 +506,7 @@ class Message(BaseModel):
         tool_calls = None
 
         if message.tool_calls:
-            # Validate tool calls - filter out non-function types
+            # Validate 工具调用 - 过滤掉非函数类型
             if any(tc.type != "function" for tc in message.tool_calls):
                 logger.warning(
                     "LLM returned tool calls but some are not of type 'function' - "
@@ -527,7 +523,7 @@ class Message(BaseModel):
                     for tc in function_tool_calls
                 ]
             else:
-                # If no function tool calls remain after filtering, raise an error
+                # 如果过滤后没有留下任何函数工具调用，则引发错误
                 raise ValueError(
                     "LLM returned tool calls but none are of type 'function'"
                 )
@@ -547,11 +543,11 @@ class Message(BaseModel):
         cls,
         output: Iterable[object] | None,
     ) -> "Message":
-        """Convert OpenAI Responses API output items into a single assistant Message.
+        """将 OpenAI 响应 API 输出项转换为单个辅助消息。
 
-        Policy (non-stream):
-        - Collect assistant text by concatenating output_text parts from message items
-        - Normalize function_call items to MessageToolCall list
+        政策（非流）：
+        - 通过连接消息项目中的 output_text 个部分来收集助理文本
+        - 将 function_call 项标准化为 MessageToolCall 列表
         """
         assistant_text_parts: list[str] = []
         tool_calls: list[MessageToolCall] = []
@@ -597,9 +593,9 @@ class Message(BaseModel):
 
 
 def content_to_str(contents: Sequence[TextContent | ImageContent]) -> list[str]:
-    """Convert a list of TextContent and ImageContent to a list of strings.
+    """将 TextContent 和 ImageContent 列表转换为字符串列表。
 
-    This is primarily used for display purposes.
+    这主要用于显示目的。
     """
     text_parts = []
     for content_item in contents:

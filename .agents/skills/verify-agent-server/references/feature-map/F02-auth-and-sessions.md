@@ -1,117 +1,78 @@
-# Authentication and workspace sessions
+<a id="authentication-and-workspace-sessions"></a>
 
-How a consumer proves who it is. A server configured with session API keys
-accepts exactly one HTTP credential on its `/api/*` routes, the
-`X-Session-API-Key` header, and answers 401 to everything else. Its
-WebSockets authenticate with a first frame `{"type": "auth",
-"session_api_key": ...}` (the query parameter and header forms are deprecated
-but still work). Several keys can be valid at once, so keys can be rotated
-without downtime, and a server with no keys is open. Browsers cannot attach a
-header to `<iframe src>` or `<img src>`, so `POST /api/auth/workspace-session`
-exchanges the header for an HttpOnly cookie that only the workspace file
-routes honor, and `DELETE` clears it. CORS decides which browser origins may
-call the API with credentials.
+# 身份验证和工作区会话
 
-Source: `openhands-agent-server/openhands/agent_server/auth_router.py`, `openhands-agent-server/openhands/agent_server/dependencies.py`, `openhands-agent-server/openhands/agent_server/middleware.py`, `openhands-agent-server/openhands/agent_server/sockets.py`, `openhands-agent-server/openhands/agent_server/config.py`, `openhands-agent-server/openhands/agent_server/env_parser.py`, `openhands-agent-server/openhands/agent_server/__main__.py`, `openhands-sdk/openhands/sdk/utils/command.py`
+消费者如何证明自己是谁。 配置有会话 API 键的服务器在其 `/api/*` 路由上恰好接受一个 HTTP 凭据，
+`X-Session-API-Key` 标头，并对其他所有内容回答 401。 它的 WebSockets 使用第一帧 `{"type": "auth", "session_api_key": ...}` 进行身份验证（查询参数和标头形式是已弃用，但仍然有效）。 多个密钥可以同时有效，因此可以在不停机的情况下轮换密钥，并且打开一个没有密钥的服务器。 浏览器无法为 `<iframe src>` 或 `<img src>` 添加头部，因此 `POST /api/auth/workspace-session` 交换头部为一个 HttpOnly 仅工作区文件路由认可的 cookie，`DELETE` 清除它。 CORS 决定哪个浏览器源可以使用凭据调用 API。
 
-Routes: `POST /api/auth/workspace-session`, `DELETE /api/auth/workspace-session`
+资料来源：`openhands-agent-server/openhands/agent_server/auth_router.py`、`openhands-agent-server/openhands/agent_server/dependencies.py`、`openhands-agent-server/openhands/agent_server/middleware.py`、`openhands-agent-server/openhands/agent_server/sockets.py`、`openhands-agent-server/openhands/agent_server/config.py`、`openhands-agent-server/openhands/agent_server/env_parser.py`、`openhands-agent-server/openhands/agent_server/__main__.py`、`openhands-sdk/openhands/sdk/utils/command.py`
 
-## Sub-features
+路线：`POST /api/auth/workspace-session`、`DELETE /api/auth/workspace-session`
 
-- `F02.http-key-required`: with keys configured, `/api/*` routes answer 401 `{"detail": "Unauthorized"}` to a missing or wrong `X-Session-API-Key` and serve requests that carry the run's key.
-- `F02.http-header-only`: regular `/api/*` routes accept the key only in the header: the workspace cookie, the `session_api_key` query parameter and `Authorization: Bearer` all get 401.
-- `F02.ws-first-frame`: a first frame `{"type": "auth", "session_api_key": K}` authenticates `/sockets/events/{id}`, `/sockets/session/{id}` and `/sockets/bash-events`.
-- `F02.ws-first-frame-reject`: a wrong key, a wrong `type`, a missing key or a non-object first frame closes the socket with 4001 `Authentication failed`, before the conversation is looked up.
-- `F02.ws-auth-timeout`: a socket that sends no first frame is closed with 4001 after about 10 seconds.
-- `F02.ws-legacy-key`: the deprecated `session_api_key` query parameter and `X-Session-API-Key` header still open a socket, and a redundant auth frame sent after them is ignored.
-- `F02.ws-legacy-reject`: a wrong legacy key rejects the handshake itself (HTTP 403, no close frame), even when a correct first frame would follow.
-- `F02.workspace-session-mint`: `POST /api/auth/workspace-session` answers 204 with an HttpOnly `oh_workspace_session_key` cookie on `Path=/api/conversations`, `SameSite=none; Secure; Partitioned` on a loopback host, and 401 with no cookie without a valid header (the cookie itself cannot mint another).
-- `F02.workspace-cookie-access`: the minted cookie alone (a cookie jar, no header) loads workspace files, also after a restart; a bogus cookie or no credential gets 401.
-- `F02.workspace-session-delete`: `DELETE /api/auth/workspace-session` answers 204 with a `Max-Age=0` cookie on the same path, which drops the cookie from the jar so workspace files are 401 again; 401 without a header.
-- `F02.multiple-keys`: every configured key (`OH_SESSION_API_KEYS_0`, `_1`, ...) authenticates HTTP and WebSocket clients; an unlisted key does not.
-- `F02.rotate-key`: after a restart with a rotated key, the old key gets 401 on HTTP and 4001 on WebSockets and its workspace cookie stops working, while the new key works and conversations persist.
-- `F02.keys-hidden-from-commands`: commands the server runs do not see `OH_SESSION_API_KEYS_*`, `SESSION_API_KEY` or `OH_SECRET_KEY` in their environment.
-- `F02.cors-default-origins`: CORS preflights from `localhost` and `127.0.0.1` origins (any port) are allowed with credentials; other origins and `Origin: null` get 400 `Disallowed CORS origin`, and simple responses carry no `Access-Control-Allow-Origin` for them.
-- `F02.cors-configured-origins`: `OH_ALLOW_CORS_ORIGINS_*`, `OH_ALLOW_CORS_ORIGIN_REGEX` and `DOCKER_HOST_ADDR` extend the allowed origins after a restart.
-- `F02.cors-workspace-routes`: the workspace-session and workspace file routes allow any http(s) origin with credentials but refuse `Origin: null`, and that wildcard does not reach other routes.
-- `F02.no-auth-mode`: a server with no keys serves `/api/*` without a header (ignoring any header), accepts sockets without an auth frame, and mints an empty workspace cookie.
-- `F02.legacy-env-key`: the legacy `SESSION_API_KEY` variable alone turns authentication on with that key.
-- `F02.default-bind`: a server started without `--host` listens on `127.0.0.1` when no session key is configured and on `0.0.0.0` when one is; `--host 0.0.0.0` without a key still binds but logs the unauthenticated-bind warning.
-- `F02.workspace-cookie-root-path`: behind a path prefix (`OH_WEB_URL` with a path), a cookie minted through the prefixed URL is sent back by the browser to the prefixed workspace file URLs.
-- `F02.workspace-session-ipv6-loopback`: a mint reached through the IPv6 loopback (`Host: [::1]:PORT`) gets `Secure; Partitioned`, like `localhost` and `127.0.0.1`.
+<a id="sub-features"></a>
 
-## How to get to it (agent POV)
+## 子功能
 
-- REST: every `/api/*` route takes `X-Session-API-Key` when keys are
-  configured. The probes and `/server_info` (F01) and `GET /api/init` need no
-  key; the OpenAI-compatible `/v1/*` gateway also accepts
-  `Authorization: Bearer` (its own family). An unknown `/api` path is 404 even
-  without a key.
-- REST: `POST /api/auth/workspace-session` and
-  `DELETE /api/auth/workspace-session` (both need the header, no body, 204).
-  The cookie is honored only by `GET /api/conversations/{conversation_id}/workspace`
-  and `GET /api/conversations/{conversation_id}/workspace/{file_path:path}`
-  (the workspace file routes, owned by another family; used here as the
-  second view).
+- `F02.http-key-required`：配置密钥后，`/api/*` 将答案 401 `{"detail": "Unauthorized"}` 路由到丢失或错误的 `X-Session-API-Key`，并服务携带运行密钥的请求。
+- `F02.http-header-only`：常规 `/api/*` 路由仅接受标头中的密钥：工作区 cookie、`session_api_key` 查询参数和 `Authorization: Bearer` 都得到 401。
+- `F02.ws-first-frame`：第一帧`{"type": "auth", "session_api_key": K}`验证`/sockets/events/{id}`、`/sockets/session/{id}`和`/sockets/bash-events`。
+- `F02.ws-first-frame-reject`：在查找对话之前，错误的键、错误的 `type`、丢失的键或非对象第一帧会用 4001 `Authentication failed` 关闭套接字。
+- `F02.ws-auth-timeout`：未发送第一帧的套接字在大约 10 秒后以 4001 关闭。
+- `F02.ws-legacy-key`：已弃用`session_api_key`查询参数和`X-Session-API-Key`头仍然打开一个套接字，并且在它们之后发送的冗余验证帧被忽略。
+- `F02.ws-legacy-reject`：错误的旧密钥会拒绝握手本身（HTTP 403，无关闭帧），即使随后会出现正确的第一帧。
+- `F02.workspace-session-mint`：`POST /api/auth/workspace-session` 在 `Path=/api/conversations` 上返回 204，并设置带 HttpOnly `oh_workspace_session_key` 属性的 cookie；在回环主机上使用 `SameSite=none; Secure; Partitioned`；缺少有效请求头时返回 401 且不设置 cookie（cookie 自身不能签发另一个 cookie）。
+- `F02.workspace-cookie-access`：单独创建的 cookie（cookie jar，无标头）加载工作区文件，也在重新启动后； 伪造的 cookie 或没有凭据会得到 401。
+- `F02.workspace-session-delete`: `DELETE /api/auth/workspace-session` 在同一路径上使用 `Max-Age=0` cookie 回答 204，这会从 jar 中删除 cookie，因此工作区文件再次变为 401； 401 没有标题。
+- `F02.multiple-keys`：每个配置的密钥（`OH_SESSION_API_KEYS_0`，`_1`，...）验证HTTP和WebSocket客户端； 未列出的密钥则不会。
+- `F02.rotate-key` 重启后使用旋转的密钥，旧密钥在 HTTP 和 WebSockets 上会收到 401，其工作区 cookie 会停止工作，而新密钥则正常工作，而对话持久化会停止。
+- `F02.keys-hidden-from-commands`：服务器运行的命令在其环境中看不到 `OH_SESSION_API_KEYS_*`、`SESSION_API_KEY` 或 `OH_SECRET_KEY`。
+- `F02.cors-default-origins`：CORS 允许从 `localhost` 和 `127.0.0.1` 始发地（任何港口）出发的预检；凭据允许； 其他来源和 `Origin: null` 得到 400 `Disallowed CORS origin`，而简单的回复则不带有 `Access-Control-Allow-Origin`。
+- `F02.cors-configured-origins`：`OH_ALLOW_CORS_ORIGINS_*`、`OH_ALLOW_CORS_ORIGIN_REGEX` 和 `DOCKER_HOST_ADDR` 重新启动后扩展允许的起始点。
+- `F02.cors-workspace-routes`：工作区-会话和工作区文件路由允许任何带有凭据的http(s)源，但拒绝`Origin: null`，并且该通配符不会到达其他路由。
+- `F02.no-auth-mode`：没有密钥的服务器提供没有标头的 `/api/*`（忽略任何标头），接受没有身份验证帧的套接字，并创建一个空的工作区 cookie。
+- `F02.legacy-env-key`：旧的 `SESSION_API_KEY` 变量单独使用该键打开身份验证。
+- `F02.default-bind`：未配置会话密钥时，没有 `--host` 启动的服务器在 `127.0.0.1` 上侦听；在配置会话密钥时，在 `0.0.0.0` 上侦听； `--host 0.0.0.0` 没有密钥仍然可以绑定，但会记录未经身份验证的绑定警告。
+- `F02.workspace-cookie-root-path`在路径前缀后面`OH_WEB_URL` 带有路径)，通过前缀生成的 cookie URL 浏览器返回给前缀化的工作区文件 URLs.
+- `F02.workspace-session-ipv6-loopback`：通过 IPv6 环回 (`Host: [::1]:PORT`) 到达的薄荷获得 `Secure; Partitioned`，如 `localhost` 和 `127.0.0.1`。
+
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST：当配置密钥时，每`/api/*`条路线都采用`X-Session-API-Key`。 探针和`/server_info`（F01）和`GET /api/init`不需要密钥； OpenAI兼容`/v1/*`网关也接受
+  `Authorization: Bearer`（它自己的家族）。 即使没有密钥，未知的 `/api` 路径也是 404。
+- REST: `POST /api/auth/workspace-session` 和
+  `DELETE /api/auth/workspace-session`（都需要标头，不需要正文，204）。 该cookie仅由`GET /api/conversations/{conversation_id}/workspace`和`GET /api/conversations/{conversation_id}/workspace/{file_path:path}`（工作区文件路由，由另一个家族拥有； 此处用作第二个视图）。
 - WebSocket: `/sockets/events/{conversation_id}`,
-  `/sockets/session/{conversation_id}` and `/sockets/bash-events` share one
-  auth helper (`_accept_authenticated_websocket` in `sockets.py`): first frame,
-  or the deprecated `?session_api_key=` / `X-Session-API-Key` header.
-- SDK: `RemoteWorkspace(host=..., api_key=...)` sends the header on every
-  request (`openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`);
-  `RemoteConversation`'s event socket sends the first auth frame
-  (`remote_conversation.py`, `_client_loop`).
-- TypeScript client: `HttpClient` sends `X-Session-API-Key` from `apiKey`;
-  `RemoteWorkspace.startWorkspaceSession(conversationId)` and
-  `deleteWorkspaceSession()` call the two routes with
-  `credentials: 'include'` and return the workspace base URL;
-  `ConversationEventStream` authenticates with the first frame, while
-  `BashWebSocketClient` still uses the deprecated query parameter.
-- Configuration: `OH_SESSION_API_KEYS_0..N` (or `session_api_keys` in the
-  config file), legacy `SESSION_API_KEY`; CORS: `OH_ALLOW_CORS_ORIGINS_0..N`,
-  `OH_ALLOW_CORS_ORIGIN_REGEX`, `DOCKER_HOST_ADDR`; `OH_WEB_URL` with a path
-  sets the app's root path.
-- Command line: `python -m openhands.agent_server [--host H] [--port 8000]`
-  (`__main__.py`). Without `--host` the bind address follows the auth
-  posture: loopback without keys, all interfaces with keys.
-- Agent Canvas mints the cookie before embedding workspace HTML, images and
-  PDFs in iframes from another origin (context only).
-- Recipes: `api --auth none|bad|previous` and `--header` drive the HTTP
-  cases; `ws listen --auth first-frame|query|header|none|bad` the socket
-  cases; a small cookie-jar helper (`curl` through `control-agent-server exec`,
-  written in `Preconditions:`) plays the browser for cookies and CORS
-  preflights; `restart --env`, `restart --rotate-key` and second servers
-  (`launch --new --no-auth`) reach the other modes; `bind.sh` (also in
-  `Preconditions:`) starts the server without the launcher to see its default
-  bind address.
+  `/sockets/session/{conversation_id}` 和 `/sockets/bash-events` 共享一个身份验证助手（`sockets.py` 中的 `_accept_authenticated_websocket`）：第一帧，或已弃用 `?session_api_key=` / `X-Session-API-Key` 标头。
+- SDK: `RemoteWorkspace(host=..., api_key=...)` 在每个请求上发送标头 (`openhands-sdk/openhands/sdk/workspace/remote/remote_workspace_mixin.py`)；
+  `RemoteConversation` 的事件套接字发送第一个身份验证帧 (`remote_conversation.py`, `_client_loop`)。
+- TypeScript客户端：`HttpClient`从`apiKey`发送`X-Session-API-Key`；
+  `RemoteWorkspace.startWorkspaceSession(conversationId)` 和
+  `deleteWorkspaceSession()` 调用两条路由
+  `credentials: 'include'`并返回工作区基数URL；
+  `ConversationEventStream` 使用第一帧进行身份验证，同时
+  `BashWebSocketClient` 仍使用已弃用查询参数。
+- 配置：`OH_SESSION_API_KEYS_0..N`（或配置文件中的`session_api_keys`），旧版`SESSION_API_KEY`； CORS: `OH_ALLOW_CORS_ORIGINS_0..N`,
+  `OH_ALLOW_CORS_ORIGIN_REGEX`, `DOCKER_HOST_ADDR`; `OH_WEB_URL` with a path 设置应用程序的根路径。
+- 命令行：`python -m openhands.agent_server [--host H] [--port 8000]` (`__main__.py`)。 如果没有 `--host`，绑定地址将跟随身份验证
+  姿势：环回无按键，所有接口有按键。
+- Agent Canvas 在嵌入之前生成 cookie 工作区  HTML, images and PDFs 从另一个来源的iframe中上下文只）。
+- 配方：`api --auth none|bad|previous`和`--header`驱动HTTP个案例； `ws listen --auth first-frame|query|header|none|bad` 插座盒； 一个小的 cookie-jar 助手（`curl` 到 `control-agent-server exec`，用 `Preconditions:` 编写）在浏览器中播放 cookie 和 CORS 预检； `restart --env`、`restart --rotate-key`和第二服务器(`launch --new --no-auth`)到达其他模式； `bind.sh`（也在
+  `Preconditions:`）在没有启动器的情况下启动服务器以查看其默认绑定地址。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok. No
-  LLM profile is needed. `curl` and `jq` are on `PATH`. `tmux` is needed only
-  by the recipes that run a command (bash-events frames, `execute_bash_command`);
-  each declares `Needs: tmux`, so a machine without it still drives the HTTP,
-  cookie and CORS recipes.
-- The block below creates a workspace with one HTML file, a conversation on
-  it that never runs (`CID`), and `jar.sh`: one browser-like `curl` request
-  that keeps cookies in `<run>/fixtures/qa-f02-cookies.txt`, sends the run's
-  key only when told `key`, prints headers, body and status, and fails unless
-  the status matches and every `has:TEXT` / `lacks:TEXT` (case-insensitive)
-  holds. Run it through `control-agent-server exec`, which injects
-  `AGENT_SERVER_URL` and `SESSION_API_KEY` for the chosen run.
-- It also writes `bind.sh` for `F02.default-bind`: started inside a private
-  network namespace (`unshare -rn`, so nothing outside it can connect, and
-  port 8000 is free in every replay), it runs this checkout's server the way
-  an operator would (`python -m openhands.agent_server`, no `--host` unless
-  given, default port 8000) with its own `HOME` and config, waits until
-  `/proc/net/tcp` shows the listening socket, stops the server, prints its
-  log and `listening on ADDRESS:8000`, and fails if nothing listened.
-  Needs `unshare` (util-linux) with unprivileged user namespaces, or root.
-- Several bullets restart this run (`restart --env`, `--rotate-key`); the
-  environment they add stays for later bullets. Bullets that need another
-  server mode launch a second run and stop it when the bullet ends.
+前提条件：
+
+- 基线运行已实时并导出 (`launch --new`)，`doctor` 可以。 不需要 LLM 配置文件。 `curl`和`jq`在`PATH`上。 `tmux` 仅由运行命令的配方需要（bash-events 框架，`execute_bash_command`）； 每个都声明了 `Needs: tmux`，因此没有它的机器仍然驱动 HTTP、cookie 和 CORS 配方。
+- 下面的块创建一个工作区，其中包含一个 HTML 文件、一个从不运行的对话 (`CID`) 和 `jar.sh`：一个类似浏览器的 `curl` 请求，将 cookie 保留在 `<run>/fixtures/qa-f02-cookies.txt` 中，仅在被告知时发送运行密钥 `key`，打印标头、正文和状态，并且失败，除非状态匹配并且每个 `has:TEXT` / `lacks:TEXT`（不区分大小写）都保留。 通过`control-agent-server exec`运行它，注入
+  `AGENT_SERVER_URL` 和 `SESSION_API_KEY` 用于所选运行。
+- 它也写入了 `bind.sh` 为了 `F02.default-bind`： 在一个私有网络中启动命名空间 (`unshare -rn`因此，端口8000在每次重播中都是空闲的，所以这个检查点的服务器就像一个操作员一样运行`python -m openhands.agent_server`, no `--host` 除非另有指定，默认使用端口 8000，并且具有自己的 `HOME` and config, waits until
+  `/proc/net/tcp` 显示侦听套接字，停止服务器，打印其日志和 `listening on ADDRESS:8000`，如果没有侦听，则失败。 需要 `unshare` (util-linux) 和非特权用户命名空间或 root。
+- 多个项目符号重新启动此运行 (`restart --env`, `--rotate-key`)； 他们添加的环境会保留到以后的子弹中。 需要另一种服务器模式的子弹会启动第二次运行，并在子弹结束时停止。
 
   ```sh
   F02="$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f02"
@@ -165,17 +126,15 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/workspace/qa-f02.html" --expect 200
   ```
 
-- **Key required on HTTP (`F02.http-key-required`).** Call a route without a
-  key, with a wrong key, and with the run's key.
+- **HTTP (`F02.http-key-required`) 上需要密钥。**呼叫路线时没有密钥、使用错误密钥以及使用运行密钥。
   ```sh
   control-agent-server api GET /api/conversations/count --auth none --expect 401 --check detail eq Unauthorized --save F02.http-key-required/no-key
   control-agent-server api GET /api/conversations/count --auth bad --expect 401 --check detail eq Unauthorized --save F02.http-key-required/wrong-key
   control-agent-server api GET "/api/conversations/$CID" --auth none --expect 401
   control-agent-server api GET /api/conversations/count --expect 200 --check . ge 1 --save F02.http-key-required/run-key
   ```
-  Both bad calls are 401 `{"detail": "Unauthorized"}`; with the key the count
-  is at least 1 (the conversation from `Preconditions:`).
-- **Header only (`F02.http-header-only`).** Offer the right key everywhere
+  两种错误调用都返回 401 `{"detail": "Unauthorized"}`。 使用密钥时，计数至少为1（来自`Preconditions:`的对话）。
+- **仅标头 (`F02.http-header-only`)。**随处提供正确的钥匙
   except the header.
   ```sh
   KEY=$(cat "$AGENT_SERVER_VERIFY_RUN/private/session_api_key")
@@ -185,25 +144,17 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID" --expect 200 --check id eq "$CID"
   unset KEY
   ```
-  All three are 401. The cookie case matters because the browser sends the
-  cookie to every path under `/api/conversations`, including this one.
-- **First-frame auth on every socket (`F02.ws-first-frame`).** The CLI's
-  default `--auth first-frame` sends `{"type": "auth", "session_api_key": K}`
-  first; there is no acknowledgement, so each socket proves it by what it
-  sends next.
+  这三个都是401。 因为浏览器会将 cookie 发送到路径下的 `/api/conversations`，包括这个路径。
+- **每个套接字上的第一帧身份验证 (`F02.ws-first-frame`)。** CLI默认`--auth first-frame`先发送`{"type": "auth", "session_api_key": K}`； 没有确认，因此每个套接字都通过接下来发送的内容来证明这一点。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   control-agent-server ws listen "/sockets/events/$CID" --until-kind ConversationStateUpdateEvent --duration 15 --save F02.ws-first-frame/events
   control-agent-server ws listen "/sockets/session/$CID" --query after_seq=-1 --until-kind sync --duration 15 --save F02.ws-first-frame/session
   control-agent-server ws listen /sockets/bash-events --send '{"command":"echo qa-f02-first-frame"}' --until-kind BashOutput --duration 20 --save F02.ws-first-frame/bash
   ```
-  The events socket sends a full-state `ConversationStateUpdateEvent`, the
-  session socket a `sync` frame, and the bash socket runs the command
-  (`BashCommand`, then `BashOutput`).
-- **Rejected first frames (`F02.ws-first-frame-reject`).** Wrong key, wrong
-  type, missing key, not an object, and a wrong key for a conversation that
-  does not exist.
+  事件套接字发送全状态 `ConversationStateUpdateEvent`，会话套接字发送 `sync` 帧，bash 套接字运行 `BashCommand`，然后运行 `BashOutput`。
+- **拒绝第一帧 (`F02.ws-first-frame-reject`)。**错误的密钥、错误的类型、丢失的密钥、不是对象以及不存在的对话的错误密钥。
   ```sh
   control-agent-server ws listen "/sockets/events/$CID" --auth bad --expect-close 4001 --duration 10 --save F02.ws-first-frame-reject/events-wrong-key \
     | jq -e '.close.reason == "Authentication failed"'
@@ -215,56 +166,38 @@ Preconditions:
   control-agent-server ws listen /sockets/events/00000000-0000-4000-8000-000000000000 --auth bad --expect-close 4001 --duration 10 --save F02.ws-first-frame-reject/unknown-unauthenticated
   control-agent-server ws listen /sockets/events/00000000-0000-4000-8000-000000000000 --expect-close 4004 --duration 10
   ```
-  Every rejection is a close frame with code 4001 and reason
-  `Authentication failed`, and a command sent right after a wrong key never
-  runs (no `BashOutput`). An unauthenticated socket to an unknown
-  conversation also gets 4001; only an authenticated one learns 4004
+  每个拒绝都是一个代码为4001且原因的闭合帧
+  `Authentication failed`，并且在错误按键之后发送的命令永远不会运行（没有 `BashOutput`）。 未经身份验证的套接字进行未知对话也会得到 4001； 只有经过身份验证的人才能获知 4004
   `Conversation not found`.
-- **Auth timeout (`F02.ws-auth-timeout`).** Connect and say nothing. The
-  server's own 10-second timer is under test, so the bullet measures it.
+- **授权超时 (`F02.ws-auth-timeout`).**连接起来，什么也不说。 服务器自己的 10 秒计时器正在测试中，因此项目符号对其进行测量。
   ```sh
   T0=$SECONDS
   control-agent-server ws listen /sockets/bash-events --auth none --expect-close 4001 --duration 25 --save F02.ws-auth-timeout/silent
   test $((SECONDS - T0)) -ge 9
   test $((SECONDS - T0)) -le 16
   ```
-  The close arrives with 4001 after about 10 seconds, not at once and not
-  at the end of the 25-second capture.
-- **Deprecated query and header keys (`F02.ws-legacy-key`).** Authenticate
+  大约10秒后，关闭操作以4001号结束，而不是立即进行，也不是在25秒的捕获结束时进行。
+- **已弃用查询和标头键 (`F02.ws-legacy-key`)。**认证
   with `?session_api_key=` or the header and send a command as the very
-  first frame, then send a redundant auth frame with a wrong key before a
-  command.
+  第一帧，然后在命令之前发送带有错误密钥的冗余身份验证帧。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   control-agent-server ws listen /sockets/bash-events --auth query --send '{"command":"echo qa-f02-query"}' --until-kind BashOutput --duration 20 --save F02.ws-legacy-key/query
   control-agent-server ws listen /sockets/bash-events --auth header --send '{"command":"echo qa-f02-header"}' --until-kind BashOutput --duration 20 --save F02.ws-legacy-key/header
   control-agent-server ws listen /sockets/bash-events --auth query --send '{"type":"auth","session_api_key":"qa-f02-ignored"}' --send '{"command":"echo qa-f02-legacy"}' --until-kind BashOutput --duration 20 --save F02.ws-legacy-key/redundant-frame
   control-agent-server ws listen "/sockets/events/$CID" --auth header --until-kind ConversationStateUpdateEvent --duration 15
   ```
-  Both legacy forms authenticate at the handshake: a command sent as the
-  first frame runs (were the legacy key ignored, that frame would be read as
-  a failed auth frame and closed with 4001). The redundant auth frame is
-  skipped (its key is never checked) and the command still runs. The server
-  logs `session_api_key passed via query param or header is deprecated`
-  (wrapped over several log lines). A socket that merely stays open for a
-  few seconds proves nothing: an unauthenticated one waits up to 10 seconds
-  for its auth frame.
-- **Wrong legacy key fails the handshake (`F02.ws-legacy-reject`).** A wrong
-  query key, and a wrong query key followed by a correct first frame.
+  两种旧式表单在握手时都进行认证：第一个帧发送的命令（如果忽略旧式密钥，该帧会被读作失败的认证帧并关闭，返回4001）。 冗余的认证帧被跳过（其密钥从不检查），命令仍然运行。 服务器日志 `session_api_key passed via query param or header is deprecated`（跨多行显示）。 仅仅保持几秒钟的套接字并不能证明什么：一个未认证的套接字会等待最多10秒来发送其认证帧。
+- **错误的旧密钥导致握手失败 (`F02.ws-legacy-reject`)。**错误的查询键，以及错误的查询键后跟正确的第一帧。
   ```sh
   control-agent-server ws listen /sockets/bash-events --auth none --query session_api_key=qa-f02-wrong --expect-reject 403 --duration 5 --save F02.ws-legacy-reject/wrong-query
   control-agent-server ws listen /sockets/bash-events --auth bad-header --expect-reject 403 --duration 5 --save F02.ws-legacy-reject/wrong-header
   control-agent-server ws listen /sockets/bash-events --query session_api_key=qa-f02-stale --send '{"command":"echo qa-f02-stale"}' \
     --expect-reject 403 --expect-frames 0 --duration 5 --save F02.ws-legacy-reject/stale-query-good-frame
   ```
-  The handshake is refused with HTTP 403 (the server closes with 4001 before
-  accepting, which the client sees as a rejected upgrade), so there is no
-  4001 close frame, and a present legacy key is never overridden by a
-  correct first frame.
-- **Mint the workspace cookie (`F02.workspace-session-mint`).** Mint with
-  the key, without it, with a wrong one, with only the cookie, and with an
-  ignored body.
+  握手拒绝了 HTTP 403（服务器在接受之前关闭，客户端看到这像一个拒绝的升级，所以没有4001关闭帧，而且一个存在的旧密钥永远不会被正确的第一个帧覆盖）。
+- **铸造工作区 cookie (`F02.workspace-session-mint`)。**薄荷有钥匙，没有钥匙，有错误的钥匙，只有cookie，以及被忽略的主体。
   ```sh
   control-agent-server api POST /api/auth/workspace-session --expect 204 --save F02.workspace-session-mint/loopback \
     | jq -e '.response.headers["set-cookie"] | startswith("oh_workspace_session_key=") and contains("HttpOnly") and contains("Max-Age=315360000") and contains("Path=/api/conversations") and contains("SameSite=none") and contains("Secure") and contains("Partitioned")'
@@ -276,13 +209,8 @@ Preconditions:
   unset KEY
   control-agent-server api POST /api/auth/workspace-session --json '{"ignored": true}' --expect 204
   ```
-  The cookie value is the session key itself (the CLI prints it redacted);
-  the 401 responses set no cookie. The route sits in the header-only group,
-  so a cross-site request that carries only the cookie cannot mint or renew
-  it.
-- **The cookie alone opens workspace files (`F02.workspace-cookie-access`).**
-  The browser flow: mint into the jar, then load the file with no header,
-  also after a restart.
+  cookie值就是会话密钥本身（CLI打印它已脱敏)。 401响应不设置cookie。 该路由位于仅包含cookie的组中，因此，仅携带cookie的跨站请求无法创建或更新它。
+- **cookie 单独打开工作区个文件 (`F02.workspace-cookie-access`)。**浏览器流程：mint 到 jar 中，然后加载不带标头的文件，也在重新启动后加载。
   ```sh
   control-agent-server exec --save F02.workspace-cookie-access/mint -- bash "$F02/jar.sh" POST /api/auth/workspace-session key 204 'has:set-cookie: oh_workspace_session_key='
   grep -q oh_workspace_session_key "$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f02-cookies.txt"
@@ -293,11 +221,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/workspace/qa-f02.html" --auth none --expect 401
   control-agent-server api GET "/api/conversations/$CID/workspace/qa-f02.html" --expect 200
   ```
-  The file loads with only the cookie, before and after the restart (the
-  cookie is the key, so there is no server-side session to lose). A bogus
-  cookie or none is 401; the header alone also works.
-- **Delete the workspace cookie (`F02.workspace-session-delete`).** Clear it
-  through the API, then through the jar.
+  文件在重启前后加载，只有cookie（cookie是key，所以不会有服务器端会话丢失）。 一个伪造的 cookie 或 None 是 401； 单独的头部也有效。
+- **删除工作区cookie (`F02.workspace-session-delete`)。**通过 API 清除它，然后通过罐子。
   ```sh
   control-agent-server api DELETE /api/auth/workspace-session --expect 204 --save F02.workspace-session-delete/delete \
     | jq -e '.response.headers["set-cookie"] | startswith("oh_workspace_session_key=\"\"") and contains("Max-Age=0") and contains("Path=/api/conversations") and contains("HttpOnly")'
@@ -306,14 +231,10 @@ Preconditions:
   if grep oh_workspace_session_key "$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f02-cookies.txt"; then false; fi
   control-agent-server exec --save F02.workspace-session-delete/file-after-delete -- bash "$F02/jar.sh" GET "/api/conversations/$CID/workspace/qa-f02.html" nokey 401
   ```
-  The clearing cookie has an empty value, `Max-Age=0` and the same path, so
-  the jar drops it and the next file request is 401. Deleting still needs
-  the header.
-- **A second key (`F02.multiple-keys`).** Add `OH_SESSION_API_KEYS_1` and an
-  empty third entry with a restart. Both real keys work; the empty entry
-  cannot authenticate.
+  清除 cookie 的值为空 `Max-Age=0`，并且相同的路径，因此 jar 会丢弃它，然后下一个文件请求会返回 401。 删除仍然需要头部。
+- **第二把钥匙 (`F02.multiple-keys`)。**添加 `OH_SESSION_API_KEYS_1` 和一个空的第三个条目并重新启动。 两个真正的钥匙都可以使用； 空条目无法进行身份验证。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   control-agent-server restart --env OH_SESSION_API_KEYS_1=qa-f02-second-key --env OH_SESSION_API_KEYS_2=
   control-agent-server api GET /api/conversations/count --auth none --header 'X-Session-API-Key: qa-f02-second-key' --expect 200 --save F02.multiple-keys/second-key
@@ -324,12 +245,10 @@ Preconditions:
   control-agent-server ws listen /sockets/bash-events --auth none --send '{"type":"auth","session_api_key":"qa-f02-second-key"}' --send '{"command":"echo qa-f02-second"}' --until-kind BashOutput --duration 20 --save F02.multiple-keys/ws-second-key
   control-agent-server doctor
   ```
-  Both keys work on HTTP and on the socket; an unlisted or empty key is
-  rejected. Empty configured entries are dropped, as fixed in PR #5659.
-- **Rotate the key (`F02.rotate-key`).** Mint a cookie with the current key,
-  restart with a new one, and try the old key everywhere.
+  这两个密钥在 HTTP 和 socket 上都有效。 未列出或空的密钥被拒绝。 已配置的空值被丢弃，如 PR #5659 所述。
+- **旋转钥匙 (`F02.rotate-key`)。**使用当前密钥创建一个 cookie，使用新密钥重新启动，然后在各处尝试旧密钥。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   control-agent-server exec -- bash "$F02/jar.sh" POST /api/auth/workspace-session key 204
   control-agent-server exec -- bash "$F02/jar.sh" GET "/api/conversations/$CID/workspace/qa-f02.html" nokey 200 'has:qa-f02-workspace-file'
@@ -343,15 +262,11 @@ Preconditions:
   control-agent-server ws listen /sockets/bash-events --send '{"command":"echo qa-f02-rotated"}' --until-kind BashOutput --duration 20
   control-agent-server doctor
   ```
-  The old key is 401 on HTTP and 4001 on the socket, the cookie minted with
-  it (which opened the file just before the restart) no longer opens files,
-  and the new key reads the same conversation.
-  `doctor` confirms the rotated-out key is rejected.
-- **Keys stay out of commands (`F02.keys-hidden-from-commands`).** Run `env`
-  through the server (the global bash route) with two indexed keys and a
-  secret key configured.
+  旧密钥为401 HTTP，socket上为4001，用它生成的cookie（在重启前打开文件的）不再能打开文件，新的密钥读取相同的对话。
+  `doctor` 确认轮出密钥被拒绝。
+- **按键不受命令影响 (`F02.keys-hidden-from-commands`)。**通过服务器（全局 bash 路由）运行 `env`，并配置两个索引键和一个机密键。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   KEY=$(cat "$AGENT_SERVER_VERIFY_RUN/private/session_api_key")
   SECRET=$(cat "$AGENT_SERVER_VERIFY_RUN/private/secret_key")
@@ -362,12 +277,8 @@ Preconditions:
     --check stdout not-contains "$KEY" --check stdout not-contains "$SECRET" --save F02.keys-hidden-from-commands/env
   unset KEY SECRET
   ```
-  The command's environment has none of the key variables or values (the
-  run's current key, the second key from `F02.multiple-keys` and the secret
-  key are all set on the server process at this point).
-- **Default CORS origins (`F02.cors-default-origins`).** Preflights from
-  local origins, a foreign origin and `null`, then a simple request from the
-  foreign origin.
+  命令的环境有 None 关键变量或值（运行的当前键，第二个从...） `F02.multiple-keys` 和机密此时，所有密钥都已在服务器进程中设置。
+- **默认 CORS 来源 (`F02.cors-default-origins`)。**预检来自本地来源、外国来源和`null`，然后来自外国来源的简单请求。
   ```sh
   control-agent-server exec --save F02.cors-default-origins/localhost -- bash "$F02/jar.sh" OPTIONS /api/conversations/count nokey 200 \
     'has:access-control-allow-origin: http://localhost:3001' 'has:access-control-allow-credentials: true' -- \
@@ -381,12 +292,8 @@ Preconditions:
   control-agent-server exec --save F02.cors-default-origins/simple-foreign -- bash "$F02/jar.sh" GET /api/conversations/count key 200 \
     'lacks:access-control-allow-origin' -- -H 'Origin: https://qa-evil.example'
   ```
-  Local origins are echoed with `access-control-allow-credentials: true`; a
-  foreign origin and `null` get 400 `Disallowed CORS origin`, and the simple
-  GET from the foreign origin succeeds for a non-browser client but carries
-  no `access-control-allow-origin`, so a browser would hide it.
-- **Configured CORS origins (`F02.cors-configured-origins`).** Restart with
-  one exact origin, one regex and a Docker host address.
+  本地来源会被回显为 `access-control-allow-credentials: true`。 一个来自国外的端点，`null` 会返回 400 `Disallowed CORS origin`，GET 从国外返回成功，但没有 `access-control-allow-origin`，所以浏览器会隐藏它。
+- **已配置 CORS 来源 (`F02.cors-configured-origins`)。**使用一个确切的来源、一个正则表达式和一个 Docker 主机地址重新启动。
   ```sh
   control-agent-server restart --env OH_ALLOW_CORS_ORIGINS_0=https://qa-canvas.example \
     --env 'OH_ALLOW_CORS_ORIGIN_REGEX=https://[a-z0-9-]+\.qa-regex\.example' --env DOCKER_HOST_ADDR=10.254.0.7
@@ -399,10 +306,8 @@ Preconditions:
   control-agent-server exec -- bash "$F02/jar.sh" OPTIONS /api/conversations/count nokey 400 'has:Disallowed CORS origin' -- \
     -H 'Origin: https://qa-other.example' -H 'Access-Control-Request-Method: GET'
   ```
-  The three configured origins are echoed; an unrelated origin is still 400.
-- **Workspace routes accept any origin (`F02.cors-workspace-routes`).** The
-  cookie routes echo any http(s) origin, but not `null`, and only on those
-  paths.
+  已配置的三个源被回显。 另一个无关的来源仍然返回400。
+- **工作区路线接受任何起点 (`F02.cors-workspace-routes`)。** cookie 路由回显任何 http(s) 来源，但不回显 `null`，并且仅在这些路径上。
   ```sh
   control-agent-server exec --save F02.cors-workspace-routes/session -- bash "$F02/jar.sh" OPTIONS /api/auth/workspace-session nokey 200 \
     'has:access-control-allow-origin: https://qa-anywhere.example' 'has:access-control-allow-credentials: true' -- \
@@ -414,12 +319,11 @@ Preconditions:
   control-agent-server exec --save F02.cors-workspace-routes/not-elsewhere -- bash "$F02/jar.sh" OPTIONS "/api/conversations/$CID" nokey 400 'has:Disallowed CORS origin' -- \
     -H 'Origin: https://qa-anywhere.example' -H 'Access-Control-Request-Method: GET'
   ```
-  Both cookie routes echo the origin with credentials; `null` is refused,
-  and the same origin is refused on the conversation itself.
-- **Unauthenticated mode (`F02.no-auth-mode`).** A second server launched
+  两个 cookie 路由都会返回原始值凭据。 `null` 被拒绝，对话本身也拒绝了相同的来源。
+- **未经身份验证模式 (`F02.no-auth-mode`)。**第二台服务器启动
   with `--no-auth`.
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   NOAUTH=$(control-agent-server launch --new --no-auth --name f02-noauth --print-run)
   trap 'control-agent-server stop --run "$NOAUTH" >/dev/null' EXIT
@@ -431,13 +335,10 @@ Preconditions:
   control-agent-server api DELETE /api/auth/workspace-session --run "$NOAUTH" --auth none --expect 204
   control-agent-server stop --run "$NOAUTH"
   ```
-  Everything answers without a key, any header is ignored, the socket runs
-  a command sent as its very first frame, and the minted cookie is empty.
-  The second run's evidence lands under its own run directory.
-- **Legacy `SESSION_API_KEY` (`F02.legacy-env-key`).** A second server whose
-  only key is the legacy variable.
+  一切无需密钥即可回答，任何头信息都被忽略，套接字运行其第一个帧发送的命令，生成的 cookie 为空。 第二次运行的证据位于其自己的运行目录下。
+- **旧版 `SESSION_API_KEY` (`F02.legacy-env-key`).**第二个服务器，其唯一键是旧变量。
 
-  Needs: `tmux`
+  需求：`tmux`
   ```sh
   LEGACY=$(control-agent-server launch --new --no-auth --name f02-legacy --env SESSION_API_KEY=qa-f02-legacy-key --print-run)
   trap 'control-agent-server stop --run "$LEGACY" >/dev/null' EXIT
@@ -449,13 +350,9 @@ Preconditions:
     --check stdout not-contains qa-f02-legacy-key --check stdout not-contains SESSION_API_KEY --save F02.legacy-env-key/env
   control-agent-server stop --run "$LEGACY"
   ```
-  The legacy key turns authentication on (401 without it, 200 with it, and
-  the socket accepts it); `env` runs (exit 0, `PATH=` in its output) and
-  shows neither the variable nor its value.
-- **Default bind address (`F02.default-bind`).** Start this checkout's
-  server three times without the launcher, as an operator would, each in its
-  own private network namespace: no key and no `--host`, a key and no
-  `--host`, and no key with an explicit `--host 0.0.0.0`.
+  身份验证遗产密钥启用（401 无此密钥，有此密钥则为 200，且套接字接受此密钥）。 `env` 运行（退出状态码为0，`PATH=` 作为输出的一部分），既不显示变量，也不显示其值。
+- ** 默认绑定地址 (`F02.default-bind`).** 开始这个检查点的服务器三次，作为操作员那样，每次都在各自的私有网络中：没有密钥和没有 `--host`，有密钥和没有命名空间
+  `--host`，并且没有带有显式 `--host 0.0.0.0` 的键。
   ```sh
   QA_F02_PYTHON="$(jq -r .checkout "$AGENT_SERVER_VERIFY_RUN/run.json")/.venv/bin/python"
   control-agent-server exec --save F02.default-bind/no-key --expect-output 'Starting OpenHands Agent Server on 127.0.0.1:8000' \
@@ -468,17 +365,9 @@ Preconditions:
     --expect-output 'Binding to all interfaces (0.0.0.0) without a session API key' -- \
     unshare -rn env -i PATH="$PATH" QA_F02_PYTHON="$QA_F02_PYTHON" bash "$F02/bind.sh" "$F02/bind-wildcard" --host 0.0.0.0
   ```
-  Without keys the server listens on `127.0.0.1:8000` only; with
-  `OH_SESSION_API_KEYS_0` it listens on every interface (`0.0.0.0`), and
-  neither logs the warning. An explicit `--host 0.0.0.0` without a key is
-  honored (it listens on `0.0.0.0`) and logs `Binding to all interfaces
-  (0.0.0.0) without a session API key`. The address comes from the kernel's
-  socket table (`/proc/net/tcp`), not only from the startup line. The
-  namespace keeps the unauthenticated wildcard server unreachable from
-  outside, and `env -i` keeps this shell's `OH_*` variables away from it.
-- **Cookie path ignores a prefix (`F02.workspace-cookie-root-path`), known bug.**
-  A second server with `OH_WEB_URL=http://127.0.0.1/qa-f02-prefix`, used
-  through its prefixed URLs like a browser behind a path-prefix proxy.
+  没有密钥时，服务器只监听 `127.0.0.1:8000`。 与
+  `OH_SESSION_API_KEYS_0` 它监听每个接口 (`0.0.0.0`)，并且都不记录警告。 没有密钥的显式 `--host 0.0.0.0` 会受到尊重（它侦听 `0.0.0.0`）并记录 `Binding to all interfaces (0.0.0.0) without a session API key`。 该地址来自内核的套接字表（`/proc/net/tcp`），而不仅仅是来自启动行。 命名空间使未经身份验证的通配符服务器无法从外部访问，`env -i` 使该 shell 的 `OH_*` 变量远离它。
+- **Cookie路径忽略前缀(`F02.workspace-cookie-root-path`),已知bug。**另一个带有`OH_WEB_URL=http://127.0.0.1/qa-f02-prefix`的服务器，通过带有URLs的前缀路径代理的方式使用，就像浏览器一样。
   ```sh
   PREFIXED=$(control-agent-server launch --new --name f02-prefix --env OH_WEB_URL=http://127.0.0.1/qa-f02-prefix --print-run)
   trap 'control-agent-server stop --run "$PREFIXED" >/dev/null' EXIT
@@ -488,22 +377,13 @@ Preconditions:
   control-agent-server exec --run "$PREFIXED" --save F02.workspace-cookie-root-path/mint -- bash "$F02/jar.sh" POST /qa-f02-prefix/api/auth/workspace-session key 204
   grep -q oh_workspace_session_key "$PREFIXED/fixtures/qa-f02-cookies.txt"
   control-agent-server exec --run "$PREFIXED" -- bash "$F02/jar.sh" GET "/api/conversations/$PCID/workspace/qa-f02.html" nokey 200 'has:qa-f02-workspace-file'
-  control-agent-server exec --run "$PREFIXED" --save F02.workspace-cookie-root-path/file-with-cookie -- bash "$F02/jar.sh" GET "/qa-f02-prefix/api/conversations/$PCID/workspace/qa-f02.html" nokey 200 'has:qa-f02-workspace-file'  # bug: exit_code eq 1 && stdout_tail contains status=401
+  control-agent-server exec --run "$PREFIXED" --save F02.workspace-cookie-root-path/file-with-cookie -- bash "$F02/jar.sh" GET "/qa-f02-prefix/api/conversations/$PCID/workspace/qa-f02.html" nokey 200 'has:qa-f02-workspace-file'  # bug: exit_code eq 1 && stdout_tail 包含 status=401
   control-agent-server stop --run "$PREFIXED"
   ```
-  The server advertises `servers: [{"url": "/qa-f02-prefix"}]` and serves
-  the file under the prefix; the minted cookie lands in the second run's jar
-  and is a valid credential (the unprefixed URL, which a prefix-stripping
-  proxy would forward, loads the file with it). Expected: the cookie also
-  comes back on the prefixed file URL, the one the browser actually uses.
-  Today it is scoped to `Path=/api/conversations` regardless of the root
-  path (unlike `CORSDispatcher`, which strips `root_path`), so the jar does
-  not send it and the file is 401. The TypeScript client's
-  `startWorkspaceSession()` returns `${host}/api/conversations/{id}/workspace/`,
-  which carries the prefix whenever `host` does.
-- **IPv6 loopback is a secure context (`F02.workspace-session-ipv6-loopback`).**
-  Mint as browsers at the IPv4 loopback names would, then as a browser at
-  `http://[::1]:PORT` would.
+  服务器声明 `servers: [{"url": "/qa-f02-prefix"}]` 并在前缀下提供文件。 被铸造的饼干落在了第二个运行的容器中，并且是一个有效的凭据（未前缀的 URL，一个前缀剥离代理会转发，加载文件并将其加载）。 预期： cookie 也应出现在预缀文件 URL 中，即浏览器实际使用的那个。 今天，无论根路径如何，它都被限制在`Path=/api/conversations`，不像`CORSDispatcher`，它会去除`root_path`，所以jar不发送它，文件是401。 bTypeScript客户端
+  `startWorkspaceSession()` 返回 `${host}/api/conversations/{id}/workspace/`该前缀总是与之一起携带 `host` 所做的。
+- **IPv6 环回是安全的上下文 (`F02.workspace-session-ipv6-loopback`)。** Mint 作为 IPv4 环回名称的浏览器，然后作为浏览器
+  `http://[::1]:PORT` 会。
   ```sh
   control-agent-server api POST /api/auth/workspace-session --header 'Host: 127.0.0.1:8000' --expect 204 \
     --check-header set-cookie contains SameSite=none --check-header set-cookie contains Secure --check-header set-cookie contains Partitioned
@@ -512,42 +392,26 @@ Preconditions:
   control-agent-server api POST /api/auth/workspace-session --header 'Host: [::1]:8000' --expect 204 --save F02.workspace-session-ipv6-loopback/ipv6-host \
     --check-header set-cookie contains SameSite=none --check-header set-cookie contains Secure --check-header set-cookie contains Partitioned
   ```
-  `127.0.0.1`, `localhost` and the `Host: [::1]:8000` mint all get
-  `SameSite=none; Secure; Partitioned`, since `::1` is in the server's
-  loopback list, so workspace embeds work for a client at
-  `http://[::1]:PORT`. `request.url.hostname` returns the IPv6 address
-  unbracketed (`::1`), so `_request_is_secure_context` strips a `:port`
-  suffix only from a bracketed host or a host with a single colon.
+  `127.0.0.1`、`localhost` 和 `Host: [::1]:8000` 铸币厂都得到
+  `SameSite=none; Secure; Partitioned`，由于 `::1` 在服务器的环回列表中，因此工作区嵌入了客户端的工作
+  `http://[::1]:PORT`. `request.url.hostname` 返回不带括号的 IPv6 地址 (`::1`)，因此 `_request_is_secure_context` 仅从带括号的主机或带有单个冒号的主机中删除 `:port` 后缀。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- The cookie value is the session key itself (HttpOnly, ten-year
-  `Max-Age`). There is no server-side session: `DELETE` only tells the
-  browser to drop it, a copied cookie keeps working until the key is rotated,
-  and rotating the key invalidates every cookie at once.
-- `Path=/api/conversations` makes browsers send the cookie to every
-  conversation route, not just workspace files; the server ignores it there
-  (`F02.http-header-only`). Keep it that way: honoring it would open those
-  routes to CSRF.
-- A wrong legacy key (query or header) is rejected before the WebSocket is
-  accepted, so the client sees an HTTP 403 handshake failure, not a 4001
-  close. `ws listen` records it as `close.http_status`; assert it with
-  `--expect-reject 403` (`--expect-close 4001` fails on it).
-- First-frame auth has no acknowledgement frame and a 10-second deadline: a
-  client that connects and then waits for something else is closed with 4001.
-  Prove a socket is authenticated by a frame it sends afterwards.
-- The bash socket treats any later `{"type": "auth", ...}` frame as a no-op,
-  whatever its key; other frames must be `ExecuteBashRequest` JSON.
-- CORS preflights are answered by middleware before routing and auth, so an
-  `OPTIONS` request never gets 401. Without `Origin` and
-  `Access-Control-Request-Method` it reaches routing and gets 405.
-  The `curl` helper plays an independent browser for these and for cookies
-  (path matching, `Max-Age=0` removal); `api OPTIONS`, `--check-header` and
-  `--jar` reach the same cases inside the CLI.
-- Stripping the key variables from command environments is defense in depth:
-  commands run as the server's user and can read `/proc/<server pid>/environ`.
-- `restart --env` values persist for later restarts of the same run; this
-  family leaves `OH_SESSION_API_KEYS_1` and the CORS variables on its run.
-- With keys configured and no `--host`, the server binds `0.0.0.0`; without
-  keys, `127.0.0.1` (`F02.default-bind`). The launcher always passes
-  `--host 127.0.0.1`, so only `F02.default-bind` sees the default.
+## 陷阱
+
+- cookie 值是会话密钥本身（HttpOnly，十年
+  `Max-Age`). 没有服务器端会话：`DELETE` 只告诉浏览器丢弃它，复制的 cookie 在密钥旋转后仍然有效，而旋转密钥会一次 invalidate 所有 cookie。
+- `Path=/api/conversations` 使浏览器将 cookie 发送到每个会话路由，而不仅仅是工作区个文件； 服务器在那里忽略它（`F02.http-header-only`）。 保持这种方式：遵守它将会打开通往 CSRF 的路线。
+- 在接受 WebSocket 之前，错误的旧密钥（查询或标头）会被拒绝，因此客户端会看到 HTTP 403 握手失败，而不是 4001 关闭。 `ws listen`记为`close.http_status`； 断言它与
+  `--expect-reject 403`（`--expect-close 4001` 失败）。
+- 第一帧认证没有确认帧，且有10秒的超时：连接并等待其他事物的客户端会被关闭，返回4001。 证明套接字通过其后发送的帧进行身份验证。
+- bash 套接字将任何后面的 `{"type": "auth", ...}` 帧视为无操作，无论其键是什么； 其他帧必须是`ExecuteBashRequest` JSON。
+- CORS 预检在路由和身份验证之前由中间件应答，因此
+  `OPTIONS` 请求永远不会得到 401。 没有 `Origin` 和
+  `Access-Control-Request-Method` 它到达路由并得到 405。 `curl` 帮助程序为这些和 cookie 扮演一个独立的浏览器（路径匹配，`Max-Age=0` 删除）； `api OPTIONS`、`--check-header` 和
+  `--jar` 达到 CLI 内的相同情况。
+- 从命令环境中剥离关键变量是深度防御：命令以服务器用户身份运行并且可以读取 `/proc/<server pid>/environ`。
+- `restart --env` 值持久化用于稍后重新启动同一运行； 该族在运行时留下 `OH_SESSION_API_KEYS_1` 和 CORS 变量。
+- 配置了密钥并且没有`--host`，服务器绑定`0.0.0.0`； 没有钥匙，`127.0.0.1` (`F02.default-bind`)。 启动器总是通过
+  `--host 127.0.0.1`，因此只有 `F02.default-bind` 看到默认值。

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-TODO Agent for OpenHands Automated TODO Management
+TODO 智能体用于 OpenHands 自动化 TODO 管理
 
-This script processes individual TODO(openhands) comments using OpenHands agent
-to implement the TODO. Designed for use with GitHub Actions workflows.
+该脚本使用 OpenHands 智能体处理各个 TODO(OpenHands) 注释以实现 TODO。 设计用于 GitHub
+ Actions 工作流程。
 
-Usage:
+用途：
     python agent_script.py <todo_json>
 
 Arguments:
-    todo_json: JSON string containing TODO information from scanner.py
+    todo_json: JSON 字符串，包含来自 scanner.py 的 TODO 信息
 
-Environment Variables:
-    LLM_API_KEY: API key for the LLM (required)
-    LLM_MODEL: Language model to use (default: gpt-5.5)
-    LLM_BASE_URL: Optional base URL for LLM API
-    GITHUB_TOKEN: GitHub token for creating PRs (required)
-    GITHUB_REPOSITORY: Repository in format owner/repo (required)
+环境变量：
+    LLM_API_KEY: API 键用于 LLM（必需）
+    LLM_MODEL: 要使用的语言模型（默认值：gpt-5.5）
+    LLM_BASE_URL: 可选底座 URL 用于 LLM API
+    GITHUB_TOKEN: GitHub token 用于创建 PR（必填）
+    GITHUB_REPOSITORY: 格式为所有者/存储库的存储库（必需）
 
-For setup instructions and usage examples, see README.md in this directory.
+有关设置说明和使用示例，请参阅此目录中的 README.md。
 """
 
 import argparse
@@ -36,14 +36,14 @@ logger = get_logger(__name__)
 
 
 def process_todo(todo_data: dict):
-    """Process a single TODO item using OpenHands agent."""
+    """使用 OpenHands 智能体处理单个 TODO 项目。"""
     file_path = todo_data["file"]
     line_num = todo_data["line"]
     description = todo_data["description"]
 
     logger.info(f"Processing TODO in {file_path}:{line_num}")
 
-    # Configure LLM
+    # 配置LLM
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         logger.error("LLM_API_KEY environment variable is not set.")
@@ -64,23 +64,23 @@ def process_todo(todo_data: dict):
 
     llm = LLM(**llm_config)
 
-    # Create the prompt
+    # 创建提示词
     prompt = PROMPT.format(
         file_path=file_path,
         line_num=line_num,
         description=description,
     )
 
-    # Get the current working directory as workspace
+    # 获取当前工作目录为工作区
     cwd = os.getcwd()
 
-    # Create agent with default tools
+    # 使用默认工具创建智能体
     agent = get_default_agent(
         llm=llm,
         cli_mode=True,
     )
 
-    # Create conversation
+    # 创建对话
     conversation = Conversation(
         agent=agent,
         workspace=cwd,
@@ -89,7 +89,7 @@ def process_todo(todo_data: dict):
     logger.info("Starting task execution...")
     logger.info(f"Prompt: {prompt[:200]}...")
 
-    # Send the prompt and run the agent
+    # 发送提示词并运行智能体
     conversation.send_message(prompt)
     conversation.run()
 
@@ -97,7 +97,7 @@ def process_todo(todo_data: dict):
 
 
 def main():
-    """Main function to process a TODO item."""
+    """主要功能是处理 TODO 项。"""
     parser = argparse.ArgumentParser(
         description="Process a TODO(openhands) comment using OpenHands agent"
     )
@@ -111,14 +111,14 @@ def main():
         logger.error(f"Invalid JSON input: {e}")
         sys.exit(1)
 
-    # Validate required fields
+    # 验证必填字段
     required_fields = ["file", "line", "description"]
     for field in required_fields:
         if field not in todo_data:
             logger.error(f"Missing required field in TODO data: {field}")
             sys.exit(1)
 
-    # Process the TODO
+    # 处理TODO
     process_todo(todo_data)
 
 

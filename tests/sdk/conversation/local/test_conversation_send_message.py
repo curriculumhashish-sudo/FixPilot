@@ -56,22 +56,22 @@ class SendMessageDummyAgent(AgentBase):
 
 
 def test_send_message_with_string_creates_correct_message():
-    """Test that send_message with string creates the correct Message structure."""
+    """测试带有字符串的 send_message 是否创建正确的消息结构。"""
     agent = SendMessageDummyAgent()
     conversation = Conversation(agent=agent)
 
     test_text = "Hello, world!"
     conversation.send_message(test_text)
 
-    # Should have system prompt + user message
+    # 应该有系统提示词+用户消息
     assert len(conversation.state.events) == 2
 
-    # Check the user message event
+    # 检查用户消息事件
     user_event = conversation.state.events[-1]
     assert isinstance(user_event, MessageEvent)
     assert user_event.source == "user"
 
-    # Check the message structure
+    # 检查消息结构
     message = user_event.llm_message
     assert message.role == "user"
     assert len(message.content) == 1
@@ -80,7 +80,7 @@ def test_send_message_with_string_creates_correct_message():
 
 
 def test_send_message_string_equivalent_to_message_object():
-    """Test that send_message with string produces the same result as with Message object."""  # noqa: E501
+    """测试使用字符串的 send_message 是否与使用 Message 对象产生相同的结果。"""  # noqa: E501
     agent1 = SendMessageDummyAgent()
     agent2 = SendMessageDummyAgent()
 
@@ -89,17 +89,17 @@ def test_send_message_string_equivalent_to_message_object():
 
     test_text = "Test message"
 
-    # Use send_message with string
+    # 将 send_message 与字符串一起使用
     conversation1.send_message(test_text)
 
-    # Use send_message with Message object
+    # 将 send_message 与 Message 对象一起使用
     message = Message(role="user", content=[TextContent(text=test_text)])
     conversation2.send_message(message)
 
-    # Both should have the same number of events
+    # 两者应该具有相同数量的事件
     assert len(conversation1.state.events) == len(conversation2.state.events)
 
-    # The user message events should be equivalent
+    # 用户消息事件应该是等效的
     user_event1 = conversation1.state.events[-1]
     user_event2 = conversation2.state.events[-1]
 
@@ -117,13 +117,13 @@ def test_send_message_string_equivalent_to_message_object():
 
 
 def test_send_message_with_empty_string():
-    """Test that send_message works with empty string."""
+    """测试 send_message 是否适用于空字符串。"""
     agent = SendMessageDummyAgent()
     conversation = Conversation(agent=agent)
 
     conversation.send_message("")
 
-    # Should have system prompt + user message
+    # 应该有系统提示词+用户消息
     assert len(conversation.state.events) == 2
 
     user_event = conversation.state.events[-1]
@@ -133,14 +133,14 @@ def test_send_message_with_empty_string():
 
 
 def test_send_message_with_multiline_string():
-    """Test that send_message works with multiline strings."""
+    """测试 send_message 是否适用于多行字符串。"""
     agent = SendMessageDummyAgent()
     conversation = Conversation(agent=agent)
 
     test_text = "Line 1\nLine 2\nLine 3"
     conversation.send_message(test_text)
 
-    # Should have system prompt + user message
+    # 应该有系统提示词+用户消息
     assert len(conversation.state.events) == 2
 
     user_event = conversation.state.events[-1]
@@ -150,7 +150,7 @@ def test_send_message_with_multiline_string():
 
 
 def test_send_message_with_message_object():
-    """Test that send_message works with Message objects (existing functionality)."""
+    """测试 send_message 是否适用于 Message 对象（现有功能）。"""
     agent = SendMessageDummyAgent()
     conversation = Conversation(agent=agent)
 
@@ -158,7 +158,7 @@ def test_send_message_with_message_object():
     message = Message(role="user", content=[TextContent(text=test_text)])
     conversation.send_message(message)
 
-    # Should have system prompt + user message
+    # 应该有系统提示词+用户消息
     assert len(conversation.state.events) == 2
 
     user_event = conversation.state.events[-1]
@@ -171,7 +171,7 @@ def test_send_message_with_message_object():
 
 
 def test_acp_send_message_defers_initialization_until_run(tmp_path):
-    """ACP conversations should enqueue messages before starting ACP bootstrap."""
+    """ACP 对话应在启动 ACP 引导之前将消息排入队列。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(agent=agent, workspace=str(tmp_path))
@@ -214,7 +214,7 @@ def test_acp_send_message_defers_initialization_until_run(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_accepts_user_message_while_step_is_in_flight(tmp_path):
-    """ACP user messages should be persisted while a long async turn is running."""
+    """当长异步轮运行时，ACP 用户消息应为已持久化。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -278,7 +278,7 @@ async def test_acp_arun_accepts_user_message_while_step_is_in_flight(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_marks_queued_message_running_after_finish_gap(tmp_path):
-    """Queued ACP messages should resume RUNNING even if send sees FINISHED."""
+    """即使发送看到 FINISHED，排队的 ACP 消息也应恢复 RUNNING。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -336,7 +336,7 @@ async def test_acp_arun_marks_queued_message_running_after_finish_gap(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_processes_multiple_queued_messages_fifo(tmp_path):
-    """ACP arun should not skip earlier messages queued during a prompt."""
+    """ACP arun 不应跳过提示词期间排队的较早消息。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -390,7 +390,7 @@ async def test_acp_arun_processes_multiple_queued_messages_fifo(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_processes_initial_queued_messages_fifo(tmp_path):
-    """ACP arun should process pre-run queued messages from oldest to newest."""
+    """ACP arun 应按照从最旧到最新的顺序处理预运行排队消息。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -431,7 +431,7 @@ async def test_acp_arun_processes_initial_queued_messages_fifo(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_does_not_reprompt_when_cursor_is_current(tmp_path):
-    """ACP arun should finish when there is no queued user message."""
+    """ACP 当没有排队的用户消息时，arun 应该完成。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -468,7 +468,7 @@ async def test_acp_arun_does_not_reprompt_when_cursor_is_current(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_recovers_when_persisted_cursor_is_missing(tmp_path):
-    """A stale persisted ACP cursor should not tight-loop the run."""
+    """过时的已持久化 ACP 游标不应紧密循环运行。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -515,7 +515,7 @@ async def test_acp_arun_recovers_when_persisted_cursor_is_missing(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_sends_stop_hook_feedback_to_acp(tmp_path):
-    """ACP stop-hook feedback should be queued as the next prompt."""
+    """ACP 停止挂机反馈应作为下一个提示词排队。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -563,7 +563,7 @@ async def test_acp_arun_sends_stop_hook_feedback_to_acp(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_rechecks_messages_before_finishing(tmp_path):
-    """A user message appended in the finish gap should be sent in the same run."""
+    """附加在完成间隙中的用户消息应在同一运行中发送。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -629,7 +629,7 @@ async def test_acp_arun_rechecks_messages_before_finishing(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_does_not_commit_cursor_on_explicit_interrupt(tmp_path):
-    """Explicit interruption should leave the in-flight ACP prompt retryable."""
+    """显式中断应该使进行中的 ACP 提示词可重试。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -672,7 +672,7 @@ async def test_acp_arun_does_not_commit_cursor_on_explicit_interrupt(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_commits_cursor_when_cancelled_prompt_completed(tmp_path):
-    """Completed ACP prompts should not be replayed after cancellation."""
+    """已完成的 ACP 提示词不应在取消之后重播。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -718,7 +718,7 @@ async def test_acp_arun_commits_cursor_when_cancelled_prompt_completed(tmp_path)
 
 @pytest.mark.asyncio
 async def test_acp_arun_resumes_queued_messages_fifo_after_iteration_cap(tmp_path):
-    """Queued ACP messages should remain FIFO across follow-up runs."""
+    """排队的 ACP 消息在后续运行中应保持为 FIFO。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -772,7 +772,7 @@ async def test_acp_arun_resumes_queued_messages_fifo_after_iteration_cap(tmp_pat
 
 @pytest.mark.asyncio
 async def test_acp_arun_stops_after_agent_sets_error(tmp_path):
-    """ACP timeout/error statuses should not be replaced by max-iteration errors."""
+    """ACP 超时/错误状态不应被最大迭代错误替换。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -807,7 +807,7 @@ async def test_acp_arun_stops_after_agent_sets_error(tmp_path):
 
 @pytest.mark.asyncio
 async def test_acp_arun_leaves_queued_message_idle_at_iteration_cap(tmp_path):
-    """A queued ACP message at the run cap should wait for another run."""
+    """处于运行上限的排队 ACP 消息应等待另一次运行。"""
 
     agent = ACPAgent(acp_command=["echo", "test"])
     conversation = LocalConversation(
@@ -854,12 +854,12 @@ async def test_acp_arun_leaves_queued_message_idle_at_iteration_cap(tmp_path):
     assert conversation.state.execution_status == ConversationExecutionStatus.IDLE
 
 
-# --- Skill activation wiring -------------------------------------------------
-# Characterization tests for the skill-activation block in
-# LocalConversation.send_message(). AgentContext.get_user_message_suffix() has
-# its own unit tests; these pin the conversation-level contract: which fields
-# of the MessageEvent carry the activation, what happens to the user's own
-# text, and how ConversationState remembers activations across turns.
+# ---技能激活接线------------------------------------------------
+# 技能激活块的特性测试 LocalConversation.send_message().
+# AgentContext.get_user_message_suffix它有自己的单元测试; 这些将对话级别的合同锁定：哪些
+# 字段 MessageEvent 携带激活，用户自己的文本会发生什么，以及如何 ConversationState 记住
+# 会话中的激活。
+#
 
 
 def _python_tips_skill() -> Skill:
@@ -872,7 +872,7 @@ def _python_tips_skill() -> Skill:
 
 
 def test_send_message_activates_skill_on_trigger_match():
-    """A keyword match wires the skill into the event and conversation state."""
+    """关键字匹配将技能连接到事件和对话状态中。"""
     agent = SendMessageDummyAgent(
         agent_context=AgentContext(skills=[_python_tips_skill()])
     )
@@ -884,7 +884,7 @@ def test_send_message_activates_skill_on_trigger_match():
     user_event = conversation.state.events[-1]
     assert isinstance(user_event, MessageEvent)
 
-    # The user's own message is not rewritten ...
+    # 用户自己的消息不会被重写...
     assert len(user_event.llm_message.content) == 1
     assert isinstance(user_event.llm_message.content[0], TextContent)
     assert user_event.llm_message.content[0].text == user_text
@@ -894,10 +894,10 @@ def test_send_message_activates_skill_on_trigger_match():
     assert "Use list comprehensions" in user_event.extended_content[0].text
     assert user_event.activated_skills == ["python_tips"]
 
-    # The state records the activation so later turns can skip the skill.
+    # 状态会记录激活，以便以后的回合可以跳过该技能。
     assert conversation.state.activated_knowledge_skills == ["python_tips"]
 
-    # The fold into the LLM payload happens at to_llm_message() time.
+    # 折叠到 LLM 载荷发生在 to_llm_message() 时间。
     llm_message = user_event.to_llm_message()
     assert len(llm_message.content) == 2
     assert isinstance(llm_message.content[0], TextContent)
@@ -907,7 +907,7 @@ def test_send_message_activates_skill_on_trigger_match():
 
 
 def test_send_message_skips_already_activated_skill():
-    """A skill fires once per conversation, not once per matching message."""
+    """每个对话都会触发一次技能，而不是每个匹配的消息触发一次。"""
     agent = SendMessageDummyAgent(
         agent_context=AgentContext(skills=[_python_tips_skill()])
     )
@@ -929,12 +929,12 @@ def test_send_message_skips_already_activated_skill():
     assert second_event.activated_skills == []
     assert second_event.extended_content == []
 
-    # Recorded once, not duplicated.
+    # 记录一次，不重复。
     assert conversation.state.activated_knowledge_skills == ["python_tips"]
 
 
 def test_send_message_without_trigger_match_leaves_event_plain():
-    """No keyword match: the event carries no activation and state stays empty."""
+    """没有关键字匹配：事件没有激活并且状态保持为空。"""
     agent = SendMessageDummyAgent(
         agent_context=AgentContext(skills=[_python_tips_skill()])
     )
@@ -950,7 +950,7 @@ def test_send_message_without_trigger_match_leaves_event_plain():
 
 
 def test_send_message_without_agent_context_leaves_event_plain():
-    """No agent_context: the activation block is a no-op."""
+    """No agent_context：激活块是无操作。"""
     agent = SendMessageDummyAgent()
     conversation = Conversation(agent=agent)
 
@@ -964,7 +964,7 @@ def test_send_message_without_agent_context_leaves_event_plain():
 
 
 def test_send_message_activates_all_matching_skills():
-    """Every matching skill activates on the same message."""
+    """每个匹配的技能都会在同一条消息上激活。"""
     testing_skill = Skill(
         name="testing_framework",
         content="Use pytest for comprehensive testing with fixtures.",
@@ -980,9 +980,9 @@ def test_send_message_activates_all_matching_skills():
 
     user_event = conversation.state.events[-1]
     assert isinstance(user_event, MessageEvent)
-    # Activation order is deterministic: AgentContext.skills declaration order.
+    # 激活顺序是确定性的：AgentContext.skills声明顺序。
     assert user_event.activated_skills == ["python_tips", "testing_framework"]
-    # All matched skills are merged into a single extended_content block.
+    # 所有匹配的技能都会合并到一个 extended_content 块中。
     assert len(user_event.extended_content) == 1
     assert "Use list comprehensions" in user_event.extended_content[0].text
     assert "Use pytest" in user_event.extended_content[0].text
@@ -993,7 +993,7 @@ def test_send_message_activates_all_matching_skills():
 
 
 def test_send_message_user_message_suffix_without_skill_match():
-    """A static user_message_suffix reaches extended_content with no activation."""
+    """静态 user_message_suffix 到达 extended_content，无需激活。"""
     agent = SendMessageDummyAgent(
         agent_context=AgentContext(user_message_suffix="Always cite your sources.")
     )
@@ -1011,11 +1011,11 @@ def test_send_message_user_message_suffix_without_skill_match():
 
 
 def test_user_message_reaches_callbacks_before_its_state_update(tmp_path):
-    """Callbacks see a user message before the last_user_message_id update.
+    """回调在 last_user_message_id 更新之前查看用户消息。
 
-    The agent server wires on_state_change to the conversation's own callback
-    chain, so the update is appended (and published) as an event too. Callbacks
-    must observe events in the order they were persisted.
+    Agent Server 将 on_state_change 连接到对话自己的回调链，因此更新也作为事件附加（
+    并发布）。 回调必须按照事件发生的顺序观察事件已持久化
+    。
     """
     seen: list = []
     conversation = LocalConversation(

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 from openhands.sdk.agent.acp_models import ACPModelInfo
 from openhands.sdk.agent.base import AgentBase
 from openhands.sdk.conversation.conversation_stats import ConversationStats
-from openhands.sdk.conversation.request import (  # re-export for backward compat
+from openhands.sdk.conversation.request import (  # 重新导出以实现向后兼容
     ACPEnabledAgent as ACPEnabledAgent,
     ConversationConfig as ConversationConfig,
     SendMessageRequest as SendMessageRequest,
@@ -24,7 +24,7 @@ from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.conversation.types import ConversationTags
 from openhands.sdk.event.base import Event
 from openhands.sdk.hooks import HookConfig
-from openhands.sdk.llm.message import (  # re-export
+from openhands.sdk.llm.message import (  # 再出口
     ImageContent as ImageContent,
     TextContent as TextContent,
 )
@@ -48,7 +48,7 @@ from openhands.sdk.workspace.base import BaseWorkspace
 
 
 class ConversationRuntimeStatus(StrEnum):
-    """Availability of the runtime that executes a conversation."""
+    """执行对话的运行时的可用性。"""
 
     AVAILABLE = "available"
     STARTING = "starting"
@@ -58,14 +58,14 @@ class ConversationRuntimeStatus(StrEnum):
 
 
 class ConversationRuntimeError(BaseModel):
-    """Structured details for the latest runtime lifecycle failure."""
+    """最新运行时生命周期故障的结构化详细信息。"""
 
     code: str
     message: str
 
 
 class ConversationRuntimeInfo(BaseModel):
-    """Runtime availability and recovery information for a conversation."""
+    """对话的运行时可用性和恢复信息。"""
 
     runtime_status: ConversationRuntimeStatus
     can_resume: bool
@@ -73,12 +73,11 @@ class ConversationRuntimeInfo(BaseModel):
 
 
 class ServerErrorEvent(Event):
-    """Event emitted by the agent server when a server-level error occurs.
+    """发生服务器级错误时由 Agent Server 发出的事件。
 
-    This event is used for errors that originate from the agent server itself,
-    such as MCP connection failures, WebSocket errors, or other infrastructure
-    issues. Unlike ConversationErrorEvent which is for conversation-level failures,
-    this event indicates a problem with the server environment.
+    此事件用于源自 Agent Server 本身的错误，例如 MCP 连接失败、WebSocket 错误或其他基
+    础设施问题。 与针对会话级故障的Conversatio
+    nErrorEvent不同，此事件表明服务器环境存在问题。
     """
 
     code: str = Field(description="Code for the error - typically an error type")
@@ -86,7 +85,7 @@ class ServerErrorEvent(Event):
 
 
 class ConversationSortOrder(StrEnum):
-    """Enum for conversation sorting options."""
+    """枚举用于对话排序选项。"""
 
     CREATED_AT = "CREATED_AT"
     UPDATED_AT = "UPDATED_AT"
@@ -95,21 +94,21 @@ class ConversationSortOrder(StrEnum):
 
 
 class EventSortOrder(StrEnum):
-    """Enum for event sorting options."""
+    """枚举用于事件排序选项。"""
 
     TIMESTAMP = "TIMESTAMP"
     TIMESTAMP_DESC = "TIMESTAMP_DESC"
 
 
 class StoredConversation(ConversationConfig):
-    """Stored details about a conversation.
+    """存储有关对话的详细信息。
 
-    Extends :class:`ConversationConfig` (the agent-less shared config) with
-    server-assigned fields. It deliberately does NOT carry the ``agent``: the
-    single source of truth for the agent / runtime state is
-    ``ConversationState`` persisted to ``base_state.json``. Because
-    ``StoredConversation`` is not a ``StartConversationRequest``, the agent
-    cannot silently re-appear in ``meta.json``.
+    使用服务器分配的字段扩展：class:`ConversationConfig` （智能体-less 共享配置）。
+    它故意让不携带``agent``：智能体/运行时状
+    态的单一事实来源是
+    ``ConversationState`` 已持久化至 ``base_state.json``。 因为
+    ``StoredConversation``不是``StartConversationRequest``，智能体不能默默地重新出现
+    在``meta.json``中。
     """
 
     required_runtime_credential_bindings: set[str] = Field(default_factory=set)
@@ -148,7 +147,7 @@ class StoredConversation(ConversationConfig):
 
 
 class _ConversationInfoBase(BaseModel):
-    """Common conversation info fields shared by conversation contracts."""
+    """对话合约共享的公共对话信息字段。"""
 
     id: UUID = Field(description="Unique conversation ID")
     workspace: BaseWorkspace = Field(
@@ -247,8 +246,9 @@ class _ConversationInfoBase(BaseModel):
     metrics: MetricsSnapshot | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-    # Plain ``UUID`` (not ``OpenHandsUUID``) so it JSON-serializes dashed, exactly
-    # like the ``id`` field above — clients must be able to correlate the two.
+    # 普通 ``UUID`` （不是 ``OpenHandsUUID``），因此它 JSON 序列化虚线，与上面的 ``id``
+    # 字段完全相同 - 客户端必须能够将两者关联起来。
+    #
     forked_from_conversation_id: UUID | None = Field(
         default=None,
         description=(
@@ -347,7 +347,7 @@ class _ConversationInfoBase(BaseModel):
 
 
 class ConversationInfo(_ConversationInfoBase):
-    """Information about a conversation running locally without a Runtime sandbox."""
+    """有关在没有运行时沙箱的情况下本地运行的对话的信息。"""
 
     agent: AgentBase = Field(
         ...,
@@ -398,32 +398,28 @@ INCLUDE_SKILLS_PARAM_TITLE = (
 
 
 def trim_conversation_response_skills(info: ConversationInfo) -> ConversationInfo:
-    """Return ``info`` with ``agent.agent_context.skills`` set to ``[]``.
+    """返回 ``info``，并将 ``agent.agent_context.skills`` 设置为 ``[]``。
 
-    Applied **by default** on every route that emits ``ConversationInfo``
-    (search, get, batch-get, start, fork, and the deprecated ACP
-    equivalents). Callers that still need the legacy shape can opt in
+    默认情况下 ** 应用 ** 到发出 ``ConversationInfo`` 的每个路由（搜索、获取、批量获
+    取、开始、fork 和已弃用 ACP 等效项）。 仍需
+    要旧形状的呼叫者可以选择加入
     with ``?include_skills=true``.
 
-    The trim exists because when an ``AgentContext`` is constructed
+    修剪存在是因为当构造 ``AgentContext`` 时
     with ``load_user_skills=True`` / ``load_public_skills=True``, its
-    model_validator resolves the entire skill catalog (~40 entries in
-    stock setups) and persists them inline. Every conversation fetch
-    therefore carried ~260 KB of skill content that no known client
-    actually reads from the HTTP response (agent-canvas, OpenHands
-    app-server, SDK examples all ignore the field on
-    ``ConversationInfo`` — they either use the in-process
-    ``LocalConversation`` directly or read other fields like
+    model_validator 解析整个技能目录（库存设置中约 40 个条目）并内联保留它们。 每条对
+    话都会携带 ~260 KB 的技能内容，但实际被 HTTP 响
+    应中的智能体-canvas、OpenHands 应用服务器、SDK 示例都忽略掉了
+    ``ConversationInfo`` — 他们要么使用进程内
+    ``LocalConversation`` 直接或读取其他字段，例如
     ``agent.llm.model``).
 
-    The persisted ``ConversationState`` on disk and the in-memory copy
-    held by the agent's runtime are untouched.
+    磁盘上的已持久化 ``ConversationState`` 和智能体运行时保存的内存中副本保持不变。
 
-    A ``model_copy`` chain is enough because ``BaseModel.model_copy``
-    is shallow on default — we replace the leaf ``skills`` list with
-    an empty list without touching any other field. The returned
-    object is a fresh ``ConversationInfo`` instance; callers that
-    hold the input reference observe no mutation.
+    ``model_copy`` 链就足够了，因为 ``BaseModel.model_copy`` 默认情况下是浅的 - 我们
+    用空列表替换叶 ``skills`` 列
+    表，而不触及任何其他字段。 返回的对象是一个新鲜的``ConversationInfo``实例； 持有
+    输入引用的调用者没有观察到任何突变。
     """
     agent_ctx = getattr(info.agent, "agent_context", None)
     if agent_ctx is None or not agent_ctx.skills:
@@ -436,7 +432,7 @@ def trim_conversation_response_skills(info: ConversationInfo) -> ConversationInf
 
 
 class ConfirmationResponseRequest(BaseModel):
-    """Payload to accept or reject a pending action."""
+    """载荷接受或拒绝待处理的操作。"""
 
     accept: bool
     reason: str = "User rejected the action."
@@ -456,7 +452,7 @@ class EventPage(OpenHandsModel):
 
 
 class UpdateSecretsRequest(BaseModel):
-    """Payload to update secrets in a conversation."""
+    """载荷更新对话中的机密。"""
 
     secrets: dict[str, SecretSource] = Field(
         description="Dictionary mapping secret keys to values"
@@ -465,12 +461,12 @@ class UpdateSecretsRequest(BaseModel):
     @field_validator("secrets", mode="before")
     @classmethod
     def convert_string_secrets(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Convert plain string secrets to StaticSecret objects.
+        """将纯字符串机密转换为 StaticSecret 对象。
 
-        This validator enables backward compatibility by automatically converting:
-        - Plain strings: "secret-value" → StaticSecret(value=SecretStr("secret-value"))
-        - Dict with value field: {"value": "secret-value"} → StaticSecret dict format
-        - Proper SecretSource objects: passed through unchanged
+        此验证器通过自动转换启用向后兼容性：
+        - 普通字符串：“机密-值”→StaticSecret(值=SecretStr(“机密-值”))
+        - 带值字段的字典：{"value": "机密-value"} → StaticSecret 字典格式
+        - 正确的SecretSource对象：不变地通过
         """
         if not isinstance(v, dict):
             return v
@@ -478,36 +474,36 @@ class UpdateSecretsRequest(BaseModel):
         converted = {}
         for key, value in v.items():
             if isinstance(value, str):
-                # Convert plain string to StaticSecret dict format
+                # 将纯字符串转换为 StaticSecret dict 格式
                 converted[key] = {
                     "kind": "StaticSecret",
                     "value": value,
                 }
             elif isinstance(value, dict):
                 if "value" in value and "kind" not in value:
-                    # Convert dict with value field to StaticSecret dict format
+                    # 将带有 value 字段的 dict 转换为 StaticSecret dict 格式
                     converted[key] = {
                         "kind": "StaticSecret",
                         "value": value["value"],
                     }
                 else:
-                    # Keep existing SecretSource objects or properly formatted dicts
+                    # 保留现有的 SecretSource 对象或格式正确的字典
                     converted[key] = value
             else:
-                # Keep other types as-is (will likely fail validation later)
+                # 保持其他类型不变（稍后可能会失败验证）
                 converted[key] = value
 
         return converted
 
 
 class SetConfirmationPolicyRequest(BaseModel):
-    """Payload to set confirmation policy for a conversation."""
+    """载荷设置对话的确认策略。"""
 
     policy: ConfirmationPolicyBase = Field(description="The confirmation policy to set")
 
 
 class SetSecurityAnalyzerRequest(BaseModel):
-    "Payload to set security analyzer for a conversation"
+    "载荷为对话设置安全分析器"
 
     security_analyzer: SecurityAnalyzerBase | None = Field(
         description="The security analyzer to set"
@@ -515,7 +511,7 @@ class SetSecurityAnalyzerRequest(BaseModel):
 
 
 class UpdateConversationRequest(BaseModel):
-    """Payload to update conversation metadata."""
+    """载荷更新对话元数据。"""
 
     title: str | None = Field(
         default=None,
@@ -535,15 +531,15 @@ class UpdateConversationRequest(BaseModel):
     @field_validator("title")
     @classmethod
     def _reject_blank_title(cls, v: str | None) -> str | None:
-        # The service stores title.strip(); a whitespace-only title would
-        # erase the stored title to "" instead of failing like "" does.
+        # 服务存储title.strip()； 仅空白标题会将存储的标题删除为“”，而不是像“”那样失败。
+        #
         if v is not None and not v.strip():
             raise ValueError("title must not be blank")
         return v
 
 
 class ForkConversationRequest(BaseModel):
-    """Payload to fork a conversation."""
+    """载荷分叉对话。"""
 
     id: UUID | None = Field(
         default=None,
@@ -579,7 +575,7 @@ class ForkConversationRequest(BaseModel):
 
 
 class NavigateConversationRequest(BaseModel):
-    """Payload to move a conversation's HEAD to an existing event."""
+    """载荷将对话的 HEAD 移至现有事件。"""
 
     event_id: str | None = Field(
         default=None,
@@ -592,19 +588,19 @@ class NavigateConversationRequest(BaseModel):
 
 
 class AskAgentRequest(BaseModel):
-    """Payload to ask the agent a simple question."""
+    """载荷问智能体一个简单的问题。"""
 
     question: str = Field(description="The question to ask the agent")
 
 
 class AskAgentResponse(BaseModel):
-    """Response containing the agent's answer."""
+    """包含智能体的答案的响应。"""
 
     response: str = Field(description="The agent's response to the question")
 
 
 class StartGoalRequest(BaseModel):
-    """Payload to start a ``/goal`` loop inside a conversation."""
+    """载荷在对话中启动 ``/goal`` 循环。"""
 
     objective: str = Field(description="The goal objective to pursue and audit.")
     max_iterations: int = Field(
@@ -613,10 +609,10 @@ class StartGoalRequest(BaseModel):
 
 
 class AgentResponseResult(BaseModel):
-    """The agent's final response for a conversation.
+    """智能体对对话的最终响应。
 
-    Contains the text of the last agent finish message or text response.
-    Empty string if the agent has not produced a final response yet.
+    包含最后一个智能体完成消息或文本响应的文本。 如果智能体尚未产生最终响应，则为空字
+    符串。
     """
 
     response: str = Field(
@@ -629,7 +625,7 @@ class AgentResponseResult(BaseModel):
 
 
 class BashEventBase(DiscriminatedUnionMixin, ABC):
-    """Base class for all bash event types"""
+    """所有 bash 事件类型的基类"""
 
     id: OpenHandsUUID = Field(default_factory=uuid4)
     timestamp: datetime = Field(default_factory=utc_now)
@@ -650,8 +646,7 @@ class BashCommand(BashEventBase, ExecuteBashRequest):
 
 class BashOutput(BashEventBase):
     """
-    Output of a bash command. A single command may have multiple pieces of output
-    depending on how large the output is.
+    bash 命令的输出。 单个命令可能有多个输出，具体取决于输出的大小。
     """
 
     command_id: OpenHandsUUID

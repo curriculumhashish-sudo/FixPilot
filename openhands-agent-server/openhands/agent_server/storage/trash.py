@@ -11,12 +11,11 @@ logger = get_logger(__name__)
 
 
 class Trash:
-    """The only place stored files are deleted.
+    """唯一存储文件的地方被删除。
 
-    ``discard`` is one rename, so it can run under a lock and races nothing: a
-    reader sees the path whole or not at all. Deletion happens in the
-    background, and whatever an interrupted run leaves is emptied on the next
-    start. ``root`` must be on the same filesystem as everything discarded.
+    ``discard`` 是一个重命名，因此它可以在锁下运行并且不会发生任何竞争：读者可以看到
+    整个路径或根本看不到路径。 删除发生在后台，无论中断的运行留下什么，都会
+    在下次启动时清空。 ``root`` 必须与丢弃的所有内容位于同一文件系统上。
     """
 
     def __init__(self, root: Path) -> None:
@@ -39,15 +38,15 @@ class Trash:
             self._emptying = asyncio.create_task(self._empty())
 
     async def drain(self) -> None:
-        """Wait until everything discarded so far is deleted."""
+        """等到迄今为止丢弃的所有内容都被删除。"""
         while self._emptying is not None and not self._emptying.done():
             await asyncio.shield(self._emptying)
 
     async def close(self) -> None:
-        """Abandon deletion; the next start picks up what is left.
+        """放弃删除； 下一次开始会拾取剩下的东西。
 
-        A deletion already running in a worker thread cannot be interrupted:
-        it finishes after this returns. Only the entries not yet started wait.
+        已在工作线程线程中运行的删除无法中断：它在返回后完成。 只有尚未开始的条目等待
+        。
         """
         if self._emptying is not None:
             self._emptying.cancel()
@@ -55,8 +54,9 @@ class Trash:
             self._emptying = None
 
     async def _empty(self) -> None:
-        # Re-list for entries discarded meanwhile, but try each once per run:
-        # one that cannot be deleted must not spin; the next start retries it.
+        # 重新列出同时丢弃的条目，但每次运行时都尝试一次：无法删除的条目不得旋转； 接下
+        # 来就开始重试吧。
+        #
         tried: set[Path] = set()
         while entries := [
             entry
@@ -79,6 +79,6 @@ class Trash:
 def _remove(path: Path) -> None:
     if path.is_symlink():
         path.unlink(missing_ok=True)
-    # safe_rmtree reports failure instead of raising.
+    # safe_rmtree 报告失败而不是引发。
     elif not safe_rmtree(path, "discarded conversation storage"):
         raise OSError(f"Could not delete {path}")

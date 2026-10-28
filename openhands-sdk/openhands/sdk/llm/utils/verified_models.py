@@ -1,15 +1,16 @@
-"""Curated lists of models that are known to work well with OpenHands.
+"""已知与 OpenHands 配合良好的模型的精选列表。
 
-These lists feed the model pickers (agent-server ``/llm/verified-models``) and
-the ``openhands/`` provider allowlist. They are meant to be short.
+这些列表提供模型选择器 (智能体-服务器 ``/llm/verified-models``) 和 ``openhands/`` 提
+供商允许列表。 它们应该很短。
 
-Rule: for each model line, keep only the two latest versions. Variants of a kept
-version (``-pro``, ``-mini``, ``-codex``, ``-flash``, dated aliases) stay with it.
-Unversioned "current" aliases (for example ``deepseek-chat``, ``kimi-for-coding``)
-stay. When a new version lands, drop the oldest one in the same line.
+Rule: 对于每个型号系列，仅保留两个最新版本。 保留的变体
+版本（``-pro``、``-mini``、``-codex``、``-flash``、带日期的别名）保留。 未版本化的“当
+前”别名（例如
+``deepseek-chat``、``kimi-for-coding``）保留。 当新版本发布时，将最旧的版本放在同一行
+中。
 """
 
-# GPT: gpt-6 and gpt-5.6. Codex: gpt-5.3-codex and gpt-5.2-codex.
+# GPT：gpt-6 和 gpt-5.6。 法典：gpt-5.3-codex 和 gpt-5.2-codex。
 VERIFIED_OPENAI_MODELS = [
     "gpt-6.1-sol",
     "gpt-6-sol",
@@ -23,7 +24,7 @@ VERIFIED_OPENAI_MODELS = [
     "gpt-5.2-codex",
 ]
 
-# Opus: 5.5 and 5. Sonnet: 5.5 and 5. Haiku: 5.5 and 4.5. Fable: 5.1 and 5.
+# 作品：5.5 和 5。 十四行诗：5.5 和 5。 俳句：5.5 和 4.5。 寓言：5.1和5。
 VERIFIED_ANTHROPIC_MODELS = [
     "claude-opus-5-5",
     "claude-opus-5",
@@ -35,13 +36,13 @@ VERIFIED_ANTHROPIC_MODELS = [
     "claude-fable-5",
 ]
 
-# Devstral 2512 (two sizes).
+# Devstral 2512（两种尺寸）。
 VERIFIED_MISTRAL_MODELS = [
     "devstral-2512",
     "devstral-medium-2512",
 ]
 
-# Argon: 4. Pro: 3.1. Flash: 3.8 and 3.7. Flash-lite: 3.5 and 3.1.
+# 氩气：4。 优点：3.1。 闪存：3.8 和 3.7。 Flash-lite：3.5 和 3.1。
 VERIFIED_GEMINI_MODELS = [
     "gemini-4-argon",
     "gemini-3.1-pro",
@@ -52,7 +53,7 @@ VERIFIED_GEMINI_MODELS = [
     "gemini-3.1-flash-lite",
 ]
 
-# V4 and V3.2; ``deepseek-chat`` is the current alias.
+# V4和V3.2； ``deepseek-chat`` 是当前别名。
 VERIFIED_DEEPSEEK_MODELS = [
     "deepseek-chat",
     "deepseek-v4-pro",
@@ -62,29 +63,30 @@ VERIFIED_DEEPSEEK_MODELS = [
     "deepseek-v3.2-reasoner",
 ]
 
-# Kimi K3 and K2.7; ``kimi-for-coding`` is Moonshot's own alias (direct API only;
-# the OpenHands proxy does not serve it, so it is not in the openhands list).
+# 基米K3和K2.7； ``kimi-for-coding`` 是 Moonshot 自己的别名（仅直接 API； OpenHands 代理
+# 不为其提供服务，因此它不在 OpenHands 列表中）。
+#
 VERIFIED_MOONSHOT_MODELS = [
     "kimi-k3",
     "kimi-k2.7-code",
     "kimi-for-coding",
 ]
 
-# M3 (incl. flash) and M2.7.
+# M3（包括闪光灯）和 M2.7。
 VERIFIED_MINIMAX_MODELS = [
     "minimax-m3.1-flash",
     "minimax-m3",
     "minimax-m2.7",
 ]
 
-# GLM 5.3 and 5.2.
+# GLM5.3和5.2。
 VERIFIED_GLM_MODELS = [
     "glm-5.3",
     "glm-5.3-flash",
     "glm-5.2",
 ]
 
-# Nemotron 3.5 and 3.
+# Nemotron 3.5 和 3。
 VERIFIED_NVIDIA_MODELS = [
     "nemotron-3.5-lightning-30b-a3b",
     "nemotron-3-nano",
@@ -93,7 +95,7 @@ VERIFIED_NVIDIA_MODELS = [
     "nemotron-3-ultra-550b-a55b",
 ]
 
-# Plus: 3.7 and 3.6. Max: 3.8 and 3.7. Flash: 3.8 and 3.7. Coder: unversioned.
+# 加：3.7 和 3.6。 最大值：3.8 和 3.7。 闪存：3.8 和 3.7。 编码器：未版本化。
 VERIFIED_QWEN_MODELS = [
     "qwen3.7-plus",
     "qwen3.6-plus",
@@ -107,10 +109,10 @@ VERIFIED_QWEN_MODELS = [
     "qwen3-coder-flash",
 ]
 
-# OpenRouter routes other vendors' models. Entries are the OpenRouter id with
-# the ``openrouter/`` prefix stripped (so ``anthropic/claude-opus-5`` here
-# corresponds to ``openrouter/anthropic/claude-opus-5``). Keep only the frontier
-# routes the OpenHands proxy serves, using OpenRouter's actual model ids.
+# OpenRouter路由其他供应商的模型。 条目是删除了 ``openrouter/`` 前缀的 OpenRouter id（因
+# 此这里的 ``anthropic/claude-opus-5`` 对应于 ``openrouter/anthropic/claude-opus-5``）。
+#  使用 OpenRouter 的实际模型 ID 仅保留 OpenHands 代理服务的边界路由。
+#
 VERIFIED_OPENROUTER_MODELS = [
     "anthropic/claude-opus-5",
     "anthropic/claude-sonnet-5.5",
@@ -139,9 +141,9 @@ VERIFIED_OPENROUTER_MODELS = [
     "minimax/minimax-m3",
 ]
 
-# DigitalOcean Inference ids (``GET https://inference.do-ai.run/v1/models``).
-# Chat Completions models with tool calling only: the gpt-6 line needs the
-# Responses API for tools, so it is left out.
+# DigitalOcean 推理 ID (``GET https://inference.do-ai.run/v1/models``)。 仅包含工具调用
+# 的聊天完成模型：gpt-6 行需要工具的响应 API，因此被排除在外。
+#
 VERIFIED_DIGITALOCEAN_MODELS = [
     "anthropic-claude-opus-5.5",
     "anthropic-claude-opus-5",
@@ -157,8 +159,9 @@ VERIFIED_DIGITALOCEAN_MODELS = [
     "qwen3.8-max",
 ]
 
-# What the ``openhands/`` provider serves. Same rule; every entry must also be in
-# a provider list above, except OpenHands-only models.
+# ``openhands/`` 提供商提供的服务。 规则相同； 除仅限 OpenHands 的型号外，每个条目还必须
+# 位于上面的提供程序列表中。
+#
 VERIFIED_OPENHANDS_MODELS = [
     "claude-opus-5-5",
     "claude-opus-5",

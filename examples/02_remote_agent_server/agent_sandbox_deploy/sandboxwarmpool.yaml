@@ -1,5 +1,5 @@
 ---
-# Pre-warms agent-server pods so AgentSandboxWorkspace claims are near-instant.
+# 预热智能体服务器 Pod，因此 AgentSandboxWorkspace 声明几乎是即时的。
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxWarmPool
 metadata:

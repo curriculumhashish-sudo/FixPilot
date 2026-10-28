@@ -1,4 +1,4 @@
-"""Grep tool executor implementation."""
+"""Grep 工具执行器实现。"""
 
 import fnmatch
 import os
@@ -26,20 +26,19 @@ logger = get_logger(__name__)
 
 
 class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
-    """Executor for grep content search operations.
+    """grep 内容搜索操作的执行器。
 
-    This implementation prefers ripgrep for performance, falls back to the
-    system grep binary when available, and finally uses a Python recursive
-    search when no grep binary is installed.
+    此实现偏好使用 ripgrep，当可用时会切换到系统中的 grep 命令，最后使用一个 Python
+    当没有安装grep二进制时，进行递归搜索。
     """
 
     _MAX_MATCHES = 100
 
     def __init__(self, working_dir: str):
-        """Initialize the grep executor.
+        """初始化 grep 执行器。
 
         Args:
-            working_dir: The working directory to use as the base for searches
+            working_dir: 用于搜索的基础工作目录
         """
         self.working_dir: Path = Path(working_dir).resolve()
         self._search_backend = self._select_search_backend()
@@ -61,7 +60,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         action: GrepAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> GrepObservation:
-        """Execute grep content search using the best available backend."""
+        """使用最佳可用后端执行 grep 内容搜索。"""
         try:
             if action.path:
                 search_path = Path(action.path).resolve()
@@ -121,7 +120,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         include_pattern: str | None,
         truncated: bool,
     ) -> str:
-        """Format the grep observation output message."""
+        """设置 grep 观测结果输出消息的格式。"""
         if not matches:
             include_info = (
                 f" (filtered by '{include_pattern}')" if include_pattern else ""
@@ -150,7 +149,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         search_path: Path,
         include_pattern: str | None,
     ) -> bool:
-        """Return whether a matched path should be surfaced to the user."""
+        """返回是否应向用户显示匹配的路径。"""
         try:
             relative_parts = path.resolve().relative_to(search_path.resolve()).parts
         except ValueError:
@@ -165,7 +164,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         return not filename.startswith(".")
 
     def _match_mtime(self, path: Path) -> float:
-        """Return a sortable modification time for matched paths."""
+        """返回匹配路径的可排序修改时间。"""
         try:
             return path.stat().st_mtime
         except OSError:
@@ -177,7 +176,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         search_path: Path,
         include_pattern: str | None,
     ) -> tuple[list[str], bool]:
-        """Filter, sort, and truncate raw match paths."""
+        """过滤、排序和截断原始匹配路径。"""
         unique_matches: dict[str, Path] = {}
         for match in matches:
             try:
@@ -226,7 +225,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
     def _execute_with_ripgrep(
         self, action: GrepAction, search_path: Path
     ) -> GrepObservation:
-        """Execute grep content search using ripgrep."""
+        """使用 ripgrep 执行 grep 内容搜索。"""
         cmd = [
             "rg",
             "-l",
@@ -256,7 +255,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
     def _execute_with_system_grep(
         self, action: GrepAction, search_path: Path
     ) -> GrepObservation:
-        """Execute grep content search using the system grep binary."""
+        """使用系统 grep 二进制文件执行 grep 内容搜索。"""
         result = subprocess.run(
             ["grep", "-R", "-I", "-l", "-i", action.pattern, str(search_path)],
             capture_output=True,
@@ -284,7 +283,7 @@ class GrepExecutor(ToolExecutor[GrepAction, GrepObservation]):
         search_path: Path,
         regex: re.Pattern[str] | None = None,
     ) -> GrepObservation:
-        """Execute grep content search using Python file walking."""
+        """使用 Python 文件遍历执行 grep 内容搜索。"""
         compiled_regex = regex or re.compile(action.pattern, re.IGNORECASE)
         matches: list[Path] = []
         for root, dirs, files in os.walk(search_path):

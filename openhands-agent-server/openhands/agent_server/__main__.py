@@ -20,19 +20,18 @@ logger = get_logger(__name__)
 _INTERNAL_SERVER_URL_ENV = "OH_INTERNAL_SERVER_URL"
 _EXTRA_PYTHON_PATH_ENV = "OH_EXTRA_PYTHON_PATH"
 
-# Hosts that bind to every network interface. Binding to one of these without
-# authentication exposes the (otherwise unauthenticated) agent server to the
-# network — see the session-api-key bind guard below.
+# 绑定到每个网络接口的主机。 绑定到其中之一而不使用身份验证会将（否则未经身份验证的）
+# Agent Server 暴露给网络 - 请参阅下面的 session-API-key 绑定防护。
+#
 _WILDCARD_HOSTS = frozenset({"0.0.0.0", "::", "[::]"})
 _LOOPBACK_HOST = "127.0.0.1"
 
 
 def _load_server_config():
-    """Resolve the effective agent-server config, or ``None`` if it fails.
+    """解析有效的智能体-服务器配置，如果失败则解析 ``None``。
 
-    Settings may come from environment variables or from the agent-server
-    config file, so we resolve the effective config rather than checking a
-    single source.
+    设置可能来自环境变量或智能体服务器配置文件，因此我们解析有效配置而不是检查单个源
+    。
     """
     from openhands.agent_server.config import load_config
 
@@ -48,42 +47,40 @@ def _load_server_config():
 
 
 def _auth_enabled() -> bool:
-    """Return True when at least one session API key is configured.
+    """当至少配置了一个会话 API 密钥时返回 True。
 
-    Keys may come from the ``SESSION_API_KEY`` / ``OH_SESSION_API_KEYS_0``
-    environment variables or from the agent-server config file.
+    密钥可能来自 ``SESSION_API_KEY`` / ``OH_SESSION_API_KEYS_0`` 环境变量或智能体-服
+    务器配置文件。
     """
     config = _load_server_config()
     return bool(config and config.session_api_keys)
 
 
 def _trust_forwarded_headers() -> bool:
-    """Return True when the operator opted into trusting forwarded headers.
+    """当操作员选择信任转发标头时返回 True。
 
-    uvicorn's ``proxy_headers`` rewrites the request scheme and client address
+    uvicorn的``proxy_headers``重写了请求方案和客户端地址
     from ``X-Forwarded-Proto``/``X-Forwarded-For`` sent by any peer in
-    ``FORWARDED_ALLOW_IPS`` (loopback by default). Tying it to
-    ``trust_forwarded_headers`` keeps a client from changing the origin the
-    server derives while that setting is off.
+    ``FORWARDED_ALLOW_IPS``（默认环回）。 将其绑定到
+    ``trust_forwarded_headers`` 在该设置关闭时阻止客户端更改服务器派生的源。
     """
     config = _load_server_config()
     return bool(config and config.trust_forwarded_headers)
 
 
 def _get_internal_server_url(host: str, port: int) -> str:
-    """Build the current agent-server URL for local secret lookups.
+    """构建当前的智能体-服务器 URL 以进行本地机密查找。
 
-    Wildcard binds are rewritten to loopback so in-process callers can connect
-    back to the current server instance, and IPv6 literals are bracketed to
-    produce a valid URL.
+    通配符绑定被重写为回环，这样在途的调用者可以连接回当前服务器实例，而IPv6常量被括
+    起来以生成有效的URL。
 
     Examples:
         >>> _get_internal_server_url("0.0.0.0", 8000)
-        'http://127.0.0.1:8000'
+        ' http://127.0.0.1:8000'
         >>> _get_internal_server_url("::", 8000)
-        'http://127.0.0.1:8000'
+        ' http://127.0.0.1:8000'
         >>> _get_internal_server_url("fe80::1", 8000)
-        'http://[fe80::1]:8000'
+        ' http://[fe80::1 ]:8000'
     """
     resolved_host = host
     if host in _WILDCARD_HOSTS:
@@ -94,15 +91,15 @@ def _get_internal_server_url(host: str, port: int) -> str:
 
 
 def extend_python_path(extra_paths: str | None) -> None:
-    """Add directories to ``sys.path`` so ``importlib.import_module`` can find
-    external custom-tool modules — even when running from a PyInstaller binary.
+    """将目录添加到 ``sys.path``，以便 ``importlib.import_module`` 可以找到
+    外部自定义工具模块 - 即使从 PyInstaller 二进制文件运行时也是如此。
 
-    Paths are read from *extra_paths* (``--extra-python-path`` CLI arg) **and**
-    the ``OH_EXTRA_PYTHON_PATH`` environment variable.  Both use the
-    platform path separator (``':'`` on POSIX, ``';'`` on Windows).
+    路径从 *extra_paths* (``--extra-python-path`` CLI arg) ** 和 **
+    ``OH_EXTRA_PYTHON_PATH`` 环境变量读取。 两者都使用平台路径分隔符（POSIX 上的
+    ``':'``，Windows 上的 ``';'``）
+    。
 
-    Non-existent directories are skipped with a warning; duplicates and paths
-    already on ``sys.path`` are silently ignored.
+    不存在的目录会被跳过并带有警告； ``sys.path`` 上已有的重复项和路径将被默默忽略。
     """
     raw_parts: list[str] = []
     for source in (extra_paths, os.environ.get(_EXTRA_PYTHON_PATH_ENV)):
@@ -134,10 +131,10 @@ def extend_python_path(extra_paths: str | None) -> None:
 
 
 def preload_modules(modules_arg: str | None) -> None:
-    """Import user-specified modules so their top-level side effects run.
+    """导入用户指定的模块，以便其顶级副作用运行。
 
-    Used to register custom tools before any conversation is created, avoiding
-    a race with dynamic `tool_module_qualnames` import in conversation_service.
+    用于在创建任何对话之前注册自定义工具，避免与 conversation_service 中的动态
+    `tool_module_qualnames` 导入发生竞争。
     """
     if not modules_arg:
         return
@@ -158,26 +155,26 @@ def preload_modules(modules_arg: str | None) -> None:
 
 
 def check_browser():
-    """Check if browser functionality can render about:blank."""
+    """检查浏览器功能是否可以呈现 about:blank。"""
     executor = None
     try:
-        # Register tools to ensure browser tools are available
+        # 注册工具以确保浏览器工具可用
         from openhands.tools.preset.default import register_default_tools
 
         register_default_tools(enable_browser=True)
 
-        # Import browser components
+        # 导入浏览器组件
         from openhands.tools.browser_use.definition import BrowserNavigateAction
         from openhands.tools.browser_use.impl import BrowserToolExecutor
 
-        # Create executor
+        # 创建执行者
         executor = BrowserToolExecutor(headless=True, session_timeout_minutes=2)
 
-        # Try to navigate to about:blank
+        # 尝试导航至 about:blank
         action = BrowserNavigateAction(url="about:blank")
         result = executor(action)
 
-        # Check if the operation was successful
+        # 检查操作是否成功
         if result.is_error:
             print(f"Browser check failed: {str(result.content)}")
             return False
@@ -189,21 +186,20 @@ def check_browser():
         print(f"Browser check failed: {e}")
         return False
     finally:
-        # Ensure cleanup happens even if an error occurs
+        # 即使发生错误也确保进行清理
         if executor is not None:
             executor.close()
 
 
 class LoggingServer(uvicorn.Server):
-    """Custom uvicorn Server that logs signal handling events.
+    """记录信号处理事件的自定义 uvicorn 服务器。
 
-    This subclass overrides handle_exit to add structured logging when
-    termination signals are received, ensuring visibility into why the
-    server is shutting down.
+    该子类重写 handle_exit 以在接收终止信号时添加结构化日志记录，确保能够查看服务器为
+    何关闭。
     """
 
     def handle_exit(self, sig: int, frame: FrameType | None) -> None:
-        """Handle exit signals with logging before delegating to parent."""
+        """在委托给父级之前通过日志记录处理退出信号。"""
         sig_name = signal.Signals(sig).name
         logger.info(
             "Received signal %s (%d), shutting down...",
@@ -214,23 +210,22 @@ class LoggingServer(uvicorn.Server):
 
 
 def _setup_crash_diagnostics() -> None:
-    """Enable crash diagnostics for debugging unexpected terminations.
+    """启用崩溃诊断以调试意外终止。
 
-    Note: faulthandler outputs tracebacks to stderr in plain text format,
-    not through the structured JSON logger. This is unavoidable because
-    during a segfault, Python's normal logging infrastructure is not
-    available. The plain text traceback is still valuable for debugging.
+    Note: 故障处理程序以纯文本格式将回溯输出到 stderr，
+    不通过结构化的 JSON 记录器。 这是不可避免的，因为在段错误期间，Python 的正常日志
+    记录基础设施不可用。 纯文本回溯对于调试仍然很有价值。
     """
     faulthandler.enable()
 
-    # Register atexit handler to log normal exits
+    # 注册 atexit 处理程序以记录正常退出
     @atexit.register
     def _log_exit() -> None:
         logger.info("Process exiting via atexit handler")
 
 
 def main() -> None:
-    # Set up crash diagnostics early, before any other initialization
+    # 在任何其他初始化之前尽早设置崩溃诊断
     _setup_crash_diagnostics()
 
     parser = argparse.ArgumentParser(description="OpenHands Agent Server App")
@@ -280,27 +275,26 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Handle browser check (should run without importing user modules)
+    # 处理浏览器检查（应该在不导入用户模块的情况下运行）
     if args.check_browser:
         if check_browser():
             sys.exit(0)
         else:
             sys.exit(1)
 
-    # Extend sys.path before importing user modules so external .py files
-    # are reachable — critical for PyInstaller binary builds.
+    # 在导入用户模块之前扩展 sys.path，以便可以访问外部 .py 文件 - 对于 PyInstaller 二进
+    # 制构建至关重要。
+    #
     extend_python_path(args.extra_python_path)
 
-    # Import user modules after early-exit checks
+    # 提前退出检查后导入用户模块
     preload_modules(args.import_modules)
 
-    # Resolve the bind host. When the operator does not pass --host we pick a
-    # safe default: loopback unless a session API key is configured, in which
-    # case binding all interfaces is intentional. An explicit wildcard host
-    # without a session API key is allowed (the operator chose it — e.g. a
-    # containerized sandbox whose port is mapped to host loopback) but emits a
-    # warning so an unauthenticated server is not exposed to the network by
-    # accident.
+    # 解析绑定主机。 当操作员不传递 --host 时，我们选择一个安全默认值：回环接口，除非配
+    # 置了会话 API 键，否则绑定所有接口是故意的。 允许使用没有会话 API 密钥的显式通配符
+    # 主机（操作员选择了它 - e.g。 一个映射到主机回环的容器化沙盒，但它会发出警告，以防
+    # 止意外地暴露未认证的服务器给网络。
+    #
     host = args.host
     auth_enabled = _auth_enabled()
     if host is None:
@@ -321,17 +315,17 @@ def main() -> None:
     print(f"API docs will be available at http://{host}:{args.port}/docs")
     print(f"Auto-reload: {'enabled' if args.reload else 'disabled'}")
 
-    # Show debug mode status
+    # 显示调试模式状态
     if DEBUG:
         print("DEBUG mode: ENABLED (stack traces will be shown)")
     else:
         print("DEBUG mode: DISABLED")
     print()
 
-    # Configure uvicorn logging based on DEBUG environment variable
+    # 根据DEBUG环境变量配置uvicorn日志记录
     log_level = "debug" if DEBUG else "info"
 
-    # Create uvicorn config
+    # 创建 uvicorn 配置
     config = Config(
         "openhands.agent_server.api:api",
         host=host,
@@ -344,11 +338,11 @@ def main() -> None:
         ],
         log_level=log_level,
         log_config=LOGGING_CONFIG,
-        ws="wsproto",  # Use wsproto instead of deprecated websockets implementation
+        ws="wsproto",  # 使用 wsproto 代替已弃用 WebSocket 实现
         proxy_headers=_trust_forwarded_headers(),
     )
 
-    # Use custom LoggingServer to capture signal handling events
+    # 使用自定义LoggingServer捕获信号处理事件
     server = LoggingServer(config)
 
     try:
@@ -357,7 +351,7 @@ def main() -> None:
         logger.error("Server crashed with unexpected exception", exc_info=True)
         raise
     except BaseException as e:
-        # Catch SystemExit, KeyboardInterrupt, etc. - these are normal termination paths
+        # Catch SystemExit、KeyboardInterrupt 等 - 这些是正常的终止路径
         logger.info("Server terminated: %s: %s", type(e).__name__, e)
         raise
 

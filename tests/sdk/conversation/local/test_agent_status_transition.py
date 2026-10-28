@@ -1,20 +1,18 @@
 """
-Unit tests for agent status transitions.
+单元测试用于智能体状态转换。
 
-Tests that the agent correctly transitions between execution states,
-particularly focusing on transitions to RUNNING status when run() is called.
+测试智能体是否在执行状态之间正确转换，特别关注调用 run() 时到 RUNNING 状态的转换。
 
-This addresses the fix for issue #865 where the agent status was not transitioning
-to RUNNING when run() was called from IDLE state.
+这解决了问题 #865 的问题：当从 IDLE 状态调用 run() 时，智能体状态未转换为 RUNNING。
 
-State transition matrix tested:
-- IDLE -> RUNNING (when run() is called)
-- PAUSED -> RUNNING (when run() is called after pause)
-- WAITING_FOR_CONFIRMATION -> RUNNING (when run() is called to confirm)
-- FINISHED -> IDLE -> RUNNING (when new message sent after completion)
-- STUCK -> IDLE (when new message sent) -> RUNNING (when run() is called)
-- STUCK -> RUNNING (when run() is called directly)
-- FINISHED -> remain unchanged (run() exits immediately without new message)
+测试的状态转移矩阵：
+- IDLE -> RUNNING（当调用run()时）
+- PAUSED -> RUNNING（暂停后调用run()时）
+- WAITING_FOR_CONFIRMATION -> RUNNING（调用run()确认时）
+- FINISHED -> IDLE -> RUNNING（完成后发送新消息时）
+- STUCK -> IDLE（发送新消息时） -> RUNNING（调用run()时）
+- STUCK -> RUNNING（直接调用run()时）
+- FINISHED -> 保持不变（run() 立即退出，没有新消息）
 """
 
 import threading
@@ -39,13 +37,13 @@ from openhands.sdk.tool import (
 
 
 class StatusTransitionMockAction(Action):
-    """Mock action schema for testing."""
+    """模拟对象操作模式用于测试。"""
 
     command: str
 
 
 class StatusTransitionMockObservation(Observation):
-    """Mock observation schema for testing."""
+    """模拟对象观测结果模式用于测试。"""
 
     result: str
 
@@ -57,7 +55,7 @@ class StatusTransitionMockObservation(Observation):
 class StatusCheckingExecutor(
     ToolExecutor[StatusTransitionMockAction, StatusTransitionMockObservation]
 ):
-    """Executor that captures the agent status when executed."""
+    """执行时捕获智能体状态的执行器。"""
 
     def __init__(self, status_during_execution: list[ConversationExecutionStatus]):
         self.status_during_execution: list[ConversationExecutionStatus] = (
@@ -67,7 +65,7 @@ class StatusCheckingExecutor(
     def __call__(
         self, action: StatusTransitionMockAction, conversation=None
     ) -> StatusTransitionMockObservation:
-        # Capture the agent status during execution
+        # 捕获执行过程中的智能体状态
         if conversation:
             self.status_during_execution.append(conversation.state.execution_status)
         return StatusTransitionMockObservation(result=f"Executed: {action.command}")
@@ -76,7 +74,7 @@ class StatusCheckingExecutor(
 class StatusTransitionTestTool(
     ToolDefinition[StatusTransitionMockAction, StatusTransitionMockObservation]
 ):
-    """Concrete tool for status transition testing."""
+    """用于状态转换测试的具体工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -95,7 +93,7 @@ class StatusTransitionTestTool(
 
 
 def test_execution_status_transitions_to_running_from_idle():
-    """Test that agent status transitions to RUNNING when run() is called from IDLE."""
+    """测试当从 IDLE 调用 run() 时，智能体状态是否转换为 RUNNING。"""
     status_during_execution: list[ConversationExecutionStatus] = []
 
     test_tool = StatusTransitionTestTool.create(
@@ -103,7 +101,7 @@ def test_execution_status_transitions_to_running_from_idle():
     )[0]
     register_tool("test_tool", test_tool)
 
-    # Use TestLLM with a scripted response
+    # 将 TestLLM 与脚本化响应一起使用
     llm = TestLLM.from_messages(
         [
             Message(role="assistant", content=[TextContent(text="Task completed")]),
@@ -112,17 +110,17 @@ def test_execution_status_transitions_to_running_from_idle():
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Verify initial state is IDLE
+    # 验证初始状态为 IDLE
     assert conversation.state.execution_status == ConversationExecutionStatus.IDLE
 
-    # Send message and run
+    # 发送消息并运行
     conversation.send_message(Message(role="user", content=[TextContent(text="Hello")]))
     conversation.run()
 
-    # After run completes, status should be FINISHED
+    # 运行完成后，状态应为 FINISHED
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Verify we have agent response
+    # 验证我们有智能体回复
     agent_messages = [
         event
         for event in conversation.state.events
@@ -132,26 +130,28 @@ def test_execution_status_transitions_to_running_from_idle():
 
 
 def test_execution_status_is_running_during_execution_from_idle():
-    """Test that agent status is RUNNING during execution when started from IDLE."""
+    """当从 IDLE 启动时，测试执行期间智能体状态是否为 RUNNING。"""
     status_during_execution: list[ConversationExecutionStatus] = []
     execution_started = threading.Event()
-    # Barrier lets the main thread observe RUNNING before the executor returns,
-    # preventing the race where the run-loop moves on before we can check.
+    # Barrier 让 main 线程在执行器返回之前观察 RUNNING，从而防止在我们检查之前运行循环继
+    # 续进行的竞争。
+    #
     main_thread_observed = threading.Event()
 
     class SignalingExecutor(
         ToolExecutor[StatusTransitionMockAction, StatusTransitionMockObservation]
     ):
-        """Executor that signals when execution starts and captures status."""
+        """执行器在执行开始时发出信号并捕获状态。"""
 
         def __call__(
             self, action: StatusTransitionMockAction, conversation=None
         ) -> StatusTransitionMockObservation:
-            # Signal that execution has started, then wait for the main thread to
-            # observe the status before returning so there is no race.
+            # 发出执行已开始的信号，然后等待 main 线程在返回之前观察状态，这样就不会出现
+            # 竞争。
+            #
             execution_started.set()
             main_thread_observed.wait(timeout=2.0)
-            # Capture the agent status during execution (before returning)
+            # 执行期间捕获智能体状态（返回之前）
             if conversation:
                 status_during_execution.append(conversation.state.execution_status)
             return StatusTransitionMockObservation(result=f"Executed: {action.command}")
@@ -159,7 +159,7 @@ def test_execution_status_is_running_during_execution_from_idle():
     test_tool = StatusTransitionTestTool.create(executor=SignalingExecutor())[0]
     register_tool("test_tool", test_tool)
 
-    # Use TestLLM with scripted responses: first a tool call, then completion
+    # 将 TestLLM 与脚本化响应一起使用：首先是工具调用，然后是完成
     llm = TestLLM.from_messages(
         [
             Message(
@@ -183,15 +183,15 @@ def test_execution_status_is_running_during_execution_from_idle():
     )
     conversation = Conversation(agent=agent)
 
-    # Verify initial state is IDLE
+    # 验证初始状态为 IDLE
     assert conversation.state.execution_status == ConversationExecutionStatus.IDLE
 
-    # Send message
+    # 发送消息
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Execute command")])
     )
 
-    # Run in a separate thread so we can check status during execution
+    # 在单独的线程中运行，以便我们可以在执行期间检查状态
     run_complete = threading.Event()
     status_during_run: list[ConversationExecutionStatus | None] = [None]
 
@@ -202,32 +202,32 @@ def test_execution_status_is_running_during_execution_from_idle():
     t = threading.Thread(target=run_agent, daemon=True)
     t.start()
 
-    # Wait for execution to start
+    # 等待执行开始
     assert execution_started.wait(timeout=2.0), "Execution never started"
 
-    # Check status while the executor is still holding (no race)
+    # 在执行器仍持有时检查状态（无竞赛）
     status_during_run[0] = conversation.state.execution_status
 
-    # Release the executor
+    # 释放执行者
     main_thread_observed.set()
 
-    # Wait for run to complete
+    # 等待运行完成
     assert run_complete.wait(timeout=2.0), "Run did not complete"
     t.join(timeout=0.1)
 
-    # Verify status was RUNNING during execution
+    # 执行期间验证状态为 RUNNING
     assert status_during_run[0] == ConversationExecutionStatus.RUNNING, (
         f"Expected RUNNING status during execution, got {status_during_run[0]}"
     )
 
-    # After run completes, status should be FINISHED
+    # 运行完成后，状态应为 FINISHED
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 def test_execution_status_transitions_to_running_from_paused():
-    """Test that agent status transitions to RUNNING when run() is called from
+    """测试当 run() 被调用时智能体状态是否转换为 RUNNING
     PAUSED."""
-    # Use TestLLM with a scripted response
+    # 将 TestLLM 与脚本化响应一起使用
     llm = TestLLM.from_messages(
         [
             Message(role="assistant", content=[TextContent(text="Task completed")]),
@@ -236,18 +236,18 @@ def test_execution_status_transitions_to_running_from_paused():
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Pause the conversation
+    # 暂停谈话
     conversation.pause()
     assert conversation.state.execution_status == ConversationExecutionStatus.PAUSED
 
-    # Send message and run
+    # 发送消息并运行
     conversation.send_message(Message(role="user", content=[TextContent(text="Hello")]))
     conversation.run()
 
-    # After run completes, status should be FINISHED
+    # 运行完成后，状态应为 FINISHED
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Verify we have agent response
+    # 验证我们有智能体回复
     agent_messages = [
         event
         for event in conversation.state.events
@@ -257,13 +257,13 @@ def test_execution_status_transitions_to_running_from_paused():
 
 
 def test_execution_status_transitions_from_waiting_for_confirmation():
-    """Test WAITING_FOR_CONFIRMATION -> RUNNING transition when run() is called."""
+    """调用 run() 时测试 WAITING_FOR_CONFIRMATION -> RUNNING 转换。"""
     from openhands.sdk.security.confirmation_policy import AlwaysConfirm
 
     test_tool = StatusTransitionTestTool.create(executor=StatusCheckingExecutor([]))[0]
     register_tool("test_tool", test_tool)
 
-    # Use TestLLM with scripted responses: first a tool call, then completion
+    # 将 TestLLM 与脚本化响应一起使用：首先是工具调用，然后是完成
     llm = TestLLM.from_messages(
         [
             Message(
@@ -286,28 +286,28 @@ def test_execution_status_transitions_from_waiting_for_confirmation():
     conversation = Conversation(agent=agent)
     conversation.set_confirmation_policy(AlwaysConfirm())
 
-    # Send message and run - should stop at WAITING_FOR_CONFIRMATION
+    # 发送消息并运行 - 应停在 WAITING_FOR_CONFIRMATION
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Execute command")])
     )
     conversation.run()
 
-    # Should be waiting for confirmation
+    # 应该等待确认
     assert (
         conversation.state.execution_status
         == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
     )
 
-    # Call run again - this confirms and should transition to RUNNING, then FINISHED
+    # 再次调用 run - 这会确认并应转换为 RUNNING，然后转换为 FINISHED
     conversation.run()
 
-    # After confirmation and execution, should be FINISHED
+    # 确认执行后，应为FINISHED
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 def test_execution_status_finished_to_idle_to_running():
-    """Test FINISHED -> IDLE -> RUNNING transition when new message is sent."""
-    # Use TestLLM with two scripted responses (one for each run)
+    """发送新消息时测试 FINISHED -> IDLE -> RUNNING 转换。"""
+    # 使用 TestLLM 和两个脚本化响应（每次运行一个）
     llm = TestLLM.from_messages(
         [
             Message(role="assistant", content=[TextContent(text="Task completed")]),
@@ -317,27 +317,27 @@ def test_execution_status_finished_to_idle_to_running():
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # First conversation - should end in FINISHED
+    # 第一次对话 - 应以 FINISHED 结束
     conversation.send_message(
         Message(role="user", content=[TextContent(text="First task")])
     )
     conversation.run()
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Send new message - should transition to IDLE
+    # 发送新消息 - 应转换为 IDLE
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Second task")])
     )
     assert conversation.state.execution_status == ConversationExecutionStatus.IDLE
 
-    # Run again - should transition to RUNNING then FINISHED
+    # 再次运行 - 应先转换为 RUNNING，然后转换为 FINISHED
     conversation.run()
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 def test_run_exits_immediately_when_already_finished():
-    """Test that run() exits immediately when status is already FINISHED."""
-    # Use TestLLM with a single scripted response
+    """测试当状态已为 FINISHED 时 run() 是否立即退出。"""
+    # 将 TestLLM 与单个脚本响应一起使用
     llm = TestLLM.from_messages(
         [
             Message(role="assistant", content=[TextContent(text="Task completed")]),
@@ -346,57 +346,55 @@ def test_run_exits_immediately_when_already_finished():
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Complete a task
+    # 完成任务
     conversation.send_message(Message(role="user", content=[TextContent(text="Task")]))
     conversation.run()
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # Call run again without sending a new message
-    # Should exit immediately without calling LLM again
+    # 再次调用运行而不发送新消息应立即退出而不再次调用 LLM
+    #
     initial_call_count = llm.call_count
     conversation.run()
 
-    # Status should still be FINISHED
+    # 状态仍应为 FINISHED
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
-    # LLM should not be called again
+    # LLM 不应再次调用
     assert llm.call_count == initial_call_count
 
 
 def test_run_recovers_from_stuck():
-    """Test that run() resets STUCK status and lets the agent continue.
+    """测试 run() 是否重置 STUCK 状态并让智能体继续。
 
-    When a conversation is STUCK (e.g. stuck detector triggered or
-    persisted STUCK state from a previous session), calling run() should
-    reset the status to RUNNING so the agent can retry.  Without this
-    reset, a persisted STUCK state would permanently kill the session.
+    当对话为 STUCK (e.g. 卡住检测器已触发或之前会话的已持久化 STUCK 状态），调用
+    run() 应将状态重置为 RUNNING，以便智能体可以重试。
+    如果没有此重置，已持久化 STUCK 状态将永久终止会话。
     """
-    # Provide a finish response so the agent can complete after unsticking.
+    # 提供一个完成响应，以便智能体在解粘后完成。
     llm = TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text="Recovered")])]
     )
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Seed a user message so the agent has context to work with
+    # 播种用户消息，以便智能体可以使用上下文
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Please continue")])
     )
 
-    # Simulate stuck detection persisted from previous session
+    # 模拟上一个会话的卡住检测已持久化
     conversation._state.execution_status = ConversationExecutionStatus.STUCK
 
     conversation.run()
 
-    # Agent should have recovered and finished normally
+    # 智能体应该已经恢复并正常完成
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
     assert llm.call_count == 1
 
 
 def test_send_message_resets_stuck_to_idle():
-    """Test STUCK → IDLE transition when a new user message arrives.
+    """当新用户消息到达时测试 STUCK → IDLE 转换。
 
-    A new user message is an implicit signal to unstick the conversation,
-    analogous to how FINISHED → IDLE works.
+    新的用户消息是取消对话的隐式信号，类似于 FINISHED → IDLE 的工作原理。
     """
     llm = TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text="Done")])]
@@ -404,22 +402,22 @@ def test_send_message_resets_stuck_to_idle():
     agent = Agent(llm=llm, tools=[])
     conversation = Conversation(agent=agent)
 
-    # Simulate stuck state
+    # 模拟卡住状态
     conversation._state.execution_status = ConversationExecutionStatus.STUCK
 
-    # Sending a new message should reset STUCK → IDLE
+    # 发送新消息应重置 STUCK → IDLE
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Try again")])
     )
     assert conversation.state.execution_status == ConversationExecutionStatus.IDLE
 
-    # Running should proceed normally: IDLE → RUNNING → FINISHED
+    # 运行应正常进行：IDLE → RUNNING → FINISHED
     conversation.run()
     assert conversation.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 def test_execution_status_error_on_max_iterations():
-    """Test that status is set to ERROR with clear message when max iterations hit."""
+    """当达到最大迭代次数时，测试状态是否设置为 ERROR，并显示清晰的消息。"""
 
     status_during_execution: list[ConversationExecutionStatus] = []
     events_received: list = []
@@ -429,7 +427,7 @@ def test_execution_status_error_on_max_iterations():
     )[0]
     register_tool("test_tool", test_tool)
 
-    # Create a tool call message that will be returned repeatedly
+    # 创建一条将重复返回的工具调用消息
     tool_call_message = Message(
         role="assistant",
         content=[TextContent(text="")],
@@ -443,46 +441,45 @@ def test_execution_status_error_on_max_iterations():
         ],
     )
 
-    # Use TestLLM with enough responses to hit max iterations
+    # 使用具有足够响应的 TestLLM 来达到最大迭代次数
     # max_iteration_per_run=2 means we need at least 2 tool call responses
     llm = TestLLM.from_messages(
         [
             tool_call_message,
             tool_call_message,
-            tool_call_message,  # Extra in case needed
+            tool_call_message,  # 额外以备不时之需
         ]
     )
     agent = Agent(llm=llm, tools=[Tool(name="test_tool")])
-    # Set max_iteration_per_run to 2 to quickly hit the limit
+    # 将max_iteration_per_run设置为2可以快速达到极限
     conversation = Conversation(
         agent=agent,
         max_iteration_per_run=2,
         callbacks=[lambda e: events_received.append(e)],
     )
 
-    # Send message and run
+    # 发送消息并运行
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Execute command")])
     )
     conversation.run()
 
-    # Status should be ERROR
+    # 状态应为 ERROR
     assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
-    # Should have emitted a ConversationErrorEvent with clear message
+    # 应该发出带有明确消息的 ConversationErrorEvent
     error_events = [e for e in events_received if isinstance(e, ConversationErrorEvent)]
     assert len(error_events) == 1
     assert error_events[0].code == "MaxIterationsReached"
     assert "maximum iterations limit" in error_events[0].detail
-    assert "(2)" in error_events[0].detail  # max_iteration_per_run value
+    assert "(2)" in error_events[0].detail  # max_iteration_per_run 值
 
 
 def test_execution_status_finished_on_final_iteration():
-    """FINISHED is preserved when agent completes on its final iteration.
+    """当智能体完成其最终迭代时，FINISHED 被保留。
 
-    Regression test for: agent's FINISHED status being overwritten with
-    ERROR when the task completes exactly on the max_iteration_per_run
-    boundary.
+    回归测试：当任务恰好在 max_iteration_per_run 边界上完成时，智能体的 FINISHED 状态
+    被 ERROR 覆盖。
     """
 
     events_received: list = []
@@ -490,8 +487,9 @@ def test_execution_status_finished_on_final_iteration():
     test_tool = StatusTransitionTestTool.create(executor=StatusCheckingExecutor([]))[0]
     register_tool("test_tool", test_tool)
 
-    # Two tool-call iterations followed by a text response on the 3rd (final) iteration.
-    # A text-only assistant message causes the agent to set status to FINISHED.
+    # 两次工具调用迭代，然后是第三次（最终）迭代的文本响应。 纯文本助理消息会导致智能体
+    # 将状态设置为 FINISHED。
+    #
     tool_call_message = Message(
         role="assistant",
         content=[TextContent(text="")],
@@ -510,9 +508,9 @@ def test_execution_status_finished_on_final_iteration():
 
     llm = TestLLM.from_messages(
         [
-            tool_call_message,  # iteration 1
-            tool_call_message,  # iteration 2
-            finish_message,  # iteration 3 (final) — agent finishes here
+            tool_call_message,  # 迭代1
+            tool_call_message,  # 迭代2
+            finish_message,  # 迭代 3（最终）- 智能体在此完成
         ]
     )
     agent = Agent(llm=llm, tools=[Tool(name="test_tool")])
@@ -527,7 +525,7 @@ def test_execution_status_finished_on_final_iteration():
     )
     conversation.run()
 
-    # Status must be FINISHED, not ERROR
+    # 状态必须为 FINISHED，而不是 ERROR
     assert (
         conversation.state.execution_status == ConversationExecutionStatus.FINISHED
     ), (
@@ -535,7 +533,7 @@ def test_execution_status_finished_on_final_iteration():
         "Agent completing on the final iteration should not be treated as an error."
     )
 
-    # No MaxIterationsReached error event should have been emitted
+    # 不应发出 MaxIterationsReached 错误事件
     error_events = [e for e in events_received if isinstance(e, ConversationErrorEvent)]
     max_iter_errors = [e for e in error_events if e.code == "MaxIterationsReached"]
     assert len(max_iter_errors) == 0, (
@@ -544,8 +542,8 @@ def test_execution_status_finished_on_final_iteration():
 
 
 def test_execution_status_error_on_max_budget(tmp_path):
-    """Run halts with ERROR + MaxBudgetReached when the cost budget is exceeded,
-    even before the iteration cap is reached."""
+    """当超出成本预算时，以 ERROR + MaxBudgetReached 停止运行，
+    甚至在达到迭代上限之前。"""
     from openhands.sdk.conversation.impl.local_conversation import LocalConversation
     from openhands.sdk.llm.utils.metrics import Metrics
 
@@ -567,7 +565,7 @@ def test_execution_status_error_on_max_budget(tmp_path):
     )
     llm = TestLLM.from_messages([tool_call_message] * 5)
     agent = Agent(llm=llm, tools=[Tool(name="test_tool")])
-    # High iteration cap so the BUDGET is what stops the run.
+    # 高迭代上限，因此 BUDGET 是停止运行的原因。
     conversation = LocalConversation(
         agent=agent,
         workspace=str(tmp_path),
@@ -580,7 +578,7 @@ def test_execution_status_error_on_max_budget(tmp_path):
     conversation.send_message(
         Message(role="user", content=[TextContent(text="Execute command")])
     )
-    # Pre-seed spend over the budget (TestLLM accrues no real cost).
+    # 种子前支出超出预算（TestLLM 不产生实际成本）。
     conversation.conversation_stats.usage_to_metrics["spend"] = Metrics(
         accumulated_cost=5.0
     )
@@ -591,17 +589,17 @@ def test_execution_status_error_on_max_budget(tmp_path):
     budget_errors = [e for e in error_events if e.code == "MaxBudgetReached"]
     assert len(budget_errors) == 1
     assert "maximum budget limit" in budget_errors[0].detail
-    # Budget stopped it, not the iteration cap.
+    # 预算阻止了它，而不是迭代上限。
     assert not any(e.code == "MaxIterationsReached" for e in error_events)
 
 
 def test_finished_preserved_even_when_over_budget(tmp_path):
-    """A run that finishes is kept FINISHED even if it is over budget."""
+    """即使超出预算，完成的运行也会保留 FINISHED。"""
     from openhands.sdk.conversation.impl.local_conversation import LocalConversation
     from openhands.sdk.llm.utils.metrics import Metrics
 
     events_received: list = []
-    # Text-only response -> agent finishes on the first iteration.
+    # 纯文本响应 -> 智能体在第一次迭代时完成。
     finish_message = Message(
         role="assistant", content=[TextContent(text="Task completed")]
     )
@@ -628,7 +626,7 @@ def test_finished_preserved_even_when_over_budget(tmp_path):
 
 
 def test_agent_mark_conversation_finished(tmp_path):
-    """Agent._mark_conversation_finished directly sets FINISHED status."""
+    """Agent._mark_conversation_finished直接设置FINISHED状态。"""
     from openhands.sdk.conversation.impl.local_conversation import LocalConversation
 
     llm = TestLLM.from_messages([])

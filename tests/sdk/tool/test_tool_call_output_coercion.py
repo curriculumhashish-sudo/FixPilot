@@ -21,11 +21,11 @@ class OCAObs(Observation):
         return [TextContent(text=str(self.value))]
 
 
-# Module-level Observation class to avoid "local class not supported" errors
-# during serialization tests. Local classes (defined inside functions) cannot be
-# deserialized because they may not exist at deserialization time.
+# 模块级观测结果类，以避免序列化测试期间出现“不支持本地类”错误。 局部类（在函数内部定义
+# ）不能是已反序列化，因为它们在反序列化时可能不存在。
+#
 class CoercionTestObs(Observation):
-    """Observation for testing output coercion."""
+    """观测结果用于测试输出强制。"""
 
     value: int
 
@@ -37,7 +37,7 @@ class CoercionTestObs(Observation):
 
 
 class MockCoercionTool(ToolDefinition[OCAAction, OCAObs]):
-    """Concrete mock tool for output coercion testing."""
+    """用于输出强制测试的具体模拟对象工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params) -> Sequence["MockCoercionTool"]:
@@ -45,8 +45,8 @@ class MockCoercionTool(ToolDefinition[OCAAction, OCAObs]):
 
 
 def test_tool_call_with_observation_none_result_shapes():
-    # When observation_type is None, results are wrapped/coerced to Observation
-    # 1) dict -> Observation
+    # 当 observation_type 为 None 时，结果被包装/强制为观测结果
+    # 1) 字典 -> 观测结果
     class E1(ToolExecutor[OCAAction, dict[str, object]]):
         def __call__(self, action: OCAAction, conversation=None) -> dict[str, object]:
             return {"kind": "OCAObs", "value": 1}
@@ -60,7 +60,7 @@ def test_tool_call_with_observation_none_result_shapes():
     obs = t(OCAAction(y=1))
     assert isinstance(obs, Observation)
 
-    # 2) Observation subclass -> Observation passthrough
+    # 2) 观测结果子类 -> 观测结果直通
     class E2(ToolExecutor[OCAAction, CoercionTestObs]):
         def __call__(self, action: OCAAction, conversation=None) -> CoercionTestObs:
             return CoercionTestObs(value=2)
@@ -75,7 +75,7 @@ def test_tool_call_with_observation_none_result_shapes():
     assert isinstance(obs2, Observation)
     assert isinstance(obs2, CoercionTestObs)
 
-    # 3) invalid type -> raises TypeError
+    # 3) 无效类型 -> 引发 TypeError
     class E3(ToolExecutor[OCAAction, list[int]]):
         def __call__(self, action: OCAAction, conversation=None) -> list[int]:
             return [1, 2, 3]

@@ -10,13 +10,13 @@ from openhands.sdk.llm.streaming import TokenCallbackType
 
 
 ConversationCallbackType = Callable[[Event], None]
-"""Type alias for event callback functions."""
+"""事件回调函数的类型别名。"""
 
 ConversationTokenCallbackType = TokenCallbackType
-"""Callback type invoked for streaming LLM deltas."""
+"""为流式传输 LLM 增量调用回调类型。"""
 
 ConversationID = uuid.UUID
-"""Type alias for conversation IDs."""
+"""键入对话 ID 的别名。"""
 
 TAG_KEY_PATTERN = re.compile(r"^[a-z0-9]+$")
 TAG_VALUE_MAX_LENGTH = 256
@@ -39,9 +39,9 @@ def _validate_tags(v: dict[str, str] | None) -> dict[str, str]:
 
 
 ConversationTags = Annotated[dict[str, str], BeforeValidator(_validate_tags)]
-"""Validated dict of conversation tags.
+"""经过验证的对话标签字典。
 
-Keys must be lowercase alphanumeric. Values are arbitrary strings up to 256 chars.
+键必须是小写字母数字。 值是最多 256 个字符的任意字符串。
 """
 
 type TraceMetadataValue = (
@@ -84,7 +84,7 @@ ConversationObservabilityMetadata = Annotated[
     dict[str, TraceMetadataValue],
     BeforeValidator(_validate_observability_metadata),
 ]
-"""Validated dict of Laminar/OTel trace metadata for a conversation."""
+"""对话的 Laminar/OTel 跟踪元数据的经过验证的字典。"""
 
 
 def _validate_observability_tags(v: Any) -> list[str]:
@@ -101,7 +101,7 @@ ConversationObservabilityTags = Annotated[
     list[str],
     BeforeValidator(_validate_observability_tags),
 ]
-"""Validated list of Laminar/OTel span tags for a conversation."""
+"""对话的层流/OTel 跨度标签的验证列表。"""
 
 
 OBSERVABILITY_SPAN_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._:/-]+$")
@@ -130,21 +130,21 @@ ConversationObservabilitySpanName = Annotated[
     str,
     BeforeValidator(_validate_observability_span_name),
 ]
-"""Validated Laminar/OTel span name for conversation observability."""
+"""经过验证的 Laminar/OTel 跨度名称以实现对话可观察性。"""
 
 
 class StuckDetectionThresholds(BaseModel):
-    """Configuration for stuck detection thresholds.
+    """卡住检测阈值的配置。
 
     Attributes:
-        action_observation: Number of repetitions before triggering
-            action-observation loop detection
-        action_error: Number of repetitions before triggering
-            action-error loop detection
-        monologue: Number of consecutive agent messages before triggering
-            monologue detection
-        alternating_pattern: Number of repetitions before triggering
-            alternating pattern detection
+        action_observation: 触发前的重复次数
+            动作-观测结果循环检测
+        action_error: 触发前的重复次数
+            动作错误循环检测
+        monologue: 触发前连续智能体条消息的数量
+            独白检测
+        alternating_pattern: 触发前的重复次数
+            交替模式检测
     """
 
     action_observation: int = Field(

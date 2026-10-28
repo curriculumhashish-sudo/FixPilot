@@ -1,4 +1,4 @@
-"""Tests for skills router endpoints."""
+"""技能路由器测试端点。"""
 
 import shutil
 from pathlib import Path
@@ -23,14 +23,14 @@ from openhands.sdk.skills import (
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
-    config = Config(session_api_keys=[])  # Disable authentication
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证
     return TestClient(create_app(config), raise_server_exceptions=False)
 
 
 @pytest.fixture
 def mock_installed_skill_info():
-    """Create a mock InstalledSkillInfo for testing."""
+    """创建模拟对象 InstalledSkillInfo 进行测试。"""
     return InstalledSkillInfo(
         name="test-skill",
         version="1.0.0",
@@ -45,10 +45,10 @@ def mock_installed_skill_info():
 
 
 class TestGetSkillsEndpoint:
-    """Tests for POST /skills endpoint."""
+    """测试 POST /skills 端点。"""
 
     def test_get_skills_default_request(self, client):
-        """Test default skills request with all sources enabled."""
+        """在启用所有来源的情况下测试默认技能请求。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(
                 skills=[
@@ -67,7 +67,7 @@ class TestGetSkillsEndpoint:
             assert data["skills"][0]["name"] == "test-skill"
 
     def test_get_skills_with_project_dir(self, client):
-        """Test skills request with project directory."""
+        """使用项目目录测试技能请求。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
@@ -86,7 +86,7 @@ class TestGetSkillsEndpoint:
             assert call_kwargs["load_project"] is True
 
     def test_get_skills_with_org_configs_list(self, client):
-        """Multiple org_configs are forwarded as an ordered list of (url, name)."""
+        """多个 org_configs 作为 (url, name) 的有序列表转发。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
@@ -119,7 +119,7 @@ class TestGetSkillsEndpoint:
             ]
 
     def test_get_skills_with_registered_marketplaces(self, client):
-        """Registered marketplaces are forwarded to the skills service."""
+        """已注册的市场将转发至技能服务。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
@@ -148,7 +148,7 @@ class TestGetSkillsEndpoint:
             assert registrations[0].auto_load is True
 
     def test_get_skills_with_selective_auto_load_marketplace(self, client):
-        """Registered marketplaces accept selective auto_load plugin lists."""
+        """注册市场接受选择性 auto_load 插件列表。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
@@ -171,7 +171,7 @@ class TestGetSkillsEndpoint:
             assert registrations[0].auto_load == ["formatter", "linter"]
 
     def test_get_skills_merges_server_registered_marketplaces(self):
-        """Server default marketplaces are included with request marketplaces."""
+        """服务器默认市场包含在请求市场中。"""
         config = Config(
             session_api_keys=[],
             registered_marketplaces=[
@@ -239,7 +239,7 @@ class TestGetSkillsEndpoint:
         assert mock_load_available.call_args_list[0].kwargs["include_public"] is True
 
     def test_get_skills_request_marketplace_overrides_server_default(self):
-        """Request registrations override same-named server defaults."""
+        """请求注册会覆盖同名服务器的默认设置。"""
         config = Config(
             session_api_keys=[],
             registered_marketplaces=[
@@ -271,7 +271,7 @@ class TestGetSkillsEndpoint:
         assert registrations[0].source == "https://github.com/org/request-marketplace"
 
     def test_get_skills_with_sandbox_config(self, client):
-        """Test skills request with sandbox configuration."""
+        """使用沙箱配置测试技能请求。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(
                 skills=[Skill(name="work_hosts", content="host info", trigger=None)],
@@ -301,7 +301,7 @@ class TestGetSkillsEndpoint:
             assert call_kwargs["sandbox_exposed_urls"][0].name == "WORKER_8080"
 
     def test_get_skills_disabled_sources(self, client):
-        """Test skills request with sources disabled."""
+        """在禁用源的情况下测试技能请求。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
@@ -324,7 +324,7 @@ class TestGetSkillsEndpoint:
             assert call_kwargs["load_org"] is False
 
     def test_get_skills_converts_skill_to_skill_info(self, client):
-        """Test that Skill objects are properly converted to SkillInfo format."""
+        """测试 Skill 对象是否正确转换为 SkillInfo 格式。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(
                 skills=[
@@ -353,7 +353,7 @@ class TestGetSkillsEndpoint:
             assert skill_info["is_agentskills_format"] is False
 
     def test_get_skills_agent_skill_format(self, client):
-        """Test that AgentSkills format is correctly represented."""
+        """测试 AgentSkills 格式是否正确表示。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(
                 skills=[
@@ -378,7 +378,7 @@ class TestGetSkillsEndpoint:
             assert skill_info["disable_model_invocation"] is True
 
     def test_get_skills_response_sources(self, client):
-        """Test that source counts are included in response."""
+        """测试响应中是否包含源计数。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(
                 skills=[],
@@ -431,10 +431,10 @@ def test_skill_catalog_lists_profile_skills_with_their_origin(client):
 
 
 class TestSyncSkillsEndpoint:
-    """Tests for POST /skills/sync endpoint."""
+    """测试 POST /skills/sync 端点。"""
 
     def test_sync_skills_success(self, client):
-        """Test successful skills sync."""
+        """测试成功的技能同步。"""
         with patch(
             "openhands.agent_server.skills_router.sync_public_skills"
         ) as mock_sync:
@@ -448,7 +448,7 @@ class TestSyncSkillsEndpoint:
             assert "synced" in data["message"].lower()
 
     def test_sync_skills_failure(self, client):
-        """Test failed skills sync."""
+        """测试失败的技能同步。"""
         with patch(
             "openhands.agent_server.skills_router.sync_public_skills"
         ) as mock_sync:
@@ -464,14 +464,14 @@ class TestSyncSkillsEndpoint:
 
 
 class TestPydanticModels:
-    """Tests for Pydantic model validation."""
+    """测试 Pydantic 模型验证。"""
 
     def test_exposed_url_validation(self, client):
-        """Test ExposedUrl model validation."""
+        """测试 ExposedUrl 模型验证。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
-            # Valid exposed URL
+            # 有效曝光 URL
             response = client.post(
                 "/api/skills",
                 json={
@@ -489,11 +489,11 @@ class TestPydanticModels:
             assert response.status_code == 200
 
     def test_org_configs_validation(self, client):
-        """Test OrgConfig model validation via the org_configs list."""
+        """通过 org_configs 列表测试 OrgConfig 模型验证。"""
         with patch("openhands.agent_server.skills_router.load_all_skills") as mock_load:
             mock_load.return_value = SkillLoadResult(skills=[], sources={})
 
-            # Valid org config
+            # 有效的组织配置
             response = client.post(
                 "/api/skills",
                 json={
@@ -510,24 +510,24 @@ class TestPydanticModels:
             assert response.status_code == 200
 
     def test_invalid_request_body(self, client):
-        """Test handling of invalid request body."""
-        # Send invalid JSON structure
+        """测试无效请求正文的处理。"""
+        # 发送无效的JSON结构
         response = client.post(
             "/api/skills",
             json={"load_public": "not_a_boolean"},
         )
-        # FastAPI returns 422 for validation errors
+        # FastAPI 对于验证个错误返回 422
         assert response.status_code == 422
 
     def test_missing_required_org_configs_fields(self, client):
-        """Test validation when an org_configs entry is missing required fields."""
+        """当 org_configs 条目缺少必填字段时测试验证。"""
         response = client.post(
             "/api/skills",
             json={
                 "org_configs": [
                     {
                         "repository": "org/repo",
-                        # Missing provider, org_repo_url, org_name
+                        # 缺少提供者，org_repo_url，org_name
                     }
                 ]
             },
@@ -536,10 +536,10 @@ class TestPydanticModels:
 
 
 class TestInstallSkillEndpoint:
-    """Tests for POST /skills/install endpoint."""
+    """测试 POST /skills/install 端点。"""
 
     def test_install_skill_success(self, client, mock_installed_skill_info):
-        """Test successful skill installation."""
+        """测试技能安装是否成功。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -557,7 +557,7 @@ class TestInstallSkillEndpoint:
             assert data["enabled"] is True
 
     def test_install_skill_with_force(self, client, mock_installed_skill_info):
-        """Test skill installation with force option."""
+        """使用强制选项测试技能安装。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -577,7 +577,7 @@ class TestInstallSkillEndpoint:
             assert call_kwargs["force"] is True
 
     def test_install_skill_with_ref(self, client, mock_installed_skill_info):
-        """Test skill installation with specific ref."""
+        """使用特定参考测试技能安装。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -599,7 +599,7 @@ class TestInstallSkillEndpoint:
             assert call_kwargs["repo_path"] == "skills/test-skill"
 
     def test_install_skill_already_exists(self, client):
-        """Test skill installation when skill already exists."""
+        """当技能已经存在时测试技能安装。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -614,7 +614,7 @@ class TestInstallSkillEndpoint:
             assert "already installed" in response.json()["detail"].lower()
 
     def test_install_skill_fetch_error(self, client):
-        """Test skill installation with fetch error."""
+        """测试技能安装时出现获取错误。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -629,8 +629,8 @@ class TestInstallSkillEndpoint:
             assert "fetch" in response.json()["detail"].lower()
 
     def test_install_skill_extension_fetch_error(self, client):
-        """ExtensionFetchError (raised by the SDK for GitHub URL/shorthand failures)
-        must map to 400, not 500."""
+        """ExtensionFetchError（由 SDK 提出 GitHub URL/简写失败）
+        必须映射到 400，而不是 500。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -647,7 +647,7 @@ class TestInstallSkillEndpoint:
             assert "fetch" in response.json()["detail"].lower()
 
     def test_install_skill_validation_error(self, client):
-        """Test skill installation with validation error."""
+        """测试技能安装时出现验证错误。"""
         with patch(
             "openhands.agent_server.skills_router.service_install_skill"
         ) as mock_install:
@@ -663,10 +663,10 @@ class TestInstallSkillEndpoint:
 
 
 class TestListInstalledSkillsEndpoint:
-    """Tests for GET /skills/installed endpoint."""
+    """测试 GET /skills/installed 端点。"""
 
     def test_list_installed_skills_empty(self, client):
-        """Test listing when no skills are installed."""
+        """未安装技能时测试列表。"""
         with patch(
             "openhands.agent_server.skills_router.service_list_installed_skills"
         ) as mock_list:
@@ -679,7 +679,7 @@ class TestListInstalledSkillsEndpoint:
             assert data["skills"] == []
 
     def test_list_installed_skills_with_skills(self, client, mock_installed_skill_info):
-        """Test listing installed skills."""
+        """测试列出已安装的技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_list_installed_skills"
         ) as mock_list:
@@ -694,10 +694,10 @@ class TestListInstalledSkillsEndpoint:
 
 
 class TestGetInstalledSkillEndpoint:
-    """Tests for GET /skills/installed/{skill_name} endpoint."""
+    """测试 GET /skills/installed/{skill_name} 端点。"""
 
     def test_get_installed_skill_found(self, client, mock_installed_skill_info):
-        """Test getting an installed skill that exists."""
+        """测试获取现有的已安装技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_get_installed_skill"
         ) as mock_get:
@@ -710,7 +710,7 @@ class TestGetInstalledSkillEndpoint:
             assert data["name"] == "test-skill"
 
     def test_get_installed_skill_not_found(self, client):
-        """Test getting a skill that is not installed."""
+        """测试获取未安装的技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_get_installed_skill"
         ) as mock_get:
@@ -723,10 +723,10 @@ class TestGetInstalledSkillEndpoint:
 
 
 class TestUpdateSkillStateEndpoint:
-    """Tests for PATCH /skills/installed/{skill_name} endpoint."""
+    """测试 PATCH /skills/installed/{skill_name} 端点。"""
 
     def test_enable_skill_success(self, client):
-        """Test enabling a skill."""
+        """测试启用技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_enable_skill"
         ) as mock_enable:
@@ -743,7 +743,7 @@ class TestUpdateSkillStateEndpoint:
             assert data["enabled"] is True
 
     def test_disable_skill_success(self, client):
-        """Test disabling a skill."""
+        """测试禁用技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_disable_skill"
         ) as mock_disable:
@@ -759,7 +759,7 @@ class TestUpdateSkillStateEndpoint:
             assert data["enabled"] is False
 
     def test_update_skill_state_not_found(self, client):
-        """Test updating state of non-existent skill."""
+        """测试不存在的技能的更新状态。"""
         with patch(
             "openhands.agent_server.skills_router.service_enable_skill"
         ) as mock_enable:
@@ -774,10 +774,10 @@ class TestUpdateSkillStateEndpoint:
 
 
 class TestUninstallSkillEndpoint:
-    """Tests for DELETE /skills/installed/{skill_name} endpoint."""
+    """测试 DELETE /skills/installed/{skill_name} 端点。"""
 
     def test_uninstall_skill_success(self, client):
-        """Test successful skill uninstallation."""
+        """测试技能卸载成功。"""
         with patch(
             "openhands.agent_server.skills_router.service_uninstall_skill"
         ) as mock_uninstall:
@@ -790,7 +790,7 @@ class TestUninstallSkillEndpoint:
             assert "uninstalled" in data["message"].lower()
 
     def test_uninstall_skill_not_found(self, client):
-        """Test uninstalling a non-existent skill."""
+        """测试卸载不存在的技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_uninstall_skill"
         ) as mock_uninstall:
@@ -802,10 +802,10 @@ class TestUninstallSkillEndpoint:
 
 
 class TestRefreshSkillEndpoint:
-    """Tests for POST /skills/installed/{skill_name}/refresh endpoint."""
+    """测试 POST /skills/installed/{skill_name}/refresh 端点。"""
 
     def test_refresh_skill_success(self, client, mock_installed_skill_info):
-        """Test successful skill refresh."""
+        """测试技能刷新成功。"""
         with patch(
             "openhands.agent_server.skills_router.service_update_skill"
         ) as mock_update:
@@ -818,7 +818,7 @@ class TestRefreshSkillEndpoint:
             assert data["skill"]["name"] == "test-skill"
 
     def test_refresh_skill_not_found(self, client):
-        """Test refreshing a non-existent skill."""
+        """测试刷新一个不存在的技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_update_skill"
         ) as mock_update:
@@ -831,8 +831,8 @@ class TestRefreshSkillEndpoint:
     def test_refresh_vanished_source_is_400_and_keeps_skill(
         self, client, tmp_path, monkeypatch
     ):
-        """A skill whose recorded source vanished cannot be refreshed: the route
-        answers 400 like install does, and the installed copy stays."""
+        """记录来源消失无法刷新的技能：路线
+        像安装一样回答 400，并且安装的副本会保留。"""
         store = tmp_path / "installed-store"
         store.mkdir()
         monkeypatch.setattr(
@@ -858,8 +858,8 @@ class TestRefreshSkillEndpoint:
     def test_refresh_source_without_skill_md_is_422_and_keeps_skill(
         self, client, tmp_path, monkeypatch
     ):
-        """A source that no longer holds a SKILL.md is 422, as on install, and
-        a later valid refresh still succeeds."""
+        """不再包含 SKILL.md 的源是 422，如安装时一样，并且
+        稍后的有效刷新仍然会成功。"""
         store = tmp_path / "installed-store"
         store.mkdir()
         monkeypatch.setattr(
@@ -888,8 +888,8 @@ class TestRefreshSkillEndpoint:
         )
 
     def test_refresh_fetch_error_returns_400(self, client):
-        """A source the SDK cannot parse (e.g. ``local`` for an adopted skill)
-        is a client error, not a 500."""
+        """SDK 无法解析的源 (e.g. ``local`` 对于采用的技能）
+        是客户端错误，而不是 500。"""
         with patch(
             "openhands.agent_server.skills_router.service_update_skill"
         ) as mock_update:
@@ -902,7 +902,7 @@ class TestRefreshSkillEndpoint:
             assert response.status_code == 400
 
     def test_refresh_validation_error_returns_422(self, client):
-        """A source that now holds an invalid skill is 422, as on install."""
+        """现在拥有无效技能的源是 422，如安装时一样。"""
         with patch(
             "openhands.agent_server.skills_router.service_update_skill"
         ) as mock_update:
@@ -915,10 +915,10 @@ class TestRefreshSkillEndpoint:
 
 
 class TestMarketplaceCatalogEndpoint:
-    """Tests for GET /skills/marketplace endpoint."""
+    """测试 GET /skills/marketplace 端点。"""
 
     def test_get_marketplace_catalog_empty(self, client):
-        """Test getting marketplace when no skills are available."""
+        """在没有可用技能的情况下测试进入市场。"""
         with patch(
             "openhands.agent_server.skills_router.service_get_marketplace_catalog"
         ) as mock_catalog:
@@ -931,7 +931,7 @@ class TestMarketplaceCatalogEndpoint:
             assert data["skills"] == []
 
     def test_get_marketplace_catalog_with_skills(self, client):
-        """Test getting marketplace with available skills."""
+        """测试利用可用技能进入市场。"""
         with patch(
             "openhands.agent_server.skills_router.service_get_marketplace_catalog"
         ) as mock_catalog:
@@ -956,17 +956,17 @@ class TestMarketplaceCatalogEndpoint:
             data = response.json()
             assert len(data["skills"]) == 2
 
-            # Check first skill
+            # 检查第一个技能
             assert data["skills"][0]["name"] == "github"
             assert data["skills"][0]["description"] == "GitHub integration skill"
             assert data["skills"][0]["installed"] is True
 
-            # Check second skill
+            # 检查第二项技能
             assert data["skills"][1]["name"] == "docker"
             assert data["skills"][1]["installed"] is False
 
     def test_get_marketplace_catalog_skill_without_description(self, client):
-        """Test marketplace skill with no description."""
+        """在没有描述的情况下测试市场技能。"""
         with patch(
             "openhands.agent_server.skills_router.service_get_marketplace_catalog"
         ) as mock_catalog:

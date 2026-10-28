@@ -1,7 +1,7 @@
-"""Tests for ToolCallMatchingProperty.
+"""测试 ToolCallMatchingProperty。
 
-This module tests that actions and observations are properly paired by tool_call_id.
-The property ensures unmatched actions and observations are filtered out.
+该模块测试操作和观测结果是否与 tool_call_id 正确配对。 该属性可确保过滤掉不匹配的操作
+和观测结果。
 """
 
 from unittest.mock import create_autospec
@@ -29,37 +29,37 @@ from tests.sdk.context.view.properties.conftest import (
 
 
 class TestToolCallMatchingBase:
-    """Base class for ToolCallMatchingProperty test suites."""
+    """ToolCallMatchingProperty 测试套件的基类。"""
 
     def setup_method(self) -> None:
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
         self.property = ToolCallMatchingProperty()
 
 
 class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
-    """Tests for the enforce method of ToolCallMatchingProperty."""
+    """测试 ToolCallMatchingProperty 的强制方法。"""
 
     def test_empty_list(self) -> None:
-        """Test enforce with empty event list."""
+        """使用空事件列表测试强制执行。"""
         result = self.property.enforce([], [])
         assert result == set()
 
     def test_no_tool_events(self) -> None:
-        """Test enforce with no tool events."""
+        """在没有工具事件的情况下测试强制执行。"""
         message1 = message_event("First message")
         message2 = message_event("Second message")
 
         events: list[LLMConvertibleEvent] = [message1, message2]
         result = self.property.enforce(events, events)
 
-        # No tool events, nothing to remove
+        # 没有工具事件，没有要删除的内容
         assert result == set()
 
     def test_matched_pairs(self) -> None:
-        """Test enforce with matched tool call pairs."""
+        """使用匹配的工具调用对测试强制执行。"""
         message = message_event("Test message")
 
-        # Matched pair 1
+        # 配对1
         action_event_1 = create_autospec(ActionEvent, instance=True)
         action_event_1.tool_call_id = "call_1"
         action_event_1.id = "action_1"
@@ -69,7 +69,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         observation_event_1.tool_call_id = "call_1"
         observation_event_1.id = "obs_1"
 
-        # Matched pair 2
+        # 配对2
         action_event_2 = create_autospec(ActionEvent, instance=True)
         action_event_2.tool_call_id = "call_2"
         action_event_2.id = "action_2"
@@ -89,16 +89,16 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # All events should be kept (all tool calls are matched)
+        # 应保留所有事件（所有工具调用均匹配）
         assert result == set()
         assert action_event_1.id not in result
         assert observation_event_1.id not in result
 
     def test_unmatched_action(self) -> None:
-        """Test enforce with unmatched ActionEvent."""
+        """使用不匹配的 ActionEvent 测试强制执行。"""
         message = message_event("Test message")
 
-        # Matched pair
+        # 配对
         action_event_matched = create_autospec(ActionEvent, instance=True)
         action_event_matched.tool_call_id = "call_1"
         action_event_matched.id = "action_1"
@@ -108,7 +108,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         observation_event_matched.tool_call_id = "call_1"
         observation_event_matched.id = "obs_1"
 
-        # Unmatched ActionEvent
+        # 无与伦比的ActionEvent
         action_event_unmatched = create_autospec(ActionEvent, instance=True)
         action_event_unmatched.tool_call_id = "call_2"
         action_event_unmatched.id = "action_2"
@@ -123,15 +123,15 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Should keep: message, matched pair
-        # Should remove: unmatched ActionEvent
+        # 应保留：消息、匹配对应删除：不匹配的 ActionEvent
+        #
         assert result == {action_event_unmatched.id}
 
     def test_unmatched_observation(self) -> None:
-        """Test enforce with unmatched ObservationEvent."""
+        """使用不匹配的 ObservationEvent 测试强制执行。"""
         message = message_event("Test message")
 
-        # Matched pair
+        # 配对
         action_event_matched = create_autospec(ActionEvent, instance=True)
         action_event_matched.tool_call_id = "call_1"
         action_event_matched.id = "action_1"
@@ -141,7 +141,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         observation_event_matched.tool_call_id = "call_1"
         observation_event_matched.id = "obs_1"
 
-        # Unmatched ObservationEvent
+        # 无与伦比的ObservationEvent
         observation_event_unmatched = create_autospec(ObservationEvent, instance=True)
         observation_event_unmatched.tool_call_id = "call_2"
         observation_event_unmatched.id = "obs_2"
@@ -155,16 +155,16 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Should keep: message, matched pair
-        # Should remove: unmatched ObservationEvent
+        # 应保留：消息、匹配对应删除：不匹配的 ObservationEvent
+        #
         assert result == {observation_event_unmatched.id}
 
     def test_mixed_scenario(self) -> None:
-        """Test enforce with complex mixed scenario."""
+        """使用复杂的混合场景进行测试。"""
         message_event_1 = message_event("Message 1")
         message_event_2 = message_event("Message 2")
 
-        # Matched pair 1
+        # 配对1
         action_event_1 = create_autospec(ActionEvent, instance=True)
         action_event_1.tool_call_id = "call_1"
         action_event_1.id = "action_1"
@@ -174,18 +174,18 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         observation_event_1.tool_call_id = "call_1"
         observation_event_1.id = "obs_1"
 
-        # Unmatched ActionEvent
+        # 无与伦比的ActionEvent
         action_event_unmatched = create_autospec(ActionEvent, instance=True)
         action_event_unmatched.tool_call_id = "call_2"
         action_event_unmatched.id = "action_unmatched"
         action_event_unmatched.llm_response_id = "response_2"
 
-        # Unmatched ObservationEvent
+        # 无与伦比的ObservationEvent
         observation_event_unmatched = create_autospec(ObservationEvent, instance=True)
         observation_event_unmatched.tool_call_id = "call_3"
         observation_event_unmatched.id = "obs_unmatched"
 
-        # Matched pair 2
+        # 配对2
         action_event_2 = create_autospec(ActionEvent, instance=True)
         action_event_2.tool_call_id = "call_4"
         action_event_2.id = "action_2"
@@ -208,7 +208,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Should remove: unmatched action and observation events
+        # 应删除：不匹配的操作和观测结果事件
         assert action_event_unmatched.id in result
         assert observation_event_unmatched.id in result
         assert action_event_1.id not in result
@@ -217,7 +217,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         assert observation_event_2.id not in result
 
     def test_with_user_reject_observation(self) -> None:
-        """Test that ActionEvent with UserRejectObservation is not filtered out."""
+        """测试ActionEvent和UserRejectObservation没有被过滤掉。"""
         action_event = create_autospec(ActionEvent, instance=True)
         action_event.tool_call_id = "call_1"
         action_event.id = "action_1"
@@ -242,11 +242,11 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Both the ActionEvent and UserRejectObservation should be kept
+        # ActionEvent和UserRejectObservation都应该保留
         assert len(result) == 0
 
     def test_with_agent_error_event(self) -> None:
-        """Test that ActionEvent paired with AgentErrorEvent is not filtered out."""
+        """测试与AgentErrorEvent配对的ActionEvent没有被过滤掉。"""
         action_event = create_autospec(ActionEvent, instance=True)
         action_event.tool_call_id = "call_1"
         action_event.id = "action_1"
@@ -270,11 +270,11 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Both the ActionEvent and AgentErrorEvent should be kept
+        # ActionEvent和AgentErrorEvent都应该保留
         assert len(result) == 0
 
     def test_mixed_observation_types(self) -> None:
-        """Test filtering with mixed observation types."""
+        """使用混合观测结果类型测试过滤。"""
         # ActionEvents
         action_event_1 = create_autospec(ActionEvent, instance=True)
         action_event_1.tool_call_id = "call_1"
@@ -291,12 +291,12 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
         action_event_3.id = "action_3"
         action_event_3.llm_response_id = "response_3"
 
-        # Normal observation
+        # 正常观测结果
         observation_event = create_autospec(ObservationEvent, instance=True)
         observation_event.tool_call_id = "call_1"
         observation_event.id = "obs_1"
 
-        # User rejection
+        # 用户拒绝
         user_reject_obs = UserRejectObservation(
             action_id="action_2",
             tool_name="TerminalTool",
@@ -304,7 +304,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
             rejection_reason="User rejected the action",
         )
 
-        # Agent error
+        # 智能体错误
         agent_error = AgentErrorEvent(
             error="Tool execution failed",
             tool_name="TerminalTool",
@@ -324,23 +324,22 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # All matched pairs should be kept
+        # 应保留所有匹配对
         assert len(result) == 0
 
     def test_action_with_none_action_matched_by_agent_error(self) -> None:
-        """Test that ActionEvent with action=None is kept when matched by
+        """测试 ActionEvent 与 action=None 匹配时是否被保留
         AgentErrorEvent.
 
-        This tests the case where an action was not executed (e.g., tool was
-        missing) but still has a matching AgentErrorEvent - both should be
-        retained.
+        这测试了操作未执行（e.g.，工具丢失）但仍有匹配的 AgentErrorEvent 的情况 - 两
+        者都应保留。
         """
-        # ActionEvent with action=None (action was not executed)
+        # ActionEvent with action=None（操作未执行）
         action_event = create_action_event_with_none_action(
             "action_1", "resp_1", "call_keep_me"
         )
 
-        # Matching AgentErrorEvent (observation path)
+        # 匹配AgentErrorEvent（观测结果路径）
         agent_error = AgentErrorEvent(
             source="agent",
             error="not found",
@@ -348,7 +347,7 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
             tool_call_id="call_keep_me",
         )
 
-        # Noise message events
+        # 噪音消息事件
         m1 = message_event("hi")
         m2 = message_event("bye")
 
@@ -356,17 +355,17 @@ class TestToolCallMatchingPropertyEnforcement(TestToolCallMatchingBase):
 
         result = self.property.enforce(events, events)
 
-        # Both ActionEvent(action=None) and matching AgentErrorEvent must be kept
+        # ActionEvent(action=None) 和匹配的 AgentErrorEvent 都必须保留
         assert len(result) == 0
         assert action_event.id not in result
         assert agent_error.id not in result
 
 
 class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
-    """Tests for the manipulation_indices method of ToolCallMatchingProperty."""
+    """测试 ToolCallMatchingProperty 的 manipulation_indices 方法。"""
 
     def test_single_event_complete_indices(self) -> None:
-        """Test manipulation indices for a single unpairable event are complete."""
+        """单个不可配对事件的测试操作索引已完成。"""
         message = message_event("Test")
         events: list[LLMConvertibleEvent] = [message]
 
@@ -375,7 +374,7 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
         assert result == ManipulationIndices.complete(events)
 
     def test_matched_pair_no_index_between(self) -> None:
-        """Test no manipulation index between matched action and observation."""
+        """测试匹配动作和观测结果之间没有操纵索引。"""
         action = create_autospec(ActionEvent, instance=True)
         action.tool_call_id = "call_1"
         action.id = "action_1"
@@ -389,12 +388,12 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
 
         result = self.property.manipulation_indices(events)
 
-        # Index 1 (between action and observation) should not be allowed
+        # 不允许使用索引 1（在操作和观测结果之间）
         assert 1 not in result
 
     def test_allow_index_between_pairs(self) -> None:
-        """Test that manipulation is allowed between separate matched pairs."""
-        # First pair
+        """测试单独的匹配对之间是否允许进行操作。"""
+        # 第一对
         action1 = create_autospec(ActionEvent, instance=True)
         action1.tool_call_id = "call_1"
         action1.id = "action_1"
@@ -404,7 +403,7 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
         observation1.tool_call_id = "call_1"
         observation1.id = "obs_1"
 
-        # Second pair
+        # 第二对
         action2 = create_autospec(ActionEvent, instance=True)
         action2.tool_call_id = "call_2"
         action2.id = "action_2"
@@ -423,20 +422,20 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
 
         result = self.property.manipulation_indices(events)
 
-        # Index 2 (between the two pairs) should be allowed
+        # 应允许使用索引 2（两对之间）
         assert 2 in result
-        # Index 1 (between action1 and observation1) should not be allowed
+        # 不允许使用索引 1（操作 1 和观察 1 之间）
         assert 1 not in result
 
     def test_empty_events(self) -> None:
-        """Test manipulation indices for empty events are complete."""
+        """空事件的测试操作索引已完成。"""
         events: list[LLMConvertibleEvent] = []
 
         result = self.property.manipulation_indices(events)
         assert result == ManipulationIndices.complete(events)
 
     def test_view_tolerates_orphaned_agent_error(self) -> None:
-        """A recovery error without its action cannot brick View consumers."""
+        """没有相应操作的恢复错误无法阻止 View 消费者。"""
         orphan = AgentErrorEvent(
             error="Tool execution was interrupted by a restart",
             tool_name="TerminalTool",
@@ -450,7 +449,7 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
         )
 
     def test_orphan_does_not_resolve_another_pending_action(self) -> None:
-        """An unrelated orphan leaves a valid action interval protected."""
+        """不相关的孤儿留下了受保护的有效操作间隔。"""
         action = create_action_event("response", "pending_call")
         orphan = AgentErrorEvent(
             error="Tool execution was interrupted by a restart",
@@ -465,7 +464,7 @@ class TestToolCallMatchingPropertyManipulationIndices(TestToolCallMatchingBase):
         assert result == {0, 3}
 
     def test_duplicate_observation_does_not_crash_manipulation_indices(self) -> None:
-        """Duplicate cleanup belongs to property enforcement, not boundary lookup."""
+        """重复清理属于属性执行，而不是边界查找。"""
         action = create_action_event("response", "call")
         first = create_observation_event("call")
         duplicate = create_observation_event("call")

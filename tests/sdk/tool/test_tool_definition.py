@@ -1,4 +1,4 @@
-"""Tests for the Tool class in openhands.sdk.runtime.tool."""
+"""对 openhands.sdk.runtime.tool 中的 Tool 类进行测试。"""
 
 from collections.abc import Sequence
 from typing import Any
@@ -17,7 +17,7 @@ from openhands.sdk.tool import (
 
 
 class ToolMockAction(Action):
-    """Mock action class for testing."""
+    """模拟对象用于测试的动作类。"""
 
     command: str = Field(description="Command to execute")
     optional_field: str | None = Field(default=None, description="Optional field")
@@ -25,11 +25,11 @@ class ToolMockAction(Action):
     array_field: list[int] = Field(default_factory=list, description="Array field")
 
 
-# Module-level Action classes to avoid "local class not supported" errors
-# during serialization tests. Local classes (defined inside functions) cannot be
-# deserialized because they may not exist at deserialization time.
+# 模块级 Action 类，以避免序列化测试期间出现“不支持本地类”错误。 局部类（在函数内部定义
+# ）不能是已反序列化，因为它们在反序列化时可能不存在。
+#
 class ComplexSchemaAction(Action):
-    """Action with complex field types for schema generation testing."""
+    """针对模式代测试的复杂字段类型的操作。"""
 
     simple_field: str = Field(description="Simple string field")
     optional_int: int | None = Field(default=None, description="Optional integer")
@@ -37,7 +37,7 @@ class ComplexSchemaAction(Action):
 
 
 class RequiredFieldAction(Action):
-    """Action with required and optional fields for testing."""
+    """具有用于测试的必填和可选字段的操作。"""
 
     required_field: str = Field(description="This field is required")
     optional_field: str | None = Field(
@@ -46,7 +46,7 @@ class RequiredFieldAction(Action):
 
 
 class ComplexNestedAction(Action):
-    """Action with complex nested types for testing."""
+    """用于测试的复杂嵌套类型的操作。"""
 
     simple_string: str = Field(description="Simple string field")
     optional_int: int | None = Field(default=None, description="Optional integer")
@@ -63,7 +63,7 @@ class ComplexNestedAction(Action):
 
 
 class ToolMockObservation(Observation):
-    """Mock observation class for testing."""
+    """模拟对象观测结果测试类。"""
 
     result: str = Field(description="Result of the action")
     extra_field: str | None = Field(default=None, description="Extra field")
@@ -74,7 +74,7 @@ class ToolMockObservation(Observation):
 
 
 class ComplexObservation(Observation):
-    """Observation with complex data for testing."""
+    """观测结果用复杂的数据进行测试。"""
 
     data: dict[str, Any] = Field(default_factory=dict, description="Complex data")
     count: int = Field(default=0, description="Count field")
@@ -85,10 +85,10 @@ class ComplexObservation(Observation):
 
 
 class RequiredFieldsObservation(Observation):
-    """Observation with required fields for validation testing.
+    """观测结果具有验证测试所需的字段。
 
-    Note: Defined at module level to ensure a stable qualified name for
-    JSON serialization/deserialization.
+    Note: 在模块级别定义以确保稳定的限定名称
+    JSON 序列化/反序列化。
     """
 
     message: str = Field(description="Required message field")
@@ -100,7 +100,7 @@ class RequiredFieldsObservation(Observation):
 
 
 class MockTestTool(ToolDefinition[ToolMockAction, ToolMockObservation]):
-    """Concrete mock tool for testing."""
+    """具体的模拟对象测试工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params) -> Sequence["MockTestTool"]:
@@ -108,10 +108,10 @@ class MockTestTool(ToolDefinition[ToolMockAction, ToolMockObservation]):
 
 
 class TestTool:
-    """Test cases for the Tool class."""
+    """测试用例为工具类。"""
 
     def test_tool_creation_basic(self):
-        """Test basic tool creation."""
+        """测试基本工具创建。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -125,7 +125,7 @@ class TestTool:
         assert tool.executor is None
 
     def test_tool_creation_with_executor(self):
-        """Test tool creation with executor function."""
+        """使用执行器功能测试工具创建。"""
 
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -138,7 +138,7 @@ class TestTool:
             executor=MockExecutor(),
         )
 
-        # Test that tool can be used as executable
+        # 测试该工具可以用作可执行文件
         executable_tool = tool.as_executable()
         action = ToolMockAction(command="test")
         result = executable_tool(action)
@@ -146,7 +146,7 @@ class TestTool:
         assert result.result == "Executed: test"
 
     def test_tool_creation_with_annotations(self):
-        """Test tool creation with annotations."""
+        """使用注释测试工具创建。"""
         annotations = ToolAnnotations(
             title="Annotated Tool",
             readOnlyHint=True,
@@ -167,7 +167,7 @@ class TestTool:
         assert tool.annotations.destructiveHint is False
 
     def test_to_mcp_tool_basic(self):
-        """Test conversion to MCP tool format."""
+        """测试转换为 MCP 工具格式。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -182,7 +182,7 @@ class TestTool:
         assert mcp_tool["inputSchema"]["type"] == "object"
         assert "properties" in mcp_tool["inputSchema"]
 
-        # Check that action fields are in the schema
+        # 检查操作字段是否在模式中
         properties = mcp_tool["inputSchema"]["properties"]
         assert "command" in properties
         assert "optional_field" in properties
@@ -190,7 +190,7 @@ class TestTool:
         assert "array_field" in properties
 
     def test_to_mcp_tool_with_annotations(self):
-        """Test MCP tool conversion with annotations."""
+        """带注释的测试MCP工具转换。"""
         annotations = ToolAnnotations(
             title="Custom Tool",
             readOnlyHint=True,
@@ -205,14 +205,14 @@ class TestTool:
 
         mcp_tool = tool.to_mcp_tool()
 
-        # Tool should include annotations
+        # 工具应包含注释
         assert mcp_tool["name"] == "mock_test"
         assert mcp_tool["description"] == "A test tool"
         assert "annotations" in mcp_tool
         assert mcp_tool["annotations"] == annotations
 
     def test_call_without_executor(self):
-        """Test calling tool without executor raises error."""
+        """没有执行器的测试调用工具会引发错误。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -226,7 +226,7 @@ class TestTool:
             tool(action)
 
     def test_call_with_executor(self):
-        """Test calling tool with executor."""
+        """使用执行器测试调用工具。"""
 
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -246,7 +246,7 @@ class TestTool:
         assert result.result == "Processed: test_command"
 
     def test_schema_generation_complex_types(self):
-        """Test schema generation with complex field types."""
+        """使用复杂字段类型测试模式生成。"""
         tool = MockTestTool(
             description="Tool with complex types",
             action_type=ComplexSchemaAction,
@@ -264,7 +264,7 @@ class TestTool:
         assert properties["string_list"]["items"]["type"] == "string"
 
     def test_observation_type_validation(self):
-        """Test that observation type is properly validated."""
+        """测试观测结果类型是否已正确验证。"""
 
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -280,12 +280,12 @@ class TestTool:
         action = ToolMockAction(command="test")
         result = tool(action)
 
-        # Should return the correct observation type
+        # 应该返回正确的观测结果类型
         assert isinstance(result, ToolMockObservation)
         assert result.result == "success"
 
     def test_observation_with_extra_fields(self):
-        """Test observation with additional fields."""
+        """使用附加字段测试观测结果。"""
 
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -306,14 +306,14 @@ class TestTool:
         assert result.extra_field == "extra_data"
 
     def test_action_validation_with_nested_data(self):
-        """Test action validation with nested data structures."""
+        """使用嵌套数据结构测试操作验证。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
             observation_type=ToolMockObservation,
         )
 
-        # Create action with nested data
+        # 创建包含嵌套数据的动作
         action_data = {
             "command": "test",
             "nested": {"value": "test"},
@@ -327,11 +327,11 @@ class TestTool:
         assert hasattr(action, "optional_field")
 
     def test_schema_roundtrip_conversion(self):
-        """Test that schema conversion is consistent."""
-        # Start with a class
+        """测试模式转换是否一致。"""
+        # 从一堂课开始
         original_schema = ToolMockAction.to_mcp_schema()
 
-        # Create tool and get its schema
+        # 创建工具并获取其模式
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -339,14 +339,14 @@ class TestTool:
         )
         tool_schema = tool.to_mcp_tool()["inputSchema"]
 
-        # Schemas should be equivalent (ignoring order)
+        # 模式应该是等价的（忽略顺序）
         assert original_schema["type"] == tool_schema["type"]
         assert set(original_schema["properties"].keys()) == set(
             tool_schema["properties"].keys()
         )
 
     def test_tool_with_no_observation_type(self):
-        """Test tool creation with None observation type."""
+        """创建None 观测结果类型的测试工具。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -355,14 +355,14 @@ class TestTool:
 
         assert tool.observation_type is None
 
-        # Should still be able to create MCP tool
+        # 应该仍然能够创建 MCP 工具
         mcp_tool = tool.to_mcp_tool()
         assert mcp_tool["name"] == "mock_test"
 
     def test_executor_function_attachment(self):
-        """Test creating tool with executor."""
+        """使用执行器测试创建工具。"""
 
-        # Create executor first
+        # 首先创建执行器
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
                 return ToolMockObservation(result=f"Attached: {action.command}")
@@ -376,7 +376,7 @@ class TestTool:
             executor=executor,
         )
 
-        # Should work as executable tool
+        # 应该作为可执行工具
         executable_tool = tool.as_executable()
         action = ToolMockAction(command="test")
         result = executable_tool(action)
@@ -384,8 +384,8 @@ class TestTool:
         assert result.result == "Attached: test"
 
     def test_tool_name_validation(self):
-        """Test tool name validation."""
-        # Name is now automatically generated from class name
+        """测试工具名称验证。"""
+        # 名称现在根据类名自动生成
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -394,7 +394,7 @@ class TestTool:
         assert tool.name == "mock_test"
 
     def test_complex_executor_return_types(self):
-        """Test executor with complex return types."""
+        """测试具有复杂返回类型的执行器。"""
 
         class MockComplexExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ComplexObservation:
@@ -418,7 +418,7 @@ class TestTool:
         assert result.count == len("test_command")
 
     def test_error_handling_in_executor(self):
-        """Test error handling when executor raises exceptions."""
+        """测试执行器引发异常时的错误处理。"""
 
         class FailingExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -436,7 +436,7 @@ class TestTool:
             tool(action)
 
     def test_executor_with_observation_validation(self):
-        """Test that executor return values are validated."""
+        """测试执行器返回值是否经过验证。"""
 
         class ValidExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> RequiredFieldsObservation:
@@ -456,7 +456,7 @@ class TestTool:
         assert result.value == 42
 
     def test_tool_equality_and_hashing(self):
-        """Test tool equality and hashing behavior."""
+        """测试工具相等性和哈希行为。"""
         tool1 = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -469,13 +469,13 @@ class TestTool:
             observation_type=ToolMockObservation,
         )
 
-        # Tools with same parameters should be equal
+        # 具有相同参数的工具应该是相等的
         assert tool1.name == tool2.name
         assert tool1.description == tool2.description
         assert tool1.action_type == tool2.action_type
 
     def test_mcp_tool_schema_required_fields(self):
-        """Test that MCP tool schema includes required fields."""
+        """测试 MCP 工具模式是否包含必填字段。"""
         tool = MockTestTool(
             description="Tool with required fields",
             action_type=RequiredFieldAction,
@@ -485,13 +485,13 @@ class TestTool:
         mcp_tool = tool.to_mcp_tool()
         schema = mcp_tool["inputSchema"]
 
-        # Check that required fields are marked as required
+        # 检查必填字段是否已标记为必填
         assert "required" in schema
         assert "required_field" in schema["required"]
         assert "optional_field" not in schema["required"]
 
     def test_tool_with_meta_data(self):
-        """Test tool creation with metadata."""
+        """使用元数据测试工具创建。"""
         meta_data = {"version": "1.0", "author": "test"}
 
         tool = MockTestTool(
@@ -508,7 +508,7 @@ class TestTool:
         assert mcp_tool["_meta"] == meta_data
 
     def test_to_mcp_tool_complex_nested_types(self):
-        """Test MCP tool schema generation with complex nested types."""
+        """使用复杂嵌套类型测试 MCP 工具模式生成。"""
         tool = MockTestTool(
             description="Tool with complex nested types",
             action_type=ComplexNestedAction,
@@ -519,39 +519,39 @@ class TestTool:
         schema = mcp_tool["inputSchema"]
         props = schema["properties"]
 
-        # Test simple string
+        # 测试简单字符串
         assert props["simple_string"]["type"] == "string"
         assert "simple_string" in schema["required"]
 
-        # Test optional int
+        # 测试可选 int
         optional_int_schema = props["optional_int"]
         assert "anyOf" not in optional_int_schema
         assert optional_int_schema["type"] == "integer"
         assert "optional_int" not in schema["required"]
 
-        # Test string array
+        # 测试字符串数组
         string_array_schema = props["string_array"]
         assert string_array_schema["type"] == "array"
         assert string_array_schema["items"]["type"] == "string"
 
-        # Test int array
+        # 测试 int 数组
         int_array_schema = props["int_array"]
         assert int_array_schema["type"] == "array"
         assert int_array_schema["items"]["type"] == "integer"
 
-        # Test nested dict
+        # 测试嵌套字典
         nested_dict_schema = props["nested_dict"]
         assert nested_dict_schema["type"] == "object"
 
-        # Test optional array
+        # 测试可选数组
         optional_array_schema = props["optional_array"]
         assert "anyOf" not in optional_array_schema
         assert optional_array_schema["type"] == "array"
         assert optional_array_schema["items"]["type"] == "string"
 
     def test_security_risk_only_added_for_non_readonly_tools(self):
-        """Test that security_risk is only added if the tool is not read-only."""
-        # Test with read-only tool
+        """测试仅当工具不是只读时才添加 security_risk。"""
+        # 使用只读工具测试
         readonly_annotations = ToolAnnotations(
             title="Read-only Tool",
             readOnlyHint=True,
@@ -564,7 +564,7 @@ class TestTool:
             annotations=readonly_annotations,
         )
 
-        # Test with non-read-only tool
+        # 使用非只读工具进行测试
         writable_annotations = ToolAnnotations(
             title="Writable Tool",
             readOnlyHint=False,
@@ -577,7 +577,7 @@ class TestTool:
             annotations=writable_annotations,
         )
 
-        # Test with tool that has no annotations (should be treated as writable)
+        # 使用没有注释的工具进行测试（应视为可写）
         no_annotations_tool = MockTestTool(
             description="A tool with no annotations",
             action_type=ToolMockAction,
@@ -585,7 +585,7 @@ class TestTool:
             annotations=None,
         )
 
-        # Test read-only tool - security_risk should NOT be added
+        # 测试只读工具 - 应添加 security_risk 不
         readonly_openai_tool = readonly_tool.to_openai_tool(
             add_security_risk_prediction=True
         )
@@ -594,7 +594,7 @@ class TestTool:
         readonly_params = readonly_function["parameters"]
         assert "security_risk" not in readonly_params["properties"]
 
-        # Test writable tool - security_risk SHOULD be added
+        # 测试可写工具 - 添加security_riskSHOULD
         writable_openai_tool = writable_tool.to_openai_tool(
             add_security_risk_prediction=True
         )
@@ -603,7 +603,7 @@ class TestTool:
         writable_params = writable_function["parameters"]
         assert "security_risk" in writable_params["properties"]
 
-        # Test tool with no annotations - security_risk SHOULD be added
+        # 添加无注释的测试工具 - security_risk SHOULD
         no_annotations_openai_tool = no_annotations_tool.to_openai_tool(
             add_security_risk_prediction=True
         )
@@ -612,7 +612,7 @@ class TestTool:
         no_annotations_params = no_annotations_function["parameters"]
         assert "security_risk" in no_annotations_params["properties"]
 
-        # Test that when add_security_risk_prediction=False, no security_risk is added
+        # 测试当 add_security_risk_prediction 等于 False 时，不应添加 security_risk
         readonly_no_risk = readonly_tool.to_openai_tool(
             add_security_risk_prediction=False
         )
@@ -630,18 +630,19 @@ class TestTool:
         assert "security_risk" not in writable_no_risk_params["properties"]
 
     def test_security_risk_is_optional_field_in_schema(self):
-        """Test that _create_action_type_with_risk makes security_risk an optional field defaulting to UNKNOWN."""  # noqa: E501
+        """测试 _create_action_type_with_risk 是否使 security_risk 成为默认为 UNKNOWN
+        的可选字段。"""  # noqa: E501
         from openhands.sdk.tool.tool import create_action_type_with_risk
 
-        # Test with a simple action type
+        # 使用简单的动作类型进行测试
         action_type_with_risk = create_action_type_with_risk(ToolMockAction)
 
-        # security_risk should appear in properties but NOT in required
+        # security_risk 应该出现在属性中，但不出现在必需的中
         schema = action_type_with_risk.to_mcp_schema()
         assert "security_risk" in schema["properties"]
         assert "security_risk" not in schema.get("required", [])
 
-        # Test via to_openai_tool method
+        # 通过to_openai_tool方法测试
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
@@ -656,7 +657,7 @@ class TestTool:
         assert "security_risk" in function_params["properties"]
         assert "security_risk" not in function_params.get("required", [])
 
-        # Test with a tool that has annotations but is not read-only
+        # 使用带有注释但不包含只读的工具进行测试
         writable_annotations = ToolAnnotations(
             title="Writable Tool",
             readOnlyHint=False,
@@ -680,11 +681,11 @@ class TestTool:
         assert "security_risk" not in writable_function_params.get("required", [])
 
     def test_security_risk_precedes_content_params_in_schema(self):
-        """Test that security_risk appears before content parameters in the schema.
+        """测试 security_risk 是否出现在模式中的内容参数之前。
 
-        When the LLM exhausts its output token budget, truncation should cut
-        content parameters rather than the required security_risk field.
-        See https://github.com/OpenHands/software-agent-sdk/issues/1911
+        当 LLM 耗尽其输出词元预算时，截断应该剪切内容参数而不是所需的 security_risk
+        字段。 参见
+        https://github.com/OpenHands/software-agent-sdk/issues/1911
         """
         tool = MockTestTool(
             description="A test tool",
@@ -697,18 +698,18 @@ class TestTool:
 
         assert keys[0] == "security_risk"
         assert keys[1] == "summary"
-        # Original action fields must come after
+        # 原始操作字段必须位于之后
         assert keys.index("command") > keys.index("security_risk")
 
-        # Verify all original fields are still present (exclude discriminator
-        # fields like 'kind' which are stripped by to_mcp_schema)
+        # 验证所有原始字段仍然存在（不包括被 to_mcp_schema 删除的“kind”等鉴别器字段）
+        #
         original_schema = ToolMockAction.to_mcp_schema()
         original_keys = set(original_schema["properties"].keys())
         schema_keys = set(keys)
         assert original_keys.issubset(schema_keys)
 
     def test_as_executable_with_executor(self):
-        """Test as_executable() method with a tool that has an executor."""
+        """使用具有执行器的工具测试 as_executable() 方法。"""
 
         class MockExecutor(ToolExecutor):
             def __call__(self, action, conversation=None) -> ToolMockObservation:
@@ -722,26 +723,26 @@ class TestTool:
             executor=executor,
         )
 
-        # Should return ExecutableTool without error
+        # 应该返回 ExecutableTool，没有错误
         executable_tool = tool.as_executable()
         assert executable_tool.name == "mock_test"
         assert executable_tool.executor is executor
 
-        # Should be able to call it
+        # 应该可以调用
         action = ToolMockAction(command="test")
         result = executable_tool(action)
         assert isinstance(result, ToolMockObservation)
         assert result.result == "Executed: test"
 
     def test_as_executable_without_executor(self):
-        """Test as_executable() method with a tool that has no executor."""
+        """使用没有执行器的工具测试 as_executable() 方法。"""
         tool = MockTestTool(
             description="A test tool",
             action_type=ToolMockAction,
             observation_type=ToolMockObservation,
         )
 
-        # Should raise NotImplementedError
+        # 应提高 NotImplementedError
         with pytest.raises(
             NotImplementedError, match="Tool 'mock_test' has no executor"
         ):

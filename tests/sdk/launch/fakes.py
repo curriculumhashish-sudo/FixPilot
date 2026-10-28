@@ -1,4 +1,4 @@
-"""In-memory stores for driving :func:`openhands.sdk.launch.resolve` in tests."""
+"""用于驱动 `openhands.sdk.launch.resolve` 的内存存储。"""
 
 from __future__ import annotations
 

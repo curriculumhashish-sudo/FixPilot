@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Insert the generated REST API summary into a PR body's Summary section."""
+"""将生成的 REST API 摘要插入到 PR 正文的摘要部分。"""
 
 from __future__ import annotations
 

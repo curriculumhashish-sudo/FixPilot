@@ -1,10 +1,8 @@
-"""Test that an agent uses the `invoke_skill` tool when a relevant
-AgentSkills-format skill is loaded.
+"""当加载相关的 AgentSkills 格式技能时，测试智能体是否使用 `invoke_skill` 工具。
 
-Regression coverage for the `invoke_skill` built-in tool (issue #2824 /
-PR #2835). Without this test, a silent change to the tool description,
-`<available_skills>` block, or auto-attach logic could stop models from
-picking up the tool in real conversations.
+回归 `invoke_skill` 内置工具的覆盖范围（问题 #2824 / PR #2835）。 如果没有这个测试，
+对工具描述进行静默更改，
+`<available_skills>` 块或自动附加逻辑可能会阻止模型在真实对话中使用该工具。
 """
 
 from __future__ import annotations
@@ -83,7 +81,7 @@ logger = get_logger(__name__)
 
 
 class InvokeSkillTest(BaseIntegrationTest):
-    """Assert the agent calls `invoke_skill` for a relevant skill."""
+    """断言智能体调用 `invoke_skill` 以获得相关技能。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -95,9 +93,9 @@ class InvokeSkillTest(BaseIntegrationTest):
         workspace: str,
         tool_preset: ToolPresetType = "default",
     ):
-        # Re-run the base constructor logic but build the Agent with an
-        # `agent_context` that includes an AgentSkills-format skill, so the
-        # `invoke_skill` tool auto-attaches.
+        # 重新运行基础构造器逻辑，并构建智能体与一个
+        # `agent_context` 包括 AgentSkills 格式的技能，因此
+        # `invoke_skill` 工具自动附加。
         self.instruction = instruction
         self.llm_config = llm_config
         self.workspace = workspace
@@ -118,9 +116,10 @@ class InvokeSkillTest(BaseIntegrationTest):
             usage_id="test-llm",
         )
 
-        # Skill lives OUTSIDE the workspace so the agent cannot discover
-        # `scripts/convert.py` by exploring its cwd — it must rely on the
-        # absolute path appended by `invoke_skill`'s location footer.
+        # 技能存在于 OUTSIDE 工作区中，因此智能体无法发现
+        # `scripts/convert.py` 通过探索其 cwd — 它必须依赖于 `invoke_skill` 的位置页脚附
+        # 加的绝对路径。
+        #
         self.skill_dir = (
             Path(workspace).parent / f"{instance_id}_skill_cache" / SKILL_NAME
         )
@@ -163,9 +162,9 @@ class InvokeSkillTest(BaseIntegrationTest):
         return get_tools_for_preset(self.tool_preset, enable_browser=False)
 
     def setup(self) -> None:
-        """Materialize the skill AND its bundled script on disk, so the
-        location footer resolves AND the agent has a real file to reach
-        when it follows the footer."""
+        """在磁盘上具体化技能 AND 其捆绑脚本，因此
+        位置页脚解析 AND，当智能体跟随页脚时，它有一个真正的文件要到达。
+        """
         scripts_dir = self.skill_dir / "scripts"
         scripts_dir.mkdir(parents=True, exist_ok=True)
         self.skill_md.write_text(SKILL_CONTENT)
@@ -174,7 +173,7 @@ class InvokeSkillTest(BaseIntegrationTest):
     def verify_result(self) -> TestResult:
         action_events = [e for e in self.collected_events if isinstance(e, ActionEvent)]
 
-        # 1. Agent invoked the skill.
+        # 1. 智能体调用了该技能。
         invoked = [
             e
             for e in action_events
@@ -191,9 +190,9 @@ class InvokeSkillTest(BaseIntegrationTest):
                 ),
             )
 
-        # 2. After invocation, the agent tried to view or run a bundled
-        #    resource (scripts/ or references/). Skill lives outside the
-        #    workspace, so this is only possible via the footer path.
+        # 2. 调用后，智能体尝试查看或运行捆绑资源（scripts/ 或references/）。 技能位于工
+        # 作区之外，因此只能通过页脚路径实现。
+        #
         invoke_idx = self.collected_events.index(invoked[0])
         touched = False
         for e in self.collected_events[invoke_idx + 1 :]:

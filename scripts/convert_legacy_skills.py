@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Convert legacy OpenHands skills to AgentSkills standard format.
+"""将旧 OpenHands 技能转换为 AgentSkills 标准格式。
 
-This script converts single .md skill files to the AgentSkills directory format:
-- Creates skill-name/ directory with SKILL.md
-- Converts mcp_tools frontmatter to .mcp.json files
-- Preserves OpenHands-specific fields (triggers, inputs) for compatibility
+此脚本将单个 .md 技能文件转换为 AgentSkills 目录格式：
+- 使用 SKILL.md 创建技能名称/目录
+- 将 mcp_tools 前置元数据转换为 .mcp.json 文件
+- 保留 OpenHands 特定字段（触发器、输入）以实现兼容性
 
-Usage:
-    # Convert a single skill file
+用途：
+    # 转换单个技能文件
     python convert_legacy_skills.py skill.md --output-dir ./converted/
 
-    # Convert all skills in a directory
+    # 转换目录中的所有技能
     python convert_legacy_skills.py ./skills/ --output-dir ./converted/
 
-    # Dry run (show what would be converted)
+    # 试运行（显示将转换的内容）
     python convert_legacy_skills.py ./skills/ --output-dir ./converted/ --dry-run
 """
 
@@ -31,15 +31,14 @@ from typing import Any
 import frontmatter
 
 
-# AgentSkills name validation pattern
+# AgentSkills 名称验证图案
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
 def normalize_skill_name(name: str) -> str:
-    """Normalize a skill name to conform to AgentSkills spec.
+    """标准化技能名称以符合 AgentSkills 规范。
 
-    Converts to lowercase, replaces underscores with hyphens,
-    and removes invalid characters.
+    转换为小写，用连字符替换下划线，并删除无效字符。
     """
     normalized = name.lower()
     normalized = normalized.replace("_", "-")
@@ -50,7 +49,7 @@ def normalize_skill_name(name: str) -> str:
 
 
 def validate_skill_name(name: str) -> list[str]:
-    """Validate skill name according to AgentSkills spec."""
+    """根据 AgentSkills 规范验证技能名称。"""
     errors = []
     if not name:
         errors.append("Name cannot be empty")
@@ -70,7 +69,7 @@ def generate_description(
     triggers: list[str] | None = None,
     name: str | None = None,
 ) -> str:
-    """Generate a description for the skill from content or triggers."""
+    """从内容或触发器生成技能的描述。"""
     for line in content.split("\n"):
         stripped = line.strip()
         if not stripped:
@@ -98,7 +97,7 @@ def convert_legacy_skill(
     output_dir: Path,
     dry_run: bool = False,
 ) -> Path | None:
-    """Convert a legacy OpenHands skill to AgentSkills format."""
+    """将旧的 OpenHands 技能转换为 AgentSkills 格式。"""
     if not source_path.exists():
         print(f"Error: Source file not found: {source_path}", file=sys.stderr)
         return None
@@ -203,7 +202,7 @@ def convert_skills_directory(
     output_dir: Path,
     dry_run: bool = False,
 ) -> list[Path]:
-    """Convert all legacy skills in a directory to AgentSkills format."""
+    """将目录中的所有旧技能转换为 AgentSkills 格式。"""
     if not source_dir.exists():
         print(f"Error: Source directory not found: {source_dir}", file=sys.stderr)
         return []

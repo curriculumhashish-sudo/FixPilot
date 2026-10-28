@@ -1,4 +1,4 @@
-"""PowerShell-backed terminal backend for Windows."""
+"""PowerShell 支持的 Windows 终端后端。"""
 
 import codecs
 import json
@@ -61,7 +61,7 @@ _WINDOWS_SPECIALS: dict[str, str] = {
 
 
 class WindowsTerminal(TerminalInterface):
-    """Persistent PowerShell session for Windows terminal execution."""
+    """用于 Windows 终端执行的持久 PowerShell 会话。"""
 
     process: subprocess.Popen[bytes] | None
     output_buffer: deque[str]
@@ -91,7 +91,7 @@ class WindowsTerminal(TerminalInterface):
         self._decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
     def initialize(self) -> None:
-        """Start a persistent PowerShell process and prepare prompt metadata."""
+        """启动持久性 PowerShell 进程并准备提示词元数据。"""
         if self._initialized:
             return
 
@@ -108,7 +108,7 @@ class WindowsTerminal(TerminalInterface):
                 startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
             creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            # Not PROCESS_MODE_BACKGROUND_BEGIN: it also throttles disk I/O.
+            # 不是 PROCESS_MODE_BACKGROUND_BEGIN：它还会限制磁盘 I/O。
             if should_lower_process_priority(env):
                 creationflags |= getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
 
@@ -180,7 +180,7 @@ class WindowsTerminal(TerminalInterface):
             self.output_buffer.append(prompt)
 
     def close(self) -> None:
-        """Stop the PowerShell process and background reader."""
+        """停止 PowerShell 进程和后台读取器。"""
         if self._closed:
             return
 
@@ -217,7 +217,7 @@ class WindowsTerminal(TerminalInterface):
         self._closed = True
 
     def send_keys(self, text: str, enter: bool = True) -> None:
-        """Send text or supported control sequences to the PowerShell session."""
+        """将文本或支持的控制序列发送到 PowerShell 会话。"""
         if self.process is None or self.process.poll() is not None:
             raise RuntimeError("Cannot send keys: PowerShell process is not running")
 
@@ -243,9 +243,9 @@ class WindowsTerminal(TerminalInterface):
 
         if enter:
             if "\n" in stripped_text or "\r" in stripped_text:
-                # PowerShell holds a multiline statement at the ">>" continuation
-                # prompt until a blank line is received, so multiline input needs a
-                # trailing empty line to execute.
+                # PowerShell 会保留多行语句的“>>”续行提示词直到接收到空白行，因此多行输
+                # 入需要一个尾随的空行才能执行。
+                #
                 command += "\n\n"
             elif not command.endswith("\n"):
                 command += "\n"
@@ -334,11 +334,11 @@ class WindowsTerminal(TerminalInterface):
             return output
 
     def read_screen(self) -> str:
-        """Return the accumulated visible PowerShell output."""
+        """返回累积的可见 PowerShell 输出。"""
         return self._get_buffered_output(clear=False)
 
     def clear_screen(self) -> None:
-        """Clear the visible screen and reset buffered output."""
+        """清除可见屏幕并重置缓冲输出。"""
         if self.process is None or self.process.poll() is not None:
             return
 
@@ -348,7 +348,7 @@ class WindowsTerminal(TerminalInterface):
         self._command_running_event.clear()
 
     def _terminate_child_processes(self) -> bool:
-        """Terminate descendants of the persistent PowerShell process."""
+        """终止持久 PowerShell 进程的后代。"""
         if (
             platform.system() != "Windows"
             or self.process is None
@@ -404,14 +404,13 @@ if ($toStop.Count -gt 0) {{ exit 0 }} else {{ exit 1 }}
             return False
 
     def interrupt(self) -> bool:
-        """Interrupt the active command if the process is still alive."""
+        """如果进程仍然存在，则中断活动命令。"""
         if self.process is None or self.process.poll() is not None:
             return False
 
-        # Kill descendants while they are still attached to the persistent
-        # PowerShell process. CTRL_BREAK can interrupt the waiting script first,
-        # leaving launched child processes alive but no longer discoverable as
-        # descendants of the shell.
+        # 当后代仍然附加到持久 PowerShell 进程时杀死它们。 CTRL_BREAK 可以首先中断正在等
+        # 待的脚本，使启动的子进程保持活动状态，但不再作为 shell 的后代被发现。
+        #
         terminated_children = self._terminate_child_processes()
 
         sent_ctrl_break = False
@@ -440,7 +439,7 @@ if ($toStop.Count -gt 0) {{ exit 0 }} else {{ exit 1 }}
         return sent_ctrl_break or terminated_children or sent_ctrl_c_input
 
     def is_running(self) -> bool:
-        """Return whether a command is still running in the PowerShell session."""
+        """返回命令是否仍在 PowerShell 会话中运行。"""
         if not self._initialized or self.process is None:
             return False
         if self.process.poll() is not None:

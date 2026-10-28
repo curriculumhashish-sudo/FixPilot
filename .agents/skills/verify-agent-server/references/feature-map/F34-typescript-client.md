@@ -1,159 +1,112 @@
-# TypeScript client (@openhands/typescript-client)
+<a id="typescript-client-openhandstypescript-client"></a>
 
-The browser and Node consumer lane: what a program built on the TypeScript
-client in `clients/typescript` observes when it drives the Agent Server.
-`ConversationManager` (or the aggregate `AgentServerClient`) reads server
-status and lists, loads, updates and deletes conversations; `RemoteWorkspace`
-runs commands, moves files and mints the workspace cookie, globally or scoped
-to one conversation; `RemoteConversation` creates or reattaches a server
-conversation, sends messages, runs it and reads its state and events through
-`RemoteState` and `RemoteEventsList`; `ConversationEventStream`,
-`WebSocketCallbackClient` and `BashWebSocketClient` stream events; small
-clients wrap hooks, MCP tests and the workspace registry, gated on the
-server's version; and `HttpError` carries every refusal. The client is pinned
-to a released server (`package.json` `config.agentServerImage`), so its own
-endpoint audit is replayed here against this checkout's contract. Every
-recipe runs a real program on the built package (`clients/typescript/dist`)
-through `control-agent-server exec` and checks the server's own view through
-the REST API, the WebSocket or the disk afterwards.
+# TypeScript 客户端（@）openhands/typescript-client)
 
-Source: `clients/typescript/src/`, `clients/typescript/scripts/endpoint-audit.mjs`, `clients/typescript/scripts/generate-agent-server-api.mjs`, `clients/typescript/endpoint-audit.config.json`, `clients/typescript/package.json`
+浏览器和 Node 消费者通道：在 `clients/typescript` 中的 TypeScript 客户端上构建的程序在驱动 Agent Server 时观察到的情况。
+`ConversationManager`（或聚合`AgentServerClient`）读取服务器状态并列出、加载、更新和删除对话； `RemoteWorkspace` 运行命令、移动文件并生成工作区 cookie，全局或仅限于一个对话； `RemoteConversation` 创建或重新附加服务器会话、发送消息、运行它并通过以下方式读取其状态和事件
+`RemoteState`和`RemoteEventsList`； `ConversationEventStream`,
+`WebSocketCallbackClient` 和 `BashWebSocketClient` 事件流。 小型客户端包裹钩子 MCP 测试和工作区注册表在服务器版本上。 和 `HttpError` 拒绝了所有请求。 客户端被固定在已发布的服务器上`package.json`  `config.agentServerImage`, 所以它的自己端点审计在此被重放，以验证此检查点的合同。 每道菜都会运行一个真实的程序（ ）`clients/typescript/dist`) through `control-agent-server exec` 并检查服务器自己的视图通过了 REST  API, the WebSocket 或者之后的磁盘。
 
-Needs: `llm`, `node`, `uvx`, `git`, `tmux`, `network`
+资料来源：`clients/typescript/src/`、`clients/typescript/scripts/endpoint-audit.mjs`、`clients/typescript/scripts/generate-agent-server-api.mjs`、`clients/typescript/endpoint-audit.config.json`、`clients/typescript/package.json`
 
-Routes: none
+需求：`llm`、`node`、`uvx`、`git`、`tmux`、`network`
 
-## Sub-features
+路线：None
 
-- `F34.server-client`: `ServerClient` (through `ConversationManager.server` and `AgentServerClient.server`) reads `/alive`, `/health`, `/ready`, `/server_info` and `/` with the server's own values, the probes without a key; the version-gated clients (`HooksClient`, `WorkspacesClient`, `MCPClient`) read `/server_info` once per transport, accept this server and return its data.
-- `F34.http-errors`: a missing or wrong key rejects with an `HttpError` (`status` 401, `detail` `Unauthorized`, recognized by `isHttpError`), a 404 and a 422 carry the server's `detail` and `validationErrors`, while an unreachable host and a client timeout reject with plain errors.
-- `F34.workspace-exec`: `RemoteWorkspace.executeCommand` returns stdout, stderr and the exit code of a command run in the given `cwd`, and exit `-1` once the command's own timeout kills it.
-- `F34.workspace-files`: `RemoteWorkspace.uploadText`/`fileUpload` and `downloadAsText`, and `FileClient.downloadFile`/`uploadTextFile`, round-trip files (bytes exact through `FileClient`); a missing file, a relative path and a directory reject with the server's 404 and 400.
-- `F34.workspace-binary-download`: `RemoteWorkspace.downloadAsBlob` returns a binary file byte for byte.
-- `F34.workspace-scoped`: a `RemoteWorkspace` with `conversationId` routes through `/api/conversations/{id}/bash|file/...`: commands default to the conversation's workspace and land in its own bash history, paths and `cwd` outside it get 422, an unknown conversation 404.
-- `F34.workspace-git`: `RemoteWorkspace.gitChanges` and `gitDiff` return the server's changes and diff for a repository, globally and through `/api/conversations/{id}/git/...` for a scoped workspace, and wrap a 422 (path outside the conversation workspace) or 401 in an `Error` whose `cause` is the `HttpError`.
-- `F34.workspace-git-types`: the statuses `gitChanges` returns type-check as the exported `GitChange['status']`, as they do against the client's generated contract.
-- `F34.bash-client`: `RemoteWorkspace.bash` starts a background command, finds its output with `searchEvents`, reads events one at a time and in batches (unknown ids are `null`), stops a running command, treats an unknown id as already stopped, and `clearEvents` empties the history.
-- `F34.bash-websocket`: `BashWebSocketClient` in Node delivers the bash events of a command (replayed with `resendMode: 'all'`) to its callback without errors.
-- `F34.workspace-session`: `startWorkspaceSession(id)` answers with the workspace base URL that serves the conversation's files, `deleteWorkspaceSession()` succeeds, a mismatched scoped id is refused before any request, and no key is 401.
-- `F34.conversation-create`: `RemoteConversation.start()` creates the server conversation with the client's agent (LLM, tools), working directory and `max_iterations`, and rebinds its workspace to the new conversation.
-- `F34.conversation-run`: a reattached `RemoteConversation` stores a `sendMessage` without running, `run()` drives a real model to `finished`, the `hookConfig` given at creation runs before the tool call and is reported by `getHookConfig()`, the client reads the agent's file, stats, final response and trajectory ZIP, and `RemoteState` reports the server's status, agent, workspace, policy and persistence directory.
-- `F34.events-list`: `RemoteEventsList` counts, searches (source, fully-qualified kind, body, pages), fetches events by id and iterates the same events the server stores.
-- `F34.events-unknown-id`: `RemoteEventsList.getEventById` rejects an unknown event id with a 404 `HttpError` and `getEventsById` puts `null` in its slot.
-- `F34.events-search-kind`: `RemoteEventsList.search({kind: 'MessageEvent'})` and `count({kind: 'MessageEvent'})`, the short kind its own docs show (`ActionEvent, MessageEvent`), find the same events as the fully-qualified kind.
-- `F34.event-stream`: `ConversationEventStream` on Node's global `WebSocket` authenticates with the first frame, replays the stored events with `resend_mode: 'all'`, sends a user message that runs the agent to `finished` on the same socket, and reports a wrong key as a 4001 close.
-- `F34.ws-callback-client`: `RemoteConversation.startWebSocketClient()` in Node delivers the conversation's events to the conversation callback without errors.
-- `F34.conversation-controls`: `setTitle` and `setConfirmationPolicy` change the server's title and policy.
-- `F34.conversation-confirm`: under `AlwaysConfirm`, `sendConfirmationResponse(false, reason)` records one `UserRejectObservation` with that reason and leaves the command unrun, `sendConfirmationResponse(true)` runs the pending command, and `updateSecrets` (a string and a function value) puts both values into that command's shell without any event containing them.
-- `F34.conversation-branching`: `fork({title})` returns a `RemoteConversation` bound to the fork (its id, the fork's workspace and agent, the copied events), `navigateTo` refreshes the cached state to the new `leaf_event_id`, and `askAgent` answers without adding events to the source.
-- `F34.manager`: `ConversationManager` searches with paging, counts by status, batch-gets (unknown ids are `null`), lists all, loads a conversation with its server working directory, creates and deletes one, and an unknown id rejects with 404.
-- `F34.manager-update-result`: `ConversationManager.updateConversation` stores the new title and resolves with the updated `ConversationInfo` it is typed to return.
-- `F34.manager-create-options`: `ConversationManager.createConversation(agent, {maxIterations, stuckDetection})` creates the conversation with those settings.
-- `F34.manager-acp`: `ConversationManager.acp` creates a conversation for an inline ACP agent (with its `maxIterations`) and gets, batch-gets, lists and counts it with its ACP agent fields.
-- `F34.hooks-client`: `HooksClient.loadHooks` and `RemoteConversation.loadHooks` read a project's `.openhands/hooks.json` as a snake_case `HookConfig` the client's hook helpers understand, and `null` for a directory without hooks.
-- `F34.mcp-client`: `MCPClient.testServer` lists a stdio MCP server's tools and runs one tool call, reports a server that fails to start as `{ok: false}` with an `error_kind`, and an empty command rejects with 422.
-- `F34.restart-reload`: after a server restart a new `ConversationManager` loads the same conversation with its status, title, events, hook config and workspace files.
-- `F34.event-stream-reconnect`: a `ConversationEventStream` with `reconnect: {enabled: true}` and `queryParams: {resend_mode: 'all'}`, on the `ws` package's constructor, reconnects by itself after a server restart, replays the history again with the same query, and delivers a message posted after the restart.
-- `F34.event-stream-reconnect-native`: the same stream on Node's global `WebSocket` also reconnects after a server restart.
-- `F34.endpoint-audit`: the client's endpoint audit against this checkout's public OpenAPI contract finds no client call the server lacks, and regenerating the client's types from that contract removes no exported type.
-- `F34.version-gate-old`: against a real 1.22.0 agent-server release, the gated methods reject with `AgentServerVersionError` (required and actual versions) and never call the gated route.
+<a id="sub-features"></a>
 
-## How to get to it (agent POV)
+## 子功能
 
-- Package: `@openhands/typescript-client` (ESM only), main entry
+- `F34.server-client`：`ServerClient`（通过`ConversationManager.server`和`AgentServerClient.server`）使用服务器自己的值读取`/alive`，`/health`，`/ready`，`/server_info`和`/`，没有密钥的探针； 版本控制的客户端（`HooksClient`、`WorkspacesClient`、`MCPClient`）每传输层读取`/server_info`一次，接受该服务器并返回其数据。
+- `F34.http-errors`缺少或错误的密钥会被拒绝 `HttpError` (`status` 401, `detail`  `Unauthorized`被识别为 `isHttpError`404和422都携带服务器的响应 `detail` 和 `validationErrors`，而一个不可达的主机和一个客户端超时拒绝时返回原始错误。
+- `F34.workspace-exec`: `RemoteWorkspace.executeCommand` 返回 stdout、stderr 和给定 `cwd` 中运行的命令的退出代码，一旦命令自己的超时杀死它，则退出 `-1`。
+- `F34.workspace-files`：`RemoteWorkspace.uploadText`/`fileUpload`和`downloadAsText`以及`FileClient.downloadFile`/`uploadTextFile`，往返文件（字节精确到`FileClient`）； 丢失的文件、相对路径和目录拒绝服务器的 404 和 400。
+- `F34.workspace-binary-download`: `RemoteWorkspace.downloadAsBlob` 按字节返回二进制文件。
+- `F34.workspace-scoped`：带有 `conversationId` 的 `RemoteWorkspace` 路由通过 `/api/conversations/{id}/bash|file/...`：命令默认为对话的工作区并落在其自己的 bash 历史记录中，其外部的路径和 `cwd` 得到 422，未知对话 404。
+- `F34.workspace-git`: `RemoteWorkspace.gitChanges` 和 `gitDiff` 返回服务器的更改和差异，全局和通过 `/api/conversations/{id}/git/...` 对于一个 scoped 工作区，并将 422 (路径超出对话范围) 处理工作区) 或 401 在一个 `Error` whose `cause` is the `HttpError`.
+- `F34.workspace-git-types`：状态 `gitChanges` 返回类型检查作为导出的 `GitChange['status']`，就像它们针对客户端生成的合约所做的那样。
+- `F34.bash-client`: `RemoteWorkspace.bash` 启动后台命令，查找其输出 `searchEvents`, 逐条读取事件，并按批次（未知 ID 的事件）处理 `null`), 停止一个运行中的命令，将未知的ID视为已停止，以及 `clearEvents` 清空历史。
+- `F34.bash-websocket`：Node 中的 `BashWebSocketClient` 将命令的 bash 事件（使用 `resendMode: 'all'` 重播）传递到其回调，没有错误。
+- `F34.workspace-session`: `startWorkspaceSession(id)` 回答为工作区 base URL 该端点服务会话的文件 `deleteWorkspaceSession()` 成功后，未匹配的命名空间ID将被拒绝，而没有提供密钥则返回401。
+- `F34.conversation-create`: `RemoteConversation.start()` 创建与客户端的智能体（LLM、工具）、工作目录和 `max_iterations` 的服务器会话，并将其工作区重新绑定到新会话。
+- `F34.conversation-run`重新连接 `RemoteConversation` 存储了 `sendMessage` 无需运行 `run()` 驱动一个真实模型 `finished`, the `hookConfig` 在创建时运行，但在运行工具调用并被报告为 `getHookConfig()`客户端读取了智能体文件、统计信息、最终响应和轨迹 ZIP, and `RemoteState` 报告服务器状态智能体，工作区，policy and 持久化 directory.
+- `F34.events-list`: `RemoteEventsList` 计数、搜索（源、完全限定类型、正文、页面）、按 id 获取事件并迭代服务器存储的相同事件。
+- `F34.events-unknown-id`：`RemoteEventsList.getEventById` 拒绝未知事件 ID，返回 404 `HttpError`，`getEventsById` 将 `null` 放入其槽中。
+- `F34.events-search-kind`：`RemoteEventsList.search({kind: 'MessageEvent'})`和`count({kind: 'MessageEvent'})`，其自己的文档显示的简短类型（`ActionEvent, MessageEvent`），找到与完全限定类型相同的事件。
+- Node 全局 `WebSocket` 上的 `F34.event-stream`: `ConversationEventStream` 使用第一帧进行身份验证，使用 `resend_mode: 'all'` 重放存储的事件，发送一条在同一套接字上运行智能体到 `finished` 的用户消息，并报告错误密钥作为 4001 关闭。
+- Node 中的 `F34.ws-callback-client`: `RemoteConversation.startWebSocketClient()` 将会话的事件传递到会话回调，没有错误。
+- `F34.conversation-controls`：`setTitle`和`setConfirmationPolicy`更改服务器的标题和策略。
+- `F34.conversation-confirm`: 在 `AlwaysConfirm` 中，`sendConfirmationResponse(false, reason)` 会记录一个 `UserRejectObservation` 以该原因，并且不执行命令，`sendConfirmationResponse(true)` 执行待命的命令，`updateSecrets` (一个字符串和一个函数值) 将这两个值放入该命令的 shell 中，但没有事件包含它们。
+- `F34.conversation-branching`：`fork({title})`返回绑定到fork的`RemoteConversation`（其id，fork的工作区和智能体，复制的事件），`navigateTo`将缓存状态刷新为新的`leaf_event_id`，`askAgent`回答而不将事件添加到源。
+- `F34.manager`: `ConversationManager` 带有分页搜索，按状态计数，批量获取（未知ID） `null`, 列出所有，加载与服务器的对话工作目录创建和删除一个，以及一个未知的ID会返回404。
+- `F34.manager-update-result`: `ConversationManager.updateConversation` 存储新标题并使用输入返回的更新后的 `ConversationInfo` 进行解析。
+- `F34.manager-create-options`：`ConversationManager.createConversation(agent, {maxIterations, stuckDetection})` 使用这些设置创建对话。
+- `F34.manager-acp`: `ConversationManager.acp` 为内联 ACP 智能体（及其 `maxIterations`）创建一个对话，并使用其 ACP 智能体字段获取、批量获取、列表和计数。
+- `F34.hooks-client`：`HooksClient.loadHooks` 和 `RemoteConversation.loadHooks` 将项目的 `.openhands/hooks.json` 读取为 snake_case `HookConfig` 客户端的钩子助手理解，`null` 读取没有钩子的目录。
+- `F34.mcp-client`: `MCPClient.testServer` 列出了 stdio MCP 服务器的工具，并运行了一个工具调用，报告一个无法启动的服务器 `{ok: false}`，并用 `error_kind` 的命令报告一个空命令拒绝。
+- `F34.restart-reload`：服务器重新启动后，新的 `ConversationManager` 加载相同的对话及其状态、标题、事件、挂钩配置和工作区文件。
+- `F34.event-stream-reconnect`: a `ConversationEventStream` 与 `reconnect: {enabled: true}` 和 `queryParams: {resend_mode: 'all'}`, on the `ws` 该包的构造函数在服务器重启后会自动重连，再次以相同的查询重播历史，并发送重启后发布的消息。
+- `F34.event-stream-reconnect-native`：节点全局 `WebSocket` 上的同一流也会在服务器重新启动后重新连接。
+- `F34.endpoint-audit`客户端的端点检查的公共审计 OpenAPI 合同找不到客户端调用，服务器缺少，从该合同生成客户端类型也不会删除导出类型。
+- `F34.version-gate-old`：针对真正的 1.22.0 智能体服务器版本，门控方法拒绝 `AgentServerVersionError`（必需版本和实际版本），并且从不调用门控路由。
+
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- 包：`@openhands/typescript-client`（仅ESM），主条目
   `dist/index.js` (`ConversationManager`, `RemoteConversation`/`Conversation`,
   `RemoteWorkspace`/`Workspace`, `RemoteState`, `RemoteEventsList`, `Agent`,
   `HttpClient`, `HttpError`, `isHttpError`, `WebSocketCallbackClient`,
   `BashWebSocketClient`, `HooksClient`, `MCPClient`, `WorkspacesClient`,
-  `assertAgentServerSupports`, the hook helpers) and the secondary entry
+  `assertAgentServerSupports`，钩子助手）和辅助条目
   `dist/clients.js` (`ServerClient`, `FileClient`, `ConversationEventStream`,
-  `buildConversationEventStreamUrl`, `AgentServerClient` and every endpoint
-  client). Recipes import the built files by path from the repository root.
-- Server status: `ServerClient.getAlive|getHealth|getReady|getServerInfo|getRoot`
-  (`GET /alive`, `/health`, `/ready`, `/server_info`, `/`).
-- Conversations: `RemoteConversation.start()` (`POST /api/conversations`, or
-  `GET /api/conversations/{id}` when constructed with `conversationId`),
-  `sendMessage` (`POST .../events` with `run: false`), `run`, `pause`,
-  `setTitle` (`PATCH`), `setConfirmationPolicy`, `sendConfirmationResponse`
-  (`POST .../events/respond_to_confirmation`), `updateSecrets` (`POST
+  `buildConversationEventStreamUrl`、`AgentServerClient` 和每个端点客户端）。 食谱按路径从存储库根导入构建的文件。
+- 服务器状态：`ServerClient.getAlive|getHealth|getReady|getServerInfo|getRoot`（`GET /alive`、`/health`、`/ready`、`/server_info`、`/`）。
+- 对话：`RemoteConversation.start()`（`POST /api/conversations`，或
+  `GET /api/conversations/{id}` 当用 `conversationId` 构造时），
+  `sendMessage`（`POST .../events` 和 `run: false`）、`run`、`pause`、
+  `setTitle` (`PATCH`), `setConfirmationPolicy`, `sendConfirmationResponse` (`POST .../events/respond_to_confirmation`), `updateSecrets` (`POST
   .../secrets`, every value wrapped as a `StaticSecret`, a function value
-  called first), `fork` (`POST .../fork`, returns a new `RemoteConversation`
-  bound to the fork), `navigateTo` (`POST .../navigate`, then refreshes the
-  cached state), `askAgent` (`POST .../ask_agent`), `conversationStats`,
-  `getAgentFinalResponse`, `downloadTrajectory`, `getHookConfig`, `loadHooks`
-  (`POST /api/hooks`), `startWebSocketClient`; `ConversationManager`
-  `searchConversations`, `countConversations`, `getConversations` (`GET
-  /api/conversations?ids=`), `getAllConversations`, `getConversation`,
+  首先调用），`fork`（`POST .../fork`，返回绑定到fork的新`RemoteConversation`），`navigateTo`（`POST .../navigate`，然后刷新缓存状态），`askAgent`（`POST .../ask_agent`），`conversationStats`，
+  `getAgentFinalResponse`, `downloadTrajectory`, `getHookConfig`, `loadHooks` (`POST /api/hooks`), `startWebSocketClient`; `ConversationManager`
+  `searchConversations`, `countConversations`, `getConversations` (`GET /api/conversations?ids=`), `getAllConversations`, `getConversation`,
   `loadConversation`, `createConversation`, `updateConversation`,
-  `deleteConversation`, and the `acp` namespace (`createConversation`,
+  `deleteConversation` 和 `acp` 命名空间 (`createConversation`,
   `getConversation`, `getConversations`, `getAllConversations`,
-  `countConversations`, `searchConversations`) for ACP agents. `pause`,
-  condense, goals and profile or model switching are thin wrappers whose
-  routes are driven by their own families (F05, F09, F10, F11); this family
-  does not call them.
-- State and events: `RemoteState` (`GET /api/conversations/{id}`, cached for
-  2 seconds), `RemoteEventsList.search|count|getEventById|getEventsById|getEvents`
-  (`GET .../events/search`, `.../events/count`, `.../events/{event_id}`).
-- Workspace: `RemoteWorkspace.executeCommand` (`POST
-  /api/bash/execute_bash_command`), `uploadText`/`fileUpload` (`POST
-  /api/file/upload`), `downloadAsText`/`downloadAsBlob`/`fileDownload` (`GET
-  /api/file/download`), `gitChanges`/`gitDiff` (`GET /api/git/changes`,
-  `/api/git/diff`), `bash.*` (`BashClient`: start, search, get, batch get,
-  stop, clear), `startWorkspaceSession`/`deleteWorkspaceSession`
-  (`/api/auth/workspace-session`). With `conversationId` the bash, file and
+  `countConversations`、`searchConversations`) 为 ACP 智能体。 `pause`、压缩、目标和配置文件或模型切换是薄包装器，其路线由各自的系列驱动（F05、F09、F10、F11）； 这家人不打电话给他们。
+- 状态和事件：`RemoteState`（`GET /api/conversations/{id}`，缓存 2 秒）、`RemoteEventsList.search|count|getEventById|getEventsById|getEvents`（`GET .../events/search`、`.../events/count`、`.../events/{event_id}`）。
+- 工作区：`RemoteWorkspace.executeCommand` (`POST /api/bash/execute_bash_command`), `uploadText`/`fileUpload` (`POST /api/file/upload`), `downloadAsText`/`downloadAsBlob`/`fileDownload` (`GET /api/file/download`), `gitChanges`/`gitDiff` (`GET /api/git/changes`,
+  `/api/git/diff`）、`bash.*`（`BashClient`：开始、搜索、获取、批量获取、停止、清除）、`startWorkspaceSession`/`deleteWorkspaceSession`（`/api/auth/workspace-session`）。 使用 `conversationId` bash、文件和
   git calls go to `/api/conversations/{id}/bash/...`, `.../file/...` and
-  `.../git/...` when
-  `/server_info` advertises `conversation_runtime_routes_v1` (else a `cid`
-  query parameter). `FileClient` downloads as `ArrayBuffer`.
-- WebSockets: `ConversationEventStream` (`/sockets/events/{id}`, first-frame
-  auth, `queryParams`, optional reconnect) uses the global `WebSocket` unless
-  given `createWebSocket`; `WebSocketCallbackClient` (used by
-  `RemoteConversation.startWebSocketClient`) and `BashWebSocketClient`
-  (`/sockets/bash-events`, deprecated `session_api_key` query auth) look up
-  `globalThis.WebSocket` on every connect (browsers, Node 22+).
-- Version gate: `HooksClient`, `WorkspacesClient` and `MCPClient` call
-  `assertAgentServerSupports` (hooks, workspaces and MCP test need 1.23.0, MCP
-  OAuth 1.31.0), which caches one `/server_info` per `HttpClient`.
-- Contract tooling: `npm run audit:endpoints` (`scripts/endpoint-audit.mjs`)
-  and `npm run generate:agent-server-api`, which take
-  `AGENT_SERVER_OPENAPI_PATH` (and `AGENT_SERVER_GENERATED_OUTPUT`) to run
-  offline against a contract exported from source by
+  `.../git/...` 当
+  `/server_info` 通告 `conversation_runtime_routes_v1`（否则为 `cid` 查询参数）。 `FileClient` 下载为 `ArrayBuffer`。
+- WebSockets：`ConversationEventStream`（`/sockets/events/{id}`，第一帧身份验证，`queryParams`，可选重新连接）使用全局`WebSocket`，除非给定`createWebSocket`； `WebSocketCallbackClient`（使用者
+  `RemoteConversation.startWebSocketClient`) 和 `BashWebSocketClient` (`/sockets/bash-events`, 已弃用 `session_api_key` 查询验证) 查找
+  `globalThis.WebSocket` 每次连接（浏览器、节点 22+）。
+- 版本门：`HooksClient`、`WorkspacesClient`和`MCPClient`调用
+  `assertAgentServerSupports`（挂钩、工作区和 MCP 测试需要 1.23.0、MCP OAuth 1.31.0），每个 `HttpClient` 缓存一个 `/server_info`。
+- 合同工具：`npm run audit:endpoints`（`scripts/endpoint-audit.mjs`）和`npm run generate:agent-server-api`，这需要
+  `AGENT_SERVER_OPENAPI_PATH`（和 `AGENT_SERVER_GENERATED_OUTPUT`）针对从源导出的合约离线运行
   `.github/scripts/export_agent_server_openapi.py`.
-- Agent Canvas (`OpenHands/OpenHands`) consumes this package; context only.
+- Agent Canvas (`OpenHands/OpenHands`) 消耗此包； 仅上下文。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok,
-  `node` (22 or later, for the global `WebSocket`) is on `PATH` and
-  `$DEEPSEEK_API_KEY` is set. The block installs the client's dependencies
-  when they are missing (needs `npm`) and rebuilds `clients/typescript/dist`
-  when it is missing or older than any file in `src/` or `package.json`, so
-  a checkout with client changes is never verified against a stale build.
-- The block saves the DeepSeek profiles, creates the `qa-f34` fixture
-  directory with `lib.mjs` (imports both entry points and exports `host`,
-  `apiKey`, `F34`, `NOPE`, `sleep`, `waitFor` and `assert` for every
-  program), `reconnect.mjs` (the two reconnect bullets' watcher: one
-  `ConversationEventStream` per mode given, `ws` through the `ws` package's
-  constructor or `native` on Node's global `WebSocket`, which records
-  whether each went down, came back and saw a message posted after the
-  restart, and never throws on a stream that does not come back), a
-  project with `.openhands/hooks.json`, a stdio MCP server, and `SCID`: a
-  conversation that never runs (placeholder agent, workspace
-  `$F34/scoped`, one queued user message), which the scoped-workspace
-  bullets and every known-bug bullet use, so `map run --only` on a known
-  bug needs nothing but this block.
-  Programs are written into `$F34` by each bullet and run with
-  `control-agent-server exec`, which injects `AGENT_SERVER_URL` and
-  `SESSION_API_KEY`; values that later bullets need (conversation ids) are
-  written to files under `$F34`. A known-bug program only observes: it
-  asserts its positive controls, writes what the client returned to a JSON
-  file under `$F34` and prints it, and the line marked `# bug` (a `jq -e`
-  or `tsc`) asserts the correct value, so `map run` reports the bug only
-  when that assertion is the one that fails.
-- `F34.version-gate-old` downloads the 1.22.0 agent-server release from PyPI
-  with `uvx` (about 200 packages, cached after the first time).
+前提条件：
+
+- 基线运行已上线并已导出 (`launch --new`)，`doctor` 可以，
+  `node`（22 或更高版本，对于全局 `WebSocket`）位于 `PATH` 上并且
+  设置为`$DEEPSEEK_API_KEY`。 块在客户端依赖项缺失时安装它们（需要 `npm`），在缺失或任何文件在 `src/` 或 `package.json` 中较旧时重建 `clients/typescript/dist`，因此，带有客户端更改的检查总是与过时的构建进行验证。
+- 该块保存 DeepSeek 配置文件，使用 `lib.mjs` 创建 `qa-f34` 测试夹具目录（导入入口和导出 `host`，
+  每个程序的 `apiKey`、`F34`、`NOPE`、`sleep`、`waitFor` 和 `assert`）、`reconnect.mjs`（两个重新连接子弹的观察者：一个
+  `ConversationEventStream` 指定模式下，`ws` 通过 `ws` 包的构造函数或 `native` Node 的全局 `WebSocket`，记录每个进程是否下线、重启后是否恢复以及是否在重启后收到消息，以及在没有返回的流上不会抛出异常，一个项目有 `.openhands/hooks.json`，一个 stdio MCP 服务器，以及 `SCID`：一个永远不会运行的对话（占位符智能体，工作区）
+  `$F34/scoped`，一条排队的用户消息），范围工作区项目符号和每个已知错误项目符号都使用它，因此已知错误上的 `map run --only` 除了这个块之外什么都不需要。 程序按每个项目符号写入 `$F34` 并运行
+  `control-agent-server exec`，注入 `AGENT_SERVER_URL` 和
+  `SESSION_API_KEY`; 后面的项目符号需要的值（对话 ID）将写入 `$F34` 下的文件中。 已知缺陷的程序只观察到以下内容：它断言其正控件，将客户端返回的内容写入 JSON 文件下的 `$F34`，并打印出来，而标记为 `# bug` 的行（`jq -e` 或 `tsc`）断言正确的值，因此 `map run` 只在断言失败时报告缺陷。
+- `F34.version-gate-old` 从 PyPI 和 `uvx` 下载 1.22.0 智能体-服务器版本（大约 200 个包，第一次后缓存）。
 
   ```sh
   test -d clients/typescript/node_modules/typescript || (cd clients/typescript && npm ci --silent)
@@ -231,9 +184,7 @@ Preconditions:
   test -f "$AGENT_SERVER_VERIFY_RUN/fixtures/mcp/qa-f34-mcp.py"
   ```
 
-- **Server status and version gate (`F34.server-client`).** The probes
-  without a key, server info with one, through both entry points; then the
-  gated clients, which this server is new enough for.
+- **服务器状态和版本门(`F34.server-client`)。**没有密钥的探针，有一个服务器信息，通过两者入口； 然后是门控客户端，该服务器对于它来说已经足够新了。
   ```sh
   VERSION=$(control-agent-server api GET /server_info --auth none --field version)
   cat > "$F34/server.mjs" <<'JS'
@@ -272,15 +223,10 @@ Preconditions:
   JS
   control-agent-server exec --timeout 60 --expect-output QA_F34_GATE_OK --save F34.server-client/gate -- node "$F34/gate.mjs" "$VERSION" "$N"
   ```
-  The first program prints `QA_F34_SERVER_OK`: the probes answer
-  `ok`/`ready`, and `/` and `/server_info` report the version the CLI read.
-  The second prints `QA_F34_GATE_OK`: every requirement (`workspaces`,
-  `hooks`, `mcp-test` 1.23.0, `mcp-oauth` 1.31.0) passes for this server's
-  version, the cached `/server_info` is the same object twice, and the gated
-  calls return the server's data (the registry size REST reports, no hooks
-  for a missing project).
-- **Errors (`F34.http-errors`).** Every refusal the client surfaces, with a
-  positive control on the same server.
+  第一个程序打印 `QA_F34_SERVER_OK`：探针回答
+  `ok`/`ready`、`/` 和 `/server_info` 报告 CLI 读取的版本。 第二个打印 `QA_F34_GATE_OK`：每个要求 (`workspaces`,
+  `hooks`, `mcp-test` 1.23.0, `mcp-oauth` 1.31.0) 传递该服务器的版本，缓存的 `/server_info` 是同一个对象两次，门控调用返回服务器的数据（注册表大小 REST 报告，没有针对丢失项目的钩子）。
+- **错误 (`F34.http-errors`)。**客户端的每一次拒绝都会在同一台服务器上进行积极的控制。
   ```sh
   cat > "$F34/errors.mjs" <<'JS'
   import { m, host, apiKey, NOPE, assert } from './lib.mjs';
@@ -311,15 +257,11 @@ Preconditions:
   control-agent-server exec --timeout 60 --expect-output QA_F34_ERRORS_OK --save F34.http-errors/program -- node "$F34/errors.mjs"
   control-agent-server api GET /api/conversations/count --auth none --expect 401 --check detail eq Unauthorized
   ```
-  The program prints `QA_F34_ERRORS_OK`: both 401s are `HttpError`s with
-  `detail` `Unauthorized` and the transport `message`; the unknown id is 404
-  `Not Found`; a malformed id is a 422 whose single `uuid_parsing` entry is
-  the `detail`, and a body missing two fields joins them as
-  `path: Field required; file: Field required`; a closed port and the
-  500 ms client timeout reject with plain `Error`s, the timeout well before
-  the 2 s command ends.
-- **Workspace commands (`F34.workspace-exec`).** Output, `cwd`, exit codes
-  and the command's own timeout.
+  程序打印 `QA_F34_ERRORS_OK`：401 状态码都是 `HttpError`
+  `detail``Unauthorized`和传输层`message`； 未知的 ID 是 404
+  `Not Found`; 格式错误的 id 是 422，其单个 `uuid_parsing` 条目是 `detail`，并且缺少两个字段的正文将它们连接为
+  `path: Field required; file: Field required`; 关闭的端口和 500 ms 客户端超时会在 2 s 命令结束之前用普通的 `Error` 拒绝，超时 。
+- **工作区命令 (`F34.workspace-exec`).**输出，`cwd`，退出代码和命令本身的超时。
   ```sh
   cat > "$F34/exec.mjs" <<'JS'
   import { m, host, apiKey, F34, assert } from './lib.mjs';
@@ -342,13 +284,9 @@ Preconditions:
     --check items.0.command eq 'sleep 5' --check items.0.timeout eq 1 --check items.1.command eq 'exit 3' \
     --check items.2.command contains qa-f34-out --check items.2.cwd eq "$F34/work" --save F34.workspace-exec/history
   ```
-  The first result is exact; `exit 3` reports 3; `sleep 5` with a 1 s timeout
-  returns after about a second with exit `-1` (`timeout_occurred` stays
-  `false`, see Gotchas). The file the command wrote is on disk and the
-  server's bash history lists the three commands with their `cwd` and
-  timeout.
-- **Workspace files (`F34.workspace-files`).** Text and bytes, then the
-  refusals.
+  第一个结果是精确的； `exit 3`报告3； `sleep 5` 1秒后返回，超时 4秒后返回，`-1` 2秒后返回，`timeout_occurred` 3秒后返回
+  `false`，参见陷阱）。 命令写入的文件位于磁盘上，服务器的 bash 历史记录列出了三个命令及其 `cwd` 和超时。
+- **工作区个文件 (`F34.workspace-files`).**文本和字节，然后是拒绝。
   ```sh
   cat > "$F34/files.mjs" <<'JS'
   import { m, c, host, apiKey, F34, assert } from './lib.mjs';
@@ -376,18 +314,12 @@ Preconditions:
   control-agent-server api GET /api/file/download --query "path=$F34/files/fc.txt" --expect 200 --raw-out "$F34/files/fc.copy"
   test "$(cat "$F34/files/fc.copy")" = 'qa-f34 via FileClient'
   ```
-  The text round-trips, the upload created the missing `nested/` directory,
-  the five bytes on disk are exactly the ones sent and `FileClient` reads them
-  back unchanged; both upload responses report the byte count added by
-  #5856, and the server's own download serves the `FileClient` upload.
-- **Binary download through RemoteWorkspace (`F34.workspace-binary-download`), known bug.**
-  `RemoteWorkspace.fileDownload` lets the transport parse the
-  `application/octet-stream` body as text, so `downloadAsBlob` and
-  `fileDownload` return UTF-8-decoded bytes (`clients/typescript/src/workspace/remote-workspace.ts:183`,
-  no `responseType`); `FileClient.downloadFile` asks for an `arrayBuffer`
-  and is right. The bullet writes its own five bytes, and the program first
-  reads them back exactly through `FileClient` (positive control), then
-  records what `downloadAsBlob` and `fileDownload` returned.
+  文本回退，上传创建了缺失的`nested/`目录，磁盘上五字完全与发送的一致，`FileClient`读取后未变。 两者都报告了上传响应中添加的字节数
+  #5856，服务器自己的下载服务于`FileClient`上传。
+- **通过 RemoteWorkspace (`F34.workspace-binary-download`) 进行二进制下载，已知错误。**
+  `RemoteWorkspace.fileDownload` 让传输层解析
+  `application/octet-stream` 正文为文本，因此 `downloadAsBlob` 和
+  `fileDownload`返回UTF-8解码字节（`clients/typescript/src/workspace/remote-workspace.ts:183`，无`responseType`）； `FileClient.downloadFile`要求`arrayBuffer`并且是正确的。 子弹自己写五个字，程序首先通过`FileClient`（正控制）读回这些字，然后记录`downloadAsBlob`和`fileDownload`返回的内容。
   ```sh
   printf '\377\000\200\376A' > "$F34/files/qa-f34-bin.dat"
   test "$(od -An -tx1 "$F34/files/qa-f34-bin.dat" | tr -d ' \n')" = ff0080fe41
@@ -404,13 +336,11 @@ Preconditions:
   JS
   control-agent-server exec --timeout 60 --expect-output QA_F34_BINARY_READ --save F34.workspace-binary-download/program -- node "$F34/binary.mjs"
   cat "$F34/binary.json"
-  control-agent-server assert --json "$F34/binary.json" --check blob eq '[255, 0, 128, 254, 65]' --check file_size eq 5  # bug: value.file_size eq 11 && value.blob eq '[239, 191, 189, 0, 239, 191, 189, 239, 191, 189, 65]'
+  control-agent-server assert --json "$F34/binary.json" --check blob eq '[255, 0, 128, 254, 65]' --check file_size eq 5  # bug: value.file_size 等于 11 且 value.blob 等于 '[239, 191, 189, 0, 239, 191, 189, 239, 191, 189, 65]'
   ```
-  Expected: the same five bytes and `file_size` 5. Today the blob holds 11
-  bytes (`[239,191,189,0,239,191,189,239,191,189,65]`: each invalid byte
-  became U+FFFD) and `file_size` is 11, while the file on disk has 5.
-- **Conversation-scoped workspace (`F34.workspace-scoped`).** A workspace
-  bound to `SCID`, the conversation from `Preconditions:` that never runs.
+  预期：相同的 5 个字节和 `file_size` 5。 今天该团块持有 11
+  bytes（`[239,191,189,0,239,191,189,239,191,189,65]`：每个无效字节都变成了U+FFFD），`file_size`是11，而磁盘上的文件有5。
+- **对话范围工作区 (`F34.workspace-scoped`).** 工作区绑定到 `SCID`，来自 `Preconditions:` 的对话永远不会运行。
   ```sh
   cat > "$F34/scoped.mjs" <<'JS'
   import { m, host, apiKey, F34, NOPE, assert } from './lib.mjs';
@@ -434,14 +364,10 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$SCID/bash/bash_events/search" --query kind__eq=BashCommand \
     --check items len-eq 1 --check items.0.command eq pwd --check items.0.cwd eq "$F34/scoped" --save F34.workspace-scoped/history
   ```
-  The workspace's own `workingDir` is ignored: `pwd` prints the
-  conversation's workspace, the upload lands there, the outside path and
-  `cwd` are 422 and nothing is written outside, a query string in the path is
-  refused by the client before any request, and the unknown conversation is
-  404. Only `pwd` is in the conversation's own bash history.
-- **Git through RemoteWorkspace (`F34.workspace-git`).** The `git-repo`
-  fixture (one modified, one untracked file), globally and through a copy
-  inside `SCID`'s workspace.
+  工作区的`workingDir`被忽略：`pwd`打印会话的工作区，上传会到达那里，外部路径和
+  `cwd` 为 422，外部未写入任何内容，路径中的查询字符串在任何请求之前都会被客户端拒绝，未知会话为
+  404. 只有 `pwd` 位于对话自己的 bash 历史记录中。
+- **通过 RemoteWorkspace (`F34.workspace-git`).** `git-repo` 测试夹具（一个已修改的文件，一个未跟踪的文件），全局且通过 `SCID` 的工作区内的副本。
   ```sh
   REPO=$(control-agent-server fixture git-repo --name qa-f34-repo --print-path)
   test -d "$F34/scoped/qa-f34-repo" || cp -r "$REPO" "$F34/scoped/qa-f34-repo"
@@ -470,22 +396,14 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$SCID/git/diff" --query path="$F34/scoped/qa-f34-repo/README.md" --expect 200 \
     --check modified contains 'Modified, not committed.' --check original contains 'Created by control-agent-server.'
   ```
-  `gitChanges` returns the server's list unchanged (`UPDATED README.md`,
-  `ADDED notes.txt`, the same with `ref: 'HEAD'`), `gitDiff` the original
-  and modified text, and the scoped workspace reads the copy through
-  `/api/conversations/{id}/git/...` (only that route answers 422 for the
-  fixture's own path, outside the conversation workspace). Both methods wrap a refusal in a plain `Error` (`Failed to get git changes:
+  `gitChanges` 返回未更改的服务器列表（`UPDATED README.md`，
+  `ADDED notes.txt`，与`ref: 'HEAD'`相同），`gitDiff`原始和修改后的文本，范围工作区通过读取副本
+  `/api/conversations/{id}/git/...`（只有该路由在对话工作区之外为测试夹具自己的路径应答 422）。 这两种方法都将拒绝包装在简单的 `Error` 中（“无法获取 git 更改：
   ...`) whose `cause` is the `HttpError`: 422 for a path outside the
-  conversation workspace, 401 without a key. REST agrees.
-- **Git status type (`F34.workspace-git-types`).** The exported `GitChange`
-  types `status` as the generated contract's `GitChangeStatus`
-  (`'MOVED' | 'ADDED' | 'DELETED' | 'UPDATED'`), the values the server
-  sends, so a TypeScript consumer compares against the wire values. The
-  program writes what `gitChanges` returned into three tiny `.mts` files and
-  the client's own `tsc` type-checks them: the statuses against the generated
-  contract and the paths against the exported `GitChange` (positive
-  controls: the same compiler, flags and import resolve), then the statuses
-  against the exported `GitChange`.
+  对话工作区，401，无需密钥。 REST 同意。
+- **Git状态类型(`F34.workspace-git-types`).**导出的`GitChange`类型`status`为生成合约的`GitChangeStatus`(`'MOVED' | 'ADDED' | 'DELETED' | 'UPDATED'`),服务器发送的值，因此一个TypeScript消费者将值与网络值进行比较。 程序将返回值写入三个小文件，客户端自己进行类型检查：生成合同的返回状态和导出的路径（正例）：`gitChanges`、`.mts`、`tsc`、`GitChange`
+  控制：相同的编译器、标志和导入解析），然后是状态
+  针对导出的`GitChange`。
   ```sh
   REPO=$(control-agent-server fixture git-repo --name qa-f34-repo --print-path)
   cat > "$F34/git-types.mjs" <<'JS'
@@ -510,10 +428,9 @@ Preconditions:
   $TSC "$F34/git-paths.mts"
   $TSC "$F34/git-types.mts" | control-agent-server assert --check . eq ''
   ```
-  Expected: all three files type-check, the statuses against both the
-  generated contract and the exported `GitChange`.
-- **Bash client (`F34.bash-client`).** Background command, lookups, stop and
-  clear, with the socket and the REST history as second views.
+  预期：所有三个文件都进行类型检查，状态均针对
+  生成的合同和导出的`GitChange`。
+- **Bash 客户端 (`F34.bash-client`).**后台命令、查找、停止和清除，将套接字和 REST 历史记录作为第二视图。
   ```sh
   cat > "$F34/bash.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -555,18 +472,9 @@ Preconditions:
   control-agent-server api GET /api/bash/bash_events/search --check items len-eq 0 --save F34.bash-client/cleared
   control-agent-server api GET "/api/bash/bash_events/$BCMD" --expect 404
   ```
-  The command's output arrives with exit 0, the lookups return the command
-  and its output with `null` for an unknown id, the 30 s `sleep` is stopped
-  within seconds with a non-zero exit, and stopping an unknown or finished
-  command resolves. REST serves the command with its `cwd`, the bash socket
-  replays both kinds, and after `clearEvents` the history is empty and the
-  command is 404.
-- **Bash events socket from Node (`F34.bash-websocket`).**
-  `BashWebSocketClient` opens its socket with Node's global `WebSocket`,
-  looked up at connect time (`clients/typescript/src/events/global-websocket.ts`).
-  The bullet runs its own command, and the CLI first replays its output on
-  the same socket (positive control); the program then gives the client
-  10 seconds and records the outputs and errors it saw.
+  命令的输出以0作为退出码，查找命令和其输出以`null`标识未知ID，30秒`sleep`内停止，且非零退出码。停止一个未知或已完成的命令有效。 REST 用其 `cwd` 命令，bash 会重播这两种类型，并在 `clearEvents` 后历史为空，命令为 404。
+- **来自 Node 的 Bash 事件套接字 (`F34.bash-websocket`).**
+  `BashWebSocketClient` 使用 Node 的全局 `WebSocket` 打开其套接字，在连接时间 (`clients/typescript/src/events/global-websocket.ts`) 进行查找。 子弹运行自己的命令，CLI 首先在同一个套接字上重放其输出（正控制）； 然后程序给客户端 10 秒的时间并记录它看到的输出和错误。
   ```sh
   control-agent-server api POST /api/bash/execute_bash_command --json '{"command": "echo qa-f34-bash-ws", "cwd": "/tmp"}' \
     --expect 200 --check stdout contains qa-f34-bash-ws
@@ -591,11 +499,9 @@ Preconditions:
   cat "$F34/bash-ws.json"
   control-agent-server assert --json "$F34/bash-ws.json" --check saw_output eq true --check errors len-eq 0
   ```
-  Expected: the replayed `BashOutput` reaches the callback and `onError` is
-  never called.
-- **Workspace session (`F34.workspace-session`).** The cookie mint and its
-  base URL; Node's `fetch` keeps no cookie jar, so the URL is fetched with the
-  header (F02 proves the cookie itself).
+  预期：重播的`BashOutput`到达回调并且`onError`是
+  从来没有打电话过。
+- **工作区会话 (`F34.workspace-session`).**饼干薄荷及其底座 URL； Node 的 `fetch` 没有保留 cookie jar，因此 URL 是通过标头获取的（F02 证明了 cookie 本身）。
   ```sh
   cat > "$F34/session.mjs" <<'JS'
   import { m, host, apiKey, NOPE, assert } from './lib.mjs';
@@ -618,12 +524,8 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$SCID/workspace/qa-f34-scoped.txt" --expect 200 --raw-out "$F34/session.copy"
   test "$(cat "$F34/session.copy")" = qa-f34-scoped
   ```
-  The mint resolves with `<host>/api/conversations/<id>/workspace/`, which
-  serves the file; the delete resolves on 204; a scoped workspace refuses
-  another conversation's id without a request; both routes are 401 without a
-  key.
-- **Create a conversation (`F34.conversation-create`).** A real DeepSeek
-  agent with one tool and a hook config, created but not run.
+  铸造器处理完毕 `<host>/api/conversations/<id>/workspace/`该端点用于服务文件。 删除解析到204； 一个 scoped 工作区拒绝另一个会话的 ID 无请求。 两个路由都返回401，没有密钥。
+- **创建对话 (`F34.conversation-create`)。**一个真实的 DeepSeek 智能体，带有一个工具和一个钩子配置，已创建但未运行。
   ```sh
   cat > "$F34/create.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -649,14 +551,10 @@ Preconditions:
     --check agent.tools.0.name eq file_editor --check max_iterations eq 20 --save F34.conversation-create/server
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq 0
   ```
-  `id` throws before `start()`; afterwards the conversation exists `idle`
-  with the client's model, tool, working directory and iteration limit, and
-  has no events yet. The hook config is stored too but only shows in the
-  conversation once the agent starts (checked in the next bullet).
-- **Send and run (`F34.conversation-run`).** A second program reattaches by
-  id, sends one tiny task and runs it on deepseek-flash.
+  `id` 在 `start()` 之前抛出； 之后，对话存在`idle`与客户端的模型、工具、工作目录和迭代限制，并且还没有事件。 钩子配置也被存储，但仅在智能体启动后才显示在对话中（在下一个项目符号中检查）。
+- **发送并运行 (`F34.conversation-run`)。**第二个程序通过 id 重新连接，发送一个小任务并在 deepseek-flash 上运行它。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   cat > "$F34/run.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -717,23 +615,13 @@ Preconditions:
   control-agent-server exec --timeout 60 --expect-output QA_F34_STATE_OK --save F34.conversation-run/state -- node "$F34/state.mjs" "$CID"
   control-agent-server api GET "/api/conversations/$CID" --max-chars 300 --check execution_status eq finished --check confirmation_policy.kind eq NeverConfirm
   ```
-  `start()` with an id rebinds the workspace to the server's working
-  directory; the message alone leaves the conversation `idle`; `run()`
-  reaches `finished`; the client reads the hook config it sent at creation,
-  `hi` from the agent's file, token usage for the `agent` LLM, the final
-  response (whatever its form: the `finish` message or the last agent
-  message, identical to what REST serves) and a ZIP trajectory (`PK`).
-  The server agrees: `finished`, the
-  hook config, one user message, a `file_editor` observation naming the file
-  and a `HookExecutionEvent` for `echo qa-f34-hook`. A third program reads
-  every `RemoteState` accessor back (status, agent model, workspace,
-  `NeverConfirm`, a persistence directory named after the id) and
-  `setAgentStatus` rejects with `Setting execution_status on RemoteState has
-  no effect`.
-- **Events list (`F34.events-list`).** Count, filters, pages and lookups
-  against the stored log.
+  `start()` 带有 id 将工作区重新绑定到服务器的工作目录； 消息本身就离开了对话 `idle`； `run()`达到`finished`； 客户端读取它在创建时发送的钩子配置，
+  `hi` 来自智能体的文件，词元用量用于 `agent` LLM，最终响应（无论其形式如何：`finish` 消息或最后一个智能体消息，与 REST 所服务的相同）和 ZIP 轨迹 (`PK`)。 服务器同意：`finished`、钩子配置、一条用户消息、命名文件的 `file_editor` 观测结果和 `echo qa-f34-hook` 的 `HookExecutionEvent`。 第三个程序读取每个 `RemoteState` 访问器（状态、智能体模型、工作区、
+  `NeverConfirm`，以 id 命名的持久化目录）和
+  `setAgentStatus` 拒绝`Setting execution_status on RemoteState has no effect`。
+- **事件列表(`F34.events-list`).**针对存储的日志进行计数、过滤、分页和查找。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   TOTAL=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   cat > "$F34/events.mjs" <<'JS'
@@ -763,16 +651,10 @@ Preconditions:
   control-agent-server exec --timeout 60 --expect-output QA_F34_EVENTS_OK --save F34.events-list/program -- node "$F34/events.mjs" "$CID" "$TOTAL"
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq "$TOTAL"
   ```
-  `count`, `getEvents` and the async iterator all see `TOTAL` distinct
-  events; the user filter returns the one message, the fully-qualified kind
-  only actions, the body filter is case-insensitive, pages do not overlap,
-  and the lookups by id return the stored events.
-- **Unknown event id (`F34.events-unknown-id`).** `F06.unknown-event`
-  reached through the client: `getEventById` expects the documented 404 and
-  `getEventsById` maps it to `null`
-  (`clients/typescript/src/events/remote-events-list.ts:110`). Runs on
-  `SCID`, whose first event is read back by id first (positive control); the
-  program records how each call settled.
+  `count`、`getEvents` 和异步迭代器都看到 `TOTAL` 个不同的事件； 用户过滤器返回一条消息，全称的唯一动作，正文过滤器不区分大小写，页面不重叠，通过ID查找返回存储的事件。
+- **未知事件 ID (`F34.events-unknown-id`)。** `F06.unknown-event` 通过客户端到达：`getEventById` 期望记录的 404 和
+  `getEventsById` 将其映射到 `null` (`clients/typescript/src/events/remote-events-list.ts:110`)。 运行于
+  `SCID`，其第一个事件由id先读回（正控）； 程序记录每次通话的结算方式。
   ```sh
   cat > "$F34/unknown-event.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -793,14 +675,9 @@ Preconditions:
   control-agent-server assert --json "$F34/unknown-event.json" --check batch.value len-eq 2 --check batch.value.0 eq "$(jq -r .first "$F34/unknown-event.json")" \
     --check batch.value.1 missing
   ```
-  `getEventById` rejects with a 404 `HttpError`, and `getEventsById`
-  resolves to `[<event>, null]`, so one missing id does not fail the batch.
-- **Short event kinds (`F34.events-search-kind`).** `F06.search-kind-short`
-  reached through the client: the route and `EventSearchOptions.kind`
-  (`clients/typescript/src/events/remote-events-list.ts`) document
-  `ActionEvent, MessageEvent`, and the server accepts that bare class name as
-  well as `<module>.<ClassName>`. Runs on `SCID`'s queued user message; the
-  fully-qualified kind finds it first (positive control).
+  `getEventById` 拒绝并返回 404 `HttpError`，`getEventsById` 解析为 `[<event>, null]`，因此缺少一个 id 不会导致批次失败。
+- **短事件类型 (`F34.events-search-kind`).** `F06.search-kind-short`通过客户端到达：路由和`EventSearchOptions.kind`(`clients/typescript/src/events/remote-events-list.ts`)文档
+  `ActionEvent, MessageEvent`，服务器接受该裸类名以及 `<module>.<ClassName>`。 在 `SCID` 的排队用户消息上运行； 完全合格的类型首先找到它（阳性对照）。
   ```sh
   cat > "$F34/kind.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -819,11 +696,10 @@ Preconditions:
   cat "$F34/kind.json"
   control-agent-server assert --json "$F34/kind.json" --check short len-eq 1 --check short.0 eq "$(jq -r '.full[0]' "$F34/kind.json")" --check short_count eq 1
   ```
-  The short name finds the same message and counts `1`.
-- **Event stream on Node's WebSocket (`F34.event-stream`).** Replay, a turn
-  sent over the socket, and a wrong key.
+  短名找到相同的消息并计数 `1`。
+- **节点 WebSocket (`F34.event-stream`) 上的事件流。**重播、通过套接字发送的回合以及错误的密钥。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   TOTAL=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   cat > "$F34/stream.mjs" <<'JS'
@@ -868,19 +744,12 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID" --max-chars 300 --check execution_status eq finished
   control-agent-server api GET "/api/conversations/$CID/events/count" --query source=user --check . eq 2
   ```
-  `send` throws before the socket opens; once open, every stored event id
-  (read through `RemoteEventsList`) is replayed, the sent message comes back as a user `MessageEvent` and the run
-  it starts reaches `finished` on the same socket. A wrong key ends in
-  `WebSocket closed with code 4001: Authentication failed`, and a key in the
-  URL is refused before connecting. REST shows the second user message and
+  `send` 在套接字打开之前抛出； 一旦打开，所有存储的事件ID（通过`RemoteEventsList`读取）都会被重播，发送的消息会以用户`MessageEvent`的形式返回，运行它会到达`finished`相同的套接字。 错误的键结尾为
+  `WebSocket closed with code 4001: Authentication failed`，并且URL中的密钥在连接之前被拒绝。 REST 显示第二条用户消息
   `finished`.
-- **Conversation callback socket from Node (`F34.ws-callback-client`).**
-  `WebSocketCallbackClient`, which `RemoteConversation.startWebSocketClient()`
-  uses, connects with Node's global `WebSocket`, looked up at connect time
-  (`clients/typescript/src/events/global-websocket.ts`). The server sends
-  a state snapshot to every new subscriber, as the CLI shows first on
-  `SCID` (positive control); the program then gives the client 10 seconds
-  and records the event kinds and errors it saw.
+- **来自节点 (`F34.ws-callback-client`) 的会话回调套接字。**
+  `RemoteConversation.startWebSocketClient()` 使用的 `WebSocketCallbackClient` 与 Node 的全局 `WebSocket` 连接，并在连接时间 (`clients/typescript/src/events/global-websocket.ts`) 中查找。 服务器向每个新订阅者发送状态快照，如 CLI 首先显示的
+  `SCID`（阳性对照）； 然后程序给客户端 10 秒的时间并记录它看到的事件类型和错误。
   ```sh
   control-agent-server ws listen "/sockets/events/$SCID" --expect-kind ConversationStateUpdateEvent --duration 3 --save F34.ws-callback-client/cli
   cat > "$F34/callback.mjs" <<'JS'
@@ -903,12 +772,11 @@ Preconditions:
   cat "$F34/callback.json"
   control-agent-server assert --json "$F34/callback.json" --check kinds contains ConversationStateUpdateEvent --check errors len-eq 0
   ```
-  Expected: the snapshot reaches the conversation callback and `onError` is
-  never called.
-- **Title and confirmation policy (`F34.conversation-controls`).** Two
-  mutations, each read back through REST; the policy is restored.
+  预期：快照到达对话回调和 `onError`
+  从来没有打电话过。
+- **标题和确认政策(`F34.conversation-controls`)。**两个突变，每个突变都读回REST； 政策已恢复。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   cat > "$F34/controls.mjs" <<'JS'
   import { m, host, apiKey, assert } from './lib.mjs';
@@ -926,12 +794,10 @@ Preconditions:
   control-agent-server api POST "/api/conversations/$CID/confirmation_policy" --json '{"policy": {"kind": "NeverConfirm"}}' --expect 200
   control-agent-server api GET "/api/conversations/$CID" --max-chars 300 --check confirmation_policy.kind eq NeverConfirm
   ```
-  The server reports the new title and `AlwaysConfirm`; the REST restore
-  puts `NeverConfirm` back.
-- **Conversation manager (`F34.manager`).** Listing, lookups, loading,
-  creating and deleting.
+  服务器报告了新的标题和 `AlwaysConfirm`。 REST恢复`NeverConfirm`放回去。
+- **对话管理器 (`F34.manager`).**列出、查找、加载、创建和删除。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   COUNT=$(control-agent-server api GET /api/conversations/count --field .)
   FINISHED=$(control-agent-server api GET /api/conversations/count --query status=finished --field .)
@@ -964,19 +830,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$(cat "$F34/deleted-id")" --expect 404 --save F34.manager/deleted
   control-agent-server api GET /api/conversations/count --check . eq "$COUNT"
   ```
-  The counts match REST, the first page of one has a `next_page_id`,
-  `getAllConversations` pages through both conversations, the batch keeps
-  input order with `null` for the unknown id, the loaded conversation carries
-  its server working directory, and the created conversation is gone after
-  the delete (404, count back to `COUNT`).
-- **Update result (`F34.manager-update-result`).** `PATCH
-  /api/conversations/{id}` answers `Success` (`{"success": true}`, also in
-  the client's generated contract), so `ConversationManager.updateConversation`
-  and `ConversationClient.updateConversation` read the conversation back
-  after the PATCH and resolve with the updated `ConversationInfo` they are
-  typed to return.
-  The program checks that the title was stored (positive control, also
-  through REST) and records what the call resolved with.
+  计数匹配 REST，第一页的第一个页面有 `next_page_id`
+  `getAllConversations` 翻阅了两段对话，批次保持输入顺序为  `null` 对于未知的 id，加载的会话携带其服务器工作目录，且创建的对话在删除后就消失了（404，倒数回去） `COUNT`).
+- **更新结果（`F34.manager-update-result`).**  `PATCH /api/conversations/{id}` 答案 `Success` (`{"success": true}`，也在客户端生成的合约中），所以 `ConversationManager.updateConversation` 和 `ConversationClient.updateConversation` 重读对话后 PATCH 并用更新后的解决 `ConversationInfo` 它们被设计成返回。 程序检查标题是否已存储（正控，也通过） REST记录调用的结果。
   ```sh
   cat > "$F34/update.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -993,16 +849,13 @@ Preconditions:
   cat "$F34/update.json"
   control-agent-server assert --json "$F34/update.json" --check id eq "$SCID" --check title eq qa-f34-renamed
   ```
-  Expected: the stored title and a `ConversationInfo` with the conversation's
-  `id` and new title.
-- **Create options (`F34.manager-create-options`).**
-  `ConversationManager.createConversation` forwards `maxIterations` and
-  `stuckDetection` to `start()`, so the server stores the caller's
-  `max_iterations` and `stuck_detection`, the same as
-  `RemoteConversation.start({maxIterations, stuckDetection})`, which the
-  program checks first (positive control). It records what the
-  server stored for the manager's conversation, deletes both conversations,
-  and REST confirms they are gone.
+  预期：存储的标题和带有对话的 `ConversationInfo`
+  `id` 和新标题。
+- **创建选项 (`F34.manager-create-options`)。**
+  `ConversationManager.createConversation` 转发 `maxIterations` 并
+  `stuckDetection`到`start()`，所以服务器存储调用者的
+  `max_iterations`和`stuck_detection`，同
+  `RemoteConversation.start({maxIterations, stuckDetection})`，程序首先检查（阳性对照）。 它记录服务器为经理的对话存储的内容，删除两个对话，并 REST 确认它们已经消失。
   ```sh
   cat > "$F34/create-options.mjs" <<'JS'
   import { writeFileSync } from 'node:fs';
@@ -1026,11 +879,9 @@ Preconditions:
   cat "$F34/create-options.json"
   control-agent-server assert --json "$F34/create-options.json" --check max_iterations eq 7 --check stuck_detection eq false
   ```
-  Expected: `max_iterations` 7 and `stuck_detection: false`, as the
-  direct `start()` gets. Both conversations are deleted.
-- **ACP conversations (`F34.manager-acp`).** `ConversationManager.acp` with
-  the inline ACP Codex agent F12 uses; the ACP subprocess only starts on
-  the first run, so nothing runs and no Codex binary is needed.
+  预期：`max_iterations` 7 和 `stuck_detection: false`，作为
+  直接`start()`获取。 两条对话均被删除。
+- **ACP对话(`F34.manager-acp`)。** `ConversationManager.acp` 与内联ACP Codex 智能体 F12 使用； ACP 子进程仅在第一次运行时启动，因此不会运行任何内容，也不需要 Codex 二进制文件。
   ```sh
   COUNT=$(control-agent-server api GET /api/conversations/count --field .)
   mkdir -p "$F34/acp"
@@ -1059,15 +910,11 @@ Preconditions:
   control-agent-server api DELETE "/api/conversations/$ACPID" --expect 200
   control-agent-server api GET /api/conversations/count --check . eq "$COUNT"
   ```
-  The namespace creates the conversation with the ACP agent and its
-  `max_iterations` 9 (unlike `createConversation`, it forwards the option),
-  and the get, batch get (`null` for the unknown id), list, count and search
-  all return it with its ACP fields; REST agrees, and the delete puts the
-  count back.
-- **Fork, navigate and ask (`F34.conversation-branching`).** On `CID`, the
-  finished DeepSeek conversation; the fork is deleted at the end.
+  命名空间会创建与 ACP 智能体的对话
+  `max_iterations` 9（不同于 `createConversation`，它转发选项），以及 get、批量 get (`null` 对于未知 id）、list、count 和 search 都会以 ACP 字段的形式返回。 REST 同意，并且删除将计数恢复。
+- **分叉、导航和询问 (`F34.conversation-branching`)。**在`CID`上，完成DeepSeek对话； 叉子最后被删除。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   TOTAL=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   cat > "$F34/branching.mjs" <<'JS'
@@ -1103,21 +950,9 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq "$TOTAL"
   control-agent-server api DELETE "/api/conversations/$FORK" --expect 200
   ```
-  `fork` returns a `RemoteConversation` bound to the fork: its own id,
-  a workspace scoped to it in the source's working directory, the source's
-  agent model, and all `TOTAL` copied events. With the state cached right
-  before, `navigateTo(<first event>)` leaves the cached state on the new
-  HEAD, which GET confirms (the source's HEAD did not move). `askAgent`
-  resolves with a string and adds no event to the source, which is still
+  `fork` 返回绑定到 fork 的 `RemoteConversation`：它自己的 id、在源的工作目录中限定其范围的工作区、源的智能体模型以及所有 `TOTAL` 复制的事件。 对于之前缓存的状态，`navigateTo(<first event>)` 将缓存的状态保留在新的 HEAD 上，GET 确认了这一点（源的 HEAD 没有移动）。 `askAgent` 使用字符串进行解析，并且不向源添加任何事件，该源仍然是
   `finished`.
-- **Confirmation and secrets (`F34.conversation-confirm`).** A DeepSeek
-  conversation with the `terminal` tool under `AlwaysConfirm`; two runtime
-  secrets (a string and a function value) whose hashes the first command
-  writes. The program accepts every proposal of the first task until the
-  agent finishes, then rejects the proposal of a second, harmless task (a
-  real model asked to retry a rejected command often refuses, so the
-  reject comes last). It only waits on statuses and observation counts,
-  never on the model's wording.
+- **确认和机密 (`F34.conversation-confirm`).**与 `AlwaysConfirm` 下的 `terminal` 工具进行 DeepSeek 对话； 两个运行时机密（一个字符串和一个函数值），其哈希值是第一个命令写入的。 程序接受第一个任务的所有提案，直到智能体完成，然后拒绝第二个任务的提案（一个真正的模型被要求重试一个被拒绝的命令经常拒绝，所以拒绝在最后）。 它只等待状态和观测结果计数，而不等待模型的措辞。
   ```sh
   export QA_F34_SECRET="qa-f34-secret-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
   mkdir -p "$F34/confirm"
@@ -1185,18 +1020,12 @@ Preconditions:
   control-agent-server state grep --env-value QA_F34_SECRET --glob 'server/**/*' --expect-none
   control-agent-server state grep --env-value QA_F34_SECRET --glob 'home/**/*' --expect-none
   ```
-  Every accept runs the pending command and the agent finishes; the file
-  holds the 16-character SHA-256 prefixes of both secret values, so the
-  string and the function value both reached the shell, while the proposal
-  names only the variables: no event and no file the server persisted
-  contains the value. The second task's proposal waits for confirmation;
-  the reject records one `UserRejectObservation` with `qa-f34 rejected`
-  (REST agrees: terminal tool), runs nothing (no new observation, no
-  `qa-f34-rejected.txt`) and leaves the conversation `idle`.
-- **Hooks (`F34.hooks-client`).** Project hooks through `HooksClient` and
+  每条接受都会运行 pending 命令和智能体完成； 文件包含16个字符 SHA-256 个前缀机密值，所以字符串和函数值都到达了shell，而提案只提到变量：没有事件，没有文件的服务器已持久化包含值。 第二项提案等待确认。 拒绝记录一条 `UserRejectObservation` 与 `qa-f34 rejected` (REST 同意：终端工具），运行什么（没有新的观测结果，no
+  `qa-f34-rejected.txt`) 并离开对话 `idle`。
+- **挂钩 (`F34.hooks-client`).**项目挂钩 `HooksClient` 和
   `RemoteConversation.loadHooks`.
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   cat > "$F34/hooks.mjs" <<'JS'
   import { m, host, apiKey, F34, assert } from './lib.mjs';
@@ -1217,12 +1046,8 @@ Preconditions:
   control-agent-server api POST /api/hooks --json "{\"project_dir\": \"$PROJECT\"}" --expect 200 \
     --check hook_config.pre_tool_use.0.hooks.0.command eq 'echo QA_PROJECT_HOOK'
   ```
-  The `PreToolUse` entry of `hooks.json` comes back under `pre_tool_use`,
-  which `hasHooksForEvent` and `getHooksForEvent` read; a directory without
-  hooks gives `{hook_config: null}`; the conversation's `loadHooks` returns
-  the same config.
-- **MCP test (`F34.mcp-client`).** The stdio fixture, a tool call, a server
-  that dies and a bad body.
+  `PreToolUse` `hooks.json` 的 `pre_tool_use` 条记录被 `hasHooksForEvent` 和 `getHooksForEvent` 读取。 一个没有钩子的目录 `{hook_config: null}`。 `loadHooks` 会话返回相同的配置。
+- **MCP测试(`F34.mcp-client`)。** stdio 测试夹具，a 工具调用，一个死掉的服务器和一个坏的身体。
   ```sh
   MCPN=$(control-agent-server api GET /api/settings --field agent_settings.mcp_config | jq length)
   cat > "$F34/mcp.mjs" <<'JS'
@@ -1244,14 +1069,11 @@ Preconditions:
   control-agent-server api GET /api/settings --max-chars 300 --check agent_settings.mcp_config.qa-f34-mcp missing \
     --check agent_settings.mcp_config len-eq "$MCPN"
   ```
-  The fixture lists `qa_echo` and the tool call returns its text; `/bin/false`
-  is a 200 `{ok: false}` with an `error_kind`; an empty command is a 422
-  `HttpError` with the validator's message. The test persists nothing: the
-  settings' flat `mcp_config` server map has no `qa-f34-mcp` entry and the
-  same size as before.
-- **Restart (`F34.restart-reload`).** A restart, then a fresh client.
+  的测试夹具列表 `qa_echo` 和工具调用返回其文本。 `/bin/false` 这是一个200 `{ok: false}` 与一个 `error_kind`; 空命令为422
+  `HttpError` 与验证器的消息。 测试没有任何结果：设置的平面 `mcp_config` 服务器映射没有 `qa-f34-mcp` 条目，并且大小与以前相同。
+- **重新启动 (`F34.restart-reload`)。**重新启动，然后是一个新的客户端。
 
-  Requires: `F34.conversation-create`
+  需要：`F34.conversation-create`
   ```sh
   TOTAL=$(control-agent-server api GET "/api/conversations/$CID/events/count" --field .)
   control-agent-server restart
@@ -1270,16 +1092,11 @@ Preconditions:
   control-agent-server exec --timeout 60 --expect-output QA_F34_RESTART_OK --save F34.restart-reload/program -- node "$F34/restart.mjs" "$CID" "$TOTAL"
   control-agent-server api GET "/api/conversations/$CID/events/count" --check . eq "$TOTAL"
   ```
-  After the restart the conversation is still `finished` with its title,
-  all `TOTAL` events, its hook config and the agent's file.
-- **Event stream reconnect (`F34.event-stream-reconnect`).** A
-  `ConversationEventStream` with `reconnect: {enabled: true}` and
-  `resend_mode: 'all'`, on the `ws` package's constructor (`createWebSocket`,
-  the adapter the stream takes for environments without a usable native
-  socket), watching its own conversation that never runs. The watcher from
-  `Preconditions:` runs in the background; once the stream has replayed the
-  queued message, the CLI restarts the server and posts a second message
-  (`run: false`).
+  重启后，对话仍然 `finished`，标题，所有 `TOTAL` 事件，钩子配置，以及智能体的文件。
+- **事件流重新连接 (`F34.event-stream-reconnect`)。**一个
+  `ConversationEventStream` 与 `reconnect: {enabled: true}` 和
+  `resend_mode: 'all'`，在`ws`包的构造器(`createWebSocket`，用于没有可用的原生套接字的环境的适配器)中，监视自己的对话，该对话从不运行。 观察者来自
+  `Preconditions:`在后台运行； 一旦流重播了排队的消息，CLI 就会重新启动服务器并发布第二条消息 (`run: false`)。
   ```sh
   RCID=$(control-agent-server conversation start --no-run --placeholder-agent --tools none --no-autotitle --workspace "$F34/scoped" \
     --prompt 'qa-f34-reconnect: never run' --print-id)
@@ -1298,27 +1115,13 @@ Preconditions:
   control-agent-server api GET "/api/conversations/$RCID/events/count" --query source=user --check . eq 2 --save F34.event-stream-reconnect/server
   control-agent-server api GET "/api/conversations/$RCID" --max-chars 300 --check execution_status eq idle
   ```
-  The restart closes the socket (1012) and the stream goes to
-  reconnecting by itself; refused attempts close with 1006 and back off
-  (1, 2, 4, 8 s plus jitter) until the server is back, then it is
-  connected again. The reconnect sent `resend_mode=all` again, so the
-  queued message was replayed on the new socket, and the message posted
-  after the restart arrived on it (live or in that replay). REST shows both
-  user messages and the conversation still `idle`.
-- **Reconnect on Node's own WebSocket (`F34.event-stream-reconnect-native`), known bug.**
-  The same restart with two streams side by side: the `ws`-backed one
-  (positive control) and one on Node's global `WebSocket`, which
-  `F34.event-stream` uses and the README presents as all the stream
-  needs. This regression recipe pins Node 22.22.0 (undici 6.23.0), the
-  affected runtime in [upstream #5651](https://github.com/OpenHands/software-agent-sdk/issues/5651);
-  the main consumer lane can use the machine's current Node. The prewarm
-  records the version before the watcher readiness timeout starts. On this
-  Node version, a handshake to a port that refuses fires
-  `error` but never `close`, and the stream schedules its retries only
+  重启会关闭套接字 (1012)，并让流自动重连。 拒绝的尝试以1006关闭，并且会回退（1, 2, 4, 8秒加上抖动）直到服务器恢复，然后重新连接。 `resend_mode=all` 重连发送了，因此队列中的消息被重新发送到新的套接字上，重启后发布的消息也到达了它（如果是活的，或者在重播中）。 REST 显示了用户消息以及对话仍然 `idle`。
+- **在节点自身上重连 WebSocket (`F34.event-stream-reconnect-native`), 已知 bug。** 两个流并排重启： `ws`-backed 的一个（正控）和一个在节点全局 `WebSocket` 上的
+  `F34.event-stream` 使用并且 README 呈现为所有流需求。 此回归配方固定节点 22.22.0 (undici 6.23.0)，[upstream #5651](https://github.com/OpenHands/software-agent-sdk/issues/5651) 中受影响的运行时； 主要消费者通道可以使用机器当前的Node。 预热会在观察者准备就绪超时开始之前记录版本。 在此 Node 版本中，与拒绝触发的端口握手
+  `error` 但从不 `close`，并且流仅调度其重试
   from `onclose` (`clients/typescript/src/client/conversation-event-stream.ts:145`);
-  its own 10 s handshake abort only calls `close()`, which fires no
-  `close` either. So the first refused attempt during the restart is the
-  last one.
+  它自己的 10 秒握手中止仅调用 `close()`，这不会触发
+  `close` 要么。 因此，重新启动期间第一个被拒绝的尝试是最后一个。
   ```sh
   control-agent-server exec --timeout 120 --expect-output v22.22.0 --save F34.event-stream-reconnect-native/runtime -- \
     npm exec --yes --package=node@22.22.0 -- node --version
@@ -1336,18 +1139,12 @@ Preconditions:
   wait "$RPID"
   cat "$F34/reconnect-native.json"
   jq -e '.ws.reconnected and .ws.sent_after >= 1 and .native.went_down' "$F34/reconnect-native.json"
-  control-agent-server assert --json "$F34/reconnect-native.json" --check native.reconnected eq true --check native.sent_after ge 1  # bug: value.native.reconnected eq false && value.native.last_state.attemptCount eq 1
+  control-agent-server assert --json "$F34/reconnect-native.json" --check native.reconnected eq true --check native.sent_after ge 1  # 错误：value.native.reconnected eq False && value.native.last_state.attemptCount eq 1
   ```
-  Expected: both streams come back and see the message posted after the
-  restart. On Node 22.22.0 the `ws`-backed stream does, while the native one stays
-  `{"isConnected": false, "isReconnecting": true, "attemptCount": 1}`
-  for the whole minute the watcher gives it, never retrying. Node 24.19.0
-  (undici 7.29.0) emits `close` after the handshake error, so both BASE and
-  TARGET pass there with byte-identical client code; that environment result
-  does not retire the Node 22 regression.
-- **Endpoint audit against this checkout (`F34.endpoint-audit`).** The
-  client's own drift tooling, offline, in a fixture directory (nothing is
-  written into `clients/typescript`).
+  预期：两个流都会返回并看到在
+  重新启动。 在 Node 22.22.0 上，`ws` 支持的流会执行此操作，而本机流则保留
+  `{"isConnected": false, "isReconnecting": true, "attemptCount": 1}` 观察者在整个分钟内给出它，从不重试。 节点 24.19.0 (undici 7.29.0) 在握手错误后发出 `close`，因此 BASE 和 TARGET 都以字节相同的客户端代码传递到那里； 该环境结果不会使 Node 22 退役回归。
+- **端点对此结帐进行审核 (`F34.endpoint-audit`)。**客户端自己的漂移工具，离线，位于测试夹具目录中（没有任何内容写入 `clients/typescript`）。
   ```sh
   A="$F34/audit"
   mkdir -p "$A/home"
@@ -1367,28 +1164,15 @@ Preconditions:
     --after "$A/agent-server-schema.ts" --output "$A/summary.md"
   grep -Eqx 'No generated TypeScript contract changes\.|- Removed exported types: none' "$A/summary.md"
   ```
-  `.github/scripts/export_agent_server_openapi.py` writes the same public
-  contract CI uses for unreleased versions. The audit runs with a copy of
-  `endpoint-audit.config.json` whose `allowClientOnly` keeps only the five
-  operational routes the public contract omits (F01 proves them), so its
-  client-ahead exceptions (meta-profiles, profile validation) are checked
-  too; the report-only gate never fails on client-only calls, which is why
-  the recipe asserts `clientOnly == []` on the JSON itself. It reports no
-  client-only call (every handwritten call exists on this checkout);
-  `server-only.txt` lists the operations without a literal client
-  call (43 on the baseline: the conversation-scoped bash, file, git and VS
-  Code aliases the client reaches by rewriting paths at runtime, the canvas
-  extension routes, whose backend calls a helper builds, provider
-  connections, `/api/init`, the `GET .../events` batch, archives, commits,
-  `create_directory` and `load_plugin`). Regenerating the client's types
+  `.github/scripts/export_agent_server_openapi.py` 编写与未发布版本相同的公共合约 CI。 审计运行时带有以下副本
+  `endpoint-audit.config.json` `allowClientOnly` 只保留了公共合同遗漏的五条运营路线(F01 证明了它们)，因此其客户端前置异常（元配置、配置验证）也被检查。 仅报告门在仅客户端调用上永远不会失败，这就是配方在 JSON 本身上断言 `clientOnly == []` 的原因。 它报告没有仅限客户端的呼叫（此结账时存在每个手写呼叫）；
+  `server-only.txt` 列出了没有文字客户端调用的操作（基线上的 43：会话范围的 bash、文件、git 和 VS Code 别名，客户端通过在运行时重写路径来到达）、画布扩展路由、其后端调用帮助程序构建、提供程序连接、`/api/init`、`GET .../events` 批处理、存档、提交、
+  `create_directory` 和 `load_plugin`）。 重新生成客户端的类型
   from this checkout removes no exported type (on the baseline the diff is
-  `+13 / -1` lines: two new fields of the canvas backend artifact).
-- **Old server version (`F34.version-gate-old`).** A real 1.22.0 release of
-  the agent server, installed with `uvx`, attached and stopped inside the
-  bullet. FastAPI is pinned to the version in the
+  `+13 / -1`lines：画布后端工件的两个新字段）。
+- **旧服务器版本(`F34.version-gate-old`)。** Agent Server 的真实 1.22.0 版本，与 `uvx` 一起安装，附加并停止在子弹内部。 FastAPI 固定到中的版本
   [v1.22.0 release lock](https://github.com/OpenHands/software-agent-sdk/blob/v1.22.0/uv.lock):
-  newer FastAPI releases reject that historical server's `Query(lte=...)`
-  during import, before the version-gate behavior can be tested.
+  在测试版本控制行为之前，较新的 FastAPI 版本会在导入期间拒绝历史服务器的 `Query(lte=...)`。
   ```sh
   OLD="$F34/old-server"
   mkdir -p "$OLD/home" "$OLD/persist"
@@ -1427,90 +1211,40 @@ Preconditions:
   kill -TERM -- "-$OLDPID" 2>/dev/null || kill -TERM "$OLDPID"
   trap - EXIT
   ```
-  `curl --retry-connrefused` waits for the port (the CLI's `--until-ok` does
-  not retry a refused connection). The old server reports `1.22.0`; every
-  gated method rejects with
-  `AgentServerVersionError` (`AGENT_SERVER_VERSION_TOO_OLD`, required
-  `1.23.0` or `1.31.0`, actual `1.22.0`), not an `HttpError`, while an
-  ungated call still works. The old server's access log has the
-  `/server_info` probes and the count but no gated route.
+  `curl --retry-connrefused` 等待端口（CLI 的 `--until-ok` 不重试拒绝连接）。 旧服务器报告`1.22.0`； 每个门控方法都会拒绝
+  `AgentServerVersionError`（`AGENT_SERVER_VERSION_TOO_OLD`，必填
+  `1.23.0` 或 `1.31.0`，实际 `1.22.0`），而不是 `HttpError`，而非门控调用仍然有效。 旧服务器的访问日志有
+  `/server_info` 探测和计数，但没有门控路线。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- The package is ESM only. Import `clients/typescript/dist/index.js` (most
-  classes) and `dist/clients.js` (`ServerClient`, `FileClient`,
-  `ConversationEventStream`, `AgentServerClient`); `ConversationEventStream`
-  is not exported from the main entry. `dist/` is git-ignored and is not
-  rebuilt by anything but `npm run build` in `clients/typescript`; a stale
-  build silently verifies old client code, which is why `Preconditions:`
-  rebuilds whenever `src/` is newer.
-- In Node, `ConversationEventStream`, `WebSocketCallbackClient`
-  (`RemoteConversation.startWebSocketClient()`) and `BashWebSocketClient` all
-  use the global `WebSocket` (Node 22 or later), looked up when a socket
-  opens. Only `ConversationEventStream` takes a constructor
-  (`createWebSocket`); on an older Node the callback clients need one
-  assigned to `globalThis.WebSocket`, else they report "WebSocket
-  implementation not available" through `onError`. `WebSocketCallbackClient`
-  reconnects through `ConversationEventStream`, so the refused-handshake
-  gotcha below applies to it too.
-- Node 22's global `WebSocket` (undici 6) fires `error` but no `close` when
-  a handshake is refused, so a `ConversationEventStream` on it stops
-  retrying after the first refused reconnect attempt (a server restart
-  always produces one) and stays `isReconnecting` forever
-  (`F34.event-stream-reconnect-native`). Pass the `ws` package's
-  constructor as `createWebSocket` for a Node consumer that must survive a
-  restart (`F34.event-stream-reconnect`).
-- A real model shown a `UserRejectObservation` often refuses to propose
-  the same command again ("a deliberate block"), so a recipe that needs
-  both an accept and a reject accepts first and rejects a later, different
-  proposal (`F34.conversation-confirm`). After a reject the conversation is
-  `idle`, not `finished`.
-- A message sent over the events socket always runs the agent (the server
-  ignores `run`), unlike `sendMessage`, which posts `run: false`. Do not send
-  socket frames to a conversation whose agent cannot reach a model.
-- `RemoteState` caches `GET /api/conversations/{id}` for 2 seconds; poll with
-  `state.refresh()` when waiting for a status.
-- `executeCommand` always reports `timeout_occurred: false`; a command killed
-  by its own timeout shows exit `-1` (the server sends no timeout marker), and
-  `exit_code` is -1 when the server sends none. The HTTP request
-  waits `timeout + 10` seconds.
-- `executeCommand` returns the server's joined output: output beyond 1 MiB
-  is stored as several chunks server-side (`bash.searchEvents` lists them),
-  and `execute_bash_command` concatenates them (`F13.execute-large-output`).
-- `RemoteWorkspace.fileDownload`, `downloadAsBlob` and `downloadAsText`
-  decode the body as text (`F34.workspace-binary-download`); use
-  `FileClient.downloadFile` for bytes.
-- `GitChange['status']` (main entry, also exported as `GitChangeStatus`) is
-  the server's `UPDATED|ADDED|DELETED|MOVED`, not lowercase words
-  (`F34.workspace-git-types`).
-  `gitChanges` and `gitDiff` wrap every refusal in a plain `Error`, so read
-  the status from `isHttpError(e.cause)`, not from `e`.
-- The `kind` filter of `RemoteEventsList.search` and `count` takes the bare
+## 陷阱
+
+- 包裹只有 ESM。 导入 `clients/typescript/dist/index.js`（大多数类）和 `dist/clients.js`（`ServerClient`、`FileClient`、
+  `ConversationEventStream`, `AgentServerClient`); `ConversationEventStream` 不从主条目导出。 `dist/` 被 git 忽略，并且不会被 `clients/typescript` 中除 `npm run build` 之外的任何东西重建； 过时的构建会默默地验证旧的客户端代码，这就是为什么每当 `src/` 更新时 `Preconditions:` 都会重建。
+- 在 Node 中，`ConversationEventStream`、`WebSocketCallbackClient` (`RemoteConversation.startWebSocketClient()`) 和 `BashWebSocketClient` 都使用全局 `WebSocket`（Node 22 或更高版本），在套接字打开时查找。 只有 `ConversationEventStream` 采用构造函数 (`createWebSocket`)； 在较旧的节点上，回调客户端需要将一个分配给 `globalThis.WebSocket`，否则它们会通过 `onError` 报告“WebSocket 实现不可用”。 `WebSocketCallbackClient` 通过 `ConversationEventStream` 重新连接，因此下面的拒绝握手陷阱也适用于它。
+- 当节点22的全局`WebSocket`（undici 6）拒绝握手时，`error`，但`close`。因此，`ConversationEventStream`后，它会停止重试（因为服务器重启总是会产生一个）。它会一直`isReconnecting`（`F34.event-stream-reconnect-native`）。 将 `ws` 包的构造函数作为 `createWebSocket` 传递给必须在重新启动后继续存在的 Node 使用者 (`F34.event-stream-reconnect`)。
+- 一个显示真实模型的 `UserRejectObservation` 通常拒绝再次提出相同的命令（“故意阻塞”），因此一个需要接受和拒绝的 `F34.conversation-confirm` 首先接受，然后拒绝一个不同的提议。 拒绝后对话是
+  `idle`，而不是 `finished`。
+- 通过事件套接字发送的消息始终运行智能体（服务器忽略 `run`），与发布 `run: false` 的 `sendMessage` 不同。 不要将套接字帧发送到智能体无法到达模型的会话。
+- `RemoteState`缓存`GET /api/conversations/{id}`2秒； 民意调查
+  `state.refresh()` 等待状态时。
+- `executeCommand` 始终报告 `timeout_occurred: false`； 被自己的超时杀死的命令显示退出 `-1`（服务器不发送超时标记），并且
+  当服务器发送None时，`exit_code`为-1。 HTTP 请求等待 `timeout + 10` 秒。
+- `executeCommand` 返回服务器的拼接输出：超过1 MiB 的部分会被存储为多个分块服务器端 (`bash.searchEvents` 列表它们)，`execute_bash_command` 连接它们 (`F13.execute-large-output`)。
+- `RemoteWorkspace.fileDownload`、`downloadAsBlob` 和 `downloadAsText` 将正文解码为文本 (`F34.workspace-binary-download`)； 使用
+  `FileClient.downloadFile` 代表字节。
+- `GitChange['status']`（主条目，也导出为`GitChangeStatus`）是服务器的`UPDATED|ADDED|DELETED|MOVED`，而不是小写单词（`F34.workspace-git-types`）。
+  `gitChanges` 和 `gitDiff` 将每个拒绝包装在普通的 `Error` 中，因此从 `isHttpError(e.cause)` 而不是从 `e` 读取状态。
+- `RemoteEventsList.search`和`count`的`kind`过滤器取裸
   class name or the fully-qualified class path (`F34.events-search-kind`,
   `F06.search-kind-short`).
-- A `RemoteWorkspace` with `conversationId` checks `/server_info` once per
-  transport and only then picks the conversation-scoped routes; it refuses a
-  path with a query string or `..` and a `cid` parameter client-side.
-- `Agent` copies extra options into the request, so `tools` (and any other
-  agent field) can be passed directly; without `tools` the server agent has
-  none. `RemoteConversation.start()` sends `max_iterations` 500 and
-  `stuck_detection: true` unless told otherwise.
-- `PATCH /api/conversations/{id}` answers only `{success: true}`;
-  `updateConversation` reads the conversation back with a second `GET`
-  (`F34.manager-update-result`).
-- The version gate only reads `version` from `/server_info`; a server
-  reporting `unknown` (a build without package metadata) fails every gated
-  call. `F34.version-gate-old` needs PyPI (or a cached `uvx` environment) for
-  the 1.22.0 release; offline it fails at the `curl` wait for the port.
-- The endpoint audit sees only literal `HttpClient` calls in `src/client`,
-  `src/conversation` and `src/workspace`; the conversation-scoped aliases
-  (reached by rewriting paths at runtime) and calls whose path a helper
-  builds (`CanvasExtensionsClient`'s backend routes) show as server-only.
-  It writes `.audit/` into its working directory, which is why the recipe
-  runs it from a fixture directory with symlinks.
-- `npm run check:agent-server-api` regenerates `src/generated/` in place and
-  downloads the pinned release's contract; the recipe calls the generator
-  with `AGENT_SERVER_GENERATED_OUTPUT` instead, so nothing in the checkout
-  changes. The raw `/openapi.json` of a running server is not the public
-  contract (it includes `/v1` and internal schemas), so regenerating from it
-  shows thousands of unrelated changes.
+- 带有 `conversationId` 的 `RemoteWorkspace` 每传输层检查一次 `/server_info`，然后才选择会话范围的路由； 它拒绝带有查询字符串或 `..` 和 `cid` 客户端参数的路径。
+- `Agent` 将额外选项复制到请求中，因此 `tools`（以及任何其他智能体字段）可以直接传递； 没有`tools`，服务器智能体有None。 `RemoteConversation.start()` 发送 `max_iterations` 500 和
+  `stuck_detection: true` 除非另有说明。
+- `PATCH /api/conversations/{id}` 仅回答 `{success: true}`；
+  `updateConversation` 用第二个 `GET` (`F34.manager-update-result`) 读回对话。
+- 版本门只从`/server_info`读取`version`； 服务器报告 `unknown`（没有包元数据的构建）每个门控调用都失败。 `F34.version-gate-old` 1.22.0 版本需要 PyPI（或缓存的 `uvx` 环境）； 离线时，它会在 `curl` 等待端口处失败。
+- 端点审核仅看到 `src/client` 中的文字 `HttpClient` 调用，
+  `src/conversation`和`src/workspace`； 对话级别的别名（通过运行时重写路径到达）以及由辅助函数构建的路径调用（`CanvasExtensionsClient`的后端路由）显示为服务器专用。 它将 `.audit/` 写入其工作目录，这就是配方从带有符号链接的测试夹具目录运行它的原因。
+- `npm run check:agent-server-api` 生成 `src/generated/` 在原地下载已 pinned 的合约。 该食谱调用生成器 `AGENT_SERVER_GENERATED_OUTPUT` 而是，结账过程中的任何内容都不会改变。 原始的 `/openapi.json` 运行中的服务器的端点不是公共合同（它包括） `/v1` and internal 模式因此，从它重新生成会显示成千上万条无关的更改。

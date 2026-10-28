@@ -1,8 +1,8 @@
-"""LocalConversation lazily resolves persistent memory (``AgentContext.load_memory``).
+"""LocalConversation 延迟解析持久内存 (``AgentContext.load_memory``)。
 
-Memory resolution mirrors project skills: AgentContext cannot read the
-workspace at validation time, so LocalConversation loads the MEMORY.md indexes
-on the first ``send_message()`` and the result lands in the SystemPromptEvent.
+内存解析与项目技能相匹配：AgentContext 无法在工作区时读取验证，因此 LocalConversation
+ 在第一次 ``send_message()`` 中加载
+ MEMORY.md 的索引，结果落在 SystemPromptEvent。
 """
 
 from pathlib import Path
@@ -21,11 +21,11 @@ from openhands.sdk.testing import TestLLM
 
 @pytest.fixture(autouse=True)
 def isolated_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    """Keep the user memory tier (``~/.openhands/memory/``) off the host home."""
+    """使用户内存层 (``~/.openhands/memory/``) 远离主机主目录。"""
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
-    # USERPROFILE is what Path.home() reads on Windows, where HOME is a no-op.
+    # USERPROFILE 是 Path.home() 在 Windows 上读取的内容，其中 HOME 是无操作。
     monkeypatch.setenv("USERPROFILE", str(home))
     return home
 

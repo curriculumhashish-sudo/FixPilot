@@ -1,4 +1,4 @@
-"""Dynamic workflow tool for sub-agent orchestration."""
+"""用于子智能体编排的动态工作流工具。"""
 
 from openhands.tools.workflow.definition import (
     WorkflowAction,

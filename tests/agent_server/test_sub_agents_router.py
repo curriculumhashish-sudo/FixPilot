@@ -1,4 +1,4 @@
-"""Tests for the sub-agents router (POST /sub-agents)."""
+"""测试子智能体路由器 (POST /sub-agents)."""
 
 from pathlib import Path
 
@@ -11,8 +11,8 @@ from openhands.agent_server.config import Config
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
-    config = Config(session_api_keys=[])  # Disable authentication
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证
     return TestClient(create_app(config), raise_server_exceptions=False)
 
 
@@ -24,7 +24,7 @@ def _write_agent(directory: Path, name: str, description: str = "desc") -> None:
 
 
 def test_get_sub_agents_returns_builtins_only(client):
-    """Built-ins are listed and tagged; user/project sources can be excluded."""
+    """列出并标记内置插件； 可以排除用户/项目源。"""
     response = client.post(
         "/api/sub-agents",
         json={"load_builtin": True, "load_user": False, "load_project": False},
@@ -35,14 +35,14 @@ def test_get_sub_agents_returns_builtins_only(client):
 
     assert {"general-purpose", "code-explorer", "bash-runner"} <= names
     assert all(a["level"] == "builtin" and a["is_builtin"] for a in agents)
-    # system_prompt rides inline so a detail view needs no extra fetch
+    # system_prompt 内联骑行，因此无需额外获取详细信息视图
     assert all(a["system_prompt"] for a in agents)
 
 
 def test_get_sub_agents_includes_project_and_shadows_builtin(client, tmp_path: Path):
-    """A project agent appears and shadows a built-in with the same name."""
+    """将出现一个项目智能体，并隐藏同名的内置项目。"""
     _write_agent(tmp_path / ".agents" / "agents", "code-reviewer", "Reviews code")
-    # Same name as a built-in -> project definition must win.
+    # 与内置 -> 项目定义相同的名称必须获胜。
     _write_agent(tmp_path / ".agents" / "agents", "general-purpose", "Overridden")
 
     response = client.post(
@@ -60,7 +60,7 @@ def test_get_sub_agents_includes_project_and_shadows_builtin(client, tmp_path: P
     assert agents["code-reviewer"]["level"] == "project"
     assert agents["code-reviewer"]["is_builtin"] is False
 
-    # Only one general-purpose entry, and it is the project (shadowing) one.
+    # 只有一个通用条目，它是项目（影子）条目。
     gp = agents["general-purpose"]
     assert gp["level"] == "project"
     assert gp["is_builtin"] is False
@@ -68,7 +68,7 @@ def test_get_sub_agents_includes_project_and_shadows_builtin(client, tmp_path: P
 
 
 def test_get_sub_agents_load_builtin_false(client):
-    """Disabling built-ins with no other source yields an empty catalog."""
+    """禁用没有其他源的内置程序会产生一个空目录。"""
     response = client.post(
         "/api/sub-agents",
         json={"load_builtin": False, "load_user": False, "load_project": False},
@@ -78,7 +78,7 @@ def test_get_sub_agents_load_builtin_false(client):
 
 
 def test_get_sub_agents_exposes_full_frontmatter(client, tmp_path: Path):
-    """Every frontmatter-settable field is returned (lossless view)."""
+    """返回每个前置元数据-可设置字段（无损视图）。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "full.md").write_text(
@@ -115,8 +115,9 @@ def test_get_sub_agents_exposes_full_frontmatter(client, tmp_path: Path):
     assert agent["max_iteration_per_run"] == 7
     assert agent["max_budget_per_run"] == 1.5
     assert agent["profile_store_dir"] == "/tmp/profiles"
-    # ``enabled`` defaults to True and MCPServer's compact serializer only drops
-    # empty values, so the flag is always reported even when frontmatter omits it.
+    # ``enabled`` 默认为 True，MCPServer 的紧凑序列化器只会丢弃空值，因此标志总是报告，
+    # 即使前置元数据也忽略它。
+    #
     assert agent["mcp_config"] == {
         "fetch": {
             "command": "uvx",
@@ -128,15 +129,15 @@ def test_get_sub_agents_exposes_full_frontmatter(client, tmp_path: Path):
             "enabled": True,
         }
     }
-    # condenser: none -> a NoOpCondenser is serialized (not null)
+    # 上下文压缩器：None -> a NoOpCondenser 是已序列化 （不是 null）
     assert agent["condenser"] is not None
-    # unknown frontmatter keys are preserved in metadata
+    # 未知的前置元数据键保留在元数据中
     assert agent["metadata"]["custom_key"] == "custom_value"
 
 
 @pytest.mark.parametrize("enable_browser", [True, False])
 def test_get_sub_agents_follows_the_browser_setting(enable_browser: bool):
-    """The browser-only web-researcher is listed only while the browser is enabled."""
+    """仅当浏览器启用时才会列出仅限浏览器的网络研究人员。"""
     config = Config(session_api_keys=[], enable_browser=enable_browser)
     client = TestClient(create_app(config), raise_server_exceptions=False)
 

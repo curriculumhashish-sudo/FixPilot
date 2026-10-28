@@ -1,4 +1,4 @@
-"""Run the deterministic stdio MCP test server."""
+"""运行确定性 stdio MCP 测试服务器。"""
 
 from typing import Annotated
 
@@ -17,7 +17,7 @@ def fetch(
         Field(description="Maximum number of characters to return."),
     ] = 5000,
 ) -> str:
-    """Fetch a URL."""
+    """获取 URL。"""
     result = f"Fetched {url}"
     return result[:max_length]
 

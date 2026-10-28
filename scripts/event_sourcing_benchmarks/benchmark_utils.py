@@ -1,4 +1,4 @@
-"""Shared utilities for event-sourcing benchmarks."""
+"""用于事件溯源的共享实用程序基准测试。"""
 
 import json
 import os
@@ -6,7 +6,7 @@ import tarfile
 
 
 def extract_conversation(tarpath: str, dest: str) -> str | None:
-    """Extract a conversation .tar.gz and return the events/ dir path."""
+    """提取对话 .tar.gz 并返回 events/ dir 路径。"""
     with tarfile.open(tarpath, "r:gz") as tf:
         tf.extractall(dest, filter="data")
     for root, _, _ in os.walk(dest):
@@ -16,9 +16,9 @@ def extract_conversation(tarpath: str, dest: str) -> str | None:
 
 
 def read_event_files(events_dir: str) -> list[dict]:
-    """Read all event JSON files.
+    """读取所有事件 JSON 文件。
 
-    Returns list of dicts with keys: filename, json_str, size_bytes, kind.
+    返回带有键的字典列表：文件名、json_str、size_bytes、种类。
     """
     files = sorted(f for f in os.listdir(events_dir) if f.endswith(".json"))
     result = []
@@ -42,9 +42,8 @@ def read_event_files(events_dir: str) -> list[dict]:
 
 
 def register_tool_types() -> None:
-    """Import concrete tool classes to register them in the
-    ToolDefinition discriminated union, enabling deserialization
-    of real evaluation events that reference these tools.
+    """导入具体的工具类，将它们注册到
+    ToolDefinition 歧视联盟，启用反序列化引用这些工具的真实评估事件。
     """
     import openhands.tools.file_editor  # noqa: F401
     import openhands.tools.task_tracker  # noqa: F401

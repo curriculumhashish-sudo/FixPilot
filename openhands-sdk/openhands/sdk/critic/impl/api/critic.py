@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def _format_feature_list(features: list[dict[str, Any]]) -> str:
-    """Format a list of features with their probabilities."""
+    """格式化特征列表及其概率。"""
     if not features:
         return "None detected"
     items = []
@@ -60,7 +60,7 @@ class APIBasedCritic(CriticBase, CriticClient):
         events: Sequence[LLMConvertibleEvent],
         git_patch: str | None = None,  # noqa: ARG002
     ) -> CriticResult:
-        # Local imports to avoid circular dependencies during module load
+        # 本地导入以避免模块加载期间的循环依赖
         from openhands.sdk.context.view import View
         from openhands.sdk.event import LLMConvertibleEvent, SystemPromptEvent
 
@@ -81,18 +81,18 @@ class APIBasedCritic(CriticBase, CriticClient):
                 "Ensure your agent configuration includes tool definitions."
             )
 
-        # This will only retain events that are kept by the condenser
+        # 这只会保留上下文压缩器保留的事件
         view = View.from_events(events)
         llm_convertible_events = view.events
 
-        # Convert events to messages
+        # 将事件转换为消息
         messages = LLMConvertibleEvent.events_to_messages(llm_convertible_events)
 
-        # Serialize messages to dicts for API
+        # 序列化向 API 的词典发送消息
         formatted_messages = [
             message.to_chat_dict(
                 cache_enabled=False,
-                vision_enabled=False,  # Critic does not support vision currently
+                vision_enabled=False,  # Critic 目前不支持愿景
                 function_calling_enabled=True,
                 force_string_serializer=False,
                 send_reasoning_content=False,
@@ -100,7 +100,7 @@ class APIBasedCritic(CriticBase, CriticClient):
             for message in messages
         ]
 
-        # Convert ToolDefinition objects to ChatCompletionToolParam format
+        # 将 ToolDefinition 对象转换为 ChatCompletionToolParam 格式
         tools_for_api = [tool.to_openai_tool() for tool in tools]
         response = self.classify_trace(formatted_messages, tools_for_api)
         prob_map = self.extract_prob_map(response)
@@ -113,14 +113,14 @@ class APIBasedCritic(CriticBase, CriticClient):
         score = prob_map.probs["success"]
         explanation.append(f"Success: {score:.2f}")
 
-        # Add top labels to explanation
+        # 添加顶部标签以进行解释
         sorted_probs = sorted(prob_map.probs.items(), key=lambda x: x[1], reverse=True)
         explanation.append(json.dumps(dict(sorted_probs)))
 
-        # Collect event IDs for reproducibility
+        # 收集事件 ID 以实现可重复性
         event_ids = [event.id for event in llm_convertible_events]
 
-        # Categorize features for visualization
+        # 对可视化特征进行分类
         categorized = categorize_features(prob_map.probs)
 
         return CriticResult(
@@ -133,7 +133,7 @@ class APIBasedCritic(CriticBase, CriticClient):
         )
 
     def should_refine(self, critic_result: CriticResult) -> bool:
-        """Use API critic taxonomy signals in addition to the score threshold."""
+        """除了分数阈值之外，还使用 API 批评者分类信号。"""
         if super().should_refine(critic_result):
             return True
         if self.iterative_refinement is None:
@@ -144,18 +144,17 @@ class APIBasedCritic(CriticBase, CriticClient):
         )
 
     def get_followup_prompt(self, critic_result: CriticResult, iteration: int) -> str:
-        """Generate a detailed follow-up prompt with rubrics predictions.
+        """使用评分细则预测生成详细的后续提示词。
 
-        This override provides more detailed feedback than the base class,
-        including all categorized features (agent behavioral issues,
-        user follow-up patterns, infrastructure issues) with their probabilities.
+        此重写提供了比基类更详细的反馈，包括所有分类特征（智能体行为问题，用户跟进模
+        式，基础设施问题）及其概率。
 
         Args:
-            critic_result: The critic result from the previous iteration.
-            iteration: The current iteration number (1-indexed).
+            critic_result: 批评家的结果来自上一次迭代。
+            iteration: 当前迭代次数（1-索引）。
 
         Returns:
-            A detailed follow-up prompt string with rubrics predictions.
+            带有标题预测的详细后续提示词字符串。
         """
         score_percent = critic_result.score * 100
         lines = [
@@ -164,31 +163,31 @@ class APIBasedCritic(CriticBase, CriticClient):
             "",
         ]
 
-        # Extract detailed rubrics from categorized features
+        # 从分类特征中提取详细的量规
         if critic_result.metadata and "categorized_features" in critic_result.metadata:
             categorized = critic_result.metadata["categorized_features"]
 
-            # Agent behavioral issues
+            # 智能体行为问题
             agent_issues = categorized.get("agent_behavioral_issues", [])
             if agent_issues:
                 lines.append(
                     f"Potential agent issues: {_format_feature_list(agent_issues)}"
                 )
 
-            # User follow-up patterns (predicted)
+            # 用户跟进模式（预测）
             user_patterns = categorized.get("user_followup_patterns", [])
             if user_patterns:
                 formatted = _format_feature_list(user_patterns)
                 lines.append(f"Predicted user follow-up needs: {formatted}")
 
-            # Infrastructure issues
+            # 基础设施问题
             infra_issues = categorized.get("infrastructure_issues", [])
             if infra_issues:
                 lines.append(
                     f"Infrastructure issues: {_format_feature_list(infra_issues)}"
                 )
 
-            # Other metrics
+            # 其他指标
             other = categorized.get("other", [])
             if other:
                 lines.append(f"Other observations: {_format_feature_list(other)}")

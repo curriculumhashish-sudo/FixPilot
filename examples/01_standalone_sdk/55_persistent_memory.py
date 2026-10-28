@@ -1,21 +1,21 @@
-"""Opt-in persistent memory across sessions (two-tier ``MEMORY.md``).
+"""选择跨会话持久内存（两层 ``MEMORY.md``）。
 
-With ``AgentContext(load_memory=True)`` a conversation loads the ``MEMORY.md``
-indexes from ``~/.openhands/memory/`` (user tier) and
-``<workspace>/.openhands/memory/`` (project tier) into the system prompt at
-session start (the ``<MEMORY_CONTEXT>`` block), and the system prompt
-instructs the agent to maintain those files as it works.
+对于 ``AgentContext(load_memory=True)``，对话会从 ``~/.openhands/memory/``（用户层）
+加载
+``MEMORY.md`` 索引，并且
+``<workspace>/.openhands/memory/``（项目层）在会话开始时（``<MEMORY_CONTEXT>`` 块）进
+入系统提示词，系统提示词指示智能
+体在工作时维护这些文件。
 
-This example runs two conversations over the same workspace:
+此示例在同一工作区上运行两个对话：
 
-1. Session 1 asks the agent to record a project decision in its persistent
-   project memory -- the agent writes ``.openhands/memory/MEMORY.md`` itself.
-2. Session 2 is a brand-new conversation: the saved memory is injected into
-   its system prompt automatically, so the agent already knows the decision
-   without being told again.
+1. 会话 1 要求智能体在其持久项目内存中记录项目决策 - 智能体写入
+``.openhands/memory/MEMORY.md`` 本身。
+2. Session 2 是一场全新的对话：保存的记忆注入到系统中提示词 automatically, so the 智
+能体他已经知道决定，无需再被告知。
 
-Memory is opt-in and off by default. The example only writes inside a
-temporary workspace; the user tier under ``~`` is left untouched.
+默认情况下，内存处于选择加入和关闭状态。 该示例仅在临时工作区内写入； ``~``下的用户层
+保持不变。
 """
 
 import os
@@ -33,7 +33,7 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -47,9 +47,9 @@ llm = LLM(
 
 tools = [Tool(name=TerminalTool.name), Tool(name=FileEditorTool.name)]
 
-# Opt in to persistent memory. Everything else is automatic: the conversation
-# resolves the MEMORY.md indexes at session start, and the system prompt tells
-# the agent how to maintain them.
+# 选择持久内存。 其他一切都是自动的：对话在会话开始时解析 MEMORY.md 记录，并且系统提示词
+# 告诉智能体如何维护它们。
+#
 agent_context = AgentContext(load_memory=True)
 
 with tempfile.TemporaryDirectory() as workspace:
@@ -84,8 +84,9 @@ with tempfile.TemporaryDirectory() as workspace:
     )
     conversation.run()
 
-    # The recorded memory was injected into session 2's system prompt as the
-    # <MEMORY_CONTEXT> block -- show it to make the mechanism visible.
+    # 记录的内存被注入到会话 2 的系统提示词作为 <MEMORY_CONTEXT> 块 - 显示它以使机制可见
+    # 。
+    #
     system_prompt_event = next(
         event
         for event in conversation.state.events
@@ -100,6 +101,6 @@ with tempfile.TemporaryDirectory() as workspace:
     )
     conversation.close()
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

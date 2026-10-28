@@ -30,8 +30,9 @@ class _CompletionSource(Protocol):
 
 
 class _GenericOutputItemEvent(BaseModel):
-    # Pydantic extras are exposed dynamically, so runtime Protocol checks
-    # cannot see them on Python 3.12+. Project only the fields we consume.
+    # Pydantic 额外内容是动态公开的，因此运行时协议检查无法在 Python 3.12+ 上看到它们。
+    # 仅投影我们消耗的字段。
+    #
     model_config = ConfigDict(from_attributes=True)
 
     type: str = ""

@@ -8,21 +8,20 @@ logger = get_logger(__name__)
 
 
 class LLMSecurityAnalyzer(SecurityAnalyzerBase):
-    """LLM-based security analyzer.
+    """LLM基于安全分析器。
 
-    This analyzer respects the security_risk attribute that can be set by the LLM
-    when generating actions, similar to OpenHands' LLMRiskAnalyzer.
+    该分析器会尊重security_risk属性，该属性可以在生成动作时由LLM设置，类似于OpenHands
+    的LLMRiskAnalyzer。
 
-    It provides a lightweight security analysis approach that leverages the LLM's
-    understanding of action context and potential risks.
+    它提供了一种轻量级安全分析方法，利用 LLM 对操作上下文和潜在风险的理解。
     """
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Evaluate security risk based on LLM-provided assessment.
+        """根据 LLM 提供的评估来评估安全风险。
 
-        This method checks if the action has a security_risk attribute set by the LLM
-        and returns it. The LLM may not always provide this attribute but it defaults to
-        UNKNOWN if not explicitly set.
+        此方法检查操作是否具有由 LLM 设置的 security_risk 属性并返回它。 LLM 可能并不
+        总是提供此属性，但如果未明确设置，则默认为
+        UNKNOWN。
         """
         logger.debug(f"Analyzing security risk: {action} -- {action.security_risk}")
 

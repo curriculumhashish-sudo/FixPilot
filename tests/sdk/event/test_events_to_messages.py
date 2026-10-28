@@ -1,4 +1,4 @@
-"""Tests for events_to_messages conversion in openhands-sdk/event/base.py."""  # type: ignore
+"""测试 for events_to_messages 转换操作 openhands-sdk/event/base.py."""  # type: ignore
 
 import json
 from collections.abc import Sequence
@@ -27,13 +27,13 @@ from openhands.sdk.tool import Action, Observation
 
 
 class EventsToMessagesMockAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str
 
 
 class EventsToMessagesMockObservation(Observation):
-    """Mock observation for testing."""
+    """模拟对象观测结果用于测试。"""
 
     result: str
 
@@ -45,7 +45,7 @@ class EventsToMessagesMockObservation(Observation):
 def create_tool_call(
     call_id: str, function_name: str, arguments: dict
 ) -> MessageToolCall:
-    """Helper to create a MessageToolCall."""
+    """创建 MessageToolCall 的帮助程序。"""
     return MessageToolCall(
         id=call_id,
         name=function_name,
@@ -61,7 +61,7 @@ def create_action_event(
     llm_response_id: str,
     action_args: dict,
 ) -> ActionEvent:
-    """Helper to create an ActionEvent."""
+    """创建 ActionEvent 的帮助程序。"""
     action = EventsToMessagesMockAction(command=action_args.get("command", "test"))
     tool_call = create_tool_call(tool_call_id, tool_name, action_args)
 
@@ -77,16 +77,16 @@ def create_action_event(
 
 
 class TestEventsToMessages:
-    """Test cases for events_to_messages function."""
+    """测试用例代表 events_to_messages 功能。"""
 
     def test_empty_events_list(self):
-        """Test conversion of empty events list."""
+        """测试空事件列表的转换。"""
         events = []
         messages = LLMConvertibleEvent.events_to_messages(events)
         assert messages == []
 
     def test_single_message_event(self):
-        """Test conversion of single MessageEvent."""
+        """测试单MessageEvent的转换。"""
         message_event = MessageEvent(
             source="user",
             llm_message=Message(
@@ -104,7 +104,7 @@ class TestEventsToMessages:
         assert messages[0].content[0].text == "Hello, how are you?"
 
     def test_consecutive_user_message_events_are_merged(self):
-        """Synthetic user context should not create adjacent user turns."""
+        """合成用户上下文不应创建相邻的用户回合。"""
         user_message = MessageEvent(
             source="user",
             llm_message=Message(
@@ -141,7 +141,7 @@ class TestEventsToMessages:
         ]
 
     def test_user_message_merge_cascades_across_three_events(self):
-        """A merged message stays a plain user turn, so the merge cascades."""
+        """合并的消息保持普通用户轮流，因此合并是级联的。"""
         first = MessageEvent(
             source="user",
             llm_message=Message(role="user", content=[TextContent(text="one")]),
@@ -166,7 +166,7 @@ class TestEventsToMessages:
         ] == ["one", "two", "three"]
 
     def test_user_message_merge_preserves_mixed_content_order(self):
-        """Merged content concatenates in log order, text and images alike."""
+        """合并的内容按日志顺序、文本和图像等方式连接。"""
         text_first = MessageEvent(
             source="user",
             llm_message=Message(
@@ -191,12 +191,11 @@ class TestEventsToMessages:
         ]
 
     def test_condensation_summary_merges_with_adjacent_user_message(self):
-        """A summary event converts to a plain user message, so it coalesces.
+        """摘要事件转换为普通用户消息，因此它会合并。
 
-        The summarizing condenser inserts the summary where the forgotten
-        block began (summary_offset == forgetting_start), and the kept suffix
-        can legally begin with a user message — so this adjacency is
-        reachable, and the fusion erases the summary's structural boundary.
+        上下文压缩器插入了总结，从 summary_offset == forgetting_start 处开始，而保留
+        的后缀可以合法以用户消息开头，因此这种相邻关
+        系是可达的，融合会抹去总结的结构边界。
         """
         summary_event = CondensationSummaryEvent(
             summary="Earlier we refactored the module."
@@ -220,7 +219,7 @@ class TestEventsToMessages:
         ] == ["Earlier we refactored the module.", "Now continue."]
 
     def test_user_messages_with_tool_call_id_not_merged(self):
-        """Tool-result user messages must not be coalesced."""
+        """工具结果用户消息不得合并。"""
         result = MessageEvent(
             source="user",
             llm_message=Message(
@@ -242,7 +241,7 @@ class TestEventsToMessages:
         assert len(messages) == 2
 
     def test_user_messages_with_tool_calls_not_merged(self):
-        """User messages containing tool calls must not be coalesced."""
+        """不得合并包含工具调用的用户消息。"""
         tool_msg = MessageEvent(
             source="user",
             llm_message=Message(
@@ -271,7 +270,7 @@ class TestEventsToMessages:
         assert len(messages) == 2
 
     def test_user_messages_with_name_not_merged(self):
-        """Named user messages must not be coalesced."""
+        """命名用户消息不得合并。"""
         named = MessageEvent(
             source="user",
             llm_message=Message(
@@ -293,7 +292,7 @@ class TestEventsToMessages:
         assert len(messages) == 2
 
     def test_mixed_role_messages_not_merged(self):
-        """Messages with different roles must not be coalesced."""
+        """具有不同角色的消息不得合并。"""
         assistant_msg = MessageEvent(
             source="agent",
             llm_message=Message(
@@ -316,7 +315,7 @@ class TestEventsToMessages:
         assert messages[1].role == "user"
 
     def test_single_action_event(self):
-        """Test conversion of single ActionEvent."""
+        """测试单ActionEvent的转换。"""
         action_event = create_action_event(
             thought_text="I need to run a command",
             tool_name="terminal",
@@ -339,13 +338,14 @@ class TestEventsToMessages:
         assert messages[0].tool_calls[0].name == "terminal"
 
     def test_parallel_function_calling_same_response_id(self):
-        """Test parallel function calling with multiple ActionEvents having same ID.
+        """使用具有相同 ID 的多个 ActionEvents 测试并行函数调用。
 
-        This simulates the scenario from LiteLLM docs where the model makes multiple
-        function calls in parallel (e.g., getting weather for multiple cities).
+        这模拟了LiteLLM文档中的场景，其中模型在并行下执行多个函数调用(e.g.，获取多个
+        城市的天气预报)。
         """
-        # Create multiple ActionEvents with same llm_response_id
-        # First event has thought, others should have empty thought
+        # 使用相同的 llm_response_id 创建多个 ActionEvents 第一个事件有思想，其他事件应
+        # 该有空的思想
+        #
         action1 = create_action_event(
             thought_text="I need to get weather for multiple cities",
             tool_name="get_current_weather",
@@ -356,7 +356,7 @@ class TestEventsToMessages:
 
         action2 = ActionEvent(
             source="agent",
-            thought=[],  # Empty thought for subsequent actions in parallel call
+            thought=[],  # 对并行调用中后续操作的空想
             action=EventsToMessagesMockAction(command="test"),
             tool_name="get_current_weather",
             tool_call_id="call_Tokyo",
@@ -370,7 +370,7 @@ class TestEventsToMessages:
 
         action3 = ActionEvent(
             source="agent",
-            thought=[],  # Empty thought for subsequent actions in parallel call
+            thought=[],  # 对并行调用中后续操作的空想
             action=EventsToMessagesMockAction(command="test"),
             tool_name="get_current_weather",
             tool_call_id="call_Paris",
@@ -385,36 +385,35 @@ class TestEventsToMessages:
         events = cast(list[LLMConvertibleEvent], [action1, action2, action3])
         messages = LLMConvertibleEvent.events_to_messages(events)
 
-        # Should combine into single assistant message with multiple tool_calls
+        # 应与多个 tool_calls 合并为单个助理消息
         assert len(messages) == 1
         assert messages[0].role == "assistant"
 
-        # Content should come from first event's thought
+        # 内容应该来自第一个事件的想法
         assert len(messages[0].content) == 1
         assert isinstance(messages[0].content[0], TextContent)
         assert (
             messages[0].content[0].text == "I need to get weather for multiple cities"
         )
 
-        # Should have all three tool calls
+        # 应该具备全部三个工具调用
         tool_calls = messages[0].tool_calls
         assert tool_calls is not None
         assert len(tool_calls) == 3
 
-        # Verify tool call details
-        # Exact sequence, not membership: order within the batch is log order.
+        # 验证工具调用详细信息确切的顺序，而不是成员身份：批次内的顺序是日志顺序。
+        #
         assert [tc.id for tc in tool_calls] == ["call_SF", "call_Tokyo", "call_Paris"]
 
-        # All should be weather function calls
+        # 全部应该是天气函数调用
         for tool_call in tool_calls:
             assert tool_call.name == "get_current_weather"
 
     def test_parallel_batch_preserves_first_event_reasoning(self):
-        """The combined message keeps the first event's reasoning state.
+        """组合消息保留第一个事件的推理状态。
 
-        ThinkingBlock's own docstring requires these blocks be preserved and
-        passed back to the API for tool use scenarios — so a batched message
-        must carry them exactly like a singleton does.
+        ThinkingBlock的自身文档字符串要求这些块必须保留并传递给API用于工具使用场景——
+        因此，批量消息必须像单例一样精确地携带它们。
         """
         first = ActionEvent(
             source="agent",
@@ -447,7 +446,7 @@ class TestEventsToMessages:
         assert combined.thinking_blocks[0].thinking == "let me think"  # type: ignore
 
     def test_parallel_batch_preserves_responses_reasoning_item(self):
-        """A singleton keeps its responses reasoning item; a batch must too."""
+        """单例保留其响应推理项； 也必须有一批。"""
         first = ActionEvent(
             source="agent",
             thought=[TextContent(text="batching two calls")],
@@ -475,13 +474,13 @@ class TestEventsToMessages:
 
         assert len(messages) == 1
         combined = messages[0]
-        # Whole-item equality, not just the id — future field loss fails here.
+        # 整个项目平等，而不仅仅是 id — 未来字段损失在这里失败。
         assert combined.responses_reasoning_item == ReasoningItemModel(
             id="rs_1", summary=["reasoned about the batch"]
         )
 
     def test_multiple_separate_action_events(self):
-        """Test multiple ActionEvents with different response_ids (separate calls)."""
+        """使用不同的 response_ids 测试多个 ActionEvents（单独的调用）。"""
         action1 = create_action_event(
             thought_text="First command",
             tool_name="terminal",
@@ -501,7 +500,7 @@ class TestEventsToMessages:
         events = [action1, action2]
         messages = LLMConvertibleEvent.events_to_messages(events)  # type: ignore
 
-        # Should create separate messages for different response IDs
+        # 应为不同的响应 ID 创建单独的消息
         assert len(messages) == 2
 
         assert messages[0].role == "assistant"
@@ -513,13 +512,13 @@ class TestEventsToMessages:
         assert messages[1].tool_calls[0].id == "call_2"  # type: ignore
 
     def test_mixed_event_types(self):
-        """Test conversion of mixed event types in sequence."""
-        # System prompt
+        """按顺序测试混合事件类型的转换。"""
+        # 系统提示词
         system_event = SystemPromptEvent(
             system_prompt=TextContent(text="You are a helpful assistant."), tools=[]
         )
 
-        # User message
+        # 用户留言
         user_message = MessageEvent(
             source="user",
             llm_message=Message(
@@ -527,7 +526,7 @@ class TestEventsToMessages:
             ),
         )
 
-        # Action event
+        # 动作事件
         action_event = create_action_event(
             thought_text="I'll check the weather",
             tool_name="get_weather",
@@ -536,7 +535,7 @@ class TestEventsToMessages:
             action_args={"location": "current"},
         )
 
-        # Observation event
+        # 观测结果活动
         observation_event = ObservationEvent(
             source="environment",
             observation=EventsToMessagesMockObservation(result="Sunny, 72°F"),
@@ -550,28 +549,28 @@ class TestEventsToMessages:
 
         assert len(messages) == 4
 
-        # System message
+        # 系统消息
         assert messages[0].role == "system"
         assert messages[0].content[0].text == "You are a helpful assistant."  # type: ignore
 
-        # User message
+        # 用户留言
         assert messages[1].role == "user"
         assert messages[1].content[0].text == "What's the weather like?"  # type: ignore
 
-        # Assistant message with tool call
+        # 助理消息工具调用
         assert messages[2].role == "assistant"
         assert messages[2].content[0].text == "I'll check the weather"  # type: ignore
         assert messages[2].tool_calls is not None
         assert messages[2].tool_calls[0].id == "call_weather"  # type: ignore
 
-        # Tool response
+        # 工具响应
         assert messages[3].role == "tool"
         assert messages[3].content[0].text == "Sunny, 72°F"  # type: ignore
         assert messages[3].tool_call_id == "call_weather"
         assert messages[3].name == "get_weather"
 
     def test_agent_error_event(self):
-        """Test conversion of AgentErrorEvent."""
+        """测试 AgentErrorEvent 的转换。"""
         error_event = AgentErrorEvent(
             error="Command failed with exit code 1",
             tool_call_id="call_err",
@@ -586,8 +585,8 @@ class TestEventsToMessages:
         assert messages[0].content[0].text == "Command failed with exit code 1"  # type: ignore
 
     def test_complex_parallel_and_sequential_mix(self):
-        """Test complex scenario with both parallel and sequential function calls."""
-        # First: User message
+        """使用并行和顺序函数调用测试复杂场景。"""
+        # 第一：用户留言
         user_msg = MessageEvent(
             source="user",
             llm_message=Message(
@@ -598,7 +597,7 @@ class TestEventsToMessages:
             ),
         )
 
-        # Second: Parallel weather calls (same response_id)
+        # 第二：并行天气调用（同response_id）
         weather_sf = create_action_event(
             thought_text="I'll get weather for both cities in parallel",
             tool_name="get_weather",
@@ -609,7 +608,7 @@ class TestEventsToMessages:
 
         weather_nyc = ActionEvent(
             source="agent",
-            thought=[],  # Empty for parallel call
+            thought=[],  # 并行调用时为空
             action=EventsToMessagesMockAction(command="test"),
             tool_name="get_weather",
             tool_call_id="call_nyc_weather",
@@ -619,7 +618,7 @@ class TestEventsToMessages:
             llm_response_id="parallel_weather",
         )
 
-        # Third: Weather observations
+        # 第三：天气观测结果
         obs_sf = ObservationEvent(
             source="environment",
             observation=EventsToMessagesMockObservation(result="SF: Sunny, 65°F"),
@@ -636,7 +635,7 @@ class TestEventsToMessages:
             tool_call_id="call_nyc_weather",
         )
 
-        # Fourth: Separate file listing call (different response_id)
+        # 第四：单独文件列表调用（不同response_id）
         list_files = create_action_event(
             thought_text="Now I'll list the files",
             tool_name="terminal",
@@ -650,10 +649,10 @@ class TestEventsToMessages:
 
         assert len(messages) == 5
 
-        # User message
+        # 用户留言
         assert messages[0].role == "user"
 
-        # Combined parallel weather calls
+        # 联合并行天气呼叫
         assert messages[1].role == "assistant"
         assert (
             messages[1].content[0].text  # type: ignore
@@ -661,20 +660,20 @@ class TestEventsToMessages:
         )
         assert len(messages[1].tool_calls) == 2  # type: ignore
 
-        # Weather observations
+        # 天气观测结果
         assert messages[2].role == "tool"
         assert messages[2].tool_call_id == "call_sf_weather"
         assert messages[3].role == "tool"
         assert messages[3].tool_call_id == "call_nyc_weather"
 
-        # Separate file listing call
+        # 单独的文件列表调用
         assert messages[4].role == "assistant"
         assert messages[4].content[0].text == "Now I'll list the files"  # type: ignore
         assert len(messages[4].tool_calls) == 1  # type: ignore
         assert messages[4].tool_calls[0].id == "call_ls"  # type: ignore
 
     def test_assertion_error_for_non_empty_thought_in_parallel_calls(self):
-        """Test assertion error for non-empty thought in subsequent parallel calls."""
+        """在后续并行调用中测试非空思想的断言错误。"""
         action1 = create_action_event(
             thought_text="First thought",
             tool_name="get_weather",
@@ -683,10 +682,10 @@ class TestEventsToMessages:
             action_args={"location": "SF"},
         )
 
-        # This should cause assertion error - non-empty thought in subsequent call
+        # 这应该会导致断言错误 - 后续调用中的非空思想
         action2 = ActionEvent(
             source="agent",
-            thought=[TextContent(text="This should not be here!")],  # Non-empty thought
+            thought=[TextContent(text="This should not be here!")],  # 非空念
             action=EventsToMessagesMockAction(command="test"),
             tool_name="get_weather",
             tool_call_id="call_2",
@@ -703,7 +702,7 @@ class TestEventsToMessages:
             LLMConvertibleEvent.events_to_messages(events)  # type: ignore
 
     def test_action_event_with_none_action_round_trip_and_observation_match(self):
-        """Test ActionEvent with action=None round trip and observation match."""
+        """使用 action=None 往返和观测结果匹配测试 ActionEvent。"""
         thought = [TextContent(text="thinking...")]
         tc = create_tool_call("call_ne", "missing_tool", {"x": 1})
         action_event = ActionEvent(
@@ -716,7 +715,7 @@ class TestEventsToMessages:
             action=None,
         )
 
-        # Convert to messages and ensure assistant message has single tool_call
+        # 转换为消息并确保助理消息具有单个 tool_call
         messages = LLMConvertibleEvent.events_to_messages([action_event])
         assert len(messages) == 1
         assert messages[0].role == "assistant"
@@ -724,7 +723,7 @@ class TestEventsToMessages:
         assert messages[0].tool_calls[0].id == "call_ne"
         assert messages[0].tool_calls[0].name == "missing_tool"
 
-        # Simulate an AgentErrorEvent that carries the same tool_call_id
+        # 模拟带有相同 tool_call_id 的 AgentErrorEvent
         err = AgentErrorEvent(
             error="not found",
             tool_call_id="call_ne",
@@ -732,7 +731,7 @@ class TestEventsToMessages:
         )
 
         msgs = LLMConvertibleEvent.events_to_messages([action_event, err])
-        # Should produce two messages: assistant tool call + tool error
+        # 应该产生两条消息：assistant 工具调用 + tool error
         assert len(msgs) == 2
         assert msgs[0].role == "assistant"
         assert msgs[1].role == "tool"

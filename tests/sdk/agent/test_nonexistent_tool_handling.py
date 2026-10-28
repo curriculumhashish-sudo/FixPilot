@@ -1,4 +1,4 @@
-"""Test agent behavior when calling non-existent tools."""
+"""测试调用不存在的工具时的智能体行为。"""
 
 from unittest.mock import patch
 
@@ -19,9 +19,9 @@ from openhands.sdk.llm import LLM, Message, TextContent
 
 
 def test_nonexistent_tool_returns_error_and_continues_conversation():
-    """Test that calling a non-existent tool returns AgentErrorEvent and continues conversation."""  # noqa: E501
+    """测试调用不存在的工具是否返回 AgentErrorEvent 并继续对话。"""  # noqa: E501
 
-    # Create a simple agent with no custom tools (only built-in ones)
+    # 创建一个简单的智能体，没有自定义工具（只有内置工具）
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -30,9 +30,9 @@ def test_nonexistent_tool_returns_error_and_continues_conversation():
     )
     agent = Agent(llm=llm, tools=[])
 
-    # Mock LLM responses
+    # 模拟对象 LLM 条回复
     def mock_llm_response(messages, **kwargs):
-        # First response: Agent tries to call a non-existent tool
+        # 第一个响应：智能体尝试调用不存在的工具
         return ModelResponse(
             id="mock-response-1",
             choices=[
@@ -60,19 +60,19 @@ def test_nonexistent_tool_returns_error_and_continues_conversation():
             object="chat.completion",
         )
 
-    # Collect events from the conversation
+    # 从对话中收集事件
     collected_events = []
 
     def event_callback(event):
         collected_events.append(event)
 
-    # Create conversation and run with mocked LLM
+    # 创建对话并使用模拟的 LLM 运行
     conversation = Conversation(agent=agent, callbacks=[event_callback])
 
     with patch(
         "openhands.sdk.llm.llm.litellm_completion", side_effect=mock_llm_response
     ):
-        # Send a message to start the conversation
+        # 发送消息以开始对话
         conversation.send_message(
             Message(
                 role="user",
@@ -80,10 +80,10 @@ def test_nonexistent_tool_returns_error_and_continues_conversation():
             )
         )
 
-        # Run one step to trigger the tool call
+        # 运行一步即可触发工具调用
         agent.step(conversation, on_event=event_callback)
 
-    # Verify that an AgentErrorEvent was generated
+    # 验证是否生成了 AgentErrorEvent
     error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
     assert len(error_events) == 1, (
         f"Expected 1 AgentErrorEvent, got {len(error_events)}"
@@ -95,13 +95,13 @@ def test_nonexistent_tool_returns_error_and_continues_conversation():
     assert error_event.tool_name == "nonexistent_tool"
     assert error_event.tool_call_id == "call_1"
 
-    # Verify that the conversation is NOT finished (this is the key fix)
+    # 验证对话是否已不完成（这是关键修复）
     with conversation.state:
         assert (
             conversation.state.execution_status != ConversationExecutionStatus.FINISHED
         ), "Agent should not be finished after encountering non-existent tool"
 
-    # Verify that the error event is properly formatted for LLM
+    # 验证 LLM 的错误事件格式是否正确
     llm_message = error_event.to_llm_message()
     assert llm_message.role == "tool"
     assert llm_message.tool_call_id == "call_1"
@@ -112,18 +112,18 @@ def test_nonexistent_tool_returns_error_and_continues_conversation():
 
 
 def test_nonexistent_tool_error_includes_available_tools():
-    """Test that the error message includes available tools."""
+    """测试错误消息是否包含可用的工具。"""
 
-    # Create agent with some tools
+    # 使用一些工具创建智能体
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
         api_key=SecretStr("test-key"),
         base_url="http://test",
     )
-    agent = Agent(llm=llm, tools=[])  # Only built-in tools
+    agent = Agent(llm=llm, tools=[])  # 仅内置工具
 
-    # Mock LLM response that calls non-existent tool
+    # 模拟对象 LLM 调用不存在的工具的响应
     def mock_llm_response(messages, **kwargs):
         return ModelResponse(
             id="mock-response-1",
@@ -170,24 +170,24 @@ def test_nonexistent_tool_error_includes_available_tools():
         )
         agent.step(conversation, on_event=event_callback)
 
-    # Find the error event
+    # 查找错误事件
     error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
     assert len(error_events) == 1
 
     error_event = error_events[0]
 
-    # Verify error message includes available tools
+    # 验证错误消息是否包含可用的工具
     assert "missing_tool" in error_event.error
     assert "not found" in error_event.error
     assert "Available:" in error_event.error
 
-    # Should include built-in tools like 'finish' and 'think'
+    # 应包括“完成”和“思考”等内置工具
     assert "finish" in error_event.error
     assert "think" in error_event.error
 
 
 def test_conversation_continues_after_tool_error():
-    """Test that conversation can continue after a tool error."""
+    """测试工具错误后对话是否可以继续。"""
 
     llm = LLM(
         usage_id="test-llm",
@@ -204,7 +204,7 @@ def test_conversation_continues_after_tool_error():
         call_count += 1
 
         if call_count == 1:
-            # First call: try non-existent tool
+            # 第一次调用：尝试不存在的工具
             return ModelResponse(
                 id="mock-response-1",
                 choices=[
@@ -232,7 +232,7 @@ def test_conversation_continues_after_tool_error():
                 object="chat.completion",
             )
         else:
-            # Second call: respond with finish tool
+            # 第二次调用：使用完成工具响应
             return ModelResponse(
                 id="mock-response-2",
                 choices=[
@@ -280,24 +280,24 @@ def test_conversation_continues_after_tool_error():
             )
         )
 
-        # Run first step - should generate error
+        # 运行第一步 - 应该生成错误
         agent.step(conversation, on_event=event_callback)
 
-        # Verify we got an error event
+        # 验证我们收到错误事件
         error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
         assert len(error_events) == 1
 
-        # Verify conversation is not finished
+        # 验证对话尚未结束
         with conversation.state:
             assert (
                 conversation.state.execution_status
                 != ConversationExecutionStatus.FINISHED
             )
 
-        # Run second step - should call finish tool
+        # 运行第二步 - 应该调用完成工具
         agent.step(conversation, on_event=event_callback)
 
-        # Verify we got an action event for the finish tool
+        # 验证我们获得了完成工具的操作事件
         action_events = [
             e
             for e in collected_events
@@ -307,12 +307,12 @@ def test_conversation_continues_after_tool_error():
         ]
         assert len(action_events) == 1
 
-        # Now the conversation should be finished
+        # 现在谈话应该结束了
         with conversation.state:
             assert (
                 conversation.state.execution_status
                 == ConversationExecutionStatus.FINISHED
             )
 
-    # Verify we made two LLM calls
+    # 验证我们进行了两次 LLM 调用
     assert call_count == 2

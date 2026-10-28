@@ -66,21 +66,22 @@ from openhands.tools.terminal.definition import TerminalAction, TerminalObservat
 
 @pytest.fixture
 def mock_event_service():
-    """Create a mock EventService with stored conversation data."""
+    """使用存储的对话数据创建模拟对象 EventService。"""
     service = AsyncMock(spec=EventService)
     return service
 
 
-# The agent is no longer stored on meta.json (StoredConversation); it lives in
-# base_state.json (ConversationState). Tests that need an agent to build a state
-# use this helper instead of reading it back off StoredConversation.
+# 智能体不再存储在meta.json（StoredConversation）上； 它位于 base_state.json (
+# ConversationState) 中。 需要智能体来构建状态的测试使用此帮助器，而不是读取它
+# StoredConversation。
+#
 def _sample_agent() -> Agent:
     return Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[])
 
 
 @pytest.fixture
 def sample_stored_conversation():
-    """Create a sample StoredConversation for testing."""
+    """创建样本 StoredConversation 进行测试。"""
     return StoredConversation(
         id=uuid4(),
         workspace=LocalWorkspace(working_dir="workspace/project"),
@@ -94,11 +95,11 @@ def sample_stored_conversation():
 
 @pytest.mark.asyncio
 async def test_meta_json_has_no_agent_and_reload_uses_base_state(tmp_path):
-    """End-to-end single-source-of-truth guarantee.
+    """端到端单一真实来源保证。
 
-    A newly started conversation must persist its agent to base_state.json and
-    NOT to meta.json. A fresh ConversationService (simulating a server restart)
-    must reload the agent from base_state.json.
+    新开始的对话必须持久化其智能体到base_state.json和不到meta.json。 新的
+    ConversationService（模拟服务器重新启动）必须从
+    base_state.json 重新加载智能体。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -115,11 +116,11 @@ async def test_meta_json_has_no_agent_and_reload_uses_base_state(tmp_path):
     conv_dir = conversations_dir / conv_id.hex
     meta = json.loads((conv_dir / "meta.json").read_text())
     base_state = json.loads((conv_dir / "base_state.json").read_text())
-    # meta.json is agent-free; base_state.json owns the agent.
+    # meta.json 是智能体自由的； base_state.json 拥有智能体。
     assert "agent" not in meta
     assert base_state["agent"]["llm"]["model"] == "gpt-4o"
 
-    # A fresh service (restart) reloads the agent from base_state.json.
+    # 全新服务（重新启动）会从 base_state.json 重新加载智能体。
     async with ConversationService(conversations_dir=conversations_dir) as service2:
         reloaded = await service2.get_conversation(conv_id)
         assert reloaded is not None
@@ -128,7 +129,7 @@ async def test_meta_json_has_no_agent_and_reload_uses_base_state(tmp_path):
 
 @pytest.mark.asyncio
 async def test_server_resolved_tool_modules_are_persisted(tmp_path):
-    """A lightweight creator need not import the runtime's tool modules."""
+    """轻量级创建者不需要导入运行时的工具模块。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -152,7 +153,7 @@ async def test_server_resolved_tool_modules_are_persisted(tmp_path):
 
 @pytest.mark.asyncio
 async def test_agent_tool_from_unimportable_module_rejects_create(tmp_path):
-    """The create fails with a client error instead of every message failing."""
+    """创建失败并出现客户端错误，而不是每条消息都失败。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -173,7 +174,7 @@ async def test_agent_tool_from_unimportable_module_rejects_create(tmp_path):
         assert "qa_ghost_tool_missing_module" in str(exc_info.value)
         assert not conversations_dir.exists() or not any(conversations_dir.iterdir())
 
-        # An unimportable module whose tool the agent does not use stays a warning.
+        # 智能体不使用其工具的不可导入模块将保留警告。
         info, is_new = await service.start_conversation(request([]))
         assert is_new and info.id is not None
 
@@ -202,8 +203,8 @@ def _create_running_terminal_action(tool_call_id: str = "call_1") -> ActionEvent
 
 
 def _adopt_saved_meta(mock_service: AsyncMock) -> None:
-    """Make a mocked ``EventService.save_meta(stored)`` adopt ``stored`` the way
-    the real one does once the write succeeds."""
+    """使模拟的``EventService.save_meta(stored)``采用``stored``的方式
+    一旦写入成功，真正的就会执行。"""
 
     async def _save_meta(stored: StoredConversation | None = None) -> None:
         if stored is not None:
@@ -241,13 +242,13 @@ def _init_git_repo(repo_dir: Path) -> None:
 
 @pytest.fixture
 def conversation_service(tmp_path):
-    """Create a ConversationService instance for testing."""
+    """创建一个 ConversationService 实例用于测试。"""
     worktree_root = tmp_path / "conversation-worktrees"
     service = ConversationService(
         conversations_dir=tmp_path / "conversations",
         conversation_worktree_root=worktree_root,
     )
-    # Initialize the _event_services dict to simulate an active service
+    # 初始化 _event_services 字典来模拟活动服务
     service._event_services = {}
     yield service
 
@@ -271,10 +272,10 @@ async def persisted_conversation(tmp_path) -> tuple[Path, UUID]:
 async def test_start_conversation_registers_and_injects_client_tools(
     conversation_service, tmp_path
 ):
-    """client_tools specs are registered, injected into the agent, and persisted.
+    """client_tools 规格已注册，注入到智能体和已持久化中。
 
-    Persistence on ``StoredConversation`` is what allows forks and server
-    restarts to re-register the dynamic client tools.
+    ``StoredConversation`` 上的持久化允许分叉和服务器重新启动以重新注册动态客户端工具
+    。
     """
     from openhands.sdk.tool.client_tool import ClientToolSpec
 
@@ -324,11 +325,11 @@ async def test_start_conversation_registers_and_injects_client_tools(
 
     stored = captured["stored"]
     agent = captured["agent"]
-    # Injected into the agent's tool specs so _initialize() can resolve it
+    # 注入智能体的工具规范，以便 _initialize() 可以解决它
     assert "srv_show_dialog" in {t.name for t in agent.tools}
-    # Persisted so forks / restarts can re-register the dynamic action type
+    # 已持久化所以 forks/restarts 可以重新注册动态操作类型
     assert [s.name for s in stored.client_tools] == ["srv_show_dialog"]
-    # The class is registered in the global tool registry
+    # 该类已在全局工具注册表中注册
     from openhands.sdk.tool.registry import list_registered_tools
 
     assert "srv_show_dialog" in list_registered_tools()
@@ -409,7 +410,7 @@ async def test_start_conversation_decrypts_encrypted_agent_settings_mcp_env(
 
 @pytest.mark.asyncio
 async def test_second_service_does_not_resume_active_running_conversation(tmp_path):
-    """A second service should not attach to a live running conversation."""
+    """第二个服务不应附加到实时运行的对话中。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -514,7 +515,7 @@ async def test_stale_owner_cannot_append_after_lease_takeover(tmp_path):
 
 @pytest.mark.asyncio
 async def test_stale_owner_refused_update_leaves_no_trace(tmp_path):
-    """A metadata update refused for lost ownership changes nothing visible."""
+    """由于失去所有权而拒绝元数据更新不会改变任何可见的内容。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -563,8 +564,8 @@ async def test_stale_owner_refused_update_leaves_no_trace(tmp_path):
 
 @pytest.mark.asyncio
 async def test_event_services_use_centralized_lease_renewal(tmp_path):
-    """Event services created by ConversationService should not spawn
-    their own lease renewal tasks — renewal is handled centrally."""
+    """ConversationService 创建的事件服务不应生成
+    他们自己的租约更新任务——更新是集中处理的。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -580,21 +581,21 @@ async def test_event_services_use_centralized_lease_renewal(tmp_path):
         assert svc._event_services is not None
         es = svc._event_services[info.id]
 
-        # Per-service renewal task should NOT be created
+        # 应创建每服务续订任务不
         assert es._lease_task is None
         assert es._external_lease_renewal is True
 
-        # Centralized task should exist
+        # 集中任务应该存在
         assert svc._lease_renewal_task is not None
         assert not svc._lease_renewal_task.done()
 
-    # After __aexit__, centralized task should be cleaned up
+    # __aexit__后，应清理集中任务
     assert svc._lease_renewal_task is None
 
 
 @pytest.mark.asyncio
 async def test_centralized_lease_renewal_invokes_renew(tmp_path):
-    """The centralized loop calls renew_lease() on every active service."""
+    """集中式循环在每个活动服务上调用 renew_lease()。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -631,7 +632,7 @@ async def test_centralized_lease_renewal_invokes_renew(tmp_path):
             es1.renew_lease = counting_renew1  # type: ignore[method-assign]
             es2.renew_lease = counting_renew2  # type: ignore[method-assign]
 
-            # Wait for at least 2 renewal cycles
+            # 等待至少2个更新周期
             await asyncio.sleep(0.15)
 
             assert renew_calls["es1"] >= 1, "renew_lease not called on es1"
@@ -640,8 +641,8 @@ async def test_centralized_lease_renewal_invokes_renew(tmp_path):
 
 @pytest.mark.asyncio
 async def test_event_services_share_dedicated_run_executor(tmp_path):
-    """Event services created by ConversationService should share a single
-    dedicated thread pool for conversation.run() calls."""
+    """ConversationService 创建的事件服务应共享一个
+    用于 conversation.run() 调用的专用线程池。"""
     from concurrent.futures import ThreadPoolExecutor
 
     conversations_dir = tmp_path / "conversations"
@@ -661,15 +662,15 @@ async def test_event_services_share_dedicated_run_executor(tmp_path):
         assert svc._event_services is not None
         es = svc._event_services[info.id]
 
-        # A dedicated executor should exist on the service
+        # 服务上应该存在专门的执行者
         assert svc._run_executor is not None
         assert isinstance(svc._run_executor, ThreadPoolExecutor)
         assert svc._run_executor._max_workers == 5
 
-        # EventService should share the same executor instance
+        # EventService 应该共享相同的执行器实例
         assert es._run_executor is svc._run_executor
 
-    # After __aexit__, executor should be shut down
+    # __aexit__之后，执行器应该关闭
     assert svc._run_executor is None
 
 
@@ -732,13 +733,11 @@ async def test_conversation_lifecycle_serializes_only_matching_ids(tmp_path):
 async def test_conversation_read_completes_while_another_conversation_starts(
     tmp_path,
 ):
-    """A conversation-scoped read must not queue behind an unrelated start.
+    """会话范围的读取不得在不相关的启动后面排队。
 
-    Lifecycle work once ran under a single process-wide lock, so any request
-    that resolved an ``EventService`` waited for a start, fork, delete or
-    eviction happening elsewhere in the process — for an unrelated
-    conversation. Drive the public API rather than the lock helper so the
-    guarantee is checked where callers actually hit it.
+    Lifecycle 工作以前在一个全局进程锁中运行，因此任何解析 ``EventService`` 的请求都
+    需要等待其他地方发生的启动、fork、删除或驱逐操作。
+    驱动公共 API 而不是锁帮助者，以便在调用者实际点击的地方检查保证。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -759,7 +758,7 @@ async def test_conversation_read_completes_while_another_conversation_starts(
         start_event_service = service._start_event_service
 
         async def blocking_start(stored: StoredConversation, **kwargs) -> EventService:
-            # Wedge the *other* conversation inside its own lifecycle section.
+            # 将 *other* 对话嵌入其自己的生命周期部分。
             if stored.id != live.id:
                 start_entered.set()
                 await release_start.wait()
@@ -925,10 +924,9 @@ async def test_shutdown_prioritizes_credential_failure_across_runtimes(tmp_path)
 
 @pytest.mark.asyncio
 async def test_restart_resumes_conversations_after_non_graceful_shutdown(tmp_path):
-    """Reproduces the crash-recovery bug: after a non-graceful shutdown the lease
-    file is left on disk pointing at a still-future expires_at. A fresh server
-    started before the TTL elapses must still pick up the conversation rather
-    than skipping it for up to the full TTL window.
+    """重现崩溃恢复错误：非正常关闭后租约
+    文件留在磁盘上，指向仍然未来的expires_at。 在 TTL 过去之前启动的新服务器仍必须继
+    续对话，而不是跳过它直到完整的 TTL 窗口。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -944,10 +942,10 @@ async def test_restart_resumes_conversations_after_non_graceful_shutdown(tmp_pat
         conversation_info, _ = await primary.start_conversation(request)
         conversation_id = conversation_info.id
 
-    # Simulate a non-graceful shutdown: forge a lease pointing at a PID
-    # that is guaranteed not to be running, with a far-future expires_at.
-    # A clean exit would have removed the lease via release(); a crash
-    # leaves it behind, which is what we are reproducing here.
+    # 模拟非正常关闭：伪造一个指向 PID 的租约，该租约保证不会运行，并且具有遥远的未来
+    # expires_at。 干净的退出将通过release()删除租约； 崩溃会将其抛在后面，这就是我们在
+    # 这里复制的内容。
+    #
     lease_path = conversations_dir / conversation_id.hex / LEASE_FILE_NAME
     forged_payload = {
         "owner_instance_id": "ghost-instance-from-crashed-server",
@@ -1061,11 +1059,11 @@ async def test_status_filters_refresh_unloaded_shared_state(persisted_conversati
 
 @pytest.mark.asyncio
 async def test_finished_status_refresh_invalidates_cached_info(persisted_conversation):
-    """A persisted status change invalidates the observer's cached row.
+    """已持久化状态更改会使观察者的缓存行无效。
 
-    The observer caches a ``ConversationInfo`` for an IDLE snapshot. After the
-    owner finishes the conversation, a filtered search must serve the refreshed
-    ``FINISHED`` status rather than the stale cached ``IDLE`` row.
+    观察者为 IDLE 快照缓存 ``ConversationInfo``。 所有者结束对话后，过滤的搜索必须为
+    刷新的内容提供服务
+    ``FINISHED`` 状态而不是过时的缓存 ``IDLE`` 行。
     """
     conversations_dir, conversation_id = persisted_conversation
 
@@ -1074,20 +1072,21 @@ async def test_finished_status_refresh_invalidates_cached_info(persisted_convers
         assert primary_runtime is not None
 
         async with ConversationService(conversations_dir=conversations_dir) as observer:
-            # Populate the observer's catalog entry + cached_info from the IDLE
-            # snapshot (unfiltered search does not refresh statuses).
+            # 从 IDLE 快照填充观察者的目录条目 + cached_info（未过滤的搜索不会刷新状态）
+            # 。
+            #
             initial = await observer.search_conversations()
             assert [item.id for item in initial.items] == [conversation_id]
             record = observer._conversation_records[conversation_id]
             assert record.cached_info is not None
             assert record.execution_status == ConversationExecutionStatus.IDLE
 
-            # Primary finishes the conversation behind the observer's back.
+            # Primary 在观察者背后结束了谈话。
             primary_state = await primary_runtime.get_state()
             primary_state.execution_status = ConversationExecutionStatus.FINISHED
 
-            # The observer's filtered search refreshes statuses; it must not
-            # serve the stale cached IDLE ConversationInfo.
+            # 观察者的过滤搜索会刷新状态； 它不能提供过时的缓存 IDLE ConversationInfo。
+            #
             page = await observer.search_conversations(
                 execution_status=ConversationExecutionStatus.FINISHED
             )
@@ -1096,9 +1095,9 @@ async def test_finished_status_refresh_invalidates_cached_info(persisted_convers
                 page.items[0].execution_status == ConversationExecutionStatus.FINISHED
             )
 
-            # An unfiltered search must also surface the refreshed status rather
-            # than the stale cached IDLE row (which would otherwise persist
-            # forever for a finished conversation).
+            # 搜索必须也显示刷新状态，而不是滞后的缓存 IDLE 行（否则会持久化一直存在，直
+            # 到对话结束）。
+            #
             unfiltered = await observer.search_conversations()
             assert [item.id for item in unfiltered.items] == [conversation_id]
             assert (
@@ -1112,11 +1111,12 @@ async def test_finished_status_refresh_invalidates_cached_info(persisted_convers
 async def test_search_refreshes_cached_info_on_metadata_only_update(
     persisted_conversation,
 ):
-    """Metadata-only updates (meta.json) invalidate the cached row.
+    """仅元数据更新 (meta.json) 使缓存的行无效。
 
-    ``cached_info`` embeds ``StoredConversation`` metadata (title, metrics) but
-    is keyed by ``base_state.json`` alone. A live conversation changing only
-    ``stored`` metadata — e.g. auto-title — must not be served the stale row.
+    ``cached_info`` 嵌入 ``StoredConversation`` 元数据（标题、指标），但仅由
+    ``base_state.json`` 键入。 实
+    时对话仅发生变化
+    ``stored`` 元数据 — e.g。 自动标题 - 不得提供陈旧的行。
     """
     conversations_dir, conversation_id = persisted_conversation
 
@@ -1124,14 +1124,14 @@ async def test_search_refreshes_cached_info_on_metadata_only_update(
         runtime = await service.get_event_service(conversation_id)
         assert runtime is not None
 
-        # Populate the cached ConversationInfo from the untitled snapshot.
+        # 从无标题快照填充缓存的 ConversationInfo。
         initial = await service.search_conversations()
         assert [item.id for item in initial.items] == [conversation_id]
         assert initial.items[0].title is None
         record = service._conversation_records[conversation_id]
         assert record.cached_info is not None
 
-        # Change only stored metadata; base_state.json is untouched.
+        # 仅更改存储的元数据； base_state.json 未受影响。
         runtime.stored = runtime.stored.model_copy(update={"title": "Generated Title"})
         await runtime.save_meta()
 
@@ -1291,11 +1291,11 @@ async def test_fork_rejects_id_of_unloaded_persisted_conversation(tmp_path):
 
 
 class TestConversationServiceSearchConversations:
-    """Test cases for ConversationService.search_conversations method."""
+    """测试用例代表 ConversationService.search_conversations 方法。"""
 
     @pytest.mark.asyncio
     async def test_search_conversations_inactive_service(self, conversation_service):
-        """Test that search_conversations raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 search_conversations 是否会引发 ValueError。"""
         conversation_service._event_services = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -1303,7 +1303,7 @@ class TestConversationServiceSearchConversations:
 
     @pytest.mark.asyncio
     async def test_search_conversations_empty_result(self, conversation_service):
-        """Test search_conversations with no conversations."""
+        """在没有对话的情况下测试 search_conversations。"""
         result = await conversation_service.search_conversations()
 
         assert isinstance(result, ConversationPage)
@@ -1314,8 +1314,8 @@ class TestConversationServiceSearchConversations:
     async def test_search_conversations_basic(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test basic search_conversations functionality."""
-        # Create mock event service
+        """测试基本 search_conversations 功能。"""
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         mock_state = ConversationState(
@@ -1341,7 +1341,7 @@ class TestConversationServiceSearchConversations:
     async def test_search_conversations_with_critic_redacts_api_key(
         self, conversation_service
     ):
-        """ConversationInfo should serialize critic secrets without rejecting them."""
+        """ConversationInfo应该序列化批评机密而不拒绝他们。"""
         agent = Agent(
             llm=LLM(model="gpt-4o", api_key=SecretStr("llm-secret")),
             tools=[],
@@ -1387,8 +1387,8 @@ class TestConversationServiceSearchConversations:
 
     @pytest.mark.asyncio
     async def test_search_conversations_status_filter(self, conversation_service):
-        """Test filtering conversations by status."""
-        # Create multiple conversations with different statuses
+        """测试按状态过滤对话。"""
+        # 创建具有不同状态的多个对话
         conversations = []
         for i, status in enumerate(
             [
@@ -1421,21 +1421,21 @@ class TestConversationServiceSearchConversations:
             conversation_service._event_services[stored_conv.id] = mock_service
             conversations.append((stored_conv.id, status))
 
-        # Test filtering by IDLE status
+        # 按 IDLE 状态测试过滤
         result = await conversation_service.search_conversations(
             execution_status=ConversationExecutionStatus.IDLE
         )
         assert len(result.items) == 1
         assert result.items[0].execution_status == ConversationExecutionStatus.IDLE
 
-        # Test filtering by RUNNING status
+        # 按 RUNNING 状态测试过滤
         result = await conversation_service.search_conversations(
             execution_status=ConversationExecutionStatus.RUNNING
         )
         assert len(result.items) == 1
         assert result.items[0].execution_status == ConversationExecutionStatus.RUNNING
 
-        # Test filtering by non-existent status
+        # 按不存在状态测试过滤
         result = await conversation_service.search_conversations(
             execution_status=ConversationExecutionStatus.ERROR
         )
@@ -1443,8 +1443,8 @@ class TestConversationServiceSearchConversations:
 
     @pytest.mark.asyncio
     async def test_search_conversations_sorting(self, conversation_service):
-        """Test sorting conversations by different criteria."""
-        # Create conversations with different timestamps
+        """测试按不同标准对对话进行排序。"""
+        # 创建具有不同时间戳的对话
         conversations = []
 
         for i in range(3):
@@ -1454,9 +1454,7 @@ class TestConversationServiceSearchConversations:
                 confirmation_policy=NeverConfirm(),
                 initial_message=None,
                 metrics=None,
-                created_at=datetime(
-                    2025, 1, i + 1, 12, 0, 0, tzinfo=UTC
-                ),  # Different days
+                created_at=datetime(2025, 1, i + 1, 12, 0, 0, tzinfo=UTC),  # 不同的日子
                 updated_at=datetime(2025, 1, i + 1, 12, 30, 0, tzinfo=UTC),
             )
 
@@ -1474,7 +1472,7 @@ class TestConversationServiceSearchConversations:
             conversation_service._event_services[stored_conv.id] = mock_service
             conversations.append(stored_conv)
 
-        # Test CREATED_AT (ascending)
+        # 测试 CREATED_AT（升序）
         result = await conversation_service.search_conversations(
             sort_order=ConversationSortOrder.CREATED_AT
         )
@@ -1485,7 +1483,7 @@ class TestConversationServiceSearchConversations:
             < result.items[2].created_at
         )
 
-        # Test CREATED_AT_DESC (descending) - default
+        # 测试 CREATED_AT_DESC（降序）- 默认
         result = await conversation_service.search_conversations(
             sort_order=ConversationSortOrder.CREATED_AT_DESC
         )
@@ -1496,7 +1494,7 @@ class TestConversationServiceSearchConversations:
             > result.items[2].created_at
         )
 
-        # Test UPDATED_AT (ascending)
+        # 测试 UPDATED_AT（升序）
         result = await conversation_service.search_conversations(
             sort_order=ConversationSortOrder.UPDATED_AT
         )
@@ -1507,7 +1505,7 @@ class TestConversationServiceSearchConversations:
             < result.items[2].updated_at
         )
 
-        # Test UPDATED_AT_DESC (descending)
+        # 测试 UPDATED_AT_DESC（降序）
         result = await conversation_service.search_conversations(
             sort_order=ConversationSortOrder.UPDATED_AT_DESC
         )
@@ -1520,8 +1518,8 @@ class TestConversationServiceSearchConversations:
 
     @pytest.mark.asyncio
     async def test_search_conversations_pagination(self, conversation_service):
-        """Test pagination functionality."""
-        # Create 5 conversations
+        """测试分页功能。"""
+        # 创建 5 个对话
         conversation_ids = []
         for i in range(5):
             stored_conv = StoredConversation(
@@ -1548,31 +1546,31 @@ class TestConversationServiceSearchConversations:
             conversation_service._event_services[stored_conv.id] = mock_service
             conversation_ids.append(stored_conv.id)
 
-        # Test first page with limit 2
+        # 测试首页限制为 2
         result = await conversation_service.search_conversations(limit=2)
         assert len(result.items) == 2
         assert result.next_page_id is not None
 
-        # Test second page using next_page_id
+        # 使用 next_page_id 测试第二页
         result = await conversation_service.search_conversations(
             page_id=result.next_page_id, limit=2
         )
         assert len(result.items) == 2
         assert result.next_page_id is not None
 
-        # Test last page
+        # 测试最后一页
         result = await conversation_service.search_conversations(
             page_id=result.next_page_id, limit=2
         )
-        assert len(result.items) == 1  # Only one item left
+        assert len(result.items) == 1  # 仅剩一件商品
         assert result.next_page_id is None
 
     @pytest.mark.asyncio
     async def test_search_conversations_combined_filter_and_sort(
         self, conversation_service
     ):
-        """Test combining status filtering with sorting."""
-        # Create conversations with mixed statuses and timestamps
+        """测试将状态过滤与排序相结合。"""
+        # 创建具有混合状态和时间戳的对话
         conversations_data = [
             (
                 ConversationExecutionStatus.IDLE,
@@ -1616,21 +1614,21 @@ class TestConversationServiceSearchConversations:
 
             conversation_service._event_services[stored_conv.id] = mock_service
 
-        # Filter by IDLE status and sort by CREATED_AT_DESC
+        # 按 IDLE 状态过滤并按 CREATED_AT_DESC 排序
         result = await conversation_service.search_conversations(
             execution_status=ConversationExecutionStatus.IDLE,
             sort_order=ConversationSortOrder.CREATED_AT_DESC,
         )
 
-        assert len(result.items) == 2  # Two IDLE conversations
-        # Should be sorted by created_at descending (newest first)
+        assert len(result.items) == 2  # 两个 IDLE 对话
+        # 应按 created_at 降序排序（最新的在前）
         assert result.items[0].created_at > result.items[1].created_at
 
     @pytest.mark.asyncio
     async def test_search_conversations_invalid_page_id(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test search_conversations with invalid page_id."""
+        """使用无效的 page_id 测试 search_conversations。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         mock_state = ConversationState(
@@ -1646,23 +1644,23 @@ class TestConversationServiceSearchConversations:
             mock_service
         )
 
-        # Use a non-existent page_id
+        # 使用不存在的 page_id
         invalid_page_id = uuid4().hex
         result = await conversation_service.search_conversations(
             page_id=invalid_page_id
         )
 
-        # Should return all items since page_id doesn't match any conversation
+        # 应该返回所有项目，因为 page_id 与任何对话都不匹配
         assert len(result.items) == 1
         assert result.next_page_id is None
 
 
 class TestConversationServiceCountConversations:
-    """Test cases for ConversationService.count_conversations method."""
+    """测试用例代表 ConversationService.count_conversations 方法。"""
 
     @pytest.mark.asyncio
     async def test_count_conversations_inactive_service(self, conversation_service):
-        """Test that count_conversations raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 count_conversations 是否会引发 ValueError。"""
         conversation_service._event_services = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -1670,7 +1668,7 @@ class TestConversationServiceCountConversations:
 
     @pytest.mark.asyncio
     async def test_count_conversations_empty_result(self, conversation_service):
-        """Test count_conversations with no conversations."""
+        """在没有对话的情况下测试 count_conversations。"""
         result = await conversation_service.count_conversations()
         assert result == 0
 
@@ -1678,8 +1676,8 @@ class TestConversationServiceCountConversations:
     async def test_count_conversations_basic(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test basic count_conversations functionality."""
-        # Create mock event service
+        """测试基本 count_conversations 功能。"""
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         mock_state = ConversationState(
@@ -1699,13 +1697,13 @@ class TestConversationServiceCountConversations:
 
     @pytest.mark.asyncio
     async def test_count_conversations_status_filter(self, conversation_service):
-        """Test counting conversations with status filter."""
-        # Create multiple conversations with different statuses
+        """测试使用状态过滤器对对话进行计数。"""
+        # 创建具有不同状态的多个对话
         statuses = [
             ConversationExecutionStatus.IDLE,
             ConversationExecutionStatus.RUNNING,
             ConversationExecutionStatus.FINISHED,
-            ConversationExecutionStatus.IDLE,  # Another IDLE one
+            ConversationExecutionStatus.IDLE,  # 另IDLE一个
         ]
 
         for i, status in enumerate(statuses):
@@ -1732,23 +1730,23 @@ class TestConversationServiceCountConversations:
 
             conversation_service._event_services[stored_conv.id] = mock_service
 
-        # Test counting all conversations
+        # 测试统计所有对话
         result = await conversation_service.count_conversations()
         assert result == 4
 
-        # Test counting by IDLE status (should be 2)
+        # 按 IDLE 状态测试计数（应为 2）
         result = await conversation_service.count_conversations(
             execution_status=ConversationExecutionStatus.IDLE
         )
         assert result == 2
 
-        # Test counting by RUNNING status (should be 1)
+        # 按 RUNNING 状态测试计数（应为 1）
         result = await conversation_service.count_conversations(
             execution_status=ConversationExecutionStatus.RUNNING
         )
         assert result == 1
 
-        # Test counting by non-existent status (should be 0)
+        # 按不存在状态测试计数（应为 0）
         result = await conversation_service.count_conversations(
             execution_status=ConversationExecutionStatus.ERROR
         )
@@ -1793,12 +1791,12 @@ class TestConversationServiceCountConversations:
 
 
 class TestConversationServiceStartConversation:
-    """Test cases for ConversationService.start_conversation method."""
+    """测试用例代表 ConversationService.start_conversation 方法。"""
 
     @pytest.mark.asyncio
     async def test_start_conversation_with_secrets(self, conversation_service):
-        """Test that secrets are passed to new conversations when starting."""
-        # Create test secrets
+        """测试开始时机密是否传递到新对话。"""
+        # 创建测试机密
         test_secrets: dict[str, SecretSource] = {
             "api_key": StaticSecret(value=SecretStr("secret-api-key-123")),
             "database_url": StaticSecret(
@@ -1806,7 +1804,7 @@ class TestConversationServiceStartConversation:
             ),
         }
 
-        # Create a start conversation request with secrets
+        # 使用机密创建开始对话请求
         with tempfile.TemporaryDirectory() as temp_dir:
             request = StartConversationRequest(
                 agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -1815,14 +1813,14 @@ class TestConversationServiceStartConversation:
                 secrets=test_secrets,
             )
 
-            # Mock the EventService constructor and start method
+            # 模拟对象 EventService 构造函数和启动方法
             with patch(
                 "openhands.agent_server.conversation_service.EventService"
             ) as mock_event_service_class:
                 mock_event_service = AsyncMock(spec=EventService)
                 mock_event_service_class.return_value = mock_event_service
 
-                # Mock the state that would be returned
+                # 模拟对象将返回的状态
                 mock_state = ConversationState(
                     id=uuid4(),
                     agent=request.agent,
@@ -1838,15 +1836,15 @@ class TestConversationServiceStartConversation:
                     updated_at=datetime.now(UTC),
                 )
 
-                # Start the conversation
+                # 开始对话
                 result, _ = await conversation_service.start_conversation(request)
 
-                # Verify EventService was created with the correct parameters
+                # 验证 EventService 是否正确创建
                 mock_event_service_class.assert_called_once()
                 call_args = mock_event_service_class.call_args
                 stored_conversation = call_args.kwargs["stored"]
 
-                # Verify that secrets were passed to the stored conversation
+                # 验证机密是否已传递到存储的对话
                 assert stored_conversation.secrets == test_secrets
                 assert "api_key" in stored_conversation.secrets
                 assert "database_url" in stored_conversation.secrets
@@ -1859,17 +1857,17 @@ class TestConversationServiceStartConversation:
                     == "postgresql://user:pass@host:5432/db"
                 )
 
-                # Verify the conversation was started
+                # 验证对话已开始
                 mock_event_service.start.assert_called_once()
 
-                # Verify the result
+                # 验证结果
                 assert result.id == mock_state.id
                 assert result.execution_status == ConversationExecutionStatus.IDLE
 
     @pytest.mark.asyncio
     async def test_start_conversation_without_secrets(self, conversation_service):
-        """Test that conversations can be started without secrets."""
-        # Create a start conversation request without secrets
+        """测试是否可以在没有机密的情况下启动对话。"""
+        # 创建不带机密的开始对话请求
         with tempfile.TemporaryDirectory() as temp_dir:
             request = StartConversationRequest(
                 agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -1877,14 +1875,14 @@ class TestConversationServiceStartConversation:
                 confirmation_policy=NeverConfirm(),
             )
 
-            # Mock the EventService constructor and start method
+            # 模拟对象 EventService 构造函数和启动方法
             with patch(
                 "openhands.agent_server.conversation_service.EventService"
             ) as mock_event_service_class:
                 mock_event_service = AsyncMock(spec=EventService)
                 mock_event_service_class.return_value = mock_event_service
 
-                # Mock the state that would be returned
+                # 模拟对象将返回的状态
                 mock_state = ConversationState(
                     id=uuid4(),
                     agent=request.agent,
@@ -1900,21 +1898,21 @@ class TestConversationServiceStartConversation:
                     updated_at=datetime.now(UTC),
                 )
 
-                # Start the conversation
+                # 开始对话
                 result, _ = await conversation_service.start_conversation(request)
 
-                # Verify EventService was created with the correct parameters
+                # 验证 EventService 是否正确创建
                 mock_event_service_class.assert_called_once()
                 call_args = mock_event_service_class.call_args
                 stored_conversation = call_args.kwargs["stored"]
 
-                # Verify that secrets is an empty dict (default)
+                # 验证机密是一个空字典（默认）
                 assert stored_conversation.secrets == {}
 
-                # Verify the conversation was started
+                # 验证对话已开始
                 mock_event_service.start.assert_called_once()
 
-                # Verify the result
+                # 验证结果
                 assert result.id == mock_state.id
                 assert result.execution_status == ConversationExecutionStatus.IDLE
 
@@ -2086,18 +2084,18 @@ class TestConversationServiceStartConversation:
         assert not (worktree_root / str(conversation_id)).exists()
 
     def test_get_worktree_start_point_prefers_origin_default_branch(self, tmp_path):
-        """With an ``origin`` remote, fetch first and return ``origin/<default>``.
+        """对于 ``origin`` 遥控器，首先获取并返回 ``origin/<default>``。
 
-        Local ``main``/``master`` should not influence the choice when a remote
-        default branch is available.
+        当远程默认分支可用时，本地 ``main``/``master`` 不应影响选择。
         """
         upstream = tmp_path / "upstream.git"
         run_git_command(["git", "init", "--bare", "-b", "trunk", str(upstream)])
 
         repo_dir = tmp_path / "repo"
         _init_git_repo(repo_dir)
-        # Rename the local default to "trunk" and publish it so origin/HEAD
-        # resolves to origin/trunk (not main/master).
+        # 将本地默认值重命名为“trunk”并将其发布，以便 origin/HEAD 解析为 origin/trunk（
+        # 而不是 main/master）。
+        #
         run_git_command(["git", "branch", "-m", "main", "trunk"], repo_dir)
         run_git_command(
             ["git", "remote", "add", "origin", str(upstream)],
@@ -2108,12 +2106,13 @@ class TestConversationServiceStartConversation:
             ["git", "remote", "set-head", "origin", "trunk"],
             repo_dir,
         )
-        # Create a local "main" branch that we expect to be IGNORED in favor of
-        # the remote default, so this test fails if we silently fall through.
+        # 创建一个本地“主”分支，我们希望该分支成为 IGNORED 支持远程默认分支，因此如果我
+        # 们默默地失败，则此测试将失败。
+        #
         run_git_command(["git", "branch", "main"], repo_dir)
 
-        # Add a new upstream commit; the start point must reflect this commit,
-        # proving we fetched before resolving.
+        # 添加新的上游提交； 起点必须反映此提交，证明我们在解析之前已获取。
+        #
         clone_dir = tmp_path / "publisher"
         run_git_command(
             ["git", "clone", str(upstream), str(clone_dir)],
@@ -2147,21 +2146,22 @@ class TestConversationServiceStartConversation:
         assert resolved == remote_tip
 
     def test_get_worktree_start_point_falls_back_to_local_main(self, tmp_path):
-        """No ``origin`` remote → fall back to local ``main``."""
+        """无``origin``远程→回退到本地``main``。"""
         repo_dir = tmp_path / "repo"
-        _init_git_repo(repo_dir)  # creates local "main"
-        # Move HEAD off main so we prove main is selected by policy, not because
-        # it happens to be the current branch.
+        _init_git_repo(repo_dir)  # 创建本地“主”
+        # 将 HEAD 移出 main，以便我们证明 main 是通过策略选择的，而不是因为它恰好是当前
+        # 分支。
+        #
         run_git_command(["git", "checkout", "-b", "feature/x"], repo_dir)
 
         assert _get_worktree_start_point(repo_dir) == "main"
 
     def test_get_worktree_start_point_falls_back_to_master(self, tmp_path):
-        """No remote and no local ``main`` → fall back to local ``master``."""
+        """没有远程也没有本地 ``main`` → 回退到本地 ``master``。"""
         repo_dir = tmp_path / "repo"
         _init_git_repo(repo_dir)
         run_git_command(["git", "branch", "-m", "main", "master"], repo_dir)
-        # Detach so neither main nor master is the current branch.
+        # 分离，这样 main 和 master 都不是当前分支。
         run_git_command(["git", "checkout", "--detach"], repo_dir)
 
         assert _get_worktree_start_point(repo_dir) == "master"
@@ -2206,7 +2206,7 @@ class TestConversationServiceStartConversation:
                 repo_dir,
             )
 
-        # Three distinct tips: main, release (a ref) and the checked-out HEAD.
+        # 三个不同的提示：主要、发布（参考）和签出 HEAD。
         run_git_command(["git", "checkout", "-b", "release"], repo_dir)
         commit("release")
         run_git_command(["git", "checkout", "-b", "feature/x", "main"], repo_dir)
@@ -2257,11 +2257,11 @@ class TestConversationServiceStartConversation:
         ).exists()
 
     def test_get_worktree_start_point_tolerates_fetch_failure(self, tmp_path):
-        """If ``git fetch origin`` fails, fall back to cached refs.
+        """如果 ``git fetch origin`` 失败，则回退到缓存的引用。
 
-        Simulate an unreachable remote by pointing ``origin`` at a non-existent
-        path; we still expect to resolve to ``origin/<default>`` using cached
-        refs that were set up before the remote URL was broken.
+        通过将 ``origin`` 指向不存在的路径来模拟无法访问的远程； 我们仍然希望使用在远
+        程 URL 损坏之前设置的缓存引用来解析
+        ``origin/<default>``。
         """
         upstream = tmp_path / "upstream.git"
         run_git_command(["git", "init", "--bare", "-b", "main", str(upstream)])
@@ -2277,7 +2277,7 @@ class TestConversationServiceStartConversation:
             ["git", "remote", "set-head", "origin", "main"],
             repo_dir,
         )
-        # Break the remote URL so fetch fails, but origin/HEAD is still cached.
+        # 破坏远程 URL，因此获取失败，但 origin/HEAD 仍被缓存。
         run_git_command(
             ["git", "remote", "set-url", "origin", str(tmp_path / "does-not-exist")],
             repo_dir,
@@ -2287,10 +2287,10 @@ class TestConversationServiceStartConversation:
 
     @pytest.mark.asyncio
     async def test_start_conversation_with_custom_id(self, conversation_service):
-        """Test that conversations can be started with a custom conversation_id."""
+        """测试是否可以使用自定义 conversation_id 启动对话。"""
         custom_id = uuid4()
 
-        # Create a start conversation request with custom conversation_id
+        # 使用自定义 conversation_id 创建开始对话请求
         with tempfile.TemporaryDirectory() as temp_dir:
             request = StartConversationRequest(
                 agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -2305,10 +2305,10 @@ class TestConversationServiceStartConversation:
 
     @pytest.mark.asyncio
     async def test_start_conversation_with_duplicate_id(self, conversation_service):
-        """Test duplicate conversation ids are detected."""
+        """测试检测到重复的对话 ID。"""
         custom_id = uuid4()
 
-        # Create a start conversation request with custom conversation_id
+        # 使用自定义 conversation_id 创建开始对话请求
         with tempfile.TemporaryDirectory() as temp_dir:
             request = StartConversationRequest(
                 agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -2338,13 +2338,11 @@ class TestConversationServiceStartConversation:
     async def test_concurrent_start_conversation_same_id_starts_event_service_once(
         self, conversation_service, tmp_path
     ):
-        """Two concurrent creates for one id must not both create.
+        """为一个 id 创建的两个并发不得同时创建。
 
-        The pre-lock existence check awaits before it acts, so a concurrent
-        create can commit in between. Both callers then observe "new" and the
-        loser starts a second EventService for an existing id, re-running the
-        initial message. The re-check under the lifecycle lock closes that
-        window.
+        预锁存在检查在执行之前会等待，因此并发创建可以在其间提交。 然后，两个调用者都
+        会观察到“new”，失败者会为现有 id 启动第二个 EventService
+        ，重新运行初始消息。 生命周期锁下的重新检查会关闭该窗口。
         """
         custom_id = uuid4()
         workspace_dir = tmp_path / "workspace"
@@ -2364,21 +2362,20 @@ class TestConversationServiceStartConversation:
         )
 
         assert [r.id for r, _ in results] == [custom_id, custom_id]
-        # Exactly one caller created the conversation; the other reused it.
+        # 正是一位呼叫者发起了这次对话； 另一个重复使用了它。
         assert sorted(is_new for _, is_new in results) == [False, True]
-        # The decisive check: one EventService, so the initial message would
-        # have been delivered once rather than twice.
+        # 决定性检查：一个 EventService，因此初始消息将被传递一次而不是两次。
+        #
         assert list(conversation_service._event_services) == [custom_id]
 
     @pytest.mark.asyncio
     async def test_concurrent_fork_same_id_forks_once(
         self, conversation_service, tmp_path
     ):
-        """Concurrent forks onto one id must not both fork.
+        """并发分叉到一个 id 上不得同时分叉。
 
-        Losers must be rejected before ``fork()`` writes into the shared
-        persistence directory; otherwise they reopen the winner's directory
-        and fail on its already-persisted events instead of the duplicate id.
+        失败者必须在``fork()``写入共享持久化目录之前被拒绝； 否则，他们会重新打开获胜
+        者的目录，并在其已已持久化事件而不是重复的 ID 上失败。
         """
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
@@ -2401,8 +2398,9 @@ class TestConversationServiceStartConversation:
         fork_calls = 0
 
         def fork_after_winner_commits(self, **kwargs):
-            # Force the harmful interleave: a later fork() call only runs once
-            # the winner is registered, as a slow loser's would.
+            # 强制进行有害的交错：稍后的 fork() 调用仅在获胜者注册后运行，就像缓慢失败者
+            # 的情况一样。
+            #
             nonlocal fork_calls
             fork_calls += 1
             if fork_calls > 1:
@@ -2432,10 +2430,10 @@ class TestConversationServiceStartConversation:
 
     @pytest.mark.asyncio
     async def test_start_conversation_reuse_checks_is_open(self, conversation_service):
-        """Test that conversation reuse checks if event service is open."""
+        """测试会话重用检查事件服务是否打开。"""
         custom_id = uuid4()
 
-        # Create a mock event service that exists but is not open
+        # 创建存在但未打开的模拟对象事件服务
         mock_event_service = AsyncMock(spec=EventService)
         mock_event_service.is_open.return_value = False
         mock_event_service.stored = StoredConversation(
@@ -2457,7 +2455,7 @@ class TestConversationServiceStartConversation:
                 conversation_id=custom_id,
             )
 
-            # Mock the _start_event_service method to avoid actual startup
+            # 模拟对象_start_event_service方法避免实际启动
             with patch.object(
                 conversation_service, "_start_event_service"
             ) as mock_start:
@@ -2483,17 +2481,17 @@ class TestConversationServiceStartConversation:
 
                 result, is_new = await conversation_service.start_conversation(request)
 
-                # Should create a new conversation since existing one is not open
+                # 应该创建一个新对话，因为现有对话未打开
                 assert result.id == custom_id
                 assert is_new
                 mock_start.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_start_conversation_reuse_when_open(self, conversation_service):
-        """Test that conversation is reused when event service is open."""
+        """测试事件服务打开时对话是否被重用。"""
         custom_id = uuid4()
 
-        # Create a mock event service that exists and is open
+        # 创建存在且开放的模拟对象事件服务
         mock_event_service = AsyncMock(spec=EventService)
         mock_event_service.is_open.return_value = True
         mock_event_service.stored = StoredConversation(
@@ -2523,13 +2521,13 @@ class TestConversationServiceStartConversation:
                 conversation_id=custom_id,
             )
 
-            # Mock the _start_event_service method to ensure it's not called
+            # 模拟对象 _start_event_service 方法以确保它不被调用
             with patch.object(
                 conversation_service, "_start_event_service"
             ) as mock_start:
                 result, is_new = await conversation_service.start_conversation(request)
 
-                # Should reuse existing conversation since it's open
+                # 应该重用现有的对话，因为它是开放的
                 assert result.id == custom_id
                 assert not is_new
                 mock_start.assert_not_called()
@@ -2552,7 +2550,7 @@ class TestConversationServiceStartConversation:
         mock_event_service = AsyncMock(spec=EventService)
         mock_event_service.is_open.return_value = True
         mock_event_service.stored = stored
-        # The agent lives on base_state.json / the live conversation now.
+        # 智能体现在存在于 base_state.json / 实时对话中。
         mock_event_service._conversation = MagicMock()
         mock_event_service._conversation.agent = acp_agent
         mock_event_service.get_state.return_value = ConversationState(
@@ -2572,9 +2570,9 @@ class TestConversationServiceStartConversation:
                 conversation_id=custom_id,
             )
 
-            # Reattaching by conversation_id returns the stored conversation contract
-            # so callers can resume ACP conversations through the unified endpoint
-            # even if the new request carries a regular Agent config.
+            # 通过 conversation_id 重新连接时，会返回存储的会话合同，这样调用者就可以通
+            # 过统一端点重新开始 ACP 会话，即使新请求携带的是常规智能体配置。
+            #
             with patch.object(
                 conversation_service, "_start_event_service"
             ) as mock_start:
@@ -2590,7 +2588,7 @@ class TestConversationServiceStartConversation:
 
     @pytest.mark.asyncio
     async def test_start_event_service_failure_cleanup(self, conversation_service):
-        """Test that event service is cleaned up when startup fails."""
+        """测试启动失败时事件服务是否被清理。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             stored = StoredConversation(
                 id=uuid4(),
@@ -2602,7 +2600,7 @@ class TestConversationServiceStartConversation:
                 updated_at=datetime(2025, 1, 1, 12, 30, 0, tzinfo=UTC),
             )
 
-            # Mock EventService to simulate startup failure
+            # 模拟对象EventService模拟启动失败
             with patch(
                 "openhands.agent_server.conversation_service.EventService"
             ) as mock_event_service_class:
@@ -2611,21 +2609,21 @@ class TestConversationServiceStartConversation:
                 mock_event_service.close = AsyncMock()
                 mock_event_service_class.return_value = mock_event_service
 
-                # Attempt to start event service should fail and clean up
+                # 尝试启动事件服务应该失败并清理
                 with pytest.raises(Exception, match="Startup failed"):
                     await conversation_service._start_event_service(stored)
 
-                # Verify cleanup was called
+                # 验证是否调用了清理操作
                 mock_event_service.close.assert_called_once()
 
-                # Verify event service was not stored
+                # 验证事件服务未存储
                 assert stored.id not in conversation_service._event_services
 
     @pytest.mark.asyncio
     async def test_start_event_service_success_stores_service(
         self, conversation_service
     ):
-        """Test that event service is stored only after successful startup."""
+        """测试事件服务仅在成功启动后才存储。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             stored = StoredConversation(
                 id=uuid4(),
@@ -2637,24 +2635,25 @@ class TestConversationServiceStartConversation:
                 updated_at=datetime(2025, 1, 1, 12, 30, 0, tzinfo=UTC),
             )
 
-            # Mock EventService to simulate successful startup
+            # 模拟对象EventService模拟成功启动
             with patch(
                 "openhands.agent_server.conversation_service.EventService"
             ) as mock_event_service_class:
                 mock_event_service = AsyncMock()
                 mock_event_service.start = AsyncMock()  # Successful startup
-                # Sync methods must not be AsyncMock (would return unawaited
-                # coroutines); mark_subscription_baseline is called sync.
+                # 同步方法不得为 AsyncMock（将返回未等待的协程）；
+                # mark_subscription_baseline称为同步。
+                #
                 mock_event_service.mark_subscription_baseline = MagicMock()
                 mock_event_service_class.return_value = mock_event_service
 
-                # Start event service should succeed
+                # 启动事件服务应该成功
                 result = await conversation_service._start_event_service(stored)
 
-                # Verify startup was called
+                # 验证启动是否被调用
                 mock_event_service.start.assert_called_once()
 
-                # Verify event service was stored after successful startup
+                # 验证事件服务在成功启动后是否已存储
                 assert stored.id in conversation_service._event_services
                 assert (
                     conversation_service._event_services[stored.id]
@@ -2664,14 +2663,14 @@ class TestConversationServiceStartConversation:
 
 
 class TestConversationServiceUpdateConversation:
-    """Test cases for ConversationService.update_conversation method."""
+    """测试用例代表 ConversationService.update_conversation 方法。"""
 
     @pytest.mark.asyncio
     async def test_update_conversation_success(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test successful update of conversation title."""
-        # Create mock event service
+        """测试对话标题更新是否成功。"""
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2687,14 +2686,14 @@ class TestConversationServiceUpdateConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Update the title
+        # 更新标题
         new_title = "My Updated Conversation Title"
         request = UpdateConversationRequest(title=new_title)
         result = await conversation_service.update_conversation(
             conversation_id, request
         )
 
-        # Verify update was successful
+        # 验证更新是否成功
         assert result is True
         assert mock_service.stored.title == new_title
         mock_service.save_meta.assert_called_once()
@@ -2703,7 +2702,7 @@ class TestConversationServiceUpdateConversation:
     async def test_update_conversation_strips_whitespace(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that update_conversation strips leading/trailing whitespace."""
+        """测试 update_conversation 是否去除前导/尾随空格。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2719,14 +2718,14 @@ class TestConversationServiceUpdateConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Update with title that has whitespace
+        # 使用包含空格的标题进行更新
         new_title = "   Whitespace Test   "
         request = UpdateConversationRequest(title=new_title)
         result = await conversation_service.update_conversation(
             conversation_id, request
         )
 
-        # Verify whitespace was stripped
+        # 验证空白已被删除
         assert result is True
         assert mock_service.stored.title == "Whitespace Test"
         mock_service.save_meta.assert_called_once()
@@ -2735,7 +2734,7 @@ class TestConversationServiceUpdateConversation:
     async def test_update_conversation_tags_uses_state_lock(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that tag updates hold the ConversationState lock."""
+        """测试标签更新是否保留 ConversationState 锁。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2770,7 +2769,7 @@ class TestConversationServiceUpdateConversation:
     async def test_update_conversation_tags_wait_does_not_block_event_loop(
         self, conversation_service, sample_stored_conversation
     ):
-        """Waiting on the state lock must not stall unrelated async work."""
+        """等待状态锁不得停止不相关的异步工作。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2835,7 +2834,7 @@ class TestConversationServiceUpdateConversation:
 
     @pytest.mark.asyncio
     async def test_update_conversation_not_found(self, conversation_service):
-        """Test updating a non-existent conversation returns False."""
+        """测试更新不存在的对话会返回 False。"""
         non_existent_id = uuid4()
         request = UpdateConversationRequest(title="New Title")
         result = await conversation_service.update_conversation(
@@ -2846,7 +2845,7 @@ class TestConversationServiceUpdateConversation:
 
     @pytest.mark.asyncio
     async def test_update_conversation_inactive_service(self, conversation_service):
-        """Test that update_conversation raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 update_conversation 是否会引发 ValueError。"""
         conversation_service._event_services = None
 
         request = UpdateConversationRequest(title="New Title")
@@ -2857,8 +2856,8 @@ class TestConversationServiceUpdateConversation:
     async def test_update_conversation_notifies_webhooks(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that updating a conversation triggers webhook notifications."""
-        # Create mock event service
+        """测试更新对话是否会触发 Webhook 条通知。"""
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2874,7 +2873,7 @@ class TestConversationServiceUpdateConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock webhook notification
+        # 模拟对象 Webhook 通知
         with patch.object(
             conversation_service, "_notify_conversation_webhooks", new=AsyncMock()
         ) as mock_notify:
@@ -2884,10 +2883,10 @@ class TestConversationServiceUpdateConversation:
                 conversation_id, request
             )
 
-            # Verify webhook was called
+            # 验证 Webhook 被调用
             assert result is True
             mock_notify.assert_called_once()
-            # Verify the conversation info passed to webhook has the updated title
+            # 验证传递给 Webhook 的对话信息是否具有更新的标题
             call_args = mock_notify.call_args[0]
             conversation_info = call_args[0]
             assert conversation_info.title == new_title
@@ -2939,7 +2938,7 @@ class TestConversationServiceUpdateConversation:
     async def test_update_conversation_persists_changes(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that title changes are persisted to disk."""
+        """测试标题更改是否已已持久化写入磁盘。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2955,24 +2954,24 @@ class TestConversationServiceUpdateConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Initial title should be None
+        # 初始标题应为 None
         assert mock_service.stored.title is None
 
-        # Update the title
+        # 更新标题
         new_title = "Persisted Title"
         request = UpdateConversationRequest(title=new_title)
         await conversation_service.update_conversation(conversation_id, request)
 
-        # Verify save_meta was called to persist changes
+        # 验证 save_meta 被调用以进行持久化更改
         mock_service.save_meta.assert_called_once()
-        # Verify the stored conversation has the new title
+        # 验证存储的对话具有新标题
         assert mock_service.stored.title == new_title
 
     @pytest.mark.asyncio
     async def test_update_conversation_multiple_times(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test updating the same conversation multiple times."""
+        """测试多次更新同一对话。"""
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
         _adopt_saved_meta(mock_service)
@@ -2988,7 +2987,7 @@ class TestConversationServiceUpdateConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # First update
+        # 第一次更新
         request1 = UpdateConversationRequest(title="First Title")
         result1 = await conversation_service.update_conversation(
             conversation_id, request1
@@ -2996,7 +2995,7 @@ class TestConversationServiceUpdateConversation:
         assert result1 is True
         assert mock_service.stored.title == "First Title"
 
-        # Second update
+        # 第二次更新
         request2 = UpdateConversationRequest(title="Second Title")
         result2 = await conversation_service.update_conversation(
             conversation_id, request2
@@ -3004,7 +3003,7 @@ class TestConversationServiceUpdateConversation:
         assert result2 is True
         assert mock_service.stored.title == "Second Title"
 
-        # Third update
+        # 第三次更新
         request3 = UpdateConversationRequest(title="Third Title")
         result3 = await conversation_service.update_conversation(
             conversation_id, request3
@@ -3012,18 +3011,17 @@ class TestConversationServiceUpdateConversation:
         assert result3 is True
         assert mock_service.stored.title == "Third Title"
 
-        # Verify save_meta was called three times
+        # 验证 save_meta 被调用了 3 次
         assert mock_service.save_meta.call_count == 3
 
     @pytest.mark.asyncio
     async def test_update_conversation_sets_updated_at(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that update_conversation advances updated_at.
+        """测试 update_conversation 是否前进 updated_at。
 
-        Renaming a conversation is a meaningful change; the timestamp must
-        reflect when it happened rather than staying at the value set at
-        conversation creation time.
+        重命名对话是一个有意义的改变； 时间戳必须反映事件发生的时间，而不是停留在会话
+        创建时设置的值。
         """
         mock_service = AsyncMock(spec=EventService)
         mock_service.stored = sample_stored_conversation
@@ -3049,11 +3047,11 @@ class TestConversationServiceUpdateConversation:
 
 
 class TestConversationServiceDeleteConversation:
-    """Test cases for ConversationService.delete_conversation method."""
+    """测试用例代表 ConversationService.delete_conversation 方法。"""
 
     @pytest.mark.asyncio
     async def test_delete_conversation_inactive_service(self, conversation_service):
-        """Test that delete_conversation raises ValueError when service is inactive."""
+        """测试当服务处于非活动状态时 delete_conversation 是否会引发 ValueError。"""
         conversation_service._event_services = None
 
         with pytest.raises(ValueError, match="inactive_service"):
@@ -3061,7 +3059,7 @@ class TestConversationServiceDeleteConversation:
 
     @pytest.mark.asyncio
     async def test_delete_conversation_not_found(self, conversation_service):
-        """Test delete_conversation with non-existent conversation ID."""
+        """使用不存在的对话 ID 测试 delete_conversation。"""
         result = await conversation_service.delete_conversation(uuid4())
         assert result is False
 
@@ -3083,10 +3081,10 @@ class TestConversationServiceDeleteConversation:
 
     @pytest.mark.asyncio
     async def test_delete_conversation_success(self, conversation_service):
-        """Test successful conversation deletion."""
+        """测试成功删除对话。"""
         conversation_id = uuid4()
 
-        # Create mock event service
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.conversation_dir = "/tmp/test_conversation"
         mock_service.stored = StoredConversation(
@@ -3107,10 +3105,10 @@ class TestConversationServiceDeleteConversation:
         )
         mock_service.get_state.return_value = mock_state
 
-        # Add to service
+        # 添加到服务
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock the directory removal to avoid actual filesystem operations
+        # 模拟对象删除目录以避免实际的文件系统操作
         with patch(
             "openhands.agent_server.conversation_service.safe_rmtree"
         ) as mock_rmtree:
@@ -3121,10 +3119,10 @@ class TestConversationServiceDeleteConversation:
             assert result is True
             assert conversation_id not in conversation_service._event_services
 
-            # Verify event service was closed
+            # 验证事件服务已关闭
             mock_service.close.assert_called_once()
 
-            # Verify directories were removed
+            # 验证目录是否已删除
             assert mock_rmtree.call_count == 1
             mock_rmtree.assert_any_call(
                 "/tmp/test_conversation",
@@ -3135,12 +3133,12 @@ class TestConversationServiceDeleteConversation:
     async def test_delete_conversation_notifies_webhooks_with_deleting_status(
         self, conversation_service, sample_stored_conversation
     ):
-        """Test that deleting a conversation triggers webhook notifications.
+        """测试删除对话是否会触发 Webhook 条通知。
 
-        Verifies that the webhook receives a conversation info with execution_status
-        set to 'deleting' when delete_conversation is called.
+        验证当调用 delete_conversation 时，Webhook 是否收到设置为“删除”的
+        execution_status 的对话信息。
         """
-        # Create mock event service
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.conversation_dir = "/tmp/test_conversation"
         mock_service.stored = sample_stored_conversation
@@ -3156,11 +3154,11 @@ class TestConversationServiceDeleteConversation:
         conversation_id = sample_stored_conversation.id
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock webhook notification
+        # 模拟对象 Webhook 通知
         with patch.object(
             conversation_service, "_notify_conversation_webhooks", new=AsyncMock()
         ) as mock_notify:
-            # Mock the directory removal
+            # 模拟对象目录删除
             with patch(
                 "openhands.agent_server.conversation_service.safe_rmtree"
             ) as mock_rmtree:
@@ -3168,14 +3166,14 @@ class TestConversationServiceDeleteConversation:
 
                 result = await conversation_service.delete_conversation(conversation_id)
 
-                # Verify deletion succeeded
+                # 验证删除成功
                 assert result is True
                 assert conversation_id not in conversation_service._event_services
 
-                # Verify webhook was called
+                # 验证 Webhook 被调用
                 mock_notify.assert_called_once()
 
-                # Verify the conversation info passed to webhook has 'deleting' status
+                # 验证传递给 Webhook 的对话信息是否具有“删除”状态
                 call_args = mock_notify.call_args[0]
                 conversation_info = call_args[0]
                 assert (
@@ -3184,18 +3182,18 @@ class TestConversationServiceDeleteConversation:
                 )
                 assert isinstance(conversation_info, ConversationInfo)
 
-                # Verify event service was closed
+                # 验证事件服务已关闭
                 mock_service.close.assert_called_once()
 
-                # Verify directories were removed
+                # 验证目录是否已删除
                 assert mock_rmtree.call_count == 1
 
     @pytest.mark.asyncio
     async def test_delete_conversation_webhook_failure(self, conversation_service):
-        """Test delete_conversation continues when webhook notification fails."""
+        """当 Webhook 通知失败时，测试 delete_conversation 继续。"""
         conversation_id = uuid4()
 
-        # Create mock event service
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.conversation_dir = "/tmp/test_conversation"
         mock_service.stored = StoredConversation(
@@ -3208,13 +3206,13 @@ class TestConversationServiceDeleteConversation:
             updated_at=datetime(2025, 1, 1, 12, 30, 0, tzinfo=UTC),
         )
 
-        # Make get_state raise an exception to simulate webhook failure
+        # 让 get_state 引发异常来模拟 Webhook 失败
         mock_service.get_state.side_effect = Exception("Webhook notification failed")
 
-        # Add to service
+        # 添加到服务
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock the directory removal
+        # 模拟对象目录删除
         with patch(
             "openhands.agent_server.conversation_service.safe_rmtree"
         ) as mock_rmtree:
@@ -3222,22 +3220,22 @@ class TestConversationServiceDeleteConversation:
 
             result = await conversation_service.delete_conversation(conversation_id)
 
-            # Should still succeed despite webhook failure
+            # 尽管 Webhook 失败，但仍应成功
             assert result is True
             assert conversation_id not in conversation_service._event_services
 
-            # Verify event service was still closed
+            # 验证事件服务仍然关闭
             mock_service.close.assert_called_once()
 
-            # Verify directories were still removed
+            # 验证目录是否仍被删除
             assert mock_rmtree.call_count == 1
 
     @pytest.mark.asyncio
     async def test_delete_conversation_close_failure(self, conversation_service):
-        """Test delete_conversation continues when event service close fails."""
+        """当事件服务关闭失败时，测试 delete_conversation 继续。"""
         conversation_id = uuid4()
 
-        # Create mock event service
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.conversation_dir = "/tmp/test_conversation"
         mock_service.stored = StoredConversation(
@@ -3258,13 +3256,13 @@ class TestConversationServiceDeleteConversation:
         )
         mock_service.get_state.return_value = mock_state
 
-        # Make close raise an exception
+        # 使关闭引发异常
         mock_service.close.side_effect = Exception("Close failed")
 
-        # Add to service
+        # 添加到服务
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock the directory removal
+        # 模拟对象目录删除
         with patch(
             "openhands.agent_server.conversation_service.safe_rmtree"
         ) as mock_rmtree:
@@ -3272,11 +3270,11 @@ class TestConversationServiceDeleteConversation:
 
             result = await conversation_service.delete_conversation(conversation_id)
 
-            # Should still succeed despite close failure
+            # 尽管失败了，但仍应该成功
             assert result is True
             assert conversation_id not in conversation_service._event_services
 
-            # Verify directories were still removed
+            # 验证目录是否仍被删除
             assert mock_rmtree.call_count == 1
 
     @pytest.mark.asyncio
@@ -3328,10 +3326,10 @@ class TestConversationServiceDeleteConversation:
     async def test_delete_conversation_directory_removal_failure(
         self, conversation_service
     ):
-        """Test delete_conversation succeeds even when directory removal fails."""
+        """即使目录删除失败，测试 delete_conversation 也会成功。"""
         conversation_id = uuid4()
 
-        # Create mock event service
+        # 创建模拟对象事件服务
         mock_service = AsyncMock(spec=EventService)
         mock_service.conversation_dir = "/tmp/test_conversation"
         mock_service.stored = StoredConversation(
@@ -3352,38 +3350,38 @@ class TestConversationServiceDeleteConversation:
         )
         mock_service.get_state.return_value = mock_state
 
-        # Add to service
+        # 添加到服务
         conversation_service._event_services[conversation_id] = mock_service
 
-        # Mock directory removal to fail (simulating permission errors)
+        # 模拟对象目录删除失败（模拟权限错误）
         with patch(
             "openhands.agent_server.conversation_service.safe_rmtree"
         ) as mock_rmtree:
-            mock_rmtree.return_value = False  # Simulate removal failure
+            mock_rmtree.return_value = False  # 模拟移除失败
 
             result = await conversation_service.delete_conversation(conversation_id)
 
-            # Should still succeed - conversation is removed from tracking
+            # 应该仍然会成功 - 对话已从跟踪中删除
             assert result is True
             assert conversation_id not in conversation_service._event_services
 
-            # Verify event service was closed
+            # 验证事件服务已关闭
             mock_service.close.assert_called_once()
 
-            # Verify removal was attempted
+            # 验证已尝试删除
             assert mock_rmtree.call_count == 1
 
 
 class TestSafeRmtree:
-    """Test cases for the _safe_rmtree helper function."""
+    """测试用例用于 _safe_rmtree 辅助函数。"""
 
     def test_safe_rmtree_nonexistent_path(self):
-        """Test _safe_rmtree with non-existent path."""
+        """使用不存在的路径测试 _safe_rmtree。"""
         result = _safe_rmtree("/nonexistent/path", "test directory")
         assert result is True
 
     def test_safe_rmtree_empty_path(self):
-        """Test _safe_rmtree with empty path."""
+        """使用空路径测试 _safe_rmtree。"""
         result = _safe_rmtree("", "test directory")
         assert result is True
 
@@ -3391,12 +3389,12 @@ class TestSafeRmtree:
         assert result is True
 
     def test_safe_rmtree_success(self):
-        """Test successful directory removal."""
+        """测试成功的目录删除。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             test_dir = Path(temp_dir) / "test_subdir"
             test_dir.mkdir()
 
-            # Create a test file
+            # 创建测试文件
             test_file = test_dir / "test.txt"
             test_file.write_text("test content")
 
@@ -3405,7 +3403,7 @@ class TestSafeRmtree:
             assert not test_dir.exists()
 
     def test_safe_rmtree_permission_error(self):
-        """Test _safe_rmtree handles permission errors gracefully."""
+        """测试 _safe_rmtree 优雅地处理权限错误。"""
         with patch("shutil.rmtree") as mock_rmtree:
             mock_rmtree.side_effect = PermissionError("Permission denied")
 
@@ -3414,7 +3412,7 @@ class TestSafeRmtree:
                 assert result is False
 
     def test_safe_rmtree_os_error(self):
-        """Test _safe_rmtree handles OS errors gracefully."""
+        """测试 _safe_rmtree 优雅地处理操作系统错误。"""
         with patch("shutil.rmtree") as mock_rmtree:
             mock_rmtree.side_effect = OSError("OS error")
 
@@ -3423,7 +3421,7 @@ class TestSafeRmtree:
                 assert result is False
 
     def test_safe_rmtree_unexpected_error(self):
-        """Test _safe_rmtree handles unexpected errors gracefully."""
+        """测试 _safe_rmtree 优雅地处理意外错误。"""
         with patch("shutil.rmtree") as mock_rmtree:
             mock_rmtree.side_effect = ValueError("Unexpected error")
 
@@ -3432,15 +3430,15 @@ class TestSafeRmtree:
                 assert result is False
 
     def test_safe_rmtree_readonly_file_handling(self):
-        """Test _safe_rmtree handles read-only files."""
+        """测试 _safe_rmtree 处理只读个文件。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             test_dir = Path(temp_dir) / "test_subdir"
             test_dir.mkdir()
 
-            # Create a test file and make it read-only
+            # 创建一个测试文件并将其设为只读
             test_file = test_dir / "readonly.txt"
             test_file.write_text("readonly content")
-            test_file.chmod(0o444)  # Read-only
+            test_file.chmod(0o444)  # 只读
 
             result = _safe_rmtree(str(test_dir), "test directory")
             assert result is True
@@ -3448,7 +3446,7 @@ class TestSafeRmtree:
 
 
 class TestAutoTitle:
-    """Tests for AutoTitleSubscriber."""
+    """测试 AutoTitleSubscriber。"""
 
     _GENERATE_TITLE_PATH = (
         "openhands.agent_server.conversation_service.generate_title_from_message"
@@ -3498,12 +3496,12 @@ class TestAutoTitle:
     async def _drain_title_task(
         predicate=lambda: True, max_iterations: int = 50, step: float = 0.02
     ) -> None:
-        """Yield to the event loop until the background title task completes.
+        """屈服于事件循环，直到后台标题任务完成。
 
-        `AutoTitleSubscriber` schedules generation via `run_in_executor`, so a
-        single `await asyncio.sleep(0)` is not enough to let the executor
-        thread finish. Poll with a short sleep until `predicate()` becomes
-        truthy or the timeout elapses.
+        `AutoTitleSubscriber` 通过 `run_in_executor` 调度生成，因此单个
+        `await asyncio.sleep(0)`
+        不足以让执行器线程完成。 进行短暂睡眠的轮询，直到 `predicate()` 变为 true 或
+        超时过去。
         """
         for _ in range(max_iterations):
             await asyncio.sleep(step)
@@ -3512,7 +3510,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_sets_title_on_first_user_message(self):
-        """Title is generated and saved when the first user message arrives."""
+        """当第一条用户消息到达时，标题被生成并保存。"""
         service = self._make_service()
 
         with patch(self._GENERATE_TITLE_PATH, return_value="✨ Generated Title"):
@@ -3539,7 +3537,7 @@ class TestAutoTitle:
         )
 
     async def test_autotitle_refused_save_leaves_title_unset(self):
-        """A title whose save is refused (lost ownership) never becomes visible."""
+        """保存被拒绝（失去所有权）的标题永远不会可见。"""
         service = self._make_service()
         service.save_meta.side_effect = ConversationOwnershipLostError(
             conversation_dir=Path("conv"), owner_instance_id="stale", generation=1
@@ -3555,18 +3553,18 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_skips_non_user_events(self):
-        """Non-user events do not trigger title generation.
+        """非用户事件不会触发标题生成。
 
-        Covers ConversationStateUpdateEvent and assistant MessageEvents.
+        涵盖ConversationStateUpdateEvent和助手MessageEvents。
         """
         service = self._make_service()
         subscriber = AutoTitleSubscriber(service=service)
 
-        # ConversationStateUpdateEvent should be ignored
+        # ConversationStateUpdateEvent 应被忽略
         await subscriber(
             ConversationStateUpdateEvent(key="execution_status", value="IDLE")
         )
-        # Assistant MessageEvent should be ignored
+        # 助理 MessageEvent 应被忽略
         await subscriber(
             MessageEvent(
                 id="evt-2", source="agent", llm_message=Message(role="assistant")
@@ -3578,7 +3576,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_skips_when_title_already_set(self):
-        """No LLM call is made when the conversation already has a title."""
+        """当对话已有标题时，不会进行 LLM 呼叫。"""
         service = self._make_service(title="Existing Title")
         subscriber = AutoTitleSubscriber(service=service)
 
@@ -3591,28 +3589,29 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_handles_generate_title_failure(self):
-        """A failed title generation is logged as a warning and not re-raised."""
+        """失败的标题生成将被记录为警告并且不会重新引发。"""
         service = self._make_service()
 
         with patch(self._GENERATE_TITLE_PATH, side_effect=Exception("LLM unavailable")):
             subscriber = AutoTitleSubscriber(service=service)
-            # Should not raise
+            # 不应该提高
             await subscriber(self._user_message_event())
             await asyncio.sleep(0)
 
-        # Title remains unset; save_meta was never called
+        # 标题仍未设置； save_meta 从未被调用过
         assert service.stored.title is None
         service.save_meta.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_autotitle_surfaces_llm_error_to_ui(self):
-        """When the title LLM call fails, the error is surfaced to the UI via
-        the EventService error-event helper (issue #16686) — while auto-titling
-        stays non-fatal and falls back to truncation."""
+        """当 title LLM 调用失败时，错误将通过以下方式呈现给 UI
+        EventService 错误事件助手（问题#16686）——而自动标题保持非致命并回退到截断。
+        """
         service = self._make_service()
 
-        # Let the real title utils run; only the LLM call fails, so the error
-        # is swallowed into a fallback title and reported through on_error.
+        # 让真正的title utils运行起来； 只有 LLM 调用失败，因此错误被包含在回退方案标题
+        # 中并通过 on_error 报告。
+        #
         with patch(
             "openhands.sdk.llm.llm.LLM.completion",
             side_effect=Exception("model does not exist"),
@@ -3629,7 +3628,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_skips_empty_message(self):
-        """No title generation if the user message has no text content."""
+        """如果用户消息没有文本内容，则不会生成标题。"""
         service = self._make_service()
         event = MessageEvent(
             id="evt-1", source="user", llm_message=Message(role="user")
@@ -3645,7 +3644,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_uses_llm_profile_when_configured(self):
-        """Profile LLM takes precedence over agent.llm when configured."""
+        """配置后，配置文件 LLM 优先于 agent.llm。"""
         service = self._make_service(title_llm_profile="cheap-model")
         mock_llm = LLM(model="gpt-3.5-turbo", usage_id="title-llm")
 
@@ -3668,7 +3667,7 @@ class TestAutoTitle:
             mock_store_instance.load.assert_called_once_with(
                 "cheap-model", cipher=service.cipher
             )
-            # Profile-loaded LLM wins over agent.llm
+            # 配置文件加载 LLM 战胜 agent.llm
             assert mock_generate_title.called
             assert mock_generate_title.call_args.args[1] is mock_llm
 
@@ -3677,7 +3676,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_falls_back_to_agent_llm_when_profile_not_found(self):
-        """Missing profile → fall back to agent.llm (non-breaking behavior)."""
+        """缺少配置文件 → 回退到 agent.llm（非中断行为）。"""
         service = self._make_service(title_llm_profile="nonexistent-profile")
         agent_llm = service._conversation.agent.llm
 
@@ -3698,7 +3697,7 @@ class TestAutoTitle:
             await subscriber(self._user_message_event())
             await self._drain_title_task(lambda: service.stored.title is not None)
 
-            # Failed profile load → falls back to agent.llm
+            # 配置文件加载失败 → 回退到 agent.llm
             assert mock_generate_title.called
             assert mock_generate_title.call_args.args[1] is agent_llm
 
@@ -3707,7 +3706,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_no_profile_uses_agent_llm(self):
-        """No profile configured → use agent.llm (preserves existing behavior)."""
+        """未配置配置文件 → 使用 agent.llm（保留现有行为）。"""
         service = self._make_service(title_llm_profile=None)
         agent_llm = service._conversation.agent.llm
 
@@ -3718,7 +3717,7 @@ class TestAutoTitle:
             await subscriber(self._user_message_event())
             await self._drain_title_task(lambda: service.stored.title is not None)
 
-            # No profile → agent.llm is used (backwards compatible)
+            # 没有配置文件→使用agent.llm（向后兼容）
             assert mock_generate_title.called
             assert mock_generate_title.call_args.args[1] is agent_llm
 
@@ -3727,7 +3726,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_handles_profile_load_value_error(self):
-        """Profile load ValueError → fall back to agent.llm."""
+        """配置文件加载 ValueError → 回落到 agent.llm。"""
         service = self._make_service(title_llm_profile="corrupted-profile")
         agent_llm = service._conversation.agent.llm
 
@@ -3754,7 +3753,7 @@ class TestAutoTitle:
 
     @pytest.mark.asyncio
     async def test_autotitle_falls_back_for_acp_managed_llm(self):
-        """ACP-managed agents with no title profile → truncation fallback."""
+        """ACP 管理智能体，无标题配置文件 → 截断回退方案。"""
         service = self._make_service(llm_usage_id="acp-managed")
         subscriber = AutoTitleSubscriber(service=service)
 
@@ -3804,13 +3803,13 @@ class TestAutoTitle:
     async def test_autotitle_integration_routes_through_profile_store(
         self, tmp_path, monkeypatch, request
     ):
-        """End-to-end: profile on disk → LLMProfileStore.load → title LLM call.
+        """端到端：磁盘上的配置文件 → LLMProfileStore.load → 标题 LLM 调用。
 
-        Exercises the real wiring from AutoTitleSubscriber through LLMProfileStore
-        to LLM.generate. Only the generic dispatch boundary (LLM.generate) is mocked,
-        so this catches regressions in profile loading, LLM passthrough, and the
-        agent-server → SDK integration — the unit tests above only exercise
-        AutoTitleSubscriber in isolation.
+        测试实际的接线 AutoTitleSubscriber 通过 LLMProfileStore to LLM.generate. 仅通
+        用调用边界（
+        LLM.generate) is 模拟的因此，这能捕获加载性能图时的回归 LLM passthrough, and
+        the 智能体-server SDK 集
+        成 ——  单元测试仅锻炼以上内容 AutoTitleSubscriber 在孤立状态下。
         """
         from litellm.types.utils import (
             Choices,
@@ -3822,8 +3821,9 @@ class TestAutoTitle:
         from openhands.sdk.llm import LLMResponse, MetricsSnapshot
         from openhands.sdk.llm.llm_profile_store import LLMProfileStore
 
-        # Persist a real LLM profile to disk with a distinctive usage_id so we
-        # can tell the title LLM apart from the agent's LLM in the assertion.
+        # 持久化一个真实的 LLM 配置文件到磁盘，具有独特的 usage_id，因此我们可以将断言中
+        # 的标题 LLM 与智能体的 LLM 区分开来。
+        #
         profile_dir = tmp_path / "profiles"
         title_llm_on_disk = LLM(
             usage_id="title-llm",
@@ -3861,15 +3861,17 @@ class TestAutoTitle:
                 raw_response=raw,
             )
 
-        # Point the agent-server profile store singleton at our tmp dir via
-        # OH_PERSISTENCE_DIR so the real _load_title_llm code path finds our
-        # on-disk profile under `{tmp_path}/profiles`.
+        # 通过 OH_PERSISTENCE_DIR 将智能体-服务器配置文件存储单例指向我们的 tmp 目录，以
+        # 便真正的 _load_title_llm 代码路径在 `{tmp_path}/profiles` 下找到我们的磁盘配置
+        # 文件。
+        #
         from openhands.agent_server.persistence import reset_stores
 
         monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path))
         reset_stores()
-        # Clear the singleton at teardown even if an assertion raises, so the
-        # stale store (pointing at the soon-deleted tmp_path) can't leak.
+        # 即使引发断言，也会在拆卸时清除单例，因此过时的存储（指向即将删除的 tmp_path）
+        # 不会泄漏。
+        #
         request.addfinalizer(reset_stores)
 
         with patch(
@@ -3879,15 +3881,17 @@ class TestAutoTitle:
         ):
             subscriber = AutoTitleSubscriber(service=service)
             await subscriber(self._user_message_event("Fix the login bug"))
-            # Wait for the background executor task to complete. The production
-            # code uses run_in_executor, so sleep(0) is not enough.
+            # 等待后台执行器任务完成。 生产代码使用 run_in_executor，因此 sleep(0) 不够
+            # 。
+            #
             for _ in range(50):
                 await asyncio.sleep(0.02)
                 if service.stored.title is not None:
                     break
 
-        # The profile's LLM (usage_id="title-llm") was called — not agent.llm
-        # (usage_id="test-llm"). This is the regression-sensitive assertion.
+        # 配置文件的 LLM (usage_id="title-llm") 被调用，而不是 agent.llm (usage_id="test
+        # -llm")。 这是回归敏感的断言。
+        #
         assert calls == ["title-llm"], (
             f"Expected only the title profile LLM to be called, got: {calls}"
         )
@@ -3898,9 +3902,8 @@ class TestAutoTitle:
     async def test_autotitle_decrypts_cipher_encrypted_title_profile(
         self, tmp_path, monkeypatch, request
     ):
-        """Regression for #3164: a cipher-encrypted title-LLM profile must be
-        decrypted on load so the title LLM sees the plaintext API key, not
-        Fernet ciphertext.
+        """回归对于 #3164：密码加密的 title-LLM 配置文件必须是
+        在加载时解密，因此标题 LLM 看到的是明文 API 密钥，而不是 Fernet 密文。
         """
         from litellm.types.utils import (
             Choices,
@@ -3928,7 +3931,7 @@ class TestAutoTitle:
         )
 
         service = self._make_service(title_llm_profile="title-encrypted")
-        # Inject the cipher; AutoTitleSubscriber reads it via service.cipher.
+        # 注入密码； AutoTitleSubscriber通过service.cipher读取它。
         service.cipher = cipher
 
         seen_keys: list[str] = []
@@ -3962,8 +3965,9 @@ class TestAutoTitle:
 
         monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path))
         reset_stores()
-        # Clear the singleton at teardown even if an assertion raises, so the
-        # stale store (pointing at the soon-deleted tmp_path) can't leak.
+        # 即使引发断言，也会在拆卸时清除单例，因此过时的存储（指向即将删除的 tmp_path）
+        # 不会泄漏。
+        #
         request.addfinalizer(reset_stores)
 
         with patch(
@@ -3984,17 +3988,17 @@ class TestAutoTitle:
 
 
 class TestACPActivityHeartbeatWiring:
-    """Tests for _setup_acp_activity_heartbeat in EventService."""
+    """测试 EventService 中的 _setup_acp_activity_heartbeat。"""
 
     def test_acp_agent_gets_on_activity_wired(self):
-        """_setup_acp_activity_heartbeat should set _on_activity on ACPAgent."""
+        """_setup_acp_activity_heartbeat 应该设置 _on_activity 在 ACPAgent。"""
         from openhands.agent_server.event_service import EventService
         from openhands.agent_server.server_details_router import (
             update_last_execution_time,
         )
 
         service = AsyncMock(spec=EventService)
-        # Call the real method
+        # 调用真实方法
         agent = ACPAgent(acp_command=["echo", "test"])
         assert agent._on_activity is None
 
@@ -4003,13 +4007,13 @@ class TestACPActivityHeartbeatWiring:
         assert agent._on_activity is update_last_execution_time
 
     def test_non_acp_agent_unchanged(self):
-        """_setup_acp_activity_heartbeat is a no-op for non-ACP agents."""
+        """_setup_acp_activity_heartbeat 对于非 ACP 智能体是无操作。"""
         from openhands.agent_server.event_service import EventService
 
         service = AsyncMock(spec=EventService)
         agent = Agent(llm=LLM(model="test-model"))
 
-        # Should not raise and should not set any attribute
+        # 不应引发也不应设置任何属性
         EventService._setup_acp_activity_heartbeat(service, agent)
         assert not hasattr(agent, "_on_activity")
 
@@ -4049,13 +4053,12 @@ async def test_refresh_persisted_conversation_adds_and_removes_record(
 
 
 def _branch_events(conversation) -> list:
-    """Log events excluding async ``ConversationStateUpdateEvent`` artifacts.
+    """记录不包括异步 ``ConversationStateUpdateEvent`` 工件的事件。
 
-    Those state-sync artifacts are appended to the log asynchronously
-    (``EventService._emit_event_from_thread``), so their position in
-    ``_state.events`` relative to the synchronous message appends is racy.
-    Filtering them keeps positional indexing and length invariants deterministic
-    for the fork/navigate assertions below.
+    这些状态同步工件会异步附加到日志 (``EventService._emit_event_from_thread``)，因此
+    它们的位置在
+    ``_state.events``相对于同步消息附加是活泼的。 过滤它们可以使下面的 fork/navigate
+    断言的位置索引和长度不变量保持确定性。
     """
     return [
         e
@@ -4065,10 +4068,10 @@ def _branch_events(conversation) -> list:
 
 
 class TestConversationTreeForkAndNavigate:
-    """Service-level coverage for fork-from-event lineage and navigation."""
+    """事件沿袭和导航的分叉服务级别覆盖范围。"""
 
     async def _start_with_events(self, svc, workspace_dir, texts):
-        """Start a conversation and append ``texts`` as user messages (no run)."""
+        """开始对话并附加 ``texts`` 作为用户消息（不运行）。"""
         from openhands.sdk.testing import TestLLM
         from tests.agent_server.stress.scripts import (
             start_conversation_with_test_llm,
@@ -4098,7 +4101,7 @@ class TestConversationTreeForkAndNavigate:
 
     @pytest.mark.asyncio
     async def test_fork_from_event_slices_branch_and_records_lineage(self, tmp_path):
-        """fork(from_event_id) copies only the branch and stamps lineage."""
+        """fork(from_event_id) 仅复制分支并标记血统。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         async with ConversationService(
@@ -4123,26 +4126,28 @@ class TestConversationTreeForkAndNavigate:
             assert fork_info.forked_from_conversation_id == info.id
             assert fork_info.forked_from_event_id == branch_point.id
             assert fork_info.leaf_event_id == branch_point.id
-            # forked_from_conversation_id must JSON-serialize in the same (dashed)
-            # shape as ``id`` so clients can correlate the two over the wire.
+            # forked_from_conversation_id 必须 JSON-序列化与 ``id`` 具有相同的（虚线）形
+            # 状，以便客户端可以通过网络将两者关联起来。
+            #
             dumped = fork_info.model_dump(mode="json")
             assert dumped["forked_from_conversation_id"] == str(info.id)
 
             fork_service = await svc.get_event_service(fork_info.id)
             assert fork_service is not None
             fork_events = _branch_events(fork_service.get_conversation())
-            # Only path_to_root(branch_point) was copied — the active branch up
-            # to and including the branch point, not the whole log.
+            # 仅复制 path_to_root(branch_point) — 直到分支点（包括分支点）的活动分支，而
+            # 不是整个日志。
+            #
             assert [e.id for e in fork_events] == expected_branch_ids
             assert len(fork_events) < len(events)
 
-            # Source is untouched by the fork.
+            # 源未受到分叉的影响。
             src_events = _branch_events(source_service.get_conversation())
             assert len(src_events) == len(events)
 
     @pytest.mark.asyncio
     async def test_whole_conversation_fork_has_no_branch_point(self, tmp_path):
-        """fork() without from_event_id copies everything; lineage event is None."""
+        """fork() 没有 from_event_id 复制所有内容； 谱系事件是None。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         async with ConversationService(
@@ -4164,7 +4169,7 @@ class TestConversationTreeForkAndNavigate:
 
     @pytest.mark.asyncio
     async def test_fork_unknown_event_raises_without_leaking_dir(self, tmp_path):
-        """fork(from_event_id) with an unknown id raises and leaves no orphan dir."""
+        """fork(from_event_id) 具有未知的 id 会引发并且不留下任何孤立目录。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4173,7 +4178,7 @@ class TestConversationTreeForkAndNavigate:
             before = {p.name for p in conversations_dir.iterdir()}
             with pytest.raises(ValueError, match="from_event_id"):
                 await svc.fork_conversation(info.id, from_event_id="evt-missing")
-            # Validation must fail-fast before any fork dir is written to disk.
+            # 验证在将任何 fork 目录写入磁盘之前必须快速失败。
             assert {p.name for p in conversations_dir.iterdir()} == before
 
     @pytest.mark.asyncio
@@ -4181,7 +4186,7 @@ class TestConversationTreeForkAndNavigate:
         "navigate_to_none", [False, True], ids=["to_event", "to_empty_tree"]
     )
     async def test_navigate_moves_head_in_place(self, tmp_path, navigate_to_none):
-        """navigate moves HEAD (to an event or empty tree), pruning no events."""
+        """导航移动 HEAD（到事件或空树），不修剪任何事件。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         async with ConversationService(
@@ -4196,12 +4201,12 @@ class TestConversationTreeForkAndNavigate:
 
             assert nav_info is not None
             assert nav_info.leaf_event_id == target
-            # All branches stay on disk — nothing is pruned.
+            # 所有分支都保留在磁盘上——没有任何分支被删除。
             assert len(_branch_events(event_service.get_conversation())) == len(events)
 
     @pytest.mark.asyncio
     async def test_navigate_unknown_event_raises(self, tmp_path):
-        """navigate to an unknown event raises ValueError."""
+        """导航到未知事件引发 ValueError。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         async with ConversationService(
@@ -4213,7 +4218,7 @@ class TestConversationTreeForkAndNavigate:
 
     @pytest.mark.asyncio
     async def test_navigate_missing_conversation_returns_none(self, tmp_path):
-        """navigate on an unknown conversation returns None (router maps to 404)."""
+        """导航未知对话返回 None（路由器映射到 404）。"""
         async with ConversationService(
             conversations_dir=tmp_path / "conversations"
         ) as svc:
@@ -4221,9 +4226,9 @@ class TestConversationTreeForkAndNavigate:
 
     @pytest.mark.asyncio
     async def test_lineage_and_navigated_head_persist_across_restart(self, tmp_path):
-        """Fork lineage (meta.json) and a navigated HEAD (base_state.json) survive
-        a server restart — navigate deliberately skips save_meta and relies on the
-        conversation state's own autosave."""
+        """分叉谱系 (meta.json) 和导航的 HEAD (base_state.json) 幸存
+        服务器重新启动 - 导航故意跳过 save_meta 并依赖于对话状态自己的自动保存。
+        """
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4241,7 +4246,7 @@ class TestConversationTreeForkAndNavigate:
             fork_id = fork_info.id
             await svc.navigate_conversation(src_id, event_id=target_leaf)
 
-        # Fresh service over the same dir = a process restart.
+        # 同一目录上的新服务 = 进程重新启动。
         async with ConversationService(conversations_dir=conversations_dir) as svc2:
             reloaded_src = await svc2.get_conversation(src_id)
             reloaded_fork = await svc2.get_conversation(fork_id)
@@ -4254,15 +4259,15 @@ class TestConversationTreeForkAndNavigate:
 
 
 class TestConversationSearchScaling:
-    """Status-filtered search/count must not full-scan conversation state.
+    """搜索/计数必须不得全扫描对话状态。
 
-    Regression coverage for #3142, where both called ``get_state()`` on every
-    catalog entry to read one enum field per conversation.
+    回归覆盖 #3142，其中每个目录条目都调用 ``get_state()`` 以读取每个对话的一个枚举字
+    段。
     """
 
     @staticmethod
     def _seed(conversations_dir: Path, count: int, workspace_dir: Path) -> list[UUID]:
-        """Write ``count`` idle conversations straight to disk."""
+        """将 ``count`` 个空闲对话直接写入磁盘。"""
         conversations_dir.mkdir(parents=True, exist_ok=True)
         ids = []
         for i in range(count):
@@ -4289,7 +4294,7 @@ class TestConversationSearchScaling:
 
     @pytest.mark.asyncio
     async def test_filtered_search_loads_state_only_for_the_page(self, tmp_path):
-        """A filtered page loads full state for page items, not the whole catalog."""
+        """过滤后的页面加载页面项目的完整状态，而不是整个目录。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4313,14 +4318,14 @@ class TestConversationSearchScaling:
 
             assert len(page.items) == 5
             assert page.next_page_id is not None
-            # Before the fix: 40, one full state load per conversation.
+            # 修复之前：40，每个对话一个完整状态负载。
             assert len(loaded) == 5, (
                 f"expected 5 full state loads (the page), got {len(loaded)}"
             )
 
     @pytest.mark.asyncio
     async def test_filtered_count_loads_no_state(self, tmp_path):
-        """Counting by status must not load any full conversation state."""
+        """按状态计数不得加载任何完整的对话状态。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4344,7 +4349,7 @@ class TestConversationSearchScaling:
 
     @pytest.mark.asyncio
     async def test_status_index_picks_up_on_disk_changes(self, tmp_path):
-        """The cached status is invalidated when base_state.json changes."""
+        """当base_state.json改变时，缓存状态失效。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4358,12 +4363,12 @@ class TestConversationSearchScaling:
                 == 0
             )
 
-            # Simulate another process finishing one conversation.
+            # 模拟另一个进程完成一次对话。
             base_state = conversations_dir / ids[0].hex / "base_state.json"
             payload = json.loads(base_state.read_text())
             payload["execution_status"] = ConversationExecutionStatus.FINISHED.value
-            # Change the size too, so the test does not rely on mtime
-            # granularity.
+            # 大小也会改变，因此测试不依赖于 mtime 粒度。
+            #
             payload["max_iterations"] = 1234567
             base_state.write_text(json.dumps(payload))
 
@@ -4386,7 +4391,7 @@ class TestConversationSearchScaling:
 
     @pytest.mark.asyncio
     async def test_live_conversation_status_is_read_from_memory(self, tmp_path):
-        """A live conversation answers the filter from its in-memory state."""
+        """实时对话从内存状态回答过滤器。"""
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
         conversations_dir = tmp_path / "conversations"
@@ -4402,7 +4407,7 @@ class TestConversationSearchScaling:
             assert svc._event_services is not None
             event_service = svc._event_services[live.id]
 
-            # Flip the live state without touching disk.
+            # 翻转实时状态而不接触磁盘。
             state = await event_service.get_state()
             with state:
                 state.execution_status = ConversationExecutionStatus.RUNNING
@@ -4426,11 +4431,10 @@ class TestConversationSearchScaling:
 
     @pytest.mark.asyncio
     async def test_filtered_search_sees_records_replaced_during_refresh(self, tmp_path):
-        """Filtered search must refresh before it snapshots the catalog.
+        """筛选的搜索必须先刷新，然后才能对目录进行快照。
 
-        A conversation going live during the refresh replaces its record with
-        authoritative in-memory state. Snapshotting first would filter on the
-        superseded object and drop the conversation from the page.
+        刷新期间进行的对话会用权威的内存状态替换其记录。 首先，快照将过滤被取代的对象
+        并从页面中删除对话。
         """
         workspace_dir = tmp_path / "workspace"
         workspace_dir.mkdir()
@@ -4443,7 +4447,7 @@ class TestConversationSearchScaling:
 
             async def refresh_then_replace():
                 await real_refresh()
-                # Stands in for _start_event_service swapping in a fresh record
+                # 代表 _start_event_service 交换新记录
                 # while the refresh awaited.
                 old = svc._conversation_records[target]
                 svc._conversation_records[target] = _ConversationRecord(
@@ -4461,17 +4465,17 @@ class TestConversationSearchScaling:
 
 @pytest.mark.asyncio
 async def test_search_composes_conversation_info_off_event_loop(persisted_conversation):
-    """Regression: composing ConversationInfo during a list/search must not run
-    on the event-loop thread.
+    """Regression: 在列表/搜索期间编写 ConversationInfo 不得运行
+    在事件循环线程上。
 
-    The heavy Pydantic construction in ``_compose_conversation_info`` (with its
-    large nested object graphs) used to execute synchronously on the single
-    asyncio event-loop thread. Under load this caused long blocking GC pauses,
-    stalling every request (async and executor-backed alike) — the wedge seen in
-    production. Offloading it to a worker thread keeps GC/allocation off the loop.
+    ``_compose_conversation_info`` 中的重型 Pydantic 构造（及其大型嵌套对象图）用于在
+    单个 asyncio 事件循环线程上同步执
+    行。 在负载下，这会导致长时间的阻塞 GC 暂停，从而拖延每个请求（异步和执行程序支持
+    的请求）——这是生产中看到的楔子。 将其卸载给工作人员线程可以使 GC/分配脱
+    离循环。
 
-    This test loads a persisted (idle) conversation through ``search_conversations``
-    and asserts the composition ran on a thread other than the event loop.
+    此测试通过 ``search_conversations`` 加载已持久化（空闲）对话，并断言组合在线程而
+    非事件循环上运行。
     """
     import threading
     from unittest.mock import patch as _patch
@@ -4496,7 +4500,7 @@ async def test_search_composes_conversation_info_off_event_loop(persisted_conver
             assert [item.id for item in page.items] == [conversation_id]
             assert comp.call_count >= 1
 
-    # Prove the composition executed off the event loop.
+    # 证明在事件循环上执行的合成。
     assert found.get("thread_ident") is not None
     assert found["thread_ident"] != loop_ident
 
@@ -4505,7 +4509,7 @@ async def test_search_composes_conversation_info_off_event_loop(persisted_conver
 async def test_search_reuses_persisted_conversation_info_until_state_changes(
     persisted_conversation,
 ):
-    """Repeated sidebar polls should not reparse unchanged base_state.json."""
+    """重复的侧边栏民意调查不应重新解析不变base_state.json。"""
     conversations_dir, conversation_id = persisted_conversation
     async with ConversationService(conversations_dir=conversations_dir) as service:
         real_load = service._load_persisted_state_sync
@@ -4530,7 +4534,7 @@ async def test_search_invalidates_cached_info_when_state_file_changes(
         base_state = conversations_dir / conversation_id.hex / "base_state.json"
         payload = json.loads(base_state.read_text())
         payload["execution_status"] = ConversationExecutionStatus.FINISHED.value
-        # Change size as well as mtime so the signature changes on every FS.
+        # 更改大小和运行时间，以便每个 FS 上的签名都会更改。
         payload["max_iterations"] = 1234567
         base_state.write_text(json.dumps(payload))
 
@@ -4542,7 +4546,7 @@ async def test_search_invalidates_cached_info_when_state_file_changes(
 
 @pytest.mark.asyncio
 async def test_search_live_conversation_does_not_wait_for_state_lock(tmp_path):
-    """Sidebar listing must not block behind a live agent's long step lock."""
+    """侧边栏列表不得挡在实时智能体的长步骤锁后面。"""
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
@@ -4558,9 +4562,9 @@ async def test_search_live_conversation_does_not_wait_for_state_lock(tmp_path):
         assert event_services is not None
         live_state = await event_services[conversation_info.id].get_state()
 
-        # Hold the same FIFOLock that LocalConversation.arun() holds across a
-        # native OpenHands agent step. The old listing path composed from the
-        # live state and blocked until this lock was released.
+        # 保持 FIFOLock 和 LocalConversation.arun() 在一个原生 OpenHands 智能体步骤中的
+        # 相同。 由活状态和被阻塞的旧列表路径，直到锁发布。
+        #
         acquired = threading.Event()
         release = threading.Event()
 

@@ -1,4 +1,4 @@
-"""Test that an agent can write a shell script that prints 'hello'."""
+"""测试智能体是否可以编写打印“hello”的 shell 脚本。"""
 
 import os
 
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class BashHelloTest(BaseIntegrationTest):
-    """Test that an agent can write a shell script that prints 'hello'."""
+    """测试智能体是否可以编写打印“hello”的 shell 脚本。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -22,31 +22,31 @@ class BashHelloTest(BaseIntegrationTest):
         self.script_path: str = os.path.join(self.workspace, "shell", "hello.sh")
 
     def setup(self) -> None:
-        """Setup is not needed - agent will create directories as needed."""
+        """不需要安装 - 智能体将根据需要创建目录。"""
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent successfully created the shell script."""
+        """验证智能体是否已成功创建 shell 脚本。"""
         if not os.path.exists(self.script_path):
             return TestResult(
                 success=False, reason="Shell script 'shell/hello.sh' not found"
             )
 
-        # Check if the script is executable
+        # 检查脚本是否可执行
         if not os.access(self.script_path, os.X_OK):
             return TestResult(success=False, reason="Shell script is not executable")
 
-        # Read the script content
+        # 阅读脚本内容
         with open(self.script_path) as f:
             script_content = f.read()
 
-        # Check if the script contains the expected output
+        # 检查脚本是否包含预期的输出
         if "hello" not in script_content.lower():
             return TestResult(
                 success=False,
                 reason=f"Script does not contain 'hello': {script_content}",
             )
 
-        # Try to execute the script and check output
+        # 尝试执行脚本并检查输出
         try:
             import subprocess
 

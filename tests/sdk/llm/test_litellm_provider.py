@@ -50,8 +50,9 @@ def test_llm_provider_handles_unknown_model_without_provider():
 
 
 def test_llm_provider_keeps_requested_api_base_verbatim():
-    # LiteLLM's own resolution appends "/v1" to a custom mistral base; the
-    # helper must not leak that mutated value back into the forwarded kwargs.
+    # LiteLLM自己的决议将“/v1"附加到定制的米斯特拉尔基地； 助手不得将该变异值泄漏回转发
+    # 的 kwargs 中。
+    #
     provider = LLMProvider.from_model(
         model="mistral/mistral-small-latest",
         api_base="https://myproxy.example.com",
@@ -72,9 +73,9 @@ def test_llm_provider_keeps_requested_api_base_verbatim():
     ],
 )
 def test_split_kwargs_equivalent_to_full_model_string(model: str, api_base: str | None):
-    """The refactor sends parsed model + custom_llm_provider instead of the
-    full "provider/model" string. Prove LiteLLM resolves both forms to the
-    same provider/model/api_base, i.e. the wire behavior is unchanged.
+    """重构发送解析后的模型 + custom_llm_provider 而不是
+    完整的“提供商/模型”字符串。 证明 LiteLLM 将两种形式解析为相同的提供者/模型/
+    api_base、i.e。 电线行为不变。
     """
     provider = LLMProvider.from_model(model=model, api_base=api_base)
 

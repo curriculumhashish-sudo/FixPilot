@@ -1,10 +1,10 @@
-"""``AgentProfile`` — the named, reference-bearing agent launch spec.
+"""``AgentProfile`` — 命名的、带有参考的智能体启动规范。
 
-A separate ``Discriminator("agent_kind")`` + ``Tag`` union from
-:data:`~openhands.sdk.settings.model.AgentSettingsConfig`: the profile carries
-*references* (``llm_profile_ref`` / ``mcp_server_refs``) and is secret-free at
-rest, whereas the settings union embeds the resolved ``llm`` / ``mcp_config``.
-See epic #3713 for the resolution model.
+一个单独的 ``Discriminator("agent_kind")`` + ``Tag`` 并集
+:data:`~openhands.sdk.settings.model.AgentSettingsConfig`: 配置文件携带
+*参考文献* (``llm_profile_ref`` / ``mcp_server_refs``) 并且在机密处是免费的
+REST，而设置联合嵌入已解析的 ``llm`` / ``mcp_config``。 有关分辨率模型，请参阅史诗#
+3713。
 """
 
 from __future__ import annotations
@@ -46,12 +46,12 @@ AGENT_PROFILE_SCHEMA_VERSION = 4
 
 
 class ProfileVerificationSettings(BaseModel):
-    """Secret-free critic/refinement policy for a profile.
+    """机密-个人资料的免费评论家/细化政策。
 
-    The non-credential subset of
-    :class:`~openhands.sdk.settings.model.VerificationSettings`: ``critic_api_key``
-    is omitted so the profile holds no secret. The critic reuses the resolved
-    LLM profile's key (the existing ``critic_api_key=None`` behavior).
+    的非凭据子集
+    ：类：`~openhands.sdk.settings.model.VerificationSettings`：``critic_api_key``
+    被省略，因此配置文件不包含机密。 批评者重用已解决的 LLM 配置文件的密钥（现有的
+    ``critic_api_key=None`` 行为）。
     """
 
     critic_enabled: bool = False
@@ -66,11 +66,11 @@ class ProfileVerificationSettings(BaseModel):
 def build_profile_verification(
     v: VerificationSettings,
 ) -> ProfileVerificationSettings:
-    """Project the secret-free subset of ``VerificationSettings`` onto a profile.
+    """将 ``VerificationSettings`` 的无机密子集投影到轮廓上。
 
-    Drops ``critic_api_key`` — the profile is secret-free; the critic reuses the
-    resolved LLM profile's key. Hoisted from the agent-server router so the
-    local and cloud seeds build verification identically.
+    掉落 ``critic_api_key`` — 该配置文件不受机密限制； 批评者重用已解决的 LLM 配置文
+    件的密钥。 从智能体服务器路由器提升，因此本地种子和云种
+    子构建相同的验证。
     """
     return ProfileVerificationSettings(
         critic_enabled=v.critic_enabled,
@@ -84,7 +84,7 @@ def build_profile_verification(
 
 
 class AgentProfileInfo(BaseModel):
-    """Summary projection of a stored profile (no secret instantiation)."""
+    """已存储配置文件的摘要投影（无机密实例化）。"""
 
     id: str | None = None
     name: str
@@ -95,19 +95,19 @@ class AgentProfileInfo(BaseModel):
 
 
 class AgentProfileListResponse(BaseModel):
-    """Response body returned by ``GET /api/agent-profiles``."""
+    """``GET /api/agent-profiles`` 返回的响应正文。"""
 
     profiles: list[AgentProfileInfo]
     active_agent_profile_id: str | None = None
 
 
 class AgentProfileBase(BaseModel):
-    """Shared identity + provenance fields for every ``AgentProfile`` variant.
+    """每个 ``AgentProfile`` 变体的共享身份 + 出处字段。
 
-    ``extra="forbid"`` is what gives the union its cross-variant safety: a
-    payload tagged ``agent_kind="acp"`` that also carries ``llm_profile_ref``
-    (or an OpenHands payload carrying ``acp_*``) is rejected rather than
-    silently dropping the foreign field into a mongrel profile.
+    ``extra="forbid"`` 是使联盟具有跨变体安全性的原因：一个带有载荷标记的
+    ``agent_kind="acp"``，它还携带
+    ``llm_profile_ref``（或一个 OpenHands 载荷携带 ``acp_*``）会被拒绝，而不是无声地
+    将外键字段插入到 mongrel 角色中。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -134,13 +134,12 @@ class AgentProfileBase(BaseModel):
         description="Monotonic revision counter, bumped on each saved edit.",
     )
     # null = all of the user's MCP servers; [] = none; a non-null list filters
-    # to the named keys. null and [] are deliberately distinct. MCP servers are
-    # user-configured and persisted, so this reference is safe: every name that
-    # can be referenced is present in ``mcp_config``. Skills are NOT modeled this
-    # way — they are discovered from many lazy/incomplete sources, so a profile
-    # selects them by *exclusion* (``OpenHandsAgentProfile.disabled_skills``, a
-    # deny-list) rather than by an allow-list of names that can dangle. See the
-    # #4017 architecture discussion.
+    # 到指定的键。 null 和 [] 它们是故意区别的。 MCP 服务器是用户配置的已持久化因此，这
+    # 个引用是安全的：可以引用的所有名称都在这里 ``mcp_config``. 技能是不按照这种方式 ——
+    #  它们来自许多懒惰/不完整的来源，因此一个模式选择它们 *排除* (
+    # ``OpenHandsAgentProfile.disabled_skills``而是通过一个拒绝列表，而不是一个允许列表
+    # ，其中包含可以悬空的名称。 请参阅
+    # #4017架构讨论。
     mcp_server_refs: list[str] | None = Field(
         default=None,
         description=(
@@ -148,11 +147,10 @@ class AgentProfileBase(BaseModel):
             "null = all; [] = none; a non-null list = filter to the named keys."
         ),
     )
-    # Names only — the values live in the user's secrets store and reach a
-    # conversation as ``LookupSecret``s resolved at spawn time, so this keeps the
-    # profile secret-free. Unlike ``mcp_server_refs`` a ref here can never
-    # dangle: this is an allow-list applied to whatever the conversation was
-    # given, so a name with no matching secret simply never matches.
+    # 仅名称 - 值存在于用户的机密存储中，并在生成时解析 ``LookupSecret`` 时到达对话，因
+    # 此这使配置文件机密保持自由。 与``mcp_server_refs``不同，这里的引用永远不能
+    # 悬挂：这是一个适用于任何对话的允许列表
+    # 给定，因此没有匹配机密的名称根本不会匹配。
     secret_refs: list[str] | None = Field(
         default=None,
         description=(
@@ -165,13 +163,13 @@ class AgentProfileBase(BaseModel):
 
 
 class OpenHandsAgentProfile(AgentProfileBase):
-    """``agent_kind="openhands"`` profile — references an LLM profile by name.
+    """``agent_kind="openhands"`` 配置文件 — 按名称引用 LLM 配置文件。
 
-    Mirrors the configurable surface of
-    :class:`~openhands.sdk.settings.model.OpenHandsAgentSettings`, except the
-    concrete ``llm`` is replaced by :attr:`llm_profile_ref` (resolved against
-    the LLM profile store) and ``mcp_config`` by the inherited
-    :attr:`~AgentProfileBase.mcp_server_refs`.
+    镜像可配置表面
+    :class:`~openhands.sdk.settings.model.OpenHandsAgentSettings`，除了
+    具体 ``llm`` 被：attr:`llm_profile_ref` 替换（根据 LLM 配置文件存储解析），
+    ``mcp_config`` 被继承的
+    ：属性：`~AgentProfileBase.mcp_server_refs`。
     """
 
     agent_kind: Literal["openhands"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
@@ -193,7 +191,7 @@ class OpenHandsAgentProfile(AgentProfileBase):
         default="CodeActAgent",
         description="Agent class to build.",
     )
-    # Secret-free by construction (name + params).
+    # 机密-通过构造自由（名称+参数）。
     tools: list[Tool] | None = Field(
         default=None,
         description=(
@@ -296,13 +294,13 @@ class OpenHandsAgentProfile(AgentProfileBase):
 
 
 class ACPAgentProfile(AgentProfileBase):
-    """``agent_kind="acp"`` profile — names an ACP backend, stores no credential.
+    """``agent_kind="acp"`` 配置文件 — 命名 ACP 后端，不存储凭据。
 
-    There is no ``llm_profile_ref`` and no embedded credential: the ACP
-    subprocess makes its own model calls, and the provider's credential
-    (env-var name) is derived from :attr:`acp_server` via the
-    :data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS` registry. The
-    value rides the conversation secrets channel, never the profile.
+    没有 ``llm_profile_ref`` 也没有嵌入的凭据：ACP 子进程进行自己的模型调用，并且提供
+    者的凭据（环境变量名称）是通过以下方式从：attr:
+    `acp_server` 派生的
+    ：数据：`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS` 注册表。 的
+    价值取决于对话机密渠道，而不是个人资料。
     """
 
     agent_kind: Literal["acp"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
@@ -312,10 +310,10 @@ class ACPAgentProfile(AgentProfileBase):
             "ACP-delegating agent."
         ),
     )
-    # No skill-selection field: ACP agents own their tooling and prompt
-    # construction. Project skills never reach one (the CLI reads the repo
-    # itself, #4019); whether any managed skill does is a deployment choice the
-    # caller expresses through ``resolve_agent_profile``'s ``available_skills``.
+    # 无技能选择领域：ACP智能体拥有自己的工具和提示词构造。 项目技能永远不会达到 1（CLI
+    # 读取存储库本身，#4019）； 任何托管技能是否执行都是调用者通过
+    # ``resolve_agent_profile`` 的 ``available_skills`` 表达的部署选择。
+    #
     acp_server: ACPServerKind = Field(
         default="claude-code",
         description=(
@@ -367,11 +365,11 @@ class ACPAgentProfile(AgentProfileBase):
 
 
 class LaunchedAgentProfile(BaseModel):
-    """Provenance snapshot recorded when an agent profile launches a conversation.
+    """智能体配置文件启动对话时记录的来源快照。
 
-    Stored on ``StoredConversation`` and projected onto ``ConversationInfo`` so
-    ts-client ``deriveSwitchPlan`` can identify which agent profile is current
-    without fragile settings-comparison. See #3720.
+    存储在 ``StoredConversation`` 上并投影到 ``ConversationInfo`` 上，因此 ts-client
+    ``deriveSwitchPlan`` 可以识别哪个智能体配置文件是当前的，而无需进行脆弱的设置比较
+    。 参见#3720。
     """
 
     agent_profile_id: UUID = Field(
@@ -401,11 +399,10 @@ class LaunchedAgentProfile(BaseModel):
 
 
 def _agent_profile_discriminator(value: Any) -> str:
-    """Discriminator for :data:`AgentProfile` — defaults to ``'openhands'``.
+    """:data:`AgentProfile` 的鉴别器 — 默认为 ``'openhands'``。
 
-    A payload without an explicit ``agent_kind`` is treated as the standard
-    OpenHands variant, mirroring
-    :func:`~openhands.sdk.settings.model._agent_settings_discriminator`.
+    没有显式 ``agent_kind`` 的载荷被视为标准 OpenHands 变体，镜像
+    :func:`~openhands.sdk.settings.model._agent_settings_discriminator`。
     """
     if isinstance(value, AgentProfileBase):
         return value.agent_kind
@@ -419,10 +416,10 @@ AgentProfile = Annotated[
     | Annotated[ACPAgentProfile, Tag("acp")],
     Discriminator(_agent_profile_discriminator),
 ]
-"""Discriminated union over the agent-profile variants.
+"""智能体-配置文件变体的歧视联合。
 
-Use :func:`validate_agent_profile` (or a :class:`~pydantic.TypeAdapter`) to
-validate/construct instances from raw payloads.
+使用：func:`validate_agent_profile` （或：class:`~pydantic.TypeAdapter`）从原始载荷验
+证/构造实例。
 """
 
 
@@ -430,11 +427,11 @@ PersistedProfileMigrator = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 def _migrate_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
-    """Remove the retired embedded-skills configuration from v1 profiles."""
+    """从 v1 配置文件中删除已停用的嵌入式技能配置。"""
     migrated = dict(payload)
-    # ``skills`` was removed from the persisted profile shape in v2.  It must
-    # be discarded here, before strict model validation, so a v1 profile can
-    # be opened and saved as its canonical v2 representation.
+    # ``skills`` 已从 v2 中的已持久化轮廓形状中删除。 在严格模型验证之前，必须在此处将其
+    # 丢弃，以便可以打开 v1 配置文件并将其保存为其规范的 v2 表示形式。
+    #
     migrated.pop("skills", None)
     if (
         migrated.get("agent_kind", "openhands") == "openhands"
@@ -448,7 +445,7 @@ def _migrate_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
-    """Fold the retired tool switches into ``tools``."""
+    """将退役的工具开关折叠到 ``tools`` 中。"""
     if payload.get("agent_kind", "openhands") == "openhands":
         migrated = fold_retired_tool_switches(payload)
     else:
@@ -458,7 +455,7 @@ def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
-    """Discard retired switch inputs saved by v3."""
+    """丢弃 v3 保存的已停用的开关输入。"""
     migrated = drop_retired_tool_switches(payload)
     migrated["schema_version"] = 4
     return migrated
@@ -472,7 +469,7 @@ _AGENT_PROFILE_MIGRATIONS: dict[int, PersistedProfileMigrator] = {
 
 
 def _apply_persisted_migrations(payload: dict[str, Any]) -> dict[str, Any]:
-    """Bring an ``AgentProfile`` payload up to the current schema."""
+    """将 ``AgentProfile`` 载荷增加到当前模式。"""
     migrated = dict(payload)
     version_raw = migrated.get("schema_version")
     if version_raw is None:
@@ -527,11 +524,10 @@ def validate_agent_profile(
     *,
     context: Mapping[str, Any] | None = None,
 ) -> OpenHandsAgentProfile | ACPAgentProfile:
-    """Load and validate an ``AgentProfile`` payload, narrowing on ``agent_kind``.
+    """加载并验证 ``AgentProfile`` 载荷，缩小范围 ``agent_kind``。
 
-    Already-validated instances pass through unchanged. Raw mappings are
-    migrated to the current schema version, then validated against
-    :data:`AgentProfile`, so the return is always a canonical variant.
+    已经验证的实例不变地通过。 原始映射会迁移到当前模式版本，然后进行验证
+    :data:`AgentProfile`，因此返回始终是规范变体。
     """
     if isinstance(data, OpenHandsAgentProfile | ACPAgentProfile):
         return data
@@ -546,18 +542,17 @@ def validate_agent_profile(
 
 
 def safe_validation_error_detail(exc: ValidationError) -> list[dict[str, Any]]:
-    """FastAPI-shaped ``detail`` for a 422 from a failed profile validation.
+    """来自失败配置文件验证的 422 的 FastAPI 形 ``detail``。
 
-    Surfaces ``loc``/``type``/``msg`` per error. The profile carries no
-    secret-bearing field — embedded ``skills[].mcp_tools`` was removed in #4017,
-    and the ``disabled_skills`` deny-list holds only skill *names* — so the full
-    validation message is safe to return, and a client needs it to see *why* a
-    save failed (e.g. an invalid ``acp_server`` value). ``input`` is still
-    dropped: it echoes the whole rejected payload, which is noisy and not needed
-    to explain the error. Shaped like FastAPI's request-validation ``detail`` (a
-    list of error objects) so routers can hand it straight to ``HTTPException``.
-    Hoisted from the agent-server router so the local and cloud routers behave
-    identically.
+    每个错误的表面 ``loc``/``type``/``msg``。 该配置文件没有机密标记字段 ——
+    ``skills[].mcp_tools`` 在 #4017
+    中被移除，而 ``disabled_skills`` 拒绝列表仅包含 * 名 * —— 因此，完整的验证消息是
+    安全返回的，客户端需要它来了解 * 为什么 * 保存失
+    败 (e.g。 无效的 ``acp_server`` 值）。 ``input`` 仍然
+    dropped: 它与整个被拒绝的载荷相呼应，这是有噪音的并且不需要
+    来解释错误。 形状类似于 FastAPI 的请求-验证 ``detail``（错误对象列表），因此路由
+    器可以将其直接传递给 ``HTTPException``。 从
+    智能体服务器路由器提升，因此本地路由器和云路由器的行为相同。
     """
     return [
         {"loc": list(err["loc"]), "type": str(err["type"]), "msg": str(err["msg"])}

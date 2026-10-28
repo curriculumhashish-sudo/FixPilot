@@ -12,9 +12,9 @@ from pathlib import Path
 from markdown_sections import find_headings, without_fenced_code_blocks
 
 
-# Reject placeholders while allowing a concise human-written sentence.
+# 拒绝占位符，同时允许简洁的人写句子。
 MIN_HUMAN_NOTE_CHARS = 20
-# These are the only PR-template sections that must remain and contain content.
+# 这些是唯一必须保留并包含内容的 PR-模板部分。
 REQUIRED_TEMPLATE_FIELDS: tuple[str, ...] = ("Why", "Summary", "How to Test")
 
 HTML_COMMENT_RE = re.compile(r"<!--[\s\S]*?-->")
@@ -24,14 +24,14 @@ AGENT_HEADING_RE = re.compile(r"(?im)^\s*AGENT:\s*$")
 ISSUE_REF_RE = re.compile(r"(?i)\b(?:fix|clos|resolv)(?:e?(?:s|d)?|ing)?\s+#(\d+)")
 BARE_ISSUE_REF_RE = re.compile(r"(?<!\w)#(\d+)")
 READY_FOR_DEV_LABEL = "ready-for-dev"
-# Older issues are exempt: the rollout did not evaluate them retroactively.
-# The cutoff is the UTC day after deployment (2026-08-12), so issues opened
-# earlier on deployment day are also exempt. Issues from 2026-08-13 need the label.
+# 较旧的问题除外：此次推出并未对它们进行追溯评估。 截止日期是部署后的 UTC 天 (2026-08-12
+# )，因此部署日之前提出的问题也可以豁免。 2026-08-13 以来的问题需要标签。
+#
 READY_FOR_DEV_ROLLOUT_ISO = "2026-08-13"
 
 
 def visible_text(text: str) -> str:
-    """Return PR body content that should count as author-provided text."""
+    """返回应视为作者提供的文本的 PR 正文内容。"""
     lines = []
     for line in HTML_COMMENT_RE.sub("", text).splitlines():
         stripped = line.strip()
@@ -59,11 +59,10 @@ def extract_sections(body: str) -> dict[str, str]:
 
 
 def extract_human_note(body: str) -> str:
-    """Return human-written text in the required location before `AGENT:`.
+    """在 `AGENT:` 之前的所需位置返回人工编写的文本。
 
-    The markers are located outside fenced code blocks so that quoting the
-    template does not stand in for filling it out. Offsets are preserved by the
-    masking, so the note itself is still read from the original body.
+    标记位于围栏代码块之外，因此引用模板并不代表填写模板。 掩码保留了偏移量，因此注释
+    本身仍然是从原始正文中读取的。
     """
     outside_fences = without_fenced_code_blocks(body)
 
@@ -100,7 +99,7 @@ def extract_linked_issue_numbers(body: str) -> list[int]:
 def fetch_issue_details(
     repo: str, issue_number: int, token: str
 ) -> tuple[list[str], str]:
-    """Return an issue's (labels, created_at) from the GitHub API."""
+    """从 GitHub API 返回问题的（标签，created_at）。"""
     request = urllib.request.Request(
         f"https://api.github.com/repos/{repo}/issues/{issue_number}",
         headers={
@@ -142,7 +141,7 @@ def validate_linked_issue_ready(
         if READY_FOR_DEV_LABEL in (label.lower() for label in labels):
             continue
         if created_at[:10] < READY_FOR_DEV_ROLLOUT_ISO:
-            # Predates the rollout; grandfathered to avoid retroactive blocking.
+            # 早于推出； 避免追溯封锁。
             continue
         not_ready_new.append(number)
 
@@ -183,7 +182,7 @@ def validate_pr_body(body: str) -> list[str]:
 
 
 def body_from_event(event_path: Path) -> tuple[str, str | None]:
-    """Return the (pull request body, repository full name) from an event payload."""
+    """从事件载荷返回（拉取请求正文、存储库全名）。"""
     payload = json.loads(event_path.read_text())
     pull_request = payload.get("pull_request")
     if not isinstance(pull_request, dict):

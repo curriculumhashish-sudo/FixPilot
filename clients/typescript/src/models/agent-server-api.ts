@@ -1,8 +1,8 @@
 /**
- * Stable public aliases for selected generated Agent Server operations.
+ * 所选生成的 Agent Server 操作的稳定公共别名。
  *
- * Keep generator-specific lookup names in this file instead of spreading them
- * through the handwritten client.
+ * 将特定于生成器的查找名称保留在此文件中，而不是传播它们
+ * 通过手写客户端。
  */
 import type {
   GetAgentSettingsSchemaApiSettingsAgentSchemaGetResponse,

@@ -1,8 +1,7 @@
-"""Redaction helpers that keep secrets out of exported artifacts.
+"""脱敏帮助器将机密排除在导出的工件之外。
 
-Used at export boundaries (e.g. trajectory download) where persisted
-conversation data leaves the server and must never carry credential
-material — neither plaintext nor recoverable Fernet ciphertext.
+用于出口边界 (e.g. 已持久化会话数据离开服务器的轨迹下载]，必须凭据从不携带 —— 无论是
+明文还是不可恢复的 Fernet 密文。
 """
 
 import json
@@ -14,37 +13,35 @@ from openhands.sdk.utils.cipher import FERNET_TOKEN_PREFIX
 from openhands.sdk.utils.pydantic_secrets import REDACTED_SECRET_VALUE
 
 
-# Field names that carry credentials anywhere in a persisted conversation
-# payload (base_state.json, meta.json, events). Kept in sync with
-# ``LLM_SECRET_FIELDS`` and extended with the settings-level ``llm_api_key``
-# alias.
+# 在已持久化会话载荷中的任何位置携带凭据的字段名称（base_state.json、meta.json、事件）。
+#  保存在同步中
+# ``LLM_SECRET_FIELDS`` 并使用设置级别 ``llm_api_key`` 别名进行扩展。
+#
 TRAJECTORY_SECRET_FIELDS: frozenset[str] = frozenset(
     (*LLM_SECRET_FIELDS, "llm_api_key")
 )
 
-# Suffix of newline-delimited JSON files: one JSON document per line.
+# 以换行符分隔的 JSON 文件的后缀：每行一个 JSON 文档。
 _JSON_LINES_SUFFIX: Final[str] = ".jsonl"
 
 
 def _is_secret_value(key: object, value: object) -> bool:
     if not isinstance(value, str) or value in ("", REDACTED_SECRET_VALUE):
         return False
-    # Any Fernet token in a persisted conversation is ciphertext produced with
-    # the server's OH_SECRET_KEY (e.g. custom secrets in
-    # ``secret_registry.secret_sources``) and therefore recoverable secret
-    # material, regardless of which field carries it.
+    # 已持久化会话中的任何 Fernet token 都是使用服务器的 OH_SECRET_KEY (e.g. 自定义机密
+    # ``secret_registry.secret_sources``），因此可回收机密材料，无论哪个领域携带它。
+    #
     if value.startswith(FERNET_TOKEN_PREFIX):
         return True
     return key in TRAJECTORY_SECRET_FIELDS
 
 
 def redact_secrets_in_obj(obj: object) -> bool:
-    """Recursively replace secret-bearing values with the redaction marker.
+    """递归地将机密值替换为脱敏标记。
 
-    Returns ``True`` if anything was changed. Both plaintext and encrypted
-    (Fernet) secret material are masked, so the guarantee holds regardless of
-    whether ``OH_SECRET_KEY`` was configured when the conversation was
-    persisted.
+    如果有任何更改，则返回 ``True``。 无论是明文还是加密的（Fernet）机密材料，都进行
+    了掩码处理，因此该保证无论何时``OH_SECRET_KEY``被配
+    置已持久化，都有效。
     """
     changed = False
     if isinstance(obj, dict):
@@ -65,23 +62,22 @@ def redact_secrets_in_obj(obj: object) -> bool:
 
 
 def should_redact(path: Path) -> bool:
-    """Return True if exports pass ``path``'s content through redaction.
+    """如果导出将 ``path`` 的内容传递到脱敏，则返回 True。
 
-    Persisted conversation payloads are JSON (``*.json``) or newline-delimited
-    JSON (``*.jsonl``/the per-event log files); those are the files whose
-    bytes go through ``redacted_json_bytes``. Every other file is exported as
-    it is.
+    已持久化对话载荷是 JSON (``*.json``) 或换行符分隔的 JSON（``*.jsonl``/the 每个事
+    件日志文件）； 这些是字节经过
+    ``redacted_json_bytes`` 的文件。 所有其他文件均按原样导出。
     """
     return path.suffix.lower() in (".json", _JSON_LINES_SUFFIX)
 
 
 def redacted_json_bytes(data: bytes, path: Path) -> bytes | None:
-    """Return redacted ``data``, or ``None`` if nothing needed redacting.
+    """返回已脱敏 ``data``，如果不需要编辑，则返回 ``None``。
 
-    ``data`` is the content of ``path``, a file ``should_redact`` selected;
-    a ``.jsonl`` path is parsed one JSON document per line. Content that is not
-    UTF-8 or does not parse as JSON is left untouched (returns ``None``) so the
-    archive is byte-identical for non-secret content.
+    ``data``是``path``的内容，选择了一个文件``should_redact``； ``.jsonl`` 路径每行解
+    析一个 JSON 文档。 非 UTF-
+    8 或未解析为 JSON 的内容保持不变（返回 ``None``），因此存档对于非机密内容是字节相
+    同的。
     """
     try:
         raw = data.decode("utf-8")

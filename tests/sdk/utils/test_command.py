@@ -7,7 +7,7 @@ from openhands.sdk.utils.command import execute_command, sanitized_env
 
 
 def test_sanitized_env_returns_copy():
-    """Returns a dict copy, not the original."""
+    """返回字典副本，而不是原始内容。"""
     env = {"FOO": "bar"}
     result = sanitized_env(env)
     assert result == {"FOO": "bar", "AI_AGENT": "openhands"}
@@ -15,8 +15,8 @@ def test_sanitized_env_returns_copy():
 
 
 def test_sanitized_env_strips_sensitive_credentials():
-    """Session key (V0), the cipher key, and indexed session-key slots (V1)
-    must never reach subprocesses, while ordinary vars are preserved."""
+    """会话密钥 (V0)、密码密钥和索引会话密钥槽 (V1)
+    绝不能达到子进程，而保留普通变量。"""
     env = {
         "SESSION_API_KEY": "v0-session",
         "OH_SECRET_KEY": "cipher-secret",
@@ -41,7 +41,7 @@ def test_sanitized_env_strips_sensitive_credentials():
         "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
     ):
         assert key not in result
-    # Non-sensitive vars (including other OH_* config) are preserved.
+    # 保留非敏感变量（包括其他 OH_* 配置）。
     assert result["OH_WEB_URL"] == "https://example.test"
     assert result["FOO"] == "bar"
 
@@ -57,14 +57,14 @@ def test_sanitized_env_replaces_blank_ai_agent():
 
 
 def test_sanitized_env_defaults_to_os_environ(monkeypatch):
-    """When env is None, returns a dict based on os.environ."""
+    """当 env 为 None 时，返回基于 os.environ 的字典。"""
     monkeypatch.setenv("TEST_SANITIZED_ENV_VAR", "test_value")
     result = sanitized_env(None)
     assert result["TEST_SANITIZED_ENV_VAR"] == "test_value"
 
 
 def test_sanitized_env_accepts_mapping_types():
-    """Accepts any Mapping type, not just dict."""
+    """接受任何映射类型，而不仅仅是字典。"""
     env: OrderedDict[str, str] = OrderedDict([("KEY", "value")])
     assert isinstance(sanitized_env(env), dict)
 
@@ -72,36 +72,36 @@ def test_sanitized_env_accepts_mapping_types():
 @pytest.mark.parametrize(
     ("env", "expected_ld_path"),
     [
-        # ORIG present and non-empty: restore original value
+        # ORIG存在且非空：恢复原始值
         (
             {"LD_LIBRARY_PATH": "/pyinstaller", "LD_LIBRARY_PATH_ORIG": "/original"},
             "/original",
         ),
-        # ORIG absent: leave unchanged
+        # ORIG 缺席：保持不变
         ({"LD_LIBRARY_PATH": "/some/path"}, "/some/path"),
     ],
 )
 def test_sanitized_env_ld_library_path(env: dict[str, str], expected_ld_path: str):
-    """LD_LIBRARY_PATH is restored from ORIG or left unchanged."""
+    """LD_LIBRARY_PATH从ORIG恢复或保持不变。"""
     assert sanitized_env(env)["LD_LIBRARY_PATH"] == expected_ld_path
 
 
 def test_sanitized_env_removes_ld_library_path_when_orig_empty():
-    """When LD_LIBRARY_PATH_ORIG is empty, removes LD_LIBRARY_PATH."""
+    """当LD_LIBRARY_PATH_ORIG为空时，删除LD_LIBRARY_PATH。"""
     env = {"LD_LIBRARY_PATH": "/pyinstaller", "LD_LIBRARY_PATH_ORIG": ""}
     assert "LD_LIBRARY_PATH" not in sanitized_env(env)
 
 
 # ---------------------------------------------------------------------------
-# execute_command logging redaction
+# execute_command 记录脱敏
 # ---------------------------------------------------------------------------
 
 
 class TestExecuteCommandLoggingRedaction:
-    """Tests for sensitive value redaction in execute_command logging."""
+    """测试 execute_command 日志记录中的敏感值脱敏。"""
 
     def test_logs_command_without_errors(self, caplog):
-        """Command logging with redaction doesn't raise errors."""
+        """使用脱敏进行命令记录不会引发错误。"""
         with patch("subprocess.Popen") as mock_popen:
             mock_process = mock_popen.return_value
             mock_process.stdout = None
@@ -112,27 +112,27 @@ class TestExecuteCommandLoggingRedaction:
             try:
                 execute_command(cmd)
             except RuntimeError:
-                # Logging should happen even if subprocess fails
+                # 即使子进程失败也应该进行记录
                 pass
 
-            # Command should be logged
+            # 应记录命令
             assert "docker" in caplog.text
             assert "run" in caplog.text
             assert "image" in caplog.text
 
     def test_redacts_api_key_from_string_command(self):
-        """API keys in string commands are properly redacted."""
+        """字符串命令中的 API 键正确为已脱敏。"""
         from openhands.sdk.utils.redact import redact_text_secrets
 
-        # Test the redaction function directly
-        # Valid Anthropic key format: sk-ant-api[2 digits]-[20+ chars]
+        # 直接测试脱敏功能有效Anthropic密钥格式：sk-ant-API[2digits]-[20+chars]
+        #
         cmd_str = "curl -H 'Authorization: sk-ant-api00-abcd1234567890abcdefghijklmnop' https://api.anthropic.com"
         redacted = redact_text_secrets(cmd_str)
 
-        # The secret should be redacted in the output of the function
+        # 函数输出中的机密应为已脱敏
         assert "sk-ant-api00-abcd1234567890abcdefghijklmnop" not in redacted
         assert "<redacted>" in redacted
-        # Command structure should be preserved
+        # 应保留命令结构
         assert "curl" in redacted
         assert "https://api.anthropic.com" in redacted
 
@@ -143,15 +143,15 @@ class TestExecuteCommandLoggingRedaction:
         cmd_str = "docker run -e api_key='secretvalue123456789' -e DEBUG=true image"
         redacted = redact_text_secrets(cmd_str)
 
-        # api_key value should be redacted
+        # api_key 值应为已脱敏
         assert "secretvalue123456789" not in redacted
-        # But non-sensitive DEBUG value should be present
+        # 但应该存在不敏感的 DEBUG 值
         assert "DEBUG" in redacted
-        # Command structure preserved
+        # 保留命令结构
         assert "docker" in redacted
 
     def test_preserves_non_sensitive_args(self, caplog):
-        """Non-sensitive arguments are preserved in logs."""
+        """非敏感参数保留在日志中。"""
         with patch("subprocess.Popen") as mock_popen:
             mock_process = mock_popen.return_value
             mock_process.stdout = None
@@ -164,7 +164,7 @@ class TestExecuteCommandLoggingRedaction:
             except RuntimeError:
                 pass
 
-            # Non-sensitive values should be visible
+            # 非敏感值应该可见
             assert "DEBUG=true" in caplog.text
             assert "image:latest" in caplog.text
             assert "docker" in caplog.text

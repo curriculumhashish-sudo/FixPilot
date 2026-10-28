@@ -1,4 +1,4 @@
-"""Test Tool class functionality."""
+"""测试工具类功能。"""
 
 import gc
 import threading
@@ -18,7 +18,7 @@ from openhands.sdk.tool.tool import (
 from openhands.sdk.utils.models import _get_checked_concrete_subclasses
 
 
-# Must live at module scope (Pydantic rejects <locals> classes).
+# 必须存在于模块范围内（Pydantic 拒绝 <locals> 类）。
 class _Bug2199Action(Action, ABC):
     cmd: str = Field(description="test")
 
@@ -42,11 +42,11 @@ def test_tool_json_round_trip():
 
 
 def test_tool_immutability():
-    """Test that Tool behaves correctly with parameter modifications."""
+    """测试工具在参数修改后的行为是否正确。"""
     original_params = {"test_param": "/workspace"}
     tool = Tool(name="TerminalTool", params=original_params)
 
-    # Modifying the original params should not affect the tool
+    # 修改原始参数不应影响工具
     original_params["test_param"] = "/changed"
     assert tool.params["test_param"] == "/workspace"
 
@@ -57,17 +57,17 @@ def test_tool_rejects_empty_name():
 
 
 def test_issue_2199_1(request):
-    """Reproduce issue #2199: duplicate dynamic Action wrapper classes.
+    """重现问题 #2199：重复的动态 Action 包装类。
 
-    When subagent threads concurrently call ``create_action_type_with_risk``
-    or ``_create_action_type_with_summary`` on the same input, a TOCTOU race
-    on the module-level cache can create two distinct class objects with the
-    same ``__name__``, causing ``_get_checked_concrete_subclasses(Action)``
-    to raise ``ValueError("Duplicate class definition ...")``.
+    当子智能体和线程同时对同一个输入调用 ``create_action_type_with_risk`` 或
+    ``_create_action_type_with_summary`` 时，模块级缓存上的 TOCTOU 赛跑会导致两个具有
+    相同 ``__name__`` 的不同
+    类对象，从而导致 ``_get_checked_concrete_subclasses(Action)`` 引发
+    ``ValueError("Duplicate class definition ...")``。
 
     Ref: https://github.com/issues/assigned?issue=OpenHands%7Csoftware-agent-sdk%7C2199
     """
-    """Many threads wrapping the same type must all get the same class object."""
+    """包装相同类型的许多线程必须都获得相同的类对象。"""
     saved_risk = dict(_action_types_with_risk)
 
     def _cleanup():
@@ -96,7 +96,7 @@ def test_issue_2199_1(request):
 
 def test_issue_2199_2(request):
     """
-    Same race test for _create_action_type_with_summary.
+    _create_action_type_with_summary 的相同比赛测试。
     """
     saved_risk = dict(_action_types_with_risk)
     saved_summary = dict(_action_types_with_summary)
@@ -129,13 +129,14 @@ def test_issue_2199_2(request):
 
 
 def test_issue_2642(request):
-    """Duplicate Action class definition error when spawning sub-agents.
+    """生成时出现重复的 Action 类定义错误子智能体。
 
-    When a sub-agent conversation re-initialises tools in the same process,
-    ``create_action_type_with_risk`` may produce a *second* class object with
-    the same ``__name__`` if the old WithRisk classes are still alive in
-    ``Action.__subclasses__()`` but the module-level cache has lost track of
-    them.  ``_get_checked_concrete_subclasses(Action)`` then raises
+    当子智能体对话在同一进程中重新初始化工具时，
+    如果旧的 WithRisk 类仍然存在，``create_action_type_with_risk`` 可能会生成具有相同
+     ``__name__`` 的 *第二个
+     * 类对象
+    ``Action.__subclasses__()`` 但模块级缓存已失去对它们的跟踪。
+    ``_get_checked_concrete_subclasses(Action)`` 然后加注
     ``ValueError("Duplicate class definition ...")``.
 
     Ref: https://github.com/OpenHands/software-agent-sdk/issues/2642
@@ -158,31 +159,32 @@ def test_issue_2642(request):
 
     request.addfinalizer(_cleanup)
 
-    # Step 1 — Simulate the parent conversation creating WithRisk wrappers.
-    # In production this happens when the agent calls
-    # _get_tool_schema(add_security_risk_prediction=True) for each tool.
+    # 步骤 1 — 模拟创建 WithRisk 包装器的父对话。 在生产中，当智能体为每个工具调用
+    # _get_tool_schema(add_security_risk_prediction=True) 时，就会发生这种情况。
+    #
     first_gen: list[type] = []
     for action_type in bug_actions:
         with_risk = create_action_type_with_risk(action_type)
         _create_action_type_with_summary(with_risk)
         first_gen.append(with_risk)
 
-    # Sanity: no duplicates yet.
+    # 理智：还没有重复。
     _get_checked_concrete_subclasses(Action)
 
-    # Step 2 — Simulate the cache losing track of the old classes.
-    # In production this happens when the delegate tool spawns a sub-agent
-    # whose action_type is a different object (e.g. from a re-import or
-    # dynamic tool recreation), causing a cache-key mismatch.
+    # 第 2 步 — 模拟缓存丢失旧类的跟踪。 在生产中，当委托工具生成一个子智能体，其
+    # action_type 是一个不同的对象 (e.g. 来自重新导入或动态工具重新创建），导致缓存键不
+    # 匹配。
+    #
     _action_types_with_risk.clear()
     _action_types_with_summary.clear()
 
-    # Step 3 — Simulate the sub-agent conversation re-initialising its tools.
-    # Cache miss → type() is called again → second class with same __name__.
+    # 步骤 3 — 模拟子智能体对话，重新初始化其工具。 缓存未命中→再次调用type()→具有相同__
+    # 名称__的第二类。
+    #
     for action_type in bug_actions:
         create_action_type_with_risk(action_type)
 
-    # Step 4 — This is the call that blows up in the bug report
-    # (triggered by Action.resolve_kind() during Event/ToolDefinition
-    # deserialization in the sub-agent).
+    # 步骤 4 — 这是错误报告中爆炸的调用（在子智能体中的 Event/ToolDefinition 反序列化期
+    # 间由 Action.resolve_kind() 触发）。
+    #
     _get_checked_concrete_subclasses(Action)

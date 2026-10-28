@@ -1,10 +1,10 @@
 /**
- * Integration tests for WebSocketCallbackClient
+ * 集成测试为 WebSocketCallbackClient
  *
- * Tests real-time event streaming from the agent-server.
+ * 测试来自智能体服务器的实时事件流式传输。
  *
- * NOTE: Some tests in this file are skipped by default because they depend on
- * LLM behavior which is non-deterministic and can be slow.
+ * 注意：默认情况下会跳过此文件中的一些测试，因为它们依赖于
+ * LLM 行为是不确定的并且可能很慢。
  */
 
 import { WebSocketCallbackClient, HttpClient, Event } from '../../index';
@@ -12,7 +12,7 @@ import { getTestConfig, skipIfNoConfig, createTestLLMConfig } from './test-confi
 import { sleep, waitFor } from './test-utils';
 
 const SKIP_TESTS = skipIfNoConfig();
-// Skip flaky tests that depend on LLM behavior in CI
+// 跳过依赖于 CI 中的 LLM 行为的不稳定测试
 const SKIP_FLAKY_TESTS = process.env.SKIP_FLAKY_TESTS !== 'false';
 
 type CreateConversationResponse = {
@@ -47,7 +47,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation first
+        // 首先创建一个对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -67,7 +67,7 @@ describe('WebSocket Integration Tests', () => {
         const conversationId = createResponse.data.id;
         const receivedEvents: Event[] = [];
 
-        // Create WebSocket client
+        // 创建 WebSocket 个客户端
         const wsClient = new WebSocketCallbackClient({
           host: config.agentServerUrl,
           conversationId,
@@ -76,13 +76,13 @@ describe('WebSocket Integration Tests', () => {
           },
         });
 
-        // Start the WebSocket connection
+        // 启动 WebSocket 连接
         wsClient.start();
 
-        // Wait for connection to establish
+        // 等待连接建立
         await sleep(1000);
 
-        // Send a message and run the agent
+        // 发送消息并运行智能体
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'Say hello!' }],
@@ -91,23 +91,23 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for events to be received
+        // 等待接收事件
         await waitFor(() => receivedEvents.length > 0, {
           timeout: 60000,
           interval: 500,
           message: 'No events received',
         });
 
-        // Should have received at least one event
+        // 应该至少收到一个事件
         expect(receivedEvents.length).toBeGreaterThan(0);
 
-        // Events should have required properties
+        // 事件应该具有必需的属性
         for (const event of receivedEvents) {
           expect(event.id).toBeDefined();
           expect(event.kind).toBeDefined();
         }
 
-        // Stop the WebSocket client
+        // 停止 WebSocket 客户端
         wsClient.stop();
       },
       config?.testTimeout || 120000
@@ -118,7 +118,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -151,7 +151,7 @@ describe('WebSocket Integration Tests', () => {
         wsClient.start();
         await sleep(1000);
 
-        // Send a message that requires the agent to do something
+        // 发送一条消息，要求智能体执行某项操作
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'List the files in the current directory.' }],
@@ -160,17 +160,17 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for multiple event types
+        // 等待多种事件类型
         await waitFor(() => eventTypes.size > 1, {
           timeout: 90000,
           interval: 500,
           message: 'Not enough event types received',
         });
 
-        // Should have received multiple event types
+        // 应该收到多种事件类型
         expect(eventTypes.size).toBeGreaterThan(1);
 
-        // Log received event types for debugging
+        // 记录接收到的事件类型以进行调试
         console.log('Received event types:', Array.from(eventTypes));
 
         wsClient.stop();
@@ -183,7 +183,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -212,18 +212,18 @@ describe('WebSocket Integration Tests', () => {
           },
         });
 
-        // Start connection
+        // 开始连接
         wsClient.start();
         await sleep(500);
 
-        // Stop and restart to simulate reconnection
+        // 停止并重新启动以模拟重新连接
         wsClient.stop();
         await sleep(200);
 
         wsClient.start();
         await sleep(500);
 
-        // Send a message
+        // 发送消息
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'Say "reconnected"' }],
@@ -232,7 +232,7 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for events
+        // 等待活动
         await waitFor(() => receivedEvents.length > 0, {
           timeout: 60000,
           interval: 500,
@@ -251,7 +251,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -282,12 +282,12 @@ describe('WebSocket Integration Tests', () => {
         wsClient.start();
         await sleep(500);
 
-        // Stop immediately
+        // 立即停止
         wsClient.stop();
 
         const countAfterStop = receivedEvents.length;
 
-        // Send a message (should not be received)
+        // 发送消息（不应收到）
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'This should not be received' }],
@@ -296,10 +296,10 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait a bit
+        // 稍等一下
         await sleep(3000);
 
-        // Should not have received new events after stop
+        // 停止后不应收到新事件
         expect(receivedEvents.length).toBe(countAfterStop);
       },
       config?.testTimeout || 60000
@@ -307,7 +307,7 @@ describe('WebSocket Integration Tests', () => {
   });
 
   describe('Event Content', () => {
-    // These tests are flaky because they depend on LLM behavior
+    // 这些测试不稳定，因为它们依赖于 LLM 行为
     const testFn = SKIP_FLAKY_TESTS ? it.skip : it;
 
     testFn(
@@ -315,7 +315,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -356,7 +356,7 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for message events
+        // 等待消息事件
         await waitFor(() => messageEvents.length > 0, {
           timeout: 60000,
           interval: 500,
@@ -365,7 +365,7 @@ describe('WebSocket Integration Tests', () => {
 
         expect(messageEvents.length).toBeGreaterThan(0);
 
-        // MessageEvents should have llm_message
+        // MessageEvents 应该有 llm_message
         const firstMessage = messageEvents[0];
         expect(firstMessage).toHaveProperty('llm_message');
 
@@ -379,7 +379,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -412,7 +412,7 @@ describe('WebSocket Integration Tests', () => {
         wsClient.start();
         await sleep(1000);
 
-        // Ask agent to perform an action - use a simple task that reliably triggers actions
+        // 要求智能体执行一个操作 - 使用一个简单任务，该任务可靠地触发操作
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'List the files in the current directory.' }],
@@ -421,7 +421,7 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for action events with longer timeout for LLM-dependent tests
+        // 对于依赖于 LLM 的测试，等待更长超时的操作事件
         await waitFor(() => actionEvents.length > 0, {
           timeout: 120000,
           interval: 500,
@@ -430,7 +430,7 @@ describe('WebSocket Integration Tests', () => {
 
         expect(actionEvents.length).toBeGreaterThan(0);
 
-        // ActionEvents should have action property
+        // ActionEvents 应具有操作属性
         const firstAction = actionEvents[0];
         expect(firstAction).toHaveProperty('action');
 
@@ -444,7 +444,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -477,7 +477,7 @@ describe('WebSocket Integration Tests', () => {
         wsClient.start();
         await sleep(1000);
 
-        // Ask agent to run a command (which produces observation) - use a simple task
+        // 要求智能体运行命令（生成观测结果） - 使用一个简单的任务
         await httpClient.post(`/api/conversations/${conversationId}/events`, {
           role: 'user',
           content: [{ type: 'text', text: 'List the files in the current directory.' }],
@@ -486,7 +486,7 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for observation events with longer timeout for LLM-dependent tests
+        // 对于依赖于 LLM 的测试，等待超时时间较长的观测结果事件
         await waitFor(() => observationEvents.length > 0, {
           timeout: 120000,
           interval: 500,
@@ -495,7 +495,7 @@ describe('WebSocket Integration Tests', () => {
 
         expect(observationEvents.length).toBeGreaterThan(0);
 
-        // ObservationEvents should have observation property
+        // ObservationEvents 应具有观测结果属性
         const firstObs = observationEvents[0];
         expect(firstObs).toHaveProperty('observation');
 
@@ -511,7 +511,7 @@ describe('WebSocket Integration Tests', () => {
       async () => {
         if (SKIP_TESTS) return;
 
-        // Create a conversation
+        // 创建对话
         const createResponse = await httpClient.post<CreateConversationResponse>(
           '/api/conversations',
           {
@@ -552,7 +552,7 @@ describe('WebSocket Integration Tests', () => {
 
         await httpClient.post(`/api/conversations/${conversationId}/run`);
 
-        // Wait for state update events
+        // 等待状态更新事件
         await waitFor(() => stateUpdateEvents.length > 0, {
           timeout: 60000,
           interval: 500,
@@ -561,7 +561,7 @@ describe('WebSocket Integration Tests', () => {
 
         expect(stateUpdateEvents.length).toBeGreaterThan(0);
 
-        // State update events should have key and value
+        // 状态更新事件应该有键和值
         const firstUpdate = stateUpdateEvents[0];
         expect(firstUpdate).toHaveProperty('key');
         expect(firstUpdate).toHaveProperty('value');

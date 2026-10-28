@@ -1,10 +1,9 @@
-"""The conversation state lock must not be held across the LLM network call.
+"""对话状态锁不得在 LLM 网络呼叫中保持。
 
-Regression: ``arun()`` holds the conversation state lock across the whole agent
-step. Holding it during the LLM round-trip blocked ``send_message()`` and state
-snapshots for the full provider response time, so the agent-server appeared to
-"stop responding" while waiting for the model. ``Agent.astep`` now releases the
-lock for just the network call via
+Regression: ``arun()`` 保持整个智能体的对话状态锁
+步骤。 在LLM次往返中，``send_message()``和状态快照被阻塞，导致全响应时间的智能体-服务
+器似乎“停止响应”而等待模型。 ``Agent.astep``
+现在释放锁仅用于网络调用
 ``LocalConversation._released_state_lock_during_io``.
 """
 
@@ -22,10 +21,10 @@ from openhands.sdk.llm.exceptions import LLMContentPolicyViolationError
 
 
 class _LockProbingLLM(LLM):
-    """Records the conversation-lock state observed mid-``acompletion``.
+    """记录 ``acompletion`` 中间观察到的对话锁状态。
 
-    Raises a *recoverable* content-policy error so ``astep`` returns cleanly
-    without us having to synthesize a full ``LLMResponse``.
+    引发 * 可恢复 * 内容策略错误，因此 ``astep`` 干净地返回，而无需我们合成完整的
+    ``LLMResponse``。
     """
 
     _convo_box: list = PrivateAttr(default_factory=list)
@@ -34,19 +33,20 @@ class _LockProbingLLM(LLM):
     def __init__(self):
         super().__init__(model="test-model", usage_id="test-llm")
 
-    def uses_responses_api(self) -> bool:  # override gating
+    def uses_responses_api(self) -> bool:  # 超越门控
         return False
 
     async def acompletion(self, *, messages, tools=None, **kwargs):  # type: ignore[override]
         convo = self._convo_box[0]
         lock = convo._state._lock
-        # 1) No thread should own the state lock during the network call.
+        # 1) 在网络调用期间，线程不应拥有状态锁。
         self._probe["locked_during_call"] = lock.locked()
-        # 2) The run-loop flag must reflect reality (lock is free right now).
+        # 2) 运行循环标志必须反映现实（锁现在是免费的）。
         self._probe["step_flag_during_call"] = convo._step_holds_state_lock
 
-        # 3) A different thread (as send_message runs, via run_in_executor)
-        #    must be able to actually grab the lock while the call is in flight.
+        # 3) 不同的线程（如 send_message 运行，通过 run_in_executor）必须能够在呼叫进行
+        # 时实际抓取锁。
+        #
         acquired: dict = {}
 
         def _try_acquire():
@@ -73,17 +73,17 @@ async def test_astep_releases_state_lock_during_llm_call():
     llm._convo_box.append(convo)
     convo.send_message("hello")
 
-    # Mimic arun()'s per-step critical section: hold the state lock across the
-    # step and set the flag arun sets before calling astep.
+    # 模仿 arun() 的每步关键部分：在调用 astep 之前保持跨步的状态锁并设置标志 arun set。
+    #
     convo._step_holds_state_lock = True
     with convo._state:
         assert convo._state._lock.locked()
         await agent.astep(convo, on_event=[].append)
-        # The context manager restored the lock (same thread) and the flag.
+        # 上下文管理器恢复了锁（相同的线程）和标志。
         assert convo._state._lock.owned()
         assert convo._step_holds_state_lock is True
 
-    # The lock was NOT held during the provider round-trip...
+    # 锁是在提供商往返期间举行的不...
     assert llm._probe["locked_during_call"] is False
     # ...another thread could take it mid-call...
     assert llm._probe["worker_acquired_during_call"] is True
@@ -93,8 +93,8 @@ async def test_astep_releases_state_lock_during_llm_call():
 
 @pytest.mark.asyncio
 async def test_direct_astep_without_lock_is_unaffected():
-    """A direct astep() (no run loop, lock not held) must still work: the
-    context manager is a no-op when the current thread doesn't own the lock."""
+    """直接 astep()（无运行循环，锁未保持）必须仍然有效：
+    当当前线程不拥有锁时，上下文管理器是无操作。"""
     llm = _LockProbingLLM()
     agent = Agent(llm=llm, tools=[])
     convo = Conversation(agent=agent)
@@ -103,7 +103,7 @@ async def test_direct_astep_without_lock_is_unaffected():
     llm._convo_box.append(convo)
     convo.send_message("hello")
 
-    # No `with convo._state:` here — the lock is not held on entry.
+    # 这里没有 `with convo._state:` — 锁在进入时不保留。
     await agent.astep(convo, on_event=[].append)
 
     assert llm._probe["locked_during_call"] is False

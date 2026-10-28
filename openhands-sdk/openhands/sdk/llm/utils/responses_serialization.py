@@ -1,5 +1,5 @@
-"""Serializers that convert ``Message`` instances into OpenAI Responses API
-``input`` items. ``Message.to_responses_dict`` delegates here.
+"""序列化器将 ``Message`` 个实例转换为 OpenAI 个响应 API
+``input`` 项。 ``Message.to_responses_dict`` 代表们在此。
 """
 
 from collections.abc import Sequence
@@ -16,16 +16,13 @@ from openhands.sdk.llm.message import (
 def message_to_responses_dict(
     message: Message, *, vision_enabled: bool
 ) -> list[dict[str, Any]]:
-    """Serialize message for OpenAI Responses (input parameter).
+    """序列化 OpenAI 响应消息（输入参数）。
 
-    Produces a list of "input" items for the Responses API:
-    - system: returns [], system content is expected in 'instructions'
-    - user: one 'message' item with content parts -> input_text / input_image
-      (when vision enabled)
-    - assistant: emits prior assistant content as input_text,
-      and function_call items for tool_calls
-    - tool: emits function_call_output items (one per TextContent)
-      with matching call_id
+    生成响应 API 的“输入”项目列表：
+    - system: 返回 []，系统内容应在“指令”中
+    - user: 一个包含内容部分的“消息”项目 -> input_text / input_image（启用视觉时）
+    - assistant: 发出先前的辅助内容为 input_text，function_call 项为 tool_calls
+    - tool: 发出 function_call_output 个项目（每个 TextContent 一个）并匹配 call_id
     """
     match message.role:
         case "system":
@@ -43,7 +40,7 @@ def message_to_responses_dict(
 def _user_to_responses_items(
     message: Message, *, vision_enabled: bool
 ) -> list[dict[str, Any]]:
-    """Convert user message to Responses API format."""
+    """将用户消息转换为响应 API 格式。"""
     content_items = _build_user_content_items(
         message.content, vision_enabled=vision_enabled
     )
@@ -59,7 +56,7 @@ def _user_to_responses_items(
 def _build_user_content_items(
     content: Sequence[TextContent | ImageContent], *, vision_enabled: bool
 ) -> list[dict[str, Any]]:
-    """Build content items for user message (input_text and input_image)."""
+    """构建用户消息的内容项（input_text 和 input_image）。"""
     items: list[dict[str, Any]] = []
     for c in content:
         if isinstance(c, TextContent):
@@ -73,7 +70,7 @@ def _build_user_content_items(
 
 
 def _assistant_to_responses_items(message: Message) -> list[dict[str, Any]]:
-    """Convert assistant message to Responses API format."""
+    """将助理消息转换为响应 API 格式。"""
     items: list[dict[str, Any]] = []
 
     reasoning_item = _build_reasoning_item(message.responses_reasoning_item)
@@ -93,7 +90,7 @@ def _assistant_to_responses_items(message: Message) -> list[dict[str, Any]]:
 def _build_reasoning_item(
     reasoning_item: ReasoningItemModel | None,
 ) -> dict[str, Any] | None:
-    """Build reasoning item from responses_reasoning_item if present."""
+    """如果存在的话，从 responses_reasoning_item 构建推理项。"""
     if reasoning_item is None or reasoning_item.id is None:
         return None
 
@@ -120,7 +117,7 @@ def _build_reasoning_item(
 def _build_assistant_content_items(
     content: Sequence[TextContent | ImageContent],
 ) -> list[dict[str, Any]]:
-    """Build output_text items from assistant content."""
+    """从助理内容构建 output_text 项。"""
     return [
         {"type": "output_text", "text": c.text}
         for c in content
@@ -131,7 +128,7 @@ def _build_assistant_content_items(
 def _tool_to_responses_items(
     message: Message, *, vision_enabled: bool
 ) -> list[dict[str, Any]]:
-    """Convert tool message to Responses API format (function_call_output)."""
+    """将工具消息转换为响应 API 格式 (function_call_output)。"""
     if message.tool_call_id is None:
         return []
 

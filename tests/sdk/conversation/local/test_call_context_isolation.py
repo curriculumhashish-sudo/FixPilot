@@ -1,8 +1,8 @@
-"""Tests for LLMCallContext: per-conversation state isolation on shared LLMs.
+"""LLMCallContext的测试：共享LLMs上的会话状态隔离。
 
-Covers the fix for #3443 — shared LLM/Agent objects across conversations
-should not inherit stale per-conversation state (prompt_cache_key,
-x-litellm-session-id).
+涵盖 #3443 的修复 — 跨会话共享的 LLM/Agent 对象不应继承过时的每个会话状态（
+prompt_cache_key、x-LiteLLM-session-id）
+。
 """
 
 import asyncio
@@ -38,7 +38,7 @@ def _agent(llm: LLM | None = None) -> Agent:
     return Agent(llm=llm or _llm(), tools=[])
 
 
-# ── LLMCallContext unit tests ──────────────────────────────────────────
+# ── LLMCallContext 单元测试 ──────────────────────────────────────────
 
 
 def test_legacy_call_context_import_path_is_deprecated():
@@ -90,7 +90,7 @@ async def test_scoped_context_is_isolated_between_async_tasks():
     ) == ["first", "second"]
 
 
-# ── select_chat_options injection tests ────────────────────────────────
+# ── select_chat_options 注入测试────────────────────────────────
 
 
 def test_chat_options_injects_session_id_from_context():
@@ -116,7 +116,7 @@ def test_chat_options_injects_prompt_cache_key_from_context():
 
 
 def test_chat_options_session_id_survives_user_extra_headers():
-    """Session ID must be injected even when user passes extra_headers."""
+    """即使用户传递 extra_headers，也必须注入会话 ID。"""
     llm = _llm(extra_headers={"X-Custom": "value"})
     out = select_chat_options(
         llm,
@@ -129,7 +129,7 @@ def test_chat_options_session_id_survives_user_extra_headers():
 
 
 def test_chat_options_context_wins_over_user_session_id():
-    """Context session_id must override a stale user-supplied value."""
+    """上下文 session_id 必须覆盖用户提供的过时值。"""
     llm = _llm()
     out = select_chat_options(
         llm,
@@ -141,7 +141,7 @@ def test_chat_options_context_wins_over_user_session_id():
 
 
 def test_responses_options_context_wins_over_user_session_id():
-    """Context session_id must override a stale user-supplied value."""
+    """上下文 session_id 必须覆盖用户提供的过时值。"""
     llm = _llm()
     out = select_responses_options(
         llm,
@@ -166,7 +166,7 @@ def test_chat_options_no_prompt_cache_key_when_context_empty():
     assert "prompt_cache_key" not in out
 
 
-# ── select_responses_options injection tests ───────────────────────────
+# ── select_responses_options 注入测试────────────────────────────
 
 
 def test_responses_options_injects_session_id_from_context():
@@ -193,7 +193,7 @@ def test_responses_options_injects_prompt_cache_key_from_context():
     assert out["prompt_cache_key"] == "conv-42"
 
 
-# ── Conversation-level isolation tests ─────────────────────────────────
+# ── 会话级隔离测试 ──────────────────────────────────
 
 
 def test_conversation_owns_one_immutable_context():
@@ -327,11 +327,11 @@ def test_shared_agent_context_reaches_live_llm_transport():
 
 
 def test_extra_headers_not_polluted_by_session_id():
-    """Applying conversation context must not mutate configured headers."""
+    """应用对话上下文不得改变已配置的标头。"""
     llm = _llm(extra_headers={"X-Custom": "keep-me"})
     conv = Conversation(agent=Agent(llm=llm, tools=[]))
 
-    # extra_headers should only contain user-supplied values
+    # extra_headers 应该只包含用户提供的值
     headers = conv.agent.llm.extra_headers or {}
     assert "x-litellm-session-id" not in headers
     assert headers["X-Custom"] == "keep-me"
@@ -340,16 +340,16 @@ def test_extra_headers_not_polluted_by_session_id():
 
 
 def test_fork_gets_fresh_context():
-    """A fork owns fresh conversation identity without mutating its source."""
+    """分叉拥有新的对话身份，而无需改变其来源。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Conversation(agent=_agent(), persistence_dir=tmpdir, workspace=tmpdir)
         fork = src.fork()
 
-        # Each gets its own context
+        # 每个都有自己的上下文
         assert src.get_llm_call_context().prompt_cache_key == str(src.id)
         assert fork.get_llm_call_context().prompt_cache_key == str(fork.id)
 
-        # Source not clobbered
+        # 源码未覆盖
         assert (
             src.get_llm_call_context().prompt_cache_key
             != fork.get_llm_call_context().prompt_cache_key

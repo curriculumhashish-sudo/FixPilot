@@ -1,13 +1,14 @@
-"""Static-tier prompt sections ported verbatim from ``agent/prompts/system_prompt.j2``.
+"""静态层提示词部分从 ``agent/prompts/system_prompt.j2`` 逐字移植。
 
-Each section owns its guard and renders pure Python text -- no Jinja. Bodies are the
-exact blocks the template produces today; ``tests/sdk/context/prompts/test_default_registry.py``
-pins them byte-for-byte against the Phase 0 snapshot oracle. The cache tier is ``STATIC``
-for every block here (the dynamic tier is ported separately).
+每个部分都有自己的保护并呈现纯 Python 文本——没有 Jinja。 主体是模板今天生成的确切块；
+``tests/sdk/context/prompts/test_default_registry.py`` 将它们逐字节固定到阶段 0 快照
+预言机。 这里每个块的缓存层都
+是``STATIC``（动态层是单独移植的）。
 """
 
-# Section bodies are verbatim long-form prompt text; wrapping a line would change
-# the rendered bytes, so line-length (E501) is disabled for this whole file.
+# 节正文是逐字长格式提示词文本； 换行会更改渲染的字节，因此整个文件的行长度 (E501) 被禁
+# 用。
+#
 # ruff: noqa: E501
 
 import re
@@ -46,11 +47,11 @@ __all__ = [
 
 
 def _refine(text: str, platform: Platform) -> str:
-    """Windows shell-term substitution, mirroring ``context.prompts.prompt.refine``.
+    """Windows shell 术语替换、镜像 ``context.prompts.prompt.refine``。
 
-    Kept for byte-for-byte parity with the live template; gated on ``ctx.platform``
-    (not ``sys.platform``) so sections stay pure. Retired once ``ShellGuidanceSection``
-    (#85) describes the bound shell tool directly.
+    与实时模板保持逐字节奇偶校验； 门控在 ``ctx.platform``（而不是 ``sys.platform``）
+    上，因此部分保持纯净。 退休一次
+    ``ShellGuidanceSection``(#85)直接描述了绑定的shell工具。
     """
     if platform is Platform.WINDOWS:
         text = re.sub(r"\bterminal\b", "execute_powershell", text, flags=re.IGNORECASE)
@@ -61,10 +62,10 @@ def _refine(text: str, platform: Platform) -> str:
 
 
 class _StaticTextSection:
-    """Base for a verbatim static block: a subclass sets ``name`` + ``body``.
+    """逐字静态块的基础：子类集 ``name`` + ``body``。
 
-    Guarded blocks override :meth:`guard`. ``render`` applies the platform shell
-    refinement and nothing else, so the block is reproduced exactly.
+    受保护的块覆盖：meth:`guard`。 ``render`` 应用了平台外壳细化，仅此而已，因此该块
+    被准确地再现。
     """
 
     cache_tier = CacheTier.STATIC
@@ -101,7 +102,7 @@ class RoleSection(_StaticTextSection):
 
 
 class PersonaSection(_StaticTextSection):
-    """The agent's own persona, standing in for the persona sections it replaces."""
+    """智能体自己的角色，代表它所替换的角色部分。"""
 
     name = "persona"
 
@@ -113,9 +114,9 @@ class PersonaSection(_StaticTextSection):
 
 
 class MemorySection(_StaticTextSection):
-    """``<MEMORY>`` -- exactly one of two guidance variants fills the block:
-    the default ``AGENTS.md`` guidance, or the two-tier persistent-memory
-    guidance when ``AgentContext.load_memory`` is enabled.
+    """``<MEMORY>``——两个指导变体之一恰好填充了该块：
+    默认 ``AGENTS.md`` 指导，或启用 ``AgentContext.load_memory`` 时的两层持久内存指导
+    。
     """
 
     name = "memory"
@@ -127,13 +128,12 @@ class MemorySection(_StaticTextSection):
 * This repository skill is automatically loaded for every conversation and helps maintain context across sessions.
 * For more information about skills, see: https://docs.openhands.dev/overview/skills"""
 
-    # The user-tier bullet is filled in by ``_user_memory_line`` so the resolved
-    # location (honoring OH_PERSISTENCE_DIR, matching load_memory()'s read path)
-    # is what the agent is told to write to. When the env var is unset the line
-    # is the literal ``~/.openhands/memory/`` -- a plain tilde, never the expanded
-    # home path -- so the block stays cache-shared and machine-independent, and
-    # the OH_PERSISTENCE_DIR value that does appear is a deployment-constant mount
-    # (see test_static_block_has_no_dynamic_content).
+    # 用户层项目符号由 ``_user_memory_line`` 填充，因此解析的位置（尊重
+    # OH_PERSISTENCE_DIR，匹配 load_memory() 的读取路径）是智能体被告知写入的位置。 当环
+    # 境变量未设置时，行是 ``~/.openhands/memory/`` -- 一个纯的星号，而不是展开的家目录
+    # 路径 -- 因此，块保持缓存共享且机器无关，而 OH_PERSISTENCE_DIR 的值确实出现是一个部
+    # 署常量挂载（参见 test_static_block_has_no_dynamic_content）。
+    #
     _TWO_TIER_GUIDANCE = """\
 You have persistent memory that survives across sessions, in two tiers:
 * Project memory: `.openhands/memory/` under the workspace root — knowledge specific to this repository.
@@ -151,13 +151,14 @@ Maintenance habits:
 
     @staticmethod
     def _user_memory_line() -> str:
-        """The user-tier bullet, naming the directory the agent should write to.
+        """用户层项目符号，命名智能体应写入的目录。
 
-        Resolved via ``get_user_persistence_dir()`` so the instructed write path
-        matches what ``load_memory`` reads. When ``OH_PERSISTENCE_DIR`` is set the
-        line carries its concrete ``<base>/memory/`` directory (a deployment mount
-        that is constant within any warm-cache window); otherwise the unexpanded
-        ``~/.openhands`` fallback keeps the per-user home path out of the block.
+        通过 ``get_user_persistence_dir()`` 解析，以便指示的写入路径与
+        ``load_memory`` 读取的内容匹配。 当设置
+        ``OH_PERSISTENCE_DIR`` 时，该行携带其具体的 ``<base>/memory/`` 目录（在任何热
+        缓存窗口内恒定的部署挂载）； 否则未
+        展开
+        ``~/.openhands`` 回退方案使每个用户的主路径不受阻碍。
         """
         user_memory_dir = get_user_persistence_dir(Path("~/.openhands")) / "memory"
         location = f"`{to_posix_path(user_memory_dir)}/`"
@@ -185,7 +186,7 @@ class EfficiencySection(_StaticTextSection):
 </EFFICIENCY>"""
 
     def render(self, ctx: PromptContext) -> str | None:
-        # Mentions "bash", which refine() rewrites to "powershell" on Windows.
+        # 提及“bash”，它 refine() 在 Windows 上重写为“powershell”。
         return _refine(self.body, ctx.platform)
 
 
@@ -287,9 +288,9 @@ Always provide links to the relevant documentation pages for users who want to l
 
 
 class SecuritySection(_StaticTextSection):
-    """The ``<SECURITY>`` block: the built-in default policy, or a custom policy's
-    ``security_policy_content`` when configured. Guarded by ``security_policy_filename``
-    (empty string disables it).
+    """``<SECURITY>`` 块：内置默认策略，或自定义策略
+    ``security_policy_content`` 配置后。 由 ``security_policy_filename`` 保护（空字符
+    串禁用它）。
     """
 
     name = "security"
@@ -330,14 +331,14 @@ class SecuritySection(_StaticTextSection):
 
     def render(self, ctx: PromptContext) -> str | None:
         content = ctx.template_kwargs.get("security_policy_content")
-        # `is not None`: an explicitly empty custom policy must not fall back to body.
+        # `is not None`：明确为空的自定义策略不得回退到正文。
         if content is not None:
             return _refine(f"<SECURITY>\n\n{content}\n\n</SECURITY>", ctx.platform)
         return self.body
 
 
 class SecurityRiskAssessmentSection:
-    """``<SECURITY_RISK_ASSESSMENT>`` -- the LOW/MEDIUM/HIGH tiers swap with ``cli_mode``."""
+    """``<SECURITY_RISK_ASSESSMENT>``——LOW/MEDIUM/HIGH层与``cli_mode``交换。"""
 
     name = "security_risk_assessment"
     cache_tier = CacheTier.STATIC
@@ -362,8 +363,9 @@ class SecurityRiskAssessmentSection:
         return bool(ctx.template_kwargs.get("llm_security_analyzer"))
 
     def render(self, ctx: PromptContext) -> str | None:
-        # cli_mode defaults to True, matching the template's `cli_mode | default(true)`
-        # (note ctx.cli_mode would default False).
+        # cli_mode 默认为 True，与模板的 `cli_mode | default(true)` 匹配（注意
+        # ctx.cli_mode 默认为 False）。
+        #
         cli = bool(ctx.template_kwargs.get("cli_mode", True))
         tiers = self._CLI_TIERS if cli else self._SANDBOX_TIERS
         body = f"""\
@@ -392,7 +394,7 @@ When an action originates from or is influenced by repository-provided context (
 
 
 class ToolGuidanceSection(_StaticTextSection):
-    """Usage guidance supplied by the loaded tools (e.g. ``<BROWSER_TOOLS>``)."""
+    """加载的工具提供的使用指南（e.g. ``<BROWSER_TOOLS>``)."""
 
     name = "tool_guidance"
 
@@ -452,13 +454,14 @@ class ProcessManagementSection(_StaticTextSection):
 
 
 class ModelSpecificSection:
-    """``<IMPORTANT>`` -- selects the family + variant guidance for the model."""
+    """``<IMPORTANT>`` - 选择模型的系列+变体指导。"""
 
     name = "model_specific"
     cache_tier = CacheTier.STATIC
 
-    # <IMPORTANT> bodies keyed by the family/variant that ``get_model_prompt_spec``
-    # resolves. Ported from ``model_specific/*.j2``.
+    # <IMPORTANT> 由 ``get_model_prompt_spec`` 解析的系列/变体键入的主体。 移植自
+    # ``model_specific/*.j2``。
+    #
     _IMPORTANT_BY_FAMILY: ClassVar[dict[str, str]] = {
         "anthropic_claude": """\
 * Try to follow the instructions exactly as given - don't make extra or fewer actions if not asked.

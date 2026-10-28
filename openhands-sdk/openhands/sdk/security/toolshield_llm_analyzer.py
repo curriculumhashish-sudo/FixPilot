@@ -1,27 +1,24 @@
-"""LLM-as-guardrail security analyzer.
+"""LLM-作为约束检查安全分析器。
 
-Unlike ``LLMSecurityAnalyzer``, which trusts the *actor* LLM to annotate
-``security_risk`` on its own proposed action, this analyzer issues a
-*separate* completion to a distinct guardrail LLM that evaluates each
-proposed action in the context of recent action history.
+不像 ``LLMSecurityAnalyzer``，它信任 *演员*  LLM 注释
+``security_risk`` 根据其自己提议的操作，该分析器发出一个
+*split* 完成到评估每个的不同约束检查 LLM
+最近行动历史记录上下文中建议的行动。
 
-Separating the actor from the judge is significant for multi-turn
-attacks, where individual steps look benign but the sequence is harmful.
-The actor LLM has no incentive to flag earlier reconnaissance steps
-because they are not harmful on their own; a separate guardrail LLM,
-prompted to evaluate the sequence, does.
+将参与者与判断者分开对于多回合攻击非常重要，其中各个步骤看起来是良性的，但序列是有害
+的。 攻击者 LLM 没有动机标记早期的侦察步骤，因为它们本身并无害处； 一个单独的约束
+检查 LLM 会提示评估序列。
 
-Example (bare guardrail):
+示例（裸约束检查）：
     >>> from openhands.sdk.llm import LLM
     >>> from openhands.sdk.security import ToolShieldLLMSecurityAnalyzer
     >>> guardrail_llm = LLM(model="gpt-4o-mini", api_key=...)
     >>> analyzer = ToolShieldLLMSecurityAnalyzer(llm=guardrail_llm)
 
-Example (with ToolShield tool-specific safety experiences):
-    Install the optional extra ``pip install openhands-sdk[toolshield]``
-    and populate ``safety_experiences`` from the ``toolshield`` PyPI
-    package, which distills per-tool safety guidelines via sandbox
-    self-exploration:
+示例（具有 ToolShield 工具特定的安全经验）：
+    安装可选的额外组件 ``pip install openhands-sdk[toolshield]`` and populate
+    ``safety_experiences`` 从的 ``toolshield``  PyPI 该包通过沙箱自我探索提炼了每种工
+    具的安全指南。
 
     >>> from toolshield import load_experiences
     >>> experiences = load_experiences(["filesystem-mcp", "terminal-mcp"])
@@ -30,8 +27,8 @@ Example (with ToolShield tool-specific safety experiences):
     ...     safety_experiences=experiences.format_for_prompt(),
     ... )
 
-The ``safety_experiences`` field accepts any string, so callers can
-also plug in experiences from their own source rather than ToolShield.
+``safety_experiences`` 字段接受任何字符串，因此调用者还可以插入来自自己来源的体验，而
+不是 ToolShield。
 """
 
 from __future__ import annotations
@@ -109,49 +106,45 @@ _USER_PROMPT = """\
 {action}
 """
 
-# Require the RISK label to be on its own line. Without the MULTILINE anchor,
-# a plain substring match would misfire on explanations that quote earlier
-# reasoning inline (e.g., "earlier steps looked like RISK: LOW but the current
-# one is RISK: HIGH" -- ``re.search`` would return LOW).
+# 要求 RISK 标签独占一行。缺少 MULTILINE 模式下的锚点时，
+# 简单字符串搜索可能误匹配解释中引用的先前判断。
+# 例如，“前几步是 RISK: LOW，但当前步骤是 RISK: HIGH”，
+# 此时 ``re.search`` 会返回 LOW。
+#
 _RISK_RE = re.compile(
     r"^\s*RISK:\s*(LOW|MEDIUM|HIGH)\s*$", re.IGNORECASE | re.MULTILINE
 )
 
 
 def _safe(value: str) -> str:
-    """HTML-escape a field value before interpolating into a tagged span.
+    """HTML - 在插入标记范围之前转义字段值。
 
-    ``model_dump_json()`` does not escape ``<`` / ``>`` inside string
-    values, so without this an attacker who places ``</arguments>...
-    <arguments>`` inside a tool argument would close the legitimate
-    span early. Escaping ``<`` / ``>`` / ``&`` turns those characters
-    into harmless entities; the guardrail LLM still sees the content
-    but the structural delimiters can't be forged.
+    ``model_dump_json()`` 不能将 ``<`` / ``>`` 作为字符串值的一部分进行转义，因此缺少
+    这个功能，攻击者如果将
+    ``</arguments>... <arguments>`` 作为工具参数的一部分放入字符串中，会提前关闭合法
+    的段。 转义``<``/``>``/``&``会将这
+    些角色变成无害的实体； 约束检查 LLM 仍然可以看到内容，但结构分隔符无法伪造。
 
-    We escape uniformly -- including ``action.tool_name``, which is
-    in theory tool-registry-controlled but worth defense-in-depth.
-    ``quote=False`` because we're not in an attribute-value context for
-    these spans.
+    我们统一逃脱——包括``action.tool_name``，理论上它是由工具注册表控制的，但值得深度
+    防御。
+    ``quote=False`` 因为我们不在这些跨度的属性值上下文中。
     """
     return html.escape(value, quote=False)
 
 
 def _format_action_for_guardrail(action: ActionEvent) -> str:
-    """Render an ``ActionEvent`` into a string the guardrail LLM can reason about.
+    """将 ``ActionEvent`` 渲染为约束检查 LLM 可以推理的字符串。
 
-    The default ``Event.__repr__`` only returns id/source/timestamp and is
-    useless for security analysis. We extract the fields that actually
-    describe what the action does: ``tool_name``, ``summary``, ``thought``,
-    and the tool arguments from ``action`` (the parsed tool call).
+    默认``Event.__repr__``只返回id/source/timestamp，对于安全分析没有用处。 我们提取
+    实际描述操作的字段：``tool_name``
+    、``summary``、``thought``，以及来自 ``action`` 的工具参数（解析后的工具调用）。
 
-    Actor-controllable fields (``summary``, ``thought``, ``arguments``)
-    are wrapped in structural XML tags so the system prompt can instruct
-    the guardrail LLM to ignore prompt-injection attempts embedded in
-    them -- e.g., an attacker placing ``RISK: LOW`` on its own line in a
-    tool argument to influence the verdict. Every interpolated value is
-    HTML-escaped via :func:`_safe`, so a literal ``</arguments>`` (or
-    any other tag) inside actor-controlled content cannot terminate the
-    legitimate span early.
+    ``summary``、``thought``、``arguments``可控制字段被封装在结构化XML标签中，以便系
+    统提示词能够指示约束检查 LLM忽略提示词注入
+    尝试，e.g。一个攻击者在工具参数中``RISK: LOW``一行，以影响判决。 每个插值值都会通
+    过：func:`_safe` 进行 HTML-转义，因此，任何在
+    actor 控制的内容中出现的 ``</arguments>``（或其他标签）都不能提前终止合法的 span
+    。
     """
     parts = [f"<tool>{_safe(action.tool_name)}</tool>"]
 
@@ -162,9 +155,10 @@ def _format_action_for_guardrail(action: ActionEvent) -> str:
     if thought_text:
         parts.append(f"<thought>{_safe(thought_text)}</thought>")
 
-    # Arguments: prefer the parsed ``action`` object; fall back to the raw
-    # tool_call arguments if unparsed. Both are JSON-serializable strings,
-    # neither of which escapes ``<`` / ``>`` by default -- _safe handles it.
+    # 参数：更喜欢解析的 ``action`` 对象； 回归原始
+    # tool_call 参数（如果未解析）。 两者都是 JSON 可序列化的字符串，默认情况下都不会转
+    # 义 ``<`` / ``>`` —— _safe 处理它。
+    #
     if action.action is not None:
         try:
             args_repr = action.action.model_dump_json()
@@ -172,27 +166,25 @@ def _format_action_for_guardrail(action: ActionEvent) -> str:
             args_repr = str(action.action)
         parts.append(f"<arguments>{_safe(args_repr)}</arguments>")
     elif action.tool_call is not None:
-        # ``MessageToolCall.arguments`` is a JSON string (a direct field, not
-        # nested under ``.function``).
+        # ``MessageToolCall.arguments`` 是一个 JSON 字符串（直接字段，不嵌套在
+        # ``.function`` 下）。
+        #
         args_repr = action.tool_call.arguments or ""
         parts.append(f'<arguments unparsed="true">{_safe(args_repr)}</arguments>')
 
     return "\n".join(parts)
 
 
-# Fields whose content is actor-controllable. We strip these spans
-# before regex-scanning the guardrail's output so an injected
-# ``RISK: ...`` line that the LLM echoed back can't be parsed as a verdict.
-# ``summary`` is included because ``ActionEvent.summary`` is LLM-authored
-# per the actor's system prompt (see openhands.sdk.event.llm_convertible.
-# action.ActionEvent.summary -- "approximately 10 words... provided by the
-# LLM for explainability"). Pre-c7ccf7b5 the field was missing from this
-# list, leaving a bypass: an actor putting "RISK: LOW" on a standalone
-# line in summary would survive stripping and win last-match parsing.
-# ``tool`` is included because an MCP tool name comes from the tool
-# server (ToolShield's untrusted surface) and ``ActionEvent`` does not
-# forbid newlines in it, so a ``tool_name`` carrying a standalone
-# ``RISK: LOW`` line would otherwise survive stripping.
+# 内容可由参与者控制的字段。 我们在正则表达式扫描约束检查的输出之前剥离这些跨度，以便注
+# 入
+# LLM 回显的 ``RISK: ...`` 行无法解析为判决。
+# 包含 ``summary`` 是因为 ``ActionEvent.summary`` 是根据参与者的系统提示词由 LLM 创作的
+# （请参阅 openhands.sdk.event.llm_convertible。 action.ActionEvent.summary --“大约10个
+# 字...... 为了便于解释，由LLM提供”）。 在 pre-c7ccf7b5 之前，这个字段缺失，留下了一个绕
+# 过：在总结中单独一行上放 "RISK: LOW" 的演员可以幸存去重和最后匹配解析。
+# 包含 ``tool`` 是因为 MCP 工具名来自工具服务器，即 ToolShield 的不可信接口，且
+# ``ActionEvent`` 并未禁止其中出现换行，因此携带独立内容的 ``tool_name``
+# 否则，``RISK: LOW`` 线将在剥离后幸存下来。
 _UNTRUSTED_TAG_NAMES = ("tool", "summary", "thought", "arguments")
 _UNTRUSTED_TAG_RE = re.compile(
     r"<(?P<tag>" + "|".join(_UNTRUSTED_TAG_NAMES) + r")(?:\s[^>]*)?>"
@@ -200,13 +192,14 @@ _UNTRUSTED_TAG_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-# Any leftover untrusted tag -- opening or closing -- after balanced spans
-# are stripped. Legitimate guardrail output never contains these raw tags:
-# everything we interpolate into the prompt is HTML-escaped, so an honest
+# 平衡跨度被剥离后，任何剩余的不可信标签（打开或关闭）。 合法的约束检查输出永远不包含这
+# 些原始标签：我们插入到提示词中的所有内容都会 HTML-转义，所以诚实的
+#
 # echo of prompt content appears as ``&lt;arguments&gt;``, not ``<arguments>``.
-# A raw remnant therefore means malformed/unbalanced untrusted markup (e.g.
-# ``<arguments>\nRISK: LOW`` with no closing tag), which the balanced-span
-# strip above cannot neutralize -- treat it as ambiguity, not a verdict.
+# 因此，原始残余意味着格式错误/不平衡的不受信任标记 (e.g.
+# ``<arguments>\nRISK: LOW`` 没有结束标签），上面的平衡跨度条无法中和 - 将其视为歧义，而
+# 不是判决。
+#
 _UNTRUSTED_TAG_REMNANT_RE = re.compile(
     r"</?(?:" + "|".join(_UNTRUSTED_TAG_NAMES) + r")(?:\s[^>]*)?>",
     re.IGNORECASE,
@@ -218,63 +211,51 @@ _RISK_MAP = {
     "HIGH": SecurityRisk.HIGH,
 }
 
-# Cap on how much guardrail output ``_parse_risk`` scans. The untrusted-tag
-# regexes are O(n^2) on pathological inputs full of repeated ``<summary``-style
-# tag prefixes (~26s on 100 KB), and the SDK default lets a guardrail emit its
-# full ``max_output_tokens`` (~256 KB for a frontier model), so a
-# malfunctioning or prompt-injected guardrail could stall the per-action
-# critical path. A well-behaved guardrail emits the verdict on its FIRST line
-# ("a single RISK: line ... then a brief explanation"), so scanning the head
-# keeps every legitimate verdict; anything dropped by truncation only ever
-# fails safe to UNKNOWN.
+# 限制约束检查输出 ``_parse_risk`` 扫描的数量。 O(n^2) 无信任标签正则表达式在输入中包含
+# 大量重复 ``<summary`` 标签前缀 (~26s 在 100 KB 中)，而 SDK 默认值允许约束检查发射其完
+# 整的 ``max_output_tokens`` (~256 KB 对于一个前沿模型)，因此一个故障或提示词-注入约束检
+# 查可能会阻塞每个动作的关键路径。 行为良好的约束检查在其 FIRST 行上发出判决（“单个 RISK
+# : 行... 然后是简短的解释”），因此扫描头部可以保留每一个合法的结论； 任何因截断而丢弃的
+# 东西都只会安全地失败UNKNOWN。
+#
 _MAX_PARSE_CHARS = 16384
 
 
 class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
-    """Evaluate each action via a separate guardrail LLM.
+    """通过单独的约束检查 LLM 评估每个操作。
 
-    Pairs with the existing ``ConfirmRisky`` policy unchanged: this
-    analyzer only *assigns* the risk level; ``ConfirmRisky`` decides
-    whether to pause for user confirmation.
+    与现有 ``ConfirmRisky`` 策略不变：该分析器仅 * 分配 * 风险级别； ``ConfirmRisky``
+    决定是否暂停以供用户确认。
 
-    By default the analyzer runs as a bare guardrail (no distilled
-    safety experiences). To enable the ToolShield seed, install
-    ``pip install openhands-sdk[toolshield]`` and pass the rendered
-    experiences via the ``safety_experiences`` field -- typically via
-    one of the helpers (``default_safety_experiences()``,
-    ``load_safety_experiences(...)``, ``auto_detect_safety_experiences()``).
-    Tested against ``toolshield>=0.1.3,<0.2``.
+    默认情况下，分析器作为裸机运行约束检查（没有提炼的安全经验）。 要启用 ToolShield
+    种子，请安装
+    ``pip install openhands-sdk[toolshield]`` 并通过 ``safety_experiences`` 字段传递
+    渲染的体验——通常
+    通过助手之一（``default_safety_experiences()``、
+    ``load_safety_experiences(...)``, ``auto_detect_safety_experiences()``). 已针对
+    ``toolshield>=0.1.3,<0.2`` 进行测试。
 
-    Note: ``reasoning_content`` and ``thinking_blocks`` from extended-
-    thinking models are deliberately excluded from the guardrail
-    context. The risk signal lives in the tool call's name and
-    arguments; including reasoning text would inflate the prompt
-    without proportional safety gain. Subclasses needing reasoning
-    visibility should override :func:`_format_action_for_guardrail`.
+    Note: ``reasoning_content`` 和 ``thinking_blocks`` 来自扩展-
+    思维模型被故意排除在约束检查上下文之外。 风险信号存在于工具调用的名称和论点中；
+    包括推理文本会使提示词膨胀，而没有成比例的安全增益。 需要推理可见性的子类应覆盖：
+    func:`_format_action_for_guardrail`。
 
-    Lifecycle: instances maintain a per-conversation deque of recent
-    actions (``history_window`` items) for guardrail context. Each
-    instance is intended for SINGLE-CONVERSATION use. Reusing one
-    analyzer instance across multiple conversations will leak action
-    history between them, which is both a privacy issue (conversation
-    A's tool arguments visible in conversation B's guardrail prompt)
-    and a correctness issue (the guardrail evaluates conversation B's
-    actions against irrelevant history). Construct one analyzer per
-    conversation, OR call :meth:`reset_history` at conversation
-    boundaries.
+    Lifecycle: 实例维护最近的每个会话双端队列
+    约束检查上下文的操作（``history_window`` 项）。 每个实例均供 SINGLE-CONVERSATION
+    使用。 在多个对话之间共享一个分析器实例会
+    泄露它们之间的操作历史，这既是隐私问题（对话A的工具参数在对话B中可见约束检查提示
+    词），也是正确性问题（约束检查评估对话B的操作与无关的历史）。 每个对话构建一个分
+    析器，或在对话边界调用：meth:`reset_history`。
 
-    The recent-action-context propagation across analyzers (this one,
-    :class:`LLMSecurityAnalyzer`, :class:`GraySwanAnalyzer`) is tracked
-    for convergence in a separate follow-up; until that lands,
-    single-conversation lifecycle is the contract.
+    最近的操作上下文在分析器之间的传播（这个，
+    :class:`LLMSecurityAnalyzer`, :class:`GraySwanAnalyzer`) 被跟踪
+    为了在单独的后续行动中收敛； 在此之前，单一对话生命周期就是合同。
 
-    Failure modes are consistent and ensemble-safe -- both an
-    infrastructure error (network, rate limit) and a parse failure
-    (the guardrail responded but its output had no parseable
-    ``RISK:`` label) return ``SecurityRisk.UNKNOWN``. ``ConfirmRisky``
+    失败模式是可预测的，并且是基于集合的 -- 无论是基础设施错误（网络、速率限制）还是
+    解析失败（约束检查响应了，但其输出没有可解析的内容）
+    ``RISK:`` 标签）返回 ``SecurityRisk.UNKNOWN``。 ``ConfirmRisky``
     with ``confirm_unknown=True`` then pauses for user confirmation,
-    matching the conservative posture without dominating ``max()`` in
-    ensemble fusion.
+    在集成融合中匹配保守的姿态而不占主导地位``max()``。
     """
 
     llm: LLM = Field(
@@ -320,12 +301,12 @@ class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
         return v
 
     def model_post_init(self, __context: Any) -> None:
-        """Finalize initialization after Pydantic construction.
+        """Pydantic 构造后完成初始化。
 
-        Renders the system prompt with whatever ``safety_experiences``
-        string the caller provided (default empty -> bare guardrail).
-        Opt into the ToolShield seed by passing
-        ``safety_experiences=default_safety_experiences()`` from
+        使用调用者提供的任何 ``safety_experiences`` 字符串渲染系统提示词（默认为空 ->
+         裸约束检查）。 通过传递选择加入
+        ToolShield 种子
+        ``safety_experiences=default_safety_experiences()`` 来自
         ``openhands.sdk.security``.
         """
         self._action_history = deque(maxlen=self.history_window)
@@ -340,87 +321,74 @@ class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
         )
 
     def reset_history(self) -> None:
-        """Clear the recent-action deque.
+        """清除最近操作的双端队列。
 
-        Call this at conversation boundaries when reusing a single
-        analyzer instance across multiple conversations to prevent
-        context leakage. See the class docstring for the
-        single-conversation lifecycle contract.
+        当跨多个会话重用单个分析器实例时，请在会话边界调用此方法，以防止上下文泄漏。
+        请参阅单会话生命周期契约的类文档字符串。
 
-        Prefer constructing a fresh analyzer per conversation when
-        feasible -- ``reset_history()`` is an escape hatch for
-        long-lived processes that can't afford the construction cost.
+        如果可能，尽量通过构建一次新的分析器来构造对话，``reset_history()`` 是一个为
+        长生命周期进程提供避难所的逃生门，这些进程无法承担构建成本。
         """
         self._action_history.clear()
 
     @staticmethod
     def _parse_risk(text: str) -> SecurityRisk:
-        """Extract the risk label from guardrail output.
+        """从约束检查输出中提取风险标签。
 
-        Two defensive layers:
+        两层防御：
 
-        1. We require the label to appear on its own line (``^RISK: X$``)
-           with the MULTILINE anchor, so the regex won't misfire on risk
-           words that appear inside the explanation prose.
-        2. We strip ``<tool>``, ``<summary>``, ``<thought>`` and
-           ``<arguments>`` spans before parsing -- if a smuggled
-           ``RISK: LOW`` line rode in on an attacker-influenceable action
-           field (a tool name from an MCP server, or the actor-authored
-           summary/thought/arguments) and the guardrail echoed it back
-           verbatim, we discard those spans so they can't hijack the
-           verdict.
+        1. 我们要求标签单独一行显示（``^RISK: X$``），并且有MULTILINE锚点，这样正则表
+        达式就不会在解释性文本中出现风险词汇时误报。
+        2. 我们剥离 ``<tool>``、``<summary>``、``<thought>`` 和
+           ``<arguments>`` 解析前的跨度——如果是走私的
+           ``RISK: LOW`` 一条线在不受攻击影响的行动场（来自一个工具名称）上行驶 MCP
+           服务器，或由所撰写的总结/思考/论点]和约束检查我们一字不
+           差地回传，于是丢弃了那些片段，以免它们能劫持裁决。
 
-        Oversized output (> ``_MAX_PARSE_CHARS``) is truncated to the head
-        first, both to bound the O(n^2) tag regexes and because a real
-        verdict is on the first line.
+        过大的输出 (> ``_MAX_PARSE_CHARS``) 首先被截断到头部，既是为了绑定 O(n^2) 标
+        记正则表达式，也是因为真正的判决位于第一行。
 
-        Outcome rules:
+        结果规则：
 
-        - Raw untrusted tags remaining after the balanced-span strip
-          (unclosed ``<arguments>``, stray ``</summary>``, ...) ->
-          ``UNKNOWN``. Balanced stripping can't neutralize unbalanced
-          markup, and legitimate output never contains these raw tags
-          (prompt content is HTML-escaped, so honest echoes appear as
-          entities).
-        - No labels after stripping -> ``UNKNOWN`` (parse failure).
-        - One distinct label (possibly repeated) -> that risk.
-        - Multiple distinct labels -> ``UNKNOWN``. Frontier guardrails
-          emit the verdict on line 1 plus a brief explanation after;
-          any echoed label in the explanation would otherwise override
-          the real verdict under a last-wins selection. Treating
-          inconsistent labels as ambiguity matches the "parser ambiguity
-          should not silently pass" stance of the parse-failure path and
-          of the AST ERROR-node-as-UNKNOWN convention planned for the
-          shell-parser side.
+        - 平衡跨度条带后剩余的原始不受信任标签（未闭合``<arguments>``，杂散
+        ``</summary>``，...）->
+          ``UNKNOWN``. 平衡剥离无法消除不平衡的标记，合法输出中从来不会有这些原始标签
+          （提示词内容是HTML编码，所以诚实的回声会以实体形式出现）。
+        - 剥离后没有标签 -> ``UNKNOWN``（解析失败）。
+        - 一个不同的标签（可能重复）-> 该风险。
+        - 多个不同的标签 -> ``UNKNOWN``。 Frontier 约束检查发出第 1 行的判决，并在后
+        面加上简短的解释； 否则，解释中任何重复的标签都会
+        覆盖最后获胜选择下的真实判决。 将不一致的标签视为模糊匹配了解析失败路径和壳解
+        析器计划采用的AST ERROR-节点作为UNKNOWN的“解析失败应无声通过
+        ”的立场。
 
-        ``ConfirmRisky`` with ``confirm_unknown=True`` still pauses for
-        user confirmation on UNKNOWN, so the conservative posture is
-        preserved without distorting ensemble fusion that takes
+        ``ConfirmRisky`` 和 ``confirm_unknown=True`` 仍然暂停以供用户在 UNKNOWN 上确
+        认，因此保留了保守的姿势，而
+        不会扭曲集成融合
         ``max(concrete)``.
         """
-        # Normalize legacy / Windows line endings so the MULTILINE anchor
-        # in ``_RISK_RE`` fires consistently. ``re.MULTILINE`` only anchors
-        # at ``\n``; CR-only and CRLF outputs would otherwise hide an
-        # otherwise-standalone label. (Unicode line separators U+2028 /
-        # U+0085 are not normalized here -- no real LLM emits them in
-        # our experience; revisit if a guardrail model does.)
+        # 标准化旧版/Windows 行结尾，以便 ``_RISK_RE`` 中的 MULTILINE 锚点一致触发。
+        # ``re.MULTILINE`` 仅锚定于 ``\n``； CR-only 和 CRLF 输出会隐藏一个独立的标签。
+        # （Unicode 行分隔符 U+2028 / U+0085 不在这里进行规范化 -- 我们的经验中，LLM 从
+        # 未实际产生过它们。） 如果约束检查模型这样做的话，请重新访问。）
+        #
         text = text.replace("\r\n", "\n").replace("\r", "\n")
-        # Bound the O(n^2) tag regexes: scan only the head, where a
-        # well-behaved verdict lives. Oversized output is itself anomalous;
-        # truncation can only drop a trailing label, which fails to UNKNOWN.
+        # 绑定 O(n^2) 标签正则表达式：仅扫描头部，那里有一个行为良好的判决。 输出量过大
+        # 本身就是不正常的； 截断只能删除尾随标签，这失败了UNKNOWN。
+        #
         if len(text) > _MAX_PARSE_CHARS:
             logger.warning(
                 f"Guardrail output exceeded {_MAX_PARSE_CHARS} chars "
                 f"({len(text)}); scanning only the head for the RISK label"
             )
             text = text[:_MAX_PARSE_CHARS]
-        # Strip attacker-controllable spans so an echoed RISK label inside
-        # them can't be parsed as the verdict.
+        # 剥离攻击者可控制的跨度，以便其中回显的 RISK 标签无法被解析为判决。
+        #
         sanitized = _UNTRUSTED_TAG_RE.sub("", text)
-        # Balanced-span stripping can't neutralize UNBALANCED markup: in
-        # ``<arguments>\nRISK: LOW`` (no closing tag) the smuggled label
-        # would survive and parse as the verdict. Any raw untrusted tag
-        # remaining after the strip is malformed echo -> ambiguity.
+        # 平衡跨度剥离无法抵消 UNBALANCED 标记：在
+        # ``<arguments>\nRISK: LOW``（无结束标签）走私标签将保留并解析为判决。 在去除了
+        # 任何原始未受信任的标签后，剩余的畸形回显 -> 语义模糊。
+        #
         if _UNTRUSTED_TAG_REMNANT_RE.search(sanitized):
             logger.warning(
                 "Guardrail output contained unbalanced untrusted-tag markup "
@@ -447,12 +415,12 @@ class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
         return _RISK_MAP[matches[0].upper()]
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Evaluate ``action`` against the guardrail LLM."""
+        """根据约束检查 LLM 评估 ``action``。"""
         action_text = _format_action_for_guardrail(action)
 
         if self._action_history:
-            # Indent each prior action block under its numbered heading so
-            # the guardrail can still tell entries apart.
+            # 在其编号标题下缩进每个先前的操作块，以便约束检查仍然可以区分条目。
+            #
             history_blocks = []
             for i, a in enumerate(self._action_history):
                 indented = "\n".join("    " + line for line in a.splitlines())
@@ -461,8 +429,9 @@ class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
         else:
             history_text = "  (no prior actions)"
 
-        # Record this action *after* rendering so we send prior history
-        # only, and include the current action under its own heading.
+        # *渲染后*记录此操作，以便我们仅发送先前的历史记录，并将当前操作包含在其自己的标
+        # 题下。
+        #
         self._action_history.append(action_text)
 
         user_prompt = _USER_PROMPT.format(
@@ -482,9 +451,9 @@ class ToolShieldLLMSecurityAnalyzer(SecurityAnalyzerBase):
             ]
             llm_text = "\n".join(text_parts)
         except Exception as e:
-            # Don't fail closed to HIGH on infrastructure error -- that would
+            # 不要因基础设施错误而关闭到 HIGH —— 这会
             # make a transient OpenRouter blip block every action. UNKNOWN
-            # lets ConfirmRisky apply its configured fallback.
+            # 让 ConfirmRisky 应用其配置的回退方案。
             logger.error(f"Guardrail LLM call failed: {e}")
             return SecurityRisk.UNKNOWN
 

@@ -1,4 +1,4 @@
-"""Tests for behavior_utils functions."""
+"""测试 behavior_utils 函数。"""
 
 from collections.abc import Sequence
 
@@ -9,7 +9,7 @@ from tests.integration.behavior_utils import verify_all_actions_have_summary
 
 
 def _create_action_event(tool_name: str, summary: str | None) -> ActionEvent:
-    """Helper to create an ActionEvent with a given summary."""
+    """帮助程序创建具有给定摘要的 ActionEvent。"""
     return ActionEvent(
         source="agent",
         tool_name=tool_name,
@@ -27,7 +27,7 @@ def _create_action_event(tool_name: str, summary: str | None) -> ActionEvent:
 
 
 def test_verify_all_actions_have_summary_all_present():
-    """Test that verification passes when all actions have summaries."""
+    """当所有操作都有摘要时，测试验证是否通过。"""
     events: Sequence[Event] = [
         _create_action_event("terminal", "running tests"),
         _create_action_event("file_editor", "editing config file"),
@@ -38,7 +38,7 @@ def test_verify_all_actions_have_summary_all_present():
 
 
 def test_verify_all_actions_have_summary_missing():
-    """Test that verification fails when an action is missing a summary."""
+    """测试当操作缺少摘要时验证是否失败。"""
     events: Sequence[Event] = [
         _create_action_event("terminal", "running tests"),
         _create_action_event("file_editor", None),
@@ -49,7 +49,7 @@ def test_verify_all_actions_have_summary_missing():
 
 
 def test_verify_all_actions_have_summary_empty_string():
-    """Test that verification fails when summary is empty string."""
+    """测试当摘要为空字符串时验证失败。"""
     events: Sequence[Event] = [
         _create_action_event("terminal", ""),
     ]
@@ -59,7 +59,7 @@ def test_verify_all_actions_have_summary_empty_string():
 
 
 def test_verify_all_actions_have_summary_whitespace_only():
-    """Test that verification fails when summary is whitespace only."""
+    """测试当摘要仅是空格时验证失败。"""
     events: Sequence[Event] = [
         _create_action_event("terminal", "   "),
     ]
@@ -69,7 +69,7 @@ def test_verify_all_actions_have_summary_whitespace_only():
 
 
 def test_verify_all_actions_have_summary_no_actions():
-    """Test that verification passes when there are no action events."""
+    """当没有动作事件时测试验证是否通过。"""
     events: list[Event] = []
     success, reason = verify_all_actions_have_summary(events)
     assert success is True

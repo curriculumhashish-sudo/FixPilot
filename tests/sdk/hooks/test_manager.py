@@ -1,4 +1,4 @@
-"""Tests for HookManager."""
+"""测试 HookManager。"""
 
 import pytest
 
@@ -11,16 +11,16 @@ from tests.command_utils import python_command, sleep_command, touch_command
 
 
 class TestHookManager:
-    """Tests for HookManager orchestration."""
+    """测试 HookManager 编排。"""
 
     @pytest.fixture
     def tmp_working_dir(self, tmp_path):
-        """Create a temporary working directory."""
+        """Create a temporary 工作目录。"""
         return str(tmp_path)
 
     @pytest.fixture
     def config_with_blocking_hook(self, tmp_path):
-        """Create config with a blocking PreToolUse hook."""
+        """使用阻塞 PreToolUse 挂钩创建配置。"""
         command = python_command(
             "import json, sys; "
             "print(json.dumps({'decision': 'deny', 'reason': 'Blocked by test'})); "
@@ -43,7 +43,7 @@ class TestHookManager:
     def test_run_pre_tool_use_blocks_when_hook_denies(
         self, tmp_working_dir, config_with_blocking_hook
     ):
-        """Test that PreToolUse blocks when hook denies."""
+        """测试当 hook 拒绝时 PreToolUse 是否阻塞。"""
         manager = HookManager(
             config=config_with_blocking_hook,
             working_dir=tmp_working_dir,
@@ -60,7 +60,7 @@ class TestHookManager:
         assert results[0].blocked
 
     def test_run_post_tool_use(self, tmp_working_dir, tmp_path):
-        """Test PostToolUse hooks execute."""
+        """测试 PostToolUse 挂钩执行。"""
         log_file = tmp_path / "log.txt"
 
         hook = {
@@ -86,7 +86,7 @@ class TestHookManager:
         assert log_file.read_text().strip() == "logged"
 
     def test_run_user_prompt_submit(self, tmp_working_dir):
-        """Test UserPromptSubmit hooks execute and return additionalContext."""
+        """测试 UserPromptSubmit 挂钩执行并返回 additionalContext。"""
         cmd = python_command(
             "import json; "
             "print(json.dumps({'additionalContext': 'Always check tests'}))"
@@ -111,7 +111,7 @@ class TestHookManager:
         assert len(results) == 1
 
     def test_run_session_start(self, tmp_working_dir, tmp_path):
-        """Test SessionStart hooks execute."""
+        """测试 SessionStart 挂钩执行。"""
         marker_file = tmp_path / "started"
 
         hook = {"type": "command", "command": touch_command(marker_file)}
@@ -127,7 +127,7 @@ class TestHookManager:
         assert marker_file.exists()
 
     def test_run_stop_blocked_means_continue(self, tmp_working_dir, tmp_path):
-        """Test that blocking Stop hook means agent should continue."""
+        """测试阻塞 Stop 钩子意味着智能体应该继续。"""
         hook = {
             "type": "command",
             "command": python_command(
@@ -141,27 +141,27 @@ class TestHookManager:
         manager = HookManager(config=config, working_dir=tmp_working_dir)
         should_stop, results = manager.run_stop()
 
-        assert not should_stop  # Blocking means don't stop (continue)
+        assert not should_stop  # 阻塞意味着不要停止（继续）
 
     def test_get_blocking_reason(self, tmp_working_dir):
-        """Test get_blocking_reason extracts reason from results."""
+        """测试 get_blocking_reason 从结果中提取原因。"""
         from openhands.sdk.hooks.executor import HookResult
 
         manager = HookManager(config=HookConfig(), working_dir=tmp_working_dir)
 
-        # With reason field
+        # 有理由场
         results = [HookResult(blocked=True, reason="Custom reason")]
         assert manager.get_blocking_reason(results) == "Custom reason"
 
-        # With stderr
+        # 与标准错误
         results = [HookResult(blocked=True, stderr="Error from stderr\n")]
         assert manager.get_blocking_reason(results) == "Error from stderr"
 
-        # Default message
+        # 默认消息
         results = [HookResult(blocked=True)]
         assert manager.get_blocking_reason(results) == "Blocked by hook"
 
-        # Not blocked
+        # 没有被阻止
         results = [HookResult(success=True)]
         assert manager.get_blocking_reason(results) is None
 
@@ -235,15 +235,15 @@ def test_stop_prompt_deny_keeps_agent_running(tmp_path):
 
 
 class TestAsyncHookManager:
-    """Tests for async hook handling in HookManager."""
+    """测试 HookManager 中的异步钩子处理。"""
 
     @pytest.fixture
     def tmp_working_dir(self, tmp_path):
-        """Create a temporary working directory."""
+        """Create a temporary 工作目录。"""
         return str(tmp_path)
 
     def test_async_pre_tool_use_logs_warning(self, tmp_working_dir, caplog):
-        """Test that async PreToolUse hooks log a warning."""
+        """测试异步 PreToolUse 挂钩是否记录警告。"""
         import logging
 
         hook = {"type": "command", "command": "echo test", "async": True}
@@ -260,7 +260,7 @@ class TestAsyncHookManager:
         assert "1 async hook(s)" in caplog.text
 
     def test_async_pre_tool_use_still_runs(self, tmp_working_dir, tmp_path):
-        """Test that async PreToolUse hooks still execute despite warning."""
+        """测试异步 PreToolUse 钩子是否在出现警告的情况下仍然执行。"""
         marker = tmp_path / "async_ran.txt"
         hook = {"type": "command", "command": touch_command(marker), "async": True}
         config = HookConfig.from_dict(
@@ -272,18 +272,18 @@ class TestAsyncHookManager:
             "BashTool", {"command": "ls"}
         )
 
-        assert should_continue  # Async hooks cannot block
+        assert should_continue  # 异步钩子无法阻塞
         assert len(results) == 1
         assert results[0].async_started
 
-        # Wait for async hook to complete
+        # 等待异步挂钩完成
         import time
 
         time.sleep(0.2)
         assert marker.exists()
 
     def test_cleanup_async_processes_on_session_end(self, tmp_working_dir, tmp_path):
-        """Test that session end cleans up async processes."""
+        """测试会话结束是否清理异步个进程。"""
         hook = {"type": "command", "command": sleep_command(60), "async": True}
         config = HookConfig.from_dict(
             {"hooks": {"PostToolUse": [{"matcher": "*", "hooks": [hook]}]}}
@@ -291,18 +291,18 @@ class TestAsyncHookManager:
 
         manager = HookManager(config=config, working_dir=tmp_working_dir)
 
-        # Start an async hook
+        # 启动异步事件钩子
         results = manager.run_post_tool_use("TestTool", {}, {"result": "ok"})
         assert len(results) == 1
         assert results[0].async_started
         assert len(manager.executor.async_process_manager._processes) == 1
 
-        # Session end should cleanup
+        # 会话结束应该清理
         manager.run_session_end()
         assert len(manager.executor.async_process_manager._processes) == 0
 
     def test_cleanup_async_processes_method(self, tmp_working_dir, tmp_path):
-        """Test cleanup_async_processes method directly."""
+        """直接测试cleanup_async_processes方法。"""
         hook = {"type": "command", "command": sleep_command(60), "async": True}
         config = HookConfig.from_dict(
             {"hooks": {"PostToolUse": [{"matcher": "*", "hooks": [hook]}]}}
@@ -310,16 +310,16 @@ class TestAsyncHookManager:
 
         manager = HookManager(config=config, working_dir=tmp_working_dir)
 
-        # Start an async hook
+        # 启动异步事件钩子
         manager.run_post_tool_use("TestTool", {}, {"result": "ok"})
         assert len(manager.executor.async_process_manager._processes) == 1
 
-        # Direct cleanup
+        # 直接清理
         manager.cleanup_async_processes()
         assert len(manager.executor.async_process_manager._processes) == 0
 
     def test_mixed_sync_async_hooks_in_post_tool_use(self, tmp_working_dir, tmp_path):
-        """Test PostToolUse with both sync and async hooks."""
+        """使用同步和异步挂钩测试 PostToolUse。"""
         sync_marker = tmp_path / "sync.txt"
         async_marker = tmp_path / "async.txt"
 
@@ -353,25 +353,25 @@ class TestAsyncHookManager:
         manager = HookManager(config=config, working_dir=tmp_working_dir)
         results = manager.run_post_tool_use("TestTool", {}, {"result": "ok"})
 
-        # Sync hook should complete immediately
+        # 同步挂钩应立即完成
         assert sync_marker.exists()
 
-        # Should have 2 results
+        # 应该有 2 个结果
         assert len(results) == 2
         assert results[0].async_started is False
         assert results[1].async_started is True
 
-        # Async marker should not exist yet
+        # 异步标记尚不应该存在
         assert not async_marker.exists()
 
-        # Wait for async hook
+        # 等待异步触发器
         import time
 
         time.sleep(0.4)
         assert async_marker.exists()
 
     def test_session_end_runs_hooks_before_cleanup(self, tmp_working_dir, tmp_path):
-        """Test that session end hooks run before async process cleanup."""
+        """测试会话结束挂钩在异步进程清理之前运行。"""
         marker = tmp_path / "session_end.txt"
         config = HookConfig.from_dict(
             {"hooks": {"SessionEnd": [{"hooks": [{"command": touch_command(marker)}]}]}}

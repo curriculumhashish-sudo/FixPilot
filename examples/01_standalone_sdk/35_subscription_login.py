@@ -1,31 +1,29 @@
-"""Example: Using ChatGPT subscription for Codex models.
+"""Example: 使用 Codex 模型的 ChatGPT 订阅。
 
-This example demonstrates how to use your ChatGPT Plus/Pro subscription
-to access OpenAI's Codex models without consuming API credits.
+此示例演示如何使用您的 ChatGPT Plus/Pro 订阅来访问 OpenAI 的 Codex 模型，而无需消耗
+API 积分。
 
-The subscription_login() method handles:
-- OAuth PKCE authentication flow
-- Device-code authentication for remote/headless environments
-- Credential caching (~/.openhands/auth/)
-- Automatic token refresh
+subscription_login() 方法处理：
+- OAuth PKCE 身份验证流程
+- 用于远程/无头环境的设备代码身份验证
+- 凭据 caching (~/.openhands/auth/)
+- 自动token刷新
 
-Supported models:
-- gpt-5.2-codex
-- gpt-5.2
+支持型号：
+- gpt-5.2-法典
+- GPT-5.2
 - gpt-5.1-codex-max
 - gpt-5.1-codex-mini
 
-Requirements:
-- Active ChatGPT Plus or Pro subscription
-- Browser access for initial OAuth login, or another browser/device for
-  device-code login
+要求：
+- 有效 ChatGPT Plus 或 Pro 订阅
+- 用于初始 OAuth 登录的浏览器访问，或用于设备代码登录的其他浏览器/设备
 
-Environment variables:
-- OPENHANDS_SUBSCRIPTION_MODEL: Model to use (default: gpt-5.2-codex)
-- OPENHANDS_SUBSCRIPTION_AUTH_METHOD: "browser" or "device_code"
-  (default: browser)
-- OPENHANDS_SUBSCRIPTION_FORCE_LOGIN: Set to "1" to force fresh login
-- SUBSCRIPTION_LOGIN_ONLY: Set to "1" to verify login without running an agent
+环境变量：
+- OPENHANDS_SUBSCRIPTION_MODEL: 要使用的模型（默认值：gpt-5.2-codex）
+- OPENHANDS_SUBSCRIPTION_AUTH_METHOD: “浏览器”或“device_code”（默认：浏览器）
+- OPENHANDS_SUBSCRIPTION_FORCE_LOGIN: 设置为“1”以强制重新登录
+- SUBSCRIPTION_LOGIN_ONLY: 设置为“1”以验证登录而不运行智能体
 """
 
 import os
@@ -39,8 +37,8 @@ from openhands.tools.terminal import TerminalTool
 AuthMethod = Literal["browser", "device_code"]
 
 
-# First time: Opens browser for OAuth login
-# Subsequent calls: Reuses cached credentials (auto-refreshes if expired)
+# 第一次：打开浏览器进行 OAuth 登录后续调用：重用缓存凭据（过期自动刷新）
+#
 model = os.getenv("OPENHANDS_SUBSCRIPTION_MODEL", "gpt-5.2-codex")
 auth_method_env = os.getenv("OPENHANDS_SUBSCRIPTION_AUTH_METHOD", "browser")
 if auth_method_env not in ("browser", "device_code"):
@@ -52,20 +50,20 @@ force_login = os.getenv("OPENHANDS_SUBSCRIPTION_FORCE_LOGIN") == "1"
 
 llm = LLM.subscription_login(
     vendor="openai",
-    model=model,  # or "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"
+    model=model,  # 或“gpt-5.2”、“gpt-5.1-codex-max”、“gpt-5.1-codex-mini”
     auth_method=auth_method,
     force_login=force_login,
 )
 
-# Alternative: Force a fresh login (useful if credentials are stale)
+# 替代方案：强制重新登录（如果凭据已过时，则很有用）
 # llm = LLM.subscription_login(vendor="openai", model="gpt-5.2-codex", force_login=True)
 
-# Alternative: Disable auto-opening browser (prints URL to console instead)
+# 替代方案：禁用自动打开浏览器（改为打印 URL 到控制台）
 # llm = LLM.subscription_login(
 #     vendor="openai", model="gpt-5.2-codex", open_browser=False
 # )
 #
-# Alternative: Use device-code login for remote/headless environments
+# 替代方案：对远程/无头环境使用设备代码登录
 # llm = LLM.subscription_login(
 #     vendor="openai",
 #     model="gpt-5.2-codex",
@@ -73,7 +71,7 @@ llm = LLM.subscription_login(
 #     force_login=True,
 # )
 
-# Verify subscription mode is active
+# 验证订阅模式是否处于活动状态
 print(f"Using subscription mode: {llm.is_subscription}")
 print(f"Model: {llm.model}")
 print(f"Auth method: {auth_method}")
@@ -82,7 +80,7 @@ if os.getenv("SUBSCRIPTION_LOGIN_ONLY") == "1":
     print("Login verified; skipping agent run because SUBSCRIPTION_LOGIN_ONLY=1.")
     raise SystemExit(0)
 
-# Use the LLM with an agent as usual
+# 像平常一样使用 LLM 和智能体
 agent = Agent(
     llm=llm,
     tools=[

@@ -1,4 +1,4 @@
-"""Tests for py_type function in openhands.sdk.tool.schema."""
+"""测试 openhands.sdk.tool.schema 中的 py_type 功能。"""
 
 from typing import Any
 
@@ -6,243 +6,243 @@ from openhands.sdk.tool.schema import py_type
 
 
 class TestPyTypePrimitiveTypes:
-    """Test py_type with primitive JSON schema types."""
+    """使用原始 JSON 模式类型测试 py_type。"""
 
     def test_string_type(self):
-        """Test that string type maps to Python str."""
-        # Arrange
+        """测试字符串类型是否映射到 Python str。"""
+        # 安排
         spec = {"type": "string"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is str
 
     def test_integer_type(self):
-        """Test that integer type maps to Python int."""
-        # Arrange
+        """测试整数类型映射到 Python int。"""
+        # 安排
         spec = {"type": "integer"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is int
 
     def test_number_type(self):
-        """Test that number type maps to Python float."""
-        # Arrange
+        """测试数字类型映射到 Python float。"""
+        # 安排
         spec = {"type": "number"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is float
 
     def test_boolean_type(self):
-        """Test that boolean type maps to Python bool."""
-        # Arrange
+        """测试布尔类型是否映射到 Python bool。"""
+        # 安排
         spec = {"type": "boolean"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is bool
 
 
 class TestPyTypeObjectType:
-    """Test py_type with object type."""
+    """使用对象类型测试 py_type。"""
 
     def test_object_type(self):
-        """Test that object type maps to dict[str, Any]."""
-        # Arrange
+        """测试对象类型是否映射到 dict[str、Any]。"""
+        # 安排
         spec = {"type": "object"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == dict[str, Any]
 
 
 class TestPyTypeArrayType:
-    """Test py_type with array types."""
+    """使用数组类型测试 py_type。"""
 
     def test_array_without_items(self):
-        """Test that array without items returns list[Any]."""
-        # Arrange
+        """测试没有项目的数组返回 list[Any]。"""
+        # 安排
         spec = {"type": "array"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == list[Any]
 
     def test_array_with_dict_items(self):
-        """Test that array with dict items recursively processes inner type."""
-        # Arrange
+        """使用 dict 项测试该数组递归处理内部类型。"""
+        # 安排
         spec = {"type": "array", "items": {"type": "string"}}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == list[str]
 
     def test_array_with_nested_array(self):
-        """Test that array with nested array processes correctly."""
-        # Arrange
+        """正确测试具有嵌套数组进程的数组。"""
+        # 安排
         spec = {
             "type": "array",
             "items": {"type": "array", "items": {"type": "integer"}},
         }
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == list[list[int]]
 
     def test_array_with_non_dict_items(self):
-        """Test that array with non-dict items returns list[Any]."""
-        # Arrange
+        """测试包含非 dict 项的数组返回 list[Any]。"""
+        # 安排
         spec = {"type": "array", "items": "string"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == list[Any]
 
 
 class TestPyTypeUnionTypes:
-    """Test py_type with union types (list/tuple/set)."""
+    """使用联合类型（列表/元组/集合）测试 py_type。"""
 
     def test_union_list_with_single_non_null(self):
-        """Test that union list with single non-null type extracts that type."""
-        # Arrange
+        """测试具有单个非 null 类型的联合列表是否提取该类型。"""
+        # 安排
         spec = {"type": ["string", "null"]}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is str
 
     def test_union_tuple_with_single_non_null(self):
-        """Test that union tuple with single non-null type extracts that type."""
-        # Arrange
+        """测试具有单个非 null 类型的联合元组是否提取该类型。"""
+        # 安排
         spec = {"type": ("integer", "null")}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is int
 
     def test_union_set_with_single_non_null(self):
-        """Test that union set with single non-null type extracts that type."""
-        # Arrange
+        """测试具有单个非 null 类型的联合集是否提取该类型。"""
+        # 安排
         spec = {"type": {"number", "null"}}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is float
 
     def test_union_with_multiple_non_null_types(self):
-        """Test that union with multiple non-null types returns Any."""
-        # Arrange
+        """测试多个非 null 类型的联合是否返回 Any。"""
+        # 安排
         spec = {"type": ["string", "integer"]}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_union_with_only_null(self):
-        """Test that union with only null type returns Any."""
-        # Arrange
+        """测试仅具有 null 类型的联合返回 Any。"""
+        # 安排
         spec = {"type": ["null"]}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_union_with_three_types_one_null(self):
-        """Test that union with three types where one is null extracts non-null."""
-        # Arrange
+        """测试具有三种类型（其中一种是 null）的并集提取非 null。"""
+        # 安排
         spec = {"type": ["boolean", "null", "string"]}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
 
 class TestPyTypeEdgeCases:
-    """Test py_type with edge cases and invalid inputs."""
+    """使用边缘情况和无效输入测试 py_type。"""
 
     def test_missing_type_key(self):
-        """Test that missing type key returns Any."""
-        # Arrange
+        """测试缺少的类型键是否返回 Any。"""
+        # 安排
         spec = {}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_unknown_type(self):
-        """Test that unknown type returns Any."""
-        # Arrange
+        """测试未知类型返回 Any。"""
+        # 安排
         spec = {"type": "unknown_type"}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_empty_dict(self):
-        """Test that empty dict returns Any."""
-        # Arrange
+        """测试空字典是否返回 Any。"""
+        # 安排
         spec = {}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_type_none(self):
-        """Test that type=None returns Any."""
-        # Arrange
+        """测试 type=None 返回 Any。"""
+        # 安排
         spec = {"type": None}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result is Any
 
     def test_array_with_empty_items_dict(self):
-        """Test that array with empty items dict returns list[Any]."""
-        # Arrange
+        """测试带有空项的数组 dict 返回 list[Any]。"""
+        # 安排
         spec = {"type": "array", "items": {}}
 
-        # Act
+        # 法案
         result = py_type(spec)
 
-        # Assert
+        # 断言
         assert result == list[Any]

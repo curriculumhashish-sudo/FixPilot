@@ -40,10 +40,10 @@ def message_event(content: str) -> MessageEvent:
 
 @pytest.fixture
 def mock_llm() -> LLM:
-    """Create a mock LLM for testing."""
+    """创建模拟对象 LLM 进行测试。"""
     mock_llm = MagicMock(spec=LLM)
 
-    # Mock the completion response - now returns LLMResponse
+    # 模拟对象完成响应现在返回 LLMResponse
     def create_completion_result(content: str) -> LLMResponse:
         message = Message(role="assistant", content=[TextContent(text=content)])
         metrics = MetricsSnapshot(
@@ -52,7 +52,7 @@ def mock_llm() -> LLM:
             max_budget_per_task=None,
             accumulated_token_usage=None,
         )
-        # Create a mock ModelResponse
+        # 创建模拟对象 ModelResponse
         raw_response = MagicMock(spec=ModelResponse)
         raw_response.id = "mock-llm-response-id"
         return LLMResponse(message=message, metrics=metrics, raw_response=raw_response)
@@ -65,7 +65,7 @@ def mock_llm() -> LLM:
     mock_llm.requires_streaming = False
     mock_llm.format_messages_for_llm = lambda messages: messages
 
-    # Mock the required attributes that the LLM validator reads
+    # 模拟对象 LLM 验证器读取的必需属性
     mock_llm.openrouter_site_url = "https://docs.all-hands.dev/"
     mock_llm.openrouter_app_name = "OpenHands"
     mock_llm.aws_access_key_id = None
@@ -85,18 +85,19 @@ def mock_llm() -> LLM:
     mock_llm.reasoning_effort = None
     mock_llm.litellm_extra_body = {}
     mock_llm.temperature = 0.0
-    # Streaming is off by default (matches LLM.stream's default), so the
-    # condenser uses this LLM directly without copying it.
+    # 流式传输默认是关闭的（与LLM.stream的默认匹配），所以上下文压缩器直接使用这个LLM而
+    # 不复制它。
+    #
     mock_llm.stream = False
 
-    # Explicitly set pricing attributes required by LLM -> Telemetry wiring
+    # 显式设置 LLM -> 遥测接线所需的定价属性
     mock_llm.input_cost_per_token = None
     mock_llm.output_cost_per_token = None
 
     mock_llm._metrics = None
     mock_llm._telemetry = None
 
-    # Helper method to set mock response content
+    # 设置模拟对象响应内容的辅助方法
     def set_mock_response_content(content: str):
         result = create_completion_result(content)
         mock_llm.generate.return_value = result
@@ -108,33 +109,33 @@ def mock_llm() -> LLM:
 
 
 def test_default_values(mock_llm: LLM) -> None:
-    """Test that LLMSummarizingCondenser has correct default values.
+    """测试 LLMSummarizingCondenser 是否具有正确的默认值。
 
-    These defaults are tuned to ensure workable manipulation indices for condensation.
-    See https://github.com/OpenHands/software-agent-sdk/issues/1518 for context.
+    这些默认值经过调整以确保上下文压缩的操作索引可行。 请参阅
+    https://github.com/OpenHands/software-agent-sdk/issues/1518  中的上下文。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm)
 
-    # Default max_size should be 240 (raised from 120 to allow more room for tool loops)
+    # 默认 max_size 应为 240（从 120 提高到为工具循环留出更多空间）
     assert condenser.max_size == 240
 
-    # Default keep_first should be 2 (reduced from 4 to leave more room for
-    # condensation)
+    # 默认 keep_first 应为 2（从 4 减少，为上下文压缩留出更多空间）
+    #
     assert condenser.keep_first == 2
 
 
 def test_should_condense(mock_llm: LLM) -> None:
-    """Test that LLMSummarizingCondenser correctly determines when to condense."""
+    """测试 LLMSummarizingCondenser 是否正确判断何时进行合并。"""
     max_size = 100
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=max_size)
 
-    # Create events below the threshold
+    # 创建低于阈值的事件
     small_events = [message_event(f"Event {i}") for i in range(max_size)]
     small_view = View.from_events(small_events)
 
     assert condenser.condensation_requirement(small_view) is None
 
-    # Create events above the threshold (triggers EVENTS reason -> SOFT requirement)
+    # 创建高于阈值的事件（触发 EVENTS 原因 -> SOFT 要求）
     large_events = [message_event(f"Event {i}") for i in range(max_size + 1)]
     large_view = View.from_events(large_events)
 
@@ -144,7 +145,7 @@ def test_should_condense(mock_llm: LLM) -> None:
 
 
 def test_condense_returns_view_when_no_condensation_needed(mock_llm: LLM) -> None:
-    """Test that condenser returns the original view when no condensation is needed."""  # noqa: E501
+    """测试当不需要上下文压缩时上下文压缩器是否返回原始视图。"""  # noqa: E501
     max_size = 100
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=max_size)
 
@@ -155,19 +156,19 @@ def test_condense_returns_view_when_no_condensation_needed(mock_llm: LLM) -> Non
 
     assert isinstance(result, View)
     assert result == view
-    # LLM should not be called
+    # LLM 不应被调用
     cast(MagicMock, mock_llm.generate).assert_not_called()
 
 
 def test_condense_returns_condensation_when_needed(mock_llm: LLM) -> None:
-    """Test that condenser returns a Condensation when condensation is needed."""
+    """测试当需要上下文压缩时，上下文压缩器是否返回上下文压缩。"""
     max_size = 10
     keep_first = 3
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=max_size, keep_first=keep_first
     )
 
-    # Set up mock response
+    # 设置模拟对象响应
     cast(Any, mock_llm).set_mock_response_content("Summary of forgotten events")
 
     events: list[Event] = [message_event(f"Event {i}") for i in range(max_size + 1)]
@@ -177,37 +178,36 @@ def test_condense_returns_condensation_when_needed(mock_llm: LLM) -> None:
 
     assert isinstance(result, Condensation)
     assert result.summary == "Summary of forgotten events"
-    # summary_offset should be the smallest manipulation index >= keep_first
-    # Since all events are MessageEvents, manipulation indices are [0,1,2,3,4,...]
-    # The smallest index >= keep_first (3) is 3
-    # This means we keep events [0:3] = indices 0,1,2 = 3 events
+    # summary_offset 应该是 >= keep_first 的最小操作索引。由于所有事件都是 MessageEvents
+    # ，操作索引是 [0,1,2,3,4,...]。最小索引 >= keep_first (3) 是 3，这意味着我们保留事
+    # 件 [0:3] = 操作索引 0,1,2 = 3 个事件
+    #
     assert result.summary_offset == keep_first
     assert len(result.forgotten_event_ids) > 0
 
-    # LLM should be called once
+    # LLM 应该被调用一次
     cast(MagicMock, mock_llm.generate).assert_called_once()
 
 
 def test_get_condensation_with_previous_summary(mock_llm: LLM) -> None:
-    """Test that condenser properly handles previous summary content."""
+    """测试上下文压缩器是否正确处理先前的摘要内容。"""
     max_size = 10
     keep_first = 3
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=max_size, keep_first=keep_first
     )
 
-    # Set up mock response
+    # 设置模拟对象响应
     cast(Any, mock_llm).set_mock_response_content("Updated summary")
 
-    # Create events with a condensation in the history
-    # Need enough events so that after condensation, the view still exceeds max_size
-    # Condensation will remove 2 events (events[3] and events[4]) plus itself
-    # So we need at least max_size + 1 + 3 = 14 events to exceed max_size after
-    # condensation
+    # 在历史中有一个上下文压缩。需要创建足够多的事件，使得在上下文压缩之后，视图仍然超过
+    # max_size 上下文压缩将删除2个事件（事件[3]和事件[4]）加上自身。因此，我们需要至少
+    # max_size + 1 + 3 = 14个事件才能超过max_size在上下文压缩之后
+    #
     events = [message_event(f"Event {i}") for i in range(14)]
 
-    # Add a condensation to simulate previous summarization
-    # The summary will be inserted at keep_first due to summary_offset
+    # 添加上下文压缩来模拟之前的摘要由于 summary_offset，摘要将插入到 keep_first 处
+    #
     condensation = Condensation(
         forgotten_event_ids={events[3].id, events[4].id},
         summary="Previous summary content",
@@ -225,105 +225,106 @@ def test_get_condensation_with_previous_summary(mock_llm: LLM) -> None:
     assert isinstance(result, Condensation)
     assert result.summary == "Updated summary"
 
-    # Verify that the LLM was called with the previous summary
+    # 验证是否使用之前的摘要调用了 LLM
     completion_mock = cast(MagicMock, mock_llm.generate)
     completion_mock.assert_called_once()
     call_args = completion_mock.call_args
-    messages = call_args[1]["messages"]  # Get keyword arguments
+    messages = call_args[1]["messages"]  # 获取关键字参数
 
-    # The summarization instructions are sent as a system message and the
-    # events to summarize (including any previous summary) as a user message.
+    # 汇总指令作为系统消息发送，而要汇总的事件（包括任何先前的汇总）作为用户消息发送。
+    #
     assert messages[0].role == "system"
     assert messages[1].role == "user"
     events_text = messages[1].content[0].text
 
-    # The prompt should contain the previous summary (it's in <PREVIOUS SUMMARY> sec.)
-    # The summary is now retrieved from the view, which should have it at the summary
-    # event
+    # 提示词应包含之前的摘要（在 <PREVIOUS SUMMARY> 秒前）。摘要现在是从视图中获取的，应
+    # 该在摘要事件中包含它
+    #
     assert (
         "Previous summary content" in events_text or "<PREVIOUS SUMMARY>" in events_text
     )
 
 
 def test_invalid_config(mock_llm: LLM) -> None:
-    """Test that LLMSummarizingCondenser validates configuration parameters."""
-    # Test max_size must be positive
+    """测试 LLMSummarizingCondenser 验证配置参数。"""
+    # 测试 max_size 必须为阳性
     with pytest.raises(ValueError):
         LLMSummarizingCondenser(llm=mock_llm, max_size=0)
 
-    # Test keep_first must be non-negative
+    # 测试 keep_first 必须为非负数
     with pytest.raises(ValueError):
         LLMSummarizingCondenser(llm=mock_llm, keep_first=-1)
 
-    # Test keep_first must be less than max_size // 2 to leave room for condensation
+    # 测试 keep_first 必须小于 max_size // 2 以便为上下文压缩留出空间
     with pytest.raises(ValueError):
         LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=8)
 
 
 def test_get_condensation_does_not_pass_extra_body(mock_llm: LLM) -> None:
-    """Condenser should not pass extra_body to llm.generate.
+    """上下文压缩器不应将 extra_body 传递到 llm.generate。
 
-    This prevents providers like 1p Anthropic from rejecting the request with
-    "extra_body: Extra inputs are not permitted".
+    这可以防止像 1p Anthropic 这样的提供者拒绝带有“extra_body：不允许额外输入”的请求
+    。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
-    # Prepare a view that triggers condensation (len > max_size)
+    # 准备一个触发上下文压缩 (len > max_size) 的视图
     events: list[Event] = [message_event(f"Event {i}") for i in range(12)]
     view = View.from_events(events)
 
     result = condenser.condense(view)
     assert isinstance(result, Condensation)
 
-    # Ensure completion was called without an explicit extra_body kwarg
+    # 确保在没有显式 extra_body kwarg 的情况下调用完成
     completion_mock = cast(MagicMock, mock_llm.generate)
     assert completion_mock.call_count == 1
 
 
 def test_condense_with_agent_llm(mock_llm: LLM) -> None:
-    """Test that condenser accepts and works with optional agent llm parameter."""
+    """测试上下文压缩器接受并使用可选的智能体 llm 参数。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
-    # Create a separate mock for the agent's LLM
+    # 为智能体的 LLM 创建单独的模拟对象
     agent_llm = MagicMock(spec=LLM)
     agent_llm.model = "gpt-4"
     agent_llm.effective_max_input_tokens = None
 
-    # Prepare a view that triggers condensation
+    # 准备一个触发上下文压缩的视图
     events: list[Event] = [message_event(f"Event {i}") for i in range(12)]
     view = View.from_events(events)
 
-    # Call condense with the agent's LLM
+    # 使用智能体的 LLM 调用压缩
     result = condenser.condense(view, agent_llm=agent_llm)
     assert isinstance(result, Condensation)
 
-    # Verify the condenser still uses its own LLM for summarization
+    # 验证上下文压缩器仍然使用自己的 LLM 进行汇总
     completion_mock = cast(MagicMock, mock_llm.generate)
     assert completion_mock.call_count == 1
 
-    # Agent LLM should not be called for completion (condenser uses its own LLM)
+    # 智能体 LLM 不应被调用来完成（上下文压缩器使用其自己的 LLM）
     assert not agent_llm.generate.called
     _, kwargs = completion_mock.call_args
     assert "extra_body" not in kwargs
 
 
 def test_condense_with_token_limit_exceeded(mock_llm: LLM) -> None:
-    """Test that condenser triggers on TOKENS reason when token limit is exceeded."""
+    """测试当超出 token 限制时，上下文压缩器是否因 TOKENS 原因触发。"""
     max_tokens = 100
     keep_first = 2
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=1000, max_tokens=max_tokens, keep_first=keep_first
     )
 
-    # Create a separate mock for the agent's LLM with token counting
+    # 为智能体的 LLM 创建一个单独的模拟对象，并使用 token 计数
     agent_llm = MagicMock(spec=LLM)
     agent_llm.model = "gpt-4"
     agent_llm.effective_max_input_tokens = None
 
-    # Mock get_token_count to return predictable values based on message content length
+    # 模拟对象 get_token_count 根据消息内容长度返回可预测的值
     def mock_token_count(messages, **_kwargs):
-        # Simple heuristic: count characters in all text content
-        # Each character = 0.25 tokens (roughly 4 chars per token)
+        # 简单启发式：计算所有文本内容中的字符数每个字符 = 0.25 token（每个 token 大约 4
+        #  个字符）
+        #
         total_chars = 0
         for msg in messages:
             for content in msg.content:
@@ -333,27 +334,27 @@ def test_condense_with_token_limit_exceeded(mock_llm: LLM) -> None:
 
     cast(MagicMock, agent_llm.get_token_count).side_effect = mock_token_count
 
-    # Create events that exceed token limit
-    # Each event has 40 chars = 10 tokens
-    # 15 events = 150 tokens (exceeds max_tokens of 100)
+    # 创建超过 token 限制的事件每个事件有 40 个字符 = 10 token 15 个事件 = 150 token（超
+    # 过 100 个 max_tokens）
+    #
     events: list[Event] = [message_event("A" * 40) for i in range(15)]
     view = View.from_events(events)
 
-    # Verify that TOKENS is the condensation reason
+    # 验证 TOKENS 是上下文压缩原因
     reasons = condenser.get_condensation_reasons(view, agent_llm=agent_llm)
     assert Reason.TOKENS in reasons
-    assert Reason.EVENTS not in reasons  # Should not trigger on event count
+    assert Reason.EVENTS not in reasons  # 不应在事件计数时触发
     assert Reason.REQUEST not in reasons
 
-    # Condense the view
+    # 凝练视图
     result = condenser.condense(view, agent_llm=agent_llm)
     assert isinstance(result, Condensation)
 
-    # Verify the condenser used its own LLM for summarization
+    # 验证上下文压缩器使用自己的 LLM 进行摘要
     completion_mock = cast(MagicMock, mock_llm.generate)
     assert completion_mock.call_count == 1
 
-    # Verify forgotten events were calculated based on token reduction
+    # 验证遗忘事件是根据 token 减少计算的
     assert len(result.forgotten_event_ids) > 0
 
 
@@ -413,9 +414,9 @@ def test_token_reduction_uses_agent_effective_input_limit(mock_llm: LLM) -> None
 
 
 def test_condense_with_request_and_events_reasons(mock_llm: LLM) -> None:
-    """Test condensation when both REQUEST and EVENTS reasons are true simultaneously.
+    """当 REQUEST 和 EVENTS 原因同时为 True 时，测试上下文压缩。
 
-    Verifies that the most aggressive condensation (minimum suffix) is chosen.
+    验证是否选择了最具攻击性的上下文压缩（最小后缀）。
     """
     max_size = 20
     keep_first = 2
@@ -423,45 +424,45 @@ def test_condense_with_request_and_events_reasons(mock_llm: LLM) -> None:
         llm=mock_llm, max_size=max_size, keep_first=keep_first
     )
 
-    # Create events that exceed max_size AND include a condensation request
-    # 25 events > max_size of 20 (triggers EVENTS)
-    # Plus a CondensationRequest (triggers REQUEST)
+    # 创建超过 max_size AND 的事件，包括上下文压缩请求 25 个事件 > max_size，共 20 个（
+    # 触发器 EVENTS） 加上 CondensationRequest（触发器 REQUEST）
+    #
     events: list[Event] = [message_event(f"Event {i}") for i in range(25)]
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Verify both reasons are present
+    # 验证两个原因都存在
     reasons = condenser.get_condensation_reasons(view, agent_llm=None)
     assert Reason.REQUEST in reasons
     assert Reason.EVENTS in reasons
     assert Reason.TOKENS not in reasons
 
-    # Get the condensation
+    # 获取上下文压缩
     result = condenser.condense(view)
     assert isinstance(result, Condensation)
 
-    # Calculate expected behavior:
+    # 计算预期行为：
     # REQUEST: target_size = len(view) // 2 = 25 // 2 = 12
     #          suffix_to_keep = 12 - keep_first - 1 = 12 - 2 - 1 = 9
     # EVENTS:  target_size = max_size // 2 = 20 // 2 = 10
     #          suffix_to_keep = 10 - keep_first - 1 = 10 - 2 - 1 = 7
-    # Most aggressive: min(9, 7) = 7
+    # 最激进：min(9, 7) = 7
 
-    # With manipulation indices for MessageEvents:
+    # 操纵指数为 MessageEvents：
     # naive_start = keep_first = 2
     # naive_end = 25 - 7 = 18
     # manipulation_indices = [0, 1, 2, 3, ..., 25]
     # forgetting_start = smallest index >= keep_first = 2
     # forgetting_end = smallest index >= naive_end = 18
-    # Forgotten: events[2:18] = 16 events
+    # 被遗忘：事件[2:18] = 16 个事件
     expected_forgotten_count = 16
     assert len(result.forgotten_event_ids) == expected_forgotten_count
 
 
 def test_condense_with_request_and_tokens_reasons(mock_llm: LLM) -> None:
-    """Test condensation when both REQUEST and TOKENS reasons are true simultaneously.
+    """当 REQUEST 和 TOKENS 原因同时为 True 时，测试上下文压缩。
 
-    Verifies that the most aggressive condensation (minimum suffix) is chosen.
+    验证是否选择了最具攻击性的上下文压缩（最小后缀）。
     """
     max_tokens = 100
     keep_first = 2
@@ -469,12 +470,12 @@ def test_condense_with_request_and_tokens_reasons(mock_llm: LLM) -> None:
         llm=mock_llm, max_size=1000, max_tokens=max_tokens, keep_first=keep_first
     )
 
-    # Create a separate mock for the agent's LLM with token counting
+    # 为智能体的 LLM 创建一个单独的模拟对象，并使用 token 计数
     agent_llm = MagicMock(spec=LLM)
     agent_llm.model = "gpt-4"
     agent_llm.effective_max_input_tokens = None
 
-    # Mock get_token_count to return predictable values
+    # 模拟对象 get_token_count 返回可预测的值
     def mock_token_count(messages, **_kwargs):
         total_chars = 0
         for msg in messages:
@@ -485,31 +486,32 @@ def test_condense_with_request_and_tokens_reasons(mock_llm: LLM) -> None:
 
     cast(MagicMock, agent_llm.get_token_count).side_effect = mock_token_count
 
-    # Create 20 events with 40 chars each = 10 tokens each = 200 total tokens
-    # This exceeds max_tokens of 100 (triggers TOKENS)
+    # 创建 20 个事件，每个事件 40 个字符 = 10 token 每个 = 200 总计 token 这超过了 100
+    # 中的 max_tokens（触发 TOKENS）
+    #
     events: list[Event] = [message_event("A" * 40) for i in range(20)]
-    # Add a CondensationRequest (triggers REQUEST)
+    # 添加 CondensationRequest（触发 REQUEST）
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Verify both reasons are present
+    # 验证两个原因都存在
     reasons = condenser.get_condensation_reasons(view, agent_llm=agent_llm)
     assert Reason.REQUEST in reasons
     assert Reason.TOKENS in reasons
     assert Reason.EVENTS not in reasons
 
-    # Get the condensation
+    # 获取上下文压缩
     result = condenser.condense(view, agent_llm=agent_llm)
     assert isinstance(result, Condensation)
 
-    # The most aggressive condensation should be chosen (minimum suffix)
+    # 应选择最具攻击性的上下文压缩（最小后缀）
     assert len(result.forgotten_event_ids) > 0
 
 
 def test_condense_with_events_and_tokens_reasons(mock_llm: LLM) -> None:
-    """Test condensation when both EVENTS and TOKENS reasons are true simultaneously.
+    """当 EVENTS 和 TOKENS 原因同时为 True 时，测试上下文压缩。
 
-    Verifies that the most aggressive condensation (minimum suffix) is chosen.
+    验证是否选择了最具攻击性的上下文压缩（最小后缀）。
     """
     max_size = 15
     max_tokens = 100
@@ -518,7 +520,7 @@ def test_condense_with_events_and_tokens_reasons(mock_llm: LLM) -> None:
         llm=mock_llm, max_size=max_size, max_tokens=max_tokens, keep_first=keep_first
     )
 
-    # Create a separate mock for the agent's LLM with token counting
+    # 为智能体的 LLM 创建一个单独的模拟对象，并使用 token 计数
     agent_llm = MagicMock(spec=LLM)
     agent_llm.model = "gpt-4"
     agent_llm.effective_max_input_tokens = None
@@ -533,30 +535,31 @@ def test_condense_with_events_and_tokens_reasons(mock_llm: LLM) -> None:
 
     cast(MagicMock, agent_llm.get_token_count).side_effect = mock_token_count
 
-    # Create 20 events (exceeds max_size of 15) with 40 chars each
-    # 20 events * 10 tokens = 200 tokens (exceeds max_tokens of 100)
+    # 创建 20 个事件（超过 15 个中的 max_size），每个事件 40 个字符 20 个事件 * 10 token
+    #  = 200 token（超过 100 个中的 max_tokens）
+    #
     events: list[Event] = [message_event("A" * 40) for i in range(20)]
     view = View.from_events(events)
 
-    # Verify both reasons are present
+    # 验证两个原因都存在
     reasons = condenser.get_condensation_reasons(view, agent_llm=agent_llm)
     assert Reason.EVENTS in reasons
     assert Reason.TOKENS in reasons
     assert Reason.REQUEST not in reasons
 
-    # Get the condensation
+    # 获取上下文压缩
     result = condenser.condense(view, agent_llm=agent_llm)
     assert isinstance(result, Condensation)
 
-    # The most aggressive condensation should be chosen (minimum suffix)
+    # 应选择最具攻击性的上下文压缩（最小后缀）
     assert len(result.forgotten_event_ids) > 0
 
 
 def test_condense_with_all_three_reasons(mock_llm: LLM) -> None:
-    """Test condensation when all three reasons are true simultaneously.
+    """当所有三个原因同时为 True 时，测试上下文压缩。
 
-    Verifies that the most aggressive condensation (minimum suffix) is chosen
-    when REQUEST, EVENTS, and TOKENS all trigger at once.
+    验证当 REQUEST、EVENTS 和 TOKENS 全部同时触发时，是否选择了最具攻击性的上下文压缩
+    （最小后缀）。
     """
     max_size = 15
     max_tokens = 100
@@ -565,7 +568,7 @@ def test_condense_with_all_three_reasons(mock_llm: LLM) -> None:
         llm=mock_llm, max_size=max_size, max_tokens=max_tokens, keep_first=keep_first
     )
 
-    # Create a separate mock for the agent's LLM with token counting
+    # 为智能体的 LLM 创建一个单独的模拟对象，并使用 token 计数
     agent_llm = MagicMock(spec=LLM)
     agent_llm.model = "gpt-4"
     agent_llm.effective_max_input_tokens = None
@@ -580,77 +583,78 @@ def test_condense_with_all_three_reasons(mock_llm: LLM) -> None:
 
     cast(MagicMock, agent_llm.get_token_count).side_effect = mock_token_count
 
-    # Create 20 events (exceeds max_size of 15) with 40 chars each
-    # 20 events * 10 tokens = 200 tokens (exceeds max_tokens of 100)
+    # 创建 20 个事件（超过 15 个中的 max_size），每个事件 40 个字符 20 个事件 * 10 token
+    #  = 200 token（超过 100 个中的 max_tokens）
+    #
     events: list[Event] = [message_event("A" * 40) for i in range(20)]
-    # Add CondensationRequest (triggers REQUEST)
+    # 添加 CondensationRequest（触发 REQUEST）
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Verify all three reasons are present
+    # 验证所有三个原因都存在
     reasons = condenser.get_condensation_reasons(view, agent_llm=agent_llm)
     assert Reason.REQUEST in reasons
     assert Reason.EVENTS in reasons
     assert Reason.TOKENS in reasons
 
-    # Get the condensation
+    # 获取上下文压缩
     result = condenser.condense(view, agent_llm=agent_llm)
     assert isinstance(result, Condensation)
 
-    # The most aggressive condensation should be chosen (minimum suffix)
-    # This means the most events should be forgotten
+    # 应选择最具攻击性的上下文压缩（最小后缀）这意味着应该忘记最多的事件
+    #
     assert len(result.forgotten_event_ids) > 0
 
-    # Verify the condenser used its own LLM for summarization
+    # 验证上下文压缩器使用自己的 LLM 进行摘要
     completion_mock = cast(MagicMock, mock_llm.generate)
     assert completion_mock.call_count == 1
 
 
 def test_most_aggressive_condensation_chosen(mock_llm: LLM) -> None:
-    """Test that the minimum suffix is chosen when multiple reasons provide different
-    targets.
+    """测试当多个原因提供不同的结果时，是否选择最小后缀
+    目标。
 
-    This test explicitly verifies the min() logic at line 200 of the condenser.
+    此测试显式验证上下文压缩器第 200 行的 min() 逻辑。
     """
-    max_size = 30  # Set high so EVENTS triggers with specific target
+    max_size = 30  # 设置高，以便 EVENTS 触发特定目标
     keep_first = 2
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=max_size, keep_first=keep_first
     )
 
-    # Create a scenario where REQUEST and EVENTS give different suffix sizes
-    # 40 events total
+    # 创建一个场景，其中 REQUEST 和 EVENTS 给出不同的后缀大小总共 40 个事件
+    #
     events: list[Event] = [message_event(f"Event {i}") for i in range(40)]
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Calculate expected suffix lengths:
+    # 计算预期后缀长度：
     # REQUEST: target_size = len(view) // 2 = 40 // 2 = 20
     #          suffix_to_keep = 20 - keep_first - 1 = 20 - 2 - 1 = 17
     # EVENTS:  target_size = max_size // 2 = 30 // 2 = 15
     #          suffix_to_keep = 15 - keep_first - 1 = 15 - 2 - 1 = 12
-    # Most aggressive: min(17, 12) = 12
+    # 最激进：min(17, 12) = 12
 
     result = condenser.condense(view)
     assert isinstance(result, Condensation)
 
-    # With manipulation indices for MessageEvents:
+    # 操纵指数为 MessageEvents：
     # naive_start = keep_first = 2
     # naive_end = 40 - 12 = 28
     # manipulation_indices = [0, 1, 2, 3, ..., 40]
     # forgetting_start = smallest index >= keep_first = 2
     # forgetting_end = smallest index >= naive_end = 28
-    # Forgotten events: events[2:28] = 26 events
+    # 被遗忘的事件： events[2:28] = 26 个事件
     expected_forgotten_count = 26
     assert len(result.forgotten_event_ids) == expected_forgotten_count
 
 
 def test_generate_condensation_raises_on_zero_events(mock_llm: LLM) -> None:
-    """Test that _generate_condensation raises AssertionError when given 0 events.
+    """测试当给定 0 个事件时 _generate_condensation 是否引发 AssertionError。
 
-    This prevents the LLM from being called with an empty event list, which would
-    produce a confusing summary like "I don't see any events provided to summarize."
-    See https://github.com/OpenHands/software-agent-sdk/issues/1518 for context.
+    这防止了 LLM 被空事件列表调用，这会产生一个令人困惑的总结，如“我未提供任何事件来
+    总结”。请参阅
+    https://github.com/OpenHands/software-agent-sdk/issues/1518  以了解上下文。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
 
@@ -660,7 +664,7 @@ def test_generate_condensation_raises_on_zero_events(mock_llm: LLM) -> None:
             summary_offset=0,
         )
 
-    # Verify the LLM was never called
+    # 验证 LLM 从未被调用过
     cast(MagicMock, mock_llm.generate).assert_not_called()
 
 
@@ -671,9 +675,9 @@ def test_generate_condensation_raises_on_zero_events(mock_llm: LLM) -> None:
 def test_condensation_requirement_returns_none(
     mock_llm: LLM, reasons: set[Reason]
 ) -> None:
-    """Test that condensation_requirement returns None when appropriate.
+    """测试 condensation_requirement 在适当的时候返回 None。
 
-    Mocks get_condensation_reasons to test different reason combinations.
+    模拟对象 get_condensation_reasons 测试不同的原因组合。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
@@ -695,9 +699,9 @@ def test_condensation_requirement_returns_none(
 def test_condensation_requirement_returns_soft(
     mock_llm: LLM, reasons: set[Reason]
 ) -> None:
-    """Test that condensation_requirement returns SOFT for resource constraints.
+    """测试 condensation_requirement 返回 SOFT 以表示资源限制。
 
-    Mocks get_condensation_reasons to test different resource reason combinations.
+    模拟对象 get_condensation_reasons 测试不同的资源原因组合。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
@@ -720,7 +724,7 @@ def test_condensation_requirement_returns_soft(
 def test_condensation_requirement_returns_hard_for_token_pressure(
     mock_llm: LLM, reasons: set[Reason]
 ) -> None:
-    """Token pressure should trigger before the next LLM request can overflow."""
+    """token 压力应在下一个 LLM 请求溢出之前触发。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
     view = View.from_events(events)
@@ -744,9 +748,9 @@ def test_condensation_requirement_returns_hard_for_token_pressure(
 def test_condensation_requirement_returns_hard(
     mock_llm: LLM, reasons: set[Reason]
 ) -> None:
-    """Test that condensation_requirement returns HARD when REQUEST is present.
+    """测试当 REQUEST 存在时，condensation_requirement 是否返回 HARD。
 
-    Mocks get_condensation_reasons to test different combinations with REQUEST.
+    模拟对象 get_condensation_reasons 测试与 REQUEST 的不同组合。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
@@ -762,10 +766,10 @@ def test_condensation_requirement_returns_hard(
 def test_condense_with_hard_requirement_and_no_condensation_available(
     mock_llm: LLM,
 ) -> None:
-    """Test that condense raises error with hard requirement but no condensation.
+    """测试压缩会在硬性要求但没有上下文压缩的情况下引发错误。
 
-    When there's a hard requirement but no valid condensation range available
-    (e.g., entire view is a single atomic unit), should raise an exception.
+    当存在硬性要求但没有可用的有效上下文压缩范围（e.g.，整个视图是单个原子单元）时，
+    应引发异常。
     """
     from openhands.sdk.context.condenser.base import NoCondensationAvailableException
 
@@ -773,8 +777,9 @@ def test_condense_with_hard_requirement_and_no_condensation_available(
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
     view = View.from_events(events)
 
-    # Mock to return HARD requirement but no events to condense
-    # Also mock hard_context_reset to return None so the exception gets re-raised
+    # 模拟对象返回 HARD 要求，但没有要压缩的事件另外模拟对象 hard_context_reset 返回
+    # None，因此重新引发异常
+    #
     with (
         patch.object(
             LLMSummarizingCondenser,
@@ -791,16 +796,15 @@ def test_condense_with_hard_requirement_and_no_condensation_available(
 def test_condense_with_soft_requirement_and_no_condensation_available(
     mock_llm: LLM,
 ) -> None:
-    """Test that condense returns view with soft requirement but no condensation.
+    """测试 condense 返回具有软要求但没有上下文压缩的视图。
 
-    When there's a soft requirement but no valid condensation range available,
-    should return the original view unchanged.
+    当有软要求但没有有效的上下文压缩范围可用时，应返回原始视图不变。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=100, keep_first=2)
     events: list[Event] = [message_event(f"Event {i}") for i in range(10)]
     view = View.from_events(events)
 
-    # Mock to return SOFT requirement but no events to condense
+    # 模拟对象返回 SOFT 要求，但没有要压缩的事件
     with (
         patch.object(
             LLMSummarizingCondenser,
@@ -812,18 +816,18 @@ def test_condense_with_soft_requirement_and_no_condensation_available(
         result = condenser.condense(view)
         assert isinstance(result, View)
         assert result == view
-        # LLM should not be called
+        # LLM 不应被调用
         cast(MagicMock, mock_llm.generate).assert_not_called()
 
 
 def test_minimum_progress_default_value(mock_llm: LLM) -> None:
-    """Test that minimum_progress has the correct default value."""
+    """测试 minimum_progress 是否具有正确的默认值。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm)
     assert condenser.minimum_progress == 0.1
 
 
 def test_minimum_progress_custom_value(mock_llm: LLM) -> None:
-    """Test that minimum_progress accepts custom values."""
+    """测试 minimum_progress 是否接受自定义值。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, minimum_progress=0.2)
     assert condenser.minimum_progress == 0.2
 
@@ -831,67 +835,68 @@ def test_minimum_progress_custom_value(mock_llm: LLM) -> None:
 @pytest.mark.parametrize(
     "invalid_value",
     [
-        0.0,  # must be > 0.0
-        -0.1,  # must be > 0.0
-        1.0,  # must be < 1.0
-        1.5,  # must be < 1.0
+        0.0,  # 必须 > 0.0
+        -0.1,  # 必须 > 0.0
+        1.0,  # 必须 < 1.0
+        1.5,  # 必须 < 1.0
     ],
 )
 def test_minimum_progress_validation(mock_llm: LLM, invalid_value: float) -> None:
-    """Test that minimum_progress validates the range (0.0 < value < 1.0)."""
+    """测试 minimum_progress 是否验证范围 (0.0 < 值 < 1.0)。"""
     with pytest.raises(ValueError):
         LLMSummarizingCondenser(llm=mock_llm, minimum_progress=invalid_value)
 
 
 def test_minimum_progress_threshold_not_met(mock_llm: LLM) -> None:
-    """Test that condensation raises when forgotten events are below minimum_progress.
+    """测试当被遗忘的事件低于 minimum_progress 时上下文压缩升高。
 
-    When the ratio of forgotten events to total events is less than minimum_progress,
-    should raise NoCondensationAvailableException.
+    当遗忘事件占总事件的比例小于minimum_progress时，应提高
+    NoCondensationAvailableException。
     """
-    # Create a condenser with a high minimum_progress value
+    # 创建具有高 minimum_progress 值的上下文压缩器
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=10, keep_first=2, minimum_progress=0.8
     )
 
-    # Create a view with 100 events
+    # 创建包含 100 个事件的视图
     events: list[Event] = [message_event(f"Event {i}") for i in range(100)]
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Mock _get_forgotten_events to return a small number of forgotten events
-    # This allows us to directly test the minimum_progress threshold check
-    # without dealing with complex boundary calculations
-    small_forgotten = [events[2], events[3]]  # Only 2 events forgotten
+    # 模拟对象 _get_forgotten_events 返回少量遗忘事件。这允许我们直接测试
+    # minimum_progress 阈值检查，而无需处理复杂的边界计算
+    #
+    small_forgotten = [events[2], events[3]]  # 仅忘记了 2 个事件
 
     with patch.object(
         condenser, "_get_forgotten_events", return_value=(small_forgotten, 2)
     ):
-        # Forgotten count (2) << minimum_progress (0.8) * len(view) (100)
-        # 2 < 80, so the threshold is not met
+        # 忘记计数 (2) << minimum_progress (0.8) * len(view) (100) 2 < 80，因此未满足阈
+        # 值
+        #
         with pytest.raises(NoCondensationAvailableException, match="minimum progress"):
             condenser.get_condensation(view)
 
 
 def test_minimum_progress_threshold_met(mock_llm: LLM) -> None:
-    """Test that condensation succeeds when forgotten events meet minimum_progress.
+    """当被遗忘的事件满足 minimum_progress 时，测试上下文压缩是否成功。
 
-    When the ratio of forgotten events to total events is >= minimum_progress,
-    condensation should proceed normally.
+    当遗忘事件与总事件的比例 >= minimum_progress 时，上下文压缩应该正常进行。
     """
-    # Use a low minimum_progress so it's easy to meet the threshold
+    # 使用较低的 minimum_progress，这样很容易达到阈值
     condenser = LLMSummarizingCondenser(
         llm=mock_llm, max_size=20, keep_first=2, minimum_progress=0.1
     )
 
-    # Set up mock response
+    # 设置模拟对象响应
     cast(Any, mock_llm).set_mock_response_content("Summary of forgotten events")
 
-    # Create enough events to trigger EVENTS reason (more than max_size=20)
-    # With 30 events, target_size = 20 // 2 = 10
+    # 创建足够的事件来触发 EVENTS 个原因（超过 max_size=20） 30 个事件，target_size = 20
+    #  // 2 = 10
+    #
     # suffix_to_keep = 10 - keep_first - 1 = 10 - 2 - 1 = 7
     # forgotten = 30 - 7 = 23 events
-    # 23/30 = 0.77 > 0.1, so minimum_progress is met
+    # 23/30 = 0.77 > 0.1，因此满足minimum_progress
     events: list[Event] = [message_event(f"Event {i}") for i in range(30)]
     view = View.from_events(events)
 
@@ -902,7 +907,7 @@ def test_minimum_progress_threshold_met(mock_llm: LLM) -> None:
 
 
 def test_generate_condensation_wraps_llm_errors(mock_llm: LLM) -> None:
-    """LLM failures in _generate_condensation raise NoCondensationAvailableException."""  # noqa: E501
+    """LLM _generate_condensation 中的失败引发 NoCondensationAvailableException。"""  # noqa: E501
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
     cast(MagicMock, mock_llm.generate).side_effect = RuntimeError("boom")
@@ -916,7 +921,7 @@ def test_generate_condensation_wraps_llm_errors(mock_llm: LLM) -> None:
 
 @pytest.mark.asyncio
 async def test_agenerate_condensation_wraps_llm_errors(mock_llm: LLM) -> None:
-    """Async variant: LLM failures surface as NoCondensationAvailableException."""
+    """异步变体：LLM 故障表面与 NoCondensationAvailableException 相同。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
     cast(MagicMock, mock_llm.agenerate).side_effect = RuntimeError("boom")
@@ -929,16 +934,17 @@ async def test_agenerate_condensation_wraps_llm_errors(mock_llm: LLM) -> None:
 
 
 def test_llm_error_triggers_hard_context_reset(mock_llm: LLM) -> None:
-    """A summarizer LLM failure during condense() triggers hard_context_reset."""
+    """condense() 触发 hard_context_reset 期间摘要器 LLM 失败。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
-    # Force a HARD condensation requirement via a CondensationRequest
+    # 通过 CondensationRequest 强制 HARD 上下文压缩要求
     events: list[Event] = [message_event(f"Event {i}") for i in range(12)]
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # First call (get_condensation path) fails; second call
-    # (hard_context_reset path) succeeds.
+    # 第一次调用（get_condensation路径）失败； 第二次调用（hard_context_reset路径）成功
+    # 。
+    #
     success_response = cast(Any, mock_llm).generate.return_value
     cast(MagicMock, mock_llm.generate).side_effect = [
         RuntimeError("context window exceeded"),
@@ -953,7 +959,7 @@ def test_llm_error_triggers_hard_context_reset(mock_llm: LLM) -> None:
 
 
 def _streaming_llm() -> LLM:
-    """A real LLM with streaming enabled, as a long-running conversation has."""
+    """启用了流式传输的真实 LLM，就像长时间运行的对话一样。"""
     return LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -981,8 +987,8 @@ def _summary_response(content: str = "A summary") -> ModelResponse:
 
 @patch("openhands.sdk.llm.llm.LLM._transport_call", autospec=True)
 def test_summarization_disables_streaming_when_llm_streams(mock_transport) -> None:
-    """Regression test for issue #3902: a ``stream=True`` LLM must still summarize
-    even though the condenser passes no ``on_token`` callback."""
+    """回归测试问题 #3902：``stream=True`` LLM 仍必须总结
+    即使上下文压缩器没有通过 ``on_token`` 回调。"""
     mock_transport.return_value = _summary_response("A summary")
 
     llm = _streaming_llm()
@@ -996,15 +1002,16 @@ def test_summarization_disables_streaming_when_llm_streams(mock_transport) -> No
     assert isinstance(result, Condensation)
     assert result.summary == "A summary"
     mock_transport.assert_called_once()
-    # Streaming was disabled on a copy, not the agent's own LLM (autospec =>
-    # self is the first positional arg).
+    # 流式传输在副本上被禁用，而不是智能体自己的 LLM （autospec => self 是第一个位置参数
+    # ）。
+    #
     assert mock_transport.call_args.kwargs["enable_streaming"] is False
     assert mock_transport.call_args.kwargs["on_token"] is None
     summarizing_llm = mock_transport.call_args.args[0]
     assert summarizing_llm is not llm
     assert summarizing_llm.stream is False
-    assert llm.stream is True  # original untouched (model_copy is non-mutating)
-    # Token usage is still counted: the copy shares the original's metrics.
+    assert llm.stream is True  # 原始未受影响（model_copy 是非变异）
+    # 词元用量仍然被计算在内：副本共享原始的指标。
     usage = llm.metrics.accumulated_token_usage
     assert usage is not None
     assert usage.prompt_tokens == 10
@@ -1016,7 +1023,7 @@ def test_summarization_disables_streaming_when_llm_streams(mock_transport) -> No
 async def test_async_summarization_disables_streaming_when_llm_streams(
     mock_atransport,
 ) -> None:
-    """Async variant of the issue #3902 regression test (aget_condensation)."""
+    """异步问题 #3902 的变体回归测试 (aget_condensation)。"""
     mock_atransport.return_value = _summary_response("A summary")
 
     llm = _streaming_llm()
@@ -1037,7 +1044,7 @@ async def test_async_summarization_disables_streaming_when_llm_streams(
 
 @patch("openhands.sdk.llm.llm.LLM._transport_call", autospec=True)
 def test_summarization_uses_llm_as_is_when_not_streaming(mock_transport) -> None:
-    """When streaming is off, the condenser summarizes with the LLM unchanged."""
+    """当流式传输关闭时，上下文压缩器进行汇总，LLM 不变。"""
     mock_transport.return_value = _summary_response("A summary")
 
     llm = LLM(
@@ -1055,12 +1062,12 @@ def test_summarization_uses_llm_as_is_when_not_streaming(mock_transport) -> None
 
     assert isinstance(result, Condensation)
     assert result.summary == "A summary"
-    # The exact same LLM instance is used (no copy when not streaming).
+    # 使用完全相同的 LLM 实例（非流式传输时不复制）。
     assert mock_transport.call_args.args[0] is llm
 
 
 # --------------------------------------------------------------------------- #
-# Regression tests: system message must lead every condensed request (#5148/#5149)
+# 回归测试：系统消息必须引导每个压缩请求（#5148/#5149）
 # --------------------------------------------------------------------------- #
 
 
@@ -1071,17 +1078,17 @@ def _system_prompt_event(
 
 
 def _applied_messages(condensation: Condensation, view: View) -> list[Message]:
-    """Apply a condensation to a view and project the result to LLM messages."""
+    """将上下文压缩应用到视图并将结果投影到 LLM 消息。"""
     applied = condensation.apply(list(view.events))
     return LLMConvertibleEvent.events_to_messages(applied)
 
 
 def test_hard_context_reset_preserves_leading_system_prompt(mock_llm: LLM) -> None:
-    """A hard context reset must keep the SystemPromptEvent at the head.
+    """硬上下文重置必须将 SystemPromptEvent 保持在开头。
 
-    Regression for #5149: the hard-reset path used to summarize the entire view
-    (including the system prompt) at offset 0, producing a user-role summary as
-    the first message. It must now open with the preserved system message.
+    回归对 #5149 的描述：硬复位路径用于在偏移量 0 处总结整个视图（包括系统提示词），
+    然后产生一个用户角色摘要作为第一个消息。 现在必须使用保留的系统消息打开它
+    。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
@@ -1094,7 +1101,7 @@ def test_hard_context_reset_preserves_leading_system_prompt(mock_llm: LLM) -> No
     events.append(CondensationRequest())
     view = View.from_events(events)
 
-    # Force the get_condensation path to fail so hard_context_reset runs.
+    # 强制 get_condensation 路径失败，以便 hard_context_reset 运行。
     success_response = cast(Any, mock_llm).generate.return_value
     cast(MagicMock, mock_llm).generate.side_effect = [
         RuntimeError("context window exceeded"),
@@ -1104,8 +1111,8 @@ def test_hard_context_reset_preserves_leading_system_prompt(mock_llm: LLM) -> No
     result = condenser.condense(view)
 
     assert isinstance(result, Condensation)
-    assert result.summary_offset == 1  # summary placed after the system prompt
-    # The system prompt is retained, not forgotten.
+    assert result.summary_offset == 1  # 摘要放在系统提示词之后
+    # 系统提示词被保留，而不是被遗忘。
     assert events[0].id not in result.forgotten_event_ids
     messages = _applied_messages(result, view)
     assert messages[0].role == "system"
@@ -1115,7 +1122,7 @@ def test_hard_context_reset_preserves_leading_system_prompt(mock_llm: LLM) -> No
 async def test_ahard_context_reset_preserves_leading_system_prompt(
     mock_llm: LLM,
 ) -> None:
-    """Async hard context reset must also keep the system prompt first."""
+    """异步硬上下文重置也必须首先保留系统提示词。"""
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=2)
 
     cast(Any, mock_llm).set_mock_response_content("Hard reset summary")
@@ -1138,8 +1145,7 @@ async def test_ahard_context_reset_preserves_leading_system_prompt(
 def test_condensation_with_keep_first_zero_keeps_system_first(mock_llm: LLM) -> None:
     """keep_first=0 must not let the SystemPromptEvent be forgotten.
 
-    Regression for #5148: the condensed view must still open with a system message
-    even when ``keep_first`` is configured to 0.
+    回归对于 #5148：即使 ``keep_first`` 配置为 0，压缩视图仍必须打开并显示系统消息。
     """
     condenser = LLMSummarizingCondenser(llm=mock_llm, max_size=10, keep_first=0)
 
@@ -1156,12 +1162,12 @@ def test_condensation_with_keep_first_zero_keeps_system_first(mock_llm: LLM) -> 
     assert isinstance(result, Condensation)
     messages = _applied_messages(result, view)
     assert messages[0].role == "system"
-    # The forgotten set must not include the leading system prompt event.
+    # 遗忘集不得包括主导系统提示词事件。
     assert events[0].id not in result.forgotten_event_ids
 
 
 def test_llm_summarizing_condenser_get_llm() -> None:
-    """LLMSummarizingCondenser requires llm and exposes get_llm()."""
+    """LLMSummarizingCondenser 需要 LLM 并公开 get_llm()。"""
     assert LLMSummarizingCondenser.model_fields["llm"].is_required()
 
     my_llm = LLM(model="test-condenser-model")
@@ -1178,6 +1184,6 @@ def test_llm_summarizing_condenser_get_llm() -> None:
 
 
 def test_llm_summarizing_condenser_requires_llm() -> None:
-    """LLMSummarizingCondenser raises ValidationError when llm is missing."""
+    """LLMSummarizingCondenser 会抛出 ValidationError。"""
     with pytest.raises(ValidationError):
         LLMSummarizingCondenser()  # type: ignore[call-arg]

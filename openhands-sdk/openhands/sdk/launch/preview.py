@@ -38,11 +38,11 @@ def preview_launch(
     load_memory: bool = False,
     check_usable: bool = True,
 ) -> AgentProfileDiagnostics:
-    """Report what launching ``profile`` into ``runtime`` would build, without raising.
+    """报告在不加注的情况下将 ``profile`` 启动到 ``runtime`` 将构建什么。
 
-    Runs :func:`resolve` and :func:`finalize` exactly as a launch does, so the
-    report cannot disagree with one. ``check_usable=False`` skips the tool
-    usability probes, for a runtime this process cannot probe.
+    运行：func:`resolve` 和：func:`finalize` 与启动完全相同，因此报告不能不同意其中之
+    一。 ``check_usable=False``
+    跳过工具可用性探测，因为该过程无法探测运行时。
     """
     _, resolved_keys, _ = _compute_mcp_filter(
         dict(stores.mcp_config), profile.mcp_server_refs

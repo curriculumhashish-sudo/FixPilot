@@ -11,14 +11,14 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
- * Load settings from localStorage
+ * 从 localStorage 加载设置
  */
 export const loadSettings = (): Settings => {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Merge with defaults to ensure all required fields are present
+      // 与默认值合并以确保所有必填字段都存在
       return { ...DEFAULT_SETTINGS, ...parsed };
     }
   } catch (error) {
@@ -28,7 +28,7 @@ export const loadSettings = (): Settings => {
 };
 
 /**
- * Save settings to localStorage
+ * 将设置保存到 localStorage
  */
 export const saveSettings = (settings: Settings): void => {
   try {
@@ -39,19 +39,19 @@ export const saveSettings = (settings: Settings): void => {
 };
 
 /**
- * Check if this is the user's first visit
+ * 检查这是否是用户第一次访问
  */
 export const isFirstVisit = (): boolean => {
   try {
     return !localStorage.getItem(FIRST_VISIT_KEY);
   } catch (error) {
     console.warn('Failed to check first visit status:', error);
-    return true; // Default to first visit if we can't check
+    return true; // 如果我们无法检查，则默认为首次访问
   }
 };
 
 /**
- * Mark that the user has visited the app
+ * 标记用户已访问该应用
  */
 export const markVisited = (): void => {
   try {
@@ -62,7 +62,7 @@ export const markVisited = (): void => {
 };
 
 /**
- * Check if settings are configured (have non-default values)
+ * 检查是否配置了设置（具有非默认值）
  */
 export const areSettingsConfigured = (settings: Settings): boolean => {
   return (
@@ -74,7 +74,7 @@ export const areSettingsConfigured = (settings: Settings): boolean => {
 };
 
 /**
- * Clear all stored settings and first visit flag
+ * 清除所有存储的设置和首次访问标志
  */
 export const clearAllSettings = (): void => {
   try {

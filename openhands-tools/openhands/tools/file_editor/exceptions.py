@@ -1,5 +1,5 @@
 class ToolError(Exception):
-    """Raised when a tool encounters an error."""
+    """当工具遇到错误时被触发。"""
 
     message: str
 
@@ -12,7 +12,7 @@ class ToolError(Exception):
 
 
 class EditorToolParameterMissingError(ToolError):
-    """Raised when a required parameter is missing for a tool command."""
+    """当工具命令缺少所需参数时引发。"""
 
     command: str
     parameter: str
@@ -26,7 +26,7 @@ class EditorToolParameterMissingError(ToolError):
 
 
 class EditorToolParameterInvalidError(ToolError):
-    """Raised when a parameter is invalid for a tool command."""
+    """当参数对于工具命令无效时引发。"""
 
     parameter: str
     value: str
@@ -42,7 +42,7 @@ class EditorToolParameterInvalidError(ToolError):
 
 
 class FileValidationError(ToolError):
-    """Raised when a file fails validation checks (size, type, etc.)."""
+    """当文件未通过验证检查（大小、类型等）时引发。"""
 
     path: str
     reason: str

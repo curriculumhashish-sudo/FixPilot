@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate a .env file containing all config options
+生成包含所有配置选项的 .env 文件
 """
 
 import argparse

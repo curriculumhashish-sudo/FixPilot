@@ -1,4 +1,4 @@
-"""Tests for read_file tool."""
+"""测试 read_file 工具。"""
 
 from pathlib import Path
 
@@ -7,12 +7,12 @@ from openhands.tools.gemini.read_file.impl import ReadFileExecutor
 
 
 def test_read_file_basic(tmp_path):
-    """Test reading a basic file."""
-    # Create a test file
+    """测试读取基本文件。"""
+    # 创建测试文件
     test_file = tmp_path / "test.txt"
     test_file.write_text("line 1\nline 2\nline 3\n")
 
-    # Execute read_file
+    # 执行read_file
     executor = ReadFileExecutor(workspace_root=str(tmp_path))
     action = ReadFileAction(file_path="test.txt")
     obs = executor(action)
@@ -26,13 +26,13 @@ def test_read_file_basic(tmp_path):
 
 
 def test_read_file_with_offset(tmp_path):
-    """Test reading file with offset."""
-    # Create a test file with many lines
+    """测试读取带有偏移量的文件。"""
+    # 创建一个包含多行的测试文件
     test_file = tmp_path / "test.txt"
     lines = [f"line {i}\n" for i in range(1, 21)]
     test_file.write_text("".join(lines))
 
-    # Read with offset
+    # 带偏移量读取
     executor = ReadFileExecutor(workspace_root=str(tmp_path))
     action = ReadFileAction(file_path="test.txt", offset=10, limit=5)
     obs = executor(action)
@@ -45,13 +45,13 @@ def test_read_file_with_offset(tmp_path):
 
 
 def test_read_file_truncation(tmp_path):
-    """Test that large files are truncated."""
-    # Create a large file
+    """测试大文件是否被截断。"""
+    # 创建一个大文件
     test_file = tmp_path / "large.txt"
     lines = [f"line {i}\n" for i in range(1, 2000)]
     test_file.write_text("".join(lines))
 
-    # Read without limit (should apply default MAX_LINES_PER_READ)
+    # 无限制读取（应应用默认 MAX_LINES_PER_READ）
     executor = ReadFileExecutor(workspace_root=str(tmp_path))
     action = ReadFileAction(file_path="large.txt")
     obs = executor(action)
@@ -63,7 +63,7 @@ def test_read_file_truncation(tmp_path):
 
 
 def test_read_file_not_found(tmp_path):
-    """Test reading non-existent file."""
+    """测试读取不存在的文件。"""
     executor = ReadFileExecutor(workspace_root=str(tmp_path))
     action = ReadFileAction(file_path="nonexistent.txt")
     obs = executor(action)
@@ -73,8 +73,8 @@ def test_read_file_not_found(tmp_path):
 
 
 def test_read_file_directory(tmp_path):
-    """Test reading a directory returns error."""
-    # Create a directory
+    """测试读取目录会返回错误。"""
+    # 创建目录
     test_dir = tmp_path / "testdir"
     test_dir.mkdir()
 
@@ -87,7 +87,7 @@ def test_read_file_directory(tmp_path):
 
 
 def test_read_file_absolute_path(tmp_path):
-    """Test reading with absolute path."""
+    """使用绝对路径测试读取。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("content\n")
 
@@ -100,7 +100,7 @@ def test_read_file_absolute_path(tmp_path):
 
 
 def test_read_file_offset_beyond_length(tmp_path):
-    """Test reading with offset beyond file length."""
+    """测试读取偏移量超出文件长度。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("line 1\nline 2\n")
 
@@ -113,7 +113,7 @@ def test_read_file_offset_beyond_length(tmp_path):
 
 
 def test_declared_resources_locks_on_file_path(fake_conv_state):
-    """declared_resources returns a file-path key for per-file locking."""
+    """declared_resources 返回用于每个文件锁定的文件路径密钥。"""
     tool = ReadFileTool.create(conv_state=fake_conv_state)[0]
     absolute_path = Path(fake_conv_state.workspace.working_dir) / "a" / "b.py"
     action = ReadFileAction(file_path=str(absolute_path))
@@ -124,7 +124,7 @@ def test_declared_resources_locks_on_file_path(fake_conv_state):
 
 
 def test_declared_resources_different_files_different_keys(fake_conv_state):
-    """Different file paths produce different resource keys."""
+    """不同的文件路径产生不同的资源密钥。"""
     tool = ReadFileTool.create(conv_state=fake_conv_state)[0]
     a = tool.declared_resources(ReadFileAction(file_path="/a.py"))
     b = tool.declared_resources(ReadFileAction(file_path="/b.py"))
@@ -132,7 +132,7 @@ def test_declared_resources_different_files_different_keys(fake_conv_state):
 
 
 def test_declared_resources_relative_path_resolves_against_workspace(fake_conv_state):
-    """Relative paths must resolve against workspace_root, not process CWD."""
+    """相对路径必须针对 workspace_root 进行解析，而不是针对 CWD 进行解析。"""
     tool = ReadFileTool.create(conv_state=fake_conv_state)[0]
     workspace = fake_conv_state.workspace.working_dir
     resources = tool.declared_resources(ReadFileAction(file_path="src/foo.py"))

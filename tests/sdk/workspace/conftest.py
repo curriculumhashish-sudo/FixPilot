@@ -1,4 +1,4 @@
-"""Fixtures for workspace tests."""
+"""测试夹具用于工作区测试。"""
 
 import tempfile
 from pathlib import Path
@@ -12,19 +12,19 @@ from openhands.sdk.workspace.models import CommandResult, FileOperationResult
 
 @pytest.fixture
 def mock_httpx_client():
-    """Create a mock httpx.Client for testing."""
+    """创建模拟对象 httpx.Client 进行测试。"""
     return MagicMock(spec=httpx.Client)
 
 
 @pytest.fixture
 def mock_httpx_async_client():
-    """Create a mock httpx.AsyncClient for testing."""
+    """创建模拟对象 httpx.AsyncClient 进行测试。"""
     return MagicMock(spec=httpx.AsyncClient)
 
 
 @pytest.fixture
 def mock_httpx_response():
-    """Create a mock httpx.Response for testing."""
+    """创建模拟对象 httpx.Response 进行测试。"""
     response = Mock(spec=httpx.Response)
     response.raise_for_status = Mock()
     response.json = Mock()
@@ -34,7 +34,7 @@ def mock_httpx_response():
 
 @pytest.fixture
 def sample_command_result():
-    """Create a sample CommandResult for testing."""
+    """创建样本 CommandResult 进行测试。"""
     return CommandResult(
         command="echo 'hello'",
         exit_code=0,
@@ -46,7 +46,7 @@ def sample_command_result():
 
 @pytest.fixture
 def sample_file_operation_result():
-    """Create a sample FileOperationResult for testing."""
+    """创建样本 FileOperationResult 进行测试。"""
     return FileOperationResult(
         success=True,
         source_path="/tmp/source.txt",
@@ -58,20 +58,20 @@ def sample_file_operation_result():
 
 @pytest.fixture
 def temp_file():
-    """Create a temporary file for testing."""
+    """创建一个临时文件用于测试。"""
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
         f.write("test content")
         temp_path = Path(f.name)
 
     yield temp_path
 
-    # Cleanup
+    # 清理
     if temp_path.exists():
         temp_path.unlink()
 
 
 @pytest.fixture
 def temp_dir():
-    """Create a temporary directory for testing."""
+    """创建一个临时目录用于测试。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)

@@ -1,8 +1,7 @@
-"""Repository cloning and management utilities for RemoteWorkspace.
+"""RemoteWorkspace 的存储库克隆和管理实用程序。
 
-This module provides utilities for cloning git repositories and generating
-context strings for cloned repositories when using RemoteWorkspace or its
-subclasses.
+该模块提供了用于克隆 git 存储库并在使用 RemoteWorkspace 或其子类时为克隆存储库生成上
+下文字符串的实用程序。
 """
 
 from __future__ import annotations
@@ -30,12 +29,12 @@ from openhands.sdk.utils.redact import (
 logger = get_logger(__name__)
 
 
-# Clone timeout in seconds (5 minutes per repo)
+# 在几秒钟内克隆超时（每个存储库 5 分钟）
 CLONE_TIMEOUT = 300
 
 
 class GitProvider(str, Enum):
-    """Supported git hosting providers."""
+    """支持的 git 托管提供商。"""
 
     GITHUB = "github"
     GITLAB = "gitlab"
@@ -43,7 +42,7 @@ class GitProvider(str, Enum):
     AZURE_DEVOPS = "azure_devops"
 
 
-# Mapping of provider to secret name used in sandbox settings
+# 将提供程序映射到沙箱设置中使用的机密名称
 PROVIDER_TOKEN_NAMES: dict[GitProvider, str] = {
     GitProvider.GITHUB: "github_token",
     GitProvider.GITLAB: "gitlab_token",
@@ -51,7 +50,7 @@ PROVIDER_TOKEN_NAMES: dict[GitProvider, str] = {
     GitProvider.AZURE_DEVOPS: "azure_devops_token",
 }
 
-# Mapping of URL patterns to providers for auto-detection
+# 将 URL 模式映射到提供者以进行自动检测
 PROVIDER_URL_PATTERNS: dict[str, GitProvider] = {
     "github.com": GitProvider.GITHUB,
     "gitlab.com": GitProvider.GITLAB,
@@ -59,14 +58,14 @@ PROVIDER_URL_PATTERNS: dict[str, GitProvider] = {
     "dev.azure.com": GitProvider.AZURE_DEVOPS,
 }
 
-# Host suffixes whose subdomains belong to a provider ({org}.visualstudio.com)
+# 子域属于提供商的主机后缀 ({org}.visualstudio.com)
 PROVIDER_URL_SUFFIXES: dict[str, GitProvider] = {
     ".visualstudio.com": GitProvider.AZURE_DEVOPS,
 }
 
 
 def _provider_for_host(hostname: str) -> GitProvider | None:
-    """Return the provider whose own host this is, if any."""
+    """返回其自己的主机的提供者（如果有）。"""
     provider = PROVIDER_URL_PATTERNS.get(hostname)
     if provider is None:
         for suffix, suffix_provider in PROVIDER_URL_SUFFIXES.items():
@@ -76,7 +75,7 @@ def _provider_for_host(hostname: str) -> GitProvider | None:
 
 
 def _provider_hosts(provider: GitProvider) -> list[str]:
-    """Public hosts of a provider, without any leading dot."""
+    """提供商的公共主机，没有任何前导点。"""
     return [
         host.lstrip(".")
         for mapping in (PROVIDER_URL_PATTERNS, PROVIDER_URL_SUFFIXES)
@@ -86,22 +85,22 @@ def _provider_hosts(provider: GitProvider) -> list[str]:
 
 
 def _detect_provider_from_url(url: str) -> GitProvider | None:
-    """Detect git provider from URL patterns.
+    """从 URL 模式中检测 git 提供程序。
 
-    Uses proper URL parsing to prevent false positives from malicious URLs
-    like 'https://github.com.evil.com/repo'. User info is ignored, so the
-    'https://org@dev.azure.com/...' form Azure DevOps shows is recognized.
+    使用了正确的 URL 解析来防止 False 正面的恶意 URLs，如 '
+    https://github.com.evil.com/repo'.  用户信息被忽略，
+    所以  https://org@dev.azure.com/...'  形式的 Azure DevOps 被识别。
 
     Args:
-        url: Repository URL or owner/repo format
+        url: 存储库 URL 或所有者/存储库格式
 
     Returns:
-        Detected GitProvider or None if not recognized
+        如果未识别，则检测到 GitProvider 或 None
     """
     try:
         parsed = urllib.parse.urlparse(url)
         hostname = (parsed.hostname or "").lower()
-        # Handle git@ format: git@github.com:owner/repo
+        # 处理 git@ 格式：git@github.com:owner/repo
         if not hostname and url.startswith("git@"):
             hostname = url.split("@")[1].split(":")[0].lower()
         return _provider_for_host(hostname)
@@ -111,28 +110,28 @@ def _detect_provider_from_url(url: str) -> GitProvider | None:
 
 
 def _is_short_url_format(url: str) -> bool:
-    """Check if URL is the short 'owner/repo' format (no protocol)."""
+    """检查 URL 是否是短“所有者/存储库”格式（无协议）。"""
     return "://" not in url and not url.startswith("git@")
 
 
 class RepoSource(BaseModel):
-    """Repository source specification for cloning.
+    """用于克隆的存储库源规范。
 
-    Repositories are cloned during automation setup and skills (AGENTS.md,
-    .agents/skills/, etc.) are automatically loaded from each cloned repo.
+    在自动化设置期间克隆存储库，并从每个克隆的存储库自动加载技能（AGENTS.md、.agents/
+    skills/ 等）。
 
-    The provider field specifies which git hosting service the repo belongs to,
-    which determines which authentication token to use for cloning.
+    提供者字段指定存储库属于哪个 git 托管服务，这决定了使用哪个身份验证 token 进行克
+    隆。
 
-    For full URLs (https://github.com/...), the provider is auto-detected.
-    For short format (owner/repo), the provider field is required.
+    对于 URLs 和  https://github.com/... ，提供者将自动检测。 对于短格式（所有者/存储
+    库），提供者字段是必需的。
 
     Examples:
-        >>> # Full URL - provider auto-detected
+        >>> # 完整 URL - 提供商自动检测
         >>> RepoSource(url="https://github.com/owner/repo")
         >>> RepoSource(url="https://gitlab.com/owner/repo", ref="main")
 
-        >>> # Short format - provider required
+        >>> # 短格式 - 提供者必填
         >>> RepoSource(url="owner/repo", provider="github")
         >>> RepoSource(url="owner/repo", provider="gitlab", ref="v1.0.0")
     """
@@ -162,7 +161,7 @@ class RepoSource(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def normalize_string_input(cls, data: Any) -> Any:
-        """Allow passing just a URL string instead of full object."""
+        """允许仅传递 URL 字符串而不是完整对象。"""
         if isinstance(data, str):
             return {"url": data}
         return data
@@ -170,19 +169,19 @@ class RepoSource(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        """Validate URL format and normalize HTTP to HTTPS."""
-        # Allow owner/repo format (e.g., "owner/repo", "my-org/my-repo.git")
+        """验证 URL 格式并将 HTTP 标准化为 HTTPS。"""
+        # 允许所有者/存储库格式（e.g.、“所有者/存储库”、“my-org/my-repo.git”）
         owner_repo_pattern = re.compile(r"^[\w-]+/[\w.-]+$")
         if owner_repo_pattern.match(v):
             return v
-        # Normalize HTTP to HTTPS for security (token injection requires HTTPS)
+        # 为了安全起见，将 HTTP 标准化为 HTTPS（token 注入需要 HTTPS）
         if v.startswith("http://"):
             logger.warning(
                 "Converting HTTP URL to HTTPS for security: "
                 f"{redact_url_credentials_in_text(v)}"
             )
             v = "https://" + v[7:]
-        # Allow HTTPS, git@, and file:// URLs (file:// for testing)
+        # 允许 HTTPS、git@ 和 file:// URLs (file:// 用于测试)
         if v.startswith(("https://", "git@", "file://")):
             return v
         raise ValueError(
@@ -191,12 +190,12 @@ class RepoSource(BaseModel):
 
     @model_validator(mode="after")
     def validate_provider_required_for_short_urls(self) -> RepoSource:
-        """Require explicit provider for ambiguous short URL format."""
+        """需要明确的提供程序来处理不明确的短 URL 格式。"""
         if not _is_short_url_format(self.url):
-            # Full URL - provider can be auto-detected
+            # 完整 URL - 可以自动检测提供商
             return self
 
-        # Short format - check if provider is specified or detectable
+        # 短格式 - 检查提供商是否已指定或可检测
         if self.provider == GitProvider.AZURE_DEVOPS.value:
             raise ValueError(
                 "Azure DevOps repositories need a full URL such as "
@@ -212,7 +211,7 @@ class RepoSource(BaseModel):
         return self
 
     def get_provider(self) -> GitProvider:
-        """Get the git provider for this repo."""
+        """获取此存储库的 git 提供程序。"""
         if self.provider:
             return GitProvider(self.provider)
 
@@ -220,17 +219,17 @@ class RepoSource(BaseModel):
         if detected:
             return detected
 
-        # This shouldn't happen if validation passed
+        # 如果验证通过，则不会发生这种情况
         raise ValueError(f"Cannot determine provider for URL: {self.url}")
 
     def get_token_name(self) -> str:
-        """Get the secret name for this repo's authentication token."""
+        """获取此存储库的身份验证 token 的机密名称。"""
         return PROVIDER_TOKEN_NAMES[self.get_provider()]
 
 
 @dataclass
 class RepoMapping:
-    """Mapping information for a cloned repository."""
+    """克隆存储库的映射信息。"""
 
     url: str
     dir_name: str
@@ -240,7 +239,7 @@ class RepoMapping:
 
 @dataclass
 class CloneResult:
-    """Result of repository cloning operations."""
+    """存储库克隆操作的结果。"""
 
     success_count: int
     failed_repos: list[str]
@@ -248,82 +247,82 @@ class CloneResult:
 
 
 def _is_commit_sha(ref: str | None) -> bool:
-    """Check if ref looks like a git commit SHA."""
+    """检查 ref 是否看起来像 git commit SHA。"""
     if not ref:
         return False
     return bool(re.match(r"^[0-9a-f]{7,40}$", ref, re.IGNORECASE))
 
 
 def _extract_repo_name(url: str) -> str:
-    """Extract repository name from URL for use as directory name.
+    """从 URL 中提取存储库名称以用作目录名称。
 
     Examples:
         >>> _extract_repo_name("owner/repo")
-        'repo'
+        '回购'
         >>> _extract_repo_name("https://github.com/owner/repo.git")
-        'repo'
+        '回购'
         >>> _extract_repo_name("git@github.com:owner/repo.git")
-        'repo'
+        '回购'
     """
-    # Remove trailing .git (with or without trailing slash)
+    # 删除结尾的 .git （带或不带结尾斜杠）
     url = re.sub(r"\.git/?$", "", url)
 
-    # Handle git@host:owner/repo format
+    # 处理 git@host:owner/repo 格式
     if url.startswith("git@"):
         url = url.split(":")[-1]
 
-    # Handle https://host/owner/repo format
+    # 句柄 https://host/owner/repo 格式
     if "://" in url:
         url = url.split("://")[-1]
 
-    # Windows file:// URLs often carry backslash-separated local paths.
+    # Windows 文件：// URLs 通常包含以反斜杠分隔的本地路径。
     url = to_posix_path(url)
 
-    # Get the last path component (repo name)
+    # 获取最后一个路径组件（存储库名称）
     parts = url.rstrip("/").split("/")
     return parts[-1] if parts else "repo"
 
 
 def _sanitize_dir_name(name: str) -> str:
-    """Sanitize a string for use as a directory name.
+    """清理用作目录名称的字符串。
 
-    Replaces invalid characters with underscores and ensures the name is safe.
+    用下划线替换无效字符并确保名称安全。
     """
-    # Replace characters that are problematic in file paths
+    # 替换文件路径中有问题的字符
     sanitized = re.sub(r"[<>:\"/\\|?*\x00-\x1f]", "_", name)
-    # Remove leading/trailing dots and spaces
+    # 删除前导/尾随点和空格
     sanitized = sanitized.strip(". ")
-    # Ensure non-empty
+    # 确保非空
     return sanitized if sanitized else "repo"
 
 
 def _get_unique_dir_name(base_name: str, existing_dirs: set[str]) -> str:
-    """Get a unique directory name, appending _N if needed.
+    """获取唯一的目录名称，如果需要的话附加 _N。
 
     Args:
-        base_name: The desired directory name
-        existing_dirs: Set of already-used directory names
+        base_name: 所需的目录名称
+        existing_dirs: 已使用的目录名称集
 
     Returns:
-        A unique directory name (base_name or base_name_1, base_name_2, etc.)
+        唯一的目录名称（base_name 或 base_name_1、base_name_2 等）
     """
     if base_name not in existing_dirs:
         return base_name
 
-    # Find next available suffix
+    # 查找下一个可用后缀
     counter = 1
     while f"{base_name}_{counter}" in existing_dirs:
         counter += 1
     return f"{base_name}_{counter}"
 
 
-# Provider configurations: (base_url, token_format)
-# token_format uses {token} placeholder
+# 提供程序配置：(base_url, token_format) token_format 使用 {token} 占位符
+#
 _PROVIDER_CONFIG: dict[GitProvider, tuple[str, str]] = {
     GitProvider.GITHUB: ("github.com", "{token}@"),
     GitProvider.GITLAB: ("gitlab.com", "oauth2:{token}@"),
     GitProvider.BITBUCKET: ("bitbucket.org", "x-token-auth:{token}@"),
-    # Azure DevOps ignores the user; PATs and Entra tokens both work as password.
+    # Azure DevOps 忽略用户。 PATs and Entra token 两者都作为密码使用。
     GitProvider.AZURE_DEVOPS: ("dev.azure.com", "oauth2:{token}@"),
 }
 
@@ -335,10 +334,10 @@ def _build_clone_url(
     *,
     explicit_provider: bool = False,
 ) -> str:
-    """Build authenticated clone URL based on the repository URL and provider.
+    """基于存储库 URL 和提供者构建经过身份验证的克隆 URL。
 
-    The token is injected into the provider's public host, or into the URL's own
-    host when the caller set `provider` explicitly (self-hosted instances).
+    token 被注入到提供者的公共主机中，或者当调用者显式设置 `provider` 时注入到 URL 自
+    己的主机中（自托管实例）。
     """
     config = _PROVIDER_CONFIG.get(provider)
     if not config:
@@ -347,7 +346,7 @@ def _build_clone_url(
     base_url, token_format = config
     auth_prefix = token_format.format(token=token) if token else ""
 
-    # Handle owner/repo format - construct full URL
+    # 处理所有者/存储库格式 - 构造完整的 URL
     is_short_format = "://" not in url and "/" in url and not url.startswith("git@")
     if is_short_format:
         return f"https://{auth_prefix}{base_url}/{url}.git"
@@ -360,29 +359,30 @@ def _build_clone_url(
     if parsed.scheme != "https" or parsed.password or not hostname:
         return url
     if _provider_for_host(hostname) != provider:
-        # An auto-detected provider is derived from the URL, so it cannot
-        # authorize another host - and never a lookalike of its public ones.
+        # 自动检测的提供程序源自 URL，因此它无法授权另一个主机 - 并且永远不会与其公共主
+        # 机相似。
+        #
         lookalike = any(
             f".{host}." in f".{hostname}" for host in _provider_hosts(provider)
         )
         if not explicit_provider or lookalike:
             return url
     if parsed.username:
-        # Azure DevOps clone URLs name the organization as the user; keep it
-        # and supply the token as its password.
+        # Azure DevOps 命名组织为用户 URLs。 保留它，并提供 token 作为其密码。
+        #
         auth_prefix = f"{parsed.username}:{token}@"
 
     netloc = hostname if parsed.port is None else f"{hostname}:{parsed.port}"
     return urllib.parse.urlunparse(parsed._replace(netloc=f"{auth_prefix}{netloc}"))
 
 
-# Type for functions that fetch tokens by name (e.g., "github_token" -> token value)
+# 按名称获取 token 的函数类型（e.g.、“github_token”-> token 值）
 TokenFetcher = Callable[[str], str | None]
 
 
 def _build_clone_command(clone_url: str, dest: Path, ref: str | None) -> list[str]:
-    """Build the git clone command."""
-    # SHA refs need full clone; branches/tags can use shallow clone
+    """构建 git clone 命令。"""
+    # SHA refs 需要完整克隆； 分支/标签可以使用浅克隆
     if _is_commit_sha(ref):
         return ["git", "clone", clone_url, str(dest)]
 
@@ -394,13 +394,12 @@ def _build_clone_command(clone_url: str, dest: Path, ref: str | None) -> list[st
 
 
 def _checkout_sha(dest: Path, sha: str) -> bool:
-    """Checkout a specific SHA after full clone. Returns True on success.
+    """完整克隆后签出特定的 SHA。 成功则返回 True。
 
-    On failure, cleans up the cloned directory to prevent orphaned directories
-    that block retry attempts.
+    失败时，清理克隆目录以防止孤立目录阻止重试尝试。
 
-    Note: We don't use `--` separator because the sha parameter is validated
-    by _is_commit_sha() to be 7+ hex characters, making flag injection impossible.
+    Note: 我们不使用 `--` 分隔符，因为 sha 参数已验证
+    _is_commit_sha() 为 7+ 十六进制字符，使得标志注入不可能。
     """
     result = subprocess.run(
         ["git", "-C", str(dest), "checkout", sha],
@@ -410,14 +409,14 @@ def _checkout_sha(dest: Path, sha: str) -> bool:
     )
     if result.returncode != 0:
         logger.warning(f"[clone] Failed to checkout {sha}: {result.stderr}")
-        # Clean up to prevent orphaned directory blocking retry attempts
+        # 清理以防止孤立目录阻止重试次尝试
         shutil.rmtree(dest, ignore_errors=True)
         return False
     return True
 
 
 def _clone_single_repo(repo: RepoSource, dest: Path, token: str | None) -> bool:
-    """Clone a single repository. Returns True on success."""
+    """克隆单个存储库。 成功则返回 True。"""
     try:
         provider = repo.get_provider()
         clone_url = _build_clone_url(
@@ -425,7 +424,7 @@ def _clone_single_repo(repo: RepoSource, dest: Path, token: str | None) -> bool:
         )
         provider_str = provider.value
     except ValueError:
-        # No provider detected (e.g., file:// URLs) - use URL as-is
+        # 未检测到提供者 (e.g., 文件：// URLs) - 请使用 URL
         clone_url = repo.url
         provider_str = "local"
 
@@ -448,7 +447,7 @@ def _clone_single_repo(repo: RepoSource, dest: Path, token: str | None) -> bool:
         )
         return False
 
-    # For SHA refs, we did a full clone and need to checkout the specific commit
+    # 对于 SHA 引用，我们进行了完整克隆并需要检查特定提交
     if _is_commit_sha(repo.ref) and repo.ref:
         if not _checkout_sha(dest, repo.ref):
             return False
@@ -458,7 +457,7 @@ def _clone_single_repo(repo: RepoSource, dest: Path, token: str | None) -> bool:
 
 
 class _TokenCache:
-    """Simple cache for provider tokens to avoid repeated API calls."""
+    """提供者 token 的简单缓存以避免重复的 API 调用。"""
 
     def __init__(self, fetcher: TokenFetcher | None):
         self._fetcher = fetcher
@@ -481,22 +480,22 @@ def clone_repos(
     target_dir: Path,
     token_fetcher: TokenFetcher | None = None,
 ) -> CloneResult:
-    """Clone repositories to the target directory.
+    """将存储库克隆到目标目录。
 
     Args:
-        repos: List of RepoSource configurations (each specifies provider)
-        target_dir: Directory to clone repositories into
-        token_fetcher: Callable that takes a token name (e.g., 'github_token')
-            and returns the token value, or None if not available
+        repos: RepoSource 个配置列表（每个配置指定提供者）
+        target_dir: 将存储库克隆到的目录
+        token_fetcher: 可调用的名称为 token (e.g., 'github_token')
+            并返回 token 值，如果不可用则返回 None
 
     Returns:
-        CloneResult with success count, failed repos, and repo mapping
+        CloneResult 包含成功计数、失败存储库和存储库映射
     """
     if not repos:
         logger.info("[clone] No repositories to clone")
         return CloneResult(success_count=0, failed_repos=[], repo_mappings={})
 
-    # Deduplicate repos by URL to prevent orphaned directories
+    # 按 URL 对存储库进行重复数据删除以防止出现孤立目录
     seen_urls: set[str] = set()
     unique_repos: list[RepoSource] = []
     for repo in repos:
@@ -526,17 +525,17 @@ def clone_repos(
                 logger.warning("[clone] Skipping repo with empty URL")
                 continue
 
-            # Determine unique directory name
+            # 确定唯一的目录名称
             base_name = _sanitize_dir_name(_extract_repo_name(repo.url))
             dir_name = _get_unique_dir_name(base_name, used_dirs)
             used_dirs.add(dir_name)
             dest = target_dir / dir_name
 
-            # Clone with provider-specific token (None if provider unknown)
+            # 使用特定于提供者的 token 进行克隆（如果提供者未知则为 None）
             try:
                 token = tokens.get(repo.get_token_name())
             except ValueError:
-                # No provider (e.g., file:// URLs) - proceed without token
+                # 无提供者（e.g，文件：// URLs）- 不使用token
                 token = None
             success = _clone_single_repo(repo, dest, token)
 
@@ -550,7 +549,7 @@ def clone_repos(
             else:
                 failed.append(redact_url_credentials(repo.url))
         except Exception as e:
-            # Don't let one bad repo stop the entire batch
+            # 不要让一个糟糕的仓库停止整个批次
             display_url = redact_url_credentials(repo.url) if repo.url else "<unknown>"
             logger.warning(f"[clone] Error processing {display_url}: {e}")
             failed.append(display_url)
@@ -567,13 +566,13 @@ def clone_repos(
 
 
 def get_repos_context(repo_mappings: dict[str, RepoMapping]) -> str:
-    """Generate a context string describing cloned repositories for the agent.
+    """生成描述智能体克隆存储库的上下文字符串。
 
     Args:
-        repo_mappings: Dictionary mapping URLs to RepoMapping objects
+        repo_mappings: URLs 对应 RepoMapping 对象的字典
 
     Returns:
-        Markdown-formatted string with repository mapping, or empty string if no repos.
+        带有存储库映射的 Markdown 格式的字符串，如果没有存储库则为空字符串。
     """
     if not repo_mappings:
         return ""

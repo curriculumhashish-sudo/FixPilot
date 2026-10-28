@@ -1,4 +1,4 @@
-"""Tests for bash_router.py endpoints."""
+"""测试 bash_router.py 端点。"""
 
 import tempfile
 from pathlib import Path
@@ -16,7 +16,7 @@ from openhands.agent_server.models import BashCommand
 
 @pytest.fixture
 def test_bash_service():
-    """Create a BashEventService instance for testing."""
+    """创建一个 BashEventService 实例用于测试。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         yield BashEventService(
@@ -26,13 +26,13 @@ def test_bash_service():
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
-    config = Config(session_api_keys=[])  # Disable authentication
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证
     return TestClient(create_app(config))
 
 
 def test_clear_all_bash_events_empty_storage():
-    """Test clearing bash events when storage is empty."""
+    """测试存储为空时清除 bash 事件。"""
     mock_service = MagicMock(spec=BashEventService)
     mock_service.clear_all_events = AsyncMock(return_value=0)
 
@@ -49,7 +49,7 @@ def test_clear_all_bash_events_empty_storage():
 
 
 def test_clear_all_bash_events_with_data():
-    """Test clearing bash events when storage contains data."""
+    """当存储包含数据时测试清除 bash 事件。"""
     mock_service = MagicMock(spec=BashEventService)
     mock_service.clear_all_events = AsyncMock(return_value=5)
 
@@ -67,8 +67,8 @@ def test_clear_all_bash_events_with_data():
 
 @pytest.mark.asyncio
 async def test_clear_all_bash_events_integration(test_bash_service):
-    """Integration test for clearing bash events."""
-    # Execute some commands to create events
+    """集成测试用于清除 bash 事件。"""
+    # 执行一些命令来创建事件
     commands = [
         BashCommand(command='echo "first"', cwd="/tmp"),
         BashCommand(command='echo "second"', cwd="/tmp"),
@@ -77,20 +77,20 @@ async def test_clear_all_bash_events_integration(test_bash_service):
     for cmd in commands:
         await test_bash_service.start_bash_command(cmd)
 
-    # Wait for commands to complete
+    # 等待命令完成
     import asyncio
 
     await asyncio.sleep(2)
 
-    # Verify events exist before clearing
+    # 清除前验证事件是否存在
     page = await test_bash_service.search_bash_events()
     initial_count = len(page.items)
     assert initial_count > 0
 
-    # Clear all events
+    # 清除所有事件
     cleared_count = await test_bash_service.clear_all_events()
     assert cleared_count == initial_count
 
-    # Verify events are gone
+    # 验证事件已消失
     page_after = await test_bash_service.search_bash_events()
     assert len(page_after.items) == 0

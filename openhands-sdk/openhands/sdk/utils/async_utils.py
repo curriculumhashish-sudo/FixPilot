@@ -1,7 +1,6 @@
-"""Async utilities for OpenHands SDK.
+"""异步 OpenHands SDK 的实用程序。
 
-This module provides utilities for working with async callbacks in the context
-of synchronous conversation handling.
+该模块提供了用于在上下文或同步对话处理中使用异步回调的实用程序。
 """
 
 import asyncio
@@ -17,14 +16,13 @@ AsyncConversationCallback = Callable[[Event], Coroutine[Any, Any, None]]
 
 
 class AsyncCallbackWrapper:
-    """Wrapper that executes async callbacks in a different thread's event loop.
+    """在不同的线程的事件循环中执行异步回调的包装器。
 
-    This class implements the ConversationCallbackType interface (synchronous)
-    but internally executes an async callback in an event loop running in a
-    different thread. This allows async callbacks to be used in synchronous
-    conversation contexts.
+    该类实现 ConversationCallbackType 接口 (同步)，但在内部执行在不同线程中运行的事件
+    循环中的异步回调。 这允许异步回调在同步对话上下文中使
+    用。
 
-    Tracks pending futures to allow waiting for all callbacks to complete.
+    跟踪待处理的 future 以允许等待所有回调完成。
     """
 
     async_callback: AsyncConversationCallback
@@ -48,20 +46,20 @@ class AsyncCallbackWrapper:
                 self.async_callback(event), self.loop
             )
             with self._lock:
-                # Clean up completed futures to avoid unbounded memory growth
+                # 清理已完成的 future 以避免内存无限增长
                 self._pending_futures = [
                     f for f in self._pending_futures if not f.done()
                 ]
                 self._pending_futures.append(future)
 
     def wait_for_pending(self, timeout: float | None = None) -> None:
-        """Wait for all pending callbacks to complete.
+        """等待所有待处理的回调完成。
 
         Args:
-            timeout: Maximum time to wait in seconds. None means wait indefinitely.
+            timeout: 最长时间等待（以秒为单位）。 None表示无限期等待。
 
         Raises:
-            TimeoutError: If timeout is exceeded while waiting.
+            TimeoutError: 如果等待时超过超时。
         """
         with self._lock:
             futures = list(self._pending_futures)
@@ -70,5 +68,5 @@ class AsyncCallbackWrapper:
             try:
                 future.result(timeout=timeout)
             except Exception:
-                # Exceptions in callbacks are already logged, ignore here
+                # 回调中的异常已记录，此处忽略
                 pass

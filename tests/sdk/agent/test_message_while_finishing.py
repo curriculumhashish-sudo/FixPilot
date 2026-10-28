@@ -1,29 +1,26 @@
 """
-Message while finishing: ensure concurrent user messages during the final agent step
-are properly processed by the LLM after the agent finishes.
+完成时的消息：确保在智能体完成后LLM正确处理最后智能体步骤中的并发用户消息。
 
-Purpose
-- Validate correct conversation behavior when a user message arrives while the agent
-  is already executing its final step (one that includes a finish action).
-- The message should be appended to the conversation events AND be fed into
-  a new LLM call after the finish action completes.
+目的
+- 当用户消息到达时，智能体正在执行其最终步骤（包含一个结束动作）时，验证正确的对话行
+为。
+- 该消息应附加到对话事件 AND 中，并在完成操作完成后馈送到新的 LLM 调用中。
 
-Approach
-- Use an instrumented SleepTool to control timing and mark the start/end of the final
-  step (sleep followed by finish in a single LLM response with multiple tool calls).
-- Send two user messages:
-  1) During an earlier (non-final) step: this message should be processed in the next
-     LLM call (proves that mid-run messages are normally handled).
-  2) During the final step's sleep: this message should be processed by the LLM
-     after the finish action completes, ensuring no messages are lost.
+方法
+- 使用带有仪器的 SleepTool 控制时间，并标记最终步骤的开始和结束（在一个步骤中，睡眠后
+完成） LLM 带有多个响应工具调用).
+- 发送两条用户消息：
+  1) 在早期（非最终）步骤期间：应在下一个 LLM 调用中处理此消息（证明正常处理中运行消
+  息）。
+  2) 在最后一步的睡眠期间：该消息应在完成操作完成后由 LLM 处理，确保没有消息丢失。
 
-Assertions
-- Both user messages appear in the persisted events.
-- The first message (“alligator”) appears in the LLM input (was processed).
-- The second message (“butterfly”) DOES appear in an LLM input (was processed).
+断言
+- 两条用户消息均出现在已持久化事件中。
+- 第一条消息（“alligator”）出现在 LLM 输入中（已处理）。
+- 第二条消息（“butterfly”）DOES 出现在 LLM 输入中（已处理）。
 
-This test verifies the fix that ensures unattended user messages sent during the
-final step are detected and processed after the agent finishes, preventing message loss.
+该测试验证了确保在智能体完成后检测并处理在最后一步发送的未attended用户消息的修复功能
+，从而防止消息丢失。
 """
 
 import os
@@ -33,7 +30,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 
-# Ensure repo root on sys.path when running this file as a script
+# 当将此文件作为脚本运行时，请确保存储库根目录位于 sys.path
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -72,7 +69,7 @@ from openhands.sdk.tool import (  # noqa: E402
 )
 
 
-# Custom sleep tool for testing timing scenarios
+# 用于测试时序场景的自定义睡眠工具
 class SleepAction(Action):
     duration: float = Field(description="Sleep duration in seconds")
     message: str = Field(description="Message to return after sleep")
@@ -101,9 +98,9 @@ class SleepExecutor(ToolExecutor):
             f"{action.duration}s - '{action.message}'"
         )
 
-        # Log final step timing if this is the final sleep
-        # Note: final_step_start timestamp is recorded in _mock_llm_response
-        # when the flag is set, to avoid race with butterfly thread
+        # 如果这是最后一次睡眠，则记录最后一步计时
+        # 注：final_step_start时间戳记录在_mock_llm_response中
+        # 当旗帜被设置时，避免与蝴蝶赛跑线程
         if "Final sleep" in action.message:
             print(f"[+{elapsed:.3f}s] FINAL STEP SLEEP STARTED")
 
@@ -120,7 +117,7 @@ class SleepExecutor(ToolExecutor):
             f"{actual_duration:.3f}s actual - '{action.message}'"
         )
 
-        # Track final step end timing
+        # 跟踪最后一步结束时间
         if "Final sleep" in action.message:
             print(f"[+{end_elapsed:.3f}s] FINAL STEP ENDED")
             if hasattr(self, "test_instance") and self.test_instance is not None:
@@ -130,7 +127,7 @@ class SleepExecutor(ToolExecutor):
 
 
 class SleepTool(ToolDefinition[SleepAction, SleepObservation]):
-    """Sleep tool for testing message processing during finish."""
+    """用于在完成期间测试消息处理的睡眠工具。"""
 
     name: ClassVar[str] = "sleep"
 
@@ -146,28 +143,28 @@ class SleepTool(ToolDefinition[SleepAction, SleepObservation]):
         ]
 
 
-# Register the tool
+# 注册工具
 register_tool("SleepTool", SleepTool)
 
 
 class TestMessageWhileFinishing:
-    """Test suite demonstrating the unprocessed message issue."""
+    """测试套件演示未处理的消息问题。"""
 
     def setup_method(self):
-        """Set up test fixtures."""
-        # Use gpt-4o which supports native function calling and multiple tool calls
+        """设置测试测试夹具。"""
+        # 使用支持本机函数调用和多个工具调用的gpt-4o
         self.llm: LLM = LLM(model="gpt-4o", usage_id="test-llm")
         self.llm_completion_calls: list[Any] = []
         self.agent: Agent = Agent(llm=self.llm, tools=[Tool(name="SleepTool")])
         self.step_count: int = 0
         self.final_step_started: bool = False
-        self.timestamps: list[tuple[str, float]] = []  # Track key timing events
+        self.timestamps: list[tuple[str, float]] = []  # 跟踪关键计时事件
         self.conversation: Any = None
         self.test_start_time: float = 0.0
 
     def _mock_llm_response(self, messages, **kwargs):
         """
-        Mock LLM that demonstrates the message processing bug through a 2-step scenario.
+        模拟对象 LLM 通过两步场景演示了消息处理错误。
         """
         self.llm_completion_calls.append({"messages": messages, "kwargs": kwargs})
         self.step_count += 1
@@ -179,7 +176,7 @@ class TestMessageWhileFinishing:
         has_butterfly = "butterfly" in all_content
 
         if self.step_count == 1:
-            # Step 1: Process initial request - single sleep
+            # 第 1 步：处理初始请求 - 单次睡眠
             sleep_call = ChatCompletionMessageToolCall(
                 id="sleep_call_1",
                 type="function",
@@ -205,8 +202,9 @@ class TestMessageWhileFinishing:
             )
 
         elif self.step_count == 2:
-            # Step 2: Final step - sleep AND finish (multiple tool calls)
-            # Record timestamp BEFORE setting flag to avoid race with butterfly thread
+            # 第 2 步：最后一步 - 睡眠 AND 完成（多个工具调用） 记录时间戳之前设置标志以
+            # 避免与蝴蝶赛跑线程
+            #
             self.timestamps.append(("final_step_start", time.time()))
             self.final_step_started = True
 
@@ -222,9 +220,9 @@ class TestMessageWhileFinishing:
             if has_butterfly:
                 response_content += " and butterfly"
                 sleep_message += " and butterfly"
-                final_message += " and butterfly"  # This should NOT happen
+                final_message += " and butterfly"  # 这应该不发生
 
-            # Multiple tool calls: sleep THEN finish
+            # 多个工具调用：睡眠THEN完成
             sleep_call = ChatCompletionMessageToolCall(
                 id="sleep_call_2",
                 type="function",
@@ -262,13 +260,14 @@ class TestMessageWhileFinishing:
                 object="chat.completion",
             )
         else:
-            # Step 3: This happens because butterfly message reset FINISHED status
-            # This demonstrates the bug: messages sent during final step reset status
+            # 步骤 3：发生这种情况是因为蝴蝶消息重置 FINISHED 状态这演示了错误：在最后一
+            # 步重置状态期间发送的消息
+            #
             response_content = "I see the butterfly message"
             if has_butterfly:
                 response_content += " with butterfly"
 
-            # Return a simple message response (no tool calls)
+            # 返回一个简单的消息响应（无工具调用）
             return ModelResponse(
                 id=f"response_step_{self.step_count}",
                 choices=[
@@ -286,39 +285,39 @@ class TestMessageWhileFinishing:
 
     def test_message_processing_fix_verification(self):
         """
-        Verifies the fix: messages sent during final step are processed after finishing.
+        验证修复：在最后一步中发送的消息在完成后进行处理。
 
-        This test shows that when a user sends a message while the agent is executing
-        its final step (which includes a finish action), the message is properly
-        detected as unattended and processed in a subsequent LLM call.
+        该测试显示，当用户在智能体执行其最后一步（包括结束动作）时发送消息时，消息会
+        被正确检测为无人值守，并在后续LLM调用中进行处理。
 
-        Timeline:
-        1. Step 1: Agent sleeps for 2 seconds
-        2. User sends "alligator" request during step 1 → Gets processed in step 2 ✓
-        3. Step 2: Agent sleeps for 3 seconds AND finishes (final step with multiple actions)
-        4. User sends "butterfly" request WHILE step 2 sleep is executing → Detected as unattended
-        5. Step 3: Conversation continues to process the butterfly message ✓
+        时间表：
+        1. 第 1 步：智能体休眠 2 秒
+        2. 用户在第 1 步中发送“鳄鱼”请求 → 在第 2 步中得到处理 ✓
+        3. 第 2 步：智能体休眠 3 秒 AND 完成（包含多个操作的最后一步）
+        4. 用户发送“蝴蝶”请求 WHILE 步骤 2 睡眠正在执行 → 检测为无人值守
+        5. 步骤3：对话继续处理butterfly消息 ✓
 
-        Key: The butterfly message is detected and processed, ensuring no message loss.
+        Key: 蝴蝶消息被检测和处理，确保消息不丢失。
 
-        Expected: Conversation processes butterfly message after finish action.
-        Actual: Conversation continues to step 3 to handle unattended message.
+        Expected: 对话在完成操作后处理蝴蝶消息。
+        Actual: 会话继续到步骤 3 以处理无人值守消息。
         """  # noqa
-        # Reset step count for this test
+        # 重置此测试的步数
         self.step_count = 0
         self.llm_completion_calls = []
         self.final_step_started = False
         self.test_start_time = time.time()
 
         conversation = Conversation(agent=self.agent)
-        # Store conversation reference for use in mock LLM
+        # 存储对话参考以供在模拟对象 LLM 中使用
         self.conversation = conversation
 
-        # Trigger lazy agent initialization to create tools
+        # 触发惰性智能体初始化来创建工具
         conversation._ensure_agent_ready()
 
-        # Set the test start time reference for the sleep executor
-        # This must happen AFTER agent init but BEFORE any messages are processed
+        # 设置睡眠执行器的测试开始时间参考这必须发生之后智能体 init 但之前任何消息都会被
+        # 处理
+        #
         sleep_tool = self.agent._tools.get("sleep")
         if sleep_tool and sleep_tool.executor is not None:
             setattr(sleep_tool.executor, "test_start_time", self.test_start_time)
@@ -333,7 +332,7 @@ class TestMessageWhileFinishing:
             "openhands.sdk.llm.llm.litellm_completion",
             side_effect=self._mock_llm_response,
         ):
-            # Start the conversation with a natural request
+            # 以自然的请求开始对话
             print(f"{elapsed_time()} Sending initial message")
             conversation.send_message(
                 Message(
@@ -347,12 +346,12 @@ class TestMessageWhileFinishing:
                 )
             )
 
-            # Run conversation in background thread
+            # 在后台运行对话线程
             print(f"{elapsed_time()} Starting conversation thread")
             thread = threading.Thread(target=conversation.run)
             thread.start()
 
-            # Wait for step 1 to be processing (LLM call made, but not finished)
+            # 等待步骤 1 处理（已进行 LLM 调用，但未完成）
             print(f"{elapsed_time()} Waiting for step 1 to be processing...")
             while self.step_count < 1:
                 time.sleep(0.1)
@@ -371,14 +370,14 @@ class TestMessageWhileFinishing:
                 )
             )
 
-            # Send butterfly message when final step starts
+            # 当最后一步开始时发送蝴蝶消息
             def send_butterfly_when_final_step_starts():
-                # Wait for final step to start
+                # 等待最后一步开始
                 while not self.final_step_started:
-                    time.sleep(0.01)  # Small sleep to avoid busy waiting
+                    time.sleep(0.01)  # 小睡一会，避免忙碌等待
 
-                # Send the message immediately when final step starts
-                # This simulates a user sending a message during final step execution
+                # 最后一步开始时立即发送消息这模拟用户在最后一步执行期间发送消息
+                #
                 butterfly_send_time = time.time()
                 self.timestamps.append(("butterfly_sent", butterfly_send_time))
                 elapsed = butterfly_send_time - self.test_start_time
@@ -401,21 +400,21 @@ class TestMessageWhileFinishing:
             )
             butterfly_thread.start()
 
-            # Wait for conversation to complete
+            # 等待对话完成
             print(f"{elapsed_time()} Waiting for conversation to complete...")
 
-            # Wait for completion
+            # 等待完成
             thread.join(timeout=10)
             butterfly_thread.join(timeout=5)
 
-        # Debug: Print what we got
+        # 调试：打印我们得到的内容
         print(f"\nDEBUG: Made {len(self.llm_completion_calls)} LLM calls")
 
-        # The key insight: butterfly was sent during final step execution,
-        # it should only appear in events but NEVER in any LLM call
-        # because no subsequent step() occurs after the finish action
+        # 关键点：蝴蝶在最后步骤执行时被发送，它应该只出现在事件中绝不任何 LLM 因为没有
+        # 后续操作 step() 在完成动作之后
+        #
 
-        # Check that both messages exist in the events list
+        # 检查事件列表中是否存在这两条消息
         with conversation.state:
             message_events = [
                 event
@@ -436,14 +435,13 @@ class TestMessageWhileFinishing:
             "Butterfly request message should be in events"
         )
 
-        # Note: The "alligator" message is sent during step 1 while the run loop
-        # holds the state lock. Whether it appears in the very next LLM call can be
-        # timing-dependent (who acquires the lock first for the next iteration).
-        # For the purpose of this test (guarding against the finishing race), we do
-        # not assert on "alligator" presence. We only require that the final-step
-        # message ("butterfly") is never processed.
+        # 注意：“alligator”消息是在第 1 步运行循环期间发送的
+        # 保持状态锁。 它是否出现在下一个 LLM 调用中可能与时间相关（谁在下一次迭代中首先
+        # 获取锁）。 出于本次测试的目的（防止终点比赛），我们不断言“鳄鱼”的存在。 我们只
+        # 要求最后一步消息（“蝴蝶”）永远不会被处理。
+        #
 
-        # Verify that butterfly request WAS processed (fix verification)
+        # 验证蝴蝶请求 WAS 已处理（修复验证）
         butterfly_seen = any(
             "butterfly" in str(call["messages"]).lower()
             for call in self.llm_completion_calls
@@ -453,10 +451,10 @@ class TestMessageWhileFinishing:
             "The fix should ensure unattended messages are processed."
         )
 
-        # TIMING ANALYSIS: Verify butterfly was sent during final step execution
+        # TIMING ANALYSIS: 验证在最后一步执行期间发送的蝴蝶
         print("\nTIMING ANALYSIS:")
 
-        # Extract timestamps
+        # 提取时间戳
         timestamp_dict: dict[str, float] = dict(self.timestamps)
         if (
             "final_step_start" in timestamp_dict
@@ -471,7 +469,7 @@ class TestMessageWhileFinishing:
             print(f"- Butterfly sent: [{butterfly_sent - self.test_start_time:.3f}s]")
             print(f"- Final step ended: [{final_end - self.test_start_time:.3f}s]")
 
-            # CRITICAL ASSERTION: Butterfly message sent during final step execution
+            # CRITICAL ASSERTION：最后一步执行期间发送的蝴蝶消息
             assert final_start <= butterfly_sent <= final_end, (
                 f"Butterfly message was NOT sent during final step execution! "
                 f"Final step: {final_start:.3f}s-{final_end:.3f}s, "
@@ -479,7 +477,7 @@ class TestMessageWhileFinishing:
             )
             print("VERIFIED: Butterfly message was sent DURING final step execution")
 
-            # Duration calculations
+            # 持续时间计算
             step_duration = final_end - final_start
             butterfly_timing = butterfly_sent - final_start
             print(
@@ -490,7 +488,7 @@ class TestMessageWhileFinishing:
             print("WARNING: Missing timing data for analysis")
             print(f"Available timestamps: {list(timestamp_dict.keys())}")
 
-        # Test has successfully verified the fix behavior!
+        # 测试已成功验证修复行为！
         print("\nTEST SUCCESSFULLY VERIFIES THE FIX:")
         print("- Alligator request: sent during step 1 → processed in step 2")
         print(
@@ -504,10 +502,10 @@ class TestMessageWhileFinishing:
         )
 
 
-# Optional: run this test N times in parallel when executed as a script
-# Usage (from repo root):
+# 可选：作为脚本执行时并行运行此测试 N 次
+# 用法（来自存储库根）：
 #   python tests/sdk/agent/test_message_while_finishing.py --runs 50 --concurrency 50
-# This invokes pytest for this test many times, summarizing the results.
+# 这会多次调用 pytest 进行此测试，总结结果。
 
 
 def _run_parallel_main():  # pragma: no cover - helper for manual stress testing
@@ -549,7 +547,7 @@ def _run_parallel_main():  # pragma: no cover - helper for manual stress testing
     def run_one(idx: int) -> tuple[int, int, str]:
         cmd: list[str] = []
         if use_uv and shutil.which("uv"):
-            cmd.extend(["uv", "run"])  # prefer uv if available
+            cmd.extend(["uv", "run"])  # 首选 uv（如果有）
         cmd.extend(["pytest", "-q", args.nodeid])
         if extra_args:
             cmd.extend(extra_args)

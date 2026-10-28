@@ -1,22 +1,19 @@
 ---
-# Automated TODO Management Workflow
-# Make sure to replace <YOUR_LLM_MODEL> and <YOUR_LLM_BASE_URL> with 
-# appropriate values for your LLM setup.
+# 自动化 TODO 管理工作流程确保将 <YOUR_LLM_MODEL> 和 <YOUR_LLM_BASE_URL> 替换为适合您的 LLM 设置的值。
 #
-# This workflow automatically scans for TODO(openhands) comments and creates
-# pull requests to implement them using the OpenHands agent.
+# 此工作流程自动扫描 TODO(OpenHands) 评论并创建拉取请求以使用 OpenHands 智能体实现它们。
 #
-# Setup:
-#  1. Add LLM_API_KEY to repository secrets
-#  2. Ensure GITHUB_TOKEN has appropriate permissions
-#  3. Make sure Github Actions are allowed to create and review PRs
-#  4. Commit this file to .github/workflows/ in your repository
-#  5. Configure the schedule or trigger manually
+# 设置：
+#  1. 将 LLM_API_KEY 添加到存储库机密
+#  2. 确保 GITHUB_TOKEN 具有适当的权限
+#  3. 确保 GitHub 允许操作创建和查看 PR
+#  4. 将此文件提交到存储库中的 .github/workflows/
+#  5. 手动配置计划或触发器
 
 name: Automated TODO Management
 
 on:
-  # Manual trigger
+  # 手动触发
     workflow_dispatch:
         inputs:
             max_todos:
@@ -30,14 +27,14 @@ on:
                 default: TODO(openhands)
                 type: string
 
-  # Trigger when 'automatic-todo' label is added to a PR
+  # 当“自动待办事项”标签添加到 PR 时触发
     pull_request:
         types: [labeled]
 
-  # Scheduled trigger (disabled by default, uncomment and customize as needed)
-  # schedule:
-  # # Run every Monday at 9 AM UTC
-  # - cron: "0 9 * * 1"
+  # 计划触发（默认禁用，取消注释并根据需要自定义）
+  # 时间表：
+  # # 每周一上午 9 点运行 UTC
+  # - 计划任务：“0 9 * * 1”
 
 permissions:
     contents: write
@@ -47,7 +44,7 @@ permissions:
 jobs:
     scan-todos:
         runs-on: ubuntu-latest
-    # Only run if triggered manually or if 'automatic-todo' label was added
+    # 仅在手动触发或添加“自动待办事项”标签时运行
         if: >
             github.event_name == 'workflow_dispatch' ||
             (github.event_name == 'pull_request' &&
@@ -59,7 +56,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                  fetch-depth: 0 # Full history for better context
+                  fetch-depth: 0 # 完整的历史，以便更好上下文
 
             - name: Set up Python
               uses: actions/setup-python@v5
@@ -129,7 +126,7 @@ jobs:
         strategy:
             matrix:
                 todo: ${{ fromJson(needs.scan-todos.outputs.todos) }}
-            max-parallel: 1 # Process one TODO at a time to avoid conflicts
+            max-parallel: 1 # 一次处理一个 TODO 以避免冲突
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4

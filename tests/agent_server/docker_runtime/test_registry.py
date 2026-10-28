@@ -484,9 +484,9 @@ def seed_runtime(
     status: ConversationExecutionStatus | None = ConversationExecutionStatus.FINISHED,
     npm: bool = False,
 ) -> tuple[UUID, dict[Path, bytes]]:
-    """Provision a runtime with a populated cache and the state that must survive.
+    """为运行时提供已填充的缓存和必须保留的状态。
 
-    Returns the conversation id and a snapshot of every kept file's contents.
+    返回对话 ID 和每个保留文件内容的快照。
     """
     conversation_id = uuid4()
     runtime.provisioning.create(conversation_id)
@@ -545,7 +545,7 @@ def stopped_containers(monkeypatch) -> list[str]:
 
 @pytest.fixture
 def slow_remove(monkeypatch) -> Iterator[SimpleNamespace]:
-    """Hold every cache deletion until ``release`` is set."""
+    """保留每次缓存删除，直到设置 ``release``。"""
     real_remove = trash_module._remove
     gate = SimpleNamespace(
         started=threading.Event(), release=threading.Event(), removed=threading.Event()
@@ -608,8 +608,9 @@ async def test_running_idle_runtime_keeps_its_cache(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "status",
-    # RUNNING on disk is stale once the container is gone (e.g. a stop that
-    # escalated to SIGKILL mid-run), so it must not pin the cache forever.
+    # 一旦容器消失，磁盘上的 RUNNING 就会过时 (e.g. 升级到 SIGKILL 运行中的停止），因此
+    # 它不能永远固定缓存。
+    #
     [*ConversationExecutionStatus, None],
 )
 async def test_explicit_stop_prunes_cache(
@@ -666,7 +667,7 @@ async def test_stop_returns_before_cache_deletion_finishes(
 
     await runtime.stop(conversation_id)
 
-    # Detached from the mount already, but not yet deleted.
+    # 已与装载分离，但尚未删除。
     assert not cache_dir(runtime, conversation_id).exists()
     assert len(in_trash(runtime)) == 1
     slow_remove.release.set()
@@ -712,7 +713,7 @@ async def test_prune_skips_runtime_being_deleted(tmp_path, monkeypatch):
     await runtime.reclaimer.on_stop(conversation_id)
     await reclaimed(runtime)
 
-    # The DELETE route owns this runtime's files now.
+    # DELETE 路由现在拥有该运行时的文件。
     assert cache_dir(runtime, conversation_id).is_dir()
 
 
@@ -760,7 +761,7 @@ async def test_startup_prunes_every_runtime_cache(tmp_path, monkeypatch):
         for status in (
             ConversationExecutionStatus.FINISHED,
             None,
-            # Left RUNNING by a crash; startup has removed every container.
+            # 因事故离开 RUNNING； 启动已删除所有容器。
             ConversationExecutionStatus.RUNNING,
         )
     ]
@@ -777,7 +778,7 @@ async def test_startup_prunes_every_runtime_cache(tmp_path, monkeypatch):
     assert unrelated.is_dir()
     assert in_trash(runtime) == []
 
-    # A second pass, with the caches already gone, changes nothing.
+    # 第二遍，缓存已经消失，没有任何改变。
     await runtime.reclaimer.start()
     await reclaimed(runtime)
     for _, kept in seeded:
@@ -817,7 +818,7 @@ async def test_shutdown_abandons_deletions_and_next_start_sweeps_them(
 
     assert runtime.reclaimer.trash._emptying is None
     slow_remove.release.set()
-    # The in-flight deletion finishes; the queued one was abandoned.
+    # 动态删除完成； 排队的那个被放弃了。
     assert await asyncio.to_thread(slow_remove.removed.wait, 5)
     assert len(in_trash(runtime)) == 1
 
@@ -849,7 +850,7 @@ async def test_startup_prune_continues_past_a_broken_runtime(tmp_path, monkeypat
 @pytest.mark.asyncio
 async def test_startup_prune_skips_runtime_deleted_mid_listing(tmp_path, monkeypatch):
     runtime = registry(tmp_path, monkeypatch)
-    # No state file, so its age falls back to the runtime dir's own mtime.
+    # 没有状态文件，因此它的年龄回落到运行时目录自己的 mtime。
     gone_id, _ = seed_runtime(runtime, status=None)
     healthy_id, _ = seed_runtime(runtime)
     gone_dir = runtime.provisioning.runtime_dir(gone_id)
@@ -858,7 +859,7 @@ async def test_startup_prune_skips_runtime_deleted_mid_listing(tmp_path, monkeyp
     def is_dir(path: Path, **kwargs) -> bool:
         exists = real_is_dir(path, **kwargs)
         if exists and path == gone_dir:
-            # A concurrent DELETE removes it right after the check.
+            # 并发 DELETE 在检查后立即将其删除。
             shutil.rmtree(path)
         return exists
 

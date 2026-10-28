@@ -1,4 +1,4 @@
-"""Shared helpers for the ``X-Expose-Secrets`` flow used by settings and profiles."""
+"""设置和配置文件使用的 ``X-Expose-Secrets`` 流的共享助手。"""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -19,7 +19,7 @@ ExposeSecretsMode = Literal["encrypted", "plaintext"]
 
 
 def get_config(request: Request):
-    """Get config from app state, raising 503 if uninitialized."""
+    """从应用程序状态获取配置，如果未初始化则引发 503。"""
     config = getattr(request.app.state, "config", None)
     if config is None:
         raise HTTPException(
@@ -30,23 +30,25 @@ def get_config(request: Request):
 
 
 def get_cipher(request: Request) -> Cipher | None:
-    """Get the configured cipher (``None`` when ``OH_SECRET_KEY`` is unset)."""
+    """获取配置的密码（``None``，当 ``OH_SECRET_KEY`` 未设置时）。"""
     return get_config(request).cipher
 
 
 def parse_expose_secrets_header(request: Request) -> ExposeSecretsMode | None:
-    """Parse the ``X-Expose-Secrets`` header.
+    """解析 ``X-Expose-Secrets`` 标头。
 
-    Returns ``"encrypted"``, ``"plaintext"``, or ``None`` (header absent).
-    Raises ``HTTPException(400)`` for any other value.
+    返回 ``"encrypted"``、``"plaintext"`` 或 ``None``（标头不存在）。 任何其他值都会
+    加注
+    ``HTTPException(400)``。
     """
     header_value = request.headers.get("X-Expose-Secrets", "").lower().strip()
 
     if not header_value:
         return None
 
-    # Legacy alias accepted for the settings flow's pre-existing clients;
-    # mapped to "encrypted" so a stale "true" never accidentally exposes plaintext.
+    # 设置流的现有客户端接受旧别名； 映射到“加密”，因此过时的“True”永远不会意外暴露明文
+    # 。
+    #
     if header_value == "true":
         return "encrypted"
 
@@ -65,7 +67,7 @@ def parse_expose_secrets_header(request: Request) -> ExposeSecretsMode | None:
 def build_expose_context(
     expose_mode: ExposeSecretsMode | None, cipher: Cipher | None
 ) -> dict[str, Any]:
-    """Build the pydantic serialization context for the given expose mode."""
+    """为给定的暴露模式构建 Pydantic 序列化上下文。"""
     if expose_mode is None:
         return {}
     return {"expose_secrets": expose_mode, "cipher": cipher}
@@ -83,14 +85,13 @@ def _has_missing_cipher_cause(exc: BaseException) -> bool:
 
 
 def decrypt_incoming_llm_secrets(llm: LLM, cipher: Cipher) -> LLM:
-    """Decrypt any pre-encrypted LLM secret fields posted back by the client.
+    """解密客户端发回的任何预加密的 LLM 机密字段。
 
-    FastAPI parses the request body without a cipher in the validation context,
-    so an encrypted blob arrives as ``SecretStr("gAAAAA...")``. Without this
+    FastAPI 解析请求正文，而验证上下文中没有密码，因此加密的 blob 以
+    ``SecretStr("gAAAAA...")`` 形式到达。 没有这个
     pass, downstream code (e.g. profile save, ``conversation.switch_llm``) sees
-    the encrypted ciphertext as the API key and would either re-encrypt it or
-    forward it to the model provider verbatim. Plaintext input is left
-    untouched.
+    加密的密文作为 API 密钥，并将其重新加密或逐字转发给模型提供者。 纯文本输入保持不
+    变。
     """
     updates: dict[str, SecretStr] = {}
     for field in LLM_SECRET_FIELDS:
@@ -108,7 +109,7 @@ def decrypt_incoming_llm_secrets(llm: LLM, cipher: Cipher) -> LLM:
 
 @contextmanager
 def translate_missing_cipher() -> Iterator[None]:
-    """Translate a missing-cipher serializer error into HTTP 503."""
+    """将丢失密码序列化器错误转换为 HTTP 503。"""
     try:
         yield
     except (PydanticSerializationError, MissingCipherError) as e:
@@ -125,9 +126,9 @@ def translate_missing_cipher() -> Iterator[None]:
 
 @contextmanager
 def store_errors() -> Iterator[None]:
-    """Map profile-store errors (``LLMProfileStore``/``AgentProfileStore``) to
-    HTTP responses. Shared by the settings, profiles, and agent-profiles
-    routers."""
+    """将配置文件存储错误（``LLMProfileStore``/``AgentProfileStore``) 映射到
+    HTTP 回应。 由设置、配置文件和智能体-配置文件路由器共享。
+    """
     try:
         yield
     except TimeoutError:
@@ -136,10 +137,10 @@ def store_errors() -> Iterator[None]:
             detail="Profile store is busy. Please retry.",
         )
     except ProviderConnectionNotFound as e:
-        # Subclass of ValueError, so it must be handled before the generic
-        # ValueError arm below. A dangling provider reference is a resolvable
-        # config problem (recreate the connection or edit the profile), hence
-        # 422 rather than a generic 400.
+        # ValueError 的子类，因此必须在下面的通用 ValueError 臂之前处理。 悬空的提供程序
+        # 引用是一个可解决的配置问题（重新创建连接或编辑配置文件），因此是 422 而不是通
+        # 用的 400。
+        #
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e),

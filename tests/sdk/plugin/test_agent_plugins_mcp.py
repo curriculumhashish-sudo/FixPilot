@@ -1,4 +1,4 @@
-"""Tests for the Agent Plugins ``mcp.json`` loader."""
+"""测试智能体插件 ``mcp.json`` 加载器。"""
 
 import json
 import sys
@@ -37,7 +37,7 @@ MANIFEST = {
     "description": "An Agent Plugins package.",
 }
 
-# The specification's own example, verbatim (§7.2.1).
+# 规范自己的示例，逐字记录（第 7.2.1 节）。
 SPEC_EXAMPLE = {
     "local-validator": {
         "type": "stdio",
@@ -57,7 +57,7 @@ SPEC_EXAMPLE = {
 
 @pytest.fixture
 def plugin_dir(tmp_path: Path) -> Path:
-    """A plugin root with a valid manifest and a ``./bin/validator``."""
+    """具有有效清单和 ``./bin/validator`` 的插件根。"""
     root = tmp_path / "example"
     (root / "bin").mkdir(parents=True)
     (root / "bin" / "validator").touch()
@@ -80,18 +80,18 @@ def write_mcp(plugin_dir: Path, document: dict | str) -> Path:
 
 
 def load(plugin_dir: Path, data_root: Path, servers: dict) -> dict[str, MCPServer]:
-    """Load ``mcpServers`` under a valid top-level document."""
+    """在有效的顶级文档下加载 ``mcpServers``。"""
     write_mcp(plugin_dir, {"$schema": MCP_SCHEMA, "mcpServers": servers})
     return AgentPluginsFormat(plugin_data_root=data_root).load_mcp_config(plugin_dir)
 
 
 def load_one(plugin_dir: Path, data_root: Path, server: dict) -> MCPServer | None:
-    """Load a single entry named ``s``, or None if it was skipped."""
+    """加载名为 ``s`` 的单个条目，如果跳过则加载 None。"""
     return load(plugin_dir, data_root, {"s": server}).get("s")
 
 
 class TestDocument:
-    """The top-level document: closed schema, pinned version (§7.2.1)."""
+    """顶级文档：关闭模式，固定版本（§7.2.1）。"""
 
     def test_absent_file_is_not_an_error(self, plugin_dir: Path, data_root: Path):
         fmt = AgentPluginsFormat(plugin_data_root=data_root)
@@ -99,7 +99,7 @@ class TestDocument:
         assert fmt.load_mcp_config(plugin_dir) == {}
 
     def test_dotted_mcp_json_is_not_read(self, plugin_dir: Path, data_root: Path):
-        """The Claude Code filename is a different format's file."""
+        """克劳德代码文件名是不同格式的文件。"""
         (plugin_dir / ".mcp.json").write_text(
             json.dumps({"mcpServers": {"s": {"command": "echo"}}}), encoding="utf-8"
         )
@@ -112,7 +112,7 @@ class TestDocument:
     def test_loads_the_spec_example(self, plugin_dir: Path, data_root: Path):
         servers = load(plugin_dir, data_root, SPEC_EXAMPLE)
 
-        # sse is unsupported and skipped; the other two load.
+        # sse 不受支持并被跳过； 另外两个负载。
         assert sorted(servers) == ["deployment-api", "local-validator"]
 
     def test_empty_server_map(self, plugin_dir: Path, data_root: Path):
@@ -163,7 +163,7 @@ class TestDocument:
     def test_invalid_document_leaves_other_components_alone(
         self, plugin_dir: Path, data_root: Path
     ):
-        """§7.2.2 rule 2: MCP is disabled, the plugin still loads."""
+        """§7.2.2 规则 2：MCP 被禁用，插件仍然加载。"""
         skill = plugin_dir / "skills" / "greet"
         skill.mkdir(parents=True)
         (skill / "SKILL.md").write_text(
@@ -179,7 +179,7 @@ class TestDocument:
 
 
 class TestFailureIsolation:
-    """§7.2.2 rules 3-4: one bad entry, one skipped entry."""
+    """§7.2.2 规则 3-4：1 个错误条目，1 个跳过条目。"""
 
     def test_sibling_entries_still_load(self, plugin_dir: Path, data_root: Path):
         servers = load(
@@ -223,7 +223,7 @@ class TestFailureIsolation:
 
 
 class TestStdio:
-    """§7.2.1 stdio: command resolution, expansion, containment."""
+    """§7.2.1 stdio：命令解析、扩展、包含。"""
 
     def test_bare_command_is_left_to_the_platform(
         self, plugin_dir: Path, data_root: Path
@@ -256,7 +256,7 @@ class TestStdio:
         )
 
     def test_command_is_never_expanded(self, plugin_dir: Path, data_root: Path):
-        """§9.2: expansion does not apply to ``command``."""
+        """§9.2：扩展不适用于``command``。"""
         server = load_one(
             plugin_dir, data_root, {"type": "stdio", "command": "${PLUGIN_ROOT}"}
         )
@@ -284,7 +284,7 @@ class TestStdio:
         assert server.env["CONFIG"].get_secret_value() == f"{root}/config.json"
 
     def test_other_placeholders_stay_literal(self, plugin_dir: Path, data_root: Path):
-        """§9.2: no environment, secret or default expansion of any kind."""
+        """§9.2：无环境、机密或任何类型的默认扩展。"""
         server = load_one(
             plugin_dir,
             data_root,
@@ -299,8 +299,8 @@ class TestStdio:
         assert server.args == ["${HOME}", "${MISSING:-fallback}", "$PLUGIN_ROOT"]
 
     def test_expansion_is_not_recursive(self, tmp_path: Path, data_root: Path):
-        """Text a replacement introduces is not rescanned, even when a path
-        itself contains the other placeholder."""
+        """替换引入的文本不会重新扫描，即使路径
+        本身包含另一个占位符。"""
         root = tmp_path / "${PLUGIN_DATA}"
         root.mkdir()
         (root / "plugin.json").write_text(json.dumps(MANIFEST), encoding="utf-8")
@@ -315,7 +315,7 @@ class TestStdio:
         assert server.args == [str(root.resolve())]
 
     def test_reserved_variables_are_set_last(self, plugin_dir: Path, data_root: Path):
-        """§9.1: the client supplies them and the plugin cannot override them."""
+        """§9.1：客户端提供它们并且插件不能覆盖它们。"""
         server = load_one(
             plugin_dir,
             data_root,
@@ -375,7 +375,7 @@ class TestStdio:
 
 
 class TestRemote:
-    """§7.2.1 remote endpoints: URL rules and literal headers."""
+    """§7.2.1 远程端点：URL 规则和文字标头。"""
 
     def test_streamable_http_is_mapped(self, plugin_dir: Path, data_root: Path):
         server = load_one(
@@ -471,8 +471,8 @@ class TestRemote:
     def test_client_generated_headers_are_dropped(
         self, plugin_dir: Path, data_root: Path, name: str
     ):
-        """§7.2.1: the client's own headers take precedence; httpx would
-        otherwise send a configured one as written."""
+        """§7.2.1：客户端自己的标头优先； httpx 会
+        否则发送一份已配置的书面文件。"""
         server = load_one(
             plugin_dir,
             data_root,
@@ -504,14 +504,15 @@ class TestRemote:
 
 
 class TestLiteralValues:
-    """Package data is visible, so it must survive serialization unredacted."""
+    """包数据是可见的，因此它必须在未编辑的情况下保留序列化。"""
 
     def test_plugin_values_are_redacted_like_any_secret(
         self, plugin_dir: Path, data_root: Path
     ):
-        """Plugins must not put secrets in headers or env; if one does anyway,
-        redaction still protects the user. The client needs no plaintext copy:
-        plugin servers are rebuilt from the package on every load."""
+        """插件不得将机密放入 headers 或 env 中； 无论如何，如果有人这么做的话
+        脱敏仍然保护用户。 客户端不需要纯文本副本：每次加载时都会从包中重建插件服务器
+        。
+        """
         servers = load(
             plugin_dir,
             data_root,
@@ -529,7 +530,7 @@ class TestLiteralValues:
             "X-Tenant": "**********"
         }
         assert servers["local"].model_dump(mode="json")["env"]["K"] == "**********"
-        # The connection path still gets the real values.
+        # 连接路径仍然获得实际值。
         fastmcp = to_fastmcp_mcp_config(servers)["mcpServers"]
         assert fastmcp["api"]["headers"] == {"X-Tenant": "public-tenant"}
         assert fastmcp["local"]["env"]["K"] == "v"
@@ -555,7 +556,7 @@ class TestLiteralValues:
         ],
     )
     def test_flag_cannot_be_set_from_input(self, validate):
-        """Otherwise a payload could have real secrets stored in plaintext."""
+        """否则，载荷可能会以明文形式存储真实的机密。"""
         with pytest.raises(ValidationError, match="literal_values"):
             validate(
                 {
@@ -568,7 +569,7 @@ class TestLiteralValues:
     def test_flag_does_not_survive_a_data_round_trip(
         self, plugin_dir: Path, data_root: Path
     ):
-        """Only the loader grants it; reloaded data is ordinary config again."""
+        """只有加载程序才授予它； 重新加载的数据又是普通配置。"""
         server = load_one(plugin_dir, data_root, {"type": "stdio", "command": "echo"})
         assert server is not None
 
@@ -579,7 +580,7 @@ class TestLiteralValues:
         assert not reloaded.literal_values
 
     def test_flag_survives_in_memory_copies(self, plugin_dir: Path, data_root: Path):
-        """The conversation merge uses model_copy, on the server and its agent."""
+        """对话合并在服务器及其智能体上使用 model_copy。"""
         server = load_one(plugin_dir, data_root, {"type": "stdio", "command": "echo"})
         assert server is not None
         agent = Agent(llm=LLM(model="gpt-4o", usage_id="test"), tools=[])
@@ -592,7 +593,7 @@ class TestLiteralValues:
     def test_secret_expansion_leaves_package_servers_literal(
         self, plugin_dir: Path, data_root: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        """§9.2: a package cannot pull a secret or env var into its subprocess."""
+        """§9.2：包不能将机密或环境变量拉入其子进程中。"""
         monkeypatch.setenv("LEAKED", "from-environment")
         package = load_one(
             plugin_dir,
@@ -623,7 +624,7 @@ class TestLiteralValues:
 
 
 class TestPluginData:
-    """§9.1: a writable directory that outlives an update."""
+    """§9.1：更新后仍存在的可写目录。"""
 
     def test_created_under_a_readable_name(self, plugin_dir: Path, data_root: Path):
         load(plugin_dir, data_root, {"s": {"type": "stdio", "command": "echo"}})
@@ -635,8 +636,8 @@ class TestPluginData:
     def test_same_name_elsewhere_gets_its_own_directory(
         self, plugin_dir: Path, tmp_path: Path, data_root: Path
     ):
-        """A project plugin borrowing an installed plugin's name must not share,
-        and be able to plant files in, that plugin's data directory."""
+        """借用已安装插件名称的项目插件不得共享，
+        并能够将文件放入该插件的数据目录中。"""
         impostor = tmp_path / "repo" / ".agents" / "plugins" / "example"
         impostor.mkdir(parents=True)
         (impostor / "plugin.json").write_text(json.dumps(MANIFEST), encoding="utf-8")
@@ -646,8 +647,8 @@ class TestPluginData:
         ) != get_plugin_data_dir(plugin_dir, data_root=data_root)
 
     def test_survives_an_update_in_place(self, plugin_dir: Path, data_root: Path):
-        """Installs and fetches update the same root, so the key must not
-        depend on package contents."""
+        """安装和获取更新相同的根目录，因此密钥不能
+        取决于包装内容。"""
         load(plugin_dir, data_root, {"s": {"type": "stdio", "command": "echo"}})
         data = get_plugin_data_dir(plugin_dir, data_root=data_root)
         (data / "state.txt").write_text("kept", encoding="utf-8")
@@ -692,7 +693,7 @@ class TestPluginData:
     def test_not_created_for_an_entry_the_model_rejects(
         self, plugin_dir: Path, data_root: Path, monkeypatch: pytest.MonkeyPatch
     ):
-        """The schema is not the last word: model validation can still reject."""
+        """模式不是最后一句话：模型验证仍然可以拒绝。"""
 
         def reject(*args, **kwargs):
             raise ValidationError.from_exception_data("MCPServer", [])
@@ -708,7 +709,7 @@ class TestPluginData:
         assert not data_root.exists()
 
     def test_lives_outside_the_plugin_package(self, plugin_dir: Path, data_root: Path):
-        """Anything inside the package would be lost on update."""
+        """更新时包内的任何内容都会丢失。"""
         load(plugin_dir, data_root, {"s": {"type": "stdio", "command": "echo"}})
 
         assert not (data_root / "example").is_relative_to(plugin_dir.resolve())
@@ -737,7 +738,7 @@ class TestPluginData:
     def test_keyed_by_the_resolved_root(
         self, plugin_dir: Path, tmp_path: Path, data_root: Path
     ):
-        """Another path to the same plugin must reach the same data."""
+        """同一插件的另一条路径必须到达相同的数据。"""
         link = tmp_path / "link"
         link.symlink_to(plugin_dir, target_is_directory=True)
 
@@ -746,11 +747,11 @@ class TestPluginData:
         )
 
     def test_default_location_is_not_scanned_for_plugins(self):
-        """A data directory under a scanned root loads as a plugin of its own.
+        """扫描根目录下的数据目录作为其自己的插件加载。
 
-        ``_load_plugins_from_dir`` treats every child directory as a plugin, and
-        the Claude Code format accepts any directory, so ``plugins/data`` would
-        be discovered ambiently and merged into every agent.
+        ``_load_plugins_from_dir`` 将每个子目录视为插件，而Claude Code 格式允许接受任
+        何目录，因此
+        ``plugins/data`` 会自动发现并合并到每个智能体。
         """
         assert not any(
             DEFAULT_PLUGIN_DATA_DIR.is_relative_to(scanned)
@@ -796,11 +797,10 @@ mcp.run(transport="stdio", show_banner=False)
 def test_stdio_server_launches_with_the_agent_plugins_contract(
     plugin_dir: Path, data_root: Path
 ):
-    """End to end: load the package, connect over stdio, check what ran.
+    """端到端：加载包，通过 stdio 连接，检查运行的内容。
 
-    Unit tests pin the mapping; only a real launch shows the SDK's MCP client
-    honors it -- a plugin-relative command, the expanded args, cwd under
-    PLUGIN_DATA, and env overlaid on (not replacing) the base environment.
+    单元测试引脚映射； 只有真正的发布展示了 SDK 的 MCP 客户端 PLUGIN_DATA 相关命令、
+    扩展参数、工作目录和环境变量覆盖（而不是替换）基础环境。
     """
     probe = plugin_dir / "bin" / "probe"
     probe.write_text(f"#!{sys.executable}\n{PROBE_SERVER}", encoding="utf-8")
@@ -838,7 +838,7 @@ def test_stdio_server_launches_with_the_agent_plugins_contract(
 def test_load_plugins_does_not_expand_package_servers(
     plugin_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    """The public loader expands secrets too; package servers must skip it."""
+    """公共加载器也扩展了机密； 包服务器必须跳过它。"""
     monkeypatch.setattr(
         "openhands.sdk.plugin.format.agent_plugins_mcp.DEFAULT_PLUGIN_DATA_DIR",
         tmp_path / "data",
@@ -864,10 +864,10 @@ def test_load_plugins_does_not_expand_package_servers(
 
 @pytest.fixture
 def http_capture() -> Iterator[tuple[dict[str, list[dict[str, str]]], str, str]]:
-    """Two local origins: ``a`` redirects within itself, then to ``b``.
+    """两个本地来源：``a`` 在自身内部重定向，然后重定向到 ``b``。
 
-    Returns the requests each path saw, keyed ``"a/mcp"``, ``"a/moved"`` and
-    ``"b/mcp"``, plus both base URLs.
+    返回每个路径看到的请求，键为 ``"a/mcp"``、``"a/moved"`` 和
+    ``"b/mcp"``加上基础 URLs.
     """
     seen: dict[str, list[dict[str, str]]] = {}
     servers: list[ThreadingHTTPServer] = []
@@ -915,9 +915,9 @@ def http_capture() -> Iterator[tuple[dict[str, list[dict[str, str]]], str, str]]
 def test_configured_headers_do_not_follow_a_redirect_off_origin(
     plugin_dir: Path, data_root: Path, http_capture
 ):
-    """§7.2.1, over real HTTP: kept on a same-origin redirect, dropped once the
-    request leaves the origin, and never allowed to override the client's own
-    headers."""
+    """§7.2.1，over real HTTP：保持同源重定向，一旦
+    请求离开原点，并且永远不允许覆盖客户端自己的标头。
+    """
     seen, a_url, b_url = http_capture
     servers = load(
         plugin_dir,
@@ -932,7 +932,7 @@ def test_configured_headers_do_not_follow_a_redirect_off_origin(
     )
 
     with pytest.raises(Exception):
-        # The stub never answers MCP; only the requests matter.
+        # 存根永远不会回答 MCP； 只有请求才重要。
         with create_mcp_tools(servers, timeout=10):
             pass
 

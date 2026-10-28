@@ -29,12 +29,14 @@ from openhands.sdk.event.condenser import Condensation
 from openhands.sdk.llm import LLM, Message
 
 
-# Regex matching raw ASCII control characters (U+0000–U+001F) that are
-# illegal inside JSON strings per RFC 8259 §7.
+# 根据 RFC 8259 §7，正则表达式匹配在 JSON 字符串内非法的原始 ASCII 控制字符 (U+0000–U+
+# 001F)。
+#
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f]")
 
-# Mapping from raw control-char ordinals to their JSON-legal two-character
-# escape sequences.  Characters without a short alias fall back to \uXXXX.
+# 从原始控制字符序数映射到其 JSON 合法的两字符转义序列。 没有短别名的字符会回退到 \uXXXX
+# 。
+#
 _CTRL_ESCAPE_TABLE: dict[int, str] = {
     0x08: "\\b",
     0x09: "\\t",
@@ -48,34 +50,34 @@ logger = logging.getLogger(__name__)
 
 
 def _escape_control_char(m: re.Match[str]) -> str:
-    """Replace a single raw control character with its JSON escape."""
+    """将单个原始控制字符替换为其 JSON 转义符。"""
     ch = m.group(0)
     return _CTRL_ESCAPE_TABLE.get(ord(ch), f"\\u{ord(ch):04x}")
 
 
 def sanitize_json_control_chars(raw: str) -> str:
-    """Escape raw control characters in a JSON string produced by an LLM.
+    """对 LLM 生成的 JSON 字符串中的原始控制字符进行转义。
 
-    Some models (e.g. kimi-k2.5, minimax-m2.5) emit literal control
-    characters (newline, tab, …) inside ``tool_call.arguments`` instead of
-    their proper two-character JSON escape sequences (``\\n``, ``\\t``, …).
-    ``json.loads`` rejects these per RFC 8259.
+    一些模型 (e.g. kimi-k2.5, minimax-m2.5) 会发出内部包含换行符、制表符等标点符号的
+    纯文本
+    ``tool_call.arguments`` 而是使用它们应有的两个字符 JSON 转义序列 (``\\n``,
+    ``\\t``, …).
+    ``json.loads`` 根据 RFC 8259 拒绝这些。
 
-    This function replaces every raw U+0000–U+001F byte with the correct
-    escape sequence so the string becomes valid JSON.
+    此函数将每个原始 U+0000–U+001F 字节替换为正确的转义序列，以便字符串变为有效 JSON
+    。
     """
     return _CONTROL_CHAR_RE.sub(_escape_control_char, raw)
 
 
 def _is_chunked_str_field(value: Any, expected_origins: list[Any]) -> bool:
-    """Return True if a str-only field was given a list of string chunks.
+    """如果为仅限 str 的字段提供了字符串块列表，则返回 True。
 
-    Some models (e.g. minimax-m2.5) split a single string argument such as
-    file_editor's old_str/new_str into a JSON array of chunks. Such a list is
-    rejoined into one string by the caller. ``str | list[str]`` fields are
-    excluded so a genuinely-valid list is never collapsed, and lists holding
-    non-strings are rejected so they fail validation instead of being silently
-    mangled.
+    一些模型 (e.g. minimax-m2.5) 将单个字符串参数，例如 file_editor's old_str/new_str
+     into a JSON 数组的
+    块。 这样的列表由调用者重新连接成一个字符串。 ``str | list[str]`` 字段被排除，因
+    此真正的有效列表永远不会被压缩，非字符串列表被拒绝，因此它们会
+    失败验证而不是被默默地变形。
     """
     return (
         isinstance(value, list)
@@ -121,47 +123,40 @@ def _json_schema_expected_types(
 def fix_malformed_tool_arguments(
     arguments: dict[str, Any], action_type: type[BaseModel] | dict[str, Any]
 ) -> dict[str, Any]:
-    """Fix malformed tool arguments emitted by some LLMs under native fn calling.
+    """修复一些发出的畸形工具参数 LLMs 在原生 fn 调用中。
 
-    Two malformations are repaired:
+    修复了两个畸形：
 
-    1. list/dict parameters encoded as JSON strings (e.g. GLM 4.6), which are
-       decoded back into native arrays/objects (see example below).
-    2. str-only parameters emitted as a JSON array of string chunks (e.g.
-       minimax-m2.5 chunking file_editor's old_str/new_str), which are joined
-       back into a single string.
+    1. 列表/字典参数编码为 JSON 字符串 (e.g. GLM 4.6），它们被解码回本机数组/对象（参
+    见下面的示例）。
+    2. 仅 str 参数作为字符串块的 JSON 数组发出 (e.g. minimax-m2.5 分块 file_editor 的
+     old_str/new_str)，
+    它们被连接回单个字符串。
 
-    Example raw LLM output from GLM 4.6:
+    GLM 4.6 的原始 LLM 输出示例：
     {
-        "role": "assistant",
-        "content": "I'll view the file for you.",
-        "tool_calls": [{
-            "id": "call_ef8e",
-            "type": "function",
-            "function": {
-                "name": "str_replace_editor",
-                "arguments": '{
-                    "command": "view",
-                    "path": "/tmp/test.txt",
-                    "view_range": "[1, 5]"
+        "role": "助理", "content": "我帮你查看文件。", "tool_calls": [{
+            “id”：“call_ef8e”，“类型”：“功能”，“功能”：{
+                “名称”：“str_replace_editor”，“参数”：'{
+                    “命令”：“视图”，“路径”：“/tmp/test.txt"，“view_range”：“[1, 5]”
                 }'
             }
         }]
     }
 
-    Expected output: `"view_range" : [1, 5]`
+    预期输出：`"view_range" : [1, 5]`
 
-    Note: The arguments field is a JSON string. When decoded, view_range is
-    incorrectly a string "[1, 5]" instead of the proper array [1, 5].
-    This function automatically fixes this by detecting that view_range
-    expects a list type and decoding the JSON string to get the actual array.
+    Note: 参数字段是一个 JSON 字符串。 解码后，view_range 为
+    错误地使用字符串“[1, 5]”而不是正确的数组 [1, 5]。 该函数通过检测 view_range 需要
+    列表类型并解码 JSON 字符串以获取实际数组来自动修复
+    此问题。
 
     Args:
-        arguments: The parsed arguments dict from json.loads(tool_call.arguments).
-        action_type: The model or JSON Schema defining expected arguments.
+        arguments: 解析后的参数字典来自 json.loads(tool_call.arguments)。
+        action_type: 定义预期参数的模型或 JSON 模式。
 
     Returns:
-        The arguments dict with JSON strings decoded where appropriate.
+        参数 dict 中的 JSON 字符串在适当的情况下进行了解码。
     """
     if not isinstance(arguments, dict):
         return arguments
@@ -198,30 +193,32 @@ def fix_malformed_tool_arguments(
 
         value = fixed_arguments[data_key]
 
-        # Rejoin a str-only field that a model chunked into a JSON array.
+        # 重新加入模型分块到 JSON 数组中的仅 str 字段。
         if _is_chunked_str_field(value, expected_origins):
             fixed_arguments[data_key] = "".join(value)
             continue
 
-        # Skip non-strings — the JSON decoding below only works on strings.
+        # 跳过非字符串 - 下面的 JSON 解码仅适用于字符串。
         if not isinstance(value, str):
             continue
 
-        # Check if any of the expected types is list or dict
+        # 检查是否有任何预期类型是列表或字典
         if any(exp in (list, dict) for exp in expected_origins):
-            # Try to parse the string as JSON
+            # 尝试将字符串解析为 JSON
             try:
-                # `strict=False` allows control characters (e.g. newlines) that
-                # the outer json.loads decoded from escape sequences.
+                # `strict=False` 允许控制字符 (e.g. 换行符），外部 json.loads 从转义序列
+                # 解码。
                 # https://docs.python.org/3/library/json.html#json.JSONDecoder
                 parsed_value = json.loads(value, strict=False)
-                # json.loads() returns dict, list, str, int, float, bool, or None
-                # Only use parsed value if it matches expected collection types
+                # json.loads() 返回 dict、list、str、int、float、bool 或 None 仅在与预期
+                # 集合类型匹配时才使用解析值
+                #
                 if isinstance(parsed_value, (list, dict)):
                     fixed_arguments[data_key] = parsed_value
             except (json.JSONDecodeError, ValueError):
-                # LLMs sometimes append trailing garbage (e.g. XML tags)
-                # after valid JSON. Truncate at the last } or ] and retry.
+                # LLMs 有时追加尾部的垃圾（e.g. XML 在有效的情况下，[tags] JSON. 在最后
+                # 一个}处截断 ] 和重试。
+                #
                 for end_char in ("}", "]"):
                     idx = value.rfind(end_char)
                     if idx == -1:
@@ -251,56 +248,56 @@ TOOL_NAME_ALIASES: dict[str, str] = {
     "str_replace_editor": "file_editor",
 }
 
-# Regex to detect malformed tool names (e.g., "str_replace </parameter"
-# or "str_replace</function>"). These occur when LLMs emit XML/HTML
-# tag fragments in tool names. The leading identifier is extracted and
-# used as the lookup key.
+# 用于检测格式错误的工具名称的正则表达式（e.g.、“str_replace
+# </parameter" or "str_replace</function>”）。 这些发生在工具名称中 LLMs 发出 XML/HTML
+# 标签片段。 提取前导标识符并将其用作查找键。
+#
 _MALFORMED_TOOL_NAME_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)")
 
 
 def _extract_tool_name_base(tool_name: str) -> str:
-    """Return the leading identifier of ``tool_name``.
+    """返回 ``tool_name`` 的前导标识符。
 
-    This is used to recover from malformed tool names like
-    ``"str_replace </parameter"`` or ``"str_replace</function>"`` that LLMs
-    sometimes emit by appending XML/HTML tag fragments. If ``tool_name``
-    has no valid leading identifier, return it unchanged.
+    这用于从格式错误的工具名称中恢复，例如
+    ``"str_replace </parameter"`` 或 ``"str_replace</function>"`` that LLMs 有时通过
+    追加来发出
+    XML/HTML 标签片段。 如果 ``tool_name`` 没有有效的前缀标识，保持不变。
     """
     match = _MALFORMED_TOOL_NAME_RE.match(tool_name)
     return match.group(1) if match else tool_name
 
 
-# Terminal aliases that prepend the tool name to the command argument.
-# Unlike 'bash' which passes through the command directly, these tools
-# (e.g., 'git', 'reset') are themselves commands that should be combined
-# with their arguments (e.g., 'git status', 'reset clear').
+# 将工具名称添加到命令参数的终端别名。 与`bash`不同，这些工具（e.g，`git`，`reset`）本身
+# 就是命令，应该与它们的参数（e.g，`git status`，`reset clear`）结合使用。
+#
 _TERMINAL_COMMAND_PREFIX_ALIASES = frozenset({"git", "reset"})
 
-# This fallback is intentionally tiny: it only accepts exact, bare command names
-# that are useful as read-only defaults when some models emit them as tool names.
+# 这个回退方案故意很小：它只接受精确的、裸命令名称，当某些模型将它们作为工具名称发出时，
+# 这些名称作为只读默认值有用。
+#
 _SHELL_TOOL_FALLBACK_COMMANDS = frozenset({"find", "git", "ls", "pwd"})
 
-# Typo normalization for common mistakes in security_risk field
+# security_risk 字段中常见错误的拼写错误标准化
 _SECURITY_RISK_TYPOS = {"security_rort", "securtiy_risk", "security_riks"}
 
 
 def _normalize_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
-    """Normalize common typos and inconsistencies in tool arguments."""
+    """规范工具参数中的常见拼写错误和不一致。"""
     normalized = arguments.copy()
 
-    # Fix security_risk typos
+    # 修复 security_risk 个拼写错误
     for typo in _SECURITY_RISK_TYPOS:
         if typo in normalized:
             normalized["security_risk"] = normalized.pop(typo)
             break
 
-    # Remove any arguments that are clearly not valid (None values, etc.)
-    # but keep all others to preserve tool-specific arguments
+    # 删除任何明显无效的参数（None 值等），但保留所有其他参数以保留特定于工具的参数
+    #
     return {k: v for k, v in normalized.items() if v is not None}
 
 
 def parse_tool_call_arguments(raw_arguments: str) -> dict[str, Any]:
-    """Parse tool call arguments, sanitizing raw control chars only on fallback."""
+    """解析工具调用参数，仅清理回退方案上的原始控制字符。"""
     try:
         parsed = json.loads(raw_arguments)
     except json.JSONDecodeError:
@@ -326,7 +323,7 @@ def _infer_file_editor_command(arguments: dict[str, Any]) -> str | None:
 
 
 def _has_file_editor_hint(arguments: dict[str, Any]) -> bool:
-    """Check if arguments contain any hint that this is a file_editor call."""
+    """检查参数是否包含任何提示，表明这是一个 file_editor 调用。"""
     file_editor_hints = frozenset(
         {
             "old_str",
@@ -391,7 +388,7 @@ _GREP_FALLBACK_SCRIPT = textwrap.dedent(
 
 
 def _join_shell_command(parts: list[str]) -> str:
-    """Join a command list using the current platform's shell quoting rules."""
+    """使用当前平台的 shell 引用规则加入命令列表。"""
     if os.name == "nt":
         return subprocess.list2cmdline(parts)
     return shlex.join(parts)
@@ -432,10 +429,10 @@ def _build_python_grep_terminal_command(
 
 
 def _build_grep_terminal_command(arguments: dict[str, Any]) -> str | None:
-    """Return a portable terminal command for structured grep fallbacks.
+    """返回结构化 grep 回退方案的便携式终端命令。
 
-    Returning ``None`` keeps malformed grep payloads on the normal "tool not
-    found" path instead of broadening terminal execution.
+    返回 ``None`` 将格式错误的 grep 载荷保留在正常的“未找到工具”路径上，而不是扩大终
+    端执行。
     """
     pattern = arguments.get("pattern")
     if not isinstance(pattern, str) or not pattern.strip():
@@ -460,12 +457,12 @@ def _maybe_rewrite_as_terminal_command(
     tool_name: str,
     arguments: dict[str, Any],
 ) -> str | None:
-    """Return a narrow terminal fallback for shell-style tool names.
+    """返回 shell 样式工具名称的窄终端回退方案。
 
-    Aliases are handled before this helper, so Anthropic-style names like
-    ``str_replace`` normalize to canonical SDK tools instead of being treated as
-    shell commands. This helper only runs for otherwise-unknown names when the
-    agent already exposes ``terminal``.
+    别名在此助手之前处理，因此 Anthropic 样式的名称如
+    ``str_replace`` 标准化为规范 SDK 工具，而不是被视为 shell 命令。 当智能体已经公开
+     ``terminal`` 时，此帮助器仅针对其他未知
+    的名称运行。
     """
     if tool_name == "grep":
         return _build_grep_terminal_command(arguments)
@@ -481,29 +478,29 @@ def normalize_tool_call(
     arguments: dict[str, Any],
     available_tools: Collection[str],
 ) -> tuple[str, dict[str, Any]]:
-    """Normalize legacy tool names and Anthropic-style argument shapes.
+    """标准化旧工具名称和 Anthropic 样式参数形状。
 
-    Precedence is intentional: preserve explicitly registered tools first,
-    then apply legacy aliases for unknown names, terminal fallback only
-    applies to still-unknown names, and file_editor command inference runs
-    after the canonical tool name is known.
+    优先级是故意的：首先保留显式注册的工具，然后对未知名称应用遗留别名，回退方案只对
+    仍然未知的名称才起作用，file_editor 命令推断在工具名称的通用名称确定之后
+    运行。
     """
     normalized_tool_name = tool_name
     normalized_arguments = arguments.copy()
 
-    # Only apply aliases for tool names that are not explicitly registered.
-    # This prevents hijacking legitimate tools that share names with aliases.
+    # 仅对未显式注册的工具名称应用别名。 这可以防止劫持与别名共享名称的合法工具。
+    #
     if tool_name not in available_tools:
-        # Extract the leading identifier so we can recover from malformed names
-        # like "str_replace </parameter" (the LLM appended an XML fragment).
-        # For clean names like "git" this is a no-op.
+        # 提取前导标识符，以便我们可以从格式错误的名称中恢复，例如“str_replace <
+        # /parameter"（LLM 附加了 XML 片段）。 对于像“git”这样的干净名称，这是一个空操作
+        # 。
+        #
         base_name = _extract_tool_name_base(tool_name)
         alias_target = TOOL_NAME_ALIASES.get(base_name)
         if base_name != tool_name and base_name in available_tools:
             normalized_tool_name = base_name
         elif alias_target and alias_target in available_tools:
             normalized_tool_name = alias_target
-            # For terminal alias with prefix, combine tool name with command
+            # 对于带前缀的终端别名，将工具名称与命令组合起来
             if (
                 alias_target == "terminal"
                 and base_name in _TERMINAL_COMMAND_PREFIX_ALIASES
@@ -517,8 +514,9 @@ def normalize_tool_call(
                 if not original_command:
                     normalized_arguments["command"] = base_name
                 elif str(original_command).split(maxsplit=1)[:1] == [base_name]:
-                    # Already carries the executable, e.g. git(command="git status").
-                    # Comparing whole tokens keeps "github status" prefixed.
+                    # 已携带可执行文件，e.g。 git(command="git status"). 比较整个 token
+                    # 保留“GitHub status”前缀。
+                    #
                     normalized_arguments["command"] = original_command
                 else:
                     normalized_arguments["command"] = f"{base_name} {original_command}"
@@ -529,8 +527,8 @@ def normalize_tool_call(
             )
             if terminal_command is not None:
                 normalized_tool_name = "terminal"
-                # Preserve only terminal-relevant arguments (security_risk, summary)
-                # along with the generated command
+                # 仅保留与终端相关的参数（security_risk，摘要）以及生成的命令
+                #
                 normalized_arguments = {
                     key: value
                     for key, value in normalized_arguments.items()
@@ -584,35 +582,32 @@ def prepare_llm_messages(
     additional_messages: list[Message] | None = None,
     llm: LLM | None = None,
 ) -> list[Message] | Condensation:
-    """Prepare LLM messages from a conversation view.
+    """从对话视图准备 LLM 条消息。
 
-    This utility function extracts the common logic for preparing conversation
-    context that is shared between agent.step() and ask_agent() methods.
-    It handles condensation internally and calls the callback when needed.
+    此实用程序函数提取在 agent.step() 和 ask_agent() 方法之间共享的准备对话上下文的通
+    用逻辑。 它在内部处理上下文压缩并在需要时调用回调。
 
-    Callers should pass the cached `ConversationState.view`, which is
-    maintained incrementally as events are appended. This avoids paying the
-    O(n) `View.from_events` (with `enforce_properties`) cost on every step.
-    See https://github.com/OpenHands/software-agent-sdk/issues/3053.
+    调用者应传递缓存的 `ConversationState.view`，该缓存在附加事件时增量维护。 这避免
+    了每一步都支付 O(n)
+    `View.from_events` （和 `enforce_properties`）成本。 参见
+    https://github.com/OpenHands/software-agent-sdk/issues/3053.
 
     Args:
-        view: A `View` of the conversation history. The view is treated as
-            read-only — see `CondenserBase.condense` for the same contract.
-        condenser: Optional condenser for handling context window limits
-        additional_messages: Optional additional messages to append
-        llm: Optional LLM instance from the agent, passed to condenser for
-            token counting or other LLM features
+        view: 对话历史记录的 `View`。 该视图被视为
+            只读 — 请参阅 `CondenserBase.condense` 了解同一合约。
+        condenser: 用于处理上下文窗口限制的可选上下文压缩器
+        additional_messages: 要附加的可选附加消息
+        llm: 来自智能体的可选 LLM 实例，传递给上下文压缩器
+            token 计数或其他 LLM 功能
 
     Returns:
-        List of messages ready for LLM completion, or a Condensation event
-        if condensation is needed
+        准备好 LLM 完成的消息列表，或上下文压缩事件（如果需要上下文压缩）
     """
     llm_convertible_events: list[LLMConvertibleEvent] = view.events
 
-    # If a condenser is registered, we need to give it an
-    # opportunity to transform the events. This will either
-    # produce a list of events, exactly as expected, or a
-    # new condensation that needs to be processed
+    # 如果注册了上下文压缩器，我们需要给它一个转换事件的机会。 这将产生一个完全符合预期
+    # 的事件列表，或者一个需要处理的新的上下文压缩
+    #
     if condenser is not None:
         condensation_result = condenser.condense(view, agent_llm=llm)
 
@@ -623,10 +618,10 @@ def prepare_llm_messages(
             case Condensation():
                 return condensation_result
 
-    # Convert events to messages
+    # 将事件转换为消息
     messages = LLMConvertibleEvent.events_to_messages(llm_convertible_events)
 
-    # Add any additional messages (e.g., user question for ask_agent)
+    # 添加任何其他消息（e.g.，ask_agent 的用户问题）
     if additional_messages:
         messages.extend(additional_messages)
 
@@ -634,7 +629,7 @@ def prepare_llm_messages(
 
 
 # ---------------------------------------------------------------------------
-# Async variants
+# 异步变种
 # ---------------------------------------------------------------------------
 
 
@@ -644,10 +639,10 @@ async def aprepare_llm_messages(
     additional_messages: list[Message] | None = None,
     llm: LLM | None = None,
 ) -> list[Message] | Condensation:
-    """Async variant of :func:`prepare_llm_messages`.
+    """异步：func:`prepare_llm_messages` 的变体。
 
-    Calls ``condenser.acondense()`` so that condensers backed by an LLM can
-    use async completions without blocking the event loop.
+    调用 ``condenser.acondense()``，以便 LLM 支持的上下文压缩器可以使用异步完成，而不
+    会阻塞事件循环。
     """
     llm_convertible_events: list[LLMConvertibleEvent] = view.events
 

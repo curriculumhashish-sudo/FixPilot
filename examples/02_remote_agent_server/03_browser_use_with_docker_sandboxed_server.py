@@ -24,7 +24,7 @@ llm = LLM(
 
 
 def detect_platform():
-    """Detects the correct Docker platform string."""
+    """检测正确的 Docker 平台字符串。"""
     machine = platform.machine().lower()
     if "arm" in machine or "aarch64" in machine:
         return "linux/arm64"
@@ -32,40 +32,42 @@ def detect_platform():
 
 
 def get_server_image():
-    """Get the server image tag, using PR-specific image in CI."""
+    """使用 CI 中的 PR 特定图像获取服务器图像标签。"""
     platform_str = detect_platform()
     arch = "arm64" if "arm64" in platform_str else "amd64"
-    # SDK_SHA is the canonical commit SHA set by CI workflows (avoids the
-    # built-in GITHUB_SHA which resolves to the merge-commit on PRs).
+    # SDK_SHA 是 CI 工作流设置的规范提交 SHA（避免解析为 PR 上的合并提交的内置
+    # GITHUB_SHA）。
+    #
     sha = os.getenv("SDK_SHA") or os.getenv("GITHUB_SHA")
     if sha:
         return f"ghcr.io/openhands/agent-server:{sha[:7]}-python-{arch}"
     return "ghcr.io/openhands/agent-server:latest-python"
 
 
-# Create a Docker-based remote workspace with extra ports for browser access.
-# Use `DockerWorkspace` with a pre-built image or `DockerDevWorkspace` to
-# automatically build the image on-demand.
+# 创建一个基于 Docker 的远程工作区，并带有用于浏览器访问的额外端口。 将
+# `DockerWorkspace` 与预构建的映像一起使用，或使用 `DockerDevWorkspace` 按需自动构建映像
+# 。
+#
 #    with DockerDevWorkspace(
-#        # dynamically build agent-server image
+#        # 动态构建智能体-服务器镜像
 #        base_image="nikolaik/python-nodejs:python3.13-nodejs24-slim",
 #        host_port=8010,
 #        platform=detect_platform(),
-#    ) as workspace:
+#    ) 作为工作区：
 server_image = get_server_image()
 logger.info(f"Using server image: {server_image}")
 with DockerWorkspace(
     server_image=server_image,
-    # host_port auto-selects an available port when not specified
+    # host_port 未指定时自动选择可用端口
     platform=detect_platform(),
 ) as workspace:
-    # Create agent with browser tools enabled
+    # 在启用浏览器工具的情况下创建智能体
     agent = get_default_agent(
         llm=llm,
-        cli_mode=False,  # CLI mode = False will enable browser tools
+        cli_mode=False,  # CLI mode = False 将启用浏览器工具
     )
 
-    # Set up callback collection
+    # 设置回调个集合
     received_events: list = []
     last_event_time = {"ts": time.time()}
 
@@ -75,7 +77,7 @@ with DockerWorkspace(
         received_events.append(event)
         last_event_time["ts"] = time.time()
 
-    # Create RemoteConversation using the workspace
+    # 使用工作区创建 RemoteConversation
     conversation = Conversation(
         agent=agent,
         workspace=workspace,

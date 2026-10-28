@@ -5,7 +5,7 @@ if ! command -v uv &> /dev/null; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
 else
     echo "uv is already installed."
-    uv self update  # always update to the latest version
+    uv self update  # 始终更新到最新版本
 fi
 
 make build

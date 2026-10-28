@@ -1,8 +1,8 @@
 /**
- * Tests for SecretRegistry class
+ * SecretRegistry 类的测试
  *
- * These tests mirror the Python SDK's secrets manager tests to ensure
- * consistent behavior across implementations.
+ * 这些测试反映了 Python SDK 的机密管理器测试，以确保
+ * 跨实现的一致行为。
  */
 
 import {
@@ -30,15 +30,15 @@ describe('SecretRegistry', () => {
     it('should overwrite existing secrets', () => {
       const registry = new SecretRegistry();
 
-      // Add initial secret
+      // 添加首字母机密
       registry.updateSecrets({ API_KEY: 'old-value' });
       expect(registry.size).toBe(1);
 
-      // Update with new value
+      // 使用新值更新
       registry.updateSecrets({ API_KEY: 'new-value', NEW_KEY: 'key-value' });
       expect(registry.size).toBe(2);
 
-      // Verify the API_KEY was updated
+      // 验证 API_KEY 已更新
       const envVars = registry.getSecretsAsEnvVars('$API_KEY');
       expect(envVars.API_KEY).toBe('new-value');
     });
@@ -54,11 +54,11 @@ describe('SecretRegistry', () => {
         },
       });
 
-      // First call
+      // 第一次通话
       const envVars1 = registry.getSecretsAsEnvVars('$DYNAMIC_TOKEN');
       expect(envVars1.DYNAMIC_TOKEN).toBe('token-1');
 
-      // Second call - should invoke the function again
+      // 第二次调用 - 应再次调用该函数
       const envVars2 = registry.getSecretsAsEnvVars('$DYNAMIC_TOKEN');
       expect(envVars2.DYNAMIC_TOKEN).toBe('token-2');
     });
@@ -72,7 +72,7 @@ describe('SecretRegistry', () => {
         DATABASE_PASSWORD: 'test-password',
       });
 
-      // Test various case combinations
+      // 测试各种案例组合
       let found = registry.findSecretsInText('echo api_key=$API_KEY');
       expect(found.has('API_KEY')).toBe(true);
 
@@ -91,10 +91,10 @@ describe('SecretRegistry', () => {
       const registry = new SecretRegistry();
       registry.updateSecrets({
         API_KEY: 'test-key',
-        API: 'test-api', // Shorter key contained in API_KEY
+        API: 'test-api', // API_KEY 中包含的较短密钥
       });
 
-      // Both should be found since "API" is contained in "API_KEY"
+      // 两者都应该找到，因为“API”包含在“API_KEY”中
       const found = registry.findSecretsInText('export API_KEY=$API_KEY');
       expect(found.has('API_KEY')).toBe(true);
       expect(found.has('API')).toBe(true);
@@ -146,12 +146,12 @@ describe('SecretRegistry', () => {
         WORKING_SECRET: () => 'working-value',
       });
 
-      // Should not throw, should skip failing secret
+      // 不应该抛出，应该跳过失败机密
       const envVars = registry.getSecretsAsEnvVars(
         'export FAILING_SECRET=$FAILING_SECRET && export WORKING_SECRET=$WORKING_SECRET'
       );
 
-      // Only working secret should be returned
+      // 仅应返回工作机密
       expect(envVars).toEqual({ WORKING_SECRET: 'working-value' });
     });
   });
@@ -164,7 +164,7 @@ describe('SecretRegistry', () => {
         PASSWORD: 'super-secret-password',
       });
 
-      // Export the secrets first (so they're in the cache)
+      // 首先导出机密 （这样它们就在缓存中）
       registry.getSecretsAsEnvVars('$API_KEY $PASSWORD');
 
       const output = 'Response: sk-secret-key-12345, Password: super-secret-password';
@@ -285,8 +285,8 @@ describe('SecretRegistry', () => {
       registry.deserialize({
         API_KEY: 'restored-value',
         TOKEN: 'another-value',
-        REDACTED: '**********', // Should be ignored
-        NULL_VALUE: null, // Should be ignored
+        REDACTED: '**********', // 应该被忽略
+        NULL_VALUE: null, // 应该被忽略
       });
 
       expect(registry.hasSecret('API_KEY')).toBe(true);
@@ -324,7 +324,7 @@ describe('SecretRegistry', () => {
         throw new Error('Failed');
       });
 
-      // Should return null instead of throwing
+      // 应该返回 null 而不是抛出
       expect(source.getValue()).toBeNull();
     });
   });

@@ -1,7 +1,7 @@
-"""Auto-titling is the only title path a deployed agent-server actually runs.
+"""自动标题是已部署的智能体服务器实际运行的唯一标题路径。
 
-It calls the title helper from an executor thread, so its LLM span joins the
-conversation trace only if the root span is explicitly re-attached there.
+它从执行器线程调用标题帮助器，因此仅当根跨度显式重新附加到那里时，它的 LLM 跨度才会加
+入对话跟踪。
 """
 
 import json
@@ -15,7 +15,7 @@ OPERATION_ATTRIBUTE = "lmnr.association.properties.metadata.openhands.operation"
 
 
 def _probe_auto_title_spans() -> dict[str, Any]:
-    """Drive AutoTitleSubscriber through a real Laminar tracer; return its spans."""
+    """驱动AutoTitleSubscriber穿过真实的层流示踪器； 返回其跨度。"""
     os.environ["LMNR_PROJECT_API_KEY"] = "test-key"
 
     import asyncio
@@ -83,7 +83,7 @@ def _probe_auto_title_spans() -> dict[str, Any]:
     service._conversation = conversation
 
     async def save_meta(new_stored: StoredConversation | None = None) -> None:
-        # Like EventService.save_meta: adopt the metadata once it is written.
+        # 像EventService.save_meta：元数据一旦写入就采用。
         if new_stored is not None:
             service.stored = new_stored
 
@@ -132,8 +132,8 @@ def _probe_auto_title_spans() -> dict[str, Any]:
 
 
 def test_auto_title_llm_span_joins_the_conversation_trace() -> None:
-    # Subprocess: Laminar.initialize() flips process-global tracing on for good,
-    # which would change every later test in this worker.
+    # 子进程：Laminar.initialize() 永久开启进程全局跟踪，
+    # 这将改变该工人以后的每一次测试。
     result = subprocess.run(
         [sys.executable, __file__],
         capture_output=True,
@@ -160,8 +160,9 @@ def test_auto_title_llm_span_joins_the_conversation_trace() -> None:
     assert sdk_llm["trace_id"] == probe["conversation_trace_id"]
     assert title_llm["trace_id"] == probe["conversation_trace_id"]
 
-    # Spelled out, not derived from OPERATION_METADATA_KEY: this exact attribute
-    # name is the wire contract downstream consumers hard-code.
+    # 拼写出来，不是从 OPERATION_METADATA_KEY 派生：这个确切的属性名称是有线合同下游消费
+    # 者的硬编码。
+    #
     assert title_llm["attributes"][OPERATION_ATTRIBUTE] == "title_generation"
 
 

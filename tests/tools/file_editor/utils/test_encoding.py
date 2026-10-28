@@ -1,4 +1,4 @@
-"""Unit tests for the encoding module."""
+"""单元测试为编码模块。"""
 
 import os
 import tempfile
@@ -18,7 +18,7 @@ from openhands.tools.file_editor.utils.encoding import (
 
 @pytest.fixture
 def temp_file():
-    """Create a temporary file for testing."""
+    """创建一个临时文件用于测试。"""
     fd, path = tempfile.mkstemp()
     os.close(fd)
     yield Path(path)
@@ -30,20 +30,20 @@ def temp_file():
 
 @pytest.fixture
 def encoding_manager():
-    """Create an EncodingManager instance for testing."""
+    """创建一个 EncodingManager 实例用于测试。"""
     return EncodingManager()
 
 
 def test_detect_encoding_nonexistent_file(encoding_manager):
-    """Test detecting encoding for a nonexistent file."""
+    """测试检测不存在文件的编码。"""
     nonexistent_path = Path("/nonexistent/file.txt")
     encoding = encoding_manager.detect_encoding(nonexistent_path)
     assert encoding == encoding_manager.default_encoding
 
 
 def test_detect_encoding_utf8(encoding_manager, temp_file):
-    """Test detecting UTF-8 encoding."""
-    # Create a UTF-8 encoded file
+    """测试检测 UTF-8 编码。"""
+    # 创建UTF-8编码文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Hello, world! UTF-8 encoded text.")
 
@@ -52,8 +52,8 @@ def test_detect_encoding_utf8(encoding_manager, temp_file):
 
 
 def test_detect_encoding_utf8_with_icon(encoding_manager, temp_file):
-    """Test detecting UTF-8 encoding with a word and an emoji."""
-    # Create a UTF-8 encoded file with a single word and an emoji
+    """测试使用单词和表情符号检测 UTF-8 编码。"""
+    # 创建一个包含单个单词和表情符号的 UTF-8 编码文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Hello 😊")
 
@@ -87,8 +87,8 @@ def test_get_encoding_prefers_valid_utf8(encoding_manager, temp_file, guess):
 
 
 def test_detect_encoding_cp1251(encoding_manager, temp_file):
-    """Test detecting CP1251 encoding."""
-    # Create a CP1251 encoded file with Cyrillic characters
+    """测试检测 CP1251 编码。"""
+    # 创建带有西里尔字符的 CP1251 编码文件
     with open(temp_file, "wb") as f:
         f.write("Привет, мир! Текст в кодировке CP1251.".encode("cp1251"))
 
@@ -97,12 +97,12 @@ def test_detect_encoding_cp1251(encoding_manager, temp_file):
 
 
 def test_detect_encoding_low_confidence(encoding_manager, temp_file):
-    """Test fallback to default encoding when confidence is low."""
-    # Create a file with mixed encodings to confuse the detector
+    """当置信度较低时，测试回退方案为默认编码。"""
+    # 创建一个混合编码的文件来迷惑检测器
     with open(temp_file, "wb") as f:
         f.write(b"\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f")
 
-    # Mock chardet.detect to return low confidence
+    # 模拟对象 chardet.detect 返回低置信度
     with patch(
         "charset_normalizer.detect",
         return_value={"encoding": "ascii", "confidence": 0.3},
@@ -112,11 +112,11 @@ def test_detect_encoding_low_confidence(encoding_manager, temp_file):
 
 
 def test_detect_encoding_none_result(encoding_manager, temp_file):
-    """Test fallback to default encoding when chardet returns None for encoding."""
+    """当 chardet 返回 None 进行编码时，测试回退方案为默认编码。"""
     with open(temp_file, "wb") as f:
-        f.write(b"\x00\x01\x02\x03")  # Binary data
+        f.write(b"\x00\x01\x02\x03")  # 二进制数据
 
-    # Mock chardet.detect to return None for encoding
+    # 模拟对象chardet.detect返回None进行编码
     with patch(
         "charset_normalizer.detect", return_value={"encoding": None, "confidence": 0.0}
     ):
@@ -125,12 +125,12 @@ def test_detect_encoding_none_result(encoding_manager, temp_file):
 
 
 def test_get_encoding_cache_hit(encoding_manager, temp_file):
-    """Test that get_encoding uses cached values when available."""
-    # Create a file
+    """测试 get_encoding 是否使用可用的缓存值。"""
+    # 创建文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Hello, world!")
 
-    # First call should detect encoding
+    # 第一次调用应该检测编码
     with patch.object(
         encoding_manager, "detect_encoding", return_value="utf-8"
     ) as mock_detect:
@@ -138,7 +138,7 @@ def test_get_encoding_cache_hit(encoding_manager, temp_file):
         assert encoding1 == "utf-8"
         mock_detect.assert_called_once()
 
-    # Second call should use cache
+    # 第二次调用应该使用缓存
     with patch.object(
         encoding_manager, "detect_encoding", return_value="utf-8"
     ) as mock_detect:
@@ -148,23 +148,23 @@ def test_get_encoding_cache_hit(encoding_manager, temp_file):
 
 
 def test_get_encoding_cache_invalidation(encoding_manager, temp_file):
-    """Test that cache is invalidated when file is modified."""
-    # Create a file
+    """测试文件修改时缓存是否失效。"""
+    # 创建文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Hello, world!")
 
-    # First call should detect encoding
+    # 第一次调用应该检测编码
     encoding1 = encoding_manager.get_encoding(temp_file)
     assert encoding1.lower() in ("utf-8", "ascii")
 
-    # Wait a moment to ensure modification time will be different
+    # 稍等一下，确保修改时间会有所不同
     time.sleep(0.1)
 
-    # Modify the file
+    # 修改文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Modified content")
 
-    # Mock detect_encoding to verify it's called again
+    # 模拟对象 detect_encoding 验证是否再次调用
     with patch.object(
         encoding_manager, "detect_encoding", return_value="utf-8"
     ) as mock_detect:
@@ -174,9 +174,9 @@ def test_get_encoding_cache_invalidation(encoding_manager, temp_file):
 
 
 def test_with_encoding_decorator():
-    """Test the with_encoding decorator."""
+    """测试 with_encoding 装饰器。"""
 
-    # Create a mock class with a method that will be decorated
+    # 创建一个带有将被修饰的方法的模拟对象类
     class MockEditor:
         def __init__(self):
             self._encoding_manager: EncodingManager = EncodingManager()
@@ -187,7 +187,7 @@ def test_with_encoding_decorator():
 
     editor = MockEditor()
 
-    # Test with a directory
+    # 使用目录进行测试
     with patch.object(Path, "is_dir", return_value=True):
         with patch.object(
             editor._encoding_manager, "get_encoding"
@@ -196,7 +196,7 @@ def test_with_encoding_decorator():
             assert result == "Reading file with encoding: utf-8"
             mock_get_encoding.assert_not_called()
 
-    # Test with a nonexistent file
+    # 使用不存在的文件进行测试
     with patch.object(Path, "is_dir", return_value=False):
         with patch.object(Path, "exists", return_value=False):
             result = editor.read_file(Path("/nonexistent/file.txt"))
@@ -205,7 +205,7 @@ def test_with_encoding_decorator():
                 f"{editor._encoding_manager.default_encoding}"
             )
 
-    # Test with an existing file
+    # 使用现有文件进行测试
     with patch.object(Path, "is_dir", return_value=False):
         with patch.object(Path, "exists", return_value=True):
             with patch.object(
@@ -216,9 +216,10 @@ def test_with_encoding_decorator():
 
 
 def test_with_encoding_respects_provided_encoding():
-    """Test that the with_encoding decorator respects explicitly provided encoding."""
-    # The current implementation of with_encoding always calls get_encoding
-    # but doesn't override the provided encoding if it exists in kwargs
+    """测试 with_encoding 装饰器是否遵循显式提供的编码。"""
+    # with_encoding 的当前实现始终调用 get_encoding，但如果 kwargs 中存在提供的编码，则
+    # 不会覆盖它
+    #
 
     class MockEditor:
         def __init__(self):
@@ -230,7 +231,7 @@ def test_with_encoding_respects_provided_encoding():
 
     editor = MockEditor()
 
-    # Test with explicitly provided encoding
+    # 使用显式提供的编码进行测试
     with patch.object(Path, "is_dir", return_value=False):
         with patch.object(Path, "exists", return_value=True):
             with patch.object(
@@ -239,48 +240,48 @@ def test_with_encoding_respects_provided_encoding():
                 return_value="detected-encoding",
             ):
                 result = editor.read_file(Path("/some/file.txt"), encoding="iso-8859-1")
-                # The provided encoding should be used, not the detected one
+                # 应使用提供的编码，而不是检测到的编码
                 assert result == "Reading file with encoding: iso-8859-1"
 
 
 def test_cache_size_limit(encoding_manager, temp_file):
-    """Test that the cache size is limited and LRU entries are evicted."""
-    # Create a small cache for testing
+    """测试缓存大小是否有限并且 LRU 条目被逐出。"""
+    # 创建一个小缓存用于测试
     encoding_manager = EncodingManager(max_cache_size=3)
 
-    # Create a file
+    # 创建文件
     with open(temp_file, "w", encoding="utf-8") as f:
         f.write("Test file")
 
-    # Create 4 different paths (using the same file but with different paths)
+    # 创建4个不同的路径（使用相同的文件但具有不同的路径）
     paths = [Path(f"{temp_file}.{i}") for i in range(4)]
 
-    # Mock exists and getmtime to return consistent values
+    # 模拟对象存在且getmtime返回值一致
     with patch.object(Path, "exists", return_value=True):
         with patch.object(os.path, "getmtime", return_value=123456):
             with patch.object(
                 encoding_manager, "detect_encoding", return_value="utf-8"
             ):
-                # Access paths in order 0, 1, 2, 3
+                # 访问路径顺序为0、1、2、3
                 for i, path in enumerate(paths):
                     encoding_manager.get_encoding(path)
 
-                # After adding 4th item, the cache should still have 3 items
+                # 添加第 4 个项目后，缓存应该仍然有 3 个项目
                 assert len(encoding_manager._encoding_cache) == 3
-                # Path 0 should have been evicted (LRU)
+                # 路径 0 应该被驱逐 (LRU)
                 assert str(paths[0]) not in encoding_manager._encoding_cache
-                # Paths 1, 2, 3 should still be in the cache
+                # 路径 1、2、3 仍应在缓存中
                 for j in range(1, 4):
                     assert str(paths[j]) in encoding_manager._encoding_cache
 
 
 @pytest.fixture
 def temp_non_utf8_file():
-    """Create a temporary file with cp1251 encoding for testing."""
+    """创建一个 cp1251 编码的临时文件用于测试。"""
     fd, path = tempfile.mkstemp()
     os.close(fd)
 
-    # Create a file with cp1251 encoding containing Russian text
+    # 创建包含俄语文本的 cp1251 编码文件
     with open(path, "wb") as f:
         f.write("# -*- coding: cp1251 -*-\n\n".encode("cp1251"))
         f.write("# Тестовый файл с кириллицей\n".encode("cp1251"))
@@ -293,45 +294,45 @@ def temp_non_utf8_file():
 
 
 def test_view_non_utf8_file(temp_non_utf8_file):
-    """Test viewing a non-UTF-8 encoded file."""
-    # View the file
+    """测试查看非 UTF-8 编码的文件。"""
+    # 查看文件
     result = file_editor(
         command="view",
         path=str(temp_non_utf8_file),
     )
 
-    # Parse the result
-    # Parse the result - now using direct access
+    # 解析结果解析结果 - 现在使用直接访问
+    #
 
-    # Verify the content was read correctly
+    # 验证内容读取正确
     assert result.text is not None and "Привет, мир!" in result.text
     assert result.text is not None and "Тестовый файл с кириллицей" in result.text
     assert result.text is not None and "Это тестовая строка" in result.text
 
 
 def test_view_range_non_utf8_file(temp_non_utf8_file):
-    """Test viewing a specific range of a non-UTF-8 encoded file."""
-    # View only lines 3-5
+    """测试查看特定范围的非 UTF-8 编码文件。"""
+    # 仅查看第 3-5 行
     result = file_editor(
         command="view",
         path=str(temp_non_utf8_file),
         view_range=[3, 5],
     )
 
-    # Parse the result
-    # Parse the result - now using direct access
+    # 解析结果解析结果 - 现在使用直接访问
+    #
 
-    # Verify the content was read correctly
+    # 验证内容读取正确
     assert result.text is not None and "Тестовый файл с кириллицей" in result.text
     assert result.text is not None and "Привет, мир!" in result.text
 
-    # Verify that line 6 is not included
+    # 验证是否不包括第 6 行
     assert result.text is not None and "Это тестовая строка" not in result.text
 
 
 def test_str_replace_non_utf8_file(temp_non_utf8_file):
-    """Test replacing text in a non-UTF-8 encoded file."""
-    # Replace text
+    """测试替换非 UTF-8 编码文件中的文本。"""
+    # 替换文本
     result = file_editor(
         command="str_replace",
         path=str(temp_non_utf8_file),
@@ -339,14 +340,14 @@ def test_str_replace_non_utf8_file(temp_non_utf8_file):
         new_str="Здравствуй, мир!",
     )
 
-    # Parse the result
-    # Parse the result - now using direct access
+    # 解析结果解析结果 - 现在使用直接访问
+    #
 
-    # Verify the replacement was successful
+    # 验证更换是否成功
     assert result.text is not None and "Здравствуй, мир!" in result.text
     assert result.text is not None and "Привет, мир!" not in result.text
 
-    # Verify the file was saved with the correct encoding
+    # 验证文件是否使用正确的编码保存
     with open(temp_non_utf8_file, "rb") as f:
         content = f.read()
 
@@ -358,8 +359,8 @@ def test_str_replace_non_utf8_file(temp_non_utf8_file):
 
 
 def test_insert_non_utf8_file(temp_non_utf8_file):
-    """Test inserting text in a non-UTF-8 encoded file."""
-    # Insert text after line 4
+    """测试在非 UTF-8 编码文件中插入文本。"""
+    # 在第 4 行后插入文本
     result = file_editor(
         command="insert",
         path=str(temp_non_utf8_file),
@@ -367,13 +368,13 @@ def test_insert_non_utf8_file(temp_non_utf8_file):
         new_str='new_var = "Новая переменная"',
     )
 
-    # Parse the result
-    # Parse the result - now using direct access
+    # 解析结果解析结果 - 现在使用直接访问
+    #
 
-    # Verify the insertion was successful
+    # 验证插入是否成功
     assert result.text is not None and "Новая переменная" in result.text
 
-    # Verify the file was saved with the correct encoding
+    # 验证文件是否使用正确的编码保存
     with open(temp_non_utf8_file, "rb") as f:
         content = f.read()
 
@@ -387,19 +388,19 @@ def test_insert_non_utf8_file(temp_non_utf8_file):
 @pytest.mark.parametrize(
     "content, read_encoding",
     [
-        # cp1251 cannot encode U+2192 -> must upgrade to UTF-8 rather than truncate.
+        # cp1251 无法编码 U+2192 -> 必须升级到 UTF-8 而不是截断。
         ("status \u2192 ok", "utf-8"),
-        # Content representable in cp1251 -> keep the original encoding.
+        # cp1251 中可表示的内容 -> 保留原始编码。
         ("Привет, мир!", "cp1251"),
     ],
 )
 def test_write_file_falls_back_to_utf8_only_when_needed(
     tmp_path, content, read_encoding
 ):
-    """Regression: writing content the file's encoding cannot represent must not
-    truncate the file; it upgrades to UTF-8. Content that the encoding can represent
-    keeps the original encoding. The encoding is forced (not sniffed) so the test is
-    deterministic across platforms."""
+    """Regression: 写入文件编码无法表示的内容不得
+    截断文件； 它升级到UTF-8。 该编码所能表示的内容保持原来的编码。 编码是强制的（不
+    是嗅探），因此跨平台的测试是确定性的。
+    """
     editor = FileEditor(workspace_root=str(tmp_path))
     path = tmp_path / "doc.txt"
     path.write_text("seed", encoding="ascii")
@@ -411,8 +412,8 @@ def test_write_file_falls_back_to_utf8_only_when_needed(
 
 
 def test_write_failure_leaves_original_file_intact(temp_non_utf8_file, monkeypatch):
-    """Regression: a failure during the write must leave the original file
-    untouched (atomic write) and not leave a stray temp file behind."""
+    """Regression: 写入期间失败必须保留原始文件
+    不受影响（原子写入）并且不会留下杂散的临时文件。"""
     before = temp_non_utf8_file.read_bytes()
 
     def boom(src, dst):
@@ -436,32 +437,32 @@ def test_write_failure_leaves_original_file_intact(temp_non_utf8_file, monkeypat
 
 
 def test_create_non_utf8_file():
-    """Test creating a new file with non-UTF-8 content."""
-    # Create a temporary path
+    """测试创建一个包含非 UTF-8 内容的新文件。"""
+    # 创建临时路径
     fd, path = tempfile.mkstemp()
     os.close(fd)
-    os.unlink(path)  # Remove the file so we can create it with the editor
+    os.unlink(path)  # 删除该文件，以便我们可以使用编辑器创建它
 
     try:
-        # Create content with Russian characters
+        # 使用俄语字符创建内容
         content = "# -*- coding: cp1251 -*-\n\n"
         content += "# Новый файл с кириллицей\n"
         content += 'greeting = "Привет из нового файла!"\n'
 
-        # Create the file
+        # 创建文件
         result = file_editor(
             command="create",
             path=path,
             file_text=content,
         )
 
-        # Parse the result
-        # Parse the result - now using direct access
+        # 解析结果解析结果 - 现在使用直接访问
+        #
 
-        # Verify the file was created successfully
+        # 验证文件创建成功
         assert result.text is not None and "File created successfully" in result.text
 
-        # Read the file with cp1251 encoding to verify content
+        # 读取cp1251编码的文件，验证内容
         encoding_manager = EncodingManager()
         encoding = encoding_manager.detect_encoding(Path(path))
 
@@ -472,7 +473,7 @@ def test_create_non_utf8_file():
         assert "Новый файл с кириллицей" in file_content
 
     finally:
-        # Clean up
+        # 清理
         try:
             os.unlink(path)
         except FileNotFoundError:
@@ -480,8 +481,8 @@ def test_create_non_utf8_file():
 
 
 def test_undo_edit_non_utf8_file(temp_non_utf8_file):
-    """Test undoing an edit in a non-UTF-8 encoded file."""
-    # First, make a change
+    """测试撤消非 UTF-8 编码文件中的编辑。"""
+    # 首先，做出改变
     file_editor(
         command="str_replace",
         path=str(temp_non_utf8_file),
@@ -489,19 +490,19 @@ def test_undo_edit_non_utf8_file(temp_non_utf8_file):
         new_str="Здравствуй, мир!",
     )
 
-    # Now undo the change
+    # 现在撤消更改
     result = file_editor(
         command="undo_edit",
         path=str(temp_non_utf8_file),
     )
 
-    # Parse the result
-    # Parse the result - now using direct access
+    # 解析结果解析结果 - 现在使用直接访问
+    #
 
-    # Verify the undo was successful
+    # 验证撤消是否成功
     assert result.text is not None and "undone successfully" in result.text
 
-    # Verify the original content was restored with the correct encoding
+    # 验证原始内容是否已使用正确的编码恢复
     with open(temp_non_utf8_file, "rb") as f:
         content = f.read()
 
@@ -514,134 +515,134 @@ def test_undo_edit_non_utf8_file(temp_non_utf8_file):
 
 
 def test_complex_workflow_non_utf8_file(temp_non_utf8_file):
-    """Test a complex workflow with multiple operations on a non-UTF-8 encoded file."""
-    # 1. View the file
+    """在非 UTF-8 编码文件上测试具有多个操作的复杂工作流程。"""
+    # 1. 查看文件
     result = file_editor(
         command="view",
         path=str(temp_non_utf8_file),
     )
-    # Parse the result - now using direct access
+    # 解析结果 - 现在使用直接访问
     assert result.text is not None and "Привет, мир!" in result.text
 
-    # 2. Replace text
+    # 2. 替换文本
     result = file_editor(
         command="str_replace",
         path=str(temp_non_utf8_file),
         old_str="Привет, мир!",
         new_str="Здравствуй, мир!",
     )
-    # Parse the result - now using direct access
+    # 解析结果 - 现在使用直接访问
     assert result.text is not None and "Здравствуй, мир!" in result.text
 
-    # 3. Insert text
+    # 3. 插入文字
     result = file_editor(
         command="insert",
         path=str(temp_non_utf8_file),
         insert_line=5,
         new_str="# Добавленная строка\nboolean_var = True",
     )
-    # Parse the result - now using direct access
+    # 解析结果 - 现在使用直接访问
     assert result.text is not None and "Добавленная строка" in result.text
 
-    # 4. View specific range
+    # 4. 查看具体范围
     result = file_editor(
         command="view",
         path=str(temp_non_utf8_file),
         view_range=[5, 7],
     )
-    # Parse the result - now using direct access
+    # 解析结果 - 现在使用直接访问
     assert result.text is not None and "Добавленная строка" in result.text
     assert result.text is not None and "boolean_var = True" in result.text
 
-    # 5. Undo the last edit
+    # 5. 撤消上次编辑
     result = file_editor(
         command="undo_edit",
         path=str(temp_non_utf8_file),
     )
-    # Parse the result - now using direct access
+    # 解析结果 - 现在使用直接访问
     assert result.text is not None and "undone successfully" in result.text
 
-    # 6. Verify the file content after all operations
+    # 6. 所有操作完成后验证文件内容
     with open(temp_non_utf8_file, "rb") as f:
         content = f.read()
 
     try:
         decoded = content.decode("cp1251")
-        assert "Здравствуй, мир!" in decoded  # From step 2
-        assert "Добавленная строка" not in decoded  # Undone in step 5
+        assert "Здравствуй, мир!" in decoded  # 从步骤 2 开始
+        assert "Добавленная строка" not in decoded  # 在步骤 5 中撤消
     except UnicodeDecodeError:
         pytest.fail("File was not maintained with the correct encoding")
 
 
 def test_mixed_encoding_workflow():
-    """Test workflow with files of different encodings."""
-    # Create two temporary files with different encodings
+    """使用不同编码的文件测试工作流程。"""
+    # 创建两个不同编码的临时文件
     fd1, path1 = tempfile.mkstemp()
     fd2, path2 = tempfile.mkstemp()
     os.close(fd1)
     os.close(fd2)
 
     try:
-        # Create a cp1251 encoded file
+        # 创建cp1251编码文件
         with open(path1, "wb") as f:
             f.write("# -*- coding: cp1251 -*-\n".encode("cp1251"))
             f.write('text_cp1251 = "Текст в кодировке CP1251"\n'.encode("cp1251"))
 
-        # Create a UTF-8 encoded file
+        # 创建UTF-8编码文件
         with open(path2, "w", encoding="utf-8") as f:
             f.write("# -*- coding: utf-8 -*-\n")
             f.write('text_utf8 = "Текст в кодировке UTF-8"\n')
 
-        # 1. View the cp1251 file
+        # 1. 查看cp1251文件
         result1 = file_editor(
             command="view",
             path=path1,
         )
-        # Parse the result - now using direct access
+        # 解析结果 - 现在使用直接访问
         assert "Текст в кодировке CP1251" in result1.text
 
-        # 2. View the UTF-8 file
+        # 2. 查看UTF-8文件
         result2 = file_editor(
             command="view",
             path=path2,
         )
-        # Parse the result - now using direct access
+        # 解析结果 - 现在使用直接访问
         assert "Текст в кодировке UTF-8" in result2.text
 
-        # 3. Edit the cp1251 file
+        # 3. 编辑cp1251文件
         result3 = file_editor(
             command="str_replace",
             path=path1,
             old_str="Текст в кодировке CP1251",
             new_str="Измененный текст в CP1251",
         )
-        # Parse the result - now using direct access
+        # 解析结果 - 现在使用直接访问
         assert "Измененный текст в CP1251" in result3.text
 
-        # 4. Edit the UTF-8 file
+        # 4. 编辑UTF-8文件
         result4 = file_editor(
             command="str_replace",
             path=path2,
             old_str="Текст в кодировке UTF-8",
             new_str="Измененный текст в UTF-8",
         )
-        # Parse the result - now using direct access
+        # 解析结果 - 现在使用直接访问
         assert "Измененный текст в UTF-8" in result4.text
 
-        # 5. Verify both files maintain their original encodings
+        # 5. 验证两个文件都保持其原始编码
         with open(path1, "rb") as f:
             content1 = f.read()
         with open(path2, "rb") as f:
             content2 = f.read()
 
-        # CP1251 file should be decodable with CP1251
+        # CP1251 文件应可使用 CP1251 进行解码
         try:
             decoded1 = content1.decode("cp1251")
             assert "Измененный текст в CP1251" in decoded1
         except UnicodeDecodeError:
             pytest.fail("CP1251 file was not saved with the correct encoding")
 
-        # UTF-8 file should be decodable with UTF-8
+        # UTF-8 文件应该可以用 UTF-8 解码
         try:
             decoded2 = content2.decode("utf-8")
             assert "Измененный текст в UTF-8" in decoded2
@@ -649,7 +650,7 @@ def test_mixed_encoding_workflow():
             pytest.fail("UTF-8 file was not saved with the correct encoding")
 
     finally:
-        # Clean up
+        # 清理
         try:
             os.unlink(path1)
             os.unlink(path2)

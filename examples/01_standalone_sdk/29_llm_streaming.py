@@ -33,16 +33,15 @@ llm = LLM(
 agent = get_default_agent(llm=llm, cli_mode=True)
 
 
-# Define streaming states
+# 定义流式传输状态
 StreamingState = Literal["thinking", "content", "tool_name", "tool_args"]
-# Track state across on_token calls for boundary detection
+# 跨 on_token 调用边界检测的跟踪状态
 _current_state: StreamingState | None = None
 
 
 def on_token(chunk: ModelResponseStream) -> None:
     """
-    Handle all types of streaming tokens including content,
-    tool calls, and thinking blocks with dynamic boundary detection.
+    通过动态边界检测处理所有类型的流式传输 token，包括内容、工具调用和思维块。
     """
     global _current_state
 
@@ -50,7 +49,7 @@ def on_token(chunk: ModelResponseStream) -> None:
     for choice in choices:
         delta = choice.delta
         if delta is not None:
-            # Handle thinking blocks (reasoning content)
+            # 处理思维障碍（推理内容）
             reasoning_content = getattr(delta, "reasoning_content", None)
             if isinstance(reasoning_content, str) and reasoning_content:
                 if _current_state != "thinking":
@@ -61,7 +60,7 @@ def on_token(chunk: ModelResponseStream) -> None:
                 sys.stdout.write(reasoning_content)
                 sys.stdout.flush()
 
-            # Handle regular content
+            # 处理常规内容
             content = getattr(delta, "content", None)
             if isinstance(content, str) and content:
                 if _current_state != "content":
@@ -72,7 +71,7 @@ def on_token(chunk: ModelResponseStream) -> None:
                 sys.stdout.write(content)
                 sys.stdout.flush()
 
-            # Handle tool calls
+            # 手柄工具调用
             tool_calls = getattr(delta, "tool_calls", None)
             if tool_calls:
                 for tool_call in tool_calls:
@@ -126,6 +125,6 @@ print("Token Streaming:")
 print("-" * 100 + "\n")
 conversation.run()
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

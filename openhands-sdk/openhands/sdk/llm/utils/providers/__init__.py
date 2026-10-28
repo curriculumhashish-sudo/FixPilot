@@ -1,1 +1,1 @@
-"""Provider adapters for runtime metadata resolution."""
+"""用于运行时元数据解析的提供程序适配器。"""

@@ -33,10 +33,10 @@ from openhands.sdk.event.llm_convertible import AgentErrorEvent
             "internal",
         ),
         ("UnexpectedProviderError", "", "unknown"),
-        # Run-limit is a known product outcome, not a diagnostic.
+        # 运行限制是已知的产品结果，而不是诊断。
         ("MaxIterationsReached", "Agent reached maximum iterations", "agent_action"),
         ("ConversationOwnershipLostError", "", "agent_action"),
-        # Context-window errors are recoverable via condensation.
+        # 上下文-窗口错误可通过上下文压缩恢复。
         ("LLMContextWindowExceedError", "", "agent_action"),
         ("LLMMalformedConversationHistoryError", "", "agent_action"),
     ],
@@ -55,16 +55,16 @@ def test_conversation_error_classifies_sensitive_detail_without_serializing_it(
 @pytest.mark.parametrize(
     ("code", "detail", "expected_kind"),
     [
-        # Code-based classification must win over incidental detail wording.
+        # 基于代码的分类必须胜过附带的细节措辞。
         ("KeyError", "'timeout_seconds'", "internal"),
         ("AssertionError", "Tool result not found for call id abc123", "internal"),
         ("TypeError", "connection error during call", "internal"),
         ("AttributeError", "model not found in registry", "internal"),
-        # Bare "429" inside a request id must NOT be classified as rate_limit.
+        # 请求 ID 中的裸露“429”必须不分类为 rate_limit。
         ("HTTPStatusError", "Connection reset for request req_814295af", "transient"),
-        # "not found" inside a transient message must not be CONFIG when the
-        # code is a known transient wrapper — but for an unknown code, the
-        # detail-based "model not found" is CONFIG.
+        # 在转瞬即逝的消息中，如果代码是已知的转瞬即逝包装器，则“未找到”不能 CONFIG，但
+        # 对于未知代码，“模型未找到”是 CONFIG。
+        #
         ("UnexpectedError", "model not found", "config"),
     ],
 )
@@ -75,7 +75,7 @@ def test_code_based_classification_takes_priority_over_detail(
 
 
 def test_agent_error_event_defaults_to_unknown() -> None:
-    """Without an explicit classification, AgentErrorEvent is UNKNOWN (diagnostic)."""
+    """如果没有明确的分类，AgentErrorEvent 就是 UNKNOWN（诊断）。"""
     event = AgentErrorEvent(
         error="something went wrong",
         tool_name="bash",
@@ -87,7 +87,7 @@ def test_agent_error_event_defaults_to_unknown() -> None:
 
 
 def test_agent_error_event_preserves_explicit_classification() -> None:
-    """An explicitly-provided classification is not overwritten by the validator."""
+    """显式提供的分类不会被验证器覆盖。"""
     explicit = ErrorClassification(
         kind=FailureKind.AGENT_ACTION, retryable=True, user_action="retry"
     )

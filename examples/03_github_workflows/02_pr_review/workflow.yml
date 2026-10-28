@@ -1,21 +1,21 @@
 ---
-# OpenHands PR Review Workflow
+# OpenHands PR 审核工作流程
 #
-# To set this up:
-#  1. Copy this file to .github/workflows/pr-review.yml in your repository
-#  2. Add LLM_API_KEY to repository secrets
-#  3. Customize the inputs below as needed
-#  4. Commit this file to your repository
-#  5. Trigger the review by either:
-#     - Adding the "review-this" label to any PR, OR
-#     - Requesting openhands-agent as a reviewer
+# 要进行此设置：
+#  1. 将此文件复制到存储库中的 .github/workflows/pr-review.yml
+#  2. 将 LLM_API_KEY 添加到存储库机密
+#  3. 根据需要自定义以下输入
+#  4. 将此文件提交到您的存储库
+#  5. 通过以下任一方式触发审核：
+#     - 将“review-this”标签添加到任何 PR，或者
+#     - 请求OpenHands-智能体作为审稿人
 #
-# For more information, see:
+# 有关更多信息，请参阅：
 # https://github.com/OpenHands/software-agent-sdk/tree/main/examples/03_github_workflows/02_pr_review
 name: PR Review by OpenHands
 
 on:
-    # Trigger when a label is added or a reviewer is requested
+    # 添加标签或请求审阅者时触发
     pull_request:
         types: [labeled, review_requested]
 
@@ -26,7 +26,7 @@ permissions:
 
 jobs:
     pr-review:
-        # Run when review-this label is added OR openhands-agent is requested as reviewer
+        # 添加审阅此标签或请求 OpenHands-智能体作为审阅者时运行
         if: |
             github.event.label.name == 'review-this' ||
             github.event.requested_reviewer.login == 'openhands-agent'
@@ -40,5 +40,5 @@ jobs:
                   review-style: roasted
                   llm-api-key: ${{ secrets.LLM_API_KEY }}
                   github-token: ${{ secrets.GITHUB_TOKEN }}
-                  # Optional: Laminar API key for observability
+                  # 可选：层流 API 键可观察
                   lmnr-api-key: ${{ secrets.LMNR_PROJECT_API_KEY }}

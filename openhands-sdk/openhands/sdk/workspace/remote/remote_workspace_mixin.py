@@ -34,8 +34,8 @@ def _join_remote_path(base: str | Path, path: str | Path) -> str:
 
 
 class RemoteWorkspaceMixin(BaseModel):
-    """Mixin providing remote workspace operations.
-    This allows the same code to be used for sync and async."""
+    """Mixin 提供远程工作区操作。
+    这允许将相同的代码用于同步和异步。"""
 
     host: str = Field(description="The remote host URL for the workspace.")
     api_key: str | None = Field(
@@ -62,13 +62,13 @@ class RemoteWorkspaceMixin(BaseModel):
 
     @property
     def api_prefix(self) -> str:
-        """The immutable runtime scope used by file, command, and Git operations."""
+        """文件、命令和 Git 操作使用的不可变运行时范围。"""
         if self.runtime_conversation_id is None:
             return "/api"
         return f"/api/conversations/{self.runtime_conversation_id}"
 
     def model_post_init(self, context: Any) -> None:
-        # Set up remote host
+        # 设置远程主机
         self.host = self.host.rstrip("/")
         return super().model_post_init(context)
 
@@ -179,18 +179,17 @@ class RemoteWorkspaceMixin(BaseModel):
         cwd: str | Path | None,
         timeout: float,
     ) -> Generator[dict[str, Any], httpx.Response, CommandResult]:
-        """Execute a bash command on the remote system.
+        """在远程系统上执行 bash 命令。
 
-        This method starts a bash command via the remote agent server API,
-        then polls for the output until the command completes.
+        此方法通过远程 Agent Server API 启动 bash 命令，然后轮询输出，直到命令完成。
 
         Args:
-            command: The bash command to execute
-            cwd: Working directory (optional)
-            timeout: Timeout in seconds
+            command: 要执行的 bash 命令
+            cwd: 工作目录（可选）
+            timeout: 超时以秒为单位
 
         Returns:
-            CommandResult: Result with stdout, stderr, exit_code, and other metadata
+            CommandResult: 包含 stdout、stderr、exit_code 和其他元数据的结果
         """
         _logger.debug("Executing remote command")
 
@@ -199,13 +198,13 @@ class RemoteWorkspaceMixin(BaseModel):
 
             _logger.debug(f"Started command with ID: {command_id}")
 
-            # Step 2: Poll for output until command completes
+            # 第 2 步：轮询输出，直到命令完成
             start_time = time.time()
             stdout_parts = []
             stderr_parts = []
             exit_code = None
-            last_order = -1  # Track highest order seen to fetch only new events
-            seen_event_ids: set[str] = set()  # Track seen IDs to detect duplicates
+            last_order = -1  # 跟踪所见的最高顺序以仅获取新事件
+            seen_event_ids: set[str] = set()  # 跟踪看到的 ID 以检测重复项
 
             while time.time() - start_time < timeout:
                 search_result = yield from self._search_command_output_generator(
@@ -214,11 +213,12 @@ class RemoteWorkspaceMixin(BaseModel):
                     timeout=timeout,
                 )
 
-                # Process BashOutput events
+                # 处理 BashOutput 个事件
                 for event in search_result.get("items", []):
                     if event.get("kind") == "BashOutput":
-                        # Check for duplicates - safety check in case caller
-                        # forgets to add kind__eq filter or API has a bug
+                        # 检查重复项 - 安全检查，以防调用者忘记添加 kind__eq 过滤器或
+                        # API 有错误
+                        #
                         event_id = event.get("id")
                         if event_id is not None:
                             if event_id in seen_event_ids:
@@ -229,7 +229,7 @@ class RemoteWorkspaceMixin(BaseModel):
                                 )
                             seen_event_ids.add(event_id)
 
-                        # Track the highest order we've seen
+                        # 追踪我们见过的最高订单
                         event_order = event.get("order")
                         if event_order is not None and event_order > last_order:
                             last_order = event_order
@@ -241,14 +241,14 @@ class RemoteWorkspaceMixin(BaseModel):
                         if event.get("exit_code") is not None:
                             exit_code = event["exit_code"]
 
-                # If we have an exit code, the command is complete
+                # 如果我们有退出代码，则命令完成
                 if exit_code is not None:
                     break
 
-                # Wait a bit before polling again
+                # 请稍等一下，然后再次轮询
                 time.sleep(0.1)
 
-            # If we timed out waiting for completion
+            # 如果我们等待完成超时
             if exit_code is None:
                 _logger.warning(
                     "Command timed out after %s seconds (command_id=%s)",
@@ -258,7 +258,7 @@ class RemoteWorkspaceMixin(BaseModel):
                 exit_code = -1
                 stderr_parts.append(f"Command timed out after {timeout} seconds")
 
-            # Combine all output parts
+            # 合并所有输出部分
             stdout = "".join(stdout_parts)
             stderr = "".join(stderr_parts)
 
@@ -288,16 +288,16 @@ class RemoteWorkspaceMixin(BaseModel):
         source_path: str | Path | bytes,
         destination_path: str | Path,
     ) -> Generator[dict[str, Any], httpx.Response, FileOperationResult]:
-        """Upload a file to the remote system.
+        """将文件上传到远程系统。
 
-        Reads the local file and sends it to the remote system via HTTP API.
+        读取本地文件并通过HTTPAPI发送到远程系统。
 
         Args:
-            source_path: Path to the local source file
-            destination_path: Path where the file should be uploaded on remote system
+            source_path: 本地源文件的路径
+            destination_path: 文件应上传到远程系统的路径
 
         Returns:
-            FileOperationResult: Result with success status and metadata
+            FileOperationResult: 包含成功状态和元数据的结果
         """
         source = Path("upload") if isinstance(source_path, bytes) else Path(source_path)
         destination = Path(destination_path)
@@ -306,17 +306,17 @@ class RemoteWorkspaceMixin(BaseModel):
         _logger.debug(f"Remote file upload: {source} -> {destination}")
 
         try:
-            # Read the file content
+            # 读取文件内容
             if isinstance(source_path, bytes):
                 file_content = source_path
             else:
                 with open(source, "rb") as f:
                     file_content = f.read()
 
-            # Prepare the upload
+            # 准备上传
             files = {"file": (source.name, file_content)}
 
-            # Make HTTP call using query parameter for path
+            # 使用路径的查询参数进行 HTTP 调用
             response: httpx.Response = yield {
                 "method": "POST",
                 "url": f"{self.host}{self.api_prefix}/file/upload",
@@ -328,7 +328,7 @@ class RemoteWorkspaceMixin(BaseModel):
             response.raise_for_status()
             result_data = response.json()
 
-            # Convert the API response to our model
+            # 将 API 响应转换为我们的模型
             return FileOperationResult(
                 success=result_data.get("success", True),
                 source_path=str(source),
@@ -351,16 +351,16 @@ class RemoteWorkspaceMixin(BaseModel):
         source_path: str | Path,
         destination_path: str | Path,
     ) -> Generator[dict[str, Any], httpx.Response, FileOperationResult]:
-        """Download a file from the remote system.
+        """从远程系统下载文件。
 
-        Requests the file from the remote system via HTTP API and saves it locally.
+        通过HTTPAPI从远程系统请求文件并将其保存在本地。
 
         Args:
-            source_path: Path to the source file on remote system
-            destination_path: Path where the file should be saved locally
+            source_path: 远程系统上源文件的路径
+            destination_path: 文件应保存在本地的路径
 
         Returns:
-            FileOperationResult: Result with success status and metadata
+            FileOperationResult: 包含成功状态和元数据的结果
         """
         source = Path(source_path)
         destination = Path(destination_path)
@@ -369,7 +369,7 @@ class RemoteWorkspaceMixin(BaseModel):
         _logger.debug(f"Remote file download: {source} -> {destination}")
 
         try:
-            # Make HTTP call using query parameter for path
+            # 使用路径的查询参数进行 HTTP 调用
             response = yield {
                 "method": "GET",
                 "url": f"{self.api_prefix}/file/download",
@@ -379,10 +379,10 @@ class RemoteWorkspaceMixin(BaseModel):
             }
             response.raise_for_status()
 
-            # Ensure destination directory exists
+            # 确保目标目录存在
             destination.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write the file content
+            # 写入文件内容
             with open(destination, "wb") as f:
                 f.write(response.content)
 
@@ -406,16 +406,16 @@ class RemoteWorkspaceMixin(BaseModel):
         self,
         path: str | Path,
     ) -> Generator[dict[str, Any], httpx.Response, list[GitChange]]:
-        """Get the git changes for the repository at the path given.
+        """在给定的路径中获取存储库的 git 更改。
 
         Args:
-            path: Path to the git repository
+            path: git 存储库的路径
 
         Returns:
-            list[GitChange]: List of changes
+            list[GitChange]：更改列表
 
         Raises:
-            Exception: If path is not a git repository or getting changes failed
+            Exception: 如果路径不是 git 存储库或获取更改失败
         """
         remote_path = _join_remote_path(self.working_dir, path)
         response = yield {
@@ -434,16 +434,16 @@ class RemoteWorkspaceMixin(BaseModel):
         self,
         path: str | Path,
     ) -> Generator[dict[str, Any], httpx.Response, GitDiff]:
-        """Get the git diff for the file at the path given.
+        """获取给定路径中文件的 git diff。
 
         Args:
-            path: Path to the file
+            path: 文件路径
 
         Returns:
-            GitDiff: Git diff
+            GitDiff: git diff
 
         Raises:
-            Exception: If path is not a git repository or getting diff failed
+            Exception: 如果路径不是 git 存储库或获取 diff 失败
         """
         remote_path = _join_remote_path(self.working_dir, path)
         response = yield {

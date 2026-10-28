@@ -1,4 +1,4 @@
-"""Tests for mcp_router.py endpoints."""
+"""测试 mcp_router.py 端点。"""
 
 from __future__ import annotations
 
@@ -29,11 +29,11 @@ from openhands.agent_server.mcp_router import (
 from openhands.agent_server.persistence import reset_stores
 from openhands.sdk.mcp.config import MCPServer, to_fastmcp_mcp_config
 
-# Reuse the real FastMCP-based test-server helper from the SDK tests; spinning
-# up a real subprocess MCP server inside a unit test is unreliable across CI
-# images (depends on npx, network, etc.), but an in-process FastMCP HTTP server
-# is perfectly portable and exercises the same connect/list-tools code path
-# the endpoint relies on.
+# 重用真实 FastMCP- 基于的测试服务器辅助工具 SDK tests 启动一个真实的过程子进程  MCP 在
+# 服务器内部的单元测试不可靠的 CI images (depends on npx, network, etc.), but an in-
+# process FastMCP  HTTP 服务器是完全可移植的，并且执行了与 connect/list-tools 代码路径相
+# 同的代码端点依赖于。
+#
 from tests.sdk.mcp.test_create_mcp_tool import (  # noqa: E402
     MCPTestServer,
     _find_free_port,
@@ -43,7 +43,7 @@ from tests.sdk.mcp.test_create_mcp_tool import (  # noqa: E402
 @pytest.fixture
 def client() -> Generator[TestClient]:
     reset_stores()
-    config = Config(session_api_keys=[])  # Disable authentication.
+    config = Config(session_api_keys=[])  # 禁用身份验证。
     with TestClient(create_app(config), raise_server_exceptions=False) as test_client:
         yield test_client
     reset_stores()
@@ -55,12 +55,12 @@ def http_mcp_server():
 
     @server.add_tool
     def echo(message: str) -> str:
-        """Echo a message back."""
+        """回显一条消息。"""
         return message
 
     @server.add_tool
     def add(a: int, b: int) -> int:
-        """Add two integers."""
+        """将两个整数相加。"""
         return a + b
 
     server.start(transport="http")
@@ -70,23 +70,23 @@ def http_mcp_server():
 
 @pytest.fixture
 def slack_like_mcp_server():
-    """Server mimicking the Slack MCP server's error reporting.
+    """服务器模仿 Slack MCP 服务器的错误报告。
 
-    Upstream API failures come back as ordinary text content
-    (``{"ok": false, "error": ...}``) with the MCP ``isError`` flag unset --
-    the exact behavior that makes a tools/list-only probe a false positive
+    上游 API 失败以普通文本内容 (``{"ok": false, "error": ...}``) 呈现，没有 MCP
+    ``isError`` 标志，这正是工具/
+    只列出的探针 False 正确的行为
     for invalid credentials.
     """
     server = MCPTestServer("slack-like")
 
     @server.add_tool
     def slack_list_channels(limit: int = 100) -> str:
-        """Return a Slack-style auth failure payload as plain content."""
+        """以纯内容形式返回 Slack 风格的身份验证失败载荷。"""
         return json.dumps({"ok": False, "error": "invalid_auth"})
 
     @server.add_tool
     def boom() -> str:
-        """Always raise so the call result carries isError=True."""
+        """始终加注，以便调用结果带有 isError=True。"""
         raise RuntimeError("upstream exploded")
 
     server.start(transport="http")
@@ -95,12 +95,12 @@ def slack_like_mcp_server():
 
 
 # ---------------------------------------------------------------------------
-# Happy path
+# 幸福之路
 # ---------------------------------------------------------------------------
 
 
 def test_mcp_test_remote_success(client: TestClient, http_mcp_server: MCPTestServer):
-    """A reachable HTTP MCP server should report ok=True with the tool names."""
+    """可访问的 HTTP MCP 服务器应报告 ok=True 以及工具名称。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -117,7 +117,7 @@ def test_mcp_test_remote_success(client: TestClient, http_mcp_server: MCPTestSer
     body = response.json()
     assert body["ok"] is True
     assert set(body["tools"]) == {"echo", "add"}
-    # No tool_call requested -> no tool_result (back-compat with old clients).
+    # 没有请求 tool_call -> 没有 tool_result（与旧客户端向后兼容）。
     assert body.get("tool_result") is None
 
 
@@ -140,10 +140,10 @@ def test_mcp_test_http_transport_is_accepted(
 
 
 def test_mcp_test_stdio_success(client: TestClient):
-    """A working stdio MCP server (FastMCP run via current python) should connect.
+    """工作的 stdio MCP 服务器（FastMCP 通过当前 Python 运行）应该连接。
 
-    We run a tiny FastMCP script via the current Python interpreter so the
-    test stays hermetic (no npx, no network).
+    我们通过当前的 Python 解释器运行一个微小的 FastMCP 脚本，以便测试保持密封（没有
+    npx，没有网络）。
     """
     script = (
         "from fastmcp import FastMCP\n"
@@ -174,18 +174,17 @@ def test_mcp_test_stdio_success(client: TestClient):
 
 
 # ---------------------------------------------------------------------------
-# Tool-call probe (credential verification)
+# 工具调用探测（凭据验证）
 # ---------------------------------------------------------------------------
 
 
 def test_mcp_test_tool_call_reports_in_band_failure_payload(
     client: TestClient, slack_like_mcp_server: MCPTestServer
 ):
-    """The requested tool runs and its payload is reported verbatim.
+    """所请求的工具运行并逐字报告其载荷。
 
-    Slack-style servers return upstream auth errors as ordinary content
-    with isError unset; the endpoint must surface that payload (ok stays
-    True -- interpreting it is the caller's job).
+    Slack 风格的服务器将上游身份验证错误作为普通内容返回，且 isError 未设置； 端点必
+    须显示载荷（好的仍然是 True——解释它是调用者的工作）。
     """
     response = client.post(
         "/api/mcp/test",
@@ -209,7 +208,7 @@ def test_mcp_test_tool_call_reports_in_band_failure_payload(
 def test_mcp_test_tool_call_handler_error_sets_is_error(
     client: TestClient, slack_like_mcp_server: MCPTestServer
 ):
-    """A tool handler that raises is reported via the isError flag."""
+    """引发的工具处理程序通过 isError 标志报告。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -231,8 +230,8 @@ def test_mcp_test_tool_call_handler_error_sets_is_error(
 def test_mcp_test_tool_call_unknown_tool_reported_without_invocation(
     client: TestClient, http_mcp_server: MCPTestServer
 ):
-    """Requesting a tool the server doesn't advertise yields an errored
-    tool_result naming the problem instead of a blind invocation."""
+    """请求服务器未公布的工具会产生错误
+    tool_result 命名问题而不是盲目调用。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -253,11 +252,10 @@ def test_mcp_test_tool_call_unknown_tool_reported_without_invocation(
 
 
 def test_mcp_test_decrypts_encrypted_env_values_before_spawn():
-    """Fernet-encrypted env values round-tripped from settings are decrypted
-    before the server process is spawned; plaintext values pass through.
+    """从设置中往返的 Fernet 加密环境值被解密
+    在服务器进程生成之前； 明文值通过。
 
-    This is what lets the edit flow test the *stored* credentials even
-    though the GUI only ever sees redacted placeholders.
+    这就是让编辑流程测试 * 存储的 * 凭据的原因，即使 GUI 只看到已脱敏占位符。
     """
     config = Config(session_api_keys=[], secret_key=SecretStr("test-secret-key"))
     cipher = config.cipher
@@ -366,12 +364,12 @@ def test_mcp_test_decrypts_encrypted_remote_auth_before_connect(
 
 
 # ---------------------------------------------------------------------------
-# Failure paths -- all should return HTTP 200 with ok=False
+# 失败路径——全部应该返回 HTTP 200 且 ok=False
 # ---------------------------------------------------------------------------
 
 
 def test_mcp_test_stdio_failure_returns_structured_error(client: TestClient):
-    """A bad stdio command should return ok=False with a useful error."""
+    """错误的 stdio 命令应该返回 ok=False 并带有有用的错误。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -393,7 +391,7 @@ def test_mcp_test_stdio_failure_returns_structured_error(client: TestClient):
 
 
 def test_mcp_test_remote_unreachable(client: TestClient):
-    """Connecting to a port nothing is listening on should fail cleanly."""
+    """连接到没有任何监听的端口应该会彻底失败。"""
     free_port = _find_free_port()
     response = client.post(
         "/api/mcp/test",
@@ -413,7 +411,7 @@ def test_mcp_test_remote_unreachable(client: TestClient):
 
 
 # ---------------------------------------------------------------------------
-# Validation
+# 验证
 # ---------------------------------------------------------------------------
 
 
@@ -434,7 +432,7 @@ def test_mcp_test_rejects_unknown_transport(client: TestClient):
 
 
 def test_mcp_test_clamps_timeout_range(client: TestClient):
-    """Timeout must be > 0 and <= 120; 0 should be rejected at the schema layer."""
+    """超时必须 > 0 且 <= 120； 0 应在模式层被拒绝。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -448,7 +446,7 @@ def test_mcp_test_clamps_timeout_range(client: TestClient):
 def test_mcp_test_bearer_token_in_auth_field(
     client: TestClient, http_mcp_server: MCPTestServer
 ):
-    """Providing bearer-token auth should not break the connect."""
+    """提供 bearer-token auth 不应中断连接。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -461,27 +459,26 @@ def test_mcp_test_bearer_token_in_auth_field(
         },
     )
 
-    # FastMCP's HTTP server doesn't enforce auth in this fixture, so the
-    # request should still succeed; this guards against the auth-field wiring
-    # itself blowing up (e.g. malformed headers crashing the transport).
+    # FastMCP 的 HTTP 服务器在此测试夹具中不强制执行身份验证，因此请求仍应成功； 这可以
+    # 防止认证现场接线本身爆炸（e.g. 格式错误的标头会导致传输层崩溃）。
+    #
     assert response.status_code == 200, response.text
     assert response.json()["ok"] is True
 
 
 # ---------------------------------------------------------------------------
-# OAuth auth field
+# OAuth 验证字段
 # ---------------------------------------------------------------------------
 
 
 def test_mcp_test_accepts_oauth_auth_credential(
     client: TestClient, http_mcp_server: MCPTestServer
 ):
-    """The OAuth auth credential should be accepted and forwarded to fastmcp.
+    """应接受 OAuth 身份验证凭据并将其转发到 FastMCP。
 
-    We can't complete a real OAuth handshake in a unit test, but we can verify
-    the field is accepted at the schema layer and doesn't crash the request
-    handler.  The local FastMCP test server doesn't require OAuth, so fastmcp
-    will simply ignore the ``auth`` value and connect normally.
+    我们无法在单元测试中完成真正的 OAuth 握手，但我们可以验证该字段在模式层被接受并且
+    不会使请求处理程序崩溃。 本地 FastMCP 测试服务器不需要 OAuth
+    ，因此 FastMCP 将简单地忽略 ``auth`` 值并正常连接。
     """
     response = client.post(
         "/api/mcp/test",
@@ -495,10 +492,9 @@ def test_mcp_test_accepts_oauth_auth_credential(
         },
     )
 
-    # The server doesn't enforce OAuth, so the connection should succeed.
-    # (If fastmcp attempted a real OAuth flow it would fail because there's
-    # no OAuth metadata on the test server — but fastmcp only starts the
-    # flow when the server returns 401/403, which our test server won't.)
+    # 服务器不执行OAuth，所以连接应该成功。FastMCP 如果尝试了真实的OAuth流程，它会失败，
+    # 因为测试服务器上没有OAuth元数据——但FastMCP 只在服务器返回401/403时启动流程。
+    #
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["ok"] is True
@@ -506,7 +502,7 @@ def test_mcp_test_accepts_oauth_auth_credential(
 
 
 def test_mcp_test_rejects_auth_with_auth_header(client: TestClient):
-    """The FastMCP auth field is mutually exclusive with Authorization headers."""
+    """FastMCP auth 字段与授权标头互斥。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -523,7 +519,7 @@ def test_mcp_test_rejects_auth_with_auth_header(client: TestClient):
 
 
 def test_mcp_test_rejects_oauth_auth_with_auth_header(client: TestClient):
-    """OAuth auth is mutually exclusive with a top-level Authorization header."""
+    """OAuth 身份验证与顶级授权标头互斥。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -542,7 +538,7 @@ def test_mcp_test_rejects_oauth_auth_with_auth_header(client: TestClient):
 def test_mcp_test_accepts_explicit_oauth_authentication(
     client: TestClient, http_mcp_server: MCPTestServer
 ):
-    """Structured OAuth metadata should round-trip through the test endpoint."""
+    """结构化 OAuth 元数据应通过测试进行往返端点。"""
     response = client.post(
         "/api/mcp/test",
         json={
@@ -773,8 +769,8 @@ def test_mcp_oauth_start_returns_authorization_url_and_final_state(
 def test_mcp_oauth_start_succeeds_without_consent_when_stored_tokens_work(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    # Arrange: the probe connects with the stored tokens; FastMCP never
-    # publishes an authorization URL.
+    # 排列：探头与存储的token连接； FastMCP 从来没有
+    # 发布授权 URL。
     config = Config(session_api_keys=[], secret_key=SecretStr("test-secret-key"))
     client = TestClient(create_app(config), raise_server_exceptions=False)
 
@@ -793,7 +789,7 @@ def test_mcp_oauth_start_succeeds_without_consent_when_stored_tokens_work(
         lambda *args, **kwargs: FakeClient(),
     )
 
-    # Act
+    # 法案
     started = time.monotonic()
     response = client.post(
         "/api/mcp/oauth/start",
@@ -811,8 +807,8 @@ def test_mcp_oauth_start_succeeds_without_consent_when_stored_tokens_work(
     )
     elapsed = time.monotonic() - started
 
-    # Assert: success with only the job id, without waiting for the consent
-    # timeout; the outcome is on the status route.
+    # 断言：仅使用作业 ID 即可成功，无需等待同意
+    # 超时; 结果在状态路径上。
     assert response.status_code == 200, response.text
     job_id = response.json()["job_id"]
     assert response.json() == {"ok": True, "job_id": job_id}
@@ -825,7 +821,7 @@ def test_mcp_oauth_start_succeeds_without_consent_when_stored_tokens_work(
 def test_browser_coordinated_oauth_callback_handler_delegates_to_fastmcp(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Return FastMCP's result untouched; re-wrapping it broke mcp 2.x."""
+    """原样返回FastMCP的结果； 重新包装它打破了 MCP 2.x。"""
     job = _MCPOAuthProbeJob(
         request=MCPTestRequest.model_validate(
             {"server": {"transport": "http", "url": "https://mcp.example.com/mcp"}}
@@ -842,8 +838,8 @@ def test_browser_coordinated_oauth_callback_handler_delegates_to_fastmcp(
     seen: list[bool] = []
 
     async def fake_base_callback_handler(self):
-        # The URL must be published before the base blocks on the callback,
-        # otherwise the frontend never learns where to send the browser.
+        # URL 必须在回调上的基本块之前发布，否则前端永远不会知道将浏览器发送到哪里。
+        #
         seen.append(job.callback_ready.is_set())
         return sentinel
 
@@ -870,7 +866,7 @@ def test_mcp_oauth_callback_rejects_unknown_job(client: TestClient):
 
 @pytest.fixture
 def closed_callback_job() -> Generator[_MCPOAuthProbeJob]:
-    """A registered job whose local callback server is no longer listening."""
+    """其本地回调服务器不再侦听的已注册作业。"""
     job = _MCPOAuthProbeJob(
         request=MCPTestRequest.model_validate(
             {"server": {"transport": "http", "url": "https://mcp.example.com/mcp"}}
@@ -957,7 +953,7 @@ def test_register_oauth_job_sweeps_expired_jobs():
 
 
 def test_mcp_test_rejects_legacy_top_level_oauth_authentication(client: TestClient):
-    """OAuth metadata now belongs inside the OAuth auth credential."""
+    """OAuth 元数据现在属于 OAuth 身份验证凭据内部。"""
     response = client.post(
         "/api/mcp/test",
         json={

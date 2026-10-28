@@ -1,5 +1,5 @@
 """
-Base classes for agent-sdk integration tests.
+智能体-SDK 集成测试的基类。
 """
 
 import os
@@ -28,21 +28,21 @@ from openhands.sdk.tool import Tool
 from tests.integration.early_stopper import EarlyStopperBase, EarlyStopResult
 
 
-# Tool preset type for selecting which file editing toolset to use
+# 用于选择要使用的文件编辑工具集的工具预设类型
 ToolPresetType = Literal["default", "gemini", "gpt5", "planning"]
 
 
 def get_tools_for_preset(
     preset: ToolPresetType, enable_browser: bool = False
 ) -> list[Tool]:
-    """Get the list of tools for the given preset.
+    """获取给定预设的工具列表。
 
     Args:
-        preset: The tool preset to use (default, gemini, gpt5, or planning).
-        enable_browser: Whether to include browser tools.
+        preset: 预设要使用的工具（默认、gemini、gpt5 或 Planning）。
+        enable_browser: 是否包含浏览器工具。
 
     Returns:
-        List of Tool instances for the given preset.
+        给定预设的工具实例列表。
     """
     match preset:
         case "gemini":
@@ -56,7 +56,7 @@ def get_tools_for_preset(
         case "planning":
             from openhands.tools.preset.planning import get_planning_tools
 
-            # Planning preset is read-only and doesn't support browser tools
+            # 规划预设为只读，不支持浏览器工具
             return get_planning_tools()
         case "default":
             from openhands.tools.preset.default import get_default_tools
@@ -68,17 +68,17 @@ def get_tools_for_preset(
 
 class SkipTest(Exception):
     """
-    Exception raised to indicate that a test should be skipped.
+    引发异常表明应跳过测试。
 
-    This is useful for tests that require specific capabilities (e.g., vision)
-    that may not be available in all LLMs.
+    这对于需要特定能力（如 e.g 和 LLMs 的视觉能力）的测试来说很有用，这些能力在所有情
+    况下可能都不可用。
     """
 
     pass
 
 
 class TestResult(BaseModel):
-    """Result of an integration test."""
+    """集成测试的结果。"""
 
     success: bool
     reason: str | None = None
@@ -87,17 +87,15 @@ class TestResult(BaseModel):
 
 class BaseIntegrationTest(ABC):
     """
-    Base class for agent-sdk integration tests.
+    智能体-SDK 集成测试的基类。
 
-    This class provides a structured approach to writing integration tests
-    that use real LLM calls. It handles common setup like LLM configuration,
-    temporary directory management, and agent creation.
+    此类提供了一种结构化方法来编写使用实际 LLM 调用的集成测试。 它处理常见的设置，如
+    LLM 配置、临时目录管理和智能体创建。
 
-    Unlike the OpenHands approach which uses a Runtime, this uses tools
-    directly with temporary directories for isolation.
+    与使用运行时的 OpenHands 方法不同，该方法直接使用带有临时目录的工具来进行隔离。
 
-    Tool presets are passed via the tool_preset constructor parameter to select
-    which file editing toolset to use (default, gemini, gpt5, or planning).
+    工具预设通过 tool_preset 构造函数参数传递，以选择要使用的文件编辑工具集（默认、
+    gemini、gpt5 或 Planning）。
     """
 
     INSTRUCTION: str
@@ -126,9 +124,9 @@ class BaseIntegrationTest(ABC):
                 "LLM_BASE_URL environment variable not set. Skipping real LLM test."
             )
 
-        # Create LLM with all config parameters
+        # 使用所有配置参数创建 LLM
         llm_kwargs = {
-            **self.llm_config,  # Pass through all config parameters
+            **self.llm_config,  # 传递所有配置参数
             "base_url": base_url,
             "api_key": SecretStr(api_key),
         }
@@ -140,13 +138,13 @@ class BaseIntegrationTest(ABC):
         self.collected_events: list[Event] = []
         self.llm_messages: list[dict[str, Any]] = []
 
-        # Create log file path for this test instance
+        # 为此测试实例创建日志文件路径
         self.log_file_path: str = os.path.join(
             self.workspace, f"{self.instance_id}_agent_logs.txt"
         )
 
-        # Early stopping support - must be initialized BEFORE LocalConversation
-        # since the callback may access these attributes
+        # 提前停止支持 - 必须初始化之前 LocalConversation，因为回调可以访问这些属性
+        #
         self.early_stopper: EarlyStopperBase | None = None
         self.early_stop_result: EarlyStopResult | None = None
 
@@ -154,47 +152,47 @@ class BaseIntegrationTest(ABC):
             agent=self.agent,
             workspace=self.workspace,
             callbacks=[self.conversation_callback],
-            visualizer=DefaultConversationVisualizer(),  # Use default visualizer
+            visualizer=DefaultConversationVisualizer(),  # 使用默认可视化工具
             max_iteration_per_run=self.max_iteration_per_run,
         )
 
     def conversation_callback(self, event: Event):
-        """Callback to collect conversation events."""
+        """回调收集对话事件。"""
         self.collected_events.append(event)
         if isinstance(event, MessageEvent):
             self.llm_messages.append(event.llm_message.model_dump())
 
-        # Check early stopping condition
+        # 检查提前停止条件
         if self.early_stopper and not self.early_stop_result:
             result = self.early_stopper.check(self.collected_events)
             if result.should_stop:
                 self.early_stop_result = result
-                self.conversation.pause()  # Trigger graceful stop
+                self.conversation.pause()  # 触发优雅停止
 
     def run_integration_test(self) -> TestResult:
         """
-        Run user instruction through the agent and verify results.
+        通过智能体运行用户指令并验证结果。
 
         Returns:
-            TestResult: The result of the test
+            TestResult: 测试结果
         """
         try:
-            # Setup
+            # 设置
             self.setup()
 
-            # Initialize log file with header
+            # 使用标头初始化日志文件
             with open(self.log_file_path, "w") as f:
                 f.write(f"Agent Logs for Test: {self.instance_id}\n")
                 f.write("=" * 50 + "\n\n")
 
-            # Capture stdout and stderr during conversation
+            # 在对话期间捕获 stdout 和 stderr
             stdout_buffer = StringIO()
             stderr_buffer = StringIO()
 
             with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
                 self.run_instructions(self.conversation)
 
-            # Save captured output to log file
+            # 将捕获的输出保存到日志文件
             captured_output = stdout_buffer.getvalue()
             captured_errors = stderr_buffer.getvalue()
 
@@ -208,26 +206,26 @@ class BaseIntegrationTest(ABC):
                     f.write(captured_errors)
                     f.write("\n")
 
-            # Also print to console for debugging
+            # 还打印到控制台进行调试
             if captured_output:
                 print(captured_output, end="")
             if captured_errors:
                 print(captured_errors, file=sys.stderr, end="")
 
-            # Check if early stopped - skip full verification
+            # 检查是否提前停止 - 跳过完整验证
             if self.early_stop_result:
                 return TestResult(
                     success=False,
                     reason=f"Early stopped: {self.early_stop_result.reason}",
                 )
 
-            # Verify results
+            # 验证结果
             result = self.verify_result()
 
             return result
 
         except SkipTest:
-            # Re-raise SkipTest so it can be caught by the test runner
+            # 重新加注 SkipTest，以便测试选手可以接住它
             raise
 
         except Exception as e:
@@ -237,33 +235,33 @@ class BaseIntegrationTest(ABC):
             self.teardown()
 
     def run_instructions(self, conversation: LocalConversation) -> None:
-        """Feed user instructions to the agent and manage the conversation."""
+        """将用户指令提供给智能体并管理对话。"""
         conversation.send_message(message=self.instruction_message)
         conversation.run()
 
     @property
     def instruction_message(self) -> Message:
-        """The initial instruction message for the agent."""
+        """初始指令消息为智能体。"""
         return Message(role="user", content=[TextContent(text=self.instruction)])
 
     @property
     def enable_browser(self) -> bool:
-        """Whether to enable browser tools. Override in subclasses that need browsing.
+        """是否启用浏览器工具。 在需要浏览的子类中重写。
 
         Returns:
-            False by default. Override to True for tests that require browser access.
+            默认为 False。 对于需要浏览器访问的测试，覆盖 True。
         """
         return False
 
     @property
     def tools(self) -> list[Tool]:
-        """List of tools available to the agent.
+        """智能体可用的工具列表。
 
-        By default, uses the configured tool preset with browser support controlled
-        by the ``enable_browser`` property.  This ensures integration tests validate
-        the same agent configuration shipped to production (GUI/CLI).
+        默认情况下，使用已配置的工具预设以及由 ``enable_browser`` 属性控制的浏览器支
+        持。 这可确保集成测试验证交付生产的相同智能体配置 (GUI
+        /CLI)。
 
-        Override this property in subclasses that need custom tool configurations.
+        在需要自定义工具配置的子类中重写此属性。
         """
         return get_tools_for_preset(
             self.tool_preset, enable_browser=self.enable_browser
@@ -271,43 +269,42 @@ class BaseIntegrationTest(ABC):
 
     @property
     def condenser(self) -> CondenserBase | None:
-        """Optional condenser for the agent. Override to provide a custom condenser.
+        """智能体可选上下文压缩器。 重写以提供自定义上下文压缩器。
 
         Returns:
-            CondenserBase instance or None (default)
+            CondenserBase 实例或 None（默认）
         """
         return None
 
     @property
     def max_iteration_per_run(self) -> int:
-        """Maximum iterations per conversation run. Override to set a custom limit.
+        """每个对话运行的最大迭代次数。 覆盖以设置自定义限制。
 
         Returns:
-            Maximum iterations (default: 100)
+            最大迭代次数（默认值：100）
         """
         return 100
 
     def setup(self) -> None:
         """
-        Initialize test-specific setup.
+        初始化特定于测试的设置。
 
-        This method should create any files, directories, or other
-        resources needed for the test.
+        此方法应创建测试所需的任何文件、目录或其他资源。
         """
         pass
 
     def skip_if_model_matches(self, pattern: str | list[str], reason: str) -> None:
-        """Skip test if the model name matches the given pattern(s).
+        """如果模型名称与给定的 pattern(s) 匹配，则跳过测试。
 
-        Extracts the canonical model name and checks if it matches any of the provided
-        patterns. If a match is found, raises SkipTest with the given reason.
+        提取规范模型名称并检查它是否与任何提供的模式匹配。 如果找到匹配项，则根据给定
+        原因引发 SkipTest。
 
         Args:
-            pattern: A single model name or list of model names to check against
-            reason: The reason for skipping the test
+            pattern: 要检查的单个模型名称或模型名称列表
+            reason: 跳过测试的原因
 
         Raises:
-            SkipTest: If the model name matches any of the patterns
+            SkipTest: 如果模型名称与任何模式匹配
         """
         model_name = self.llm.model
         canonical = self.llm.model_info.get("model") if self.llm.model_info else None
@@ -318,30 +315,29 @@ class BaseIntegrationTest(ABC):
             raise SkipTest(reason)
 
     def create_llm_copy(self, usage_id: str) -> LLM:
-        """Create a copy of the test LLM with a different usage_id.
+        """使用不同的 usage_id 创建测试 LLM 的副本。
 
-        This is useful when a test needs multiple LLM instances for different purposes
-        (e.g., a separate LLM for a condenser).
+        当测试需要多个 LLM 实例用于不同目的（e.g.，上下文压缩器需要一个单独的 LLM）时
+        ，这非常有用。
 
         Args:
-            usage_id: The usage_id for the LLM copy (used for metrics tracking)
+            usage_id: LLM 副本的 usage_id（用于指标跟踪）
 
         Returns:
-            A copy of self.llm with the specified usage_id
+            具有指定 usage_id 的 self.llm 副本
         """
         return self.llm.model_copy(update={"usage_id": usage_id})
 
     @abstractmethod
     def verify_result(self) -> TestResult:
         """
-        Verify the result of the test.
+        验证测试结果。
 
-        This method should check if the agent successfully completed
-        the task by examining files in self.temp_dir, checking the
-        events in self.events, or other verification methods.
+        该方法应检查智能体是否成功完成了任务，通过检查 self.temp_dir 中的文件、
+        self.events 中的事件或其他验证方法。
 
         Returns:
-            TestResult: The result of the verification
+            TestResult: 验证结果
         """
         pass
 
@@ -349,23 +345,23 @@ class BaseIntegrationTest(ABC):
         self, prompt_tokens: int, completion_tokens: int, cost: float
     ) -> None:
         """
-        Add LLM judge usage to conversation stats.
+        将 LLM 判断使用情况添加到对话统计中。
 
-        This ensures judge costs are included in the total test cost.
+        这确保了评审成本包含在总测试成本中。
 
         Args:
-            prompt_tokens: Number of prompt tokens used by judge
-            completion_tokens: Number of completion tokens used by judge
-            cost: Cost of the judge call
+            prompt_tokens: 法官使用的提示词token个数
+            completion_tokens: 法官使用的完成次数token
+            cost: 法官通话费用
         """
         from openhands.sdk.llm.utils.metrics import TokenUsage
 
-        # Add to conversation stats for the test LLM
+        # 添加到测试的对话统计信息 LLM
         stats = self.conversation.conversation_stats
         if stats:
             try:
                 metrics = stats.get_metrics_for_usage("test-llm")
-                # Update accumulated metrics
+                # 更新累积指标
                 if metrics.accumulated_token_usage:
                     metrics.accumulated_token_usage.prompt_tokens = (
                         metrics.accumulated_token_usage.prompt_tokens or 0
@@ -374,24 +370,23 @@ class BaseIntegrationTest(ABC):
                         metrics.accumulated_token_usage.completion_tokens or 0
                     ) + completion_tokens
                 else:
-                    # Create new TokenUsage if it doesn't exist
+                    # 如果不存在则创建新的TokenUsage
                     metrics.accumulated_token_usage = TokenUsage(
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                     )
                 metrics.accumulated_cost += cost
             except Exception:
-                # If test-llm doesn't exist in stats yet, skip
+                # 如果统计中尚不存在 test-llm，请跳过
                 pass
 
     def teardown(self):
         """
-        Clean up test resources.
-        The workspace directory is torn down externally.
-        Add any additional cleanup (git, server, ...) here if needed.
+        清理测试资源。 工作区目录被外部拆除。 如果需要，请在此处添加任何其他清理（git
+        、服务器等）。
         """
-        # Close the conversation to ensure all tool executors (including the
-        # browser / Chrome process) are shut down.  Without this, worker
-        # processes in ProcessPoolExecutor hang indefinitely because the
-        # browser's background threads keep them alive.
+        # 关闭对话以确保所有工具执行程序（包括浏览器/Chrome 进程）均已关闭。 如果没有这
+        # 个，ProcessPoolExecutor 中的工作进程将无限期挂起，因为浏览器的背景线程让它们保
+        # 持活动状态。
+        #
         self.conversation.close()

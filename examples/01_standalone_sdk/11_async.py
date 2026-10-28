@@ -1,7 +1,6 @@
 """
-This example demonstrates usage of a Conversation in an async context
-(e.g.: From a fastapi server). The conversation is run in a background
-thread and a callback with results is executed in the main runloop
+此示例演示了异步上下文中对话的用法（e.g.：来自 FastAPI 服务器）。 对话在后台运行线程
+，结果回调在主运行循环中执行
 """
 
 import asyncio
@@ -27,7 +26,7 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -39,7 +38,7 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 cwd = os.getcwd()
 tools = [
     Tool(
@@ -49,19 +48,19 @@ tools = [
     Tool(name=TaskTrackerTool.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
-# Callback coroutine
+# 回调协程
 async def callback_coro(event: Event):
     if isinstance(event, LLMConvertibleEvent):
         llm_messages.append(event.to_llm_message())
 
 
-# Synchronous run conversation
+# 同步运行对话
 def run_conversation(callback: ConversationCallbackType):
     conversation = Conversation(agent=agent, callbacks=[callback])
 
@@ -78,10 +77,10 @@ def run_conversation(callback: ConversationCallbackType):
 async def main():
     loop = asyncio.get_running_loop()
 
-    # Create the callback
+    # 创建回调
     callback = AsyncCallbackWrapper(callback_coro, loop)
 
-    # Run the conversation in a background thread and wait for it to finish...
+    # 在后台运行对话线程并等待其完成...
     await loop.run_in_executor(None, run_conversation, callback)
 
     print("=" * 100)
@@ -89,7 +88,7 @@ async def main():
     for i, message in enumerate(llm_messages):
         print(f"Message {i}: {str(message)[:200]}")
 
-    # Report cost
+    # 报告费用
     cost = llm.metrics.accumulated_cost
     print(f"EXAMPLE_COST: {cost}")
 

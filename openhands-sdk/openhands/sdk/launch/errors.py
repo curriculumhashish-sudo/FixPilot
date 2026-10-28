@@ -5,7 +5,7 @@ from typing import Any
 
 
 class AgentLaunchError(ValueError):
-    """A launch request that cannot be satisfied as given."""
+    """无法满足给定的启动请求。"""
 
     code = "invalid_agent_launch"
 
@@ -14,7 +14,7 @@ class AgentLaunchError(ValueError):
 
 
 class UnresolvedProfileReferences(AgentLaunchError):
-    """Every reference in an Agent Profile that names nothing, reported together."""
+    """智能体配置文件中的每一个没有提及任何名称的引用都一起报告。"""
 
     code = "unresolved_profile_references"
 
@@ -58,7 +58,7 @@ class UnresolvedProfileReferences(AgentLaunchError):
 
 
 class LaunchStoreError(RuntimeError):
-    """A store needed by the launch could not be read."""
+    """无法读取启动所需的存储。"""
 
     def __init__(self, message: str, *, retryable: bool = False) -> None:
         super().__init__(message)

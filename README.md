@@ -1,50 +1,23 @@
-<a name="readme-top"></a>
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/OpenHands/docs/main/openhands/static/img/logo.png" alt="Logo" width="200">
-  <h1 align="center">OpenHands Software Agent SDK </h1>
-</div>
+ FixPilot智能体 SDK 提供 Python、TypeScript 和 REST API，用于**构建能够处理代码的智能体**。
 
+你可以使用  FixPilot智能体 SDK 完成：
+* 一次性任务，例如为仓库编写 README
+* 日常维护任务，例如更新依赖
+* 涉及多个智能体的大型任务，例如重构和重写
 
-<div align="center">
-  <a href="https://github.com/OpenHands/software-agent-sdk/blob/main/LICENSE"><img src="https://img.shields.io/github/license/OpenHands/software-agent-sdk?style=for-the-badge&color=blue" alt="MIT License"></a>
-  <a href="https://openhands.dev/joinslack"><img src="https://img.shields.io/badge/Slack-Join%20Us-red?logo=slack&logoColor=white&style=for-the-badge" alt="Join our Slack community"></a>
-  <br>
-  <a href="https://docs.openhands.dev/sdk"><img src="https://img.shields.io/badge/Documentation-000?logo=googledocs&logoColor=FFE165&style=for-the-badge" alt="Check out the documentation"></a>
-  <a href="https://arxiv.org/abs/2511.03690"><img src="https://img.shields.io/badge/Paper-000?logoColor=FFE165&logo=arxiv&style=for-the-badge" alt="Tech Report"></a>
-  <a href="https://docs.google.com/spreadsheets/d/1wOUdFCMyY6Nt0AIqF705KN4JKOWgeI4wUGUP60krXXs/edit?gid=811504672#gid=811504672"><img src="https://img.shields.io/badge/SWEBench-77.6-000?logoColor=FFE165&style=for-the-badge" alt="Benchmark Score"></a>
-  <br>
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=de">Deutsch</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=es">Español</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=fr">français</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=ja">日本語</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=ko">한국어</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=pt">Português</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=ru">Русский</a> |
-  <a href="https://www.readme-i18n.com/OpenHands/software-agent-sdk?lang=zh">中文</a>
+智能体既可以将本机用作工作区，也可以通过 Agent Server 在临时工作区中运行 （例如 Docker 或 Kubernetes 环境）。
 
-  <hr>
-</div>
+你还可以使用 SDK 构建新的开发工具：
+[OpenHands CLI](https://github.com/OpenHands/OpenHands-CLI) 和 [OpenHands Cloud](https://github.com/OpenHands/OpenHands) 都由它驱动。
 
-The OpenHands Software Agent SDK provides Python, TypeScript, and REST APIs for **building agents that work with code**.
+可以从[示例](https://docs.openhands.dev/sdk/guides/hello-world)入手，或[阅读文档](https://docs.openhands.dev/sdk)了解更多信息。
 
-You can use the OpenHands Software Agent SDK for:
-* One-off tasks, like building a README for your repo
-* Routine maintenance tasks, like updating dependencies
-* Major tasks that involve multiple agents, like refactors and rewrites
+<a id="quick-start"></a>
 
-Importantly, agents can either use the local machine as their workspace, or run inside ephemeral workspaces
-(e.g. in Docker or Kubernetes) using the Agent Server.
+## 快速开始
 
-You can even use the SDK to build new developer experiences: it’s the engine behind the
-[OpenHands CLI](https://github.com/OpenHands/OpenHands-CLI) and [OpenHands Cloud](https://github.com/OpenHands/OpenHands).
-
-Get started with some [examples](https://docs.openhands.dev/sdk/guides/hello-world) or [check out the docs](https://docs.openhands.dev/sdk) to learn more.
-
-## Quick Start
-
-Here's what building with the SDK looks like:
+下面展示了如何使用 SDK 构建智能体：
 
 ```python
 import os
@@ -77,57 +50,68 @@ conversation.run()
 print("All done!")
 ```
 
-For installation instructions and detailed setup, see the [Getting Started Guide](https://docs.openhands.dev/sdk/getting-started).
-For local development from this repository, run `make build` to install the workspace dependencies and pre-commit hooks.
+安装说明和详细配置请参阅[入门指南](https://docs.openhands.dev/sdk/getting-started)。 在本仓库中进行本地开发时，运行 `make build` 安装工作区依赖和 pre-commit 钩子。
 
-## Repository boundaries
+<a id="repository-boundaries"></a>
 
-This repository owns the canonical Python SDK and Agent Server implementation as well as the browser-compatible [TypeScript client](clients/typescript/). It owns agents, tools, conversations, workspaces, events, the REST/WebSocket API, and typed client access to that API. [`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands) consumes the TypeScript client as Agent Canvas, while [`OpenHands/automation`](https://github.com/OpenHands/automation) owns scheduling, webhooks, run history, and dispatching. The SDK/Agent Server executes the conversations dispatched by automation.
+## 仓库职责边界
 
-The normal flow is SDK/Agent Server → OpenAPI contract → `clients/typescript` → Agent Canvas. Backend behavior and endpoints belong in the Python SDK or Agent Server packages; browser-compatible client access belongs in `clients/typescript`, UI in Agent Canvas, and automation lifecycle behavior in `automation`.
+本仓库维护 Python SDK 和 Agent Server 的标准实现，以及兼容浏览器的 [TypeScript 客户端](clients/typescript/)。其职责涵盖智能体、工具、对话、工作区、事件、REST/WebSocket API，以及访问该 API 的类型化客户端。[`OpenHands/OpenHands`](https://github.com/OpenHands/OpenHands) 中的 Agent Canvas 使用此 TypeScript 客户端；[`OpenHands/automation`](https://github.com/OpenHands/automation) 则负责调度、Webhook、运行历史和任务分发。SDK/Agent Server 执行自动化系统分发的对话。
 
-## Documentation
+通常的调用链为 SDK/Agent Server → OpenAPI 契约 → `clients/typescript` → Agent Canvas。后端行为和接口端点由 Python SDK 或 Agent Server 包负责；兼容浏览器的客户端访问由 `clients/typescript` 负责；界面由 Agent Canvas 负责；自动化生命周期由 `automation` 负责。
 
-For detailed documentation, tutorials, and API reference, visit:
+<a id="documentation"></a>
 
-**[https://docs.openhands.dev/sdk](https://docs.openhands.dev/sdk)**
+## 文档
 
-The documentation includes:
-- [Getting Started Guide](https://docs.openhands.dev/sdk/getting-started) - Installation and setup
-- [Architecture & Core Concepts](https://docs.openhands.dev/sdk/arch/overview) - Agents, tools, workspaces, and more
-- [Guides](https://docs.openhands.dev/sdk/guides/hello-world) - Hello World, custom tools, MCP, skills, and more
-- [Agent Server API Reference](https://docs.openhands.dev/sdk/guides/agent-server/api-reference/server-details/alive) - REST API reference for the remote agent server
+详细文档、教程和 API 参考请访问：
 
-## Examples
+**[ https://docs.openhands.dev/sdk ](https://docs.openhands.dev/sdk)**
 
-The `examples/` directory contains comprehensive usage examples:
+文档内容包括：
+- [入门指南](https://docs.openhands.dev/sdk/getting-started) — 安装与配置
+- [架构与核心概念](https://docs.openhands.dev/sdk/arch/overview) — 智能体、工具、工作区等
+- [使用指南](https://docs.openhands.dev/sdk/guides/hello-world) — Hello World、自定义工具、MCP、技能等
+- [Agent Server API 参考](https://docs.openhands.dev/sdk/guides/agent-server/api-reference/server-details/alive) — 远程智能体服务器的 REST API 参考
 
-- **Standalone SDK** (`examples/01_standalone_sdk/`) - Basic agent usage, custom tools, and core workflows
-- **Remote Agent Server** (`examples/02_remote_agent_server/`) - Client-server architecture and WebSocket connections
-- **GitHub Workflows** (`examples/03_github_workflows/`) - CI/CD integration and automated workflows
-- **Skills and Plugins** (`examples/05_skills_and_plugins/`) - AgentSkills, plugins, and marketplace examples
+<a id="examples"></a>
 
-## Skills for modern package tooling
+## 示例
 
-If you enable public skills with `AgentContext(load_public_skills=True)`, the default
-`OpenHands/extensions` marketplace includes, for example, `uv` and `deno` skills.
-Agents can automatically pick up current package-management guidance for repositories
-that use markers like `uv.lock`, `deno.json`, `deno.jsonc`, or `deno.lock`.
+`examples/` 目录包含完整的用法示例：
 
-See `examples/01_standalone_sdk/03_activate_skill.py` for a minimal example that
-turns on public skill loading.
+- **独立 SDK**（`examples/01_standalone_sdk/`）— 智能体基础用法、自定义工具和核心工作流
+- **远程 Agent Server**（`examples/02_remote_agent_server/`）— 客户端与服务器架构及 WebSocket 连接
+- **GitHub 工作流**（`examples/03_github_workflows/`）— CI/CD 集成与自动化工作流
+- **技能与插件**（`examples/05_skills_and_plugins/`）— AgentSkills、插件和市场示例
 
-## Contributing
+<a id="skills-for-modern-package-tooling"></a>
 
-For development setup, testing, and contribution guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
+## 现代包管理工具的技能
 
-## Community
+通过 `AgentContext(load_public_skills=True)` 启用公共技能后，默认的
+`OpenHands/extensions` 市场可提供 `uv`、`deno` 等技能。 对于包含 `uv.lock`、`deno.json`、`deno.jsonc` 或 `deno.lock` 等标识文件的仓库， 智能体可以自动获取对应的最新包管理指导。
 
-- [Join Slack](https://openhands.dev/joinslack) - Connect with the OpenHands community
-- [GitHub Repository](https://github.com/OpenHands/software-agent-sdk) - Source code and issues
-- [Documentation](https://docs.openhands.dev/sdk) - Complete documentation
+启用公共技能加载的最小示例见
+`examples/01_standalone_sdk/03_activate_skill.py`。
 
-## Cite
+<a id="contributing"></a>
+
+## 参与贡献
+
+开发环境配置、测试和贡献指南见 [DEVELOPMENT.md](DEVELOPMENT.md)。
+
+<a id="community"></a>
+
+## 社区
+
+- [加入 Slack](https://openhands.dev/joinslack) — 与 OpenHands 社区交流
+- [GitHub 仓库](https://github.com/OpenHands/software-agent-sdk) — 源代码与问题反馈
+- [文档](https://docs.openhands.dev/sdk) — 完整文档
+
+<a id="cite"></a>
+
+## 引用
 
 ```
 @misc{wang2025openhandssoftwareagentsdk,
@@ -142,62 +126,40 @@ For development setup, testing, and contribution guidelines, see [DEVELOPMENT.md
 ```
 <hr>
 
-### Thank You to Our Contributors
+<a id="thank-you-to-our-contributors"></a>
 
-[![Contributors](https://assets.openhands.dev/readme/openhands-software-agent-sdk-contributors.svg)](https://github.com/OpenHands/software-agent-sdk/graphs/contributors)
+### 感谢所有贡献者
+
+[![贡献者](https://assets.openhands.dev/readme/openhands-software-agent-sdk-contributors.svg)](https://github.com/OpenHands/software-agent-sdk/graphs/contributors)
 
 <hr>
 
-### Trusted by Engineers at
+<a id="trusted-by-engineers-at"></a>
 
-<div align="center">
-<br/><br/>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/tiktok.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/tiktok.svg" alt="TikTok" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/vmware.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/vmware.svg" alt="VMware" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/roche.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/roche.svg" alt="Roche" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/amazon.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/amazon.svg" alt="Amazon" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/c3-ai.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/c3-ai.svg" alt="C3 AI" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/netflix.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/netflix.svg" alt="Netflix" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/mastercard.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/mastercard.svg" alt="Mastercard" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/red-hat.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/red-hat.svg" alt="Red Hat" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/mongodb.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/mongodb.svg" alt="MongoDB" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/apple.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/apple.svg" alt="Apple" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/nvidia.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/nvidia.svg" alt="NVIDIA" height="17" hspace="5">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/google.svg">
-  <img src="https://assets.openhands.dev/logos/external/black/google.svg" alt="Google" height="17" hspace="5">
-</picture>
-</div>
+### 以下企业的工程师正在使用
+
+<div align="center"> <br/><br/> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/tiktok.svg"> <img src="https://assets.openhands.dev/logos/external/black/tiktok.svg" alt="TikTok" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/vmware.svg"> <img src="https://assets.openhands.dev/logos/external/black/vmware.svg" alt="VMware" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/roche.svg"> <img src="https://assets.openhands.dev/logos/external/black/roche.svg" alt="Roche" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/amazon.svg"> <img src="https://assets.openhands.dev/logos/external/black/amazon.svg" alt="Amazon" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/c3-ai.svg"> <img src="https://assets.openhands.dev/logos/external/black/c3-ai.svg" alt="C3 AI" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/netflix.svg"> <img src="https://assets.openhands.dev/logos/external/black/netflix.svg" alt="Netflix" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/mastercard.svg"> <img src="https://assets.openhands.dev/logos/external/black/mastercard.svg" alt="Mastercard" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/red-hat.svg"> <img src="https://assets.openhands.dev/logos/external/black/red-hat.svg" alt="Red Hat" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/mongodb.svg"> <img src="https://assets.openhands.dev/logos/external/black/mongodb.svg" alt="MongoDB" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/apple.svg"> <img src="https://assets.openhands.dev/logos/external/black/apple.svg" alt="Apple" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/nvidia.svg"> <img src="https://assets.openhands.dev/logos/external/black/nvidia.svg" alt="NVIDIA" height="17" hspace="5">
+</picture> <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://assets.openhands.dev/logos/external/white/google.svg"> <img src="https://assets.openhands.dev/logos/external/black/google.svg" alt="Google" height="17" hspace="5">
+</picture> </div>

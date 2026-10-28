@@ -1,4 +1,4 @@
-"""Model discovery and legacy model selection against a real stdio ACP server."""
+"""针对真实 stdio ACP 服务器的模型发现和遗留模型选择。"""
 
 from __future__ import annotations
 

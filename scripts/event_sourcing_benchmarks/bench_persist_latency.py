@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Benchmark: Persist latency per event and per action cycle.
+Benchmark: 持久化每个事件和每个操作周期的延迟。
 
-Extracts real event payloads from SWE-Bench evaluation conversation traces
-and replays them through the SDK's LocalFileStore lock-and-write path to
-measure per-event and per-cycle persist latency.
+从SWE-Bench评估对话轨迹中提取真实事件载荷，并通过SDK's LocalFileStore 锁-and-write路
+径重播这些事件，以测量每事件和每周期的持久化延迟
+。
 
-Usage:
+用途：
     python bench_persist_latency.py --eval-dir <path-to-eval-run>
 """
 
@@ -29,10 +29,10 @@ LOCK_FILE = "events/.eventlog.lock"
 
 
 def measure_persist_latencies(event_files: list[dict]) -> list[dict]:
-    """Replay the persist path EventLog.append() uses:
-    lock -> write JSON file -> release lock
+    """重放持久化路径 EventLog.append() 使用：
+    锁 -> 写入 JSON 文件 -> 释放锁
 
-    Uses LocalFileStore directly with real event payloads.
+    直接将 LocalFileStore 与真实事件载荷结合使用。
     """
     tmpdir = tempfile.mkdtemp(prefix="bench_persist_")
     try:
@@ -88,7 +88,7 @@ def main():
     )
     args = parser.parse_args()
 
-    # Load instance metadata
+    # 加载实例元数据
     instances = {}
     with open(os.path.join(args.eval_dir, "output.jsonl")) as f:
         for line in f:
@@ -122,7 +122,7 @@ def main():
             persist_results = measure_persist_latencies(event_files)
             all_persist.extend(persist_results)
 
-            # Per-cycle persist time (action + observation pairs)
+            # 每个周期持久化时间（操作 + 观测结果对）
             action_p = [r for r in persist_results if r["kind"] == "ActionEvent"]
             obs_p = [r for r in persist_results if r["kind"] == "ObservationEvent"]
             n_cycles = min(len(action_p), len(obs_p))
@@ -153,7 +153,7 @@ def main():
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    # --- Analysis ---
+    # --- 分析 ---
     print(f"\n{'=' * 70}")
     print("RESULTS: Persist Latency per Event / Action Cycle")
     print(f"{'=' * 70}")
@@ -203,7 +203,7 @@ def main():
         f" {all_sizes[n // 2]:>8,}B"
     )
 
-    # Per action cycle
+    # 每个动作周期
     print("\n--- Per Action Cycle (Action + Observation) ---")
     cycle_persists = [
         s["mean_cycle_persist_ms"] for s in conv_summaries if s["n_cycles"] > 0
@@ -213,7 +213,7 @@ def main():
     print(f"  Median per-cycle persist time:  {med:.2f}ms")
     print(f"  Mean per-cycle persist time:    {mean:.2f}ms")
 
-    # Save
+    # 保存
     with open(args.output, "w") as f:
         json.dump(
             {"per_event": all_persist, "conversations": conv_summaries},

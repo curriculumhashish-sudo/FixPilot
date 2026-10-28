@@ -1,4 +1,4 @@
-"""Tests for meta_profiles_router endpoints."""
+"""测试 meta_profiles_router 端点。"""
 
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -24,9 +24,10 @@ def temp_settings_dir():
 
 @pytest.fixture
 def temp_meta_profiles_dir(temp_settings_dir):
-    # The router resolves meta-profiles at ``OH_PERSISTENCE_DIR/meta-profiles``,
-    # and the client fixture sets OH_PERSISTENCE_DIR to temp_settings_dir, so the
-    # store fixture must seed the same dir the router reads.
+    # 路由器解析 ``OH_PERSISTENCE_DIR/meta-profiles`` 处的元配置文件，客户端测试夹具将
+    # OH_PERSISTENCE_DIR 设置为 temp_settings_dir，因此存储测试夹具必须播种路由器读取的
+    # 相同目录。
+    #
     meta_dir = temp_settings_dir / "meta-profiles"
     meta_dir.mkdir(parents=True, exist_ok=True)
     yield meta_dir
@@ -38,8 +39,9 @@ def client(temp_meta_profiles_dir, temp_settings_dir, monkeypatch):
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(temp_settings_dir))
     config = Config(static_files_path=None, session_api_keys=[], secret_key=None)
     app = create_app(config)
-    # No MetaProfileStore patch needed: the router now honors OH_PERSISTENCE_DIR
-    # and resolves the same dir the store fixture seeds.
+    # 不需要 MetaProfileStore 补丁：路由器现在支持 OH_PERSISTENCE_DIR 并解析存储测试夹具
+    # 种子的相同目录。
+    #
     yield TestClient(app)
     reset_stores()
 
@@ -58,12 +60,12 @@ def _meta(classifier="minimax", classes=None) -> dict:
     ).model_dump(mode="json")
 
 
-# ── Persistence-dir resolution (regression for #3835) ────────────────────────
+# ── 持久化-dir 分辨率 (回归 for #3835) ────────────────────────
 
 
 def test_meta_profile_store_honors_persistence_dir(monkeypatch, tmp_path):
-    """The router resolves meta-profiles under OH_PERSISTENCE_DIR, not the host
-    ~/.openhands/meta-profiles, so isolated agent-servers stay isolated."""
+    """路由器解析 OH_PERSISTENCE_DIR 下的元配置文件，而不是主机
+    ~/.openhands/meta-profiles，所以隔离智能体-服务器保持隔离。"""
     from openhands.agent_server.meta_profiles_router import _get_meta_profile_store
 
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path))
@@ -72,9 +74,9 @@ def test_meta_profile_store_honors_persistence_dir(monkeypatch, tmp_path):
 
 
 def test_meta_profile_store_falls_back_to_home(monkeypatch, tmp_path):
-    """Without OH_PERSISTENCE_DIR, fall back to ~/.openhands/meta-profiles so
-    meta-profiles stay co-located with the LLM profiles they reference by name
-    (not a workspace-relative dir)."""
+    """如果没有 OH_PERSISTENCE_DIR，则回退到 ~/.openhands/meta-profiles 所以
+    元配置文件与它们按名称引用的 LLM 配置文件保持在同一位置（而不是工作区相对目录）。
+    """
     from openhands.agent_server.meta_profiles_router import _get_meta_profile_store
 
     monkeypatch.delenv("OH_PERSISTENCE_DIR", raising=False)
@@ -85,7 +87,7 @@ def test_meta_profile_store_falls_back_to_home(monkeypatch, tmp_path):
     assert store.base_dir == fake_home / ".openhands" / "meta-profiles"
 
 
-# ── List ────────────────────────────────────────────────────────────────────
+# ── 名单────────────────────────────────────────────────────────────────────
 
 
 def test_list_empty(client):
@@ -110,7 +112,7 @@ def test_list_returns_summaries(client, store):
     ]
 
 
-# ── Get ──────────────────────────────────────────────────────────────────────
+# ── 获取────────────────────────────────────────────────────────────────────
 
 
 def test_get_meta_profile(client, store):
@@ -128,7 +130,7 @@ def test_get_missing_returns_404(client):
     assert response.status_code == 404
 
 
-# ── Save ─────────────────────────────────────────────────────────────────────
+# ── 保存──────────────────────────────────────────────────────────────────────
 
 
 def test_save_creates_meta_profile(client, store):
@@ -158,7 +160,7 @@ def test_save_invalid_body_returns_422(client):
     ],
 )
 def test_save_router_without_route_returns_422(client, store, body):
-    """A body with neither classes nor a prompt_template can never route."""
+    """既没有类也没有 prompt_template 的主体永远无法路由。"""
     response = client.post("/api/meta-profiles/empty", json=body)
     assert response.status_code == 422
     assert "classes or a prompt_template" in response.text
@@ -173,7 +175,7 @@ def test_save_direct_mode_without_classes_is_accepted(client, store):
 
 
 def test_stored_router_without_route_still_loads(client, store):
-    """Files saved before the 422 existed stay readable and activatable."""
+    """422 存在之前保存的文件仍然可读且可激活。"""
     store.save("legacy", MetaProfile(classifier_model="minimax"))
     assert client.get("/api/meta-profiles/legacy").status_code == 200
     assert client.post("/api/meta-profiles/legacy/activate").status_code == 200
@@ -186,7 +188,7 @@ def test_save_invalid_name_returns_422(client):
 
 
 def test_save_timeout_returns_503(client, monkeypatch):
-    """Save surfaces store lock TimeoutError as a retryable 503, not a 500."""
+    """保存表面将锁 TimeoutError 存储为可重试的 503，而不是 500。"""
 
     def boom(self, name, meta_profile, *, max_profiles=None):
         raise TimeoutError("locked")
@@ -197,7 +199,7 @@ def test_save_timeout_returns_503(client, monkeypatch):
     assert response.status_code == 503
 
 
-# ── Delete ───────────────────────────────────────────────────────────────────
+# ── 删除────────────────────────────────────────────────────────────────────
 
 
 def test_delete_meta_profile(client, store):
@@ -213,7 +215,7 @@ def test_delete_is_idempotent(client):
 
 
 def test_delete_timeout_returns_503(client, monkeypatch):
-    """Delete surfaces store lock TimeoutError as a retryable 503, not a 500."""
+    """删除表面将锁 TimeoutError 存储为可重试的 503，而不是 500。"""
 
     def boom(self, name):
         raise TimeoutError("locked")
@@ -236,10 +238,10 @@ def test_delete_active_clears_active(client, store):
 
 
 def test_delete_active_clears_nested_agent_settings(client, store):
-    """Deleting the active meta-profile must clear the *nested* agent settings.
+    """删除活动元配置文件必须清除 * 嵌套 * 智能体设置。
 
-    Otherwise the routing tool stays enabled pointing at a now-deleted profile,
-    which breaks the next conversation. Guards against top-level/nested drift.
+    否则，路由工具将保持启用状态，指向现已删除的配置文件，这会中断下一个对话。 防止顶
+    级/嵌套漂移。
     """
     store.save("p", MetaProfile.model_validate(_meta()))
     client.post("/api/meta-profiles/p/activate")
@@ -255,7 +257,7 @@ def test_delete_active_clears_nested_agent_settings(client, store):
     assert agent.meta_profile is None
 
 
-# ── Activate ─────────────────────────────────────────────────────────────────
+# ── 启动──────────────────────────────────────────────────────────────────
 
 
 def test_activate_sets_active_meta_profile(client, store):
@@ -269,11 +271,11 @@ def test_activate_sets_active_meta_profile(client, store):
 
 
 def test_activate_propagates_into_agent_settings(client, store):
-    """Activation must wire the *nested* agent settings, not just the facade.
+    """激活必须连接 * 嵌套 * 智能体设置，而不仅仅是外观。
 
-    ``enable_classify_and_switch_llm_tool`` / ``active_meta_profile`` on
-    ``agent_settings`` are what actually attach the routing tool; if only the
-    top-level field is set, activation reports success but does nothing.
+    ``enable_classify_and_switch_llm_tool`` / ``active_meta_profile`` 开
+    ``agent_settings`` 是实际附加布线工具的内容； 如果仅设置了顶级字段，激活会报告成
+    功但不执行任何操作。
     """
     store.save("p", MetaProfile.model_validate(_meta()))
     response = client.post("/api/meta-profiles/p/activate")
@@ -301,10 +303,10 @@ def test_activate_reports_applied_on_openhands_settings(client, store):
 
 
 def test_activate_on_acp_settings_reports_not_applied(client, store):
-    """ACP settings cannot attach the routing tool, so the pointer is dropped.
+    """ACP 设置无法附加布线工具，因此指针被丢弃。
 
-    The response must say so (like LLM-profile activation's ``llm_applied``)
-    instead of claiming the meta-profile was activated.
+    响应必须如此说明（如 LLM-配置文件激活的 ``llm_applied``），而不是声明元配置文件已
+    激活。
     """
     store.save("p", MetaProfile.model_validate(_meta()))
     patched = client.patch(
@@ -336,8 +338,8 @@ def test_activate_missing_returns_404(client):
 
 
 def test_activate_with_corrupted_settings_returns_409(client, store, temp_settings_dir):
-    """An unreadable settings.json is refused with 409, as LLM-profile
-    activation does, without leaking the settings path or touching the file."""
+    """不可读的 settings.json 被拒绝并返回 409，如 LLM-profile
+    激活不会泄漏设置路径或触及文件。"""
     store.save("p", MetaProfile.model_validate(_meta()))
     store.save("q", MetaProfile.model_validate(_meta()))
     assert client.post("/api/meta-profiles/p/activate").status_code == 200
@@ -359,7 +361,7 @@ def test_activate_with_corrupted_settings_returns_409(client, store, temp_settin
 
 
 def test_activate_settings_io_error_returns_500(client, store, monkeypatch):
-    """Filesystem errors keep their 500, distinct from a corrupted file."""
+    """文件系统错误保留 500，与损坏的文件不同。"""
     store.save("p", MetaProfile.model_validate(_meta()))
 
     def fail(self, update_fn):
@@ -374,18 +376,17 @@ def test_activate_settings_io_error_returns_500(client, store, monkeypatch):
 
 
 def test_concurrent_delete_and_activate_keep_settings_consistent(client, store):
-    """Racing delete(active) against activate(other) must not corrupt settings.
+    """delete(active) 与 activate(other) 竞赛不得损坏设置。
 
-    ``delete`` clears the active meta-profile and ``activate`` sets a new one;
-    both route through the file-locked settings store. Whatever the interleaving,
-    the persisted state must stay consistent: the active profile is never the
-    just-deleted one, and the nested ``agent_settings`` never drifts from the
-    top-level ``active_meta_profile``.
+    ``delete`` 清除活动元配置文件并 ``activate`` 设置新的元配置文件； 两者都通过文件
+    锁定设置存储。 无论重排序如何，已持久化状态必须保持一致：
+    活动的配置文件永远不会是刚刚删除的那个，嵌套的``agent_settings``也永远不会偏离顶
+    层的``active_meta_profile``。
     """
     store.save("q", MetaProfile.model_validate(_meta()))
 
     for _ in range(15):
-        # Re-establish "p" as the active profile before each race.
+        # 在每场比赛前重新建立“p”作为活动配置文件。
         store.save("p", MetaProfile.model_validate(_meta()))
         client.post("/api/meta-profiles/p/activate")
 
@@ -400,12 +401,13 @@ def test_concurrent_delete_and_activate_keep_settings_consistent(client, store):
         persisted = get_settings_store().load()
         assert persisted is not None
         active = persisted.active_meta_profile
-        # "p" was deleted, so it must never remain active; outcome is "q" or None
-        # depending on which write committed last.
+        # “p”已被删除，因此它绝不能保持活动状态； 结果是“q”或None，具体取决于最后提交的
+        # 写入。
+        #
         assert active in (None, "q")
 
         agent = persisted.agent_settings
         assert isinstance(agent, OpenHandsAgentSettings)
-        # Nested agent settings must agree with the top-level facade.
+        # 嵌套智能体设置必须与顶层外观一致。
         assert agent.active_meta_profile == active
         assert agent.enable_classify_and_switch_llm_tool is (active is not None)

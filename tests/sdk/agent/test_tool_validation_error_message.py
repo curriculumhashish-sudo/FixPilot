@@ -1,4 +1,4 @@
-"""Test that tool validation error messages are concise and don't include values."""
+"""测试工具验证错误消息是否简洁且不包含值。"""
 
 import json
 from collections.abc import Sequence
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 class ValidationTestAction(Action):
-    """Action for validation testing."""
+    """验证测试的操作。"""
 
     command: str = ""
     path: str = ""
@@ -39,7 +39,7 @@ class ValidationTestAction(Action):
 
 
 class ValidationTestObservation(Observation):
-    """Observation for validation testing."""
+    """观测结果用于验证测试。"""
 
     result: str = ""
 
@@ -47,7 +47,7 @@ class ValidationTestObservation(Observation):
 class ValidationTestExecutor(
     ToolExecutor[ValidationTestAction, ValidationTestObservation]
 ):
-    """Executor that just returns an observation."""
+    """仅返回观测结果的执行器。"""
 
     def __call__(
         self, action: ValidationTestAction, conversation=None
@@ -58,7 +58,7 @@ class ValidationTestExecutor(
 class ValidationTestTool(
     ToolDefinition[ValidationTestAction, ValidationTestObservation]
 ):
-    """Tool for testing validation error messages."""
+    """用于测试验证错误消息的工具。"""
 
     name = "validation_test_tool"
 
@@ -78,7 +78,7 @@ register_tool("ValidationTestTool", ValidationTestTool)
 
 
 def test_validation_error_shows_keys_not_values():
-    """Error message should show parameter keys, not large argument values."""
+    """错误消息应显示参数键，而不是大参数值。"""
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -87,8 +87,8 @@ def test_validation_error_shows_keys_not_values():
     )
     agent = Agent(llm=llm, tools=[Tool(name="ValidationTestTool")])
 
-    # Create tool call with large arguments and an invalid security_risk to
-    # trigger a validation error in the same code path.
+    # 创建具有大参数的工具调用和无效的 security_risk，以在同一代码路径中触发验证错误。
+    #
     large_value = "x" * 1000
     tool_args = (
         f'{{"command": "view", "path": "/test", "old_str": "{large_value}", '
@@ -138,18 +138,18 @@ def test_validation_error_shows_keys_not_values():
     assert len(error_events) == 1
 
     error_msg = error_events[0].error
-    # Error should include tool name and parameter keys
+    # 错误应包括工具名称和参数键
     assert "validation_test_tool" in error_msg
     assert "Parameters provided:" in error_msg
     assert "command" in error_msg
     assert "path" in error_msg
     assert "old_str" in error_msg
-    # Error should NOT include the large value (1000 x's)
+    # 错误应不包含大值 (1000 x's)
     assert large_value not in error_msg
 
 
 def test_unparseable_json_error_message():
-    """Error message should indicate unparseable JSON when parsing fails."""
+    """解析失败时，错误消息应指示无法解析 JSON。"""
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -158,7 +158,7 @@ def test_unparseable_json_error_message():
     )
     agent = Agent(llm=llm, tools=[Tool(name="ValidationTestTool")])
 
-    # Invalid JSON that cannot be parsed
+    # 无效 JSON 无法解析
     invalid_json = "{invalid json syntax"
 
     def mock_llm_response(messages, **kwargs):
@@ -216,7 +216,7 @@ def test_unparseable_json_error_message():
 
 
 def _mock_llm_response_factory(tool_args: str):
-    """Return a mock LLM callable that emits one tool call with the given args."""
+    """返回一个模拟对象 LLM 可调用对象，它使用给定的参数发出一个工具调用 。"""
 
     def mock_llm_response(messages, **kwargs):
         return ModelResponse(
@@ -250,7 +250,7 @@ def _mock_llm_response_factory(tool_args: str):
 
 
 def test_tool_call_without_security_risk_succeeds():
-    """Omitting security_risk should not raise; the action gets UNKNOWN risk."""
+    """省略 security_risk 不应引发； 该操作会产生 UNKNOWN 风险。"""
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -259,7 +259,7 @@ def test_tool_call_without_security_risk_succeeds():
     )
     agent = Agent(llm=llm, tools=[Tool(name="ValidationTestTool")])
 
-    # Two valid args, NO security_risk field
+    # 两个有效参数，NO security_risk 字段
     tool_args = '{"command": "view", "path": "/test"}'
 
     collected_events = []
@@ -275,20 +275,20 @@ def test_tool_call_without_security_risk_succeeds():
         )
         agent.step(conversation, on_event=collected_events.append)
 
-    # No error events should be emitted
+    # 不应发出任何错误事件
     error_events = [e for e in collected_events if isinstance(e, AgentErrorEvent)]
     assert error_events == [], (
         f"Expected no errors when security_risk is omitted, got: {error_events}"
     )
 
-    # An ActionEvent with UNKNOWN risk should have been emitted
+    # 应该发出具有 UNKNOWN 风险的 ActionEvent
     action_events = [e for e in collected_events if isinstance(e, ActionEvent)]
     assert len(action_events) == 1
     assert action_events[0].security_risk == SecurityRisk.UNKNOWN
 
 
 def test_omitted_security_risk_still_requires_confirmation():
-    """With LLMSecurityAnalyzer + ConfirmRisky, UNKNOWN risk must not auto-proceed."""
+    """与 LLMSecurityAnalyzer + ConfirmRisky, UNKNOWN 风险不能自动推进。"""
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -297,14 +297,15 @@ def test_omitted_security_risk_still_requires_confirmation():
     )
     agent = Agent(llm=llm, tools=[Tool(name="ValidationTestTool")])
 
-    # Two valid args, NO security_risk field
+    # 两个有效参数，NO security_risk 字段
     tool_args = '{"command": "view", "path": "/test"}'
 
     collected_events = []
     conversation = Conversation(agent=agent, callbacks=[collected_events.append])
     conversation.set_security_analyzer(LLMSecurityAnalyzer())
-    # confirm_unknown defaults to True, so the default ConfirmRisky policy
-    # will require confirmation for UNKNOWN-risk actions.
+    # confirm_unknown 默认为 True，因此默认的 ConfirmRisky 策略将要求确认 UNKNOWN 风险操
+    # 作。
+    #
     conversation.set_confirmation_policy(ConfirmRisky())
 
     with patch(
@@ -316,18 +317,18 @@ def test_omitted_security_risk_still_requires_confirmation():
         )
         agent.step(conversation, on_event=collected_events.append)
 
-    # The action should be pending confirmation, not auto-executed
+    # 该操作应该等待确认，而不是自动执行
     assert (
         conversation.state.execution_status
         == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
     )
 
-    # An ActionEvent should exist with UNKNOWN risk
+    # ActionEvent 应该存在且具有 UNKNOWN 风险
     action_events = [e for e in collected_events if isinstance(e, ActionEvent)]
     assert len(action_events) == 1
     assert action_events[0].security_risk == SecurityRisk.UNKNOWN
 
-    # No observation should have been produced (action was not executed)
+    # 不应生成观测结果（操作未执行）
     observation_events = [
         e for e in collected_events if isinstance(e, ObservationEvent)
     ]

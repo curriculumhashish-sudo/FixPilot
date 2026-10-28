@@ -1,15 +1,16 @@
-"""Dynamic-tier prompt sections.
+"""动态层提示词部分。
 
-These render per-conversation content (datetime, repo context, available skills,
-custom suffix, secrets) into the ``DYNAMIC`` block. All inputs are resolved into the
-:class:`PromptContext` before assembly (skills gated by model family, secrets merged),
-so the sections stay pure -- no Jinja, no I/O. ``refine()`` is deliberately not applied
-here: rewriting user-provided repo/skill/suffix text is the post-render hack the
-registry is replacing (proposal #2827).
+这些将每个对话内容（日期时间、存储库上下文、可用技能、自定义后缀、机密）渲染到
+``DYNAMIC`` 块中。 所有输入都解析为
+:class:`PromptContext` 组装前（技能由模型系列控制，机密合并），
+所以这些部分保持纯粹——没有 Jinja，没有 I/O。 ``refine()`` 故意不应用
+here: 重写用户提供的存储库/技能/后缀文本是渲染后黑客
+注册表正在替换（提案#2827）。
 """
 
-# Section bodies are verbatim long-form prompt text; wrapping a line would change
-# the rendered bytes, so line-length (E501) is disabled for this whole file.
+# 节正文是逐字长格式提示词文本； 换行会更改渲染的字节，因此整个文件的行长度 (E501) 被禁
+# 用。
+#
 # ruff: noqa: E501
 
 from openhands.sdk.context.prompts.section import CacheTier, PromptContext
@@ -26,7 +27,7 @@ __all__ = [
 
 
 class DateTimeSection:
-    """``<CURRENT_DATETIME>`` -- the current time, formatted by the resolver."""
+    """``<CURRENT_DATETIME>`` -- 当前时间，由解析器格式化。"""
 
     name = "datetime"
     cache_tier = CacheTier.DYNAMIC
@@ -43,7 +44,7 @@ class DateTimeSection:
 
 
 class RepoContextSection:
-    """``<REPO_CONTEXT>`` -- legacy ``trigger=None`` repo skills, gated by model family."""
+    """``<REPO_CONTEXT>`` -- 遗留 ``trigger=None`` 回购技能，由模型系列控制。"""
 
     name = "repo_context"
     cache_tier = CacheTier.DYNAMIC
@@ -73,7 +74,7 @@ class RepoContextSection:
 
 
 class MemoryContextSection:
-    """``<MEMORY_CONTEXT>`` -- the agent's own persisted memory index, resolved
+    """``<MEMORY_CONTEXT>`` -- 智能体自己的已持久化内存索引，已解析
     from disk by the conversation when ``AgentContext.load_memory`` is set."""
 
     name = "memory_context"
@@ -97,7 +98,7 @@ class MemoryContextSection:
 
 
 class AvailableSkillsSection:
-    """``<SKILLS>`` -- AgentSkills-format and triggered skills (progressive disclosure)."""
+    """``<SKILLS>`` - AgentSkills-格式和触发技能（渐进式披露）。"""
 
     name = "available_skills"
     cache_tier = CacheTier.DYNAMIC
@@ -117,7 +118,7 @@ class AvailableSkillsSection:
 
 
 class CustomSuffixSection:
-    """The agent's custom ``system_message_suffix`` (raw text, no wrapper)."""
+    """智能体的自定义 ``system_message_suffix``（原始文本，无包装）。"""
 
     name = "custom_suffix"
     cache_tier = CacheTier.DYNAMIC
@@ -130,7 +131,7 @@ class CustomSuffixSection:
 
 
 class CustomSecretsSection:
-    """``<CUSTOM_SECRETS>`` -- advertises registered secret names (and descriptions)."""
+    """``<CUSTOM_SECRETS>`` -- 公布注册的机密名称（和描述）。"""
 
     name = "custom_secrets"
     cache_tier = CacheTier.DYNAMIC

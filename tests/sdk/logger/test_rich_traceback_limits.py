@@ -1,4 +1,4 @@
-"""Run pathological logging in a subprocess so a regression cannot hang pytest."""
+"""在子进程中运行病理日志记录，以便回归无法挂起 pytest。"""
 
 import copy
 import io
@@ -75,8 +75,9 @@ def test_default_logging_bounds_exception_graph(shape, tmp_path):
         },
         capture_output=True,
         text=True,
-        # Include cold SDK import time on slow/contended CI workers. This is a
-        # hang watchdog, not a logging latency benchmark.
+        # 包括缓慢/争用的 CI 工作人员的冷 SDK 导入时间。 这是一个挂起看门狗，而不是日志
+        # 记录延迟基准测试。
+        #
         timeout=30,
     )
     assert result.returncode == 0, result.stderr

@@ -1,4 +1,4 @@
-"""Ask an ACP server which models it offers, without starting a conversation."""
+"""询问 ACP 服务器它提供的模型，而无需开始对话。"""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def discover_acp_models(
     credential_bindings: Mapping[str, VersionedCredentialBinding] | None = None,
     work_root: str | Path | None = None,
 ) -> ACPModelDiscovery:
-    """Start the server in a throwaway session and report what it offers."""
+    """在一次性会话中启动服务器并报告它提供的内容。"""
     agent = ACPAgent(
         acp_command=settings.resolve_acp_command(),
         acp_server=settings.acp_server,

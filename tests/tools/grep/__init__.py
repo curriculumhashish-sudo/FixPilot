@@ -1,1 +1,1 @@
-"""Tests for grep tool."""
+"""测试 grep 工具。"""

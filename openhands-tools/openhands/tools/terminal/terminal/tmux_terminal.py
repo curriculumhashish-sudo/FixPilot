@@ -1,4 +1,4 @@
-"""Tmux-based terminal backend implementation."""
+"""tmux基于终端后端的实现。"""
 
 import logging
 import os
@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 
 
 class _SecretRedactFilter(logging.Filter):
-    """Redact API key literals from libtmux log records."""
+    """从 libtmux 日志记录中编辑 API 个关键文字。"""
 
     def filter(self, record: logging.LogRecord) -> bool:
         if record.msg and isinstance(record.msg, str):
@@ -81,19 +81,19 @@ def _install_libtmux_redaction_filter() -> None:
 
 @contextmanager
 def _socket_creation_lock(socket_dir: Path | None = None) -> Iterator[None]:
-    """Serialize socket creation with the agent-server's startup cleanup.
+    """序列化套接字创建与智能体-服务器的启动清理。
 
-    A tmux socket exists between ``new-session`` and the recording of its owner
-    option. Startup cleanup in a sibling agent-server treats an ownerless socket
-    as reclaimable, so without this lock it can kill a socket whose live owner
-    has not finished initializing. The lock file lives in the tmux socket
-    directory, which is the one path every process sharing ``TMUX_TMPDIR``
-    agrees on even while tmux has not created any socket yet.
+    tmux 套接字存在于 ``new-session`` 和其所有者选项记录之间。 在兄弟智能体服务器的启
+    动清理中，处理没有所有者的套接字，因此如果没有这个锁，可以杀
+    死一个没有完成初始化的活套接字。 锁文件位于 tmux 服务端目录，这是所有共享
+    ``TMUX_TMPDIR`` 的进程都同意的路径，即使 tmux 也没有创建任何
+    套接字。
     """
     if socket_dir is None:
         socket_dir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"
-    # tmux refuses a socket directory that is group/world accessible, and
-    # FileLock would create it with the umask default, so create it 0700 first.
+    # tmux 拒绝组/世界可访问的套接字目录，而 FileLock 将使用默认 umask 创建它，因此首先
+    # 创建它 0700。
+    #
     socket_dir.mkdir(parents=True, exist_ok=True)
     with suppress(OSError):
         socket_dir.chmod(0o700)
@@ -102,12 +102,11 @@ def _socket_creation_lock(socket_dir: Path | None = None) -> Iterator[None]:
 
 
 def mark_socket_owner(server: libtmux.Server) -> None:
-    """Record this process as the owner of *server*'s socket.
+    """将此进程记录为 *server* 套接字的所有者。
 
-    The agent-server's startup cleanup reads this to tell a live sibling's
-    socket apart from a stale one when a shared ``TMUX_TMPDIR`` is in use.
-    Best-effort: a failure here only loses the ownership hint, so it must
-    never break terminal setup.
+    当共享 ``TMUX_TMPDIR`` 正在使用时，智能体-服务器的启动清理会读取此信息以区分活动
+    同级套接字和过时套接字。 尽力而为：这里的失败只会丢失所有权提示，
+    因此它绝不能破坏终端设置。
     """
     with suppress(Exception):
         server.set_option(
@@ -123,17 +122,17 @@ def _new_owned_session(
     x: int,
     y: int,
 ) -> tuple[libtmux.Server, libtmux.Session]:
-    """Create a tmux session on a fresh socket owned by this process.
+    """在此进程拥有的新套接字上创建 tmux 会话。
 
-    The socket only starts to exist once the session is created, so the session
-    is created and its owner recorded while holding the cross-process creation
-    lock. Startup cleanup in another process takes the same lock, so it can
-    never observe the socket before its owner is published.
+    只有在会话创建后，套接字才开始存在，因此会话被创建并记录其所有者，同时保持跨进程
+    创建锁。 另一个进程中的启动清理采用相同的锁，因此在套接字所有者发布之前它永远无法
+    观
+    察到套接字。
     """
     socket_name = f"{TMUX_SOCKET_NAME}-{uuid.uuid4().hex}"
     socket_dir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"
     socket_path = socket_dir / socket_name
-    # sun_path includes a NUL byte; limits are 108 on Linux and 104 on macOS/BSD.
+    # sun_path包含NUL字节； Linux 上的限制为 108，macOS/BSD 上的限制为 104。
     max_socket_path = 107 if sys.platform.startswith("linux") else 103
     fallback = (
         os.name == "posix"
@@ -141,8 +140,9 @@ def _new_owned_session(
     )
     if fallback:
         socket_dir = Path("/tmp") / f"tmux-{os.getuid()}"
-        # libtmux resolves socket_name using the process-wide TMUX_TMPDIR, so
-        # use an explicit path without changing other sessions' environment.
+        # libtmux 使用进程范围 TMUX_TMPDIR 解析 socket_name，因此使用显式路径而不更改其
+        # 他会话的环境。
+        #
         logger.warning("tmux socket path is too long; using %s", socket_dir)
 
     with _socket_creation_lock(socket_dir):
@@ -158,14 +158,15 @@ def _new_owned_session(
             y=y,
         )
         mark_socket_owner(server)
-    # A tmux server starts with this process's environment rather than *env*,
-    # and new windows inherit it, so unset what sanitization removed.
+    # tmux 服务器以此进程的环境而不是 *env* 启动，并且新窗口会继承它，因此请取消设置删除
+    # 的清理内容。
+    #
     for key in os.environ.keys() - env.keys():
         server.unset_environment(key)
     return server, session
 
 
-# Map normalized special key names to tmux key names.
+# 将规范化的特殊键名称映射到 tmux 键名称。
 _TMUX_SPECIALS: dict[str, str] = {
     "ENTER": "Enter",
     "TAB": "Tab",
@@ -186,10 +187,9 @@ _TMUX_SPECIALS: dict[str, str] = {
 
 
 class TmuxTerminal(TerminalInterface):
-    """Tmux-based terminal backend.
+    """基于tmux的终端后端。
 
-    This backend uses tmux to provide a persistent terminal session
-    with full screen capture and history management capabilities.
+    该后端使用 tmux 提供具有全屏捕获和历史管理功能的持久终端会话。
     """
 
     PS1: str
@@ -210,24 +210,25 @@ class TmuxTerminal(TerminalInterface):
         self._env = normalize_terminal_env(env)
 
     def initialize(self) -> None:
-        """Initialize the tmux terminal session."""
+        """初始化 tmux 终端会话。"""
         if self._initialized:
             return
 
         env = build_terminal_env(self._env)
-        # Disable interactive pagers (git, man, systemctl, ...) so commands that
-        # auto-launch `less` on a TTY don't capture the pane and wedge the session.
+        # 禁用交互式寻呼机（git、man、systemctl...），以便在 TTY 上自动启动 `less` 的命
+        # 令不会捕获窗格并楔入会话。
+        #
         env.setdefault("GIT_PAGER", "cat")
         env.setdefault("PAGER", "cat")
         shell_command = ["/bin/bash"]
         if self.username in ["root", "openhands"]:
-            # This starts a non-login (new) shell for the given user
+            # 这将为给定用户启动一个非登录（新）shell
             shell_command = ["su", self.username, "-"]
 
         window_command = shlex.join([*process_priority_prefix(env), *shell_command])
 
         logger.debug(f"Initializing tmux terminal with command: {window_command}")
-        # Never reuse a socket: tmux numeric IDs restart at zero after server exit.
+        # 切勿重用套接字：tmux 数字 ID 在服务器退出后从零重新启动。
         session_name = f"openhands-{self.username}-{uuid.uuid4()}"
         self.server, self.session = _new_owned_session(
             env,
@@ -239,12 +240,12 @@ class TmuxTerminal(TerminalInterface):
         for k, v in env.items():
             self.session.set_environment(k, v)
 
-        # Set history limit to a large number to avoid losing history
+        # 将历史记录限制设置为较大的数字以避免丢失历史记录
         # https://unix.stackexchange.com/questions/43414/unlimited-history-in-tmux
         self.session.set_option("history-limit", str(HISTORY_LIMIT))
         self.session.history_limit = str(HISTORY_LIMIT)
 
-        # Create a new pane because the initial pane's history limit is (default) 2000
+        # 创建一个新窗格，因为初始窗格的历史记录限制为（默认）2000
         _initial_window = self.session.active_window
         self.window = self.session.new_window(
             window_name="terminal",
@@ -257,80 +258,80 @@ class TmuxTerminal(TerminalInterface):
         logger.debug(f"pane: {self.pane}; history_limit: {self.session.history_limit}")
         _initial_window.kill()
 
-        # Configure bash to use simple PS1 and disable PS2
-        # Disable history expansion to avoid ! mangling
+        # 配置 bash 使用 simple PS1 并禁用 PS2 禁用历史扩展以避免！ 损坏
+        #
         self.pane.send_keys(
             f'set +H; export PROMPT_COMMAND=\'export PS1="{self.PS1}"\'; export PS2=""'
         )
-        time.sleep(0.1)  # Wait for command to take effect
+        time.sleep(0.1)  # 等待命令生效
 
         logger.debug(f"Tmux terminal initialized with work dir: {self.work_dir}")
         self._initialized: bool = True
         self.clear_screen()
 
     def close(self) -> None:
-        """Clean up the tmux session."""
+        """清理 tmux 会话。"""
         if self._closed:
             return
         try:
             if hasattr(self, "session"):
                 self.session.kill()
         except Exception as e:
-            # Session might already be dead/killed externally
-            # (e.g., "can't find session" error from tmux)
-            # Also handles ImportError during Python shutdown
+            # 会话可能已经在外部死亡/终止（e.g。，来自 tmux 的“找不到会话”错误）还在
+            # Python 关闭期间处理 ImportError
+            #
             logger.debug(f"Error closing tmux session (may already be dead): {e}")
         self._closed: bool = True
 
     def send_keys(self, text: str, enter: bool = True) -> None:
-        """Send text/keys to the tmux pane.
+        """将文本/按键发送到 tmux 窗格。
 
-        Supports:
-          - Plain text (uses literal paste; preserves spaces/newlines)
-          - Named specials: ENTER, TAB, BS, ESC, UP, DOWN, LEFT, RIGHT,
-            HOME, END, PGUP, PGDN, C-L, C-D, C-C
-          - Generic Ctrl sequences: C-a..C-z, CTRL-x, CTRL+x
+        支持：
+          - 纯文本（使用文字粘贴； 保留空格/换行符）
+          - 命名特价：ENTER、TAB、BS、ESC、UP、DOWN、LEFT、RIGHT、HOME、END、PGUP、
+          PGDN、C-L、C-D、C-C
+          - 通用 Ctrl 序列：C-a..C-z、CTRL-x、CTRL+x
 
         Args:
-            text: Text or key sequence to send
-            enter: Whether to send Enter key after the text.
-                   Ignored for special/ctrl keys.
+            text: 要发送的文本或按键序列
+            enter: 是否在文本后发送回车键。
+                   忽略特殊/ctrl 键。
         """
         if not self._initialized or not isinstance(self.pane, libtmux.Pane):
             raise RuntimeError("Tmux terminal is not initialized")
 
-        # Map normalized names to tmux key names
+        # 将规范化名称映射到 tmux 键名称
         upper = text.strip().upper()
 
-        # 1) Named specials
+        # 1) 指定特价商品
         if upper in _TMUX_SPECIALS:
             self.pane.send_keys(_TMUX_SPECIALS[upper], enter=False)
             return
 
-        # 2) Generic Ctrl-<letter>
+        # 2) 通用 Ctrl-<letter>
         ctrl = parse_ctrl_key(text)
         if ctrl is not None:
             self.pane.send_keys(ctrl, enter=False)
             return
 
-        # 3) Plain text — use literal=True so tmux doesn't split on
-        #    whitespace or interpret special tokens.
+        # 3) 纯文本 — 使用literal=True，这样 tmux 不会在空格上分割或解释特殊的 token。
+        #
         self.pane.send_keys(text, enter=False, literal=True)
         if enter and not text.endswith("\n"):
             self.pane.send_keys("Enter", enter=False)
 
     def read_screen(self) -> str:
-        """Read the current tmux pane content.
+        """读取当前 tmux 窗格内容。
 
         Returns:
-            Current visible content of the tmux pane
+            tmux 窗格的当前可见内容
         """
         if not self._initialized or not isinstance(self.pane, libtmux.Pane):
             raise RuntimeError("Tmux terminal is not initialized")
 
         content = "\n".join(
             map(
-                # avoid double newlines
+                # 避免双换行
                 lambda line: line.rstrip(),
                 self.pane.cmd("capture-pane", "-J", "-pS", "-").stdout,
             )
@@ -338,14 +339,14 @@ class TmuxTerminal(TerminalInterface):
         return content
 
     def clear_screen(self) -> None:
-        """Clear the tmux pane screen and history.
+        """清除 tmux 窗格屏幕和历史记录。
 
-        We intentionally avoid sending ``C-l`` (Ctrl+L) because the form-feed
-        control character (``^L``) can leak into the shell input buffer over SSH
-        connections.
+        我们有意避免发送 ``C-l``（Ctrl+L），因为控制字符 ``^L``（form-feed control
+        character）可能会泄露到 SSH
+        连接的 shell 输入缓冲区中。
 
-        Instead, we run the ``clear`` command to clear the visible screen, then
-        use tmux's ``clear-history`` to remove the scrollback buffer.
+        相反，我们运行 ``clear`` 命令来清除可见屏幕，然后使用 tmux 的
+        ``clear-history`` 来删除回滚缓冲区。
         """
         if not self._initialized or not isinstance(self.pane, libtmux.Pane):
             raise RuntimeError("Tmux terminal is not initialized")
@@ -355,10 +356,10 @@ class TmuxTerminal(TerminalInterface):
         self.pane.cmd("clear-history")
 
     def interrupt(self) -> bool:
-        """Send interrupt signal (Ctrl+C) to the tmux pane.
+        """发送中断信号(Ctrl+C)到tmux窗格。
 
         Returns:
-            True if interrupt was sent successfully, False otherwise
+            True 如果中断发送成功，False 否则
         """
         if not self._initialized or not isinstance(self.pane, libtmux.Pane):
             return False
@@ -370,17 +371,16 @@ class TmuxTerminal(TerminalInterface):
             return False
 
     def is_running(self) -> bool:
-        """Check if a command is currently running.
+        """检查命令当前是否正在运行。
 
-        For tmux, we determine this by checking if the terminal
-        is ready for new commands (ends with prompt).
+        对于 tmux，我们通过检查终端是否准备好接受新命令（以提示词结尾）来确定这一点。
         """
         if not self._initialized:
             return False
 
         try:
             content = self.read_screen()
-            # If the screen ends with our PS1 prompt, no command is running
+            # 如果屏幕以我们的 PS1 提示词结尾，则没有命令正在运行
             from openhands.tools.terminal.constants import CMD_OUTPUT_PS1_END
 
             return not content.rstrip().endswith(CMD_OUTPUT_PS1_END.rstrip())

@@ -1,12 +1,11 @@
-"""Built-in tool that classifies the current task and switches LLM profile.
+"""对当前任务进行分类并切换 LLM 配置文件的内置工具。
 
-The tool reads the *active meta-profile* (see
-:class:`~openhands.sdk.llm.meta_profile_store.MetaProfile`), asks the
-meta-profile's ``classifier_model`` to categorize the current task using the
-last few conversation messages, and switches the conversation to the LLM
-profile mapped to the chosen class. When the classifier produces no usable
-answer, the tool fails loudly (returns an error observation) so the miss is
-visible and retryable, instead of silently routing to a default model.
+该工具读取 * 活动元配置文件 *（请参阅
+:class:`~openhands.sdk.llm.meta_profile_store.MetaProfile`)，询问
+``classifier_model`` 用于根据最近的对话消息对 meta-profile 进行分类，然后将对话切换到
+与选择的类对应的 LLM。 当分类器没有产生可用的答
+案时，工具会大声失败（返回错误观测结果），这样可以显式地和可重试地失败，而不是默默地
+路由到默认模型。
 """
 
 import json
@@ -38,14 +37,14 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Number of trailing conversation messages shown to the classifier.
+# 显示给分类器的尾随对话消息数。
 _RECENT_MESSAGE_LIMIT = 6
 
 _CLASSIFIER_SYSTEM_PREFIX = "You are a model-routing classifier."
 
 
 class ClassifyAndSwitchLLMAction(Action):
-    """Trigger classification of the current task and switch the LLM profile."""
+    """触发当前任务的分类并切换LLM配置文件。"""
 
     @property
     def visualize(self) -> Text:
@@ -55,7 +54,7 @@ class ClassifyAndSwitchLLMAction(Action):
 
 
 class ClassifyAndSwitchLLMObservation(Observation):
-    """Result of classifying the task and switching the LLM profile."""
+    """对任务进行分类并切换 LLM 配置文件的结果。"""
 
     chosen_class: str | None = Field(
         default=None,
@@ -89,7 +88,7 @@ class ClassifyAndSwitchLLMObservation(Observation):
 
 
 def build_classifier_prompt(meta: MetaProfile) -> str:
-    """Build the classifier system prompt listing the meta-profile classes."""
+    """构建列出元配置文件类的分类器系统提示词。"""
     lines = [
         _CLASSIFIER_SYSTEM_PREFIX,
         "",
@@ -109,9 +108,9 @@ def build_classifier_prompt(meta: MetaProfile) -> str:
 
 
 def parse_class_index(text: str, num_classes: int) -> int:
-    """Parse the classifier reply into a class index.
+    """将分类器回复解析为类索引。
 
-    Returns 0 (no usable answer) when no in-range integer is found.
+    当未找到范围内的整数时，返回 0（无可用答案）。
     """
     match = re.search(r"-?\d+", text)
     if match is None:
@@ -123,14 +122,13 @@ def parse_class_index(text: str, num_classes: int) -> int:
 
 
 def render_direct_prompt(meta: MetaProfile, instance_text: str) -> str:
-    """Render the direct-routing prompt body (without the system prefix).
+    """渲染直接路由提示词主体（不带系统前缀）。
 
-    Only the minimal placeholders supported by meta-profiles are substituted.
-    The ``_CLASSIFIER_SYSTEM_PREFIX`` is intentionally *not* prepended here so
-    callers can place the rendered body in a ``user`` message while keeping the
-    prefix in the ``system`` message — some providers (e.g. MiniMax) reject
-    requests whose only turn is a ``system`` message with ``"chat content is
-    empty"``.
+    仅替换元配置文件支持的最少占位符。 此处有意*不*在前面添加
+    ``_CLASSIFIER_SYSTEM_PREFIX``，让调用方能将渲染后的正文放入
+    ``user`` 消息，同时将前缀保留在 ``system`` 消息中；部分提供商（e.g。 MiniMax) 拒
+    绝仅轮到 ``system`` 消息和
+    ``"chat content is empty"`` 的请求。
     """
     prompt = meta.prompt_template or ""
     values = {
@@ -145,13 +143,13 @@ def render_direct_prompt(meta: MetaProfile, instance_text: str) -> str:
 
 
 def build_classifier_messages(meta: MetaProfile, transcript: str) -> list[Message]:
-    """Build the classifier request messages for ``meta``.
+    """构建 ``meta`` 的分类器请求消息。
 
-    Always returns a ``system`` message followed by a non-empty ``user``
-    message. Providers such as MiniMax reject requests whose only turn is a
-    ``system`` message (``"chat content is empty"``), so the task transcript
-    and rendered prompt are placed in the ``user`` role for both routing
-    modes.
+    始终返回一条 ``system`` 消息，后跟一条非空 ``user`` 消息。 诸如 MiniMax 之类的提
+    供者会拒绝唯一轮到的请求
+    ``system`` 消息 (``"chat content is empty"``)，因此对于两种路由模式，任务记录和渲
+    染的提示词都被放置在 ``user`` 角
+    色中。
     """
     if meta.prompt_template is None:
         return [
@@ -181,12 +179,11 @@ def build_classifier_messages(meta: MetaProfile, transcript: str) -> list[Messag
 
 
 def parse_direct_model(text: str, available_models: Sequence[str]) -> str | None:
-    """Parse a direct-routing classifier reply into a saved profile name.
+    """将直接路由分类器回复解析为保存的配置文件名称。
 
-    The expected contract is JSON with a ``model`` field, but the parser also
-    scans the raw response for an allowed profile name to tolerate fenced JSON
-    or small formatting mistakes. Matching is case-insensitive, but the returned
-    value is the canonical saved profile name from ``available_models``.
+    预期的合同是 JSON，有一个 ``model`` 字段，但解析器还会扫描原始响应以容忍允许的模
+    板名称，以容忍被包围的 JSON 或小的格式错误。 匹配不区分大小写
+    ，但返回值是``available_models``中保存的规范配置文件名称。
     """
     raw = (text or "").strip()
     raw = re.sub(r"^```[a-zA-Z]*\n?", "", raw)
@@ -213,19 +210,18 @@ def parse_direct_model(text: str, available_models: Sequence[str]) -> str | None
 
 
 def _saved_profile_names(conversation: "LocalConversation") -> list[str]:
-    """Return saved LLM profile names without ``.json`` suffixes."""
+    """返回已保存的不带 ``.json`` 后缀的 LLM 配置文件名称。"""
     return [name.removesuffix(".json") for name in conversation._profile_store.list()]
 
 
 def _recent_messages_text(
     conversation: "LocalConversation", limit: int = _RECENT_MESSAGE_LIMIT
 ) -> str:
-    """Return a transcript of the last ``limit`` conversation messages.
+    """返回最后 ``limit`` 条对话消息的记录。
 
-    Only ``MessageEvent`` is included on purpose: user/assistant messages are
-    the task signal the classifier needs. Action/observation events (tool calls,
-    outputs) are deliberately excluded — they are noisy, can be large, and don't
-    describe the task any better than the surrounding messages.
+    故意只包含 ``MessageEvent``：用户/助理消息是分类器需要的任务信号。 工具调用事件/
+    观察事件（输出）是故意排除的——它们是噪声，可以很大，而且不能比
+    周围的消息更清楚地描述任务。
     """
     from openhands.sdk.event.llm_convertible.message import MessageEvent
     from openhands.sdk.llm import content_to_str
@@ -248,37 +244,37 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
         meta_profile: MetaProfile | None = None,
         meta_profile_llms: dict[str, LLM] | None = None,
     ) -> None:
-        # Resolve the meta-profile lazily (at invocation), not at construction,
-        # so a missing/renamed file under ~/.openhands/meta-profiles produces a
-        # tool error instead of breaking conversation startup.
+        # 应在调用时延迟解析元配置，而不是在构造时解析；这样 ~/.openhands/meta-profiles
+        # 下的文件缺失或改名时，只会产生工具错误，不会导致对话启动失败。
+        #
         self._store = meta_profile_store
         self._active_meta_profile = active_meta_profile
         self._meta_profile = meta_profile
         self._meta_profile_llms = meta_profile_llms or {}
 
     def _resolve_meta_profile(self) -> MetaProfile:
-        """Resolve the active meta-profile.
+        """解析活动元配置文件。
 
-        When an ``active_meta_profile`` name is set, the store is authoritative
-        (loaded by name) so the inline ``meta_profile`` blob and the store
-        cannot diverge after a name change (``PATCH /api/settings``) or a
-        file overwrite (``POST /api/meta-profiles/{name}``). The inline blob is
-        only consulted when the store cannot resolve the name — e.g. cloud
-        runtimes whose ephemeral filesystem has no meta-profile store. When no
-        name is set, fall back to the inline blob if present, otherwise the
-        first available meta-profile in the store.
+        当 ``active_meta_profile`` 名称已设置，商店是权威的（按名称加载），因此内联
+        ``meta_profile`` 在名称更改后，blo
+        b和存储库不能 diverge``PATCH /api/settings``) 或文件覆盖
+        ``POST /api/meta-profiles/{name}``). 只有当商店无法解析名称时，才会咨询内联
+        blob e.g. 其临时文件系统没有元配
+        置文件存储的云运行时。 如果未设置名称，则返回到内联 blob（如果存在），否则返
+        回到存储中的第一个可用元配置文件。
 
         Raises:
-            FileNotFoundError: If no meta-profile can be resolved.
-            ValueError: If the resolved meta-profile is invalid.
+            FileNotFoundError: 如果没有meta-profile可以解决。
+            ValueError: 如果解析的元配置文件无效。
         """
         name = self._active_meta_profile
         if name:
             try:
                 return self._store.load(name)
             except FileNotFoundError:
-                # Store cannot resolve the name (e.g. a cloud runtime with no
-                # meta-profile store on disk); fall through to the inline blob.
+                # 商店无法解析名称 (e.g. 磁盘上没有元配置文件存储的云运行时）； 落入内联
+                #  blob。
+                #
                 pass
 
         if self._meta_profile is not None:
@@ -298,8 +294,9 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
                 "No meta-profile is active and none are available in the "
                 "meta-profile store."
             )
-        # ``list()`` is alphabetically sorted, so this is the
-        # alphabetically-first meta-profile, not the most recently saved.
+        # ``list()`` 按字母顺序排序，因此这是按字母顺序排列的第一个元配置文件，而不是最
+        # 近保存的元配置文件。
+        #
         name = available[0]
         logger.info(
             "No active meta-profile set; falling back to first available: %r",
@@ -327,13 +324,12 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
                 text=f"Failed to resolve the active meta-profile: {exc}",
                 is_error=True,
             )
-        # 1) Load the classifier LLM (a saved profile), respecting at-rest cipher,
-        #    and register it in the conversation's LLM registry under a stable
-        #    usage id. Registration is what makes the classifier completion's
-        #    tokens/cost flow into ``conversation.conversation_stats`` and count
-        #    against ``max_budget_per_run`` — calling an unregistered LLM would
-        #    spend off the books (mirrors the ``ask-agent-llm`` pattern). Caching
-        #    by usage id means repeated routing calls reuse one metrics bucket.
+        # 1) 加载分类器 LLM（已保存的配置文件），尊重 at-REST 密码，并将其注册到对话的
+        # LLM 注册表中的稳定使用 ID 下。 注册是使分类器完成的标记/成本流进入
+        # ``conversation.conversation_stats``并计入``max_budget_per_run``——调用未注册的
+        # LLM会超出预算（与``ask-agent-llm``模式一致）。 按使用 ID 进行缓存意味着重复的
+        # 路由调用会重用一个指标存储桶。
+        #
         usage_id = f"classifier:{meta.classifier_model}"
         try:
             classifier_llm = conversation.llm_registry.get(usage_id)
@@ -357,7 +353,7 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
             )
             conversation.llm_registry.add(classifier_llm)
 
-        # 2) Single classifier call over the recent conversation.
+        # 2) 单个分类器调用最近的对话。
         transcript = _recent_messages_text(conversation) or "(no messages yet)"
         messages = build_classifier_messages(meta, transcript)
         try:
@@ -373,9 +369,9 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
 
         reply = "\n".join(content_to_str(response.message.content))
 
-        # 3) Resolve the target profile (chosen class or direct model). No
-        #    silent fallback: when the classifier produces no usable answer the
-        #    tool returns an error observation so the miss is visible/retryable.
+        # 3) 解析目标配置文件（选择的类或直接模型）。 无静默回退方案：当分类器没有产生可
+        # 用答案时，工具返回错误观测结果，因此未命中是可见的/可重试的。
+        #
         if meta.prompt_template is None:
             index = parse_class_index(reply, len(meta.classes))
             if index == 0:
@@ -409,7 +405,7 @@ class ClassifyAndSwitchLLMExecutor(ToolExecutor):
                 )
             chosen_class = f"model: {target_profile}"
 
-        # 4) Switch the conversation to the target profile.
+        # 4) 将对话切换到目标配置文件。
         try:
             inline_target = self._meta_profile_llms.get(target_profile)
             if inline_target is None:
@@ -466,7 +462,7 @@ _DESCRIPTION = (
 class ClassifyAndSwitchLLMTool(
     ToolDefinition[ClassifyAndSwitchLLMAction, ClassifyAndSwitchLLMObservation]
 ):
-    """Tool that classifies the task and switches to a meta-profile's LLM."""
+    """对任务进行分类并切换到元配置文件的 LLM 的工具。"""
 
     name = "route_task_to_model"
     user_selectable: ClassVar[bool] = False
@@ -487,10 +483,11 @@ class ClassifyAndSwitchLLMTool(
                 "'meta_profile', 'meta_profile_llms', and 'meta_profile_store'."
             )
 
-        # Meta-profile resolution is deferred to invocation time (see
-        # ClassifyAndSwitchLLMExecutor) so user-managed files under
-        # ~/.openhands/meta-profiles cannot break conversation startup; a
-        # missing/invalid profile surfaces as a tool error instead.
+        # 元配置文件解析被推迟到调用时间（参见 ClassifyAndSwitchLLMExecutor），因此用户
+        # 管理的文件
+        # ~/.openhands/meta-profiles 无法中断对话启动； 缺失/无效的轮廓会显示为工具错误
+        # 。
+        #
         store = meta_profile_store or MetaProfileStore()
         inline_meta_profile = (
             MetaProfile.model_validate(meta_profile)
@@ -519,7 +516,7 @@ class ClassifyAndSwitchLLMTool(
         ]
 
 
-# Registered so it can be resolved from a ``Tool`` spec carrying the
-# ``active_meta_profile`` param (the built-in ``include_default_tools`` path
-# cannot pass params).
+# 已注册，因此可以从带有以下内容的 ``Tool`` 规范中解析
+# ``active_meta_profile`` param（内置``include_default_tools``路径不能传递params）。
+#
 register_tool(ClassifyAndSwitchLLMTool.__name__, ClassifyAndSwitchLLMTool)

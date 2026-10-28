@@ -1,99 +1,127 @@
-# Documentation Update Prompt
+<a id="documentation-update-prompt"></a>
 
-You are a world-class documentation writer tasked with keeping the OpenHands Agent SDK documentation accurate and up-to-date. Your goal is to ensure documentation reflects the current codebase and provides clear, minimal, and actionable guidance.
+# 文档更新提示词
 
-## Core Objectives
+您是一位世界级的文档编写者，负责保持 OpenHands 智能体 SDK 文档准确且最新。 您的目标是确保文档反映当前的代码库并提供清晰、最少且可操作的指导。
 
-1. **Accuracy**: Ensure all documentation matches the current codebase
-2. **Completeness**: Include all available tools and core components
-3. **Clarity**: Keep examples simple, working, and easy to understand
-4. **Navigation**: Provide source code links for all definitions
+<a id="core-objectives"></a>
 
-## Tasks to Perform
+## 核心目标
 
-### 1. Codebase Analysis
+1. **准确性**：确保所有文档都与当前代码库匹配
+2. **完整性**：包括所有可用的工具和核心组件
+3. **清晰度**：保持示例简单、有效且易于理解
+4. **导航**：提供所有定义的源代码链接
 
-- Scan `examples/` for available examples
-- Scan `openhands-tools/` for all available runtime tools
-- Check `openhands-sdk/openhands/tool/builtins/` for built-in tools
-- Identify any new tools or removed tools since last update
+<a id="tasks-to-perform"></a>
 
-### 2. Documentation Review
+## 要执行的任务
 
-Review these key files for accuracy:
-- `docs/architecture/overview.md` - High-level component interactions and design principles
-- `docs/architecture/tool.md` - Tool system, inheritance, and MCP integration
-- `docs/architecture/agent.md` - Agent architecture and execution flow
-- `docs/architecture/llm.md` - LLM integration and capabilities
-- `docs/architecture/conversation.md` - Conversation interface and persistence
-- `docs/getting-started.mdx` - Make sure we have descriptions of all examples listed out in `examples/`
-- `docs/index.md` - Overview and navigation
-- `README.md` - Root project documentation
+<a id="1-codebase-analysis"></a>
 
-### 3. Content Updates Required
+### 1. 代码库分析
 
-#### Architecture Diagrams
+- 扫描`examples/`获取可用示例
+- 扫描 `openhands-tools/` 查找所有可用的运行时工具
+- 检查 `openhands-sdk/openhands/tool/builtins/` 是否有内置工具
+- 识别自上次更新以来任何新工具或删除的工具
 
-- Keep mermaid diagrams SIMPLE and READABLE across all docs/architecture/ files
-- Focus on core components and relationships, not every possible class
-- Include all current runtime tools: TerminalTool, FileEditorTool, TaskTrackerTool, etc.
-- Verify component interactions and inheritance reflect actual codebase structure
+<a id="2-documentation-review"></a>
 
-#### Tool Documentation
+### 2. 文件审查
 
-For each tool, ensure:
-- Accurate usage examples with `.create()` method
-- Working code snippets (test them!)
-- Source code links to GitHub
-- Clear descriptions of functionality
+检查这些关键文件的准确性：
+- `docs/architecture/overview.md` - 高级组件交互和设计原则
+- `docs/architecture/tool.md` - 工具系统、继承和MCP集成
+- `docs/architecture/agent.md`-智能体架构及执行流程
+- `docs/architecture/llm.md` - LLM 集成和功能
+- `docs/architecture/conversation.md` - 对话界面和持久化
+- `docs/getting-started.mdx` - 确保我们有 `examples/` 中列出的所有示例的描述
+- `docs/index.md` - 概述和导航
+- `README.md` - 根项目文档
 
-#### Core Framework Classes
+<a id="3-content-updates-required"></a>
 
-Verify documentation across docs/architecture/ files for:
+### 3. 需要内容更新
+
+<a id="architecture-diagrams"></a>
+
+#### 架构图表
+
+- 保持 Mermaid 图表 SIMPLE 和 READABLE 在所有地方 docs/architecture/ 文件
+- 专注于核心组件和关系，而不是每个可能的类
+- 包括所有当前运行时工具：TerminalTool、FileEditorTool、TaskTrackerTool 等。
+- 验证组件交互和继承反映实际的代码库结构
+
+<a id="tool-documentation"></a>
+
+#### 工具文档
+
+对于每个工具，确保：
+- `.create()`方法的准确使用示例
+- 工作代码片段（测试它们！）
+- 源代码链接到GitHub
+- 清晰的功能描述
+
+<a id="core-framework-classes"></a>
+
+#### 核心框架类
+
+验证 docs/architecture/ 文件中的文档：
 
 - `Tool`, `ActionBase`, `ObservationBase`, `ToolExecutor` (docs/architecture/tool.md)
-- `Agent`, `AgentBase`, system prompts (docs/architecture/agent.md)
+- `Agent`，`AgentBase`，系统提示词(docs/architecture/agent.md)
 - `LLM`, message types, provider support (docs/architecture/llm.md)
-- `Conversation`, `ConversationState`, event system (docs/architecture/conversation.md)
-- All built-in tools: `FinishTool`, `ThinkTool`
-- All runtime tools: `TerminalTool`, `FileEditorTool`, `TaskTrackerTool`
+- `Conversation`，`ConversationState`，事件系统(docs/architecture/conversation.md)
+- 所有内置工具：`FinishTool`、`ThinkTool`
+- 所有运行时工具：`TerminalTool`、`FileEditorTool`、`TaskTrackerTool`
 
-### 4. Verification Steps
+<a id="4-verification-steps"></a>
 
-- Test all documented code examples to ensure they work
-- Verify all GitHub source links are correct and accessible
-- Check that simplified and advanced usage patterns are accurate
-- Ensure cross-references between files are consistent
+### 4. 验证步骤
 
-### 5. Documentation Standards
+- 测试所有记录的代码示例以确保它们有效
+- 验证所有 GitHub 源链接是否正确且可访问
+- 检查简化和高级使用模式是否准确
+- 确保文件之间的交叉引用一致
 
-- **Style**: Direct, lean, technical writing
-- **Structure**: Clear sections answering specific user questions
-- **Examples**: Show working code rather than vague descriptions
-- **Links**: Include GitHub source links for all classes and tools
-- **Diagrams**: Simple, focused mermaid charts
+<a id="5-documentation-standards"></a>
 
-## Expected Deliverables
+### 5. 文件标准
 
-1. Updated documentation files with current tool listings
-2. Verified working code examples
-3. Simplified and accurate architecture diagrams
-4. Complete source code links for all definitions
-5. Consistent cross-references across all documentation files
+- **风格**：直接、精益、技术写作
+- **结构**：回答特定用户问题的清晰部分
+- **示例**：显示工作代码而不是模糊的描述
+- **链接**：包括所有类和工具的GitHub源链接
+- **图表**：简单、集中的美人鱼图表
 
-## Quality Checklist
+<a id="expected-deliverables"></a>
 
-- [ ] All runtime tools are documented with working examples
-- [ ] All built-in tools are listed and linked
-- [ ] Architecture diagrams are simple and current
-- [ ] All code examples have been tested and work
-- [ ] Source code links point to correct GitHub files
-- [ ] Documentation follows minimal, clear writing style
-- [ ] Cross-references between files are consistent
+## 预期交付成果
 
-## Commit Message Format
+1. 使用当前工具列表更新了文档文件
+2. 验证过的有效示例代码
+3. 简化且准确的架构图表
+4. 所有定义的完整源代码链接
+5. 所有文档文件之间的交叉引用保持一致
 
-If you think there's change required, please create a pull request.
+<a id="quality-checklist"></a>
+
+## 质量检查表
+
+- [ ] 所有运行时工具均附有工作示例
+- [ ] 列出并链接所有内置工具
+- [ ] 架构图表简单且最新
+- [ ] 所有代码示例都已经过测试并且可以工作
+- [ ] 源代码链接指向正确的 GitHub 文件
+- [ ] 文档遵循简约、清晰的写作风格
+- [ ] 文件之间的交叉引用是一致的
+
+<a id="commit-message-format"></a>
+
+## 提交消息格式
+
+如果您认为需要进行更改，请创建拉取请求。
 
 ```
 Update documentation to reflect current codebase
@@ -106,4 +134,4 @@ Update documentation to reflect current codebase
 Co-authored-by: openhands <openhands@all-hands.dev>
 ```
 
-Focus on making the documentation immediately useful for developers who need to understand and use the OpenHands Tools System.
+重点是使文档对需要理解和使用 OpenHands 工具系统的开发人员立即有用。

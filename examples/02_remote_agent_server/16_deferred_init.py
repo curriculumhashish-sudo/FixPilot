@@ -1,22 +1,20 @@
-"""Example demonstrating deferred-init (warm-pool) mode for the agent server.
+"""演示 Agent Server 的延迟初始化（热池）模式的示例。
 
-In warm-pool deployments, server pods are pre-warmed before a user is matched
-to one. The pod boots with ``OH_DEFERRED_INIT=true``: stateless services
-(VSCode, tool preload, etc.) start as normal, but all ``/api/*`` routes return
-503 until ``POST /api/init`` delivers the runtime configuration (credentials,
-workspace paths, session keys).
+在热池部署中，服务器 Pod 在用户与用户匹配之前会进行预热。 ``OH_DEFERRED_INIT=true``
+pod启动时，VSCode 状态机服务（如
+``/api/*``工具预加载等）正常启动，但所有``POST /api/init``路由返回503，直到凭据提供运
+行时配置（工作区路径，会话密钥）。
 
-The orchestrator authenticates the init call with the server's bootstrap secret
-key (``OH_SECRET_KEY`` / ``X-Init-API-Key``), which it already holds for
-encryption purposes.
+编排器使用服务器的引导机密密钥 (``OH_SECRET_KEY`` / ``X-Init-API-Key``) 来验证 init
+调用，该密钥已出于加密目的而保存。
 
-Lifecycle demonstrated here:
-  1. Server starts in dormant mode.
-  2. ``GET /api/init`` reports state=dormant.
-  3. ``GET /api/conversations`` returns 503 (dormant gate is active).
-  4. ``POST /api/init`` delivers runtime config → server transitions to ready.
-  5. ``GET /api/init`` reports state=ready.
-  6. A conversation runs normally on the now-ready server.
+此处展示的生命周期：
+  1. 服务器以休眠模式启动。
+  2. ``GET /api/init``报告状态=休眠。
+  3. ``GET /api/conversations`` 返回 503（休眠门处于活动状态）。
+  4. ``POST /api/init`` 传递运行时配置 → 服务器转换为就绪状态。
+  5. ``GET /api/init`` 报告状态=就绪。
+  6. 对话在现已准备就绪的服务器上正常运行。
 """
 
 import os
@@ -32,18 +30,18 @@ from openhands.sdk import get_logger
 
 logger = get_logger(__name__)
 
-# ── LLM config ──────────────────────────────────────────────────────────────
+# ── LLM 配置 ──────────────────────────────────────────────────────────────
 
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 llm_model = os.getenv("LLM_MODEL", "gpt-5.5")
 llm_base_url = os.getenv("LLM_BASE_URL")
 
-# The orchestrator knows this key before the pod is matched to a user.
-# It's used to authenticate POST /api/init and as the encryption secret.
+# 在 pod 与用户匹配之前，协调器就知道该密钥。 它用于验证 POST /api/init 并用作加密机密。
+#
 BOOTSTRAP_SECRET_KEY = "demo-warm-pool-bootstrap-key-32b!"
 
-# ── Server lifecycle ─────────────────────────────────────────────────────────
+# ── 服务器生命周期──────────────────────────────────────────────────────────
 
 with ManagedAPIServer(
     port=8003,
@@ -56,7 +54,7 @@ with ManagedAPIServer(
     client = httpx.Client(base_url=server.base_url, timeout=120.0)
 
     try:
-        # ── 1. Confirm dormant state ─────────────────────────────────────────
+        # ── 1. 确认休眠状态──────────────────────────────────────────
         logger.info("\n" + "=" * 60)
         logger.info("📊 Step 1: checking initial (dormant) state")
         logger.info("=" * 60)
@@ -69,7 +67,7 @@ with ManagedAPIServer(
         )
         logger.info(f"✅ Server is dormant — {init_status}")
 
-        # ── 2. Verify the dormant gate blocks /api/* ─────────────────────────
+        # ── 2. 验证休眠门区块/api/* ──────────────────────────
         logger.info("\n" + "=" * 60)
         logger.info("🚧 Step 2: dormant gate returns 503 on /api/conversations")
         logger.info("=" * 60)
@@ -80,21 +78,22 @@ with ManagedAPIServer(
         )
         logger.info("✅ /api/conversations correctly returns 503 while dormant")
 
-        # ── 3. Activate via POST /api/init ───────────────────────────────────
+        # ── 3. 通过POST/api/init激活──────────────────────────────────
         logger.info("\n" + "=" * 60)
         logger.info("🚀 Step 3: activating server via POST /api/init")
         logger.info("=" * 60)
 
         temp_workspace_dir = tempfile.mkdtemp(prefix="deferred_init_demo_")
 
-        # In a real warm-pool deployment, credentials that the server shouldn't
-        # have at cold-start (e.g., the user's LLM API key) would arrive here.
+        # 在真正的热池部署中，服务器在冷启动时不应具有的凭据（e.g.，用户的 LLM API 密钥
+        # ）将到达此处。
+        #
         llm_env: dict[str, str] = {"LLM_API_KEY": api_key}
         if llm_base_url:
             llm_env["LLM_BASE_URL"] = llm_base_url
 
         init_body: dict = {
-            # Pass user credentials into the server's environment.
+            # 将用户凭据传递到服务器环境中。
             "env": llm_env,
         }
 
@@ -110,13 +109,13 @@ with ManagedAPIServer(
         )
         logger.info(f"✅ Server is now ready — {init_status}")
 
-        # ── 4. Confirm ready via GET /api/init ───────────────────────────────
+        # ── 4. 通过GET /api/init确认准备就绪 ────────────────────────────────
         resp = client.get("/api/init")
         assert resp.status_code == 200
         assert resp.json()["state"] == "ready"
         logger.info("✅ GET /api/init confirms ready state")
 
-        # ── 5. Run a conversation on the now-ready server ────────────────────
+        # ── 5. 在现在准备好的服务器上运行对话────────────────────
         logger.info("\n" + "=" * 60)
         logger.info("🤖 Step 5: running a conversation on the ready server")
         logger.info("=" * 60)
@@ -144,7 +143,7 @@ with ManagedAPIServer(
         conversation_id = UUID(resp.json()["id"])
         logger.info(f"✅ Conversation started: {conversation_id}")
 
-        # Poll until the agent finishes.
+        # 轮询直至智能体完成。
         max_wait = 120
         elapsed = 0
         execution_status = "unknown"
@@ -153,7 +152,7 @@ with ManagedAPIServer(
             assert resp.status_code == 200
             data = resp.json()
             execution_status = data.get("execution_status", "unknown")
-            # Terminal states per ConversationExecutionStatus.is_terminal().
+            # 每个 ConversationExecutionStatus.is_terminal() 的终端状态。
             if execution_status in ("finished", "error", "stuck"):
                 break
             logger.info(f"   status: {execution_status} ({elapsed}s elapsed)")
@@ -170,7 +169,7 @@ with ManagedAPIServer(
             agent_response = resp.json().get("response", "")
             logger.info(f"   Agent response: {agent_response!r}")
 
-        # Collect cost metrics.
+        # 收集成本指标。
         accumulated_cost = 0.0
         resp = client.get(f"/api/conversations/{conversation_id}")
         if resp.status_code == 200:

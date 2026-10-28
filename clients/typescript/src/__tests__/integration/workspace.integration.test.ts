@@ -1,8 +1,8 @@
 /**
- * Integration tests for RemoteWorkspace
+ * 集成测试为 RemoteWorkspace
  *
- * Tests file operations and command execution against a real agent-server
- * running in a Docker container with a mounted workspace volume.
+ * 针对真实的智能体服务器测试文件操作和命令执行
+ * 在已安装工作区卷的 Docker 容器中运行。
  */
 
 import { HttpError, RemoteWorkspace, Workspace } from '../../index';
@@ -78,7 +78,7 @@ describe('RemoteWorkspace Integration Tests', () => {
         const result = await workspace.executeCommand('pwd');
 
         expect(result.exit_code).toBe(0);
-        // pwd should return a valid path (starts with /)
+        // pwd 应返回有效路径（以 /) 开头
         expect(result.stdout.trim()).toMatch(/^\//);
       },
       config?.testTimeout || 30000
@@ -93,7 +93,7 @@ describe('RemoteWorkspace Integration Tests', () => {
 
         expect(result.exit_code).toBe(0);
         expect(result.stdout).toBeDefined();
-        // ls -la should have some output
+        // ls -la 应该有一些输出
         expect(result.stdout.length).toBeGreaterThan(0);
       },
       config?.testTimeout || 30000
@@ -113,15 +113,15 @@ describe('RemoteWorkspace Integration Tests', () => {
 
         expect(result.exit_code).toBe(0);
 
-        // Give a moment for file to sync
+        // 请稍等片刻将文件发送至同步
         await sleep(500);
 
-        // Verify file exists on host
+        // 验证文件存在于主机上
         expect(workspaceFileExists(fileName)).toBe(true);
         const fileContent = readWorkspaceFile(fileName);
         expect(fileContent.trim()).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -183,15 +183,15 @@ describe('RemoteWorkspace Integration Tests', () => {
         expect(result.success).toBe(true);
         expect(result.destination_path).toBe(destPath);
 
-        // Give a moment for file to sync
+        // 请稍等片刻将文件发送至同步
         await sleep(500);
 
-        // Verify file exists on host
+        // 验证文件存在于主机上
         expect(workspaceFileExists(fileName)).toBe(true);
         const fileContent = readWorkspaceFile(fileName);
         expect(fileContent).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -210,15 +210,15 @@ describe('RemoteWorkspace Integration Tests', () => {
 
         expect(result.success).toBe(true);
 
-        // Give a moment for file to sync
+        // 请稍等片刻将文件发送至同步
         await sleep(500);
 
-        // Verify file exists on host
+        // 验证文件存在于主机上
         expect(workspaceFileExists(fileName)).toBe(true);
         const fileContent = readWorkspaceFile(fileName);
         expect(fileContent).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -237,13 +237,13 @@ describe('RemoteWorkspace Integration Tests', () => {
 
         expect(result.success).toBe(true);
 
-        // Give a moment for file to sync
+        // 请稍等片刻将文件发送至同步
         await sleep(500);
 
         const fileContent = readWorkspaceFile(fileName);
         expect(fileContent).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -259,21 +259,21 @@ describe('RemoteWorkspace Integration Tests', () => {
         const fileName = uniqueFileName('download-test');
         const content = 'Content to download';
 
-        // Create file via command
+        // 通过命令创建文件
         await workspace.executeCommand(
           `echo -n "${content}" > ${config.agentWorkspaceDir}/${fileName}`
         );
 
-        // Give a moment for file to be created
+        // 稍等片刻以创建文件
         await sleep(500);
 
-        // Download the file
+        // 下载文件
         const result = await workspace.fileDownload(`${config.agentWorkspaceDir}/${fileName}`);
 
         expect(result.success).toBe(true);
         expect(result.content).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -287,16 +287,16 @@ describe('RemoteWorkspace Integration Tests', () => {
         const fileName = uniqueFileName('host-created');
         const content = 'Created on host for download test';
 
-        // Create file on host
+        // 在主机上创建文件
         writeWorkspaceFile(fileName, content);
 
-        // Download via workspace
+        // 通过工作区下载
         const result = await workspace.fileDownload(`${config.agentWorkspaceDir}/${fileName}`);
 
         expect(result.success).toBe(true);
         expect(result.content).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -318,7 +318,7 @@ describe('RemoteWorkspace Integration Tests', () => {
 
         expect(downloadedContent).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -347,15 +347,15 @@ describe('RemoteWorkspace Integration Tests', () => {
         const content = randomContent(500);
         const destPath = `${config.agentWorkspaceDir}/${fileName}`;
 
-        // Upload
+        // 上传
         const uploadResult = await workspace.uploadText(content, destPath, fileName);
         expect(uploadResult.success).toBe(true);
 
-        // Download
+        // 下载
         const downloadedContent = await workspace.downloadAsText(destPath);
         expect(downloadedContent).toBe(content);
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000
@@ -378,14 +378,14 @@ describe('RemoteWorkspace Integration Tests', () => {
         );
         const destPath = `${config.agentWorkspaceDir}/${fileName}`;
 
-        // Upload
+        // 上传
         await workspace.uploadText(jsonContent, destPath, fileName);
 
-        // Download
+        // 下载
         const downloaded = await workspace.downloadAsText(destPath);
         expect(JSON.parse(downloaded)).toEqual(JSON.parse(jsonContent));
 
-        // Cleanup
+        // 清理
         deleteWorkspaceFile(fileName);
       },
       config?.testTimeout || 30000

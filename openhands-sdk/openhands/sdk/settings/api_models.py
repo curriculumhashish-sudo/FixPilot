@@ -1,28 +1,26 @@
-"""API request and response models for settings endpoints.
+"""API 设置端点的请求和响应模型。
 
-These models define the contract between SDK clients and agent-server settings
-endpoints. They are defined in the SDK so both packages can share them without
-circular dependencies (SDK cannot import from agent-server, but agent-server
-can import from SDK).
+这些模型定义了之间的合同 SDK 客户端和智能体服务器设置端点。 它们在定义 SDK 因此，这两
+个包可以共享它们，而无需循环依赖SDK 不能从...导入智能体-server
+, but 智能体服务器可以导入 SDK).
 
-Server-side usage:
-    The agent-server imports these models and uses them as FastAPI response_model.
+服务器端使用：
+    智能体-服务器导入这些模型并将它们用作FastAPI response_model。
 
-Client-side usage:
-    RemoteWorkspace uses these models to validate responses from settings APIs.
-    Use the typed accessor methods (``get_agent_settings()``,
-    ``get_conversation_settings()``) to parse the raw dicts into typed models.
+客户端使用：
+    RemoteWorkspace 使用这些模型来验证设置 APIs 的响应。 使用类型化的访问器方法(
+    ``get_agent_settings()``)
+    ``get_conversation_settings()``）将原始字典解析为类型化模型。
 
-Note on dict fields:
-    ``SettingsResponse`` keeps ``agent_settings`` and ``conversation_settings``
-    as dictionaries because the server needs to control how secrets are serialized
-    (plaintext/encrypted/redacted) via serialization context. Typed Pydantic fields
-    would lose this context during FastAPI's automatic JSON serialization.
+字典字段注意事项：
+    ``SettingsResponse`` 将 ``agent_settings`` 和 ``conversation_settings`` 保留为字
+    典，因为服务器需
+    要通过序列化上下文控制机密如何变为已序列化（明文/加密/编辑）。 输入的 Pydantic 字
+    段将在 FastAPI 自动 JSON 序列化期间丢失此上下文。
 
-    The ``agent_settings`` dictionary has a separate OpenAPI schema that exposes
-    known contract fields such as ``mcp_config`` while retaining an extension
-    surface. Clients that need runtime type safety should use the accessor methods
-    which validate the dictionaries into ``AgentSettingsConfig`` and
+    ``agent_settings`` 字典有一个单独的 OpenAPI 模式，它公开已知的契约字段，例如
+    ``mcp_config``，同时保留扩展表面。 需要运行
+    时类型安全的客户端应该使用访问器方法来验证字典``AgentSettingsConfig``和
     ``ConversationSettings``.
 """
 
@@ -45,8 +43,9 @@ from openhands.sdk.llm.llm_profile_store import PROFILE_NAME_PATTERN
 from openhands.sdk.mcp.config import MCPAuthCredential, MCPServer, MCPTransport
 
 
-# An AgentProfile's stable id is a UUID (the pointer target); reject malformed
-# values at the HTTP layer, mirroring ``active_profile``'s name pattern.
+# AgentProfile 的稳定 id 是 UUID（指针目标）； 拒绝 HTTP 层的格式错误的值，镜像
+# ``active_profile`` 的名称模式。
+#
 UUID_PATTERN = (
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
@@ -57,15 +56,15 @@ if TYPE_CHECKING:
     from .model import AgentSettingsConfig, ConversationSettings
 
 
-# ── Settings API Models ───────────────────────────────────────────────────
+# ── 设置API型号────────────────────────────────────────────────────
 
 
 class MCPConfig(RootModel[dict[str, MCPServer]]):
-    """Canonical persisted MCP server map keyed by stable server name."""
+    """由稳定服务器名称键入的规范已持久化 MCP 服务器映射。"""
 
 
 class MCPServerPatch(BaseModel):
-    """Sparse RFC 7386 merge patch for one persisted MCP server."""
+    """适用于一台已持久化 MCP 服务器的稀疏 RFC 7386 合并补丁。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -93,7 +92,7 @@ class MCPServerPatch(BaseModel):
 
 
 class MCPConfigPatch(RootModel[dict[str, MCPServerPatch | None]]):
-    """Sparse MCP map patch; a null map value deletes that named server."""
+    """稀疏MCP地图补丁； null 映射值删除该指定服务器。"""
 
 
 class _AgentSettingsContract(BaseModel):
@@ -135,25 +134,24 @@ AgentSettingsPatchDict = Annotated[dict[str, Any], _AgentSettingsPatchJsonSchema
 
 
 class SettingsResponse(BaseModel):
-    """Response model for GET /api/settings.
+    """GET /api/settings. 的响应模型
 
-    Contains the full settings payload including agent configuration,
-    conversation settings, active LLM profile, miscellaneous frontend-owned
-    settings, and a flag indicating whether an LLM API key is set.
+    包含完整的设置载荷，包括智能体配置、会话设置、活动 LLM 角色、前端所有者设置，以及
+    一个标志，指示 LLM API 键是否设置。
 
-    The ``agent_settings`` and ``conversation_settings`` fields are raw dicts
-    because the server controls secret serialization via context. Use the
-    typed accessor methods for validation:
+    ``agent_settings`` 和 ``conversation_settings`` 字段是原始字典，因为服务器通过上
+    下文控制机密序列化。 使用验证的类型化
+    访问器方法：
 
-    Example::
+    示例：:
 
         response = SettingsResponse.model_validate(api_response.json())
-        agent = response.get_agent_settings()  # Returns AgentSettingsConfig
-        conv = response.get_conversation_settings()  # Returns ConversationSettings
+        agent = response.get_agent_settings()  # 返回 AgentSettingsConfig
+        conv = response.get_conversation_settings()  # 返回 ConversationSettings
 
-    ``misc_settings`` is an opaque container for frontend-owned data that the
-    agent-server persists but does not interpret — see the docstring of
-    :class:`PersistedSettings.misc_settings`.
+    ``misc_settings`` 是前端拥有的数据的不透明容器，智能体服务器保留但不解释该数据 -
+    请参阅文档字符串
+    ：类：`PersistedSettings.misc_settings`。
     """
 
     agent_settings: AgentSettingsDict
@@ -174,21 +172,22 @@ class SettingsResponse(BaseModel):
     misc_settings: dict[str, Any] = Field(default_factory=dict)
 
     def get_agent_settings(self) -> AgentSettingsConfig:
-        """Parse and validate ``agent_settings`` into a typed model.
+        """将 ``agent_settings`` 解析并验证为类型化模型。
 
         Returns:
-            The validated agent settings as either ``OpenHandsAgentSettings``
-            or ``ACPAgentSettings`` depending on the ``agent_kind`` discriminator.
+            验证的智能体设置为 ``OpenHandsAgentSettings`` 或 ``ACPAgentSettings``，具
+            体取决于
+            ``agent_kind`` 鉴别器。
         """
         from .model import validate_agent_settings
 
         return validate_agent_settings(self.agent_settings)
 
     def get_conversation_settings(self) -> ConversationSettings:
-        """Parse and validate ``conversation_settings`` into a typed model.
+        """将 ``conversation_settings`` 解析并验证为类型化模型。
 
         Returns:
-            The validated conversation settings.
+            已验证的对话设置。
         """
         from .model import ConversationSettings
 
@@ -196,15 +195,15 @@ class SettingsResponse(BaseModel):
 
 
 class SettingsUpdateRequest(BaseModel):
-    """Request model for PATCH /api/settings.
+    """请求 PATCH /api/settings. 的模型
 
-    Supports partial updates via diff objects that are deep-merged with
-    existing settings. ``misc_settings_diff`` is deep-merged into the
-    persisted ``misc_settings`` block with the same semantics as
-    ``agent_settings_diff`` and ``conversation_settings_diff``: nested dicts
-    merge recursively, and lists are replaced wholesale rather than merged.
-    Because ``misc_settings`` is opaque to the agent-server, callers are
-    responsible for the shape of what they store there.
+    支持通过与现有设置深度合并的 diff 对象进行部分更新。 ``misc_settings_diff`` 深度
+    合并到已持久化 ``misc_settings`` 块
+    中，其语义与
+    ``agent_settings_diff`` 和 ``conversation_settings_diff``：嵌套字典递归合并，列表
+    被批量替换而不是合并。 由于
+     ``misc_settings`` 对智能体服务器来说是不透明的，因此调用者需要对其存储的内容的形
+     状负责。
     """
 
     agent_settings_diff: AgentSettingsPatchDict | None = None
@@ -227,13 +226,13 @@ class SettingsUpdateRequest(BaseModel):
     )
 
 
-# ── Secrets API Models ────────────────────────────────────────────────────
+# ── 机密 API 型号 ────────────────────────────────────────────────────
 
 
 class SecretItemResponse(BaseModel):
-    """Response model for a secret item (without value).
+    """机密项的响应模型（无值）。
 
-    Used in list responses and as the response for create/update operations.
+    用于列表响应以及作为创建/更新操作的响应。
     """
 
     name: str
@@ -241,19 +240,18 @@ class SecretItemResponse(BaseModel):
 
 
 class SecretsListResponse(BaseModel):
-    """Response model for GET /api/settings/secrets.
+    """GET /api/settings/secrets. 的响应模型
 
-    Lists all available secrets with their names and descriptions.
-    Values are never included in list responses.
+    列出所有可用的机密及其名称和描述。 值永远不会包含在列表响应中。
     """
 
     secrets: list[SecretItemResponse]
 
 
 class SecretCreateRequest(BaseModel):
-    """Request model for PUT /api/settings/secrets.
+    """请求 PUT /api/settings/secrets. 的模型
 
-    Creates or updates a secret with the given name and value.
+    使用给定名称和值创建或更新机密。
     """
 
     name: str

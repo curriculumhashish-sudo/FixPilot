@@ -1,17 +1,17 @@
-"""Tests for GitHub utility functions."""
+"""测试 GitHub 效用函数。"""
 
 from openhands.sdk.utils.github import ZWJ, sanitize_openhands_mentions
 
 
 def test_sanitize_basic_mention():
-    """Test basic @OpenHands mention is sanitized."""
+    """测试基本的 @OpenHands 提及是否已清理。"""
     text = "Thanks @OpenHands for the help!"
     expected = f"Thanks @{ZWJ}OpenHands for the help!"
     assert sanitize_openhands_mentions(text) == expected
 
 
 def test_sanitize_case_insensitive():
-    """Test that mentions are sanitized regardless of case."""
+    """测试提及内容是否经过清理，无论大小写。"""
     test_cases = [
         ("Check @OpenHands here", f"Check @{ZWJ}OpenHands here"),
         ("Check @openhands here", f"Check @{ZWJ}openhands here"),
@@ -23,14 +23,14 @@ def test_sanitize_case_insensitive():
 
 
 def test_sanitize_multiple_mentions():
-    """Test multiple mentions in the same text."""
+    """测试同一文本中的多次提及。"""
     text = "Both @OpenHands and @openhands should be sanitized"
     expected = f"Both @{ZWJ}OpenHands and @{ZWJ}openhands should be sanitized"
     assert sanitize_openhands_mentions(text) == expected
 
 
 def test_sanitize_with_punctuation():
-    """Test mentions followed by punctuation."""
+    """测试提及后跟标点符号。"""
     test_cases = [
         ("Thanks @OpenHands!", f"Thanks @{ZWJ}OpenHands!"),
         ("Hello @OpenHands.", f"Hello @{ZWJ}OpenHands."),
@@ -46,7 +46,7 @@ def test_sanitize_with_punctuation():
 
 
 def test_no_sanitize_partial_words():
-    """Test that partial word matches are NOT sanitized."""
+    """测试部分单词匹配是否已被不清理。"""
     test_cases = [
         "OpenHandsTeam",
         "MyOpenHands",
@@ -54,12 +54,12 @@ def test_no_sanitize_partial_words():
         "#OpenHands",
     ]
     for text in test_cases:
-        # Partial words without @ should remain unchanged
+        # 不带@的部分单词应保持不变
         assert sanitize_openhands_mentions(text) == text
 
 
 def test_no_op_cases():
-    """Test cases where no sanitization should occur."""
+    """测试用例不应进行消毒的地方。"""
     test_cases = [
         "",
         "No mentions here",
@@ -73,7 +73,7 @@ def test_no_op_cases():
 
 
 def test_sanitize_at_line_boundaries():
-    """Test mentions at the start and end of lines."""
+    """测试在行首和行尾提及。"""
     test_cases = [
         ("@OpenHands at start", f"@{ZWJ}OpenHands at start"),
         ("at end @OpenHands", f"at end @{ZWJ}OpenHands"),
@@ -84,7 +84,7 @@ def test_sanitize_at_line_boundaries():
 
 
 def test_sanitize_multiline_text():
-    """Test sanitization in multiline text."""
+    """测试多行文本的清理。"""
     text = """Hello @OpenHands!
 
 This is a test with @openhands mentioned.
@@ -101,11 +101,11 @@ Thanks @{ZWJ}OPENHANDS for everything!"""
 
 
 def test_sanitize_with_urls():
-    """Test that URLs containing OpenHands are handled correctly."""
+    """测试 URLs 包含 OpenHands 的处理是否正确。"""
     test_cases = [
-        # URL should not be sanitized
+        # URL 不应消毒
         ("Visit https://github.com/OpenHands", "Visit https://github.com/OpenHands"),
-        # But mention should be sanitized
+        # 但提及应该被净化
         (
             "See @OpenHands at https://github.com/OpenHands",
             f"See @{ZWJ}OpenHands at https://github.com/OpenHands",
@@ -116,14 +116,14 @@ def test_sanitize_with_urls():
 
 
 def test_sanitize_preserves_whitespace():
-    """Test that whitespace is preserved correctly."""
+    """测试空白是否被正确保留。"""
     text = "  @OpenHands  \n  @openhands  "
     expected = f"  @{ZWJ}OpenHands  \n  @{ZWJ}openhands  "
     assert sanitize_openhands_mentions(text) == expected
 
 
 def test_zwj_constant():
-    """Test that ZWJ constant is correctly defined."""
+    """测试 ZWJ 常量是否正确定义。"""
     assert ZWJ == "\u200d"
     assert len(ZWJ) == 1
     assert ord(ZWJ) == 0x200D

@@ -1,4 +1,4 @@
-"""Load persisted events and convert them into LLM-ready messages."""
+"""加载已持久化事件并将其转换为 LLM 就绪消息。"""
 
 import json
 import os
@@ -51,7 +51,7 @@ agent = Agent(
 )
 
 ######
-# Create a conversation that persists its events
+# 创建一个保留其事件的对话
 ######
 
 conversation = Conversation(
@@ -82,7 +82,7 @@ if not event_paths:
     raise RuntimeError("No event files found. Was persistence enabled?")
 
 ######
-# Read from serialized events
+# 读取已序列化个事件
 ######
 
 
@@ -103,6 +103,6 @@ else:
     chat_messages = llm.format_messages_for_llm(llm_messages)
     logger.info("Chat Completions messages:\n%s", json.dumps(chat_messages, indent=2))
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

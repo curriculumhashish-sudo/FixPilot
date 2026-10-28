@@ -1,10 +1,8 @@
-"""Example: Parallel tool execution with tool_concurrency_limit.
+"""Example: 与 tool_concurrency_limit 并行执行工具。
 
-Demonstrates how setting tool_concurrency_limit on an Agent enables
-concurrent tool execution within a single step. The orchestrator agent
-delegates to multiple sub-agents in parallel, and each sub-agent itself
-runs tools concurrently. This stress-tests the parallel execution system
-end-to-end.
+演示如何在智能体上设置 tool_concurrency_limit 以在单个步骤中启用并发工具执行。 编排器
+智能体并行委托给多个子智能体，每个子智能体本身同时运行工具。
+这对并行执行系统进行端到端的压力测试。
 """
 
 import json
@@ -36,11 +34,11 @@ llm = LLM(
 )
 
 
-# --- Sub-agents ---
+# --- 子智能体 ---
 
 
 def create_code_analyst(llm: LLM) -> Agent:
-    """Sub-agent that analyzes code structure."""
+    """子智能体分析代码结构。"""
     return Agent(
         llm=llm,
         tools=[
@@ -66,7 +64,7 @@ def create_code_analyst(llm: LLM) -> Agent:
 
 
 def create_doc_reviewer(llm: LLM) -> Agent:
-    """Sub-agent that reviews documentation."""
+    """子智能体审查文档。"""
     return Agent(
         llm=llm,
         tools=[
@@ -92,7 +90,7 @@ def create_doc_reviewer(llm: LLM) -> Agent:
 
 
 def create_dependency_checker(llm: LLM) -> Agent:
-    """Sub-agent that checks project dependencies."""
+    """子智能体检查项目依赖关系。"""
     return Agent(
         llm=llm,
         tools=[
@@ -118,7 +116,7 @@ def create_dependency_checker(llm: LLM) -> Agent:
     )
 
 
-# Register sub-agents
+# 注册子智能体
 register_agent(
     name="code_analyst",
     factory_func=create_code_analyst,
@@ -134,7 +132,7 @@ register_agent(
     factory_func=create_dependency_checker,
     description="Checks and summarizes project dependencies.",
 )
-# --- Orchestrator agent with parallel execution ---
+# --- 并行执行的 Orchestrator 智能体 ---
 main_agent = Agent(
     llm=llm,
     tools=[
@@ -175,13 +173,12 @@ findings from each sub-agent.
 """)
 conversation.run()
 
-# --- Analyze persisted events for parallelism ---
+# --- 分析已持久化事件的并行性 ---
 #
-# Walk the persistence directory to find all conversations (main + sub-agents).
-# Each conversation stores events as event-*.json files under an events/ dir.
-# We parse ActionEvent entries and group by llm_response_id — batches with 2+
-# actions sharing the same response ID prove the LLM requested parallel calls
-# and the executor handled them concurrently.
+# 遍历持久化目录以查找所有对话（main + 子智能体）。 每个对话将事件存储为 event-*.JSON
+# events/ 目录下的文件。 我们解析ActionEvent条记录，并按llm_response_id分组——具有相同响
+# 应ID的2个或更多操作的批次证明了LLM并行调用的请求，并且执行器并发处理了它们。
+#
 
 print("\n" + "=" * 80)
 print("Parallelism Report")
@@ -189,7 +186,7 @@ print("=" * 80)
 
 
 def _analyze_conversation(events_dir: Path) -> dict[str, list[str]]:
-    """Return {llm_response_id: [tool_name, ...]} for multi-tool batches."""
+    """对于多工具批次，返回 {llm_response_id: [tool_name, ...]}。"""
     batches: dict[str, list[str]] = defaultdict(list)
     for event_file in sorted(events_dir.glob("event-*.json")):
         data = json.loads(event_file.read_text())
@@ -201,7 +198,7 @@ def _analyze_conversation(events_dir: Path) -> dict[str, list[str]]:
 for events_dir in sorted(persistence_dir.rglob("events")):
     if not events_dir.is_dir():
         continue
-    # Derive a label from the path (main conv vs sub-agent)
+    # 从路径中派生标签（主转换 vs 子智能体）
     rel = events_dir.parent.relative_to(persistence_dir)
     is_subagent = "subagents" in rel.parts
     label = "sub-agent" if is_subagent else "main agent"

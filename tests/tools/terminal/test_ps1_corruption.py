@@ -1,12 +1,12 @@
 """
-Tests for PS1 metadata corruption recovery.
+测试 PS1 元数据损坏恢复。
 
-PS1 blocks can get corrupted when concurrent terminal output (progress bars,
-spinners, or other stdout) interleaves with the shell's PS1 prompt rendering.
-This is a race condition between the shell writing PS1 and programs writing output.
+当并发终端输出（进度条、旋转器或其他标准输出）与 shell 的 PS1 提示词渲染交错时，PS1
+块可能会损坏。 这是介于 shell 编写 PS1 和程序编写输出之间的
+竞态条件。
 
-The regex uses negative lookahead to match only the LAST ###PS1JSON### before
-each ###PS1END###, automatically handling corruption scenarios.
+正则表达式使用负向先行仅匹配每个 ###PS1END### 之前的 LAST ###PS1JSON###，自动处理损坏
+情况。
 """
 
 import logging
@@ -20,11 +20,11 @@ from openhands.tools.terminal.terminal.terminal_session import TerminalSession
 
 
 class TestPS1Corruption:
-    """Tests for PS1 metadata block corruption recovery."""
+    """测试 PS1 元数据块损坏恢复。"""
 
-    # Corrupted output where concurrent stdout interrupts the first PS1 block.
-    # The regex matches from first ###PS1JSON### to only ###PS1END###,
-    # creating one invalid match. The fix recovers the valid second block.
+    # 输出损坏，其中并发 stdout 中断第一个 PS1 块。 正则表达式从第一个 ###PS1JSON### 匹
+    # 配到仅 ###PS1END###，从而创建一个无效匹配。 该修复恢复了有效的第二个块。
+    #
     CORRUPTED_OUTPUT_GRUNT_CAT = r"""
 ###PS1JSON###
 {
@@ -55,7 +55,7 @@ Done.
 }
 ###PS1END###"""
 
-    # Another corrupted output with ANSI remnants
+    # 另一个带有 ANSI 残留的损坏输出
     CORRUPTED_OUTPUT_ANSI_REMNANTS = r"""
 ###PS1JSON###
 {
@@ -86,8 +86,9 @@ Done.
 }
 ###PS1END###"""
 
-    # Pager output (like from `less` or `help` command) that has no PS1 markers
-    # This happens when a pager takes over the terminal screen
+    # 没有 PS1 标记的寻呼机输出（如 `less` 或 `help` 命令） 当寻呼机接管终端屏幕时会发生
+    # 这种情况
+    #
     PAGER_OUTPUT_NO_PS1 = """Help on class RidgeClassifierCV in sklearn.linear_model:
 
 class RidgeClassifierCV(sklearn.linear_model.base.LinearClassifierMixin, _BaseRidgeCV)
@@ -111,22 +112,22 @@ class RidgeClassifierCV(sklearn.linear_model.base.LinearClassifierMixin, _BaseRi
 
     def test_regex_skips_corrupted_first_block(self):
         """
-        Test that the regex with negative lookahead skips corrupted first blocks.
+        测试具有负先行功能的正则表达式是否会跳过损坏的第一个块。
 
-        The regex `###PS1JSON###((?:(?!###PS1JSON###).)*?)###PS1END###` uses
-        negative lookahead to ensure no nested ###PS1JSON### in the match.
-        This means it matches only the LAST valid block before ###PS1END###.
+        正则表达式 `###PS1JSON###((?:(?!###PS1JSON###).)*?)###PS1END###` 使用负向先行
+        来确保匹配中没有嵌套的
+        ###PS1JSON###。 这意味着它仅匹配 ###PS1END### 之前的 LAST 有效块。
         """
         raw_matches = list(
             CMD_OUTPUT_METADATA_PS1_REGEX.finditer(self.CORRUPTED_OUTPUT_GRUNT_CAT)
         )
 
-        # The regex finds exactly 1 match (the valid block after nested marker)
+        # 正则表达式精确找到 1 个匹配项（嵌套标记后的有效块）
         assert len(raw_matches) == 1, (
             f"Expected exactly 1 raw regex match, got {len(raw_matches)}."
         )
 
-        # The matched content should NOT contain another ###PS1JSON### marker
+        # 匹配的内容应不包含另一个 ###PS1JSON### 标记
         matched_content = raw_matches[0].group(1)
         assert "###PS1JSON###" not in matched_content, (
             "The matched content should NOT contain nested ###PS1JSON### marker."
@@ -134,10 +135,10 @@ class RidgeClassifierCV(sklearn.linear_model.base.LinearClassifierMixin, _BaseRi
 
     def test_corrupted_ps1_recovery(self):
         """
-        Test that the fix recovers valid PS1 blocks from corrupted output.
+        测试修复是否从损坏的输出中恢复有效的 PS1 块。
 
-        When concurrent output corrupts the first PS1 block, the fix detects
-        the nested ###PS1JSON### marker and extracts the valid second block.
+        当并发输出损坏第一个 PS1 块时，修复程序会检测嵌套的 ###PS1JSON### 标记并提取
+        有效的第二个块。
         """
         matches = CmdOutputMetadata.matches_ps1_metadata(
             self.CORRUPTED_OUTPUT_GRUNT_CAT
@@ -150,29 +151,28 @@ class RidgeClassifierCV(sklearn.linear_model.base.LinearClassifierMixin, _BaseRi
 
     def test_handle_completed_command_graceful_fallback_with_corrupted_output(self):
         """
-        Test that _handle_completed_command returns a valid observation when
-        no PS1 blocks are found.
+        测试当未找到 PS1 块时 _handle_completed_command 是否返回有效的观测结果。
 
-        When terminal output is corrupted such that NO valid PS1 blocks are found,
-        the session now gracefully returns a TerminalObservation with exit_code=-1
-        instead of crashing with an AssertionError.
+        当终端输出被损坏，无法显示有效的内容 PS1 发现区块后，会优雅地返回一个
+        TerminalObservation 与 exit_code-1 而不是崩溃
+         AssertionError.
 
-        This fix addresses the production errors seen in Datadog logs.
+        此修复解决了 Datadog 日志中出现的生产错误。
         """
         from openhands.tools.terminal.terminal.interface import TerminalObservation
 
-        # Create a mock terminal interface
+        # 创建模拟对象终端接口
         mock_terminal = MagicMock()
         mock_terminal.work_dir = "/workspace"
         mock_terminal.username = None
 
-        # Create session
+        # 创建会话
         session = TerminalSession(terminal=mock_terminal)
         session._cwd = "/workspace"
         session._initialized = True
 
-        # Simulate output where ALL PS1 blocks are corrupted
-        # In this case, the JSON is completely broken - no valid blocks at all
+        # 模拟全部 PS1 块损坏的输出在这种情况下，JSON 完全损坏 - 根本没有有效块
+        #
         completely_corrupted_output = """\n###PS1JSON###
 {
   "pid": "",
@@ -190,34 +190,34 @@ ALSO BROKEN
             completely_corrupted_output
         )
 
-        # Verify we get 0 matches due to corruption
+        # 验证我们因损坏而获得 0 个匹配项
         assert len(ps1_matches) == 0, (
             f"Expected 0 PS1 matches from corrupted output, got {len(ps1_matches)}"
         )
 
-        # Now verify it returns a valid observation instead of crashing
+        # 现在验证它返回有效的观测结果而不是崩溃
         obs = session._handle_completed_command(
             command="npm test",
             terminal_content=completely_corrupted_output,
             ps1_matches=ps1_matches,
         )
 
-        # Verify graceful fallback behavior
+        # 验证优雅的回退方案行为
         assert isinstance(obs, TerminalObservation)
-        assert obs.exit_code == -1  # Unknown exit code sentinel
+        assert obs.exit_code == -1  # 未知退出代码哨兵值
         assert "PS1 metadata" in obs.metadata.suffix
 
     def test_pager_output_causes_zero_ps1_matches(self):
         """
-        Test that pager output (like `less`) produces zero PS1 matches.
+        测试寻呼机输出（如 `less`）是否产生零个 PS1 匹配。
 
-        When a command opens a pager (like `help(some_func)` in Python REPL
-        or `man ls`), the pager takes over the terminal screen. The PS1
-        prompt never appears because the pager is interactive and waiting
+        当命令打开寻呼机时（例如 Python REPL 或 `man ls` 中的 `help(some_func)`），寻
+        呼机将接管终端屏幕。 PS1 提示词永
+        远不会出现，因为寻呼机处于交互状态并正在等待
         for user input.
 
-        This causes "Expected exactly one PS1 metadata block BEFORE the
-        execution of a command, but got 0 PS1 metadata blocks" warnings.
+        这会导致“预期执行命令时正好有一个 PS1 元数据块之前，但收到了 0 PS1 个元数据块
+        ”警告。
         """
         matches = CmdOutputMetadata.matches_ps1_metadata(self.PAGER_OUTPUT_NO_PS1)
 
@@ -227,13 +227,12 @@ ALSO BROKEN
 
     def test_partial_ps1_block_not_matched(self):
         """
-        Test that a partial PS1 block (missing ###PS1END###) is not matched.
+        测试部分 PS1 块（缺少 ###PS1END###）是否不匹配。
 
-        This simulates the scenario where the PS1 prompt starts printing
-        but gets interrupted before completing. The regex should NOT match
-        incomplete blocks.
+        这模拟了 PS1 提示词开始打印但在完成之前被中断的情况。 正则表达式应该不匹配不
+        完整的块。
         """
-        # PS1 block that starts but never ends (common in corruption scenarios)
+        # PS1 开始但永不结束的块（常见于损坏场景）
         partial_block = """
 ###PS1JSON###
 {
@@ -250,9 +249,9 @@ SOME EXTRA OUTPUT BUT NO PS1END MARKER
 
     def test_ps1_block_with_embedded_special_chars(self):
         """
-        Test PS1 parsing when special characters appear in JSON field values.
+        当特殊字符出现在 JSON 字段值中时测试 PS1 解析。
         """
-        # Valid PS1 block but with special chars in a field value
+        # 有效的 PS1 块，但字段值中包含特殊字符
         ps1_with_special_chars = """
 ###PS1JSON###
 {
@@ -272,10 +271,9 @@ SOME EXTRA OUTPUT BUT NO PS1END MARKER
 
     def test_interleaved_output_between_ps1_markers(self):
         """
-        Test that interleaved output between PS1 markers corrupts parsing.
+        测试 PS1 标记之间的交错输出是否会破坏解析。
 
-        When concurrent output interrupts the PS1 JSON, the parser should
-        skip the malformed block gracefully.
+        当并发输出中断 PS1 JSON 时，解析器应该优雅地跳过格式错误的块。
         """
         interleaved_output = """
 ###PS1JSON###
@@ -287,8 +285,8 @@ INTERLEAVED COMMAND OUTPUT HERE - THIS BREAKS THE JSON
 """
         matches = CmdOutputMetadata.matches_ps1_metadata(interleaved_output)
 
-        # The regex WILL match this because the markers are present,
-        # but the JSON parsing should fail and skip it
+        # 正则表达式 WILL 与此匹配，因为存在标记，但 JSON 解析应该失败并跳过它
+        #
         assert len(matches) == 0, (
             f"Expected 0 matches with interleaved output, got {len(matches)}. "
             "The JSON parser should reject malformed JSON between markers."
@@ -296,15 +294,15 @@ INTERLEAVED COMMAND OUTPUT HERE - THIS BREAKS THE JSON
 
 
 class TestPS1CorruptionIntegration:
-    """Integration tests for PS1 corruption scenarios."""
+    """集成测试适用于 PS1 腐败场景。"""
 
     def test_terminal_session_handles_corrupted_output_gracefully(self):
         """
-        Test that TerminalSession handles missing PS1 blocks gracefully.
+        测试 TerminalSession 是否正常处理缺失的 PS1 块。
 
-        When corruption recovery fails and no valid PS1 blocks are found,
-        the session now returns a valid TerminalObservation with exit_code=-1
-        instead of crashing with an AssertionError.
+        当损坏恢复失败并且找不到有效的 PS1 块时，会话现在会返回 exit_code=-1 的有效
+        TerminalObservation，而不是因
+        AssertionError 崩溃。
         """
         from openhands.tools.terminal.terminal.interface import TerminalObservation
 
@@ -316,28 +314,28 @@ class TestPS1CorruptionIntegration:
         session._cwd = "/workspace"
         session._initialized = True
 
-        # Empty PS1 matches list (as would happen with completely corrupted output)
+        # 空 PS1 匹配列表（与完全损坏的输出一样）
         empty_matches = []
 
-        # Verify graceful fallback instead of crash
+        # 验证优雅回退方案而不是崩溃
         obs = session._handle_completed_command(
             command="echo test",
             terminal_content="completely garbled output with no PS1 markers",
             ps1_matches=empty_matches,
         )
 
-        # Verify the graceful fallback behavior
+        # 验证优雅的回退方案行为
         assert isinstance(obs, TerminalObservation)
-        assert obs.exit_code == -1  # Unknown exit code sentinel
+        assert obs.exit_code == -1  # 未知退出代码哨兵值
         assert "PS1 metadata" in obs.metadata.suffix
         assert "echo test" in obs.text or "garbled" in obs.text
 
 
 class TestPS1ParserRobustness:
-    """Tests for PS1 parser robustness improvements."""
+    """测试 PS1 解析器稳健性改进。"""
 
     def test_regex_handles_multiline_json(self):
-        """Test that the PS1 regex correctly handles multiline JSON."""
+        """测试 PS1 正则表达式是否正确处理多行 JSON。"""
         multiline_json = """
 ###PS1JSON###
 {
@@ -354,7 +352,7 @@ class TestPS1ParserRobustness:
         assert len(matches) == 1
 
     def test_multiple_valid_ps1_blocks(self):
-        """Test parsing multiple valid PS1 blocks (normal operation)."""
+        """测试解析多个有效的 PS1 块（正常操作）。"""
         two_blocks = """
 ###PS1JSON###
 {
@@ -375,7 +373,7 @@ Some command output here
         matches = CmdOutputMetadata.matches_ps1_metadata(two_blocks)
         assert len(matches) == 2
 
-        # Verify we can extract data from both
+        # 验证我们可以从两者中提取数据
         meta1 = CmdOutputMetadata.from_ps1_match(matches[0])
         meta2 = CmdOutputMetadata.from_ps1_match(matches[1])
         assert meta1.pid == 100
@@ -386,10 +384,10 @@ Some command output here
 
 def test_regex_handles_nested_markers():
     """
-    Test that the regex correctly handles nested ###PS1JSON### markers.
+    测试正则表达式是否正确处理嵌套的 ###PS1JSON### 标记。
 
-    When concurrent output corrupts the first PS1 block, the regex should
-    match only the LAST ###PS1JSON### before ###PS1END###.
+    当并发输出损坏第一个 PS1 块时，正则表达式应仅匹配 ###PS1END### 之前的 LAST ###
+    PS1JSON###。
     """
     corrupted_output = """\
 COMMAND OUTPUT BEFORE PS1
@@ -413,15 +411,15 @@ COMMAND OUTPUT AFTER PS1"""
 
     matches = CmdOutputMetadata.matches_ps1_metadata(corrupted_output)
 
-    # We should get 1 match (the valid block after the nested marker)
+    # 我们应该得到 1 个匹配（嵌套标记之后的有效块）
     assert len(matches) == 1, f"Expected 1 match, got {len(matches)}"
 
-    # Verify the match contains valid JSON
+    # 验证匹配包含有效的 JSON
     import json
 
     content = matches[0].group(1).strip()
     data = json.loads(content)
-    assert data["pid"] == "456"  # Should be the second block's data
+    assert data["pid"] == "456"  # 应该是第二个块的数据
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-"""Planning agent preset configuration."""
+"""规划智能体预设配置。"""
 
 from openhands.sdk import Agent
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
@@ -10,7 +10,7 @@ from openhands.sdk.tool import Tool
 logger = get_logger(__name__)
 
 
-# Plan structure definition as list of (section_title, section_description) tuples
+# 计划结构定义为 (section_title, section_description) 元组列表
 PLAN_STRUCTURE: list[tuple[str, str]] = [
     (
         "OBJECTIVE",
@@ -54,10 +54,10 @@ PLAN_STRUCTURE: list[tuple[str, str]] = [
 
 
 def format_plan_structure() -> str:
-    """Format the PLAN_STRUCTURE into a string for system prompt injection.
+    """将 PLAN_STRUCTURE 格式化为字符串以供系统提示词注入。
 
     Returns:
-        Formatted plan structure string ready for system prompt.
+        格式化的计划结构字符串已准备好供系统提示词使用。
     """
 
     if not PLAN_STRUCTURE:
@@ -65,7 +65,7 @@ def format_plan_structure() -> str:
 
     formatted_sections = []
     for i, (title, description) in enumerate(PLAN_STRUCTURE, 1):
-        # Split description into lines and indent each line properly
+        # 将描述分成几行并正确缩进每行
         description_lines = description.split("\n")
         indented_description = "\n   ".join(description_lines)
         formatted_sections.append(f"{i}. {title}\n   {indented_description}")
@@ -76,10 +76,10 @@ def format_plan_structure() -> str:
 
 
 def get_plan_headers() -> str:
-    """Get plan section headers for initializing PLAN.md.
+    """获取用于初始化的计划节标题 PLAN.md。
 
     Returns:
-        Plan headers as markdown string.
+        将标题计划为 Markdown 字符串。
     """
     headers = []
     for i, (title, _) in enumerate(PLAN_STRUCTURE, 1):
@@ -89,8 +89,8 @@ def get_plan_headers() -> str:
 
 
 def register_planning_tools() -> None:
-    """Register the planning agent tools."""
-    # Tools are now automatically registered when imported
+    """注册规划智能体工具。"""
+    # 现在导入时会自动注册工具
     from openhands.tools.glob import GlobTool  # noqa: F401
     from openhands.tools.grep import GrepTool  # noqa: F401
     from openhands.tools.planning_file_editor import (
@@ -103,25 +103,23 @@ def register_planning_tools() -> None:
 
 
 def get_planning_tools(plan_path: str | None = None) -> list[Tool]:
-    """Get the planning agent tool specifications.
+    """获取规划智能体工具规格。
 
     Args:
-        plan_path: Optional absolute path to PLAN.md file. If provided, will be
-            passed to PlanningFileEditorTool via params.
+        plan_path: PLAN.md 文件的可选绝对路径。 如果提供，则会
+            通过 params 传递给 PlanningFileEditorTool。
 
     Returns:
-        List of tools optimized for planning and analysis tasks, including
-        file viewing and PLAN.md editing capabilities for advanced
-        code discovery and navigation.
+        包括文件查看和PLAN.md编辑功能的工具列表，这些功能用于高级代码发现和导航。
     """
     register_planning_tools()
 
-    # Import tools to access their name attributes
+    # 导入工具以访问其名称属性
     from openhands.tools.glob import GlobTool
     from openhands.tools.grep import GrepTool
     from openhands.tools.planning_file_editor import PlanningFileEditorTool
 
-    # Build params for PlanningFileEditorTool if plan_path is provided
+    # 如果 plan_path 提供，则为 PlanningFileEditorTool 构建参数
     planning_tool_params = {}
     if plan_path:
         planning_tool_params["plan_path"] = plan_path
@@ -134,19 +132,19 @@ def get_planning_tools(plan_path: str | None = None) -> list[Tool]:
 
 
 def get_planning_condenser(llm: LLM) -> LLMSummarizingCondenser:
-    """Get a condenser optimized for planning workflows.
+    """获得针对规划工作流程进行优化的上下文压缩器。
 
     Args:
-        llm: The LLM to use for condensation.
+        llm: 用于上下文压缩的 LLM。
 
     Returns:
-        A condenser configured for planning agent needs.
+        A 上下文压缩器配置用于规划智能体需求。
     """
-    # Planning agents may need more context for thorough analysis
+    # 规划智能体可能需要更多上下文进行彻底分析
     condenser = LLMSummarizingCondenser(
         llm=llm,
-        max_size=100,  # Larger context window for planning
-        keep_first=6,  # Keep more initial context
+        max_size=100,  # 更大的上下文窗口用于规划
+        keep_first=6,  # 保留更多初始上下文
     )
     return condenser
 
@@ -154,15 +152,14 @@ def get_planning_condenser(llm: LLM) -> LLMSummarizingCondenser:
 def get_planning_agent(
     llm: LLM,
 ) -> Agent:
-    """Get a configured planning agent.
+    """获取配置的计划智能体。
 
     Args:
-        llm: The LLM to use for the planning agent.
-        enable_security_analyzer: Whether to enable security analysis.
+        llm: 用于规划智能体的 LLM。
+        enable_security_analyzer: 是否启用安全分析。
 
     Returns:
-        A fully configured planning agent with read-only file operations and
-        command-line capabilities for comprehensive code discovery.
+        完全配置的规划智能体，具有只读文件操作和命令行功能，可实现全面的代码发现。
     """
     tools = get_planning_tools()
 

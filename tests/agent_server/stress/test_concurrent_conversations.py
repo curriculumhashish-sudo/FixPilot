@@ -1,15 +1,15 @@
-"""Stress test: many separate conversations running concurrently.
+"""压力测试：许多单独的对话同时运行。
 
-Bug class this catches:
-    - Lease contention between conversations sharing persistence layer.
-    - Persistence write contention (one conversation's append blocking another).
-    - Cross-conversation event leaks (events ending up in the wrong log).
-    - Connection-pool / thread-pool exhaustion that silently serializes runs.
+捕获的错误类：
+    - 共享持久化层的会话之间存在租约争用。
+    - 持久化写入争用（一个对话的追加阻塞了另一个对话）。
+    - 交叉对话事件泄漏（事件最终出现在错误的日志中）。
+    - 连接池/线程池耗尽，静默序列化运行。
 
-Distinct from test_parallel_subagents.py:
-    parallel_subagents tests N sub-agents in *one* conversation. This tests N
-    *separate* conversations, so the hot path is conversation_lease,
-    persistence/store, and pub_sub broadcasting — not TaskManager.
+与test_parallel_subagents.py不同：
+    parallel_subagents 在 * 一个 * 对话中测试 N 子智能体。 这测试了N
+    *分开的*个对话，所以热路径是conversation_lease，
+    持久化/存储，以及 pub_sub 广播 — 而不是 TaskManager。
 """
 
 import asyncio
@@ -34,17 +34,16 @@ pytestmark = pytest.mark.stress
 
 
 def _build_simple_llm(latency_s: float) -> SlowTestLLM:
-    """LLM scripted with one text response (no tool calls).
+    """LLM 用一个文本响应编写脚本（无工具调用）。
 
-    The agent terminates after the first response when it sees no tool
-    calls, so one scripted message per conversation is enough — additional
-    scripted messages would never be consumed.
+    的智能体在收到第一个响应后，终止工具调用因此，一个对话中的一个脚本消息就足够了——
+    额外的脚本消息永远不会被消费。
     """
     llm = SlowTestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text="done")])],
         latency_s=latency_s,
     )
-    # from_messages is typed as returning the parent TestLLM; narrow.
+    # from_messages 被输入为返回父级 TestLLM； 狭窄。
     assert isinstance(llm, SlowTestLLM)
     return llm
 
@@ -83,13 +82,13 @@ async def test_concurrent_conversations_isolated_and_fast(
     tmp_path,
     probe: ResourceProbe,
 ):
-    """N concurrent conversations: all complete, no cross-leaks, parallelism."""
+    """N并发个对话：全部完整，无交叉泄漏，并行性。"""
     n = CONCURRENT_CONVERSATIONS.n_conversations
     latency_s = CONCURRENT_CONVERSATIONS.per_call_latency_s
     workspace = str(tmp_path / "ws")
     (tmp_path / "ws").mkdir()
 
-    # 1. Single-conversation reference timing — same loop, same fixture.
+    # 1. 单对话参考时序 — 相同的循环，相同的测试夹具。
     ref_id, ref_llm = await _start_one(
         conversation_service,
         workspace=workspace,
@@ -100,14 +99,14 @@ async def test_concurrent_conversations_isolated_and_fast(
     assert ref_status == ConversationExecutionStatus.FINISHED
     assert ref_llm.remaining_responses == 0
 
-    # Snapshot probe state between reference and concurrent runs so the
-    # RSS budget below measures the concurrent run only — see
-    # test_parallel_subagents.py for the same pattern.
+    # 快照探测状态介于参考和并发运行之间，因此下面的 RSS 预算仅测量并发运行 — 请参阅
+    # test_parallel_subagents.py 了解相同的模式。
+    #
     pre_concurrent_idx = len(probe.samples)
     assert pre_concurrent_idx > 0, "ResourceProbe yielded no samples?"
     pre_concurrent_rss_mb = probe.samples[-1].rss_mb
 
-    # 2. Now N concurrent conversations.
+    # 2. 现在有 N并发个对话。
     started = await asyncio.gather(
         *[
             _start_one(
@@ -126,15 +125,16 @@ async def test_concurrent_conversations_isolated_and_fast(
     )
     concurrent_wall = time.monotonic() - t0
 
-    # 3. Every conversation finished cleanly.
+    # 3. 每一次谈话都干净利落地结束。
     for i, (_wall, status) in enumerate(results):
         assert status == ConversationExecutionStatus.FINISHED, (
             f"conversation {i} ended in {status}, expected FINISHED. "
             f"Possible lease contention or persistence error."
         )
 
-    # 4. Each LLM was actually drained — catches "all conversations sharing
-    #    one LLM" or "wrong LLM picked up" regressions.
+    # 4. 每个 LLM 实际上都被耗尽了——捕捉到“所有共享一个 LLM 的对话”或“错误的 LLM 拾取”回
+    # 归。
+    #
     for i, (_, llm) in enumerate(started):
         assert llm.remaining_responses == 0, (
             f"conversation {i} LLM not drained "
@@ -142,7 +142,7 @@ async def test_concurrent_conversations_isolated_and_fast(
             f"event leak or LLM mix-up?"
         )
 
-    # 5. Parallelism. Concurrent wall must be far less than n × ref_wall.
+    # 5. 并行性。 并发墙必须远小于n×ref_wall。
     serial_estimate = ref_wall * n
     budget = ref_wall * CONCURRENT_CONVERSATIONS.wall_time_factor
     assert concurrent_wall < budget, (
@@ -152,11 +152,10 @@ async def test_concurrent_conversations_isolated_and_fast(
         f"are running effectively in series — likely a global lock somewhere."
     )
 
-    # 6. Persistence sanity: the set of dirs on disk must match exactly the
-    #    set of conversation IDs we started. Asserting on the ID set (not
-    #    just the count) catches "right count, wrong IDs" — e.g. a
-    #    conversation failed to start but left a directory behind and a
-    #    retry succeeded with a different ID.
+    # 6. 持久化理智：磁盘上的目录集必须与我们启动的对话 ID 集完全匹配。 在验证ID集（而不
+    # 是数量）时，可以捕捉“正确数量，错误ID” — e.g。 对话无法启动，但留下了一个目录，重
+    # 试成功但使用了不同的 ID。
+    #
     expected_ids = {ref_id, *(conv_id for conv_id, _llm in started)}
     on_disk_ids = {UUID(d.name) for d in (tmp_path / "persist").iterdir() if d.is_dir()}
     assert on_disk_ids == expected_ids, (
@@ -165,9 +164,9 @@ async def test_concurrent_conversations_isolated_and_fast(
         f"extra={on_disk_ids - expected_ids}."
     )
 
-    # 7. Resource budget. Compared against the snapshot taken between
-    #    the reference and concurrent runs, so the spike from the
-    #    reference run isn't attributed here.
+    # 7. 资源预算。 与参考运行和并发运行之间拍摄的快照相比，因此此处不归因于参考运行的尖
+    # 峰。
+    #
     concurrent_peak_rss_mb = max(
         (s.rss_mb for s in probe.samples[pre_concurrent_idx:]),
         default=pre_concurrent_rss_mb,

@@ -1,7 +1,8 @@
-"""Test for client base_url configuration (Issue #800).
+"""测试客户端 base_url 配置（问题 #800）。
 
-Verifies that RemoteWorkspace and AsyncRemoteWorkspace create httpx clients
-with base_url set, fixing the UnsupportedProtocol error with relative URLs.
+验证RemoteWorkspace和AsyncRemoteWorkspace创建了带有base_url的httpx客户端，并解决了
+UnsupportedProtocol错误
+，使用相对URLs。
 """
 
 import httpx
@@ -13,7 +14,7 @@ from openhands.sdk.workspace.remote.base import RemoteWorkspace
 
 
 def test_remote_workspace_client_has_base_url():
-    """Test that RemoteWorkspace creates client with base_url set."""
+    """测试 RemoteWorkspace 创建带有 base_url 设置的客户端。"""
     workspace = RemoteWorkspace(host="http://localhost:8000", working_dir="/workspace")
     client = workspace.client
 
@@ -23,7 +24,7 @@ def test_remote_workspace_client_has_base_url():
 
 
 def test_async_remote_workspace_client_has_base_url():
-    """Test that AsyncRemoteWorkspace creates client with base_url set."""
+    """测试 AsyncRemoteWorkspace 创建带有 base_url 设置的客户端。"""
     workspace = AsyncRemoteWorkspace(
         host="http://localhost:8000", working_dir="/workspace"
     )

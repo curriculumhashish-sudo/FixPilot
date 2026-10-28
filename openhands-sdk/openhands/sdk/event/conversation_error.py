@@ -10,18 +10,15 @@ from openhands.sdk.event.error_classification import (
 
 class ConversationErrorEvent(Event):
     """
-    Conversation-level failure that is NOT sent back to the LLM.
+    会话级失败即被不发送回LLM。
 
-    This event is emitted by the conversation runtime when an unexpected
-    exception bubbles up and prevents the run loop from continuing. It is
-    intended for client applications (e.g., UIs) to present a top-level error
-    state, and for orchestration to react. It is not an observation and it is
-    not LLM-convertible.
+    当出现意外异常并阻止运行循环继续时，对话运行时会发出此事件。 它旨在供客户端应用程
+    序（e.g.、UI）呈现顶级错误状态，并供编排做出反应。 它不是观测结果，也不是
+    LLM 可转换的。
 
-    Differences from AgentErrorEvent:
-    - Not tied to any tool_name/tool_call_id (AgentErrorEvent is a tool
-      observation).
-    - Typically source='environment' and the run loop moves to an ERROR state,
+    与AgentErrorEvent的区别：
+    - 不依赖于任何 tool_name/tool_call_id（AgentErrorEvent 是工具观测结果）。
+    - 通常 source='environment' 并且运行循环移动到 ERROR 状态，
       while AgentErrorEvent has source='agent' and the conversation can
       continue.
     """
@@ -43,7 +40,7 @@ class ConversationErrorEvent(Event):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this conversation error event."""
+        """返回此对话错误事件的富文本表示形式。"""
         content = Text()
         content.append("Conversation Error\n", style="bold")
         content.append("Code: ", style="bold")

@@ -1,4 +1,4 @@
-"""Tests for AgentContext serialization and deserialization."""
+"""测试 AgentContext、序列化和反序列化。"""
 
 import json
 from base64 import urlsafe_b64encode
@@ -17,7 +17,7 @@ from openhands.sdk.utils.cipher import Cipher
 
 
 def test_agent_context_serialization_roundtrip():
-    """Ensure AgentContext round-trips through dict and JSON serialization."""
+    """确保通过 dict 和 JSON 序列化进行 AgentContext 往返。"""
 
     repo_skill = Skill(
         name="repo-guidelines",
@@ -48,7 +48,7 @@ def test_agent_context_serialization_roundtrip():
     serialized = context.model_dump()
     assert serialized["system_message_suffix"] == "System suffix"
     assert serialized["user_message_suffix"] == "User suffix"
-    # First skill has trigger=None (always-active), others have specific triggers
+    # 第一个技能的触发器=None（始终有效），其他技能有特定的触发器
     assert serialized["skills"][0]["trigger"] is None
     assert serialized["skills"][1]["trigger"]["type"] == "keyword"
     assert serialized["skills"][2]["trigger"]["type"] == "task"
@@ -86,7 +86,7 @@ def test_agent_context_serialization_roundtrip():
 
 
 def test_memory_context_excluded_from_serialization():
-    """memory_context is runtime-resolved state and must not be persisted."""
+    """memory_context 是运行时解析的状态，不能是已持久化。"""
     context = AgentContext(load_memory=True).model_copy(
         update={"memory_context": "- remembered fact"}
     )
@@ -102,24 +102,23 @@ def test_memory_context_excluded_from_serialization():
 
 
 def test_agent_context_secrets_round_trip_through_cipher_context():
-    """``AgentContext.secrets`` raw-string values must round-trip cleanly
-    when re-validated with a cipher.
+    """``AgentContext.secrets`` 原始字符串值必须干净地往返
+    当用密码重新验证时。
 
-    Regression for the same bug class as any secret-bearing dict field
-    (e.g. MCP ``env``/``headers``): the
-    field has a ``field_serializer`` that encrypts under cipher
-    context (via :func:`serialize_secret`) but until now had no
-    matching ``field_validator``. So ciphertext survived
-    ``StoredConversation.model_validate(..., context={'cipher': ...})``
-    in the conversation-start flow and reached the agent's system
-    prompt as ``gAAAA...`` instead of the configured value.
+    回归与任何带有机密的字典字段 (e.g. MCP ``env``/``headers``): 该字段有一个
+    ``field_serializer`` 在密码上下文下
+    加密（通过：func:`serialize_secret`），但到目前为止没有匹配的 ``field_validator``
+    。 所以密文得以幸存
+    ``StoredConversation.model_validate(..., context={'cipher': ...})`` 在对话开始流
+    程中，并作为
+    ``gAAAA...`` 而到达智能体的系统提示词，而不是配置的值。
     """
     cipher = Cipher(urlsafe_b64encode(b"a" * 32).decode("ascii"))
     plaintext = {"GITHUB_TOKEN": "ghp-real-token", "DB_PASS": "pw"}
 
     ctx = AgentContext(secrets=plaintext)
     dumped = ctx.model_dump(mode="json", context={"cipher": cipher})
-    # Sanity check: the dump produced Fernet ciphertext, not plaintext.
+    # 健全性检查：转储产生 Fernet 密文，而不是明文。
     for key, raw_value in plaintext.items():
         stored = dumped["secrets"][key]
         assert isinstance(stored, str)
@@ -131,9 +130,9 @@ def test_agent_context_secrets_round_trip_through_cipher_context():
 
 
 def test_agent_context_secrets_plaintext_passes_through_with_cipher():
-    """First writes from older clients carry plaintext. They must validate
-    cleanly when cipher is present in context (no FERNET_TOKEN_PREFIX,
-    no decryption attempted)."""
+    """老客户端的第一个写入带有明文。 他们必须验证
+    当密码存在于上下文中时干净利落地（没有 FERNET_TOKEN_PREFIX，没有尝试解密）。
+    """
     cipher = Cipher(urlsafe_b64encode(b"a" * 32).decode("ascii"))
     ctx = AgentContext.model_validate(
         {"secrets": {"FOO": "plaintext-value"}},
@@ -143,22 +142,22 @@ def test_agent_context_secrets_plaintext_passes_through_with_cipher():
 
 
 def test_agent_context_secrets_secret_source_passes_through_with_cipher():
-    """``SecretSource`` entries serialize to a dict on the wire, so they
-    must slip past ``validate_secret_dict``'s ``isinstance(value, str)``
-    gate untouched while raw-string siblings are still decrypted.
+    """``SecretSource`` 条目序列化到线上的字典，所以它们
+    必须完好无损地通过 ``validate_secret_dict`` 的 ``isinstance(value, str)`` 门，同
+    时原始字符串同级仍被解密。
 
-    Locks in the invariant the ``_decrypt_secrets`` docstring describes:
-    if ``SecretSource`` serialization ever produced a bare string, the
-    str-gate would silently start mangling it and ciphertext could reach
-    the prompt.
+    锁在不变量的 ``_decrypt_secrets``  文档字符串描述：如果 ``SecretSource``  序列化
+    从未生产过裸字符串，str-门将会默默地开
+    始篡改它，密文可能会到达提示词。
     """
     cipher = Cipher(urlsafe_b64encode(b"a" * 32).decode("ascii"))
     source = StaticSecret(value=SecretStr("source-secret"))
     ctx = AgentContext(secrets={"RAW": "plaintext", "SRC": source})
 
     dumped = ctx.model_dump(mode="json", context={"cipher": cipher})
-    # The raw string is encrypted to a Fernet token; the SecretSource stays
-    # a dict (its own nested ``value`` is the part that gets encrypted).
+    # 原始字符串被加密为 Fernet token； SecretSource 仍然是一个字典（它自己的嵌套
+    # ``value`` 是被加密的部分）。
+    #
     assert dumped["secrets"]["RAW"].startswith("gAAAA")
     assert isinstance(dumped["secrets"]["SRC"], dict)
 

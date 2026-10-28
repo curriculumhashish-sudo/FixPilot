@@ -1,4 +1,4 @@
-"""Tests for the persisted settings compatibility check script."""
+"""测试已持久化设置兼容性检查脚本。"""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class _AdditiveSettings(BaseModel):
 
 
 class _LegacyAgentProfileWithoutSkills(BaseModel):
-    """Simulates removing a persisted profile field without a version bump."""
+    """模拟删除已持久化配置文件字段而不进行版本提升。"""
 
     model_config = ConfigDict(extra="ignore")
 

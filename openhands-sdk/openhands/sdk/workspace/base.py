@@ -19,18 +19,17 @@ logger = get_logger(__name__)
 
 
 def _convert_path_to_str(v: str | Path) -> str:
-    """Convert Path objects to string for working_dir."""
+    """将 Path 对象转换为 working_dir 的字符串。"""
     if isinstance(v, Path):
         return str(v)
     return v
 
 
 class BaseWorkspace(DiscriminatedUnionMixin, ABC):
-    """Abstract base class for workspace implementations.
+    """工作区实现的抽象基类。
 
-    Workspaces provide a sandboxed environment where agents can execute commands,
-    read/write files, and perform other operations. All workspace implementations
-    support the context manager protocol for safe resource management.
+    工作区提供沙盒环境，智能体可以在其中执行命令、读/写文件以及执行其他操作。 所有工
+    作区实现都支持上下文管理器协议以实现安全资源管理。
 
     Example:
         ```python
@@ -56,56 +55,55 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
     _accumulated_cost: float | None = PrivateAttr(default=None)
 
     def __enter__(self) -> "BaseWorkspace":
-        """Enter the workspace context.
+        """输入工作区上下文。
 
         Returns:
-            Self for use in with statements
+            Self 用于 with 语句
         """
         return self
 
     def register_cost(self, cost: float) -> None:
-        """Register the accumulated LLM cost for this workspace's run.
+        """注册此工作区运行的累积 LLM 成本。
 
-        Called by the conversation on close, once the conversation has
-        finished, so no caller opt-in is required. The cost is included in the
-        completion callback sent to the automation service.
+        对话结束后，由对话关闭时调用，因此不需要呼叫者选择加入。 成本包含在发送到自动
+        化服务的完成回调中。
 
         Args:
-            cost: Accumulated LLM cost in USD
+            cost: USD 中累计 LLM 成本
         """
         self._accumulated_cost = cost
         logger.debug(f"Registered cost: {cost}")
 
     @property
     def accumulated_cost(self) -> float | None:
-        """Get the most recently registered accumulated LLM cost.
+        """获取最近注册的累计 LLM 成本。
 
         Returns:
-            The cost in USD if one has been registered, None otherwise.
+            如果已注册，则费用在 USD 中，否则在 None 中。
         """
         return self._accumulated_cost
 
     def _send_completion_callback(
         self, exc_type: type | None, exc_val: BaseException | None
     ) -> None:
-        """POST completion status to the automation service (best-effort).
+        """POST 自动化服务的完成状态（尽力而为）。
 
-        Call this from ``__exit__`` before any cleanup. Does nothing when
-        ``AUTOMATION_CALLBACK_URL`` env var is not set.
+        在任何清理之前从 ``__exit__`` 调用它。 当
+        ``AUTOMATION_CALLBACK_URL`` 环境变量未设置。
 
-        Reads configuration from environment variables:
-          - ``AUTOMATION_CALLBACK_URL`` — URL to POST completion status to
-          - ``AUTOMATION_CALLBACK_API_KEY`` — Bearer token for callback auth (optional)
-          - ``AUTOMATION_RUN_ID`` — Run ID to include in callback payload (optional)
+        从环境变量读取配置：
+          - ``AUTOMATION_CALLBACK_URL`` — URL 至 POST 完成状态至
+          - ``AUTOMATION_CALLBACK_API_KEY`` — 持有者令牌用于回调身份验证（可选）
+          - ``AUTOMATION_RUN_ID`` — 要包含在回调载荷中的运行 ID（可选）
 
-        Includes ``conversation_id`` and ``cost`` when registered. On failure,
-        ``error`` is the existing structured ``ConversationErrorEvent`` carried
-        by ``ConversationRunError``, or a classified fallback event for errors
-        outside a conversation.
+        注册时包括``conversation_id``和``cost``。 失败时，
+        ``error`` 是 ``ConversationRunError`` 携带的现有结构化
+        ``ConversationErrorEvent``，或者是对话
+        之外的错误的分类回退方案事件。
 
         Args:
-            exc_type: Exception type if an exception was raised, None otherwise
-            exc_val: Exception value if an exception was raised, None otherwise
+            exc_type: 如果引发异常则为异常类型，否则为 None
+            exc_val: 如果引发异常则为异常值，否则为 None
         """
         callback_url = os.environ.get("AUTOMATION_CALLBACK_URL")
         if not callback_url:
@@ -137,11 +135,11 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
                 )
             payload["error"] = error.model_dump(mode="json")
 
-        # Include conversation_id if one was registered
+        # 如果已注册，请包含 conversation_id
         if self._conversation_id is not None:
             payload["conversation_id"] = self._conversation_id
 
-        # Include accumulated LLM cost if one was registered
+        # 如果已注册，则包括累计 LLM 费用
         if self._accumulated_cost is not None:
             payload["cost"] = self._accumulated_cost
 
@@ -156,15 +154,14 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
             logger.warning(f"Completion callback failed: {e}")
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit the workspace context and cleanup resources.
+        """退出工作区上下文并清理资源。
 
-        Default implementation performs no cleanup. Subclasses should override
-        to add cleanup logic (e.g., stopping containers, closing connections).
+        默认实现不执行清理。 子类应该重写以添加清理逻辑（e.g.、停止容器、关闭连接）。
 
         Args:
-            exc_type: Exception type if an exception occurred
-            exc_val: Exception value if an exception occurred
-            exc_tb: Exception traceback if an exception occurred
+            exc_type: 发生异常时的异常类型
+            exc_val: 发生异常时的异常值
+            exc_tb: 如果发生异常则进行异常回溯
         """
         pass
 
@@ -175,19 +172,19 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
         cwd: str | Path | None = None,
         timeout: float = 30.0,
     ) -> CommandResult:
-        """Execute a bash command on the system.
+        """在系统上执行 bash 命令。
 
         Args:
-            command: The bash command to execute
-            cwd: Working directory for the command (optional)
-            timeout: Timeout in seconds (defaults to 30.0)
+            command: 要执行的 bash 命令
+            cwd: 工作目录为命令（可选）
+            timeout: 超时以秒为单位（默认为 30.0）
 
         Returns:
-            CommandResult: Result containing stdout, stderr, exit_code, and other
-                metadata
+            CommandResult: 结果包含 stdout、stderr、exit_code 和其他
+                元数据
 
         Raises:
-            Exception: If command execution fails
+            Exception: 如果命令执行失败
         """
         ...
 
@@ -197,17 +194,17 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
         source_path: str | Path,
         destination_path: str | Path,
     ) -> FileOperationResult:
-        """Upload a file to the system.
+        """将文件上传到系统。
 
         Args:
-            source_path: Path to the source file
-            destination_path: Path where the file should be uploaded
+            source_path: 源文件的路径
+            destination_path: 文件应上传的路径
 
         Returns:
-            FileOperationResult: Result containing success status and metadata
+            FileOperationResult: 包含成功状态和元数据的结果
 
         Raises:
-            Exception: If file upload fails
+            Exception: 如果文件上传失败
         """
         ...
 
@@ -217,66 +214,64 @@ class BaseWorkspace(DiscriminatedUnionMixin, ABC):
         source_path: str | Path,
         destination_path: str | Path,
     ) -> FileOperationResult:
-        """Download a file from the system.
+        """从系统下载文件。
 
         Args:
-            source_path: Path to the source file on the system
-            destination_path: Path where the file should be downloaded
+            source_path: 系统上源文件的路径
+            destination_path: 文件下载路径
 
         Returns:
-            FileOperationResult: Result containing success status and metadata
+            FileOperationResult: 包含成功状态和元数据的结果
 
         Raises:
-            Exception: If file download fails
+            Exception: 如果文件下载失败
         """
         ...
 
     @abstractmethod
     def git_changes(self, path: str | Path) -> list[GitChange]:
-        """Get the git changes for the repository at the path given.
+        """在给定的路径中获取存储库的 git 更改。
 
         Args:
-            path: Path to the git repository
+            path: git 存储库的路径
 
         Returns:
-            list[GitChange]: List of changes
+            list[GitChange]：更改列表
 
         Raises:
-            Exception: If path is not a git repository or getting changes failed
+            Exception: 如果路径不是 git 存储库或获取更改失败
         """
 
     @abstractmethod
     def git_diff(self, path: str | Path) -> GitDiff:
-        """Get the git diff for the file at the path given.
+        """获取给定路径中文件的 git diff。
 
         Args:
-            path: Path to the file
+            path: 文件路径
 
         Returns:
-            GitDiff: Git diff
+            GitDiff: git diff
 
         Raises:
-            Exception: If path is not a git repository or getting diff failed
+            Exception: 如果路径不是 git 存储库或获取 diff 失败
         """
 
     def pause(self) -> None:
-        """Pause the workspace to conserve resources.
+        """暂停工作区以节省资源。
 
-        For local workspaces, this is a no-op.
-        For container-based workspaces, this pauses the container.
+        对于本地工作区，这是一个无操作。 对于基于容器的工作区，这会暂停容器。
 
         Raises:
-            NotImplementedError: If the workspace type does not support pausing.
+            NotImplementedError: 如果工作区类型不支持暂停。
         """
         raise NotImplementedError(f"{type(self).__name__} does not support pause()")
 
     def resume(self) -> None:
-        """Resume a paused workspace.
+        """恢复暂停的工作区。
 
-        For local workspaces, this is a no-op.
-        For container-based workspaces, this resumes the container.
+        对于本地工作区，这是一个无操作。 对于基于容器的工作区，这会恢复容器。
 
         Raises:
-            NotImplementedError: If the workspace type does not support resuming.
+            NotImplementedError: 如果工作区类型不支持断点续传。
         """
         raise NotImplementedError(f"{type(self).__name__} does not support resume()")

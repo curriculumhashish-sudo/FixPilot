@@ -1,4 +1,4 @@
-"""Exercise real profile-validation HTTP with a deterministic provider."""
+"""与确定性提供者一起练习真实配置文件-验证 HTTP。"""
 
 import argparse
 import importlib.metadata

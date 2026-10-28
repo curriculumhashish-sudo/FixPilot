@@ -1,4 +1,4 @@
-"""Tests for conversation.rerun_actions() functionality."""
+"""测试 conversation.rerun_actions() 功能。"""
 
 from pathlib import Path
 
@@ -31,7 +31,7 @@ def _make_action_event(
     action: Action,
     tool_call_id: str = "tc1",
 ) -> ActionEvent:
-    """Helper to create ActionEvent with all required fields."""
+    """帮助程序创建包含所有必填字段的 ActionEvent。"""
     return ActionEvent(
         source="agent",
         thought=[TextContent(text="test thought")],
@@ -48,32 +48,32 @@ def _make_action_event(
     )
 
 
-# Track execution counts for testing
+# 跟踪测试的执行计数
 execution_counts: dict[str, int] = {}
 
 
 class RerunTestAction(Action):
-    """Test action for rerun tests."""
+    """重新运行测试的测试操作。"""
 
     value: str = "test"
 
 
 class RerunTestObservation(Observation):
-    """Test observation for rerun tests."""
+    """测试观测结果以重新运行测试。"""
 
     result: str = ""
     execution_count: int = 0
 
 
 class RerunTestExecutor(ToolExecutor[RerunTestAction, RerunTestObservation]):
-    """Test executor that tracks execution counts."""
+    """跟踪执行计数的测试执行器。"""
 
     def __call__(
         self,
         action: RerunTestAction,
         conversation: "LocalConversation | None" = None,
     ) -> RerunTestObservation:
-        # Track how many times each action value was executed
+        # 跟踪每个操作值执行的次数
         key = action.value
         execution_counts[key] = execution_counts.get(key, 0) + 1
         return RerunTestObservation.from_text(
@@ -84,7 +84,7 @@ class RerunTestExecutor(ToolExecutor[RerunTestAction, RerunTestObservation]):
 
 
 class RerunTestTool(ToolDefinition[RerunTestAction, RerunTestObservation]):
-    """Test tool for rerun tests."""
+    """用于重新运行测试的测试工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params):
@@ -100,7 +100,7 @@ class RerunTestTool(ToolDefinition[RerunTestAction, RerunTestObservation]):
 
 @pytest.fixture(autouse=True)
 def _reset_execution_counts():
-    """Reset execution counts before each test."""
+    """每次测试前重置执行计数。"""
     execution_counts.clear()
     yield
     execution_counts.clear()
@@ -108,25 +108,24 @@ def _reset_execution_counts():
 
 @pytest.fixture(autouse=True)
 def _tool_registry_isolation(monkeypatch: pytest.MonkeyPatch):
-    """Isolate tool registry per test using monkeypatch.
+    """使用monkeypatch 隔离每个测试的工具注册表。
 
-    This ensures test tools are registered without affecting the global registry
-    and automatically cleans up after each test.
+    这确保了测试工具注册时不影响全局注册表并且在每次测试后自动清理。
     """
-    # Create isolated copies of the registry dictionaries
+    # 创建注册表字典的独立副本
     isolated_reg = dict(tool_registry._REG)
     isolated_tool_classes = dict(tool_registry._TOOL_CLASSES)
 
-    # Patch the registry to use isolated copies
+    # 修补注册表以使用隔离副本
     monkeypatch.setattr(tool_registry, "_REG", isolated_reg)
     monkeypatch.setattr(tool_registry, "_TOOL_CLASSES", isolated_tool_classes)
 
-    # Register our test tool in the isolated registry
+    # 在隔离的注册表中注册我们的测试工具
     register_tool_public(RerunTestTool.name, RerunTestTool)
 
 
 class RerunDummyAgent(AgentBase):
-    """Dummy agent for testing rerun_actions."""
+    """用于测试 rerun_actions 的虚拟智能体。"""
 
     def __init__(self, tools=None):
         llm = LLM(
@@ -158,25 +157,25 @@ class RerunDummyAgent(AgentBase):
 
 
 def test_rerun_actions_empty_conversation():
-    """Test rerun_actions on a conversation with no actions."""
+    """在没有任何操作的对话中测试 rerun_actions。"""
     agent = RerunDummyAgent(tools=[Tool(name="rerun_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Rerun on empty conversation should return True (nothing to do = success)
+    # 重新运行空对话应返回 True（无事可做 = 成功）
     result = conversation.rerun_actions()
     assert result is True
 
 
 def test_rerun_actions_basic():
-    """Test basic rerun_actions functionality."""
+    """测试基本 rerun_actions 功能。"""
     agent = RerunDummyAgent(tools=[Tool(name="rerun_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Execute some tools to create action events
+    # 执行一些工具来创建动作事件
     action1 = RerunTestAction(value="first")
     action2 = RerunTestAction(value="second")
 
-    # Manually add action events to simulate a conversation history
+    # 手动添加动作事件来模拟对话历史记录
     conversation._ensure_agent_ready()
     action_event = _make_action_event("rerun_test", action1, "tc1")
     conversation._state.events.append(action_event)
@@ -184,33 +183,33 @@ def test_rerun_actions_basic():
     action_event2 = _make_action_event("rerun_test", action2, "tc2")
     conversation._state.events.append(action_event2)
 
-    # Now rerun all actions
+    # 现在重新运行所有操作
     result = conversation.rerun_actions()
 
-    # Should have executed both actions successfully
+    # 应该已成功执行这两个操作
     assert result is True
     assert execution_counts["first"] == 1
     assert execution_counts["second"] == 1
 
 
 def test_rerun_actions_preserves_original_observations():
-    """Test that rerun_actions doesn't modify the original event log."""
+    """测试 rerun_actions 不会修改原始事件日志。"""
     agent = RerunDummyAgent(tools=[Tool(name="rerun_test", params={})])
     conversation = Conversation(agent=agent)
 
-    # Add an action event
+    # 添加动作事件
     conversation._ensure_agent_ready()
     action = RerunTestAction(value="preserve_test")
     action_event = _make_action_event("rerun_test", action, "tc1")
     conversation._state.events.append(action_event)
 
-    # Count events before rerun
+    # 重新运行之前对事件进行计数
     events_before = len(list(conversation._state.events))
 
-    # Rerun actions
+    # 重新运行操作
     result = conversation.rerun_actions()
 
-    # Count events after rerun - should be the same
+    # 重新运行后计数事件 - 应该相同
     events_after = len(list(conversation._state.events))
 
     assert events_before == events_after
@@ -218,13 +217,13 @@ def test_rerun_actions_preserves_original_observations():
 
 
 def test_rerun_actions_skips_none_actions():
-    """Test that rerun_actions skips ActionEvents with action=None."""
+    """使用 action=None 测试 rerun_actions 是否跳过 ActionEvents。"""
     agent = RerunDummyAgent(tools=[Tool(name="rerun_test", params={})])
     conversation = Conversation(agent=agent)
 
     conversation._ensure_agent_ready()
 
-    # Add an action event with action=None (failed validation)
+    # 添加action=None的动作事件（失败验证）
     action_event_none = ActionEvent(
         source="agent",
         thought=[TextContent(text="test")],
@@ -234,16 +233,16 @@ def test_rerun_actions_skips_none_actions():
             id="tc1", name="rerun_test", arguments="{}", origin="completion"
         ),
         llm_response_id="resp1",
-        action=None,  # Failed validation
+        action=None,  # 失败验证
     )
     conversation._state.events.append(action_event_none)
 
-    # Add a valid action event
+    # 添加有效的操作事件
     action = RerunTestAction(value="valid")
     action_event_valid = _make_action_event("rerun_test", action, "tc2")
     conversation._state.events.append(action_event_valid)
 
-    # Rerun should only execute the valid action and succeed
+    # 重新运行应该只执行有效的操作并成功
     result = conversation.rerun_actions()
 
     assert result is True
@@ -251,13 +250,13 @@ def test_rerun_actions_skips_none_actions():
 
 
 def test_rerun_actions_missing_tool_raises():
-    """Test that rerun_actions raises KeyError for missing tools."""
-    agent = RerunDummyAgent(tools=[])  # No tools registered
+    """测试 rerun_actions 是否会因缺少工具而引发 KeyError。"""
+    agent = RerunDummyAgent(tools=[])  # 没有注册工具
     conversation = Conversation(agent=agent)
 
     conversation._ensure_agent_ready()
 
-    # Add an action event for a tool that doesn't exist
+    # 为不存在的工具添加操作事件
     action = RerunTestAction(value="test")
     action_event = _make_action_event("rerun_test", action, "tc1")
     conversation._state.events.append(action_event)
@@ -270,7 +269,7 @@ def test_rerun_actions_missing_tool_raises():
 
 
 def test_rerun_can_be_called_manually():
-    """Test that rerun_actions can be called manually after initialization."""
+    """测试初始化​​后是否可以手动调用rerun_actions。"""
     agent = RerunDummyAgent(tools=[Tool(name="rerun_test", params={})])
     conversation = Conversation(agent=agent)
 
@@ -279,42 +278,42 @@ def test_rerun_can_be_called_manually():
     action_event = _make_action_event("rerun_test", action, "tc1")
     conversation._state.events.append(action_event)
 
-    # Call rerun manually (not during init)
+    # 手动调用重新运行（不在初始化期间）
     result = conversation.rerun_actions()
 
     assert result is True
     assert execution_counts["manual"] == 1
 
-    # Can call again
+    # 可以再打电话
     result2 = conversation.rerun_actions()
 
     assert result2 is True
-    assert execution_counts["manual"] == 2  # Executed twice now
+    assert execution_counts["manual"] == 2  # 现已执行两次
 
 
 # =============================================================================
-# Tests with Real File Operations
+# 使用真实文件操作进行测试
 # =============================================================================
-# These tests verify that rerun_actions actually reproduces environment state
-# using real file system operations.
+# 这些测试验证 rerun_actions 实际上使用真实文件系统操作重现环境状态。
+#
 
 
 class FileWriteAction(Action):
-    """Action that writes content to a file."""
+    """将内容写入文件的操作。"""
 
     filepath: str
     content: str
 
 
 class FileWriteObservation(Observation):
-    """Observation returned from file write operations."""
+    """观测结果从文件写入操作返回。"""
 
     filepath: str = ""
     written: bool = False
 
 
 class FileWriteExecutor(ToolExecutor[FileWriteAction, FileWriteObservation]):
-    """Executor that writes content to a real file."""
+    """将内容写入真实文件的执行器。"""
 
     def __call__(
         self,
@@ -332,7 +331,7 @@ class FileWriteExecutor(ToolExecutor[FileWriteAction, FileWriteObservation]):
 
 
 class FileWriteTool(ToolDefinition[FileWriteAction, FileWriteObservation]):
-    """Tool that writes content to files."""
+    """将内容写入文件的工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params):
@@ -347,21 +346,21 @@ class FileWriteTool(ToolDefinition[FileWriteAction, FileWriteObservation]):
 
 
 class FileCreateAction(Action):
-    """Action that creates a new file (fails if file exists)."""
+    """创建新文件的操作（如果文件存在则失败）。"""
 
     filepath: str
     content: str
 
 
 class FileCreateObservation(Observation):
-    """Observation returned from file create operations."""
+    """观测结果从文件创建操作返回。"""
 
     filepath: str = ""
     created: bool = False
 
 
 class FileCreateExecutor(ToolExecutor[FileCreateAction, FileCreateObservation]):
-    """Executor that creates a new file (fails if exists)."""
+    """创建新文件的执行器（如果存在则失败）。"""
 
     def __call__(
         self,
@@ -386,7 +385,7 @@ class FileCreateExecutor(ToolExecutor[FileCreateAction, FileCreateObservation]):
 
 
 class FileCreateTool(ToolDefinition[FileCreateAction, FileCreateObservation]):
-    """Tool that creates new files (non-idempotent)."""
+    """创建新文件的工具（非幂等）。"""
 
     @classmethod
     def create(cls, conv_state=None, **params):
@@ -401,19 +400,19 @@ class FileCreateTool(ToolDefinition[FileCreateAction, FileCreateObservation]):
 
 
 class FailingAction(Action):
-    """Action that always fails."""
+    """行动总是失败。"""
 
     message: str = "fail"
 
 
 class FailingObservation(Observation):
-    """Observation from failing tool."""
+    """观测结果来自失败的工具。"""
 
     pass
 
 
 class FailingExecutor(ToolExecutor[FailingAction, FailingObservation]):
-    """Executor that always raises an exception."""
+    """总是引发异常的执行器。"""
 
     def __call__(
         self,
@@ -424,7 +423,7 @@ class FailingExecutor(ToolExecutor[FailingAction, FailingObservation]):
 
 
 class FailingTool(ToolDefinition[FailingAction, FailingObservation]):
-    """Tool that always fails."""
+    """总是失败的工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params):
@@ -439,35 +438,34 @@ class FailingTool(ToolDefinition[FailingAction, FailingObservation]):
 
 
 def test_rerun_reproduces_file_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test that rerun_actions reproduces file system state.
+    """测试 rerun_actions 是否再现文件系统状态。
 
-    This test verifies the main use case: create a file, clear workspace,
-    rerun actions, and verify the file is recreated.
+    此测试验证主要用例：创建文件、清除工作区、重新运行操作并验证文件是否已重新创建。
     """
-    # Register the file write tool
+    # 注册文件写入工具
     register_tool_public(FileWriteTool.name, FileWriteTool)
 
     agent = RerunDummyAgent(tools=[Tool(name="file_write", params={})])
     conversation = Conversation(agent=agent)
     conversation._ensure_agent_ready()
 
-    # Create action that writes a file
+    # 创建写入文件的操作
     test_file = tmp_path / "test_file.txt"
     action = FileWriteAction(filepath=str(test_file), content="hello world")
     action_event = _make_action_event("file_write", action, "tc1")
     conversation._state.events.append(action_event)
 
-    # First rerun creates the file
+    # 第一次重新运行创建文件
     result = conversation.rerun_actions()
     assert result is True
     assert test_file.exists()
     assert test_file.read_text() == "hello world"
 
-    # Clear the file
+    # 清除文件
     test_file.unlink()
     assert not test_file.exists()
 
-    # Rerun again - file should be recreated
+    # 再次重新运行 - 应重新创建文件
     result2 = conversation.rerun_actions()
     assert result2 is True
     assert test_file.exists()
@@ -475,17 +473,16 @@ def test_rerun_reproduces_file_state(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_rerun_non_idempotent_with_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test that non-idempotent operations are tracked in the rerun log.
+    """测试重新运行日志中是否跟踪非幂等操作。
 
-    This verifies the documented non-idempotency warning: file creation
-    will fail if the file already exists. The rerun still "succeeds"
-    (tool executed correctly) but the observation shows is_error=True.
+    这验证了记录的非幂等性警告：如果文件已存在，文件创建将失败。 重新运行仍然“成功”（
+    工具正确执行），但观测结果显示 is_error=True。
     """
     from openhands.sdk.conversation.event_store import EventLog
     from openhands.sdk.event import ObservationEvent
     from openhands.sdk.io import LocalFileStore
 
-    # Register the file create tool (non-idempotent)
+    # 注册文件创建工具（非幂等）
     register_tool_public(FileCreateTool.name, FileCreateTool)
 
     agent = RerunDummyAgent(tools=[Tool(name="file_create", params={})])
@@ -499,12 +496,12 @@ def test_rerun_non_idempotent_with_log(tmp_path: Path, monkeypatch: pytest.Monke
 
     log_dir = tmp_path / "rerun_log"
 
-    # First rerun creates the file successfully
+    # 第一次重新运行成功创建文件
     result = conversation.rerun_actions(rerun_log_path=log_dir)
     assert result is True
     assert test_file.exists()
 
-    # Check the log using EventLog
+    # 使用EventLog检查日志
     file_store = LocalFileStore(str(log_dir))
     event_log = EventLog(file_store, dir_path="events")
     assert len(event_log) == 2  # ActionEvent + ObservationEvent
@@ -513,12 +510,12 @@ def test_rerun_non_idempotent_with_log(tmp_path: Path, monkeypatch: pytest.Monke
     assert isinstance(obs_event.observation, FileCreateObservation)
     assert obs_event.observation.created is True
 
-    # Second rerun - file already exists, returns error observation but still succeeds
+    # 第二次重新运行 - 文件已存在，返回错误观测结果但仍然成功
     log_dir2 = tmp_path / "rerun_log2"
     result2 = conversation.rerun_actions(rerun_log_path=log_dir2)
-    assert result2 is True  # Tool executed correctly, just returned error
+    assert result2 is True  # 工具执行正确，只是返回错误
 
-    # Check the second log shows the error observation
+    # 检查第二条日志显示错误观测结果
     file_store2 = LocalFileStore(str(log_dir2))
     event_log2 = EventLog(file_store2, dir_path="events")
     assert len(event_log2) == 2
@@ -530,16 +527,15 @@ def test_rerun_non_idempotent_with_log(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_rerun_early_exit_on_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test that rerun exits immediately when a tool raises an exception.
+    """测试当工具引发异常时重新运行立即退出。
 
-    This verifies that rerun stops at the first failure and saves
-    partial progress to the log.
+    这将验证重新运行在第一次失败时停止并将部分进度保存到日志中。
     """
     from openhands.sdk.conversation.event_store import EventLog
     from openhands.sdk.event import ObservationEvent
     from openhands.sdk.io import LocalFileStore
 
-    # Register both tools
+    # 注册这两个工具
     register_tool_public(FileWriteTool.name, FileWriteTool)
     register_tool_public(FailingTool.name, FailingTool)
 
@@ -552,54 +548,55 @@ def test_rerun_early_exit_on_failure(tmp_path: Path, monkeypatch: pytest.MonkeyP
     conversation = Conversation(agent=agent)
     conversation._ensure_agent_ready()
 
-    # Add a successful action
+    # 添加成功的操作
     test_file1 = tmp_path / "file1.txt"
     action1 = FileWriteAction(filepath=str(test_file1), content="first")
     conversation._state.events.append(_make_action_event("file_write", action1, "tc1"))
 
-    # Add a failing action (raises exception)
+    # 添加失败的操作（引发异常）
     action2 = FailingAction(message="intentional")
     conversation._state.events.append(_make_action_event("failing", action2, "tc2"))
 
-    # Add another successful action (should NOT be executed due to early exit)
+    # 添加另一个成功的操作（由于提前退出，应该执行不）
     test_file2 = tmp_path / "file2.txt"
     action3 = FileWriteAction(filepath=str(test_file2), content="second")
     conversation._state.events.append(_make_action_event("file_write", action3, "tc3"))
 
     log_dir = tmp_path / "rerun_log"
 
-    # Rerun - should fail at the second action and exit early
+    # 重新运行 - 应在第二个操作中失败并提前退出
     result = conversation.rerun_actions(rerun_log_path=log_dir)
 
-    # Should return False due to failure
+    # 由于失败应返回 False
     assert result is False
 
-    # First file should be created (before failure)
+    # 应创建第一个文件（失败之前）
     assert test_file1.exists()
     assert test_file1.read_text() == "first"
 
-    # Second file should NOT exist (action not executed due to early exit)
+    # 第二个文件应该不存在（由于提前退出而未执行操作）
     assert not test_file2.exists()
 
-    # Log should contain only the successful action before failure
-    # (ActionEvent + ObservationEvent for first action = 2 events)
+    # 日志应仅包含失败之前的成功操作（第一个操作的 ActionEvent + ObservationEvent = 2 个
+    # 事件）
+    #
     file_store = LocalFileStore(str(log_dir))
     event_log = EventLog(file_store, dir_path="events")
-    assert len(event_log) == 2  # ActionEvent + ObservationEvent for first action
+    assert len(event_log) == 2  # ActionEvent + ObservationEvent 表示第一个动作
     obs_event = event_log[1]
     assert isinstance(obs_event, ObservationEvent)
     assert obs_event.tool_name == "file_write"
 
 
 def test_rerun_multiple_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test rerun with multiple file operations in sequence."""
+    """按顺序测试多个文件操作重新运行。"""
     register_tool_public(FileWriteTool.name, FileWriteTool)
 
     agent = RerunDummyAgent(tools=[Tool(name="file_write", params={})])
     conversation = Conversation(agent=agent)
     conversation._ensure_agent_ready()
 
-    # Create multiple file write actions
+    # 创建多个文件写入操作
     files_content = [
         ("file_a.txt", "content A"),
         ("file_b.txt", "content B"),
@@ -615,13 +612,13 @@ def test_rerun_multiple_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             _make_action_event("file_write", action, f"tc{i}")
         )
 
-    # Rerun all actions
+    # 重新运行所有操作
     result = conversation.rerun_actions()
 
-    # All actions should succeed
+    # 所有行动都应该成功
     assert result is True
 
-    # All files should be created
+    # 应创建所有文件
     for filename, expected_content in files_content:
         file_path = tmp_path / filename
         assert file_path.exists(), f"File {filename} should exist"

@@ -1,4 +1,4 @@
-"""Planning file editor tool - combines read-only viewing with PLAN.md editing."""
+"""规划文件编辑器工具 - 将只读查看与 PLAN.md 编辑结合起来。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -23,25 +23,25 @@ from openhands.tools.file_editor.definition import (
 
 logger = get_logger(__name__)
 
-# Default config directory and plan filename
-# PLAN.md is now stored in .agents_tmp/ to keep workspace root clean
-# and separate agent temporary files from user content
+# 默认配置目录和计划文件名 PLAN.md 现在存储在 .agents_tmp/ 中，以保持工作区根目录干净并
+# 将智能体临时文件与用户内容分开
+#
 DEFAULT_CONFIG_DIR = ".agents_tmp"
 PLAN_FILENAME = "PLAN.md"
 
 
 class PlanningFileEditorAction(FileEditorAction):
-    """Schema for planning file editor operations.
+    """模式用于规划文件编辑器操作。
 
-    Inherits from FileEditorAction but restricts editing to PLAN.md only.
-    Allows viewing any file but only editing PLAN.md.
+    继承自 FileEditorAction，但仅限编辑 PLAN.md。 允许查看任何文件，但只能编辑
+    PLAN.md。
     """
 
 
 class PlanningFileEditorObservation(FileEditorObservation):
-    """Observation from planning file editor operations.
+    """观测结果来自规划文件编辑器的操作。
 
-    Inherits from FileEditorObservation - same structure, just different type.
+    继承自 FileEditorObservation - 结构相同，只是类型不同。
     """
 
 
@@ -63,7 +63,7 @@ IMPORTANT RESTRICTION FOR PLANNING AGENT:
 class PlanningFileEditorTool(
     ToolDefinition[PlanningFileEditorAction, PlanningFileEditorObservation]
 ):
-    """A planning file editor tool with read-all, edit-PLAN.md-only access."""
+    """具有只读、仅限 edit-PLAN.md 访问权限的规划文件编辑器工具。"""
 
     user_selectable: ClassVar[bool] = False
 
@@ -73,35 +73,35 @@ class PlanningFileEditorTool(
         conv_state: "ConversationState",
         plan_path: str | None = None,
     ) -> Sequence["PlanningFileEditorTool"]:
-        """Initialize PlanningFileEditorTool.
+        """初始化PlanningFileEditorTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
-            plan_path: Optional absolute path to PLAN.md file. If not provided,
-                defaults to {working_dir}/.agents_tmp/PLAN.md.
+            conv_state: 要从中获取工作目录的对话状态。
+            plan_path: PLAN.md 文件的可选绝对路径。 如果没有提供，
+                默认为{working_dir}/.agents_tmp/PLAN.md.
 
         Raises:
-            ValueError: If plan_path is provided but is not an absolute path.
+            ValueError: 如果提供了 plan_path 但不是绝对路径。
         """
-        # Import here to avoid circular imports
+        # 在这里导入以避免循环导入
         from openhands.tools.planning_file_editor.impl import (
             PlanningFileEditorExecutor,
         )
 
         working_dir = conv_state.workspace.working_dir
 
-        # Validate plan_path is absolute if provided
+        # 验证 plan_path 是绝对的（如果提供）
         if plan_path is not None and not Path(plan_path).is_absolute():
             raise ValueError(f"plan_path must be an absolute path, got: {plan_path}")
 
-        # Use provided plan_path or fall back to .agents_tmp/PLAN.md at workspace root
+        # 使用提供的 plan_path 或回退到工作区根处的 .agents_tmp/PLAN.md
         if plan_path is None:
             workspace_root = Path(working_dir).resolve()
 
-            # Check for legacy PLAN.md at workspace root
+            # 检查工作区根目录下的旧版 PLAN.md
             legacy_plan_path = workspace_root / PLAN_FILENAME
             if legacy_plan_path.exists():
-                # Use legacy location for backward compatibility
+                # 使用向后兼容性的旧位置
                 new_recommended_path = (
                     workspace_root / DEFAULT_CONFIG_DIR / PLAN_FILENAME
                 )
@@ -112,27 +112,27 @@ class PlanningFileEditorTool(
                 )
                 plan_path = str(legacy_plan_path)
             else:
-                # Use new default location
+                # 使用新的默认位置
                 plan_path = str(workspace_root / DEFAULT_CONFIG_DIR / PLAN_FILENAME)
 
-        # Initialize PLAN.md with headers if it doesn't exist
+        # 如果 PLAN.md 不存在，则使用标头初始化
         plan_file = Path(plan_path)
         if not plan_file.exists():
-            # Import here to avoid circular imports
+            # 在这里导入以避免循环导入
             from openhands.tools.preset.planning import get_plan_headers
 
-            # Ensure parent directory exists
+            # 确保父目录存在
             plan_file.parent.mkdir(parents=True, exist_ok=True)
             plan_file.write_text(get_plan_headers())
             logger.info(f"Created new PLAN.md at {plan_path}")
 
-        # Create executor with restricted edit access to PLAN.md only
+        # 创建执行器，其编辑权限仅限于 PLAN.md
         executor = PlanningFileEditorExecutor(
             workspace_root=working_dir,
             plan_path=plan_path,
         )
 
-        # Add working directory information to the tool description
+        # 在工具描述中添加工作目录信息
         enhanced_description = (
             f"{TOOL_DESCRIPTION}\n\n"
             f"Your current working directory: {working_dir}\n"
@@ -147,7 +147,7 @@ class PlanningFileEditorTool(
                 observation_type=PlanningFileEditorObservation,
                 annotations=ToolAnnotations(
                     title="planning_file_editor",
-                    readOnlyHint=False,  # Can edit PLAN.md
+                    readOnlyHint=False,  # 可以编辑PLAN.md
                     destructiveHint=False,
                     idempotentHint=False,
                     openWorldHint=False,
@@ -157,5 +157,5 @@ class PlanningFileEditorTool(
         ]
 
 
-# Automatically register the tool when this module is imported
+# 导入此模块时自动注册该工具
 register_tool(PlanningFileEditorTool.name, PlanningFileEditorTool)

@@ -1,4 +1,4 @@
-"""Tests for the CanvasExtensionManifest model and its field validation."""
+"""测试 CanvasExtensionManifest 模型及其字段验证。"""
 
 from typing import Any
 
@@ -87,15 +87,15 @@ def test_invalid_contribution_id_rejected(page_id: str):
 @pytest.mark.parametrize(
     "path",
     [
-        "dashboard",  # missing leading slash
-        "",  # empty
-        "/",  # root alone — no segment after the slash
-        "/../etc/passwd",  # traversal
-        "//double-slash",  # empty segment
-        "/trailing/",  # trailing slash / empty final segment
-        "/Bad-Case",  # uppercase not allowed
-        "/foo--bar",  # double hyphen: no segment between them
-        "/foo_bar",  # underscore not allowed
+        "dashboard",  # 缺少前导斜杠
+        "",  # 空的
+        "/",  # 单独根 - 斜线后没有段
+        "/../etc/passwd",  # 遍历
+        "//double-slash",  # 空段
+        "/trailing/",  # 尾部斜杠/空的最后一段
+        "/Bad-Case",  # 不允许大写
+        "/foo--bar",  # 双连字符：它们之间没有分段
+        "/foo_bar",  # 不允许使用下划线
     ],
 )
 def test_invalid_page_path_rejected(path: str):
@@ -131,9 +131,9 @@ def test_duplicate_page_paths_rejected():
 
 
 def test_duplicate_page_contribution_ids_rejected_through_full_manifest():
-    """The nested ``contributes.pages`` validator must still fire when built
+    """嵌套的 ``contributes.pages`` 验证器在构建时仍必须触发
     from a raw dict (as ``canvas-extension.json`` loads), not just when
-    ``CanvasExtensionContributes`` is constructed directly in Python.
+    ``CanvasExtensionContributes`` 直接在 Python 中构造。
     """
     with pytest.raises(ValidationError, match="Duplicate page contribution id"):
         _manifest(
@@ -147,8 +147,8 @@ def test_duplicate_page_contribution_ids_rejected_through_full_manifest():
 
 
 def test_manifest_round_trips_through_json_dict():
-    """``model_validate`` over a full, schema-shaped dict — the actual
-    ``canvas-extension.json`` ingestion path — round-trips unchanged.
+    """``model_validate`` 超过一个完整的、模式形状的字典 — 实际的
+    ``canvas-extension.json`` 摄取路径 — 往返不变。
     """
     payload = {
         "schema_version": 1,
@@ -222,8 +222,8 @@ def test_invalid_entrypoint_syntax_rejected(entrypoint: str):
     ["schema_version", "name", "display_name", "version", "entrypoint"],
 )
 def test_missing_required_field_rejected(missing_field: str):
-    """Confirms these fields are genuinely required (no silent default),
-    catching e.g. an accidental ``= None`` or ``default=""`` creeping in.
+    """确认这些字段确实是必需的（无静默默认值），
+    捕捉e.g。 意外的 ``= None`` 或 ``default=""`` 潜入。
     """
     payload: dict[str, Any] = dict(
         schema_version=1,

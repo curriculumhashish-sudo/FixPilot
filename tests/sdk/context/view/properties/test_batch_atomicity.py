@@ -1,6 +1,6 @@
-"""Tests for BatchAtomicityProperty.
+"""测试 BatchAtomicityProperty。
 
-This module tests that the BatchAtomicityProperty correctly ensures all events
+该模块测试 BatchAtomicityProperty 正确确保所有事件
 from the same batch (sharing the same llm_response_id) form an atomic unit.
 """
 
@@ -13,25 +13,24 @@ from tests.sdk.context.view.properties.conftest import create_action_event
 
 
 class TestBatchAtomicityPropertyBase:
-    """Base class for BatchAtomicityProperty test suites."""
+    """BatchAtomicityProperty 测试套件的基类。"""
 
     def setup_method(self) -> None:
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
         self.property = BatchAtomicityProperty()
 
 
 class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
-    """Tests for BatchAtomicityProperty enforcement."""
+    """测试 BatchAtomicityProperty 执行情况。"""
 
     def test_partial_batch_forgotten(self) -> None:
-        """Test that if one event in a batch is forgotten, all events in that batch
-        are forgotten.
+        """测试如果批次中的一个事件被遗忘，则该批次中的所有事件
+        被遗忘了。
 
-        This simulates the scenario where condensation forgets some but not all
-        actions from a batch. The batch atomicity logic should ensure that all
-        actions in the batch are removed.
+        这模拟了上下文压缩忘记批次中的一些但不是全部操作的场景。 批处理原子性逻辑应确
+        保删除批处理中的所有操作。
         """
-        # Create a batch of 4 actions from the same LLM response
+        # 根据同一 LLM 响应创建一批 4 个操作
         llm_response_id = "response_1"
 
         action1 = create_action_event("action_1", llm_response_id, "tool_call_1")
@@ -39,76 +38,76 @@ class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
         action3 = create_action_event("action_3", llm_response_id, "tool_call_3")
         action4 = create_action_event("action_4", llm_response_id, "tool_call_4")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1, action2, action3, action4]
 
-        # Current view has action1, action2, action3 forgotten but action4 kept
-        # This simulates what might happen if the condenser uses event indices
-        # without considering batch boundaries
+        # 当前视图保留了action1、action2和action3，但action4被遗忘。这模拟了上下文压缩器
+        # 在不考虑批次边界的情况下使用事件索引会发生的情况
+        #
         current_view_events: list[LLMConvertibleEvent] = [action4]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # action4 should be forgotten due to batch atomicity
+        # 由于批处理原子性，action4 应该被忘记
         assert action4.id in events_to_remove
 
     def test_complete_batch_forgotten(self) -> None:
-        """Test that when all events in a batch are forgotten, they're all removed."""
+        """测试当批次中的所有事件都被遗忘时，它们都会被删除。"""
         llm_response_id = "response_1"
 
         action1 = create_action_event("action_1", llm_response_id, "tool_call_1")
         action2 = create_action_event("action_2", llm_response_id, "tool_call_2")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1, action2]
 
-        # Current view has no actions (all forgotten)
+        # 当前视图没有任何操作（全部忘记）
         current_view_events: Sequence[LLMConvertibleEvent] = []
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing more to remove since the batch is already gone
+        # 由于该批次已经消失，因此无需再删除
         assert len(events_to_remove) == 0
 
     def test_no_forgetting_preserves_batch(self) -> None:
-        """Test that when no events in a batch are forgotten, all are preserved."""
+        """测试当批次中没有事件被遗忘时，所有事件都会被保留。"""
         llm_response_id = "response_1"
 
         action1 = create_action_event("action_1", llm_response_id, "tool_call_1")
         action2 = create_action_event("action_2", llm_response_id, "tool_call_2")
         action3 = create_action_event("action_3", llm_response_id, "tool_call_3")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1, action2, action3]
 
-        # Current view has all actions
+        # 当前视图包含所有操作
         current_view_events: list[LLMConvertibleEvent] = [action1, action2, action3]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing should be removed
+        # 任何东西都不应该被删除
         assert len(events_to_remove) == 0
 
     def test_multiple_batches(self) -> None:
-        """Test that batch atomicity works correctly with multiple separate batches.
+        """测试批处理原子性是否可以在多个单独的批处理中正常工作。
 
-        When only one action from a batch is forgotten, all actions in that batch
-        should be forgotten. But different batches should be independent.
+        当一批中只有一个动作被忘记时，该批中的所有动作都应该被忘记。 但不同批次应该是
+        独立的。
         """
-        # First batch
+        # 第一批
         batch1_id = "response_1"
         action1_1 = create_action_event("action_1_1", batch1_id, "tool_call_1")
         action1_2 = create_action_event("action_1_2", batch1_id, "tool_call_2")
 
-        # Second batch
+        # 第二批
         batch2_id = "response_2"
         action2_1 = create_action_event("action_2_1", batch2_id, "tool_call_3")
         action2_2 = create_action_event("action_2_2", batch2_id, "tool_call_4")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [
             action1_1,
             action1_2,
@@ -116,27 +115,28 @@ class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
             action2_2,
         ]
 
-        # Current view has action1_2 forgotten but action1_1 kept (partial batch1)
-        # and action2_1, action2_2 kept (complete batch2)
+        # 当前视图已忘记 action1_2，但保留了 action1_1（部分批次 1）和 action2_1、
+        # action2_2 保留（完整批次 2）
+        #
         current_view_events: list[LLMConvertibleEvent] = [
             action1_1,
             action2_1,
             action2_2,
         ]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # First batch should be removed since we're missing the second action
+        # 由于我们错过了第二个操作，因此第一批应该被删除
         assert action1_1.id in events_to_remove
 
-        # Second batch should be preserved entirely
+        # 第二批应完整保存
         assert action2_1.id not in events_to_remove
         assert action2_2.id not in events_to_remove
 
     def test_first_action_of_batch_forgotten(self) -> None:
-        """Test that forgetting only the first action of a batch causes entire batch
-        to be forgotten.
+        """测试仅忘记批次的第一个操作会导致整个批次
+        被遗忘。
         """
         llm_response_id = "response_1"
 
@@ -144,54 +144,54 @@ class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
         action2 = create_action_event("action_2", llm_response_id, "tool_call_2")
         action3 = create_action_event("action_3", llm_response_id, "tool_call_3")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1, action2, action3]
 
-        # Current view has action2 and action3 (action1 forgotten)
+        # 当前视图有action2和action3（action1忘记了）
         current_view_events: list[LLMConvertibleEvent] = [action2, action3]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Both action2 and action3 should be forgotten
+        # action2和action3都应该被忘记
         assert action2.id in events_to_remove
         assert action3.id in events_to_remove
 
     def test_middle_action_of_batch_forgotten(self) -> None:
-        """Test that forgetting a middle action causes entire batch to be forgotten."""
+        """测试忘记中间操作是否会导致整个批次被忘记。"""
         llm_response_id = "response_1"
 
         action1 = create_action_event("action_1", llm_response_id, "tool_call_1")
         action2 = create_action_event("action_2", llm_response_id, "tool_call_2")
         action3 = create_action_event("action_3", llm_response_id, "tool_call_3")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1, action2, action3]
 
-        # Current view has action1 and action3 (action2 forgotten)
+        # 当前视图有action1和action3（action2忘记了）
         current_view_events: list[LLMConvertibleEvent] = [action1, action3]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Both action1 and action3 should be forgotten
+        # action1和action3都应该被忘记
         assert action1.id in events_to_remove
         assert action3.id in events_to_remove
 
     def test_different_batches_independent(self) -> None:
-        """Test that batch atomicity only affects events in the same batch."""
+        """测试批次原子性仅影响同一批次中的事件。"""
         batch1_id = "response_1"
         batch2_id = "response_2"
 
-        # First batch
+        # 第一批
         action1_1 = create_action_event("action_1_1", batch1_id, "tool_call_1")
         action1_2 = create_action_event("action_1_2", batch1_id, "tool_call_2")
 
-        # Second batch
+        # 第二批
         action2_1 = create_action_event("action_2_1", batch2_id, "tool_call_3")
         action2_2 = create_action_event("action_2_2", batch2_id, "tool_call_4")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [
             action1_1,
             action1_2,
@@ -199,7 +199,7 @@ class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
             action2_2,
         ]
 
-        # Current view has all events from both batches
+        # 当前视图包含两个批次的所有事件
         current_view_events: list[LLMConvertibleEvent] = [
             action1_1,
             action1_2,
@@ -207,82 +207,82 @@ class TestBatchAtomicityPropertyEnforcement(TestBatchAtomicityPropertyBase):
             action2_2,
         ]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing should be removed
+        # 任何东西都不应该被删除
         assert len(events_to_remove) == 0
 
     def test_single_action_batch(self) -> None:
-        """Test that batches with a single action work correctly."""
+        """测试单个操作的批次是否正常工作。"""
         llm_response_id = "response_1"
 
         action = create_action_event("action_1", llm_response_id, "tool_call_1")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action]
 
-        # Current view has the action
+        # 当前视图有操作
         current_view_events: list[LLMConvertibleEvent] = [action]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing should be removed
+        # 任何东西都不应该被删除
         assert len(events_to_remove) == 0
 
     def test_single_action_forgotten(self) -> None:
-        """Test that a forgotten single-action batch is handled correctly."""
+        """测试是否正确处理了被遗忘的单操作批次。"""
         llm_response_id = "response_1"
 
         action = create_action_event("action_1", llm_response_id, "tool_call_1")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action]
 
-        # Current view has no actions (forgotten)
+        # 当前视图没有任何操作（已忘记）
         current_view_events: Sequence[LLMConvertibleEvent] = []
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # Nothing more to remove
+        # 没有更多可删除的了
         assert len(events_to_remove) == 0
 
     def test_partial_batch_across_batches(self) -> None:
-        """Test that partial batches across different LLM responses are handled
-        independently.
+        """测试是否处理不同 LLM 响应的部分批次
+        独立。
         """
-        # First batch - partial
+        # 第一批-部分
         batch1_id = "response_1"
         action1_1 = create_action_event("action_1_1", batch1_id, "tool_call_1")
         action1_2 = create_action_event("action_1_2", batch1_id, "tool_call_2")
 
-        # Second batch - complete
+        # 第二批-完成
         batch2_id = "response_2"
         action2_1 = create_action_event("action_2_1", batch2_id, "tool_call_3")
 
-        # All events in the conversation
+        # 对话中的所有事件
         all_events: Sequence[LLMConvertibleEvent] = [action1_1, action1_2, action2_1]
 
-        # Current view has action1_2 and action2_1 (action1_1 forgotten)
+        # 当前视图有 action1_2 和 action2_1（action1_1 忘记了）
         current_view_events: list[LLMConvertibleEvent] = [action1_2, action2_1]
 
-        # Enforce batch atomicity
+        # 强制批处理原子性
         events_to_remove = self.property.enforce(current_view_events, all_events)
 
-        # action1_2 should be removed due to batch atomicity
+        # 由于批次原子性，应删除 action1_2
         assert action1_2.id in events_to_remove
 
-        # action2_1 should NOT be removed (its batch is complete)
+        # action2_1 应将不删除（其批次已完成）
         assert action2_1.id not in events_to_remove
 
 
 class TestBatchAtomicityPropertyManipulationIndices(TestBatchAtomicityPropertyBase):
-    """Tests for BatchAtomicityProperty manipulation indices."""
+    """测试 BatchAtomicityProperty 操纵指数。"""
 
     def test_same_batch_no_manipulation_index(self) -> None:
-        """Test that events in the same batch cannot be split by manipulation."""
+        """测试同一批次中的事件不能通过操作进行拆分。"""
         llm_response_id = "response_1"
 
         action1 = create_action_event("action_1", llm_response_id, "tool_call_1")
@@ -293,13 +293,13 @@ class TestBatchAtomicityPropertyManipulationIndices(TestBatchAtomicityPropertyBa
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # Index 1 (between action1 and action2) should not be manipulatable
+        # 索引 1（action1 和 action2 之间）不应被操纵
         assert 1 not in indices
-        # Index 2 (between action2 and action3) should not be manipulatable
+        # 索引 2（action2 和 action3 之间）不应被操纵
         assert 2 not in indices
 
     def test_different_batches_allow_manipulation(self) -> None:
-        """Test that events in different batches can be split by manipulation."""
+        """测试不同批次中的事件可以通过操作进行拆分。"""
         batch1_id = "response_1"
         batch2_id = "response_2"
 
@@ -310,12 +310,12 @@ class TestBatchAtomicityPropertyManipulationIndices(TestBatchAtomicityPropertyBa
 
         indices = self.property.manipulation_indices(current_view_events)
 
-        # Index 1 (between action1 and action2) should be manipulatable
-        # since they're in different batches
+        # 索引 1（action1 和 action2 之间）应该是可操作的，因为它们位于不同的批次中
+        #
         assert 1 in indices
 
     def test_single_event_complete_indices(self) -> None:
-        """Test that a single event has complete manipulation indices."""
+        """测试单个事件是否具有完整的操纵索引。"""
         current_view_events: list[LLMConvertibleEvent] = [
             create_action_event("action_1", "response_1", "tool_call_1")
         ]
@@ -324,7 +324,7 @@ class TestBatchAtomicityPropertyManipulationIndices(TestBatchAtomicityPropertyBa
         assert indices == ManipulationIndices.complete(current_view_events)
 
     def test_empty_events_complete_indices(self) -> None:
-        """Test that an empty event list has complete manipulation indices."""
+        """测试空事件列表是否具有完整的操作索引。"""
         current_view_events: list[LLMConvertibleEvent] = []
 
         indices = self.property.manipulation_indices(current_view_events)

@@ -1,9 +1,8 @@
 """
-Test that telemetry records are accurate when LLM calls are retried.
+测试重试 LLM 调用时遥测记录是否准确。
 
-This test ensures that when an LLM call is retried, the telemetry only
-records the latency and metrics for the successful attempt, not the
-combined time of all failed attempts plus the successful one.
+该测试确保，当 LLM 调用重试时，仅记录成功尝试的延迟和指标，而不记录所有失败尝试的总时
+间加上成功尝试的时间。
 """
 
 import time
@@ -22,7 +21,7 @@ def create_mock_response(
     prompt_tokens: int = 10,
     completion_tokens: int = 5,
 ):
-    """Helper function to create properly structured mock responses."""
+    """用于创建结构正确的模拟对象响应的辅助函数。"""
     return ModelResponse(
         id=response_id,
         choices=[
@@ -47,18 +46,16 @@ def create_mock_response(
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_telemetry_records_only_successful_attempt_latency(mock_litellm_completion):
     """
-    Test that when LLM calls are retried, telemetry only records the latency
-    of the successful attempt, not the cumulative time of all attempts.
+    测试当重试 LLM 调用时，遥测仅记录成功尝试的延迟，而不是所有尝试的累积时间。
 
-    Before the fix, on_request was called once before retry logic, causing
-    the latency to include all failed attempts + wait times. After the fix,
-    on_request is called for each retry attempt, so only the successful
-    attempt's latency is recorded.
+    在修复之前，on_request 在重试逻辑之前被调用一次，导致延迟包括所有失败的尝试 + 等
+    待时间。 修复后，每次重试尝试都会调用 on_request，因此仅记
+    录成功尝试的延迟。
     """
-    # Create mock responses for failed and successful attempts
+    # 为失败和成功的尝试创建模拟对象个响应
     mock_response = create_mock_response("Success after retry")
 
-    # Simulate 2 failures followed by success
+    # 模拟 2 次失败，然后成功
     mock_litellm_completion.side_effect = [
         APIConnectionError(
             message="Connection failed 1",
@@ -70,60 +67,60 @@ def test_telemetry_records_only_successful_attempt_latency(mock_litellm_completi
             llm_provider="test_provider",
             model="test_model",
         ),
-        mock_response,  # Third attempt succeeds
+        mock_response,  # 第三次尝试成功
     ]
 
-    # Create LLM with retry configuration and minimal wait times for faster test
+    # 使用重试配置和最短的等待时间创建 LLM，以加快测试速度
     llm = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
         num_retries=3,
-        retry_min_wait=1,  # 1 second minimum wait
-        retry_max_wait=1,  # 1 second maximum wait (same as min for consistent timing)
+        retry_min_wait=1,  # 最短等待 1 秒
+        retry_max_wait=1,  # 最长等待时间为 1 秒（与一致计时的最小等待时间相同）
         usage_id="test-service",
     )
 
-    # Record the start time of the entire operation
+    # 记录整个操作的开始时间
     operation_start = time.time()
 
-    # Make the completion call (will retry twice, then succeed)
+    # 进行完成调用（将重试两次，然后成功）
     response = llm.completion(
         messages=[Message(role="user", content=[TextContent(text="Hello!")])],
     )
 
-    # Record the total operation time
+    # 记录总操作时间
     total_operation_time = time.time() - operation_start
 
-    # Verify the call succeeded
+    # 验证通话是否成功
     assert response.raw_response == mock_response
     assert mock_litellm_completion.call_count == 3
 
-    # Get the metrics to check recorded latency
+    # 获取指标来检查记录的延迟
     metrics = llm.metrics
 
-    # The recorded latency should be much less than the total operation time
-    # because it should only include the successful attempt, not the failed ones
+    # 记录的延迟应该远小于总操作时间，因为它应该只包括成功的尝试，而不包括失败的尝试
+    #
     recorded_latencies = [latency.latency for latency in metrics.response_latencies]
 
-    # There should be exactly one latency record (for the successful attempt)
+    # 应该只有一个延迟记录（对于成功的尝试）
     assert len(recorded_latencies) == 1
 
     recorded_latency = recorded_latencies[0]
 
-    # The recorded latency should be significantly less than total operation time
-    # Total operation time includes:
-    # - First attempt (failed) + wait time
-    # - Second attempt (failed) + wait time
-    # - Third attempt (successful)
+    # 记录的延迟应明显小于总操作时间总操作时间包括：
+    # - 第一次尝试（失败）+等待时间
+    # - 第二次尝试（失败）+等待时间
+    # - 第三次尝试（成功）
     #
-    # The recorded latency should only include the third attempt
+    # 记录的延迟应仅包括第三次尝试
     assert recorded_latency < total_operation_time * 0.5, (
         f"Recorded latency ({recorded_latency:.3f}s) should be much less "
         f"than total operation time ({total_operation_time:.3f}s)"
     )
 
-    # The recorded latency should be relatively small (just the mock call time)
-    # Since we're mocking, it should be very quick (< 100ms typically)
+    # 记录的延迟应该相对较小（只是模拟对象调用时间），因为我们是模拟，所以它应该非常快（
+    # 通常 < 100 毫秒）
+    #
     assert recorded_latency < 0.5, (
         f"Recorded latency ({recorded_latency:.3f}s) should be < 0.5s for a mocked call"
     )
@@ -132,27 +129,27 @@ def test_telemetry_records_only_successful_attempt_latency(mock_litellm_completi
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_telemetry_on_request_called_per_retry(mock_litellm_completion):
     """
-    Test that telemetry.on_request() is called for each retry attempt.
+    测试每次重试尝试是否调用 telemetry.on_request()。
 
-    This ensures that each retry resets the request timer, so only the
-    successful attempt's latency is recorded.
+    这可确保每个重试都会重置请求计时器，因此仅记录成功尝试的延迟。
 
-    We verify this by checking the _req_start timestamps which are set
-    by on_request(). With the fix, _req_start should be reset for each retry.
+    我们通过检查 on_request() 设置的 _req_start 时间戳来验证这一点。 修复后，应为每个
+    重试重置 _req_start。
     """
-    # Track _req_start values to see when on_request is called
+    # 跟踪 _req_start 值以查看何时调用 on_request
     req_start_values = []
 
     mock_response = create_mock_response("Success after one retry")
 
-    # Create a side effect function that captures _req_start after each attempt
+    # 创建一个副作用函数，在每次尝试后捕获 _req_start
     def mock_transport_call_side_effect(*args, **kwargs):
-        # Capture the current _req_start value (set by on_request)
-        # This runs inside _one_attempt, after on_request is called
+        # 捕获当前 _req_start 值（由 on_request 设置） 这在调用 on_request 之后在
+        # _one_attempt 内运行
+        #
         nonlocal req_start_values
         req_start_values.append(time.time())
 
-        # First call fails, second succeeds
+        # 第一次调用失败，第二次成功
         if len(req_start_values) == 1:
             raise APIConnectionError(
                 message="Connection failed",
@@ -163,7 +160,7 @@ def test_telemetry_on_request_called_per_retry(mock_litellm_completion):
 
     mock_litellm_completion.side_effect = mock_transport_call_side_effect
 
-    # Create LLM instance
+    # 创建 LLM 个实例
     llm = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
@@ -173,21 +170,21 @@ def test_telemetry_on_request_called_per_retry(mock_litellm_completion):
         usage_id="test-service",
     )
 
-    # Make the completion call
+    # 进行完成调用
     response = llm.completion(
         messages=[Message(role="user", content=[TextContent(text="Test")])],
     )
 
-    # Verify the call succeeded
+    # 验证通话是否成功
     assert response.raw_response == mock_response
 
-    # Should have attempted twice (one failure, one success)
+    # 应该尝试两次（一次失败，一次成功）
     assert len(req_start_values) == 2, (
         f"Expected 2 attempts, got {len(req_start_values)}"
     )
 
-    # Verify there was a time gap between the attempts (retry wait time)
-    # This proves on_request was called for each attempt
+    # 验证两次尝试之间存在时间间隔（重试等待时间） 这证明每次尝试都调用了 on_request
+    #
     time_gap = req_start_values[1] - req_start_values[0]
     assert time_gap >= 0.5, (
         "There should be a wait time between retry attempts "
@@ -198,15 +195,14 @@ def test_telemetry_on_request_called_per_retry(mock_litellm_completion):
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_telemetry_metrics_accurate_with_retries(mock_litellm_completion):
     """
-    Test that all telemetry metrics (tokens, cost, latency) are accurate
-    when retries occur.
+    测试当重试发生时所有遥测指标（token、成本、延迟）是否准确。
     """
-    # Create a response with specific token counts
+    # 创建具有特定 token 计数的响应
     mock_response = create_mock_response(
         "Success", prompt_tokens=100, completion_tokens=50
     )
 
-    # Simulate one failure then success
+    # 模拟一次失败然后成功
     mock_litellm_completion.side_effect = [
         APIConnectionError(
             message="Connection failed",
@@ -216,7 +212,7 @@ def test_telemetry_metrics_accurate_with_retries(mock_litellm_completion):
         mock_response,
     ]
 
-    # Create LLM with cost tracking
+    # 创建 LLM 并进行成本跟踪
     llm = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
@@ -228,28 +224,28 @@ def test_telemetry_metrics_accurate_with_retries(mock_litellm_completion):
         output_cost_per_token=0.002,
     )
 
-    # Make the completion call
+    # 进行完成调用
     response = llm.completion(
         messages=[Message(role="user", content=[TextContent(text="Test")])],
     )
 
-    # Verify the call succeeded
+    # 验证通话是否成功
     assert response.raw_response == mock_response
 
-    # Get metrics
+    # 获取指标
     metrics = llm.metrics
 
-    # Token usage should only reflect the successful attempt
+    # 词元用量应该只反映成功的尝试
     assert len(metrics.token_usages) == 1
     token_usage = metrics.token_usages[0]
     assert token_usage.prompt_tokens == 100
     assert token_usage.completion_tokens == 50
 
-    # Cost should only reflect the successful attempt
-    # Note: Cost calculation depends on litellm, so we just verify it's positive
+    # 成本应该只反映成功的尝试
+    # 注意：成本计算取决于LiteLLM，所以我们只是验证它是正数
     assert metrics.accumulated_cost > 0
 
-    # Latency should only reflect the successful attempt (should be small)
+    # 延迟应该只反映成功的尝试（应该很小）
     assert len(metrics.response_latencies) == 1
     assert metrics.response_latencies[0].latency < 0.5
 
@@ -257,13 +253,13 @@ def test_telemetry_metrics_accurate_with_retries(mock_litellm_completion):
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_telemetry_no_multiple_records_on_retry(mock_litellm_completion):
     """
-    Test that telemetry doesn't create multiple records for failed attempts.
+    测试遥测不会为失败的尝试创建多个记录。
 
-    Only the successful attempt should result in telemetry records.
+    只有成功的尝试才会产生遥测记录。
     """
     mock_response = create_mock_response("Success")
 
-    # Simulate multiple failures then success
+    # 模拟多次失败然后成功
     mock_litellm_completion.side_effect = [
         APIConnectionError(
             message="Fail 1", llm_provider="test_provider", model="test_model"
@@ -286,7 +282,7 @@ def test_telemetry_no_multiple_records_on_retry(mock_litellm_completion):
         usage_id="test-service",
     )
 
-    # Make the completion call
+    # 进行完成调用
     response = llm.completion(
         messages=[Message(role="user", content=[TextContent(text="Test")])],
     )
@@ -295,12 +291,12 @@ def test_telemetry_no_multiple_records_on_retry(mock_litellm_completion):
 
     metrics = llm.metrics
 
-    # Should only have ONE latency record (for the successful attempt)
+    # 应该只有一个延迟记录（对于成功的尝试）
     assert len(metrics.response_latencies) == 1
 
-    # Should only have ONE token usage record (for the successful attempt)
+    # 应该只有一个词元用量记录（对于成功的尝试）
     assert len(metrics.token_usages) == 1
 
-    # Should only have ONE cost record (for the successful attempt)
-    # Cost is accumulated, so we just check it's positive
+    # 应该只有一个成本记录（对于成功的尝试）成本是累积的，所以我们只检查它是否为正
+    #
     assert metrics.accumulated_cost > 0

@@ -1,6 +1,6 @@
-"""Secret management module for handling sensitive data.
+"""机密用于处理敏感数据的管理模块。
 
-This module provides classes and types for managing secrets in OpenHands.
+该模块提供了用于管理OpenHands中的机密的类和类型。
 """
 
 from openhands.sdk.secret.secrets import (

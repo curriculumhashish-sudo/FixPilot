@@ -1,4 +1,4 @@
-"""Tests for how LocalConversation wires MCP servers into a running agent."""
+"""测试 LocalConversation 如何将 MCP 服务器连接到正在运行的智能体。"""
 
 import logging
 from pathlib import Path
@@ -27,7 +27,7 @@ class EmptyMCPClient:
 
 
 class RecordingMCPToolProvider:
-    """Records every attempt to open an MCP connection."""
+    """记录每次打开 MCP 连接的尝试。"""
 
     def __init__(self, client: EmptyMCPClient | None = None) -> None:
         self.calls: list[dict[str, MCPServer]] = []
@@ -47,7 +47,7 @@ class RecordingMCPToolProvider:
 
 
 def test_disabling_every_server_skips_the_mcp_connection(tmp_path: Path) -> None:
-    """The agent still starts; it just has no MCP servers to reach."""
+    """智能体仍然开始； 它只是没有 MCP 个服务器可以访问。"""
     provider = RecordingMCPToolProvider()
     agent = Agent(
         llm=LLM(model="test-model", api_key=SecretStr("test-key")),
@@ -119,7 +119,7 @@ def test_reconciliation_targets_replaced_agent(tmp_path: Path) -> None:
 
 
 class LegacyMCPToolProvider:
-    """A custom provider written against the pre-reconciliation protocol."""
+    """根据预协调协议编写的自定义提供程序。"""
 
     def create_tools(
         self,
@@ -134,7 +134,7 @@ class LegacyMCPToolProvider:
 def test_legacy_provider_without_on_tools_reconciled_still_works(
     tmp_path: Path,
 ) -> None:
-    """A custom MCPToolProvider that predates on_tools_reconciled must not
+    """一个预设的 MCPToolProvider 必须不使用 on_tools_reconciled
     break; it just won't receive full-snapshot reconciliation."""
     conversation = LocalConversation(
         agent=Agent(
@@ -145,8 +145,8 @@ def test_legacy_provider_without_on_tools_reconciled_still_works(
         ),
         workspace=str(tmp_path),
         visualizer=None,
-        # Deliberately incompatible with the current MCPToolProvider
-        # protocol shape; that's the scenario under test.
+        # 故意不兼容当前 MCPToolProvider 协议结构。 这就是正在测试的场景。
+        #
         mcp_tool_provider=cast(MCPToolProvider, LegacyMCPToolProvider()),
     )
 
@@ -156,7 +156,7 @@ def test_legacy_provider_without_on_tools_reconciled_still_works(
 
 
 class _KwargsMCPToolProvider:
-    """A provider that accepts arbitrary keywords via **kwargs."""
+    """通过 **kwargs 接受任意关键字的提供程序。"""
 
     def create_tools(
         self, mcp_config: dict[str, MCPServer], timeout: float = 30.0, **kwargs: Any

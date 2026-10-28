@@ -1,13 +1,12 @@
 """
-API Compliance Test: Interleaved User Message
+API 合规性测试：交错的用户消息
 
-Tests how different LLM APIs respond when a user message appears
-between tool_use and tool_result.
+测试不同 LLM APIs 在 tool_use 和 tool_result 之间收到用户消息时的行为。
 
 
-Pattern:
+图案：
     [assistant with tool_use] → [user message] → [tool_result]
-                                 ↑ Inserted between tool_use and tool_result!
+                                 ↑ 插入到 tool_use 和 tool_result 之间！
 """
 
 from openhands.sdk.llm import Message, MessageToolCall, TextContent
@@ -27,7 +26,7 @@ This pattern can occur when:
 
 
 class InterleavedUserMessageTest(BaseAPIComplianceTest):
-    """Test API response to interleaved user message."""
+    """测试 API 对交错用户消息的响应。"""
 
     @property
     def pattern_name(self) -> str:
@@ -38,7 +37,7 @@ class InterleavedUserMessageTest(BaseAPIComplianceTest):
         return DESCRIPTION
 
     def build_malformed_messages(self) -> list[Message]:
-        """Build message sequence with interleaved user message."""
+        """使用交错的用户消息构建消息序列。"""
         return [
             Message(
                 role="system",
@@ -48,7 +47,7 @@ class InterleavedUserMessageTest(BaseAPIComplianceTest):
                 role="user",
                 content=[TextContent(text="List the files in the current directory.")],
             ),
-            # Assistant message with tool_use
+            # 助理消息 tool_use
             Message(
                 role="assistant",
                 content=[TextContent(text="I'll list the files for you.")],
@@ -61,12 +60,12 @@ class InterleavedUserMessageTest(BaseAPIComplianceTest):
                     )
                 ],
             ),
-            # INTERLEAVED: User message before tool_result
+            # INTERLEAVED：tool_result之前的用户留言
             Message(
                 role="user",
                 content=[TextContent(text="Actually, can you also show hidden files?")],
             ),
-            # Tool result comes AFTER the interleaved user message
+            # 工具结果来自之后交错的用户消息
             Message(
                 role="tool",
                 content=[TextContent(text="file1.txt\nfile2.txt")],

@@ -1,4 +1,4 @@
-"""Tests for atexit handler cleanup to prevent memory leaks."""
+"""测试 atexit 处理程序清理以防止内存泄漏。"""
 
 import gc
 import tempfile
@@ -18,7 +18,7 @@ def _make_conversation(workspace: str) -> LocalConversation:
 
 
 def test_close_unregisters_atexit_handler():
-    """close() must remove the atexit handler so the object can be GC'd."""
+    """close() 必须删除 atexit 处理程序，以便可以对对象进行 GC。"""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = str(Path(tmp) / "ws")
         Path(workspace).mkdir()
@@ -26,8 +26,8 @@ def test_close_unregisters_atexit_handler():
 
         conv.close()
 
-        # If atexit still held a reference, the weak-ref would stay alive
-        # after we drop the strong reference.
+        # 如果 atexit 仍然保留引用，那么在我们删除强引用后，弱引用将保持活动状态。
+        #
         ref = weakref.ref(conv)
         del conv
         gc.collect()
@@ -35,11 +35,11 @@ def test_close_unregisters_atexit_handler():
 
 
 def test_close_is_idempotent_with_atexit():
-    """Calling close() twice must not raise, even with atexit handling."""
+    """即使使用 atexit 处理，调用 close() 两次也不能引发异常。"""
     with tempfile.TemporaryDirectory() as tmp:
         workspace = str(Path(tmp) / "ws")
         Path(workspace).mkdir()
         conv = _make_conversation(workspace)
 
         conv.close()
-        conv.close()  # second call is a no-op
+        conv.close()  # 第二次调用是空操作

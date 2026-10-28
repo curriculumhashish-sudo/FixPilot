@@ -1,12 +1,12 @@
-"""Client-defined tools: tools defined via JSON spec, executed by external clients.
+"""客户端定义的工具：通过JSON规范定义的工具，由外部客户端执行。
 
-These tools allow frontend clients (like Agent Canvas) to register tools purely
-via JSON in ``POST /conversations``, with no Python code required. When the agent
-calls a client tool, an ActionEvent is emitted over the WebSocket and the client
-handles execution. The SDK returns an acknowledgment observation immediately.
+这些工具允许前端客户端（如Agent Canvas）纯粹通过``POST /conversations``中的JSON注册工
+具，不需要Python代码。 当智能体调用客户端
+工具时，会通过 WebSocket 发出 ActionEvent，并且客户端处理执行。 SDK立即返回确认观测结
+果。
 
-This eliminates the need for Python tool code in JavaScript repos and the complex
-``tool_module_qualnames`` / ``--import-modules`` plumbing.
+这消除了对 JavaScript 存储库中的 Python 工具代码的需要以及复杂的
+``tool_module_qualnames`` / ``--import-modules`` 管道。
 """
 
 import copy
@@ -35,16 +35,14 @@ logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Cached dynamic action types
+# 缓存的动态操作类型
 #
-# ``Action.from_mcp_schema`` creates a *concrete* ``Action`` subclass whose
-# ``kind`` is derived from the class name (``ClientAction_<name>``). These
-# subclasses register process-globally in the discriminated-union hierarchy,
-# so creating two classes with the same name (e.g. when the same client tool
-# is registered twice, or re-created on conversation resume) makes
-# ``Action.resolve_kind`` raise a duplicate-class error and breaks event
-# deserialization. We therefore cache the generated type per tool name and
-# reject same-name/different-schema conflicts explicitly.
+# ``Action.from_mcp_schema`` 创建一个 *具体* ``Action`` 子类，其
+# ``kind`` 派生自类名 (``ClientAction_<name>``)。 这些子类在可区分联合层次结构中全局注册
+# 进程，因此创建两个具有相同名称的类（e.g. 当同一个客户端工具注册两次或在对话恢复时重新
+# 创建时）
+# ``Action.resolve_kind`` 引发重复类错误并中断事件反序列化。 因此，我们缓存每个工具名称
+# 生成的类型，并显式拒绝同名/不同-模式冲突。
 # ---------------------------------------------------------------------------
 _client_action_types: dict[str, type[Action]] = {}
 _client_action_schemas: dict[str, dict[str, Any]] = {}
@@ -53,29 +51,30 @@ _client_action_lock = threading.RLock()
 
 
 class ClientToolRegistrationError(ValueError):
-    """Raised when client tool registration receives invalid input.
+    """当客户端工具注册收到无效输入时引发。
 
-    This is a caller/input error (e.g. a bad ``POST /conversations`` payload),
-    so callers such as the agent server map it to a 4xx response rather than a
+    这是调用者/输入错误 (e.g. 一个坏的 ``POST /conversations`` 载荷），因此诸如 Agent
+     Server 之类的调用者将其映射到 4x
+    x 响应而不是
     500.
     """
 
 
 class ClientToolSchemaConflictError(ClientToolRegistrationError):
-    """Raised when a client tool name is reused with a different schema.
+    """当客户端工具名称与不同的模式重用时引发。
 
-    The generated action ``kind`` (``ClientAction_<name>``) is process-global,
-    so a single name cannot represent two different parameter schemas.
+    生成的操作 ``kind`` (``ClientAction_<name>``) 是进程全局的，因此单个名称不能代表
+    两个不同的参数模式。
     """
 
 
 def _get_client_action_type(name: str, schema: dict[str, Any]) -> type[Action]:
-    """Return a cached ``Action`` subclass for ``name`` built from ``schema``.
+    """返回从 ``schema`` 构建的 ``name`` 的缓存 ``Action`` 子类。
 
-    Reuses the previously generated type when the same ``name`` + ``schema``
-    is requested again. Raises :class:`ClientToolSchemaConflictError` if ``name``
-    was already registered with a *different* schema, since the generated action
-    ``kind`` is process-global and cannot represent two schemas at once.
+    当再次请求相同的 ``name`` + ``schema`` 时，重用先前生成的类型。 如果 ``name`` 已
+    经使用 * 不同的 * 模式注册，则引发：clas
+    s:`ClientToolSchemaConflictError`，因为生成的操作
+    ``kind`` 是进程全局的，不能同时表示两个模式。
     """
     with _client_action_lock:
         existing = _client_action_types.get(name)
@@ -97,11 +96,11 @@ def _get_client_action_type(name: str, schema: dict[str, Any]) -> type[Action]:
 
 
 class ClientToolSpec(BaseModel):
-    """A tool defined by the client, executed externally (not by the SDK).
+    """由客户端定义的工具，在外部执行（不是由 SDK）。
 
-    Clients pass these specs in ``POST /conversations`` to register tools
-    whose execution is handled outside the SDK (e.g., by a frontend
-    listening for ActionEvents over WebSocket).
+    客户端在 ``POST /conversations`` 中传递这些规范来注册其执行在 SDK 之外处理的工具
+    （e.g，由前端监听 ActionEvents 和
+    WebSocket）。
     """
 
     name: str = Field(
@@ -133,12 +132,12 @@ class ClientToolSpec(BaseModel):
     @field_validator("parameters")
     @classmethod
     def _validate_object_schema(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Ensure ``parameters`` is a JSON Schema *object* schema.
+        """确保 ``parameters`` 是 JSON 模式 * 对象 * 模式。
 
-        ``ClientTool`` builds a Pydantic action model from this schema via
-        ``Action.from_mcp_schema``, which only supports object schemas. Validate
-        here so callers get an immediate, clear error at the source instead of a
-        confusing failure later during tool creation.
+        ``ClientTool`` 通过此模式构建 Pydantic 动作模型
+        ``Action.from_mcp_schema``，仅支持对象模式。 在此处进行验证，以便调用者在源头
+        立即获得明确的错误，而不是稍后在工具创建过程中出现令
+        人困惑的失败。
         """
         if v.get("type") != "object":
             raise ValueError(
@@ -150,18 +149,16 @@ class ClientToolSpec(BaseModel):
 
 
 class ClientToolObservation(Observation):
-    """Observation returned when a client tool is called.
+    """调用客户端工具时返回观测结果。
 
-    The actual execution happens on the client side; the SDK returns
-    this acknowledgment so the agent loop can continue.
+    实际执行发生在客户端； SDK 返回此确认，以便智能体循环可以继续。
     """
 
 
 class ClientToolExecutor(ToolExecutor):
-    """No-op executor that returns an acknowledgment observation.
+    """返回确认的无操作执行器观测结果。
 
-    The real execution happens on the client (frontend) which listens
-    for the ActionEvent over WebSocket.
+    真正的执行发生在客户端（前端）上，它监听 ActionEvent over WebSocket。
     """
 
     def __call__(
@@ -172,16 +169,16 @@ class ClientToolExecutor(ToolExecutor):
         return ClientToolObservation.from_text(text="Tool call dispatched to client.")
 
 
-# Shared executor instance — stateless, so one is enough.
+# 共享执行器实例——无状态，所以一个就足够了。
 _CLIENT_TOOL_EXECUTOR = ClientToolExecutor()
 
 
 class ClientTool(ToolDefinition[Action, ClientToolObservation]):
-    """A tool whose execution is deferred to the external client.
+    """其执行被推迟到外部客户端的工具。
 
-    Created from a :class:`ClientToolSpec` at conversation start. The agent
-    sees it as a normal tool and can call it; the ActionEvent is emitted
-    over WebSocket for the client to handle.
+    在对话开始时从：class:`ClientToolSpec` 创建。 智能体将其视为普通工具并可以调用它
+    ； ActionEvent 通过 WebSocket 发出供
+    客户端处理。
     """
 
     user_selectable: ClassVar[bool] = False
@@ -200,7 +197,7 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
 
     @property
     def name(self) -> str:  # type: ignore[override]
-        """Return the client-defined tool name."""
+        """返回客户端定义的工具名称。"""
         return self.client_tool_name
 
     @classmethod
@@ -209,17 +206,16 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
         conv_state: "ConversationState | None" = None,  # noqa: ARG003
         **params: Any,
     ) -> Sequence[Self]:
-        """Create a ClientTool from a :class:`ClientToolSpec`.
+        """从：class:`ClientToolSpec` 创建 ClientTool。
 
         Args:
-            conv_state: Conversation state (not used).
-            **params: Must include ``spec`` — either a :class:`ClientToolSpec`
-                instance or a JSON-serializable dict of one. The dict form is
-                used when the spec flows through per-conversation
-                ``Tool.params`` on the server.
+            conv_state: 对话状态（未使用）。
+            **params: 必须包含 ``spec`` — :class:`ClientToolSpec`
+                实例或 JSON-可序列化字典 1。 当规范流经每个对话时，使用字典形式
+                ``Tool.params`` 在服务器上。
 
         Returns:
-            A single-element sequence containing the ClientTool.
+            包含 ClientTool 的单元素序列。
         """
         spec_param = params.get("spec")
         if spec_param is None:
@@ -246,9 +242,9 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
                 action_type=action_type,
                 observation_type=ClientToolObservation,
                 executor=_CLIENT_TOOL_EXECUTOR,
-                # Leave annotations unset unless the client explicitly provides
-                # them: client tools can trigger arbitrary frontend side effects,
-                # so we must not optimistically assume read-only/idempotent.
+                # 除非客户端明确提供，否则保留注释未设置
+                # 他们：客户端工具可以触发任意前端副作用，
+                # 所以我们不能乐观地假设只读/幂等。
                 annotations=spec.annotations,
                 input_schema=spec.parameters,
             )
@@ -256,9 +252,9 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
 
     @classmethod
     def from_spec(cls, spec: ClientToolSpec) -> "ClientTool":
-        """Convenience factory that creates a ClientTool from a spec.
+        """从规范创建 ClientTool 的便利工厂。
 
-        Returns a single ClientTool instance (not a sequence).
+        返回单个 ClientTool 实例（不是序列）。
         """
         tools = cls.create(spec=spec)
         return tools[0]
@@ -268,22 +264,23 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
         add_security_risk_prediction: bool = False,
         action_type: type[Schema] | None = None,
     ) -> dict[str, Any]:
-        """Build the provider-facing schema from the original client schema.
+        """从原始客户端模式构建面向提供商的模式。
 
-        The base implementation rebuilds the schema from the generated Pydantic
-        action model, which drops client-defined JSON Schema constraints
-        (``enum``, nested ``properties``, ``additionalProperties``, numeric
-        bounds, ...). Here we start from the original ``input_schema`` and only
-        overlay the SDK-added meta fields (``summary`` and, when applicable,
-        ``security_risk``) so client constraints are preserved exactly.
+        基线实现会重建模式从生成的 Pydantic 动作模型，这会丢弃客户端定义的 JSON 模式
+        约束 (``enum``, 子 ``properties``,
+        ``additionalProperties``, 数值范围，...). 这里我们从原始的``input_schema``开
+        始，只覆盖SDK添加的元字段（
+        ``summary``，并且，如果适用，
+        ``security_risk``）因此客户端约束被准确保留。
         """
         if action_type is not None:
             raise ValueError(
                 "ClientTool._get_tool_schema does not support overriding action_type"
             )
 
-        # Render the SDK meta fields (summary / security_risk) exactly as the
-        # base implementation would, then lift just those properties over.
+        # 与基本实现完全相同地渲染 SDK 元字段（摘要/security_risk），然后仅提升这些属性
+        # 。
+        #
         sdk_schema = super()._get_tool_schema(
             add_security_risk_prediction=add_security_risk_prediction,
         )
@@ -328,15 +325,14 @@ class ClientTool(ToolDefinition[Action, ClientToolObservation]):
 
 
 def extract_client_tool_specs(tools: "Sequence[Tool]") -> list[ClientToolSpec]:
-    """Recover :class:`ClientToolSpec`s embedded in persisted ``Tool`` specs.
+    """恢复已持久化 ``Tool`` 规范中嵌入的：class:`ClientToolSpec`。
 
-    Client tools carry their full spec under ``Tool.params['spec']`` (see
-    :func:`register_client_tools`). When a conversation is resumed in a fresh
-    process, that spec is the only place the schema survives, so we use it to
-    re-register the dynamic tools. A persisted ``Tool`` is treated as a client
-    tool only when its ``params['spec']`` validates as a ``ClientToolSpec`` whose
-    ``name`` matches the tool name, which avoids misclassifying ordinary tools
-    that happen to use a ``spec`` param.
+    客户端工具在 ``Tool.params['spec']`` 下包含其完整规范（请参阅
+    :func:`register_client_tools`)。 当谈话以新的方式恢复时
+    过程中，该规范是模式唯一存在的地方，因此我们使用它来重新注册动态工具。 仅当已持久
+    化 ``Tool`` 的 ``params['spec']`` 验证为
+    ``ClientToolSpec`` 且其
+    ``name`` 匹配工具名称，这避免了对碰巧使用 ``spec`` 参数的普通工具进行错误分类。
     """
     from pydantic import ValidationError
 
@@ -355,22 +351,20 @@ def extract_client_tool_specs(tools: "Sequence[Tool]") -> list[ClientToolSpec]:
 
 
 def register_client_tools(specs: Sequence[ClientToolSpec]) -> list["Tool"]:
-    """Register client-defined tools and return per-conversation tool specs.
+    """注册客户端定义的工具并返回每个对话的工具规格。
 
-    The :class:`ClientTool` *class* (a stateless resolver) is registered once
-    per tool name in the global tool registry, while each tool's schema travels
-    with the conversation through ``Tool.params`` rather than living in the
-    process-global registry. This keeps the resolver stateless so two
-    conversations that define the same tool name with the same schema don't
-    clobber each other.
+    请输出简体中文译文。`ClientTool`  *class* (一个状态机解析器) 在全局工具名下注册一
+    次注册表，while each tool's 模式旅行于对
+    话之中 ``Tool.params`` 而不是生活在全局流程中注册表。 这使解析器保持无状态，因此
+    ，两个定义相同的工具名称的对话不会影响到彼此模式不要互相覆盖。
 
     Args:
-        specs: The client tool specs to register.
+        specs: 要注册的客户端工具规格。
 
     Returns:
-        A list of :class:`~openhands.sdk.tool.spec.Tool` specs (one per input
-        spec) to inject into an agent's ``tools`` so ``_initialize()`` can
-        resolve them.
+        :class:`~openhands.sdk.tool.spec.Tool` 规范列表（每个输入规范一个），注入到智
+        能体的 ``tools`` 中，以便
+        ``_initialize()`` 可以解析它们。
     """
     from openhands.sdk.tool.registry import list_registered_tools, register_tool
     from openhands.sdk.tool.spec import Tool

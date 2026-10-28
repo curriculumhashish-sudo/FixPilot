@@ -18,8 +18,8 @@ def _load(name: str, script_name: str):
     return mod
 
 
-# Import markdown_sections first so check_pr_description can resolve its
-# `from markdown_sections import ...` against the module we loaded above.
+# 首先导入 markdown_sections，以便 check_pr_description 可以解析其
+# `from markdown_sections import ...` 针对我们上面加载的模块。
 _load("markdown_sections", "markdown_sections.py")
 _prod = _load("check_pr_description", "check_pr_description.py")
 validate_pr_body = _prod.validate_pr_body
@@ -180,13 +180,13 @@ def test_extract_linked_issue_numbers_only_bare_ref_in_issue_section():
 
 
 def test_extract_linked_issue_numbers_no_bare_ref_outside_issue_section():
-    # A bare `#42` in the Summary must not be treated as a linked issue.
+    # 摘要中的空白 `#42` 不得被视为链接问题。
     body = "## Summary\n\nSee #42 for background.\n\n## Issue Number\n\nN/A\n"
     assert extract_linked_issue_numbers(body) == []
 
 
 def test_extract_linked_issue_numbers_keyword_inside_word_is_ignored():
-    # "fix"/"clos"/"resolv" must not match inside larger words (e.g. "crucifixes").
+    # “fix”/"clos"/"resolv" 不得匹配较大的单词 (e.g. “十字架”）。
     body = (
         "## Summary\n\n"
         "crucifixes #12, encloses #34, transfixes #56.\n\n"
@@ -231,8 +231,9 @@ def test_validate_linked_issue_ready_grandfathers_pre_rollout_issue(monkeypatch)
 def test_validate_linked_issue_ready_grandfathers_rollout_day_before_deployment(
     monkeypatch,
 ):
-    # Same issue as #4468/#4469: opened on the rollout day (2026-08-12) before
-    # the workflow was deployed, so it was never labeled. It must be exempt.
+    # 与 #4468/#4469 相同的问题：在部署工作流之前的推出日 (2026-08-12) 打开，因此从未对
+    # 其进行标记。 必须是豁免的。
+    #
     monkeypatch.setattr(
         _prod,
         "fetch_issue_details",
@@ -255,7 +256,7 @@ def test_validate_linked_issue_ready_new_unready_not_masked_by_ready_sibling(
     monkeypatch,
 ):
     def _issues(repo, num, token):
-        # #12 carries ready-for-dev; #34 is new and not ready.
+        # #12 条可供开发使用； #34 是新的，尚未准备好。
         if num == 34:
             return ["bug"], "2026-08-13T00:00:00Z"
         return ["ready-for-dev"], "2026-08-13T00:00:00Z"

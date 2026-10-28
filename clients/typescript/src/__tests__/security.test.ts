@@ -1,8 +1,8 @@
 /**
- * Tests for Security module (ConfirmationPolicy and SecurityAnalyzer)
+ * 安全模块测试（ConfirmationPolicy 和 SecurityAnalyzer）
  *
- * These tests mirror the Python SDK's security tests to ensure
- * consistent behavior across implementations.
+ * 这些测试反映了 Python SDK 的安全测试，以确保
+ * 跨实现的一致行为。
  */
 
 import {
@@ -24,7 +24,7 @@ import {
 
 import { ActionEvent, generateEventId } from '../events/types';
 
-// Helper to create mock action events
+// 创建模拟对象个动作事件的帮助程序
 function createActionEvent(toolName: string, action: Record<string, unknown>): ActionEvent {
   return {
     id: generateEventId(),
@@ -80,7 +80,7 @@ describe('Confirmation Policies', () => {
       const action = createActionEvent('terminal', { command: 'ls' });
 
       expect(policy.requiresConfirmation(action, 'unknown')).toBe(true);
-      expect(policy.requiresConfirmation(action)).toBe(true); // No risk = unknown
+      expect(policy.requiresConfirmation(action)).toBe(true); // 没有风险=未知
     });
 
     it('should use default threshold of medium', () => {
@@ -124,7 +124,7 @@ describe('Confirmation Policies', () => {
 
     it('should handle multiple policies', () => {
       const policy = new CompositeConfirm([
-        new RiskBasedConfirm('high'), // Only high risk
+        new RiskBasedConfirm('high'), // 只有高风险
         new ToolBasedConfirm(['always_confirm_tool']),
       ]);
 
@@ -206,7 +206,7 @@ describe('Security Analyzers', () => {
     it('should detect sensitive file access', () => {
       const analyzer = new PatternBasedAnalyzer();
 
-      // SSH key access
+      // SSH 按键访问
       const sshAction = createActionEvent('read_file', { path: '~/.ssh/id_rsa' });
       const result = analyzer.analyze(sshAction);
       expect(result.riskLevel).not.toBe('low');
@@ -245,11 +245,11 @@ describe('Security Analyzers', () => {
       const analyzer = new AllowlistAnalyzer([], [/^read_/]);
 
       const readAction = createActionEvent('read_file', { path: '/tmp' });
-      // Using readAction to verify pattern matching exists
+      // 使用 readAction 验证模式匹配是否存在
       const result = analyzer.analyze(readAction);
 
-      // Pattern matching is on action JSON, not tool name
-      // This tests that patterns are checked
+      // 模式匹配针对操作 JSON，而不是工具名称这测试模式是否已检查
+      //
       expect(analyzer.type).toBe('allowlist');
       expect(result).toBeDefined();
     });
@@ -270,8 +270,8 @@ describe('Security Analyzers', () => {
   describe('CompositeAnalyzer', () => {
     it('should return highest risk from all analyzers', async () => {
       const analyzer = new CompositeAnalyzer([
-        new NoOpAnalyzer(), // Always low
-        new PatternBasedAnalyzer(), // Will detect high risk
+        new NoOpAnalyzer(), // 始终处于低位
+        new PatternBasedAnalyzer(), // 会检测到高风险
       ]);
 
       const action = createActionEvent('terminal', { command: 'sudo rm -rf /' });
@@ -289,7 +289,7 @@ describe('Security Analyzers', () => {
       const action = createActionEvent('terminal', { command: 'rm file.txt' });
       const result = await analyzer.analyze(action);
 
-      // Should have concerns from both analyzers
+      // 两个分析器都应该关注
       expect(result.concerns).toBeDefined();
       expect(result.concerns!.length).toBeGreaterThan(0);
     });

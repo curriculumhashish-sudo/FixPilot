@@ -4,9 +4,9 @@ import { ConversationClient } from '../client/conversation-client';
 import { HttpError } from '../client/http-client';
 
 /**
- * The client rethrows the transport error from `fetch` when a create fails
- * without an HTTP response. Its exact message is runtime-specific, so only
- * assert the stable contract: a plain Error, never an HttpError.
+ * 当创建失败时，客户端会从 `fetch` 重新抛出传输层错误
+ * 没有 HTTP 响应。 它的确切消息是特定于运行时的，因此仅
+ * 断言稳定合约：一个简单的错误，绝不是 HttpError。
  */
 async function expectPreservedTransportError(promise: Promise<unknown>) {
   const error = await promise.then(
@@ -20,19 +20,19 @@ async function expectPreservedTransportError(promise: Promise<unknown>) {
 }
 
 interface ServerOptions {
-  /** Advertise the idempotent-create capability. */
+  /** 宣传幂等创建功能。*/
   supportsRetry?: boolean;
-  /** Drop the connection on the first POST after committing it. */
+  /** 提交后删除第一个 POST 上的连接。*/
   commitThenDrop?: boolean;
-  /** Reject the POST with an HTTP error rather than dropping it. */
+  /** 拒绝带有 HTTP 错误的 POST，而不是丢弃它。*/
   rejectPost?: boolean;
 }
 
 /**
- * Minimal agent server: serves `/server_info` for the capability probe and
- * `/api/conversations` for creates. Each scenario controls whether a dropped
- * POST had already committed server-side, which is the case the retry exists
- * for and the case a retry must not turn into a duplicate.
+ * 最小 Agent Server：为能力探测提供 `/server_info` 服务，并且
+ * `/api/conversations` 用于创建。 每个场景控制是否丢弃
+ * POST 已经提交到服务器端，重试就存在这种情况
+ * 对于这种情况，a 重试不得变成重复项。
  */
 function startServer(options: ServerOptions = {}) {
   const { supportsRetry = true, commitThenDrop = true, rejectPost = false } = options;
@@ -58,13 +58,13 @@ function startServer(options: ServerOptions = {}) {
         res.end(JSON.stringify({ detail: 'invalid settings' }));
         return;
       }
-      // A duplicate create on a server that dedupes returns the same
-      // conversation; one that does not would start a second conversation here.
+      // 服务器上的重复创建会返回相同的对话； 不这样做的人会在这里开始第二次对话。
+      //
       if (state.committed && !supportsRetry) {
         state.duplicates++;
       }
       state.committed = true;
-      // Only the first POST loses its response; the re-send must be answerable.
+      // 只有第一个POST失去响应； 重新发送必须是可应答的。
       if (commitThenDrop && state.creates === 1) {
         req.socket.destroy();
       } else {
@@ -97,7 +97,7 @@ describe('conversation create response loss', () => {
         initial_message: { content: 'run once' },
       });
       expect(result.id).toBe('test-cid');
-      // The committed create plus the re-send, which the server deduplicated.
+      // 提交的创建加上重新发送，服务器已对其进行重复数据删除。
       expect(state.creates).toBe(2);
       expect(state.duplicates).toBe(0);
     } finally {
@@ -115,8 +115,8 @@ describe('conversation create response loss', () => {
           initial_message: { content: 'run once' },
         })
       );
-      // Replaying here would have created a second conversation and re-run the
-      // initial message, so the transport error must surface instead.
+      // 此处重播将创建第二个对话并重新运行初始消息，因此必须显示传输层错误。
+      //
       expect(state.creates).toBe(1);
     } finally {
       await close(server);

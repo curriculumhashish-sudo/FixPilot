@@ -1,4 +1,4 @@
-"""String replace editor tool implementation."""
+"""字符串替换编辑器工具实现。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -27,7 +27,7 @@ CommandLiteral = Literal["view", "create", "str_replace", "insert", "undo_edit"]
 
 
 class FileEditorAction(Action):
-    """Schema for file editor operations."""
+    """模式用于文件编辑器操作。"""
 
     command: CommandLiteral = Field(
         description="The commands to run. Allowed options are: `view`, `create`, "
@@ -67,7 +67,7 @@ class FileEditorAction(Action):
 
 
 class FileEditorObservation(Observation):
-    """A ToolResult that can be rendered as a CLI output."""
+    """可以呈现为 CLI 输出的 ToolResult。"""
 
     command: CommandLiteral = Field(
         description=(
@@ -92,10 +92,10 @@ class FileEditorObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation.
+        """返回此观测结果的富文本表示形式。
 
-        Shows diff visualization for meaningful changes (file creation, successful
-        edits), otherwise falls back to agent observation.
+        显示有意义的更改（文件创建、成功编辑）的差异可视化，否则回退到智能体观测结果
+        。
         """
         text = Text()
 
@@ -107,7 +107,7 @@ class FileEditorObservation(Observation):
             return super().visualize
 
         assert self.path is not None, "path should be set for meaningful diff"
-        # Generate and cache diff visualization
+        # 生成并缓存差异可视化
         if not self._diff_cache:
             change_applied = self.command != "view" and not self.is_error
             self._diff_cache = visualize_diff(
@@ -118,13 +118,13 @@ class FileEditorObservation(Observation):
                 change_applied=change_applied,
             )
 
-        # Combine error prefix with diff visualization
+        # 将错误前缀与差异可视化相结合
         text.append(self._diff_cache)
         return text
 
     @property
     def _has_meaningful_diff(self) -> bool:
-        """Check if there's a meaningful diff to display."""
+        """检查是否有有意义的差异要显示。"""
         if self.is_error:
             return False
 
@@ -134,15 +134,15 @@ class FileEditorObservation(Observation):
         if self.command not in ("create", "str_replace", "insert", "undo_edit"):
             return False
 
-        # File creation case
+        # 文件创建案例
         if self.command == "create" and self.new_content and not self.prev_exist:
             return True
 
-        # File modification cases (str_replace, insert, undo_edit)
+        # 文件修改案例（str_replace、插入、undo_edit）
         if self.command in ("str_replace", "insert", "undo_edit"):
-            # Need both old and new content to show meaningful diff
+            # 需要新旧内容来显示有意义的差异
             if self.old_content is not None and self.new_content is not None:
-                # Only show diff if content actually changed
+                # 仅在内容实际更改时才显示差异
                 return self.old_content != self.new_content
 
         return False
@@ -191,17 +191,16 @@ Remember: when making multiple file edits in a row to the same file, you should 
 
 
 class FileEditorTool(ToolDefinition[FileEditorAction, FileEditorObservation]):
-    """A ToolDefinition subclass that automatically initializes a FileEditorExecutor."""
+    """自动初始化 FileEditorExecutor 的 ToolDefinition 子类。"""
 
     catalog_description: ClassVar[str] = "View, create and edit files."
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        """Declare file resources accessed by this action.
+        """声明此操作访问的文件资源。
 
-        All commands — including read-only ``view`` — lock on the target
-        file path.  This ensures a view never reads partially-written
-        content during a concurrent write.  Modifications or accesses to
-        *different* files run in parallel.
+        目标文件路径上的所有命令 - 包括只读 ``view`` - 锁。 这确保视图在并发写入期间
+        永远不会读取部分写入的内容。 修改或访问
+        *不同的*文件并行运行。
         """
         assert isinstance(action, FileEditorAction)
         normalized_path = Path(action.path).resolve()
@@ -212,26 +211,26 @@ class FileEditorTool(ToolDefinition[FileEditorAction, FileEditorObservation]):
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["FileEditorTool"]:
-        """Initialize FileEditorTool with a FileEditorExecutor.
+        """用 FileEditorExecutor 初始化 FileEditorTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
-                         If provided, workspace_root will be taken from
-                         conv_state.workspace
+            conv_state: 要从中获取工作目录的对话状态。
+                         如果提供，workspace_root 将从 conv_state.workspace 中获取
         """
-        # Import here to avoid circular imports
+        # 在这里导入以避免循环导入
         from openhands.tools.file_editor.impl import FileEditorExecutor
 
-        # Initialize the executor
+        # 初始化执行器
         executor = FileEditorExecutor(workspace_root=conv_state.workspace.working_dir)
 
-        # Build the tool description with conditional image viewing support
-        # Split TOOL_DESCRIPTION to insert image viewing line after the second bullet
+        # 使用条件图像查看支持构建工具描述 Split TOOL_DESCRIPTION 以在第二个项目符号后插
+        # 入图像查看行
+        #
         description_lines = TOOL_DESCRIPTION.split("\n")
-        base_description = "\n".join(description_lines[:2])  # First two lines
-        remaining_description = "\n".join(description_lines[2:])  # Rest of description
+        base_description = "\n".join(description_lines[:2])  # 前两行
+        remaining_description = "\n".join(description_lines[2:])  # REST 描述
 
-        # Add image viewing line if LLM supports vision
+        # 如果LLM支持视觉，则添加图像查看线
         if conv_state.agent.llm.vision_is_active():
             tool_description = (
                 f"{base_description}\n"
@@ -242,8 +241,8 @@ class FileEditorTool(ToolDefinition[FileEditorAction, FileEditorObservation]):
         else:
             tool_description = TOOL_DESCRIPTION
 
-        # Add working directory information to the tool description
-        # to guide the agent to use the correct directory instead of root
+        # 在工具描述中添加工作目录信息，引导智能体使用正确的目录而不是root
+        #
         working_dir = conv_state.workspace.working_dir
         enhanced_description = (
             f"{tool_description}\n\n"
@@ -252,7 +251,7 @@ class FileEditorTool(ToolDefinition[FileEditorAction, FileEditorObservation]):
             f"instead of the root filesystem."
         )
 
-        # Initialize the parent Tool with the executor
+        # 使用执行器初始化父 Tool
         return [
             cls(
                 action_type=FileEditorAction,
@@ -270,5 +269,5 @@ class FileEditorTool(ToolDefinition[FileEditorAction, FileEditorObservation]):
         ]
 
 
-# Automatically register the tool when this module is imported
+# 导入此模块时自动注册该工具
 register_tool(FileEditorTool.name, FileEditorTool)

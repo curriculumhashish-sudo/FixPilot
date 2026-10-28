@@ -3,19 +3,25 @@ title: Context
 description: Skills and knowledge that agents can rely on during conversations. Provides repository context and structured knowledge.
 ---
 
-# Context
+<a id="context"></a>
 
-Context provides skills and knowledge the agent can rely on during a conversation.
+# 上下文
 
-## Key Components
+上下文提供智能体在对话期间可以依赖的技能和知识。
 
-- **AgentContext**: Composes skills and runtime context; pass to Agent to condition behavior
-- **Skill**: Embeds structured knowledge with different trigger types:
-  - **trigger=None**: Activates for all conversations (repository-wide context)
-  - **KeywordTrigger**: Activates when specific keywords appear in user messages
-  - **TaskTrigger**: Activates based on task-specific conditions
+<a id="key-components"></a>
 
-## Quick Example
+## 关键部件
+
+- **AgentContext**：编写技巧和运行时间上下文； 传递到智能体来条件行为
+- **技能**：嵌入具有不同触发类型的结构化知识：
+  - **trigger=None**：激活所有对话（存储库范围上下文）
+  - **KeywordTrigger**：当用户消息中出现特定关键字时激活
+  - **TaskTrigger**：根据任务特定条件激活
+
+<a id="quick-example"></a>
+
+## 快速示例
 
 ```python
 from openhands.sdk.context import AgentContext, KeywordTrigger, Skill
@@ -26,7 +32,7 @@ agent_context = AgentContext(
             name="repo-guidelines",
             content="Repository-wide coding standards and best practices.",
             source="AGENTS.md",
-            trigger=None,  # Always-active skill
+            trigger=None,  # 永远活跃的技能
         ),
         Skill(
             name="flarglebargle",
@@ -35,6 +41,6 @@ agent_context = AgentContext(
             trigger=KeywordTrigger(keywords=["flarglebargle"]),
         ),
     ],
-    # current_datetime defaults to datetime.now() for time awareness
+    # current_datetime 默认为 datetime.now() 以实现时间感知
 )
 ```

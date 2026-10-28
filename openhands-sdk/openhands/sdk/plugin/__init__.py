@@ -1,15 +1,12 @@
-"""Plugin module for OpenHands SDK.
+"""OpenHands SDK 的插件模块。
 
-This module provides support for loading and managing plugins that bundle
-skills, hooks, MCP configurations, agents, and commands together.
+该模块提供对加载和管理将技能、挂钩、MCP 配置、智能体和命令捆绑在一起的插件的支持。
 
-It also provides support for plugin marketplaces - directories that list
-available plugins with their metadata and source locations.
+它还提供对插件市场的支持 - 列出可用插件及其元数据和源位置的目录。
 
-Additionally, it provides utilities for managing installed plugins in the
-user's home directory (~/.openhands/plugins/installed/).
+此外，它还提供了用于管理用户主目录（~/.openhands/plugins/installed/).
 
-Note: Marketplace classes live in ``openhands.sdk.marketplace``.
+Note: 市场类位于 ``openhands.sdk.marketplace``。
 """
 
 from openhands.sdk.plugin.discovery import (
@@ -64,7 +61,7 @@ from openhands.sdk.plugin.types import (
 
 
 __all__ = [
-    # Plugin classes
+    # 插件类
     "Plugin",
     "PluginFetchError",
     "PluginSourceError",
@@ -74,26 +71,26 @@ __all__ = [
     "PluginSource",
     "ResolvedPluginSource",
     "CommandDefinition",
-    # Plugin format strategies
+    # 插件格式策略
     "PluginFormat",
     "AgentPluginsFormat",
     "ClaudeCodePluginFormat",
     "detect_format",
-    # Plugin loading
+    # 插件加载
     "load_plugins",
     "fetch_plugin_with_resolution",
     "preflight_plugin",
-    # Local plugin discovery (ambient auto-load)
+    # 本地插件发现（环境自动加载）
     "load_user_plugins",
     "load_project_plugins",
     "load_available_plugins",
-    # Source path utilities
+    # 源路径实用程序
     "GitHubURLComponents",
     "parse_github_url",
     "is_local_path",
     "validate_source_path",
     "resolve_source_path",
-    # Installed plugins management
+    # 已安装插件管理
     "InstalledPluginInfo",
     "install_plugin",
     "uninstall_plugin",

@@ -1,64 +1,62 @@
-"""The Agent Plugins client conformance checklist, driven by real packages.
+"""智能体插件客户端一致性检查表，由真实包驱动。
 
-Every test here loads a checked-in package from
-``tests/fixtures/plugins/agent_plugins/`` through the public
-:meth:`Plugin.load` entry point -- no manifests built inline, no monkeypatched
-format registry, no network.
+这里的每个测试都会加载一个签入的包
+``tests/fixtures/plugins/agent_plugins/`` 通过公众
+:meth:`Plugin.load` 入口 -- 没有内联构建的清单，没有猴子补丁
+格式注册表，无网络。
 
-The loading sequence (https://agent-plugins.org/client-implementers), which is
-the six-item shape the issue asks for:
+加载序列 ( https://agent-plugins.org/client-implementers )，这是问题要求的六项形状：
 
-1. Establish the filesystem-resolved plugin root -> ``TestRootEstablishment``
-2. Select local rules from ``$schema``, never fetch -> ``TestSchemaSelection``
-3. Reject fatal violations, report and ignore the non-fatal ones
-   -> ``TestManifestRejection``
-4. Discover each supported component type from its fixed location
-   -> ``TestFixedLocations``, ``TestPlaceholderExpansion``, ``TestStdioDefaults``
-5. Apply each component's failure boundary -> ``TestFailureBoundaries``
-6. Apply implemented extension namespaces, ignore the rest
-   -> ``TestClientExtensions``
+1. 建立文件系统解析的插件根 -> ``TestRootEstablishment``
+2. 从``$schema``中选择本地规则，从不获取 -> ``TestSchemaSelection``
+3. 拒绝致命违规行为，报告并忽略非致命违规行为 -> ``TestManifestRejection``
+4. 从其固定位置发现每个受支持的组件类型 -> ``TestFixedLocations``、
+``TestPlaceholderExpansion``、
+``TestStdioDefaults``
+5. 应用每个组件的故障边界 -> ``TestFailureBoundaries``
+6. 应用已实现的扩展命名空间，忽略 REST -> ``TestClientExtensions``
 
-The same tests against the published checklist
-(https://agent-plugins.org/client-implementers/conformance), item by item:
+对已发布的清单 ( https://agent-plugins.org/client-implementers/conformance ) 逐项进行
+相同的测试：
 
-Plugin loader
-  directory load + package boundary ........ ``TestRootEstablishment``
-  local ``$schema`` selection, no retrieval  ``TestSchemaSelection``
-  closed schema, required ``$schema``/``name``
-                                             ``TestManifestRejection`` (+ the
-                                             field-level cases in
+插件加载器
+  目录加载+包边界........ ``TestRootEstablishment`` 本地 ``$schema`` 选择，不可检索
+  ``TestSchemaSelection`` 已关闭模式，必需 ``$schema``/``name``
+                                             ``TestManifestRejection``（+ 中的现场级
+                                             案例
                                              ``test_agent_plugins_format.py``)
-  report and ignore unknown fields ......... ``TestManifestRejection``
-  ignore non-object ``extensions`` and
-  unimplemented namespaces ................. ``TestManifestRejection``,
+  报告并忽略未知字段........................ ``TestManifestRejection`` 忽略非对象
+  ``extensions`` 和未实
+  现的命名空间 ................. ``TestManifestRejection``,
                                              ``TestClientExtensions``
-  reject other fatal violations first ...... ``TestManifestRejection``
+  先拒绝其他致命违规行为…… ``TestManifestRejection``
 
-Discovery and isolation
-  fixed locations only ..................... ``TestFixedLocations``
-  missing locations are valid absence ...... ``TestFixedLocations``
-  isolate component types, skills, entries   ``TestFailureBoundaries``
-  ignore unsupported component types ....... ``TestFixedLocations``
+发现与隔离
+  仅限固定地点........................ ``TestFixedLocations`` 缺失地点均有效缺席.....
+  .
+  ``TestFixedLocations`` 隔离组件类型、技能、条目 ``TestFailureBoundaries`` 忽略不支
+  持的组件类型.......
+  ``TestFixedLocations``
 
-MCP support
-  at least one transport (we do both) ...... ``TestFixedLocations``
-  connect with the declared transport ...... ``TestFixedLocations``
-  validate the document and each entry ..... ``TestVersioning``,
+MCP 支持
+  至少一个传输层（我们两者都做）…… ``TestFixedLocations`` 与声明的传输层连接......
+  ``TestFixedLocations`` 验证文档
+  和每个条目...... ``TestVersioning``,
                                              ``TestFailureBoundaries``
-  commands as single executable tokens ..... ``TestStdioDefaults``
-  ``PLUGIN_ROOT`` + dedicated ``PLUGIN_DATA``
+  作为单个可执行文件的命令 token ..... ``TestStdioDefaults``
+  ``PLUGIN_ROOT`` + 专用 ``PLUGIN_DATA``
                                              ``TestPlaceholderExpansion``
-  expand only the two, only in the three
-  fields ................................... ``TestPlaceholderExpansion``
-  cwd containment, URL/header rules ........ ``TestFailureBoundaries``,
+  仅扩展两个，仅扩展三个字段......................................
+  ``TestPlaceholderExpansion`` cwd
+   遏制，URL/标头规则 ........ ``TestFailureBoundaries``,
                                              ``TestPlaceholderExpansion``
   continue after an entry fails ............ ``TestFailureBoundaries``
 
-Versioning
-  matching versions in the two documents ... ``TestVersioning``
-  never reassign a schema identifier ....... ``TestVersioning``
-  older-version targeting is a local policy  ``TestSchemaSelection`` (we
-                                             support exactly 1.0.0)
+版本控制
+  两个文档中的匹配版本... ``TestVersioning`` 永远不会重新分配模式标识符.......
+  ``TestVersioning`` 旧版本定位是一项本地政
+  策 ``TestSchemaSelection``（我们
+                                             完全支持 1.0.0)
 """
 
 import socket
@@ -80,16 +78,16 @@ FIXTURES = Path(__file__).parents[2] / "fixtures" / "plugins" / "agent_plugins"
 
 
 def fixture(name: str) -> Path:
-    """Return a corpus package, resolved as a caller would pass it."""
+    """返回一个语料库包，按照调用者传递的方式进行解析。"""
     return (FIXTURES / name).resolve()
 
 
 @pytest.fixture(autouse=True)
 def plugin_data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Keep ``PLUGIN_DATA`` out of the real user directory.
+    """将 ``PLUGIN_DATA`` 保留在真实用户目录之外。
 
-    ``Plugin.load()`` builds the format itself, so the data root is redirected
-    at the module default rather than injected through the constructor.
+    ``Plugin.load()`` 本身构建格式，因此数据根在模块默认值处重定向，而不是通过构造函
+    数注入。
     """
     root = tmp_path / "plugin-data"
     monkeypatch.setattr(
@@ -121,7 +119,7 @@ def headers_of(plugin: Plugin, server: str) -> dict[str, str]:
 
 
 class TestVendoredExample:
-    """The official example package, loaded from vendored upstream bytes."""
+    """官方示例包，从供应的上游字节加载。"""
 
     def test_loads_as_an_agent_plugins_package(self):
         plugin = Plugin.load(fixture("agent-plugins-example"))
@@ -134,7 +132,7 @@ class TestVendoredExample:
         assert [skill.name for skill in plugin.skills] == ["migrate-agent-plugin"]
 
     def test_skill_resources_come_along(self):
-        """Upstream ships the skill's references/; they must survive loading."""
+        """上游发布技能的参考/； 它们必须能够承受负载。"""
         plugin = Plugin.load(fixture("agent-plugins-example"))
 
         resources = plugin.skills[0].resources
@@ -146,7 +144,7 @@ class TestVendoredExample:
         ]
 
     def test_skills_only_package_contributes_nothing_else(self):
-        """It has no mcp.json and no extension directory (spec §6.2)."""
+        """它没有 mcp.json 也没有扩展目录（规范§6.2）。"""
         plugin = Plugin.load(fixture("agent-plugins-example"))
 
         assert plugin.mcp_config == {}
@@ -156,7 +154,7 @@ class TestVendoredExample:
 
 
 class TestRootEstablishment:
-    """Item 1: establish the filesystem-resolved plugin root (§4.1)."""
+    """第 1 项：建立文件系统解析的插件根（§4.1）。"""
 
     def test_root_is_the_directory_the_package_lives_in(self):
         plugin = Plugin.load(fixture("full-package"))
@@ -168,7 +166,7 @@ class TestRootEstablishment:
     def test_root_is_resolved_before_anything_uses_it(
         self, tmp_path: Path, plugin_data_root: Path
     ):
-        """Reached through a symlink, the package still loads as its real root."""
+        """通过符号链接到达时，该包仍然作为其真正的根加载。"""
         link = tmp_path / "link-to-full-package"
         link.symlink_to(fixture("full-package"), target_is_directory=True)
 
@@ -183,7 +181,7 @@ class TestRootEstablishment:
         )
 
     def test_package_paths_stay_inside_the_root(self, caplog):
-        """A ``./`` command that climbs out of the package is not launched."""
+        """爬出包的 ``./`` 命令不会启动。"""
         plugin = Plugin.load(fixture("partial-failures"))
 
         assert "escaping-command" not in plugin.mcp_config
@@ -191,10 +189,10 @@ class TestRootEstablishment:
 
 
 class TestSchemaSelection:
-    """Item 2: select local rules from ``$schema``, never retrieve one."""
+    """第2项：从``$schema``中选择本地规则，从不检索一条。"""
 
     def test_no_socket_is_opened_while_loading(self, monkeypatch: pytest.MonkeyPatch):
-        """The vendored schema is used; the ``$schema`` URL is an identifier."""
+        """使用供应商的模式； ``$schema`` URL 是一个标识符。"""
 
         def forbidden(*args, **kwargs):
             raise AssertionError("plugin loading must not touch the network")
@@ -209,7 +207,7 @@ class TestSchemaSelection:
         assert set(plugin.mcp_config) == {"local-tools", "remote-api"}
 
     def test_a_published_but_unvendored_version_is_rejected(self):
-        """Upstream publishes 1.1.0; this SDK vendors only 1.0.0."""
+        """上游发布1.1.0； 这个SDK供应商只有1.0.0。"""
         with pytest.raises(ValueError, match=r"Unsupported or missing \$schema"):
             Plugin.load(fixture("unsupported-schema"))
 
@@ -219,7 +217,7 @@ class TestSchemaSelection:
 
 
 class TestManifestRejection:
-    """Item 3: fatal violations reject; the two non-fatal ones are ignored."""
+    """第3项：致命违规拒绝； 两个非致命的被忽略。"""
 
     def test_a_fatal_violation_rejects_the_whole_package(self):
         with pytest.raises(ValueError, match="Invalid Agent Plugins manifest"):
@@ -228,7 +226,7 @@ class TestManifestRejection:
     def test_a_rejected_package_never_reaches_component_discovery(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """§11.3 rule 2: no component of a rejected plugin may be discovered."""
+        """§11.3 规则 2：不得发现被拒绝插件的任何组件。"""
         discovered: list[str] = []
         for loader in (
             "load_skills",
@@ -249,7 +247,7 @@ class TestManifestRejection:
         assert discovered == []
 
     def test_non_fatal_violations_are_reported_and_ignored(self, caplog):
-        """An unknown top-level field and a non-object ``extensions`` (§5.2, §8.1)."""
+        """未知的顶级字段和非对象 ``extensions``（第 5.2 节，第 8.1 节）。"""
         plugin = Plugin.load(fixture("non-fatal-manifest"))
 
         assert [skill.name for skill in plugin.skills] == ["ok"]
@@ -258,7 +256,7 @@ class TestManifestRejection:
 
 
 class TestFixedLocations:
-    """Item 4: discover each supported component type from its fixed location."""
+    """第 4 项：从其固定位置发现每个受支持的组件类型。"""
 
     def test_every_supported_component_type_is_discovered(self):
         plugin = Plugin.load(fixture("full-package"))
@@ -270,7 +268,7 @@ class TestFixedLocations:
         assert plugin.hooks is not None and not plugin.hooks.is_empty()
 
     def test_missing_locations_are_a_valid_absence(self):
-        """§6.2: a manifest-only package is conformant, not broken."""
+        """§6.2：仅清单包是一致的，没有损坏。"""
         plugin = Plugin.load(fixture("manifest-only"))
 
         assert plugin.name == "manifest-only"
@@ -281,10 +279,11 @@ class TestFixedLocations:
         assert plugin.hooks is None
 
     def test_only_the_fixed_locations_are_searched(self):
-        """``wrong-locations`` ships the Claude Code layout at the root.
+        """``wrong-locations`` 在根部提供 Claude Code 布局。
 
-        ``.mcp.json``, ``hooks/``, ``commands/`` and ``agents/`` there are not
-        this format's locations, so none of them may be loaded (§6.1).
+        ``.mcp.json``、``hooks/``、``commands/`` 和 ``agents/`` 没有此格式的位置，因
+        此可以加载其中的 None 个
+        位置（第 6.1 节）。
         """
         plugin = Plugin.load(fixture("wrong-locations"))
 
@@ -295,14 +294,14 @@ class TestFixedLocations:
         assert plugin.agents == []
 
     def test_an_unsupported_component_type_is_ignored(self):
-        """§11.3 rule 1: ``lsp/`` is not a v1 component type, and not an error."""
+        """§11.3 规则 1：``lsp/`` 不是 v1 组件类型，也不是错误。"""
         plugin = Plugin.load(fixture("wrong-locations"))
 
         assert (Path(plugin.path) / "lsp").is_dir()
         assert [skill.name for skill in plugin.skills] == ["only"]
 
     def test_the_declared_transport_is_the_one_carried(self):
-        """§7.2.1: the entry's transport is what the client connects with."""
+        """§7.2.1：条目的传输层是客户端连接的条目。"""
         plugin = Plugin.load(fixture("full-package"))
 
         assert plugin.mcp_config["local-tools"].transport == "stdio"
@@ -310,7 +309,7 @@ class TestFixedLocations:
 
 
 class TestPlaceholderExpansion:
-    """Item 4's runtime half: §9.2 expansion on the server that gets built."""
+    """第 4 项的运行时一半：§9.2 在构建的服务器上进行扩展。"""
 
     def test_expanded_in_args_env_values_and_cwd(self, plugin_data_root: Path):
         plugin = Plugin.load(fixture("full-package"))
@@ -331,7 +330,7 @@ class TestPlaceholderExpansion:
     def test_both_variables_are_provided_to_the_subprocess(
         self, plugin_data_root: Path
     ):
-        """§9.1: the client sets them last, and the plugin cannot override them."""
+        """§9.1：客户端最后设置它们，插件不能覆盖它们。"""
         plugin = Plugin.load(fixture("full-package"))
         env = env_of(plugin, "local-tools")
 
@@ -350,7 +349,7 @@ class TestPlaceholderExpansion:
         ).is_dir()
 
     def test_left_untouched_everywhere_else(self):
-        """Command, env keys, URL and headers are never expanded."""
+        """命令、环境键、URL 和标头永远不会扩展。"""
         plugin = Plugin.load(fixture("full-package"))
 
         assert plugin.mcp_config["local-tools"].command == str(
@@ -366,14 +365,14 @@ class TestPlaceholderExpansion:
         }
 
     def test_a_client_generated_header_is_dropped(self, caplog):
-        """§7.2.1: a configured ``Host`` loses to the one the client sends."""
+        """§7.2.1：配置的 ``Host`` 输给了客户端发送的。"""
         plugin = Plugin.load(fixture("full-package"))
 
         assert "Host" not in headers_of(plugin, "remote-api")
         assert "Host" in caplog.text
 
     def test_each_package_gets_its_own_plugin_data(self, plugin_data_root: Path):
-        """§9.1: "dedicated" means per plugin, and outside the package."""
+        """§9.1：“专用”是指每个插件，并且在包之外。"""
         full = get_plugin_data_dir(fixture("full-package"), data_root=plugin_data_root)
         partial = get_plugin_data_dir(
             fixture("partial-failures"), data_root=plugin_data_root
@@ -390,7 +389,7 @@ class TestPlaceholderExpansion:
 
 
 class TestFailureBoundaries:
-    """Item 5: apply the boundary defined for each component type or entry."""
+    """第 5 项：应用为每个组件类型或条目定义的边界。"""
 
     def test_one_broken_skill_does_not_take_its_siblings(self, caplog):
         plugin = Plugin.load(fixture("partial-failures"))
@@ -401,22 +400,22 @@ class TestFailureBoundaries:
     @pytest.mark.parametrize(
         "server",
         [
-            "legacy-sse",  # unsupported transport
-            "escaping-command",  # command outside the plugin root
-            "placeholder-command",  # a command is never expanded, so never legal
-            "escaping-cwd",  # working directory outside the root it is written for
-            "insecure-url",  # plain http to a remote host
+            "legacy-sse",  # 不支持传输层
+            "escaping-command",  # 插件根目录之外的命令
+            "placeholder-command",  # 命令永远不会扩展，因此永远不合法
+            "escaping-cwd",  # 工作目录在其写入的根之外
+            "insecure-url",  # 普通 HTTP 到远程主机
         ],
     )
     def test_one_bad_mcp_entry_does_not_take_its_siblings(self, server: str):
-        """§7.2.2 rule 4: each entry is validated, and skipped, on its own."""
+        """§7.2.2 规则 4：每个条目均自行验证并跳过。"""
         plugin = Plugin.load(fixture("partial-failures"))
 
         assert server not in plugin.mcp_config
         assert set(plugin.mcp_config) == {"good-server"}
 
     def test_a_bad_mcp_entry_does_not_take_another_component_type(self):
-        """Skills and agents load beside five skipped MCP entries."""
+        """技能和智能体负载旁边有五个跳过的 MCP 条目。"""
         plugin = Plugin.load(fixture("partial-failures"))
 
         assert [skill.name for skill in plugin.skills] == ["good"]
@@ -429,10 +428,10 @@ class TestFailureBoundaries:
 
 
 class TestStdioDefaults:
-    """§7.2.1's defaults, on an entry that declares neither."""
+    """§7.2.1 的默认值，在未声明两者的条目上。"""
 
     def test_a_bare_command_stays_a_bare_token(self):
-        """It goes to the platform executable search, unresolved and unexpanded."""
+        """它进入平台可执行文件搜索，未解析和未扩展。"""
         plugin = Plugin.load(fixture("partial-failures"))
 
         assert plugin.mcp_config["good-server"].command == "echo"
@@ -444,24 +443,24 @@ class TestStdioDefaults:
 
 
 class TestVersioning:
-    """The checklist's versioning section."""
+    """检查表的版本控制部分。"""
 
     def test_an_mcp_json_targeting_another_version_disables_mcp_only(self):
-        """§7.2.2 rule 2: the document is invalid, so MCP is off, not the plugin."""
+        """§7.2.2规则2：文档无效，因此MCP关闭，而不是插件关闭。"""
         plugin = Plugin.load(fixture("mcp-version-mismatch"))
 
         assert plugin.mcp_config == {}
         assert [skill.name for skill in plugin.skills] == ["still-here"]
 
     def test_the_vendored_schema_keeps_its_published_identity(self):
-        """A canonical identifier is never reassigned to different contents."""
+        """规范标识符永远不会重新分配给不同的内容。"""
         schema = _load_schema(_MANIFEST_SCHEMA_FILE)
 
         assert schema["$id"] == MANIFEST_SCHEMA_URL
 
 
 class TestClientExtensions:
-    """Item 6: apply our namespace, ignore every other one unvalidated."""
+    """第 6 项：应用我们的命名空间，忽略所有其他未经验证的项。"""
 
     def test_our_manifest_data_is_applied(self):
         plugin = Plugin.load(fixture("full-package"))
@@ -469,7 +468,7 @@ class TestClientExtensions:
         assert plugin.entry_slash_command == "/full-package:report"
 
     def test_our_extension_directory_is_read(self):
-        """§8.2: file-based components live under ``dev.openhands/``."""
+        """§8.2：基于文件的组件位于 ``dev.openhands/`` 下。"""
         plugin = Plugin.load(fixture("full-package"))
 
         assert [command.name for command in plugin.commands] == ["report"]
@@ -480,10 +479,9 @@ class TestClientExtensions:
         ]
 
     def test_a_foreign_namespace_is_ignored_without_validation(self):
-        """``com.example.other`` carries an ``entry_command`` of the wrong type.
+        """``com.example.other`` 带有错误类型的 ``entry_command``。
 
-        §8.1 says that is none of our business: it must neither be applied nor
-        rejected.
+        §8.1 说这是我们的业务的 None：它既不能被应用也不能被拒绝。
         """
         plugin = Plugin.load(fixture("full-package"))
 

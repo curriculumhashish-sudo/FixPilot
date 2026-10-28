@@ -1,4 +1,4 @@
-"""Agent terminals run below the agent server's CPU priority."""
+"""智能体终端在 Agent Server 的 CPU 优先级之下运行。"""
 
 import os
 import platform
@@ -61,9 +61,9 @@ def test_prefix_is_empty_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _priority_probe(out: Path) -> str:
-    """Shell command writing the priority of a grandchild of the terminal shell."""
+    """Shell 命令写入终端 shell 的孙子优先级。"""
     if SYSTEM == "Darwin":
-        # macOS ignores nice; the utility QoS clamp shows up as a lower PRI.
+        # macOS 忽略nice； 实用程序 QoS 夹显示为下部 PRI。
         return f"sh -c 'ps -o pri= -p $$' > {out}"
     probe = "import os; print(os.getpriority(os.PRIO_PROCESS, 0))"
     return f'sh -c "{sys.executable} -c \\"{probe}\\"" > {out}'

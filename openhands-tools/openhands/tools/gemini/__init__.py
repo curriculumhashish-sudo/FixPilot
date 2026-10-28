@@ -1,18 +1,17 @@
-"""Gemini-style file editing tools.
+"""Gemini 风格的文件编辑工具。
 
-This module provides gemini-style file editing tools as an alternative to
-the claude-style file_editor tool. These tools are designed to match the
-tool interface used by gemini-cli.
+该模块提供 Gemini 风格的文件编辑工具作为 claude 风格 file_editor 工具的替代工具。 这
+些工具旨在匹配 Gemini-CLI 使用的工具界面。
 
-Tools:
-    - read_file: Read file content with pagination support
-    - write_file: Full file overwrite operations
-    - edit: Find and replace with validation
-    - list_directory: Directory listing with metadata
+工具：
+    - read_file: 通过分页支持读取文件内容
+    - write_file: 全文件覆盖操作
+    - edit: 查找并替换为验证
+    - list_directory: 包含元数据的目录列表
 
-Usage:
-    To use gemini-style tools instead of the standard FileEditorTool,
-    replace FileEditorTool with the four gemini tools:
+用途：
+    要使用 Gemini 风格的工具而不是标准 FileEditorTool，请将 FileEditorTool 替换为四个
+     Gemini 工具：
 
     ```python
     from openhands.tools.gemini import GEMINI_FILE_TOOLS
@@ -21,12 +20,12 @@ Usage:
         llm=llm,
         tools=[
             Tool(name=TerminalTool.name),
-            *GEMINI_FILE_TOOLS,  # Instead of Tool(name=FileEditorTool.name)
+            *GEMINI_FILE_TOOLS,  # 而不是 Tool(name=FileEditorTool.name)
         ],
     )
     ```
 
-    Or individually:
+    或者单独：
 
     ```python
     from openhands.tools.gemini import (
@@ -65,7 +64,7 @@ from openhands.tools.gemini.write_file import (
 )
 
 
-# Convenience list for easy replacement of FileEditorTool
+# 方便更换 FileEditorTool 的便利清单
 GEMINI_FILE_TOOLS: list[Tool] = [
     Tool(name=ReadFileTool.name),
     Tool(name=WriteFileTool.name),
@@ -74,9 +73,9 @@ GEMINI_FILE_TOOLS: list[Tool] = [
 ]
 
 __all__ = [
-    # Convenience list
+    # 便利清单
     "GEMINI_FILE_TOOLS",
-    # Individual tools
+    # 个人工具
     "ReadFileTool",
     "ReadFileAction",
     "ReadFileObservation",

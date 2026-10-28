@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Benchmark: Replay time vs. log size and time-to-recover after failures.
+Benchmark: 回放时间对比日志大小和故障后恢复的时间。
 
-Collects real event payloads from SWE-Bench evaluation traces, builds event
-logs of increasing size, and measures:
-  - Index rebuild time (directory listing + filename regex parse)
-  - Full replay time (read + JSON parse all events)
-  - Time-to-recover (full deserialization + unmatched-action detection
-    using the SDK's ConversationState.get_unmatched_actions)
+从 SWE-Bench 评估跟踪收集真实事件载荷，构建大小不断增加的事件日志，并测量：
+  - 索引重建时间（目录列表+文件名正则表达式解析）
+  - 完整重播时间（读取+JSON解析所有事件）
+  - 恢复时间（完整反序列化 + 使用 SDK 的 ConversationState.get_unmatched_actions 进行
+  不匹配操作检测）
 
-Usage:
+用途：
     python bench_replay_and_recovery.py --eval-dir <path-to-eval-run>
 """
 
@@ -34,7 +33,7 @@ EVENTS_DIR_NAME = "events"
 
 
 def collect_event_pool(eval_dir: str, target_count: int = 2000) -> list[dict]:
-    """Collect events from conversation traces until we have enough."""
+    """从对话痕迹中收集事件，直到我们有足够的事件为止。"""
     conv_dir = os.path.join(eval_dir, "conversations")
     tarballs = sorted(os.listdir(conv_dir))
 
@@ -65,7 +64,7 @@ def collect_event_pool(eval_dir: str, target_count: int = 2000) -> list[dict]:
 def benchmark_replay_and_recovery(
     event_pool: list[dict], n_trials: int = 5
 ) -> list[dict]:
-    """Measure replay time and time-to-recover at increasing log sizes."""
+    """测量日志大小增加时的重放时间和恢复时间。"""
     from openhands.sdk.conversation.state import ConversationState
     from openhands.sdk.event.base import Event
 
@@ -93,7 +92,7 @@ def benchmark_replay_and_recovery(
             all_files = sorted(os.listdir(events_dir))
             json_files = [f for f in all_files if f.endswith(".json")]
 
-            # Index rebuild: list dir + parse filenames
+            # 索引重建：列出目录+解析文件名
             index_times = []
             for _ in range(n_trials):
                 gc.disable()
@@ -109,7 +108,7 @@ def benchmark_replay_and_recovery(
                 gc.enable()
                 index_times.append((t1 - t0) * 1000)
 
-            # Full replay: read + JSON parse all events
+            # 完整重播：读取+JSON解析所有事件
             replay_times = []
             for _ in range(n_trials):
                 gc.disable()
@@ -122,7 +121,7 @@ def benchmark_replay_and_recovery(
                 gc.enable()
                 replay_times.append((t1 - t0) * 1000)
 
-            # Time-to-recover: deserialize via SDK + get_unmatched_actions
+            # 恢复时间：反序列化通过 SDK + get_unmatched_actions
             recovery_times = []
             for _ in range(n_trials):
                 gc.disable()

@@ -1,10 +1,10 @@
 /**
- * Local conversation implementation
+ * 本地对话实现
  *
- * This implements the IConversation interface for local execution. Unlike RemoteConversation,
- * LocalConversation runs the agent loop locally without connecting to a remote server.
+ * 这实现了用于本地执行的 IConversation 接口。 与RemoteConversation不同，
+ * LocalConversation 在本地运行智能体循环，无需连接到远程服务器。
  *
- * This mirrors the Python SDK's LocalConversation class.
+ * 这反映了 Python SDK 的 LocalConversation 类。
  */
 
 import {
@@ -36,47 +36,47 @@ import { ConfirmationPolicy, NeverConfirm } from '../security/confirmation-polic
 import { SecurityAnalyzer } from '../security/security-analyzer';
 
 /**
- * Tool executor function type.
- * Takes a tool call and returns the result string.
+ * 工具执行器功能类型。
+ * 接受工具调用并返回结果字符串。
  */
 export type ToolExecutor = (toolCall: ToolCall) => Promise<string> | string;
 
 /**
- * Token callback type for the conversation level.
+ * token 回调对话级别类型。
  */
 export type ConversationTokenCallback = (event: TokenStreamEvent) => void;
 
 /**
- * Options for creating a LocalConversation instance.
+ * 用于创建 LocalConversation 实例的选项。
  */
 export interface LocalConversationOptions extends BaseConversationOptions {
-  /** The LLM instance to use for the conversation */
+  /** 用于对话的 LLM 实例*/
   llm: ILLM;
-  /** Optional system prompt for the agent */
+  /** 智能体的可选系统提示词*/
   systemPrompt?: string;
-  /** Optional persistence directory for saving conversation state */
+  /** 用于保存对话状态的可选持久化目录*/
   persistenceDir?: string;
-  /** Custom tools to provide to the LLM (in addition to or instead of built-in tools) */
+  /** 提供给LLM的自定义工具（除了内置工具之外或代替内置工具）*/
   tools?: Tool[];
-  /** Custom tool executor function. If provided, handles all tool calls. */
+  /** 自定义工具执行器功能。 如果提供，则处理所有工具调用。*/
   toolExecutor?: ToolExecutor;
-  /** Whether to include built-in tools (execute_command, read_file, etc.). Default: true if no custom tools provided */
+  /** 是否包含内置工具（execute_command、read_file等）。 默认值：True（如果未提供自定义工具）*/
   includeBuiltinTools?: boolean;
-  /** Token callback for streaming tokens during LLM generation */
+  /** LLM 生成期间流式传输 token 的 token 回调*/
   tokenCallback?: ConversationTokenCallback;
-  /** Enable stuck detection (default: true) */
+  /** 启用卡住检测（默认值：True）*/
   stuckDetection?: boolean;
-  /** Custom thresholds for stuck detection */
+  /** 卡住检测的自定义阈值*/
   stuckDetectionThresholds?: Partial<StuckDetectionThresholds>;
-  /** Security analyzer for evaluating action risks */
+  /** 用于评估行动风险的安全分析器*/
   securityAnalyzer?: SecurityAnalyzer;
-  /** Initial secrets to provide to the conversation */
+  /** 提供给对话的首字母机密*/
   secrets?: Record<string, SecretValue>;
 }
 
 /**
- * Implementation of events list for local conversations.
- * Stores typed events and provides indexing and search capabilities.
+ * 实施本地对话的事件列表。
+ * 存储键入的事件并提供索引和搜索功能。
  */
 class LocalEventsList implements IEventsList {
   private events: BaseEvent[] = [];
@@ -95,14 +95,14 @@ class LocalEventsList implements IEventsList {
   }
 
   /**
-   * Get all events as an array (synchronous access).
+   * 以数组形式获取所有事件（同步访问）。
    */
   getEventsSync(): BaseEvent[] {
     return [...this.events];
   }
 
   /**
-   * Get an event by index.
+   * 通过索引获取事件。
    */
   getByIndex(index: number): BaseEvent | undefined {
     if (index < 0) {
@@ -112,7 +112,7 @@ class LocalEventsList implements IEventsList {
   }
 
   /**
-   * Get an event by ID.
+   * 通过 ID 获取事件。
    */
   getById(id: string): BaseEvent | undefined {
     const index = this.idToIndex.get(id);
@@ -120,21 +120,21 @@ class LocalEventsList implements IEventsList {
   }
 
   /**
-   * Get the index of an event by ID.
+   * 通过ID获取事件的索引。
    */
   getIndex(id: string): number | undefined {
     return this.idToIndex.get(id);
   }
 
   /**
-   * Get the number of events.
+   * 获取事件数。
    */
   get length(): number {
     return this.events.length;
   }
 
   /**
-   * Iterate over events.
+   * 迭代事件。
    */
   [Symbol.iterator](): Iterator<BaseEvent> {
     return this.events[Symbol.iterator]();
@@ -162,7 +162,7 @@ class LocalEventsList implements IEventsList {
 }
 
 /**
- * Implementation of conversation state for local conversations.
+ * 本地对话的对话状态的实现。
  */
 class LocalConversationState implements IConversationState {
   readonly id: ConversationID;
@@ -170,7 +170,7 @@ class LocalConversationState implements IConversationState {
   executionStatus: 'idle' | 'running' | 'paused' | 'finished' | 'waiting_for_confirmation' = 'idle';
   confirmationPolicy: ConfirmationPolicy = new NeverConfirm();
   securityAnalyzer?: SecurityAnalyzer;
-  /** Actions waiting for confirmation: action_id -> ActionEvent */
+  /** 等待确认的操作：action_id -> ActionEvent*/
   pendingActions: Map<string, ActionEvent> = new Map();
 
   constructor(id: ConversationID) {
@@ -180,8 +180,8 @@ class LocalConversationState implements IConversationState {
 }
 
 /**
- * Built-in tools that require a functional workspace (execute_command, read_file, write_file).
- * These are only registered when the workspace supports them (i.e., not a stub LocalWorkspace).
+ * 需要功能性的内置工具工作区（execute_command、read_file、write_file）。
+ * 仅当工作区支持它们时才注册它们（i.e，而不是存根 LocalWorkspace）。
  */
 const WORKSPACE_TOOLS: Tool[] = [
   {
@@ -251,8 +251,8 @@ const WORKSPACE_TOOLS: Tool[] = [
 ];
 
 /**
- * Built-in tools that work without a functional workspace.
- * These are always available when built-in tools are enabled.
+ * 无需功能即可工作的内置工具工作区。
+ * 当启用内置工具时，这些始终可用。
  */
 const STANDALONE_TOOLS: Tool[] = [
   {
@@ -292,24 +292,24 @@ const STANDALONE_TOOLS: Tool[] = [
 ];
 
 /**
- * Local conversation implementation that runs the agent loop locally.
+ * 在本地运行智能体循环的本地对话实现。
  *
- * LocalConversation provides direct agent execution on the local system without
- * requiring a remote server. It integrates with an LLM (via ILLM interface) to
- * process messages and execute tool calls through the LocalWorkspace.
+ * LocalConversation 提供在本地系统上直接智能体执行，无需
+ * 需要远程服务器。 它与 LLM（通过 ILLM 接口）集成
+ * 处理消息并执行工具调用到 LocalWorkspace。
  *
- * Example:
- * ```typescript
- * const workspace = new LocalWorkspace({ workingDir: '/path/to/project' });
- * const llm = new OpenRouterLLM({ apiKey: 'your-key', defaultModel: 'anthropic/claude-3.5-sonnet' });
- * const conversation = new LocalConversation(agent, workspace, {
- *   llm,
+ * 示例：
+ * ```TypeScript
+ * const 工作区 = new LocalWorkspace({ workingDir: '/path/to/project' });
+ * const llm = new OpenRouterLLM({ apiKey: '你的钥匙', defaultModel: 'anthropic/claude-3.5-sonnet' });
+ * const 对话 = new LocalConversation(智能体，工作区，{
+ *   嗯，
  *   maxIterations: 500,
- *   systemPrompt: 'You are a helpful assistant...'
+ *   systemPrompt：“你是一个有用的助手......”
  * });
- * await conversation.start({ initialMessage: 'Hello!' });
- * await conversation.run();
- * await conversation.close();
+ * 等待 conversation.start({ initialMessage: '你好！' });
+ * 等待conversation.run();
+ * 等待conversation.close();
  * ```
  */
 export class LocalConversation implements IConversation {
@@ -333,7 +333,7 @@ export class LocalConversation implements IConversation {
   private toolExecutor?: ToolExecutor;
   private includeBuiltinTools: boolean;
 
-  // New feature instances
+  // 新功能实例
   private secretRegistry: SecretRegistry;
   private stuckDetector?: StuckDetector;
   private stuckDetectionEnabled: boolean;
@@ -349,25 +349,25 @@ export class LocalConversation implements IConversation {
     this.persistenceDir = options.persistenceDir;
     this.customTools = options.tools;
     this.toolExecutor = options.toolExecutor;
-    // Include built-in tools by default only if no custom tools are provided
+    // 仅当未提供自定义工具时才默认包含内置工具
     this.includeBuiltinTools = options.includeBuiltinTools ?? !options.tools;
 
-    // Initialize secret registry
+    // 初始化机密注册表
     this.secretRegistry = new SecretRegistry();
     if (options.secrets) {
       this.secretRegistry.updateSecrets(options.secrets);
     }
 
-    // Initialize stuck detection
+    // 初始化卡住检测
     this.stuckDetectionEnabled = options.stuckDetection ?? true;
     if (this.stuckDetectionEnabled) {
       this.stuckDetector = new StuckDetector(options.stuckDetectionThresholds);
     }
 
-    // Initialize security analyzer
+    // 初始化安全分析器
     this.securityAnalyzer = options.securityAnalyzer;
 
-    // Generate system prompt - use custom if provided, otherwise generate default
+    // 生成系统提示词 - 如果提供，则使用自定义，否则生成默认值
     this.systemPrompt =
       options.systemPrompt ||
       generateSystemPrompt({
@@ -380,17 +380,17 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Check whether the workspace supports actual operations.
-   * LocalWorkspace is a stub that throws on all operations.
+   * 检查工作区是否支持实际操作。
+   * LocalWorkspace 是一个引发所有操作的存根。
    */
   private workspaceIsStub(): boolean {
     return this.workspace instanceof LocalWorkspace;
   }
 
   /**
-   * Get the tools available to the agent.
-   * Workspace-dependent tools (execute_command, read_file, write_file) are only
-   * included when the workspace supports actual operations.
+   * 获取智能体可用的工具。
+   * 工作区相关工具（execute_command、read_file、write_file）仅
+   * 当工作区支持实际操作时包含。
    */
   private getTools(): Tool[] {
     const tools: Tool[] = [];
@@ -426,28 +426,28 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Start or resume a conversation.
+   * 开始或恢复对话。
    */
   async start(
     options: { initialMessage?: string; maxIterations?: number; stuckDetection?: boolean } = {}
   ): Promise<void> {
-    // Generate a conversation ID if not provided
+    // 如果未提供，则生成对话 ID
     if (!this._conversationId) {
       this._conversationId = this.generateConversationId();
     }
 
-    // Initialize state
+    // 初始化状态
     this._state = new LocalConversationState(this._conversationId);
 
-    // Set max iterations if provided
+    // 设置最大迭代次数（如果提供）
     if (options.maxIterations !== undefined) {
       this.maxIterations = options.maxIterations;
     }
 
-    // Initialize message history with system prompt
+    // 使用系统提示词初始化消息历史记录
     this.messages = [{ role: 'system', content: this.systemPrompt }];
 
-    // Add initial message if provided
+    // 添加初始消息（如果提供）
     if (options.initialMessage) {
       await this.sendMessage(options.initialMessage);
     }
@@ -460,7 +460,7 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Get conversation statistics.
+   * 获取对话统计数据。
    */
   async conversationStats(): Promise<ConversationStats> {
     if (!this._state) {
@@ -476,15 +476,15 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Send a message to the agent.
+   * 发送消息至智能体。
    */
   async sendMessage(message: string | Message): Promise<void> {
     const content = typeof message === 'string' ? message : JSON.stringify(message);
 
-    // Add user message to history
+    // 将用户消息添加到历史记录
     this.messages.push({ role: 'user', content });
 
-    // Record the event
+    // 记录事件
     this.emitEvent({
       type: 'message',
       timestamp: Date.now(),
@@ -493,13 +493,13 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Execute the agent loop to process messages.
+   * 执行智能体循环来处理消息。
    *
-   * This runs the agent until:
-   * - The agent calls the finish() tool
-   * - Maximum iterations reached
-   * - pause() is called
-   * - An error occurs
+   * 这会运行智能体直到：
+   * - 智能体调用 finish() 工具
+   * - 达到最大迭代次数
+   * - pause() 被调用
+   * - 发生错误
    */
   async run(): Promise<void> {
     if (!this._state) {
@@ -518,7 +518,7 @@ export class LocalConversation implements IConversation {
       iterations++;
 
       try {
-        // Get LLM response
+        // 获得 LLM 回复
         const response = await this.llm.chatCompletion({
           messages: this.messages,
           tools: tools.length > 0 ? tools : undefined,
@@ -532,14 +532,14 @@ export class LocalConversation implements IConversation {
 
         const assistantMessage = choice.message;
 
-        // Add assistant message to history
+        // 将助理消息添加到历史记录
         this.messages.push({
           role: 'assistant',
           content: assistantMessage.content || '',
           tool_calls: assistantMessage.tool_calls,
         });
 
-        // Emit the assistant's response
+        // 发出助手的响应
         if (assistantMessage.content) {
           this.emitEvent({
             type: 'message',
@@ -548,14 +548,14 @@ export class LocalConversation implements IConversation {
           });
         }
 
-        // Handle tool calls
+        // 手柄工具调用
         if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
           for (const toolCall of assistantMessage.tool_calls) {
             if (this._isPaused || this._isFinished) break;
             await this.handleToolCall(toolCall);
           }
         } else if (choice.finish_reason === 'stop') {
-          // No tool calls and stop reason - agent is done
+          // 无工具调用且停止原因 - 智能体已完成
           this._isFinished = true;
         }
       } catch (error) {
@@ -584,7 +584,7 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Handle a tool call from the LLM.
+   * 从 LLM 处理工具调用。
    */
   private async handleToolCall(toolCall: ToolCall): Promise<void> {
     const { name, arguments: argsString } = toolCall.function;
@@ -598,22 +598,22 @@ export class LocalConversation implements IConversation {
     let result: string;
 
     try {
-      // If a custom tool executor is provided, use it for all tool calls
+      // 如果提供了自定义工具执行器，请将其用于所有工具调用
       if (this.toolExecutor) {
         result = await this.toolExecutor(toolCall);
-        // Check if this was a finish tool call
+        // 检查这是否已完成工具调用
         if (name === 'finish') {
           this._isFinished = true;
         }
       } else {
-        // Use built-in tool handling
+        // 使用内置工具处理
         result = await this.executeBuiltinTool(toolCall);
       }
     } catch (error) {
       result = `Error executing ${name}: ${error instanceof Error ? error.message : String(error)}`;
     }
 
-    // Add tool result to messages
+    // 将工具结果添加到消息中
     this.messages.push({
       role: 'tool',
       content: result,
@@ -628,7 +628,7 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Execute a built-in tool.
+   * 执行内置工具。
    */
   private async executeBuiltinTool(toolCall: ToolCall): Promise<string> {
     const { name, arguments: argsString } = toolCall.function;
@@ -683,7 +683,7 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Pause agent execution.
+   * 暂停智能体执行。
    */
   async pause(): Promise<void> {
     this._isPaused = true;
@@ -698,15 +698,15 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Set the confirmation policy.
+   * 设置确认策略。
    */
   async setConfirmationPolicy(policy: ConfirmationPolicyBase | ConfirmationPolicy): Promise<void> {
     if (this._state) {
-      // If it's a ConfirmationPolicyBase (old interface), wrap it
+      // 如果是ConfirmationPolicyBase（旧接口），则将其包装
       if ('requiresConfirmation' in policy) {
         this._state.confirmationPolicy = policy as ConfirmationPolicy;
       } else {
-        // Create a simple wrapper
+        // 创建一个简单的包装器
         const policyType = (policy as ConfirmationPolicyBase).type ?? policy.kind ?? 'never';
         this._state.confirmationPolicy = {
           type: policyType,
@@ -717,9 +717,9 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Send a confirmation response.
+   * 发送确认回复。
    *
-   * Note: Confirmation handling is not yet fully implemented in LocalConversation.
+   * 注意：确认处理在LocalConversation中尚未完全实现。
    */
   async sendConfirmationResponse(accept: boolean, reason?: string): Promise<void> {
     this.emitEvent({
@@ -727,7 +727,7 @@ export class LocalConversation implements IConversation {
       timestamp: Date.now(),
       data: { kind: 'confirmation_response', accept, reason },
     });
-    // Resume execution if paused for confirmation
+    // 如果暂停确认则恢复执行
     if (accept) {
       this._isPaused = false;
     }
@@ -738,14 +738,14 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Generate a title for the conversation using the LLM.
+   * 使用 LLM 生成对话的标题。
    */
   async generateTitle(maxLength: number = 50, _llm?: LLM): Promise<string> {
-    // LocalConversation always uses its own ILLM instance for title generation.
-    // The llm parameter exists for interface compatibility with RemoteConversation.
+    // LocalConversation 始终使用自己的 ILLM 实例来生成标题。 llm 参数的存在是为了与 RemoteConversation 接口兼容。
+    //
     const llmToUse = this.llm;
 
-    // Get a summary of the conversation
+    // 获取对话摘要
     const userMessages = this.messages
       .filter((m) => m.role === 'user')
       .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
@@ -763,28 +763,28 @@ export class LocalConversation implements IConversation {
   }
 
   /**
-   * Update secrets available to the agent.
-   * Secrets are stored in the SecretRegistry and can be used for:
-   * - Environment variable injection into commands
-   * - Output masking to prevent accidental exposure
+   * 更新机密可用于智能体。
+   * 机密存储在 SecretRegistry 中，可用于：
+   * - 环境变量注入命令
+   * - 输出屏蔽以防止意外曝光
    */
   async updateSecrets(secrets: Record<string, SecretValue>): Promise<void> {
     this.secretRegistry.updateSecrets(secrets);
   }
 
   /**
-   * Ask the agent a simple, stateless question and get a direct LLM response.
+   * 向智能体提出一个简单的、无状态的问题，并获得直接的 LLM 响应。
    *
-   * This bypasses the normal conversation flow and does NOT modify, persist,
-   * or become part of the conversation state. The request is not remembered by
-   * the main agent, no events are recorded, and execution status is untouched.
+   * 这会绕过正常的对话流程并执行不修改，持久化，
+   * 或成为对话状态的一部分。 该请求未被记住
+   * main智能体，没有事件被记录，执行状态不变。
    *
-   * @param question - A simple string question to ask the agent
-   * @returns A string response from the agent
+   * @param Question - 一个简单的字符串问题询问智能体
+   * @returns 来自智能体的字符串响应
    */
   async askAgent(question: string): Promise<string> {
-    // Build context from recent conversation history
-    const contextMessages = this.messages.slice(-10); // Last 10 messages for context
+    // 根据最近的对话历史记录构建上下文
+    const contextMessages = this.messages.slice(-10); // 上下文的最后 10 条消息
 
     const askPrompt = `Based on the conversation context, please answer this question concisely:
 
@@ -794,25 +794,25 @@ Provide a direct answer without using any tools.`;
 
     const messages: ChatMessage[] = [...contextMessages, { role: 'user', content: askPrompt }];
 
-    // Make a simple completion without tools
+    // 无需工具即可简单完成
     const response = await this.llm.chatCompletion({
       messages,
-      // No tools - just get a direct answer
+      // 无需工具 - 只需获得直接答案
     });
 
     return response.choices[0]?.message?.content || 'Unable to generate a response.';
   }
 
   /**
-   * Reject all pending actions awaiting confirmation.
+   * 拒绝所有等待确认的待处理操作。
    *
-   * @param reason - The reason for rejection
+   * @param Reason - 拒绝的原因
    */
   async rejectPendingActions(reason: string = 'User rejected the action'): Promise<void> {
     if (!this._state) return;
 
     for (const [actionId, action] of this._state.pendingActions) {
-      // Emit rejection event
+      // 发出拒绝事件
       const rejectEvent: UserRejectObservation = {
         id: generateEventId(),
         kind: 'UserRejectObservation',
@@ -827,7 +827,7 @@ Provide a direct answer without using any tools.`;
 
       this.emitTypedEvent(rejectEvent);
 
-      // Add rejection as tool result
+      // 添加拒绝作为工具结果
       this.messages.push({
         role: 'tool',
         content: `Action rejected: ${reason}`,
@@ -835,10 +835,10 @@ Provide a direct answer without using any tools.`;
       });
     }
 
-    // Clear pending actions
+    // 清除待处理的操作
     this._state.pendingActions.clear();
 
-    // Resume if was waiting for confirmation
+    // 如果正在等待确认则恢复
     if (this._isWaitingForConfirmation) {
       this._isWaitingForConfirmation = false;
       this._state.executionStatus = 'running';
@@ -846,9 +846,9 @@ Provide a direct answer without using any tools.`;
   }
 
   /**
-   * Set the security analyzer for evaluating action risks.
+   * 设置安全分析器以评估操作风险。
    *
-   * @param analyzer - The security analyzer to use, or null to disable
+   * @paramanalyzer - 要使用的安全分析器，或 null 禁用
    */
   setSecurityAnalyzer(analyzer: SecurityAnalyzer | null): void {
     this.securityAnalyzer = analyzer || undefined;
@@ -858,9 +858,9 @@ Provide a direct answer without using any tools.`;
   }
 
   /**
-   * Check if the agent is currently stuck using the stuck detector.
+   * 使用卡住检测器检查智能体当前是否卡住。
    *
-   * @returns StuckDetectionResult with details about any detected stuck pattern
+   * @returns StuckDetectionResult 包含有关任何检测到的卡住模式的详细信息
    */
   checkIfStuck(): StuckDetectionResult {
     if (!this.stuckDetector || !this._state) {
@@ -872,43 +872,43 @@ Provide a direct answer without using any tools.`;
   }
 
   /**
-   * Get the secret registry for direct access.
-   * Useful for masking secrets in custom output handling.
+   * 获取机密注册表以直接访问。
+   * 对于自定义输出处理中的屏蔽机密很有用。
    */
   getSecretRegistry(): SecretRegistry {
     return this.secretRegistry;
   }
 
   /**
-   * Mask any secrets in the given text.
+   * 屏蔽给定文本中的任何机密。
    *
-   * @param text - Text that may contain secret values
-   * @returns Text with secret values replaced by <secret-hidden>
+   * @param text - 可能包含机密值的文本
+   * @returns 将机密值替换为 <secret-hidden> 的文本
    */
   maskSecrets(text: string): string {
     return this.secretRegistry.maskSecretsInOutput(text);
   }
 
   /**
-   * Start WebSocket client.
+   * 启动 WebSocket 客户端。
    *
-   * NOTE: LocalConversation doesn't use WebSocket since it runs locally.
+   * 注意：LocalConversation 不使用 WebSocket，因为它在本地运行。
    */
   async startWebSocketClient(): Promise<void> {
-    // No-op for local conversation
+    // 本地对话无操作
   }
 
   /**
-   * Stop WebSocket client.
+   * 停止 WebSocket 客户端。
    *
-   * NOTE: LocalConversation doesn't use WebSocket.
+   * 注意：LocalConversation不使用WebSocket。
    */
   async stopWebSocketClient(): Promise<void> {
-    // No-op for local conversation
+    // 本地对话无操作
   }
 
   /**
-   * Close the conversation and cleanup resources.
+   * 关闭对话并清理资源。
    */
   async close(): Promise<void> {
     this._isPaused = true;
@@ -930,31 +930,31 @@ Provide a direct answer without using any tools.`;
   }
 
   /**
-   * Get the current message history.
+   * 获取当前消息历史记录。
    */
   getMessages(): ChatMessage[] {
     return [...this.messages];
   }
 
   /**
-   * Emit a typed event and call the callback if provided.
+   * 发出一个类型化事件并调用回调（如果提供）。
    */
   private emitTypedEvent(event: BaseEvent): void {
     if (this._state) {
       this._state.events.addEvent(event);
     }
     if (this.callback) {
-      // Convert to the callback's expected Event format
+      // 转换为回调的预期事件格式
       this.callback(event as Event);
     }
   }
 
   /**
-   * Emit an event (legacy format) and call the callback if provided.
-   * @deprecated Use emitTypedEvent instead
+   * 发出事件（旧格式）并调用回调（如果提供）。
+   * @已弃用使用 emitTypedEvent 代替
    */
   private emitEvent(event: { type: string; timestamp: number; data: unknown }): void {
-    // Convert to typed event
+    // 转换为类型化事件
     const typedEvent: BaseEvent = {
       id: generateEventId(),
       kind: (event.data as { kind?: string })?.kind || event.type,
@@ -971,7 +971,7 @@ Provide a direct answer without using any tools.`;
   }
 
   /**
-   * Generate a unique conversation ID.
+   * 生成唯一的对话 ID。
    */
   private generateConversationId(): string {
     return crypto.randomUUID();

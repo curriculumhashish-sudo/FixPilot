@@ -1,9 +1,10 @@
-"""Content-policy blocks recover softly instead of hard-erroring.
+"""内容策略块会软恢复而不是硬错误。
 
-See https://github.com/OpenHands/software-agent-sdk/issues/3798. An Anthropic
-output content-policy block surfaces as ``LLMContentPolicyViolationError``. The
-agent should emit a non-fatal user nudge and return so the run loop continues,
-rather than letting it escape ``step``/``astep`` and become a fatal
+请参阅 https://github.com/OpenHands/software-agent-sdk/issues/3798. Anthropic输出内容
+策略块表面为
+``LLMContentPolicyViolationError``。 智能体应该发出一个非致命的用户微移并返回，以便运
+行循环继续，而不是让它逃脱 ``step``
+/``astep`` 并成为致命的
 ``ConversationErrorEvent``.
 """
 
@@ -25,7 +26,7 @@ class ContentPolicyRaisingLLM(LLM):
         super().__init__(model=model, usage_id="test-llm")
         self._force_responses = force_responses
 
-    def uses_responses_api(self) -> bool:  # override gating
+    def uses_responses_api(self) -> bool:  # 超越门控
         return self._force_responses
 
     def completion(self, *, messages, tools=None, **kwargs):  # type: ignore[override]
@@ -61,7 +62,7 @@ def test_step_emits_soft_nudge_on_content_policy(force_responses: bool):
     convo._ensure_agent_ready()
 
     seen: list = []
-    # Must not raise — a content-policy block is recoverable.
+    # 不得引发——内容策略块是可恢复的。
     agent.step(convo, on_event=seen.append)
 
     assert len(_content_policy_nudges(seen)) == 1

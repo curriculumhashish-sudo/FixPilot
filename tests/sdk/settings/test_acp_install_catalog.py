@@ -1,4 +1,4 @@
-"""Tests for the dependency-free ACP npm installation catalog."""
+"""测试无依赖项 ACP npm 安装目录。"""
 
 from __future__ import annotations
 
@@ -70,8 +70,8 @@ class TestACPInstallSpecNpxCommand:
         )
 
     def test_multi_package_uses_package_flags_and_entry_binary(self):
-        # The shape Pi needs: an ACP adapter plus its engine package, both
-        # pinned, with the adapter's bin invoked positionally.
+        # Pi 形状需要：一个 ACP 适配器及其引擎包，两者均固定，并按位置调用适配器的 bin。
+        #
         spec = ACPInstallSpec(
             key="pi",
             packages=(
@@ -91,8 +91,8 @@ class TestACPInstallSpecNpxCommand:
 
 
 class TestPiInstallSpec:
-    """Pi is the only registered provider with two independent pins: `pi-acp`
-    adapts ACP and spawns a separately installed `pi` engine off PATH."""
+    """Pi 是唯一拥有两个独立引脚的注册提供商：`pi-acp`
+    适应 ACP 并产生一个单独安装的 `pi` 引擎关闭 PATH。"""
 
     def test_pins_both_the_adapter_and_the_engine(self):
         spec = ACP_INSTALL_CATALOG["pi"]
@@ -104,16 +104,17 @@ class TestPiInstallSpec:
         assert spec.trailing_args == ()
 
     def test_adapter_is_listed_first(self):
-        """`test_acp_conformance_probe` compares `packages[0].version` to the
-        `agentInfo.version` the server reports — which is the adapter's. A
-        reorder would silently compare against the engine's version instead."""
+        """`test_acp_conformance_probe` 将 `packages[0].version` 与
+        `agentInfo.version` 服务器报告 — 这是适配器的报告。 重新排序会默默地与引擎的
+        版本进行比较。
+        """
         spec = ACP_INSTALL_CATALOG["pi"]
         assert spec.packages[0].name == spec.binary_name == "pi-acp"
 
     def test_install_plan_installs_both_but_wraps_only_the_adapter(self):
-        """`pi` is never launched by OpenHands directly — pi-acp spawns it, and
-        the adapter's wrapper puts $ACP_NODE_DIR/bin on PATH for it, so a
-        second wrapper would be dead weight."""
+        """`pi` 永远不会由 OpenHands 直接启动 - pi-ACP 生成它，并且
+        适配器的包装器将 $ACP_NODE_DIR/bin 放在 PATH 上，因此第二个包装器将是自重。
+        """
         packages, wrapper_bins = render_docker_install_plan(["pi"])
         assert packages == [
             f"pi-acp@{PI_ACP_VERSION}",
@@ -123,8 +124,8 @@ class TestPiInstallSpec:
 
 
 class TestACPInstallCatalogMatchesACPProviders:
-    """ACP_PROVIDERS derives default_command/binary_name from this catalog;
-    verify the two stay in lockstep for every npm-installable provider."""
+    """ACP_PROVIDERS 源自此目录的 default_command/binary_name；
+    验证每个 npm 可安装提供程序的两者保持同步。"""
 
     def test_catalog_keys_match_registered_npm_providers(self):
         assert set(ACP_INSTALL_CATALOG) == set(ACP_PROVIDERS)
@@ -200,8 +201,8 @@ class TestRenderDockerInstallPlan:
 
 
 class TestACPInstallCatalogCLI:
-    """The Dockerfile's acp-providers stage COPies this module in and runs it
-    directly with the system python3 — exercise that exact entry point."""
+    """Dockerfile的ACP-提供者阶段COPies了这个模块，并运行它
+    直接使用系统 python3 — 进行精确的练习入口。"""
 
     def test_prints_shell_eval_able_plan(self, capsys):
         code = _main(["claude-code,codex"])
@@ -227,10 +228,10 @@ class TestACPInstallCatalogCLI:
         assert "bogus" in err
 
     def test_runs_standalone_with_no_dependencies(self):
-        """Regression guard for the Dockerfile's `python3 <file> ...`
-        invocation: this must work with nothing but the stdlib on
+        """回归守护 Dockerfile 的 `python3 <file> ...`
+        invocation: 这必须只与 stdlib 一起工作
         sys.path, since the acp-providers stage is a bare python image
-        with no OpenHands package (or pydantic) installed.
+        未安装 OpenHands 软件包（或 Pydantic）。
         """
         result = subprocess.run(
             [sys.executable, "-S", CATALOG_PY, "claude-code"],
@@ -244,12 +245,12 @@ class TestACPInstallCatalogCLI:
         ]
 
     def test_output_survives_a_real_shell_eval_multi_package(self):
-        """Regression test for the exact bug the Dockerfile hit: `eval`
-        re-tokenizes its argument on whitespace, so an unquoted multi-word
-        `PACKAGES=a b c` parses as "assign PACKAGES=a, then run command b
-        with arg c" (exit 127), not one space-separated assignment. Runs the
-        CLI's real stdout through `sh -c 'eval "$PLAN"; ...'`, exactly like
-        the Dockerfile's `PLAN=$(...) || exit 1; eval "$PLAN"`.
+        """回归测试 Dockerfile 遇到的确切错误：`eval`
+        重新标记其在空格上的参数，因此是一个不带引号的多词
+        `PACKAGES=a b c` 解析为“分配 PACKAGES=a，然后使用 arg c 运行命令 b”（退出 127
+        ），而不是一个空格分隔的分配。 通过
+         `sh -c 'eval "$PLAN"; ...'` 运行 CLI 的真实标准输出，与 Dockerfile 的
+        `PLAN=$(...) || exit 1; eval "$PLAN"` 完全相同。
         """
         plan = subprocess.run(
             [sys.executable, "-S", CATALOG_PY, "claude-code,codex,gemini-cli"],

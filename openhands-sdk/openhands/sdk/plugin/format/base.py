@@ -1,11 +1,10 @@
-"""``PluginFormat`` strategy base class and shared component helpers.
+"""``PluginFormat`` 策略基类和共享组件助手。
 
-Holds the abstract :class:`PluginFormat` contract plus the discovery logic
-shared by every format (skills discovery and final assembly). Concrete
-strategies live in their own modules (e.g. ``claude_code.py``).
+包含抽象：class:`PluginFormat` 合约以及每种格式共享的发现逻辑（技能发现和最终组装）。
+ 具体策略存在于它们自己的模块中（e.g.
+``claude_code.py``).
 
-See the ``openhands.sdk.plugin.format`` package docstring for the design
-overview and the recipe to add a new format.
+请参阅 ``openhands.sdk.plugin.format`` 包文档字符串了解设计概述和添加新格式的方法。
 """
 
 from __future__ import annotations
@@ -36,26 +35,24 @@ _SCHEMAS_DIR = Path(__file__).parent / "schemas"
 
 @cache
 def _load_schema(filename: str) -> dict[str, Any]:
-    """Read a vendored schema. Cached; never fetched over the network."""
+    """阅读供应商模式。 已缓存； 从未通过网络获取。"""
     return json.loads((_SCHEMAS_DIR / filename).read_text(encoding="utf-8"))
 
 
 class PluginFormat(ABC):
-    """Strategy that reads a plugin directory into a normalized ``Plugin``.
+    """将插件目录读入规范化的 ``Plugin`` 的策略。
 
-    Subclasses implement the format-specific pieces (manifest, MCP config, and
-    client extensions). Skills discovery and the final assembly in :meth:`load`
-    are shared, because the skills rule is identical across formats and the
-    output model is format-neutral.
+    子类实现特定于格式的部分（清单、MCP 配置和客户端扩展）。 技能发现和最终组装在：
+    meth:`load` 中共享，因为技能规则在格式之间是相同的，输出模型也是格式
+    无关的。
     """
 
-    #: Stable identifier used in logs and by ``detect_format``.
+    # ：日志中和``detect_format``使用的稳定标识符。
     name: ClassVar[str]
 
     def __init_subclass__(cls, **kwargs: object) -> None:
-        # Enforce the ``name`` contract at class-definition time. Without this a
-        # subclass that omits ``name`` instantiates cleanly and only fails later
-        # with AttributeError the first time ``.name`` is read (e.g. in
+        # 在类定义时强制执行 ``name`` 合约。 如果没有这个，省略 ``name`` 的子类会干净地
+        # 实例化，并且只会在第一次读取 ``.name`` 时失败并显示 AttributeError (e.g. 在
         # ``detect_format``'s debug log).
         super().__init_subclass__(**kwargs)
         if "name" not in cls.__dict__:
@@ -66,43 +63,43 @@ class PluginFormat(ABC):
     @classmethod
     @abstractmethod
     def detect(cls, plugin_dir: Path) -> bool:
-        """Return True if ``plugin_dir`` should be loaded with this format."""
+        """如果应使用此格式加载 ``plugin_dir``，则返回 True。"""
 
     @abstractmethod
     def load_manifest(self, plugin_dir: Path) -> PluginManifest:
-        """Load and validate the plugin manifest."""
+        """加载并验证插件清单。"""
 
     @abstractmethod
     def load_mcp_config(self, plugin_dir: Path) -> dict[str, MCPServer]:
-        """Load the plugin's MCP server configuration."""
+        """加载插件的 MCP 服务器配置。"""
 
     @abstractmethod
     def load_hooks(self, plugin_dir: Path) -> HookConfig | None:
-        """Load the plugin's hook configuration (or None if absent)."""
+        """加载插件的钩子配置（如果不存在则加载None）。"""
 
     @abstractmethod
     def load_agents(self, plugin_dir: Path) -> list[AgentDefinition]:
-        """Load the plugin's agent definitions."""
+        """加载插件的智能体定义。"""
 
     @abstractmethod
     def load_commands(self, plugin_dir: Path) -> list[CommandDefinition]:
-        """Load the plugin's command definitions."""
+        """加载插件的命令定义。"""
 
     def load_skills(self, plugin_dir: Path) -> list[Skill]:
-        """Discover a plugin's skills.
+        """发现插件的技能。
 
-        Shared across formats: the ``skills/<name>/SKILL.md`` discovery rule is
-        identical for Claude Code and Agent Plugins. Supports two layouts:
+        跨格式共享：``skills/<name>/SKILL.md`` 发现规则对于 Claude Code 和智能体插件
+        是相同的。 支持两种布局：
 
-        - Multi-skill: a ``skills/`` directory containing one ``<name>/SKILL.md``
-          per skill (or single ``.md`` files).
-        - Single-skill: a ``SKILL.md`` at the plugin root when there is no
-          ``skills/`` directory. Claude Code loads such a plugin as a single-skill
-          plugin (v2.1.142+); this mirrors that behavior so standalone Agent Skills
-          published as plugins load without an extra nesting level.
+        - 多技能：每个技能包含一个 ``<name>/SKILL.md`` 个 ``skills/`` 目录（或单个
+        ``.md`` 个文件）。
+        - 单技能：当没有插件时，在插件根目录下有一个``SKILL.md``
+          ``skills/`` 目录。 Claude Code加载这样的插件作为单技能插件（v2.1.142+）；
+          这反映了这种行为如此独立智能体作为插件加载发
+          布的技能，无需额外的嵌套级别。
 
-        Note: Plugin skills are loaded with relaxed validation (strict=False)
-        to support Claude Code plugins which may use different naming conventions.
+        Note: 插件技能加载宽松验证（严格=False）
+        支持可能使用不同命名约定的 Claude Code 插件。
         """
         skills_dir = plugin_dir / "skills"
         if skills_dir.exists(follow_symlinks=False):
@@ -111,13 +108,14 @@ class PluginFormat(ABC):
             if not skills_dir.is_dir():
                 logger.warning(f"Ignoring skills: {skills_dir} is not a directory")
                 return []
-            # Non-recursive per Agent Plugins §5: nested .md files are skill
-            # resources (e.g. references/), not additional skills.
+            # 根据智能体插件 §5 非递归：嵌套 .md 文件是技能资源 (e.g. 参考文献/），而不
+            # 是额外的技能。
+            #
             repo, knowledge, agent = load_skills_from_dir(
                 skills_dir, strict=False, recursive=False, root=plugin_dir
             )
             skills = [*repo.values(), *knowledge.values(), *agent.values()]
-            # Categorization groups skills by type; restore on-disk order.
+            # 按类型对技能进行分类； 恢复磁盘顺序。
             return [
                 _without_escaping_resources(skill, plugin_dir)
                 for skill in sorted(skills, key=lambda s: Path(s.source or ""))
@@ -130,22 +128,22 @@ class PluginFormat(ABC):
         return []
 
     def load(self, plugin_dir: Path) -> Plugin:
-        """Assemble a normalized ``Plugin`` from ``plugin_dir``.
+        """从 ``plugin_dir`` 组装归一化的 ``Plugin``。
 
-        This orchestration is shared: every format produces the same in-memory
-        model, so downstream merge/apply logic never needs to know the format.
+        这种编排是共享的：每种格式都会生成相同的内存中模型，因此下游合并/应用逻辑永远
+        不需要知道格式。
 
-        ``plugin_dir`` is used as-is (it becomes the loaded ``Plugin.path``);
-        this method does not resolve it. ``Plugin.load()`` resolves the path
-        before dispatching here, so direct callers of
-        ``detect_format(path).load(path)`` should pass an already-resolved path
-        if they want ``Plugin.path`` fully resolved.
+        ``plugin_dir`` 按原样使用（它成为加载的 ``Plugin.path``）； 这个方法并不能解
+        决这个问题。 ``Plugin.load()``
+         在此处调度之前解析路径，因此直接调用者
+        如果 ``detect_format(path).load(path)`` 想要 ``Plugin.path`` 完全解析，则应传
+        递已解析的路径。
 
         Raises:
-            FileNotFoundError: If ``plugin_dir`` is not an existing directory.
+            FileNotFoundError: 如果 ``plugin_dir`` 不是现有目录。
         """
-        # Imported lazily to avoid a module-level import cycle with plugin.py,
-        # which imports the format package for detect_format().
+        # 延迟导入以避免 plugin.py 的模块级导入循环，它导入 detect_format() 的格式包。
+        #
         from openhands.sdk.plugin.plugin import Plugin
 
         if not plugin_dir.is_dir():
@@ -170,12 +168,10 @@ class PluginFormat(ABC):
 
 
 def _read_hooks_config(root: Path, plugin_dir: Path | None = None) -> HookConfig | None:
-    """Read ``hooks/hooks.json`` under ``root``, or None if it is absent.
+    """读取 ``root`` 下的 ``hooks/hooks.json``，如果不存在则读取 None。
 
-    Shared by the concrete strategies: hooks, agents and commands use the same
-    on-disk layout in both formats — only the directory they are rooted at
-    differs (the plugin root for Claude Code, the client-extension directory for
-    Agent Plugins).
+    由具体策略共享：钩子、智能体和命令都使用相同的磁盘布局，只是它们根目录不同（
+    Claude Code 的插件根目录，智能体插件的客户端扩展目录）。
     """
     hooks_json = root / "hooks" / "hooks.json"
     if not hooks_json.exists() or not resolves_within(hooks_json, plugin_dir or root):
@@ -183,9 +179,9 @@ def _read_hooks_config(root: Path, plugin_dir: Path | None = None) -> HookConfig
 
     try:
         hook_config = HookConfig.load(path=hooks_json)
-        # A hooks.json that parses but declares no hooks yields an empty config.
-        # Keep that distinct from "file not present" (None). An unparseable or
-        # schema-invalid file raises out of load() and is caught below.
+        # 解析但声明没有钩子的 hooks.json 会产生一个空配置。 使其与“文件不存在”(None) 区
+        # 分开来。 无法解析或模式无效的文件从 load() 中引发并在下面捕获。
+        #
         if hook_config.is_empty():
             logger.info(f"No hooks configured in {hooks_json}")
             return HookConfig()
@@ -199,11 +195,11 @@ def _read_hooks_config(root: Path, plugin_dir: Path | None = None) -> HookConfig
 def _read_command_definitions(
     root: Path, plugin_dir: Path | None = None
 ) -> list[CommandDefinition]:
-    """Read command definitions from the ``commands/`` directory under ``root``.
+    """从``root``下的``commands/``目录读取命令定义。
 
-    Commands have no counterpart to :func:`load_agents_from_dir`, so this is the
-    one loader of the three the plugin format still owns. It applies the same
-    file predicate, so ``commands/`` and ``agents/`` stay symmetric.
+    命令没有与：func:`load_agents_from_dir` 对应的命令，因此这是插件格式仍然拥有的三
+    个加载器中的一个。 它应用相同的文件谓词，因此
+    ``commands/`` 和 ``agents/`` 保持对称。
     """
     plugin_dir = plugin_dir or root
     commands_dir = root / "commands"
@@ -233,7 +229,7 @@ def _read_command_definitions(
 
 
 def _without_escaping_resources(skill: Skill, plugin_dir: Path) -> Skill:
-    """Drop resource files (``scripts/`` etc.) that resolve outside the root."""
+    """删除在根目录之外解析的资源文件（``scripts/`` 等）。"""
     res = skill.resources
     if res is None:
         return skill
@@ -255,17 +251,17 @@ def _without_escaping_resources(skill: Skill, plugin_dir: Path) -> Skill:
 
 
 def _load_root_skill(plugin_dir: Path, skill_md: Path) -> list[Skill]:
-    """Load a single-skill plugin whose ``SKILL.md`` lives at the plugin root.
+    """加载一个单技能插件，其 ``SKILL.md`` 位于插件根目录。
 
-    For root skills, the plugin directory is the skill root, so .mcp.json at the
-    plugin level is the same file that Skill.load() would try to load. We pass
+    对于根技能，插件目录是技能根，因此插件级别的 .mcp.json 与 Skill.load() 尝试加载的
+    文件相同。 我们通过
     skip_mcp=True to avoid double-loading with different semantics (plugin-level
-    uses expand_defaults=False for deferred secret expansion; skill-level would
-    use expand_defaults=True and raise on validation errors).
+    使用 expand_defaults=False 进行延迟机密扩展； 技能级别将使用 expand_defaults=True
+     并提高验证错误）。
     """
     try:
         # skip_mcp=True: Plugin-level MCP already loaded
-        # Skill.load() discovers resources, no need to do it again
+        # Skill.load()发现资源，无需重复
         skill = Skill.load(skill_md, plugin_dir, strict=False, skip_mcp=True)
         logger.debug(f"Loaded single-skill plugin: {skill.name} from {skill_md}")
         return [_without_escaping_resources(skill, plugin_dir)]

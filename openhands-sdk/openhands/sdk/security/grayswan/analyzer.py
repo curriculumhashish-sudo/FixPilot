@@ -1,8 +1,7 @@
-"""GraySwan Cygnal security analyzer for OpenHands SDK.
+"""GraySwan Cygnal 安全分析器 OpenHands SDK。
 
-This module provides a security analyzer that uses GraySwan's Cygnal API
-for AI safety monitoring. It analyzes agent actions and conversation history
-to detect potential security risks.
+该模块提供了一个安全分析器，使用GraySwan的CygnalAPI进行AI安全监控。 它分析智能体操作
+和对话历史记录以检测潜在的安全风险。
 """
 
 from __future__ import annotations
@@ -26,15 +25,14 @@ logger = get_logger(__name__)
 
 
 class GraySwanAnalyzer(SecurityAnalyzerBase):
-    """Security analyzer using GraySwan's Cygnal API for AI safety monitoring.
+    """使用 GraySwan 的 Cygnal API 进行 AI 安全监控的安全分析器。
 
-    This analyzer sends conversation history and pending actions to the GraySwan
-    Cygnal API for security analysis. The API returns a violation score which is
-    mapped to SecurityRisk levels.
+    该分析器将对话历史记录和待处理操作发送到 GraySwan Cygnal API 以进行安全分析。 API
+     返回映射到 SecurityRisk 级别的违规分数。
 
-    Environment Variables:
-        GRAYSWAN_API_KEY: Required API key for GraySwan authentication
-        GRAYSWAN_POLICY_ID: Optional policy ID for custom GraySwan policy
+    环境变量：
+        GRAYSWAN_API_KEY: GraySwan 身份验证需要 API 键
+        GRAYSWAN_POLICY_ID: 自定义 GraySwan 策略的可选策略 ID
 
     Example:
         >>> from openhands.sdk.security.grayswan import GraySwanAnalyzer
@@ -75,13 +73,13 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
         description="GraySwan policy ID (via GRAYSWAN_POLICY_ID env var)",
     )
 
-    # Internal state - not serialized (using PrivateAttr for Pydantic)
+    # 内部状态 - 不是已序列化（使用 PrivateAttr 代替 Pydantic）
     _client: httpx.Client | None = PrivateAttr(default=None)
     _events: list[LLMConvertibleEvent] = PrivateAttr(default_factory=list)
 
     @model_validator(mode="after")
     def validate_thresholds(self) -> GraySwanAnalyzer:
-        """Validate that thresholds are properly ordered."""
+        """验证阈值的顺序是否正确。"""
         if self.low_threshold >= self.medium_threshold:
             raise ValueError(
                 f"low_threshold ({self.low_threshold}) must be less than "
@@ -90,9 +88,9 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
         return self
 
     def model_post_init(self, __context: Any) -> None:
-        """Initialize the analyzer after model creation."""
-        # ALWAYS prefer environment variable - this ensures Docker gets the correct key
-        # even if serialization didn't work properly
+        """创建模型后初始化分析器。"""
+        # 始终更喜欢环境变量 - 这可以确保 Docker 获得正确的密钥，即使序列化无法正常工作
+        #
         env_key = os.getenv("GRAYSWAN_API_KEY")
         if env_key:
             self.api_key = SecretStr(env_key)
@@ -102,7 +100,7 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
                 "GRAYSWAN_API_KEY not set. GraySwanAnalyzer will return UNKNOWN risk."
             )
 
-        # Always prefer environment variable for policy ID too
+        # 也始终首选环境变量作为策略 ID
         env_policy = os.getenv("GRAYSWAN_POLICY_ID")
         if env_policy:
             self.policy_id = env_policy
@@ -117,15 +115,15 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
         )
 
     def set_events(self, events: Sequence[LLMConvertibleEvent]) -> None:
-        """Set the events for context when analyzing actions.
+        """分析动作时设置上下文的事件。
 
         Args:
-            events: Sequence of events to use as context for security analysis
+            events: 用作上下文进行安全分析的事件序列
         """
         self._events = list(events)
 
     def _create_client(self) -> httpx.Client:
-        """Create a new HTTP client instance."""
+        """创建一个新的 HTTP 客户端实例。"""
         api_key_value = self.api_key.get_secret_value() if self.api_key else ""
         return httpx.Client(
             timeout=self.timeout,
@@ -136,8 +134,8 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
         )
 
     def _get_client(self) -> httpx.Client:
-        """Get or create HTTP client."""
-        # Split condition to avoid AttributeError when _client is None
+        """获取或创建 HTTP 个客户端。"""
+        # 当 _client 为 None 时，拆分条件以避免 AttributeError
         if self._client is None:
             self._client = self._create_client()
         elif self._client.is_closed:
@@ -145,13 +143,13 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
         return self._client
 
     def _map_violation_to_risk(self, violation_score: float) -> SecurityRisk:
-        """Map GraySwan violation score to SecurityRisk.
+        """将 GraySwan 违规分数映射到 SecurityRisk。
 
         Args:
-            violation_score: Score from 0.0 to 1.0 indicating violation severity
+            violation_score: 分数从 0.0 到 1.0 表示违规严重程度
 
         Returns:
-            SecurityRisk level based on configured thresholds
+            SecurityRisk 级别基于配置的阈值
         """
         if violation_score <= self.low_threshold:
             return SecurityRisk.LOW
@@ -161,13 +159,13 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
             return SecurityRisk.HIGH
 
     def _call_grayswan_api(self, messages: list[dict[str, Any]]) -> SecurityRisk:
-        """Call GraySwan API with formatted messages.
+        """使用格式化消息呼叫 GraySwan API。
 
         Args:
-            messages: List of messages in OpenAI format
+            messages: OpenAI 格式的消息列表
 
         Returns:
-            SecurityRisk level based on API response
+            SecurityRisk 级别基于 API 响应
         """
         if not self.api_key:
             logger.warning("No API key configured, returning UNKNOWN risk")
@@ -194,14 +192,14 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
 
                 violation_score = result.get("violation")
 
-                # Validate response structure
+                # 验证响应结构
                 if violation_score is None:
                     logger.error("GraySwan API response missing 'violation' field")
                     return SecurityRisk.UNKNOWN
 
                 risk_level = self._map_violation_to_risk(violation_score)
 
-                # Indirect prompt injection is auto-escalated to HIGH
+                # 间接提示词注入自动升级为 HIGH
                 if result.get("ipi"):
                     risk_level = SecurityRisk.HIGH
                     logger.warning(
@@ -227,17 +225,17 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
             return SecurityRisk.UNKNOWN
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Analyze action for security risks using GraySwan API.
+        """使用 GraySwan API 分析安全风险的操作。
 
-        This method converts the conversation history and the pending action
-        to OpenAI message format and sends them to the GraySwan Cygnal API
+        此方法将对话历史记录和待处理操作转换为 OpenAI 消息格式并将它们发送到 GraySwan
+         Cygnal API
         for security analysis.
 
         Args:
-            action: The ActionEvent to analyze
+            action: 要分析的ActionEvent
 
         Returns:
-            SecurityRisk level based on GraySwan analysis
+            SecurityRisk 级别基于 GraySwan 分析
         """
         logger.debug(
             f"Calling security_risk on GraySwanAnalyzer for action: {action.tool_name}"
@@ -248,12 +246,13 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
             return SecurityRisk.UNKNOWN
 
         try:
-            # Limit to recent history, but always keep the leading SystemPromptEvent
-            # so the request still opens with a system message (repo invariant).
+            # 限制为最近的历史记录，但始终保留前导 SystemPromptEvent，以便请求仍然以系统
+            # 消息打开（存储库不变量）。
+            #
             recent_events = self._events
             if len(recent_events) > self.history_limit:
                 window = recent_events[-self.history_limit :]
-                # Re-include the leading system prompt if the tail window dropped it.
+                # 如果尾部窗口删除了前导系统提示词，请重新包含它。
                 if recent_events and isinstance(recent_events[0], SystemPromptEvent):
                     if not any(isinstance(e, SystemPromptEvent) for e in window):
                         recent_events = [recent_events[0], *window]
@@ -262,7 +261,7 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
                 else:
                     recent_events = window
 
-            # Convert events to OpenAI message format
+            # 将事件转换为 OpenAI 消息格式
             events_to_process: list[LLMConvertibleEvent] = list(recent_events) + [
                 action
             ]
@@ -272,10 +271,10 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
                 logger.warning("No valid messages to analyze")
                 return SecurityRisk.UNKNOWN
 
-            # Guarantee the repo invariant: the request must open with a system
-            # message. If no SystemPromptEvent was available (e.g. it was never
-            # set or the bounded window excluded it and none could be re-added),
-            # synthesize a minimal system message so the request is system-first.
+            # 保证存储库不变量：请求必须使用系统消息打开。 如果没有可用的
+            # SystemPromptEvent (e.g. 它从未被设置或者有界窗口排除了它并且可以重新添加
+            # None），合成最小的系统消息，因此请求是系统优先的。
+            #
             if openai_messages[0].get("role") != "system":
                 openai_messages.insert(
                     0,
@@ -296,7 +295,7 @@ class GraySwanAnalyzer(SecurityAnalyzerBase):
             return SecurityRisk.UNKNOWN
 
     def close(self) -> None:
-        """Clean up resources."""
+        """清理资源。"""
         if self._client is not None and not self._client.is_closed:
             self._client.close()
             self._client = None

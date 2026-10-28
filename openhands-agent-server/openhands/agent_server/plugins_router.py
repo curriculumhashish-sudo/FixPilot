@@ -1,12 +1,11 @@
-"""Plugins router for OpenHands Agent Server.
+"""OpenHands Agent Server 的插件路由器。
 
-HTTP API endpoints for plugin operations. Business logic is delegated to
-``plugins_service.py``; this module mirrors ``skills_router.py`` and stays
-focused on HTTP concerns. It exposes:
+HTTP API 端点用于插件操作。 业务逻辑被委托给
+``plugins_service.py``; 该模块反映了 ``skills_router.py`` 并专注于 HTTP 问题。 它暴露
+了：
 
-* Installed-plugin management — install / list / enable-disable / uninstall /
-  refresh — plus listing locally-available plugins.
-* The plugins-only marketplace catalog.
+* 已安装插件管理 - 安装/列表/启用-禁用/卸载/刷新 - 以及列出本地可用的插件。
+* 仅限插件的市场目录。
 """
 
 from typing import Annotated
@@ -43,9 +42,9 @@ type JSONValue = (
 
 plugins_router = APIRouter(prefix="/plugins", tags=["Plugins"])
 
-# Kebab-case plugin name — matches the SDK's installed-plugin name rule. Guards
-# the {plugin_name} path parameter against empty strings, path traversal, and
-# invalid characters.
+# Kebab-case 插件名称 — 与 SDK 的已安装插件名称规则匹配。 保护 {plugin_name} 路径参数免
+# 受空字符串、路径遍历和无效字符的影响。
+#
 PLUGIN_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
 PluginNamePath = Annotated[
@@ -60,12 +59,12 @@ PluginNamePath = Annotated[
 
 
 # ---------------------------------------------------------------------------
-# Models
+# 型号
 # ---------------------------------------------------------------------------
 
 
 class PluginsRequest(BaseModel):
-    """Request body for listing locally-available plugins."""
+    """列出本地可用插件的请求正文。"""
 
     load_user: bool = Field(
         default=True, description="Load user plugins (~/.agents/plugins, etc.)"
@@ -79,7 +78,7 @@ class PluginsRequest(BaseModel):
 
 
 class PluginInfo(BaseModel):
-    """Summary of an available plugin."""
+    """可用插件的摘要。"""
 
     name: str
     version: str = ""
@@ -95,13 +94,13 @@ class PluginInfo(BaseModel):
 
 
 class PluginsResponse(BaseModel):
-    """Response containing the locally-available plugins."""
+    """包含本地可用插件的响应。"""
 
     plugins: list[PluginInfo]
 
 
 class InstallPluginRequest(BaseModel):
-    """Request body for installing a plugin."""
+    """安装插件的请求正文。"""
 
     source: str = Field(
         min_length=1,
@@ -125,7 +124,7 @@ class InstallPluginRequest(BaseModel):
 
 
 class FetchPluginRequest(BaseModel):
-    """Request body for strictly fetching a plugin without installing it."""
+    """请求正文严格获取插件而不安装它。"""
 
     source: str = Field(min_length=1, description="Plugin git source")
     ref: str | None = Field(default=None, description="Branch, tag, or commit")
@@ -141,7 +140,7 @@ class FetchPluginRequest(BaseModel):
 
 
 class FetchPluginResponse(BaseModel):
-    """Response from strictly fetching a plugin source."""
+    """严格获取插件源的响应。"""
 
     path: str
     resolved_ref: str | None
@@ -153,7 +152,7 @@ class FetchPluginResponse(BaseModel):
 
 
 class InstalledPluginResponse(BaseModel):
-    """Response containing installed plugin information."""
+    """包含已安装插件信息的响应。"""
 
     name: str = Field(description="Plugin name")
     version: str = Field(default="", description="Plugin version")
@@ -193,45 +192,45 @@ class InstalledPluginResponse(BaseModel):
 
 
 class InstalledPluginsListResponse(BaseModel):
-    """Response containing the list of installed plugins."""
+    """包含已安装插件列表的响应。"""
 
     plugins: list[InstalledPluginResponse]
 
 
 class UpdatePluginStateRequest(BaseModel):
-    """Request body for updating plugin state (enable/disable)."""
+    """用于更新插件状态（启用/禁用）的请求正文。"""
 
     enabled: bool
 
 
 class UpdatePluginStateResponse(BaseModel):
-    """Response from a plugin state update."""
+    """来自插件状态更新的响应。"""
 
     name: str
     enabled: bool
 
 
 class UninstallPluginResponse(BaseModel):
-    """Response from a plugin uninstall."""
+    """插件卸载的响应。"""
 
     message: str
 
 
 class UpdatePluginResponse(BaseModel):
-    """Response from a plugin refresh/update."""
+    """来自插件刷新/更新的响应。"""
 
     message: str
     plugin: InstalledPluginResponse
 
 
 class MarketplaceCatalogResponse(BaseModel):
-    """Response containing the plugins marketplace catalog."""
+    """包含插件市场目录的响应。"""
 
     plugins: list[MarketplacePluginInfo]
 
 
 def _installed_response(info: InstalledPluginInfo) -> InstalledPluginResponse:
-    """Build an installed-plugin response enriched with the plugin's contents."""
+    """构建一个包含插件内容的已安装插件响应。"""
     response = InstalledPluginResponse.from_plugin_info(info)
     contents = service_load_plugin_contents(info.install_path)
     if contents is not None:
@@ -240,7 +239,7 @@ def _installed_response(info: InstalledPluginInfo) -> InstalledPluginResponse:
 
 
 def _plugin_info(plugin: Plugin) -> PluginInfo:
-    """Build an available-plugin summary including its contents."""
+    """构建可用插件摘要（包括其内容）。"""
     skills, files = service_plugin_contents(plugin)
     return PluginInfo(
         name=plugin.name,
@@ -253,19 +252,19 @@ def _plugin_info(plugin: Plugin) -> PluginInfo:
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# 端点
 # ---------------------------------------------------------------------------
 
 
 @plugins_router.post("", response_model=PluginsResponse)
 def get_plugins(request: PluginsRequest) -> PluginsResponse:
-    """List locally-available plugins (enabled installed + user/project dirs).
+    """列出本地可用的插件（已启用的已安装+用户/项目目录）。
 
     Args:
-        request: Which local sources to load.
+        request: 要加载哪些本地源。
 
     Returns:
-        PluginsResponse with available plugin summaries.
+        PluginsResponse 包含可用插件摘要。
     """
     plugins = service_list_available_plugins(
         load_user=request.load_user,
@@ -285,7 +284,7 @@ def get_plugins(request: PluginsRequest) -> PluginsResponse:
     },
 )
 def fetch_plugin_endpoint(request: FetchPluginRequest) -> FetchPluginResponse:
-    """Fetch and pin a plugin source without installing or enabling it."""
+    """获取并固定插件源，无需安装或启用它。"""
     try:
         checked = service_fetch_plugin(
             source=request.source,
@@ -321,7 +320,7 @@ def fetch_plugin_endpoint(request: FetchPluginRequest) -> FetchPluginResponse:
     },
 )
 def install_plugin_endpoint(request: InstallPluginRequest) -> InstalledPluginResponse:
-    """Install a plugin from a git URL, GitHub shorthand, or local path."""
+    """从 git URL、GitHub 简写或本地路径安装插件。"""
     try:
         info = service_install_plugin(
             source=request.source,
@@ -349,7 +348,7 @@ def install_plugin_endpoint(request: InstallPluginRequest) -> InstalledPluginRes
 
 @plugins_router.get("/installed", response_model=InstalledPluginsListResponse)
 def list_installed_plugins_endpoint() -> InstalledPluginsListResponse:
-    """List all installed plugins (enabled and disabled)."""
+    """列出所有已安装的插件（启用和禁用）。"""
     plugins = service_list_installed_plugins()
     return InstalledPluginsListResponse(
         plugins=[_installed_response(info) for info in plugins]
@@ -364,7 +363,7 @@ def list_installed_plugins_endpoint() -> InstalledPluginsListResponse:
 def get_installed_plugin_endpoint(
     plugin_name: PluginNamePath,
 ) -> InstalledPluginResponse:
-    """Get information about a specific installed plugin."""
+    """获取有关特定已安装插件的信息。"""
     info = service_get_installed_plugin(name=plugin_name)
     if info is None:
         raise HTTPException(
@@ -382,7 +381,7 @@ def get_installed_plugin_endpoint(
 def set_plugin_enabled_endpoint(
     plugin_name: PluginNamePath, request: UpdatePluginStateRequest
 ) -> UpdatePluginStateResponse:
-    """Enable or disable an installed plugin."""
+    """启用或禁用已安装的插件。"""
     fn = service_enable_plugin if request.enabled else service_disable_plugin
     if not fn(name=plugin_name):
         raise HTTPException(
@@ -398,7 +397,7 @@ def set_plugin_enabled_endpoint(
     responses={404: {"description": "Plugin not installed"}},
 )
 def uninstall_plugin_endpoint(plugin_name: PluginNamePath) -> UninstallPluginResponse:
-    """Uninstall a plugin by name."""
+    """按名称卸载插件。"""
     if not service_uninstall_plugin(name=plugin_name):
         raise HTTPException(
             status_code=404,
@@ -416,9 +415,9 @@ def uninstall_plugin_endpoint(plugin_name: PluginNamePath) -> UninstallPluginRes
     },
 )
 def refresh_plugin_endpoint(plugin_name: PluginNamePath) -> UpdatePluginResponse:
-    """Refresh an installed plugin to the latest version from its source.
+    """将已安装的插件从其源刷新到最新版本。
 
-    A failed refresh leaves the installed copy unchanged.
+    刷新失败会使已安装的副本保持不变。
     """
     try:
         info = service_update_plugin(name=plugin_name)
@@ -451,16 +450,15 @@ def refresh_plugin_endpoint(plugin_name: PluginNamePath) -> UpdatePluginResponse
 
 @plugins_router.get("/marketplace", response_model=MarketplaceCatalogResponse)
 def get_marketplace_catalog() -> MarketplaceCatalogResponse:
-    """Get the plugins marketplace catalog with installation status.
+    """获取带有安装状态的插件市场目录。
 
-    Returns the true plugins (entries whose source lives under ``./plugins/``)
+    返回 True 插件（源位于 ``./plugins/`` 下的条目）
     from the OpenHands extensions repository marketplace, each with attachable
-    ``PluginSource`` coordinates (``source`` / ``ref`` / ``repo_path``) and an
-    ``installed`` flag. This enables the front-end to render a plugins
-    marketplace with install/installed state and to attach plugins to
-    conversations.
+    ``PluginSource`` 坐标 (``source`` / ``ref`` / ``repo_path``) 和
+    ``installed`` 标志。 这使得前端能够呈现具有安装/已安装状态的插件市场，并将插件附
+    加到对话中。
 
     Returns:
-        MarketplaceCatalogResponse containing the list of available plugins.
+        MarketplaceCatalogResponse 包含可用插件的列表。
     """
     return MarketplaceCatalogResponse(plugins=service_get_plugins_marketplace_catalog())

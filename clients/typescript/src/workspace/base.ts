@@ -1,8 +1,8 @@
 /**
- * Base workspace interface and types
+ * 基本工作区接口和类型
  *
- * This file defines the abstract interface that all workspace implementations must follow.
- * It mirrors the Python SDK's BaseWorkspace pattern.
+ * 该文件定义了所有工作区实现必须遵循的抽象接口。
+ * 它反映了 Python SDK 的 BaseWorkspace 模式。
  */
 
 import {
@@ -14,55 +14,55 @@ import {
 } from '../models/workspace';
 
 /**
- * Base workspace options that all workspace types share
+ * 所有工作区类型共享的基本工作区选项
  */
 export interface BaseWorkspaceOptions {
   workingDir: string;
 }
 
 /**
- * Optional settings for git queries (`gitChanges` / `gitDiff`).
+ * git 查询的可选设置 (`gitChanges` / `gitDiff`)。
  */
 export interface GitQueryOptions {
   /**
-   * Git ref to diff against. Pass `'HEAD'` for `git status`-style results
-   * (working tree + index vs the latest commit), or a commit hash to diff
-   * against a specific revision. When omitted, the server auto-detects the
-   * upstream/default branch (the historical default behaviour).
+   * Git ref 来进行比较。 通过 `'HEAD'` 获得 `git status` 式结果
+   * （工作树+索引与最新提交），或差异的提交哈希
+   * 反对具体修订。 省略时，服务器会自动检测
+   * 上游/默认分支（历史默认行为）。
    */
   ref?: string;
 }
 
 /**
- * Abstract interface for workspace implementations.
+ * 工作区实现的抽象接口。
  *
- * Workspaces provide a sandboxed environment where agents can execute commands,
- * read/write files, and perform other operations. All workspace implementations
- * support the same interface for interoperability.
+ * 工作区提供一个沙盒环境， 智能体可以执行命令
+ * 读/写文件，并执行其他操作。 所有工作区实施
+ * 支持相同的接口以实现互操作。
  *
- * This mirrors the Python SDK's BaseWorkspace abstract class.
+ * 这反映了 Python SDK 的 BaseWorkspace 抽象类。
  */
 export interface IWorkspace {
-  /** The working directory for agent operations */
+  /** 智能体操作的工作目录*/
   readonly workingDir: string;
 
   /**
-   * Execute a bash command in the workspace.
+   * 在工作区中执行bash命令。
    *
-   * @param command - The bash command to execute
-   * @param cwd - Working directory for the command (optional)
-   * @param timeout - Timeout in seconds (defaults to 30.0)
-   * @returns CommandResult containing stdout, stderr, exit_code, and other metadata
+   * @param command - 要执行的 bash 命令
+   * @param cwd - 工作目录表示命令（可选）
+   * @param 超时 - 超时以秒为单位（默认为 30.0）
+   * @returns CommandResult 包含 stdout、stderr、exit_code 和其他元数据
    */
   executeCommand(command: string, cwd?: string, timeout?: number): Promise<CommandResult>;
 
   /**
-   * Upload content to the workspace.
+   * 上传内容到工作区。
    *
-   * @param content - The content to upload (string, Blob, or File)
-   * @param destinationPath - Path where the content should be uploaded
-   * @param fileName - Optional filename for the uploaded content
-   * @returns FileOperationResult containing success status and metadata
+   * @param content - 要上传的内容（字符串、Blob 或文件）
+   * @param destinationPath - 内容应上传的路径
+   * @param fileName - 上传内容的可选文件名
+   * @returns FileOperationResult 包含成功状态和元数据
    */
   fileUpload(
     content: string | Blob | File,
@@ -71,43 +71,43 @@ export interface IWorkspace {
   ): Promise<FileOperationResult>;
 
   /**
-   * Download a file from the workspace.
+   * 从工作区下载文件。
    *
-   * @param sourcePath - Path to the source file in the workspace
-   * @returns FileDownloadResult containing the file content
+   * @param sourcePath - 工作区中源文件的路径
+   * @returnsFileDownloadResult 包含文件内容
    */
   fileDownload(sourcePath: string): Promise<FileDownloadResult>;
 
   /**
-   * Get git changes for a repository at the given path.
+   * 获取给定路径下存储库的 git 更改。
    *
-   * @param path - Path to the git repository
-   * @param options - Optional settings.
-   * @param options.ref - Optional git ref to diff against (e.g. `'HEAD'`
-   *   for `git status`-style changes, or a commit hash). When omitted, the
-   *   server auto-detects the upstream/default branch.
-   * @returns Array of GitChange objects
+   * @param path - git 存储库的路径
+   * @param options - 可选设置。
+   * @param options.ref - 可选的 git ref 来比较 (e.g. `'HEAD'`
+   *   对于 `git status` 样式的更改，或提交哈希）。 当省略时，
+   *   服务器自动检测上游/默认分支。
+   * @returns GitChange 对象数组
    */
   gitChanges(path: string, options?: GitQueryOptions): Promise<GitChange[]>;
 
   /**
-   * Get git diff for a repository at the given path.
+   * 获取给定路径下存储库的 git diff。
    *
-   * @param path - Path to the git repository
-   * @param options - Optional settings.
-   * @param options.ref - Optional git ref to diff against (e.g. `'HEAD'`
-   *   for `git status`-style diffs, or a commit hash). When omitted, the
-   *   server auto-detects the upstream/default branch.
-   * @returns GitDiff object containing the diff content
+   * @param path - git 存储库的路径
+   * @param options - 可选设置。
+   * @param options.ref - 可选的 git ref 来比较 (e.g. `'HEAD'`
+   *   对于 `git status` 样式的差异，或提交哈希）。 当省略时，
+   *   服务器自动检测上游/默认分支。
+   * @returns GitDiff 包含差异内容的对象
    */
   gitDiff(path: string, options?: GitQueryOptions): Promise<GitDiff>;
 
   /**
-   * Convenience method to upload text content as a file.
+   * 将文本内容作为文件上传的便捷方法。
    *
-   * @param text - The text content to upload
-   * @param destinationPath - Path where the content should be uploaded
-   * @param fileName - Optional filename
+   * @param text - 要上传的文本内容
+   * @param destinationPath - 内容应上传的路径
+   * @param fileName - 可选文件名
    */
   uploadText(
     text: string,
@@ -116,39 +116,39 @@ export interface IWorkspace {
   ): Promise<FileOperationResult>;
 
   /**
-   * Convenience method to upload a File object.
+   * 上传 File 对象的便捷方法。
    *
-   * @param file - The File object to upload
-   * @param destinationPath - Path where the file should be uploaded
+   * @param file - 要上传的文件对象
+   * @param destinationPath - 文件上传的路径
    */
   uploadFileObject(file: File, destinationPath: string): Promise<FileOperationResult>;
 
   /**
-   * Convenience method to download file content as text.
+   * 将文件内容下载为文本的便捷方法。
    *
-   * @param sourcePath - Path to the source file
-   * @returns The file content as a string
+   * @param sourcePath - 源文件的路径
+   * @returns 文件内容作为字符串
    */
   downloadAsText(sourcePath: string): Promise<string>;
 
   /**
-   * Convenience method to download file content as a Blob.
+   * 将文件内容下载为 Blob 的便捷方法。
    *
-   * @param sourcePath - Path to the source file
-   * @returns The file content as a Blob
+   * @param sourcePath - 源文件的路径
+   * @returns 文件内容作为 Blob
    */
   downloadAsBlob(sourcePath: string): Promise<Blob>;
 
   /**
-   * Close/cleanup the workspace connection.
-   * For local workspaces, this is typically a no-op.
-   * For remote workspaces, this closes the HTTP client connection.
+   * 关闭/清理工作区连接。
+   * 对于本地工作区，这通常是无操作。
+   * 对于远程工作区，这将关闭 HTTP 客户端连接。
    */
   close(): void;
 }
 
 /**
- * Type discriminator for workspace types.
- * Useful for runtime type checking and factory patterns.
+ * 工作区类型的类型鉴别器。
+ * 对于运行时类型检查和工厂模式很有用。
  */
 export type WorkspaceType = 'local' | 'remote';

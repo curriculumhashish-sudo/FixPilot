@@ -1,15 +1,15 @@
 #!/bin/bash
-# UserPromptSubmit hook: Inject git status when user asks about code changes
+# UserPromptSubmit hook：当用户询问代码更改时注入 git status
 
 input=$(cat)
 
-# Check if user is asking about changes, diff, or git
+# 检查用户是否询问更改、diff 或 git
 if echo "$input" | grep -qiE "(changes|diff|git|commit|modified)"; then
-    # Get git status if in a git repo
+    # 如果在 git 存储库中，则获取 git 状态
     if git rev-parse --git-dir > /dev/null 2>&1; then
         status=$(git status --short 2>/dev/null | head -10)
         if [ -n "$status" ]; then
-            # Escape for JSON
+            # 逃离JSON
             escaped=$(echo "$status" | sed 's/"/\\"/g' | tr '\n' ' ')
             echo "{\"additionalContext\": \"Current git status: $escaped\"}"
         fi

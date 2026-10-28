@@ -1,4 +1,4 @@
-"""Marketplace registration model."""
+"""市场注册模式。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class MarketplaceRegistration(BaseModel):
-    """Registration for a marketplace source used for plugin resolution."""
+    """注册用于插件解析的市场源。"""
 
     name: str = Field(description="Identifier for this marketplace registration")
     source: str = Field(

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Check if all examples in agent-sdk are documented in the docs repository.
+检查智能体-SDK 中的所有示例是否都记录在文档存储库中。
 
-This script:
-1. Scans the docs repository for references to example files
-2. Lists all example Python files in the agent-sdk repository
-3. Compares the two sets to find undocumented examples
-4. Exits with error code 1 if undocumented examples are found
+这个脚本：
+1. 扫描文档存储库以获取示例文件的引用
+2. 列出智能体-SDK 存储库中的所有示例 Python 文件
+3. 比较两组以查找未记录的示例
+4. 如果发现未记录的示例，则退出并显示错误代码 1
 """
 
 import json
@@ -19,20 +19,20 @@ from pathlib import Path
 
 def find_documented_examples(docs_path: Path) -> set[str]:
     """
-    Find all example file references in the docs repository.
+    在文档存储库中查找所有示例文件引用。
 
-    Searches for patterns like:
+    搜索类似以下的模式：
     - examples/01_standalone_sdk/02_custom_tools.py
     - examples/02_remote_agent_server/06_custom_tool/custom_tools/log_data.py
-    in MDX files.
+    在 MDX 个文件中。
 
     Returns:
-        Set of normalized example file paths (relative to agent-sdk root)
+        规范化示例文件路径集（相对于智能体-SDK 根）
     """
     documented_examples: set[str] = set()
 
-    # Pattern to match example file references with arbitrary nesting depth.
-    # Matches: examples/<dir>/.../<file>.py
+    # 用于将示例文件引用与任意嵌套深度相匹配的模式。
+    # 匹配：examples/<dir>/.../<file>.py
     pattern = r"examples/(?:[-\w]+/)+[-\w]+\.py"
 
     for root, _, files in os.walk(docs_path):
@@ -43,7 +43,7 @@ def find_documented_examples(docs_path: Path) -> set[str]:
                     content = file_path.read_text(encoding="utf-8")
                     matches = re.findall(pattern, content)
                     for match in matches:
-                        # Normalize the path
+                        # 标准化路径
                         documented_examples.add(match)
                 except Exception as e:
                     print(f"Warning: Error reading {file_path}: {e}")
@@ -54,13 +54,13 @@ def find_documented_examples(docs_path: Path) -> set[str]:
 
 def find_agent_sdk_examples(agent_sdk_path: Path) -> set[str]:
     """
-    Find all example Python files in the agent-sdk repository.
+    查找智能体-SDK 存储库中的所有示例 Python 文件。
 
-    Excludes examples/03_github_workflows/ since those examples are YAML
-    files, not Python files.
+    排除 examples/03_github_workflows/，因为这些示例是 YAML 文件，而不是 Python 文件
+    。
 
     Returns:
-        Set of example file paths (relative to agent-sdk root)
+        示例文件路径集（相对于智能体-SDK 根目录）
     """
     examples: set[str] = set()
     examples_dir = agent_sdk_path / "examples"
@@ -69,31 +69,33 @@ def find_agent_sdk_examples(agent_sdk_path: Path) -> set[str]:
         print(f"Error: Examples directory not found: {examples_dir}")
         sys.exit(1)
 
-    # Find all Python files under examples/
+    # 查找examples/下的所有Python个文件
     for root, _, files in os.walk(examples_dir):
         for file in files:
             if file.endswith(".py"):
                 file_path = Path(root) / file
-                # Get relative path from agent-sdk root
+                # 获取从智能体-SDK root 的相对路径
                 relative_path = file_path.relative_to(agent_sdk_path)
                 relative_path_str = str(relative_path)
 
-                # Skip GitHub workflow examples (those are YAML files, Python
-                # files there are just helpers)
+                # 跳过 GitHub 个工作流程示例（这些是 YAML 个文件，Python 个文件，只有帮
+                # 助程序）
+                #
                 if relative_path_str.startswith("examples/03_github_workflows/"):
                     continue
 
-                # Skip LLM-specific tools examples: these are intentionally not
-                # enforced by the docs check. See discussion in PR #1486.
+                # 跳过 LLM 特定工具示例：文档检查故意不强制执行这些工具示例。 请参阅 PR
+                # #1486 中的讨论。
+                #
                 if relative_path_str.startswith("examples/04_llm_specific_tools/"):
                     continue
 
-                # Skip __init__.py files as they typically don't need documentation
+                # 跳过 __init__.py 个文件，因为它们通常不需要文档
                 if file == "__init__.py":
                     continue
 
-                # Skip support scripts that back examples but are not
-                # standalone examples themselves.
+                # 跳过支持示例但本身不是独立示例的支持脚本。
+                #
                 if "/scripts/" in relative_path_str:
                     continue
 
@@ -104,11 +106,11 @@ def find_agent_sdk_examples(agent_sdk_path: Path) -> set[str]:
 
 def find_changed_examples_for_pull_request(agent_sdk_path: Path) -> set[str] | None:
     """
-    Return example paths changed by the current pull request, if available.
+    返回当前拉取请求更改的示例路径（如果可用）。
 
-    The docs repository can lag behind main briefly. In pull_request runs, only
-    fail the PR for examples that are part of that PR's diff; manual and other
-    runs continue to validate the full examples set.
+    文档存储库可能会短暂落后于主存储库。 在 pull_request 运行中，仅对于属于 PR 差异一
+    部分的示例，使 PR 失败； 手动和其他运行继续验证完整的示例集
+    。
     """
     if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
         return None
@@ -152,37 +154,37 @@ def find_changed_examples_for_pull_request(agent_sdk_path: Path) -> set[str] | N
 
 def resolve_paths() -> tuple[Path, Path]:
     """
-    Determine agent-sdk root and docs path.
+    确定智能体-SDK 根和文档路径。
 
-    Priority for docs path:
-      1) DOCS_PATH (env override)
-      2) $GITHUB_WORKSPACE/docs
-      3) agent_sdk_root/'docs'
-      4) agent_sdk_root.parent/'docs'
+    文档路径的优先级：
+      1) DOCS_PATH（环境覆盖）
+      2) $GITHUB_WORKSPACE/文档
+      3) agent_sdk_root/'文档'
+      4) agent_sdk_root.parent/'文档'
 
     Returns:
-        Tuple of (agent_sdk_root, docs_path)
+        (agent_sdk_root, docs_path) 的元组
     """
-    # agent-sdk repo root (script is at agent-sdk/.github/scripts/...)
+    # 智能体-SDK 仓库根目录（脚本位于智能体-sdk/.github/scripts/...)
     script_file = Path(__file__).resolve()
     agent_sdk_root = script_file.parent.parent.parent
 
     candidates: list[Path] = []
 
-    # 1) Explicit env override
+    # 1) 显式环境覆盖
     env_override = os.environ.get("DOCS_PATH")
     if env_override:
         candidates.append(Path(env_override).expanduser().resolve())
 
-    # 2) Standard GitHub workspace sibling
+    # 2) 标准 GitHub 工作区同级
     gh_ws = os.environ.get("GITHUB_WORKSPACE")
     if gh_ws:
         candidates.append(Path(gh_ws).resolve() / "docs")
 
-    # 3) Sibling inside the agent-sdk repo root
+    # 3) 智能体-SDK 存储库根目录中的同级
     candidates.append(agent_sdk_root / "docs")
 
-    # 4) Parent-of-agent-sdk-root layout
+    # 4) 智能体-SDK-根布局的父级
     candidates.append(agent_sdk_root.parent / "docs")
 
     print(f"🔍 Agent SDK root: {agent_sdk_root}")
@@ -195,7 +197,7 @@ def resolve_paths() -> tuple[Path, Path]:
             print(f"📁 Using docs path: {p}")
             return agent_sdk_root, p
 
-    # If none exist, fail with a helpful message
+    # 如果 None 存在，则失败并显示有用的消息
     print("❌ Docs path not found in any of the expected locations.")
     print("   Set DOCS_PATH, or checkout the repo to one of the tried paths above.")
     sys.exit(1)
@@ -208,7 +210,7 @@ def main() -> None:
     print("Checking documented examples...")
     print("=" * 60)
 
-    # Find all examples in agent-sdk
+    # 查找智能体-SDK 中的所有示例
     print("\n📋 Scanning agent-sdk examples...")
     agent_examples = find_agent_sdk_examples(agent_sdk_root)
     print(f"   Found {len(agent_examples)} example file(s)")
@@ -221,12 +223,12 @@ def main() -> None:
             f"{len(agent_examples)} changed example file(s)"
         )
 
-    # Find all documented examples in docs
+    # 在文档中查找所有记录的示例
     print("\n📄 Scanning docs repository...")
     documented_examples = find_documented_examples(docs_path)
     print(f"   Found {len(documented_examples)} documented example(s)")
 
-    # Calculate difference
+    # 计算差异
     undocumented = agent_examples - documented_examples
 
     print("\n" + "=" * 60)

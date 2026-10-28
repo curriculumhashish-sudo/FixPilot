@@ -1,11 +1,11 @@
 /**
- * Hook event types and data structures.
+ * 挂钩事件类型和数据结构。
  *
- * Mirrors the Python SDK's openhands.sdk.hooks.types module.
+ * 镜像 Python SDK 的 openhands.sdk.hooks.types 模块。
  */
 
 /**
- * Types of hook events that can trigger hooks.
+ * 可以触发钩子的钩子事件类型。
  */
 export enum HookEventType {
   PRE_TOOL_USE = 'PreToolUse',
@@ -17,7 +17,7 @@ export enum HookEventType {
 }
 
 /**
- * Types of hooks that can be executed.
+ * 可以执行的钩子类型。
  */
 export enum HookType {
   COMMAND = 'command',
@@ -25,7 +25,7 @@ export enum HookType {
 }
 
 /**
- * Decisions a hook can make about an operation.
+ * 钩子可以对操作做出的决定。
  */
 export enum HookDecision {
   ALLOW = 'allow',
@@ -33,7 +33,7 @@ export enum HookDecision {
 }
 
 /**
- * Data passed to hook scripts via stdin as JSON.
+ * 通过 stdin 作为 JSON 传递到挂钩脚本的数据。
  */
 export interface HookEvent {
   event_type: HookEventType | string;
@@ -47,9 +47,9 @@ export interface HookEvent {
 }
 
 /**
- * Result from executing a hook.
+ * 执行挂钩的结果。
  *
- * Exit code 0 = success, exit code 2 = block operation.
+ * 退出代码 0 = 成功，退出代码 2 = 阻止操作。
  */
 export interface HookResult {
   success: boolean;
@@ -65,7 +65,7 @@ export interface HookResult {
 }
 
 /**
- * Check whether the operation should continue after this hook result.
+ * 检查此钩子结果后操作是否应继续。
  */
 export function hookResultShouldContinue(result: HookResult): boolean {
   if (result.blocked) return false;
@@ -74,7 +74,7 @@ export function hookResultShouldContinue(result: HookResult): boolean {
 }
 
 /**
- * Create a default successful HookResult.
+ * 默认创建成功HookResult。
  */
 export function createSuccessResult(): HookResult {
   return {

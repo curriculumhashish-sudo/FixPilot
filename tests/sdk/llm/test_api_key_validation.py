@@ -8,7 +8,7 @@ from openhands.sdk.llm import LLM, Message, TextContent
 
 
 def test_empty_api_key_string_converted_to_none():
-    """Test that empty string API keys are converted to None."""
+    """测试空字符串 API 键是否转换为 None。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -18,7 +18,7 @@ def test_empty_api_key_string_converted_to_none():
 
 
 def test_whitespace_api_key_converted_to_none():
-    """Test that whitespace-only API keys are converted to None."""
+    """测试纯空白 API 键是否转换为 None。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -28,7 +28,7 @@ def test_whitespace_api_key_converted_to_none():
 
 
 def test_valid_api_key_preserved():
-    """Test that valid API keys are preserved."""
+    """测试是否保留有效的 API 键。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("valid-key"), usage_id="test-llm")
     assert llm.api_key is not None
     assert isinstance(llm.api_key, SecretStr)
@@ -36,7 +36,7 @@ def test_valid_api_key_preserved():
 
 
 def test_none_api_key_preserved():
-    """Test that None API keys remain None."""
+    """测试 None API 键是否保留为 None。"""
     llm = LLM(
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
         api_key=None,
@@ -46,16 +46,16 @@ def test_none_api_key_preserved():
 
 
 def test_empty_string_direct_input():
-    """Test that empty string passed directly (not as SecretStr) is converted to None."""  # noqa: E501
-    # This tests the case where someone might pass a string directly
-    # The field validator now accepts str and converts it to SecretStr
+    """测试直接传递的空字符串（不是作为SecretStr）转换为None。"""  # noqa: E501
+    # 这测试了有人可能直接传递字符串的情况字段验证器现在接受 str 并将其转换为 SecretStr
+    #
     data = {"model": "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", "api_key": ""}
     llm = LLM(**data, usage_id="test-llm")  # pyright: ignore[reportArgumentType]
     assert llm.api_key is None
 
 
 def test_whitespace_string_direct_input():
-    """Test that whitespace string passed directly is converted to None."""
+    """测试直接传递的空白字符串是否转换为None。"""
     data = {
         "model": "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
         "api_key": "   \t\n  ",
@@ -65,7 +65,7 @@ def test_whitespace_string_direct_input():
 
 
 def test_bedrock_model_with_none_api_key():
-    """Test that Bedrock models work with None API key (for IAM auth)."""
+    """测试 Bedrock 模型是否与 None API 键（用于 IAM 认证）兼容。"""
     llm = LLM(
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
         api_key=None,
@@ -77,10 +77,11 @@ def test_bedrock_model_with_none_api_key():
 
 
 def test_bedrock_model_with_api_key_not_forwarded_to_litellm():
-    """Test that Bedrock models never forward LLM.api_key to LiteLLM.
+    """测试基岩模型永远不会转发 LLM.api_key 到 LiteLLM。
 
-    LiteLLM interprets the Bedrock api_key parameter as an AWS bearer token.
-    Forwarding a non-Bedrock key (e.g. OpenAI/Anthropic) breaks IAM/SigV4 auth.
+    LiteLLM 将基岩 api_key 参数解释为 AWS 持有者令牌。 转发非基岩密钥 (e.g. OpenAI/
+    Anthropic) 破坏了 IAM/SigV4
+     授权。
     """
 
     llm = LLM(
@@ -96,7 +97,7 @@ def test_bedrock_model_with_api_key_not_forwarded_to_litellm():
 
 
 def test_non_bedrock_model_with_valid_key():
-    """Test that non-Bedrock models work normally with valid API keys."""
+    """测试非基岩模型是否可以使用有效的 API 键正常工作。"""
     llm = LLM(
         model="gpt-4o-mini", api_key=SecretStr("valid-openai-key"), usage_id="test-llm"
     )
@@ -106,7 +107,7 @@ def test_non_bedrock_model_with_valid_key():
 
 
 def test_aws_credentials_handling():
-    """Test that AWS credentials are properly handled for Bedrock models."""
+    """测试基岩模型的 AWS 凭据是否得到正确处理。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -126,7 +127,7 @@ def test_aws_credentials_handling():
 
 
 def test_plain_string_api_key():
-    """Test that plain string API keys are converted to SecretStr."""
+    """测试纯字符串 API 键是否转换为 SecretStr。"""
     llm = LLM(model="gpt-4o-mini", api_key="my-plain-string-key", usage_id="test-llm")
     assert llm.api_key is not None
     assert isinstance(llm.api_key, SecretStr)
@@ -134,7 +135,7 @@ def test_plain_string_api_key():
 
 
 def test_plain_string_aws_credentials():
-    """Test that plain string AWS credentials are converted to SecretStr."""
+    """测试纯字符串 AWS 凭据是否转换为 SecretStr。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -154,7 +155,7 @@ def test_plain_string_aws_credentials():
 
 
 def test_aws_session_token_handling():
-    """Test that aws_session_token is validated as a secret."""
+    """测试 aws_session_token 是否被验证为机密。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -169,7 +170,7 @@ def test_aws_session_token_handling():
 
 
 def test_aws_profile_name_handling():
-    """Test that aws_profile_name is stored as a plain string."""
+    """测试 aws_profile_name 是否存储为纯字符串。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -181,7 +182,7 @@ def test_aws_profile_name_handling():
 
 
 def test_aws_role_based_auth_fields():
-    """Test that STS role-based auth fields are accepted."""
+    """测试是否接受 STS 基于角色的身份验证字段。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -195,7 +196,7 @@ def test_aws_role_based_auth_fields():
 
 
 def test_aws_bedrock_runtime_endpoint():
-    """Test that custom Bedrock endpoint is accepted."""
+    """测试是否接受自定义基岩端点。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -207,7 +208,7 @@ def test_aws_bedrock_runtime_endpoint():
 
 
 def test_aws_bedrock_params_forwarded_to_litellm():
-    """Verify all AWS params are passed as kwargs to litellm.completion()."""
+    """验证所有 AWS 参数都作为 kwargs 传递给 litellm.completion()。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -252,12 +253,11 @@ def test_aws_bedrock_params_forwarded_to_litellm():
 
 
 def test_aws_env_vars_not_leaked_on_init(monkeypatch):
-    """Constructing an LLM with AWS creds must not bleed into os.environ.
+    """使用 AWS 信用构建 LLM 不得渗入 os.environ。
 
-    Writing credentials into the process environment would let one
-    conversation's credentials be picked up by another in a multi-tenant
-    agent server (issue #3138). They must flow per-call via
-    ``_aws_kwargs()`` instead.
+    将凭据写入流程环境将使一个对话的凭据被多租户 Agent Server 中的另一个对话接收（问
+    题 #3138）。 它们必须通过每次调用流动
+    ``_aws_kwargs()`` 代替。
     """
     for k in [
         "AWS_ACCESS_KEY_ID",
@@ -284,7 +284,7 @@ def test_aws_env_vars_not_leaked_on_init(monkeypatch):
 
 
 def test_aws_kwargs_returns_all_params():
-    """Verify _aws_kwargs() builds the correct dict from LLM fields."""
+    """验证 _aws_kwargs() 从 LLM 字段构建正确的字典。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",

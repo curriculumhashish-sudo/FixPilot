@@ -1,6 +1,5 @@
 """
-Test that agent updates terminal truncation limit without broad or
-repetitive test runs.
+测试智能体是否更新终端截断限制，而无需进行广泛或重复的测试运行。
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ INSTRUCTION = append_environment_tips(INSTRUCTION_BODY)
 
 
 class NoOververificationTest(SoftwareAgentSDKBehaviorTest):
-    """Ensure the agent updates truncation limit with scoped verification."""
+    """通过范围验证确保智能体更新截断限制。"""
 
     INSTRUCTION: str = INSTRUCTION
 

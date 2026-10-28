@@ -1,13 +1,12 @@
 """
-Integration test for thinking block handling during condensation.
+集成测试用于上下文压缩期间的思维块处理。
 
-This test validates that Anthropic Claude's thinking blocks are properly handled
-during conversation condensation, preventing malformed signature errors that
-can occur when thinking blocks are included in conversation history.
+该测试验证了 Anthropic 布鲁诺的思考块在对话中被正确处理上下文压缩，防止了包含思考块时
+可能出现的不完整签名错误。
 
-Note: This test only applies to models that support extended_thinking (Anthropic
-Claude models). Models with reasoning_effort (like OpenAI o-series and GPT-5.x)
-produce reasoning items instead of thinking blocks, and are skipped.
+Note: 该测试仅适用于支持extended_thinking（Anthropic
+克劳德模型）。 具有 reasoning_effort 的模型（例如 OpenAI o 系列和 GPT-5.x）会产生推理
+项而不是思维块，并且会被跳过。
 """
 
 from openhands.sdk import LLM, Message, TextContent, Tool
@@ -21,7 +20,7 @@ from openhands.tools.terminal import TerminalTool
 from tests.integration.base import BaseIntegrationTest, SkipTest, TestResult
 
 
-# Module-level instruction for test runner
+# 测试运行程序的模块级指令
 INSTRUCTION = """Using bc calculator, compute:
 1. Compound interest on $5000 at 6% annual rate for 10 years (compounded annually)
    Formula: A = P(1 + r/n)^(nt) where n=1
@@ -34,29 +33,29 @@ Show your calculations step by step."""
 
 class FirstToolLoopCondenser(CondenserBase):
     """
-    Custom condenser that handles condensation by forgetting the first tool loop.
+    通过忘记第一个工具循环来处理上下文压缩的自定义上下文压缩器。
 
-    This condenser is designed to test thinking block handling - it will forget
-    the first atomic unit containing thinking blocks and replace it with a summary.
+    这个上下文压缩器是为了测试思考块处理 - 它会忘记包含思考块的第一个原子单元，并替换
+    它为总结。
     """
 
     def handles_condensation_requests(self) -> bool:
-        """Indicate that this condenser handles explicit condensation requests."""
+        """指示此上下文压缩器处理显式上下文压缩请求。"""
         return True
 
     def condense(self, view: View, agent_llm: LLM | None = None) -> View | Condensation:
         """
-        Condense by forgetting the first tool loop that contains thinking blocks.
+        通过忘记包含思维块的第一个工具循环来浓缩。
 
-        This validates that:
-        1. We can identify atomic units with thinking blocks
-        2. We can forget specific units
-        3. Later thinking blocks are preserved
+        这验证了：
+        1. 我们可以用思维块来识别原子单位
+        2. 我们可以忘记特定的单位
+        3. 后来的思维块被保留
         """
-        # Get manipulation indices which define boundaries of atomic units.
+        # 获取定义原子单元边界的操作索引。
         indices = sorted(view.manipulation_indices)
 
-        # Find atomic units (ranges between consecutive indices) with thinking blocks
+        # 使用思维块查找原子单位（连续索引之间的范围）
         units_with_thinking = []
         for i in range(len(indices) - 1):
             start_idx = indices[i]
@@ -69,25 +68,25 @@ class FirstToolLoopCondenser(CondenserBase):
             if has_thinking:
                 units_with_thinking.append((start_idx, end_idx, i))
 
-        # We need at least two units with thinking blocks to test properly:
-        # - One to forget (first)
-        # - One to keep (second)
+        # 我们至少需要两个具有思维模块的单元才能正确测试：
+        # - 一个被遗忘的人（第一）
+        # - 保留一个（第二个）
         if len(units_with_thinking) < 2:
             return view
 
-        # Forget the first unit with thinking blocks
+        # 忘记第一个带有思维块的单元
         start_idx, end_idx, _ = units_with_thinking[0]
 
-        # Create summary for the forgotten content
+        # 为遗忘的内容创建摘要
         summary = (
             "Previously, I calculated compound and simple interest values "
             "using the bc calculator."
         )
 
-        # Get event IDs to forget
+        # 获取要忘记的事件 ID
         forgotten_event_ids = {event.id for event in view.events[start_idx:end_idx]}
 
-        # Create condensation event
+        # 创建上下文压缩事件
         return Condensation(
             forgotten_event_ids=forgotten_event_ids,
             summary=summary,
@@ -98,22 +97,22 @@ class FirstToolLoopCondenser(CondenserBase):
 
 class ThinkingBlockCondenserTest(BaseIntegrationTest):
     """
-    Test that thinking blocks are properly handled during condensation.
+    测试在上下文压缩期间是否正确处理了思维障碍。
 
-    This test:
-    1. Runs a multi-step conversation that generates thinking blocks
-    2. Triggers condensation manually
-    3. Verifies that:
-       - Multiple thinking blocks were generated
-       - Condensation occurred exactly once
-       - The first thinking block was forgotten
-       - Later thinking blocks were preserved
+    本次测试：
+    1. 进行多步骤对话，产生思维块
+    2. 手动触发上下文压缩
+    3. 验证：
+       - 产生了多个思维块
+       - 上下文压缩只发生一次
+       - 第一个思维块被遗忘了
+       - 后来的思维块被保留下来
     """
 
     INSTRUCTION: str = INSTRUCTION
 
     def __init__(self, *args, **kwargs):
-        """Initialize test with tracking for thinking blocks and condensations."""
+        """通过跟踪思维块和凝结来初始化测试。"""
         self.thinking_block_count = 0
         self.condensation_count = 0
         self.condensed_thinking_blocks = False
@@ -122,48 +121,47 @@ class ThinkingBlockCondenserTest(BaseIntegrationTest):
 
     @property
     def tools(self) -> list[Tool]:
-        """Provide terminal tool for bc calculator."""
+        """提供bc计算器的终端工具。"""
         register_tool("TerminalTool", TerminalTool)
         return [Tool(name="TerminalTool")]
 
     @property
     def condenser(self) -> CondenserBase:
-        """Use custom condenser that handles thinking blocks."""
+        """使用处理思维障碍的自定义上下文压缩器。"""
         return FirstToolLoopCondenser()
 
     @property
     def max_iteration_per_run(self) -> int:
-        """Allow up to 30 iterations per run."""
+        """每次运行最多允许 30 次迭代。"""
         return 30
 
     def setup(self) -> None:
         """
-        Validate that the model supports extended thinking.
+        验证模型支持扩展思维。
 
-        Thinking blocks are specifically supported by Anthropic Claude models
-        with extended_thinking enabled. Models that only support reasoning_effort
-        (like OpenAI o-series and GPT-5.x) produce reasoning items instead of
-        thinking blocks, so they should be skipped.
+        启用了 extended_thinking 的 Anthropic Claude 模型特别支持思维块。 仅支持
+        reasoning_effort 的模型（例
+        如 OpenAI o-series 和 GPT-5.x）会产生推理项而不是思维块，因此应该跳过它们。
         """
         model = self.llm_config.get("model", "")
         features = get_features(model)
 
-        # Check if model has extended thinking configured
+        # 检查模型是否配置了扩展思维
         has_extended_thinking = self.llm_config.get("extended_thinking", False)
 
-        # For Claude Opus, automatically enable extended thinking if not set
+        # 对于 Claude Opus，如果未设置，则自动启用扩展思维
         if "opus" in model.lower() and not has_extended_thinking:
             self.llm_config["extended_thinking"] = True
-            # Recreate LLM with updated config
+            # 使用更新的配置重新创建 LLM
             self.llm = self.llm.__class__(
                 **{**self.llm.model_dump(), **self.llm_config}
             )
             self.agent.llm = self.llm
             has_extended_thinking = True
 
-        # Skip test if model doesn't support extended thinking (which produces
-        # thinking_blocks). Models that only support reasoning_effort produce
-        # responses_reasoning_item instead, which is a different mechanism.
+        # 如果模型不支持扩展思维（产生 thinking_blocks），则跳过测试。 仅支持
+        # reasoning_effort 的模型会生成 responses_reasoning_item，这是一种不同的机制。
+        #
         if not has_extended_thinking and not features.supports_extended_thinking:
             raise SkipTest(
                 f"Model {model} does not support extended thinking "
@@ -171,41 +169,41 @@ class ThinkingBlockCondenserTest(BaseIntegrationTest):
             )
 
     def conversation_callback(self, event):
-        """Track thinking blocks and condensation events."""
+        """跟踪思维障碍和上下文压缩事件。"""
         super().conversation_callback(event)
 
-        # Count thinking blocks before any condensation
+        # 在任何上下文压缩之前计算思维块
         if isinstance(event, ActionEvent) and event.thinking_blocks:
             if self.condensation_count == 0:
                 self.thinking_block_count += 1
             else:
-                # Thinking blocks appearing after condensation means they were preserved
+                # 上下文压缩之后出现的思维块表示被保留
                 self.preserved_thinking_blocks = True
                 self.thinking_block_count += 1
 
-        # Track condensations
+        # 跟踪凝结
         if isinstance(event, Condensation):
             self.condensation_count += 1
-            # If we've seen thinking blocks before and now we're condensing,
-            # we can assume some thinking blocks were condensed
+            # 如果我们以前见过思维块，现在我们正在压缩，我们可以假设一些思维块被压缩了
+            #
             if self.thinking_block_count > 0 and event.forgotten_event_ids:
                 self.condensed_thinking_blocks = True
 
     def run_instructions(self, conversation: LocalConversation) -> None:
         """
-        Execute multi-step conversation flow.
+        执行多步骤对话流。
 
-        Steps:
-        1. Initial calculation request
-        2. Verification request to ensure correctness
-        3. Manual condensation trigger
-        4. Additional calculation with different parameters
+        步骤：
+        1. 初始计算请求
+        2. 验证请求以确保正确性
+        3. 手动上下文压缩触发
+        4. 不同参数的附加计算
         """
-        # Step 1: Initial instruction
+        # 第 1 步：初始说明
         conversation.send_message(message=self.instruction_message)
         conversation.run()
 
-        # Step 2: Ask for verification (generates more thinking)
+        # 第 2 步：要求验证（产生更多思考）
         conversation.send_message(
             message=Message(
                 role="user",
@@ -221,7 +219,7 @@ class ThinkingBlockCondenserTest(BaseIntegrationTest):
         )
         conversation.run()
 
-        # Step 3: Trigger condensation manually
+        # 步骤 3：手动触发上下文压缩
         conversation.send_message(
             message=Message(
                 role="user",
@@ -232,41 +230,41 @@ class ThinkingBlockCondenserTest(BaseIntegrationTest):
                 ],
             )
         )
-        # Request condensation before running
+        # 运行前请求上下文压缩
         conversation.condense()
         conversation.run()
 
     def verify_result(self) -> TestResult:
         """
-        Verify that thinking blocks were handled correctly during condensation.
+        验证在上下文压缩期间是否正确处理了思维块。
 
-        Success criteria:
-        1. At least 3 thinking blocks generated (across multiple steps)
-        2. At least 1 condensation event triggered (may be automatic or manual)
-        3. Thinking blocks were condensed (forgotten) at some point
-        4. Later thinking blocks were preserved (new blocks after condensation)
+        成功标准：
+        1. 至少生成 3 个思维块（跨多个步骤）
+        2. 至少触发 1 上下文压缩个事件（可以是自动或手动）
+        3. 思维块在某个时刻被浓缩（被遗忘）
+        4. 后来的思考块被保留（上下文压缩之后的新块）
         """
         reasons = []
 
-        # Check thinking block count
+        # 检查思维块数量
         if self.thinking_block_count < 3:
             reasons.append(
                 f"Expected at least 3 thinking blocks, got {self.thinking_block_count}"
             )
 
-        # Check condensation count (allow multiple condensations)
+        # 检查上下文压缩计数（允许多次冷凝）
         if self.condensation_count < 1:
             reasons.append(
                 f"Expected at least 1 condensation event, got {self.condensation_count}"
             )
 
-        # Check that thinking blocks were condensed
+        # 检查思维块是否被浓缩
         if not self.condensed_thinking_blocks:
             reasons.append(
                 "Expected first thinking block to be forgotten during condensation"
             )
 
-        # Check that later thinking blocks were preserved
+        # 检查后来的思维块是否被保留
         if not self.preserved_thinking_blocks:
             reasons.append("Expected new thinking blocks to appear after condensation")
 

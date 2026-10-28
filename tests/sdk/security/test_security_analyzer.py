@@ -1,4 +1,4 @@
-"""Tests for the SecurityAnalyzer class."""
+"""SecurityAnalyzer 类的测试。"""
 
 from pydantic import Field
 
@@ -10,14 +10,14 @@ from openhands.sdk.tool import Action
 
 
 class SecurityAnalyzerMockAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str = "test_command"
 
 
 class SecurityAnalyzer(SecurityAnalyzerBase):
-    """Test implementation of SecurityAnalyzer with controllable security_risk
-    method.
+    """使用可控 security_risk 测试 SecurityAnalyzer 的实现
+    方法。
     """
 
     risk_return_value: SecurityRisk = SecurityRisk.LOW
@@ -26,22 +26,22 @@ class SecurityAnalyzer(SecurityAnalyzerBase):
     close_calls: list[bool] = Field(default_factory=list)
 
     def security_risk(self, action: ActionEvent) -> SecurityRisk:
-        """Return configurable risk level for testing."""
+        """返回可配置的测试风险级别。"""
         self.security_risk_calls.append(action)
         return self.risk_return_value
 
     def handle_api_request(self, request_data: dict) -> dict:
-        """Mock implementation - not tested as it's going away."""
+        """模拟对象实施 - 未测试，因为它即将消失。"""
         self.handle_api_request_calls.append(request_data)
         return {"status": "ok"}
 
     def close(self) -> None:
-        """Mock implementation - not tested as it's going away."""
+        """模拟对象实施 - 未测试，因为它即将消失。"""
         self.close_calls.append(True)
 
 
 def create_mock_action_event(action: Action) -> ActionEvent:
-    """Helper to create ActionEvent for testing."""
+    """帮助程序创建 ActionEvent 用于测试。"""
     return ActionEvent(
         thought=[TextContent(text="test thought")],
         action=action,
@@ -58,7 +58,7 @@ def create_mock_action_event(action: Action) -> ActionEvent:
 
 
 def test_analyze_event_with_action_event():
-    """Test analyze_event with ActionEvent returns security risk."""
+    """使用 ActionEvent 测试 analyze_event 返回安全风险。"""
     analyzer = SecurityAnalyzer(risk_return_value=SecurityRisk.MEDIUM)
     action = SecurityAnalyzerMockAction(command="test")
     action_event = create_mock_action_event(action)
@@ -71,7 +71,7 @@ def test_analyze_event_with_action_event():
 
 
 def test_analyze_event_with_non_action_event():
-    """Test analyze_event with non-ActionEvent returns None."""
+    """使用非 ActionEvent 测试 analyze_event 返回 None。"""
     analyzer = SecurityAnalyzer(risk_return_value=SecurityRisk.HIGH)
 
     result = analyzer.analyze_event(PauseEvent())
@@ -81,7 +81,7 @@ def test_analyze_event_with_non_action_event():
 
 
 def test_analyze_pending_actions_success():
-    """Test analyze_pending_actions with successful analysis."""
+    """测试 analyze_pending_actions 并成功分析。"""
     analyzer = SecurityAnalyzer(risk_return_value=SecurityRisk.MEDIUM)
 
     action1 = SecurityAnalyzerMockAction(command="action1")
@@ -100,7 +100,7 @@ def test_analyze_pending_actions_success():
 
 
 def test_analyze_pending_actions_empty_list():
-    """Test analyze_pending_actions with empty list."""
+    """使用空列表测试 analyze_pending_actions。"""
     analyzer = SecurityAnalyzer(risk_return_value=SecurityRisk.LOW)
 
     result = analyzer.analyze_pending_actions([])
@@ -110,11 +110,11 @@ def test_analyze_pending_actions_empty_list():
 
 
 def test_analyze_pending_actions_with_exception():
-    """Test analyze_pending_actions handles exceptions by defaulting to HIGH risk."""
+    """测试 analyze_pending_actions 通过默认 HIGH 风险来处理异常。"""
 
     class FailingAnalyzer(SecurityAnalyzer):
         def security_risk(self, action: ActionEvent) -> SecurityRisk:
-            super().security_risk(action)  # Record the call
+            super().security_risk(action)  # 通话录音
             raise ValueError("Analysis failed")
 
     analyzer = FailingAnalyzer()
@@ -129,7 +129,7 @@ def test_analyze_pending_actions_with_exception():
 
 
 def test_analyze_pending_actions_mixed_risks() -> None:
-    """Test analyze_pending_actions with different risk levels."""
+    """使用不同的风险级别测试 analyze_pending_actions。"""
 
     class VariableRiskAnalyzer(SecurityAnalyzer):
         call_count: int = 0
@@ -160,12 +160,13 @@ def test_analyze_pending_actions_mixed_risks() -> None:
 
 
 def test_analyze_pending_actions_partial_failure():
-    """Test analyze_pending_actions with some actions failing analysis."""
+    """使用某些未通过分析的操作来测试 analyze_pending_actions。"""
 
     class PartiallyFailingAnalyzer(SecurityAnalyzer):
         def security_risk(self, action: ActionEvent) -> SecurityRisk:
-            # In general not needed, but the test security analyzer is also recording
-            # all the calls for testing purposes and this ensures we keep that behavior
+            # 一般来说不需要，但测试安全分析器也会记录所有用于测试目的的调用，这确保我们
+            # 保持这种行为
+            #
             super().security_risk(action)
 
             assert hasattr(action.action, "command")
@@ -189,6 +190,6 @@ def test_analyze_pending_actions_partial_failure():
 
     assert len(result) == 3
     assert result[0][1] == SecurityRisk.LOW
-    assert result[1][1] == SecurityRisk.HIGH  # Failed analysis defaults to HIGH
+    assert result[1][1] == SecurityRisk.HIGH  # 分析失败默认为 HIGH
     assert result[2][1] == SecurityRisk.LOW
     assert len(analyzer.security_risk_calls) == 3

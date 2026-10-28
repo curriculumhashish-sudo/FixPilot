@@ -1,13 +1,15 @@
-"""Tests for the joint input/output token budget clamp.
+"""测试联合输入/输出词元预算钳位。
 
-Some providers (notably AWS Bedrock for Anthropic models) enforce
-``input_tokens + max_tokens <= context_window``. After BerriAI/litellm#17900
-litellm's default for ``max_tokens`` became the model's full
-``max_output_tokens`` (e.g. 64k for Sonnet 4.5). For Bedrock this means any
-input above roughly ``context_window - max_output_tokens`` fails with "Input
-is too long for requested model" even when the actual response would be small.
+一些提供商（特别是 Anthropic 模型的 AWS Bedrock）强制执行
+``input_tokens + max_tokens <= context_window``. 在 BerriAI/litellm#17900 LiteLLM 的
+默认值
+``max_tokens`` 成为模型的完整版本之后
+``max_output_tokens``（e.g。十四行诗 4.5 为 64k）。 对于 Bedrock 来说，这意味着任何上
+面大约
+``context_window - max_output_tokens`` 的输入都会失败，并显示“输入对于请求的模型来说
+太长”，即使实际响应很小。
 
-These tests cover the request-time clamp added to ``LLM._finalize_completion_params``.
+这些测试涵盖了添加到 ``LLM._finalize_completion_params`` 的请求时间限制。
 """
 
 from __future__ import annotations
@@ -30,14 +32,15 @@ def _make_llm(model: str, *, max_input_tokens: int = 200_000) -> LLM:
         api_key=SecretStr("test"),
         max_input_tokens=max_input_tokens,
     )
-    # Stabilize across environments: skip the LiteLLM model-info lookup that
-    # happens in ``_init_model_info_and_caps`` by pinning the effective window
-    # directly. ``max_input_tokens=`` already feeds ``effective_max_input_tokens``.
+    # 跨环境稳定：通过直接固定有效窗口，跳过 ``_init_model_info_and_caps`` 中发生的
+    # LiteLLM 模型信息查找。 ``max_input_tokens=`` 已经喂食
+    # ``effective_max_input_tokens``。
+    #
     return llm
 
 
 def test_bedrock_clamps_max_tokens_when_input_is_large():
-    """Bedrock with 195k input + 64k requested output must be clamped."""
+    """具有 195k 输入 + 64k 请求输出的基岩必须被钳位。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_completion_tokens": 64_000}
 
@@ -51,25 +54,25 @@ def test_bedrock_clamps_max_tokens_when_input_is_large():
 
 
 def test_bedrock_does_not_clamp_when_input_is_small():
-    """Bedrock with small input fits the full 64k output budget unchanged."""
+    """具有小输入的基岩适合不变的完整 64k 输出预算。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_completion_tokens": 64_000}
 
-    # 50k input + 64k output = 114k, well under the 200k window.
+    # 50k 输入 + 64k 输出 = 114k，远低于 200k 窗口。
     with patch("openhands.sdk.llm.llm.token_counter", return_value=50_000):
         out = llm._clamp_max_tokens_for_joint_budget(call_kwargs, [], [])
 
     assert out["max_completion_tokens"] == 64_000
-    # Same dict identity not required, but should be unchanged in content.
+    # 不需要相同的字典标识，但内容应保持不变。
     assert out == call_kwargs
 
 
 def test_bedrock_floor_when_input_nearly_fills_window():
-    """When headroom < floor, clamp to the floor (and warn)."""
+    """当净空 < 地板时，夹在地板上（并发出警告）。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_completion_tokens": 64_000}
 
-    # 199.9k input leaves only ~100 tokens of true headroom, well below floor.
+    # 199.9k 输入仅留下约 100 token 的 True 净空，远低于地板。
     with patch("openhands.sdk.llm.llm.token_counter", return_value=199_900):
         out = llm._clamp_max_tokens_for_joint_budget(call_kwargs, [], [])
 
@@ -77,11 +80,11 @@ def test_bedrock_floor_when_input_nearly_fills_window():
 
 
 def test_anthropic_direct_is_never_clamped():
-    """Anthropic direct API has independent input/output budgets -- no clamp."""
+    """Anthropic 直接 API 具有独立的输入/输出预算——无限制。"""
     llm = _make_llm("claude-sonnet-4-5-20250929")
     call_kwargs = {"max_completion_tokens": 64_000}
 
-    # Even a huge input must not clamp on a non-joint provider.
+    # 即使投入巨大，也不能限制非联合提供商。
     with patch("openhands.sdk.llm.llm.token_counter", return_value=195_000):
         out = llm._clamp_max_tokens_for_joint_budget(call_kwargs, [], [])
 
@@ -90,7 +93,7 @@ def test_anthropic_direct_is_never_clamped():
 
 
 def test_clamps_max_tokens_key_too():
-    """The clamp targets whichever budget key is present (Azure / thinking use max_tokens)."""  # noqa: E501
+    """钳位目标是存在的任何预算键（Azure / 思考使用 max_tokens）。"""  # noqa: E501
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_tokens": 64_000}
 
@@ -102,7 +105,7 @@ def test_clamps_max_tokens_key_too():
 
 
 def test_no_clamp_when_no_budget_key_present():
-    """If neither max_tokens nor max_completion_tokens is set, leave kwargs alone."""
+    """如果 max_tokens 和 max_completion_tokens 均未设置，则保留 kwargs。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"temperature": 0.0}
 
@@ -113,12 +116,12 @@ def test_no_clamp_when_no_budget_key_present():
 
 
 def test_user_supplied_smaller_budget_is_preserved():
-    """If the caller already passed a budget that fits, don't change it."""
+    """如果来电者已经通过了合适的预算，请不要更改它。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_completion_tokens": 2_000}
 
-    # 195k input + user-supplied 2k output = 197k, still fits the 200k window
-    # after the safety margin. Should not be clamped.
+    # 195k 输入 + 用户提供的 2k 输出 = 197k，仍然适合安全裕度后的 200k 窗口。 不宜夹住。
+    #
     with patch("openhands.sdk.llm.llm.token_counter", return_value=195_000):
         out = llm._clamp_max_tokens_for_joint_budget(call_kwargs, [], [])
 
@@ -126,7 +129,7 @@ def test_user_supplied_smaller_budget_is_preserved():
 
 
 def test_clamp_skipped_when_token_counter_raises():
-    """If counting fails, fall back to the unclamped behavior (and log)."""
+    """如果计数失败，则返回到未夹紧的行为（并记录）。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
     call_kwargs = {"max_completion_tokens": 64_000}
 
@@ -140,10 +143,10 @@ def test_clamp_skipped_when_token_counter_raises():
 
 
 def test_finalize_completion_params_applies_clamp_end_to_end():
-    """Reproduces the customer error path: large input on Bedrock Sonnet 4.5
-    must result in a clamped budget, not the model's full 64k output."""
+    """重现客户错误路径：Bedrock Sonnet 4.5 上的大量输入
+    必须导致预算受限，而不是模型的完整 64k 输出。"""
     llm = _make_llm("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
-    llm._effective_max_output_tokens = 64_000  # mirror what registry would set
+    llm._effective_max_output_tokens = 64_000  # 镜像注册表将设置的内容
 
     messages = [Message(role="user", content=[TextContent(text="hello")])]
     formatted = llm.format_messages_for_llm(messages)
@@ -165,18 +168,18 @@ def test_finalize_completion_params_applies_clamp_end_to_end():
     budget = call_kwargs.get("max_tokens") or call_kwargs.get("max_completion_tokens")
     assert budget is not None
     assert budget < 64_000
-    # Should have clamped to headroom (well above floor for 195k input).
+    # 应固定在净空高度（195k 输入远高于地板）。
     assert budget == 200_000 - 195_000 - JOINT_BUDGET_SAFETY_MARGIN_TOKENS
 
 
 def test_no_clamp_when_context_window_unknown():
-    """If we don't know the context window, we can't safely clamp."""
+    """如果我们不知道上下文窗口，我们就无法安全地钳位。"""
     llm = LLM(
         usage_id="test-llm",
         model="bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         api_key=SecretStr("test"),
     )
-    # Force unknown window after init.
+    # 初始化后强制未知窗口。
     llm._effective_max_input_tokens = None
     call_kwargs = {"max_completion_tokens": 64_000}
 

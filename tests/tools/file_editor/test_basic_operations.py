@@ -1,4 +1,4 @@
-"""Tests for basic file editor operations."""
+"""测试基本文件编辑器操作。"""
 
 from pathlib import Path
 
@@ -28,7 +28,7 @@ from .conftest import (
 @pytest.fixture
 def editor(tmp_path):
     editor = FileEditor()
-    # Set up a temporary directory with test files
+    # 设置包含测试文件的临时目录
     test_file = tmp_path / "test.txt"
     test_file.write_text("This is a test file.\nThis file is for testing purposes.")
     return editor, test_file
@@ -37,22 +37,22 @@ def editor(tmp_path):
 @pytest.fixture
 def editor_python_file_with_tabs(tmp_path):
     editor = FileEditor()
-    # Set up a temporary directory with test files
+    # 设置包含测试文件的临时目录
     test_file = tmp_path / "test.py"
     test_file.write_text('def test():\n\tprint("Hello, World!")')
     return editor, test_file
 
 
 def test_file_editor_happy_path(temp_file):
-    """Test basic str_replace operation."""
+    """测试基本的str_replace操作。"""
     old_str = "test file"
     new_str = "sample file"
 
-    # Create test file
+    # 创建测试文件
     with open(temp_file, "w") as f:
         f.write("This is a test file.\nThis file is for testing purposes.")
 
-    # Call the `file_editor` function
+    # 调用`file_editor`函数
     result = file_editor(
         command="str_replace",
         path=str(temp_file),
@@ -60,7 +60,7 @@ def test_file_editor_happy_path(temp_file):
         new_str=new_str,
     )
 
-    # Validate the result
+    # 验证结果
     assert_successful_result(result, str(temp_file))
     assert (
         result.text is not None
@@ -78,15 +78,15 @@ def test_file_editor_happy_path(temp_file):
         == "This is a sample file.\nThis file is for testing purposes."
     )
 
-    # Ensure the file content was updated
+    # 确保文件内容已更新
     with open(temp_file) as f:
         content = f.read()
     assert "This is a sample file." in content
 
 
 def test_file_editor_view_operation(temp_file):
-    """Test view operation with file containing special content."""
-    # Create content that includes various patterns
+    """使用包含特殊内容的文件测试视图操作。"""
+    # 创建包含各种模式的内容
     xml_content = """This is a file with XML tags parsing logic...
 match = re.search(
     r'<oh_aci_output_[0-9a-f]{32}>(.*?)</oh_aci_output_[0-9a-f]{32}>',
@@ -104,7 +104,7 @@ match = re.search(
         path=str(temp_file),
     )
 
-    # Validate the result
+    # 验证结果
     assert_successful_result(result, str(temp_file))
     assert (
         result.text is not None
@@ -119,13 +119,13 @@ match = re.search(
 
 
 def test_successful_operations(temp_file):
-    """Test successful file operations and their output formatting."""
-    # Create a test file
+    """测试成功的文件操作及其输出格式。"""
+    # 创建测试文件
     content = "line 1\nline 2\nline 3\n"
     with open(temp_file, "w") as f:
         f.write(content)
 
-    # Test view
+    # 测试视图
     result = file_editor(
         command="view",
         path=str(temp_file),
@@ -137,7 +137,7 @@ def test_successful_operations(temp_file):
     )
     assert result.text is not None and "line 1" in result.text
 
-    # Test str_replace
+    # 测试 str_replace
     result = file_editor(
         command="str_replace",
         path=str(temp_file),
@@ -148,7 +148,7 @@ def test_successful_operations(temp_file):
     assert result.text is not None and "has been edited" in result.text
     assert result.text is not None and "replaced line" in result.text
 
-    # Test insert
+    # 测试插入件
     result = file_editor(
         command="insert",
         path=str(temp_file),
@@ -159,7 +159,7 @@ def test_successful_operations(temp_file):
     assert result.text is not None and "has been edited" in result.text
     assert result.text is not None and "inserted line" in result.text
 
-    # Test undo
+    # 测试撤消
     result = file_editor(
         command="undo_edit",
         path=str(temp_file),
@@ -169,23 +169,23 @@ def test_successful_operations(temp_file):
 
 
 def test_tab_expansion(temp_file):
-    """Test that tabs are properly handled in file operations."""
-    # Create a file with tabs
+    """测试文件操作中是否正确处理选项卡。"""
+    # 创建一个带有选项卡的文件
     content = "no tabs\n\tindented\nline\twith\ttabs\n"
     with open(temp_file, "w") as f:
         f.write(content)
 
-    # Test view command
+    # 测试视图命令
     result = file_editor(
         command="view",
         path=str(temp_file),
     )
     assert_successful_result(result)
-    # Tabs should be preserved in output
+    # 选项卡应保留在输出中
     assert result.text is not None and "\tindented" in result.text
     assert result.text is not None and "line\twith\ttabs" in result.text
 
-    # Test str_replace with tabs in old_str
+    # 使用 old_str 中的选项卡测试 str_replace
     result = file_editor(
         command="str_replace",
         path=str(temp_file),
@@ -195,7 +195,7 @@ def test_tab_expansion(temp_file):
     assert_successful_result(result)
     assert result.text is not None and "replaced line" in result.text
 
-    # Test str_replace with tabs in new_str
+    # 使用 new_str 中的选项卡测试 str_replace
     result = file_editor(
         command="str_replace",
         path=str(temp_file),
@@ -205,7 +205,7 @@ def test_tab_expansion(temp_file):
     assert_successful_result(result)
     assert result.text is not None and "new\tline\twith\ttabs" in result.text
 
-    # Test insert with tabs
+    # 测试带有标签的插入件
     result = file_editor(
         command="insert",
         path=str(temp_file),
@@ -217,8 +217,8 @@ def test_tab_expansion(temp_file):
 
 
 def test_create_operation(temp_file):
-    """Test file creation operation."""
-    # Remove the temp file first
+    """测试文件创建操作。"""
+    # 首先删除临时文件
     temp_file.unlink()
 
     content = "This is a new file.\nWith multiple lines."
@@ -234,25 +234,25 @@ def test_create_operation(temp_file):
     assert result.prev_exist is False
     assert result.new_content == content
 
-    # Verify file was created with correct content
+    # 验证文件已创建且内容正确
     with open(temp_file) as f:
         file_content = f.read()
     assert file_content == content
 
 
 def test_view_operation_truncation(temp_file):
-    """Test that view operation truncates large files correctly."""
+    """测试视图操作是否正确截断大文件。"""
     from openhands.tools.file_editor.utils.constants import (
         MAX_RESPONSE_LEN_CHAR,
         TEXT_FILE_CONTENT_TRUNCATED_NOTICE,
     )
 
-    # Create a large file that exceeds the str_replace_editor's truncation limit
+    # 创建超出 str_replace_editor 截断限制的大文件
     large_content = "A" * (MAX_RESPONSE_LEN_CHAR + 1000)
     with open(temp_file, "w") as f:
         f.write(large_content)
 
-    # Test view command
+    # 测试视图命令
     result = file_editor(
         command="view",
         path=str(temp_file),
@@ -261,17 +261,17 @@ def test_view_operation_truncation(temp_file):
     assert_successful_result(result)
     assert result.text is not None
 
-    # Check that truncation notice is present
+    # 检查是否存在截断通知
     assert TEXT_FILE_CONTENT_TRUNCATED_NOTICE in result.text
 
-    # The content should be truncated before line numbers are added
-    # So the final output will be longer than MAX_RESPONSE_LEN_CHAR due to formatting
-    # but the original content was truncated
+    # 内容应该在添加行号之前截断，因此最终输出会比 MAX_RESPONSE_LEN_CHAR 长，但由于格式
+    # 化，原始内容被截断
+    #
     assert "Here's the result of running `cat -n`" in result.text
 
-    # With head-and-tail truncation, should contain both start and end content
-    # The line numbers will show as "     1\tA..." at start and end with "A"
-    assert "\tA" in result.text  # Should have A's with tab formatting
+    # 使用头尾截断，应包含开始和结束内容行号将在开始和结束处显示为“1\tA...”，并以“A”结束
+    #
+    assert "\tA" in result.text  # 应该有带有制表符格式的 A
 
 
 def test_view_file(editor):
@@ -281,7 +281,7 @@ def test_view_file(editor):
     assert f"Here's the result of running `cat -n` on {test_file}:" in result.text
     assert "1\tThis is a test file." in result.text
     assert "2\tThis file is for testing purposes." in result.text
-    assert "3\t" not in result.text  # No extra line
+    assert "3\t" not in result.text  # 无需额外线路
 
 
 @pytest.mark.parametrize(
@@ -290,9 +290,9 @@ def test_view_file(editor):
         ("hello", ["     1\thello"]),
         ("hello\n", ["     1\thello"]),
         ("hello\n\n", ["     1\thello", "     2\t"]),
-        # `\x0c` (form feed) and `\u2028` are line breaks for str.splitlines() but
-        # ordinary characters for read_file/insert/view_range, so they must not
-        # shift line numbers.
+        # `\x0c`（换页）和 `\u2028` 是 str.splitlines() 的换行符，但 read_file/insert/
+        # view_range 的普通字符，因此它们不能移动行号。
+        #
         ("a\x0cb\nc\n", ["     1\ta\x0cb", "     2\tc"]),
         (
             'const s = "a\u2028b";\ngamma\n',
@@ -312,10 +312,10 @@ def test_view_line_numbers_match_file_lines(tmp_path, content, numbered_lines):
 
 
 def test_insert_line_number_matches_view_with_form_feed(tmp_path):
-    """A form feed must not shift the line an insert lands on.
+    """换页不得移动插入内容所在的行。
 
-    `view` numbers `int b;` on line 2, so inserting at line 2 must land right
-    after it, not after `int c;`.
+    `view` 数字 `int b;` 位于第 2 行，因此在第 2 行插入必须紧接其后，而不是在
+    `int c;` 之后。
     """
     path = tmp_path / "formfeed.c"
     path.write_text("int a;\x0cint b;\nint c;\n")
@@ -363,7 +363,7 @@ def test_view_directory(editor):
 def test_view_with_a_specific_range(editor):
     editor, test_file = editor
 
-    # Replace the current content with content: Line {line_number}
+    # 将当前内容替换为内容：第 {line_number} 行
     _ = editor(
         command="str_replace",
         path=str(test_file),
@@ -378,7 +378,7 @@ def test_view_with_a_specific_range(editor):
             new_str=f"Line {i + 1}",
         )
 
-    # View file in range 50-100
+    # 查看 50-100 范围内的文件
     result = editor(command="view", path=str(test_file), view_range=[50, 100])
     assert f"Here's the result of running `cat -n` on {test_file}:" in result.text
     assert "    49\tLine 49" not in result.text
@@ -426,7 +426,7 @@ def test_str_replace_no_linting(editor):
     )
     assert isinstance(result, FileEditorObservation)
 
-    # Test str_replace command
+    # 测试str_replace命令
     assert (
         result.text
         == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of {test_file}:
@@ -435,7 +435,7 @@ def test_str_replace_no_linting(editor):
 Review the changes and make sure they are as expected. Edit the file again if necessary."""  # noqa: E501
     )
 
-    # Test that the file content has been updated
+    # 测试文件内容是否已更新
     assert "This is a sample file." in test_file.read_text()
 
 
@@ -449,7 +449,7 @@ def test_str_replace_multi_line_no_linting(editor):
     )
     assert isinstance(result, FileEditorObservation)
 
-    # Test str_replace command
+    # 测试str_replace命令
     assert (
         result.text
         == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of {test_file}:
@@ -485,12 +485,12 @@ def test_str_replace_error_multiple_occurrences(editor):
             command="str_replace", path=str(test_file), old_str="test", new_str="sample"
         )
     assert "Multiple occurrences of old_str `test`" in str(exc_info.value.message)
-    assert "[1, 2]" in str(exc_info.value.message)  # Should show both line numbers
+    assert "[1, 2]" in str(exc_info.value.message)  # 应显示两个行号
 
 
 def test_str_replace_error_multiple_multiline_occurrences(editor):
     editor, test_file = editor
-    # Create a file with two identical multi-line blocks
+    # 创建一个包含两个相同的多行块的文件
     multi_block = """def example():
     print("Hello")
     return True"""
@@ -506,7 +506,7 @@ def test_str_replace_error_multiple_multiline_occurrences(editor):
         )
     error_msg = str(exc_info.value.message)
     assert "Multiple occurrences of old_str" in error_msg
-    assert "[1, 7]" in error_msg  # Should show correct starting line numbers
+    assert "[1, 7]" in error_msg  # 应显示正确的起始行号
 
 
 def test_str_replace_nonexistent_string(editor):
@@ -608,7 +608,7 @@ def test_insert_with_empty_string(editor):
     assert isinstance(result, FileEditorObservation)
     content = test_file.read_text().splitlines()
     assert "" in content
-    assert len(content) == 3  # Original 2 lines plus empty line
+    assert len(content) == 3  # 原来2行加空行
 
 
 def test_insert_chinese_text_into_english_file(editor):
@@ -645,47 +645,47 @@ def test_insert_with_none_new_str(editor):
 
 def test_undo_edit(editor):
     editor, test_file = editor
-    # Make an edit to be undone
+    # 进行要撤消的编辑
     result = editor(
         command="str_replace",
         path=str(test_file),
         old_str="test file",
         new_str="sample file",
     )
-    # Undo the edit
+    # 撤消编辑
     result = editor(command="undo_edit", path=str(test_file))
     assert isinstance(result, FileEditorObservation)
     assert "Last edit to" in result.text
-    assert "test file" in test_file.read_text()  # Original content restored
+    assert "test file" in test_file.read_text()  # 恢复了原来的内容
 
 
 def test_multiple_undo_edits(editor):
     editor, test_file = editor
-    # Make an edit to be undone
+    # 进行要撤消的编辑
     _ = editor(
         command="str_replace",
         path=str(test_file),
         old_str="test file",
         new_str="sample file v1",
     )
-    # Make another edit to be undone
+    # 进行另一次编辑以撤消
     _ = editor(
         command="str_replace",
         path=str(test_file),
         old_str="sample file v1",
         new_str="sample file v2",
     )
-    # Undo the last edit
+    # 撤消上次编辑
     result = editor(command="undo_edit", path=str(test_file))
     assert isinstance(result, FileEditorObservation)
     assert "Last edit to" in result.text
-    assert "sample file v1" in test_file.read_text()  # Previous content restored
+    assert "sample file v1" in test_file.read_text()  # 恢复之前的内容
 
-    # Undo the first edit
+    # 撤消第一次编辑
     result = editor(command="undo_edit", path=str(test_file))
     assert isinstance(result, FileEditorObservation)
     assert "Last edit to" in result.text
-    assert "test file" in test_file.read_text()  # Original content restored
+    assert "test file" in test_file.read_text()  # 恢复了原来的内容
 
 
 def test_validate_path_invalid(editor):
@@ -739,61 +739,61 @@ def test_undo_edit_no_history_error(editor):
 def test_view_directory_with_hidden_files(tmp_path):
     editor = FileEditor()
 
-    # Create a directory with some test files
+    # 创建一个包含一些测试文件的目录
     test_dir = tmp_path / "test_dir"
     test_dir.mkdir()
     (test_dir / "visible.txt").write_text("content1")
     (test_dir / ".hidden1").write_text("hidden1")
     (test_dir / ".hidden2").write_text("hidden2")
 
-    # Create a hidden subdirectory with a file
+    # 创建一个包含文件的隐藏子目录
     hidden_subdir = test_dir / ".hidden_dir"
     hidden_subdir.mkdir()
     (hidden_subdir / "file.txt").write_text("content3")
 
-    # Create a visible subdirectory
+    # 创建可见子目录
     visible_subdir = test_dir / "visible_dir"
     visible_subdir.mkdir()
 
-    # View the directory
+    # 查看目录
     result = editor(command="view", path=str(test_dir))
 
-    # Verify output
+    # 验证输出
     assert isinstance(result, FileEditorObservation)
     assert str(test_dir) in result.text
-    assert "visible.txt" in result.text  # Visible file is shown
-    assert "visible_dir" in result.text  # Visible directory is shown
-    assert ".hidden1" not in result.text  # Hidden files not shown
+    assert "visible.txt" in result.text  # 显示可见文件
+    assert "visible_dir" in result.text  # 显示可见目录
+    assert ".hidden1" not in result.text  # 隐藏文件不显示
     assert ".hidden2" not in result.text
     assert ".hidden_dir" not in result.text
     assert (
         "3 hidden files/directories in this directory are excluded" in result.text
-    )  # Shows count of hidden items in current dir only
-    assert "ls -la" in result.text  # Shows command to view hidden files
+    )  # 仅显示当前目录中隐藏项目的数量
+    assert "ls -la" in result.text  # 显示查看隐藏文件的命令
 
 
 def test_view_symlinked_directory(tmp_path):
     editor = FileEditor()
 
-    # Create a directory with some test files
+    # 创建一个包含一些测试文件的目录
     source_dir = tmp_path / "source_dir"
     source_dir.mkdir()
     (source_dir / "file1.txt").write_text("content1")
     (source_dir / "file2.txt").write_text("content2")
 
-    # Create a subdirectory with a file
+    # 创建一个包含文件的子目录
     subdir = source_dir / "subdir"
     subdir.mkdir()
     (subdir / "file3.txt").write_text("content3")
 
-    # Create a symlink to the directory
+    # 创建目录的符号链接
     symlink_dir = tmp_path / "symlink_dir"
     symlink_or_skip(source_dir, symlink_dir)
 
-    # View the symlinked directory
+    # 查看符号链接目录
     result = editor(command="view", path=str(symlink_dir))
 
-    # Verify that all files are listed through the symlink
+    # 验证是否通过符号链接列出了所有文件
     assert isinstance(result, FileEditorObservation)
     assert str(symlink_dir) in result.text
     assert "file1.txt" in result.text
@@ -804,10 +804,10 @@ def test_view_symlinked_directory(tmp_path):
 
 def test_view_large_directory_with_truncation(editor, tmp_path):
     editor, _ = editor
-    # Create a directory with many files to trigger truncation
+    # 创建包含许多文件的目录以触发截断
     large_dir = tmp_path / "large_dir"
     large_dir.mkdir()
-    for i in range(1000):  # 1000 files should trigger truncation
+    for i in range(1000):  # 1000 个文件应触发截断
         (large_dir / f"file_{i}.txt").write_text("content")
 
     result = editor(command="view", path=str(large_dir))
@@ -816,68 +816,61 @@ def test_view_large_directory_with_truncation(editor, tmp_path):
 
 
 def test_view_directory_on_hidden_path(tmp_path):
-    """Directory structure:
-    .test_dir/
-    ├── visible1.txt
-    ├── .hidden1
-    ├── visible_dir/
-    │   ├── visible2.txt
-    │   └── .hidden2
-    └── .hidden_dir/
-        ├── visible3.txt
-        └── .hidden3
-    """
+    """目录结构：
+    .test_dir/ ├── visible1.txt ├── .hidden1 ├── visible_dir/ │ ├── visible2.txt │ └── .hidden2 └── .hidden_dir/
+        ├── visible3.txt └── .hidden3
+    """  # noqa: E501
 
     editor = FileEditor()
 
-    # Create a directory with test files at depth 1
+    # 创建一个目录，其中包含深度为 1 的测试文件
     hidden_test_dir = tmp_path / ".hidden_test_dir"
     hidden_test_dir.mkdir()
     (hidden_test_dir / "visible1.txt").write_text("content1")
     (hidden_test_dir / ".hidden1").write_text("hidden1")
 
-    # Create a visible subdirectory with visible and hidden files
+    # 创建包含可见和隐藏文件的可见子目录
     visible_subdir = hidden_test_dir / "visible_dir"
     visible_subdir.mkdir()
     (visible_subdir / "visible2.txt").write_text("content2")
     (visible_subdir / ".hidden2").write_text("hidden2")
 
-    # Create a hidden subdirectory with visible and hidden files
+    # 创建一个包含可见和隐藏文件的隐藏子目录
     hidden_subdir = hidden_test_dir / ".hidden_dir"
     hidden_subdir.mkdir()
     (hidden_subdir / "visible3.txt").write_text("content3")
     (hidden_subdir / ".hidden3").write_text("hidden3")
 
-    # View the directory
+    # 查看目录
     result = editor(command="view", path=str(hidden_test_dir))
 
-    # Verify output
+    # 验证输出
     assert isinstance(result, FileEditorObservation)
-    # Depth 1: Visible files/dirs shown, hidden files/dirs not shown
+    # 深度 1：显示可见文件/目录，不显示隐藏文件/目录
     assert "visible1.txt" in result.text
     assert "visible_dir" in result.text
     assert ".hidden1" not in result.text
     assert ".hidden_dir" not in result.text
 
-    # Depth 2: Files in visible_dir shown
+    # 深度 2：显示 visible_dir 中的文件
     assert "visible2.txt" in result.text
     assert ".hidden2" not in result.text
 
-    # Depth 2: Files in hidden_dir not shown
+    # 深度 2：hidden_dir 中的文件未显示
     assert "visible3.txt" not in result.text
     assert ".hidden3" not in result.text
 
-    # Hidden file count only includes depth 1
+    # 隐藏文件数仅包含深度1
     assert (
         "2 hidden files/directories in this directory are excluded" in result.text
-    )  # Only .hidden1 and .hidden_dir at depth 1
+    )  # 仅深度 1 处的 .hidden1 和 .hidden_dir
 
 
 def test_view_large_file_with_truncation(editor, tmp_path):
     editor, _ = editor
-    # Create a large file to trigger truncation
+    # 创建大文件以触发截断
     large_file = tmp_path / "large_test.txt"
-    large_content = "Line 1\n" * 16000  # 16000 lines should trigger truncation
+    large_content = "Line 1\n" * 16000  # 16000行应该触发截断
     large_file.write_text(large_content)
 
     result = editor(command="view", path=str(large_file))
@@ -888,19 +881,19 @@ def test_view_large_file_with_truncation(editor, tmp_path):
 def test_validate_path_suggests_absolute_path(editor, tmp_path):
     editor, test_file = editor
 
-    # Since the editor fixture doesn't set workspace_root,
-    # we should not get a suggestion
-    relative_path = test_file.name  # This is a relative path
+    # 由于编辑器测试夹具没有设置 workspace_root，所以我们不应该得到建议
+    #
+    relative_path = test_file.name  # 这是相对路径
     with pytest.raises(EditorToolParameterInvalidError) as exc_info:
         editor(command="view", path=relative_path)
     error_message = str(exc_info.value.message)
     assert "The path should be an absolute path" in error_message
     assert "Maybe you meant" not in error_message
 
-    # Now create an editor with workspace_root
+    # 现在使用 workspace_root 创建一个编辑器
     workspace_editor = FileEditor(workspace_root=str(test_file.parent))
 
-    # We should get a suggestion now
+    # 我们现在应该得到建议
     with pytest.raises(EditorToolParameterInvalidError) as exc_info:
         workspace_editor(command="view", path=relative_path)
     error_message = str(exc_info.value.message)
@@ -914,7 +907,7 @@ def test_validate_path_suggests_absolute_path(editor, tmp_path):
 def test_str_replace_and_insert_snippet_output_on_a_large_file(editor):
     editor, test_file = editor
 
-    # Replace the current content with content: Line {line_number}
+    # 将当前内容替换为内容：第 {line_number} 行
     _ = editor(
         command="str_replace",
         path=str(test_file),
@@ -929,12 +922,12 @@ def test_str_replace_and_insert_snippet_output_on_a_large_file(editor):
             new_str=f"Line {i + 1}",
         )
 
-    # View file
+    # 查看文件
     result = editor(command="view", path=str(test_file))
     assert "     1\tLine 1" in result.text
     assert "   500\tLine 500" in result.text
 
-    # Replace line 500's content with '500 new'
+    # 将第 500 行的内容替换为“500 new”
     result = editor(
         command="str_replace",
         path=str(test_file),
@@ -943,14 +936,14 @@ def test_str_replace_and_insert_snippet_output_on_a_large_file(editor):
     )
     assert "   500\t500 new" in result.text
 
-    # Delete the line '500 new'
+    # 删除行“500 new”
     result = editor(
         command="str_replace", path=str(test_file), old_str="500 new\n", new_str=""
     )
     assert "   499\tLine 499" in result.text
     assert "   500\tLine 501" in result.text
 
-    # Insert content at line 500
+    # 在第500行插入内容
     result = editor(
         command="insert",
         path=str(test_file),

@@ -1,5 +1,5 @@
 def test_llm_malformed_action_error_default():
-    """Test LLMMalformedActionError with default message."""
+    """使用默认消息测试 LLMMalformedActionError。"""
     from openhands.sdk.llm.exceptions import LLMMalformedActionError
 
     error = LLMMalformedActionError()
@@ -8,7 +8,7 @@ def test_llm_malformed_action_error_default():
 
 
 def test_llm_malformed_action_error_custom():
-    """Test LLMMalformedActionError with custom message."""
+    """使用自定义消息测试 LLMMalformedActionError。"""
     from openhands.sdk.llm.exceptions import LLMMalformedActionError
 
     custom_message = "Custom malformed error"
@@ -18,7 +18,7 @@ def test_llm_malformed_action_error_custom():
 
 
 def test_llm_no_action_error_default():
-    """Test LLMNoActionError with default message."""
+    """使用默认消息测试 LLMNoActionError。"""
     from openhands.sdk.llm.exceptions import LLMNoActionError
 
     error = LLMNoActionError()
@@ -27,7 +27,7 @@ def test_llm_no_action_error_default():
 
 
 def test_llm_no_action_error_custom():
-    """Test LLMNoActionError with custom message."""
+    """使用自定义消息测试 LLMNoActionError。"""
     from openhands.sdk.llm.exceptions import LLMNoActionError
 
     custom_message = "Custom no action error"
@@ -37,7 +37,7 @@ def test_llm_no_action_error_custom():
 
 
 def test_llm_response_error_default():
-    """Test LLMResponseError with default message."""
+    """使用默认消息测试 LLMResponseError。"""
     from openhands.sdk.llm.exceptions import LLMResponseError
 
     error = LLMResponseError()
@@ -46,7 +46,7 @@ def test_llm_response_error_default():
 
 
 def test_llm_response_error_custom():
-    """Test LLMResponseError with custom message."""
+    """使用自定义消息测试 LLMResponseError。"""
     from openhands.sdk.llm.exceptions import LLMResponseError
 
     custom_message = "Custom response error"
@@ -56,7 +56,7 @@ def test_llm_response_error_custom():
 
 
 def test_llm_context_window_exceed_error_default():
-    """Test LLMContextWindowExceedError with default message."""
+    """使用默认消息测试 LLMContextWindowExceedError。"""
     from openhands.sdk.llm.exceptions import LLMContextWindowExceedError
 
     error = LLMContextWindowExceedError()
@@ -67,7 +67,7 @@ def test_llm_context_window_exceed_error_default():
 
 
 def test_llm_context_window_exceed_error_custom():
-    """Test LLMContextWindowExceedError with custom message."""
+    """使用自定义消息测试 LLMContextWindowExceedError。"""
     from openhands.sdk.llm.exceptions import LLMContextWindowExceedError
 
     custom_message = "Custom context window error"
@@ -77,7 +77,7 @@ def test_llm_context_window_exceed_error_custom():
 
 
 def test_llm_malformed_conversation_history_error_default():
-    """Test LLMMalformedConversationHistoryError with default message."""
+    """使用默认消息测试 LLMMalformedConversationHistoryError。"""
     from openhands.sdk.llm.exceptions import LLMMalformedConversationHistoryError
 
     error = LLMMalformedConversationHistoryError()
@@ -90,7 +90,7 @@ def test_llm_malformed_conversation_history_error_default():
 
 
 def test_llm_malformed_conversation_history_error_custom():
-    """Test LLMMalformedConversationHistoryError with custom message."""
+    """使用自定义消息测试 LLMMalformedConversationHistoryError。"""
     from openhands.sdk.llm.exceptions import LLMMalformedConversationHistoryError
 
     custom_message = "Custom malformed history error"
@@ -100,7 +100,7 @@ def test_llm_malformed_conversation_history_error_custom():
 
 
 def test_function_call_not_exists_error():
-    """Test FunctionCallNotExistsError."""
+    """测试FunctionCallNotExistsError。"""
     from openhands.sdk.llm.exceptions import FunctionCallNotExistsError
 
     message = "Function 'unknown_function' does not exist"
@@ -110,7 +110,7 @@ def test_function_call_not_exists_error():
 
 
 def test_user_cancelled_error_default():
-    """Test UserCancelledError with default message."""
+    """使用默认消息测试 UserCancelledError。"""
     from openhands.sdk.llm.exceptions import UserCancelledError
 
     error = UserCancelledError()
@@ -118,7 +118,7 @@ def test_user_cancelled_error_default():
 
 
 def test_user_cancelled_error_custom():
-    """Test UserCancelledError with custom message."""
+    """使用自定义消息测试 UserCancelledError。"""
     from openhands.sdk.llm.exceptions import UserCancelledError
 
     custom_message = "Custom cancellation message"
@@ -127,7 +127,7 @@ def test_user_cancelled_error_custom():
 
 
 def test_operation_cancelled_error_default():
-    """Test OperationCancelled with default message."""
+    """使用默认消息测试 OperationCancelled。"""
     from openhands.sdk.llm.exceptions import OperationCancelled
 
     error = OperationCancelled()
@@ -135,7 +135,7 @@ def test_operation_cancelled_error_default():
 
 
 def test_operation_cancelled_error_custom():
-    """Test OperationCancelled with custom message."""
+    """使用自定义消息测试 OperationCancelled。"""
     from openhands.sdk.llm.exceptions import OperationCancelled
 
     custom_message = "Custom operation cancelled message"

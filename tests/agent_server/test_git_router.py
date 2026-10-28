@@ -1,4 +1,4 @@
-"""Tests for git_router.py endpoints."""
+"""测试 git_router.py 端点。"""
 
 import subprocess
 from pathlib import Path
@@ -26,13 +26,13 @@ from openhands.sdk.git.models import (
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
-    config = Config(session_api_keys=[])  # Disable authentication
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证
     return TestClient(create_app(config), raise_server_exceptions=False)
 
 
 def test_git_repositories_search_success(client):
-    """GET /api/git/repositories/search proxies provider repository results."""
+    """GET /api/git/repositories/search 代理提供程序存储库结果。"""
     page = GitProviderRepositoryPage(
         items=[
             GitProviderRepository(
@@ -89,7 +89,7 @@ def test_git_repositories_search_success(client):
 
 
 def test_git_repositories_search_reports_missing_token(client):
-    """Repository discovery can report a missing provider token."""
+    """存储库发现可以报告缺少的提供程序 token。"""
     page = GitProviderRepositoryPage(items=[], next_page_id=None, missing_token=True)
 
     with patch(
@@ -112,7 +112,7 @@ def test_git_repositories_search_reports_missing_token(client):
 
 @pytest.mark.parametrize("status_code", [401, 403, 502, 504])
 def test_git_repositories_search_preserves_provider_error_status(client, status_code):
-    """Provider auth/retry failures should stay distinguishable."""
+    """提供者身份验证/重试失败应该保持可区分。"""
     with patch(
         "openhands.agent_server.git_router.search_provider_repositories",
         new_callable=AsyncMock,
@@ -131,7 +131,7 @@ def test_git_repositories_search_preserves_provider_error_status(client, status_
 
 
 def test_runtime_git_router_excludes_repository_search():
-    """Repository search uses the global secrets store, not conversation secrets."""
+    """存储库搜索使用全局机密存储，而不是会话机密。"""
     paths = {
         route.path
         for route in create_runtime_router().routes
@@ -145,13 +145,13 @@ def test_runtime_git_router_excludes_repository_search():
 
 
 # =============================================================================
-# Query Parameter Tests (Preferred Method)
+# 查询参数测试（首选方法）
 # =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_git_changes_query_param_success(client):
-    """Test successful git changes endpoint with query parameter."""
+    """使用查询参数测试成功的 git 更改端点。"""
     expected_changes = [
         GitChange(status=GitChangeStatus.ADDED, path=Path("new_file.py")),
         GitChange(status=GitChangeStatus.UPDATED, path=Path("existing_file.py")),
@@ -180,7 +180,7 @@ async def test_git_changes_query_param_success(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_query_param_empty_result(client):
-    """Test git changes endpoint with query parameter and no changes."""
+    """使用查询参数测试 git 更改端点且没有更改。"""
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.return_value = []
 
@@ -193,7 +193,7 @@ async def test_git_changes_query_param_empty_result(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_query_param_with_exception(client):
-    """Test that unexpected git failures still surface as 500."""
+    """测试意外的 git 故障是否仍然显示为 500。"""
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.side_effect = RuntimeError("unexpected failure")
 
@@ -204,7 +204,7 @@ async def test_git_changes_query_param_with_exception(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_query_param_with_command_error(client):
-    """Test git changes returns 400 for GitCommandError."""
+    """测试 git 更改为 GitCommandError 返回 400。"""
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.side_effect = GitCommandError(
             message="git diff failed",
@@ -221,44 +221,43 @@ async def test_git_changes_query_param_with_command_error(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_returns_empty_list_when_path_is_not_git_repo(client):
-    """Non-repo workspaces should yield 200 + [] instead of 500.
+    """非回购工作区应产生 200 + [] 而不是 500。
 
-    Reproduces the v1-conversation bug where the workspace dir exists but
-    has never been `git init`-ed: the endpoint must not crash the
-    Changes tab.
+    重现 v1-conversation 错误，其中工作区目录存在但从未被 `git init`-ed：端点不得使“
+    更改”选项卡崩溃。
     """
-    # Arrange
+    # 安排
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.side_effect = GitRepositoryError(
             "Not a git repository: /Users/hieple/.openhands/agent-server-gui"
         )
 
-        # Act
+        # 法案
         response = client.get(
             "/api/git/changes",
             params={"path": "/Users/hieple/.openhands/agent-server-gui"},
         )
 
-        # Assert
+        # 断言
         assert response.status_code == 200
         assert response.json() == []
 
 
 @pytest.mark.asyncio
 async def test_git_diff_returns_empty_diff_when_path_is_not_git_repo(client):
-    """Non-repo paths to /api/git/diff should yield 200 with null fields."""
-    # Arrange
+    """到 /api/git/diff 的非存储库路径应该产生 200 个带有 null 字段的结果。"""
+    # 安排
     with patch("openhands.agent_server.git_router.get_git_diff") as mock_git_diff:
         mock_git_diff.side_effect = GitRepositoryError(
             "Not a git repository: /tmp/not-a-repo"
         )
 
-        # Act
+        # 法案
         response = client.get(
             "/api/git/diff", params={"path": "/tmp/not-a-repo/file.py"}
         )
 
-        # Assert
+        # 断言
         assert response.status_code == 200
         body = response.json()
         assert body["modified"] is None
@@ -269,13 +268,13 @@ async def test_git_diff_returns_empty_diff_when_path_is_not_git_repo(client):
 async def test_git_changes_query_param_ref_head_on_empty_repo_returns_200(
     client, tmp_path
 ):
-    """End-to-end: ``?ref=HEAD`` on a freshly init'd repo must return 200.
+    """端到端：``?ref=HEAD`` 在新初始化的存储库上必须返回 200。
 
-    Real git repo (no mock) so the SDK fix is exercised through the router.
-    Reproduces the bug: before the fix this returned 400 with
+    真正的 git repo（无模拟对象），因此 SDK 修复是通过路由器执行的。 重现错误：修复之
+    前返回 400
     ``Git command failed: git --no-pager rev-parse --verify 'HEAD^{commit}'``.
     """
-    # Arrange: real empty git repo with a single untracked file.
+    # 排列：带有单个未跟踪文件的真正空 git 存储库。
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
@@ -291,22 +290,22 @@ async def test_git_changes_query_param_ref_head_on_empty_repo_returns_200(
     )
     (tmp_path / "untracked.txt").write_text("new")
 
-    # Act
+    # 法案
     response = client.get(
         "/api/git/changes",
         params={"path": str(tmp_path), "ref": "HEAD"},
     )
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     assert response.json() == [{"status": "ADDED", "path": "untracked.txt"}]
 
 
 def test_git_changes_lists_repo_below_non_repo_path(client, tmp_path):
-    """A non-repository path holding a repository lists that repository's changes.
+    """保存存储库的非存储库路径列出了该存储库的更改。
 
-    Real git (no mock): the ``{base}/{repo}`` workspace of a repository-backed
-    conversation used to answer ``200 []``.
+    真正的 git（无模拟对象）：用于回答 ``200 []`` 的存储库支持的对话的
+    ``{base}/{repo}`` 工作区。
     """
     repo = tmp_path / "proj"
     repo.mkdir()
@@ -334,18 +333,19 @@ def test_git_changes_lists_repo_below_non_repo_path(client, tmp_path):
 async def test_git_changes_query_param_ref_head_on_orphan_branch_returns_200(
     client, tmp_path
 ):
-    """End-to-end: ``?ref=HEAD`` on an orphan branch must return 200.
+    """端到端：孤立分支上的 ``?ref=HEAD`` 必须返回 200。
 
-    Real git repo (no mock) so the SDK fix is exercised through the router.
-    The repo has a commit on ``main``, but HEAD is currently pointing at an
-    unborn orphan branch — exactly the user-reported state that surfaced as
-    ``400 Bad Request: Git command failed: git --no-pager rev-parse --verify
-    'HEAD^{commit}'`` in the Changes tab. The earlier ``_repo_has_commits``
-    short-circuit doesn't catch this case (commits exist on main), so the
-    fix has to come from the ``rev-parse`` failure handler instead.
-    """
+    真正的 git repo（无模拟对象），因此 SDK 修复是通过路由器执行的。 该存储库在
+    ``main`` 上有一个提交，但 HEAD 当前指向一个未出生的孤儿分
+    支 - 正是用户报告的状态，显示为
+    “更改”选项卡中的
+    ``400 Bad Request: Git command failed: git --no-pager rev-parse --verify 'HEAD^{commit}'``
+    。 早期的 ``_repo_has_commits`` 短路无法捕获这种情况（提交存在于 main 上），因此
+    修复必须来自 ``rev-parse`` 故障处理程序
+    。
+    """  # noqa: E501
 
-    # Arrange: repo with one commit on main, then switch to an orphan branch.
+    # 安排：在主分支上进行一次提交，然后切换到一个孤立分支。
     def run_git(*args: str) -> None:
         subprocess.run(
             ["git", *args],
@@ -364,13 +364,13 @@ async def test_git_changes_query_param_ref_head_on_orphan_branch_returns_200(
     run_git("rm", "-rf", "--cached", ".")
     (tmp_path / "untracked.txt").write_text("new")
 
-    # Act
+    # 法案
     response = client.get(
         "/api/git/changes",
         params={"path": str(tmp_path), "ref": "HEAD"},
     )
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     paths = {entry["path"] for entry in response.json()}
     assert "untracked.txt" in paths
@@ -378,7 +378,7 @@ async def test_git_changes_query_param_ref_head_on_orphan_branch_returns_200(
 
 @pytest.mark.asyncio
 async def test_git_changes_missing_path_param(client):
-    """Test git changes endpoint returns 422 when path parameter is missing."""
+    """测试 gitchanges端点当路径参数丢失时返回 422。"""
     response = client.get("/api/git/changes")
 
     assert response.status_code == 422
@@ -386,7 +386,7 @@ async def test_git_changes_missing_path_param(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_query_param_absolute_path(client):
-    """Test git changes with query parameter and absolute path (main fix use case)."""
+    """使用查询参数和绝对路径测试 git 更改（主要修复用例）。"""
     expected_changes = [
         GitChange(status=GitChangeStatus.ADDED, path=Path("new_file.py")),
     ]
@@ -394,7 +394,7 @@ async def test_git_changes_query_param_absolute_path(client):
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.return_value = expected_changes
 
-        # This is the main use case - absolute paths with leading slash
+        # 这是主要用例 - 带前导斜杠的绝对路径
         test_path = "/workspace/project"
         response = client.get("/api/git/changes", params={"path": test_path})
 
@@ -405,7 +405,7 @@ async def test_git_changes_query_param_absolute_path(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_query_param_success(client):
-    """Test successful git diff endpoint with query parameter."""
+    """使用查询参数测试成功的 git diff 端点。"""
     expected_diff = GitDiff(
         modified="def new_function():\n    return 'updated'",
         original="def old_function():\n    return 'original'",
@@ -427,7 +427,7 @@ async def test_git_diff_query_param_success(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_query_param_with_none_values(client):
-    """Test git diff endpoint with query parameter and None values."""
+    """使用查询参数和 None 值测试 git diff 端点。"""
     expected_diff = GitDiff(modified=None, original=None)
 
     with patch("openhands.agent_server.git_router.get_git_diff") as mock_git_diff:
@@ -445,7 +445,7 @@ async def test_git_diff_query_param_with_none_values(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_query_param_with_command_error(client):
-    """Test git diff returns 400 for GitCommandError."""
+    """测试 git diff 对于 GitCommandError 返回 400。"""
     with patch("openhands.agent_server.git_router.get_git_diff") as mock_git_diff:
         mock_git_diff.side_effect = GitCommandError(
             message="git diff failed",
@@ -462,20 +462,20 @@ async def test_git_diff_query_param_with_command_error(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_missing_path_param(client):
-    """Test git diff endpoint returns 422 when path parameter is missing."""
+    """测试 git diff 端点当路径参数丢失时返回 422。"""
     response = client.get("/api/git/diff")
 
     assert response.status_code == 422
 
 
 # =============================================================================
-# Additional Edge Case Tests
+# 额外的边缘情况测试
 # =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_git_changes_with_all_status_types(client):
-    """Test git changes endpoint with all possible GitChangeStatus values."""
+    """使用所有可能的 GitChangeStatus 值测试 git 更改端点。"""
     expected_changes = [
         GitChange(status=GitChangeStatus.ADDED, path=Path("added.py")),
         GitChange(status=GitChangeStatus.UPDATED, path=Path("updated.py")),
@@ -501,7 +501,7 @@ async def test_git_changes_with_all_status_types(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_with_complex_paths(client):
-    """Test git changes endpoint with complex file paths."""
+    """使用复杂的文件路径测试 git 更改端点。"""
     expected_changes = [
         GitChange(
             status=GitChangeStatus.ADDED,
@@ -534,7 +534,7 @@ async def test_git_changes_with_complex_paths(client):
 
 @pytest.mark.asyncio
 async def test_git_changes_forwards_ref_query_param(client):
-    """The ``ref`` query param should be plumbed through to ``get_git_changes``."""
+    """``ref`` 查询参数应连接至 ``get_git_changes``。"""
     with patch("openhands.agent_server.git_router.get_git_changes") as mock_git_changes:
         mock_git_changes.return_value = []
 
@@ -549,7 +549,7 @@ async def test_git_changes_forwards_ref_query_param(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_forwards_ref_query_param(client):
-    """The ``ref`` query param should be plumbed through to ``get_git_diff``."""
+    """``ref`` 查询参数应连接至 ``get_git_diff``。"""
     with patch("openhands.agent_server.git_router.get_git_diff") as mock_git_diff:
         mock_git_diff.return_value = GitDiff(modified="m", original="o")
 
@@ -564,7 +564,7 @@ async def test_git_diff_forwards_ref_query_param(client):
 
 
 def test_git_endpoints_expose_ref_query_param(client):
-    """OpenAPI schema should advertise the new optional ``ref`` query param."""
+    """OpenAPI 模式应通告新的可选 ``ref`` 查询参数。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
@@ -587,7 +587,7 @@ def test_git_legacy_routes_are_removed_from_openapi(client):
 
 
 # =============================================================================
-# Commit History Tests
+# 提交历史测试
 # =============================================================================
 
 
@@ -602,7 +602,7 @@ _SAMPLE_COMMIT = GitCommit(
 
 @pytest.mark.asyncio
 async def test_git_commits_query_success(client):
-    """The commits endpoint forwards to the SDK and serializes the page."""
+    """提交端点转发到 SDK 并序列化页面。"""
     with patch("openhands.agent_server.git_router.get_git_commits") as mock_commits:
         mock_commits.return_value = GitCommitsPage(
             commits=[_SAMPLE_COMMIT], has_more=True
@@ -628,7 +628,7 @@ async def test_git_commits_query_success(client):
 
 @pytest.mark.asyncio
 async def test_git_commits_query_not_a_repo_returns_empty_page(client):
-    """A non-repo workspace yields an empty page, not an error."""
+    """非 repo 工作区会产生一个空页，而不是错误。"""
     with patch("openhands.agent_server.git_router.get_git_commits") as mock_commits:
         mock_commits.side_effect = GitRepositoryError("not a git repository")
 
@@ -640,7 +640,7 @@ async def test_git_commits_query_not_a_repo_returns_empty_page(client):
 
 @pytest.mark.asyncio
 async def test_git_commit_changes_query_success(client):
-    """The per-commit changes endpoint forwards the sha and repo path."""
+    """每次提交更改端点转发 sha 和 repo 路径。"""
     sha = "b" * 40
     with patch("openhands.agent_server.git_router.get_commit_changes") as mock_changes:
         mock_changes.return_value = [
@@ -657,7 +657,7 @@ async def test_git_commit_changes_query_success(client):
 
 
 def test_git_commit_changes_query_malformed_sha_is_rejected(client):
-    """A non-hex sha fails validation before it can reach git argv."""
+    """非十六进制 sha 在到达 git argv 之前会失败验证。"""
     response = client.get(
         "/api/git/commits/not-a-sha/changes", params={"path": "src/repo"}
     )
@@ -666,7 +666,7 @@ def test_git_commit_changes_query_malformed_sha_is_rejected(client):
 
 
 def test_git_diff_query_rejects_ref_and_commit_together(client):
-    """``ref`` and ``commit`` are mutually exclusive on /diff."""
+    """``ref`` 和 ``commit`` 在 /diff. 上互斥"""
     response = client.get(
         "/api/git/diff",
         params={"path": "src/repo/f.txt", "ref": "HEAD", "commit": "a" * 40},
@@ -677,7 +677,7 @@ def test_git_diff_query_rejects_ref_and_commit_together(client):
 
 @pytest.mark.asyncio
 async def test_git_diff_query_commit_param_uses_commit_file_diff(client):
-    """``commit=`` routes to the git-object diff, not the working-tree diff."""
+    """``commit=`` 路由到 git-object diff，而不是工作树 diff。"""
     sha = "c" * 40
     with (
         patch(
@@ -698,7 +698,7 @@ async def test_git_diff_query_commit_param_uses_commit_file_diff(client):
 
 
 def test_git_commit_endpoints_in_openapi(client):
-    """The schema advertises the commit routes and the /diff commit param."""
+    """模式通告提交路由和 /diff 提交参数。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 

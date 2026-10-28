@@ -1,4 +1,4 @@
-"""Tests for git cached_repo helpers (clone, update, checkout, locking)."""
+"""测试 git cached_repo 帮助程序（克隆、更新、签出、锁定）。"""
 
 import subprocess
 from pathlib import Path
@@ -112,12 +112,12 @@ def test_update_strict_raises_on_fetch_error(tmp_path: Path, update_git):
         "offline", command=["git", "fetch"], exit_code=128
     )
 
-    _update_repository(tmp_path, mock_git)  # lenient: keeps the cache
+    _update_repository(tmp_path, mock_git)  # 宽松：保留缓存
     with pytest.raises(GitCommandError):
         _update_repository(tmp_path, mock_git, strict=True)
 
 
-# -- GitHelper error handling --------------------------------------------------
+# -- GitHelper 错误处理 --------------------------------------------------
 
 
 def test_git_clone_called_process_error(tmp_path: Path):
@@ -314,7 +314,8 @@ def test_get_default_branch_returns_none_on_unexpected_format(
     assert result is None
 
 
-# -- Cache locking -------------------------------------------------------------
+# -- 缓存锁定---------------------------------------------------------------------------
+# ------
 
 
 def test_lock_file_created_during_clone(tmp_path: Path):

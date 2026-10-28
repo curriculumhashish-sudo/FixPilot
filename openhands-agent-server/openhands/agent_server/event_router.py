@@ -1,5 +1,5 @@
 """
-Local Event router for OpenHands SDK.
+OpenHands SDK 的本地事件路由器。
 """
 
 import logging
@@ -36,32 +36,30 @@ event_write_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-# Read methods
+# 读取方法
 
 
 def normalize_datetime_to_server_timezone(dt: datetime) -> datetime:
     """
-    Normalize datetime to server timezone for consistent comparison with events.
+    将日期时间标准化为服务器时区，以便与事件进行一致的比较。
 
-    Event timestamps are stored as naive datetimes in server local time.
-    This function ensures filter datetimes are also naive in server local time
-    so they can be compared correctly.
+    事件时间戳存储为服务器本地时间中的原始日期时间。 此函数确保过滤器日期时间在服务器
+    本地时间中也是简单的，因此可以正确比较它们。
 
-    If the datetime has timezone info, convert to server native timezone and
-    strip the tzinfo to make it naive.
-    If it's naive (no timezone), assume it's already in server timezone.
+    如果日期时间有时区信息，请转换为服务器本机时区并删除 tzinfo 以使其变得简单。 如果
+    它很天真（没有时区），则假设它已经在服务器时区中。
 
     Args:
-        dt: Input datetime (may be timezone-aware or naive)
+        dt: 输入日期时间（可能是时区感知的或天真的）
 
     Returns:
-        Naive datetime in server local time
+        服务器本地时间中的原始日期时间
     """
     if dt.tzinfo is not None:
-        # Timezone-aware: convert to server native timezone, then make naive
+        # 时区感知：转换为服务器本机时区，然后进行天真
         return dt.astimezone(None).replace(tzinfo=None)
     else:
-        # Naive datetime: assume it's already in server timezone
+        # 天真的日期时间：假设它已经在服务器时区中
         return dt
 
 
@@ -105,9 +103,9 @@ async def search_conversation_events(
     ] = None,
     event_service: EventService = Depends(get_event_service),
 ) -> JSONResponse:
-    """Search / List local events"""
+    """搜索/列出当地活动"""
 
-    # Normalize timezone-aware datetimes to server timezone
+    # 将时区感知的日期时间标准化为服务器时区
     normalized_gte = (
         normalize_datetime_to_server_timezone(timestamp__gte)
         if timestamp__gte
@@ -167,8 +165,8 @@ async def count_conversation_events(
     ] = None,
     event_service: EventService = Depends(get_event_service),
 ) -> int:
-    """Count local events matching the given filters"""
-    # Normalize timezone-aware datetimes to server timezone
+    """计算与给定过滤器匹配的本地事件数"""
+    # 将时区感知的日期时间标准化为服务器时区
     normalized_gte = (
         normalize_datetime_to_server_timezone(timestamp__gte)
         if timestamp__gte
@@ -192,7 +190,7 @@ async def get_conversation_event(
     event_id: str,
     event_service: EventService = Depends(get_event_service),
 ) -> Event:
-    """Get a local event given an id"""
+    """获取给定 id 的本地事件"""
     event = await event_service.get_event(event_id)
     if event is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -204,8 +202,8 @@ async def batch_get_conversation_events(
     event_ids: list[str],
     event_service: EventService = Depends(get_event_service),
 ) -> list[Event | None]:
-    """Get a batch of local events given their ids, returning null for any
-    missing item."""
+    """根据给定的 id 获取一批本地事件，对于任何事件都返回 null
+    缺少物品。"""
     events = await event_service.batch_get_events(event_ids)
     return events
 
@@ -218,10 +216,9 @@ async def send_message(
     request: SendMessageRequest,
     event_service: EventService = Depends(get_event_service),
 ) -> Success:
-    """Send a message to a conversation.
+    """向对话发送消息。
 
-    If starting the run returns 429, the message is already saved. Retry the
-    conversation's /run endpoint instead of resending the message.
+    如果开始运行返回 429，则消息已保存。 重试对话的 /run 端点，而不是重新发送消息。
     """
     message = Message(role=request.role, content=request.content)
     await event_service.send_message(message, request.run)
@@ -239,7 +236,7 @@ async def respond_to_confirmation(
     request: ConfirmationResponseRequest,
     event_service: EventService = Depends(get_event_service),
 ) -> Success:
-    """Accept or reject a pending action in confirmation mode."""
+    """在确认模式下接受或拒绝待处理的操作。"""
     await event_service.respond_to_confirmation(request)
     return Success()
 

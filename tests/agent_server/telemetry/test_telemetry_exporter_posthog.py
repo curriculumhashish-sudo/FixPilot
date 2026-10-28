@@ -1,7 +1,6 @@
-"""PostHog exporter behaviour, especially what it must *never* call.
+"""PostHog 出口商行为，尤其是它必须*永远*调用的行为。
 
-Uses a fake ``posthog`` module so these run whether or not the optional extra
-is installed.
+使用假的 ``posthog`` 模块，因此无论是否安装了可选的附加模块，它们都会运行。
 """
 
 import sys
@@ -16,12 +15,11 @@ from openhands.agent_server.telemetry import models as m
 
 @pytest.fixture
 def fake_posthog(monkeypatch):
-    """Install a fake ``posthog`` module and return the constructed client.
+    """安装一个假的``posthog``模块并返回构建的客户端。
 
-    ``Mock(spec=...)`` is the point: the client exposes *only* the methods the
-    exporter is allowed to use, so any attempt to call ``identify`` or
-    ``alias`` raises ``AttributeError`` instead of silently creating or merging
-    a person profile.
+    ``Mock(spec=...)`` 是要点：客户端仅公开 ** 允许导出器使用的方法，因此任何尝试调用
+     ``identify`` 或
+    ``alias`` 引发 ``AttributeError``，而不是默默地创建或合并个人资料。
     """
     client = Mock(spec=["capture", "flush", "shutdown"])
     constructor_kwargs = {}
@@ -65,7 +63,7 @@ def make_event(distinct_id: str) -> m.DiagnosticEvent:
 
 
 async def test_identified_events_reuse_the_host_distinct_id_verbatim(fake_posthog):
-    """Correlation depends on byte-for-byte reuse of the host's identity."""
+    """相关性取决于主机身份的逐字节重用。"""
     from openhands.agent_server.telemetry.posthog_exporter import PostHogExporter
 
     client, _ = fake_posthog
@@ -79,7 +77,7 @@ async def test_identified_events_reuse_the_host_distinct_id_verbatim(fake_postho
 
 
 async def test_exporter_never_creates_or_merges_an_identity(fake_posthog):
-    """identify()/alias() would duplicate or irreversibly merge a person."""
+    """identify()/alias()会复制或不可逆转地合并一个人。"""
     from openhands.agent_server.telemetry.posthog_exporter import PostHogExporter
 
     client, _ = fake_posthog
@@ -87,7 +85,7 @@ async def test_exporter_never_creates_or_merges_an_identity(fake_posthog):
 
     await exporter.send([make_event("user-abc"), make_event("anon:deadbeef")])
 
-    # The Mock spec omits these entirely; assert the intent explicitly too.
+    # 模拟对象规范完全忽略了这些； 也明确地断言意图。
     assert not hasattr(client, "identify")
     assert not hasattr(client, "alias")
     assert not hasattr(client, "group_identify")
@@ -113,12 +111,12 @@ async def test_identified_events_do_attach_to_the_existing_person(fake_posthog):
 
     await exporter.send([make_event("user-abc")])
     properties = client.capture.call_args.kwargs["properties"]
-    # Absent, so the event lands on the person the host already identified.
+    # 缺席，因此事件发生在主持人已经确定的人身上。
     assert "$process_person_profile" not in properties
 
 
 async def test_vendor_side_collection_is_disabled(fake_posthog):
-    """Autocapture would ship tracebacks, defeating the sanitizer entirely."""
+    """自动捕获将发送回溯，完全击败消毒剂。"""
     from openhands.agent_server.telemetry.posthog_exporter import PostHogExporter
 
     _, kwargs = fake_posthog

@@ -4,14 +4,14 @@ from pydantic import BaseModel, Field
 
 
 class InputMetadata(BaseModel):
-    """Metadata for task skill inputs."""
+    """任务技能输入的元数据。"""
 
     name: str = Field(description="Name of the input parameter")
     description: str = Field(description="Description of the input parameter")
 
 
 class SkillKnowledge(BaseModel):
-    """Represents knowledge from a triggered skill."""
+    """代表来自触发技能的知识。"""
 
     name: str = Field(description="The name of the skill that was triggered")
     trigger: str = Field(description="The word that triggered this skill")
@@ -23,11 +23,10 @@ class SkillKnowledge(BaseModel):
 
 
 class SkillResponse(BaseModel):
-    """Response model for skills endpoint.
+    """技能响应模型端点。
 
-    Note: This model only includes basic metadata that can be determined
-    without parsing skill content. Use the separate content API
-    to get detailed skill information.
+    Note: 该模型仅包含可以确定的基本元数据
+    无需解析技能内容。 使用单独的内容API来获取详细的技能信息。
     """
 
     name: str = Field(description="The name of the skill")
@@ -39,7 +38,7 @@ class SkillResponse(BaseModel):
 
 
 class SkillContentResponse(BaseModel):
-    """Response model for individual skill content endpoint."""
+    """个人技能内容的响应模型端点。"""
 
     content: str = Field(description="The full content of the skill")
     path: str = Field(description="The path or identifier of the skill")

@@ -1,4 +1,4 @@
-// OpenHands Settings extension - minimal CommonJS JS
+// OpenHands 设置扩展 - 最小 CommonJS JS
 const vscode = require('vscode');
 
 function activate(context) {

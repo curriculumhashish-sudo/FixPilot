@@ -6,7 +6,7 @@ ISSUE_URL = "https://github.com/OpenHands/software-agent-sdk/issues/new"
 
 
 class WebSocketConnectionError(RuntimeError):
-    """Raised when WebSocket connection fails to establish within the timeout."""
+    """当 WebSocket 连接无法在超时内建立时引发。"""
 
     def __init__(
         self,
@@ -24,10 +24,10 @@ class WebSocketConnectionError(RuntimeError):
 
 
 class ConversationRunError(RuntimeError):
-    """Raised when a conversation run fails.
+    """当对话运行失败时引发。
 
-    Carries the conversation_id and persistence_dir to make resuming/debugging
-    easier while preserving the original exception via exception chaining.
+    携带 conversation_id 和 persistence_dir 以使恢复/调试更容易，同时通过异常链接保留
+    原始异常。
     """
 
     conversation_id: ConversationID
@@ -58,7 +58,7 @@ class ConversationRunError(RuntimeError):
         original_exception: BaseException,
         persistence_dir: str | None,
     ) -> str:
-        """Build a detailed error message with debugging information."""
+        """使用调试信息构建详细的错误消息。"""
         lines = [
             f"Conversation run failed for id={conversation_id}: {original_exception}",
         ]

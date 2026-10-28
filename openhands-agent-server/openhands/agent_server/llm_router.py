@@ -1,4 +1,4 @@
-"""Router for LLM model, provider, and subscription information endpoints."""
+"""LLM 模型、提供商和订阅信息端点的路由器。"""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ llm_router = APIRouter(prefix="/llm", tags=["LLM"])
 
 @dataclass(frozen=True)
 class PendingDeviceLogin:
-    """Server-side state for an in-progress device-code login."""
+    """正在进行的设备代码登录的服务器端状态。"""
 
     device_code: DeviceCode
     expires_at: int
@@ -44,25 +44,25 @@ _OPENAI_DEVICE_LOGIN_EPOCH = 0
 
 
 class ProvidersResponse(BaseModel):
-    """Response containing the list of available LLM providers."""
+    """包含可用 LLM 提供商列表的响应。"""
 
     providers: list[str]
 
 
 class ModelsResponse(BaseModel):
-    """Response containing the list of available LLM models."""
+    """包含可用 LLM 模型列表的响应。"""
 
     models: list[str]
 
 
 class VerifiedModelsResponse(BaseModel):
-    """Response containing verified LLM models organized by provider."""
+    """响应包含由提供商组织的经过验证的 LLM 模型。"""
 
     models: dict[str, list[str]]
 
 
 class SubscriptionStatusResponse(BaseModel):
-    """Safe subscription authentication status."""
+    """安全订阅身份验证状态。"""
 
     vendor: str = "openai"
     connected: bool
@@ -71,7 +71,7 @@ class SubscriptionStatusResponse(BaseModel):
 
 
 class SubscriptionDeviceStartResponse(BaseModel):
-    """Device-code challenge details for browser sign-in."""
+    """浏览器登录的设备代码质询详细信息。"""
 
     device_code: str = Field(description="Opaque server-side polling token.")
     user_code: str
@@ -82,13 +82,13 @@ class SubscriptionDeviceStartResponse(BaseModel):
 
 
 class SubscriptionDevicePollRequest(BaseModel):
-    """Poll request for a previously-started subscription device login."""
+    """对先前启动的订阅设备登录的轮询请求。"""
 
     device_code: str
 
 
 class SubscriptionModelsResponse(BaseModel):
-    """Models available through a subscription provider."""
+    """通过订阅提供商提供的模型。"""
 
     vendor: str = "openai"
     models: list[str]
@@ -114,7 +114,7 @@ def _drop_expired_device_logins() -> None:
 
 @llm_router.get("/providers", response_model=ProvidersResponse)
 async def list_providers() -> ProvidersResponse:
-    """List all available LLM providers supported by LiteLLM."""
+    """列出 LiteLLM 支持的所有可用 LLM 提供程序。"""
     providers = sorted(_get_litellm_provider_names())
     return ProvidersResponse(providers=providers)
 
@@ -126,12 +126,12 @@ async def list_models(
         description="Filter models by provider (e.g., 'openai', 'anthropic')",
     ),
 ) -> ModelsResponse:
-    """List all available LLM models supported by LiteLLM.
+    """列出 LiteLLM 支持的所有可用 LLM 模型。
 
     Args:
-        provider: Optional provider name to filter models by.
+        provider: 用于过滤模型的可选提供商名称。
 
-    Note: Bedrock models are excluded unless AWS credentials are configured.
+    Note: 除非配置 AWS 凭据，否则基岩模型将被排除。
     """
     all_models = get_supported_llm_models()
 
@@ -144,12 +144,11 @@ async def list_models(
             model_provider, _, _ = _extract_model_and_provider(model)
             if model_provider == provider or (
                 model in verified_provider_models
-                # A namespaced verified entry (an OpenRouter id with the
-                # ``openrouter/`` prefix stripped, e.g. ``deepseek/deepseek-chat``)
-                # can collide with another provider's real catalog model of the
-                # same name. When it does, the model extracts to that other
-                # provider, so only honor the verified-list match when the model
-                # does not resolve to a different provider.
+                # 命名空间验证条目（OpenRouter id 带有
+                # ``openrouter/`` 前缀被去除，e.g。 ``deepseek/deepseek-chat``) 可能会与
+                # 其他提供商的同名真实目录模型发生冲突。 当它发生时，模型会提取到那个其
+                # 他提供商那里，因此只有在模型不解析到不同提供商时才验证列表匹配。
+                #
                 and not ("/" in model and model_provider and model_provider != provider)
             ):
                 filtered_models.append(model)
@@ -160,9 +159,9 @@ async def list_models(
 
 @llm_router.get("/models/verified", response_model=VerifiedModelsResponse)
 async def list_verified_models() -> VerifiedModelsResponse:
-    """List all verified LLM models organized by provider.
+    """列出由提供商组织的所有经过验证的 LLM 模型。
 
-    Verified models are those that have been tested and confirmed to work well
+    验证模型是那些经过测试并确认运行良好的模型
     with OpenHands.
     """
     return VerifiedModelsResponse(models=VERIFIED_MODELS)
@@ -172,7 +171,7 @@ async def list_verified_models() -> VerifiedModelsResponse:
     "/subscription/openai/models", response_model=SubscriptionModelsResponse
 )
 async def list_openai_subscription_models() -> SubscriptionModelsResponse:
-    """List models available through ChatGPT subscription authentication."""
+    """列出可通过 ChatGPT 订阅身份验证获得的型号。"""
     return SubscriptionModelsResponse(models=sorted(OPENAI_CODEX_MODELS))
 
 
@@ -180,13 +179,14 @@ async def list_openai_subscription_models() -> SubscriptionModelsResponse:
     "/subscription/openai/status", response_model=SubscriptionStatusResponse
 )
 async def get_openai_subscription_status() -> SubscriptionStatusResponse:
-    """Return safe ChatGPT subscription connection state without tokens."""
+    """返回不带 token 的安全 ChatGPT 订阅连接状态。"""
     auth = _get_openai_subscription_auth()
     try:
         await auth.refresh_if_needed()
     except (RuntimeError, httpx.HTTPError):
-        # A rejected refresh (RuntimeError) or an unreachable auth.openai.com
-        # (httpx transport error) both leave no usable login right now.
+        # 拒绝刷新 (RuntimeError) 或无法访问 auth.openai.com（httpx 传输层错误）现在都不
+        # 会留下任何可用的登录信息。
+        #
         return SubscriptionStatusResponse(connected=False)
     return _status_from_auth(auth)
 
@@ -196,7 +196,7 @@ async def get_openai_subscription_status() -> SubscriptionStatusResponse:
     response_model=SubscriptionDeviceStartResponse,
 )
 async def start_openai_subscription_device_login() -> SubscriptionDeviceStartResponse:
-    """Start ChatGPT device-code sign-in without returning tokens."""
+    """开始 ChatGPT 设备代码登录而不返回 token。"""
     auth = _get_openai_subscription_auth()
     challenge = await auth.start_device_login()
     token = secrets.token_urlsafe(32)
@@ -223,7 +223,7 @@ async def start_openai_subscription_device_login() -> SubscriptionDeviceStartRes
 async def poll_openai_subscription_device_login(
     request: SubscriptionDevicePollRequest,
 ) -> SubscriptionStatusResponse:
-    """Poll a ChatGPT device-code sign-in without returning tokens."""
+    """轮询 ChatGPT 设备代码登录而不返回 token。"""
     async with _OPENAI_DEVICE_LOGIN_LOCK:
         _drop_expired_device_logins()
         pending = _PENDING_OPENAI_DEVICE_LOGINS.pop(request.device_code, None)
@@ -243,8 +243,9 @@ async def poll_openai_subscription_device_login(
     finally:
         async with _OPENAI_DEVICE_LOGIN_LOCK:
             _IN_FLIGHT_OPENAI_DEVICE_LOGINS.discard(request.device_code)
-            # Keep the opaque poll token usable if the provider is still pending
-            # or if the polling request fails before credentials are obtained.
+            # 如果提供者仍待处理或者轮询请求在获取凭据之前失败，请保持不透明轮询 token
+            # 可用。
+            #
             if credentials is None and pending.epoch == _OPENAI_DEVICE_LOGIN_EPOCH:
                 _PENDING_OPENAI_DEVICE_LOGINS[request.device_code] = pending
 
@@ -264,7 +265,7 @@ async def poll_openai_subscription_device_login(
     "/subscription/openai/logout", response_model=SubscriptionStatusResponse
 )
 async def logout_openai_subscription() -> SubscriptionStatusResponse:
-    """Remove stored ChatGPT subscription credentials."""
+    """删除存储的 ChatGPT 订阅凭据。"""
     global _OPENAI_DEVICE_LOGIN_EPOCH
 
     auth = _get_openai_subscription_auth()

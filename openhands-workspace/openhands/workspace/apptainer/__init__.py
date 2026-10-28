@@ -1,4 +1,4 @@
-"""Apptainer workspace implementation."""
+"""Apptainer 工作区实施。"""
 
 from .workspace import ApptainerWorkspace
 

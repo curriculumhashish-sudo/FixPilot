@@ -10,59 +10,55 @@ if TYPE_CHECKING:
 
 
 class ConversationVisualizerBase(ABC):
-    """Base class for conversation visualizers.
+    """对话可视化工具的基类。
 
-    This abstract base class defines the interface that all conversation visualizers
-    must implement. Visualizers can be created before the Conversation is initialized
-    and will be configured with the conversation state automatically.
+    这个抽象基类定义了所有对话可视化工具必须实现的接口。 可视化工具可以在对话初始化之
+    前创建，并将自动配置对话状态。
 
-    The typical usage pattern:
-    1. Create a visualizer instance:
+    典型的使用模式：
+    1. 创建一个可视化工具实例：
        `viz = MyVisualizer()`
-    2. Pass it to Conversation: `conv = Conversation(agent, visualizer=viz)`
-    3. Conversation automatically calls `viz.initialize(state)` to attach the state
+    2. 将其传递到对话：`conv = Conversation(agent, visualizer=viz)`
+    3. 会话自动调用`viz.initialize(state)`附加状态
 
-    You can also pass the uninstantiated class if you don't need extra args
+    如果不需要额外的参数，也可以传递未实例化的类
         for initialization, and Conversation will create it:
          `conv = Conversation(agent, visualizer=MyVisualizer)`
-    Conversation will then calls `MyVisualizer()` followed by `initialize(state)`
+    然后对话将调用 `MyVisualizer()`，然后调用 `initialize(state)`
     """
 
     _state: "ConversationStateProtocol | None"
 
     def __init__(self):
-        """Initialize the visualizer base."""
+        """初始化可视化器基础。"""
         self._state = None
 
     @final
     def initialize(self, state: "ConversationStateProtocol") -> None:
-        """Initialize the visualizer with conversation state.
+        """使用对话状态初始化可视化工具。
 
-        This method is called by Conversation after the state is created,
-        allowing the visualizer to access conversation stats and other
-        state information.
+        该方法在会话状态创建后被调用，允许可视化器访问会话统计信息和其他状态信息。
 
-        Subclasses should not override this method, to ensure the state is set.
+        子类不应重写此方法，以确保状态已设置。
 
         Args:
-            state: The conversation state object
+            state: 会话状态对象
         """
         self._state = state
 
     @property
     def conversation_stats(self) -> "ConversationStats | None":
-        """Get conversation stats from the state."""
+        """从州获取对话统计数据。"""
         return self._state.stats if self._state else None
 
     @abstractmethod
     def on_event(self, event: Event) -> None:
-        """Handle a conversation event.
+        """处理对话事件。
 
-        This method is called for each event in the conversation and should
-        implement the visualization logic.
+        对话中的每个事件都会调用此方法，并且应该实现可视化逻辑。
 
         Args:
-            event: The event to visualize
+            event: 可视化事件
         """
         pass
 
@@ -70,21 +66,18 @@ class ConversationVisualizerBase(ABC):
         self,
         agent_id: str,  # noqa: ARG002
     ) -> "ConversationVisualizerBase | None":
-        """Create a visualizer for a sub-agent during delegation.
+        """在委派期间为子智能体创建可视化工具。
 
-        Override this method to support sub-agent visualization in multi-agent
-        delegation scenarios. The sub-visualizer will be used to display events
+        重写此方法以支持多智能体委托场景中的子智能体可视化。 子可视化器将用于显示事件
         from the spawned sub-agent.
 
-        By default, returns None which means sub-agents will not have visualization.
-        Subclasses that support delegation (like DelegationVisualizer) should
-        override this method to create appropriate sub-visualizers.
+        默认情况下，返回None，这意味着子智能体将没有可视化。 支持委托的子类（如
+        DelegationVisualizer）应重写此方法以创建适当的子可视化器。
 
         Args:
-            agent_id: The identifier of the sub-agent being spawned
+            agent_id: 正在生成的子智能体的标识符
 
         Returns:
-            A visualizer instance for the sub-agent, or None if sub-agent
-            visualization is not supported
+            子智能体的可视化工具实例，如果不支持子智能体可视化，则为 None
         """
         return None

@@ -1,4 +1,4 @@
-"""Docker-based remote workspace implementation."""
+"""Docker基于远程工作区实现。"""
 
 import os
 import subprocess
@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 def check_port_available(port: int) -> bool:
-    """Check if a port is available for binding."""
+    """检查端口是否可用于绑定。"""
     import socket
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,7 +37,7 @@ def check_port_available(port: int) -> bool:
 def find_available_tcp_port(
     min_port: int = 30000, max_port: int = 39999, max_attempts: int = 50
 ) -> int:
-    """Find an available TCP port in a specified range."""
+    """查找指定范围内可用的TCP端口。"""
     import random
 
     rng = random.SystemRandom()
@@ -51,23 +51,23 @@ def find_available_tcp_port(
 
 
 class DockerWorkspace(RemoteWorkspace):
-    """Remote workspace that sets up and manages a Docker container.
+    """设置和管理 Docker 容器的远程工作区。
 
-    This workspace creates a Docker container running a pre-built OpenHands agent
-    server image, waits for it to become healthy, and then provides remote workspace
-    operations through the container's HTTP API.
+    工作区这个 Docker 创建了一个运行预构建的 OpenHands Agent Server 镜像的容器，等待
+    它变得健康，然后通过容器的 HTTP API 提供远
+    程工作区操作。
 
-    Note: This class only works with pre-built images. To build images on-the-fly
+    Note: 此类仅适用于预先构建的图像。 即时构建图像
     from a base image, use DockerDevWorkspace instead.
 
     Example:
         with DockerWorkspace(
             server_image="ghcr.io/openhands/agent-server:latest"
-        ) as workspace:
+        ) 作为工作区：
             result = workspace.execute_command("ls -la")
     """
 
-    # Override parent fields with defaults
+    # 使用默认值覆盖父字段
     working_dir: str = Field(
         default="/workspace",
         description="Working directory inside the container.",
@@ -77,7 +77,7 @@ class DockerWorkspace(RemoteWorkspace):
         description=("Remote host URL (set automatically during container startup)."),
     )
 
-    # Docker-specific configuration
+    # Docker-具体配置
     server_image: str | None = Field(
         default="ghcr.io/openhands/agent-server:latest-python",
         description="Pre-built agent server image to use.",
@@ -143,46 +143,45 @@ class DockerWorkspace(RemoteWorkspace):
 
     @model_validator(mode="after")
     def _validate_server_image(self):
-        """Ensure server_image is set when using DockerWorkspace directly."""
+        """直接使用 DockerWorkspace 时请确保设置 server_image。"""
         if self.__class__ is DockerWorkspace and self.server_image is None:
             raise ValueError("server_image must be provided")
         return self
 
     def model_post_init(self, context: Any) -> None:
-        """Set up the Docker container and initialize the remote workspace."""
-        # Subclasses should call get_image() to get the image to use
-        # This allows them to build or prepare the image before container startup
+        """设置 Docker 容器并初始化远程工作区。"""
+        # 子类应该调用 get_image() 来获取要使用的映像这允许它们在容器启动之前构建或准备
+        # 映像
+        #
         image = self.get_image()
         self._start_container(image, context)
 
     def get_image(self) -> str:
-        """Get the Docker image to use for the container.
+        """获取用于容器的 Docker 图像。
 
-        Subclasses can override this to provide custom image resolution logic
-        (e.g., building images on-the-fly).
+        子类可以重写它以提供自定义图像分辨率逻辑（e.g.，即时构建图像）。
 
         Returns:
-            The Docker image tag to use.
+            要使用的 Docker 图像标签。
         """
         if self.server_image is None:
             raise ValueError("server_image must be set")
         return self.server_image
 
     def _start_container(self, image: str, context: Any) -> None:
-        """Start the Docker container with the given image.
+        """使用给定图像启动 Docker 容器。
 
-        This method handles all container lifecycle: port allocation, Docker
-        validation, container creation, health checks, and RemoteWorkspace
-        initialization.
+        此方法处理所有容器生命周期：端口分配、Docker 验证、容器创建、运行状况检查和
+        RemoteWorkspace 初始化。
 
         Args:
-            image: The Docker image tag to use.
-            context: The Pydantic context from model_post_init.
+            image: 要使用的 Docker 图像标签。
+            context: model_post_init 中的 Pydantic 上下文。
         """
-        # Store the image name for cleanup
+        # 存储用于清理的图像名称
         self._image_name = image
 
-        # Determine port
+        # 确定端口
         if self.host_port is None:
             self.host_port = find_available_tcp_port()
         else:
@@ -197,7 +196,7 @@ class DockerWorkspace(RemoteWorkspace):
                     f"Port {self.host_port + 1} is not available for VSCode"
                 )
 
-        # Ensure docker is available
+        # 确保 Docker 可用
         docker_ver = execute_command(["docker", "version"]).returncode
         if docker_ver != 0:
             raise RuntimeError(
@@ -205,7 +204,7 @@ class DockerWorkspace(RemoteWorkspace):
                 "Docker Desktop/daemon."
             )
 
-        # Prepare Docker run flags
+        # 准备 Docker 运行标志
         flags: list[str] = []
         for key in self.forward_env:
             if key in os.environ:
@@ -223,15 +222,15 @@ class DockerWorkspace(RemoteWorkspace):
             ]
         flags += ports
 
-        # Add GPU support if enabled
+        # 添加 GPU 支持（如果启用）
         if self.enable_gpu:
             flags += ["--gpus", "all"]
 
-        # Connect container to the specified Docker network
+        # 将容器连接到指定的Docker网络
         if self.network:
             flags += ["--network", self.network]
 
-        # Run container
+        # 运行容器
         run_cmd = [
             "docker",
             "run",
@@ -240,7 +239,7 @@ class DockerWorkspace(RemoteWorkspace):
             self.platform,
             "--rm",
             "--ulimit",
-            "nofile=65536:65536",  # prevent "too many open files" errors
+            "nofile=65536:65536",  # 防止“打开文件过多”错误
             "--name",
             f"agent-server-{uuid.uuid4()}",
             *flags,
@@ -257,37 +256,37 @@ class DockerWorkspace(RemoteWorkspace):
         self._container_id = proc.stdout.strip()
         logger.info(f"Started container: {self._container_id}")
 
-        # Optionally stream logs in background
+        # 可选择在后台流式传输日志
         if self.detach_logs:
             self._logs_thread = threading.Thread(
                 target=self._stream_docker_logs, daemon=True
             )
             self._logs_thread.start()
 
-        # Set host for RemoteWorkspace to use
-        # The container exposes port 8000, mapped to self.host_port
-        # Override parent's host initialization
+        # 设置 RemoteWorkspace 使用的主机容器公开端口 8000，映射到 self.host_port 覆盖父
+        # 主机的初始化
+        #
         if not self.host:
             object.__setattr__(self, "host", f"http://127.0.0.1:{self.host_port}")
-        # Resolve in the same order as the agent server in this container
-        # (`config.py`: the V1 `OH_SESSION_API_KEYS_0` variable is read by the
-        # env parser, and V0 `SESSION_API_KEY` is only a fallback used when V1
-        # is absent). Both are forwarded into the container by `forward_env`,
-        # so preferring V0 here would send a key the server rejects.
+        # 按照 Agent Server 在这个容器中的顺序解决 (`config.py`: V1 的
+        # `OH_SESSION_API_KEYS_0` 变量由 env 解析器读取，V0 `SESSION_API_KEY` 只是一个回
+        # 退方案在 V1 不存在时使用)。 两者都由 `forward_env` 转发到容器中，因此这里首选
+        # V0 将发送服务器拒绝的密钥。
+        #
         session_api_key = os.environ.get(
             "OH_SESSION_API_KEYS_0", os.environ.get("SESSION_API_KEY")
         )
         object.__setattr__(self, "api_key", session_api_key)
 
-        # Wait for container to be healthy
+        # 等待容器健康
         self._wait_for_health(timeout=self.health_check_timeout)
         logger.info(f"Docker workspace is ready at {self.host}")
 
-        # Now initialize the parent RemoteWorkspace with the container URL
+        # 现在用容器 URL 初始化父级 RemoteWorkspace
         super().model_post_init(context)
 
     def _stream_docker_logs(self) -> None:
-        """Stream Docker logs to stdout in the background."""
+        """Stream Docker 在后台记录到标准输出。"""
         if not self._container_id:
             return
         try:
@@ -314,10 +313,10 @@ class DockerWorkspace(RemoteWorkspace):
                 pass
 
     def _wait_for_health(self, *, timeout: float) -> None:
-        """Wait for the Docker container to become healthy."""
+        """等待 Docker 容器恢复正常。"""
         start = time.time()
-        # We can construct the health URL based on self.host if available,
-        # or fallback to localhost
+        # 我们可以根据self.host（如果可用）构建健康状况URL，或者回退方案到本地主机
+        #
         base_url = self.host.rstrip("/")
         health_url = f"{base_url}/health"
 
@@ -329,7 +328,7 @@ class DockerWorkspace(RemoteWorkspace):
             except Exception:
                 pass
 
-            # Check if container is still running
+            # 检查容器是否仍在运行
             if self._container_id:
                 ps = execute_command(
                     [
@@ -351,15 +350,15 @@ class DockerWorkspace(RemoteWorkspace):
         raise RuntimeError("Container failed to become healthy in time")
 
     def __enter__(self) -> "DockerWorkspace":
-        """Context manager entry - returns the workspace itself."""
+        """上下文管理器条目 - 返回工作区本身。"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[no-untyped-def]
-        """Context manager exit - cleans up the Docker container."""
+        """上下文管理器 exit - 清理 Docker 容器。"""
         self.cleanup()
 
     def __del__(self) -> None:
-        """Clean up the Docker container when the workspace is destroyed."""
+        """当工作区被破坏时清理Docker容器。"""
         try:
             object.__getattribute__(self, "__pydantic_private__")
         except AttributeError:
@@ -367,19 +366,19 @@ class DockerWorkspace(RemoteWorkspace):
         self.cleanup()
 
     def cleanup(self) -> None:
-        """Stop and remove the Docker container."""
+        """停止并移除 Docker 容器。"""
         if self._container_id:
-            # Stop logs streaming
+            # 停止日志流式传输
             self._stop_logs.set()
             if self._logs_thread and self._logs_thread.is_alive():
                 self._logs_thread.join(timeout=2)
 
-            # Stop and remove the container
+            # 停止并移除容器
             logger.info(f"Stopping container: {self._container_id}")
             execute_command(["docker", "stop", self._container_id])
             self._container_id = None
 
-        # Optionally delete the Docker image
+        # （可选）删除 Docker 图像
         if self.cleanup_image and self._image_name:
             logger.info(f"Deleting Docker image: {self._image_name}")
             result = execute_command(["docker", "rmi", "-f", self._image_name])
@@ -392,13 +391,13 @@ class DockerWorkspace(RemoteWorkspace):
             self._image_name = None
 
     def pause(self) -> None:
-        """Pause the Docker container to conserve resources.
+        """暂停 Docker 容器以节省资源。
 
-        Uses `docker pause` to freeze all processes in the container without
-        stopping it. The container can be resumed later with `resume()`.
+        使用 `docker pause` 冻结容器中的所有进程而不停止它。 稍后可以使用 `resume()`
+        恢复容器。
 
         Raises:
-            RuntimeError: If the container is not running or pause fails.
+            RuntimeError: 如果容器没有运行或者暂停失败。
         """
         if not self._container_id:
             raise RuntimeError("Cannot pause: container is not running")
@@ -410,12 +409,12 @@ class DockerWorkspace(RemoteWorkspace):
         logger.info(f"Container paused: {self._container_id}")
 
     def resume(self) -> None:
-        """Resume a paused Docker container.
+        """恢复暂停的 Docker 容器。
 
-        Uses `docker unpause` to resume all processes in the container.
+        使用 `docker unpause` 恢复容器中的所有进程。
 
         Raises:
-            RuntimeError: If the container is not running or resume fails.
+            RuntimeError: 如果容器没有运行或者恢复失败。
         """
         if not self._container_id:
             raise RuntimeError("Cannot resume: container is not running")
@@ -425,6 +424,6 @@ class DockerWorkspace(RemoteWorkspace):
         if result.returncode != 0:
             raise RuntimeError(f"Failed to resume container: {result.stderr}")
 
-        # Wait for container to be healthy
+        # 等待容器健康
         self._wait_for_health(timeout=self.health_check_timeout)
         logger.info(f"Container resumed: {self._container_id}")

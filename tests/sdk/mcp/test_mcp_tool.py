@@ -1,4 +1,4 @@
-"""Tests for MCP tool functionality with new simplified implementation."""
+"""使用新的简化实现来测试 MCP 工具功能。"""
 
 from typing import Any
 from unittest.mock import MagicMock, Mock
@@ -14,21 +14,21 @@ from openhands.sdk.utils.async_executor import AsyncExecutor
 
 
 class MockMCPClient(MCPClient):
-    """Mock MCPClient for testing that bypasses the complex constructor."""
+    """用于测试的模拟对象 MCPClient，可绕过复杂的构造函数。"""
 
     def __init__(self):
-        # Initialize only the fields needed for sync execution (no transport)
+        # 仅初始化同步执行所需的字段（无传输层）
         self._executor = AsyncExecutor()
         self._closed = False
         self._tools = []
 
 
 class TestMCPToolObservation:
-    """Test MCPToolObservation functionality."""
+    """测试 MCPToolObservation 功能。"""
 
     def test_from_call_tool_result_success(self):
-        """Test creating observation from successful MCP result."""
-        # Create mock MCP result
+        """测试从成功的 MCP 结果创建观测结果。"""
+        # 创建模拟对象 MCP 个结果
         result = MagicMock(spec=mcp.types.CallToolResult)
         result.content = [
             mcp.types.TextContent(type="text", text="Operation completed successfully")
@@ -49,8 +49,8 @@ class TestMCPToolObservation:
         assert observation.is_error is False
 
     def test_from_call_tool_result_error(self):
-        """Test creating observation from error MCP result."""
-        # Create mock MCP result
+        """测试从错误 MCP 结果创建观测结果。"""
+        # 创建模拟对象 MCP 个结果
         result = MagicMock(spec=mcp.types.CallToolResult)
         result.content = [mcp.types.TextContent(type="text", text="Operation failed")]
         result.isError = True
@@ -68,8 +68,8 @@ class TestMCPToolObservation:
         assert observation.content[1].text == "Operation failed"
 
     def test_from_call_tool_result_with_image(self):
-        """Test creating observation from MCP result with image content."""
-        # Create mock MCP result with image
+        """测试使用图像内容从 MCP 结果创建观测结果。"""
+        # 使用图像创建模拟对象 MCP 结果
         result = MagicMock(spec=mcp.types.CallToolResult)
         result.content = [
             mcp.types.TextContent(type="text", text="Here's the image:"),
@@ -86,19 +86,19 @@ class TestMCPToolObservation:
         assert observation.tool_name == "test_tool"
         assert observation.content is not None
         assert len(observation.content) == 3
-        # First item is header
+        # 第一项是标题
         assert isinstance(observation.content[0], TextContent)
         assert observation.content[0].text == "[Tool 'test_tool' executed.]"
-        # Second item is text
+        # 第二项是文本
         assert isinstance(observation.content[1], TextContent)
         assert observation.content[1].text == "Here's the image:"
-        # Third item is image
+        # 第三项是图像
         assert isinstance(observation.content[2], ImageContent)
         assert hasattr(observation.content[2], "image_urls")
         assert observation.is_error is False
 
     def test_to_llm_content_success(self):
-        """Test agent observation formatting for success."""
+        """测试智能体观测结果格式化是否成功。"""
         observation = MCPToolObservation.from_text(
             text="[Tool 'test_tool' executed.]\nSuccess result",
             tool_name="test_tool",
@@ -112,7 +112,7 @@ class TestMCPToolObservation:
         assert MCPToolObservation.ERROR_MESSAGE_HEADER not in agent_obs[0].text
 
     def test_to_llm_content_error(self):
-        """Test agent observation formatting for error."""
+        """测试智能体观测结果格式是否有错误。"""
         observation = MCPToolObservation.from_text(
             text=(
                 "[Tool 'test_tool' executed.]\n"
@@ -134,29 +134,29 @@ class TestMCPToolObservation:
 
 
 class TestMCPToolExecutor:
-    """Test MCPToolExecutor functionality."""
+    """测试 MCPToolExecutor 功能。"""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
         self.mock_client: Mock = MagicMock()
         self.executor: Any = MCPToolExecutor(
             tool_name="test_tool", client=self.mock_client
         )
 
     def test_call_tool_success(self):
-        """Test successful tool execution."""
-        # Mock successful MCP call
+        """测试成功的工具执行。"""
+        # 模拟对象成功 MCP 通话
         mock_result = MagicMock(spec=mcp.types.CallToolResult)
         mock_result.content = [
             mcp.types.TextContent(type="text", text="Success result")
         ]
         mock_result.isError = False
 
-        # Mock action
+        # 模拟对象行动
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
 
-        # Mock call_async_from_sync to return the expected observation
+        # 模拟对象call_async_from_sync返回预期的观测结果
         def mock_call_async_from_sync(coro_func, **kwargs):
             return MCPToolObservation.from_call_tool_result(
                 tool_name="test_tool", result=mock_result
@@ -171,19 +171,19 @@ class TestMCPToolExecutor:
         assert observation.is_error is False
 
     def test_call_tool_error(self):
-        """Test tool execution with error."""
-        # Mock error MCP call
+        """测试工具执行时出错。"""
+        # 模拟对象错误 MCP 调用
         mock_result = MagicMock(spec=mcp.types.CallToolResult)
         mock_result.content = [
             mcp.types.TextContent(type="text", text="Error occurred")
         ]
         mock_result.isError = True
 
-        # Mock action
+        # 模拟对象行动
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
 
-        # Mock call_async_from_sync to return the expected observation
+        # 模拟对象call_async_from_sync返回预期的观测结果
         def mock_call_async_from_sync(coro_func, **kwargs):
             return MCPToolObservation.from_call_tool_result(
                 tool_name="test_tool", result=mock_result
@@ -198,12 +198,12 @@ class TestMCPToolExecutor:
         assert observation.is_error is True
 
     def test_call_tool_exception(self):
-        """Test tool execution with exception."""
-        # Mock action
+        """测试工具执行有异常。"""
+        # 模拟对象行动
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
 
-        # Mock call_async_from_sync to return an error observation
+        # 模拟对象 call_async_from_sync 返回错误观测结果
         def mock_call_async_from_sync(coro_func, **kwargs):
             return MCPToolObservation.from_text(
                 text="Error calling MCP tool test_tool: Connection failed",
@@ -222,12 +222,12 @@ class TestMCPToolExecutor:
         assert "Connection failed" in observation.text
 
     def test_call_tool_timeout(self):
-        """Test tool execution with timeout error returns observation."""
-        # Mock action
+        """测试工具执行时出现超时错误，返回观测结果。"""
+        # 模拟对象行动
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
 
-        # Mock call_async_from_sync to raise TimeoutError
+        # 模拟对象 call_async_from_sync 提高 TimeoutError
         def mock_call_async_from_sync(coro_func, **kwargs):
             raise TimeoutError("Operation timed out")
 
@@ -242,15 +242,16 @@ class TestMCPToolExecutor:
         assert f"{self.executor.timeout} seconds" in observation.text
 
     def test_close_calls_client_sync_close(self):
-        """close() must invoke MCPClient.sync_close() to tear down the
-        stdio subprocess. Without this, MCP clients survive conversation
-        deletion and accumulate over a long-running server."""
+        """close() 必须调用 MCPClient.sync_close() 来拆除
+        标准输入输出子进程。 如果没有这个，MCP 客户端将在会话删除后幸存下来并在长期运
+        行的服务器上累积。
+        """
         self.executor.close()
         self.mock_client.sync_close.assert_called_once()
 
     def test_call_tool_reconnects_when_session_lost(self):
-        """When is_connected() returns False but the client is not closed,
-        call_tool should attempt reconnection before failing."""
+        """当is_connected()返回False但客户端未关闭时，
+        call_tool 应在失败之前尝试重新连接。"""
         mock_result = MagicMock(spec=mcp.types.CallToolResult)
         mock_result.content = [
             mcp.types.TextContent(type="text", text="Success after reconnect")
@@ -261,7 +262,7 @@ class TestMCPToolExecutor:
         mock_action.model_dump.return_value = {"param": "value"}
         mock_action.to_mcp_arguments.return_value = {"param": "value"}
 
-        # Use MockMCPClient (real AsyncExecutor) so call_tool actually runs
+        # 使用 MockMCPClient （真实的 AsyncExecutor），因此 call_tool 实际上运行
         client = MockMCPClient()
         connect_calls: list[int] = []
 
@@ -274,7 +275,7 @@ class TestMCPToolExecutor:
         async def mock_call_tool_mcp(**kwargs):
             return mock_result
 
-        # Patch the methods that fastmcp.Client.is_connected() and connect() use
+        # 修补 fastmcp.Client.is_connected() 和 connect() 使用的方法
         client.is_connected = lambda: len(connect_calls) > 0  # type: ignore[method-assign]
         client._closed = False
         client.connect = mock_connect  # type: ignore[method-assign]
@@ -290,8 +291,8 @@ class TestMCPToolExecutor:
         client.sync_close()
 
     def test_call_tool_fails_when_client_closed(self):
-        """When the client has been closed (_closed=True), call_tool should
-        not attempt reconnection and should fail immediately."""
+        """当客户端关闭（_close=True）时，call_tool应该
+        不尝试重新连接，并且应该立即失败。"""
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
         mock_action.to_mcp_arguments.return_value = {"param": "value"}
@@ -321,8 +322,8 @@ class TestMCPToolExecutor:
         client.sync_close()
 
     def test_call_tool_fails_when_reconnect_fails(self):
-        """When reconnection attempt fails, call_tool should return an error
-        observation with the reconnection failure message."""
+        """当重新连接尝试失败时，call_tool 应返回错误
+        观测结果带有重新连接失败消息。"""
         mock_action = MagicMock()
         mock_action.model_dump.return_value = {"param": "value"}
         mock_action.to_mcp_arguments.return_value = {"param": "value"}
@@ -354,13 +355,13 @@ class TestMCPToolExecutor:
 
 
 class TestMCPTool:
-    """Test MCPTool functionality."""
+    """测试 MCPTool 功能。"""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
         self.mock_client: MockMCPClient = MockMCPClient()
 
-        # Create mock MCP tool
+        # 创建模拟对象 MCP 工具
         self.mock_mcp_tool: Mock = MagicMock(spec=mcp.types.Tool)
         self.mock_mcp_tool.name = "test_tool"
         self.mock_mcp_tool.description = "A test tool"
@@ -374,33 +375,34 @@ class TestMCPTool:
         tools = MCPToolDefinition.create(
             mcp_tool=self.mock_mcp_tool, mcp_client=self.mock_client
         )
-        self.tool: MCPToolDefinition = tools[0]  # Extract single tool from sequence
+        self.tool: MCPToolDefinition = tools[0]  # 从序列中提取单个工具
 
     def test_mcp_tool_creation(self):
-        """Test creating an MCP tool."""
+        """测试创建 MCP 工具。"""
         assert self.tool.name == "test_tool"
         assert self.tool.description == "A test tool"
 
-        # Get the schema from the OpenAI tool since MCPToolAction now uses dynamic
-        # schema
+        # 从OpenAI工具中获取模式，因为MCPToolAction现在使用动态模式
+        #
         openai_tool = self.tool.to_openai_tool()
         function_def = openai_tool["function"]
         assert "parameters" in function_def
         input_schema = function_def["parameters"]
 
-        # Since security_risk was removed from Action, it should not be in schema
-        # Summary field is always added for LLM transparency
+        # 由于 security_risk 已从操作中删除，因此不应在模式中始终添加摘要字段以实现 LLM
+        # 透明度
+        #
         assert len(input_schema["properties"]) == 2
         assert "security_risk" not in input_schema["properties"]
         assert "summary" in input_schema["properties"]
 
-        # Check the actual tool parameter is present
+        # 检查实际工具参数是否存在
         assert "param" in input_schema["properties"]
         assert input_schema["properties"]["param"] == {"type": "string"}
 
     def test_mcp_tool_with_annotations(self):
-        """Test creating an MCP tool with annotations."""
-        # Mock tool with annotations
+        """测试创建带有注释的 MCP 工具。"""
+        # 模拟对象带注释的工具
         mock_tool_with_annotations = MagicMock(spec=mcp.types.Tool)
         mock_tool_with_annotations.name = "annotated_tool"
         mock_tool_with_annotations.description = "Tool with annotations"
@@ -411,15 +413,15 @@ class TestMCPTool:
         tools = MCPToolDefinition.create(
             mcp_tool=mock_tool_with_annotations, mcp_client=self.mock_client
         )
-        tool = tools[0]  # Extract single tool from sequence
+        tool = tools[0]  # 从序列中提取单个工具
 
         assert tool.name == "annotated_tool"
         assert tool.description == "Tool with annotations"
         assert tool.annotations is not None
 
     def test_mcp_tool_no_description(self):
-        """Test creating an MCP tool without description."""
-        # Mock tool without description
+        """测试创建一个没有描述的 MCP 工具。"""
+        # 模拟对象没有说明的工具
         mock_tool_no_desc = MagicMock(spec=mcp.types.Tool)
         mock_tool_no_desc.name = "no_desc_tool"
         mock_tool_no_desc.description = None
@@ -430,20 +432,20 @@ class TestMCPTool:
         tools = MCPToolDefinition.create(
             mcp_tool=mock_tool_no_desc, mcp_client=self.mock_client
         )
-        tool = tools[0]  # Extract single tool from sequence
+        tool = tools[0]  # 从序列中提取单个工具
 
         assert tool.name == "no_desc_tool"
         assert tool.description == "No description provided"
 
     def test_executor_assignment(self):
-        """Test that the tool has the correct executor."""
+        """测试该工具是否具有正确的执行器。"""
         assert isinstance(self.tool.executor, MCPToolExecutor)
         assert self.tool.executor.tool_name == "test_tool"
         assert self.tool.executor.client == self.mock_client
 
 
 def test_action_type_cache_is_bounded():
-    """A tool whose schema keeps changing must not grow the cache forever."""
+    """模式不断变化的工具一定不会永远增加缓存。"""
     from openhands.sdk.mcp.tool import (
         _MCP_ACTION_TYPE_CACHE_MAX,
         _create_mcp_action_type,
@@ -465,13 +467,12 @@ def test_action_type_cache_is_bounded():
 
 
 def test_action_type_cache_serializes_get_and_evict(monkeypatch):
-    """A cache hit must not observe a concurrent eviction of the same key.
+    """缓存命中不得观察到同一键的并发驱逐。
 
-    Forces the exact interleaving a real race could produce: pause inside
-    the cache-hit path (after `.get()`, before `.move_to_end()`) and let a
-    second thread try to evict that same entry. Without the lock this
-    raises KeyError from `move_to_end`; with it, the second thread blocks
-    until the first thread's critical section completes.
+    强迫实现一个真实的竞态的精确重排：在缓存命中路径（在`.get()`和`.move_to_end()`之
+    间）暂停，然后让第二个线程尝试删除这个相同的条目。 如果没有
+    锁，则从 `move_to_end` 得出 KeyError； 有了它，第二个线程就会阻塞，直到第一个线程
+    的关键部分完成。
     """
     import threading
     import time
@@ -498,7 +499,7 @@ def test_action_type_cache_serializes_get_and_evict(monkeypatch):
     other_tool = mcp.types.Tool(
         name="other", description="d", inputSchema={"type": "object"}
     )
-    tool_module._create_mcp_action_type(shared_tool)  # seed the cache
+    tool_module._create_mcp_action_type(shared_tool)  # 缓存种子
 
     errors: list[Exception] = []
 

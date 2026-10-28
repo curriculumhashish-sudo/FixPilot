@@ -1,13 +1,12 @@
-"""Tests for tool call argument parsing and empty-response recovery.
+"""测试工具调用参数解析和空响应恢复。
 
-Covers two fixes for the Qwen3.5-Flash stuck conversation issue:
+涵盖了 Qwen3.5-Flash 卡住对话问题的两个修复：
 
-1. JSON argument parsing: raw json.loads first, sanitize_json_control_chars
-   as fallback (fixes literal \\n whitespace being incorrectly escaped).
+1. JSON 参数解析：原始 json.loads 首先，sanitize_json_control_chars 作为回退方案（修
+复文字 \\n 空白被错误转义）。
 
-2. Corrective feedback: when the LLM produces no tool call and no content,
-   inject a user message so the model can self-correct instead of silently
-   looping into the monologue stuck detector.
+2. 纠正性反馈：当 LLM 无工具调用且无内容时，注入用户消息，使模型能够自我纠正，而不是
+无声地陷入循环检测器。
 """
 
 import json
@@ -36,7 +35,7 @@ if TYPE_CHECKING:
     from openhands.sdk.conversation.state import ConversationState
 
 
-# ── minimal tool ─────────────────────────────────────────────────────────
+# ── 最小工具──────────────────────────────────────────────────────────
 
 
 class _ViewAction(Action):
@@ -76,7 +75,7 @@ class _ViewTool(ToolDefinition[_ViewAction, _ViewObs]):
 register_tool("ViewTool", _ViewTool)
 
 
-# ── helpers ──────────────────────────────────────────────────────────────
+# ── 帮手──────────────────────────────────────────────────────────────
 
 
 def _make_agent(*, with_tool: bool = True) -> Agent:
@@ -113,21 +112,21 @@ def _model_response(
     )
 
 
-# ── Fix 1: JSON argument parsing ────────────────────────────────────────
+# ── 修正1：JSON参数解析──────────────────────────────────────────
 
 
 def test_newline_whitespace_in_arguments_parses_ok():
-    """Arguments with raw newlines as JSON whitespace should parse directly.
+    """原始换行符作为 JSON 空格的参数应该直接解析。
 
-    Qwen3.5-Flash emits arguments like:
+    Qwen3.5-Flash 发出如下参数：
         "view_range": \\n[1, 100]\\n\\n
-    After API JSON decoding the \\n become 0x0A — valid JSON whitespace.
+    API JSON 解码后，\\n 变为 0x0A — 有效的 JSON 空白。
     """
     args_with_newlines = (
         '{"command": "view", "path": "/workspace/test.py", '
         '"view_range": \n[1, 100]\n\n}'
     )
-    assert json.loads(args_with_newlines) is not None  # sanity
+    assert json.loads(args_with_newlines) is not None  # 理智
 
     agent = _make_agent()
     conv = Conversation(agent=agent)
@@ -166,12 +165,12 @@ def test_newline_whitespace_in_arguments_parses_ok():
 
 
 def test_control_chars_in_string_values_still_sanitized():
-    """Raw 0x0A inside a JSON string value triggers fallback sanitization."""
+    """JSON 字符串值内的原始 0x0A 会触发回退方案清理。"""
     args_raw = '{"command": "view", "path": "/workspace/test\n.py"}'
-    # This is invalid JSON (raw newline inside string)
+    # 这是无效的 JSON（字符串内的原始换行符）
     try:
         json.loads(args_raw)
-        # If this doesn't raise, the test premise is wrong
+        # 如果没有出现，则测试前提是错误的
         assert False, "Expected json.loads to fail"
     except json.JSONDecodeError:
         pass
@@ -203,17 +202,17 @@ def test_control_chars_in_string_values_still_sanitized():
         )
         agent.step(conv, on_event=events.append)
 
-    # After sanitization fallback the action is still created
+    # 清理回退方案后，操作仍会创建
     action_events = [e for e in events if isinstance(e, ActionEvent)]
     assert len(action_events) >= 1
     assert action_events[0].action is not None
 
 
-# ── Fix 2: Corrective feedback on empty response ────────────────────────
+# ── 修复2：修正空响应反馈────────────────────────
 
 
 def test_reasoning_only_response_injects_nudge():
-    """When LLM returns reasoning but no tool call / content, inject nudge."""
+    """当 LLM 返回推理但没有工具调用 / 内容时，注入微移。"""
     agent = _make_agent(with_tool=False)
     conv = Conversation(agent=agent)
 
@@ -247,7 +246,7 @@ def test_reasoning_only_response_injects_nudge():
 
 
 def test_content_response_does_not_inject_nudge():
-    """When LLM produces meaningful content, no nudge should be injected."""
+    """当 LLM 产生有意义的内容时，不应注入任何微调。"""
     agent = _make_agent(with_tool=False)
     conv = Conversation(agent=agent)
 
@@ -270,7 +269,7 @@ def test_content_response_does_not_inject_nudge():
 
 
 def test_completely_empty_response_injects_nudge():
-    """Completely empty responses (no reasoning, no content) get a nudge."""
+    """完全空洞的回答（没有推理，没有内容）会受到推动。"""
     agent = _make_agent(with_tool=False)
     conv = Conversation(agent=agent)
 

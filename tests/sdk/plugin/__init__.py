@@ -1,1 +1,1 @@
-"""Tests for the plugin module."""
+"""测试插件模块。"""

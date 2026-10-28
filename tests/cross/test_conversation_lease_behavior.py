@@ -1,4 +1,4 @@
-"""Integration-like tests for conversation lease ownership."""
+"""对话租赁所有权的类似集成测试。"""
 
 import json
 from pathlib import Path
@@ -162,23 +162,21 @@ async def test_expired_lease_takeover_fences_stale_writer_with_disk_events(tmp_p
 
 @pytest.mark.asyncio
 async def test_crash_recovery_error_is_on_active_branch_for_next_turn(tmp_path):
-    """A restart between event-file append and persisted HEAD must remain resumable.
+    """事件文件附加和已持久化 HEAD 之间的重新启动必须保持可恢复。
 
-    This reproduces the production ordering with real ConversationService,
-    LocalConversation, EventLog, and filesystem persistence:
+    这将重现具有实际 ConversationService、LocalConversation、EventLog 和文件系统持久
+    化的生产顺序：
 
-    1. Persist an action while the conversation is RUNNING.
-    2. Simulate process death after the action file lands but before
-       ``leaf_event_id`` is saved by rewinding only the persisted HEAD.
-    3. Let a second service take over the expired lease and synthesize the
-       crash-recovery AgentErrorEvent.
-    4. Append a real follow-up user message, like the Iterate watchdog does.
-    5. Build the view's manipulation indices, the same operation the
-       summarizing condenser performs before the next LLM turn.
+    1. 持久化对话为 RUNNING 时的操作。
+    2. 模拟操作文件落地之后但之前的进程死亡
+       通过仅倒回已持久化 HEAD 来保存 ``leaf_event_id``。
+    3. 让第二个服务接管过期的租约并综合崩溃恢复 AgentErrorEvent。
+    4. 附加真实的后续用户消息，就像迭代看门狗所做的那样。
+    5. 构建视图的操作索引，与总结上下文压缩器在下一个 LLM 回合之前执行的操作相同。
 
-    The current implementation writes the recovery error as a sibling of the
-    action (both parented to the stale HEAD), so the active branch contains a
-    tool result without its tool call and manipulation_indices raises KeyError.
+    当前实现将恢复错误写入动作的兄弟节点（两者都隶属于已过期的HEAD），因此活跃分支包
+    含一个工具结果，但工具调用和manipulation_indices缺失，Key
+    Error会引发。
     """
     conversations_dir = tmp_path / "conversations"
     workspace_dir = tmp_path / "workspace"
@@ -193,7 +191,7 @@ async def test_crash_recovery_error_is_on_active_branch_for_next_turn(tmp_path):
         assert conversation is not None
         conversation_dir = conversations_dir / conversation_info.id.hex
 
-        # Establish a realistic active branch before the in-flight action.
+        # 在飞行动作之前建立一个现实的活动分支。
         system_prompt = SystemPromptEvent(
             system_prompt=TextContent(text="You are a coding agent."), tools=[]
         )
@@ -213,8 +211,8 @@ async def test_crash_recovery_error_is_on_active_branch_for_next_turn(tmp_path):
         state.execution_status = ConversationExecutionStatus.RUNNING
         assert state.leaf_event_id == running_action.id
 
-        # Reproduce the crash window: the action event file exists, while the
-        # base snapshot still points at the preceding user message.
+        # 重现崩溃窗口：操作事件文件存在，而基础快照仍然指向前面的用户消息。
+        #
         base_state_path = conversation_dir / "base_state.json"
         base_state = json.loads(base_state_path.read_text())
         base_state["leaf_event_id"] = stale_leaf
@@ -234,7 +232,7 @@ async def test_crash_recovery_error_is_on_active_branch_for_next_turn(tmp_path):
             )
             assert recovery_error.tool_call_id == running_action.tool_call_id
 
-            # Resume exactly as a follow-up automation does.
+            # 完全按照后续自动化的方式恢复。
             await recovered.send_message(
                 Message(
                     role="user",
@@ -243,6 +241,6 @@ async def test_crash_recovery_error_is_on_active_branch_for_next_turn(tmp_path):
                 run=False,
             )
 
-            # Must not raise: the next turn/condenser needs a valid tool-call
-            # boundary in the active branch.
+            # 不得引发：下一轮/冷凝器需要活动分支中的有效工具调用边界。
+            #
             recovered_state.view.manipulation_indices

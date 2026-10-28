@@ -1,39 +1,39 @@
 /**
- * Base LLM interface and types
+ * 基本 LLM 接口和类型
  *
- * This file defines the abstract interface that all LLM implementations must follow.
- * It provides a unified way to interact with different LLM providers (OpenRouter, OpenAI, etc.)
+ * 该文件定义了所有 LLM 实现必须遵循的抽象接口。
+ * 它提供了与不同 LLM 提供者（OpenRouter、OpenAI 等）交互的统一方式
  */
 
 /**
- * Message role types for chat conversations
+ * 聊天对话的消息角色类型
  */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
 /**
- * Token callback type for streaming tokens.
- * Called for each token received during streaming completion.
+ * token 回调类型为流式传输 token。
+ * 对流式传输完成期间收到的每个 token 进行调用。
  */
 export type TokenCallbackType = (token: TokenStreamEvent) => void;
 
 /**
- * Token stream event - represents a single token or chunk from streaming
+ * token 流事件 - 表示单个 token 或来自流式传输的块
  */
 export interface TokenStreamEvent {
-  /** The token content */
+  /** token内容*/
   token: string;
-  /** Whether this is the final token */
+  /** 这是否是最终的token*/
   isFinal: boolean;
-  /** Accumulated content so far */
+  /** 目前已累计内容*/
   accumulated?: string;
-  /** Token index in the response */
+  /** token 响应中的索引*/
   index?: number;
-  /** Model that generated this token */
+  /** 生成此 token 的模型*/
   model?: string;
 }
 
 /**
- * Content types for messages
+ * 消息的内容类型
  */
 export interface TextContent {
   type: 'text';
@@ -51,7 +51,7 @@ export interface ImageContent {
 export type ContentPart = TextContent | ImageContent;
 
 /**
- * A message in the chat conversation
+ * 聊天对话中的一条消息
  */
 export interface ChatMessage {
   role: MessageRole;
@@ -62,7 +62,7 @@ export interface ChatMessage {
 }
 
 /**
- * Tool/function definition for the LLM
+ * LLM 的工具/功能定义
  */
 export interface Tool {
   type: 'function';
@@ -74,7 +74,7 @@ export interface Tool {
 }
 
 /**
- * A tool call requested by the LLM
+ * LLM 请求的工具调用
  */
 export interface ToolCall {
   id: string;
@@ -86,29 +86,29 @@ export interface ToolCall {
 }
 
 /**
- * Options for a chat completion request
+ * 聊天完成请求的选项
  */
 export interface ChatCompletionOptions {
-  /** The model to use (e.g., 'anthropic/claude-3.5-sonnet', 'openai/gpt-4o') */
+  /** 要使用的模型（e.g., 'anthropic/claude-3.5-sonnet', 'openai/gpt-4o'）*/
   model?: string;
-  /** The messages to send */
+  /** 要发送的消息*/
   messages: ChatMessage[];
-  /** Temperature for sampling (0-2) */
+  /** 采样温度（0-2）*/
   temperature?: number;
-  /** Maximum tokens to generate */
+  /** 生成的最大值 token*/
   maxTokens?: number;
-  /** Tools/functions available to the model */
+  /** 模型可用的工具/功能*/
   tools?: Tool[];
-  /** How the model should use tools: 'auto', 'none', or specific tool */
+  /** 模型应如何使用工具：“auto”、“None”或特定工具*/
   toolChoice?: 'auto' | 'none' | 'required' | { type: 'function'; function: { name: string } };
-  /** Stop sequences */
+  /** 停止序列*/
   stop?: string[];
-  /** Whether to stream the response */
+  /** 是否流式传输响应*/
   stream?: boolean;
 }
 
 /**
- * A choice in the completion response
+ * 完成响应中的选择
  */
 export interface ChatCompletionChoice {
   index: number;
@@ -121,7 +121,7 @@ export interface ChatCompletionChoice {
 }
 
 /**
- * Token usage information
+ * 词元用量信息
  */
 export interface TokenUsage {
   prompt_tokens: number;
@@ -130,7 +130,7 @@ export interface TokenUsage {
 }
 
 /**
- * Response from a chat completion request
+ * 聊天完成请求的响应
  */
 export interface ChatCompletionResponse {
   id: string;
@@ -141,7 +141,7 @@ export interface ChatCompletionResponse {
 }
 
 /**
- * A streaming chunk from the LLM
+ * 来自 LLM 的流式传输块
  */
 export interface ChatCompletionChunk {
   id: string;
@@ -167,58 +167,58 @@ export interface ChatCompletionChunk {
 }
 
 /**
- * Base options for creating an LLM client
+ * 用于创建 LLM 客户端的基本选项
  */
 export interface BaseLLMOptions {
-  /** API key for authentication */
+  /** API 键用于身份验证*/
   apiKey: string;
-  /** Default model to use if not specified in requests */
+  /** 如果请求中未指定，则使用默认模型*/
   defaultModel?: string;
-  /** Base URL for the API (optional, for custom endpoints) */
+  /** 用于 API 的底座 URL（可选，用于自定义端点）*/
   baseUrl?: string;
-  /** Default temperature */
+  /** 默认温度*/
   defaultTemperature?: number;
-  /** Default max tokens */
+  /** 默认最大值 token*/
   defaultMaxTokens?: number;
 }
 
 /**
- * Abstract interface for LLM implementations.
+ * LLM 实现的抽象接口。
  *
- * All LLM providers (OpenRouter, OpenAI, Anthropic, etc.) should implement this interface
- * to provide a unified way to interact with different models.
+ * 所有 LLM 提供者（OpenRouter、OpenAI、Anthropic 等）都应实现此接口
+ * 提供与不同模型交互的统一方式。
  */
 export interface ILLM {
-  /** The default model for this LLM instance */
+  /** 此 LLM 实例的默认模型*/
   readonly defaultModel: string;
 
   /**
-   * Send a chat completion request and get a full response.
+   * 发送聊天完成请求并获得完整回复。
    *
-   * @param options - The completion options including messages and model settings
-   * @returns The completion response with generated content
+   * @param options - 完成选项，包括消息和模型设置
+   * @returns 带有生成内容的完成响应
    */
   chatCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse>;
 
   /**
-   * Send a chat completion request and stream the response.
+   * 发送聊天完成请求并流式传输响应。
    *
-   * @param options - The completion options (stream will be set to true)
-   * @returns An async iterable of completion chunks
+   * @param options - 完成选项（流将设置为 True）
+   * @returns 完成块的异步可迭代
    */
   chatCompletionStream(
     options: Omit<ChatCompletionOptions, 'stream'>
   ): AsyncIterable<ChatCompletionChunk>;
 
   /**
-   * Send a chat completion request with streaming and invoke a callback for each token.
+   * 使用流式传输发送聊天完成请求，并为每个 token 调用回调。
    *
-   * This method provides a simpler interface for streaming when you just need
-   * to process tokens as they arrive without managing the async iterator yourself.
+   * 当您只需要时，此方法为流式传输提供了更简单的接口
+   * 在 token 到达时对其进行处理，而无需亲自管理异步迭代器。
    *
-   * @param options - The completion options
-   * @param onToken - Callback invoked for each token received
-   * @returns The final completion response
+   * @param options - 完成选项
+   * @param onToken - 回调为收到的每个 token 调用
+   * @returns 最终完成响应
    */
   chatCompletionWithCallback?(
     options: Omit<ChatCompletionOptions, 'stream'>,
@@ -226,21 +226,21 @@ export interface ILLM {
   ): Promise<ChatCompletionResponse>;
 
   /**
-   * Simple helper to send a single message and get a text response.
+   * 发送一条消息并获取文本响应的简单助手。
    *
-   * @param prompt - The user message to send
-   * @param systemPrompt - Optional system prompt
-   * @returns The assistant's response text
+   * @param 提示词 - 要发送的用户消息
+   * @param systemPrompt - 可选系统提示词
+   * @returns 助理的回复文本
    */
   generate(prompt: string, systemPrompt?: string): Promise<string>;
 
   /**
-   * Simple helper with token streaming callback.
+   * 带有 token 流式传输回调的简单助手。
    *
-   * @param prompt - The user message to send
-   * @param systemPrompt - Optional system prompt
-   * @param onToken - Callback invoked for each token received
-   * @returns The assistant's response text
+   * @param 提示词 - 要发送的用户消息
+   * @param systemPrompt - 可选系统提示词
+   * @param onToken - 回调为收到的每个 token 调用
+   * @returns 助理的回复文本
    */
   generateWithCallback?(
     prompt: string,
@@ -249,12 +249,12 @@ export interface ILLM {
   ): Promise<string>;
 
   /**
-   * Close/cleanup any resources held by the LLM client.
+   * 关闭/清理 LLM 客户端持有的所有资源。
    */
   close(): void;
 }
 
 /**
- * Type discriminator for LLM provider types.
+ * LLM 提供者类型的类型鉴别器。
  */
 export type LLMProviderType = 'openrouter' | 'openai' | 'anthropic' | 'custom';

@@ -1,14 +1,14 @@
-"""Example: Installing and Managing Skills
+"""Example: 安装和管理技能
 
-This example demonstrates installed skill lifecycle operations in the SDK:
+此示例演示了 SDK 中已安装的技能生命周期操作：
 
-1. Install skills from local paths into persistent storage
-2. List tracked skills and load only the enabled ones
-3. Inspect the `.installed.json` metadata file and `enabled` flag
-4. Disable and re-enable a skill without reinstalling it
-5. Uninstall a skill while leaving other installed skills available
+1. 将技能从本地路径安装到持久存储中
+2. 列出跟踪的技能并仅加载启用的技能
+3. 检查 `.installed.json` 元数据文件和 `enabled` 标志
+4. 禁用并重新启用技能，无需重新安装
+5. 卸载技能，同时保留其他已安装的技能可用
 
-For marketplace installation flows, see:
+有关市场安装流程，请参阅：
 `examples/05_skills_and_plugins/04_mixed_marketplace_skills/`.
 """
 
@@ -31,7 +31,7 @@ example_skills_dir = script_dir.parent / "01_loading_agentskills" / "example_ski
 
 
 def print_state(label: str, installed_dir: Path) -> None:
-    """Print tracked, loaded, and persisted skill state."""
+    """打印跟踪、加载和已持久化技能状态。"""
     print(f"\n{label}")
     print("-" * len(label))
 
@@ -49,7 +49,7 @@ def print_state(label: str, installed_dir: Path) -> None:
 
 
 def demo_install_skills(installed_dir: Path) -> list[str]:
-    """Install the sample skills into the isolated installed directory."""
+    """将示例技能安装到隔离的安装目录中。"""
     print("\n" + "=" * 60)
     print("DEMO 1: Installing local skills")
     print("=" * 60)
@@ -68,7 +68,7 @@ def demo_install_skills(installed_dir: Path) -> list[str]:
 
 
 def demo_list_and_load_skills(installed_dir: Path) -> None:
-    """List tracked skills and load them as runtime Skill objects."""
+    """列出跟踪的技能并将其加载为运行时技能对象。"""
     print("\n" + "=" * 60)
     print("DEMO 2: Listing and loading installed skills")
     print("=" * 60)
@@ -88,7 +88,7 @@ def demo_list_and_load_skills(installed_dir: Path) -> None:
 
 
 def demo_enable_disable_skill(installed_dir: Path, skill_name: str) -> None:
-    """Disable then re-enable a skill and show the persisted metadata."""
+    """禁用然后重新启用技能并显示已持久化元数据。"""
     print("\n" + "=" * 60)
     print("DEMO 3: Disabling and re-enabling a skill")
     print("=" * 60)
@@ -117,7 +117,7 @@ def demo_enable_disable_skill(installed_dir: Path, skill_name: str) -> None:
 def demo_uninstall_skill(
     installed_dir: Path, skill_name: str, remaining_skill_name: str
 ) -> None:
-    """Uninstall one skill and confirm the other skill remains available."""
+    """卸载一项技能并确认另一项技能仍然可用。"""
     print("\n" + "=" * 60)
     print("DEMO 4: Uninstalling a skill")
     print("=" * 60)

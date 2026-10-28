@@ -1,7 +1,6 @@
-"""Tom consultation tool for agent-sdk.
+"""Tom咨询工具为智能体-SDK。
 
-This tool provides Theory of Mind capabilities by consulting an external
-Tom agent for personalized guidance and user intent understanding.
+该工具通过咨询外部 Tom 智能体来提供心理理论功能，以实现个性化指导和用户意图理解。
 """
 
 from openhands.tools.tom_consult.definition import (

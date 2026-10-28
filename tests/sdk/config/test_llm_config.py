@@ -8,19 +8,19 @@ from openhands.sdk.llm import LLM
 
 
 def test_llm_config_secret_str():
-    """Test that api_key is properly handled as SecretStr."""
+    """测试 api_key 是否被正确处理为 SecretStr。"""
     config = LLM(
         model="gpt-4o-mini", api_key=SecretStr("secret-key"), usage_id="test-llm"
     )
     assert config.api_key is not None
     assert isinstance(config.api_key, SecretStr)
     assert config.api_key.get_secret_value() == "secret-key"
-    # Ensure the secret is not exposed in string representation
+    # 确保机密未在字符串表示形式中暴露
     assert "secret-key" not in str(config)
 
 
 def test_llm_config_aws_credentials():
-    """Test AWS credentials handling."""
+    """测试 AWS 凭据处理。"""
     config = LLM(
         usage_id="test-llm",
         model="gpt-4o-mini",
@@ -38,20 +38,19 @@ def test_llm_config_aws_credentials():
 
 
 def test_llm_config_openrouter_defaults():
-    """Test OpenRouter default values."""
+    """测试 OpenRouter 默认值。"""
     config = LLM(model="gpt-4o-mini", usage_id="test-llm")
     assert config.openrouter_site_url == "https://docs.all-hands.dev/"
     assert config.openrouter_app_name == "OpenHands"
 
 
 def test_llm_config_post_init_openrouter_does_not_set_env():
-    """OpenRouter site/app must NOT bleed into os.environ.
+    """OpenRouter 网站/应用程序必须不融入 os.environ。
 
-    Constructing an LLM (potentially per-conversation in a multi-tenant
-    agent server) used to set ``OR_SITE_URL`` / ``OR_APP_NAME``, which
-    leaks across conversations via the shared process environment
-    (issue #3138). The values should now flow per-call via
-    ``extra_headers`` instead.
+    构建一个 LLM (可能在多租户环境中按会话处理) Agent Server用于设置的
+    ``OR_SITE_URL`` / ``OR_APP_NAME``它会通过共
+    享进程环境泄露到会话中（issue #3138）。 这些值现在应该通过每次调用流动
+    ``extra_headers`` 代替。
     """
     with patch.dict(os.environ, {}, clear=True):
         llm = LLM(
@@ -62,7 +61,7 @@ def test_llm_config_post_init_openrouter_does_not_set_env():
         )
         assert "OR_SITE_URL" not in os.environ
         assert "OR_APP_NAME" not in os.environ
-        # Values still travel through the per-call helper.
+        # 值仍然通过每次调用助手传递。
         assert llm._openrouter_headers() == {
             "HTTP-Referer": "https://custom.site.com",
             "X-Title": "CustomApp",
@@ -70,15 +69,15 @@ def test_llm_config_post_init_openrouter_does_not_set_env():
 
 
 def test_llm_config_post_init_reasoning_effort_default():
-    """Test reasoning_effort defaults to high."""
+    """测试 reasoning_effort 默认为高。"""
     config = LLM(model="gpt-4o-mini", usage_id="test-llm")
     assert config.reasoning_effort == "high"
 
-    # Test that Gemini models also default to high
+    # 测试一下Gemini机型也默认高
     config = LLM(model="gemini-2.5-pro-experimental", usage_id="test-llm")
     assert config.reasoning_effort == "high"
 
-    # Test that explicit reasoning_effort is preserved
+    # 测试显式 reasoning_effort 是否被保留
     config = LLM(model="gpt-4o-mini", reasoning_effort="low", usage_id="test-llm")
     assert config.reasoning_effort == "low"
     config = LLM(model="gpt-4o-mini", reasoning_effort="xhigh", usage_id="test-llm")
@@ -86,15 +85,15 @@ def test_llm_config_post_init_reasoning_effort_default():
 
 
 def test_llm_config_post_init_azure_api_version():
-    """Test that Azure models get default API version."""
+    """测试 Azure 模型是否获得默认 API 版本。"""
     config = LLM(model="azure/gpt-4o-mini", usage_id="test-llm")
     assert config.api_version == "2024-12-01-preview"
 
-    # Test that non-Azure models don't get default API version
+    # 测试非 Azure 模型是否未获得默认 API 版本
     config = LLM(model="gpt-4o-mini", usage_id="test-llm")
     assert config.api_version is None
 
-    # Test that explicit API version is preserved
+    # 测试是否保留显式 API 版本
     config = LLM(
         model="azure/gpt-4o-mini", api_version="custom-version", usage_id="test-llm"
     )
@@ -102,11 +101,11 @@ def test_llm_config_post_init_azure_api_version():
 
 
 def test_llm_config_post_init_aws_does_not_set_env():
-    """AWS credentials must NOT be written to os.environ on init.
+    """AWS 凭据必须在 init 时将不写入 os.environ。
 
-    Doing so would leak credentials across conversations in a multi-tenant
-    agent server (issue #3138). They are forwarded per-call via
-    ``_aws_kwargs()`` instead.
+    这样做会在多租户 Agent Server 中的对话中泄漏凭据（问题 #3138）。 它们通过每次呼叫
+    转发
+    ``_aws_kwargs()`` 代替。
     """
     with patch.dict(os.environ, {}, clear=True):
         llm = LLM(
@@ -119,7 +118,7 @@ def test_llm_config_post_init_aws_does_not_set_env():
         assert "AWS_ACCESS_KEY_ID" not in os.environ
         assert "AWS_SECRET_ACCESS_KEY" not in os.environ
         assert "AWS_REGION_NAME" not in os.environ
-        # Values still travel through the per-call helper.
+        # 值仍然通过每次调用助手传递。
         kw = llm._aws_kwargs()
         assert kw["aws_access_key_id"] == "test-access-key"
         assert kw["aws_secret_access_key"] == "test-secret-key"
@@ -127,35 +126,35 @@ def test_llm_config_post_init_aws_does_not_set_env():
 
 
 def test_llm_config_log_completions_folder_default():
-    """Test that log_completions_folder has a default value."""
+    """测试 log_completions_folder 是否具有默认值。"""
     config = LLM(model="gpt-4o-mini", usage_id="test-llm")
     assert config.log_completions_folder is not None
     assert "completions" in config.log_completions_folder
 
 
 def test_llm_config_extra_fields_permitted():
-    """Test that extra fields are forbidden."""
+    """测试是否禁止额外字段。"""
     LLM(model="gpt-4o-mini", invalid_field="should_be_permitted", usage_id="test-llm")  # type: ignore
 
 
 def test_llm_config_validation():
-    """Test validation of LLM fields with ge constraints."""
-    # Test that negative values are rejected for fields with ge constraints
+    """使用 ge 约束测试 LLM 字段的验证。"""
+    # 测试具有 ge 约束的字段是否拒绝负值
     with pytest.raises(ValidationError) as exc_info:
         LLM(
             model="gpt-4o-mini",
-            num_retries=-1,  # Should fail: ge=0
-            retry_multiplier=-1,  # Should fail: ge=0
-            retry_min_wait=-1,  # Should fail: ge=0
-            retry_max_wait=-1,  # Should fail: ge=0
-            timeout=-1,  # Should fail: ge=0
-            max_message_chars=-1,  # Should fail: ge=1
-            temperature=-1,  # Should fail: ge=0
-            top_p=-1,  # Should fail: ge=0
+            num_retries=-1,  # 应该失败：ge=0
+            retry_multiplier=-1,  # 应该失败：ge=0
+            retry_min_wait=-1,  # 应该失败：ge=0
+            retry_max_wait=-1,  # 应该失败：ge=0
+            timeout=-1,  # 应该失败：ge=0
+            max_message_chars=-1,  # 应该失败：ge=1
+            temperature=-1,  # 应该失败：ge=0
+            top_p=-1,  # 应该失败：ge=0
             usage_id="test-llm",
         )
 
-    # Verify that the validation error contains expected field names
+    # 验证验证错误是否包含预期的字段名称
     error_str = str(exc_info.value)
     expected_fields = [
         "num_retries",
@@ -170,17 +169,17 @@ def test_llm_config_validation():
     for field in expected_fields:
         assert field in error_str
 
-    # Test that valid values (>= constraints) work correctly
+    # 测试有效值（>=约束）是否正常工作
     config = LLM(
         model="gpt-4o-mini",
-        num_retries=0,  # Valid: ge=0
-        retry_multiplier=0.0,  # Valid: ge=0
-        retry_min_wait=0,  # Valid: ge=0
-        retry_max_wait=0,  # Valid: ge=0
-        timeout=0,  # Valid: ge=0
-        max_message_chars=1,  # Valid: ge=1
-        temperature=0.0,  # Valid: ge=0
-        top_p=0.0,  # Valid: ge=0
+        num_retries=0,  # 有效：ge=0
+        retry_multiplier=0.0,  # 有效：ge=0
+        retry_min_wait=0,  # 有效：ge=0
+        retry_max_wait=0,  # 有效：ge=0
+        timeout=0,  # 有效：ge=0
+        max_message_chars=1,  # 有效：ge=1
+        temperature=0.0,  # 有效：ge=0
+        top_p=0.0,  # 有效：ge=0
         usage_id="test-llm",
     )
     assert config.num_retries == 0
@@ -194,7 +193,7 @@ def test_llm_config_validation():
 
 
 def test_llm_config_optional_fields():
-    """Test that optional fields can be None."""
+    """测试可选字段是否可以为 None。"""
     config = LLM(
         model="gpt-4o-mini",
         api_key=None,
@@ -236,5 +235,5 @@ def test_llm_config_optional_fields():
     assert config.disable_vision is None
     assert config.disable_stop_word is None
     assert config.custom_tokenizer is None
-    assert config.reasoning_effort is None  # Explicitly set to None overrides default
+    assert config.reasoning_effort is None  # 明确设置为 None 覆盖默认值
     assert config.seed is None

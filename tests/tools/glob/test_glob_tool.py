@@ -1,4 +1,4 @@
-"""Tests for GlobTool subclass."""
+"""测试 GlobTool 子类。"""
 
 import os
 import tempfile
@@ -18,7 +18,7 @@ from openhands.tools.glob.impl import GlobExecutor
 
 
 def _create_test_conv_state(temp_dir: str) -> ConversationState:
-    """Helper to create a test conversation state."""
+    """创建测试对话状态的帮助程序。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -29,13 +29,13 @@ def _create_test_conv_state(temp_dir: str) -> ConversationState:
 
 
 def test_glob_tool_initialization():
-    """Test that GlobTool initializes correctly."""
+    """测试 GlobTool 初始化是否正确。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the tool has the correct name and properties
+        # 检查该工具是否具有正确的名称和属性
         assert tool.name == "glob"
         assert tool.executor is not None
         assert tool.action_type == GlobAction
@@ -43,7 +43,7 @@ def test_glob_tool_initialization():
 
 
 def test_glob_tool_invalid_working_dir():
-    """Test that GlobTool raises error for invalid working directory."""
+    """测试 GlobTool 是否会因工作目录无效而引发错误。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     conv_state = ConversationState.create(
@@ -60,9 +60,9 @@ def test_glob_tool_invalid_working_dir():
 
 
 def test_glob_tool_find_files():
-    """Test that GlobTool can find files with patterns."""
+    """测试 GlobTool 是否可以找到具有模式的文件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create test files
+        # 创建测试文件
         test_files = [
             "test.py",
             "main.js",
@@ -81,7 +81,7 @@ def test_glob_tool_find_files():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Test finding Python files
+        # 测试查找 Python 个文件
         action = GlobAction(pattern="**/*.py")
         assert tool.executor is not None
         assert tool.executor is not None
@@ -94,16 +94,16 @@ def test_glob_tool_find_files():
         assert observation.search_path == str(Path(temp_dir).resolve())
         assert not observation.truncated
 
-        # Check that all found files are Python files
+        # 检查所有找到的文件是否为 Python 个文件
         for file_path in observation.files:
             assert file_path.endswith(".py")
             assert os.path.exists(file_path)
 
 
 def test_glob_tool_specific_directory():
-    """Test that GlobTool can search in specific directories."""
+    """测试 GlobTool 是否可以在特定目录中搜索。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create test files
+        # 创建测试文件
         src_dir = Path(temp_dir) / "src"
         src_dir.mkdir()
         (src_dir / "app.py").write_text("# App code")
@@ -117,7 +117,7 @@ def test_glob_tool_specific_directory():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Test searching only in src directory
+        # 测试仅在 src 目录中搜索
         action = GlobAction(pattern="*.py", path=str(src_dir))
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -126,22 +126,22 @@ def test_glob_tool_specific_directory():
         assert len(observation.files) == 2  # app.py, utils.py
         assert observation.search_path == str(src_dir.resolve())
 
-        # Check that all found files are in src directory
+        # 检查所有找到的文件是否都在 src 目录中
         for file_path in observation.files:
             assert str(src_dir.resolve()) in file_path
 
 
 def test_glob_tool_no_matches():
-    """Test that GlobTool handles no matches gracefully."""
+    """测试 GlobTool 是否正常处理任何匹配项。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a single text file
+        # 创建单个文本文件
         (Path(temp_dir) / "readme.txt").write_text("Hello world")
 
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search for Python files (should find none)
+        # 搜索 Python 个文件（应找到 None）
         action = GlobAction(pattern="**/*.py")
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -153,13 +153,13 @@ def test_glob_tool_no_matches():
 
 
 def test_glob_tool_invalid_directory():
-    """Test that GlobTool handles invalid search directories."""
+    """测试 GlobTool 是否处理无效的搜索目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search in non-existent directory
+        # 在不存在的目录中搜索
         action = GlobAction(pattern="*.py", path="/nonexistent/directory")
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -170,9 +170,9 @@ def test_glob_tool_invalid_directory():
 
 
 def test_glob_tool_complex_patterns():
-    """Test that GlobTool handles complex glob patterns."""
+    """测试 GlobTool 是否处理复杂的全局模式。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create test files with various extensions
+        # 创建具有各种扩展名的测试文件
         test_files = [
             "config.json",
             "config.yaml",
@@ -189,24 +189,24 @@ def test_glob_tool_complex_patterns():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Test pattern for config files
+        # 配置文件的测试模式
         action = GlobAction(pattern="config.*")
         assert tool.executor is not None
         observation = tool.executor(action)
 
         assert observation.is_error is False
-        assert len(observation.files) == 4  # All config files
+        assert len(observation.files) == 4  # 所有配置文件
         assert observation.pattern == "config.*"
 
-        # Check that all found files have the expected extensions
+        # 检查所有找到的文件是否具有预期的扩展名
         extensions = {Path(f).suffix for f in observation.files}
         assert extensions == {".json", ".yaml", ".yml", ".toml"}
 
 
 def test_glob_tool_directories_excluded():
-    """Test that GlobTool excludes directories from results."""
+    """测试 GlobTool 是否从结果中排除目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create directories and files
+        # 创建目录和文件
         (Path(temp_dir) / "src").mkdir()
         (Path(temp_dir) / "tests").mkdir()
         (Path(temp_dir) / "app.py").write_text("# App code")
@@ -216,27 +216,27 @@ def test_glob_tool_directories_excluded():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search for everything
+        # 搜索一切
         action = GlobAction(pattern="*")
         assert tool.executor is not None
         observation = tool.executor(action)
 
         assert observation.is_error is False
-        # Should find all files recursively, but not directories
-        assert len(observation.files) == 2  # app.py and src/utils.py
-        # Verify both files are present
+        # 应该递归查找所有文件，但不是目录
+        assert len(observation.files) == 2  # app.py 和 src/utils.py
+        # 验证两个文件都存在
         file_names = [Path(f).name for f in observation.files]
         assert "app.py" in file_names
         assert "utils.py" in file_names
-        # Verify no directory paths are included
+        # 验证不包含目录路径
         for file_path in observation.files:
             assert Path(file_path).is_file() or not Path(file_path).exists()
 
 
 def test_glob_tool_to_llm_content():
-    """Test that GlobObservation converts to LLM content correctly."""
+    """测试 GlobObservation 是否正确转换为 LLM 内容。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create test files
+        # 创建测试文件
         (Path(temp_dir) / "test1.py").write_text("# Test 1")
         (Path(temp_dir) / "test2.py").write_text("# Test 2")
 
@@ -244,7 +244,7 @@ def test_glob_tool_to_llm_content():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Test successful search
+        # 测试成功搜索
         action = GlobAction(pattern="*.py")
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -259,13 +259,13 @@ def test_glob_tool_to_llm_content():
 
 
 def test_glob_tool_to_llm_content_no_matches():
-    """Test LLM content for no matches."""
+    """测试 LLM 内容是否不匹配。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search for non-existent files
+        # 搜索不存在的文件
         action = GlobAction(pattern="*.nonexistent")
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -278,13 +278,13 @@ def test_glob_tool_to_llm_content_no_matches():
 
 
 def test_glob_tool_to_llm_content_error():
-    """Test LLM content for error cases."""
+    """测试 LLM 内容是否存在错误情况。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search in invalid directory
+        # 在无效目录中搜索
         action = GlobAction(pattern="*.py", path="/invalid/path")
         assert tool.executor is not None
         observation = tool.executor(action)
@@ -312,7 +312,7 @@ def test_glob_tool_to_llm_content_error():
     ],
 )
 def test_glob_tool_declared_resources_with_ripgrep(pattern, path):
-    """Test that GlobTool declares no resources when ripgrep is available."""
+    """当 ripgrep 可用时，测试 GlobTool 是否声明没有资源。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
@@ -346,14 +346,14 @@ def test_glob_tool_declared_resources_with_ripgrep(pattern, path):
     ],
 )
 def test_glob_tool_declared_resources_without_ripgrep(pattern, path):
-    """Test that GlobTool falls back to tool-wide mutex when ripgrep is unavailable."""
+    """当 ripgrep 不可用时，测试 GlobTool 是否回退到工具范围互斥体。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
         assert isinstance(tool.executor, GlobExecutor)
-        tool.executor._ripgrep_available = False  # force fallback path
+        tool.executor._ripgrep_available = False  # 力回退方案路径
 
         action = GlobAction(pattern=pattern, path=path)
         resources = tool.declared_resources(action)
@@ -364,9 +364,9 @@ def test_glob_tool_declared_resources_without_ripgrep(pattern, path):
 
 
 def test_glob_tool_truncation():
-    """Test that GlobTool truncates results when there are too many matches."""
+    """测试当匹配项太多时 GlobTool 是否会截断结果。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create more than 100 files
+        # 创建超过 100 个文件
         for i in range(150):
             (Path(temp_dir) / f"file_{i:03d}.txt").write_text(f"Content {i}")
 
@@ -374,16 +374,16 @@ def test_glob_tool_truncation():
         tools = GlobTool.create(conv_state)
         tool = tools[0]
 
-        # Search for all text files
+        # 搜索所有文本文件
         action = GlobAction(pattern="*.txt")
         assert tool.executor is not None
         observation = tool.executor(action)
 
         assert observation.is_error is False
-        assert len(observation.files) == 100  # Truncated to 100
+        assert len(observation.files) == 100  # 截断为 100
         assert observation.truncated is True
 
-        # Check LLM content mentions truncation
+        # 检查LLM内容提到截断
         content = observation.to_llm_content
         text_content = content[0].text
         assert "Results truncated to first 100 files" in text_content

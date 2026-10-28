@@ -1,170 +1,112 @@
-# Conversation runtime info, sandbox pause and credential bindings
+<a id="conversation-runtime-info-sandbox-pause-and-credential-bindings"></a>
 
-What a sandbox orchestrator and a client see about the runtime behind a
-conversation. `GET .../runtime` reports whether a conversation's runtime is
-available and resumable (always `available` for the in-process local runtime,
-which `reprovision` merely re-reports). Before a sandbox is frozen, the
-orchestrator calls `POST /api/conversations/prepare-for-sandbox-pause`: every
-loaded conversation is saved, any run in flight is cancelled to `paused`, its
-ownership lease file is released, and it is dropped from memory; the catalog
-keeps it, and the next event access loads it again. ACP Codex conversations
-can take their `CODEX_AUTH_JSON` file credential from an external versioned
-source: `PUT .../credential-bindings/CODEX_AUTH_JSON` probes the source, binds
-it into a live, not yet initialized ACP agent (scrubbing the stored copies and
-recording that the conversation now requires a runtime binding), or parks it
-as pending for a conversation that is not loaded or not yet created. A
-conversation that requires a binding refuses to load again (409, retryable;
-WebSocket close 1013) after a pause or a restart until the binding is
-activated again. The pause and binding routes are hidden from the OpenAPI
-document. Two runtime-side behaviors complete the picture: with
-`OH_CONVERSATION_RUNTIME=docker` the server owns one container per
-conversation and its Docker router replaces the runtime routes, adds
-`DELETE .../runtime` and `POST .../runtime/credentials`, proxies everything
+# 对话运行时信息、沙箱暂停和凭据绑定
+
+沙箱编排器和客户端如何了解对话背后的运行时。 `GET .../runtime` 报告会话的运行时是否可用和可恢复（总是） `available` 对于在进程中的本地运行时， `reprovision` 仅仅重复。 在沙盒冻结之前， orchestrator 调用 `POST /api/conversations/prepare-for-sandbox-pause`每条加载的对话都被保存，任何正在进行的会话都被取消了 `paused`其所有权租赁文件被释放，从内存中被删除； 目录保留它，下一个事件访问会再次加载它。 ACP 法典对话可以让他们 `CODEX_AUTH_JSON` 文件凭据从外部版本化的
+来源：`PUT .../credential-bindings/CODEX_AUTH_JSON` 探测来源，绑定
+将其转换为一个已启动但尚未初始化的 ACP 智能体状态（擦除存储的副本并记录当前对话需要运行时绑定），或者将其标记为待加载或尚未创建的对话的备用状态。 需要绑定的对话拒绝再次加载（409，可重试； WebSocket close 1013) 暂停或重启后，直到再次激活绑定。 暂停和绑定路线在 OpenAPI 文档中是隐藏的。 两个运行时端行为使整个图更加完整：
+`OH_CONVERSATION_RUNTIME=docker` 服务器为每个会话拥有一个容器，其 Docker 路由器替换了运行时路由，添加
+`DELETE .../runtime` 和 `POST .../runtime/credentials`，代理一切
 else into the container and refuses the operations it cannot proxy (501);
-and a sandbox whose control plane sets `OH_LLM_API_KEY_REFRESH_URL` and
-`OH_LLM_API_KEY_REFRESH_BASE_URLS` re-fetches a managed LLM key once when
-the provider rejects the stored one with a 401.
+和一个沙箱，其控制平面设置为 `OH_LLM_API_KEY_REFRESH_URL` 和
+当提供者通过 401 拒绝存储的密钥时，`OH_LLM_API_KEY_REFRESH_BASE_URLS` 重新获取托管的 LLM 密钥。
 
 Source: `openhands-agent-server/openhands/agent_server/credential_binding.py`, `openhands-agent-server/openhands/agent_server/conversation_router.py`, `openhands-agent-server/openhands/agent_server/conversation_registry.py`, `openhands-agent-server/openhands/agent_server/conversation_service.py`, `openhands-agent-server/openhands/agent_server/event_service.py`, `openhands-agent-server/openhands/agent_server/conversation_lease.py`, `openhands-agent-server/openhands/agent_server/models.py`, `openhands-agent-server/openhands/agent_server/docker_runtime/`, `openhands-agent-server/openhands/agent_server/managed_llm_key.py`, `openhands-sdk/openhands/sdk/credential.py`, `openhands-sdk/openhands/sdk/agent/acp_file_credentials.py`
 
-Needs: `llm`, `node`, `network`
+需求：`llm`、`node`、`network`
 
-Routes: `GET /api/conversations/{conversation_id}/runtime`,
+路线：`GET /api/conversations/{conversation_id}/runtime`，
 `POST /api/conversations/{conversation_id}/runtime/reprovision`,
 `POST /api/conversations/prepare-for-sandbox-pause`,
 `PUT /api/conversations/{conversation_id}/credential-bindings/{secret_name}`,
 `DELETE /api/conversations/{conversation_id}/runtime`,
 `POST /api/conversations/{conversation_id}/runtime/credentials`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F12.discovery`: the OpenAPI document lists the two runtime routes but not the pause and credential-binding routes, and `/server_info` advertises `credential_binding_v1`, `credential_binding_readiness_probe_v1` and `credential_binding_activation_guard_v1`.
-- `F12.runtime-info`: `GET .../runtime` returns 200 `{"runtime_status": "available", "can_resume": true, "runtime_error": null}` for a local conversation, and the conversation's GET, search and batch-get rows embed the same object as `runtime_info`.
-- `F12.runtime-reprovision`: `POST .../runtime/reprovision` returns the same runtime info, ignores a body, and changes nothing (status, event count and lease generation stay the same).
-- `F12.runtime-errors`: both runtime routes answer 404 for an unknown id, 422 for a non-UUID id and 401 without a session key.
-- `F12.ts-client`: the built TypeScript client's `ConversationClient.getRuntime` and `reprovisionRuntime` return the local runtime info, `getConversation()` embeds it as `runtime_info`, and both methods reject an unknown id with a 404 `HttpError` and a client without a key with 401.
-- `F12.sandbox-pause-releases`: `prepare-for-sandbox-pause` answers 204 with an empty body, deletes every `owner_lease.json`, keeps every conversation listed and readable with its status, is idempotent, and is refused with 401 (leaving the leases) without a key.
-- `F12.runtime-cold`: runtime info answers for a conversation that is not loaded, before and after a restart, without loading it (no lease file appears).
-- `F12.sandbox-pause-rehydrate`: after a pause (no restart in between), the next event access loads the conversation again (a new lease, the same events), and a new message runs to `finished` on a real model, which acts again.
-- `F12.sandbox-pause-running`: a conversation whose model call is in flight is cancelled to `paused` within the server's 10 s bound, with a `PauseEvent` and an `InterruptEvent`, and the status change is pushed on its events socket.
-- `F12.sandbox-pause-websocket`: an events socket or a session socket that was open before the pause is either closed by the server or keeps receiving the conversation's new events; it is never left open and silent.
-- `F12.binding-unsupported-secret`: only file credentials can be bound: any other secret name gets 404 without the source being contacted.
-- `F12.binding-validation`: a body with extra keys, no `url`, an empty or over-long (4097+ characters) `url`, an empty or over-long (8193+ characters) header value or more than 16 headers, or a non-UUID id, gets 422 without the source being contacted, also for an unsupported secret name (the body is validated first); no key gets 401.
-- `F12.binding-pending`: a binding for a conversation id the server does not know answers 204 after exactly one probe `GET` that carries the given headers; the id stays unknown (404).
-- `F12.binding-source-statuses`: the source's answer maps to the activation status: 401/403 to 403, 400/404/422 to 422, 409 to 409, 501 to 501, a 200 that is not `{"value": str, "version": non-empty str}` to 422, and a URL that is not http(s) to 422, each after a single probe (none for the bad URL).
-- `F12.binding-source-unavailable`: a source answering 5xx is probed three times with backoff (at least 0.75 s), then the activation fails with 502; an unreachable source also gives 502.
-- `F12.binding-native-too-late`: binding a loaded regular (non-ACP) conversation is refused with 409 `Credential binding activation arrived after ACP initialization` and records nothing.
-- `F12.binding-native-cold`: a binding sent while a regular (non-ACP) conversation is not loaded never makes that conversation demand a credential binding after the next pause.
-- `F12.binding-live-acp`: binding a loaded ACP Codex conversation that has not run yet answers 204, records `required_runtime_credential_bindings: ["CODEX_AUTH_JSON"]` in `meta.json` and removes the stored `CODEX_AUTH_JSON` secret.
-- `F12.binding-rebind`: a second activation with the same URL and new headers is accepted (the probe carries the new headers, which are never written to disk); a different URL is refused with 409.
-- `F12.binding-required-after-pause`: after a pause, a conversation that requires a binding is still listed and reports runtime `available`, but event access and `/run` answer 409 `{"detail": "credential_binding_activation_required", "retryable": true}` and both conversation sockets close with 1013, until a new activation, after which events load again.
-- `F12.binding-required-after-restart`: the requirement survives a restart (409 until a new activation, then 200), and deleting such a conversation needs no activation.
-- `F12.binding-pending-on-create`: a pending binding is consumed when a conversation is created with that `conversation_id`, which then requires the binding from the start and stores no `CODEX_AUTH_JSON` secret.
-- `F12.binding-pending-cleared`: a pause drops pending bindings, so a conversation created afterwards with that id keeps its own `CODEX_AUTH_JSON` secret and requires no binding.
-- `F12.binding-profile-scope`: a conversation launched from an agent profile whose `secret_refs` exclude `CODEX_AUTH_JSON` refuses the binding with 403 `Credential binding authorization was rejected` and records nothing.
-- `F12.runtime-launched-profile`: on a local server started with `OH_RUNTIME_LAUNCHED_PROFILE` (the launched profile a Docker parent passes into each conversation container), a conversation created without an agent profile records that profile as `launched_agent_profile` and its `secret_refs` scope the credential binding (403), while a conversation started from its own agent profile keeps its own profile (204).
-- `F12.managed-key-refresh`: with `OH_LLM_API_KEY_REFRESH_URL`, `OH_LLM_API_KEY_REFRESH_BASE_URLS` naming the LLM's `base_url` and `OH_LLM_API_KEY_REFRESH_HEADERS` (values expanded from the server environment), a model call rejected with 401 makes exactly one `GET` of the refresh URL with the expanded headers and one retry, and the run finishes; the fetched key is not written to the server's state.
-- `F12.managed-key-scope`: an LLM whose `base_url` is outside the allow-list, or any LLM once the allow-list is empty, surfaces the 401 (`LLMAuthenticationError`, status `error`) after one model call and no refresh request; the empty allow-list is logged as "stays off".
-- `F12.managed-key-switch`: an in-scope LLM installed with `switch_llm` (or `switch_profile`) recovers from a 401 through the refresh URL like the LLM the conversation was loaded with.
-- `F12.docker-runtime-contract`: on a server with `OH_CONVERSATION_RUNTIME=docker` and no Docker daemon, fork, `switch_llm`, `switch_profile` and credential bindings answer 501 before any lookup (the binding source is never contacted); the runtime routes, `DELETE .../runtime`, `POST .../runtime/credentials` and `/run` answer 404 `Conversation not found` for an unknown id, and the two Docker-only routes 401 without a key; both conversation sockets close with 1008 for an unknown id; create refuses a missing body (400), a non-object (422), a non-local workspace (422) and a bad `conversation_id` (400) without writing a runtime manifest; a well-formed create answers 502, leaving a manifest whose runtime info is 404, whose reprovision is 502 and whose socket closes with 1011, until `DELETE /api/conversations/{id}` removes it.
-- `F12.docker-runtime`: with a Docker daemon, a create starts a container with the configured `--memory`, `--cpus` and `--pids-limit`, the launched profile in `OH_RUNTIME_LAUNCHED_PROFILE`; `POST .../runtime/credentials` returns the container's session key, `DELETE .../runtime` stops it (204) while the conversation stays readable, reprovision restores workspace files, proxied requests carrying `X-Expose-Secrets` are refused with 422, and archived runtimes preserve history but refuse reprovision with 410.
-- `F12.docker-startup-timeout`: a container that misses `conversation_container_startup_timeout` makes create return 502 within a bounded response time, removes the failed container, and permits deletion of the remaining runtime manifest.
+## 子功能
 
-## How to get to it (agent POV)
+- `F12.discovery`：OpenAPI文档列出了两个运行时路由，但没有列出暂停和凭据绑定路由，`/server_info`通告`credential_binding_v1`、`credential_binding_readiness_probe_v1`和`credential_binding_activation_guard_v1`。
+- `F12.runtime-info`: `GET .../runtime` 对于本地对话返回 200 `{"runtime_status": "available", "can_resume": true, "runtime_error": null}`，并且对话的 GET、搜索和批量获取行嵌入与 `runtime_info` 相同的对象。
+- `F12.runtime-reprovision`：`POST .../runtime/reprovision` 返回相同的运行时信息，忽略正文，并且不进行任何更改（状态、事件计数和租约生成保持不变）。
+- `F12.runtime-errors`：两个运行时路由对于未知 id 都回答 404，对于非 UUID id 回答 422，对于没有会话密钥的 401。
+- `F12.ts-client`built TypeScript 客户端的 `ConversationClient.getRuntime` 和 `reprovisionRuntime` 返回本地运行时信息 `getConversation()` 嵌入它 `runtime_info`并且这两种方法都拒绝未知的 id，返回 404 错误 `HttpError` 一个没有密钥的客户端，返回状态码401。
+- `F12.sandbox-pause-releases`: `prepare-for-sandbox-pause` 以空体返回 204 状态码，删除所有 `owner_lease.json`，保留每条对话及其状态，是幂等的，并且拒绝返回 401 状态码（留下租约），不带密钥。
+- `F12.runtime-cold`：运行时信息回答未加载的对话，在重新启动之前和之后，不加载它（不出现租赁文件）。
+- `F12.sandbox-pause-rehydrate`：暂停一段时间后，下一个事件访问会加载对话（一个新的租期，相同的事件），然后一个新消息会运行到`finished`，这会触发一个真实模型，该模型会再次执行。
+- `F12.sandbox-pause-running`：正在飞行中的模型调用会立即被取消，`paused`，`PauseEvent`，`InterruptEvent`，并且状态变化会推送到事件套接字上。
+- `F12.sandbox-pause-websocket` 一个事件套接字或会话套接字，在暂停之前是打开的，要么由服务器关闭，要么继续接收会话的新事件。 它永远不会保持开放和沉默。
+- `F12.binding-unsupported-secret`：只能绑定文件凭据：任何其他机密名称都会得到 404，而无需联系源。
+- `F12.binding-validation`：带有额外键的体，没有 `url`，一个空或过长（4097+字符）的 `url`，一个空或过长的（8193+字符）头部值，或者超过16个头部，或者一个非 UUID id，会无源被返回 422，同时对于一个不支持的机密名称（体被首先验证）。 没有键会得到 401。
+- `F12.binding-pending`：会话 id 的绑定，服务器在一次携带给定标头的探测 `GET` 后不知道答案 204； ID 仍然未知 (404)。
+- `F12.binding-source-statuses`源端点的答案映射到激活状态：401/403为403，400/404/422为422，409为409，501为501，非200的状态 `{"value": str, "version": non-empty str}` 到422，和一个 URL 那不是 http(s) 到422，每间隔一个探针None 对于坏的 URL).
+- `F12.binding-source-unavailable`：回答 5xx 的源被探测 3 次，并有退避（至少 0.75 秒），然后激活失败，返回 502； 无法访问的源也会给出 502。
+- `F12.binding-native-too-late`：绑定已加载的常规（非 ACP）对话被 409 `Credential binding activation arrived after ACP initialization` 拒绝，并且不记录任何内容。
+- `F12.binding-native-cold`：在未加载常规（非 ACP）对话时发送的绑定永远不会使该对话在下一次暂停后要求凭据绑定。
+- `F12.binding-live-acp`：绑定尚未运行的已加载 ACP Codex 对话，回答 204，在 `meta.json` 中记录 `required_runtime_credential_bindings: ["CODEX_AUTH_JSON"]`，并删除存储的 `CODEX_AUTH_JSON` 机密。
+- `F12.binding-rebind`：接受具有相同 URL 和新标头的第二次激活（探针携带新标头，这些标头永远不会写入磁盘）； 不同的 URL 被 409 拒绝。
+- `F12.binding-required-after-pause` 之后，仍然会列出一个需要绑定的对话，并报告运行时 `available`，但事件访问和 `/run` 返回 409 `{"detail": "credential_binding_activation_required", "retryable": true}`，对话套接字关闭为 1013，直到一个新的激活，之后事件再次加载。
+- `F12.binding-required-after-restart`：要求在重新启动后仍然存在（409 直到新激活，然后 200），并且删除此类对话不需要激活。
+- `F12.binding-pending-on-create`当与该对话创建绑定时，一个待处理的绑定被消耗 `conversation_id`这之后还需要从开始进行绑定，并且不存储任何信息 `CODEX_AUTH_JSON`  机密。
+- `F12.binding-pending-cleared`：暂停会删除挂起的绑定，因此随后使用该 id 创建的对话将保留其自己的 `CODEX_AUTH_JSON` 机密并且不需要绑定。
+- `F12.binding-profile-scope`：从智能体配置文件启动的对话，其 `secret_refs` 排除 `CODEX_AUTH_JSON` 拒绝与 403 `Credential binding authorization was rejected` 绑定并且不记录任何内容。
+- `F12.runtime-launched-profile`在本地服务器上启动的： `OH_RUNTIME_LAUNCHED_PROFILE` (已启动的配置文件) Docker 在每个会话容器中，如果没有创建会话，则会传递父级智能体记录该条记录为 profile `launched_agent_profile` and its `secret_refs` scope the 凭据 binding (403)，而从其自身发起的对话智能体 profile 保留自己的 profile (204)。
+- `F12.managed-key-refresh`: `OH_LLM_API_KEY_REFRESH_URL`，`OH_LLM_API_KEY_REFRESH_BASE_URLS`命名LLM的`base_url`和`OH_LLM_API_KEY_REFRESH_HEADERS`（值来自服务器环境），模型调用以401拒绝，会执行一次`GET`刷新URL，并使用扩展的头信息，一次重试，运行结束。 获取的密钥不会写入服务器的状态。
+- `F12.managed-key-scope`: an LLM whose `base_url` 不在允许列表中，或者任何其他情况 LLM 一旦允许列表为空，返回 401 错误`LLMAuthenticationError`, status `error` 一次模型调用和没有刷新请求。 空的允许列表被记录为“保持关闭”。
+- `F12.managed-key-switch`：与 `switch_llm`（或 `switch_profile`）一起安装的范围内 LLM 通过刷新 URL 从 401 恢复，就像对话加载的 LLM 一样。
+- `F12.docker-runtime-contract`：在 `OH_CONVERSATION_RUNTIME=docker` 和没有 Docker 服务进程的服务器上，fork、`switch_llm`、`switch_profile` 和凭据绑定在任何查找之前就返回 501（绑定源从不被联系）。 运行时路由 `DELETE .../runtime`、`POST .../runtime/credentials` 和 `/run` 对于未知 id 回答 404 `Conversation not found`，以及两个没有密钥的仅 Docker 路由 401； 对于未知 id，两个会话套接字均以 1008 关闭； create 会拒绝丢失的主体 (400)、非对象 (422)、非本地工作区 (422) 和错误的 `conversation_id` (400)，而无需编写运行时清单； 一个有效的创建答案502，留下一个缺少的manifest，其运行时信息为404，其重新配置为502，其套接字关闭为1011，直到`DELETE /api/conversations/{id}`移除它。
+- `F12.docker-runtime`：使用 Docker 守护进程，创建使用配置的 `--memory`、`--cpus` 和 `--pids-limit` 启动一个容器，`OH_RUNTIME_LAUNCHED_PROFILE` 中启动的配置文件； `POST .../runtime/credentials` 返回容器的会话密钥，`DELETE .../runtime` 在对话保持可读时停止它 (204)，重新配置恢复工作区文件，携带 `X-Expose-Secrets` 的代理请求被拒绝为 422，归档运行时保留历史记录但拒绝重新配置为 410。
+- `F12.docker-startup-timeout`缺少的容器 `conversation_container_startup_timeout` 它会返回502错误，并在响应时间内创建，移除失败的容器，并允许删除剩余的运行时映射。
 
-- REST: `GET /api/conversations/{conversation_id}/runtime` and
-  `POST /api/conversations/{conversation_id}/runtime/reprovision` (both in
-  the OpenAPI document; the local registry always answers `available`).
-  `runtime_info` is also embedded in `GET /api/conversations/{id}`,
-  `GET /api/conversations/search` and `GET /api/conversations?ids=...`.
-- REST, Docker runtime mode (`OH_CONVERSATION_RUNTIME=docker` or config
-  `conversation_runtime: docker`; `docker_runtime/routers.py`): the Docker
-  router is mounted after the catalog's read routes (`GET
-  /api/conversations/{id}`, search, count stay local) and ahead of the local
-  conversation routes, so it serves `POST /api/conversations` (create
-  through a container), `GET .../runtime` and `POST .../runtime/reprovision`
-  (container state),
-  two routes the local app does not have, `DELETE .../runtime` (stop the
-  container, keep the conversation; 204) and `POST .../runtime/credentials`
-  (the container's `session_api_key`), `DELETE /api/conversations/{id}`, and
-  a catch-all proxy `/{conversation_id}/{tail}` that forwards into the
-  container except `fork`, `switch_llm`, `switch_profile` and
-  `credential-bindings` (501). `map routes` lists the routes that exist only
-  in this mode (marked `config: conversation_runtime=docker`); the last two
-  `Routes:` entries are the two runtime-control ones, and the container
-  proxies are listed as not mapped in the README.
-- REST, hidden (`include_in_schema=False`, so neither the generated
-  TypeScript schema nor OpenAPI tooling sees them; used by the sandbox
-  orchestrator): `POST /api/conversations/prepare-for-sandbox-pause` (no body,
-  204) and
-  `PUT /api/conversations/{conversation_id}/credential-bindings/{secret_name}`
-  with `{"url": "...", "headers": {"Name": "value"}}` (204). The credential
-  source must answer `GET url` with `{"value": "<credential>", "version":
-  "<opaque>"}` and later `PUT url` with `{"expected_version", "value"}`
-  (refresh sync; not reachable without a running Codex).
-- WebSocket: `/sockets/events/{conversation_id}` and
-  `/sockets/session/{conversation_id}` close with 1013
-  `credential_binding_activation_required` for a conversation that needs a
-  binding. In Docker mode both are bridged into the container and close with
-  1008 for an unknown conversation and 1011 when its container cannot start.
-- TypeScript client: `ConversationClient.getRuntime(conversationId)` and
-  `reprovisionRuntime(conversationId)`; `ConversationInfo.runtime_info`
-  (`F12.ts-client` runs them with `node` against the built client). No
-  client method for the hidden routes.
-- SDK: no Python consumer of these routes in this repository;
-  `RemoteWorkspace` calls the Docker-only `.../runtime` lifecycle routes
-  (`DELETE .../runtime`, `POST .../runtime/credentials`).
-- Configuration: `OH_LEASE_TTL_SECONDS` (default 45; `0` disables the lease
-  files that the pause releases); `OH_CONVERSATION_RUNTIME` with
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- REST: `GET /api/conversations/{conversation_id}/runtime` 和
+  `POST /api/conversations/{conversation_id}/runtime/reprovision`（均在OpenAPI文档中； 本地注册表总是回答 `available`）。
+  `runtime_info` 也嵌入在 `GET /api/conversations/{id}` 中，
+  `GET /api/conversations/search` 和 `GET /api/conversations?ids=...`。
+- REST、Docker 运行时模式（`OH_CONVERSATION_RUNTIME=docker` 或配置
+  `conversation_runtime: docker`; `docker_runtime/routers.py`): Docker 路由器安装在目录的读取路由（`GET /api/conversations/{id}`、搜索、计数保持本地）之后和本地会话路由之前，因此它提供 `POST /api/conversations`（通过容器创建）、`GET .../runtime` 和 `POST .../runtime/reprovision`（容器状态）、本地应用程序没有的两条路由、`DELETE .../runtime`（停止容器，保持会话；204）和 `POST .../runtime/credentials`（容器的 `session_api_key`）、`DELETE /api/conversations/{id}` 和一个包罗万象的代理`/{conversation_id}/{tail}` 转发到容器中，`fork`、`switch_llm`、`switch_profile` 除外
+  `credential-bindings` (501). `map routes`列出了仅在该模式下存在的路由（标记为`config: conversation_runtime=docker`）； 最后两个
+  `Routes:` 条目是两个运行时控制条目，容器代理在 README 中列为未映射。
+- REST，隐藏（`include_in_schema=False`，因此生成的 TypeScript 模式和 OpenAPI 工具都看不到它们； 由沙盒编排器使用）：`POST /api/conversations/prepare-for-sandbox-pause`（无主体，
+  204) 和
+  `PUT /api/conversations/{conversation_id}/credential-bindings/{secret_name}` 与 `{"url": "...", "headers": {"Name": "value"}}` (204)。 凭据来源必须用 `{"value": "<credential>", "version": "<opaque>"}` 回答 `GET url`，然后用 `{"expected_version", "value"}` 回答 `PUT url`（刷新同步； 如果没有正在运行的 Codex，则无法访问）。
+- WebSocket: `/sockets/events/{conversation_id}` 和
+  `/sockets/session/{conversation_id}` 结束于 1013
+  `credential_binding_activation_required` 用于需要绑定的对话。 在 Docker 模式下，两者都桥接到容器中，并在未知对话时使用 1008 关闭，在容器无法启动时使用 1011 关闭。
+- TypeScript 客户端：`ConversationClient.getRuntime(conversationId)` 和
+  `reprovisionRuntime(conversationId)`; `ConversationInfo.runtime_info`（`F12.ts-client` 使用 `node` 针对构建的客户端运行它们）。 没有隐藏路由的客户端方法。
+- SDK：此存储库中没有Python个这些路由的使用者；
+  `RemoteWorkspace` 调用仅限 Docker 的 `.../runtime` 生命周期路由 (`DELETE .../runtime`、`POST .../runtime/credentials`)。
+- 配置：`OH_LEASE_TTL_SECONDS`（默认45； `0`禁用暂停释放的租用文件）； `OH_CONVERSATION_RUNTIME` 与
   `conversation_image`, `conversation_container_memory`,
-  `conversation_container_cpus`, `conversation_container_pids_limit` and
-  `conversation_container_startup_timeout`; `OH_RUNTIME_LAUNCHED_PROFILE`
-  (a `LaunchedAgentProfile` JSON the Docker parent sets in each container,
-  read by any server at create); `OH_LLM_API_KEY_REFRESH_URL`,
-  `OH_LLM_API_KEY_REFRESH_BASE_URLS` (comma-separated `base_url` allow-list,
-  required) and `OH_LLM_API_KEY_REFRESH_HEADERS` (JSON object, `$VAR` and
-  `${VAR}` expanded from the server environment), read when a conversation
-  is loaded (`managed_llm_key.py`, registered in `EventService.start`). The
-  refresh URL answers the current key as the plain-text body.
-- `/server_info` `capabilities` advertises `credential_binding_v1`,
-  `credential_binding_readiness_probe_v1` and
-  `credential_binding_activation_guard_v1` (F01 owns the route).
-- Recipes: `api` drives every route; `fixture http-sink` plays the credential
-  source and the managed-key refresh URL (one sink per reply status, since a
-  sink answers every request the same way) and `sink read` counts its probes
-  and their headers; a second server (`launch --new --env ...`) carries the
-  Docker mode, the launched profile and the refresh variables; `state ls`
-  and `state cat` read `owner_lease.json` and `meta.json`; `fixture llm-stub`
-  holds a model call in flight and plays the provider that rejects a stale
-  key with 401; `ws start`/`ws listen` observe the sockets. An
-  ACP Codex conversation is created with an inline
+  `conversation_container_cpus`、`conversation_container_pids_limit` 和
+  `conversation_container_startup_timeout`; `OH_RUNTIME_LAUNCHED_PROFILE`（每个容器中的 `LaunchedAgentProfile` JSON Docker 父集，在创建时由任何服务器读取）； `OH_LLM_API_KEY_REFRESH_URL`,
+  `OH_LLM_API_KEY_REFRESH_BASE_URLS`（逗号分隔的 `base_url` 允许列表，必需）和 `OH_LLM_API_KEY_REFRESH_HEADERS`（JSON 对象，`$VAR` 和
+  `${VAR}`从服务器环境扩展），加载会话时读取（`managed_llm_key.py`，在`EventService.start`中注册）。 刷新URL以纯文本正文形式回答当前密钥。
+- `/server_info` `capabilities` 做广告 `credential_binding_v1`，
+  `credential_binding_readiness_probe_v1` 和
+  `credential_binding_activation_guard_v1`（F01 拥有该路线）。
+- 食谱：`api` 驾驶每条路线； `fixture http-sink` 播放凭据源和管理密钥刷新 URL （一个回复状态对应一个接收者，因为接收者对每个请求都以相同方式回应）以及 `sink read` 计数其探针及其头部； 第二个服务器 (`launch --new --env ...`) 承载 Docker 模式、启动的配置文件和刷新变量； `state ls`和`state cat`改为`owner_lease.json`和`meta.json`； `fixture llm-stub` 在飞行中进行模型调用，并使用 401 拒绝过时密钥的提供者； `ws start`/`wslisten`观察套接字。 ACP Codex 对话是通过内联创建的
   `{"kind": "ACPAgent", "acp_command": ["codex-acp"], "acp_server": "codex"}`
-  agent: the ACP subprocess only starts on the first run, so no Codex binary
-  is needed for anything here.
+  智能体：ACP 子进程仅在第一次运行时启动，因此没有 Codex 二进制文件
+  这里的任何事情都需要。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A baseline run (`launch --new`), `doctor` ok, `$DEEPSEEK_API_KEY` set; the
-  block below saves the DeepSeek profiles.
-- The block creates, in order: an unknown id `NOPE`, the inline ACP Codex
-  agent `ACP_AGENT`, the healthy credential source `SRC` (an HTTP sink
-  answering `{"value": "{}", "version": "qa-v1"}`), a second healthy source
-  `NEVER` that no request may reach, an `llm-stub` that hangs every model call
-  for 300 s with an inline agent on it (`HANG_AGENT`), a regular conversation
-  `N` on DeepSeek flash that never runs, and a conversation `R` on DeepSeek
-  flash that answers one tiny prompt and finishes. No tool needs `tmux`
-  (`--tools none`).
-- Several bullets call `prepare-for-sandbox-pause`, which unloads every
-  conversation of the run, so each bullet loads what it needs first.
-- The bullets from `F12.runtime-launched-profile` on each launch and stop
-  their own second server (a local one with `OH_RUNTIME_LAUNCHED_PROFILE`
-  or the managed-key variables, or one with
-  `OH_CONVERSATION_RUNTIME=docker`); their sinks and stubs are fixtures of
-  the baseline run, so `sink read` needs no `--run`. Those bullets need no
-  DeepSeek key: their models are `llm-stub` scripts, since a real provider
-  cannot be told to reject a key once.
+前提条件：
+
+- 基线运行 (`launch --new`)，`doctor` 正常，`$DEEPSEEK_API_KEY` 设置； 下面的块保存 DeepSeek 配置文件。
+- 块会创建：未知的 id `NOPE`, inline ACP Codex 智能体  `ACP_AGENT`, 健康的凭据来源 `SRC` (an) HTTP  `{"value": "{}", "version": "qa-v1"}`), 第二个健康来源
+  `NEVER` 没有请求可以到达，`llm-stub` 将每个模型调用挂起 300 秒，并在其上有内联智能体 (`HANG_AGENT`)，常规对话
+  DeepSeek 闪光灯上的 `N` 永远不会运行，而 DeepSeek 闪光灯上的对话 `R` 会回答一个微小的提示词并结束。 不需要任何工具 `tmux` (`--tools none`)。
+- 多个项目符号调用 `prepare-for-sandbox-pause`，这会卸载运行中的每个对话，因此每个项目符号首先加载它需要的内容。
+- 每次启动和停止自己的第二个服务器时，来自 `F12.runtime-launched-profile` 的项目符号（带有 `OH_RUNTIME_LAUNCHED_PROFILE` 或托管密钥变量的本地服务器，或者带有
+  `OH_CONVERSATION_RUNTIME=docker`); 它们的接收器和存根是基线运行的测试夹具，因此 `sink read` 不需要 `--run`。 这些项目符号不需要 DeepSeek 密钥：它们的模型是 `llm-stub` 脚本，因为真正的提供者不能被告知拒绝一次密钥。
 
 ```sh
 control-agent-server llm preset deepseek
@@ -179,8 +121,7 @@ R=$(control-agent-server conversation start --tools none --no-autotitle --prompt
 control-agent-server api GET "/api/conversations/$R" --check execution_status eq finished
 ```
 
-- **Discovery (`F12.discovery`).** Read the OpenAPI document and the
-  capability flags.
+- **发现 (`F12.discovery`).**阅读 OpenAPI 文档和功能标志。
   ```sh
   control-agent-server api GET /openapi.json --auth none --expect 200 --max-chars 200 \
     --check 'paths./api/conversations/{conversation_id}/runtime.get' exists \
@@ -193,10 +134,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
     --check capabilities contains credential_binding_readiness_probe_v1 \
     --check capabilities contains credential_binding_activation_guard_v1 --save F12.discovery/server-info
   ```
-  The runtime routes are documented; the orchestrator routes are not, but
-  the server advertises the binding contract through its capabilities.
-- **Runtime info (`F12.runtime-info`).** Read the runtime of `N`, then the
-  embedded copies.
+  运行时路由已文档化。 调度器路由不支持，但服务器通过其能力通告绑定合同。
+- **运行时信息(`F12.runtime-info`)。**读取 `N` 的运行时，然后读取嵌入副本。
   ```sh
   control-agent-server api GET "/api/conversations/$N/runtime" --expect 200 \
     --check runtime_status eq available --check can_resume eq true --check runtime_error eq null \
@@ -209,9 +148,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET /api/conversations --query "ids=$N" --expect 200 \
     --check 0.runtime_info.runtime_status eq available --check 0.runtime_info.can_resume eq true
   ```
-  Every view reports `available`, resumable, no error.
-- **Reprovision (`F12.runtime-reprovision`).** Local mode has nothing to
-  provision; the call re-reports and touches nothing.
+  每张视图报告 `available`，可恢复，无错误。
+- **重新配置(`F12.runtime-reprovision`)。**本地模式无需提供任何内容； 呼叫重新报告并且没有触及任何内容。
   ```sh
   EN=$(control-agent-server api GET "/api/conversations/$N/events/count" --field .)
   control-agent-server state cat owner_lease.json --conversation "$N" --check generation eq 1
@@ -224,10 +162,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$N/events/count" --check . eq "$EN"
   control-agent-server state cat owner_lease.json --conversation "$N" --check generation eq 1
   ```
-  Both calls return the same object as `GET .../runtime`; the status, the
-  event count and the lease generation are unchanged.
-- **Runtime errors (`F12.runtime-errors`).** Unknown id, malformed id, no
-  key.
+  两个调用返回相同的对象 `GET .../runtime`。 状态、事件计数和租约生成都未改变。
+- **运行时错误 (`F12.runtime-errors`)。**未知 ID、格式错误的 ID、无密钥。
   ```sh
   control-agent-server api GET "/api/conversations/$NOPE/runtime" --expect 404 --check detail eq 'Not Found' --save F12.runtime-errors/unknown
   control-agent-server api POST "/api/conversations/$NOPE/runtime/reprovision" --expect 404 --check detail eq 'Not Found' --save F12.runtime-errors/unknown-reprovision
@@ -236,10 +172,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$N/runtime" --auth none --expect 401 --check detail eq Unauthorized
   control-agent-server api POST "/api/conversations/$N/runtime/reprovision" --auth none --expect 401 --check detail eq Unauthorized
   ```
-  404 `Not Found`, 422 `uuid_parsing` and 401 `Unauthorized`, for both
-  routes.
-- **TypeScript client (`F12.ts-client`).** `ConversationClient` from the
-  built client in `clients/typescript/dist` (built here when missing).
+  404 `Not Found`、422 `uuid_parsing` 和 401 `Unauthorized`，对于所有路由。
+- **TypeScript 客户端 (`F12.ts-client`).** `ConversationClient` 来自 `clients/typescript/dist` 中构建的客户端（缺失时在此处构建）。
   ```sh
   test -f clients/typescript/dist/clients.js || (cd clients/typescript && npm ci && npm run build)
   F="$AGENT_SERVER_VERIFY_RUN/fixtures"
@@ -263,10 +197,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   JS
   control-agent-server exec --expect-output TS_RUNTIME_OK --save F12.ts-client/program -- node "$F/qa-f12-ts.mjs" "$N" "$NOPE"
   ```
-  Every assertion holds: the same `available` object three ways, a 404
-  `HttpError` for the unknown id from both methods, and 401 without a key.
-- **Pause releases everything (`F12.sandbox-pause-releases`).** Both `N` and
-  `R` are loaded and hold leases; a refused call first, then the real one.
+  每个断言都成立：同一个 `available` 对象可以从三个角度查看，404
+  `HttpError` 表示两种方法中的未知 id，以及没有密钥的 401。
+- **暂停释放一切(`F12.sandbox-pause-releases`)。** `N` 和
+  `R` 已加载并持有租约； 首先是被拒绝的电话，然后是真正的电话。
   ```sh
   control-agent-server api GET "/api/conversations/$R/events/count" --expect 200
   control-agent-server state ls 'server/workspace/conversations/*/owner_lease.json' --expect-min 2
@@ -282,11 +216,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET /api/conversations/count --check . eq "$COUNT"
   control-agent-server api POST /api/conversations/prepare-for-sandbox-pause --expect 204
   ```
-  The 401 leaves both leases in place; the real call returns 204 with no
-  body, every lease file is gone, both conversations are still listed with
-  their statuses (served from the catalog), and a second call is a no-op 204.
-- **Runtime of an unloaded conversation (`F12.runtime-cold`).** Read the
-  runtime while nothing is loaded, also after a restart.
+  401状态码会保留两个租约。 真实调用返回204无内容，所有租约文件都已消失，所有会话仍然列出，状态（从目录中获取）仍然有效，第二次调用是无操作的204。
+- **卸载对话的运行时 (`F12.runtime-cold`)。**在未加载任何内容时以及重新启动后读取运行时。
   ```sh
   control-agent-server api GET "/api/conversations/$N/runtime" --expect 200 --check runtime_status eq available --save F12.runtime-cold/after-pause
   control-agent-server api POST "/api/conversations/$R/runtime/reprovision" --expect 200 --check runtime_status eq available
@@ -295,11 +226,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$R/runtime" --expect 200 --check runtime_status eq available --check can_resume eq true --save F12.runtime-cold/after-restart
   control-agent-server state ls 'server/workspace/conversations/*/owner_lease.json' --expect-count 0
   ```
-  The runtime routes read the catalog: no lease file appears, before or after
-  the restart.
-- **Rehydrate after a pause (`F12.sandbox-pause-rehydrate`).** Load `R`,
-  pause (the previous bullet's restart is not in between), read its events,
-  then run it again on DeepSeek flash.
+  运行时读取目录：在重启之前或之后没有租赁文件。
+- **暂停后重新加载(`F12.sandbox-pause-rehydrate`)。**加载`R`，暂停（上一个圆点的重启不在中间），读取其事件，然后在DeepSeek闪屏上再次运行。
   ```sh
   ER=$(control-agent-server api GET "/api/conversations/$R/events/count" --field .)
   AR=$(control-agent-server conversation events "$R" --kinds ActionEvent,MessageEvent --contains '"source": "agent"' --expect-min 1 | jq -e '.matching')
@@ -313,12 +241,9 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server conversation events "$R" --kinds ActionEvent,MessageEvent --contains '"source": "agent"' \
     | jq -e --argjson before "$AR" '.matching > $before'
   ```
-  The pause removes `R`'s lease; the first event read loads it again (a new
-  lease file) with the event log intact, and the conversation runs to
-  `finished` again with at least one new agent action or message, so the
-  model really ran on the reloaded conversation.
-- **Pause a running conversation (`F12.sandbox-pause-running`).** `H`'s
-  model call hangs, so the run is in flight when the pause arrives.
+  暂停会移除 `R`'s 资源租赁。 第一个事件读取后再次加载它（带有事件日志的新的租赁文件），并且对话继续进行
+  `finished` 再次至少有一个新的智能体操作或消息，因此模型确实在重新加载的对话上运行。
+- **暂停正在运行的对话 (`F12.sandbox-pause-running`)。** `H` 的模型调用挂起，因此当暂停到来时运行正在进行中。
   ```sh
   H=$(control-agent-server conversation start --body-json "{\"agent\": $HANG_AGENT}" --no-autotitle --print-id)
   control-agent-server ws start "/sockets/events/$H" --name f12-running --duration 300
@@ -333,12 +258,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server conversation events "$H" --kinds PauseEvent --expect-count 1
   control-agent-server conversation events "$H" --kinds InterruptEvent --expect-count 1
   ```
-  The pause returns 204 well within 10 s although the model call would hang
-  for 300 s; the conversation is `paused`, its log has one `PauseEvent` and
-  one `InterruptEvent`, and the socket received both and the `paused` status.
-- **Open sockets across a pause (`F12.sandbox-pause-websocket`), known bug.**
-  An events socket and a session socket opened before the pause, a message
-  posted after it, and fresh sockets of both kinds as the positive control.
+  暂停返回204状态码，但模型调用会持续300秒。 对话 `paused`，日志有 `PauseEvent` 和 `InterruptEvent`，套接字接收了两者，且 `paused` 状态。
+- **暂停期间打开的套接字（`F12.sandbox-pause-websocket`），已知bug。**在暂停之前打开的事件套接字和会话套接字，暂停之后发送的消息，以及两种类型的新的套接字作为正控制。
   ```sh
   control-agent-server api GET "/api/conversations/$N/events/count" --expect 200
   control-agent-server ws start "/sockets/events/$N" --name f12-before --duration 300
@@ -357,34 +278,22 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   OLD_SESSION=$(control-agent-server ws stop f12-before-session --wait 5 --save F12.sandbox-pause-websocket/old-session-socket)
   printf '%s\n%s\n' "$OLD" "$OLD_SESSION" | jq -c '{close, kinds}'
   echo "$OLD" | jq -c '{opened, close, messages: (.kinds.MessageEvent // 0)} | .closed_or_streaming = (.close != null or .messages >= 1)' \
-    | control-agent-server assert --check closed_or_streaming eq true  # bug: value.opened eq true && value.close missing && value.messages eq 0
+    | control-agent-server assert --check closed_or_streaming eq true  # bug: value.opened eq True && value.close 缺少 && value.messages eq 0
   echo "$OLD_SESSION" | jq -c '{opened, close, messages: (.kinds["durable:MessageEvent"] // 0)} | .closed_or_streaming = (.close != null or .messages >= 1)' \
-    | control-agent-server assert --check closed_or_streaming eq true  # bug: value.opened eq true && value.close missing && value.messages eq 0
+    | control-agent-server assert --check closed_or_streaming eq true  # bug: value.opened eq True && value.close 缺少 && value.messages eq 0
   ```
-  Correct behavior: a socket that was open before the pause is closed by
-  the server (so the client reconnects) or keeps streaming. Today both stay
-  open and silent: `close` is `null` and neither receives the
-  `QA_F12_AFTER_PAUSE` message that the fresh sockets get (the events socket
-  keeps its one initial `ConversationStateUpdateEvent`, the session socket
-  its `sync` frame and initial state; still the same 20 s later). The pause
-  closes the conversation's pub/sub without closing the socket subscribers
-  (`_WebSocketSubscriber` and the session socket's `_SessionSubscriber`
-  inherit the no-op `Subscriber.close()`), leaving the clients attached to a
-  discarded `EventService`. Idle eviction avoids this by never evicting a
-  conversation with an external subscriber; the pause has no such guard.
-  Both captures are saved before the assertions, so the evidence holds both.
-- **Unsupported secret names (`F12.binding-unsupported-secret`).** Only
-  `CODEX_AUTH_JSON` is a file credential.
+  正确的行为：在暂停之前打开的套接字由服务器关闭（因此客户端重新连接）或保持流式传输。 今天，两者都关闭且无声：`close` 是 `null`，两者都不接收
+  `QA_F12_AFTER_PAUSE` 新套接字获取的消息（事件套接字保持其初始 `ConversationStateUpdateEvent`，会话套接字保持其 `sync` 帧和初始状态； 20 秒后还是一样）。 暂停关闭了会话的pub/sub，但没有关闭socket订阅者(`_WebSocketSubscriber`和会话socket的`_SessionSubscriber`继承了无操作`Subscriber.close()`)，留下客户端与一个被丢弃的`EventService`连接关联。 空闲驱逐通过从不驱逐与外部订户的对话来避免这种情况； 停顿没有这样的警卫。 两次捕获都在断言之前保存，因此证据同时成立。
+- **不支持的机密名称 (`F12.binding-unsupported-secret`)。**仅
+  `CODEX_AUTH_JSON` 是文件凭据。
   ```sh
   control-agent-server api PUT "/api/conversations/$NOPE/credential-bindings/GITHUB_TOKEN" --json "{\"url\": \"$NEVER/cred\"}" \
     --expect 404 --check detail eq 'Not Found' --save F12.binding-unsupported-secret/github-token
   control-agent-server api PUT "/api/conversations/$NOPE/credential-bindings/codex_auth_json" --json "{\"url\": \"$NEVER/cred\"}" --expect 404
   control-agent-server sink read --name qa-f12-never --expect-max 0
   ```
-  Both are 404 `Not Found` (the name is case-sensitive) and the source never
-  saw a request.
-- **Body validation (`F12.binding-validation`).** Malformed requests never
-  reach the source.
+  两者都是404 `Not Found`（名称大小写敏感），源端点从未见过请求。
+- **正文验证 (`F12.binding-validation`).**格式错误的请求永远不会到达源。
   ```sh
   B="/api/conversations/$NOPE/credential-bindings/CODEX_AUTH_JSON"
   control-agent-server api PUT "$B" --json "{\"url\": \"$NEVER/cred\", \"qa\": 1}" --expect 422 --check detail.0.type eq extra_forbidden --save F12.binding-validation/extra-key
@@ -404,11 +313,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api PUT "$B" --auth none --json "{\"url\": \"$NEVER/cred\"}" --expect 401 --check detail eq Unauthorized
   control-agent-server sink read --name qa-f12-never --expect-max 0
   ```
-  Each malformed body or id is a 422 with the pydantic error type (a bad
-  body under the unsupported `GITHUB_TOKEN` name is 422, not 404), no key is
-  401, and the source still has no request.
-- **Pending binding for an unknown id (`F12.binding-pending`).** Activation
-  may precede the conversation.
+  每个不完整的主体或ID都返回一个422，错误类型为Pydantic（在不支持的`GITHUB_TOKEN`名称下，一个不完整的主体是422，而不是404），没有键是401，源仍然没有请求。
+- **待绑定未知 ID (`F12.binding-pending`)。**激活可以在对话之前进行。
   ```sh
   U1=$(python3 -c 'import uuid; print(uuid.uuid4())')
   control-agent-server api PUT "/api/conversations/$U1/credential-bindings/CODEX_AUTH_JSON" \
@@ -419,11 +325,9 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server sink read --name qa-f12-cred --expect-max 1
   control-agent-server api GET "/api/conversations/$U1" --expect 404
   ```
-  204 with an empty body after one `GET /cred` carrying
-  `Authorization: Bearer qa-f12-pending`; the conversation still does not
-  exist.
-- **Source answers (`F12.binding-source-statuses`).** One sink per reply,
-  since a sink answers every request the same way.
+  204 无内容响应，携带 `GET /cred`
+  `Authorization: Bearer qa-f12-pending`; 该对话仍然不存在。
+- **来源答案 (`F12.binding-source-statuses`)。**每个回复一个接收器，因为接收器以相同的方式回答每个请求。
   ```sh
   B="/api/conversations/$NOPE/credential-bindings/CODEX_AUTH_JSON"
   S401=$(control-agent-server fixture http-sink --name qa-f12-src-401 --status 401 --body '{}' --print-path)
@@ -454,12 +358,9 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api PUT "$B" --json '{"url": "ftp://127.0.0.1/cred"}' --expect 422 --check detail eq 'Credential binding source is invalid' --save F12.binding-source-statuses/ftp-url
   control-agent-server api PUT "$B" --json '{"url": "not a url"}' --expect 422 --check detail eq 'Credential binding source is invalid'
   ```
-  Every source status maps as listed, each after exactly one probe (no
-  retry for a definite answer); a 501 is reported as
-  `{"detail": "Internal Server Error", "exception": "501: ..."}` like every
-  5xx; malformed 200 bodies and non-http(s) URLs are 422.
-- **Unavailable source (`F12.binding-source-unavailable`).** A 503 source,
-  then a closed port.
+  每个源状态都按照列表所示映射，每个状态都经过一次探针（没有重试来表示肯定的答案）。 501的编号是
+  `{"detail": "Internal Server Error", "exception": "501: ..."}` 就像每 5xx 个； 200个畸形的物体和非http(s) URLs的物体是422。
+- **来源不可用 (`F12.binding-source-unavailable`)。**一个 503 源，然后一个关闭的端口。
   ```sh
   S=$(control-agent-server fixture http-sink --name qa-f12-src-503 --status 503 --body '{}' --print-path)
   control-agent-server api PUT "/api/conversations/$NOPE/credential-bindings/CODEX_AUTH_JSON" --json "{\"url\": \"$S/cred\"}" \
@@ -470,11 +371,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
     --expect 502 --check exception eq '502: Credential binding source is unavailable' --expect-max-ms 5000 \
     --save F12.binding-source-unavailable/closed-port | jq -e '.elapsed_ms >= 750'
   ```
-  Three probes (sleeping 0.25 s, then 0.5 s, between them), then 502 within
-  5 s; a refused connection is retried the same way (it also takes at least
-  0.75 s).
-- **Regular conversation, loaded (`F12.binding-native-too-late`).** Load `N`,
-  then try to bind it.
+  三个探测器（分别在0.25秒和0.5秒之间进入，然后在5秒内有502个）。 拒绝连接会以同样的方式重试（至少需要0.75秒）。
+- **常规对话，已加载 (`F12.binding-native-too-late`)。**加载`N`，然后尝试绑定它。
   ```sh
   control-agent-server api GET "/api/conversations/$N/events/count" --expect 200
   control-agent-server state ls --conversation "$N" owner_lease.json --expect-count 1
@@ -482,9 +380,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
     --expect 409 --check detail eq 'Credential binding activation arrived after ACP initialization' --save F12.binding-native-too-late/put
   control-agent-server state cat meta.json --conversation "$N" --check required_runtime_credential_bindings len-eq 0
   ```
-  409 and no recorded requirement.
-- **Regular conversation, not loaded (`F12.binding-native-cold`).**
-  The same binding sent while `N` is unloaded, then a load and a pause.
+  409 无记录的需求。
+- **常规对话，未加载(`F12.binding-native-cold`)。**卸载 `N` 时发送相同的绑定，然后加载并暂停。
   ```sh
   control-agent-server api POST /api/conversations/prepare-for-sandbox-pause --expect 204
   control-agent-server api PUT "/api/conversations/$N/credential-bindings/CODEX_AUTH_JSON" --json "{\"url\": \"$SRC/cred\"}" --expect 204,409 \
@@ -494,15 +391,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$N/events/count" --expect 200 --save F12.binding-native-cold/events-after-pause
   control-agent-server state cat meta.json --conversation "$N" --check required_runtime_credential_bindings len-eq 0
   ```
-  A regular conversation either refuses the binding (409, as it does when
-  loaded) or ignores it, and stays readable after the next pause. The
-  unloaded PUT is accepted as pending (204) and dropped when `N` loads,
-  because only ACP agents take file credential bindings: `meta.json` keeps
-  `required_runtime_credential_bindings: []`, and a regular conversation
-  created with an id that has a pending binding keeps its own
-  `CODEX_AUTH_JSON` secret.
-- **Bind a loaded ACP Codex conversation (`F12.binding-live-acp`).** `A` has
-  never run, so its ACP agent is not initialized yet.
+  常规对话要么拒绝绑定（409，就像在加载时一样），要么忽略它，然后在下一次暂停后保持可读。 未加载的 PUT 被接受为待处理（204），当 `N` 加载时被丢弃，因为只有 ACP 和 `meta.json` 会处理文件智能体的绑定：凭据保持不变
+  `required_runtime_credential_bindings: []`，并且使用具有挂起绑定的 id 创建的常规对话保留其自己的
+  `CODEX_AUTH_JSON` 机密。
+- **绑定已加载的 ACP Codex 对话 (`F12.binding-live-acp`)。** `A`从未运行过，因此其ACP智能体尚未初始化。
   ```sh
   A=$(control-agent-server conversation start --body-json "{\"agent\": $ACP_AGENT}" --secret CODEX_AUTH_JSON=qa-f12-request-copy --no-autotitle --print-id)
   control-agent-server api GET "/api/conversations/$A" --check agent.kind eq ACPAgent --check agent.acp_server eq codex
@@ -516,14 +408,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state grep qa-f12-request-copy --glob 'home/**/*' --expect-none
   control-agent-server api GET "/api/conversations/$A/events/count" --expect 200
   ```
-  204; `meta.json` now records the requirement and no longer holds the
-  conversation's own `CODEX_AUTH_JSON` secret (stored encrypted before, so
-  the plaintext greps hold either way; the `secrets` check is the proof of
-  the scrub), and the conversation stays readable.
-- **Re-bind (`F12.binding-rebind`).** Same URL with new headers, then a
-  different URL.
+  204; `meta.json` 现在记录需求，不再主持对话 `CODEX_AUTH_JSON`  机密 (因为加密存储过，所以明文grep的输出结果是一样的；) 的 `secrets` 检查就是证据，对话依然清晰。
+- **重新绑定(`F12.binding-rebind`)。**与新标头相同的 URL，然后是不同的 URL。
 
-  Requires: `F12.binding-live-acp`
+  需要：`F12.binding-live-acp`
   ```sh
   control-agent-server api PUT "/api/conversations/$A/credential-bindings/CODEX_AUTH_JSON" \
     --json "{\"url\": \"$SRC/cred\", \"headers\": {\"Authorization\": \"Bearer qa-f12-second\"}}" --expect 204 --save F12.binding-rebind/same-url
@@ -538,14 +426,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server logs --grep "$A" --expect-min 1
   control-agent-server logs --grep 'qa-f12-first|qa-f12-second' --expect-none
   ```
-  The same URL re-authorizes the live binding (204, probed with the new
-  header); another URL is 409 with the generic "too late" message; no header
-  value is written to the server's state, its `HOME` or its log (which does
-  name the conversation).
-- **Required after a pause (`F12.binding-required-after-pause`).** Pause,
-  then every way in.
+  相同的 URL 重新授权活绑定 (204，用新头字段探测)。 另一个 URL 带有通用的“太晚”消息的 409 错误。 没有写入到服务器的状态，它的 `HOME` 或其日志（其中包含对话的名称）。
+- **暂停后需要 (`F12.binding-required-after-pause`)。**暂停一下，然后一路进去。
 
-  Requires: `F12.binding-live-acp`
+  需要：`F12.binding-live-acp`
   ```sh
   control-agent-server api POST /api/conversations/prepare-for-sandbox-pause --expect 204
   control-agent-server api GET "/api/conversations/$A" --expect 200 --check id eq "$A"
@@ -561,13 +445,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$A/events/search" --expect 200 --save F12.binding-required-after-pause/events-after
   control-agent-server state ls --conversation "$A" owner_lease.json --expect-count 1
   ```
-  The catalog and runtime views still answer, but loading is refused with a
-  retryable 409 and both sockets close with 1013 (no lease is taken); after a
-  new activation the conversation loads.
-- **Required after a restart (`F12.binding-required-after-restart`).** The
-  requirement is in `meta.json`, so it survives; deletion is exempt.
+  虽然仍然回答，但加载被拒绝，返回409重试，并且两个套接字都关闭，返回1013（没有获取租约）。 在进行一次新的激活后，对话会加载。
+- **重新启动后需要 (`F12.binding-required-after-restart`)。**要求在`meta.json`中，因此它存在； 删除是豁免的。
 
-  Requires: `F12.binding-live-acp`
+  需要：`F12.binding-live-acp`
   ```sh
   control-agent-server restart
   control-agent-server api GET "/api/conversations/$A/events/count" --expect 409 --check retryable eq true --save F12.binding-required-after-restart/events
@@ -580,11 +461,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$A" --expect 404
   control-agent-server state ls --conversation "$A" meta.json --expect-count 0
   ```
-  409 after the restart, 200 after re-activation, and the requirement stays
-  recorded. A conversation that needs a binding can still be deleted without
-  one (its directory is removed).
-- **Pending binding consumed at create (`F12.binding-pending-on-create`).**
-  Bind first, then create the conversation with that id.
+  重启后为409，重新激活后为200，要求仍然记录在案。 即使没有绑定，也需要删除需要绑定的对话（其目录会被删除）。
+- **创建时消耗的待定绑定 (`F12.binding-pending-on-create`)。**首先绑定，然后使用该 id 创建对话。
   ```sh
   U2=$(python3 -c 'import uuid; print(uuid.uuid4())')
   control-agent-server api PUT "/api/conversations/$U2/credential-bindings/CODEX_AUTH_JSON" --json "{\"url\": \"$SRC/cred\"}" --expect 204
@@ -595,10 +473,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state grep qa-f12-create-copy --glob 'server/**/*' --expect-none
   control-agent-server state grep qa-f12-create-copy --glob 'home/**/*' --expect-none
   ```
-  The conversation is born bound: the requirement is recorded and the
-  request's own `CODEX_AUTH_JSON` secret is not stored.
-- **A pause drops pending bindings (`F12.binding-pending-cleared`).** Bind,
-  pause, then create.
+  对话诞生于束缚：需求被记录，请求本身也被记录 `CODEX_AUTH_JSON`  机密未存储。
+- **暂停会删除挂起的绑定 (`F12.binding-pending-cleared`)。**绑定、暂停，然后创建。
   ```sh
   U3=$(python3 -c 'import uuid; print(uuid.uuid4())')
   control-agent-server api PUT "/api/conversations/$U3/credential-bindings/CODEX_AUTH_JSON" --json "{\"url\": \"$SRC/cred\"}" --expect 204
@@ -608,10 +484,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state cat meta.json --conversation "$U3" \
     --check required_runtime_credential_bindings len-eq 0 --check secrets.CODEX_AUTH_JSON exists
   ```
-  Compare with `F12.binding-pending-on-create`: the pending binding is gone,
-  so the conversation keeps its own (encrypted) secret and needs no binding.
-- **Profile excludes the secret (`F12.binding-profile-scope`).** An ACP Codex
-  agent profile with `secret_refs: []`.
+  与 `F12.binding-pending-on-create` 比较：待绑定的会话已消失，因此对话保留了自己的（加密） 机密，无需绑定。
+- **配置文件不包括机密 (`F12.binding-profile-scope`)。** ACP 法典智能体简介与 `secret_refs: []`。
   ```sh
   control-agent-server api POST /api/agent-profiles/qa-f12-noscope --json '{"agent_kind": "acp", "acp_server": "codex", "secret_refs": []}' --expect 201
   P=$(control-agent-server conversation start --agent-profile qa-f12-noscope --no-autotitle --print-id)
@@ -621,12 +495,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state cat meta.json --conversation "$P" --check required_runtime_credential_bindings len-eq 0
   control-agent-server api DELETE /api/agent-profiles/qa-f12-noscope --expect 200
   ```
-  403 (after the source was probed) and nothing recorded; the profile is
-  removed afterwards.
-- **Launched profile from the runtime (`F12.runtime-launched-profile`).** A
-  second, local server started with `OH_RUNTIME_LAUNCHED_PROFILE`, as a
-  Docker parent starts each conversation container. Translated: the
-  variable is read by any server at create, so no container is needed.
+  403（在源被探测后）且无记录。 之后，该档案被移除。
+- **从运行时启动的配置文件`F12.runtime-launched-profile`).** 另一个本地服务器启动了 `OH_RUNTIME_LAUNCHED_PROFILE`，作为… Docker 父容器每开始一次会话。 翻译：变量在创建时由任何服务器读取，因此不需要容器。
   ```sh
   LPID=$(python3 -c 'import uuid; print(uuid.uuid4())')
   LSRC=$(control-agent-server fixture http-sink --name qa-f12-lp-cred --status 200 --body '{"value": "{}", "version": "qa-v1"}' --print-path)
@@ -648,15 +518,8 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state cat meta.json --run "$LP" --conversation "$L" --check required_runtime_credential_bindings len-eq 0
   control-agent-server stop --run "$LP"
   ```
-  The profile-less conversation records the runtime's profile (id, revision
-  7, `secret_refs`), so the binding is refused with 403 and nothing is
-  recorded; the conversation started from its own agent profile records
-  that profile and accepts the binding (204). Secrets in the create request
-  itself are not filtered here: in Docker mode the parent scopes them before
-  it forwards the request (`forward_to_runtime`).
-- **Managed key refresh on a 401 (`F12.managed-key-refresh`).** A second
-  server with the refresh variables; the stub plays a managed proxy that
-  rejects the stored key once (`status:401`) and then answers.
+  没有配置的对话记录了运行时的运行时（id，修订7，`secret_refs`），因此绑定被拒绝，且没有记录。 对话从其自身的智能体记录开始，该记录包含了该记录，接受绑定（204）。 机密在创建请求本身中没有过滤：在Docker 模式下，先在父级进行过滤，然后再转发请求(`forward_to_runtime`)。
+- **401 上的托管密钥刷新 (`F12.managed-key-refresh`)。**具有刷新变量的第二个服务器； 存根扮演一个托管代理，它拒绝存储的密钥一次（`status:401`），然后回答。
   ```sh
   FINISH_STEP='tool:finish:{"message": "done"}'
   KSRC=$(control-agent-server fixture http-sink --name qa-f12-keysrc --status 200 --body 'qa-f12-fresh-key' --print-path)
@@ -679,15 +542,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state grep qa-f12-fresh-key --run "$K" --glob 'home/**/*' --expect-none
   control-agent-server stop --run "$K"
   ```
-  The first model call gets 401; the server fetches the key once (`GET
-  /key` carrying `X-QA: qa-f12-refresh-hdr`, expanded from
-  `${QA_F12_REFRESH_TOKEN}` in its environment), retries the call once and
-  the run finishes; the fetched key is not written to the server's state or
-  `HOME`. The stub does not record request headers, so that the retry
-  carried the fetched key is proven by the SDK's contract (it retries only
-  with a key that differs from the stored one), not observed.
-- **Refresh scope (`F12.managed-key-scope`).** The same setup with a second
-  stub outside the allow-list, then an empty allow-list.
+  第一次调用模型时返回401。 服务器一次获取密钥（`GET /key` carrying `X-QA: qa-f12-refresh-hdr`, expanded from
+  `${QA_F12_REFRESH_TOKEN}` 在其环境中），重试调用一次并运行完成； 获取的密钥未写入服务器的状态或
+  `HOME`. stub 不记录请求头，因此重试所携带的 fetched key 可以通过 SDK 的合约证明（它重试只有一个与存储的键不同的键），而不是观察到的。
+- **刷新范围(`F12.managed-key-scope`)。**相同的设置，在允许列表之外有第二个存根，然后是一个空的允许列表。
   ```sh
   FINISH_STEP='tool:finish:{"message": "done"}'
   SSRC=$(control-agent-server fixture http-sink --name qa-f12-keysrc-scope --status 200 --body 'qa-f12-fresh-key' --print-path)
@@ -717,15 +575,9 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server logs --run "$K" --grep 'stays off' --expect-min 1
   control-agent-server stop --run "$K"
   ```
-  The in-scope LLM refreshes (the positive control: one fetch, finished).
-  The LLM on the other `base_url` ends in `error` with
-  `LLMAuthenticationError` after one model call and no fetch, although its
-  stub would answer a retry. After the restart with an empty allow-list the
-  same managed `base_url` gets no hook (fail closed, logged as "managed LLM
-  key refresh stays off"): one more 401, no fetch, `error`.
-- **Refresh after a model switch (`F12.managed-key-switch`).** An
-  in-scope conversation that refreshes once, then `switch_llm` to another
-  LLM on the same managed `base_url`.
+  在范围内的 LLM 刷新 (阳性对照：一次请求，完成)。 的 LLM 在其他情况下 `base_url` 以结尾 `error` 与
+  `LLMAuthenticationError` 在一次模型调用之后并且没有获取，尽管它的存根会回答重试。 在重启后，允许列表为空的情况下，同一个管理的 `base_url` 没有钩子（失败关闭，记录为“管理 LLM 密钥刷新保持关闭”）：又一个 401，没有获取，`error`。
+- **模型切换后刷新 (`F12.managed-key-switch`)。**刷新一次的范围内对话，然后 `switch_llm` 到同一托管 `base_url` 上的另一个 LLM。
   ```sh
   FINISH_STEP='tool:finish:{"message": "done"}'
   WSRC=$(control-agent-server fixture http-sink --name qa-f12-keysrc-switch --status 200 --body 'qa-f12-fresh-key' --print-path)
@@ -749,21 +601,10 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$WC" --run "$K" --check execution_status eq finished
   control-agent-server stop --run "$K"
   ```
-  The first run refreshes (the positive control). The switched LLM sits on
-  an allow-listed `base_url`, so its 401 is refreshed like the first one: a
-  second fetch, one retry, then `finished`. `LocalConversation.switch_llm`
-  (which `switch_profile` and the agent's switch tools also use) installs a
-  new LLM object; the server re-registers the refresh hook when the
-  conversation's `agent` changes, so the hook does not wait for the next
-  load (#5890).
-- **Docker runtime mode without a daemon (`F12.docker-runtime-contract`).**
-  A second server with `OH_CONVERSATION_RUNTIME=docker`. Translated: no
-  Docker daemon is needed for the router's own answers (startup only warns
-  that it cannot list containers); everything that needs a running
-  container is `F12.docker-runtime`. `DELETE .../runtime` and
-  `POST .../runtime/credentials` exist only in this mode. The run's
-  `DOCKER_HOST` points to a nonexistent private socket so this remains a
-  no-daemon check even on hosts where Docker is installed.
+  第一次刷新（阳性对照）。 LLM 通过允许列表 `base_url` 连接，所以它的 401 错误被刷新，就像第一个一样：一次请求，一次重试，然后 `finished`。 `LocalConversation.switch_llm`（`switch_profile`和智能体的LLM对象也安装） 服务器在对话的`agent`发生变化时重新注册刷新钩子，因此钩子不会等待下一次加载（#5890）。
+- **Docker 没有守护程序的运行时模式 (`F12.docker-runtime-contract`)。**第二台服务器带有 `OH_CONVERSATION_RUNTIME=docker`。 翻译：路由器自己的答案不需要 Docker 守护进程（启动仅警告它无法列出容器）； 需要运行容器的一切都是`F12.docker-runtime`。 `DELETE .../runtime` 和
+  `POST .../runtime/credentials`仅存在于该模式下。 跑步的
+  `DOCKER_HOST` 指向不存在的私有套接字，因此即使在安装了 Docker 的主机上，这仍然是无守护程序检查。
   ```sh
   DK=$(control-agent-server launch --new --name f12-docker --env OH_CONVERSATION_RUNTIME=docker \
     --env "DOCKER_HOST=unix://$AGENT_SERVER_VERIFY_RUN/private/no-docker.sock" --print-run)
@@ -810,25 +651,17 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api DELETE "/api/conversations/$U" --run "$DK" --expect 404 --check detail eq 'Conversation not found'
   control-agent-server stop --run "$DK"
   ```
-  The four unproxyable operations are 501 (in `exception`, like every 5xx)
-  for an id that does not exist and even for a body the local route would
-  reject, and the binding source is never contacted. Unknown ids are 404
-  `Conversation not found` (the Docker router's wording; the local runtime
-  routes say `Not Found`) and the sockets close with 1008. Malformed creates
-  are refused before anything is written. A well-formed create writes the
-  runtime manifest, fails to start the container (502) and leaves the
-  manifest: the conversation has no `meta.json` yet, so runtime info is 404,
+  这四个不可代理的操作是 501（在 `exception` 中，类似于所有 5xx），对于不存在的 ID，甚至对于本地路由会拒绝的体，以及绑定源从不被联系。 未知的id是404
+  `Conversation not found`（Docker路由器的写法； 本地运行时路由显示为 `Not Found`），套接字以 1008 关闭。 在写入任何内容之前，格式错误的创建都会被拒绝。 格式良好的创建会写入运行时清单，无法启动容器（502）并留下
+  清单：对话还没有 `meta.json`，因此运行时信息为 404，
   while reprovision and the socket try to start the container (502, close
-  1011). Deleting the conversation removes the manifest.
-- **Docker runtime with a daemon (`F12.docker-runtime`).**
-  Needs: `docker`
+  1011). 删除对话会删除清单。
+- **Docker 带有守护程序的运行时 (`F12.docker-runtime`)。**
+  需求：`docker`
 
-  Preconditions: pull the selected image before this recipe. The default is
-  the released minimal image, which exercises the same Docker lifecycle
-  without the browser stack. Override `AGENT_SERVER_VERIFY_DOCKER_IMAGE` to
-  test a different built image. Record its digest and the child's
-  `/server_info`: the outer checkout and inner image can differ. This recipe
-  creates conversations but does not invoke their LLM.
+  前提条件：在本菜谱之前拉取所选镜像。 默认为
+  发布的最小图像，在没有浏览器堆栈的情况下执行相同的Docker生命周期。 覆盖 `AGENT_SERVER_VERIFY_DOCKER_IMAGE` 以测试不同的构建图像。 记录其摘要和孩子的
+  `/server_info`：外部结帐和内部图像可能有所不同。 该配方创建对话但不调用它们的LLM。
   ```sh
   IMAGE=${AGENT_SERVER_VERIFY_DOCKER_IMAGE:-ghcr.io/openhands/agent-server:1.55.1-python-minimal}
   docker image inspect "$IMAGE" >/dev/null
@@ -902,22 +735,14 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server api GET "/api/conversations/$CID" --run "$DK" --expect 404 --save F12.docker-runtime/deleted
   control-agent-server stop --run "$DK"
   ```
-  Runtime release preserves the workspace, profile provenance and readable
-  history; reprovision restores the file bytes. The runtime's five-minute
-  maintenance timer is intentionally exercised by the final poll. Retention
-  then makes the runtime non-resumable while preserving history, and deletion
-  still succeeds. Credentials are captured directly into a variable and used
-  for authenticated child access; do not save or print the raw credential
-  exchange. Container inspection is scoped to this run's owner label.
+  运行时发布保留了工作区、配置来源和可读历史。 reprovision恢复文件字节。 运行时的五分钟维护定时器是故意被最后的检查执行的。 保留后，运行时不可恢复，但历史得以保留，删除仍然成功。 凭据直接捕获并用于认证子访问。 不要保存或打印原始凭据交换。 容器检查仅限于此运行的主人标签。
 
-  Event history is served by the outer persisted catalog (PR #5429), so its
-  routes no longer prove the proxy's `X-Expose-Secrets` refusal. The file
-  download route above traverses the proxy and proves the 422.
+  事件历史记录由外部已持久化目录 (PR #5429) 提供，因此其路由不再证明代理的 `X-Expose-Secrets` 拒绝。 上面的文件下载路由遍历代理并验证了422。
 
-- **Docker runtime startup deadline (`F12.docker-startup-timeout`).**
-  Needs: `docker`
+- **Docker 运行时启动截止时间 (`F12.docker-startup-timeout`).**
+  需求：`docker`
 
-  Pull the selected image before the recipe.
+  将选定的图像拉到配方之前。
   ```sh
   IMAGE=${AGENT_SERVER_VERIFY_DOCKER_IMAGE:-ghcr.io/openhands/agent-server:1.55.1-python-minimal}
   docker image inspect "$IMAGE" >/dev/null
@@ -939,74 +764,27 @@ control-agent-server api GET "/api/conversations/$R" --check execution_status eq
   control-agent-server state ls --run "$BAD" "home/.openhands/runtime-control/${SHORT_CID//-/}.json" --expect-count 0
   control-agent-server stop --run "$BAD"
   ```
-  The same real image gets a deliberately impossible 10ms health deadline.
-  The 502 and timeout log establish the reason; the 45s response bound includes
-  Docker startup and shutdown overhead. The failed container is gone before
-  the manifest is deleted. This is a readiness failure test, not an assertion
-  that every host can initialize a container in 10ms.
+  同一个真实图像被故意设置为10毫秒的不可达健康期限。 502和超时日志确定原因。 45s 响应绑定包括 Docker 启动和关闭开销。 容器失败之前，映像就已经被删除了。 这是一次准备就绪失败测试，而不是说每个主机都能在10毫秒内初始化容器。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- In local runtime mode, `GET /api/conversations/{id}` and the runtime routes
-  read the catalog and never load a conversation; event routes, `/run`,
-  message posts and the sockets do. Docker mode also serves persisted event
-  history from its outer catalog without starting a container (#5429).
-  Lease files (`owner_lease.json`, in the conversation directory
-  named by the id without dashes) exist only for loaded conversations, so they
-  are the visible "loaded" signal. Leases themselves (renewal, takeover,
-  second instances) are F31.
-- The local runtime always reports `available` / `can_resume: true`, even for
-  a conversation whose every load is refused until a credential binding
-  arrives; the runtime view is not a readiness signal for bindings.
-- `prepare-for-sandbox-pause` unloads every conversation of the server at
-  once, under an exclusive lifecycle lock; it waits up to 10 s per in-flight
-  run. A failure closing one conversation surfaces as a 500 after the others
-  closed, and pending bindings are then kept. Sockets that were open stay
-  attached to the closed service (`F12.sandbox-pause-websocket`), so a client
-  must reconnect on its own after a pause.
-- `sink read --wait` polls until `--expect-min` holds; the in-flight model
-  call in `F12.sandbox-pause-running` and the switched LLM's call in
-  `F12.managed-key-switch` are awaited that way before anything is
-  asserted.
-- The binding route probes the source before it looks at the conversation,
-  so even a 403 (profile scope) or 409 (too late) costs one source request.
-  It validates the body before the secret name (a bad body with an
-  unsupported name is 422, not 404).
-- A 204 from the binding route never means the conversation exists: unknown
-  ids get a pending binding, kept in memory until a create or load with that
-  id, a pause, or the server stops.
-- The "too late" 409 message (`... arrived after ACP initialization`) is also
-  used for a different URL on an existing binding and for regular agents.
-- 5xx answers are rewritten by the server's exception handler to
-  `{"detail": "Internal Server Error", "exception": "<status>: <detail>"}`,
-  so 501 and 502 put the reason in `exception`.
-- The source is reached with `httpx` from the server process; launched runs
-  put `127.0.0.1` and `localhost` in `NO_PROXY`, which a loopback source
-  needs behind a proxy.
-- The http sink answers every request with the same status, so each source
-  behavior needs its own sink, and sequences (503 then 200) cannot be
-  scripted.
-- Refreshing the credential (`PUT url` with `expected_version`) only happens
-  inside a running Codex ACP session; without the Codex ACP binary and an
-  OpenAI login it is not reachable, so this family proves activation, scrub,
-  persistence and the reload guard only.
-- Docker runtime mode is chosen at startup: the Docker router is mounted
-  ahead of the local conversation routes (`api.py`), so on such a server
-  the local runtime, binding, fork and switch handlers are unreachable
-  (shadowed, not removed from the code). `map routes` adds the routes that
-  exist only in Docker runtime mode, so the two runtime-control routes sit
-  on this family's `Routes:` line and recipes call them by literal path.
-- Without a daemon, a Docker-mode create still writes
-  `runtime-control/<id>.json` (encrypted session and cipher keys) before the
-  container start fails; only `DELETE /api/conversations/{id}` removes it.
-  The Docker router's 404s say `Conversation not found`, the local ones
+## 陷阱
+
+- 在本地运行时模式下，`GET /api/conversations/{id}`和运行时路由读取目录并且从不加载对话； 事件路由、`/run`、消息发布和套接字都可以。 Docker 模式还可以从其外部目录提供已持久化事件历史记录，而无需启动容器 (#5429)。 `owner_lease.json` 文件（在名为 id 无下划线的会话目录中的文件）仅存在于已加载的会话中，因此它们是可见的“已加载”信号。 租赁本身（续约、接管、第二次）是F31。
+- 本地运行时始终报告 `available` / `can_resume: true`，即使对于在凭据绑定到达之前每次加载都被拒绝的会话也是如此； 运行时视图不是绑定的准备信号。
+- `prepare-for-sandbox-pause` 在独占生命周期锁下立即卸载服务器的每个会话； 每次飞行运行最多等待 10 秒。 关闭一个会话失败后，其他会话关闭后会显示为 500，然后保留挂起的绑定。 打开的套接字保持连接到已关闭的服务 (`F12.sandbox-pause-websocket`)，因此客户端必须在暂停后自行重新连接。
+- `sink read --wait` 进行投票，直到 `--expect-min` 成立； 在 `F12.sandbox-pause-running` 中的在途模型调用，在 LLM's 的调用
+  在断言任何内容之前都会以这种方式等待 `F12.managed-key-switch`。
+- 绑定路由在查看对话之前会探测源，因此即使是 403（配置文件范围）或 409（太晚）也会花费一个源请求。 它验证机密名称之前的正文（名称不受支持的错误正文是 422，而不是 404）。
+- 从绑定路由返回的 204 不意味着对话存在：未知的 id 会得到一个待绑定的会话，该会话会保留在内存中直到创建或加载该 id，暂停，或者服务器停止。
+- “太晚”409 消息 (`... arrived after ACP initialization`) 还用于现有绑定上的不同 URL 和常规智能体。
+- 5xx 答案被服务器的异常处理程序重写为
+  `{"detail": "Internal Server Error", "exception": "<status>: <detail>"}`，所以501和502把原因放在`exception`中。
+- 从服务器进程通过 `httpx` 到达源； Launched 运行 put `127.0.0.1` 和 `localhost` in `NO_PROXY`，环回源需要在代理后面。
+- HTTP 汇流管每次请求都返回相同的状态，因此每个源行为需要有自己的汇流管，且序列（503 然后 200）无法编程。
+- 刷新凭据（`PUT url` 与 `expected_version`）仅发生在正在运行的 Codex ACP 会话内； 如果没有 Codex ACP 二进制文件和 OpenAI 登录，则无法访问它，因此该系列仅证明激活、清理、持久化和重新加载防护。
+- Docker 运行时模式在启动时选择：Docker 路由器在本地会话路由之前挂载（`api.py`），因此在这样的服务器上，本地运行时、绑定、fork 和 switch 处理程序不可达（被遮蔽，而不是从代码中移除）。 `map routes` 添加了只在Docker运行时模式中存在的路由，因此这两个运行时控制路由位于这个家族的`Routes:`线上，而配方会通过字面路径调用它们。
+- 如果没有守护进程，Docker模式的创建仍然会写入
+  `runtime-control/<id>.json`（加密会话和密码密钥）在容器启动失败之前； 只有`DELETE /api/conversations/{id}`将其删除。 Docker 路由器的 404 表示 `Conversation not found`，本地路由器
   `Not Found`.
-- The managed-key variables are read from the server's environment each
-  time a conversation is loaded (create, first event access after a pause or
-  restart), so `restart --env` changes them for every conversation loaded
-  afterwards. Only an LLM whose resolved `base_url` (without a trailing
-  slash) is on the allow-list gets the hook; the refresh URL must answer the
-  bare key as text, and a refresh that returns the stored key does not
-  retry. `llm-stub` answers by call number, not by key, and does not record
-  request headers: the stub's 401 stands for "stale key", and the recipes
-  count fetches and calls instead of reading the retried key.
+- 每次加载对话（创建、暂停或重启后首次访问）时，管理密钥变量从服务器环境读取。因此，`restart --env` 会改变它们。 只有已解析的 `base_url`（不带尾部斜杠）位于允许列表中的 LLM 才会获得钩子； 刷新 URL 必须以文本形式回答裸密钥，而返回存储密钥的刷新则不需要重试。 `llm-stub` 通过书号回答问题，而不是通过关键字，且不记录请求头：stub的401表示“过期的书号”，而recipes计数器则会调用并执行，而不是读取重试的书号。

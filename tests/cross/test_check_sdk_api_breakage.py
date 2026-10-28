@@ -1,7 +1,7 @@
-"""Tests for API breakage check script.
+"""测试 API 破损检查脚本。
 
-We import the production script via a file-based module load (rather than copying
-functions) so tests remain coupled to real behavior.
+我们通过基于文件的模块加载（而不是复制函数）导入生产脚本，以便测试与实际行为保持耦合
+。
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ def _load_prod_module():
     spec = importlib.util.spec_from_file_location(name, script_path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
-    # Register so @dataclass can resolve the module's __dict__
+    # 注册以便 @dataclass 可以解析模块的 __dict__
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
     return mod
@@ -43,7 +43,7 @@ _is_field_metadata_only_change = _prod._is_field_metadata_only_change
 _was_deprecated = _prod._was_deprecated
 get_pypi_baseline_version = _prod.get_pypi_baseline_version
 
-# Reusable test config matching the _write_pkg_init helper
+# 与 _write_pkg_init 帮助器匹配的可重用测试配置
 _SDK_CFG = PackageConfig(
     package="openhands.sdk",
     distribution="openhands-sdk",
@@ -54,15 +54,15 @@ _SDK_CFG = PackageConfig(
 def _write_pkg_init(
     tmp_path, root: str, all_names: list[str], module_parts: tuple[str, ...] = ()
 ):
-    """Create a minimal package with ``__all__`` under *tmp_path/root*.
+    """在*tmp_path/root*下创建一个带有``__all__``的最小包。
 
-    *module_parts* defaults to ``("openhands", "sdk")``; pass a different
-    tuple to create e.g. ``("openhands", "workspace")``.
+    *module_parts*默认为``("openhands", "sdk")``； 通过不同的
+    元组来创建 e.g。 ``("openhands", "workspace")``.
     """
     parts = module_parts or ("openhands", "sdk")
     pkg = tmp_path / root / Path(*parts)
     pkg.mkdir(parents=True, exist_ok=True)
-    # ensure parent __init__.py files exist
+    # 确保父 __init__.py 文件存在
     for i in range(1, len(parts)):
         parent = tmp_path / root / Path(*parts[:i])
         init = parent / "__init__.py"
@@ -190,7 +190,7 @@ def test_griffe_removed_export_from_all_is_breaking(tmp_path):
         _SDK_CFG,
     )
     assert total_breaks == 1
-    # Bar was not deprecated before removal
+    # 删除前栏不是已弃用
     assert undeprecated == 1
 
 
@@ -238,9 +238,9 @@ def test_removal_with_warn_deprecated_is_not_undeprecated(tmp_path):
 
 
 def test_find_deprecated_symbols_reads_export_registry(tmp_path):
-    """``_DEPRECATED_SDK_EXPORTS`` registry entries are recognized as deprecated
-    top-level symbols (the SDK's data-driven mechanism for renamed import
-    aliases such as ``LLMAgentSettings``)."""
+    """``_DEPRECATED_SDK_EXPORTS`` 注册表条目被识别为已弃用
+    顶级符号（SDK 的数据驱动机制，用于重命名导入别名，例如 ``LLMAgentSettings``）。
+    """
     src = tmp_path / "openhands" / "sdk"
     src.mkdir(parents=True)
     (src / "__init__.py").write_text(
@@ -258,10 +258,11 @@ def test_find_deprecated_symbols_reads_export_registry(tmp_path):
 
 
 def test_removal_via_export_registry_is_not_undeprecated(tmp_path):
-    """An export deprecated only through the ``_DEPRECATED_SDK_EXPORTS`` registry
-    dict can be removed on schedule without being flagged as an undeprecated
-    removal -- the registry is the only place its deprecation is statically
-    visible (no ``@deprecated`` decorator; f-string ``warn_deprecated`` name)."""
+    """仅通过 ``_DEPRECATED_SDK_EXPORTS`` 注册表导出已弃用
+    dict 可以在预定时间被移除，而不会被标记为未弃用的移除 -- 注册表是唯一一个其弃用静
+    态可见的地方（没有 ``@deprecated`` 装饰器）； f 字符串
+     ``warn_deprecated`` 名称）。
+    """
     old_pkg = _write_pkg_init(tmp_path, "old", ["Foo", "Bar"])
     old_init = old_pkg / "__init__.py"
     old_init.write_text(
@@ -337,7 +338,7 @@ def test_removed_public_method_with_deprecation_is_not_undeprecated(tmp_path):
 
 
 def test_missing_all_in_previous_release_skips_breakage_check(tmp_path):
-    """If previous release lacks __all__, skip instead of failing workflow."""
+    """如果以前的版本缺少 __all__，则跳过而不是失败的工作流程。"""
     old_pkg = tmp_path / "old" / "openhands" / "sdk"
     old_pkg.mkdir(parents=True)
     (tmp_path / "old" / "openhands" / "__init__.py").write_text("")
@@ -367,38 +368,38 @@ def test_parse_version_prerelease():
 
 
 def test_no_breaks_passes():
-    """No breaking changes should always pass."""
+    """不兼容变更不应该总是通过。"""
     assert _check_version_bump("1.0.0", "1.0.1", total_breaks=0) == 0
 
 
 def test_minor_bump_with_breaks_passes():
-    """MINOR bump satisfies policy for breaking changes."""
+    """MINOR 碰撞满足不兼容变更的策略。"""
     assert _check_version_bump("1.0.0", "1.1.0", total_breaks=1) == 0
     assert _check_version_bump("1.5.3", "1.6.0", total_breaks=5) == 0
 
 
 def test_major_bump_with_breaks_passes():
-    """MAJOR bump also satisfies policy for breaking changes."""
+    """MAJOR 碰撞也满足不兼容变更的策略。"""
     assert _check_version_bump("1.0.0", "2.0.0", total_breaks=1) == 0
     assert _check_version_bump("1.5.3", "2.0.0", total_breaks=10) == 0
 
 
 def test_patch_bump_with_breaks_fails():
-    """PATCH bump should fail when there are breaking changes."""
+    """当存在不兼容变更时，PATCH 碰撞应该失败。"""
     assert _check_version_bump("1.0.0", "1.0.1", total_breaks=1) == 1
     assert _check_version_bump("1.5.3", "1.5.4", total_breaks=1) == 1
 
 
 def test_same_version_with_breaks_fails():
-    """Same version should fail when there are breaking changes."""
+    """当存在不兼容变更时，相同版本应该失败。"""
     assert _check_version_bump("1.0.0", "1.0.0", total_breaks=1) == 1
 
 
 def test_prerelease_versions():
-    """Pre-release versions should work correctly."""
-    # 1.1.0a1 has minor=1, so it satisfies minor bump from 1.0.0
+    """预发布版本应该可以正常工作。"""
+    # 1.1.0a1 有minor=1，所以它满足从1.0.0 的小提升
     assert _check_version_bump("1.0.0", "1.1.0a1", total_breaks=1) == 0
-    # 1.0.1a1 is still a patch bump
+    # 1.0.1a1仍然是一个补丁升级
     assert _check_version_bump("1.0.0", "1.0.1a1", total_breaks=1) == 1
 
 
@@ -422,7 +423,7 @@ def test_find_deprecated_symbols_decorator(tmp_path):
 
 
 def test_find_deprecated_symbols_warn_deprecated(tmp_path):
-    """warn_deprecated() calls are detected; dotted names map to top-level."""
+    """检测到 warn_deprecated() 调用； 点名称映射到顶级。"""
     (tmp_path / "mod.py").write_text(
         "warn_deprecated('Alpha', deprecated_in='1.0', removed_in='2.0')\n"
         "warn_deprecated('Beta.attr', deprecated_in='1.0', removed_in='2.0')\n"
@@ -433,7 +434,7 @@ def test_find_deprecated_symbols_warn_deprecated(tmp_path):
 
 
 def test_find_deprecated_symbols_ignores_syntax_errors(tmp_path):
-    """Files with syntax errors are silently skipped."""
+    """有语法错误的文件将被静默跳过。"""
     (tmp_path / "bad.py").write_text("def broken(\n")
     (tmp_path / "good.py").write_text(
         "@deprecated(deprecated_in='1.0', removed_in='2.0')\ndef ok(): pass\n"
@@ -529,7 +530,7 @@ def test_removed_public_method_requires_five_minor_release_runway(tmp_path):
 
 
 def test_workspace_removed_export_is_breaking(tmp_path):
-    """Breakage detection works for non-SDK packages (openhands.workspace)."""
+    """破损检测适用于非 SDK 包裹 (openhands.workspace)。"""
     ws_cfg = PackageConfig(
         package="openhands.workspace",
         distribution="openhands-workspace",
@@ -553,9 +554,9 @@ def test_workspace_removed_export_is_breaking(tmp_path):
 
 
 def test_unresolved_alias_exports_do_not_crash_breakage_detection(tmp_path):
-    """Unresolvable aliases should not abort checking other exports.
+    """无法解析的别名不应中止检查其他导出。
 
-    This mirrors a real-world scenario for packages that re-export SDK symbols.
+    这反映了重新导出 SDK 符号的包的真实场景。
     """
 
     ws_cfg = PackageConfig(
@@ -601,28 +602,28 @@ def test_unresolved_alias_exports_do_not_crash_breakage_detection(tmp_path):
 
 
 def test_is_field_metadata_only_change_description_only():
-    """Changing only Field description is detected as metadata-only."""
+    """仅更改字段描述被检测为仅元数据。"""
     old = "Field(default=False, description='old description')"
     new = "Field(default=False, description='new description')"
     assert _is_field_metadata_only_change(old, new) is True
 
 
 def test_is_field_metadata_only_change_title_and_description():
-    """Changing title and description is detected as metadata-only."""
+    """更改标题和描述被检测为仅元数据。"""
     old = "Field(default=False, title='old', description='old desc')"
     new = "Field(default=False, title='new', description='new desc')"
     assert _is_field_metadata_only_change(old, new) is True
 
 
 def test_is_field_metadata_only_change_default_changed():
-    """Changing Field default value is NOT metadata-only."""
+    """更改字段默认值是不仅元数据。"""
     old = "Field(default=False, description='desc')"
     new = "Field(default=True, description='desc')"
     assert _is_field_metadata_only_change(old, new) is False
 
 
 def test_is_field_default_only_change_detects_keyword_default_change():
-    """Changing only Field default value is classified separately."""
+    """仅更改字段默认值单独分类。"""
     old = "Field(default='claude-sonnet-4-20250514', description='desc')"
     new = "Field(default='gpt-5.5', description='desc')"
 
@@ -630,7 +631,7 @@ def test_is_field_default_only_change_detects_keyword_default_change():
 
 
 def test_is_field_default_only_change_detects_keyword_default_factory_change():
-    """Changing only Field default_factory is classified separately."""
+    """仅更改字段 default_factory 被单独分类。"""
     old = "Field(default_factory=datetime.now, description='desc')"
     new = (
         "Field(default_factory=lambda: datetime.now().astimezone(), description='new')"
@@ -640,7 +641,7 @@ def test_is_field_default_only_change_detects_keyword_default_factory_change():
 
 
 def test_is_field_default_only_change_ignores_other_runtime_changes():
-    """Changing non-default runtime kwargs is not a default-only change."""
+    """更改非默认运行时 kwargs 并不是仅限默认的更改。"""
     old = "Field(default='claude-sonnet-4-20250514', alias='model')"
     new = "Field(default='gpt-5.5', alias='llm_model')"
 
@@ -648,7 +649,7 @@ def test_is_field_default_only_change_ignores_other_runtime_changes():
 
 
 def test_field_default_repr_supports_positional_default():
-    """Positional Field defaults are normalized for reporting."""
+    """位置字段默认值已标准化以用于报告。"""
     assert (
         _field_default_repr("Field('gpt-5.5', description='Model name.')")
         == "'gpt-5.5'"
@@ -656,7 +657,7 @@ def test_field_default_repr_supports_positional_default():
 
 
 def test_field_default_repr_supports_default_factory():
-    """Field default_factory values are normalized for reporting."""
+    """字段 default_factory 值已标准化以供报告。"""
     assert (
         _field_default_repr("Field(default_factory=datetime.now, description='desc')")
         == "datetime.now"
@@ -664,14 +665,14 @@ def test_field_default_repr_supports_default_factory():
 
 
 def test_is_field_metadata_only_change_not_field():
-    """Non-Field values return False."""
+    """非字段值返回 False。"""
     old = "SomeClass(value=1)"
     new = "SomeClass(value=2)"
     assert _is_field_metadata_only_change(old, new) is False
 
 
 def test_is_field_metadata_only_change_long_description():
-    """Long descriptions with URLs are handled correctly."""
+    """URLs 长描述被正确处理了。"""
     old = (
         "Field(default=False, description='Whether to automatically load "
         "skills from https://github.com/OpenHands/skills.')"
@@ -684,7 +685,7 @@ def test_is_field_metadata_only_change_long_description():
 
 
 def test_is_field_metadata_only_change_multiline_description_with_quotes():
-    """Multiline descriptions with embedded quotes are metadata-only changes."""
+    """带有嵌入引号的多行描述是仅元数据的更改。"""
     old = (
         "Field(default='security_policy.j2', description=\"Security policy "
         "template filename. Can be either:\n"
@@ -705,21 +706,21 @@ def test_is_field_metadata_only_change_multiline_description_with_quotes():
 
 
 def test_is_field_metadata_only_change_deprecated_bool_only():
-    """Changing only Field deprecated metadata is detected as metadata-only."""
+    """仅更改字段已弃用元数据被检测为仅元数据。"""
     old = "Field(default=False, deprecated=False)"
     new = "Field(default=False, deprecated=True)"
     assert _is_field_metadata_only_change(old, new) is True
 
 
 def test_is_field_metadata_only_change_added_deprecated_kwarg():
-    """Adding deprecated metadata should still be treated as metadata-only."""
+    """添加已弃用元数据仍应被视为仅元数据。"""
     old = "Field(default=False, description='old description')"
     new = "Field(default=False, deprecated=True, description='new description')"
     assert _is_field_metadata_only_change(old, new) is True
 
 
 def test_is_field_metadata_only_change_json_schema_extra_dict():
-    """Adding json_schema_extra with a dict value is metadata-only."""
+    """添加带有 dict 值的 json_schema_extra 仅是元数据。"""
     old = "Field(default='claude-sonnet-4-20250514', description='Model name.')"
     new = (
         "Field(default='claude-sonnet-4-20250514', description='Model name.', "
@@ -730,7 +731,7 @@ def test_is_field_metadata_only_change_json_schema_extra_dict():
 
 
 def test_is_field_metadata_only_change_json_schema_extra_function_call():
-    """Adding json_schema_extra with a function call value is metadata-only."""
+    """添加 json_schema_extra 与函数调用值仅是元数据。"""
     old = "Field(default=None, description='API key.')"
     new = (
         "Field(default=None, description='API key.', "
@@ -740,7 +741,7 @@ def test_is_field_metadata_only_change_json_schema_extra_function_call():
 
 
 def test_is_field_metadata_only_change_json_schema_extra_with_real_change():
-    """json_schema_extra + real default change is NOT metadata-only."""
+    """json_schema_extra + 真正的默认更改是不仅元数据。"""
     old = "Field(default='old-model', description='Model name.')"
     new = (
         "Field(default='new-model', description='Model name.', "
@@ -750,7 +751,7 @@ def test_is_field_metadata_only_change_json_schema_extra_with_real_change():
 
 
 def test_field_deprecated_change_is_not_breaking(tmp_path):
-    """Field deprecated metadata changes should not count as breaking changes."""
+    """字段已弃用元数据更改不应算作不兼容变更。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -783,7 +784,7 @@ def test_field_deprecated_change_is_not_breaking(tmp_path):
 
 
 def test_field_added_deprecated_kwarg_is_not_breaking(tmp_path):
-    """Adding deprecated metadata should not count as a breaking change."""
+    """添加已弃用元数据不应算作不兼容变更。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -820,7 +821,7 @@ def test_field_added_deprecated_kwarg_is_not_breaking(tmp_path):
 
 
 def test_field_description_change_is_not_breaking(tmp_path):
-    """Field description changes should not be counted as breaking changes."""
+    """字段描述更改不应计为不兼容变更。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -853,7 +854,7 @@ def test_field_description_change_is_not_breaking(tmp_path):
 
 
 def test_field_multiline_description_with_quotes_is_not_breaking(tmp_path):
-    """Multiline descriptions with embedded quotes should not be breaking."""
+    """带有嵌入引号的多行描述不应被破坏。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -915,7 +916,7 @@ def test_field_multiline_description_with_quotes_is_not_breaking(tmp_path):
 
 
 def test_field_default_change_is_reported_but_not_breaking(tmp_path):
-    """Public Field default changes should be collected for release notes."""
+    """应收集发布说明的公共字段默认更改。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -959,7 +960,7 @@ def test_field_default_change_is_reported_but_not_breaking(tmp_path):
 
 
 def test_field_default_factory_change_is_reported_but_not_breaking(tmp_path):
-    """Public Field default_factory changes should be collected for release notes."""
+    """应收集发布说明的公共字段 default_factory 更改。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -1007,7 +1008,7 @@ def test_field_default_factory_change_is_reported_but_not_breaking(tmp_path):
 
 
 def test_field_json_schema_extra_dict_is_not_breaking(tmp_path):
-    """Adding json_schema_extra with a dict value should not be breaking."""
+    """添加带有 dict 值的 json_schema_extra 不应该被破坏。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Config"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Config"])
 
@@ -1057,25 +1058,25 @@ def test_field_json_schema_extra_dict_is_not_breaking(tmp_path):
     assert undeprecated == 0
 
 
-# -- _was_deprecated unit tests --
+# -- _was_deprecated 单元测试 --
 
 
 def test_was_deprecated_direct_qualified_match():
-    """Direct 'ClassName.member' match in deprecated.qualified."""
+    """直接匹配deprecated.qualified中的“ClassName.member”。"""
     cls = SimpleNamespace(name="Agent", resolved_bases=[])
     dep = DeprecatedSymbols(qualified={"Agent.system_message"}, top_level=set())
     assert _was_deprecated(cls, "system_message", dep) is True
 
 
 def test_was_deprecated_top_level_match():
-    """If the class itself is in deprecated.top_level, all members count."""
+    """如果类本身在 deprecated.top_level 中，则所有成员都计数。"""
     cls = SimpleNamespace(name="OldClass", resolved_bases=[])
     dep = DeprecatedSymbols(qualified=set(), top_level={"OldClass"})
     assert _was_deprecated(cls, "anything", dep) is True
 
 
 def test_was_deprecated_via_parent_class():
-    """Deprecated on a parent class is found via resolved_bases walk."""
+    """通过 resolved_bases 步行找到父类上的已弃用。"""
     base = SimpleNamespace(name="AgentBase")
     cls = SimpleNamespace(name="Agent", resolved_bases=[base])
     dep = DeprecatedSymbols(qualified={"AgentBase.system_message"}, top_level=set())
@@ -1083,7 +1084,7 @@ def test_was_deprecated_via_parent_class():
 
 
 def test_was_deprecated_returns_false_for_undeprecated():
-    """Genuinely undeprecated removal returns False."""
+    """真正未弃用的删除返回 False。"""
     base = SimpleNamespace(name="AgentBase")
     cls = SimpleNamespace(name="Agent", resolved_bases=[base])
     dep = DeprecatedSymbols(qualified=set(), top_level=set())
@@ -1091,18 +1092,18 @@ def test_was_deprecated_returns_false_for_undeprecated():
 
 
 def test_was_deprecated_parent_different_member():
-    """Parent deprecates a different member — should return False."""
+    """父级不赞成使用其他成员 - 应返回 False。"""
     base = SimpleNamespace(name="AgentBase")
     cls = SimpleNamespace(name="Agent", resolved_bases=[base])
     dep = DeprecatedSymbols(qualified={"AgentBase.other_prop"}, top_level=set())
     assert _was_deprecated(cls, "system_message", dep) is False
 
 
-# -- _was_deprecated integration via _compute_breakages --
+# -- _was_deprecated 通过 _compute_breakages 集成 --
 
 
 def test_subclass_member_deprecated_on_base_is_not_undeprecated(tmp_path):
-    """Member deprecated on base class but removed from subclass."""
+    """基类上的成员已弃用但已从子类中删除。"""
     old_pkg = _write_pkg_init(tmp_path, "old", ["Child"])
     new_pkg = _write_pkg_init(tmp_path, "new", ["Child"])
 
@@ -1132,8 +1133,8 @@ def test_subclass_member_deprecated_on_base_is_not_undeprecated(tmp_path):
 
     total_breaks, undeprecated = _prod._compute_breakages(old_root, new_root, _SDK_CFG)
     assert total_breaks > 0
-    # The removal should NOT be flagged as undeprecated because
-    # Base.old_method carried a @deprecated marker
+    # 删除应将不标记为未弃用，因为 Base.old_method 带有 @已弃用标记
+    #
     assert undeprecated == 0
 
 

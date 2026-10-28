@@ -9,7 +9,7 @@ from openhands.sdk.utils.cipher import FERNET_TOKEN_PREFIX, Cipher
 
 REDACTED_SECRET_VALUE = "**********"
 
-# Type for expose_secrets context value
+# 输入 expose_secrets 上下文值
 ExposeSecretsMode = Literal["encrypted", "plaintext"] | bool
 
 ResolvedExposeMode = Literal["plaintext", "encrypted", "redact"]
@@ -18,17 +18,17 @@ _logger = logging.getLogger(__name__)
 
 
 class MissingCipherError(ValueError):
-    """Raised by ``serialize_secret`` when encryption is requested without a cipher."""
+    """当请求加密而不使用密码时，将引发 ``serialize_secret``。"""
 
 
-# Validation-context flag: when true, ``validate_secret`` raises
-# ``SecretDecryptionError`` for a Fernet token the cipher cannot decrypt,
-# instead of returning ``None``. Read-modify-write paths set it so a write
-# under a changed key cannot persist ``null`` over the stored ciphertext.
+# 验证-上下文标志：当 True、``validate_secret`` 升高时
+# ``SecretDecryptionError`` 对于 Fernet token，密码无法解密，而不是返回 ``None``。 读取-
+# 修改-写入路径对其进行设置，以便更改密钥下的写入无法持久化 ``null`` 覆盖存储的密文。
+#
 STRICT_DECRYPT_CONTEXT_KEY: Final[str] = "strict_decrypt"
 
 
-# Operator guidance for a stored value no configured key can decrypt.
+# 对于没有配置的密钥可以解密的存储值的操作员指南。
 UNDECRYPTABLE_SECRET_HINT: Final[str] = (
     "It was saved under a key that is neither OH_SECRET_KEY nor in "
     "OH_PREVIOUS_SECRET_KEYS: restore that key as OH_SECRET_KEY, or add it to "
@@ -37,18 +37,18 @@ UNDECRYPTABLE_SECRET_HINT: Final[str] = (
 
 
 class SecretDecryptionError(Exception):
-    """A stored secret cannot be decrypted with the current cipher.
+    """存储的机密无法使用当前密码解密。
 
-    Deliberately not a ``ValueError``: Pydantic lets it propagate as is
-    instead of wrapping it in a ``ValidationError`` that echoes the token.
+    故意不是 ``ValueError``: Pydantic 让它按原样传播，而不是将其包装在与 token 相呼应
+    的 ``ValidationError`` 中。
     """
 
 
 def resolve_expose_mode(context: Mapping[str, Any] | None) -> ResolvedExposeMode:
-    """Resolve a Pydantic context to plaintext / encrypted / redact.
+    """将 Pydantic 上下文解析为明文/加密/编辑。
 
-    Cipher presence implies ``"encrypted"`` (storage-path opt-in) unless
-    ``expose_secrets`` overrides.
+    密码的存在意味着 ``"encrypted"``（存储路径选择），除非
+    ``expose_secrets`` 覆盖。
     """
     if not context:
         return "redact"
@@ -70,17 +70,17 @@ def is_redacted_secret(v: str | SecretStr | None) -> bool:
 
 def serialize_secret(v: SecretStr | None, info):
     """
-    Serialize secret fields with encryption, plaintext exposure, or redaction.
+    序列化机密已加密、明文公开的字段或脱敏。
 
-    Context options:
-    - ``cipher``: If provided, encrypts the secret value (takes precedence)
-    - ``expose_secrets``: Controls how secrets are exposed:
-      - ``"encrypted"``: Encrypt using cipher from context (requires cipher)
-      - ``"plaintext"`` or ``True``: Expose the actual value (backend use only)
-      - ``False`` or absent: Let Pydantic handle default masking (redaction)
+    上下文选项：
+    - ``cipher``：如果提供，则加密机密值（优先）
+    - ``expose_secrets``：控制机密的暴露方式：
+      - ``"encrypted"``：使用上下文中的密码进行加密（需要密码）
+      - ``"plaintext"``或``True``：公开实际值（仅后端使用）
+      - ``False`` 或不存在：让 Pydantic 处理默认屏蔽 (脱敏)
 
-    The ``"encrypted"`` mode is safe for frontend clients as they cannot decrypt.
-    The ``"plaintext"`` mode should only be used by trusted backend clients.
+    ``"encrypted"`` 模式对于前端客户端来说是安全的，因为它们无法解密。
+    ``"plaintext"`` 模式只能由受信任的后端客户端使用。
     """
     if v is None:
         return None
@@ -99,8 +99,8 @@ def serialize_secret(v: SecretStr | None, info):
             )
         raw = v.get_secret_value()
         if raw.startswith(FERNET_TOKEN_PREFIX) and cipher.try_decrypt_str(raw):
-            # Already a token: keep it, re-encrypted under the current key
-            # when only a previous key can read it.
+            # 已经是token：保留它，当只有以前的密钥可以读取它时，用当前密钥重新加密。
+            #
             return cipher.rotate(raw) or raw
         return cipher.encrypt(v)
 
@@ -109,34 +109,34 @@ def serialize_secret(v: SecretStr | None, info):
 
 def validate_secret(v: str | SecretStr | None, info) -> SecretStr | None:
     """
-    Deserialize secret fields, handling encryption and empty values.
+    反序列化机密字段，处理加密和空值。
 
-    Accepts both str and SecretStr inputs, always returns SecretStr | None.
-    - Empty secrets are converted to None
-    - Plain strings are converted to SecretStr
-    - If a cipher is provided in context and the value is a Fernet token,
-      attempts to decrypt the value
-    - If Fernet decryption fails, the cipher returns None and a warning is logged;
-      with ``strict_decrypt`` in the context it raises SecretDecryptionError
-    - Non-token strings pass through as plaintext for legacy settings and PATCHes
-    - This gracefully handles conversations encrypted with different keys or were redacted
+    接受字符串和SecretStr输入，总是返回SecretStr | None。
+    - 空的机密转换为None
+    - 普通字符串转换为 SecretStr
+    - 如果上下文中提供了密码并且该值为 Fernet token，则尝试解密该值
+    - 如果 Fernet 解密失败，密码将返回 None 并记录警告； 上下文中的
+    ``strict_decrypt`` 会引发
+    SecretDecryptionError
+    - 非-token 字符串作为明文通过，用于 legacy 设置 PATCHes
+    - 它优雅地处理使用不同密钥加密的对话或已脱敏
     """  # noqa: E501
     if v is None:
         return None
 
-    # Handle both SecretStr and string inputs
+    # 处理 SecretStr 和字符串输入
     if isinstance(v, SecretStr):
         secret_value = v.get_secret_value()
     else:
         secret_value = v
 
-    # If the secret is empty, whitespace-only or redacted - return None
+    # 如果机密为空、仅包含空格或已脱敏 - 返回 None
     if not secret_value or not secret_value.strip() or is_redacted_secret(secret_value):
         return None
 
-    # Check if a cipher is supplied and the value is an encrypted Fernet token.
-    # Legacy plaintext settings and ordinary PATCH payloads should not be
-    # dropped just because the storage layer has encryption configured.
+    # 检查是否提供了密码并且该值是加密的 Fernet token。 不应仅仅因为存储层配置了加密就丢
+    # 弃旧的明文设置和普通的 PATCH 载荷。
+    #
     if (
         info.context
         and info.context.get("cipher")
@@ -151,7 +151,7 @@ def validate_secret(v: str | SecretStr | None, info) -> SecretStr | None:
             )
         return decrypted
 
-    # Always return SecretStr
+    # 始终返回 SecretStr
     if isinstance(v, SecretStr):
         return v
     else:
@@ -176,19 +176,15 @@ def decrypt_str_with_cipher_or_keep(
     *,
     description: str = "secret",
 ) -> Any:
-    """Decrypt a single Fernet-encrypted string in place.
+    """就地解密单个 Fernet 加密字符串。
 
-    Returned unchanged when the value isn't a string, doesn't look like a
-    Fernet token (legacy plaintext from clients that pre-date the
-    encryption pipeline), or fails to decrypt (cipher mismatch / token
-    corruption — logged so the operator can repair rather than the
-    object dying at construction).
+    当值不是字符串、看起来不是 Fernet token (来自预加密管道的旧客户端的纯文本) 或者无
+    法解密 (密钥不匹配 / token 损坏 — 登记以便操作员修复
+    而不是对象在构造时死亡) 时，返回不变。
 
-    Building block for the dict-of-string secret-bearing fields
-    (`agent_context.secrets`, MCP server `env`/`headers`)
-    where each value is a per-key plaintext that's separately
-    encrypted at rest — they can't be typed as :class:`SecretStr`
-    because their keys are user-supplied.
+    机密基块，包含 `agent_context.secrets` 和 MCP 服务器 `env`/`headers`) 的字典字段
+    ，每个值都是单独加密的，以 REST
+     为键的密文。它们不能像 `SecretStr` 类那样输入，因为它们的键是用户提供的。
     """
     if not isinstance(value, str):
         return value
@@ -211,23 +207,21 @@ def validate_secret_dict(
     *,
     description: str = "secret",
 ) -> Any:
-    """Decrypt every Fernet-encrypted entry in a ``dict[str, str]`` field.
+    """解密 ``dict[str, str]`` 字段中的每个 Fernet 加密条目。
 
-    Mirrors :func:`validate_secret` for fields whose secret values live
-    in a per-key dict (env-var maps, header maps, agent-context
-    secrets). Use as a ``field_validator(mode="before")`` hook:
+    镜像：func:`validate_secret` 用于机密值位于每个键字典中的字段（env-var 映射、标头
+    映射、智能体-上下文机密）。 用作
+    ``field_validator(mode="before")`` 挂钩：
 
-    .. code-block:: python
+    .. 代码块：: Python
 
         @field_validator("env", mode="before")
         @classmethod
         def _decrypt_env(cls, value, info):
             return validate_secret_dict(value, info, description="MCP env")
 
-    No-ops when the field isn't a dict (lets downstream validation
-    raise the canonical type error), and when no cipher is in context
-    (legacy plaintext callers, or contexts that have already done the
-    decryption).
+    当字段不是字典时，不做任何操作（下游验证引发默认类型错误），以及当上下文中没有加
+    密时（旧的明文调用者或已经解密的上下文）。
     """
     if not isinstance(value, dict):
         return value

@@ -1,11 +1,9 @@
-"""Deferred-init router for warm-pool agent servers.
+"""用于热池智能体服务器的延迟初始化路由器。
 
-When ``Config.deferred_init`` is True the server starts in *dormant* mode:
-stateless services (VSCode, tool preload) come up as usual, but
-the conversation, event, and bash routers return 503 until ``POST /api/init``
-delivers the runtime configuration. This is intended for warm-pool
-deployments where pods are pre-warmed before a user is matched and the
-per-user workspace + credentials are attached later.
+当 ``Config.deferred_init`` 是 True 服务器启动了 *沉睡的* 模式：无状态服务 ([])VSCode
+工具预加载通常也会出现，但对话、事件和b
+ash路由器返回503 ``POST /api/init`` 提供运行时配置。 这是为暖池部署设计的，其中的pod
+在用户匹配之前就被预热了工作区 + 凭据稍后会附加。
 
 See: https://github.com/OpenHands/software-agent-sdk/issues/2523
 """
@@ -58,11 +56,10 @@ from openhands.sdk.observability import maybe_init_laminar
 logger = get_logger(__name__)
 
 
-# The init endpoint uses its own header (distinct from X-Session-API-Key)
-# because session keys aren't known to the pool at warm-up time — they
-# arrive *inside* the /api/init body. The value is checked against the
-# dormant server's ``secret_key``, which the orchestrator already holds
-# for encryption purposes and which will be overwritten by the init payload.
+# 初始化端点使用自己的头衔（不同于 X-Session-）API-Key) 因为在热启动时，池中的会话密钥未
+# 知 - 他们会到达 *inside* 的 /api/init body. 该值与休眠服务器进行比较 ``secret_key``,
+# 该端点用于加密目的，且将被初始化时覆盖载荷。
+#
 _INIT_API_KEY_HEADER = APIKeyHeader(name="X-Init-API-Key", auto_error=False)
 
 
@@ -70,15 +67,13 @@ InitState = Literal["dormant", "initializing", "ready"]
 
 
 class InitRequest(BaseModel):
-    """Runtime configuration delivered at /api/init time.
+    """运行时配置在 /api/init 时间交付。
 
-    Each field is optional and overrides the equivalent field on the dormant
-    ``Config``. Fields not provided keep the value the server was constructed
-    with (typically from env vars at pod startup). The set of overridable
-    fields is intentionally narrow — it covers the values that today are
-    "env-var shaped" and must change per-user, not image-build-time
-    configuration (Python deps, plugin set, etc.) which stays bound to the
-    warm-pool flavor.
+    每个字段都是可选的，并且会覆盖休眠中的等效字段
+    ``Config``. 未提供的字段保留构建服务器时使用的值（通常来自 Pod 启动时的环境变量）
+    。 可覆盖的字段集是故意狭窄的——它覆盖了今天以环境变量形式呈现的
+    值，这些值需要根据用户而变化，而不是在图像构建时间的配置Python (依赖、插件集等)仍
+    然绑定到热池风味。
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
@@ -186,16 +181,16 @@ class InitStatus(BaseModel):
 
 
 def _build_initialized_config(base: Config, req: InitRequest) -> Config:
-    """Merge dormant ``base`` config with ``req`` and clear ``deferred_init``."""
+    """将休眠 ``base`` 配置与 ``req`` 合并并清除 ``deferred_init``。"""
     updates: dict[str, Any] = {"deferred_init": False}
     if req.session_api_keys is not None:
         updates["session_api_keys"] = req.session_api_keys
-    # A blank secret_key is treated as unset, like a blank OH_SECRET_KEY.
+    # 空白 secret_key 被视为未设置，就像空白 OH_SECRET_KEY 一样。
     if req.secret_key is not None and req.secret_key.get_secret_value().strip():
         updates["secret_key"] = req.secret_key
     elif req.session_api_keys and base.secret_key is None:
-        # Match the Config default: fall back to first session key when no
-        # secret_key was provided.
+        # 匹配配置默认值：当未提供 secret_key 时，回退到第一个会话密钥。
+        #
         updates["secret_key"] = SecretStr(req.session_api_keys[0])
     if req.previous_secret_keys is not None:
         updates["previous_secret_keys"] = req.previous_secret_keys
@@ -219,11 +214,11 @@ def _build_initialized_config(base: Config, req: InitRequest) -> Config:
 
 
 class InitService:
-    """Tracks dormant→ready transition and serialises /api/init calls.
+    """跟踪休眠→就绪转换并序列化 /api/init 调用。
 
-    A single ``asyncio.Lock`` makes concurrent /api/init posts safe; the second
-    one sees ``state != "dormant"`` and gets a 400. On failure mid-init the
-    state rolls back to ``dormant`` so the orchestrator can retry.
+    单个 ``asyncio.Lock`` 使并发 /api/init 帖子安全； 第二个看到
+    ``state != "dormant"`` 并得到 400。 如果在初
+    始化过程中发生故障，状态会回滚到 ``dormant``，以便协调器可以重试。
     """
 
     def __init__(self, app: FastAPI, base_config: Config) -> None:
@@ -235,8 +230,8 @@ class InitService:
         self._entered_service: ConversationService | None = None
         self._entered_conversation_registry: ConversationRegistry | None = None
         self._entered_bash_service: BashEventService | None = None
-        # ``initialize`` exports the delivered session key to the environment;
-        # ``(None, None)`` means nothing to put back.
+        # ``initialize`` 将下发的会话密钥导出到环境中；
+        # ``(None, None)`` 表示没有可放回的内容。
         self._session_api_key_env_before_init: tuple[bool, str | None] = (
             False,
             None,
@@ -268,16 +263,15 @@ class InitService:
         try:
             new_config = _build_initialized_config(self._base_config, req)
             if req.env:
-                # Setting env vars before services boot lets things like
-                # the cipher pick up OH_SECRET_KEY-style overrides, and
-                # tools pick up credentials.
+                # 在服务启动之前设置环境变量可以让密码等选择 OH_SECRET_KEY 样式的覆盖，
+                # 而工具则选择凭据。
+                #
                 for key, value in req.env.items():
                     os.environ[key] = value
-            # The key this server now authenticates with must also reach the
-            # in-process callers that read it from the environment (the
-            # start_child_conversation tool, the managed LLM key refresh); it
-            # replaces whatever key the dormant process booted with, and
-            # ``teardown`` puts the previous value back.
+            # 该服务器现在使用的密钥也必须传递给从环境读取该密钥的在进程中的调用者（
+            # start_child_conversation 工具，LLM 管理密钥刷新）； 它替换休眠进程启动时使
+            # 用的任何键，并且
+            # ``teardown`` 恢复之前的值。
             self._session_api_key_env_before_init = (
                 True,
                 os.environ.get(V1_SESSION_API_KEY_ENV),
@@ -285,19 +279,18 @@ class InitService:
             export_session_api_key(new_config)
             maybe_init_laminar()
 
-            # Must precede get_instance(), which captures the sink. The
-            # matching emit_server_started() is deferred until the ``ready``
-            # transition below: emitting here would produce a server_started
-            # for an init that later fails and rolls back to dormant, leaving
-            # an unpaired start and letting a retry emit a second one.
+            # 必须位于捕获接收器的 get_instance() 之前。 emit_server_started匹配项推迟到
+            # 以下``ready``转换中：在这里发出会生成一个server_started，导致一个初始化失
+            # 败并回滚到休眠状态，留下一个未配对的开始，从而让一个重试发出第二个。
+            #
             await shutdown_telemetry_sink()
             reset_stores()
             await asyncio.to_thread(reencrypt_stale_stores, new_config)
             self._app.state.telemetry_sink = await build_telemetry_sink(new_config)
 
-            # Reset the module-level singleton so other call sites that go
-            # through ``get_default_conversation_service`` see the new
-            # instance built from the merged config.
+            # 重置模块级单例，以便通过 ``get_default_conversation_service`` 的其他调用站
+            # 点看到从合并的配置构建的新实例。
+            #
             from openhands.agent_server import conversation_service as cs_mod
 
             service = ConversationService.get_instance(new_config)
@@ -318,15 +311,15 @@ class InitService:
             self._app.state.conversation_registry = conversation_registry
             self._app.state.bash_event_service = bash_svc
 
-            # Re-derive root_path from the merged config so Doc URLS are valid
+            # 从合并的配置中重新派生 root_path，以便文档 URLS 有效
             from openhands.agent_server.api import _get_root_path
 
             new_root_path = _get_root_path(new_config)
             self._app.root_path = new_root_path
 
-            # VSCode's token is the first session key, as on a normal boot. A
-            # dormant server that booted without one gave VSCode a random
-            # token, so switch it to the key delivered here.
+            # VSCode 的 token 是第一次会话密钥，就像正常启动时一样。 一个没有启动的休眠
+            # 服务器 VSCode 生成了一个随机 token，所以切换到这里提供的密钥。
+            #
             vscode_service = get_vscode_service()
             if vscode_service is not None and new_config.session_api_keys:
                 await vscode_service.set_connection_token(
@@ -335,8 +328,9 @@ class InitService:
 
             mark_initialization_complete()
             self._state = "ready"
-            # Emitted only now that init has actually succeeded, so a failed
-            # attempt never produces a start and a retry cannot double-emit.
+            # 仅当 init 实际成功时才发出，因此失败的尝试永远不会产生启动，并且重试不能双
+            # 重发出。
+            #
             emit_server_started()
             logger.info("deferred_init: server transitioned to ready")
             return self.snapshot()
@@ -351,10 +345,10 @@ class InitService:
             ) from exc
 
     async def teardown(self) -> None:
-        """Tear down the conversation service if /api/init succeeded.
+        """如果 /api/init 成功，则关闭对话服务。
 
-        Called from the FastAPI lifespan's finally clause so dormant pods
-        that were never initialized don't need any cleanup.
+        从 FastAPI 生命周期的 finally 子句中调用，因此从未初始化的休眠 Pod 不需要任何
+        清理。
         """
         if self._entered_service is not None:
             if self._entered_conversation_registry is not None:
@@ -368,7 +362,7 @@ class InitService:
         self._restore_session_api_key_env()
 
     def _restore_session_api_key_env(self) -> None:
-        """Undo the export ``initialize`` made, if it made one."""
+        """撤消所做的导出 ``initialize``（如果已完成）。"""
         exported, previous = self._session_api_key_env_before_init
         if not exported:
             return
@@ -396,17 +390,18 @@ def check_init_api_key(
     request: Request,
     init_api_key: str | None = Depends(_INIT_API_KEY_HEADER),
 ) -> None:
-    """Auth gate for /api/init. Uses the dormant server's ``secret_key`` as the
-    bootstrap credential — the orchestrator already holds it because it is
-    required for encryption. The key is replaced when /api/init delivers the
-    per-user runtime config."""
+    """/api/init. 的身份验证门使用休眠服务器的 ``secret_key`` 作为
+    bootstrap 凭据 - 编排器已经保存它，因为它是加密所必需的。 当 /api/init 提供每用户
+    运行时配置时，密钥将被替换。
+    """
     config: Config | None = getattr(request.app.state, "config", None)
     if config is None or config.secret_key is None:
         if config is not None and config.secret_key_was_blank:
-            # A blank key was configured but no usable key remains → fail
-            # closed, since no client can present a blank key.
+            # 配置了空白密钥，但没有保留可用密钥 → 关闭失败，因为没有客户端可以提供空白
+            # 密钥。
+            #
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-        # No key configured → endpoint is open. Acceptable for dev.
+        # 未配置按键 → 端点已打开。 开发人员可以接受。
         return
     expected = config.secret_key.get_secret_value()
     if init_api_key != expected:
@@ -414,12 +409,11 @@ def check_init_api_key(
 
 
 def require_initialized(connection: HTTPConnection) -> None:
-    """Dependency that rejects requests and WebSockets while the server is dormant.
+    """当服务器处于休眠状态时拒绝请求和 WebSockets 的依赖关系。
 
-    HTTP requests get a 503; WebSockets are closed with 1013 (Try Again Later)
-    before the handshake is accepted. Returns immediately when
-    ``deferred_init`` is False (the normal path) so this has zero cost for
-    non-deferred deployments.
+    HTTP请求得到503； WebSockets 在握手被接受之前以 1013（稍后重试）关闭。 立即返回，
+    当
+    ``deferred_init`` 是 False（正常路径），因此非延迟部署的成本为零。
     """
     init_service: InitService | None = getattr(
         connection.app.state, "init_service", None
@@ -442,11 +436,10 @@ init_router = APIRouter(prefix="/init", tags=["Init"])
 async def get_init_status(
     init_service: InitService = Depends(get_init_service),
 ) -> InitStatus:
-    """Report the current init state.
+    """报告当前初始化状态。
 
-    Authentication is intentionally not required on this endpoint so a warm
-    pool controller can poll it without holding the init key. The payload
-    contains no sensitive data.
+    端点上故意不需要身份验证，因此热池控制器可以轮询它而无需持有初始化密钥。 载荷不包
+    含敏感数据。
     """
     return init_service.snapshot()
 
@@ -460,10 +453,10 @@ async def initialize_server(
     req: InitRequest,
     init_service: InitService = Depends(get_init_service),
 ) -> InitStatus:
-    """Initialize a dormant server with runtime configuration.
+    """使用运行时配置初始化休眠服务器。
 
-    Returns 400 if the server has already been initialized (state != dormant).
-    Returns 500 if initialization fails; in that case the state rolls back to
-    ``dormant`` so the orchestrator can retry.
+    如果服务器已经初始化（状态！=休眠），则返回 400。 如果初始化失败则返回500； 在这
+    种情况下，状态回滚到
+    ``dormant`` 因此协调器可以重试。
     """
     return await init_service.initialize(req)

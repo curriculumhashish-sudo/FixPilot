@@ -1,14 +1,14 @@
-"""Fork a conversation through the agent server REST API.
+"""通过 Agent Server REST API 分叉对话。
 
-Demonstrates ``RemoteConversation.fork()`` which delegates to the server's
-``POST /api/conversations/{id}/fork`` endpoint.  The fork deep-copies
-events and state on the server side, then returns a new
-``RemoteConversation`` pointing at the copy.
+演示 ``RemoteConversation.fork()`` 委托给服务器的
+``POST /api/conversations/{id}/fork`` 端点。 分叉在服务器端深度复制事件和状态，然后返
+回一个新的
+``RemoteConversation`` 指向副本。
 
-Scenarios covered:
-  1. Run a source conversation on the server
-  2. Fork it — verify independent event histories
-  3. Fork with a title and custom tags
+涵盖的场景：
+  1. 在服务器上运行源对话
+  2. Fork it — 验证独立事件历史
+  3. 带有标题和自定义标签的分叉
 """
 
 import os
@@ -22,7 +22,7 @@ from openhands.tools.terminal import TerminalTool
 
 
 # -----------------------------------------------------------------
-# Config
+# 配置
 # -----------------------------------------------------------------
 api_key = os.getenv("LLM_API_KEY")
 assert api_key, "LLM_API_KEY must be set"
@@ -35,14 +35,14 @@ llm = LLM(
 agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name)])
 
 # -----------------------------------------------------------------
-# Run
+# 运行
 # -----------------------------------------------------------------
 with ManagedAPIServer(port=8002) as server:
     workspace_dir = tempfile.mkdtemp(prefix="fork_demo_")
     workspace = Workspace(host=server.base_url, working_dir=workspace_dir)
 
     # =============================================================
-    # 1. Source conversation
+    # 1. 来源对话
     # =============================================================
     source = Conversation(agent=agent, workspace=workspace)
     assert isinstance(source, RemoteConversation)
@@ -58,7 +58,7 @@ with ManagedAPIServer(port=8002) as server:
     print(f"Source events count    : {source_event_count}")
 
     # =============================================================
-    # 2. Fork and continue independently
+    # 2. 独立分叉并继续
     # =============================================================
     fork = source.fork(title="Follow-up fork")
     assert isinstance(fork, RemoteConversation)
@@ -69,11 +69,10 @@ with ManagedAPIServer(port=8002) as server:
     print(f"Fork events (copied)   : {fork_event_count}")
 
     assert fork.id != source.id
-    # The fork copies all persisted events from the server-side EventLog.
-    # The source's client-side list may additionally contain transient
-    # WebSocket-only events (e.g. full-state snapshots) that are never
-    # persisted, so we only assert the fork has a non-trivial number of
-    # events rather than exact parity.
+    # 分叉从服务器端 EventLog 复制所有已持久化事件。 源的客户端列表可能还包含仅瞬态
+    # WebSocket 事件 (e.g. 全状态快照）永远不会已持久化，因此我们只断言分叉具有非平凡数
+    # 量的事件而不是精确的奇偶校验。
+    #
     assert fork_event_count > 0
 
     fork.send_message("Now run `echo hello-from-fork` in the terminal.")
@@ -85,7 +84,7 @@ with ManagedAPIServer(port=8002) as server:
     assert len(fork.state.events) > fork_event_count
 
     # =============================================================
-    # 3. Fork with tags
+    # 3. 带标签的叉子
     # =============================================================
     fork_tagged = source.fork(
         title="Tagged experiment",
@@ -104,13 +103,13 @@ with ManagedAPIServer(port=8002) as server:
     print(f"Fork events : {len(fork_tagged.state.events)}")
 
     # =============================================================
-    # Summary
+    # 总结
     # =============================================================
     print(f"\n{'=' * 64}")
     print("All done — RemoteConversation.fork() works end-to-end.")
     print("=" * 64)
 
-    # Cleanup
+    # 清理
     fork.close()
     fork_tagged.close()
     source.close()

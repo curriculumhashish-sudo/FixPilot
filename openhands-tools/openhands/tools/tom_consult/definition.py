@@ -1,7 +1,7 @@
-"""Tom consultation tool definition.
+"""汤姆咨询工具定义。
 
-This module provides tools for consulting Tom agent for personalized guidance
-based on user modeling, and for indexing conversations for user modeling.
+该模块提供用于咨询 Tom 的工具智能体基于用户建模的个性化指导，以及为用户建模进行会话索
+引。
 """
 
 from collections.abc import Sequence
@@ -25,11 +25,11 @@ if TYPE_CHECKING:
     from openhands.sdk.conversation.state import ConversationState
 
 
-# ==================== Action Schemas ====================
+# ==================== 动作模式 ====================
 
 
 class ConsultTomAction(Action):
-    """Action to consult Tom agent for guidance."""
+    """行动请咨询 Tom 智能体以获得指导。"""
 
     reason: str = Field(
         description="Brief explanation of why you need Tom agent consultation"
@@ -50,20 +50,20 @@ class ConsultTomAction(Action):
 
 
 class SleeptimeComputeAction(Action):
-    """Action to index existing conversations for Tom's user modeling.
+    """为 Tom 的用户建模索引现有对话的操作。
 
-    This triggers Tom agent's sleeptime_compute function which processes
-    conversation history to build and update the user model.
+    这会触发 Tom 智能体的 sleeptime_compute 函数，该函数处理对话历史记录以构建和更新
+    用户模型。
     """
 
     pass
 
 
-# ==================== Observation Schemas ====================
+# ==================== 观测结果模式 ====================
 
 
 class ConsultTomObservation(Observation):
-    """Observation from Tom agent consultation."""
+    """观测结果来自 Tom 智能体咨询。"""
 
     suggestions: str = Field(
         default="", description="Tom agent's suggestions or guidance"
@@ -78,7 +78,7 @@ class ConsultTomObservation(Observation):
     @property
     @override
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
-        """Convert observation to LLM-readable content."""
+        """将观测结果转换为 LLM 可读内容。"""
         if not self.suggestions:
             return [TextContent(text="Tom agent did not provide suggestions.")]
 
@@ -94,7 +94,7 @@ class ConsultTomObservation(Observation):
 
 
 class SleeptimeComputeObservation(Observation):
-    """Observation from sleeptime compute operation."""
+    """观测结果来自睡眠时间计算操作。"""
 
     message: str = Field(
         default="", description="Result message from sleeptime compute"
@@ -106,7 +106,7 @@ class SleeptimeComputeObservation(Observation):
     @property
     @override
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
-        """Convert observation to LLM-readable content."""
+        """将观测结果转换为 LLM 可读内容。"""
         if self.sessions_processed > 0:
             text = (
                 f"Successfully indexed {self.sessions_processed} "
@@ -118,7 +118,7 @@ class SleeptimeComputeObservation(Observation):
         return [TextContent(text=text)]
 
 
-# ==================== Tool Descriptions ====================
+# ==================== 工具说明====================
 
 _CONSULT_DESCRIPTION = """Consult Tom agent for guidance when you need help \
 understanding user intent or task requirements.
@@ -144,17 +144,17 @@ Use this to:
 This is typically used at the end of a conversation or when explicitly requested."""
 
 
-# ==================== Tool Definitions ====================
+# ==================== 工具定义 ====================
 
 
 class TomConsultTool(ToolDefinition[ConsultTomAction, ConsultTomObservation]):
-    """Tool for consulting Tom agent."""
+    """咨询 Tom 的工具智能体。"""
 
     def declared_resources(self, action: Action) -> DeclaredResources:  # noqa: ARG002
-        """Declare resources for parallel execution.
+        """声明并行执行的资源。
 
-        Consulting Tom is a read-only LLM call with no shared mutable
-        state, so it is always safe to run in parallel.
+        Consulting Tom 是一个没有共享可变状态的只读 LLM 调用，因此并行运行始终是安全
+        的。
         """
         return DeclaredResources(keys=(), declared=True)
 
@@ -168,28 +168,28 @@ class TomConsultTool(ToolDefinition[ConsultTomAction, ConsultTomObservation]):
         api_key: str | None = None,
         api_base: str | None = None,
     ) -> Sequence[ToolDefinition[Any, Any]]:
-        """Initialize Tom consult tool with executor parameters.
+        """使用执行器参数初始化 Tom Consult 工具。
 
         Args:
-            conv_state: Conversation state (required by
-            registry, state passed at runtime)
-            enable_rag: Whether to enable RAG in Tom agent
-            llm_model: LLM model to use for Tom agent
-            api_key: API key for Tom agent's LLM
-            api_base: Base URL for Tom agent's LLM
+            conv_state: 对话状态（需要
+            注册表，运行时传递的状态）
+            enable_rag: 是否在Tom智能体中启用RAG
+            llm_model: LLM 用于汤姆的模型智能体
+            api_key: API 汤姆智能体的 LLM 的钥匙
+            api_base: 汤姆智能体的 LLM 的底座 URL
 
         Returns:
-            Sequence containing TomConsultTool instance
+            包含 TomConsultTool 实例的序列
         """
-        # conv_state required by registry but not used - state passed at execution time
+        # conv_state 需要注册表但未使用 - 执行时传递的状态
         _ = conv_state
 
-        # Import here to avoid circular imports and make tom-swe optional
+        # 在此导入以避免循环导入并使 tom-swe 成为可选
         from openhands.tools.tom_consult.executor import TomConsultExecutor
 
         file_store = LocalFileStore(root=str(get_user_persistence_dir()))
 
-        # Initialize the executor
+        # 初始化执行器
         executor = TomConsultExecutor(
             file_store=file_store,
             enable_rag=enable_rag,
@@ -211,7 +211,7 @@ class TomConsultTool(ToolDefinition[ConsultTomAction, ConsultTomObservation]):
 class SleeptimeComputeTool(
     ToolDefinition[SleeptimeComputeAction, SleeptimeComputeObservation]
 ):
-    """Tool for indexing conversations for Tom's user modeling."""
+    """用于为 Tom 的用户建模建立对话索引的工具。"""
 
     @classmethod
     @override
@@ -223,28 +223,28 @@ class SleeptimeComputeTool(
         api_key: str | None = None,
         api_base: str | None = None,
     ) -> Sequence[ToolDefinition[Any, Any]]:
-        """Initialize sleeptime compute tool with executor parameters.
+        """使用执行器参数初始化睡眠时间计算工具。
 
         Args:
-            conv_state: Conversation state (required by
-            registry, state passed at runtime)
-            enable_rag: Whether to enable RAG in Tom agent
-            llm_model: LLM model to use for Tom agent
-            api_key: API key for Tom agent's LLM
-            api_base: Base URL for Tom agent's LLM
+            conv_state: 对话状态（需要
+            注册表，运行时传递的状态）
+            enable_rag: 是否在Tom智能体中启用RAG
+            llm_model: LLM 用于汤姆的模型智能体
+            api_key: API 汤姆智能体的 LLM 的钥匙
+            api_base: 汤姆智能体的 LLM 的底座 URL
 
         Returns:
-            Sequence containing SleeptimeComputeTool instance
+            包含 SleeptimeComputeTool 实例的序列
         """
-        # conv_state required by registry but not used - state passed at execution time
+        # conv_state 需要注册表但未使用 - 执行时传递的状态
         _ = conv_state
 
-        # Import here to avoid circular imports and make tom-swe optional
+        # 在此导入以避免循环导入并使 tom-swe 成为可选
         from openhands.tools.tom_consult.executor import TomConsultExecutor
 
         file_store = LocalFileStore(root=str(get_user_persistence_dir()))
 
-        # Initialize the executor
+        # 初始化执行器
         executor = TomConsultExecutor(
             file_store=file_store,
             enable_rag=enable_rag,
@@ -263,6 +263,6 @@ class SleeptimeComputeTool(
         ]
 
 
-# Automatically register the tools when this module is imported
+# 导入此模块时自动注册工具
 register_tool(TomConsultTool.name, TomConsultTool)
 register_tool(SleeptimeComputeTool.name, SleeptimeComputeTool)

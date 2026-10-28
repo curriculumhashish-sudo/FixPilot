@@ -1,21 +1,16 @@
-"""Extraction and normalization for action-boundary security analysis.
+"""行动边界安全分析的提取和标准化。
 
-Before an agent action can be classified as safe or dangerous, two
-things need to happen: the right content must be extracted from the
-ActionEvent (extraction), and encoding tricks that hide dangerous
-commands must be neutralized (normalization).
+在智能体操作被分类为安全或危险之前，需要发生两件事：必须从 ActionEvent 中提取正确的内
+容（提取），并且必须消除隐藏危险命令的编码技巧（正常化）。
 
-Extraction controls the attack surface. Fields not extracted are
-invisible to every downstream layer. Two corpora are maintained:
-the *executable corpus* (what the agent will do) and the *text corpus*
-(what it thought about). Shell-destructive patterns only see the
-first; injection patterns see both.
+提取控制攻击面。 未提取的字段对于每个下游层都是不可见的。 维护两个语料库：*可执行语料
+库*（智能体将做什么）和*文本语料库*（它想到什么）。 外壳破坏模式只看到第一个；
+注射模式两者兼而有之。
 
-Normalization collapses invisible characters, control codes, and
-fullwidth substitutions so that ``r\\u200bm`` matches ``rm`` and
-``\\uff52\\uff4d`` matches ``rm`` before any pattern is tested.
+规范化会折叠不可见字符、控制代码和全角替换，以便 ``r\\u200bm`` 匹配 ``rm`` 且
+在测试任何模式之前，``\\uff52\\uff4d`` 与 ``rm`` 匹配。
 
-These are internal helpers (underscore-prefixed, not re-exported).
+这些是内部助手（以下划线前缀，不重新导出）。
 """
 
 from __future__ import annotations
@@ -32,30 +27,29 @@ from openhands.sdk.logger import get_logger
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants
+# 常数
 # ---------------------------------------------------------------------------
 
-# Maximum characters extracted from an ActionEvent before normalization and
-# pattern matching. Bounds regex runtime and memory, but content beyond this
-# limit is invisible to the analyzer.
+# 在标准化和模式匹配之前从 ActionEvent 中提取的最大字符数。 限制正则​​表达式运行时和内存
+# ，但超出此限制的内容对分析器不可见。
+#
 _EXTRACT_HARD_CAP = 30_000
 
 
 # ---------------------------------------------------------------------------
-# Extraction: whitelisted fields only
+# 提取：仅限白名单字段
 # ---------------------------------------------------------------------------
 
 
 class _BoundedSegments:
-    """Append-only segment buffer with a joined-length cap.
+    """具有连接长度上限的仅附加段缓冲区。
 
-    Tracks the length of the eventual ``" ".join(segments)`` string and
-    silently drops or truncates appends that would exceed ``cap``. Each
-    ``add()`` call charges one char for the space separator that will
-    precede the segment in the joined output (except the first), so
-    ``len(" ".join(self.segments)) <= cap`` holds even when many short
-    segments are produced (a JSON object with single-char leaves would
-    otherwise inflate the joined length via separators).
+    跟踪最终 ``" ".join(segments)`` 字符串的长度，并默默地删除或截断超出 ``cap`` 的附
+    加内容。 每个
+    ``add()`` 调用为连接输出中该段之前的空格分隔符收取一个字符（第一个除外），因此
+    即使产生大量短片段，也必须满足 ``len(" ".join(self.segments)) <= cap``；否则，含
+    单字符叶节点的 JSON 对象会因分隔符而扩
+    大拼接后的长度。
     """
 
     def __init__(self, cap: int) -> None:
@@ -64,7 +58,7 @@ class _BoundedSegments:
         self._total = 0
 
     def add(self, text: str) -> None:
-        """Append text, truncating to remaining budget; skip if full."""
+        """追加文本，截断剩余预算； 如果已满则跳过。"""
         separator_len = 1 if self.segments else 0
         remaining = self.cap - self._total - separator_len
         if remaining <= 0:
@@ -76,15 +70,14 @@ class _BoundedSegments:
 
 
 def _walk_json_strings(obj: Any) -> list[str]:
-    """Recursively collect leaf strings from a parsed JSON structure.
+    """从已解析的 JSON 结构中递归收集叶字符串。
 
-    Walking to leaves and returning each as a separate segment preserves
-    field boundaries for segment-aware rail evaluation.
+    走到树叶处并将每个树叶作为单独的路段返回，可以保留场边界，以便进行路段感知的铁路
+    评估。
 
-    RecursionError is NOT caught here -- it propagates to
-    _extract_exec_segments() which falls back to scanning the raw
-    arguments string. Returning [] would silently drop all leaves,
-    creating a false-negative path for deeply nested payloads.
+    RecursionError 被不捕获——它传播到 _extract_exec_segments()，后者又扫描原始参数字
+    符串。 返回 [] 会默默地删除所有叶子，
+    为深度嵌套的载荷创建一条 False 负路径。
     """
     if isinstance(obj, str):
         return [obj]
@@ -102,22 +95,20 @@ def _walk_json_strings(obj: Any) -> list[str]:
 
 
 def _extract_exec_segments(action: ActionEvent) -> list[str]:
-    """Extract segments from fields that describe what the agent will *do*.
+    """从描述智能体将 * 执行 * 操作的字段中提取片段。
 
-    Only executable fields: tool_call.arguments (JSON leaf strings), tool_name,
-    tool_call.name. Shell/permission/exec patterns and policy rails scan this
-    corpus exclusively.
+    仅可执行字段：tool_call.arguments（JSON叶字符串）、tool_name、tool_call.name。
+    Shell/权限/执行模式和策略轨道专
+    门扫描该语料库。
 
-    Arguments is extracted first because it is the primary attack surface for
-    indirect prompt injection payloads. Putting it ahead of tool_name and
-    tool_call.name guarantees arguments always receives scanning budget even
-    when an earlier field is adversarially large. tool_name has no length
-    validation anywhere in the SDK; a 30K hallucinated name would otherwise
-    consume the full budget and hide the arguments payload.
+    首先提取参数，因为它是间接提示词注入载荷的主要攻击面。 将其放在 tool_name 和
+    tool_call.name 之前可以保证参数始终收到扫描预算，即使较早的
+    字段非常大。 tool_name 在 SDK 的任何地方都没有长度验证； 否则，30K 的幻觉名称将消
+    耗全部预算并隐藏参数载荷。
     """
     buf = _BoundedSegments(_EXTRACT_HARD_CAP)
 
-    # Arguments first: primary attack surface for prompt-injection payloads.
+    # 第一个参数：提示词-注入载荷的主要攻击面。
     if action.tool_call and action.tool_call.arguments:
         try:
             parsed = json.loads(action.tool_call.arguments)
@@ -136,21 +127,19 @@ def _extract_exec_segments(action: ActionEvent) -> list[str]:
 
 
 def _extract_text_segments(action: ActionEvent) -> list[str]:
-    """Extract segments from fields that describe what the agent *thought*.
+    """从描述智能体 * 想法 * 的字段中提取片段。
 
-    Summary, reasoning_content, and thought are only scanned for injection
-    and social-engineering patterns, never for shell-destructive patterns.
+    摘要、reasoning_content 和思想仅扫描注入和社会工程模式，而从不扫描 shell 破坏性模
+    式。
 
-    Summary is extracted first because it describes the action the agent is
-    about to take. Putting it ahead of reasoning_content and thought
-    guarantees summary always receives scanning budget even when the agent
-    emits multiple long thoughts or a large reasoning trace. thought is a
-    list of TextContent; multiple 10K entries would otherwise collectively
-    exhaust the 30K budget and hide summary from the injection scanners.
+    首先提取摘要，因为它描述了智能体将要采取的操作。 将它放在第一位，
+    reasoning_content 和智能体发出多个长思想或大量推理轨迹时，总是确保摘要接收扫描预
+    算。 思想是TextContent的列表； 否则，多个 10K 条目将共同耗尽 30K 预算并隐藏注入扫
+    描仪的摘要。
     """
     buf = _BoundedSegments(_EXTRACT_HARD_CAP)
 
-    # Summary first: describes the action the agent is about to take.
+    # 首先摘要：描述智能体将要采取的操作。
     if action.summary:
         buf.add(action.summary)
 
@@ -165,90 +154,86 @@ def _extract_text_segments(action: ActionEvent) -> list[str]:
 
 
 def _extract_segments(action: ActionEvent) -> list[str]:
-    """Extract all segments (executable + reasoning) from an ActionEvent."""
+    """从 ActionEvent 中提取所有段（可执行文件 + 推理）。"""
     return _extract_exec_segments(action) + _extract_text_segments(action)
 
 
 def _extract_content(action: ActionEvent) -> str:
-    """Flat string from all fields -- the all-field scanning surface.
+    """来自所有视场的扁弦——全视场扫描面。
 
-    Length is bounded by ``2 * _EXTRACT_HARD_CAP + 1``: the per-corpus
-    caps in ``_extract_exec_segments`` and ``_extract_text_segments``
-    track joined length including separators, so each corpus's
-    ``" ".join(segments)`` is ≤ ``_EXTRACT_HARD_CAP``. The single space
-    between the two joined corpora adds 1. No outer slice is applied:
-    doing so would drop the text corpus when exec fills its budget,
-    defeating the summary-first guarantee in the composed analyzer path.
+    长度以 ``2 * _EXTRACT_HARD_CAP + 1`` 为界：``_extract_exec_segments`` 和
+    ``_extract_text_segments`` 中的每个语料库的上限跟踪包含分隔符的连接长度，因此每个
+    语料库的
+    ``" ".join(segments)`` ≤ ``_EXTRACT_HARD_CAP``。 两个连接的语料库之间的单个空格加
+     1。 没有外层切片应用：这样做会丢
+    弃文本语料库，当执行填充预算时，会破坏由组合分析器路径保证的先摘要后摘要的原则。
     """
     return " ".join(_extract_segments(action))
 
 
 def _extract_exec_content(action: ActionEvent) -> str:
-    """Flat string from executable fields only -- the shell-pattern surface.
+    """仅来自可执行字段的平面字符串——shell 模式表面。
 
-    Length is bounded by ``_EXTRACT_HARD_CAP``: the per-corpus cap in
-    ``_extract_exec_segments`` tracks joined length including separators.
+    长度以 ``_EXTRACT_HARD_CAP`` 为界：每个语料库的上限
+    ``_extract_exec_segments`` 轨道连接长度，包括分隔符。
     """
     return " ".join(_extract_exec_segments(action))
 
 
 # ---------------------------------------------------------------------------
-# Invisible character definitions
+# 不可见字符定义
 #
-# Expanded from the original 14-codepoint set to cover ~200+ invisible
-# characters across 9 categories. Informed by navi-sanitize (_invisible.py,
-# MIT, Project-Navi/navi-sanitize) -- logic inlined, no dependency.
+# 从最初的 14 个代码点集扩展到涵盖 9 个类别的约 200 多个不可见字符。 由 navi-sanitize (
+# _invisible.py, MIT, Project-Navi/navi-sanitize) 通知 - 逻辑内联，无依赖性。
 #
-# Same defensive category as the original zero-width stripping, just more
-# complete. Compiled into a single regex for performance.
+# 与原始零宽度剥离相同的防御类别，只是更完整。 编译成单个正则表达式以提高性能。
 # ---------------------------------------------------------------------------
 
-# Zero-width characters
+# 零宽度字符
 _ZERO_WIDTH: set[str] = {
-    "\u200b",  # zero-width space
-    "\u200c",  # zero-width non-joiner
-    "\u200d",  # zero-width joiner
-    "\u200e",  # left-to-right mark
-    "\u200f",  # right-to-left mark
-    "\u2060",  # word joiner
-    "\ufeff",  # BOM / zero-width no-break space
-    "\u180e",  # Mongolian vowel separator
+    "\u200b",  # 零宽度空间
+    "\u200c",  # 零宽度非连接符
+    "\u200d",  # 零宽度连接符
+    "\u200e",  # 从左到右标记
+    "\u200f",  # 从右到左标记
+    "\u2060",  # 词连接器
+    "\ufeff",  # BOM / 零宽度不间断空格
+    "\u180e",  # 蒙古语元音分隔符
 }
 
-# Format and control characters (invisible or near-invisible)
+# 格式和控制字符（不可见或几乎不可见）
 _FORMAT_CHARS: set[str] = {
-    "\u00ad",  # soft hyphen
-    "\u034f",  # combining grapheme joiner
-    "\u2009",  # thin space
-    "\u200a",  # hair space
-    # U+2028 (line separator) and U+2029 (paragraph separator) are NOT
-    # stripped here -- they are whitespace-like and should be collapsed
-    # by the \s+ stage, not deleted. Deleting them merges tokens and
-    # can bypass word-boundary regex detectors.
-    "\ufff9",  # interlinear annotation anchor
-    "\ufffa",  # interlinear annotation separator
-    "\ufffb",  # interlinear annotation terminator
-    "\ufffc",  # object replacement character
-    "\u2061",  # function application (invisible)
-    "\u2062",  # invisible times
-    "\u2063",  # invisible separator
-    "\u2064",  # invisible plus
-    "\u206a",  # inhibit symmetric swapping (deprecated)
-    "\u206b",  # activate symmetric swapping (deprecated)
-    "\u206c",  # inhibit Arabic form shaping (deprecated)
-    "\u206d",  # activate Arabic form shaping (deprecated)
-    "\u206e",  # national digit shapes (deprecated)
-    "\u206f",  # nominal digit shapes (deprecated)
-    "\u2800",  # braille pattern blank
-    "\u1680",  # Ogham space mark
-    "\u115f",  # Hangul Choseong filler
-    "\u1160",  # Hangul Jungseong filler
-    "\u3164",  # Hangul filler
-    "\uffa0",  # Halfwidth Hangul filler
-    "\u061c",  # Arabic letter mark
+    "\u00ad",  # 软连字符
+    "\u034f",  # 组合字素连接器
+    "\u2009",  # 狭小的空间
+    "\u200a",  # 头发空间
+    # 这里不会剥离 U+2028（行分隔符）和 U+2029（段落分隔符）；它们类似空白字符，应在 \s+
+    #  阶段折叠，而不是删除。 删除它们会合并 token 并且可以绕过字边界正则表达式检测器。
+    #
+    "\ufff9",  # 行间注释锚点
+    "\ufffa",  # 行间注释分隔符
+    "\ufffb",  # 行间注释终止符
+    "\ufffc",  # 对象替换字符
+    "\u2061",  # 函数应用（不可见）
+    "\u2062",  # 看不见的时代
+    "\u2063",  # 隐形分隔符
+    "\u2064",  # 隐形加号
+    "\u206a",  # 禁止对称交换 (已弃用)
+    "\u206b",  # 激活对称交换 (已弃用)
+    "\u206c",  # 抑制阿拉伯语形式塑造 (已弃用)
+    "\u206d",  # 激活阿拉伯语形式塑造 (已弃用)
+    "\u206e",  # 国家数字形状 (已弃用)
+    "\u206f",  # 标称数字形状 (已弃用)
+    "\u2800",  # 盲文图案空白
+    "\u1680",  # 奥格姆空格标记
+    "\u115f",  # 韩文初声填充物
+    "\u1160",  # 韩文中城填充物
+    "\u3164",  # 韩文填充物
+    "\uffa0",  # 半角韩文填充符
+    "\u061c",  # 阿拉伯字母标
 }
 
-# Bidirectional override/isolate characters
+# 双向覆盖/隔离字符
 _BIDI_CHARS: set[str] = {
     "\u202a",  # LRE
     "\u202b",  # RLE
@@ -261,7 +246,7 @@ _BIDI_CHARS: set[str] = {
     "\u2069",  # PDI
 }
 
-# Mongolian Free Variation Selectors
+# 蒙古文自由变体选择器
 _MONGOLIAN_FVS: set[str] = {
     "\u180b",
     "\u180c",
@@ -269,17 +254,17 @@ _MONGOLIAN_FVS: set[str] = {
     "\u180f",
 }
 
-# Ranges compiled into regex character classes
+# 范围编译成正则表达式字符类
 _VARIATION_SELECTOR_RANGE = (0xFE00, 0xFE0F)  # VS1-VS16
 _VARIATION_SELECTOR_SUPP_RANGE = (0xE0100, 0xE01EF)  # VS17-VS256
-_TAG_BLOCK_RANGE = (0xE0000, 0xE007F)  # Unicode Tag block
+_TAG_BLOCK_RANGE = (0xE0000, 0xE007F)  # Unicode 标签块
 _C0_RANGES = [(0x0001, 0x0008), (0x000B, 0x000C), (0x000E, 0x001F)]
-_DEL = "\x7f"  # DEL character -- not in C0 or C1 but equally invisible
+_DEL = "\x7f"  # DEL 字符——不在 C0 或 C1 中，但同样不可见
 _C1_RANGE = (0x0080, 0x009F)
 
-# Build single compiled regex for all invisible characters
+# 为所有不可见字符构建单个编译的正则表达式
 _INVISIBLE_PATTERN = (
-    # Individual char sets
+    # 字符集
     "["
     + "".join(sorted(_ZERO_WIDTH))
     + "]"
@@ -292,7 +277,7 @@ _INVISIBLE_PATTERN = (
     + "|["
     + "".join(sorted(_MONGOLIAN_FVS))
     + "]"
-    # Ranges
+    # 范围
     + "|["
     + chr(_VARIATION_SELECTOR_RANGE[0])
     + "-"
@@ -308,7 +293,7 @@ _INVISIBLE_PATTERN = (
     + "-"
     + chr(_VARIATION_SELECTOR_SUPP_RANGE[1])
     + "]"
-    # C0 controls (excl NUL/TAB/LF/CR)
+    # C0 控制（不包括 NUL/TAB/LF/CR）
     + "|["
     + chr(_C0_RANGES[0][0])
     + "-"
@@ -324,7 +309,7 @@ _INVISIBLE_PATTERN = (
     + "-"
     + chr(_C0_RANGES[2][1])
     + "]"
-    # C1 controls
+    # C1控制
     + "|["
     + chr(_C1_RANGE[0])
     + "-"
@@ -339,36 +324,35 @@ _INVISIBLE_RE: re.Pattern[str] = re.compile(_INVISIBLE_PATTERN)
 
 
 # ---------------------------------------------------------------------------
-# Normalization
+# 标准化
 # ---------------------------------------------------------------------------
 
 
 def _normalize(text: str) -> str:
-    """Collapse encoding evasions so dangerous commands match their patterns.
+    """折叠编码规避，使危险的命令与其模式相匹配。
 
-    An attacker can make ``rm`` not look like ``rm`` to a regex engine
+    攻击者可以使 ``rm`` 对于正则表达式引擎看起来不像 ``rm``
     while still looking like ``rm`` to a shell: zero-width characters,
-    fullwidth ASCII, bidi controls, and null bytes all achieve this.
-    This function neutralizes those techniques in four stages:
+    fullwidth ASCII、bidi 控件和 null 字节都可以实现此目的。 该函数分四个阶段中和这些
+    技术：
 
-    1. **Null bytes** -- prevent C-level string truncation.
-    2. **Invisible characters** -- strip ~200+ chars across zero-width,
-       format/control, bidi, variation selectors, tag block, C0, C1.
-       (Informed by navi-sanitize, MIT, inlined without dependency.)
-    3. **NFKC** -- fullwidth ``\\uff52\\uff4d`` becomes ASCII ``rm``.
-    4. **Whitespace collapse** -- NFKC may produce new whitespace.
+    1. **null bytes** -- 防止 C 级字符串截断。
+    2. **看不见的字符** -- 去除 ~200+ 个字符，包括零宽度、格式/控制、 bidi、变长选择
+    器、标签块、 C0、 C1。（参考 navi-sanitiz
+    e，MIT，无依赖。）
+    3. **NFKC** -- 全角 ``\\uff52\\uff4d`` 变为 ASCII ``rm``。
+    4. **空白崩溃** - NFKC可能会产生新的空白。
 
-    Does NOT cover Cyrillic homoglyphs or combining-mark evasion
-    (documented as strict xfails, deferred to follow-up).
+    不是否涵盖西里尔字母同形文字或组合标记规避（记录为严格 xfails，推迟到后续）。
     """
-    # Stage 1: Null bytes
+    # 第 1 阶段：null 字节
     text = text.replace("\x00", "")
 
-    # Stage 2: Invisible characters (compiled regex)
+    # 第 2 阶段：不可见字符（编译的正则表达式）
     text = _INVISIBLE_RE.sub("", text)
 
-    # Stage 3: NFKC normalization
+    # 第 3 阶段：NFKC 标准化
     text = unicodedata.normalize("NFKC", text)
 
-    # Stage 4: Collapse whitespace
+    # 第四阶段：折叠空白
     return re.sub(r"\s+", " ", text)

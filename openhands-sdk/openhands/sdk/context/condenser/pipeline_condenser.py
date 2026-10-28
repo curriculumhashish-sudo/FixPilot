@@ -5,16 +5,17 @@ from openhands.sdk.llm import LLM
 
 
 class PipelineCondenser(CondenserBase):
-    """A condenser that applies a sequence of condensers in order.
+    """按顺序应用上下文压缩器序列的上下文压缩器。
 
-    All condensers are defined primarily by their `condense` method, which takes a
-    `View` and an optional `agent_llm` parameter, returning either a new `View` or a
-    `Condensation` event. That means we can chain multiple condensers together by
-    passing `View`s along and exiting early if any condenser returns a `Condensation`.
+    所有上下文压缩器主要由它们的 `condense` 方法定义，该方法采用
+    `View` 和一个可选的 `agent_llm` 参数，返回一个新的 `View` 或一个
+    `Condensation` 事件。 这意味着我们可以通过传递 `View` 并在任何上下文压缩器返回
+    `Condensation` 时提前退出来将多个上下文压缩器
+    链接在一起。
 
-    For example:
+    例如：
 
-        # Use the pipeline condenser to chain multiple other condensers together
+        # 使用管道上下文压缩器将多个其他上下文压缩器链接在一起
         condenser = PipelineCondenser(condensers=[
             CondenserA(...),
             CondenserB(...),
@@ -23,8 +24,8 @@ class PipelineCondenser(CondenserBase):
 
         result = condenser.condense(view, agent_llm=agent_llm)
 
-        # Doing the same thing without the pipeline condenser requires more boilerplate
-        # for the monadic chaining
+        # 在没有管道上下文压缩器的情况下做同样的事情需要更多样板
+        # 对于单子链
         other_result = view
 
         if isinstance(other_result, View):
@@ -36,11 +37,11 @@ class PipelineCondenser(CondenserBase):
         if isinstance(other_result, View):
             other_result = CondenserC(...).condense(other_result, agent_llm=agent_llm)
 
-        assert result == other_result
+        断言结果 == other_result
     """
 
     condensers: list[CondenserBase]
-    """The list of condensers to apply in order."""
+    """按顺序申请的上下文压缩器列表。"""
 
     def condense(self, view: View, agent_llm: LLM | None = None) -> View | Condensation:
         result: View | Condensation = view
@@ -53,7 +54,7 @@ class PipelineCondenser(CondenserBase):
     async def acondense(
         self, view: View, agent_llm: LLM | None = None
     ) -> View | Condensation:
-        """Async variant of :meth:`condense`."""
+        """异步：meth:`condense` 的变体。"""
         result: View | Condensation = view
         for condenser in self.condensers:
             if isinstance(result, Condensation):

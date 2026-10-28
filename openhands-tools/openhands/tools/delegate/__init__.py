@@ -1,4 +1,4 @@
-"""Delegate tools for OpenHands agents."""
+"""OpenHands 智能体的委托工具。"""
 
 from openhands.tools.delegate.definition import (
     DelegateAction,

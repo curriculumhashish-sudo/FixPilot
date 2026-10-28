@@ -1,4 +1,4 @@
-"""Tests for the agent server API functionality."""
+"""测试 Agent Server API 功能。"""
 
 import asyncio
 import os
@@ -40,7 +40,7 @@ def clear_web_url_env(monkeypatch):
 
 @pytest.fixture
 def short_tmp_path(tmp_path):
-    """A directory shallow enough for tmux sockets; pytest's tmp_path is not."""
+    """对于 tmux 套接字来说足够浅的目录； pytest 的 tmp_path 不是。"""
     if os.name != "posix":
         yield tmp_path
         return
@@ -50,15 +50,15 @@ def short_tmp_path(tmp_path):
 
 @pytest.fixture
 def deep_tmp_path(tmp_path):
-    """A directory too deep for tmux sockets, like a repo-local CI state dir."""
+    """对于 tmux 套接字来说目录太深，例如 repo-local CI 状态目录。"""
     path = tmp_path / ("d" * 64)
     path.mkdir()
     return path
 
 
 def test_default_server_tmux_tmpdir_uses_current_pid(monkeypatch):
-    # Path selection does not require a real directory. Avoid adding a random
-    # fixture directory above the production per-process name.
+    # 路径选择不需要真实的目录。 避免在生产每个进程名称上方添加随机测试夹具目录。
+    #
     monkeypatch.setattr(
         "openhands.agent_server.api.tempfile.gettempdir", lambda: "/tmp"
     )
@@ -88,9 +88,10 @@ def test_default_server_tmux_tmpdir_avoids_deep_tempdir(deep_tmp_path, monkeypat
 def test_default_server_tmux_tmpdir_counts_canonical_socket_bytes(
     socket_limit, expected_root, monkeypatch
 ):
-    # Model macOS's /tmp -> /private/tmp, with a fixed UID/PID. The original
-    # test fixture produced a 105-byte socket path; the fallback is 93.
-    # Replace the module's os reference, not global os.getpid/getuid.
+    # 模型macOS的/tmp -> /private/tmp，具有固定的UID/PID。 原始测试测试夹具产生了一个105
+    # 字节的套接字路径； 回退方案是93。 替换模块的操作系统引用，而不是全局 os.getpid/
+    # getuid。
+    #
     monkeypatch.setattr(
         "openhands.agent_server.api.os",
         SimpleNamespace(
@@ -114,7 +115,7 @@ def test_default_server_tmux_tmpdir_counts_canonical_socket_bytes(
 
 
 def test_ensure_server_tmux_tmpdir_creates_default_dir(short_tmp_path, monkeypatch):
-    # Test directory creation independently of path selection above.
+    # 独立于上面的路径选择来测试目录创建。
     expected = short_tmp_path / "tmux"
     monkeypatch.setattr(
         "openhands.agent_server.api._default_server_tmux_tmpdir", lambda: expected
@@ -164,7 +165,7 @@ def test_ensure_server_tmux_tmpdir_replaces_too_deep_env(
     tmp_path, deep_tmp_path, short_tmp_path, monkeypatch
 ):
     monkeypatch.setenv("TMUX_TMPDIR", str(deep_tmp_path))
-    # Use a genuinely short final directory for the real tmux integration test.
+    # 使用真正简短的最终目录作为真正的 tmux 集成测试。
     expected = short_tmp_path / "tmux"
     monkeypatch.setattr(
         "openhands.agent_server.api._default_server_tmux_tmpdir", lambda: expected
@@ -184,25 +185,25 @@ def test_ensure_server_tmux_tmpdir_replaces_too_deep_env(
 
 @pytest.mark.skipif(os.name != "posix", reason="tmux requires Unix")
 def test_cleanup_stale_tmux_sessions_spares_live_sibling_socket(monkeypatch):
-    """Startup cleanup must not kill a live sibling agent-server's sessions.
+    """启动清理不得终止活动同级智能体-服务器的会话。
 
-    Regression for #5581: with a shared, externally supplied ``TMUX_TMPDIR``
-    (as on an Agent Canvas host), ``_cleanup_stale_tmux_sessions()`` used to
-    glob every ``openhands-<32 hex>`` socket and kill all of its sessions,
-    silently destroying the terminals of every other running agent-server.
-    A socket whose owner is gone must still be reclaimed.
+    回归 for #5581：使用共享的、外部提供的 ``TMUX_TMPDIR``（如在 Agent Canvas 主机上
+    ），
+    ``_cleanup_stale_tmux_sessions()`` 用于 glob 每个 ``openhands-<32 hex>`` 套接字并
+    终止其所有会话，默
+    默地破坏每个其他正在运行的智能体服务器的终端。 所有者消失的套接字仍必须被回收。
     """
     with tempfile.TemporaryDirectory(
         prefix="oh-shared-tmux-", dir="/tmp"
     ) as socket_dir:
         monkeypatch.setenv("TMUX_TMPDIR", socket_dir)
 
-        # Conversation A: a live pool whose long-running command must survive.
+        # 对话 A：一个实时池，其长时间运行的命令必须存活。
         pool_a = TmuxPanePool(tempfile.mkdtemp(prefix="oh-conversation-a-"))
         pool_a.initialize()
         terminal_a = pool_a.checkout()
 
-        # Legacy and non-OpenHands sockets share the directory.
+        # 旧版和非 OpenHands 套接字共享该目录。
         legacy = libtmux.Server(socket_name="openhands")
         unrelated = libtmux.Server(socket_name="unrelated")
         legacy.new_session(session_name="test")
@@ -211,8 +212,9 @@ def test_cleanup_stale_tmux_sessions_spares_live_sibling_socket(monkeypatch):
             terminal_a.send_keys("printf 'A_STILL_ALIVE\\n'")
             _wait_for(lambda: "A_STILL_ALIVE" in terminal_a.read_screen())
 
-            # An orphaned socket whose owner process has exited (a crashed
-            # sibling) is created out-of-process, then its owner dies.
+            # 其所有者进程已退出（崩溃的同级）的孤立套接字是在进程外创建的，然后其所有者
+            # 死亡。
+            #
             env = {**os.environ, "TMUX_TMPDIR": socket_dir}
             orphan = subprocess.run(
                 [sys.executable, "-c", _ORPHAN_SOCKET_SCRIPT],
@@ -225,16 +227,17 @@ def test_cleanup_stale_tmux_sessions_spares_live_sibling_socket(monkeypatch):
             orphan_server = libtmux.Server(socket_name=orphan_socket)
             assert orphan_server.sessions
 
-            # Conversation B's agent-server starts on the same host.
+            # 会话 B 的智能体服务器在同一主机上启动。
             _cleanup_stale_tmux_sessions()
 
-            # The live sibling is untouched and still usable.
+            # 活着的兄弟姐妹没有受到影响并且仍然可以使用。
             assert "A_STILL_ALIVE" in terminal_a.read_screen()
             terminal_a.send_keys("printf 'A_STILL_USABLE\\n'")
             _wait_for(lambda: "A_STILL_USABLE" in terminal_a.read_screen())
 
-            # A socket whose owner is gone is reclaimed, the legacy socket is
-            # still cleaned up, and non-OpenHands sockets are left alone.
+            # 所有者消失的套接字将被回收，遗留套接字仍会被清理，并且非 OpenHands 套接字
+            # 将被保留。
+            #
             assert not orphan_server.sessions
             assert not legacy.sessions
             assert unrelated.sessions
@@ -244,10 +247,9 @@ def test_cleanup_stale_tmux_sessions_spares_live_sibling_socket(monkeypatch):
             unrelated.cmd("kill-server")
 
 
-# Pause a real TmuxPanePool.initialize() inside the creation lock, after the
-# tmux session (and therefore the socket) exists but before the owner option is
-# recorded. A sibling cleanup running in the parent process must not reclaim
-# the socket while it is held here.
+# 在 tmux 会话（以及套接字）存在之后但在记录所有者选项之前，在创建锁内暂停真正的
+# TmuxPanePool.initialize()。 在父进程中运行的同级清理不得回收此处保留的套接字。
+#
 _CONCURRENT_INIT_SCRIPT = """
 import sys
 from openhands.tools.terminal.terminal.tmux_pane_pool import TmuxPanePool
@@ -279,21 +281,20 @@ finally:
 
 @pytest.mark.skipif(os.name != "posix", reason="tmux requires Unix")
 def test_cleanup_stale_tmux_sessions_serializes_with_socket_creation(monkeypatch):
-    """Startup cleanup must not reclaim a socket a live process is creating.
+    """启动清理不得回收活动进程正在创建的套接字。
 
-    Regression for the #5581 concurrent-startup gap: cleanup used to treat a
-    socket as stale whenever it had no recorded owner. A sibling process creates
-    its socket a moment before it can record ownership, so cleanup in that
-    window killed a live pool and its terminal setup then failed. Cleanup and
-    socket creation now share a cross-process lock, so cleanup cannot observe a
-    half-created socket.
+    回归表示 #5581 并发-启动间隙：当套接字没有记录的所有者时，清理用于将套接字视为陈
+    旧。 一个兄弟进程在记录所有权之前就创建了其套接字，因此在清理窗口中杀死了一
+    个活的池及其终端设置，导致其失败。 清理和套接字创建现在共享跨进程锁，因此清理无法
+    观察到半创建的套接字。
     """
     import inspect
 
     from openhands.tools.terminal.terminal import tmux_terminal
 
-    # The owner is recorded by mark_socket_owner() *after* new_session() created
-    # the socket; pause on that call to hit the window the lock must protect.
+    # 所有者由 mark_socket_owner() *after* new_session() 创建套接字记录； 暂停该调用以点
+    # 击锁必须保护的窗口。
+    #
     source_lines, first_line = inspect.getsourcelines(tmux_terminal._new_owned_session)
     barrier_line = next(
         first_line + offset
@@ -321,14 +322,15 @@ def test_cleanup_stale_tmux_sessions_serializes_with_socket_creation(monkeypatch
             env=env,
         )
         try:
-            # Blocks until the child has created its socket and paused, still
-            # holding the creation lock, before recording its owner.
+            # 阻塞，直到子进程创建了其套接字并暂停，在记录其所有者之前仍保留创建锁。
+            #
             assert child.stdout is not None
             created = child.stdout.readline().strip()
             assert created == "CREATED", created
 
-            # Conversation B's agent-server starts on the same host. It must
-            # wait for the creation lock rather than reclaim the live socket.
+            # 会话 B 的智能体服务器在同一主机上启动。 它必须等待创建锁而不是回收活动套接
+            # 字。
+            #
             cleanup_done = threading.Event()
             cleanup_error: list[BaseException] = []
 
@@ -348,7 +350,7 @@ def test_cleanup_stale_tmux_sessions_serializes_with_socket_creation(monkeypatch
                     "must not run concurrently with an in-progress creation"
                 )
 
-                # Let the child publish ownership and finish initializing.
+                # 让子进程发布所有权并完成初始化。
                 assert child.stdin is not None
                 child.stdin.write("\n")
                 child.stdin.flush()
@@ -367,34 +369,34 @@ def test_cleanup_stale_tmux_sessions_serializes_with_socket_creation(monkeypatch
 
 
 class TestStaticFilesServing:
-    """Test static files serving functionality."""
+    """测试静态文件服务功能。"""
 
     def test_static_files_not_mounted_when_path_none(self):
-        """Test that static files are not mounted when static_files_path is None."""
+        """测试static_files_path为None时静态文件不挂载。"""
         config = Config(static_files_path=None)
         app = create_app(config)
         client = TestClient(app)
 
-        # Try to access static files endpoint - should return 404
+        # 尝试访问静态文件端点 - 应返回 404
         response = client.get("/static/test.txt")
         assert response.status_code == 404
 
     def test_static_files_not_mounted_when_directory_missing(self):
-        """Test that static files are not mounted when directory doesn't exist."""
+        """测试目录不存在时不挂载静态文件。"""
         config = Config(static_files_path=Path("/nonexistent/directory"))
         app = create_app(config)
         client = TestClient(app)
 
-        # Try to access static files endpoint - should return 404
+        # 尝试访问静态文件端点 - 应返回 404
         response = client.get("/static/test.txt")
         assert response.status_code == 404
 
     def test_static_files_mounted_when_directory_exists(self):
-        """Test that static files are mounted when directory exists."""
+        """测试目录存在时是否挂载静态文件。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create a test file
+            # 创建测试文件
             test_file = static_dir / "test.txt"
             test_file.write_text("Hello, static world!")
 
@@ -402,18 +404,18 @@ class TestStaticFilesServing:
             app = create_app(config)
             client = TestClient(app)
 
-            # Access the static file
+            # 访问静态文件
             response = client.get("/static/test.txt")
             assert response.status_code == 200
             assert response.text == "Hello, static world!"
             assert response.headers["content-type"] == "text/plain; charset=utf-8"
 
     def test_static_files_serve_html(self):
-        """Test that static files can serve HTML files."""
+        """测试静态文件是否可以提供 HTML 个文件。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create an HTML test file
+            # 创建 HTML 测试文件
             html_file = static_dir / "index.html"
             html_content = "<html><body><h1>Static HTML</h1></body></html>"
             html_file.write_text(html_content)
@@ -422,18 +424,18 @@ class TestStaticFilesServing:
             app = create_app(config)
             client = TestClient(app)
 
-            # Access the HTML file
+            # 访问HTML文件
             response = client.get("/static/index.html")
             assert response.status_code == 200
             assert response.text == html_content
             assert "text/html" in response.headers["content-type"]
 
     def test_static_files_serve_subdirectory(self):
-        """Test that static files can serve files from subdirectories."""
+        """测试静态文件是否可以提供子目录中的文件。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create a subdirectory with a file
+            # 创建一个包含文件的子目录
             sub_dir = static_dir / "assets"
             sub_dir.mkdir()
             css_file = sub_dir / "style.css"
@@ -444,14 +446,14 @@ class TestStaticFilesServing:
             app = create_app(config)
             client = TestClient(app)
 
-            # Access the CSS file in subdirectory
+            # 访问子目录中的CSS文件
             response = client.get("/static/assets/style.css")
             assert response.status_code == 200
             assert response.text == css_content
             assert "text/css" in response.headers["content-type"]
 
     def test_static_files_404_for_missing_file(self):
-        """Test that missing static files return 404."""
+        """测试缺少静态文件会返回 404。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
@@ -459,16 +461,16 @@ class TestStaticFilesServing:
             app = create_app(config)
             client = TestClient(app)
 
-            # Try to access non-existent file
+            # 尝试访问不存在的文件
             response = client.get("/static/nonexistent.txt")
             assert response.status_code == 404
 
     def test_static_files_security_no_directory_traversal(self):
-        """Test that directory traversal attacks are prevented."""
+        """测试目录遍历攻击是否被阻止。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create a file outside the static directory
+            # 在静态目录外创建一个文件
             parent_dir = Path(temp_dir).parent
             secret_file = parent_dir / "secret.txt"
             secret_file.write_text("Secret content")
@@ -477,24 +479,24 @@ class TestStaticFilesServing:
             app = create_app(config)
             client = TestClient(app)
 
-            # Try directory traversal attack
+            # 尝试目录遍历攻击
             response = client.get("/static/../secret.txt")
             assert response.status_code == 404
 
-        # Clean up the secret file
+        # 清理机密文件
         if secret_file.exists():
             secret_file.unlink()
 
 
 class TestRootRedirect:
-    """Test root endpoint redirect functionality."""
+    """测试根目录端点重定向功能。"""
 
     def test_root_redirect_to_index_html_when_exists(self):
-        """Test that root endpoint redirects to /static/index.html when it exists."""
+        """测试 root 端点是否重定向到 /static/index.html（当它存在时）。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create an index.html file
+            # 创建 index.html 文件
             index_file = static_dir / "index.html"
             index_file.write_text("<html><body><h1>Welcome</h1></body></html>")
 
@@ -502,17 +504,17 @@ class TestRootRedirect:
             app = create_app(config)
             client = TestClient(app)
 
-            # Test root redirect
+            # 测试根重定向
             response = client.get("/", follow_redirects=False)
             assert response.status_code == 302
             assert response.headers["location"] == "/static/index.html"
 
     def test_root_redirect_to_static_dir_when_no_index(self):
-        """Test that root endpoint redirects to /static/ when no index.html exists."""
+        """测试当 index.html 不存在时 root 端点重定向到 /static/。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create a different file (not index.html)
+            # 创建不同的文件（不是 index.html）
             other_file = static_dir / "other.html"
             other_file.write_text("<html><body><h1>Other</h1></body></html>")
 
@@ -520,17 +522,17 @@ class TestRootRedirect:
             app = create_app(config)
             client = TestClient(app)
 
-            # Test root redirect
+            # 测试根重定向
             response = client.get("/", follow_redirects=False)
             assert response.status_code == 302
             assert response.headers["location"] == "/static/"
 
     def test_root_redirect_follows_to_index_html(self):
-        """Test that following the root redirect serves index.html when it exists."""
+        """测试根重定向后是否提供 index.html（如果存在）。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             static_dir = Path(temp_dir)
 
-            # Create an index.html file
+            # 创建 index.html 文件
             index_file = static_dir / "index.html"
             index_content = "<html><body><h1>Welcome to Static Site</h1></body></html>"
             index_file.write_text(index_content)
@@ -539,39 +541,39 @@ class TestRootRedirect:
             app = create_app(config)
             client = TestClient(app)
 
-            # Test root redirect with follow_redirects=True
+            # 使用 follow_redirects=True 测试根重定向
             response = client.get("/", follow_redirects=True)
             assert response.status_code == 200
             assert response.text == index_content
             assert "text/html" in response.headers["content-type"]
 
     def test_no_root_redirect_when_static_files_not_configured(self):
-        """Test that root endpoint doesn't redirect when static files are not configured."""  # noqa: E501
+        """测试在未配置静态文件时 root 端点是否不重定向。"""  # noqa: E501
         config = Config(static_files_path=None)
         app = create_app(config)
         client = TestClient(app)
 
-        # Root should return 404 (no handler defined)
+        # Root 应返回 404（未定义处理程序）
         response = client.get("/")
         assert response.status_code == 200
 
     def test_no_root_redirect_when_static_directory_missing(self):
-        """Test that root endpoint doesn't redirect when static directory doesn't exist."""  # noqa: E501
+        """测试当静态目录不存在时 root 端点不会重定向。"""  # noqa: E501
         config = Config(static_files_path=Path("/nonexistent/directory"))
         app = create_app(config)
         client = TestClient(app)
 
-        # Root should return 404 (no handler defined)
+        # Root 应返回 404（未定义处理程序）
         response = client.get("/")
         assert response.status_code == 200
 
 
 class TestServiceParallelization:
-    """Test that services are started and stopped in parallel."""
+    """测试服务是否并行启动和停止。"""
 
     async def test_services_start_in_parallel(self):
-        """Test that VSCode and Tool Preload services start concurrently."""
-        # Create mock services that take some time to start
+        """测试 VSCode 和工具预加载服务并发启动。"""
+        # 创建需要一些时间才能启动的模拟对象服务
         mock_vscode_service = AsyncMock()
         mock_tool_preload_service = AsyncMock()
         mock_conversation_service = AsyncMock()
@@ -596,7 +598,7 @@ class TestServiceParallelization:
         mock_vscode_service.start = AsyncMock(side_effect=slow_start)
         mock_tool_preload_service.start = AsyncMock(side_effect=slow_start)
 
-        # Mock the service getters
+        # 模拟对象服务获取者
         with (
             patch(
                 "openhands.agent_server.api.ConversationService.get_instance",
@@ -611,7 +613,7 @@ class TestServiceParallelization:
                 return_value=mock_tool_preload_service,
             ),
         ):
-            # Create a mock FastAPI app
+            # 创建模拟对象 FastAPI 应用程序
             mock_app = AsyncMock()
             mock_app.state = SimpleNamespace(config=Config())
 
@@ -620,18 +622,18 @@ class TestServiceParallelization:
 
             assert max_concurrent_starts == 2
 
-            # Verify all services were started
+            # 验证所有服务已启动
             mock_vscode_service.start.assert_called_once()
             mock_tool_preload_service.start.assert_called_once()
 
     async def test_services_stop_in_parallel(self):
-        """Test that VSCode and Tool Preload services stop concurrently."""
-        # Create mock services that take some time to stop
+        """测试 VSCode 和工具预加载服务并发停止。"""
+        # 创建需要一些时间才能停止的模拟对象服务
         mock_vscode_service = AsyncMock()
         mock_tool_preload_service = AsyncMock()
         mock_conversation_service = AsyncMock()
 
-        # Make each service take 0.1 seconds to stop
+        # 让每个服务需要0.1秒停止
         async def slow_stop():
             await asyncio.sleep(0.1)
 
@@ -640,7 +642,7 @@ class TestServiceParallelization:
         mock_vscode_service.stop = AsyncMock(side_effect=slow_stop)
         mock_tool_preload_service.stop = AsyncMock(side_effect=slow_stop)
 
-        # Mock the service getters
+        # 模拟对象服务获取者
         with (
             patch(
                 "openhands.agent_server.api.ConversationService.get_instance",
@@ -655,7 +657,7 @@ class TestServiceParallelization:
                 return_value=mock_tool_preload_service,
             ),
         ):
-            # Create a mock FastAPI app
+            # 创建模拟对象 FastAPI 应用程序
             mock_app = AsyncMock()
             mock_backend_manager = AsyncMock()
             mock_app.state = SimpleNamespace(
@@ -664,19 +666,19 @@ class TestServiceParallelization:
             )
 
             async with api_lifespan(mock_app):
-                # Exit the context to trigger shutdown
+                # 退出上下文触发关机
                 pass
 
-            # Verify all services were stopped
+            # 验证所有服务均已停止
             mock_vscode_service.stop.assert_called_once()
             mock_tool_preload_service.stop.assert_called_once()
             mock_backend_manager.shutdown.assert_awaited_once()
 
     async def test_services_handle_none_values(self):
-        """Test that the lifespan handles None service values correctly."""
+        """测试生命周期是否正确处理 None 服务值。"""
         mock_conversation_service = AsyncMock()
 
-        # Mock all services as None (disabled)
+        # 模拟对象所有服务为 None（已禁用）
         with (
             patch(
                 "openhands.agent_server.api.ConversationService.get_instance",
@@ -687,15 +689,15 @@ class TestServiceParallelization:
                 "openhands.agent_server.api.get_tool_preload_service", return_value=None
             ),
         ):
-            # Create a mock FastAPI app
+            # 创建模拟对象 FastAPI 应用程序
             mock_app = AsyncMock()
             mock_app.state = SimpleNamespace(config=Config())
 
-            # This should not raise any exceptions
+            # 这不应该引发任何异常
             async with api_lifespan(mock_app):
                 pass
 
-            # Verify conversation service was set up
+            # 验证对话服务已设置
             assert mock_app.state.conversation_service == mock_conversation_service
 
     async def test_registry_starts_before_conversation_recovery(self):
@@ -732,7 +734,7 @@ class TestServiceParallelization:
     async def test_lifespan_defaults_and_restores_tmux_tmpdir(
         self, short_tmp_path, monkeypatch
     ):
-        """Test that lifespan defaults TMUX_TMPDIR per server instance."""
+        """测试每个服务器实例的生命周期默认为 TMUX_TMPDIR。"""
         expected_tmux_tmpdir = short_tmp_path / "tmux"
         monkeypatch.setattr(
             "openhands.agent_server.api._default_server_tmux_tmpdir",
@@ -762,7 +764,7 @@ class TestServiceParallelization:
     async def test_lifespan_keeps_user_provided_tmux_tmpdir(
         self, short_tmp_path, monkeypatch
     ):
-        """A TMUX_TMPDIR the user set is never removed at shutdown."""
+        """A TMUX_TMPDIR 用户集在关机时永远不会被删除。"""
         user_tmux_tmpdir = short_tmp_path / "user-tmux"
         user_tmux_tmpdir.mkdir()
         monkeypatch.setenv("TMUX_TMPDIR", str(user_tmux_tmpdir))
@@ -789,7 +791,7 @@ class TestServiceParallelization:
     async def test_lifespan_removes_substitute_for_too_deep_tmux_tmpdir(
         self, deep_tmp_path, short_tmp_path, monkeypatch
     ):
-        """A too-long TMUX_TMPDIR is restored and kept; the substitute removed."""
+        """太长的TMUX_TMPDIR被恢复并保留； 替代品被移除。"""
         monkeypatch.setenv("TMUX_TMPDIR", str(deep_tmp_path))
         substitute = short_tmp_path / "tmux"
         monkeypatch.setattr(
@@ -824,7 +826,7 @@ class TestServiceParallelization:
     async def test_lifespan_logs_and_continues_when_tmux_tmpdir_removal_fails(
         self, short_tmp_path, monkeypatch, caplog
     ):
-        """A failed removal is logged and does not abort shutdown."""
+        """删除失败会被记录下来，并且不会中止关闭。"""
         expected_tmux_tmpdir = short_tmp_path / "tmux"
         monkeypatch.setattr(
             "openhands.agent_server.api._default_server_tmux_tmpdir",
@@ -834,8 +836,9 @@ class TestServiceParallelization:
         def fail_rmtree(path):
             raise PermissionError("denied")
 
-        # Replace the module's shutil, not shutil.rmtree itself, so fixture
-        # teardown can still remove the directory.
+        # 替换模块的shutil，而不是shutil.rmtree本身，因此测试夹具teardown仍然可以删除该
+        # 目录。
+        #
         monkeypatch.setattr(
             "openhands.agent_server.api.shutil", SimpleNamespace(rmtree=fail_rmtree)
         )
@@ -863,7 +866,7 @@ class TestServiceParallelization:
     async def test_lifespan_keeps_preexisting_default_tmux_tmpdir(
         self, short_tmp_path, monkeypatch
     ):
-        """A default directory that existed before startup is not removed."""
+        """启动前存在的默认目录不会被删除。"""
         expected_tmux_tmpdir = short_tmp_path / "tmux"
         expected_tmux_tmpdir.mkdir()
         monkeypatch.setattr(
@@ -892,72 +895,72 @@ class TestServiceParallelization:
 
 
 class TestRootPath:
-    """Tests for _get_root_path function and root_path configuration."""
+    """测试 _get_root_path 功能和 root_path 配置。"""
 
     def test_get_root_path_returns_slash_when_web_url_is_none(self):
-        """Test that _get_root_path returns '' when web_url is not configured."""
+        """测试当 web_url 未配置时 _get_root_path 返回 ''。"""
         config = Config(web_url=None)
         assert _get_root_path(config) == ""
 
     def test_get_root_path_extracts_path_from_url(self):
-        """Test that _get_root_path extracts the path component from web_url."""
+        """测试 _get_root_path 从 web_url 中提取路径组件。"""
         config = Config(web_url="https://example.com/runtime/123")
         assert _get_root_path(config) == "/runtime/123"
 
     def test_get_root_path_returns_slash_for_root_url(self):
-        """Test that _get_root_path returns '/' for a URL without path."""
+        """测试 _get_root_path 对于没有路径的 URL 返回 '/'。"""
         config = Config(web_url="https://example.com")
         assert _get_root_path(config) == ""
 
     def test_get_root_path_with_trailing_slash(self):
-        """Test that _get_root_path preserves trailing slash."""
+        """测试 _get_root_path 是否保留尾部斜杠。"""
         config = Config(web_url="https://example.com/api/")
         assert _get_root_path(config) == "/api"
 
     def test_get_root_path_with_complex_path(self):
-        """Test _get_root_path with a complex nested path."""
+        """使用复杂的嵌套路径测试 _get_root_path。"""
         config = Config(
             web_url="https://work-1-abc123.prod-runtime.all-hands.dev/runtime/456/api"
         )
         assert _get_root_path(config) == "/runtime/456/api"
 
     def test_fastapi_instance_uses_root_path(self):
-        """Test that FastAPI instance is created with correct root_path."""
+        """测试是否使用正确的 root_path 创建了 FastAPI 实例。"""
         config = Config(web_url="https://example.com/mypath")
         app = create_app(config)
         assert app.root_path == "/mypath"
 
     def test_fastapi_instance_uses_default_root_path_when_no_web_url(self):
-        """Test that FastAPI instance uses '/' root_path when web_url is None."""
+        """测试当 web_url 为 None 时，FastAPI 实例使用“/' root_path”。"""
         config = Config(web_url=None)
         app = create_app(config)
         assert app.root_path == ""
 
 
 class TestConfigWebUrl:
-    """Tests for web_url configuration field."""
+    """测试 web_url 配置字段。"""
 
     def test_web_url_default_is_none_when_env_not_set(self):
-        """Test that web_url defaults to None when no env vars are set."""
+        """测试未设置环境变量时 web_url 默认为 None。"""
         with patch.dict("os.environ", {}, clear=True):
             config = Config()
             assert config.web_url is None
 
     def test_web_url_reads_from_oh_web_url_env(self):
-        """Test that web_url reads from the canonical OH_WEB_URL env var."""
+        """测试 web_url 是否从规范的 OH_WEB_URL 环境变量中读取。"""
         with patch.dict("os.environ", {"OH_WEB_URL": "https://test.example.com/path"}):
             config = Config()
             assert config.web_url == "https://test.example.com/path"
 
     def test_web_url_ignores_legacy_runtime_url_env(self):
-        """Test that deprecated RUNTIME_URL no longer configures web_url."""
+        """测试已弃用 RUNTIME_URL 不再配置 web_url。"""
         with patch.dict("os.environ", {"RUNTIME_URL": "https://test.example.com/path"}):
             config = Config()
 
         assert config.web_url is None
 
     def test_web_url_reads_oh_web_url_when_runtime_url_is_also_set(self):
-        """Test that OH_WEB_URL remains authoritative."""
+        """测试 OH_WEB_URL 仍然具有权威性。"""
         with patch.dict(
             "os.environ",
             {
@@ -970,7 +973,7 @@ class TestConfigWebUrl:
         assert config.web_url == "https://preferred.example.com/path"
 
     def test_web_url_can_be_set_explicitly(self):
-        """Test that web_url can be set explicitly, overriding env vars."""
+        """测试是否可以显式设置 web_url，覆盖环境变量。"""
         with patch.dict(
             "os.environ",
             {
@@ -995,18 +998,16 @@ class TestConfigWebUrl:
     ],
 )
 def test_get_root_path_parametrized(web_url, expected_root_path):
-    """Parametrized test for _get_root_path with various URL patterns."""
+    """使用各种 URL 模式对 _get_root_path 进行参数化测试。"""
     config = Config(web_url=web_url)
     assert _get_root_path(config) == expected_root_path
 
 
 class TestHttpExceptionLogging:
-    """5xx HTTPExceptions are intentionally-raised flow control.
+    """5xx HTTPExceptions 是有意引发的流程控制。
 
-    They should be logged as a single ERROR line without a full stack
-    trace; only genuinely unhandled exceptions should get a traceback.
-    Otherwise routine upstream blips look indistinguishable from a process
-    crash in the logs.
+    它们应该记录为单个 ERROR 行，没有完整的堆栈跟踪； 只有真正未处理的异常才应该得到
+    回溯。 否则，常规上游信号看起来与日志中的进程崩溃无法区分。
     """
 
     def _build_app_with_failing_route(self, status_code: int):
@@ -1033,7 +1034,7 @@ class TestHttpExceptionLogging:
             response = client.get("/__test__/raise_502")
 
         assert response.status_code == 502
-        # Client still sees the same sanitized 5xx envelope.
+        # 客户仍然看到相同的经过消毒的 5xx 信封。
         assert response.json()["detail"] == "Internal Server Error"
 
         api_error_records = [
@@ -1046,14 +1047,14 @@ class TestHttpExceptionLogging:
             f"got: {[r.getMessage() for r in api_error_records]}"
         )
         record = api_error_records[0]
-        # The whole point of the fix: no stack trace attached for an
-        # intentionally-raised HTTPException.
+        # 修复的目的：没有附加堆栈跟踪，这是有意引发的 HTTPException。
+        #
         assert record.exc_info is None, (
             "5xx HTTPException should not log a traceback by default; "
             f"got exc_info={record.exc_info!r}"
         )
-        # Message must still carry status, method, path, and detail so
-        # the log is useful for monitoring.
+        # 消息仍必须携带状态、方法、路径和详细信息，以便日志可用于监控。
+        #
         message = record.getMessage()
         assert "502" in message
         assert "GET" in message
@@ -1065,8 +1066,9 @@ class TestHttpExceptionLogging:
     ):
         import logging
 
-        # DEBUG is read at module import time in api.py, so monkeypatch
-        # the bound name on the module rather than mutating the env.
+        # DEBUG 是在 api.py 中的模块导入时读取的，因此，monkeypatch 模块上的绑定名称而不
+        # 是改变环境。
+        #
         monkeypatch.setattr("openhands.agent_server.api.DEBUG", True)
 
         app = self._build_app_with_failing_route(503)
@@ -1082,7 +1084,7 @@ class TestHttpExceptionLogging:
             if r.name == "openhands.agent_server.api" and r.levelno == logging.ERROR
         ]
         assert len(api_error_records) == 1
-        # In DEBUG mode the traceback is preserved as an opt-in debugging aid.
+        # 在 DEBUG 模式下，回溯被保留作为选择加入的调试辅助工具。
         assert api_error_records[0].exc_info is not None
 
     def test_4xx_http_exception_logged_at_info_without_traceback(self, caplog):
@@ -1095,13 +1097,13 @@ class TestHttpExceptionLogging:
             response = client.get("/__test__/raise_404")
 
         assert response.status_code == 404
-        # 4xx path returns the raw detail (not the sanitized 5xx envelope).
+        # 4xx 路径返回原始详细信息（不是经过清理的 5xx 信封）。
         assert response.json() == {"detail": "boom from upstream"}
 
         api_records = [
             r for r in caplog.records if r.name == "openhands.agent_server.api"
         ]
-        # No ERROR-level noise for a routine 4xx.
+        # 例程 4xx 没有 ERROR 级噪音。
         assert not any(r.levelno >= logging.ERROR for r in api_records)
         info_records = [r for r in api_records if r.levelno == logging.INFO]
         assert info_records, "Expected an INFO log line for a 4xx HTTPException"
@@ -1109,11 +1111,10 @@ class TestHttpExceptionLogging:
 
 
 def test_lifespan_conversation_service_uses_app_config_not_env(tmp_path, monkeypatch):
-    """create_app(config) must persist and notify per that config, not OH_* env.
+    """create_app（配置）必须持久化并根据该配置进行通知，而不是 OH_* env。
 
-    Inside an OpenHands sandbox these env vars point at the live conversations
-    directory and the app server's webhook endpoint, so a test app that fell
-    back to them would write into, and report to, the real deployment.
+    在 OpenHands 安全沙箱中，这些环境变量指向了活的对话目录和应用服务器的 Webhook 端
+    点，因此，一个回退到它们的测试应用会写入，也会报告到真实的部署。
     """
     monkeypatch.setenv("OH_CONVERSATIONS_PATH", str(tmp_path / "env-conversations"))
     monkeypatch.setenv("OH_WEBHOOKS_0_BASE_URL", "http://env-webhook.invalid/hooks")

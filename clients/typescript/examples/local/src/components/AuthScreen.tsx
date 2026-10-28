@@ -18,7 +18,7 @@ export function AuthScreen({ onAuthenticate, models, defaultModel }: AuthScreenP
     setIsLoading(true);
 
     try {
-      // Validate API key by making a test request
+      // 通过发出测试请求来验证 API 密钥
       const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
         headers: {
           'Authorization': `Bearer ${apiKey}`,

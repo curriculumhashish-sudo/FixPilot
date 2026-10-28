@@ -33,12 +33,12 @@ def deprecated(
     current_version: str | None = None,
     details: str = "",
 ) -> Callable[[_FuncT], _FuncT]:
-    """Return a decorator that deprecates a callable with explicit metadata.
+    """返回一个装饰器，该装饰器不赞成使用显式元数据的可调用对象。
 
-    Use this helper when you can annotate a function, method, or property with
-    `@deprecated(...)`. It transparently forwards to :func:`deprecation.deprecated`
+    当您可以使用以下方式注释函数、方法或属性时，请使用此帮助器
+    `@deprecated(...)`. 它透明地转发到：func:`deprecation.deprecated`
     while filling in the SDK's current version metadata unless custom values are
-    supplied.
+    提供。
     """
 
     base_decorator = _deprecated(
@@ -89,12 +89,11 @@ def warn_deprecated(
     details: str = "",
     stacklevel: int = 2,
 ) -> None:
-    """Emit a deprecation warning for dynamic access to a legacy feature.
+    """针对动态访问旧功能发出弃用警告。
 
-    Prefer this helper when a decorator is not practical—e.g. attribute accessors,
-    data migrations, or other runtime paths that must conditionally warn. Provide
-    explicit version metadata so the SDK reports consistent messages and upgrades
-    to :class:`deprecation.UnsupportedWarning` after the removal threshold.
+    当装饰器不实用时更喜欢这个助手 - e.g。 属性访问器、数据迁移或其他必须有条件发出警
+    告的运行时路径。 提供显式版本元数据，以便 SDK 报告一致的消息并在删除阈
+    值后升级到：class:`deprecation.UnsupportedWarning`。
     """
 
     current_version = current_version or _current_version()
@@ -120,21 +119,19 @@ def warn_cleanup(
     details: str = "",
     stacklevel: int = 2,
 ) -> None:
-    """Emit a warning for temporary workarounds that need cleanup by a deadline.
+    """对需要在截止日期前清理的临时解决方法发出警告。
 
-    Use this helper for temporary code that addresses upstream issues, compatibility
-    shims, or other workarounds that should be removed once external conditions
-    change (e.g., when a library adds support for a feature, or when an API
-    stabilizes). The deprecation check workflow will fail when the cleanup deadline
-    is reached, ensuring the workaround is removed before the specified version or
-    date.
+    请使用此辅助程序编写临时代码，用于解决上游问题、兼容性补丁或其他工作绕道，
+    这些工作绕道应在外部条件改变后移除(e.g，当一个库添加对一个功能的支持，或当一个API
+    稳定化)。 当达到清理截止时间时，弃用检查工作流程将失败，确保在指定版本或日
+    期之前删除解决方法。
 
     Args:
-        workaround: Description of the temporary workaround
-        cleanup_by: Version string or date when this workaround must be removed
-        current_version: Override the detected package version (for testing)
-        details: Additional context about why cleanup is needed
-        stacklevel: Stack level for warning emission
+        workaround: 临时解决方法的说明
+        cleanup_by: 必须删除此解决方法的版本字符串或日期
+        current_version: 覆盖检测到的包版本（用于测试）
+        details: 关于为什么需要清理的附加上下文
+        stacklevel: 警告排放的堆栈级别
     """
     current_version = current_version or _current_version()
 
@@ -163,23 +160,23 @@ def handle_deprecated_model_fields(
     data: Any,
     deprecated_fields: tuple[str, ...],
 ) -> Any:
-    """Remove deprecated fields from Pydantic model input data.
+    """从 Pydantic 模型输入数据中删除已弃用字段。
 
-    This function silently removes deprecated fields from the input data so that
-    Pydantic models with extra="forbid" don't reject them. This is used for
-    permanent backward compatibility when loading old serialized data (e.g., events
+    此函数会默默地从输入数据中删除已弃用字段，以便带有 extra="forbid" 的 Pydantic 模
+    型不会拒绝它们。 这用于加载旧已序列化数据时的永久向后兼容
+    性（e.g.、事件
     from older SDK versions).
 
-    Unlike warn_deprecated(), this function does NOT emit warnings because these
-    fields are kept permanently for backward compatibility and will never be removed.
-    This ensures old conversations and events can always be loaded without errors.
+    与 warn_deprecated() 不同，此函数不会发出警告，因为这些字段会永久保留向后兼容性并
+    且永远不会被删除。 这确保了旧的对话和事件始终可以毫无错误地加载
+    。
 
     Args:
-        data: The input data (typically a dict from deserialization)
-        deprecated_fields: Tuple of field names that are deprecated
+        data: 输入数据（通常是来自反序列化的字典）
+        deprecated_fields: 字段名称元组为已弃用
 
     Returns:
-        The data with deprecated fields removed
+        删除已弃用字段的数据
 
     Example:
         class MyModel(BaseModel):
@@ -188,8 +185,8 @@ def handle_deprecated_model_fields(
             @model_validator(mode="before")
             @classmethod
             def _handle_deprecated(cls, data: Any) -> Any:
-                return handle_deprecated_model_fields(
-                    data, ("old_field", "another_old_field")
+                返回handle_deprecated_model_fields(
+                    数据，（“old_field”，“another_old_field”）
                 )
     """  # noqa: E501
     if not isinstance(data, dict):

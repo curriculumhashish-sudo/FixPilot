@@ -23,14 +23,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [firstVisit, setFirstVisit] = useState(true);
 
   useEffect(() => {
-    // Check if this is the first visit
+    // 检查这是否是第一次访问
     const isFirst = isFirstVisit();
     setFirstVisit(isFirst);
     
     if (isFirst) {
-      // Open modal on first visit
+      // 首次访问时打开模式
       setIsModalOpen(true);
-      // Mark as visited
+      // 标记为已访问
       markVisited();
     }
   }, []);

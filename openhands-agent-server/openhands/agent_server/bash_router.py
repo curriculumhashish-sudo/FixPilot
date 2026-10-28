@@ -1,4 +1,4 @@
-"""Bash router for OpenHands SDK."""
+"""OpenHands SDK 的 Bash 路由器。"""
 
 import logging
 from datetime import datetime
@@ -32,7 +32,7 @@ bash_router = APIRouter(prefix="/bash", tags=["Bash"])
 logger = logging.getLogger(__name__)
 
 
-# bash event routes
+# bash活动路线
 @bash_router.get("/bash_events/search")
 async def search_bash_events(
     kind__eq: Literal["BashCommand", "BashOutput"] | None = None,
@@ -58,7 +58,7 @@ async def search_bash_events(
     ] = 100,
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> BashEventPage:
-    """Search / List bash event events"""
+    """搜索/列出 bash 事件"""
 
     return await bash_event_service.search_bash_events(
         kind__eq=kind__eq,
@@ -79,7 +79,7 @@ async def get_bash_event(
     event_id: str,
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> BashEventBase:
-    """Get a bash event event given an id"""
+    """获取给定 id 的 bash event 事件"""
     event = await bash_event_service.get_bash_event(event_id)
     if event is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -91,8 +91,8 @@ async def batch_get_bash_events(
     event_ids: list[str],
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> list[BashEventBase | None]:
-    """Get a batch of bash event events given their ids, returning null for any
-    missing item."""
+    """获取一批给定 id 的 bash 事件，对于任何事件都返回 null
+    缺少物品。"""
     events = await bash_event_service.batch_get_bash_events(event_ids)
     return events
 
@@ -102,7 +102,7 @@ async def start_bash_command(
     request: ExecuteBashRequest,
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> BashCommand:
-    """Execute a bash command in the background"""
+    """在后台执行bash命令"""
     update_last_execution_time()
     _validate_cwd(request, bash_event_service)
     command, _ = await bash_event_service.start_bash_command(request)
@@ -114,7 +114,7 @@ async def execute_bash_command(
     request: ExecuteBashRequest,
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> BashOutput:
-    """Execute a bash command and wait for a result"""
+    """执行bash命令并等待结果"""
     update_last_execution_time()
     _validate_cwd(request, bash_event_service)
     command, task = await bash_event_service.start_bash_command(request)
@@ -125,11 +125,11 @@ async def execute_bash_command(
 async def _collect_bash_output(
     bash_event_service: BashEventService, command_id: UUID
 ) -> BashOutput:
-    """Join every stored output chunk of a finished command into one result.
+    """将已完成命令的每个存储的输出块连接到一个结果中。
 
-    Output over ``MAX_CONTENT_CHAR_LENGTH`` is stored as several ``BashOutput``
-    events and only the final one carries the exit code, so read all pages
-    instead of returning the last event of the first page.
+    ``MAX_CONTENT_CHAR_LENGTH`` 的输出被存储为多个``BashOutput`` 事件，只有最后的一个
+    携带退出代码，所以应该读取所有页面，而不
+    是返回第一个页面的最后一条事件。
     """
     outputs: list[BashOutput] = []
     page_id: str | None = None
@@ -143,7 +143,7 @@ async def _collect_bash_output(
             break
     if not outputs:
         return BashOutput(command_id=command_id, exit_code=-1)
-    # Search returns timestamp order; a stable sort keeps it for equal orders.
+    # 搜索返回时间戳顺序； 稳定排序可以使其保持相同的顺序。
     outputs.sort(key=lambda output: output.order)
     final = outputs[-1]
     stdout = "".join(output.stdout for output in outputs if output.stdout)
@@ -161,7 +161,7 @@ async def _collect_bash_output(
 async def clear_all_bash_events(
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> dict[str, int]:
-    """Clear all bash events from storage"""
+    """从存储中清除所有 bash 事件"""
     count = await bash_event_service.clear_all_events()
     return {"cleared_count": count}
 
@@ -174,11 +174,10 @@ async def stop_bash_command(
     command_id: UUID,
     bash_event_service: BashEventService = Depends(get_bash_event_service),
 ) -> Success:
-    """Stop a running bash command by id without touching the others.
+    """通过 id 停止正在运行的 bash 命令，而不影响其他命令。
 
-    Idempotent: stopping an already-finished command succeeds, while an
-    unknown command id reports not-found so the caller can treat it as
-    an already-cancelled stop.
+    Idempotent: 成功停止已完成的命令，而
+    未知命令 ID 报告未找到，因此调用者可以将其视为已取消的停止。
     """
     update_last_execution_time()
     if await bash_event_service.stop_bash_command(command_id):

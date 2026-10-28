@@ -1,9 +1,8 @@
-"""Shared observation behaviour for the Gemini tools that write files.
+"""写入文件的 Gemini 工具的共享观测结果行为。
 
-``edit`` and ``write_file`` both report a file that was either created or
-changed, and both render the result as a diff. The only part that differs is
-the line announcing a change to an existing file, so the rendering lives here
-and each tool supplies that one line.
+``edit`` 和 ``write_file`` 都报告已创建或更改的文件，并且都将结果呈现为差异。 唯一不
+同的部分是宣布对现有文件进行更改的行，因此渲染位于此处，并且每
+个工具都提供该行。
 """
 
 from abc import ABC, abstractmethod
@@ -16,11 +15,11 @@ from openhands.sdk.tool import Observation
 
 
 class FileChangeObservation(Observation, ABC):
-    """Base for observations reporting a created or rewritten file.
+    """观测结果报告已创建或重写的文件的基础。
 
-    Subclasses declare ``file_path``, ``is_new_file``, ``old_content`` and
-    ``new_content`` themselves so that each tool keeps its own field
-    descriptions, and implement :meth:`change_summary`.
+    子类声明 ``file_path``、``is_new_file``、``old_content`` 和
+    ``new_content`` 本身，以便每个工具保留自己的字段描述，并实现：meth:
+    `change_summary`。
     """
 
     if TYPE_CHECKING:
@@ -33,11 +32,11 @@ class FileChangeObservation(Observation, ABC):
 
     @abstractmethod
     def change_summary(self) -> str:
-        """Return the line shown when an existing file was changed."""
+        """返回现有文件更改时显示的行。"""
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation."""
+        """返回此观测结果的富文本表示形式。"""
         if self.is_error:
             return super().visualize
 

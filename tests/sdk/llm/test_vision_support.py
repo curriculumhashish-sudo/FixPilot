@@ -9,11 +9,11 @@ from openhands.sdk.llm import LLM, ImageContent, Message, TextContent
 @pytest.mark.parametrize(
     "model",
     [
-        # Plain model names
+        # 简单的型号名称
         "claude-sonnet-4-5-20250929",
         "gemini-2.5-flash",
         "gemini-3.1-pro-preview",
-        # With provider/proxy prefixes
+        # 带有提供者/代理前缀
         "anthropic/claude-sonnet-4-5-20250929",
         "litellm_proxy/anthropic/claude-sonnet-4-5-20250929",
         "litellm_proxy/gemini-2.5-flash",
@@ -25,9 +25,9 @@ from openhands.sdk.llm import LLM, ImageContent, Message, TextContent
     ],
 )
 def test_vision_is_active_supported_models(model):
-    # Use real LiteLLM helpers (no patching/mocking). This test validates our
-    # vision_is_active detection (prefix stripping + model_info fallback) against
-    # LiteLLM's current knowledge base, without provider calls.
+    # 使用真正的 LiteLLM 助手（无修补/模拟）。 此测试根据 LiteLLM 的当前知识库验证我们的
+    #  vision_is_active 检测（前缀剥离 + model_info 回退方案），无需提供程序调用。
+    #
     llm = LLM(model=model, api_key=SecretStr("k"), usage_id="t")
     assert llm.vision_is_active() is True
 
@@ -107,7 +107,7 @@ def test_chat_serializes_images_when_vision_supported(model):
     return_value=False,
 )
 def test_deepseek_v4_vision_payload_keeps_image(_mock_sv, _mock_model_info):
-    """A vision-capable DeepSeek v4 model keeps its image parts in the payload."""
+    """具有视觉功能的 DeepSeek v4 模型将其图像部分保留在载荷中。"""
     llm = LLM(
         model="openhands/deepseek-v4.1-flash",
         api_key=SecretStr("k"),
@@ -139,7 +139,7 @@ def test_deepseek_v4_vision_payload_keeps_image(_mock_sv, _mock_model_info):
 def test_message_with_image_does_not_enable_vision_for_text_only_model(
     mock_sv, _mock_model_info
 ):
-    # For a model that does not support vision, images should not be serialized.
+    # 对于不支持视觉的模型，图像不应该是已序列化。
     llm = LLM(model="text-only-model", api_key=SecretStr("k"), usage_id="t")
     formatted = llm.format_messages_for_llm(
         [
@@ -154,7 +154,7 @@ def test_message_with_image_does_not_enable_vision_for_text_only_model(
     )
     assert isinstance(formatted, list) and len(formatted) == 1
     content = formatted[0]["content"]
-    # Expect there to be no image_url entries since model is not vision-capable
+    # 由于模型不支持视觉，因此预计不会有 image_url 条目
     assert all(
         not (
             isinstance(part, dict)
@@ -167,13 +167,14 @@ def test_message_with_image_does_not_enable_vision_for_text_only_model(
 
 
 def test_disable_vision_overrides_litellm_detection():
-    """Test that disable_vision=True overrides LiteLLM's vision capability detection.
+    """测试 disable_vision=True 是否覆盖 LiteLLM 的视觉能力检测。
 
-    This is important for models like glm-4.7 where LiteLLM incorrectly reports
-    vision support but the actual API (OpenRouter) only accepts text input.
+    这对于像 glm-4.7 这样的模型很重要，其中 LiteLLM 错误地报告了视觉支持，但实际的
+    API (OpenRouter) 只接受文本输入。
     """
-    # glm-4.7 via OpenRouter is reported by LiteLLM as vision-capable,
-    # but we explicitly disable vision to prevent API errors
+    # LiteLLM 将通过 OpenRouter 的 glm-4.7 报告为具有视觉能力，但我们明确禁用视觉以防止
+    # API 错误
+    #
     llm = LLM(
         model="litellm_proxy/openrouter/z-ai/glm-4.7",
         api_key=SecretStr("k"),
@@ -181,10 +182,10 @@ def test_disable_vision_overrides_litellm_detection():
         disable_vision=True,
     )
 
-    # Vision should be disabled despite LiteLLM reporting support
+    # 尽管有 LiteLLM 报告支持，但仍应禁用视力
     assert llm.vision_is_active() is False
 
-    # Messages with images should not include image_url parts
+    # 带有图像的消息不应包含 image_url 部分
     msg = Message(
         role="user",
         content=[
@@ -195,7 +196,7 @@ def test_disable_vision_overrides_litellm_detection():
     formatted = llm.format_messages_for_llm([msg])
     assert isinstance(formatted, list) and len(formatted) == 1
 
-    # Verify no image_url parts in formatted message
+    # 验证格式化消息中没有 image_url 部分
     parts = _collect_image_url_parts(formatted[0])
     assert len(parts) == 0
 

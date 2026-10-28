@@ -1,4 +1,4 @@
-"""Test BrowserToolSet functionality."""
+"""测试 BrowserToolSet 功能。"""
 
 import json
 import logging
@@ -24,7 +24,7 @@ from openhands.tools.browser_use.impl import BrowserToolExecutor
 
 @pytest.fixture(autouse=True)
 def _reset_shared_executor():
-    """Reset the shared executor singleton before and after each test."""
+    """在每次测试之前和之后重置共享执行器单例。"""
     BrowserToolSet._shared_executor = None
     yield
     if BrowserToolSet._shared_executor is not None:
@@ -37,7 +37,7 @@ def _mock_browser_executor_init():
     def fake_init(self, **_kwargs):
         self.full_output_save_dir = None
         self._initialized = False
-        # Toolset tests never allocate browser resources; keep close() a no-op.
+        # 工具集测试从不分配浏览器资源； 保持 close() 为空操作。
         self._cleanup_initiated = True
         self._close_lock = threading.Lock()
         self._action_timeout_seconds = 30.0
@@ -56,7 +56,7 @@ def _mock_browser_executor_init():
 
 
 def _create_test_conv_state(temp_dir: str) -> ConversationState:
-    """Helper to create a test conversation state."""
+    """创建测试对话状态的帮助程序。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -67,29 +67,29 @@ def _create_test_conv_state(temp_dir: str) -> ConversationState:
 
 
 def test_browser_toolset_create_returns_list():
-    """Test that BrowserToolSet.create() returns a list of tools."""
+    """测试 BrowserToolSet.create() 返回工具列表。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
 
         assert isinstance(tools, list)
-        assert len(tools) == 14  # All browser tools (including recording tools)
+        assert len(tools) == 14  # 所有浏览器工具（包括录音工具）
 
-        # Verify all items are Tool instances
+        # 验证所有项目都是工具实例
         for tool in tools:
             assert isinstance(tool, ToolDefinition)
 
 
 def test_browser_toolset_create_includes_all_browser_tools():
-    """Test that BrowserToolSet.create() includes all expected browser tools."""
+    """测试 BrowserToolSet.create() 是否包含所有预期的浏览器工具。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
 
-        # Get tool names
+        # 获取工具名称
         tool_names = [tool.name for tool in tools]
 
-        # Expected tool names based on the browser tools
+        # 基于浏览器工具的预期工具名称
         expected_names = [
             "browser_navigate",
             "browser_click",
@@ -107,37 +107,37 @@ def test_browser_toolset_create_includes_all_browser_tools():
             "browser_stop_recording",
         ]
 
-        # Verify all expected tools are present
+        # 验证所有预期的工具是否存在
         for expected_name in expected_names:
             assert expected_name in tool_names, f"Missing tool: {expected_name}"
 
-        # Verify no extra tools
+        # 确认没有额外的工具
         assert len(tool_names) == len(expected_names)
 
 
 def test_browser_toolset_create_tools_have_shared_executor():
-    """Test that all tools from BrowserToolSet.create() share the same executor."""
+    """测试 BrowserToolSet.create() 中的所有工具是否共享相同的执行器。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
 
-        # Get the executor from the first tool
+        # 从第一个工具中获取执行器
         first_executor = tools[0].executor
         assert first_executor is not None
         assert isinstance(first_executor, BrowserToolExecutor)
 
-        # Verify all tools share the same executor instance
+        # 验证所有工具共享相同的执行器实例
         for tool in tools:
             assert tool.executor is first_executor
 
 
 def test_browser_toolset_create_tools_are_properly_configured():
-    """Test that tools from BrowserToolSet.create() are properly configured."""
+    """测试 BrowserToolSet.create() 中的工具是否已正确配置。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
 
-        # Find a specific tool to test (e.g., navigate tool)
+        # 查找要测试的特定工具（e.g.，导航工具）
         navigate_tool = None
         for tool in tools:
             if tool.name == "browser_navigate":
@@ -152,12 +152,11 @@ def test_browser_toolset_create_tools_are_properly_configured():
 
 
 def test_browser_toolset_create_multiple_calls_share_executor():
-    """Test that multiple calls to BrowserToolSet.create() share the same executor.
+    """测试对 BrowserToolSet.create() 的多个调用是否共享同一个执行器。
 
-    This is critical for subagent support: subagents call BrowserToolSet.create()
-    independently, but must reuse the parent's executor to avoid CDP port conflicts
-    when multiple Chromium instances try to bind the same debugging port in a
-    sandbox container.
+    这对于子智能体支持至关重要：子智能体独立地调用BrowserToolSet.create()，但必须重用
+    父进程的执行器以避免CDP端口冲突，当多个Chromium实
+    例尝试在沙箱容器中绑定相同的调试端口时。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
@@ -167,47 +166,47 @@ def test_browser_toolset_create_multiple_calls_share_executor():
         executor1 = tools1[0].executor
         executor2 = tools2[0].executor
 
-        # Executors MUST be the same instance (shared singleton)
+        # 执行器必须是同一个实例（共享单例）
         assert executor1 is executor2
         assert isinstance(executor1, BrowserToolExecutor)
 
 
 def test_browser_toolset_shared_executor_survives_multiple_subagents():
-    """Test that N successive BrowserToolSet.create() calls all get the same executor.
+    """测试 N 个连续的 BrowserToolSet.create() 调用都获得相同的执行器。
 
-    Simulates a parent agent + multiple subagents each resolving browser_tool_set.
+    模拟一个父级智能体 + 多个子智能体，每个解析 browser_tool_set。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
 
-        # Parent + 3 subagents
+        # 父 + 3 子智能体
         all_tools = [BrowserToolSet.create(conv_state=conv_state) for _ in range(4)]
         executors = [tools[0].executor for tools in all_tools]
 
-        # All must be the exact same instance
+        # 全部必须是完全相同的实例
         for executor in executors:
             assert executor is executors[0]
 
 
 def test_browser_toolset_shared_executor_reset():
-    """Test that resetting _shared_executor allows creating a new executor."""
+    """测试重置 _shared_executor 是否允许创建新的执行程序。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools1 = BrowserToolSet.create(conv_state=conv_state)
         executor1 = tools1[0].executor
 
-        # Reset the singleton
+        # 重置单例
         BrowserToolSet._shared_executor = None
 
         tools2 = BrowserToolSet.create(conv_state=conv_state)
         executor2 = tools2[0].executor
 
-        # After reset, a new executor should be created
+        # 重置后，应创建一个新的执行器
         assert executor1 is not executor2
 
 
 def test_browser_toolset_does_not_hold_shared_lock_while_constructing():
-    """Regression test for stale executor finalizers deadlocking create()."""
+    """回归测试过时的执行器终结器死锁 create()。"""
 
     def fake_init(self, **_kwargs):
         assert not BrowserToolSet._shared_executor_lock.locked()
@@ -228,7 +227,7 @@ def test_browser_toolset_does_not_hold_shared_lock_while_constructing():
 
 
 def test_browser_toolset_initial_create_serializes_candidate_construction():
-    """Concurrent subagent creation should not replace the first configured executor."""
+    """并发子智能体创建不应替换第一个配置的执行器。"""
     configured_init_started = threading.Event()
     release_configured_init = threading.Event()
     init_configs: list[dict[str, object]] = []
@@ -297,7 +296,7 @@ def test_browser_toolset_initial_create_serializes_candidate_construction():
 
 
 def test_browser_toolset_create_waits_for_shared_executor_close():
-    """Concurrent create() should wait for closing shared executor cleanup."""
+    """并发 create() 应等待关闭共享执行器清理。"""
     cleanup_started = threading.Event()
     release_cleanup = threading.Event()
     create_finished = threading.Event()
@@ -363,16 +362,15 @@ def test_browser_toolset_create_waits_for_shared_executor_close():
 
 def test_browser_toolset_warns_when_config_ignored(caplog):
     """
-    Test that a warning is logged when a second create()
-    passes config that gets ignored.
+    测试当第二个 create() 传递被忽略的配置时是否记录警告。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
 
-        # First call sets up the shared executor
+        # 第一次调用设置共享执行器
         BrowserToolSet.create(conv_state=conv_state)
 
-        # Second call with different config should warn
+        # 使用不同配置的第二次调用应该发出警告
         with caplog.at_level(
             "WARNING", logger="openhands.tools.browser_use.definition"
         ):
@@ -382,7 +380,7 @@ def test_browser_toolset_warns_when_config_ignored(caplog):
 
 
 def test_browser_toolset_no_warning_when_no_config(caplog):
-    """Test that no warning is logged when a second create() passes no extra config."""
+    """测试当第二个 create() 没有通过额外配置时不会记录任何警告。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
 
@@ -399,7 +397,7 @@ def test_browser_toolset_no_warning_when_no_config(caplog):
 
 
 def test_browser_toolset_create_tools_can_generate_mcp_schema():
-    """Test that tools from BrowserToolSet.create() can generate MCP schemas."""
+    """测试 BrowserToolSet.create() 中的工具可以生成 MCP 模式。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
@@ -407,34 +405,35 @@ def test_browser_toolset_create_tools_can_generate_mcp_schema():
         for tool in tools:
             mcp_tool = tool.to_mcp_tool()
 
-            # Basic schema validation
+            # 基本模式验证
             assert "name" in mcp_tool
             assert "description" in mcp_tool
             assert "inputSchema" in mcp_tool
             assert mcp_tool["name"] == tool.name
             assert mcp_tool["description"] == tool.description
 
-            # Schema should have proper structure
+            # 模式应具有正确的结构
             input_schema = mcp_tool["inputSchema"]
             assert input_schema["type"] == "object"
             assert "properties" in input_schema
 
 
 def test_browser_toolset_create_no_parameters():
-    """Test that BrowserToolSet.create() works without parameters."""
+    """测试 BrowserToolSet.create() 在没有参数的情况下是否可以工作。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
-        # Should not raise any exceptions
+        # 不应引发任何异常
         tools = BrowserToolSet.create(conv_state=conv_state)
         assert len(tools) > 0
 
 
 def test_browser_toolset_inheritance():
-    """Test that BrowserToolSet properly inherits from Tool."""
+    """测试 BrowserToolSet 是否正确继承自 Tool。"""
     assert issubclass(BrowserToolSet, ToolDefinition)
 
-    # BrowserToolSet should not be instantiable directly (it's a factory)
-    # The create method returns a list, not an instance of BrowserToolSet
+    # BrowserToolSet 不应该直接实例化（它是一个工厂） create 方法返回一个列表，而不是
+    # BrowserToolSet 的实例
+    #
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = BrowserToolSet.create(conv_state=conv_state)
@@ -444,7 +443,7 @@ def test_browser_toolset_inheritance():
 
 
 def test_browser_toolset_create_degrades_when_executor_fails(caplog):
-    """A browser that cannot start yields no browser tools instead of raising."""
+    """无法启动的浏览器不会产生任何浏览器工具，而是会引发。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         with patch.object(
@@ -460,10 +459,10 @@ def test_browser_toolset_create_degrades_when_executor_fails(caplog):
 
 
 def test_resolve_tool_survives_browser_executor_failure():
-    """Tool resolution must not propagate a browser startup failure.
+    """工具解析不得传播浏览器启动失败。
 
-    That exception used to reach the agent-server as a 500 on every chat
-    request whenever an incompatible browser_use/mcp pair was installed.
+    每当安装了不兼容的 browser_use/mcp 对时，该异常就会在每个聊天请求中以 500 的形式
+    到达智能体服务器。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
@@ -554,7 +553,7 @@ def test_no_browser_guidance_when_browser_fails_to_start():
 
 
 def test_migrated_profile_with_pinned_browser_resolves_on_browserless_runtime():
-    """A migrated profile pinning `browser_tool_set` resolves without a browser."""
+    """已迁移的配置文件固定 `browser_tool_set` 无需浏览器即可解析。"""
     from openhands.sdk.tool.defaults import (
         fold_retired_tool_switches,
         resolve_tool_specs,

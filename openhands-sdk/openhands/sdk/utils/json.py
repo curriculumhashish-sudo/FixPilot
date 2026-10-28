@@ -9,7 +9,7 @@ from openhands.sdk.llm.utils.metrics import Metrics
 
 
 class OpenHandsJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder that handles datetime and other OH objects"""
+    """处理日期时间和其他 OH 对象的自定义 JSON 编码器"""
 
     def default(self, o: object) -> Any:
         if isinstance(o, datetime):
@@ -21,19 +21,19 @@ class OpenHandsJSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-# Create a single reusable encoder instance
+# 创建单个可重用编码器实例
 _json_encoder = OpenHandsJSONEncoder()
 
 
 def dumps(obj, **kwargs):
-    """Serialize an object to str format"""
+    """序列化 str 格式的对象"""
     if not kwargs:
         return _json_encoder.encode(obj)
 
-    # Create a copy of the kwargs to avoid modifying the original
+    # 创建 kwargs 的副本以避免修改原始文件
     encoder_kwargs = kwargs.copy()
 
-    # If cls is specified, use it; otherwise use our custom encoder
+    # 如果指定了 cls，则使用它； 否则使用我们的自定义编码器
     if "cls" not in encoder_kwargs:
         encoder_kwargs["cls"] = OpenHandsJSONEncoder
 
@@ -41,7 +41,7 @@ def dumps(obj, **kwargs):
 
 
 def loads(json_str, **kwargs):
-    """Create a JSON object from str"""
+    """从 str 创建一个 JSON 对象"""
     try:
         return json.loads(json_str, **kwargs)
     except json.JSONDecodeError:

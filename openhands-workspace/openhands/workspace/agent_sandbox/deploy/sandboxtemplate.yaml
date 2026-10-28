@@ -1,38 +1,33 @@
 ---
-# SandboxTemplate that runs the OpenHands agent server.
+# SandboxTemplate 运行 OpenHands Agent Server。
 #
-# The agent server image is a standalone server that listens on a port and speaks
-# the same HTTP API the DockerWorkspace / APIRemoteWorkspace connect to, so it drops
-# straight into an agent-sandbox pod. A readiness probe on /health makes the Sandbox
-# reach its Ready condition only once the agent server is actually accepting requests.
+# Agent Server张图片是一个独立的服务器，它监听在端口上，并且与HTTP API DockerWorkspace / APIRemoteWorkspace 连接，因此它直接进入一个智能体-沙盒 Pod。 /health 上的就绪探针 Agent Server 只有在实际上接受请求时，才会使 Sandbox 达到就绪状态。
+#
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:
     name: openhands-agent-server
     namespace: default
 spec:
-    # The controller-managed NetworkPolicy (the default) allows public egress but
-    # blocks private ranges, so a sandbox cannot reach an in-cluster or on-host LLM.
-    # Rather than switching the template to `networkPolicyManagement: Unmanaged`,
-    # keep it Managed and allow just what the agent needs, e.g.:
+    # 控制器管理的 NetworkPolicy（默认）允许公共出口，但阻止私有范围，因此沙箱无法到达集群内或主机上 LLM。 不要将模板切换到 `networkPolicyManagement: Unmanaged`，而是将其保持托管并仅允许智能体需要的内容，e.g。：
     #
     # networkPolicy:
-    #     egress:
+    #     出口：
     #         # DNS
-    #         - to:
+    #         - 至：
     #               - namespaceSelector:
-    #                     matchLabels: {kubernetes.io/metadata.name: kube-system}
-    #           ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
-    #         # In-cluster LLM (adjust selector/namespace/port to your deployment)
-    #         - to:
+    #                     matchLabels: {kubernetes.io/metadata.name: kube 系统}
+    #           端口：[{协议：UDP，端口：53}，{协议：TCP，端口：53}]
+    #         # 集群内 LLM（根据您的部署调整选择器/命名空间/端口）
+    #         - 至：
     #               - podSelector:
-    #                     matchLabels: {app: ollama}
-    #           ports: [{protocol: TCP, port: 11434}]
-    #         # Hosted LLM APIs over HTTPS
-    #         - ports: [{protocol: TCP, port: 443}]
+    #                     matchLabels：{应用程序：ollama}
+    #           端口：[{协议：TCP，端口：11434}]
+    #         # 托管 LLM APIs HTTPS
+    #         - 端口：[{协议：TCP，端口：443}]
     #
-    # A persistent volume mounted at /workspace so the workspace (and anything the
-    # agent writes) survives a suspend/resume cycle.
+    # 持久卷安装在 /workspace 处，因此工作区（以及智能体写入的任何内容）可以在挂起/恢复周期中幸存下来。
+    #
     volumeClaimTemplates:
         - metadata:
               name: workspace-volume
@@ -43,9 +38,9 @@ spec:
                       storage: 5Gi
     podTemplate:
         spec:
-            # runtimeClassName: gvisor   # uncomment for strong isolation of untrusted code
+            # runtimeClassName: gvisor # 取消注释以强隔离不受信任的代码
             securityContext:
-                # The agent-server image runs as uid/gid 10001; make the PVC group-writable.
+                # 智能体-服务器镜像以 uid/gid 10001 运行； 使 PVC 组可写。
                 runAsUser: 10001
                 runAsGroup: 10001
                 fsGroup: 10001

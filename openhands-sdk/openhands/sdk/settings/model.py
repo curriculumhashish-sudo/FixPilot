@@ -156,35 +156,36 @@ class SettingsSchema(BaseModel):
 CriticMode = Literal["finish_and_message", "all_actions"]
 SecurityAnalyzerType = Literal["llm", "none"]
 WorktreeBase = Literal["default_branch", "head", "ref"]
-"""What a conversation worktree branches from: the repository's default branch
-(fetched from ``origin`` when there is one), the checkout's current ``HEAD``, or
-a given ref."""
+"""工作树从以下分支之一开始：仓库的默认分支（当存在时从 ``origin`` 获取），当前的
+``HEAD`` 分支，或给定的引用。
+"""
 DEFAULT_WORKTREE_BRANCH_PREFIX = "openhands/"
-"""Worktree branches are named ``<prefix><conversation id>``."""
+"""工作树分支被命名为 ``<prefix><conversation id>``。"""
 GIT_REF_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._/-]*$"
-"""A branch, tag or commit name. It never starts with ``-``, so git cannot read
-it as an option."""
+"""分支、标签或提交名称。 它永远不会以 ``-`` 开头，因此 git 无法将其读取为选项。
+"""
 GIT_BRANCH_PREFIX_PATTERN = r"^([A-Za-z0-9][A-Za-z0-9._/-]*)?$"
-"""A branch name prefix, possibly empty, under the same rule."""
+"""在同一规则下，分支名称前缀，可能为空。"""
 ConversationRuntime = Literal["local", "docker"]
-"""Where a conversation runs: on the agent-server's host or in its own container."""
+"""对话运行的位置：在智能体-服务器的主机上或其自己的容器中。"""
 DefaultRuntime = Literal["local", "worktree", "docker"]
-"""Where new conversations run by default: the workspace on the host, a new git
-worktree of it on the host, or their own container."""
+"""默认情况下运行新对话的位置：主机上的工作区、主机上的新 git 工作树或它们自己的容器
+。
+"""
 DOCKER_MEMORY_PATTERN = r"^\d+(\.\d+)? ?[kKmMgGtTpP]?[iI]?[bB]?$"
-"""What `docker run --memory` accepts (Docker's `RAMInBytes`), e.g. `512m`, `4g`."""
+"""`docker run --memory` 接受什么（Docker 的 `RAMInBytes`），e.g。 `512m`, `4g`."""
 MIN_CONTAINER_CPUS = 0.01
-"""The smallest `docker run --cpus` value Docker accepts."""
+"""接受的最小 `docker run --cpus` 值 Docker。"""
 
 
 type CondenserKind = Literal["llm_summarizing", "no_op"]
 
 
 class CondenserSettings(BaseModel):
-    """Shared base for condenser-settings variants.
+    """上下文压缩器-设置变体的共享基础。
 
-    Use :data:`CondenserSettingsConfig` for fields that may hold any supported
-    condenser-settings variant.
+    使用：data:`CondenserSettingsConfig` 作为可能包含任何受支持的上下文压缩器设置变体
+    的字段。
     """
 
     condenser_kind: CondenserKind = Field(
@@ -220,14 +221,14 @@ class CondenserSettings(BaseModel):
     )
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:
-        """Create a condenser from these settings, or ``None`` if disabled."""
+        """根据这些设置创建上下文压缩器，如果禁用，则创建 ``None``。"""
         raise NotImplementedError(
             f"{type(self).__name__} must implement build_condenser()"
         )
 
 
 class LLMSummarizingCondenserSettings(CondenserSettings):
-    """Settings for the default LLM summarizing condenser."""
+    """设置为默认LLM总结上下文压缩器。"""
 
     condenser_kind: Literal["llm_summarizing"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
         default="llm_summarizing",
@@ -310,7 +311,7 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
     )
 
     def build_condenser(self, llm: LLM) -> LLMSummarizingCondenser | None:
-        """Create a condenser from these settings, or ``None`` if disabled."""
+        """根据这些设置创建上下文压缩器，如果禁用，则创建 ``None``。"""
         if not self.enabled:
             return None
 
@@ -322,9 +323,9 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
             exclude={"enabled", "condenser_kind"},
             exclude_none=True,
         )
-        # If the user didn't explicitly configure a condenser token limit, inherit
-        # the agent LLM's effective max input tokens so condensation can be
-        # triggered by token count, not just event count.
+        # 如果用户没有显式配置上下文压缩器 token 限制，应继承智能体 LLM 的有效最大输入
+        # token，而不是仅通过上下文压缩触发词元数量。
+        #
         if "max_tokens" not in self.model_fields_set:
             effective_max_input_tokens = llm.effective_max_input_tokens
             if effective_max_input_tokens is not None:
@@ -333,7 +334,7 @@ class LLMSummarizingCondenserSettings(CondenserSettings):
 
 
 class NoOpCondenserSettings(CondenserSettings):
-    """Settings for a condenser that leaves conversation views unchanged."""
+    """上下文压缩器的设置使对话视图保持不变。"""
 
     max_size: ClassVar[int] = 240  # type: ignore[reportIncompatibleVariableOverride]
     condenser_kind: Literal["no_op"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
@@ -346,7 +347,7 @@ class NoOpCondenserSettings(CondenserSettings):
     )
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:  # noqa: ARG002
-        """Create a condenser from these settings, or ``None`` if disabled."""
+        """根据这些设置创建上下文压缩器，如果禁用，则创建 ``None``。"""
         if not self.enabled:
             return None
 
@@ -356,11 +357,11 @@ class NoOpCondenserSettings(CondenserSettings):
 
 
 def _condenser_settings_discriminator(value: Any) -> str:
-    """Discriminator for :data:`CondenserSettingsConfig`.
+    """:data:`CondenserSettingsConfig` 的鉴别器。
 
-    Existing payloads predate ``condenser_kind`` and carried only the default
-    LLM summarizing condenser fields. Treat missing discriminators as
-    ``'llm_summarizing'`` so those payloads continue to validate.
+    现有的载荷早于 ``condenser_kind``，并且仅包含默认的 LLM 总结上下文压缩器字段。 将
+    缺失的鉴别器视为
+    ``'llm_summarizing'`` 因此那些载荷继续验证。
     """
     if isinstance(value, CondenserSettings):
         return value.condenser_kind
@@ -374,13 +375,13 @@ CondenserSettingsConfig = Annotated[
     | Annotated[NoOpCondenserSettings, Tag("no_op")],
     Discriminator(_condenser_settings_discriminator),
 ]
-"""Discriminated union over the condenser-settings variants."""
+"""上下文压缩器设置变体的可区分联合。"""
 
 
 class VerificationSettings(BaseModel):
-    """Critic and iterative-refinement settings for the agent."""
+    """智能体的批评和迭代细化设置。"""
 
-    # -- Critic --
+    # ——评论家——
     critic_enabled: bool = Field(
         default=False,
         description="Enable critic evaluation for the agent.",
@@ -441,7 +442,7 @@ class VerificationSettings(BaseModel):
         },
     )
 
-    # -- Critic deployment --
+    # ——批评部署——
     critic_server_url: str | None = Field(
         default=None,
         description=(
@@ -518,22 +519,22 @@ _RUNTIME_SECTION_METADATA = SettingsSectionMetadata(
 
 
 class AgentSettingsBase(BaseModel):
-    """Shared base for all agent-settings variants.
+    """所有智能体设置变体的共享基础。
 
-    Provides the pieces common to every variant:
+    提供每个变体通用的部件：
 
-    - :attr:`schema_version` — used for persisted-payload migrations.
-    - :meth:`export_schema` — structured field description for UIs.
-    - :meth:`from_persisted` — load persisted settings through migrations.
-    - :meth:`create_agent` — canonical construction path; concrete subclasses
-      must override this.
+    - :attr:`schema_version` — 用于已持久化-载荷迁移。
+    - :meth:`export_schema` — UI 的结构化字段描述。
+    - :meth:`from_persisted` — 通过迁移加载已持久化设置。
+    - :meth:`create_agent` — 规范构建路径； 具体的子类必须重写它。
 
-    The ``llm`` field is intentionally *not* hoisted here: only
-    :class:`OpenHandsAgentSettings` calls an LLM.
+    ``llm`` 字段故意 * 而非 * 在这里提升：仅
+    :class:`OpenHandsAgentSettings` 调用 LLM。
 
-    Use :data:`AgentSettingsConfig` as the type for fields that may hold
-    either the :class:`OpenHandsAgentSettings` or :class:`ACPAgentSettings`
-    variant. Use :func:`validate_agent_settings` to validate raw payloads.
+    使用：data:`AgentSettingsConfig` 作为可能包含：class:`OpenHandsAgentSettings` 或
+    ：class:
+    `ACPAgentSettings` 变体的字段的类型。 使用：func:`validate_agent_settings` 验证原
+    始载荷。
     """
 
     schema_version: int = Field(default=AGENT_SETTINGS_SCHEMA_VERSION, ge=1)
@@ -544,7 +545,7 @@ class AgentSettingsBase(BaseModel):
 
     @classmethod
     def export_schema(cls) -> SettingsSchema:
-        """Export a structured schema describing configurable settings."""
+        """导出描述可配置设置的结构化模式。"""
         return export_settings_schema(cls)
 
     @classmethod
@@ -554,30 +555,27 @@ class AgentSettingsBase(BaseModel):
         *,
         context: Mapping[str, Any] | None = None,
     ) -> Self:
-        """Load persisted agent settings into this concrete variant.
+        """将已持久化智能体设置加载到该具体变体中。
 
-        Applies registered schema migrations, then validates the migrated
-        payload against ``cls`` directly. This method is intended for concrete
-        subclasses; callers that want union dispatch across settings variants
-        should use :func:`validate_agent_settings`. Current-schema payloads
+        应用注册的模式迁移，然后直接针对 ``cls`` 验证迁移的载荷。 该方法适用于具体子
+        类； 想要在设置变体之间进行联合调用的调用者应使用：func:
+        `validate_agent_settings`。 当前-模式载荷
         with the deprecated ``agent_kind='llm'`` discriminator are rejected by
-        :meth:`OpenHandsAgentSettings.from_persisted`.
+        ：方法：`OpenHandsAgentSettings.from_persisted`。
 
-        When loading an encrypted persisted mapping, pass the same validation
-        context used to write it (for example ``{"cipher": cipher}``) so
-        secret-bearing fields can be decrypted. An already-validated instance
-        of this concrete variant is returned unchanged, preserving its secrets
-        without a lossy serialization round trip.
+        加载加密的已持久化映射时，传递用于写入它的相同验证上下文（例如
+        ``{"cipher": cipher}``），以便可以解密包含机密的字段。 该具体变体的已
+        验证实例将原封不动地返回，保留其机密，而无需有损序列化往返。
 
         Returns:
-            An instance of ``cls``.
+            ``cls`` 的一个实例。
 
         Raises:
-            TypeError: If *data* is not a mapping/BaseModel or has a
-                non-integer ``schema_version``.
-            ValueError: If ``schema_version`` is negative, newer than
-                supported, or cannot be migrated.
-            pydantic.ValidationError: If the migrated payload is invalid for
+            TypeError: 如果 *data* 不是映射/BaseModel 或具有
+                非整数 ``schema_version``。
+            ValueError: 如果 ``schema_version`` 为负数，则更新于
+                支持，否则无法迁移。
+            pydantic.ValidationError：如果迁移的载荷无效
                 ``cls``.
         """
         if isinstance(data, cls):
@@ -588,12 +586,12 @@ class AgentSettingsBase(BaseModel):
         return cls.model_validate(payload, context=context)
 
     def create_agent(self) -> AgentBase:
-        """Build an agent from these settings.
+        """根据这些设置构建智能体。
 
-        Subclasses (:class:`OpenHandsAgentSettings`, :class:`ACPAgentSettings`)
-        override this to return the appropriate
-        :class:`~openhands.sdk.agent.base.AgentBase` subclass.
-        Calling this on the base class directly raises :exc:`NotImplementedError`.
+        子类（:class:`OpenHandsAgentSettings`, :class:`ACPAgentSettings`）覆盖它以返
+        回适当的
+        :class:`~openhands.sdk.agent.base.AgentBase` 子类。
+        在基类上调用它会直接引发：exc:`NotImplementedError`。
         """
         raise NotImplementedError(
             f"{type(self).__name__} must implement create_agent()"
@@ -672,17 +670,16 @@ def _migrate_agent_settings_v0_to_v1(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
-    """Canonicalize the deprecated ``agent_kind: 'llm'`` discriminator to
+    """将已弃用 ``agent_kind: 'llm'`` 鉴别器规范化为
     ``'openhands'``.
 
-    Before the v1.19.0 ``LLMAgentSettings`` → ``OpenHandsAgentSettings`` rename,
-    persisted payloads carried ``agent_kind: 'llm'``. The two classes are
-    field-compatible (``LLMAgentSettings`` is a subclass of
-    ``OpenHandsAgentSettings`` that only narrows the discriminator literal),
-    and ``LLMAgentSettings``'s import aliases were removed in v1.24.0. Rewriting
-    the discriminator on read lets callers that explicitly validate as
-    ``OpenHandsAgentSettings`` (the canonical class) accept legacy data
-    without losing any fields.
+    在v1.19.0``LLMAgentSettings``→``OpenHandsAgentSettings``重命名之前，已持久化载荷
+    携带
+    ``agent_kind: 'llm'``。 这两个类是字段兼容的（``LLMAgentSettings`` 是
+    ``OpenHandsAgentSettings`` 只缩小了鉴别器文字的范围），``LLMAgentSettings`` 的导
+    入别名在 v1.24.0 中被删除。
+     在读取时重写鉴别器可以让调用者显式验证为
+    ``OpenHandsAgentSettings``（规范类）接受遗留数据而不丢失任何字段。
     """
     migrated = dict(payload)
     migrated["schema_version"] = 2
@@ -692,7 +689,7 @@ def _migrate_agent_settings_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
-    """Drop deprecated verification fields moved to ``ConversationSettings``."""
+    """将已弃用验证字段移至 ``ConversationSettings``。"""
     migrated = dict(payload)
     verification = migrated.get("verification")
     if isinstance(verification, Mapping):
@@ -714,7 +711,7 @@ def _migrate_agent_settings_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
-    """Persist MCP settings in the SDK-native server map/auth shape."""
+    """SDK-本机服务器映射/身份验证形状中的持久化 MCP 设置。"""
 
     migrated = dict(payload)
     mcp_config = migrated.get("mcp_config")
@@ -725,15 +722,14 @@ def _migrate_agent_settings_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
-    """Drop the deprecated ``llm.modify_params`` compatibility field.
+    """删除已弃用 ``llm.modify_params`` 兼容性字段。
 
-    ``LLM.modify_params`` was deprecated in v1.42.0 and removed in v1.47.0
-    (LiteLLM parameter modification is enabled process-wide). Persisted payloads
-    written by older releases still carry ``llm.modify_params``; drop it here so
-    the migrated payload is a clean current-schema shape. (``LLM`` itself uses
-    ``extra="ignore"``, so an un-migrated field would also be dropped on load,
-    but migrations should still emit canonical payloads rather than lean on
-    lenient validation.)
+    ``LLM.modify_params`` 在 v1.42.0 中为已弃用，在 v1.47.0 中被删除（LiteLLM 参数修
+    改在进程范围内启用）。 已持久化载荷
+    由旧版本编写的仍然带有 ``llm.modify_params``； 将其放在此处，以便迁移的载荷是干净
+    的当前模式形状。 (``LLM``本身使用
+    ``extra="ignore"``，因此未迁移的字段也会在加载时被删除，但迁移仍应发出规范的载荷
+    ，而不是依赖宽松的验证。）
     """
     migrated = dict(payload)
     llm = migrated.get("llm")
@@ -746,7 +742,7 @@ def _migrate_agent_settings_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
-    """Drop the deprecated ``llm`` from ACP settings."""
+    """将已弃用 ``llm`` 从 ACP 设置中删除。"""
     migrated = dict(payload)
     if migrated.get("agent_kind") == "acp":
         migrated.pop("llm", None)
@@ -755,7 +751,7 @@ def _migrate_agent_settings_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v7_to_v8(payload: dict[str, Any]) -> dict[str, Any]:
-    """Fold the retired tool switches into ``tools``."""
+    """将退役的工具开关折叠到 ``tools`` 中。"""
     if payload.get("agent_kind", "openhands") == "acp":
         migrated = drop_retired_tool_switches(payload)
     else:
@@ -765,7 +761,7 @@ def _migrate_agent_settings_v7_to_v8(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _migrate_agent_settings_v8_to_v9(payload: dict[str, Any]) -> dict[str, Any]:
-    """Discard retired input fields without restoring their former behavior."""
+    """丢弃废弃的输入字段而不恢复其以前的行为。"""
     migrated = drop_retired_tool_switches(payload)
     if payload.get("agent_kind", "openhands") == "acp":
         migrated.pop("llm", None)
@@ -1115,7 +1111,7 @@ _CONVERSATION_SETTINGS_MIGRATIONS: dict[int, PersistedSettingsMigrator] = {
 class ConversationSettings(BaseModel):
     schema_version: int = Field(default=CONVERSATION_SETTINGS_SCHEMA_VERSION, ge=1)
 
-    # --- runtime fields (populated on-the-fly, not persisted) ---------------
+    # --- 运行时字段（即时填充，而不是已持久化） --------------
     agent_settings: AgentSettingsConfig | None = Field(
         default=None,
         exclude=True,
@@ -1182,7 +1178,7 @@ class ConversationSettings(BaseModel):
         description="Optional named child span to emit under the conversation root.",
     )
 
-    # --- persisted fields ---------------------------------------------------
+    # --- 已持久化字段 --------------------------------------------------
     max_iterations: int = Field(
         default=500,
         ge=1,
@@ -1344,12 +1340,12 @@ class ConversationSettings(BaseModel):
 
     @classmethod
     def export_schema(cls) -> SettingsSchema:
-        """Export a structured schema describing configurable conversation settings."""
+        """导出描述可配置对话设置的结构化模式。"""
         return export_settings_schema(cls)
 
     @classmethod
     def from_persisted(cls, data: Any) -> ConversationSettings:
-        """Load persisted conversation settings, applying any schema migrations."""
+        """加载已持久化对话设置，应用任何模式迁移。"""
         payload = _apply_persisted_migrations(
             data,
             current_version=CONVERSATION_SETTINGS_SCHEMA_VERSION,
@@ -1384,11 +1380,12 @@ class ConversationSettings(BaseModel):
     def _start_request_kwargs(self, **kwargs: Any) -> dict[str, Any]:
         payload = dict(kwargs)
 
-        # --- agent (from agent_settings) ------------------------------------
-        # Both settings variants expose a .create_agent() method; the LLM
-        # variant returns an ``Agent`` and the ACP variant returns an
-        # ``ACPAgent``. Callers that want a narrowed type should access
-        # ``self.agent_settings.create_agent()`` directly.
+        # --- 智能体 (来自 agent_settings) ---------------------------------------------
+        # ---
+        # 两种设置变体都公开了 .create_agent() 方法； LLM 变体返回 ``Agent``，ACP 变体返
+        # 回
+        # ``ACPAgent``. 想要缩小类型的调用者应该访问
+        # ``self.agent_settings.create_agent()`` 直接。
         has_agent_source = any(
             payload.get(name) is not None
             for name in ("agent", "agent_settings", "agent_profile_id")
@@ -1396,10 +1393,10 @@ class ConversationSettings(BaseModel):
         if not has_agent_source and self.agent_settings is not None:
             payload["agent"] = self.agent_settings.create_agent()
 
-        # --- secrets (from agent's context) ---------------------------------
-        # ACPAgent may carry prompt-only context, but its execution context is
-        # owned by the subprocess. ``getattr(..., None)`` keeps this no-op for
-        # agents without AgentContext.
+        # --- 机密（来自智能体的上下文）--------------------------------
+        # ACPAgent 可以携带提示词-只上下文，但其执行上下文由子进程所有。
+        # ``getattr(..., None)`` 保留了这个无操作行为智能体和 AgentContext。
+        #
         agent = payload.get("agent")
         if "secrets" not in payload and agent is not None:
             if isinstance(agent, AgentBase) and agent.agent_context is not None:
@@ -1407,7 +1404,7 @@ class ConversationSettings(BaseModel):
                 if secrets:
                     payload["secrets"] = secrets
 
-        # --- runtime fields -------------------------------------------------
+        # --- 运行时字段------------------------------------------------
         if self.workspace is not None:
             payload.setdefault("workspace", self.workspace)
         if self.conversation_id is not None:
@@ -1429,7 +1426,7 @@ class ConversationSettings(BaseModel):
         if self.observability_span_name is not None:
             payload.setdefault("observability_span_name", self.observability_span_name)
 
-        # --- persisted defaults ---------------------------------------------
+        # --- 已持久化默认值 ------------------------------------------------------
         payload.setdefault("confirmation_policy", self._build_confirmation_policy())
         payload.setdefault("security_analyzer", self._build_security_analyzer())
         payload.setdefault("max_iterations", self.max_iterations)
@@ -1441,10 +1438,10 @@ class ConversationSettings(BaseModel):
         /,
         **kwargs: Any,
     ) -> _RequestT:
-        """Build a request from these settings.
+        """根据这些设置构建请求。
 
-        Every field on ``ConversationSettings`` is used as a default.
-        Explicit *kwargs* override any setting.
+        ``ConversationSettings`` 上的每个字段都用作默认值。 显式 *kwargs* 覆盖任何设
+        置。
         """
         return request_type(**self._start_request_kwargs(**kwargs))
 
@@ -1452,19 +1449,18 @@ class ConversationSettings(BaseModel):
 ACPServerKind = Literal[
     "claude-code", "codex", "gemini-cli", "kimi-code", "pi", "opencode", "custom"
 ]
-"""Known ACP backend servers the GUI can pick from.
+"""GUI 可以从中选择已知的 ACP 个后端服务器。
 
-``custom`` means the user supplies the raw ``acp_command`` themselves;
-the other choices map to a default npx command stored in
-:data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS`.
+``custom``表示用户自己提供原始``acp_command``； 其他选项映射到存储在的默认 npx 命令
+：数据：`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS`。
 """
 
 
 class OpenHandsAgentSettings(AgentSettingsBase):
-    """Settings for a standard LLM-backed :class:`Agent`.
+    """标准 LLM 支持的：class:`Agent` 的设置。
 
-    This is the long-standing ``AgentSettings`` shape; fields here build
-    the default ``Agent`` (LLM + tools + MCP + condenser + critic).
+    这是长期存在的``AgentSettings``形状； 这里的字段构建默认的 ``Agent``（LLM + 工具
+    + MCP + 上下文压缩器 + 评论家）。
     """
 
     agent_kind: Literal["openhands"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
@@ -1645,9 +1641,9 @@ class OpenHandsAgentSettings(AgentSettingsBase):
         return value
 
     def create_agent(self) -> Agent:
-        """Build an :class:`Agent` purely from these settings.
+        """纯粹从这些设置构建一个：class:`Agent` 。
 
-        Example::
+        示例：:
 
             settings = OpenHandsAgentSettings(
                 llm=LLM(model="m", api_key="k"),
@@ -1672,10 +1668,11 @@ class OpenHandsAgentSettings(AgentSettingsBase):
             elif builtin.__name__ not in include_default_tools:
                 include_default_tools.append(builtin.__name__)
 
-        # The routing tool needs the active meta-profile name, which the
-        # name-only ``include_default_tools`` path cannot pass, so add it as a
-        # ``Tool`` spec carrying the param. When no meta-profile is active, the
-        # tool falls back to the first available one, so we still wire it.
+        # 路由工具需要活动元配置文件名称，仅名称 ``include_default_tools`` 路径无法通过
+        # 该名称，因此将其添加为
+        # ``Tool`` 携带参数的spec。 当没有元配置文件处于活动状态时，该工具将回退到第一个
+        # 可用的元配置文件，因此我们仍然连接它。
+        #
         if self.enable_classify_and_switch_llm_tool:
             params: dict[str, Any] = {}
             if self.active_meta_profile:
@@ -1706,26 +1703,23 @@ class OpenHandsAgentSettings(AgentSettingsBase):
         )
 
     def build_condenser(self, llm: LLM) -> CondenserBase | None:
-        """Create a condenser from these settings, or ``None`` if disabled."""
+        """根据这些设置创建上下文压缩器，如果禁用，则创建 ``None``。"""
         return self.condenser.build_condenser(llm)
 
     def build_critic(self) -> CriticBase | None:
-        """Create an :class:`APIBasedCritic` from these settings.
+        """从这些设置创建一个：class:`APIBasedCritic`。
 
-        Returns ``None`` when the critic is disabled or when no API key
-        is available (the critic service requires authentication).
+        当批评家被禁用或没有可用的 API 键时返回 ``None``（批评家服务需要身份验证）。
 
-        If ``verification.critic_api_key`` is set it is used to
-        authenticate with the critic service; otherwise the LLM's
-        ``api_key`` is reused. This preserves the existing
-        auto-configuration path for the All-Hands LLM proxy while
-        letting deployments route the critic through a different
-        provider (e.g. an LLM proxy with its own credential).
+        如果设置了``verification.critic_api_key``，则用于通过批评家服务进行身份验证；
+         否则 LLM 的
+        ``api_key`` 被重复使用。 这保留了所有手会议代理（LLM）的现有自动配置路径，同
+        时允许部署将关键流量路由到不同的提供商（e.g）。 具有自己的凭
+        据的 LLM 代理）。
 
-        If ``verification.critic_server_url`` or
-        ``verification.critic_model_name`` are set they override the
-        ``APIBasedCritic`` defaults, allowing deployments to route
-        through a custom endpoint (e.g. an LLM proxy).
+        如果 ``verification.critic_server_url`` 或
+        ``verification.critic_model_name`` 被设置，它们会覆盖
+        ``APIBasedCritic`` 默认值，允许部署通过自定义端点 (e.g. 一个LLM代理）。
         """
         if not self.verification.critic_enabled:
             return None
@@ -1759,18 +1753,19 @@ class OpenHandsAgentSettings(AgentSettingsBase):
 
 
 class ACPAgentSettings(AgentSettingsBase):
-    """Settings for an ACP (Agent Client Protocol) agent.
+    """ACP（智能体客户端协议）智能体的设置。
 
-    ``create_agent()`` returns an :class:`ACPAgent` that delegates to a
-    subprocess ACP server.  The ACP server manages its own system prompt,
-    tools, MCP, and (primary) LLM calls; those fields from
-    :class:`OpenHandsAgentSettings` do not apply here.
+    ``create_agent()`` 返回一个委托给子进程 ACP 服务器的：class:`ACPAgent`。 ACP 服务
+    器管理其自己的系统提示词、工具、MCP
+     和（主要）LLM 调用； 这些字段来自
+    :class:`OpenHandsAgentSettings` 不适用于此处。
 
-    :attr:`acp_model` is the model identity. The created ``ACPAgent`` keeps its
-    own metrics LLM, so title generation can tell it is never callable.
-    Provider credentials ride the conversation secrets channel
-    (``request.secrets`` / ``agent_context.secrets`` → ``state.secret_registry``)
-    keyed by the provider's env var name (:attr:`api_key_env_var`).
+    :attr:`acp_model` 是模型标识。 创建的``ACPAgent``保持其
+    自己的指标LLM，因此标题生成可以告诉它永远不可调用。 提供者凭据乘坐对话机密通道 (
+    ``request.secrets`` /
+    ``agent_context.secrets`` → ``state.secret_registry``)，由提供者的环境变量名称 (:
+    attr:
+    `api_key_env_var`) 键入。
     """
 
     agent_kind: Literal["acp"] = Field(  # type: ignore[reportIncompatibleVariableOverride]
@@ -1807,11 +1802,11 @@ class ACPAgentSettings(AgentSettingsBase):
             "Must be set when :attr:`acp_server` is ``'custom'``."
         ),
         json_schema_extra={
-            # Deliberately no ``depends_on=("acp_server",)``: the frontend's
-            # ``depends_on`` filter does a boolean check, which would evaluate
-            # to false for the string-valued ``acp_server`` and hide the
-            # field outright. Users see ``acp_command`` in the "all" view of
-            # the ACP Server page if they need to supply a custom command.
+            # 故意不``depends_on=("acp_server",)``：前端的
+            # ``depends_on`` 过滤器执行布尔检查，对于字符串值 ``acp_server``，其计算结果
+            # 为 False，并完全隐藏该字段。 如果用户需要提供自定义命令，则可以在 ACP 服务
+            # 器页面的“全部”视图中看到 ``acp_command``。
+            #
             SETTINGS_METADATA_KEY: SettingsFieldMetadata(
                 label="ACP command (custom override)",
                 prominence=SettingProminence.MINOR,
@@ -1938,10 +1933,10 @@ class ACPAgentSettings(AgentSettingsBase):
         },
     )
 
-    # Programmatic / downstream-facing knob, deliberately NOT surfaced in the
-    # settings-form UI (no SETTINGS_METADATA_KEY): the deploying application sets
-    # it (e.g. when conversations share a sandbox under grouping), not the end
-    # user. See ``ACPAgent.acp_isolate_data_dir`` for the full rationale.
+    # 编程/面向下游的旋钮，故意在设置表单 UI 中出现不（无 SETTINGS_METADATA_KEY）：部署
+    # 应用程序设置它（e.g. 当对话在分组下共享沙箱时），而不是最终用户。 请参阅
+    # ``ACPAgent.acp_isolate_data_dir``以获取完整理由。
+    #
     acp_isolate_data_dir: bool = Field(
         default=False,
         description=(
@@ -1952,10 +1947,10 @@ class ACPAgentSettings(AgentSettingsBase):
             "conversations share one sandbox (see #1019)."
         ),
     )
-    # Programmatic / downstream-facing knob, deliberately NOT surfaced in the
-    # settings-form UI (no SETTINGS_METADATA_KEY): it's a list of structured
-    # specs a downstream application supplies in code to support other ACP CLIs,
-    # not an end-user field. The built-in providers work via the default.
+    # 程序化/下游面向的开关，故意不在设置表单UI（没有SETTINGS_METADATA_KEY）：它是一个下
+    # 游应用程序在代码中提供的结构化规格列表，以支持其他ACP CLIs，而不是一个用户字段。
+    # 内置提供程序通过默认方式工作。
+    #
     acp_file_secrets: list[ACPFileSecretSpec] = Field(
         default_factory=lambda: list(default_acp_file_secrets()),
         description=(
@@ -1990,41 +1985,41 @@ class ACPAgentSettings(AgentSettingsBase):
 
     @property
     def provider_info(self) -> ACPProviderInfo | None:
-        """Registry entry for :attr:`acp_server`, or ``None`` for ``'custom'``."""
+        """注册表条目用于：attr:`acp_server`，或 ``None`` 条目用于 ``'custom'``。"""
         return get_acp_provider(self.acp_server)
 
     @property
     def api_key_env_var(self) -> str | None:
-        """Env var name the ACP subprocess expects for its API key.
+        """ACP 子进程期望其 API 键的环境变量名称。
 
-        Delegates to the :data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS`
-        registry.  Returns ``None`` for ``'custom'`` servers — users manage
-        credentials entirely via the conversation secrets channel in that case.
+        委托给：data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS` 注册表。
+        对于
+        ``'custom'`` 服务器返回 ``None`` — 在这种情况下，用户完全通过对话机密通道管理
+        凭据。
         """
         info = self.provider_info
         return info.api_key_env_var if info is not None else None
 
     @property
     def base_url_env_var(self) -> str | None:
-        """Env var for proxy/base-URL routing, or ``None`` if unsupported.
+        """proxy/base-URL 路由的环境变量，如果不支持则为 ``None``。
 
-        Delegates to the :data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS`
-        registry.
+        委托给：data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS` 注册表。
         """
         info = self.provider_info
         return info.base_url_env_var if info is not None else None
 
     def resolve_acp_command(self) -> list[str]:
-        """Return the effective subprocess command for this settings block.
+        """返回此设置块的有效子进程命令。
 
-        Uses :attr:`acp_command` verbatim when non-empty; otherwise looks
-        up the default from :data:`~openhands.sdk.settings.acp_providers.ACP_PROVIDERS`.
-        Raises ``ValueError`` when :attr:`acp_server` is ``'custom'`` but
-        no explicit command is set (there is no sensible default to fall back to).
+        非空时逐字使用：attr:`acp_command`； 否则从：data:
+        `~openhands.sdk.settings.acp_providers.ACP_PROVIDERS` 查找默认值。 当：attr:
+        `acp_server` 为 ``'custom'`` 但未设置显式命令时引发 ``ValueError``（没有可回
+        退的合理默认值）。
 
-        The result is routed through :meth:`_prefer_pinned_binary`, which swaps
-        an ``npx`` command for the pinned binary when it is on ``PATH`` (a no-op
-        otherwise).
+        结果通过：meth:`_prefer_pinned_binary` 路由，当固定二进制文件位于 ``PATH`` 时
+        ，它会将 ``npx`` 命令交换为固定
+        二进制文件（否则为无操作）。
         """
         if self.acp_command:
             command = list(self.acp_command)
@@ -2044,16 +2039,17 @@ class ACPAgentSettings(AgentSettingsBase):
 
     @staticmethod
     def _parse_npx_invocation(command: Sequence[str]) -> tuple[str, list[str]] | None:
-        """Parse an ``npx``-style launch command into ``(package, extra_args)``.
+        """将 ``npx`` 样式的启动命令解析为 ``(package, extra_args)``。
 
-        ``["npx", "-y", "@scope/pkg", "--flag"]`` → ``("@scope/pkg", ["--flag"])``,
-        skipping any leading ``npx`` flags such as ``-y`` / ``--yes``. Returns
-        ``None`` when *command* is not an ``npx`` invocation (e.g. an
-        already-resolved binary path), so callers leave it untouched.
+        ``["npx", "-y", "@scope/pkg", "--flag"]`` → ``("@scope/pkg", ["--flag"])``，
+        跳过任
+        何前导 ``npx`` 标志，例如 ``-y`` / ``--yes``。 退货
+        ``None`` 当 * 命令 * 不是 ``npx`` 调用时 (e.g. 已经解析的二进制路径），因此调
+        用者保持不变。
         """
         if not command or command[0] != "npx":
             return None
-        # Drop leading npx flags (-y, --yes, ...) to find the package name.
+        # 删除前导 npx 标志（-y、--yes、...）以查找包名称。
         rest = list(itertools.dropwhile(lambda arg: arg.startswith("-"), command[1:]))
         if not rest:
             return None
@@ -2062,33 +2058,34 @@ class ACPAgentSettings(AgentSettingsBase):
 
     @staticmethod
     def _npm_package_name(package: str) -> str:
-        """Strip any ``@version`` specifier from an npm package spec.
+        """从 npm 包规范中删除任何 ``@version`` 说明符。
 
-        ``@scope/pkg@1.2.3`` → ``@scope/pkg``; ``pkg@1.2.3`` → ``pkg``; an
-        unversioned spec is returned unchanged. The version separator is the
-        ``@`` *after* the name — for scoped specs that is the second ``@`` (the
-        first introduces the scope), so a leading ``@`` is skipped.
+        ``@scope/pkg@1.2.3`` → ``@scope/pkg``; ``pkg@1.2.3`` → ``pkg``; 未版本化的规
+        范将原样返回。
+        版本分隔符是
+        ``@`` *after* 名称 — 对于范围规范，它是第二个 ``@``（第一个引入范围），因此会
+        跳过前导 ``@``。
         """
         start = 1 if package.startswith("@") else 0
         at = package.find("@", start)
         return package[:at] if at != -1 else package
 
     def _prefer_pinned_binary(self, command: list[str]) -> list[str]:
-        """Swap an ``npx -y <pkg>`` command for the provider's pinned binary.
+        """将 ``npx -y <pkg>`` 命令替换为提供商的固定二进制文件。
 
-        When *command* is an ``npx`` invocation of this provider's package and
-        the provider's ``binary_name`` resolves via :func:`shutil.which`, return
-        ``[binary_name, *extra]`` (preserving trailing args like gemini's
-        ``--acp``) — running the agent-server image's pinned wrapper instead of
-        downloading npm-latest. Returned unchanged otherwise: no pinned binary
-        (custom server), a non-matching/non-npx command, or the binary not on
-        ``PATH`` (local dev).
+        当 *command* 是此提供程序包的 ``npx`` 调用并且提供程序的 ``binary_name`` 通过
+        ：func:`shutil.which`
+        解析时，返回
+        ``[binary_name, *extra]``（保留像 Gemini 一样的尾随参数
+        ``--acp``) — 运行智能体-服务器镜像的固定包装器，而不是下载 npm-latest。 否则
+        返回不变：没有固定的二进制文件（自定义服务器）、不匹配
+        /非 npx 命令或二进制文件不存在
+        ``PATH``（本地开发）。
 
-        Package matching ignores any ``@version`` suffix: the registry default
-        is version-pinned (so the native fallback can't drift to npm ``latest``),
-        but a client may still send the bare or a differently-pinned package
-        name. In the image the pinned binary stands in for the provider's package
-        regardless of the requested version, so the rewrite compares names only.
+        包匹配忽略任何 ``@version`` suffix: the 注册表默认版本锁定（因此，native） 回
+        退方案不能向 npm 驱动
+        ``latest``但是，客户端仍然可以发送裸包名或不同的包名。 在图像中，无论请求的版
+        本如何，固定的二进制文件都代表提供者的包，因此重写仅比较名称。
         """
         info = get_acp_provider(self.acp_server)
         if info is None or info.binary_name is None:
@@ -2110,28 +2107,27 @@ class ACPAgentSettings(AgentSettingsBase):
         return [info.binary_name, *extra]
 
     def create_agent(self) -> ACPAgent:
-        """Build an :class:`ACPAgent` from these settings.
+        """根据这些设置构建：class:`ACPAgent`。
 
-        The subprocess command is resolved via :meth:`resolve_acp_command`
-        which maps :attr:`acp_server` to a default when no explicit
-        :attr:`acp_command` is set.
+        子进程命令通过：meth:`resolve_acp_command` 解析，当没有明确指定时，它将：attr
+        :`acp_server` 映射到默认值
+        `acp_command` 属性已设置。
 
-        :attr:`llm` is not read: the agent keeps its default ``acp-managed``
-        metrics LLM, relabelled with :attr:`acp_model` when set. Provider
-        credentials ride the conversation secrets channel
-        (``agent_context.secrets`` / ``StartConversationRequest.secrets``,
-        which route through ``state.secret_registry``) keyed by the
-        provider's env var name (:attr:`api_key_env_var`), and reach the
-        subprocess from the registry.
+        :attr:`llm` 未读取：智能体保持默认值 ``acp-managed``
+        指标 LLM，设置时用：attr:`acp_model` 重新标记。 凭据供应商机密驱动对话子进程
+        端口 (``agent_context.secrets``
+         / ``StartConversationRequest.secrets``，通过 ``state.secret_registry``) 根据
+         供应商的环境
+        变量名称 (:attr:`api_key_env_var`)，并到达注册表。
         """
         from openhands.sdk.agent import ACPAgent
 
         return ACPAgent(
             acp_command=self.resolve_acp_command(),
-            # Carry the authoritative provider key onto the agent: acp_command
-            # alone does not reliably reverse-map to a provider, so consumers
-            # (e.g. the conversation UI resolving a brand label / model list)
-            # read it from ConversationInfo.agent.acp_server.
+            # 将权威提供者密钥携带到智能体：acp_command 本身并不能可靠地反向映射到提供者
+            # ，因此消费者 (e.g. 对话 UI 解析品牌标签/型号列表）从
+            # ConversationInfo.agent.acp_server 中读取。
+            #
             acp_server=self.acp_server,
             acp_args=list(self.acp_args),
             acp_model=self.acp_model,
@@ -2146,25 +2142,25 @@ class ACPAgentSettings(AgentSettingsBase):
 
 
 class LLMAgentSettings(OpenHandsAgentSettings):
-    """Legacy ``agent_kind='llm'`` variant of :class:`OpenHandsAgentSettings`.
+    """:class:`OpenHandsAgentSettings` 的旧版 ``agent_kind='llm'`` 变体。
 
-    ``LLMAgentSettings`` was the public class name before the v1.19.0 rename.
-    The public import aliases (``from openhands.sdk import LLMAgentSettings`` and
-    ``from openhands.sdk.settings import LLMAgentSettings``) were removed in
-    v1.24.0 — use :class:`OpenHandsAgentSettings` for all new code.
+    ``LLMAgentSettings`` 是 v1.19.0 重命名之前的公共类名。 公共导入别名（
+    ``from openhands.sdk import LLMAgentSettings`` 和
+    ``from openhands.sdk.settings import LLMAgentSettings``) 在 v1.24.0 中被删除 — 对
+    所有新代码使用
+    ：class:`OpenHandsAgentSettings`。
 
-    The class itself is retained (reachable at
-    ``openhands.sdk.settings.model.LLMAgentSettings``) because it remains a
-    member of the settings discriminated union: it keeps ``agent_kind='llm'`` so
-    persisted legacy payloads still deserialize and the API-breakage checker
-    sees no field-value change versus the published release.
+    类本身被保留（可通过
+    ``openhands.sdk.settings.model.LLMAgentSettings``），因为它仍然是设置歧视联盟的成
+    员：它保留
+    ``agent_kind='llm'``，因此已持久化遗留载荷仍然是反序列化，并且 API 损坏检查器与已
+    发布的版本相比没有看到任何字段值更改。
     """
 
-    # Keep agent_kind as Literal["llm"] so the API-breakage checker sees no
-    # field-value change compared with the PyPI release (which had this class
-    # as the primary class with agent_kind="llm").  The discriminated union
-    # routes "llm" payloads here; validate_agent_settings({}) still defaults
-    # to OpenHandsAgentSettings ("openhands").
+    # Keep agent_kind as Literal[LLM] 所以 API-断路器检查器与之前的字段值没有变化 PyPI
+    # 发行版（该类作为主要类 agent_kind="llm"). 歧异联合路由 "llm" 载荷这里；
+    # validate_agent_settings（）仍然默认为 OpenHandsAgentSettings ("OpenHands").
+    #
     agent_kind: Literal["llm"] = Field(  # type: ignore[assignment]
         default="llm",
         description=(
@@ -2175,14 +2171,14 @@ class LLMAgentSettings(OpenHandsAgentSettings):
 
 
 def _agent_settings_discriminator(value: Any) -> str:
-    """Discriminator for :data:`AgentSettingsConfig` — defaults to ``'openhands'``.
+    """:data:`AgentSettingsConfig` 的鉴别器 — 默认为 ``'openhands'``。
 
-    Existing persisted payloads predate ``agent_kind`` and carry only
-    OpenHands-agent fields. Treating a missing discriminator as ``'openhands'``
-    lets those payloads validate without a migration.
+    现有的已持久化载荷早于 ``agent_kind`` 并且仅包含 OpenHands-智能体字段。 将缺失的
+    鉴别器视为 ``'openhands'``，可以让载荷无
+    需迁移即可进行验证。
 
-    ``'llm'`` is still a valid tag, routed to the deprecated
-    :class:`LLMAgentSettings` subclass.
+    ``'llm'`` 仍然是有效标签，路由到已弃用
+    :class:`LLMAgentSettings` 子类。
     """
     if isinstance(value, AgentSettingsBase):
         return value.agent_kind
@@ -2197,16 +2193,15 @@ AgentSettingsConfig = Annotated[
     | Annotated[ACPAgentSettings, Tag("acp")],
     Discriminator(_agent_settings_discriminator),
 ]
-"""Discriminated union over the agent-settings variants.
+"""智能体设置变体的可区分联合。
 
-Use :func:`validate_agent_settings` or a :class:`~pydantic.TypeAdapter`
-to validate/construct instances from raw payloads. Use
-:func:`default_agent_settings` for the default (LLM-agent) shape.
+使用：func:`validate_agent_settings` 或：class:`~pydantic.TypeAdapter` 从原始载荷验证
+/构造实例。 使用
+:func:`default_agent_settings` 用于默认 (LLM-智能体) 形状。
 
-Named ``AgentSettingsConfig`` rather than ``AgentSettings`` because the
-old concrete ``AgentSettings`` class was removed after its deprecation
-deadline. Use this union for fields that accept any supported settings
-variant.
+命名为 ``AgentSettingsConfig`` 而不是 ``AgentSettings``，因为旧的具体
+``AgentSettings`` 类在其弃用截止日期后被
+删除。 将此联合用于接受任何支持的设置变体的字段。
 """
 
 
@@ -2221,33 +2216,31 @@ def validate_agent_settings(
     context: Mapping[str, Any] | None = None,
     persisted: bool = False,
 ) -> OpenHandsAgentSettings | LLMAgentSettings | ACPAgentSettings:
-    """Load and validate an agent-settings payload.
+    """加载并验证智能体设置载荷。
 
-    Persisted payloads are migrated to the current schema version before
-    validation, including legacy ``agent_kind: "llm"`` payloads from before the
-    ``OpenHandsAgentSettings`` rename. Pass ``persisted=True`` for stored data,
-    so a payload without ``schema_version`` is migrated as a legacy row rather
-    than validated as a request.
+    已持久化载荷迁移到验证之前的当前模式版本，包括之前的遗留 ``agent_kind: "llm"`` 载
+    荷
+    ``OpenHandsAgentSettings`` 重命名。 为存储的数据传递 ``persisted=True``，因此不带
+    ``schema_version`` 的载荷将作为旧行迁移，而不是作为请求进行验证。
     """
     if isinstance(data, OpenHandsAgentSettings | ACPAgentSettings):
         return data
     payload = _migrate_agent_settings_payload(data, persisted=persisted)
-    # The v1->v2 migration renames the deprecated ``agent_kind: 'llm'`` tag, but
-    # only while advancing ``schema_version``. A payload already at the current
-    # version keeps the ``llm`` tag and would dispatch to the deprecated
-    # ``LLMAgentSettings`` subclass; canonicalize unconditionally so the loader
-    # always returns a ``{openhands, acp}`` variant.
+    # v1->v2 迁移会重命名已弃用 ``agent_kind: 'llm'`` 标记，但仅在推进
+    # ``schema_version`` 时进行。 当前版本中已有的载荷保留 ``llm`` 标签并将分派到已弃用
+    # ``LLMAgentSettings`` 子类； 无条件规范化，因此加载程序始终返回
+    # ``{openhands, acp}`` 变体。
+    #
     if payload.get("agent_kind") == "llm":
         payload["agent_kind"] = "openhands"
     return _AGENT_SETTINGS_ADAPTER.validate_python(payload, context=context)
 
 
 def _merge_patch(base: dict[str, Any], diff: Mapping[str, Any]) -> dict[str, Any]:
-    """Apply an RFC 7386 JSON Merge Patch.
+    """应用 RFC 7386 JSON 合并补丁。
 
-    Nested mappings merge recursively; ``None`` deletes a key; every other value
-    overwrites. Matches the merge semantics used by the settings stores so call
-    sites can delegate without a behavior change.
+    嵌套映射递归合并； ``None`` 删除一个键； 所有其他值都会被覆盖。 匹配设置存储使用
+    的合并语义，以便调用站点可以在不更改行为的情况下进行委托。
     """
     result = dict(base)
     for key, value in diff.items():
@@ -2266,23 +2259,22 @@ def apply_agent_settings_diff(
     *,
     context: Mapping[str, Any] | None = None,
 ) -> OpenHandsAgentSettings | ACPAgentSettings:
-    """Apply a sparse agent-settings diff to a base, narrowing on ``agent_kind``.
+    """将稀疏的智能体设置差异应用于基础，在 ``agent_kind`` 上缩小。
 
-    ``agent_kind`` is a one-way narrowing gate, never a conversion knob:
+    ``agent_kind`` 是单向窄门，不是转换旋钮：
 
-    * When ``diff`` changes ``agent_kind``, start from a *fresh* base for the
-      target variant. Deep-merging across the union boundary would either fail
-      validation (ACP's nullable ``agent_context`` is invalid for OpenHands) or
-      silently drop the outgoing variant's fields (the variants ignore unknown
-      keys), producing a mongrel row.
-    * When ``agent_kind`` is unchanged or omitted, deep-merge the diff within
-      the variant (``None`` unsets a key, per :func:`_merge_patch`).
+    * 当 ``diff`` changes ``agent_kind``从  *新鲜* 目标变体的基础。 在交集边界处合并
+    得太深，要么失败验证 (ACP'的可选性
+    ``agent_context`` 无效 OpenHands或者无声地丢弃传出变体的字段（变体忽略未知键），
+    生成一个mongrel行。
+    * 当 ``agent_kind`` 未更改或省略时，深度合并变体中的差异（``None`` 根据：func:
+    `_merge_patch` 取消设置键）。
 
-    ``base`` may be a raw persisted mapping or a settings instance; it is
-    migrated and validated first. The merged result is re-validated against
-    :data:`AgentSettingsConfig`, so the return is always a canonical variant.
-    This is the single owner of agent-settings diff application; settings stores
-    should delegate here instead of hand-rolling the dump/merge/validate dance.
+    ``base`` 可以是原始已持久化映射或设置实例； 首先对其进行迁移和验证。 合并结果重新
+    验证
+    :data:`AgentSettingsConfig`，因此返回始终是规范变体。
+    这是智能体-settings diff 应用程序的单一所有者； 设置存储应该在此处委托，而不是手
+    动进行转储/合并/验证舞蹈。
     """
     base_settings = validate_agent_settings(base, context=context, persisted=True)
     if not diff:
@@ -2299,10 +2291,10 @@ def apply_agent_settings_diff(
 
 
 def default_agent_settings() -> OpenHandsAgentSettings:
-    """Return a default :class:`OpenHandsAgentSettings` instance.
+    """返回默认的：class:`OpenHandsAgentSettings` 实例。
 
-    This is the drop-in replacement for the old bare ``AgentSettings()``
-    constructor call — the default-ever-since variant is the LLM agent.
+    这是旧的裸 ``AgentSettings()`` 构造函数调用的直接替代 - 自此以来的默认变体是 LLM
+    智能体。
     """
     return OpenHandsAgentSettings()
 
@@ -2310,24 +2302,23 @@ def default_agent_settings() -> OpenHandsAgentSettings:
 def create_agent_from_settings(
     settings: OpenHandsAgentSettings | ACPAgentSettings,
 ) -> AgentBase:
-    """Dispatch to the variant's ``create_agent()`` method.
+    """分派到变体的 ``create_agent()`` 方法。
 
-    Returns either :class:`~openhands.sdk.agent.Agent` (LLM variant) or
-    :class:`~openhands.sdk.agent.ACPAgent` (ACP variant).
+    返回：class:`~openhands.sdk.agent.Agent` （LLM 变体）或
+    :class:`~openhands.sdk.agent.ACPAgent` （ACP 变体）。
     """
     return settings.create_agent()
 
 
 def export_agent_settings_schema() -> SettingsSchema:
-    """Export a combined schema for the :data:`AgentSettingsConfig` union.
+    """导出：data:`AgentSettingsConfig` 联合的组合模式。
 
-    Walks both variants, tags each non-shared section with its variant,
-    and returns a single :class:`SettingsSchema`. The discriminator
-    (``agent_kind``) is intentionally **not** emitted as a schema field
-    — each variant lives on its own settings page in the GUI, and the
-    page injects the correct ``agent_kind`` value on save. Sections
-    carry a ``variant`` tag (``'openhands'``, ``'acp'``, or ``None`` for
-    shared) so the frontend can filter by the page's variant.
+    遍历两个变体，用其变体标记每个非共享部分，并返回单个：class:`SettingsSchema`。
+    ``agent_kind``判别器故意不作为模式字段**生成
+    **——每个变体都有自己的设置页面在GUI，页面在保存时会注入正确的``agent_kind``值。
+    部分带有 ``variant`` 标签（
+    ``'openhands'``、``'acp'`` 或 ``None`` 表示共享），因此前端可以按页面的变体进行过
+    滤。
     """
     llm_schema = OpenHandsAgentSettings.export_schema()
     acp_schema = ACPAgentSettings.export_schema()
@@ -2337,8 +2328,9 @@ def export_agent_settings_schema() -> SettingsSchema:
 
     def _merge(schema: SettingsSchema, default_variant: str) -> None:
         for section in schema.sections:
-            # "general" is shared across variants; tag non-shared keys
-            # with the variant so the GUI can filter sections by variant.
+            # “一般”是跨变体共享的； 为非共享键打上变体标签，以便 GUI 可以按变体过滤部分
+            # 。
+            #
             if section.key == _GENERAL_SECTION_KEY and section.variant is None:
                 effective_variant: str | None = None
             else:
@@ -2350,7 +2342,7 @@ def export_agent_settings_schema() -> SettingsSchema:
                 merged_by_key[(section.key, effective_variant)] = merged
                 merged_sections.append(merged)
             else:
-                # Same (key, variant) across invocations — union fields by key.
+                # 跨调用相同（键、变体）——按键联合字段。
                 seen_keys = {f.key for f in existing.fields}
                 for field in section.fields:
                     if field.key not in seen_keys:
@@ -2393,11 +2385,10 @@ _GENERAL_SECTION_METADATA = SettingsSectionMetadata(
 
 
 def export_settings_schema(model: type[BaseModel]) -> SettingsSchema:
-    """Export a structured settings schema for a Pydantic settings model.
+    """导出 Pydantic 设置模型的结构化设置模式。
 
-    The returned schema groups nested models into sections and describes each
-    exported field with its label, type, default, dependencies, choices, and
-    whether the value should be treated as secret input.
+    返回的模式组合了嵌套模型，并描述了每个导出字段的标签、类型、默认值、依赖项、选择
+    项和值是否应被视为机密输入。
     """
     sections: list[SettingsSectionSchema] = []
     sections_by_key: dict[str, SettingsSectionSchema] = {}
@@ -2421,7 +2412,7 @@ def export_settings_schema(model: type[BaseModel]) -> SettingsSchema:
         section_metadata = explicit_section_metadata or _GENERAL_SECTION_METADATA
         nested_models = _nested_model_types(field.annotation)
 
-        # Nested section (e.g., llm, condenser, critic)
+        # 嵌套部分（e.g.、llm、上下文压缩器、critic）
         if explicit_section_metadata is not None and nested_models:
             section_default = field.get_default(call_default_factory=True)
             section = ensure_section(explicit_section_metadata)
@@ -2468,9 +2459,9 @@ def export_settings_schema(model: type[BaseModel]) -> SettingsSchema:
                         ],
                         secret=_contains_secret(nested_field.annotation),
                         choices=_extract_choices(nested_field.annotation),
-                        # Field-level variant falls back to the enclosing
-                        # section's variant — nested fields inherit their
-                        # parent section's variant by default.
+                        # 字段级变体回退到封闭部分的变体 - 默认情况下，嵌套字段继承其父
+                        # 部分的变体。
+                        #
                         variant=metadata.variant or section.variant,
                     )
                     seen_nested_fields[nested_key] = field_schema
@@ -2500,8 +2491,8 @@ def export_settings_schema(model: type[BaseModel]) -> SettingsSchema:
                 depends_on=list(metadata.depends_on),
                 secret=_contains_secret(field.annotation),
                 choices=_extract_choices(field.annotation),
-                # Top-level field: use its own variant if set, otherwise
-                # fall back to the enclosing section's variant.
+                # 顶级字段：如果设置，则使用其自己的变体，否则回退到封闭部分的变体。
+                #
                 variant=metadata.variant or section.variant,
             )
         )

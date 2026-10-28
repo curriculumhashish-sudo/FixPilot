@@ -11,7 +11,7 @@ class TRTSAction(Action):
 
 
 class MockSecurityTool1(ToolDefinition[TRTSAction, Observation]):
-    """Concrete mock tool for security testing - readonly."""
+    """用于安全测试的具体模拟对象工具-只读。"""
 
     name: ClassVar[str] = "t1"
 
@@ -21,7 +21,7 @@ class MockSecurityTool1(ToolDefinition[TRTSAction, Observation]):
 
 
 class MockSecurityTool2(ToolDefinition[TRTSAction, Observation]):
-    """Concrete mock tool for security testing - writable."""
+    """具体的模拟对象安全测试工具-可写。"""
 
     name: ClassVar[str] = "t2"
 
@@ -31,7 +31,7 @@ class MockSecurityTool2(ToolDefinition[TRTSAction, Observation]):
 
 
 class MockSecurityTool3(ToolDefinition[TRTSAction, Observation]):
-    """Concrete mock tool for security testing - no flag."""
+    """用于安全测试的具体模拟对象工具 - 无标志。"""
 
     name: ClassVar[str] = "t3"
 

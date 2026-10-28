@@ -1,15 +1,15 @@
-"""Pagination utilities for iterating over paginated search results."""
+"""用于迭代分页搜索结果的分页实用程序。"""
 
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any, Protocol
 
 
 class PageProtocol[T](Protocol):
-    """Protocol for page objects returned by search functions.
+    """搜索函数返回的页面对象的协议。
 
-    All page objects should have:
-    - items: A list of items of type T
-    - next_page_id: Optional string for pagination
+    所有页面对象应具有：
+    - items: T 类型的项目列表
+    - next_page_id: 分页所需的可选字符串
     """
 
     items: list[T]
@@ -22,26 +22,24 @@ async def page_iterator[T](
     **kwargs: Any,
 ) -> AsyncGenerator[T]:
     """
-    Iterate over items from paginated search results.
+    迭代分页搜索结果中的项目。
 
-    This utility function handles pagination automatically by calling the search
-    function repeatedly with updated page_id parameters until all pages are
-    exhausted.
+    这个实用函数通过反复调用搜索函数并更新 page_id 参数来自动处理分页。
 
     Args:
-        search_func: An async function that returns a PageProtocol[T] object
-                    with 'items' and 'next_page_id' attributes
-        *args: Positional arguments to pass to the search function
-        **kwargs: Keyword arguments to pass to the search function
+        search_func: 返回 PageProtocol[T] 对象的异步函数
+                    具有“items”和“next_page_id”属性
+        *args: 传递给搜索函数的位置参数
+        **kwargs: 要传递给搜索函数的关键字参数
 
     Yields:
-        Individual items of type T from each page
+        每页中 T 类型的单独项目
 
     Example:
-        async for event in page_iterator(event_service.search_events, limit=50):
-            await send_event(event, websocket)
+        异步对于 page_iterator(event_service.search_events, limit=50) 中的事件：
+            等待send_event（事件，WebSocket）
 
-        async for conversation in page_iterator(
+        异步用于 page_iterator( 中的对话
             conversation_service.search_conversations,
             execution_status=ConversationExecutionStatus.RUNNING
         ):
@@ -50,14 +48,14 @@ async def page_iterator[T](
     page_id = kwargs.pop("page_id", None)
 
     while True:
-        # Call the search function with current page_id
+        # 以当前page_id调用搜索函数
         page = await search_func(*args, page_id=page_id, **kwargs)
 
-        # Yield each item from the current page
+        # 生成当前页面中的每个项目
         for item in page.items:
             yield item
 
-        # Check if there are more pages
+        # 检查是否还有更多页面
         page_id = page.next_page_id
         if not page_id:
             break

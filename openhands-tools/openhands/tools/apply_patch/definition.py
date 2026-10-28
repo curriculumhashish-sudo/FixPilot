@@ -1,4 +1,4 @@
-"""ApplyPatch ToolDefinition and executor integrating the cookbook implementation."""
+"""ApplyPatch ToolDefinition 和执行器集成了说明书的实现。"""
 
 from __future__ import annotations
 
@@ -26,11 +26,10 @@ if TYPE_CHECKING:
 
 
 class ApplyPatchAction(Action):
-    """Tool action schema specifying the patch to apply.
+    """工具操作模式指定要应用的补丁。
 
-    The patch must follow the exact text format described in the OpenAI
-    Cookbook's GPT-5.1 prompting guide. The executor parses this patch and
-    applies changes relative to the current workspace root.
+    该补丁必须遵循 OpenAI Cookbook 的 GPT-5.1 提示指南中描述的确切文本格式。 执行器解
+    析此补丁并应用相对于当前工作区根的更改。
     """
 
     patch: str = Field(
@@ -42,11 +41,11 @@ class ApplyPatchAction(Action):
 
 
 class ApplyPatchObservation(Observation):
-    """Result of applying a patch.
+    """应用补丁的结果。
 
-    - message: human-readable summary of the changes or error
-    - fuzz: number of lines of fuzz used when applying hunks (0 means exact)
-    - commit: structured summary of the applied operations
+    - message: 人类可读的更改或错误摘要
+    - fuzz: 应用 hunk 时使用的模糊行数（0 表示精确）
+    - commit: 应用操作的结构化摘要
     """
 
     message: str = ""
@@ -55,23 +54,23 @@ class ApplyPatchObservation(Observation):
 
 
 class ApplyPatchExecutor(ToolExecutor[ApplyPatchAction, ApplyPatchObservation]):
-    """Executor that applies unified text patches within the workspace.
+    """在工作区内应用统一文本补丁的执行器。
 
-    Uses the pure functions in core.py for parsing and applying patches. All
-    filesystem access is constrained to the agent's workspace_root.
+    使用 core.py 中的纯函数来解析和应用补丁。 所有文件系统访问都仅限于智能体的
+    workspace_root。
     """
 
     def __init__(self, workspace_root: str):
-        """Initialize executor with a workspace root.
+        """使用工作区 root 初始化执行器。
 
         Args:
-            workspace_root: Base directory relative to which all patch paths are
-                resolved. Absolute or path-escaping references are rejected.
+            workspace_root: 所有补丁路径相对于的基目录
+                解决了。 绝对或路径转义引用将被拒绝。
         """
         self.workspace_root = Path(workspace_root).resolve()
 
     def _resolve_path(self, p: str) -> Path:
-        """Resolve a file path into the workspace, disallowing escapes."""
+        """将文件路径解析为工作区，不允许转义。"""
         pth = (
             (self.workspace_root / p).resolve()
             if not p.startswith("/")
@@ -86,7 +85,7 @@ class ApplyPatchExecutor(ToolExecutor[ApplyPatchAction, ApplyPatchObservation]):
         action: ApplyPatchAction,
         conversation=None,  # noqa: ARG002 - signature match
     ) -> ApplyPatchObservation:
-        """Execute the patch application and return an observation."""
+        """执行补丁应用程序并返回观测结果。"""
 
         def open_file(path: str) -> str:
             fp = self._resolve_path(path)
@@ -107,11 +106,12 @@ class ApplyPatchExecutor(ToolExecutor[ApplyPatchAction, ApplyPatchObservation]):
             msg, fuzz, commit = process_patch(
                 action.patch, open_file, write_file, remove_file
             )
-            # Include a human-readable summary in content so Responses API sees
-            # a function_call_output payload paired with the function_call.
+            # 在内容中包含人类可读的摘要，以便响应 API 看到与 function_call 配对的
+            # function_call_output 载荷。
+            #
             obs = ApplyPatchObservation(message=msg, fuzz=fuzz, commit=commit)
             if msg:
-                # Use Observation.from_text to populate content field correctly
+                # 使用 Observation.from_text 正确填充内容字段
                 obs = ApplyPatchObservation.from_text(
                     text=msg, message=msg, fuzz=fuzz, commit=commit, is_error=False
                 )
@@ -127,16 +127,15 @@ _DESCRIPTION = (
 
 
 class ApplyPatchTool(ToolDefinition[ApplyPatchAction, ApplyPatchObservation]):
-    """ToolDefinition for applying unified text patches.
+    """ToolDefinition 用于应用统一文本补丁。
 
-    Creates an ApplyPatchExecutor bound to the current workspace and supplies a
-    concise description. The Responses tool schema is minimized to rely on
-    provider-known behavior for GPT-5.1 models.
+    创建绑定到当前工作区的 ApplyPatchExecutor 并提供简洁的描述。 响应工具模式已最小化
+    ，以依赖 GPT-5.1 模型的提供者已知行为。
     """
 
     @classmethod
     def create(cls, conv_state: ConversationState) -> Sequence[ApplyPatchTool]:
-        """Initialize the tool for the active conversation state."""
+        """初始化活动对话状态的工具。"""
         executor = ApplyPatchExecutor(workspace_root=conv_state.workspace.working_dir)
         return [
             cls(
@@ -154,17 +153,18 @@ class ApplyPatchTool(ToolDefinition[ApplyPatchAction, ApplyPatchObservation]):
             )
         ]
 
-    # For OpenAI Responses API with GPT-5.1 models, the tool is server-known.
-    # Return a minimal function spec so the provider wires its own definition.
+    # 对于 GPT-5.1 模型的 OpenAI 响应 API，该工具是服务器已知的。 返回一个最小的函数规范
+    # ，以便提供者连接其自己的定义。
+    #
     def to_responses_tool(
         self,
         add_security_risk_prediction: bool = False,  # noqa: ARG002 - signature match
         action_type: type | None = None,  # noqa: ARG002 - signature match
     ) -> FunctionToolParam:  # type: ignore[override]
-        """Serialize to OpenAI Responses function tool spec.
+        """序列化至 OpenAI 响应功能工具规格。
 
-        GPT-5.1 tools are known server-side. We return a minimal schema to ensure
-        the model includes the canonical 'patch' argument when calling this tool.
+        GPT-5.1 工具是已知的服务器端工具。 我们返回一个最小的模式以确保模型在调用此工
+        具时包含规范的“补丁”参数。
         """
         return {
             "type": "function",

@@ -79,7 +79,7 @@ async def test_dispatch_routes_conversations_by_runtime(config):
         registry, http("POST", f"/api/conversations/{local_id}/events")
     )
     assert seen["path"] == f"/api/conversations/{local_id}/events"
-    # The bare GET is the shared catalog record.
+    # 裸露的 GET 是共享目录记录。
     seen = await _dispatch(registry, http("GET", f"/api/conversations/{docker_id}"))
     assert seen["path"] == f"/api/conversations/{docker_id}"
     seen = await _dispatch(registry, http("DELETE", f"/api/conversations/{docker_id}"))

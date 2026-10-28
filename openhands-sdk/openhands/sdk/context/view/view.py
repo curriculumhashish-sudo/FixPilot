@@ -20,39 +20,36 @@ logger = getLogger(__name__)
 
 
 class View(BaseModel):
-    """Linearly ordered view of events.
+    """事件的线性有序视图。
 
-    Produced by a condenser to indicate the included events are ready to process as LLM
-    input. Also contains fields with information from the condensation process to aid
-    in deciding whether further condensation is needed.
+    由上下文压缩器生成，指示包含的事件已准备好作为 LLM 输入进行处理。 还包含带有来自
+    上下文压缩流程的信息的字段，以帮助决定是否需要进一步的上下文压缩。
     """
 
     events: list[LLMConvertibleEvent] = Field(default_factory=list)
 
     unhandled_condensation_request: bool = False
-    """Whether there is an unhandled condensation request in the view."""
+    """视图中是否存在未处理的上下文压缩请求。"""
 
     def __len__(self) -> int:
         return len(self.events)
 
     @property
     def manipulation_indices(self) -> ManipulationIndices:
-        """The indices where the view events can be manipulated without violating the
-        properties expected by LLM APIs.
+        """可以在不违反规则的情况下操纵视图事件的索引
+        LLM APIs 所期望的属性。
 
-        Each property generates an independent set of manipulation indices. An index is
-        in the returned set of manipulation indices if it exists in _all_ the sets of
-        property-derived indices.
+        每个属性都会生成一组独立的操纵索引。 如果索引存在于_所有_属性派生索引集中，则
+        该索引位于返回的操作索引集中。
         """
         results: ManipulationIndices = ManipulationIndices.complete(self.events)
         for property in ALL_PROPERTIES:
             results &= property.manipulation_indices(self.events)
         return results
 
-    # To preserve list-like indexing, we ideally support slicing and position-based
-    # indexing. The only challenge with that is switching the return type based on the
-    # input type -- we can mark the different signatures for MyPy with `@overload`
-    # decorators.
+    # 为了保留类似列表的索引，我们最好支持切片和基于位置的索引。 然而，最大的挑战在于根
+    # 据输入类型切换返回类型 MyPy 与 `@overload` 装饰器。
+    #
 
     @overload
     def __getitem__(self, key: slice) -> list[LLMConvertibleEvent]: ...
@@ -75,16 +72,14 @@ class View(BaseModel):
         self,
         all_events: Sequence[Event],
     ) -> None:
-        """Enforce all properties on the list of current view events.
+        """强制执行当前视图事件列表上的所有属性。
 
-        Repeatedly applies each property's enforcement mechanism until the list of view
-        events reaches a stable state.
+        重复应用每个属性的强制机制，直到视图事件列表达到稳定状态。
 
-        Since enforcement is intended as a fallback to inductively maintaining the
-        properties via the associated manipulation indices, any time a property must be
-        enforced a warning is logged.
+        自执行旨在为回退方案通过关联的操纵索引来通过递归维护属性的性质，一旦必须强制
+        执行一个属性，就会记录警告。
 
-        Modifies the view in-place.
+        就地修改视图。
         """
         for property in ALL_PROPERTIES:
             events_to_forget = property.enforce(self.events, all_events)
@@ -99,25 +94,27 @@ class View(BaseModel):
                 ]
                 break
 
-        # If we get all the way through the loop without hitting a break, that means no
-        # properties needed to be enforced and we can keep the view as-is.
+        # 如果我们一路完成循环而没有中断，则意味着不需要强制执行任何属性，并且我们可以保
+        # 持视图不变。
+        #
         else:
             return
 
-        # If we did hit a break in the loop, a property applied and now we need to check
-        # all the properties again to see if any are unblocked.
+        # 如果我们确实在循环中遇到了中断，则会应用一个属性，现在我们需要再次检查所有属性
+        # 以查看是否有任何属性被解锁。
+        #
         self.enforce_properties(all_events)
 
     def append_event(self, event: Event) -> None:
-        """Append an event to the end of the view, applying any condensation semantics
-        as we do.
+        """将事件附加到视图末尾，应用任何上下文压缩语义
+        就像我们一样。
 
-        Modifies the view in-place.
+        就地修改视图。
         """
         match event:
-            # By the time we come across a Condensation event, the event list should
-            # already reflect the events seen by the agent up to that point. We can
-            # therefore apply the condensation semantics directly to the stored events.
+            # 当我们遇到上下文压缩事件时，事件列表应该已经反映了智能体迄今为止看到的事件
+            # 。 因此，我们可以将上下文压缩语义直接应用于存储的事件。
+            #
             case Condensation():
                 self.events = event.apply(self.events)
                 self.unhandled_condensation_request = False
@@ -128,11 +125,11 @@ class View(BaseModel):
             case LLMConvertibleEvent():
                 self.events.append(event)
 
-            # If the event isn't related to condensation and isn't LLMConvertible, it
-            # should not be in the resulting view. Examples include certain internal
-            # events used for state tracking that the LLM does not need to see -- see,
-            # for example, ConversationStateUpdateEvent, PauseEvent, and (relevant here)
+            # 如果事件不相关于上下文压缩和不是 LLMConvertible它不应该出现在结果视图中。
+            # 包括用于状态跟踪的某些内部事件 LLM 不需要查看 -- 例如，
+            # ConversationStateUpdateEvent, PauseEvent, and (relevant here)
             # CondensationRequest.
+            #
             case _:
                 logger.debug(
                     f"Skipping non-LLMConvertibleEvent of type {type(event)} "
@@ -141,20 +138,19 @@ class View(BaseModel):
 
     @staticmethod
     def from_events(events: Sequence[Event]) -> View:
-        """Create a view from a list of events, respecting the semantics of any
-        condensation events.
+        """从事件列表创建视图，尊重任何事件的语义
+        上下文压缩事件。
         """
         result: View = View()
 
-        # Generate the LLMConvertibleEvent objects the agent can send to the LLM by
-        # adding them one at a time to the result view. This ensures condensations are
-        # applied in the order they were generated and condensation requests are
-        # appropriately tracked.
+        # 生成  LLMConvertibleEvent 对象的智能体可以发送到 LLM 通过逐个添加到结果视图中
+        # 。 这确保了浓缩物按生成的顺序应用上下文压缩请求被适当跟踪。
+        #
         for event in events:
             result.append_event(event)
 
-        # Once all the events are loaded enforce the relevant properties to ensure
-        # the construction was done properly.
+        # 加载所有事件后，强制执行相关属性以确保构建正确完成。
+        #
         result.enforce_properties(events)
 
         return result

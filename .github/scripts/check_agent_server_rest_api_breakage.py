@@ -1,66 +1,57 @@
 #!/usr/bin/env python3
-"""REST API breakage detection for openhands-agent-server using oasdiff.
+"""REST API 使用 oasdiff 对 OpenHands-智能体-服务器进行损坏检测。
 
-This script compares the current OpenAPI schema for the public agent-server REST API
-(the `/api/**` surface) against an already-published release. The baseline version is
-selected from PyPI, but the baseline schema is generated from the matching git tag
-under the current workspace's locked dependency set. This keeps the comparison
-focused on API changes in our code, not schema drift from newer FastAPI/Pydantic
-releases.
+这个脚本比较了当前 OpenAPI  模式对于公众智能体-server REST  API (the) `/api/**` 在已
+发布的版本上对抗。 基准版本是从选择的
+PyPI, 但基准模式从当前的匹配的 git 标签生成的工作区锁定的依赖集。 这保持了比较的焦点
+在 API 在我们的代码中，不是模式从更新处偏离
+FastAPIPydantic 发行版本。
 
-The deprecation note it recognizes intentionally matches the phrasing used by the
-Python deprecation checks, for example:
+它识别的弃用注释有意与 Python 弃用检查所使用的措辞相匹配，例如：
 
     Deprecated since v1.14.0 and scheduled for removal in v1.19.0.
 
-Policies enforced:
+执行政策：
 
-1) REST deprecations must use FastAPI/OpenAPI metadata
-   - FastAPI route handlers must not use `openhands.sdk.utils.deprecation.deprecated`.
-   - Endpoints documented as deprecated in their OpenAPI description must also be
-     marked `deprecated: true` in the generated schema.
+1) REST 弃用项必须使用 FastAPI/OpenAPI 元数据
+   - FastAPI 路由处理程序不得使用 `openhands.sdk.utils.deprecation.deprecated`。
+   - 端点在其 OpenAPI 描述中记录为已弃用，也必须在生成的模式中标记为
+   `deprecated: true`。
 
-2) Deprecation runway before removal
-   - If a REST operation (path + HTTP method) or schema property is removed, it
-     must have been marked `deprecated: true` in the baseline release and its
-     OpenAPI description must declare a scheduled removal version that has been
-     reached by the current package version.
+2) 弃用拆除前的跑道
+   - 如果移除了 REST 操作（路径 + HTTP 方法）或模式属性，必须在基线版本中标记
+   `deprecated: true`，并且其 OpenAPI 描述必须声明
+   一个已达到的计划移除版本，该版本由当前包版本达到。
 
-3) Additive request/response oneOf/anyOf expansion is allowed
-   - Adding new members to ``oneOf`` or ``anyOf`` discriminated unions in request
-     or response schemas is a normal evolution for extensible APIs. Clients MUST
-     handle unknown discriminator values gracefully (skip/ignore).
-   - oasdiff can report union widening as ERR plus secondary type-change or
-     property-removal artifacts for fields that still exist on one union member;
-     this script downgrades those artifacts to informational notices.
+3) 允许附加请求/响应 oneOf/anyOf 扩展
+   - 在请求或响应模式中添加``oneOf``或``anyOf``的扩展型APIs成员是正常的发展。 客户端
+   必须优雅地处理未知的标识符值（跳过/忽略）。
+   - oasdiff 可以将联合扩展报告为 ERR 加上仍存在于一个联合成员上的字段的辅助类型更改
+   或属性删除工件； 该脚本将这些工件降级为信息通知。
 
-4) Additive response property type widening is allowed with release notes
-   - If a response property's old type remains valid and the schema only adds more
-     accepted types, the check passes and the workflow marks the PR
-     release-note-required.
+4) 发布说明允许加性响应属性类型加宽
+   - 如果响应属性的旧类型仍然有效，且只有模式添加了新的接受类型，则检查通过，并且工作
+   流标记为 PR 需要发布注释。
 
-5) Schema-only repairs of previously opaque MCP/settings locations are allowed
-   - The runtime already returned MCP objects at these locations, but historical
-     OpenAPI described them as empty/unconstrained schemas. Giving those existing
-     objects their real shape is not a wire-format change.
-   - Pydantic may also collapse identical validation/serialization components;
-     replacing ``MCPNoneAuthCredential-Input`` with the structurally identical
-     ``MCPNoneAuthCredential`` is a component-name repair, not a union removal.
+5) 模式-仅允许修复以前不透明的 MCP/设置位置
+   - 运行时已在这些位置返回 MCP 个对象，但历史 OpenAPI 将它们描述为空/不受约束模式。
+   赋予这些现有对象真实的形状并不是线格式的改变。
+   - Pydantic 也可能会折叠相同的验证/序列化组件； 将 ``MCPNoneAuthCredential-Input``
+   替换为结构相同的
+     ``MCPNoneAuthCredential`` 是组件名称修复，而不是联合删除。
 
-6) Publishing the existing pagination limit is allowed
-   - Four search endpoints already rejected limits above 100 at runtime. Their
-     historical schemas used the unsupported ``lte: 100`` keyword. Replacing it
-     with ``maximum: 100`` documents that existing bound.
+6) 允许发布现有的分页限制
+   - 四个搜索端点已在运行时拒绝超过 100 的限制。 他们的历史模式使用了不受支持的
+   ``lte: 100`` 关键字。 将其替换为现有绑定的
+   ``maximum: 100`` 文档。
 
-7) No in-place contract breakage
-   - Breaking REST contract changes that are not removals of previously-deprecated
-     operations/properties, additive oneOf expansions, or additive response property
-     type widenings fail the check. REST clients need 5 minor releases of runway, so
-     incompatible replacements must ship additively or behind a versioned contract
-     until the scheduled removal version.
+7) 没有就地合同违约
+   - REST 项破坏的断言更改，不是移除之前已弃用操作/属性、累加oneOf 扩展或累加响应属性
+   类型宽展，都不会通过检查。 REST 客户需要 5 次版本发布的跑道，
+   因此不兼容的替代品必须逐层发布或通过版本化合同发布，直到预定移除版本。
 
-If the baseline release schema can't be generated (e.g., missing tag / repo issues),
-the script emits a warning and exits successfully to avoid flaky CI.
+如果基线发布模式无法生成 (e.g，缺少标签/仓库问题)，脚本会发出警告并成功退出，以避免
+flaky CI。
 """
 
 from __future__ import annotations
@@ -86,8 +77,9 @@ from openhands.agent_server.openapi import filter_public_openapi
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_SERVER_PYPROJECT = REPO_ROOT / "openhands-agent-server" / "pyproject.toml"
 PYPI_DISTRIBUTION = "openhands-agent-server"
-# Keep this in sync with REST_ROUTE_DEPRECATION_RE in check_deprecations.py so
-# the REST breakage and deprecation checks recognize the same wording.
+# 将其保留在同步中，REST_ROUTE_DEPRECATION_RE 保留在 check_deprecations.py 中，以便 REST
+#  破损和弃用检查识别相同的措辞。
+#
 REST_ROUTE_DEPRECATION_RE = re.compile(
     r"Deprecated since v(?P<deprecated>[0-9A-Za-z.+-]+)\s+"
     r"and scheduled for removal in v(?P<removed>[0-9A-Za-z.+-]+)\.?",
@@ -330,9 +322,9 @@ def _find_sdk_deprecated_fastapi_routes(repo_root: Path) -> list[str]:
 
 
 def _filter_public_rest_openapi(schema: dict) -> dict:
-    # Compatibility checks retain the historical component set so an approved,
-    # deprecated property can still be inspected after the route that referenced
-    # it is removed. Release artifacts use the pruned, canonical mode instead.
+    # 兼容性检查保留了历史组件集，因此即使在引用该路由的路线被移除后，也可以检查已批准的
+    # 已弃用属性。 发布工件使用修剪的规范模式。
+    #
     return filter_public_openapi(
         schema,
         prune_schemas=False,
@@ -369,10 +361,10 @@ def _find_deprecation_policy_errors(schema: dict) -> list[str]:
 def _parse_openapi_deprecation_description(
     description: str | None,
 ) -> tuple[str, str] | None:
-    """Extract ``(deprecated_in, removed_in)`` from an OpenAPI description.
+    """从 OpenAPI 描述中提取 ``(deprecated_in, removed_in)``。
 
-    The accepted wording intentionally matches ``check_deprecations.py`` so both
-    CI checks recognize the same note, for example:
+    接受的措辞有意匹配 ``check_deprecations.py``，因此两个 CI 检查都识别相同的注释，
+    例如：
 
         Deprecated since v1.14.0 and scheduled for removal in v1.19.0.
     """
@@ -412,7 +404,7 @@ def _validate_removed_operations(
     prev_schema: dict,
     current_version: str,
 ) -> list[str]:
-    """Validate removed operations against the baseline deprecation metadata."""
+    """根据基线弃用元数据验证已删除的操作。"""
     errors: list[str] = []
 
     for operation in removed_operations:
@@ -502,7 +494,7 @@ def _validate_removed_schema_properties(
     prev_schema: dict,
     current_version: str,
 ) -> list[str]:
-    """Validate removed schema properties against baseline deprecation metadata."""
+    """根据基准弃用元数据验证已删除的模式属性。"""
     errors: list[str] = []
     baseline_properties: dict[str, list[dict]] = {}
     for property_name, property_schema in _iter_schema_properties(prev_schema):
@@ -568,17 +560,17 @@ def _validate_removed_schema_properties(
     return errors
 
 
-# oasdiff rule IDs for additive oneOf/anyOf expansion in response schemas.
-# These are flagged as ERR by oasdiff but are expected evolution for extensible
-# discriminated-union APIs (e.g. the events endpoint).  We downgrade them to
-# informational notices so they don't block CI.
+# oasdiff规则ID用于添加 oneOf/anyOf 回应的扩展模式。 这些被标记为 ERR 由 oasdiff 生成，
+# 但被期望为可扩展的歧异组合的演化 APIs (e.g. 事件端点). 我们将它们降级为信息性通知，以
+# 免它们阻断 CI.
+#
 _ADDITIVE_RESPONSE_ONEOF_IDS = frozenset(
     {
         "response-body-one-of-added",
         "response-property-one-of-added",
-        # Keep the anyOf variants here too so that if oasdiff ever reports them
-        # as breakages, additive response-union expansion gets the same
-        # downgrade without further script changes.
+        # 将 anyOf 的变体也保留下来，这样如果 oasdiff 指出它们是破坏，加性响应-合并扩展
+        # 也会得到同样的降级，而无需进一步的脚本更改。
+        #
         "response-body-any-of-added",
         "response-property-any-of-added",
     }
@@ -593,7 +585,7 @@ _ADDITIVE_RESPONSE_BODY_ONEOF_IDS = frozenset(
 )
 
 
-# oasdiff rule IDs for enum-value additions in response schemas.
+# 响应模式中添加枚举值的 oasdiff 规则 ID。
 _RESPONSE_ENUM_VALUE_ADDED_IDS = frozenset(
     {
         "response-property-enum-value-added",
@@ -632,12 +624,11 @@ def _response_type_widening_report_items(
     return items
 
 
-# Response properties that are known extensible discriminated-union discriminators
-# and may therefore grow new enum values additively. Adding a HookType value
-# (e.g. "agent") to a hook definition's `type` is safe because hook configs are an
-# extensible union and clients must tolerate unknown discriminator values. This is
-# intentionally scoped to the hook discriminator so an ordinary new response enum
-# value elsewhere (a new status/mode/etc.) is still treated as a breaking change.
+# 响应属性是已知的可扩展判别联合判别器，因此可能会累加地增长新的枚举值。 添加 HookType
+# 值 (e.g. “智能体”）到钩子定义的 `type` 是安全的，因为钩子配置是一个可扩展的联合，并且
+# 客户端必须容忍未知的鉴别器值。 这是有意限制在钩子标识符上的，因此，其他地方（新的状态/
+# 模式等）的普通新响应值枚举仍然被视为不兼容变更。
+#
 _EXTENSIBLE_DISCRIMINATOR_PROPERTY_RE = re.compile(
     r"HookConfig\b.*\bhooks/items/type\b"
 )
@@ -659,13 +650,12 @@ _ACCEPTED_VSCODE_BASE_URL_DEFAULT_REMOVAL_PARAM_RE = re.compile(
 
 
 def _is_accepted_vscode_base_url_default_removal(change: dict) -> bool:
-    """Return True for the accepted /api/vscode/url base_url default removal.
+    """返回 True 表示已接受的 /api/vscode/url base_url 默认删除。
 
-    Maintainers accepted this documented-default removal in PR #4181: the
-    ``base_url`` query parameter stays optional, only the server-side fallback
-    changed (from a hardcoded ``http://localhost:8001`` to the actually
-    configured VSCode port). Requests that omit ``base_url`` keep working, so
-    no client contract is broken.
+    维护者在 PR #4181 中接受了这个已记录的默认删除：
+    ``base_url`` 查询参数仍然保留可选性，仅服务器端回退方案改变了（从硬编码的
+    ``http://localhost:8001`` 改为实际配置的
+    VSCode 端口）。 ``base_url`` 项请求仍可发送，因此没有破坏客户端合同。
     """
     return (
         str(change.get("id", "")) == _ACCEPTED_VSCODE_BASE_URL_DEFAULT_REMOVAL_ID
@@ -694,7 +684,7 @@ _SEARCH_LIMIT_SCHEMA_REPAIR_PATHS = frozenset(
 
 
 def _is_search_limit_schema_repair(change: dict, prev_schema: dict) -> bool:
-    """Accept the known pagination ``lte: 100`` to ``maximum: 100`` repair."""
+    """接受已知分页``lte: 100``到``maximum: 100``的修复。"""
     path = change.get("path", "")
     if (
         change.get("id") != "request-parameter-max-set"
@@ -721,7 +711,7 @@ def _is_search_limit_schema_repair(change: dict, prev_schema: dict) -> bool:
 
 
 def _is_accepted_cloud_proxy_removal(operation: dict) -> bool:
-    """Return True for the accepted /api/cloud-proxy removal from PR #3326."""
+    """返回 True 以从 PR #3326 中删除已接受的 /api/cloud-proxy。"""
     path = str(operation.get("path", ""))
     method = str(operation.get("method", "")).lower()
     return (
@@ -732,7 +722,7 @@ def _is_accepted_cloud_proxy_removal(operation: dict) -> bool:
 
 
 def _is_accepted_cloud_proxy_path_removal(change: dict) -> bool:
-    """Return True for oasdiff's accepted /api/cloud-proxy path-removal shape."""
+    """返回 oasdiff 接受的 /api/cloud-proxy 路径移除形状的 True。"""
     return (
         str(change.get("id", "")) == _ACCEPTED_CLOUD_PROXY_PATH_REMOVAL_ID
         and str(change.get("path", "")) == _ACCEPTED_CLOUD_PROXY_REMOVAL_PATH
@@ -744,11 +734,10 @@ def _is_accepted_cloud_proxy_path_removal(change: dict) -> bool:
 
 
 def _is_additive_discriminator_enum_value(change: dict) -> bool:
-    """Return True for additive enum values on a known extensible discriminator.
+    """对于已知可扩展鉴别器上的加性枚举值，返回 True。
 
-    Adding a value to a response enum is normally breaking (generated clients may
-    treat the enum exhaustively), so this is scoped narrowly to the hook config
-    discriminator union rather than allowlisting every response enum addition.
+    将值添加到响应枚举通常会破坏（生成的客户端可能会对枚举进行彻底处理），因此此功能
+    仅限于钩子配置断言合集，而不是允许添加到每个响应枚举。
     """
     if str(change.get("id", "")) not in _RESPONSE_ENUM_VALUE_ADDED_IDS:
         return False
@@ -757,12 +746,11 @@ def _is_additive_discriminator_enum_value(change: dict) -> bool:
 
 
 def _is_union_property_removal_artifact(change: dict) -> bool:
-    """Return True for property removals that are artifacts of union widening.
+    """对于作为联合扩展的工件的属性删除，返回 True。
 
-    When a request or response schema is widened from a concrete object schema
-    to an additive oneOf/anyOf union, oasdiff can emit secondary "removed
-    property" reports for the original object's fields even though the original
-    schema is still present as one union member.
+    当请求或响应模式从一个具体的对象扩展而来模式加法 oneOf/anyOf oasdiff 可以为原始对
+    象的字段生成次级“移除属性”报告，尽管 union 模式仍然作
+    为联盟成员之一存在。
     """
     change_id = str(change.get("id", "")).lower()
     text = str(change.get("text", "")).lower()
@@ -794,13 +782,11 @@ _AGENT_SETTINGS_DIFF_SCHEMA_REPAIR = (
 
 
 def _is_mcp_contract_schema_repair(change: dict) -> bool:
-    """Recognize wire-compatible repairs of historically opaque MCP schemas.
+    """识别历史上不透明的电线兼容修复 MCP 模式。
 
-    This is deliberately narrower than accepting arbitrary type changes. The
-    response exception only covers MCP settings and OAuth state locations whose
-    old schemas had no type at all. The request exceptions cover an identical
-    Pydantic component rename and the settings diff's replacement of an
-    unrestricted object schema with the same extensible object plus known fields.
+    这是故意比接受任意类型更改更窄的。 响应异常仅涵盖 MCP 设置和旧模式根本没有类型的
+    OAuth 状态位置。 请求异常覆盖了一个相同的Pydantic组件重命名和
+    一个不受限制的对象模式的替换，该对象与具有已知字段的可扩展对象相同。
     """
     text = str(change.get("text", ""))
     if _OPAQUE_TO_OBJECT_TYPE_CHANGE in text and any(
@@ -821,7 +807,7 @@ def _is_mcp_contract_schema_repair(change: dict) -> bool:
 def _split_breaking_changes(
     breaking_changes: list[dict],
 ) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
-    """Split oasdiff results into allowlisted buckets and other breakages."""
+    """将 oasdiff 结果拆分为允许列表中的存储桶和其他损坏的存储桶。"""
     removed_operations: list[dict] = []
     removed_schema_properties: list[dict] = []
     additive_response_oneof: list[dict] = []
@@ -862,14 +848,14 @@ def _split_breaking_changes(
 
 
 def _normalize_openapi_for_oasdiff(schema: dict) -> dict:
-    """Normalize OpenAPI 3.1 schema for oasdiff compatibility.
+    """标准化 OpenAPI 3.1 模式以实现 oasdiff 兼容性。
 
-    oasdiff expects OpenAPI 3.0-style exclusiveMinimum/exclusiveMaximum booleans
-    (https://spec.openapis.org/oas/v3.0.3.html#schema-object), while OpenAPI 3.1
-    emits numeric values. Convert numeric exclusives into minimum/maximum +
-    exclusive boolean flags so oasdiff can parse the schema.
+    oasdiff 需要 OpenAPI 3.0 样式 exclusiveMinimum/exclusiveMaximum 布尔值 (
+    https://spec.openapis.org/oas/v3.0.3.html#schema-object )，而 OpenAPI 3.1 发出数
+    值。 将数字独
+    占值转换为最小/最大+独占布尔标志，以便 oasdiff 可以解析模式。
 
-    Mutates the schema in place and returns it for convenience.
+    为了方便起见，对模式进行适当的修改并返回它。
     """
 
     def _walk(node: object) -> None:
@@ -906,9 +892,9 @@ def _normalize_openapi_for_oasdiff(schema: dict) -> dict:
 def _run_oasdiff_breakage_check(
     prev_spec: Path, cur_spec: Path
 ) -> tuple[list[dict], int]:
-    """Run oasdiff breaking check between two OpenAPI specs.
+    """在两个 OpenAPI 规格之间运行 oasdiff 破坏检查。
 
-    Returns (list of breaking changes, exit code from oasdiff).
+    返回（不兼容变更列表，oasdiff 的退出代码）。
     """
     try:
         result = subprocess.run(

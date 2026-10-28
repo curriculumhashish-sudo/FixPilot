@@ -1,4 +1,4 @@
-"""Secret sources and types for handling sensitive data."""
+"""机密用于处理敏感数据的来源和类型。"""
 
 import os
 from abc import ABC, abstractmethod
@@ -39,31 +39,28 @@ _local_secret_resolvers: list[LocalSecretResolver] = []
 
 
 def register_local_secret_resolver(resolver: LocalSecretResolver) -> None:
-    """Register an in-process resolver for ``LookupSecret`` URLs.
+    """注册一个 ``LookupSecret`` URLs 在线解析器。
 
-    A process that both serves and consumes ``LookupSecret`` URLs — an
-    agent-server running an in-process conversation, say — cannot fetch them
-    over HTTP from its own event loop: the request can only be answered by the
-    loop that is blocked waiting for it, so it stalls until the client times
-    out. Registering a resolver lets such a process answer its own URLs
-    directly and skip the round trip.
+    既是服务者又是消费者的过程 ``LookupSecret``  URLs — an 智能体- 服务器正在运行一个
+    在进程中的对话，比如 — 无法从中获取它们 HTTP
+     从自身事件循环： 请求只能由等待它的人阻塞的循环来回答，因此它会阻塞直到客户端超
+     时。 注册一个解析器可以让这种过程回答自己 URLs 直接跳过往返。
 
-    The resolver receives the fully-resolved URL and returns the secret value,
-    or ``None`` when it does not serve that URL, in which case resolution falls
-    through to the next resolver and finally to HTTP.
+    解析器接收完全解析的URL，返回机密值，或``None``当它不提供该URL时，此时解析继续向
+    下到下一个解析器，最终到达HTTP。
     """
     if resolver not in _local_secret_resolvers:
         _local_secret_resolvers.append(resolver)
 
 
 def unregister_local_secret_resolver(resolver: LocalSecretResolver) -> None:
-    """Remove a resolver registered with ``register_local_secret_resolver``."""
+    """删除使用 ``register_local_secret_resolver`` 注册的解析器。"""
     if resolver in _local_secret_resolvers:
         _local_secret_resolvers.remove(resolver)
 
 
 def _resolve_secret_locally(url: str) -> str | None:
-    """Return a locally-served value for ``url``, or ``None`` if there is none."""
+    """返回 ``url`` 的本地服务值，如果存在 None，则返回 ``None``。"""
     for resolver in list(_local_secret_resolvers):
         try:
             value = resolver(url)
@@ -78,7 +75,7 @@ def _resolve_secret_locally(url: str) -> str | None:
 
 
 class SecretSource(DiscriminatedUnionMixin, ABC):
-    """Source for a named secret which may be obtained dynamically"""
+    """可以动态获取的命名机密的源"""
 
     description: str | None = Field(
         default=None,
@@ -87,11 +84,11 @@ class SecretSource(DiscriminatedUnionMixin, ABC):
 
     @abstractmethod
     def get_value(self) -> str | None:
-        """Get the value of a secret in plain text"""
+        """获取纯文本形式的机密的值"""
 
 
 class StaticSecret(SecretSource):
-    """A secret stored locally"""
+    """A 机密存储在本地"""
 
     value: SecretStr | None = None
 
@@ -111,7 +108,7 @@ class StaticSecret(SecretSource):
 
 
 class LookupSecret(SecretSource):
-    """A secret looked up from some external url"""
+    """A 机密从某个外部 url 查找"""
 
     url: str
     headers: dict[str, str] = Field(default_factory=dict)
@@ -138,22 +135,20 @@ class LookupSecret(SecretSource):
                 result[key] = value
                 continue
 
-            # Drop empty / redacted header values up-front; they carry no
-            # usable auth material regardless of cipher state.
+            # 预先删除空/已脱敏标头值； 无论密码状态如何，它们都不携带可用的身份验证材料
+            # 。
+            #
             if not value or not value.strip() or is_redacted_secret(value):
                 logger.debug(f"Skipping redacted header '{key}' during deserialization")
                 continue
 
             secret_value = validate_secret(SecretStr(value), info)
             if secret_value is None:
-                # validate_secret only returns None for a non-empty input when
-                # a cipher was supplied in the validation context but
-                # decryption failed. That happens when callers (e.g. a frontend
-                # building a LookupSecret) send a plaintext auth header but
-                # the request is otherwise tagged as containing encrypted
-                # secrets. Preserve the original value rather than silently
-                # dropping the header — the caller's intent for headers is
-                # always plaintext authentication metadata.
+                # 当验证上下文中提供了密码但解密失败时，validate_secret 仅针对非空输入返
+                # 回 None。 当调用者 (e.g. 前端正在构建一个 LookupSecret 发送纯文本认证
+                # 头，但请求的其他部分被标记为包含加密机密。 保留原始值而不是默默地删除
+                # 标头 - 调用者对标头的意图始终是纯文本身份验证元数据。
+                #
                 logger.debug(
                     f"Header '{key}' could not be decrypted; "
                     "treating value as plaintext"
@@ -180,5 +175,5 @@ class LookupSecret(SecretSource):
         return result
 
 
-# Type alias for secret values - can be a plain string or a SecretSource
+# 机密值的类型别名 - 可以是纯字符串或 SecretSource
 SecretValue = str | SecretSource

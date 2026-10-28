@@ -1,4 +1,4 @@
-"""Hook execution event for observability into hook execution."""
+"""挂钩执行事件，以便可观察挂钩执行。"""
 
 from typing import Any, Literal
 
@@ -20,22 +20,22 @@ HookEventType = Literal[
 
 
 class HookExecutionEvent(Event):
-    """Event emitted when a hook is executed.
+    """执行钩子时发出事件。
 
-    This event provides observability into hook execution, including:
-    - Which hook type was triggered
-    - The command that was run
-    - The result (success/blocked/error)
-    - Any output from the hook
+    此事件提供了对钩子执行的可观察性，包括：
+    - 触发了哪种钩子类型
+    - 运行的命令
+    - 结果（成功/阻塞/错误）
+    - 钩子的任何输出
 
-    This allows clients to track hook execution via the event stream.
+    这允许客户端通过事件流跟踪钩子执行。
     """
 
     source: SourceType = Field(
         default="hook", description="Source is always 'hook' for hook execution events"
     )
 
-    # Hook identification
+    # 挂钩识别
     hook_event_type: HookEventType = Field(
         ..., description="The type of hook event that triggered this execution"
     )
@@ -45,7 +45,7 @@ class HookExecutionEvent(Event):
         description="Tool name for PreToolUse/PostToolUse hooks",
     )
 
-    # Execution result
+    # 执行结果
     success: bool = Field(..., description="Whether the hook executed successfully")
     blocked: bool = Field(
         default=False,
@@ -53,7 +53,7 @@ class HookExecutionEvent(Event):
     )
     exit_code: int = Field(..., description="Exit code from the hook command")
 
-    # Output
+    # 输出
     stdout: str = Field(default="", description="Standard output from the hook")
     stderr: str = Field(default="", description="Standard error from the hook")
     reason: str | None = Field(
@@ -67,7 +67,7 @@ class HookExecutionEvent(Event):
         default=None, description="Error message if hook execution failed"
     )
 
-    # Context
+    # 上下文
     action_id: EventID | None = Field(
         default=None,
         description="ID of the action this hook is associated with (PreToolUse/PostToolUse)",  # noqa: E501
@@ -83,7 +83,7 @@ class HookExecutionEvent(Event):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this hook execution event."""
+        """返回此挂钩执行事件的富文本表示形式。"""
         content = Text()
         content.append("Hook: ", style="bold")
         content.append(f"{self.hook_event_type}")
@@ -91,7 +91,7 @@ class HookExecutionEvent(Event):
             content.append(f" ({self.tool_name})")
         content.append("\n")
 
-        # Status
+        # 状态
         if self.blocked:
             content.append("Status: ", style="bold")
             content.append("BLOCKED", style="bold red")
@@ -108,7 +108,7 @@ class HookExecutionEvent(Event):
 
         content.append(f"\nExit Code: {self.exit_code}")
 
-        # Output (truncated)
+        # 输出（截断）
         if self.stdout:
             output_preview = self.stdout[:200]
             if len(self.stdout) > 200:
@@ -121,7 +121,7 @@ class HookExecutionEvent(Event):
         return content
 
     def __str__(self) -> str:
-        """Plain text string representation for HookExecutionEvent."""
+        """HookExecutionEvent 的纯文本字符串表示形式。"""
         status = (
             "BLOCKED" if self.blocked else ("SUCCESS" if self.success else "FAILED")
         )

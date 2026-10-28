@@ -1,9 +1,8 @@
-"""A request waiting on a profile/connection store lock must not stall the server.
+"""在配置文件/连接存储锁上等待的请求不得停止服务器。
 
-The four stores below take a ``filelock.FileLock`` whose ``acquire`` polls with
-a blocking sleep (up to 30 s). Their route handlers must run that wait off the
-event loop, so ``/alive`` keeps answering while another process holds the lock.
-Regression test for issue #5632.
+下面的四个存储采用 ``filelock.FileLock``，其 ``acquire`` 通过阻塞睡眠（最多 30 秒）进
+行轮询。 它们的路由处理程序必须运行等待事件循环
+，因此 ``/alive`` 会在另一个进程持有锁时继续应答。 回归测试问题#5632。
 """
 
 import asyncio
@@ -20,8 +19,9 @@ from openhands.agent_server.config import Config
 from openhands.agent_server.persistence import reset_stores
 
 
-# Upper bound for the held lock: if the handler blocks the event loop, nothing
-# can release the lock from the test, so a timer frees it after this long.
+# 保留的锁的上限：如果处理程序阻塞事件循环，则没有任何内容可以释放锁进行测试，因此计时器
+# 会在这么长的时间后释放它。
+#
 _SAFETY_RELEASE_SECONDS = 5.0
 _ALIVE_BUDGET_SECONDS = 2.0
 
@@ -91,8 +91,9 @@ async def test_alive_answers_while_store_request_waits_for_lock(
 
     lock_path = tmp_path / lock_file
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    # A separate FileLock instance stands in for another process holding the
-    # store lock. ``thread_local=False`` lets the safety timer release it.
+    # 单独的 FileLock 实例代表保存存储锁的另一个进程。 ``thread_local=False`` 让安全定时
+    # 器释放它。
+    #
     held = FileLock(lock_path, thread_local=False)
     held.acquire()
     safety = threading.Timer(_SAFETY_RELEASE_SECONDS, held.release)
@@ -105,7 +106,7 @@ async def test_alive_answers_while_store_request_waits_for_lock(
                 client.request(method, path, json=json_body, timeout=60)
             )
             started = time.monotonic()
-            # Let the store request start and block on the lock.
+            # 让存储请求开始并在锁上阻塞。
             await asyncio.sleep(0.3)
             alive = await client.get("/alive", timeout=60)
             elapsed = time.monotonic() - started
@@ -115,7 +116,7 @@ async def test_alive_answers_while_store_request_waits_for_lock(
                 f"/alive took {elapsed:.1f}s while a store request waited "
                 "for the lock: the wait is blocking the event loop"
             )
-            # The store request was really still waiting on the lock.
+            # 存储请求实际上仍在等待锁。
             assert not waiting.done()
 
             safety.cancel()

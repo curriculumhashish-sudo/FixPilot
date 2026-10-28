@@ -1,8 +1,7 @@
 """
-Standalone unit tests for WebhookSubscriber class functionality.
+独立单元测试用于 WebhookSubscriber 类功能。
 
-This test file recreates the WebhookSubscriber class logic to test it
-without dependencies on the openhands.sdk module.
+此测试文件重新创建 WebhookSubscriber 类逻辑来测试它，而不依赖于 openhands.sdk 模块。
 """
 
 import asyncio
@@ -39,10 +38,10 @@ from tests.agent_server.stress.scripts import (
 
 @pytest.fixture
 def mock_event_service():
-    """Create a mock EventService for testing."""
+    """创建模拟对象 EventService 进行测试。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
-        # Mock httpx.get to prevent HTTP calls to staging server during LLM init
+        # 模拟对象 httpx.get 防止在 LLM init 期间 HTTP 调用登台服务器
         with patch("openhands.sdk.llm.utils.model_info.httpx.get") as mock_get:
             mock_get.return_value = MagicMock(json=lambda: {"data": []})
             service = EventService(
@@ -65,26 +64,26 @@ def mock_event_service():
 
 @pytest.fixture
 def webhook_spec():
-    """Create a WebhookSpec for testing."""
+    """创建一个 WebhookSpec 进行测试。"""
     return WebhookSpec(
         base_url="https://example.com",
         event_buffer_size=3,
         headers={"Content-Type": "application/json", "Authorization": "Bearer token"},
         num_retries=2,
         retry_delay=1,
-        flush_delay=0.1,  # Short delay for testing
+        flush_delay=0.1,  # 测试延迟短
     )
 
 
 @pytest.fixture
 def minimal_webhook_spec():
-    """Create a minimal WebhookSpec for testing."""
+    """创建一个最小的 WebhookSpec 进行测试。"""
     return WebhookSpec(base_url="https://example.com")
 
 
 @pytest.fixture
 def sample_event():
-    """Create a sample Event for testing."""
+    """创建一个示例事件以进行测试。"""
     text_content = TextContent(text="Hello, world!")
     message = Message(role="user", content=[text_content])
     message_event = MessageEvent(source="user", llm_message=message)
@@ -93,7 +92,7 @@ def sample_event():
 
 @pytest.fixture
 def sample_events():
-    """Create multiple sample Events for testing."""
+    """创建多个示例事件以进行测试。"""
     events = []
     for i in range(5):
         text_content = TextContent(text="Hello, world!")
@@ -105,25 +104,25 @@ def sample_events():
 
 @pytest.fixture
 def sample_conversation_id():
-    """Create a sample conversation ID for testing."""
+    """创建示例对话 ID 进行测试。"""
     return uuid4()
 
 
 class TestWebhookSpecValidation:
-    """Test cases for WebhookSpec validation."""
+    """测试用例为 WebhookSpec 验证。"""
 
     def test_webhook_spec_default_flush_delay(self):
-        """Test that WebhookSpec has a default flush_delay value."""
+        """测试 WebhookSpec 是否具有默认值 flush_delay。"""
         spec = WebhookSpec(base_url="https://example.com")
         assert spec.flush_delay == 30.0
 
     def test_webhook_spec_custom_flush_delay(self):
-        """Test that WebhookSpec accepts custom flush_delay values."""
+        """测试 WebhookSpec 是否接受自定义 flush_delay 值。"""
         spec = WebhookSpec(base_url="https://example.com", flush_delay=60.0)
         assert spec.flush_delay == 60.0
 
     def test_webhook_spec_flush_delay_validation_positive(self):
-        """Test that flush_delay must be positive."""
+        """测试 flush_delay 必须为正。"""
         with pytest.raises(ValidationError) as exc_info:
             WebhookSpec(base_url="https://example.com", flush_delay=0.0)
 
@@ -133,7 +132,7 @@ class TestWebhookSpecValidation:
         assert "flush_delay" in errors[0]["loc"]
 
     def test_webhook_spec_flush_delay_validation_negative(self):
-        """Test that flush_delay cannot be negative."""
+        """测试 flush_delay 不能为负数。"""
         with pytest.raises(ValidationError) as exc_info:
             WebhookSpec(base_url="https://example.com", flush_delay=-1.0)
 
@@ -143,18 +142,18 @@ class TestWebhookSpecValidation:
         assert "flush_delay" in errors[0]["loc"]
 
     def test_webhook_spec_flush_delay_validation_small_positive(self):
-        """Test that small positive flush_delay values are accepted."""
+        """测试是否接受小的正 flush_delay 值。"""
         spec = WebhookSpec(base_url="https://example.com", flush_delay=0.1)
         assert spec.flush_delay == 0.1
 
 
 class TestWebhookSubscriberInitialization:
-    """Test cases for WebhookSubscriber initialization."""
+    """测试用例用于 WebhookSubscriber 初始化。"""
 
     def test_init_with_all_parameters(
         self, mock_event_service, webhook_spec, sample_conversation_id
     ):
-        """Test initialization with all parameters."""
+        """使用所有参数测试初始化​​。"""
         session_api_key = "test_api_key"
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
@@ -172,7 +171,7 @@ class TestWebhookSubscriberInitialization:
     def test_init_without_session_api_key(
         self, mock_event_service, webhook_spec, sample_conversation_id
     ):
-        """Test initialization without session API key."""
+        """测试没有会话 API 键的初始化。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
@@ -188,7 +187,7 @@ class TestWebhookSubscriberInitialization:
     def test_init_with_minimal_spec(
         self, mock_event_service, minimal_webhook_spec, sample_conversation_id
     ):
-        """Test initialization with minimal webhook spec."""
+        """使用最小 Webhook 规格测试初始化。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
@@ -203,13 +202,13 @@ class TestWebhookSubscriberInitialization:
 
 
 class TestWebhookSubscriberCallMethod:
-    """Test cases for WebhookSubscriber.__call__ method."""
+    """测试用例代表 WebhookSubscriber.__call__ 方法。"""
 
     @pytest.mark.asyncio
     async def test_call_adds_event_to_queue(
         self, mock_event_service, webhook_spec, sample_event, sample_conversation_id
     ):
-        """Test that calling the subscriber adds event to queue."""
+        """测试调用订阅者是否将事件添加到队列中。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
@@ -225,14 +224,14 @@ class TestWebhookSubscriberCallMethod:
     async def test_call_multiple_events_below_buffer_size(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test adding multiple events below buffer size."""
+        """测试添加低于缓冲区大小的多个事件。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Add 2 events (buffer size is 3)
+        # 添加2个事件（缓冲区大小为3）
         for event in sample_events[:2]:
             await subscriber(event)
 
@@ -249,7 +248,7 @@ class TestWebhookSubscriberCallMethod:
         sample_events,
         sample_conversation_id,
     ):
-        """Test that reaching buffer size triggers _post_events."""
+        """测试达到缓冲区大小是否会触发 _post_events。"""
         mock_post_events.return_value = None
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
@@ -257,11 +256,11 @@ class TestWebhookSubscriberCallMethod:
             spec=webhook_spec,
         )
 
-        # Add events up to buffer size (3)
+        # 添加事件直至达到缓冲区大小 (3)
         for event in sample_events[:3]:
             await subscriber(event)
 
-        # _post_events should be called once when buffer is full
+        # _post_events 缓冲区已满时应调用一次
         mock_post_events.assert_called_once()
 
     @pytest.mark.asyncio
@@ -273,38 +272,38 @@ class TestWebhookSubscriberCallMethod:
         sample_event,
         sample_conversation_id,
     ):
-        """Test that _post_events is called multiple times as buffer fills."""
+        """测试当缓冲区填充时 _post_events 是否被多次调用。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Mock the _post_events method to track calls but not actually post
+        # 模拟对象 _post_events 方法用于跟踪呼叫但不实际发布
         post_events_calls = []
 
         async def mock_post_events():
             post_events_calls.append(len(subscriber.queue))
-            subscriber.queue.clear()  # Simulate clearing the queue
+            subscriber.queue.clear()  # 模拟清队列
 
         subscriber._post_events = mock_post_events
 
-        # Add 6 events (buffer size is 3, so should trigger twice:
-        # at 3 events and at 6 events)
-        for event in sample_events:  # 5 events
+        # 添加 6 个事件（缓冲区大小为 3，因此应触发两次：在 3 个事件时和在 6 个事件时）
+        #
+        for event in sample_events:  # 5 项活动
             await subscriber(event)
 
-        # Add one more event to trigger the second post
+        # 添加一个事件以触发第二篇帖子
         await subscriber(sample_event)
 
-        # _post_events should be called twice (at 3 events and at 6 events)
+        # _post_events 应该被调用两次（在 3 个事件和 6 个事件）
         assert len(post_events_calls) == 2
-        assert post_events_calls[0] == 3  # First call with 3 events
-        assert post_events_calls[1] == 3  # Second call with 3 events
+        assert post_events_calls[0] == 3  # 第一次调用包含 3 个事件
+        assert post_events_calls[1] == 3  # 第二次调用包含 3 个事件
 
 
 class TestWebhookSubscriberPostEvents:
-    """Test cases for WebhookSubscriber._post_events method."""
+    """测试用例代表 WebhookSubscriber._post_events 方法。"""
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
@@ -316,8 +315,8 @@ class TestWebhookSubscriberPostEvents:
         sample_events,
         sample_conversation_id,
     ):
-        """Test successful posting of events."""
-        # Setup mock client
+        """测试事件的成功发布。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -330,12 +329,12 @@ class TestWebhookSubscriberPostEvents:
             spec=webhook_spec,
         )
 
-        # Add events to queue
+        # 将事件添加到队列
         subscriber.queue = sample_events[:3]
 
         await subscriber._post_events()
 
-        # Verify HTTP request was made correctly
+        # 验证 HTTP 请求是否正确发出
         expected_url = f"https://example.com/events/{sample_conversation_id.hex}"
         mock_client.request.assert_called_once_with(
             method="POST",
@@ -348,7 +347,7 @@ class TestWebhookSubscriberPostEvents:
             timeout=30.0,
         )
 
-        # Verify queue is cleared
+        # 验证队列已清除
         assert subscriber.queue == []
 
     @pytest.mark.asyncio
@@ -361,8 +360,8 @@ class TestWebhookSubscriberPostEvents:
         sample_events,
         sample_conversation_id,
     ):
-        """Test posting events with session API key."""
-        # Setup mock client
+        """使用会话 API 键测试发布事件。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -376,12 +375,12 @@ class TestWebhookSubscriberPostEvents:
             session_api_key="test_session_key",
         )
 
-        # Add events to queue
+        # 将事件添加到队列
         subscriber.queue = sample_events[:2]
 
         await subscriber._post_events()
 
-        # Verify session API key is added to headers
+        # 验证会话 API 密钥已添加到标头中
         expected_headers = {
             "Content-Type": "application/json",
             "Authorization": "Bearer token",
@@ -405,18 +404,19 @@ class TestWebhookSubscriberPostEvents:
         webhook_spec,
         sample_conversation_id,
     ):
-        """Regression: events containing set / SecretStr must serialize.
+        """Regression: 包含 set / SecretStr 的事件必须为序列化。
 
-        Plain model_dump() leaves set and SecretStr as Python objects that
-        httpx's JSON encoder cannot serialize ("Object of type set/SecretStr is
-        not JSON serializable"), failing every retry and dropping the events.
-        model_dump(mode="json") makes them JSON-safe.
+        Plain model_dump() 离开集合 SecretStr as Python httpx的 JSON 编码器无法序列化
+         (集合对象)
+        SecretStr 不是 JSON serializable"), failing every  重试并删除事件。
+        model_dump(mode="
+        JSON）使他们 JSON-safe.
         """
         import json as _json
 
-        # Test event with types that model_dump() leaves non-JSON-serializable.
-        # Note: deliberately not a ConversationEvent; we only care about serialization
-        # of pydantic models with tricky field types for the webhook POST payload.
+        # 测试事件的类型 model_dump() 留下不可序列化的 JSON。
+        # 注意：故意不是ConversationEvent； 我们只关心序列化
+        # Webhook POST 载荷具有棘手字段类型的 Pydantic 模型。
         class _EventWithTrickyTypes(BaseModel):
             tags: set[str]
             secret: SecretStr
@@ -432,7 +432,7 @@ class TestWebhookSubscriberPostEvents:
             service=mock_event_service,
             spec=webhook_spec,
         )
-        # Deliberately assign non-ConversationEvent for regression test.
+        # 故意为回归测试指定非 ConversationEvent。
         subscriber.queue = [
             _EventWithTrickyTypes(tags={"a", "b"}, secret=SecretStr("shh"))  # type: ignore[assignment]
         ]
@@ -440,24 +440,24 @@ class TestWebhookSubscriberPostEvents:
         await subscriber._post_events()
 
         posted_json = mock_client.request.call_args.kwargs["json"]
-        # httpx serializes this internally; it must not raise TypeError.
+        # httpx 在内部序列化它； 它不能提高 TypeError。
         _json.dumps(posted_json)
         assert isinstance(posted_json[0]["tags"], list)
-        # SecretStr is masked, not leaked, in JSON mode.
+        # 在 JSON 模式下，SecretStr 被屏蔽，而不是泄漏。
         assert posted_json[0]["secret"] != "shh"
 
     @pytest.mark.asyncio
     async def test_post_events_empty_queue(
         self, mock_event_service, webhook_spec, sample_conversation_id
     ):
-        """Test posting events with empty queue."""
+        """使用空队列测试发布事件。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Should return early without making HTTP request
+        # 应提前返回而不提出 HTTP 请求
         with patch("httpx.AsyncClient") as mock_client_class:
             await subscriber._post_events()
             mock_client_class.assert_not_called()
@@ -466,28 +466,28 @@ class TestWebhookSubscriberPostEvents:
     async def test_post_events_http_error_with_retries(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test HTTP error handling with retry logic."""
+        """使用重试逻辑测试 HTTP 错误处理。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Add events to queue
+        # 将事件添加到队列
         subscriber.queue = sample_events[:2]
 
-        # Track retry attempts
+        # 追踪重试次尝试
         retry_attempts = []
         sleep_calls = []
 
-        # Mock the HTTP client and sleep
+        # 模拟对象HTTP客户端和睡眠
         async def mock_request(*args, **kwargs):
             retry_attempts.append(len(retry_attempts) + 1)
-            if len(retry_attempts) <= 2:  # Fail first two attempts
+            if len(retry_attempts) <= 2:  # 前两次尝试失败
                 raise httpx.HTTPStatusError(
                     "Server Error", request=MagicMock(), response=MagicMock()
                 )
-            # Third attempt succeeds - return a mock response
+            # 第三次尝试成功 - 返回模拟对象响应
             response = AsyncMock()
             response.raise_for_status.return_value = None
             return response
@@ -503,34 +503,34 @@ class TestWebhookSubscriberPostEvents:
 
             await subscriber._post_events()
 
-        # Verify retries were attempted
+        # 验证已尝试重试
         assert len(retry_attempts) == 3
-        # Only this instance's delays are recorded — no global-sleep pollution.
+        # 仅记录此实例的延迟——没有全局睡眠污染。
         assert sleep_calls == [webhook_spec.retry_delay] * 2
 
-        # Verify queue is cleared after success
+        # 验证成功后队列是否被清除
         assert subscriber.queue == []
 
     @pytest.mark.asyncio
     async def test_post_events_max_retries_exceeded(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test behavior when max retries are exceeded."""
+        """测试超出 max 重试时的行为。"""
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Add events to queue
+        # 将事件添加到队列
         original_events = sample_events[:2]
         subscriber.queue = original_events.copy()
 
-        # Track retry attempts
+        # 追踪重试次尝试
         retry_attempts = []
         sleep_calls = []
 
-        # Mock the HTTP client to always fail
+        # 模拟对象 HTTP 客户端总是失败
         async def mock_request(*args, **kwargs):
             retry_attempts.append(len(retry_attempts) + 1)
             raise httpx.HTTPStatusError(
@@ -548,12 +548,12 @@ class TestWebhookSubscriberPostEvents:
 
             await subscriber._post_events()
 
-        # Verify all retries were attempted (num_retries + 1 = 3 total attempts)
+        # 验证所有重试均已尝试（num_retries + 1 = 3 次总尝试）
         assert len(retry_attempts) == 3
-        # Only this instance's delays are recorded — no global-sleep pollution.
+        # 仅记录此实例的延迟——没有全局睡眠污染。
         assert sleep_calls == [webhook_spec.retry_delay] * 2
 
-        # Verify events are re-queued after failure
+        # 验证事件在失败后重新排队
         assert len(subscriber.queue) == 2
         assert subscriber.queue == original_events
 
@@ -561,8 +561,8 @@ class TestWebhookSubscriberPostEvents:
     async def test_post_events_drops_oldest_when_requeue_exceeds_max_queue_size(
         self, mock_event_service, sample_conversation_id
     ):
-        """Failed re-queue trims oldest events past max_queue_size."""
-        # Tight bound so we can construct overflow easily.
+        """重新排队失败会修剪过去 max_queue_size 的最旧事件。"""
+        # 紧密绑定，因此我们可以轻松构造溢出。
         spec = WebhookSpec(
             base_url="https://example.com",
             event_buffer_size=1,
@@ -577,7 +577,7 @@ class TestWebhookSubscriberPostEvents:
             spec=spec,
         )
 
-        # Build 5 distinct, identifiable events.
+        # 构建 5 个不同的、可识别的事件。
         events = []
         for i in range(5):
             ev = MessageEvent(
@@ -586,7 +586,7 @@ class TestWebhookSubscriberPostEvents:
             )
             events.append(ev)
 
-        # Pre-load queue beyond bound so re-extend after failure must trim.
+        # 预加载队列超出界限，因此在失败后重新扩展必须修剪。
         subscriber.queue = events.copy()
 
         async def mock_request(*args, **kwargs):
@@ -600,7 +600,7 @@ class TestWebhookSubscriberPostEvents:
             mock_client_class.return_value.__aenter__.return_value = mock_client
             await subscriber._post_events()
 
-        # Bound is honored, and the *oldest* events are the ones dropped.
+        # Bound 受到尊重，*oldest* 事件被丢弃。
         assert len(subscriber.queue) == spec.max_queue_size
         assert subscriber.queue == events[-spec.max_queue_size :]
 
@@ -613,8 +613,8 @@ class TestWebhookSubscriberPostEvents:
         webhook_spec,
         sample_conversation_id,
     ):
-        """Test posting events that don't have model_dump method."""
-        # Setup mock client
+        """测试没有 model_dump 方法的发布事件。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -627,16 +627,16 @@ class TestWebhookSubscriberPostEvents:
             spec=webhook_spec,
         )
 
-        # Create event without model_dump method
+        # 创建不带 model_dump 方法的事件
         event_without_model_dump = MagicMock()
-        del event_without_model_dump.model_dump  # Remove model_dump method
+        del event_without_model_dump.model_dump  # 删除model_dump方法
         event_without_model_dump.__dict__ = {"type": "test", "data": "value"}
 
         subscriber.queue = [event_without_model_dump]
 
         await subscriber._post_events()
 
-        # Verify __dict__ is used when model_dump is not available
+        # 验证当 model_dump 不可用时使用 __dict__
         expected_url = f"https://example.com/events/{sample_conversation_id.hex}"
         mock_client.request.assert_called_once_with(
             method="POST",
@@ -651,7 +651,7 @@ class TestWebhookSubscriberPostEvents:
 
 
 class TestWebhookSubscriberCloseMethod:
-    """Test cases for WebhookSubscriber.close method."""
+    """测试用例代表 WebhookSubscriber.close 方法。"""
 
     @pytest.mark.asyncio
     @patch.object(WebhookSubscriber, "_post_events")
@@ -663,7 +663,7 @@ class TestWebhookSubscriberCloseMethod:
         sample_events,
         sample_conversation_id,
     ):
-        """Test that close method posts remaining events in queue."""
+        """测试 close 方法是否将剩余事件发布到队列中。"""
         mock_post_events.return_value = None
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
@@ -671,12 +671,12 @@ class TestWebhookSubscriberCloseMethod:
             spec=webhook_spec,
         )
 
-        # Add events to queue
+        # 将事件添加到队列
         subscriber.queue = sample_events[:2]
 
         await subscriber.close()
 
-        # Verify _post_events was called
+        # 验证 _post_events 被调用
         mock_post_events.assert_called_once()
 
     @pytest.mark.asyncio
@@ -684,7 +684,7 @@ class TestWebhookSubscriberCloseMethod:
     async def test_close_with_empty_queue(
         self, mock_post_events, mock_event_service, webhook_spec, sample_conversation_id
     ):
-        """Test close method with empty queue."""
+        """使用空队列测试 close 方法。"""
         mock_post_events.return_value = None
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
@@ -694,12 +694,12 @@ class TestWebhookSubscriberCloseMethod:
 
         await subscriber.close()
 
-        # _post_events should not be called when queue is empty
+        # _post_events 当队列为空时不应调用
         mock_post_events.assert_not_called()
 
 
 class TestWebhookSubscriberIntegration:
-    """Integration test cases for WebhookSubscriber."""
+    """WebhookSubscriber 的集成测试个案例。"""
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
@@ -711,8 +711,8 @@ class TestWebhookSubscriberIntegration:
         sample_events,
         sample_conversation_id,
     ):
-        """Test complete workflow from event addition to posting."""
-        # Setup mock client
+        """测试从事件添加到发布的完整工作流程。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -726,29 +726,29 @@ class TestWebhookSubscriberIntegration:
             session_api_key="integration_test_key",
         )
 
-        # Add events one by one (buffer size is 3)
+        # 逐一添加事件（缓冲区大小为3）
         await subscriber(sample_events[0])
         assert len(subscriber.queue) == 1
 
         await subscriber(sample_events[1])
         assert len(subscriber.queue) == 2
 
-        # This should trigger _post_events
+        # 这应该会触发 _post_events
         await subscriber(sample_events[2])
-        assert len(subscriber.queue) == 0  # Queue should be cleared
+        assert len(subscriber.queue) == 0  # 队列应该被清除
 
-        # Verify HTTP request was made
+        # 验证已发出 HTTP 请求
         mock_client.request.assert_called_once()
 
-        # Add more events and close
+        # 添加更多事件并关闭
         await subscriber(sample_events[3])
         await subscriber(sample_events[4])
         assert len(subscriber.queue) == 2
 
         await subscriber.close()
-        assert len(subscriber.queue) == 0  # Queue should be cleared after close
+        assert len(subscriber.queue) == 0  # 关闭后应清除队列
 
-        # Verify HTTP request was made again during close
+        # 验证关闭期间再次发出 HTTP 请求
         assert mock_client.request.call_count == 2
 
     @pytest.mark.asyncio
@@ -761,8 +761,8 @@ class TestWebhookSubscriberIntegration:
         sample_events,
         sample_conversation_id,
     ):
-        """Test handling concurrent event additions."""
-        # Setup mock client
+        """测试处理并发事件添加。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -775,15 +775,15 @@ class TestWebhookSubscriberIntegration:
             spec=webhook_spec,
         )
 
-        # Process events concurrently
+        # 同时处理事件
         tasks = [subscriber(event) for event in sample_events]
         await asyncio.gather(*tasks)
 
-        # With buffer size 3, we should have posted once and have 2 events remaining
+        # 缓冲区大小为 3 时，我们应该发布一次并剩余 2 个事件
         assert len(subscriber.queue) == 2
         mock_client.request.assert_called_once()
 
-        # Close to post remaining events
+        # 接近发布剩余事件
         await subscriber.close()
         assert len(subscriber.queue) == 0
         assert mock_client.request.call_count == 2
@@ -847,7 +847,7 @@ async def test_concurrent_event_delivery_has_one_request_in_flight(
 async def test_events_published_during_post_are_sent_once_buffer_is_full(
     mock_event_service, sample_event, sample_conversation_id
 ):
-    """A buffer that fills again during an in-flight POST is posted at once."""
+    """在飞行中 POST 期间再次填充的缓冲区会立即发布。"""
     spec = WebhookSpec(
         base_url="https://example.com",
         event_buffer_size=2,
@@ -882,16 +882,16 @@ async def test_events_published_during_post_are_sent_once_buffer_is_full(
         first_post = asyncio.create_task(subscriber(sample_event))
         await asyncio.wait_for(first_request_started.wait(), timeout=1)
 
-        # Two more events fill the buffer while the first batch is in flight.
+        # 当第一批事件正在进行时，另外两个事件填充了缓冲区。
         await subscriber(sample_event)
         await subscriber(sample_event)
         release_first_request.set()
         await asyncio.wait_for(first_post, timeout=1)
 
-        # Without waiting for flush_delay (1 h) or close().
+        # 无需等待 flush_delay（1 小时）或 close()。
         assert [len(batch) for batch in batches] == [2, 2]
         assert subscriber.queue == []
-        # The timer started during the first POST is not left running.
+        # 在第一个 POST 期间启动的计时器不会继续运行。
         assert subscriber._flush_timer is None
 
 
@@ -899,7 +899,7 @@ async def test_events_published_during_post_are_sent_once_buffer_is_full(
 async def test_failed_follow_up_batch_keeps_a_flush_timer(
     mock_event_service, sample_event, sample_conversation_id
 ):
-    """A follow-up batch that fails after the flush timer fired is retried."""
+    """刷新计时器触发后失败的后续批次将重试。"""
     spec = WebhookSpec(
         base_url="https://example.com",
         event_buffer_size=2,
@@ -952,7 +952,7 @@ async def test_failed_follow_up_batch_keeps_a_flush_timer(
         first_post = asyncio.create_task(subscriber(sample_event))
         await asyncio.wait_for(first_request_started.wait(), timeout=1)
 
-        # Two events refill the buffer during the first POST: a timer starts.
+        # 在第一个 POST 期间，两个事件重新填充缓冲区：计时器启动。
         await subscriber(sample_event)
         await subscriber(sample_event)
         timer = subscriber._flush_timer
@@ -960,12 +960,12 @@ async def test_failed_follow_up_batch_keeps_a_flush_timer(
         release_first_request.set()
         await asyncio.wait_for(second_request_started.wait(), timeout=1)
 
-        # The timer fires during the follow-up POST and finds an empty queue.
+        # 计时器在后续 POST 期间触发并发现一个空队列。
         fire_timer.set()
         await asyncio.wait_for(timer, timeout=1)
         assert subscriber._flush_timer is None
 
-        # The follow-up POST fails: its events must not be left without a timer.
+        # 后续 POST 失败：不得在没有计时器的情况下留下其事件。
         release_second_request.set()
         await asyncio.wait_for(first_post, timeout=1)
 
@@ -1060,7 +1060,7 @@ async def test_queue_drops_oldest_events_past_serialized_byte_limit(
 
 
 class TestWebhookSubscriberErrorHandling:
-    """Test cases for error handling in WebhookSubscriber."""
+    """测试用例用于 WebhookSubscriber 中的错误处理。"""
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
@@ -1072,8 +1072,8 @@ class TestWebhookSubscriberErrorHandling:
         sample_events,
         sample_conversation_id,
     ):
-        """Test handling of network errors."""
-        # Setup mock client to raise network error
+        """测试网络错误的处理。"""
+        # 设置模拟对象客户端以引发网络错误
         mock_client = AsyncMock()
         mock_client.request.side_effect = httpx.NetworkError("Connection failed")
         mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -1086,7 +1086,7 @@ class TestWebhookSubscriberErrorHandling:
 
         subscriber.queue = sample_events[:2]
 
-        # Record on the instance's own seam, not the global asyncio.sleep.
+        # 记录在实例自己的接缝上，而不是全局 asyncio.sleep。
         sleep_calls: list[float] = []
 
         async def record_sleep(delay):
@@ -1095,11 +1095,11 @@ class TestWebhookSubscriberErrorHandling:
         subscriber._sleep = record_sleep
         await subscriber._post_events()
 
-        # Verify retries were attempted
+        # 验证已尝试重试
         assert mock_client.request.call_count == 3  # num_retries + 1
         assert sleep_calls == [webhook_spec.retry_delay] * 2
 
-        # Events should be re-queued after failure
+        # 事件失败后应重新排队
         assert len(subscriber.queue) == 2
 
     @pytest.mark.asyncio
@@ -1112,8 +1112,8 @@ class TestWebhookSubscriberErrorHandling:
         sample_events,
         sample_conversation_id,
     ):
-        """Test handling of timeout errors."""
-        # Setup mock client to raise timeout error
+        """测试超时错误的处理。"""
+        # 设置模拟对象客户端以引发超时错误
         mock_client = AsyncMock()
         mock_client.request.side_effect = httpx.TimeoutException("Request timed out")
         mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -1126,7 +1126,7 @@ class TestWebhookSubscriberErrorHandling:
 
         subscriber.queue = sample_events[:1]
 
-        # Record on the instance's own seam, not the global asyncio.sleep.
+        # 记录在实例自己的接缝上，而不是全局 asyncio.sleep。
         sleep_calls: list[float] = []
 
         async def record_sleep(delay):
@@ -1135,16 +1135,16 @@ class TestWebhookSubscriberErrorHandling:
         subscriber._sleep = record_sleep
         await subscriber._post_events()
 
-        # Verify retries were attempted
+        # 验证已尝试重试
         assert mock_client.request.call_count == 3
         assert sleep_calls == [webhook_spec.retry_delay] * 2
 
-        # Events should be re-queued after failure
+        # 事件失败后应重新排队
         assert len(subscriber.queue) == 1
 
 
 class TestWebhookSubscriberFlushDelay:
-    """Test cases for flush_delay functionality in WebhookSubscriber."""
+    """测试用例用于 WebhookSubscriber 中的 flush_delay 功能。"""
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
@@ -1156,8 +1156,8 @@ class TestWebhookSubscriberFlushDelay:
         sample_event,
         sample_conversation_id,
     ):
-        """Test that flush_delay triggers posting after the specified delay."""
-        # Setup mock client
+        """测试 flush_delay 是否在指定的延迟后触发发布。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1170,14 +1170,14 @@ class TestWebhookSubscriberFlushDelay:
             spec=webhook_spec,
         )
 
-        # Add one event (below buffer size)
+        # 添加一个事件（低于缓冲区大小）
         await subscriber(sample_event)
         assert len(subscriber.queue) == 1
 
-        # Wait for flush_delay to trigger
+        # 等待flush_delay触发
         await asyncio.sleep(webhook_spec.flush_delay + 0.05)
 
-        # Verify HTTP request was made and queue is cleared
+        # 验证已发出 HTTP 请求并且队列已清除
         mock_client.request.assert_called_once()
         assert len(subscriber.queue) == 0
 
@@ -1191,8 +1191,8 @@ class TestWebhookSubscriberFlushDelay:
         sample_events,
         sample_conversation_id,
     ):
-        """Test that flush_delay timer is NOT reset when new events are added."""
-        # Setup mock client
+        """测试添加新事件时 flush_delay 计时器是否重置不。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1205,21 +1205,21 @@ class TestWebhookSubscriberFlushDelay:
             spec=webhook_spec,
         )
 
-        # Add first event
+        # 添加第一个事件
         await subscriber(sample_events[0])
         assert len(subscriber.queue) == 1
 
-        # Wait half the flush delay
+        # 等待一半的刷新延迟
         await asyncio.sleep(webhook_spec.flush_delay / 2)
 
-        # Add second event (should NOT reset timer)
+        # 添加第二个事件（应该不重置计时器）
         await subscriber(sample_events[1])
         assert len(subscriber.queue) == 2
 
-        # Wait another half delay (total time = flush_delay from first event)
+        # 再等待一半延迟（从第一个事件开始总时间 = flush_delay）
         await asyncio.sleep(webhook_spec.flush_delay / 2 + 0.05)
 
-        # Should have posted since timer was not reset
+        # 由于计时器未重置，应该已发布
         mock_client.request.assert_called_once()
         assert len(subscriber.queue) == 0
 
@@ -1233,8 +1233,8 @@ class TestWebhookSubscriberFlushDelay:
         sample_events,
         sample_conversation_id,
     ):
-        """Test that flush_delay timer is cancelled when buffer becomes full."""
-        # Setup mock client
+        """测试当缓冲区已满时 flush_delay 计时器是否被取消。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1247,22 +1247,22 @@ class TestWebhookSubscriberFlushDelay:
             spec=webhook_spec,
         )
 
-        # Add events up to buffer size - 1
+        # 添加事件直至缓冲区大小 - 1
         for event in sample_events[:2]:
             await subscriber(event)
         assert len(subscriber.queue) == 2
 
-        # Add one more event to fill buffer (should trigger immediate post)
+        # 添加一个事件以填充缓冲区（应触发立即发布）
         await subscriber(sample_events[2])
 
-        # Verify immediate post happened
+        # 验证立即发生的事件
         mock_client.request.assert_called_once()
         assert len(subscriber.queue) == 0
 
-        # Wait for flush_delay to ensure timer was cancelled
+        # 等待 flush_delay 以确保计时器已取消
         await asyncio.sleep(webhook_spec.flush_delay + 0.05)
 
-        # Should not have made additional requests
+        # 不应该提出额外的要求
         assert mock_client.request.call_count == 1
 
     @pytest.mark.asyncio
@@ -1275,8 +1275,8 @@ class TestWebhookSubscriberFlushDelay:
         sample_event,
         sample_conversation_id,
     ):
-        """Test that flush_delay timer is cancelled when subscriber is closed."""
-        # Setup mock client
+        """测试订阅者关闭时 flush_delay 计时器是否被取消。"""
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1289,38 +1289,38 @@ class TestWebhookSubscriberFlushDelay:
             spec=webhook_spec,
         )
 
-        # Add one event
+        # 添加 1 个事件
         await subscriber(sample_event)
         assert len(subscriber.queue) == 1
 
-        # Close subscriber before flush_delay elapses
+        # 在 flush_delay 过去之前关闭订阅者
         await subscriber.close()
 
-        # Verify close triggered post
+        # 验证关闭触发的帖子
         mock_client.request.assert_called_once()
         assert len(subscriber.queue) == 0
 
-        # Wait for flush_delay to ensure timer was cancelled
+        # 等待 flush_delay 以确保计时器已取消
         await asyncio.sleep(webhook_spec.flush_delay + 0.05)
 
-        # Should not have made additional requests
+        # 不应该提出额外的要求
         assert mock_client.request.call_count == 1
 
     @pytest.mark.asyncio
     async def test_flush_delay_no_post_when_queue_empty(
         self, mock_event_service, webhook_spec, sample_conversation_id
     ):
-        """Test that flush_delay doesn't trigger post when queue is empty."""
+        """测试当队列为空时 flush_delay 不会触发 post。"""
         WebhookSubscriber(
             conversation_id=sample_conversation_id,
             service=mock_event_service,
             spec=webhook_spec,
         )
 
-        # Wait for flush_delay
+        # 等待flush_delay
         await asyncio.sleep(webhook_spec.flush_delay + 0.05)
 
-        # Should not have made any HTTP requests
+        # 不应提出任何 HTTP 请求
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client_class.assert_not_called()
 
@@ -1334,8 +1334,8 @@ class TestWebhookSubscriberFlushDelay:
         sample_event,
         sample_conversation_id,
     ):
-        """Test that flush_delay timer triggers HTTP request."""
-        # Setup mock client to succeed
+        """测试 flush_delay 计时器是否触发 HTTP 请求。"""
+        # 设置模拟对象客户端成功
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1348,34 +1348,34 @@ class TestWebhookSubscriberFlushDelay:
             spec=webhook_spec,
         )
 
-        # Add one event
+        # 添加 1 个事件
         await subscriber(sample_event)
         assert len(subscriber.queue) == 1
 
-        # Wait for flush_delay to trigger
+        # 等待flush_delay触发
         await asyncio.sleep(webhook_spec.flush_delay + 0.05)
 
-        # Verify request was made and queue is cleared
+        # 验证请求已发出并且队列已清除
         mock_client.request.assert_called_once()
         assert len(subscriber.queue) == 0
 
 
 class TestConversationWebhookSubscriber:
-    """Test cases for ConversationWebhookSubscriber class."""
+    """测试用例对应 ConversationWebhookSubscriber 类。"""
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
     async def test_post_conversation_info_success(
         self, mock_client_class, webhook_spec, mock_event_service
     ):
-        """Test successful posting of conversation info."""
+        """测试对话信息是否成功发布。"""
         from openhands.agent_server.conversation_service import (
             ConversationWebhookSubscriber,
         )
         from openhands.agent_server.models import ConversationInfo
         from openhands.sdk.conversation.state import ConversationExecutionStatus
 
-        # Setup mock client
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1386,7 +1386,7 @@ class TestConversationWebhookSubscriber:
             spec=webhook_spec,
         )
 
-        # Create sample conversation info
+        # 创建示例对话信息
         conversation_info = ConversationInfo(
             id=uuid4(),
             agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -1398,7 +1398,7 @@ class TestConversationWebhookSubscriber:
 
         await subscriber.post_conversation_info(conversation_info)
 
-        # Verify HTTP request was made correctly
+        # 验证 HTTP 请求是否正确发出
         mock_client.request.assert_called_once_with(
             method="POST",
             url="https://example.com/conversations",
@@ -1415,14 +1415,14 @@ class TestConversationWebhookSubscriber:
     async def test_post_conversation_info_with_session_api_key(
         self, mock_client_class, webhook_spec, mock_event_service
     ):
-        """Test posting conversation info with session API key."""
+        """测试使用会话 API 键发布对话信息。"""
         from openhands.agent_server.conversation_service import (
             ConversationWebhookSubscriber,
         )
         from openhands.agent_server.models import ConversationInfo
         from openhands.sdk.conversation.state import ConversationExecutionStatus
 
-        # Setup mock client
+        # 设置模拟对象客户端
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status.return_value = None
@@ -1434,7 +1434,7 @@ class TestConversationWebhookSubscriber:
             session_api_key="test_session_key",
         )
 
-        # Create sample conversation info
+        # 创建示例对话信息
         conversation_info = ConversationInfo(
             id=uuid4(),
             agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -1446,7 +1446,7 @@ class TestConversationWebhookSubscriber:
 
         await subscriber.post_conversation_info(conversation_info)
 
-        # Verify session API key is added to headers
+        # 验证会话 API 密钥已添加到标头中
         expected_headers = {
             "Content-Type": "application/json",
             "Authorization": "Bearer token",
@@ -1464,7 +1464,7 @@ class TestConversationWebhookSubscriber:
     async def test_post_conversation_info_http_error_with_retries(
         self, webhook_spec, mock_event_service
     ):
-        """Test HTTP error handling with retry logic for conversation webhooks."""
+        """使用对话 Webhook 的重试逻辑测试 HTTP 错误处理。"""
         from openhands.agent_server.conversation_service import (
             ConversationWebhookSubscriber,
         )
@@ -1475,7 +1475,7 @@ class TestConversationWebhookSubscriber:
             spec=webhook_spec,
         )
 
-        # Create sample conversation info
+        # 创建示例对话信息
         conversation_info = ConversationInfo(
             id=uuid4(),
             agent=Agent(llm=LLM(model="gpt-4o", usage_id="test-llm"), tools=[]),
@@ -1485,18 +1485,18 @@ class TestConversationWebhookSubscriber:
             execution_status=ConversationExecutionStatus.FINISHED,
         )
 
-        # Track retry attempts
+        # 追踪重试次尝试
         retry_attempts = []
         sleep_calls = []
 
-        # Mock the HTTP client and sleep
+        # 模拟对象HTTP客户端和睡眠
         async def mock_request(*args, **kwargs):
             retry_attempts.append(len(retry_attempts) + 1)
-            if len(retry_attempts) <= 2:  # Fail first two attempts
+            if len(retry_attempts) <= 2:  # 前两次尝试失败
                 raise httpx.HTTPStatusError(
                     "Server Error", request=MagicMock(), response=MagicMock()
                 )
-            # Third attempt succeeds - return a mock response
+            # 第三次尝试成功 - 返回模拟对象响应
             response = AsyncMock()
             response.raise_for_status.return_value = None
             return response
@@ -1512,21 +1512,21 @@ class TestConversationWebhookSubscriber:
 
             await subscriber.post_conversation_info(conversation_info)
 
-        # Verify retries were attempted
+        # 验证已尝试重试
         assert len(retry_attempts) == 3
-        # Only this instance's delays are recorded — no global-sleep pollution.
+        # 仅记录此实例的延迟——没有全局睡眠污染。
         assert sleep_calls == [webhook_spec.retry_delay] * 2
 
 
 class TestWebhookSubscriberTimerBehavior:
-    """Test cases for WebhookSubscriber timer behavior."""
+    """测试用例用于 WebhookSubscriber 计时器行为。"""
 
     @pytest.mark.asyncio
     async def test_timer_not_reset_on_subsequent_events(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test that timer is not reset when new events are received."""
-        # Use a longer flush delay for this test
+        """测试收到新事件时计时器是否不会重置。"""
+        # 对此测试使用更长的刷新延迟
         webhook_spec.flush_delay = 0.2
 
         subscriber = WebhookSubscriber(
@@ -1535,7 +1535,7 @@ class TestWebhookSubscriberTimerBehavior:
             spec=webhook_spec,
         )
 
-        # Mock _post_events to track when it's called
+        # 模拟对象 _post_events 跟踪何时被调用
         post_events_calls = []
         original_post_events = subscriber._post_events
 
@@ -1545,31 +1545,31 @@ class TestWebhookSubscriberTimerBehavior:
 
         subscriber._post_events = mock_post_events
 
-        # Add first event - this should start the timer
+        # 添加第一个事件 - 这应该启动计时器
         await subscriber(sample_events[0])
         assert subscriber._flush_timer is not None
         first_timer = subscriber._flush_timer
 
-        # Add second event shortly after - timer should NOT be reset
-        await asyncio.sleep(0.05)  # Small delay
+        # 不久后添加第二个事件 - 计时器应重置不
+        await asyncio.sleep(0.05)  # 延迟小
         await subscriber(sample_events[1])
 
-        # Timer should be the same instance (not reset)
+        # 计时器应该是同一个实例（不重置）
         assert subscriber._flush_timer is first_timer
         assert len(subscriber.queue) == 2
 
-        # Wait for timer to fire
+        # 等待计时器触发
         await asyncio.sleep(0.2)
 
-        # Events should have been posted via timer
+        # 事件应该通过计时器发布
         assert len(post_events_calls) == 1
-        assert post_events_calls[0] == 2  # Both events were posted
+        assert post_events_calls[0] == 2  # 两项活动均已发布
 
     @pytest.mark.asyncio
     async def test_timer_only_started_once_until_flush(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test that timer is only started once until events are flushed."""
+        """测试计时器仅启动一次，直到事件被刷新。"""
         webhook_spec.flush_delay = 0.2
 
         subscriber = WebhookSubscriber(
@@ -1578,39 +1578,39 @@ class TestWebhookSubscriberTimerBehavior:
             spec=webhook_spec,
         )
 
-        # Mock _post_events to prevent actual HTTP calls but clear the queue
+        # 模拟对象 _post_events 阻止实际的 HTTP 呼叫但清除队列
         async def mock_post_events():
             subscriber.queue.clear()
 
         subscriber._post_events = mock_post_events
 
-        # Add first event - should start timer
+        # 添加第一个事件 - 应该启动计时器
         await subscriber(sample_events[0])
         assert subscriber._flush_timer is not None
         first_timer = subscriber._flush_timer
 
-        # Add more events - timer should remain the same
+        # 添加更多事件 - 计时器应保持不变
         await subscriber(sample_events[1])
         assert subscriber._flush_timer is first_timer
 
-        # Wait for timer to complete and a bit more for cleanup
+        # 等待计时器完成并进行清理
         await asyncio.sleep(0.3)
 
-        # Timer should be cleared after flush
+        # 冲洗后应清除计时器
         assert subscriber._flush_timer is None
 
-        # Add another event - should start a new timer
+        # 添加另一个事件 - 应该启动一个新的计时器
         await subscriber(sample_events[2])
         assert subscriber._flush_timer is not None
-        assert subscriber._flush_timer is not first_timer  # New timer instance
+        assert subscriber._flush_timer is not first_timer  # 新的计时器实例
 
     @pytest.mark.asyncio
     async def test_timer_cancelled_when_buffer_full(
         self, mock_event_service, webhook_spec, sample_events, sample_conversation_id
     ):
-        """Test that timer is cancelled when buffer becomes full."""
-        webhook_spec.flush_delay = 1.0  # Long delay
-        webhook_spec.event_buffer_size = 2  # Small buffer
+        """测试当缓冲区已满时计时器是否被取消。"""
+        webhook_spec.flush_delay = 1.0  # 长时间延迟
+        webhook_spec.event_buffer_size = 2  # 缓冲区小
 
         subscriber = WebhookSubscriber(
             conversation_id=sample_conversation_id,
@@ -1618,25 +1618,25 @@ class TestWebhookSubscriberTimerBehavior:
             spec=webhook_spec,
         )
 
-        # Mock _post_events to prevent actual HTTP calls
+        # 模拟对象 _post_events 阻止实际的 HTTP 调用
         subscriber._post_events = AsyncMock()
 
-        # Add first event - should start timer
+        # 添加第一个事件 - 应该启动计时器
         await subscriber(sample_events[0])
         assert subscriber._flush_timer is not None
         timer = subscriber._flush_timer
 
-        # Add second event to fill buffer - should cancel timer and post immediately
+        # 添加第二个事件以填充缓冲区 - 应取消计时器并立即发布
         await subscriber(sample_events[1])
 
-        # Give a small delay for the cancellation to complete
+        # 稍微延迟一下取消完成
         await asyncio.sleep(0.01)
 
-        # Timer should be cancelled
+        # 计时器应该被取消
         assert subscriber._flush_timer is None
         assert timer.cancelled()
 
-        # _post_events should have been called immediately
+        # _post_events 应该立即被调用
         subscriber._post_events.assert_called_once()
 
 
@@ -1647,10 +1647,10 @@ async def test_webhook_subscribe_errors_surface(tmp_path, monkeypatch):
     workspace = str(tmp_path / "ws")
     (tmp_path / "ws").mkdir()
 
-    # Force WebhookSubscriber's first __call__ to raise once. Subsequent
-    # calls succeed so the test models "init error" rather than "every event
-    # raises". event_service.py:412 invokes __call__ during registration as
-    # an initial-state sync — that's where the raise lands.
+    # 强制 WebhookSubscriber 的第一个 __call__ 加注一次。 后续调用成功，因此测试模型为“
+    # 初始化错误”而不是“引发每个事件”。 event_service.py:412 在注册期间调用 __call__ 作
+    # 为初始状态同步 — 这就是加注的地方。
+    #
     original_init = WebhookSubscriber.__init__
 
     def _broken_init(self, *args, **kwargs):
@@ -1676,11 +1676,11 @@ async def test_webhook_subscribe_errors_surface(tmp_path, monkeypatch):
         ],
     )
     async with service:
-        # Contract: a subscriber's init error reaches the caller. Today both
-        # swallow sites are present, so this `pytest.raises` will not see
-        # anything and the test fails (→ XFAIL). When *both* are fixed,
-        # start_conversation propagates RuntimeError, pytest.raises catches
-        # it, the test passes (→ XPASS, strict=True flags it for cleanup).
+        # 合约：订阅者的初始化错误到达调用者。 今天两个
+        # 存在吞咽位点，因此此 `pytest.raises` 将看不到任何内容，并且测试失败 (→ XFAIL)
+        # 。 当 * 和 * 都固定时，start_conversation 传播 RuntimeError，pytest.raises 捕
+        # 获它，测试通过（→ XPASS，strict=True 标记它进行清理）。
+        #
         with pytest.raises(RuntimeError, match="webhook subscriber init failed"):
             await start_conversation_with_test_llm(
                 service,
@@ -1697,7 +1697,7 @@ async def test_webhook_subscribe_errors_surface(tmp_path, monkeypatch):
 async def test_streaming_deltas_never_reach_webhook(
     mock_event_service, webhook_spec, sample_conversation_id
 ):
-    """No StreamingDeltaEvent is enqueued or POSTed (regression for #4672)."""
+    """StreamingDeltaEvent 未排队，POSTed 未排队（回归对于 #4672）。"""
     subscriber = WebhookSubscriber(
         conversation_id=sample_conversation_id,
         service=mock_event_service,
@@ -1707,7 +1707,7 @@ async def test_streaming_deltas_never_reach_webhook(
     pub_sub.subscribe(subscriber)
 
     with patch.object(subscriber, "_post_events", new_callable=AsyncMock) as post:
-        # Past event_buffer_size: an unfiltered queue would flush here.
+        # Past event_buffer_size：未过滤的队列将刷新到此处。
         for _ in range(webhook_spec.event_buffer_size + 2):
             await pub_sub(StreamingDeltaEvent(content="tok"))
 

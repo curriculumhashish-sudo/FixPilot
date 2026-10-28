@@ -1,4 +1,4 @@
-"""Keep exception graph traversal bounded before invoking Rich's renderer."""
+"""在调用 Rich 的渲染器之前，保持异常图遍历有界。"""
 
 import copy
 import logging
@@ -35,8 +35,9 @@ def _can_render(error: BaseException, traceback: TracebackType | None) -> bool:
         cause = error.__cause__
         if cause is not None and cause is not error:
             pending.append((cause, cause.__traceback__))
-        # Rich formats with stdlib first, which may follow context when a shared
-        # cause was already visited. Both unsuppressed edges need a budget.
+        # 首先使用 stdlib 的丰富格式，当已经访问了共享原因时，可能会遵循上下文。 两个未
+        # 抑制的边缘都需要预算。
+        #
         if not error.__suppress_context__ and error.__context__ is not None:
             context = error.__context__
             pending.append((context, context.__traceback__))
@@ -48,7 +49,7 @@ class BoundedRichHandler(RichHandler):
         if self.rich_tracebacks and record.exc_info:
             _, error, traceback = record.exc_info
             if error is not None and not _can_render(error, traceback):
-                # Other handlers must still receive the original exception record.
+                # 其他处理程序仍必须接收原始异常记录。
                 record = copy.copy(record)
                 record.msg = (
                     f"{record.getMessage()} "

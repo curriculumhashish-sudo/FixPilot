@@ -1,8 +1,8 @@
-"""Tests for the path-rule injection seam in LocalConversation.
+"""LocalConversation 中路径规则注入接缝的测试。
 
-When the agent touches a file whose path matches a PathTrigger skill ("rule"),
-the rule content is appended to the resulting ObservationEvent's
-``extended_content`` and deduped via ``state.activated_path_rules``.
+当智能体拉取一个路径匹配 PathTrigger 技能（“规则”）的文件时，规则内容会被追加到
+ObservationEvent 的结果中
+``extended_content`` 并通过 ``state.activated_path_rules`` 进行重复数据删除。
 """
 
 from pathlib import Path
@@ -23,14 +23,14 @@ from openhands.sdk.tool.schema import Action
 
 
 class _FileAction(Action):
-    """Minimal path-bearing action (stands in for a file-editor action)."""
+    """最小路径承载操作（代表文件编辑器操作）。"""
 
     path: str
     command: str = "view"
 
 
 class _NoPathAction(Action):
-    """An action without a ``path`` field (e.g. a terminal command)."""
+    """没有 ``path`` 字段的操作 (e.g. 终端命令）。"""
 
     command: str = "ls"
 
@@ -98,11 +98,11 @@ def test_rule_injected_into_observation_on_matching_file_touch(tmp_path: Path) -
 
         assert len(injected.extended_content) == 1
         assert "Use zod for API validation." in injected.extended_content[0].text
-        # The rule content reaches the LLM message after the tool result.
+        # 规则内容到达工具结果后的LLM消息。
         texts = [getattr(c, "text", "") for c in injected.to_llm_message().content]
         assert any("tool-result" in t for t in texts)
         assert any("Use zod" in t for t in texts)
-        # Dedup state recorded the activation.
+        # Dedup 状态记录了激活。
         assert conv._state.activated_path_rules == ["api"]
     finally:
         conv.close()
@@ -138,7 +138,7 @@ def test_rule_injected_once_then_deduped(tmp_path: Path) -> None:
 
         a2 = _append_file_action(conv, str(tmp_path / "src" / "api" / "b.ts"))
         second = _inject(conv, _observation_for(a2))
-        # Same rule already activated -> not injected again.
+        # 相同的规则已激活 -> 不再注入。
         assert second.extended_content == []
         assert conv._state.activated_path_rules == ["api"]
     finally:
@@ -146,7 +146,7 @@ def test_rule_injected_once_then_deduped(tmp_path: Path) -> None:
 
 
 def test_injection_is_wired_through_on_event(tmp_path: Path) -> None:
-    """The rule reaches the *persisted* observation via the real callback chain."""
+    """该规则通过真实的回调链到达*已持久化*观测结果。"""
     rule = Skill(
         name="api",
         content="Use zod.",
@@ -178,8 +178,9 @@ def test_file_outside_workspace_is_not_matched(tmp_path: Path) -> None:
     )
     conv = _conversation(tmp_path, rule)
     try:
-        # Absolute path outside the workspace root — a sibling of the workspace,
-        # so it is absolute AND outside on both POSIX and Windows.
+        # 工作区根目录之外的绝对路径 — 工作区的同级路径，因此在 POSIX 和 Windows 上它都
+        # 是绝对 AND 外部路径。
+        #
         action_event = _append_file_action(
             conv, str(tmp_path.parent / "outside" / "x.ts")
         )
@@ -191,9 +192,9 @@ def test_file_outside_workspace_is_not_matched(tmp_path: Path) -> None:
 
 
 def test_symlinked_workspace_root_still_matches(tmp_path: Path) -> None:
-    """A rule fires even when the action path and the workspace root differ only
-    by a symlink (e.g. macOS /tmp -> /private/tmp); the resolve() fallback in
-    ``_touched_rule_path`` recovers the workspace-relative path."""
+    """即使操作路径和工作区根仅不同，规则也会触发
+    通过符号链接 (e.g. macOS /tmp -> /private/tmp); resolve() 回退方案中
+    ``_touched_rule_path`` 恢复工作区相对路径。"""
     real = tmp_path / "real_ws"
     real.mkdir()
     link = tmp_path / "link_ws"
@@ -207,9 +208,9 @@ def test_symlinked_workspace_root_still_matches(tmp_path: Path) -> None:
     rule = Skill(
         name="api", content="Use zod.", trigger=PathTrigger(paths=["src/api/**/*.ts"])
     )
-    conv = _conversation(link, rule)  # workspace is the symlink form
+    conv = _conversation(link, rule)  # 工作区是符号链接形式
     try:
-        # Action reports the resolved (real) path — the mismatch the fix handles.
+        # 操作报告已解析的（真实）路径 - 修复处理的不匹配。
         action_event = _append_file_action(conv, str(real / "src" / "api" / "u.ts"))
         injected = _inject(conv, _observation_for(action_event))
         assert any("Use zod." in c.text for c in injected.extended_content)
@@ -219,7 +220,7 @@ def test_symlinked_workspace_root_still_matches(tmp_path: Path) -> None:
 
 
 def test_non_path_action_does_not_inject(tmp_path: Path) -> None:
-    """A tool action with no ``path`` field never triggers a rule."""
+    """没有 ``path`` 字段的工具操作永远不会触发规则。"""
     rule = Skill(name="any", content="rule", trigger=PathTrigger(paths=["**/*"]))
     conv = _conversation(tmp_path, rule)
     try:
@@ -244,13 +245,13 @@ def test_non_path_action_does_not_inject(tmp_path: Path) -> None:
 
 
 def test_relative_path_action_matched_against_workspace(tmp_path: Path) -> None:
-    """A workspace-relative action path is matched as-is."""
+    """工作区相对操作路径按原样匹配。"""
     rule = Skill(
         name="api", content="Use zod.", trigger=PathTrigger(paths=["src/api/**/*.ts"])
     )
     conv = _conversation(tmp_path, rule)
     try:
-        action_event = _append_file_action(conv, "src/api/users.ts")  # relative
+        action_event = _append_file_action(conv, "src/api/users.ts")  # 亲戚
         injected = _inject(conv, _observation_for(action_event))
         assert any("Use zod." in c.text for c in injected.extended_content)
     finally:
@@ -258,8 +259,8 @@ def test_relative_path_action_matched_against_workspace(tmp_path: Path) -> None:
 
 
 def test_observation_extended_content_serialization_round_trip() -> None:
-    """The injected rule survives event-log persistence + reload, and stays
-    ordered after the tool result in the reconstructed LLM message."""
+    """注入的规则在事件日志持久化 + 重新加载中幸存下来，并保持不变
+    在重建的 LLM 消息中的工具结果之后排序。"""
     obs = ObservationEvent(
         observation=FinishObservation(content=[TextContent(text="result")]),
         action_id="a",
@@ -271,7 +272,7 @@ def test_observation_extended_content_serialization_round_trip() -> None:
     assert [c.text for c in back.extended_content] == ["RULE"]
     texts = [getattr(c, "text", "") for c in back.to_llm_message().content]
     assert "result" in texts and "RULE" in texts
-    assert texts.index("RULE") > texts.index("result")  # rule appended after result
+    assert texts.index("RULE") > texts.index("result")  # 结果后附加规则
 
 
 def test_fork_copies_activated_path_rules(tmp_path: Path) -> None:
@@ -295,7 +296,7 @@ def test_fork_copies_activated_path_rules(tmp_path: Path) -> None:
 
 
 def test_path_rule_not_invocable_via_invoke_skill(tmp_path: Path) -> None:
-    """A path rule can only be activated by file-touch, never invoke_skill."""
+    """路径规则只能通过文件触摸激活，而不能通过 invoke_skill 激活。"""
     rule = Skill(name="api", content="Use zod.", trigger=PathTrigger(paths=["**/*.ts"]))
     conv = _conversation(tmp_path, rule)
     try:
@@ -307,7 +308,7 @@ def test_path_rule_not_invocable_via_invoke_skill(tmp_path: Path) -> None:
 
 
 def test_no_injection_when_agent_has_no_context(tmp_path: Path) -> None:
-    """The seam is a safe no-op when the agent has no agent_context."""
+    """当智能体没有 agent_context 时，接缝是安全的无操作。"""
     agent = Agent(
         llm=TestLLM.from_messages(
             [Message(role="assistant", content=[TextContent(text="ok")])],
@@ -332,7 +333,7 @@ def test_no_injection_when_agent_has_no_context(tmp_path: Path) -> None:
 
 
 def test_no_injection_when_action_not_correlated(tmp_path: Path) -> None:
-    """An observation whose action_id isn't in the event log yields no path."""
+    """action_id 不在事件日志中的观测结果不会产生任何路径。"""
     rule = Skill(name="any", content="rule", trigger=PathTrigger(paths=["**/*"]))
     conv = _conversation(tmp_path, rule)
     try:

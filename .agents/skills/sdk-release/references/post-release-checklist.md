@@ -1,18 +1,20 @@
-# Post-Release Checklist
+<a id="post-release-checklist"></a>
 
-After the GitHub release is published and PyPI packages are available,
-several automated and manual follow-up steps occur.
+# 发布后清单
 
-## Automated: Downstream Version Bump PRs
+在发布 GitHub 版本并且 PyPI 软件包可用后，会发生几个自动和手动后续步骤。
 
-The `version-bump-prs.yml` workflow runs automatically after `pypi-release`
-succeeds. It creates PRs in two repositories:
+<a id="automated-downstream-version-bump-prs"></a>
+
+## 自动化：下游版本更新 PR
+
+`pypi-release` 成功后，`version-bump-prs.yml` 工作流程自动运行。 它在两个存储库中创建 PR：
 
 ### OpenHands-CLI (`OpenHands/openhands-cli`)
 
-- Branch: `bump-sdk-<version>`
-- Updates `openhands-sdk` and `openhands-tools` via `uv add`
-- Verify the PR passes CLI tests before merging
+- 分行：`bump-sdk-<version>`
+- 通过 `uv add` 更新 `openhands-sdk` 和 `openhands-tools`
+- 合并前验证 PR 通过 CLI 测试
 
 ```bash
 gh pr list --repo OpenHands/openhands-cli \
@@ -21,31 +23,32 @@ gh pr list --repo OpenHands/openhands-cli \
 
 ### OpenHands (`All-Hands-AI/OpenHands`)
 
-- Branch: `bump-sdk-<version>`
-- Updates `openhands-sdk`, `openhands-tools`, and `openhands-agent-server`
-  in `pyproject.toml`
-- Regenerates `poetry.lock`
-- Updates `AGENT_SERVER_IMAGE` in `sandbox_spec_service.py`
-- Verifies `enterprise/pyproject.toml` does not have explicit SDK pins
+- 分行：`bump-sdk-<version>`
+- 更新`pyproject.toml`中的`openhands-sdk`、`openhands-tools`和`openhands-agent-server`
+- 再生 `poetry.lock`
+- 更新`sandbox_spec_service.py`中的`AGENT_SERVER_IMAGE`
+- 验证 `enterprise/pyproject.toml` 没有显式 SDK 引脚
 
 ```bash
 gh pr list --repo All-Hands-AI/OpenHands \
   --search "bump-sdk-<version>" --json number,title,url
 ```
 
-## Manual Review of Downstream PRs
+<a id="manual-review-of-downstream-prs"></a>
 
-Both PRs require human review:
+## 下游人工审核 PR
 
-1. **Check CI passes** on each downstream PR
-2. **Verify compatibility** — especially if the release includes breaking
-   changes or new features that need adoption
-3. **Merge** once satisfied
+两者 PR 都需要人工审核：
 
-## Evaluation on OpenHands Index
+1. **检查每个下游 PR 上的 CI 个通道 **
+2. **验证兼容性** - 特别是如果版本包含不兼容变更或需要采用的新功能
+3. **满足后合并**
 
-If not already done pre-release, trigger a full evaluation run
-against the published version:
+<a id="evaluation-on-openhands-index"></a>
+
+## OpenHands指数评价
+
+如果尚未完成预发布，请触发针对已发布版本的完整评估运行：
 
 ```bash
 curl -X POST \
@@ -63,29 +66,32 @@ curl -X POST \
   }'
 ```
 
-## Documentation Updates
+<a id="documentation-updates"></a>
 
-If the release includes user-facing features, verify documentation is
-updated in `OpenHands/docs` (SDK docs live under `sdk/`). See the
-`feature-release-rollout` skill for the full downstream propagation
-workflow.
+## 文档更新
 
-## Troubleshooting
+如果该版本包含面向用户的功能，请验证 `OpenHands/docs` 中的文档是否已更新（SDK 文档位于 `sdk/` 下）。 请参阅
+`feature-release-rollout` 完整下游传播工作流程的技能。
 
-### PyPI publication failed
+<a id="troubleshooting"></a>
 
-Re-run the `pypi-release.yml` workflow manually. It uses `--check-url`
-to skip already-published packages, so partial reruns are safe.
+## 故障排除
+
+<a id="pypi-publication-failed"></a>
+
+### PyPI发布失败
+
+手动重新运行 `pypi-release.yml` 工作流程。 它使用 `--check-url` 跳过已经发布的包，因此部分重新运行是安全的。
 
 ```bash
 gh workflow run pypi-release.yml --repo OpenHands/software-agent-sdk
 ```
 
-### Version bump PR has conflicts
+<a id="version-bump-pr-has-conflicts"></a>
 
-The automated PR may conflict if the downstream repo changed dependency
-pins since the workflow ran. Resolve conflicts manually on the bump branch,
-or re-trigger `version-bump-prs.yml` with the version input.
+### 版本升级 PR 有冲突
+
+如果下游存储库自工作流程运行以来更改了依赖项引脚，则自动化 PR 可能会发生冲突。 手动解决凹凸分支上的冲突，或使用版本输入重新触发 `version-bump-prs.yml`。
 
 ```bash
 gh workflow run version-bump-prs.yml \
@@ -93,10 +99,11 @@ gh workflow run version-bump-prs.yml \
   -f version=<version>
 ```
 
-### Downstream tests fail after bump
+<a id="downstream-tests-fail-after-bump"></a>
 
-If a downstream repo's tests fail on the version bump PR, investigate
-whether the failure is a breaking change in the SDK release. If so,
-either:
-- Fix the downstream code on the bump branch, or
-- Publish a patch release of the SDK with the fix
+### 下游测试在碰撞后失败
+
+如果下游存储库的测试在版本升级 PR 上失败，请调查失败是否是 SDK 版本中的不兼容变更。 如果是这样的话，
+要么：
+- 修复凹凸分支上的下游代码，或者
+- 发布包含修复程序的 SDK 补丁版本

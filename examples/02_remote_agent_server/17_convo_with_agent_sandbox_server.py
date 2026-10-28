@@ -1,16 +1,16 @@
-"""Run a conversation whose agent server lives in a kubernetes-sigs/agent-sandbox pod.
+"""运行 Agent Server 位于 Kubernetes-sigs/agent-sandbox pod 中的对话。
 
-Prerequisites (see agent_sandbox_deploy/README.md for a full kind walkthrough):
-  1. A Kubernetes cluster (kind / minikube / GKE) with the agent-sandbox controller
-     and extensions installed, reachable via your kubeconfig.
-  2. The agent-server SandboxTemplate + SandboxWarmPool applied:
-       kubectl apply -f agent_sandbox_deploy/sandboxtemplate.yaml
-       kubectl apply -f agent_sandbox_deploy/sandboxwarmpool.yaml
-  3. pip install openhands-workspace[agent-sandbox]
-  4. export LLM_API_KEY=...   (and optionally LLM_MODEL, LLM_BASE_URL)
+先决条件（有关完整的演练，请参阅 agent_sandbox_deploy/README.md）：
+  1. 安装了智能体-sandbox 控制器和扩展的 Kubernetes 集群（kind / minikube / GKE），可
+  通过 kubeconfig 访问。
+  2. 应用了智能体-server SandboxTemplate + SandboxWarmPool： kubectl apply -f
+  agent_sandbox_deploy/sandboxtemplate.yaml kubectl apply -f agent_sandbox_deploy/
+  sandboxwarmpool.yaml
+  3. 使用 pip 安装 OpenHands-工作区 [ 智能体-sandbox ]
+  4. 导出 LLM_API_KEY=...（以及可选的 LLM_MODEL、LLM_BASE_URL）
 
-The LLM is called from inside the pod (the agent runs on the agent server), so the
-cluster needs egress to your LLM endpoint.
+LLM 是从 Pod 内部调用的（智能体在 Agent Server 上运行），因此集群需要到 LLM 端点的出
+口。
 """
 
 import os
@@ -30,7 +30,7 @@ from openhands.workspace import AgentSandboxWorkspace
 
 logger = get_logger(__name__)
 
-# 1) LLM configuration
+# 1) LLM 配置
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 
@@ -41,27 +41,27 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# 2) Claim a pod from the warm pool. With a pre-warmed pool this returns in well
-#    under a second; the workspace connects to the pod's agent server via
-#    kubectl port-forward (the default 'port_forward' connection mode).
+# 2) 从温水池中领取一个吊舱。 如果使用预热池，则可在不到一秒的时间内返回； 工作区通过
+# kubectl port-forward 连接到 pod 的 Agent Server（默认的“port_forward”连接模式）。
+#
 warmpool = os.getenv("AGENT_SANDBOX_WARMPOOL", "openhands-pool")
 namespace = os.getenv("AGENT_SANDBOX_NAMESPACE", "default")
 logger.info(f"Claiming a sandbox from warm pool {warmpool!r} in {namespace!r}...")
 with AgentSandboxWorkspace(
     warmpool=warmpool,
     namespace=namespace,
-    # Safety net: auto-delete the claim after 30 minutes if something leaks it.
+    # 安全网：如果有内容泄露，30 分钟后自动删除该声明。
     shutdown_after_seconds=30 * 60,
 ) as workspace:
-    # 3) Create the agent
+    # 3) 创建智能体
     agent = get_default_agent(llm=llm, cli_mode=True)
 
-    # 4) Sanity-check the workspace with a direct command
+    # 4) 使用直接命令对工作区进行健全性检查
     result = workspace.execute_command("echo 'Hello from agent-sandbox!' && pwd")
     logger.info(f"Command exit code: {result.exit_code}")
     logger.info(f"Output: {result.stdout}")
 
-    # 5) Run a conversation
+    # 5) 进行对话
     conversation = Conversation(agent=agent, workspace=workspace)
     assert isinstance(conversation, RemoteConversation)
     try:
@@ -72,8 +72,9 @@ with AgentSandboxWorkspace(
         conversation.run()
         logger.info(f"Agent status: {conversation.state.execution_status}")
 
-        # 6) Demonstrate native pause/resume. The pod is suspended (operatingMode
-        #    -> Suspended) and its PVC is retained, then resumed for a follow-up.
+        # 6) 演示本机暂停/恢复。 该 Pod 被挂起（operatingMode -> 挂起），其 PVC 被保留，
+        # 然后恢复以进行后续操作。
+        #
         logger.info("Pausing the sandbox (operatingMode -> Suspended)...")
         workspace.pause()
         time.sleep(3)

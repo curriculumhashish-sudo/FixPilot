@@ -1,19 +1,19 @@
-"""Example: OpenHandsCloudWorkspace for OpenHands Cloud API.
+"""Example: OpenHandsCloudWorkspace 对应 OpenHands 云 API。
 
-This example demonstrates using OpenHandsCloudWorkspace to provision a sandbox
-via OpenHands Cloud (app.all-hands.dev) and run an agent conversation.
+此示例演示使用 OpenHandsCloudWorkspace 通过 OpenHands 云 (app.all-hands.dev) 配置沙箱
+并运行智能体对话。
 
-Usage:
+用途：
   uv run examples/02_remote_agent_server/07_convo_with_cloud_workspace.py
 
-Requirements:
-  - LLM_API_KEY: API key for direct LLM provider access (e.g., Anthropic API key)
-  - OPENHANDS_CLOUD_API_KEY: API key for OpenHands Cloud access
+要求：
+  - LLM_API_KEY: 用于直接 LLM 提供商访问的 API 键（e.g.、Anthropic API 键）
+  - OPENHANDS_CLOUD_API_KEY: API 用于 OpenHands 云访问的密钥
 
 Note:
-  The LLM configuration is sent to the cloud sandbox, so you need an API key
-  that works directly with the LLM provider (not a local proxy). If using
-  Anthropic, set LLM_API_KEY to your Anthropic API key.
+  LLM 配置被发送到云沙箱，​​因此您需要一个直接与 LLM 提供程序（而不是本地代理）一起使
+  用的 API 密钥。 如果使用 Anthropic，请将
+  LLM_API_KEY 设置为 Anthropic API 键。
 """
 
 import os
@@ -37,9 +37,10 @@ logger = get_logger(__name__)
 api_key = os.getenv("LLM_API_KEY")
 assert api_key, "LLM_API_KEY required"
 
-# Note: Don't use a local proxy URL here - the cloud sandbox needs direct access
-# to the LLM provider. Use None for base_url to let LiteLLM use the default
-# provider endpoint, or specify the provider's direct URL.
+# 注意：此处不要使用本地代理 URL - 云沙箱需要直接访问
+# 给 LLM 提供商。 将 None 用于 base_url，让 LiteLLM 使用默认提供程序端点，或指定提供程序
+# 的直接 URL。
+#
 llm = LLM(
     usage_id="agent",
     model=os.getenv("LLM_MODEL", "gpt-5.5"),

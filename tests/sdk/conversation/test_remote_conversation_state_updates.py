@@ -1,4 +1,4 @@
-"""Tests for RemoteConversation state update handling."""
+"""测试 RemoteConversation 状态更新处理。"""
 
 from unittest.mock import patch
 
@@ -14,16 +14,16 @@ from .conftest import create_mock_http_client
 
 
 def create_test_agent() -> Agent:
-    """Create a test agent for testing."""
+    """创建一个测试智能体进行测试。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     return Agent(llm=llm, tools=[])
 
 
 def test_update_state_from_event_with_full_state():
-    """Test updating cached state from a full state snapshot."""
+    """测试从完整状态快照更新缓存状态。"""
     agent = create_test_agent()
 
-    # Mock httpx client
+    # 模拟对象 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -33,13 +33,13 @@ def test_update_state_from_event_with_full_state():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Create a full state event
+        # 创建完整状态事件
         full_state = {
             "execution_status": "running",
             "confirmation_policy": {"kind": "NeverConfirm"},
@@ -47,10 +47,10 @@ def test_update_state_from_event_with_full_state():
         }
         event = ConversationStateUpdateEvent(key="full_state", value=full_state)
 
-        # Update state using the real RemoteState
+        # 使用真实的 RemoteState 更新状态
         conv.state.update_state_from_event(event)
 
-        # Verify all fields were updated
+        # 验证所有字段均已更新
         assert conv.state._cached_state is not None
         assert conv.state._cached_state == full_state
         assert conv.state._cached_state["execution_status"] == "running"
@@ -58,10 +58,10 @@ def test_update_state_from_event_with_full_state():
 
 
 def test_update_state_from_event_with_individual_field():
-    """Test updating cached state from an individual field update."""
+    """测试从单个字段更新更新缓存状态。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -71,35 +71,35 @@ def test_update_state_from_event_with_individual_field():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Set initial cached state
+        # 设置初始缓存状态
         conv.state._cached_state = {
             "execution_status": "idle",
             "max_iterations": 50,
         }
 
-        # Create an individual field update event
+        # 创建单独的字段更新事件
         event = ConversationStateUpdateEvent(key="execution_status", value="running")
 
-        # Update state using the real RemoteState
+        # 使用真实的 RemoteState 更新状态
         conv.state.update_state_from_event(event)
 
-        # Verify only that field was updated
+        # 仅验证该字段已更新
         assert conv.state._cached_state is not None
         assert conv.state._cached_state["execution_status"] == "running"
-        assert conv.state._cached_state["max_iterations"] == 50  # Unchanged
+        assert conv.state._cached_state["max_iterations"] == 50  # 不变
 
 
 def test_update_state_initializes_cache_if_none():
-    """Test that update initializes cache if it doesn't exist."""
+    """测试更新是否初始化缓存（如果不存在）。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -109,29 +109,29 @@ def test_update_state_initializes_cache_if_none():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Ensure cache starts as None
+        # 确保缓存以 None 开头
         conv.state._cached_state = None
 
-        # Update with individual field when cache is None
+        # 当缓存为 None 时更新单个字段
         event = ConversationStateUpdateEvent(key="execution_status", value="running")
         conv.state.update_state_from_event(event)
 
-        # Verify cache was initialized
+        # 验证缓存是否已初始化
         assert conv.state._cached_state is not None
         assert conv.state._cached_state["execution_status"] == "running"
 
 
 def test_update_state_from_multiple_events():
-    """Test updating state from multiple events."""
+    """测试多个事件的更新状态。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -141,13 +141,13 @@ def test_update_state_from_multiple_events():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # First, full state
+        # 一、全状态
         full_state = {
             "execution_status": "idle",
             "max_iterations": 50,
@@ -156,14 +156,14 @@ def test_update_state_from_multiple_events():
         event1 = ConversationStateUpdateEvent(key="full_state", value=full_state)
         conv.state.update_state_from_event(event1)
 
-        # Then, individual updates
+        # 然后，个别更新
         event2 = ConversationStateUpdateEvent(key="execution_status", value="running")
         conv.state.update_state_from_event(event2)
 
         event3 = ConversationStateUpdateEvent(key="max_iterations", value=100)
         conv.state.update_state_from_event(event3)
 
-        # Verify final state
+        # 验证最终状态
         assert conv.state._cached_state is not None
         assert conv.state._cached_state["execution_status"] == "running"
         assert conv.state._cached_state["max_iterations"] == 100
@@ -171,10 +171,10 @@ def test_update_state_from_multiple_events():
 
 
 def test_update_state_full_state_overwrites_fields():
-    """Test that full_state update properly overwrites existing fields."""
+    """测试 full_state 更新是否正确覆盖现有字段。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -184,20 +184,20 @@ def test_update_state_full_state_overwrites_fields():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Set initial cached state
+        # 设置初始缓存状态
         conv.state._cached_state = {
             "execution_status": "running",
             "max_iterations": 100,
             "old_field": "old_value",
         }
 
-        # Update with full state (without old_field)
+        # 更新完整状态（不带 old_field）
         full_state = {
             "execution_status": "idle",
             "max_iterations": 50,
@@ -205,21 +205,21 @@ def test_update_state_full_state_overwrites_fields():
         event = ConversationStateUpdateEvent(key="full_state", value=full_state)
         conv.state.update_state_from_event(event)
 
-        # Verify new fields are set and old field still exists (update, not replace)
+        # 验证新字段已设置并且旧字段仍然存在（更新，而不是替换）
         assert conv.state._cached_state is not None
         assert conv.state._cached_state["execution_status"] == "idle"
         assert conv.state._cached_state["max_iterations"] == 50
-        assert "old_field" in conv.state._cached_state  # Still there from .update()
+        assert "old_field" in conv.state._cached_state  # 仍然存在。update()
 
 
 def test_update_state_thread_safe():
-    """Test that state updates are thread-safe."""
+    """测试状态更新是否为线程安全。"""
     import threading
     import time
 
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -229,21 +229,21 @@ def test_update_state_thread_safe():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Set initial cached state
+        # 设置初始缓存状态
         conv.state._cached_state = {"counter": 0}
 
         def update_worker(i):
             event = ConversationStateUpdateEvent(key="counter", value=i)
             conv.state.update_state_from_event(event)
-            time.sleep(0.001)  # Small delay to encourage race conditions
+            time.sleep(0.001)  # 小延迟鼓励竞态条件
 
-        # Create multiple threads updating concurrently
+        # 创建多个线程并发更新
         threads = [threading.Thread(target=update_worker, args=(i,)) for i in range(10)]
 
         for t in threads:
@@ -251,17 +251,17 @@ def test_update_state_thread_safe():
         for t in threads:
             t.join()
 
-        # Verify state is still valid (should have one of the values)
+        # 验证状态仍然有效（应该具有以下值之一）
         assert conv.state._cached_state is not None
         assert "counter" in conv.state._cached_state
         assert 0 <= conv.state._cached_state["counter"] < 10
 
 
 def test_update_state_preserves_data_types():
-    """Test that state updates preserve data types correctly."""
+    """测试状态更新是否正确保留数据类型。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -271,13 +271,13 @@ def test_update_state_preserves_data_types():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Update with various data types
+        # 使用各种数据类型进行更新
         full_state = {
             "string_field": "test",
             "int_field": 42,
@@ -288,7 +288,7 @@ def test_update_state_preserves_data_types():
         event = ConversationStateUpdateEvent(key="full_state", value=full_state)
         conv.state.update_state_from_event(event)
 
-        # Verify types are preserved
+        # 验证类型是否已保留
         assert conv.state._cached_state is not None
         assert isinstance(conv.state._cached_state["string_field"], str)
         assert isinstance(conv.state._cached_state["int_field"], int)
@@ -298,10 +298,10 @@ def test_update_state_preserves_data_types():
 
 
 def test_state_update_callback_integration():
-    """Test that the state update callback is properly integrated."""
+    """测试状态更新回调是否正确集成。"""
     agent = create_test_agent()
 
-    # Mock httpx client and its responses
+    # 模拟对象 httpx 客户端及其响应
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -311,34 +311,34 @@ def test_state_update_callback_integration():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create real RemoteConversation
+        # 创造真实RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Verify that the state update callback was added to the callbacks
+        # 验证状态更新回调已添加到回调
         state_update_callback = conv.state.create_state_update_callback()
 
-        # Test that the callback properly handles ConversationStateUpdateEvent
+        # 测试回调是否正确处理 ConversationStateUpdateEvent
         event = ConversationStateUpdateEvent(key="execution_status", value="running")
 
-        # Call the callback directly (simulating websocket event)
+        # 直接调用回调（模拟WebSocket事件）
         state_update_callback(event)
 
-        # Verify the state was updated
+        # 验证状态已更新
         assert conv.state._cached_state is not None
         assert conv.state._cached_state["execution_status"] == "running"
 
 
 def test_conversation_stats_reads_from_stats_field():
-    """Test that conversation_stats property reads from 'stats' field."""
+    """测试 conversation_stats 属性是否从“stats”字段读取。"""
     agent = create_test_agent()
 
-    # Mock httpx client with stats data
+    # 模拟对象带有统计数据的 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
-    # Mock conversation info response with stats field
+    # 模拟对象带有统计字段的对话信息响应
     mock_info_response = {
         "conversation_id": "test-id",
         "execution_status": "idle",
@@ -363,29 +363,29 @@ def test_conversation_stats_reads_from_stats_field():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create RemoteConversation
+        # 创建RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Manually set cached state to simulate REST API response
+        # 手动设置缓存状态以模拟 REST API 响应
         conv.state._cached_state = mock_info_response
 
-        # Access conversation_stats property
+        # 访问 conversation_stats 属性
         stats = conv.conversation_stats
 
-        # Verify stats are correctly read from "stats" field
+        # 验证从“统计”字段正确读取统计信息
         assert stats is not None
         assert "test-llm" in stats.usage_to_metrics
         assert stats.usage_to_metrics["test-llm"].accumulated_cost == 1.23
 
 
 def test_stats_update_via_state_event():
-    """Test that stats updates are received via ConversationStateUpdateEvent."""
+    """测试是否通过 ConversationStateUpdateEvent 接收统计更新。"""
     agent = create_test_agent()
 
-    # Mock httpx client
+    # 模拟对象 httpx 客户端
     mock_client_instance = create_mock_http_client()
 
     with (
@@ -395,13 +395,13 @@ def test_stats_update_via_state_event():
             ".WebSocketCallbackClient"
         ),
     ):
-        # Create RemoteConversation
+        # 创建RemoteConversation
         conv = RemoteConversation(
             agent=agent,
             workspace=RemoteWorkspace(working_dir="/tmp", host="http://localhost:3000"),
         )
 
-        # Set initial state with empty stats
+        # 使用空统计数据设置初始状态
         initial_state = {
             "execution_status": "running",
             "stats": {"usage_to_metrics": {}},
@@ -409,12 +409,12 @@ def test_stats_update_via_state_event():
         event1 = ConversationStateUpdateEvent(key="full_state", value=initial_state)
         conv.state.update_state_from_event(event1)
 
-        # Verify initial stats are empty
+        # 验证初始统计数据为空
         stats = conv.conversation_stats
         assert stats is not None
         assert stats.usage_to_metrics == {}
 
-        # Simulate state update with new stats
+        # 使用新统计数据模拟状态更新
         updated_stats = {
             "usage_to_metrics": {
                 "test-llm": {
@@ -426,7 +426,7 @@ def test_stats_update_via_state_event():
         event2 = ConversationStateUpdateEvent(key="stats", value=updated_stats)
         conv.state.update_state_from_event(event2)
 
-        # Verify stats are updated
+        # 验证统计数据已更新
         stats = conv.conversation_stats
         assert stats is not None
         assert "test-llm" in stats.usage_to_metrics

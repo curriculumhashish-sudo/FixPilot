@@ -1,12 +1,12 @@
-"""The Claude Code plugin format (OpenHands' original layout).
+"""Claude Code 插件格式（OpenHands' 原始布局）。
 
-This is the concrete :class:`~openhands.sdk.plugin.format.base.PluginFormat`
-strategy for the Claude-Code-style plugin directory. It is the universal
-fallback: its :meth:`ClaudeCodePluginFormat.detect` accepts any directory,
-inferring a manifest from the directory name when none is present.
+这是 Claude-Code 风格插件目录的具体：class:
+`~openhands.sdk.plugin.format.base.PluginFormat` 策略。 这是
+通用的
+fallback: 它的：meth:`ClaudeCodePluginFormat.detect` 接受任何目录，
+当 None 存在时，从目录名称推断清单。
 
-See the ``openhands.sdk.plugin.format`` package docstring for the design
-overview and the recipe to add a new format.
+请参阅 ``openhands.sdk.plugin.format`` 包文档字符串了解设计概述和添加新格式的方法。
 """
 
 from __future__ import annotations
@@ -36,25 +36,25 @@ from openhands.sdk.utils.path import resolves_within
 
 logger = get_logger(__name__)
 
-# Directories the Claude Code layout checks for a (nested) manifest, in order.
+# 克劳德代码布局按顺序检查（嵌套）清单的目录。
 PLUGIN_MANIFEST_DIRS: Final[list[str]] = [".plugin", ".claude-plugin"]
 PLUGIN_MANIFEST_FILE: Final[str] = "plugin.json"
 
 
 class ClaudeCodePluginFormat(PluginFormat):
-    """The Claude Code plugin layout (OpenHands' original format).
+    """Claude Code 插件布局（OpenHands'原始格式）。
 
     ```
     plugin-name/
-    ├── .claude-plugin/           # or .plugin/
-    │   └── plugin.json          # Plugin metadata (nested)
-    ├── commands/                # Slash commands (optional)
-    ├── agents/                  # Specialized agents (optional)
-    ├── skills/                  # Agent Skills (optional)
-    ├── hooks/                   # Event handlers (optional)
+    ├── .claude-plugin/           # 或.plugin/
+    │   └── plugin.json          # 插件元数据（嵌套）
+    ├── commands/                # 斜线命令（可选）
+    ├── agents/                  # 专业智能体（可选）
+    ├── skills/                  # 智能体技能（可选）
+    ├── hooks/                   # 事件处理程序（可选）
     │   └── hooks.json
-    ├── .mcp.json                # External tool configuration (optional)
-    └── README.md                # Plugin documentation
+    ├── .mcp.json                # 外部工具配置（可选）
+    └── README.md                # 插件文档
     ```
     """
 
@@ -62,15 +62,15 @@ class ClaudeCodePluginFormat(PluginFormat):
 
     @classmethod
     def detect(cls, plugin_dir: Path) -> bool:  # noqa: ARG003
-        # The Claude Code format is the fallback: it accepts any directory,
-        # inferring a manifest from the directory name when none is present.
+        # 克劳德代码格式是回退方案：它接受任何目录，当 None 存在时从目录名称推断清单。
+        #
         return True
 
     def load_manifest(self, plugin_dir: Path) -> PluginManifest:
-        """Load plugin manifest from ``plugin.json``.
+        """从 ``plugin.json`` 加载插件清单。
 
-        Checks both ``.plugin/`` and ``.claude-plugin/`` directories.
-        Falls back to inferring from directory name if no manifest found.
+        检查 ``.plugin/`` 和 ``.claude-plugin/`` 目录。 如果未找到清单，则退回到从目
+        录名称推断。
         """
         manifest_path = None
 
@@ -90,7 +90,7 @@ class ClaudeCodePluginFormat(PluginFormat):
                 with open(manifest_path, encoding="utf-8") as f:
                     data = json.load(f)
 
-                # Handle author field - can be string or object
+                # 处理作者字段 - 可以是字符串或对象
                 if "author" in data and isinstance(data["author"], str):
                     data["author"] = PluginAuthor.from_string(
                         data["author"]
@@ -104,7 +104,7 @@ class ClaudeCodePluginFormat(PluginFormat):
                     f"Failed to parse manifest {manifest_path}: {e}"
                 ) from e
 
-        # Fall back to inferring from directory name
+        # 回退到从目录名称推断
         logger.debug(
             f"No manifest found for {plugin_dir}, inferring from directory name"
         )
@@ -115,16 +115,14 @@ class ClaudeCodePluginFormat(PluginFormat):
         )
 
     def load_mcp_config(self, plugin_dir: Path) -> dict[str, MCPServer]:
-        """Load MCP config from ``.mcp.json``.
+        """从 ``.mcp.json`` 加载 MCP 配置。
 
-        Note: Variables are NOT fully expanded during plugin loading. Only
-        SKILL_ROOT is expanded (since plugin_dir is known). Other variables like
-        ${VAR:-default} are preserved as placeholders to be expanded later when
-        per-conversation secrets are available (in
-        LocalConversation._ensure_plugins_loaded()).
+        Note: 变量在插件加载期间完全扩展不。 仅
+        SKILL_ROOT 被扩展（因为 plugin_dir 已知）。 其他变量（如 ${VAR:-default}）被
+        保留为占位符，以便稍后在每个对话机密可用
+        时（在 LocalConversation._ensure_plugins_loaded() 中）进行扩展。
 
-        This prevents the double-expansion bug where defaults would be applied
-        during plugin loading before secrets are available.
+        这可以防止双重扩展错误，即在机密可用之前在插件加载期间应用默认值。
         """
         mcp_json = plugin_dir / ".mcp.json"
         if not mcp_json.exists() or not resolves_within(mcp_json, plugin_dir):
@@ -132,8 +130,8 @@ class ClaudeCodePluginFormat(PluginFormat):
 
         try:
             # expand_defaults=False: preserve ${VAR:-default} placeholders for
-            # later expansion with per-conversation secrets. Only SKILL_ROOT is
-            # expanded now.
+            # 稍后通过每个对话进行扩展机密。 现在仅扩展了SKILL_ROOT。
+            #
             config = load_mcp_config(
                 mcp_json, skill_root=plugin_dir, expand_defaults=False
             )
@@ -150,13 +148,13 @@ class ClaudeCodePluginFormat(PluginFormat):
             return {}
 
     def load_hooks(self, plugin_dir: Path) -> HookConfig | None:
-        """Load hooks configuration from ``hooks/hooks.json``."""
+        """从 ``hooks/hooks.json`` 加载钩子配置。"""
         return _read_hooks_config(plugin_dir)
 
     def load_agents(self, plugin_dir: Path) -> list[AgentDefinition]:
-        """Load agent definitions from the ``agents/`` directory."""
+        """从 ``agents/`` 目录加载智能体定义。"""
         return load_agents_from_dir(plugin_dir / "agents", root=plugin_dir)
 
     def load_commands(self, plugin_dir: Path) -> list[CommandDefinition]:
-        """Load command definitions from the ``commands/`` directory."""
+        """从 ``commands/`` 目录加载命令定义。"""
         return _read_command_definitions(plugin_dir)

@@ -1,10 +1,8 @@
-"""Task tool executor.
+"""任务工具执行器。
 
-This module contains the TaskExecutor class,
-which serves as a bridge between the tool interface
-and the TaskManager. It translates a TaskAction into
-a blocking sub-agent execution and returns a
-TaskObservation containing either the task result or an error.
+该模块包含TaskExecutor类，它充当工具接口和TaskManager之间的桥梁。 它将 TaskAction 转
+换为阻塞子智能体执行，并返回包含任务结果或错误的
+TaskObservation。
 """
 
 from openhands.sdk.conversation.impl.local_conversation import LocalConversation
@@ -18,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class TaskExecutor(ToolExecutor):
-    """Executor for the Task tool (blocking only)."""
+    """任务工具的执行器（仅限阻塞）。"""
 
     def __init__(self, manager: TaskManager):
         self._manager = manager
@@ -53,7 +51,7 @@ class TaskExecutor(ToolExecutor):
                         is_error=True,
                     )
                 case _:
-                    # this should never happen
+                    # 这永远不应该发生
                     raise RuntimeError(f"Unknown task status: {task.status}")
         except Exception as e:
             logger.error(f"Task execution failed: {e}", exc_info=True)

@@ -1,17 +1,16 @@
-"""Skills service for OpenHands Agent Server.
+"""OpenHands Agent Server 的技能服务。
 
-This module contains the business logic for skill loading and management,
-keeping the router clean and focused on HTTP concerns.
+该模块包含技能加载和管理的业务逻辑，保持路由器清洁并专注于HTTP关注点。
 
-Skill Sources:
-- Public skills: registered marketplace plugins or GitHub OpenHands/extensions
-- User skills: ~/.openhands/skills/ and ~/.openhands/microagents/
-- Project skills: {workspace}/.openhands/skills/, .cursorrules, agents.md
-- Organization skills: {org}/.openhands or {org}/openhands-config
-- Sandbox skills: Exposed URLs from sandbox environment
+技能来源：
+- 公共技能：注册市场插件或GitHubOpenHands/扩展
+- 用户技能：~/.openhands/skills/ 和~/.openhands/microagents/
+- 项目技能：{工作区}/.openhands/skills/、.cursorrules、agents.md
+- 组织技能：{org}/.openhands 或 {org}/openhands-config
+- URLs：从沙盒环境暴露的技能
 
-Precedence (later overrides earlier):
-sandbox < registered marketplace/public < user < org < project
+优先级（稍后覆盖之前）：
+沙箱 < 注册市场/公共 < 用户 < 组织 < 项目
 """
 
 import json
@@ -60,21 +59,21 @@ from openhands.sdk.utils.path import to_posix_path
 logger = get_logger(__name__)
 
 
-# Content template for sandbox work hosts skill
+# 沙盒工作主机技能的内容模板
 WORK_HOSTS_SKILL_CONTENT = (
     "The user has access to the following hosts for accessing "
     "a web application, each of which has a corresponding port:\n{hosts}"
 )
 
-# Prefix for sandbox URLs that should be exposed as work_hosts skill.
-# URLs with names starting with this prefix represent web applications
-# or services running in the sandbox that the agent should be aware of.
+# 沙盒前缀 URLs 应该暴露为 work_hosts 技能。 URLs 以该前缀开头的名称代表在沙箱中运行的
+# web 应用程序或服务智能体应该有所了解。
+#
 SANDBOX_WORKER_URL_PREFIX = "WORKER_"
 
 
 @dataclass
 class ExposedUrlData:
-    """Internal representation of an exposed URL from the sandbox."""
+    """从沙箱中暴露的 URL 的内部表示。"""
 
     name: str
     url: str
@@ -83,7 +82,7 @@ class ExposedUrlData:
 
 @dataclass
 class SkillLoadResult:
-    """Result of loading skills from all sources."""
+    """从所有来源加载技能的结果。"""
 
     skills: list[Skill]
     sources: dict[str, int]
@@ -94,39 +93,37 @@ def load_org_skills_from_url(
     org_name: str,
     working_dir: str | Path | None = None,
 ) -> list[Skill]:
-    """Load skills from an organization repository.
+    """从组织存储库加载技能。
 
-    This function clones an organization-level skills repository to a temporary
-    directory, loads skills from the skills/ and microagents/ directories, and
-    then cleans up the temporary directory.
+    该功能将组织级别的技能仓库克隆到临时目录，从 skills/ 和 microagents/ 目录加载技能
+    ，并清理临时目录。
 
-    The org_repo_url should be a pre-authenticated Git URL (e.g., containing
-    credentials or tokens) as provided by the app-server.
+    org_repo_url 应该是应用程序服务器提供的预先验证的 Git URL（e.g.，包含凭据或 token
+    ）。
 
     Note:
-        This is a blocking I/O operation that may take up to 120 seconds due to
-        the git clone timeout. When called from FastAPI endpoints defined with
-        `def` (not `async def`), FastAPI automatically runs this in a thread
-        pool to avoid blocking the event loop. Do not call this function
-        directly from async code without wrapping it in asyncio.to_thread().
+        这是一个阻塞 I/O 操作，由于 git 克隆超时，可能需要长达 120 秒的时间。 当从定
+        义为 FastAPI 端点调用时
+        `def`（不是 `async def`），FastAPI 自动在线程池中运行它以避免阻塞事件循环。
+        不要直接从异步代码调用此函数而不将其包装在
+        asyncio.to_thread() 中。
 
     Args:
-        org_repo_url: Pre-authenticated Git URL for the organization repository.
-            This should be a full Git URL that includes authentication.
-        org_name: Name of the organization (used for temp directory naming).
-        working_dir: Optional working directory for git operations. If None,
-            uses a subdirectory of the system temp directory.
+        org_repo_url: 组织存储库的预验证 Git URL。
+            这应该是一个包含身份验证的完整 Git URL。
+        org_name: 组织名称（用于临时目录命名）。
+        working_dir: git 操作的可选工作目录。 如果None，
+            使用系统临时目录的子目录。
 
     Returns:
-        List of Skill objects loaded from the organization repository.
-        Returns empty list if the repository doesn't exist or loading fails.
+        从组织存储库加载的技能对象列表。 如果存储库不存在或加载失败，则返回空列表。
     """
     all_skills: list[Skill] = []
 
-    # Determine a unique temporary directory for cloning. Two repos can share
-    # the same org_name (e.g. {login}/.openhands and {login}/.agents), and
-    # concurrent conversations may clone the same org, so the directory must be
-    # unique per call rather than derived solely from org_name.
+    # 确定用于克隆的唯一临时目录。 两个仓库可以共享相同的 org_name (e.g. {login}
+    # /.openhands 和 {login}/.agents)，以及并发个会话可以克隆同一个组织，因此目录必须在
+    # 每次调用中唯一，而不是仅从 org_name 中推导出来的。
+    #
     if working_dir:
         base_dir = Path(working_dir) if isinstance(working_dir, str) else working_dir
         base_dir.mkdir(parents=True, exist_ok=True)
@@ -137,7 +134,7 @@ def load_org_skills_from_url(
         temp_dir = Path(tempfile.mkdtemp(prefix=f"openhands_org_skills_{org_name}_"))
 
     try:
-        # Clone the organization repository (shallow clone for efficiency)
+        # 克隆组织存储库（浅克隆以提高效率）
         logger.info(f"Cloning organization skills repository for {org_name}")
         try:
             env = sanitized_env()
@@ -157,8 +154,8 @@ def load_org_skills_from_url(
                 env=env,
             )
         except subprocess.CalledProcessError:
-            # Repository doesn't exist or access denied - this is expected.
-            # Note: We intentionally don't log stderr as it may contain credentials.
+            # 存储库不存在或访问被拒绝 - 这是预期的情况。
+            # 注意：我们故意不记录 stderr，因为它可能包含凭据。
             logger.debug(
                 f"Organization repository not found or access denied for {org_name}"
             )
@@ -171,7 +168,7 @@ def load_org_skills_from_url(
 
         logger.debug(f"Successfully cloned org repository to {temp_dir}")
 
-        # Load skills from skills/ directory (preferred)
+        # 从技能/目录加载技能（首选）
         skills_dir = temp_dir / "skills"
         if skills_dir.exists():
             try:
@@ -186,7 +183,7 @@ def load_org_skills_from_url(
             except Exception as e:
                 logger.warning(f"Failed to load skills from {skills_dir}: {e}")
 
-        # Load skills from microagents/ directory (legacy support)
+        # 从 microagents/ 目录加载技能（旧版支持）
         microagents_dir = temp_dir / "microagents"
         if microagents_dir.exists():
             seen_names = {s.name for s in all_skills}
@@ -213,7 +210,7 @@ def load_org_skills_from_url(
         logger.warning(f"Failed to load organization skills for {org_name}: {e}")
 
     finally:
-        # Clean up the temporary directory
+        # 清理临时目录
         if temp_dir.exists():
             try:
                 shutil.rmtree(temp_dir)
@@ -227,25 +224,25 @@ def load_org_skills_from_url(
 def create_sandbox_skill(
     exposed_urls: list[ExposedUrlData],
 ) -> Skill | None:
-    """Create a skill from sandbox exposed URLs.
+    """从沙盒创建一个技能 URLs。
 
-    This function creates a skill that informs the agent about web applications
-    and services available in the sandbox environment via exposed ports/URLs.
+    该函数创建一个技能，该技能会告知智能体关于沙盒环境中暴露端口可用的网络应用和服务
+    URLs.
 
-    Only URLs with names starting with SANDBOX_WORKER_URL_PREFIX are included,
-    as these represent web applications the agent should be aware of.
+    仅 URLs 以开头的名称 SANDBOX_WORKER_URL_PREFIX 这些也包括在内，因为它们代表了 web
+     应用程序智能体应该有所了解。
 
     Args:
-        exposed_urls: List of ExposedUrlData objects containing name, url, and port.
+        exposed_urls: 包含名称、url 和端口的 ExposedUrlData 对象列表。
 
     Returns:
-        A Skill object with work_hosts content if there are matching URLs,
-        or None if no relevant URLs are provided.
+        一个 Skill 对象， work_hosts 如果有匹配项，则内容 URLs, 或 None 如果无关紧要
+        的 URLs 已被提供。
     """
     if not exposed_urls:
         return None
 
-    # Filter for URLs with the worker prefix
+    # 带有工作前缀的过滤器 URLs
     worker_urls = [
         url for url in exposed_urls if url.name.startswith(SANDBOX_WORKER_URL_PREFIX)
     ]
@@ -253,7 +250,7 @@ def create_sandbox_skill(
     if not worker_urls:
         return None
 
-    # Build the hosts content
+    # 构建主机内容
     hosts_lines = []
     for url_info in worker_urls:
         hosts_lines.append(f"* {url_info.url} (port {url_info.port})")
@@ -264,21 +261,21 @@ def create_sandbox_skill(
     return Skill(
         name="work_hosts",
         content=content,
-        trigger=None,  # Always active
-        source=None,  # Programmatically generated
+        trigger=None,  # 始终活跃
+        source=None,  # 以编程方式生成
     )
 
 
 def merge_skills(skill_lists: list[list[Skill]]) -> list[Skill]:
-    """Merge multiple skill lists with precedence.
+    """优先合并多个技能列表。
 
-    Later lists override earlier lists for duplicate names.
+    后面的列表会覆盖前面的重复名称列表。
 
     Args:
-        skill_lists: List of skill lists to merge in order of precedence.
+        skill_lists: 按优先顺序合并的技能列表列表。
 
     Returns:
-        Merged list of skills with duplicates resolved.
+        合并的技能列表已解决重复问题。
     """
     skills_by_name: dict[str, Skill] = {}
 
@@ -297,7 +294,7 @@ def merge_skills(skill_lists: list[list[Skill]]) -> list[Skill]:
 def load_registered_marketplace_skills(
     registered_marketplaces: list[MarketplaceRegistration],
 ) -> list[Skill]:
-    """Load skills from auto-load plugins and standalone skills in marketplaces."""
+    """从自动加载插件加载技能和市场中的独立技能。"""
     if not registered_marketplaces:
         return []
 
@@ -314,9 +311,9 @@ def load_registered_marketplace_skills(
             )
             continue
 
-        # Standalone skills first: the tier is merged last-wins, so appending
-        # plugins after lets a plugin win over a same-named standalone skill —
-        # matching the catalog's plugin-over-standalone rule.
+        # 首先添加独立技能，最后合并层级。这样，添加插件可以让插件胜过同名的独立技能——符
+        # 合目录的插件胜过独立技能的规则。
+        #
         all_skills.extend(
             load_marketplace_standalone_skills(
                 marketplace, marketplace_path, registration
@@ -355,11 +352,11 @@ def load_all_skills(
     marketplace_path: str | None = DEFAULT_MARKETPLACE_PATH,
     registered_marketplaces: list[MarketplaceRegistration] | None = None,
 ) -> SkillLoadResult:
-    """Merge skills: sandbox < marketplace < public < user < org < project."""
+    """合并技巧：沙箱<市场<公共<用户<组织<项目。"""
     sources: dict[str, int] = {}
     skill_lists: list[list[Skill]] = []
 
-    # 1. Load sandbox skills (lowest precedence)
+    # 1. 加载沙箱技能（最低优先级）
     sandbox_skills: list[Skill] = []
     if sandbox_exposed_urls:
         sandbox_skill = create_sandbox_skill(sandbox_exposed_urls)
@@ -390,8 +387,8 @@ def load_all_skills(
     sources["sdk_base"] = len(sdk_base)
     skill_lists.append(list(sdk_base.values()))
 
-    # 4. Load organization skills (one or more repos merged into a single tier;
-    # later repos override earlier ones on name collision).
+    # 4. 加载组织技能（一个或多个存储库合并为单层；
+    # 稍后的存储库会覆盖早期的名称冲突）。
     org_skills: list[Skill] = []
     if load_org and org_repos:
         per_repo_skills: list[list[Skill]] = []
@@ -408,13 +405,13 @@ def load_all_skills(
                     f"Failed to load organization skills for {org_name}: {e}"
                 )
         org_skills = merge_skills(per_repo_skills)
-        # Always log the count (including 0) so a failed/empty org load is
-        # visible when org loading was requested.
+        # 始终记录计数（包括 0），以便在请求组织加载时可以看到失败/空的组织加载。
+        #
         logger.info(f"Loaded {len(org_skills)} organization skills")
     sources["org"] = len(org_skills)
     skill_lists.append(org_skills)
 
-    # 5. Load project skills (highest precedence)
+    # 5. 加载项目技能（最高优先级）
     project_skills = load_available_skills(
         work_dir=project_dir if load_project else None,
         include_user=False,
@@ -424,7 +421,7 @@ def load_all_skills(
     sources["project"] = len(project_skills)
     skill_lists.append(list(project_skills.values()))
 
-    # Merge all skills with precedence
+    # 优先合并所有技能
     all_skills = merge_skills(skill_lists)
 
     logger.info("Loaded %d skills", len(all_skills))
@@ -433,21 +430,19 @@ def load_all_skills(
 
 
 def discover_profile_skills() -> list[Skill]:
-    """Skill catalog an OpenHands profile launches with (#4017).
+    """技能目录 OpenHands 配置文件启动时使用 (#4017)。
 
-    Returns the merged user + public skills — the deterministic sources of
-    :func:`load_all_skills`. ``resolve_agent_profile`` keeps all of them except
-    the profile's ``disabled_skills`` deny-list. ``load_all_skills`` already
-    absorbs and logs benign per-source failures, so this does not swallow errors:
-    an unexpected failure propagates rather than silently resolving the profile
-    to a zero-skill agent.
+    返回合并后的用户+公共技能——确定性来源
+    :func:`load_all_skills`。 ``resolve_agent_profile`` 保留所有内容，除了
+    该配置文件的 ``disabled_skills`` 拒绝列表。 ``load_all_skills`` 已经吸收并记录了
+    源端的良性失败，所以这不会吞掉错误：意外失
+    败会传播而不是无声地将配置调整到零技能智能体。
 
-    Org / project skills need auth / workspace context not available at resolve
-    time, so they are not in this catalog. That is safe under the deny-list
-    model: a skill missing from the catalog is simply never disabled (it stays
-    on when it does load, e.g. project skills loaded lazily by
-    ``LocalConversation``) — the old allow-list would instead have dangled and
-    failed the launch.
+    组织/项目技能需要 auth/工作区上下文在解析时不可用，因此它们不在此目录中。 在拒绝
+    名单下是安全的
+    model: 目录中缺少的技能永远不会被禁用（它仍然存在）
+    加载时打开，e.g。 项目技能延迟加载
+    ``LocalConversation``) — 旧的允许列表反而会悬而未决，导致启动失败。
     """
     return list(
         load_all_skills(
@@ -460,28 +455,27 @@ def discover_profile_skills() -> list[Skill]:
 
 
 def discover_public_skill_names() -> set[str]:
-    """Names of the public tier of :func:`discover_profile_skills`.
+    """:func:`discover_profile_skills` 公共层的名称。
 
-    A user skill that shadows a public one by name belongs to the user tier, as
-    it does in the merged catalog.
+    通过名称隐藏公共技能的用户技能属于用户层，就像在合并目录中一样。
     """
     names = load_available_skills(include_public=True)
     return set(names) - set(load_available_skills(include_user=True))
 
 
 def sync_public_skills() -> tuple[bool, str]:
-    """Force refresh of public skills from GitHub repository.
+    """从 GitHub 存储库强制刷新公共技能。
 
-    This triggers a git pull on the cached skills repository to get
-    the latest skills from the OpenHands/extensions repository.
+    这会触发缓存技能存储库上的 git pull，以从 OpenHands/extensions 存储库获取最新技能
+    。
 
     Returns:
-        Tuple of (success: bool, message: str).
+        （成功：bool，消息：str）的元组。
     """
     try:
         cache_dir = get_skills_cache_dir()
-        # strict: a failed fetch must not be reported as a sync. The stale
-        # clone stays on disk for offline skill loading.
+        # strict：失败的获取不得报告为同步。 陈旧的
+        # 克隆保留在磁盘上以进行离线技能加载。
         result = update_skills_repository(
             PUBLIC_SKILLS_REPO, PUBLIC_SKILLS_REF, cache_dir, strict=True
         )
@@ -498,7 +492,7 @@ def sync_public_skills() -> tuple[bool, str]:
 
 
 # ---------------------------------------------------------------------------
-# Installed Skills Management (CRUD Operations)
+# 已安装技能管理（CRUD 运营）
 # ---------------------------------------------------------------------------
 
 
@@ -509,27 +503,27 @@ def service_install_skill(
     force: bool = False,
     installed_dir: Path | None = None,
 ) -> InstalledSkillInfo:
-    """Install a skill from a source.
+    """从源安装技能。
 
     Args:
-        source: Skill source - git URL, GitHub shorthand, or local path.
-            Supports formats like:
-            - GitHub shorthand: github:OpenHands/extensions/skills/github
-            - Git URL plus repo_path: https://github.com/OpenHands/extensions.git
-            - Local path: /path/to/skill
-        ref: Optional branch, tag, or commit to install.
-        repo_path: Subdirectory path within the repository (for monorepos).
-        force: If True, overwrite existing installation.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        source: 技能来源——gitURL、GitHub简写，或者本地路径。
+            支持以下格式：
+            - GitHub简写：GitHub:OpenHands/extensions/skills/github
+            - git URL 加 repo_path:  https://github.com/OpenHands/extensions.git
+            - 本地路径：/path/to/skill
+        ref: 可选的分支、标记或提交安装。
+        repo_path: 存储库内的子目录路径（对于 monorepos）。
+        force: 如果为 True，则覆盖现有安装。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        InstalledSkillInfo with details about the installation.
+        InstalledSkillInfo 包含有关安装的详细信息。
 
     Raises:
-        FileExistsError: If skill is already installed and force=False.
-        SkillFetchError: If fetching the skill source fails.
-        SkillValidationError: If the skill is invalid.
+        FileExistsError: 如果技能已安装并且force=False。
+        SkillFetchError: 如果获取技能源失败。
+        SkillValidationError: 如果技能无效。
     """
     return install_skill(
         source=source,
@@ -544,15 +538,15 @@ def service_uninstall_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Uninstall a skill by name.
+    """按名称卸载技能。
 
     Args:
-        name: Name of the skill to uninstall.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        name: 要卸载的技能名称。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        True if the skill was uninstalled, False if it wasn't installed.
+        如果技能已卸载，则为 True；如果未安装，则为 False。
     """
     return uninstall_skill(name=name, installed_dir=installed_dir)
 
@@ -561,15 +555,15 @@ def service_enable_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Enable an installed skill by name.
+    """按名称启用已安装的技能。
 
     Args:
-        name: Name of the skill to enable.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        name: 要启用的技能的名称。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        True if the skill was enabled, False if it wasn't found.
+        如果该技能已启用，则为 True；如果未找到该技能，则为 False。
     """
     return enable_skill(name=name, installed_dir=installed_dir)
 
@@ -578,15 +572,15 @@ def service_disable_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Disable an installed skill by name.
+    """按名称禁用已安装的技能。
 
     Args:
-        name: Name of the skill to disable.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        name: 要禁用的技能名称。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        True if the skill was disabled, False if it wasn't found.
+        True 如果该技能被禁用，False 如果未找到。
     """
     return disable_skill(name=name, installed_dir=installed_dir)
 
@@ -594,16 +588,16 @@ def service_disable_skill(
 def service_list_installed_skills(
     installed_dir: Path | None = None,
 ) -> list[InstalledSkillInfo]:
-    """List all installed skills.
+    """列出所有已安装的技能。
 
-    Self-healing: reconciles metadata with what is on disk.
+    自我修复：使元数据与磁盘上的内容保持一致。
 
     Args:
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        List of InstalledSkillInfo objects for all installed skills.
+        所有已安装技能的 InstalledSkillInfo 对象列表。
     """
     return list_installed_skills(installed_dir=installed_dir)
 
@@ -612,15 +606,15 @@ def service_get_installed_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledSkillInfo | None:
-    """Get information about a specific installed skill.
+    """获取有关特定已安装技能的信息。
 
     Args:
-        name: Name of the skill to get.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        name: 要获得的技能名称。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        InstalledSkillInfo if found, None otherwise.
+        如果找到则为 InstalledSkillInfo，否则为 None。
     """
     return get_installed_skill(name=name, installed_dir=installed_dir)
 
@@ -629,21 +623,21 @@ def service_update_skill(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledSkillInfo | None:
-    """Update an installed skill to the latest version.
+    """将已安装的技能更新到最新版本。
 
     Args:
-        name: Name of the skill to update.
-        installed_dir: Directory for installed skills.
-            Defaults to ~/.openhands/skills/installed/.
+        name: 要更新的技能名称。
+        installed_dir: 安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        Updated InstalledSkillInfo if successful, None if skill not found.
+        如果成功则更新 InstalledSkillInfo，如果未找到技能则更新 None。
     """
     return update_skill(name=name, installed_dir=installed_dir)
 
 
 class MarketplaceSkillInfo(BaseModel):
-    """Information about a skill in the marketplace catalog."""
+    """有关市场目录中技能的信息。"""
 
     name: str
     description: str | None
@@ -652,30 +646,28 @@ class MarketplaceSkillInfo(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Marketplace catalog cache
+# 市场目录缓存
 # ---------------------------------------------------------------------------
-# Each call to service_get_marketplace_catalog triggers a git fetch via
-# update_skills_repository, which is a network-bound operation that takes
-# multiple seconds. A short TTL cache avoids that hit on every tab open.
+# 每次调用 service_get_marketplace_catalog 都会通过 update_skills_repository 触发 git
+# fetch，这是一个需要数秒时间的网络绑定操作。 简短的 TTL 缓存可以避免每个打开的选项卡都
+# 受到点击。
 #
-# Only the catalog structure (name, description, source) is cached; the
-# `installed` field is always derived fresh from the local FS so that
-# install/uninstall actions are reflected immediately. Empty results are not
-# cached, and a successful sync_public_skills clears the cache.
+# 仅缓存目录结构（名称、描述、来源）； 的
+# `installed` 字段始终从本地 FS 中新鲜派生，以便立即反映安装/卸载操作。 空结果不会被缓存
+# ，成功的 sync_public_skills 会清除缓存。
 #
-# Thread safety: concurrent cache misses (cold start or TTL expiry) may
-# trigger parallel git fetches, but each fetch is idempotent and produces
-# the same result (last writer wins). For this low-traffic endpoint the
-# thundering-herd risk is acceptable without an explicit lock.
+# 线程安全并发缓存未命中（冷启动或 TTL 失效）可能会触发并行的 git fetch，但每次 fetch 都
+# 是幂等的，并且会产生相同的结果（最后写入者获胜）。 对于这种低流量端点，如果没有明确的
+# 锁，雷群风险是可以接受的。
 #
-# Type: (timestamp, list-of-(name, description, source)) or None
+# 类型：（时间戳、列表-（名称、描述、来源））或 None
 _CatalogEntry = tuple[str, str | None, str]
 _catalog_cache: tuple[float, list[_CatalogEntry]] | None = None
-_CATALOG_TTL_SECONDS = 300  # 5 minutes
+_CATALOG_TTL_SECONDS = 300  # 5分钟
 
 
 def _invalidate_catalog_cache() -> None:
-    """Drop the cached marketplace catalog so the next call re-reads the clone."""
+    """删除缓存的市场目录，以便下一次调用重新读取克隆。"""
     global _catalog_cache
     _catalog_cache = None
 
@@ -684,23 +676,22 @@ def service_get_marketplace_catalog(
     marketplace_path: str = DEFAULT_MARKETPLACE_PATH,
     installed_dir: Path | None = None,
 ) -> list[MarketplaceSkillInfo]:
-    """Get the marketplace catalog with installation status.
+    """获取包含安装状态的市场目录。
 
-    Loads the marketplace JSON from the public extensions repository and
-    enriches each entry with installation status.
+    从公共扩展存储库加载市场 JSON，并通过安装状态丰富每个条目。
 
-    The catalog structure (name, description, source) is cached for
-    _CATALOG_TTL_SECONDS to avoid a git fetch on every call. The
-    ``installed`` field is always resolved fresh from the local FS.
+    目录结构（名称、描述、源）被缓存为 _CATALOG_TTL_SECONDS，以避免每次调用时进行 git
+     fetch。 的
+    ``installed`` 字段始终从本地 FS 新鲜解析。
 
     Args:
-        marketplace_path: Relative path to marketplace JSON file.
-            Defaults to marketplaces/default.json.
-        installed_dir: Directory for installed skills to check status.
-            Defaults to ~/.openhands/skills/installed/.
+        marketplace_path: 市场 JSON 文件的相对路径。
+            默认为市场/default.json。
+        installed_dir: 用于检查状态的已安装技能的目录。
+            默认为~/.openhands/skills/installed/.
 
     Returns:
-        List of MarketplaceSkillInfo with skill details and installation status.
+        MarketplaceSkillInfo 列表，包含技能详细信息和安装状态。
     """
     global _catalog_cache
 
@@ -709,12 +700,12 @@ def service_get_marketplace_catalog(
         entries = _catalog_cache[1]
     else:
         entries = _fetch_catalog_entries(marketplace_path)
-        # Only cache non-empty results so a transient fetch failure does not
-        # blank the catalog for the whole TTL.
+        # 仅缓存非空结果，因此瞬时提取失败不会清空整个 TTL 的目录。
+        #
         if entries:
             _catalog_cache = (now, entries)
 
-    # Always-fresh installed check — local FS scan, not a network call.
+    # 始终全新安装的检查 - 本地 FS 扫描，而不是网络调用。
     installed_names = {
         s.name for s in service_list_installed_skills(installed_dir=installed_dir)
     }
@@ -727,13 +718,12 @@ def service_get_marketplace_catalog(
 
 
 def _fetch_catalog_entries(marketplace_path: str) -> list[_CatalogEntry]:
-    """Fetch marketplace catalog entries from the public extensions repository.
+    """从公共扩展存储库中获取市场目录条目。
 
-    This is the slow path: it does a git fetch + reads the marketplace JSON.
-    Results are cached by the caller.
+    这是一条慢速路径：它执行 git fetch + 读取市场 JSON。 结果由调用者缓存。
 
     Returns:
-        List of (name, description, source) tuples, or an empty list on error.
+        （名称、描述、源）元组列表，或出错时为空列表。
     """
     cache_dir = get_skills_cache_dir()
     repo_path = update_skills_repository(
@@ -752,7 +742,7 @@ def _fetch_catalog_entries(marketplace_path: str) -> list[_CatalogEntry]:
     try:
         marketplace = Marketplace.load(repo_path)
     except (FileNotFoundError, ValueError) as e:
-        # Fallback to loading from specific path
+        # 回退方案从特定路径加载
         try:
             with open(marketplace_file, encoding="utf-8") as f:
                 data = json.load(f)
@@ -763,17 +753,17 @@ def _fetch_catalog_entries(marketplace_path: str) -> list[_CatalogEntry]:
             logger.warning(f"Failed to load marketplace: {e}, {e2}")
             return []
 
-    # Build catalog from plugins and skills.
-    # Plugins take priority: if a name appears in both plugins and skills,
-    # the plugin version is used (since plugins are added first).
+    # 从插件和技能构建目录。 插件优先：如果名称同时出现在插件和技能中，则使用插件版本（
+    # 因为首先添加插件）。
+    #
     entries: dict[str, _CatalogEntry] = {}
 
     for plugin in marketplace.plugins:
         source, ref, subpath = marketplace.resolve_plugin_source(plugin)
-        # Build full source string for marketplace catalog.
-        # Format: "github:owner/repo@ref/path" - the SDK's install_skill
-        # can parse this format, so frontends can pass it directly to the
-        # install endpoint's source field.
+        # 为市场目录构建完整的源字符串。
+        # 格式：“GitHub:owner/repo@ref/path” - SDK 的 install_skill
+        # 可以解析此格式，因此前端可以将其直接传递到安装端点的源字段。
+        #
         if ref:
             source = f"{source}@{ref}"
         if subpath:

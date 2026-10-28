@@ -1,6 +1,6 @@
-"""Integration tests that execute example scripts via pytest.
+"""集成测试通过 pytest 执行示例脚本。
 
-These tests are disabled by default. Pass ``--run-examples`` to enable them.
+默认情况下禁用这些测试。 通过 ``--run-examples`` 启用它们。
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 EXAMPLES_ROOT = REPO_ROOT / "examples"
 
-# Maximum time (seconds) allowed for a single example script to run
-EXAMPLE_TIMEOUT_SECONDS = 600  # 10 minutes
+# 允许单个示例脚本运行的最长时间（秒）
+EXAMPLE_TIMEOUT_SECONDS = 600  # 10分钟
 
 _TARGET_DIRECTORIES = (
     EXAMPLES_ROOT / "01_standalone_sdk",
     EXAMPLES_ROOT / "02_remote_agent_server",
-    # These examples live under subdirectories (each with a single `main.py`).
+    # 这些示例位于子目录下（每个子目录都有一个 `main.py`）。
     EXAMPLES_ROOT / "01_standalone_sdk" / "33_hooks",
     EXAMPLES_ROOT / "01_standalone_sdk" / "37_llm_profile_store",
     EXAMPLES_ROOT / "01_standalone_sdk" / "51_agent_hooks",
@@ -38,7 +38,7 @@ _TARGET_DIRECTORIES = (
     EXAMPLES_ROOT / "05_skills_and_plugins" / "04_mixed_marketplace_skills",
 )
 
-# LLM-specific examples that require model overrides
+# LLM-需要模型覆盖的特定示例
 _LLM_SPECIFIC_EXAMPLES: dict[str, dict[str, str]] = {
     "examples/04_llm_specific_tools/01_gpt5_apply_patch_preset.py": {
         "LLM_MODEL": "openhands/gpt-5.1",
@@ -48,7 +48,7 @@ _LLM_SPECIFIC_EXAMPLES: dict[str, dict[str, str]] = {
     },
 }
 
-# Examples that require interactive input or additional infrastructure.
+# 需要交互式输入或额外基础设施的示例。
 _EXCLUDED_EXAMPLES = {
     "examples/01_standalone_sdk/01_hello_world.py",
     "examples/01_standalone_sdk/04_confirmation_mode_example.py",
@@ -58,9 +58,9 @@ _EXCLUDED_EXAMPLES = {
     "examples/01_standalone_sdk/16_llm_security_analyzer.py",
     "examples/01_standalone_sdk/27_observability_laminar.py",
     "examples/01_standalone_sdk/35_subscription_login.py",
-    # Requires interactive input() which fails in CI with EOFError
+    # 需要交互式input()，但在CI时会失败，原因在EOFError
     "examples/02_remote_agent_server/05_vscode_with_docker_sandboxed_server.py",
-    # Requires a Kubernetes cluster with agent-sandbox and the agent-sandbox extra
+    # 需要带有智能体-sandbox 和额外智能体-sandbox 的 Kubernetes 集群
     "examples/02_remote_agent_server/17_convo_with_agent_sandbox_server.py",
 }
 
@@ -71,7 +71,7 @@ def _discover_examples() -> list[Path]:
         if not directory.exists():
             continue
         candidates.extend(sorted(directory.glob("*.py")))
-    # Append any explicitly listed LLM-specific examples if present
+    # 附加任何明确列出的 LLM 特定示例（如果存在）
     for rel_path in _LLM_SPECIFIC_EXAMPLES.keys():
         abs_path = REPO_ROOT / rel_path
         if abs_path.exists():
@@ -138,13 +138,14 @@ def test_example_scripts(
     start = time.perf_counter()
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    # Windows pipes default to the active code page; examples may print model text.
+    # Windows 管道默认为活动代码页； 示例可以打印模型文本。
     env.setdefault("PYTHONIOENCODING", "utf-8")
-    # Keep tmux socket paths under Unix socket limits while preserving per-example
-    # isolation for parallel workers. tmux appends tmux-<uid>/<socket_name> here.
+    # 将 tmux 套接字路径保持在 Unix 套接字限制下，同时为并行工作程序保留每个示例的隔离。
+    #  tmux 在此附加 tmux-<uid>/<socket_name>。
+    #
     with tempfile.TemporaryDirectory(prefix="oh-ex-", dir="/tmp") as tmux_tmpdir:
         env["TMUX_TMPDIR"] = tmux_tmpdir
-        # Apply model overrides for certain examples requiring provider-specific models
+        # 对需要特定于提供者的模型的某些示例应用模型覆盖
         overrides = _LLM_SPECIFIC_EXAMPLES.get(_normalize_path(example_path))
         if overrides:
             env.update(overrides)
@@ -167,7 +168,7 @@ def test_example_scripts(
             returncode = process.returncode
         except subprocess.TimeoutExpired as e:
             timed_out = True
-            # e.stdout/e.stderr are bytes|str|None; ensure we have str
+            # e.stdout/e.stderr 都是字节|str|None; 确保我们有实力
             raw_stdout = e.stdout
             raw_stderr = e.stderr
             stdout = (

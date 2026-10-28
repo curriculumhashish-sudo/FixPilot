@@ -14,40 +14,40 @@ T = TypeVar("T")
 
 
 class Subscriber[T](ABC):
-    # Deltas arrive at token rate; consumers opt in rather than inherit them.
+    # Delta 以 token 速率到达； 消费者选择接受而不是继承它们。
     receives_streaming_deltas: ClassVar[bool] = False
 
     @abstractmethod
     async def __call__(self, event: T):
-        """Invoke this subscriber"""
+        """调用该订阅者"""
 
     async def close(self):
-        """Clean up this subscriber"""
+        """清理该订阅者"""
 
 
 class MaxSubscribersError(Exception):
-    """Raised when a PubSub instance has reached its subscriber limit."""
+    """当 PubSub 实例达到其订阅者限制时引发。"""
 
 
 @dataclass
 class PubSub[T]:
-    """A subscription service that extends ConversationCallbackType functionality.
-    This class maintains a dictionary of UUIDs to ConversationCallbackType instances
-    and provides methods to subscribe/unsubscribe callbacks. When invoked, it calls
-    all registered callbacks with proper error handling.
+    """扩展 ConversationCallbackType 功能的订阅服务。
+    该类维护了一个 UUIDs 到 ConversationCallbackType 实例的字典，并提供订阅/取消订阅
+    回调的方法。 当调用时，它会调用所有注册的回调并进
+    行适当错误处理。
     """
 
     _subscribers: dict[UUID, Subscriber[T]] = field(default_factory=dict)
     max_subscribers: int | None = None
 
     def subscribe(self, subscriber: Subscriber[T]) -> UUID:
-        """Subscribe a subscriber and return its UUID for later unsubscription.
+        """订阅订阅者并返回其 UUID 以供以后取消订阅。
         Args:
-            subscriber: The callback function to register
+            subscriber: 注册的回调函数
         Returns:
-            UUID: UUID that can be used to unsubscribe this callback
+            UUID: UUID 可用于取消订阅此回调
         Raises:
-            MaxSubscribersError: If the subscriber limit has been reached.
+            MaxSubscribersError: 如果已达到订阅者限制。
         """
         if (
             self.max_subscribers is not None
@@ -62,11 +62,11 @@ class PubSub[T]:
         return subscriber_id
 
     def unsubscribe(self, subscriber_id: UUID) -> bool:
-        """Unsubscribe a subscriber by its UUID.
+        """通过 UUID 取消订阅订阅者。
         Args:
-            subscriber_id: The UUID returned by subscribe()
+            subscriber_id: subscribe() 返回的 UUID
         Returns:
-            bool: True if subscriber was found and removed, False otherwise
+            bool: True 如果订阅者被发现并被删除，False 否则
         """
         if subscriber_id in self._subscribers:
             del self._subscribers[subscriber_id]
@@ -79,16 +79,15 @@ class PubSub[T]:
             return False
 
     def subscriber_ids(self) -> set[UUID]:
-        """Return the ids of all currently-registered subscribers."""
+        """返回所有当前注册订阅者的 ID。"""
         return set(self._subscribers.keys())
 
     async def __call__(self, event: T) -> None:
-        """Invoke all registered callbacks with the given event.
-        Subscribers are notified concurrently so a slow client cannot
-        block delivery to others.  Each callback runs in its own
-        error-handling wrapper to preserve fault isolation.
+        """使用给定事件调用所有已注册的回调。
+        订阅者会同时收到通知，因此速度较慢的客户端无法阻止向其他客户端的传送。 每个回
+        调都在自己的错误处理包装器中运行以保持故障隔离。
         Args:
-            event: The event to pass to all callbacks
+            event: 传递给所有人的事件回调
         """
         subscribers = list(self._subscribers.items())
         if isinstance(event, StreamingDeltaEvent):

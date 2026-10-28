@@ -1,4 +1,4 @@
-"""Minimal sync helpers on top of fastmcp.Client, preserving original behavior."""
+"""fastmcp.Client 之上的最小同步个助手，保留原始行为。"""
 
 import asyncio
 import inspect
@@ -22,20 +22,20 @@ ToolsReconciledCallback = Callable[
 
 
 class MCPClient(AsyncMCPClient):
-    """MCP client with sync helpers and lifecycle management.
+    """MCP 客户端与同步助手和生命周期管理。
 
-    Extends fastmcp.Client with:
-      - call_async_from_sync(awaitable_or_fn, *args, timeout=None, **kwargs)
-      - call_sync_from_async(fn, *args, **kwargs)  # await this from async code
+    将 fastmcp.Client 扩展为：
+      - call_async_from_sync(awaitable_or_fn, *args, 超时=None, **kwargs)
+      - call_sync_from_async(fn, *args, **kwargs) # 从异步代码中等待
 
-    After create_mcp_tools() populates it, use as a sync context manager:
+    create_mcp_tools() 填充后，用作同步上下文管理器：
 
         with create_mcp_tools(config) as client:
             for tool in client.tools:
-                # use tool
-        # Connection automatically closed
+                # 使用工具
+        # 连接自动关闭
 
-    Or manage lifecycle manually by calling sync_close() when done.
+    或者在完成后调用 sync_close() 手动管理生命周期。
     """
 
     _executor: AsyncExecutor
@@ -52,11 +52,11 @@ class MCPClient(AsyncMCPClient):
 
     @property
     def tools(self) -> "list[MCPToolDefinition]":
-        """The MCP tools using this client connection (returns a copy)."""
+        """使用此客户端连接的 MCP 工具（返回副本）。"""
         return list(self._tools)
 
     async def connect(self) -> None:
-        """Establish connection to the MCP server."""
+        """建立与 MCP 服务器的连接。"""
         async with self._session_state.lock:
             session_task = self._session_state.session_task
             if session_task is not None and session_task.done():
@@ -74,9 +74,9 @@ class MCPClient(AsyncMCPClient):
         **kwargs,
     ) -> Any:
         """
-        Run a coroutine or async function on this client's loop from sync code.
+        从同步代码在此客户端循环上运行协程或异步函数。
 
-        Usage:
+        用途：
             mcp.call_async_from_sync(async_fn, arg1, kw=...)
             mcp.call_async_from_sync(coro)
         """
@@ -88,47 +88,47 @@ class MCPClient(AsyncMCPClient):
         self, fn: Callable[..., Any], *args, **kwargs
     ) -> Any:
         """
-        Await running a blocking function in the default threadpool from async code.
+        等待从异步代码在默认线程池中运行阻塞函数。
         """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: fn(*args, **kwargs))
 
     def sync_close(self) -> None:
         """
-        Synchronously close the MCP client and cleanup resources.
+        同步关闭MCP客户端并清理资源。
 
-        This will attempt to call the async close() method if available,
-        then shutdown the background event loop. Safe to call multiple times.
+        这将尝试调用异步 close() 方法（如果可用），然后关闭后台事件循环。 可以安全地
+        多次拨打。
         """
         if self._closed:
             return
 
-        # Best-effort: try async close if parent provides it
+        # 尽力而为：如果父级提供，请尝试异步关闭
         if hasattr(self, "close") and inspect.iscoroutinefunction(self.close):
             try:
                 self._executor.run_async(self.close, timeout=10.0)
             except Exception:
-                pass  # Ignore close errors during cleanup
+                pass  # 清理期间忽略关闭错误
 
-        # Always cleanup the executor
+        # 始终清理执行器
         self._executor.close()
         self._closed = True
 
     def __del__(self):
-        """Cleanup on deletion."""
+        """删除时清理。"""
         try:
             self.sync_close()
         except Exception:
-            pass  # Ignore cleanup errors during deletion
+            pass  # 忽略删除期间的清理错误
 
-    # Sync context manager support
+    # 同步上下文管理器支持
     def __enter__(self) -> "MCPClient":
         return self
 
     def __exit__(self, *args: object) -> None:
         self.sync_close()
 
-    # Iteration support for tools
+    # 工具的迭代支持
     def __iter__(self) -> "Iterator[MCPToolDefinition]":
         return iter(self._tools)
 

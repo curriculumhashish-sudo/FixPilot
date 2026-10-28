@@ -1,17 +1,23 @@
-# Child launches in fresh workspaces — upstream verification
+<a id="child-launches-in-fresh-workspaces--upstream-verification"></a>
 
-Verified 2026-10-24 on macOS with Python 3.13.11, SDK/Agent Server 1.58.1 and frozen development dependencies.
+# Child 在 fresh 工作区中启动 - 上游验证
 
-Base: `acd96e6fa424c02432304395b9208f99be24b54d`.
-Verified head: `05e56fdc0e919c5a6898c44293649a84086997d5`.
+已于 2026 年 10 月 24 日在 macOS 上使用 Python 3.13.11、SDK/Agent Server 1.58.1 进行验证并冻结开发依赖项。
 
-## Reproduction
+基数：`acd96e6fa424c02432304395b9208f99be24b54d`。
+已验证头：`05e56fdc0e919c5a6898c44293649a84086997d5`。
 
-The source regression was first applied by itself to the upstream base. It starts a real uvicorn server, creates a normal parent over HTTP in an empty workspace, confirms that startup initialized Git without a commit, and posts a default child request. This fails with HTTP 500 from `git worktree add ... HEAD`; the base run reports one failed test in 4.52 seconds.
+<a id="reproduction"></a>
 
-On the fixed head, the same HTTP workflow returns 201 and shared isolation, finishes the child, preserves the parent/child relationship, original file, Git status and unborn HEAD, and deletes both conversations. The repository's fixture patches the LLM; HTTP, server routing, lifecycle and Git are real. This pass does not claim a new external-model, Docker or benchmark run. Original Linux/model evidence remains in `issue-42-evidence.md` at its recorded source revisions.
+## 繁殖
 
-## Validation
+源回归它最初仅应用于上游基线。 它启动了一个真正的 uvicorn 服务器，并创建了一个正常的父进程 HTTP 在空的工作区确认启动时初始化了 Git 但没有提交，并发布了一个默认子请求。 这失败了 HTTP 500错误 `git worktree add ... HEAD`; 基本运行在 4.52 秒内报告一次失败的测试。
+
+在固定头，相同的HTTP工作流返回201，并且共享隔离，完成子进程，保留父/子关系，原始文件，Git状态和未出生HEAD，并删除两个对话。 存储库的测试夹具修补了 LLM； HTTP，服务器路由、生命周期和Git都是真实的。 此过程不要求新的外部模型、Docker 或基准测试运行。 原始 Linux/模型证据保留在 `issue-42-evidence.md` 中记录的源修订版中。
+
+<a id="validation"></a>
+
+## 验证
 
 ```sh
 uv sync --frozen --dev
@@ -22,8 +28,8 @@ uv run --frozen pytest \
   tests/agent_server/test_conversation_service.py -k 'child or worktree' -q
 ```
 
-Result: **45 passed, 128 deselected, two existing deprecation warnings**, in 6.10 seconds. All changed-code pre-commit checks passed, including Ruff, pycodestyle, Pyright, import rules and tool registration. The added explicit-ref regression also passed its independent 11-test worktree run.
+结果：6.10 秒内，**45 人通过，128 人取消选择，现有两个弃用警告**。 所有更改代码预提交检查均已通过，包括Ruff、pycodestyle、Pyright、导入规则和工具注册。 添加的explicit-ref 回归也通过了其独立的11测试工作树运行。
 
-The newer upstream worktree base options and custom branch prefix are preserved. Tests cover default/head/explicit-ref branch selection, committed repositories, subdirectories, remote-default tracking despite unborn local HEAD, and a missing explicit ref raising without creating conversation or worktree artifacts. The fallback only handles a missing usable default/head commit; other Git failures propagate. A separate reviewer found no material correctness or compatibility issue.
+保留较新的上游工作树基本选项和自定义分支前缀。 测试覆盖了默认/头部/显式引用分支选择、已提交仓库、子目录、远程默认跟踪，尽管本地未出生的HEAD，以及一个缺失的显式引用导致没有创建对话或工作树的遗留文件。 回退方案仅处理缺少的可用默认/头提交； 其他 Git 故障会传播。 另一位审阅者未发现重大正确性或兼容性问题。
 
-The final evidence commit changes no product or test code. Test fixtures owned and stopped their server; no persistent service was started by this pass.
+最终证据提交不会更改产品或测试代码。 测试测试夹具拥有并停止了他们的服务器； 此通道没有启动持久服务。

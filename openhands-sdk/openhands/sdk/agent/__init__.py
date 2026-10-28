@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from openhands.sdk.agent.acp_agent import ACPAgent
 
 
-# Lazy import: eagerly importing ACPAgent registers it in the
-# DiscriminatedUnionMixin, which makes `kind` required in Agent payloads
-# that previously defaulted.
+# 懒加载：主动导入 ACPAgent 注册到  DiscriminatedUnionMixin, 这使得 `kind` 必需的智能体
+# 载荷那之前就已默认。
+#
 def __getattr__(name: str):
     if name == "ACPAgent":
         from openhands.sdk.agent.acp_agent import ACPAgent

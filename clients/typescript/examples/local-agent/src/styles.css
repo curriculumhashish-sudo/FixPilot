@@ -27,7 +27,7 @@ body {
   min-height: 100vh;
 }
 
-/* App Layout */
+/* 应用程序布局*/
 .app {
   display: flex;
   flex-direction: column;
@@ -36,7 +36,7 @@ body {
   margin: 0 auto;
 }
 
-/* Header */
+/* 标头*/
 .header {
   display: flex;
   align-items: center;
@@ -106,7 +106,7 @@ body {
   background: currentColor;
 }
 
-/* Auth Screen */
+/* 验证屏幕*/
 .auth-screen {
   flex: 1;
   display: flex;
@@ -240,7 +240,7 @@ body {
   font-size: 0.875rem;
 }
 
-/* Chat Area */
+/* 聊天区*/
 .chat-container {
   flex: 1;
   display: flex;
@@ -346,7 +346,7 @@ body {
   margin-bottom: 0;
 }
 
-/* Tool calls styling */
+/* 工具调用造型*/
 .tool-calls {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
@@ -387,7 +387,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Tool result styling */
+/* 工具结果样式*/
 .tool-result {
   display: flex;
   flex-direction: column;
@@ -453,7 +453,7 @@ body {
   }
 }
 
-/* Input Area */
+/* 输入区*/
 .input-area {
   padding: 1rem;
   border-top: 1px solid var(--border);
@@ -513,7 +513,7 @@ body {
   cursor: not-allowed;
 }
 
-/* Settings Modal */
+/* 设置模态*/
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -547,7 +547,7 @@ body {
   margin-top: 1.5rem;
 }
 
-/* Empty State */
+/* 空状态*/
 .empty-state {
   flex: 1;
   display: flex;
@@ -584,7 +584,7 @@ body {
   color: var(--tool);
 }
 
-/* Scrollbar */
+/* 滚动条*/
 ::-webkit-scrollbar {
   width: 8px;
 }

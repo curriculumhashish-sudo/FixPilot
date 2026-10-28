@@ -1,4 +1,4 @@
-"""Tests for conversation tags validation and integration."""
+"""测试对话标签验证和集成。"""
 
 import pytest
 from pydantic import ValidationError
@@ -70,21 +70,21 @@ def test_validate_tags_alphanumeric_key():
 
 
 def test_tags_in_pydantic_model():
-    """Test that ConversationTags works as a Pydantic field type."""
+    """测试 ConversationTags 是否作为 Pydantic 字段类型工作。"""
     from pydantic import BaseModel
 
     class TestModel(BaseModel):
         tags: ConversationTags = {}
 
-    # Valid tags
+    # 有效标签
     m = TestModel(tags={"env": "prod"})
     assert m.tags == {"env": "prod"}
 
-    # None coerced to empty dict by the BeforeValidator
+    # None 被 BeforeValidator 强制为空字典
     m = TestModel.model_validate({"tags": None})
     assert m.tags == {}
 
-    # Invalid key rejected
+    # 无效密钥被拒绝
     with pytest.raises(ValidationError):
         TestModel(tags={"BAD": "value"})
 

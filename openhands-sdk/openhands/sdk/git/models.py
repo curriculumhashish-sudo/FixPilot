@@ -32,7 +32,7 @@ class GitCommit(BaseModel):
     short_sha: str
     subject: str
     author: str
-    # ISO 8601 author date with UTC offset (git log format %aI).
+    # ISO 8601 作者日期，偏移量为 UTC（git 日志格式 %aI）。
     timestamp: str
 
 

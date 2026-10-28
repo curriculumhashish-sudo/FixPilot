@@ -19,22 +19,22 @@ if TYPE_CHECKING:
 
 
 class ThinkAction(Action):
-    """Action for logging a thought without making any changes."""
+    """用于记录想法而不进行任何更改的操作。"""
 
     thought: str = Field(description="The thought to log.")
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation with thinking styling."""
+        """返回带有思考样式的富文本表示。"""
         content = Text()
 
-        # Add thinking icon and header
+        # 添加思考图标和标题
         content.append("🤔 ", style="yellow")
         content.append("Thinking: ", style="bold yellow")
 
-        # Add the thought content with proper formatting
+        # 添加正确格式的思想内容
         if self.thought:
-            # Split into lines for better formatting
+            # 分成几行以便更好地格式化
             lines = self.thought.split("\n")
             for i, line in enumerate(lines):
                 if i > 0:
@@ -46,14 +46,13 @@ class ThinkAction(Action):
 
 class ThinkObservation(Observation):
     """
-    Observation returned after logging a thought.
-    The ThinkAction itself contains the thought logged so no extra
-    fields are needed here.
+    观测结果记录想法后返回。 ThinkAction 本身包含记录的想法，因此这里不需要额外的字段
+    。
     """
 
     @property
     def visualize(self) -> Text:
-        """Return an empty Text representation since the thought is in the action."""
+        """返回一个空的文本表示，因为思想在行动中。"""
         return Text()
 
 
@@ -79,7 +78,7 @@ class ThinkExecutor(ToolExecutor):
 
 
 class ThinkTool(ToolDefinition[ThinkAction, ThinkObservation]):
-    """Tool for logging thoughts without making changes."""
+    """用于记录想法而不进行更改的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
@@ -89,17 +88,17 @@ class ThinkTool(ToolDefinition[ThinkAction, ThinkObservation]):
         conv_state: "ConversationState | None" = None,  # noqa: ARG003
         **params,
     ) -> Sequence[Self]:
-        """Create ThinkTool instance.
+        """创建 ThinkTool 实例。
 
         Args:
-            conv_state: Optional conversation state (not used by ThinkTool).
-            **params: Additional parameters (none supported).
+            conv_state: 可选的对话状态（ThinkTool未使用）。
+            **params: 附加参数（支持 None）。
 
         Returns:
-            A sequence containing a single ThinkTool instance.
+            包含单个 ThinkTool 实例的序列。
 
         Raises:
-            ValueError: If any parameters are provided.
+            ValueError: 如果提供任何参数。
         """
         if params:
             raise ValueError("ThinkTool doesn't accept parameters")

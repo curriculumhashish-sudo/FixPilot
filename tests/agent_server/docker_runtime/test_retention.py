@@ -68,7 +68,7 @@ async def test_inactive_runtime_is_archived_and_history_kept(tmp_path, monkeypat
     assert not workspace.exists()
     history = runtime.conversation_dir(conversation_id)
     assert (history / "events" / "event-0.json").is_file()
-    # The manifest stays: without its key the history could not be decrypted.
+    # 清单保持不变：没有密钥，历史记录就无法解密。
     decrypted = runtime.resolve_persisted_cipher(conversation_id).decrypt(persisted)
     assert decrypted is not None and decrypted.get_secret_value() == "llm-key"
     info = runtime.runtime_info(conversation_id)
@@ -124,7 +124,7 @@ async def test_archived_runtime_cannot_be_resumed(tmp_path, monkeypatch):
     def no_docker(_conversation_id):
         pytest.fail("an archived runtime must not start a container")
 
-    # Without this, a regression would start a real container and leak it.
+    # 如果没有这个，回归将启动一个真正的容器并泄漏它。
     monkeypatch.setattr(runtime, "_build_container", no_docker)
     with pytest.raises(RuntimeArchivedError):
         await runtime.get_or_create(conversation_id)
@@ -139,7 +139,7 @@ async def test_interrupted_archiving_is_finished_by_the_next_pass(
 ):
     runtime = registry(tmp_path, monkeypatch)
     conversation_id, _ = provision(runtime, days_inactive=8)
-    # A crash after the marker, before the runtime dir was moved.
+    # 在移动运行时目录之前，标记之后发生崩溃。
     runtime.archived_marker(conversation_id).touch()
 
     await runtime.reclaimer.run_pass()
@@ -149,7 +149,7 @@ async def test_interrupted_archiving_is_finished_by_the_next_pass(
 
 @pytest.mark.asyncio
 async def test_archiving_leaves_the_manifest_untouched(tmp_path, monkeypatch):
-    # Older builds forbid unknown manifest fields; a rollback must still load it.
+    # 较旧的版本禁止未知的清单字段； 回滚仍必须加载它。
     runtime = registry(tmp_path, monkeypatch)
     conversation_id, _ = provision(runtime, days_inactive=8)
     manifest = runtime.provisioning.manifest_path(conversation_id)

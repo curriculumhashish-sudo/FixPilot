@@ -1,4 +1,4 @@
-"""Tests for the deferred-init / dormant-mode flow.
+"""测试延迟初始化/休眠模式流程。
 
 Background: https://github.com/OpenHands/software-agent-sdk/issues/2523
 """
@@ -35,8 +35,8 @@ from openhands.agent_server.vscode_service import VSCodeService
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    """The agent-server pulls config from env at import time in places;
-    null these out so each test starts from a clean slate."""
+    """智能体-服务器在导入时从环境获取配置。
+    null 这些都出来了，所以每个测试都从头开始。"""
     for key in (
         "OH_DEFERRED_INIT",
         "OH_WEB_URL",
@@ -51,9 +51,9 @@ def _clean_env(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _fresh_vscode_service(monkeypatch):
-    """/api/init updates the VSCode service singleton; give each test its own.
+    """/api/init 更新了 VSCode 单例服务。 给每个测试自己的。
 
-    The service takes its token from the default config, which is loaded at
+    该服务从默认配置中获取其 token，该配置加载于
     import time, before ``_clean_env`` runs, so reset that too.
     """
     monkeypatch.setattr("openhands.agent_server.vscode_service._vscode_service", None)
@@ -61,23 +61,23 @@ def _fresh_vscode_service(monkeypatch):
 
 
 def _reset_conversation_singleton():
-    """Some tests build their own ConversationService; reset the module-level
-    cache so unrelated tests don't see leftover state."""
+    """一些测试构建自己的ConversationService； 重置模块级别
+    缓存，因此不相关的测试看不到剩余状态。"""
     from openhands.agent_server import conversation_service as cs_mod
 
     cs_mod._conversation_service = None
 
 
 def _reset_bash_singleton():
-    """Reset the module-level BashEventService cache so each test starts fresh."""
+    """重置模块级 BashEventService 缓存，以便每个测试重新开始。"""
     from openhands.agent_server import bash_service as bash_mod
 
     bash_mod._bash_event_service = None
 
 
 def _vscode_url_after_init(tmp_path: Path) -> str | None:
-    """Boot a dormant app, deliver a session key through /api/init, and read
-    /api/vscode/url with that key."""
+    """启动休眠应用程序，通过 /api/init 传递会话密钥，然后读取
+    /api/vscode/url 用那个键。"""
     _reset_conversation_singleton()
     cfg = Config(
         deferred_init=True,
@@ -132,14 +132,15 @@ class TestBuildInitializedConfig:
         assert (
             merged.conversations_path == tmp_path / "user-workspace" / "conversations"
         )
-        # Untouched fields keep base values.
+        # 未触及的字段保留基值。
         assert merged.bash_events_dir == Path("base/bash")
         assert merged.max_concurrent_runs == 5
 
     def test_secret_key_falls_back_to_session_key(self):
         base = Config(deferred_init=True)
-        # base.secret_key default is None (no env), so we should fall back
-        # to the first session key after /api/init.
+        # base.secret_key 默认为 None（无环境），因此我们应该回退到 /api/init. 之后的第
+        # 一个会话密钥
+        #
         assert base.secret_key is None
         merged = _build_initialized_config(
             base, InitRequest(session_api_keys=["s1", "s2"])
@@ -182,11 +183,12 @@ class TestBuildInitializedConfig:
 
 
 class TestRouterMounting:
-    """Behavior of the /api/init endpoint outside the lifespan."""
+    """/api/init 端点寿命之外的行为。"""
 
     def test_init_get_404_without_deferred_mode(self):
-        # When deferred_init=False the InitService is never attached to
-        # app.state, so the endpoint behaves as if not configured.
+        # 当 deferred_init=False 时，InitService 永远不会附加到 app.state，因此端点的行
+        # 为就像未配置一样。
+        #
         app = create_app(Config(deferred_init=False))
         client = TestClient(app)
         resp = client.get("/api/init")
@@ -219,13 +221,13 @@ class TestInitServiceTransitions:
         try:
             assert result.state == "ready"
             assert svc.state == "ready"
-            # New config landed on app.state with deferred_init cleared.
+            # 新配置已到达 app.state，deferred_init 已清除。
             assert app.state.config.deferred_init is False
             assert app.state.config.session_api_keys == ["user-key"]
             assert app.state.conversation_service is not None
-            # BashEventService is registered on app.state so the bash
-            # websocket handler picks up the per-user bash_events_dir
-            # rather than the import-time default.
+            # BashEventService 已在 app.state 上注册，因此 bash WebSocket 处理程序会选择
+            # 每个用户的 bash_events_dir，而不是导入时默认值。
+            #
             assert isinstance(
                 getattr(app.state, "bash_event_service", None), BashEventService
             )
@@ -269,7 +271,7 @@ class TestInitServiceTransitions:
     @pytest.mark.asyncio
     async def test_init_applies_env_vars(self, tmp_path, monkeypatch):
         _reset_conversation_singleton()
-        # Pre-clean so the env var truly comes from /api/init.
+        # 预清理，使环境变量真正来自 /api/init.
         monkeypatch.delenv("DEFERRED_INIT_TEST_VAR", raising=False)
         observed_env = None
 
@@ -306,8 +308,8 @@ class TestInitServiceTransitions:
 
     @pytest.mark.asyncio
     async def test_init_bash_service_uses_user_supplied_dir(self, tmp_path):
-        """After /api/init, app.state.bash_event_service uses the
-        bash_events_dir supplied in the InitRequest."""
+        """/api/init 之后，app.state.bash_event_service 使用
+        bash_events_dir 供应给 InitRequest。"""
         _reset_conversation_singleton()
         _reset_bash_singleton()
         from openhands.agent_server.bash_service import BashEventService
@@ -338,8 +340,8 @@ class TestInitServiceTransitions:
 
     @pytest.mark.asyncio
     async def test_init_teardown_releases_bash_service(self, tmp_path):
-        """When /api/init is followed by teardown, the bash service must also
-        be exited so its background tasks are released."""
+        """当/api/init后面跟着teardown时，bash服务也必须
+        退出，以便释放其后台任务。"""
         _reset_conversation_singleton()
         _reset_bash_singleton()
         base = Config(
@@ -366,8 +368,8 @@ class TestInitServiceTransitions:
     async def test_init_switches_vscode_to_first_session_key(
         self, tmp_path, monkeypatch
     ):
-        """VSCode booted with a random token; init switches it to the first
-        session key, which a server that booted with the key would use."""
+        """VSCode 以随机 token 启动的。 init 将其切换到第一个
+        会话密钥，使用该密钥启动的服务器将使用该密钥。"""
         _reset_conversation_singleton()
         vscode = SimpleNamespace(set_connection_token=AsyncMock())
         monkeypatch.setattr(
@@ -398,7 +400,7 @@ class TestInitServiceTransitions:
     async def test_init_without_session_keys_keeps_vscode_token(
         self, tmp_path, monkeypatch
     ):
-        """With no session key to switch to, VSCode keeps its boot token."""
+        """由于没有切换到会话密钥，VSCode 保持其启动 token。"""
         _reset_conversation_singleton()
         vscode = SimpleNamespace(set_connection_token=AsyncMock())
         monkeypatch.setattr(
@@ -426,7 +428,7 @@ class TestInitServiceTransitions:
 
 
 class TestEndToEndOverLifespan:
-    """Drive the whole flow through the FastAPI lifespan + TestClient."""
+    """在 FastAPI 生命周期 + TestClient 内驱动整个流程。"""
 
     def test_blank_init_secret_falls_back_to_session_key(self, tmp_path):
         _reset_conversation_singleton()
@@ -684,24 +686,23 @@ class TestEndToEndOverLifespan:
         app = create_app(cfg)
         with TestClient(app) as client:
             try:
-                # Health/ready/server_info are not gated.
+                # Health/ready/server_info 未门控。
                 assert client.get("/alive").status_code == 200
                 assert client.get("/ready").status_code == 200
 
-                # Sample /api/* route — should be 503. The agent-server's
-                # 5xx exception handler replaces ``detail`` with a generic
-                # "Internal Server Error" message, so we only assert on the
-                # status code here — that's what the warm-pool orchestrator
-                # actually inspects.
+                # 示例 /api/* 路线 — 应为 503。 智能体服务器的5xx异常处理器会将
+                # ``detail``替换为一个通用的“内部服务器错误”消息，所以我们只在这里断言状
+                # 态码——这是暖池调度器实际检查的。
+                #
                 resp = client.get("/api/conversations/count")
                 assert resp.status_code == 503
 
-                # Init status reports dormant.
+                # 初始化状态报告处于休眠状态。
                 resp = client.get("/api/init")
                 assert resp.status_code == 200
                 assert resp.json()["state"] == "dormant"
 
-                # Run /api/init.
+                # 运行/api/init.
                 resp = client.post(
                     "/api/init",
                     json={
@@ -712,7 +713,7 @@ class TestEndToEndOverLifespan:
                 assert resp.status_code == 200
                 assert resp.json()["state"] == "ready"
 
-                # /api/* now works (200, not 503).
+                # /api/* 现在可以使用（200，而不是 503）。
                 resp = client.get("/api/conversations/count")
                 assert resp.status_code == 200
             finally:
@@ -781,9 +782,10 @@ class TestEndToEndOverLifespan:
                 _reset_conversation_singleton()
 
     def test_root_path_updates_from_init_web_url(self, tmp_path):
-        """When /api/init delivers a ``web_url``, the FastAPI ``root_path``
-        must be re-derived from it so OpenAPI/Swagger/ReDoc URLs reflect the
-        external mount path (e.g. behind a reverse proxy)."""
+        """当/api/init传送``web_url``时，FastAPI``root_path``
+        必须重新从它中推导出来 OpenAPI/Swagger/ReDoc URLs 反映外部挂载路径 (e.g。 在
+        反向代理后面）。
+        """
         _reset_conversation_singleton()
         cfg = Config(
             deferred_init=True,
@@ -793,7 +795,7 @@ class TestEndToEndOverLifespan:
         app = create_app(cfg)
         with TestClient(app) as client:
             try:
-                # Dormant server has no web_url → empty root_path.
+                # 休眠服务器没有web_url → 空root_path。
                 assert app.root_path == ""
 
                 resp = client.post(
@@ -806,9 +808,9 @@ class TestEndToEndOverLifespan:
                 )
                 assert resp.status_code == 200
 
-                # The FastAPI app's root_path must now match the prefix from
-                # the per-user web_url so OpenAPI doc URLs and Swagger asset
-                # links are correct under the reverse-proxy mount path.
+                # 的 FastAPI app的 root_path 现在必须与每个用户的前缀匹配 web_url so
+                # OpenAPI doc URLs Swagger 资产链接在反向代理挂载路径下是正确的。
+                #
                 assert app.root_path == "/agent-server-123/agent-server", (
                     f"root_path was not updated after /api/init: {app.root_path!r}"
                 )
@@ -826,7 +828,7 @@ class TestEndToEndOverLifespan:
         app = create_app(cfg)
         with TestClient(app) as client:
             try:
-                # Wrong key → 401.
+                # 钥匙错误 → 401。
                 resp = client.post(
                     "/api/init",
                     headers={"X-Init-API-Key": "wrong"},
@@ -837,11 +839,11 @@ class TestEndToEndOverLifespan:
                 )
                 assert resp.status_code == 401
 
-                # No key → 401.
+                # 没有钥匙 → 401。
                 resp = client.post("/api/init", json={})
                 assert resp.status_code == 401
 
-                # Right key → 200.
+                # 右键 → 200。
                 resp = client.post(
                     "/api/init",
                     headers={"X-Init-API-Key": "pool-key"},
@@ -852,7 +854,7 @@ class TestEndToEndOverLifespan:
                 )
                 assert resp.status_code == 200
 
-                # GET /api/init does NOT require the key (status polling).
+                # GET /api/init 不是否需要密钥（状态轮询）。
                 resp = client.get("/api/init")
                 assert resp.status_code == 200
             finally:
@@ -868,11 +870,12 @@ class TestEndToEndOverLifespan:
         app = create_app(cfg)
         with TestClient(app) as client:
             try:
-                # Before /api/init, no session key required at startup config
-                # level — but the dormant gate 503s anyway.
+                # 在 /api/init 之前，启动配置级别不需要会话密钥 — 但无论如何都需要休眠门
+                #  503。
+                #
                 assert client.get("/api/conversations/count").status_code == 503
 
-                # Init delivers the session key.
+                # Init 传递会话密钥。
                 resp = client.post(
                     "/api/init",
                     json={
@@ -903,8 +906,8 @@ class TestEndToEndOverLifespan:
                 _reset_conversation_singleton()
 
     def test_download_trajectory_uses_init_conversations_path(self, tmp_path):
-        """Both trajectory routes serve conversations stored under the
-        ``conversations_path`` delivered by /api/init, not the launch path."""
+        """两条轨迹路线均服务于存储在
+        ``conversations_path`` 由 /api/init 交付，而不是启动路径。"""
         _reset_conversation_singleton()
         init_convs = tmp_path / "u" / "convs"
         workspace = tmp_path / "ws"
@@ -962,12 +965,12 @@ class TestEndToEndOverLifespan:
                 _reset_conversation_singleton()
 
     def test_vscode_url_uses_session_key_after_init(self, tmp_path, monkeypatch):
-        """After /api/init the VSCode URL's token is the first session key, so
-        an orchestrator holding the key can build the URL itself."""
+        """在 /api/init 之后，VSCode URL's token 是第一个会话密钥，所以
+        掌握关键的编排器可以构建 URL 本身。"""
 
         async def fake_start(service):
-            # Like start(): a server booted without a session key makes up a
-            # random token.
+            # 像start()：没有会话密钥启动的服务器组成随机token。
+            #
             service.connection_token = service.connection_token or "boot-token"
             return True
 
@@ -981,8 +984,8 @@ class TestEndToEndOverLifespan:
         assert "?tkn=user-session-key&" in url
 
     def test_vscode_url_stays_empty_without_vscode(self, tmp_path, monkeypatch):
-        """Where VSCode never started, as in images that don't ship it,
-        /api/vscode/url still reports no URL after /api/init."""
+        """Where VSCode 从未启动，如不包含的图像
+        /api/vscode/url 在 /api/init. 之后仍然报告没有 URL"""
         monkeypatch.setattr(
             VSCodeService, "_check_vscode_available", lambda service: False
         )
@@ -991,7 +994,7 @@ class TestEndToEndOverLifespan:
 
 
 class TestNonDeferredPathUnchanged:
-    """Regression: deferred_init=False must behave exactly like before."""
+    """Regression: deferred_init=False 的行为必须与之前完全相同。"""
 
     def test_non_deferred_does_not_create_init_service(self, tmp_path):
         _reset_conversation_singleton()
@@ -1003,11 +1006,11 @@ class TestNonDeferredPathUnchanged:
         app = create_app(cfg)
         with TestClient(app) as client:
             try:
-                # No init_service in non-deferred mode.
+                # 非延迟模式下没有 init_service。
                 assert getattr(app.state, "init_service", None) is None
-                # /api/* should be live (200) — the dormant gate is a no-op.
+                # /api/* 应该处于活动状态 (200) — 休眠门是无操作的。
                 assert client.get("/api/conversations/count").status_code == 200
-                # /api/init returns 404 because no InitService is attached.
+                # /api/init 返回 404，因为没有附加 InitService。
                 assert client.get("/api/init").status_code == 404
             finally:
                 _reset_conversation_singleton()
@@ -1017,8 +1020,8 @@ class TestNonDeferredPathUnchanged:
 async def test_lifespan_teardown_releases_conversation_service_after_init(
     tmp_path,
 ):
-    """If /api/init succeeds, the lifespan finally clause must release the
-    conversation service. If /api/init never runs, teardown is a no-op."""
+    """如果/api/init成功，则生命周期finally子句必须释放
+    会话服务。 如果 /api/init 从未运行，则拆卸是无操作。"""
     _reset_conversation_singleton()
     _reset_bash_singleton()
     cfg = Config(
@@ -1026,7 +1029,7 @@ async def test_lifespan_teardown_releases_conversation_service_after_init(
         conversations_path=tmp_path / "convs",
         bash_events_dir=tmp_path / "bash",
     )
-    # Build a fake FastAPI app — api_lifespan only touches `.state`.
+    # 构建一个假的 FastAPI 应用程序 - api_lifespan 只涉及 `.state`。
     fake_app = SimpleNamespace(state=SimpleNamespace(config=cfg))
     async with api_lifespan(fake_app):  # type: ignore[arg-type]
         init_svc = fake_app.state.init_service
@@ -1038,22 +1041,23 @@ async def test_lifespan_teardown_releases_conversation_service_after_init(
             )
         )
         assert init_svc.state == "ready"
-    # After lifespan exit the conversation service should have been torn
-    # down — i.e. _entered_service is cleared.
+    # 生命周期退出后，对话服务应该被拆除 - i.e。 _entered_service 已清除。
+    #
     assert init_svc._entered_service is None
-    # Same for the bash service: it must be torn down on lifespan exit.
+    # bash 服务也是如此：它必须在生命周期退出时被拆除。
     assert init_svc._entered_bash_service is None
     _reset_conversation_singleton()
     _reset_bash_singleton()
 
 
 class TestSessionKeyExport:
-    """The key the server authenticates with reaches in-process callers that
-    read it from the environment (start_child_conversation, managed LLM key
-    refresh), whether it arrived through /api/init or a config file."""
+    """服务器验证所用的密钥到达进程内调用者
+    从环境中读取它（start_child_conversation，托管LLM密钥刷新），无论它是通过/api/
+    init还是配置文件到达。
+    """
 
     def test_init_exports_delivered_key_over_boot_key(self, tmp_path, monkeypatch):
-        """A dormant pod boots holding a shared key; /api/init replaces it."""
+        """休眠的 Pod 启动时持有共享密钥； /api/init 取代它。"""
         monkeypatch.setenv("OH_SESSION_API_KEYS_0", "boot-key")
         _reset_conversation_singleton()
         cfg = Config(
@@ -1071,8 +1075,8 @@ class TestSessionKeyExport:
                         "conversations_path": str(tmp_path / "u" / "convs"),
                         "bash_events_dir": str(tmp_path / "u" / "bash"),
                     },
-                    # The bootstrap credential is the dormant secret key, which
-                    # defaults to the first session key.
+                    # 引导程序凭据是休眠机密密钥，默认为第一个会话密钥。
+                    #
                     headers={"X-Init-API-Key": "boot-key"},
                 )
                 assert resp.status_code == 200
@@ -1082,8 +1086,8 @@ class TestSessionKeyExport:
 
     @pytest.mark.asyncio
     async def test_teardown_restores_the_env_after_a_direct_init(self, tmp_path):
-        """Driving InitService without the lifespan (as other tests do) must
-        not leak the delivered key into the process environment."""
+        """在没有寿命的情况下驾驶 InitService（与其他测试一样）必须
+        不将交付的密钥泄漏到进程环境中。"""
         _reset_conversation_singleton()
         _reset_bash_singleton()
         base = Config(
@@ -1130,8 +1134,8 @@ class TestSessionKeyExport:
                 _reset_conversation_singleton()
 
     def test_startup_exports_config_key_and_restores_env_on_shutdown(self, tmp_path):
-        """A key read from the config file is exported for the server's
-        lifetime only."""
+        """从配置文件中读取的密钥将导出到服务器的
+        仅限一生。"""
         _reset_conversation_singleton()
         cfg = Config(
             deferred_init=False,

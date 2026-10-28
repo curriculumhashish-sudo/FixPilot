@@ -1,7 +1,7 @@
-"""Conversation-addressed APIs with workspace and terminal-history context.
+"""对话寻址 APIs 与工作区和终端历史记录上下文。
 
-Local processes and VSCode services still share the host; these path
-checks are routing safeguards, not a sandbox for arbitrary shell commands.
+本地进程和 VSCode 服务仍然共享主机。 这些路径检查是路由保护措施，而不是任意 shell 命
+令的沙箱。
 """
 
 from collections.abc import Callable

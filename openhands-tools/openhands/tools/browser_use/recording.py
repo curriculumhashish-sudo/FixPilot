@@ -1,26 +1,24 @@
-"""Recording session management for browser session recording using rrweb.
+"""使用 rrweb 进行浏览器会话记录的记录会话管理。
 
-Error Handling Policy
+错误处理策略
 =====================
-Recording is a secondary feature that should never block primary browser operations.
-This module follows a consistent error handling strategy based on operation type:
+录制是次要功能，不应阻止主要浏览器操作。 该模块根据操作类型遵循一致的错误处理策略：
 
-1. **User-facing operations** (start, stop):
-   - Return descriptive error strings to the user (prefixed with "Error:")
-   - Log at WARNING level for unexpected errors
-   - Log at INFO level for expected failures (e.g., rrweb load failures)
+1. **面向用户的操作**（启动、停止）：
+   - 返回描述性错误字符串给用户（前缀为“Error:”）
+   - 在警告级别记录意外错误
+   - 在 INFO 级别记录预期失败（e.g.，rrweb 加载失败）
 
-2. **Internal/background operations** (flush_events, periodic flush, restart):
-   - Log at DEBUG level and continue silently
-   - Never raise exceptions that would interrupt browser operations
-   - Return neutral values (0, None) on failure
+2. **内部/后台操作**（flush_events，定期刷新，重新启动）：
+   - 以 DEBUG 级别登录并继续静默
+   - 切勿引发会中断浏览器操作的异常
+   - 失败时返回中性值 (0, None)
 
-3. **AttributeError for "not initialized"**:
-   - Silent pass - this is expected when recording hasn't been set up
-   - Used in the recording_aware decorator in impl.py
+3. **AttributeError 表示“未初始化”**：
+   - 无声通过 - 当尚未设置录音时，这是预期的
+   - 用于impl.py中的recording_aware装饰器
 
-This policy ensures that recording failures are observable through logs but never
-disrupt the user's primary browser workflow.
+此策略确保可以通过日志观察记录失败，但不会中断用户的主浏览器工作流程。
 """
 
 from __future__ import annotations
@@ -42,91 +40,91 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Directory containing JavaScript files
+# 包含 JavaScript 个文件的目录
 _JS_DIR = Path(__file__).parent / "js"
 
 
 # =============================================================================
-# Configuration
+# 配置
 # =============================================================================
 
 
 @dataclass
 class RecordingConfig:
-    """Configuration for recording sessions.
+    """记录会话的配置。
 
-    CDN Dependency Note:
-        The cdn_url points to unpkg.com which serves npm packages. If this CDN
-        is unavailable (down, blocked by firewall, or slow), recording will fail
-        to start. For production deployments in restricted environments, consider:
-        - Self-hosting the rrweb library
-        - Using a different CDN (jsdelivr, cdnjs)
-        - Bundling rrweb with your application
+    CDN 依赖说明：
+        cdn_url 指向 unpkg.com，它提供 npm 包。 如果此 CDN 不可用（关闭、被防火墙阻止
+        或速度缓慢），录制将无法开始。 对于受限环境中的生
+        产部署，请考虑：
+        - 自托管 rrweb 库
+        - 使用不同的 CDN（jsdelivr、cdnjs）
+        - 将 rrweb 与您的应用程序捆绑在一起
     """
 
     flush_interval_seconds: float = 5.0
-    rrweb_load_timeout_ms: int = 10000  # Timeout for rrweb to load from CDN
+    rrweb_load_timeout_ms: int = 10000  # 超时供 rrweb 从 CDN 加载
     cdn_url: str = "https://unpkg.com/rrweb@2.0.0-alpha.17/dist/rrweb.umd.cjs"
 
 
-# Default configuration
+# 默认配置
 DEFAULT_CONFIG = RecordingConfig()
 
 
 # =============================================================================
-# JavaScript Code Loading
+# JavaScript 代码加载
 # =============================================================================
 
 
 @lru_cache(maxsize=16)
 def _load_js_file(filename: str) -> str:
-    """Load a JavaScript file from the js/ directory with caching."""
+    """从 js/ 目录加载 JavaScript 文件并进行缓存。"""
     filepath = _JS_DIR / filename
     return filepath.read_text()
 
 
 def get_rrweb_loader_js(cdn_url: str) -> str:
-    """Generate the rrweb loader JavaScript with the specified CDN URL."""
+    """使用指定的 CDN URL 生成 rrweb 加载器 JavaScript。"""
     template = _load_js_file("rrweb-loader.js")
     return template.replace("{{CDN_URL}}", cdn_url)
 
 
 def _get_flush_events_js() -> str:
-    """Get the JavaScript to flush recording events from browser to Python."""
+    """获取 JavaScript 将记录事件从浏览器刷新到 Python。"""
     return _load_js_file("flush-events.js")
 
 
 def _get_start_recording_simple_js() -> str:
-    """Get the JavaScript to start recording on a page (simple version)."""
+    """获取JavaScript开始在页面上录制（简单版本）。"""
     return _load_js_file("start-recording-simple.js")
 
 
 def _get_start_recording_js() -> str:
-    """Get the JavaScript to start recording (full version with load failure check)."""
+    """获取JavaScript开始录制（完整版带加载失败检查）。"""
     return _load_js_file("start-recording.js")
 
 
 def _get_stop_recording_js() -> str:
-    """Get the JavaScript to stop recording and collect remaining events."""
+    """获取 JavaScript 以停止记录并收集剩余事件。"""
     return _load_js_file("stop-recording.js")
 
 
 def _get_wait_for_rrweb_js() -> str:
-    """Get the JavaScript to wait for rrweb to load using Promise."""
+    """使用 Promise 获取 JavaScript 等待 rrweb 加载。"""
     return _load_js_file("wait-for-rrweb.js")
 
 
 # =============================================================================
-# RecordingSession Class
+# RecordingSession 班级
 # =============================================================================
 
 
 @dataclass
 class RecordingSession:
-    """Manages browser session recording using rrweb.
+    """使用 rrweb 管理浏览器会话记录。
 
-    Concurrency: Uses asyncio.Lock to protect _events buffer from concurrent
-    access by the periodic flush loop and navigation flushes.
+    Concurrency: 使用 asyncio.Lock 保护 _events 缓冲区免受并发的影响
+    通过定期刷新循环和导航刷新进行访问。
     """
 
     output_dir: str | None = None
@@ -141,7 +139,7 @@ class RecordingSession:
     _consecutive_flush_failures: int = 0
 
     def __post_init__(self) -> None:
-        # Sync output_dir to storage
+        # 同步output_dir到存储
         self._storage.output_dir = self.output_dir
 
     @property
@@ -165,7 +163,7 @@ class RecordingSession:
         return self._events
 
     def _save_and_clear_events(self) -> str | None:
-        """Save current events to storage and clear the buffer."""
+        """将当前事件保存到存储器并清除缓冲区。"""
         if not self._events:
             return None
         filepath = self._storage.save_events(self._events)
@@ -176,7 +174,7 @@ class RecordingSession:
     async def _set_recording_flag(
         self, browser_session: BrowserSession, should_record: bool
     ) -> None:
-        """Set the recording flag in the browser for auto-start on new pages."""
+        """在浏览器中设置录制标志以在新页面上自动启动。"""
         try:
             cdp_session = await browser_session.get_or_create_cdp_session()
             flag_value = str(should_record).lower()
@@ -188,17 +186,17 @@ class RecordingSession:
                 session_id=cdp_session.session_id,
             )
         except Exception as e:
-            # Internal op: log at DEBUG, don't interrupt (see Error Handling Policy)
+            # 内部操作：记录在DEBUG，不要中断（参见错误处理策略）
             logger.debug(f"Failed to set recording flag: {e}")
 
     async def inject_scripts(self, browser_session: BrowserSession) -> list[str]:
-        """Inject rrweb loader script into the browser session.
+        """将 rrweb 加载器脚本注入浏览器会话中。
 
-        Uses Page.addScriptToEvaluateOnNewDocument to inject scripts that
-        will run on every new document before the page's scripts execute.
+        使用 Page.addScriptToEvaluateOnNewDocument 注入将在页面脚本执行之前在每个新文
+        档上运行的脚本。
 
         Returns:
-            List of script identifiers returned by CDP.
+            CDP 返回的脚本标识符列表。
         """
         if self._scripts_injected:
             return []
@@ -221,13 +219,13 @@ class RecordingSession:
             self._scripts_injected = True
             logger.debug("Injected rrweb loader script")
         except Exception as e:
-            # Internal op: log at DEBUG, don't interrupt (see Error Handling Policy)
+            # 内部操作：记录在DEBUG，不要中断（参见错误处理策略）
             logger.debug(f"Script injection skipped: {e}")
 
         return script_ids
 
     async def flush_events(self, browser_session: BrowserSession) -> int:
-        """Flush recording events from browser to Python storage."""
+        """将记录事件从浏览器刷新到 Python 存储。"""
         if not self._is_recording:
             return 0
 
@@ -247,12 +245,12 @@ class RecordingSession:
 
             return len(events)
         except Exception as e:
-            # Internal op: log at DEBUG, return 0 (see Error Handling Policy)
+            # 内部操作：在 DEBUG 处登录，返回 0（请参阅错误处理策略）
             logger.debug(f"Event flush skipped: {e}")
             return 0
 
     async def _periodic_flush_loop(self, browser_session: BrowserSession) -> None:
-        """Background task that periodically flushes recording events."""
+        """定期刷新记录事件的后台任务。"""
         while self._is_recording:
             await asyncio.sleep(self.config.flush_interval_seconds)
             if not self._is_recording:
@@ -268,11 +266,11 @@ class RecordingSession:
                         else:
                             self._consecutive_flush_failures += 1
             except Exception as e:
-                # Internal op: log at DEBUG, don't interrupt (see Error Handling Policy)
+                # 内部操作：记录在DEBUG，不要中断（参见错误处理策略）
                 self._consecutive_flush_failures += 1
                 logger.debug(f"Periodic flush skipped: {e}")
 
-            # Warn after 3 consecutive failures for visibility into persistent issues
+            # 连续 3 次失败后发出警告，以便了解持续存在的问题
             if self._consecutive_flush_failures >= 3:
                 logger.warning(
                     f"Recording flush has failed {self._consecutive_flush_failures} "
@@ -281,14 +279,14 @@ class RecordingSession:
                 )
 
     async def _wait_for_rrweb_load(self, browser_session: BrowserSession) -> dict:
-        """Wait for rrweb to load using event-driven Promise-based waiting.
+        """使用事件驱动的基于 Promise 的等待等待 rrweb 加载。
 
-        Uses CDP's awaitPromise to wait for the rrweb loader Promise to resolve,
-        avoiding polling anti-patterns. This waits exactly as long as needed
-        and fails immediately if loading fails.
+        使用 CDP 的 awaitPromise 等待 rrweb 加载器 Promise 解析，避免轮询反模式。 这
+        会根据需要等待足够长的时间，如果加载失败，则
+        会立即失败。
 
         Returns:
-            Dict with 'success' (bool) and optionally 'error' (str) keys.
+            带有“成功”(bool) 和可选的“错误”(str) 键的字典。
         """
         cdp_session = await browser_session.get_or_create_cdp_session()
 
@@ -315,7 +313,7 @@ class RecordingSession:
             return {"success": False, "error": "timeout"}
 
     def _initialize_session_state(self) -> None:
-        """Reset state and create session subfolder for a new recording session."""
+        """重置状态并为新的录制会话创建会话子文件夹。"""
         self._events = []
         self._is_recording = True
         self._consecutive_flush_failures = 0
@@ -326,9 +324,9 @@ class RecordingSession:
     async def _handle_rrweb_load_failure(
         self, browser_session: BrowserSession, error: str
     ) -> str:
-        """Handle rrweb load failure and return appropriate error message.
+        """处理 rrweb 加载失败并返回相应的错误消息。
 
-        Expected failure: log at INFO, return error string (see Error Handling Policy)
+        预期失败：在 INFO 处登录，返回错误字符串（请参阅错误处理策略）
         """
         self._is_recording = False
         await self._set_recording_flag(browser_session, False)
@@ -363,7 +361,7 @@ class RecordingSession:
         return f"Error: Unable to start recording: {error}"
 
     async def _ensure_rrweb_loaded(self, browser_session: BrowserSession) -> str | None:
-        """Wait for rrweb to load. Returns error message if failed, None on success."""
+        """等待 rrweb 加载。 如果失败则返回错误消息，如果成功则返回 None。"""
         load_result = await self._wait_for_rrweb_load(browser_session)
 
         if not load_result.get("success"):
@@ -373,14 +371,14 @@ class RecordingSession:
         return None
 
     async def _start_flush_task(self, browser_session: BrowserSession) -> None:
-        """Start the periodic flush task if not already running."""
+        """如果尚未运行，则启动定期刷新任务。"""
         if not self._flush_task:
             self._flush_task = asyncio.create_task(
                 self._periodic_flush_loop(browser_session)
             )
 
     async def _execute_start_recording(self, browser_session: BrowserSession) -> str:
-        """Execute the start recording JS and handle the result status."""
+        """执行开始录制JS并处理结果状态。"""
         cdp_session = await browser_session.get_or_create_cdp_session()
 
         result = await cdp_session.cdp_client.send.Runtime.evaluate(
@@ -411,21 +409,20 @@ class RecordingSession:
         return f"Unknown status: {status}"
 
     async def start(self, browser_session: BrowserSession) -> str:
-        """Start rrweb session recording.
+        """开始 rrweb 会话记录。
 
-        Uses event-driven Promise-based waiting for rrweb to load, avoiding
-        polling anti-patterns. This waits exactly as long as needed and fails
-        immediately if loading fails.
+        使用基于事件驱动的 Promise 等待 rrweb 加载，避免轮询反模式。 这会根据需要等待
+        足够长的时间，如果加载失败，则会立即失败。
 
-        Each recording session creates a new timestamped subfolder under output_dir
-        to ensure multiple start/stop cycles don't mix events.
+        每个记录会话都会在 output_dir 下创建一个新的带有时间戳的子文件夹，以确保多个
+        启动/停止周期不会混合事件。
 
         Returns:
-            Status message indicating success or failure.
+            指示成功或失败的状态消息。
 
         Note:
-            User-facing operation: returns error strings, logs at WARNING for
-            unexpected errors (see Error Handling Policy in module docstring).
+            面向用户的操作：返回错误字符串，在警告处记录意外错误（请参阅模块文档字符
+            串中的错误处理策略）。
         """
         if not self._scripts_injected:
             await self.inject_scripts(browser_session)
@@ -440,29 +437,29 @@ class RecordingSession:
             return await self._execute_start_recording(browser_session)
 
         except Exception as e:
-            # User-facing operation: log at WARNING, return error string
+            # 面向用户的操作：在警告处登录，返回错误字符串
             self._is_recording = False
             logger.warning(f"Recording start failed: {e}")
             return f"Error starting recording: {str(e)}"
 
     async def stop(self, browser_session: BrowserSession) -> str:
-        """Stop rrweb recording and save remaining events.
+        """停止 rrweb 记录并保存剩余事件。
 
-        Stops the periodic flush task, collects any remaining events from the
-        browser, and saves them to a final numbered JSON file.
+        停止定期刷新任务，从浏览器收集所有剩余事件，并将它们保存到最终编号为 JSON 的
+        文件中。
 
         Returns:
-            A summary message with the save directory and file count.
+            包含保存目录和文件计数的摘要消息。
 
         Note:
-            User-facing operation: returns error strings, logs at WARNING for
-            unexpected errors (see Error Handling Policy in module docstring).
+            面向用户的操作：返回错误字符串，在警告处记录意外错误（请参阅模块文档字符
+            串中的错误处理策略）。
         """
         if not self._is_recording:
             return "Error: Not recording. Call browser_start_recording first."
 
         try:
-            # Stop the periodic flush task first
+            # 首先停止定期刷新任务
             self._is_recording = False
             if self._flush_task:
                 self._flush_task.cancel()
@@ -474,7 +471,7 @@ class RecordingSession:
 
             cdp_session = await browser_session.get_or_create_cdp_session()
 
-            # Stop recording on current page and get remaining events
+            # 停止当前页面录制并获取剩余事件
             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={"expression": _get_stop_recording_js(), "returnByValue": True},
                 session_id=cdp_session.session_id,
@@ -509,7 +506,7 @@ class RecordingSession:
             return summary
 
         except Exception as e:
-            # User-facing operation: log at WARNING, return error string
+            # 面向用户的操作：在警告处登录，返回错误字符串
             self._is_recording = False
             if self._flush_task:
                 self._flush_task.cancel()
@@ -518,15 +515,14 @@ class RecordingSession:
             return f"Error stopping recording: {str(e)}"
 
     async def restart_on_new_page(self, browser_session: BrowserSession) -> None:
-        """Restart recording on a new page after navigation.
+        """导航后在新页面上重新开始录制。
 
-        Uses event-driven Promise-based waiting for rrweb to be ready,
-        then starts a new recording session. Called automatically after
-        navigation when recording is active.
+        使用基于事件驱动的 Promise 等待 rrweb 准备好，然后启动新的记录会话。 当录音处
+        于活动状态时，导航后自动调用。
 
         Note:
-            Internal operation: logs at DEBUG, never raises
-            (see Error Handling Policy in module docstring).
+            内部操作：记录在 DEBUG，从不引发（请参阅模块文档字符串中的错误处理策略）
+            。
         """
         if not self._is_recording:
             return
@@ -559,11 +555,11 @@ class RecordingSession:
                 logger.debug(f"Recording restart: unexpected status '{status}'")
 
         except Exception as e:
-            # Internal op: log at DEBUG, don't interrupt (see Error Handling Policy)
+            # 内部操作：记录在DEBUG，不要中断（参见错误处理策略）
             logger.debug(f"Recording restart skipped: {e}")
 
     def reset(self) -> None:
-        """Reset the recording session state for reuse."""
+        """重置录制会话状态以供重复使用。"""
         self._events = []
         self._is_recording = False
         self._storage.reset()

@@ -1,10 +1,9 @@
-"""JSON-file storage for meta-profiles.
+"""JSON-元配置文件的文件存储。
 
-Key invariant: every model reference in a meta-profile (``classifier_model``,
-each class's ``model``, and direct-routing prompt outputs) is the *name of a
-saved LLM profile* in
-:class:`~openhands.sdk.llm.llm_profile_store.LLMProfileStore`, not a raw model
-string — credentials/provider settings resolve through that store.
+不变量键：元架构中的每个模型引用（``classifier_model``，每个类的``model``，以及直接路
+由的提示词输出）都是一个保存的LLM架构*的*名称
+:class:`~openhands.sdk.llm.llm_profile_store.LLMProfileStore`，不是原始模型
+字符串 — 凭据/提供程序设置通过该存储解析。
 """
 
 from __future__ import annotations
@@ -31,24 +30,24 @@ logger = get_logger(__name__)
 
 
 def default_meta_profile_dir() -> Path:
-    """Return the default directory for meta-profile storage.
+    """返回元配置文件存储的默认目录。
 
-    Agent-server instances can set ``OH_PERSISTENCE_DIR`` to isolate all
-    persisted state. Honor that for bare ``MetaProfileStore()`` instances so
-    runtime tools read the same meta-profiles exposed by the HTTP API. Without
-    that env var, keep the standalone SDK default under ``~/.openhands``.
-    Resolved at call time through ``get_user_persistence_dir`` so ``~`` and
-    relative values land where the other stores put their files.
+    智能体-服务器实例可以设置``OH_PERSISTENCE_DIR``以隔离所有已持久化状态。 对于裸
+    ``MetaProfileStore()`` 实例，请遵守这
+    一点，以便运行时工具读取 HTTP API 公开的相同元配置文件。 如果没有该环境变量，请将
+    独立的 SDK 默认值保留在 ``~/.openhands`` 下。 在
+    调用时通过 ``get_user_persistence_dir`` 解决，因此 ``~`` 和相对值落在其他商店放置
+    文件的位置。
     """
     return get_user_persistence_dir() / "meta-profiles"
 
 
 class MetaProfileLimitExceeded(Exception):
-    """Raised when saving would exceed the configured meta-profile limit."""
+    """当保存超出配置的元配置文件限制时引发。"""
 
 
 class MetaProfileClass(BaseModel):
-    """A single task category and the LLM profile that should handle it."""
+    """单个任务类别和应处理该任务的 LLM 配置文件。"""
 
     description: str = Field(
         description="Natural-language description of the kind of task this "
@@ -61,7 +60,7 @@ class MetaProfileClass(BaseModel):
 
 
 class MetaProfile(BaseModel):
-    """A declarative model-routing configuration."""
+    """声明性模型路由配置。"""
 
     classifier_model: str = Field(
         description="Name of the saved LLM profile used to classify the task."
@@ -88,11 +87,11 @@ class MetaProfile(BaseModel):
 
     @model_validator(mode="after")
     def validate_routing_mode(self) -> MetaProfile:
-        """Validate direct-prompt mode: a template needs ``{{ instance_text }}``
-        and excludes classes.
+        """验证直接提示词模式：模板需要``{{ instance_text }}``
+        并排除类。
 
-        A meta-profile with neither classes nor a template is accepted here so
-        persisted ones still load; ``POST /api/meta-profiles/{name}`` refuses it.
+        这里接受既没有类也没有模板的元配置文件，因此已持久化仍然会加载；
+        ``POST /api/meta-profiles/{name}`` 拒绝。
         """
         if self.prompt_template is None:
             return self
@@ -107,14 +106,14 @@ class MetaProfile(BaseModel):
 
 
 class MetaProfileStore:
-    """Read meta-profiles from the default meta-profile directory."""
+    """从默认元配置文件目录读取元配置文件。"""
 
     def __init__(self, base_dir: Path | str | None = None) -> None:
-        """Initialize the meta-profile store.
+        """初始化元配置文件存储。
 
         Args:
-            base_dir: Directory where meta-profiles are stored. Defaults to
-                ``$OH_PERSISTENCE_DIR/meta-profiles`` when set, otherwise
+            base_dir: 存储元配置文件的目录。 默认为
+                设置时为 ``$OH_PERSISTENCE_DIR/meta-profiles``，否则
                 ``~/.openhands/meta-profiles``.
         """
         self.base_dir = (
@@ -125,13 +124,13 @@ class MetaProfileStore:
 
     @contextmanager
     def _acquire_lock(self, timeout: float = _LOCK_TIMEOUT_SECONDS) -> Iterator[None]:
-        """Acquire the file lock for safe concurrent access.
+        """获取文件锁以进行安全并发访问。
 
-        The lock is reentrant within a process, so methods that hold it may
-        call other locked methods (e.g. ``save`` calls ``list``).
+        锁是进程内的可重入，因此持有它的方法可能会调用其他锁定的方法 (e.g. ``save``
+        调用 ``list``）。
 
         Raises:
-            TimeoutError: If the lock cannot be acquired within ``timeout``.
+            TimeoutError: 如果在``timeout``内无法获取锁。
         """
         try:
             with self._file_lock.acquire(timeout=timeout):
@@ -145,11 +144,11 @@ class MetaProfileStore:
             )
 
     def list(self) -> list[str]:
-        """Return stored meta-profile names (without ``.json``), sorted.
+        """返回存储的元配置文件名称（不带 ``.json``），已排序。
 
-        The order is alphabetical, not chronological. Callers that fall back to
-        "the first available" meta-profile (when none is explicitly active) get
-        the alphabetically-first name, which is stable but not "most recent".
+        顺序是按字母顺序排列，而不是按时间顺序排列。 当时，调用者会 fallback 到第一个
+        可用的元配置 None 如果明确激活，则获取字母顺序最小的姓名，该姓
+        名是稳定的，但不是“最近的”。
         """
         return sorted(
             p.stem
@@ -168,11 +167,11 @@ class MetaProfileStore:
         return self.base_dir / f"{clean_name}.json"
 
     def load(self, name: str) -> MetaProfile:
-        """Load a meta-profile by name.
+        """按名称加载元配置文件。
 
         Raises:
-            FileNotFoundError: If the meta-profile does not exist.
-            ValueError: If the file is corrupted or fails validation.
+            FileNotFoundError: 如果元配置文件不存在。
+            ValueError: 如果文件损坏或失败验证。
         """
         path = self._get_path(name)
         if not path.exists():
@@ -194,24 +193,23 @@ class MetaProfileStore:
         *,
         max_profiles: int | None = None,
     ) -> None:
-        """Persist a meta-profile under ``name`` (atomic write, overwrites).
+        """持久化 ``name`` 下的元配置文件（原子写入、覆盖）。
 
         Args:
-            name: Name of the meta-profile to save.
-            meta_profile: The meta-profile to persist.
-            max_profiles: Optional cap on the number of meta-profiles. When set,
-                raises :class:`MetaProfileLimitExceeded` if creating a *new*
-                meta-profile would exceed the limit.
+            name: 要保存的元配置文件的名称。
+            meta_profile: 元配置文件为持久化。
+            max_profiles: 元配置文件数量的可选上限。 设置后，
+                如果创建 *new* 元配置文件超出限制，则会引发：class:
+                `MetaProfileLimitExceeded`。
 
         Raises:
-            MetaProfileLimitExceeded: If ``max_profiles`` would be exceeded.
-            ValueError: If ``name`` is not a valid meta-profile name.
+            MetaProfileLimitExceeded: 如果超过``max_profiles``。
+            ValueError: 如果 ``name`` 不是有效的元配置文件名称。
         """
         path = self._get_path(name)
 
-        # Hold the lock across the precondition check and the atomic replace so
-        # concurrent creators cannot both pass the limit check and overshoot
-        # ``max_profiles`` (TOCTOU), mirroring ``LLMProfileStore``.
+        # 在前提条件检查和原子替换中保持锁，这样并发创建者就不能同时通过限制检查和超调
+        # ``max_profiles`` (TOCTOU)，镜像 ``LLMProfileStore``。
         with self._acquire_lock():
             if max_profiles is not None and not path.exists():
                 if len(self.list()) >= max_profiles:
@@ -238,10 +236,10 @@ class MetaProfileStore:
         logger.info(f"Saved meta-profile `{name}` at {path}")
 
     def delete(self, name: str) -> None:
-        """Delete a meta-profile (idempotent — missing names are a no-op).
+        """删除元配置文件（幂等 - 缺少名称是不可操作的）。
 
         Raises:
-            ValueError: If ``name`` is not a valid meta-profile name.
+            ValueError: 如果 ``name`` 不是有效的元配置文件名称。
         """
         path = self._get_path(name)
         with self._acquire_lock():
@@ -252,10 +250,10 @@ class MetaProfileStore:
         logger.info(f"Deleted meta-profile `{name}`")
 
     def list_summaries(self) -> list[dict[str, Any]]:
-        """List meta-profile metadata without full schema validation.
+        """列出不完整的元配置文件元数据模式验证。
 
-        Files with corrupted JSON or non-dict top-level values are skipped with
-        a warning so a single bad file never breaks the listing.
+        具有损坏的 JSON 或非字典顶级值的文件将被跳过并发出警告，因此单个错误文件永远
+        不会破坏列表。
         """
         summaries: list[dict[str, Any]] = []
         for name in self.list():

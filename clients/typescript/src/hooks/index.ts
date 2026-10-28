@@ -1,13 +1,13 @@
 /**
- * OpenHands Hooks System - Event-driven hooks for automation and control.
+ * OpenHands 挂钩系统 - 用于自动化和控制的事件驱动挂钩。
  *
- * Hooks are event-driven scripts that execute at specific lifecycle events
- * during agent execution, enabling deterministic control over agent behavior.
+ * 挂钩是在特定生命周期事件时执行的事件驱动脚本
+ * 在智能体执行期间，实现对智能体行为的确定性控制。
  *
- * Hook execution happens server-side. This module provides:
- * - Type definitions matching the Python SDK
- * - Configuration parsing and manipulation utilities
- * - API client methods for loading hooks from the server
+ * 挂钩执行发生在服务器端。 该模块提供：
+ * - 与 Python SDK 匹配的类型定义
+ * 配置解析和操作工具
+ * - API 用于从服务器加载钩子的客户端方法
  */
 
 export {

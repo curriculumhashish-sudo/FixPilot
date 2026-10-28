@@ -1,9 +1,9 @@
 /**
- * Canonical persisted MCP settings types.
+ * 规范已持久化 MCP 设置类型。
  *
- * The generated Agent Server component remains the field-level source of
- * truth. These aliases add the stable transport discrimination and sparse
- * RFC 7386 mutation semantics expected by client callers.
+ * 生成的 Agent Server 组件仍然是字段级源
+ * 真相。 这些别名添加了稳定的传输层区分和稀疏
+ * RFC 7386 客户端调用者期望的突变语义。
  */
 import type {
   McpConfigPatchWritable,

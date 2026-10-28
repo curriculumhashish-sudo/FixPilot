@@ -27,17 +27,18 @@ def test_map_auth_error_from_bad_request():
 
 
 def test_map_auth_error_from_openai_error():
-    # OpenAIError has odd behavior; create a BadRequestError that wraps an
-    # auth-like message instead, as providers commonly route auth issues
-    # through BadRequestError in LiteLLM
+    # OpenAIError 有奇怪的行为； 创建一个 BadRequestError 来包装类似身份验证的消息，因为
+    # 提供商通常通过 LiteLLM 中的 BadRequestError 路由身份验证问题
+    #
     e = BadRequestError("status 401 Unauthorized: missing API key", MODEL, PROVIDER)
     mapped = map_provider_exception(e)
     assert isinstance(mapped, LLMAuthenticationError)
 
 
 def test_map_typed_authentication_error_without_pattern_match():
-    # Typed 401 from litellm whose message text doesn't contain any of the
-    # auth heuristic patterns — should still map via the isinstance check.
+    # 从 LiteLLM 键入 401，其消息文本不包含任何身份验证启发式模式 - 仍应通过 isinstance
+    # 检查进行映射。
+    #
     e = AuthenticationError("Bearer token expired", PROVIDER, MODEL)
     mapped = map_provider_exception(e)
     assert isinstance(mapped, LLMAuthenticationError)
@@ -88,12 +89,12 @@ def test_map_typed_content_policy_violation():
     )
     mapped = map_provider_exception(e)
     assert isinstance(mapped, LLMContentPolicyViolationError)
-    # Subtype of LLMBadRequestError keeps back-compat for existing handlers.
+    # LLMBadRequestError 的子类型保留了对现有处理器的兼容性。
     assert isinstance(mapped, LLMBadRequestError)
 
 
 def test_map_content_policy_violation_text_fallback():
-    # Proxied/aliased providers may flatten the typed class to a plain 400.
+    # 代理/别名提供者可能会将类型化的类扁平化为普通的 400。
     e = BadRequestError(
         "AnthropicException - Output blocked by content filtering policy",
         MODEL,
@@ -107,7 +108,7 @@ def test_map_generic_bad_request():
     e = BadRequestError("Some client-side error not related to auth", MODEL, PROVIDER)
     mapped = map_provider_exception(e)
     assert isinstance(mapped, LLMBadRequestError)
-    # A generic 400 must NOT be misclassified as content-policy.
+    # 通用 400 必须不被错误分类为内容策略。
     assert not isinstance(mapped, LLMContentPolicyViolationError)
 
 

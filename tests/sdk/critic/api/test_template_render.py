@@ -1,14 +1,12 @@
 """
-Regression tests for the chat template implementation.
+回归测试聊天模板的实现。
 
-This file contains sample traces with their expected formatted outputs.
-These are used to ensure the chat template implementation remains stable
-and produces the same results across versions.
+该文件包含示例跟踪及其预期的格式化输出。 这些用于确保聊天模板实现保持稳定并在各个版本
+中产生相同的结果。
 
-The ground truth was generated using transformers AutoTokenizer with
-Qwen/Qwen3-4B-Instruct-2507 tokenizer. The transformers library is NOT
-required to run these tests - it's only needed if you want to regenerate
-the ground truth values using the --generate-ground-truth flag.
+基本事实是使用带有 Qwen/Qwen3-4B-Instruct-2507 分词器的变压器 AutoTokenizer 生成的。
+运行这些测试不需要 transformer
+s 库；只有使用 --generate-ground-truth 标志重新生成基准真值时，才需要它。
 """
 
 from __future__ import annotations
@@ -22,17 +20,16 @@ from openhands.sdk.critic.impl.api.chat_template import ChatTemplateRenderer
 
 
 # =============================================================================
-# Test cases with ground truth
-# Each test case contains:
-#   - messages: The input messages
-#   - tools: Optional tool definitions
-#   - add_generation_prompt: Whether to add generation prompt
-#   - expected: The exact expected output string
+# 测试用例与真实值每个测试用例包含：
+#   - messages：输入的消息
+#   - 工具：可选工具定义
+#   - add_generation_prompt：是否添加代提示词
+#   - 预期：确切的预期输出字符串
 # =============================================================================
 
 TEST_CASES: list[dict[str, Any]] = [
     # ------------------------------------------------------------------
-    # Test 1: Simple single-turn conversation
+    # 测试 1：简单的单轮对话
     # ------------------------------------------------------------------
     {
         "name": "simple_single_turn",
@@ -44,7 +41,7 @@ TEST_CASES: list[dict[str, Any]] = [
         "expected": "<|im_start|>user\nHello!<|im_end|>\n",
     },
     # ------------------------------------------------------------------
-    # Test 2: User + Assistant turn
+    # 测试2：用户+助手轮流
     # ------------------------------------------------------------------
     {
         "name": "user_assistant_turn",
@@ -64,7 +61,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 3: With system message
+    # 测试3：使用系统消息
     # ------------------------------------------------------------------
     {
         "name": "with_system_message",
@@ -82,7 +79,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 4: Multi-turn conversation
+    # 测试 4：多轮对话
     # ------------------------------------------------------------------
     {
         "name": "multi_turn_conversation",
@@ -104,7 +101,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 5: With generation prompt
+    # 测试 5：使用生成提示词
     # ------------------------------------------------------------------
     {
         "name": "with_generation_prompt",
@@ -118,7 +115,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 6: With single tool
+    # 测试 6：使用单一工具
     # ------------------------------------------------------------------
     {
         "name": "with_single_tool",
@@ -158,7 +155,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 7: With tools and system message
+    # 测试7：使用工具和系统消息
     # ------------------------------------------------------------------
     {
         "name": "tools_with_system_message",
@@ -198,7 +195,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 8: Code content with special characters
+    # 测试8：带有特殊字符的代码内容
     # ------------------------------------------------------------------
     {
         "name": "code_with_special_chars",
@@ -218,7 +215,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 9: Unicode and emoji content
+    # 测试 9：Unicode 和表情符号内容
     # ------------------------------------------------------------------
     {
         "name": "unicode_and_emoji",
@@ -234,7 +231,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 10: Long multi-paragraph content
+    # 测试10：长的多段落内容
     # ------------------------------------------------------------------
     {
         "name": "long_multi_paragraph",
@@ -255,7 +252,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 11: Multiple tools
+    # 测试 11：多种工具
     # ------------------------------------------------------------------
     {
         "name": "multiple_tools",
@@ -308,7 +305,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 12: Empty content
+    # 测试 12：空内容
     # ------------------------------------------------------------------
     {
         "name": "empty_content",
@@ -324,7 +321,7 @@ TEST_CASES: list[dict[str, Any]] = [
         ),
     },
     # ------------------------------------------------------------------
-    # Test 13: Realistic agent trace (critic use case)
+    # 测试 13：现实智能体跟踪（关键用例）
     # ------------------------------------------------------------------
     {
         "name": "realistic_agent_trace",
@@ -390,7 +387,7 @@ TEST_CASES: list[dict[str, Any]] = [
 
 @pytest.fixture
 def renderer(qwen3_tokenizer_config_path):
-    """Create a ChatTemplateRenderer for testing."""
+    """创建一个 ChatTemplateRenderer 进行测试。"""
     with qwen3_tokenizer_config_path.open(encoding="utf-8") as handle:
         tokenizer_config = json.load(handle)
     return ChatTemplateRenderer(chat_template=tokenizer_config["chat_template"])
@@ -401,10 +398,9 @@ def test_chat_template_regression(
     renderer: ChatTemplateRenderer, test_case: dict[str, Any]
 ):
     """
-    Regression test for chat template rendering.
+    回归测试聊天模板渲染。
 
-    Compares the output of our implementation against ground truth
-    generated from transformers AutoTokenizer.
+    将我们实现的输出与变压器 AutoTokenizer 生成的地面实况进行比较。
     """
     messages = test_case["messages"]
     tools = test_case.get("tools")
@@ -427,17 +423,17 @@ def test_chat_template_regression(
 
 def generate_ground_truth(tokenizer_name: str = "Qwen/Qwen3-4B-Instruct-2507") -> None:
     """
-    Generate ground truth using transformers library.
+    使用 Transformer 库生成地面实况。
 
-    This function is used to update the expected values in TEST_CASES
-    when needed (e.g., when adding new test cases).
+    该函数用于在需要时更新 TEST_CASES 中的预期值（e.g.，当添加新的测试用例时）。
 
-    Requires transformers to be installed: pip install transformers
+    需要安装变压器：pip install Transformers
     """
     try:
         from transformers import AutoTokenizer  # type: ignore
-        # This dependency is not included in pyproject.toml by default
-        # to avoid bloating the installation for users who don't need it.
+        # 默认情况下，此依赖项不包含在 pyproject.toml 中，以避免让不需要它的用户安装变得
+        # 臃肿。
+        #
     except ImportError as e:
         raise ImportError(
             "transformers is required to generate ground truth. "

@@ -1,4 +1,4 @@
-"""SessionStart hook behavior that repository-level setup hooks rely on."""
+"""SessionStart 存储库级设置挂钩所依赖的挂钩行为。"""
 
 from pathlib import Path
 
@@ -46,7 +46,7 @@ def _message_has_marker(message: Message) -> bool:
 
 
 def test_session_start_additional_context_reaches_llm_messages(tmp_path):
-    """additionalContext must reach the agent without displacing the system prompt."""
+    """additionalContext 必须在不移动系统提示词的情况下到达智能体。"""
     command = python_command(
         f"import json; print(json.dumps({{'additionalContext': {MARKER!r}}}))"
     )
@@ -60,9 +60,10 @@ def test_session_start_additional_context_reaches_llm_messages(tmp_path):
         assert [e.additional_context for e in hook_events] == [MARKER]
 
         messages = _llm_messages(conversation)
-        # Repository-wide invariant: a system message precedes the first user
-        # message in every request. SessionStart runs before the agent emits its
-        # SystemPromptEvent, so the context must be delivered after it, not before.
+        # 存储库范围不变量：系统消息位于每个请求中的第一条用户消息之前。 SessionStart 在
+        # 智能体发出 SystemPromptEvent 之前运行，因此上下文必须在它之后传送，而不是之前
+        # 。
+        #
         assert messages[0].role == "system"
 
         marker_indexes = [i for i, m in enumerate(messages) if _message_has_marker(m)]
@@ -70,7 +71,7 @@ def test_session_start_additional_context_reaches_llm_messages(tmp_path):
         assert all(i > 0 for i in marker_indexes), "context displaced the system prompt"
         assert all(messages[i].role == "user" for i in marker_indexes)
 
-        # Delivered exactly once (no duplicate environment injection).
+        # 仅交付一次（无重复环境注入）。
         injected = [
             e
             for e in conversation.state.events
@@ -84,7 +85,7 @@ def test_session_start_additional_context_reaches_llm_messages(tmp_path):
 
 
 def test_session_start_hook_env_excludes_conversation_secrets(tmp_path):
-    """Hooks run with the sanitized server environment, not conversation secrets."""
+    """挂钩在清理后的服务器环境中运行，而不是在会话中运行机密。"""
     names_file = tmp_path / "hook-env-names.txt"
     command = python_command(
         "import os; from pathlib import Path; "

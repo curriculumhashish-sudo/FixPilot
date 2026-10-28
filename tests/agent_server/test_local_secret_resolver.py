@@ -1,4 +1,4 @@
-"""Tests for in-process resolution of this server's own LookupSecret URLs."""
+"""测试本服务器自身 LookupSecret URLs 的在进程内解决。"""
 
 from collections.abc import Iterator
 from contextlib import contextmanager

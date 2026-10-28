@@ -1,11 +1,11 @@
-"""Tests for BrowserObservation wrapper behavior."""
+"""测试 BrowserObservation 包装器行为。"""
 
 from openhands.sdk.llm.message import ImageContent, TextContent
 from openhands.tools.browser_use.definition import BrowserObservation
 
 
 def test_browser_observation_basic_output():
-    """Test basic BrowserObservation creation with output."""
+    """使用输出测试基本的 BrowserObservation 创建。"""
     observation = BrowserObservation.from_text(text="Test output")
 
     assert observation.text == "Test output"
@@ -14,7 +14,7 @@ def test_browser_observation_basic_output():
 
 
 def test_browser_observation_with_error():
-    """Test BrowserObservation with error."""
+    """测试 BrowserObservation 有错误。"""
     observation = BrowserObservation.from_text(text="Test error", is_error=True)
 
     assert observation.text == "Test error"
@@ -23,7 +23,7 @@ def test_browser_observation_with_error():
 
 
 def test_browser_observation_with_screenshot():
-    """Test BrowserObservation with screenshot data."""
+    """使用屏幕截图数据测试 BrowserObservation。"""
     screenshot_data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77zgAAAABJRU5ErkJggg=="  # noqa: E501
     observation = BrowserObservation.from_text(
         text="Screenshot taken", screenshot_data=screenshot_data
@@ -35,7 +35,7 @@ def test_browser_observation_with_screenshot():
 
 
 def test_browser_observation_to_llm_content_text_only():
-    """Test to_llm_content property with text only."""
+    """仅使用文本测试 to_llm_content 属性。"""
     observation = BrowserObservation.from_text(text="Test output")
     agent_obs = observation.to_llm_content
 
@@ -45,7 +45,7 @@ def test_browser_observation_to_llm_content_text_only():
 
 
 def test_browser_observation_to_llm_content_with_screenshot():
-    """Test to_llm_content property with screenshot."""
+    """使用屏幕截图测试 to_llm_content 属性。"""
     screenshot_data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77zgAAAABJRU5ErkJggg=="  # noqa: E501
     observation = BrowserObservation.from_text(
         text="Screenshot taken", screenshot_data=screenshot_data
@@ -62,7 +62,7 @@ def test_browser_observation_to_llm_content_with_screenshot():
 
 
 def test_browser_observation_to_llm_content_with_error():
-    """Test to_llm_content property with error."""
+    """测试 to_llm_content 属性有错误。"""
     observation = BrowserObservation.from_text(text="Test error", is_error=True)
     agent_obs = observation.to_llm_content
 
@@ -74,14 +74,14 @@ def test_browser_observation_to_llm_content_with_error():
 
 
 def test_browser_observation_output_truncation():
-    """Test output truncation for very long outputs."""
-    # Create a very long output string
-    long_output = "x" * 100000  # 100k characters
+    """测试非常长的输出的输出截断。"""
+    # 创建一个很长的输出字符串
+    long_output = "x" * 100000  # 10万个字符
     observation = BrowserObservation.from_text(text=long_output)
 
     agent_obs = observation.to_llm_content
 
-    # Should be truncated to MAX_BROWSER_OUTPUT_SIZE (50000)
+    # 应截断为 MAX_BROWSER_OUTPUT_SIZE (50000)
     assert len(agent_obs) == 1
     assert isinstance(agent_obs[0], TextContent)
     assert len(agent_obs[0].text) <= 50000
@@ -89,7 +89,7 @@ def test_browser_observation_output_truncation():
 
 
 def test_browser_observation_screenshot_data_url_conversion():
-    """Test that screenshot data is properly converted to data URL."""
+    """测试屏幕截图数据是否正确转换为数据 URL。"""
     screenshot_data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77zgAAAABJRU5ErkJggg=="  # noqa: E501
     observation = BrowserObservation.from_text(
         text="Test", screenshot_data=screenshot_data
@@ -104,18 +104,18 @@ def test_browser_observation_screenshot_data_url_conversion():
 
 
 def test_browser_observation_empty_screenshot_handling():
-    """Test handling of empty or None screenshot data."""
+    """测试空或 None 屏幕截图数据的处理。"""
     observation = BrowserObservation.from_text(text="Test", screenshot_data="")
     agent_obs = observation.to_llm_content
-    assert len(agent_obs) == 1  # Only text content, no image
+    assert len(agent_obs) == 1  # 只有文字内容，没有图片
 
     observation = BrowserObservation.from_text(text="Test", screenshot_data=None)
     agent_obs = observation.to_llm_content
-    assert len(agent_obs) == 1  # Only text content, no image
+    assert len(agent_obs) == 1  # 只有文字内容，没有图片
 
 
 def test_browser_observation_mime_type_detection():
-    """Test MIME type detection for different image formats."""
+    """测试不同图像格式的 MIME 类型检测。"""
     test_cases = [
         (
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",  # noqa: E501
@@ -134,8 +134,8 @@ def test_browser_observation_mime_type_detection():
             "image/webp",
         ),
         (
-            "AAAABBBBCCCC",  # Unknown format
-            "image/png",  # Falls back to PNG
+            "AAAABBBBCCCC",  # 未知格式
+            "image/png",  # 回落至 PNG
         ),
     ]
 

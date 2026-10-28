@@ -1,4 +1,4 @@
-"""Action, observation, and tool definitions for start_child_conversation."""
+"""操作观测结果和 start_child_conversation 的工具定义。"""
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, ClassVar, Literal, Self
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class StartChildConversationAction(Action):
-    """Action that starts a child conversation on the parent's backend."""
+    """在父级后端启动子级对话的操作。"""
 
     task: str = Field(
         description=(
@@ -54,7 +54,7 @@ class StartChildConversationAction(Action):
 
 
 class StartChildConversationObservation(Observation):
-    """Result of a child conversation launch."""
+    """子对话启动的结果。"""
 
     conversation_id: UnmaskedID | None = None
     parent_conversation_id: UnmaskedID | None = None
@@ -110,10 +110,11 @@ _DESCRIPTION = (
 class StartChildConversationTool(
     ToolDefinition[StartChildConversationAction, StartChildConversationObservation]
 ):
-    """Tool that launches a same-backend child conversation."""
+    """启动同后端子对话的工具。"""
 
-    # Attached by the host that provides the launcher (the agent-server, or a
-    # hosting backend through ``launch_url``), not picked from the catalog.
+    # 由提供启动器的主机（智能体-服务器，或通过``launch_url``的托管后端）附带，而不是从
+    # 目录中选择的。
+    #
     user_selectable: ClassVar[bool] = False
 
     @classmethod
@@ -123,13 +124,12 @@ class StartChildConversationTool(
         launch_url: str | None = None,
         **params,
     ) -> Sequence[Self]:
-        """Create the tool bound to the current conversation.
+        """创建绑定到当前对话的工具。
 
         Args:
-            conv_state: State of the conversation that becomes the parent.
-            launch_url: Optional child-launch endpoint. Defaults to the
-                agent-server running this tool; a hosting backend can point it
-                at its own launcher.
+            conv_state: 成为父级的对话状态。
+            launch_url: 可选的子启动端点。 默认为
+                智能体-运行该工具的服务器； 托管后端可以将其指向自己的启动器。
         """
         if params:
             raise ValueError(
@@ -137,7 +137,7 @@ class StartChildConversationTool(
                 f"{sorted(params)}"
             )
 
-        # Import here to keep module import light and avoid import cycles.
+        # 在此导入以保持模块导入轻量并避免导入周期。
         from openhands.tools.child_conversation.impl import (
             StartChildConversationExecutor,
         )
@@ -161,5 +161,5 @@ class StartChildConversationTool(
         ]
 
 
-# Automatically register when this module is imported.
+# 导入该模块时自动注册。
 register_tool(StartChildConversationTool.name, StartChildConversationTool)

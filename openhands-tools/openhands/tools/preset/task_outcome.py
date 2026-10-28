@@ -1,4 +1,4 @@
-"""Experimental structured task outcome models for conversation finish actions."""
+"""用于对话完成操作的实验性结构化任务结果模型。"""
 
 from typing import Literal
 
@@ -15,10 +15,10 @@ TaskOutcomeStatus = Literal[
 
 
 class TaskOutcome(BaseModel):
-    """Latest semantic outcome reported for a conversation task.
+    """报告对话任务的最新语义结果。
 
-    Experimental: this structured response model may change as task outcome
-    reporting is refined.
+    Experimental: 这种结构化响应模型可能会随着任务结果而改变
+    报告细化。
     """
 
     model_config = ConfigDict(populate_by_name=True)

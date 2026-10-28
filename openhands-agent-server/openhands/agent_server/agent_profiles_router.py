@@ -1,15 +1,14 @@
-"""HTTP endpoints for managing named ``AgentProfile`` launch specs.
+"""HTTP 端点用于管理命名的 ``AgentProfile`` 启动规范。
 
-Mirrors ``profiles_router.py`` (the LLM ``/api/profiles`` router) but serves the
-reference-bearing :class:`~openhands.sdk.profiles.AgentProfile` union and keeps a
-*separate* active pointer (``active_agent_profile_id``). Activation here is
-pointer-only — unlike the LLM ``/activate`` it must **not** write
-``agent_settings`` (the creation-time-only contract).
+镜像 ``profiles_router.py``（LLM ``/api/profiles`` 路由器），但服务于引用承载：class:
+`~openhands.sdk.profiles.AgentProfile` 联合并保留
+*单独的*活动指针（``active_agent_profile_id``）。 这里的激活是
+仅指针 - 与 LLM ``/activate`` 不同，它必须 ** 不 ** 写入
+``agent_settings``（仅限创建时间的合约）。
 
-``POST /{name}/materialize`` performs a dry-run resolve of a stored profile, or
-of a draft body, and returns
-:class:`~openhands.sdk.profiles.AgentProfileDiagnostics` (never raises on
-dangling refs — those appear in the body).
+``POST /{name}/materialize`` 对存储的配置文件或草稿正文执行试运行解析，并返回
+:class:`~openhands.sdk.profiles.AgentProfileDiagnostics` （永远不会在
+悬空引用——那些出现在正文中的引用）。
 """
 
 import asyncio
@@ -91,9 +90,9 @@ class AgentProfileMutationResponse(BaseModel):
 class ActivateAgentProfileResponse(BaseModel):
     id: str
     message: str
-    # Always False: activation is pointer-only by contract. The field documents
-    # that agent_settings was untouched; materialize (#3717) is the path that
-    # resolves a profile into settings.
+    # 始终False：通过合约仅激活指针。 现场记录表明 agent_settings 未受影响； Materialize
+    #  (#3717) 是将配置文件解析为设置的路径。
+    #
     agent_settings_applied: bool = False
 
 
@@ -106,7 +105,7 @@ def _raw_profile_payload(value: Any) -> dict[str, Any] | None:
 class MaterializeAgentProfileRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # Kept raw so the draft goes through the same migrations as a save.
+    # 保持原始状态，因此选秀会经历与保存相同的迁移。
     profile: Annotated[
         dict[str, Any] | None,
         PlainValidator(
@@ -131,14 +130,13 @@ class RenameAgentProfileRequest(BaseModel):
 
 
 def _llm_has_real_config(llm: LLM) -> bool:
-    """True when ``llm`` carries real, user-provided configuration.
+    """True 当 ``llm`` 携带真实的、用户提供的配置时。
 
-    Distinguishes an already-working setup — a real API key, subscription auth,
-    or a custom endpoint — from bare SDK field defaults on a never-configured
-    account (``model="gpt-5.5"``, no ``api_key``). Only the former is worth
-    mirroring into a named ``default`` LLM profile; persisting the latter leaves
-    a keyless, non-functional "ghost" profile that the user never asked for and
-    that nothing ever cleans up (#4031).
+    区分已经工作的设置——一个真实的API密钥、订阅认证或一个自定义端点——与未配置账户上的
+    裸SDK字段默认值（``model="gpt-5.5"``，没有
+    ``api_key``）。 只有前者值得镜像到命名的 ``default`` LLM 配置文件中； 坚持后者会
+    留下一个无密钥、无功能的“幽灵”配置文件，用户从未要求
+    过该配置文件，也没有任何东西可以清理它（#4031）。
     """
     if _has_api_key(llm):
         return True
@@ -150,34 +148,33 @@ def _llm_has_real_config(llm: LLM) -> bool:
 
 
 def _seed_default_llm_profile(llm: LLM, cipher: Cipher | None) -> str:
-    """Mirror the live LLM config into a ``SEED_PROFILE_NAME`` LLM profile.
+    """将实时 LLM 配置镜像到 ``SEED_PROFILE_NAME`` LLM 配置文件中。
 
-    ``build_seed_profile`` falls back to the literal name ``SEED_PROFILE_NAME``
-    when no LLM profile is active, on the assumption that a profile by that
-    name exists — but nothing ever created one, so the seeded agent profile's
-    ``llm_profile_ref`` dangled from birth (#3933). Mirrors the cloud
-    ``SaasSettingsStore``'s legacy-LLM backfill: materialize the current
-    ``agent_settings.llm`` under that name so the reference resolves, unless a
-    profile is already stored there (never clobber it).
+    ``build_seed_profile`` 回退到原始名称 ``SEED_PROFILE_NAME`` when no LLM 该记录是
+    活跃的，假设有一个名为该记
+    录的记录存在——但从未创建过，所以种子的智能体 profile's
+    ``llm_profile_ref`` 从出生起就悬挂着（#3933）。 镜像云
+    ``SaasSettingsStore``的遗产-LLM回填：具体化当前
+    ``agent_settings.llm`` 在该名称下，以便解析引用，除非配置文件已存储在那里（切勿破
+    坏它）。
 
-    Only a *real, pre-existing* LLM config is persisted (``_llm_has_real_config``
-    — an API key, subscription auth, or a custom base_url), which is exactly the
-    legacy/cloud migration case the backfill exists for. On a fresh,
-    never-configured account the live LLM is untouched SDK defaults (keyless
-    ``gpt-5.5``); persisting *that* only litters the profile list with a keyless,
-    unusable ``default`` "ghost" profile (#4031), so we skip the save and leave
-    ``llm_profile_ref="default"`` as a soft/dangling ref — the canvas
-    "LLM not configured" banner and the legible launch-time error already cover
-    that state, and materialize reports it rather than raising: ``valid`` false,
-    ``llm_profile_resolved`` false and an ``errors`` entry
+    Only a *真实的，已存在的*  LLM 配置是已持久化 (``_llm_has_real_config`` — an API
+    密钥、订阅认证，或自定义
+    base_url），这正是回填存在的遗留/云迁移场景。 在一台全新的、未配置的账户上， LLM
+    untouched SDK 默认值（无密钥）
+    ``gpt-5.5``); 持久化*那个*只会在配置文件列表中散布无密钥、不可用的``default``“幽
+    灵”配置文件（＃4031），因此我们跳过保存并离开
+    ``llm_profile_ref="default"`` 作为软/悬垂引用 —— 已配置的画布 "LLM 未配置" 标志和
+    可读的启动时间错误已经覆盖了该状态，而不
+    是报告：``valid`` False
+    ``llm_profile_resolved`` False 和 ``errors`` 条目
     ``"LLM profile 'default' not found"``.
 
-    Existence is checked via ``load()``, not ``list()``: the store resolves a
-    name straight to a filesystem path, so on a case-insensitive filesystem
-    (macOS/Windows) a differently-cased ``Default`` profile already occupies
-    the ``default`` path even though it wouldn't case-sensitively match a
-    ``list()`` membership check — that mismatch would otherwise let ``save()``
-    silently clobber it.
+    ``load()`` 通过检查存在性，而不是 ``list()``：存储库直接将名称解析为文件系统路径
+    ，因此在不区分大小写的文件系统 (macOS/Windows)
+     中，一个不同大小写的 ``Default`` 配置已经占据了 ``default`` 路径，尽管它在不区分
+     大小写的情况下不会匹配
+    ``list()`` 成员资格检查 - 否则这种不匹配会让 ``save()`` 默默地破坏它。
     """
     llm_store = get_llm_profile_store()
     with store_errors():
@@ -187,18 +184,18 @@ def _seed_default_llm_profile(llm: LLM, cipher: Cipher | None) -> str:
         except FileNotFoundError:
             pass
         except ValueError:
-            # Something already occupies the name (e.g. corrupted/unparsable
-            # file) — never overwrite it; a broken ref surfaces at
-            # materialize/launch time instead.
+            # 名称已被某些内容占用 (e.g. 损坏/无法解析的文件）——切勿覆盖它； 相反，在实
+            # 现/启动时会出现损坏的参考表面。
+            #
             logger.warning(
                 f"Default LLM profile '{SEED_PROFILE_NAME}' exists but "
                 "failed to load; leaving it as-is"
             )
             return SEED_PROFILE_NAME
         if not _llm_has_real_config(llm):
-            # Never-configured account: don't persist a keyless ghost profile.
-            # Leave the ref soft/dangling; the banner + launch-time error handle
-            # it, and it resolves for real once the user saves a profile.
+            # 从未配置的帐户：不要持久化无密钥幽灵配置文件。 让裁判柔软/悬空； 横幅+启动
+            # 时错误会处理它，并且一旦用户保存配置文件，它就会真正解决。
+            #
             logger.info(
                 f"Skipping default LLM profile '{SEED_PROFILE_NAME}' seed: "
                 "no real LLM config yet (leaving llm_profile_ref as a soft ref)"
@@ -214,8 +211,9 @@ def _seed_default_llm_profile(llm: LLM, cipher: Cipher | None) -> str:
             )
             logger.info(f"Seeded default LLM profile '{SEED_PROFILE_NAME}'")
         except LLMProfileLimitExceeded:
-            # Can't mirror the live LLM as a profile; the agent profile's
-            # llm_profile_ref will still dangle, but no worse than before.
+            # 无法将实时 LLM 镜像为个人资料； 智能体配置文件的 llm_profile_ref 仍然会悬
+            # 空，但不会比以前更糟糕。
+            #
             logger.warning(
                 "Could not seed default LLM profile "
                 f"'{SEED_PROFILE_NAME}': profile limit reached"
@@ -226,13 +224,12 @@ def _seed_default_llm_profile(llm: LLM, cipher: Cipher | None) -> str:
 def _ensure_active_profile(
     store: AgentProfileStore, config: Config, cipher: Cipher | None
 ) -> None:
-    """Keep ``active_agent_profile_id`` on a stored profile.
+    """将 ``active_agent_profile_id`` 保留在已存储的配置文件上。
 
-    A missing or dangling pointer moves to ``default``, which is seeded from the
-    current ``agent_settings`` when absent, so every launch has a profile. When
-    ``default`` is unreadable or the store is too full to seed it, the first
-    other profile is activated instead. The lock spans the check, the seed and
-    the pointer write, so concurrent callers seed once and agree on the pointer.
+    丢失或悬空的指针会移动到 ``default``，当不存在时，该指针会从当前的
+    ``agent_settings`` 播种，因此每次启动都有一个配置文件。 当
+    ``default`` 不可读或存储太满而无法播种，而是激活第一个其他配置文件。 锁跨越检查、
+    种子和指针写入，因此并发调用者种子一次并就指针达成一致。
     """
     settings_store = get_settings_store(config)
     with store_errors(), store.lock():
@@ -256,7 +253,7 @@ def _ensure_active_profile(
 def _profile_to_activate(
     store: AgentProfileStore, settings: PersistedSettings, cipher: Cipher | None
 ) -> tuple[str, str] | None:
-    """Return the name and id of ``default``, seeding it if the store has room."""
+    """返回 ``default`` 的名称和 id，如果商店有空间，则为其播种。"""
     try:
         profile = store.load(SEED_PROFILE_NAME)
         return profile.name, str(profile.id)
@@ -286,13 +283,12 @@ def _seed_default_profile(
     store: AgentProfileStore, settings: PersistedSettings, cipher: Cipher | None
 ) -> OpenHandsAgentProfile | ACPAgentProfile:
     active_llm_profile = settings.active_profile
-    # Falsy check (not `is None`): mirrors build_seed_profile's own
-    # `active_llm_profile or SEED_PROFILE_NAME` fallback. A stray empty
-    # string (e.g. a hand-edited/legacy settings.json, or a direct
-    # PersistedSettings(active_profile="") construction — the HTTP PATCH
-    # payload's pattern validator blocks "" but the stored field has no
-    # such constraint) is falsy there too, so the backfill must trigger
-    # on the same condition or the exact #3933 dangling ref reappears.
+    # 错误检查（不是 `is None`）：镜像 build_seed_profile 自己的
+    # `active_llm_profile or SEED_PROFILE_NAME`  回退方案。 一个空格（e.g. 手编辑/遗留
+    # settings.json, 或直接 PersistedSettings(active_profile="") construction — the HTTP
+    #   PATCH  载荷'的模式验证器块为空，但存储的字段也没有这样的约束，所以回填必须在相同
+    # 条件下触发，或者#3933悬垂引用才会再次出现。
+    #
     if not active_llm_profile and settings.agent_settings.agent_kind != "acp":
         active_llm_profile = _seed_default_llm_profile(
             settings.agent_settings.llm, cipher
@@ -306,7 +302,7 @@ def _seed_default_profile(
 def active_agent_profile(
     config: Config, cipher: Cipher | None
 ) -> OpenHandsAgentProfile | ACPAgentProfile | None:
-    """Return the active Agent Profile, activating ``default`` when none is."""
+    """返回活动的智能体配置文件，当 None 存在时激活 ``default``。"""
     store = get_agent_profile_store()
     _ensure_active_profile(store, config, cipher)
     settings = get_settings_store(config).load() or PersistedSettings()
@@ -323,7 +319,7 @@ def active_agent_profile(
 
 
 def _summary_id_for_name(store: AgentProfileStore, name: str) -> str | None:
-    """Return the stable id of the profile stored under ``name``, if present."""
+    """返回存储在 ``name`` 下的配置文件的稳定 ID（如果存在）。"""
     name = canonical_profile_name(name)
     with store_errors():
         for summary in store.list_summaries():
@@ -335,10 +331,10 @@ def _summary_id_for_name(store: AgentProfileStore, name: str) -> str | None:
 
 @agent_profiles_router.get("", response_model=AgentProfileListResponse)
 def list_agent_profiles(request: Request) -> AgentProfileListResponse:
-    """List all stored agent profiles and the active pointer.
+    """列出所有存储的智能体配置文件和活动指针。
 
-    Some profile is always active: with no valid pointer, ``default`` is
-    activated, and seeded from the current ``agent_settings`` when absent.
+    某些配置文件始终处于活动状态：在没有有效指针的情况下，``default`` 被激活，并且在
+    不存在时从当前的 ``agent_settings`` 播种。
     """
     config = get_config(request)
     settings_store = get_settings_store(config)
@@ -359,11 +355,11 @@ def list_agent_profiles(request: Request) -> AgentProfileListResponse:
 
 @agent_profiles_router.get("/{name}", response_model=AgentProfileDetailResponse)
 def get_agent_profile(name: ProfileName) -> AgentProfileDetailResponse:
-    """Get a stored profile.
+    """获取存储的配置文件。
 
-    A profile is secret-free at rest (#4017), so there is nothing to mask or
-    expose — unlike the LLM ``/api/profiles`` router, this endpoint has no
-    ``X-Expose-Secrets`` behavior.
+    配置文件在 REST 处是机密自由的 (#4017)，因此没有任何内容可以屏蔽或公开 - 与 LLM
+    ``/api/profiles`` 路由器不同，此端点没有
+    ``X-Expose-Secrets`` 行为。
     """
     store = get_agent_profile_store()
     try:
@@ -385,17 +381,18 @@ def _validate_profile_payload(
     try:
         return validate_agent_profile(payload)
     except ValidationError as e:
-        # Match FastAPI's request-validation shape (``detail`` is a list of
-        # error objects): ``loc``/``type``/``msg`` (``input`` dropped — see
-        # safe_validation_error_detail's docstring for why msg is now safe).
+        # 匹配 FastAPI 的请求 - 验证形状（``detail`` 是错误对象列表）：``loc``
+        # /``type``/``msg``（``input`` 已删除 - 请参阅 safe_validation_error_detail 的文
+        # 档字符串了解为什么 msg 现在是安全的）。
+        #
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=safe_validation_error_detail(e),
         )
     except Exception:
-        # Any other validation failure (e.g. a schema/migration error) is a
-        # client error, never a 500. Stay generic — these messages can embed
-        # the input.
+        # 任何其他验证故障 (e.g. 架构/迁移错误）是客户端错误，而不是 500。 保持通用性——
+        # 这些消息可以嵌入输入。
+        #
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid agent profile",
@@ -410,21 +407,20 @@ def _validate_profile_payload(
 def save_agent_profile(
     name: ProfileName, body: dict[str, Any]
 ) -> AgentProfileMutationResponse:
-    """Save an ``AgentProfile`` under ``name`` (overwriting a namesake).
+    """将 ``AgentProfile`` 保存在 ``name`` 下（覆盖同名的）。
 
-    The path ``name`` is authoritative — it overrides any ``name`` in the body.
-    The profile is secret-free at rest (#4017), so no cipher/encryption is
-    involved. Returns 409 if creating a new profile would exceed
+    路径 ``name`` 是权威的 - 它覆盖正文中的任何 ``name``。 该配置文件在 REST (#4017)
+    处不受机密限制，因此不涉及密码/加密。 如果创
+    建新的配置文件超出范围，则返回 409
     ``MAX_AGENT_PROFILES``.
     """
     profile = _validate_profile_payload({**body, "name": name})
 
     store = get_agent_profile_store()
-    # The id is server-managed (the active pointer is keyed on it): overwrite
-    # keeps the namesake's id and bumps revision; create mints a fresh id,
-    # ignoring any client-supplied one. ``save_profile_preserving_identity``
-    # holds the store lock across read + mint + save so two concurrent creates
-    # of the same new name can't both mint an id and clobber each other.
+    # id 由服务器管理（活动指针位于其上）：覆盖保留同名的 id 并修改版本； 创建一个新的
+    # ID，忽略任何客户端提供的 ID。 ``save_profile_preserving_identity`` 通过读取 + 铸造
+    #  + 保存保存存储锁，因此两个并发创建的相同新名称不能同时铸造 id 并互相破坏。
+    #
     try:
         with store_errors():
             save_profile_preserving_identity(
@@ -449,14 +445,13 @@ def save_agent_profile(
 def delete_agent_profile(
     request: Request, name: ProfileName
 ) -> AgentProfileMutationResponse:
-    """Delete a stored profile (idempotent).
+    """删除存储的配置文件（幂等）。
 
-    If the deleted profile was the active one, ``default`` becomes active,
-    reseeded from the settings when it was the one deleted. If
-    ``agent_settings`` is itself left on a non-OpenHands variant, it is first
-    reset to default OpenHands agent settings so stale ACP configuration does
-    not outlive the profile it came from; the server-wide ``mcp_config`` is
-    carried over.
+    如果删除的配置文件是活动配置文件，则 ``default`` 变为活动状态，并从删除配置文件时
+    的设置重新播种。 如果
+    ``agent_settings``本身仍然处于非OpenHands变体中，首先将其重置为默认OpenHands 智能
+    体设置，以避免ACP配置过期而影响其来源的配置
+    文件。 服务器范围的``mcp_config``被结转。
     """
     store = get_agent_profile_store()
     deleted_id = _summary_id_for_name(store, name)
@@ -474,11 +469,11 @@ def delete_agent_profile(
                 s: PersistedSettings,
             ) -> PersistedSettings:
                 s.active_agent_profile_id = None
-                # Stale non-OpenHands settings outlive their profile. Reset to
-                # a fresh OpenHands base rather than merging across the variant
-                # boundary (see _apply_agent_settings_diff), except for
-                # ``mcp_config``: it is the server-wide MCP registry every other
-                # profile resolves ``mcp_server_refs`` against, not ACP state.
+                # 过时的非 OpenHands 设置比其个人资料的寿命更长。 重置为新的 OpenHands
+                # 基础，而不是跨变体边界合并（参见 _apply_agent_settings_diff），除了
+                # ``mcp_config``：它是服务器范围的 MCP 注册表每个其他配置文件解析
+                # ``mcp_server_refs`` 状态，而不是 ACP 状态。
+                #
                 prior_kind = s.agent_settings.agent_kind
                 if prior_kind != "openhands":
                     s.agent_settings = OpenHandsAgentSettings(
@@ -506,11 +501,11 @@ def delete_agent_profile(
 def rename_agent_profile(
     name: ProfileName, body: RenameAgentProfileRequest
 ) -> AgentProfileMutationResponse:
-    """Rename a stored profile atomically.
+    """自动重命名存储的配置文件。
 
-    The stable ``id`` is preserved, so an active pointer (keyed on ``id``)
-    survives the rename untouched. Returns 404 if the source is missing, 409 if
-    ``new_name`` is taken.
+    稳定的 ``id`` 被保留，因此活动指针（以 ``id`` 为键）在重命名后保持不变。 如果源缺
+    失则返回 404，如果源缺失则返回 409
+    ``new_name`` 已被占用。
     """
     store = get_agent_profile_store()
     try:
@@ -541,11 +536,11 @@ def rename_agent_profile(
 def activate_agent_profile(
     request: Request, profile_id: ProfileId
 ) -> ActivateAgentProfileResponse:
-    """Activate a profile by its stable ``id`` — pointer only.
+    """通过稳定的 ``id`` 激活配置文件 — 仅指针。
 
-    Sets ``active_agent_profile_id`` and nothing else: unlike the LLM
-    ``/activate``, this does **not** write ``agent_settings`` (the
-    creation-time-only contract). Returns 404 if no stored profile has that id.
+    设置 ``active_agent_profile_id`` 而没有其他内容：与 LLM 不同
+    ``/activate``，这**不**写``agent_settings``（仅限创建时间的合同）。 如果没有存储
+    的配置文件具有该 ID，则返回 404。
     """
     store = get_agent_profile_store()
     with store_errors():
@@ -571,8 +566,8 @@ def activate_agent_profile(
         logger.error("Failed to activate agent profile - file I/O error")
         raise HTTPException(status_code=500, detail="Failed to activate agent profile")
     except RuntimeError as e:
-        # A corrupted / mis-keyed settings file is a server-side integrity
-        # failure, not a client conflict.
+        # 损坏/错误键入的设置文件是服务器端完整性故障，而不是客户端冲突。
+        #
         logger.error(f"Failed to activate agent profile: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -595,14 +590,12 @@ async def materialize_agent_profile(
     name: ProfileName,
     body: MaterializeAgentProfileRequest | None = None,
 ) -> AgentProfileDiagnostics:
-    """Preview the launch of a profile; return a diagnostics report.
+    """预览配置文件的启动； 返回诊断报告。
 
-    Previews the stored profile ``name``, or ``body.profile`` when given (so an
-    editor can preview before saving), with the same resolve and finalize as a
-    launch, against the runtime this server launches into. Dangling references
-    are reported in the body (valid=False) rather than raising — the only error
-    statuses are 404 (unknown stored profile) and 422 (invalid draft).
-    resolved_settings is redacted (no raw secrets).
+    预览存储的 ``name`` ``body.profile``（因此编辑者可以在保存之前预览），与启动时的
+    相同解决和最终化。 在主体中报告悬垂引用（有效值为Fals
+    e），而不是抛出错误 — 只有404（未知存储的档案）和422（无效草稿）是错误状态。
+    resolved_settings 是已脱敏（没有机密的原始数据）。
     """
     if body is not None and body.profile is not None:
         profile = _validate_profile_payload({**body.profile, "name": name})
@@ -610,7 +603,7 @@ async def materialize_agent_profile(
         store = get_agent_profile_store()
         try:
             with store_errors():
-                # Off the event loop: the store lock wait blocks (up to 30 s).
+                # 关闭事件循环：存储锁等待块（最多 30 秒）。
                 profile = await asyncio.to_thread(store.load, name)
         except FileNotFoundError:
             raise HTTPException(

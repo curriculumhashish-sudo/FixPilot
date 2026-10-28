@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 def safe_rmtree(path: str | Path | None, description: str = "directory") -> bool:
-    """Safely remove a directory tree, handling permission errors gracefully.
+    """安全地删除目录树，优雅地处理权限错误。
 
     Args:
-        path: Path to the directory to remove
-        description: Description of what's being removed (for logging)
+        path: 要删除的目录的路径
+        description: 正在删除的内容的描述（用于日志记录）
 
     Returns:
-        bool: True if removal was successful, False if it failed
+        bool: True 如果删除成功，False 如果失败
     """
     if not path or not os.path.exists(path):
         return True
 
     def handle_remove_readonly(func, path, _exc):
-        """Error handler for removing read-only files."""
+        """用于删除只读文件的错误处理程序。"""
         if os.path.exists(path):
             try:
                 os.chmod(path, stat.S_IWRITE)
@@ -51,12 +51,12 @@ def safe_rmtree(path: str | Path | None, description: str = "directory") -> bool
 
 
 def utc_now():
-    """Return the current time in UTC format (Since datetime.utcnow is deprecated)"""
+    """以 UTC 格式返回当前时间（因为 datetime.utcnow 为已弃用）"""
     return datetime.now(UTC)
 
 
 def _uuid_to_hex(uuid_obj: UUID) -> str:
-    """Converts a UUID object to a hex string without hyphens."""
+    """将 UUID 对象转换为不带连字符的十六进制字符串。"""
     return uuid_obj.hex
 
 

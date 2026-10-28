@@ -5,16 +5,15 @@ from enum import Enum
 from rich.text import Text
 
 
-# Shared ordering for concrete risk levels. UNKNOWN is excluded by design --
-# comparisons involving UNKNOWN raise ValueError.
+# 具体风险级别的共享排序。 UNKNOWN 被设计排除——涉及 UNKNOWN 的比较引发 ValueError。
+#
 _RISK_ORDER = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
 
 
 class SecurityRisk(str, Enum):
-    """Security risk levels for actions.
+    """操作的安全风险级别。
 
-    Based on OpenHands security risk levels but adapted for agent-sdk.
-    Integer values allow for easy comparison and ordering.
+    基于 OpenHands 安全风险级别，但适用于智能体-SDK。 整数值可以轻松比较和排序。
     """
 
     UNKNOWN = "UNKNOWN"
@@ -24,7 +23,7 @@ class SecurityRisk(str, Enum):
 
     @property
     def description(self) -> str:
-        """Get a human-readable description of the risk level."""
+        """获取人类可读的风险级别描述。"""
         descriptions = {
             SecurityRisk.LOW: (
                 "Low risk - Safe operation with minimal security impact"
@@ -43,7 +42,7 @@ class SecurityRisk(str, Enum):
         return self.name
 
     def get_color(self) -> str:
-        """Get the color for displaying this risk level in Rich text."""
+        """获取以富文本形式显示此风险级别的颜色。"""
         color_map = {
             SecurityRisk.LOW: "green",
             SecurityRisk.MEDIUM: "yellow",
@@ -54,7 +53,7 @@ class SecurityRisk(str, Enum):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this risk level."""
+        """返回此风险级别的富文本表示形式。"""
         content = Text()
         content.append(
             "Predicted Security Risk: ",
@@ -67,30 +66,29 @@ class SecurityRisk(str, Enum):
         return content
 
     def is_riskier(self, other: SecurityRisk, reflexive: bool = True) -> bool:
-        """Check if this risk level is riskier than another.
+        """检查此风险级别是否比另一个风险级别更高。
 
-        Risk levels follow the natural ordering: LOW is less risky than MEDIUM, which is
-        less risky than HIGH. UNKNOWN is not comparable to any other level.
+        风险等级遵循自然排序： LOW 风险小于 MEDIUM，风险比 HIGH. UNKNOWN 不与其他级别
+        相比较。
 
-        To make this act like a standard well-ordered domain, we reflexively consider
-        risk levels to be riskier than themselves. That is:
+        为了使其像标准的有序域一样，我们本能地认为风险级别比其本身风险更大。 即：
 
             for risk_level in list(SecurityRisk):
-                assert risk_level.is_riskier(risk_level)
+                断言 risk_level.is_riskier(risk_level)
 
-            # More concretely:
-            assert SecurityRisk.HIGH.is_riskier(SecurityRisk.HIGH)
-            assert SecurityRisk.MEDIUM.is_riskier(SecurityRisk.MEDIUM)
-            assert SecurityRisk.LOW.is_riskier(SecurityRisk.LOW)
+            # 更具体地说：
+            断言 SecurityRisk.HIGH.is_riskier(SecurityRisk.HIGH) 断言
+            SecurityRisk.MEDIUM.is_riskier(SecurityRisk.MEDIUM) 断言
+            SecurityRisk.LOW.is_riskier(SecurityRisk.LOW)
 
-        This can be disabled by setting the `reflexive` parameter to False.
+        可以通过将 `reflexive` 参数设置为 False 来禁用此功能。
 
         Args:
-            other (SecurityRisk): The other risk level to compare against.
-            reflexive (bool): Whether the relationship is reflexive.
+            other (SecurityRisk): 要比较的其他风险级别。
+            reflexive (bool): 这种关系是否是反射性的。
 
         Raises:
-            ValueError: If either risk level is UNKNOWN.
+            ValueError: 如果任一风险级别为 UNKNOWN。
         """
         if self.value == SecurityRisk.UNKNOWN or other.value == SecurityRisk.UNKNOWN:
             raise ValueError("Cannot compare unknown risk levels.")
@@ -100,10 +98,11 @@ class SecurityRisk(str, Enum):
         )
 
     def _check_comparable(self, other: object) -> int | None:
-        """Validate comparability and return ordering key for other.
+        """验证其他的可比性并返回订购键。
 
-        Returns None (with NotImplemented semantics) if other is not a
-        SecurityRisk. Raises ValueError if either side is UNKNOWN.
+        如果 other 不是 SecurityRisk，则返回 None（具有 NotImplemented 语义）。 如果
+        任一侧为 UNKNOWN，则加注
+        ValueError。
         """
         if not isinstance(other, SecurityRisk):
             return None
@@ -112,10 +111,11 @@ class SecurityRisk(str, Enum):
         return _RISK_ORDER[other.value]
 
     def __lt__(self, other: object) -> bool:
-        """Compare risk levels for ordering: LOW < MEDIUM < HIGH.
+        """比较订购的风险级别：LOW < MEDIUM < HIGH。
 
-        UNKNOWN is not comparable -- raises ValueError, consistent with is_riskier().
-        This enables max() on concrete risk lists without helper dicts.
+        UNKNOWN 不可比较——引发 ValueError，与 is_riskier() 一致。 这使得 max() 能够在
+        没有辅助指令的情况下在具体风险列表上
+        实现。
         """
         other_ord = self._check_comparable(other)
         if other_ord is None:
@@ -123,11 +123,11 @@ class SecurityRisk(str, Enum):
         return _RISK_ORDER[self.value] < other_ord
 
     def __gt__(self, other: object) -> bool:
-        """Explicit __gt__ required because str.__gt__ takes precedence via
-        MRO, which gives alphabetical ordering (HIGH < LOW < MEDIUM).
+        """需要显式 __gt__，因为 str.__gt__ 优先通过
+        MRO，按字母顺序排列 (HIGH < LOW < MEDIUM)。
 
-        Note: @functools.total_ordering cannot help here -- it detects
-        str's comparison methods as already-defined and skips them.
+        Note: @functools.total_ordering 在这里无能为力——它检测到
+        str 的比较方法已定义并跳过它们。
         """
         other_ord = self._check_comparable(other)
         if other_ord is None:

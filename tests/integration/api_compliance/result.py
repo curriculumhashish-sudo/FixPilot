@@ -1,4 +1,4 @@
-"""Result types for API compliance tests."""
+"""API 合规性测试的结果类型。"""
 
 from enum import StrEnum
 from typing import Any
@@ -7,23 +7,23 @@ from pydantic import BaseModel, Field
 
 
 class APIResponse(StrEnum):
-    """Possible API response types for malformed input."""
+    """格式错误的输入可能的 API 响应类型。"""
 
     ACCEPTED = "accepted"
-    """API processed the request (unexpected for malformed input)."""
+    """API 处理了请求（意外输入格式错误）。"""
 
     REJECTED = "rejected"
-    """API returned an error (expected for malformed input)."""
+    """API 返回错误（预计输入格式错误）。"""
 
     TIMEOUT = "timeout"
-    """Request timed out."""
+    """请求超时。"""
 
     CONNECTION_ERROR = "connection_error"
-    """Could not connect to API."""
+    """无法连接到 API。"""
 
 
 class ComplianceTestResult(BaseModel):
-    """Result of a single compliance test run."""
+    """单次合规性测试运行的结果。"""
 
     pattern_name: str = Field(description="Name of the malformed pattern tested")
     model: str = Field(description="Full model path (e.g., litellm_proxy/...)")
@@ -44,7 +44,7 @@ class ComplianceTestResult(BaseModel):
 
 
 class PatternResults(BaseModel):
-    """Results for a single pattern across multiple models."""
+    """跨多个模型的单一模式的结果。"""
 
     pattern_name: str
     pattern_description: str
@@ -63,7 +63,7 @@ class PatternResults(BaseModel):
 
 
 class ComplianceReport(BaseModel):
-    """Full compliance test report."""
+    """完整的合规性测试报告。"""
 
     test_run_id: str = Field(description="Unique ID for this test run")
     timestamp: str = Field(description="ISO timestamp of test run")

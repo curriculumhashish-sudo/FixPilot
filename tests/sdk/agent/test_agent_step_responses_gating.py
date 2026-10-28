@@ -20,14 +20,14 @@ class DummyLLM(LLM):
         super().__init__(model=model, usage_id="test-llm")
         self._force_responses = force_responses
 
-    def uses_responses_api(self) -> bool:  # override gating
+    def uses_responses_api(self) -> bool:  # 超越门控
         return self._force_responses
 
-    # Minimal stubs; not actually invoking providers
+    # 最少的存根； 并没有真正调用提供者
     def completion(self, *, messages, tools=None, **kwargs) -> LLMResponse:  # type: ignore[override]
         self._calls.append("completion")
         self._call_kwargs.append(kwargs)
-        # Return an assistant message with no tool calls to end the step
+        # 返回不带工具调用的助理消息以结束该步骤
         return LLMResponse(
             message=Message(role="assistant", content=[]),
             metrics=MetricsSnapshot(
@@ -66,7 +66,7 @@ def test_agent_step_routes_to_responses_or_completion(force_responses, expected)
     agent = Agent(llm=llm, tools=[])
     convo = Conversation(agent=agent)
 
-    # Trigger lazy agent initialization before calling step()
+    # 在调用 step() 之前触发惰性智能体初始化
     convo._ensure_agent_ready()
 
     events: list[MessageEvent] = []
@@ -75,7 +75,7 @@ def test_agent_step_routes_to_responses_or_completion(force_responses, expected)
         if isinstance(e, MessageEvent):
             events.append(e)
 
-    # One step should call the appropriate method and emit an assistant message
+    # 一个步骤应该调用适当的方法并发出一条辅助消息
     agent.step(convo, on_event=on_event)
 
     assert llm._calls == [expected]
@@ -126,8 +126,8 @@ class ModelGateLLM(LLM):
 @pytest.mark.parametrize(
     "model, expected",
     [
-        ("gpt-5-mini-2025-08-07", "responses"),  # Responses-capable per model_features
-        ("gpt-4o-mini", "completion"),  # Completion path
+        ("gpt-5-mini-2025-08-07", "responses"),  # 可响应 model_features
+        ("gpt-4o-mini", "completion"),  # 完成路径
     ],
 )
 def test_agent_step_model_features_gate_to_responses_or_completion(model, expected):
@@ -135,7 +135,7 @@ def test_agent_step_model_features_gate_to_responses_or_completion(model, expect
     agent = Agent(llm=llm, tools=[])
     convo = Conversation(agent=agent)
 
-    # Trigger lazy agent initialization before calling step()
+    # 在调用 step() 之前触发惰性智能体初始化
     convo._ensure_agent_ready()
 
     events: list[MessageEvent] = []

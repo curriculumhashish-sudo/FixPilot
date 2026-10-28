@@ -1,4 +1,4 @@
-"""Tests for judge_goal / GoalVerdict (the goal-completion judge kernel)."""
+"""测试 judge_goal / GoalVerdict（目标完成判断内核）。"""
 
 from typing import cast
 
@@ -11,17 +11,17 @@ from openhands.sdk.testing import TestLLM
 
 
 def _judge(text: str) -> TestLLM:
-    """A judge LLM scripted to return a single verdict string."""
+    """法官 LLM 编写脚本返回单个判决字符串。"""
     return TestLLM.from_messages(
         [Message(role="assistant", content=[TextContent(text=text)])]
     )
 
 
 class _StreamGuardLLM(TestLLM):
-    """TestLLM that enforces the real LLM's streaming guard.
+    """TestLLM 强制执行真正的 LLM 的流式传输防护。
 
-    Lets us prove ``judge_goal`` disables streaming before calling
-    ``completion()`` (plain ``TestLLM`` ignores ``stream`` entirely).
+    让我们在调用之前证明 ``judge_goal`` 禁用流式传输
+    ``completion()``（普通 ``TestLLM`` 完全忽略 ``stream``）。
     """
 
     def completion(
@@ -48,16 +48,16 @@ class _StreamGuardLLM(TestLLM):
 @pytest.mark.parametrize(
     ("response", "score", "complete", "missing"),
     [
-        # exact-JSON verdict
+        # 准确-JSON 判决
         ('{"score": 0.9, "complete": true, "missing": ""}', 0.9, True, ""),
-        # incomplete verdict surfaces the missing work
+        # 不完整的判决揭示了缺失的工作
         (
             '{"score": 0.1, "complete": false, "missing": "tests not run"}',
             0.1,
             False,
             "tests not run",
         ),
-        # JSON embedded in prose / a code fence is still extracted
+        # JSON 嵌入散文/仍提取代码围栏
         (
             "Here is my verdict:\n```json\n"
             '{"score": 0.4, "complete": false, "missing": "lint"}\n```',
@@ -65,9 +65,9 @@ class _StreamGuardLLM(TestLLM):
             False,
             "lint",
         ),
-        # unparseable -> conservative (keeps the caller working)
+        # 不可解析 -> 保守（保持调用者正常工作）
         ("I cannot decide.", 0.0, False, "Judge verdict could not be parsed."),
-        # out-of-range score is clamped into [0, 1]
+        # 超出范围的分数被限制为 [0, 1]
         ('{"score": 1.5, "complete": true, "missing": ""}', 1.0, True, ""),
     ],
     ids=["complete", "incomplete", "json-in-fence", "unparseable", "clamped-score"],
@@ -81,7 +81,7 @@ def test_judge_goal_parses_verdict(response, score, complete, missing):
 
 
 def test_judge_goal_disables_streaming_on_judge_llm():
-    """A stream=True judge LLM must not trip completion()'s on_token guard."""
+    """Stream=True 判断 LLM 不得绊倒 completion() 的 on_token 守卫。"""
     llm = _StreamGuardLLM.from_messages(
         [
             Message(
@@ -94,12 +94,12 @@ def test_judge_goal_disables_streaming_on_judge_llm():
         usage_id="judge",
         stream=True,
     )
-    verdict = judge_goal(llm, "build x", [])  # would raise without the fix
+    verdict = judge_goal(llm, "build x", [])  # 没有修复就会提高
     assert verdict.complete
 
 
 class _CapturingJudgeLLM(TestLLM):
-    """TestLLM that records the messages handed to ``completion()``."""
+    """TestLLM 记录传递给 ``completion()`` 的消息。"""
 
     _captured_messages: list = PrivateAttr(default_factory=list)
 
@@ -113,7 +113,7 @@ class _CapturingJudgeLLM(TestLLM):
 
 
 def test_judge_goal_sends_system_then_user():
-    """The judge request must open with a system message before the user payload."""
+    """判断请求必须在用户载荷之前通过系统消息打开。"""
     llm = cast(
         _CapturingJudgeLLM,
         _CapturingJudgeLLM.from_messages(
@@ -133,7 +133,7 @@ def test_judge_goal_sends_system_then_user():
     judge_goal(llm, "build it", [])
 
     assert [m.role for m in llm.captured_messages] == ["system", "user"]
-    # Steering/format instructions live in the system message; data in the user.
+    # 转向/格式指令存在于系统消息中； 用户中的数据。
     system_text = llm.captured_messages[0].content[0].text
     user_text = llm.captured_messages[1].content[0].text
     assert "STRICT JSON" in system_text

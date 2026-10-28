@@ -26,7 +26,7 @@ from .chat_template import ChatTemplateRenderer
 
 
 # ============================================================
-# Typed API response models
+# 输入 API 响应模型
 # ============================================================
 
 
@@ -39,7 +39,7 @@ class UsageTokens(BaseModel):
 
 
 class ClassificationItem(BaseModel):
-    """One per-label or flat classification result."""
+    """每个标签一个或平面分类结果。"""
 
     index: int | None = None
     label: str | None = None
@@ -59,10 +59,10 @@ class ClassificationResponse(BaseModel):
 
 
 class LabelProbMap(BaseModel):
-    """Normalized probability map label -> value, with optional ordering."""
+    """归一化概率图标签 -> 值，具有可选的排序。"""
 
     probs: dict[str, float]  # {"label": probability}
-    order: list[str] | None = None  # if you requested a specific order
+    order: list[str] | None = None  # 如果您要求特定订单
     model_config = ConfigDict(extra="forbid")
 
 
@@ -77,30 +77,30 @@ DEFAULT_CRITIC_MODEL_NAME = "critic"
 
 class CriticClient(BaseModel):
     """
-    Core inference client for the Critic classification service.
+    Critic 分类服务的核心推理客户端。
 
-    Owns:
-      - Configuration (server URL, API key, model, tokenizer, etc.)
-      - Label space (for predictions only)
-      - Message normalization and chat template formatting
-      - Inference via vLLM /classify endpoint
+    拥有：
+      - 配置（服务器 URL、API 密钥、模型、分词器等）
+      - 标签空间（仅用于预测）
+      - 消息规范化和聊天模板格式化
+      - 通过 vLLM 进行推理 /classify 端点
 
-    Does NOT handle:
-      - Dataset loading
-      - Ground truth extraction
-      - Evaluation / metrics
+    不是否处理：
+      - 数据集加载
+      - 地面实况提取
+      - 评估/指标
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
 
-    # --- connection / model config ---
+    # --- 连接/模型配置 ---
     server_url: str = Field(
         default=DEFAULT_CRITIC_SERVER_URL,
         description="Base URL of the vLLM classification service",
     )
-    # validate_secret() normalizes empty, whitespace-only, and redacted inputs
-    # to None. That value may serialize as null during response-model rebuilds,
-    # but it is not part of the public REST schema contract.
+    # validate_secret() 将空、仅空白和已脱敏输入标准化为 None。 在响应模型重建期间，该值
+    # 可能序列化为 null，但它不是公共 REST 模式合约的一部分。
+    #
     api_key: str | SecretStr | SkipJsonSchema[None] = Field(
         ..., description="API key for authenticating with the vLLM service"
     )
@@ -121,11 +121,11 @@ class CriticClient(BaseModel):
         default=True, description="Whether the model predicts success label at index 0"
     )
 
-    # --- runtime fields ---
+    # --- 运行时字段 ---
     _client: httpx.Client = PrivateAttr(default_factory=httpx.Client)
     _template_renderer: ChatTemplateRenderer | None = PrivateAttr(default=None)
 
-    # --- label space ---
+    # --- 标签空间 ---
     sentiment_labels: tuple[str, ...] = (
         "sentiment_positive",
         "sentiment_neutral",
@@ -167,14 +167,14 @@ class CriticClient(BaseModel):
     }
 
     # ---------------------
-    # Validation
+    # 验证
     # ---------------------
     @field_validator("api_key", mode="before")
     @classmethod
     def _validate_and_convert_api_key(
         cls, v: str | SecretStr | None, info
     ) -> SecretStr | None:
-        """Validate api_key and decrypt it when needed."""
+        """验证 api_key 并在需要时解密。"""
         return validate_secret(v, info)
 
     @field_serializer("api_key", when_used="always")
@@ -183,7 +183,7 @@ class CriticClient(BaseModel):
         return serialize_secret(secret, info)
 
     # ---------------------
-    # Label helpers
+    # 标签助手
     # ---------------------
     @property
     def all_labels(self) -> tuple[str, ...]:
@@ -198,10 +198,10 @@ class CriticClient(BaseModel):
         return base_labels
 
     # ---------------------
-    # Tokenizer / formatting
+    # 分词器/格式化
     # ---------------------
     def _get_template_renderer(self) -> ChatTemplateRenderer:
-        """Lazily initialize the chat template renderer."""
+        """延迟初始化聊天模板渲染器。"""
         if self._template_renderer is None:
             self._template_renderer = ChatTemplateRenderer(
                 tokenizer_name=self.tokenizer_name
@@ -210,7 +210,7 @@ class CriticClient(BaseModel):
 
     @staticmethod
     def normalize_messages(messages: Sequence[dict]) -> Sequence[dict]:
-        """Ensure messages all have string content and flatten text blocks."""
+        """确保消息均具有字符串内容并展平文本块。"""
         out: list[dict] = []
         for msg in messages or []:
             content = msg.get("content", "") or ""
@@ -233,8 +233,9 @@ class CriticClient(BaseModel):
     ) -> str:
         renderer = self._get_template_renderer()
         msgs = self.normalize_messages(copy.deepcopy(messages))
-        # Cast tools to Sequence[dict[str, Any]] for type compatibility
-        # ChatCompletionToolParam is a TypedDict which is structurally compatible
+        # 将工具转换为 Sequence[dict[str、Any]] 以实现类型兼容性 ChatCompletionToolParam
+        #  是结构上兼容的 TypedDict
+        #
         tools_dicts: Sequence[dict[str, Any]] | None = (
             cast(Sequence[dict[str, Any]], tools) if tools is not None else None
         )
@@ -245,7 +246,7 @@ class CriticClient(BaseModel):
         return renderer.apply_chat_template(msgs, add_generation_prompt=False)
 
     # ---------------------
-    # Inference
+    # 推理
     # ---------------------
     def _get_api_key_value(self) -> str:
         if self.api_key is None:
@@ -264,22 +265,22 @@ class CriticClient(BaseModel):
         messages: Sequence[dict],
         tools: Sequence[ChatCompletionToolParam] | None = None,
     ) -> ClassificationResponse:
-        """POST /classify and parse response into ClassificationResponse."""
+        """POST /classify 并将响应解析为 ClassificationResponse。"""
         formatted = self.apply_chat_template(messages, tools)
 
         def should_retry(exc: BaseException) -> bool:
-            # Retry only on 500 Internal Server Error
+            # 重试只有在500内部服务器错误时
             if isinstance(exc, httpx.HTTPStatusError):
                 return exc.response.status_code == 500
             return False
 
         @retry(
             retry=retry_if_exception(should_retry),
-            stop=stop_after_attempt(3),  # up to 3 tries
+            stop=stop_after_attempt(3),  # 最多尝试 3 次
             wait=wait_exponential(
                 multiplier=1, min=1, max=8
-            ),  # exponential backoff: 1s, 2s, 4s, 8s
-            reraise=True,  # re-raise the last exception if all retries fail
+            ),  # 指数退避：1s、2s、4s、8s
+            reraise=True,  # 如果所有重试失败，则重新引发最后一个异常
         )
         def _post_with_retry():
             api_key_value = self._get_api_key_value()
@@ -299,14 +300,14 @@ class CriticClient(BaseModel):
         return ClassificationResponse.model_validate(resp.json())
 
     # ---------------------
-    # Post-processing helpers
+    # 后处理助手
     # ---------------------
     def extract_prob_map(self, response: ClassificationResponse) -> LabelProbMap:
         """
-        Server format (flat-only, strict):
-          response.data == [ ClassificationItem(probs=[p0, p1, ..., pN-1],
+        服务器格式（仅限平面，严格）：
+          response.data == [ ClassificationItem(概率=[p0, p1, ..., pN-1],
                             num_classes=N) ]
-        We align probs directly to self.all_labels (same length, same order).
+        我们将概率直接与 self.all_labels 对齐（相同的长度，相同的顺序）。
         """
         if not response.data:
             raise ValueError("empty response.data from server")

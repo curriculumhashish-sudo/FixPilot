@@ -1,4 +1,4 @@
-"""``secret_refs`` — the profile's allow-list over a conversation's secrets."""
+"""``secret_refs`` — 配置文件的允许列表高于对话的机密。"""
 
 from openhands.sdk.profiles import validate_agent_profile
 
@@ -27,7 +27,7 @@ def test_defaults_to_unrestricted():
 
 class TestPersistence:
     def test_a_profile_without_the_key_loads_unrestricted(self):
-        # Profiles written before the field existed carry no `secret_refs`.
+        # 在该字段存在之前编写的配置文件不包含 `secret_refs`。
         profile = validate_agent_profile(
             {"schema_version": 2, "name": "old", "llm_profile_ref": "default"}
         )

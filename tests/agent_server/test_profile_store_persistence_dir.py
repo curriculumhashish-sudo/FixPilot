@@ -1,4 +1,4 @@
-"""Regression tests for credential-bearing persistence directories."""
+"""回归测试包含凭据的持久化目录。"""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from openhands.agent_server.persistence import (
 
 @pytest.fixture
 def isolated_persistence_dir() -> Iterator[Path]:
-    """``OH_PERSISTENCE_DIR`` pointed at a clean tempdir, stores reset."""
+    """``OH_PERSISTENCE_DIR`` 指向一个干净的临时目录，存储重置。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         reset_stores()
         old_val = os.environ.get("OH_PERSISTENCE_DIR")
@@ -55,7 +55,7 @@ def test_agent_profile_store_uses_persistence_dir(
 def home_without_persistence_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> Iterator[Path]:
-    """No ``OH_PERSISTENCE_DIR``; ``Path.home()`` redirected to a tempdir."""
+    """没有``OH_PERSISTENCE_DIR``； ``Path.home()`` 重定向到临时目录。"""
     reset_stores()
     monkeypatch.delenv("OH_PERSISTENCE_DIR", raising=False)
     fake_home = tmp_path / "home"
@@ -110,18 +110,18 @@ def test_settings_and_secrets_stores_fall_back_to_home(
 def test_profile_stores_do_not_read_home_directory(
     isolated_persistence_dir: Path,
 ) -> None:
-    """The host user's ``~/.openhands/profiles/*.json`` must not appear."""
+    """主机用户的 ``~/.openhands/profiles/*.json`` 不得出现。"""
     llm = get_llm_profile_store()
     agent = get_agent_profile_store()
 
-    # Both stores must materialize their own directory *inside* the
-    # persistence dir, not anywhere else.
+    # 两个存储都必须在持久化目录内 * 内实现自己的目录 *，而不是其他任何地方。
+    #
     assert llm.base_dir.is_dir()
     assert agent.base_dir.is_dir()
     home_profiles = Path.home() / ".openhands" / "profiles"
     assert llm.base_dir != home_profiles
     assert agent.base_dir != Path.home() / ".openhands" / "agent-profiles"
 
-    # And the new dir should contain nothing the host happens to have.
+    # 并且新目录不应包含主机恰好拥有的任何内容。
     visible_names = set(llm.list()) | set(agent.list())
     assert visible_names == set()

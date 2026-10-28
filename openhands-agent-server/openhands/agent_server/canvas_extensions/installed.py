@@ -1,19 +1,18 @@
-"""Installed Canvas Extensions.
+"""安装的画布扩展。
 
-Built on ``openhands.sdk.extensions.installation``, shared with Plugins/
-Skills, with two behaviors specific to this module:
+基于 ``openhands.sdk.extensions.installation`` 构建，与插件/技能共享，有两个特定于此
+模块的行为：
 
-Disabled by default -- ``InstallationInfo.enabled`` defaults to ``True``
-and neither ``InstallationManager.install()`` nor its directory discovery
-override that for a new entry, so every write path that can create one
-forces ``enabled=False`` as an explicit post-write step.
+``InstallationInfo.enabled`` 默认禁用 -- ``True`` 默认为
+``InstallationManager.install()``，因此
+，任何可以创建一个新条目的写入路径都会强制 ``enabled=False`` 作为写后步骤。
 
-Staged refresh -- ``check``/``apply`` replace ``update()``/
-``install(force=True)``, which rmtree+copytree straight onto the live
-install path with no staging directory. ``check`` fetches and validates
-into ``.staging/`` without touching the active install; ``apply`` swaps it
-in via two atomic renames (POSIX can't atomically replace a non-empty
-directory in one rename), rolling back if the second fails.
+分阶段刷新 -- ``check``/``apply`` 替换 ``update()``/
+``install(force=True)``，其中 rmtree+copytree 直接进入实时安装路径，没有暂存目录。
+``check`` 获取并验证到
+``.staging/`` 中，而不触及活动安装； ``apply`` 通过两次原子重命名来交换它（POSIX 不能
+在一次重命名中原子地替换非空目录），如果第二次失败则回滚
+。
 """
 
 import os
@@ -40,12 +39,12 @@ from openhands.sdk.extensions.installation.manager import DEFAULT_CACHE_DIR
 from openhands.sdk.utils.path import get_user_persistence_dir
 
 
-# Matches the InstalledPluginInfo naming convention.
+# 匹配 InstalledPluginInfo 命名约定。
 InstalledCanvasExtensionInfo = InstallationInfo
 
 
 def get_installed_canvas_extensions_dir() -> Path:
-    """Get the default directory for installed canvas extensions."""
+    """获取已安装画布扩展的默认目录。"""
     return get_user_persistence_dir() / "canvas-extensions" / "installed"
 
 
@@ -58,7 +57,7 @@ class CanvasExtensionInstallationInterface(
         manifest = CanvasExtensionManifest.model_validate_json(
             manifest_path.read_text()
         )
-        # Containment must hold too -- a parseable manifest alone isn't enough.
+        # 遏制也必须成立——仅可解析的清单是不够的。
         resolve_entrypoint(manifest, extension_dir)
         return manifest
 
@@ -79,11 +78,10 @@ def _manager(installed_dir: Path) -> InstallationManager[CanvasExtensionManifest
 
 
 def _tracked_names(installed_dir: Path) -> set[str]:
-    """Names with a real, valid tracked entry, not just a metadata key.
+    """具有真实、有效的跟踪条目的名称，而不仅仅是元数据键。
 
-    A stale record with no matching directory must not count as "already
-    installed" -- otherwise a real install of that name would wrongly
-    inherit its state as if this were a force-reinstall.
+    一个没有匹配目录的过期记录不能被视为“已安装”——否则，这个名称的真实安装会错误地继
+    承其状态，好像这是强制重新安装。
     """
     if not installed_dir.exists():
         return set()
@@ -96,10 +94,10 @@ def _force_disable_new(
     info: InstallationInfo,
     pre_existing: set[str],
 ) -> InstallationInfo:
-    """Force a newly created tracked entry to ``enabled=False``.
+    """将新创建的跟踪条目强制设置为 ``enabled=False``。
 
-    ``pre_existing`` distinguishes a genuinely new entry from a
-    force-reinstall, whose prior enabled state is already preserved.
+    ``pre_existing`` 将真正的新条目与强制重新安装区分开来，后者先前的启用状态已被保留
+    。
     """
     if info.name in pre_existing or not info.enabled:
         return info
@@ -115,20 +113,19 @@ def install_canvas_extension(
     installed_dir: Path | None = None,
     force: bool = False,
 ) -> InstalledCanvasExtensionInfo:
-    """Install a canvas extension from a source.
+    """从源安装画布扩展。
 
-    A newly created entry always lands disabled, regardless of what the
-    caller passes in.
+    无论调用者传入什么内容，新创建的条目始终处于禁用状态。
 
     Args:
-        source: ``"github:owner/repo"``, a git URL, or a local path.
-        ref: Optional branch, tag, or commit to install.
-        repo_path: Subdirectory within the repository (for monorepos).
-        installed_dir: Defaults to ``~/.openhands/canvas-extensions/installed/``.
-        force: If True, overwrite an existing installation.
+        source: ``"github:owner/repo"``、git URL 或本地路径。
+        ref: 可选的分支、标记或提交安装。
+        repo_path: 存储库内的子目录（对于 monorepos）。
+        installed_dir: 默认为 ``~/.openhands/canvas-extensions/installed/``。
+        force: 如果为 True，则覆盖现有安装。
 
     Returns:
-        InstalledCanvasExtensionInfo for the installed extension.
+        InstalledCanvasExtensionInfo 表示已安装的扩展。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manager = _manager(installed_dir)
@@ -138,13 +135,12 @@ def install_canvas_extension(
 
 
 def uninstall_canvas_extension(name: str, installed_dir: Path | None = None) -> bool:
-    """Uninstall a canvas extension by name.
+    """按名称卸载画布扩展。
 
-    Also drops any staged, not-yet-applied update for *name*, so refreshing
-    a since-uninstalled name never leaves an orphaned staging slot behind.
+    也删除了任何未应用的预置更新 *name*因此，从未安装过的名称从未留下孤儿阶段槽。
 
     Returns:
-        True if uninstalled, False if it wasn't installed.
+        如果已卸载，则为 True；如果未安装，则为 False。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     uninstalled = _manager(installed_dir).uninstall(name)
@@ -154,22 +150,22 @@ def uninstall_canvas_extension(name: str, installed_dir: Path | None = None) -> 
 
 
 def enable_canvas_extension(name: str, installed_dir: Path | None = None) -> bool:
-    """Enable an installed canvas extension by name."""
+    """按名称启用已安装的画布扩展。"""
     return _manager(_resolve_installed_dir(installed_dir)).enable(name)
 
 
 def disable_canvas_extension(name: str, installed_dir: Path | None = None) -> bool:
-    """Disable an installed canvas extension by name."""
+    """按名称禁用已安装的画布扩展。"""
     return _manager(_resolve_installed_dir(installed_dir)).disable(name)
 
 
 def list_installed_canvas_extensions(
     installed_dir: Path | None = None,
 ) -> list[InstalledCanvasExtensionInfo]:
-    """List all installed canvas extensions.
+    """列出所有已安装的画布扩展。
 
-    Self-healing like ``InstallationManager.list_installed()``; directories
-    discovered this way also land disabled.
+    自我修复如``InstallationManager.list_installed()``； 通过这种方式发现的目录也被禁
+    用。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manager = _manager(installed_dir)
@@ -181,12 +177,12 @@ def list_installed_canvas_extensions(
 def load_installed_canvas_extensions(
     installed_dir: Path | None = None,
 ) -> list[CanvasExtensionManifest]:
-    """Load all enabled canvas extensions' manifests.
+    """加载所有启用的画布扩展的清单。
 
-    Runs through ``list_installed_canvas_extensions`` first so discovery
-    is force-disabled before anything is loaded -- see the module
-    docstring. Mirrors ``InstallationManager.load_installed()``'s own
-    enabled-filter/load logic on top of the corrected info list.
+    首先运行 ``list_installed_canvas_extensions``，因此在加载任何内容之前发现会被强制
+    禁用 - 请参阅模块文档字符串。 将
+    ``InstallationManager.load_installed()`` 自己的启用过滤器/加载逻辑镜像到更正的信
+    息列表之上。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manager = _manager(installed_dir)
@@ -205,21 +201,20 @@ def load_installed_canvas_extensions(
 def get_installed_canvas_extension(
     name: str, installed_dir: Path | None = None
 ) -> InstalledCanvasExtensionInfo | None:
-    """Get information about a specific installed canvas extension."""
+    """获取有关特定已安装画布扩展的信息。"""
     return _manager(_resolve_installed_dir(installed_dir)).get(name)
 
 
 def get_installed_canvas_extension_manifest(
     name: str, installed_dir: Path | None = None
 ) -> CanvasExtensionManifest | None:
-    """Load the validated manifest for an installed extension.
+    """加载已安装扩展的经过验证的清单。
 
-    Re-reads and re-validates the stored manifest against the live install
-    path -- the copy validated at install time may have changed on disk
-    since.
+    根据实时安装路径重新读取并重新验证存储的清单 - 安装时验证的副本可能已在磁盘上更改
+    。
 
     Returns:
-        None if not installed, or if the install no longer validates.
+        None 如果未安装，或者安装不再有效。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     if get_installed_canvas_extension(name, installed_dir) is None:
@@ -233,15 +228,13 @@ def get_installed_canvas_extension_manifest(
 def get_canvas_extension_bundle_path(
     name: str, installed_dir: Path | None = None
 ) -> Path | None:
-    """Resolve the on-disk path to *name*'s entrypoint bundle file.
+    """解析 *name* 的入口捆绑文件的磁盘路径。
 
-    Re-validates the manifest and entrypoint containment against the live
-    install path on every call -- this backs a bundle serve, so the check
-    done at install time isn't enough on its own (a symlink could change
-    between requests).
+    在每次调用时，重新验证包的元数据和入口包含 -- 这个功能支持 bundle serve，因此在安
+    装时所做的检查是不够的（因为一个符号链接可能会在请求之间改变）。
 
     Returns:
-        None if not installed, or if the install no longer validates.
+        None 如果未安装，或者安装不再有效。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manifest = get_installed_canvas_extension_manifest(name, installed_dir)
@@ -253,11 +246,11 @@ def get_canvas_extension_bundle_path(
 def get_canvas_extension_icon_path(
     name: str, installed_dir: Path | None = None
 ) -> Path | None:
-    """Resolve *name*'s icon file, re-checking containment like the bundle.
+    """解析 *name* 的图标文件，重新检查包的包含情况。
 
     Returns:
-        None if not installed, no icon is declared, or the icon doesn't resolve
-        to a contained file. A broken icon never affects the manifest itself.
+        None 如果未安装，则不会声明图标，或者图标不会解析为包含的文件。 损坏的图标永
+        远不会影响清单本身。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manifest = get_installed_canvas_extension_manifest(name, installed_dir)
@@ -269,11 +262,11 @@ def get_canvas_extension_icon_path(
 
 
 class CanvasExtensionUpdateCheck(BaseModel):
-    """Result of ``check_canvas_extension_update``.
+    """``check_canvas_extension_update`` 的结果。
 
-    The active install is untouched; only ``.staging/`` is written. Pass
-    ``resolved_ref`` back to ``apply_canvas_extension_update`` to confirm
-    and swap this exact staged content into place.
+    活动安装未受影响； 仅写入``.staging/``。 通行证
+    ``resolved_ref`` 返回 ``apply_canvas_extension_update`` 以确认此确切的暂存内容并
+    将其交换到位。
     """
 
     requested_ref: str | None = Field(
@@ -292,11 +285,11 @@ def _staging_root(installed_dir: Path) -> Path:
 
 
 def _staged_path(installed_dir: Path, name: str, resolved_ref: str | None) -> Path:
-    """Path to the staging slot for (*name*, *resolved_ref*).
+    """(*name*, *resolved_ref*) 的暂存槽的路径。
 
-    *resolved_ref* is untrusted (``apply_canvas_extension_update`` takes it
-    as a caller-supplied argument), so it's rejected if it could escape the
-    staging directory -- same check as ``entrypoint`` in manifest.py.
+    *resolved_ref* 不受信任（``apply_canvas_extension_update`` 认为
+    作为调用者提供的参数），因此如果它可以转义暂存目录，则会被拒绝 - 与 manifest.py
+    中的 ``entrypoint`` 相同的检查。
     """
     if resolved_ref is not None and (
         not resolved_ref
@@ -310,16 +303,15 @@ def _staged_path(installed_dir: Path, name: str, resolved_ref: str | None) -> Pa
 def _stage_fetched_content(
     installed_dir: Path, name: str, resolved_ref: str | None, fetched_path: Path
 ) -> Path:
-    """Copy fetched content into a clean staging slot for *name*.
+    """将获取的内容复制到 *name* 的干净暂存槽中。
 
-    Clears any previously staged candidate first -- at most one is kept
-    per extension at a time.
+    首先清除任何先前暂存的候选项——每个分机一次最多保留一个候选项。
     """
     slot_root = _staging_root(installed_dir) / name
     shutil.rmtree(slot_root, ignore_errors=True)
     staged_path = _staged_path(installed_dir, name, resolved_ref)
     # symlinks=True: dereferencing here would copy a malicious symlink's
-    # target in as a plain file, defeating containment validation below.
+    # 目标作为普通文件，击败下面的遏制验证。
     shutil.copytree(fetched_path, staged_path, symlinks=True)
     return staged_path
 
@@ -327,10 +319,9 @@ def _stage_fetched_content(
 def _load_validated_manifest(
     staged_path: Path, expected_name: str
 ) -> CanvasExtensionManifest:
-    """Load and validate a staged extension's manifest.
+    """加载并验证分阶段扩展的清单。
 
-    Raises if the manifest is malformed, its entrypoint escapes the package
-    root, or its name no longer matches *expected_name*.
+    如果清单格式错误、其入口转义包根或其名称不再匹配 *expected_name*，则引发。
     """
     manifest = CanvasExtensionInstallationInterface.load_from_dir(staged_path)
     if manifest.name != expected_name:
@@ -344,23 +335,22 @@ def _load_validated_manifest(
 def check_canvas_extension_update(
     name: str, installed_dir: Path | None = None
 ) -> CanvasExtensionUpdateCheck | None:
-    """Check for an update to *name*, staging and validating it.
+    """检查 *name* 的更新，暂存并验证它。
 
-    Re-fetches the tracked source at its original ref (never "latest")
-    into ``.staging/``; the active install is untouched. See
-    ``apply_canvas_extension_update`` for the step that swaps it into
-    place.
+    将跟踪源的原始引用（绝不是“最新”）重新获取到 ``.staging/`` 中； 活动安装未受影响
+    。 参见
+    ``apply_canvas_extension_update`` 用于将其交换到位的步骤。
 
     Args:
-        name: Name of the installed extension to check.
-        installed_dir: Defaults to ``~/.openhands/canvas-extensions/installed/``.
+        name: 要检查的已安装扩展的名称。
+        installed_dir: 默认为 ``~/.openhands/canvas-extensions/installed/``。
 
     Returns:
-        None if not installed, else a result -- only apply when ``validated``.
+        None 如果未安装，则结果为 - 仅在 ``validated`` 时适用。
 
     Raises:
-        ValueError: If *name* is not valid kebab-case.
-        ExtensionFetchError: If fetching the tracked source fails.
+        ValueError: 如果 *name* 不是有效的 kebab-case。
+        ExtensionFetchError: 如果获取跟踪源失败。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manager = _manager(installed_dir)
@@ -399,26 +389,26 @@ def apply_canvas_extension_update(
     enabled: bool,
     installed_dir: Path | None = None,
 ) -> InstalledCanvasExtensionInfo | None:
-    """Apply a previously checked and validated update.
+    """应用之前检查和验证的更新。
 
-    *resolved_ref* must match a staged candidate already validated by
-    ``check_canvas_extension_update``, reconfirming what's being applied.
-    Atomically swaps staged content into the active install path;
-    *enabled* is always applied explicitly, never inherited.
+    *resolved_ref* 必须与已通过验证的分阶段候选者匹配
+    ``check_canvas_extension_update``，确认正在应用的内容。 以原子方式将暂存内容交换
+    到活动安装路径中；
+    *enabled* 始终显式应用，从不继承。
 
     Args:
-        name: Name of the installed extension to update.
-        resolved_ref: The ``resolved_ref`` from a prior, validated check.
-        enabled: Enabled state to apply to the new bundle.
-        installed_dir: Defaults to ``~/.openhands/canvas-extensions/installed/``.
+        name: 要更新的已安装扩展的名称。
+        resolved_ref: 来自之前经过验证的检查的 ``resolved_ref``。
+        enabled: 启用状态以应用于新包。
+        installed_dir: 默认为 ``~/.openhands/canvas-extensions/installed/``。
 
     Returns:
-        None if not installed, else the InstallationInfo for the new bundle.
+        None 如果未安装，则 InstallationInfo 表示新捆绑包。
 
     Raises:
-        ValueError: If *name* is invalid, *resolved_ref* could escape the
-            staging directory, or no validated staged candidate matches it
-            -- call check first.
+        ValueError: 如果 *name* 无效，*resolved_ref* 可以转义
+            暂存目录，或没有经过验证的暂存候选目录与之匹配
+            ——先打电话检查一下。
     """
     installed_dir = _resolve_installed_dir(installed_dir)
     manager = _manager(installed_dir)
@@ -438,8 +428,9 @@ def apply_canvas_extension_update(
     backup_path = _staging_root(installed_dir) / f"{name}.previous"
     shutil.rmtree(backup_path, ignore_errors=True)
 
-    # POSIX rename() can't atomically replace a non-empty directory, so the
-    # active bundle moves aside first; roll back if the second rename fails.
+    # POSIX rename() 无法自动替换非空目录，因此活动包首先移到一边； 如果第二次重命名失败
+    # 则回滚。
+    #
     os.replace(install_path, backup_path)
     try:
         os.replace(staged_path, install_path)

@@ -1,5 +1,5 @@
 /**
- * Unit tests for test utilities
+ * 单元测试用于测试实用程序
  */
 
 import * as fs from 'fs';
@@ -17,7 +17,7 @@ describe('Test Utilities', () => {
     const originalEnv = { ...process.env };
 
     beforeEach(() => {
-      // Reset environment to original values
+      // 将环境重置为原始值
       Object.keys(process.env).forEach((key) => {
         if (!(key in originalEnv)) {
           delete process.env[key];
@@ -27,7 +27,7 @@ describe('Test Utilities', () => {
     });
 
     afterAll(() => {
-      // Restore original environment
+      // 恢复原来的环境
       Object.keys(process.env).forEach((key) => {
         if (!(key in originalEnv)) {
           delete process.env[key];
@@ -109,14 +109,14 @@ describe('Test Utilities', () => {
     const testDir = '/tmp/test-utils-test';
 
     beforeAll(() => {
-      // Create test directory
+      // 创建测试目录
       if (!fs.existsSync(testDir)) {
         fs.mkdirSync(testDir, { recursive: true });
       }
     });
 
     afterAll(() => {
-      // Cleanup
+      // 清理
       if (fs.existsSync(testDir)) {
         fs.rmSync(testDir, { recursive: true });
       }
@@ -149,7 +149,7 @@ describe('Test Utilities', () => {
 
       expect(content1).toHaveLength(100);
       expect(content2).toHaveLength(100);
-      // Random content should (almost always) be different
+      // 随机内容应该（几乎总是）不同
       expect(content1).not.toBe(content2);
     });
 

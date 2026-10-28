@@ -1,4 +1,4 @@
-"""OpenHands Workspace - Docker and container-based workspace implementations."""
+"""OpenHands 工作区 - Docker 和基于容器的工作区实现。"""
 
 from typing import TYPE_CHECKING
 
@@ -37,7 +37,7 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    """Lazy import DockerDevWorkspace to avoid build module imports."""
+    """延迟导入 DockerDevWorkspace 以避免构建模块导入。"""
     if name == "DockerDevWorkspace":
         from .docker import DockerDevWorkspace
 

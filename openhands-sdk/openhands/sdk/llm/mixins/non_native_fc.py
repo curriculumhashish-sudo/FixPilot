@@ -25,12 +25,12 @@ class _HostSupports(Protocol):
 
 
 class NonNativeToolCallingMixin:
-    """Mixin providing prompt-mocked tool-calling support when native FC is off.
+    """当本机 FC 关闭时，Mixin 提供提示词-模拟的工具调用支持。
 
     Host requirements:
-    - self.model: str
+    - self.model: 字符串
     - self.disable_stop_word: bool | None
-    - self.native_tool_calling -> bool
+    - self.native_tool_calling -> 布尔值
     """
 
     def should_mock_tool_calls(
@@ -45,9 +45,9 @@ class NonNativeToolCallingMixin:
         kwargs: dict,
         include_security_params: bool = False,
     ) -> tuple[list[dict], dict]:
-        """Convert to non-fncall prompting when native tool-calling is off."""
-        # Skip in-context learning examples for models that understand the format
-        # or have limited context windows
+        """当本机工具调用关闭时，转换为非 fncall 提示。"""
+        # 对于理解格式或具有有限上下文窗口的模型，跳过上下文学习示例
+        #
         add_iclex = not any(
             s in self.model for s in ("openhands-lm", "devstral", "nemotron")
         )
@@ -61,7 +61,7 @@ class NonNativeToolCallingMixin:
             kwargs = dict(kwargs)
             kwargs["stop"] = STOP_WORDS
 
-        # Ensure we don't send tool_choice when mocking
+        # 确保我们在模拟时不会发送 tool_choice
         kwargs.pop("tool_choice", None)
         return messages, kwargs
 
@@ -88,7 +88,7 @@ class NonNativeToolCallingMixin:
                 "Expected non-streaming Choices when post-processing mocked tools"
             )
 
-        # Preserve provider-specific reasoning fields before conversion
+        # 转换前保留提供者特定的推理字段
         orig_msg = resp.choices[0].message
         non_fn_message: dict = orig_msg.model_dump()
         fn_msgs: list[dict] = convert_non_fncall_messages_to_fncall_messages(

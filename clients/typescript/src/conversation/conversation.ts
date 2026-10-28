@@ -1,8 +1,8 @@
 /**
- * Conversation factory and utility functions
+ * 会话工厂和实用函数
  *
- * This module provides a convenient factory pattern for creating conversation instances.
- * It matches the Python SDK pattern while supporting both local and remote conversations.
+ * 该模块提供了一个方便的工厂模式来创建对话实例。
+ * 它匹配 Python SDK 模式，同时支持本地和远程对话。
  */
 
 import { AgentBase } from '../types/base';
@@ -14,12 +14,12 @@ import { LocalConversation, LocalConversationOptions } from './local-conversatio
 import { IConversation, ConversationType } from './base';
 
 /**
- * Union type for all conversation options
+ * 所有对话选项的联合类型
  */
 export type ConversationOptions = RemoteConversationOptions | LocalConversationOptions;
 
 /**
- * Options for creating a conversation with explicit type selection
+ * 用于通过显式类型选择创建对话的选项
  */
 export interface CreateConversationOptions {
   type: ConversationType;
@@ -29,21 +29,21 @@ export interface CreateConversationOptions {
 }
 
 /**
- * Conversation class that extends RemoteConversation for backwards compatibility.
- * Provides a cleaner API that matches the Python SDK naming.
+ * 将 RemoteConversation 扩展为向后兼容性的会话类。
+ * 提供与 Python SDK 命名相匹配的更清晰的 API。
  *
- * For new code, consider using the createConversation factory function
- * or directly instantiating RemoteConversation or LocalConversation.
+ * 对于新代码，请考虑使用 createConversation 工厂函数
+ * 或者直接实例化 RemoteConversation 或 LocalConversation。
  *
- * Usage:
- * ```typescript
- * // Legacy usage (backwards compatible)
- * const conversation = new Conversation(agent, workspace);
- * await conversation.start();
+ * 用途：
+ * ```TypeScript
+ * // 传统用法（向后兼容）
+ * const 对话 = new Conversation(agent, workspace);
+ * 等待conversation.start();
  *
- * // For existing conversations:
- * const conversation = new Conversation(agent, workspace, { conversationId: 'existing-id' });
- * await conversation.start();
+ * // 对于现有对话：
+ * const 对话 = new Conversation(agent, workspace, { conversationId: 'existing-id' });
+ * 等待conversation.start();
  * ```
  */
 export class Conversation extends RemoteConversation {
@@ -53,32 +53,32 @@ export class Conversation extends RemoteConversation {
 }
 
 /**
- * Factory function to create a conversation instance based on options.
+ * 工厂函数用于根据选项创建对话实例。
  *
- * This provides a unified way to create either local or remote conversations
- * based on the provided options.
+ * 这提供了一种创建本地或远程对话的统一方法
+ * 基于提供的选项。
  *
- * Usage:
- * ```typescript
- * // Create a remote conversation
+ * 用途：
+ * ```TypeScript
+ * // 创建远程对话
  * const remoteConversation = createConversation({
- *   type: 'remote',
- *   agent: myAgent,
- *   workspace: remoteWorkspace,
- *   options: { callback: (event) => console.log(event) }
+ *   类型：'远程'，
+ *   智能体：myAgent,
+ *   工作区：remoteWorkspace,
+ *   选项：{ 回调：(事件) => console.log(事件) }
  * });
  *
- * // Create a local conversation
+ * // 创建本地对话
  * const localConversation = createConversation({
- *   type: 'local',
- *   agent: myAgent,
- *   workspace: localWorkspace,
- *   options: { persistenceDir: '/path/to/persistence' }
+ *   类型：'本地'，
+ *   智能体：myAgent,
+ *   工作区：localWorkspace,
+ *   选项：{persistenceDir：'/path/to/persistence'}
  * });
  * ```
  *
- * @param config - The conversation configuration including type, agent, workspace, and options
- * @returns A conversation instance implementing IConversation
+ * @param config - 对话配置，包括类型、智能体、工作区和选项
+ * @returns 实现 IConversation 的对话实例
  */
 export function createConversation(config: CreateConversationOptions): IConversation {
   switch (config.type) {
@@ -105,24 +105,24 @@ export function createConversation(config: CreateConversationOptions): IConversa
 }
 
 /**
- * Create a conversation automatically detecting the type from workspace.
+ * 创建一个对话，自动检测工作区中的类型。
  *
- * If the workspace is a RemoteWorkspace, creates a RemoteConversation.
- * If the workspace is a LocalWorkspace, creates a LocalConversation.
+ * 如果工作区是 RemoteWorkspace，则创建 RemoteConversation。
+ * 如果工作区是 LocalWorkspace，则创建 LocalConversation。
  *
- * Usage:
- * ```typescript
- * // Automatically creates RemoteConversation
- * const remote = createConversationAuto(agent, remoteWorkspace);
+ * 用途：
+ * ```TypeScript
+ * // 自动创建 RemoteConversation
+ * const remote = createConversationAuto(智能体，remoteWorkspace);
  *
- * // Automatically creates LocalConversation
- * const local = createConversationAuto(agent, localWorkspace);
+ * // 自动创建 LocalConversation
+ * 常量本地 = createConversationAuto(智能体，localWorkspace);
  * ```
  *
- * @param agent - The agent to use for the conversation
- * @param workspace - The workspace (determines conversation type)
- * @param options - Optional conversation configuration
- * @returns A conversation instance implementing IConversation
+ * @param 智能体 - 用于对话的智能体
+ * @param 工作区 - 工作区（确定对话类型）
+ * @param options - 可选的对话配置
+ * @returns 实现 IConversation 的对话实例
  */
 export function createConversationAuto(
   agent: AgentBase,

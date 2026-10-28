@@ -1,8 +1,8 @@
 """
-Example: Responses API path via LiteLLM in a Real Agent Conversation
+Example: 在真实智能体对话中通过 LiteLLM 响应 API 路径
 
-- Runs a real Agent/Conversation to verify /responses path works
-- Demonstrates rendering of Responses reasoning within normal conversation events
+- 运行真实的代理/对话来验证 /responses 路径是否有效
+- 演示在正常对话事件中呈现响应推理
 """
 
 from __future__ import annotations
@@ -26,16 +26,16 @@ logger = get_logger(__name__)
 api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
 assert api_key, "Set LLM_API_KEY or OPENAI_API_KEY in your environment."
 
-model = "openhands/gpt-5-mini-2025-08-07"  # Use a model that supports Responses API
+model = "openhands/gpt-5-mini-2025-08-07"  # 使用支持响应的模型 API
 base_url = os.getenv("LLM_BASE_URL")
 
 llm = LLM(
     model=model,
     api_key=SecretStr(api_key),
     base_url=base_url,
-    # Responses-path options
+    # 响应路径选项
     reasoning_effort="high",
-    # Logging / behavior tweaks
+    # 日志记录/行为调整
     log_completions=False,
     usage_id="agent",
 )
@@ -43,10 +43,10 @@ llm = LLM(
 print("\n=== Agent Conversation using /responses path ===")
 agent = get_default_agent(
     llm=llm,
-    cli_mode=True,  # disable browser tools for env simplicity
+    cli_mode=True,  # 禁用浏览器工具以简化环境
 )
 
-llm_messages = []  # collect raw LLM-convertible messages for inspection
+llm_messages = []  # 收集原始 LLM-可转换消息以供检查
 
 
 def conversation_callback(event: Event):
@@ -60,7 +60,7 @@ conversation = Conversation(
     workspace=os.getcwd(),
 )
 
-# Keep the tasks short for demo purposes
+# 出于演示目的，请保持任务简短
 conversation.send_message("Read the repo and write one fact into FACTS.txt.")
 conversation.run()
 
@@ -73,6 +73,6 @@ for i, message in enumerate(llm_messages):
     ms = str(message)
     print(f"Message {i}: {ms[:200]}{'...' if len(ms) > 200 else ''}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

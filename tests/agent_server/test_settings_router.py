@@ -36,15 +36,15 @@ from openhands.sdk.utils.pydantic_secrets import REDACTED_SECRET_VALUE
 
 @pytest.fixture
 def temp_persistence_dir():
-    """Create a temporary directory for persistence files and reset stores."""
+    """为持久化文件创建临时目录并重置存储。"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Reset global store singletons before test
+        # 测试前重置全局存储单例
         reset_stores()
-        # Set environment variable for persistence directory
+        # 将持久化目录设置为环境变量
         old_val = os.environ.get("OH_PERSISTENCE_DIR")
         os.environ["OH_PERSISTENCE_DIR"] = tmpdir
         yield Path(tmpdir)
-        # Cleanup: reset stores and restore environment
+        # 清理：重置商店并恢复环境
         reset_stores()
         if old_val is not None:
             os.environ["OH_PERSISTENCE_DIR"] = old_val
@@ -54,13 +54,13 @@ def temp_persistence_dir():
 
 @pytest.fixture
 def secret_key():
-    """Generate a valid Fernet key."""
+    """生成有效的 Fernet 密钥。"""
     return urlsafe_b64encode(b"a" * 32).decode("ascii")
 
 
 @pytest.fixture
 def config_with_settings(temp_persistence_dir, secret_key):
-    """Create a config with secret key for encryption."""
+    """使用机密密钥创建一个配置以进行加密。"""
     return Config(
         static_files_path=None,
         session_api_keys=[],
@@ -80,7 +80,7 @@ def _write_settings_file(persistence_dir: Path, payload: dict) -> None:
 
 @pytest.fixture
 def client_with_settings(config_with_settings):
-    """Create a test client with settings support."""
+    """创建一个具有设置支持的测试客户端。"""
     return TestClient(create_app(config_with_settings))
 
 
@@ -106,8 +106,9 @@ def test_get_agent_settings_schema():
     assert "confirmation_mode" not in verification_field_keys
     assert "security_analyzer" not in verification_field_keys
 
-    # agent_context is curated: only the annotated load_memory field
-    # surfaces, never the raw context model.
+    # agent_context 是经过策划的：只有带注释的 load_memory 场表面，而不是原始上下文模型
+    # 。
+    #
     assert "agent_context" in section_keys
     agent_context_section = next(
         section for section in body["sections"] if section["key"] == "agent_context"
@@ -137,11 +138,11 @@ def test_get_conversation_settings_schema():
     assert "security_analyzer" in verification_field_keys
 
 
-# ── GET /api/settings tests ─────────────────────────────────────────────
+# ── GET /api/settings 测试──────────────────────────────────────────────
 
 
 def test_get_settings_returns_default_settings(client_with_settings):
-    """GET /api/settings returns default settings when none are persisted."""
+    """当 None 为已持久化时，GET /api/settings 返回默认设置。"""
     response = client_with_settings.get("/api/settings")
 
     assert response.status_code == 200
@@ -157,7 +158,7 @@ def test_get_settings_returns_default_settings(client_with_settings):
 def test_get_settings_migrates_legacy_openhands_settings_and_resaves_current(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """Old OpenHands settings files load, migrate, and remain editable."""
+    """旧的 OpenHands 设置文件会加载、迁移并保持可编辑状态。"""
     cipher = Cipher(secret_key)
     _write_settings_file(
         temp_persistence_dir,
@@ -313,7 +314,7 @@ def test_get_settings_migrates_legacy_openhands_settings_and_resaves_current(
 def test_get_settings_migrates_acp_settings_and_drops_persisted_llm(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """Loading old ACP settings drops their ``llm`` and its credentials."""
+    """加载旧的 ACP 设置会删除它们的 ``llm`` 和凭据。"""
     cipher = Cipher(secret_key)
     _write_settings_file(
         temp_persistence_dir,
@@ -391,8 +392,8 @@ def test_persisted_settings_from_persisted_rejects_newer_schema_version() -> Non
 def test_get_settings_without_header_redacts_secrets(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """GET /api/settings without X-Expose-Secrets header redacts secrets."""
-    # First, save settings with a secret using the store
+    """GET /api/settings 没有 X-Expose-机密标头编辑机密。"""
+    # 首先，使用商店以机密保存设置
     cipher = Cipher(secret_key)
     store = FileSettingsStore(persistence_dir=temp_persistence_dir, cipher=cipher)
     settings = PersistedSettings()
@@ -404,7 +405,7 @@ def test_get_settings_without_header_redacts_secrets(
 
     assert response.status_code == 200
     body = response.json()
-    # Secret should be redacted (Pydantic default behavior)
+    # 机密应该是已脱敏（Pydantic 默认行为）
     api_key = body["agent_settings"]["llm"]["api_key"]
     assert api_key == "**********"
     assert body["llm_api_key_is_set"] is True
@@ -413,8 +414,8 @@ def test_get_settings_without_header_redacts_secrets(
 def test_get_settings_with_plaintext_header_exposes_secrets(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """GET /api/settings with X-Expose-Secrets: plaintext returns raw secrets."""
-    # Save settings with a secret
+    """GET /api/settings 与 X-Expose-机密：明文返回原始机密。"""
+    # 使用机密保存设置
     cipher = Cipher(secret_key)
     store = FileSettingsStore(persistence_dir=temp_persistence_dir, cipher=cipher)
     settings = PersistedSettings()
@@ -428,7 +429,7 @@ def test_get_settings_with_plaintext_header_exposes_secrets(
 
     assert response.status_code == 200
     body = response.json()
-    # Secret should be exposed
+    # 机密应该暴露
     api_key = body["agent_settings"]["llm"]["api_key"]
     assert api_key == "sk-test-secret-key"
 
@@ -436,8 +437,8 @@ def test_get_settings_with_plaintext_header_exposes_secrets(
 def test_get_settings_with_encrypted_header_encrypts_secrets(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """GET /api/settings with X-Expose-Secrets: encrypted returns encrypted secrets."""
-    # Save settings with a secret
+    """GET /api/settings 与 X-Expose-机密：加密返回加密的机密。"""
+    # 使用机密保存设置
     cipher = Cipher(secret_key)
     store = FileSettingsStore(persistence_dir=temp_persistence_dir, cipher=cipher)
     settings = PersistedSettings()
@@ -452,10 +453,10 @@ def test_get_settings_with_encrypted_header_encrypts_secrets(
     assert response.status_code == 200
     body = response.json()
     api_key = body["agent_settings"]["llm"]["api_key"]
-    # Should be encrypted (not plaintext, not redacted)
+    # 应该加密（不是明文，不是已脱敏）
     assert api_key != "sk-test-secret-key"
     assert api_key != "**********"
-    # Should be decryptable
+    # 应该可以解密
     decrypted = cipher.decrypt(api_key)
     assert decrypted is not None
     assert decrypted.get_secret_value() == "sk-test-secret-key"
@@ -464,7 +465,7 @@ def test_get_settings_with_encrypted_header_encrypts_secrets(
 def test_mcp_oauth_state_is_encrypted_and_round_trips(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """OAuth tokens stored on MCP server objects use settings secret handling."""
+    """存储在 MCP 服务器对象上的 OAuth token 使用设置机密处理。"""
     patch_response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -534,7 +535,7 @@ def test_mcp_oauth_state_is_encrypted_and_round_trips(
 def test_patch_settings_decrypts_encrypted_mcp_oauth_state(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """Encrypted OAuth state from a frontend round-trip is not double-saved."""
+    """前端往返的加密 OAuth 状态不会双重保存。"""
     cipher = Cipher(secret_key)
     patch_response = client_with_settings.patch(
         "/api/settings",
@@ -586,8 +587,8 @@ def test_patch_settings_decrypts_encrypted_mcp_oauth_state(
 def test_get_settings_with_true_header_treats_as_encrypted(
     client_with_settings, temp_persistence_dir, secret_key
 ):
-    """GET /api/settings with X-Expose-Secrets: true treats as encrypted (safety)."""
-    # Save settings with a secret
+    """GET /api/settings 与 X-Expose-机密：True 视为加密（安全）。"""
+    # 使用机密保存设置
     cipher = Cipher(secret_key)
     store = FileSettingsStore(persistence_dir=temp_persistence_dir, cipher=cipher)
     settings = PersistedSettings()
@@ -602,16 +603,16 @@ def test_get_settings_with_true_header_treats_as_encrypted(
     assert response.status_code == 200
     body = response.json()
     api_key = body["agent_settings"]["llm"]["api_key"]
-    # Should be encrypted (not plaintext)
+    # 应该加密（不是明文）
     assert api_key != "sk-test-secret-key"
-    # Should be decryptable
+    # 应该可以解密
     decrypted = cipher.decrypt(api_key)
     assert decrypted is not None
     assert decrypted.get_secret_value() == "sk-test-secret-key"
 
 
 def test_get_settings_with_invalid_header_returns_400(client_with_settings):
-    """GET /api/settings with invalid X-Expose-Secrets value returns 400."""
+    """GET /api/settings 具有无效的 X-Expose-机密值将返回 400。"""
     response = client_with_settings.get(
         "/api/settings", headers={"X-Expose-Secrets": "invalid-value"}
     )
@@ -620,11 +621,11 @@ def test_get_settings_with_invalid_header_returns_400(client_with_settings):
     assert "Invalid X-Expose-Secrets header" in response.json()["detail"]
 
 
-# ── PATCH /api/settings tests ───────────────────────────────────────────
+# ── PATCH /api/settings 测试────────────────────────────────────────────
 
 
 def test_patch_settings_updates_llm_config(client_with_settings):
-    """PATCH /api/settings can update LLM configuration."""
+    """PATCH /api/settings可以更新LLM配置。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -636,13 +637,13 @@ def test_patch_settings_updates_llm_config(client_with_settings):
     body = response.json()
     assert body["agent_settings"]["schema_version"] == AGENT_SETTINGS_SCHEMA_VERSION
     assert body["agent_settings"]["llm"]["model"] == "gpt-4o"
-    # Response should NOT expose secrets (no header)
+    # 响应应该不公开机密（无标头）
     assert body["agent_settings"]["llm"]["api_key"] == "**********"
     assert body["llm_api_key_is_set"] is True
 
 
 def test_patch_settings_updates_active_profile(client_with_settings):
-    """PATCH /api/settings can update and clear the active LLM profile."""
+    """PATCH /api/settings 可以更新和清除活动的 LLM 配置文件。"""
     get_llm_profile_store().save("fast-profile", LLM(model="gpt-4o-mini"))
 
     response = client_with_settings.patch(
@@ -671,7 +672,7 @@ def test_patch_settings_updates_active_profile(client_with_settings):
 
 
 def test_patch_settings_rejects_invalid_active_profile(client_with_settings):
-    """PATCH /api/settings validates active profile names."""
+    """PATCH /api/settings 验证活动配置文件名称。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={"active_profile": "not a valid profile"},
@@ -681,7 +682,7 @@ def test_patch_settings_rejects_invalid_active_profile(client_with_settings):
 
 
 def test_patch_settings_active_agent_profile_id_independent(client_with_settings):
-    """active_agent_profile_id sets/clears independently of active_profile."""
+    """active_agent_profile_id 独立于 active_profile 设置/清除。"""
     get_llm_profile_store().save("fast-profile", LLM(model="gpt-4o-mini"))
     profile = OpenHandsAgentProfile(name="mine", llm_profile_ref="fast-profile")
     get_agent_profile_store().save(profile)
@@ -696,7 +697,7 @@ def test_patch_settings_active_agent_profile_id_independent(client_with_settings
     assert body["active_profile"] == "fast-profile"
     assert body["active_agent_profile_id"] == agent_id
 
-    # Clearing the agent pointer must leave the LLM profile pointer untouched.
+    # 清除智能体指针必须保持 LLM 配置文件指针不变。
     clear_response = client_with_settings.patch(
         "/api/settings",
         json={"active_agent_profile_id": None},
@@ -712,7 +713,7 @@ def test_patch_settings_active_agent_profile_id_independent(client_with_settings
 
 
 def test_patch_settings_active_profile_applies_llm(client_with_settings):
-    """PATCH active_profile applies that profile's LLM (#4314)."""
+    """PATCH active_profile 应用该配置文件的 LLM (#4314)。"""
     get_llm_profile_store().save("fast-profile", LLM(model="claude-haiku"))
 
     response = client_with_settings.patch(
@@ -733,7 +734,7 @@ def test_patch_settings_active_profile_applies_llm(client_with_settings):
 def test_patch_settings_active_profile_applies_encrypted_api_key(
     client_with_settings, secret_key
 ):
-    """Applying a profile carries its at-rest-encrypted api_key through PATCH."""
+    """应用配置文件会携带其 at-REST 加密的 api_key 到 PATCH。"""
     cipher = Cipher(secret_key)
     get_llm_profile_store().save(
         "secure-profile",
@@ -807,7 +808,7 @@ def test_patch_settings_active_profile_applies_llm_when_switching_to_openhands(
 
 
 def test_patch_settings_switching_active_profile_updates_llm(client_with_settings):
-    """Switching active_profile re-applies the new profile's LLM."""
+    """切换 active_profile 会重新应用新配置文件的 LLM。"""
     get_llm_profile_store().save("profile-a", LLM(model="model-a"))
     get_llm_profile_store().save("profile-b", LLM(model="model-b"))
 
@@ -823,7 +824,7 @@ def test_patch_settings_switching_active_profile_updates_llm(client_with_setting
 
 
 def test_patch_settings_active_profile_not_found_returns_404(client_with_settings):
-    """PATCH active_profile with an unknown profile name 404s."""
+    """PATCH active_profile 具有未知的配置文件名称 404s。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={"active_profile": "does-not-exist"},
@@ -838,7 +839,7 @@ def test_patch_settings_active_profile_not_found_returns_404(client_with_setting
 def test_patch_settings_explicit_llm_diff_overrides_profile_autoload(
     client_with_settings,
 ):
-    """An explicit agent_settings_diff.llm overrides profile autoload."""
+    """显式 agent_settings_diff.llm 会覆盖配置文件自动加载。"""
     get_llm_profile_store().save("fast-profile", LLM(model="claude-haiku"))
 
     response = client_with_settings.patch(
@@ -856,7 +857,7 @@ def test_patch_settings_explicit_llm_diff_overrides_profile_autoload(
 
 
 def test_patch_settings_rejects_malformed_active_agent_profile_id(client_with_settings):
-    """A non-UUID active_agent_profile_id is rejected at the HTTP layer."""
+    """非 UUID active_agent_profile_id 在 HTTP 层被拒绝。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={"active_agent_profile_id": "not-a-uuid"},
@@ -867,7 +868,7 @@ def test_patch_settings_rejects_malformed_active_agent_profile_id(client_with_se
 def test_patch_settings_rejects_unknown_active_agent_profile_id(
     client_with_settings,
 ):
-    """An id that names no stored agent profile is 404, like /activate (#5847)."""
+    """未命名已存储的智能体配置文件的 id 为 404，如 /activate (#5847)。"""
     unknown = "00000000-0000-4000-8000-0000000000f1"
     response = client_with_settings.patch(
         "/api/settings", json={"active_agent_profile_id": unknown}
@@ -883,8 +884,8 @@ def test_patch_settings_rejects_unknown_active_agent_profile_id(
 def test_patch_settings_active_meta_profile_must_exist(
     client_with_settings, temp_persistence_dir
 ):
-    """An unknown meta-profile is 404 and enables nothing; a stored one is
-    accepted and null clears it (#5847)."""
+    """未知的元配置文件为 404，并且不启用任何功能； 存储的一个是
+    接受并 null 清除它 (#5847)。"""
     response = client_with_settings.patch(
         "/api/settings", json={"active_meta_profile": "no-router"}
     )
@@ -919,7 +920,7 @@ def test_patch_settings_active_meta_profile_must_exist(
 def test_existing_settings_load_with_null_active_agent_profile_id(
     temp_persistence_dir, config_with_settings
 ):
-    """A settings file predating the field loads with active_agent_profile_id=None."""
+    """字段加载前的设置文件为 active_agent_profile_id=None。"""
     _write_settings_file(
         temp_persistence_dir,
         {
@@ -939,7 +940,7 @@ def test_existing_settings_load_with_null_active_agent_profile_id(
 
 
 def test_patch_settings_updates_condenser_config(client_with_settings):
-    """PATCH /api/settings can update condenser constructor settings."""
+    """PATCH /api/settings 可以更新上下文压缩器构造函数设置。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -972,7 +973,7 @@ def test_patch_settings_updates_condenser_config(client_with_settings):
 
 
 def test_patch_settings_switches_condenser_variant(client_with_settings):
-    """PATCH /api/settings can switch to a different condenser settings variant."""
+    """PATCH /api/settings 可以切换到不同的上下文压缩器设置变量。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -995,12 +996,11 @@ def test_patch_settings_switches_condenser_variant(client_with_settings):
 def test_patch_settings_encrypts_mcp_env_and_headers_on_disk(
     client_with_settings, temp_persistence_dir
 ):
-    """PATCH /api/settings must encrypt MCP ``env`` / ``headers`` values at
-    rest with the configured cipher — the same way other secret fields are
-    persisted — and never write redacted sentinels or plaintext.
+    """PATCH /api/settings 必须加密 MCP ``env`` / ``headers`` 值
+    REST 使用配置的密码 - 与其他机密字段为已持久化的方式相同 - 并且永远不要写入已脱敏
+    哨兵值或明文。
 
-    Reading them back via ``X-Expose-Secrets: plaintext`` must round-trip
-    to the original values (decrypted on load).
+    通过 ``X-Expose-Secrets: plaintext`` 读回它们必须往返到原始值（在加载时解密）。
     """
     response = client_with_settings.patch(
         "/api/settings",
@@ -1022,8 +1022,8 @@ def test_patch_settings_encrypts_mcp_env_and_headers_on_disk(
     )
     assert response.status_code == 200, response.text
 
-    # Inspect the on-disk settings.json: plaintext must NOT appear, the
-    # values must be Fernet ciphertext.
+    # 检查磁盘上的 settings.json：明文必须出现不，值必须是 Fernet 密文。
+    #
     on_disk_path = temp_persistence_dir / "settings.json"
     on_disk_text = on_disk_path.read_text()
     assert "<redacted>" not in on_disk_text
@@ -1035,11 +1035,11 @@ def test_patch_settings_encrypts_mcp_env_and_headers_on_disk(
     servers_on_disk = on_disk["agent_settings"]["mcp_config"]
     assert servers_on_disk["github"]["env"]["GITHUB_TOKEN"].startswith("gAAAA")
     assert servers_on_disk["remote"]["headers"]["X-Api-Key"].startswith("gAAAA")
-    # Non-secret structure must remain readable.
+    # 非机密结构必须保持可读。
     assert servers_on_disk["github"]["command"] == "uvx"
     assert servers_on_disk["remote"]["url"] == "https://example.com/mcp"
 
-    # GET with plaintext decrypts and returns the original round-tripped values.
+    # GET 明文解密并返回原始的往返值。
     response = client_with_settings.get(
         "/api/settings", headers={"X-Expose-Secrets": "plaintext"}
     )
@@ -1109,7 +1109,7 @@ def test_mcp_server_crud_endpoints_preserve_sibling_credentials(client_with_sett
 def test_mcp_server_patch_toggles_enabled_without_dropping_config(
     client_with_settings,
 ):
-    """Switching a server off keeps it — and its credentials — configured."""
+    """关闭服务器可以保持其及其凭据的配置。"""
     created = client_with_settings.post(
         "/api/settings/mcp/github",
         json={
@@ -1130,15 +1130,15 @@ def test_mcp_server_patch_toggles_enabled_without_dropping_config(
     assert server["enabled"] is False
     assert server["url"] == "https://github.example/mcp"
 
-    # The credential survives the toggle — that is the point of disabling
-    # instead of deleting.
+    # 凭据在切换后仍然存在 - 这是禁用而不是删除的点。
+    #
     plaintext = client_with_settings.get(
         "/api/settings", headers={"X-Expose-Secrets": "plaintext"}
     ).json()["agent_settings"]["mcp_config"]["github"]
     assert plaintext["auth"]["value"] == "github-secret"
     assert plaintext["enabled"] is False
 
-    # A patch that does not mention the flag must not silently re-enable it.
+    # 未提及该标志的补丁不得默默地重新启用它。
     described = client_with_settings.patch(
         "/api/settings/mcp/github",
         json={"description": "GitHub"},
@@ -1148,7 +1148,7 @@ def test_mcp_server_patch_toggles_enabled_without_dropping_config(
     assert still_disabled["enabled"] is False
     assert still_disabled["description"] == "GitHub"
 
-    # A null clears the override, restoring the canonical default (enabled).
+    # null 清除覆盖，恢复规范默认值（启用）。
     restored = client_with_settings.patch(
         "/api/settings/mcp/github",
         json={"enabled": None},
@@ -1213,7 +1213,7 @@ def test_mcp_server_crud_endpoints_normalize_key_paths(client_with_settings):
 
 
 def test_patch_settings_empty_payload_returns_400(client_with_settings):
-    """PATCH /api/settings with empty payload returns 400."""
+    """PATCH /api/settings 与空载荷返回 400。"""
     response = client_with_settings.patch("/api/settings", json={})
 
     assert response.status_code == 400
@@ -1225,17 +1225,16 @@ def test_patch_settings_empty_payload_returns_400(client_with_settings):
     )
 
 
-# ── misc_settings (opaque frontend-owned container) ─────────────────────
+# ── misc_settings（不透明前端拥有的容器）──────────────────────
 #
-# These tests exercise the persistence + deep-merge behaviour of the
-# ``misc_settings`` container. The agent-server treats it as opaque, so the
-# payloads below use neutral keys/values whose only purpose is to exercise
-# the merge machinery — they intentionally do not reference any specific
-# frontend's schema.
+# 这些测试练习了持久化 + 深度合并行为
+# ``misc_settings`` 容器。 智能体服务器将其视为透明，因此载荷下面使用无意义的键值对，其
+# 唯一目的就是测试合并机制——它们故意不引用任何特定前端的模式。
+#
 
 
 def test_get_settings_returns_empty_misc_settings_by_default(client_with_settings):
-    """GET /api/settings returns an empty misc_settings dict by default."""
+    """GET /api/settings 默认返回一个空的 misc_settings 字典。"""
     response = client_with_settings.get("/api/settings")
 
     assert response.status_code == 200
@@ -1245,7 +1244,7 @@ def test_get_settings_returns_empty_misc_settings_by_default(client_with_setting
 
 
 def test_patch_settings_writes_misc_settings(client_with_settings):
-    """PATCH /api/settings with misc_settings_diff persists the payload."""
+    """PATCH /api/settings 和 misc_settings_diff 保留载荷。"""
     payload = {
         "theme": "dark",
         "ui": {"sidebar": "open", "tags": ["alpha", "beta"]},
@@ -1258,18 +1257,18 @@ def test_patch_settings_writes_misc_settings(client_with_settings):
     assert response.status_code == 200
     assert response.json()["misc_settings"] == payload
 
-    # Persisted across requests
+    # 已持久化跨请求
     refetch = client_with_settings.get("/api/settings")
     assert refetch.status_code == 200
     assert refetch.json()["misc_settings"] == payload
 
 
 def test_patch_settings_misc_settings_diff_is_deep_merged(client_with_settings):
-    """Partial misc_settings_diff merges into the existing block.
+    """部分 misc_settings_diff 合并到现有块中。
 
-    A diff that updates one nested field must NOT clobber sibling fields set
-    by an earlier PATCH — the merge runs through the same ``_deep_merge``
-    used for agent_settings / conversation_settings.
+    一个更新一个嵌套字段的差异不由先前设置的兄弟字段覆盖 PATCH — 合并过程通过了同样的
+     ``_deep_merge`` 用于 agent_settings /
+    conversation_settings.
     """
     client_with_settings.patch(
         "/api/settings",
@@ -1288,16 +1287,16 @@ def test_patch_settings_misc_settings_diff_is_deep_merged(client_with_settings):
 
     assert response.status_code == 200
     misc = response.json()["misc_settings"]
-    # Sibling top-level field is preserved
+    # 保留同级顶级字段
     assert misc["theme"] == "dark"
-    # Updated nested field
+    # 更新了嵌套字段
     assert misc["ui"]["sidebar"] == "collapsed"
-    # Sibling nested field is preserved (this is the deep-merge property)
+    # 保留同级嵌套字段（这是深度合并属性）
     assert misc["ui"]["density"] == "comfortable"
 
 
 def test_patch_settings_misc_settings_lists_replace_wholesale(client_with_settings):
-    """Lists inside misc_settings are replaced wholesale, not merged."""
+    """misc_settings 内的列表将被批量替换，而不是合并。"""
     client_with_settings.patch(
         "/api/settings",
         json={"misc_settings_diff": {"tags": ["alpha", "beta", "gamma"]}},
@@ -1313,7 +1312,7 @@ def test_patch_settings_misc_settings_lists_replace_wholesale(client_with_settin
 
 
 def test_patch_settings_misc_settings_only_payload_is_accepted(client_with_settings):
-    """misc_settings_diff alone satisfies the "at least one of" check."""
+    """misc_settings_diff 单独满足“至少一个”检查。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={"misc_settings_diff": {"theme": "dark"}},
@@ -1323,12 +1322,11 @@ def test_patch_settings_misc_settings_only_payload_is_accepted(client_with_setti
 
 
 def test_patch_settings_misc_settings_accepts_arbitrary_payloads(client_with_settings):
-    """The agent-server doesn't interpret misc_settings — any JSON shape is fine.
+    """智能体-服务器不解释 misc_settings — 任何 JSON 形状都可以。
 
-    Coverage for the *opaque* contract: a payload that would have been
-    rejected by an inner typed schema (e.g. a string where a list would
-    "naturally" go) is accepted and persisted verbatim, because validation
-    of misc_settings is the frontend's responsibility.
+    *不透明*合约的覆盖范围：会被内部类型化模式拒绝的载荷（e.g. 一个列表“自然”会去的字
+    符串）被接受并逐字已持久化，因为misc_settings的验证是前端的责
+    任。
     """
     response = client_with_settings.patch(
         "/api/settings",
@@ -1344,7 +1342,7 @@ def test_patch_settings_misc_settings_accepts_arbitrary_payloads(client_with_set
 def test_patch_settings_misc_settings_does_not_clobber_agent_settings(
     client_with_settings,
 ):
-    """Writing only misc_settings must not reset agent_settings."""
+    """仅写入 misc_settings 不得重置 agent_settings。"""
     client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "gpt-4o"}}},
@@ -1362,7 +1360,7 @@ def test_patch_settings_misc_settings_does_not_clobber_agent_settings(
 def test_persisted_settings_v1_loads_with_empty_misc_settings(
     temp_persistence_dir, client_with_settings
 ):
-    """A v1 settings file (no misc_settings) loads with empty defaults."""
+    """v1 设置文件（无 misc_settings）加载为空默认值。"""
     settings_path = temp_persistence_dir / "settings.json"
     settings_path.write_text(
         json.dumps(
@@ -1387,14 +1385,14 @@ def test_persisted_settings_v1_loads_with_empty_misc_settings(
 
 
 def test_patch_settings_deep_merges(client_with_settings):
-    """PATCH /api/settings deep-merges with existing settings."""
-    # First update: set model
+    """PATCH /api/settings 与现有设置深度合并。"""
+    # 第一次更新：设置模型
     client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "gpt-4o"}}},
     )
 
-    # Second update: set api_key (should preserve model)
+    # 第二次更新：设置api_key（应保留模型）
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"api_key": "sk-test-key"}}},
@@ -1407,8 +1405,8 @@ def test_patch_settings_deep_merges(client_with_settings):
 
 
 def test_patch_settings_agent_context_load_memory_round_trips(client_with_settings):
-    """The persistent-memory toggle's wire path: a nested agent_context diff
-    persists and is served back by GET (what the GUI Memory page reads)."""
+    """持久内存切换的线路路径：嵌套的 agent_context diff
+    持续存在并由 GET 提供服务（GUI 内存页读取的内容）。"""
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"agent_context": {"load_memory": True}}},
@@ -1422,19 +1420,19 @@ def test_patch_settings_agent_context_load_memory_round_trips(client_with_settin
     assert agent_settings["agent_context"]["load_memory"] is True
 
 
-# ── JSON Merge Patch (RFC 7386) unset semantics ─────────────────────────
+# ── JSON 合并补丁 (RFC 7386) 未设置语义 ──────────────────────────
 
 
 def test_deep_merge_top_level_null_is_set_not_delete():
-    """A ``None`` on a top-level *field* is left as-is (set), NOT deleted —
-    so it flows to validation and fails loudly instead of silently resetting
-    the field to its default."""
+    """顶级 * 字段 * 上的 ``None`` 保持原样（设置），不已删除 —
+    因此它流向验证并大声失败，而不是默默地将字段重置为其默认值。
+    """
     merged = _deep_merge({"confirmation_mode": True}, {"confirmation_mode": None})
     assert merged == {"confirmation_mode": None}
 
 
 def test_deep_merge_nested_null_deletes_entry():
-    """A ``None`` *inside a nested map* removes that entry; siblings survive."""
+    """嵌套映射 * 内的 ``None`` * 删除该条目； 兄弟姐妹生存下来。"""
     merged = _deep_merge(
         {"env": {"KEEP": "a", "DROP": "b"}},
         {"env": {"DROP": None}},
@@ -1443,22 +1441,22 @@ def test_deep_merge_nested_null_deletes_entry():
 
 
 def test_deep_merge_nested_null_on_absent_key_is_noop():
-    """Unsetting a nested key that isn't present is a no-op, not an error."""
+    """取消设置不存在的嵌套键是无操作，而不是错误。"""
     merged = _deep_merge({"env": {"KEEP": "a"}}, {"env": {"MISSING": None}})
     assert merged == {"env": {"KEEP": "a"}}
 
 
 def test_deep_merge_new_map_embedded_null_stored_as_is():
-    """Corner case (documented in ``_deep_merge``): when the nested map itself
-    doesn't exist in base yet, the overlay dict is assigned wholesale — null
-    entries inside are NOT treated as deletes (can't delete from a map that
-    doesn't exist yet). Pins the guarantee against a future refactor."""
+    """极端情况（记录在``_deep_merge``中）：当嵌套映射本身
+    如果基础数据中尚不存在该映射，会整体赋予覆盖字典；其中的 null 条目不会按删除处理
+    ，因为无法从尚不存在的映射中删除内容。 针对未来的重构提供保证。
+    """
     merged = _deep_merge({}, {"new_map": {"KEY": None}})
     assert merged == {"new_map": {"KEY": None}}
 
 
 def test_deep_merge_non_null_still_wins():
-    """Regression: non-null values still set/overwrite and merge as before."""
+    """Regression: 非null值仍然像以前一样设置/覆盖和合并。"""
     merged = _deep_merge({"a": 1, "b": {"x": 1}}, {"a": 2, "b": {"y": 2}})
     assert merged == {"a": 2, "b": {"x": 1, "y": 2}}
 
@@ -1467,7 +1465,7 @@ def test_deep_merge_non_null_still_wins():
 
 
 def test_update_agent_settings_same_kind_merge() -> None:
-    """Same-kind update deep-merges within the variant."""
+    """同类更新在变体中深度合并。"""
     settings = PersistedSettings()
     settings.update({"agent_settings_diff": {"llm": {"model": "gpt-4o"}}})
     assert isinstance(settings.agent_settings, OpenHandsAgentSettings)
@@ -1475,7 +1473,7 @@ def test_update_agent_settings_same_kind_merge() -> None:
 
 
 def test_update_agent_settings_kind_switch_replaces_fresh() -> None:
-    """Kind switch starts from fresh variant; old fields are not carried."""
+    """种类切换从新变体开始； 不携带旧字段。"""
     settings = PersistedSettings()
     settings.update({"agent_settings_diff": {"llm": {"model": "gpt-x"}}})
 
@@ -1488,7 +1486,7 @@ def test_update_agent_settings_kind_switch_replaces_fresh() -> None:
 
 
 def test_update_agent_settings_switch_back_to_openhands() -> None:
-    """Switching back to openhands starts fresh; ACP fields are not leaked."""
+    """切换回 OpenHands 重新开始； ACP 字段未泄漏。"""
     from openhands.sdk.settings.model import OpenHandsAgentSettings
 
     settings = PersistedSettings()
@@ -1505,7 +1503,7 @@ def test_update_agent_settings_switch_back_to_openhands() -> None:
 
 
 def test_update_agent_settings_null_unsets_optional_field() -> None:
-    """A null value on an optional field resets it to default (RFC 7386 semantics)."""
+    """可选字段上的 null 值会将其重置为默认值（RFC 7386 语义）。"""
     settings = PersistedSettings()
     settings.update(
         {
@@ -1525,7 +1523,7 @@ def test_update_agent_settings_null_unsets_optional_field() -> None:
 
 
 def test_update_agent_settings_secret_survives_same_kind_merge() -> None:
-    """An existing api_key in agent_settings is preserved across a same-kind update."""
+    """agent_settings 中现有的 api_key 在同类更新中保留。"""
     from pydantic import SecretStr
 
     settings = PersistedSettings()
@@ -1541,9 +1539,10 @@ def test_update_agent_settings_secret_survives_same_kind_merge() -> None:
 
 
 def test_patch_settings_null_on_scalar_field_fails_loudly(client_with_settings):
-    """Regression guard against the silent-reset footgun: ``null`` on a
-    non-optional scalar like ``confirmation_mode`` is rejected (422), not
-    silently reverted to its (unsafe) default."""
+    """回归防范静音重置足枪：``null`` 在
+    像 ``confirmation_mode`` 这样的非可选标量被拒绝（422），而不是默默地恢复到它的（
+    不安全的）默认值。
+    """
     response = client_with_settings.patch(
         "/api/settings",
         json={"conversation_settings_diff": {"confirmation_mode": None}},
@@ -1554,11 +1553,11 @@ def test_patch_settings_null_on_scalar_field_fails_loudly(client_with_settings):
 def test_patch_settings_switch_agent_kind_from_acp_to_openhands(
     client_with_settings, temp_persistence_dir
 ):
-    """PATCH /api/settings can switch from ACP to OpenHands.
+    """PATCH/api/settings可以从ACP到OpenHands切换。
 
-    When ``agent_kind`` changes, incompatible fields from the old variant
-    (like ``acp_command``) must not be merged into the new variant.
-    This is a variant replacement, not a field merge."""
+    当 ``agent_kind`` 更改时，旧变体中的不兼容字段（如 ``acp_command``）不得合并到新
+    变体中。 这是变体替换，而不是字段合并。
+    """
     acp = ACPAgentSettings(acp_command=["echo", "test"])
     persisted = PersistedSettings(agent_settings=acp)
     payload = persisted.model_dump(mode="json", context={"expose_secrets": "plaintext"})
@@ -1569,7 +1568,7 @@ def test_patch_settings_switch_agent_kind_from_acp_to_openhands(
     assert seeded["agent_kind"] == "acp"
     assert "llm" not in seeded
 
-    # Switch to OpenHands, restating ``llm`` with a new model.
+    # 切换到 OpenHands，用新模型重申 ``llm``。
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1580,11 +1579,11 @@ def test_patch_settings_switch_agent_kind_from_acp_to_openhands(
         },
     )
 
-    # Should succeed — no validation error about leftover ACP-specific fields
+    # 应该成功 — 关于剩余的 ACP 特定字段没有验证错误
     assert response.status_code == 200
     body = response.json()
     assert body["agent_settings"]["agent_kind"] == "openhands"
-    # ACP-specific fields should not appear in the response
+    # ACP 特定字段不应出现在响应中
     assert "acp_command" not in body["agent_settings"]
     assert body["agent_settings"]["llm"]["model"] == "claude-3-5-sonnet-20241022"
 
@@ -1592,15 +1591,14 @@ def test_patch_settings_switch_agent_kind_from_acp_to_openhands(
 def test_patch_settings_switch_drops_shared_field_when_not_restated(
     client_with_settings, temp_persistence_dir
 ):
-    """A shared field (``llm``) set on the OLD variant is dropped on a kind
-    switch unless the caller restates it — it falls back to the new variant's
-    default rather than silently carrying over.
+    """在 OLD 变体上设置的共享字段 (``llm``) 被删除到一个种类上
+    除非调用者重申它，否则它会回退到新变体的默认值，而不是默默地保留。
 
-    This pins the intentional "fresh start on the new variant" contract: a
-    kind switch is a variant replacement, so shared fields are not inherited.
-    Callers that want to preserve a shared field must include it in the switch
-    payload (see the sibling test, which restates ``llm``)."""
-    # Seed ACP settings stored before the v7 migration, with a non-default llm.
+    这固定了有意的“新变体的新开始”契约：种类切换是变体替换，因此共享字段不会被继承。
+    想要保留共享字段的调用者必须将其包含在开关载荷中（请参阅兄弟测试，其中重申了
+    ``llm``）。
+    """
+    # 在 v7 迁移之前存储的种子 ACP 设置，具有非默认 llm。
     _write_settings_file(
         temp_persistence_dir,
         {
@@ -1613,7 +1611,7 @@ def test_patch_settings_switch_drops_shared_field_when_not_restated(
         },
     )
 
-    # Switch to OpenHands WITHOUT restating llm.
+    # 切换到 OpenHands WITHOUT 重述 llm。
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"agent_kind": "openhands"}},
@@ -1622,19 +1620,19 @@ def test_patch_settings_switch_drops_shared_field_when_not_restated(
     assert response.status_code == 200
     body = response.json()
     assert body["agent_settings"]["agent_kind"] == "openhands"
-    # The ACP-seeded model is NOT carried over; llm falls back to the
-    # OpenHands variant's default model.
+    # ACP 种子模型被延续到不； llm 回退到 OpenHands 变体的默认模型。
+    #
     default_model = OpenHandsAgentSettings().llm.model
     assert body["agent_settings"]["llm"]["model"] == default_model
     assert body["agent_settings"]["llm"]["model"] != "acp-only-model"
 
 
 def test_patch_settings_switch_agent_kind_from_openhands_to_acp(client_with_settings):
-    """PATCH /api/settings can switch from OpenHands to ACP.
+    """PATCH/api/settings可以从OpenHands到ACP切换。
 
-    When switching to ACP, the new variant's required fields should be set
-    without interference from the old variant's fields."""
-    # Seed with OpenHands settings (default)
+    切换到 ACP 时，应设置新变体的必填字段，而不会受到旧变体字段的干扰。
+    """
+    # 设置为 OpenHands 的种子（默认）
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1645,7 +1643,7 @@ def test_patch_settings_switch_agent_kind_from_openhands_to_acp(client_with_sett
     )
     assert response.status_code == 200
 
-    # Switch to ACP
+    # 切换到ACP
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1656,7 +1654,7 @@ def test_patch_settings_switch_agent_kind_from_openhands_to_acp(client_with_sett
         },
     )
 
-    # Should succeed — no validation error about leftover OpenHands-specific fields
+    # 应该成功 — 关于剩余的 OpenHands 特定字段没有验证错误
     assert response.status_code == 200
     body = response.json()
     assert body["agent_settings"]["agent_kind"] == "acp"
@@ -1664,22 +1662,23 @@ def test_patch_settings_switch_agent_kind_from_openhands_to_acp(client_with_sett
 
 
 def test_patch_settings_same_kind_restated_still_deep_merges(client_with_settings):
-    """Re-stating the current ``agent_kind`` is NOT a variant switch: the diff
-    must still deep-merge so unrelated fields survive.
+    """重新声明当前的 ``agent_kind`` 是不的变体开关： diff
+    必须仍然深合并，以保留无关字段。
 
-    ``new_kind != old_kind`` is False when the kind is restated, so the
-    deep-merge branch runs. This pins that a client which echoes back the
-    current ``agent_kind`` alongside an incremental edit does not accidentally
-    trigger a full variant replacement (which would reset sibling fields)."""
-    # Establish a model on the default OpenHands variant.
+    当类型被重述时，``new_kind != old_kind`` 是 False，因此深度合并分支运行。 这表明
+    ，客户端回显当前 ``agent_kind`` 并且
+    进行增量编辑时，不会意外触发全变体替换（这会重置兄弟字段）。
+    """
+    # 在默认 OpenHands 变体上建立模型。
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "gpt-4o"}}},
     )
     assert response.status_code == 200
 
-    # Restate agent_kind=openhands while setting only the api_key. Because the
-    # kind is unchanged, this deep-merges and the model must be preserved.
+    # 重新设置 agent_kind=OpenHands，同时仅设置 api_key。 因为种类没有改变，所以这种深度
+    # 合并和模型必须被保留。
+    #
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1692,18 +1691,18 @@ def test_patch_settings_same_kind_restated_still_deep_merges(client_with_setting
     assert response.status_code == 200
     body = response.json()
     assert body["agent_settings"]["agent_kind"] == "openhands"
-    # The model set in the first PATCH survives — proving deep-merge ran.
+    # 第一个 PATCH 中设置的模型得以幸存——证明了深度合并运行。
     assert body["agent_settings"]["llm"]["model"] == "gpt-4o"
     assert body["llm_api_key_is_set"] is True
 
 
 def test_patch_settings_same_kind_merge_after_a_switch(client_with_settings):
-    """After a variant switch, subsequent same-kind PATCHes resume deep-merge.
+    """在变种切换后，后续同种类型的 PATCHes 会进行深合并。
 
-    The switch itself is a replacement, but the newly active variant must
-    behave like any other for incremental edits afterwards — a follow-up
-    field edit must not wipe the fields set during the switch."""
-    # Switch from default OpenHands to ACP, setting two ACP fields.
+    开关本身是一个替代方案，但新的激活变体必须像其他任何东西一样行为，之后的增量编辑
+    必须不会抹掉在开关期间设置的字段。
+    """
+    # 从默认的 OpenHands 切换到 ACP，设置两个 ACP 字段。
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1717,8 +1716,9 @@ def test_patch_settings_same_kind_merge_after_a_switch(client_with_settings):
     assert response.status_code == 200
     assert response.json()["agent_settings"]["acp_command"] == ["my-cli"]
 
-    # Same-kind follow-up: edit a different field. Deep-merge must preserve
-    # acp_command and acp_args set during the switch.
+    # 同类后续：编辑不同的字段。 深度合并必须保留切换期间设置的 acp_command 和 acp_args
+    # 。
+    #
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"acp_model": "some-model"}},
@@ -1730,11 +1730,11 @@ def test_patch_settings_same_kind_merge_after_a_switch(client_with_settings):
     assert body["agent_settings"]["acp_model"] == "some-model"
 
 
-# ── Secrets CRUD tests ──────────────────────────────────────────────────
+# ── 机密 CRUD 测试 ──────────────────────────────────────────────────
 
 
 def test_list_secrets_empty(client_with_settings):
-    """GET /api/settings/secrets returns empty list when no secrets exist."""
+    """当不存在机密时，GET /api/settings/secrets 返回空列表。"""
     response = client_with_settings.get("/api/settings/secrets")
 
     assert response.status_code == 200
@@ -1743,8 +1743,8 @@ def test_list_secrets_empty(client_with_settings):
 
 
 def test_create_and_list_secrets(client_with_settings):
-    """PUT /api/settings/secrets creates a secret, GET lists it."""
-    # Create a secret
+    """PUT /api/settings/secrets 创建机密，GET 列出它。"""
+    # 创建一个机密
     create_response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "secret-value", "description": "Test"},
@@ -1754,7 +1754,7 @@ def test_create_and_list_secrets(client_with_settings):
     assert create_response.json()["name"] == "MY_SECRET"
     assert create_response.json()["description"] == "Test"
 
-    # List secrets (should NOT include value)
+    # 列表机密（应不包含值）
     list_response = client_with_settings.get("/api/settings/secrets")
 
     assert list_response.status_code == 200
@@ -1840,8 +1840,8 @@ def test_list_secrets_rejects_unknown_agent_profile(client_with_settings):
 def test_list_secrets_unloadable_agent_profile_is_400(
     client_with_settings, temp_persistence_dir
 ):
-    """A scoping profile that no longer validates answers 400, as the
-    agent-profile routes do, not an unhandled 500."""
+    """范围界定配置文件不再验证答案 400，因为
+    智能体-配置文件路由确实如此，而不是未处理的 500。"""
     create = client_with_settings.post(
         "/api/agent-profiles/broken",
         json={"llm_profile_ref": "default", "secret_refs": ["ALLOWED"]},
@@ -1867,7 +1867,7 @@ def test_list_secrets_unloadable_agent_profile_is_400(
 def test_list_secrets_busy_agent_profile_store_is_503(
     client_with_settings, monkeypatch
 ):
-    """A lock timeout on the agent-profile store answers 503, not 500."""
+    """智能体配置文件存储上的锁超时回答 503，而不是 500。"""
     store = get_agent_profile_store()
 
     def _timeout(*_args, **_kwargs):
@@ -1885,14 +1885,14 @@ def test_list_secrets_busy_agent_profile_store_is_503(
 
 
 def test_get_secret_value(client_with_settings):
-    """GET /api/settings/secrets/{name} returns the raw secret value."""
-    # Create a secret
+    """GET /api/settings/secrets/{name} 返回原始机密值。"""
+    # 创建一个机密
     client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "secret-value-123"},
     )
 
-    # Get the secret value
+    # 获取机密值
     response = client_with_settings.get("/api/settings/secrets/MY_SECRET")
 
     assert response.status_code == 200
@@ -1901,47 +1901,47 @@ def test_get_secret_value(client_with_settings):
 
 
 def test_get_secret_value_not_found(client_with_settings):
-    """GET /api/settings/secrets/{name} returns 404 for nonexistent secret."""
+    """对于不存在的机密，GET /api/settings/secrets/{name} 返回 404。"""
     response = client_with_settings.get("/api/settings/secrets/NONEXISTENT")
 
     assert response.status_code == 404
 
 
 def test_delete_secret(client_with_settings):
-    """DELETE /api/settings/secrets/{name} deletes the secret."""
-    # Create a secret
+    """DELETE /api/settings/secrets/{name} 删除机密。"""
+    # 创建一个机密
     client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "secret-value"},
     )
 
-    # Delete it
+    # 删除它
     delete_response = client_with_settings.delete("/api/settings/secrets/MY_SECRET")
     assert delete_response.status_code == 200
     assert delete_response.json()["deleted"] is True
 
-    # Verify it's gone
+    # 确认它已经消失
     get_response = client_with_settings.get("/api/settings/secrets/MY_SECRET")
     assert get_response.status_code == 404
 
 
 def test_secret_name_validation(client_with_settings):
-    """PUT /api/settings/secrets validates secret name format."""
-    # Invalid: starts with number
+    """PUT /api/settings/secrets 验证机密名称格式。"""
+    # 无效：以数字开头
     response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "123_invalid", "value": "test"},
     )
     assert response.status_code == 422
 
-    # Invalid: contains special characters
+    # 无效：包含特殊字符
     response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "invalid-name", "value": "test"},
     )
     assert response.status_code == 422
 
-    # Valid: starts with letter, alphanumeric + underscore
+    # 有效：以字母、字母数字+下划线开头
     response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "VALID_NAME_123", "value": "test"},
@@ -1949,26 +1949,26 @@ def test_secret_name_validation(client_with_settings):
     assert response.status_code == 200
 
 
-# ── PATCH validation and error handling tests ───────────────────────────
+# ── PATCH 验证及错误处理测试 ────────────────────────────
 
 
 def test_patch_settings_validation_error_returns_422(client_with_settings):
-    """PATCH /api/settings with invalid data returns 422."""
-    # Invalid: negative max_iterations
+    """PATCH /api/settings 包含无效数据返回 422。"""
+    # 无效：负数max_iterations
     response = client_with_settings.patch(
         "/api/settings",
         json={"conversation_settings_diff": {"max_iterations": -5}},
     )
     assert response.status_code == 422
-    # Error message should be sanitized (not expose secrets)
+    # 应清理错误消息（不公开机密）
     assert response.json()["detail"] == "Settings validation failed"
 
 
 def test_patch_settings_validation_error_does_not_leak_secrets(client_with_settings):
-    """PATCH validation errors don't leak secret values in error messages."""
-    # Try to update with invalid model value (causes validation to fail)
-    # This tests that even if the API key was in memory during validation,
-    # it doesn't appear in error messages
+    """PATCH 验证错误不会泄漏错误消息中的机密值。"""
+    # 尝试使用无效的模型值更新（会导致验证失败） 这个测试即使在验证期间内存中有API键，也
+    # 不会出现在错误消息中
+    #
     response = client_with_settings.patch(
         "/api/settings",
         json={
@@ -1976,22 +1976,22 @@ def test_patch_settings_validation_error_does_not_leak_secrets(client_with_setti
                 "llm": {
                     "api_key": "sk-secret-value",
                     "model": "",
-                }  # Empty model is invalid
+                }  # 空模型无效
             }
         },
     )
-    # Should return 422 with sanitized message
+    # 应返回 422 并包含已清理的消息
     assert response.status_code == 422
-    # The error message should be sanitized - NOT contain the secret value
+    # 应清理错误消息 - 不包含机密值
     error_detail = response.json()["detail"]
     assert "sk-secret-value" not in error_detail
-    # And it should be the generic sanitized message
+    # 它应该是通用的清理消息
     assert error_detail == "Settings validation failed"
 
 
 def test_secret_upsert_updates_existing(client_with_settings):
-    """PUT /api/settings/secrets updates existing secret (upsert behavior)."""
-    # Create initial secret
+    """PUT /api/settings/secrets 更新现有机密（更新插入行为）。"""
+    # 创建初始机密
     client_with_settings.put(
         "/api/settings/secrets",
         json={
@@ -2001,7 +2001,7 @@ def test_secret_upsert_updates_existing(client_with_settings):
         },
     )
 
-    # Update the secret (same name, new value)
+    # 更新机密（相同名称，新值）
     update_response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "updated-value", "description": "Updated"},
@@ -2009,7 +2009,7 @@ def test_secret_upsert_updates_existing(client_with_settings):
     assert update_response.status_code == 200
     assert update_response.json()["description"] == "Updated"
 
-    # Verify the value was updated
+    # 验证值已更新
     get_response = client_with_settings.get("/api/settings/secrets/MY_SECRET")
     assert get_response.status_code == 200
     assert get_response.text == "updated-value"
@@ -2019,15 +2019,15 @@ def test_secret_upsert_updates_existing(client_with_settings):
 
 
 def test_secret_name_validation_on_get(client_with_settings):
-    """GET /api/settings/secrets/{name} validates name format."""
-    # Invalid name format
+    """GET /api/settings/secrets/{name} 验证名称格式。"""
+    # 名称格式无效
     response = client_with_settings.get("/api/settings/secrets/123_invalid")
     assert response.status_code == 422
 
 
 def test_secret_name_validation_on_delete(client_with_settings):
-    """DELETE /api/settings/secrets/{name} validates name format."""
-    # Invalid name format
+    """DELETE /api/settings/secrets/{name} 验证名称格式。"""
+    # 名称格式无效
     response = client_with_settings.delete("/api/settings/secrets/invalid-name")
     assert response.status_code == 422
 
@@ -2043,7 +2043,7 @@ def test_secret_name_validation_on_delete(client_with_settings):
 def test_secret_routes_document_the_invalid_name_status(
     client_with_settings, method, path, request_kwargs
 ):
-    """The OpenAPI description names the status an invalid secret name gets."""
+    """OpenAPI 描述命名无效的机密名称所获得的状态。"""
     url = path.replace("{name}", "1bad")
     response = client_with_settings.request(method.upper(), url, **request_kwargs)
     assert response.status_code == 422
@@ -2055,18 +2055,17 @@ def test_secret_routes_document_the_invalid_name_status(
     assert "400" not in description
 
 
-# ── Concurrent update tests ────────────────────────────────────────────────
+# ── 并发更新测试────────────────────────────────────────────────
 
 
 def test_concurrent_patch_updates_preserve_data(client_with_settings):
-    """PATCH /api/settings handles concurrent updates without data loss.
+    """PATCH /api/settings 处理并发更新而不丢失数据。
 
-    Tests that multiple sequential PATCH requests don't corrupt settings
-    or lose updates due to race conditions in the file locking mechanism.
+    测试多个连续的 PATCH 请求不会因文件锁定机制中的竞态条件而损坏设置或丢失更新。
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Initialize settings
+    # 初始化设置
     client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "initial-model"}}},
@@ -2076,7 +2075,7 @@ def test_concurrent_patch_updates_preserve_data(client_with_settings):
     errors = []
 
     def update_settings(model_name: str):
-        """Make a PATCH request to update the model."""
+        """发出 PATCH 请求来更新模型。"""
         try:
             response = client_with_settings.patch(
                 "/api/settings",
@@ -2086,7 +2085,7 @@ def test_concurrent_patch_updates_preserve_data(client_with_settings):
         except Exception as e:
             return (model_name, str(e))
 
-    # Run concurrent updates
+    # 运行并发次更新
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(update_settings, f"model-{i}") for i in range(10)]
         for future in as_completed(futures):
@@ -2095,49 +2094,49 @@ def test_concurrent_patch_updates_preserve_data(client_with_settings):
             if result[1] != 200:
                 errors.append(result)
 
-    # All requests should succeed (file locking should serialize them)
+    # 所有请求都应该成功（文件锁定应该序列化）
     assert len(errors) == 0, f"Some requests failed: {errors}"
 
-    # Final state should be consistent (one of the model values)
+    # 最终状态应该一致（模型值之一）
     final_response = client_with_settings.get("/api/settings")
     assert final_response.status_code == 200
     final_model = final_response.json()["agent_settings"]["llm"]["model"]
-    # The final value should be one of the values we set (not corrupted)
+    # 最终值应该是我们设置的值之一（未损坏）
     assert final_model.startswith("model-"), f"Unexpected model value: {final_model}"
 
 
-# ── Error handling tests ───────────────────────────────────────────────────
+# ── 错误处理测试────────────────────────────────────────────────────
 
 
 def test_get_settings_encrypted_mode_without_cipher_returns_503(temp_persistence_dir):
-    """GET /api/settings with X-Expose-Secrets: encrypted without cipher returns 503.
+    """GET /api/settings 使用 X-Expose-机密：不使用密码加密返回 503。
 
-    When OH_SECRET_KEY is not set, config.cipher is None and requesting
-    encrypted mode should fail fast with a clear error (503 Service Unavailable).
+    当未设置 OH_SECRET_KEY 时，config.cipher 为 None，并且请求加密模式应该会快速失败
+    并出现明显错误（503 服务不可用）。
     """
-    # Create a config WITHOUT secret_key (cipher will be None)
+    # 创建配置 WITHOUT secret_key（密码为 None）
     config = Config(
         static_files_path=None,
         session_api_keys=[],
-        secret_key=None,  # No cipher!
+        secret_key=None,  # 没有密码！
     )
     client = TestClient(create_app(config))
 
-    # First, verify we can create settings (no cipher needed for plaintext)
-    # Note: Without cipher, we need to manually create a settings file
+    # 首先，验证我们可以创建设置（明文不需要密码）
+    # 注意：如果没有密码，我们需要手动创建一个设置文件
     store = FileSettingsStore(persistence_dir=temp_persistence_dir, cipher=None)
     settings = PersistedSettings()
     assert isinstance(settings.agent_settings, OpenHandsAgentSettings)
     settings.agent_settings.llm.api_key = SecretStr("sk-test-secret-key")
     store.save(settings)
 
-    # Now request encrypted mode - should fail because no cipher
+    # 现在请求加密模式 - 应该会失败，因为没有密码
     response = client.get("/api/settings", headers={"X-Expose-Secrets": "encrypted"})
 
-    # Should return 503 (service unavailable - encryption not configured)
+    # 应返回 503（服务不可用 - 未配置加密）
     assert response.status_code == 503
     body = response.json()
-    # Error message may be in 'detail' or 'exception' depending on error handler config
+    # 错误消息可能是“详细”或“异常”，具体取决于错误处理程序配置
     error_text = body.get("detail", "") + body.get("exception", "")
     assert "OH_SECRET_KEY" in error_text
 
@@ -2145,54 +2144,52 @@ def test_get_settings_encrypted_mode_without_cipher_returns_503(temp_persistence
 def test_patch_settings_corrupted_file_returns_409(
     client_with_settings, temp_persistence_dir
 ):
-    """PATCH /api/settings returns 409 when settings file is corrupted.
+    """当设置文件损坏时，PATCH /api/settings 返回 409。
 
-    Tests the RuntimeError handling path that catches corruption or
-    encryption key mismatches.
+    测试捕获损坏或加密密钥不匹配的 RuntimeError 处理路径。
     """
-    # Initialize valid settings first
+    # 首先初始化有效设置
     client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "gpt-4"}}},
     )
 
-    # Corrupt the settings file directly
+    # 直接损坏设置文件
     settings_file = temp_persistence_dir / "settings.json"
     settings_file.write_text("{ this is not valid JSON !!!}")
 
-    # Attempt to update - should fail with 409 (corruption detected)
+    # 尝试更新 - 应失败并显示 409（检测到损坏）
     response = client_with_settings.patch(
         "/api/settings",
         json={"agent_settings_diff": {"llm": {"model": "gpt-4o"}}},
     )
 
-    # RuntimeError from store.update() should be caught and returned as 409
+    # store.update() 中的 RuntimeError 应该被捕获并返回为 409
     assert response.status_code == 409
     assert "corrupted" in response.json()["detail"].lower()
 
 
-# ── Corrupted secrets file tests ───────────────────────────────────────────
+# ── 损坏的机密个文件测试 ──────────────────────────────────────────────
 
 
 def test_create_secret_corrupted_file_returns_500(
     client_with_settings, temp_persistence_dir
 ):
-    """PUT /api/settings/secrets returns 500 when secrets file is corrupted.
+    """当机密文件损坏时，PUT /api/settings/secrets 返回 500。
 
-    Tests that the data loss protection path is triggered when set_secret()
-    encounters a corrupted secrets file.
+    测试当 set_secret() 遇到损坏的机密文件时是否触发数据丢失保护路径。
     """
-    # Create initial secret
+    # 创建初始机密
     client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "test"},
     )
 
-    # Corrupt the secrets file
+    # 损坏机密文件
     secrets_file = temp_persistence_dir / "secrets.json"
     secrets_file.write_text("{ corrupted !!!}")
 
-    # Attempt to create new secret - should fail to prevent data loss
+    # 尝试创建新的机密 - 应该无法防止数据丢失
     response = client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "OTHER_SECRET", "value": "value"},
@@ -2204,22 +2201,21 @@ def test_create_secret_corrupted_file_returns_500(
 def test_delete_secret_corrupted_file_returns_500(
     client_with_settings, temp_persistence_dir
 ):
-    """DELETE /api/settings/secrets returns 500 when secrets file is corrupted.
+    """当机密文件损坏时，DELETE /api/settings/secrets 返回 500。
 
-    Tests that the data loss protection path is triggered when delete_secret()
-    encounters a corrupted secrets file.
+    测试当 delete_secret() 遇到损坏的机密文件时是否触发数据丢失保护路径。
     """
-    # Create initial secret
+    # 创建初始机密
     client_with_settings.put(
         "/api/settings/secrets",
         json={"name": "MY_SECRET", "value": "test"},
     )
 
-    # Corrupt the secrets file
+    # 损坏机密文件
     secrets_file = temp_persistence_dir / "secrets.json"
     secrets_file.write_text("{ corrupted !!!}")
 
-    # Attempt to delete secret - should fail to prevent data loss
+    # 尝试删除机密 - 应该无法防止数据丢失
     response = client_with_settings.delete("/api/settings/secrets/MY_SECRET")
 
     assert response.status_code == 500

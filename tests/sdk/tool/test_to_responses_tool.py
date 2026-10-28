@@ -27,7 +27,7 @@ def test_to_responses_tool_includes_strict_and_params():
     out = T(description="d", action_type=A, observation_type=Obs).to_responses_tool()
     assert out["type"] == "function"
     assert out["name"] == "t"
-    # description is optional in the TypedDict; access via get for type safety
+    # TypedDict 中的描述是可选的； 通过GET访问，以确保类型安全
     assert out.get("description") in {"d", None}
     assert out["strict"] is False
     assert "parameters" in out and isinstance(out["parameters"], dict)

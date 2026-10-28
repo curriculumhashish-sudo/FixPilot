@@ -1,4 +1,4 @@
-"""Tests for message conversion with dynamic context."""
+"""使用动态上下文测试消息转换。"""
 
 from typing import cast
 

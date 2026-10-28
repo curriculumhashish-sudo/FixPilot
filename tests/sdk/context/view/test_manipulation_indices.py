@@ -3,19 +3,19 @@ from tests.sdk.context.view.conftest import message_event  # noqa: F401
 
 
 def test_complete_empty_list() -> None:
-    """Test complete manipulation indices with empty event list."""
+    """使用空事件列表测试完整的操作索引。"""
     manipulation_indices = ManipulationIndices.complete([])
     assert manipulation_indices == {0}
 
 
 def test_complete_single_message_event() -> None:
-    """Test complete manipulation indices with a single message event."""
+    """使用单个消息事件测试完整的操作索引。"""
     manipulation_indices = ManipulationIndices.complete([message_event("Event 0")])
     assert manipulation_indices == {0, 1}
 
 
 def test_complete_multiple_message_events() -> None:
-    """Test complete manipulation indices with multiple message events."""
+    """使用多个消息事件测试完整的操作索引。"""
     manipulation_indices = ManipulationIndices.complete(
         [
             message_event("Event 0"),

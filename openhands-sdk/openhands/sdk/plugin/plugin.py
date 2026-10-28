@@ -1,10 +1,10 @@
-"""Plugin class for loading and managing plugins.
+"""用于加载和管理插件的插件类。
 
-``Plugin`` is the format-neutral, in-memory model plus its format-agnostic
-behavior (merging skills / MCP config into an agent). Reading a plugin directory
-off disk is delegated to a :class:`~openhands.sdk.plugin.format.PluginFormat`
-strategy (see ``format.py``); ``Plugin.load()`` is a thin dispatcher that detects
-the on-disk format and returns a normalized ``Plugin``.
+``Plugin`` 是格式中立的内存模型加上其与格式无关的行为（将技能 / MCP 配置合并到智能体
+中）。 从磁盘读取插件目录被委托给：class:
+`~openhands.sdk.plugin.format.PluginFormat` 策略（参见 ``format.py``）；
+``Plugin.load()`` 是一
+个精简调度程序，用于检测磁盘格式并返回标准化的 ``Plugin``。
 """
 
 from __future__ import annotations
@@ -34,21 +34,21 @@ logger = get_logger(__name__)
 
 
 class Plugin(BaseModel):
-    """A plugin that bundles skills, hooks, MCP config, agents, and commands.
+    """一个捆绑技能、挂钩、MCP 配置、智能体和命令的插件。
 
-    Plugins follow the Claude Code plugin structure for compatibility:
+    插件遵循 Claude Code 插件结构以实现兼容性：
 
     ```
     plugin-name/
-    ├── .claude-plugin/           # or .plugin/
-    │   └── plugin.json          # Plugin metadata
-    ├── commands/                # Slash commands (optional)
-    ├── agents/                  # Specialized agents (optional)
-    ├── skills/                  # Agent Skills (optional)
-    ├── hooks/                   # Event handlers (optional)
+    ├── .claude-plugin/           # 或.plugin/
+    │   └── plugin.json          # 插件元数据
+    ├── commands/                # 斜线命令（可选）
+    ├── agents/                  # 专业智能体（可选）
+    ├── skills/                  # 智能体技能（可选）
+    ├── hooks/                   # 事件处理程序（可选）
     │   └── hooks.json
-    ├── .mcp.json                # External tool configuration (optional)
-    └── README.md                # Plugin documentation
+    ├── .mcp.json                # 外部工具配置（可选）
+    └── README.md                # 插件文档
     ```
     """
 
@@ -72,25 +72,25 @@ class Plugin(BaseModel):
 
     @property
     def name(self) -> str:
-        """Get the plugin name."""
+        """获取插件名称。"""
         return self.manifest.name
 
     @property
     def version(self) -> str:
-        """Get the plugin version."""
+        """获取插件版本。"""
         return self.manifest.version
 
     @property
     def description(self) -> str:
-        """Get the plugin description."""
+        """获取插件说明。"""
         return self.manifest.description
 
     @property
     def entry_slash_command(self) -> str | None:
-        """Get the full slash command for the entry point, if defined.
+        """获取入口的完整斜杠命令（如果已定义）。
 
-        Returns the slash command in format /<plugin-name>:<command-name>,
-        or None if no entry_command is defined in the manifest.
+        返回格式为 /<plugin-name>:<command-name> 的斜杠命令，如果清单中未定义
+        entry_command，则返回 None。
 
         Example:
             >>> plugin = Plugin.load(path)
@@ -102,18 +102,17 @@ class Plugin(BaseModel):
         return f"/{self.name}:{self.manifest.entry_command}"
 
     def get_all_skills(self) -> list[Skill]:
-        """Get all skills including those converted from commands.
+        """获得所有技能，包括从命令转换而来的技能。
 
-        Returns skills from both the skills/ directory and commands/ directory.
-        Commands are converted to keyword-triggered skills using the format
-        /<plugin-name>:<command-name>.
+        从技能/目录和命令/目录返回技能。 命令使用 /<plugin-name>:<command-name> 格式
+        转换为关键字触发技能。
 
         Returns:
-            Combined list of skills (original + command-derived skills).
+            技能组合列表（原始+命令衍生技能）。
         """
         all_skills = list(self.skills)
 
-        # Convert commands to skills with keyword triggers
+        # 使用关键字触发器将命令转换为技能
         for command in self.commands:
             skill = command.to_skill(self.name)
             all_skills.append(skill)
@@ -125,32 +124,31 @@ class Plugin(BaseModel):
         agent_context: AgentContext | None = None,
         max_skills: int | None = None,
     ) -> AgentContext:
-        """Add this plugin's skills to an agent context.
+        """将这个插件的技能添加到智能体上下文。
 
-        Plugin skills override existing skills with the same name.
-        Includes both explicit skills and command-derived skills.
+        插件技能会覆盖同名的现有技能。 包括显性技能和命令衍生技能。
 
         Args:
-            agent_context: Existing agent context (or None to create new)
-            max_skills: Optional max total skills (raises ValueError if exceeded)
+            agent_context: 现有智能体上下文（或 None 创建新的）
+            max_skills: 可选的最大总技能（如果超过则提高 ValueError）
 
         Returns:
-            New AgentContext with this plugin's skills added
+            新增 AgentContext 并添加了此插件的技能
 
         Raises:
-            ValueError: If max_skills limit would be exceeded
+            ValueError: 如果超出 max_skills 限制
 
         Example:
             >>> plugin = Plugin.load(Plugin.fetch("github:owner/plugin"))
             >>> new_context = plugin.add_skills_to(agent.agent_context, max_skills=100)
             >>> agent = agent.model_copy(update={"agent_context": new_context})
         """
-        # Import at runtime to avoid circular import
+        # 在运行时导入以避免循环导入
         from openhands.sdk.context import AgentContext
 
         existing_skills = agent_context.skills if agent_context else []
 
-        # Get all skills including command-derived skills
+        # 获得所有技能，包括命令衍生技能
         all_skills = self.get_all_skills()
 
         skills_by_name = {s.name: s for s in existing_skills}
@@ -174,18 +172,17 @@ class Plugin(BaseModel):
         self,
         mcp_config: dict[str, MCPServer] | None = None,
     ) -> dict[str, MCPServer]:
-        """Add this plugin's MCP config to an MCP config map.
+        """将此插件的 MCP 配置添加到 MCP 配置映射中。
 
-        Plugin MCP servers override existing servers with the same name.
+        插件 MCP 服务器覆盖具有相同名称的现有服务器。
 
-        Merge semantics: servers are merged by server name, and the
-        plugin wins when the same server is present in both configs.
+        合并语义：服务器按服务器名称合并，当两个配置中存在相同的服务器时，插件获胜。
 
         Args:
-            mcp_config: Existing MCP servers (or None to create a new map)
+            mcp_config: 现有 MCP 个服务器（或 None 个服务器来创建新地图）
 
         Returns:
-            New MCP server map with this plugin's servers added
+            添加了此插件服务器的新 MCP 服务器地图
 
         Example:
             >>> plugin = Plugin.load(Plugin.fetch("github:owner/plugin"))
@@ -210,46 +207,46 @@ class Plugin(BaseModel):
         update: bool = True,
         repo_path: str | None = None,
     ) -> Path:
-        """Fetch a plugin from a remote source and return the local cached path.
+        """从远程源获取插件并返回本地缓存路径。
 
-        This method fetches plugins from remote sources (GitHub repositories, git URLs)
-        and caches them locally. Use the returned path with Plugin.load() to load
-        the plugin.
+        此方法从远程源（GitHub 仓库，URLs Git）获取插件，并本地缓存它们。 使用返回的
+        路径 Plugin.load() 加载插件。
 
         Args:
-            source: Plugin source - can be:
-                - Any git URL (GitHub, GitLab, Bitbucket, Codeberg, self-hosted, etc.)
-                  e.g., "https://gitlab.com/org/repo", "git@bitbucket.org:team/repo.git"
-                - "github:owner/repo" - GitHub shorthand (convenience syntax)
-                - "/local/path" - Local path (returned as-is)
-            cache_dir: Directory for caching. Defaults to ~/.openhands/cache/plugins/
-            ref: Optional branch, tag, or commit to checkout.
-            update: If True and cache exists, update it. If False, use cached as-is.
-            repo_path: Subdirectory path within the git repository
-                (e.g., 'plugins/my-plugin' for monorepos). Only relevant for git
-                sources, not local paths. If specified, the returned path will
-                point to this subdirectory instead of the repository root.
+            source: 插件源 - 可以是：
+                - 任何 git URL（GitHub、GitLab、Bitbucket、Codeberg、自托管等）e.g.,
+                "
+                https://gitlab.com/org/repo",  "git@bitbucket.org:team/repo.git"
+                - "GitHub:owner/repo" - GitHub 简写（方便语法）
+                - “/local/path" - 本地路径（按原样返回）
+            cache_dir: 用于缓存的目录。 默认为~/.openhands/cache/plugins/
+            ref: 可选分支、标记或提交结账。
+            update: 如果True和缓存存在，则更新它。 如果 False，则按原样使用缓存。
+            repo_path: git 存储库中的子目录路径
+                （e.g., 'plugins/my-plugin' 用于 monorepos）。 仅与 git 源相关，与本
+                地路径无关。 如果指定，返回的
+                路径将指向该子目录而不是存储库根目录。
 
         Returns:
-            Path to the local plugin directory (ready for Plugin.load()).
-            If repo_path is specified, returns the path to that subdirectory.
+            本地插件目录的路径（为 Plugin.load() 做好准备）。 如果指定 repo_path，则
+            返回该子目录的路径。
 
         Raises:
-            PluginFetchError: If fetching fails or repo_path doesn't exist.
+            PluginFetchError: 如果获取失败或者repo_path不存在。
 
         Example:
             >>> path = Plugin.fetch("github:owner/my-plugin")
             >>> plugin = Plugin.load(path)
 
-            >>> # With specific version
+            >>> # 带有特定版本
             >>> path = Plugin.fetch("github:owner/my-plugin", ref="v1.0.0")
             >>> plugin = Plugin.load(path)
 
-            >>> # Fetch a plugin from a subdirectory in a monorepo
+            >>> # 从子目录中获取插件单体仓库
             >>> path = Plugin.fetch("github:owner/monorepo", repo_path="plugins/sub")
             >>> plugin = Plugin.load(path)
 
-            >>> # Fetch and load in one step
+            >>> # 一步到位，Fetch 和 load
             >>> plugin = Plugin.load(Plugin.fetch("github:owner/my-plugin"))
         """
         return fetch_plugin(
@@ -258,17 +255,17 @@ class Plugin(BaseModel):
 
     @classmethod
     def load(cls, plugin_path: str | Path) -> Plugin:
-        """Load a plugin from a directory.
+        """从目录加载插件。
 
         Args:
-            plugin_path: Path to the plugin directory.
+            plugin_path: 插件目录的路径。
 
         Returns:
-            Loaded Plugin instance.
+            已加载的插件实例。
 
         Raises:
-            FileNotFoundError: If the plugin directory doesn't exist.
-            ValueError: If the plugin manifest is invalid.
+            FileNotFoundError: 如果插件目录不存在。
+            ValueError: 如果插件清单无效。
         """
         plugin_dir = Path(plugin_path).resolve()
         if not plugin_dir.is_dir():
@@ -278,13 +275,13 @@ class Plugin(BaseModel):
 
     @classmethod
     def load_all(cls, plugins_dir: str | Path) -> list[Plugin]:
-        """Load all plugins from a directory.
+        """从目录加载所有插件。
 
         Args:
-            plugins_dir: Path to directory containing plugin subdirectories.
+            plugins_dir: 包含插件子目录的目录路径。
 
         Returns:
-            List of loaded Plugin instances.
+            已加载插件实例的列表。
         """
         plugins_path = Path(plugins_dir).resolve()
         if not plugins_path.is_dir():

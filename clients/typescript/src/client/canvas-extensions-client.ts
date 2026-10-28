@@ -101,12 +101,12 @@ export class CanvasExtensionsClient {
   }
 
   /**
-   * Bootstrap an authenticated session for an app backend.
+   * 为应用程序后端引导经过身份验证的会话。
    *
-   * `signal` is the caller's lifecycle signal (e.g. a React mount
-   * `AbortController`); it is combined with the client timeout so teardown or a
-   * retry cancels the in-flight bootstrap instead of letting it resolve into a
-   * superseded consumer and revoke the session the live frame is using.
+   * `signal` 是调用者的生命周期信号 (e.g. 反应安装
+   * `AbortController`); 它与客户端超时结合在一起，因此拆卸或
+   * 重试取消运行中的引导程序，而不是让它解析为
+   * 取代消费者并撤销实时框架正在使用的会话。
    */
   async createAppBackendSession(
     name: string,

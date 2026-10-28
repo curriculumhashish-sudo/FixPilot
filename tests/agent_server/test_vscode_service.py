@@ -1,4 +1,4 @@
-"""Tests for VSCode service."""
+"""VSCode 服务的测试。"""
 
 import asyncio
 import signal
@@ -15,7 +15,7 @@ from openhands.agent_server.vscode_service import (
 
 @pytest.fixture
 def vscode_service(tmp_path):
-    """Create a VSCode service instance for testing."""
+    """创建一个 VSCode 服务实例用于测试。"""
     return VSCodeService(
         port=8001,
     )
@@ -23,7 +23,7 @@ def vscode_service(tmp_path):
 
 @pytest.fixture
 def mock_openvscode_binary(tmp_path):
-    """Create a mock VSCode binary for testing."""
+    """创建一个模拟对象 VSCode 二进制文件用于测试。"""
     openvscode_root = tmp_path / "openhands" / ".openvscode-server"
     openvscode_root.mkdir(parents=True)
 
@@ -38,7 +38,7 @@ def mock_openvscode_binary(tmp_path):
 
 
 def test_vscode_service_initialization(tmp_path):
-    """Test VSCode service initialization."""
+    """测试 VSCode 服务初始化。"""
     service = VSCodeService(port=8002)
 
     assert service.port == 8002
@@ -48,7 +48,7 @@ def test_vscode_service_initialization(tmp_path):
 
 
 def test_vscode_service_initialization_with_server_base_path():
-    """Test VSCode service initialization with server_base_path."""
+    """测试 VSCode 服务初始化 server_base_path。"""
     service = VSCodeService(port=8002, server_base_path="/test/vscode")
 
     assert service.port == 8002
@@ -58,29 +58,29 @@ def test_vscode_service_initialization_with_server_base_path():
 
 
 def test_check_vscode_available_false(vscode_service, tmp_path):
-    """Test VSCode availability check when binary doesn't exist."""
-    # Set a non-existent path
+    """Test VSCode 当二进制不存在时的可用性检查。"""
+    # 设置不存在的路径
     vscode_service.openvscode_server_root = tmp_path / "nonexistent"
     assert not vscode_service._check_vscode_available()
 
 
 def test_check_vscode_available_true(vscode_service, mock_openvscode_binary):
-    """Test VSCode availability check when binary exists."""
+    """Test VSCode 存在二进制文件时的可用性检查。"""
     vscode_service.openvscode_server_root = mock_openvscode_binary
     assert vscode_service._check_vscode_available()
 
 
 @pytest.mark.asyncio
 async def test_is_port_available_true(tmp_path):
-    """Test port availability check when port is free."""
-    service = VSCodeService(port=0)  # Use port 0 to get any available port
+    """当端口空闲时测试端口可用性检查。"""
+    service = VSCodeService(port=0)  # 使用端口 0 获取任何可用端口
     assert await service._is_port_available()
 
 
 @pytest.mark.asyncio
 async def test_is_port_available_false(tmp_path):
-    """Test port availability check when port is occupied."""
-    # Start a server on a specific port
+    """测试端口可用性，检查端口是否被占用。"""
+    # 在特定端口上启动服务器
     server = await asyncio.start_server(lambda r, w: None, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
 
@@ -93,7 +93,7 @@ async def test_is_port_available_false(tmp_path):
 
 @pytest.mark.asyncio
 async def test_start_success(vscode_service, mock_openvscode_binary, tmp_path):
-    """Test successful VSCode service start."""
+    """测试成功 VSCode 服务启动。"""
     vscode_service.openvscode_server_root = mock_openvscode_binary
 
     with (
@@ -109,8 +109,8 @@ async def test_start_success(vscode_service, mock_openvscode_binary, tmp_path):
 
 @pytest.mark.asyncio
 async def test_start_no_binary(vscode_service, tmp_path):
-    """Test VSCode service start when binary is not available."""
-    # Set a non-existent path
+    """当二进制不可用时，测试 VSCode 服务启动。"""
+    # 设置不存在的路径
     vscode_service.openvscode_server_root = tmp_path / "nonexistent"
     result = await vscode_service.start()
 
@@ -120,22 +120,20 @@ async def test_start_no_binary(vscode_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_start_port_unavailable(vscode_service, mock_openvscode_binary):
-    """Test VSCode service start when port is unavailable."""
+    """当端口不可用时，测试 VSCode 服务启动。"""
     vscode_service.openvscode_server_root = mock_openvscode_binary
 
     with patch.object(vscode_service, "_is_port_available", return_value=False):
         result = await vscode_service.start()
 
         assert result is False
-        assert (
-            vscode_service.connection_token is not None
-        )  # Token is generated before port check
+        assert vscode_service.connection_token is not None  # token 在端口检查之前生成
 
 
 @pytest.mark.asyncio
 async def test_stop_with_process(vscode_service):
-    """Stopping signals the whole process group, since the launcher script
-    runs node as a child."""
+    """停止向整个进程组发出信号，因为启动程序脚本
+    将节点作为子节点运行。"""
     mock_process = AsyncMock(pid=4321)
     vscode_service.process = mock_process
 
@@ -152,8 +150,8 @@ async def test_stop_with_process(vscode_service):
 
 @pytest.mark.asyncio
 async def test_stop_waits_for_port_release(vscode_service):
-    """The launcher exiting is not enough: stop() returns once node has
-    released the port, so a restart can bind it."""
+    """启动器退出是不够的：一旦节点有stop()返回
+    释放了端口，因此重新启动可以绑定它。"""
     vscode_service.process = AsyncMock(pid=4321)
 
     with (
@@ -170,9 +168,9 @@ async def test_stop_waits_for_port_release(vscode_service):
 
 @pytest.mark.asyncio
 async def test_stop_with_timeout(vscode_service):
-    """Test stopping VSCode service with timeout."""
+    """停止 VSCode 服务超时。"""
     mock_process = AsyncMock(pid=4321)
-    # First call to wait() should timeout, second call should succeed
+    # 第一次调用 wait() 应该超时，第二次调用应该成功
     mock_process.wait.side_effect = [TimeoutError(), None]
     vscode_service.process = mock_process
 
@@ -188,7 +186,7 @@ async def test_stop_with_timeout(vscode_service):
 
 @pytest.mark.asyncio
 async def test_stop_after_process_group_is_gone(vscode_service):
-    """A server that already exited is stopped without an error."""
+    """已退出的服务器将停止且不会出现错误。"""
     vscode_service.process = AsyncMock(pid=4321)
 
     with (
@@ -207,16 +205,16 @@ async def test_stop_after_process_group_is_gone(vscode_service):
 
 @pytest.mark.asyncio
 async def test_stop_no_process(vscode_service):
-    """Test stopping VSCode service with no running process."""
-    await vscode_service.stop()  # Should not raise any exceptionz
+    """停止 VSCode 服务，该服务没有运行中的进程。"""
+    await vscode_service.stop()  # 不应引发任何异常
 
 
 @pytest.mark.asyncio
 async def test_set_connection_token_restarts_running_server(
     vscode_service, mock_openvscode_binary
 ):
-    """openvscode-server reads its token only at startup, so a running server
-    is restarted with the new token."""
+    """openvscode-server 仅在启动时读取其 token，因此正在运行的服务器
+    使用新的 token 重新启动。"""
     vscode_service.openvscode_server_root = mock_openvscode_binary
     vscode_service.connection_token = "boot-token"
     vscode_service.process = AsyncMock(pid=4321, returncode=None)
@@ -242,7 +240,7 @@ async def test_set_connection_token_restarts_running_server(
 
 @pytest.mark.asyncio
 async def test_set_connection_token_same_token_keeps_server(vscode_service):
-    """Setting the current token again leaves the server running."""
+    """再次设置当前的 token 将使服务器保持运行。"""
     process = AsyncMock(returncode=None)
     vscode_service.connection_token = "session-key"
     vscode_service.process = process
@@ -256,8 +254,8 @@ async def test_set_connection_token_same_token_keeps_server(vscode_service):
 
 @pytest.mark.asyncio
 async def test_set_connection_token_without_running_server(vscode_service):
-    """A server that is not running keeps its token, so no URL is advertised
-    for a VSCode that never started."""
+    """未运行的服务器保留其 token，因此不会通告 URL
+    对于一个从未启动的 VSCode。"""
     with patch.object(vscode_service, "start") as mock_start:
         await vscode_service.set_connection_token("session-key")
 
@@ -267,18 +265,18 @@ async def test_set_connection_token_without_running_server(vscode_service):
 
 
 def test_get_vscode_url_no_token(vscode_service):
-    """Test getting VSCode URL without token."""
+    """测试获取 VSCode  URL without token."""
     url = vscode_service.get_vscode_url()
     assert url is None
 
 
 def test_get_vscode_url_none_when_not_running(vscode_service):
-    """A token alone is not a server: a keyed server seeds the token before
-    start() runs, so a server that never started must not be advertised."""
+    """单独的 token 不是服务器：密钥服务器在 token 之前播种
+    start() 运行，因此不得公布从未启动的服务器。"""
     vscode_service.connection_token = "session-key"
     assert vscode_service.get_vscode_url() is None
 
-    # A server that exited is not advertised either.
+    # 退出的服务器也不会被通告。
     vscode_service.process = MagicMock(returncode=1)
     assert vscode_service.get_vscode_url() is None
 
@@ -287,8 +285,8 @@ def test_get_vscode_url_none_when_not_running(vscode_service):
 async def test_get_vscode_url_none_after_failed_start(
     vscode_service, mock_openvscode_binary
 ):
-    """start() mints a token before its port check; failing that check must
-    not leave a URL behind."""
+    """start() 在端口检查之前铸造 token； 未能通过该检查必须
+    不要留下URL。"""
     vscode_service.openvscode_server_root = mock_openvscode_binary
     with patch.object(vscode_service, "_is_port_available", return_value=False):
         assert await vscode_service.start() is False
@@ -298,18 +296,18 @@ async def test_get_vscode_url_none_after_failed_start(
 
 
 def test_get_vscode_url_with_token(vscode_service):
-    """Test getting VSCode URL with token."""
+    """测试 VSCode URL 的获取 token。"""
     vscode_service.connection_token = "test-token-123"
-    vscode_service.process = MagicMock(returncode=None)  # running
+    vscode_service.process = MagicMock(returncode=None)  # 跑步
 
-    # Test with default base_url (should use configured port)
+    # 使用默认 base_url 进行测试（应使用配置的端口）
     url = vscode_service.get_vscode_url()
     expected_url = (
         f"http://localhost:{vscode_service.port}/?tkn=test-token-123&folder=workspace"
     )
     assert url == expected_url
 
-    # Test with custom base_url
+    # 使用自定义测试 base_url
     custom_url = vscode_service.get_vscode_url(base_url="http://example.com:9000")
     assert custom_url == "http://example.com:9000/?tkn=test-token-123&folder=workspace"
 
@@ -319,9 +317,9 @@ def test_get_vscode_url_with_token(vscode_service):
     ["/tmp/qa f16&x=1#frag", "/w/a?b=c", "/w/100% +plus", "/workspace"],
 )
 def test_get_vscode_url_folder_round_trips(vscode_service, workspace_dir):
-    """The folder parameter decodes back to the exact workspace path."""
+    """文件夹参数解码回确切的工作区路径。"""
     vscode_service.connection_token = "test-token-123"
-    vscode_service.process = MagicMock(returncode=None)  # running
+    vscode_service.process = MagicMock(returncode=None)  # 跑步
 
     url = vscode_service.get_vscode_url(workspace_dir=workspace_dir)
 
@@ -335,9 +333,9 @@ def test_get_vscode_url_folder_round_trips(vscode_service, workspace_dir):
 
 
 def test_get_vscode_url_keeps_slashes_readable(vscode_service):
-    """Path separators in the folder parameter are not percent-encoded."""
+    """文件夹参数中的路径分隔符不是百分比编码的。"""
     vscode_service.connection_token = "test-token-123"
-    vscode_service.process = MagicMock(returncode=None)  # running
+    vscode_service.process = MagicMock(returncode=None)  # 跑步
 
     url = vscode_service.get_vscode_url(workspace_dir="/tmp/qa f16&x=1#frag")
 
@@ -348,24 +346,24 @@ def test_get_vscode_url_keeps_slashes_readable(vscode_service):
 
 
 def test_get_vscode_url_with_custom_port():
-    """Test getting VSCode URL with custom port."""
+    """测试使用自定义端口获取 VSCode URL。"""
     service = VSCodeService(port=9001)
     service.connection_token = "test-token-456"
-    service.process = MagicMock(returncode=None)  # running
+    service.process = MagicMock(returncode=None)  # 跑步
 
     url = service.get_vscode_url()
     assert url == "http://localhost:9001/?tkn=test-token-456&folder=workspace"
 
 
 def test_get_vscode_url_includes_server_base_path():
-    """Test that a configured server_base_path appears in the URL.
+    """测试配置的 server_base_path 是否出现在 URL 中。
 
-    The base path is passed to openvscode-server as ``--server-base-path``, so
-    the server only answers under that prefix — a root URL would not resolve.
+    基本路径作为 ``--server-base-path`` 传递到 openvscode-server，因此服务器仅在该前
+    缀下进行响应 - 根 URL 无法解析。
     """
     service = VSCodeService(port=19000, server_base_path="/vscode")
     service.connection_token = "test-token-789"
-    service.process = MagicMock(returncode=None)  # running
+    service.process = MagicMock(returncode=None)  # 跑步
 
     assert (
         service.get_vscode_url()
@@ -374,16 +372,15 @@ def test_get_vscode_url_includes_server_base_path():
 
 
 def test_get_vscode_url_base_path_with_caller_supplied_base_url():
-    """Test that the base path is appended to a caller-supplied base_url.
+    """测试基本路径是否附加到调用者提供的 base_url。
 
-    Callers behind a reverse proxy pass their own public origin; they still
-    cannot know the server's base path, so it must be applied here. Base paths
-    are normalized so '/vscode', 'vscode' and a trailing-slash base_url all
-    produce the same single-slash URL.
+    反向代理后面的调用者传递他们自己的公共来源； 他们仍然无法知道服务器的基本路径，因
+    此必须在此处应用它。 基本路径已标准化，因此 '/vscode'、'vscode'
+     和尾部斜杠 base_url 都会生成相同的单斜杠 URL。
     """
     service = VSCodeService(port=19000, server_base_path="vscode")
     service.connection_token = "test-token-789"
-    service.process = MagicMock(returncode=None)  # running
+    service.process = MagicMock(returncode=None)  # 跑步
 
     expected = "https://example.com/vscode/?tkn=test-token-789&folder=/srv/work"
     assert (
@@ -401,14 +398,14 @@ def test_get_vscode_url_base_path_with_caller_supplied_base_url():
 
 
 def test_get_vscode_url_without_base_path_is_unchanged():
-    """Test that URLs are byte-identical when no base path is configured.
+    """URLs 应当在未配置基础路径时视为字节等价。
 
-    Downstream clients (OpenHands-CLI, app-server, Enterprise) that do not set
-    ``vscode_base_path`` must see exactly the previous output.
+    未设置的下游客户端（OpenHands-CLI、应用程序服务器、企业）
+    ``vscode_base_path`` 必须准确地看到先前的输出。
     """
     service = VSCodeService(port=8001)
     service.connection_token = "test-token-000"
-    service.process = MagicMock(returncode=None)  # running
+    service.process = MagicMock(returncode=None)  # 跑步
 
     assert (
         service.get_vscode_url()
@@ -421,12 +418,12 @@ def test_get_vscode_url_without_base_path_is_unchanged():
 
 
 def test_is_running_false(vscode_service):
-    """Test is_running when no process."""
+    """无进程时测试is_running。"""
     assert not vscode_service.is_running()
 
 
 def test_is_running_true(vscode_service):
-    """Test is_running with active process."""
+    """使用活动进程测试 is_running。"""
     mock_process = MagicMock()
     mock_process.returncode = None
     vscode_service.process = mock_process
@@ -435,7 +432,7 @@ def test_is_running_true(vscode_service):
 
 
 def test_is_running_finished_process(vscode_service):
-    """Test is_running with finished process."""
+    """使用已完成的流程测试 is_running。"""
     mock_process = MagicMock()
     mock_process.returncode = 0
     vscode_service.process = mock_process
@@ -445,7 +442,7 @@ def test_is_running_finished_process(vscode_service):
 
 @pytest.mark.asyncio
 async def test_start_vscode_process(vscode_service, tmp_path):
-    """Test starting VSCode process."""
+    """VSCode 进程测试开始。"""
     vscode_service.connection_token = "test-token"
 
     mock_process = AsyncMock()
@@ -460,7 +457,7 @@ async def test_start_vscode_process(vscode_service, tmp_path):
         await vscode_service._start_vscode_process()
 
         mock_create.assert_called_once()
-        # Its own process group, so stop() can signal node with the launcher.
+        # 它自己的进程组，因此 stop() 可以向启动器发送信号给节点。
         assert mock_create.call_args.kwargs["start_new_session"] is True
         mock_wait.assert_called_once()
         assert vscode_service.process == mock_process
@@ -468,7 +465,7 @@ async def test_start_vscode_process(vscode_service, tmp_path):
 
 @pytest.mark.asyncio
 async def test_start_vscode_process_with_server_base_path():
-    """Test starting VSCode process with server_base_path includes the arg."""
+    """VSCode 正在启动 server_base_path 这个过程包含参数。"""
     service = VSCodeService(
         port=8001, connection_token="test-token", server_base_path="/runtime/vscode"
     )
@@ -484,14 +481,14 @@ async def test_start_vscode_process_with_server_base_path():
     ):
         await service._start_vscode_process()
 
-        # Verify the command includes --server-base-path
+        # 验证命令包含 --server-base-path
         cmd = mock_create.call_args[0][0]
         assert "--server-base-path /runtime/vscode" in cmd
 
 
 @pytest.mark.asyncio
 async def test_start_vscode_process_without_server_base_path():
-    """Test starting VSCode process without server_base_path excludes the arg."""
+    """测试开始 VSCode 翻译：翻译： server_base_path 排除了参数。"""
     service = VSCodeService(port=8001, connection_token="test-token")
 
     mock_process = AsyncMock()
@@ -505,14 +502,14 @@ async def test_start_vscode_process_without_server_base_path():
     ):
         await service._start_vscode_process()
 
-        # Verify the command does not include --server-base-path
+        # 验证命令不包含 --server-base-path
         cmd = mock_create.call_args[0][0]
         assert "--server-base-path" not in cmd
 
 
 @pytest.mark.asyncio
 async def test_wait_for_startup_success(vscode_service):
-    """Test waiting for VSCode startup with success message."""
+    """测试等待 VSCode 启动，成功消息。"""
     mock_stdout = AsyncMock()
     mock_stdout.readline = AsyncMock(
         side_effect=[
@@ -534,10 +531,10 @@ async def test_wait_for_startup_success(vscode_service):
 
 @pytest.mark.asyncio
 async def test_wait_for_startup_timeout(vscode_service):
-    """Test waiting for VSCode startup with timeout."""
+    """测试等待 VSCode 启动超时。"""
     mock_stdout = AsyncMock()
-    # Mock readline to raise TimeoutError a few times,
-    # then return empty bytes to break the loop
+    # 模拟对象 readline 引发 TimeoutError 几次，然后返回空字节以打破循环
+    #
     mock_stdout.readline = AsyncMock(side_effect=[TimeoutError(), TimeoutError(), b""])
 
     mock_process = AsyncMock()
@@ -545,15 +542,15 @@ async def test_wait_for_startup_timeout(vscode_service):
     mock_process.returncode = None
     vscode_service.process = mock_process
 
-    # Should not raise exception, just return
+    # 不应引发异常，只需返回
     await vscode_service._wait_for_startup()
 
 
-# Tests for get_vscode_service with enable_vscode configuration
+# 使用 enable_vscode 配置测试 get_vscode_service
 
 
 def test_get_vscode_service_enabled(tmp_path):
-    """Test get_vscode_service returns VSCodeService when enabled."""
+    """当启用时，get_vscode_service 返回 VSCodeService。"""
     with (
         patch("openhands.agent_server.config.get_default_config") as mock_config,
         patch("openhands.agent_server.vscode_service._vscode_service", None),
@@ -569,7 +566,7 @@ def test_get_vscode_service_enabled(tmp_path):
 
 
 def test_get_vscode_service_disabled():
-    """Test get_vscode_service returns None when disabled."""
+    """禁用时，测试 get_vscode_service 返回 None。"""
     with (
         patch("openhands.agent_server.config.get_default_config") as mock_config,
         patch("openhands.agent_server.vscode_service._vscode_service", None),
@@ -582,7 +579,7 @@ def test_get_vscode_service_disabled():
 
 
 def test_get_vscode_service_singleton():
-    """Test get_vscode_service returns the same instance on multiple calls."""
+    """测试 get_vscode_service 在多次调用中返回相同的实例。"""
     with (
         patch("openhands.agent_server.config.get_default_config") as mock_config,
         patch("openhands.agent_server.vscode_service._vscode_service", None),
@@ -600,7 +597,7 @@ def test_get_vscode_service_singleton():
 
 
 def test_get_vscode_service_with_custom_port():
-    """Test get_vscode_service uses the configured port."""
+    """测试 get_vscode_service 使用配置的端口。"""
     with (
         patch("openhands.agent_server.config.get_default_config") as mock_config,
         patch("openhands.agent_server.vscode_service._vscode_service", None),
@@ -617,7 +614,7 @@ def test_get_vscode_service_with_custom_port():
 
 
 def test_get_vscode_service_with_base_path():
-    """Test get_vscode_service passes vscode_base_path from config."""
+    """测试 get_vscode_service 通过了配置中的 vscode_base_path。"""
     with (
         patch("openhands.agent_server.config.get_default_config") as mock_config,
         patch("openhands.agent_server.vscode_service._vscode_service", None),
@@ -634,7 +631,7 @@ def test_get_vscode_service_with_base_path():
 
 
 def test_vscode_service_with_different_ports():
-    """Test VSCode service initialization with different ports."""
+    """Test VSCode 服务初始化使用不同的端口。"""
     service1 = VSCodeService(port=8001)
     service2 = VSCodeService(port=9001)
 
@@ -643,32 +640,32 @@ def test_vscode_service_with_different_ports():
 
 
 def test_vscode_port_configuration():
-    """Test that vscode_port configuration is properly used."""
+    """测试 vscode_port 配置是否正确使用。"""
     import os
 
     from openhands.agent_server.config import Config, from_env
 
-    # Test default value
+    # 测试默认值
     config = Config()
     assert config.vscode_port == 8001
 
-    # Test environment variable override
+    # Test 环境变量 override
     with patch.dict(os.environ, {"OH_VSCODE_PORT": "9999"}):
         config = from_env(Config, "OH")
         assert config.vscode_port == 9999
 
 
 def test_vscode_base_path_configuration():
-    """Test that vscode_base_path configuration is properly used."""
+    """测试 vscode_base_path 配置是否正确使用。"""
     import os
 
     from openhands.agent_server.config import Config, from_env
 
-    # Test default value is None
+    # 测试默认值为None
     config = Config()
     assert config.vscode_base_path is None
 
-    # Test environment variable override
+    # Test 环境变量 override
     with patch.dict(os.environ, {"OH_VSCODE_BASE_PATH": "/runtime-abc/vscode"}):
         config = from_env(Config, "OH")
         assert config.vscode_base_path == "/runtime-abc/vscode"

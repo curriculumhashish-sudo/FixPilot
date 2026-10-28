@@ -1,7 +1,6 @@
-"""Test data generator utility for creating LLM completion test fixtures.
+"""用于创建 LLM 完成测试测试夹具的测试数据生成器实用程序。
 
-This utility is based on examples/hello_world.py and can be used to regenerate
-test assets when the LLM implementation changes.
+该工具基于examples/hello_world.py，可以用来在LLM实现发生变化时重生成测试资产。
 """
 
 import json
@@ -30,7 +29,7 @@ logger = get_logger(__name__)
 
 
 def get_output_dir(output_dir: Path | None = None) -> Path:
-    """Get output directory, creating if needed."""
+    """获取输出目录，如果需要则创建。"""
     dir_path = Path(__file__).parent
     dir_path.mkdir(parents=True, exist_ok=True)
     return dir_path
@@ -43,7 +42,7 @@ def create_llm(
     log_completions_folder: str | None = None,
     **kwargs,
 ) -> LLM:
-    """Create an LLM instance for data generation."""
+    """创建一个 LLM 实例用于数据生成。"""
     llm_kwargs = {
         "model": model,
         "base_url": base_url,
@@ -57,7 +56,7 @@ def create_llm(
 
 
 def create_tools(working_dir: str | None = None) -> list[Tool]:
-    """Create standard tool specifications for testing."""
+    """创建用于测试的标准工具规范。"""
     register_tool("TerminalTool", TerminalTool)
     register_tool("FileEditorTool", FileEditorTool)
     return [
@@ -75,14 +74,14 @@ def run_conversation(
     output_filename: str,
     log_completions_folder: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Run a conversation and collect LLM messages."""
+    """运行对话并收集 LLM 条消息。"""
     llm = create_llm(api_key, base_url, model, log_completions_folder)
     tools = create_tools()
     agent = Agent(llm=llm, tools=tools)
 
     llm_messages = []
 
-    # Default serialization options for test fixture generation
+    # 用于测试测试夹具生成的默认序列化选项
     default_serialization_opts = {
         "cache_enabled": False,
         "vision_enabled": False,
@@ -119,7 +118,7 @@ def generate_test_data(
     output_dir: Path,
     is_function_calling: bool,
 ) -> list[dict[str, Any]]:
-    """Generate test data for a specific model type."""
+    """生成特定模型类型的测试数据。"""
     data_type = "function calling" if is_function_calling else "non-function calling"
     logger.info(f"Generating {data_type} data with model: {model}")
 
@@ -142,7 +141,7 @@ def generate_test_data(
 
 
 def copy_log_files(output_dir: Path):
-    """Copy log files from current directory to fixtures directory."""
+    """将日志文件从当前目录复制到测试夹具目录。"""
     current_dir = Path.cwd()
 
     log_configs = [
@@ -162,7 +161,7 @@ def copy_log_files(output_dir: Path):
 
 
 def validate_message_files(output_dir: Path) -> bool:
-    """Validate message files exist and have correct structure."""
+    """验证消息文件是否存在且结构正确。"""
     files = [
         output_dir / "fncall-llm-message.json",
         output_dir / "nonfncall-llm-message.json",
@@ -189,7 +188,7 @@ def validate_message_files(output_dir: Path) -> bool:
 
 
 def validate_log_directories(output_dir: Path) -> bool:
-    """Validate log directories exist and contain files."""
+    """验证日志目录是否存在并包含文件。"""
     log_dirs = [
         output_dir / "llm-logs",
         output_dir / "nonfncall-llm-logs",
@@ -209,7 +208,7 @@ def validate_log_directories(output_dir: Path) -> bool:
 
 
 def validate_generated_data(output_dir: Path) -> bool:
-    """Validate that generated data has expected structure."""
+    """验证生成的数据是否具有预期的结构。"""
     try:
         return validate_message_files(output_dir) and validate_log_directories(
             output_dir
@@ -230,7 +229,7 @@ def generate_all_test_data(
         "'Hello, World!'?"
     ),
 ) -> dict[str, list[dict[str, Any]]]:
-    """Generate all test data."""
+    """生成所有测试数据。"""
     logger.info("Generating all test data...")
 
     output_path = get_output_dir(output_dir)
@@ -262,7 +261,7 @@ def generate_all_test_data(
 
 
 def main():
-    """Main function for command-line usage."""
+    """命令行使用的主要功能。"""
     import argparse
 
     parser = argparse.ArgumentParser(description="Generate LLM test data")

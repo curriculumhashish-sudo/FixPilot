@@ -14,7 +14,7 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -26,7 +26,7 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 tools = [
     Tool(
         name=TerminalTool.name,
@@ -34,7 +34,7 @@ tools = [
     Tool(name=FileEditorTool.name),
 ]
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 conversation = Conversation(agent, workspace=os.getcwd())
 
@@ -43,7 +43,7 @@ print("Pause and Continue Example")
 print("=" * 60)
 print()
 
-# Phase 1: Start a long-running task
+# 第 1 阶段：启动长时间运行的任务
 print("Phase 1: Starting agent with a task...")
 conversation.send_message(
     "Create a file called countdown.txt and write numbers from 100 down to 1, "
@@ -53,26 +53,26 @@ conversation.send_message(
 print(f"Initial status: {conversation.state.execution_status}")
 print()
 
-# Start the agent in a background thread
+# 在后台启动智能体线程
 thread = threading.Thread(target=conversation.run)
 thread.start()
 
-# Let the agent work for a few seconds
+# 让智能体工作几秒钟
 print("Letting agent work for 2 seconds...")
 time.sleep(2)
 
-# Phase 2: Pause the agent
+# 第 2 阶段：暂停智能体
 print()
 print("Phase 2: Pausing the agent...")
 conversation.pause()
 
-# Wait for the thread to finish (it will stop when paused)
+# 等待线程完成（暂停时会停止）
 thread.join()
 
 print(f"Agent status after pause: {conversation.state.execution_status}")
 print()
 
-# Phase 3: Send a new message while paused
+# 第 3 阶段：暂停时发送新消息
 print("Phase 3: Sending a new message while agent is paused...")
 conversation.send_message(
     "Actually, stop working on countdown.txt. Instead, create a file called "
@@ -80,15 +80,15 @@ conversation.send_message(
 )
 print()
 
-# Phase 4: Resume the agent with .run()
+# 第 4 阶段：使用 .run() 恢复智能体
 print("Phase 4: Resuming agent with .run()...")
 print(f"Status before resume: {conversation.state.execution_status}")
 
-# Resume execution
+# 恢复执行
 conversation.run()
 
 print(f"Final status: {conversation.state.execution_status}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

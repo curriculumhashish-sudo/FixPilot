@@ -1,15 +1,15 @@
 """
-WebSocket endpoints for OpenHands SDK.
+WebSocket 端点代表 OpenHands SDK。
 
-These endpoints are separate from the main API routes to handle WebSocket-specific
-authentication.  Three auth methods are supported (highest to lowest precedence):
+这些端点与主 API 路由分开，以处理 WebSocket 特定的身份验证。 支持三种身份验证方法（优
+先级从高到低）：
 
-1. **First-message auth** (recommended): The client sends
-   ``{"type": "auth", "session_api_key": "..."}`` as the very first WebSocket
-   frame after the connection opens.  This keeps tokens out of URLs and
-   therefore out of reverse-proxy / load-balancer access logs.
-2. Query parameter ``session_api_key`` — deprecated, kept for backwards compat.
-3. ``X-Session-API-Key`` header — for non-browser clients.
+1. **First-message auth**（推荐）：客户端发送
+   ``{"type": "auth", "session_api_key": "..."}`` 作为连接打开后的第一个 WebSocket 帧
+   。 这样就把 token
+   从 URLs 中排除，因此也排除了反向代理/负载均衡访问日志。
+2. 查询参数 ``session_api_key`` — 已弃用，保留用于向后兼容。
+3. ``X-Session-API-Key`` 标头 — 适用于非浏览器客户端。
 """
 
 import asyncio
@@ -59,11 +59,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_config(websocket: WebSocket) -> Config:
-    """Return the Config associated with this FastAPI app instance.
+    """返回与此 FastAPI 应用程序实例关联的配置。
 
-    This ensures WebSocket auth follows the same configuration as the REST API
-    when the agent server is used as a library (e.g., tests or when mounted into
-    another FastAPI app), rather than always reading environment defaults.
+    这确保了 WebSocket auth遵循与身份验证相同的配置 REST  API when the Agent Server
+    被用作库（）e.g., 测试或被 m
+    ount 到另一个上 FastAPI 而不是总是读取环境默认值。
     """
     config = getattr(websocket.app.state, "config", None)
     if isinstance(config, Config):
@@ -72,15 +72,14 @@ def _get_config(websocket: WebSocket) -> Config:
 
 
 def _get_conversation_service(websocket: WebSocket) -> ConversationService:
-    """Return the ConversationService for this FastAPI app instance.
+    """返回此 FastAPI 应用程序实例的 ConversationService。
 
-    Looks up ``app.state.conversation_service`` at request time so that the
-    service delivered via ``POST /api/init`` (deferred-init / dormant mode)
-    is used instead of the module-level default captured at import. When
-    ``app.state`` is not configured (e.g. when sockets.py is imported as a
-    library without a lifespan), falls back to the module-level singleton,
-    which keeps the behaviour of existing tests that patch the module-level
-    variable.
+    在请求时查找 ``app.state.conversation_service``，以便使用 ``POST /api/init``（延
+    迟初始化/休眠模式）提供的服务
+    ，而不是导入时捕获的模块级默认值。 当
+    ``app.state`` 未配置（e.g. 当 sockets.py 作为库导入而没有生命周期时，会回退到模块
+    级别的单例，该单例保持现有测试对模块级别变量的pat
+    ch行为。
     """
     service = getattr(websocket.app.state, "conversation_service", None)
     if isinstance(service, ConversationService):
@@ -89,13 +88,13 @@ def _get_conversation_service(websocket: WebSocket) -> ConversationService:
 
 
 def _get_bash_event_service(websocket: WebSocket) -> BashEventService:
-    """Return the BashEventService for this FastAPI app instance.
+    """返回此 FastAPI 应用程序实例的 BashEventService。
 
-    Looks up ``app.state.bash_event_service`` at request time so that the
-    service delivered via ``POST /api/init`` (deferred-init / dormant mode)
-    is used instead of the module-level default captured at import. When
-    ``app.state`` is not configured (e.g. when sockets.py is imported as a
-    library without a lifespan), falls back to the module-level singleton.
+    在请求时查找 ``app.state.bash_event_service``，以便使用 ``POST /api/init``（延迟
+    初始化/休眠模式）提供的服务，而
+    不是导入时捕获的模块级默认值。 当
+    ``app.state`` 未配置（e.g. 当sockets.py作为没有生命周期的库导入时），回退到模块级
+    单例。
     """
     service = getattr(websocket.app.state, "bash_event_service", None)
     if isinstance(service, BashEventService):
@@ -107,13 +106,13 @@ def _resolve_websocket_session_api_key(
     websocket: WebSocket,
     session_api_key: str | None,
 ) -> str | None:
-    """Resolve the session API key from multiple sources.
+    """解析来自多个源的会话 API 密钥。
 
-    Precedence order (highest to lowest):
-    1. Query parameter (session_api_key) - for browser compatibility
-    2. X-Session-API-Key header - for non-browser clients
+    优先顺序（从高到低）：
+    1. 查询参数 (session_api_key) - 用于浏览器兼容性
+    2. X-Session-API-Key 标头 - 用于非浏览器客户端
 
-    Returns None if no key is provided in any source.
+    如果任何源中均未提供密钥，则返回 None。
     """
     if session_api_key is not None:
         return session_api_key
@@ -125,9 +124,9 @@ def _resolve_websocket_session_api_key(
     return None
 
 
-# Give clients 10 seconds to send auth frame after connection opens.
-# This balances security (don't hold connections indefinitely) with
-# accommodating slow networks and client startup time.
+# 连接打开后，给客户端 10 秒的时间发送身份验证帧。 这可以在安全性（不要无限期地保持连接
+# ）与适应慢速网络和客户端启动时间之间取得平衡。
+#
 _FIRST_MESSAGE_AUTH_TIMEOUT_SECONDS = 10
 
 
@@ -135,26 +134,26 @@ async def _accept_authenticated_websocket(
     websocket: WebSocket,
     session_api_key: str | None,
 ) -> bool:
-    """Authenticate and accept the socket, or close with an auth error.
+    """验证并接受套接字，或因验证错误而关闭。
 
-    Authentication is attempted in the following order:
+    按以下顺序尝试身份验证：
 
-    1. Query parameter / header (legacy, deprecated).
-    2. First-message auth — the client sends
-       ``{"type": "auth", "session_api_key": "..."}`` as the first frame.
+    1. 查询参数/标头（旧版，已弃用）。
+    2. 第一条消息身份验证 — 客户端发送
+       ``{"type": "auth", "session_api_key": "..."}`` 作为第一帧。
 
-    The WebSocket is always *accepted* before first-message auth is attempted
-    because raw WebSocket requires ``accept()`` before any frames can be read.
+    在尝试第一条消息身份验证之前，WebSocket 始终被 * 接受 *，因为在读取任何帧之前，原
+    始 WebSocket 需要 ``accept()``。
     """
     config = _get_config(websocket)
     resolved_key = _resolve_websocket_session_api_key(websocket, session_api_key)
 
-    # No auth configured — accept unconditionally.
+    # 未配置身份验证 - 无条件接受。
     if not config.session_api_keys:
         await websocket.accept()
         return True
 
-    # Legacy path: key supplied via query param or header.
+    # 旧路径：通过查询参数或标头提供的密钥。
     if resolved_key is not None:
         if resolved_key and resolved_key in config.session_api_keys:
             logger.warning(
@@ -167,10 +166,10 @@ async def _accept_authenticated_websocket(
         await websocket.close(code=4001, reason="Authentication failed")
         return False
 
-    # First-message auth: we must accept() before reading frames because the
-    # WebSocket protocol requires the handshake to complete first.  The legacy
-    # path above can reject *before* accepting (close on an un-accepted socket
-    # sends an HTTP 403-style response), but here we need to read a frame.
+    # 首次认证：我们必须 accept() 在读取帧之前 WebSocket 协议要求握手先完成。 上述老路径
+    # 可以拒绝 *之前* 接受（对未接受的套接字发送） HTTP 403风格的响应，但我们需要读取一
+    # 个帧。
+    #
     await websocket.accept()
     try:
         raw = await asyncio.wait_for(
@@ -250,7 +249,7 @@ async def events_socket(
             )
         ),
     ] = None,
-    # Deprecated parameter - kept for backward compatibility
+    # 已弃用参数 - 保留为向后兼容性
     resend_all: Annotated[
         bool,
         Query(
@@ -259,24 +258,23 @@ async def events_socket(
         ),
     ] = False,
 ):
-    """WebSocket endpoint for conversation events.
+    """WebSocket 端点用于对话事件。
 
     Args:
-        conversation_id: The conversation ID to subscribe to.
-        websocket: The WebSocket connection.
-        session_api_key: Optional API key for authentication.
-        resend_mode: Mode for resending historical events on connect.
-            - 'all': Resend all existing events
-            - 'since': Resend events after 'after_timestamp' (requires after_timestamp)
-            - None: Don't resend, just subscribe to new events
-        after_timestamp: Required when resend_mode='since'. Events with
-            timestamp >= this value will be sent. Timestamps are interpreted in
-            server local time. Timezone-aware datetimes are converted to server
-            timezone. Enables efficient bi-directional loading where REST fetches
-            historical events and WebSocket handles events after a specific point.
-        resend_all: DEPRECATED. Use resend_mode='all' instead. Kept for
-            backward compatibility - if True and resend_mode is None, behaves
-            as resend_mode='all'.
+        conversation_id: 要订阅的对话 ID。
+        websocket: WebSocket 连接。
+        session_api_key: 身份验证的可选 API 键。
+        resend_mode: 连接时重新发送历史事件的模式。
+            - 'all'：重新发送所有现有事件
+            - 'since'：在“after_timestamp”之后重新发送事件（需要 after_timestamp）
+            - None: 不重新发送，仅订阅新事件
+        after_timestamp: 当 resend_mode='since' 时为必填项。 活动与
+            时间戳 >= 将发送该值。 时间戳以服务器本地时间解释。 时区感知的日期时间将
+            转换为服务器时区。 实现高效的双向加载，其中 REST 获取历史事件，
+            WebSocket 处理特定点之后的事件。
+        resend_all: DEPRECATED. 使用 resend_mode='all' 代替。 保留用于
+            向后兼容性 - 如果 True 且 resend_mode 为 None，则表现为 resend_mode='all'
+            。
     """
     if not await _accept_authenticated_websocket(websocket, session_api_key):
         return
@@ -307,7 +305,7 @@ async def events_socket(
         )
         return
 
-    # Determine effective resend mode (handle deprecated resend_all)
+    # 确定有效重发模式（句柄已弃用resend_all）
     effective_mode = resend_mode
     if effective_mode is None and resend_all:
         logger.warning(
@@ -316,7 +314,7 @@ async def events_socket(
         )
         effective_mode = "all"
 
-    # Normalize timezone-aware datetimes to server timezone
+    # 将时区感知的日期时间标准化为服务器时区
     normalized_after_timestamp = (
         normalize_datetime_to_server_timezone(after_timestamp)
         if after_timestamp
@@ -324,7 +322,7 @@ async def events_socket(
     )
 
     try:
-        # Resend existing events based on mode
+        # 根据模式重新发送现有事件
         if effective_mode == "all":
             logger.info(f"Resending all events: {conversation_id}")
             async for event in page_iterator(event_service.search_events):
@@ -346,7 +344,7 @@ async def events_socket(
                 ):
                     await _send_event(event, websocket)
 
-        # Listen for messages over the socket
+        # 通过套接字监听消息
         while True:
             try:
                 data = await websocket.receive_json()
@@ -363,7 +361,7 @@ async def events_socket(
                 logger.info("Event websocket disconnected")
                 return
             except Exception as e:
-                # Something went wrong - Tell the client so they can handle it
+                # 出了问题 - 告诉客户以便他们处理
                 try:
                     error_event = ServerErrorEvent(
                         source="environment",
@@ -372,11 +370,11 @@ async def events_socket(
                     )
                     dumped = error_event.model_dump(mode="json", exclude_none=True)
                     await websocket.send_json(dumped)
-                    # Log after - if send event raises an error logging is handled
-                    # in the except block
+                    # 之后记录 - 如果发送事件引发错误，记录将在 except 块中处理
+                    #
                     logger.exception("error_in_subscription")
                 except Exception:
-                    # Sending the error event failed - likely a closed socket
+                    # 发送错误事件失败 - 可能是关闭的套接字
                     logger.info("Event websocket disconnected")
                     logger.debug("error_sending_error")
                     await _safe_close_websocket(websocket)
@@ -398,7 +396,7 @@ async def bash_events_socket(
             )
         ),
     ] = None,
-    # Deprecated parameter - kept for backward compatibility
+    # 已弃用参数 - 保留为向后兼容性
     resend_all: Annotated[
         bool,
         Query(
@@ -407,15 +405,15 @@ async def bash_events_socket(
         ),
     ] = False,
 ):
-    """WebSocket endpoint for bash events.
+    """WebSocket 端点用于 bash 事件。
 
     Args:
-        websocket: The WebSocket connection.
-        session_api_key: Optional API key for authentication.
-        resend_mode: Mode for resending historical events on connect.
-            - 'all': Resend all existing bash events
-            - None: Don't resend, just subscribe to new events
-        resend_all: DEPRECATED. Use resend_mode='all' instead.
+        websocket: WebSocket 连接。
+        session_api_key: 身份验证的可选 API 键。
+        resend_mode: 连接时重新发送历史事件的模式。
+            - 'all'：重新发送所有现有的 bash 事件
+            - None: 不重新发送，仅订阅新事件
+        resend_all: DEPRECATED. 使用 resend_mode='all' 代替。
     """
     if not await _accept_authenticated_websocket(websocket, session_api_key):
         return
@@ -431,14 +429,14 @@ async def bash_events_socket(
         await websocket.close(code=1013, reason="Too many bash event connections")
         return
 
-    # Determine effective resend mode (handle deprecated resend_all)
+    # 确定有效重发模式（句柄已弃用resend_all）
     effective_mode = resend_mode
     if effective_mode is None and resend_all:
         logger.warning("resend_all is deprecated, use resend_mode='all' instead")
         effective_mode = "all"
 
     try:
-        # Resend all existing events if requested
+        # 如果需要，重新发送所有现有事件
         if effective_mode == "all":
             logger.info("Resending bash events")
             async for event in page_iterator(bash_service.search_bash_events):
@@ -446,7 +444,7 @@ async def bash_events_socket(
 
         while True:
             try:
-                # Keep the connection alive and handle any incoming messages
+                # 保持连接处于活动状态并处理任何传入消息
                 data = await websocket.receive_json()
                 if _is_auth_control_message(data):
                     continue
@@ -483,21 +481,22 @@ async def bash_events_socket(
 
 async def _send_event(event: Event, websocket: WebSocket):
     if not _is_websocket_connected(websocket):
-        # Client already disconnected; the pub/sub callback was racing with
-        # cleanup. Avoid noisy tracebacks from starlette refusing to send.
+        # 客户端已断开连接； pub/sub 回调正在进行清理工作。 避免由于 starlette 拒绝发送
+        # 而产生的嘈杂回溯。
+        #
         logger.debug("skip_sending_event_socket_disconnected: %r", event)
         return
     try:
         await websocket.send_json(event.model_dump(mode="json", exclude_none=True))
     except (RuntimeError, WebSocketDisconnect) as e:
-        # Expected race: client disconnected between our state check and send.
+        # 预期的竞争：客户端在我们的状态检查和发送之间断开连接。
         logger.debug("error_sending_event_disconnected: %r (%s)", event, e)
     except Exception:
         logger.exception("error_sending_event: %r", event, stack_info=True)
 
 
 def _is_auth_control_message(data: object) -> bool:
-    """Match redundant auth frames left unread after legacy authentication."""
+    """匹配遗留身份验证后未读的冗余身份验证帧。"""
     return (
         isinstance(data, dict)
         and data.get("type") == "auth"
@@ -513,20 +512,21 @@ async def _safe_close_websocket(
     try:
         await websocket.close(code=code, reason=reason)
     except Exception:
-        # WebSocket may already be closed or in inconsistent state
+        # WebSocket 可能已经关闭或处于不一致状态
         logger.debug("WebSocket close failed (may already be closed)")
 
 
 def _is_websocket_connected(websocket: WebSocket) -> bool:
-    """Best-effort check that the websocket is still in the CONNECTED state.
+    """尽力检查 WebSocket 是否仍处于 CONNECTED 状态。
 
-    Starlette raises ``RuntimeError('Cannot call "send" once a close message
-    has been sent.')`` if we try to send on a socket whose ``application_state``
-    is ``DISCONNECTED``. Pre-checking avoids noisy tracebacks when a pub/sub
-    callback fires after the peer has gone away.
+    如果我们尝试在 ``application_state`` 为 ``DISCONNECTED`` 的套接字上发送，
+    Starlette 会引发
+    ``RuntimeError('Cannot call "send" once a close message has been sent.')``。 当对
+    等点离开
+    后发布/订阅回调触发时，预检查可以避免嘈杂的回溯。
 
-    Returns ``True`` when the state is unknown (e.g. tests using ``MagicMock``)
-    so callers still attempt the send and get the original behaviour.
+    当状态未知时返回 ``True`` (e.g. 使用 ``MagicMock`` 进行测试），因此调用者仍然尝试
+    发送并获取原始行为。
     """
     app_state = getattr(websocket, "application_state", None)
     client_state = getattr(websocket, "client_state", None)
@@ -539,9 +539,9 @@ def _is_websocket_connected(websocket: WebSocket) -> bool:
 
 @dataclass
 class _WebSocketSubscriber(Subscriber):
-    """WebSocket subscriber for conversation events."""
+    """WebSocket 对话事件的订阅者。"""
 
-    # The live socket is what token streaming is for.
+    # 实时套接字就是 token 流式传输的用途。
     receives_streaming_deltas = True
 
     websocket: WebSocket
@@ -588,7 +588,7 @@ async def _send_bash_event(event: BashEventBase, websocket: WebSocket):
 
 @dataclass
 class _BashWebSocketSubscriber(Subscriber[BashEventBase]):
-    """WebSocket subscriber for bash events."""
+    """WebSocket bash 事件的订阅者。"""
 
     websocket: WebSocket
 

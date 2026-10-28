@@ -1,213 +1,197 @@
-# openhands-agent-server
+<a id="openhands-agent-server"></a>
 
-See the [project root AGENTS.md](../AGENTS.md) for repository-wide policies and workflows.
+# OpenHands-智能体-服务器
 
-## Development
+请参阅 [ 项目根 AGENTS.md](../AGENTS.md) 了解存储库范围的策略和工作流程。
 
-This package lives in the monorepo root. Typical commands (run from repo root):
+<a id="development"></a>
+
+## 发展
+
+该包位于单体仓库根目录中。 典型命令（从存储库根目录运行）：
 
 - Install deps: `make build`
-- Run agent-server tests: `uv run pytest tests/agent_server`
+- 运行智能体-服务器测试：`uv run pytest tests/agent_server`
 
-## PyInstaller data files
+<a id="pyinstaller-data-files"></a>
 
-When adding non-Python files (JS, templates, etc.) loaded at runtime, add them to `openhands-agent-server/openhands/agent_server/agent-server.spec` using `collect_data_files`.
+## PyInstaller 数据文件
+
+添加运行时加载的非Python文件（JS、模板等）时，使用`collect_data_files`将它们添加到`openhands-agent-server/openhands/agent_server/agent-server.spec`。
 
 
-## Stress / scale tests
+<a id="stress--scale-tests"></a>
 
-`tests/agent_server/stress/` is an in-process stress suite that exercises
-agent-server failure modes at realistic scale — parallel sub-agents, many
-conversations, long-running bash, slow webhooks, websocket back-pressure, etc.
+## 压力/规模测试
 
-### Running stress tests
+`tests/agent_server/stress/` 是一个在进程内运行的负载测试套件，用于测试智能体- 实时规模下的服务器失败模式子智能体许多对话，长时间运行的 bash，慢 Webhook, WebSocket  背压，etc.
 
-The suite is **excluded from default collection** via `addopts = -m 'not stress and not acp_live and not docker_live'`
-in `pyproject.toml`. Override the filter with `-m stress`:
+<a id="running-stress-tests"></a>
+
+### 正在运行压力测试
+
+该套件通过 `pyproject.toml` 中的 `addopts = -m 'not stress and not acp_live and not docker_live'` 从默认集合 ** 中 ** 排除。 使用 `-m stress` 覆盖过滤器：
 
 ```bash
-# Run the full stress suite (~3–5 min on a developer laptop)
+# 运行完整的压力套件（在开发人员笔记本电脑上约 3-5 分钟）
 uv run pytest -m stress
 
-# Run a single stress test file
+# 运行单个压力测试文件
 uv run pytest -m stress tests/agent_server/stress/test_conversation_listing.py
 
-# Verify stress tests are deselected by default
-uv run pytest --collect-only -q  # stress tests appear as "deselected"
+# 验证默认情况下取消选择压力测试
+uv run pytest --collect-only -q  # 压力测试显示为“已取消选择”
 ```
 
-**Note:** a bare `pytest tests/agent_server/stress/` will collect-then-deselect
-because the `addopts` filter still applies — always pass `-m stress` alongside
-the path for a path-scoped run.
+**注意：** 裸露的 `pytest tests/agent_server/stress/` 将收集然后取消选择
+因为 `addopts` 过滤器仍然适用 - 始终在路径旁边传递 `-m stress` 以进行路径范围的运行。
 
-### How the test infrastructure works
+<a id="how-the-test-infrastructure-works"></a>
 
-Tests run **in-process** against the agent-server FastAPI app — no real binary,
-no real network, no real LLM. The key fixtures (in `conftest.py`) are:
+### 测试基础设施如何运作
 
-| Fixture | Purpose |
+测试针对智能体-服务器 FastAPI 应用程序运行 **in-process** — 没有真正的二进制文件，没有真正的网络，没有真正的 LLM。 关键测试夹具（在`conftest.py`中）是：
+
+| 测试夹具 | 目的 |
 |---|---|
-| `conversation_service` | Real `ConversationService` pointed at `tmp_path/persist` |
-| `bash_service` | Per-test `BashEventService`, monkeypatched into the bash router |
-| `app` | FastAPI app wired to the test services via dependency override |
-| `client` | `httpx.AsyncClient` over `ASGITransport` (shares the test event loop) |
-| `probe` | `ResourceProbe` — psutil-backed background sampler for RSS, FDs, threads, CPU |
+| `conversation_service` | 实数 `ConversationService` 指向 `tmp_path/persist` |
+| `bash_service` | 每次测试 `BashEventService`，monkeypatched 到 bash 路由器 |
+| `app` | FastAPI 应用程序通过依赖覆盖连接到测试服务 |
+| `client` | `httpx.AsyncClient` 超过 `ASGITransport`（共享测试事件循环） |
+| `probe` | `ResourceProbe` — psutil 支持的后台采样器，用于 RSS、FD、线程、CPU |
 
-**Why TestLLM needs a workaround:** `StartConversationRequest` round-trips
-through JSON (`model_dump` → revalidate), which strips `TestLLM`'s private
-`_scripted_responses`. Tests use `placeholder_llm()` for the request, then call
-`conversation.switch_llm(real_test_llm)` after creation. This pattern is in
+**为什么 TestLLM 需要解决方法：** `StartConversationRequest` 往返
+通过 JSON（`model_dump` → 重新验证），这会剥离 `TestLLM` 的私有
+`_scripted_responses`. 测试使用 `placeholder_llm()` 作为请求，然后调用
+`conversation.switch_llm(real_test_llm)` 创建后。 这个图案是在
 `scripts.start_conversation_with_test_llm()`.
 
-### Layout
+<a id="layout"></a>
 
-| File | Role |
+### 布局
+
+| 文件 | 角色 |
 |---|---|
-| `__init__.py` | Suite docstring and top-level documentation |
-| `conftest.py` | Shared fixtures (service, app, client, probe) |
-| `budgets.py` | Frozen dataclasses with assertion thresholds (latency, RSS, FDs, event counts) |
-| `probe.py` | `ResourceProbe` — psutil background sampler for budget assertions |
+| `__init__.py` | 套件文档字符串和顶级文档 |
+| `conftest.py` | 共享测试夹具（服务、应用程序、客户端、探针） |
+| `budgets.py` | 具有断言阈值的冻结数据类（延迟、RSS、FD、事件计数） |
+| `probe.py` | `ResourceProbe` — 用于预算断言的 psutil 后台采样器 |
 | `scripts.py` | `SlowTestLLM`, `placeholder_llm()`, `start_conversation_with_test_llm()`, `wait_for_terminal()` |
-| `test_*.py` | One file per failure mode |
+| `test_*.py` | 每种故障模式一个文件 |
 
-### Adding a new stress test
+<a id="adding-a-new-stress-test"></a>
 
-1. **Create `test_<failure_mode>.py`** — one file per bug class. Start with a
-   module docstring naming the bug class caught and any caveats.
-2. **Add `pytestmark = pytest.mark.stress`** at module level so the test is
-   deselected by default.
-3. **Define a budget** in `budgets.py` as a frozen `@dataclass(frozen=True, slots=True)`.
-   Prefer relative-to-baseline ratios (e.g., `rss_growth_factor`) over absolute
-   numbers; absolute thresholds only for failure modes whose definition _is_
-   unbounded growth. Add a module-level constant instance (e.g.,
+### 添加新的压力测试
+
+1. **创建 `test_<failure_mode>.py`** — 每个 bug 类一个文件。 从模块文档字符串开始，命名捕获的 bug 类和任何警告。
+2. **在模块级别添加`pytestmark = pytest.mark.stress`**，以便默认情况下取消选择测试。
+3. **将`budgets.py`中的预算**定义为冻结`@dataclass(frozen=True, slots=True)`。 优先考虑相对于基线的比率 (e.g., `rss_growth_factor`) 而不是绝对数字； 绝对阈值仅适用于其定义为无限增长的故障模式。 添加模块级常量实例（e.g.,
    `MY_BUDGET = MyBudget()`).
-4. **Use `conftest.py` fixtures** (`conversation_service`, `bash_service`, `client`,
-   `probe`) — don't create ad-hoc services. If a test needs a custom app
-   configuration (e.g., webhook config), override fixtures locally in the test file
-   (see `test_slow_webhook.py` for an example).
-5. **Use `scripts.py` helpers** for common operations:
-   - `SlowTestLLM` — `TestLLM` with synthetic per-call latency (makes parallelism
-     observable).
-   - `start_conversation_with_test_llm()` — creates a conversation, installs the
-     TestLLM, optionally queues an initial message.
-   - `wait_for_terminal()` — polls conversation status until it reaches a terminal
-     state.
-6. **Assert against budgets**, not magic numbers. Include a diagnostic message in
-   the `assert` explaining the likely regression (see existing tests for examples).
-7. **POSIX-only** — the suite uses `psutil.num_fds()`, file locks, bash pipelines,
-   and shell builtins. No Windows shims.
+4. **使用`conftest.py`测试夹具**（`conversation_service`、`bash_service`、`client`、
+   `probe`) — 不要创建临时服务。 如果测试需要自定义应用程序配置（e.g.、Webhook 配置），请在测试文件中本地覆盖测试夹具（有关示例，请参阅 `test_slow_webhook.py`）。
+5. **使用`scripts.py`助手**进行常见操作：
+   - `SlowTestLLM` — `TestLLM` 具有合成的每次调用延迟（使并行性可观察）。
+   - `start_conversation_with_test_llm()` — 创建对话，安装 TestLLM，可选择将初始消息排队。
+   - `wait_for_terminal()` — 轮询对话状态，直到达到最终状态。
+6. **主张预算**，而不是幻数。 在 `assert` 中包含一条诊断消息，解释可能的回归（请参阅现有测试的示例）。
+7. **POSIX-only** — 该套件使用 `psutil.num_fds()`、文件锁、bash 管道和 shell 内置命令。 没有 Windows 垫片。
 
-## Live server integration tests
+<a id="live-server-integration-tests"></a>
 
-Small endpoint additions or changes to server behaviour should be covered by a
-test in `tests/cross/test_remote_conversation_live_server.py`.  These tests spin
-up a real FastAPI server with a patched LLM and exercise the full HTTP / WebSocket
-stack end-to-end.  Add or extend a test there whenever the change is localised
-enough that a single new test function (or a few assertions added to an existing
-test) captures the expected behaviour.
+## 实时服务器集成测试
+
+`tests/cross/test_remote_conversation_live_server.py` 中的测试应涵盖对服务器行为的小端点添加或更改。 这些测试启动一个带有补丁的 LLM 的真实 FastAPI 服务器，并端到端地运行完整的 HTTP / WebSocket 堆栈。 每当变更足够本地化，可以在那里添加或扩展一个测试，以捕捉预期的行为。
 
 
-## Verifying API changes against a real server
+<a id="verifying-api-changes-against-a-real-server"></a>
 
-To prove an API change the way a consumer sees it (a real server process, real
-sockets, restarts and a real model), use the
+## 正在根据真实服务器验证 API 更改
+
+要证明 API 改变了消费者看待它的方式（真实的服务器进程、真实的套接字、重新启动和真实的模型），请使用
 [`verify-agent-server`](../.agents/skills/verify-agent-server/SKILL.md) skill:
-`control-agent-server map owners --changed origin/main...HEAD` names the
-affected feature families, and `control-agent-server map run --file Fnn --fresh`
-replays a family's recipes. A new or changed route needs an owner in the
-feature map (`control-agent-server map coverage`).
+`control-agent-server map owners --changed origin/main...HEAD` 命名受影响的功能系列，`control-agent-server map run --file Fnn --fresh` 重播系列的配方。 新的或更改的路线需要特征地图中的所有者（`control-agent-server map coverage`）。
 
 
-## Concurrency / async safety
+<a id="concurrency--async-safety"></a>
 
-- `ConversationState` uses a synchronous `FIFOLock`. In async agent-server code, never do `with conversation._state` directly on the event loop when the conversation may be running.
-- WebSocket reconnects call `EventService.subscribe_to_events()` immediately; if initial state snapshot creation blocks on the state lock in async context, the whole FastAPI event loop can stop serving `/ready` and similar probes.
-- The same rule applies to metadata updates in `ConversationService.update_conversation()`: keep the locked mutation/snapshot semantics, but move the synchronous lock wait into a worker thread first.
-- In async routes/services, move state-lock acquisition into `run_in_executor(...)` (or another worker-thread boundary) before awaiting network I/O.
+## 并发 / 异步安全
+
+- `ConversationState` 使用同步 `FIFOLock`。 在异步智能体-服务器代码中，当会话可能正在运行时，切勿直接在事件循环上执行 `with conversation._state`。
+- WebSocket立即重新连接呼叫`EventService.subscribe_to_events()`； 如果初始状态快照创建在异步上下文中的状态锁上阻塞，则整个 FastAPI 事件循环可以停止服务 `/ready` 和类似的探针。
+- 相同的规则适用于 `ConversationService.update_conversation()` 中的元数据更新：保留锁定的突变/快照语义，但首先将同步锁等待移至工作线程线程中。
+- 在异步路由/服务中，在等待网络 I/O 之前将状态锁获取移至 `run_in_executor(...)`（或另一个工作线程线程边界）。
 
 
-## REST API compatibility & deprecation policy
+<a id="rest-api-compatibility--deprecation-policy"></a>
 
-The agent-server **REST API** (the FastAPI OpenAPI surface under `/api/**`) is a
-public API and must remain backward compatible across releases.
+## REST API 兼容性 & 弃用政策
 
-All REST contract breaks need a deprecation notice and a runway of
-**5 minor releases** before removing the old contract or making an
-incompatible replacement mandatory.
+智能体-服务器 **REST API**（`/api/**` 下的 FastAPI OpenAPI 表面）是公共 API，并且在各个版本中必须保持向后兼容。
 
-### Deprecating an endpoint
+所有 REST 条合同中断都需要弃用条通知和一条跑道
+**5 次版本发布** 在删除旧合同或签订合同之前
+不兼容的强制更换。
 
-When deprecating a REST endpoint:
+<a id="deprecating-an-endpoint"></a>
 
-1. Mark the operation as deprecated in OpenAPI by passing `deprecated=True` to the
-   FastAPI route decorator.
-2. Add a docstring note that includes:
-   - the version it was deprecated in
-   - the version it is scheduled for removal in (default: **5 minor releases** later)
-3. Do **not** use `openhands.sdk.utils.deprecation.deprecated` for FastAPI routes.
-   That decorator affects Python warnings/docstrings, not OpenAPI, and may be a
-   no-op before the declared deprecation version.
+### 弃用端点
+
+当弃用 REST 端点时：
+
+1. 通过将 `deprecated=True` 传递给 FastAPI 路由装饰器，将操作标记为 OpenAPI 中的已弃用。
+2. 添加文档字符串注释，其中包括：
+   - 已弃用所在的版本
+   - 计划删除的版本（默认值：**5 次版本发布** 稍后）
+3. **不要**将`openhands.sdk.utils.deprecation.deprecated`用于FastAPI条路线。 该装饰器影响 Python 警告/文档字符串，而不是 OpenAPI，并且在声明的弃用版本之前可能是无操作。
 
 Example:
 
 ```py
 @router.post("/foo", deprecated=True)
 async def foo():
-    """Do something.
+    """做点什么。
 
     Deprecated since v1.2.3 and scheduled for removal in v1.7.0.
     """
 ```
 
-That exact sentence shape is what the CI checks look for, so keep the wording
-close to the example above.
+确切的句子形状正是 CI 检查所寻找的，因此请保持措辞接近上面的示例。
 
-### Deprecating a REST contract change
+<a id="deprecating-a-rest-contract-change"></a>
 
-If an existing endpoint's request or response schema needs an incompatible change:
+### 弃用 REST 合同变更
 
-1. Do **not** replace the old contract in place without a migration path.
-2. Add a deprecation notice for the old contract in the endpoint documentation and
-   release notes, including the deprecated-in version and the removal target.
-3. Keep the old contract available for **5 minor releases** while clients migrate.
-   Prefer additive schema changes, parallel fields, or a versioned endpoint or
-   versioned contract during the runway.
-4. Only remove the old contract or make the incompatible shape mandatory after the
-   runway has elapsed.
+如果现有端点的请求或响应模式需要不兼容的更改：
 
-### Removing an endpoint or legacy contract
+1. **不要**在没有迁移路径的情况下替换旧合约。
+2. 在端点文档和发布说明中为旧合同添加弃用通知，包括已弃用中版本和删除目标。
+3. 在客户端迁移时，让旧合同在 **5 次版本发布** 内可用。 更喜欢附加模式更改、并行字段或版本化端点或跑道期间的版本化合同。
+4. 仅在跑道结束后删除旧合同或强制执行不兼容的形状。
 
-Removing an endpoint or a previously supported REST contract is a breaking change.
+<a id="removing-an-endpoint-or-legacy-contract"></a>
 
-- Endpoints and legacy contracts must have a deprecation notice for **5 minor
-  releases** before removal.
-- Any release that introduces an allowed breaking REST API change should be
-  at least a **MINOR** SemVer bump, after a 5-minor-release deprecation runway.
+### 删除端点或旧合同
 
-### CI enforcement
+删除端点或之前支持的 REST 合约是不兼容变更。
 
-The workflow `Agent server REST API breakage checks` compares the current OpenAPI
-schema against the previous `openhands-agent-server` release selected from PyPI,
-but generates the baseline schema from the matching git tag under the current
-workspace dependency set before diffing with [oasdiff](https://github.com/oasdiff/oasdiff).
+- 端点且旧合同必须有弃用通知 **5 次版本发布** 在移除之前。
+- 任何引入允许的破坏性 REST API 更改的版本都应该在 5 个次要版本弃用跑道之后至少有一个 **MINOR** SemVer 碰撞。
 
-It currently enforces:
-- FastAPI route handlers must not use `openhands.sdk.utils.deprecation.deprecated`.
-- Endpoints that document deprecation in their OpenAPI description must also set
+<a id="ci-enforcement"></a>
+
+### CI 执行
+
+流程 `Agent server REST API breakage checks` 比较当前 OpenAPI  模式在之前的 `openhands-agent-server` 从选择的发布 PyPI但是生成基线模式从当前目录下的匹配的 git 标签工作区在 diffing 之前依赖集 [oasdiff](https://github.com/oasdiff/oasdiff).
+
+目前它强制执行：
+- FastAPI 路由处理程序不得使用 `openhands.sdk.utils.deprecation.deprecated`。
+- 端点该文档弃用在其 OpenAPI 描述中还必须设置
   `deprecated: true`.
-- Removed operations must already be marked `deprecated: true` in the previous
-  release and must have reached the scheduled removal version documented in the
-  baseline OpenAPI description.
-- The recognized removal note uses the same wording as the deprecation checks,
-  for example: `Deprecated since v1.14.0 and scheduled for removal in v1.19.0.`
-- Other breaking REST contract changes fail the check; the replacement must ship
-  additively or behind a versioned contract until the 5-minor-release runway has
-  elapsed.
-- The CI check enforces the deprecation runway, not release-wide SemVer policy.
-  Whether a release also needs a MINOR bump still depends on the full scope of
-  changes in that release.
+- 必须在上一个版本中已经标记为 `deprecated: true`，并且在基线 OpenAPI 描述中记录的计划移除版本已经达到。
+- The recognized removal note uses the same wording as the deprecation checks, for example: `Deprecated since v1.14.0 and scheduled for removal in v1.19.0.`
+- 其他破坏REST合同的变更未通过检查； 替代品必须额外发货或在版本合同之后发货，直到 5 个次要发布跑道结束。
+- CI 检查强制执行弃用跑道，而不是发布范围的 SemVer 策略。 某个版本是否也需要 MINOR 升级仍然取决于该版本中更改的全部范围。
 
-Some contract-level migration-path details still rely on human review because
-OpenAPI automation cannot fully infer every compatible rollout strategy.
+一些合同级别的迁移路径细节仍然依赖于人工审核，因为 OpenAPI 自动化无法完全推断出每个兼容的部署策略。
 
-WebSocket/SSE endpoints are not covered by this policy (OpenAPI only).
+WebSocket/SSE 端点不在本政策范围内（仅 OpenAPI）。

@@ -1,10 +1,10 @@
-"""Tests for LocalFileStore caching functionality.
+"""测试 LocalFileStore 缓存功能。
 
-This module tests:
-1. Cache correctness and consistency
-2. Cache performance improvements
-3. Memory limit enforcement
-4. Handling of large numbers of events without OOM
+这个模块测试：
+1. 缓存正确性和一致性
+2. 缓存性能改进
+3. 内存限制强制执行
+4. 处理大量没有 OOM 的事件
 """
 
 import logging
@@ -19,34 +19,34 @@ from openhands.sdk.io.local import LocalFileStore
 
 
 def test_cache_basic_functionality():
-    """Test that cache stores and retrieves values correctly."""
+    """测试缓存是否正确存储和检索值。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=10)
 
-        # Write and read
+        # 写和读
         store.write("test.txt", "Hello, World!")
         content = store.read("test.txt")
         assert content == "Hello, World!"
 
-        # Verify it's in cache
+        # 验证它在缓存中
         full_path = store.get_full_path("test.txt")
         assert full_path in store.cache
 
 
 def test_cache_hit_performance():
-    """Test that cache hits are significantly faster than disk reads."""
+    """测试缓存命中是否明显快于磁盘读取。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=100)
 
-        # Create a larger test file to make timing more measurable
+        # 创建更大的测试文件以使计时更可测量
         test_content = "x" * 100000  # 100KB
         store.write("large_file.txt", test_content)
 
-        # Warm up and do multiple reads to get more stable timing
+        # 热身并进行多次读取以获得更稳定的计时
         num_reads = 10
 
-        # First pass - from disk (cache miss + subsequent cache hits)
-        # Clear cache first
+        # 第一遍 - 从磁盘（缓存未命中 + 后续缓存命中）首先清除缓存
+        #
         store.cache.clear()
         content1 = ""
         start = time.perf_counter()
@@ -54,7 +54,7 @@ def test_cache_hit_performance():
             content1 = store.read("large_file.txt")
         first_pass_time = time.perf_counter() - start
 
-        # Second pass - all from cache (all cache hits)
+        # 第二遍 - 全部来自缓存（所有缓存命中）
         content2 = ""
         start = time.perf_counter()
         for _ in range(num_reads):
@@ -65,99 +65,100 @@ def test_cache_hit_performance():
         assert content1 == test_content
         assert content2 == test_content
 
-        # The first pass includes one disk read, so should be noticeably slower
-        # This is a more lenient check since timing can vary on different systems
+        # 第一次通过包括一次磁盘读取，因此应该明显变慢这是一个更宽松的检查，因为不同系统
+        # 上的时间可能会有所不同
+        #
         print(
             f"First pass: {first_pass_time:.6f}s, Second pass: {second_pass_time:.6f}s"
         )
-        # Just verify cache is working - second pass should not be much slower
+        # 只需验证缓存是否正常工作 - 第二遍应该不会慢很多
         assert second_pass_time < first_pass_time * 2
 
 
 def test_cache_lru_eviction():
-    """Test that LRU eviction works correctly."""
+    """测试 LRU 驱逐是否正常工作。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Small cache size to force evictions
+        # 较小的缓存大小可强制驱逐
         store = LocalFileStore(temp_dir, cache_limit_size=3)
 
-        # Write 5 files, cache can only hold 3
+        # 写入5个文件，缓存只能容纳3个
         for i in range(5):
             store.write(f"file_{i}.txt", f"content_{i}")
 
-        # Cache should have at most 3 entries
+        # 缓存最多应有 3 个条目
         assert len(store.cache) <= 3
 
-        # The most recently written files should be in cache
-        # (files 2, 3, 4)
+        # 最近写入的文件应位于缓存中（文件 2、3、4）
+        #
         full_path_4 = store.get_full_path("file_4.txt")
         assert full_path_4 in store.cache
 
 
 def test_cache_memory_limit():
-    """Test that memory limit is enforced."""
+    """测试是否强制执行内存限制。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Set very small memory limit (10KB)
+        # 设置非常小的内存限制（10KB）
         store = LocalFileStore(
             temp_dir, cache_limit_size=100, cache_memory_size=10 * 1024
         )
 
-        # Write files until we exceed memory limit
-        # Each file is ~2KB
+        # 写入文件，直到超出内存限制每个文件约为 2KB
+        #
         for i in range(20):
             content = "x" * 2000
             store.write(f"file_{i}.txt", content)
 
-        # Cache should not exceed memory limit
-        # Allow some overhead for Python objects
-        assert store.cache.current_memory <= 12 * 1024  # 10KB + 20% overhead
+        # 缓存不应超过内存限制允许 Python 对象产生一些开销
+        #
+        assert store.cache.current_memory <= 12 * 1024  # 10KB + 20% 开销
 
 
 def test_cache_invalidation_on_write():
-    """Test that cache is updated when file is overwritten."""
+    """测试文件被覆盖时缓存是否更新。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=10)
 
-        # Write initial content
+        # 写入初始内容
         store.write("test.txt", "original")
         assert store.read("test.txt") == "original"
 
-        # Overwrite with new content
+        # 用新内容覆盖
         store.write("test.txt", "updated")
         cached_content = store.read("test.txt")
 
-        # Cache should have updated content
+        # 缓存应该有更新的内容
         assert cached_content == "updated"
 
 
 def test_cache_invalidation_on_delete():
-    """Test that cache is cleared when file is deleted."""
+    """测试删除文件时缓存是否被清除。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=10)
 
-        # Write and read to populate cache
+        # 写入和读取以填充缓存
         store.write("test.txt", "content")
         store.read("test.txt")
 
         full_path = store.get_full_path("test.txt")
         assert full_path in store.cache
 
-        # Delete file
+        # 删除文件
         store.delete("test.txt")
 
-        # Cache should be cleared
+        # 应该清除缓存
         assert full_path not in store.cache
 
 
 def test_delete_uncached_file_succeeds_quietly(caplog):
-    """Deleting a file this store never cached is not an error.
+    """删除此存储从未缓存的文件不是错误。
 
-    Files written by another process are absent from this store's cache;
-    evicting them must not raise (and be swallowed into an ERROR log).
+    由另一个进程写入的文件不存在于该存储的缓存中； 驱逐它们不得引发（并被吞入 ERROR
+    日志）。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=10)
 
-        # Written behind the store's back, as another process would.
+        # 就像另一个过程一样，是在商店背后写的。
         outside = os.path.join(temp_dir, "outside.txt")
         with open(outside, "w") as f:
             f.write("content")
@@ -173,159 +174,158 @@ def test_delete_uncached_file_succeeds_quietly(caplog):
 
 
 def test_cache_directory_deletion():
-    """Test that cache is cleared when directory is deleted."""
+    """测试删除目录时缓存是否被清除。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=10)
 
-        # Create files in a subdirectory
+        # 在子目录中创建文件
         store.write("subdir/file1.txt", "content1")
         store.write("subdir/file2.txt", "content2")
 
-        # Read to populate cache
+        # 读取以填充缓存
         store.read("subdir/file1.txt")
         store.read("subdir/file2.txt")
 
-        # Verify in cache
+        # 在缓存中验证
         full_path1 = store.get_full_path("subdir/file1.txt")
         full_path2 = store.get_full_path("subdir/file2.txt")
         assert full_path1 in store.cache
         assert full_path2 in store.cache
 
-        # Delete directory
+        # 删除目录
         store.delete("subdir")
 
-        # Both files should be removed from cache
+        # 这两个文件都应该从缓存中删除
         assert full_path1 not in store.cache
         assert full_path2 not in store.cache
 
 
 def test_large_number_of_events_no_oom():
-    """Test that store can handle many events without OOM.
+    """测试存储是否可以在没有 OOM 的情况下处理许多事件。
 
-    This simulates a scenario with thousands of events being written
-    and read repeatedly, which was the original motivation for caching.
+    这模拟了一个有数千个事件被重复写入和读取的场景，这就是缓存的最初动机。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Conservative limits to prevent OOM
-        # Default 5MB memory, 500 entries
+        # 防止的保守限制 OOM 默认 5MB 内存，500 个条目
+        #
         store = LocalFileStore(temp_dir)
 
-        num_events = 2000  # Simulate 2000 events
+        num_events = 2000  # 模拟 2000 个事件
 
-        # Write many events (simulating conversation history)
+        # 编写许多事件（模拟对话历史）
         for i in range(num_events):
-            event_content = f"Event {i}: " + "x" * 200  # ~200 bytes per event
+            event_content = f"Event {i}: " + "x" * 200  # 每个事件 ~200 字节
             store.write(f"events/event_{i}.json", event_content)
 
-        # Read all events multiple times (simulating iteration)
+        # 多次读取所有事件（模拟迭代）
         for iteration in range(3):
-            for i in range(0, num_events, 10):  # Sample every 10th event
+            for i in range(0, num_events, 10):  # 每 10 个事件采样一次
                 content = store.read(f"events/event_{i}.json")
                 assert f"Event {i}:" in content
 
-        # Verify cache didn't grow unbounded
-        assert len(store.cache) <= 500  # Should respect limit
-        # Allow overhead but should be under memory limit
-        assert store.cache.current_memory <= 6 * 1024 * 1024  # 6MB with overhead
+        # 验证缓存没有无限增长
+        assert len(store.cache) <= 500  # 应遵守限制
+        # 允许开销但应低于内存限制
+        assert store.cache.current_memory <= 6 * 1024 * 1024  # 6MB（含开销）
 
 
 def test_cache_correctness_under_concurrent_operations():
-    """Test cache remains consistent with various operations."""
+    """测试缓存与各种操作保持一致。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=50)
 
-        # Interleave writes, reads, and deletes
+        # 交错写入、读取和删除
         for i in range(10):
-            # Write
+            # 写
             store.write(f"file_{i}.txt", f"content_{i}")
 
-            # Read
+            # 阅读
             content = store.read(f"file_{i}.txt")
             assert content == f"content_{i}"
 
-            # Update
+            # 更新
             store.write(f"file_{i}.txt", f"updated_{i}")
 
-            # Read again
+            # 再读一遍
             content = store.read(f"file_{i}.txt")
             assert content == f"updated_{i}"
 
-            # Delete odd-numbered files
+            # 删除奇数文件
             if i % 2 == 1:
                 store.delete(f"file_{i}.txt")
 
-                # Verify deleted file not in cache
+                # 验证已删除的文件不在缓存中
                 full_path = store.get_full_path(f"file_{i}.txt")
                 assert full_path not in store.cache
 
-                # Verify reading deleted file raises error
+                # 验证读取已删除的文件会引发错误
                 with pytest.raises(FileNotFoundError):
                     store.read(f"file_{i}.txt")
 
 
 def test_cache_performance_repeated_reads():
-    """Test that repeated reads show performance improvement."""
+    """测试重复读取是否显示性能改进。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=100)
 
-        # Create test files with more content to make disk I/O more noticeable
+        # 创建包含更多内容的测试文件以使磁盘 I/O 更加明显
         num_files = 50
         for i in range(num_files):
-            content = f"Test content {i}\n" * 500  # ~10KB per file
+            content = f"Test content {i}\n" * 500  # 每个文件 ~10KB
             store.write(f"file_{i}.txt", content)
 
-        # Clear cache to ensure fresh start
+        # 清除缓存以确保重新启动
         store.cache.clear()
 
-        # First pass - cache misses
+        # 第一遍 - 缓存未命中
         start = time.perf_counter()
         for i in range(num_files):
             store.read(f"file_{i}.txt")
         first_pass_time = time.perf_counter() - start
 
-        # Second pass - cache hits
+        # 第二遍 - 缓存命中
         start = time.perf_counter()
         for i in range(num_files):
             store.read(f"file_{i}.txt")
         second_pass_time = time.perf_counter() - start
 
-        # Second pass should be faster or at least not significantly slower
+        # 第二次传递应该更快或至少不会明显变慢
         speedup = first_pass_time / second_pass_time
         print(f"Cache speedup: {speedup:.2f}x")
-        # Use a more lenient check - cache should help or at least not hurt
-        assert speedup > 0.8  # Cache doesn't slow things down significantly
+        # 使用更宽松的检查 - 缓存应该有所帮助或至少不会造成伤害
+        assert speedup > 0.8  # 缓存不会显着减慢速度
 
 
 def test_cache_zero_size():
-    """Test that cache_limit_size=0 effectively disables caching."""
+    """测试 cache_limit_size=0 有效禁用缓存。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         store = LocalFileStore(temp_dir, cache_limit_size=0)
 
         store.write("test.txt", "content")
         store.read("test.txt")
 
-        # Cache should remain empty or very small
-        assert len(store.cache) <= 1  # May have transient entry
+        # 缓存应保持为空或非常小
+        assert len(store.cache) <= 1  # 可能有短暂进入
 
 
 def test_very_large_file_cache():
-    """Test handling of very large files relative to cache memory limit."""
+    """测试相对于高速缓存内存限制的非常大文件的处理。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Small memory limit
+        # 小内存限制
         store = LocalFileStore(
             temp_dir, cache_limit_size=10, cache_memory_size=10 * 1024
         )
 
-        # Write a file larger than cache memory limit
-        large_content = "x" * 50000  # 50KB file, but 10KB cache limit
+        # 写入大于缓存内存限制的文件
+        large_content = "x" * 50000  # 50KB 文件，但 10KB 缓存限制
         store.write("large.txt", large_content)
 
-        # Should still be able to read it
+        # 应该还是可以读的
         content = store.read("large.txt")
         assert content == large_content
 
-        # Cache should evict entries to stay under memory limit
-        assert store.cache.current_memory <= 12 * 1024  # Allow overhead
+        # 缓存应逐出条目以保持在内存限制以下
+        assert store.cache.current_memory <= 12 * 1024  # 允许开销
 
 
 def test_cache_with_evict_correct():
@@ -333,8 +333,8 @@ def test_cache_with_evict_correct():
     cache["key1"] = "a" * 500
     cache["key2"] = "b" * 500
     cache["key3"] = "c" * 100
-    # key1 should be evicted at this point (exceeds memory/entry limit)
+    # key1 此时应被逐出（超出内存/条目限制）
     assert "key2" in cache and "key3" in cache and "key1" not in cache
     total_len = len(cache["key2"]) + len(cache["key3"])
-    # Verify memory statistics match the total size of key2 and key3
+    # 验证内存统计信息与 key2 和 key3 的总大小匹配
     assert total_len == cache.current_memory

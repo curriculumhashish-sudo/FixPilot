@@ -1,4 +1,4 @@
-"""Execute shell commands in a persistent terminal session."""
+"""在持久终端会话中执行 shell 命令。"""
 
 import os
 import platform
@@ -53,38 +53,39 @@ _LITERAL_ARG_HINT_TEMPLATE = (
 
 
 def looks_like_python_literal_argument(command: str) -> str | None:
-    """Detect when a tool call has packed structured data into `command`.
+    """检测工具调用何时将结构化数据打包到 `command` 中。
 
-    Returns a short reason string (``"list literal"``, ``"nested list literal"``
-    or ``"dict literal"``) if ``command`` appears to be a Python/JSON literal
-    rather than a shell command, otherwise ``None``.
+    如果 ``command`` 看起来是 Python/JSON 文字而不是 shell 命令，则返回短原因字符串（
+    ``"list literal"``、
+    ``"nested list literal"`` 或 ``"dict literal"``），否则返回 ``None``。
 
-    Carefully distinguishes legitimate bash uses of ``[`` and ``[[`` (which
-    are always followed by whitespace) from Python-style literals. See the
-    accompanying tests for the full matrix.
+    仔细区分 ``[`` 和 ``[[``（后面总是跟有空格）的合法 bash 使用与 Python 样式文字。
+    请参阅随附的完整矩阵测试。
     """
     stripped = command.lstrip()
     if len(stripped) < 2:
         return None
     a, b = stripped[0], stripped[1]
-    # Top-level list literals: [{...}], ["..."], ['...']
+    # 顶级列表文字：[{...}]、["..."]、['...']
     if a == "[" and b in ("{", '"', "'"):
         return "list literal"
-    # Nested list literals: [[...]] — but bash `[[ -f x ]]` is followed by a
-    # whitespace char, so we only flag `[[` followed by non-whitespace.
+    # 嵌套列表文字：[[...]] — 但 bash `[[ -f x ]]` 后面跟着一个空格字符，所以我们只标记
+    # `[[` 后面跟着非空格。
+    #
     if a == "[" and b == "[":
         if len(stripped) >= 3 and stripped[2] not in (" ", "\t"):
             return "nested list literal"
         return None
-    # Top-level dict literals: {"key": ...} or {'key': ...}.
-    # Bash group commands `{ ls; }` always have a space after `{`.
+    # 顶级字典文字：{"key": ...} 或 {'key': ...}。 Bash 组命令 `{ ls; }` 在 `{` 之后始终
+    # 有一个空格。
+    #
     if a == "{" and b in ('"', "'"):
         return "dict literal"
     return None
 
 
 class TerminalAction(Action):
-    """Schema for terminal command execution."""
+    """模式用于终端命令执行。"""
 
     command: str = Field(
         description=(
@@ -115,19 +116,19 @@ class TerminalAction(Action):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation with a shell-style prompt."""
+        """返回具有 shell 样式的富文本表示形式提示词。"""
         content = Text()
 
-        # Create PS1-style prompt
+        # 创建 PS1 样式提示词
         content.append("$ ", style="bold green")
 
-        # Add command with syntax highlighting
+        # 添加带有语法高亮的命令
         if self.command:
             content.append(self.command, style="white")
         else:
             content.append("[empty command]", style="italic")
 
-        # Add metadata if present
+        # 添加元数据（如果存在）
         if self.is_input:
             content.append(" ", style="white")
             content.append("(input to running process)", style="yellow")
@@ -144,7 +145,7 @@ class TerminalAction(Action):
 
 
 class TerminalObservation(Observation):
-    """A ToolResult that can be rendered as a CLI output."""
+    """可以呈现为 CLI 输出的 ToolResult。"""
 
     command: str | None = Field(
         description="The shell command that was executed. Can be empty string if the observation is from a previous command that hit soft timeout and is not yet finished.",  # noqa
@@ -167,18 +168,18 @@ class TerminalObservation(Observation):
 
     @property
     def command_id(self) -> int | None:
-        """Get the command ID from metadata."""
+        """从元数据中获取命令 ID。"""
         return self.metadata.pid
 
     @property
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
         llm_content: list[TextContent | ImageContent] = []
 
-        # If is_error is true, prepend error message
+        # 如果 is_error 为 True，则添加错误消息
         if self.is_error:
             llm_content.append(TextContent(text=self.ERROR_MESSAGE_HEADER))
 
-        # TerminalObservation always has content as a single TextContent
+        # TerminalObservation 始终将内容作为单个内容 TextContent
         content_text = self.text
 
         ret = f"{self.metadata.prefix}{content_text}{self.metadata.suffix}"
@@ -189,7 +190,7 @@ class TerminalObservation(Observation):
         if self.metadata.exit_code != -1:
             ret += f"\n[Command finished with exit code {self.metadata.exit_code}]"
 
-        # Use enhanced truncation with file saving if working directory is available
+        # 如果工作目录可用，则使用增强截断和文件保存
         truncated_text = maybe_truncate(
             content=ret,
             truncate_after=MAX_CMD_OUTPUT_SIZE,
@@ -202,22 +203,22 @@ class TerminalObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation with terminal-style output formatting."""
+        """返回具有终端样式输出格式的富文本表示形式。"""
         text = Text()
 
         if self.is_error:
             text.append("❌ ", style="red bold")
             text.append(self.ERROR_MESSAGE_HEADER, style="bold red")
 
-        # TerminalObservation always has content as a single TextContent
+        # TerminalObservation 始终将内容作为单个内容 TextContent
         content_text = self.text
 
         if content_text:
-            # Style the output based on content
+            # 根据内容设置输出样式
             output_lines = content_text.split("\n")
             for line in output_lines:
                 if line.strip():
-                    # Color error-like lines differently
+                    # 错误线的颜色不同
                     if any(
                         keyword in line.lower()
                         for keyword in ["error", "failed", "exception", "traceback"]
@@ -227,13 +228,13 @@ class TerminalObservation(Observation):
                         keyword in line.lower() for keyword in ["warning", "warn"]
                     ):
                         text.append(line, style="yellow")
-                    elif line.startswith("+ "):  # bash -x output
+                    elif line.startswith("+ "):  # bash -x 输出
                         text.append(line, style="cyan")
                     else:
                         text.append(line, style="white")
                 text.append("\n")
 
-        # Add metadata with styling
+        # 添加带有样式的元数据
         if hasattr(self, "metadata") and self.metadata:
             if self.metadata.working_dir:
                 text.append("\n📁 ", style="blue")
@@ -266,19 +267,17 @@ class TerminalObservation(Observation):
 
 
 class TerminalTool(ToolDefinition[TerminalAction, TerminalObservation]):
-    """A ToolDefinition subclass that automatically initializes a TerminalExecutor with auto-detection."""  # noqa: E501
+    """通过自动检测自动初始化 TerminalExecutor 的 ToolDefinition 子类。"""  # noqa: E501
 
     catalog_description: ClassVar[str] = (
         "Run shell commands in a persistent terminal session."
     )
 
     def declared_resources(self, action: Action) -> DeclaredResources:  # noqa: ARG002
-        # When using the tmux backend, TmuxPanePool handles concurrency
-        # internally via pane-level isolation — opt out of framework
-        # serialization so parallel calls are allowed.
-        # When using the subprocess backend there is only a single
-        # session, so we declare a resource key to serialize terminal
-        # calls against each other without blocking unrelated tools.
+        # 在使用中， tmux backend TmuxPanePool handles 并发通过 pane 级别隔离 —— 选择不
+        # 使用框架序列化所以并行调用是允许的。 在使用中， 子进程后端只有一个会话，所以我
+        # 们要声明一个资源键序列化终端之间互相调用，不阻塞无关工具。
+        #
         if getattr(self.executor, "is_pooled", False):
             return DeclaredResources(keys=(), declared=True)
         return DeclaredResources(keys=("terminal:session",), declared=True)
@@ -295,34 +294,32 @@ class TerminalTool(ToolDefinition[TerminalAction, TerminalObservation]):
         *,
         env: Mapping[str, str] | None = None,
     ) -> Sequence["TerminalTool"]:
-        """Initialize TerminalTool with executor parameters.
+        """使用执行器参数初始化 TerminalTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
-                         If provided, working_dir will be taken from
-                         conv_state.workspace
-            username: Optional username for the shell session
-            no_change_timeout_seconds: Timeout for no output change
-            terminal_type: Force a specific session type:
-                         ('tmux', 'subprocess', or 'powershell').
-                         If None, auto-detect based on system capabilities:
-                         - On Windows: PowerShell-backed backend
-                         - On Unix-like systems: tmux if available, otherwise subprocess
-            shell_path: Path to the shell binary. On Unix this applies to the
-                       subprocess backend; on Windows it can point to a
-                       PowerShell executable.
-            env: Extra environment variables to add to the terminal session.
-                 These are client-controlled session settings and are not part
-                 of the LLM-facing TerminalAction schema.
+            conv_state: 要从中获取工作目录的对话状态。
+                         如果提供，working_dir 将从 conv_state.workspace 中获取
+            username: shell 会话的可选用户名
+            no_change_timeout_seconds: 超时表示无输出变化
+            terminal_type: 强制指定特定会话类型：
+                         （“tmux”、“子进程”或“powershell”）。 如果None，则根据系统功
+                         能自动检测：
+                         - 在 Windows 上：PowerShell 支持的后端
+                         - 在类 Unix 系统上：tmux（如果可用），否则子进程
+            shell_path: shell 二进制文件的路径。 在 Unix 上这适用于
+                       子进程后端； 在 Windows 上，它可以指向 PowerShell 可执行文件。
+            env: 添加到终端会话的额外环境变量。
+                 这些是客户端控制的会话设置，不是面向 LLM 的 TerminalAction 模式的一
+                 部分。
         """
-        # Import here to avoid circular imports
+        # 在这里导入以避免循环导入
         from openhands.tools.terminal.impl import TerminalExecutor
 
         working_dir = conv_state.workspace.working_dir
         if not os.path.isdir(working_dir):
             raise ValueError(f"working_dir '{working_dir}' is not a valid directory")
 
-        # Initialize the executor
+        # 初始化执行器
         if executor is None:
             executor = TerminalExecutor(
                 working_dir=working_dir,
@@ -340,7 +337,7 @@ class TerminalTool(ToolDefinition[TerminalAction, TerminalObservation]):
             else UNIX_TOOL_DESCRIPTION
         )
 
-        # Initialize the parent ToolDefinition with the executor
+        # 使用执行器初始化父级ToolDefinition
         return [
             cls(
                 action_type=TerminalAction,
@@ -358,5 +355,5 @@ class TerminalTool(ToolDefinition[TerminalAction, TerminalObservation]):
         ]
 
 
-# Automatically register the tool when this module is imported
+# 导入此模块时自动注册该工具
 register_tool(TerminalTool.name, TerminalTool)

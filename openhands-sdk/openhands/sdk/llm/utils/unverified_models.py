@@ -8,7 +8,7 @@ from openhands.sdk.logger import get_logger
 
 
 def _get_boto3():
-    """Get boto3 module if available, otherwise return None."""
+    """如果可用，则获取 boto3 模块，否则返回 None。"""
     try:
         return importlib.import_module("boto3")
     except ModuleNotFoundError:
@@ -30,7 +30,7 @@ def _list_bedrock_foundation_models(
         return []
 
     try:
-        # The AWS bedrock model id is not queried, if no AWS parameters are configured.
+        # 如果未配置 AWS 参数，则不会查询 AWS 基岩模型 ID。
         client = boto3.client(
             service_name="bedrock",
             region_name=aws_region_name,
@@ -52,11 +52,12 @@ def _list_bedrock_foundation_models(
 
 
 def _is_litellm_bedrock_model(model: str) -> bool:
-    """Whether LiteLLM serves ``model`` only through AWS Bedrock.
+    """LiteLLM 是否仅通过 AWS 基岩服务于 ``model``。
 
-    Many Bedrock ids carry no ``bedrock`` prefix (``deepseek.r1-v1:0``,
-    ``us.anthropic.claude-...``), so ask LiteLLM's model-cost map which provider
-    it files the id under (``bedrock``, ``bedrock_converse``, ``bedrock_mantle``).
+    许多基岩 ID 不带 ``bedrock`` 前缀（``deepseek.r1-v1:0``、
+    ``us.anthropic.claude-...``），所以询问 LiteLLM 的模型成本映射哪个提供商将 id 归
+    档在（``bedrock``、
+    ``bedrock_converse``、``bedrock_mantle``）下。
     """
     if model.startswith("bedrock"):
         return True
@@ -69,12 +70,12 @@ def get_supported_llm_models(
     aws_access_key_id: SecretStr | None = None,
     aws_secret_access_key: SecretStr | None = None,
 ) -> list[str]:
-    """Get models from LiteLLM, verified OpenRouter routes, and Bedrock.
+    """从 LiteLLM、已验证的 OpenRouter 路线和基岩获取模型。
 
-    Bedrock models are excluded unless AWS credentials are configured.
+    除非配置 AWS 凭据，否则基岩模型将被排除。
 
     Returns:
-        list[str]: Available model identifiers.
+        list[str]：可用模型标识符。
     """
     litellm_model_list = (
         litellm.model_list
@@ -109,7 +110,7 @@ def _get_litellm_provider_names() -> set[str]:
 
     result: set[str] = set()
 
-    # In LiteLLM, this is `list(LlmProviders)` i.e. enum members.
+    # 在LiteLLM中，这是`list(LlmProviders)`i.e。 枚举成员。
     for p in provider_list:
         if isinstance(p, str):
             if p:
@@ -125,25 +126,24 @@ _LITELLM_PROVIDER_NAMES = _get_litellm_provider_names()
 
 
 def _extract_model_and_provider(model: str) -> tuple[str, str, str]:
-    """Extract provider and model information from a model identifier.
+    """从模型标识符中提取提供者和模型信息。
 
-    This is intentionally conservative:
-    - Only treat the prefix as a provider if it is a known LiteLLM provider.
-    - Otherwise, return empty provider (caller will bucket it under "other").
+    这是故意保守的：
+    - 仅当前缀是已知的 LiteLLM 提供程序时，才将其视为提供程序。
+    - 否则，返回空提供程序（调用者将其存储在“其他”下）。
 
-    This prevents bogus providers like "us", "eu", "low", "1024-x-1024" from
-    leaking into downstream UIs.
+    这可以防止“us”、“eu”、“low”、“1024-x-1024”等虚假提供商泄漏到下游 UI。
     """
 
     separator = "/"
     split = model.split(separator)
 
     if len(split) == 1:
-        # no "/" separator found, try with "."
+        # 找不到“/" 分隔符，请尝试使用“.”
         separator = "."
         split = model.split(separator)
         if _split_is_actually_version(split):
-            split = [separator.join(split)]  # undo the split
+            split = [separator.join(split)]  # 撤消分裂
 
     if len(split) == 1:
         matched_provider = ""
@@ -172,7 +172,7 @@ def get_unverified_models(
     aws_secret_access_key: SecretStr | None = None,
 ) -> dict[str, list[str]]:
     """
-    Organize a mapping of unverified model identifiers by provider.
+    按提供商组织未经验证的模型标识符的映射。
     """
     result_dict: dict[str, list[str]] = {}
 
@@ -182,12 +182,12 @@ def get_unverified_models(
     for model in models:
         provider, model_id, separator = _extract_model_and_provider(model)
 
-        # Ignore "anthropic" providers with a separator of "."
-        # These are outdated and incompatible providers.
+        # 忽略带有“.”分隔符的“Anthropic”提供者。这些是过时且不兼容的提供商。
+        #
         if provider == "anthropic" and separator == ".":
             continue
 
-        # Dedup verified models
+        # 经重复数据删除验证的模型
         if provider in VERIFIED_MODELS and model_id in VERIFIED_MODELS[provider]:
             continue
 

@@ -8,28 +8,33 @@ description: >-
   from version bump to PyPI publication, emphasizing human checkpoints.
 ---
 
-# SDK Release Guide
+<a id="sdk-release-guide"></a>
 
-This skill walks through the software-agent-sdk release process step by step.
+# SDK 发布指南
 
-> **🚨 CRITICAL**: NEVER merge the release PR or create/publish a GitHub
-> release without the human's explicit approval. Release is the last line
-> of human defense. Always present the current status and ask for
-> confirmation before performing any irreversible action.
+本技能一步步走遍软件-智能体-SDK发布流程。
 
-## Phase 1: Trigger the Prepare-Release Workflow
+> **🚨 CRITICAL**: 绝不合并版本 PR 或创建/发布 GitHub
+> 未经人类明确批准就发布。 发布是最后一行
+> 人类的防御。 始终呈现当前状态并询问
+> 在执行任何不可逆转的操作之前进行确认。
 
-Determine the target version (SemVer `X.Y.Z`). Then trigger the
-`prepare-release.yml` workflow, which creates a release branch and PR
-automatically.
+<a id="phase-1-trigger-the-prepare-release-workflow"></a>
 
-### Via GitHub UI
+## 第 1 阶段：触发准备-发布工作流程
 
-Navigate to
-<https://github.com/OpenHands/software-agent-sdk/actions/workflows/prepare-release.yml>,
-click **Run workflow**, enter the version (e.g. `1.16.0`), and run it.
+确定目标版本 (SemVer `X.Y.Z`)。 然后触发
+`prepare-release.yml` 工作流程，自动创建发布分支和 PR。
 
-### Via GitHub API
+<a id="via-github-ui"></a>
+
+### 通过 GitHub 用户界面
+
+导航到 <https://github.com/OpenHands/software-agent-sdk/actions/workflows/prepare-release.yml>，单击 **运行工作流程**，输入版本 (e.g. `1.16.0`），然后运行它。
+
+<a id="via-github-api"></a>
+
+### 通过 GitHub API
 
 ```bash
 curl -X POST \
@@ -44,78 +49,83 @@ curl -X POST \
   }'
 ```
 
-The workflow will:
-1. Validate version format
-2. Create branch `rel-<version>`
-3. Run `make set-package-version version=<version>` across all packages
-4. Update the `sdk_ref` default in the eval workflow
-5. Open a PR titled **"Release v\<version\>"** with labels
-   `integration-test`, `behavior-test`, `test-examples`, and `security-scan`
-6. Notify `#proj-agent` with the release PR link and workflow actor
+工作流程将：
+1. 验证版本格式
+2. 创建分支 `rel-<version>`
+3. 在所有包中运行 `make set-package-version version=<version>`
+4. 更新评估工作流程中的 `sdk_ref` 默认值
+5. 打开标题为 **"Release v\<version\>"** 的 PR，并带有标签
+   `integration-test`、`behavior-test`、`test-examples` 和 `security-scan`
+6. 使用发布 PR 链接和工作流程参与者通知 `#proj-agent`
 
-### ⏸ Checkpoint — Confirm PR Created
+<a id="-checkpoint--confirm-pr-created"></a>
 
-Verify the PR exists and the version changes look correct before continuing.
+### ⏸ 检查点 — 确认 PR 已创建
+
+在继续之前，请验证 PR 是否存在并且版本更改看起来正确。
 
 ```bash
 gh pr list --repo OpenHands/software-agent-sdk \
   --head "rel-<version>" --json number,title,url
 ```
 
-## Phase 2: Address Deprecation Deadlines
+<a id="phase-2-address-deprecation-deadlines"></a>
 
-The `deprecation-check` CI job runs on every PR. If the release version
-crosses any deprecation deadline declared in the codebase, the check will
-fail.
+## 第 2 阶段：地址弃用截止日期
 
-Review the failing check output and either:
-- Remove the deprecated code if the deadline has passed, **or**
-- Extend the deadline with justification.
+`deprecation-check` CI 作业在每个 PR 上运行。 如果发布版本超过了代码库中声明的任何弃用截止日期，则检查将失败。
 
-Push fixes to the release branch. The check must pass before merging.
+查看失败的检查输出并执行以下任一操作：
+- 如果已过截止日期，则删除已弃用代码，** 或 **
+- 延长期限并提供合理理由。
 
-## Phase 3: Wait for CI — Checks Must Pass
+将修复推送至发布分支。 合并前必须通过检查。
 
-The release PR triggers three labeled test suites and a security scan.
-**All four must pass.**
+<a id="phase-3-wait-for-ci--checks-must-pass"></a>
 
-| Label | Suite | What it covers |
+## 第 3 阶段：等待 CI — 检查必须通过
+
+释放 PR 会触发三个标记测试套件和安全扫描。
+**全部四项都必须通过。**
+
+| 标签 | 套房 | 它涵盖什么 |
 |-------|-------|----------------|
-| `integration-test` | Integration tests | End-to-end agent scenarios |
-| `behavior-test` | Behavior tests | Agent behavioral guardrails |
-| `test-examples` | Example tests | All runnable examples in `examples/` |
-| `security-scan` | Release security scan | Approval drift and dependency diff checks |
+| `integration-test` | 集成测试 | 端到端智能体个场景 |
+| `behavior-test` | 行为测试 | 智能体行为约束检查 |
+| `test-examples` | 测试示例 | `examples/` 中所有可运行的示例 |
+| `security-scan` | 发布安全扫描 | 批准偏差和依赖性差异检查 |
 
-Monitor status:
+监控状态：
 
 ```bash
 gh pr checks <PR_NUMBER> --repo OpenHands/software-agent-sdk
 ```
 
-### ⏸ Checkpoint — Human Judgment on Failures
+<a id="-checkpoint--human-judgment-on-failures"></a>
 
-Some test failures may be pre-existing or flaky. Decide with the team
-whether each failure is:
-- **Blocking** — must fix before release
-- **Known / pre-existing** — acceptable to release with a follow-up issue
-- **Flaky** — re-run the workflow
+### ⏸ 检查点——人类对失败的判断
 
-Re-run failed jobs:
+一些测试失败可能是预先存在的或不稳定的。 与团队一起决定每次失败是否：
+- **阻塞** — 必须在发布前修复
+- **已知/预先存在** - 可以在后续问题中发布
+- **Flaky** — 重新运行工作流程
+
+重新运行失败的作业：
 
 ```bash
-# Find the run ID
+# 查找运行 ID
 gh run list --repo OpenHands/software-agent-sdk \
   --branch "rel-<version>" --limit 5
 
-# Re-run failed jobs
+# 重新运行失败的作业
 gh run rerun <RUN_ID> --repo OpenHands/software-agent-sdk --failed
 ```
 
-## Phase 4: Run Evaluation (Optional but Recommended)
+<a id="phase-4-run-evaluation-optional-but-recommended"></a>
 
-Trigger an evaluation run on SWE-bench (or another benchmark) against the
-release branch to catch regressions. See the `run-eval` skill for full
-details.
+## 第 4 阶段：运行评估（可选但推荐）
+
+在 SWE 工作台（或另一个基准测试）上针对发布分支触发评估运行以捕获回归。 有关完整详细信息，请参阅 `run-eval` 技能。
 
 ```bash
 curl -X POST \
@@ -134,55 +144,60 @@ curl -X POST \
   }'
 ```
 
-### ⏸ Checkpoint — Evaluate Results
+<a id="-checkpoint--evaluate-results"></a>
 
-Compare the eval results against the previous release. Significant score
-drops should block the release.
+### ⏸ 检查点——评估结果
 
-## Phase 5: Merge the Release PR
+将评估结果与之前的版本进行比较。 分数大幅下降应该会阻止发布。
 
-> **🚨 STOP — Do NOT merge without explicit human approval.**
-> Present the CI status summary and ask the human to confirm before merging.
-> Merging is effectively irreversible — it automatically triggers the full
-> release pipeline (GitHub release → PyPI publish → downstream version bumps).
+<a id="phase-5-merge-the-release-pr"></a>
 
-Once the human approves:
+## 第 5 阶段：合并版本 PR
+
+> **🚨 STOP — 在没有明确人类批准的情况下进行不合并。**
+> 呈现 CI 状态摘要并要求人员在合并前确认。
+> 合并实际上是不可逆的——它会自动触发完整的合并
+> 发布管道（GitHub发布→PyPI发布→下游版本更新）。
+
+一旦人类批准：
 
 ```bash
 gh pr merge <PR_NUMBER> --repo OpenHands/software-agent-sdk --merge
 ```
 
-## Phase 6: Automated Release Pipeline (no action needed)
+<a id="phase-6-automated-release-pipeline-no-action-needed"></a>
 
-When the release PR is merged, the following happens automatically:
+## 第 6 阶段：自动发布管道（无需采取任何操作）
 
-1. **`create-release.yml`** detects the merged `rel-*` branch, creates a
-   GitHub release with tag `v<version>` and auto-generated release notes.
-2. **`pypi-release.yml`** triggers on the published release and publishes
-   all four packages to PyPI:
+合并版本 PR 时，会自动发生以下情况：
+
+1. **`create-release.yml`** 检测合并的 `rel-*` 分支，创建带有标签 `v<version>` 和自动生成的发布说明的 GitHub 版本。
+2. **`pypi-release.yml`** 在已发布的版本上触发并将所有四个包发布到 PyPI：
    - `openhands-sdk`
    - `openhands-tools`
    - `openhands-workspace`
    - `openhands-agent-server`
-3. **`version-bump-prs.yml`** triggers after successful PyPI publish and
-   creates downstream version bump PRs.
+3. **`version-bump-prs.yml`** 在成功 PyPI 发布后触发并创建下游版本提升 PR。
 
-### ⏸ Checkpoint — Verify PyPI Publication
+<a id="-checkpoint--verify-pypi-publication"></a>
+
+### ⏸ 检查点 — 验证 PyPI 发布
 
 ```bash
-# Check each package is available (allow a few minutes for indexing)
+# 检查每个包是否可用（需要几分钟的时间进行索引）
 for pkg in openhands-sdk openhands-tools openhands-workspace openhands-agent-server; do
   curl -s -o /dev/null -w "$pkg: %{http_code}\n" \
     "https://pypi.org/pypi/$pkg/<version>/json"
 done
 ```
 
-All should return `200`.
+全部应该返回 `200`。
 
-## Phase 7: Post-Release Announcements
+<a id="phase-7-post-release-announcements"></a>
 
-After the automated pipeline completes, compose a Slack message for the
-human to post, including links to the downstream version bump PRs:
+## 第 7 阶段：发布后公告
+
+自动管道完成后，编写一条 Slack 消息供人员发布，包括指向下游版本凹凸 PR 的链接：
 
 ```
 🚀 *SDK v<version> published to PyPI!*
@@ -194,22 +209,23 @@ Version bump PRs:
 Release: <https://github.com/OpenHands/software-agent-sdk/releases/tag/v<version>|v<version>>
 ```
 
-See `references/post-release-checklist.md` for details on reviewing
-downstream PRs and handling any issues.
+有关审查下游 PR 和处理任何问题的详细信息，请参阅 `references/post-release-checklist.md`。
 
-## Quick Reference — Full Checklist
+<a id="quick-reference--full-checklist"></a>
 
-- [ ] Trigger `prepare-release.yml` with target version
-- [ ] Verify release PR is created
-- [ ] Fix deprecation deadline failures (if any)
-- [ ] Integration tests pass
-- [ ] Behavior tests pass
-- [ ] Example tests pass
-- [ ] Security scan passes
-- [ ] (Optional) Evaluation run shows no regressions
-- [ ] **🚨 Get human approval**, then merge the release PR
-- [ ] _(Automated)_ GitHub release created with auto-generated notes
-- [ ] _(Automated)_ Packages published to PyPI
-- [ ] _(Automated)_ Downstream version bump PRs created
-- [ ] Verify packages appear on PyPI
-- [ ] Send Slack message with downstream version bump PR links
+## 快速参考 - 完整清单
+
+- [ ] 触发器 `prepare-release.yml` 与目标版本
+- [ ] 验证版本 PR 已创建
+- [ ] 修复弃用截止日期失败问题（如果有）
+- []集成测试通过
+- [ ] 行为测试通过
+- [ ] 示例测试通过
+- [ ] 安全扫描通行证
+- [ ]（可选）评估运行显示没有回归
+- [ ] **🚨 获得人工批准**，然后合并版本 PR
+- [ ] _(Automated)_ GitHub 使用自动生成的注释创建的版本
+- [ ] _(Automated)_ 软件包发布到 PyPI
+- [ ] _(Automated)_ 已创建下游版本凹凸 PR
+- [ ] 验证包出现在PyPI
+- [ ] 发送带有下游版本升级的 Slack 消息 PR 链接

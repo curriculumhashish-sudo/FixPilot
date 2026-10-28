@@ -1,4 +1,4 @@
-"""MCP (Model Context Protocol) integration for agent-sdk."""
+"""MCP（模型上下文协议）智能体-SDK 的集成。"""
 
 from typing import TYPE_CHECKING
 

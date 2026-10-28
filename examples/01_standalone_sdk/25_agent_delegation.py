@@ -1,10 +1,8 @@
 """
-Agent Delegation Example
+智能体委托示例
 
-This example demonstrates the agent delegation feature where a main agent
-delegates tasks to sub-agents for parallel processing.
-Each sub-agent runs independently and returns its results to the main agent,
-which then merges both analyses into a single consolidated report.
+此示例演示了智能体委托功能，其中包含一个主要的智能体将任务委派给子智能体用于并行处理
+。 每个子智能体它独立运行并返回结果给主程序智能体然后将两份分析合并成一份综合报告。
 """
 
 import os
@@ -26,7 +24,7 @@ from openhands.tools.task import TaskToolSet
 
 logger = get_logger(__name__)
 
-# Configure LLM and agent
+# 配置LLM和智能体
 llm = LLM(
     model=os.getenv("LLM_MODEL", "gpt-5.5"),
     api_key=os.getenv("LLM_API_KEY"),
@@ -36,7 +34,7 @@ llm = LLM(
 
 
 def create_lodging_planner(llm: LLM) -> Agent:
-    """Create a lodging planner focused on London stays."""
+    """创建一个专注于伦敦住宿的住宿规划师。"""
     skills = [
         Skill(
             name="lodging_planning",
@@ -60,7 +58,7 @@ def create_lodging_planner(llm: LLM) -> Agent:
 
 
 def create_activities_planner(llm: LLM) -> Agent:
-    """Create an activities planner focused on London itineraries."""
+    """创建一个专注于伦敦行程的活动计划。"""
     skills = [
         Skill(
             name="activities_planning",
@@ -83,7 +81,7 @@ def create_activities_planner(llm: LLM) -> Agent:
     )
 
 
-# Register user-defined agent types (default agent type is always available)
+# 注册用户定义的智能体类型（默认智能体类型始终可用）
 register_agent(
     name="lodging_planner",
     factory_func=create_lodging_planner,
@@ -130,7 +128,7 @@ conversation.send_message(
 )
 conversation.run()
 
-# Report cost for user-defined agent types example
+# 报告用户定义的智能体类型的成本示例
 cost_user_defined = (
     conversation.conversation_stats.get_combined_metrics().accumulated_cost
 )

@@ -1,4 +1,4 @@
-"""Tests for agent-server REST API breakage check script."""
+"""测试智能体-服务器 REST API 损坏检查脚本。"""
 
 from __future__ import annotations
 
@@ -792,7 +792,7 @@ def test_split_breaking_changes_separates_three_buckets():
             "text": "added body anyOf member",
         },
         {
-            # Additive value on the hook discriminator union -> downgraded.
+            # 钩鉴别器联合上的附加值 -> 降级。
             "id": "response-property-enum-value-added",
             "details": {},
             "text": (
@@ -802,7 +802,7 @@ def test_split_breaking_changes_separates_three_buckets():
             ),
         },
         {
-            # Enum value on an ordinary (non-discriminator) property -> breaking.
+            # 普通（非鉴别器）属性的枚举值 -> 破坏。
             "id": "response-property-enum-value-added",
             "details": {},
             "text": (
@@ -833,8 +833,8 @@ def test_split_breaking_changes_separates_three_buckets():
         "response-body-any-of-added",
         "response-property-enum-value-added",
     }
-    # The hook-discriminator enum addition is downgraded; the unrelated `status`
-    # enum addition and the body change remain breaking.
+    # 钩子鉴别器枚举添加被降级； 不相关的 `status` 枚举添加和主体更改仍然是破坏性的。
+    #
     assert {
         change["text"] for change in additive_oneof if "enum value" in change["text"]
     } == {

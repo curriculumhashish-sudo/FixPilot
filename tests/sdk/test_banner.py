@@ -1,4 +1,4 @@
-"""Tests for the SDK startup banner."""
+"""测试 SDK 启动横幅。"""
 
 import pytest
 
@@ -7,10 +7,10 @@ from openhands.sdk.banner import _print_banner
 
 @pytest.fixture
 def reset_banner_state(monkeypatch):
-    """Reset the banner state and env var before and after each test."""
+    """在每次测试之前和之后重置横幅状态和环境变量。"""
     import openhands.sdk.banner as banner_module
 
-    # Remove suppress env var if set (e.g., from CI)
+    # 如果设置了 (e.g., from CI)，则删除抑制环境变量
     monkeypatch.delenv("OPENHANDS_SUPPRESS_BANNER", raising=False)
 
     original_state = banner_module._BANNER_PRINTED
@@ -20,7 +20,7 @@ def reset_banner_state(monkeypatch):
 
 
 def test_banner_prints_to_stderr(reset_banner_state, capsys):
-    """Test that the banner prints to stderr."""
+    """测试横幅是否打印到 stderr。"""
     _print_banner("1.0.0")
 
     captured = capsys.readouterr()
@@ -33,7 +33,7 @@ def test_banner_prints_to_stderr(reset_banner_state, capsys):
 
 
 def test_banner_prints_only_once(reset_banner_state, capsys):
-    """Test that the banner only prints once even if called multiple times."""
+    """测试横幅是否只打印一次，即使多次调用也是如此。"""
     _print_banner("1.0.0")
     _print_banner("1.0.0")
     _print_banner("1.0.0")
@@ -43,7 +43,7 @@ def test_banner_prints_only_once(reset_banner_state, capsys):
 
 
 def test_banner_suppressed_by_env_var(monkeypatch, reset_banner_state, capsys):
-    """Test that OPENHANDS_SUPPRESS_BANNER=1 suppresses the banner."""
+    """测试 OPENHANDS_SUPPRESS_BANNER=1 抑制横幅。"""
     monkeypatch.setenv("OPENHANDS_SUPPRESS_BANNER", "1")
 
     _print_banner("1.0.0")
@@ -53,7 +53,7 @@ def test_banner_suppressed_by_env_var(monkeypatch, reset_banner_state, capsys):
 
 
 def test_banner_suppressed_by_env_var_true(monkeypatch, reset_banner_state, capsys):
-    """Test that OPENHANDS_SUPPRESS_BANNER=true suppresses the banner."""
+    """测试 OPENHANDS_SUPPRESS_BANNER=True 是否抑制横幅。"""
     monkeypatch.setenv("OPENHANDS_SUPPRESS_BANNER", "true")
 
     _print_banner("1.0.0")

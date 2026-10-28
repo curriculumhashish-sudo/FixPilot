@@ -1,5 +1,5 @@
 /**
- * Integration test configuration
+ * 集成测试配置
  */
 
 export interface ServerTestConfig {

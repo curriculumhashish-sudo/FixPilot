@@ -1,4 +1,4 @@
-"""Tests for ConversationState callback mechanism."""
+"""测试 ConversationState 回调机制。"""
 
 import uuid
 
@@ -17,7 +17,7 @@ from openhands.sdk.workspace import LocalWorkspace
 
 @pytest.fixture
 def state():
-    """Create a ConversationState for testing."""
+    """创建一个 ConversationState 进行测试。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm)
     workspace = LocalWorkspace(working_dir="/tmp/test")
@@ -29,7 +29,7 @@ def state():
         agent=agent,
     )
 
-    # Set up filestore and enable autosave so callbacks are triggered
+    # 设置文件存储并启用自动保存，以便触发回调
     state._fs = InMemoryFileStore()
     state._autosave_enabled = True
 
@@ -37,20 +37,20 @@ def state():
 
 
 def test_set_on_state_change_callback(state):
-    """Test that callback can be set and is called when state changes."""
+    """测试回调是否可以设置并在状态改变时被调用。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
         callback_calls.append(event)
 
-    # Set the callback
+    # 设置回调
     state.set_on_state_change(callback)
 
-    # Change state - should trigger callback
+    # 更改状态 - 应触发回调
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
 
-    # Verify callback was called
+    # 验证回调被调用
     assert len(callback_calls) == 1
     event = callback_calls[0]
     assert isinstance(event, ConversationStateUpdateEvent)
@@ -59,7 +59,7 @@ def test_set_on_state_change_callback(state):
 
 
 def test_callback_called_multiple_times(state):
-    """Test that callback is called for multiple state changes."""
+    """测试是否调用回调来进行多个状态更改。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
@@ -67,13 +67,13 @@ def test_callback_called_multiple_times(state):
 
     state.set_on_state_change(callback)
 
-    # Make multiple state changes
+    # 进行多个状态更改
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
         state.execution_status = ConversationExecutionStatus.PAUSED
         state.execution_status = ConversationExecutionStatus.FINISHED
 
-    # Verify callback was called for each change
+    # 验证每次更改都调用了回调
     assert len(callback_calls) == 3
     assert callback_calls[0].value == ConversationExecutionStatus.RUNNING
     assert callback_calls[1].value == ConversationExecutionStatus.PAUSED
@@ -81,42 +81,42 @@ def test_callback_called_multiple_times(state):
 
 
 def test_callback_can_be_cleared(state):
-    """Test that callback can be cleared by setting to None."""
+    """测试是否可以通过设置为None来清除回调。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
         callback_calls.append(event)
 
-    # Set and then clear the callback
+    # 设置然后清除回调
     state.set_on_state_change(callback)
     state.set_on_state_change(None)
 
-    # Change state - callback should not be called
+    # 更改状态 - 不应调用回调
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
 
-    # Verify callback was not called
+    # 验证回调未被调用
     assert len(callback_calls) == 0
 
 
 def test_callback_exception_does_not_break_state_change(state):
-    """Test that exceptions in callback don't prevent state changes."""
+    """测试回调中的异常不会阻止状态更改。"""
 
     def bad_callback(event: ConversationStateUpdateEvent):
         raise ValueError("Callback error")
 
     state.set_on_state_change(bad_callback)
 
-    # Change state - should not raise despite callback error
+    # 更改状态 - 尽管出现回调错误，但不应引发
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
 
-    # Verify state was still changed
+    # 验证状态仍然改变
     assert state.execution_status == ConversationExecutionStatus.RUNNING
 
 
 def test_callback_not_called_without_lock(state):
-    """Test that callback is only called when state is modified within lock."""
+    """测试仅当状态在锁内修改时才调用回调。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
@@ -124,16 +124,16 @@ def test_callback_not_called_without_lock(state):
 
     state.set_on_state_change(callback)
 
-    # This should still trigger callback since __setattr__ is called
+    # 这应该仍然会触发回调，因为 __setattr__ 被调用
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
 
-    # Verify callback was called
+    # 验证回调被调用
     assert len(callback_calls) == 1
 
 
 def test_callback_with_different_field_types(state):
-    """Test callback works with different types of fields."""
+    """测试回调适用于不同类型的字段。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
@@ -141,13 +141,13 @@ def test_callback_with_different_field_types(state):
 
     state.set_on_state_change(callback)
 
-    # Change different types of fields
+    # 更改不同类型的字段
     with state:
         state.execution_status = ConversationExecutionStatus.RUNNING
         state.max_iterations = 100
         state.stuck_detection = False
 
-    # Verify callback was called for each change
+    # 验证每次更改都调用了回调
     assert len(callback_calls) == 3
     assert callback_calls[0].key == "execution_status"
     assert callback_calls[1].key == "max_iterations"
@@ -155,43 +155,43 @@ def test_callback_with_different_field_types(state):
 
 
 def test_callback_receives_correct_new_value(state):
-    """Test that callback receives the correct new value."""
+    """测试回调是否收到正确的新值。"""
     callback_calls = []
 
     def callback(event: ConversationStateUpdateEvent):
         callback_calls.append(event)
 
-    # Set initial value
+    # 设置初始值
     with state:
         state.max_iterations = 50
 
-    # Now set callback and change value again
+    # 现在设置回调并再次更改值
     state.set_on_state_change(callback)
 
     with state:
         state.max_iterations = 100
 
-    # Verify new value is correct
+    # 验证新值是否正确
     assert len(callback_calls) == 1
     assert callback_calls[0].key == "max_iterations"
     assert callback_calls[0].value == 100
 
 
 def test_leaf_event_id_persists_but_does_not_broadcast(state):
-    """leaf_event_id autosaves but is not broadcast as a state-update event.
+    """leaf_event_id 自动保存，但不作为状态更新事件广播。
 
-    It changes on every appended event; broadcasting it would ~double the agent
-    server's persisted event log. The value still round-trips via base_state.json.
+    它会随着每个附加事件而变化； 广播它将使 Agent Server 的已持久化事件日志加倍。 该
+    值仍然通过 base_state.json 往返。
     """
     callback_calls = []
     state.set_on_state_change(lambda event: callback_calls.append(event))
 
     with state:
-        state.leaf_event_id = "evt-123"  # high-frequency field: no broadcast
-        state.execution_status = ConversationExecutionStatus.RUNNING  # broadcasts
+        state.leaf_event_id = "evt-123"  # 高频场：不广播
+        state.execution_status = ConversationExecutionStatus.RUNNING  # 广播
 
     keys = [c.key for c in callback_calls]
     assert "leaf_event_id" not in keys
     assert keys == ["execution_status"]
-    # The value is still applied (and would persist to base_state.json).
+    # 该值仍然适用（并且将持久化更改为 base_state.json）。
     assert state.leaf_event_id == "evt-123"

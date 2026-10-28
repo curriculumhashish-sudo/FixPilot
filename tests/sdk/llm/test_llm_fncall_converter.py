@@ -1,4 +1,4 @@
-"""Test for FunctionCallingConverter."""
+"""测试 FunctionCallingConverter。"""
 
 import json
 import textwrap
@@ -50,15 +50,15 @@ FNCALL_TOOLS: list[ChatCompletionToolParam] = [
 
 
 def test_stop_words_defined():
-    """Test that STOP_WORDS is properly defined."""
+    """测试 STOP_WORDS 是否已正确定义。"""
     assert isinstance(STOP_WORDS, list)
     assert len(STOP_WORDS) > 0
     assert all(isinstance(word, str) for word in STOP_WORDS)
 
 
 def test_convert_fncall_to_non_fncall_basic():
-    """Test basic conversion from function call messages to non-function call
-    messages."""
+    """测试从函数调用消息到非函数调用的基本转换
+    消息。"""
     fncall_messages = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -85,7 +85,7 @@ def test_convert_fncall_to_non_fncall_basic():
     assert isinstance(non_fncall_messages, list)
     assert len(non_fncall_messages) >= len(fncall_messages)
 
-    # Check that tool calls are converted to text format
+    # 检查工具调用是否已转换为文本格式
     assistant_msg = None
     for msg in non_fncall_messages:
         if msg.get("role") == "assistant" and "terminal" in str(msg.get("content", "")):
@@ -97,8 +97,8 @@ def test_convert_fncall_to_non_fncall_basic():
 
 
 def test_convert_non_fncall_to_fncall_basic():
-    """Test basic conversion from non-function call messages to function call
-    messages."""
+    """测试从非函数调用消息到函数调用的基本转换
+    消息。"""
     non_fncall_messages = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -117,7 +117,7 @@ def test_convert_non_fncall_to_fncall_basic():
     assert isinstance(fncall_messages, list)
     assert len(fncall_messages) >= len(non_fncall_messages)
 
-    # Check that function calls are properly converted
+    # 检查函数调用是否正确转换
     assistant_msg = None
     for msg in fncall_messages:
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
@@ -131,7 +131,7 @@ def test_convert_non_fncall_to_fncall_basic():
 
 
 def test_convert_fncall_to_non_fncall_with_in_context_learning():
-    """Test conversion with in-context learning examples."""
+    """使用 in-上下文学习示例测试转换。"""
     fncall_messages = [{"role": "user", "content": "Please run ls command"}]
 
     non_fncall_messages = convert_fncall_messages_to_non_fncall_messages(
@@ -139,11 +139,11 @@ def test_convert_fncall_to_non_fncall_with_in_context_learning():
     )
 
     assert isinstance(non_fncall_messages, list)
-    # Agent-sdk may combine examples into existing messages rather than creating
-    # new ones
+    # 智能体-SDK 可以将示例合并到现有消息中，而不是创建新消息
+    #
     assert len(non_fncall_messages) >= len(fncall_messages)
 
-    # Check that examples are added to the content
+    # 检查示例是否已添加到内容中
     has_example = False
     for msg in non_fncall_messages:
         content = str(msg.get("content", "")).lower()
@@ -151,14 +151,14 @@ def test_convert_fncall_to_non_fncall_with_in_context_learning():
             has_example = True
             break
 
-    # Examples should be present when requested
+    # 应要求时提供示例
     assert has_example, (
         "In-context learning examples should be added to message content"
     )
 
 
 def test_convert_fncall_to_non_fncall_without_in_context_learning():
-    """Test conversion without in-context learning examples."""
+    """无需 in-上下文学习示例即可测试转换。"""
     fncall_messages = [{"role": "user", "content": "Please run ls command"}]
 
     non_fncall_messages = convert_fncall_messages_to_non_fncall_messages(
@@ -166,12 +166,12 @@ def test_convert_fncall_to_non_fncall_without_in_context_learning():
     )
 
     assert isinstance(non_fncall_messages, list)
-    # Without examples, should be same length or similar
+    # 没有例子，应该是相同的长度或相似的
     assert len(non_fncall_messages) >= len(fncall_messages)
 
 
 def test_convert_with_multiple_tool_calls():
-    """Test that multiple tool calls in one message raise an error."""
+    """测试一条消息中的多个工具调用是否会引发错误。"""
     fncall_messages = [
         {"role": "user", "content": "Please run ls and then pwd"},
         {
@@ -198,7 +198,7 @@ def test_convert_with_multiple_tool_calls():
         },
     ]
 
-    # Agent-SDK doesn't support multiple tool calls per message
+    # 智能体-SDK 不支持每条消息多个工具调用
     with pytest.raises(
         FunctionCallConversionError, match="Expected exactly one tool call"
     ):
@@ -206,7 +206,7 @@ def test_convert_with_multiple_tool_calls():
 
 
 def test_convert_with_tool_response():
-    """Test conversion including tool responses."""
+    """测试转换，包括工具响应。"""
     fncall_messages = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -239,9 +239,9 @@ def test_convert_with_tool_response():
     )
 
     assert isinstance(non_fncall_messages, list)
-    assert len(non_fncall_messages) >= 3  # At least user, assistant, final assistant
+    assert len(non_fncall_messages) >= 3  # 至少是用户、助理、最终助理
 
-    # Check that tool response is incorporated
+    # 检查工具响应是否已合并
     has_tool_output = False
     for msg in non_fncall_messages:
         content = str(msg.get("content", ""))
@@ -253,7 +253,7 @@ def test_convert_with_tool_response():
 
 
 def test_convert_roundtrip():
-    """Test that conversion is somewhat reversible."""
+    """测试转换是否可逆。"""
     original_fncall = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -272,18 +272,18 @@ def test_convert_roundtrip():
         },
     ]
 
-    # Convert to non-function call format
+    # 转换为非函数调用格式
     non_fncall = convert_fncall_messages_to_non_fncall_messages(
         original_fncall, FNCALL_TOOLS
     )
-    # Convert back to function call format
+    # 转换回函数调用格式
     back_to_fncall = convert_non_fncall_messages_to_fncall_messages(
         non_fncall, FNCALL_TOOLS
     )
 
     assert isinstance(back_to_fncall, list)
 
-    # Check that we have tool calls in the result
+    # 检查结果中是否有工具调用
     has_tool_calls = False
     for msg in back_to_fncall:
         if msg.get("tool_calls"):
@@ -294,7 +294,7 @@ def test_convert_roundtrip():
 
 
 def test_convert_with_invalid_function_call():
-    """Test handling of invalid function call format."""
+    """测试无效函数调用格式的处理。"""
     non_fncall_messages = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -306,12 +306,12 @@ def test_convert_with_invalid_function_call():
         },
     ]
 
-    # This should handle invalid function calls gracefully
+    # 这应该优雅地处理无效的函数调用
     try:
         fncall_messages = convert_non_fncall_messages_to_fncall_messages(
             non_fncall_messages, FNCALL_TOOLS
         )
-        # If no exception, check that result is reasonable
+        # 如果没有异常，检查结果是否合理
         assert isinstance(fncall_messages, list)
     except (
         FunctionCallConversionError,
@@ -319,12 +319,12 @@ def test_convert_with_invalid_function_call():
         ValueError,
         KeyError,
     ):
-        # These exceptions are acceptable for invalid function calls
+        # 对于无效的函数调用，这些异常是可以接受的
         pass
 
 
 def test_convert_with_malformed_parameters():
-    """Test handling of malformed function parameters."""
+    """测试格式错误的函数参数的处理。"""
     non_fncall_messages = [
         {"role": "user", "content": "Please run ls command"},
         {
@@ -336,7 +336,7 @@ def test_convert_with_malformed_parameters():
         },
     ]
 
-    # This should handle malformed parameters gracefully
+    # 这应该可以优雅地处理格式错误的参数
     try:
         fncall_messages = convert_non_fncall_messages_to_fncall_messages(
             non_fncall_messages, FNCALL_TOOLS
@@ -348,12 +348,12 @@ def test_convert_with_malformed_parameters():
         ValueError,
         KeyError,
     ):
-        # These exceptions are acceptable for malformed parameters
+        # 对于格式错误的参数，这些异常是可以接受的
         pass
 
 
 def test_convert_empty_messages():
-    """Test conversion with empty message list."""
+    """使用空消息列表测试转换。"""
     empty_messages = []
     non_fncall = convert_fncall_messages_to_non_fncall_messages(
         empty_messages, FNCALL_TOOLS
@@ -366,7 +366,7 @@ def test_convert_empty_messages():
 
 
 def test_convert_with_no_tools():
-    """Test conversion with empty tools list."""
+    """使用空工具列表测试转换。"""
     messages = [
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi there!"},
@@ -382,7 +382,7 @@ def test_convert_with_no_tools():
 
 
 def test_convert_preserves_user_messages():
-    """Test that user messages are preserved during conversion."""
+    """测试用户消息在转换过程中是否被保留。"""
     messages = [
         {"role": "user", "content": "Please help me with this task"},
         {"role": "assistant", "content": "I'll help you with that."},
@@ -390,7 +390,7 @@ def test_convert_preserves_user_messages():
 
     non_fncall = convert_fncall_messages_to_non_fncall_messages(messages, FNCALL_TOOLS)
 
-    # Find user message in result
+    # 在结果中查找用户消息
     user_msg = None
     for msg in non_fncall:
         if msg.get("role") == "user":
@@ -402,7 +402,7 @@ def test_convert_preserves_user_messages():
 
 
 def test_convert_with_system_message():
-    """Test conversion with system messages."""
+    """使用系统消息测试转换。"""
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Please run ls command"},
@@ -424,7 +424,7 @@ def test_convert_with_system_message():
 
     non_fncall = convert_fncall_messages_to_non_fncall_messages(messages, FNCALL_TOOLS)
 
-    # System message should be preserved
+    # 应保留系统消息
     system_msg = None
     for msg in non_fncall:
         if msg.get("role") == "system":
@@ -436,7 +436,7 @@ def test_convert_with_system_message():
 
 
 def test_convert_with_finish_tool():
-    """Test conversion with finish tool call."""
+    """使用完成工具调用测试转换。"""
     fncall_messages = [
         {"role": "user", "content": "Please finish the task"},
         {
@@ -458,7 +458,7 @@ def test_convert_with_finish_tool():
 
     assert isinstance(non_fncall, list)
 
-    # Check that finish call is represented
+    # 检查是否代表完成调用
     has_finish = False
     for msg in non_fncall:
         content = str(msg.get("content", ""))
@@ -470,7 +470,7 @@ def test_convert_with_finish_tool():
 
 
 def test_convert_tools_to_description_array_items():
-    """Ensure array parameters with object items are formatted clearly."""
+    """确保对象项的数组参数格式清晰。"""
     tools = cast(
         list[ChatCompletionToolParam],
         [
@@ -532,12 +532,12 @@ def test_convert_tools_to_description_array_items():
         "Allowed values: [`view`, `plan`]\n"
     )
     assert expected_command_line in description
-    # Top-level parameter line should reflect the summarized array type
+    # 顶级参数行应反映汇总数组类型
     assert (
         "  (2) task_list (array[object], optional): The full task list. Required parameter of `plan` command.\n"  # noqa: E501
         in description
     )
-    # Nested structure should be shown via the generic recursive formatter
+    # 嵌套结构应通过通用递归格式化程序显示
     assert "Object properties:" in description
     assert "- title (string, required): A brief title for the task." in description
     assert (
@@ -548,14 +548,14 @@ def test_convert_tools_to_description_array_items():
         "- status (string, optional): The current status of the task. One of 'todo', 'in_progress', or 'done'."  # noqa: E501
         in description
     )
-    # Nested enum values are described inline in the field description; no separate
-    # "Allowed values" line is required.
+    # 嵌套的枚举值在字段描述中内联描述； 不需要单独的“允许值”行。
+    #
 
 
 @pytest.mark.parametrize(
     "tool_call, expected",
     [
-        # Basic single parameter
+        # 基本单参数
         (
             {
                 "id": "test_id",
@@ -567,7 +567,7 @@ def test_convert_tools_to_description_array_items():
             },
             ("<function=terminal>\n<parameter=command>ls -la</parameter>\n</function>"),
         ),
-        # Multiple parameters with different types
+        # 多个不同类型的参数
         (
             {
                 "id": "test_id",
@@ -586,7 +586,7 @@ def test_convert_tools_to_description_array_items():
                 "<parameter=view_range>[1, 10]</parameter>\n</function>"
             ),
         ),
-        # Indented code blocks (whitespace preservation)
+        # 缩进代码块（空格保留）
         (
             {
                 "id": "test_id",
@@ -614,7 +614,7 @@ def test_convert_tools_to_description_array_items():
                 "    return True\n</parameter>\n</function>"
             ),
         ),
-        # List parameter values
+        # 列出参数值
         (
             {
                 "id": "test_id",
@@ -634,7 +634,7 @@ def test_convert_tools_to_description_array_items():
                 "</function>"
             ),
         ),
-        # Dictionary parameter values
+        # 字典参数值
         (
             {
                 "id": "test_id",
@@ -664,13 +664,13 @@ def test_convert_tools_to_description_array_items():
     ],
 )
 def test_convert_tool_call_to_string_parameterized(tool_call, expected):
-    """Test tool call to string conversion with various parameter types and formats."""
+    """使用各种参数类型和格式测试工具调用到字符串的转换。"""
     converted = convert_tool_call_to_string(tool_call)
     assert converted == expected
 
 
 def test_convert_fncall_messages_with_cache_control():
-    """Test that cache_control is properly handled in tool messages."""
+    """测试工具消息中的 cache_control 是否得到正确处理。"""
     messages = [
         {
             "role": "tool",
@@ -683,15 +683,15 @@ def test_convert_fncall_messages_with_cache_control():
 
     result = convert_fncall_messages_to_non_fncall_messages(messages, FNCALL_TOOLS)
 
-    # Verify the result
+    # 验证结果
     assert len(result) == 1
     assert result[0]["role"] == "user"
 
-    # Check that cache_control is preserved in the converted message
+    # 检查转换后的消息中是否保留了 cache_control
     assert "cache_control" in result[0]["content"][-1]
     assert result[0]["content"][-1]["cache_control"] == {"type": "ephemeral"}
 
-    # Check that the tool result content is properly formatted
+    # 检查工具结果内容的格式是否正确
     assert (
         result[0]["content"][0]["text"]
         == "EXECUTION RESULT of [test_tool]:\ntest content"
@@ -699,7 +699,7 @@ def test_convert_fncall_messages_with_cache_control():
 
 
 def test_convert_fncall_messages_without_cache_control():
-    """Test that tool messages without cache_control work as expected."""
+    """测试不带 cache_control 的工具消息是否按预期工作。"""
     messages = [
         {
             "role": "tool",
@@ -711,14 +711,14 @@ def test_convert_fncall_messages_without_cache_control():
 
     result = convert_fncall_messages_to_non_fncall_messages(messages, FNCALL_TOOLS)
 
-    # Verify the result
+    # 验证结果
     assert len(result) == 1
     assert result[0]["role"] == "user"
 
-    # Check that no cache_control is added when not present
+    # 检查不存在时不添加cache_control
     assert "cache_control" not in result[0]["content"][-1]
 
-    # Check that the tool result content is properly formatted
+    # 检查工具结果内容的格式是否正确
     assert (
         result[0]["content"][0]["text"]
         == "EXECUTION RESULT of [test_tool]:\ntest content"
@@ -726,8 +726,8 @@ def test_convert_fncall_messages_without_cache_control():
 
 
 def test_convert_fncall_messages_with_image_url():
-    """Test that convert_fncall_messages_to_non_fncall_messages handles image URLs
-    correctly."""
+    """测试 convert_fncall_messages_to_non_fncall_messages 处理图像 URLs
+    正确。"""
     messages = [
         {
             "role": "tool",
@@ -754,7 +754,7 @@ def test_convert_fncall_messages_with_image_url():
     assert converted_messages[0]["role"] == "user"
     assert len(converted_messages[0]["content"]) == len(messages[0]["content"])
 
-    # Check that text content is properly formatted with tool execution result
+    # 检查文本内容与工具执行结果的格式是否正确
     text_content = next(
         c for c in converted_messages[0]["content"] if c["type"] == "text"
     )
@@ -763,7 +763,7 @@ def test_convert_fncall_messages_with_image_url():
         f"{messages[0]['content'][0]['text']}"
     )
 
-    # Check that image URL is preserved
+    # 检查图像 URL 是否已保留
     image_content = next(
         c for c in converted_messages[0]["content"] if c["type"] == "image_url"
     )
@@ -923,17 +923,17 @@ def test_convert_tools_to_description_object_details():
 
 
 def test_system_message_suffix_template_excludes_security_risk_by_default():
-    """Test that system_message_suffix_TEMPLATE does NOT include security_risk
-    when the security analyzer is disabled."""
+    """测试 system_message_suffix_TEMPLATE 是否不包含 security_risk
+    当安全分析器被禁用时。"""
     assert "<parameter=security_risk>" not in system_message_suffix_TEMPLATE
     assert "<parameter=summary>" not in system_message_suffix_TEMPLATE
 
 
 def test_security_params_included_when_flag_is_true():
-    """Test that security_risk and summary appear in converted messages
-    when include_security_params=True (i.e., security analyzer is active).
+    """测试 security_risk 和摘要是否出现在转换后的消息中
+    当include_security_params=True（i.e.，安全分析器处于活动状态）时。
 
-    Regression test for issue #2740.
+    回归测试问题#2740。
     """
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
@@ -948,8 +948,8 @@ def test_security_params_included_when_flag_is_true():
 
 
 def test_security_params_excluded_when_flag_is_false():
-    """Test that security_risk and summary do NOT appear in converted messages
-    when include_security_params=False (default)."""
+    """测试 security_risk 和摘要不是否出现在转换后的消息中
+    当include_security_params=False（默认）时。"""
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello"},
@@ -963,13 +963,13 @@ def test_security_params_excluded_when_flag_is_false():
 
 
 def test_security_risk_param_allowed_for_tool_that_does_not_declare_it():
-    """A tool schema that omits security_risk (as read-only tools like
-    `finish` do, per add_security_risk_prediction in tool.py) must still
-    accept a call that includes it, since the in-context examples teach the
-    model to add security_risk to every call regardless of tool.
+    """工具模式省略 security_risk（如只读工具，如
+    `finish` do, per add_security_risk_prediction in tool.py) 仍然必须接受一个包含它
+    的调用，因为上下文 in
+    的示例教模型在任何工具下都添加 security_risk。
 
-    Regression test: this previously raised FunctionCallValidationError
-    ("Parameter 'security_risk' is not allowed for function 'finish'").
+    回归测试：之前提出的 FunctionCallValidationError（“函数‘finish’不允许使用参数‘
+    security_risk’”）。
     """
     finish_tool: list[ChatCompletionToolParam] = [
         {

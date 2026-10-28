@@ -1,20 +1,18 @@
-"""ACP npm installation catalog — the single source of truth for each
-built-in provider's pinned npm package(s), CLI entry point, and any launch
-arguments needed to invoke it.
+"""ACP npm 安装目录 —— 每个内置提供者已打上标签的 npm 的唯一事实来源 package(s), CLI
+ 入口还需要任何启动参数来调用它。
 
-Deliberately dependency-free (stdlib only, no pydantic): the agent-server
-Dockerfile's ``acp-providers`` stage builds from a bare ``python:*-bookworm``
-image with no OpenHands package installed, so this file is COPYed into that
-stage on its own and executed with the system ``python3`` to render the ACP
-payload's npm-install/wrapper plan (see :func:`render_docker_install_plan` and
-the ``acp-providers`` stage in
-``openhands-agent-server/openhands/agent_server/docker/Dockerfile``). It must
-keep working when imported (or run as a script) with nothing beyond the
-standard library on ``sys.path``.
+故意依赖完全消除（stdlib 仅限，无其他依赖） Pydantic:) 智能体-server Dockerfile的
+``acp-providers`` 从裸机生成阶段构
+建 ``python:*-bookworm`` 无图 OpenHands 因此，这个文件是安装的包 COPYed 独自进入那个
+阶段并由系统执行 ``python3`` 渲染
+ [to] ACP  载荷'npm-install/wrapper plan (see :func:```render_docker_install_plan` 和
+``acp-providers`` 阶段
+``openhands-agent-server/openhands/agent_server/docker/Dockerfile``). 它在导入（或作
+为脚本运行）时必须
+保持工作状态，除了 ``sys.path`` 上的标准库之外没有任何内容。
 
-:data:`ACP_PROVIDERS` in ``acp_providers.py`` builds each provider's
-``default_command``/``binary_name`` from this catalog, so a package/version
-bump only needs to happen here.
+``acp_providers.py`` 中的：data:`ACP_PROVIDERS` 构建每个提供者的
+``default_command``/``binary_name`` 来自此目录，因此仅需要在此处发生包/版本碰撞。
 """
 
 from __future__ import annotations
@@ -27,60 +25,61 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class ACPPackagePin:
-    """One pinned npm package (name + exact version)."""
+    """一个固定的 npm 包（名称 + 确切版本）。"""
 
     name: str
     version: str
 
     @property
     def pinned(self) -> str:
-        """The ``name@version`` token passed to ``npm``/``npx``."""
+        """将 ``name@version`` token 传递给 ``npm``/``npx``."""
         return f"{self.name}@{self.version}"
 
 
 @dataclass(frozen=True)
 class ACPInstallSpec:
-    """Everything needed to install and launch one provider's ACP CLI via npm.
+    """通过 npm 安装和启动一个提供商的 ACP CLI 所需的一切。
 
-    Supports one or more independently pinned packages (e.g. Pi's ``pi-acp``
-    adapter plus its ``@earendil-works/pi-coding-agent`` engine).
+    支持一个或多个独立固定的包 (e.g. Pi 的 ``pi-acp`` 适配器及其
+    ``@earendil-works/pi-coding-agent`` 引擎）。
     """
 
     key: str
-    """Provider key, matching
-    :class:`~openhands.sdk.settings.acp_providers.ACPProviderInfo.key`."""
+    """提供者密钥，匹配
+    ：类：`~openhands.sdk.settings.acp_providers.ACPProviderInfo.key`。"""
 
     packages: tuple[ACPPackagePin, ...]
-    """One or more npm packages to pin and install. Never empty."""
+    """要固定和安装的一个或多个 npm 软件包。 永远不会空。"""
 
     binary_name: str
-    """CLI entry point: the agent-server's pre-installed ``PATH`` wrapper name,
-    and (when :attr:`packages` has more than one entry) the positional command
-    ``npx`` is told to run."""
+    """CLI 入口：智能体-服务器预安装的 ``PATH`` 包装器名称，
+    以及（当：attr:`packages` 有多个条目时）位置命令
+    ``npx`` 被告知要运行。"""
 
     trailing_args: tuple[str, ...] = field(default=())
-    """Args appended after the package spec in :meth:`npx_command` (e.g.
-    gemini-cli's ``--acp``, opencode's ``acp``). Empty for CLIs that need no
-    subcommand to enter ACP mode."""
+    """Args 附加在：meth:`npx_command` (e.g.
+    CLIgemini的``--acp``, opencode的``acp``。 CLIs中不需要子命令即可进入ACP模式的空值
+    。
+"""
 
     min_node_version: str | None = None
-    """Highest ``engines.node`` floor across this provider's packages, when it
-    exceeds the ecosystem baseline of ``>=20``.
+    """该提供商套餐中的最高 ``engines.node`` 楼层，当
+    超过``>=20``的生态系统基线。
 
-    The agent-server image installs every selected provider under one Node, so
-    the Dockerfile's pin has to clear the highest floor here (asserted by
-    ``tests/cross/test_agent_server_build_metadata.py``). The ``npx`` fallback
-    runs on the *host's* Node instead, where a floor that isn't met surfaces
-    only as a cryptic mid-handshake error from the CLI's own dependencies —
-    which is what this field exists to name.
+    智能体-服务器镜像将每个选定的提供程序安装在一个节点下，因此 Dockerfile 的 pin 必
+    须清除此处的最高层（由
+    ``tests/cross/test_agent_server_build_metadata.py``). 的 ``npx``  回退方案运行在
+    *host's*
+    Node，而不是一个未实现的楼层只以一个隐晦的中握手错误出现在  CLI自己的依赖项——这就
+    是这个字段存在的原因。
     """
 
     def npx_command(self) -> tuple[str, ...]:
-        """The default ``npx``-based launch command for this provider.
+        """此提供程序的默认基于 ``npx`` 的启动命令。
 
-        A single package is invoked the ordinary way (``npx <pkg>@<ver>``); two
-        or more use ``npx --package=<pkg>@<ver> ... <binary_name>`` so ``npx``
-        knows which installed package's bin to run.
+        单个包以普通方式调用（``npx <pkg>@<ver>``）； 两个或多个使用
+        ``npx --package=<pkg>@<ver> ... <binary_name>``，以便 ``npx`` 知道要运行哪个
+        已安装软件包的 bin。
         """
         if len(self.packages) == 1:
             package_tokens: tuple[str, ...] = (self.packages[0].pinned,)
@@ -98,17 +97,18 @@ class ACPInstallSpec:
         )
 
 
-# Pinned npm versions for the built-in ACP launchers. A bump here is the only
-# edit needed — ACP_PROVIDERS, the Dockerfile install stage, and the
-# TypeScript mirror (via check-acp-drift.py --write) all derive from
-# ACP_INSTALL_CATALOG below.
+# 内置 ACP 启动器的固定 npm 版本。 这里的凹凸是唯一需要的编辑 - ACP_PROVIDERS、
+# Dockerfile 安装阶段和 TypeScript 镜像（通过 check-acp-drift.py --write）都源自下面的
+# ACP_INSTALL_CATALOG。
+#
 CLAUDE_AGENT_ACP_VERSION = "0.63.0"
 CODEX_ACP_VERSION = "2.2.2"
 GEMINI_CLI_VERSION = "0.46.0"
 KIMI_CODE_VERSION = "0.38.0"
 
-# Pi is the one provider with two independent pins: pi-acp only adapts ACP and
-# spawns a separately installed `pi` engine off PATH.
+# Pi 是唯一一个拥有两个独立引脚的提供商：pi-ACP 仅适应 ACP 并生成一个单独安装的 `pi` 引
+# 擎关闭 PATH。
+#
 PI_ACP_VERSION = "0.0.33"
 PI_CODING_AGENT_VERSION = "0.83.0"
 
@@ -138,8 +138,9 @@ ACP_INSTALL_CATALOG: Mapping[str, ACPInstallSpec] = {
     ),
     "kimi-code": ACPInstallSpec(
         key="kimi-code",
-        # Scoped package only: the unscoped npm ``kimi-code`` is an unrelated
-        # third-party tool that also ships a ``kimi`` bin.
+        # 仅作用域包：未作用域的 npm ``kimi-code`` 是一个不相关的第三方工具，也附带一个
+        # ``kimi`` bin。
+        #
         packages=(ACPPackagePin("@moonshot-ai/kimi-code", KIMI_CODE_VERSION),),
         binary_name="kimi",
         trailing_args=("acp",),
@@ -148,39 +149,40 @@ ACP_INSTALL_CATALOG: Mapping[str, ACPInstallSpec] = {
     ),
     "pi": ACPInstallSpec(
         key="pi",
-        # Adapter first: the live conformance probe compares ``packages[0]``'s
-        # version against the ``agentInfo.version`` the server reports, which
-        # is pi-acp's, not the engine's.
+        # 适配器优先：实时一致性探测将 ``packages[0]`` 的版本与服务器报告的
+        # ``agentInfo.version`` 版本进行比较，后者是 pi-ACP 的版本，而不是引擎的版本。
+        #
         packages=(
             ACPPackagePin("pi-acp", PI_ACP_VERSION),
             ACPPackagePin("@earendil-works/pi-coding-agent", PI_CODING_AGENT_VERSION),
         ),
         binary_name="pi-acp",
         # @earendil-works/pi-coding-agent (and its undici dependency) declare
-        # `node >=22.19.0`. Below it the pi-acp adapter still starts, so the
-        # ACP handshake succeeds and the failure only lands at `session/new`
-        # as "Cannot call write after a stream was destroyed" — the engine
-        # having already died on `webidl.util.markAsUncloneable is not a
-        # function`.
+        # `node >=22.19.0`. 在它下面 pi-ACP 适配器仍然启动，所以  ACP 握手成功，失败仅发
+        # 生在 `session/new` 如“Cannot call write after a stream was destroyed” — the
+        # engine having already died on
+        # `webidl.util.markAsUncloneable is not a function`.
+        #
         min_node_version="22.19.0",
     ),
     "opencode": ACPInstallSpec(
         key="opencode",
-        # The npm package is a 7.8KB shim whose postinstall pulls the matching
-        # per-platform compiled binary (~184MB unpacked) from an
-        # optionalDependency, so `--ignore-scripts` leaves a stub that errors.
+        # 这是一个7.8KB的 shim，其postinstall会拉取一个匹配的平台特定编译二进制 (~184MB
+        # unpacked) 从optionalDependency，因此`--ignore-scripts`留下了一个空壳，会出错。
+        #
         packages=(ACPPackagePin("opencode-ai", OPENCODE_VERSION),),
-        # The shim's npm bin is ``opencode``, not the package basename.
+        # shim 的 npm bin 是 ``opencode``，而不是包基本名称。
         binary_name="opencode",
         trailing_args=("acp",),
-        # No `engines` field on opencode-ai or its platform packages: the CLI
-        # is a compiled Bun binary and only its postinstall runs on Node.
+        # opencode-ai 或其平台包上没有 `engines` 字段：CLI 是编译后的 Bun 二进制文件，仅
+        # 其 postinstall 在 Node 上运行。
+        #
     ),
 }
-"""Every ACP provider installable via npm. Registry membership only makes a
-provider *selectable* (``INSTALL_ACP_PROVIDERS``) — see
-:data:`DEFAULT_PREINSTALLED_ACP_PROVIDERS` for what actually ships in the
-default image."""
+"""每个 ACP 提供程序都可以通过 npm 安装。 注册表会员资格仅使提供者 * 可选择 * (
+``INSTALL_ACP_PROVIDERS``) — 参见
+:data:`DEFAULT_PREINSTALLED_ACP_PROVIDERS` 实际运送的内容
+默认图像。"""
 
 
 DEFAULT_PREINSTALLED_ACP_PROVIDERS: tuple[str, ...] = (
@@ -188,22 +190,23 @@ DEFAULT_PREINSTALLED_ACP_PROVIDERS: tuple[str, ...] = (
     "codex",
     "gemini-cli",
 )
-"""Provider keys baked into the default agent-server image
-(``INSTALL_ACP_PROVIDERS`` default). Kept separate from
-:data:`ACP_INSTALL_CATALOG` so registering a new npm provider there does not,
-by itself, grow every published image — joining this default is a separate,
-deliberate decision per provider (see OpenHands/software-agent-sdk#4820)."""
+"""提供商密钥已融入默认的智能体服务器映像（默认为 ``INSTALL_ACP_PROVIDERS``）。 与以
+下物品分开存放
+:data:`ACP_INSTALL_CATALOG` 所以注册一个新的 npm 提供者不会，
+单独增长每个已发布的图像 - 加入此默认值是每个提供商单独的、深思熟虑的决定（请参阅
+OpenHands/software-智能体-SDK#4820）。
+"""
 
 
 def render_docker_install_plan(
     keys: Iterable[str],
     catalog: Mapping[str, ACPInstallSpec] = ACP_INSTALL_CATALOG,
 ) -> tuple[list[str], list[str]]:
-    """Resolve provider ``keys`` to (npm packages, wrapper bin names).
+    """将提供程序 ``keys`` 解析为（npm 包、包装器 bin 名称）。
 
-    Packages are deduplicated (first-seen order preserved) so two providers
-    sharing a dependency only install it once. Raises :class:`ValueError`
-    listing the valid keys when ``keys`` contains one not in ``catalog``.
+    软件包经过重复数据删除（保留首次看到的顺序），因此共享依赖项的两个提供程序仅安装
+    一次。 当 ``keys`` 包含 ``catalog`` 中不存在的键时，引发：c
+    lass:`ValueError` 列出有效键。
     """
     packages: list[str] = []
     wrapper_bins: list[str] = []
@@ -225,14 +228,15 @@ def render_docker_install_plan(
 
 
 def _main(argv: list[str] | None = None) -> int:
-    """CLI entry point used by the Dockerfile's ``acp-providers`` build stage.
+    """CLI 入口由 Dockerfile 的 ``acp-providers`` 构建阶段使用。
 
-    Prints a shell-``eval``-able plan (``PACKAGES="..."`` / ``WRAPPER_BINS="..."``)
-    for the comma-separated provider keys in ``providers`` (empty string installs
-    none). Values are double-quoted: without quotes, ``eval`` re-tokenizes each
-    line on whitespace, so a multi-package ``PACKAGES=a b c`` would parse as
-    "assign PACKAGES=a, then run command b with arg c" instead of one
-    space-separated assignment. Package/bin names never contain a ``"``.
+    打印 ``providers`` 中以逗号分隔的提供程序密钥的 shell-``eval``-able 计划 (
+    ``PACKAGES="..."`` /
+    ``WRAPPER_BINS="..."``)（空字符串安装 None）。 值需要用双引号包裹：如果不使用引号
+    ，``eval``，则会将每行按空白字符分割重新分词，
+    因此，一个多包的``PACKAGES=a b c``，会被解析为“赋值为 PACKAGES=a，然后运行命令 b
+    传入 arg c”，而不是一个空格分隔的赋值。 包
+    /bin 名称从不包含 ``"``。
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

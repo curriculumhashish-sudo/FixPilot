@@ -25,7 +25,7 @@ export interface DeviceTokenResponse {
 }
 
 export interface DeviceFlowRequestOptions {
-  /** Additional metadata headers sent with the device-flow request. */
+  /** 与设备流请求一起发送的附加元数据标头。*/
   headers?: Readonly<Record<string, string>>;
 }
 

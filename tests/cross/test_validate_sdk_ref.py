@@ -1,4 +1,4 @@
-"""Tests for the run-eval ref validation script."""
+"""测试 run-eval ref 验证脚本。"""
 
 from __future__ import annotations
 

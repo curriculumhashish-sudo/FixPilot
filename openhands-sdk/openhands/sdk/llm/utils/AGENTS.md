@@ -1,14 +1,18 @@
-# LLM utils guidelines
+<a id="llm-utils-guidelines"></a>
 
-See the [SDK AGENTS.md](../../AGENTS.md) for package-wide policies.
+# LLM 实用程序指南
 
-## Verified model lists (`verified_models.py`)
+有关包范围的策略，请参阅 [SDK AGENTS.md](../../AGENTS.md)。
 
-These lists are a curated set of models that work well, not a catalog of everything a provider offers. Keep them short.
+<a id="verified-model-lists-verified_modelspy"></a>
 
-- For each model line, keep only the **two latest versions** (for example `gpt-6` and `gpt-5.6`; `claude-opus-5-5` and `claude-opus-5`).
-- Variants of a kept version (`-pro`, `-mini`, `-codex`, `-flash`, dated aliases) stay with that version. Unversioned "current" aliases (`deepseek-chat`, `kimi-for-coding`) stay.
-- When you add a new version, remove the oldest version in the same line, in every list where it appears (the provider list and `VERIFIED_OPENHANDS_MODELS`).
-- Every entry in `VERIFIED_OPENHANDS_MODELS` must also appear in a provider list, unless it is OpenHands-only; `tests/sdk/llm/test_model_list.py` checks this.
-- Do not add a model just because LiteLLM or OpenRouter knows about it. The unverified catalog (`unverified_models.py`) covers that.
-- `openrouter` is a verified provider. Its entries are actual OpenRouter ids with the `openrouter/` prefix stripped (so `anthropic/claude-opus-5` corresponds to `openrouter/anthropic/claude-opus-5`), because OpenRouter namespaces every model under its upstream vendor. Do not require these routes to appear in LiteLLM's cost map; OpenRouter's endpoints API supplies runtime context limits. Keep only the frontier routes the OpenHands proxy serves, not OpenRouter's full catalog.
+## 已验证的型号列表 (`verified_models.py`)
+
+这些列表是一组精心策划的运行良好的模型，而不是提供商提供的所有内容的目录。 保持简短。
+
+- 对于每个型号系列，仅保留**两个最新版本**（例如`gpt-6`和`gpt-5.6`； `claude-opus-5-5`和`claude-opus-5`）。
+- 保留版本的变体（`-pro`、`-mini`、`-codex`、`-flash`、带日期的别名）保留在该版本中。 未版本控制的“当前”别名（`deepseek-chat`、`kimi-for-coding`）保留。
+- 添加新版本时，请删除同一行中出现的每个列表（提供程序列表和 `VERIFIED_OPENHANDS_MODELS`）中最旧的版本。
+- `VERIFIED_OPENHANDS_MODELS` 中的每个条目也必须出现在提供商列表中，除非它仅限于 OpenHands； `tests/sdk/llm/test_model_list.py`对此进行了检查。
+- 不要仅仅因为 LiteLLM 或 OpenRouter 知道而添加模型。 未经验证的目录（`unverified_models.py`）涵盖了这一点。
+- `openrouter` 是经过验证的提供商。 它的条目是实际的 OpenRouter id，删除了 `openrouter/` 前缀（因此 `anthropic/claude-opus-5` 对应于 `openrouter/anthropic/claude-opus-5`），因为 OpenRouter 命名空间每个模型都在其上游供应商下。 不要求这些路线出现在LiteLLM的成本图中； OpenRouter 的端点 API 提供运行时上下文限制。 仅保留 OpenHands 代理服务的边界路线，而不保留 OpenRouter 的完整目录。

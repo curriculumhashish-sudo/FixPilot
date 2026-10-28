@@ -1,4 +1,4 @@
-"""Tests for event immutability."""
+"""测试事件不变性。"""
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Self
@@ -32,13 +32,13 @@ if TYPE_CHECKING:
 
 
 class EventsImmutabilityMockAction(Action):
-    """Mock action for testing."""
+    """模拟对象测试操作。"""
 
     command: str = "test_command"
 
 
 class EventsImmutabilityMockObservation(Observation):
-    """Mock observation for testing."""
+    """模拟对象观测结果用于测试。"""
 
     result: str = "test_result"
 
@@ -48,7 +48,7 @@ class EventsImmutabilityMockObservation(Observation):
 
 
 class EventsImmutabilityMockExecutor(ToolExecutor):
-    """Mock executor for testing."""
+    """模拟对象用于测试的执行器。"""
 
     def __call__(
         self,
@@ -61,7 +61,7 @@ class EventsImmutabilityMockExecutor(ToolExecutor):
 class EventsImmutabilityMockTool(
     ToolDefinition[EventsImmutabilityMockAction, EventsImmutabilityMockObservation]
 ):
-    """Mock tool for testing."""
+    """模拟对象测试工具。"""
 
     @classmethod
     def create(cls, *args, **kwargs) -> Sequence[Self]:
@@ -76,23 +76,22 @@ class EventsImmutabilityMockTool(
 
 
 class _TestEventForImmutability(Event):
-    """Test event class for immutability tests.
+    """用于不变性测试的测试事件类。
 
-    This class is defined at module level (rather than inside a test function) to
-    ensure it's importable by Pydantic during serialization/deserialization.
-    Defining it inside a test function causes test pollution when running tests
-    in parallel with pytest-xdist.
+    此类在模块级别定义（而不是在测试函数内部），以确保它在序列化/反序列化期间可由
+    Pydantic 导入。 当与 pytest-xdist 并行运行测试时，在测试函数
+    中定义它会导致测试污染。
     """
 
     test_field: str = "test_value"
 
 
 def test_event_base_is_frozen():
-    """Test that Event instances are frozen and cannot be modified."""
+    """测试事件实例是否已冻结且无法修改。"""
     event = _TestEventForImmutability(source="agent", test_field="initial_value")
 
-    # Test that we cannot modify any field
-    with pytest.raises(Exception):  # Pydantic raises ValidationError for frozen models
+    # 测试我们不能修改任何字段
+    with pytest.raises(Exception):  # Pydantic 为冻结模型加薪 ValidationError
         event.id = "modified_id"
 
     with pytest.raises(Exception):
@@ -106,7 +105,7 @@ def test_event_base_is_frozen():
 
 
 def test_system_prompt_event_is_frozen():
-    """Test that SystemPromptEvent instances are frozen."""
+    """测试 SystemPromptEvent 个实例是否被冻结。"""
     tool = EventsImmutabilityMockTool.create()[0]
 
     event = SystemPromptEvent(
@@ -114,7 +113,7 @@ def test_system_prompt_event_is_frozen():
         tools=[tool],
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.system_prompt = TextContent(text="Modified prompt")
 
@@ -126,7 +125,7 @@ def test_system_prompt_event_is_frozen():
 
 
 def test_action_event_is_frozen():
-    """Test that ActionEvent instances are frozen."""
+    """测试 ActionEvent 个实例是否被冻结。"""
     action = EventsImmutabilityMockAction()
     tool_call = MessageToolCall(
         id="test_call_id", name="test_tool", arguments="{}", origin="completion"
@@ -141,7 +140,7 @@ def test_action_event_is_frozen():
         llm_response_id="test_response_id",
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.thought = [TextContent(text="Modified thought")]
 
@@ -156,7 +155,7 @@ def test_action_event_is_frozen():
 
 
 def test_observation_event_is_frozen():
-    """Test that ObservationEvent instances are frozen."""
+    """测试 ObservationEvent 个实例是否被冻结。"""
     observation = EventsImmutabilityMockObservation()
 
     event = ObservationEvent(
@@ -166,7 +165,7 @@ def test_observation_event_is_frozen():
         tool_call_id="test_call_id",
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.observation = EventsImmutabilityMockObservation(result="modified_result")
 
@@ -181,12 +180,12 @@ def test_observation_event_is_frozen():
 
 
 def test_message_event_is_frozen():
-    """Test that MessageEvent instances are frozen."""
+    """测试 MessageEvent 个实例是否被冻结。"""
     message = Message(role="user", content=[TextContent(text="Test message")])
 
     event = MessageEvent(source="user", llm_message=message)
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.source = "agent"
 
@@ -203,7 +202,7 @@ def test_message_event_is_frozen():
 
 
 def test_user_reject_observation_is_frozen():
-    """Test that UserRejectObservation instances are frozen."""
+    """测试 UserRejectObservation 个实例是否被冻结。"""
     event = UserRejectObservation(
         action_id="test_action_id",
         tool_name="test_tool",
@@ -211,7 +210,7 @@ def test_user_reject_observation_is_frozen():
         rejection_reason="Test rejection",
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.action_id = "modified_action_id"
 
@@ -229,8 +228,8 @@ def test_user_reject_observation_is_frozen():
 
 
 def test_user_reject_observation_rejection_source():
-    """Test that UserRejectObservation rejection_source field works correctly."""
-    # Default should be "user"
+    """测试 UserRejectObservation rejection_source 字段是否正常工作。"""
+    # 默认应该是“用户”
     user_event = UserRejectObservation(
         action_id="test_action_id",
         tool_name="test_tool",
@@ -239,7 +238,7 @@ def test_user_reject_observation_rejection_source():
     )
     assert user_event.rejection_source == "user"
 
-    # Hook rejection should have "hook" source
+    # 钩子拒绝应该有“钩子”来源
     hook_event = UserRejectObservation(
         action_id="test_action_id",
         tool_name="test_tool",
@@ -251,12 +250,12 @@ def test_user_reject_observation_rejection_source():
 
 
 def test_agent_error_event_is_frozen():
-    """Test that AgentErrorEvent instances are frozen."""
+    """测试 AgentErrorEvent 个实例是否被冻结。"""
     event = AgentErrorEvent(
         error="Test error message", tool_call_id="test_call_id", tool_name="test_tool"
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.error = "Modified error message"
 
@@ -265,10 +264,10 @@ def test_agent_error_event_is_frozen():
 
 
 def test_pause_event_is_frozen():
-    """Test that PauseEvent instances are frozen."""
+    """测试 PauseEvent 个实例是否被冻结。"""
     event = PauseEvent()
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.source = "agent"
 
@@ -277,14 +276,14 @@ def test_pause_event_is_frozen():
 
 
 def test_condensation_is_frozen():
-    """Test that Condensation instances are frozen."""
+    """测试上下文压缩个实例是否被冻结。"""
     event = Condensation(
         forgotten_event_ids={"event1", "event2"},
         summary="Test summary",
         llm_response_id="condensation_response_1",
     )
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.forgotten_event_ids = {"modified_event"}
 
@@ -296,10 +295,10 @@ def test_condensation_is_frozen():
 
 
 def test_condensation_request_is_frozen():
-    """Test that CondensationRequest instances are frozen."""
+    """测试 CondensationRequest 个实例是否被冻结。"""
     event = CondensationRequest()
 
-    # Test that we cannot modify any field
+    # 测试我们不能修改任何字段
     with pytest.raises(Exception):
         event.source = "agent"
 
@@ -308,14 +307,14 @@ def test_condensation_request_is_frozen():
 
 
 def test_event_model_copy_creates_new_instance():
-    """Test that model_copy can create modified versions of frozen events."""
+    """测试 model_copy 是否可以创建冻结事件的修改版本。"""
     event = PauseEvent()
     original_id = event.id
 
-    # Create a copy with modified fields
+    # 创建包含修改字段的副本
     modified_event = event.model_copy(update={"id": "new_id"})
 
-    # Verify that a new instance was created with modifications
+    # 验证是否创建了经过修改的新实例
     assert modified_event is not event
     assert event.id == original_id
     assert modified_event.id == "new_id"
@@ -323,7 +322,7 @@ def test_event_model_copy_creates_new_instance():
 
 
 def test_event_immutability_prevents_mutation_bugs():
-    """Test that frozen events prevent the type of mutation bugs fixed in PR #226."""
+    """测试冻结事件是否可以防止 PR #226 中修复的突变错误类型。"""
     tool = EventsImmutabilityMockTool.create()[0]
 
     event = SystemPromptEvent(
@@ -331,18 +330,18 @@ def test_event_immutability_prevents_mutation_bugs():
         tools=[tool],
     )
 
-    # Store original tool data
+    # 存储原始刀具数据
     original_tool_name = event.tools[0].name
     original_tool_description = event.tools[0].description
 
-    # Call visualize multiple times (this used to cause mutations)
+    # 多次调用可视化（这通常会导致突变）
     for _ in range(3):
         _ = event.visualize
 
-    # Verify no mutation occurred - the event data should be unchanged
+    # 验证没有发生突变 - 事件数据应该保持不变
     assert event.tools[0].name == original_tool_name
     assert event.tools[0].description == original_tool_description
 
-    # Verify that attempting to modify the event fields directly fails
+    # 验证尝试直接修改事件字段是否失败
     with pytest.raises(Exception):
-        event.tools = []  # This should fail because the event is frozen
+        event.tools = []  # 这应该会失败，因为事件被冻结

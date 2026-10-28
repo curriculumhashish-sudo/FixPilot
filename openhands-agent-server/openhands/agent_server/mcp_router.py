@@ -1,20 +1,16 @@
-"""MCP router for OpenHands SDK.
+"""MCP OpenHands SDK 的路由器。
 
-Exposes a single endpoint, ``POST /api/mcp/test``, that lets clients verify
-a candidate MCP server configuration in isolation -- before persisting it
-to settings, where a misconfiguration would otherwise surface only at
-conversation start (and there manifest as a noisy traceback that aborts
-agent initialization).
+暴露了一个单一的端点，``POST /api/mcp/test``，允许客户端在隔离环境中验证候选 MCP 服务
+器配置 -- 在持久化到设置之前，否则在会话开始时就会出现错
+误配置（并且在智能体初始化时显而易见，表现为一个噪音堆栈跟踪，导致初始化失败）。
 
-The endpoint never mutates server state or touches stored settings: it
-spins up the MCP connection, lists the advertised tools, optionally invokes
-one caller-chosen tool (``tool_call``), then tears the connection down.
-The optional tool call exists because listing tools does not exercise the
-credentials many servers only use inside tool handlers (e.g. the Slack MCP
-server starts fine with a bogus token); callers must pick a read-only tool.
-For OAuth MCP servers, any token/client metadata acquired during the probe is
-returned on the success response's ``oauth_state`` field so the caller can
-persist it through the settings API under the tested server's ``auth.state``.
+的端点它不会修改服务器状态或修改存储的设置：它启动了 MCP 连接，列出已发布的工具，可选
+地调用一个用户选择的工具``tool_call``然后断开连接。 可选的工具调用存
+在是因为列出工具并未测试过凭据许多服务器只使用内部工具处理器（e.g. Slack MCP 服务器启
+动正常，但使用了无效的  token); callers must pi
+ck a 只读 tool. 对于 OAuth MCP 在探测过程中获取的任何服务器、令牌/客户端元数据都将包
+含在成功响应中 ``oauth_state`` 字段以便于调用者
+使用持久化通过设置 API 在测试服务器的 ``auth.state``.
 """
 
 from __future__ import annotations
@@ -57,19 +53,19 @@ mcp_router = APIRouter(prefix="/mcp", tags=["MCP"])
 
 
 # ---------------------------------------------------------------------------
-# Request / response models
+# 请求/响应模型
 # ---------------------------------------------------------------------------
 #
-# We accept one canonical MCPServer instead of the full MCP server map. The UI
-# flow this powers ("add a new MCP server") validates one server at a time; the
-# route wraps it in a temporary map only at the runtime boundary.
+# 我们接受一个单一的MCPServer，而不是完整的MCP服务器映射。 这个UI流（“添加一个新的MCP服
+# 务器”）一次验证一个服务器。 该路由仅在运行时边界将其包装在临时映射中。
+#
 
 _DEFAULT_SERVER_NAME = "test-server"
 _OAUTH_PROBE_JOB_TTL_SECONDS = 15 * 60
 
 
 class _StdioMCPServerSpec(BaseModel):
-    """Legacy stdio MCP server spec accepted by the public REST API."""
+    """传统 stdio MCP 服务器规范已被公众接受 REST API。"""
 
     type: Literal["stdio"] = "stdio"
     command: str = Field(..., min_length=1, description="Executable to invoke")
@@ -90,7 +86,7 @@ class _StdioMCPServerSpec(BaseModel):
 
 
 class _RemoteMCPServerSpec(BaseModel):
-    """Legacy remote MCP server spec accepted by the public REST API."""
+    """传统远程 MCP 服务器规范已被公众接受 REST API。"""
 
     type: Literal["http", "shttp", "streamable-http", "sse"]
     url: str = Field(..., min_length=1)
@@ -133,12 +129,10 @@ MCPTestServerSpec = Annotated[
 
 
 class MCPToolCallSpec(BaseModel):
-    """A single tool invocation to run as part of the connection test.
+    """作为连接测试的一部分运行的单个工具调用。
 
-    Listing tools does not exercise the credentials many servers only use
-    inside tool handlers, so callers can name one tool to invoke after the
-    listing succeeds. Callers are responsible for choosing a read-only tool;
-    the endpoint executes it verbatim.
+    列出工具不会调用凭据个服务器，这些服务器只有工具处理器使用，因此调用者在列出成功
+    后可以为一个工具命名并调用它。 调用者负责选择只读工具； 端点逐字执行它。
     """
 
     name: str = Field(..., min_length=1, description="Name of the tool to invoke")
@@ -149,7 +143,7 @@ class MCPToolCallSpec(BaseModel):
 
 
 class MCPTestRequest(BaseModel):
-    """Body for ``POST /api/mcp/test``."""
+    """``POST /api/mcp/test`` 的主体。"""
 
     name: str = Field(
         default=_DEFAULT_SERVER_NAME,
@@ -203,8 +197,9 @@ class MCPTestRequest(BaseModel):
 
     @model_validator(mode="after")
     def _strip_name(self) -> MCPTestRequest:
-        # Mirror the validation the MCP server map itself applies to server keys --
-        # whitespace-only names would silently bypass min_length=1 above.
+        # 镜像验证 MCP 服务器映射本身适用于服务器键 - 仅空白名称将默默绕过上面的
+        # min_length=1。
+        #
         self.name = self.name.strip() or _DEFAULT_SERVER_NAME
         self.resolved_server
         return self
@@ -218,12 +213,11 @@ class MCPTestRequest(BaseModel):
 
 
 class MCPToolCallResult(BaseModel):
-    """Verbatim outcome of the requested ``tool_call``.
+    """所请求的逐字结果``tool_call``。
 
-    The endpoint stays provider-neutral: many servers report upstream
-    failures (e.g. Slack's ``{"ok": false, "error": "invalid_auth"}``)
-    as ordinary text content with ``isError`` unset, so interpreting the
-    payload is the caller's job.
+    端点保持提供商中立：许多服务器报告上游故障（e.g. Slack 的
+    ``{"ok": false, "error": "invalid_auth"}``) 作为普
+    通文本内容，``isError`` 未设置，因此解释载荷是调用者的工作。
     """
 
     is_error: bool = Field(description="The MCP-level isError flag of the result.")
@@ -231,7 +225,7 @@ class MCPToolCallResult(BaseModel):
 
 
 class MCPTestSuccess(BaseModel):
-    """Response when the candidate server connects and lists its tools."""
+    """当候选服务器连接并列出其工具时的响应。"""
 
     ok: Literal[True] = True
     tools: list[str] = Field(
@@ -260,12 +254,11 @@ class MCPTestSuccess(BaseModel):
 
 
 class MCPTestFailure(BaseModel):
-    """Response when the candidate server fails to connect or list tools.
+    """候选服务器无法连接或列出工具时的响应。
 
-    The endpoint returns HTTP 200 in both success and failure cases: a
-    failure here is the *expected* outcome of validating a user-supplied
-    config, not a server-side error. The structured shape makes it easy
-    for the UI to render an actionable message.
+    端点返回值为 HTTP 200，在成功和失败两种情况下：这里失败是 * 验证用户提供的配置 *
+    的预期结果，而不是服务器端错误。 结构化的形状使 UI 可以轻松呈现
+    可操作的消息。
     """
 
     ok: Literal[False] = False
@@ -282,7 +275,7 @@ MCPTestResponse = Annotated[
 
 
 class MCPOAuthStartResponse(BaseModel):
-    """Response for starting an install-time OAuth MCP probe."""
+    """启动安装时 OAuth MCP 探测的响应。"""
 
     ok: bool
     job_id: str | None = None
@@ -292,7 +285,7 @@ class MCPOAuthStartResponse(BaseModel):
 
 
 class MCPOAuthStatusResponse(BaseModel):
-    """Current state of an install-time OAuth MCP probe."""
+    """安装时 OAuth MCP 探测的当前状态。"""
 
     ok: bool
     status: Literal["pending", "authorizing", "succeeded", "failed"]
@@ -307,7 +300,7 @@ class MCPOAuthStatusResponse(BaseModel):
 
 
 class MCPOAuthCallbackRequest(BaseModel):
-    """Callback URL copied from a browser OAuth redirect."""
+    """回调 URL 从浏览器 OAuth 重定向复制。"""
 
     callback_url: str = Field(..., min_length=1)
 
@@ -347,8 +340,9 @@ class _MCPOAuthProbeJob:
                 "succeeded" if isinstance(result, MCPTestSuccess) else "failed"
             )
         self.done.set()
-        # Also wakes the start route when the probe finished without needing
-        # consent (stored tokens still valid, or refreshed) or failed early.
+        # 当探测在无需同意的情况下完成（存储的 token 仍然有效或刷新）或提前失败时，也会
+        # 唤醒启动路由。
+        #
         self.authorization_ready.set()
 
     def to_status_response(self) -> MCPOAuthStatusResponse:
@@ -403,7 +397,7 @@ def _sweep_oauth_probe_jobs_locked(now: float | None = None) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Endpoint
+# 端点
 # ---------------------------------------------------------------------------
 
 
@@ -445,14 +439,14 @@ def _oauth_auth_from_authentication(
 
 
 class _BrowserCoordinatedOAuth(MCPOAuth):
-    """FastMCP OAuth client that lets the frontend own browser navigation."""
+    """FastMCP OAuth 客户端，让前端拥有浏览器导航。"""
 
     def __init__(self, *, job: _MCPOAuthProbeJob, **kwargs: Any):
         super().__init__(**kwargs)
         self._job = job
 
     async def redirect_handler(self, authorization_url: str) -> None:
-        """Capture the URL instead of opening a browser from the backend."""
+        """捕获 URL，而不是从后端打开浏览器。"""
         async with self.httpx_client_factory() as client:
             response = await client.get(authorization_url, follow_redirects=False)
             if response.status_code == 400:
@@ -468,11 +462,11 @@ class _BrowserCoordinatedOAuth(MCPOAuth):
         self._job.set_authorization_url(authorization_url)
 
     async def callback_handler(self):
-        """Publish the callback URL, then defer to FastMCP.
+        """发布回调 URL，然后遵循 FastMCP。
 
-        Reimplementing this froze the return type as a tuple, which mcp 2.x
-        rejects -- it wants an ``AuthorizationCodeResult``. Only
-        ``redirect_port`` is read: ``_callback_host`` is absent in fastmcp 3.2.0.
+        重新实现它会将返回类型冻结为元组，这是 MCP 2.x 拒绝的——它需要一个
+        ``AuthorizationCodeResult``。 仅
+        ``redirect_port`` 被读取：``_callback_host`` 在 FastMCP 3.2.0 中不存在。
         """
         callback_url = f"http://localhost:{self.redirect_port}/callback"
         self._job.set_callback_ready(callback_url)
@@ -487,12 +481,12 @@ class _BrowserCoordinatedOAuth(MCPOAuth):
 def _run_tool_call(
     client: MCPClient, spec: MCPToolCallSpec, tool_names: list[str], timeout: float
 ) -> MCPToolCallResult:
-    """Invoke the requested tool on the connected client.
+    """在连接的客户端上调用请求的工具。
 
-    Uses ``call_tool_mcp`` (not ``call_tool``, which raises on ``isError``)
-    so in-band failures come back as data -- mirrors ``MCPToolExecutor``.
-    A timeout is reported as an errored result rather than failing the
-    whole test: the server did connect and list, which is still useful.
+    使用 ``call_tool_mcp``（不是 ``call_tool``，它在 ``isError`` 上引发），因此带内故
+    障作为数据返回 - 镜像
+    ``MCPToolExecutor``。 超时被报告为错误结果，而不是整个测试失败：服务器确实连接并
+    列出了，这仍然有用。
     """
     if spec.name not in tool_names:
         return MCPToolCallResult(
@@ -527,12 +521,11 @@ def _probe_mcp_server(
     cipher: Cipher | None,
     mcp_oauth_factory: Any | None = None,
 ) -> MCPTestResponse:
-    """Synchronous probe -- safe to run inside ``run_in_executor``.
+    """同步探测器——在 ``run_in_executor`` 内安全运行。
 
-    ``create_mcp_tools`` already runs its own event loop in a background
-    thread via ``MCPClient.call_async_from_sync``. We deliberately do not
-    call it from the FastAPI request task; instead the caller hops into a
-    threadpool first.
+    ``create_mcp_tools`` 已经通过 ``MCPClient.call_async_from_sync`` 在后台线程运行自
+    己的事件循环。 我们故意不
+    从FastAPI请求任务中调用它； 相反，调用者首先跳入线程池。
     """
 
     mcp_config = request.to_mcp_config(cipher=cipher)
@@ -545,9 +538,9 @@ def _probe_mcp_server(
             oauth_token_storage = InMemoryMCPOAuthTokenStore(
                 state=server.initial_oauth_state(cipher=cipher)
             )
-        # ``create_mcp_tools`` returns a client that owns a background loop
-        # and a (possibly long-lived) subprocess. Use the context-manager
-        # form so we always tear it down, even when listing succeeded.
+        # ``create_mcp_tools`` 返回一个拥有后台循环和（可能是长期存在的）子进程的客户端
+        # 。 使用上下文-manager 形式，以便我们始终将其拆除，即使列表成功。
+        #
         create_tools_kwargs: dict[str, Any] = {
             "mcp_oauth_token_storage": oauth_token_storage
         }
@@ -581,10 +574,10 @@ def _probe_mcp_server(
         logger.info("MCP test timed out for server %r: %s", request.name, exc)
         return MCPTestFailure(error=str(exc), error_kind="timeout")
     except MCPError as exc:
-        # ``MCPError("MCP Connection Failure")`` is what client.connect()
-        # raises when the underlying fastmcp client fails to start. Surface
-        # the root-cause message (e.g. "sh: 1: mcp-server-github: Permission
-        # denied") because the wrapper alone isn't useful.
+        # ``MCPError("MCP Connection Failure")`` 是当底层 FastMCP 客户端无法启动时
+        # client.connect() 引发的。 揭示根本原因消息 (e.g. “sh：1：MCP-server-GitHub：权
+        # 限被拒绝”）因为单独的包装器没有用。
+        #
         cause = exc.__cause__ or exc.__context__
         detail = str(cause) if cause else str(exc) or "Failed to connect to MCP server"
         logger.info(
@@ -592,8 +585,8 @@ def _probe_mcp_server(
         )
         return MCPTestFailure(error=detail, error_kind="connection")
     except Exception as exc:  # noqa: BLE001 - we want to surface anything else
-        # Any other exception is unexpected but should still return a
-        # structured response: the UI can't recover from a 500.
+        # 任何其他异常都是意外的，但仍应返回结构化响应：UI 无法从 500 恢复。
+        #
         logger.warning(
             "MCP test failed unexpectedly for server %r",
             request.name,
@@ -628,9 +621,9 @@ def _probe_mcp_server(
 async def test_mcp_server(
     request: MCPTestRequest, http_request: Request
 ) -> MCPTestResponse:
-    """Probe a single MCP server config and report whether it works."""
-    # Resolve the cipher here: the threadpool function below must not
-    # reach back into ``http_request.app.state``.
+    """探测单个 MCP 服务器配置并报告其是否有效。"""
+    # 解决此处的密码：下面的线程池函数不得返回到 ``http_request.app.state``。
+    #
     cipher = get_cipher(http_request)
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _probe_mcp_server, request, cipher)
@@ -681,7 +674,7 @@ def _get_oauth_job(job_id: str) -> _MCPOAuthProbeJob:
 async def start_mcp_oauth(
     request: MCPTestRequest, http_request: Request
 ) -> MCPOAuthStartResponse:
-    """Start OAuth for a candidate MCP server and return the authorization URL."""
+    """为候选 MCP 服务器启动 OAuth 并返回授权 URL。"""
     if request.resolved_server.oauth_auth is None:
         raise HTTPException(
             status_code=400,
@@ -713,8 +706,8 @@ async def start_mcp_oauth(
         )
 
     if job.done.is_set() and isinstance(job.result, MCPTestSuccess):
-        # No consent was needed: the stored tokens were valid or refreshed.
-        # The caller reads the outcome from the status route.
+        # 无需同意：存储的 token 有效或已刷新。 调用者从状态路由读取结果。
+        #
         return MCPOAuthStartResponse(ok=True, job_id=job.id)
 
     if job.done.is_set() and isinstance(job.result, MCPTestFailure):
@@ -746,7 +739,7 @@ async def get_mcp_oauth_status(job_id: str) -> MCPOAuthStatusResponse:
 def _validate_callback_url(callback_url: str, job: _MCPOAuthProbeJob) -> None:
     try:
         parsed = urlparse(callback_url)
-    except ValueError:  # e.g. an unclosed IPv6 bracket
+    except ValueError:  # e.g. 未闭合的 IPv6 括号
         raise HTTPException(
             status_code=400, detail="Invalid OAuth callback URL"
         ) from None
@@ -765,7 +758,7 @@ def _validate_callback_url(callback_url: str, job: _MCPOAuthProbeJob) -> None:
     expected_parsed = urlparse(expected)
     try:
         port = parsed.port
-    except ValueError:  # out of range or not a number
+    except ValueError:  # 超出范围或不是数字
         raise HTTPException(
             status_code=400, detail="Unexpected OAuth callback URL"
         ) from None
@@ -785,14 +778,14 @@ async def submit_mcp_oauth_callback(
     job = _get_oauth_job(job_id)
     _validate_callback_url(request.callback_url, job)
     if job.done.is_set():
-        # A replayed or late callback: the probe finished and its callback
-        # server is closed, so report the outcome instead of forwarding.
+        # 重播或延迟回调：探测完成并且其回调服务器已关闭，因此报告结果而不是转发。
+        #
         return job.to_status_response()
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
             response = await client.get(request.callback_url)
     except httpx.TransportError as exc:
-        # The probe may have finished while we were forwarding.
+        # 当我们转发时，探测可能已经完成。
         if job.done.is_set():
             return job.to_status_response()
         raise HTTPException(

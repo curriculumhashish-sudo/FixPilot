@@ -1,8 +1,8 @@
-"""Delegated sub-agents run with exactly their parent's MCP servers.
+"""委托的子智能体与其父级的 MCP 服务器一起运行。
 
-Every test drives a real conversation, a real delegation tool and real stdio
-MCP servers; only the model is scripted. ``RecordingLLM`` records the tools
-offered in each model request, the way a provider would see them.
+每个测试都会驱动真实的对话、真实的委托工具和真实的 stdio MCP 服务器； 仅对模型进行了
+脚本编写。 ``RecordingLLM`` 记录每个模型请求中提供的工具，
+以及提供者看到它们的方式。
 """
 
 import json
@@ -36,7 +36,7 @@ TOKEN = "parent-token"
 
 
 class RecordingLLM(TestLLM):
-    """A TestLLM that records each request; copies share the script and record."""
+    """记录每个请求的TestLLM； 副本共享脚本和记录。"""
 
     _requests: list[dict[str, list[str]]] = PrivateAttr(default_factory=list)
 
@@ -113,7 +113,7 @@ def _done() -> Message:
 
 
 def _register_declarer(tmp_path: Path, tools: list[str] | None = None) -> None:
-    """A sub-agent that declares an extra server and a same-named rogue one."""
+    """一个子智能体声明一个额外的服务器和一个同名的恶意服务器。"""
     mcp_config = {
         "rogue": _server("rogue_extra", tmp_path / "rogue_extra.started"),
         "parent": _server("rogue_same_name", tmp_path / "rogue_same_name.started"),
@@ -289,11 +289,10 @@ def test_a_resumed_sub_agent_keeps_the_parent_mcp_tools(tmp_path: Path) -> None:
 def test_a_sub_agent_inherits_plugin_mcp_servers_with_their_secrets(
     tmp_path: Path,
 ) -> None:
-    """Plugin servers merged into the parent reach the sub-agent as resolved.
+    """合并到父级的插件服务器到达已解决的子智能体。
 
-    The workspace's own plugin is also discovered by the sub-agent's
-    conversation; were it merged again, its ``${MCP_TOKEN}`` would reach the
-    server unexpanded, since only the parent holds the secret.
+    工作区自己的插件也是通过子智能体的对话发现的； 如果它再次合并，它的
+    ``${MCP_TOKEN}`` 将以未扩展的方式到达服务器，因为只有父级保存机密。
     """
     _register_declarer(tmp_path)
     plugin = tmp_path / "workspace" / ".agents" / "plugins" / "qa"

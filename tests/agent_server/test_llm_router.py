@@ -1,4 +1,4 @@
-"""Tests for LLM router."""
+"""测试 LLM 路由器。"""
 
 import httpx
 import litellm
@@ -18,15 +18,15 @@ from openhands.sdk.llm.utils.verified_models import VERIFIED_MODELS
 
 @pytest.fixture
 def client():
-    """Create a test client."""
-    config = Config(session_api_keys=[])  # Disable authentication for tests
+    """创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证进行测试
     app = create_app(config)
     return TestClient(app)
 
 
 @pytest.mark.asyncio
 async def test_list_providers():
-    """Test listing providers directly."""
+    """直接测试列表提供商。"""
     response = await list_providers()
     assert len(response.providers) > 0
     assert "openai" in response.providers
@@ -36,7 +36,7 @@ async def test_list_providers():
 
 @pytest.mark.asyncio
 async def test_list_models():
-    """Test listing models directly."""
+    """直接测试列表模型。"""
     response = await list_models(provider=None)
     assert len(response.models) > 0
     assert response.models == sorted(set(response.models))
@@ -44,14 +44,14 @@ async def test_list_models():
 
 @pytest.mark.asyncio
 async def test_list_models_filtered_by_provider():
-    """Test listing models filtered by provider."""
+    """测试按提供商过滤的列表模型。"""
     response = await list_models(provider="openai")
     assert len(response.models) > 0
     assert "gpt-5.6" in response.models
     assert "gpt-5.6-sol" in response.models
     assert "gpt-5.6-terra" in response.models
     assert "gpt-5.6-luna" in response.models
-    # Verify filtering works - there should be fewer models than unfiltered
+    # 验证过滤是否有效 - 模型数量应该少于未过滤的模型数量
     all_models_response = await list_models(provider=None)
     assert len(response.models) < len(all_models_response.models)
 
@@ -60,7 +60,7 @@ async def test_list_models_filtered_by_provider():
 def test_list_models_filtered_by_openrouter_provider(
     client, monkeypatch, openrouter_in_catalog
 ):
-    """Verified routes survive catalog removal without leaking direct models."""
+    """经过验证的路线在目录删除后不会泄漏直接模型。"""
     catalog = [
         "deepseek/deepseek-chat",
         "deepseek/deepseek-v4-pro",
@@ -89,14 +89,14 @@ def test_list_models_filtered_by_openrouter_provider(
 
 @pytest.mark.asyncio
 async def test_list_models_unknown_provider():
-    """Test listing models with an unknown provider returns empty list."""
+    """测试列出具有未知提供商的模型会返回空列表。"""
     response = await list_models(provider="unknown_provider_xyz")
     assert response.models == []
 
 
 @pytest.mark.asyncio
 async def test_list_verified_models():
-    """Test listing verified models directly."""
+    """测试直接列出经过验证的模型。"""
     response = await list_verified_models()
     assert response.models == VERIFIED_MODELS
     assert "openai" in response.models
@@ -105,7 +105,7 @@ async def test_list_verified_models():
 
 
 def test_providers_endpoint_integration(client):
-    """Test providers endpoint through the API."""
+    """测试提供者端点到 API。"""
     response = client.get("/api/llm/providers")
     assert response.status_code == 200
     data = response.json()
@@ -115,7 +115,7 @@ def test_providers_endpoint_integration(client):
 
 
 def test_models_endpoint_integration(client):
-    """Test models endpoint through the API."""
+    """测试模型端点到 API。"""
     response = client.get("/api/llm/models")
     assert response.status_code == 200
     data = response.json()
@@ -124,7 +124,7 @@ def test_models_endpoint_integration(client):
 
 
 def test_models_endpoint_with_provider_filter(client):
-    """Test models endpoint with provider query parameter."""
+    """使用提供者查询参数测试模型端点。"""
     response = client.get("/api/llm/models?provider=openai")
     assert response.status_code == 200
     data = response.json()
@@ -134,7 +134,7 @@ def test_models_endpoint_with_provider_filter(client):
 
 
 def test_models_endpoint_with_unknown_provider(client):
-    """Test models endpoint with unknown provider returns empty list."""
+    """具有未知提供商的测试模型端点返回空列表。"""
     response = client.get("/api/llm/models?provider=unknown_provider_xyz")
     assert response.status_code == 200
     data = response.json()
@@ -143,7 +143,7 @@ def test_models_endpoint_with_unknown_provider(client):
 
 
 def test_verified_models_endpoint_integration(client):
-    """Test verified models endpoint through the API."""
+    """测试验证模型端点到 API。"""
     response = client.get("/api/llm/models/verified")
     assert response.status_code == 200
     data = response.json()
@@ -160,7 +160,7 @@ def test_verified_models_endpoint_integration(client):
 
 
 def test_openai_subscription_models_endpoint_integration(client):
-    """Test subscription models endpoint through the API."""
+    """测试订阅模型端点到 API。"""
     response = client.get("/api/llm/subscription/openai/models")
     assert response.status_code == 200
     data = response.json()
@@ -180,7 +180,7 @@ def test_openai_subscription_models_endpoint_integration(client):
 def test_openai_subscription_status_endpoint_does_not_return_tokens(
     client, monkeypatch
 ):
-    """Status reports safe metadata without exposing OAuth tokens."""
+    """状态报告安全元数据而不暴露 OAuth token。"""
     from openhands.agent_server import llm_router
     from openhands.sdk.llm.auth.credentials import OAuthCredentials
 
@@ -220,7 +220,7 @@ def test_openai_subscription_status_endpoint_does_not_return_tokens(
 def test_openai_subscription_status_offline_refresh_reads_disconnected(
     client, monkeypatch
 ):
-    """A refresh that cannot reach OpenAI reads as disconnected, not a 500."""
+    """无法达到 OpenAI 的刷新将读取为已断开连接，而不是 500。"""
     from openhands.agent_server import llm_router
 
     class FakeAuth:
@@ -246,7 +246,7 @@ def test_openai_subscription_status_offline_refresh_reads_disconnected(
 def test_openai_subscription_device_start_returns_opaque_poll_token(
     client, monkeypatch
 ):
-    """Device start stores OpenAI internals server-side."""
+    """设备启动存储OpenAI内部服务器端。"""
     from openhands.agent_server import llm_router
     from openhands.sdk.llm.auth.openai import DeviceCode
 
@@ -274,7 +274,7 @@ def test_openai_subscription_device_start_returns_opaque_poll_token(
 
 
 def test_openai_subscription_device_poll_pending_and_success(client, monkeypatch):
-    """Polling returns disconnected while pending and connected after success."""
+    """轮询在等待期间返回断开连接，在成功后返回连接。"""
     from openhands.agent_server import llm_router
     from openhands.sdk.llm.auth.credentials import OAuthCredentials
     from openhands.sdk.llm.auth.openai import DeviceCode
@@ -338,7 +338,7 @@ def test_openai_subscription_device_poll_pending_and_success(client, monkeypatch
 async def test_openai_subscription_device_poll_failure_keeps_pending_login(
     monkeypatch,
 ):
-    """Transient provider failures do not consume the opaque poll token."""
+    """暂时的提供者故障不会消耗不透明的轮询 token。"""
     from openhands.agent_server import llm_router
     from openhands.sdk.llm.auth.credentials import OAuthCredentials
     from openhands.sdk.llm.auth.openai import DeviceCode
@@ -396,7 +396,7 @@ async def test_openai_subscription_device_poll_failure_keeps_pending_login(
 
 
 def test_openai_subscription_logout_endpoint(client, monkeypatch):
-    """Logout removes credentials and returns disconnected status."""
+    """注销会删除凭据并返回断开连接状态。"""
     from openhands.agent_server import llm_router
 
     llm_router._PENDING_OPENAI_DEVICE_LOGINS["opaque-token"] = (

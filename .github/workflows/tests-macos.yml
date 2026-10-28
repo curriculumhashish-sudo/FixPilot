@@ -2,11 +2,10 @@
 name: Run tests (macOS)
 run-name: Run tests (macOS) ${{ github.event.label.name || github.ref_name }}
 
-# Opt-in mirror of the full suite in tests.yml on a macOS runner. Unlike
-# tests.yml there is no changed-files gating: every suite always runs.
-# Trigger by adding the `macos-test-run` label to a PR (re-runs on each push
+# 在 macOS 跑步者上选择 tests.yml 中全套套件的镜像。 与tests.yml不同，没有更改文件门控：每个套件始终运行。 通过将 `macos-test-run` 标签添加到 PR 来触发（每次推送时重新运行）
+#
 # while the label is present), or manually from the Actions tab (`Run
-# workflow`), which defaults to `main`; pick another branch to run it there.
+# workflow`), which defaults to `main`; 选择另一个分支在那里运行它。
 on:
     pull_request:
         types: [labeled, synchronize, reopened]
@@ -35,7 +34,7 @@ jobs:
                 include:
                     - suite: sdk
                       args: -n auto tests/sdk
-                    # --forked: terminal tests conflict when run in parallel
+                    # --forked：并行运行时终端测试发生冲突
                     - suite: tools
                       args: --forked tests/tools
                     - suite: agent_server

@@ -1,4 +1,4 @@
-"""VSCode service for managing OpenVSCode Server in the agent server."""
+"""VSCode 用于管理 OpenVSCode 服务器的 Agent Server 服务。"""
 
 import asyncio
 import os
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class VSCodeService:
-    """Service to manage VSCode server startup and token generation."""
+    """管理VSCode服务器启动和token生成的服务。"""
 
     def __init__(
         self,
@@ -22,14 +22,14 @@ class VSCodeService:
         connection_token: str | None = None,
         server_base_path: str | None = None,
     ):
-        """Initialize VSCode service.
+        """初始化 VSCode 服务。
 
         Args:
-            port: Port to run VSCode server on (default: 8001)
-            workspace_path: Path to the workspace directory
-            create_workspace: Whether to create the workspace directory if it doesn't
-                exist
-            server_base_path: Base path for the server (used in path-based routing)
+            port: 运行 VSCode 服务器的端口（默认：8001）
+            workspace_path: 工作区目录的路径
+            create_workspace: 如果没有则是否创建工作区目录
+                存在
+            server_base_path: 服务器的基本路径（用于基于路径的路由）
         """
         self.port: int = port
         self.connection_token: str | None = connection_token
@@ -39,31 +39,31 @@ class VSCodeService:
         self.extensions_dir: Path = self.openvscode_server_root / "extensions"
 
     async def start(self) -> bool:
-        """Start the VSCode server.
+        """启动 VSCode 服务器。
 
         Returns:
-            True if started successfully, False otherwise
+            True 如果启动成功，False 否则
         """
         try:
-            # Check if VSCode server binary exists
+            # 检查 VSCode 服务器二进制是否存在
             if not self._check_vscode_available():
                 logger.warning(
                     "VSCode server binary not found, VSCode will be disabled"
                 )
                 return False
 
-            # Generate connection token if not already set
+            # 如果尚未设置，则生成连接 token
             if self.connection_token is None:
                 self.connection_token = os.urandom(32).hex()
 
-            # Check if port is available
+            # 检查端口是否可用
             if not await self._is_port_available():
                 logger.warning(
                     f"Port {self.port} is not available, VSCode will be disabled"
                 )
                 return False
 
-            # Start VSCode server with extensions
+            # 开始 VSCode 带有扩展的服务器
             await self._start_vscode_process()
 
             logger.info(f"VSCode server started successfully on port {self.port}")
@@ -74,7 +74,7 @@ class VSCodeService:
             return False
 
     async def stop(self) -> None:
-        """Stop the VSCode server."""
+        """停止 VSCode 服务器。"""
         if self.process:
             try:
                 self._signal_process_group(signal.SIGTERM)
@@ -90,12 +90,12 @@ class VSCodeService:
                 self.process = None
 
     async def set_connection_token(self, connection_token: str) -> None:
-        """Restart a running server with a new connection token.
+        """使用新连接重新启动正在运行的服务器 token。
 
-        openvscode-server reads its token only at startup, so the server is
-        stopped and started again with the new one. A server that is not
-        running keeps its token, so ``get_vscode_url`` doesn't advertise a
-        server that isn't there (for example, in images without VSCode).
+        openvscode-server 在启动时只读取 token，因此服务器会被重新停止和启动。 一个未
+        运行的服务器会保留其 token，因此
+        ``get_vscode_url`` 不会广播一个不存在的服务器（例如，在没有 VSCode 的图像中）
+        。
         """
         if not self.is_running() or connection_token == self.connection_token:
             return
@@ -108,23 +108,23 @@ class VSCodeService:
         base_url: str | None = None,
         workspace_dir: str = "workspace",
     ) -> str | None:
-        """Get the VSCode URL with authentication token.
+        """获取 VSCode URL 身份验证 token。
 
-        When ``server_base_path`` is configured, the server only answers under
-        that prefix (it is passed to openvscode-server as
-        ``--server-base-path``), so the prefix is included in the returned URL.
-        Without it, path-based-routing deployments are advertised a root URL
-        that the server does not serve.
+        配置 ``server_base_path`` 时，服务器仅在该前缀下应答（它被传递到 openvscode-
+        server 作为
+        ``--server-base-path``)，因此返回的URL中包含前缀。 如果没有它，基于路径的路由
+        部署将被通告到服务器不提供服务的根 URL。
 
         Args:
-            base_url: Base URL for the VSCode server
-            workspace_dir: Path to workspace directory
+            base_url: URL 服务器的基础 VSCode
+            workspace_dir: 工作区目录的路径
 
         Returns:
-            VSCode URL with token, or None if the server is not running
+            VSCode URL 与 token 或 None（如果服务器未运行）
         """
-        # A keyed server seeds the token before start() runs, so the token
-        # alone does not mean a server is there to open.
+        # 密钥服务器在 start() 运行之前播种 token，因此单独的 token 并不意味着服务器可以
+        # 打开。
+        #
         if self.connection_token is None or not self.is_running():
             return None
 
@@ -135,8 +135,9 @@ class VSCodeService:
         if self.server_base_path:
             base = f"{base}/{self.server_base_path.strip('/')}"
 
-        # Encode the values so a path with '&', '#', '?' or spaces decodes back
-        # to the same folder; '/' stays readable.
+        # 对值进行编码，使其成为包含“&”、“#”、“?”的路径或空格解码回同一文件夹； '/' 保持
+        # 可读。
+        #
         query = urlencode(
             {"tkn": self.connection_token, "folder": workspace_dir},
             quote_via=quote,
@@ -145,30 +146,30 @@ class VSCodeService:
         return f"{base}/?{query}"
 
     def is_running(self) -> bool:
-        """Check if VSCode server is running.
+        """检查 VSCode 服务器是否运行。
 
         Returns:
-            True if running, False otherwise
+            True 如果正在运行，False 否则
         """
         return self.process is not None and self.process.returncode is None
 
     def _check_vscode_available(self) -> bool:
-        """Check if VSCode server binary is available.
+        """检查 VSCode 服务器二进制是否可用。
 
         Returns:
-            True if available, False otherwise
+            True 如果可用，False 否则
         """
         vscode_binary = self.openvscode_server_root / "bin" / "openvscode-server"
         return vscode_binary.exists() and vscode_binary.is_file()
 
     async def _is_port_available(self) -> bool:
-        """Check if the specified port is available.
+        """检查指定端口是否可用。
 
         Returns:
-            True if port is available, False otherwise
+            True 如果端口可用，False 否则
         """
         try:
-            # Try to bind to the port
+            # 尝试绑定端口
             server = await asyncio.start_server(
                 lambda _r, _w: None, "localhost", self.port
             )
@@ -179,12 +180,11 @@ class VSCodeService:
             return False
 
     def _signal_process_group(self, sig: signal.Signals) -> None:
-        """Signal the launcher script and the node server it runs.
+        """向启动器脚本及其运行的节点服务器发出信号。
 
-        The launcher runs node as a child instead of exec'ing it, so signalling
-        the script alone leaves node running and holding the port. The script
-        leads its own process group (``start_new_session``), so its pid is the
-        group id even after the script itself has exited.
+        启动器将节点作为子节点运行，而不是执行它，因此仅向脚本发出信号会使节点运行并
+        保留端口。 该脚本引导其自己的进程组（``start_new_session``
+        ），因此即使脚本本身退出后，其 pid 仍然是组 id。
         """
         if self.process is None:
             return
@@ -194,7 +194,7 @@ class VSCodeService:
             pass
 
     async def _wait_for_exit(self) -> None:
-        """Wait for the launcher to exit and for node to release the port."""
+        """等待启动器退出并等待节点释放端口。"""
         if self.process is None:
             return
         await self.process.wait()
@@ -202,7 +202,7 @@ class VSCodeService:
             await asyncio.sleep(0.1)
 
     async def _start_vscode_process(self) -> None:
-        """Start the VSCode server process."""
+        """启动 VSCode 服务器进程。"""
         extensions_arg = (
             f"--extensions-dir {self.extensions_dir} "
             if self.extensions_dir.exists()
@@ -223,8 +223,8 @@ class VSCodeService:
             f"--disable-workspace-trust\n"
         )
 
-        # Start the process in its own process group, so stop() can signal
-        # node along with the launcher script.
+        # 在自己的进程组中启动进程，因此 stop() 可以与启动器脚本一起向节点发出信号。
+        #
         self.process = await asyncio.create_subprocess_shell(
             cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -233,17 +233,17 @@ class VSCodeService:
             start_new_session=True,
         )
 
-        # Wait for server to start (look for startup message)
+        # 等待服务器启动（查找启动消息）
         await self._wait_for_startup()
 
     async def _wait_for_startup(self) -> None:
-        """Wait for VSCode server to start up."""
+        """等待VSCode服务器启动。"""
         if not self.process or not self.process.stdout:
             return
 
         try:
-            # Read output until we see the server is ready
-            timeout = 30  # 30 second timeout
+            # 读取输出，直到我们看到服务器准备就绪
+            timeout = 30  # 30 秒超时
             start_time = asyncio.get_event_loop().time()
 
             while (
@@ -260,7 +260,7 @@ class VSCodeService:
                     line = line_bytes.decode("utf-8", errors="ignore").strip()
                     logger.debug(f"VSCode server output: {line}")
 
-                    # Look for startup indicators
+                    # 寻找启动指标
                     if "Web UI available at" in line or "Server bound to" in line:
                         logger.info("VSCode server startup detected")
                         break
@@ -272,15 +272,15 @@ class VSCodeService:
             logger.warning(f"Error waiting for VSCode startup: {e}")
 
 
-# Global VSCode service instance
+# 全局 VSCode 服务实例
 _vscode_service: VSCodeService | None = None
 
 
 def get_vscode_service() -> VSCodeService | None:
-    """Get the global VSCode service instance.
+    """获取全局 VSCode 服务实例。
 
     Returns:
-        VSCode service instance if enabled, None if disabled
+        VSCode 如果启用，None 如果禁用
     """
     global _vscode_service
     if _vscode_service is None:

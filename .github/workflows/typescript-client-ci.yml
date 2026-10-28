@@ -32,7 +32,7 @@ jobs:
             - name: Test Agent Server contract tooling
               run: npm run test:agent-server-api-tooling
 
-            # A release PR pins a version whose openapi.json is published only after merge.
+            # 版本 PR 固定其 openapi.json 仅在合并后发布的版本。
             - name: Resolve pinned Agent Server
               id: pinned
               working-directory: .
@@ -157,11 +157,8 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-    # Gate production dependencies at moderate. Dev-only test tooling
-    # (jest -> babel-plugin-istanbul -> @istanbuljs/load-nyc-config -> js-yaml@3)
-    # carries advisories with no upstream fix and never ships to consumers, so
-    # auditing them here would block merges indefinitely. --omit=dev scopes the
-    # gate to what we actually publish.
+    # 门生产依赖性适中。 仅开发者工具（jest -> babel-plugin-istanbul -> @istanbuljs/load-nyc-config -> js-YAML@3）没有上游修复，也不向消费者发布，因此在这里审核会无限期阻止合并。 --omit=dev 仅排除开发范围。
+    #
             - name: Run security audit
               run: npm audit --audit-level=moderate --omit=dev
 

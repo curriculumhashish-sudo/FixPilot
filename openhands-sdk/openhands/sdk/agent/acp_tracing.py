@@ -1,10 +1,10 @@
-"""Observability spans for ACP turns.
+"""可观测性跨度为 ACP 圈。
 
-The ACP subprocess runs its own inference and tool execution, so neither
-lmnr's LiteLLM instrumentation nor ``Agent._execute_action_event`` ever fires
-and an ACP trace carries no ``LLM`` or ``TOOL`` spans. This module emits them
+ACP 子进程运行自己的推理和工具执行，因此 lmnr 的 LiteLLM 仪器和
+``Agent._execute_action_event`` 从不触发，ACP 跟踪中
+没有 ``LLM`` 或 ``TOOL`` 跨度。 该模块发出它们
 from the ACP protocol's own notifications, shaped like the native ones so a
-trace consumer needs no ACP-specific branch.
+跟踪消费者不需要 ACP 特定的分支。
 """
 
 from __future__ import annotations
@@ -24,22 +24,22 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-#: Marks a span as produced by an ACP agent rather than the native loop.
+# ：将跨度标记为由 ACP 智能体而不是本机循环生成。
 AGENT_KIND_METADATA_KEY = "agent_kind"
-#: Which ACP CLI produced it: an ACP_PROVIDERS key, or 'custom'.
+# ：哪个 ACP CLI 产生了它：一个 ACP_PROVIDERS 密钥，或“自定义”。
 ACP_SERVER_METADATA_KEY = "acp_server"
-#: Model the ACP CLI reported for the turn, when it reports one.
+# ：当报告 1 时，对报告的 ACP CLI 进行建模。
 ACP_MODEL_METADATA_KEY = "acp_model"
 
 TURN_SPAN_NAME = "acp.completion"
 
 
 def _truncate(value: Any, limit: int = 100_000) -> Any:
-    """Cap what a span carries.
+    """限制跨度所承载的内容。
 
-    Non-strings are measured by their serialized size and replaced wholesale when
-    oversized, rather than passed through: an ACP prompt is a list of content
-    blocks, and one image block can be megabytes of base64.
+    非字符串的值通过它们来测量已序列化当过大的时候，尺寸和规格会全部替换掉，而不是通
+    过：一个 ACP  提示词这是一个内容块列表，一个图像块可以包含数兆字节的 base
+    64。
     """
     if isinstance(value, str):
         return value[:limit] + "…[truncated]" if len(value) > limit else value
@@ -53,17 +53,15 @@ def _truncate(value: Any, limit: int = 100_000) -> Any:
 
 
 class ACPTurnTrace:
-    """Emits one ``LLM`` span per ACP turn plus a ``TOOL`` span per tool call.
+    """每 ACP 转发出一个 ``LLM`` 范围，每工具调用发出一个 ``TOOL`` 范围。
 
-    Every method is a no-op when observability is disabled, and no method may
+    当可观察性被禁用时，每个方法都是无操作的，并且没有方法可以
     raise: a tracing failure must not take down the turn it is describing.
 
-    Tool notifications arrive on the ACP executor's event-loop thread while the
-    turn is opened and closed on the caller's, so children are parented by explicit
-    span context rather than by ambient ``contextvars`` and the shared state is
-    mutated under a lock. Span I/O stays outside the lock, except in
-    ``start_turn``, where the span must be created and stored as one step so a
-    retry cannot open a second one.
+    工具通知到达  ACP 执行器的事件循环线程在被叫方打开和关闭时，孩子由显式 span 亲代
+    上下文而不是通过环境 ``contextvars`` 共享状态在下被修改
+    锁。 Span I/O 保持在外部锁，除了
+    ``start_turn``，其中跨度必须作为一个步骤创建和存储，因此重试无法打开第二个跨度。
     """
 
     def __init__(
@@ -90,9 +88,9 @@ class ACPTurnTrace:
         try:
             from lmnr import Laminar
 
-            # Under the lock like every other mutation: a retry re-enters this
+            # 像所有其他突变一样，在锁下：重试重新进入此
             # while the portal thread may still be delivering notifications from
-            # the attempt that just failed.
+            # 刚刚失败的尝试。
             with self._lock:
                 if self._turn_span is not None:
                     return
@@ -149,7 +147,7 @@ class ACPTurnTrace:
         thoughts: str,
         tool_calls: list[dict[str, Any]],
     ) -> None:
-        """Set the turn's assistant message and close every span it opened."""
+        """设置回合的辅助消息并关闭其打开的每个范围。"""
         with self._lock:
             open_spans = list(self._tool_spans.items())
             self._tool_spans.clear()
@@ -172,7 +170,7 @@ class ACPTurnTrace:
             logger.debug("ACP turn span could not be ended", exc_info=True)
 
     def abandon(self) -> None:
-        """Close whatever is still open after a timed-out or failed turn."""
+        """关闭超时或失败的回合后仍打开的所有内容。"""
         with self._lock:
             open_spans = list(self._tool_spans.values())
             self._tool_spans.clear()
@@ -202,10 +200,10 @@ class ACPTurnTrace:
 
 
 def _mask_prompt(prompt: Any, mask: Callable[[str], str] | None) -> Any:
-    """Run the conversation's secret masker over every string in the prompt.
+    """对提示词中的每个字符串运行对话的机密掩码器。
 
-    Returns ``None`` rather than the original if masking fails: an unrecorded
-    prompt is recoverable, an unmasked one shipped to the backend is not.
+    如果屏蔽失败，则返回 ``None`` 而不是原始值：未记录的提示词是可恢复的，而运送到后
+    端的未屏蔽的则不可恢复。
     """
     if mask is None:
         return prompt
@@ -229,10 +227,10 @@ def _mask_prompt(prompt: Any, mask: Callable[[str], str] | None) -> Any:
 
 
 def _observation(output: Any) -> dict[str, Any]:
-    """Wrap a tool result the way a native ``Observation`` serializes.
+    """以本机 ``Observation`` 序列化的方式包装工具结果。
 
-    A bare string would be stored as a JSON scalar and reach consumers still
-    wrapped in its quotes; only a ``{``/``[`` payload gets parsed back.
+    裸字符串将存储为 JSON 标量，并到达仍包含在引号中的消费者； 只有 ``{``/``[`` 载荷
+    被解析回来。
     """
     if not isinstance(output, str):
         try:
@@ -247,7 +245,7 @@ def _assistant_message(
     thoughts: str,
     tool_calls: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Build the OpenAI-shaped assistant message a trace consumer expects."""
+    """构建跟踪消费者期望的 OpenAI 形辅助消息。"""
     message: dict[str, Any] = {"role": "assistant", "content": text or ""}
     if thoughts:
         message["reasoning_content"] = thoughts
@@ -258,10 +256,10 @@ def _assistant_message(
 
 
 def _tool_input(entry: dict[str, Any]) -> Any:
-    """What the tool was called with, as far as the server reports it.
+    """根据服务器的报告，该工具是用什么来调用的。
 
-    ``raw_input`` is optional in ACP and Codex omits it entirely, leaving the
-    display ``title`` as the only signal of what the call was for.
+    ``raw_input`` 在 ACP 中是可选的，Codex 完全省略了它，只留下 ``title`` 作为调用的
+    唯一指示。
     """
     raw_input = entry.get("raw_input")
     if raw_input is not None:
@@ -281,8 +279,9 @@ def _tool_call(entry: dict[str, Any]) -> dict[str, Any]:
         "id": str(entry.get("tool_call_id") or ""),
         "type": "function",
         "function": {
-            # ACP reports a display ``title`` and a categorical ``kind``; only
-            # the latter is stable across invocations of the same tool.
+            # ACP 报告显示 ``title`` 和分类 ``kind``； 只有后者在同一工具的调用中是稳定
+            # 的。
+            #
             "name": str(entry.get("tool_kind") or entry.get("title") or "acp_tool"),
             "arguments": raw_input,
         },

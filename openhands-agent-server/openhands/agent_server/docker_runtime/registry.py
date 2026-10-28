@@ -1,4 +1,4 @@
-"""Own one hardened agent-server container per conversation."""
+"""每个对话拥有一个强化的智能体服务器容器。"""
 
 from __future__ import annotations
 
@@ -47,9 +47,9 @@ _PERSISTENCE_DIR: Final[str] = "/var/openhands/.openhands"
 _WORKSPACE_DIR: Final[str] = "/workspace"
 _OWNER_LABEL: Final[str] = "ai.openhands.runtime-owner"
 
-# Environment variables read by openhands.sdk.observability (Laminar / OTEL
-# tracing). Only those actually set on the host are forwarded into the
-# conversation container, so an unconfigured host injects nothing.
+# 环境变量由 openhands.sdk.observability 读取（层流/OTEL 追踪）。 只有在主机上实际设置的
+# 内容才会转发到会话容器中，因此未配置的主机不会注入任何内容。
+#
 _OBSERVABILITY_ENV_VARS: Final[tuple[str, ...]] = (
     "LMNR_PROJECT_API_KEY",
     "LMNR_BASE_URL",
@@ -76,7 +76,7 @@ _OBSERVABILITY_ENV_VARS: Final[tuple[str, ...]] = (
 
 
 class RuntimeArchivedError(RuntimeError):
-    """Retention deleted the runtime; the conversation is read-only."""
+    """保留删除的运行时； 对话是只读。"""
 
 
 @dataclass(slots=True)
@@ -127,23 +127,23 @@ class DockerConversationRegistry(ConversationRegistry):
         service.runtime_cipher_resolver = self.resolve_persisted_cipher
 
     async def refresh_conversation(self, conversation_id: UUID) -> None:
-        """Re-read the conversation from disk after its runtime changed."""
+        """运行时间更改后从磁盘重新读取对话。"""
         if self._service is not None:
             await self._service.refresh_persisted_conversation(conversation_id)
 
     def resolve_persisted_cipher(self, conversation_id: UUID) -> Cipher:
-        """Resolve persisted state without weakening per-runtime isolation.
+        """解决已持久化状态而不削弱每个运行时的隔离。
 
-        Conversations created before Docker mode have no provisioning identity and
-        were encrypted with the host key. A present but invalid identity still
-        raises rather than falling back to that key.
+        在 Docker 模式之前创建的对话没有配置身份，并且使用主机密钥进行加密。 存在但无
+        效的身份仍然会上升，而不是退回到该键。
         """
         identity = self.provisioning.load_optional(conversation_id)
         return identity.cipher if identity is not None else self.provisioning.cipher
 
     def archived_marker(self, conversation_id: UUID) -> Path:
-        # Beside the manifest, not in it: the manifest must stay loadable by
-        # older builds, and it holds the key to the conversation's history.
+        # 在清单旁边，而不是在清单中：清单必须保持可由旧版本加载，并且它掌握着对话历史记
+        # 录的关键。
+        #
         return self.provisioning.control_root / f"{conversation_id.hex}.archived.json"
 
     def is_archived(self, conversation_id: UUID) -> bool:
@@ -172,7 +172,7 @@ class DockerConversationRegistry(ConversationRegistry):
 
     async def start(self) -> None:
         await asyncio.to_thread(self.cleanup_stale_containers)
-        # After the cleanup: with no container left, every runtime is reclaimable.
+        # 清理后：没有留下任何容器，每个运行时都是可回收的。
         await self.reclaimer.start()
         if self.config.conversation_idle_ttl_seconds:
             self._eviction_task = asyncio.create_task(self._evict_idle_runtimes_loop())
@@ -183,8 +183,9 @@ class DockerConversationRegistry(ConversationRegistry):
         )
         from openhands.agent_server.event_router import event_read_router
 
-        # Persisted event history is safe to read from the outer catalog for
-        # both Docker-backed and historical host-local conversations. Writes
+        # 对于 Docker 支持的对话和历史主机本地对话，可以安全地从外部目录中读取已持久化事
+        # 件历史记录。 写
+        #
         # continue through the runtime proxy below.
         router.include_router(event_read_router)
         router.include_router(docker_conversation_router)
@@ -230,11 +231,10 @@ class DockerConversationRegistry(ConversationRegistry):
 
     @asynccontextmanager
     async def runtime_idle(self, conversation_id: UUID) -> AsyncIterator[bool]:
-        """Hold the lifecycle lock; True if no container runs or starts for the
-        runtime and it is not being deleted.
+        """持有生命周期锁； True 如果没有容器运行或启动
+        运行时并且它没有被删除。
 
-        Nothing can start a container until the block exits, so files moved
-        inside it are not in use.
+        在块退出之前，没有任何东西可以启动容器，因此在其中移动的文件不会被使用。
         """
         async with self._lock:
             yield not (
@@ -244,17 +244,17 @@ class DockerConversationRegistry(ConversationRegistry):
             )
 
     def attach_session(self, conversation_id: UUID) -> None:
-        """Record an outer proxied session attached to this runtime.
+        """记录附加到该运行时的外部代理会话。
 
-        Non-zero counts suppress idle eviction, mirroring the inner
-        ``EventService.has_external_subscribers()`` guard: a client holding a
-        live events websocket or a long-lived proxied stream keeps the
-        container alive even while the conversation itself looks idle.
+        非零计数抑制空闲驱逐，镜像内部
+        ``EventService.has_external_subscribers()`` 守护：一个持有实时事件 WebSocket
+        或长连接代理流的客户端，
+        即使对话看起来空闲，也能保持容器的存活。
         """
         self._sessions[conversation_id] = self._sessions.get(conversation_id, 0) + 1
 
     def detach_session(self, conversation_id: UUID) -> None:
-        """Release a session recorded by :meth:`attach_session`."""
+        """释放：meth:`attach_session` 记录的会话。"""
         remaining = self._sessions.get(conversation_id, 0) - 1
         if remaining > 0:
             self._sessions[conversation_id] = remaining
@@ -263,7 +263,7 @@ class DockerConversationRegistry(ConversationRegistry):
         self._last_access[conversation_id] = time.monotonic()
 
     def has_attached_sessions(self, conversation_id: UUID) -> bool:
-        """True if an outer proxied session is currently attached."""
+        """True 如果当前附加了外部代理会话。"""
         return self._sessions.get(conversation_id, 0) > 0
 
     def cleanup_stale_containers(self) -> None:
@@ -361,7 +361,7 @@ class DockerConversationRegistry(ConversationRegistry):
             self._eviction_task = None
         ids = set(self._containers) | set(self._starts)
         await asyncio.gather(*(self.stop(cid) for cid in ids), return_exceptions=True)
-        # Last, so it also covers the stops above; the next start sweeps them.
+        # 最后，所以它也涵盖了上面的站点； 下一个开始席卷了他们。
         await self.reclaimer.shutdown()
 
     async def _evict_idle_runtimes_loop(self) -> None:
@@ -460,8 +460,9 @@ class DockerConversationRegistry(ConversationRegistry):
         if "DEBUG" in os.environ:
             env["DEBUG"] = os.environ["DEBUG"]
 
-        # Forward host observability configuration so the in-container agent
-        # server initializes tracing with the same Laminar/OTEL backend.
+        # 转发主机可观察性配置，以便容器内 Agent Server 使用相同的 Laminar/OTEL 后端初始
+        # 化跟踪。
+        #
         for name in _OBSERVABILITY_ENV_VARS:
             value = os.environ.get(name)
             if value:
@@ -519,7 +520,7 @@ class DockerConversationRegistry(ConversationRegistry):
             "ALL",
             "--security-opt",
             "no-new-privileges",
-            # Core dumps land in the bind-mounted workspace at 1-2 GB each.
+            # 核心转储以每个 1-2 GB 的大小放置在绑定安装的工作区中。
             "--ulimit",
             "core=0",
             "--add-host",

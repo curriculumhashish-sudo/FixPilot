@@ -1,4 +1,4 @@
-"""Integration test to verify the agent server works with wsproto."""
+"""集成测试验证 Agent Server 与 wsproto 一起工作。"""
 
 import asyncio
 import json
@@ -23,16 +23,17 @@ def find_free_port():
 
 
 def _drop_site_packages_subdir_paths():
-    """Remove sys.path entries that point *inside* a site-packages directory.
+    """删除指向站点包目录 * 内部 * 的 sys.path 条目。
 
-    This test spawns the server with the ``spawn`` start method from within a
-    pytest-xdist worker, so the child inherits the worker's ``sys.path``. Under
-    the full suite another test leaves a stray package directory
-    (``.../site-packages/browser_use``) at ``sys.path[0]``, which makes its
-    sub-packages importable as top-level modules — ``browser_use/mcp`` then
-    shadows the real ``mcp`` and fastmcp's eager ``import mcp`` crashes startup
-    with a ``mcp`` <-> ``browser_use.mcp`` circular import. Dropping such
-    entries restores normal top-level resolution.
+    此测试从 pytest-xdist 工作线程中使用 ``spawn`` start 方法生成服务器，因此子进程继
+    承了工作线程的 ``sys.path``。 在完整的
+    套件下，另一个测试会留下一个 stray package directory (
+    ``.../site-packages/browser_use``) 在
+    ``sys.path[0]``，这使得其子包可以作为顶层模块导入 — ``browser_use/mcp`` 然后遮住
+    了真正的 ``mcp`` 和 FastMCP
+    的 eager ``import mcp`` 在启动时会因为一个 ``mcp`` <-> ``browser_use.mcp`` 的循环
+    导入而崩溃。 删除此类条目将
+    恢复正常的顶级分辨率。
     """
     cleaned = [
         entry
@@ -45,10 +46,10 @@ def _drop_site_packages_subdir_paths():
 def run_agent_server(port, api_key):
     _drop_site_packages_subdir_paths()
 
-    # Configure authentication for the server process.
+    # 为服务器进程配置身份验证。
     #
-    # Use both the V1 indexed env var and the legacy V0 var to keep this test
-    # stable across different config parsing behaviors.
+    # 使用 V1 索引环境变量和旧版 V0 变量来保持此测试在不同的配置解析行为中保持稳定。
+    #
     os.environ["OH_SESSION_API_KEYS_0"] = api_key
     os.environ["SESSION_API_KEY"] = api_key
     sys.argv = ["agent-server", "--port", str(port)]
@@ -66,10 +67,10 @@ def _terminate(process):
 
 
 def _wait_until_ready(process, port, timeout=30.0):
-    """Poll the lightweight /alive endpoint until the server responds.
+    """轮询轻量级 /alive 端点直到服务器响应。
 
-    Returns False (rather than blocking for the whole timeout) as soon as the
-    server process exits, so a failed port bind can be retried on a fresh port.
+    服务器进程退出后立即返回 False（而不是阻塞整个超时），因此可以在新端口上重试失败
+    的端口绑定。
     """
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -90,9 +91,10 @@ def agent_server():
     api_key = "test-wsproto-key"
     ctx = multiprocessing.get_context("spawn")
 
-    # find_free_port() closes the socket before the server rebinds it, leaving a
-    # TOCTOU window in which another process on a busy CI host can steal the port
-    # and crash startup. Retry on a fresh port to absorb that race.
+    # find_free_port() 在服务器重新绑定它之前关闭了套接字，留下了一个TOCTOU窗口，另一个
+    # 在繁忙的CI主机上的进程可以窃取端口并导致启动失败。 重试在一个新鲜的端口上吸收那场
+    # 比赛。
+    #
     process = None
     port = None
     for _ in range(3):
@@ -205,11 +207,10 @@ async def test_agent_server_websocket_with_wsproto_header_auth(agent_server):
 
 @pytest.mark.asyncio
 async def test_agent_server_websocket_first_message_auth_accepted(agent_server):
-    """First-message auth: connect with no query/header key, auth via first frame.
+    """第一消息身份验证：不使用查询/标头密钥进行连接，通过第一帧进行身份验证。
 
-    Exercises the real WebSocket protocol transition (handshake → consume first
-    frame as auth → continue normal message flow) that mock-only tests can't
-    cover. See PR review feedback on test coverage gaps.
+    测试了实 WebSocket 协议切换（握手 → 消费第一个帧作为认证 → 继续正常消息流） 模拟
+    对象只能覆盖的实操。 请参阅 PR 审查有关测试覆盖率差距的反馈。
     """
     port = agent_server["port"]
     api_key = agent_server["api_key"]
@@ -233,23 +234,25 @@ async def test_agent_server_websocket_first_message_auth_accepted(agent_server):
     assert response.status_code in [200, 201]
     conversation_id = response.json()["id"]
 
-    # No session_api_key in URL or header — must authenticate via first frame.
+    # URL 或标头中没有 session_api_key — 必须通过第一帧进行身份验证。
     ws_url = f"ws://127.0.0.1:{port}/sockets/events/{conversation_id}?resend_all=true"
 
     async with websockets.connect(ws_url, open_timeout=5) as ws:
-        # Send the auth frame as the very first message after handshake.
+        # 将身份验证帧作为握手后的第一条消息发送。
         await ws.send(json.dumps({"type": "auth", "session_api_key": api_key}))
 
-        # Connection must remain usable: try to receive (resend_all may produce
-        # nothing for an empty conversation, so a timeout here is fine).
+        # 连接必须保持可用：尝试接收（对于空对话，resend_all 可能不会产生任何结果，因此
+        # 这里的超时就可以了）。
+        #
         try:
             response = await asyncio.wait_for(ws.recv(), timeout=2)
             assert response is not None
         except TimeoutError:
             pass
 
-        # Subsequent message must be processed as a Message (not auth) — proves
-        # the auth frame was consumed by the auth handler, not the main loop.
+        # 后续消息必须作为消息（而不是身份验证）进行处理 - 证明身份验证帧是由身份验证处
+        # 理程序而不是主循环消耗的。
+        #
         await ws.send(
             json.dumps({"role": "user", "content": "Hello after first-message auth"})
         )
@@ -257,20 +260,21 @@ async def test_agent_server_websocket_first_message_auth_accepted(agent_server):
 
 @pytest.mark.asyncio
 async def test_agent_server_websocket_first_message_auth_rejected(agent_server):
-    """First-message auth: invalid key triggers WebSocket close with code 4001."""
+    """第一条消息身份验证：无效按键触发 WebSocket 关闭，代码为 4001。"""
     port = agent_server["port"]
 
-    # No conversation needed — auth rejection happens before conversation lookup.
+    # 不需要对话——身份验证拒绝发生在对话查找之前。
     ws_url = f"ws://127.0.0.1:{port}/sockets/events/{uuid4()}"
 
     async with websockets.connect(ws_url, open_timeout=5) as ws:
-        # Send an invalid first-message auth frame.
+        # 发送无效的第一条消息验证帧。
         await ws.send(
             json.dumps({"type": "auth", "session_api_key": "definitely-wrong-key"})
         )
 
-        # Server must close the connection with code 4001 ("Authentication
-        # failed"). Receiving on a closed socket raises ConnectionClosed.
+        # 服务器必须关闭连接并返回代码 4001（“身份验证失败”）。 在关闭的套接字上接收会引
+        # 发 ConnectionClosed。
+        #
         with pytest.raises(websockets.exceptions.ConnectionClosed) as exc_info:
             await asyncio.wait_for(ws.recv(), timeout=5)
 
@@ -280,13 +284,13 @@ async def test_agent_server_websocket_first_message_auth_rejected(agent_server):
 
 @pytest.mark.asyncio
 async def test_agent_server_websocket_first_message_auth_malformed(agent_server):
-    """First-message auth: malformed JSON triggers close with code 4001."""
+    """第一条消息身份验证：格式错误 JSON 触发关闭并显示代码 4001。"""
     port = agent_server["port"]
 
     ws_url = f"ws://127.0.0.1:{port}/sockets/events/{uuid4()}"
 
     async with websockets.connect(ws_url, open_timeout=5) as ws:
-        # Send invalid JSON as the first frame.
+        # 发送无效的 JSON 作为第一帧。
         await ws.send("this is not json")
 
         with pytest.raises(websockets.exceptions.ConnectionClosed) as exc_info:
@@ -296,9 +300,9 @@ async def test_agent_server_websocket_first_message_auth_malformed(agent_server)
     assert exc_info.value.rcvd.code == 4001
 
 
-# /sockets/session/{id}. The unit tests cover the writer, subscriber and replay
-# in isolation; nothing there executes the endpoint. These drive it end to end:
-# auth, lookup, sync frame, replay from disk, resume by cursor, close codes.
+# /sockets/session/{id}. 单元测试独立地涵盖了作者、订阅者和重放； 那里没有任何东西执行端
+# 点。 这些驱动它端到端：验证、查找、同步帧、从磁盘重播、通过光标恢复、关闭代码。
+#
 
 
 def _create_conversation(port: int, api_key: str) -> str:
@@ -323,12 +327,11 @@ def _create_conversation(port: int, api_key: str) -> str:
 
 
 async def _collect_frames(ws, *, until=None, seconds: float = 15.0) -> list[dict]:
-    """Read frames until ``until`` is satisfied, or the deadline passes.
+    """读取帧直到满足 ``until`` 或超过截止日期。
 
-    The agent step fails (no real LLM behind ``test-provider``), so the frame
-    sequence is not fixed and the interesting frame is rarely the first — a
-    transient snapshot lands immediately, the durable event later. Waiting on
-    a predicate rather than a quiet period keeps that from being a race.
+    智能体步骤失败（没有真正的LLM在``test-provider``后面），因此帧序列不固定，有趣帧
+    很少是第一个——瞬态快照立即到来，持久事件随后。 等待谓词而不是
+    安静期可以避免成为一场竞赛。
     """
     frames: list[dict] = []
     loop = asyncio.get_running_loop()
@@ -352,7 +355,7 @@ def _is_durable(frame: dict) -> bool:
 
 @pytest.mark.asyncio
 async def test_session_socket_opens_with_a_sync_frame(agent_server):
-    """The first frame is always ``sync``."""
+    """第一帧始终为 ``sync``。"""
     port, api_key = agent_server["port"], agent_server["api_key"]
     conversation_id = _create_conversation(port, api_key)
 
@@ -364,16 +367,15 @@ async def test_session_socket_opens_with_a_sync_frame(agent_server):
         first = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
 
     assert first["type"] == "sync"
-    # Nothing was requested, so the range is open at the bottom.
+    # 没有提出任何要求，因此范围在底部开放。
     assert first.get("from_seq") is None
 
 
 @pytest.mark.asyncio
 async def test_session_socket_durable_frame_carries_seq_over_the_wire(agent_server):
-    """A message sent on the socket comes back as a durable frame with a seq.
+    """在套接字上发送的消息作为带有 seq 的持久帧返回。
 
-    The point of the endpoint: an ``Event`` inside an envelope with a resumable
-    sequence number, through the real server.
+    端点的要点：一个``Event``在一个信封内，带有可恢复的序列号，通过真实服务器。
     """
     port, api_key = agent_server["port"], agent_server["api_key"]
     conversation_id = _create_conversation(port, api_key)
@@ -391,18 +393,18 @@ async def test_session_socket_durable_frame_carries_seq_over_the_wire(agent_serv
 
     durable = [f for f in frames if f["type"] == "durable"]
     assert durable, f"no durable frame arrived; got {[f['type'] for f in frames]}"
-    # seq is real and monotonic; the payload is the untouched Event.
+    # seq 是实数且单调的； 载荷是未触及的事件。
     seqs = [f["seq"] for f in durable]
     assert all(isinstance(s, int) for s in seqs)
     assert seqs == sorted(seqs)
     assert all("kind" in f["event"] and "id" in f["event"] for f in durable)
-    # The snapshot pushed on subscribe carries no seq.
+    # subscribe 上推送的快照不携带 seq。
     assert all("seq" not in f for f in frames if f["type"] == "transient")
 
 
 @pytest.mark.asyncio
 async def test_session_socket_resumes_history_with_after_seq(agent_server):
-    """Reconnecting with ``after_seq`` replays from disk and loses nothing."""
+    """重新连接 ``after_seq`` 会从磁盘重播并且不会丢失任何内容。"""
     port, api_key = agent_server["port"], agent_server["api_key"]
     conversation_id = _create_conversation(port, api_key)
 
@@ -411,9 +413,9 @@ async def test_session_socket_resumes_history_with_after_seq(agent_server):
         f"?session_api_key={api_key}"
     )
 
-    # Produce some history.
+    # 产生一些历史。
     async with websockets.connect(base_url, open_timeout=5) as ws:
-        await asyncio.wait_for(ws.recv(), timeout=5)  # sync
+        await asyncio.wait_for(ws.recv(), timeout=5)  # 同步
         await ws.send(json.dumps({"role": "user", "content": "first message"}))
         first_pass = await _collect_frames(ws, until=_is_durable)
 
@@ -430,10 +432,10 @@ async def test_session_socket_resumes_history_with_after_seq(agent_server):
     assert sync["through_seq"] >= max(produced)
 
     replayed_seqs = [f["seq"] for f in replayed if f["type"] == "durable"]
-    # Starts at the beginning and covers what the first pass saw.
+    # 从头开始并涵盖第一遍看到的内容。
     assert replayed_seqs[:1] == [0]
     assert set(produced).issubset(set(replayed_seqs))
-    # Nothing twice across the replay/live seam.
+    # 重播/现场接缝中没有任何两次。
     assert len(replayed_seqs) == len(set(replayed_seqs))
 
 
@@ -454,7 +456,7 @@ async def test_session_socket_unknown_conversation_closes_4004(agent_server):
 
 @pytest.mark.asyncio
 async def test_session_socket_survives_a_malformed_inbound_frame(agent_server):
-    """A garbage frame earns an error frame; the connection stays usable."""
+    """垃圾帧会产生错误帧； 连接保持可用。"""
     port, api_key = agent_server["port"], agent_server["api_key"]
     conversation_id = _create_conversation(port, api_key)
 
@@ -472,7 +474,7 @@ async def test_session_socket_survives_a_malformed_inbound_frame(agent_server):
         errors = [f for f in frames if f["type"] == "error"]
         assert errors, f"expected an error frame; got {[f['type'] for f in frames]}"
 
-        # Still alive: a well-formed message is still processed.
+        # 仍然存活：格式正确的消息仍在处理。
         await ws.send(json.dumps({"role": "user", "content": "still here"}))
         after = await _collect_frames(ws, until=_is_durable)
         assert any(f["type"] == "durable" for f in after)

@@ -1,4 +1,4 @@
-"""Utility functions for MCP integration."""
+"""MCP 积分的实用函数。"""
 
 import asyncio
 import inspect
@@ -38,12 +38,12 @@ MCPOAuthFactory = Callable[
     OAuth | None,
 ]
 
-# Backward-compatible callback that reports only newly added tools.
+# 向后兼容回调仅报告新添加的工具。
 ToolsChangedCallback = Callable[[Sequence[MCPToolDefinition]], None]
 
 
 class MCPToolProvider(Protocol):
-    """Runtime-only MCP tool materializer."""
+    """仅运行时 MCP 工具物化器。"""
 
     def create_tools(
         self,
@@ -56,7 +56,7 @@ class MCPToolProvider(Protocol):
 
 
 class DefaultMCPToolProvider:
-    """Runtime MCP tool materializer without extra persistence hooks."""
+    """运行时 MCP 工具物化器，无需额外的持久化挂钩。"""
 
     def create_tools(
         self,
@@ -75,12 +75,11 @@ class DefaultMCPToolProvider:
 
 
 def provider_supports_on_tools_reconciled(provider: MCPToolProvider) -> bool:
-    """Whether ``provider.create_tools`` accepts ``on_tools_reconciled``.
+    """``provider.create_tools``是否接受``on_tools_reconciled``。
 
-    Custom ``MCPToolProvider`` implementations written before this parameter
-    existed only accept ``on_tools_changed``; passing the new keyword to
-    them would raise ``TypeError``. Callers should check this first and omit
-    the keyword for providers that don't support it.
+    在此参数存在之前编写的自定义 ``MCPToolProvider`` 实现仅接受 ``on_tools_changed``
+    ； 将 new 关键字传递给他们会引发
+    ``TypeError``。 调用者应首先检查这一点，并忽略不支持它的提供商的关键字。
     """
     try:
         params = inspect.signature(provider.create_tools).parameters
@@ -97,7 +96,7 @@ def _oauth_auth_from_authentication_config(
     mcp_oauth_token_storage: AsyncKeyValue | None = None,
     mcp_oauth_class: type[MCPOAuth] = MCPOAuth,
 ) -> OAuth | None:
-    """Build FastMCP OAuth auth from explicit SDK MCP auth metadata."""
+    """从显式 SDK MCP 身份验证元数据构建 FastMCP OAuth 身份验证。"""
     if authentication is None:
         return None
 
@@ -120,12 +119,11 @@ def _oauth_auth_from_authentication_config(
 
 
 class _PackageRemoteMCPServer(RemoteMCPServer):
-    """A package-declared remote server whose headers stay on its own origin.
+    """包声明的远程服务器，其标头保留在其自己的源上。
 
-    Agent Plugins §7.2.1: configured headers must not follow a redirect to a
-    different origin. httpx strips only ``Authorization`` there, so this
-    server's HTTP client drops every configured header name from any request
-    that leaves the configured origin.
+    智能体插件§7.2.1：配置的标头不得遵循重定向到不同来源的重定向。 httpx 只在那里删除
+     ``Authorization``，因此该服务器的 HTTP 客户端
+    会从离开配置源的任何请求中删除每个配置的标头名称。
     """
 
     def to_transport(self):  # type: ignore[override]
@@ -141,8 +139,9 @@ def _origin_bound_client_factory(url: str, header_names: tuple[str, ...]):
     origin = _origin(httpx.URL(url))
 
     async def drop_headers_off_origin(request: httpx.Request) -> None:
-        # Request hooks run on every redirect hop, after httpx has copied the
-        # previous request's headers onto the next one.
+        # 在 httpx 将前一个请求的标头复制到下一个请求之后，请求挂钩在每个重定向跃点上运
+        # 行。
+        #
         if _origin(request.url) != origin:
             for name in header_names:
                 request.headers.pop(name, None)
@@ -172,7 +171,7 @@ def _prepare_mcp_config(
     mcp_oauth_factory: MCPOAuthFactory | None = None,
     mcp_oauth_class: type[MCPOAuth] = MCPOAuth,
 ) -> FastMCPConfig:
-    """Validate MCP config and apply explicit OpenHands runtime auth metadata."""
+    """验证 MCP 配置并应用显式 OpenHands 运行时身份验证元数据。"""
     prepared = FastMCPConfig.model_validate(to_fastmcp_mcp_config(mcp_config))
 
     for server_name, server_spec in mcp_config.items():
@@ -235,21 +234,20 @@ def _require_native_mcp_config(
 
 async def log_handler(message: LogMessage):
     """
-    Handles incoming logs from the MCP server and forwards them
-    to the standard Python logging system.
+    处理来自 MCP 服务器的传入日志并将其转发到标准 Python 日志系统。
     """
     msg = message.data.get("msg")
     extra = message.data.get("extra")
 
-    # Convert the MCP log level to a Python log level
+    # 将 MCP 日志级别转换为 Python 日志级别
     level = LOGGING_LEVEL_MAP.get(message.level.upper(), logging.INFO)
 
-    # Log the message using the standard logging library
+    # 使用标准日志库记录消息
     logger.log(level, msg, extra=extra)
 
 
 async def _connect_and_list_tools(client: MCPClient) -> None:
-    """Connect to MCP server and populate client._tools."""
+    """连接到 MCP 服务器并填充 client._tools。"""
     await client.connect()
     await _refresh_tools(client)
 
@@ -259,13 +257,13 @@ async def _refresh_tools(
     on_tools_changed: ToolsChangedCallback | None = None,
     on_tools_reconciled: ToolsReconciledCallback | None = None,
 ) -> None:
-    """Re-list tools from the server and reconcile ``client._tools``.
+    """重新列出服务器中的工具并协调 ``client._tools``。
 
-    Called after the initial connection and whenever the server sends a
-    ``notifications/tools/list_changed`` notification. When an
-    ``on_tools_changed`` preserves the original additions-only callback contract.
-    ``on_tools_reconciled`` receives the complete current snapshot so a running
-    agent can add, replace, and remove tools owned by this client.
+    在初始连接后以及每当服务器发送一个
+    ``notifications/tools/list_changed`` 通知。 当
+    ``on_tools_changed`` 保留原始的仅添加内容回调合同。
+    ``on_tools_reconciled`` 接收完整的当前快照，因此正在运行的智能体可以添加、替换和
+    删除该客户端拥有的工具。
     """
     mcp_type_tools: list[mcp.types.Tool] = await client.list_tools()
     existing_by_name = {tool.name: tool for tool in client._tools}
@@ -286,8 +284,9 @@ async def _refresh_tools(
         else:
             updated.extend(tool_sequence)
 
-    # Drop tools the server no longer advertises. Reassign atomically so
-    # concurrent readers iterating client.tools never observe mid-update state.
+    # 删除服务器不再宣传的工具。 以原子方式重新分配，以便迭代 client.tools 的并发读者永
+    # 远不会观察更新中期状态。
+    #
     removed = [
         tool.name for name, tool in existing_by_name.items() if name not in server_names
     ]
@@ -321,13 +320,13 @@ async def _refresh_tools(
 
 
 class _ToolListChangedHandler(MessageHandler):
-    """Message handler that refreshes tools on ``tools/list_changed``.
+    """刷新 ``tools/list_changed`` 上的工具的消息处理程序。
 
-    Some MCP servers (e.g. Datadog's hosted server) use progressive
-    disclosure: they expose a small gateway toolset at connect time and
-    register additional tools only after a skill-loading tool is invoked,
-    signalling the change with ``notifications/tools/list_changed``. Without
-    subscribing, the client never re-lists and the new tools stay invisible.
+    一些 MCP 服务器 (e.g. Datadog的托管服务器）使用渐进式
+    disclosure: 他们在连接时公开一个小型网关工具集，并且
+    仅在调用技能加载工具后才注册其他工具，并用 ``notifications/tools/list_changed``
+    表示更改。 如果不订阅，客户就永远不会重新列出
+    ，并且新工具将保持不可见。
     """
 
     def __init__(
@@ -349,7 +348,7 @@ class _ToolListChangedHandler(MessageHandler):
         if client._closed:
             return
         logger.debug("MCP tools/list_changed received; refreshing tools")
-        # Keep the receive loop free to process the list_tools response.
+        # 保持接收循环空闲以处理 list_tools 响应。
         task = asyncio.create_task(self._refresh_tools())
         self._refresh_tasks.add(task)
         task.add_done_callback(self._refresh_tasks.discard)
@@ -382,22 +381,21 @@ def create_mcp_tools(
     mcp_oauth_factory: MCPOAuthFactory | None = None,
     mcp_oauth_class: type[MCPOAuth] = MCPOAuth,
 ) -> MCPClient:
-    """Create MCP tools from OpenHands-native MCP server settings.
+    """从 OpenHands 本机 MCP 服务器设置创建 MCP 工具。
 
-    Returns an MCPClient with tools populated. Use as a context manager:
+    返回一个工具已填充的MCPClient。 使用为上下文管理器。
 
         with create_mcp_tools(mcp_config) as client:
             for tool in client.tools:
-                # use tool
-        # Connection automatically closed
+                # 使用工具
+        # 连接自动关闭
 
-    The client subscribes to ``notifications/tools/list_changed`` and
-    reconciles its tool list whenever the server signals a change. When
-    ``on_tools_changed`` is provided, the client invokes it with newly added
-    tool definitions, preserving the original callback contract. When
-    ``on_tools_reconciled`` is provided, it receives the client and complete
-    current tool snapshot after additions, updates, or removals. Callbacks run
-    on the client's background event-loop thread and must be thread-safe.
+    每当服务器发出更改信号时，客户端就会订阅 ``notifications/tools/list_changed`` 并
+    协调其工具列表。 当
+    提供了 ``on_tools_changed``，客户端使用新添加的工具定义调用它，保留原始的回调合约
+    。 当
+    提供``on_tools_reconciled``，它接收客户端并在添加、更新或删除后完成当前工具快照。
+     回调在客户端的后台事件循环线程上运行并且必须是线程安全。
     """
     mcp_config = _require_native_mcp_config(mcp_config)
     requested = mcp_config
@@ -428,7 +426,7 @@ def create_mcp_tools(
         )
     except TimeoutError as e:
         client.sync_close()
-        # Extract server names from config for better error message
+        # 从配置中提取服务器名称以获得更好的错误消息
         server_names = (
             list(config.mcpServers.keys()) if config.mcpServers else ["unknown"]
         )

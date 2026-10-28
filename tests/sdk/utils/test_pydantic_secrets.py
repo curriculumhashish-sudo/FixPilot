@@ -1,4 +1,4 @@
-"""Tests for pydantic_secrets serialization and validation utilities."""
+"""测试 pydantic_secrets 序列化和验证实用程序。"""
 
 from base64 import urlsafe_b64encode
 from unittest.mock import MagicMock
@@ -22,14 +22,14 @@ from openhands.sdk.utils.pydantic_secrets import (
 
 @pytest.fixture
 def cipher():
-    """Create a cipher for testing."""
+    """创建一个密码进行测试。"""
     key = urlsafe_b64encode(b"a" * 32).decode("ascii")
     return Cipher(key)
 
 
 @pytest.fixture
 def mock_info():
-    """Create a mock SerializationInfo/ValidationInfo."""
+    """创建模拟对象 SerializationInfo/ValidationInfo。"""
 
     def create_info(context=None):
         info = MagicMock()
@@ -39,7 +39,7 @@ def mock_info():
     return create_info
 
 
-# ── is_redacted_secret tests ────────────────────────────────────────────
+# ── is_redacted_secret 测试────────────────────────────────────────────
 
 
 def test_is_redacted_secret_with_redacted_string():
@@ -62,7 +62,7 @@ def test_is_redacted_secret_with_none():
     assert is_redacted_secret(None) is False
 
 
-# ── serialize_secret tests ──────────────────────────────────────────────
+# ── serialize_secret 测试──────────────────────────────────────────────
 
 
 def test_serialize_secret_none_returns_none(mock_info):
@@ -71,7 +71,7 @@ def test_serialize_secret_none_returns_none(mock_info):
 
 
 def test_serialize_secret_no_context_returns_secretstr(mock_info):
-    """Without context, return SecretStr for Pydantic default masking."""
+    """如果没有上下文，则为 Pydantic 默认屏蔽返回 SecretStr。"""
     secret = SecretStr("sk-test-123")
     result = serialize_secret(secret, mock_info(None))
     assert isinstance(result, SecretStr)
@@ -79,7 +79,7 @@ def test_serialize_secret_no_context_returns_secretstr(mock_info):
 
 
 def test_serialize_secret_empty_context_returns_secretstr(mock_info):
-    """Empty context = no exposure, return SecretStr."""
+    """空上下文 = 没有曝光，返回 SecretStr。"""
     secret = SecretStr("sk-test-123")
     result = serialize_secret(secret, mock_info({}))
     assert isinstance(result, SecretStr)
@@ -105,11 +105,11 @@ def test_serialize_secret_encrypted_mode_with_cipher(mock_info, cipher):
     result = serialize_secret(
         secret, mock_info({"expose_secrets": "encrypted", "cipher": cipher})
     )
-    # Should be encrypted (not plaintext, not redacted)
+    # 应该加密（不是明文，不是已脱敏）
     assert result != "sk-test-123"
     assert result != REDACTED_SECRET_VALUE
     assert isinstance(result, str)
-    # Should be decryptable
+    # 应该可以解密
     decrypted = cipher.decrypt(result)
     assert decrypted.get_secret_value() == "sk-test-123"
 
@@ -124,11 +124,11 @@ def test_serialize_secret_encrypted_mode_without_cipher_raises_error(
 
 
 def test_serialize_secret_cipher_without_expose_mode_encrypts(mock_info, cipher):
-    """Cipher in context without expose_secrets still encrypts (backward compat)."""
+    """上下文中没有 expose_secrets 的密码仍然可以加密（向后兼容）。"""
     secret = SecretStr("sk-test-123")
     result = serialize_secret(secret, mock_info({"cipher": cipher}))
     assert result != "sk-test-123"
-    # Should be decryptable
+    # 应该可以解密
     decrypted = cipher.decrypt(result)
     assert decrypted.get_secret_value() == "sk-test-123"
 
@@ -147,18 +147,18 @@ def test_serialize_secret_cipher_with_plaintext_mode_returns_plaintext(
 def test_serialize_secret_cipher_with_bool_true_returns_plaintext(mock_info, cipher):
     """expose_secrets=True (legacy boolean) overrides cipher - returns raw value.
 
-    This tests backward compatibility: when expose_secrets=True is passed with
-    a cipher, it should return plaintext instead of encrypting.
+    此测试向后兼容性：当使用密码传递 expose_secrets=True 时，它应该返回明文而不是加密
+    。
     """
     secret = SecretStr("sk-test-123")
     result = serialize_secret(
         secret, mock_info({"expose_secrets": True, "cipher": cipher})
     )
-    # Should be plaintext, not encrypted
+    # 应该是明文，不加密
     assert result == "sk-test-123"
 
 
-# ── validate_secret tests ───────────────────────────────────────────────
+# ── validate_secret 测试────────────────────────────────────────────────
 
 
 def test_validate_secret_none_returns_none(mock_info):
@@ -167,43 +167,43 @@ def test_validate_secret_none_returns_none(mock_info):
 
 
 def test_validate_secret_invalid_type_int_raises_error(mock_info):
-    """validate_secret raises TypeError for invalid int type.
+    """由于 int 类型无效，validate_secret 引发 TypeError。
 
-    The function signature expects str | SecretStr | None. Passing an int
-    fails when trying to call .strip() on the value.
+    函数签名期望字符串类型 | SecretStr | None。 尝试对值调用 .strip() 时，传递整数失
+    败。
     """
     with pytest.raises((TypeError, AttributeError)):
         validate_secret(123, mock_info({}))  # type: ignore[arg-type]
 
 
 def test_validate_secret_invalid_type_dict_returns_none(mock_info):
-    """validate_secret handles empty dict gracefully (returns None).
+    """validate_secret 优雅地处理空字典（返回 None）。
 
-    Empty dict is falsy, so it's treated as empty/missing secret.
-    Note: Non-empty dicts would fail when .strip() is called.
+    空字典是假的，因此它被视为空/缺失机密。
+    Note: 调用 .strip() 时，非空字典将会失败。
     """
     result = validate_secret({}, mock_info({}))  # type: ignore[arg-type]
     assert result is None
 
 
 def test_validate_secret_invalid_type_list_returns_none(mock_info):
-    """validate_secret handles empty list gracefully (returns None).
+    """validate_secret 优雅地处理空列表（返回 None）。
 
-    Empty list is falsy, so it's treated as empty/missing secret.
-    Note: Non-empty lists would fail when .strip() is called.
+    空列表是假的，因此它被视为空/缺失机密。
+    Note: 调用 .strip() 时，非空列表将失败。
     """
     result = validate_secret([], mock_info({}))  # type: ignore[arg-type]
     assert result is None
 
 
 def test_validate_secret_nonempty_dict_raises_error(mock_info):
-    """validate_secret raises error for non-empty dict (invalid type)."""
+    """validate_secret 引发非空字典错误（无效类型）。"""
     with pytest.raises((TypeError, AttributeError)):
         validate_secret({"key": "value"}, mock_info({}))  # type: ignore[arg-type]
 
 
 def test_validate_secret_nonempty_list_raises_error(mock_info):
-    """validate_secret raises error for non-empty list (invalid type)."""
+    """validate_secret 引发非空列表错误（无效类型）。"""
     with pytest.raises((TypeError, AttributeError)):
         validate_secret(["value"], mock_info({}))  # type: ignore[arg-type]
 
@@ -237,7 +237,7 @@ def test_validate_secret_redacted_value_returns_none(mock_info):
 
 
 def test_validate_secret_with_cipher_decrypts(mock_info, cipher):
-    """Cipher in context triggers decryption."""
+    """上下文中的密码触发解密。"""
     secret = SecretStr("sk-test-123")
     encrypted = cipher.encrypt(secret)
 
@@ -247,14 +247,14 @@ def test_validate_secret_with_cipher_decrypts(mock_info, cipher):
 
 
 def test_validate_secret_with_cipher_plaintext_returns_secretstr(mock_info, cipher):
-    """Non-token plaintext with cipher is treated as legacy/plaintext input."""
+    """带密码的非 token 明文被视为遗留/明文输入。"""
     result = validate_secret("not-encrypted-data", mock_info({"cipher": cipher}))
     assert isinstance(result, SecretStr)
     assert result.get_secret_value() == "not-encrypted-data"
 
 
 def test_validate_secret_with_cipher_malformed_fernet_returns_none(mock_info, cipher):
-    """Malformed Fernet-looking data with cipher returns None gracefully."""
+    """带有密码的格式错误的 Fernet 数据正常返回 None。"""
     result = validate_secret(
         f"{FERNET_TOKEN_PREFIX}not-a-valid-token", mock_info({"cipher": cipher})
     )
@@ -262,12 +262,12 @@ def test_validate_secret_with_cipher_malformed_fernet_returns_none(mock_info, ci
 
 
 def test_validate_secret_with_cipher_wrong_key_returns_none(mock_info, cipher):
-    """Wrong cipher key returns None (graceful failure)."""
-    # Encrypt with one key
+    """错误的密钥返回 None（正常失败）。"""
+    # 一键加密
     secret = SecretStr("sk-test-123")
     encrypted = cipher.encrypt(secret)
 
-    # Try to decrypt with different key
+    # 尝试用不同的密钥解密
     other_key = urlsafe_b64encode(b"b" * 32).decode("ascii")
     other_cipher = Cipher(other_key)
 
@@ -275,104 +275,105 @@ def test_validate_secret_with_cipher_wrong_key_returns_none(mock_info, cipher):
     assert result is None
 
 
-# ── Round-trip tests ────────────────────────────────────────────────────
+# ── 往返测试──────────────────────────────────────────────────────
 
 
 def test_roundtrip_encrypted_mode(mock_info, cipher):
-    """Full round-trip: serialize with encrypted mode, validate with cipher."""
+    """完整往返：序列化使用加密模式，使用密码进行验证。"""
     original = SecretStr("sk-test-api-key-12345")
 
-    # Serialize with encrypted mode
+    # 序列化带加密模式
     encrypted = serialize_secret(
         original, mock_info({"expose_secrets": "encrypted", "cipher": cipher})
     )
     assert encrypted != "sk-test-api-key-12345"
 
-    # Validate (decrypt) with cipher
+    # 使用密码验证（解密）
     decrypted = validate_secret(encrypted, mock_info({"cipher": cipher}))
     assert decrypted is not None
     assert decrypted.get_secret_value() == "sk-test-api-key-12345"
 
 
 def test_roundtrip_plaintext_mode(mock_info):
-    """Round-trip with plaintext mode (no encryption)."""
+    """明文模式的往返（无加密）。"""
     original = SecretStr("sk-test-api-key-12345")
 
-    # Serialize with plaintext mode
+    # 序列化明文模式
     plaintext = serialize_secret(original, mock_info({"expose_secrets": "plaintext"}))
     assert plaintext == "sk-test-api-key-12345"
 
-    # Validate (just wraps in SecretStr)
+    # 验证（仅包含在 SecretStr 中）
     result = validate_secret(plaintext, mock_info({}))
     assert result is not None
     assert result.get_secret_value() == "sk-test-api-key-12345"
 
 
-# ── Real Pydantic integration tests ─────────────────────────────────────
+# ── 真实Pydantic 集成测试 ──────────────────────────────────────
 
 
 def test_real_pydantic_roundtrip_encrypted(cipher):
-    """Test encryption via actual Pydantic serialization (not mocks)."""
+    """通过实际的 Pydantic 序列化（不是模拟对象）测试加密。"""
     from openhands.agent_server.persistence.models import CustomSecret
 
-    # Create with plaintext
+    # 使用明文创建
     secret = CustomSecret(name="TEST_KEY", secret=SecretStr("my-secret-value"))
 
-    # Serialize with encrypted context (real model_dump call)
+    # 序列化与加密的上下文（真实的 model_dump 调用）
     data = secret.model_dump(
         mode="json", context={"expose_secrets": "encrypted", "cipher": cipher}
     )
 
-    # Verify encrypted (not plaintext, not redacted)
+    # 验证加密（不是明文，不是已脱敏）
     assert data["secret"] != "my-secret-value"
     assert data["secret"] != REDACTED_SECRET_VALUE
     assert isinstance(data["secret"], str)
 
-    # Validate (decrypt) with cipher context (real model_validate call)
+    # 使用密码上下文验证（解密）（真实 model_validate 调用）
     restored = CustomSecret.model_validate(data, context={"cipher": cipher})
     assert restored.secret is not None
     assert restored.secret.get_secret_value() == "my-secret-value"
 
 
 def test_real_pydantic_roundtrip_plaintext():
-    """Test plaintext via actual Pydantic serialization (not mocks)."""
+    """通过实际的 Pydantic 序列化（不是模拟对象）测试明文。"""
     from openhands.agent_server.persistence.models import CustomSecret
 
-    # Create with plaintext
+    # 使用明文创建
     secret = CustomSecret(name="TEST_KEY", secret=SecretStr("my-secret-value"))
 
-    # Serialize with plaintext context
+    # 序列化明文上下文
     data = secret.model_dump(mode="json", context={"expose_secrets": "plaintext"})
 
-    # Verify plaintext
+    # 验证明文
     assert data["secret"] == "my-secret-value"
 
-    # Validate (no cipher - just wraps in SecretStr)
+    # 验证（无密码 - 仅包含在 SecretStr 中）
     restored = CustomSecret.model_validate(data)
     assert restored.secret is not None
     assert restored.secret.get_secret_value() == "my-secret-value"
 
 
 def test_real_pydantic_redacted_mode():
-    """Test redaction via actual Pydantic serialization (default behavior)."""
+    """通过实际 Pydantic 序列化测试脱敏（默认行为）。"""
     from openhands.agent_server.persistence.models import CustomSecret
 
-    # Create with plaintext
+    # 使用明文创建
     secret = CustomSecret(name="TEST_KEY", secret=SecretStr("my-secret-value"))
 
-    # Serialize without context (default = redacted)
+    # 序列化不带上下文（默认 = 已脱敏）
     data = secret.model_dump(mode="json")
 
-    # Verify redacted - Pydantic returns SecretStr repr for json mode
-    # which is "**********" (the default SecretStr repr)
+    # 验证已脱敏 - Pydantic 返回 JSON 模式的 SecretStr repr，即“**********”（默认
+    # SecretStr repr）
+    #
     assert data["secret"] == REDACTED_SECRET_VALUE
 
 
 def test_real_pydantic_nested_secrets_roundtrip(cipher):
-    """Test encryption of nested secrets in Secrets model."""
+    """测试机密模型中嵌套机密的加密。"""
     from openhands.agent_server.persistence.models import CustomSecret, Secrets
 
-    # Create Secrets with multiple custom secrets
+    # 使用多个自定义机密创建机密
     secrets = Secrets(
         custom_secrets={
             "API_KEY": CustomSecret(
@@ -386,10 +387,10 @@ def test_real_pydantic_nested_secrets_roundtrip(cipher):
         }
     )
 
-    # Serialize with cipher (encrypts all secrets)
+    # 序列化带密码（加密所有机密）
     data = secrets.model_dump(mode="json", context={"cipher": cipher})
 
-    # Verify all secrets are encrypted
+    # 验证所有机密均已加密
     for name in ["API_KEY", "DB_PASS"]:
         assert data["custom_secrets"][name]["secret"] not in [
             "sk-123",
@@ -397,7 +398,7 @@ def test_real_pydantic_nested_secrets_roundtrip(cipher):
             REDACTED_SECRET_VALUE,
         ]
 
-    # Validate (decrypt) all secrets
+    # 验证（解密）所有机密
     restored = Secrets.model_validate(data, context={"cipher": cipher})
     assert restored.custom_secrets["API_KEY"].secret is not None
     assert restored.custom_secrets["API_KEY"].secret.get_secret_value() == "sk-123"
@@ -406,27 +407,27 @@ def test_real_pydantic_nested_secrets_roundtrip(cipher):
 
 
 def test_real_pydantic_persisted_settings_roundtrip(cipher):
-    """Test PersistedSettings serialization with encrypted LLM api_key.
+    """使用加密的 LLM api_key 测试 PersistedSettings 序列化。
 
-    This tests the primary use case: full PersistedSettings with
-    agent_settings.llm.api_key encrypted and round-tripped.
+    这测试了主要用例：完整的 PersistedSettings，agent_settings.llm.api_key 已加密且往
+    返。
     """
     from openhands.agent_server.persistence.models import PersistedSettings
 
-    # Create settings with secret
+    # 使用机密创建设置
     settings = PersistedSettings()
     assert isinstance(settings.agent_settings, OpenHandsAgentSettings)
     settings.agent_settings.llm.api_key = SecretStr("sk-test-key-12345")
 
-    # Serialize with cipher
+    # 序列化带密码
     data = settings.model_dump(mode="json", context={"cipher": cipher})
     encrypted_key = data["agent_settings"]["llm"]["api_key"]
 
-    # Should be encrypted (not plaintext, not redacted)
+    # 应该加密（不是明文，不是已脱敏）
     assert encrypted_key != "sk-test-key-12345"
     assert encrypted_key != REDACTED_SECRET_VALUE
 
-    # Deserialize (decrypt)
+    # 反序列化（解密）
     restored = PersistedSettings.model_validate(data, context={"cipher": cipher})
     assert isinstance(restored.agent_settings, OpenHandsAgentSettings)
     restored_key = restored.agent_settings.llm.api_key
@@ -435,7 +436,7 @@ def test_real_pydantic_persisted_settings_roundtrip(cipher):
     assert restored_key.get_secret_value() == "sk-test-key-12345"
 
 
-# ── decrypt_str_with_cipher_or_keep / validate_secret_dict tests ────────
+# ── decrypt_str_with_cipher_or_keep / validate_secret_dict 测试 ────────
 
 
 def test_decrypt_str_with_cipher_or_keep_decrypts_fernet_token(cipher):
@@ -448,12 +449,11 @@ def test_decrypt_str_with_cipher_or_keep_decrypts_fernet_token(cipher):
 
 
 def test_decrypt_str_with_cipher_or_keep_passes_through_non_string(cipher):
-    """Non-strings (e.g. nested SecretSource dicts) must pass through unchanged.
+    """非字符串 (e.g. 嵌套 SecretSource dicts) 必须不变地通过。
 
-    The dict-of-string helper is called against the raw dict at
+    针对原始字典调用字符串字典助手
     mode='before' time, so values that haven't been deserialised yet
-    (e.g. SecretSource payloads represented as dicts) must not be
-    treated as encrypted blobs.
+    (e.g. SecretSource 载荷表示为字典）不得被视为加密的 blob。
     """
     assert decrypt_str_with_cipher_or_keep(cipher, 42, description="x") == 42
     assert decrypt_str_with_cipher_or_keep(cipher, None, description="x") is None
@@ -463,8 +463,8 @@ def test_decrypt_str_with_cipher_or_keep_passes_through_non_string(cipher):
 
 
 def test_decrypt_str_with_cipher_or_keep_passes_through_legacy_plaintext(cipher):
-    """Plaintext from clients that pre-date the encryption pipeline must
-    still round-trip cleanly so the next save can re-encrypt it."""
+    """来自早于加密管道的客户端的明文必须
+    仍然干净地往返，以便下次保存可以重新加密它。"""
     assert (
         decrypt_str_with_cipher_or_keep(cipher, "sk-plaintext", description="x")
         == "sk-plaintext"
@@ -472,8 +472,8 @@ def test_decrypt_str_with_cipher_or_keep_passes_through_legacy_plaintext(cipher)
 
 
 def test_decrypt_str_with_cipher_or_keep_warns_on_undecryptable(cipher, caplog):
-    """A garbled ciphertext with the right prefix shouldn't crash —
-    log a warning and return the original so an operator can repair."""
+    """具有正确前缀的乱码密文不应崩溃 -
+    记录警告并返回原件，以便操作员进行维修。"""
     bogus = "gAAAAA" + ("x" * 80)
     with caplog.at_level("WARNING"):
         result = decrypt_str_with_cipher_or_keep(cipher, bogus, description="ACP env")
@@ -500,13 +500,13 @@ def test_validate_secret_dict_without_cipher_is_a_noop(mock_info):
 
 def test_validate_secret_dict_passes_through_non_dict(cipher, mock_info):
     info = mock_info({"cipher": cipher})
-    # Lets downstream Pydantic raise the canonical "expected dict" error
-    # rather than turning it into a TypeError here.
+    # 让下游 Pydantic 引发规范的“预期字典”错误，而不是将其转换为 TypeError 。
+    #
     assert validate_secret_dict("not-a-dict", info, description="x") == "not-a-dict"
     assert validate_secret_dict(None, info, description="x") is None
 
 
-# ── strict decryption (read-modify-write paths) ─────────────────────────
+# ── 严格解密（读-修改-写路径）──────────────────────────
 
 
 def test_validate_secret_strict_raises_on_wrong_cipher(mock_info, cipher):
@@ -532,7 +532,7 @@ def test_validate_secret_dict_strict_raises_on_wrong_cipher(mock_info, cipher):
     with pytest.raises(SecretDecryptionError) as exc_info:
         validate_secret_dict(value, strict, description="MCP env")
     assert FERNET_TOKEN_PREFIX not in str(exc_info.value)
-    # The matching cipher still decrypts in strict mode.
+    # 匹配的密码仍以严格模式解密。
     ok = mock_info({"cipher": cipher, STRICT_DECRYPT_CONTEXT_KEY: True})
     assert validate_secret_dict(value, ok) == {
         "API_TOKEN": "env-value",
@@ -567,5 +567,5 @@ def test_serialize_secret_rotates_a_token_under_a_previous_key(mock_info):
     assert isinstance(out, str)
     assert out != old_token
     assert Cipher("new-key").try_decrypt_str(out) == "sk-test-123"
-    # A token already under the current key is kept as is.
+    # 当前键下已有的 token 保持原样。
     assert serialize_secret(SecretStr(out), mock_info({"cipher": rotated})) == out

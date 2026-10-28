@@ -1,4 +1,4 @@
-"""Canonical public OpenAPI document for the Agent Server REST API."""
+"""规范公共OpenAPI文档为Agent ServerRESTAPI。"""
 
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def filter_public_openapi(
     prune_schemas: bool = True,
     add_contract_components: bool = True,
 ) -> dict[str, Any]:
-    """Return the release contract for the public ``/api`` REST surface."""
+    """返回公共``/api``REST面的发布合约。"""
     public_document = copy.deepcopy(document)
     public_document["paths"] = {
         path: path_item
@@ -152,14 +152,14 @@ def filter_public_openapi(
 
 
 def build_public_openapi() -> dict[str, Any]:
-    """Build the exact public OpenAPI document for the current source tree."""
+    """为当前源树构建精确的公共 OpenAPI 文档。"""
     from openhands.agent_server.api import create_app
 
     return filter_public_openapi(create_app().openapi())
 
 
 def serialize_openapi(document: dict[str, Any]) -> str:
-    """Serialize OpenAPI deterministically for release and generated clients."""
+    """序列化 OpenAPI 确定性地用于发布和生成的客户端。"""
     return (
         json.dumps(
             document,

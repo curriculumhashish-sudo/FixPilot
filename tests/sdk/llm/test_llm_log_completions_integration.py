@@ -1,7 +1,7 @@
-"""Integration test for LLM log_completions feature.
+"""集成测试 for LLM log_completions feature.
 
-This test verifies that log_completions doesn't produce Pydantic
-serialization warnings when used with real LLM responses.
+此测试验证当与真实的 LLM 响应一起使用时，log_completions 不会产生 Pydantic 序列化警告
+。
 """
 
 import json
@@ -16,18 +16,18 @@ from pydantic import SecretStr
 
 from openhands.sdk.llm import LLM, Message, TextContent
 
-# Import common test utilities
+# 导入常用测试实用程序
 from tests.conftest import create_mock_litellm_response
 
 
 def test_llm_log_completions_integration_no_warnings():
-    """Test that LLM with log_completions enabled doesn't produce warnings.
+    """测试启用 log_completions 的 LLM 不会产生警告。
 
-    This is an end-to-end test that creates an actual LLM instance with
-    log_completions enabled and verifies no serialization warnings are raised.
+    这是一项端到端测试，它创建启用了 log_completions 的实际 LLM 实例，并验证是否不会
+    引发序列化警告。
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create LLM with log_completions enabled
+        # 创建 LLM 并启用 log_completions
         llm = LLM(
             model="gpt-4o",
             api_key=SecretStr("test-key"),
@@ -37,7 +37,7 @@ def test_llm_log_completions_integration_no_warnings():
             num_retries=0,
         )
 
-        # Create a realistic mock response
+        # 创建现实的模拟对象响应
         mock_response = create_mock_litellm_response(
             content="This is a test response with realistic structure.",
             response_id="integration-test-id",
@@ -47,15 +47,15 @@ def test_llm_log_completions_integration_no_warnings():
             finish_reason="stop",
         )
 
-        # Mock the litellm completion call
+        # 模拟对象 LiteLLM 完成调用
         with patch("openhands.sdk.llm.llm.litellm_completion") as mock_completion:
             mock_completion.return_value = mock_response
 
-            # Capture any warnings
+            # 捕获任何警告
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
 
-                # Make a completion call
+                # 进行完成调用
                 messages = [
                     Message(
                         role="user",
@@ -64,7 +64,7 @@ def test_llm_log_completions_integration_no_warnings():
                 ]
                 llm.completion(messages)
 
-                # Check for Pydantic serialization warnings
+                # 检查 Pydantic 序列化警告
                 pydantic_warnings = [
                     warning
                     for warning in w
@@ -77,11 +77,11 @@ def test_llm_log_completions_integration_no_warnings():
                     f"Got unexpected serialization warnings: {warning_messages}"
                 )
 
-        # Verify that a log file was created
+        # 验证是否已创建日志文件
         log_files = os.listdir(temp_dir)
         assert len(log_files) == 1, f"Expected 1 log file, got {len(log_files)}"
 
-        # Verify the log file is valid JSON and contains expected data
+        # 验证日志文件有效 JSON 并包含预期数据
         log_path = os.path.join(temp_dir, log_files[0])
         with open(log_path) as f:
             log_data = json.loads(f.read())
@@ -93,10 +93,9 @@ def test_llm_log_completions_integration_no_warnings():
 
 
 def test_llm_log_completions_with_tool_calls():
-    """Test log_completions with tool calls in the response.
+    """在响应中使用工具调用测试 log_completions。
 
-    Tool calls add additional complexity to the response structure,
-    so we want to ensure they serialize correctly too.
+    工具调用为响应结构增加了额外的复杂性，因此我们也希望确保它们序列化正确。
     """
     from litellm.types.utils import (
         ChatCompletionMessageToolCall,
@@ -108,7 +107,7 @@ def test_llm_log_completions_with_tool_calls():
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create LLM with log_completions enabled
+        # 创建 LLM 并启用 log_completions
         llm = LLM(
             model="gpt-4o",
             api_key=SecretStr("test-key"),
@@ -118,7 +117,7 @@ def test_llm_log_completions_with_tool_calls():
             num_retries=0,
         )
 
-        # Create a response with tool calls
+        # 使用工具调用创建响应
         tool_call = ChatCompletionMessageToolCall(
             id="call_1",
             function=Function(name="test_function", arguments='{"param": "value"}'),
@@ -148,15 +147,15 @@ def test_llm_log_completions_with_tool_calls():
             usage=usage,
         )
 
-        # Mock the litellm completion call
+        # 模拟对象 LiteLLM 完成调用
         with patch("openhands.sdk.llm.llm.litellm_completion") as mock_completion:
             mock_completion.return_value = mock_response
 
-            # Capture any warnings
+            # 捕获任何警告
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
 
-                # Make a completion call
+                # 进行完成调用
                 messages = [
                     Message(
                         role="user",
@@ -165,7 +164,7 @@ def test_llm_log_completions_with_tool_calls():
                 ]
                 llm.completion(messages)
 
-                # Check for Pydantic serialization warnings
+                # 检查 Pydantic 序列化警告
                 pydantic_warnings = [
                     warning
                     for warning in w
@@ -178,11 +177,11 @@ def test_llm_log_completions_with_tool_calls():
                     f"Got unexpected serialization warnings: {warning_messages}"
                 )
 
-        # Verify that a log file was created
+        # 验证是否已创建日志文件
         log_files = os.listdir(temp_dir)
         assert len(log_files) == 1
 
-        # Verify the log contains tool call information
+        # 验证日志包含工具调用信息
         log_path = os.path.join(temp_dir, log_files[0])
         with open(log_path) as f:
             log_data = json.loads(f.read())
@@ -207,10 +206,10 @@ def _completion_with_provider_auth_header(
     completion_kwargs: dict[str, Any] | None = None,
     provider_metadata_api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Run one completion whose provider adds ``Authorization`` in place.
+    """运行一个补全，其提供程序在适当的位置添加 ``Authorization``。
 
-    Some LiteLLM provider handlers (e.g. DeepSeek) write the bearer token into
-    the caller's ``extra_headers`` dict during the call.
+    一些 LiteLLM 提供程序处理程序 (e.g. DeepSeek) 在调用期间将持有者令牌写入调用者的
+    ``extra_headers`` 字典中。
     """
     llm = LLM(
         model="gpt-4o",

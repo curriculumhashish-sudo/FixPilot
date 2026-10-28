@@ -1,8 +1,7 @@
-"""Log Data Tool - Example custom tool for logging structured data to JSON.
+"""日志数据工具 - 用于将结构化数据记录到 JSON 的示例自定义工具。
 
-This tool demonstrates how to create a custom tool that logs structured data
-to a local JSON file during agent execution. The data can be retrieved and
-verified after the agent completes.
+该工具演示了如何创建一个自定义工具，在智能体执行期间将结构化数据记录到本地 JSON 文件
+。 智能体完成后可以检索和验证数据。
 """
 
 import json
@@ -24,11 +23,11 @@ from openhands.sdk import (
 from openhands.sdk.tool import ToolExecutor, register_tool
 
 
-# --- Enums and Models ---
+# --- 枚举和型号 ---
 
 
 class LogLevel(StrEnum):
-    """Log level for entries."""
+    """条目的日志级别。"""
 
     DEBUG = "debug"
     INFO = "info"
@@ -37,7 +36,7 @@ class LogLevel(StrEnum):
 
 
 class LogDataAction(Action):
-    """Action to log structured data to a JSON file."""
+    """将结构化数据记录到 JSON 文件的操作。"""
 
     message: str = Field(description="The log message")
     level: LogLevel = Field(
@@ -51,7 +50,7 @@ class LogDataAction(Action):
 
 
 class LogDataObservation(Observation):
-    """Observation returned after logging data."""
+    """观测结果记录数据后返回。"""
 
     success: bool = Field(description="Whether the data was successfully logged")
     log_file: str = Field(description="Path to the log file")
@@ -59,7 +58,7 @@ class LogDataObservation(Observation):
 
     @property
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
-        """Convert observation to LLM content."""
+        """将观测结果内容转换为 LLM 内容。"""
         if self.success:
             return [
                 TextContent(
@@ -72,20 +71,20 @@ class LogDataObservation(Observation):
         return [TextContent(text="❌ Failed to log data")]
 
 
-# --- Executor ---
+# ---执行者---
 
-# Default log file path
+# 默认日志文件路径
 DEFAULT_LOG_FILE = "/tmp/agent_data.json"
 
 
 class LogDataExecutor(ToolExecutor[LogDataAction, LogDataObservation]):
-    """Executor that logs structured data to a JSON file."""
+    """将结构化数据记录到 JSON 文件的执行器。"""
 
     def __init__(self, log_file: str = DEFAULT_LOG_FILE):
-        """Initialize the log data executor.
+        """初始化日志数据执行器。
 
         Args:
-            log_file: Path to the JSON log file
+            log_file: JSON 日志文件的路径
         """
         self.log_file = Path(log_file)
 
@@ -94,16 +93,16 @@ class LogDataExecutor(ToolExecutor[LogDataAction, LogDataObservation]):
         action: LogDataAction,
         conversation=None,  # noqa: ARG002
     ) -> LogDataObservation:
-        """Execute the log data action.
+        """执行记录数据操作。
 
         Args:
-            action: The log data action
-            conversation: Optional conversation context (not used)
+            action: 记录数据操作
+            conversation: 可选对话上下文（未使用）
 
         Returns:
-            LogDataObservation with the result
+            LogDataObservation 结果
         """
-        # Load existing entries or start fresh
+        # 加载现有条目或重新开始
         entries: list[dict[str, Any]] = []
         if self.log_file.exists():
             try:
@@ -112,7 +111,7 @@ class LogDataExecutor(ToolExecutor[LogDataAction, LogDataObservation]):
             except (json.JSONDecodeError, OSError):
                 entries = []
 
-        # Create new entry with timestamp
+        # 创建带有时间戳的新条目
         entry = {
             "timestamp": datetime.now(UTC).isoformat(),
             "level": action.level.value,
@@ -121,7 +120,7 @@ class LogDataExecutor(ToolExecutor[LogDataAction, LogDataObservation]):
         }
         entries.append(entry)
 
-        # Write back to file
+        # 写入文件
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.log_file, "w") as f:
             json.dump(entries, f, indent=2)
@@ -133,7 +132,7 @@ class LogDataExecutor(ToolExecutor[LogDataAction, LogDataObservation]):
         )
 
 
-# --- Tool Definition ---
+# --- 工具定义 ---
 
 _LOG_DATA_DESCRIPTION = """Log structured data to a JSON file.
 
@@ -152,19 +151,19 @@ Example usage:
 
 
 class LogDataTool(ToolDefinition[LogDataAction, LogDataObservation]):
-    """Tool for logging structured data to a JSON file."""
+    """用于将结构化数据记录到 JSON 文件的工具。"""
 
     @classmethod
     def create(cls, conv_state, **params) -> Sequence[ToolDefinition]:  # noqa: ARG003
-        """Create LogDataTool instance.
+        """创建 LogDataTool 实例。
 
         Args:
-            conv_state: Conversation state (not used in this example)
-            **params: Additional parameters:
-                - log_file: Path to the JSON log file (default: /tmp/agent_data.json)
+            conv_state: 对话状态（本例中未使用）
+            **params: 附加参数：
+                - log_file: JSON 日志文件的路径（默认值：/tmp/agent_data.json)
 
         Returns:
-            A sequence containing a single LogDataTool instance
+            包含单个 LogDataTool 实例的序列
         """
         log_file = params.get("log_file", DEFAULT_LOG_FILE)
         executor = LogDataExecutor(log_file=log_file)
@@ -179,6 +178,6 @@ class LogDataTool(ToolDefinition[LogDataAction, LogDataObservation]):
         ]
 
 
-# Auto-register the tool when this module is imported
-# This is what enables dynamic tool registration in the remote agent server
+# 导入此模块时自动注册工具这就是在远程 Agent Server 中启用动态工具注册的原因
+#
 register_tool("LogDataTool", LogDataTool)

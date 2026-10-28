@@ -23,7 +23,7 @@ class FinishAction(Action):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this action."""
+        """返回此操作的富文本表示形式。"""
         content = Text()
         content.append("Finish with message:\n", style="bold blue")
         content.append(self.message)
@@ -32,14 +32,13 @@ class FinishAction(Action):
 
 class FinishObservation(Observation):
     """
-    Observation returned after finishing a task.
-    The FinishAction itself contains the message sent to the user so no
-    extra fields are needed here.
+    观测结果完成任务后返回。 FinishAction 本身包含发送给用户的消息，因此这里不需要额
+    外的字段。
     """
 
     @property
     def visualize(self) -> Text:
-        """Return an empty Text representation since the message is in the action."""
+        """由于消息位于操作中，因此返回空文本表示形式。"""
         return Text()
 
 
@@ -67,7 +66,7 @@ class FinishExecutor(ToolExecutor):
 
 
 class FinishTool(ToolDefinition[FinishAction, FinishObservation]):
-    """Tool for signaling the completion of a task or conversation."""
+    """用于发出任务或对话完成信号的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
@@ -77,17 +76,17 @@ class FinishTool(ToolDefinition[FinishAction, FinishObservation]):
         conv_state: "ConversationState | None" = None,  # noqa: ARG003
         **params,
     ) -> Sequence[Self]:
-        """Create FinishTool instance.
+        """创建 FinishTool 实例。
 
         Args:
-            conv_state: Optional conversation state (not used by FinishTool).
-            **params: Additional parameters (none supported).
+            conv_state: 可选的对话状态（FinishTool未使用）。
+            **params: 附加参数（支持 None）。
 
         Returns:
-            A sequence containing a single FinishTool instance.
+            包含单个 FinishTool 实例的序列。
 
         Raises:
-            ValueError: If any parameters are provided.
+            ValueError: 如果提供任何参数。
         """
         if params:
             raise ValueError("FinishTool doesn't accept parameters")

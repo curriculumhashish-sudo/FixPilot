@@ -1,4 +1,4 @@
-"""Executor for Tom consultation tool."""
+"""Tom 咨询工具的执行者。"""
 
 import json
 from datetime import datetime
@@ -34,10 +34,9 @@ logger = get_logger(__name__)
 class TomConsultExecutor(
     ToolExecutor[ConsultTomAction | SleeptimeComputeAction, Observation]
 ):
-    """Executor for consulting Tom agent.
+    """咨询汤姆智能体的执行人。
 
-    This executor wraps the tom-swe package to provide Theory of Mind
-    capabilities for understanding user intent and preferences.
+    该执行器包装了 tom-swe 包，以提供用于理解用户意图和偏好的心理理论功能。
     """
 
     def __init__(
@@ -48,14 +47,14 @@ class TomConsultExecutor(
         api_key: str | None = None,
         api_base: str | None = None,
     ):
-        """Initialize Tom consultation executor.
+        """初始化Tom咨询执行者。
 
         Args:
-            file_store: File store for accessing user modeling data
-            enable_rag: Whether to enable RAG in Tom agent
-            llm_model: LLM model to use for Tom agent
-            api_key: API key for Tom agent's LLM
-            api_base: Base URL for Tom agent's LLM
+            file_store: 用于访问用户建模数据的文件存储
+            enable_rag: 是否在Tom智能体中启用RAG
+            llm_model: LLM 用于汤姆的模型智能体
+            api_key: API 汤姆智能体的 LLM 的钥匙
+            api_base: 汤姆智能体的 LLM 的底座 URL
         """
         self.file_store: FileStore = file_store
         self.enable_rag: bool = enable_rag
@@ -67,7 +66,7 @@ class TomConsultExecutor(
         self.conversations_dir: str = "conversations"
 
     def _get_tom_agent(self) -> "ToMAgent":
-        """Lazy initialization of Tom agent."""
+        """Tom 智能体的延迟初始化。"""
         if self._tom_agent is None:
             from typing import cast
 
@@ -88,14 +87,14 @@ class TomConsultExecutor(
         action: ConsultTomAction | SleeptimeComputeAction,
         conversation: "BaseConversation | None" = None,
     ) -> ConsultTomObservation | SleeptimeComputeObservation:
-        """Execute Tom operation.
+        """执行汤姆操作。
 
         Args:
-            action: The action to execute (consultation or sleeptime compute)
-            conversation: Conversation context for accessing state and history
+            action: 要执行的操作（咨询或睡眠时间计算）
+            conversation: 用于访问状态和历史记录的对话上下文
 
         Returns:
-            Observation with results
+            观测结果有结果
         """
         if isinstance(action, SleeptimeComputeAction):
             return self._sleeptime_compute(conversation)
@@ -107,17 +106,17 @@ class TomConsultExecutor(
         event_log: EventLog | EventsListBase,
         conversation: "BaseConversation | None" = None,
     ) -> list[dict[str, Any]]:
-        """Format events into messages for Tom agent.
+        """将事件格式化为 Tom 智能体的消息。
 
         Args:
-            event_log: Events to format
-            conversation: Optional conversation for LLM formatting
+            event_log: 要格式化的事件
+            conversation: 用于 LLM 格式的可选对话
 
         Returns:
-            List of formatted messages (skips system messages)
+            格式化消息列表（跳过系统消息）
         """
         events = list(event_log)
-        # Get only completed action-observation pairs
+        # 仅获取已完成的动作-观测结果对
         matched_action_ids = {
             obs_event.action_id
             for obs_event in events
@@ -134,20 +133,20 @@ class TomConsultExecutor(
         if not llm_convertible_events:
             return []
 
-        # Convert to messages
+        # 转换为消息
         messages = LLMConvertibleEvent.events_to_messages(llm_convertible_events)
 
-        # Format messages - use conversation's LLM if available, otherwise manual format
+        # 格式化消息 - 如果可用，请使用对话的 LLM，否则手动格式化
         if conversation is not None:
-            # Skip system message (first message)
+            # 跳过系统消息（第一条消息）
             return conversation.state.agent.llm.format_messages_for_llm(messages)[1:]
         else:
-            # If no conversation, format messages directly from events
+            # 如果没有对话，则直接从事件中格式化消息
             from openhands.sdk.llm import TextContent
 
             formatted_messages = []
             for msg in messages:
-                if msg.role != "system":  # Skip system messages
+                if msg.role != "system":  # 跳过系统消息
                     text_contents = [
                         {"text": c.text}
                         for c in msg.content
@@ -162,19 +161,19 @@ class TomConsultExecutor(
     def _consult_tom(
         self, action: ConsultTomAction, conversation: "BaseConversation | None" = None
     ) -> ConsultTomObservation:
-        """Execute Tom consultation.
+        """执行汤姆咨询。
 
         Args:
-            action: The consultation action with query details
-            conversation: Conversation context for accessing history
+            action: 查询详情的咨询动作
+            conversation: 用于访问历史记录的对话上下文
 
         Returns:
-            ConsultTomObservation with Tom's suggestions
+            ConsultTomObservation 根据汤姆的建议
         """
         try:
             tom_agent = self._get_tom_agent()
 
-            # Build query text using exact format from original implementation
+            # 使用原始实现中的精确格式构建查询文本
             if action.use_user_message:
                 query_text = f"I am SWE agent. {action.reason} I need to consult ToM agent about the user's message: [USER MESSAGE PLACEHOLDER]"  # noqa: E501
             elif action.custom_query:
@@ -185,14 +184,14 @@ class TomConsultExecutor(
                     suggestions="[CRITICAL] Tom agent cannot provide consultation for this user message. Do not consult ToM agent again for this message and use other actions instead."  # noqa: E501
                 )
 
-            # Get conversation history if available
+            # 获取对话历史记录（如果有）
             formatted_messages = []
             if conversation is not None:
                 formatted_messages = self._format_events(
                     conversation.state.events, conversation
                 )
 
-                # Get last user message for query text
+                # 获取查询文本的最后一条用户消息
                 if formatted_messages:
                     last_user_message = [
                         m for m in formatted_messages if m["role"] == "user"
@@ -219,7 +218,7 @@ class TomConsultExecutor(
                     "✅ Tom: Requesting observation update with consultation result"
                 )
 
-                # Format the response exactly like the original implementation
+                # 响应的格式与原始实现完全相同
                 query_description = action.custom_query or "the user's message"
                 formatted_response = (
                     f"{action.reason}\n"
@@ -249,16 +248,15 @@ class TomConsultExecutor(
     def _sleeptime_compute(
         self, conversation: "BaseConversation | None" = None
     ) -> SleeptimeComputeObservation:
-        """Execute sleeptime compute to index conversations for user modeling.
+        """执行睡眠时间计算以索引对话以进行用户建模。
 
-        This processes all unprocessed conversations from the file store,
-        similar to the OpenHands implementation.
+        这会处理文件存储中所有未处理的对话，类似于 OpenHands 实现。
 
         Args:
-            conversation: Conversation context (used for LLM formatting)
+            conversation: 对话上下文（用于 LLM 格式）
 
         Returns:
-            SleeptimeComputeObservation with indexing results
+            SleeptimeComputeObservation 带有索引结果
         """
         tom_agent = self._get_tom_agent()
 
@@ -277,10 +275,10 @@ class TomConsultExecutor(
                 message="No conversation sessions found", sessions_processed=0
             )
 
-        # Load processing history to find unprocessed sessions
+        # 加载处理历史记录以查找未处理的会话
         processing_history = self._load_processing_history()
 
-        # Find sessions that need processing
+        # 查找需要处理的会话
         sessions_to_process = []
         for session_id in all_sessions:
             events_dir = f"{self.conversations_dir}/{session_id}/events"
@@ -290,7 +288,7 @@ class TomConsultExecutor(
 
             current_event_count = len(event_files)
 
-            # Check if needs processing (new or has new events)
+            # 检查是否需要处理（新的或有新的事件）
             if session_id not in processing_history:
                 sessions_to_process.append(session_id)
                 logger.info(f"📋 Tom: Session {session_id} needs processing (new)")
@@ -310,7 +308,7 @@ class TomConsultExecutor(
             )
 
         logger.info(f"📊 Tom: Found {len(sessions_to_process)} sessions to process")
-        # Collect session data for each conversation
+        # 收集每个对话的会话数据
         sessions_data = []
         for session_id in sessions_to_process:
             session_data = self._extract_session_data(session_id, conversation)
@@ -325,13 +323,13 @@ class TomConsultExecutor(
         logger.info(
             f"📊 Tom: Extracted {len(sessions_data)} sessions, calling Tom agent"
         )
-        # Call sleeptime_compute
+        # 致电 sleeptime_compute
         tom_agent.sleeptime_compute(
             sessions_data=sessions_data,
             user_id=self.user_id,
         )
 
-        # Update processing history
+        # 更新处理历史记录
         self._save_processing_history(sessions_to_process)
 
         logger.info(f"✅ Tom: Successfully indexed {len(sessions_data)} conversations")
@@ -343,18 +341,18 @@ class TomConsultExecutor(
     def _extract_session_data(
         self, session_id: str, conversation: "BaseConversation | None"
     ) -> dict[str, Any] | None:
-        """Extract session data from a conversation directory."""
+        """从对话目录中提取会话数据。"""
 
-        # Load events from the session using file_store
+        # 使用 file_store 从会话加载事件
         events_dir = f"{self.conversations_dir}/{session_id}/events"
         events = EventLog(self.file_store, events_dir)
 
-        # Format events into messages
+        # 将事件格式化为消息
         formatted_messages = self._format_events(events, conversation)
         if not formatted_messages:
             return None
 
-        # Convert to tom-swe format
+        # 转换为 tom-swe 格式
         conversation_messages = []
         for msg in formatted_messages:
             if isinstance(msg, dict) and "role" in msg and "content" in msg:
@@ -381,7 +379,7 @@ class TomConsultExecutor(
         }
 
     def _load_processing_history(self) -> dict[str, Any]:
-        """Load processing history for this user."""
+        """加载该用户的处理历史记录。"""
         try:
             from tom_swe.memory.locations import get_usermodeling_dir
 
@@ -395,7 +393,7 @@ class TomConsultExecutor(
             return {}
 
     def _save_processing_history(self, session_ids: list[str]) -> None:
-        """Save processing history for processed sessions."""
+        """保存已处理会话的处理历史记录。"""
         try:
             from tom_swe.memory.locations import get_usermodeling_dir
 

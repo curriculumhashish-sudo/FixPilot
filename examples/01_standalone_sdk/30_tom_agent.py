@@ -1,9 +1,9 @@
-"""Example demonstrating Tom agent with Theory of Mind capabilities.
+"""演示 Tom 智能体具有心理理论能力的示例。
 
-This example shows how to set up an agent with Tom tools for getting
-personalized guidance based on user modeling. Tom tools include:
-- TomConsultTool: Get guidance for vague or unclear tasks
-- SleeptimeComputeTool: Index conversations for user modeling
+此示例展示了如何使用 Tom 工具设置智能体，以获取基于用户建模的个性化指导。 Tom 工具包
+括：
+- TomConsultTool: 获取模糊或不明确任务的指导
+- SleeptimeComputeTool: 用于用户建模的索引对话
 """
 
 import os
@@ -21,7 +21,7 @@ from openhands.tools.tom_consult import (
 )
 
 
-# Configure LLM
+# 配置LLM
 api_key: str | None = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 
@@ -33,16 +33,16 @@ llm: LLM = LLM(
     drop_params=True,
 )
 
-# Build tools list with Tom tools
-# Note: Tom tools are automatically registered on import (PR #862)
+# 使用 Tom 工具构建工具列表
+# 注意：Tom 工具在导入时自动注册 (PR #862)
 tools = get_default_tools(enable_browser=False)
 
-# Configure Tom tools with parameters
+# 使用参数配置 Tom 工具
 tom_params: dict[str, bool | str] = {
-    "enable_rag": True,  # Enable RAG in Tom agent
+    "enable_rag": True,  # 在 Tom 智能体中启用 RAG
 }
 
-# Add LLM configuration for Tom tools (uses same LLM as main agent)
+# 为 Tom 工具添加 LLM 配置（使用与主智能体相同的 LLM）
 tom_params["llm_model"] = llm.model
 if llm.api_key:
     if isinstance(llm.api_key, SecretStr):
@@ -52,16 +52,15 @@ if llm.api_key:
 if llm.base_url:
     tom_params["api_base"] = llm.base_url
 
-# Add both Tom tools to the agent
+# 将两个 Tom 工具添加到智能体
 tools.append(Tool(name=TomConsultTool.name, params=tom_params))
 tools.append(Tool(name=SleeptimeComputeTool.name, params=tom_params))
 
-# Create agent with Tom capabilities
-# This agent can consult Tom for personalized guidance
-# Note: Tom's user modeling data will be stored in ~/.openhands/
+# 使用 Tom 能力创建智能体此智能体可以咨询 Tom 以获得个性化指导
+# 注意：Tom的用户建模数据将存储在~/.openhands/中
 agent: Agent = Agent(llm=llm, tools=tools)
 
-# Start conversation
+# 开始对话
 cwd: str = os.getcwd()
 PERSISTENCE_DIR = os.path.expanduser("~/.openhands")
 CONVERSATIONS_DIR = os.path.join(PERSISTENCE_DIR, "conversations")
@@ -69,15 +68,15 @@ conversation = Conversation(
     agent=agent, workspace=cwd, persistence_dir=CONVERSATIONS_DIR
 )
 
-# Optionally run sleeptime compute to index existing conversations
-# This builds user preferences and patterns from conversation history
-# Using execute_tool allows running tools before conversation.run()
+# 可选地运行 sleeptime 计算来索引现有对话。这会根据对话历史构建用户偏好和模式。使用
+# execute_tool 可以在 conversation.run 之前运行工具
+#
 print("\nRunning sleeptime compute to index conversations...")
 try:
     sleeptime_result = conversation.execute_tool(
         "sleeptime_compute", SleeptimeComputeAction()
     )
-    # Cast to the expected observation type for type-safe access
+    # 转换为预期的观测结果类型以进行类型安全访问
     if isinstance(sleeptime_result, SleeptimeComputeObservation):
         print(f"Result: {sleeptime_result.message}")
         print(f"Sessions processed: {sleeptime_result.sessions_processed}")
@@ -86,7 +85,7 @@ try:
 except KeyError as e:
     print(f"Tool not available: {e}")
 
-# Send a potentially vague message where Tom consultation might help
+# 发送一条可能含糊不清的消息，汤姆咨询可能会有所帮助
 conversation.send_message(
     "I need to debug some code but I'm not sure where to start. "
     + "Can you help me figure out the best approach?"
@@ -97,19 +96,18 @@ print("\n" + "=" * 80)
 print("Tom agent consultation example completed!")
 print("=" * 80)
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")
 
 
-# Optional: Index this conversation for Tom's user modeling
-# This builds user preferences and patterns from conversation history
-# Uncomment the lines below to index the conversation:
+# 可选：为此对话建立索引以进行 Tom 的用户建模
+# 这会根据对话历史记录构建用户首选项和模式取消注释以下行以索引对话：
 #
 # conversation.send_message("Please index this conversation using sleeptime_compute")
 # conversation.run()
 # print("\nConversation indexed for user modeling!")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

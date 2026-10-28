@@ -1,4 +1,4 @@
-"""Scoped workspace operations reuse the normal sync/async request machinery."""
+"""作用域工作区操作重用正常的同步/异步请求机制。"""
 
 import inspect
 from unittest.mock import patch
@@ -63,7 +63,7 @@ async def test_commands_files_git_and_lifecycle(async_mode, scoped, tmp_path):
         if path.endswith("runtime/credentials"):
             return httpx.Response(200, json={"session_api_key": "worker-key"})
         if path.endswith("/runtime"):
-            return httpx.Response(404)  # Releasing an already-gone runtime is safe.
+            return httpx.Response(404)  # 释放已经消失的运行时是安全的。
         raise AssertionError(path)
 
     cls = AsyncRemoteWorkspace if async_mode else RemoteWorkspace

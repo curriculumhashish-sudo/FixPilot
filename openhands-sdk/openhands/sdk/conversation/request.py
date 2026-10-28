@@ -1,9 +1,7 @@
-"""Conversation request models.
+"""对话请求模型。
 
-These types define the payload for starting and interacting with
-conversations.  They live in the SDK so that ``ConversationSettings``
-can reference them without a cross-package dependency on the
-agent-server.
+这些类型定义了用于启动对话并与对话交互的载荷。 它们位于 SDK 中，以便
+``ConversationSettings`` 可以引用它们，而无需跨包依赖于智能体服务器。
 """
 
 from __future__ import annotations
@@ -59,27 +57,27 @@ from openhands.sdk.workspace import LocalWorkspace
 
 
 # ---------------------------------------------------------------------------
-# Helper type alias
+# 帮助程序类型别名
 # ---------------------------------------------------------------------------
 
 ACPEnabledAgent = Annotated[
     Annotated[Agent, Tag("Agent")] | Annotated[ACPAgent, Tag("ACPAgent")],
     Discriminator(kind_of),
 ]
-"""Discriminated union: either a regular Agent or an ACP-capable Agent."""
+"""受歧视联合：常规智能体或 ACP 功能智能体。"""
 
 
 # ---------------------------------------------------------------------------
-# Request models
+# 请求型号
 # ---------------------------------------------------------------------------
 
 
 class StartChildConversationRequest(BaseModel):
-    """Payload to start a child conversation on the same backend as its parent.
+    """载荷在与其父级相同的后端启动子级对话。
 
-    Sent by the ``start_child_conversation`` tool to a child-launch endpoint:
-    the agent-server's ``POST /api/conversations/{id}/children`` by default, or
-    an equivalent launcher supplied by the backend hosting the parent.
+    由 ``start_child_conversation`` 工具发送到一个子启动端点：默认情况下，智能体-服务
+    器通过
+    ``POST /api/conversations/{id}/children``，或者由托管父级的后端提供的等效启动器。
     """
 
     task: str = Field(
@@ -104,7 +102,7 @@ class StartChildConversationRequest(BaseModel):
 
 
 class StartChildConversationResponse(BaseModel):
-    """Result of a child conversation launch, returned to the parent agent."""
+    """子对话启动的结果，返回给父级智能体。"""
 
     conversation_id: UUID
     parent_conversation_id: UUID
@@ -123,7 +121,7 @@ class StartChildConversationResponse(BaseModel):
 
 
 class AgentLaunchAdditions(BaseModel):
-    """Add deployment context after agent resolution."""
+    """在智能体解析后添加部署上下文。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -162,11 +160,10 @@ class AgentLaunchAdditions(BaseModel):
 
 
 class ConversationContainerOptions(BaseModel):
-    """Resources for a conversation's container.
+    """对话容器的资源。
 
-    Only the Docker runtime applies them, when it creates the conversation's
-    container; a local conversation ignores them. An unset field keeps the
-    server's configured limit; a set one replaces it and is not capped by it.
+    只有 Docker 运行时在创建会话容器时应用它们； 本地对话会忽略它们。 未设置的字段保
+    留服务器配置的限制； 一套取代它并且不受它限制。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -197,7 +194,7 @@ class ConversationContainerOptions(BaseModel):
 
 
 class ConversationWorktreeOptions(BaseModel):
-    """How the server creates a conversation's worktree (``worktree=True``)."""
+    """服务器如何创建对话的工作树 (``worktree=True``)。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -224,15 +221,14 @@ class ConversationWorktreeOptions(BaseModel):
 
 
 class ConversationConfig(BaseModel):
-    """Shared conversation configuration — everything except the agent.
+    """共享对话配置 — 除智能体之外的所有内容。
 
-    This is the common base for :class:`StartConversationRequest` (which adds the
-    ``agent``/``agent_settings``/``agent_profile_id`` family) and the
-    agent-server's ``StoredConversation`` (which does NOT persist the agent —
-    the agent's single source of truth is ``ConversationState`` /
-    ``base_state.json``). Keeping the agent off this base is what makes the
-    duplication structurally impossible rather than something a reviewer has to
-    remember to exclude.
+    这是：class:`StartConversationRequest` 的共同基础（它添加了
+    ``agent``/``agent_settings``/``agent_profile_id`` 系列）和智能体-服务器的
+    ``StoredConversation`` （它执行不持久化智能体 - 智能体的单一事实来源是
+    ``ConversationState`` /
+    ``base_state.json``). 智能体不在这一基底上保持，这是让重复结构变得不可能，而不是
+    一个审查者需要记住排除的东西。
     """
 
     workspace: LocalWorkspace = Field(
@@ -436,17 +432,17 @@ class ConversationConfig(BaseModel):
 
 
 class StartConversationRequest(ConversationConfig):
-    """Payload to create a new conversation.
+    """载荷创建一个新对话。
 
-    Extends :class:`ConversationConfig` with the agent source: a stored Agent
-    Profile (``agent_profile_id``), resolved agent settings
-    (``agent_settings``), or an ``agent`` built in code. The
-    server turns the source into the conversation's agent at launch; this model
-    only checks that exactly one source is given.
+    使用智能体源扩展：class:`ConversationConfig`：存储的智能体配置文件 (
+    ``agent_profile_id``)、解析的智能体设置 (
+    ``agent_settings``) 或 ``agent`` 内置代码。 服务器在启动时将源转换为对话的智能体
+    ； 该模型仅检查是否给出了一个来源。
 
-    Note: the agent lives here on the *request*, deliberately not on
-    ``ConversationConfig``. The persisted record (``StoredConversation``) does
-    not carry the agent — its single source of truth is ``ConversationState`` /
+    Note: 智能体根据 * 请求 * 存在于此，故意不存在
+    ``ConversationConfig``. 已持久化记录 (``StoredConversation``) 不包含智能体 — 它的
+    唯一事实来源是
+    ``ConversationState`` /
     ``base_state.json``.
     """
 
@@ -484,7 +480,7 @@ class StartConversationRequest(ConversationConfig):
     def _normalize_agent_source(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
-        # An explicit null means "not this source"; ``agent`` has no nullable
+        # 明确的 null 意味着“不是这个来源”； ``agent`` 不可为空
         # type of its own.
         payload = {
             name: value

@@ -1,4 +1,4 @@
-"""Git router for OpenHands SDK."""
+"""OpenHands SDK 的 Git 路由器。"""
 
 import asyncio
 import functools
@@ -49,13 +49,14 @@ _COMMIT_QUERY_DESCRIPTION = (
     "deleted files still render. Mutually exclusive with 'ref'."
 )
 
-# Hex-only so a path/query value can never reach git argv as an option
-# (list-args protect against shell injection, not option injection).
+# 仅十六进制，因此路径/查询值永远无法作为选项到达 git argv （list-args 防止 shell 注入，
+# 而不是选项注入）。
+#
 _SHA_PATTERN = r"^[0-9a-fA-F]{4,64}$"
 
 
 async def _get_git_changes(path: str, ref: str | None) -> list[GitChange]:
-    """Internal helper to get git changes for a given path."""
+    """用于获取给定路径的 git 更改的内部助手。"""
     update_last_execution_time()
     loop = asyncio.get_running_loop()
     try:
@@ -63,14 +64,15 @@ async def _get_git_changes(path: str, ref: str | None) -> list[GitChange]:
             None, functools.partial(get_git_changes, Path(path), ref=ref)
         )
     except GitRepositoryError:
-        # A non-repo workspace has no git changes to report; respond with an
-        # empty list so the Changes tab can render normally instead of 500ing.
+        # 非存储库工作区没有要报告的 git 更改； 使用空列表进行响应，以便“更改”选项卡可以
+        # 正常呈现而不是 500ing。
+        #
         logger.debug("Path %s is not a git repository; returning no changes", path)
         return []
 
 
 async def _get_git_diff(path: str, ref: str | None) -> GitDiff:
-    """Internal helper to get git diff for a given path."""
+    """用于获取给定路径的 git diff 的内部助手。"""
     update_last_execution_time()
     loop = asyncio.get_running_loop()
     try:
@@ -78,15 +80,15 @@ async def _get_git_diff(path: str, ref: str | None) -> GitDiff:
             None, functools.partial(get_git_diff, Path(path), ref=ref)
         )
     except GitRepositoryError:
-        # Only collapse the not-a-repo case to an empty diff; file-level
-        # GitPathError (missing/oversize/outside-repo) stays a 500 so
-        # callers can distinguish it from "no changes".
+        # 仅将非回购案例折叠为空差异； 文件级别 GitPathError（缺失/超大/外部存储库）保持
+        #  500，以便调用者可以将其与“无更改”区分开来。
+        #
         logger.debug("Path %s is not in a git repository; returning empty diff", path)
         return GitDiff(modified=None, original=None)
 
 
 async def _get_git_commits(path: str, limit: int) -> GitCommitsPage:
-    """Internal helper to list commits for a given repo path."""
+    """用于列出给定存储库路径的提交的内部帮助程序。"""
     update_last_execution_time()
     loop = asyncio.get_running_loop()
     try:
@@ -94,14 +96,15 @@ async def _get_git_commits(path: str, limit: int) -> GitCommitsPage:
             None, functools.partial(get_git_commits, Path(path), limit=limit)
         )
     except GitRepositoryError:
-        # A non-repo workspace has no commits to report; respond with an
-        # empty page so the commits section can render its empty state.
+        # 非回购工作区没有要报告的提交； 使用空页面进行响应，以便提交部分可以呈现其空状
+        # 态。
+        #
         logger.debug("Path %s is not a git repository; returning no commits", path)
         return GitCommitsPage(commits=[], has_more=False)
 
 
 async def _get_commit_changes(path: str, sha: str) -> list[GitChange]:
-    """Internal helper to get the files changed by one commit."""
+    """用于通过一次提交更改文件的内部帮助程序。"""
     update_last_execution_time()
     loop = asyncio.get_running_loop()
     try:
@@ -114,7 +117,7 @@ async def _get_commit_changes(path: str, sha: str) -> list[GitChange]:
 
 
 async def _get_commit_file_diff(path: str, commit: str) -> GitDiff:
-    """Internal helper to get one file's diff as changed by one commit."""
+    """用于获取由一次提交更改的一个文件的差异的内部帮助程序。"""
     update_last_execution_time()
     loop = asyncio.get_running_loop()
     try:
@@ -140,7 +143,7 @@ async def git_repositories_search(
         str | None, Query(description="Provider-specific page cursor")
     ] = None,
 ) -> GitProviderRepositoryPage:
-    """List repositories accessible to a configured git provider token."""
+    """列出已配置的 git 提供程序可访问的存储库 token。"""
     try:
         return await search_provider_repositories(
             get_config(request),
@@ -161,14 +164,14 @@ async def git_changes_query(
     path: str = Query(..., description="The git repository path"),
     ref: str | None = Query(None, description=_REF_QUERY_DESCRIPTION),
 ) -> list[GitChange]:
-    """Get git changes using query parameter (preferred method)."""
+    """使用查询参数获取 git 更改（首选方法）。"""
     try:
         return await _get_git_changes(path, ref)
     except GitError as e:
-        # GitRepositoryError is already handled in the helper (returns []).
-        # Any remaining GitError subclass (e.g. GitCommandError) surfaces as
-        # 400 so the client can show an actionable error instead of an
-        # opaque 500.
+        # GitRepositoryError 已在助手中处理（返回 []）。 任何剩余的 GitError 子类 (e.g.
+        # GitCommandError）显示为 400，以便客户端可以显示可操作的错误，而不是不透明的
+        # 500。
+        #
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -181,7 +184,7 @@ async def git_diff_query(
         None, pattern=_SHA_PATTERN, description=_COMMIT_QUERY_DESCRIPTION
     ),
 ) -> GitDiff:
-    """Get git diff using query parameter (preferred method)."""
+    """使用查询参数获取 git diff（首选方法）。"""
     if ref is not None and commit is not None:
         raise HTTPException(
             status_code=400, detail="'ref' and 'commit' are mutually exclusive"
@@ -191,10 +194,10 @@ async def git_diff_query(
             return await _get_commit_file_diff(path, commit)
         return await _get_git_diff(path, ref)
     except GitError as e:
-        # GitRepositoryError is already handled in the helpers (returns an
-        # empty diff). Any remaining GitError subclass (e.g. GitCommandError,
-        # GitPathError) surfaces as 400 so the client can show an actionable
-        # error instead of an opaque 500.
+        # GitRepositoryError 已在辅助函数中处理（返回一个空的差异）。 任何剩余的
+        # GitError 子类 (e.g. GitCommandError、GitPathError）显示为 400，以便客户端可以
+        # 显示可操作的错误，而不是不透明的 500。
+        #
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -204,12 +207,13 @@ async def git_commits_query(
     path: str = Query(..., description="The git repository path"),
     limit: int = Query(50, ge=1, le=200, description="Maximum commits to return"),
 ) -> GitCommitsPage:
-    """List the repository's most recent commits, newest first."""
+    """列出存储库的最新提交，最新的在前。"""
     try:
         return await _get_git_commits(path, limit)
     except GitError as e:
-        # GitRepositoryError is already handled in the helper (returns an
-        # empty page). Any remaining GitError subclass surfaces as 400.
+        # GitRepositoryError 已在助手中处理（返回空页面）。 任何剩余的 GitError 子类表面
+        # 为 400。
+        #
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -219,10 +223,11 @@ async def git_commit_changes_query(
     sha: str = PathParam(..., pattern=_SHA_PATTERN, description="Commit SHA"),
     path: str = Query(..., description="The git repository path"),
 ) -> list[GitChange]:
-    """Get the files changed by a single commit (vs its first parent)."""
+    """获取通过单个提交（相对于其第一个父级）更改的文件。"""
     try:
         return await _get_commit_changes(path, sha)
     except GitError as e:
-        # GitRepositoryError is already handled in the helper (returns []).
-        # An unknown/unresolvable sha raises GitCommandError -> 400.
+        # GitRepositoryError 已在助手中处理（返回 []）。 未知/无法解析的煞能提高
+        # GitCommandError -> 400。
+        #
         raise HTTPException(status_code=400, detail=str(e))

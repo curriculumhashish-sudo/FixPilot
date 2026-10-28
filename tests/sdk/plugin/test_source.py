@@ -1,4 +1,4 @@
-"""Tests for plugin source path handling."""
+"""测试插件源路径处理。"""
 
 from pathlib import Path
 

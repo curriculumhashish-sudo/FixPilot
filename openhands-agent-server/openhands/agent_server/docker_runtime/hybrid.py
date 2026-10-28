@@ -1,9 +1,9 @@
-"""Serve host-local and Docker conversations from one server.
+"""从一台服务器提供主机本地和 Docker 对话。
 
-Local routes keep their public paths. Docker routes are mounted again under
-``DOCKER_ROUTE_PREFIX`` and :class:`RuntimeDispatchMiddleware` rewrites a
-request onto them when its conversation has a Docker provisioning manifest, or
-when a start request selects ``conversation_runtime="docker"``.
+本地路由保留其公共路径。 Docker 路由再次挂载下
+当对话具有 Docker 配置清单或启动请求选择 ``conversation_runtime="docker"`` 时，
+``DOCKER_ROUTE_PREFIX`` 和
+：class:`RuntimeDispatchMiddleware` 会重写对它们的请求。
 """
 
 import json
@@ -26,11 +26,11 @@ _SOCKET_PATH = re.compile(r"^/sockets/(?:events|session)/([^/]+)$")
 
 
 class HybridConversationRegistry(DockerConversationRegistry):
-    """Registry for a server that runs both local and Docker conversations.
+    """注册表用于运行本地会话和 Docker 会话的服务器。
 
-    A conversation with a Docker provisioning manifest is a Docker one; any other
-    is local. Local routes keep their paths, and the Docker ones are mounted
-    again under ``DOCKER_ROUTE_PREFIX``.
+    与 Docker 配置清单的对话是 Docker 对话； 其他的都是本地的。 本地路由保留其路径，
+    Docker 的路径再次挂载在
+    ``DOCKER_ROUTE_PREFIX`` 下。
     """
 
     def is_docker(self, conversation_id: UUID) -> bool:
@@ -87,7 +87,7 @@ class HybridConversationRegistry(DockerConversationRegistry):
 
 
 class RuntimeDispatchMiddleware:
-    """Route each conversation's requests to the runtime that owns it."""
+    """将每个对话的请求路由到拥有它的运行时。"""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -113,14 +113,14 @@ class RuntimeDispatchMiddleware:
         elif path == "/api/conversations" and method == "POST":
             receive, body = await _buffer_body(receive)
             request = _json_object(body)
-            # A start for an existing Docker conversation resumes it in Docker.
+            # 现有 Docker 对话的开始将在 Docker 中恢复。
             existing = _conversation_id(request.get("conversation_id"))
             to_docker = (existing is not None and registry.is_docker(existing)) or (
                 request.get("conversation_runtime")
                 or registry.config.conversation_runtime
             ) == "docker"
         elif match := _CONVERSATION_PATH.match(path):
-            # GET of the conversation itself is the shared catalog record.
+            # 会话本身的GET是共享目录记录。
             catalog_read = match[2] is None and method in ("GET", "HEAD")
             conversation_id = _conversation_id(match[1])
             to_docker = (

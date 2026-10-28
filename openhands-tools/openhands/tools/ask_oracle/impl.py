@@ -1,4 +1,4 @@
-"""Executor for the ask_oracle tool."""
+"""ask_oracle 工具的执行器。"""
 
 from typing import TYPE_CHECKING
 
@@ -33,13 +33,13 @@ Question:
 
 
 class AskOracleExecutor(ToolExecutor[AskOracleAction, AskOracleObservation]):
-    """Consult the Oracle: a saved LLM profile named ``oracle``.
+    """咨询 Oracle：名为 ``oracle`` 的已保存 LLM 配置。
 
-    The Oracle is resolved by convention from the conversation's LLM profile
-    store under the name ``oracle`` (``ORACLE_PROFILE_NAME``). The call is
-    stateless: it sends only the Oracle system prompt plus the agent's question
-    and optional context, with no conversation history and no tools, and returns
-    the Oracle's text. The active conversation LLM is never switched.
+    按照惯例，Oracle 是从会话的 LLM 配置文件存储中以名称 ``oracle`` (
+    ``ORACLE_PROFILE_NAME``) 解析的。 通话内容是
+    stateless: 它仅发送 Oracle 系统提示词以及智能体的问题
+    和可选的上下文，没有对话历史记录和工具，并返回 Oracle 的文本。 活动对话 LLM 永远
+    不会切换。
     """
 
     def __call__(

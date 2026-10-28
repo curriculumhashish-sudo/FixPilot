@@ -1,4 +1,4 @@
-"""Tests for LLMCompletionLogEvent serialization and functionality."""
+"""LLMCompletionLogEvent 序列化的测试和功能。"""
 
 import json
 
@@ -6,7 +6,7 @@ from openhands.sdk.event import Event, LLMCompletionLogEvent
 
 
 def test_llm_completion_log_event_creation() -> None:
-    """Test creating an LLMCompletionLogEvent."""
+    """测试创建 LLMCompletionLogEvent。"""
     event = LLMCompletionLogEvent(
         filename="test_model__1234567890.123-abcd.json",
         log_data='{"test": "data"}',
@@ -20,7 +20,7 @@ def test_llm_completion_log_event_creation() -> None:
 
 
 def test_llm_completion_log_event_serialization() -> None:
-    """Test LLMCompletionLogEvent serialization/deserialization."""
+    """测试LLMCompletionLogEvent序列化/反序列化。"""
     log_data = json.dumps(
         {
             "response": {"id": "response_123", "model": "test_model"},
@@ -35,7 +35,7 @@ def test_llm_completion_log_event_serialization() -> None:
         model_name="anthropic/claude-sonnet",
     )
 
-    # Serialize
+    # 序列化
     json_str = event.model_dump_json()
     deserialized = LLMCompletionLogEvent.model_validate_json(json_str)
 
@@ -46,14 +46,14 @@ def test_llm_completion_log_event_serialization() -> None:
 
 
 def test_llm_completion_log_event_as_base_event() -> None:
-    """Test that LLMCompletionLogEvent can be deserialized as base Event."""
+    """测试 LLMCompletionLogEvent 是否可以已反序列化作为基础事件。"""
     event = LLMCompletionLogEvent(
         filename="test_model__1234567890.123-abcd.json",
         log_data='{"test": "data"}',
         model_name="test_model",
     )
 
-    # Serialize and deserialize as base Event
+    # 序列化和反序列化作为基本事件
     json_str = event.model_dump_json()
     deserialized = Event.model_validate_json(json_str)
 
@@ -62,7 +62,7 @@ def test_llm_completion_log_event_as_base_event() -> None:
 
 
 def test_llm_completion_log_event_str() -> None:
-    """Test string representation of LLMCompletionLogEvent."""
+    """测试字符串表示 LLMCompletionLogEvent。"""
     event = LLMCompletionLogEvent(
         filename="test_model__1234567890.123-abcd.json",
         log_data='{"test": "data"}',

@@ -1,11 +1,11 @@
-"""Tests for OpenHandsCloudWorkspace settings methods.
+"""测试 OpenHandsCloudWorkspace 设置方法。
 
-Tests for get_llm(), get_secrets(), and get_mcp_config().
+测试 get_llm()、get_secrets() 和 get_mcp_config()。
 
-get_llm() returns a real LLM with the raw api_key from SaaS.
-get_secrets() returns LookupSecret references — raw values only flow
-SaaS→sandbox, never to the SDK client.
-get_mcp_config() returns MCP server configuration in SDK Agent format.
+get_llm() 返回一个实数 LLM 以及来自 SaaS 的原始 api_key。 get_secrets() 返回
+LookupSecret 引用 — 原始值仅流向
+SaaS→沙箱，从不流向 SDK 客户端。 get_mcp_config() 以 SDK 智能体格式返回 MCP 服务器配
+置。
 """
 
 from unittest.mock import MagicMock, patch
@@ -26,7 +26,7 @@ CLOUD_URL = "https://app.all-hands.dev"
 
 @pytest.fixture
 def mock_workspace():
-    """Create a workspace instance with mocked sandbox lifecycle."""
+    """创建具有模拟的沙箱生命周期的工作区实例。"""
     with patch.object(
         OpenHandsCloudWorkspace, "model_post_init", lambda self, ctx: None
     ):
@@ -35,7 +35,7 @@ def mock_workspace():
             cloud_api_key="test-api-key",
             host="http://localhost:8000",
         )
-    # Simulate a running sandbox
+    # 模拟运行的沙箱
     workspace._sandbox_id = SANDBOX_ID
     workspace._session_api_key = SESSION_KEY
     yield workspace
@@ -44,10 +44,10 @@ def mock_workspace():
 
 
 class TestGetLLM:
-    """Tests for OpenHandsCloudWorkspace.get_llm()."""
+    """测试 OpenHandsCloudWorkspace.get_llm()。"""
 
     def test_get_llm_returns_usable_llm(self, mock_workspace):
-        """get_llm fetches SaaS config and returns a usable LLM."""
+        """get_llm 获取 SaaS 配置并返回可用的 LLM。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_model": "anthropic/claude-sonnet-4-20250514",
@@ -68,13 +68,13 @@ class TestGetLLM:
             headers={"X-Session-API-Key": SESSION_KEY},
         )
         assert llm.model == "anthropic/claude-sonnet-4-20250514"
-        # api_key is a real SecretStr (LLM validator converts str → SecretStr)
+        # api_key 是实数 SecretStr（LLM 验证器转换为 str → SecretStr）
         assert isinstance(llm.api_key, SecretStr)
         assert llm.api_key.get_secret_value() == "sk-test-key-123"
         assert llm.base_url == "https://litellm.example.com"
 
     def test_get_llm_allows_overrides(self, mock_workspace):
-        """User-provided kwargs override SaaS settings."""
+        """用户提供的 kwargs 覆盖 SaaS 设置。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_model": "anthropic/claude-sonnet-4-20250514",
@@ -93,7 +93,7 @@ class TestGetLLM:
         assert isinstance(llm.api_key, SecretStr)
 
     def test_get_llm_with_profile_name(self, mock_workspace):
-        """get_llm can load a named profile from SaaS metadata."""
+        """get_llm 可以从 SaaS 元数据加载命名配置文件。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_model": "anthropic/claude-sonnet-4-20250514",
@@ -141,7 +141,7 @@ class TestGetLLM:
         assert llm_with_override.usage_id == "custom-usage"
 
     def test_get_llm_missing_profile_raises(self, mock_workspace):
-        """get_llm raises FileNotFoundError for unknown SaaS profiles."""
+        """get_llm 针对未知的 SaaS 配置文件提出 FileNotFoundError。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_profiles": {"profiles": {"fast": {"model": "gpt-4o"}}}
@@ -155,7 +155,7 @@ class TestGetLLM:
                 mock_workspace.get_llm(profile_name="missing")
 
     def test_get_llm_no_api_key_still_works(self, mock_workspace):
-        """If no API key is configured, the LLM gets api_key=None."""
+        """如果没有配置API键，则LLM得到api_key=None。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_model": "gpt-4o",
@@ -173,17 +173,17 @@ class TestGetLLM:
         assert llm.api_key is None
 
     def test_get_llm_raises_when_no_sandbox(self, mock_workspace):
-        """get_llm raises RuntimeError when sandbox is not running."""
+        """当沙箱未运行时，get_llm 引发 RuntimeError。"""
         mock_workspace._sandbox_id = None
         with pytest.raises(RuntimeError, match="Sandbox is not running"):
             mock_workspace.get_llm()
 
 
 class TestGetSecrets:
-    """Tests for OpenHandsCloudWorkspace.get_secrets()."""
+    """测试 OpenHandsCloudWorkspace.get_secrets()。"""
 
     def test_get_all_secrets_returns_lookup_secrets(self, mock_workspace):
-        """get_secrets returns LookupSecret instances, not raw values."""
+        """get_secrets 返回 LookupSecret 个实例，而不是原始值。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "secrets": [
@@ -216,7 +216,7 @@ class TestGetSecrets:
         assert gh_secret.description == "GitHub token"
 
     def test_get_secrets_filters_by_name(self, mock_workspace):
-        """get_secrets(names=[...]) filters client-side."""
+        """get_secrets(names=[...]) 过滤客户端。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "secrets": [
@@ -252,7 +252,7 @@ class TestGetSecrets:
         )
 
     def test_get_secrets_empty(self, mock_workspace):
-        """Empty secrets list returns empty dict."""
+        """空机密列表返回空字典。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {"secrets": []}
         mock_response.raise_for_status = MagicMock()
@@ -265,17 +265,17 @@ class TestGetSecrets:
         assert secrets == {}
 
     def test_get_secrets_raises_when_no_sandbox(self, mock_workspace):
-        """get_secrets raises RuntimeError when sandbox is not running."""
+        """当沙箱未运行时，get_secrets 引发 RuntimeError。"""
         mock_workspace._sandbox_id = None
         with pytest.raises(RuntimeError, match="Sandbox is not running"):
             mock_workspace.get_secrets()
 
 
 class TestGetMcpServers:
-    """Tests for OpenHandsCloudWorkspace.get_mcp_config()."""
+    """测试 OpenHandsCloudWorkspace.get_mcp_config()。"""
 
     def test_get_mcp_config_returns_empty_when_no_config(self, mock_workspace):
-        """get_mcp_config returns empty dict when no MCP servers is set."""
+        """当未设置 MCP 服务器时，get_mcp_config 返回空字典。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "llm_model": "gpt-4o",
@@ -291,7 +291,7 @@ class TestGetMcpServers:
         assert mcp_config == {}
 
     def test_get_mcp_config_transforms_sse_servers(self, mock_workspace):
-        """get_mcp_config correctly transforms SSE servers."""
+        """get_mcp_config 正确转换 SSE 服务器。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -319,20 +319,20 @@ class TestGetMcpServers:
         servers = dump_mcp_config(mcp_config)
         assert len(servers) == 2
 
-        # First SSE server with API key
+        # 第一个具有 API 密钥的 SSE 服务器
         assert servers["sse_0"]["url"] == "https://sse.example.com/mcp"
         assert servers["sse_0"]["transport"] == "sse"
         sse_headers = servers["sse_0"]["headers"]
         assert isinstance(sse_headers, dict)
         assert sse_headers["Authorization"] == "Bearer sse-key-123"
 
-        # Second SSE server without API key
+        # 第二个 SSE 服务器没有 API 密钥
         assert servers["sse_1"]["url"] == "https://sse2.example.com/mcp"
         assert servers["sse_1"]["transport"] == "sse"
         assert "headers" not in servers["sse_1"]
 
     def test_get_mcp_config_transforms_shttp_servers(self, mock_workspace):
-        """get_mcp_config correctly transforms SHTTP servers."""
+        """get_mcp_config 正确转换 SHTTP 服务器。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -365,7 +365,7 @@ class TestGetMcpServers:
         assert servers["shttp_0"]["timeout"] == 120
 
     def test_get_mcp_config_transforms_stdio_servers(self, mock_workspace):
-        """get_mcp_config correctly transforms STDIO servers."""
+        """get_mcp_config 正确转换 STDIO 服务器。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -391,14 +391,14 @@ class TestGetMcpServers:
         servers = dump_mcp_config(mcp_config)
         assert len(servers) == 1
 
-        # STDIO servers use their explicit name
+        # STDIO 服务器使用其显式名称
         assert "my-stdio-server" in servers
         assert servers["my-stdio-server"]["command"] == "npx"
         assert servers["my-stdio-server"]["args"] == ["-y", "mcp-server-fetch"]
         assert servers["my-stdio-server"]["env"] == {"MY_VAR": "value"}
 
     def test_get_mcp_config_mixed_server_types(self, mock_workspace):
-        """get_mcp_config correctly handles mixed server types."""
+        """get_mcp_config 正确处理混合服务器类型。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -427,13 +427,13 @@ class TestGetMcpServers:
         assert "fetch" in servers
 
     def test_get_mcp_config_raises_when_no_sandbox(self, mock_workspace):
-        """get_mcp_config raises RuntimeError when sandbox is not running."""
+        """当沙箱未运行时，get_mcp_config 引发 RuntimeError。"""
         mock_workspace._sandbox_id = None
         with pytest.raises(RuntimeError, match="Sandbox is not running"):
             mock_workspace.get_mcp_config()
 
     def test_get_mcp_config_returns_empty_when_all_lists_empty(self, mock_workspace):
-        """get_mcp_config returns empty dict when all server lists are empty."""
+        """当所有服务器列表为空时，get_mcp_config 返回空字典。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -452,7 +452,7 @@ class TestGetMcpServers:
         assert mcp_config == {}
 
     def test_get_mcp_config_is_native_settings_compatible(self, mock_workspace):
-        """get_mcp_config returns a native SDK MCP server map."""
+        """get_mcp_config 返回本机 SDK MCP 服务器映射。"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "mcp_config": {
@@ -482,10 +482,10 @@ class TestGetMcpServers:
 
 
 class TestRetry:
-    """Tests for retry behaviour on get_llm and get_secrets."""
+    """测试 get_llm 和 get_secrets 上的重试行为。"""
 
     def test_get_llm_retries_on_server_error(self, mock_workspace):
-        """get_llm retries on 5xx and succeeds on the next attempt."""
+        """5xx 上的 get_llm 重试并在下一次尝试中成功。"""
         error_response = httpx.Response(
             status_code=502, request=httpx.Request("GET", "http://x")
         )
@@ -514,7 +514,7 @@ class TestRetry:
         assert llm.model == "gpt-4o"
 
     def test_get_llm_no_retry_on_client_error(self, mock_workspace):
-        """get_llm does NOT retry on 4xx errors."""
+        """get_llm 对 4xx 错误执行不重试。"""
         error_response = httpx.Response(
             status_code=401, request=httpx.Request("GET", "http://x")
         )
@@ -532,7 +532,7 @@ class TestRetry:
                 mock_workspace.get_llm()
 
     def test_get_secrets_retries_on_server_error(self, mock_workspace):
-        """_send_settings_request retries on 5xx for get_secrets."""
+        """get_secrets 的 5xx 上的 _send_settings_request 重试。"""
         ok_response = MagicMock()
         ok_response.json.return_value = {
             "secrets": [{"name": "TOK", "description": None}]
@@ -550,7 +550,7 @@ class TestRetry:
                 ),
                 ok_response,
             ]
-            # The first call raises on raise_for_status, second succeeds
+            # 第一个调用在 raise_for_status 上加注，第二个调用成功
             secrets = mock_workspace.get_secrets()
 
         assert "TOK" in secrets

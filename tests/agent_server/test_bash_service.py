@@ -1,4 +1,4 @@
-"""Tests for bash_service.py."""
+"""测试 bash_service.py。"""
 
 import asyncio
 import contextlib
@@ -69,7 +69,7 @@ async def test_bash_timeout_runs_sigterm_trap(
     assert resp.status_code == 200, resp.text
     cmd_id = UUID(resp.json()["id"])
 
-    # Wait for the timeout to fire and the process to be reaped.
+    # 等待超时触发并收获进程。
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
         items = (
@@ -101,7 +101,7 @@ posix_only = pytest.mark.skipif(
 async def _wait_for_command_exit(
     client: httpx.AsyncClient, cmd_id: UUID, deadline: float = 8.0
 ) -> list[dict]:
-    """Poll bash events until the command publishes a terminal output."""
+    """轮询 bash 事件，直到命令发布终端输出。"""
     end = time.monotonic() + deadline
     while time.monotonic() < end:
         items = (
@@ -136,8 +136,8 @@ async def test_stop_bash_command_terminates_group_and_records_output(
     assert resp.status_code == 200, resp.text
     cmd_id = resp.json()["id"]
 
-    # Wait until the shell has installed its TERM trap: stopping earlier
-    # would signal a shell that cannot run cleanup yet.
+    # 等待 shell 安装其 TERM 陷阱：提前停止将向 shell 发出尚无法运行清理的信号。
+    #
     ready_deadline = time.monotonic() + 10
     while not ready.exists():
         assert time.monotonic() < ready_deadline, "shell never became ready"
@@ -159,11 +159,10 @@ async def test_stop_bash_command_terminates_group_and_records_output(
 async def test_stop_bash_command_terminates_descendants(
     client: httpx.AsyncClient,
 ):
-    """A background child holding the pipes must die with the group.
+    """背景中拿着管子的孩子必须和队伍一起死。
 
-    With a pid-only kill the surviving child would keep stdout open and
-    the command would never publish a terminal output; only a process
-    group signal finishes promptly.
+    通过仅 pid 杀死，幸存的子进程将保持标准输出打开，并且该命令永远不会发布终端输出；
+     只有进程组信号立即完成。
     """
     resp = await client.post(
         "/api/bash/start_bash_command",
@@ -309,7 +308,7 @@ async def test_search_bash_events_filters_and_paginates(tmp_path: Path):
 
 
 async def test_search_bash_events_applies_order_gt_before_paging(tmp_path: Path):
-    """``order__gt`` must filter before ``limit`` cuts the page (#4388)."""
+    """``order__gt`` 必须在 ``limit`` 剪切页面之前进行过滤 (#4388)。"""
     service = BashEventService(bash_events_dir=tmp_path / "bash_events")
     command_id = uuid4()
     outputs = [
@@ -346,7 +345,7 @@ async def test_search_bash_events_applies_order_gt_before_paging(tmp_path: Path)
 
 
 async def test_search_bash_events_no_cursor_when_rest_is_filtered(tmp_path: Path):
-    """A full page whose remaining files are all filtered out has no cursor."""
+    """剩余文件全部被过滤掉的整页没有光标。"""
     service = BashEventService(bash_events_dir=tmp_path / "bash_events")
     command_id = uuid4()
     other_command_id = uuid4()
@@ -357,7 +356,7 @@ async def test_search_bash_events_no_cursor_when_rest_is_filtered(tmp_path: Path
         timestamp=_OLD.replace(microsecond=1),
     )
     service._save_event_to_file(target)
-    # Older chunks of another command sort after the target but are filtered.
+    # 另一个命令的较旧块在目标之后排序，但被过滤。
     for order in range(3):
         service._save_event_to_file(
             BashOutput(
@@ -420,8 +419,8 @@ async def test_concurrent_searches_serialize_filesystem_scans(tmp_path: Path):
         active += 1
         max_active = max(max_active, active)
         try:
-            # Keep the worker occupied long enough for all concurrent callers
-            # to queue on the async semaphore.
+            # 让工作线程保持足够长的占用时间，以便所有并发调用者在异步信号量上排队。
+            #
             time.sleep(0.02)
             return original_search(*args)
         finally:
@@ -495,7 +494,7 @@ def test_delete_events_older_than_returns_correct_count(tmp_path: Path):
 async def test_search_bash_events_timestamp_bounds_honor_utc_offset(
     tmp_path: Path,
 ):
-    """A +02:00 bound selects the same events as its UTC spelling."""
+    """+02:00 界限选择与其 UTC 拼写相同的事件。"""
     service = BashEventService(bash_events_dir=tmp_path / "bash_events")
     event = BashCommand(
         command="echo tz", timestamp=datetime(2021, 6, 1, 10, tzinfo=UTC)
@@ -509,14 +508,14 @@ async def test_search_bash_events_timestamp_bounds_honor_utc_offset(
         page = await service.search_bash_events(timestamp__gte=gte, timestamp__lt=lt)
         return [e.id for e in page.items]
 
-    # 11:00+02:00 is 09:00Z (before the event); 12:30+02:00 is 10:30Z (after).
+    # 11:00+02:00为09:00Z（活动前）； 12:30+02:00 为 10:30Z（之后）。
     before = datetime(2021, 6, 1, 11, tzinfo=plus_two)
     after = datetime(2021, 6, 1, 12, 30, tzinfo=plus_two)
     assert await search(gte=before) == [event.id]
     assert await search(lt=after) == [event.id]
     assert await search(gte=after) == []
     assert await search(lt=before) == []
-    # A naive bound is still read as UTC.
+    # 朴素边界仍然被读作 UTC。
     assert await search(gte=datetime(2021, 6, 1, 9)) == [event.id]
     assert await search(gte=datetime(2021, 6, 1, 11)) == []
 
@@ -530,17 +529,17 @@ async def test_search_bash_events_timestamp_bounds_honor_utc_offset(
 async def test_run_retention_cleanup_loop_purges_old_events(tmp_path: Path):
     service = BashEventService(bash_events_dir=tmp_path / "bash_events")
 
-    # Write an event whose recorded timestamp is well in the past.
+    # 编写一个事件，其记录的时间戳是很久以前的事情。
     service._save_event_to_file(BashCommand(command="echo old", timestamp=_OLD))
     assert len(service._get_event_files_by_pattern("*")) == 1
 
-    # Run the loop with a 1-second retention window and a 50 ms tick so
-    # the test doesn't have to wait for the default 60-second interval.
+    # 使用 1 秒保留窗口和 50 毫秒刻度运行循环，因此测试不必等待默认的 60 秒间隔。
+    #
     task = asyncio.create_task(
         service.run_retention_cleanup_loop(retention_seconds=1, interval_seconds=0.05)
     )
     try:
-        # Give the loop time to fire at least once.
+        # 给循环时间至少触发一次。
         await asyncio.sleep(0.15)
     finally:
         task.cancel()

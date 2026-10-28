@@ -1,9 +1,7 @@
-"""Builds :class:`DiagnosticEvent` objects.
+"""构建：class:`DiagnosticEvent` 对象。
 
-Centralising construction here means the runtime envelope, the pseudonym salt
-and the identity rules are decided in exactly one place, so a caller cannot
-accidentally assemble an event with a raw conversation id or an unbucketed
-count.
+集中在这里意味着运行时环境、伪名盐和身份规则都在一个地方决定，因此调用者无法意外地组
+装一个事件，使用原始对话ID或未桶化计数。
 """
 
 import sys
@@ -32,21 +30,21 @@ from openhands.sdk.utils import utc_now
 
 ANONYMOUS_PREFIX: Final[str] = "anon:"
 
-#: Optional request header carrying the caller's analytics identity. The
-#: frontend sets it (``posthog.get_distinct_id()``) so request-scoped activity
-#: — which has no conversation ``user_id`` — attributes to the same person.
+# ：可选的请求标头，携带调用者的分析身份。 : 前端将其设置为 (
+# ``posthog.get_distinct_id()``)，因此请求范围的活动：— 没有对话 ``user_id`` — 属性属于
+# 同一个人。
+#
 DISTINCT_ID_HEADER: Final[str] = "X-OpenHands-Telemetry-Distinct-Id"
 
 _MAX_DISTINCT_ID_LEN: Final[int] = 256
 
 
 def distinct_id_from_header(value: str | None) -> str | None:
-    """Coerce the ``X-OpenHands-Telemetry-Distinct-Id`` header, or ``None``.
+    """强制 ``X-OpenHands-Telemetry-Distinct-Id`` 标头或 ``None``。
 
-    Trusted the same way as ``user_id``: it becomes the analytics identity
-    verbatim. Bounded and stripped of control characters so a stray value can
-    neither exceed the schema's length limit nor smuggle newlines into a
-    profile; anything left empty falls back to the anonymous id.
+    与 ``user_id`` 一样受信任：它逐字成为分析身份。 有界并去除了控制字符，因此杂散值
+    既不能超过模式的长度限制，也不能将换行符偷偷带入配置文件中； 任何留空
+    的内容都会返回到匿名 ID。
     """
     if not value:
         return None
@@ -61,7 +59,7 @@ def _platform_token() -> str:
 
 
 def _python_version() -> str:
-    # Not sys.version: that carries compiler and build metadata.
+    # 不是 sys.version：携带编译器和构建元数据。
     return f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
@@ -70,9 +68,10 @@ def build_runtime_properties(
     deferred_init: bool,
     deployment_kind: DeploymentKind = "local",
 ) -> RuntimeProperties:
-    """Snapshot the coarse runtime facts shared by every event."""
-    # Versions and build metadata come from ServerInfo's own field defaults, so
-    # /server_info and telemetry can never disagree about what is running.
+    """快照每个事件共享的粗略运行时事实。"""
+    # 版本和构建元数据来自 ServerInfo 自己的字段默认值，因此 /server_info 和遥测永远不会
+    # 对正在运行的内容产生分歧。
+    #
     info = ServerInfo(uptime=0.0, idle_time=0.0)
     return RuntimeProperties(
         server_version=safe_version(info.version),
@@ -88,7 +87,7 @@ def build_runtime_properties(
 
 
 class DiagnosticEventFactory:
-    """Stamps the envelope onto sanitized per-event properties."""
+    """将信封标记到已清理的每个事件属性上。"""
 
     def __init__(
         self,
@@ -97,7 +96,7 @@ class DiagnosticEventFactory:
         salt: str | bytes | None = None,
     ) -> None:
         self._runtime = runtime
-        # Random fallback: stable within a run, unlinkable across runs.
+        # 随机回退方案：在运行中稳定，在运行之间不可链接。
         self._salt = salt if salt else uuid.uuid4().hex
         self._session_ref = uuid.uuid4().hex
 
@@ -110,11 +109,10 @@ class DiagnosticEventFactory:
         return self._runtime
 
     def conversation_ref(self, conversation_id: UUID | str) -> str:
-        """Keyed pseudonym for a conversation id.
+        """对话 ID 的键入假名。
 
-        Never the raw UUID: that value appears in URLs, logs and the hosting
-        product's database, so emitting it would make the analytics dataset
-        joinable back to an individual.
+        从不出现于 URLs 中的 UUID 值，不会出现在日志和托管产品的数据库中，因此输出该
+        值会使分析数据集能够回溯到个体。
         """
         raw = (
             conversation_id.bytes
@@ -124,13 +122,11 @@ class DiagnosticEventFactory:
         return pseudonymize(raw, self._salt)
 
     def distinct_id(self, user_id: str | None) -> str:
-        """Resolve the correlation identity.
+        """解析关联恒等式。
 
-        A deployment-supplied ``user_id`` is passed through verbatim so events
-        land on the person the host already identified. Absent one, an
-        in-memory per-process anonymous id is used — a restart yields a new
-        value, which under-counts local uniques rather than minting a
-        persistent identifier on someone's machine.
+        部署提供的 ``user_id`` 会逐字传递，因此事件会落在主机已识别的人员身上。 缺少
+        一个，就用内存中进程级的匿名ID —— 重启会得到一个新的值，这反
+        而低估了本地唯一值，而不是在某人的机器上创建一个持久ID。
         """
         if user_id and user_id.strip():
             return user_id.strip()[:256]

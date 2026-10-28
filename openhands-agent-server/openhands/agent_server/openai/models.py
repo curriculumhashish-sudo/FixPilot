@@ -1,4 +1,4 @@
-"""Models for the OpenAI-compatible agent-server gateway."""
+"""OpenAI 兼容智能体服务器网关的模型。"""
 
 from typing import Literal
 

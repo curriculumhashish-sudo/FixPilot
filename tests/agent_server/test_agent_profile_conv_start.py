@@ -1,10 +1,10 @@
-"""Conversation start from each agent source, through resolve and finalize.
+"""对话从每个智能体源开始，通过解析和完成。
 
-Covers:
-- the agent-source rules of ``StartConversationRequest``
-- profile, inline-profile, agent_settings and raw-agent launches in the service
-- unknown-id 404 / dangling-ref 422 / store 5xx (router layer)
-- LaunchedAgentProfile provenance round-trip through StoredConversation
+涵盖：
+- ``StartConversationRequest`` 的智能体-源规则
+- profile、inline-profile、agent_settings 和 raw-智能体在服务中启动
+- 未知 id 404 / 悬挂引用 422 / 存储 5xx （路由器层）
+- LaunchedAgentProfile 出处往返 StoredConversation
 """
 
 from __future__ import annotations
@@ -59,13 +59,13 @@ from tests.sdk.launch import fakes
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# 测试夹具
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 def client():
-    """TestClient with no auth — conversations router only."""
+    """TestClient 不带身份验证 — 仅用于对话路由器。"""
     app = FastAPI()
     app.include_router(conversation_router, prefix="/api")
     app.state.config = Config(
@@ -130,7 +130,7 @@ async def _start(
     persisted: PersistedSettings | None = None,
     browser: bool = False,
 ) -> tuple[StoredConversation, LaunchedAgent]:
-    """Start ``request`` through the real pipeline; return what reached the service."""
+    """通过真实管道开始``request``； 返回到达服务的内容。"""
     captured: dict[str, Any] = {}
 
     async def capture_start(stored, **kwargs):
@@ -179,8 +179,9 @@ _MEMORY_OFF = [
         ),
         id="preference-off",
     ),
-    # An ACP-kind settings record leaves ``agent_context`` null until something
-    # writes to it, so the read must tolerate its absence.
+    # ACP 类型的设置记录会离开 ``agent_context`` null，直到有数据写入它，因此读取必须容
+    # 忍它的缺失。
+    #
     pytest.param(
         PersistedSettings(agent_settings=ACPAgentSettings()),
         id="stored-settings-without-agent-context",
@@ -189,7 +190,7 @@ _MEMORY_OFF = [
 
 
 # ---------------------------------------------------------------------------
-# SDK-layer: agent sources (StartConversationRequest)
+# SDK层：智能体源(StartConversationRequest)
 # ---------------------------------------------------------------------------
 
 
@@ -274,7 +275,7 @@ class TestStartConversationRequestValidation:
             )
 
     def test_agent_profile_id_present_in_request_payload(self):
-        """agent_profile_id must survive model_dump() for HTTP transport."""
+        """agent_profile_id 必须在 model_dump() 中生存 HTTP 传输层。"""
         profile_id = uuid4()
         req = StartConversationRequest(
             agent_profile_id=profile_id,
@@ -286,7 +287,7 @@ class TestStartConversationRequestValidation:
 
 
 # ---------------------------------------------------------------------------
-# Service-layer: profile launches
+# 服务层：配置文件启动
 # ---------------------------------------------------------------------------
 
 
@@ -330,7 +331,7 @@ class TestProfileLaunch:
 
     @pytest.mark.asyncio
     async def test_the_profile_llm_streams(self, tmp_path):
-        """A client cannot set llm.stream on a profile's referenced LLM (#4014)."""
+        """客户端无法在配置文件引用的 LLM 上设置 llm.stream (#4014)。"""
         profile = _make_openhands_profile()
         stored_llm = fakes.llm(stream=False)
 
@@ -415,7 +416,7 @@ class TestProfileLaunch:
     async def test_this_runtime_decides_the_acp_skill_catalog(
         self, tmp_path, sourcing, expected
     ):
-        """The catalog is always resolved; the runtime's sourcing keeps or drops it."""
+        """目录总是被解析； 运行时的来源保留或删除它。"""
         profile = _make_acp_profile()
         stores = fakes.stores(profile, skills=[Skill(name="managed", content="x")])
         request = _profile_request(tmp_path, profile)
@@ -479,7 +480,7 @@ class TestProfileLaunch:
     async def test_a_profile_launch_inherits_the_memory_preference(
         self, tmp_path, agent_kind
     ):
-        """Persistent memory is a global preference the profile cannot carry."""
+        """持久内存是配置文件无法携带的全局首选项。"""
         profile = (
             _make_acp_profile() if agent_kind == "acp" else _make_openhands_profile()
         )
@@ -513,7 +514,7 @@ class TestProfileLaunch:
 
 
 # ---------------------------------------------------------------------------
-# Service-layer: agent_settings and raw agent launches
+# 服务层：agent_settings 和原始智能体启动
 # ---------------------------------------------------------------------------
 
 
@@ -647,7 +648,7 @@ class TestDirectAgentLaunch:
 
 
 # ---------------------------------------------------------------------------
-# Router-layer: HTTP error mapping
+# 路由器层：HTTP错误映射
 # ---------------------------------------------------------------------------
 
 
@@ -706,18 +707,19 @@ class TestConversationRouterProfileErrors:
         )
         assert resp.status_code == status
 
-    # No dangling-skill 422: skills use a deny-list (disabled_skills) that can't
-    # dangle — a disabled name absent from the catalog is a no-op (#4017).
+    # 无悬挂技能 422：技能使用不能悬挂的拒绝列表 (disabled_skills) - 目录中缺少的禁用名
+    # 称是无操作 (#4017)。
+    #
 
 
 # ---------------------------------------------------------------------------
-# Provenance round-trip: LaunchedAgentProfile survives serialization
+# 出处往返：LaunchedAgentProfile 幸存序列化
 # ---------------------------------------------------------------------------
 
 
 class TestLaunchedAgentProfileRoundTrip:
     def test_launched_agent_profile_survives_stored_conversation_round_trip(self):
-        """LaunchedAgentProfile survives model_dump/model_validate round-trip."""
+        """LaunchedAgentProfile 在 model_dump/model_validate 往返中幸存。"""
         profile_id = uuid4()
         lp = LaunchedAgentProfile(agent_profile_id=profile_id, revision=7)
         stored = StoredConversation(
@@ -744,22 +746,23 @@ class TestLaunchedAgentProfileRoundTrip:
         assert stored.launched_agent_profile is None
 
     def test_agent_profile_id_excluded_from_stored_conversation_persistence(self):
-        """Regression: agent_profile_id must NOT appear in StoredConversation payload.
+        """Regression: agent_profile_id 必须不出现在 StoredConversation  载荷。
 
-        StartConversationRequest.model_dump() includes agent_profile_id for HTTP
-        transport.  _start_conversation excludes it before building StoredConversation
-        (the field is resolved into launched_agent_profile); this test verifies that a
-        StoredConversation built from a resolved request contains neither the raw
-        profile UUID nor re-exposes it.
+        StartConversationRequest.model_dump() 包括 agent_profile_id 和 HTTP 传输层。
+        _start_conversation 在构建 StoredConversation 之前排除它（该字段被解析为
+        launched_agent_profile）； 此测试验证根据已解析请求构建的 StoredConversation
+        既不包含原始配置文件 UUID，也不
+        重新公开它。
         """
         profile_id = uuid4()
-        # Simulate the resolved state: agent is set, agent_profile_id excluded.
+        # 模拟已解决的状态：设置智能体，排除 agent_profile_id。
         request = StartConversationRequest(
             agent_profile_id=profile_id,
             workspace=LocalWorkspace(working_dir="/tmp"),
         )
-        # Mirror what _start_conversation does: exclude agent_profile_id from
-        # the persistence payload before constructing StoredConversation.
+        # 镜像 _start_conversation 的作用：在构建 StoredConversation 之前从持久化载荷中
+        # 排除 agent_profile_id。
+        #
         request_data = request.model_dump(mode="json", exclude={"agent_profile_id"})
         agent = _make_agent()
         request_data["agent"] = agent.model_dump(mode="json")
@@ -797,7 +800,7 @@ class TestLaunchedAgentProfileRoundTrip:
         assert info.launched_agent_profile is None
 
     def test_launched_agent_profile_survives_json_serialization(self, tmp_path):
-        """Simulate meta.json round-trip: dump → write → read → validate."""
+        """模拟meta.json往返：转储→写入→读取→验证。"""
         profile_id = uuid4()
         lp = LaunchedAgentProfile(agent_profile_id=profile_id, revision=5)
         stored = StoredConversation(
@@ -815,7 +818,7 @@ class TestLaunchedAgentProfileRoundTrip:
 
 
 class TestProfileSecretScope:
-    """``secret_refs`` narrows a launch's secrets, enforced server-side (#17236)."""
+    """``secret_refs`` 缩小了启动的机密，强制服务器端 (#17236)。"""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -831,7 +834,7 @@ class TestProfileSecretScope:
     async def test_start_conversation_drops_secrets_the_profile_disallows(
         self, tmp_path, secret_refs, expected
     ):
-        """The filter runs on the request, so a client cannot widen the scope."""
+        """过滤器根据请求运行，因此客户端无法扩大范围。"""
         profile = _make_openhands_profile(secret_refs=secret_refs)
         request = _profile_request(
             tmp_path,
@@ -850,7 +853,7 @@ class TestProfileSecretScope:
     async def test_a_scoped_acp_profile_gets_no_implicit_provider_credentials(
         self, tmp_path
     ):
-        # Strict: an ACP profile must list its own credential to receive it.
+        # 严格：ACP 配置文件必须列出自己的凭据才能接收它。
         profile = _make_acp_profile(secret_refs=[])
         request = _profile_request(
             tmp_path,

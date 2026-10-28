@@ -1,9 +1,8 @@
-"""The durable event a stream produces carries the id that stream minted.
+"""流产生的持久事件带有流创建的 id。
 
-Both :class:`Agent` entry points: the sync path streams too, so an async-only
-fix would cover half the problem.
+:class:`Agent` 入口：同步路径也会流，因此仅异步的修复可以解决一半问题。
 
-See https://github.com/OpenHands/software-agent-sdk/issues/4682.
+参见 https://github.com/OpenHands/software-agent-sdk/issues/4682.
 """
 
 from collections.abc import Sequence
@@ -68,7 +67,7 @@ register_tool("EchoStreamTool", _StreamEchoTool)
 
 
 class StreamingTestLLM(TestLLM):
-    """A ``TestLLM`` that emits the scripted text as chunks first."""
+    """首先将脚本文本作为块发出的 ``TestLLM``。"""
 
     _chunks: list[str] = PrivateAttr(default_factory=list)
     _raises: BaseException | None = PrivateAttr(default=None)
@@ -105,7 +104,7 @@ class StreamingTestLLM(TestLLM):
         return super().completion(messages, tools=tools, **kwargs)
 
     async def acompletion(self, messages, tools=None, on_token=None, **kwargs):  # type: ignore[override]
-        # TestLLM.acompletion drops on_token, so stream here instead.
+        # TestLLM.acompletion 删除了 on_token，因此改为在此处进行流式传输。
         self._stream(on_token)
         if self._raises is not None:
             raise self._raises
@@ -149,7 +148,7 @@ def test_the_message_carries_the_id_its_stream_minted(tmp_path):
         "Hello ",
         "there",
     ]
-    # Retired by the durable event, so no abort.
+    # 由于持久事件而退出，因此不会中止。
     assert not any(isinstance(f, StreamAborted) for f in frames)
 
 
@@ -171,7 +170,7 @@ async def test_astep_mints_the_same_way(tmp_path):
 
 
 def test_a_tool_call_turn_retires_the_slot_on_its_first_action(tmp_path):
-    """The streamed text is that action's thought, so the action closes it."""
+    """流式文本是该操作的想法，因此该操作将其关闭。"""
     frames: list = []
     llm = _llm(
         [
@@ -252,7 +251,7 @@ def test_a_provider_failure_retires_the_slot_with_an_abort(tmp_path):
 
 
 def test_a_persistence_failure_after_streaming_retires_the_slot(tmp_path):
-    """The id is handed out before the event is emitted; emitting can raise."""
+    """id 在事件发出之前分发； 发射可以提高。"""
     frames: list = []
     llm = _llm(
         [Message(role="assistant", content=[TextContent(text="hello there")])],
@@ -274,7 +273,7 @@ def test_a_persistence_failure_after_streaming_retires_the_slot(tmp_path):
 
 
 def test_no_stream_consumer_leaves_the_llm_free_to_skip_streaming(tmp_path):
-    """Without a consumer the agent must not force a streaming completion."""
+    """如果没有消费者，智能体不得强制流式传输完成。"""
     llm = _llm([Message(role="assistant", content=[TextContent(text="hi")])], ["hi"])
     agent = Agent(llm=llm, tools=[])
     convo = LocalConversation(
@@ -291,7 +290,7 @@ def test_no_stream_consumer_leaves_the_llm_free_to_skip_streaming(tmp_path):
 
 
 def test_a_step_that_never_reaches_the_provider_opens_nothing(tmp_path):
-    """No LLM call, no slot — so there is nothing to abort."""
+    """没有 LLM 调用，没有槽——所以没有什么可以中止的。"""
     frames: list = []
     llm = _llm([Message(role="assistant", content=[TextContent(text="hi")])], [])
     convo = _conversation(tmp_path, llm, frames)
@@ -302,10 +301,9 @@ def test_a_step_that_never_reaches_the_provider_opens_nothing(tmp_path):
 
 
 def test_a_resolved_secret_is_masked_in_the_deltas(tmp_path):
-    """The LLM stream path masked nothing before this; it does now.
+    """LLM 流路径在此之前没有任何屏蔽； 现在确实如此。
 
-    Only already-resolved values are masked. A secret that can reach the
-    model's output was exported for a command first, which resolves it.
+    仅屏蔽已经解析的值。 首先导出可以到达模型输出的机密以用于命令，从而解决该问题。
     """
     frames: list = []
     llm = _llm(
@@ -314,7 +312,7 @@ def test_a_resolved_secret_is_masked_in_the_deltas(tmp_path):
     )
     convo = _conversation(tmp_path, llm, frames)
     convo.state.secret_registry.update_secrets({"TOKEN": "hunter2"})
-    # Resolution happens when a command references the name.
+    # 当命令引用该名称时，就会发生解析。
     convo.state.secret_registry.get_secrets_as_env_vars("echo $TOKEN")
 
     convo.agent.step(convo, on_event=lambda _: None)

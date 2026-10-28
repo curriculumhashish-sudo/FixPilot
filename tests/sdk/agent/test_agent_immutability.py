@@ -1,4 +1,4 @@
-"""Tests for the Agent immutability contract."""
+"""测试智能体不变性合约。"""
 
 import pytest
 from pydantic import ValidationError

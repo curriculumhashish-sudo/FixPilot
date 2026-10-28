@@ -44,7 +44,7 @@ ACP_INSTALL_CATALOG_PY = (
 
 
 def test_server_workflow_passes_git_metadata_build_args() -> None:
-    """The published agent-server images should embed git metadata."""
+    """发布的智能体-服务器镜像应嵌入 git 元数据。"""
     workflow_text = SERVER_WORKFLOW.read_text(encoding="utf-8")
 
     assert "OPENHANDS_BUILD_GIT_SHA=${{ env.SDK_SHA }}" in workflow_text
@@ -52,10 +52,10 @@ def test_server_workflow_passes_git_metadata_build_args() -> None:
 
 
 def test_server_workflow_contains_install_acp_providers_expression() -> None:
-    """Regression guard for the exact wording of the INSTALL_ACP_PROVIDERS env
-    line. This only proves the known-good string is present, not that it
-    evaluates correctly in GitHub Actions — see
-    test_and_or_shape_preserves_falsy_last_operand for the semantic proof.
+    """回归保护 INSTALL_ACP_PROVIDERS 环境的确切措辞
+    线。 这仅证明已知良好的字符串存在，而不是证明它在 GitHub 操作中正确评估 - 有关语
+    义证明，请参阅
+    test_and_or_shape_preserves_falsy_last_operand。
     """
     workflow_text = SERVER_WORKFLOW.read_text(encoding="utf-8")
 
@@ -66,12 +66,10 @@ def test_server_workflow_contains_install_acp_providers_expression() -> None:
 
 
 def test_server_workflow_contains_install_capabilities_expression() -> None:
-    """Regression guard for the exact wording of the INSTALL_CAPABILITIES env
-    line. This only proves the known-good string is present, not that it
-    evaluates correctly in GitHub Actions — see
-    test_and_or_shape_preserves_falsy_last_operand for the semantic proof
-    (the shape is identical to INSTALL_ACP_PROVIDERS, just a different
-    default/input pair).
+    """回归保护 INSTALL_CAPABILITIES 环境的确切措辞
+    线。 这仅证明了已知好的字符串存在，而不是它在GitHub操作中正确评估——请参阅
+    test_and_or_shape_preserves_falsy_last_op
+    erand以获取语义证明（形状与INSTALL_ACP_PROVIDERS相同，只是不同的默认/输入对）。
     """
     workflow_text = SERVER_WORKFLOW.read_text(encoding="utf-8")
 
@@ -82,16 +80,16 @@ def test_server_workflow_contains_install_capabilities_expression() -> None:
 
 
 def test_and_or_shape_preserves_falsy_last_operand() -> None:
-    """GitHub Actions' `&&`/`||` share Python's `and`/`or` short-circuit
-    value-return semantics (return an operand, not a coerced bool), so this
-    exercises the exact `A && B || C` shape the workflow expression uses.
+    """GitHub 动作的 `&&`/`||` 共享 Python 的 `and`/`or` 短路
+    值返回语义（返回操作数，而不是强制的布尔值），因此这练习了工作流表达式使用的确切
+    `A && B || C` 形状。
 
-    A prior version put the maybe-empty dispatch value in B's position:
-    `event_name == 'workflow_dispatch' && inputs.value || default`. That
-    collapses to `default` whenever `inputs.value` is falsy (e.g. an
-    intentional ""), because the trailing `|| default` fires again. Putting
-    the maybe-empty value last, gated by the negated condition, avoids the
-    second collapse since there is nothing after it to fall through to.
+    之前的版本将可能为空的调度值放在 B 的位置：
+    `event_name == 'workflow_dispatch' && inputs.value || default`. 这就变成了
+    `default` 每当
+     `inputs.value` 是假的吗e.g. 一个有意的），因为尾随的 `|| default` 火灾了。 将可
+     能为空的值放在最后，由否定条件控制，可以避免第二
+    次崩溃，因为在它之后没有任何东西可以陷入。
     """
 
     def resolve(is_dispatch: bool, dispatch_value: str) -> str:
@@ -110,7 +108,7 @@ def test_and_or_shape_preserves_falsy_last_operand() -> None:
 
 
 def test_agent_server_binary_copies_openhands_distribution_metadata() -> None:
-    """The frozen binary should preserve OpenHands package metadata."""
+    """冻结的二进制文件应保留 OpenHands 包元数据。"""
     spec_text = AGENT_SERVER_SPEC.read_text(encoding="utf-8")
 
     for distribution in (
@@ -123,24 +121,28 @@ def test_agent_server_binary_copies_openhands_distribution_metadata() -> None:
 
 
 def test_agent_server_binary_collects_plugin_format_schemas() -> None:
-    """Frozen agent-server must ship plugin/MCP JSON schemas next to the module.
+    """Frozen 智能体-服务器必须在模块旁边提供插件/MCP JSON 模式。
 
-    ``openhands.sdk.plugin.format.base._load_schema`` reads
-    ``schemas/*.json`` via ``Path(__file__).parent / "schemas"``. The schemas
-    are in the SDK wheel, but the published ``*-python`` image builds from an
-    sdist governed by ``MANIFEST.in``, then PyInstaller only packs what
-    ``agent-server.spec`` explicitly ``collect_data_files``. Both layers are
-    required — without either, the onefile binary raises FileNotFoundError for
-    ``plugin-1.0.0.schema.json`` at SETTING_UP_SKILLS
-    (OpenHands/OpenHands#18418 / software-agent-sdk#5989).
+    ``openhands.sdk.plugin.format.base._load_schema`` 读取
+    ``schemas/*.json`` 通过 ``Path(__file__).parent / "schemas"``。 模式在 SDK 轮子中
+    ，但是发布的
+    ``*-python`` 图像是从 ``MANIFEST.in`` 控制的 sdist 构建的，然后 PyInstaller 只打
+    包什么
+    ``agent-server.spec``明确``collect_data_files``。 这两层都是必需的——没有任何一层
+    ，onefile 二进制文件将引发
+    FileNotFoundError
+    ``plugin-1.0.0.schema.json`` 位于 SETTING_UP_SKILLS（OpenHands/OpenHands#18418 /
+    软件-智
+    能体-SDK#5989）。
     """
     package = "openhands.sdk.plugin.format"
     schema_names = sorted(p.name for p in PLUGIN_FORMAT_SCHEMAS_DIR.glob("*.json"))
     assert schema_names == ["mcp-1.0.0.schema.json", "plugin-1.0.0.schema.json"]
 
-    # Build context for ghcr.io/openhands/agent-server:*-python comes from the
-    # workspace sdist (see docker/build.py::_make_build_context). MANIFEST.in
-    # must include the schemas or collect_data_files matches nothing in-image.
+    # 上下文版本 ghcr.io/openhands/agent-server:*-Python 来自工作区 sdist（见 docker/
+    # build.py::_make_build_context）。 MANIFEST.in 必须包含模式或 collect_data_files 匹
+    # 配无图像。
+    #
     manifest_text = MANIFEST_IN.read_text(encoding="utf-8")
     assert "recursive-include openhands-sdk schemas/*.json" in manifest_text
 
@@ -154,8 +156,8 @@ def test_agent_server_binary_collects_plugin_format_schemas() -> None:
 
 
 def _spec_collected_datas(package: str) -> set[tuple[str, str]]:
-    """Resolve the spec's ``collect_data_files(package, ...)`` calls as
-    PyInstaller would, returning ``(file name, bundle dir)`` pairs."""
+    """将规范的 ``collect_data_files(package, ...)`` 调用解析为
+    PyInstaller 会，返回 ``(file name, bundle dir)`` 对。"""
     tree = ast.parse(AGENT_SERVER_SPEC.read_text(encoding="utf-8"))
     bundled: set[tuple[str, str]] = set()
     for node in ast.walk(tree):
@@ -240,8 +242,8 @@ def test_agent_server_uses_one_pinned_npm_version_for_both_node_runtimes() -> No
 
 
 def test_agent_server_dockerfile_has_no_hardcoded_acp_packages() -> None:
-    """The acp-providers stage must resolve packages/versions from the
-    dependency-free catalog at build time, not from Dockerfile-baked arms.
+    """ACP-providers 阶段必须解析来自
+    构建时的无依赖目录，而不是来自 Dockerfile 烘焙的手臂。
     """
     dockerfile_text = AGENT_SERVER_DOCKERFILE.read_text(encoding="utf-8")
     acp_stage = dockerfile_text.partition("FROM python:3.13-bookworm AS acp-providers")[
@@ -261,12 +263,11 @@ def test_agent_server_dockerfile_has_no_hardcoded_acp_packages() -> None:
 
 
 def test_agent_server_node_pin_clears_every_declared_engine_floor() -> None:
-    """The acp-providers stage installs every selected provider under one Node,
-    so its pin must satisfy the highest `engines.node` any of them declares.
+    """ACP-providers 阶段将每个选定的提供程序安装在一个节点下，
+    因此它的引脚必须满足它们声明的最高`engines.node`。
 
-    Below the floor a CLI can still *start* and fail much later inside its own
-    dependencies, so npm's EBADENGINE warning is the only build-time signal —
-    and warnings do not fail a build.
+    在地板下面，CLI仍然*可以启动*，但失败可能发生在其依赖项内部，因此npm的EBADENGINE
+    警告是唯一的时间内信号——警告不会阻止构建。
     """
     dockerfile_text = AGENT_SERVER_DOCKERFILE.read_text(encoding="utf-8")
     match = re.search(r"nodejs\.org/dist/v(\d+\.\d+\.\d+)/", dockerfile_text)
@@ -291,18 +292,17 @@ def test_agent_server_dockerfile_acp_stage_uses_install_catalog() -> None:
         "/tmp/acp_install_catalog.py" in dockerfile_text
     )
     assert "python3 /tmp/acp_install_catalog.py" in dockerfile_text
-    # The COPY path above is relative to the build context root; confirm it
-    # actually resolves, matching the relpath build.py stages for the
-    # empty-context `base-image-minimal` fast path.
+    # 上面的COPY路径是相对于build上下文根的； 确认它确实解析，匹配空-上下文
+    # `base-image-minimal` 快速路径的 relpath build.py 阶段。
+    #
     assert ACP_INSTALL_CATALOG_PY.is_file()
 
 
 def test_default_preinstalled_acp_providers_matches_dockerfile_and_workflow() -> None:
-    """DEFAULT_PREINSTALLED_ACP_PROVIDERS is the single source for the
-    default `INSTALL_ACP_PROVIDERS` value baked into the Dockerfile ARG and
-    the server workflow's non-dispatch default; both are plain text (a
-    Dockerfile/workflow can't import Python), so this guards them from
-    drifting apart.
+    """DEFAULT_PREINSTALLED_ACP_PROVIDERS 是单一来源
+    默认 `INSTALL_ACP_PROVIDERS` 值融入 Dockerfile ARG 和服务器工作流程的非调度默认值
+    ； 两者都是纯文本（Dockerfile/
+    工作流无法导入 Python），因此这可以防止它们分开。
     """
     default_csv = ",".join(DEFAULT_PREINSTALLED_ACP_PROVIDERS)
     assert default_csv == "claude-code,codex,gemini-cli"

@@ -1,4 +1,4 @@
-"""Run with uv run python .pr/verify_store_responsiveness.py RUN_DIR."""
+"""使用 uv run Python .pr/verify_store_responsiveness.py RUN_DIR 运行。"""
 
 import json
 import subprocess

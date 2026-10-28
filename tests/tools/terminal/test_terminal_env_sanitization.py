@@ -1,4 +1,4 @@
-"""Agent terminals must not expose credentials stripped by ``sanitized_env``."""
+"""智能体端子不得暴露被 ``sanitized_env`` 剥去的凭据。"""
 
 import tempfile
 

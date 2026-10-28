@@ -1,4 +1,4 @@
-"""Tests for absolute path support in system_prompt_filename."""
+"""测试 system_prompt_filename 中的绝对路径支持。"""
 
 import os
 import tempfile
@@ -12,10 +12,10 @@ from openhands.sdk.llm import LLM
 
 
 def test_render_template_with_relative_path():
-    """Test that render_template resolves a relative name against prompt_dir.
+    """测试 render_template 是否解析相对于 prompt_dir 的相对名称。
 
-    The built-in .j2 templates were ported into the prompt registry, so this uses a
-    throwaway template in a temp dir to exercise relative-path resolution.
+    内置 .j2 模板已移植到提示词注册表中，因此在临时目录中使用一次性模板来执行相对路径
+    解析。
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         template_name = "relative_template.j2"
@@ -32,29 +32,29 @@ def test_render_template_with_relative_path():
 
 
 def test_render_template_with_absolute_path():
-    """Test that render_template works with absolute paths."""
-    # Create a temporary template file
+    """测试 render_template 是否适用于绝对路径。"""
+    # 创建临时模板文件
     with tempfile.NamedTemporaryFile(mode="w", suffix=".j2", delete=False) as tmp_file:
         tmp_file.write("Hello {{ name }}! This is a test template.")
         tmp_path = tmp_file.name
 
     try:
-        # Render using absolute path
+        # 使用绝对路径渲染
         result = render_template(
-            prompt_dir="/unused/dir",  # This should be ignored for absolute paths
+            prompt_dir="/unused/dir",  # 对于绝对路径，应忽略这一点
             template_name=tmp_path,
             name="World",
         )
 
         assert result == "Hello World! This is a test template."
     finally:
-        # Clean up
+        # 清理
         os.unlink(tmp_path)
 
 
 def test_agent_with_absolute_system_prompt_path():
-    """Test that Agent can use an absolute path for system_prompt_filename."""
-    # Create a temporary template file
+    """测试智能体是否可以使用 system_prompt_filename 的绝对路径。"""
+    # 创建临时模板文件
     with tempfile.NamedTemporaryFile(mode="w", suffix=".j2", delete=False) as tmp_file:
         tmp_file.write(
             "You are a test assistant. CLI mode: {{ cli_mode|default(false) }}"
@@ -66,7 +66,7 @@ def test_agent_with_absolute_system_prompt_path():
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
 
-        # Create agent with absolute path to system prompt
+        # 使用系统提示词的绝对路径创建智能体
         agent = Agent(
             llm=llm,
             tools=[],
@@ -74,38 +74,38 @@ def test_agent_with_absolute_system_prompt_path():
             system_prompt_kwargs={"cli_mode": True},
         )
 
-        # Get system message
+        # 获取系统消息
         system_message = agent.static_system_message
 
-        # Verify the message was rendered correctly
+        # 验证消息是否正确呈现
         assert "You are a test assistant" in system_message
         assert "CLI mode: True" in system_message
     finally:
-        # Clean up
+        # 清理
         os.unlink(tmp_path)
 
 
 def test_agent_with_relative_system_prompt_path():
-    """Test that Agent still works with relative paths (backward compatibility)."""
+    """测试智能体是否仍然适用于相对路径 (向后兼容性)。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
 
-    # Create agent with default relative path
+    # 使用默认相对路径创建智能体
     agent = Agent(
         llm=llm,
         tools=[],
-        system_prompt_filename="system_prompt.j2",  # Relative path
+        system_prompt_filename="system_prompt.j2",  # 相对路径
     )
 
-    # Get system message
+    # 获取系统消息
     system_message = agent.static_system_message
 
-    # Verify the message was rendered correctly
+    # 验证消息是否正确呈现
     assert isinstance(system_message, str)
     assert len(system_message) > 0
 
 
 def test_render_template_with_nonexistent_absolute_path():
-    """Test render_template raises error for nonexistent absolute path."""  # noqa: E501
+    """测试 render_template 因绝对路径不存在而引发错误。"""  # noqa: E501
     nonexistent_path = "/nonexistent/directory/template.j2"
 
     with pytest.raises(FileNotFoundError, match="Prompt file"):
@@ -117,7 +117,7 @@ def test_render_template_with_nonexistent_absolute_path():
 
 
 def test_render_template_with_nonexistent_relative_path():
-    """Test render_template raises error for nonexistent relative path."""  # noqa: E501
+    """测试 render_template 因相对路径不存在而引发错误。"""  # noqa: E501
     with tempfile.TemporaryDirectory() as tmp_dir:
         with pytest.raises(FileNotFoundError, match="Prompt file"):
             render_template(

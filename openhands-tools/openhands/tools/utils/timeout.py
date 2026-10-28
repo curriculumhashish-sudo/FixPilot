@@ -2,7 +2,7 @@ from func_timeout import FunctionTimedOut, func_timeout
 
 
 class TimeoutError(Exception):
-    """Generic SDK Tool TimeoutError (wraps func-timeout)."""
+    """通用 SDK 工具 TimeoutError（包装 func-超时）。"""
 
     pass
 

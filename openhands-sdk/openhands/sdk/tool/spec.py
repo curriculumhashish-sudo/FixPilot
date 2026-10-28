@@ -10,9 +10,9 @@ from pydantic import (
 
 
 class Tool(BaseModel):
-    """Defines a tool to be initialized for the agent.
+    """定义要为智能体初始化的工具。
 
-    This is only used in agent-sdk for type schema for server use.
+    这仅在智能体-SDK 中用于服务器使用的类型模式。
     """
 
     name: str = Field(
@@ -33,7 +33,7 @@ class Tool(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        """Validate that name is not empty."""
+        """验证该名称不为空。"""
         if not v or not v.strip():
             raise ValueError("Tool name cannot be empty")
         return v
@@ -41,14 +41,14 @@ class Tool(BaseModel):
     @field_validator("params", mode="before")
     @classmethod
     def validate_params(cls, v: dict[str, Any] | None) -> dict[str, Any]:
-        """Convert None params to empty dict."""
+        """将 None 参数转换为空字典。"""
         return v if v is not None else {}
 
     @field_serializer("params")
     def _serialize_params(
         self, params: dict[str, Any], info: SerializationInfo
     ) -> dict[str, Any]:
-        """Serialize Pydantic response schemas as JSON Schema."""
+        """序列化 Pydantic 响应模式为 JSON 模式。"""
         response_schema = params.get("response_schema")
         if info.mode != "json" or not (
             isinstance(response_schema, type) and issubclass(response_schema, BaseModel)

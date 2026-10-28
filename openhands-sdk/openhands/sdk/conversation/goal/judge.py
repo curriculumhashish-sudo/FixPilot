@@ -1,9 +1,9 @@
-"""LLM judge that decides whether a ``/goal`` objective is complete.
+"""LLM 判断，决定 ``/goal`` 目标是否完成。
 
-This is the reusable kernel of the goal feature: a pure
-``objective + transcript -> verdict`` evaluator with no dependency on the
-critic machinery. The ``/goal`` runner uses it to drive continuation, but it
-can equally back a status command, a stop hook, or a server endpoint.
+这是目标功能的可重用内核：一个纯粹的
+``objective + transcript -> verdict`` 不依赖于批评者机制的评估者。 ``/goal`` 运行程序
+使用它来驱动继续，但它同样可以支持状态
+命令、停止挂钩或服务器端点。
 """
 
 import contextlib
@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 
 
 class GoalVerdict(BaseModel):
-    """The judge's verdict on whether the objective is complete."""
+    """法官对目标是否完成的判断。"""
 
     score: float = Field(
         ge=0.0,
@@ -44,30 +44,29 @@ class GoalVerdict(BaseModel):
 
 
 def judge_goal(judge_llm: LLM, objective: str, events: Sequence[Event]) -> GoalVerdict:
-    """Audit the transcript and decide whether ``objective`` is complete.
+    """审核成绩单并确定 ``objective`` 是否完整。
 
     Args:
-        judge_llm: The second LLM that grades completion.
-        objective: The goal to audit against.
-        events: Conversation events (non-LLM events are ignored).
+        judge_llm: 第二个 LLM 表示完成度。
+        objective: 审计目标。
+        events: 对话事件（非 LLM 事件将被忽略）。
 
     Returns:
-        A GoalVerdict. On a judge response that cannot be parsed, returns a
-        conservative low score so the caller keeps working rather than
-        falsely finishing.
+        A GoalVerdict. 对于无法解析的判断响应，返回保守的低分，以便调用者继续工作而不
+        是错误地完成。
     """
     convertible = [e for e in events if isinstance(e, LLMConvertibleEvent)]
     transcript = _render_transcript(convertible)
     system_prompt = JUDGE_SYSTEM_PROMPT
     user_prompt = JUDGE_USER_PROMPT.format(objective=objective, transcript=transcript)
 
-    # The judge only needs the verdict text. Force non-streaming so reusing a
-    # streaming agent LLM as the judge does not trip completion()'s requirement
-    # of an on_token callback when stream=True.
+    # 法官只需要判决文本。 强制非流式传输，因此重用流式传输智能体 LLM，因为当流 = True
+    # 时，法官不会触发 completion() 对 on_token 回调的要求。
+    #
     if judge_llm.stream:
         judge_llm = judge_llm.model_copy(update={"stream": False})
-    # Build a canonical system + user pair: steering/format instructions live in
-    # the system message, the objective + transcript payload in the user message.
+    # 构建规范系统+用户对：系统消息中存在转向/格式指令，用户消息中存在目标+转录本载荷。
+    #
     response = judge_llm.completion(
         messages=[
             Message(role="system", content=[TextContent(text=system_prompt)]),
@@ -80,11 +79,10 @@ def judge_goal(judge_llm: LLM, objective: str, events: Sequence[Event]) -> GoalV
 
 
 def _render_transcript(events: Sequence[LLMConvertibleEvent]) -> str:
-    """Render events as a plain ``role: text`` transcript for the judge.
+    """将事件呈现为法官的简单 ``role: text`` 记录。
 
-    The agent's ``system`` prompt is excluded: it is large (~thousands of tokens)
-    and carries no goal-specific evidence, so it would only inflate the judge's
-    token cost on every audit.
+    智能体的``system`` 提示词被排除：它很大（~数千个token），没有特定目标证据，因此它
+    只会增加审计token的成本。
     """
     turns = [
         (msg.role, text)
@@ -96,7 +94,7 @@ def _render_transcript(events: Sequence[LLMConvertibleEvent]) -> str:
 
 
 def _parse_verdict(message: Message) -> GoalVerdict:
-    """Normalize the judge response into a GoalVerdict, conservatively."""
+    """保守地将法官响应归一化为 GoalVerdict。"""
     raw = "\n".join(content_to_str(message.content)).strip()
 
     data: dict[str, Any] | None = None

@@ -19,7 +19,7 @@ from openhands.tools.preset.default import get_default_tools
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -43,13 +43,13 @@ multimodal_router = MultimodalRouter(
     llms_for_routing={"primary": primary_llm, "secondary": secondary_llm},
 )
 
-# Tools
-tools = get_default_tools()  # Use our default openhands experience
+# 工具
+tools = get_default_tools()  # 使用我们默认的 OpenHands 体验
 
-# Agent
+# 智能体
 agent = Agent(llm=multimodal_router, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):
@@ -95,6 +95,6 @@ print("Conversation finished. Got the following LLM messages:")
 for i, message in enumerate(llm_messages):
     print(f"Message {i}: {str(message)[:200]}")
 
-# Report cost
+# 报告费用
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

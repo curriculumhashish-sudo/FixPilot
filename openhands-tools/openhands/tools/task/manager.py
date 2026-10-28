@@ -1,13 +1,9 @@
-"""Task lifecycle manager.
+"""任务生命周期管理器。
 
-This module implements the core task orchestration layer.
-The TaskManager class is responsible for creating, resuming,
-and running sub-agent tasks. In other words, it handles
-everything related to task management.
+该模块实现了核心任务编排层。 TaskManager 类负责创建、恢复和运行子智能体任务。 换句话
+说，它处理与任务管理相关的所有事情。
 
-The conversation linked to a completed task is persisted in
-a temporary directory, ensuring the state can be restored
-if the task is resumed for further work later.
+与已完成任务相关的对话已持久化存放在临时目录中，确保任务暂停后可以恢复状态。
 """
 
 import shutil
@@ -54,20 +50,20 @@ _SUBAGENTS_DIR: Final[str] = "subagents"
 
 
 class TaskStatus(StrEnum):
-    """Represents the lifecycle states of a task."""
+    """表示任务的生命周期状态。"""
 
     RUNNING = "running"
-    """The task is currently being processed by an agent."""
+    """该任务当前正在由智能体处理。"""
 
     COMPLETED = "completed"
-    """The task completed successfully and returned a valid result or response."""
+    """任务成功完成并返回有效结果或响应。"""
 
     ERROR = "error"
-    """The task failed to complete due to an unhandled exception or system fault."""
+    """由于未处理的异常或系统故障，任务未能完成。"""
 
 
 class Task(BaseModel):
-    """Represents a task."""
+    """代表一个任务。"""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -85,20 +81,20 @@ class Task(BaseModel):
     )
 
     def set_result(self, result: str) -> None:
-        """Set task as successful."""
+        """将任务设置为成功。"""
         self.result = result
         self.error = None
         self.status = TaskStatus.COMPLETED
 
     def set_error(self, error: str) -> None:
-        """Set task as failed with an error."""
+        """将任务设置为因错误而失败。"""
         self.error = error
         self.result = None
         self.status = TaskStatus.ERROR
 
 
 class TaskManager:
-    """Manage sub-agent tasks."""
+    """Manage 子智能体 tasks."""
 
     def __init__(
         self,
@@ -112,17 +108,17 @@ class TaskManager:
         self._tasks: dict[str, Task] = {}
         self._tasks_lock = threading.Lock()
 
-        # Set once in _ensure_parent: uses the parent's subagents dir
-        # when the parent persists, otherwise a temporary directory.
+        # 在 _ensure_parent 中设置一次：当父级持续存在时，使用父级的子智能体目录，否则使
+        # 用临时目录。
+        #
         self._persistence_dir: Path | None = None
 
     def attach_parent(self, conversation: LocalConversation) -> None:
-        """Attach the parent conversation used to create sub-agent tasks.
+        """附加用于创建子智能体任务的父对话。
 
-        Idempotent: if a parent conversation is already attached, subsequent
-        calls with the same conversation have no effect. Calls with a different
-        conversation are also ignored, but log a warning to surface potential
-        programming errors where two subsystems try to register different parents.
+        Idempotent: 如果已附加父级对话，则后续
+        具有相同对话的呼叫没有效果。 带有不同对话的呼叫也被忽略，但会记录警告，以显示
+        两个子系统尝试注册不同父节点时可能存在的潜在编程错误。
         """
         if (
             self._parent_conversation is not None
@@ -155,7 +151,7 @@ class TaskManager:
         return self._parent_conversation
 
     def _generate_ids(self) -> tuple[str, uuid.UUID]:
-        """Generate a unique task ID, and a conversation ID."""
+        """生成唯一的任务 ID 和对话 ID。"""
         task_number = len(self._tasks) + 1
         task_id = f"task_{task_number:08x}"
         uuid_ = uuid.uuid4()
@@ -176,17 +172,17 @@ class TaskManager:
         description: str | None = None,
         conversation: LocalConversation | None = None,
     ) -> Task:
-        """Start a blocking sub-agent task.
+        """启动阻塞子智能体任务。
 
         Args:
-            prompt: The task description for the sub-agent.
-            subagent_type: Type of agent to use.
-            resume: Task ID to resume (continues existing conversation).
-            description: Short label for the task.
-            conversation: Parent conversation (set on first call).
+            prompt: 子智能体的任务描述。
+            subagent_type: 要使用的智能体类型。
+            resume: 要恢复的任务 ID（继续现有对话）。
+            description: 任务的短标签。
+            conversation: 家长对话（在第一次通话时设置）。
 
         Returns:
-            TaskState with the final result.
+            TaskState 最终结果。
         """
         if conversation:
             self._ensure_parent(conversation)
@@ -208,7 +204,7 @@ class TaskManager:
         )
 
     def _resume_task(self, resume: str, subagent_type: str) -> Task:
-        """Resume a sub-agent task."""
+        """恢复子智能体任务。"""
         with self._tasks_lock:
             if resume not in self._tasks:
                 raise ValueError(
@@ -257,11 +253,11 @@ class TaskManager:
         subagent_type: str,
         description: str | None,
     ) -> Task:
-        """Create a fresh task.
+        """创建一个新任务。
 
-        The iteration limit is resolved with the following precedence:
-        1. ``factory.definition.max_iteration_per_run`` (from the agent definition)
-        2. The parent conversation's ``max_iteration_per_run``
+        迭代限制按以下优先级解决：
+        1. ``factory.definition.max_iteration_per_run``（来自智能体定义）
+        2. 家长对话的 ``max_iteration_per_run``
         """
         factory = get_agent_factory(subagent_type)
         worker_agent = self._get_sub_agent_from_factory(factory)
@@ -271,7 +267,7 @@ class TaskManager:
             if factory.definition.max_iteration_per_run
             else self.parent_conversation.max_iteration_per_run
         )
-        # Sub-agent budget: definition value, else inherit the parent's.
+        # 子智能体预算：定义值，否则继承父级的。
         effective_max_budget = (
             factory.definition.max_budget_per_run
             or self.parent_conversation.max_budget_per_run
@@ -350,11 +346,11 @@ class TaskManager:
         subagent_type: str,
         link: dict[str, TraceMetadataValue],
     ) -> dict[str, TraceMetadataValue]:
-        """Trace metadata identifying a delegate conversation to its task.
+        """跟踪标识委托对话与其任务的元数据。
 
-        ``link`` is the parent-trace linkage yielded by
+        ``link`` 是由以下方式产生的父踪迹链接
         ``detached_delegate_context`` (``delegate.parent_trace_id``/
-        ``delegate.parent_span_id``/``tool_call_id``, best-effort).
+        ``delegate.parent_span_id``/``tool_call_id``，尽力而为）。
         """
         return {
             "is_delegate": True,
@@ -365,23 +361,23 @@ class TaskManager:
         }
 
     def _get_sub_agent(self, subagent_type: str) -> Agent:
-        """Return the subagent assigned to the task.
+        """返回分配给任务的子智能体。
 
         Raises:
-            ValueError: If the subagent type is invalid.
+            ValueError: 如果子智能体类型无效。
         """
         factory = get_agent_factory(subagent_type)
         return self._get_sub_agent_from_factory(factory)
 
     def _get_sub_agent_from_factory(self, factory: "AgentFactory") -> Agent:
-        """Create a sub-agent from an AgentFactory."""
+        """从 AgentFactory 创建子智能体。"""
         parent = self.parent_conversation
         parent_llm = parent.agent.llm
 
         llm_updates: dict = {"stream": False}
         sub_agent_llm = parent_llm.model_copy(update=llm_updates)
-        # Reset metrics such that the sub-agent has its own
-        # Metrics object
+        # 重置指标，使子智能体拥有自己的 Metrics 对象
+        #
         sub_agent_llm.reset_metrics()
 
         sub_agent = factory.factory_func(sub_agent_llm)
@@ -398,7 +394,7 @@ class TaskManager:
                 "which this agent does not have."
             )
 
-        # ensuring that the sub-agent LLM has stream deactivated
+        # 确保子智能体 LLM 已停用流
         sub_agent = inherit_mcp_config(parent.agent, sub_agent).model_copy(
             update={
                 "llm": sub_agent.llm.model_copy(update={"stream": False}),
@@ -408,10 +404,10 @@ class TaskManager:
         return sub_agent
 
     def _run_task(self, task: Task, prompt: str) -> Task:
-        """Run a task synchronously."""
+        """同步运行任务。"""
         if task.conversation is None:
             raise RuntimeError(f"Task '{task.id}' has no conversation to run.")
-        # Get parent name for sender info
+        # 获取发件人信息的父姓名
         parent_name = None
         parent = self.parent_conversation
         if hasattr(parent, "_visualizer") and parent._visualizer is not None:
@@ -426,9 +422,9 @@ class TaskManager:
                 task.set_result(result)
                 logger.info(f"Task '{task.id}' completed.")
             else:
-                # Any non-FINISHED terminal status (run-limit, stuck, paused, ...)
-                # is surfaced as an error, not an empty "completed"; the detail
-                # keeps partial output so the parent can use/retry it.
+                # 任何非 FINISHED 终端状态（运行限制、卡住、暂停等）都会显示为错误，而不
+                # 是空的“已完成”； 详细信息保留部分输出，以便父级可以使用/重试它。
+                #
                 task.set_error(self._run_stop_detail(task.conversation, status))
                 logger.warning(f"Task '{task.id}' stopped: status '{status.value}'.")
         except Exception as e:
@@ -445,8 +441,8 @@ class TaskManager:
         conversation: LocalConversation,
         status: ConversationExecutionStatus,
     ) -> str:
-        """Why a sub-agent stopped without finishing (run-limit, stuck, paused, ...),
-        plus any partial output so the parent isn't left with nothing to use."""
+        """为什么子智能体没有完成就停止了（运行限制、卡住、暂停……），
+        加上任何部分输出，这样父级就不会毫无用处。"""
         errors = [
             e
             for e in conversation.state.events
@@ -463,7 +459,7 @@ class TaskManager:
     def _run_until_finished(
         self, task_id: str, conversation: LocalConversation
     ) -> None:
-        """Run a sub-agent conversation to completion, handling confirmations."""
+        """运行子智能体对话直至完成，处理确认。"""
         conversation.run()
         while (
             conversation.state.execution_status
@@ -487,8 +483,7 @@ class TaskManager:
         confirmation_policy: ConfirmationPolicyBase | None,
     ) -> None:
         """
-        Apply permission_mode: explicit mode from definition
-        or inherit the parent's policy when None.
+        应用permission_mode：从定义中显式模式或在None时继承父级策略。
         """
         if confirmation_policy is None:
             conversation.set_confirmation_policy(
@@ -499,8 +494,8 @@ class TaskManager:
 
     def _update_parent_metrics(self, parent: LocalConversation, task: Task) -> None:
         """
-        Sync sub-agent metrics into parent before eviction destroys the conversation.
-        Replace (not merge) because sub-agent metrics are cumulative across resumes.
+        同步子智能体在驱逐破坏对话之前进入父级的指标。 替换（不是合并），因为子智能体
+        指标是跨简历累积的。
         """
         if task.conversation is not None:
             parent.conversation_stats.usage_to_metrics[f"task:{task.id}"] = (
@@ -508,9 +503,10 @@ class TaskManager:
             )
 
     def close(self) -> None:
-        """Clean up temporary directory (if used) and remove all created tasks."""
-        # Only clean up when using a temp dir (parent had no persistence).
-        # When the parent persists, subagent data lives under its directory.
+        """清理临时目录（如果使用）并删除所有创建的任务。"""
+        # 仅在使用临时目录时进行清理（父目录没有持久化）。 当父级持续存在时，子智能体数
+        # 据位于其目录下。
+        #
         parent_persists = (
             self._parent_conversation is not None
             and self._parent_conversation.state.persistence_dir is not None

@@ -1,7 +1,6 @@
-"""Pool of tmux panes for parallel terminal command execution.
+"""用于并行终端命令执行的 tmux 窗格池。
 
-Maintains a fixed-size pool of TmuxTerminal instances within a single
-tmux session, enabling concurrent command execution across panes.
+在单个 tmux 会话中维护固定大小的 TmuxTerminal 实例池，从而支持跨窗格执行并发命令。
 """
 
 from __future__ import annotations
@@ -43,13 +42,11 @@ DEFAULT_MAX_PANES: Final[int] = 4
 
 
 class PooledTmuxTerminal(TmuxTerminal):
-    """A TmuxTerminal variant used inside a pane pool.
+    """在窗格池中使用的 TmuxTerminal 变体。
 
-    Overrides ``close()`` to only kill this terminal's window instead of
-    the entire shared tmux session.  This is critical because
-    ``TerminalSessionBase.__del__`` calls ``close()``, and GC of a cached
-    ``TerminalSession`` wrapper would otherwise destroy the session that
-    all other pool panes depend on.
+    覆盖 ``close()`` 以仅终止此终端的窗口而不是整个共享 tmux 会话。 这很关键，因为
+    ``TerminalSessionBase.__del__`` 调用 ``close()``，以及缓存的 GC
+    ``TerminalSession`` 包装器否则会破坏所有其他池窗格所依赖的会话。
     """
 
     def close(self) -> None:
@@ -61,20 +58,20 @@ class PooledTmuxTerminal(TmuxTerminal):
 
 @dataclass(slots=True)
 class PaneHandle:
-    """Mutable handle to a checked-out pane, for use as a context manager target."""
+    """一个可修改的检查出的窗格的引用，用于上下文管理器目标。"""
 
     terminal: PooledTmuxTerminal
 
 
 @dataclass(slots=True)
 class TmuxPanePool:
-    """Thread-safe pool of tmux panes for parallel terminal execution.
+    """用于并行终端执行的线程安全 tmux 窗格池。
 
-    Each pane is a fully configured TmuxTerminal sharing a single tmux
-    session.  Callers check out a pane, run commands, and check it back
-    in.  A semaphore limits concurrency to ``max_panes``.
+    每个窗格都是完全配置的 TmuxTerminal，共享单个 tmux 会话。 调用者签出一个窗格，运
+    行命令，然后将其重新签入。 信号量将并发限制为
+    ``max_panes``。
 
-    Usage:
+    用途：
 
         pool = TmuxPanePool("/workspace", max_panes=4)
         pool.initialize()
@@ -92,11 +89,11 @@ class TmuxPanePool:
     env: Mapping[str, str] | None = None
     max_panes: int = DEFAULT_MAX_PANES
 
-    # tmux handles
+    # tmux 手柄
     _server: libtmux.Server | None = field(default=None, init=False, repr=False)
     _session: libtmux.Session | None = field(default=None, init=False, repr=False)
 
-    # Pool state — guarded by _lock
+    # 池状态 — 由 _lock 保护
     _lock: threading.Lock = field(
         default_factory=threading.Lock, init=False, repr=False
     )
@@ -119,13 +116,13 @@ class TmuxPanePool:
         self._semaphore = threading.Semaphore(self.max_panes)
 
     def initialize(self) -> None:
-        """Create the tmux session (panes are lazily added on checkout)."""
+        """创建 tmux 会话（在结帐时延迟添加窗格）。"""
         if self._initialized:
             return
 
         env = build_terminal_env(self.env)
         session_name = f"openhands-pool-{self.username}-{uuid.uuid4()}"
-        # Stale handles must not reach another pool after tmux restarts.
+        # tmux 重新启动后，陈旧句柄不得到达另一个池。
         self._server, self._session = _new_owned_session(
             env,
             session_name=session_name,
@@ -137,9 +134,9 @@ class TmuxPanePool:
             self._session.set_environment(k, v)
         self._session.set_option("history-limit", str(HISTORY_LIMIT))
 
-        # Keep a reference to the default window so we can kill it once
-        # the first real pane window is created (tmux requires at least
-        # one window to keep the session alive).
+        # 保留默认窗口的引用，以便在第一个真正的平铺窗口创建后杀死它(tmux至少需要一个窗
+        # 口才能保持会话的存活）。
+        #
         self._initial_window = self._session.active_window
 
         self._initialized = True
@@ -149,7 +146,7 @@ class TmuxPanePool:
         )
 
     def close(self) -> None:
-        """Destroy all panes and the tmux session."""
+        """销毁所有窗格和 tmux 会话。"""
         if self._closed:
             return
         self._closed = True
@@ -160,9 +157,9 @@ class TmuxPanePool:
             self._all_panes.clear()
             self._available.clear()
 
-        # Kill the entire tmux session (destroys all windows/panes at once).
-        # We deliberately skip per-terminal close() because that also calls
-        # session.kill() and would fail on the second pane.
+        # 终止整个 tmux 会话（立即销毁所有窗口/窗格）。 我们故意跳过每个终端 close()，因
+        # 为它也会调用 session.kill() 并且会在第二个窗格上失败。
+        #
         try:
             if self._session is not None:
                 self._session.kill()
@@ -170,7 +167,7 @@ class TmuxPanePool:
             logger.warning(f"Error killing pool session: {e}")
 
     def _create_pane(self) -> PooledTmuxTerminal:
-        """Create a new PooledTmuxTerminal within the shared session."""
+        """在共享会话中创建一个新的 PooledTmuxTerminal。"""
         assert self._session is not None
 
         shell_command = ["/bin/bash"]
@@ -186,14 +183,15 @@ class TmuxPanePool:
         active_pane = window.active_pane
         assert active_pane is not None
 
-        # Kill the default window now that a real window exists.
+        # 既然存在真实窗口，则终止默认窗口。
         if self._initial_window is not None:
             with suppress(Exception):
                 self._initial_window.kill()
             self._initial_window = None
 
-        # Use PooledTmuxTerminal which overrides close() to only kill
-        # this terminal's window instead of the entire shared tmux session.
+        # 使用 PooledTmuxTerminal 覆盖 close()，仅终止此终端的窗口，而不是整个共享的
+        # tmux 会话。
+        #
         terminal = PooledTmuxTerminal(
             work_dir=self.work_dir,
             username=self.username,
@@ -204,7 +202,7 @@ class TmuxPanePool:
         terminal.window = window
         terminal.pane = active_pane
 
-        # Configure PS1 (same as TmuxTerminal.initialize)
+        # 配置PS1（与TmuxTerminal.initialize相同）
         ps1 = terminal.PS1
         active_pane.send_keys(
             f'set +H; export PROMPT_COMMAND=\'export PS1="{ps1}"\'; export PS2=""'
@@ -217,17 +215,17 @@ class TmuxPanePool:
         return terminal
 
     def checkout(self, timeout: float | None = None) -> PooledTmuxTerminal:
-        """Check out a pane from the pool, blocking if all are busy.
+        """从池中检查一个窗格，如果全部都忙则阻塞。
 
         Args:
-            timeout: Max seconds to wait. None means wait forever.
+            timeout: 等待的最大秒数。 None 表示永远等待。
 
         Returns:
-            A PooledTmuxTerminal ready for use.
+            A PooledTmuxTerminal 可供使用。
 
         Raises:
-            RuntimeError: If the pool is closed or not initialized.
-            TimeoutError: If *timeout* expires before a pane is available.
+            RuntimeError: 如果池已关闭或未初始化。
+            TimeoutError: 如果 *超时* 在窗格可用之前过期。
         """
         if not self._initialized or self._closed:
             raise RuntimeError("TmuxPanePool is not initialized or already closed")
@@ -245,14 +243,14 @@ class TmuxPanePool:
                 logger.debug(f"Checked out existing pane: {terminal.pane}")
                 return terminal
 
-            # Create a new pane (still under max_panes thanks to semaphore)
+            # 创建一个新窗格（由于信号量，仍在 max_panes 下）
             terminal = self._create_pane()
             self._all_panes.append(terminal)
             logger.debug(f"Checked out new pane: {terminal.pane}")
             return terminal
 
     def checkin(self, terminal: PooledTmuxTerminal) -> None:
-        """Return a pane to the pool."""
+        """将一块窗格放回池中。"""
         with self._lock:
             if terminal not in self._all_panes:
                 logger.warning("Attempted to checkin a pane not from this pool")
@@ -264,17 +262,15 @@ class TmuxPanePool:
         logger.debug(f"Checked in pane: {terminal.pane}")
 
     def replace(self, old_terminal: PooledTmuxTerminal) -> PooledTmuxTerminal:
-        """Replace a checked-out pane with a fresh one.
+        """将已签出的窗格替换为新的窗格。
 
-        The caller must currently hold *old_terminal* (i.e. it was
-        checked out and not yet checked in).  The old terminal is
-        closed and removed from the pool, and a brand-new pane is
-        returned **in its place** — the semaphore count is unchanged
-        because we swap 1-for-1.
+        当前，调用者必须持有 *old_terminal* (i.e. 已签出但尚未签入）。 旧终端关闭并从
+        池中移除，返回一个全新窗口 **在它的位置上** — 信
+        号量计数保持不变，因为我们是一对一地交换。
         """
         with self._lock:
-            # Create the replacement pane BEFORE killing the old window,
-            # because tmux destroys the session when the last window dies.
+            # 创建替换窗格之前来终止旧窗口，因为 tmux 在最后一个窗口终止时会销毁会话。
+            #
             new_terminal = self._create_pane()
             self._all_panes.append(new_terminal)
 
@@ -283,12 +279,12 @@ class TmuxPanePool:
             if old_terminal in self._available:
                 self._available.remove(old_terminal)
 
-        # Capture IDs before killing (repr would fail after kill).
+        # 在杀死之前捕获 ID（杀死后 repr 将失败）。
         old_pane_id = old_terminal.pane.pane_id
         new_pane_id = new_terminal.pane.pane_id
 
-        # Only destroy the old terminal's window — NOT terminal.close()
-        # which would kill the entire shared tmux session.
+        # 仅销毁旧终端的窗口 - 不 terminal.close()，这将杀死整个共享的 tmux 会话。
+        #
         try:
             old_terminal.window.kill()
         except Exception as e:
@@ -300,11 +296,11 @@ class TmuxPanePool:
 
     @contextmanager
     def pane(self, timeout: float | None = None) -> Iterator[PaneHandle]:
-        """Context manager: checkout a pane, yield a handle, checkin on exit.
+        """上下文管理器：签出窗格，产生句柄，退出时签入。
 
-        The yielded :class:`PaneHandle` is mutable — callers that call
-        :meth:`replace` should assign the new terminal back to
-        ``handle.terminal`` so that the correct pane is checked in.
+        产生的：class:`PaneHandle` 是可变的——调用者
+        :meth:`replace` 应该将新终端分配回
+        ``handle.terminal`` 以便签入正确的窗格。
         """
         handle = PaneHandle(self.checkout(timeout=timeout))
         try:

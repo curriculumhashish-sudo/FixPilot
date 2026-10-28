@@ -1,12 +1,12 @@
-"""Tests for plugin-specific fetch behavior.
+"""测试特定于插件的获取行为。
 
-Verifies that the plugin fetch layer correctly wraps extensions.fetch with
-plugin-specific error types (PluginFetchError), the plugin DEFAULT_CACHE_DIR,
-and the Plugin.fetch() classmethod.
+验证插件获取层是否使用插件特定的错误类型 (PluginFetchError)、插件 DEFAULT_CACHE_DIR
+和 Plugin.fetch() 类方法正确包装
+extensions.fetch。
 
-Core fetch logic (parsing, caching, git operations) is tested in
-tests/sdk/extensions/test_fetch.py.  Git infrastructure (clone, update,
-checkout, locking) is tested in tests/sdk/git/test_cached_repo.py.
+核心的获取逻辑（解析、缓存、Git 操作）在 tests/sdk/extensions/test_fetch.py. 进行测试
+。
+tests/sdk/git/test_cached_repo.py. Git 基础设施（克隆、更新、检查出、锁定）在进行测试
 """
 
 import subprocess
@@ -22,7 +22,7 @@ from openhands.sdk.plugin.fetch import fetch_plugin
 
 
 def test_fetch_git_error_raises_plugin_fetch_error(tmp_path: Path):
-    """ExtensionFetchError from git failures is wrapped as PluginFetchError."""
+    """git 失败中的 ExtensionFetchError 被包装为 PluginFetchError。"""
     mock_git = create_autospec(GitHelper, instance=True)
     mock_git.clone.side_effect = GitCommandError(
         "fatal: repository not found",
@@ -39,7 +39,7 @@ def test_fetch_git_error_raises_plugin_fetch_error(tmp_path: Path):
 
 
 def test_fetch_generic_error_raises_plugin_fetch_error(tmp_path: Path):
-    """Generic runtime errors are also wrapped as PluginFetchError."""
+    """通用运行时错误也包装为 PluginFetchError。"""
     mock_git = create_autospec(GitHelper, instance=True)
     mock_git.clone.side_effect = RuntimeError("Unexpected error")
 
@@ -102,7 +102,7 @@ def test_fetch_unknown_ref_from_existing_cache_raises_plugin_fetch_error(
 
 
 def test_fetch_local_with_repo_path_resolves_subdirectory(tmp_path: Path):
-    """A local monorepo source plus repo_path resolves to the subdirectory."""
+    """本地单体仓库源加上 repo_path 解析为子目录。"""
     plugin_dir = tmp_path / "monorepo"
     (plugin_dir / "plugins" / "my-plugin").mkdir(parents=True)
 
@@ -114,7 +114,7 @@ def test_fetch_local_with_repo_path_resolves_subdirectory(tmp_path: Path):
 def test_fetch_local_with_missing_repo_path_raises_plugin_fetch_error(
     tmp_path: Path,
 ):
-    """A repo_path that does not exist surfaces as PluginFetchError."""
+    """不存在作为 PluginFetchError 的曲面的 repo_path。"""
     plugin_dir = tmp_path / "monorepo"
     plugin_dir.mkdir()
 
@@ -123,7 +123,7 @@ def test_fetch_local_with_missing_repo_path_raises_plugin_fetch_error(
 
 
 def test_fetch_uses_default_cache_dir(tmp_path: Path):
-    """fetch_plugin uses the plugin-specific DEFAULT_CACHE_DIR."""
+    """fetch_plugin 使用特定于插件的 DEFAULT_CACHE_DIR。"""
     mock_git = create_autospec(GitHelper, instance=True)
 
     def clone_side_effect(url, dest, **kwargs):
@@ -144,7 +144,7 @@ def test_fetch_uses_default_cache_dir(tmp_path: Path):
 
 
 def test_plugin_fetch_delegates(tmp_path: Path):
-    """Plugin.fetch() delegates to fetch_plugin for local paths."""
+    """Plugin.fetch() 将本地路径委托给 fetch_plugin。"""
     plugin_dir = tmp_path / "my-plugin"
     plugin_dir.mkdir()
 
@@ -153,7 +153,7 @@ def test_plugin_fetch_delegates(tmp_path: Path):
 
 
 def test_plugin_fetch_local_with_repo_path_resolves_subdirectory(tmp_path: Path):
-    """Plugin.fetch() composes a local source with repo_path."""
+    """Plugin.fetch 构成了一个本地源 repo_path。"""
     plugin_dir = tmp_path / "monorepo"
     (plugin_dir / "plugins" / "my-plugin").mkdir(parents=True)
 

@@ -1,1 +1,1 @@
-"""Custom tools for remote agent server example."""
+"""用于远程 Agent Server 示例的自定义工具。"""

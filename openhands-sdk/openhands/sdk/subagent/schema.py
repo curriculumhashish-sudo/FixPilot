@@ -1,4 +1,4 @@
-"""Schema for Markdown-based agent definition files."""
+"""模式用于基于 Markdown 的智能体定义文件。"""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from openhands.sdk.security.confirmation_policy import ConfirmationPolicyBase
 
 
-# Scope where an agent was discovered. Set during discovery, not from frontmatter.
+# 发现智能体的范围。 在发现过程中设置，而不是从前置元数据中设置。
 AgentDefinitionLevel = Literal["project", "user", "builtin", "plugin", "programmatic"]
 
 
@@ -48,17 +48,17 @@ _VALID_PERMISSION_MODES: Final[set[str]] = {
 
 
 def _extract_color(fm: dict[str, object]) -> str | None:
-    """Extract color from frontmatter."""
+    """从前置元数据中提取颜色。"""
     color_raw = fm.get("color")
     color: str | None = str(color_raw) if color_raw is not None else None
     return color
 
 
 def _extract_tools(fm: dict[str, object]) -> list[str]:
-    """Extract tools from frontmatter."""
+    """从前置元数据中提取工具。"""
     tools_raw = fm.get("tools", [])
 
-    # Ensure tools is a list of strings
+    # 确保工具是字符串列表
     tools: list[str]
     if isinstance(tools_raw, str):
         tools = [tools_raw]
@@ -70,7 +70,7 @@ def _extract_tools(fm: dict[str, object]) -> list[str]:
 
 
 def _extract_skills(fm: dict[str, object]) -> list[str]:
-    """Extract skill names from frontmatter."""
+    """从前置元数据中提取技能名称。"""
     skills_raw = fm.get("skills", [])
     skills: list[str]
     if isinstance(skills_raw, str):
@@ -83,15 +83,14 @@ def _extract_skills(fm: dict[str, object]) -> list[str]:
 
 
 def _extract_mcp_config(fm: dict[str, object]) -> dict[str, MCPServer] | None:
-    """Extract MCP servers from frontmatter.
+    """从前置元数据中提取 MCP 个服务器。
 
-    Variable placeholders (``${VAR}`` and ``${VAR:-default}``) are preserved
-    and expanded later when the agent runs, allowing per-conversation secrets
-    to be injected at runtime. Expansion happens in LocalConversation when
-    the agent's mcp_config are processed.
+    当智能体运行时，变量占位符（``${VAR}`` 和 ``${VAR:-default}``）会被保留并在稍后扩
+    展，从而允许在运行时注入每个会话机密。 当处理智能体
+    的 mcp_config 时，扩展发生在 LocalConversation 中。
 
-    Note: The older ``$VAR`` syntax (without braces) is NOT supported.
-    Use ``${VAR}`` for environment variables and secrets.
+    Note: 不支持旧的 ``$VAR`` 语法（不带大括号）。
+    使用 ``${VAR}`` 作为环境变量和机密。
     """
     mcp_config_raw = fm.get("mcp_config", fm.get("mcp_servers"))
     if mcp_config_raw is None:
@@ -105,7 +104,7 @@ def _extract_mcp_config(fm: dict[str, object]) -> dict[str, MCPServer] | None:
 
 
 def _extract_profile_store_dir(fm: dict[str, object]) -> str | None:
-    """Extract profile store directory from frontmatter."""
+    """从前置元数据中提取配置文件存储目录。"""
     profile_store_dir_raw = fm.get("profile_store_dir")
     if profile_store_dir_raw is None:
         return None
@@ -117,14 +116,14 @@ def _extract_profile_store_dir(fm: dict[str, object]) -> str | None:
 
 
 def _extract_examples(description: str) -> list[str]:
-    """Extract <example> tags from description for agent triggering."""
+    """从智能体触发的描述中提取 <example> 标签。"""
     pattern = r"<example>(.*?)</example>"
     matches = re.findall(pattern, description, re.DOTALL | re.IGNORECASE)
     return [m.strip() for m in matches if m.strip()]
 
 
 def _extract_permission_mode(fm: dict[str, object]) -> str | None:
-    """Extract permission_mode from frontmatter, defaulting to None (inherit parent)."""
+    """从前置元数据中提取permission_mode，默认为None（继承父级）。"""
     raw = fm.get("permission_mode")
     if raw is None:
         return None
@@ -138,7 +137,7 @@ def _extract_permission_mode(fm: dict[str, object]) -> str | None:
 
 
 def _extract_max_iteration_per_run(fm: dict[str, object]) -> int | None:
-    """Extract max iterations per run from frontmatter file."""
+    """从前置元数据文件中提取每次运行的最大迭代次数。"""
     max_iter_raw = fm.get("max_iteration_per_run")
     if isinstance(max_iter_raw, str):
         return int(max_iter_raw)
@@ -148,7 +147,7 @@ def _extract_max_iteration_per_run(fm: dict[str, object]) -> int | None:
 
 
 def _extract_max_budget_per_run(fm: dict[str, object]) -> float | None:
-    """Extract the per-run cost budget (USD) from a frontmatter file."""
+    """从前置元数据文件中提取每次运行成本预算 (USD)。"""
     raw = fm.get("max_budget_per_run")
     if isinstance(raw, bool):
         return None
@@ -160,7 +159,7 @@ def _extract_max_budget_per_run(fm: dict[str, object]) -> float | None:
 
 
 def _extract_hooks(fm: dict[str, object]) -> HookConfig | None:
-    # Parse hooks configuration
+    # 解析钩子配置
     hooks_raw = fm.get("hooks")
     hooks: HookConfig | None = None
     if hooks_raw is not None and isinstance(hooks_raw, dict):
@@ -169,11 +168,11 @@ def _extract_hooks(fm: dict[str, object]) -> HookConfig | None:
 
 
 def _extract_condenser(fm: dict[str, Any]) -> CondenserBase | None:
-    """Extract the condenser config from frontmatter.
+    """从前置元数据中提取上下文压缩器配置。
 
-    Absent / 'default' / None -> None (a default summarizing condenser is applied
-    at factory time). 'none'/'off'/false -> NoOpCondenser (disable condensation).
-    A mapping -> a full condenser spec validated against the discriminated union.
+    不存在/“默认”/None -> None（出厂时应用默认汇总上下文压缩器）。 'None'/'off'/false
+     -> NoOpCondenser（禁用上下文压
+    缩）。 映射 -> 针对可区分联合进行验证的完整上下文压缩器规范。
     """
     raw = fm.get("condenser")
     if raw is None or isinstance(raw, CondenserBase):
@@ -196,10 +195,9 @@ def _extract_condenser(fm: dict[str, Any]) -> CondenserBase | None:
 
 
 class AgentDefinition(BaseModel):
-    """Agent definition loaded from Markdown file.
+    """从 Markdown 文件加载智能体定义。
 
-    Agents are specialized configurations that can be triggered based on
-    user input patterns. They define custom system prompts and tool access.
+    智能体是可以根据用户输入模式触发的专用配置。 他们定义自定义系统提示词和工具访问。
     """
 
     name: str = Field(description="Agent name (from frontmatter or filename)")
@@ -285,9 +283,9 @@ class AgentDefinition(BaseModel):
     )
 
     def get_confirmation_policy(self) -> ConfirmationPolicyBase | None:
-        """Convert permission_mode to a ConfirmationPolicyBase instance.
+        """将 permission_mode 转换为 ConfirmationPolicyBase 实例。
 
-        Returns None when permission_mode is None (inherit parent policy).
+        当 permission_mode 为 None 时返回 None（继承父策略）。
         """
         if self.permission_mode is None:
             return None
@@ -306,36 +304,37 @@ class AgentDefinition(BaseModel):
 
                 return ConfirmRisky()
             case _:
-                # Should never reach here due to validation
-                # in _extract_permission_mode()
+                # 由于 _extract_permission_mode() 中的验证，永远不应该到达这里
+                #
                 raise AssertionError(
                     f"Unexpected permission_mode: {self.permission_mode}"
                 )
 
     @classmethod
     def load(cls, agent_path: Path) -> AgentDefinition:
-        """Load an agent definition from a Markdown file.
+        """从Markdown文件加载智能体定义。
 
-        Agent Markdown files have YAML frontmatter with:
-        - name: Agent name
-        - description: Description with optional <example> tags for triggering
-        - tools (optional): List of allowed tools
-        - skills (optional): Comma-separated skill names or list of skill names
-        - mcp_config (optional): MCP server configurations mapping
-        - model (optional): Model profile to use (default: 'inherit')
-        - color (optional): Display color
-        - permission_mode (optional): How the subagent handles permissions
-          ('always_confirm', 'never_confirm', 'confirm_risky'). None inherits parent.
-        - max_iterations_per_run: Max iteration per run
-        - hooks (optional): List of applicable hooks
+        智能体 Markdown 文件的 YAML 前置元数据包含：
+        - name: 智能体姓名
+        - description: 带有用于触发的可选 <example> 标签的描述
+        - tools (optional): 允许的工具列表
+        - skills (optional): 以逗号分隔的技能名称或技能名称列表
+        - mcp_config (optional): MCP 服务器配置映射
+        - model (optional): 要使用的模型配置文件（默认值：“继承”）
+        - color (optional): 显示颜色
+        - permission_mode (optional): 子智能体如何处理权限（“always_confirm”、“
+        never_confirm”、“
+        confirm_risky”）。 None 继承父级。
+        - max_iterations_per_run: 每次运行的最大迭代次数
+        - hooks (optional): 适用钩子列表
 
-        The body of the Markdown is the system prompt.
+        Markdown的主体是系统提示词。
 
         Args:
-            agent_path: Path to the agent Markdown file.
+            agent_path: 智能体 Markdown 文件的路径。
 
         Returns:
-            Loaded AgentDefinition instance.
+            已加载 AgentDefinition 实例。
         """
         with open(agent_path, encoding="utf-8") as f:
             post = frontmatter.load(f)
@@ -343,7 +342,7 @@ class AgentDefinition(BaseModel):
         fm = post.metadata
         content = post.content.strip()
 
-        # Extract frontmatter fields with proper type handling
+        # 使用正确的类型处理提取前置元数据字段
         name: str = str(fm.get("name", agent_path.stem))
         description: str = str(fm.get("description", ""))
         model: str = str(fm.get("model", "inherit"))
@@ -358,10 +357,10 @@ class AgentDefinition(BaseModel):
         hooks: HookConfig | None = _extract_hooks(fm)
         condenser: CondenserBase | None = _extract_condenser(fm)
 
-        # Extract whenToUse examples from description
+        # 从描述中提取 whenToUse 个示例
         when_to_use_examples = _extract_examples(description)
 
-        # Remove known fields from metadata to get extras
+        # 从元数据中删除已知字段以获得额外内容
         metadata = {k: v for k, v in fm.items() if k not in KNOWN_FIELDS}
 
         return cls(

@@ -54,7 +54,7 @@ def test_is_temp_file_matches_tmp_names(name: str) -> None:
         ".eventlog.lock",
         ".eventlog-len-12.marker",
         ".hidden",
-        # Ordinary dotfiles, which a pattern for mkstemp's random part matched.
+        # 普通点文件，与 mkstemp 的随机部分的模式匹配。
         ".env.template",
         ".cache.metadata",
     ],

@@ -1,9 +1,9 @@
 """
-Example demonstrating the ask_agent functionality for getting sidebar replies
+演示获取侧边栏回复的 ask_agent 功能的示例
 from the agent for a running conversation.
 
-This example shows how to use ask_agent() to get quick responses from the agent
-about the current conversation state without interrupting the main execution flow.
+此示例展示了如何使用 ask_agent快速回复的快捷方式智能体不打断主执行流程，获取当前对话
+状态。
 """
 
 import os
@@ -26,7 +26,7 @@ from openhands.tools.task_tracker import TaskTrackerTool
 from openhands.tools.terminal import TerminalTool
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -38,7 +38,7 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 cwd = os.getcwd()
 tools = [
     Tool(name=TerminalTool.name),
@@ -48,17 +48,17 @@ tools = [
 
 
 class MinimalVisualizer(ConversationVisualizerBase):
-    """A minimal visualizer that print the raw events as they occur."""
+    """一个最小的可视化工具，可以在原始事件发生时打印它们。"""
 
     count = 0
 
     def on_event(self, event: Event) -> None:
-        """Handle events for minimal progress visualization."""
+        """处理事件以实现最小进度可视化。"""
         print(f"\n\n[EVENT {self.count}] {type(event).__name__}")
         self.count += 1
 
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 conversation = Conversation(
     agent=agent, workspace=cwd, visualizer=MinimalVisualizer, max_iteration_per_run=5
@@ -72,22 +72,22 @@ def timestamp() -> str:
 print("=== Ask Agent Example ===")
 print("This example demonstrates asking questions during conversation execution")
 
-# Step 1: Build conversation context
+# 第 1 步：建立对话上下文
 print(f"\n[{timestamp()}] Building conversation context...")
 conversation.send_message("Explore the current directory and describe the architecture")
 
-# Step 2: Start conversation in background thread
+# 第 2 步：在后台开始对话线程
 print(f"[{timestamp()}] Starting conversation in background thread...")
 thread = threading.Thread(target=conversation.run)
 thread.start()
 
-# Give the agent time to start processing
+# 给智能体时间开始处理
 time.sleep(2)
 
-# Step 3: Use ask_agent while conversation is running
+# 第 3 步：在对话进行时使用 ask_agent
 print(f"\n[{timestamp()}] Using ask_agent while conversation is processing...")
 
-# Ask context-aware questions
+# 提出上下文相关问题
 questions_and_responses = []
 
 question_1 = "Summarize the activity so far in 1 sentence."
@@ -112,20 +112,20 @@ response3 = conversation.ask_agent(question_3)
 questions_and_responses.append((question_3, response3))
 print(f"Response: {response3}")
 
-# Step 4: Wait for conversation to complete
+# 第 4 步：等待对话完成
 print(f"\n[{timestamp()}] Waiting for conversation to complete...")
 thread.join()
 
-# Step 5: Verify conversation state wasn't affected
+# 第 5 步：验证对话状态未受影响
 final_event_count = len(conversation.state.events)
-# Step 6: Ask a final question after conversation completion
+# 第 6 步：对话结束后提出最后一个问题
 print(f"\n[{timestamp()}] Asking final question after completion...")
 final_response = conversation.ask_agent(
     "Can you summarize what you accomplished in this conversation?"
 )
 print(f"Final response: {final_response}")
 
-# Step 7: Summary
+# 第 7 步：总结
 print("\n" + "=" * 60)
 print("SUMMARY OF ASK_AGENT DEMONSTRATION")
 print("=" * 60)
@@ -138,6 +138,6 @@ for i, (question, response) in enumerate(questions_and_responses, 1):
 final_truncated = final_response[:100] + ("..." if len(final_response) > 100 else "")
 print(f"\nFinal Question Response: {final_truncated}")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost:.4f}")

@@ -27,7 +27,7 @@ def test_is_context_window_exceeded_direct_type():
 
 
 def test_is_context_window_exceeded_via_text():
-    # BadRequest containing context-window-ish text should be detected
+    # 应检测到包含上下文窗口文本的 BadRequest
     e1 = BadRequestError(
         "The request exceeds the available context size", MODEL, PROVIDER
     )
@@ -57,7 +57,7 @@ def test_is_context_window_exceeded_llama_cpp_token_counts():
 
 
 def test_is_context_window_exceeded_minimax_api_connection_error():
-    """Minimax provider wraps context window errors in APIConnectionError."""
+    """上下文窗口错误被 APIConnectionError 包裹。"""
     minimax_error = APIConnectionError(
         message=(
             'MinimaxException - {"type":"error","error":{"type":"bad_request_error",'
@@ -153,7 +153,7 @@ def test_looks_like_auth_error_negative():
 
 
 def test_is_prompt_cache_too_small_positive():
-    """Vertex AI rejects caching when cached content is below minimum token count."""
+    """当缓存内容低于最小值词元数量时，Vertex AI 拒绝缓存。"""
     vertex_error = BadRequestError(
         (
             "Vertex_aiException BadRequestError - "
@@ -176,7 +176,7 @@ def test_is_prompt_cache_too_small_negative():
 
 
 def test_is_prompt_cache_too_small_context_window_not_cache_too_small():
-    """Context window exceeded is a different error from cache too small."""
+    """上下文窗口超出是与缓存太小不同的错误。"""
     ctx_error = BadRequestError(
         "The request exceeds the available context size", MODEL, PROVIDER
     )
@@ -185,7 +185,7 @@ def test_is_prompt_cache_too_small_context_window_not_cache_too_small():
 
 
 def test_is_quota_exhaustion_error_usage_limit_reached():
-    """OpenAI's ``usage_limit_reached`` is a hard quota outcome, not a transient 429."""
+    """OpenAI 的 ``usage_limit_reached`` 是硬配额结果，而不是暂时的 429。"""
     error = RateLimitError(
         message=(
             'RateLimitError: OpenAIException - {"error":{"type":"usage_limit_reached",'
@@ -210,7 +210,7 @@ def test_is_quota_exhaustion_error_insufficient_quota():
 
 
 def test_is_quota_exhaustion_error_transient_rate_limit():
-    """A plain transient 429 is NOT a quota exhaustion error."""
+    """简单的瞬态 429 是不配额耗尽错误。"""
     error = RateLimitError(
         message="RateLimitError: Rate limit exceeded",
         llm_provider="openai",

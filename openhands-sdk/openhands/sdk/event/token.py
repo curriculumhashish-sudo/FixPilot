@@ -5,7 +5,7 @@ from openhands.sdk.event.types import SourceType
 
 
 class TokenEvent(Event):
-    """Event from VLLM representing token IDs used in LLM interaction."""
+    """来自 VLLM 的事件代表 LLM 交互中使用的 token 个 ID。"""
 
     source: SourceType
     prompt_token_ids: list[int] = Field(

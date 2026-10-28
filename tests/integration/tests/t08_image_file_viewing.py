@@ -1,4 +1,4 @@
-"""Test that an agent can view and analyze image files using FileEditor."""
+"""测试智能体是否可以使用 FileEditor 查看和分析图像文件。"""
 
 import os
 import urllib.request
@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 class ImageFileViewingTest(BaseIntegrationTest):
-    """Test that an agent can view and analyze image files."""
+    """测试智能体是否可以查看和分析图像文件。"""
 
     INSTRUCTION: str = INSTRUCTION
 
@@ -28,7 +28,7 @@ class ImageFileViewingTest(BaseIntegrationTest):
         super().__init__(*args, **kwargs)
         self.icon_path: str = os.path.join(self.workspace, "python_icon.png")
 
-        # Verify that the LLM supports vision
+        # 验证 LLM 支持视觉
         if not self.llm.vision_is_active():
             raise SkipTest(
                 "This test requires a vision-capable LLM model. "
@@ -36,7 +36,7 @@ class ImageFileViewingTest(BaseIntegrationTest):
             )
 
     def setup(self) -> None:
-        """Download a Python icon for the agent to analyze."""
+        """下载 Python 图标以供智能体进行分析。"""
         try:
             urllib.request.urlretrieve(IMAGE_URL, self.icon_path)
             logger.info(f"Downloaded test icon to: {self.icon_path}")
@@ -45,13 +45,13 @@ class ImageFileViewingTest(BaseIntegrationTest):
             raise
 
     def verify_result(self) -> TestResult:
-        """Verify that the agent identified yellow as one of the icon colors."""
+        """验证智能体是否将黄色识别为图标颜色之一。"""
         if not os.path.exists(self.icon_path):
             return TestResult(
                 success=False, reason="Icon file not found after agent execution"
             )
 
-        # Get the final response from agent (handles both MessageEvent and FinishAction)
+        # 从智能体获取最终响应（处理 MessageEvent 和 FinishAction）
         final_response = get_agent_final_response(self.collected_events).lower()
 
         if "yellow" in final_response:

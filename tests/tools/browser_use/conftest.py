@@ -1,4 +1,4 @@
-"""Shared test utilities for browser_use tests."""
+"""用于 browser_use 测试的共享测试实用程序。"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +11,7 @@ from openhands.tools.browser_use.impl import BrowserToolExecutor
 
 @pytest.fixture
 def mock_browser_server():
-    """Create a mock CustomBrowserUseServer."""
+    """创建模拟对象 CustomBrowserUseServer。"""
     server = MagicMock()
     server._init_browser_session = AsyncMock()
     server._inject_scripts_to_session = AsyncMock()
@@ -21,7 +21,7 @@ def mock_browser_server():
 
 @pytest.fixture
 def mock_browser_executor(mock_browser_server):
-    """Create a BrowserToolExecutor with mocked server."""
+    """创建带有模拟的服务器的 BrowserToolExecutor。"""
     with patch.object(
         BrowserToolExecutor,
         "_ensure_chromium_available",
@@ -37,7 +37,7 @@ def create_mock_browser_response(
     error: str | None = None,
     screenshot_data: str | None = None,
 ):
-    """Helper to create mock browser responses."""
+    """创建模拟对象浏览器响应的帮助程序。"""
     if error:
         return BrowserObservation.from_text(
             text=error, is_error=True, screenshot_data=screenshot_data
@@ -48,7 +48,7 @@ def create_mock_browser_response(
 def assert_browser_observation_success(
     observation: BrowserObservation, expected_output: str | None = None
 ):
-    """Assert that a browser observation indicates success."""
+    """断言浏览器观测结果表示成功。"""
     assert isinstance(observation, BrowserObservation)
     assert observation.is_error is False
     if expected_output:
@@ -64,7 +64,7 @@ def assert_browser_observation_success(
 def assert_browser_observation_error(
     observation: BrowserObservation, expected_error: str | None = None
 ):
-    """Assert that a browser observation contains an error."""
+    """断言浏览器观测结果包含错误。"""
     assert isinstance(observation, BrowserObservation)
     assert observation.is_error is True
     if expected_error:

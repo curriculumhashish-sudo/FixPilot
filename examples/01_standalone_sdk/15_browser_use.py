@@ -18,7 +18,7 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
@@ -30,7 +30,7 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Tools
+# 工具
 cwd = os.getcwd()
 tools = [
     Tool(
@@ -40,14 +40,14 @@ tools = [
     Tool(name=BrowserToolSet.name),
 ]
 
-# If you need fine-grained browser control, you can manually register individual browser
-# tools by creating a BrowserToolExecutor and providing factories that return customized
-# Tool instances before constructing the Agent.
+# 如果你需要精细的浏览器控制，可以手动注册每个浏览器工具，通过创建一个
+# BrowserToolExecutor并提供工厂，这些工厂返回定制的Tool实例，然后再构建智能体。
+#
 
-# Agent
+# 智能体
 agent = Agent(llm=llm, tools=tools)
 
-llm_messages = []  # collect raw LLM messages
+llm_messages = []  # 收集原始 LLM 消息
 
 
 def conversation_callback(event: Event):

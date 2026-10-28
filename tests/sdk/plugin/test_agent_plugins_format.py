@@ -1,4 +1,4 @@
-"""Tests for the Agent Plugins format: detection, manifest, and components."""
+"""测试智能体插件格式：检测、清单和组件。"""
 
 import json
 from pathlib import Path
@@ -22,7 +22,7 @@ from openhands.sdk.plugin.format.agent_plugins import (
 
 SCHEMA_1_0_0 = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 
-# The official example plugin's manifest, verbatim.
+# 官方示例插件的清单，逐字记录。
 # https://github.com/agentplugins/agent-plugins-example/blob/main/plugin.json
 EXAMPLE_MANIFEST = {
     "$schema": SCHEMA_1_0_0,
@@ -37,7 +37,7 @@ EXAMPLE_MANIFEST = {
 
 
 def write_manifest(plugin_dir: Path, manifest: dict | str) -> Path:
-    """Write a root-level plugin.json, creating the plugin dir."""
+    """写入根级别 plugin.json，创建插件目录。"""
     plugin_dir.mkdir(parents=True, exist_ok=True)
     path = plugin_dir / "plugin.json"
     path.write_text(
@@ -48,7 +48,7 @@ def write_manifest(plugin_dir: Path, manifest: dict | str) -> Path:
 
 
 def write_extension_components(root: Path) -> None:
-    """Write one hook, agent and command under ``root``, in the shared layout."""
+    """在共享布局中，在 ``root`` 下编写一个钩子智能体和命令。"""
     (root / "hooks").mkdir(parents=True, exist_ok=True)
     (root / "hooks" / "hooks.json").write_text(
         json.dumps(
@@ -78,7 +78,7 @@ def write_extension_components(root: Path) -> None:
 
 
 class TestDetect:
-    """A root plugin.json claims the directory unless it lacks a $schema key."""
+    """根 plugin.json 声明该目录，除非它缺少 $模式键。"""
 
     def test_detects_root_manifest(self, tmp_path: Path):
         write_manifest(tmp_path / "p", EXAMPLE_MANIFEST)
@@ -96,7 +96,7 @@ class TestDetect:
         assert AgentPluginsFormat.detect(tmp_path / "p") is False
 
     def test_claims_malformed_manifest(self, tmp_path: Path):
-        """Claimed, not fallen through: load_manifest() rejects it loudly."""
+        """声称，但没有落空：load_manifest()大声拒绝。"""
         write_manifest(tmp_path / "p", "{not json")
 
         assert AgentPluginsFormat.detect(tmp_path / "p") is True
@@ -114,13 +114,13 @@ class TestDetect:
         assert AgentPluginsFormat.detect(tmp_path / "p") is True
 
     def test_ignores_manifest_without_schema(self, tmp_path: Path):
-        """Another tool's root plugin.json (no $schema) is not Agent Plugins."""
+        """另一个工具的根 plugin.json（没有 $模式）不是智能体插件。"""
         write_manifest(tmp_path / "p", {"name": "p", "skills": ["./skills/"]})
 
         assert AgentPluginsFormat.detect(tmp_path / "p") is False
 
     def test_manifest_without_schema_loads_claude_code_layout(self, tmp_path: Path):
-        """Skills of a plugin with a GitHub Copilot style manifest still load."""
+        """具有 GitHub Copilot 风格清单的插件的技能仍然会加载。"""
         plugin_dir = tmp_path / "dotnet"
         write_manifest(
             plugin_dir, {"name": "dotnet", "version": "0.2.5", "skills": ["./skills/"]}
@@ -137,7 +137,7 @@ class TestDetect:
         assert [s.name for s in plugin.get_all_skills()] == ["csharp-refactoring"]
 
     def test_ignores_manifest_directory(self, tmp_path: Path):
-        """A plugin.json *directory* is not a manifest."""
+        """plugin.json *目录*不是清单。"""
         (tmp_path / "p" / "plugin.json").mkdir(parents=True)
         assert AgentPluginsFormat.detect(tmp_path / "p") is False
 
@@ -145,7 +145,7 @@ class TestDetect:
         assert AgentPluginsFormat.detect(tmp_path / "does-not-exist") is False
 
     def test_registered_ahead_of_claude_code(self, tmp_path: Path):
-        """A root manifest wins over the universal Claude Code fallback."""
+        """根清单胜过通用克劳德代码回退方案。"""
         write_manifest(tmp_path / "p", EXAMPLE_MANIFEST)
 
         assert isinstance(detect_format(tmp_path / "p"), AgentPluginsFormat)
@@ -157,7 +157,7 @@ class TestDetect:
 
 
 class TestLoadManifestValid:
-    """Manifests the closed schema accepts."""
+    """表明已关闭模式接受。"""
 
     def test_loads_example_plugin(self, tmp_path: Path):
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
@@ -170,7 +170,7 @@ class TestLoadManifestValid:
         assert manifest.description.startswith("A copyable reference package")
 
     def test_preserves_agent_plugins_only_fields(self, tmp_path: Path):
-        """Fields with no PluginManifest column survive via extra='allow'."""
+        """没有 PluginManifest 列的字段通过 extra='allow' 生存。"""
         write_manifest(
             tmp_path,
             {
@@ -191,7 +191,7 @@ class TestLoadManifestValid:
         assert dumped["extensions"] == {"com.example.client": {"entry_command": "now"}}
 
     def test_minimal_manifest_uses_model_defaults(self, tmp_path: Path):
-        """Only $schema and name are required by the schema."""
+        """模式仅需要 $模式和名称。"""
         write_manifest(tmp_path, {"$schema": SCHEMA_1_0_0, "name": "minimal"})
 
         manifest = AgentPluginsFormat().load_manifest(tmp_path)
@@ -221,7 +221,7 @@ class TestLoadManifestValid:
         "author", [{}, {"email": "ada@example.com"}, {"url": "https://example.com"}]
     )
     def test_author_without_name(self, tmp_path: Path, author: dict):
-        """The schema does not require author.name, so neither may we."""
+        """模式不需要 author.name，所以我们也不需要。"""
         write_manifest(
             tmp_path, {"$schema": SCHEMA_1_0_0, "name": "p", **{"author": author}}
         )
@@ -232,7 +232,7 @@ class TestLoadManifestValid:
         assert manifest.author.name == ""
 
     def test_utf8_bom_is_tolerated(self, tmp_path: Path):
-        """RFC 8259 lets a parser ignore a leading BOM."""
+        """RFC 8259 让解析器忽略前导 BOM。"""
         tmp_path.mkdir(parents=True, exist_ok=True)
         (tmp_path / "plugin.json").write_bytes(
             b"\xef\xbb\xbf" + json.dumps(EXAMPLE_MANIFEST).encode("utf-8")
@@ -253,7 +253,7 @@ class TestLoadManifestValid:
 
 
 class TestLoadManifestNonFatal:
-    """Violations the spec says to report and ignore."""
+    """规范要求报告和忽略的违规行为。"""
 
     def test_unknown_top_level_field_is_dropped(self, tmp_path: Path, caplog):
         write_manifest(
@@ -290,7 +290,7 @@ class TestLoadManifestNonFatal:
         assert "Ignoring non-object 'extensions'" in caplog.text
 
     def test_dropping_unknown_fields_does_not_mask_a_fatal_one(self, tmp_path: Path):
-        """Stripping the non-fatal violation must not rescue an invalid name."""
+        """剥离非致命违规不能挽救无效名称。"""
         write_manifest(
             tmp_path, {"$schema": SCHEMA_1_0_0, "name": "BAD--NAME", "nonsense": 1}
         )
@@ -300,7 +300,7 @@ class TestLoadManifestNonFatal:
 
 
 class TestLoadManifestFatal:
-    """Violations that reject the whole plugin."""
+    """拒绝整个插件的违规行为。"""
 
     def test_missing_schema(self, tmp_path: Path):
         write_manifest(tmp_path, {"name": "no-schema"})
@@ -333,7 +333,7 @@ class TestLoadManifestFatal:
             AgentPluginsFormat().load_manifest(tmp_path)
 
     def test_undecodable_bytes(self, tmp_path: Path):
-        """A decode failure is wrapped, not leaked as UnicodeDecodeError."""
+        """解码失败被包装，而不是作为 UnicodeDecodeError 泄漏。"""
         tmp_path.mkdir(parents=True, exist_ok=True)
         (tmp_path / "plugin.json").write_bytes(
             b'{"$schema": "' + SCHEMA_1_0_0.encode() + b'", "name": "caf\xe9"}'
@@ -358,8 +358,8 @@ class TestLoadManifestFatal:
     @pytest.mark.parametrize(
         "name",
         [
-            "",  # too short
-            "a" * 65,  # too long
+            "",  # 太短
+            "a" * 65,  # 太长
             "Uppercase",
             "-leading-hyphen",
             "trailing-hyphen-",
@@ -378,7 +378,7 @@ class TestLoadManifestFatal:
             AgentPluginsFormat().load_manifest(tmp_path)
 
     def test_string_author_rejected(self, tmp_path: Path):
-        """Agent Plugins authors are objects only, unlike the Claude Code format."""
+        """智能体插件作者只是对象，与 Claude Code 格式不同。"""
         write_manifest(
             tmp_path, {"$schema": SCHEMA_1_0_0, "name": "p", "author": "Ada <a@e.com>"}
         )
@@ -387,7 +387,7 @@ class TestLoadManifestFatal:
             AgentPluginsFormat().load_manifest(tmp_path)
 
     def test_unknown_author_field_rejected(self, tmp_path: Path):
-        """The non-fatal rule covers top-level fields only, not nested objects."""
+        """非致命规则仅涵盖顶级字段，而不涵盖嵌套对象。"""
         write_manifest(
             tmp_path,
             {"$schema": SCHEMA_1_0_0, "name": "p", "author": {"handle": "ada"}},
@@ -425,7 +425,7 @@ class TestLoadManifestFatal:
 
 
 class TestComponentLoaders:
-    """Portable core: skills are shared with the base, mcp.json is a follow-up."""
+    """便携核心：技能与基地共享，mcp.json为后续。"""
 
     def test_load_assembles_plugin_with_skills(self, tmp_path: Path):
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
@@ -442,7 +442,7 @@ class TestComponentLoaders:
         assert [s.name for s in plugin.skills] == ["summarize"]
 
     def test_mcp_loader_is_deferred(self, tmp_path: Path):
-        """mcp.json is not read yet."""
+        """mcp.json 尚未读取。"""
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
         (tmp_path / "mcp.json").write_text(
             json.dumps({"mcpServers": {"x": {"type": "stdio", "command": "echo"}}}),
@@ -453,7 +453,7 @@ class TestComponentLoaders:
 
 
 class TestClientExtension:
-    """Our ``dev.openhands`` namespace: manifest data and extension directory."""
+    """我们的``dev.openhands``命名空间：清单数据和扩展目录。"""
 
     def test_entry_command_is_mapped_from_our_namespace(self, tmp_path: Path):
         write_manifest(
@@ -467,7 +467,7 @@ class TestClientExtension:
         manifest = AgentPluginsFormat().load_manifest(tmp_path)
 
         assert manifest.entry_command == "now"
-        # The raw extension data is preserved alongside the mapped field.
+        # 原始扩展数据与映射字段一起保留。
         assert manifest.model_dump()["extensions"] == {
             EXTENSION_NAMESPACE: {"entry_command": "now"}
         }
@@ -484,7 +484,7 @@ class TestClientExtension:
     def test_non_string_entry_command_is_reported_and_ignored(
         self, tmp_path: Path, caplog, value
     ):
-        """Our namespace, our rules: a bad value drops the field, not the plugin."""
+        """我们的命名空间，我们的规则：错误的值会删除字段，而不是插件。"""
         write_manifest(
             tmp_path,
             {
@@ -505,8 +505,9 @@ class TestClientExtension:
             pytest.param({EXTENSION_NAMESPACE: {}}, id="ours-empty"),
             pytest.param({EXTENSION_NAMESPACE: {"entry_command": None}}, id="null"),
             pytest.param({EXTENSION_NAMESPACE: {"entry_command": ""}}, id="empty-str"),
-            # §8.1: a foreign namespace's contents are never validated, so its
-            # entry_command -- of any type -- is not ours to read.
+            # §8.1：外国命名空间的内容永远不会被验证，因此它的 entry_command（任何类型）
+            # 都不是我们可以读取的。
+            #
             pytest.param(
                 {"com.example.client": {"entry_command": 42}}, id="foreign-namespace"
             ),
@@ -539,10 +540,10 @@ class TestClientExtension:
     def test_components_outside_our_namespace_are_not_read(
         self, tmp_path: Path, location: str | None
     ):
-        """§8.2: only the owner of a namespace reads its directory.
+        """§8.2：只有命名空间的所有者才能读取其目录。
 
-        The plugin root holds portable core, and another vendor's directory is
-        theirs alone -- components in either place are not ours to load.
+        插件根目录包含可移植核心，而另一个供应商的目录是他们自己的——任何一个地方的组
+        件都不是我们可以加载的。
         """
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
         if location is not None:
@@ -555,7 +556,7 @@ class TestClientExtension:
         assert fmt.load_commands(tmp_path) == []
 
     def test_skills_stay_portable_core(self, tmp_path: Path):
-        """Skills come from ``<root>/skills``, never from the extension dir."""
+        """技能来自``<root>/skills``，而不是来自扩展目录。"""
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
         skill_dir = tmp_path / EXTENSION_NAMESPACE / "skills" / "summarize"
         skill_dir.mkdir(parents=True)
@@ -567,10 +568,10 @@ class TestClientExtension:
         assert AgentPluginsFormat().load(tmp_path).skills == []
 
     def test_broken_components_do_not_sink_the_plugin(self, tmp_path: Path, caplog):
-        """§4.1: the failure boundary is one entry, not the plugin.
+        """§4.1：故障边界是一个条目，而不是插件。
 
-        A broken agent/command is skipped while its siblings load, and an
-        unparseable hooks.json only costs the plugin its hooks.
+        损坏的代理/命令在其同级加载时会被跳过，并且不可解析的 hooks.json 只会花费插件
+        的钩子。
         """
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
         extension_dir = tmp_path / EXTENSION_NAMESPACE
@@ -578,7 +579,7 @@ class TestClientExtension:
         (extension_dir / "hooks" / "hooks.json").write_text(
             '{"hooks": { broken }', encoding="utf-8"
         )
-        # Unparseable YAML frontmatter: the one failure both loaders share.
+        # 无法解析 YAML 前置元数据：两个加载器共有的一个故障。
         broken_frontmatter = "---\nname: [unclosed\n---\n\nbody\n"
         (extension_dir / "agents" / "broken.md").write_text(
             broken_frontmatter, encoding="utf-8"
@@ -598,7 +599,7 @@ class TestClientExtension:
         assert "Failed to load command" in caplog.text
 
     def test_hooks_json_without_hooks_is_empty_not_missing(self, tmp_path: Path):
-        """An empty-but-valid hooks.json is distinct from an absent one."""
+        """一个empty-but-valid hooks.json 它不同于一个缺失的。"""
         write_manifest(tmp_path, EXAMPLE_MANIFEST)
         hooks_json = tmp_path / EXTENSION_NAMESPACE / "hooks" / "hooks.json"
         hooks_json.parent.mkdir(parents=True)
@@ -631,7 +632,7 @@ class TestClientExtension:
 
 
 class TestVendoredSchema:
-    """The vendored file must stay consistent with the URL we accept."""
+    """提供的文件必须与我们接受的URL保持一致。"""
 
     def test_constant_matches_the_literal_url(self):
         assert MANIFEST_SCHEMA_URL == SCHEMA_1_0_0

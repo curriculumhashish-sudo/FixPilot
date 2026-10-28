@@ -1,4 +1,4 @@
-"""Tests for extensions fetch utilities."""
+"""测试扩展获取实用程序。"""
 
 import subprocess
 from pathlib import Path
@@ -45,7 +45,7 @@ def test_parse_github_shorthand_invalid_format():
 
 
 def test_parse_github_shorthand_with_subpath():
-    """The repository URL ignores the subpath, which fetch() uses as repo_path."""
+    """存储库 URL 忽略 fetch() 用作 repo_path 的子路径。"""
     source_type, url = parse_extension_source(
         "github:OpenHands/extensions/skills/github"
     )
@@ -93,7 +93,7 @@ def test_parse_https_bitbucket_url():
     ],
 )
 def test_parse_azure_devops_url_keeps_path_without_git_suffix(source):
-    """Azure DevOps treats ``<repo>.git`` as a different, missing repository."""
+    """Azure DevOps 将 ``<repo>.git`` 视为不同的、缺失的存储库。"""
     source_type, url = parse_extension_source(source)
     assert source_type == SourceType.GIT
     assert url == source
@@ -177,7 +177,7 @@ def test_parse_nested_relative_path():
     assert url == "path/to/my/extension"
 
 
-# -- SourceType enum ----------------------------------------------------------
+# -- SourceType 枚举 ----------------------------------------------------------
 
 
 def test_source_type_values():
@@ -208,7 +208,7 @@ def test_cache_path_includes_readable_name(tmp_path: Path):
     assert "my-extension" in path.name
 
 
-# -- fetch (local sources) ----------------------------------------------------
+# -- 获取（本地源）----------------------------------------------------------------
 
 
 def test_fetch_local_path(tmp_path: Path):
@@ -224,7 +224,7 @@ def test_fetch_local_path_nonexistent(tmp_path: Path):
         fetch(str(tmp_path / "nonexistent"), cache_dir=tmp_path)
 
 
-# -- fetch (remote sources) ---------------------------------------------------
+# -- 获取（远程源）----------------------------------------------------------------
 
 
 def _commit_version(source: Path, version: str, tag: str | None = None) -> str:
@@ -1379,11 +1379,11 @@ def test_fetch_with_resolution_falls_back_to_head(tmp_path: Path):
     assert resolved_ref == "HEAD"
 
 
-# -- repo_path parameter ------------------------------------------------------
+# -- repo_path 参数 ------------------------------------------------------------------
 
 
 def test_fetch_local_with_repo_path_resolves_subdirectory(tmp_path: Path):
-    """A local source plus repo_path composes into the subdirectory (OSS-10405)."""
+    """本地源加上 repo_path 组成子目录 (OSS-10405)。"""
     ext_dir = tmp_path / "monorepo"
     ext_dir.mkdir()
     (ext_dir / "extensions" / "my-ext").mkdir(parents=True)
@@ -1410,7 +1410,7 @@ def test_fetch_local_with_repo_path_resolves_subdirectory(tmp_path: Path):
 def test_fetch_local_repo_path_tolerates_slashes(
     tmp_path: Path, source_suffix: str, repo_path: str
 ):
-    """Leading/trailing slashes on either field resolve the same way."""
+    """任一字段上的前导/尾随斜杠以相同的方式解析。"""
     ext_dir = tmp_path / "monorepo"
     ext_dir.mkdir()
     (ext_dir / "extensions" / "my-ext").mkdir(parents=True)
@@ -1433,7 +1433,7 @@ def test_fetch_local_with_missing_repo_path_raises_error(tmp_path: Path):
 
 
 def test_fetch_local_repo_path_cannot_escape_source(tmp_path: Path):
-    """A traversing repo_path is rejected rather than silently escaping."""
+    """一次遍历repo_path被拒绝，而不是默默地逃走。"""
     ext_dir = tmp_path / "monorepo"
     ext_dir.mkdir()
     (tmp_path / "outside").mkdir()

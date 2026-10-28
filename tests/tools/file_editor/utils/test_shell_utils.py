@@ -16,7 +16,7 @@ from openhands.tools.file_editor.utils.shell import (
 
 
 def test_run_shell_cmd_success():
-    """Test running a successful shell command."""
+    """测试运行成功的 shell 命令。"""
     cmd = "echo Hello, World!"
     returncode, stdout, stderr = run_shell_cmd(cmd)
 
@@ -27,7 +27,7 @@ def test_run_shell_cmd_success():
 
 @patch("subprocess.Popen")
 def test_run_shell_cmd_timeout(mock_popen):
-    """Test that a TimeoutError is raised if command times out."""
+    """测试命令超时时是否引发 TimeoutError。"""
     mock_process = MagicMock()
     mock_process.communicate.side_effect = subprocess.TimeoutExpired(
         cmd="sleep 2", timeout=1
@@ -40,7 +40,7 @@ def test_run_shell_cmd_timeout(mock_popen):
 
 @patch("subprocess.Popen")
 def test_run_shell_cmd_truncation(mock_popen):
-    """Test that stdout and stderr are truncated correctly."""
+    """测试 stdout 和 stderr 是否正确截断。"""
     long_output = "a" * (MAX_RESPONSE_LEN_CHAR + 10)
     mock_process = MagicMock()
     mock_process.communicate.return_value = (long_output, long_output)
@@ -55,12 +55,12 @@ def test_run_shell_cmd_truncation(mock_popen):
 
 
 def test_check_tool_installed_python():
-    """Test check_tool_installed returns True for an installed tool (python)."""
-    # 'python' is usually available if Python is installed
+    """对于已安装的工具 (Python)，测试 check_tool_installed 返回 True。"""
+    # 如果安装了 Python，则“Python”通常可用
     assert check_tool_installed("python") is True
 
 
 def test_check_tool_installed_nonexistent_tool():
-    """Test check_tool_installed returns False for a nonexistent tool."""
-    # Use a made-up tool name that is very unlikely to exist
+    """对于不存在的工具，测试 check_tool_installed 返回 False。"""
+    # 使用不太可能存在的虚构工具名称
     assert check_tool_installed("nonexistent_tool_xyz") is False

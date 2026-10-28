@@ -1,11 +1,10 @@
-"""Regression test: the TOOL span created for a tool execution must carry the
-originating `tool_call.id` as span metadata.
+"""回归测试：为工具执行创建的 TOOL 范围必须携带原始 `tool_call.id` 作为范围元数据。
 
-Before this fix, `_execute_action_event`'s `observe(name=tool_name,
+在此修复之前，`_execute_action_event` 的 `observe(name=tool_name,
 span_type="TOOL")` call never forwarded `action_event.tool_call.id`, even though
-it was in scope, so nothing correlated a TOOL span back to the specific
-`tool_calls[]` entry that triggered it (ambiguous whenever an LLM turn issues more
-than one tool call, e.g. under `ParallelToolExecutor`).
+它在范围内，因此 TOOL 跨度与特定范围没有任何关联
+触发它的 `tool_calls[]` 条目（每当 LLM 回合发出多个工具调用、e.g 时，该条目就不明确。
+ 下`ParallelToolExecutor`）。
 """
 
 from collections.abc import Sequence

@@ -44,8 +44,8 @@ PROMPT_DIR = pathlib.Path(__file__).parent / "prompts" / "templates"
 
 
 class ResolvedDynamicData(NamedTuple):
-    """Dynamic-tier inputs resolved once, fed into the section registry
-    (skills gated by model family, secrets merged)."""
+    """动态层输入解析一次，送入部分注册表
+    （由模型系列控制的技能，机密合并）。"""
 
     repo_skills: list[Skill]
     available_skills_prompt: str
@@ -54,25 +54,21 @@ class ResolvedDynamicData(NamedTuple):
 
 
 class AgentContext(BaseModel):
-    """Central structure for managing prompt extension.
+    """用于管理提示词扩展的中央结构。
 
-    AgentContext unifies all the contextual inputs that shape how the system
-    extends and interprets user prompts. It combines both static environment
-    details and dynamic, user-activated extensions from skills.
+    AgentContext 统一了塑造系统如何扩展和解释用户的所有上下文输入提示词。 它结合了静
+    态环境细节和动态的、用户激活的技能扩展。
 
-    Specifically, it provides:
-    - **Repository context / Repo Skills**: Information about the active codebase,
-      branches, and repo-specific instructions contributed by repo skills.
-    - **Runtime context**: Current execution environment (hosts, working
-      directory, secrets, date, etc.).
-    - **Conversation instructions**: Optional task- or channel-specific rules
-      that constrain or guide the agent’s behavior across the session.
-    - **Knowledge Skills**: Extensible components that can be triggered by user input
-      to inject knowledge or domain-specific guidance.
+    具体来说，它规定：
+    - **存储库上下文/存储库技能**：有关存储库技能贡献的活动代码库、分支和存储库特定指
+    令的信息。
+    - **运行时上下文**：当前执行环境（主机、工作目录、机密、日期等）。
+    - **对话说明**：可选的特定于任务或渠道的规则，用于限制或指导智能体在整个会话中的
+    行为。
+    - **知识技能**：可通过用户输入触发的可扩展组件，以注入知识或特定领域的指导。
 
-    Together, these elements make AgentContext the primary container responsible
-    for assembling, formatting, and injecting all prompt-relevant context into
-    LLM interactions.
+    这些元素一起工作 AgentContext 负责组装、格式化和注入所有内容的主要容器提示词-
+    relevant 上下文 into LLM 交互。
     """  # noqa: E501
 
     skills: list[Skill] = Field(
@@ -191,8 +187,8 @@ class AgentContext(BaseModel):
         json_schema_extra={"acp_compatible": True},
     )
     current_datetime: datetime | str | None = Field(
-        # Timezone-aware local "now"; get_formatted_datetime renders it to the
-        # minute for the prompt.
+        # 时区感知的本地“现在”； get_formatted_datetime 将其呈现为提示词的分钟。
+        #
         default_factory=lambda: datetime.now().astimezone(),
         description=(
             "Current date and time information to provide to the agent. "
@@ -208,24 +204,23 @@ class AgentContext(BaseModel):
     @field_validator("secrets", mode="before")
     @classmethod
     def _decrypt_secrets(cls, value: Any, info: ValidationInfo) -> Any:
-        """Decrypt persisted raw-string ``secrets`` values when a cipher
-        is in context.
+        """当密码时解密已持久化原始字符串 ``secrets`` 值
+        位于上下文中。
 
-        ``_serialize_secrets`` writes each raw-string value through
-        :func:`serialize_secret`, which produces Fernet ciphertext under
-        cipher context. Without a matching ``mode='before'`` decryption
-        validator, that ciphertext would survive round-trips through
-        :class:`StartConversationRequest` (whose
-        ``_populate_agent_from_settings`` validator runs *without*
-        cipher context) and get injected into the agent's system prompt
-        as-is — same bug class as any secret-bearing dict field that
-        round-trips without a matching decryption validator (e.g. MCP
+        ``_serialize_secrets`` 通过写入每个原始字符串值
+        :func:`serialize_secret`，在下面生成 Fernet 密文
+        密码上下文。 如果没有匹配的 ``mode='before'`` 解密验证器，该密文将在往返中幸
+        存下来
+        :class:`StartConversationRequest` （其
+        ``_populate_agent_from_settings`` 验证器运行 *，不带 * 密码上下文) 并按原样注
+        入到智能体的系统提示词 — 与任何在没
+        有匹配解密的情况下往返的机密承载字典字段相同的 bug 类验证器 (e.g. MCP
         ``env`` / ``headers``).
 
-        ``SecretSource`` entries are dict-shaped on the wire (Pydantic
-        models), so they're skipped by :func:`validate_secret_dict`'s
-        ``isinstance(value, str)`` gate and continue to construct
-        normally through their own validators.
+        ``SecretSource`` 条目在线路上呈字典形状（Pydantic 型号），因此它们会被：func:
+        `validate_secret_dict` 跳
+        过
+        ``isinstance(value, str)``门并通过自己的验证器继续正常构建。
         """
         return validate_secret_dict(value, info, description="AgentContext secrets")
 
@@ -233,7 +228,7 @@ class AgentContext(BaseModel):
     def _serialize_secrets(
         self, value: Mapping[str, SecretValue] | None, info
     ) -> dict[str, Any] | None:
-        """Mask raw-string ``secrets`` values via :func:`serialize_secret`."""
+        """通过：func:`serialize_secret` 屏蔽原始字符串 ``secrets`` 值。"""
         if value is None:
             return None
         out: dict[str, Any] = {}
@@ -249,7 +244,7 @@ class AgentContext(BaseModel):
     def _validate_skills(cls, v: list[Skill], _info):
         if not v:
             return v
-        # Check for duplicate skill names
+        # 检查技能名称是否重复
         seen_names = set()
         for skill in v:
             if skill.name in seen_names:
@@ -259,14 +254,14 @@ class AgentContext(BaseModel):
 
     @model_validator(mode="after")
     def _load_auto_skills(self):
-        """Load user/legacy-public skills if enabled, then apply ``disabled_skills``."""
+        """如果启用，则加载用户/旧公共技能，然后应用 ``disabled_skills``。"""
         return self.resolve_auto_skills()
 
     def resolve_auto_skills(self) -> AgentContext:
-        """Resolve ``load_*_skills`` into ``skills`` and apply ``disabled_skills``.
+        """将 ``load_*_skills`` 解析为 ``skills`` 并应用 ``disabled_skills``。
 
-        Exposed because ``model_copy`` skips validators: callers that rebuild a
-        context that way must re-run this or the deny-list silently won't apply.
+        由于 ``model_copy`` 跳过验证器而暴露：以这种方式重建上下文的调用者必须重新运
+        行此命令，否则静默拒绝列表将不适用。
         """
         include_public = self.load_public_skills
         if self.load_user_skills or include_public:
@@ -278,7 +273,7 @@ class AgentContext(BaseModel):
                 marketplace_path=self.marketplace_path,
             )
 
-            # Explicit skills are authoritative; auto-loaded skills only fill gaps.
+            # 显性的技能具有权威性； 自动加载的技能只能填补空白。
             explicit_names = {skill.name for skill in self.skills}
             for name in auto_skills:
                 if name in explicit_names:
@@ -288,21 +283,20 @@ class AgentContext(BaseModel):
                     )
             self.skills = merge_skills_by_name(self.skills, auto_skills.values())
 
-        # Deny-list: drop disabled skills from whatever ended up loaded (explicit
-        # + auto). A disabled name that isn't present is a harmless no-op — this
-        # is the drift-tolerant selection model that replaced allow-list refs.
+        # 拒绝列表：从最终加载的内容中删除禁用的技能（明确
+        # + 自动）。 不存在的禁用名称是无害的无操作 - 这
+        # 是取代允许列表引用的漂移容忍选择模型。
         if self.disabled_skills:
             disabled = set(self.disabled_skills)
             self.skills = [s for s in self.skills if s.name not in disabled]
         return self
 
     def get_secret_infos(self) -> list[dict[str, str | None]]:
-        """Get secret information (name and description) from the secrets field.
+        """从机密字段获取机密信息（名称和描述）。
 
         Returns:
-            List of dictionaries with 'name' and 'description' keys.
-            Returns an empty list if no secrets are configured.
-            Description will be None if not available.
+            带有“名称”和“描述”键的字典列表。 如果未配置机密，则返回空列表。 如果不可
+            用，说明将为 None。
         """
         if not self.secrets:
             return []
@@ -315,42 +309,44 @@ class AgentContext(BaseModel):
         return secret_infos
 
     def get_formatted_datetime(self) -> str | None:
-        """Get formatted datetime string for inclusion in prompts.
+        """获取包含在提示词中的格式化日期时间字符串。
 
         Returns:
-            Formatted datetime string, or None if current_datetime is not set.
-            If current_datetime is a datetime object, it's formatted as
-            "YYYY-MM-DDTHH:MM" (no seconds, microseconds, or UTC offset).
-            If current_datetime is already a string, it's returned as-is.
+            格式化的日期时间字符串，如果未设置 current_datetime，则为 None。 如果
+            current_datetime 是日期时间对象，则其
+            格式为“YYYY-MM-DDTHH:MM”（无秒、微秒或 UTC 偏移​​量）。 如果
+            current_datetime 已经是字符串，则按原样返回
+            。
         """
         if self.current_datetime is None:
             return None
         if isinstance(self.current_datetime, datetime):
-            # Local wall-clock to the minute: drop seconds, microseconds, offset.
+            # 本地挂钟精确到分钟：滴秒、微秒、偏移。
             return self.current_datetime.replace(tzinfo=None).isoformat(
                 timespec="minutes"
             )
         return self.current_datetime
 
     def _partition_skills(self) -> tuple[list[Skill], list[Skill]]:
-        """Split skills into repo-context and available-skills lists.
+        """将技能分为 repo-上下文和可用技能列表。
 
-        Categorization rules (shared by system-message and ACP adapters):
-        - AgentSkills-format: available_skills unless direct model invocation is
-          disabled. Triggers still auto-inject via ``get_user_message_suffix``.
-        - Legacy with ``trigger=None``: full content in REPO_CONTEXT (always active).
-        - Legacy with triggers: listed in available_skills unless direct model
-          invocation is disabled, injected on trigger.
+        分类规则（由系统消息和 ACP 适配器共享）：
+        - AgentSkills-格式：available_skills，除非禁用直接模型调用。 触发器仍然通过
+        ``get_user_message_suffix`` 自动注入。
+        - ``trigger=None`` 的旧版：REPO_CONTEXT 中的完整内容（始终有效）。
+        - 传统的触发器：在 available_skills 中列出，除非禁用直接模型调用，在触发器上
+        注入。
 
         Returns:
-            ``(repo_skills, available_skills)`` tuple.
+            ``(repo_skills, available_skills)`` 元组。
         """
         repo_skills: list[Skill] = []
         available_skills: list[Skill] = []
         for s in self.skills:
             if s.is_agentskills_format or s.trigger is not None:
-                # Path rules force disable_model_invocation (Skill validator), so
-                # they fall out here — injected only on file-touch, never listed.
+                # 路径规则强制 disable_model_invocation（技能验证器），因此它们在这里掉
+                # 落 - 仅在文件触摸时注入，从未列出。
+                #
                 if not s.disable_model_invocation:
                     available_skills.append(s)
             else:
@@ -363,28 +359,28 @@ class AgentContext(BaseModel):
         llm_model_canonical: str | None = None,
         additional_secret_infos: list[dict[str, str | None]] | None = None,
     ) -> str | None:
-        """Get the system message with repo skill content and custom suffix.
+        """获取带有仓库技能内容和自定义后缀的系统消息。
 
-        Custom suffix can typically includes:
-        - Repository information (repo name, branch name, PR number, etc.)
-        - Runtime information (e.g., available hosts, current date)
-        - Conversation instructions (e.g., user preferences, task details)
-        - Repository-specific instructions (collected from repo skills)
-        - Available skills list (for AgentSkills-format and triggered skills)
+        自定义后缀通常可以包括：
+        - 存储库信息（存储库名称、分支名称、PR编号等）
+        - 运行时信息（e.g.、可用主机、当前日期）
+        - 对话说明（e.g.、用户首选项、任务详细信息）
+        - 存储库特定指令（从存储库技能收集）
+        - 可用技能列表（适用于 AgentSkills 格式和触发技能）
 
         Args:
-            llm_model: Optional LLM model name for vendor-specific skill filtering.
-            llm_model_canonical: Optional canonical LLM model name.
-            additional_secret_infos: Optional list of additional secret info dicts
-                (with 'name' and 'description' keys) to merge with agent_context
-                secrets. Typically passed from conversation's secret_registry.
+            llm_model: 用于特定于供应商的技能过滤的可选 LLM 型号名称。
+            llm_model_canonical: 可选的规范 LLM 模型名称。
+            additional_secret_infos: 附加机密信息字典的可选列表
+                （使用“名称”和“描述”键）与 agent_context 机密合并。 通常从对话的
+                secret_registry 中传递。
 
-        Skill categorization:
-        - AgentSkills-format (SKILL.md): Always in <available_skills> (progressive
-          disclosure). If has triggers, content is ALSO auto-injected on trigger
-          in user prompts.
-        - Legacy with trigger=None: Full content in <REPO_CONTEXT> (always active)
-        - Legacy with triggers: Listed in <available_skills>, injected on trigger
+        技能分类：
+        - AgentSkills-格式 (SKILL.md)：始终采用 <available_skills>（渐进式公开）。 如
+        果有触发器，则内容会在用户提示词中
+        的触发器上自动注入 ALSO。
+        - 带有触发器=None的旧版：<REPO_CONTEXT>中的完整内容（始终处于活动状态）
+        - 带有触发器的旧版本：列在 <available_skills> 中，在触发器上注入
         """
         data = self._resolve_dynamic_data(
             llm_model, llm_model_canonical, additional_secret_infos
@@ -407,12 +403,13 @@ class AgentContext(BaseModel):
         llm_model_canonical: str | None = None,
         additional_secret_infos: list[dict[str, str | None]] | None = None,
     ) -> ResolvedDynamicData:
-        """Resolve the dynamic-tier inputs shared by :meth:`get_system_message_suffix`
-        and the section registry: model-gated repo skills, the available-skills
-        prompt, merged secret infos, and the formatted datetime. Pure (no render)."""
+        """解析：meth:`get_system_message_suffix` 共享的动态层输入
+        以及部分注册表：模型门控回购技能、可用技能提示词、合并的机密信息和格式化的日
+        期时间。 纯（无渲染）。
+        """
         repo_skills, available_skills = self._partition_skills()
 
-        # Gate vendor-specific repo skills based on model family.
+        # 根据模型系列控制供应商特定的回购技能。
         if llm_model or llm_model_canonical:
             spec = get_model_prompt_spec(llm_model or "", llm_model_canonical)
             family = (spec.family or "").lower()
@@ -440,8 +437,8 @@ class AgentContext(BaseModel):
                 f"Generated available skills prompt for {len(available_skills)} skills"
             )
 
-        # Merge agent_context secrets with additional secrets from the registry
-        # (additional override by name).
+        # 将 agent_context 机密与注册表中的附加机密合并（按名称附加覆盖）。
+        #
         secret_infos = self.get_secret_infos()
         if additional_secret_infos:
             secret_dict = {s["name"]: s for s in secret_infos}
@@ -457,10 +454,9 @@ class AgentContext(BaseModel):
         )
 
     def validate_acp_compatibility(self) -> None:
-        """Raise if this context uses fields unsupported by ACP prompt mode.
+        """如果此上下文使用 ACP 提示词模式不支持的字段，则引发该错误。
 
-        Compatibility is determined by the ``acp_compatible`` tag in each
-        field's ``json_schema_extra``.
+        兼容性由每个字段的 ``json_schema_extra`` 中的 ``acp_compatible`` 标记确定。
         """
         acp_compatible = {
             name
@@ -479,37 +475,35 @@ class AgentContext(BaseModel):
         self,
         additional_secret_infos: list[dict[str, str | None]] | None = None,
     ) -> str | None:
-        """Return the AgentContext fields that ACP can consume as prompt text.
+        """返回 ACP 可以用作提示词文本的 AgentContext 字段。
 
-        ACP servers own their tools, MCP servers, hooks, and execution model, so
-        this adapter only emits prompt-only context.  Unsupported AgentContext
-        fields are rejected by :meth:`validate_acp_compatibility`.
+        ACP 服务器拥有自己的工具、MCP 服务器、挂钩和执行模型，因此此适配器仅发出提示
+        词-only 上下文。 不支持的 AgentContext 字段被：me
+        th:`validate_acp_compatibility` 拒绝。
 
-        The rendering reuses :meth:`get_system_message_suffix`, which assembles
-        the dynamic-tier sections via the shared prompt registry, so that ACP
-        agents receive the identical prompt layout as the regular agent.  This
-        includes the
-        ``<CUSTOM_SECRETS>`` block when secrets are present, informing the ACP
-        subprocess which environment variables are available.  The actual secret
-        values are injected into the subprocess environment by
-        ``ACPAgent._start_acp_server``; the prompt block only advertises their
-        names so the agent knows to use them.
+        渲染使用了 `get_system_message_suffix` 这个方法，它通过共享提示词注册表来组装
+        动态层级部分，因此 ACP 智能体接收到与常规智能
+        体相同的提示词布局。 这包括
+        ``<CUSTOM_SECRETS>`` 当机密存在时阻止，通知 ACP 子进程哪个环境变量可用。 实际
+        的机密值通过以下方式注入到子进程环境中
+        ``ACPAgent._start_acp_server``; 提示词块仅公布它们的名称，以便智能体知道使用
+        它们。
 
-        ``user_message_suffix`` is a compatible field but is not emitted here
-        because ``LocalConversation`` already applies it through
-        ``event.to_llm_message()``; including it would duplicate it.
+        ``user_message_suffix`` 是一个兼容字段，但此处未发出，因为
+        ``LocalConversation`` 已通过
+        ``event.to_llm_message()``; 包括它会重复它。
 
         Args:
-            additional_secret_infos: Optional list of additional secret info dicts
+            additional_secret_infos: 附加机密信息字典的可选列表
                 from the conversation's secret_registry, matching the interface of
-                :meth:`get_system_message_suffix`. When provided, these secrets are
-                merged with any secrets already on the AgentContext so the rendered
-                ``<CUSTOM_SECRETS>`` block matches what the regular Agent emits.
+                ：方法：`get_system_message_suffix`。 当提供时，这些机密是
+                与 AgentContext 上已有的任何机密合并，因此渲染的
+                ``<CUSTOM_SECRETS>`` 块与常规智能体发出的内容匹配。
         """
         self.validate_acp_compatibility()
-        # No model-specific skill filtering for ACP — delegate to the shared
-        # builder, whose dynamic-tier sections also emit the <CUSTOM_SECRETS>
-        # block from secrets.
+        # ACP 没有特定于模型的技能过滤 - 委托给共享构建器，其动态层部分也从机密发出
+        # <CUSTOM_SECRETS> 块。
+        #
         return self.get_system_message_suffix(
             additional_secret_infos=additional_secret_infos
         )
@@ -517,12 +511,12 @@ class AgentContext(BaseModel):
     def get_user_message_suffix(
         self, user_message: Message, skip_skill_names: list[str]
     ) -> tuple[TextContent, list[str]] | None:
-        """Augment the user’s message with knowledge recalled from skills.
+        """利用从技能中回忆起的知识来丰富用户的信息。
 
-        This works by:
-        - Extracting the text content of the user message
-        - Matching skill triggers against the query
-        - Returning formatted knowledge and triggered skill names if relevant skills were triggered
+        这是通过以下方式实现的：
+        - 提取用户消息的文本内容
+        - 根据查询匹配技能触发器
+        - 如果触发了相关技能，则返回格式化的知识和触发的技能名称
         """  # noqa: E501
 
         user_message_suffix = None
@@ -533,12 +527,12 @@ class AgentContext(BaseModel):
             c.text for c in user_message.content if isinstance(c, TextContent)
         ).strip()
         recalled_knowledge: list[SkillKnowledge] = []
-        # skip empty queries, but still return user_message_suffix if it exists
+        # 跳过空查询，但如果存在则仍返回 user_message_suffix
         if not query:
             if user_message_suffix:
                 return TextContent(text=user_message_suffix), []
             return None
-        # Search for skill triggers in the query
+        # 在查询中搜索技能触发器
         for skill in self.skills:
             if not isinstance(skill, Skill):
                 continue
@@ -576,11 +570,11 @@ class AgentContext(BaseModel):
     def get_tool_use_suffix(
         self, file_path: str, skip_skill_names: list[str]
     ) -> tuple[TextContent, list[str]] | None:
-        """Match ``PathTrigger`` skills ("rules") against a touched file path.
+        """将 ``PathTrigger`` 技能（“规则”）与所触及的文件路径匹配。
 
-        The path-based counterpart of :meth:`get_user_message_suffix`. Returns
-        the rendered rule content and the rules that fired, or None.
-        ``skip_skill_names`` suppresses rules already injected (dedup).
+        :meth:`get_user_message_suffix` 基于路径的对应项。 返回渲染的规则内容和触发的
+        规则，或None。
+        ``skip_skill_names`` 抑制已注入的规则（重复数据删除）。
         """
         if not file_path:
             return None

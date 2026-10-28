@@ -1,4 +1,4 @@
-"""Tests for View.append_event."""
+"""测试 View.append_event。"""
 
 from openhands.sdk.context.view import View
 from openhands.sdk.event.condenser import (
@@ -14,7 +14,7 @@ from tests.sdk.context.view.conftest import (
 )
 
 
-# --- LLMConvertibleEvent branch ---
+# --- LLMConvertibleEvent 分支 ---
 
 
 class TestAppendLLMConvertibleEvent:
@@ -60,7 +60,7 @@ class TestAppendLLMConvertibleEvent:
         assert view.unhandled_condensation_request is False
 
 
-# --- Condensation branch ---
+# --- 上下文压缩分支 ---
 
 
 class TestAppendCondensation:
@@ -133,7 +133,7 @@ class TestAppendCondensation:
         )
         view.append_event(condensation)
 
-        assert len(view) == 3  # 2 remaining + 1 summary
+        assert len(view) == 3  # 剩余 2 个 + 1 个摘要
         assert isinstance(view.events[0], CondensationSummaryEvent)
         assert view.events[0].summary == "Summary of msg 0"
         assert view.events[1] is msgs[1]
@@ -195,7 +195,7 @@ class TestAppendCondensation:
             assert not isinstance(event, Condensation)
 
 
-# --- CondensationRequest branch ---
+# --- CondensationRequest 分支 ---
 
 
 class TestAppendCondensationRequest:
@@ -223,7 +223,7 @@ class TestAppendCondensationRequest:
         assert len(view) == 0
 
 
-# --- Default (non-LLMConvertible, non-condensation) branch ---
+# --- 默认（非LLMConvertible，非上下文压缩) 分支 ---
 
 
 class TestAppendNonLLMConvertibleEvent:
@@ -251,7 +251,7 @@ class TestAppendNonLLMConvertibleEvent:
         assert view.events == msgs
 
 
-# --- Interaction sequences ---
+# --- 交互序列 ---
 
 
 class TestAppendEventInteractions:
@@ -326,7 +326,7 @@ class TestAppendEventInteractions:
         assert view.events[1] is msg1
 
     def test_non_llm_events_interspersed(self) -> None:
-        """Non-LLMConvertible events mixed in don't affect the view."""
+        """LLMConvertible事件混杂不会影响视图。"""
         view = View()
         msg0 = message_event("msg 0")
         msg1 = message_event("msg 1")
@@ -340,24 +340,24 @@ class TestAppendEventInteractions:
         assert view.events == [msg0, msg1]
 
     def test_full_lifecycle(self) -> None:
-        """Simulate a realistic sequence: messages, request, condensation, more
-        messages.
+        """模拟真实的序列：消息、请求、上下文压缩等
+        消息。
         """
         view = View()
 
-        # Initial messages
+        # 初始消息
         msgs = [message_event(f"msg {i}") for i in range(3)]
         for msg in msgs:
             view.append_event(msg)
         assert len(view) == 3
         assert view.unhandled_condensation_request is False
 
-        # Request condensation
+        # 请求上下文压缩
         view.append_event(CondensationRequest())
         assert view.unhandled_condensation_request is True
-        assert len(view) == 3  # request not in events
+        assert len(view) == 3  # 请求不在事件中
 
-        # Condensation handles the request
+        # 上下文压缩处理请求
         view.append_event(
             Condensation(
                 forgotten_event_ids={msgs[0].id, msgs[1].id},
@@ -367,11 +367,11 @@ class TestAppendEventInteractions:
             )
         )
         assert view.unhandled_condensation_request is False
-        assert len(view) == 2  # summary + msgs[2]
+        assert len(view) == 2  # 摘要 + 消息[2]
         assert isinstance(view.events[0], CondensationSummaryEvent)
         assert view.events[1] is msgs[2]
 
-        # More messages after condensation
+        # 上下文压缩之后的更多消息
         msg3 = message_event("msg 3")
         view.append_event(msg3)
         assert len(view) == 3

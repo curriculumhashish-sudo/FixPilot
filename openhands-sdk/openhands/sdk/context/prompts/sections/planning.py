@@ -1,15 +1,17 @@
-"""The planning system prompt.
+"""规划体系提示词。
 
-Unlike the default composition -- whose blocks each carry a guard and can be overridden
-individually -- the planning prompt is a single standalone STATIC block with no
-per-section guards, so it is one section. The only substitution is ``plan_structure``;
-``tests/sdk/context/prompts/test_planning_registry.py`` pins the output against a golden
-snapshot. No ``_refine``: the text mentions no ``bash``/``terminal`` (its ``<EFFICIENCY>``
-says ``glob and grep``), so the Windows shell substitution is a no-op.
+与默认的组合方式不同，规划提示词是一个没有分节保护的独立STATIC块，因此是一个单独的章
+节。 唯一的替换是``plan_structure``；
+``tests/sdk/context/prompts/test_planning_registry.py`` 将输出固定在黄金快照上。 否
+``_refine``：文本中
+没有提到 ``bash``/``terminal``（其 ``<EFFICIENCY>`` 表示 ``glob and grep``），因此
+Windows shell 替
+换是无操作。
 """
 
-# The body is verbatim long-form prompt text; wrapping a line would change the rendered
-# bytes, so line-length (E501) is disabled for this whole file.
+# 正文是逐字长格式提示词文本； 换行会更改渲染的字节，因此整个文件的行长度 (E501) 被禁用
+# 。
+#
 # ruff: noqa: E501
 
 from openhands.sdk.context.prompts.section import CacheTier, PromptContext
@@ -19,10 +21,11 @@ __all__ = ["PlanningSection"]
 
 
 class PlanningSection:
-    """The full planning system prompt as one STATIC block.
+    """完整的规划系统提示词作为一个 STATIC 块。
 
-    The only substitution is ``plan_structure`` (an empty value reproduces the
-    template's ``<PLAN_STRUCTURE>\\n\\n</PLAN_STRUCTURE>`` output verbatim).
+    唯一的替换是 ``plan_structure``（空值逐字重现模板的
+    ``<PLAN_STRUCTURE>\\n\\n</PLAN_STRUCTURE>`` 输出
+    ）。
     """
 
     name = "planning"

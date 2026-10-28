@@ -1,15 +1,15 @@
-"""Streamlit app to explore OpenHands completion logs.
+"""Streamlit 应用程序用于探索 OpenHands 完成日志。
 
-Usage:
-    streamlit run scripts/completion_logs_viewer.py
+用途：
+    运行 scripts/completion_logs_viewer.py 的 streamlit
 
-The viewer expects a directory containing run folders with ``*.json`` log
-files (e.g. ``output/Agent/logs/<run>/log.json``). You can override the logs
-directory via:
+查看器需要一个包含运行文件夹的目录，其中包含 ``*.json`` 个日志文件 (e.g.
+``output/Agent/logs/<run>/log.json``). 您
+可以通过以下方式覆盖日志目录：
 
-* Environment variable ``OPENHANDS_COMPLETION_LOGS_ROOT``
-* URL query parameter ``?root=/path/to/logs`` when the app is open
-* The sidebar text input labelled "Logs directory"
+* 环境变量 ``OPENHANDS_COMPLETION_LOGS_ROOT``
+* URL打开应用时查询参数``?root=/path/to/logs``
+* 侧边栏文本输入标记为“日志目录”
 """
 
 from __future__ import annotations

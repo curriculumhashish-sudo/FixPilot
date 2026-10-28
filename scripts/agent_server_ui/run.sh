@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script to run the web chat app example using its configuration
+# 使用其配置运行网络聊天应用程序示例的脚本
 set -euo pipefail
 
-# Set the CWD to the current directory
+# 将CWD设置为当前目录
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-# Change to the script's directory before spawning the process
+# 在生成进程之前更改到脚本的目录
 cd "$SCRIPT_DIR"
 
 export OH_STATIC_FILES_PATH="static"

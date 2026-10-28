@@ -18,13 +18,13 @@ from openhands.tools.terminal import TerminalTool
 
 logger = get_logger(__name__)
 
-# Configure LLM using LLMRegistry
+# 使用LLMRegistry配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "gpt-5.5")
 base_url = os.getenv("LLM_BASE_URL")
 
-# Create LLM instance
+# 创建 LLM 个实例
 llm = LLM(
     usage_id="agent",
     model=model,
@@ -39,7 +39,7 @@ llm_condenser = LLM(
     usage_id="condenser",
 )
 
-# Tools
+# 工具
 condenser = LLMSummarizingCondenser(llm=llm_condenser, max_size=10, keep_first=2)
 
 cwd = os.getcwd()
@@ -62,7 +62,7 @@ conversation.send_message(
 )
 conversation.run()
 
-# Demonstrate extraneous costs part of the conversation
+# 展示对话中的额外成本
 second_llm = LLM(
     usage_id="demo-secondary",
     model=model,
@@ -74,7 +74,7 @@ completion_response = second_llm.completion(
     messages=[Message(role="user", content=[TextContent(text="echo 'More spend!'")])]
 )
 
-# Access total spend
+# 访问总支出
 spend = conversation.conversation_stats.get_combined_metrics()
 print("\n=== Total Spend for Conversation ===\n")
 print(f"Accumulated Cost: ${spend.accumulated_cost:.6f}")
@@ -109,6 +109,6 @@ print(
     )
 )
 
-# Report cost
+# 报告费用
 cost = conversation.conversation_stats.get_combined_metrics().accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

@@ -46,31 +46,29 @@ logger = get_logger(__name__)
 
 
 class ConversationExecutionStatus(str, Enum):
-    """Enum representing the current execution state of the conversation."""
+    """枚举代表会话当前的执行状态。"""
 
-    IDLE = "idle"  # Conversation is ready to receive tasks
-    RUNNING = "running"  # Conversation is actively processing
-    PAUSED = "paused"  # Conversation execution is paused by user
-    WAITING_FOR_CONFIRMATION = (
-        "waiting_for_confirmation"  # Conversation is waiting for user confirmation
-    )
-    FINISHED = "finished"  # Conversation has completed the current task
-    ERROR = "error"  # Conversation encountered an error (optional for future use)
-    STUCK = "stuck"  # Conversation is stuck in a loop or unable to proceed
-    DELETING = "deleting"  # Conversation is in the process of being deleted
+    IDLE = "idle"  # 对话已准备好接收任务
+    RUNNING = "running"  # 正在积极处理对话
+    PAUSED = "paused"  # 会话执行被用户暂停
+    WAITING_FOR_CONFIRMATION = "waiting_for_confirmation"  # 对话正在等待用户确认
+    FINISHED = "finished"  # 对话已完成当前任务
+    ERROR = "error"  # 对话遇到错误（可选以供将来使用）
+    STUCK = "stuck"  # 对话陷入循环或无法继续
+    DELETING = "deleting"  # 对话正在删除中
 
     def is_terminal(self) -> bool:
-        """Check if this status represents a terminal state.
+        """检查该状态是否代表最终状态。
 
-        Terminal states indicate the run has completed and the agent is no longer
-        actively processing. These are: FINISHED, ERROR, STUCK.
+        终端状态指示运行已完成并且智能体不再主动处理。 它们是：FINISHED、ERROR、STUCK
+        。
 
-        Note: IDLE is NOT a terminal state - it's the initial state of a conversation
-        before any run has started. Including IDLE would cause false positives when
-        the WebSocket delivers the initial state update during connection.
+        Note: IDLE 是不终止状态 - 这是对话的初始状态
+        在任何跑步开始之前。 当 WebSocket 在连接期间传递初始状态更新时，包含 IDLE 将
+        导致 False 积极。
 
         Returns:
-            True if this is a terminal status, False otherwise.
+            如果这是终端状态，则为 True，否则为 False。
         """
         return self in (
             ConversationExecutionStatus.FINISHED,
@@ -80,7 +78,7 @@ class ConversationExecutionStatus(str, Enum):
 
 
 class ConversationState(OpenHandsModel):
-    # ===== Public, validated fields =====
+    # ===== 公共、经过验证的字段 =====
     id: ConversationID = Field(description="Unique conversation ID")
 
     agent: AgentBase = Field(
@@ -116,7 +114,7 @@ class ConversationState(OpenHandsModel):
         description="Whether to enable stuck detection for the agent.",
     )
 
-    # Enum-based state management
+    # 基于枚举的状态管理
     execution_status: ConversationExecutionStatus = Field(
         default=ConversationExecutionStatus.IDLE
     )
@@ -149,19 +147,19 @@ class ConversationState(OpenHandsModel):
         ),
     )
 
-    # Hook-blocked actions: action_id -> blocking reason
+    # 钩子阻止的操作：action_id -> 阻止原因
     blocked_actions: dict[str, str] = Field(
         default_factory=dict,
         description="Actions blocked by PreToolUse hooks, keyed by action ID",
     )
 
-    # Hook-blocked messages: message_id -> blocking reason
+    # 钩子阻止的消息：message_id -> 阻止原因
     blocked_messages: dict[str, str] = Field(
         default_factory=dict,
         description="Messages blocked by UserPromptSubmit hooks, keyed by message ID",
     )
 
-    # Track the most recent user MessageEvent ID to avoid event log scans.
+    # 跟踪最新的用户 MessageEvent ID 以避免事件日志扫描。
     last_user_message_id: EventID | None = Field(
         default=None,
         description=(
@@ -172,7 +170,7 @@ class ConversationState(OpenHandsModel):
         ),
     )
 
-    # Movable HEAD of the conversation tree.
+    # 对话树的可移动HEAD。
     leaf_event_id: EventID | None = Field(
         default=None,
         description=(
@@ -182,25 +180,25 @@ class ConversationState(OpenHandsModel):
         ),
     )
 
-    # Distinguishes a deliberate empty HEAD (navigate_to(None)) from an unset
-    # ``leaf_event_id``, which triggers legacy back-compat. Without it, emptying a
-    # single-root tree is indistinguishable from a pre-tree conversation. Persisted
-    # so the empty HEAD survives a save/reload. See _resolve_active_leaf.
+    # 区分有意为空的 HEAD (navigate_to(None)) 和未设置的
+    # ``leaf_event_id``，这会触发旧版向后兼容。 没有它，清空单根树与树前对话没有什么区别
+    # 。 已持久化因此空的 HEAD 在保存/重新加载后仍然存在。 参见_resolve_active_leaf。
+    #
     head_is_empty: bool = Field(default=False)
 
-    # Conversation statistics for LLM usage tracking
+    # LLM 使用情况跟踪的对话统计信息
     stats: ConversationStats = Field(
         default_factory=ConversationStats,
         description="Conversation statistics for tracking LLM metrics",
     )
 
-    # Secret registry for handling sensitive data
+    # 机密注册表用于处理敏感数据
     secret_registry: SecretRegistry = Field(
         default_factory=SecretRegistry,
         description="Registry for handling secrets and sensitive data",
     )
 
-    # User-defined tags (key-value metadata)
+    # 用户定义的标签（键值元数据）
     tags: ConversationTags = Field(
         default_factory=dict,
         description="User-defined key-value tags for the conversation. "
@@ -208,7 +206,7 @@ class ConversationState(OpenHandsModel):
         "up to 256 characters.",
     )
 
-    # Agent-specific runtime state (simple dict for flexibility)
+    # 智能体特定的运行时状态（简单的字典以实现灵活性）
     agent_state: dict[str, Any] = Field(
         default_factory=dict,
         description="Dictionary for agent-specific runtime state that persists across "
@@ -218,7 +216,7 @@ class ConversationState(OpenHandsModel):
         "See https://docs.openhands.dev/sdk/guides/convo-persistence#how-state-persistence-works",
     )
 
-    # Hook configuration for the conversation
+    # 对话的钩子配置
     hook_config: HookConfig | None = Field(
         default=None,
         description=(
@@ -229,51 +227,47 @@ class ConversationState(OpenHandsModel):
         ),
     )
 
-    # ===== Private attrs (NOT Fields) =====
-    _fs: FileStore = PrivateAttr(default=cast(Any, None))  # filestore for persistence
-    _events: EventLog = PrivateAttr()  # now the storage for events
-    # Cached projection of `_events` for the *active branch*, lazily updated on
-    # read. Derived state — never persisted. `_view_branch_leaf` is the resolved
-    # leaf the cache reflects: equal to the active leaf -> reuse; an ancestor ->
-    # extend with the tail; otherwise -> rebuild (branch switch).
-    # See https://github.com/OpenHands/software-agent-sdk/issues/3053.
+    # ===== 私有属性（不字段）=====
+    _fs: FileStore = PrivateAttr(default=cast(Any, None))  # 持久化的文件存储
+    _events: EventLog = PrivateAttr()  # 现在是事件的存储
+    # *活动分支*的`_events`的缓存投影，在读取时延迟更新。 派生状态——从不已持久化。
+    # `_view_branch_leaf` 是缓存反映的已解析叶子：等于活动叶子 -> 重用； 祖先 -> 用尾巴
+    # 延伸； 否则 -> 重建（分支切换）。 参见
+    # https://github.com/OpenHands/software-agent-sdk/issues/3053.
+    #
     _view: View = PrivateAttr(default_factory=View)
     _view_branch_leaf: EventID | None = PrivateAttr(default=None)
     _view_lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
-    _cipher: Cipher | None = PrivateAttr(default=None)  # cipher for secret encryption
-    _autosave_enabled: bool = PrivateAttr(
-        default=False
-    )  # to avoid recursion during init
+    _cipher: Cipher | None = PrivateAttr(default=None)  # 机密加密的密码
+    _autosave_enabled: bool = PrivateAttr(default=False)  # 以避免 init 期间的递归
     _on_state_change: ConversationCallbackType | None = PrivateAttr(
         default=None
-    )  # callback for state changes
+    )  # 回调用于状态更改
     _write_guard: Callable[[], AbstractContextManager[None]] | None = PrivateAttr(
         default=None
     )
-    _lock: FIFOLock = PrivateAttr(
-        default_factory=FIFOLock
-    )  # FIFO lock for thread safety
-    _save_depth: int = PrivateAttr(default=0)  # context-manager nesting depth
-    _dirty: bool = PrivateAttr(default=False)  # pending unsaved field changes
+    _lock: FIFOLock = PrivateAttr(default_factory=FIFOLock)  # FIFO 锁为线程安全
+    _save_depth: int = PrivateAttr(default=0)  # 上下文-管理器嵌套深度
+    _dirty: bool = PrivateAttr(default=False)  # 待处理的未保存字段更改
 
     @property
     def events(self) -> EventLog:
         return self._events
 
     def _resolve_active_leaf(self) -> EventID | None:
-        """The effective HEAD, resolving a ``None`` ``leaf_event_id`` by lineage.
+        """有效HEAD，按谱系解析``None````leaf_event_id``。
 
-        A set leaf is returned as-is. ``head_is_empty`` marks a deliberate empty
-        HEAD (``navigate_to(None)``) -> no active branch. Otherwise a ``None`` leaf
-        (pre-feature conversation) falls back to the last *real* event, so legacy
-        history loads unbranched.
+        设置的叶子按原样返回。 ``head_is_empty`` 标记故意为空的 HEAD (
+        ``navigate_to(None)``) -> 没有活动分支。
+        否则，``None`` 叶（功能前对话）会回退到最后一个 *real* 事件，因此遗留历史记录
+        将不分支加载。
 
-        Trailing non-tree artifacts -- a ``ConversationStateUpdateEvent`` or
-        ``ConversationErrorEvent`` a newer server may have written onto a legacy
-        tail during an interrupted startup -- are skipped: they are not tree
-        nodes (see ``append_event``), so treating one as the leaf would both make
-        it the parent of the next event and, because it carries a ``parent_id``,
-        cut the legacy linear fallback and strand all prior history (#4057).
+        尾随非树工件 - ``ConversationStateUpdateEvent`` 或
+        ``ConversationErrorEvent`` 一个新服务器在中断启动期间可能写入了遗留尾部 -- 被
+        跳过：它们不是树节点（见
+        ``append_event``），因此将一个视为叶子节点会同时使它成为下一个事件的父节点，
+        并且因为它携带 ``parent_id``，会切断遗留线性回退方
+        案并打断所有先前的历史（#4057）。
         """
         if self.leaf_event_id is not None:
             return self.leaf_event_id
@@ -293,69 +287,69 @@ class ConversationState(OpenHandsModel):
         return None
 
     def active_branch(self, limit: int | None = None) -> list[Event]:
-        """Raw events on the active branch (``path_to_root(leaf)``), root-first.
+        """活动分支 (``path_to_root(leaf)``) 上的原始事件，根优先。
 
-        Excludes abandoned branches, so consumers reasoning about the *current*
-        conversation (stuck detection, pending actions) see only the live path.
-        ``limit`` returns just the last ``limit`` events, kept O(limit).
+        排除废弃的分支，因此消费者对 *当前* 对话（卡住检测、待处理操作）进行推理时只
+        能看到实时路径。
+        ``limit`` 仅返回最后 ``limit`` 个事件，保留 O(limit)。
         """
         return self._events.path_to_root(self._resolve_active_leaf(), limit=limit)
 
     def _stamp_parent_id(self, event: Event) -> Event:
-        """Return ``event`` with ``parent_id`` set to the active leaf if unset."""
+        """如果未设置，则返回 ``event``，并将 ``parent_id`` 设置为活动叶。"""
         if event.parent_id is not None:
             return event
         parent = self._resolve_active_leaf()
-        # Empty HEAD over a non-empty log = deliberate new root (navigate_to(None));
-        # mark it so it is not misread as a legacy event chained to its neighbour.
+        # 在非空日志上清空 HEAD = 有意的新根 (navigate_to(None))； 对其进行标记，以免将
+        # 其误读为与其邻居相关的遗留事件。
+        #
         if parent is None and len(self._events) > 0:
             parent = ROOT_PARENT_ID
         return event.model_copy(update={"parent_id": parent})
 
     def append_event(self, event: Event) -> int:
-        """Single storage chokepoint: stamp parent_id, append, advance HEAD.
+        """单一存储瓶颈：标记parent_id、追加、前进HEAD。
 
-        Stamping here (not only at the emit callback) ensures no event enters the
-        log unstamped, even one a hook swaps in downstream. ``fork`` copies
-        pre-stamped events and sets HEAD itself, so it bypasses this.
+        此处的标记（不仅在发出回调处）可确保没有事件进入未标记的日志，即使是下游的钩
+        子交换也是如此。 ``fork`` 复制预先标记的事件并设置 HEAD 本身，因
+        此它绕过了这一点。
 
         Returns:
-            The sequence number ``EventLog`` assigned to the appended event.
+            分配给附加事件的序列号 ``EventLog``。
         """
         event = self._stamp_parent_id(event)
         seq = self._events.append(event)
-        # ConversationStateUpdateEvent is a state-sync artifact, not a tree node;
-        # advancing HEAD for it would recurse (moving HEAD re-emits one).
+        # ConversationStateUpdateEvent 是状态同步工件，而不是树节点； 前进 HEAD 因为它会
+        # 递归（移动 HEAD 会重新发出一个）。
+        #
         from openhands.sdk.event.conversation_state import (
             ConversationStateUpdateEvent,
         )
 
         if not isinstance(event, ConversationStateUpdateEvent):
             self.leaf_event_id = event.id
-            if self.head_is_empty:  # HEAD now points at a real event again
+            if self.head_is_empty:  # HEAD现在再次指向真实事件
                 self.head_is_empty = False
         return seq
 
     @property
     def view(self) -> View:
-        """Lazily-maintained ``View`` of the active branch (``path_to_root(leaf)``).
+        """活动分支 (``path_to_root(leaf)``) 的延迟维护 ``View``。
 
-        Abandoned branches (from navigation/forking) are excluded. A linear
-        append replays only the new tail — O(k), preserving the incremental
-        optimization (#3053); a branch switch rebuilds once, O(n).
-        ``enforce_properties`` runs only on rebuild (``rebuild_view()``).
+        废弃的分支（来自导航/分叉）被排除在外。 线性追加仅重播新的尾部 - O(k)，保留增
+        量优化（#3053）； 分支交换机重建一次，O(n)。
+        ``enforce_properties`` 仅在重建 (``rebuild_view()``) 时运行。
 
-        The returned view is read-only and is invalidated by ``rebuild_view()``;
-        re-read ``state.view`` after any rebuild.
+        返回的视图为只读，被``rebuild_view()``失效； 重建后重新阅读 ``state.view``。
         """
         with self._view_lock:
             leaf = self._resolve_active_leaf()
             if leaf == self._view_branch_leaf:
                 return self._view
 
-            # Fast path: cached leaf is an ancestor of the new leaf (linear
-            # append) → replay only the tail. Also covers first populate (cached
-            # leaf None, cached view empty), avoiding the enforce_properties pass.
+            # 快速路径：缓存的叶子是新叶子的祖先（线性追加）→仅重播尾部。 还涵盖了第一个
+            # 填充（缓存叶 None，缓存视图为空），避免了 enforce_properties 传递。
+            #
             try:
                 tail: list[Event] = []
                 cur_id: EventID | None = leaf
@@ -377,25 +371,26 @@ class ConversationState(OpenHandsModel):
                     exc_info=True,
                 )
 
-            # Diverged branch (navigation/fork), first populate, or recovery
+            # 分叉分支（导航/分叉），首先填充，或恢复
             # from the failure above → full rebuild from the active branch.
             self._view = View.from_events(self._events.path_to_root(leaf))
             self._view_branch_leaf = leaf
             return self._view
 
     def enforced_view_snapshot(self) -> View:
-        """Return an isolated view with incomplete tool-call batches removed."""
+        """返回一个隔离视图，其中删除了不完整的工具调用批次。"""
         with self._view_lock:
             events = list(self.view.events)
             return View.from_events(events)
 
     def rebuild_view(self) -> None:
-        """Re-derive the cached view from the active branch, with full enforcement.
+        """从活动分支重新派生缓存视图，并完全强制执行。
 
-        Runs ``View.from_events`` over ``path_to_root(leaf)``. Called on cold
-        load, fork, navigation, and error recovery. Invalidates any prior
-        ``state.view`` reference. If ``View.from_events`` raises, the cache is
-        left unchanged and the exception propagates.
+        在 ``path_to_root(leaf)`` 上运行 ``View.from_events``。 调用冷加载、分叉、导
+        航和错误恢复。 使之前的任何内容都
+        无效
+        ``state.view`` 参考。 如果 ``View.from_events`` 引发，则缓存保持不变并且异常
+        传播。
         """
         with self._view_lock:
             leaf = self._resolve_active_leaf()
@@ -405,17 +400,17 @@ class ConversationState(OpenHandsModel):
 
     @property
     def env_observation_persistence_dir(self) -> str | None:
-        """Directory for persisting environment observation files."""
+        """持久环境观测结果文件的目录。"""
         if self.persistence_dir is None:
             return None
         return str(Path(self.persistence_dir) / "observations")
 
     def set_on_state_change(self, callback: ConversationCallbackType | None) -> None:
-        """Set a callback to be called when state changes.
+        """设置状态改变时调用的回调。
 
         Args:
-            callback: A function that takes an Event (ConversationStateUpdateEvent)
-                     or None to remove the callback
+            callback: 接受事件 (ConversationStateUpdateEvent) 的函数
+                     或 None 删除回调
         """
         self._on_state_change = callback
 
@@ -426,16 +421,16 @@ class ConversationState(OpenHandsModel):
         self._write_guard = write_guard
         self._events.set_write_guard(write_guard)
 
-    # ===== Base snapshot helpers (same FileStore usage you had) =====
+    # ===== 基本快照助手（与您的 FileStore 用法相同）=====
     def _save_base_state(self, fs: FileStore) -> None:
         """
-        Persist base state snapshot (no events; events are file-backed).
+        持久化基本状态快照（无事件； 事件由文件支持）。
 
-        If a cipher is configured, secrets will be encrypted. Otherwise, they
-        will be redacted (serialized as '**********').
+        如果配置了密码，机密将被加密。 否则，它们将为已脱敏（已序列化为“**********”）
+        。
         """
         context = {"cipher": self._cipher} if self._cipher else None
-        # Warn if secrets exist but no cipher is configured
+        # 如果机密存在但未配置密码则发出警告
         if not self._cipher and self.secret_registry.secret_sources:
             logger.warning(
                 f"Saving conversation state without cipher - "
@@ -450,7 +445,7 @@ class ConversationState(OpenHandsModel):
             with self._write_guard():
                 fs.write(BASE_STATE, payload)
 
-    # ===== Factory: open-or-create (no load/save methods needed) =====
+    # ===== 工厂：打开或创建（无需加载/保存方法）=====
     @classmethod
     def create(
         cls: type["ConversationState"],
@@ -464,47 +459,42 @@ class ConversationState(OpenHandsModel):
         tags: dict[str, str] | None = None,
         file_store: FileStore | None = None,
     ) -> "ConversationState":
-        """Create a new conversation state or resume from persistence.
+        """创建新的对话状态或从持久化恢复。
 
-        This factory method handles both new conversation creation and resumption
+        该工厂方法处理新对话的创建和恢复
         from persisted state.
 
-        **New conversation:**
-        The provided Agent is used directly. Pydantic validation happens via the
-        cls() constructor.
+        **新对话：**
+        直接使用提供的智能体。 Pydantic 验证通过 cls() 构造函数发生。
 
-        **Restored conversation:**
-        The provided Agent is validated against the persisted agent using
-        agent.load(). Tools must match (they may have been used in conversation
-        history), but all other configuration can be freely changed: LLM,
-        agent_context, condenser, system prompts, etc.
+        **恢复的对话：**
+        使用 agent.load() 针对已持久化智能体验证提供的智能体。 工具必须匹配（它们可能
+        在对话历史中使用过），但其他配置可以自由更改：LLM、
+        agent_context、上下文压缩器、系统提示词等。
 
         Args:
-            id: Unique conversation identifier
-            agent: The Agent to use (tools must match persisted on restore)
-            workspace: Working directory for agent operations
-            persistence_dir: Directory for persisting state and events when
-                file_store is not provided. When file_store is provided, this
-                value is still stored on the state and used for environment
-                observation paths.
-            max_iterations: Maximum iterations per run
-            stuck_detection: Whether to enable stuck detection
-            cipher: Optional cipher for encrypting/decrypting secrets in
-                    persisted state. If provided, secrets are encrypted when
-                    saving and decrypted when loading. If not provided, secrets
-                    are redacted (lost) on serialization.
-            tags: Optional key-value tags for the conversation. Keys must be
-                  lowercase alphanumeric, values up to 256 characters.
-            file_store: Optional FileStore to use for state and EventLog
-                persistence. If provided, this takes precedence over
-                persistence_dir for state and EventLog storage.
+            id: 唯一的对话标识符
+            agent: 要使用的智能体（恢复时工具必须与已持久化匹配）
+            workspace: 工作目录用于智能体操作
+            persistence_dir: 保存状态和事件的目录
+                未提供file_store。 当提供 file_store 时，该值仍存储在状态中并用于环境
+                观测结果路径。
+            max_iterations: 每次运行的最大迭代次数
+            stuck_detection: 是否启用卡顿检测
+            cipher: 用于加密/解密机密的可选密码
+                    已持久化状态。 如果提供，机密在保存时加密，在加载时解密。 如果未
+                    提供，机密将在序列化上为已脱敏（丢失）。
+            tags: 对话的可选键值标签。 钥匙必须是
+                  小写字母数字，值最多 256 个字符。
+            file_store: 可选 FileStore 用于状态和 EventLog
+                持久化。 如果提供，则其优先于状态 persistence_dir 和存储 EventLog。
 
         Returns:
-            ConversationState ready for use
+            ConversationState 可供使用
 
         Raises:
-            ValueError: If conversation ID or tools mismatch on restore
-            ValidationError: If agent or other fields fail Pydantic validation
+            ValueError: 如果恢复时对话 ID 或工具不匹配
+            ValidationError: 如果智能体或其他字段失败 Pydantic 验证
         """
         if file_store is None:
             if persistence_dir:
@@ -523,51 +513,51 @@ class ConversationState(OpenHandsModel):
         except FileNotFoundError:
             base_text = None
 
-        # ---- Resume path ----
+        # ---- 恢复路径 ----
         if base_text:
-            # Use cipher context for decrypting secrets if provided
+            # 使用密码上下文解密机密（如果提供）
             context = {"cipher": cipher} if cipher else None
             state = cls.model_validate(json.loads(base_text), context=context)
 
-            # Restore the conversation with the same id
+            # 恢复同id的对话
             if state.id != id:
                 raise ValueError(
                     f"Conversation ID mismatch: provided {id}, "
                     f"but persisted state has {state.id}"
                 )
 
-            # Attach event log early so we can read history for tool verification
+            # 尽早附加事件日志，以便我们可以读取历史记录以进行工具验证
             state._fs = file_store
             state._events = EventLog(file_store, dir_path=EVENTS_DIR)
             state._cipher = cipher
 
-            # Cold-load: rebuild the cached view with full property
-            # enforcement — persisted events may come from an older code
-            # version or be corrupted.
+            # 冷加载：通过完整的属性强制重建缓存视图 - 已持久化事件可能来自较旧的代码版
+            # 本或已损坏。
+            #
             state.rebuild_view()
 
-            # Commit runtime-provided values (may autosave)
+            # 提交运行时提供的值（可以自动保存）
             state._autosave_enabled = True
-            # Agent: base_state.json is the single source of truth. When the
-            # caller does not supply an agent (``agent is None``), keep the
-            # persisted one untouched — this is what lets a persisted
-            # switch_llm survive an idle-eviction reload. When a caller *does*
-            # supply an agent (legacy behavior), verify tool compatibility and
+            # 智能体：base_state.json 是唯一的事实来源。 当
+            # 调用者不提供智能体 (``agent is None``)，保持已持久化不变——这就是让已持久化
+            #  switch_llm 在空闲驱逐重载中幸存下来的原因。 当调用者 * 确实 * 提供智能体
+            # （遗留行为）时，验证工具兼容性并
+            #
             # let it override, so existing callers that reconfigure on resume
-            # keep working.
+            # 继续工作。
             if agent is not None:
                 agent.verify(state.agent, events=state._events)
                 state.agent = agent
             state.workspace = workspace
             state.max_iterations = max_iterations
 
-            # Note: stats are already deserialized from base_state.json above.
-            # Do NOT reset stats here - this would lose accumulated metrics.
+            # 注意：统计数据已经是上面 base_state.json 的已反序列化。
+            # 请不在此处重置统计数据 - 这将丢失累积的指标。
 
             logger.info("Resumed conversation %s from persistent storage", state.id)
             return state
 
-        # ---- Fresh path ----
+        # ----新鲜之路----
         if agent is None:
             raise ValueError(
                 "agent is required when initializing a new ConversationState"
@@ -587,17 +577,17 @@ class ConversationState(OpenHandsModel):
         state._cipher = cipher
         state.stats = ConversationStats()
 
-        state._save_base_state(file_store)  # initial snapshot
+        state._save_base_state(file_store)  # 初始快照
         state._autosave_enabled = True
         logger.info("Created new conversation %s", state.id)
         return state
 
-    # ===== Auto-persist base on public field changes =====
+    # ===== 自动持久化基于公共字段更改 =====
     def __setattr__(self, name, value):
-        # Only autosave when:
-        # - autosave is enabled (set post-init)
-        # - the attribute is a *public field* (not a PrivateAttr)
-        # - we have a filestore to write to
+        # 仅在以下情况下自动保存：
+        # - 自动保存已启用（设置后初始化）
+        # - 该属性是 * 公共字段 *（不是 PrivateAttr）
+        # - 我们有一个要写入的文件存储
         _sentinel = object()
         old = getattr(self, name, _sentinel)
         super().__setattr__(name, value)
@@ -610,8 +600,9 @@ class ConversationState(OpenHandsModel):
             return
 
         if old is _sentinel or old != value:
-            # Inside a context-manager block, defer the save until __exit__
-            # so that multiple field mutations produce a single I/O write.
+            # 在上下文-manager 块内，将保存推迟到 __exit__，以便多个字段突变产生单个 I/O
+            #  写入。
+            #
             if self._save_depth > 0:
                 self._dirty = True
             else:
@@ -621,10 +612,11 @@ class ConversationState(OpenHandsModel):
                     logger.exception("Auto-persist base_state failed", exc_info=True)
                     raise e
 
-            # Call state change callback if set. leaf_event_id/head_is_empty are
-            # skipped: they are internal HEAD bookkeeping (leaf_event_id changes
-            # every event, so broadcasting it would ~double the persisted log) and
-            # the HEAD is recoverable from the just-appended event.
+            # 如果设置，则调用状态更改回调。 leaf_event_id/head_is_empty 是
+            # 跳过：它们是内部 HEAD 簿记（leaf_event_id 更改
+            # 每个事件，因此广播它将使已持久化日志加倍）并且 HEAD 可以从刚刚附加的事件中
+            # 恢复。
+            #
             callback = self._on_state_change
             if (
                 callback is not None
@@ -632,12 +624,12 @@ class ConversationState(OpenHandsModel):
                 and name not in ("leaf_event_id", "head_is_empty")
             ):
                 try:
-                    # Import here to avoid circular imports
+                    # 在这里导入以避免循环导入
                     from openhands.sdk.event.conversation_state import (
                         ConversationStateUpdateEvent,
                     )
 
-                    # Create a ConversationStateUpdateEvent with the changed field
+                    # 使用更改的字段创建 ConversationStateUpdateEvent
                     state_update_event = ConversationStateUpdateEvent(
                         key=name, value=value
                     )
@@ -648,11 +640,11 @@ class ConversationState(OpenHandsModel):
                     )
 
     def block_action(self, action_id: str, reason: str) -> None:
-        """Persistently record a hook-blocked action."""
+        """持久记录钩子被阻挡的动作。"""
         self.blocked_actions = {**self.blocked_actions, action_id: reason}
 
     def pop_blocked_action(self, action_id: str) -> str | None:
-        """Remove and return a hook-blocked action reason, if present."""
+        """删除并返回钩子阻止操作原因（如果存在）。"""
         if action_id not in self.blocked_actions:
             return None
         updated = dict(self.blocked_actions)
@@ -661,11 +653,11 @@ class ConversationState(OpenHandsModel):
         return reason
 
     def block_message(self, message_id: str, reason: str) -> None:
-        """Persistently record a hook-blocked user message."""
+        """持久记录钩子阻塞的用户消息。"""
         self.blocked_messages = {**self.blocked_messages, message_id: reason}
 
     def pop_blocked_message(self, message_id: str) -> str | None:
-        """Remove and return a hook-blocked message reason, if present."""
+        """删除并返回钩子阻止消息原因（如果存在）。"""
         if message_id not in self.blocked_messages:
             return None
         updated = dict(self.blocked_messages)
@@ -675,83 +667,82 @@ class ConversationState(OpenHandsModel):
 
     @staticmethod
     def get_unmatched_actions(events: Sequence[Event]) -> list[ActionEvent]:
-        """Find actions in the event history that don't have matching observations.
+        """查找事件历史记录中没有匹配观测结果的操作。
 
-        This method identifies ActionEvents that don't have corresponding
-        ObservationEvents, UserRejectObservations, or AgentErrorEvents,
-        which typically indicates actions that are pending confirmation or execution.
+        该方法识别 ActionEvents 与 ObservationEvents、UserRejectObservations 或
+        AgentErrorEvents 无对应关系，这通常表示需要确认或执行的动作。
 
-        Note: AgentErrorEvent is matched by tool_call_id (not action_id) because
-        it doesn't have an action_id field. This is important for crash recovery
-        scenarios where an error event is emitted after a server restart.
+        Note: AgentErrorEvent 与 tool_call_id 匹配，而不是 action_id
+        它没有 action_id 字段。 这对于服务器重新启动后发出错误事件的崩溃恢复场景非常
+        重要。
 
         Args:
-            events: List of events to search through
+            events: 要搜索的事件列表
 
         Returns:
-            List of ActionEvent objects that don't have corresponding observations,
-            in chronological order
+            没有对应观测结果的 ActionEvent 对象列表，按时间顺序排列
         """
         observed_action_ids: set[EventID] = set()
         observed_tool_call_ids: set[str] = set()
         unmatched_actions = []
-        # Search in reverse - recent events are more likely to be unmatched
+        # 反向搜索 - 最近发生的事件更有可能是无法匹配的
         for event in reversed(events):
             if isinstance(event, (ObservationEvent, UserRejectObservation)):
                 observed_action_ids.add(event.action_id)
             elif isinstance(event, AgentErrorEvent):
-                # AgentErrorEvent doesn't have action_id, match by tool_call_id
+                # AgentErrorEvent 没有 action_id，匹配 tool_call_id
                 observed_tool_call_ids.add(event.tool_call_id)
             elif isinstance(event, ActionEvent):
-                # Only executable actions (validated) are considered pending
-                # Check both action_id and tool_call_id for matching
+                # 仅可执行操作（已验证）被视为待处理检查 action_id 和 tool_call_id 是否
+                # 匹配
+                #
                 if (
                     event.action is not None
                     and event.id not in observed_action_ids
                     and event.tool_call_id not in observed_tool_call_ids
                 ):
-                    # Insert at beginning to maintain chronological order in result
+                    # 在开头插入以维持结果中的时间顺序
                     unmatched_actions.insert(0, event)
 
         return unmatched_actions
 
-    # ===== FIFOLock delegation methods =====
+    # ===== FIFOLock 授权方法 =====
     def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
         """
-        Acquire the lock.
+        获取锁。
 
         Args:
-            blocking: If True, block until lock is acquired. If False, return
-                     immediately.
-            timeout: Maximum time to wait for lock (ignored if blocking=False).
-                    -1 means wait indefinitely.
+            blocking: 如果True，则阻塞直到获取锁。 如果False，则返回
+                     立即。
+            timeout: 等待锁的最长时间（如果阻塞=False，则忽略）。
+                    -1 表示无限期等待。
 
         Returns:
-            True if lock was acquired, False otherwise.
+            如果获取了锁，则为 True，否则为 False。
         """
         return self._lock.acquire(blocking=blocking, timeout=timeout)
 
     def release(self) -> None:
         """
-        Release the lock.
+        释放锁。
 
         Raises:
-            RuntimeError: If the current thread doesn't own the lock.
+            RuntimeError: 如果当前的线程不拥有锁。
         """
         self._lock.release()
 
     def __enter__(self: Self) -> Self:
-        """Context manager entry.
+        """上下文管理器条目。
 
-        Field mutations inside the ``with`` block are batched: the state
-        is persisted at most once, on exit, instead of on every assignment.
+        ``with`` 块内的字段突变是批处理的：状态最多为已持久化一次，在退出时，而不是每
+        次分配时。
         """
         self._lock.acquire()
         self._save_depth += 1
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Context manager exit — flushes any deferred save."""
+        """上下文管理器 exit — 刷新任何延迟保存。"""
         try:
             self._save_depth -= 1
             if self._save_depth == 0 and self._dirty:
@@ -765,12 +756,12 @@ class ConversationState(OpenHandsModel):
 
     def locked(self) -> bool:
         """
-        Return True if the lock is currently held by any thread.
+        如果锁当前被任意线程持有，则返回 True。
         """
         return self._lock.locked()
 
     def owned(self) -> bool:
         """
-        Return True if the lock is currently held by the calling thread.
+        如果锁当前由调用方线程持有，则返回 True。
         """
         return self._lock.owned()

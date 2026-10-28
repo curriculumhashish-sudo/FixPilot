@@ -1,4 +1,4 @@
-"""List directory tool definition (Gemini-style)."""
+"""列出目录工具定义（Gemini 风格）。"""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class FileEntry(BaseModel):
-    """Information about a file or directory."""
+    """有关文件或目录的信息。"""
 
     name: str = Field(description="Name of the file or directory")
     path: str = Field(description="Absolute path to the file or directory")
@@ -32,7 +32,7 @@ class FileEntry(BaseModel):
 
 
 class ListDirectoryAction(Action):
-    """Schema for list directory operation."""
+    """模式用于列表目录操作。"""
 
     dir_path: str = Field(
         default=".",
@@ -45,7 +45,7 @@ class ListDirectoryAction(Action):
 
 
 class ListDirectoryObservation(Observation):
-    """Observation from listing a directory."""
+    """观测结果来自列出目录。"""
 
     dir_path: str | None = Field(
         default=None, description="The directory path that was listed."
@@ -61,7 +61,7 @@ class ListDirectoryObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation."""
+        """返回此观测结果的富文本表示形式。"""
         text = Text()
 
         if self.is_error:
@@ -76,7 +76,7 @@ class ListDirectoryObservation(Observation):
             if self.total_count == 0:
                 text.append("(empty directory)\n", style="dim")
             else:
-                # Build a simple text-based table
+                # 构建一个简单的基于文本的表格
                 lines = []
                 lines.append(f"{'Type':<6} {'Name':<40} {'Size':>10} {'Modified':<16}")
                 lines.append("-" * 76)
@@ -87,7 +87,7 @@ class ListDirectoryObservation(Observation):
                         "-" if entry.is_directory else self._format_size(entry.size)
                     )
                     modified_str = entry.modified_time.strftime("%Y-%m-%d %H:%M")
-                    # Truncate name if too long
+                    # 如果名称太长则截断
                     name = (
                         entry.name[:38] + ".." if len(entry.name) > 40 else entry.name
                     )
@@ -106,7 +106,7 @@ class ListDirectoryObservation(Observation):
         return text
 
     def _format_size(self, size: int) -> str:
-        """Format file size in human-readable format."""
+        """以人类可读的格式格式化文件大小。"""
         size_float = float(size)
         for unit in ["B", "KB", "MB", "GB"]:
             if size_float < 1024.0:
@@ -134,21 +134,21 @@ Examples:
 - List recursively: list_directory(dir_path="/path/to/dir", recursive=True)
 """
 
-# Maximum entries to return (to prevent overwhelming the context)
+# 返回的最大条目数（以防止压倒上下文）
 MAX_ENTRIES = 500
 
 
 class ListDirectoryTool(ToolDefinition[ListDirectoryAction, ListDirectoryObservation]):
-    """Tool for listing directory contents with metadata."""
+    """用于列出带有元数据的目录内容的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
     def declared_resources(self, action: Action) -> DeclaredResources:  # noqa: ARG002
-        """Declare resource usage for parallel execution.
+        """声明并行执行的资源使用情况。
 
-        Each call uses independent read-only filesystem operations
-        (os.walk / Path.iterdir) with no shared mutable state, so all
-        list_directory calls are safe to run lock-free in parallel.
+        每个调用都使用独立的只读文件系统操作(os.walk / Path.iterdir)，没有共享的可变
+        状态，因此所有list_directory调用可以在并发
+        环境中安全地运行锁。
         """
         return DeclaredResources(keys=(), declared=True)
 
@@ -157,10 +157,10 @@ class ListDirectoryTool(ToolDefinition[ListDirectoryAction, ListDirectoryObserva
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["ListDirectoryTool"]:
-        """Initialize ListDirectoryTool with executor.
+        """使用执行器初始化 ListDirectoryTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
+            conv_state: 要从中获取工作目录的对话状态。
         """
         from openhands.tools.gemini.list_directory.impl import ListDirectoryExecutor
 

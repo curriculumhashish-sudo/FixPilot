@@ -1,4 +1,4 @@
-"""Tests for MCP tool functionality with new simplified implementation."""
+"""使用新的简化实现来测试 MCP 工具功能。"""
 
 from typing import cast
 from unittest.mock import MagicMock, Mock
@@ -11,21 +11,21 @@ from openhands.sdk.mcp.tool import MCPToolDefinition, MCPToolExecutor
 
 
 class MockMCPClient(MCPClient):
-    """Mock MCPClient for testing that bypasses the complex constructor."""
+    """用于测试的模拟对象 MCPClient，可绕过复杂的构造函数。"""
 
     def __init__(self):
-        # Skip the parent constructor to avoid needing transport
+        # 跳过父构造函数以避免需要传输层
         pass
 
 
 class TestMCPToolImmutability:
-    """Test suite for MCPTool immutability features."""
+    """测试套件对 MCPTool 的不变性功能。"""
 
     def setup_method(self):
-        """Set up test environment."""
+        """设置测试环境。"""
         self.mock_client: MockMCPClient = MockMCPClient()
 
-        # Create a mock MCP tool
+        # 创建模拟对象 MCP 工具
         self.mock_mcp_tool: Mock = MagicMock(spec=mcp.types.Tool)
         self.mock_mcp_tool.name = "test_tool"
         self.mock_mcp_tool.description = "Test tool description"
@@ -39,14 +39,12 @@ class TestMCPToolImmutability:
         tools = MCPToolDefinition.create(
             mcp_tool=self.mock_mcp_tool, mcp_client=self.mock_client
         )
-        self.tool: MCPToolDefinition = tools[0]  # Extract single tool from sequence
+        self.tool: MCPToolDefinition = tools[0]  # 从序列中提取单个工具
 
     def test_mcp_tool_is_frozen(self):
-        """Test that MCPTool instances are frozen and cannot be modified."""
-        # Test that direct field assignment raises ValidationError
-        with pytest.raises(
-            Exception
-        ):  # Pydantic raises ValidationError for frozen models
+        """测试 MCPTool 个实例是否被冻结，无法修改。"""
+        # 测试直接字段分配是否会引发 ValidationError
+        with pytest.raises(Exception):  # Pydantic 为冻结模型加薪 ValidationError
             self.tool.mcp_tool = mcp.types.Tool(
                 name="modified_name",
                 description="modified description",
@@ -57,11 +55,11 @@ class TestMCPToolImmutability:
             self.tool.description = "modified_description"
 
     def test_mcp_tool_set_executor_returns_new_instance(self):
-        """Test that set_executor returns a new MCPTool instance."""
+        """测试 set_executor 返回一个新的 MCPTool 实例。"""
         new_executor = MCPToolExecutor(tool_name="new_tool", client=self.mock_client)
         new_tool = self.tool.set_executor(new_executor)
 
-        # Verify that a new instance was created
+        # 验证是否创建了新实例
         assert new_tool is not self.tool
         assert cast(MCPToolExecutor, self.tool.executor).tool_name == "test_tool"
         assert cast(MCPToolExecutor, new_tool.executor).tool_name == "new_tool"
@@ -69,8 +67,8 @@ class TestMCPToolImmutability:
         assert new_tool.description == self.tool.description
 
     def test_mcp_tool_model_copy_creates_modified_instance(self):
-        """Test that model_copy can create modified versions of MCPTool instances."""
-        # Create a modified MCP tool with a different name
+        """测试 model_copy 是否可以创建 MCPTool 的修改版本。"""
+        # 使用不同的名称创建修改后的 MCP 工具
         from mcp.types import Tool as MCPTool
 
         modified_mcp_tool = MCPTool(
@@ -79,7 +77,7 @@ class TestMCPToolImmutability:
             inputSchema=self.tool.mcp_tool.inputSchema,
         )
 
-        # Create a copy with modified fields
+        # 创建包含修改字段的副本
         modified_tool = self.tool.model_copy(
             update={
                 "mcp_tool": modified_mcp_tool,
@@ -87,7 +85,7 @@ class TestMCPToolImmutability:
             }
         )
 
-        # Verify that a new instance was created with modifications
+        # 验证是否创建了经过修改的新实例
         assert modified_tool is not self.tool
         assert self.tool.name == "test_tool"
         assert self.tool.description == "Test tool description"
@@ -95,22 +93,22 @@ class TestMCPToolImmutability:
         assert modified_tool.description == "Modified description"
 
     def test_mcp_tool_meta_field_immutability(self):
-        """Test that the meta field works correctly and is immutable."""
-        # Verify meta field is accessible
+        """测试元字段是否正常工作并且不可变。"""
+        # 验证元字段可访问
         assert self.tool.meta == {"version": "1.0"}
 
-        # Test that meta field cannot be directly modified
+        # 测试meta字段不能直接修改
         with pytest.raises(Exception):
             self.tool.meta = {"version": "2.0"}
 
-        # Test that meta field can be modified via model_copy
+        # 测试元字段是否可以通过 model_copy 修改
         new_meta = {"version": "2.0", "author": "new_author"}
         modified_tool = self.tool.model_copy(update={"meta": new_meta})
         assert modified_tool.meta == new_meta
         assert self.tool.meta == {"version": "1.0"}  # Original unchanged
 
     def test_mcp_tool_extra_fields_immutability(self):
-        """Test that MCPTool extra fields (mcp_client, mcp_tool) are immutable."""
+        """测试 MCPTool 附加字段 (mcp_client, mcp_tool) 是否不可变。"""
 
         with pytest.raises(Exception):
             self.tool.mcp_tool = self.mock_mcp_tool
@@ -118,8 +116,8 @@ class TestMCPToolImmutability:
         assert self.tool.mcp_tool is self.mock_mcp_tool
 
     def test_mcp_tool_create_immutable_instance(self):
-        """Test that MCPToolDefinition.create() creates immutable instances."""
-        # Create another tool using create
+        """测试 MCPToolDefinition.create() 创建不可变实例。"""
+        # 使用 create 创建另一个工具
         mock_tool2 = MagicMock(spec=mcp.types.Tool)
         mock_tool2.name = "another_tool"
         mock_tool2.description = "Another test tool"
@@ -130,9 +128,9 @@ class TestMCPToolImmutability:
         tools2 = MCPToolDefinition.create(
             mcp_tool=mock_tool2, mcp_client=self.mock_client
         )
-        tool2 = tools2[0]  # Extract single tool from sequence
+        tool2 = tools2[0]  # 从序列中提取单个工具
 
-        # Verify it's immutable
+        # 验证它是不可变的
         with pytest.raises(Exception):
             tool2.mcp_tool = mcp.types.Tool(
                 name="modified_name",
@@ -140,7 +138,7 @@ class TestMCPToolImmutability:
                 inputSchema={"type": "object", "properties": {}},
             )
 
-        # Verify it has the correct properties
+        # 验证它具有正确的属性
         assert tool2.name == "another_tool"
         assert tool2.description == "Another test tool"
         assert isinstance(tool2.executor, MCPToolExecutor)

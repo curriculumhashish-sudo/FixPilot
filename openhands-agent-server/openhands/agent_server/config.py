@@ -28,13 +28,13 @@ from openhands.sdk.marketplace.registration import MarketplaceRegistration
 from openhands.sdk.utils.cipher import Cipher
 
 
-# Environment variable constants
+# 环境变量常数
 V0_SESSION_API_KEY_ENV = "SESSION_API_KEY"
 V1_SESSION_API_KEY_ENV = "OH_SESSION_API_KEYS_0"
 ENVIRONMENT_VARIABLE_PREFIX = "OH"
 CONFIG_PATH_ENV = "OPENHANDS_AGENT_SERVER_CONFIG_PATH"
 DEFAULT_CONFIG_PATH = Path("workspace/openhands_agent_server_config.json")
-# 20 minutes, matching the idle timeout used by OpenHands Cloud.
+# 20 分钟，与 OpenHands Cloud 使用的空闲超时匹配。
 DEFAULT_CONVERSATION_IDLE_TTL_SECONDS: Final[float] = 20 * 60.0
 ACPSkillSourcing = Literal["native", "openhands_managed"]
 _logger = logging.getLogger(__name__)
@@ -42,10 +42,9 @@ _logger = logging.getLogger(__name__)
 
 def _default_session_api_keys():
     """
-    This function exists as a fallback to using this old V0 environment
-    variable. If new V1_SESSION_API_KEYS_0 environment variable exists,
-    it is read automatically by the EnvParser and this function is never
-    called.
+    该函数作为使用旧 V0 环境变量的回退方案存在。 如果 new V1_SESSION_API_KEYS_0 环境
+    变量存在，它会被 EnvParser 自动读取，并且
+    永远不会调用该函数。
     """
     result = []
     session_api_key = os.getenv(V0_SESSION_API_KEY_ENV)
@@ -56,10 +55,9 @@ def _default_session_api_keys():
 
 def _default_secret_key() -> SecretStr | None:
     """
-    If the OH_SECRET_KEY environment variable is present, it is read by the EnvParser
-    and this function is never called. Otherwise, we fall back to using the first
-    available session_api_key - which we read from the environment.
-    We check both the V0 and V1 variables for this.
+    如果 OH_SECRET_KEY 环境变量存在，则由 EnvParser 读取它，并且永远不会调用此函数。
+    否则，我们会转而使用第一个可用的
+    session_api_key - 我们从环境中读取。 我们为此检查 V0 和 V1 变量。
     """
     session_api_key = os.getenv(V0_SESSION_API_KEY_ENV)
     if session_api_key:
@@ -88,9 +86,9 @@ DEFAULT_CONVERSATION_IMAGE = "ghcr.io/openhands/agent-server:latest-python"
 
 
 class WebhookSpec(BaseModel):
-    """Spec to create a webhook. All webhook requests use POST method."""
+    """规范创建 Webhook。 所有 Webhook 请求都使用 POST 方法。"""
 
-    # General parameters
+    # 一般参数
     event_buffer_size: int = Field(
         default=5,
         ge=1,
@@ -114,7 +112,7 @@ class WebhookSpec(BaseModel):
         ),
     )
 
-    # Retry parameters
+    # 重试参数
     num_retries: int = Field(
         default=3,
         ge=0,
@@ -122,7 +120,7 @@ class WebhookSpec(BaseModel):
     )
     retry_delay: int = Field(default=5, ge=0, description="The delay between retries")
 
-    # Backpressure parameters
+    # 背压参数
     max_queue_size: int = Field(
         default=1000,
         ge=1,
@@ -150,15 +148,14 @@ class WebhookSpec(BaseModel):
 
 
 TelemetryExporterKind = Literal["none", "posthog", "http"]
-"""Which exporter ships diagnostic events, if any."""
+"""哪个导出器发送诊断事件（如果有）。"""
 
 
 class TelemetrySpec(BaseModel):
-    """Deployment-supplied product-analytics transport settings.
+    """部署提供的产品分析传输层设置。
 
-    This carries transport plus the non-identifying deployment tag. Whether
-    telemetry may be delivered is resolved from consent
-    (``misc_settings.telemetry.consent``, optionally seeded or overridden by
+    它带有传输层以及非识别部署标签。 是否可以提供遥测数据由同意决定（
+    ``misc_settings.telemetry.consent``，可选地由
     ``OH_TELEMETRY_CONSENT``).
     """
 
@@ -239,8 +236,7 @@ class TelemetrySpec(BaseModel):
 
 class Config(BaseModel):
     """
-    Immutable configuration for a server running in local mode.
-    (Typically inside a sandbox).
+    以本地模式运行的服务器的不可变配置。 （通常在沙箱内）。
     """
 
     session_api_keys: list[str] = Field(
@@ -534,16 +530,18 @@ class Config(BaseModel):
     @field_validator("session_api_keys")
     @classmethod
     def _drop_empty_session_api_keys(cls, value: list[str]) -> list[str]:
-        # An empty key (e.g. ``OH_SESSION_API_KEYS_0=``) is never a real
-        # credential; keeping it would make an empty string authenticate.
+        # 空键 (e.g. ``OH_SESSION_API_KEYS_0=``) 永远不是真实的凭据； 保留它将使空字符串
+        # 进行身份验证。
+        #
         return [key for key in value if key]
 
     @field_validator("secret_key")
     @classmethod
     def _empty_secret_key_is_unset(cls, value: SecretStr | None) -> SecretStr | None:
-        """Treat a blank secret key (e.g. ``OH_SECRET_KEY=`` or whitespace only)
-        as unset, so the session-key fallback applies instead of encrypting with
-        a key anyone can guess."""
+        """处理空白机密键 (e.g. ``OH_SECRET_KEY=`` 或仅限空格）
+        由于未设置，因此应用会话密钥回退方案，而不是使用任何人都可以猜到的密钥进行加
+        密。
+        """
         if _is_blank_secret(value):
             return _default_secret_key()
         return value
@@ -560,7 +558,7 @@ class Config(BaseModel):
 
     @property
     def secret_key_was_blank(self) -> bool:
-        """Whether a blank secret key was configured (and so treated as unset)."""
+        """是否配置了空白机密键（因此被视为未设置）。"""
         return self._secret_key_was_blank
 
     @property
@@ -578,8 +576,9 @@ class Config(BaseModel):
             tuple(key.get_secret_value() for key in self.previous_secret_keys),
         )
         cipher = getattr(self, "_cipher", None)
-        # ``model_copy`` carries the cached cipher over, so rebuild it when the
-        # copy was given other keys (e.g. by ``POST /api/init``).
+        # ``model_copy`` 携带缓存的密码，因此当副本被赋予其他密钥时重建它（e.g. 由
+        # ``POST /api/init``）。
+        #
         if (
             not isinstance(cipher, Cipher)
             or getattr(self, "_cipher_keys", None) != keys
@@ -603,26 +602,24 @@ def _read_config_file(path: Path) -> dict[str, Any]:
 
 
 def export_session_api_key(config: Config) -> None:
-    """Publish the server's first session key to the process environment.
+    """将服务器的第一个会话密钥发布到进程环境。
 
-    In-process callers of this server read the key from the environment:
-    the ``start_child_conversation`` tool and the managed LLM key refresh look
-    at ``OH_SESSION_API_KEYS_0`` / ``SESSION_API_KEY``, which is the contract
-    the Docker and remote runtimes meet by setting one of them before the
-    server boots. A key delivered through a config file or ``POST /api/init``
-    exists only in :class:`Config` until it is exported here. The effective
-    key always wins, so a dormant process that booted with one key and was
-    initialized with another ends up with the one it authenticates with.
+    ``start_child_conversation`` 工具和 LLM 管理的 ``OH_SESSION_API_KEYS_0`` 和
+    ``SESSION_API_KEY`` 读取该服务器的密钥，这些密钥在服务器启动之前由 Docker 和远程
+    运行时设置。 通过配置文件或
+    ``POST /api/init`` 传递的密钥仅存在于：class:`Config` 中，直到在此处导出为止。 有
+    效密钥总是占优势，因此一个启动时用一个密钥，初始
+    化时用另一个密钥的休眠进程最终会用它认证的密钥。
     """
     if config.session_api_keys:
         os.environ[V1_SESSION_API_KEY_ENV] = config.session_api_keys[0]
 
 
 def load_config(config_path: Path | None = None) -> Config:
-    """Load agent-server config from JSON file and environment variables.
+    """从 JSON 文件和环境变量加载智能体-服务器配置。
 
-    Values from ``OH_*`` environment variables override values from the JSON
-    config file so deployment-specific environment overrides keep working.
+    ``OH_*`` 环境变量中的值会覆盖 JSON 配置文件中的值，以便特定于部署的环境覆盖继续有
+    效。
     """
     resolved_path = config_path
     if resolved_path is None:
@@ -635,7 +632,7 @@ def load_config(config_path: Path | None = None) -> Config:
     if env_data is MISSING:
         data = file_data
     else:
-        # An explicit environment null (OH_<FIELD>_IS_NONE=1) clears a file value.
+        # 显式环境 null (OH_<FIELD>_IS_NONE=1) 清除文件值。
         data = merge(file_data, env_data, none_overrides=True)
 
     if not data:
@@ -644,7 +641,7 @@ def load_config(config_path: Path | None = None) -> Config:
 
 
 def get_default_config() -> Config:
-    """Get the default local server config shared across the server"""
+    """获取跨服务器共享的默认本地服务器配置"""
     global _default_config
     if _default_config is None:
         _default_config = load_config()

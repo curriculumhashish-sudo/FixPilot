@@ -116,9 +116,9 @@ if TYPE_CHECKING:
 try:
     __version__ = version("openhands-sdk")
 except PackageNotFoundError:
-    __version__ = "0.0.0"  # fallback for editable/unbuilt environments
+    __version__ = "0.0.0"  # 回退方案用于可编辑/未构建的环境
 
-# Print startup banner
+# 打印启动横幅
 _print_banner(__version__)
 
 

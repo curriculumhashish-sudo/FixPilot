@@ -1,22 +1,21 @@
-"""Stress test: slow webhook must not stall the conversation.
+"""压力测试：慢 Webhook 不得拖延对话。
 
-Bug class this catches:
-    - Head-of-line blocking when an event subscriber (the webhook) posts to a
-      slow downstream. PubSub.__call__ awaits subscribers sequentially
-      (pub_sub.py:70-74), so a slow webhook blocks every event publication
-      behind it.
-    - Webhook subscriber buffer growing unbounded under sustained pressure.
+捕获的错误类：
+    - 当事件订阅者（Webhook）发布到慢速下游时，队头阻塞。 PubSub.__call__ 按顺序等待
+    订阅者 (pub_sub.py:70-74)，因此缓慢的
+    Webhook 会阻止其后面的每个事件发布。
+    - Webhook 在持续的压力下，订户缓冲无限增长。
 
-What this test surfaces vs asserts:
-    Today the publish path IS sequential. With ``event_buffer_size=1`` (flush
-    on every event) and a 2-s slow webhook, a conversation will visibly
-    stall waiting on each post. The budget below encodes "this is the
-    behaviour we want to catch regressions of" — if the agent-server later
-    moves to async background webhook posting, tighten the budget.
+该测试揭示了什么与断言：
+    今天，发布路径是连续的。 使用 ``event_buffer_size=1``（在每个事件上刷新）和 2 秒
+    慢 Webhook，对话将明显地在等待每个帖子时停止。
+    下面的预算表示“我们希望捕获回归行为”——如果智能体-服务器后来转向异步背后 Webhook
+    发布，预算应该收紧。
 
-Real HTTP server (not monkeypatch) because:
-    Monkeypatching ``httpx.AsyncClient`` would also affect this test's own
-    ASGI client (which uses httpx). A small stdlib HTTP server is simpler.
+真正的HTTP服务器（不是monkeypatch）因为：
+    Monkeypatching ``httpx.AsyncClient`` 也会影响此测试自己的 ASGI 客户端（使用 httpx
+    ）。 小型 stdlib HTTP
+     服务器更简单。
 """
 
 import asyncio
@@ -57,16 +56,15 @@ pytestmark = pytest.mark.stress
 
 
 class _SlowReceiver(http.server.BaseHTTPRequestHandler):
-    """HTTP handler that sleeps before responding 200.
+    """HTTP 在响应 200 之前休眠的处理程序。
 
-    Class attribute set per fixture so we can vary delay without rebuilding
-    the handler class.
+    类属性按测试夹具设置，因此我们可以改变延迟而无需重建处理程序类。
     """
 
     delay_s: float = SLOW_WEBHOOK.webhook_delay_s
 
     def do_POST(self) -> None:  # noqa: N802 — stdlib API
-        # Drain the request body so the connection closes cleanly.
+        # 清空请求正文，以便干净地关闭连接。
         length = int(self.headers.get("Content-Length", "0"))
         if length:
             self.rfile.read(length)
@@ -76,13 +74,13 @@ class _SlowReceiver(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        # Suppress default stderr access logs — they pollute pytest output.
+        # 禁止默认的 stderr 访问日志 — 它们会污染 pytest 输出。
         pass
 
 
 @pytest.fixture
 def slow_webhook_url() -> Iterator[str]:
-    """Spin up a slow stdlib HTTP server on a random port for this test."""
+    """在随机端口上启动慢速 stdlib HTTP 服务器以进行此测试。"""
     _SlowReceiver.delay_s = SLOW_WEBHOOK.webhook_delay_s
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _SlowReceiver)
     port = server.server_address[1]
@@ -96,9 +94,9 @@ def slow_webhook_url() -> Iterator[str]:
         t.join(timeout=2)
 
 
-# These fixtures override the conftest defaults for this module so we can
-# wire up a webhook-enabled ConversationService. pytest resolves them by
-# locality.
+# 这些测试夹具覆盖了该模块的 conftest 默认值，因此我们可以连接启用 Webhook 的
+# ConversationService。 pytest 按地点解决它们。
+#
 
 
 @pytest_asyncio.fixture
@@ -138,8 +136,8 @@ def app(
 
 @pytest_asyncio.fixture
 async def baseline_service(tmp_path: Path) -> AsyncIterator[ConversationService]:
-    """Webhook-free service for the timing baseline. Different persist dir
-    so it doesn't share state with the webhook service."""
+    """Webhook免费的计时基线服务。 不同的持久化目录
+    因此它不与 Webhook 服务共享状态。"""
     persist = tmp_path / "persist_baseline"
     persist.mkdir()
     service = ConversationService(conversations_dir=persist)
@@ -177,24 +175,22 @@ async def test_slow_webhook_does_not_unbound_growth(
     tmp_path: Path,
     probe: ResourceProbe,
 ):
-    """Conversation completes, RSS bounded, even with a 2 s webhook.
+    """对话完成，RSS 有界，即使有 2 s Webhook。
 
-    Whether the webhook *blocks* the conversation or not is implementation-
-    defined; what's not negotiable is:
-      (a) the conversation eventually FINISHED, and
-      (b) the webhook subscriber buffer doesn't accumulate unbounded events.
+    Webhook * 阻止 * 会话是否由实现定义； 不可协商的是：
+      (a) 对话最终 FINISHED，并且 (b) Webhook 订户缓冲区不会累积无限事件。
     """
-    # Distinct workspaces per run so any workspace-side state from the
-    # baseline (e.g. .git from `_ensure_workspace_is_git_repo`, scratch
-    # files) doesn't bleed into the webhook timing.
+    # 每次运行都有不同的工作区，因此来自基线的任何工作区端状态（来自
+    # `_ensure_workspace_is_git_repo` 的 e.g..git，临时文件）不会渗入 Webhook 计时。
+    #
     workspace_baseline = str(tmp_path / "ws_baseline")
     workspace_webhook = str(tmp_path / "ws_webhook")
     (tmp_path / "ws_baseline").mkdir()
     (tmp_path / "ws_webhook").mkdir()
 
-    # Baseline: same flow, no webhook. Reuses the bash_service-backed app
-    # but with a webhook-free ConversationService. We need a separate ASGI
-    # client for it.
+    # 基线：相同的流程，无 Webhook。 重用 bash_service 支持的应用程序
+    # 但有 Webhook-free ConversationService。 我们需要一个单独的 ASGI 客户端。
+    #
     baseline_app = FastAPI()
     baseline_app.state.config = Config()
     baseline_app.include_router(conversation_router, prefix="/api")
@@ -214,28 +210,26 @@ async def test_slow_webhook_does_not_unbound_growth(
         )
     assert baseline_status == ConversationExecutionStatus.FINISHED
 
-    # Webhook run.
+    # Webhook 运行。
     webhook_wall, webhook_status = await _run_conversation_and_time(
         conversation_service, client, workspace_webhook, usage_id="webhook-slow"
     )
 
-    # 1. The conversation finishes. Catches "slow webhook deadlocks the
-    #    conversation forever" regressions.
+    # 1. 谈话结束。 捕获“永远缓慢Webhook死锁对话”回归。
+    #
     assert webhook_status == ConversationExecutionStatus.FINISHED, (
         f"conversation ended in {webhook_status} with a slow webhook in the "
         f"subscriber chain. Possible deadlock or unhandled exception."
     )
 
-    # 2. Wall time is bounded. Today, with sequential pub_sub, the slow
-    #    webhook does add latency. The budget allows for that — if the
-    #    agent-server later moves webhooks to async background tasks, this
-    #    will pass with much more headroom and the budget can be tightened.
+    # 2. 墙时间是有限的。 今天，随着顺序 pub_sub, 缓慢的 Webhook 这会增加延迟。 预算允许
+    # 这样做——如果智能体-server later moves Webhook to 异步后台任务，这将有更多的余地通
+    # 过，预算可以精简。
     #
-    # `× 4` slack: a typical TestLLM conversation publishes ~4 events
-    # through pub_sub (state→running, message, state→finished, +1 spare),
-    # and the slow webhook is awaited synchronously per-event, so each
-    # event costs ~webhook_delay_s. Allow 4 of those alongside the
-    # baseline-relative factor.
+    # `× 4` 松弛：典型的 TestLLM 会话通过 pub_sub 发布 ~4 个事件（状态→运行、消息、状态→
+    # 完成、+1 备用），并且每个事件同步等待缓慢的 Webhook，因此每个事件花费 ~
+    # webhook_delay_s。 允许其中 4 个与基线相关因素并列。
+    #
     budget = baseline_wall * SLOW_WEBHOOK.wall_time_factor + (
         SLOW_WEBHOOK.webhook_delay_s * 4
     )
@@ -247,8 +241,8 @@ async def test_slow_webhook_does_not_unbound_growth(
         f"head-of-line blocking conversation completion more than expected."
     )
 
-    # 3. RSS delta absolute. Failure mode for slow-webhook is *unbounded*
-    #    buffer growth, so a relative budget would mask it.
+    # 3. RSS 绝对增量。 慢速Webhook的故障模式是*无界*缓冲区增长，因此相对预算会掩盖它。
+    #
     assert probe.rss_delta_mb() < SLOW_WEBHOOK.max_rss_delta_mb, (
         f"RSS grew by {probe.rss_delta_mb():.1f} MB during the slow-webhook "
         f"run (budget {SLOW_WEBHOOK.max_rss_delta_mb}). The webhook "
@@ -316,12 +310,11 @@ async def test_webhook_queue_bounded_under_sustained_downstream_failure(
     )
     es = await failing_webhook_service.get_event_service(info.id)
     assert es is not None
-    # White-box access: the bug is unbounded growth of WebhookSubscriber.queue
-    # under sustained downstream failure (conversation_service.py:1059 extends
-    # failed batches back without bound). There's no public API that exposes
-    # an individual subscriber's queue, and adding one just for a regression
-    # test would bake test concerns into production. Reach into _pub_sub
-    # directly here.
+    # 白盒访问：该错误是在持续的下游故障下 WebhookSubscriber.queue 无限增长（
+    # conversation_service.py:1059 将失败的批次无限制地向后延伸）。 没有公开 API 公开单
+    # 个订阅者的队列，并且仅为回归测试添加一个队列会将测试问题带入生产中。 直接在此处访
+    # 问_pub_sub。
+    #
     webhook_sub = next(
         (
             s
@@ -343,11 +336,11 @@ async def test_webhook_queue_bounded_under_sustained_downstream_failure(
             )
         )
 
-    # Poll until the queue stabilises (two consecutive identical readings)
-    # rather than sleeping a fixed wall-time. The webhook spec uses
-    # `flush_delay=0.5`, so a single 0.5 s sleep can race with the flush
-    # cycle and read mid-flight values; polling lets the test settle
-    # regardless of where in the flush cycle it lands.
+    # 轮询直到队列稳定（两个连续的相同读数），而不是休眠固定的挂壁时间。 Webhook 规范使
+    # 用
+    # `flush_delay=0.5`，因此单个 0.5 秒的睡眠可以与刷新周期竞争并读取飞行中的值； 轮询
+    # 可以让测试稳定下来，无论它落在刷新周期的哪个位置。
+    #
     stable_deadline = time.monotonic() + 5.0
     last_size = -1
     stable_count = 0

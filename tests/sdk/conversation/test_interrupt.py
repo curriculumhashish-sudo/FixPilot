@@ -1,12 +1,12 @@
-"""Tests for conversation.interrupt() — instant cancellation of arun().
+"""测试 conversation.interrupt() — arun() 的即时取消。
 
-Covers:
-- Async path verification (acompletion is actually called, not sync fallback)
-- CancelledError not re-raised from arun()
-- interrupt() after natural completion (no-op)
-- Multiple rapid interrupt() calls
-- Cancellation token lifecycle (created per run, cleared on exit)
-- ParallelToolExecutor skips cancelled tools
+涵盖：
+- 异步路径验证（实际上调用的是完成，而不是同步回退方案）
+- CancelledError 未从 arun() 重新提出
+- interrupt() 自然完成后（无操作）
+- 多次快速 interrupt() 呼叫
+- 取消 token 生命周期（每次运行创建，退出时清除）
+- ParallelToolExecutor 跳过取消的工具
 """
 
 import asyncio
@@ -43,7 +43,7 @@ def _make_response(model_name: str = "test-slow") -> LLMResponse:
 
 
 class SlowLLM(LLM):
-    """LLM that blocks in acompletion to simulate a long-running call."""
+    """LLM 阻止完成以模拟长时间运行的调用。"""
 
     _sleep_seconds: float = PrivateAttr(default=10.0)
 
@@ -79,15 +79,15 @@ def _make_conversation(llm: LLM, tmp_path) -> LocalConversation:
 
 @pytest.mark.asyncio
 async def test_interrupt_cancels_arun_immediately(tmp_path):
-    """interrupt() should cancel arun() mid-LLM-call and set PAUSED."""
+    """interrupt() 应在 LLM 通话中取消 arun() 并设置 PAUSED。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
 
-    # Let the event loop start arun() and enter the LLM sleep
+    # 让事件循环启动arun()并进入LLM睡眠
     await asyncio.sleep(0.05)
 
-    # Interrupt should cancel the in-flight LLM call
+    # 中断应取消正在进行的 LLM 调用
     conv.interrupt()
 
     # arun() should return quickly (it catches CancelledError)
@@ -95,7 +95,7 @@ async def test_interrupt_cancels_arun_immediately(tmp_path):
 
     assert conv.state.execution_status == ConversationExecutionStatus.PAUSED
 
-    # An InterruptEvent should have been emitted
+    # 应该已发出 InterruptEvent
     events = list(conv.state.events)
     interrupt_events = [e for e in events if isinstance(e, InterruptEvent)]
     assert len(interrupt_events) == 1
@@ -103,10 +103,10 @@ async def test_interrupt_cancels_arun_immediately(tmp_path):
 
 @pytest.mark.asyncio
 async def test_interrupt_without_arun_falls_back_to_pause(tmp_path):
-    """interrupt() with no active arun() should fall back to pause()."""
+    """interrupt() 没有活动的 arun() 应该回退到 pause()。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
-    # Set to RUNNING manually to verify pause fallback
+    # 手动设置为 RUNNING 以验证暂停回退方案
     conv._state.execution_status = ConversationExecutionStatus.RUNNING
 
     conv.interrupt()
@@ -116,7 +116,7 @@ async def test_interrupt_without_arun_falls_back_to_pause(tmp_path):
 
 @pytest.mark.asyncio
 async def test_arun_task_cleared_after_interrupt(tmp_path):
-    """_arun_task should be None after arun() finishes (via interrupt)."""
+    """arun() 完成后（通过中断），_arun_task 应为 None。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
@@ -129,10 +129,10 @@ async def test_arun_task_cleared_after_interrupt(tmp_path):
 
 @pytest.mark.asyncio
 async def test_interrupt_is_resumable(tmp_path):
-    """After interrupt, conversation can be resumed with a new arun()."""
+    """中断后，可以使用新的 arun() 恢复通话。"""
 
     class CountingLLM(LLM):
-        """LLM that completes instantly, counting calls."""
+        """LLM 立即完成，对调用进行计数。"""
 
         _call_count: int = PrivateAttr(default=0)
 
@@ -154,12 +154,12 @@ async def test_interrupt_is_resumable(tmp_path):
     llm = CountingLLM()
     conv = _make_conversation(llm, tmp_path)
 
-    # First run should complete normally (agent says "done" → FINISHED)
+    # 第一次运行应该正常完成（智能体表示“完成”→ FINISHED）
     await conv.arun()
     assert conv.state.execution_status == ConversationExecutionStatus.FINISHED
     assert llm._call_count == 1
 
-    # Send another message and run again — should work
+    # 发送另一条消息并再次运行 — 应该可以工作
     conv.send_message("continue")
     await conv.arun()
     assert llm._call_count == 2
@@ -167,7 +167,7 @@ async def test_interrupt_is_resumable(tmp_path):
 
 @pytest.mark.asyncio
 async def test_arun_calls_acompletion_not_completion(tmp_path):
-    """Verify that arun() exercises the async path (acompletion)."""
+    """验证 arun() 执行异步路径（完成）。"""
 
     class TrackingLLM(LLM):
         _sync_calls: int = PrivateAttr(default=0)
@@ -194,22 +194,22 @@ async def test_arun_calls_acompletion_not_completion(tmp_path):
 
 @pytest.mark.asyncio
 async def test_arun_does_not_raise_cancelled_error(tmp_path):
-    """CancelledError must NOT propagate out of arun()."""
+    """CancelledError 必须从 arun() 传播出不。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
     await asyncio.sleep(0.05)
     conv.interrupt()
 
-    # If CancelledError propagated, wait_for would raise it.
-    # arun() should return cleanly with no exception.
+    # 如果 CancelledError 传播，wait_for 就会提高它。 arun() 应该毫无例外地干净地返回。
+    #
     await asyncio.wait_for(task, timeout=2.0)
-    # If we reach here, no CancelledError was raised — test passes.
+    # 如果我们到达这里，则不会提出 CancelledError — 测试通过。
 
 
 @pytest.mark.asyncio
 async def test_interrupt_after_natural_completion_is_noop(tmp_path):
-    """interrupt() after arun() completes naturally should be a safe no-op."""
+    """arun() 自然完成后的 interrupt() 应该是安全的无操作。"""
 
     class InstantLLM(LLM):
         def __init__(self):
@@ -225,20 +225,20 @@ async def test_interrupt_after_natural_completion_is_noop(tmp_path):
     await conv.arun()
     assert conv.state.execution_status == ConversationExecutionStatus.FINISHED
 
-    # interrupt() after completion — should not crash or change status
+    # interrupt() 完成后 — 不应崩溃或更改状态
     conv.interrupt()
     assert conv.state.execution_status == ConversationExecutionStatus.FINISHED
 
 
 @pytest.mark.asyncio
 async def test_multiple_rapid_interrupts(tmp_path):
-    """Multiple rapid interrupt() calls should not crash."""
+    """多个快速 interrupt() 调用不应崩溃。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
     await asyncio.sleep(0.05)
 
-    # Fire multiple interrupts rapidly
+    # 快速触发多个中断
     conv.interrupt()
     conv.interrupt()
     conv.interrupt()
@@ -247,26 +247,26 @@ async def test_multiple_rapid_interrupts(tmp_path):
     assert conv.state.execution_status == ConversationExecutionStatus.PAUSED
 
 
-# ── CancellationToken unit tests ──────────────────────────────────────
+# ── CancellationToken 单元测试 ──────────────────────────────────────
 
 
 def test_cancellation_token_basic():
-    """CancellationToken starts uncancelled, becomes cancelled after cancel()."""
+    """CancellationToken 开始时未取消，在 cancel() 之后取消。"""
     token = CancellationToken()
     assert not token.is_cancelled
     token.cancel()
     assert token.is_cancelled
-    # Idempotent
+    # 幂等
     token.cancel()
     assert token.is_cancelled
 
 
-# ── Token lifecycle tests ─────────────────────────────────────────────
+# ── token 生命周期测试 ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_cancel_token_created_and_cleared_during_arun(tmp_path):
-    """A fresh CancellationToken is created in arun() and cleared in finally."""
+    """在 arun() 中创建一个新的 CancellationToken，并在最后清除。"""
 
     class InstantLLM(LLM):
         def __init__(self):
@@ -279,40 +279,42 @@ async def test_cancel_token_created_and_cleared_during_arun(tmp_path):
             return _make_response("test-instant")
 
     conv = _make_conversation(InstantLLM(), tmp_path)
-    assert conv._cancel_token is None  # Before any run
+    assert conv._cancel_token is None  # 在任何跑步之前
 
     await conv.arun()
 
-    # After arun() completes, token should be cleared
+    # arun()完成后，token应该被清除
     assert conv._cancel_token is None
 
 
 @pytest.mark.asyncio
 async def test_interrupt_sets_cancel_token(tmp_path):
-    """interrupt() should set the cancel token before cancelling the task."""
+    """interrupt() 应在取消任务之前设置取消 token。"""
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
     await asyncio.sleep(0.05)
 
-    # Token should exist while arun is active
+    # 当 arun 处于活动状态时，token 应该存在
     assert conv._cancel_token is not None
     assert not conv._cancel_token.is_cancelled
 
     conv.interrupt()
     await asyncio.wait_for(task, timeout=2.0)
 
-    # After an interrupt the cancelled token is retained (not cleared) so tool
-    # threads that outlive arun() can still observe it.
+    # 中断后，取消的 token 被保留（未清除），因此比 arun() 寿命更长的工具线程仍然可以观
+    # 察它。
+    #
     assert conv._cancel_token is not None
     assert conv._cancel_token.is_cancelled
 
 
 @pytest.mark.asyncio
 async def test_cancel_token_stays_observable_after_interrupt(tmp_path):
-    """A tool polling conversation.cancel_token from a worker thread that
-    outlives arun() must still see the cancellation, not the None the finally
-    used to clear. A fresh token is swapped in on the next run."""
+    """一个从工作人员线程轮询 conversation.cancel_token 的工具
+    outlives arun() 必须仍然看到取消，而不是最后用来清除的 None。 下一次运行时会更换
+    新的 token。
+    """
     conv = _make_conversation(SlowLLM(sleep_seconds=60.0), tmp_path)
 
     task = asyncio.create_task(conv.arun())
@@ -320,12 +322,13 @@ async def test_cancel_token_stays_observable_after_interrupt(tmp_path):
     conv.interrupt()
     await asyncio.wait_for(task, timeout=2.0)
 
-    # arun() has run its finally; a late poll via the public property (what
-    # tools use) must still observe the cancellation.
+    # arun() 终于运行了； 通过公共财产进行的后期民意调查（使用什么工具）仍然必须遵守取消
+    # 。
+    #
     assert conv.cancel_token is not None
     assert conv.cancel_token.is_cancelled
 
-    # The next run replaces it with a fresh, uncancelled token.
+    # 下一次运行会将其替换为新的、未取消的 token。
     conv.send_message("again")
     resumed = asyncio.create_task(conv.arun())
     await asyncio.sleep(0.05)
@@ -335,11 +338,11 @@ async def test_cancel_token_stays_observable_after_interrupt(tmp_path):
     await asyncio.wait_for(resumed, timeout=2.0)
 
 
-# ── ParallelToolExecutor cancellation tests ───────────────────────────
+# ── ParallelToolExecutor 取消测试 ────────────────────────────
 
 
 def _make_action_event(tool_name: str, call_id: str):
-    """Build a minimal ActionEvent for executor tests."""
+    """构建一个最小化的 ActionEvent 用于执行器测试。"""
     from openhands.sdk.event import ActionEvent
 
     return ActionEvent(
@@ -357,7 +360,7 @@ def _make_action_event(tool_name: str, call_id: str):
 
 
 def test_run_safe_skips_cancelled_tool():
-    """_run_safe should skip execution when token is already cancelled."""
+    """当 token 已取消时，_run_safe 应跳过执行。"""
     from openhands.sdk.agent.parallel_executor import ParallelToolExecutor
 
     executor = ParallelToolExecutor(max_workers=1)
@@ -381,7 +384,7 @@ def test_run_safe_skips_cancelled_tool():
 
 
 def test_run_safe_runs_without_token():
-    """_run_safe should execute normally when no token is provided."""
+    """当未提供 token 时，_run_safe 应该正常执行。"""
     from openhands.sdk.agent.parallel_executor import ParallelToolExecutor
 
     executor = ParallelToolExecutor(max_workers=1)
@@ -399,7 +402,7 @@ def test_run_safe_runs_without_token():
 
 @pytest.mark.asyncio
 async def test_execute_batch_skips_all_on_pre_cancelled_token():
-    """execute_batch with a pre-cancelled token skips all tool calls."""
+    """预先取消的 token 的 execute_batch 会跳过所有工具调用。"""
     from openhands.sdk.agent.parallel_executor import ParallelToolExecutor
 
     executor = ParallelToolExecutor(max_workers=2)
@@ -426,14 +429,13 @@ async def test_execute_batch_skips_all_on_pre_cancelled_token():
 
 @pytest.mark.asyncio
 async def test_arun_runs_init_off_the_event_loop(tmp_path):
-    """arun() offloads _ensure_agent_ready() to a worker thread.
+    """arun() 将 _ensure_agent_ready() 卸载给工作人员线程。
 
-    Regression for agent-canvas#1072: an ACP agent resolves its credentials in
-    init_state via a *blocking* LookupSecret.get_value() (a synchronous
-    httpx.get). If arun() ran that inline on the event loop and the lookup
-    pointed back at the same single-process server, it would freeze the loop
-    that has to serve it — a self-deadlock. Verify init runs on a different
-    thread than the one driving the loop.
+    回归对于智能体-canvas#1072：ACP 智能体通过 *blocking* LookupSecret.get_value()（
+    同步 httpx.get）解析
+    init_state 中的凭据。 如果arun()在事件循环上运行，并且查找指回同一个单进程服务器
+    ，它会冻结负责它的循环——一个自死锁。 验证 init 运行在与驱
+    动循环不同的线程上。
     """
     conv = _make_conversation(SlowLLM(sleep_seconds=0.0), tmp_path)
 

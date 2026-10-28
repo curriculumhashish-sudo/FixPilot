@@ -15,12 +15,12 @@ from openhands.tools.file_editor.editor import FileEditor
 from openhands.tools.file_editor.exceptions import ToolError
 
 
-# Module-global editor instance (lazily initialized in file_editor)
+# 模块全局编辑器实例（在 file_editor 中延迟初始化）
 _GLOBAL_EDITOR: FileEditor | None = None
 
 
 class FileEditorExecutor(ToolExecutor):
-    """File editor executor with configurable file restrictions."""
+    """具有可配置文件限制的文件编辑器执行器。"""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class FileEditorExecutor(ToolExecutor):
         action: FileEditorAction,
         conversation: "LocalConversation | None" = None,  # noqa: ARG002
     ) -> FileEditorObservation:
-        # Enforce allowed_edits_files restrictions
+        # 实施 allowed_edits_files 限制
         if self.allowed_edits_files is not None and action.command != "view":
             action_path = Path(action.path).resolve()
             if action_path not in self.allowed_edits_files:
@@ -82,7 +82,7 @@ def file_editor(
     new_str: str | None = None,
     insert_line: int | None = None,
 ) -> FileEditorObservation:
-    """A global FileEditor instance to be used by the tool."""
+    """该工具要使用的全局 FileEditor 实例。"""
 
     global _GLOBAL_EDITOR
     if _GLOBAL_EDITOR is None:

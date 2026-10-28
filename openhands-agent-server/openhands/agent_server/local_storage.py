@@ -1,4 +1,4 @@
-"""Storage of host-local conversations: their git worktrees."""
+"""主机本地对话的存储：他们的 git 工作树。"""
 
 import subprocess
 from pathlib import Path
@@ -12,9 +12,9 @@ logger = get_logger(__name__)
 
 
 def conversation_worktree_dir(root: Path, working_dir: str) -> Path | None:
-    """The dir under ``root`` holding a workspace's worktree, if any.
+    """``root`` 下的目录包含工作区的工作树（如果有）。
 
-    Not always ``root/<id>``: a fork shares its source's workspace.
+    并不总是 ``root/<id>``：分叉共享其源的工作区。
     """
     try:
         rel = Path(working_dir).resolve().relative_to(root.resolve())
@@ -24,7 +24,7 @@ def conversation_worktree_dir(root: Path, working_dir: str) -> Path | None:
 
 
 def remove_conversation_worktree(conversation_dir: Path) -> None:
-    """Remove the worktrees in a conversation dir; their branches stay."""
+    """删除对话目录中的工作树； 他们的枝条留下来。"""
     if conversation_dir.is_symlink() or not conversation_dir.is_dir():
         return
     repos = [
@@ -32,13 +32,13 @@ def remove_conversation_worktree(conversation_dir: Path) -> None:
     ]
     if not safe_rmtree(conversation_dir, f"conversation worktrees {conversation_dir}"):
         return
-    # Drops git's record of the missing worktree; the branch is untouched.
+    # 删除 git 丢失的工作树记录； 分支未受影响。
     for repo in repos:
         _git(repo, "worktree", "prune")
 
 
 def _worktrees(conversation_dir: Path) -> list[Path]:
-    # A worktree's .git is a file pointing at the main repository.
+    # A 工作树的 .git 是指向主存储库的文件。
     return [
         child
         for child in conversation_dir.iterdir()
@@ -53,7 +53,7 @@ def _repo(worktree: Path) -> Path | None:
 
 def _git(cwd: Path, *args: str) -> str | None:
     result = subprocess.run(
-        # The repo's config is agent-writable; fsmonitor would run it.
+        # 存储库的配置是智能体-可写； fsmonitor 会运行它。
         [
             "git",
             "--no-optional-locks",

@@ -18,7 +18,7 @@ interface AgentChatInterfaceProps {
   model: string;
 }
 
-// Define the tools including UI interaction tools
+// 定义工具，包括UI交互工具
 const TOOLS: Tool[] = [
   {
     type: 'function',
@@ -154,7 +154,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
     }
   }, [input]);
 
-  // Tool executor function that will be passed to LocalConversation
+  // 将传递给 LocalConversation 的工具执行器函数
   const toolExecutor = useCallback((toolCall: ToolCall): string => {
     const { name, arguments: argsString } = toolCall.function;
     
@@ -169,7 +169,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
           if (!el) {
             return `Error: Element with ID "${elementId}" not found. Use ui_list_elements to see available elements.`;
           }
-          // Execute code with element available as 'el'
+          // 使用可用元素“el”执行代码
           // eslint-disable-next-line no-eval
           const result = eval(`(function(el) { return ${code}; })`)(el);
           const resultStr = typeof result === 'undefined' ? 'undefined' : 
@@ -200,7 +200,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
               value: inputEl.value || undefined,
               className: htmlEl.className || undefined,
             };
-          }).filter(e => e.id !== '(no id)'); // Only return elements with IDs
+          }).filter(e => e.id !== '(no id)'); // 只返回带有ID的元素
           console.log('[Agent Tool] ui_list_elements result:', elementList);
           return JSON.stringify(elementList, null, 2);
         } catch (error) {
@@ -235,7 +235,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
     }
   }, []);
 
-  // Event callback for the conversation
+  // 对话的事件回调
   const handleConversationEvent = useCallback((event: unknown) => {
     const eventData = event as Record<string, unknown>;
     
@@ -247,7 +247,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
         timestamp: new Date(),
       });
     } else if (eventData.kind === 'tool_call') {
-      // Show the tool call with its inputs
+      // 显示工具调用及其输入
       pendingMessagesRef.current.push({
         id: `${Date.now()}-toolcall-${Math.random()}`,
         role: 'tool',
@@ -257,7 +257,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
         toolCallId: 'call',
       });
     } else if (eventData.kind === 'tool_result') {
-      // Show the tool result
+      // 显示工具结果
       pendingMessagesRef.current.push({
         id: `${Date.now()}-toolresult-${Math.random()}`,
         role: 'tool',
@@ -289,11 +289,11 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
     setInput('');
     setIsLoading(true);
 
-    // Clear pending messages for this run
+    // 清除本次运行的待处理消息
     pendingMessagesRef.current = [];
 
     try {
-      // Create conversation if it doesn't exist
+      // 如果对话不存在则创建
       if (!conversationRef.current) {
         const workspace = new LocalWorkspace({ workingDir: '/workspace' });
         const agent = new Agent({
@@ -309,17 +309,17 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
           callback: handleConversationEvent,
         });
         
-        // Start the conversation with the first message
+        // 从第一条消息开始对话
         await conversationRef.current.start({ initialMessage: userMessage.content });
       } else {
-        // Send follow-up message to existing conversation
+        // 向现有对话发送后续消息
         await conversationRef.current.sendMessage(userMessage.content);
       }
       
-      // Run the agent loop
+      // 运行智能体循环
       await conversationRef.current.run();
       
-      // Update messages with collected events
+      // 使用收集的事件更新消息
       setMessages((prev) => [...prev, ...pendingMessagesRef.current]);
       
     } catch (error) {
@@ -347,7 +347,7 @@ export function AgentChatInterface({ llm, model }: AgentChatInterfaceProps) {
 
   const clearChat = () => {
     setMessages([]);
-    conversationRef.current = null; // Reset conversation to start fresh
+    conversationRef.current = null; // 重置对话以重新开始
   };
 
   return (

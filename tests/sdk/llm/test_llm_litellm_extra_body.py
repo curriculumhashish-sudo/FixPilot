@@ -7,9 +7,9 @@ from openhands.sdk.llm import LLM, Message, TextContent
 
 
 def test_completion_forwards_extra_body_for_proxy_models():
-    """Test that litellm_extra_body is forwarded to litellm.completion().
+    """测试 litellm_extra_body 是否转发到 litellm.completion()。
 
-    This applies for proxy models.
+    这适用于代理模型。
     """
     custom_extra_body = {
         "cluster_id": "prod-cluster-1",
@@ -47,18 +47,17 @@ def test_completion_forwards_extra_body_for_proxy_models():
 
 
 def test_responses_forwards_extra_body_for_all_models():
-    """Test that extra_body is forwarded for all models.
+    """测试是否为所有模型转发 extra_body。
 
-    Provider validation occurs downstream. We always forward extra_body if
-    provided, regardless of model type. The LLM provider will validate and
-    may reject unrecognized parameters.
+    提供者验证发生在下游。 无论模型类型如何，如果提供的话，我们总是转发 extra_body。
+    LLM 提供者将验证并可能拒绝无法识别的参数。
     """
     custom_extra_body = {
         "guided_json": {"type": "object"},
         "repetition_penalty": 1.1,
     }
 
-    # Test with a non-proxy model (e.g., hosted_vllm)
+    # 使用非代理模型进行测试 (e.g., hosted_vllm)
     llm = LLM(
         model="hosted_vllm/llama-3",
         usage_id="test",

@@ -1,4 +1,4 @@
-"""Tests for ProviderConnectionStore and its resolution in LLMProfileStore."""
+"""测试 for ProviderConnectionStore 及其分辨率在 LLMProfileStore."""
 
 import json
 import time
@@ -33,9 +33,9 @@ def _connection(**overrides) -> ProviderConnection:
 
 
 def test_provider_connection_not_found_is_value_error():
-    """The agent-server relies on this subclassing so generic ``ValueError``
-    handlers (OpenAI gateway, profile resolver) degrade a dangling reference to
-    a 4xx instead of an opaque 500."""
+    """智能体-服务器依赖于这个子类，所以通用 ``ValueError``
+    处理程序（OpenAI 网关、配置文件解析器）将悬空引用降级为 4xx，而不是不透明的 500。
+    """
     assert issubclass(ProviderConnectionNotFound, ValueError)
 
 
@@ -67,10 +67,10 @@ def test_api_key_encrypted_at_rest(tmp_path):
 
     raw = json.loads((tmp_path / "provider_connections.json").read_text())
     stored_key = raw["connections"][0]["api_key"]
-    assert stored_key != "sk-shared"  # not plaintext
+    assert stored_key != "sk-shared"  # 不是明文
     assert raw["schema_version"] == PROVIDER_CONNECTIONS_SCHEMA_VERSION
 
-    # Round-trips back to plaintext with the same cipher.
+    # 使用相同的密码往返返回明文。
     loaded = store.get("conn1", cipher=cipher)
     assert loaded is not None
     assert loaded.api_key_value() == "sk-shared"
@@ -82,15 +82,15 @@ def test_corrupted_file_raises_not_clobbers(tmp_path):
     store = ProviderConnectionStore(base_dir=tmp_path)
     with pytest.raises(ValueError):
         store.list()
-    # The corrupt file is left intact, not silently replaced.
+    # 损坏的文件原封不动地保留下来，而不是默默地被替换。
     assert path.read_text() == "{ not valid json"
 
 
-# ── Resolution in LLMProfileStore ──────────────────────────────────────────
+# ── LLMProfileStore 的解决方案 ──────────────────────────────────────────
 
 
 def test_load_without_provider_is_unchanged(tmp_path):
-    """Rule 1/4: no provider reference -> byte-identical old behavior."""
+    """规则 1/4：无提供者引用 -> 字节相同的旧行为。"""
     store = LLMProfileStore(base_dir=tmp_path / "profiles")
     store.save("p", LLM(model="gpt-4o", api_key="sk-own"), include_secrets=True)
     llm = store.load("p")
@@ -99,7 +99,7 @@ def test_load_without_provider_is_unchanged(tmp_path):
 
 
 def test_save_clears_inline_credentials_when_linked(tmp_path):
-    """Rule 5c: a linked profile persists no inline api_key / base_url."""
+    """规则 5c：链接的配置文件不保留内联 api_key / base_url。"""
     provider = ProviderConnectionStore(base_dir=tmp_path / "conns")
     profiles = LLMProfileStore(base_dir=tmp_path / "profiles", provider_store=provider)
     profiles.save(
@@ -119,7 +119,7 @@ def test_save_clears_inline_credentials_when_linked(tmp_path):
 
 
 def test_load_resolves_provider_credentials(tmp_path):
-    """Rule 5: connection api_key / base_url are applied at load (read-at-use)."""
+    """规则 5：连接 api_key / base_url 在负载时应用（使用时读取）。"""
     provider = ProviderConnectionStore(base_dir=tmp_path / "conns")
     provider.create(_connection())
     profiles = LLMProfileStore(base_dir=tmp_path / "profiles", provider_store=provider)
@@ -133,7 +133,7 @@ def test_load_resolves_provider_credentials(tmp_path):
     assert llm.api_key.get_secret_value() == "sk-shared"
     assert llm.base_url == "https://api.anthropic.com"
 
-    # Rotation takes effect on the next load, nothing cached.
+    # 旋转在下一次加载时生效，不缓存任何内容。
     provider.update(_connection(api_key="sk-rotated"))
     rotated = profiles.load("p")
     assert isinstance(rotated.api_key, SecretStr)
@@ -156,7 +156,7 @@ def test_load_base_url_authoritative_including_none(tmp_path):
 
 
 def test_load_missing_connection_raises(tmp_path):
-    """Rule 5b: dangling reference with no inline key fails loudly."""
+    """规则 5b：没有内联键的悬空引用会严重失败。"""
     provider = ProviderConnectionStore(base_dir=tmp_path / "conns")
     profiles = LLMProfileStore(base_dir=tmp_path / "profiles", provider_store=provider)
     profiles.save(
@@ -186,10 +186,10 @@ def test_list_summaries_reports_linked_key_presence(tmp_path):
 
 
 def test_list_summaries_marks_broken_when_connection_deleted(tmp_path):
-    """Fix (enyst): deleting a provider connection must surface as
-    ``provider_connection_broken=True`` on every profile that referenced it,
-    so the UI can show a 'Broken link' indicator rather than silently failing
-    on activation."""
+    """Fix (enyst): 删除提供者连接必须表现为
+    ``provider_connection_broken=True`` 在引用它的每个配置文件上，因此 UI 可以显示“损
+    坏的链接”指示器，而不是在激活时默默失败。
+    """
     provider = ProviderConnectionStore(base_dir=tmp_path / "conns")
     provider.create(_connection())
     profiles = LLMProfileStore(base_dir=tmp_path / "profiles", provider_store=provider)
@@ -197,33 +197,33 @@ def test_list_summaries_marks_broken_when_connection_deleted(tmp_path):
         "p", LLM(model="anthropic/claude-sonnet-4", provider_connection_id="conn1")
     )
 
-    # Confirm not broken before deletion.
+    # 删除前确认没有损坏。
     assert profiles.list_summaries()[0]["provider_connection_broken"] is False
 
-    # Delete the connection; the profile on disk still references it.
+    # 删除连接； 磁盘上的配置文件仍然引用它。
     provider.delete("conn1")
 
     summary = profiles.list_summaries()[0]
     assert summary["provider_connection_broken"] is True
     assert summary["provider_connection_id"] == "conn1"
-    # api_key_set must also be False (no inline key, no connection).
+    # api_key_set 也必须是 False（无内联键，无连接）。
     assert summary["api_key_set"] is False
 
 
 def test_bare_profile_store_auto_wires_provider_store(tmp_path):
-    """Fix: bare LLMProfileStore() auto-creates a ProviderConnectionStore so that
-    standalone SDK paths (LocalConversation, FallbackStrategy, switch_llm) can
-    resolve linked profiles saved by the agent-server.
+    """Fix: bare LLMProfileStore() 自动创建了一个 ProviderConnectionStore 所以
+    独立的 SDK 路径（LocalConversation、FallbackStrategy、switch_llm）可以解析智能体
+    服务器保存的链接配置文件。
 
-    The auto-wired store lives in a ``provider-connections`` directory sibling
-    to the profile store's ``base_dir`` (not under ``$HOME``), so a custom-dir
-    profile store reads its credentials from the same location.
+    自动装配的商店位于  ``provider-connections`` 目录兄弟节点到 [profile store] 的
+    ``base_dir`` （不在范围内）
+     ``$HOME``), 因此，自定义目录存储读取其凭据从同一位置。
     """
-    # The auto-wired provider store is a sibling of base_dir.
+    # 自动连接的提供者存储是 base_dir 的同级。
     provider = ProviderConnectionStore(base_dir=tmp_path / "provider-connections")
     provider.create(_connection())
 
-    # Construct with only base_dir — no explicit provider_store arg.
+    # 仅使用 base_dir 进行构造 — 无显式 provider_store 参数。
     profiles = LLMProfileStore(base_dir=tmp_path / "profiles")
     profiles.save("p", LLM(model="gpt-4o", provider_connection_id="conn1"))
 
@@ -234,8 +234,8 @@ def test_bare_profile_store_auto_wires_provider_store(tmp_path):
 
 
 def test_wrong_cipher_update_raises_not_destroys_key(tmp_path):
-    """Fix: a read-modify-write with a wrong cipher must raise a ValidationError,
-    not silently persist api_key=null and destroy the stored ciphertext."""
+    """Fix: 密码错误的读取-修改-写入必须引发 ValidationError，
+    不要默默地持久化api_key=null并销毁存储的密文。"""
     from pydantic import ValidationError
 
     cipher_a = Cipher("key-a")
@@ -243,11 +243,11 @@ def test_wrong_cipher_update_raises_not_destroys_key(tmp_path):
     store = ProviderConnectionStore(base_dir=tmp_path)
     store.create(_connection(), cipher=cipher_a)
 
-    # Attempting to update with the wrong cipher must fail before any write.
+    # 在任何写入之前尝试使用错误的密码进行更新必定会失败。
     with pytest.raises((ValidationError, ValueError)):
         store.update(_connection(display_name="updated"), cipher=cipher_b)
 
-    # The stored key must still be intact — readable with the original cipher.
+    # 存储的密钥必须仍然完好无损——可以用原始密码读取。
     restored = store.get("conn1", cipher=cipher_a)
     assert restored is not None
     assert restored.api_key_value() == "sk-shared"

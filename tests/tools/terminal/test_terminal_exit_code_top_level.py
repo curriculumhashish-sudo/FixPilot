@@ -26,7 +26,7 @@ def test_exit_code_top_level_soft_timeout(terminal_type):
     )
     session.initialize()
     try:
-        # Command produces no output and should trigger no-change timeout
+        # 命令不产生输出，应该触发 no-change 超时
         obs = session.execute(TerminalAction(command="sleep 2"))
         assert obs.metadata.exit_code == -1
         assert obs.exit_code == -1
@@ -40,7 +40,7 @@ def test_exit_code_top_level_hard_timeout(terminal_type):
     session = create_terminal_session(work_dir=os.getcwd(), terminal_type=terminal_type)
     session.initialize()
     try:
-        # Hard timeout should set exit_code to -1 as per schema docs
+        # Hard 超时应根据模式文档将 exit_code 设置为 -1
         obs = session.execute(TerminalAction(command="sleep 10", timeout=1.0))
         assert obs.metadata.exit_code == -1
         assert obs.exit_code == -1

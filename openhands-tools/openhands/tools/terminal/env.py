@@ -1,4 +1,4 @@
-"""Environment helpers for terminal backends."""
+"""终端后端的环境助手。"""
 
 import re
 from collections.abc import Mapping
@@ -12,7 +12,7 @@ ENV_VAR_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 def normalize_terminal_env(
     extra_env: Mapping[str, str] | None,
 ) -> dict[str, str] | None:
-    """Validate and copy client-provided terminal environment variables."""
+    """验证并复制客户端提供的终端环境变量。"""
     if extra_env is None:
         return None
 
@@ -30,7 +30,7 @@ def normalize_terminal_env(
 
 
 def build_terminal_env(extra_env: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Return the sanitized process environment plus client-provided overrides."""
+    """返回清理后的流程环境以及客户端提供的覆盖。"""
     env = sanitized_env()
     normalized = normalize_terminal_env(extra_env)
     if normalized:

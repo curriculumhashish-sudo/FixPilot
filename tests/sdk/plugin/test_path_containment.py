@@ -1,4 +1,4 @@
-"""Package paths must resolve inside the plugin root (Agent Plugins §4.1)."""
+"""包路径必须在插件根目录内解析（智能体插件§4.1）。"""
 
 import json
 from pathlib import Path
@@ -28,7 +28,7 @@ MCP = {"mcpServers": {"evil": {"command": "echo"}}}
 
 @pytest.fixture
 def outside(tmp_path: Path) -> Path:
-    """A directory next to (not inside) the plugin root."""
+    """插件根目录旁边（而不是内部）的目录。"""
     path = tmp_path / "outside"
     path.mkdir()
     return path
@@ -61,7 +61,7 @@ def test_dangling_escaping_manifest_rejects_plugin(plugin_dir, outside):
     (plugin_dir / ".plugin").mkdir()
     (plugin_dir / ".plugin" / "plugin.json").symlink_to(outside / "missing.json")
 
-    # Without the check this loads under a name inferred from the directory.
+    # 如果不进行检查，则会以从目录推断出的名称加载。
     with pytest.raises(ValueError, match="resolves outside the plugin root"):
         ClaudeCodePluginFormat().load(plugin_dir)
 
@@ -128,7 +128,7 @@ def test_skills_dir_escaping_root_disables_skills(plugin_dir, outside):
 
 def test_skills_that_is_not_a_directory_disables_skills(plugin_dir):
     (plugin_dir / "skills").write_text("not a directory")
-    # Without the kind check this would fall through to the root SKILL.md.
+    # 如果没有种类检查，这将落入根SKILL.md。
     (plugin_dir / "SKILL.md").write_text(SKILL.format(name="root"))
 
     assert ClaudeCodePluginFormat().load_skills(plugin_dir) == []
@@ -195,7 +195,7 @@ def test_plugin_root_reached_through_a_symlink_loads(plugin_dir, tmp_path):
     link = tmp_path / "link"
     link.symlink_to(plugin_dir, target_is_directory=True)
 
-    # format.load() does not resolve its argument, unlike Plugin.load().
+    # 与 Plugin.load() 不同，format.load() 不解析其参数。
     plugin = ClaudeCodePluginFormat().load(link)
 
     assert [s.name for s in plugin.skills] == ["good"]
@@ -203,7 +203,7 @@ def test_plugin_root_reached_through_a_symlink_loads(plugin_dir, tmp_path):
 
 
 def test_unresolvable_path_is_skipped_not_fatal(plugin_dir, monkeypatch):
-    # Python 3.12 raises RuntimeError resolving a symlink loop (3.13 does not).
+    # Python 3.12 引发 RuntimeError 解决符号链接循环（3.13 没有）。
     real_resolve = Path.resolve
 
     def resolve(self, strict=False):

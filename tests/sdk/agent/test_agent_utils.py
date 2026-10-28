@@ -1,4 +1,4 @@
-"""Tests for agent message preparation utilities."""
+"""测试智能体消息准备实用程序。"""
 
 from unittest.mock import Mock, patch
 
@@ -12,13 +12,13 @@ from openhands.sdk.llm import Message, TextContent
 
 
 # ---------------------------------------------------------------------------
-# Test fixtures and helpers
+# 测试测试夹具和助手
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 def sample_events():
-    """Create sample events for testing."""
+    """创建示例事件以进行测试。"""
     return [
         MessageEvent(
             source="agent",
@@ -46,7 +46,7 @@ def sample_events():
 
 @pytest.fixture
 def sample_messages():
-    """Create sample messages for testing."""
+    """创建示例消息以进行测试。"""
     return [
         Message(
             role="user",
@@ -65,12 +65,12 @@ def sample_messages():
 
 @pytest.fixture
 def mock_condenser():
-    """Create a mock condenser for testing."""
+    """创建模拟对象上下文压缩器进行测试。"""
     return Mock(spec=CondenserBase)
 
 
 # ---------------------------------------------------------------------------
-# Tests for prepare_llm_messages
+# 测试 prepare_llm_messages
 # ---------------------------------------------------------------------------
 
 
@@ -78,7 +78,7 @@ def mock_condenser():
 def test_prepare_llm_messages_without_condenser(
     mock_events_to_messages, sample_events, sample_messages
 ):
-    """Test prepare_llm_messages without condenser."""
+    """在没有上下文压缩器的情况下测试 prepare_llm_messages。"""
     mock_events_to_messages.return_value = sample_messages
     view = View(events=sample_events)
 
@@ -92,8 +92,8 @@ def test_prepare_llm_messages_without_condenser(
 def test_prepare_llm_messages_with_additional_messages(
     mock_events_to_messages, sample_events, sample_messages
 ):
-    """Test prepare_llm_messages with additional messages."""
-    # Copy to avoid mutation issues with the extend() inside prepare_llm_messages.
+    """使用附加消息测试 prepare_llm_messages。"""
+    # 复制以避免 prepare_llm_messages 内的 extend() 发生突变问题。
     mock_events_to_messages.return_value = sample_messages.copy()
     view = View(events=sample_events)
 
@@ -117,7 +117,7 @@ def test_prepare_llm_messages_with_condenser_returns_view(
     sample_messages,
     mock_condenser,
 ):
-    """Test prepare_llm_messages with condenser that returns a View."""
+    """使用返回视图的上下文压缩器测试 prepare_llm_messages。"""
     view = View(events=sample_events)
 
     condensed_view = View(events=sample_events[:2])
@@ -136,7 +136,7 @@ def test_prepare_llm_messages_with_condenser_returns_view(
 def test_prepare_llm_messages_with_condenser_returns_condensation(
     sample_events, mock_condenser
 ):
-    """Test prepare_llm_messages with condenser that returns a Condensation."""
+    """使用上下文压缩器测试 prepare_llm_messages，返回上下文压缩。"""
     view = View(events=sample_events)
 
     condensation = Condensation(
@@ -153,7 +153,7 @@ def test_prepare_llm_messages_with_condenser_returns_condensation(
 
 @patch("openhands.sdk.event.base.LLMConvertibleEvent.events_to_messages")
 def test_prepare_llm_messages_empty_view(mock_events_to_messages):
-    """Test prepare_llm_messages with an empty view."""
+    """使用空视图测试 prepare_llm_messages。"""
     mock_events_to_messages.return_value = []
     view = View()
 
@@ -164,12 +164,12 @@ def test_prepare_llm_messages_empty_view(mock_events_to_messages):
 
 
 def test_prepare_llm_messages_does_not_rebuild_view(monkeypatch, sample_events) -> None:
-    """The hot path must consume the passed view directly without rebuilding it.
+    """热路径必须直接使用传递的视图而不重建它。
 
-    This is the core perf invariant from #3053: the cached view on
-    `ConversationState` is what eliminates the per-step `O(n)`
-    `enforce_properties` cost, so `prepare_llm_messages` must not call
-    `View.from_events` (which would run that enforcement again).
+    这是 #3053 中的核心性能不变量：缓存视图
+    `ConversationState` 是消除每一步的 `O(n)`
+    `enforce_properties` 成本，因此 `prepare_llm_messages` 不得调用
+    `View.from_events`（这将再次运行该强制执行）。
     """
     from_events_calls = 0
     enforce_calls = 0

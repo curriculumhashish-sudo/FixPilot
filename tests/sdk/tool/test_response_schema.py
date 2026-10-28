@@ -1,4 +1,4 @@
-"""Tests for the ``response_schema`` structured-output mechanism on tools."""
+"""对工具上的 ``response_schema`` 结构化输出机制进行测试。"""
 
 import json
 from unittest.mock import MagicMock, Mock
@@ -454,8 +454,8 @@ def test_mcp_tool_supports_response_schema():
 
 
 def test_response_schema_cache_does_not_go_stale_on_model_copy():
-    """A tool rebuilt via model_copy (bypassing set_response_schema) with a
-    different schema must not reuse a stale cache."""
+    """通过 model_copy（绕过 set_response_schema）重建的工具
+    不同的模式不得重复使用过时的缓存。"""
     tool = _finish_with_schema(TaskResult)
 
     class OtherResult(BaseModel):
@@ -466,15 +466,16 @@ def test_response_schema_cache_does_not_go_stale_on_model_copy():
     action = bypassed.action_from_arguments(
         {"message": "m", "score": 5, "summary_text": "s"}
     )
-    # score routed to the structured output, not swallowed as a stale field
+    # 分数路由到结构化输出，而不是作为陈旧的字段被吞没
     assert action.structured_output == {"score": 5, "summary_text": "s"}
     assert isinstance(action, FinishAction)
     assert action.message == "m"
 
 
 def test_response_schema_json_built_once_per_class_under_concurrency():
-    """The per-class cache is built under its own lock, so concurrent callers
-    trigger model_json_schema() at most once and all get an equal, private copy."""
+    """每类缓存是在其自己的锁下构建的，因此并发调用者
+    trigger model_json_schema最多只能获取一次，并且所有获取者都会获得一个等同且私有的
+    副本。"""
     import threading
 
     from openhands.sdk.tool.tool import (
@@ -512,5 +513,5 @@ def test_response_schema_json_built_once_per_class_under_concurrency():
     assert builds == 1
     assert len(results) == 8
     assert all(result == results[0] for result in results)
-    # Each caller gets its own copy, so mutating one cannot poison the cache.
+    # 每个调用者都会获得自己的副本，因此改变副本不会毒害缓存。
     assert all(result is not results[0] for result in results[1:])

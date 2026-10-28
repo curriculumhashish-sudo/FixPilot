@@ -1,8 +1,8 @@
 ---
 name: Ready-for-dev Label Policy
 
-# Granting ready-for-dev requires write, maintain, or admin permission, even for bots.
-# This workflow checks permission, not issue content.
+# 授予“准备开发”权限需要写入、维护或管理权限，即使对于机器人也是如此。 此工作流程检查权限，而不是问题内容。
+#
 
 on:
     issues:

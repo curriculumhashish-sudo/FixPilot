@@ -1,7 +1,7 @@
-"""Installed plugins management for OpenHands SDK.
+"""已安装 OpenHands SDK 的插件管理。
 
-Public API for managing plugins installed in the user's home directory.
-All heavy lifting is delegated to ``InstallationManager``.
+Public API 用于管理安装在用户主目录中的插件。 所有繁重的工作都委托给
+``InstallationManager``。
 """
 
 from __future__ import annotations
@@ -17,19 +17,19 @@ from openhands.sdk.plugin.plugin import Plugin
 from openhands.sdk.utils.path import get_user_persistence_dir
 
 
-# Public type alias — keeps existing import sites working.
+# 公共类型别名 - 保持现有导入站点正常运行。
 InstalledPluginInfo = InstallationInfo
 
 DEFAULT_INSTALLED_PLUGINS_DIR = get_user_persistence_dir() / "plugins" / "installed"
 
 
 def get_installed_plugins_dir() -> Path:
-    """Get the default directory for installed plugins."""
+    """获取已安装插件的默认目录。"""
     return DEFAULT_INSTALLED_PLUGINS_DIR
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# 内部帮手
 # ---------------------------------------------------------------------------
 
 
@@ -51,7 +51,7 @@ def _manager(installed_dir: Path) -> InstallationManager[Plugin]:
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# 公开 API
 # ---------------------------------------------------------------------------
 
 
@@ -62,19 +62,19 @@ def install_plugin(
     installed_dir: Path | None = None,
     force: bool = False,
 ) -> InstalledPluginInfo:
-    """Install a plugin from a source.
+    """从源安装插件。
 
     Args:
-        source: Plugin source — ``"github:owner/repo"``, git URL, or
-            local path.
-        ref: Optional branch, tag, or commit to install.
-        repo_path: Subdirectory path within the repository (for monorepos).
-        installed_dir: Directory for installed plugins.
-            Defaults to ``~/.openhands/plugins/installed/``.
-        force: If True, overwrite existing installation.
+        source: 插件源 — ``"github:owner/repo"``、git URL 或
+            本地路径。
+        ref: 可选的分支、标记或提交安装。
+        repo_path: 存储库内的子目录路径（对于 monorepos）。
+        installed_dir: 已安装插件的目录。
+            默认为 ``~/.openhands/plugins/installed/``。
+        force: 如果为 True，则覆盖现有安装。
 
     Returns:
-        InstalledPluginInfo with details about the installation.
+        InstalledPluginInfo 包含有关安装的详细信息。
     """
     return _manager(_resolve_installed_dir(installed_dir)).install(
         source, ref=ref, repo_path=repo_path, force=force
@@ -85,10 +85,10 @@ def uninstall_plugin(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Uninstall a plugin by name.
+    """按名称卸载插件。
 
     Returns:
-        True if the plugin was uninstalled, False if it wasn't installed.
+        True 如果插件已卸载，False 如果插件未安装。
     """
     return _manager(_resolve_installed_dir(installed_dir)).uninstall(name)
 
@@ -97,7 +97,7 @@ def enable_plugin(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Enable an installed plugin by name."""
+    """按名称启用已安装的插件。"""
     return _manager(_resolve_installed_dir(installed_dir)).enable(name)
 
 
@@ -105,16 +105,16 @@ def disable_plugin(
     name: str,
     installed_dir: Path | None = None,
 ) -> bool:
-    """Disable an installed plugin by name."""
+    """按名称禁用已安装的插件。"""
     return _manager(_resolve_installed_dir(installed_dir)).disable(name)
 
 
 def list_installed_plugins(
     installed_dir: Path | None = None,
 ) -> list[InstalledPluginInfo]:
-    """List all installed plugins.
+    """列出所有已安装的插件。
 
-    Self-healing: reconciles metadata with what is on disk.
+    自我修复：使元数据与磁盘上的内容保持一致。
     """
     return _manager(_resolve_installed_dir(installed_dir)).list_installed()
 
@@ -122,7 +122,7 @@ def list_installed_plugins(
 def load_installed_plugins(
     installed_dir: Path | None = None,
 ) -> list[Plugin]:
-    """Load all enabled installed plugins as ``Plugin`` objects."""
+    """将所有已启用的已安装插件加载为 ``Plugin`` 对象。"""
     return _manager(_resolve_installed_dir(installed_dir)).load_installed()
 
 
@@ -130,7 +130,7 @@ def get_installed_plugin(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledPluginInfo | None:
-    """Get information about a specific installed plugin."""
+    """获取有关特定已安装插件的信息。"""
     return _manager(_resolve_installed_dir(installed_dir)).get(name)
 
 
@@ -138,5 +138,5 @@ def update_plugin(
     name: str,
     installed_dir: Path | None = None,
 ) -> InstalledPluginInfo | None:
-    """Update an installed plugin to the latest version."""
+    """将已安装的插件更新到最新版本。"""
     return _manager(_resolve_installed_dir(installed_dir)).update(name)

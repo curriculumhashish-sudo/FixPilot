@@ -1,10 +1,10 @@
-"""Round-trip tests for the shared tree-sitter-bash parse entry point.
+"""共享 tree-sitter-bash 解析的往返测试入口。
 
-These tests pin the contract that downstream consumers
-(``openhands-tools.terminal.utils.command`` and the planned
-security analyzers) rely on: ``parse`` returns a ``ParseResult``
-whose ``tree`` can be walked with the standard tree-sitter API and
-whose ``has_error`` flag faithfully reflects ``tree.root_node.has_error``.
+这些测试将下游消费者所依赖的合约 ``openhands-tools.terminal.utils.command`` 并且计划
+中的安全分析器依赖于： ``parse``
+返回一个 ``ParseResult`` whose ``tree`` 可以使用标准的 tree-sitter 走路 API 和他们的
+``has_error`` 国旗忠实
+地反映了 ``tree.root_node.has_error``.
 """
 
 from dataclasses import FrozenInstanceError
@@ -15,7 +15,7 @@ from openhands.sdk.security.shell_parser import ParseResult, parse
 
 
 class TestParseSuccessShape:
-    """A successful parse produces a usable Tree and ``has_error=False``."""
+    """成功的解析会生成可用的树和 ``has_error=False``。"""
 
     def test_returns_parse_result(self):
         result = parse("ls -l")
@@ -23,7 +23,7 @@ class TestParseSuccessShape:
 
     def test_root_node_is_walkable(self):
         result = parse("echo hello && ls -l")
-        # Standard tree-sitter API surface must be reachable.
+        # 标准树木保护者 API 表面必须可达。
         assert result.tree.root_node.type == "program"
         assert len(result.tree.root_node.named_children) >= 1
 
@@ -33,7 +33,7 @@ class TestParseSuccessShape:
 
 
 class TestParseErrorRecovery:
-    """tree-sitter recovers via ERROR nodes; it must never raise."""
+    """树保姆通过 ERROR 个节点恢复； 它绝不能升高。"""
 
     @pytest.mark.parametrize(
         "command",
@@ -55,7 +55,7 @@ class TestParseErrorRecovery:
 
 
 class TestParseEdgeCases:
-    """Empty and unicode inputs round-trip without surprise."""
+    """空和 unicode 输入往返毫无意外。"""
 
     def test_empty_string_parses(self):
         result = parse("")
@@ -63,13 +63,13 @@ class TestParseEdgeCases:
         assert result.has_error is False
 
     def test_utf8_input_parses(self):
-        # Multi-byte chars in argument position should not derail parsing.
+        # 参数位置中的多字节字符不应破坏解析。
         result = parse("echo 'héllo wörld'")
         assert result.has_error is False
 
 
 class TestParseResultIsImmutable:
-    """``ParseResult`` is frozen so consumers cannot mutate shared state."""
+    """``ParseResult`` 被冻结，因此消费者无法改变共享状态。"""
 
     def test_frozen(self):
         result = parse("ls")
@@ -78,32 +78,33 @@ class TestParseResultIsImmutable:
 
 
 class TestParseAdversarialBytes:
-    """Pin the contract for unusual byte sequences.
+    """锁定异常字节序列的合约。
 
-    These tests document the boundary between encoding (which can raise)
-    and parsing (which never raises and reports errors via ERROR nodes).
+    这些测试记录了编码（可能会引发）和解析（永远不会通过 ERROR 节点引发和报告错误）之
+    间的边界。
     """
 
     def test_emoji_argument_parses(self):
-        # 4-byte UTF-8 in argument position must not derail the parser.
+        # 参数位置中的 4 字节 UTF-8 不得使解析器脱轨。
         result = parse("echo 🚀")
         assert result.has_error is False
 
     def test_embedded_null_byte_parses_with_error_flag(self):
-        # NUL bytes parse (no exception) but the grammar flags them.
+        # NUL 字节解析（无例外），但语法标记了它们。
         result = parse("echo \x00 hello")
         assert isinstance(result, ParseResult)
         assert result.has_error is True
 
     def test_lone_surrogate_raises_unicode_encode_error(self):
-        # Strict UTF-8 rejects lone surrogates at encode time, before
-        # tree-sitter sees the input. The docstring documents this.
+        # 在树守护者看到输入之前，严格 UTF-8 在编码时拒绝单独的代理。 文档字符串对此进行
+        # 了记录。
+        #
         with pytest.raises(UnicodeEncodeError):
             parse("echo \ud800 hello")
 
 
 class TestParseByteSemantics:
-    """Pin byte-offset semantics so a future library upgrade can't drift."""
+    """固定字节偏移语义，以便将来的库升级不会漂移。"""
 
     def test_root_node_spans_full_input(self):
         command = "echo hello"
@@ -112,17 +113,16 @@ class TestParseByteSemantics:
         assert result.tree.root_node.end_byte == len(command.encode())
 
     def test_root_node_spans_multibyte_input(self):
-        # Multi-byte chars: end_byte counts bytes, not code points.
+        # 多字节字符：end_byte 计算字节，而不是代码点。
         command = "echo 'héllo'"
         result = parse(command)
         assert result.tree.root_node.end_byte == len(command.encode())
 
 
 class TestParseDeterminism:
-    """Repeated parses of the same input return equal results.
+    """重复解析相同的输入会返回相同的结果。
 
-    Guards against any global mutable state slipping in via parser
-    construction or the shared ``_BASH_LANGUAGE`` singleton.
+    防止任何全局可变状态通过解析器构造或共享 ``_BASH_LANGUAGE`` 单例进入。
     """
 
     def test_repeated_parse_has_equal_error_flag(self):

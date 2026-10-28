@@ -1,12 +1,12 @@
-"""End to end: an Agent Plugins package driven to a configured Conversation.
+"""端到端：驱动到已配置对话的智能体插件包。
 
-The mirror of ``test_local_conversation_plugins.py`` for the portable format.
-It matters that these assertions run here and not only on ``Plugin``:
-``LocalConversation`` merges plugins itself and never calls ``load_plugins()``,
-so this is the path a user actually hits.
+``test_local_conversation_plugins.py`` 的镜像为可移植格式。 重要的是，这些断言在这里
+运行，而不仅仅是在 ``Plugin`` 上：
+``LocalConversation`` 合并插件本身并且从不调用 ``load_plugins()``，因此这是用户实际点
+击的路径。
 
-Packages come from ``tests/fixtures/plugins/agent_plugins/`` -- a local
-directory source, so no plugin is fetched and no network is touched.
+软件包来自 ``tests/fixtures/plugins/agent_plugins/``——本地目录源，因此不会获取任何插
+件，也不会触及任何网络。
 """
 
 from pathlib import Path
@@ -38,7 +38,7 @@ class EmptyMCPClient:
 
 
 class RecordingMCPToolProvider:
-    """Records the MCP config that reaches tool creation, and starts nothing."""
+    """记录到达工具创建的 MCP 配置，并且不启动任何内容。"""
 
     def __init__(self, created: list[dict[str, MCPServer]]):
         self.created = created
@@ -59,7 +59,7 @@ class RecordingMCPToolProvider:
 
 @pytest.fixture(autouse=True)
 def plugin_data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Keep ``PLUGIN_DATA`` out of the real user directory."""
+    """将 ``PLUGIN_DATA`` 保留在真实用户目录之外。"""
     root = tmp_path / "plugin-data"
     monkeypatch.setattr(
         "openhands.sdk.plugin.format.agent_plugins_mcp.DEFAULT_PLUGIN_DATA_DIR", root
@@ -69,7 +69,7 @@ def plugin_data_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture(autouse=True)
 def no_ambient_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Load only the attached package, whatever the developer has installed."""
+    """仅加载附加的包，无论开发人员安装了什么。"""
     monkeypatch.setattr(
         "openhands.sdk.conversation.impl.local_conversation.load_available_plugins",
         lambda **kwargs: {},
@@ -105,7 +105,7 @@ def env_of(server: MCPServer) -> dict[str, str]:
 
 
 class TestSkills:
-    """Skills from the portable layout reach the agent context."""
+    """便携式布局的技能达到智能体上下文。"""
 
     def test_skills_reach_the_agent_context(self, agent: Agent, workspace: Path):
         conversation = conversation_with("full-package", agent, workspace)
@@ -118,7 +118,7 @@ class TestSkills:
         conversation.close()
 
     def test_the_entry_command_arrives_as_a_skill(self, agent: Agent, workspace: Path):
-        """Our extension's commands become keyword-triggered skills."""
+        """我们的扩展程序的命令成为关键字触发的技能。"""
         conversation = conversation_with("full-package", agent, workspace)
 
         conversation._ensure_plugins_loaded()
@@ -130,7 +130,7 @@ class TestSkills:
         conversation.close()
 
     def test_the_vendored_example_package_works(self, agent: Agent, workspace: Path):
-        """The official example plugin, end to end, from vendored bytes."""
+        """官方示例插件，端到端，来自供应字节。"""
         conversation = conversation_with("agent-plugins-example", agent, workspace)
 
         conversation._ensure_plugins_loaded()
@@ -163,7 +163,7 @@ class TestSkills:
     def test_a_manifest_only_package_configures_an_agent(
         self, agent: Agent, workspace: Path
     ):
-        """§6.2: absent component locations are not an error at this level either."""
+        """§6.2：缺少组件位置也不是此级别的错误。"""
         conversation = conversation_with("manifest-only", agent, workspace)
 
         conversation._ensure_plugins_loaded()
@@ -175,7 +175,7 @@ class TestSkills:
 
 
 class TestMCPServers:
-    """``mcp.json`` servers reach actual tool creation, fully expanded."""
+    """``mcp.json`` 服务器达到实际工具创建，完全扩展。"""
 
     def test_servers_reach_tool_creation(self, agent: Agent, workspace: Path):
         created: list[dict[str, MCPServer]] = []
@@ -222,7 +222,7 @@ class TestMCPServers:
     def test_the_declared_transport_reaches_the_tool_provider(
         self, agent: Agent, workspace: Path
     ):
-        """§7.2.1: the transport the entry declares is the one tools connect with."""
+        """§7.2.1：条目声明的传输层是与之连接的工具。"""
         created: list[dict[str, MCPServer]] = []
         conversation = conversation_with(
             "full-package",
@@ -240,10 +240,10 @@ class TestMCPServers:
     def test_placeholders_are_left_untouched_elsewhere(
         self, agent: Agent, workspace: Path
     ):
-        """Command, env keys, URL and headers carry no expansion (§9.2).
+        """命令、环境键、URL 和标头不包含扩展（第 9.2 节）。
 
-        The configured ``Host`` is gone by this point: the client generates that
-        one itself, so it never reaches the server that gets built.
+        此时，配置的 ``Host`` 已经消失：客户端自己生成该配置，因此它永远不会到达构建
+        的服务器。
         """
         created: list[dict[str, MCPServer]] = []
         conversation = conversation_with(
@@ -271,7 +271,7 @@ class TestMCPServers:
 
 
 class TestClientExtension:
-    """``dev.openhands`` components are applied to the conversation."""
+    """``dev.openhands`` 组件应用于对话。"""
 
     def test_hooks_reach_the_hook_processor(self, agent: Agent, workspace: Path):
         conversation = conversation_with("full-package", agent, workspace)
@@ -305,7 +305,7 @@ class TestClientExtension:
 
 
 class TestFailureBoundaries:
-    """A package's broken parts stay broken alone, or stop the plugin entirely."""
+    """包的损坏部分会单独损坏，或者完全停止插件。"""
 
     def test_broken_entries_do_not_stop_the_conversation(
         self, agent: Agent, workspace: Path
@@ -336,7 +336,7 @@ class TestFailureBoundaries:
     def test_a_rejected_package_stops_the_conversation(
         self, agent: Agent, workspace: Path, package: str, message: str
     ):
-        """A rejected plugin is not silently dropped: attaching it is an error."""
+        """被拒绝的插件不会被默默删除：附加它是一个错误。"""
         conversation = conversation_with(package, agent, workspace)
 
         with pytest.raises(ValueError, match=message):
@@ -348,7 +348,7 @@ class TestFailureBoundaries:
     def test_a_disabled_mcp_component_still_yields_skills(
         self, agent: Agent, workspace: Path
     ):
-        """An ``mcp.json`` targeting another version disables MCP, not the plugin."""
+        """针对另一个版本的 ``mcp.json`` 会禁用 MCP，而不是插件。"""
         created: list[dict[str, MCPServer]] = []
         conversation = conversation_with(
             "mcp-version-mismatch",
@@ -369,7 +369,7 @@ class TestFailureBoundaries:
     def test_components_outside_the_fixed_locations_never_reach_the_agent(
         self, agent: Agent, workspace: Path
     ):
-        """The Claude Code layout at the root contributes nothing here."""
+        """根部的克劳德代码布局在这里没有任何贡献。"""
         conversation = conversation_with("wrong-locations", agent, workspace)
 
         with patch(

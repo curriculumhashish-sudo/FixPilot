@@ -1,4 +1,4 @@
-"""Tests for the Tool class in openhands.sdk.runtime.tool."""
+"""对 openhands.sdk.runtime.tool 中的 Tool 类进行测试。"""
 
 from collections.abc import Sequence
 from typing import Any
@@ -17,7 +17,7 @@ from openhands.sdk.tool import (
 
 
 class ToolImmutabilityMockAction(Action):
-    """Mock action class for testing."""
+    """模拟对象用于测试的动作类。"""
 
     command: str = Field(description="Command to execute")
     optional_field: str | None = Field(default=None, description="Optional field")
@@ -26,7 +26,7 @@ class ToolImmutabilityMockAction(Action):
 
 
 class ToolImmutabilityMockObservation(Observation):
-    """Mock observation class for testing."""
+    """模拟对象观测结果测试类。"""
 
     result: str = Field(description="Result of the action")
     extra_field: str | None = Field(default=None, description="Extra field")
@@ -39,7 +39,7 @@ class ToolImmutabilityMockObservation(Observation):
 class MockImmutableTool(
     ToolDefinition[ToolImmutabilityMockAction, ToolImmutabilityMockObservation]
 ):
-    """Concrete mock tool for immutability testing."""
+    """用于不变性测试的具体模拟对象工具。"""
 
     @classmethod
     def create(cls, conv_state=None, **params) -> Sequence["MockImmutableTool"]:
@@ -47,18 +47,18 @@ class MockImmutableTool(
 
 
 class TestToolImmutability:
-    """Test suite for Tool immutability features."""
+    """测试套件用于工具不变性功能。"""
 
     def test_tool_is_frozen(self):
-        """Test that Tool instances are frozen and cannot be modified."""
+        """测试 Tool 实例是否已冻结且无法修改。"""
         tool = MockImmutableTool(
             description="Test tool",
             action_type=ToolImmutabilityMockAction,
             observation_type=ToolImmutabilityMockObservation,
         )
 
-        # Test that we cannot modify any field
-        # Note: name is now a ClassVar and cannot be assigned through instance
+        # 测试我们不能修改任何字段
+        # 注意：名称现在是 ClassVar，不能通过实例分配
         with pytest.raises(Exception):
             tool.description = "modified_description"
 
@@ -66,7 +66,7 @@ class TestToolImmutability:
             tool.executor = None
 
     def test_tool_set_executor_returns_new_instance(self):
-        """Test that set_executor returns a new Tool instance."""
+        """测试 set_executor 返回一个新的 Tool 实例。"""
         tool = MockImmutableTool(
             description="Test tool",
             action_type=ToolImmutabilityMockAction,
@@ -84,7 +84,7 @@ class TestToolImmutability:
         new_executor = NewExecutor()
         new_tool = tool.set_executor(new_executor)
 
-        # Verify that a new instance was created
+        # 验证是否创建了新实例
         assert new_tool is not tool
         assert tool.executor is None
         assert new_tool.executor is new_executor
@@ -92,19 +92,19 @@ class TestToolImmutability:
         assert new_tool.description == tool.description
 
     def test_tool_model_copy_creates_modified_instance(self):
-        """Test that model_copy can create modified versions of Tool instances."""
+        """测试 model_copy 是否可以创建 Tool 实例的修改版本。"""
         tool = MockImmutableTool(
             description="Test tool",
             action_type=ToolImmutabilityMockAction,
             observation_type=ToolImmutabilityMockObservation,
         )
 
-        # Create a copy with modified fields
+        # 创建包含修改字段的副本
         modified_tool = tool.model_copy(
             update={"name": "modified_tool", "description": "Modified description"}
         )
 
-        # Verify that a new instance was created with modifications
+        # 验证是否创建了经过修改的新实例
         assert modified_tool is not tool
         assert tool.name == "mock_immutable"
         assert tool.description == "Test tool"
@@ -112,7 +112,7 @@ class TestToolImmutability:
         assert modified_tool.description == "Modified description"
 
     def test_tool_meta_field_immutability(self):
-        """Test that the meta field works correctly and is immutable."""
+        """测试元字段是否正常工作并且不可变。"""
         meta_data = {"version": "1.0", "author": "test"}
         tool = MockImmutableTool(
             description="Test tool",
@@ -121,22 +121,22 @@ class TestToolImmutability:
             meta=meta_data,
         )
 
-        # Verify meta field is accessible
+        # 验证元字段可访问
         assert tool.meta == meta_data
 
-        # Test that meta field cannot be directly modified
+        # 测试meta字段不能直接修改
         with pytest.raises(Exception):
             tool.meta = {"version": "2.0"}
 
-        # Test that meta field can be modified via model_copy
+        # 测试元字段是否可以通过 model_copy 修改
         new_meta = {"version": "2.0", "author": "new_author"}
         modified_tool = tool.model_copy(update={"meta": new_meta})
         assert modified_tool.meta == new_meta
         assert tool.meta == meta_data  # Original unchanged
 
     def test_tool_constructor_parameter_validation(self):
-        """Test that Tool constructor validates parameters correctly."""
-        # Test that new parameter names work
+        """测试工具构造函数是否正确验证参数。"""
+        # 测试新参数名称是否有效
         tool = MockImmutableTool(
             description="Test tool",
             action_type=ToolImmutabilityMockAction,
@@ -145,7 +145,7 @@ class TestToolImmutability:
         assert tool.action_type == ToolImmutabilityMockAction
         assert tool.observation_type == ToolImmutabilityMockObservation
 
-        # Test that invalid field types are rejected
+        # 测试无效字段类型是否被拒绝
         with pytest.raises(ValidationError):
             MockImmutableTool(
                 description="Test tool",
@@ -154,7 +154,7 @@ class TestToolImmutability:
             )
 
     def test_tool_annotations_immutability(self):
-        """Test that ToolAnnotations are also immutable when part of Tool."""
+        """测试 ToolAnnotations 作为 Tool 的一部分也是不可变的。"""
         annotations = ToolAnnotations(
             title="Test Tool",
             readOnlyHint=True,
@@ -168,11 +168,11 @@ class TestToolImmutability:
             annotations=annotations,
         )
 
-        # Test that annotations field cannot be reassigned (frozen behavior)
+        # 测试注释字段无法重新分配（冻结行为）
         with pytest.raises(Exception):
             tool.annotations = ToolAnnotations(title="New Annotations")
 
-        # Test that annotations can be modified via model_copy
+        # 测试注释是否可以通过 model_copy 修改
         new_annotations = ToolAnnotations(
             title="Modified Tool",
             readOnlyHint=False,

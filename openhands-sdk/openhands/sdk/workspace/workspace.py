@@ -10,9 +10,9 @@ logger = get_logger(__name__)
 
 
 class Workspace:
-    """Factory entrypoint that returns a LocalWorkspace or RemoteWorkspace.
+    """返回 LocalWorkspace 或 RemoteWorkspace 的工厂入口。
 
-    Usage:
+    用途：
         - Workspace(working_dir=...) -> LocalWorkspace
         - Workspace(working_dir=..., host="http://...") -> RemoteWorkspace
     """

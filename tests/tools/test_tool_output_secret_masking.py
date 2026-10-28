@@ -1,8 +1,7 @@
-"""Tool output is masked at the shared chokepoint (issue #4677).
+"""工具输出在共享阻塞点被屏蔽（问题#4677）。
 
-``ToolDefinition.__call__`` is the one place every tool's observation passes
-through, so masking there covers a new tool by default rather than by
-remembering to patch it.
+``ToolDefinition.__call__`` 是每个工具的观测结果都会经过的地方，因此默认情况下屏蔽该
+位置会覆盖新工具，而不是记住对其进行修补。
 """
 
 import importlib
@@ -56,7 +55,7 @@ def conversation(tmp_path: Path) -> LocalConversation:
 def test_file_editor_view_masks_file_contents(
     conversation: LocalConversation, tmp_path: Path
 ):
-    """The headline case: reading a secret-bearing file no longer leaks it."""
+    """头条新闻：读取包含机密的文件不再泄漏。"""
     env = tmp_path / ".env"
     env.write_text(f"API_KEY={SECRET}\n")
 
@@ -65,12 +64,12 @@ def test_file_editor_view_masks_file_contents(
 
     assert SECRET not in observation.text
     assert f"API_KEY={MASK}" in observation.text
-    # The file itself is untouched — only the returned record is masked.
+    # 文件本身未受影响 - 仅返回的记录被屏蔽。
     assert env.read_text() == f"API_KEY={SECRET}\n"
 
 
 def test_grep_masks_the_echoed_pattern(conversation: LocalConversation, tmp_path: Path):
-    """``grep`` returns paths, not file contents — the leak is the echoed pattern."""
+    """``grep`` 返回路径，而不是文件内容 - 泄漏是回显模式。"""
     action = GrepAction(pattern=SECRET, path=str(tmp_path))
     observation = conversation.agent.tools_map["grep"](action, conversation)
 
@@ -80,7 +79,7 @@ def test_grep_masks_the_echoed_pattern(conversation: LocalConversation, tmp_path
 
 
 def test_glob_masks_a_matched_path(conversation: LocalConversation, tmp_path: Path):
-    """``glob`` returns paths, so a secret-bearing filename is the leak."""
+    """``glob`` 返回路径，因此包含机密的文件名就是泄漏。"""
     (tmp_path / f"note-{SECRET}.txt").write_text("hi\n")
 
     action = GlobAction(pattern="*.txt", path=str(tmp_path))
@@ -92,9 +91,9 @@ def test_glob_masks_a_matched_path(conversation: LocalConversation, tmp_path: Pa
 
 
 def test_apply_patch_masks_nested_commit_content(conversation: LocalConversation):
-    """The nested-model case ``Observation.content`` masking would have missed.
+    """嵌套模型案例 ``Observation.content`` 掩码将会丢失。
 
-    The secret lands in ``commit.changes[...].new_content``, not in ``content``.
+    机密落在 ``commit.changes[...].new_content`` 中，而不是 ``content`` 中。
     """
     patch = (
         f"*** Begin Patch\n*** Add File: secrets.txt\n+TOKEN={SECRET}\n*** End Patch"
@@ -110,7 +109,7 @@ def test_apply_patch_masks_nested_commit_content(conversation: LocalConversation
 
 
 def test_no_conversation_means_no_masking(tmp_path: Path):
-    """Called without a conversation there is no registry, so nothing is masked."""
+    """在没有对话的情况下调用没有注册表，因此没有任何内容被屏蔽。"""
     for name, cls in _TOOLS.items():
         register_tool(name, cls)
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
@@ -127,7 +126,7 @@ def test_no_conversation_means_no_masking(tmp_path: Path):
 
 
 def _all_tool_definition_subclasses() -> set[type[ToolDefinition]]:
-    """Import every shipped tool package, then collect ToolDefinition subclasses."""
+    """导入每个已发布的工具包，然后收集 ToolDefinition 个子类。"""
     import openhands.tools
 
     for module in pkgutil.walk_packages(
@@ -135,7 +134,7 @@ def _all_tool_definition_subclasses() -> set[type[ToolDefinition]]:
     ):
         try:
             importlib.import_module(module.name)
-        except Exception:  # optional extras must not fail the guard
+        except Exception:  # 可选的附加设施不能让警卫失望
             continue
 
     def walk(cls):
@@ -147,11 +146,10 @@ def _all_tool_definition_subclasses() -> set[type[ToolDefinition]]:
 
 
 def test_no_tool_bypasses_the_masking_chokepoint():
-    """Fails when a new tool overrides __call__ without delegating to super().
+    """当新工具覆盖 __call__ 而不委托给 super() 时失败。
 
-    This is the property the issue asks for: tool #14 is covered by default.
-    An override that builds its own Observation and returns it silently opts
-    out of masking, so it has to go through ``super().__call__``.
+    这是问题所要求的属性：默认情况下涵盖工具#14。 构建自己的观测结果并默默返回它的覆
+    盖选择不屏蔽，因此它必须经过 ``super().__call__``。
     """
     offenders = []
     for cls in _all_tool_definition_subclasses():

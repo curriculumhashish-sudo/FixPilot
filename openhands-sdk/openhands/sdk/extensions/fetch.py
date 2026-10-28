@@ -1,4 +1,4 @@
-"""Fetching utilities for extensions."""
+"""获取扩展实用程序。"""
 
 import hashlib
 from enum import StrEnum
@@ -15,15 +15,15 @@ logger = get_logger(__name__)
 
 
 class ExtensionFetchError(Exception):
-    """Raised when fetching an extension fails."""
+    """获取扩展失败时引发。"""
 
 
 class SourceType(StrEnum):
-    """Classification of an extension source.
+    """扩展源的分类。
 
-    LOCAL   -- a filesystem path (absolute, home-relative, or dot-relative).
-    GIT     -- any git-clonable URL (HTTPS, SSH, git://, etc.).
-    GITHUB  -- the ``github:owner/repo[/path]`` shorthand, expanded to an HTTPS URL.
+    LOCAL -- 文件系统路径（绝对路径、主路径相对路径或点相对路径）。 GIT -- 任何 git-
+    clonable URL（HTTPS、SSH、git:// 等
+    ）。 GITHUB——``github:owner/repo[/path]``简写，扩展为HTTPSURL。
     """
 
     LOCAL = "local"
@@ -32,10 +32,10 @@ class SourceType(StrEnum):
 
 
 def _split_github_shorthand(source: str) -> tuple[str, str | None]:
-    """Split ``github:owner/repo[/subpath]`` into ``("owner/repo", subpath)``.
+    """将 ``github:owner/repo[/subpath]`` 拆分为 ``("owner/repo", subpath)``。
 
     Raises:
-        ExtensionFetchError: If owner or repo is missing.
+        ExtensionFetchError: 如果所有者或仓库丢失。
     """
     owner, _, rest = source.strip()[len("github:") :].partition("/")
     repo, _, subpath = rest.partition("/")
@@ -48,52 +48,53 @@ def _split_github_shorthand(source: str) -> tuple[str, str | None]:
 
 
 def parse_extension_source(source: str) -> tuple[SourceType, str]:
-    """Parse extension source into (SourceType, url).
+    """将扩展源解析为 (SourceType, url)。
 
     Args:
-        source: Extension source string. Can be:
-            - "github:owner/repo" - GitHub repository shorthand
-            - "github:owner/repo/path" - the same, naming a subdirectory
-              (fetch() uses the path as ``repo_path``)
-            - "https://github.com/owner/repo.git" - Full git URL
-            - "git@github.com:owner/repo.git" - SSH git URL
-            - "/local/path" - Local path
+        source: 扩展源字符串。 可以是：
+            - "GitHub:owner/repo" - GitHub 存储库简写
+            - "GitHub:owner/repo/path" - 相同，命名子目录（fetch() 使用路径作为
+            ``repo_path``）
+            - “ https://github.com/owner/repo.git"  - 完整的 git URL
+            - “git@github.com：所有者/repo.git” - SSH git URL
+            - “/local/path" - 本地路径
 
     Returns:
-        Tuple of (source_type, normalized_url) where source_type is one of:
-        - SourceType.GITHUB: GitHub repository
-        - SourceType.GIT: Any git URL
-        - SourceType.LOCAL: Local filesystem path
+        (source_type, normalized_url) 的元组，其中 source_type 是以下之一：
+        - SourceType.GITHUB：GitHub存储库
+        - SourceType.GIT：任何 git URL
+        - SourceType.LOCAL：本地文件系统路径
 
     Examples:
         >>> parse_extension_source("github:owner/repo")
-        (SourceType.GITHUB, "https://github.com/owner/repo.git")
+        (SourceType.GITHUB, " https://github.com/owner/repo.git" )
         >>> parse_extension_source("https://gitlab.com/org/repo.git")
-        (SourceType.GIT, "https://gitlab.com/org/repo.git")
+        (SourceType.GIT, " https://gitlab.com/org/repo.git" )
         >>> parse_extension_source("/local/path")
         (SourceType.LOCAL, "/local/path")
     """
     source = source.strip()
 
-    # GitHub shorthand: github:owner/repo[/subpath]
+    # GitHub 简写：GitHub:owner/repo[/subpath]
     if source.startswith("github:"):
         repo, _ = _split_github_shorthand(source)
         url = f"https://github.com/{repo}.git"
         return (SourceType.GITHUB, url)
 
-    # Git URLs: detect by protocol/scheme rather than enumerating providers
-    # This handles GitHub, GitLab, Bitbucket, Codeberg, self-hosted instances, etc.
+    # Git URLs: 通过协议/方案检测，而不是枚举提供者。它处理 GitHub、GitLab、Bitbucket、
+    # Codeberg、自托管实例等。
+    #
     if is_git_url(source):
         url = normalize_git_url(source)
         return (SourceType.GIT, url)
 
-    # Local path: starts with /, ~, ., is Windows-absolute, or contains a
-    # path separator without a URL scheme.
+    # 本地路径：以 /、~、. 开头，是 Windows 绝对路径，或包含不带 URL 方案的路径分隔符。
+    #
     if is_local_path_source(source):
         return (SourceType.LOCAL, source)
 
     if "/" in source and "://" not in source:
-        # Relative path like "plugins/my-plugin"
+        # 相对路径如“plugins/my-plugin”
         return (SourceType.LOCAL, source)
 
     raise ExtensionFetchError(
@@ -105,7 +106,7 @@ def parse_extension_source(source: str) -> tuple[SourceType, str]:
 def resolve_extension_source(
     source: str, repo_path: str | None = None
 ) -> tuple[SourceType, str, str | None]:
-    """Parse a source and resolve an explicit or embedded repository subpath."""
+    """解析源并解析显式或嵌入式存储库子路径。"""
     source_type, url = parse_extension_source(source)
     if source_type == SourceType.GITHUB:
         _, subpath = _split_github_shorthand(source)
@@ -120,16 +121,16 @@ def resolve_extension_source(
 
 
 def _resolve_local_source(url: str) -> Path:
-    """Resolve a local extension source to a path.
+    """将本地扩展源解析为路径。
 
     Args:
-        url: Local path string (may contain ~ for home directory).
+        url: 本地路径字符串（可能包含 ~ 表示主目录）。
 
     Returns:
-        Resolved absolute path to the extension directory.
+        解析了扩展目录的绝对路径。
 
     Raises:
-        ExtensionFetchError: If path doesn't exist.
+        ExtensionFetchError: 如果路径不存在。
     """
     local_path = Path(url).expanduser().resolve()
     if not local_path.exists():
@@ -138,24 +139,24 @@ def _resolve_local_source(url: str) -> Path:
 
 
 def _apply_subpath(base_path: Path, subpath: str | None, context: str) -> Path:
-    """Apply a subpath to a base path, validating it exists and stays inside.
+    """将子路径应用于基本路径，验证其存在并保留在内部。
 
     Args:
-        base_path: The root path.
-        subpath: Optional subdirectory path (may have leading/trailing slashes).
-        context: Description for error messages (e.g., "extension repository").
+        base_path: 根路径。
+        subpath: 可选的子目录路径（可能有前导/尾随斜杠）。
+        context: 错误消息的描述（e.g.，“扩展存储库”）。
 
     Returns:
-        The final path (base_path if no subpath, otherwise base_path/subpath).
+        最终路径（如果没有子路径则为 base_path，否则为 base_path/subpath）。
 
     Raises:
-        ExtensionFetchError: If subpath escapes base_path or doesn't exist.
+        ExtensionFetchError: 如果子路径转义 base_path 或不存在。
     """
     if not subpath:
         return base_path
 
     final_path = base_path / subpath.strip("/")
-    # Containment: a subpath must not climb out of the base via ".." or a symlink.
+    # 遏制：子路径不得通过“..”或符号链接爬出基础路径。
     resolved_base = base_path.resolve()
     if not final_path.resolve().is_relative_to(resolved_base):
         raise ExtensionFetchError(f"Subdirectory '{subpath}' escapes {context}")
@@ -172,18 +173,18 @@ def fetch(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> Path:
-    """Fetch an extension from a source and return the local path.
+    """从源获取扩展并返回本地路径。
 
     Args:
-        source: Extension source -- git URL, GitHub shorthand, or local path.
-        cache_dir: Directory for caching.
-        ref: Optional branch, tag, or commit to checkout.
-        update: If true and cache exists, update it.
-        repo_path: Subdirectory path within the repository.
-        git_helper: GitHelper instance (for testing).
+        source: 扩展源——git URL、GitHub简写或本地路径。
+        cache_dir: 用于缓存的目录。
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。
+        repo_path: 存储库内的子目录路径。
+        git_helper: GitHelper 实例（用于测试）。
 
     Returns:
-        Path to the local extension directory.
+        本地扩展目录的路径。
     """
     path, _ = fetch_with_resolution(
         source=source,
@@ -204,22 +205,22 @@ def fetch_with_resolution(
     repo_path: str | None = None,
     git_helper: GitHelper | None = None,
 ) -> tuple[Path, str | None]:
-    """Fetch an extension and return both the path and resolved commit SHA.
+    """获取扩展并返回路径和已解析的提交 SHA。
 
     Args:
-        source: Extension source (git URL, GitHub shorthand, or local path).
-        cache_dir: Directory for caching.
-        ref: Optional branch, tag, or commit to checkout.
-        update: If True and cache exists, update it.
-        repo_path: Subdirectory path within the repository.
-        git_helper: GitHelper instance (for testing).
+        source: 扩展源（git URL、GitHub 简写或本地路径）。
+        cache_dir: 用于缓存的目录。
+        ref: 可选分支、标记或提交结账。
+        update: 如果True和缓存存在，则更新它。
+        repo_path: 存储库内的子目录路径。
+        git_helper: GitHelper 实例（用于测试）。
 
     Returns:
-        Tuple of (path, resolved_ref) where resolved_ref is the commit SHA for git
-        sources and None for local paths.
+        (path, resolved_ref) 的元组，其中 resolved_ref 是 git 源的提交 SHA，None 是本
+        地路径。
 
     Raises:
-        ExtensionFetchError: If fetching the extension fails.
+        ExtensionFetchError: 如果获取扩展失败。
     """
     source_type, url, repo_path = resolve_extension_source(source, repo_path)
 
@@ -236,21 +237,21 @@ def fetch_with_resolution(
 
 
 def get_cache_path(source: str, cache_dir: Path) -> Path:
-    """Get the cache path for an extension source.
+    """获取扩展源的缓存路径。
 
-    Creates a deterministic path based on a hash of the source URL.
+    基于源 URL 的哈希创建确定性路径。
 
     Args:
-        source: The extension source (URL or path).
-        cache_dir: Base cache directory.
+        source: 扩展源（URL 或路径）。
+        cache_dir: 基本缓存目录。
 
     Returns:
-        Path where the extension should be cached.
+        应缓存扩展的路径。
     """
-    # Create a hash of the source for the directory name
+    # 创建目录名称的源哈希
     source_hash = hashlib.sha256(source.encode()).hexdigest()[:16]
 
-    # Extract repo name for human-readable cache directory name
+    # 提取存储库名称以获取人类可读的缓存目录名称
     readable_name = extract_repo_name(source)
 
     cache_name = f"{readable_name}-{source_hash}"
@@ -266,22 +267,22 @@ def _fetch_remote_source_with_resolution(
     git_helper: GitHelper,
     source: str,
 ) -> tuple[Path, str]:
-    """Fetch a remote extension source and return path + resolved commit SHA.
+    """获取远程扩展源并返回路径+已解析的提交SHA。
 
     Args:
-        url: Git URL to fetch.
-        cache_dir: Base directory for caching.
-        ref: Optional branch, tag, or commit to checkout.
-        update: Whether to update existing cache.
-        subpath: Optional subdirectory within the repository.
-        git_helper: GitHelper instance for git operations.
-        source: Original source string (for error messages).
+        url: 使用 Git URL 获取。
+        cache_dir: 缓存的基本目录。
+        ref: 可选分支、标记或提交结账。
+        update: 是否更新现有缓存。
+        subpath: 存储库中的可选子目录。
+        git_helper: GitHelper git 操作实例。
+        source: 原始源字符串（用于错误消息）。
 
     Returns:
-        Tuple of (path, resolved_ref) where resolved_ref is the commit SHA.
+        包含（路径，resolved_ref）的元组，其中resolved_ref是SHA的提交。
 
     Raises:
-        ExtensionFetchError: If fetching fails or subpath is invalid.
+        ExtensionFetchError: 如果获取失败或子路径无效。
     """
     repo_cache_path = get_cache_path(url, cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -299,14 +300,14 @@ def _fetch_remote_source_with_resolution(
             f"Failed to fetch extension from {redact_url_credentials(source)}"
         )
 
-    # Get the actual commit SHA that was checked out
+    # 获取已签出的实际提交 SHA
     try:
         resolved_ref = git_helper.get_head_commit(repo_cache_path)
     except Exception as e:
         logger.warning(
             f"Could not get commit SHA for {redact_url_credentials(source)}: {e}"
         )
-        # Fall back to the requested ref if we can't get the SHA
+        # 如果我们无法获得 SHA，则返回到请求的引用
         resolved_ref = ref or "HEAD"
 
     final_path = _apply_subpath(repo_cache_path, subpath, "extension repository")

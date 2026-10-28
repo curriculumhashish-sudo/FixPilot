@@ -69,7 +69,7 @@ async def test_close_abandons_and_a_new_trash_finishes(tmp_path, monkeypatch):
     await trash.close()
     release.set()
     await asyncio.sleep(0.1)
-    # The deletion in flight finishes in its thread; the queued one is left.
+    # 飞行中的删除在其线程处结束； 剩下的就是排队的了。
     assert len(entries(trash)) == 1
 
     monkeypatch.setattr(trash_module, "_remove", real_remove)
@@ -103,7 +103,7 @@ async def test_a_failing_entry_does_not_spin(tmp_path, monkeypatch):
 async def test_undeletable_entry_is_tried_once_and_others_still_go(
     tmp_path, monkeypatch
 ):
-    # safe_rmtree swallows permission errors and returns False.
+    # safe_rmtree 吞掉权限错误并返回 False。
     real = trash_module.safe_rmtree
     stuck = tmp_path / ".trash"
     tried: list[Path] = []

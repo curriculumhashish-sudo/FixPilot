@@ -83,9 +83,7 @@ class FileCache:
 
         self.current_size += content_size
         logger.debug(f"File written, new current_size: {self.current_size}")
-        os.utime(
-            file_path, (time.time(), time.time())
-        )  # Update access and modification time
+        os.utime(file_path, (time.time(), time.time()))  # 更新访问和修改时间
 
     def _evict_oldest(self, exclude_path: Path | None = None):
         oldest_file = min(
@@ -111,7 +109,7 @@ class FileCache:
             return default
         with open(file_path) as f:
             data = json.load(f)
-            os.utime(file_path, (time.time(), time.time()))  # Update access time
+            os.utime(file_path, (time.time(), time.time()))  # 更新访问时间
             logger.debug(f"Get: Key found: {key}")
             return data["value"]
 

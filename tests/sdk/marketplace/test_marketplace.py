@@ -1,4 +1,4 @@
-"""Tests for Marketplace loading functionality."""
+"""测试市场加载功能。"""
 
 from pathlib import Path
 
@@ -15,33 +15,33 @@ from openhands.sdk.plugin import PluginAuthor
 
 
 class TestMarketplaceOwner:
-    """Tests for MarketplaceOwner model."""
+    """测试 MarketplaceOwner 模型。"""
 
     def test_basic_owner(self):
-        """Test creating owner with name only."""
+        """测试仅使用名称创建所有者。"""
         owner = MarketplaceOwner(name="DevTools Team")
         assert owner.name == "DevTools Team"
         assert owner.email is None
 
     def test_owner_with_email(self):
-        """Test creating owner with email."""
+        """测试使用电子邮件创建所有者。"""
         owner = MarketplaceOwner(name="DevTools Team", email="devtools@example.com")
         assert owner.name == "DevTools Team"
         assert owner.email == "devtools@example.com"
 
 
 class TestMarketplacePluginSource:
-    """Tests for MarketplacePluginSource model."""
+    """测试 MarketplacePluginSource 模型。"""
 
     def test_github_source(self):
-        """Test GitHub source specification."""
+        """测试GitHub源规范。"""
         source = MarketplacePluginSource(source="github", repo="owner/repo")
         assert source.source == "github"
         assert source.repo == "owner/repo"
         assert source.url is None
 
     def test_url_source(self):
-        """Test Git URL source specification."""
+        """测试 Git URL 源规范。"""
         source = MarketplacePluginSource(
             source="url", url="https://gitlab.com/org/repo.git"
         )
@@ -50,35 +50,35 @@ class TestMarketplacePluginSource:
         assert source.repo is None
 
     def test_source_with_ref(self):
-        """Test source with branch/tag reference."""
+        """使用分支/标签引用测试源。"""
         source = MarketplacePluginSource(
             source="github", repo="owner/repo", ref="v1.0.0"
         )
         assert source.ref == "v1.0.0"
 
     def test_source_with_path(self):
-        """Test source with subdirectory path."""
+        """使用子目录路径测试源。"""
         source = MarketplacePluginSource(
             source="github", repo="owner/monorepo", path="plugins/my-plugin"
         )
         assert source.path == "plugins/my-plugin"
 
     def test_github_source_missing_repo_raises_error(self):
-        """Test that GitHub source without repo raises validation error."""
+        """测试没有存储库的 GitHub 源会引发验证错误。"""
         with pytest.raises(ValueError, match="GitHub source requires 'repo' field"):
             MarketplacePluginSource(source="github")
 
     def test_url_source_missing_url_raises_error(self):
-        """Test that URL source without url raises validation error."""
+        """测试没有 url 的 URL 源是否会引发验证错误。"""
         with pytest.raises(ValueError, match="URL source requires 'url' field"):
             MarketplacePluginSource(source="url")
 
 
 class TestMarketplacePluginEntry:
-    """Tests for MarketplacePluginEntry model."""
+    """测试 MarketplacePluginEntry 模型。"""
 
     def test_basic_entry(self):
-        """Test basic plugin entry with string source."""
+        """使用字符串源测试基本插件条目。"""
         entry = MarketplacePluginEntry(name="my-plugin", source="./plugins/my-plugin")
         assert entry.name == "my-plugin"
         assert entry.source == "./plugins/my-plugin"
@@ -86,7 +86,7 @@ class TestMarketplacePluginEntry:
         assert entry.version is None
 
     def test_entry_with_all_fields(self):
-        """Test plugin entry with all optional fields."""
+        """使用所有可选字段测试插件条目。"""
         entry = MarketplacePluginEntry(
             name="enterprise-tools",
             source="./plugins/enterprise",
@@ -113,7 +113,7 @@ class TestMarketplacePluginEntry:
         assert entry.strict is False
 
     def test_entry_with_string_author(self):
-        """Test model_validate handles author as string."""
+        """测试 model_validate 将作者作为字符串处理。"""
         entry = MarketplacePluginEntry.model_validate(
             {
                 "name": "my-plugin",
@@ -126,7 +126,7 @@ class TestMarketplacePluginEntry:
         assert entry.author.email == "john@example.com"
 
     def test_entry_with_github_source(self):
-        """Test model_validate handles GitHub source object."""
+        """测试 model_validate 处理 GitHub 源对象。"""
         entry = MarketplacePluginEntry.model_validate(
             {
                 "name": "github-plugin",
@@ -138,7 +138,7 @@ class TestMarketplacePluginEntry:
         assert entry.source.repo == "company/plugin"
 
     def test_entry_camel_case_fields(self):
-        """Test model_validate handles camelCase field names."""
+        """测试 model_validate 处理 camelCase 字段名称。"""
         entry = MarketplacePluginEntry.model_validate(
             {
                 "name": "mcp-plugin",
@@ -152,16 +152,16 @@ class TestMarketplacePluginEntry:
 
 
 class TestMarketplaceMetadata:
-    """Tests for MarketplaceMetadata model."""
+    """测试 MarketplaceMetadata 模型。"""
 
     def test_basic_metadata(self):
-        """Test basic metadata."""
+        """测试基本元数据。"""
         metadata = MarketplaceMetadata(description="Internal tools", version="1.0.0")
         assert metadata.description == "Internal tools"
         assert metadata.version == "1.0.0"
 
     def test_metadata_extra_fields_allowed(self):
-        """Test that extra fields are allowed in metadata."""
+        """测试元数据中是否允许额外字段。"""
         metadata = MarketplaceMetadata.model_validate(
             {"description": "Tools", "custom_field": "value"}
         )
@@ -169,10 +169,10 @@ class TestMarketplaceMetadata:
 
 
 class TestMarketplace:
-    """Tests for Marketplace loading."""
+    """测试市场加载。"""
 
     def test_load_marketplace_with_plugin_dir(self, tmp_path: Path):
-        """Test loading marketplace from .plugin directory."""
+        """测试从 .plugin 目录加载市场。"""
         marketplace_dir = tmp_path / "my-marketplace"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -202,7 +202,7 @@ class TestMarketplace:
         assert marketplace.path == str(marketplace_dir)
 
     def test_load_marketplace_with_claude_plugin_dir(self, tmp_path: Path):
-        """Test loading marketplace from .claude-plugin directory."""
+        """测试从 .claude-plugin 目录加载市场。"""
         marketplace_dir = tmp_path / "claude-marketplace"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".claude-plugin"
@@ -222,7 +222,7 @@ class TestMarketplace:
         assert marketplace.owner.name == "Claude Team"
 
     def test_load_marketplace_with_metadata(self, tmp_path: Path):
-        """Test loading marketplace with metadata."""
+        """测试使用元数据加载市场。"""
         marketplace_dir = tmp_path / "meta-marketplace"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -249,7 +249,7 @@ class TestMarketplace:
         assert marketplace.owner.email == "meta@example.com"
 
     def test_load_marketplace_with_github_plugin_source(self, tmp_path: Path):
-        """Test loading marketplace with GitHub plugin source."""
+        """使用 GitHub 插件源测试加载市场。"""
         marketplace_dir = tmp_path / "github-marketplace"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -282,7 +282,7 @@ class TestMarketplace:
         assert plugin.source.repo == "company/plugin"
 
     def test_load_marketplace_with_full_plugin_entry(self, tmp_path: Path):
-        """Test loading marketplace with fully populated plugin entry."""
+        """使用完全填充的插件条目测试加载市场。"""
         marketplace_dir = tmp_path / "full-marketplace"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -327,12 +327,12 @@ class TestMarketplace:
         assert plugin.strict is False
 
     def test_load_nonexistent_marketplace(self, tmp_path: Path):
-        """Test loading nonexistent marketplace raises error."""
+        """测试加载不存在的市场会引发错误。"""
         with pytest.raises(FileNotFoundError, match="Marketplace directory not found"):
             Marketplace.load(tmp_path / "nonexistent")
 
     def test_load_marketplace_without_manifest(self, tmp_path: Path):
-        """Test loading marketplace without manifest raises error."""
+        """测试加载没有清单的市场会引发错误。"""
         marketplace_dir = tmp_path / "no-manifest"
         marketplace_dir.mkdir()
 
@@ -340,7 +340,7 @@ class TestMarketplace:
             Marketplace.load(marketplace_dir)
 
     def test_load_marketplace_with_invalid_json(self, tmp_path: Path):
-        """Test loading marketplace with invalid JSON raises error."""
+        """测试加载无效 JSON 的市场会引发错误。"""
         marketplace_dir = tmp_path / "invalid-json"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -353,7 +353,7 @@ class TestMarketplace:
             Marketplace.load(marketplace_dir)
 
     def test_load_marketplace_missing_name(self, tmp_path: Path):
-        """Test loading marketplace missing name raises error."""
+        """测试加载市场缺少名称会引发错误。"""
         marketplace_dir = tmp_path / "missing-name"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -368,7 +368,7 @@ class TestMarketplace:
             Marketplace.load(marketplace_dir)
 
     def test_load_marketplace_missing_owner(self, tmp_path: Path):
-        """Test loading marketplace missing owner raises error."""
+        """测试加载缺少所有者的市场会引发错误。"""
         marketplace_dir = tmp_path / "missing-owner"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -383,7 +383,7 @@ class TestMarketplace:
             Marketplace.load(marketplace_dir)
 
     def test_get_plugin(self, tmp_path: Path):
-        """Test get_plugin method."""
+        """测试get_plugin方法。"""
         marketplace_dir = tmp_path / "get-plugin-test"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -404,18 +404,18 @@ class TestMarketplace:
 
         marketplace = Marketplace.load(marketplace_dir)
 
-        # Test finding existing plugins
+        # 测试查找现有插件
         plugin_a = marketplace.get_plugin("plugin-a")
         plugin_b = marketplace.get_plugin("plugin-b")
         assert plugin_a is not None and plugin_a.name == "plugin-a"
         assert plugin_b is not None and plugin_b.source == "./b"
         assert marketplace.get_plugin("plugin-c") is not None
 
-        # Test non-existent plugin
+        # 测试不存在的插件
         assert marketplace.get_plugin("nonexistent") is None
 
     def test_resolve_plugin_source_relative_path(self, tmp_path: Path):
-        """Test resolve_plugin_source with relative path."""
+        """使用相对路径测试 resolve_plugin_source。"""
         marketplace_dir = tmp_path / "resolve-test"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -436,13 +436,13 @@ class TestMarketplace:
         plugin = marketplace.plugins[0]
 
         source, ref, subpath = marketplace.resolve_plugin_source(plugin)
-        # Should resolve to absolute path
+        # 应该解析为绝对路径
         assert str(marketplace_dir / "plugins/local") == source
         assert ref is None
         assert subpath is None
 
     def test_resolve_plugin_source_github(self, tmp_path: Path):
-        """Test resolve_plugin_source with GitHub source."""
+        """使用 GitHub 源测试 resolve_plugin_source。"""
         marketplace_dir = tmp_path / "github-resolve"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -471,7 +471,7 @@ class TestMarketplace:
         assert subpath is None
 
     def test_resolve_plugin_source_github_with_ref_and_path(self, tmp_path: Path):
-        """Test resolve_plugin_source with GitHub source including ref and path."""
+        """使用 GitHub 源（包括引用和路径）测试 resolve_plugin_source。"""
         marketplace_dir = tmp_path / "github-full-resolve"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -505,7 +505,7 @@ class TestMarketplace:
         assert subpath == "plugins/my-plugin"
 
     def test_resolve_plugin_source_url(self, tmp_path: Path):
-        """Test resolve_plugin_source with URL source."""
+        """使用 URL 源测试 resolve_plugin_source。"""
         marketplace_dir = tmp_path / "url-resolve"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -534,7 +534,7 @@ class TestMarketplace:
         assert subpath is None
 
     def test_resolve_plugin_source_url_with_ref_and_path(self, tmp_path: Path):
-        """Test resolve_plugin_source with URL source including ref and path."""
+        """使用 URL 源（包括引用和路径）测试 resolve_plugin_source。"""
         marketplace_dir = tmp_path / "url-full-resolve"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -569,11 +569,11 @@ class TestMarketplace:
 
 
 class TestMarketplaceIntegration:
-    """Integration tests for Marketplace with Plugin."""
+    """集成测试用于带有插件的市场。"""
 
     def test_marketplace_plugin_entry_consistency(self):
-        """Test that MarketplacePluginEntry fields align with PluginManifest."""
-        # Both should support name, version, description, author
+        """测试 MarketplacePluginEntry 字段是否与 PluginManifest 对齐。"""
+        # 两者都应支持名称、版本、描述、作者
         from openhands.sdk.plugin import PluginManifest
 
         author = PluginAuthor(name="Test Author")
@@ -599,7 +599,7 @@ class TestMarketplaceIntegration:
         assert entry.author.name == manifest.author.name
 
     def test_to_plugin_manifest(self):
-        """Test converting MarketplacePluginEntry to PluginManifest."""
+        """测试将 MarketplacePluginEntry 转换为 PluginManifest。"""
         entry = MarketplacePluginEntry(
             name="my-plugin",
             source="./plugins/my-plugin",
@@ -620,7 +620,7 @@ class TestMarketplaceIntegration:
         assert manifest.author.email == "author@example.com"
 
     def test_to_plugin_manifest_defaults(self):
-        """Test to_plugin_manifest uses defaults for missing fields."""
+        """测试 to_plugin_manifest 使用缺失字段的默认值。"""
         entry = MarketplacePluginEntry(
             name="minimal-plugin",
             source="./plugins/minimal",
@@ -629,12 +629,12 @@ class TestMarketplaceIntegration:
         manifest = entry.to_plugin_manifest()
 
         assert manifest.name == "minimal-plugin"
-        assert manifest.version == "1.0.0"  # Default
-        assert manifest.description == ""  # Default
+        assert manifest.version == "1.0.0"  # 默认
+        assert manifest.description == ""  # 默认
         assert manifest.author is None
 
     def test_to_plugin_manifest_with_entry_command(self):
-        """Test to_plugin_manifest preserves entry_command field."""
+        """测试 to_plugin_manifest 保留 entry_command 字段。"""
         entry = MarketplacePluginEntry(
             name="city-weather",
             source="./plugins/city-weather",
@@ -649,7 +649,7 @@ class TestMarketplaceIntegration:
         assert manifest.entry_command == "now"
 
     def test_entry_with_entry_command(self):
-        """Test MarketplacePluginEntry with entry_command field."""
+        """使用 entry_command 字段测试 MarketplacePluginEntry。"""
         entry = MarketplacePluginEntry(
             name="city-weather",
             source="./plugins/city-weather",
@@ -659,7 +659,7 @@ class TestMarketplaceIntegration:
         assert entry.entry_command == "now"
 
     def test_invalid_github_source_missing_repo(self, tmp_path: Path):
-        """Test that invalid GitHub source (missing repo) raises error at load time."""
+        """测试无效的 GitHub 源（缺少存储库）是否会在加载时引发错误。"""
         marketplace_dir = tmp_path / "invalid-source"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -687,7 +687,7 @@ class TestMarketplaceIntegration:
             Marketplace.load(marketplace_dir)
 
     def test_invalid_url_source_missing_url(self, tmp_path: Path):
-        """Test that invalid URL source (missing url) raises error at load time."""
+        """测试无效的 URL 源（缺少 url）是否会在加载时引发错误。"""
         marketplace_dir = tmp_path / "invalid-url-source"
         marketplace_dir.mkdir()
         manifest_dir = marketplace_dir / ".plugin"
@@ -713,9 +713,10 @@ class TestMarketplaceIntegration:
             Marketplace.load(marketplace_dir)
 
     def test_skill_compatible_fields(self):
-        """Test that MarketplacePluginEntry has fields compatible with Skill."""
-        # The Skill class has `license` and `description` fields per AgentSkills
-        # standard. MarketplacePluginEntry should have matching fields.
+        """测试 MarketplacePluginEntry 是否具有与技能兼容的字段。"""
+        # 根据 AgentSkills 标准，技能类别具有 `license` 和 `description` 字段。
+        # MarketplacePluginEntry 应该有匹配的字段。
+        #
         entry = MarketplacePluginEntry(
             name="skill-compatible-plugin",
             source="./plugins/test",
@@ -724,7 +725,7 @@ class TestMarketplaceIntegration:
             keywords=["skill", "compatible"],
         )
 
-        # These fields align with Skill definitions
+        # 这些字段与技能定义一致
         assert entry.license == "Apache-2.0"
         assert entry.description == "Plugin with skill-compatible fields"
         assert entry.keywords == ["skill", "compatible"]

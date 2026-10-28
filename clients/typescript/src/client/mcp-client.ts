@@ -41,8 +41,8 @@ export class MCPClient {
 
   async testServer(request: AgentServerMCPTestRequest): Promise<AgentServerMCPTestResponse>;
   /**
-   * @deprecated Pass `AgentServerMCPTestRequest`. This overload only keeps
-   * older request payloads source compatible while callers migrate.
+   * @已弃用通过`AgentServerMCPTestRequest`。 这种过载只会保留
+   * 调用者迁移时旧请求载荷源兼容。
    */
   async testServer(request: LegacyMCPTestRequest): Promise<LegacyMCPTestResponse>;
   async testServer(
@@ -59,8 +59,8 @@ export class MCPClient {
     request: AgentServerMCPStartOAuthRequest
   ): Promise<AgentServerMCPStartOAuthResponse>;
   /**
-   * @deprecated Pass `AgentServerMCPStartOAuthRequest`. This overload only
-   * keeps older request payloads source compatible while callers migrate.
+   * @已弃用通过`AgentServerMCPStartOAuthRequest`。 仅此过载
+   * 在调用者迁移时保持旧请求载荷源兼容。
    */
   async startOAuth(request: LegacyMCPTestRequest): Promise<LegacyMCPOAuthStartResponse>;
   async startOAuth(

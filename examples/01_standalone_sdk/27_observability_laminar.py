@@ -1,8 +1,9 @@
 """
-Observability & Laminar example
+可观测性和层流示例
 
-This example demonstrates enabling OpenTelemetry tracing with Laminar in the
-OpenHands SDK. Set LMNR_PROJECT_API_KEY and run the script to see traces.
+此示例演示了在 OpenHands SDK 中使用 Laminar 启用 OpenTelemetry 跟踪。 设置
+LMNR_PROJECT_API_KEY 并运行脚本以查
+看痕迹。
 """
 
 import os
@@ -13,11 +14,11 @@ from openhands.sdk import LLM, Agent, Conversation, Tool
 from openhands.tools.terminal import TerminalTool
 
 
-# Tip: Set LMNR_PROJECT_API_KEY in your environment before running, e.g.:
+# 提示：运行前在您的环境中设置 LMNR_PROJECT_API_KEY，e.g。：
 #   export LMNR_PROJECT_API_KEY="your-laminar-api-key"
-# For non-Laminar OTLP backends, set OTEL_* variables instead.
+# 对于非层流 OTLP 后端，请设置 OTEL_* 变量。
 
-# Configure LLM and Agent
+# 配置LLM和智能体
 api_key = os.getenv("LLM_API_KEY")
 model = os.getenv("LLM_MODEL", "gpt-5.5")
 base_url = os.getenv("LLM_BASE_URL")
@@ -33,7 +34,7 @@ agent = Agent(
     tools=[Tool(name=TerminalTool.name)],
 )
 
-# Create conversation and run a simple task
+# 创建对话并运行简单的任务
 conversation = Conversation(agent=agent, workspace=".")
 conversation.send_message("List the files in the current directory and print them.")
 conversation.run()

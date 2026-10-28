@@ -1,8 +1,7 @@
 """
-Test that discriminated union schemas in OpenAPI have proper discriminator fields.
+测试 OpenAPI 中的可区分联合模式是否具有适当的鉴别器字段。
 
-This ensures that Swagger UI can properly display discriminated unions instead of
-showing them as "object | object | object...".
+这确保 Swagger UI 能正确显示枚举类型，而不是显示为 "object | object | object..."。
 """
 
 import pytest
@@ -13,18 +12,18 @@ from openhands.agent_server.api import create_app
 
 @pytest.fixture
 def client():
-    """Create a test client for the API."""
+    """为 API 创建一个测试客户端。"""
     return TestClient(create_app())
 
 
 def test_action_schema_has_discriminator(client):
-    """Test that Action schema has proper discriminator field."""
+    """测试 Action 模式是否具有正确的鉴别器字段。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
     openapi_schema = response.json()
 
-    # Check that Action schema exists
+    # 检查操作模式是否存在
     assert "components" in openapi_schema
     assert "schemas" in openapi_schema["components"]
     schemas = openapi_schema["components"]["schemas"]
@@ -46,19 +45,19 @@ def test_action_schema_has_discriminator(client):
 
 
 def test_observation_schema_has_discriminator(client):
-    """Test that Observation schema has proper discriminator field."""
+    """测试观测结果模式是否具有正确的鉴别器字段。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
     openapi_schema = response.json()
     schemas = openapi_schema["components"]["schemas"]
 
-    # Observation schema should also exist and have discriminator
+    # 观测结果模式也应该存在并且有鉴别器
     if "Observation" in schemas:
         observation_schema = schemas["Observation"]
 
         if "oneOf" in observation_schema:
-            # Check that it has discriminator
+            # 检查它是否有鉴别器
             assert "discriminator" in observation_schema, (
                 "Observation should have discriminator field"
             )
@@ -73,19 +72,19 @@ def test_observation_schema_has_discriminator(client):
 
 
 def test_event_schema_has_discriminator(client):
-    """Test that Event schema has proper discriminator field if it uses oneOf."""
+    """如果事件模式使用 oneOf，则测试它是否具有正确的鉴别器字段。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
     openapi_schema = response.json()
     schemas = openapi_schema["components"]["schemas"]
 
-    # Event schema might also be a discriminated union
+    # 事件模式也可能是受歧视的工会
     if "Event" in schemas:
         event_schema = schemas["Event"]
 
         if "oneOf" in event_schema:
-            # Check that it has discriminator
+            # 检查它是否有鉴别器
             assert "discriminator" in event_schema, (
                 "Event should have discriminator field"
             )
@@ -100,7 +99,7 @@ def test_event_schema_has_discriminator(client):
 
 
 def test_action_variants_have_proper_schemas(client):
-    """Test that Action variants (FinishAction, etc.) have proper schemas."""
+    """测试操作变体（FinishAction 等）是否具有正确的模式。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
@@ -110,7 +109,7 @@ def test_action_variants_have_proper_schemas(client):
     action_schema = schemas.get("Action", {})
     one_of = action_schema.get("oneOf", [])
 
-    # Extract action type names from $refs
+    # 从 $refs 中提取操作类型名称
     action_types = []
     for variant in one_of:
         ref = variant.get("$ref", "")
@@ -118,19 +117,19 @@ def test_action_variants_have_proper_schemas(client):
             type_name = ref.split("/")[-1]
             action_types.append(type_name)
 
-    # Check that referenced schemas exist and are proper objects
+    # 检查引用的模式是否存在并且是正确的对象
     for action_type in action_types:
         assert action_type in schemas, f"{action_type} should be in schemas"
 
         type_schema = schemas[action_type]
 
-        # Should be an object
+        # 应该是一个对象
         assert type_schema.get("type") == "object", f"{action_type} should be an object"
 
-        # Should have properties
+        # 应该有属性
         assert "properties" in type_schema, f"{action_type} should have properties"
 
-        # Should have kind field with const value matching the type name
+        # 应该有 kind 字段，其 const 值与类型名称匹配
         properties = type_schema["properties"]
         assert "kind" in properties, f"{action_type} should have 'kind' field"
 
@@ -139,20 +138,20 @@ def test_action_variants_have_proper_schemas(client):
             f"{action_type}.kind should have const or enum"
         )
 
-        # If const, it should match the type name
+        # 如果是 const，它应该与类型名称匹配
         if "const" in kind_field:
             assert kind_field["const"] == action_type, (
                 f"{action_type}.kind const should be '{action_type}'"
             )
 
-        # Should have title
+        # 应该有标题
         assert "title" in type_schema, (
             f"{action_type} should have title for better docs"
         )
 
 
 def test_conversation_contracts_use_unified_acp_capable_endpoint(client):
-    """The main conversation endpoint accepts both OpenHands and ACP agents."""
+    """主要对话端点接受 OpenHands 和 ACP 智能体。"""
     response = client.get("/openapi.json")
     assert response.status_code == 200
 
@@ -186,5 +185,5 @@ def test_conversation_contracts_use_unified_acp_capable_endpoint(client):
 
     assert "/api/v2/conversations" not in openapi_schema["paths"]
     assert "/api/conversations" in openapi_schema["paths"]
-    # The deprecated /api/acp/conversations routes were removed in v1.27.0.
+    # 已弃用 /api/acp/conversations 路由在 v1.27.0 中被删除。
     assert "/api/acp/conversations" not in openapi_schema["paths"]

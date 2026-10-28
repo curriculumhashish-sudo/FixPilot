@@ -1,4 +1,4 @@
-"""HTTP and WebSocket ingress for owned Canvas App backends."""
+"""HTTP 和 WebSocket 拥有 Canvas 应用程序后端的入口。"""
 
 from typing import Annotated
 
@@ -45,13 +45,13 @@ async def create_app_backend_session_endpoint(
     request: Request,
     response: Response,
 ) -> AppBackendSessionResponse:
-    """Issue a short-lived HttpOnly session for one ready app backend.
+    """为一个就绪的应用程序后端发出一个短暂的 HttpOnly 会话。
 
-    Call this endpoint on the configured app ingress origin, using the normal
-    ``X-Session-API-Key`` control header and the Canvas page's ``Origin``. The
-    returned ingress URL contains no credential. The caller must retain cookies
-    (``credentials: include``); third-party iframe deployments require HTTPS and
-    browser support for partitioned cookies.
+    使用正常的方式在配置的应用程序入口源上调用此端点
+    ``X-Session-API-Key`` 控制标头和 Canvas 页面的 ``Origin``。 返回的入口 URL 不包含
+    凭据。 调用者必须保留cookies
+    （``credentials: include``）； 第三方 iframe 部署需要 HTTPS 和浏览器对分区 cookie
+     的支持。
     """
     return await create_app_backend_session(request, response, extension_name)
 
@@ -71,14 +71,15 @@ async def delete_app_backend_session_endpoint(
     request: Request,
     response: Response,
 ) -> Response:
-    """Revoke the current app-scoped browser session."""
+    """撤销当前应用程序范围的浏览器会话。"""
     await delete_app_backend_session(request, response, extension_name)
     response.status_code = 204
     return response
 
 
-# The root routes have no ``{path}`` segment, so they take no ``path`` argument:
-# FastAPI would bind it from a ``?path=`` query parameter instead.
+# 根路由没有 ``{path}`` 段，因此它们不采用 ``path`` 参数：FastAPI 将从 ``?path=`` 查询参
+# 数绑定它。
+#
 @app_backend_bridge_router.api_route(
     "/app-backends/{extension_name}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],

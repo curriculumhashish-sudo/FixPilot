@@ -1,33 +1,27 @@
-"""Adversarial test suite for the defense-in-depth security analyzer.
+"""深度防御安全分析器的对抗性测试套件。
 
-Why this file exists
+为什么这个文件存在
 --------------------
-Pattern-based security has predictable failure modes. Attackers don't need
-novel techniques -- they exploit the gap between what a regex *says* it
-matches and what an attacker can *make it not match*. This suite stress-tests
-those gaps systematically so you can reason about what the analyzer catches,
-what it misses, and why.
+基于模式的安全性具有可预测的故障模式。 攻击者不需要新的技术——他们利用正则表达式之间的
+差距 *says* 它匹配，并且攻击者可以做什么 *使其不匹配*. 该套件系统地对这
+些差距进行压力测试，以便您可以推断分析器捕获了什么、错过了什么以及原因。
 
-How to read it (three progressively harder lessons)
+如何阅读（三个循序渐进的课程）
 ---------------------------------------------------
-1. **TestTDDRedGreen** -- Real bugs found by adversarial analysis. Each test
-   teaches one evasion category (encoding tricks, flag insertion, field
-   boundary abuse). If you've written regex-based validators before, you'll
-   recognize these failure modes. The fixes are in the example file;
-   these tests prove they work.
+1. **TestTDDRedGreen**——通过对抗性分析发现的真实错误。 每个测试都会教授一种规避类别（
+编码技巧、标志插入、字段边界滥用）。 如果您之前编写过基于正则
+表达式的验证器，您就会认识到这些故障模式。 修复程序位于示例文件中； 这些测试证明它们
+有效。
 
-2. **TestDesignBoundaries** -- Irreducible limitations documented as strict
-   xfails. These teach you where stdlib-only normalization hits a wall and
-   what it would cost to fix (TR39 confusable tables, diacritic stripping,
-   expanding the extraction whitelist). Knowing what you *can't* detect is
-   as important as knowing what you can.
+2. **TestDesignBoundaries** -- 不可减少的限制被记录为严格的 xfails。 这些教你 stdlib-
+only 标准化遇到瓶颈的地方，以及修复
+ TR39 等混淆表、去除标点符号、扩展提取白名单的成本。 了解您*无法检测到*的内容与了解您
+ 可以检测到的内容同样重要。
 
-3. **TestAdversarialGarbage** -- Hostile input that the analyzer handles
-   correctly. These build confidence that normalization and pattern matching
-   are robust under garbage input (null bytes, interleaved zero-width
-   characters, mathematical Unicode, case permutations, ensemble dilution).
-   Use these as a reference catalog when evaluating whether a new evasion
-   is already covered.
+3. **TestAdversarialGarbage** -- 安全分析正确处理的敌对输入。 这些增强了对垃圾输入下
+的规范化和模式匹配的可靠性和鲁棒性null 字节、交错
+的零宽度字符、数学Unicode、大小写置换、和声稀释）。 在评估是否已涵盖新的规避措施时，
+请使用这些作为参考目录。
 """
 
 from __future__ import annotations
@@ -48,20 +42,21 @@ from openhands.sdk.security.ensemble import EnsembleSecurityAnalyzer
 from openhands.sdk.security.risk import SecurityRisk
 
 
-# Build test payload strings via concatenation to avoid triggering
-# security hooks that scan for literal "eval(" in source.
+# 通过串联构建测试载荷字符串，以避免触发扫描源中的文字“eval(”) 的安全挂钩。
+#
 _EVAL_USER_INPUT = "ev" + "al(user_input)"
 _EVAL_X = "ev" + "al('x')"
 _EXEC_Y = "ex" + "ec('y')"
 
 
 # ---------------------------------------------------------------------------
-# Test doubles (module-level for DiscriminatedUnionMixin compatibility)
+# 模块级别的测试双 ![alt text](https://example.com/image.jpg) DiscriminatedUnionMixin 兼
+# 容性)
 # ---------------------------------------------------------------------------
 
 
 class _FixedRiskHelper(SecurityAnalyzerBase):
-    """Returns a configurable fixed risk level."""
+    """返回可配置的固定风险级别。"""
 
     fixed_risk: SecurityRisk = SecurityRisk.LOW
 
@@ -70,12 +65,12 @@ class _FixedRiskHelper(SecurityAnalyzerBase):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 帮手
 # ---------------------------------------------------------------------------
 
 
 def make_action(command: str, tool_name: str = "bash") -> ActionEvent:
-    """Create a minimal ActionEvent for testing."""
+    """创建一个最小的 ActionEvent 进行测试。"""
     return ActionEvent(
         thought=[TextContent(text="test")],
         tool_name=tool_name,
@@ -91,63 +86,61 @@ def make_action(command: str, tool_name: str = "bash") -> ActionEvent:
 
 
 # ---------------------------------------------------------------------------
-# TDD Red-to-Green
+# TDD 红转绿
 # ---------------------------------------------------------------------------
 
 
 class TestTDDRedGreen:
-    """Evasion techniques that bypassed the analyzer before targeted fixes.
+    """在有针对性的修复之前绕过分析器的规避技术。
 
-    Each test encodes one attack pattern that a real adversary would try.
-    The naming convention ``test_<evasion_vector>`` lets you scan the class
-    and immediately know which attack surfaces have been hardened. If you're
-    adding a new pattern or rail, write a test here first (red), then fix
-    the implementation (green) -- the same TDD cycle these were developed with.
+    每个测试都编码了真正的对手会尝试的一种攻击模式。 命名约定
+    ``test_<evasion_vector>`` 它允许你扫描类，并立即知道哪些攻击面已被加固。 如果
+    你添加新的模式或轨道，请先在这里写一个测试（红色），然后修复实现（绿色）——同样的
+    TDD 这些循环是用的。
 
-    The cross-field tests (``*_does_not_cross_fields``) are the most subtle:
-    they verify that composed rail conditions (e.g. "sudo AND rm") only fire
-    when both tokens appear in the *same* extraction segment (same ActionEvent
-    field), not when they happen to land in different fields that get flattened
-    together. This prevents an agent's benign thought text from combining with
-    unrelated tool arguments to produce a false positive.
+    交叉字段测试（``*_does_not_cross_fields``) 是最微妙的：它们验证了组合铁路条件的正
+    确性e.g. 请输出 AND 仅在两者都满足时才执行
+    token 出现在 *相同的* 提取段（同上） ActionEvent 不是当它们落在同一个字段中被合并
+    时。 这防止了智能体一个结合了无关工具参数的良性思想文本所产
+    生的文本 False 正的。
     """
 
     def test_json_recursion_bomb_handled(self):
-        """Resource exhaustion: deeply nested JSON triggers RecursionError.
+        """资源耗尽：深度嵌套JSON触发RecursionError。
 
-        ``_walk_json_strings`` is recursive Python with no depth guard.
-        JSON nested beyond ``sys.getrecursionlimit()`` crashes extraction
-        unless the except clause catches RecursionError alongside
-        JSONDecodeError and TypeError.
+        ``_walk_json_strings`` 是递归的 Python 没有深度保护。 JSON 嵌套过深
+        ``sys.getrecursionlimit()`` 除非异常处理语句捕获，否则提取崩溃记录
+        RecursionError alongside
+        JSONDecodeError 和 TypeError.
         """
         nested = '{"a": ' * 2000 + '"boom"' + "}" * 2000
         action = make_action("test")
         action.tool_call.arguments = nested
-        # Must not raise RecursionError
+        # 不得提高 RecursionError
         content = _extract_content(action)
         assert isinstance(content, str)
         assert len(content) > 0
 
     def test_word_joiner_evasion_detected(self):
-        """Invisible character evasion: U+2060 Word Joiner breaks word boundaries.
+        """隐形字符规避：U+2060 Word Joiner 打破单词边界。
 
-        Same threat family as zero-width space (U+200B). The Word Joiner is
-        invisible in most renderers but breaks ``\\brm\\b`` because the regex
-        engine sees ``r<WJ>m`` as two fragments. Fix: add U+2060 to the
-        strip set alongside the other zero-width and bidi codepoints.
+        与零宽度空间 (U+200B) 相同的威胁系列。 Word Joiner 在大多数渲染器中不可见，但
+        会中断 ``\\brm\\b``，因为正则表达式引擎将
+        ``r<WJ>m`` 视为两个片段。 修复：将 U+2060 添加到条带集中，与其他零宽度和双向
+        代码点一起。
         """
         analyzer = PatternSecurityAnalyzer()
         risk = analyzer.security_risk(make_action("r\u2060m -rf /"))
         assert risk == SecurityRisk.HIGH
 
     def test_fetch_to_exec_does_not_cross_fields(self):
-        """Cross-field false positive: curl in args + ``| bash`` in summary.
+        """Cross-field False 正：curl in args + ``| bash`` 总结。
 
-        When extraction flattens all fields into one string, tokens from
-        unrelated fields can accidentally satisfy a composed condition.
-        Here ``curl`` lives in tool_call.arguments and ``| bash`` in summary.
-        Segment-aware rail evaluation checks each field independently, so
-        the fetch-to-exec rule only fires when both appear in one segment.
+        当提取将所有字段展平为一个字符串时，来自不相关字段的 token 可能会意外地满足组
+        合条件。 总结起来，``curl`` 存在于
+        tool_call.arguments 和 ``| bash`` 中。 段感知轨道评估独立检查每个字段，因此仅
+        当两者都出现在一个段中时才会触发 fetch-
+        to-exec 规则。
         """
         action = ActionEvent(
             thought=[TextContent(text="downloading data")],
@@ -170,32 +163,30 @@ class TestTDDRedGreen:
 
 
 # ---------------------------------------------------------------------------
-# Design Boundaries (strict xfails)
+# 设计边界（严格xfails）
 # ---------------------------------------------------------------------------
 
 
 class TestDesignBoundaries:
-    """Irreducible limitations documented as strict xfails.
+    """不可减少的限制被记录为严格的 xfails。
 
-    Every security system has a threat boundary -- attacks it was designed
-    to catch and attacks it deliberately does not attempt. Documenting
-    these honestly (rather than pretending they don't exist) lets operators
+    每个安全系统都有一个威胁边界——旨在捕获的攻击和故意不尝试的攻击。 诚实地记录这些（
+    而不是假装它们不存在）可以让操作员
     make informed decisions about where to add complementary defenses.
 
-    Each test uses ``strict=True``: if someone later fixes the limitation
-    (e.g. adds TR39 confusable detection), the test flips to unexpected-pass,
-    signaling that the xfail reason is stale and should be removed.
+    每个测试都使用 ``strict=True``：如果后来有人修复了限制 (e.g. 添加 TR39 易混淆的检
+    测），测试会翻转到意外通过，表明 xfail 原因已过
+    时且应删除。
 
-    The five limitations fall into three categories:
+    这五项限制分为三类：
 
-    - **Unicode normalization gaps** (cyrillic, combining chars): NFKC is
-      necessary but not sufficient. Full confusable detection requires
-      Unicode TR39 tables, which are not in Python's stdlib.
-    - **Resource bounds** (hard cap): the extraction cap is a deliberate
-      tradeoff between security coverage and regex DoS resilience.
-    - **Extraction scope** (thinking blocks, interpreter list): scanning
-      more content or matching more interpreters increases coverage but
-      also increases false positives. The current whitelist is conservative.
+    - **Unicode 规范化差距**（西里尔字母，组合字符）：NFKC 是必要的，但还不够。 完全
+    易混淆的检测需要 Unicode TR39 表，这些表不在 Py
+    thon 的 stdlib 中。
+    - **资源边界**（硬上限）：提取上限是安全覆盖范围和正则表达式DoS弹性之间的故意权衡
+    。
+    - **提取范围**（思考块，解释人列表）：扫描更多内容或匹配更多解释人会增加覆盖率，
+    但也会增加False正例。 目前的白名单是保守的。
     """
 
     @pytest.mark.xfail(
@@ -206,13 +197,11 @@ class TestDesignBoundaries:
         ),
     )
     def test_cyrillic_homoglyph_evasion(self):
-        """Homoglyph evasion: Cyrillic U+0435 is visually identical to Latin e.
+        """同形文字规避：西里尔字母 U+0435 在视觉上与拉丁字母 e 相同。
 
-        The first char is Cyrillic, so it looks like a dangerous call to a
-        human but the regex engine sees a different codepoint. NFKC
-        normalization maps compatibility variants (e.g. fullwidth) but not
-        cross-script confusables -- that requires Unicode TR39 confusable
-        tables, which aren't in Python's stdlib.
+        第一个字符是西里尔字母，因此它看起来像是对人类的危险调用，但正则表达式引擎看
+        到了不同的代码点。 NFKC 标准化映射兼容性变体 (e.g. 全角），但不是跨
+        脚本混淆——这需要 Unicode TR39 易混淆表，这些表不在 Python 的 stdlib 中。
         """
         analyzer = PatternSecurityAnalyzer()
         risk = analyzer.security_risk(make_action("\u0435" + _EVAL_USER_INPUT[2:]))
@@ -226,13 +215,11 @@ class TestDesignBoundaries:
         ),
     )
     def test_combining_character_evasion(self):
-        """Combining mark evasion: e + U+0301 (combining acute) composes.
+        """组合标记回避：e+U+0301（组合急性）组成。
 
-        NFKC canonically composes e + combining acute into the precomposed
-        character. The resulting string doesn't match the pattern. Fixing
-        this requires stripping combining marks (category Mn) after
-        normalization -- a lossy operation that changes meaning in
-        non-Latin scripts.
+        NFKC 规范地将 e + 组合成预组合字符。 生成的字符串与模式不匹配。 解决这个问题
+        需要在标准化后剥离组合标记（类别 Mn）——这是一种有损操作，会改变
+        非拉丁脚本中的含义。
         """
         analyzer = PatternSecurityAnalyzer()
         risk = analyzer.security_risk(make_action("e\u0301" + _EVAL_USER_INPUT[2:]))
@@ -246,12 +233,11 @@ class TestDesignBoundaries:
         ),
     )
     def test_payload_past_hard_cap(self):
-        """Truncation evasion: payload hidden past the extraction hard cap.
+        """截断规避：载荷隐藏过去的提取硬上限。
 
-        ``_EXTRACT_HARD_CAP`` (30k chars) bounds regex runtime and memory.
-        An attacker who controls enough content to fill the cap can place
-        the actual payload beyond it. This is a deliberate tradeoff:
-        removing the cap exposes the analyzer to ReDoS on adversarial input.
+        ``_EXTRACT_HARD_CAP``（30k 字符）限制正则表达式运行时和内存。 控制足够内容来
+        填充上限的攻击者可以将实际的载荷放置在上限之外。 这是
+        一个经过深思熟虑的权衡：移除上限会使分析器暴露在对抗性输入上的ReDoS。
         """
         padding = "x" * _EXTRACT_HARD_CAP
         analyzer = PatternSecurityAnalyzer()
@@ -267,12 +253,10 @@ class TestDesignBoundaries:
         ),
     )
     def test_payload_in_thinking_blocks(self):
-        """Extraction scope gap: thinking_blocks are not in the whitelist.
+        """提取范围差距：thinking_blocks不在白名单中。
 
-        Scanning chain-of-thought content would catch payloads hidden in
-        thinking blocks, but would also flag every time the model reasons
-        about dangerous commands. The false positive cost outweighs the
-        detection benefit here.
+        扫描思考链的内容可以发现载荷被隐藏在思考块中，但也会每次标记模型对危险命令进
+        行推理。 False 此处的积极成本超过了检测收益。
         """
         action = ActionEvent(
             thought=[TextContent(text="test")],
@@ -299,13 +283,13 @@ class TestDesignBoundaries:
         ),
     )
     def test_fetch_pipe_to_node(self):
-        """Interpreter coverage gap: ``curl | node`` evades the pipe-to-exec check.
+        """解释器覆盖范围差距：``curl | node`` 逃避管道到执行检查。
 
-        The rail covers sh/bash/python/perl/ruby -- the interpreters most
-        commonly used in download-and-execute attacks. Node, deno, bun,
-        php, etc. are not included. Expanding the list improves coverage
-        but each addition is a new false-positive surface (e.g. ``| php``
-        in a URL path). This is a narrow heuristic, not an inventory.
+        该轨道涵盖了 sh/bash/python/perl/ruby——下载并执行攻击中最常用的解释器。 Node
+        、deno、bun、php 等不包括在内。 扩展
+        列表可以提高覆盖范围，但每次添加都是一个新的 False-正表面 (e.g. ``| php`` 在
+        URL 路径中）。 这是一种狭隘的启发式方法，而不是清
+        单。
         """
         analyzer = PatternSecurityAnalyzer()
         risk = analyzer.security_risk(
@@ -315,7 +299,7 @@ class TestDesignBoundaries:
 
 
 # ---------------------------------------------------------------------------
-# Adversarial Garbage
+# 对抗性垃圾
 # ---------------------------------------------------------------------------
 
 _NORM_STRESS_CASES = [
@@ -351,22 +335,21 @@ _PATTERN_BOUNDARY_CASES = [
 
 
 class TestAdversarialGarbage:
-    """Robustness under hostile input -- the confidence-building layer.
+    """敌意输入下的稳健性——信任建立层。
 
-    After seeing what breaks (TestTDDRedGreen) and what can't be fixed
-    (TestDesignBoundaries), these tests verify that the normalization
-    pipeline and pattern matching handle a broad catalog of garbage inputs
-    correctly. Use these as a reference when evaluating new evasion reports:
-    if the technique is already covered here, the analyzer handles it.
+    在看到哪些可以修复（TestDesignBoundaries）和哪些无法修复（TestTDDRedGreen）之后，
+    这些测试验证了去噪管道和模式匹配正确处理了广泛的
+    垃圾输入。 在评估新的规避报告时，请使用这些作为参考：如果此处已涵盖该技术，则分析
+    器会处理它。
 
-    Three parametrized families:
+    三个参数化族：
 
-    - **Normalization stress**: every strip codepoint, null bytes, mathematical
-      Unicode (NFKC -> ASCII), empty/whitespace edge cases.
-    - **Pattern boundaries**: case permutations, whitespace variants, near-miss
-      tokens (``evaluate`` is not ``eval``), command chaining.
-    - **Ensemble dilution**: many UNKNOWN results + one concrete signal. Verifies
-      that UNKNOWN doesn't drown out real assessments in the fusion logic.
+    - **标准化压力**：每个条码点，null字节，数学Unicode（NFKC -> ASCII），空/空白边缘
+    情况。
+    - **模式边界**：大小写排列、空白变体、未遂事件 token（``evaluate`` 不是 ``eval``
+    ）、命令链接。
+    - **集成稀释**：许多UNKNOWN结果+一个具体信号。 验证 UNKNOWN 不会淹没融合逻辑中的
+    真实评估。
     """
 
     @pytest.mark.parametrize(
@@ -398,10 +381,10 @@ class TestAdversarialGarbage:
         ],
     )
     def test_ensemble_unknown_dilution(self, concrete_risk, desc):
-        """Ensemble dilution: many UNKNOWN results must not drown one concrete signal.
+        """集成稀释：许多 UNKNOWN 结果不得淹没一个具体信号。
 
-        If 5 analyzers return UNKNOWN and 1 returns a concrete level, the
-        concrete signal should win. UNKNOWN means "I don't know," not "safe."
+        如果 5 个分析器返回 UNKNOWN 并且 1 个分析器返回具体电平，则具体信号应该获胜。
+         UNKNOWN 的意思是“我不知道”，而不是“安全”。
         """
         unknown_analyzers = [
             _FixedRiskHelper(fixed_risk=SecurityRisk.UNKNOWN) for _ in range(5)

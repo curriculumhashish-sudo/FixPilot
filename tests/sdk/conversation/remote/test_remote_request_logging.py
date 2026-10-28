@@ -12,7 +12,7 @@ from openhands.sdk.utils.redact import (
 
 
 class TestIsSecretKey:
-    """Tests for the unified is_secret_key function."""
+    """测试统一的 is_secret_key 功能。"""
 
     @pytest.mark.parametrize(
         "key",
@@ -48,7 +48,7 @@ class TestIsSecretKey:
             "message",
             "input",
             "output",
-            "Author",  # Should NOT be redacted (false positive check)
+            "Author",  # 应不为已脱敏（False 肯定检查）
         ],
     )
     def test_ignores_non_secret_keys(self, key):
@@ -56,7 +56,7 @@ class TestIsSecretKey:
 
 
 class TestSanitizeDict:
-    """Tests for the sanitize_dict function."""
+    """测试 sanitize_dict 函数。"""
 
     def test_redacts_secret_keys(self):
         data = {"api_key": "my-secret", "name": "test"}
@@ -94,7 +94,7 @@ class TestSanitizeDict:
 
 
 class TestHttpErrorLogContent:
-    """Tests for the http_error_log_content function."""
+    """测试 http_error_log_content 函数。"""
 
     def test_sanitizes_json_response(self):
         request = httpx.Request("POST", "http://example.com")

@@ -1,20 +1,19 @@
-"""Release security check #2 — supply-chain dependency diff.
+"""发布安全检查#2——供应链依赖性差异。
 
-Compares the resolved dependency set (``uv.lock``) between the last release tag
-and HEAD, then for everything new or bumped:
+比较最后一个版本标签和 HEAD 之间已解决的依赖关系集 (``uv.lock``)，然后对于所有新的或
+更新的内容：
 
-  * looks it up in **OSV** for known vulnerabilities (blocking on a hit), and
-  * flags packages resolved from a **non-PyPI source** — git URLs, direct
-    URLs, or alternative indexes — which is the classic supply-chain and
-    dependency-confusion surface (blocking; a release should pin to the
-    trusted registry).
+  * 在 **OSV** 中查找已知漏洞（命中时阻止），并且
+  * 从一个**非PyPI源**获取的标志包 —— git URLs、直接 URLs 或替代索引 —— 是经典的供应
+  链和依赖混淆表面（阻止） 一个发布应锁定到可信的注册表
+  )。
 
-Deterministic: parses the two lockfile revisions from git and queries the
-public OSV API. It never installs or executes any dependency.
+Deterministic: 从 git 解析两个锁定文件修订并查询
+公共OSVAPI。 它从不安装或执行任何依赖项。
 
-Env:
-  SECURITY_SCAN_BASELINE_TAG  (optional; overrides the auto-detected last tag)
-  SECURITY_SCAN_OUTPUT        (optional; append the rendered report here too)
+环境：
+  SECURITY_SCAN_BASELINE_TAG（可选； 覆盖自动检测到的最后一个标签）
+  SECURITY_SCAN_OUTPUT（可选； 也将渲染的报告附加到此处）
 """
 
 from __future__ import annotations
@@ -34,17 +33,16 @@ from security_scan_common import (
 
 LOCKFILE = "uv.lock"
 
-# Exact hosts we accept as the trusted package registry. An exact-host match
-# (not a substring) so a look-alike like ``pypi.org.evil.example`` cannot be
-# mistaken for PyPI. Anything else — a mirror, an alternate index, a git/url
-# source — is *blocked on purpose*: an unexpected source on a release is the
-# supply-chain / dependency-confusion signal we want a human to look at, not
-# something to wave through.
+# 我们接受的受信任的包的精确主机注册表。 一个精确主机匹配（不是子串），例如
+# ``pypi.org.evil.example`` 不能被误认为 PyPI. 任何其他东西——一面镜子、一个替代索引、一
+# 个git/url源——都是 *有目的被阻拦*：在发布中发现意外的来源是供应链/依赖混淆信号，而不是
+# 要通过的。
+#
 _TRUSTED_REGISTRY_HOSTS = {"pypi.org", "files.pythonhosted.org"}
 
 
 def _load_lock(ref: str) -> dict[str, dict[str, object]]:
-    """Return {name: {version, source}} for every package in ``ref``'s lock."""
+    """为 ``ref`` 的锁中的每个包返回 {name: {version, source}}。"""
     try:
         raw = run_git("show", f"{ref}:{LOCKFILE}")
     except Exception:  # noqa: BLE001
@@ -76,7 +74,7 @@ def _source_label(source: object) -> str:
 
 
 def _registry_host(source: dict[str, object]) -> str | None:
-    """The host of a ``{registry: url}`` source, or None if not a registry."""
+    """``{registry: url}`` 源的主机，如果不是注册表，则为 None。"""
     registry = source.get("registry")
     if not isinstance(registry, str):
         return None
@@ -84,17 +82,15 @@ def _registry_host(source: dict[str, object]) -> str | None:
 
 
 def _is_trusted_registry(source: object) -> bool:
-    """True only for a first-party workspace member or an *exact* PyPI host.
+    """True 仅适用于第一方工作区成员或 *exact* PyPI 主持人。
 
-    Deliberately strict: a mirror, alternate index, git/url source, or an
-    unrecognized source shape is NOT trusted, so it is blocked and a human
-    looks at it. That is the point of the check on a release — an unexpected
-    source is the supply-chain signal, and a block just parks it for a
-    maintainer (cheap and rare on a release PR).
+    故意严格：镜像、备用索引、git/url源或未识别的源形状不被信任，因此被阻止，并且有人
+    查看它。 这是检查发布点的目的——意外的来源是供应链信号，而一个块只是为维护
+    者保留（在发布中非常便宜和罕见）PR。
     """
     if not isinstance(source, dict):
         return False
-    # Workspace members / virtual roots are the SDK's own packages.
+    # 工作区成员/虚拟根是 SDK 自己的包。
     if "virtual" in source or "editable" in source:
         return True
     if "registry" in source:
@@ -138,8 +134,9 @@ def main() -> int:
         if before[n]["version"] != after[n]["version"]
     }
 
-    # First-party openhands-* packages are version-bumped on every release;
-    # exclude them from the external-dep count but still surface them below.
+    # 第一方 OpenHands-* 软件包在每个版本中都会进行版本更新； 将它们从外部部门计数中排除
+    # ，但仍将其显示在下面。
+    #
     def _is_openhands(name: str) -> bool:
         return name.lower().startswith("openhands-")
 
@@ -155,7 +152,7 @@ def main() -> int:
         report.add(f"_(plus {len(bumped_openhands)} internal `openhands-*` bump(s))_")
     report.add("")
 
-    # --- non-registry sources on new/changed packages (supply-chain surface) --
+    # --- 新/更改的软件包上的非注册表来源（供应链表面）--
     suspicious_source = []
     for name in list(added) + list(bumped):
         source = after[name]["source"]
@@ -168,7 +165,7 @@ def main() -> int:
             report.block(f"{name} resolved from non-registry source ({label})")
         report.add("")
 
-    # --- OSV known-vulnerability lookup on new + bumped versions ---------------
+    # --- OSV 新+升级版本的已知漏洞查找 --------------
     to_scan = [(n, str(after[n]["version"])) for n in list(added) + list(bumped)]
     if to_scan:
         queries = [
@@ -203,7 +200,7 @@ def main() -> int:
                 )
                 report.add("")
 
-    # --- readable inventory ---------------------------------------------------
+    # --- 可读清单 --------------------------------------------------
     if added:
         report.add("<details><summary>Added dependencies</summary>\n")
         for name in sorted(added):

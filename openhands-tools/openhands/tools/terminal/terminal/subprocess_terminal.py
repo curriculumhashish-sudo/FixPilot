@@ -1,4 +1,4 @@
-"""PTY-based terminal backend implementation (replaces pipe-based subprocess)."""
+"""基于 PTY 的终端后端实现（取代基于管道的子进程）。"""
 
 import os
 import platform
@@ -44,11 +44,11 @@ logger = get_logger(__name__)
 
 ENTER = b"\n"
 
-# Map normalized special key names to ANSI escape bytes for PTY.
+# 将规范化的特殊键名称映射到 PTY 的 ANSI 转义字节。
 _SUBPROCESS_SPECIALS: dict[str, bytes] = {
     "ENTER": ENTER,
     "TAB": b"\t",
-    "BS": b"\x7f",  # Backspace (DEL)
+    "BS": b"\x7f",  # 退格键 (DEL)
     "ESC": b"\x1b",
     "UP": b"\x1b[A",
     "DOWN": b"\x1b[B",
@@ -65,17 +65,16 @@ _SUBPROCESS_SPECIALS: dict[str, bytes] = {
 
 
 def _normalize_eols(raw: bytes) -> bytes:
-    # CRLF/LF/CR -> CR, so each logical line is terminated with \r for the TTY
+    # CRLF/LF/CR -> CR，因此每个逻辑行都以 TTY 的 \r 结尾
     raw = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     return ENTER.join(raw.split(b"\n"))
 
 
 class SubprocessTerminal(TerminalInterface):
-    """PTY-backed terminal backend.
+    """PTY-支持的终端后端。
 
-    Creates an interactive bash in a pseudoterminal (PTY) so programs behave as if
-    attached to a real terminal. Initialization uses a sentinel-based handshake
-    and prompt detection instead of blind sleeps.
+    在伪终端 (PTY) 中创建交互式 bash，因此程序的行为就像连接到真实终端一样。 初始化使
+    用基于哨兵值的握手和提示词检测，而不是盲目睡眠。
     """
 
     PS1: str
@@ -97,25 +96,25 @@ class SubprocessTerminal(TerminalInterface):
         self.PS1 = CmdOutputMetadata.to_ps1_prompt()
         self.process = None
         self._pty_master_fd = None
-        # Use a slightly larger buffer to match tmux behavior which seems to keep
-        # ~10,001 lines instead of exactly 10,000
-        self.output_buffer = deque(maxlen=HISTORY_LIMIT + 50)  # Circular buffer
+        # 使用稍大的缓冲区来匹配 tmux 行为，这似乎保持
+        # 大约 10,001 行，而不是正好 10,000 行
+        self.output_buffer = deque(maxlen=HISTORY_LIMIT + 50)  # 圆形缓冲器
         self.output_lock = threading.Lock()
         self.reader_thread = None
         self._current_command_running = False
         self.shell_path = shell_path
         self._env = normalize_terminal_env(env)
 
-    # ------------------------- Lifecycle -------------------------
+    # -------------------------- 生命周期------------------------
 
     def initialize(self) -> None:
-        """Initialize the PTY terminal session."""
+        """初始化 PTY 终端会话。"""
         if self._initialized:
             return
 
-        # Resolve shell path with precedence:
-        # 1. Explicit shell_path argument
-        # 2. Auto-detection via shutil.which("bash") (searches PATH like `env bash`)
+        # 优先解析 shell 路径：
+        # 1. 显式 shell_path 参数
+        # 2. 通过 shutil.which("bash") 自动检测（像 `env bash` 一样搜索 PATH）
         resolved_shell_path: str | None
         if self.shell_path:
             resolved_shell_path = self.shell_path
@@ -128,7 +127,7 @@ class SubprocessTerminal(TerminalInterface):
                     "when creating the terminal."
                 )
 
-        # Validate the shell path exists and is executable
+        # 验证 shell 路径存在且可执行
         if not os.path.isfile(resolved_shell_path):
             raise RuntimeError(
                 f"Shell binary not found at: {resolved_shell_path}. "
@@ -140,14 +139,15 @@ class SubprocessTerminal(TerminalInterface):
                 "Please check file permissions."
             )
 
-        # Store the resolved shell path for later access
+        # 存储解析的 shell 路径以供以后访问
         self.shell_path = resolved_shell_path
         logger.info(f"Using shell: {resolved_shell_path}")
 
-        # Inherit environment variables from the parent process
+        # 从父进程继承环境变量
         env = build_terminal_env(self._env)
-        # Disable interactive pagers (git, man, systemctl, ...) so commands that
-        # auto-launch `less` on a TTY don't capture the PTY and wedge the session.
+        # 禁用交互式寻呼机（git、man、systemctl...），以便在 TTY 上自动启动 `less` 的命
+        # 令不会捕获 PTY 并楔入会话。
+        #
         env.setdefault("GIT_PAGER", "cat")
         env.setdefault("PAGER", "cat")
         env["PS1"] = self.PS1
@@ -156,7 +156,7 @@ class SubprocessTerminal(TerminalInterface):
 
         bash_cmd = [*process_priority_prefix(env), resolved_shell_path, "-i"]
 
-        # Create a PTY; give the slave to the child, keep the master
+        # 创建一个PTY； 把奴隶交给孩子，留下主人
         master_fd, slave_fd = pty.openpty()
 
         logger.debug("Initializing PTY terminal with: %s", " ".join(bash_cmd))
@@ -168,13 +168,13 @@ class SubprocessTerminal(TerminalInterface):
                 stderr=slave_fd,
                 cwd=self.work_dir,
                 env=env,
-                text=False,  # bytes I/O
+                text=False,  # 字节输入/输出
                 bufsize=0,
-                preexec_fn=os.setsid,  # new process group for signal handling
+                preexec_fn=os.setsid,  # 用于信号处理的新进程组
                 close_fds=True,
             )
         finally:
-            # Parent must close its copy of the slave FD
+            # 父级必须关闭其从属 FD 的副本
             try:
                 os.close(slave_fd)
             except Exception:
@@ -182,37 +182,37 @@ class SubprocessTerminal(TerminalInterface):
 
         self._pty_master_fd = master_fd
 
-        # Set master FD non-blocking
+        # 设置master FD非阻塞
         flags = fcntl.fcntl(self._pty_master_fd, fcntl.F_GETFL)
         fcntl.fcntl(self._pty_master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-        # Start output reader thread
+        # 启动输出阅读器线程
         self.reader_thread = threading.Thread(
             target=self._read_output_continuously_pty, daemon=True
         )
         self.reader_thread.start()
         self._initialized: bool = True
 
-        # Configure bash: disable history expansion, set up PS1/PS2 prompts
+        # 配置bash：禁用历史扩展，设置PS1/PS2提示词
         init_cmd = (
             f'set +H; export PROMPT_COMMAND=\'export PS1="{self.PS1}"\'; export PS2=""'
         ).encode("utf-8", "ignore")
 
         self._write_pty(init_cmd + ENTER)
-        time.sleep(1.0)  # Wait for command to take effect
+        time.sleep(1.0)  # 等待命令生效
 
         self.clear_screen()
 
         logger.debug("PTY terminal initialized with work dir: %s", self.work_dir)
 
     def close(self) -> None:
-        """Clean up the PTY terminal."""
+        """清理 PTY 终端。"""
         if self._closed:
             return
 
         try:
             if self.process:
-                # Try a graceful exit
+                # 尝试优雅退出
                 try:
                     self._write_pty(b"exit\n")
                 except Exception:
@@ -220,7 +220,7 @@ class SubprocessTerminal(TerminalInterface):
                 try:
                     self.process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
-                    # Escalate
+                    # 升级
                     try:
                         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
                         self.process.wait(timeout=1)
@@ -229,7 +229,7 @@ class SubprocessTerminal(TerminalInterface):
         except Exception as e:
             logger.error(f"Error closing PTY terminal: {e}", exc_info=True)
         finally:
-            # Reader thread stop: close master FD; thread exits on read error/EOF
+            # 读卡器线程停止：关闭主控FD； 线程因读取错误而退出/EOF
             try:
                 if self._pty_master_fd is not None:
                     os.close(self._pty_master_fd)
@@ -243,11 +243,11 @@ class SubprocessTerminal(TerminalInterface):
             self.process = None
             self._closed: bool = True
 
-    # ------------------------- I/O Core -------------------------
+    # ------------------------- I/O 核心 -------------------------
 
     def _write_pty(self, data: bytes) -> None:
         if not self._initialized and self._pty_master_fd is None:
-            # allow init path to call before _initialized flips
+            # 允许在 _initialized 翻转之前调用 init 路径
             raise RuntimeError("PTY master FD not ready")
         if self._pty_master_fd is None:
             raise RuntimeError("PTY terminal is not initialized")
@@ -259,18 +259,18 @@ class SubprocessTerminal(TerminalInterface):
             raise
 
     def _read_output_continuously_pty(self) -> None:
-        """Continuously read output from the PTY master in a separate thread."""
+        """在单独的线程中连续读取 PTY 主站的输出。"""
         fd = self._pty_master_fd
         if fd is None:
             return
 
         try:
             while True:
-                # Exit early if process died
+                # 如果进程死亡则提前退出
                 if self.process and self.process.poll() is not None:
                     break
 
-                # Use select to avoid busy spin
+                # 使用 select 避免繁忙旋转
                 r, _, _ = select.select([fd], [], [], 0.1)
                 if not r:
                     continue
@@ -279,13 +279,13 @@ class SubprocessTerminal(TerminalInterface):
                     chunk = os.read(fd, 4096)
                     if not chunk:
                         break  # EOF
-                    # Normalize newlines; PTY typically uses \n already
+                    # 规范化换行符； PTY 通常已使用 \n
                     text = chunk.decode("utf-8", errors="replace")
                     with self.output_lock:
-                        # Store one line per buffer item to make deque truncation work
+                        # 每个缓冲区项存储一行以使双端队列截断起作用
                         self._add_text_to_buffer(text)
                 except OSError:
-                    # Would-block or FD closed
+                    # 会阻塞或FD关闭
                     continue
                 except Exception as e:
                     logger.debug(f"Error reading PTY output: {e}")
@@ -294,33 +294,33 @@ class SubprocessTerminal(TerminalInterface):
             logger.error(f"PTY reader thread error: {e}", exc_info=True)
 
     def _add_text_to_buffer(self, text: str) -> None:
-        """Add text to buffer, ensuring one line per buffer item."""
-        # If there's a partial line in the last buffer item, combine with new text
+        """将文本添加到缓冲区，确保每个缓冲区项目一行。"""
+        # 如果最后一个缓冲区项中有部分行，则与新文本合并
         if self.output_buffer and not self.output_buffer[-1].endswith("\n"):
             combined_text = self.output_buffer[-1] + text
-            self.output_buffer.pop()  # Remove the partial line
+            self.output_buffer.pop()  # 去掉部分线
         else:
             combined_text = text
 
-        # Split into lines and add each line as a separate buffer item
+        # 分成几行并将每行添加为单独的缓冲区项
         lines = combined_text.split("\n")
 
-        # Add all complete lines (all but the last, which might be partial)
+        # 添加所有完整的行（除了最后一行之外的所有行，这可能是部分的）
         for line in lines[:-1]:
             self.output_buffer.append(line + "\n")
 
-        # Add the last part (might be partial line)
-        if lines[-1]:  # Only add if not empty
+        # 添加最后一部分（可能是部分行）
+        if lines[-1]:  # 仅在不为空时添加
             self.output_buffer.append(lines[-1])
 
-    # ------------------------- Readiness Helpers -------------------------
+    # ------------------------- 准备助手 -------------------------
 
     def _wait_for_output(self, pattern: str | re.Pattern, timeout: float = 5.0) -> bool:
-        """Wait until the output buffer contains pattern (regex or literal)."""
+        """等待输出缓冲区包含模式（正则表达式或文字）。"""
         deadline = time.time() + timeout
         is_regex = hasattr(pattern, "search")
         while time.time() < deadline:
-            # quick yield to reader thread
+            # 快速吸引读者线程
             if self._pty_master_fd is not None:
                 select.select([], [], [], 0.02)
             with self.output_lock:
@@ -336,7 +336,7 @@ class SubprocessTerminal(TerminalInterface):
         return False
 
     def _wait_for_prompt(self, timeout: float = 5.0) -> bool:
-        """Wait until the screen ends with our PS1 end marker (prompt visible)."""
+        """等待屏幕以我们的 PS1 结束标记结束（提示词可见）。"""
         pat = re.compile(re.escape(CMD_OUTPUT_PS1_END.rstrip()) + r"\s*$")
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -347,38 +347,37 @@ class SubprocessTerminal(TerminalInterface):
             time.sleep(0.05)
         return False
 
-    # ------------------------- Public API -------------------------
+    # ------------------------- 公共 API -------------------------
 
-    # Threshold for multi-line commands that need flow-controlled sending.
-    # Commands with more lines than this use paced line-by-line sending to avoid
-    # overwhelming the shell's input processing (see GitHub issue #2181).
-    # Value chosen based on empirical testing: shell input overflow typically
-    # occurs around 50+ lines on macOS, so 20 provides safety margin.
+    # 需要流控发送的多行命令的阈值。 行数多于此的命令使用按节奏逐行发送，以避免压垮
+    # shell 的输入处理（请参阅 GitHub 问题 #2181）。 根据经验测试选择的值：shell 输入溢
+    # 出通常发生在 macOS 中的 50 多行左右，因此 20 提供了安全裕度。
+    #
     _MULTILINE_THRESHOLD: int = 20
 
-    # Timeout for select() when waiting for PTY to be writable (seconds).
+    # 当等待 PTY 可写时，超时代表 select()（秒）。
     _SELECT_WRITE_TIMEOUT: float = 0.05
 
-    # Small delay between lines for pacing (seconds). This delay is intentional
-    # and cannot be replaced by select() alone: select() only checks kernel
-    # buffer availability, but the PTY is almost always writable. The actual
-    # bottleneck is the shell's line discipline which can't process input fast
-    # enough. Without this delay, long heredocs hang on macOS even though
+    # 节奏之间的小延迟（秒）。 这种延迟是故意的，不能单独用 select() 代替：select() 仅检
+    # 查内核缓冲区可用性，但 PTY 几乎总是可写的。 实际的瓶颈是 shell 的线路规则，它无法
+    # 足够快地处理输入。 如果没有这个延迟，长的heredocs仍然会挂在macOS上
+    #
     # select() reports the fd as writable. (See GitHub issue #2181)
     _LINE_PACING_DELAY: float = 0.002
 
     def send_keys(self, text: str, enter: bool = True) -> None:
-        """Send keystrokes to the PTY.
+        """将击键发送到 PTY。
 
-        Supports:
-          - Plain text
-          - Ctrl sequences: 'C-a'..'C-z' (Ctrl+C sends ^C byte)
-          - Special names: 'ENTER','TAB','BS','ESC','UP','DOWN','LEFT','RIGHT',
-                           'HOME','END','PGUP','PGDN','C-L','C-D','C-C'
+        支持：
+          - 纯文本
+          - Ctrl 序列：'C-a'..'C-z'（Ctrl+C 发送 ^C 字节）
+          - 特殊名称：'ENTER'、'TAB'、'BS'、'ESC'、'UP'、'DOWN'、'LEFT'、'RIGHT'、'
+          HOME'、'END'、'
+          PGUP'、'PGDN'、'C-L'、'C-D'、'C-C'
 
-        For multi-line commands exceeding _MULTILINE_THRESHOLD lines, sends
-        line-by-line with pacing to prevent overwhelming the shell's input
-        processing (fixes heredoc hang issue on macOS, see #2181).
+        对于超过 _MULTILINE_THRESHOLD 行的多行命令，以分段方式发送，以防止对 shell 的
+        输入处理造成过度（修复了 macOS 的 here
+        doc 挂起问题，详见 #2181）。
         """
         if not self._initialized:
             raise RuntimeError("PTY terminal is not initialized")
@@ -386,19 +385,19 @@ class SubprocessTerminal(TerminalInterface):
         upper = text.upper().strip()
         payload: bytes | None = None
 
-        # Named specials
+        # 指定特价商品
         if upper in _SUBPROCESS_SPECIALS:
             payload = _SUBPROCESS_SPECIALS[upper]
-            # Do NOT auto-append another EOL; special already includes it when needed.
+            # 执行不自动附加另一个 EOL； 当需要时特殊已经包含它。
             append_eol = False
-        # Generic Ctrl-<letter>
+        # 通用 Ctrl-<letter>
         elif (ctrl := parse_ctrl_key(text)) is not None:
-            # ctrl is "C-x" — extract the letter
+            # ctrl 是“C-x”——提取字母
             key_char = ctrl[-1].upper()
             payload = bytes([ord(key_char) & 0x1F])
-            append_eol = False  # ctrl combos are "instant"
+            append_eol = False  # Ctrl 组合是“即时”的
         else:
-            # Check if this is a long multi-line command that needs chunked sending
+            # 检查这是否是一个长的多行命令，需要分块发送
             input_lines = text.split("\n")
             if len(input_lines) > self._MULTILINE_THRESHOLD:
                 self._send_multiline_with_flow_control(input_lines, enter)
@@ -417,9 +416,9 @@ class SubprocessTerminal(TerminalInterface):
         )
 
     def _wait_for_pty_writable(self, timeout: float) -> bool:
-        """Wait for the PTY to be ready for writing using select().
+        """等待 PTY 准备好使用 select() 进行写入。
 
-        Returns True if the PTY is writable, False if timeout occurred.
+        如果 PTY 可写，则返回 True；如果超时发生，则返回 False。
         """
         if self._pty_master_fd is None:
             return False
@@ -427,41 +426,41 @@ class SubprocessTerminal(TerminalInterface):
         return len(writable) > 0
 
     def _send_multiline_with_flow_control(self, lines: list[str], enter: bool) -> None:
-        """Send multi-line command with flow control and pacing.
+        """发送具有流量控制和节奏的多行命令。
 
-        Uses select() to ensure the PTY is writable, plus a small inter-line
-        delay for pacing. The delay is necessary because select() only checks
-        kernel buffer space, not shell input processing capacity.
+        使用 select() 确保 PTY 可写，并加上一个小的行间延迟来调整节奏。 延迟是必要的
+        ，因为select()只检查内核缓冲区空间，而不检查shell输
+        入处理能力。
         """
         for i, line in enumerate(lines):
             is_last = i == len(lines) - 1
             payload = line.encode("utf-8", "ignore")
 
-            # Add newline between lines, and at the end if enter=True
+            # 在行与行之间添加换行符，如果输入=True则在末尾添加换行符
             if not is_last or enter:
                 payload += ENTER
 
-            # Wait for PTY to be writable (handles kernel buffer backpressure)
+            # 等待 PTY 可写（处理内核缓冲区背压）
             self._wait_for_pty_writable(self._SELECT_WRITE_TIMEOUT)
 
             self._write_pty(payload)
 
-            # Add small pacing delay between lines (handles shell processing)
+            # 在行之间添加小的节奏延迟（处理 shell 处理）
             if not is_last:
                 time.sleep(self._LINE_PACING_DELAY)
 
         self._current_command_running = True
 
     def read_screen(self) -> str:
-        """Read the current terminal screen content.
+        """读取当前终端屏幕内容。
 
-        The content we return should NOT contains carriage returns (CR, \r).
+        我们返回的内容应该不包含回车符（CR，\r）。
         """
         if not self._initialized:
             raise RuntimeError("PTY terminal is not initialized")
 
-        # Give the reader thread a moment to capture any pending output
-        # This is especially important after sending a command
+        # 给读者线程一点时间来捕获任何待处理的输出这在发送命令后尤其重要
+        #
         time.sleep(0.01)
 
         with self.output_lock:
@@ -472,7 +471,7 @@ class SubprocessTerminal(TerminalInterface):
             return content
 
     def clear_screen(self) -> None:
-        """Drop buffered output up to the most recent PS1 block; do not emit ^L."""
+        """将缓冲输出删除到最近的 PS1 块； 不发出 ^L。"""
         if not self._initialized:
             return
 
@@ -494,12 +493,12 @@ class SubprocessTerminal(TerminalInterface):
 
         if need_prompt_nudge:
             try:
-                self._write_pty(ENTER)  # ask bash to render a prompt, no screen clear
+                self._write_pty(ENTER)  # 要求 bash 渲染提示词，没有屏幕清晰
             except Exception:
                 pass
 
     def interrupt(self) -> bool:
-        """Send SIGINT to the PTY process group (fallback to signal-based interrupt)."""
+        """将 SIGINT 发送到 PTY 进程组（回退方案发送到基于信号的中断）。"""
         if not self._initialized or not self.process:
             return False
 
@@ -512,17 +511,17 @@ class SubprocessTerminal(TerminalInterface):
             return False
 
     def is_running(self) -> bool:
-        """Heuristic: command running if not at PS1 prompt and process alive."""
+        """Heuristic: 如果不在 PS1 提示词并且进程处于活动状态，则命令运行。"""
         if not self._initialized or not self.process:
             return False
 
-        # Check if process is still alive
+        # 检查进程是否还活着
         if self.process.poll() is not None:
             return False
 
         try:
             content = self.read_screen()
-            # If screen ends with prompt, no command is running
+            # 如果屏幕以提示词结束，则没有命令正在运行
             return not content.rstrip().endswith(CMD_OUTPUT_PS1_END.rstrip())
         except Exception:
             return self._current_command_running

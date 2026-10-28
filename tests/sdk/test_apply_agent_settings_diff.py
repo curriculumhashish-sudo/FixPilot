@@ -1,9 +1,8 @@
-"""Tests for :func:`apply_agent_settings_diff` and the ``llm`` canonicalization.
+"""测试：func:`apply_agent_settings_diff` 和 ``llm`` 规范化。
 
-``agent_settings`` is a discriminated union. Applying a sparse diff must treat
-``agent_kind`` as a one-way narrowing gate: switching variants replaces the
-base, same-variant edits deep-merge. The settings stores previously hand-rolled
-this in several places; this exercises the single SDK owner.
+``agent_settings`` 是一个受歧视的工会。 应用稀疏差异必须处理
+``agent_kind`` 作为一种单向缩小门：切换变体取代基本的相同变体编辑深度合并。 设置将之
+前手动滚动的内容存储在多个位置； 这锻炼了单一SDK所有者。
 """
 
 import pytest
@@ -18,7 +17,7 @@ from openhands.sdk.settings.model import (
 )
 
 
-# ── agent_kind is a narrowing gate, not a conversion knob ──────────────
+# ── agent_kind是缩小门，不是转换旋钮──────────────
 
 
 def test_switch_openhands_to_acp_replaces_with_fresh_variant() -> None:
@@ -30,7 +29,7 @@ def test_switch_openhands_to_acp_replaces_with_fresh_variant() -> None:
 
     assert isinstance(result, ACPAgentSettings)
     assert result.acp_server == "claude-code"
-    # ACP's agent_context is nullable; the openhands llm.model is not carried.
+    # ACP的agent_context可以为空； OpenHands llm.model 未被携带。
     assert result.agent_context is None
 
 
@@ -77,7 +76,7 @@ def test_inline_fields_land_on_fresh_base_during_switch() -> None:
     assert result.llm.model == "model-c"
 
 
-# ── same-variant deep merge ────────────────────────────────────────────
+# ── 同变体深度合并────────────────────────────────────────────
 
 
 def test_same_kind_deep_merges_within_variant() -> None:
@@ -89,7 +88,7 @@ def test_same_kind_deep_merges_within_variant() -> None:
     result = apply_agent_settings_diff(base, {"llm": {"temperature": 0.9}})
 
     assert isinstance(result, OpenHandsAgentSettings)
-    # untouched nested key is preserved; only temperature changes
+    # 保留未触及的嵌套键； 仅温度变化
     assert result.llm.model == "gpt"
     assert result.llm.temperature == 0.9
 
@@ -122,7 +121,7 @@ def test_empty_diff_returns_validated_base() -> None:
         assert result.acp_server == "claude-code"
 
 
-# ── base accepted as dict or instance; secrets survive ─────────────────
+# ── 接受为字典或实例的基础； 机密 survive ─────────────────
 
 
 def test_base_may_be_a_settings_instance() -> None:
@@ -139,7 +138,7 @@ def test_secret_in_base_survives_same_kind_merge() -> None:
         {"llm": {"model": "gpt", "api_key": "sk-SECRET"}}
     )
 
-    # diff touches an unrelated field; the base api_key must not be masked away.
+    # diff 触及不相关的领域； 基数 api_key 不得被掩盖。
     result = apply_agent_settings_diff(base, {"llm": {"model": "claude"}})
 
     assert isinstance(result, OpenHandsAgentSettings)
@@ -148,12 +147,13 @@ def test_secret_in_base_survives_same_kind_merge() -> None:
     assert result.llm.model == "claude"
 
 
-# ── llm tag canonicalization (closes the schema_version-gated gap) ──────
+# ── llm 标签规范化（关闭 schema_version 门控间隙）──────
 
 
 def test_validate_canonicalizes_llm_tag_at_current_schema_version() -> None:
-    # The v1->v2 migration only renames 'llm' while advancing schema_version;
-    # an 'llm' payload already at the current version must still canonicalize.
+    # v1->v2 迁移仅在前进 schema_version 时重命名 'llm'； 当前版本中已有的“llm”载荷仍必
+    # 须规范化。
+    #
     result = validate_agent_settings(
         {
             "agent_kind": "llm",
@@ -190,7 +190,7 @@ def test_validate_never_returns_llm_subclass() -> None:
         assert result.agent_kind == "openhands"
 
 
-# ── the deprecated class stays importable for back-compat ──────────────
+# ── 已弃用类对于向后兼容仍然是可导入的 ──────────────
 
 
 def test_llm_agent_settings_remains_importable() -> None:

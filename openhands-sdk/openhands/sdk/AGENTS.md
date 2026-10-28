@@ -1,88 +1,95 @@
 # Package Guidelines
 
-See the [project root AGENTS.md](../../../AGENTS.md) for repository-wide policies and workflows.
+请参阅 [ 项目根 AGENTS.md](../../../AGENTS.md) 了解存储库范围的策略和工作流程。
 
-## Package Structure & Module Organization
+<a id="package-structure--module-organization"></a>
 
-- This directory (`openhands-sdk/openhands/sdk/`) contains the core Python SDK under the `openhands.sdk.*` namespace.
-- Keep new modules within the closest existing subpackage (e.g., `llm/`, `tool/`, `event/`, `agent/`) and follow local naming patterns.
-- Add/adjust unit tests under `tests/sdk/` mirroring the SDK path (for example, changes to `openhands-sdk/openhands/sdk/tool/tool.py` should be covered in `tests/sdk/tool/test_tool.py`).
+## 包结构和模块组织
 
-## Build, Test, and Development Commands
+- 该目录(`openhands-sdk/openhands/sdk/`)包含`openhands.sdk.*`命名空间下的核心PythonSDK。
+- 将新模块保留在最近的现有子包（e.g.、`llm/`、`tool/`、`event/`、`agent/`）中，并遵循本地命名模式。
+- 在 `tests/sdk/` 下添加/调整单元测试镜像 SDK 路径（例如，对 `openhands-sdk/openhands/sdk/tool/tool.py` 的更改应包含在 `tests/sdk/tool/test_tool.py` 中）。
 
-- `make build`: sets up the dev environment (runs `uv sync --dev` and installs pre-commit hooks).
-- `make lint` / `make format`: run Ruff linting and formatting.
-- `uv run pre-commit run --files <path>`: run the pre-commit checks for files you changed.
-- `uv run pytest tests/sdk -k <pattern>`: run targeted SDK tests; prefer running the smallest relevant test set first.
+<a id="build-test-and-development-commands"></a>
 
-## Coding Style & Naming Conventions
+## 构建、测试和开发命令
 
-- Packages support Python 3.12 and later; repository tooling targets Python 3.13. Keep code Ruff-compliant (line length 88).
-- Prefer explicit, accurate type annotations; use Pyright for type checking (do not add mypy).
-- Avoid `# type: ignore` unless there is no reasonable typing fix.
-- Keep imports at the top of files; avoid `sys.path` hacks and in-line imports unless required for circular dependencies.
-- When changing Pydantic models or serialized event shapes, preserve backward compatibility so older persisted data can still load.
+- `make build`：设置开发环境（运行 `uv sync --dev` 并安装预提交挂钩）。
+- `make lint`/`make format`：运行Ruff静态检查并格式化。
+- `uv run pre-commit run --files <path>`：对您更改的文件运行预提交检查。
+- `uv run pytest tests/sdk -k <pattern>`：运行目标SDK测试； 更喜欢首先运行最小的相关测试集。
 
-## Adding a persisted settings field
+<a id="coding-style--naming-conventions"></a>
 
-When changing a persisted settings model (for example `AgentSettings`, `ConversationSettings`, or agent-server `PersistedSettings` payloads that embed them), keep backward compatibility explicit:
+## 编码风格和命名约定
 
-1. Bump the relevant `schema_version` constant when the persisted JSON shape changes incompatibly.
-2. Add the corresponding `_migrate_*_vN_to_vN+1` function and register it in the appropriate migrations table.
-3. Add or update a golden fixture under `tests/sdk/persisted_settings_baselines/vN/` covering the historical payload shape. If the fixture relies on sentinel values surviving migration, record them in the fixture's top-level `__expected__` dotted-path map so the checker catches silent data loss.
-4. Run `.github/scripts/check_persisted_settings_compat.py` (or the `Persisted settings compatibility checks` workflow) to verify both the golden fixtures and the latest published PyPI baseline still load through `from_persisted()`. The PyPI baseline environment is installed with `uv` using the baseline release upload timestamp as an `exclude-newer` cutoff.
+- 软件包支持 Python 3.12 及更高版本； 存储库工具目标 Python 3.13。 保持代码 Ruff 兼容（行长 88）。
+- 喜欢明确、准确的类型注释； 使用 Pyright 代替类型检查（不要添加 mypy）。
+- 除非没有合理的打字修复，否则避免使用 `# type: ignore`。
+- 将导入保留在文件顶部； 除非循环依赖需要，否则避免 `sys.path` 黑客攻击和内联导入。
+- 更改 Pydantic 模型或已序列化事件形状时，保留向后兼容性，以便仍可以加载较旧的已持久化数据。
+
+<a id="adding-a-persisted-settings-field"></a>
+
+## 添加已持久化设置字段
+
+当更改已持久化设置模型（例如嵌入它们的 `AgentSettings`、`ConversationSettings` 或智能体-服务器 `PersistedSettings` 载荷）时，请保持向后兼容性显式：
+
+1. 当已持久化 JSON 形状发生不兼容变化时，改变相关的 `schema_version` 常数。
+2. 添加相应的`_migrate_*_vN_to_vN+1`函数并将其注册到相应的迁移表中。
+3. 在 `tests/sdk/persisted_settings_baselines/vN/` 下添加或更新覆盖历史载荷形状的金色测试夹具。 如果测试夹具依赖于哨兵值的值在迁移过程中存活，记录这些值在测试夹具的顶级 `__expected__` 点的路径映射中，这样检查器就能检测到无声的数据丢失。
+4. 运行 `.github/scripts/check_persisted_settings_compat.py`（或 `Persisted settings compatibility checks` 工作流程）以验证基准测试夹具和最新发布的 PyPI 基线是否仍然通过 `from_persisted()` 加载。 PyPI 基线环境与 `uv` 一起安装，使用基线发布上传时间戳作为 `exclude-newer` 截止时间。
 
 
-## Testing Guidelines
+<a id="testing-guidelines"></a>
 
-- Prefer real code paths over mocks; introduce fixtures in `tests/conftest.py` when setup is repeated.
-- Keep tests minimal and focused on the changed behavior; avoid adding broad integration tests unless required.
+## 测试指南
 
-## Bedrock + LiteLLM note
+- 与模拟对象相比，更喜欢真实的代码路径； 重复设置时，在`tests/conftest.py`中引入测试夹具。
+- 保持最小化测试并关注改变的行为； 除非需要，否则避免添加广泛的集成测试。
 
-- LiteLLM interprets the `api_key` parameter for Bedrock models as an **AWS bearer token**.
-  When using IAM/SigV4 auth (AWS credentials / profiles), do **not** forward `LLM.api_key`
-  to LiteLLM for Bedrock models, or Bedrock may return:
+<a id="bedrock--litellm-note"></a>
+
+## 基岩 + LiteLLM 注释
+
+- LiteLLM 将基岩模型的 `api_key` 参数解释为 **AWS 持有者令牌**。 当使用 IAM/SigV4 身份验证（AWS 凭据 / 配置文件）时，对于 Bedrock 模型，请 ** 不 ** 将 `LLM.api_key` 转发到 LiteLLM，否则 Bedrock 可能会返回：
   `Invalid API Key format: Must start with pre-defined prefix`.
-- If you need Bedrock bearer-token auth, set `AWS_BEARER_TOKEN_BEDROCK` in the environment
-  (instead of using `LLM_API_KEY`).
-- Prefer `openhands.sdk.llm.utils.litellm_provider.LLMProvider` for LiteLLM-facing runtime
-  logic instead of manually splitting `LLM.model`. Accept the full model string at the SDK
-  boundary, then normalize immediately into LiteLLM's parsed `provider` + `model` view.
-- Do not duplicate multiple provider objects for transport versus capabilities. Initialize
-  the LiteLLM-facing transport provider once during `LLM` setup, and keep
-  capability/feature lookups on the canonical model string (`LLM.model_canonical_name` or
+- 如果您需要 Bedrock bearer-token auth，请在环境中设置 `AWS_BEARER_TOKEN_BEDROCK`（而不是使用 `LLM_API_KEY`）。
+- 对于面向 LiteLLM 的运行时逻辑，首选 `openhands.sdk.llm.utils.litellm_provider.LLMProvider`，而不是手动拆分 `LLM.model`。 接受 SDK 边界处的完整模型字符串，然后立即标准化为 LiteLLM 的已解析的 `provider` + `model` 视图。
+- 不要为传输层与功能复制多个提供者对象。 在 `LLM` 设置期间初始化面向 LiteLLM 的传输层提供程序一次，并在规范模型字符串（`LLM.model_canonical_name` 或
   `LLM.model`).
-- Avoid per-call provider cache-refresh logic in `LLM`. If the provider/model changes,
-  construct a new `LLM` instance rather than trying to mutate transport provider state in
-  place.
-- Keep `unverified_models` conservative for UI bucketing: LiteLLM inference is useful for
-  transport behavior, but it can classify ambiguous raw IDs (for example regional Bedrock IDs)
-  more aggressively than the UI should.
+- 避免 `LLM` 中的每次调用提供程序缓存刷新逻辑。 如果提供程序/模型发生更改，请构造一个新的 `LLM` 实例，而不是尝试就地改变传输层提供程序状态。
+- Keep `unverified_models` UI 分区保守策略： LiteLLM 推理在有用传输层行为是这样的，但它比UI应该更积极地对模糊的原始ID（例如地区Bedrock ID）进行分类。
 
-## Event Type Deprecation Policy
+<a id="event-type-deprecation-policy"></a>
 
-When modifying event types (e.g., `TextContent`, `Message`, or any Pydantic model used in event serialization), follow these guidelines to ensure backward compatibility:
+## 事件类型弃用政策
 
-### Critical Requirement: Old Events Must Always Load
+修改事件类型（e.g.、`TextContent`、`Message` 或事件序列化中使用的任何 Pydantic 模型）时，请遵循以下准则以确保向后兼容性：
 
-**Old events should ALWAYS load without error.** Production systems may resume conversations that contain events serialized with older SDK versions. Breaking changes to event schemas will cause production failures.
+<a id="critical-requirement-old-events-must-always-load"></a>
 
-**Important**: Deprecated field handlers are **permanent** and should never be removed. They ensure old conversations can always be loaded, regardless of when they were created.
+### 关键要求：旧事件必须始终加载
 
-### When Removing a Field from an Event Type
+**旧事件应该始终加载而不会出现错误。**生产系统可能会恢复包含事件已序列化与旧 SDK 版本的对话。 不兼容变更至事件模式将导致生产故障。
 
-1. **Never use `extra="forbid"` without a deprecation handler** - This will reject old events that contain removed fields.
+**重要提示**：已弃用字段处理程序是**永久的**，永远不应删除。 它们确保旧对话始终可以加载，无论它们何时创建。
 
-2. **Add a model validator to handle deprecated fields** using the `handle_deprecated_model_fields` utility:
+<a id="when-removing-a-field-from-an-event-type"></a>
+
+### 从事件类型中删除字段时
+
+1. **切勿在没有弃用处理程序的情况下使用 `extra="forbid"` ** - 这将拒绝包含已删除字段的旧事件。
+
+2. **使用 `handle_deprecated_model_fields` 实用程序添加模型验证器来处理已弃用字段 **：
    ```python
    from openhands.sdk.utils.deprecation import handle_deprecated_model_fields
 
    class MyModel(BaseModel):
        model_config = ConfigDict(extra="forbid")
 
-       # Deprecated fields that are silently removed for backward compatibility
-       # when loading old events. These are kept permanently.
+       # 加载旧事件时，向后兼容性的已弃用字段将被静默删除。 这些被永久保存。
+       #
        _DEPRECATED_FIELDS: ClassVar[tuple[str, ...]] = ("old_field_name",)
 
        @model_validator(mode="before")
@@ -92,68 +99,78 @@ When modifying event types (e.g., `TextContent`, `Message`, or any Pydantic mode
            return handle_deprecated_model_fields(data, cls._DEPRECATED_FIELDS)
    ```
 
-3. **Write tests that verify both old and new event formats load correctly**:
-   - Test that old format (with deprecated field) loads successfully
-   - Test that new format (without deprecated field) works
-   - Test that loading a sequence of mixed old/new events works
+3. **编写测试来验证新旧事件格式是否正确加载**：
+   - 测试旧格式（带有已弃用字段）是否成功加载
+   - 测试新格式（不带已弃用字段）是否有效
+   - 测试加载一系列混合旧/新事件是否有效
 
-### Test Naming Convention for Event Backward Compatibility Tests
+<a id="test-naming-convention-for-event-backward-compatibility-tests"></a>
 
-**The version in the test name should be the LAST version where a particular event structure exists.**
+### 事件向后兼容性测试的测试命名约定
 
-For example, if `enable_truncation` was removed in v1.11.1, the test should be named `test_v1_10_0_...` (the last version with that field).
+**测试名称中的版本应该是存在特定事件结构的 LAST 版本。**
 
-This convention:
-- Makes it clear which version's format is being tested
-- Avoids duplicate tests for the same structure across multiple versions
-- Documents when a field was last present in the schema
+例如，如果 `enable_truncation` 在 v1.11.1 中被删除，则测试应命名为 `test_v1_10_0_...`（具有该字段的最后一个版本）。
 
-Example test names:
-- `test_v1_10_0_text_content_with_enable_truncation` - Tests the last version with `enable_truncation`
-- `test_v1_9_0_message_with_deprecated_fields` - Tests the last version with Message deprecated fields
-- `test_text_content_current_format` - Tests the current format (no version needed)
+本次公约：
+- 明确正在测试哪个版本的格式
+- 避免跨多个版本对同一结构进行重复测试
+- 记录字段最后出现在模式中的时间
 
-### Example: See `TextContent` and `Message` in `openhands/sdk/llm/message.py`
+测试名称示例：
+- `test_v1_10_0_text_content_with_enable_truncation` - 使用 `enable_truncation` 测试最后一个版本
+- `test_v1_9_0_message_with_deprecated_fields` - 使用消息已弃用字段测试最新版本
+- `test_text_content_current_format` - 测试当前格式（不需要版本）
 
-These classes demonstrate the proper pattern for handling deprecated fields while maintaining backward compatibility with persisted events.
+<a id="example-see-textcontent-and-message-in-openhandssdkllmmessagepy"></a>
 
-## Public API Removal Policy
+### 示例：参见`openhands/sdk/llm/message.py`中的`TextContent`和`Message`
 
-Symbols exported via `openhands.sdk.__all__` are the SDK's public surface. Two CI policies govern changes:
+这些类演示了处理已弃用字段同时维护向后兼容性和已持久化事件的正确模式。
 
-1. **Deprecation before removal** – before removing a public API object, it must have been marked deprecated using the canonical helpers in `openhands.sdk.utils.deprecation`, and the deprecation must declare a removal target at least **5 minor releases** after `deprecated_in`.
+<a id="public-api-removal-policy"></a>
 
-   This applies to:
-   - Removing a symbol from `openhands.sdk.__all__`.
-   - Removing a public class member (method/property/attribute) from a class that is exported via `openhands.sdk.__all__`.
+## 公共 API 移除政策
 
-   Acceptable deprecation markers:
-   - `@deprecated(deprecated_in=..., removed_in=...)` decorator for functions/classes/methods
-   - `warn_deprecated(feature, deprecated_in=..., removed_in=...)` for runtime paths (e.g., attribute accessors). For members, use a qualified feature name like `"LLM.some_method"`.
+通过 `openhands.sdk.__all__` 导出的符号是 SDK 的公共表面。 两项 CI 政策管理变更：
 
-   Note: Deprecating a class counts as deprecating its members for the purposes of member removal.
+1. **弃用 before removal** – 在移除公共之前 API 它必须被标记已弃用使用 canonical helpers `openhands.sdk.utils.deprecation`, and the 弃用必须至少声明一个移除目标 **5 次版本发布** 之后 `deprecated_in`.
 
-2. **MINOR version bump** – any breaking change (removal or structural) requires at least a MINOR version bump.
+   这适用于：
+   - 从 `openhands.sdk.__all__` 中删除一个符号。
+   - 从通过 `openhands.sdk.__all__` 导出的类中删除公共类成员（方法/属性/属性）。
 
-These are enforced by `check_sdk_api_breakage.py` (runs on release PRs). Deprecation deadlines are separately enforced by `check_deprecations.py` (runs on every PR).
+   可接受的弃用标记：
+   - `@deprecated(deprecated_in=..., removed_in=...)` 函数/类/方法的装饰器
+   - `warn_deprecated(feature, deprecated_in=..., removed_in=...)` 用于运行时路径（e.g.，属性访问器）。 对于成员，请使用限定的功能名称，例如 `"LLM.some_method"`。
 
-## Documentation workflow
+   注意：出于删除成员的目的，弃用一个类被视为弃用其成员。
 
-Documentation lives in **github.com/OpenHands/docs** under the `sdk/` folder. When adding features or modifying APIs, you MUST update documentation there.
+2. **MINOR 版本提升** – 任何不兼容变更（移除或结构）至少需要 MINOR 版本提升。
 
-### Workflow
+这些由 `check_sdk_api_breakage.py` 强制执行（在版本 PR 上运行）。 弃用截止日期由 `check_deprecations.py` 单独执行（每 PR 运行一次）。
 
-1. Clone docs repo next to this repository: `git clone https://github.com/OpenHands/docs.git ../openhands-docs`
-2. Create matching branch in both repos
-3. Update documentation in `openhands-docs/sdk/` folder
-4. **If you are creating a PR to `OpenHands/software-agent-sdk`**, you must also create a corresponding PR to `OpenHands/docs` with documentation updates in the `sdk/` folder
-5. Cross-reference both PRs in their descriptions
+<a id="documentation-workflow"></a>
+
+## 文档工作流程
+
+文档位于 `sdk/` 文件夹下的 **github.com/OpenHands/docs** 中。 当你添加功能或修改 APIs 时，必须更新文档。
+
+<a id="workflow"></a>
+
+### 工作流程
+
+1. 克隆此存储库旁边的文档存储库：`git clone https://github.com/OpenHands/docs.git ../openhands-docs`
+2. 在两个存储库中创建匹配的分支
+3. 更新 `openhands-docs/sdk/` 文件夹中的文档
+4. **如果您要创建 PR 至 `OpenHands/software-agent-sdk`**，则还必须在 `sdk/` 文件夹中创建相应的 PR 至 `OpenHands/docs` 以及文档更新
+5. 在其描述中交叉引用 PR
 
 Example:
 ```bash
 cd ../openhands-docs
 git checkout -b <feature-name>
-# Edit files in sdk/ folder
+# 编辑 sdk/ 文件夹中的文件
 git add sdk/
 git commit -m "Document <feature>
 
@@ -161,21 +178,25 @@ Co-authored-by: openhands <openhands@all-hands.dev>"
 git push -u origin <feature-name>
 ```
 
-## Running SDK examples
+<a id="running-sdk-examples"></a>
 
-When implementing or modifying examples in `examples/`, always verify they work before committing:
+## 运行 SDK 个示例
+
+在实现或修改 `examples/` 中的示例时，请务必在提交之前验证它们是否有效：
 
 ```bash
-# Run examples using the All-Hands LLM proxy
+# 使用 All-Hands LLM 代理运行示例
 LLM_BASE_URL="https://llm-proxy.eval.all-hands.dev" LLM_API_KEY="$LLM_API_KEY" \
   uv run python examples/01_standalone_sdk/<example_name>.py
 ```
 
-The `LLM_API_KEY` environment variable may be available in the OpenHands development environment and works with the All-Hands LLM proxy (`llm-proxy.eval.all-hands.dev` OR `llm-proxy.app.all-hands.dev`). Please consult the human user for the LLM key if it is not found.
+`LLM_API_KEY` 环境变量可以在 OpenHands 开发环境中使用，并与 All-Hands LLM 代理（`llm-proxy.eval.all-hands.dev` 或 `llm-proxy.app.all-hands.dev`）一起使用。 如果未找到，请咨询用户以获取 LLM 键。
 
-For examples that use the critic model (e.g., `34_critic_example.py`), the critic is auto-configured when using the All-Hands LLM proxy - no additional setup needed.
+对于使用批评家模型 (e.g., `34_critic_example.py`) 的示例，批评家在使用 All-Hands LLM 代理时会自动配置 - 无需额外设置。
 
-## Commit & Pull Request Guidelines
+<a id="commit--pull-request-guidelines"></a>
 
-- Follow the repository’s existing commit style (short, imperative subjects; use scope prefixes like `fix(sdk):` when helpful).
-- Keep PRs focused; update docs and tests when changing public APIs or user-facing behavior.
+## 提交和拉取请求指南
+
+- 遵循存储库现有的提交风格（简短、命令式的主题； 如果有帮助，请使用范围前缀，例如 `fix(sdk):`）。
+- Keep PR focused 更新文档和测试，当更改公共部分时 APIs 用户行为。

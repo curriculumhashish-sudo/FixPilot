@@ -1,5 +1,5 @@
 /**
- * WebSocket client for real-time event streaming
+ * WebSocket 实时事件客户端流式传输
  */
 
 import { Event, ConversationCallbackType } from '../types/base';
@@ -10,8 +10,8 @@ import {
 import { WEBSOCKET_UNAVAILABLE_MESSAGE, getGlobalWebSocket } from './global-websocket';
 
 /**
- * Error callback type for reporting non-fatal errors.
- * Library code calls this instead of console.error so callers can handle errors.
+ * 用于报告非致命错误的错误回调类型。
+ * 库代码调用它而不是 console.error，以便调用者可以处理错误。
  */
 export type ErrorCallbackType = (error: Error) => void;
 
@@ -20,11 +20,11 @@ export interface WebSocketClientOptions {
   conversationId: string;
   callback: ConversationCallbackType;
   apiKey?: string;
-  /** Optional error callback. Called for non-fatal errors (parse failures, connection issues). */
+  /** 可选错误回调。 因非致命错误（解析失败、连接问题）而调用。*/
   onError?: ErrorCallbackType;
 }
 
-/** Typed event adapter over the same transport used by browser consumers. */
+/** 类型化事件适配器与浏览器使用者使用的相同传输层。*/
 export class WebSocketCallbackClient {
   private stream?: ConversationEventStream;
 

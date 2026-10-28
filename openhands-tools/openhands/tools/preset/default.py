@@ -1,4 +1,4 @@
-"""Default preset configuration for OpenHands agents."""
+"""默认预设配置为 OpenHands 智能体。"""
 
 from pathlib import Path
 from typing import Any
@@ -18,8 +18,8 @@ logger = get_logger(__name__)
 
 
 def register_default_tools(enable_browser: bool = True) -> None:
-    """Register the default set of tools."""
-    # Tools are now automatically registered when imported
+    """注册默认的工具集。"""
+    # 现在导入时会自动注册工具
     from openhands.tools.file_editor import FileEditorTool
     from openhands.tools.task_tracker import TaskTrackerTool
     from openhands.tools.terminal import TerminalTool
@@ -38,16 +38,16 @@ def get_default_tools(
     enable_browser: bool = True,
     enable_sub_agents: bool = False,
 ) -> list[Tool]:
-    """Get the default set of tool specifications for the standard experience.
+    """获取标准体验的默认工具规范集。
 
     Args:
-        enable_browser: Whether to include browser tools.
-        enable_sub_agents: Whether to include the TaskToolSet for
-            sub-agent delegation.
+        enable_browser: 是否包含浏览器工具。
+        enable_sub_agents: 是否包含TaskToolSet
+            子智能体代表团。
     """
     register_default_tools(enable_browser=enable_browser)
 
-    # Import tools to access their name attributes
+    # 导入工具以访问其名称属性
     from openhands.tools.file_editor import FileEditorTool
     from openhands.tools.task_tracker import TaskTrackerTool
     from openhands.tools.terminal import TerminalTool
@@ -69,7 +69,7 @@ def get_default_tools(
 
 
 def get_default_condenser(llm: LLM) -> CondenserBase:
-    # Shared with spawned sub-agents (see sdk default_condenser) so both stay in sync.
+    # 与衍生的子智能体共享（参见 SDK default_condenser），因此两者都保留在同步中。
     return default_condenser(llm)
 
 
@@ -79,7 +79,7 @@ def get_default_agent(
     finish_tool_response_schema: Any | None = None,
 ) -> Agent:
     tools = get_default_tools(
-        # Disable browser tools in CLI mode
+        # 在 CLI 模式下禁用浏览器工具
         enable_browser=not cli_mode,
     )
     agent_kwargs: dict[str, Any] = {}
@@ -109,21 +109,21 @@ def get_default_agent(
 
 
 def discover_builtin_agents(enable_browser: bool = True) -> list[AgentDefinition]:
-    """Load builtin agent definitions (``level='builtin'``) without registering them.
+    """加载内置智能体定义 (``level='builtin'``) 而不注册它们。
 
-    Non-mutating counterpart to ``register_builtins_agents``. Browser-only agents
-    are skipped when ``enable_browser`` is False.
+    ``register_builtins_agents`` 的非变异对应物。 当 ``enable_browser`` 为 False 时，
+    将跳过仅浏览器智能体。
 
     Args:
-        enable_browser: When False, skip agents needing browser tools (web researcher).
+        enable_browser: 当False时，跳过需要浏览器工具的智能体（网络研究员）。
 
     Returns:
-        Builtin agent definitions with ``level="builtin"``.
+        内置智能体定义与 ``level="builtin"``。
     """
     subagent_dir = Path(__file__).parent / "subagents"
     builtins_agents_def = load_agents_from_dir(subagent_dir)
 
-    # Filter out browser-dependent agents when browser is not available
+    # 当浏览器不可用时过滤掉依赖于浏览器的智能体
     if not enable_browser:
         _browser_only_agents = {"web-researcher"}
         builtins_agents_def = [
@@ -139,16 +139,14 @@ def discover_builtin_agents(enable_browser: bool = True) -> list[AgentDefinition
 
 
 def register_builtins_agents(enable_browser: bool = True) -> list[str]:
-    """Load and register builtin agents from ``subagent/*.md``.
-    They are registered via `register_agent_if_absent` and will not
-    overwrite agents already registered by programmatic calls, plugins,
-    or project/user-level file-based definitions.
+    """从 ``subagent/*.md`` 加载并注册内置智能体。
+    它们通过 `register_agent_if_absent` 注册，不会覆盖智能体由程序调用、插件或项目/用
+    户级别的文件定义已注册的。
     Args:
-        enable_browser: Whether browser tools are available. When False,
-            agents that require browser tools (e.g. web researcher) are
-            skipped.
+        enable_browser: 浏览器工具是否可用。 当False时，
+            智能体需要浏览器工具 (e.g. 网络研究员）被跳过。
     Returns:
-        List of agents which were actually registered.
+        实际注册的智能体列表。
     """
     register_default_tools(enable_browser=enable_browser)
 

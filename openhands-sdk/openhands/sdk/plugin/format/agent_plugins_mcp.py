@@ -1,15 +1,13 @@
-"""The Agent Plugins ``mcp.json`` loader (spec §7.2, §9).
+"""智能体插件 ``mcp.json`` 加载器（规范§7.2，§9）。
 
-Reads a root-level ``mcp.json`` (no dot) and maps each entry onto an
-:class:`~openhands.sdk.mcp.config.MCPServer`. The mapping is not a rename: the
-portable format carries semantics our model does not, so the work here is
-placeholder expansion (§9.2), path containment (§4.1, §7.2.1) and remote URL /
-header validation — all applied per entry, so one bad server never takes down
-its siblings or another component type (§7.2.2).
+读取根级 ``mcp.json``（无点）并将每个条目映射到
+：类：`~openhands.sdk.mcp.config.MCPServer`。 映射不是重命名：
+portable format 携带了我们模型中没有的语义，因此这里的工作是扩展占位符（§9.2），路径
+包含（§4.1，§7.2.1）以及远程 URL / 头部验证 — 每
+个条目都按需应用，因此一个坏服务器不会打垮其兄弟服务器或另一个组件类型（§7.2.2）。
 
-Lives beside ``agent_plugins.py`` rather than inside it: the manifest and the
-MCP configuration are separate documents with separate schemas and separate
-failure boundaries.
+``agent_plugins.py`` 而不是在其中：manifest和 MCP 配置文件是分开的文档，各自独立模式
+并保持失败边界分离。
 """
 
 import ipaddress
@@ -34,23 +32,23 @@ from openhands.sdk.utils.path import get_user_persistence_dir, resolves_within
 
 logger = get_logger(__name__)
 
-#: At the plugin root, with no leading dot (unlike the Claude Code ``.mcp.json``).
+# ：位于插件根目录，没有前导点（与 Claude 代码 ``.mcp.json`` 不同）。
 MCP_FILE: Final[str] = "mcp.json"
 
 MCP_SCHEMA_URL: Final[str] = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 _MCP_SCHEMA_FILE: Final[str] = "mcp-1.0.0.schema.json"
 
-#: Transports we connect with. ``sse`` is OPTIONAL in the spec and deprecated by
-#: MCP itself, so an ``sse`` entry is skipped as an unsupported transport
-#: (§7.2.2 rule 4) rather than quietly served over another transport.
+# ：传输层我们联系。 规范中 ``sse`` 为 OPTIONAL，且 MCP 自身也将其已弃用，因此 ``sse``
+# 条目会根据 §7.2.2 规则 4 作为不支持的传输层被跳过，而不会悄然经由其他传输层提供服务。
+#
 SUPPORTED_TRANSPORTS: Final[frozenset[str]] = frozenset({"stdio", "streamable-http"})
 
 _PLACEHOLDER: Final[re.Pattern[str]] = re.compile(r"\$\{(PLUGIN_ROOT|PLUGIN_DATA)\}")
 
-#: Headers the client generates to implement HTTP or MCP. §7.2.1 gives them
-#: precedence over a configured header of the same name, so a configured one is
-#: dropped: left in, httpx would send it as written -- a forged ``Host``, or a
-#: ``Content-Length`` that contradicts the body.
+# : 客户端生成的头信息，用于实现 HTTP 或 MCP。 §7.2.1 指出，这些头信息优先于同名配置头，
+# 因此配置的头会被丢弃：保留，HTTPx 会发送它们原样 -- 伪造 ``Host``，或一个
+# ``Content-Length`` 与正文冲突。
+#
 _CLIENT_HEADERS: Final[frozenset[str]] = frozenset(
     {
         "accept",
@@ -70,31 +68,32 @@ _CLIENT_HEADERS: Final[frozenset[str]] = frozenset(
     }
 )
 
-#: RFC 9110 token characters, the legal alphabet for a header field name.
+#: RFC 9110 token 个字符，标题字段名称的合法字母。
 _TOKEN_CHARS: Final[frozenset[str]] = frozenset(
     "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 
-#: Parent of the ``PLUGIN_DATA`` directories (§9.1). Outside ``plugins/``, whose
-#: every child is loaded as a plugin. Bound at import, like the other defaults
-#: here, so a later persistence-dir change needs ``plugin_data_root``.
+# ：``PLUGIN_DATA`` 目录的父目录（第 9.1 节）。 在 ``plugins/`` 之外，其：每个子项都作为
+# 插件加载。 在导入时绑定，与其他默认值一样：此处，因此稍后的持久化-dir 更改需要
+# ``plugin_data_root``。
+#
 DEFAULT_PLUGIN_DATA_DIR = get_user_persistence_dir() / "plugin-data"
 
 
 class MCPConfigError(ValueError):
-    """An ``mcp.json`` document, or one server entry in it, is invalid.
+    """``mcp.json`` 文档或其中的一个服务器条目无效。
 
-    Never fatal to the plugin: the caller turns it into a disabled MCP component
-    or a skipped server entry, per §7.2.2.
+    对于插件来说永远不会致命：调用者将其变成禁用的 MCP 组件或跳过的服务器条目，根据 §
+    7.2.2。
     """
 
 
 def get_plugin_data_dir(plugin_root: Path, *, data_root: Path | None = None) -> Path:
-    """Return a plugin's ``PLUGIN_DATA`` directory, without creating it.
+    """返回插件的 ``PLUGIN_DATA`` 目录，而不创建它。
 
-    Keyed by resolved root, not name: roots are stable across updates, and a
-    same-named plugin elsewhere must not share the data.
+    由解析的根（而不是名称）键入：根在更新中保持稳定，并且其他地方的同名插件不得共享
+    数据。
     """
     return get_cache_path(
         plugin_root.resolve().as_posix(), data_root or DEFAULT_PLUGIN_DATA_DIR
@@ -107,17 +106,17 @@ def load_mcp_servers(
     plugin_root: Path,
     plugin_data: Path,
 ) -> dict[str, MCPServer]:
-    """Load ``mcp.json`` from ``plugin_dir``.
+    """从 ``plugin_dir`` 加载 ``mcp.json``。
 
     Args:
-        plugin_dir: The plugin directory as given (used in messages).
-        plugin_root: The filesystem-resolved plugin root — ``${PLUGIN_ROOT}``,
-            and the containment boundary for package paths.
-        plugin_data: The plugin's persistent data directory — ``${PLUGIN_DATA}``.
+        plugin_dir: 给定的插件目录（在消息中使用）。
+        plugin_root: 文件系统解析的插件根目录 - ``${PLUGIN_ROOT}``,
+            以及包路径的包含边界。
+        plugin_data: 插件的持久数据目录 - ``${PLUGIN_DATA}``。
 
     Returns:
-        The servers that loaded. Empty when ``mcp.json`` is absent (§6.2) or the
-        document as a whole is invalid (§7.2.2 rule 2).
+        加载的服务器。 当 ``mcp.json`` 不存在时为空（§6.2）或整个文档无效（§7.2.2 规
+        则 2）。
     """
     mcp_path = plugin_dir / MCP_FILE
     if not mcp_path.is_file() or not resolves_within(mcp_path, plugin_root):
@@ -142,14 +141,14 @@ def load_mcp_servers(
 
 
 def _read_document(mcp_path: Path) -> dict[str, Any]:
-    """Validate the top-level document and return its ``mcpServers`` map.
+    """验证顶级文档并返回其 ``mcpServers`` 映射。
 
-    Only the top level is checked here. Entries are validated one at a time in
-    :func:`_load_server`, so a single malformed entry cannot disable MCP for the
-    whole plugin.
+    这里只检查顶层。 条目一次验证一个
+    :func:`_load_server`，因此单个格式错误的条目无法禁用 MCP
+    整个插件。
     """
     try:
-        # utf-8-sig: tolerate a leading BOM, which RFC 8259 lets us ignore.
+        # utf-8-sig：容忍前导 BOM，RFC 8259 让我们忽略。
         document = json.loads(mcp_path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as e:
         raise MCPConfigError(f"invalid JSON in {mcp_path}: {e}") from e
@@ -161,15 +160,14 @@ def _read_document(mcp_path: Path) -> dict[str, Any]:
     except JSONSchemaValidationError as e:
         raise MCPConfigError(f"invalid {MCP_FILE}: {e.message}") from e
 
-    # The declared version is pinned by the schema's ``$schema`` const, and the
-    # manifest is pinned to the same 1.0.0 release, so §7.2.2's "targets a
-    # different version than plugin.json" case cannot arise while we support
-    # exactly one version.
+    # 该声明的版本被粘贴模式's ``$schema`` const，且manifest被固定为同一1.0.0版本，因此§
+    # 7.2.2的“目标版本不同于” plugin.json在我们支持一个版本的情况下，这种情况不会出现。
+    #
     return document["mcpServers"]
 
 
 def _load_server(entry: Any, plugin_root: Path, plugin_data: Path) -> MCPServer:
-    """Validate one server entry and map it onto an ``MCPServer``."""
+    """验证一个服务器条目并将其映射到 ``MCPServer``。"""
     try:
         _server_validator().validate(entry)
     except JSONSchemaValidationError as e:
@@ -190,37 +188,38 @@ def _load_server(entry: Any, plugin_root: Path, plugin_data: Path) -> MCPServer:
         raise MCPConfigError(str(e)) from e
 
     if transport == "stdio":
-        # §9.1: it must exist and be writable before the subprocess launches.
-        # Created only once the entry is known to be a usable stdio server, so
-        # a remote-only, invalid or rejected entry leaves no trace on disk.
+        # §9.1：它必须在子进程启动之前存在并且可写。 仅当已知该条目是可用的 stdio 服务器
+        # 时才创建，因此仅远程、无效或拒绝的条目不会在磁盘上留下任何痕迹。
+        #
         try:
             plugin_data.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             raise MCPConfigError(f"cannot create PLUGIN_DATA {plugin_data}: {e}") from e
 
-    # Fully expanded already; §9.2 forbids expanding anything else.
+    # 已经全面扩展； §9.2 禁止扩展任何其他内容。
     return server.as_literal()
 
 
 def _stdio_fields(
     entry: dict[str, Any], plugin_root: Path, plugin_data: Path
 ) -> dict[str, Any]:
-    """Map a stdio entry: resolve the command, expand, contain the cwd."""
+    """映射 stdio 条目：解析命令、展开、包含 cwd。"""
     expand = _expander(plugin_root, plugin_data)
 
     env = {key: expand(value) for key, value in entry.get("env", {}).items()}
-    # §9.1: ours are set last and a plugin cannot override them. The schema
-    # already rejects an entry that declares either name itself.
+    # §9.1：我们的设置是最后设置的，插件无法覆盖它们。 模式已拒绝声明任一名称本身的条目
+    # 。
+    #
     env |= {"PLUGIN_ROOT": str(plugin_root), "PLUGIN_DATA": str(plugin_data)}
 
     cwd = entry.get("cwd")
     fields = {
         "transport": "stdio",
-        # Never expanded (§9.2), and one token, never a shell string.
+        # 从未扩展（第 9.2 节），并且一个 token，绝不是 shell 字符串。
         "command": _resolve_command(entry["command"], plugin_root),
         "args": [expand(arg) for arg in entry.get("args", [])],
         "env": {key: SecretStr(value) for key, value in env.items()},
-        # §7.2.1: the plugin root is the default working directory.
+        # §7.2.1：插件根目录是默认的工作目录。
         "cwd": str(
             _resolve_cwd(cwd, expand, plugin_root, plugin_data)
             if cwd is not None
@@ -231,7 +230,7 @@ def _stdio_fields(
 
 
 def _remote_fields(entry: dict[str, Any]) -> dict[str, Any]:
-    """Map a ``streamable-http`` entry: validate the URL and literal headers."""
+    """映射 ``streamable-http`` 条目：验证 URL 和文字标头。"""
     return {
         "transport": entry["type"],
         "url": _validate_url(entry["url"]),
@@ -245,11 +244,11 @@ def _remote_fields(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def _expander(plugin_root: Path, plugin_data: Path) -> Callable[[str], str]:
-    """Return the §9.2 expander: single-pass, non-recursive, two placeholders.
+    """返回 §9.2 扩展器：单遍、非递归、两个占位符。
 
-    One ``re.sub`` pass, so text a replacement introduces is never rescanned --
-    not even when a path itself contains ``${PLUGIN_DATA}`` -- and any other
-    placeholder-like text is left literal by construction.
+    ``re.sub``次通过，所以文本替换引入的文本永远不会重新扫描 -- 不管路径本身是否包含
+    ``${PLUGIN_DATA}`` -- 任何其他占位符式的文本都会
+    被构造保留。
     """
     values = {"PLUGIN_ROOT": str(plugin_root), "PLUGIN_DATA": str(plugin_data)}
 
@@ -260,10 +259,11 @@ def _expander(plugin_root: Path, plugin_data: Path) -> Callable[[str], str]:
 
 
 def _resolve_command(command: str, plugin_root: Path) -> str:
-    """Resolve ``command``: a bare executable name, or a ``./`` package path."""
+    """解析 ``command``：一个裸可执行文件名称，或一个 ``./`` 包路径。"""
     if not command.startswith("./"):
-        # A bare name goes to the platform's executable search. Anything else --
-        # absolute, ``../``, or a bare relative path -- is not a legal form.
+        # 平台的可执行搜索只需一个简单的名称。 除了绝对路径、``../`` 或者是裸露的相对路
+        # 径之外，任何其他形式都不合法。
+        #
         if "/" in command or "\\" in command:
             raise MCPConfigError(
                 f"command {command!r} must be a bare executable name or a "
@@ -279,10 +279,10 @@ def _resolve_cwd(
     plugin_root: Path,
     plugin_data: Path,
 ) -> Path:
-    """Resolve an explicit ``cwd``, keeping it inside the root it is written for.
+    """解析显式 ``cwd``，将其保留在为其写入的根中。
 
-    The schema constrains the three legal prefixes; what it cannot check is where
-    they land once expanded and resolved, which is what this enforces.
+    模式约束三个合法前缀； 它无法检查的是一旦扩展和解决，它们会落在哪里，这就是它所强
+    制执行的。
     """
     if cwd.startswith("./"):
         return _contained(plugin_root / expand(cwd[2:]), plugin_root, "cwd")
@@ -291,19 +291,20 @@ def _resolve_cwd(
 
 
 def _contained(path: Path, root: Path, field: str) -> Path:
-    """Resolve ``path`` and require it to stay within ``root`` (§4.1)."""
+    """解决 ``path`` 并要求其保持在 ``root`` (§4.1) 范围内。"""
     if not resolves_within(path, root):
         raise MCPConfigError(f"{field} {str(path)!r} escapes {root}")
     return path.resolve()
 
 
 def _validate_url(url: str) -> str:
-    """Enforce §7.2.1's remote endpoint rules."""
+    """执行 §7.2.1 的远程端点规则。"""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise MCPConfigError(f"url {url!r} must be an absolute http(s) URL")
-    # Checked on the raw text: urlsplit reports an empty user ("https://@host")
-    # or fragment ("https://host/#") as falsy, yet both are present.
+    # 检查原始文本： urlsplit 报告空用户 (" https://@host" ) 或片段 (" https://host/#" )
+    #  为假，但两者都存在。
+    #
     if "@" in parts.netloc:
         raise MCPConfigError(f"url {url!r} must not contain user information")
     if "#" in url:
@@ -314,8 +315,9 @@ def _validate_url(url: str) -> str:
 
 
 def _is_loopback(host: str) -> bool:
-    # Exactly ``localhost`` or an IP literal in a loopback range. A name that
-    # merely resolves to one -- or merely starts with "127." -- does not qualify.
+    # 正好是 ``localhost`` 或环回范围内的 IP 文字。 一个仅解析为 1 的名称，或者仅以“127”
+    # 开头的名称。 ——不符合条件。
+    #
     if host == "localhost":
         return True
     try:
@@ -325,7 +327,7 @@ def _is_loopback(host: str) -> bool:
 
 
 def _validate_headers(headers: dict[str, str], url: str) -> dict[str, str]:
-    """Enforce §7.2.1's header rules and drop headers the client generates."""
+    """强制执行 §7.2.1 的标头规则并删除客户端生成的标头。"""
     seen: set[str] = set()
     for name, value in headers.items():
         if not name or not set(name) <= _TOKEN_CHARS:
@@ -350,10 +352,9 @@ def _validate_headers(headers: dict[str, str], url: str) -> dict[str, str]:
 
 @cache
 def _top_level_schema() -> dict[str, Any]:
-    """The vendored schema with per-server validation removed.
+    """已删除每台服务器验证的供应商模式。
 
-    Derived from the vendored document rather than restated, so the closed set of
-    top-level fields and the ``$schema`` const stay single-sourced.
+    源自供应商文档而不是重述，因此顶级字段的封闭集和 ``$schema`` const 保持单一来源。
     """
     schema = _load_schema(_MCP_SCHEMA_FILE)
     top_level = {key: value for key, value in schema.items() if key != "$defs"}
@@ -365,7 +366,7 @@ def _top_level_schema() -> dict[str, Any]:
 
 @cache
 def _server_validator() -> Draft202012Validator:
-    """Validate one entry against the ``#/$defs/server`` the spec exposes."""
+    """根据规范公开的 ``#/$defs/server`` 验证一项。"""
     return Draft202012Validator(
         {"$ref": "#/$defs/server", "$defs": _load_schema(_MCP_SCHEMA_FILE)["$defs"]}
     )

@@ -1,4 +1,4 @@
-"""Tests for TerminalTool subclass."""
+"""测试 TerminalTool 子类。"""
 
 import platform
 import tempfile
@@ -19,7 +19,7 @@ from openhands.tools.terminal import (
 
 
 def _create_test_conv_state(temp_dir: str) -> ConversationState:
-    """Helper to create a test conversation state."""
+    """创建测试对话状态的帮助程序。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     agent = Agent(llm=llm, tools=[])
     return ConversationState.create(
@@ -30,79 +30,79 @@ def _create_test_conv_state(temp_dir: str) -> ConversationState:
 
 
 def test_bash_tool_initialization():
-    """Test that TerminalTool initializes correctly."""
+    """测试 TerminalTool 初始化是否正确。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = TerminalTool.create(conv_state)
         tool = tools[0]
 
-        # Check that the tool has the correct name and properties
+        # 检查该工具是否具有正确的名称和属性
         assert tool.name == "terminal"
         assert tool.executor is not None
         assert tool.action_type == TerminalAction
 
 
 def test_bash_tool_with_username():
-    """Test that TerminalTool initializes correctly with username."""
+    """测试 TerminalTool 使用用户名正确初始化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = TerminalTool.create(conv_state, username="testuser")
         tool = tools[0]
 
-        # Check that the tool has the correct name and properties
+        # 检查该工具是否具有正确的名称和属性
         assert tool.name == "terminal"
         assert tool.executor is not None
         assert tool.action_type == TerminalAction
 
 
 def test_bash_tool_execution():
-    """Test that TerminalTool can execute commands."""
+    """测试TerminalTool可以执行命令。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = TerminalTool.create(conv_state)
         tool = tools[0]
 
-        # Create an action
+        # 创建一个动作
         action = TerminalAction(command="echo 'Hello, World!'")
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check the result
+        # 检查结果
         assert result is not None
         assert isinstance(result, TerminalObservation)
         assert "Hello, World!" in result.text
 
 
 def test_bash_tool_working_directory():
-    """Test that TerminalTool respects the working directory."""
+    """测试 TerminalTool 是否尊重工作目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = TerminalTool.create(conv_state)
         tool = tools[0]
 
-        # Create an action to check current directory
+        # 创建一个操作来检查当前目录
         action = TerminalAction(command="pwd")
 
-        # Execute the action
+        # 执行动作
         result = tool(action)
 
-        # Check that the working directory is correct
+        # 检查工作目录是否正确
         assert isinstance(result, TerminalObservation)
         assert temp_dir in result.text
 
 
 def test_bash_tool_to_openai_tool():
-    """Test that TerminalTool can be converted to OpenAI tool format."""
+    """测试TerminalTool可以转换为OpenAI工具格式。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         tools = TerminalTool.create(conv_state)
         tool = tools[0]
 
-        # Convert to OpenAI tool format
+        # 转换为OpenAI工具格式
         openai_tool = tool.to_openai_tool()
 
-        # Check the format
+        # 检查格式
         assert openai_tool["type"] == "function"
         assert openai_tool["function"]["name"] == "terminal"
         assert "description" in openai_tool["function"]
@@ -114,7 +114,7 @@ def test_bash_tool_to_openai_tool():
     reason="This test uses POSIX shell environment variable syntax.",
 )
 def test_terminal_tool_client_env_is_session_scoped_and_schema_hidden(monkeypatch):
-    """Test that client env config reaches the shell without becoming action input."""
+    """测试客户端环境配置是否到达 shell，而不成为操作输入。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         monkeypatch.setenv("OH_CLIENT_ENV_TEST", "parent-value")
         conv_state = _create_test_conv_state(temp_dir)
@@ -189,7 +189,7 @@ def test_terminal_tool_does_not_expose_observability_credentials(monkeypatch):
 
 
 def test_terminal_tool_client_env_rejects_invalid_names():
-    """Test that client env keys must be valid shell environment names."""
+    """测试客户端环境键必须是有效的 shell 环境名称。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         conv_state = _create_test_conv_state(temp_dir)
         with pytest.raises(ValueError, match="Invalid terminal environment"):

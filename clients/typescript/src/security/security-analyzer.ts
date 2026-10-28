@@ -1,67 +1,67 @@
 /**
- * Security Analyzer for Conversations
+ * 对话安全分析器
  *
- * Analyzes actions for potential security risks.
- * This mirrors the Python SDK's SecurityAnalyzer system.
+ * 分析潜在安全风险的操作。
+ * 这反映了 Python SDK 的 SecurityAnalyzer 系统。
  */
 
 import { ActionEvent } from '../events/types';
 import { RiskLevel, SecurityAnalysisResult, riskLevelToNumeric } from './confirmation-policy';
 
 /**
- * Base interface for security analyzers.
- * Analyzers evaluate actions to determine their risk level.
+ * 安全分析器的基本接口。
+ * 分析人员评估行动以确定其风险级别。
  */
 export interface SecurityAnalyzer {
-  /** Analyzer type identifier */
+  /** 分析仪类型标识符*/
   readonly type: string;
 
   /**
-   * Analyze an action for security risks.
+   * 分析安全风险的操作。
    *
-   * @param action - The action to analyze
-   * @returns Analysis result with risk level and details
+   * @param action - 要分析的动作
+   * @returns 带有风险级别和详细信息的分析结果
    */
   analyze(action: ActionEvent): Promise<SecurityAnalysisResult> | SecurityAnalysisResult;
 }
 
 /**
- * Pattern-based security analyzer.
- * Uses regex patterns to identify risky commands and operations.
+ * 基于模式的安全分析器。
+ * 使用正则表达式模式来识别有风险的命令和操作。
  */
 export class PatternBasedAnalyzer implements SecurityAnalyzer {
   readonly type = 'pattern_based';
 
-  // Patterns for high-risk operations
+  // 高风险操作模式
   private readonly highRiskPatterns: RegExp[] = [
     /\brm\s+-rf?\s+[/~]/i, // rm -rf with absolute/home paths
-    /\bsudo\b/i, // sudo commands
+    /\bsudo\b/i, // 须藤命令
     /\bchmod\s+777\b/i, // chmod 777
-    /\b(curl|wget).*\|\s*(sh|bash)\b/i, // piped downloads
-    /\bdd\s+.*of=/i, // dd command
-    /\bmkfs\b/i, // filesystem creation
-    /\b(shutdown|reboot|halt)\b/i, // system control
-    /\bkill\s+-9\s+1\b/i, // kill init
-    />(\/dev\/(sd|hd|nvme)|\/etc\/)/i, // writing to devices/etc
-    /\bpasswd\b/i, // password changes
-    /\buseradd\b|\buserdel\b/i, // user management
+    /\b(curl|wget).*\|\s*(sh|bash)\b/i, // 管道下载
+    /\bdd\s+.*of=/i, // dd命令
+    /\bmkfs\b/i, // 文件系统创建
+    /\b(shutdown|reboot|halt)\b/i, // 系统控制
+    /\bkill\s+-9\s+1\b/i, // 杀死初始化
+    />(\/dev\/(sd|hd|nvme)|\/etc\/)/i, // 写入设备/等
+    /\bpasswd\b/i, // 密码更改
+    /\buseradd\b|\buserdel\b/i, // 用户管理
   ];
 
-  // Patterns for medium-risk operations
+  // 中等风险操作模式
   private readonly mediumRiskPatterns: RegExp[] = [
-    /\brm\b/i, // any rm command
+    /\brm\b/i, // 任何 rm 命令
     /\bgit\s+push\b/i, // git push
     /\bgit\s+reset\s+--hard\b/i, // git reset hard
     /\bnpm\s+(publish|unpublish)\b/i, // npm publish
     /\bpip\s+install\b/i, // pip install
-    /\bcurl\b|\bwget\b/i, // network downloads
+    /\bcurl\b|\bwget\b/i, // 网络下载
     /\bchmod\b/i, // permission changes
-    /\bchown\b/i, // ownership changes
-    /\benv\b.*=.*\bexport\b/i, // environment modifications
-    /\b(docker|kubectl)\b/i, // container/k8s commands
+    /\bchown\b/i, // 所有权变更
+    /\benv\b.*=.*\bexport\b/i, // 环境修改
+    /\b(docker|kubectl)\b/i, // 容器/k8s 命令
   ];
 
-  // Patterns for sensitive file access
+  // 敏感文件访问模式
   private readonly sensitivePathPatterns: RegExp[] = [
     /\/etc\/(passwd|shadow|sudoers)/i,
     /~?\/.ssh\//i,
@@ -77,10 +77,10 @@ export class PatternBasedAnalyzer implements SecurityAnalyzer {
     const concerns: string[] = [];
     let highestRisk: RiskLevel = 'low';
 
-    // Get the command or content to analyze
+    // 获取要分析的命令或内容
     const contentToAnalyze = this.getContentToAnalyze(action);
 
-    // Check for high-risk patterns
+    // 检查高风险模式
     for (const pattern of this.highRiskPatterns) {
       if (pattern.test(contentToAnalyze)) {
         concerns.push(`High-risk pattern detected: ${pattern.source}`);
@@ -88,7 +88,7 @@ export class PatternBasedAnalyzer implements SecurityAnalyzer {
       }
     }
 
-    // Check for medium-risk patterns (only if not already high)
+    // 检查中等风险模式（仅当风险还不是很高时）
     if (highestRisk !== 'high') {
       for (const pattern of this.mediumRiskPatterns) {
         if (pattern.test(contentToAnalyze)) {
@@ -100,7 +100,7 @@ export class PatternBasedAnalyzer implements SecurityAnalyzer {
       }
     }
 
-    // Check for sensitive file access
+    // 检查敏感文件访问
     for (const pattern of this.sensitivePathPatterns) {
       if (pattern.test(contentToAnalyze)) {
         concerns.push(`Sensitive file access detected: ${pattern.source}`);
@@ -122,23 +122,23 @@ export class PatternBasedAnalyzer implements SecurityAnalyzer {
   }
 
   private getContentToAnalyze(action: ActionEvent): string {
-    // Combine relevant fields for analysis
+    // 结合相关字段进行分析
     const parts: string[] = [action.tool_name];
 
     if (action.action) {
       const actionData = action.action as unknown as Record<string, unknown>;
-      // For execute_command tool
+      // 对于 execute_command 工具
       if ('command' in actionData) {
         parts.push(String(actionData.command));
       }
-      // For write_file tool
+      // 对于 write_file 工具
       if ('path' in actionData) {
         parts.push(String(actionData.path));
       }
       if ('content' in actionData) {
         parts.push(String(actionData.content));
       }
-      // Generic: stringify the action
+      // 通用：将动作字符串化
       parts.push(JSON.stringify(action.action));
     }
 
@@ -147,8 +147,8 @@ export class PatternBasedAnalyzer implements SecurityAnalyzer {
 }
 
 /**
- * Allowlist-based security analyzer.
- * Only allows explicitly approved tools and patterns.
+ * 基于白名单的安全分析器。
+ * 只允许明确批准的工具和模式。
  */
 export class AllowlistAnalyzer implements SecurityAnalyzer {
   readonly type = 'allowlist';
@@ -161,7 +161,7 @@ export class AllowlistAnalyzer implements SecurityAnalyzer {
   }
 
   analyze(action: ActionEvent): SecurityAnalysisResult {
-    // Check if tool is allowed
+    // 检查工具是否允许
     if (this.allowedTools.has(action.tool_name)) {
       return {
         riskLevel: 'low',
@@ -170,7 +170,7 @@ export class AllowlistAnalyzer implements SecurityAnalyzer {
       };
     }
 
-    // Check if action matches allowed patterns
+    // 检查操作是否匹配允许的模式
     const actionStr = JSON.stringify(action.action);
     for (const pattern of this.allowedPatterns) {
       if (pattern.test(actionStr)) {
@@ -182,7 +182,7 @@ export class AllowlistAnalyzer implements SecurityAnalyzer {
       }
     }
 
-    // Not in allowlist
+    // 不在允许名单中
     return {
       riskLevel: 'high',
       requiresConfirmation: true,
@@ -193,8 +193,8 @@ export class AllowlistAnalyzer implements SecurityAnalyzer {
 }
 
 /**
- * No-op analyzer - marks everything as low risk.
- * Use for development/testing only.
+ * 无操作分析器 - 将所有内容标记为低风险。
+ * 仅用于开发/测试。
  */
 export class NoOpAnalyzer implements SecurityAnalyzer {
   readonly type = 'noop';
@@ -209,8 +209,8 @@ export class NoOpAnalyzer implements SecurityAnalyzer {
 }
 
 /**
- * Composite analyzer - combines multiple analyzers.
- * Returns the highest risk level from all analyzers.
+ * 复合分析仪 - 组合多个分析仪。
+ * 返回所有分析器的最高风险级别。
  */
 export class CompositeAnalyzer implements SecurityAnalyzer {
   readonly type = 'composite';
@@ -223,7 +223,7 @@ export class CompositeAnalyzer implements SecurityAnalyzer {
   async analyze(action: ActionEvent): Promise<SecurityAnalysisResult> {
     const results = await Promise.all(this.analyzers.map((a) => a.analyze(action)));
 
-    // Combine results - highest risk wins
+    // 综合结果 - 风险最高者获胜
     let highestRisk: RiskLevel = 'low';
     const allConcerns: string[] = [];
     const explanations: string[] = [];
@@ -250,7 +250,7 @@ export class CompositeAnalyzer implements SecurityAnalyzer {
 }
 
 /**
- * Create a security analyzer from a type string.
+ * 从类型字符串创建安全分析器。
  */
 export function createSecurityAnalyzer(type: string, options?: unknown): SecurityAnalyzer {
   switch (type) {

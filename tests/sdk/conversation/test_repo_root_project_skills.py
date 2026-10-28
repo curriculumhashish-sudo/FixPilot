@@ -27,16 +27,16 @@ def _agent(agent_context: AgentContext) -> Agent:
 def test_system_prompt_includes_repo_root_agents_md_when_workdir_is_subdir(
     tmp_path: Path,
 ):
-    """Repo-root AGENTS.md should still be injected when starting from a subdir.
+    """从子目录启动时，仍应注入 Repo-root AGENTS.md。
 
-    This is the integration-style equivalent of the CLI manual test:
-    - work_dir is a subdirectory
-    - git repo root contains AGENTS.md
-    - AgentContext is built from load_project_skills(work_dir)
-    - LocalConversation initialization emits a SystemPromptEvent
+    这是 CLI 手动测试的集成样式等效项：
+    - work_dir 是子目录
+    - git repo 根目录包含 AGENTS.md
+    - AgentContext 由 load_project_skills(work_dir) 构建
+    - LocalConversation 初始化发出 SystemPromptEvent
 
-    We assert the sentinel from the repo root AGENTS.md appears in the
-    SystemPromptEvent.dynamic_context.
+    我们断言存储库根 AGENTS.md 中的哨兵值出现在 SystemPromptEvent.dynamic_context 中
+    。
     """
 
     (tmp_path / ".git").mkdir()
@@ -48,7 +48,7 @@ def test_system_prompt_includes_repo_root_agents_md_when_workdir_is_subdir(
     skills = load_project_skills(subdir)
     ctx = AgentContext(
         skills=skills,
-        # Keep deterministic across environments.
+        # 跨环境保持确定性。
         current_datetime="2026-01-01T00:00:00Z",
     )
 
@@ -85,10 +85,10 @@ def test_system_prompt_includes_repo_root_agents_md_when_workdir_is_subdir(
 
 
 def test_load_project_skills_flag_injects_skills_in_standalone_sdk(tmp_path: Path):
-    """``AgentContext(load_project_skills=True)`` works without agent-server.
+    """``AgentContext(load_project_skills=True)`` 无需智能体服务器即可工作。
 
-    LocalConversation resolves project skills from the workspace at startup,
-    so the flag behaves consistently for standalone SDK usage (agent-canvas#574).
+    LocalConversation 在启动时从工作区解析项目技能，因此该标志对于独立 SDK 使用具有一
+    致的行为 (智能体-canvas#574)。
     """
     (tmp_path / "AGENTS.md").write_text("# Guidelines\n\nSENTINEL_FLAG_456\n")
 
@@ -106,7 +106,7 @@ def test_load_project_skills_flag_injects_skills_in_standalone_sdk(tmp_path: Pat
     )
     conversation.send_message("hi")
 
-    # Skills are merged into the live agent context...
+    # 技能被合并到现场智能体上下文...
     assert conversation.agent.agent_context is not None
     assert "agents" in {s.name for s in conversation.agent.agent_context.skills}
     # ...and rendered into the system prompt.
@@ -120,7 +120,7 @@ def test_load_project_skills_flag_injects_skills_in_standalone_sdk(tmp_path: Pat
 
 
 def test_load_project_skills_flag_off_does_not_inject(tmp_path: Path):
-    """With the flag unset (default), project skills are not loaded."""
+    """如果未设置该标志（默认），则不会加载项目技能。"""
     (tmp_path / "AGENTS.md").write_text("# Guidelines\n\nSENTINEL_OFF_789\n")
 
     agent = _agent(AgentContext(current_datetime="2026-01-01T00:00:00Z"))
@@ -144,7 +144,7 @@ def test_load_project_skills_flag_off_does_not_inject(tmp_path: Path):
 
 
 def test_load_project_skills_flag_merges_with_project_precedence(tmp_path: Path):
-    """Project skills override same-named context skills; others are preserved."""
+    """项目技能优先于同名上下文技能； 其他的则被保留。"""
     (tmp_path / "AGENTS.md").write_text("# Guidelines\n\nSENTINEL_NEW\n")
 
     agent = _agent(
@@ -175,11 +175,11 @@ def test_load_project_skills_flag_merges_with_project_precedence(tmp_path: Path)
 
 
 def test_disabled_skills_drops_project_skill_at_lazy_merge(tmp_path: Path):
-    """A project skill whose name is in ``disabled_skills`` is dropped during the
-    lazy ``LocalConversation`` merge — the ``model_copy`` path that bypasses the
-    ``AgentContext`` validator. An unrelated disabled name is a harmless no-op.
+    """名称为 ``disabled_skills`` 的项目技能在
+    惰性 ``LocalConversation`` 合并 — 绕过 ``model_copy`` 路径
+    ``AgentContext`` 验证器。 不相关的禁用名称是无害的空操作。
     """
-    # AGENTS.md becomes a project skill named "agents".
+    # AGENTS.md 成为名为“智能体”的项目技能。
     (tmp_path / "AGENTS.md").write_text("# Guidelines\n\nSENTINEL\n")
 
     agent = _agent(
@@ -200,16 +200,16 @@ def test_disabled_skills_drops_project_skill_at_lazy_merge(tmp_path: Path):
 
     assert conversation.agent.agent_context is not None
     names = {s.name for s in conversation.agent.agent_context.skills}
-    # The lazily-loaded project skill "agents" is disabled -> dropped at merge.
+    # 延迟加载的项目技能“智能体”被禁用 -> 在合并时被删除。
     assert "agents" not in names
-    # A non-disabled skill is unaffected; the absent "not-in-catalog" is a no-op.
+    # 非残障技能不受影响； 缺少的“不在目录中”是无操作。
     assert "keep" in names
 
     conversation.close()
 
 
 def test_load_project_skills_failure_does_not_block_conversation(tmp_path: Path):
-    """Project-skill loading is best-effort: a load error must not break startup."""
+    """项目技能加载是尽力而为：加载错误不得中断启动。"""
     (tmp_path / "AGENTS.md").write_text("# Guidelines\n\nSENTINEL\n")
 
     agent = _agent(
@@ -230,9 +230,9 @@ def test_load_project_skills_failure_does_not_block_conversation(tmp_path: Path)
         "openhands.sdk.conversation.impl.local_conversation.load_available_skills",
         side_effect=PermissionError("workspace unreadable"),
     ):
-        conversation.send_message("hi")  # must not raise
+        conversation.send_message("hi")  # 不得提高
 
-    # Conversation started; pre-existing skills are untouched.
+    # 谈话开始； 预先存在的技能保持不变。
     assert conversation.agent.agent_context is not None
     assert {s.name for s in conversation.agent.agent_context.skills} == {"keep"}
 

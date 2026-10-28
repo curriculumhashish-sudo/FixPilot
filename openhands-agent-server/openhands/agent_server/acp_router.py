@@ -1,4 +1,4 @@
-"""Ask an ACP server which models it offers before a conversation starts."""
+"""在对话开始之前询问 ACP 服务器它提供的模型。"""
 
 from __future__ import annotations
 
@@ -137,7 +137,7 @@ def _codex_bindings(
     store = get_secrets_store(config)
     if store.get_secret(CODEX_AUTH_SECRET_NAME) is None:
         return {}
-    # A stored ChatGPT login refreshes through the store, as in a conversation.
+    # 存储的 ChatGPT 登录名会在商店中刷新，就像在对话中一样。
     secrets.pop(CODEX_AUTH_SECRET_NAME, None)
     return {
         CODEX_AUTH_SECRET_NAME: LocalVersionedCredentialBinding(
@@ -150,11 +150,10 @@ def _codex_bindings(
 async def discover_models(
     body: ACPModelDiscoveryRequest, request: Request
 ) -> ACPModelDiscovery:
-    """Start the ACP server in a throwaway session and report its models.
+    """在一次性会话中启动 ACP 服务器并报告其模型。
 
-    The server answers with its default model and the models it offers for the
-    given credentials; a launch or authentication failure comes back in
-    ``error`` rather than as an HTTP error.
+    服务器以其默认模型和它为给定凭据提供的模型进行应答； 发射或身份验证失败再次出现
+    ``error`` 而不是 HTTP 错误。
     """
     config: Config = get_config(request)
     if config.conversation_runtime == "docker":
@@ -179,7 +178,7 @@ async def discover_models(
             settings,
             secrets=secrets,
             credential_bindings=bindings,
-            # Shares the conversations' npx cache.
+            # 共享对话的 npx 缓存。
             work_root=config.conversations_path,
         )
 

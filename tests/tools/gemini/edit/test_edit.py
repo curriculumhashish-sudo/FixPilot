@@ -1,4 +1,4 @@
-"""Tests for edit tool."""
+"""测试编辑工具。"""
 
 from pathlib import Path
 
@@ -7,8 +7,8 @@ from openhands.tools.gemini.edit.impl import EditExecutor
 
 
 def test_edit_basic_replacement(tmp_path):
-    """Test basic find/replace."""
-    # Create a test file
+    """测试基本查找/替换。"""
+    # 创建测试文件
     test_file = tmp_path / "test.py"
     test_file.write_text("def foo():\n    return 'old'\n")
 
@@ -23,7 +23,7 @@ def test_edit_basic_replacement(tmp_path):
 
 
 def test_edit_multiple_replacements(tmp_path):
-    """Test replacing multiple occurrences."""
+    """测试替换多次出现的情况。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("foo bar foo baz foo\n")
 
@@ -42,7 +42,7 @@ def test_edit_multiple_replacements(tmp_path):
 
 
 def test_edit_mismatch_expected_count(tmp_path):
-    """Test error when replacement count doesn't match expected."""
+    """当替换计数与预期不匹配时出现测试错误。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("foo bar foo\n")
 
@@ -61,7 +61,7 @@ def test_edit_mismatch_expected_count(tmp_path):
 
 
 def test_edit_create_new_file(tmp_path):
-    """Test creating a new file with empty old_string."""
+    """测试创建一个空 old_string 的新文件。"""
     executor = EditExecutor(workspace_root=str(tmp_path))
     action = EditAction(
         file_path="new.py", old_string="", new_string="print('hello')\n"
@@ -72,15 +72,15 @@ def test_edit_create_new_file(tmp_path):
     assert obs.is_new_file
     assert obs.replacements_made == 1
 
-    # Verify file was created
+    # 验证文件已创建
     test_file = tmp_path / "new.py"
     assert test_file.exists()
     assert test_file.read_text() == "print('hello')\n"
 
 
 def test_edit_create_existing_file_error(tmp_path):
-    """Test error when trying to create file that already exists."""
-    # Create existing file
+    """尝试创建已存在的文件时出现测试错误。"""
+    # 创建现有文件
     test_file = tmp_path / "existing.py"
     test_file.write_text("old content\n")
 
@@ -95,7 +95,7 @@ def test_edit_create_existing_file_error(tmp_path):
 
 
 def test_edit_string_not_found(tmp_path):
-    """Test error when old_string is not found."""
+    """未找到 old_string 时测试错误。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world\n")
 
@@ -111,7 +111,7 @@ def test_edit_string_not_found(tmp_path):
 
 
 def test_edit_identical_strings(tmp_path):
-    """Test error when old_string and new_string are the same."""
+    """当old_string和new_string相同时测试错误。"""
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world\n")
 
@@ -125,7 +125,7 @@ def test_edit_identical_strings(tmp_path):
 
 
 def test_edit_file_not_found(tmp_path):
-    """Test error when file doesn't exist."""
+    """文件不存在时测试错误。"""
     executor = EditExecutor(workspace_root=str(tmp_path))
     action = EditAction(file_path="nonexistent.txt", old_string="old", new_string="new")
     obs = executor(action)
@@ -135,7 +135,7 @@ def test_edit_file_not_found(tmp_path):
 
 
 def test_edit_multiline_replacement(tmp_path):
-    """Test replacing multiline text."""
+    """测试替换多行文本。"""
     test_file = tmp_path / "test.py"
     test_file.write_text("def foo():\n    print('old')\n    return 1\n")
 
@@ -153,7 +153,7 @@ def test_edit_multiline_replacement(tmp_path):
 
 
 def test_declared_resources_locks_on_file_path(fake_conv_state):
-    """declared_resources returns a file-path key for per-file locking."""
+    """declared_resources 返回用于每个文件锁定的文件路径密钥。"""
     tool = EditTool.create(conv_state=fake_conv_state)[0]
     absolute_path = Path(fake_conv_state.workspace.working_dir) / "a" / "b.py"
     action = EditAction(file_path=str(absolute_path), old_string="x", new_string="y")
@@ -164,7 +164,7 @@ def test_declared_resources_locks_on_file_path(fake_conv_state):
 
 
 def test_declared_resources_different_files_different_keys(fake_conv_state):
-    """Different file paths produce different resource keys."""
+    """不同的文件路径产生不同的资源密钥。"""
     tool = EditTool.create(conv_state=fake_conv_state)[0]
     a = tool.declared_resources(
         EditAction(file_path="/a.py", old_string="", new_string="x")
@@ -176,7 +176,7 @@ def test_declared_resources_different_files_different_keys(fake_conv_state):
 
 
 def test_declared_resources_relative_path_resolves_against_workspace(fake_conv_state):
-    """Relative paths must resolve against workspace_root, not process CWD."""
+    """相对路径必须针对 workspace_root 进行解析，而不是针对 CWD 进行解析。"""
     tool = EditTool.create(conv_state=fake_conv_state)[0]
     workspace = fake_conv_state.workspace.working_dir
     resources = tool.declared_resources(

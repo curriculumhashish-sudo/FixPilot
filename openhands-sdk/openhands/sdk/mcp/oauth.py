@@ -1,4 +1,4 @@
-"""FastMCP OAuth client that discovers the token endpoint before refreshing."""
+"""FastMCP OAuth客户端在刷新之前发现 token 端点。"""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _DISCOVERY_TIMEOUT = httpx.Timeout(10.0)
 
 _TokenEndpointAuthMethod = Literal["none", "client_secret_post", "client_secret_basic"]
 
-# Most preferred first: a public client is never issued a secret to keep.
+# 最优先考虑的是：公共客户端永远不会被授予机密来保留。
 _TOKEN_ENDPOINT_AUTH_METHODS: tuple[_TokenEndpointAuthMethod, ...] = (
     "none",
     "client_secret_post",
@@ -46,11 +46,10 @@ def _preferred_token_endpoint_auth_method(
 
 
 def _without_client_id_when_basic(request: httpx.Request) -> httpx.Request:
-    """Drop ``client_id`` from the form body of a Basic-authenticated request.
+    """从基本身份验证请求的表单正文中删除 ``client_id``。
 
-    RFC 6749 section 2.3.1 forbids combining the ``Authorization`` header with
-    body credentials, and strict servers reject the mix as using multiple
-    authentication methods.
+    RFC 6749 第 2.3.1 节禁止将 ``Authorization`` 标头与主体凭据组合，并且严格服务器拒
+    绝使用多个身份验证方法的混合。
     """
     if not request.headers.get("Authorization", "").startswith("Basic "):
         return request
@@ -62,27 +61,24 @@ def _without_client_id_when_basic(request: httpx.Request) -> httpx.Request:
 
 
 class MCPOAuth(OAuth):
-    """FastMCP ``OAuth`` whose token refresh targets the discovered endpoint.
+    """FastMCP ``OAuth``，其 token 刷新以发现的端点为目标。
 
-    The upstream ``OAuthClientProvider`` refreshes an expired access token
-    before sending a request, but discovers the authorization server's
-    metadata only inside its 401 branch and never persists it. Every
-    conversation builds a fresh client, so ``_refresh_token`` falls back to
-    ``<MCP server origin>/token``, which is wrong for providers such as GitLab
-    (``/oauth/token``) and Atlassian (``/v1/token``). The 404 that follows
-    drops the tokens and starts the interactive browser flow, which cannot
-    complete inside a sandbox.
+    上游 ``OAuthClientProvider`` 刷新过期的访问令牌在发送请求之前，但发现授权服务器的
+    元数据仅存在于其401分支中，并且永远不会持久化。 每一场
+    对话都会构建一个新的客户端，所以 ``_refresh_token``  退而求其次
+    ``<MCP server origin>/token``，这对于 GitLab (``/oauth/token``) 和 Atlassian (
+    ``/v1/token``) 等提供者来说是错误的。 接下来的 404 会删除 token 并启动交互式浏览
+    器流程，该流程无法在沙箱内完成。
 
-    ``_refresh_token`` runs under upstream's context lock after
-    ``_initialize()`` restored the stored tokens and expiry, so discovery only
-    happens when a refresh is actually about to be attempted.
+    ``_refresh_token`` 运行在上游的上下文锁之后
+    ``_initialize()`` 恢复了存储的 token 和过期时间，因此仅在实际尝试刷新时才会发生发
+    现。
 
-    Dynamic client registration asks for a token endpoint auth method the
-    authorization server advertises, preferring a public client. Upstream
-    sends none, so servers fall back to the RFC 7591 default
-    ``client_secret_basic`` and issue a secret. Token requests that do use
-    Basic auth leave ``client_id`` out of the body, which upstream always
-    includes and which strict servers reject.
+    动态客户端注册需要授权服务器通告的 token 端点身份验证方法，首选公共客户端。 上游
+    发送 None，因此服务器回退到默认值 RFC 7591
+    ``client_secret_basic``并发出机密。 token 确实使用基本身份验证的请求将
+    ``client_id`` 排除在正文之外，上游始终包含该请求
+    ，而严格服务器会拒绝该请求。
     """
 
     async def async_auth_flow(
@@ -98,10 +94,9 @@ class MCPOAuth(OAuth):
                     return
 
     def _with_supported_auth_method(self, request: httpx.Request) -> httpx.Request:
-        """Rebuild the registration request around a supported auth method.
+        """围绕支持的身份验证方法重建注册请求。
 
-        Any other request, an explicitly configured method and a server that
-        advertises no known method all pass through unchanged.
+        任何其他请求、显式配置的方法和通告未知方法的服务器都不会发生变化。
         """
         context = self.context
         if (
@@ -143,12 +138,11 @@ class MCPOAuth(OAuth):
         return _without_client_id_when_basic(await super()._refresh_token())
 
     async def _discover_oauth_metadata(self) -> None:
-        """Populate the resource and authorization-server metadata.
+        """填充资源和授权-服务器元数据。
 
-        Mirrors the discovery upstream performs on a 401 (protected resource
-        metadata first, then authorization server metadata, with the same
-        fallback URL lists). A network failure only logs: the refresh then
-        goes to upstream's default endpoint, exactly as before.
+        镜像上游在 401 上执行的发现（首先是受保护的资源元数据，然后是授权服务器元数据
+        ，具有相同的回退方案 URL 列表）。 网络故障仅记录：刷新然后转到上游的
+        默认值端点，与以前完全相同。
         """
         server_url = self.context.server_url
         try:
@@ -162,7 +156,7 @@ class MCPOAuth(OAuth):
                         continue
                     await self._validate_resource_match(prm)
                     self.context.protected_resource_metadata = prm
-                    # ``authorization_servers`` has a minimum length of one.
+                    # ``authorization_servers`` 的最小长度为 1。
                     self.context.auth_server_url = str(prm.authorization_servers[0])
                     break
 
@@ -186,14 +180,12 @@ class MCPOAuth(OAuth):
 
 
 class NonInteractiveMCPOAuth(MCPOAuth):
-    """``MCPOAuth`` that only uses the stored tokens and refreshes them.
+    """``MCPOAuth`` 仅使用存储的 token 并刷新它们。
 
-    When no stored token is usable, FastMCP starts a new authorization: it
-    preflights the authorization URL with a loopback redirect URI, and if the
-    server rejects that URI it clears the token storage and registers a new
-    client before opening a browser. Nobody can complete that flow for an
-    unattended client, so this one fails the connection instead and leaves
-    the stored state for the user to replace by authorizing again.
+    当没有存储 token 可用的 FastMCP 启动新进程授权它预检查了授权  URL 使用回环重定向
+    URI, 如果服务器拒绝了那个 URI 它清除了解析 tok
+    en 在打开浏览器之前，存储并注册一个新的客户端。 没有人能为未连接的客户端完成那个
+    流程，因此它会失败并留下用户存储的状态，让用户重新授权。
     """
 
     async def redirect_handler(self, authorization_url: str) -> None:  # noqa: ARG002

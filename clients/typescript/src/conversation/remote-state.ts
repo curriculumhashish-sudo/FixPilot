@@ -1,5 +1,5 @@
 /**
- * Remote conversation state management
+ * 远程会话状态管理
  */
 
 import { HttpClient } from '../client/http-client';
@@ -10,7 +10,7 @@ import {
   ConversationExecutionStatus,
   AgentExecutionStatus,
   ConfirmationPolicyBase,
-  // ConversationStats, // Unused for now
+  // ConversationStats, // 暂时未使用
   AgentBase,
   ConversationCallbackType,
 } from '../types/base';
@@ -35,7 +35,7 @@ export class RemoteState {
   private cachedAt = 0;
   private lock = new AsyncLock();
 
-  /** Cache TTL in milliseconds. Cached state older than this triggers a re-fetch. */
+  /** 以毫秒为单位缓存 TTL。 早于此的缓存状态会触发重新获取。*/
   static CACHE_TTL_MS = 2000;
 
   constructor(client: HttpClient, conversationId: string) {
@@ -46,14 +46,13 @@ export class RemoteState {
 
   private async getConversationInfo(): Promise<ConversationInfo> {
     return await this.lock.acquire(async () => {
-      // Return cached state if available and fresh. The cache can be populated
-      // by state-update events that still carry the `full_state` wrapper, so
-      // normalize on the way out here too — this is the single unwrap point.
+      // 返回缓存状态（如果可用且新鲜）。 缓存可以通过仍然携带`full_state`包装的州更新事件来填充，所以在这里也要规范化——这是唯一的解包点。
+      //
       if (this.cachedState !== null && Date.now() - this.cachedAt < RemoteState.CACHE_TTL_MS) {
         return this.normalizeFullState(this.cachedState);
       }
 
-      // Fetch from REST API and normalize the `full_state` wrapper once.
+      // 从 REST API 获取并对 `full_state` 包装器进行一次标准化。
       const response = await this.client.get<ConversationInfo>(
         `/api/conversations/${this.conversationId}`
       );
@@ -66,9 +65,9 @@ export class RemoteState {
   }
 
   /**
-   * Unwrap the API's `full_state` wrapper so every accessor receives a flat
-   * ConversationInfo. Centralizing this here means accessors never have to
-   * unwrap themselves.
+   * 打开 API 的 `full_state` 包装器，以便每个访问器都收到一个平面
+   * ConversationInfo. 将其集中在这里意味着访问者永远不必
+   * 解开自己的包裹。
    */
   private normalizeFullState(info: ConversationInfo): ConversationInfo {
     const wrapped = info as ConversationInfo & { full_state?: ConversationInfo };
@@ -76,7 +75,7 @@ export class RemoteState {
   }
 
   /**
-   * Force a fresh fetch from the server, ignoring the cache.
+   * 强制从服务器重新获取，忽略缓存。
    */
   async refresh(): Promise<ConversationInfo> {
     this.cachedState = null;
@@ -85,7 +84,7 @@ export class RemoteState {
 
   async updateStateFromEvent(event: ConversationStateUpdateEvent): Promise<void> {
     await this.lock.acquire(async () => {
-      // Handle full state snapshot
+      // 处理全状态快照
       if (event.key === FULL_STATE_KEY) {
         if (this.cachedState === null) {
           this.cachedState = {} as ConversationInfo;
@@ -133,12 +132,12 @@ export class RemoteState {
   }
 
   /**
-   * Get the current execution status of the conversation.
-   * This method handles both the new `execution_status` field and the legacy `agent_status` field.
+   * 获取会话当前的执行状态。
+   * 此方法处理新的 `execution_status` 字段和旧的 `agent_status` 字段。
    */
   async getExecutionStatus(): Promise<ConversationExecutionStatus> {
     const info = await this.getConversationInfo();
-    // Try new field first, fall back to legacy field
+    // 先尝试新领域，再回到旧领域
     const statusStr = info.execution_status ?? info.agent_status;
     if (statusStr === undefined || statusStr === null) {
       throw new Error(`execution_status missing in conversation info: ${JSON.stringify(info)}`);
@@ -147,7 +146,7 @@ export class RemoteState {
   }
 
   /**
-   * @deprecated Use getExecutionStatus() instead. This method is kept for backward compatibility.
+   * @已弃用使用 getExecutionStatus() 代替。 该方法被保留为向后兼容性。
    */
   async getAgentStatus(): Promise<AgentExecutionStatus> {
     return this.getExecutionStatus();
@@ -212,7 +211,7 @@ export class RemoteState {
   }
 }
 
-// Simple async lock for serializing state access
+// 简单的异步锁用于序列化状态访问
 class AsyncLock {
   private locked = false;
   private queue: Array<() => void> = [];

@@ -1,1 +1,1 @@
-# options package for LLM parameter selection helpers
+# LLM 参数选择助手的选项包

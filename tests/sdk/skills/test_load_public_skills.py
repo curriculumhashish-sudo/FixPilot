@@ -1,4 +1,4 @@
-"""Tests for load_public_skills functionality with git-based caching."""
+"""使用基于 git 的缓存测试 load_public_skills 功能。"""
 
 import json
 import subprocess
@@ -22,10 +22,10 @@ from openhands.sdk.skills.utils import update_skills_repository
 
 @pytest.fixture(autouse=True)
 def _clear_public_skills_cache():
-    """Clear the public-skills in-memory cache between tests.
+    """在测试之间清除内存中的公共技能缓存。
 
-    The cache is process-global, so without clearing it, results from one test
-    leak into later tests that mock ``update_skills_repository`` differently.
+    缓存是进程全局的，因此如果不清除它，一次测试泄漏到后续测试的结果会有所不同模拟对
+    象 ``update_skills_repository``。
     """
     _invalidate_public_skills_cache()
     yield
@@ -34,15 +34,15 @@ def _clear_public_skills_cache():
 
 @pytest.fixture
 def mock_repo_dir(tmp_path):
-    """Create a mock git repository with skills."""
+    """使用技能创建模拟对象 git 存储库。"""
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
 
-    # Create skills directory
+    # 创建技能目录
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Create skill files
+    # 创建技能文件
     git_skill = skills_dir / "git.md"
     git_skill.write_text(
         "---\n"
@@ -70,7 +70,7 @@ def mock_repo_dir(tmp_path):
         "---\nname: testing\n---\nTesting guidelines for all repos."
     )
 
-    # Create .git directory to simulate a git repo
+    # 创建 .git 目录来模拟 git 存储库
     git_dir = repo_dir / ".git"
     git_dir.mkdir()
 
@@ -79,24 +79,24 @@ def mock_repo_dir(tmp_path):
 
 @pytest.fixture
 def mock_repo_with_agentskills_references(tmp_path):
-    """Create a mock repo with AgentSkills-style skills with reference markdown files.
+    """使用参考 Markdown 文件创建具有 AgentSkills 风格技能的模拟对象存储库。
 
-    This reproduces the issue where markdown files in subdirectories of a SKILL.md
-    directory (like themes/ or references/) are incorrectly loaded as separate skills.
+    这重现了 Markdown 文件在 SKILL.md 目录（如 themes/ 或 references/）下的子目录中被
+    错误加载为独立技能的问题。
     See: https://github.com/OpenHands/software-agent-sdk/issues/1981
     """
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
 
-    # Create skills directory
+    # 创建技能目录
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Create theme-factory skill with SKILL.md and reference markdown files in themes/
+    # 使用 theme/ 中的 SKILL.md 和参考 Markdown 文件创建主题工厂技能
     theme_factory_dir = skills_dir / "theme-factory"
     theme_factory_dir.mkdir()
 
-    # Main SKILL.md file
+    # 主SKILL.md文件
     skill_md = theme_factory_dir / "SKILL.md"
     skill_md.write_text(
         "---\n"
@@ -107,11 +107,11 @@ def mock_repo_with_agentskills_references(tmp_path):
         "This skill provides a curated collection of professional themes.\n"
     )
 
-    # Create themes subdirectory with reference markdown files
+    # 使用参考 Markdown 文件创建主题子目录
     themes_dir = theme_factory_dir / "themes"
     themes_dir.mkdir()
 
-    # These are reference files, NOT separate skills
+    # 这些是参考文件，不单独的技能
     (themes_dir / "arctic-frost.md").write_text(
         "# Arctic Frost\n\nA cool and crisp winter-inspired theme.\n"
     )
@@ -122,7 +122,7 @@ def mock_repo_with_agentskills_references(tmp_path):
         "# Sunset Boulevard\n\nWarm and vibrant sunset colors.\n"
     )
 
-    # Create readiness-report skill with references/ subdirectory
+    # 使用引用/子目录创建准备报告技能
     readiness_dir = skills_dir / "readiness-report"
     readiness_dir.mkdir()
 
@@ -134,7 +134,7 @@ def mock_repo_with_agentskills_references(tmp_path):
         "# Readiness Report Skill\n"
     )
 
-    # Create references subdirectory with reference markdown files
+    # 使用参考 Markdown 文件创建参考子目录
     refs_dir = readiness_dir / "references"
     refs_dir.mkdir()
 
@@ -143,13 +143,13 @@ def mock_repo_with_agentskills_references(tmp_path):
         "# Maturity Levels\n\nMaturity level definitions.\n"
     )
 
-    # Create a regular legacy skill (not AgentSkills format)
+    # 创建常规遗留技能（不是 AgentSkills 格式）
     legacy_skill = skills_dir / "legacy-skill.md"
     legacy_skill.write_text(
         "---\nname: legacy-skill\ntriggers:\n  - legacy\n---\nA legacy format skill.\n"
     )
 
-    # Create .git directory to simulate a git repo
+    # 创建 .git 目录来模拟 git 存储库
     git_dir = repo_dir / ".git"
     git_dir.mkdir()
 
@@ -174,7 +174,7 @@ def _create_skills_git_repo(tmp_path: Path) -> Path:
 
 
 def test_load_public_skills_success(mock_repo_dir, tmp_path):
-    """Test successfully loading skills from cached repository."""
+    """测试从缓存存储库成功加载技能。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_dir
@@ -194,18 +194,18 @@ def test_load_public_skills_success(mock_repo_dir, tmp_path):
         skill_names = {s.name for s in skills}
         assert skill_names == {"git", "docker", "testing"}
 
-        # Check git skill details
+        # 检查 git 技能详细信息
         git_skill = next(s for s in skills if s.name == "git")
         assert isinstance(git_skill.trigger, KeywordTrigger)
         assert "git" in git_skill.trigger.keywords
 
-        # Check testing skill (no trigger - always active)
+        # 检查测试技能（无触发器 - 始终处于活动状态）
         testing_skill = next(s for s in skills if s.name == "testing")
         assert testing_skill.trigger is None
 
 
 def test_load_public_skills_repo_update_fails(tmp_path):
-    """Test handling when repository update fails."""
+    """测试存储库更新失败时的处理。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return None
@@ -225,10 +225,10 @@ def test_load_public_skills_repo_update_fails(tmp_path):
 
 
 def test_load_public_skills_no_skills_directory(tmp_path):
-    """Test handling when skills directory doesn't exist in repo."""
+    """测试存储库中不存在技能目录时的处理。"""
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
-    # No skills directory created
+    # 未创建技能目录
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return repo_dir
@@ -248,17 +248,17 @@ def test_load_public_skills_no_skills_directory(tmp_path):
 
 
 def test_load_public_skills_with_invalid_skill(tmp_path):
-    """Test that invalid skills are skipped gracefully."""
+    """测试无效技能是否被优雅地跳过。"""
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Valid skill
+    # 有效技能
     valid_skill = skills_dir / "valid.md"
     valid_skill.write_text("---\nname: valid\n---\nValid skill content.")
 
-    # Invalid skill
+    # 技能无效
     invalid_skill = skills_dir / "invalid.md"
     invalid_skill.write_text(
         "---\nname: invalid\ntriggers: not_a_list\n---\nInvalid skill."
@@ -278,7 +278,7 @@ def test_load_public_skills_with_invalid_skill(tmp_path):
         ),
     ):
         skills = load_public_skills()
-        # Only valid skill should be loaded, invalid one skipped
+        # 只加载有效技能，无效技能则跳过
         assert len(skills) == 1
         assert skills[0].name == "valid"
 
@@ -311,7 +311,7 @@ def test_update_skills_repository_update_existing(tmp_path):
 
 
 def test_update_skills_repository_clone_timeout(tmp_path):
-    """Test handling of timeout during clone."""
+    """在克隆过程中测试超时的处理。"""
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
 
@@ -345,7 +345,7 @@ def test_update_skills_repository_update_fails_uses_cache(tmp_path):
 
 
 def test_agent_context_loads_public_skills(mock_repo_dir, tmp_path):
-    """Test that AgentContext loads public skills when enabled."""
+    """测试 AgentContext 在启用时是否加载公共技能。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_dir
@@ -370,7 +370,7 @@ def test_agent_context_loads_public_skills(mock_repo_dir, tmp_path):
 def test_agent_context_uses_custom_marketplace_path(
     mock_repo_with_marketplace, tmp_path
 ):
-    """Test that AgentContext forwards marketplace_path to public skill loading."""
+    """测试 AgentContext 转发 marketplace_path 到公共技能加载。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_with_marketplace
@@ -395,18 +395,18 @@ def test_agent_context_uses_custom_marketplace_path(
 
 
 def test_agent_context_can_disable_public_skills_loading():
-    """Test that public skills loading can be disabled."""
+    """测试公共技能加载是否可以禁用。"""
     context = AgentContext(load_public_skills=False)
     assert context.skills == []
 
 
 def test_agent_context_merges_explicit_and_public_skills(mock_repo_dir, tmp_path):
-    """Test that explicit skills and public skills are merged correctly."""
+    """测试显性技能和公共技能是否正确合并。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_dir
 
-    # Create explicit skill
+    # 创造显性技能
     explicit_skill = Skill(
         name="explicit_skill",
         content="Explicit skill content.",
@@ -427,16 +427,16 @@ def test_agent_context_merges_explicit_and_public_skills(mock_repo_dir, tmp_path
         skill_names = {s.name for s in context.skills}
         assert "explicit_skill" in skill_names
         assert "git" in skill_names
-        assert len(context.skills) == 4  # 1 explicit + 3 public
+        assert len(context.skills) == 4  # 1 个显式 + 3 个公共
 
 
 def test_agent_context_explicit_skill_takes_precedence(mock_repo_dir, tmp_path):
-    """Test that explicitly provided skills take precedence over public skills."""
+    """测试明确提供的技能优先于公共技能。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_dir
 
-    # Create explicit skill with same name as public skill
+    # 创建与公共技能同名的显式技能
     explicit_skill = Skill(
         name="git",
         content="Explicit git skill content.",
@@ -454,15 +454,15 @@ def test_agent_context_explicit_skill_takes_precedence(mock_repo_dir, tmp_path):
         ),
     ):
         context = AgentContext(skills=[explicit_skill], load_public_skills=True)
-        # Should have 3 skills (1 explicit git + 2 other public skills)
+        # 应具备 3 项技能（1 项显式 git + 2 项其他公共技能）
         assert len(context.skills) == 3
         git_skill = next(s for s in context.skills if s.name == "git")
-        # Explicit skill should be used, not the public skill
+        # 应使用显性技能，而不是公共技能
         assert git_skill.content == "Explicit git skill content."
 
 
 def test_load_public_skills_custom_repo(mock_repo_dir, tmp_path):
-    """Test loading from a custom repository URL."""
+    """测试从自定义存储库加载URL。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         assert repo_url == "https://github.com/custom-org/custom-skills"
@@ -485,7 +485,7 @@ def test_load_public_skills_custom_repo(mock_repo_dir, tmp_path):
 
 
 def test_load_public_skills_custom_branch(mock_repo_dir, tmp_path):
-    """Test loading from a specific branch."""
+    """测试从特定分支加载。"""
 
     def mock_update_repo(repo_url, ref, cache_dir):
         assert ref == "develop"
@@ -508,21 +508,21 @@ def test_load_public_skills_custom_branch(mock_repo_dir, tmp_path):
 def test_load_public_skills_excludes_reference_markdown_in_agentskills_folders(
     mock_repo_with_agentskills_references, tmp_path
 ):
-    """Test that markdown files in SKILL.md subdirs are NOT loaded as skills.
+    """测试 SKILL.md 子目录中的 Markdown 个文件是否已作为技能加载不。
 
-    This is a regression test for issue #1981:
+    这是针对问题 #1981 的回归测试：
     https://github.com/OpenHands/software-agent-sdk/issues/1981
 
-    When a skill directory contains a SKILL.md file (AgentSkills format), any
-    markdown files in subdirectories (like themes/, references/, etc.) should
-    be treated as reference materials for that skill, NOT as separate skills.
+    技能目录中包含的 SKILL.md 文件 (AgentSkills format), any Markdown 子目录中的文件
+    （如 themes/、 referen
+    ces/等）应被视为该技能的参考材料不作为独立的技能。
 
-    Expected behavior:
-    - theme-factory/SKILL.md -> loaded as "theme-factory" skill
-    - theme-factory/themes/*.md -> NOT loaded (reference files)
-    - readiness-report/SKILL.md -> loaded as "readiness-report" skill
-    - readiness-report/references/*.md -> NOT loaded (reference files)
-    - legacy-skill.md -> loaded as "legacy-skill" skill
+    预期行为：
+    - theme-factory/SKILL.md -> 加载为“theme-factory”技能
+    - theme-factory/themes/*.md -> 不已加载（参考文件）
+    - readiness-report/SKILL.md -> 加载为“readiness-report”技能
+    - readiness-report/references/*.md -> 不已加载（参考文件）
+    - legacy-skill.md -> 加载为“遗留技能”技能
     """
 
     def mock_update_repo(repo_url, branch, cache_dir):
@@ -540,10 +540,10 @@ def test_load_public_skills_excludes_reference_markdown_in_agentskills_folders(
     ):
         skills = load_public_skills()
 
-        # Get all skill names
+        # 获取所有技能名称
         skill_names = {s.name for s in skills}
 
-        # Should have exactly 3 skills: theme-factory, readiness-report, legacy-skill
+        # 应该正好具备 3 项技能：主题工厂、就绪报告、遗留技能
         assert len(skills) == 3, (
             f"Expected 3 skills but got {len(skills)}. "
             f"Skill names: {skill_names}. "
@@ -551,13 +551,14 @@ def test_load_public_skills_excludes_reference_markdown_in_agentskills_folders(
             "should NOT be loaded as separate skills."
         )
 
-        # Verify the correct skills are loaded
+        # 验证已加载正确的技能
         assert "theme-factory" in skill_names
         assert "readiness-report" in skill_names
         assert "legacy-skill" in skill_names
 
-        # Verify reference files are NOT loaded as skills
-        # These would be loaded with names like "theme-factory/themes/arctic-frost"
+        # 验证参考文件是否已作为技能加载不这些文件将加载诸如“theme-factory/themes/arctic
+        # -frost”之类的名称
+        #
         for skill in skills:
             assert "arctic-frost" not in skill.name, (
                 f"Reference arctic-frost.md loaded as skill: {skill.name}"
@@ -576,53 +577,53 @@ def test_load_public_skills_excludes_reference_markdown_in_agentskills_folders(
             )
 
 
-# Tests for marketplace-based skill filtering
+# 基于市场的技能过滤测试
 
 
 @pytest.fixture
 def mock_repo_with_marketplace(tmp_path):
-    """Create a mock git repository with marketplace file and skills."""
+    """使用市场文件和技能创建模拟对象 git 存储库。"""
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
 
-    # Create skills directory
+    # 创建技能目录
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Create marketplaces directory
+    # 创建市场目录
     marketplaces_dir = repo_dir / "marketplaces"
     marketplaces_dir.mkdir()
 
-    # Create multiple skills (some in marketplace, some not)
-    # Skill 1: git (in marketplace)
+    # 创造多种技能（有些在市场中，有些不在市场中） 技能 1：git（在市场中）
+    #
     git_dir = skills_dir / "git"
     git_dir.mkdir()
     (git_dir / "SKILL.md").write_text(
         "---\nname: git\ndescription: Git best practices\n---\nGit skill content."
     )
 
-    # Skill 2: docker (in marketplace)
+    # 技能2：Docker（在市场中）
     docker_dir = skills_dir / "docker"
     docker_dir.mkdir()
     (docker_dir / "SKILL.md").write_text(
         "---\nname: docker\ndescription: Docker guidelines\n---\nDocker skill content."
     )
 
-    # Skill 3: internal-only (NOT in marketplace)
+    # 技能 3：仅限内部（市场中的不）
     internal_dir = skills_dir / "internal-only"
     internal_dir.mkdir()
     (internal_dir / "SKILL.md").write_text(
         "---\nname: internal-only\ndescription: Internal skill\n---\nInternal content."
     )
 
-    # Skill 4: experimental (NOT in marketplace)
+    # 技能 4：实验（市场中的不）
     experimental_dir = skills_dir / "experimental"
     experimental_dir.mkdir()
     (experimental_dir / "SKILL.md").write_text(
         "---\nname: experimental\ndescription: Experimental\n---\nExperimental content."
     )
 
-    # Create default marketplace with only git and docker
+    # 仅使用 git 和 Docker 创建默认市场
     marketplace = {
         "name": "default",
         "owner": {"name": "OpenHands", "email": "test@test.com"},
@@ -649,14 +650,14 @@ def mock_repo_with_marketplace(tmp_path):
     }
     (marketplaces_dir / "custom.json").write_text(json.dumps(custom_marketplace))
 
-    # Create .git directory to simulate a git repo
+    # 创建 .git 目录来模拟 git 存储库
     (repo_dir / ".git").mkdir()
 
     return repo_dir
 
 
 def test_load_marketplace_skill_names_returns_skill_names(mock_repo_with_marketplace):
-    """Test that load_marketplace_skill_names correctly extracts skill names."""
+    """测试 load_marketplace_skill_names 是否正确提取技能名称。"""
     skill_names = load_marketplace_skill_names(
         mock_repo_with_marketplace, "marketplaces/default.json"
     )
@@ -666,7 +667,7 @@ def test_load_marketplace_skill_names_returns_skill_names(mock_repo_with_marketp
 
 
 def test_load_marketplace_skill_names_returns_none_when_file_missing(tmp_path):
-    """Test that load_marketplace_skill_names returns None when file doesn't exist."""
+    """测试当文件不存在时 load_marketplace_skill_names 返回 None。"""
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
 
@@ -675,7 +676,7 @@ def test_load_marketplace_skill_names_returns_none_when_file_missing(tmp_path):
 
 
 def test_load_marketplace_skill_names_returns_none_for_invalid_json(tmp_path):
-    """Test that load_marketplace_skill_names handles invalid JSON gracefully."""
+    """测试 load_marketplace_skill_names 是否优雅地处理无效的 JSON。"""
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     marketplaces_dir = repo_dir / "marketplaces"
@@ -687,7 +688,7 @@ def test_load_marketplace_skill_names_returns_none_for_invalid_json(tmp_path):
 
 
 def test_load_marketplace_skill_names_returns_none_for_missing_plugins(tmp_path):
-    """Test that load_marketplace_skill_names handles missing plugins key."""
+    """测试 load_marketplace_skill_names 是否处理缺失的插件密钥。"""
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     marketplaces_dir = repo_dir / "marketplaces"
@@ -701,7 +702,7 @@ def test_load_marketplace_skill_names_returns_none_for_missing_plugins(tmp_path)
 def test_load_public_skills_filters_by_marketplace(
     mock_repo_with_marketplace, tmp_path
 ):
-    """Test that load_public_skills only loads skills listed in the marketplace."""
+    """测试 load_public_skills 仅加载市场中列出的技能。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_with_marketplace
@@ -727,7 +728,7 @@ def test_load_public_skills_filters_by_marketplace(
 def test_load_public_skills_uses_custom_marketplace_path(
     mock_repo_with_marketplace, tmp_path
 ):
-    """Test that a custom marketplace_path selects a different skill set."""
+    """测试自定义 marketplace_path 选择不同的技能集。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_with_marketplace
@@ -750,7 +751,7 @@ def test_load_public_skills_uses_custom_marketplace_path(
 def test_load_public_skills_returns_empty_for_invalid_custom_marketplace_path(
     mock_repo_with_marketplace, tmp_path
 ):
-    """Test that an invalid custom marketplace_path does not broaden skill loading."""
+    """测试无效的自定义 marketplace_path 不会扩大技能负载。"""
 
     def mock_update_repo(repo_url, branch, cache_dir):
         return mock_repo_with_marketplace
@@ -771,14 +772,14 @@ def test_load_public_skills_returns_empty_for_invalid_custom_marketplace_path(
 
 
 def test_load_public_skills_loads_all_when_no_marketplace(tmp_path):
-    """Test that load_public_skills loads all skills when no marketplace exists."""
-    # Create repo without marketplace
+    """测试 load_public_skills 在不存在市场时加载所有技能。"""
+    # 在没有市场的情况下创建存储库
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Create skills
+    # 创造技能
     for name in ["git", "docker", "internal-only"]:
         skill_dir = skills_dir / name
         skill_dir.mkdir()
@@ -803,19 +804,19 @@ def test_load_public_skills_loads_all_when_no_marketplace(tmp_path):
     ):
         skills = load_public_skills()
 
-        # Should have all skills since no marketplace exists
+        # 应该具备所有技能，因为不存在市场
         skill_names = {s.name for s in skills}
         assert skill_names == {"git", "docker", "internal-only"}
 
 
 def test_load_public_skills_handles_legacy_md_files_with_marketplace(tmp_path):
-    """Test marketplace filtering works with legacy .md skill files."""
+    """测试市场过滤适用于旧版 .md 技能文件。"""
     repo_dir = tmp_path / "mock_repo"
     repo_dir.mkdir()
     skills_dir = repo_dir / "skills"
     skills_dir.mkdir()
 
-    # Create legacy .md skills
+    # 创建遗留 .md 技能
     (skills_dir / "git.md").write_text(
         "---\nname: git\ntriggers:\n  - git\n---\nGit skill."
     )
@@ -826,7 +827,7 @@ def test_load_public_skills_handles_legacy_md_files_with_marketplace(tmp_path):
         "---\nname: internal\ntriggers:\n  - internal\n---\nInternal skill."
     )
 
-    # Create marketplace that includes git and docker but not internal
+    # 创建包含 git 和 Docker 但不包含内部的市场
     marketplaces_dir = repo_dir / "marketplaces"
     marketplaces_dir.mkdir()
     marketplace = {
@@ -856,18 +857,17 @@ def test_load_public_skills_handles_legacy_md_files_with_marketplace(tmp_path):
     ):
         skills = load_public_skills()
 
-        # Should only have git and docker from marketplace
+        # 应该只有 git 和来自市场的 Docker
         skill_names = {s.name for s in skills}
         assert skill_names == {"git", "docker"}
         assert "internal" not in skill_names
 
 
 def test_load_public_skills_caches_result_within_ttl(mock_repo_dir, tmp_path):
-    """Second call within the TTL window must not re-run update_skills_repository.
+    """TTL 窗口内的第二次调用不得重新运行 update_skills_repository。
 
-    Regression test for the slow conversation-creation path: AgentContext was
-    being (re-)validated several times per request, causing load_public_skills
-    to do a git fetch + parse every time.
+    回归测试慢对话创建路径：AgentContext 在每次请求中被重新验证了几次，导致
+    load_public_skills 每次都执行 git fetch + 解析。
     """
     update_mock = MagicMock(return_value=mock_repo_dir)
     with (
@@ -888,7 +888,7 @@ def test_load_public_skills_caches_result_within_ttl(mock_repo_dir, tmp_path):
 
 
 def test_invalidate_public_skills_cache_forces_recompute(mock_repo_dir, tmp_path):
-    """After explicit invalidation, the next call re-runs update_skills_repository."""
+    """显式失效后，下一次调用将重新运行 update_skills_repository。"""
     update_mock = MagicMock(return_value=mock_repo_dir)
     with (
         patch(
@@ -908,10 +908,10 @@ def test_invalidate_public_skills_cache_forces_recompute(mock_repo_dir, tmp_path
 
 
 def test_load_public_skills_does_not_cache_empty_results(mock_repo_dir, tmp_path):
-    """Transient failures must not poison the cache for the full TTL.
+    """瞬态故障不得毒害整个缓存 TTL。
 
-    First call simulates a git/repo failure (no skills returned); second call
-    succeeds and should hit the real path again instead of the empty cache.
+    第一次调用模拟 git/repo 失败（没有返回技能）； 第二次调用成功，应该再次命中真实路
+    径而不是空缓存。
     """
     update_mock = MagicMock(side_effect=[None, mock_repo_dir])
     with (

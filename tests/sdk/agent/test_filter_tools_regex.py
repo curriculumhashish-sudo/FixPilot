@@ -1,9 +1,8 @@
-"""Tests for `Agent.filter_tools_regex`.
+"""测试 `Agent.filter_tools_regex`。
 
-The regex must apply both to statically configured tools resolved during
-`_initialize()` and to tools materialized at runtime (e.g. MCP tools) that are
-registered through `add_runtime_tools()`. Built-in default tools are exempt in
-both paths.
+正则表达式必须同时应用于在期间解析的静态配置工具
+`_initialize()` 以及运行时实现的工具 (e.g. MCP工具）通过`add_runtime_tools()`注册。
+内置默认工具在这两个路径中均不受限制。
 """
 
 import uuid
@@ -76,7 +75,7 @@ class _BlockedTool(ToolDefinition[_FilterAction, _FilterObs]):
 
 
 class _DisallowedTool(ToolDefinition[_FilterAction, _FilterObs]):
-    """Name contains 'allow' but not at the start; used for anchor tests."""
+    """名称包含“允许”但不在开头； 用于锚固测试。"""
 
     name: ClassVar[str] = "disallowed"
 
@@ -93,7 +92,7 @@ class _DisallowedTool(ToolDefinition[_FilterAction, _FilterObs]):
 
 
 class _ExemptThinkTool(ThinkTool):
-    """Built-in subclass whose name does not match any test regex."""
+    """名称与任何测试正则表达式都不匹配的内置子类。"""
 
     name = "subclassed_think"
 
@@ -127,7 +126,7 @@ def test_add_runtime_tools_applies_filter_tools_regex(tmp_path):
 
 
 def test_add_runtime_tools_keeps_builtin_tools(tmp_path):
-    """Built-in default tools bypass the regex, matching `_initialize()`."""
+    """内置默认工具绕过正则表达式，匹配 `_initialize()`。"""
     agent = _make_agent(filter_tools_regex=r"^allowed$")
     _initialize_agent(agent, tmp_path)
 
@@ -163,7 +162,7 @@ def test_static_tools_apply_filter_tools_regex(tmp_path):
 
 
 def test_add_runtime_tools_mixed_batch(tmp_path):
-    """One call mixing a built-in, a matching, and a non-matching tool."""
+    """一次调用混合了内置工具、匹配工具和非匹配工具。"""
     agent = _make_agent(filter_tools_regex=r"^allowed$")
     _initialize_agent(agent, tmp_path)
 
@@ -188,8 +187,8 @@ def test_add_runtime_tools_all_filtered_is_noop(tmp_path):
 
 
 def test_filter_uses_prefix_match_semantics(tmp_path):
-    """`re.match` anchors at the start of the name, like `_initialize()`:
-    an unanchored pattern matches a prefix but never mid-name."""
+    """`re.match` 锚点位于名称的开头，例如 `_initialize()`：
+    未锚定的模式匹配前缀，但不匹配中间名。"""
     agent = _make_agent(filter_tools_regex=r"allow")
     _initialize_agent(agent, tmp_path)
 
@@ -200,7 +199,7 @@ def test_filter_uses_prefix_match_semantics(tmp_path):
 
 
 def test_add_runtime_tools_builtin_subclass_is_exempt(tmp_path):
-    """Subclasses of built-in tools count as built-ins for the exemption."""
+    """内置工具的子类被视为豁免的内置工具。"""
     agent = _make_agent(filter_tools_regex=r"^allowed$")
     _initialize_agent(agent, tmp_path)
 
@@ -210,7 +209,7 @@ def test_add_runtime_tools_builtin_subclass_is_exempt(tmp_path):
 
 
 def test_add_runtime_tools_duplicate_kept_names_still_raise(tmp_path):
-    """Filtering must not weaken duplicate detection for surviving tools."""
+    """过滤不得削弱对幸存工具的重复检测。"""
     agent = _make_agent(filter_tools_regex=r"^allowed$")
     _initialize_agent(agent, tmp_path)
 
@@ -228,8 +227,8 @@ def test_add_runtime_tools_conflict_with_registered_tool_still_raises(tmp_path):
 
 
 def test_add_runtime_tools_duplicate_filtered_names_do_not_raise(tmp_path):
-    """Duplicates among filtered-out tools are dropped before the duplicate
-    check, matching `_initialize()` which filters before validating names."""
+    """过滤掉的工具中的重复项会在重复项之前被删除
+    检查，匹配`_initialize()`，在验证名称之前进行过滤。"""
     agent = _make_agent(filter_tools_regex=r"^allowed$")
     _initialize_agent(agent, tmp_path)
 
@@ -244,7 +243,7 @@ class _StaticMCPClient:
 
 
 class _StaticMCPToolProvider:
-    """Stands in for a live MCP server advertising two tools."""
+    """代表实时 MCP 服务器广告两个工具。"""
 
     def create_tools(
         self,
@@ -261,7 +260,7 @@ class _StaticMCPToolProvider:
 
 
 def test_runtime_mcp_tools_apply_filter_tools_regex(tmp_path):
-    """End-to-end through `LocalConversation._ensure_agent_ready()`."""
+    """端到端通过`LocalConversation._ensure_agent_ready()`。"""
     agent = _make_agent(
         filter_tools_regex=r"^allowed$",
         mcp_config={"fake": {"command": "true", "args": []}},

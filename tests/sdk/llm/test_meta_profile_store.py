@@ -67,7 +67,7 @@ def test_load_accepts_name_with_json_suffix(tmp_path: Path) -> None:
 def test_list_returns_sorted_valid_names(tmp_path: Path) -> None:
     _write(tmp_path, "b", VALID)
     _write(tmp_path, "a", VALID)
-    # A file with an invalid stem must be ignored by list().
+    # 具有无效词干的文件必须被 list() 忽略。
     (tmp_path / ".hidden.json").write_text("{}", encoding="utf-8")
     store = MetaProfileStore(base_dir=tmp_path)
 
@@ -97,7 +97,7 @@ def test_load_corrupted_json_raises_value_error(tmp_path: Path) -> None:
 
 
 def test_load_schema_violation_raises_value_error(tmp_path: Path) -> None:
-    _write(tmp_path, "bad", {"classes": []})  # missing classifier_model
+    _write(tmp_path, "bad", {"classes": []})  # 失踪classifier_model
     store = MetaProfileStore(base_dir=tmp_path)
 
     with pytest.raises(ValueError):
@@ -176,16 +176,16 @@ def test_save_respects_max_profiles(tmp_path: Path) -> None:
     with pytest.raises(MetaProfileLimitExceeded):
         store.save("b", MetaProfile(classifier_model="a"), max_profiles=1)
 
-    # Overwriting an existing one is still allowed at the limit.
+    # 在限制范围内仍然允许覆盖现有的。
     store.save("a", MetaProfile(classifier_model="x"), max_profiles=1)
     assert store.load("a").classifier_model == "x"
 
 
 def test_concurrent_saves_respect_max_profiles(tmp_path: Path) -> None:
-    """The file lock must serialize the limit check + write across threads.
+    """文件锁必须序列化限制检查 + 跨写线程。
 
-    Without locking, concurrent creators can each pass the ``max_profiles``
-    check before any write lands and overshoot the limit (TOCTOU).
+    如果没有锁定，并发创建者可以在任何写入到达并超出限制 (TOCTOU) 之前通过
+    ``max_profiles`` 检查。
     """
     store = MetaProfileStore(base_dir=tmp_path)
     limit = 10
@@ -215,7 +215,7 @@ def test_delete_is_idempotent(tmp_path: Path) -> None:
 
     store.delete("p")
     assert store.list() == []
-    # Deleting a missing meta-profile is a no-op.
+    # 删除丢失的元配置文件是无操作的。
     store.delete("p")
 
 

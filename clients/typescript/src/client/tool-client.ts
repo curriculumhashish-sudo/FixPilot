@@ -27,7 +27,7 @@ export class ToolClient {
     return response.data;
   }
 
-  /** Tools a client may offer when configuring an agent. */
+  /** 客户端在配置智能体时可能提供的工具。*/
   async getToolCatalog(): Promise<ToolCatalogResponse> {
     const response = await this.client.get<ToolCatalogResponse>('/api/tools/catalog');
     return response.data;

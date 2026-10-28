@@ -1,4 +1,4 @@
-"""Tests for the deterministic public Agent Server OpenAPI contract."""
+"""测试确定性公共 Agent Server OpenAPI 合约。"""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ def test_mcp_server_crud_operations_use_canonical_contract_types() -> None:
 
 
 def test_mcp_server_patch_tracks_every_canonical_server_field() -> None:
-    """Keep the sparse patch contract in lock-step with the persisted model."""
+    """将稀疏补丁契约保持在锁步与已持久化模型中。"""
     assert set(MCPServerPatch.model_fields) == set(MCPServer.model_fields)
     assert all(
         not field.is_required() for field in MCPServerPatch.model_fields.values()

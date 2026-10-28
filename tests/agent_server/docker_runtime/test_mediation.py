@@ -199,7 +199,7 @@ async def test_the_host_resolves_a_profile_and_the_container_finalizes_it(
     assert launched is not None
     assert launched.agent_profile_id == profile.id
     assert "agent_profile_id" not in payload
-    # The host leaves the default tool set, and so the browser, to the container.
+    # 主机将默认工具集和浏览器留给容器。
     assert payload["agent_settings"]["tools"] is None
     received = StartConversationRequest.model_validate(
         payload, context={"cipher": identity.cipher}
@@ -303,7 +303,7 @@ async def test_an_existing_conversation_is_not_resolved_again(tmp_path, monkeypa
 
 
 def _docker_host_browser(host: Config) -> bool:
-    # The host's own chromium says nothing about the container's.
+    # 主机自己的铬与容器的铬没有任何关系。
     with patch("openhands.agent_server.launch.is_tool_usable", return_value=False):
         runtime = target_launch_runtime(host)
     assert runtime.acp_skill_sourcing == "openhands_managed"

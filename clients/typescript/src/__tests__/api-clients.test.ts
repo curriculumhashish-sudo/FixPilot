@@ -42,8 +42,8 @@ import {
 import * as http from 'node:http';
 import { EventEmitter } from 'node:events';
 
-// `fetch` rejects a GET body, so the batch endpoints route through node:http.
-// Its `request` export isn't configurable (vi.spyOn fails), so mock the module.
+// `fetch` 拒绝 GET 主体，因此批次端点通过节点：HTTP 路由。 它的 `request` 导出不可配置（vi.spyOn 失败），因此模拟对象模块。
+//
 vi.mock('node:http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('node:http')>()),
   request: vi.fn(),
@@ -52,9 +52,9 @@ vi.mock('node:http', async (importOriginal) => ({
 const originalFetch = global.fetch;
 
 /**
- * Drive the mocked Node `http.request` for the GET-with-body transport path used
- * by the batch endpoints. Captures the request URL/options/body and replays a
- * canned JSON response.
+ * 驱动所使用的 GET-with-body 传输层路径的模拟的节点 `http.request`
+ * 按批次端点。 捕获请求 URL/options/body 并重播
+ * 预设的 JSON 回复。
  */
 function mockNodeHttpRequest(responseBody: string, status = 200) {
   const captured: { url?: URL; options?: http.RequestOptions; body?: string } = {};
@@ -1817,7 +1817,7 @@ describe('Auxiliary API clients', () => {
       conversationId: 'conv-123',
     });
 
-    // Omitted maxIterations must not appear on the wire (server default applies).
+    // 省略的 maxIterations 不得出现在线路上（应用服务器默认值）。
     global.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ success: true }), {
         status: 200,
@@ -1833,8 +1833,8 @@ describe('Auxiliary API clients', () => {
       })
     );
 
-    // A 409 from the server (run/goal already active) must propagate as HttpError,
-    // and maxIterations must be forwarded when supplied.
+    // 来自服务器的 409（运行/目标已处于活动状态）必须作为 HttpError 传播，并且 maxIterations 必须在提供时转发。
+    //
     global.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ detail: 'Conversation run or goal loop already running.' }), {
         status: 409,
@@ -2129,7 +2129,7 @@ describe('Auxiliary API clients', () => {
         body: JSON.stringify({ event_id: 'event-7' }),
       })
     );
-    // The response carries the new HEAD.
+    // 响应携带新的HEAD。
     expect(info.leaf_event_id).toBe('event-7');
   });
 
@@ -2144,7 +2144,7 @@ describe('Auxiliary API clients', () => {
     const client = new ConversationClient({ host: 'http://example.com' });
     await client.navigateConversation('conversation-1', { event_id: null });
 
-    // No includeSkills option => no query string on the URL.
+    // 没有 includeSkills 选项 => URL 上没有查询字符串。
     expect(global.fetch).toHaveBeenCalledWith(
       'http://example.com/api/conversations/conversation-1/navigate',
       expect.objectContaining({
@@ -2155,9 +2155,8 @@ describe('Auxiliary API clients', () => {
   });
 
   it('RemoteConversation.navigateTo POSTs to /navigate then refreshes cached state', async () => {
-    // navigateTo posts to the route and then GETs the conversation to refresh
-    // the cache (leaf_event_id is not broadcast over the WebSocket). Two calls
-    // means each needs its own Response (a body can only be read once).
+    // navigateTo 将帖子发布到路由，然后 GETs 会话以刷新缓存 (leaf_event_id 不会通过 WebSocket 发布）。 两次调用意味着每个调用都需要自己的响应（正文只能读取一次）。
+    //
     global.fetch = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify({ id: 'conv-123', leaf_event_id: 'event-3' }), {
@@ -2182,7 +2181,7 @@ describe('Auxiliary API clients', () => {
         body: JSON.stringify({ event_id: 'event-3' }),
       })
     );
-    // The trailing refresh re-reads the conversation from the REST API.
+    // 尾随刷新重新读取 REST API 中的对话。
     expect(global.fetch).toHaveBeenCalledWith(
       'http://example.com/api/conversations/conv-123',
       expect.objectContaining({ method: 'GET' })
@@ -2190,7 +2189,7 @@ describe('Auxiliary API clients', () => {
   });
 
   it('RemoteConversation.navigateTo passes a null event_id for the empty tree', async () => {
-    // Fresh Response per call: navigateTo posts and then refreshes state.
+    // 每次调用的新鲜响应：navigateTo 发布，然后刷新状态。
     global.fetch = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify({ id: 'conv-123', leaf_event_id: null }), {
@@ -2633,8 +2632,8 @@ describe('Auxiliary API clients', () => {
 
       expect(error).toBeInstanceOf(HttpError);
       expect((error as HttpError).status).toBe(409);
-      // The failure must still have targeted the right route, method, and body
-      // so a 409 is attributable to server state, not a client contract bug.
+      // 失败仍然必须针对正确的路由、方法和主体，因此 409 可以归因于服务器状态，而不是客户端合同错误。
+      //
       expect(global.fetch).toHaveBeenCalledWith(
         'http://example.com/api/conversations/c1/goal',
         expect.objectContaining({
@@ -2652,8 +2651,8 @@ describe('Auxiliary API clients', () => {
 
       expect(error).toBeInstanceOf(HttpError);
       expect((error as HttpError).status).toBe(400);
-      // max_iterations is omitted from the wire body when not supplied so the
-      // server applies its own default.
+      // 当未提供时，max_iterations 从线体中省略，因此服务器应用其自己的默认值。
+      //
       expect(global.fetch).toHaveBeenCalledWith(
         'http://example.com/api/conversations/c1/goal',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ objective: '' }) })

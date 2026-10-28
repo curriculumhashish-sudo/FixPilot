@@ -1,4 +1,4 @@
-"""Tests for first-message WebSocket authentication in sockets.py."""
+"""测试 sockets.py 中的第一条消息 WebSocket 身份验证。"""
 
 import asyncio
 import json
@@ -16,7 +16,7 @@ from openhands.agent_server.sockets import (
 
 
 def _make_mock_websocket(*, headers=None):
-    """Build a mock WebSocket with configurable query params and headers."""
+    """使用可配置的查询参数和标头构建模拟对象 WebSocket。"""
     ws = MagicMock()
     ws.accept = AsyncMock()
     ws.receive_text = AsyncMock()
@@ -27,7 +27,7 @@ def _make_mock_websocket(*, headers=None):
     return ws
 
 
-# -- No auth configured (empty session_api_keys) --
+# -- 未配置身份验证（空 session_api_keys）--
 
 
 @pytest.mark.asyncio
@@ -42,7 +42,7 @@ async def test_no_auth_configured_accepts_immediately():
     ws.receive_text.assert_not_called()
 
 
-# -- Legacy query param auth (deprecated) --
+# -- 旧版查询参数 auth (已弃用) --
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_legacy_query_param_invalid_key():
 
 @pytest.mark.asyncio
 async def test_legacy_query_param_takes_precedence_over_first_message():
-    """When both query param and first-message auth could apply, query param wins."""
+    """当查询参数和第一条消息身份验证都可以应用时，查询参数获胜。"""
     ws = _make_mock_websocket()
     ws.receive_text.return_value = json.dumps(
         {"type": "auth", "session_api_key": "sk-oh-different"}
@@ -88,11 +88,11 @@ async def test_legacy_query_param_takes_precedence_over_first_message():
 
     assert result is True
     ws.accept.assert_called_once()
-    # Should NOT read first message because query param already authenticated.
+    # 应该不读取第一条消息，因为查询参数已通过身份验证。
     ws.receive_text.assert_not_called()
 
 
-# -- Legacy header auth (deprecated) --
+# -- 旧标头身份验证 (已弃用) --
 
 
 @pytest.mark.asyncio
@@ -117,7 +117,7 @@ async def test_legacy_header_invalid_key():
     ws.close.assert_called_once_with(code=4001, reason="Authentication failed")
 
 
-# -- First-message auth --
+# -- 第一消息认证 --
 
 
 @pytest.mark.asyncio
@@ -146,7 +146,7 @@ async def test_first_message_auth_invalid_key():
         result = await _accept_authenticated_websocket(ws, session_api_key=None)
 
     assert result is False
-    ws.accept.assert_called_once()  # accepted before reading first message
+    ws.accept.assert_called_once()  # 在阅读第一条消息之前接受
     ws.close.assert_called_once_with(code=4001, reason="Authentication failed")
 
 
@@ -243,17 +243,17 @@ async def test_first_message_auth_timeout():
     ws.close.assert_called_once_with(code=4001, reason="Authentication failed")
 
 
-# -- End-to-end: first-message auth through events_socket --
+# -- 从端到端：通过 events_socket 进行第一个消息的认证 --
 
 
 @pytest.mark.asyncio
 async def test_events_socket_first_message_auth_e2e():
-    """First-message auth works end-to-end through the events_socket endpoint."""
+    """第一条消息身份验证通过 events_socket 端点进行端到端的工作。"""
     from openhands.agent_server.event_service import EventService
     from openhands.agent_server.sockets import events_socket
 
     ws = _make_mock_websocket()
-    # Auth via receive_text, then receive_json raises disconnect.
+    # 通过 receive_text 进行身份验证，然后 receive_json 引发断开连接。
     ws.receive_text.return_value = json.dumps(
         {"type": "auth", "session_api_key": "sk-oh-valid"}
     )
@@ -281,20 +281,19 @@ async def test_events_socket_first_message_auth_e2e():
 
 @pytest.mark.asyncio
 async def test_events_socket_ignores_redundant_auth_control_frame():
-    """A redundant ``{"type": "auth", ...}`` frame after legacy auth is ignored.
+    """传统身份验证后的冗余 ``{"type": "auth", ...}`` 帧将被忽略。
 
-    Regression for issue #3127: mixed-mode clients can authenticate via the
-    legacy query param / header and *also* send a first-message auth frame.
-    The post-auth receive loop must skip that frame instead of validating
-    it as a ``Message`` (which fails on the missing ``role`` field and
-    emits a noisy ``ServerErrorEvent``).
+    回归对于问题 #3127：混合模式客户端可以通过旧查询参数/标头进行身份验证，并且 * 还
+    * 发送第一条消息身份验证帧。 验证后接收循环必须跳过该帧，而不是将其验
+    证为 ``Message``（这会在缺少 ``role`` 字段时失败并发出嘈杂的 ``ServerErrorEvent``
+    ）。
     """
     from openhands.agent_server.event_service import EventService
     from openhands.agent_server.sockets import events_socket
 
     ws = _make_mock_websocket()
-    # First frame on the post-auth loop is the redundant auth control
-    # message; second frame is a real user message; third closes the loop.
+    # 认证后循环上的第一帧是冗余认证控制消息； 第二帧是真实的用户消息； 第三个关闭循环。
+    #
     real_user_message = {"type": "auth", "role": "user", "content": []}
     ws.receive_json.side_effect = [
         {"type": "auth", "session_api_key": "sk-oh-valid"},
@@ -316,12 +315,12 @@ async def test_events_socket_ignores_redundant_auth_control_frame():
         mock_config.return_value.session_api_keys = ["sk-oh-valid"]
         mock_conv_service.get_event_service = AsyncMock(return_value=mock_event_service)
 
-        # Authenticate via legacy query param so receive_text is never called.
+        # 通过旧查询参数进行身份验证，因此永远不会调用 receive_text。
         await events_socket(uuid4(), ws, session_api_key="sk-oh-valid")
 
-    # No ServerErrorEvent should be emitted for the auth control frame.
+    # 验证控制帧不应发出 ServerErrorEvent。
     ws.send_json.assert_not_called()
-    # send_message is only called for the real user message, exactly once.
+    # send_message 仅针对真实用户消息调用一次。
     assert mock_event_service.send_message.await_count == 1
     sent_message = mock_event_service.send_message.await_args.args[0]
     assert sent_message.role == "user"
@@ -329,7 +328,7 @@ async def test_events_socket_ignores_redundant_auth_control_frame():
 
 @pytest.mark.asyncio
 async def test_events_socket_first_message_auth_rejected():
-    """events_socket returns early when first-message auth fails."""
+    """当第一条消息身份验证失败时，events_socket 会提前返回。"""
     from openhands.agent_server.sockets import events_socket
 
     ws = _make_mock_websocket()
@@ -343,7 +342,7 @@ async def test_events_socket_first_message_auth_rejected():
         await events_socket(uuid4(), ws, session_api_key=None)
 
     ws.accept.assert_called_once()
-    # Should not proceed to subscribe
+    # 不应继续订阅
     ws.receive_json.assert_not_called()
 
 

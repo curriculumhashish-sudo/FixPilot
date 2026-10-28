@@ -1,4 +1,4 @@
-"""Test directory handling in tool registry."""
+"""在工具注册表中测试目录处理。"""
 
 import os
 import sys
@@ -25,7 +25,7 @@ from openhands.tools.terminal import TerminalTool
 
 
 class DummyAgent(AgentBase):
-    """Test agent for directory testing."""
+    """Test 智能体用于目录测试。"""
 
     def __init__(self):
         llm = LLM(
@@ -52,13 +52,13 @@ class DummyAgent(AgentBase):
 
 @pytest.fixture
 def test_agent():
-    """Create a test agent for testing."""
+    """创建一个测试智能体进行测试。"""
     return DummyAgent()
 
 
 @pytest.fixture(autouse=True)
 def register_tools():
-    """Register tools for testing."""
+    """注册测试工具。"""
     from openhands.sdk.tool import register_tool
 
     register_tool("TerminalTool", TerminalTool)
@@ -71,7 +71,7 @@ def register_tools():
     reason="TerminalTool directory resolution requires the Unix terminal backend.",
 )
 def test_resolve_tool_with_conversation_directories(test_agent):
-    """Test that resolve_tool uses directories from conversation."""
+    """测试 resolve_tool 使用对话中的目录。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         working_dir = os.path.join(temp_dir, "work")
         persistence_dir = os.path.join(temp_dir, "persist")
@@ -84,28 +84,28 @@ def test_resolve_tool_with_conversation_directories(test_agent):
             workspace=working_dir,
         )
 
-        # Test TerminalTool
+        # 测试 TerminalTool
         bash_tool = Tool(name="TerminalTool")
         bash_tools = resolve_tool(bash_tool, conv_state=conversation._state)
         assert len(bash_tools) == 1
         work_dir = bash_tools[0].executor.working_dir  # type: ignore[attr-defined]
         assert work_dir == working_dir
 
-        # Test FileEditorTool
+        # 测试 FileEditorTool
         editor_tool = Tool(name="FileEditorTool")
         editor_tools = resolve_tool(editor_tool, conv_state=conversation._state)
         assert len(editor_tools) == 1
-        # Type ignore needed for test-specific executor access
+        # 特定于测试的执行程序访问所需的类型忽略
         cwd = str(editor_tools[0].executor.editor._cwd)  # type: ignore[attr-defined]
         assert cwd == working_dir
 
-        # Test TaskTrackerTool
+        # 测试 TaskTrackerTool
         tracker_tool = Tool(name="TaskTrackerTool")
         tracker_tools = resolve_tool(tracker_tool, conv_state=conversation._state)
         assert len(tracker_tools) == 1
-        # Type ignore needed for test-specific executor access
+        # 特定于测试的执行程序访问所需的类型忽略
         save_dir = str(tracker_tools[0].executor.save_dir)  # type: ignore[attr-defined]
-        # TaskTrackerTool uses conversation's persistence_dir which includes
-        # conversation ID
+        # TaskTrackerTool 使用对话的 persistence_dir，其中包括对话 ID
+        #
         expected_save_dir = str(Path(persistence_dir) / conversation._state.id.hex)
         assert save_dir == expected_save_dir

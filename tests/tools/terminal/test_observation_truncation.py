@@ -1,4 +1,4 @@
-"""Tests for TerminalObservation truncation functionality."""
+"""测试 TerminalObservation 截断功能。"""
 
 from openhands.sdk.llm import TextContent
 from openhands.tools.terminal.constants import MAX_CMD_OUTPUT_SIZE
@@ -7,7 +7,7 @@ from openhands.tools.terminal.metadata import CmdOutputMetadata
 
 
 def test_terminal_observation_truncation_under_limit():
-    """Test TerminalObservation doesn't truncate when under limit."""
+    """测试 TerminalObservation 在低于限制时不会截断。"""
     metadata = CmdOutputMetadata(
         prefix="",
         suffix="",
@@ -38,7 +38,7 @@ def test_terminal_observation_truncation_under_limit():
 
 
 def test_terminal_observation_truncation_over_limit():
-    """Test TerminalObservation truncates when over limit."""
+    """测试 TerminalObservation 超出限制时会被截断。"""
     metadata = CmdOutputMetadata(
         prefix="",
         suffix="",
@@ -48,7 +48,7 @@ def test_terminal_observation_truncation_over_limit():
         pid=123,
     )
 
-    # Create output that exceeds the limit
+    # 创建超出限制的输出
     long_output = "A" * (MAX_CMD_OUTPUT_SIZE + 1000)
 
     observation = TerminalObservation(
@@ -62,20 +62,20 @@ def test_terminal_observation_truncation_over_limit():
     assert isinstance(result[0], TextContent)
     result = result[0].text
 
-    # The result should be truncated
-    assert len(result) < len(long_output) + 200  # Account for metadata
-    # With head-and-tail truncation, should start and end with original content
-    assert result.startswith("A")  # Should start with original content
+    # 结果应该被截断
+    assert len(result) < len(long_output) + 200  # 元数据帐户
+    # 头尾截断，应以原始内容开头和结尾
+    assert result.startswith("A")  # 应该从原创内容开始
     expected_end = (
         "A\n[Current working directory: /tmp]\n[Python interpreter: /usr/bin/python]\n"
         "[Command finished with exit code 0]"
     )
-    assert result.endswith(expected_end)  # Should end with original content + metadata
-    assert "<response clipped>" in result  # Should contain truncation notice
+    assert result.endswith(expected_end)  # 应以原始内容+元数据结束
+    assert "<response clipped>" in result  # 应包含截断通知
 
 
 def test_terminal_observation_truncation_with_error():
-    """Test TerminalObservation truncates with error prefix."""
+    """测试 TerminalObservation 截断并带有错误前缀。"""
     metadata = CmdOutputMetadata(
         prefix="",
         suffix="",
@@ -85,7 +85,7 @@ def test_terminal_observation_truncation_with_error():
         pid=123,
     )
 
-    # Create output that exceeds the limit
+    # 创建超出限制的输出
     long_output = "B" * (MAX_CMD_OUTPUT_SIZE + 500)
 
     observation = TerminalObservation(
@@ -103,19 +103,19 @@ def test_terminal_observation_truncation_with_error():
     assert isinstance(result[1], TextContent)
     result = result[1].text
 
-    # The result should be truncated
-    assert len(result) < len(long_output) + 300  # Account for metadata and error prefix
-    # With head-and-tail truncation, should end with original content + metadata
+    # 结果应该被截断
+    assert len(result) < len(long_output) + 300  # 元数据和错误前缀的帐户
+    # 头尾截断，应以原始内容+元数据结尾
     expected_end = (
         "B\n[Current working directory: /tmp]\n[Python interpreter: /usr/bin/python]\n"
         "[Command finished with exit code 1]"
     )
     assert result.endswith(expected_end)
-    assert "<response clipped>" in result  # Should contain truncation notice
+    assert "<response clipped>" in result  # 应包含截断通知
 
 
 def test_terminal_observation_truncation_exact_limit():
-    """Test TerminalObservation doesn't truncate when exactly at limit."""
+    """测试 TerminalObservation 在恰好达到极限时不会截断。"""
     metadata = CmdOutputMetadata(
         prefix="",
         suffix="",
@@ -125,7 +125,7 @@ def test_terminal_observation_truncation_exact_limit():
         pid=123,
     )
 
-    # Calculate exact size to hit the limit after adding metadata
+    # 添加元数据后计算精确大小以达到限制
     metadata_text = (
         "\n[Current working directory: /tmp]\n"
         "[Python interpreter: /usr/bin/python]\n"
@@ -145,13 +145,13 @@ def test_terminal_observation_truncation_exact_limit():
     assert isinstance(result[0], TextContent)
     result = result[0].text
 
-    # Should not be truncated
+    # 不应该被截断
     assert len(result) == MAX_CMD_OUTPUT_SIZE
     assert not result.endswith("</NOTE>")
 
 
 def test_terminal_observation_truncation_with_prefix_suffix():
-    """Test TerminalObservation truncates with prefix and suffix."""
+    """测试 TerminalObservation 使用前缀和后缀截断。"""
     metadata = CmdOutputMetadata(
         prefix="[PREFIX] ",
         suffix=" [SUFFIX]",
@@ -161,7 +161,7 @@ def test_terminal_observation_truncation_with_prefix_suffix():
         pid=123,
     )
 
-    # Create output that exceeds the limit
+    # 创建超出限制的输出
     long_output = "D" * (MAX_CMD_OUTPUT_SIZE + 200)
 
     observation = TerminalObservation(
@@ -175,15 +175,13 @@ def test_terminal_observation_truncation_with_prefix_suffix():
     assert isinstance(result[0], TextContent)
     result = result[0].text
 
-    # The result should be truncated and include prefix/suffix
+    # 结果应被截断并包含前缀/后缀
     assert result.startswith("[PREFIX] ")
-    assert (
-        len(result) < len(long_output) + 300
-    )  # Account for metadata and prefix/suffix
-    # With head-and-tail truncation, should end with original content + metadata
+    assert len(result) < len(long_output) + 300  # 元数据和前缀/后缀的帐户
+    # 头尾截断，应以原始内容+元数据结尾
     expected_end = (
         "D [SUFFIX]\n[Current working directory: /tmp]\n"
         "[Python interpreter: /usr/bin/python]\n[Command finished with exit code 0]"
     )
     assert result.endswith(expected_end)
-    assert "<response clipped>" in result  # Should contain truncation notice
+    assert "<response clipped>" in result  # 应包含截断通知

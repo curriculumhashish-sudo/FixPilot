@@ -1,4 +1,4 @@
-"""Edit tool definition (Gemini-style)."""
+"""编辑工具定义（Gemini 风格）。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class EditAction(Action):
-    """Schema for edit operation."""
+    """模式用于编辑操作。"""
 
     file_path: str = Field(description="The path to the file to modify.")
     old_string: str = Field(
@@ -43,7 +43,7 @@ class EditAction(Action):
 
 
 class EditObservation(FileChangeObservation):
-    """Observation from editing a file."""
+    """观测结果来自编辑文件。"""
 
     file_path: str | None = Field(
         default=None, description="The file path that was edited."
@@ -94,13 +94,13 @@ Examples:
 
 
 class EditTool(ToolDefinition[EditAction, EditObservation]):
-    """Tool for editing files via find/replace."""
+    """通过查找/替换编辑文件的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        """Lock on the target file path so concurrent edits to the same
-        file are serialized, while edits to different files run in parallel.
+        """锁在目标文件路径上，因此并发编辑为相同
+        文件是已序列化，同时对不同文件的编辑并行运行。
         """
         assert isinstance(action, EditAction)
         path = Path(action.file_path)
@@ -116,10 +116,10 @@ class EditTool(ToolDefinition[EditAction, EditObservation]):
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["EditTool"]:
-        """Initialize EditTool with executor.
+        """使用执行器初始化 EditTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
+            conv_state: 要从中获取工作目录的对话状态。
         """
         from openhands.tools.gemini.edit.impl import EditExecutor
 

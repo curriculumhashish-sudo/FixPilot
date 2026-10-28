@@ -1,11 +1,10 @@
-"""Byte-level coverage for ``WindowsTerminal.send_keys``.
+"""``WindowsTerminal.send_keys`` 的字节级覆盖率。
 
-These tests drive the real ``send_keys()`` against a stubbed PowerShell process,
-so they run on every platform rather than only in the Windows CI job. They pin
-the newline contract the multiline fix depends on: PowerShell holds a multiline
-statement at the ``>>`` continuation prompt until it receives a blank line, so
-multiline input must be terminated with ``\\n\\n`` while single-line input keeps
-exactly one ``\\n``.
+这些测试针对存根 PowerShell 进程驱动真实的 ``send_keys()``，因此它们可以在每个平台上
+运行，而不仅仅是在 Windows CI 作业中运行。 他们
+将换行合同绑定在多行修复依赖的PowerShell上：``>>``在提示词的多行语句上，直到接收到空
+白行，所以多行输入必须以``\\n\\n``结束，而单行输入则必须保持一
+个``\\n``。
 """
 
 import tempfile
@@ -29,7 +28,7 @@ class _FakeStdin:
 
 
 class _FakeProcess:
-    """Minimal stand-in for a live PowerShell process."""
+    """实时 PowerShell 进程的最小替代。"""
 
     def __init__(self) -> None:
         self.stdin = _FakeStdin()
@@ -39,7 +38,7 @@ class _FakeProcess:
 
 
 def _sent_text(command: str, enter: bool = True) -> str:
-    """Return exactly what ``send_keys`` writes to PowerShell's stdin."""
+    """准确返回 ``send_keys`` 写入 PowerShell 的标准输入的内容。"""
     with tempfile.TemporaryDirectory() as work_dir:
         terminal = WindowsTerminal(work_dir=work_dir, shell_path="powershell.exe")
         process = _FakeProcess()
@@ -66,7 +65,7 @@ SINGLE_LINE_COMMANDS = [
 
 @pytest.mark.parametrize("command", MULTILINE_COMMANDS)
 def test_multiline_input_ends_with_blank_line(command: str) -> None:
-    """A blank line is what submits PowerShell's continuation buffer."""
+    """空行是提交 PowerShell 的连续缓冲区的内容。"""
     sent = _sent_text(command)
 
     assert sent.endswith("\n\n")
@@ -74,7 +73,7 @@ def test_multiline_input_ends_with_blank_line(command: str) -> None:
 
 @pytest.mark.parametrize("command", SINGLE_LINE_COMMANDS)
 def test_single_line_input_ends_with_exactly_one_newline(command: str) -> None:
-    """The single-line path is unchanged: one newline, no spurious blank line."""
+    """单行路径保持不变：一个换行符，没有虚假的空行。"""
     sent = _sent_text(command)
 
     assert sent.endswith("\n")
@@ -83,7 +82,7 @@ def test_single_line_input_ends_with_exactly_one_newline(command: str) -> None:
 
 @pytest.mark.parametrize("command", MULTILINE_COMMANDS + SINGLE_LINE_COMMANDS)
 def test_metadata_suffix_is_submitted_with_the_command(command: str) -> None:
-    """The PS1 metadata suffix rides along, so the marker can be parsed back."""
+    """PS1 元数据后缀随之而来，因此可以解析回标记。"""
     sent = _sent_text(command)
 
     assert "$oh1 = $?" in sent
@@ -92,7 +91,7 @@ def test_metadata_suffix_is_submitted_with_the_command(command: str) -> None:
 
 @pytest.mark.parametrize("command", MULTILINE_COMMANDS + SINGLE_LINE_COMMANDS)
 def test_enter_false_appends_no_newline(command: str) -> None:
-    """``enter=False`` must not submit anything, multiline or not."""
+    """``enter=False`` 不得提交任何内容，无论是否为多行。"""
     sent = _sent_text(command, enter=False)
 
     assert not sent.endswith("\n")

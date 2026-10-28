@@ -14,7 +14,7 @@ from openhands.sdk.extensions.installation.utils import validate_extension_name
     ],
 )
 def test_validate_extension_name(input: str, valid: bool):
-    """Tests that validate_extension_name captures kebab-case."""
+    """测试 validate_extension_name 捕获 kebab-case。"""
     if valid:
         assert validate_extension_name(input) is None
     else:

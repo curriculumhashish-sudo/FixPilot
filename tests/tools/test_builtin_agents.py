@@ -1,4 +1,4 @@
-"""Tests for built-in subagents definitions."""
+"""测试内置子智能体定义。"""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -18,13 +18,13 @@ from openhands.sdk.subagent.registry import (
 from openhands.tools.preset.default import register_builtins_agents
 
 
-# Resolve once from the installed package — works regardless of cwd.
+# 从已安装的软件包中解析一次 — 无论 cwd 如何，都可以工作。
 SUBAGENTS_DIR: Final[Path] = Path(_preset_default.__file__).parent / "subagents"
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry() -> Iterator[None]:
-    """Reset the agent registry before and after every test."""
+    """每次测试之前和之后重置智能体注册表。"""
     _reset_registry_for_tests()
     yield
     _reset_registry_for_tests()
@@ -42,7 +42,7 @@ def test_builtins_contains_expected_agents() -> None:
 
 
 def test_load_all_builtins() -> None:
-    """Every .md file in subagents/ should parse without errors."""
+    """subagents/ 中的每个 .md 文件都应该正确解析。"""
     agents = load_agents_from_dir(SUBAGENTS_DIR)
     names = {a.name for a in agents}
     assert {
@@ -81,7 +81,7 @@ def test_register_builtins_agents_registers_expected_factories(
 
     assert len(agent_tool_names) == len(expected_agents)
 
-    # general purpose agent should never include browser tools
+    # 通用智能体不应包含浏览器工具
     assert agent_tool_names["general-purpose"] == [
         "terminal",
         "file_editor",
@@ -96,7 +96,7 @@ def test_register_builtins_agents_registers_expected_factories(
 
 
 def test_general_purpose_has_no_browser_tools() -> None:
-    """general-purpose agent should not have browser tools (architectural change)."""
+    """通用智能体不应该有浏览器工具（架构方面的更改）。"""
     register_builtins_agents(enable_browser=True)
     factory = get_agent_factory("general-purpose")
     agent = factory.factory_func(_make_test_llm())
@@ -105,7 +105,7 @@ def test_general_purpose_has_no_browser_tools() -> None:
 
 
 def test_register_builtins_agents_skips_web_researcher_without_browser() -> None:
-    """When enable_browser=False, the web researcher agent should not be registered."""
+    """当 enable_browser 等于 False 时，研究人员智能体应该不注册。"""
     register_builtins_agents(enable_browser=False)
     with pytest.raises(ValueError, match="Unknown agent 'web-researcher'"):
         get_agent_factory("web-researcher")
@@ -123,7 +123,7 @@ def test_register_builtins_agents_skips_web_researcher_without_browser() -> None
 def test_deprecated_agent_names_still_work(
     old_name: str, expected_tools: list[str]
 ) -> None:
-    """Old agent names should resolve to the correct agent with the right tools."""
+    """旧的智能体名称应使用正确的工具解析为正确的智能体。"""
     register_builtins_agents()
     llm = _make_test_llm()
 

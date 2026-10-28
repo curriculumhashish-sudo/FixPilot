@@ -1,4 +1,4 @@
-"""Docker workspace implementation."""
+"""Docker 工作区实施。"""
 
 from typing import TYPE_CHECKING
 
@@ -12,7 +12,7 @@ __all__ = ["DockerWorkspace", "DockerDevWorkspace"]
 
 
 def __getattr__(name: str):
-    """Lazy import DockerDevWorkspace to avoid build module imports."""
+    """延迟导入 DockerDevWorkspace 以避免构建模块导入。"""
     if name == "DockerDevWorkspace":
         from .dev_workspace import DockerDevWorkspace
 

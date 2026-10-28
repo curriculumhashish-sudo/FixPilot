@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 """
-API Compliance Test Runner.
+API 合规性测试运行程序。
 
-Runs malformed message pattern tests against multiple LLM providers
-and generates a report documenting API behavior.
+针对多个 LLM 提供程序运行格式错误的消息模式测试，并生成记录 API 行为的报告。
 
-Usage:
-    # Run all patterns against all models
+用途：
+    # 针对所有模型运行所有模式
     uv run python tests/integration/api_compliance/run_compliance.py
 
-    # Run specific patterns
+    # 运行特定模式
     uv run python tests/integration/api_compliance/run_compliance.py \
-        --patterns unmatched_tool_use,interleaved_user_message
+        --模式unmatched_tool_use,interleaved_user_message
 
-    # Run against specific models
+    # 针对特定模型运行
     uv run python tests/integration/api_compliance/run_compliance.py \
-        --models claude-sonnet-4-5,gpt-5.5
+        --模型克劳德十四行诗-4-5，gpt-5.5
 
-    # Output to specific directory
+    # 输出到指定目录
     uv run python tests/integration/api_compliance/run_compliance.py \
-        --output-dir ./compliance-results
+        --输出目录 ./compliance-results
 """
 
 import argparse
@@ -43,9 +42,9 @@ from tests.integration.api_compliance.result import (
 
 logger = get_logger(__name__)
 
-# Default models to test - one representative from each major provider
-# Each entry has: model path, optional config overrides, and short display name
-# Note: Avoid reasoning models (deepseek-reasoner) as they require special fields
+# 要测试的默认模型 - 来自每个主要提供商的一名代表每个条目都有：模型路径、可选配置覆盖和
+# 简短显示名称
+# 注意：避免推理模型（deepseek-reasoner），因为它们需要特殊字段
 DEFAULT_MODELS: dict[str, dict[str, Any]] = {
     "claude-sonnet-4-5": {
         "model": "litellm_proxy/claude-sonnet-4-5-20250929",
@@ -64,13 +63,13 @@ DEFAULT_MODELS: dict[str, dict[str, Any]] = {
 
 
 def load_compliance_tests(patterns: list[str] | None = None) -> list[tuple[str, type]]:
-    """Load all API compliance test classes from test files.
+    """从测试文件加载所有 API 合规性测试类。
 
     Args:
-        patterns: Optional list of pattern names to filter by
+        patterns: 用于过滤的可选模式名称列表
 
     Returns:
-        List of (file_path, test_class) tuples
+        (file_path, test_class) 元组列表
     """
     test_dir = Path(__file__).parent.parent / "tests"
     test_files = sorted(test_dir.glob("a[0-9][0-9]_*.py"))
@@ -85,7 +84,7 @@ def load_compliance_tests(patterns: list[str] | None = None) -> list[tuple[str, 
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            # Find the test class
+            # 找到测试类
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if (
@@ -93,7 +92,7 @@ def load_compliance_tests(patterns: list[str] | None = None) -> list[tuple[str, 
                     and issubclass(attr, BaseAPIComplianceTest)
                     and attr is not BaseAPIComplianceTest
                 ):
-                    # Check pattern filter
+                    # 检查模式过滤器
                     test_instance = attr()
                     if patterns is None or test_instance.pattern_name in patterns:
                         tests.append((str(test_file), attr))
@@ -110,12 +109,12 @@ def run_single_test(
     llm_config: dict[str, Any],
     model_id: str,
 ) -> ComplianceTestResult:
-    """Run a single compliance test against a single model.
+    """针对单个模型运行单个合规性测试。
 
     Args:
-        test_class: The test class to instantiate and run
-        llm_config: LLM configuration dict
-        model_id: Short model identifier for display
+        test_class: 要实例化并运行的测试类
+        llm_config: LLM 配置字典
+        model_id: 用于显示的短型号标识符
 
     Returns:
         ComplianceTestResult
@@ -142,16 +141,16 @@ def run_compliance_tests(
     patterns: list[str] | None = None,
     model_ids: list[str] | None = None,
 ) -> ComplianceReport:
-    """Run compliance tests across multiple models and patterns.
+    """跨多个模型和模式运行合规性测试。
 
     Args:
-        patterns: List of pattern names to test (None = all)
-        model_ids: List of model IDs to test (None = all defaults)
+        patterns: 要测试的模式名称列表（None = 全部）
+        model_ids: 要测试的模型 ID 列表（None = 所有默认值）
 
     Returns:
-        ComplianceReport with all results
+        ComplianceReport 包含所有结果
     """
-    # Load tests
+    # 负载测试
     tests = load_compliance_tests(patterns)
     if not tests:
         logger.error("No compliance tests found!")
@@ -159,7 +158,7 @@ def run_compliance_tests(
 
     logger.info(f"Loaded {len(tests)} compliance test(s)")
 
-    # Determine models to test
+    # 确定要测试的模型
     if model_ids:
         models = {
             mid: DEFAULT_MODELS[mid] for mid in model_ids if mid in DEFAULT_MODELS
@@ -174,10 +173,10 @@ def run_compliance_tests(
 
     logger.info(f"Testing against {len(models)} model(s): {list(models.keys())}")
 
-    # Generate run ID
+    # 生成运行ID
     run_id = f"compliance_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    # Run all tests
+    # 运行所有测试
     pattern_results: dict[str, PatternResults] = {}
 
     for file_path, test_class in tests:
@@ -196,7 +195,7 @@ def run_compliance_tests(
             result = run_single_test(test_class, llm_config, model_id)
             pattern_results[pattern_name].add_result(result)
 
-            # Log result
+            # 记录结果
             status = (
                 "✓ ACCEPTED"
                 if result.response_type == APIResponse.ACCEPTED
@@ -207,7 +206,7 @@ def run_compliance_tests(
 
             logger.info(f"  {model_id}: {status}")
             if result.error_message:
-                # Truncate long error messages
+                # 截断长错误消息
                 msg = (
                     result.error_message[:200] + "..."
                     if len(result.error_message) > 200
@@ -215,7 +214,7 @@ def run_compliance_tests(
                 )
                 logger.info(f"    Error: {msg}")
 
-    # Build report
+    # 构建报告
     report = ComplianceReport(
         test_run_id=run_id,
         timestamp=datetime.now().isoformat(),
@@ -228,23 +227,23 @@ def run_compliance_tests(
 
 
 def save_report(report: ComplianceReport, output_dir: str) -> str:
-    """Save report to output directory.
+    """将报告保存到输出目录。
 
     Args:
-        report: ComplianceReport to save
-        output_dir: Directory to save to
+        report: ComplianceReport 保存
+        output_dir: 保存到的目录
 
     Returns:
-        Path to saved report
+        保存报告的路径
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save JSON report
+    # 保存JSON报告
     json_path = os.path.join(output_dir, "compliance_report.json")
     with open(json_path, "w") as f:
         f.write(report.model_dump_json(indent=2))
 
-    # Generate and save markdown report
+    # 生成并保存 Markdown 报告
     md_path = os.path.join(output_dir, "compliance_report.md")
     with open(md_path, "w") as f:
         f.write(generate_markdown_report(report))
@@ -252,12 +251,12 @@ def save_report(report: ComplianceReport, output_dir: str) -> str:
     return json_path
 
 
-# Base URL for linking to test files
+# 用于链接到测试文件的 Base URL
 GITHUB_BASE_URL = (
     "https://github.com/OpenHands/software-agent-sdk/blob/main/tests/integration/tests"
 )
 
-# Map pattern names to test file names
+# 将模式名称映射到测试文件名
 PATTERN_TO_FILE = {
     "unmatched_tool_use": "a01_unmatched_tool_use.py",
     "unmatched_tool_result": "a02_unmatched_tool_result.py",
@@ -269,7 +268,7 @@ PATTERN_TO_FILE = {
     "parallel_wrong_order": "a08_parallel_wrong_order.py",
 }
 
-# Brief descriptions for each pattern (one-line summaries)
+# 每种模式的简要描述（一行摘要）
 PATTERN_SUMMARIES = {
     "unmatched_tool_use": "tool_use without following tool_result",
     "unmatched_tool_result": "tool_result referencing non-existent tool_use ID",
@@ -283,13 +282,13 @@ PATTERN_SUMMARIES = {
 
 
 def generate_markdown_report(report: ComplianceReport) -> str:
-    """Generate a compact, human-readable markdown report.
+    """生成紧凑、人类可读的 Markdown 报告。
 
     Args:
-        report: ComplianceReport to format
+        report: ComplianceReport 格式化
 
     Returns:
-        Markdown string
+        Markdown 字符串
     """
     lines = [
         "# API Compliance Test Report",
@@ -300,40 +299,40 @@ def generate_markdown_report(report: ComplianceReport) -> str:
         "",
     ]
 
-    # Build results matrix: pattern -> model_id -> result
+    # 构建结果矩阵：模式 -> model_id -> 结果
     models = report.models_tested
     results_map: dict[str, dict[str, str]] = {}
 
     for pattern in report.results:
         results_map[pattern.pattern_name] = {}
         for result in pattern.results:
-            # Map response type to emoji (color + shape for accessibility)
+            # 将响应类型映射到表情符号（颜色+形状以实现可访问性）
             result_symbol = "⚠️"  # Warning = other/error
             if result.response_type == APIResponse.ACCEPTED:
-                result_symbol = "✅"  # Green check = accepted
+                result_symbol = "✅"  # 绿色勾号 = 已接受
             elif result.response_type == APIResponse.REJECTED:
-                result_symbol = "❌"  # Red X = rejected
+                result_symbol = "❌"  # 红色 X = 拒绝
 
-            # Use model_id directly (no substring matching needed)
+            # 直接使用model_id（不需要子串匹配）
             if result.model_id in models:
                 results_map[pattern.pattern_name][result.model_id] = result_symbol
 
-    # Generate results table
+    # 生成结果表
     lines.append("## Results Matrix")
     lines.append("")
     lines.append("✅ accepted  ❌ rejected  ⚠️ error")
     lines.append("")
 
-    # Get short display names for table headers
+    # 获取表标题的简短显示名称
     display_names = [DEFAULT_MODELS.get(m, {}).get("_display", m) for m in models]
 
-    # Table header with short display names
+    # 带有短显示名称的表标题
     header = "| Pattern | " + " | ".join(display_names) + " |"
     separator = "|:--------|" + "|".join([":---:" for _ in models]) + "|"
     lines.append(header)
     lines.append(separator)
 
-    # Table rows
+    # 表格行数
     for pattern_name in results_map:
         summary = PATTERN_SUMMARIES.get(pattern_name, "")
         file_name = PATTERN_TO_FILE.get(pattern_name, "")
@@ -350,7 +349,7 @@ def generate_markdown_report(report: ComplianceReport) -> str:
 
     lines.append("")
 
-    # Summary stats
+    # 摘要统计数据
     lines.append("## Summary")
     lines.append("")
     lines.append(f"- **Total tests:** {report.total_tests}")
@@ -360,10 +359,10 @@ def generate_markdown_report(report: ComplianceReport) -> str:
     lines.append(f"- **Accepted (lenient API behavior):** {report.total_accepted}")
     lines.append("")
 
-    # Note about detailed responses with link to workflow run
+    # 请注意带有工作流程运行链接的详细响应
     lines.append("---")
     lines.append("")
-    # Link to workflow run page (artifacts are downloadable from there)
+    # 链接到工作流程运行页面（可以从那里下载工件）
     github_run_id = os.environ.get("GITHUB_RUN_ID")
     if github_run_id:
         run_url = (
@@ -430,11 +429,11 @@ def main():
             print(f"  {test.pattern_name}: {first_line}")
         return
 
-    # Parse filters
+    # 解析过滤器
     patterns = args.patterns.split(",") if args.patterns else None
     model_ids = args.models.split(",") if args.models else None
 
-    # Run tests
+    # 运行测试
     logger.info("=" * 60)
     logger.info("API COMPLIANCE TEST RUNNER")
     logger.info("=" * 60)
@@ -444,12 +443,12 @@ def main():
     elapsed = time.time() - start_time
     report.elapsed_time = elapsed
 
-    # Save report
+    # 保存报告
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(args.output_dir, f"run_{timestamp}")
     save_report(report, output_dir)
 
-    # Print summary
+    # 打印摘要
     logger.info("=" * 60)
     logger.info("SUMMARY")
     logger.info("=" * 60)

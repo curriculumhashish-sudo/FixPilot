@@ -1,4 +1,4 @@
-"""Tests for LLM metrics classes."""
+"""测试 LLM 指标类。"""
 
 import pytest
 from pydantic import ValidationError
@@ -13,7 +13,7 @@ from openhands.sdk.llm.utils.metrics import (
 
 
 def test_cost_creation_valid():
-    """Test creating a valid Cost instance."""
+    """测试创建有效的 Cost 实例。"""
     cost = Cost(cost=5.0, model="gpt-4o-mini")
     assert cost.cost == 5.0
     assert cost.model == "gpt-4o-mini"
@@ -21,13 +21,13 @@ def test_cost_creation_valid():
 
 
 def test_cost_creation_zero():
-    """Test creating a Cost instance with zero cost."""
+    """测试创建零成本的 Cost 实例。"""
     cost = Cost(cost=0.0, model="gpt-4o-mini")
     assert cost.cost == 0.0
 
 
 def test_cost_creation_negative_fails():
-    """Test that negative cost raises ValidationError."""
+    """测试负成本是否增加 ValidationError。"""
     with pytest.raises(ValidationError) as exc_info:
         Cost(cost=-1.0, model="gpt-4o-mini")
 
@@ -38,7 +38,7 @@ def test_cost_creation_negative_fails():
 
 
 def test_response_latency_creation_valid():
-    """Test creating a valid ResponseLatency instance."""
+    """测试创建有效的 ResponseLatency 实例。"""
     latency = ResponseLatency(model="gpt-4o-mini", latency=1.5, response_id="test-123")
     assert latency.latency == 1.5
     assert latency.response_id == "test-123"
@@ -46,13 +46,13 @@ def test_response_latency_creation_valid():
 
 
 def test_response_latency_creation_zero():
-    """Test creating a ResponseLatency instance with zero latency."""
+    """测试创建零延迟的 ResponseLatency 实例。"""
     latency = ResponseLatency(model="gpt-4o-mini", latency=0.0, response_id="test-123")
     assert latency.latency == 0.0
 
 
 def test_response_latency_creation_negative_fails():
-    """Test that negative latency raises ValidationError."""
+    """测试负延迟是否增加 ValidationError。"""
     with pytest.raises(ValidationError) as exc_info:
         ResponseLatency(model="gpt-4o-mini", latency=-0.5, response_id="test-123")
 
@@ -63,7 +63,7 @@ def test_response_latency_creation_negative_fails():
 
 
 def test_token_usage_creation_valid():
-    """Test creating a valid TokenUsage instance."""
+    """测试创建有效的 TokenUsage 实例。"""
     usage = TokenUsage(
         model="gpt-4o-mini",
         prompt_tokens=100,
@@ -85,7 +85,7 @@ def test_token_usage_creation_valid():
 
 
 def test_token_usage_creation_zeros():
-    """Test creating a TokenUsage instance with zero values."""
+    """测试创建一个具有零值的 TokenUsage 实例。"""
     usage = TokenUsage(
         model="gpt-4o-mini",
         prompt_tokens=0,
@@ -103,7 +103,7 @@ def test_token_usage_creation_zeros():
 
 
 def test_token_usage_negative_prompt_tokens_fails():
-    """Test that negative prompt_tokens raises ValidationError."""
+    """测试负值 prompt_tokens 会引发 ValidationError。"""
     with pytest.raises(ValidationError) as exc_info:
         TokenUsage(
             model="gpt-4o-mini",
@@ -124,7 +124,7 @@ def test_token_usage_negative_prompt_tokens_fails():
 
 
 def test_token_usage_negative_completion_tokens_fails():
-    """Test that negative completion_tokens raises ValidationError."""
+    """测试负值 completion_tokens 会引发 ValidationError。"""
     with pytest.raises(ValidationError) as exc_info:
         TokenUsage(
             model="gpt-4o-mini",
@@ -145,7 +145,7 @@ def test_token_usage_negative_completion_tokens_fails():
 
 
 def test_token_usage_negative_cache_tokens_fails():
-    """Test that negative cache tokens raise ValidationError."""
+    """测试负缓存 token 升高 ValidationError。"""
     with pytest.raises(ValidationError):
         TokenUsage(
             model="gpt-4o-mini",
@@ -172,7 +172,7 @@ def test_token_usage_negative_cache_tokens_fails():
 
 
 def test_token_usage_addition():
-    """Test that TokenUsage instances can be added together."""
+    """测试 TokenUsage 个实例是否可以添加在一起。"""
     usage1 = TokenUsage(
         model="gpt-4o-mini",
         prompt_tokens=100,
@@ -203,12 +203,12 @@ def test_token_usage_addition():
     assert combined.cache_read_tokens == 30
     assert combined.cache_write_tokens == 15
     assert combined.context_window == 4096
-    assert combined.per_turn_token == 285  # Uses other.per_turn_token
-    assert combined.response_id == "test-1"  # Should keep first response_id
+    assert combined.per_turn_token == 285  # 用途 other.per_turn_token
+    assert combined.response_id == "test-1"  # 应保留第一个 response_id
 
 
 def test_metrics_creation_empty():
-    """Test creating an empty Metrics instance."""
+    """测试创建一个空的 Metrics 实例。"""
     metrics = Metrics()
     assert metrics.model_name == "default"
     assert metrics.accumulated_cost == 0.0
@@ -219,7 +219,7 @@ def test_metrics_creation_empty():
 
 
 def test_metrics_creation_with_model_name():
-    """Test creating a Metrics instance with model name."""
+    """测试使用模型名称创建 Metrics 实例。"""
     metrics = Metrics(model_name="gpt-4o-mini")
     assert metrics.model_name == "gpt-4o-mini"
     assert metrics.accumulated_cost == 0.0
@@ -228,7 +228,7 @@ def test_metrics_creation_with_model_name():
 
 
 def test_metrics_add_cost():
-    """Test adding cost to metrics."""
+    """测试增加指标成本。"""
     metrics = Metrics()
     metrics.add_cost(5.0)
 
@@ -239,7 +239,7 @@ def test_metrics_add_cost():
 
 
 def test_metrics_add_cost_with_model_name():
-    """Test adding cost with custom model name."""
+    """使用自定义模型名称测试增加成本。"""
     metrics = Metrics(model_name="gpt-4o-mini")
     metrics.add_cost(3.5)
 
@@ -250,7 +250,7 @@ def test_metrics_add_cost_with_model_name():
 
 
 def test_metrics_add_multiple_costs():
-    """Test adding multiple costs."""
+    """测试添加多个成本。"""
     metrics = Metrics()
     metrics.add_cost(2.0)
     metrics.add_cost(3.0)
@@ -261,7 +261,7 @@ def test_metrics_add_multiple_costs():
 
 
 def test_metrics_add_response_latency():
-    """Test adding response latency to metrics."""
+    """测试向指标添加响应延迟。"""
     metrics = Metrics()
     metrics.add_response_latency(1.5, "test-123")
 
@@ -271,7 +271,7 @@ def test_metrics_add_response_latency():
 
 
 def test_metrics_add_multiple_response_latencies():
-    """Test adding multiple response latencies."""
+    """测试添加多个响应延迟。"""
     metrics = Metrics()
     metrics.add_response_latency(1.0, "test-1")
     metrics.add_response_latency(2.5, "test-2")
@@ -282,7 +282,7 @@ def test_metrics_add_multiple_response_latencies():
 
 
 def test_metrics_add_token_usage_first_time():
-    """Test adding token usage for the first time."""
+    """第一次测试添加词元用量。"""
     metrics = Metrics()
     metrics.add_token_usage(100, 50, 10, 5, 4096, "test-123")
 
@@ -297,7 +297,7 @@ def test_metrics_add_token_usage_first_time():
 
 
 def test_metrics_add_token_usage_accumulate():
-    """Test adding token usage multiple times accumulates correctly."""
+    """测试多次添加词元用量累加是否正确。"""
     metrics = Metrics()
     metrics.add_token_usage(100, 50, 10, 5, 4096, "test-1")
     metrics.add_token_usage(200, 75, 20, 10, 4096, "test-2")
@@ -311,7 +311,7 @@ def test_metrics_add_token_usage_accumulate():
 
 
 def test_metrics_merge_empty_metrics():
-    """Test merging with empty metrics."""
+    """测试与空指标的合并。"""
     metrics1 = Metrics()
     metrics1.add_cost(5.0)
 
@@ -322,7 +322,7 @@ def test_metrics_merge_empty_metrics():
 
 
 def test_metrics_merge_with_costs():
-    """Test merging metrics with costs."""
+    """测试将指标与成本合并。"""
     metrics1 = Metrics()
     metrics1.add_cost(5.0)
 
@@ -335,7 +335,7 @@ def test_metrics_merge_with_costs():
 
 
 def test_metrics_merge_with_token_usage():
-    """Test merging metrics with token usage."""
+    """测试与词元用量的合并指标。"""
     metrics1 = Metrics()
     metrics1.add_token_usage(100, 50, 10, 5, 4096, "test-1")
 
@@ -349,7 +349,7 @@ def test_metrics_merge_with_token_usage():
 
 
 def test_metrics_merge_with_response_latencies():
-    """Test merging metrics with response latencies."""
+    """测试合并指标与响应延迟。"""
     metrics1 = Metrics()
     metrics1.add_response_latency(1.0, "test-1")
 
@@ -363,7 +363,7 @@ def test_metrics_merge_with_response_latencies():
 
 
 def test_metrics_get_method():
-    """Test the get method returns correct data."""
+    """测试get方法返回正确的数据。"""
     metrics = Metrics(model_name="gpt-4o-mini")
     metrics.add_cost(5.0)
     metrics.add_token_usage(100, 50, 10, 5, 4096, "test-123")
@@ -378,7 +378,7 @@ def test_metrics_get_method():
 
 
 def test_metrics_diff_method():
-    """Test the diff method calculates differences correctly."""
+    """测试 diff 方法是否正确计算差异。"""
     metrics1 = Metrics()
     metrics1.add_cost(10.0)
     metrics1.add_token_usage(500, 250, 50, 25, 4096, "test-1")
@@ -396,14 +396,14 @@ def test_metrics_diff_method():
 
 
 def test_metrics_diff_with_none_token_usage():
-    """Test diff method when one metrics has None token usage."""
+    """当一个指标具有 None 词元用量时测试 diff 方法。"""
     metrics1 = Metrics()
     metrics1.add_cost(10.0)
     metrics1.add_token_usage(500, 250, 50, 25, 4096, "test-1")
 
     metrics2 = Metrics()
     metrics2.add_cost(3.0)
-    # No token usage added to metrics2
+    # 指标 2 中未添加词元用量
 
     diff = metrics1.diff(metrics2)
 
@@ -414,14 +414,14 @@ def test_metrics_diff_with_none_token_usage():
 
 
 def test_metrics_deep_copy():
-    """Test the deep_copy method creates independent copy."""
+    """测试deep_copy方法创建独立副本。"""
     metrics = Metrics(model_name="gpt-4o-mini")
     metrics.add_cost(5.0)
     metrics.add_token_usage(100, 50, 10, 5, 4096, "test-123")
 
     copied = metrics.deep_copy()
 
-    # Verify copy has same data
+    # 验证副本具有相同的数据
     assert copied.model_name == metrics.model_name
     assert copied.accumulated_cost == metrics.accumulated_cost
     assert copied.accumulated_token_usage is not None
@@ -431,36 +431,36 @@ def test_metrics_deep_copy():
         == metrics.accumulated_token_usage.prompt_tokens
     )
 
-    # Verify they are independent
+    # 验证他们是独立的
     copied.add_cost(2.0)
     assert copied.accumulated_cost == 7.0
     assert metrics.accumulated_cost == 5.0
 
 
 def test_metrics_empty_state_operations():
-    """Test operations on empty metrics work correctly."""
+    """对空指标的测试操作正常工作。"""
     metrics = Metrics()
 
-    # Test get on empty metrics
+    # 测试获取空指标
     data = metrics.get()
     assert data["accumulated_cost"] == 0.0
     assert data["accumulated_token_usage"] is not None
 
-    # Test diff with empty metrics
+    # 使用空指标测试差异
     other = Metrics()
     diff = metrics.diff(other)
     assert diff.accumulated_cost == 0.0
     assert diff.accumulated_token_usage is not None
 
-    # Test merge with empty metrics
+    # 测试与空指标的合并
     metrics.merge(other)
     assert metrics.accumulated_cost == 0.0
     assert metrics.accumulated_token_usage is not None
 
 
 def test_metrics_accumulated_cost_negative_validation():
-    """Test Metrics accumulated cost validation with negative values (line 105)."""
-    # Create a metrics instance with negative accumulated cost
+    """测试指标累积成本验证为负值（第 105 行）。"""
+    # 创建具有负累积成本的指标实例
     with pytest.raises(
         ValidationError, match="Input should be greater than or equal to 0"
     ):
@@ -468,26 +468,26 @@ def test_metrics_accumulated_cost_negative_validation():
 
 
 def test_metrics_merge_max_budget_from_other():
-    """Test merging when max_budget_per_task is None in self but set in other."""
-    # Create metrics with no max_budget_per_task
+    """当 self 中的 max_budget_per_task 为 None 但 other 中设置时测试合并。"""
+    # 创建不带 max_budget_per_task 的指标
     metrics1 = Metrics()
     assert metrics1.max_budget_per_task is None
 
-    # Create metrics with max_budget_per_task
+    # 使用 max_budget_per_task 创建指标
     metrics2 = Metrics(max_budget_per_task=100.0)
 
-    # Merge - should copy max_budget_per_task from other (line 182)
+    # 合并 - 应从其他复制 max_budget_per_task（第 182 行）
     metrics1.merge(metrics2)
     assert metrics1.max_budget_per_task == 100.0
 
 
 def test_metrics_merge_accumulated_token_usage_none_self():
-    """Test merging when self.accumulated_token_usage is None (line 190)."""
-    # Create metrics and manually set accumulated_token_usage to None
+    """当 self.accumulated_token_usage 为 None 时测试合并（第 190 行）。"""
+    # 创建指标并手动将 accumulated_token_usage 设置为 None
     metrics1 = Metrics()
     metrics1.accumulated_token_usage = None
 
-    # Create metrics with accumulated token usage
+    # 创建具有累积词元用量的指标
     metrics2 = Metrics()
     metrics2.add_token_usage(
         prompt_tokens=10,
@@ -498,7 +498,7 @@ def test_metrics_merge_accumulated_token_usage_none_self():
         response_id="test",
     )
 
-    # Merge - should copy accumulated_token_usage from other (line 190)
+    # 合并 - 应从其他复制 accumulated_token_usage（第 190 行）
     metrics1.merge(metrics2)
     assert metrics1.accumulated_token_usage is not None
     assert metrics1.accumulated_token_usage.prompt_tokens == 10
@@ -506,25 +506,25 @@ def test_metrics_merge_accumulated_token_usage_none_self():
 
 
 def test_metrics_diff_both_usage_none():
-    """Test diff method when both accumulated_token_usage are None (lines 276-277)."""
-    # Create metrics and manually set accumulated_token_usage to None
+    """当 accumulated_token_usage 都是 None 时测试 diff 方法（第 276-277 行）。"""
+    # 创建指标并手动将 accumulated_token_usage 设置为 None
     metrics1 = Metrics()
     metrics1.accumulated_token_usage = None
     metrics2 = Metrics()
     metrics2.accumulated_token_usage = None
 
-    # Calculate diff - should handle both None (lines 276-277)
+    # 计算 diff - 应该处理 None （第 276-277 行）
     diff = metrics1.diff(metrics2)
     assert diff.accumulated_token_usage is None
 
 
 def test_metrics_add_token_usage_none_accumulated_initial():
-    """Test add_token_usage when accumulated_token_usage is None initially."""
-    # Create metrics and manually set accumulated_token_usage to None
+    """当 accumulated_token_usage 最初为 None 时测试 add_token_usage。"""
+    # 创建指标并手动将 accumulated_token_usage 设置为 None
     metrics = Metrics()
     metrics.accumulated_token_usage = None
 
-    # Add usage - should trigger line 172 (if branch)
+    # 添加用法 - 应触发第 172 行（如果分支）
     metrics.add_token_usage(
         prompt_tokens=10,
         completion_tokens=5,
@@ -534,15 +534,15 @@ def test_metrics_add_token_usage_none_accumulated_initial():
         response_id="test",
     )
 
-    # Should have set the usage
+    # 应该已经设置了用法
     assert metrics.accumulated_token_usage is not None
     assert metrics.accumulated_token_usage.prompt_tokens == 10
     assert metrics.accumulated_token_usage.completion_tokens == 5
 
 
 def test_metrics_diff_current_only_not_none():
-    """Test diff method when current has usage but baseline doesn't (line 275)."""
-    # Create metrics with usage
+    """当当前有使用但基线没有时测试 diff 方法（第 275 行）。"""
+    # 创建使用情况指标
     metrics1 = Metrics()
     metrics1.add_token_usage(
         prompt_tokens=15,
@@ -553,11 +553,11 @@ def test_metrics_diff_current_only_not_none():
         response_id="test",
     )
 
-    # Create baseline metrics with None usage
+    # 创建具有 None 使用情况的基线指标
     metrics2 = Metrics()
     metrics2.accumulated_token_usage = None
 
-    # Calculate diff - should copy current_usage (line 275)
+    # 计算差异 - 应复制 current_usage（第 275 行）
     diff = metrics1.diff(metrics2)
     assert diff.accumulated_token_usage is not None
     assert diff.accumulated_token_usage.prompt_tokens == 15
@@ -569,21 +569,21 @@ def test_metrics_diff_current_only_not_none():
 @pytest.mark.parametrize(
     "prompt_tokens, cache_read_tokens, expected",
     [
-        # litellm/OpenAI convention: prompt_tokens already includes cached reads.
+        # litellm/OpenAI 约定：prompt_tokens 已包含缓存读取。
         (100, 10, 0.10),
         (100, 0, 0.0),
-        # cache_read == prompt -> prompt is the denominator.
+        # cache_read == 提示词 -> 提示词是分母。
         (50, 50, 1.0),
-        # ACP convention: input excludes cached reads, so they are disjoint and
-        # the denominator is prompt + cache_read.
+        # ACP约定：输入不包括缓存的读取，因此它们是不相交的，分母是提示词 + cache_read。
+        #
         (10, 90, 0.90),
-        (0, 50, 1.0),  # zero prompt, all cache -> 100% hit (not None)
-        # Nothing to measure -> undefined.
+        (0, 50, 1.0),  # 零提示词，所有缓存 -> 100% 命中（不是 None）
+        # 没有什么可测量的 -> 未定义。
         (0, 0, None),
     ],
 )
 def test_cache_hit_rate_conventions(prompt_tokens, cache_read_tokens, expected):
-    """cache_hit_rate handles both provider conventions and zero input."""
+    """cache_hit_rate 处理提供者约定和零输入。"""
     snapshot = MetricsSnapshot(
         accumulated_token_usage=TokenUsage(
             prompt_tokens=prompt_tokens, cache_read_tokens=cache_read_tokens
@@ -596,7 +596,7 @@ def test_cache_hit_rate_conventions(prompt_tokens, cache_read_tokens, expected):
 
 
 def test_cache_hit_rate_reflects_accumulated_usage():
-    """Metrics.cache_hit_rate derives from accumulated usage across calls."""
+    """Metrics.cache_hit_rate 来自调用期间的累积使用情况。"""
     metrics = Metrics()
     metrics.add_token_usage(
         prompt_tokens=100,
@@ -614,18 +614,18 @@ def test_cache_hit_rate_reflects_accumulated_usage():
         context_window=4096,
         response_id="r2",
     )
-    # accumulated prompt=200, cache_read=40 -> 40 / 200
+    # 累计提示词=200, cache_read=40 -> 40 / 200
     assert metrics.cache_hit_rate == pytest.approx(0.20)
 
 
 def test_cache_hit_rate_none_without_usage():
-    """No usage yet -> undefined rather than a misleading 0% or a crash."""
+    """尚未使用 -> 未定义，而不是误导性的 0% 或崩溃。"""
     assert MetricsSnapshot(accumulated_token_usage=None).cache_hit_rate is None
-    assert Metrics().cache_hit_rate is None  # fresh metrics are all-zeros
+    assert Metrics().cache_hit_rate is None  # 新指标全为零
 
 
 def test_cache_hit_rate_is_not_serialized():
-    """Derived rate stays out of the serialized schema (no public-API change)."""
+    """派生利率不在已序列化模式范围内（无公共 API 更改）。"""
     snapshot = Metrics().get_snapshot()
     assert "cache_hit_rate" not in snapshot.model_dump()
     assert "cache_hit_rate" not in MetricsSnapshot.model_json_schema()["properties"]

@@ -1,28 +1,28 @@
 /**
- * Basic usage example for the OpenHands Agent Server TypeScript Client
+ * OpenHands Agent Server TypeScript 客户端的基本使用示例
  */
 
 import { Conversation, Agent, Workspace, AgentExecutionStatus } from '../src/index.js';
 
 async function main() {
-  // Define the agent configuration
-  // Note: In a browser environment, you would get these values from your app's configuration
+  // 定义智能体配置
+  // 注意：在浏览器环境中，您可以从应用程序的配置中获取这些值
   const agent = new Agent({
     llm: {
       model: 'gpt-4',
-      api_key: 'your-openai-api-key', // Replace with your actual API key
+      api_key: 'your-openai-api-key', // 替换为您实际的 API 键
     },
   });
 
   try {
-    // Create a remote workspace
+    // 创建远程工作区
     const workspace = new Workspace({
       host: 'http://localhost:3000',
       workingDir: '/tmp',
-      apiKey: 'your-session-api-key', // Replace with your actual session API key
+      apiKey: 'your-session-api-key', // 替换为您的实际会话 API 键
     });
 
-    // Create a new conversation
+    // 创建新对话
     console.log('Creating conversation...');
     const conversation = new Conversation(agent, workspace, {
       callback: (event) => {
@@ -30,52 +30,52 @@ async function main() {
       },
     });
 
-    // Start the conversation with an initial message
+    // 用初始消息开始对话
     await conversation.start({
       initialMessage: 'Hello! Can you help me write a simple Python script?',
     });
 
     console.log(`Conversation created with ID: ${conversation.id}`);
 
-    // Start WebSocket for real-time events
+    // 开始 WebSocket 获取实时事件
     await conversation.startWebSocketClient();
     console.log('WebSocket client started');
 
-    // Send a message
+    // 发送消息
     await conversation.sendMessage('Create a Python script that prints "Hello, World!"');
     console.log('Message sent');
 
-    // Run the agent
+    // 运行智能体
     await conversation.run();
     console.log('Agent started');
 
-    // Monitor the conversation status
+    // 监控通话状态
     let status = await conversation.state.getAgentStatus();
     console.log(`Initial status: ${status}`);
 
-    // Wait for the agent to finish (in a real application, you'd handle this differently)
+    // 等待智能体完成（在实际应用程序中，您会以不同的方式处理此问题）
     while (status === AgentExecutionStatus.RUNNING) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       status = await conversation.state.getAgentStatus();
       console.log(`Current status: ${status}`);
     }
 
-    // Get conversation statistics
+    // 获取会话统计信息
     const stats = await conversation.conversationStats();
     console.log('Conversation stats:', stats);
 
-    // Get all events
+    // 获取所有事件
     const events = await conversation.state.events.getEvents();
     console.log(`Total events: ${events.length}`);
 
-    // Example of using the workspace
+    // 使用工作区的示例
     const result = await conversation.workspace.executeCommand('ls -la');
     console.log('Command result:', {
       exitCode: result.exit_code,
-      stdout: result.stdout.substring(0, 200) + '...', // Truncate for display
+      stdout: result.stdout.substring(0, 200) + '...', // 截断显示
     });
 
-    // Clean up
+    // 清理
     await conversation.close();
     console.log('Conversation closed');
   } catch (error) {
@@ -83,44 +83,44 @@ async function main() {
   }
 }
 
-// Example of loading an existing conversation
+// 加载现有对话的示例
 async function loadExistingConversation() {
   const agent = new Agent({
     llm: {
       model: 'gpt-4',
-      api_key: 'your-openai-api-key', // Replace with your actual API key
+      api_key: 'your-openai-api-key', // 替换为您实际的 API 键
     },
   });
 
   try {
-    // Create a remote workspace for the existing conversation
+    // 为现有对话创建远程工作区
     const workspace = new Workspace({
       host: 'http://localhost:3000',
       workingDir: '/tmp',
-      apiKey: 'your-session-api-key', // Replace with your actual session API key
+      apiKey: 'your-session-api-key', // 替换为您的实际会话 API 键
     });
 
     const conversation = new Conversation(agent, workspace, {
       conversationId: 'existing-conversation-id',
     });
 
-    // Connect to the existing conversation
+    // 连接到现有对话
     await conversation.start();
 
     console.log(`Loaded conversation: ${conversation.id}`);
 
-    // Get current status
+    // 获取当前状态
     const status = await conversation.state.getAgentStatus();
     console.log(`Status: ${status}`);
 
-    // Clean up
+    // 清理
     await conversation.close();
   } catch (error) {
     console.error('Error loading conversation:', error);
   }
 }
 
-// Run the example
-// Note: In a browser environment, you would call main() directly or from an event handler
-// For Node.js environments, you can use import.meta.main (ES modules) or check if this is the main module
+// 运行示例
+// 注意：在浏览器环境中，您可以直接调用 main() 或从事件处理程序调用
+// 对于Node.js环境，您可以使用import.meta.main（ES模块）或检查这是否是主模块
 main().catch(console.error);

@@ -1,7 +1,7 @@
-"""Tests for MCP server secrets serialization security.
+"""测试 MCP 服务器机密序列化安全性。
 
-These tests verify that secrets expanded into mcp_config do NOT leak through
-serialization pathways (persistence, WebSocket events, API responses).
+这些测试验证机密扩展到 mcp_config 确实不通过序列化路径（持久化、WebSocket 事件、API
+响应）泄漏。
 
 See: https://github.com/OpenHands/software-agent-sdk/pull/2873#issuecomment-4273848645
 """
@@ -20,16 +20,16 @@ from openhands.sdk.mcp.config import coerce_mcp_config, dump_mcp_config
 from openhands.sdk.workspace import LocalWorkspace
 
 
-# A clearly identifiable secret value for testing
+# 用于测试的清晰可辨的机密值
 SECRET_VALUE = "ghp_SUPER_SECRET_TOKEN_12345_SHOULD_NOT_LEAK"
 
 
 @pytest.fixture
 def agent_with_secret_in_mcp_config():
-    """Create an agent with a secret value in mcp_config.
+    """在 mcp_config 中创建一个具有机密值的智能体。
 
-    This simulates the state AFTER expand_mcp_variables() has resolved
-    a ${GITHUB_TOKEN} placeholder to its actual secret value.
+    这模拟了状态之后 expand_mcp_variables() 已将 ${GITHUB_TOKEN} 占位符解析为其实际机
+    密值。
     """
     llm = LLM(model="test-model", api_key=SecretStr("test-key"))
     mcp_config = {
@@ -37,8 +37,9 @@ def agent_with_secret_in_mcp_config():
             "command": "uvx",
             "args": ["mcp-server-github"],
             "env": {
-                # This is the expanded secret - what would be in mcp_config
-                # after expand_mcp_variables() resolves ${GITHUB_TOKEN}
+                # 这是扩展的机密 - expand_mcp_variables() 解析 ${GITHUB_TOKEN} 后
+                # mcp_config 中的内容
+                #
                 "GITHUB_TOKEN": SECRET_VALUE
             },
         }
@@ -47,20 +48,19 @@ def agent_with_secret_in_mcp_config():
 
 
 class TestMcpSecretsDoNotLeakToPersistence:
-    """Tests that mcp_config secrets don't leak to disk persistence."""
+    """测试 mcp_config 机密不会泄漏到磁盘持久化。"""
 
     def test_secrets_not_in_base_state_json(
         self, agent_with_secret_in_mcp_config, tmp_path
     ):
-        """Verify that secrets in mcp_config are NOT written to base_state.json.
+        """验证 mcp_config 中的机密是否已将不写入 base_state.json。
 
-        When ConversationState persists to disk, secrets that were expanded
-        into mcp_config should be excluded or redacted.
+        当 ConversationState 保留到磁盘时，应排除扩展为 mcp_config 的机密或已脱敏。
         """
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
         persistence_dir = tmp_path / "persistence"
 
-        # Create state (triggers persistence)
+        # 创建状态（触发持久化）
         _ = ConversationState.create(
             id=uuid.uuid4(),
             agent=agent_with_secret_in_mcp_config,
@@ -68,14 +68,14 @@ class TestMcpSecretsDoNotLeakToPersistence:
             persistence_dir=str(persistence_dir),
         )
 
-        # Read the persisted state from disk
+        # 从磁盘读取已持久化状态
         base_state_path = persistence_dir / "base_state.json"
         assert base_state_path.exists(), "base_state.json should exist"
 
         with open(base_state_path) as f:
             persisted_data = f.read()
 
-        # The secret value should NOT appear in the persisted file
+        # 机密值应不出现在已持久化文件中
         assert SECRET_VALUE not in persisted_data, (
             f"Secret value '{SECRET_VALUE}' was found in base_state.json! "
             "Secrets in mcp_config should be excluded or redacted during persistence."
@@ -84,15 +84,14 @@ class TestMcpSecretsDoNotLeakToPersistence:
     def test_mcp_config_excluded_or_redacted_in_persistence(
         self, agent_with_secret_in_mcp_config, tmp_path
     ):
-        """Verify mcp_config is handled safely in persistence.
+        """验证 mcp_config 在持久化中得到安全处理。
 
-        Either mcp_config should be excluded entirely, or sensitive values
-        within it should be redacted.
+        应完全排除 mcp_config，或者其中的敏感值应为已脱敏。
         """
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
         persistence_dir = tmp_path / "persistence"
 
-        # Create state (triggers persistence)
+        # 创建状态（触发持久化）
         _ = ConversationState.create(
             id=uuid.uuid4(),
             agent=agent_with_secret_in_mcp_config,
@@ -107,7 +106,7 @@ class TestMcpSecretsDoNotLeakToPersistence:
         agent_data = persisted_json.get("agent", {})
         mcp_config = agent_data.get("mcp_config", {})
 
-        # If mcp_config is present, check that env values are redacted
+        # 如果存在 mcp_config，请检查 env 值是否为已脱敏
         if mcp_config:
             mcp_str = json.dumps(mcp_config)
             assert SECRET_VALUE not in mcp_str, (
@@ -117,15 +116,16 @@ class TestMcpSecretsDoNotLeakToPersistence:
 
 
 class TestMcpSecretsDoNotLeakToWebSocket:
-    """Tests that mcp_config secrets don't leak via WebSocket events."""
+    """测试 mcp_config 机密不会通过 WebSocket 事件泄漏。"""
 
     def test_secrets_not_in_state_update_event(
         self, agent_with_secret_in_mcp_config, tmp_path
     ):
-        """Verify secrets don't leak via ConversationStateUpdateEvent.
+        """验证机密不会通过 ConversationStateUpdateEvent 泄漏。
 
-        ConversationStateUpdateEvent.from_conversation_state() serializes
-        the state for WebSocket transmission. Secrets must not be included.
+        ConversationStateUpdateEvent.from_conversation_state() 序列化 WebSocket 传输
+        的状态。 机密
+        不得包含在内。
         """
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
 
@@ -136,10 +136,10 @@ class TestMcpSecretsDoNotLeakToWebSocket:
             persistence_dir=str(tmp_path / "persistence"),
         )
 
-        # Create the event that would be sent over WebSocket
+        # 创建将通过 WebSocket 发送的事件
         event = ConversationStateUpdateEvent.from_conversation_state(state)
 
-        # Serialize the event value (this is what goes over the wire)
+        # 序列化事件值（这是通过线路传输的值）
         event_json = json.dumps(event.value)
 
         assert SECRET_VALUE not in event_json, (
@@ -150,11 +150,11 @@ class TestMcpSecretsDoNotLeakToWebSocket:
     def test_agent_field_update_does_not_leak_secrets(
         self, agent_with_secret_in_mcp_config, tmp_path
     ):
-        """Verify secrets don't leak when agent field changes trigger callbacks.
+        """当智能体字段更改触发器回调时，验证机密不会泄漏。
 
-        When state.agent is updated, the __setattr__ callback sends a
-        ConversationStateUpdateEvent with the new value. This must not
-        include secrets from mcp_config.
+        当 state.agent 更新时，__setattr__ 回调发送带有新值的
+        ConversationStateUpdateEvent。 这不得包括
+        mcp_config 中的机密。
         """
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
 
@@ -165,7 +165,7 @@ class TestMcpSecretsDoNotLeakToWebSocket:
             persistence_dir=str(tmp_path / "persistence"),
         )
 
-        # Track events sent via callback
+        # 跟踪通过回调发送的事件
         captured_events = []
 
         def capture_callback(event):
@@ -173,12 +173,12 @@ class TestMcpSecretsDoNotLeakToWebSocket:
 
         state.set_on_state_change(capture_callback)
 
-        # Trigger an agent update (simulates what _ensure_plugins_loaded does)
+        # 触发智能体更新（模拟 _ensure_plugins_loaded 的操作）
         new_agent = agent_with_secret_in_mcp_config.model_copy()
         with state:
             state.agent = new_agent
 
-        # Check all captured events for secret leakage
+        # 检查所有捕获的事件是否存在机密泄漏
         for event in captured_events:
             if hasattr(event, "value"):
                 event_str = json.dumps(event.value) if event.value else ""
@@ -189,15 +189,15 @@ class TestMcpSecretsDoNotLeakToWebSocket:
 
 
 class TestMcpSecretsDoNotLeakToAPI:
-    """Tests that mcp_config secrets don't leak via API responses."""
+    """测试 mcp_config 机密不会通过 API 响应泄漏。"""
 
     def test_secrets_not_in_state_model_dump(
         self, agent_with_secret_in_mcp_config, tmp_path
     ):
-        """Verify secrets don't leak via state.model_dump().
+        """通过 state.model_dump() 验证机密不会泄漏。
 
-        state.model_dump(mode="json") is used by API endpoints to serialize
-        conversation state. Secrets in mcp_config must be excluded.
+        state.model_dump(mode="JSON") 由API 端点到序列化对话状态使用。 mcp_config 中
+        的机密必须排除。
         """
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
 
@@ -208,7 +208,7 @@ class TestMcpSecretsDoNotLeakToAPI:
             persistence_dir=str(tmp_path / "persistence"),
         )
 
-        # This is what API endpoints use for serialization
+        # 这就是 API 端点用于序列化的内容
         state_dump = state.model_dump(mode="json")
         state_json = json.dumps(state_dump)
 
@@ -220,10 +220,9 @@ class TestMcpSecretsDoNotLeakToAPI:
     def test_agent_model_dump_excludes_mcp_secrets(
         self, agent_with_secret_in_mcp_config
     ):
-        """Verify that agent.model_dump() excludes secrets from mcp_config.
+        """验证 agent.model_dump() 是否从 mcp_config 中排除机密。
 
-        The agent is often serialized independently. Secrets in mcp_config
-        should be excluded or redacted.
+        智能体通常是独立的已序列化。 应排除 mcp_config 中的机密或已脱敏。
         """
         agent_dump = agent_with_secret_in_mcp_config.model_dump(mode="json")
         agent_json = json.dumps(agent_dump)
@@ -235,17 +234,17 @@ class TestMcpSecretsDoNotLeakToAPI:
 
 
 class TestMcpConfigPreservation:
-    """Tests that verify mcp_config functionality is preserved while secure."""
+    """验证 mcp_config 功能在安全的情况下得到保留的测试。"""
 
     def test_mcp_config_still_accessible_in_memory(
         self, agent_with_secret_in_mcp_config
     ):
-        """Verify mcp_config with secrets is still usable in memory.
+        """验证 mcp_config 和机密在内存中仍然可用。
 
-        While secrets should not serialize, the in-memory mcp_config
-        should retain the secrets for actual MCP server initialization.
+        虽然机密不应该序列化，但内存中 mcp_config 应保留机密以进行实际的 MCP 服务器初
+        始化。
         """
-        # The secret should be accessible in memory for actual use
+        # 机密应该可以在内存中访问以供实际使用
         env_config = dump_mcp_config(agent_with_secret_in_mcp_config.mcp_config)[
             "github"
         ]["env"]
@@ -254,10 +253,10 @@ class TestMcpConfigPreservation:
         )
 
     def test_non_secret_mcp_server_values_persist_with_cipher(self, tmp_path):
-        """Verify that mcp_config is preserved when using cipher for persistence.
+        """验证在对持久化使用密码时是否保留了 mcp_config。
 
-        When a cipher is provided (the production flow), mcp_config should be
-        encrypted on save and decrypted on restore, preserving all values.
+        当提供密码（生产流程）时，mcp_config 应在保存时加密并在恢复时解密，从而保留所
+        有值。
         """
         from openhands.sdk.utils.cipher import Cipher
 
@@ -278,7 +277,7 @@ class TestMcpConfigPreservation:
         cipher = Cipher(secret_key="test-encryption-key")
 
         workspace = LocalWorkspace(working_dir=str(tmp_path / "workspace"))
-        # Create state with cipher (triggers persistence with encryption)
+        # 使用密码创建状态（通过加密触发持久化）
         state = ConversationState.create(
             id=uuid.uuid4(),
             agent=agent,
@@ -302,7 +301,7 @@ class TestMcpConfigPreservation:
             "plaintext mcp_config secrets should not be present when encrypted"
         )
 
-        # Verify roundtrip: restore with same cipher should get original config
+        # 验证往返：使用相同密码恢复应获得原始配置
         restored_state = ConversationState.create(
             id=state.id,
             agent=agent,
@@ -310,7 +309,7 @@ class TestMcpConfigPreservation:
             persistence_dir=str(tmp_path / "persistence"),
             cipher=cipher,
         )
-        # The runtime agent is used, but the decryption should work
+        # 使用了运行时智能体，但解密应该可以工作
         assert (
             dump_mcp_config(restored_state.agent.mcp_config) == mcp_config["mcpServers"]
         )

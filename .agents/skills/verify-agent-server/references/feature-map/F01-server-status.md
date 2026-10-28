@@ -1,90 +1,76 @@
-# Server status, info and contract
+<a id="server-status-info-and-contract"></a>
 
-Probes and metadata every consumer reads before anything else: liveness,
-health and readiness for orchestrators, `/server_info` (and its `/` alias) for
-versions, build identity, usable tools, capability flags and idle time, and the
-OpenAPI document that clients generate types from. All of them answer without
-a session key, even when authentication is on. Three server-wide settings
-change what these surfaces show: `static_files_path` turns `/` into a redirect
-to an unauthenticated `/static` mount, `preload_tools` runs a tool preload
-before `/ready` flips, and `DEBUG` adds a stack trace to 5xx bodies.
+# 服务器状态、信息和合同
 
-Source: `openhands-agent-server/openhands/agent_server/server_details_router.py`, `openhands-agent-server/openhands/agent_server/api.py`, `openhands-agent-server/openhands/agent_server/openapi.py`, `openhands-agent-server/openhands/agent_server/tool_preload_service.py`, `openhands-agent-server/openhands/agent_server/config.py`
+消费者在读取任何东西之前都会读取的探针和元数据：`/server_info`（和它的`/`别名）用于版本和构建标识，可用工具，功能标志和空闲时间，以及客户端生成类型文档的OpenAPI文档。 即使身份验证打开，它们也都无需会话密钥即可应答。 这三种服务器级设置改变了这些表面显示的内容：`static_files_path` 将 `/` 转换为一个无认证 `/static` 路由，`preload_tools` 在 `/ready` 之前运行一个工具预加载，以及 `DEBUG` 在 5xx 响应体中添加一个堆栈跟踪。
 
-Routes: `GET /alive`, `GET /health`, `GET /ready`, `GET /server_info`, `GET /`,
+资料来源：`openhands-agent-server/openhands/agent_server/server_details_router.py`、`openhands-agent-server/openhands/agent_server/api.py`、`openhands-agent-server/openhands/agent_server/openapi.py`、`openhands-agent-server/openhands/agent_server/tool_preload_service.py`、`openhands-agent-server/openhands/agent_server/config.py`
+
+路线：`GET /alive`、`GET /health`、`GET /ready`、`GET /server_info`、`GET /`、
 `GET /openapi.json`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F01.alive`: `GET /alive` returns 200 `{"status": "ok"}` without a session key, while a protected route refuses the same key-less request.
-- `F01.health`: `GET /health` returns 200 `{"status": "ok"}` without a session key.
-- `F01.ready`: `GET /ready` returns 200 `{"status": "ready"}` once startup finished, without a session key.
-- `F01.server-info`: `GET /server_info` reports package versions, `build_git_sha` equal to the served checkout, usable tools and capability flags, without a session key.
-- `F01.root-info`: without static files, `GET /` returns the same server info document as `/server_info` (every field but the clocks).
-- `F01.uptime-restart`: `uptime` grows while the process lives and starts again from zero after a restart.
-- `F01.idle-time`: `idle_time` grows while nothing happens and resets when a file operation runs.
-- `F01.openapi`: `GET /openapi.json` serves the OpenAPI document with the conversation routes and without the WebSockets.
-- `F01.static-files`: with `static_files_path` set to an existing directory, `GET /` answers 302 to `/static/index.html` (or `/static/` without an `index.html`), `/static/*` serves the directory without a session key and refuses to escape it, `/api/*` still needs the key and `/server_info` is unchanged; a missing directory keeps `/` as server info.
-- `F01.debug-tracebacks`: with `DEBUG=true` a 5xx body carries a `traceback` next to `detail` and `exception`; without it, or on a 4xx, it does not.
-- `F01.preload-tools`: with `preload_tools` on, startup runs the tool preload before `/ready` answers 200; when the server finds no Chromium the preload fails, is logged and skipped and the server still serves, and with a Chromium it can find the preload succeeds.
+## 子功能
 
-## How to get to it (agent POV)
+- `F01.alive`：`GET /alive` 在没有会话密钥的情况下返回 200 `{"status": "ok"}`，而受保护的路由拒绝相同的无密钥请求。
+- `F01.health`: `GET /health` 返回 200 `{"status": "ok"}`，没有会话密钥。
+- `F01.ready`: `GET /ready` 启动完成后返回 200 `{"status": "ready"}`，无需会话密钥。
+- `F01.server-info`：`GET /server_info` 报告包版本，`build_git_sha` 等于所提供的结账、可用工具和功能标志，没有会话密钥。
+- `F01.root-info`：没有静态文件，`GET /` 返回与 `/server_info` 相同的服务器信息文档（除时钟之外的每个字段）。
+- `F01.uptime-restart`：`uptime` 在进程生存期间增长，并在重新启动后从零开始。
+- `F01.idle-time`：`idle_time` 在没有任何反应时增长，并在文件操作运行时重置。
+- `F01.openapi`：`GET /openapi.json` 为 OpenAPI 文档提供会话路由，但不包含 WebSockets。
+- `F01.static-files`: `static_files_path`设置为一个现有的目录，`GET /`返回302，`/static/index.html`（或`/static/`没有`index.html`）；`/static/*`不使用会话密钥服务目录，拒绝逃逸它，`/api/*`仍然需要密钥，`/server_info`没有改变。 丢失的目录保留 `/` 作为服务器信息。
+- `F01.debug-tracebacks`：`DEBUG=true` 5xx 主体在 `detail` 和 `exception` 旁边带有 `traceback`； 没有它，或者在 4xx 上，它不会。
+- `F01.preload-tools`：`preload_tools` 打开时，启动会在 `/ready` 回答 200 之前运行工具预加载； 当服务器找不到Chromium时，预加载失败，记录并跳过，但服务器仍然提供服务，并且有Chromium时，预加载成功。
 
-- REST: `GET /alive`, `GET /health`, `GET /ready` (Kubernetes-style probes; the
-  launcher and `doctor` use them), `GET /server_info` and `GET /`.
-- REST: `GET /openapi.json`; `/docs` and `/redoc` render it for humans (not
-  mapped).
-- Static mount: `GET /static/{path}`, present only when `static_files_path`
-  (env `OH_STATIC_FILES_PATH`) names an existing directory; it is a Starlette
-  mount, so `map routes` does not list it. `scripts/agent_server_ui/run.sh`
-  uses it to serve a bundled UI.
-- Config: `preload_tools` (env `OH_PRELOAD_TOOLS`, default `true` in
-  production; `launch` writes `false` unless `--preload-tools`), and the
-  process environment variable `DEBUG` (read once at import by
-  `openhands.sdk.logger`; the Docker runtime forwards it into containers).
-- SDK: `RemoteWorkspace` health checks and the Docker/API workspaces poll
-  `/alive` and `/ready` before using a server; Agent Canvas reads
-  `/server_info` to gate features on `capabilities` and versions.
-- TypeScript client: the generated schema in `clients/typescript/src/generated/`
-  is built from the OpenAPI document of the pinned server release.
+<a id="how-to-get-to-it-agent-pov"></a>
 
-## Driving it with control-agent-server
+## 如何到达 (智能体 POV)
 
-Preconditions:
+- REST：`GET /alive`、`GET /health`、`GET /ready`（Kubernetes型探针； 启动器和 `doctor` 使用它们）、`GET /server_info` 和 `GET /`。
+- REST: `GET /openapi.json`; `/docs` 和 `/redoc` 为人类渲染它（未映射）。
+- 静态挂载：`GET /static/{path}`，仅当 `static_files_path` (env `OH_STATIC_FILES_PATH`) 命名现有目录时出现； 它是一个 Starlette 的 mount，所以 `map routes` 不会列出它。 `scripts/agent_server_ui/run.sh` 使用它来提供捆绑的 UI。
+- 配置：`preload_tools`（环境`OH_PRELOAD_TOOLS`，生产中默认`true`； `launch` 写入 `false`，除非 `--preload-tools`），并且进程环境变量 `DEBUG`（在导入时读取一次）
+  `openhands.sdk.logger`; Docker 运行时将其转发到容器中）。
+- SDK: `RemoteWorkspace` 健康检查和 Docker/API 工作区民意调查
+  使用服务器之前的`/alive`和`/ready`； Agent Canvas 读
+  `/server_info` 控制 `capabilities` 和版本上的功能。
+- TypeScript客户端：`clients/typescript/src/generated/`中生成的模式是根据固定服务器版本的OpenAPI文档构建的。
 
-- A baseline run is live and exported (`launch --new`), `doctor` is ok. No
-  LLM profile is needed.
-- Commands run from the repository root, so `git rev-parse HEAD` names the
-  served checkout. `jq` is installed.
-- The static-files, DEBUG and preload bullets restart the run with
-  `--config-json`/`--env` and end with `restart --reset-config`, so they come
-  last. The block below creates the run-owned fixture directory every bullet
-  writes into (never a shared `/tmp` path).
+<a id="driving-it-with-control-agent-server"></a>
+
+## 使用 control-智能体-server 驱动它
+
+前提条件：
+
+- 基线运行已实时并导出 (`launch --new`)，`doctor` 可以。 不需要 LLM 配置文件。
+- 命令从存储库根运行，因此 `git rev-parse HEAD` 命名所提供的结账。 `jq` 已安装。
+- 静态文件、DEBUG 和预加载项目符号重新启动运行
+  `--config-json`/`--env` 并以 `restart --reset-config` 结尾，所以它们排在最后。 下面的块创建每个项目符号写入的运行拥有的测试夹具目录（绝不是共享的 `/tmp` 路径）。
   ```sh
   F01="$AGENT_SERVER_VERIFY_RUN/fixtures/qa-f01"
   mkdir -p "$F01"
   ```
 
-- **Liveness (`F01.alive`).** Probe without a key; a protected route refuses
-  the same key-less request, so authentication is on.
+- **活跃度 (`F01.alive`).**无需钥匙的探头； 受保护的路由拒绝相同的无密钥请求，因此身份验证打开。
   ```sh
   control-agent-server api GET /api/conversations/count --auth none --expect 401
   control-agent-server api GET /alive --auth none --expect 200 --check status eq ok --save F01.alive/alive
   ```
-  The protected route is `401`; `/alive` is `200` with `{"status": "ok"}`
-  although no key was sent.
-- **Health (`F01.health`).** Probe without a key.
+  受保护路由为`401`； `/alive` 和 `200`，尽管没有发送 `{"status": "ok"}`。
+- **健康 (`F01.health`).**无需钥匙即可探测。
   ```sh
   control-agent-server api GET /health --auth none --expect 200 --check status eq ok --save F01.health/health
   ```
-  The status is `200` and the body is `{"status": "ok"}`.
-- **Readiness (`F01.ready`).** Probe without a key after startup.
+  状态为`200`，内容为`{"status": "ok"}`。
+- **准备就绪 (`F01.ready`).**启动后无需钥匙即可探测。
   ```sh
   control-agent-server api GET /ready --auth none --expect 200 --check status eq ready --save F01.ready/ready
   ```
-  The body is `{"status": "ready"}`.
-- **Server info (`F01.server-info`).** Read build identity and capabilities
-  without a key.
+  身体是b`{"status": "ready"}`。
+- **服务器信息(`F01.server-info`)。**无需密钥即可读取构建标识和功能。
   ```sh
   control-agent-server api GET /server_info --auth none --expect 200 \
     --check build_git_sha eq "$(git rev-parse HEAD)" \
@@ -96,18 +82,17 @@ Preconditions:
     --check conversation_runtime eq local \
     --check sdk_version exists --save F01.server-info/info
   ```
-  Every check passes; the saved body also has `version`, `tools_version` and
+  每一张支票都通过了； 保存的主体也包含 `version` 和 `tools_version`
   `workspace_version`.
-- **Root alias (`F01.root-info`).** `/` serves the same document.
+- **根别名 (`F01.root-info`).** `/` 提供相同的文档。
   ```sh
   control-agent-server api GET /server_info --auth none --expect 200 --quiet --raw-out "$F01/server_info.json"
   control-agent-server api GET / --auth none --expect 200 --check build_git_sha eq "$(git rev-parse HEAD)" \
     --raw-out "$F01/root.json" --save F01.root-info/root
   diff <(jq -S 'del(.uptime, .idle_time)' "$F01/server_info.json") <(jq -S 'del(.uptime, .idle_time)' "$F01/root.json")
   ```
-  `diff` prints nothing: both bodies are identical apart from the two clocks.
-- **Uptime across a restart (`F01.uptime-restart`).** The server's own clock
-  is under test, so this bullet sleeps.
+  `diff` 不打印任何内容：除了两个时钟之外，两个主体都是相同的。
+- **重新启动后的正常运行时间 (`F01.uptime-restart`)。**服务器自己的时钟正在接受测试，所以这颗子弹休眠了。
   ```sh
   U0=$(control-agent-server api GET /server_info --auth none --field uptime)
   sleep 3
@@ -118,11 +103,9 @@ Preconditions:
     --save F01.uptime-restart/after-restart
   control-agent-server doctor
   ```
-  `uptime` grew across the sleep and `U1` is at least `3.0`; after the restart
-  `uptime` is no larger than the seconds since the restart began (an
-  unrestarted clock would be at least `U1` larger), and `doctor` is ok again.
-- **Idle time (`F01.idle-time`).** Status probes are not activity; a file
-  operation is.
+  `uptime` 在整个睡眠过程中增长，`U1` 至少为 `3.0`； 重启后
+  `uptime` 不大于自重新启动开始以来的秒数（未重新启动的时钟至少会大 `U1`），并且 `doctor` 再次正常。
+- **空闲时间(`F01.idle-time`)。**状态探测不是活动； 文件操作是。
   ```sh
   rm -rf "$F01/idle"
   sleep 3
@@ -133,28 +116,25 @@ Preconditions:
   test -d "$F01/idle"
   control-agent-server api GET /server_info --auth none --check idle_time lt "$I1" --save F01.idle-time/after-mkdir
   ```
-  `idle_time` is at least `3.0` although probes ran in between, the directory
-  did not exist before and exists on disk after the call, and `idle_time`
-  drops after it is created.
-- **OpenAPI document (`F01.openapi`).** The contract clients generate from.
+  `idle_time` 至少 `3.0`，尽管在之间运行了探针，目录在之前不存在，之后在磁盘上存在，`idle_time` 在创建后消失。
+- **OpenAPI文档(`F01.openapi`).**客户生成的合同。
   ```sh
   control-agent-server api GET /openapi.json --auth none --expect 200 --max-chars 200 \
     --check 'paths./api/conversations.post.operationId' matches start_conversation \
     --check 'paths./api/conversations/{conversation_id}/pause' exists \
     --check 'paths./sockets/events/{conversation_id}' missing --save F01.openapi/openapi
   ```
-  All checks pass. WebSockets are not part of the OpenAPI document;
-  `control-agent-server map routes --module sockets` lists them.
-- **Static files (`F01.static-files`).** Restart with `static_files_path` on
-  a run-owned directory, read it without a key, try to escape it, drop
-  `index.html`, then point the setting at a missing directory and restore.
+  所有的检查都通过了。 WebSockets 都不是我们的一部分 OpenAPI 文档。
+  `control-agent-server map routes --module sockets` 列出了它们。
+- **静态文件(`F01.static-files`)。**在运行拥有的目录上使用 `static_files_path` 重新启动，无需密钥读取它，尝试转义它，删除
+  `index.html`，然后将设置指向丢失的目录并恢复。
   ```sh
   S="$F01/static"
   mkdir -p "$S"
   printf '<!doctype html><title>qa-f01</title>QA_F01_STATIC\n' > "$S/index.html"
   printf '{"qa": "f01-static"}\n' > "$S/qa.json"
   printf '{"qa": "f01-outside"}\n' > "$F01/server_info"
-  M=/static  # a mount, not a route: map check cannot match its paths, so they go through a variable
+  M=/static  # 挂载，而不是路线：地图检查无法匹配其路径，因此它们通过变量
   control-agent-server restart --config-json "{\"static_files_path\": \"$S\"}"
   control-agent-server api GET / --auth none --expect 302 --check-header location eq /static/index.html \
     --save F01.static-files/root-redirect
@@ -178,19 +158,12 @@ Preconditions:
   control-agent-server restart --reset-config
   control-agent-server api GET / --auth none --expect 200 --check title eq 'OpenHands Agent Server'
   ```
-  `/` is a 302 to `/static/index.html`, and both static files are served
-  byte for byte without a key. The escape attempt is 404: the server decodes
-  it to `/static/../server_info`, which the mount refuses (it would serve
-  `qa-f01/server_info` if it followed `..`, and a client or router that
-  normalized the path would reach the real `/server_info`, 200 either way).
-  `/api/*` still refuses a key-less call and accepts the run's key, and
-  `/server_info` is unchanged. Without `index.html` the redirect targets
-  `/static/`, which is 404 (the mount does not render directory indexes).
-  A `static_files_path` that does not exist keeps `/` as server info and
-  mounts nothing.
-- **DEBUG tracebacks (`F01.debug-tracebacks`).** A deliberate 5xx (the
-  workspaces registry file replaced by a directory, as in `F17.io-error`)
-  read with and without `DEBUG`.
+  `/` 是 302 到 `/static/index.html`，两个静态文件都是逐字节提供的，无需密钥。 转义尝试是 404：服务器将其解码为 `/static/../server_info`，挂载拒绝（它将服务
+  `qa-f01/server_info` 如果它遵循 `..`，并且规范化路径的客户端或路由器将到达真实的 `/server_info`，无论哪种方式都是 200）。
+  `/api/*` 仍然拒绝无密钥调用并接受运行密钥，并且
+  `/server_info` is unchanged. 没有 `index.html` 重定向目标
+  `/static/`，即 404（挂载不渲染目录索引）。 不存在的 `static_files_path` 将 `/` 保留为服务器信息并且不安装任何内容。
+- **DEBUG 回溯 (`F01.debug-tracebacks`).**有意的 5xx（工作区注册表文件被目录替换，如 `F17.io-error` 中）在使用和不使用 `DEBUG` 的情况下进行读取。
   ```sh
   WS="$AGENT_SERVER_VERIFY_RUN/home/.openhands/workspaces.json"
   test ! -e "$WS"
@@ -209,15 +182,10 @@ Preconditions:
   rmdir "$WS"
   control-agent-server api GET /api/workspaces --expect 200 --check workspaces len-eq 0
   ```
-  Without `DEBUG` the 500 body is `detail`, `exception` and nothing else; with
-  `DEBUG=true` the server prints `DEBUG mode: ENABLED` and the same 500 adds a
-  `traceback` string whose last line is the `HTTPException`, while the 401
-  stays `{"detail": ...}`. After `--reset-config` the trace is gone again and
-  the registry reads normally once the directory is removed.
-- **Tool preload (`F01.preload-tools`).** Restart with `preload_tools` on,
-  first with whatever Chromium the server finds on its own, then with the
-  machine's Chromium linked into the run's Playwright cache (when the machine
-  has one), then restore.
+  缺少`DEBUG`，500状态码仅包含`detail`、`exception`和其它。 与
+  `DEBUG=true`服务器打印`DEBUG mode: ENABLED`并且同样的500添加了一个
+  `traceback` 字符串，其最后一行是 `HTTPException`，而 401 仍然是 `{"detail": ...}`。 在 `--reset-config` 之后，跟踪再次消失，并且一旦删除目录，注册表就会正常读取。
+- **刀具预紧 (`F01.preload-tools`).**打开 `preload_tools` 重新启动，首先使用服务器自己找到的任何 Chromium，然后将计算机的 Chromium 链接到运行的 Playwright 缓存（当计算机有一个缓存时），然后恢复。
   ```sh
   control-agent-server logs --grep 'Tool preload service is disabled' --expect-min 1
   STARTED=$(control-agent-server logs --grep 'Tool preload service started' | jq .total_matching)
@@ -249,50 +217,21 @@ Preconditions:
   control-agent-server restart --reset-config
   control-agent-server config | jq -e '.config_file.preload_tools == false'
   ```
-  Before the bullet the log says the preload is disabled; the counts taken
-  then make each later log check about the restart that follows them. With
-  `preload_tools` on, the restart (which waits for `/ready`) returns, `/ready`
-  is 200 and `/api/*` serves. A server that finds no Chromium (no
-  `browser_tool_set` in `usable_tools`; on this machine the only Chromium is
-  under `$PLAYWRIGHT_BROWSERS_PATH`, which `launch` does not pass on) logs `Error
-  preloading chromium` with the install hint and `Tool preload service failed
-  to start - skipping`, and still serves. With the machine's Chromium linked
-  into the run's `~/.cache/ms-playwright`, the next start logs `Chromium is
-  available for browser operations` and one more `Tool preload service
-  started successfully`. The last restart writes `preload_tools: false` again.
+  在子弹之前，日志显示预加载已禁用。 然后所取的计数使得之后的每一条日志检查都关于随后的重启。 与
+  `preload_tools`开启，重启（等待`/ready`）返回，`/ready`为200，`/api/*`发球。 找不到 Chromium 的服务器（没有
+  `usable_tools`中的`browser_tool_set`； 在这台机器上，唯一的 Chromium 位于 `$PLAYWRIGHT_BROWSERS_PATH` 下，`launch` 不会传递）使用安装提示和 `Tool preload service failed to start - skipping` 记录 `Error preloading chromium`，并且仍然可以使用。 将机器的 Chromium 链接到运行的 `~/.cache/ms-playwright` 后，下一个启动日志 `Chromium is available for browser operations` 和另一个 `Tool preload service started successfully`。 最后重启又写`preload_tools: false`。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- `/ready` returns 503 `{"status": "initializing"}` until startup finished (tool
-  preload, VS Code); `launch` waits for it, so a 503 on a launched run means
-  something is wrong. In deferred-init mode `/ready` is 200 while the pod is
-  still dormant (placeable); `GET /api/init` reports the real state (see the
-  deferred init family).
-- `idle_time` resets on conversation events (except state updates), bash
-  command start, execute and stop, file uploads, downloads, directory creation
-  and archives, and the git changes and diff routes; not on status probes or
-  other reads. Orchestrators use it to reap idle sandboxes.
-- `build_git_sha` and `build_git_ref` come from `OPENHANDS_BUILD_GIT_SHA` and
-  `OPENHANDS_BUILD_GIT_REF`; `launch` sets them from the checkout. A server
-  started another way reports `unknown`, which is why `doctor` compares the
-  SHA only for launched runs.
-- `uptime` and `idle_time` are whole seconds serialized as floats (`12.0`);
-  compare them with `--check ... lt`, not with the shell's integer `test`.
-- Dotted `--check` and `--field` paths may contain slashes and braces
-  (`paths./api/conversations.post`), because only dots separate segments.
-- `static_files_path` is checked once at startup: a directory created later
-  needs a restart, while `index.html` is looked up on every `GET /`. The
-  `/static` mount sits outside every auth group, so anything in that
-  directory is public.
-- The preload only checks for Chromium and builds the browser executor and
-  tool action types; it starts no browser process (the browser starts on the
-  first browser action). A failed preload never blocks startup, but an
-  exception escaping the preload task would (`api.py` re-raises it). The
-  server log is Rich-wrapped at 80 columns, so grep for short phrases
-  (`Tool preload service started`, not the whole sentence).
-- `DEBUG` is read once at import and also turns the log level to `DEBUG`; it
-  leaks file paths and source lines in 5xx bodies, so it is never for
-  production. Unhandled exceptions get the same `traceback` field next to
-  their `error_id`; the map's unhandled 500s either need a conversation or
-  are known bugs, so this family drives the deliberate `HTTPException` 500,
-  the cheapest stable 5xx.
+## 陷阱
+
+- `/ready` 返回 503 `{"status": "initializing"}` 直到启动完成（工具预加载、VS Code）； `launch` 等待它，因此启动运行时出现 503 意味着出现问题。 在 deferred-init 模式下 `/ready` 为 200，而 pod 仍处于休眠状态（可放置）； `GET /api/init` 报告真实状态（请参阅延迟 init 系列）。
+- `idle_time` 仅在会话事件（除了状态更新）和bash命令的启动、执行和停止、文件上传、下载、目录创建和归档，以及git更改和差异路由上重置。 不在状态探测或其他读取上。 编排者使用它来获取闲置的沙箱。
+- `build_git_sha` 和 `build_git_ref` 来自 `OPENHANDS_BUILD_GIT_SHA` 和
+  `OPENHANDS_BUILD_GIT_REF`; `launch` 从结账时设置它们。 服务器以另一种方式启动报告 `unknown`，这就是为什么 `doctor` 仅比较已启动的运行的 SHA。
+- `uptime` 和 `idle_time` 是整秒已序列化作为浮点数 (`12.0`)； 将它们与 `--check ... lt` 进行比较，而不是与 shell 的整数 `test` 进行比较。
+- 点式 `--check` 和 `--field` 路径可以包含斜杠和大括号 (`paths./api/conversations.post`)，因为只有点分隔段。
+- `static_files_path` 在启动时检查一次：稍后创建的目录需要重新启动，而 `index.html` 在每个 `GET /` 上查找。 的
+  `/static` mount 位于每个身份验证组之外，因此该目录中的任何内容都是公共的。
+- 预加载仅检查 Chromium 并构建浏览器执行器和工具操作类型； 它不启动浏览器进程（浏览器在第一个浏览器操作时启动）。 失败的预加载永远不会阻止启动，但转义预加载任务的异常会（`api.py` 重新引发它）。 服务器日志有 80 列，因此 grep 可以显示短语（`Tool preload service started`，而不是整个句子）。
+- `DEBUG`在导入时被读取一次，并且还将日志级别变为`DEBUG`； 它会泄漏 5xx 主体中的文件路径和源代码行，因此它永远不会用于生产。 未处理的异常在其 `error_id` 旁边获得相同的 `traceback` 字段； 地图上未处理的 500 要么需要对话，要么是已知的错误，因此这个家族驾驶的是 deliberate `HTTPException` 500，最便宜的稳定 5xx。

@@ -12,16 +12,16 @@ if TYPE_CHECKING:
     from openhands.sdk.event.base import LLMConvertibleEvent
 
 
-# Type alias for follow-up prompt generator function
+# 后续提示词生成器函数的类型别名
 FollowupPromptFn = Callable[[CriticResult, int], str]
-"""Function that generates a follow-up prompt based on critic result and iteration."""
+"""根据批评结果和迭代生成后续提示词的函数。"""
 
 
 class IterativeRefinementConfig(BaseModel):
-    """Configuration for iterative refinement based on critic feedback.
+    """基于评论家反馈的迭代细化配置。
 
-    When attached to a CriticBase, the Conversation.run() method will
-    automatically retry the task if the critic score is below the threshold.
+    当附加到 CriticBase 时，如果评论分数低于阈值，Conversation.run() 方法将自动重试任
+    务。
 
     Example:
         critic = APIBasedCritic(
@@ -36,7 +36,7 @@ class IterativeRefinementConfig(BaseModel):
         agent = Agent(llm=llm, tools=tools, critic=critic)
         conversation = Conversation(agent=agent, workspace=workspace)
         conversation.send_message("Create a calculator module...")
-        conversation.run()  # Will automatically retry if critic score < 0.7
+        conversation.run()  # 如果评分低于0.7，将自动重试
     """
 
     success_threshold: float = Field(
@@ -50,13 +50,13 @@ class IterativeRefinementConfig(BaseModel):
         ge=1,
         description="Maximum number of iterations before giving up.",
     )
-    # Note: followup_prompt_fn is not serializable, so we use a default
-    # Users can override by subclassing or using the IterativeRefinement class directly
+    # 注意：followup_prompt_fn 不可序列化，因此我们使用默认值
+    # 用户可以通过子类化或直接使用 IterativeRefinement 类来覆盖
 
 
 class CriticBase(DiscriminatedUnionMixin, abc.ABC):
-    """A critic is a function that takes in a list of events,
-    optional git patch, and returns a score about the quality of agent's action.
+    """评论家是一个接受事件列表的函数，
+    可选的 git patch，并返回有关智能体操作质量的分数。
     """
 
     mode: Literal["finish_and_message", "all_actions"] = Field(
@@ -86,16 +86,16 @@ class CriticBase(DiscriminatedUnionMixin, abc.ABC):
         pass
 
     def get_followup_prompt(self, critic_result: CriticResult, iteration: int) -> str:
-        """Generate a follow-up prompt for iterative refinement.
+        """生成后续提示词以进行迭代细化。
 
-        Subclasses can override this method to provide custom follow-up prompts.
+        子类可以重写此方法以提供自定义后续操作提示词。
 
         Args:
-            critic_result: The critic result from the previous iteration.
-            iteration: The current iteration number (1-indexed).
+            critic_result: 批评家的结果来自上一次迭代。
+            iteration: 当前迭代次数（1-索引）。
 
         Returns:
-            A follow-up prompt string to send to the agent.
+            要发送到智能体的后续提示词字符串。
         """
         score_percent = critic_result.score * 100
 
@@ -107,7 +107,7 @@ class CriticBase(DiscriminatedUnionMixin, abc.ABC):
         )
 
     def should_refine(self, critic_result: CriticResult) -> bool:
-        """Evaluate whether iterative refinement should continue."""
+        """评估是否应该继续迭代细化。"""
         if self.iterative_refinement is None:
             return False
 

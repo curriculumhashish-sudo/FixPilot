@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """
-Check import dependency rules across openhands packages.
+检查 OpenHands 个包之间的导入依赖关系规则。
 
-Rules:
-1. openhands.sdk should NOT import from:
+规则：
+1. openhands.sdk 应该不导入自：
    - openhands.tools
    - openhands.workspace
    - openhands.agent_server
 
-2. openhands.tools can import from:
+2. openhands.tools 可以从以下位置导入：
    - openhands.sdk
-   BUT NOT from:
+   BUT 不来自：
    - openhands.workspace
    - openhands.agent_server
 
-3. openhands.workspace can import from:
+3. openhands.workspace 可以从以下位置导入：
    - openhands.sdk
    - openhands.tools
-   BUT NOT from:
+   BUT 不来自：
    - openhands.agent_server
 
-4. openhands.agent_server can import from:
+4. openhands.agent_server 可以从以下位置导入：
    - openhands.sdk
    - openhands.tools
-   BUT NOT from:
+   BUT 不来自：
    - openhands.workspace
 """
 
@@ -33,7 +33,7 @@ from pathlib import Path
 
 
 class ImportChecker(ast.NodeVisitor):
-    """AST visitor to extract import statements."""
+    """AST 访问者提取导入语句。"""
 
     def __init__(self):
         self.imports: set[str] = set()
@@ -50,7 +50,7 @@ class ImportChecker(ast.NodeVisitor):
 
 
 def get_imports_from_file(file_path: Path) -> set[str]:
-    """Extract all import module names from a Python file."""
+    """从 Python 文件中提取所有导入模块名称。"""
     try:
         with open(file_path, encoding="utf-8") as f:
             tree = ast.parse(f.read(), filename=str(file_path))
@@ -66,7 +66,7 @@ def get_imports_from_file(file_path: Path) -> set[str]:
 
 
 def check_sdk_imports(sdk_path: Path) -> list[tuple[Path, str]]:
-    """Check that openhands.sdk doesn't import from tools/workspace/agent_server."""  # noqa: E501
+    """检查 openhands.sdk 是否未从 tools/workspace/agent_server 导入。"""  # noqa: E501
     violations = []
     forbidden = ["openhands.tools", "openhands.workspace", "openhands.agent_server"]
 
@@ -81,7 +81,7 @@ def check_sdk_imports(sdk_path: Path) -> list[tuple[Path, str]]:
 
 
 def check_tools_imports(tools_path: Path) -> list[tuple[Path, str]]:
-    """Check that openhands.tools doesn't import from workspace or agent_server."""
+    """检查 openhands.tools 是否未从工作区或 agent_server 导入。"""
     violations = []
     forbidden = ["openhands.workspace", "openhands.agent_server"]
 
@@ -96,7 +96,7 @@ def check_tools_imports(tools_path: Path) -> list[tuple[Path, str]]:
 
 
 def check_agent_server_imports(agent_server_path: Path) -> list[tuple[Path, str]]:
-    """Check that openhands.agent_server doesn't import from workspace."""
+    """检查 openhands.agent_server 是否未从工作区导入。"""
     violations = []
     forbidden = ["openhands.workspace"]
 
@@ -112,13 +112,13 @@ def check_agent_server_imports(agent_server_path: Path) -> list[tuple[Path, str]
 
 def main(files: list[str] | None = None) -> int:
     """
-    Main entry point for import rule checking.
+    Main 入口用于导入规则检查。
 
     Args:
-        files: Optional list of specific files to check. If None, checks all files.
+        files: 要检查的特定文件的可选列表。 如果 None，则检查所有文件。
 
     Returns:
-        0 if no violations found, 1 otherwise.
+        如果没有发现违规行为，则为 0，否则为 1。
     """
     repo_root = Path(__file__).parent.parent
     sdk_path = repo_root / "openhands-sdk" / "openhands" / "sdk"
@@ -127,22 +127,22 @@ def main(files: list[str] | None = None) -> int:
         repo_root / "openhands-agent-server" / "openhands" / "agent_server"
     )
 
-    # If specific files are provided, filter checks to only those directories
+    # 如果提供了特定文件，则过滤器仅检查这些目录
     if files:
-        # Convert file paths to absolute for comparison
+        # 将文件路径转换为绝对路径以进行比较
         abs_files = [str(Path(f).resolve()) for f in files]
         check_sdk = any(str(sdk_path) in f for f in abs_files)
         check_tools = any(str(tools_path) in f for f in abs_files)
         check_agent_server = any(str(agent_server_path) in f for f in abs_files)
     else:
-        # Check all packages if no files specified
+        # 如果没有指定文件，则检查所有包
         check_sdk = True
         check_tools = True
         check_agent_server = True
 
     all_violations = []
 
-    # Check SDK imports
+    # 检查SDK进口
     if check_sdk and sdk_path.exists():
         violations = check_sdk_imports(sdk_path)
         if violations:
@@ -155,7 +155,7 @@ def main(files: list[str] | None = None) -> int:
                 )
             all_violations.extend(violations)
 
-    # Check tools imports
+    # 检查工具导入
     if check_tools and tools_path.exists():
         violations = check_tools_imports(tools_path)
         if violations:
@@ -168,7 +168,7 @@ def main(files: list[str] | None = None) -> int:
                 )
             all_violations.extend(violations)
 
-    # Check agent_server imports
+    # 检查agent_server进口
     if check_agent_server and agent_server_path.exists():
         violations = check_agent_server_imports(agent_server_path)
         if violations:
@@ -198,6 +198,6 @@ def main(files: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    # Get files from command line arguments (from pre-commit)
+    # 从命令行参数获取文件（从预提交）
     files = sys.argv[1:] if len(sys.argv) > 1 else None
     sys.exit(main(files))

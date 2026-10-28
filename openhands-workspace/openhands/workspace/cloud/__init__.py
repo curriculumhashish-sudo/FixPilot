@@ -1,7 +1,8 @@
-"""OpenHands Cloud workspace implementation."""
+"""OpenHands云工作区实施。"""
 
-# Re-export repo models and utilities from SDK for backward compatibility.
-# The original implementations have been moved to openhands.sdk.workspace.repo.
+# 将 SDK 中的存储库模型和实用程序重新导出到向后兼容性。 最初的实现已移至openhands.
+# sdk.workspace.repo。
+#
 from openhands.sdk.workspace.repo import (
     CloneResult,
     GitProvider,

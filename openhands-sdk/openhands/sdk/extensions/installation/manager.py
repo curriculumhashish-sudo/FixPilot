@@ -33,16 +33,15 @@ DEFAULT_CACHE_DIR = get_user_persistence_dir() / "cache" / "extensions"
 
 @dataclass
 class InstallationManager[T: ExtensionProtocol]:
-    """Generic manager for installing, tracking, and loading extensions.
+    """用于安装、跟踪和加载扩展的通用管理器。
 
-    Parameterised by any type ``T`` that satisfies ``ExtensionProtocol``.
-    The companion ``InstallationInterface[T]`` tells the manager how to
-    load ``T`` from a directory on disk; everything else (fetching, copying,
-    metadata bookkeeping) is handled generically.
+    由满足 ``ExtensionProtocol`` 的任何类型 ``T`` 进行参数化。 同伴
+    ``InstallationInterface[T]`` 告诉管理器
+    如何从磁盘上的目录加载 ``T``； 其他一切（获取、复制、元数据簿记）都是通用处理的。
 
     Attributes:
-        installation_dir: Root directory where extensions are installed.
-        installation_interface: Knows how to load ``T`` from a directory.
+        installation_dir: 安装扩展的根目录。
+        installation_interface: 知道如何从目录加载 ``T``。
     """
 
     installation_dir: Path
@@ -53,7 +52,7 @@ class InstallationManager[T: ExtensionProtocol]:
 
     @property
     def metadata_session(self) -> MetadataSession:
-        """Open a metadata session bound to this manager's dir and interface."""
+        """打开绑定到该管理器的目录和接口的元数据会话。"""
         return InstallationMetadata.open(
             self.installation_dir, interface=self.installation_interface
         )
@@ -65,28 +64,26 @@ class InstallationManager[T: ExtensionProtocol]:
         repo_path: str | None = None,
         force: bool = False,
     ) -> InstallationInfo:
-        """Install an extension from a source.
+        """从源安装扩展。
 
-        Fetches the extension from the source, copies it to the installation
-        directory, and records installation metadata.  When ``force=True``
-        overwrites an existing installation, the previous ``enabled`` state is
-        preserved.
+        从源获取扩展，将其复制到安装目录，并记录安装元数据。 当 ``force=True`` 覆盖现
+        有安装时，将保留先前的 ``enabled`` 状态。
 
         Args:
-            source: Extension source — can be a ``"github:owner/repo"``
-                shorthand, any git URL, or a local filesystem path.
-            ref: Optional branch, tag, or commit to install.
-            repo_path: Subdirectory path within the repository (for monorepos).
-            force: If True, overwrite existing installation.  If False, raise
-                an error if the extension is already installed.
+            source: 扩展源 — 可以是 ``"github:owner/repo"``
+                简写、任何 git URL 或本地文件系统路径。
+            ref: 可选的分支、标记或提交安装。
+            repo_path: 存储库内的子目录路径（对于 monorepos）。
+            force: 如果为 True，则覆盖现有安装。 如果 False，则提高
+                如果扩展已安装，则会出现错误。
 
         Returns:
-            InstallationInfo with details about the installation.
+            InstallationInfo 包含有关安装的详细信息。
 
         Raises:
-            ExtensionFetchError: If fetching the extension fails.
-            FileExistsError: If extension is already installed and force=False.
-            ValueError: If the extension name is invalid.
+            ExtensionFetchError: 如果获取扩展失败。
+            FileExistsError: 如果扩展已安装并且force=False。
+            ValueError: 如果扩展名无效。
         """
         return self._install(source, ref=ref, repo_path=repo_path, force=force)
 
@@ -98,12 +95,12 @@ class InstallationManager[T: ExtensionProtocol]:
         force: bool = False,
         root_name: str | None = None,
     ) -> InstallationInfo:
-        """Install as ``install`` does; ``root_name`` names a repository root.
+        """像``install``一样安装； ``root_name`` 命名存储库根。
 
-        ``root_name`` replaces the repository's name as the directory name a
-        remote source without ``repo_path`` is loaded from (see
-        ``_load_fetched``).  ``update`` passes the installed name, so an
-        extension installed under another name keeps it.
+        ``root_name`` 将存储库的名称替换为从中加载不带 ``repo_path`` 的远程源的目录名
+        称（请参阅
+        ``_load_fetched``). ``update`` 传递安装的名称，因此以其他名称安装的扩展会保留
+        它。
         """
         if isinstance(source, Path):
             source = str(source)
@@ -162,12 +159,11 @@ class InstallationManager[T: ExtensionProtocol]:
         repo_path: str | None,
         root_name: str | None = None,
     ) -> T:
-        """Load the fetched extension, named after its repository if it is one.
+        """加载获取的扩展，如果它是一个，则以其存储库命名。
 
-        A remote source without an explicit or embedded subpath is fetched to its
-        clone cache, ``<repo>-<hash>``.  A loader that infers the name from the
-        directory (a plugin without a manifest) must see ``<repo>`` instead, as
-        it would for a local directory, so load from a copy with that name.
+        没有显式或嵌入子路径的远程源将被提取到其克隆缓存 ``<repo>-<hash>``。 一个从目
+        录名称推断名称的加载器（没有manifest的插件）必须使用
+         ``<repo>``，就像它对本地目录一样，因此从带有那个名称的副本加载。
         """
         source_type, url, repo_path = resolve_extension_source(source, repo_path)
         if repo_path or source_type == SourceType.LOCAL:
@@ -184,21 +180,19 @@ class InstallationManager[T: ExtensionProtocol]:
             return self.installation_interface.load_from_dir(load_path)
 
     def uninstall(self, name: str) -> bool:
-        """Uninstall an extension by name.
+        """按名称卸载扩展。
 
-        Only extensions tracked in the metadata can be uninstalled.  This
-        prevents accidentally deleting arbitrary directories that happen to
-        exist inside the installation directory.  If the extension's directory
-        has already been removed, the metadata entry is still cleaned up.
+        只能卸载元数据中跟踪的扩展。 这可以防止意外删除安装目录中恰好存在的任意目录。
+         如果扩展的目录已被删除，元数据条目仍会被清除。
 
         Args:
-            name: Name of the extension to uninstall.
+            name: 要卸载的扩展的名称。
 
         Returns:
-            True if the extension was uninstalled, False if it wasn't tracked.
+            True 如果扩展已卸载，False 如果未跟踪。
 
         Raises:
-            ValueError: If *name* is not valid kebab-case.
+            ValueError: 如果 *name* 不是有效的 kebab-case。
         """
         validate_extension_name(name)
 
@@ -226,11 +220,10 @@ class InstallationManager[T: ExtensionProtocol]:
         name: str,
         enabled: bool,
     ) -> bool:
-        """Set the enabled state of an installed extension.
+        """设置已安装扩展的启用状态。
 
-        Syncs metadata before checking, so stale or untracked entries are
-        reconciled first.  Returns False if the extension is not installed
-        or its directory is missing.
+        在检查之前同步元数据，因此陈旧或未跟踪的条目首先得到协调。 如果未安装扩展或其
+        目录丢失，则返回 False。
         """
         validate_extension_name(name)
 
@@ -266,22 +259,21 @@ class InstallationManager[T: ExtensionProtocol]:
         return True
 
     def enable(self, name: str) -> bool:
-        """Enable an installed extension by name."""
+        """按名称启用已安装的扩展。"""
         return self._set_enabled(name, True)
 
     def disable(self, name: str) -> bool:
-        """Disable an installed extension by name."""
+        """按名称禁用已安装的扩展。"""
         return self._set_enabled(name, False)
 
     def list_installed(self) -> list[InstallationInfo]:
-        """List all installed extensions.
+        """列出所有已安装的扩展。
 
-        Self-healing: the metadata file is updated to remove entries whose
-        directories have been deleted and to add entries for extension
-        directories that were manually copied into the installation directory.
+        自我修复：更新元数据文件以删除已删除目录的条目，并添加扩展目录的条目，这些目
+        录是手动复制到安装目录中的。
 
         Returns:
-            List of InstallationInfo for each installed extension.
+            每个已安装扩展的 InstallationInfo 列表。
         """
         if not self.installation_dir.exists():
             return []
@@ -290,14 +282,13 @@ class InstallationManager[T: ExtensionProtocol]:
             return session.sync()
 
     def load_installed(self) -> list[T]:
-        """Load all enabled extensions as ``T`` objects.
+        """将所有启用的扩展加载为 ``T`` 对象。
 
-        Calls ``list_installed()`` first (which syncs metadata), then loads
-        each enabled extension via the installation interface.  Disabled
-        extensions are skipped.
+        首先调用 ``list_installed()``（同步元数据），然后通过安装界面加载每个启用的扩
+        展。 禁用的扩展将被跳过。
 
         Returns:
-            List of loaded extension objects of type ``T``.
+            已加载类型 ``T`` 的扩展对象的列表。
         """
         if not self.installation_dir.exists():
             return []
@@ -316,19 +307,18 @@ class InstallationManager[T: ExtensionProtocol]:
         return extensions
 
     def get(self, name: str) -> InstallationInfo | None:
-        """Get information about a specific installed extension.
+        """获取有关特定已安装扩展的信息。
 
-        Returns ``None`` if the extension is not tracked in metadata or if
-        its directory no longer exists on disk.
+        如果元数据中未跟踪扩展或其目录不再存在于磁盘上，则返回 ``None``。
 
         Args:
-            name: Name of the extension to look up.
+            name: 要查找的扩展名。
 
         Returns:
-            InstallationInfo if the extension is installed, None otherwise.
+            如果安装了扩展，则为 InstallationInfo，否则为 None。
 
         Raises:
-            ValueError: If *name* is not valid kebab-case.
+            ValueError: 如果 *name* 不是有效的 kebab-case。
         """
         validate_extension_name(name)
 
@@ -343,24 +333,21 @@ class InstallationManager[T: ExtensionProtocol]:
         return info
 
     def update(self, name: str) -> InstallationInfo | None:
-        """Update an installed extension to the latest version.
+        """将已安装的扩展更新到最新版本。
 
-        Re-fetches the extension from its original source with ``ref=None``
-        (i.e. the latest available) and force-reinstalls it.  The previous
-        ``enabled`` state is preserved because ``install(force=True)``
-        carries it over.  A repository root without a manifest keeps its
-        installed name.
+        使用 ``ref=None`` (i.e. 最新的可用）并强制重新安装它。 上一个
+        ``enabled`` 状态被保留，因为 ``install(force=True)`` 继承了它。 没有清单的存
+        储库根保留其安装名称。
 
         Args:
-            name: Name of the extension to update.
+            name: 要更新的扩展名。
 
         Returns:
-            Updated InstallationInfo if successful, None if the extension is
-            not installed.
+            如果成功则更新 InstallationInfo，如果未安装扩展则更新 None。
 
         Raises:
-            ExtensionFetchError: If fetching the updated extension fails.
-            ValueError: If *name* is not valid kebab-case.
+            ExtensionFetchError: 如果获取更新的扩展失败。
+            ValueError: 如果 *name* 不是有效的 kebab-case。
         """
         validate_extension_name(name)
 

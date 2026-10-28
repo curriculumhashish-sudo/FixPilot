@@ -1,8 +1,8 @@
-"""End-to-end tests for the workspace cookie auth flow.
+"""工作区 cookie 身份验证流程的端到端测试。
 
-Exercises the full ``create_app(Config(session_api_keys=...))`` wiring so
-we cover both the new ``/api/auth/workspace-session`` endpoints and the
-cookie-or-header dependency that gates the workspace static-file routes.
+练习完整的 ``create_app(Config(session_api_keys=...))`` 连接，因此我们涵盖了新的
+``/api/auth/workspace-session`` 端点和门控工作区静态文件路由的 cookie 或 header 依赖
+项。
 """
 
 from types import SimpleNamespace
@@ -28,7 +28,7 @@ SESSION_KEY = "test-key-abc"
 
 @pytest.fixture
 def client_factory(tmp_path):
-    """Build a TestClient with auth configured and one workspace served."""
+    """构建一个配置了身份验证的 TestClient，并提供一个工作区。"""
 
     def _build(*, conversation_id: UUID, workspace_dir=None) -> TestClient:
         ws = workspace_dir if workspace_dir is not None else tmp_path
@@ -47,7 +47,7 @@ def client_factory(tmp_path):
         conversation_service.get_event_service.side_effect = _get_event_service
 
         app = create_app(Config(session_api_keys=[SESSION_KEY]))
-        # Override the lifespan-managed conversation service with our mock.
+        # 使用我们的模拟对象覆盖生命周期管理的对话服务。
         app.dependency_overrides[get_conversation_service] = (
             lambda: conversation_service
         )
@@ -66,7 +66,7 @@ def _workspace_url(cid: UUID, path: str = "index.html") -> str:
     return f"/api/conversations/{cid}/workspace/{path}"
 
 
-# ---- baseline header behavior (regression coverage) -----------------------
+# ---- 基线标头行为（回归覆盖范围） ----------------------
 
 
 def test_workspace_rejects_request_without_credentials(
@@ -123,8 +123,8 @@ def test_mint_session_rejects_bad_header(client_factory):
 
 
 def test_mint_session_returns_cookie_attrs_over_https(client_factory):
-    """Behind a TLS-terminating proxy that sets X-Forwarded-Proto=https,
-    we issue the full cross-site iframe cookie attribute set."""
+    """在设置 X-Forwarded-Proto=HTTPS 的 TLS 终止代理后面，
+    我们发布完整的跨站点 iframe cookie 属性集。"""
     client = client_factory(conversation_id=uuid4())
 
     resp = client.post(
@@ -139,11 +139,11 @@ def test_mint_session_returns_cookie_attrs_over_https(client_factory):
 
     set_cookie = resp.headers["set-cookie"]
     assert set_cookie.startswith(f"{WORKSPACE_SESSION_COOKIE_NAME}={SESSION_KEY}")
-    # Cross-site iframe requirements:
+    # 跨站 iframe 要求：
     assert "SameSite=none" in set_cookie
     assert "Secure" in set_cookie
     assert "Partitioned" in set_cookie
-    # Defensive defaults:
+    # 防守默认：
     assert "HttpOnly" in set_cookie
     assert "Path=/api/conversations" in set_cookie
 
@@ -160,10 +160,10 @@ def test_mint_session_returns_cookie_attrs_over_https(client_factory):
     ],
 )
 def test_mint_session_marks_cookie_secure_on_loopback(client_factory, host_header):
-    """Browsers (per the Secure Contexts spec) accept ``Secure`` cookies
-    on plain-HTTP loopback origins. Issuing Secure here lets local dev
-    against ``http://localhost`` actually receive the cookie, which a
-    ``SameSite=None`` non-Secure cookie would not."""
+    """浏览器（根据安全上下文规范）接受 ``Secure`` cookie
+    在普通的HTTP环回起源上。 在这里发出 Secure 可以让本地开发人员针对
+    ``http://localhost`` 实际上接收 cookie，这是
+    ``SameSite=None`` 非安全 cookie 不会。"""
     client = client_factory(conversation_id=uuid4())
 
     resp = client.post(
@@ -180,7 +180,7 @@ def test_mint_session_marks_cookie_secure_on_loopback(client_factory, host_heade
 def test_mint_session_marks_cookie_secure_on_forwarded_ipv6_loopback(
     client_factory,
 ):
-    """A bracketed IPv6 loopback in ``X-Forwarded-Host`` is a secure context."""
+    """``X-Forwarded-Host`` 中括号内的 IPv6 环回是安全的上下文。"""
     client = client_factory(conversation_id=uuid4())
 
     resp = client.post(
@@ -199,11 +199,11 @@ def test_mint_session_marks_cookie_secure_on_forwarded_ipv6_loopback(
 
 
 def test_mint_session_over_remote_plain_http_drops_secure(client_factory):
-    """On non-HTTPS to a non-loopback host we don't claim Secure — the
-    browser would reject a Secure cookie over plain HTTP anyway. The
-    cookie won't actually work for cross-site embedding in that case
-    (SameSite=None requires Secure), but emitting a Secure attribute we
-    can't honor would just make the failure mode less obvious."""
+    """在非 HTTPS 到非环回主机上，我们不声明安全 —
+    浏览器无论如何都会拒绝普通 HTTP 上的安全 cookie。 在这种情况下，cookie实际上不会
+    为跨站嵌入工作（SameSite=None 需要 Secure）
+    ，但发出我们无法遵守的 Secure 属性只会让失败模式更加不明显。
+    """
     client = client_factory(conversation_id=uuid4())
 
     resp = client.post(
@@ -221,7 +221,8 @@ def test_mint_session_over_remote_plain_http_drops_secure(client_factory):
     assert "Partitioned" not in set_cookie
 
 
-# ---- Cookie auth on workspace router --------------------------------------
+# ---- 工作区路由器上的 Cookie 身份验证 ------------------------------------------------
+# --
 
 
 def test_workspace_accepts_valid_cookie(client_factory, workspace_with_index):
@@ -235,7 +236,7 @@ def test_workspace_accepts_valid_cookie(client_factory, workspace_with_index):
     assert mint.status_code == 204
     assert WORKSPACE_SESSION_COOKIE_NAME in mint.cookies
 
-    # Now fetch with ONLY the cookie -- no X-Session-API-Key header.
+    # 现在使用仅获取 cookie —— 没有 X-Session-API-Key 标头。
     resp = client.get(_workspace_url(cid))
     assert resp.status_code == 200
     assert resp.text == "<title>hello</title>"
@@ -250,13 +251,13 @@ def test_workspace_rejects_bogus_cookie(client_factory, workspace_with_index):
     assert resp.status_code == 401
 
 
-# ---- Cookie is rejected by non-workspace endpoints ------------------------
+# ---- Cookie 被非工作区端点拒绝 ------------------------
 
 
 def test_cookie_does_not_authenticate_other_api_endpoints(client_factory):
-    """The cookie must only be honored by the workspace router. The rest of
-    the API continues to require the X-Session-API-Key header so we don't
-    add a CSRF surface to state-changing endpoints."""
+    """该 cookie 只能由工作区路由器接受。 REST 的
+    API 继续需要 X-Session-API-Key 标头，因此我们不会将 CSRF 表面添加到状态更改端点。
+    """
     client = client_factory(conversation_id=uuid4())
 
     mint = client.post(
@@ -265,12 +266,12 @@ def test_cookie_does_not_authenticate_other_api_endpoints(client_factory):
     )
     assert mint.status_code == 204
 
-    # /api/conversations is gated by the header-only dependency.
+    # /api/conversations 由仅标头依赖项控制。
     resp = client.get("/api/conversations")
     assert resp.status_code == 401
 
 
-# ---- DELETE clears the cookie ---------------------------------------------
+# ---- DELETE 清除 cookie ------------------------------------------------------
 
 
 def test_delete_session_clears_cookie(client_factory):
@@ -281,7 +282,7 @@ def test_delete_session_clears_cookie(client_factory):
         headers={"X-Session-API-Key": SESSION_KEY},
     )
     assert resp.status_code == 204
-    # Cookie cleared via Max-Age=0 with matching attributes.
+    # 通过 Max-Age=0 清除具有匹配属性的 Cookie。
     set_cookie = resp.headers["set-cookie"]
     assert f'{WORKSPACE_SESSION_COOKIE_NAME}=""' in set_cookie
     assert "Max-Age=0" in set_cookie

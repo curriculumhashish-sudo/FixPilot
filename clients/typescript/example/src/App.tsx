@@ -1,10 +1,10 @@
-// Import settings components
+// 导入设置组件
 import { SettingsModal } from './components/SettingsModal'
 import { ConversationManager } from './components/ConversationManager'
 import { useSettings } from './contexts/SettingsContext'
 
 function App() {
-  // Use settings context
+  // 使用设置上下文
   const { settings, updateSettings, isModalOpen, openModal, closeModal, isFirstVisit } = useSettings()
 
   return (

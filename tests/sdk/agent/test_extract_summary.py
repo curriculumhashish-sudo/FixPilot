@@ -1,4 +1,4 @@
-"""Tests for Agent._extract_summary method."""
+"""测试 Agent._extract_summary 方法。"""
 
 from unittest.mock import Mock
 
@@ -14,7 +14,7 @@ from openhands.sdk.mcp.tool import MCPToolDefinition
 
 @pytest.fixture
 def agent():
-    """Create a test agent."""
+    """创建测试智能体。"""
     return Agent(
         llm=LLM(
             usage_id="test-llm",
@@ -28,19 +28,19 @@ def agent():
 @pytest.mark.parametrize(
     "summary_value,expected_result",
     [
-        # Valid summary provided - use it
+        # 提供的有效摘要 - 使用它
         ("testing file system", "testing file system"),
-        # No summary provided - generate default
+        # 未提供摘要 - 生成默认值
         (None, 'test_tool: {"some_param": "value"}'),
-        # Non-string summary - generate default
+        # 非字符串摘要 - 生成默认值
         (123, 'test_tool: {"some_param": "value"}'),
-        # Empty or whitespace-only - generate default
+        # 空或仅空白 - 生成默认值
         ("", 'test_tool: {"some_param": "value"}'),
         ("   ", 'test_tool: {"some_param": "value"}'),
     ],
 )
 def test_extract_summary(agent, summary_value, expected_result):
-    """Test _extract_summary method with various scenarios."""
+    """使用各种场景测试 _extract_summary 方法。"""
     arguments = {"some_param": "value"}
     if summary_value is not None:
         arguments["summary"] = summary_value
@@ -51,7 +51,7 @@ def test_extract_summary(agent, summary_value, expected_result):
 
 
 def _make_mcp_tool_with_summary():
-    """Create an MCP tool whose inputSchema declares 'summary' as required."""
+    """创建一个 MCP 工具，其 inputSchema 根据需要声明“摘要”。"""
     mcp_tool = mcp.types.Tool(
         name="jira_create_issue",
         description="Create a Jira issue",
@@ -70,7 +70,7 @@ def _make_mcp_tool_with_summary():
 
 
 def test_extract_summary_preserves_mcp_tool_summary_param(agent):
-    """_extract_summary must NOT pop 'summary' when the tool declares it."""
+    """当工具声明它时，_extract_summary 必须不弹出“摘要”。"""
     tool = _make_mcp_tool_with_summary()
     arguments = {
         "project_key": "PROJ",
@@ -80,15 +80,15 @@ def test_extract_summary_preserves_mcp_tool_summary_param(agent):
 
     result = agent._extract_summary(tool.name, arguments, tool=tool)
 
-    # The tool's real "summary" value must remain in the dict
+    # 该工具的真实“摘要”值必须保留在字典中
     assert arguments["summary"] == "My ticket title"
-    # The tool's own summary value is reused as the event-level summary
-    # (e.g. a Jira ticket title is descriptive enough for visualization)
+    # 该工具自己的摘要值被重新用作事件级摘要 (e.g. Jira 票证标题的描述性足以实现可视化）
+    #
     assert result == "My ticket title"
 
 
 def test_mcp_tool_with_summary_param_roundtrip(agent):
-    """End-to-end: summary must survive extraction and action validation."""
+    """端到端：摘要必须在提取和操作中幸存下来验证。"""
     tool = _make_mcp_tool_with_summary()
     arguments = {
         "project_key": "PROJ",
@@ -96,17 +96,17 @@ def test_mcp_tool_with_summary_param_roundtrip(agent):
         "issue_type": "Task",
     }
 
-    # This is the exact call sequence from _get_action_event
+    # 这是来自 _get_action_event 的确切调用序列
     _summary = agent._extract_summary(tool.name, arguments, tool=tool)
     action = tool.action_from_arguments(arguments)
 
-    # action_from_arguments should succeed (not raise ValidationError)
+    # action_from_arguments 应该成功（而不是提高 ValidationError）
     assert action.data["summary"] == "My ticket title"
     assert action.data["project_key"] == "PROJ"
 
 
 def test_extract_summary_mcp_tool_summary_missing_falls_back(agent):
-    """When tool declares 'summary' but it's empty, fall back to default."""
+    """当工具声明“摘要”但它为空时，则回退到默认值。"""
     tool = _make_mcp_tool_with_summary()
     arguments = {
         "project_key": "PROJ",
@@ -116,14 +116,14 @@ def test_extract_summary_mcp_tool_summary_missing_falls_back(agent):
 
     result = agent._extract_summary(tool.name, arguments, tool=tool)
 
-    # Empty summary → falls back to default format
+    # 空摘要→回退到默认格式
     assert "jira_create_issue:" in result
-    # The empty value must still remain in arguments
+    # 空值必须仍保留在参数中
     assert arguments["summary"] == ""
 
 
 def test_extract_summary_still_pops_for_tools_without_summary_param(agent):
-    """For tools that don't declare 'summary', it's still popped as meta."""
+    """对于没有声明“摘要”的工具，它仍然作为元弹出。"""
     mcp_tool = mcp.types.Tool(
         name="some_tool",
         description="A tool without a summary param",

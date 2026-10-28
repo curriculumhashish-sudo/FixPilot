@@ -1,12 +1,11 @@
-"""Demonstrate client-defined tools — tools registered via JSON spec that are
-executed by an external client (e.g. a browser frontend), not the SDK itself.
+"""演示客户端定义的工具 - 通过 JSON 规范注册并由外部客户端执行的工具 (e.g. 浏览器前端
+），而不是 SDK 本身。
 
-This pattern lets frontend applications register "UI action" tools without any
-Python code on the server side. When the agent calls such a tool, the SDK returns
-an acknowledgment observation immediately and the event callback (or WebSocket
-client) can handle the actual execution.
+这种模式允许前端应用程序注册“UI 操作”工具，而无需服务器端的任何 Python 代码。 当智能
+体调用这样的工具时，SDK立即返回确认观测结果，并且事件回调（或WebSo
+cket客户端）可以处理实际执行。
 
-Usage:
+用途：
     LLM_API_KEY=... uv run python examples/01_standalone_sdk/53_client_defined_tools.py
 """
 
@@ -21,7 +20,7 @@ from openhands.tools.terminal import TerminalTool
 
 
 # ---------------------------------------------------------------------------
-# 1. Define tools via JSON spec — no Python executor required
+# 1. 通过 JSON 规范定义工具 — 不需要 Python 执行器
 # ---------------------------------------------------------------------------
 
 SPECS = [
@@ -69,9 +68,8 @@ SPECS = [
 CLIENT_TOOL_NAMES: set[str] = {spec.name for spec in SPECS}
 
 # ---------------------------------------------------------------------------
-# 2. Capture client tool invocations via event callback
-#    In a real application this callback would forward the call to the frontend
-#    over WebSocket; here we just record the calls for verification.
+# 2. 通过事件回调捕获客户端工具调用在实际应用程序中，此回调会通过 WebSocket 将调用转发到
+# 前端； 这里我们只是对通话进行录音以供核实。
 # ---------------------------------------------------------------------------
 
 intercepted: list[dict] = []
@@ -85,9 +83,8 @@ def on_event(event: Event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 3. Build agent with standard tools, then pass the client tools straight to
-#    Conversation. The SDK registers them and injects them into the agent — no
-#    manual register_tool / Tool(name=...) wiring required.
+# 3. 使用标准工具构建智能体，然后将客户端工具直接传递给 Conversation。 SDK 注册它们并将
+# 它们注入智能体 — 无需手动 register_tool / Tool(name=...) 接线。
 # ---------------------------------------------------------------------------
 
 api_key = os.getenv("LLM_API_KEY")
@@ -120,7 +117,7 @@ conversation.send_message(
 conversation.run()
 
 # ---------------------------------------------------------------------------
-# 4. Verify that the client tools were actually called
+# 4. 验证客户端工具是否确实被调用
 # ---------------------------------------------------------------------------
 
 print(f"\n=== {len(intercepted)} client tool call(s) intercepted ===")

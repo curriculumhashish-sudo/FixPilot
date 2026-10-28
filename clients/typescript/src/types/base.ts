@@ -1,12 +1,12 @@
 /**
- * Base types and interfaces for the OpenHands Agent Server TypeScript client
+ * OpenHands Agent Server TypeScript 客户端的基本类型和接口
  */
 
 export type ConversationID = string;
 
 /**
- * Base event interface matching the agent-server wire format.
- * For rich, typed events use the specific types from events/types.ts
+ * 与智能体-服务器有线格式匹配的基本事件接口。
+ * 对于丰富的类型化事件，请使用 events/types.ts 中的特定类型
  * (e.g., ActionEvent, ObservationEvent, ConversationEvent).
  */
 export interface Event {
@@ -53,7 +53,7 @@ export interface AgentBase {
   [key: string]: unknown;
 }
 
-// Alias for user-facing API
+// 面向用户的别名 API
 export type Agent = AgentBase;
 
 export interface LLM {
@@ -103,9 +103,9 @@ export namespace EventSortOrder {
 }
 
 /**
- * Enum representing the current execution state of the conversation.
- * Note: This was renamed from AgentExecutionStatus to ConversationExecutionStatus
- * in the agent-server API.
+ * 枚举代表会话当前的执行状态。
+ * 注意：已从 AgentExecutionStatus 重命名为 ConversationExecutionStatus
+ * 在智能体-服务器API中。
  */
 export enum ConversationExecutionStatus {
   IDLE = 'idle',
@@ -119,7 +119,7 @@ export enum ConversationExecutionStatus {
 }
 
 /**
- * @deprecated Use ConversationExecutionStatus instead. This alias is kept for backward compatibility.
+ * @已弃用使用 ConversationExecutionStatus 代替。 该别名保留为向后兼容性。
  */
 export const AgentExecutionStatus = ConversationExecutionStatus;
 export type AgentExecutionStatus = ConversationExecutionStatus;

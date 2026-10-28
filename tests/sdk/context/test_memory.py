@@ -1,4 +1,4 @@
-"""Unit tests for the two-tier persistent-memory loader (``context/memory.py``)."""
+"""单元测试用于两层持久内存加载器 (``context/memory.py``)。"""
 
 import re
 from pathlib import Path
@@ -13,11 +13,11 @@ from openhands.sdk.llm import LLM
 
 @pytest.fixture(autouse=True)
 def isolated_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    """Point the user memory tier (``~/.openhands/memory/``) at a temp home.
+    """将用户内存层 (``~/.openhands/memory/``) 指向临时主目录。
 
-    USERPROFILE is what ``Path.home()`` reads on Windows, where HOME is a no-op.
-    ``OH_PERSISTENCE_DIR`` is cleared too: it overrides the home-relative base,
-    so a developer with it exported would otherwise run different tests.
+    USERPROFILE 是 ``Path.home()`` 在 Windows 上读取的内容，其中 HOME 是无操作。
+    ``OH_PERSISTENCE_DIR`` 也被清除：它会覆盖相对于 home 的基数，因此导出它的开发人员
+    将运行不同的测试。
     """
     home = tmp_path / "home"
     home.mkdir()
@@ -96,7 +96,7 @@ def test_load_memory_truncation_keeps_both_tier_headers(
     lines = text.splitlines()
     assert "# User memory (~/.openhands/memory/MEMORY.md)" in lines
     assert "# Project memory (.openhands/memory/MEMORY.md)" in lines
-    # The short user tier fits its share, so its content survives untouched.
+    # 较短的用户层适合其份额，因此其内容不会受到影响。
     assert "- prefers tabs" in lines
     assert text.endswith("NEW-PROJECT")
     assert "OLD-PROJECT" not in text
@@ -133,7 +133,7 @@ def test_load_memory_treats_unreadable_index_as_absent(
     isolated_home: Path, tmp_path: Path
 ) -> None:
     workspace = tmp_path / "workspace"
-    # A directory where the index file should be makes read_text raise OSError.
+    # read_text 应该 OSError。
     (workspace / MEMORY_INDEX_RELPATH).mkdir(parents=True)
     _write_index(isolated_home, "user fact")
 
@@ -144,20 +144,21 @@ def test_load_memory_treats_unreadable_index_as_absent(
     assert "Project memory" not in text
 
 
-# --- read/write alignment: the write guidance and the loader agree on a path ----
+# --- 读/写对齐：写引导和加载器在路径上达成一致 ----
 
-# The user-tier bullet the static <MEMORY> block renders, e.g.
-# "* User memory: `/persist/memory/` — knowledge and preferences ...".
+# 静态 <MEMORY> 块呈现的用户层项目符号 e.g。 “* 用户记忆：`/persist/memory/` — 知识和偏
+# 好......”。
+#
 _USER_MEMORY_RE = re.compile(r"\* User memory: `([^`]+)`")
 
 
 def _advertised_user_memory_dir(agent: Agent) -> Path:
-    """The user-memory directory the agent is instructed to write to.
+    """智能体被指示写入的用户内存目录。
 
-    Parsed out of the rendered static ``<MEMORY>`` block -- i.e. the exact text
-    the model sees, not an internal helper -- so the test proves the instructed
-    write path stays aligned with ``load_memory``'s read path. A leading ``~`` is
-    expanded so the returned path is comparable to the loader's resolved path.
+    从渲染的静态 ``<MEMORY>`` 块中解析出来 - i.e。 模型看到的确切文本，而不是内部助手
+    ——因此测试证明指示的写入路径与
+    ``load_memory`` 的读取路径保持一致。 前导 ``~`` 被扩展，因此返回的路径与加载程序
+    的解析路径相当。
     """
     static = agent.static_system_message
     match = _USER_MEMORY_RE.search(static)
@@ -176,18 +177,18 @@ def _memory_agent() -> Agent:
 def test_instructed_write_path_matches_loader_read_path_with_persistence_dir(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """With OH_PERSISTENCE_DIR set, the directory the agent is told to write to
-    is exactly where ``load_memory`` looks -- so user memory survives resume."""
+    """设置 OH_PERSISTENCE_DIR 后，智能体被告知要写入的目录
+    正是 ``load_memory`` 看起来的地方——所以用户内存在恢复后仍然存在。"""
     persistence = tmp_path / "persistent"
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(persistence))
 
     write_dir = _advertised_user_memory_dir(_memory_agent())
-    # The instruction points into OH_PERSISTENCE_DIR, not the ephemeral $HOME.
+    # 该指令指向 OH_PERSISTENCE_DIR，而不是临时的 $HOME。
     assert write_dir == persistence / "memory"
     assert str(tmp_path / "home") not in str(write_dir)
 
-    # Simulate the agent following the instruction, then confirm the loader reads
-    # that write back (the two halves of the round trip that were misaligned).
+    # 模拟指令后的智能体，然后确认加载程序读取该写回（未对齐的往返的两半）。
+    #
     memory_md = write_dir / "MEMORY.md"
     memory_md.parent.mkdir(parents=True)
     memory_md.write_text("- prefers ruff over flake8\n")
@@ -201,7 +202,7 @@ def test_instructed_write_path_matches_loader_read_path_with_persistence_dir(
 def test_instructed_write_path_matches_loader_read_path_home_fallback(
     isolated_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Without OH_PERSISTENCE_DIR, both halves fall back to ~/.openhands/memory."""
+    """如果没有 OH_PERSISTENCE_DIR，两半都会回落到 ~/.openhands/memory."""
     monkeypatch.delenv("OH_PERSISTENCE_DIR", raising=False)
 
     write_dir = _advertised_user_memory_dir(_memory_agent())
@@ -219,9 +220,10 @@ def test_instructed_write_path_matches_loader_read_path_home_fallback(
 def test_load_memory_user_header_reflects_persistence_dir(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """With OH_PERSISTENCE_DIR set, the loaded user-tier header names the real
-    read path -- not the stale ``~/.openhands/memory/`` -- so it matches the
-    write location advertised in the <MEMORY> guidance."""
+    """设置 OH_PERSISTENCE_DIR 后，加载的用户层标头将命名真实的
+    读取路径 - 不是过时的 ``~/.openhands/memory/`` - 因此它与 <MEMORY> 指南中公布的写
+    入位置匹配。
+    """
     persistence = tmp_path / "persistent"
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(persistence))
     user_memory = persistence / "memory"
@@ -239,8 +241,8 @@ def test_load_memory_user_header_reflects_persistence_dir(
 def test_load_memory_user_header_uses_tilde_without_persistence_dir(
     isolated_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Without OH_PERSISTENCE_DIR the header keeps the plain-tilde form and never
-    leaks the expanded per-user home path."""
+    """如果没有 OH_PERSISTENCE_DIR，标头将保持普通波形符形式，并且永远不会
+    泄漏扩展的每用户主路径。"""
     monkeypatch.delenv("OH_PERSISTENCE_DIR", raising=False)
     _write_index(isolated_home, "- prefers uv over pip\n")
 
@@ -254,7 +256,7 @@ def test_load_memory_user_header_uses_tilde_without_persistence_dir(
 def test_user_memory_line_absent_when_memory_disabled(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """No user-memory directory is advertised unless memory is enabled."""
+    """除非启用内存，否则不会公布用户内存目录。"""
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path / "persistent"))
     agent = Agent(
         llm=LLM(model="claude-sonnet-4-5", usage_id="memory-off"),
@@ -267,8 +269,8 @@ def test_user_memory_line_absent_when_memory_disabled(
 def test_instructed_write_path_resolved_at_call_time(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The path is resolved per render, so setting OH_PERSISTENCE_DIR after the
-    agent is constructed is still honored (matches get_user_persistence_dir)."""
+    """每次渲染都会解析路径，因此在之后设置 OH_PERSISTENCE_DIR
+    智能体仍然被构造（匹配 get_user_persistence_dir）。"""
     agent = _memory_agent()
 
     monkeypatch.setenv("OH_PERSISTENCE_DIR", str(tmp_path / "late"))

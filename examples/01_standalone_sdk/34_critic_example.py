@@ -1,20 +1,19 @@
-"""Iterative Refinement with Critic Model Example.
+"""使用批评模型示例进行迭代细化。
 
-This is EXPERIMENTAL.
+这是EXPERIMENTAL。
 
-This example demonstrates how to use a critic model to shepherd an agent through
-complex, multi-step tasks. The critic evaluates the agent's progress and provides
-feedback that can trigger follow-up prompts when the agent hasn't completed the
-task successfully.
+此示例演示了如何使用批评者模型来引导智能体完成复杂的多步骤任务。 批评者评估智能体的进
+度并提供反馈，当智能体未成功完成任务时，可以触发后续行动提示词。
 
-Key concepts demonstrated:
-1. Setting up a critic with IterativeRefinementConfig for automatic retry
-2. Conversation.run() automatically handling critic-driven refinement
-3. Customizing refinement policy independently of variable critic scores
-4. Bounding agent work and verifying the final artifact
+演示的关键概念：
+1. 使用 IterativeRefinementConfig 设置批评家以实现自动重试
+2. Conversation.run() 自动处理批评者驱动的细化
+3. 独立于可变评论家分数定制细化策略
+4. 限制智能体工作并验证最终工件
 
-For All-Hands LLM proxy (llm-proxy.*.all-hands.dev), the critic is auto-configured
-using the same base_url with /vllm suffix and "critic" as the model name.
+对于 All-Hands LLM 代理 (llm-proxy.*.all-hands.dev)，批评家是使用相同的 base_url 和
+/vllm 后缀以及“critic
+”作为模型名称来自动配置的。
 """
 
 import os
@@ -30,14 +29,15 @@ from openhands.sdk.critic.base import CriticBase
 from openhands.tools.file_editor import FileEditorTool
 
 
-# Keep the live example deterministic and comfortably inside the harness timeout:
-# one initial attempt, one critic-driven refinement, and bounded agent steps.
+# 保持活例确定且舒适地位于框架内超时：一次初始尝试，一次基于批评的细化，以及有限的步骤智
+# 能体。
+#
 MAX_REFINEMENTS = 1
 MAX_AGENT_STEPS = 10
 
 
 class SingleRefinementCritic(APIBasedCritic):
-    """Always demonstrate exactly one refinement, regardless of score variance."""
+    """无论分数差异如何，始终只展示一项改进。"""
 
     def should_refine(self, critic_result: CriticResult) -> bool:  # noqa: ARG002
         return True
@@ -54,20 +54,19 @@ def get_required_env(name: str) -> str:
 
 
 def get_default_critic(llm: LLM) -> CriticBase | None:
-    """Auto-configure critic for All-Hands LLM proxy.
+    """自动配置 All-Hands LLM 代理的批评家。
 
-    When the LLM base_url matches `llm-proxy.*.all-hands.dev`, returns an
-    APIBasedCritic configured with:
+    当 LLM 和 base_url 匹配 `llm-proxy.*.all-hands.dev` 时，返回一个 APIBasedCritic
+    配置为：
     - server_url: {base_url}/vllm
-    - api_key: same as LLM
-    - model_name: "critic"
+    - api_key: 与LLM相同
+    - model_name: “批评家”
 
     Args:
-        llm: The LLM instance to derive critic configuration from.
+        llm: 从中派生批评者配置的 LLM 实例。
 
     Returns:
-        An APIBasedCritic if the LLM is configured for All-Hands proxy,
-        None otherwise.
+        APIBasedCritic 如果 LLM 配置为全手代理，None 否则。
 
     Example:
         llm = LLM(
@@ -77,7 +76,7 @@ def get_default_critic(llm: LLM) -> CriticBase | None:
         )
         critic = get_default_critic(llm)
         if critic is None:
-            # Fall back to explicit configuration
+            # 回退到显式配置
             critic = APIBasedCritic(
                 server_url="https://my-critic-server.com",
                 api_key="my-api-key",
@@ -89,7 +88,7 @@ def get_default_critic(llm: LLM) -> CriticBase | None:
     if base_url is None or api_key is None:
         return None
 
-    # Match: llm-proxy.{env}.all-hands.dev (e.g., staging, prod, eval)
+    # 匹配：llm-proxy.{env}.all-hands.dev (e.g., staging, prod, eval)
     pattern = r"^https?://llm-proxy\.[^./]+\.all-hands\.dev"
     if not re.match(pattern, base_url):
         return None
@@ -122,11 +121,12 @@ llm = LLM(
     base_url=os.getenv("LLM_BASE_URL"),
 )
 
-# The critic always requests one refinement, making this behavior independent of
-# model score variance while still exercising the real critic API.
+# 批评家总是要求进行一项改进，使这种行为独立于模型得分方差，同时仍然行使真正的批评家API
+# 。
+#
 iterative_config = IterativeRefinementConfig(max_iterations=MAX_REFINEMENTS)
 
-# Auto-configure critic for All-Hands proxy or use explicit env vars
+# 自动配置 All-Hands 代理的批评家或使用显式环境变量
 critic = get_default_critic(llm)
 if critic is None:
     print("⚠️  No All-Hands LLM proxy detected, trying explicit env vars...")
@@ -137,22 +137,22 @@ if critic is None:
         iterative_refinement=iterative_config,
     )
 else:
-    # Add iterative refinement config to the auto-configured critic
+    # 将迭代细化配置添加到自动配置的批评家中
     critic = critic.model_copy(update={"iterative_refinement": iterative_config})
 
-# Create agent with critic (iterative refinement is built into the critic)
+# 使用批评家创建智能体（批评家内置了迭代细化）
 agent = Agent(
     llm=llm,
     tools=[Tool(name=FileEditorTool.name)],
     critic=critic,
 )
 
-# Create workspace
+# 创建工作区
 workspace = Path(tempfile.mkdtemp(prefix="critic_demo_"))
 print(f"📁 Created workspace: {workspace}")
 
-# Create conversation - iterative refinement is handled automatically
-# by Conversation.run() based on the critic's config
+# 创建对话 - 迭代细化由 Conversation.run() 根据批评者的配置自动处理
+#
 conversation = Conversation(
     agent=agent,
     workspace=str(workspace),
@@ -185,6 +185,6 @@ if refinement_count != MAX_REFINEMENTS:
 print(f"Completed {refinement_count} critic-driven refinement.")
 print("Verified greeting.txt.")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"\nEXAMPLE_COST: {cost:.4f}")

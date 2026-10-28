@@ -1,10 +1,8 @@
-"""``/sockets/session/{conversation_id}`` — the session socket.
+"""``/sockets/session/{conversation_id}`` — 会话套接字。
 
-Fixes three things the legacy ``/sockets/events/{id}`` endpoint gets wrong,
-without touching it: frames are envelopes rather than the disk record; history
-and live traffic cannot interleave; and a slow consumer cannot wedge the
-publisher, because admission is byte-bounded and only this connection's writer
-task awaits the socket.
+修复了遗留 ``/sockets/events/{id}`` 端点的三个错误，但没有触及它：帧是信封而不是磁盘
+记录； 历史和实时交通不能交织； 并且缓慢的消费者无法楔入发布
+者，因为准入是字节限制的，并且只有该连接的写入器任务等待套接字。
 """
 
 import asyncio
@@ -57,20 +55,18 @@ session_router = APIRouter(prefix="/sockets", tags=["WebSockets"])
 logger = logging.getLogger(__name__)
 
 REPLAY_PAGE_SIZE: Final[int] = 100
-"""Events read from disk per executor hop."""
+"""每个执行器跃点从磁盘读取的事件。"""
 
 
 @dataclass(slots=True)
 class _ConnectionWriter:
-    """Byte-bounded, non-blocking admission in front of a single writer task.
+    """在单个写入器任务之前进行字节限制、非阻塞的准入。
 
-    ``send`` is synchronous on purpose: it runs in the pub/sub fan-out, which
-    must never await this socket or one wedged tab stalls the publisher.
-    Ordering comes from the queue plus exactly one draining task.
+    ``send`` 是故意的同步：它在 pub/sub 扇出中运行，绝不能等待此套接字，否则一个楔形
+    选项卡会阻止发布者。 排序来自队列加上一个排出任务。
 
-    Overflow drops the connection, never a frame — discarding a ``Durable``
-    would break the guarantee clients rely on, whereas a reconnect with
-    ``after_seq`` loses nothing. Disconnection is the backpressure.
+    溢出会丢弃连接，而不是帧 - 丢弃 ``Durable`` 会破坏客户端所依赖的保证，而重新连接
+    ``after_seq`` 没有任何损失。 断开连接就是背压。
     """
 
     websocket: WebSocket
@@ -93,7 +89,7 @@ class _ConnectionWriter:
         self._task = asyncio.create_task(self._run())
 
     def send(self, frame: SessionFrameBase) -> bool:
-        """Admit one frame, never blocking. False if the connection is done."""
+        """承认一帧，从不阻塞。 False 如果连接完成。"""
         if self.closed:
             return False
 
@@ -101,7 +97,7 @@ class _ConnectionWriter:
         size = len(payload.encode("utf-8"))
 
         if size > self.max_frame_bytes:
-            # Worth shouting about: it means the frame budget needs revisiting.
+            # 值得一提的是：这意味着框架预算需要重新审视。
             logger.warning(
                 "session_socket_frame_too_large: %d bytes > %d",
                 size,
@@ -148,7 +144,7 @@ class _ConnectionWriter:
         except asyncio.CancelledError:
             raise
         except (RuntimeError, WebSocketDisconnect):
-            # Peer went away between the state check and the send.
+            # Peer 在状态检查和发送之间离开了。
             self._fail("disconnected")
         except Exception:
             logger.exception("session_socket_writer_error", stack_info=True)
@@ -162,8 +158,9 @@ class _ConnectionWriter:
             try:
                 await task
             except asyncio.CancelledError:
-                # Swallow only the cancellation we asked for; one aimed at this
-                # task means shutdown and must not be absorbed.
+                # 只吞下我们要求的取消； 一项旨在完成这项任务的任务意味着关闭，绝不能被
+                # 吸收。
+                #
                 if not task.cancelled():
                     raise
             except Exception:
@@ -172,10 +169,10 @@ class _ConnectionWriter:
 
 @dataclass(slots=True)
 class _SessionSubscriber(Subscriber[Event]):
-    """Converts events to frames and hands them to the writer.
+    """将事件转换为帧并将其交给编写者。
 
-    Starts buffering so history can replay underneath without interleaving;
-    ``go_live`` flushes and switches to pass-through.
+    开始缓冲，以便历史记录可以在下面重播而无需交错；
+    ``go_live`` 冲洗并切换到直通。
     """
 
     writer: _ConnectionWriter
@@ -185,8 +182,8 @@ class _SessionSubscriber(Subscriber[Event]):
 
     async def __call__(self, event: Event) -> None:
         if isinstance(event, StreamingDeltaEvent):
-            # Deltas never ride the durable channel; progress frames come from
-            # StreamContext, over their own fan-out.
+            # 三角洲从来不走持久航道； 进度帧来自 StreamContext，通过它们自己的扇出。
+            #
             return
         if self._buffer is not None:
             self._buffer.append(event)
@@ -203,13 +200,13 @@ class _SessionSubscriber(Subscriber[Event]):
         self.writer.send(frame)
 
     def _seq_of(self, event: Event) -> int | None:
-        """The event's index in the log, or None if it is not persisted.
+        """事件在日志中的索引，如果不是已持久化，则为 None。
 
-        By lookup, never by type: most ``ConversationStateUpdateEvent`` *are*
-        appended, so treating the type as transient would strip their ``seq``
-        and defeat the dedupe in ``go_live``. The one genuinely unpersisted
-        event is the snapshot ``subscribe_to_events`` synthesises on connect,
-        so only anything *else* missing is worth warning about.
+        通过查找，而不是通过类型：大多数 ``ConversationStateUpdateEvent`` * 都附加了
+        *，因此将类型视为瞬态会剥离它们的
+        ``seq`` 并击败 ``go_live`` 中的重复数据删除。 一个真正不持久的事件是连接时的
+        快照 ``subscribe_to_events`` 综合
+        ，因此只有任何 * 其他 * 缺失的内容才值得警告。
         """
         try:
             return self.events.get_index(event.id)
@@ -223,18 +220,18 @@ class _SessionSubscriber(Subscriber[Event]):
             return None
 
     def go_live(self, through_seq: int | None) -> None:
-        """Flush the buffer, dropping anything already replayed from disk."""
+        """刷新缓冲区，删除已从磁盘重播的所有内容。"""
         buffered = self._buffer
         self._buffer = None
         for event in buffered or ():
             seq = self._seq_of(event)
             if seq is not None and through_seq is not None and seq <= through_seq:
-                continue  # already sent from disk during replay
+                continue  # 重播期间已从磁盘发送
             self._emit(event)
 
 
 def _to_wire(frame: StreamProgress) -> SessionFrameBase:
-    """Map one SDK progress frame onto its envelope."""
+    """将一个 SDK 进度帧映射到其信封上。"""
     match frame:
         case StreamStarted():
             return ItemStartedFrame(
@@ -261,10 +258,9 @@ def _to_wire(frame: StreamProgress) -> SessionFrameBase:
 
 
 class _ProgressSubscriber(Subscriber[StreamProgress]):
-    """Forwards stream progress straight to the writer.
+    """将进度直接转发给作者。
 
-    No buffering and no replay boundary: a dropped frame costs a repaint, and
-    the real text arrives with the durable event.
+    无缓冲，无重播边界：丢帧需要重新绘制，真实文本随持久事件到达。
     """
 
     def __init__(self, writer: _ConnectionWriter) -> None:
@@ -275,18 +271,18 @@ class _ProgressSubscriber(Subscriber[StreamProgress]):
 
 
 def _read_page(events: EventLog, start: int, stop: int) -> list[tuple[int, Event]]:
-    """Read one page by index, skipping unreadable events.
+    """按索引读取一页，跳过不可读的事件。
 
-    A corrupt or half-written file should cost one event, not the connection —
-    same tolerance as ``EventService._get_searchable_event``.
+    损坏或半写入的文件应该花费一个事件，而不是连接 - 与
+    ``EventService._get_searchable_event`` 相同的容忍度。
     """
     page: list[tuple[int, Event]] = []
     for idx in range(start, stop):
         try:
             page.append((idx, events[idx]))
         except (OSError, UnicodeDecodeError, ValidationError, IndexError):
-            # OSError also covers the transient read errors EventLog warns
-            # about on networked filesystems.
+            # 还包括了网络文件系统上的OSError 也覆盖了EventLog 警告的瞬时读取错误。
+            #
             logger.warning("session_socket_skipping_unreadable_event: idx=%d", idx)
     return page
 
@@ -294,7 +290,7 @@ def _read_page(events: EventLog, start: int, stop: int) -> list[tuple[int, Event
 async def _replay(
     events: EventLog, start: int, stop: int, writer: _ConnectionWriter
 ) -> bool:
-    """Send ``[start, stop)`` from disk, in pages, yielding between them."""
+    """从磁盘发送 ``[start, stop)``，以页为单位，在页之间产生。"""
     loop = asyncio.get_running_loop()
     for page_start in range(start, stop, REPLAY_PAGE_SIZE):
         page_stop = min(page_start + REPLAY_PAGE_SIZE, stop)
@@ -304,9 +300,9 @@ async def _replay(
         for seq, event in page:
             if not writer.send(DurableFrame(seq=seq, event=event)):
                 return False
-            # Per frame, not per page: only the writer task drains pending
-            # bytes, and a page of large events can otherwise blow the budget
-            # and drop a client that was never slow.
+            # 帧内，而不是页面内：只有写入任务会消耗剩余字节，而一个大事件页面则可能耗尽
+            # 预算并丢弃一个原本从未慢的客户端。
+            #
             await asyncio.sleep(0)
     return True
 
@@ -328,7 +324,7 @@ async def session_socket(
         ),
     ] = None,
 ):
-    """Session socket: durable events in an envelope, on one ordered channel."""
+    """会话套接字：在一个有序通道上的信封中的持久事件。"""
     if not await _accept_authenticated_websocket(websocket, session_api_key):
         return
 
@@ -351,7 +347,7 @@ async def session_socket(
     try:
         events = event_service.get_conversation().state.events
     except ValueError:
-        # Closed between the lookup above and here.
+        # 在上面的查找和此处之间关闭。
         logger.warning("session_socket_conversation_inactive: %s", conversation_id)
         await _safe_close_websocket(
             websocket, code=4004, reason="Conversation not found"
@@ -362,9 +358,9 @@ async def session_socket(
     writer.start()
     subscriber = _SessionSubscriber(writer=writer, events=events)
 
-    # Subscribe FIRST (buffering), then read the mark: no lock needed, since
-    # anything appended before subscribe is on disk before the mark is read,
-    # and anything after lands in the buffer and is deduped by seq.
+    # FIRST订阅，然后读取标记：锁不需要，因为订阅之前添加的内容在标记读取之前就已经在磁
+    # 盘上，订阅之后添加的内容会缓存并被序列化。
+    #
     try:
         subscriber_id = await event_service.subscribe_to_events(subscriber)
     except MaxSubscribersError:
@@ -375,11 +371,10 @@ async def session_socket(
         )
         return
     except Exception:
-        # subscribe_to_events registers before it can fail, and this lands
-        # before the try/finally below, so clean up the writer and socket here.
-        # The registration itself can't be reclaimed (the id is only returned
-        # on success); it is inert but holds a slot. Belongs in
-        # subscribe_to_events, which has the same hole for the legacy endpoint.
+        # subscribe_to_events 在失败之前注册，并且它在下面的 try/finally 之前着陆，因此
+        # 请清理此处的 writer 和 socket。 注册本身无法回收（只有成功时才返回id）； 它是
+        # 惰性的，但有一个槽。 属于subscribe_to_events，它与遗留端点有相同的漏洞。
+        #
         logger.exception("session_socket_subscribe_failed: %s", conversation_id)
         await writer.aclose()
         await _safe_close_websocket(websocket, code=1011, reason="subscribe_failed")
@@ -392,8 +387,8 @@ async def session_socket(
                 _ProgressSubscriber(writer)
             )
         except MaxSubscribersError:
-            # Durable delivery is what the client cannot recover on its own;
-            # losing progress only costs it the live typing effect.
+            # 持久交付是指客户无法自行恢复的； 失去进度只会损失实时打字效果。
+            #
             logger.warning("session_socket_progress_limit: %s", conversation_id)
 
         length = len(events)
@@ -409,9 +404,9 @@ async def session_socket(
                 return
             replayed = True
 
-        # Dedupe against the mark only if replay actually sent that range: a
-        # live-only client got nothing from disk, and has no cursor to recover
-        # whatever the mark would discard.
+        # 只有当实际发送了该范围时，才与标记进行去重：一个只读客户端从磁盘上没有得到任何
+        # 东西，也没有恢复标记会丢弃的任何内容的游标。
+        #
         subscriber.go_live(through_seq if replayed else None)
 
         await _inbound_loop(conversation_id, websocket, event_service, writer)
@@ -433,10 +428,9 @@ async def _inbound_loop(
     event_service,
     writer: _ConnectionWriter,
 ) -> None:
-    """Read client messages until the peer or the writer gives up.
+    """读取客户端消息，直到对等方或写入者放弃。
 
-    Raced against the writer failing, or a dropped slow consumer would sit
-    here forever holding a subscription.
+    与失败的作家竞争，或者一个缓慢的消费者将永远坐在这里持有订阅。
     """
     closed_waiter = asyncio.ensure_future(writer.closed_event.wait())
     try:
@@ -448,9 +442,9 @@ async def _inbound_loop(
             if closed_waiter in done:
                 receiver.cancel()
                 if receiver in done:
-                    # Both finished at once: cancel() is a no-op on a done
-                    # future, so consume the outcome or asyncio logs
-                    # "Task exception was never retrieved" on GC.
+                    # 两者同时完成：cancel() 是对已完成的未来的无操作，因此使用结果或
+                    # asyncio 在 GC 上记录“从未检索到任务异常”。
+                    #
                     with contextlib.suppress(Exception, asyncio.CancelledError):
                         receiver.result()
                 return
@@ -460,9 +454,9 @@ async def _inbound_loop(
                 logger.info("session_socket_disconnected: %s", conversation_id)
                 return
             except Exception as e:
-                # receive_json decodes with json.loads, so a non-JSON frame
-                # raises here, not at validation below. Keep the connection,
-                # as the legacy endpoint's one broad handler does.
+                # receive_json 使用 json.loads 进行解码，因此此处会出现非 JSON 帧，而不
+                # 是下面的验证。 保持连接，就像传统端点的一个广泛处理程序所做的那样。
+                #
                 logger.warning(
                     "session_socket_bad_inbound_frame: %s: %s",
                     e.__class__.__name__,
@@ -483,8 +477,9 @@ async def _inbound_loop(
             except WebSocketDisconnect:
                 return
             except Exception as e:
-                # About this socket, not the conversation, so an ErrorFrame
-                # rather than a durable event — and not worth dropping over.
+                # 关于这个套接字，而不是对话，因此是 ErrorFrame 而不是持久事件 - 并且不
+                # 值得放弃。
+                #
                 logger.exception("session_socket_inbound_error", stack_info=True)
                 if not writer.send(
                     ErrorFrame(code=e.__class__.__name__, detail=str(e))

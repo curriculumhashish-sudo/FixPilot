@@ -1,12 +1,12 @@
-"""Core logic for applying 'apply_patch' text format (OpenAI GPT-5.1 guide).
+"""应用“apply_patch”文本格式的核心逻辑（OpenAI GPT-5.1 指南）。
 
-This module is an adaptation of the reference implementation from
+该模块是参考实现的改编
 https://github.com/openai/openai-cookbook/blob/main/examples/gpt-5/apply_patch.py
-and provides pure functions and data models to parse and apply patches.
+并提供纯函数和数据模型来解析和应用补丁。
 
-Minimal modifications were made to fit within the OpenHands SDK tool ecosystem:
-- Types exposed here are used by the ApplyPatch tool executor
-- File I/O is injected via callables so the executor can enforce workspace safety
+为了适应 OpenHands SDK 工具生态系统，进行了最小的修改：
+- 此处公开的类型由 ApplyPatch 工具执行器使用
+- 文件 I/O 通过可调用注入，因此执行器可以强制工作区安全
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def assemble_changes(
 
 
 class Chunk(BaseModel):
-    orig_index: int = -1  # line index of the first line in the original file
+    orig_index: int = -1  # 原始文件中第一行的行索引
     del_lines: list[str] = Field(default_factory=list)
     ins_lines: list[str] = Field(default_factory=list)
 
@@ -435,16 +435,16 @@ def patch_to_commit(patch: Patch, orig: dict[str, str]) -> Commit:
 
 
 class DiffError(ValueError):
-    """Raised for invalid or malformed patch text."""
+    """因补丁文本无效或格式错误而引发。"""
 
 
 def load_files(paths: list[str], open_fn: Callable[[str], str]) -> dict[str, str]:
-    """Load original file contents used as the patch base.
+    """加载用作补丁基础的原始文件内容。
 
-    This wraps the reference implementation's behavior from the OpenAI
-    cookbook apply_patch.py, but converts missing files into DiffError so
-    callers can surface a structured tool error instead of FileNotFoundError.
-    See:
+    它封装了OpenAI cookbookapply_patch.py中的参考实现行为，但将缺失的文件转换为
+    DiffError，以便调用者可以提供结构化的工具错误，而不
+    是FileNotFoundError。
+    参见：
     https://github.com/openai/openai-cookbook/blob/main/examples/gpt-5/apply_patch.py
     """
     orig: dict[str, str] = {}
@@ -488,9 +488,9 @@ def process_patch(
     write_fn: Callable[[str, str], None],
     remove_fn: Callable[[str], None],
 ) -> tuple[str, int, Commit]:
-    """Process a patch string and apply it via provided I/O callables.
+    """处理补丁字符串并通过提供的 I/O 可调用应用它。
 
-    Returns (message, fuzz, commit)
+    返回（消息、模糊、提交）
     """
     if not text.startswith("*** Begin Patch"):
         raise DiffError("Invalid patch: must start with '*** Begin Patch'")

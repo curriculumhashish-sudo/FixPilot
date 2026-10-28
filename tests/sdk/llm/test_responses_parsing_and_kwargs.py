@@ -32,7 +32,7 @@ def build_responses_message_output(texts: list[str]) -> ResponseOutputMessage:
     parts = [
         ResponseOutputText(type="output_text", text=t, annotations=[]) for t in texts
     ]
-    # Bypass stricter static type expectations in test context; runtime is fine
+    # 绕过测试中更严格的静态类型期望上下文； 运行时间很好
     return ResponseOutputMessage.model_construct(
         id="m1",
         type="message",
@@ -85,8 +85,8 @@ def test_responses_generic_numeric_item_id_preserves_validation(call_id):
 
 
 def test_from_llm_responses_output_parsing():
-    # Build typed Responses output: assistant message text + function call + reasoning
-    msg = build_responses_message_output(["Hello", "World"])  # concatenated
+    # 构建类型化响应输出：辅助消息文本+函数调用+推理
+    msg = build_responses_message_output(["Hello", "World"])  # 串联的
     fc = ResponseFunctionToolCall(
         type="function_call", name="do", arguments="{}", call_id="fc_1", id="fc_1"
     )
@@ -103,21 +103,21 @@ def test_from_llm_responses_output_parsing():
     )
 
     m = Message.from_llm_responses_output([msg, fc, reasoning])
-    # Assistant text joined
+    # 助理文字已加入
     assert m.role == "assistant"
     assert [c.text for c in m.content if isinstance(c, TextContent)] == ["Hello\nWorld"]
-    # Tool call normalized
+    # 工具调用归一化
     assert m.tool_calls and m.tool_calls[0].name == "do"
-    # Reasoning mapped
+    # 推理映射
     assert isinstance(m.responses_reasoning_item, ReasoningItemModel)
     assert m.responses_reasoning_item.summary == ["sum1", "sum2"]
 
 
 def test_normalize_responses_kwargs_policy():
     llm = LLM(model="gpt-5-mini", reasoning_effort="high")
-    # Use a model that is explicitly Responses-capable per model_features
+    # 使用具有明确响应能力的模型 model_features
 
-    # enable encrypted reasoning and set max_output_tokens to test passthrough
+    # 启用加密推理并设置max_output_tokens以测试直通
     llm.enable_encrypted_reasoning = True
     llm.max_output_tokens = 128
 
@@ -126,15 +126,15 @@ def test_normalize_responses_kwargs_policy():
     )
     assert out["temperature"] == 0.3
     assert out["tool_choice"] == "auto"
-    # include should contain original and encrypted_content
+    # include 应包含原始内容和 encrypted_content
     assert set(out["include"]) >= {"text.output_text", "reasoning.encrypted_content"}
-    # store default to False when None passed
+    # 当None通过时将默认值存储为False
     assert out["store"] is False
-    # reasoning config with effort only (no summary for unverified orgs)
+    # 仅努力推理配置（未经验证的组织没有摘要）
     r = out["reasoning"]
     assert r["effort"] in {"low", "medium", "high", "none"}
-    assert "summary" not in r  # Summary not included to support unverified orgs
-    # max_output_tokens preserved
+    assert "summary" not in r  # 不包含摘要以支持未经验证的组织
+    # max_output_tokens 保留
     assert out["max_output_tokens"] == 128
 
 
@@ -159,30 +159,30 @@ def test_responses_options_strip_sampling_when_metadata_rejects_it():
 
 
 def test_normalize_responses_kwargs_with_summary():
-    """Test reasoning_summary is included when set (verified orgs)."""
+    """设置时包含测试 reasoning_summary（已验证的组织）。"""
     llm = LLM(model="gpt-5-mini", reasoning_effort="high", reasoning_summary="detailed")
 
     out = select_responses_options(
         llm, {"temperature": 0.3}, include=["text.output_text"], store=None
     )
-    # Verify reasoning includes both effort and summary when summary is set
+    # 设置摘要后，验证推理包括努力和摘要
     r = out["reasoning"]
     assert r["effort"] == "high"
     assert r["summary"] == "detailed"
 
 
 def test_normalize_responses_kwargs_encrypted_reasoning_disabled():
-    """Test that encrypted reasoning is NOT included when
+    """测试加密推理是否包含在不中
     enable_encrypted_reasoning=False.
     """
     llm = LLM(model="gpt-4.1", reasoning_effort="medium")
-    # Explicitly disable encrypted reasoning (also the default)
+    # 明确禁用加密推理（也是默认设置）
     llm.enable_encrypted_reasoning = False
 
     out = select_responses_options(llm, {}, include=["text.output_text"], store=None)
-    # encrypted_content should NOT be in the include list
+    # encrypted_content 应该不位于包含列表中
     assert "reasoning.encrypted_content" not in out.get("include", [])
-    # But the original include item should still be there
+    # 但原来的包含项应该仍然存在
     assert "text.output_text" in out["include"]
 
 
@@ -215,13 +215,13 @@ def test_responses_encrypted_reasoning_not_added_for_non_reasoning_model():
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_llm_responses_end_to_end(mock_responses_call):
-    # Configure LLM
+    # 配置LLM
     llm = LLM(model="gpt-5-mini")
-    # messages: system + user
+    # 消息：系统+用户
     sys = Message(role="system", content=[TextContent(text="inst")])
     user = Message(role="user", content=[TextContent(text="hi")])
 
-    # Build typed ResponsesAPIResponse with usage
+    # 构建类型为 ResponsesAPIResponse 的用法
     msg = build_responses_message_output(["ok"])
     usage = ResponseAPIUsage(input_tokens=10, output_tokens=5, total_tokens=15)
     resp = ResponsesAPIResponse(
@@ -240,12 +240,12 @@ def test_llm_responses_end_to_end(mock_responses_call):
     mock_responses_call.return_value = resp
 
     result = llm.responses([sys, user])
-    # Returned message is assistant with text
+    # 返回信息为助手文字
     assert result.message.role == "assistant"
     assert [c.text for c in result.message.content if isinstance(c, TextContent)] == [
         "ok"
     ]
-    # Telemetry should have recorded usage (one entry)
+    # 遥测应记录使用情况（一项）
     assert len(llm._telemetry.metrics.token_usages) == 1  # type: ignore[attr-defined]
 
 
@@ -259,19 +259,19 @@ def test_llm_responses_end_to_end(mock_responses_call):
 def test_responses_reasoning_effort_none_not_sent_for_gpt_5_1(model):
     llm = LLM(model=model, reasoning_effort=None)
     out = select_responses_options(llm, {}, include=None, store=None)
-    # When reasoning_effort is None, there should be no 'reasoning' key
+    # 当reasoning_effort为None时，不应有“推理”键
     assert "reasoning" not in out
 
 
 def test_chat_and_responses_options_prompt_cache_retention_gpt_5_plus_and_non_gpt():
-    # Confirm allowed: 5.1 codex mini supports extended retention per docs
+    # 确认允许：5.1 codex mini 支持每个文档的延长保留
     llm_51_codex_mini = LLM(model="openai/gpt-5.1-codex-mini")
     opts_51_codex_mini_resp = select_responses_options(
         llm_51_codex_mini, {}, include=None, store=None
     )
     assert opts_51_codex_mini_resp.get("prompt_cache_retention") == "24h"
 
-    # New GPT-5.2 variants should include prompt_cache_retention
+    # 新的 GPT-5.2 变体应包括 prompt_cache_retention
     llm_52 = LLM(model="openai/gpt-5.2")
     assert (
         select_chat_options(llm_52, {}, has_tools=False).get("prompt_cache_retention")
@@ -292,7 +292,7 @@ def test_chat_and_responses_options_prompt_cache_retention_gpt_5_plus_and_non_gp
         == "24h"
     )
 
-    # GPT-5.1 (non-mini) should include prompt_cache_retention; mini variants should not
+    # GPT-5.1（非迷你）应包括prompt_cache_retention； 迷你变体不应该
     llm_51_mini = LLM(model="openai/gpt-5.1-mini")
     opts_51_mini_chat = select_chat_options(llm_51_mini, {}, has_tools=False)
     assert "prompt_cache_retention" not in opts_51_mini_chat
@@ -336,7 +336,7 @@ def test_chat_and_responses_options_prompt_cache_retention_gpt_5_plus_and_non_gp
     )
     assert "prompt_cache_retention" not in opts_51_azure_resp
 
-    # Other non-GPT-5 models should not include it at all
+    # 其他非GPT-5模型根本不应该包含它
     llm_other = LLM(model="gpt-4o")
     opts_other_chat = select_chat_options(llm_other, {}, has_tools=False)
     assert "prompt_cache_retention" not in opts_other_chat
@@ -346,7 +346,7 @@ def test_chat_and_responses_options_prompt_cache_retention_gpt_5_plus_and_non_gp
 
 
 def test_responses_options_forwards_prompt_cache_key_when_set():
-    """Regression test for #2904."""
+    """回归测试 #2904。"""
     llm = LLM(model="openai/gpt-5.1")
     assert (
         select_responses_options(
@@ -369,13 +369,14 @@ def test_responses_options_omits_prompt_cache_key_when_unset():
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_retries_without_caching_on_prompt_cache_too_small(mock_responses):
-    """When Vertex AI rejects caching due to small content, responses() should
-    retry without prompt caching while preserving caller kwargs.
+    """当 Vertex AI 由于内容较小而拒绝缓存时，responses() 应该
+    重试没有提示词缓存，同时保留调用者 kwargs。
 
-    Mirrors test_completion_retries_without_caching_on_prompt_cache_too_small in
-    test_llm_completion.py, but exercises the Responses API path. The two
-    methods differ in signature (``include``, ``store`` positional args) and in
-    how ``stream`` is resolved, so they need independent coverage.
+    镜像 test_llm_completion.py 中的
+    test_completion_retries_without_caching_on_prompt_cache_too_small，但执行响应 API
+     路径。 这两
+    种方法的签名（``include``、``store``位置参数）和``stream``的解析方式不同，因此它
+    们需要独立的覆盖。
     """
     from litellm.exceptions import BadRequestError
 
@@ -391,7 +392,7 @@ def test_responses_retries_without_caching_on_prompt_cache_too_small(mock_respon
         llm_provider="vertex_ai",
     )
 
-    # Build a typed ResponsesAPIResponse for the successful retry
+    # 为成功的重试构建类型化的 ResponsesAPIResponse
     msg = build_responses_message_output(["Retry succeeded"])
     usage = ResponseAPIUsage(input_tokens=0, output_tokens=0, total_tokens=0)
     success_resp = ResponsesAPIResponse(
@@ -408,9 +409,9 @@ def test_responses_retries_without_caching_on_prompt_cache_too_small(mock_respon
     )
     mock_responses.side_effect = [cache_error, success_resp]
 
-    # Pick a model that supports prompt caching so is_caching_prompt_active()
-    # is True and the retry branch is reachable on the responses() path.
-    # (Gemini no longer uses explicit caching, so use an Anthropic model here.)
+    # 选择支持提示词缓存的模型，is_caching_prompt_active()应该是True，重试分支可以通过
+    # responses()路径访问。（Gemini不再使用显式缓存，所以在这里使用Anthropic模型。）
+    #
     llm = LLM(
         model="claude-sonnet-4-20250514",
         api_key=SecretStr("test_key"),
@@ -426,22 +427,22 @@ def test_responses_retries_without_caching_on_prompt_cache_too_small(mock_respon
         Message(role="user", content=[TextContent(text="Hello")]),
     ]
 
-    # Pass caller kwargs that must survive the retry. ``metadata`` flows through
-    # ``**kwargs`` (not a named param), so it's the cleanest probe for the
-    # ``_caller_kwargs`` forwarding fix; ``store`` exercises the positional-arg
-    # path on the retry call signature.
+    # 传递必须在重试中生存的调用者 kwargs。 ``metadata`` flows through
+    # ``**kwargs``（不是命名参数），所以它是最干净的探针
+    # ``_caller_kwargs`` 转发修复； ``store`` 练习重试调用签名上的位置参数路径。
+    #
     response = llm.responses(
         messages,
         store=False,
         metadata={"trace_id": "abc-123"},
     )
 
-    # Two calls: first with caching active (fails), second without (succeeds).
+    # 两次调用：第一次调用缓存处于活动状态（失败），第二次调用没有缓存（成功）。
     assert mock_responses.call_count == 2
     assert response.raw_response is success_resp
 
-    # Caller kwargs preserved on the retry — without ``_caller_kwargs`` the
-    # retry would silently drop them.
+    # 调用者 kwargs 保留在重试上 - 如果没有 ``_caller_kwargs``，重试会默默地丢弃它们。
+    #
     second_kwargs = mock_responses.call_args_list[1].kwargs
     assert second_kwargs.get("store") is False
     assert second_kwargs.get("metadata") == {"trace_id": "abc-123"}
@@ -452,13 +453,14 @@ def test_responses_retries_without_caching_on_prompt_cache_too_small(mock_respon
 async def test_aresponses_retries_without_caching_on_prompt_cache_too_small(
     mock_aresponses,
 ):
-    """Async version of the sync responses prompt-cache-too-small retry test.
+    """异步版本同步响应提示词-缓存太小重试测试。
 
-    Ensures aresponses() also retries without prompt caching when Vertex AI
-    rejects the request due to cache content below the minimum token
-    threshold, and preserves caller kwargs (positional ``store`` and
-    ``**kwargs`` metadata). Mirrors
-    test_responses_retries_without_caching_on_prompt_cache_too_small.
+    确保 aresponses() also 重试 without 提示词当 Vertex AI 因为缓存内容低于最小值而拒
+    绝请求时，缓存 token 阈值，以及保留调
+    用者 kwargs（位置参数） ``store`` 和
+    ``**kwargs`` 元数据）。 镜子
+    test_responses_retries_without_caching_on_prompt_cache_too_sm
+    all。
     """
     from litellm.exceptions import BadRequestError
 
@@ -490,8 +492,9 @@ async def test_aresponses_retries_without_caching_on_prompt_cache_too_small(
     )
     mock_aresponses.side_effect = [cache_error, success_resp]
 
-    # Anthropic model so is_caching_prompt_active() is True (Gemini no longer
-    # uses explicit caching); mirrors the sync test above.
+    # Anthropic 模型，因此 is_caching_prompt_active() 是 True（Gemini 不再使用显式缓存）
+    # ； 反映了上面的同步测试。
+    #
     llm = LLM(
         model="claude-sonnet-4-20250514",
         api_key=SecretStr("test_key"),
@@ -554,7 +557,7 @@ def _make_wrapped_response_stream_events(text: str = "Hello wrapped stream"):
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_streaming_accepts_wrapped_iterable(mock_responses):
-    """Responses streaming must not require LiteLLM's concrete iterator class."""
+    """响应流式传输不得需要 LiteLLM 的具体迭代器类。"""
     events, completed_response = _make_wrapped_response_stream_events()
     mock_responses.return_value = iter(events)
 
@@ -583,7 +586,7 @@ def test_responses_streaming_accepts_wrapped_iterable(mock_responses):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_streaming_accepts_sync_generator(mock_aresponses):
-    """Async Responses streaming must also tolerate sync iterable wrappers."""
+    """异步响应流式传输还必须容忍同步可迭代包装器。"""
     events, completed_response = _make_wrapped_response_stream_events()
 
     def _return_sync_generator(*args, **kwargs):
@@ -616,7 +619,7 @@ async def test_aresponses_streaming_accepts_sync_generator(mock_aresponses):
 @pytest.mark.asyncio
 @patch("openhands.sdk.llm.llm.litellm_aresponses", new_callable=AsyncMock)
 async def test_aresponses_streaming_accepts_async_generator(mock_aresponses):
-    """Regression for lmnr 0.7.47 returning an async_generator wrapper."""
+    """回归 lmnr 0.7.47 返回 async_generator 包装器。"""
     events, completed_response = _make_wrapped_response_stream_events()
 
     async def _events():
@@ -682,7 +685,7 @@ async def test_aresponses_ignored_events_keep_stream_alive():
     stream_events, completed = _make_wrapped_response_stream_events()
 
     async def events():
-        # Total duration exceeds the idle timeout; each provider event resets it.
+        # 总持续时间超过空闲超时； 每个提供者事件都会重置它。
         for _ in range(6):
             await asyncio.sleep(0.1)
             yield SimpleNamespace(type="response.in_progress")
@@ -716,10 +719,10 @@ async def test_aresponses_ignored_events_keep_stream_alive():
 
 
 def test_stream_delta_chunks_carry_the_output_item_id():
-    """All deltas of one output item must share a chunk id.
+    """一个输出项的所有增量必须共享一个块 ID。
 
-    A changed chunk id reads as a retry (``StreamContext._emit_delta``), which
-    resets the slot and drops text the stream masker is holding.
+    更改后的块 ID 读取为重试 (``StreamContext._emit_delta``)，这会重置插槽并删除流屏
+    蔽器所保存的文本。
     """
     llm = LLM(model="gpt-5-mini", usage_id="test-stream-id")
 
@@ -738,7 +741,7 @@ def test_stream_delta_chunks_carry_the_output_item_id():
 
     assert ids == ["msg_abc"] * 3
 
-    # A different output item is a different stream, so its id must differ.
+    # 不同的输出项是不同的流，因此它的 id 必须不同。
     other = OutputTextDeltaEvent(
         type=ResponsesAPIStreamEvents.OUTPUT_TEXT_DELTA,
         item_id="msg_def",

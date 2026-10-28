@@ -16,19 +16,19 @@ from openhands.sdk.utils.path import get_user_persistence_dir
 
 
 class FlexibleFileSystemLoader(BaseLoader):
-    """A Jinja2 loader that supports both relative paths (within a base directory)
-    and absolute paths anywhere on the filesystem.
+    """支持相对路径（在基本目录内）的 Jinja2 加载器
+    以及文件系统上任何位置的绝对路径。
     """
 
     def __init__(self, searchpath: str):
         self.searchpath = os.path.abspath(searchpath)
 
     def get_source(self, environment, template):  # noqa: ARG002
-        # If template is an absolute path, use it directly
+        # 如果template是绝对路径，则直接使用
         if os.path.isabs(template):
             path = template
         else:
-            # Otherwise, look for it in the searchpath
+            # 否则，在搜索路径中查找它
             path = os.path.join(self.searchpath, template)
 
         if not os.path.exists(path):
@@ -60,9 +60,9 @@ def refine(text: str) -> str:
 def _get_env(prompt_dir: str) -> Environment:
     if not prompt_dir:
         raise ValueError("prompt_dir is required")
-    # BytecodeCache avoids reparsing templates across processes
-    # Use user-specific cache directory to avoid permission issues
-    # in multi-user environments
+    # BytecodeCache 避免跨进程重新解析模板使用用户特定的缓存目录以避免多用户环境中的权限
+    # 问题
+    #
     cache_folder = get_user_persistence_dir() / "cache" / "jinja"
     cache_folder.mkdir(parents=True, exist_ok=True)
     bcc = FileSystemBytecodeCache(directory=str(cache_folder))
@@ -71,7 +71,7 @@ def _get_env(prompt_dir: str) -> Environment:
         bytecode_cache=bcc,
         autoescape=False,
     )
-    # Optional: expose refine as a filter so templates can use {{ text|refine }}
+    # 可选：将细化公开为过滤器，以便模板可以使用 {{ text|refine }}
     env.filters["refine"] = refine
     return env
 
@@ -88,24 +88,24 @@ def _get_template(prompt_dir: str, template_name: str) -> Template:
 
 
 def render_template(prompt_dir: str, template_name: str, **ctx) -> str:
-    """Render a Jinja2 template.
+    """渲染 Jinja2 模板。
 
     Args:
-        prompt_dir: The base directory for relative template paths.
-        template_name: The template filename. Can be either:
-            - A relative filename (e.g., "system_prompt.j2") loaded from prompt_dir
-            - An absolute path (e.g., "/path/to/custom_prompt.j2")
-        **ctx: Template context variables.
+        prompt_dir: 相对模板路径的基目录。
+        template_name: 模板文件名。 可以是：
+            - 从 prompt_dir 加载的相对文件名 (e.g., "system_prompt.j2")
+            - 绝对路径 (e.g., "/path/to/custom_prompt.j2")
+        **ctx: 模板上下文变量。
 
     Returns:
-        Rendered template string.
+        渲染的模板字符串。
 
     Raises:
-        FileNotFoundError: If the template file cannot be found.
+        FileNotFoundError: 如果找不到模板文件。
     """
-    # If template_name is an absolute path, extract directory and filename
+    # 如果template_name是绝对路径，则提取目录和文件名
     if os.path.isabs(template_name):
-        # Check if the file exists before trying to load it
+        # 在尝试加载文件之前检查文件是否存在
         if not os.path.isfile(template_name):
             raise FileNotFoundError(f"Prompt file {template_name} not found")
         actual_dir = os.path.dirname(template_name)

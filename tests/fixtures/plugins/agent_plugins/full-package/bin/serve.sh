@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# Never executed by the test suite: the fixture only needs a real file inside
-# the package so the plugin-relative ``command`` resolves within the root.
+# 从未由测试套件执行：测试夹具只需要包内的真实文件，以便插件相关的 ``command`` 在根目录内解析。
+#
 echo "full-package stdio server"

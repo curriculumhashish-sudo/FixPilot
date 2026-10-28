@@ -148,8 +148,8 @@ def _local_branch_exists(repo_root: Path, branch: str) -> bool:
 
 
 def _fetch_origin(repo_root: Path) -> None:
-    """Refresh ``origin``'s refs for a worktree start point; keep cached ones on
-    failure."""
+    """刷新 ``origin`` 的参考以获取工作树起点； 保持缓存的开启
+    失败。"""
     try:
         run_git_command(["git", "fetch", "origin"], repo_root, timeout=60)
     except GitCommandError as exc:
@@ -162,19 +162,16 @@ def _fetch_origin(repo_root: Path) -> None:
 
 
 def _get_worktree_start_point(repo_root: Path) -> str:
-    """Resolve the base ref a new conversation worktree should be created from.
+    """解析应从中创建新对话工作树的基本引用。
 
-    Policy (in order):
-      1. ``origin/<default_branch>`` if an ``origin`` remote is configured.
-         ``git fetch origin`` is run first so the worktree starts from the
-         latest remote tip; the default branch is resolved via
+    政策（按顺序）：
+      1. 如果配置了 ``origin`` 遥控器，则为 ``origin/<default_branch>``。
+         ``git fetch origin`` 首先运行，因此工作树从最新的远程提示开始； 默认分支通过
+         以下方式解析
          ``refs/remotes/origin/HEAD``.
-      2. Local ``main`` if there is no usable remote default but ``main``
-         exists locally.
-      3. Local ``master`` if neither remote default nor local ``main`` is
-         available.
-      4. Fall back to ``HEAD`` only when none of the above applies. The planner
-         checks whether the selected ref resolves to a commit.
+      2. 如果没有可用的远程默认值，则本地 ``main``，但本地存在 ``main``。
+      3. 如果远程默认值和本地 ``main`` 都不可用，则本地 ``master``。
+      4. 仅当上述 None 适用时才回退到 ``HEAD``。 规划器检查所选引用是否解析为提交。
     """
     if _has_git_remote(repo_root):
         _fetch_origin(repo_root)
@@ -256,7 +253,7 @@ def _plan_conversation_worktree(
         workspace_dir=worktree_root / source_workspace.relative_to(repo_root),
         branch=f"{options.branch_prefix}{conversation_id}",
         options=options,
-        # Keep the ref so Git preserves remote branch tracking configuration.
+        # 保留引用，以便 Git 保留远程分支跟踪配置。
         start_point=start_ref,
     )
 
@@ -310,13 +307,13 @@ logger = logging.getLogger(__name__)
 
 
 class InvalidParentConversation(ValueError):
-    """``parent_conversation_id`` is unknown, self-referential, or in
-    a different workspace."""
+    """``parent_conversation_id`` 未知、自指或处于
+    不同的工作区。"""
 
 
 class UnavailableAgentTool(ValueError):
-    """The agent names a tool whose ``tool_module_qualnames`` module the server
-    cannot import, so the agent could never be built."""
+    """智能体命名一个工具，其 ``tool_module_qualnames`` 模块为服务器
+    无法导入，因此永远无法构建智能体。"""
 
 
 def _same_workspace(a: LocalWorkspace, b: LocalWorkspace) -> bool:
@@ -328,59 +325,54 @@ def _compose_conversation_info(
     state: ConversationState,
     sub_conversation_ids: list[UUID] | None = None,
 ) -> ConversationInfo:
-    # Use mode='json' so SecretStr in nested structures (e.g. LookupSecret.headers,
-    # agent.agent_context.secrets) serialize to strings. Without it, validation
-    # fails because ConversationInfo expects dict[str, str] but receives SecretStr.
+    # 在嵌套结构中使用 mode='JSON' 因此 SecretStr (e.g. LookupSecret.headers,
+    # agent.agent_context.secrets) 序列化到字符串。 如果没有它，验证就会失败，因为
+    # ConversationInfo 需要 dict[str、str]，但收到 SecretStr。
     #
-    # ACP model state is lifted onto top-level ConversationInfo fields because
-    # the agent holds it in PrivateAttrs (ACPAgent is frozen) which don't survive
-    # ``model_dump``. ``getattr`` keeps non-ACP agents a no-op. We read the live
-    # agent (fresh within a session) and fall back to ``state.agent_state`` —
-    # persisted to ``base_state.json`` by ``ACPAgent._init`` (and kept in sync by
-    # ``switch_acp_model``) — so cold list reads, where PrivateAttrs are still
-    # empty because ``init_state`` hasn't fired, still surface the last-known
-    # state. Persisted ``acp_available_models`` is a list of dicts that
-    # ``ConversationInfo`` coerces back into ``ACPModelInfo``.
+    # ACP 模型状态被提升到顶层 ConversationInfo 字段，因为智能体控制住它 PrivateAttrs (
+    # ACPAgent 已冻结的，无法生存的
+    # ``model_dump``. ``getattr`` 保持非 ACP 智能体为空操作。 我们阅读了现场直播智能体（
+    # 在会话中新鲜）并通过 ``ACPAgent._init`` 回退到 ``state.agent_state`` — 已持久化到
+    # ``base_state.json``（并通过同步保存）
+    # ``switch_acp_model``) - 所以冷列表读取，其中 PrivateAttrs 仍然为空，因为
+    # ``init_state`` 尚未触发，仍然显示最后已知的状态。 已持久化
+    # ``acp_available_models`` 是一个字典列表
+    # ``ConversationInfo`` 强制返回 ``ACPModelInfo``。
     agent_state = getattr(state, "agent_state", {}) or {}
     agent = state.agent
-    # current_model_id: live PrivateAttr (fresh after a runtime switch) → the
-    # persisted hint → the authoritative ``acp_model`` the agent runs on resume.
+    # current_model_id：实时PrivateAttr（运行时切换后新鲜）→
+    # 已持久化提示→权威``acp_model``智能体在简历上运行。
     #
-    # The ``acp_model`` fallback is gated on the agent NOT being a live,
-    # initialized one. Once ``init_state`` has fired, ``current_model_id`` is the
-    # authoritative resolved value — including ``None`` when an override couldn't
-    # be applied (unknown provider, or a resume whose model-selection call the
-    # server rejected) — so falling back to ``acp_model`` there would re-assert an
-    # override the live session isn't actually running. The fallback is only for
-    # *cold* reads (``init_state`` hasn't fired, PrivateAttrs still empty), where
-    # the serialized ``acp_model`` is the best last-known hint. The persisted
-    # ``acp_current_model_id`` hint is kept honest by ``ACPAgent.init_state`` (it
-    # clears the value whenever the override wasn't applied), so it's safe in
-    # both cases.
+    # 的 ``acp_model``  回退方案仅限于智能体不是一个活的、初始化的。 Once ``init_state``
+    #  已经发起了 ``current_model_id`` 权威解析值 — 包括 ``None`` 当无法应用重写（未知提
+    # 供者，或者服务器拒绝了模型选择调用的续订）时，就 fallback到 ``acp_model`` 会重新启
+    # 用一个覆盖正在运行的实时会话。 的回退方案仅用于
+    # *Cold* 读取（``init_state`` 尚未触发，PrivateAttrs 仍为空），其中
+    # 已序列化 ``acp_model`` 是最后已知的最佳提示。 已持久化
+    # ``acp_current_model_id`` 提示由 ``ACPAgent.init_state`` 保持诚实（只要未应用覆盖，
+    # 它就会清除该值），因此在这两种情况下都是安全的。
+    #
     agent_initialized = bool(getattr(agent, "_initialized", False))
     current_model_id = (
         getattr(agent, "current_model_id", None)
         or agent_state.get("acp_current_model_id")
         or (None if agent_initialized else getattr(agent, "acp_model", None))
     )
-    # available_models: the property returns ``[]`` (never ``None``) for *both* a
-    # cold-read agent (PrivateAttr default, init_state hasn't fired) and a live
-    # agent that genuinely has no models, so an ``is None`` check can't tell them
-    # apart — and would drop the persisted picker payload on every cold list
-    # read. The ``or`` chain is deliberate: an empty live list falls back to the
-    # persisted snapshot, which is exactly right on cold reads (surface the
-    # last-known list) and benign for a live empty session (the persisted value
-    # is itself empty/absent there).
+    # available_models：对于 *both* a，该属性返回 ``[]``（从不 ``None``）
+    # 冷读智能体 (PrivateAttr 默认，init_state 没有触发) 和一个活生生的智能体模型都没有
+    # 的 ``is None`` 检查无法区分它们——而且在每次冷读已持久化选择器载荷上都会被丢弃。
+    # ``or``链是有意为之：一个空的活跃列表会回退到已持久化快照，这正好适用于冷读（表面显
+    # 示最后已知列表）以及对活跃空会话来说是安全的（已持久化值本身为空/缺席）。
+    #
     available_models = (
         getattr(agent, "available_models", None)
         or agent_state.get("acp_available_models")
         or []
     )
-    # Static provider capability. Unlike the two fields above it has no
-    # meaningful live-vs-persisted distinction — it's derived from the stable
-    # provider identity and written once at session init — so we read the
-    # persisted value directly. Defaults False for non-ACP agents and
-    # conversations that haven't started a session.
+    # 静态提供者能力。 与上述两个字段不同，它没有有意义的“活的” vs. 已持久化的区别——它是
+    # 从稳定的身份提供商中推导出来的，并在会话初始化时只写一次——因此我们直接读取已持久化
+    # 的值。 对于非 ACP 智能体和尚未开始会话的对话，默认为 False。
+    #
     supports_runtime_model_switch = bool(
         agent_state.get("acp_supports_runtime_model_switch", False)
     )
@@ -437,10 +429,10 @@ def _register_agent_definitions(
     *,
     context: str,
 ) -> None:
-    """Register agent definitions into the subagent registry.
+    """将智能体定义注册到子智能体注册表中。
 
-    Used both when creating new conversations (definitions forwarded from the
-    client) and when resuming persisted ones (definitions stored in meta.json).
+    在创建新对话（从客户端转发的定义）和恢复已持久化对话（存储在 meta.json 中的定义）
+    时使用。
     """
     from openhands.sdk.subagent.registry import (
         agent_definition_to_factory,
@@ -468,10 +460,10 @@ def _register_agent_definitions(
 
 
 def _state_signature(base_state_path: str) -> tuple[int, int] | None:
-    """Change-detection token for ``base_state.json``. ``None`` if unreadable.
+    """``base_state.json`` 的变更检测 token。 ``None`` 如果无法阅读。
 
-    ``str`` + ``os.stat`` rather than ``Path``: this runs per conversation on
-    every status-filtered query, and ``Path`` costs more than the syscall.
+    ``str`` + ``os.stat`` 而不是 ``Path``：这在每个状态过滤查询的每个对话上运行，并且
+     ``Path`` 的成本比系统调用更高。
     """
     with suppress(OSError):
         stat = os.stat(base_state_path)
@@ -480,13 +472,13 @@ def _state_signature(base_state_path: str) -> tuple[int, int] | None:
 
 
 def _stored_metadata_signature(stored: StoredConversation) -> int:
-    """Change-detection fingerprint for ``stored`` metadata on a cached row.
+    """缓存行上 ``stored`` 元数据的更改检测指纹。
 
-    ``cached_info`` is keyed by ``base_state.json``, but also embeds
-    ``StoredConversation`` metadata that can change independently via
-    ``meta.json`` (notably auto-title). Fingerprint exactly the fields
-    ``_compose_conversation_info`` lifts from ``stored`` so a metadata-only
-    update invalidates the cache. Keep the set in sync with that function.
+    ``cached_info`` 由 ``base_state.json`` 键控，但也嵌入
+    ``StoredConversation`` 可以通过以下方式独立更改的元数据
+    ``meta.json``（尤其是自动标题）。 准确地对字段进行指纹识别
+    ``_compose_conversation_info`` 从 ``stored`` 提升，因此仅元数据更新会使缓存失效。
+     使用该功能将集合保留在同步中。
     """
     metadata = stored.model_dump(
         mode="json",
@@ -508,10 +500,10 @@ def _stored_metadata_signature(stored: StoredConversation) -> int:
 def _read_execution_status_sync(
     base_state_path: str,
 ) -> ConversationExecutionStatus | None:
-    """Read only ``execution_status`` from a persisted base state.
+    """只读 ``execution_status`` 从已持久化基本状态。
 
-    Validating the full ``ConversationState`` costs an agent, LLM config,
-    workspace, secret registry and stats blob to reach one enum field.
+    验证完整的 ``ConversationState`` 需要智能体、LLM 配置、工作区、机密注册表和统计
+    blob 才能到达一个枚举字段。
     """
     with suppress(OSError, ValueError):
         with open(base_state_path, "rb") as f:
@@ -526,28 +518,28 @@ def _read_execution_status_sync(
 class _ConversationRecord:
     stored: StoredConversation
     execution_status: ConversationExecutionStatus
-    # Signature when execution_status was last read. None = unverified, re-read.
+    # 上次读取 execution_status 时的签名。 None = 未验证，重新阅读。
     state_signature: tuple[int, int] | None = None
-    # Memoised by _base_state_path.
+    # 由_base_state_path记忆。
     base_state_path: str | None = None
-    # Full ConversationInfo composed from the persisted state at
-    # ``state_signature``. Sidebar polling repeatedly asks for the same rows;
-    # keep the validated object until base_state.json changes rather than
-    # reparsing a large nested ConversationState on every request.
+    # 完整的 ConversationInfo 由已持久化状态组成
+    # ``state_signature``. 侧边栏轮询重复请求相同的行； 保留经过验证的对象，直到
+    # base_state.json 发生更改，而不是在每个请求上重新解析大型嵌套 ConversationState。
+    #
     cached_info: ConversationInfo | None = None
-    # Fingerprint of ``stored`` metadata (title, metrics, …) as of the last
-    # composition. ``cached_info`` is keyed by ``state_signature`` alone, so
-    # metadata-only updates (``meta.json``, e.g. auto-title) must also
-    # invalidate it.
+    # 截至最后一个作品的 ``stored`` 元数据（标题、指标等）的指纹。 ``cached_info`` 仅由
+    # ``state_signature`` 键入，因此仅元数据更新 (``meta.json``, e.g. 自动标题）也必须使
+    # 其无效。
+    #
     stored_signature: int | None = None
 
 
 @dataclass
 class ConversationService:
-    """Manage persisted conversations and their live runtimes.
+    """管理已持久化对话及其实时运行时间。
 
-    Startup loads only lightweight metadata. An ``EventService`` and its event
-    history are hydrated when a conversation needs a live runtime.
+    启动时仅加载轻量级元数据。 当对话需要实时运行时时，``EventService`` 及其事件历史
+    记录会被水化。
     """
 
     conversations_dir: Path = field()
@@ -611,12 +603,13 @@ class ConversationService:
                 execution_status = ConversationExecutionStatus.IDLE
                 base_state_file = conversation_dir / BASE_STATE
                 base_state_path = str(base_state_file)
-                # Signature before read, so a racing write leaves a stale
-                # signature and the next query re-reads rather than trusting it.
+                # 在读取之前签名，因此竞速写入会留下陈旧的签名，并且下一个查询会重新读取
+                # 而不是信任它。
+                #
                 signature = _state_signature(base_state_path)
                 if base_state_file.exists():
-                    # Strict on purpose: a corrupt base state still drops the
-                    # conversation from the catalog and logs below.
+                    # 有意严格：损坏的基本状态仍然会从下面的目录和日志中删除对话。
+                    #
                     payload = json.loads(base_state_file.read_text())
                     execution_status = ConversationExecutionStatus(
                         payload.get(
@@ -642,7 +635,7 @@ class ConversationService:
     def _base_state_path(
         self, conversation_id: UUID, record: _ConversationRecord
     ) -> str:
-        """Memoised path to a conversation's ``base_state.json``."""
+        """记忆的对话路径 ``base_state.json``。"""
         path = record.base_state_path
         if path is None:
             path = str(self.conversations_dir / conversation_id.hex / BASE_STATE)
@@ -667,18 +660,18 @@ class ConversationService:
         )
 
     def _agent_from_base_state(self, conversation_id: UUID) -> AgentBase | None:
-        """Return the persisted agent from ``base_state.json`` (its single source
-        of truth), or ``None`` if there is no persisted state yet.
+        """从 ``base_state.json`` 返回已持久化智能体（其单一来源
+        的真值），如果还没有已持久化状态，则为 ``None``。
 
-        Used by cold-path checks (e.g. codex-agent detection) that used to read
-        the agent from ``meta.json`` before the agent was removed from it.
+        由冷路径检查使用（e.g. codex-智能体检测）用于在智能体被删除之前从
+        ``meta.json`` 读取智能体。
         """
         state = self._load_persisted_state_sync(conversation_id)
         return state.agent if state is not None else None
 
     def _children_index(self) -> dict[UUID, list[UUID]]:
-        """Reverse map parent_id -> child ids; rebuilt per call because the
-        catalog is mutated from several places and a cache could go stale."""
+        """反向映射 parent_id -> 子 id； 每次调用都会重建，因为
+        目录从多个地方发生变异，缓存可能会过时。"""
         index: dict[UUID, list[UUID]] = {}
         for child_id, record in self._conversation_records.items():
             parent_id = record.stored.parent_conversation_id
@@ -782,11 +775,10 @@ class ConversationService:
         stored: StoredConversation,
         agent: AgentBase | None = None,
     ) -> dict[str, VersionedCredentialBinding]:
-        # The agent no longer lives on ``stored`` (meta.json). Callers pass the
-        # agent explicitly (the new-conversation request agent, or the live
-        # agent); otherwise fall back to the persisted base_state.json agent.
-        # Read it off the event loop — it does blocking file I/O, mirroring the
-        # ``_load_persisted_state_sync`` usage elsewhere.
+        # 智能体不再存在于 ``stored`` (meta.json) 上。 调用者显式传递智能体（新对话请求
+        # 智能体或实时智能体）； 否则回到已持久化 base_state.json 智能体。 从事件循环中
+        # 读取它 — 它会阻塞文件 I/O，镜像
+        # ``_load_persisted_state_sync`` 其他地方的用法。
         if agent is None:
             agent = await asyncio.to_thread(self._agent_from_base_state, stored.id)
         bindings = {
@@ -795,9 +787,10 @@ class ConversationService:
             if self._profile_allows_secret(stored, name)
         }
         if not isinstance(agent, ACPAgent):
-            # Only ACP agents use file credential bindings; the live path
-            # refuses them for any other agent (CredentialBindingActivationTooLate).
-            # Drop a pending binding so a regular conversation never requires one.
+            # 仅 ACP 智能体使用文件凭据绑定； 活动路径拒绝将它们用于任何其他智能体 (
+            # CredentialBindingActivationTooLate)。 删除挂起的绑定，以便常规对话不再需要
+            # 绑定。
+            #
             return {}
         if (
             self._profile_allows_secret(stored, CODEX_AUTH_SECRET_NAME)
@@ -835,23 +828,21 @@ class ConversationService:
         event_service = event_services.get(conversation_id)
         if event_service is not None and event_service.is_open():
             live = True
-            # Do not acquire the live ConversationState's FIFOLock just to list
-            # a sidebar row. Native OpenHands arun() intentionally holds that
-            # lock across an entire LLM/tool step, which can last minutes; with
-            # several parallel runs, composing every live row waits behind each
-            # active step and serializes conversation search. The autosaved
-            # base_state.json is the listing snapshot and has the same signature-
-            # keyed cache as idle conversations. Live detail/event endpoints
-            # remain authoritative for an individual open conversation.
+            # 不要为了列出侧边栏行而获取活的ConversationState的FIFOLock。 OpenHands
+            # arun() 有意将锁持久化到整个 LLM/工具步骤中，该步骤可能持续数分钟。 通过多
+            # 个并行运行，编写每个活动行会在每个活动步骤后面等待并序列化对话搜索。
+            # base_state.json 是已保存的会话列表，具有与闲聊会话相同的签名-键缓存。 端点
+            # 实时详情和事件对单个开放对话保持权威。
+            #
             record.stored = event_service.stored
         else:
             live = False
 
         signature = _state_signature(self._base_state_path(conversation_id, record))
         if signature is None and event_service is not None and event_service.is_open():
-            # Direct embedders/tests can inject a live EventService without a
-            # persisted state file. There is no disk snapshot to list in that
-            # case, so retain the live-state fallback.
+            # 直接嵌入器/测试可以注入实时 EventService，而无需已持久化状态文件。 在这种
+            # 情况下，没有要列出的磁盘快照，因此请保留活动状态回退方案。
+            #
             state = await event_service.get_state()
             conversation_info = await asyncio.to_thread(
                 _compose_conversation_info_sync, event_service.stored, state, children
@@ -859,12 +850,11 @@ class ConversationService:
             record.execution_status = conversation_info.execution_status
             return conversation_info
 
-        # ``record.stored`` is refreshed above for live conversations; idle rows
-        # keep the catalog copy. Only live conversations can mutate that in-memory
-        # object via metadata-only updates (e.g. auto-title, which writes
-        # ``meta.json`` without touching ``base_state.json``), so fingerprint it
-        # only when the live refresh actually ran — keeps the hot persisted-row
-        # sidebar path free of a per-request dump+hash.
+        # ``record.stored`` 在上方刷新以进行实时对话； 空闲行保留目录副本。 只有实时对话
+        # 才能通过仅元数据更新来改变内存中的对象（e.g. 自动标题，其中写道
+        # ``meta.json`` 不需要接触 ``base_state.json``，因此只在实际刷新时指纹它——这样可
+        # 以保持热已持久化-行侧边栏路径的空闲，避免每次请求时的dump+hash。
+        #
         stored_signature = _stored_metadata_signature(record.stored) if live else None
         cached = record.cached_info
         if (
@@ -872,8 +862,9 @@ class ConversationService:
             and signature == record.state_signature
             and (not live or stored_signature == record.stored_signature)
         ):
-            # Parent/child relationships are catalog-derived and can change
-            # without touching this conversation's base_state.json.
+            # 父/子关系是源自目录的，并且可以在不触及此对话的 base_state.json 的情况下进
+            # 行更改。
+            #
             if cached.sub_conversation_ids != children:
                 cached = cached.model_copy(update={"sub_conversation_ids": children})
                 record.cached_info = cached
@@ -897,13 +888,12 @@ class ConversationService:
     def _refresh_persisted_statuses_sync(
         targets: list[tuple[UUID, str, tuple[int, int] | None]],
     ) -> dict[UUID, tuple[ConversationExecutionStatus | None, tuple[int, int] | None]]:
-        """Re-read ``execution_status`` for persisted conversations that changed.
+        """重新阅读 ``execution_status`` 中已更改的已持久化个对话。
 
-        ``targets`` is ``(conversation_id, base_state_path, cached_signature)``;
-        entries whose signature still matches are skipped without a read. Takes
-        plain values because it runs in a worker thread. In the result, a
-        ``None`` status means "keep the cached one" and a ``None`` signature
-        marks the entry unverified.
+        ``targets``为``(conversation_id, base_state_path, cached_signature)``； 签名
+        仍然匹配的条
+        目将被跳过而不读取。 采用简单值，因为它在工作线程中运行线程。 结果，一个
+        ``None`` 状态表示“保留缓存的”，``None`` 签名标记该条目未经验证。
         """
         refreshed: dict[
             UUID, tuple[ConversationExecutionStatus | None, tuple[int, int] | None]
@@ -913,8 +903,8 @@ class ConversationService:
             if signature is not None and signature == cached_signature:
                 continue
             if signature is None:
-                # Unreadable (never started, or mid-delete): keep the cached
-                # status, unverified, so a later query retries.
+                # 不可读（从未启动或中间删除）：保留缓存
+                # 状态，未验证，所以稍后查询重试。
                 refreshed[conversation_id] = (None, None)
                 continue
             status = _read_execution_status_sync(base_state_path)
@@ -924,11 +914,11 @@ class ConversationService:
         return refreshed
 
     async def _refresh_execution_statuses(self) -> None:
-        """Bring every cached ``execution_status`` up to date.
+        """使每个缓存的 ``execution_status`` 保持最新。
 
-        The index behind status-filtered search and count. Live conversations
-        answer from memory; persisted ones cost a ``stat()`` each and are
-        re-read only when changed, never as a full ``ConversationState``.
+        过滤状态搜索和计数后的索引。 现场对话凭记忆回答； 已持久化个每个花费
+        ``stat()``，并且在更改时重新只读，而不是完整的
+        ``ConversationState``。
         """
         event_services = self._event_services
         if event_services is None:
@@ -938,10 +928,10 @@ class ConversationService:
         for conversation_id, record in list(self._conversation_records.items()):
             event_service = event_services.get(conversation_id)
             if event_service is not None and event_service.is_open():
-                # Authoritative: we own it, so disk can only be staler.
+                # 权威：我们拥有它，所以磁盘只能更陈旧。
                 state = await event_service.get_state()
                 record.execution_status = state.execution_status
-                # Autosave will invalidate any signature and cached info we hold.
+                # 自动保存将使我们持有的任何签名和缓存信息失效。
                 record.state_signature = None
                 record.cached_info = None
                 continue
@@ -956,7 +946,7 @@ class ConversationService:
         if not targets:
             return
 
-        # One thread hop for the catalog, not one per conversation.
+        # 目录的一线程跳，而不是每个对话一跳。
         refreshed = await asyncio.to_thread(
             self._refresh_persisted_statuses_sync, targets
         )
@@ -966,17 +956,18 @@ class ConversationService:
                 continue
             event_service = event_services.get(conversation_id)
             if event_service is not None and event_service.is_open():
-                # Went live while we were reading disk; memory wins.
+                # 当我们读盘时上线； 记忆获胜。
                 continue
             if status is not None:
                 record.execution_status = status
-            # A persisted change (or a move to an unreadable state) invalidates
-            # any cached ConversationInfo derived from the previous snapshot.
+            # 已持久化更改（或移动到不可读状态）会使从先前快照派生的任何缓存
+            # ConversationInfo 无效。
+            #
             record.cached_info = None
             record.state_signature = signature
 
     async def refresh_persisted_conversation(self, conversation_id: UUID) -> None:
-        """Refresh one catalog record changed by an external runtime."""
+        """刷新由外部运行时更改的一项目录记录。"""
         event_services = self._event_services
         if event_services is None:
             raise ValueError("inactive_service")
@@ -996,7 +987,7 @@ class ConversationService:
             existing.cached_info = None
 
     async def _reconcile_active_records(self) -> None:
-        """Add injected live services to the in-memory catalog."""
+        """将注入的实时服务添加到内存目录中。"""
         event_services = self._event_services
         if event_services is None:
             raise ValueError("inactive_service")
@@ -1102,7 +1093,7 @@ class ConversationService:
 
         event_service = event_services.get(conversation_id)
         if event_service is not None and event_service.is_open():
-            # Access counts as activity, deferring idle eviction.
+            # 访问算作活动，推迟闲置驱逐。
             event_service.touch()
             return event_service
 
@@ -1203,10 +1194,9 @@ class ConversationService:
         await self._reconcile_active_records()
 
         if execution_status is not None:
-            # Refresh before snapshotting below: this awaits, and a conversation
-            # going live replaces its catalog record, so a snapshot taken first
-            # would filter on the superseded one. Full state is still loaded
-            # only for the page items.
+            # 在快照之前刷新：这等待着，一个正在运行的对话会替换其目录记录，因此首先进行
+            # 快照会过滤掉被取代的那个。 仍仅为页面项目加载完整状态。
+            #
             await self._refresh_execution_statuses()
 
         records = [
@@ -1260,7 +1250,7 @@ class ConversationService:
         self,
         execution_status: ConversationExecutionStatus | None,
     ) -> int:
-        """Count conversations matching the given filters."""
+        """计算与给定过滤器匹配的对话数量。"""
         if self._event_services is None:
             raise ValueError("inactive_service")
         await self._reconcile_active_records()
@@ -1278,8 +1268,8 @@ class ConversationService:
     async def batch_get_conversations(
         self, conversation_ids: list[UUID]
     ) -> list[ConversationInfo | None]:
-        """Given a list of ids, get a batch of conversation info, returning
-        None for any that were not found."""
+        """给定一个id列表，获取一批对话信息，返回
+        None 对于任何未找到的。"""
         results = await asyncio.gather(
             *[
                 self.get_conversation(conversation_id)
@@ -1300,21 +1290,21 @@ class ConversationService:
         return results
 
     async def _notify_conversation_webhooks(self, conversation_info: BaseModel):
-        """Notify all conversation webhook subscribers about conversation changes."""
+        """通知所有对话 Webhook 订阅者对话更改。"""
         if not self._conversation_webhook_subscribers:
             return
 
-        # Send notifications to all conversation webhook subscribers in the background
+        # 在后台向所有对话 Webhook 订阅者发送通知
         async def _notify_and_log_errors():
             results = await asyncio.gather(
                 *[
                     subscriber.post_conversation_info(conversation_info)
                     for subscriber in self._conversation_webhook_subscribers
                 ],
-                return_exceptions=True,  # Don't fail if one webhook fails
+                return_exceptions=True,  # 如果其中一个 Webhook 失败，也不会失败
             )
 
-            # Log any exceptions that occurred
+            # 记录发生的任何异常
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     subscriber = self._conversation_webhook_subscribers[i]
@@ -1326,17 +1316,16 @@ class ConversationService:
                         exc_info=result,
                     )
 
-        # Create task to run in background without awaiting
+        # 创建任务在后台运行，无需等待
         asyncio.create_task(_notify_and_log_errors())
 
-    # Write Methods
+    # 编写方法
 
     def _has_conversation(self, conversation_id: UUID) -> bool:
-        """Whether this id is already known to the service.
+        """服务是否已知此 ID。
 
-        Cheap, non-awaiting hint used to choose the reuse or create path.
-        The create path re-checks under the lifecycle lock, because a
-        concurrent create for the same id can commit in between.
+        用于选择重用或创建路径的廉价、非等待提示。 创建路径会在生命周期锁下重新检查，
+        因为同一 id 的并发创建可以在其间提交。
         """
         event_services = self._event_services
         if event_services is None:
@@ -1352,10 +1341,9 @@ class ConversationService:
         conversation_id: UUID,
         request: StartConversationRequest,
     ) -> tuple[ConversationInfo, bool]:
-        """Reuse an existing conversation without recreating it.
+        """重用现有对话而不重新创建它。
 
-        The caller must hold this conversation's lifecycle lock, so the
-        catalog cannot change between the existence check and the reuse.
+        调用者必须保留此会话的生命周期锁，因此目录在存在检查和重用之间不能更改。
         """
         if self._event_services is None:
             raise ValueError("inactive_service")
@@ -1379,17 +1367,17 @@ class ConversationService:
                 }
             )
         if existing_event_service is not None and existing_event_service.is_open():
-            # ``is_open()`` above guarantees a live conversation, so the
-            # public getter never raises here.
+            # ``is_open()`` 上面保证了实时对话，因此公共获取器在这里不会触发。
+            #
             existing_agent = existing_event_service.get_conversation().agent
             if (
                 self._is_codex_agent(existing_agent)
                 and CODEX_AUTH_SECRET_NAME
                 not in existing_event_service.credential_bindings
             ):
-                # Reuse the live agent we already resolved above instead
-                # of letting _resolve_credential_bindings fall back to a
-                # synchronous base_state.json read.
+                # 重用我们上面已经解决的实时智能体，而不是让
+                # _resolve_credential_bindings 回退到同步 base_state.json 读取。
+                #
                 late_bindings = await self._resolve_credential_bindings(
                     existing_event_service.stored, agent=existing_agent
                 )
@@ -1427,9 +1415,9 @@ class ConversationService:
             )
         if existing_record is None:
             raise ValueError(f"Persisted conversation {conversation_id} has no record")
-        # Read base_state.json off the event loop, matching the
-        # asyncio.to_thread pattern used for the same read elsewhere
-        # (_resolve_credential_bindings, _conversation_info).
+        # 从事件循环中读取 base_state.json，与在其他地方（_resolve_credential_bindings、
+        # _conversation_info）进行相同读取时使用的 asyncio.to_thread 模式相匹配。
+        #
         reattach_agent = await asyncio.to_thread(
             self._agent_from_base_state, conversation_id
         )
@@ -1453,8 +1441,9 @@ class ConversationService:
                     }
                 )
             try:
-                # Reuse the agent we already parsed from base_state.json
-                # above so the load path doesn't read and parse it again.
+                # 重用我们已经从上面的 base_state.json 解析的智能体，这样加载路径就不会
+                # 再次读取和解析它。
+                #
                 event_service = await self._get_or_load_event_service_locked(
                     conversation_id, agent=reattach_agent
                 )
@@ -1494,7 +1483,7 @@ class ConversationService:
         self,
         request: StartConversationRequest,
     ) -> tuple[ConversationInfo, bool]:
-        """Start a local event_service and return its id."""
+        """启动本地 event_service 并返回其 id。"""
         if self._event_services is None:
             raise ValueError("inactive_service")
         conversation_id = request.conversation_id or uuid4()
@@ -1513,8 +1502,9 @@ class ConversationService:
         conversation_id: UUID,
         run_slot: RunSlot,
     ) -> tuple[ConversationInfo, bool]:
-        # The link is immutable after creation, so cycles beyond self-parent are
-        # impossible; allowing reparenting would require a real ancestor walk.
+        # 该链接在创建后是不可变的，因此超出自父级的循环是不可能的； 允许重新养育需要真
+        # 正的祖先行走。
+        #
         if request.parent_conversation_id is not None:
             if request.parent_conversation_id == conversation_id:
                 raise InvalidParentConversation(
@@ -1545,11 +1535,10 @@ class ConversationService:
             get_settings_store,
         )
 
-        # get_settings_store() is safe here: get_instance() initialises the
-        # singleton with the server cipher before any conversation can start.
-        # FileSettingsStore.load re-raises PermissionError/OSError by design;
-        # now that every launch reads it, a bad file mode must not take down
-        # request shapes that need nothing from settings.
+        # get_settings_store() 在这里是安全的：get_instance() 在任何对话开始之前使用服务
+        # 器密码初始化单例。 FileSettingsStore.load 旨在重置 PermissionError/OSError。
+        # 既然每次启动都会读取它，那么错误的文件模式一定不会删除不需要设置的请求形状。
+        #
         try:
             settings = await asyncio.to_thread(
                 lambda: get_settings_store().load() or PersistedSettings()
@@ -1560,7 +1549,7 @@ class ConversationService:
                 exc_info=True,
             )
             settings = PersistedSettings()
-        # ``ACPAgentSettings.agent_context`` is nullable, hence the guard.
+        # ``ACPAgentSettings.agent_context`` 可以为空，因此有守卫。
         stored_context = settings.agent_settings.agent_context
         load_memory = bool(stored_context and stored_context.load_memory)
 
@@ -1578,12 +1567,12 @@ class ConversationService:
         if managed_codex_credential:
             secrets.pop(CODEX_AUTH_SECRET_NAME, None)
 
-        # Dynamically register tools from client's registry
+        # 从客户端动态注册工具注册表
         unimportable_tools: dict[str, str] = {}
         if request.tool_module_qualnames:
             for tool_name, module_qualname in request.tool_module_qualnames.items():
                 try:
-                    # Import the module to trigger tool auto-registration
+                    # 导入模块触发工具自动注册
                     importlib.import_module(module_qualname)
                     logger.debug(
                         f"Tool '{tool_name}' registered via module '{module_qualname}'"
@@ -1593,9 +1582,9 @@ class ConversationService:
                         f"Failed to import module '{module_qualname}' for tool "
                         f"'{tool_name}': {e}. Tool will not be available."
                     )
-                    # The client registry lists every tool it knows, not only
-                    # the agent's: a module is fatal only if the agent uses its
-                    # tool (checked once the agent is launched below).
+                    # 客户端注册表列出它知道的所有工具，不仅包括智能体's：只有智能体使用
+                    # 其工具时，模块才致命（在智能体启动后检查）。
+                    #
                     unimportable_tools[tool_name] = f"{module_qualname}: {e}"
             logger.info(
                 "Dynamically registered %d tools for conversation %s",
@@ -1603,10 +1592,10 @@ class ConversationService:
                 conversation_id,
             )
 
-        # Register client-defined tools (JSON specs, no Python code). The
-        # ClientTool *class* is registered statelessly; each tool's schema
-        # travels with the conversation via the returned Tool.params, so
-        # concurrent conversations never clobber each other's schemas.
+        # 注册客户端定义的工具（JSON 规范，无 Python 代码）。 ClientTool*class*是无状态
+        # 注册的； 每个工具的模式通过返回的 Tool.params 与对话一起传输，因此并发对话永远
+        # 不会破坏彼此的模式。
+        #
         client_tools = (
             register_client_tools(request.client_tools) if request.client_tools else []
         )
@@ -1636,8 +1625,9 @@ class ConversationService:
                 ),
             )
         )
-        # Building the agent would raise KeyError on the first message, so
-        # reject the create while the caller can still act on it.
+        # 构建智能体会在第一条消息上引发 KeyError，因此在调用者仍然可以对其进行操作时拒
+        # 绝创建。
+        #
         missing_tools = [
             f"'{tool.name}' ({unimportable_tools[tool.name]})"
             for tool in launched.agent.tools
@@ -1655,10 +1645,11 @@ class ConversationService:
             else request.workspace
         )
 
-        # The server may resolve built-in tools that the creating client does not
+        # 服务器可能会解析创建客户端无法解析的内置工具
         # import, as happens when a lightweight orchestrator starts a runtime
-        # conversation. Persist those server-resolved modules so another client
-        # can attach and deserialize the resulting tool events.
+        # 谈话。 持久化这些服务器解析的模块，以便另一个客户端可以附加和反序列化生成的工
+        # 具事件。
+        #
         registered_tool_modules = get_tool_module_qualnames()
         tool_module_qualnames = dict(request.tool_module_qualnames)
         client_tool_names = {tool.name for tool in client_tools}
@@ -1667,21 +1658,20 @@ class ConversationService:
             if module_qualname is not None and tool.name not in client_tool_names:
                 tool_module_qualnames.setdefault(tool.name, module_qualname)
 
-        # Register subagent definitions forwarded from the client
+        # 注册从客户端转发的子智能体定义
         if request.agent_definitions:
             _register_agent_definitions(
                 request.agent_definitions,
                 context=f"conversation {conversation_id}",
             )
 
-        # Plugin loading is handled lazily by LocalConversation, which fetches
-        # plugins on the first run()/send_message(), pins refs to commit SHAs
-        # and merges plugin skills/MCP/hooks into the agent.
+        # 插件加载是通过懒加载 LocalConversation 处理的，它在第一次 run()/send_message()
+        #  时加载插件，将引用固定到提交 SHAs，并将插件技能/MCP/钩子合并到智能体。
         #
-        # Use mode='json' so SecretStr in nested structures (e.g. LookupSecret.headers)
-        # serialize to plain strings. Pass expose_secrets=True so StaticSecret values
-        # are preserved through the round-trip; the dict is only used in-process to
-        # construct StoredConversation, not sent over the network.
+        # 在嵌套结构中使用 mode='JSON' 因此 SecretStr (e.g. LookupSecret.headers) 序列化
+        # 到纯字符串。 传递 expose_secrets=True，因此 StaticSecret 值在往返过程中得以保
+        # 留； 该字典仅在构建过程中使用StoredConversation，而不是通过网络发送。
+        #
         request_data = request.model_copy(
             update={
                 "secrets": secrets,
@@ -1740,33 +1730,30 @@ class ConversationService:
         initial_message: Message | None,
         reuse_request: StartConversationRequest | None = None,
     ) -> tuple[ConversationInfo, bool]:
-        """Persist a prepared conversation, deliver its first message and notify.
+        """持久化准备好的对话，发送第一条消息并通知。
 
-        The tail of a launch shared by a normal start and a child launch:
-        everything after the agent and ``stored`` configuration are prepared.
-        The caller acquires ``run_slot`` before preparing anything, so a full
-        server refuses the launch before a worktree or a persistence directory
-        exists; the slot is handed to the first run.
+        正常启动和子启动共享的启动尾部：智能体和 ``stored`` 配置之后的所有内容都已准
+        备好。 调用者在准备任何内容之前获取 ``run_slot``，因此
+        完整服务器在工作树或持久化目录存在之前拒绝启动； 该插槽将交给第一次运行。
 
-        If the id already exists once the lifecycle lock is held (a client-chosen
-        id raced with a concurrent create), the existing conversation is reused
-        for ``reuse_request`` as ``start_conversation`` does; without a request
-        the collision is an error.
+        如果在生命周期锁持有后，id已经存在（一个客户端选择的id被一个并发创建的id抢先
+        ），则现有的会话将被 ``reuse_request`` 重用，而
+        ``start_conversation`` 会继续。 如果没有请求，则碰撞是一个错误。
         """
         async with self._conversation_lifecycle(stored.id):
-            # Re-check under the lock. Preparing ``stored`` awaits, so a
-            # concurrent create for this same id can have committed since the
-            # caller's check. Without this the loser would start a second
-            # EventService for an id that already exists, re-running its
-            # initial message.
+            # 重新检查锁下。 准备 ``stored`` 等待，因此自调用者检查以来可以提交为同一 ID
+            #  创建的并发。 如果没有这个，失败者将为已经存在的 id 启动第二个
+            # EventService，重新运行其初始消息。
+            #
             if self._has_conversation(stored.id):
                 if reuse_request is None:
                     raise ValueError(f"Conversation with id {stored.id} already exists")
                 return await self._reuse_existing_conversation_locked(
                     stored.id, reuse_request
                 )
-            # New conversation: the agent is written to base_state.json (its
-            # single source of truth), not to meta.json. Pass it explicitly.
+            # 新对话：智能体写入 base_state.json（其唯一事实来源），而不是 meta.json。
+            # 明确地传递它。
+            #
             event_service = await self._start_event_service(
                 stored, is_new_conversation=True, launched=launched
             )
@@ -1777,7 +1764,7 @@ class ConversationService:
         state = await event_service.get_state()
         conversation_info = _compose_conversation_info(event_service.stored, state)
 
-        # Notify conversation webhooks about the started conversation
+        # 通知对话 Webhook 对话已开始
         await self._notify_conversation_webhooks(
             _compose_webhook_conversation_info(event_service.stored, state)
         )
@@ -1788,7 +1775,7 @@ class ConversationService:
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service:
             await event_service.pause()
-            # Notify conversation webhooks about the paused conversation
+            # 通知对话 Webhook 有关暂停的对话
             state = await event_service.get_state()
             conversation_info = _compose_webhook_conversation_info(
                 event_service.stored, state
@@ -1797,11 +1784,11 @@ class ConversationService:
         return bool(event_service)
 
     async def interrupt_conversation(self, conversation_id: UUID) -> bool:
-        """Immediately cancel an in-flight LLM call for a conversation.
+        """立即取消飞行中的 LLM 通话。
 
-        Unlike :meth:`pause_conversation`, which waits for the current
-        LLM request to finish, this cancels the running ``arun()`` task
-        so the interruption takes effect mid-stream.
+        与等待当前 LLM 请求完成的：meth:`pause_conversation` 不同，这会取消正在运行的
+         ``arun()`` 任务，因此中断会在中途生
+        效。
         """
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service:
@@ -1838,7 +1825,7 @@ class ConversationService:
             if event_service is None:
                 return False
 
-            # Notify conversation webhooks about the stopped conversation before closing
+            # 在关闭之前通知对话 Webhook 有关已停止的对话
             try:
                 state = await event_service.get_state()
                 conversation_info = _compose_webhook_conversation_info(
@@ -1853,7 +1840,7 @@ class ConversationService:
                     f"Failed to notify webhooks for conversation {conversation_id}: {e}"
                 )
 
-            # Close the event service
+            # 关闭事件服务
             try:
                 await event_service.close()
             except CredentialBindingError:
@@ -1864,20 +1851,21 @@ class ConversationService:
                     f"{conversation_id}: {e}"
                 )
             event_services.pop(conversation_id, None)
-            # Children are orphaned, not cascaded: parent_conversation_id is
-            # left dangling, like forked_from_conversation_id on source delete.
+            # 子级是孤立的，而不是级联的：parent_conversation_id 悬空，就像源删除上的
+            # forked_from_conversation_id 一样。
+            #
             self._conversation_records.pop(conversation_id, None)
             self._credential_bindings.pop(conversation_id, None)
 
-            # Safely remove only the conversation directory (workspace is preserved).
-            # This operation may fail due to permission issues, but we don't want that
-            # to prevent the conversation from being marked as deleted.
+            # 仅安全删除对话目录（保留工作区）。 此操作可能会因权限问题而失败，但我们不
+            # 希望这阻止对话被标记为已删除。
+            #
             safe_rmtree(
                 event_service.conversation_dir,
                 f"conversation directory for {conversation_id}",
             )
             worktree_dir = self._worktree_dir(event_service.stored)
-            # Forks share their source's worktree; the last one deleted removes it.
+            # 叉子共享其来源的工作树； 最后删除的一项将其删除。
             if worktree_dir is not None and not any(
                 self._worktree_dir(record.stored) == worktree_dir
                 for record in self._conversation_records.values()
@@ -1890,14 +1878,14 @@ class ConversationService:
     async def update_conversation(
         self, conversation_id: UUID, request: UpdateConversationRequest
     ) -> bool:
-        """Update conversation metadata.
+        """更新对话元数据。
 
         Args:
-            conversation_id: The ID of the conversation to update
-            request: Request object containing fields to update (e.g., title, tags)
+            conversation_id: 要更新的对话 ID
+            request: 包含要更新字段的请求对象（e.g.、标题、标签）
 
         Returns:
-            bool: True if the conversation was updated successfully, False if not found
+            bool: True 如果对话已成功更新，False 如果未找到
         """
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service is None:
@@ -1910,12 +1898,14 @@ class ConversationService:
             update["title"] = request.title.strip()
         if request.tags is not None:
             update["tags"] = request.tags
-        # Persist first: a refused write (e.g. lost lease ownership) must leave
-        # the in-memory metadata and state untouched.
+        # 持久化第一个：拒绝写入 (e.g. 丢失租约所有权）必须保持内存中的元数据和状态不变
+        # 。
+        #
         await event_service.save_meta(event_service.stored.model_copy(update=update))
         if request.tags is not None:
-            # Keep the persisted ConversationState update under the state lock so
-            # autosave and state-change callbacks observe a consistent mutation.
+            # 将已持久化 ConversationState 更新保持在状态锁下，以便自动保存和状态更改回
+            # 调观察到一致的突变。
+            #
             state = await loop.run_in_executor(
                 None, _update_state_tags_sync, state, request.tags
             )
@@ -1924,9 +1914,9 @@ class ConversationService:
             record.stored = event_service.stored
             record.cached_info = None
 
-        # Notify conversation webhooks about the updated conversation. Compose the
-        # full-state snapshot under the state lock, but do the synchronous wait in a
-        # worker thread so metadata updates cannot block the FastAPI event loop.
+        # 通知对话 Webhook 有关更新的对话。 在状态锁下构建全状态快照，但同步在工作线程线
+        # 程中等待，以便元数据更新不会阻塞 FastAPI 事件循环。
+        #
         conversation_info = await loop.run_in_executor(
             None, _compose_webhook_conversation_info_sync, event_service.stored, state
         )
@@ -1950,7 +1940,7 @@ class ConversationService:
     async def get_persisted_event_service(
         self, conversation_id: UUID
     ) -> EventService | None:
-        """Open append-only event history without acquiring a runtime lease."""
+        """打开仅附加事件历史记录，无需获取运行时租用。"""
         if self._event_services is None:
             raise ValueError("inactive_service")
         record = self._conversation_records.get(conversation_id)
@@ -1961,32 +1951,32 @@ class ConversationService:
     async def generate_conversation_title(
         self, conversation_id: UUID, max_length: int = 50, llm: LLM | None = None
     ) -> str | None:
-        """Generate a title for the conversation using LLM."""
+        """使用 LLM 生成对话的标题。"""
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service is None:
             return None
 
-        # Delegate to EventService to avoid accessing private conversation internals
+        # 委托给 EventService 以避免访问私人对话内部
         title = await event_service.generate_title(llm=llm, max_length=max_length)
         return title
 
     async def ask_agent(self, conversation_id: UUID, question: str) -> str | None:
-        """Ask the agent a simple question without affecting conversation state."""
+        """向智能体询问一个简单的问题，而不影响对话状态。"""
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service is None:
             return None
 
-        # Delegate to EventService to avoid accessing private conversation internals
+        # 委托给 EventService 以避免访问私人对话内部
         response = await event_service.ask_agent(question)
         return response
 
     async def condense(self, conversation_id: UUID) -> bool:
-        """Force condensation of the conversation history."""
+        """强制对话历史记录上下文压缩。"""
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service is None:
             return False
 
-        # Delegate to EventService to avoid accessing private conversation internals
+        # 委托给 EventService 以避免访问私人对话内部
         await event_service.condense()
         return True
 
@@ -2000,27 +1990,26 @@ class ConversationService:
         reset_metrics: bool = True,
         from_event_id: str | None = None,
     ) -> ConversationInfo | None:
-        """Fork an existing conversation, deep-copying its event history.
+        """分叉现有对话，深度复制其事件历史记录。
 
-        The fork is persisted to disk and then loaded as a new EventService,
-        so the forked conversation is fully independent from the source.
+        分叉是已持久化到磁盘，然后作为新的 EventService 加载，因此分叉的对话完全独立
+        于源。
 
-        When *from_event_id* is set, only the branch up to and including that
-        event is copied and the fork's HEAD is set there; otherwise the whole
-        conversation is copied (today's behavior).
+        当设置 *from_event_id* 时，仅复制直到并包括该事件的分支，并在那里设置分叉的
+        HEAD； 否则整个对话都会被复制（今天的行为）。
 
-        Returns ``None`` when *source_id* does not exist.
+        当 *source_id* 不存在时返回 ``None``。
 
         Raises:
-            ValueError: If *fork_id* is already taken by an active
-                conversation, or if *from_event_id* is not in the source
-                conversation.
+            ValueError: 如果 *fork_id* 已被活动的
+                对话，或者如果 *from_event_id* 不在源对话中。
         """
         if self._event_services is None:
             raise ValueError("inactive_service")
 
-        # Reject duplicate fork IDs before fork() writes into its persistence
-        # directory. The catalog includes both live and unloaded conversations.
+        # 在 fork() 写入其持久化目录之前拒绝重复的分叉 ID。 该目录包括实时对话和卸载对话
+        # 。
+        #
         if fork_id is not None and fork_id in self._conversation_records:
             raise ValueError(f"Conversation with id {fork_id} already exists")
 
@@ -2033,14 +2022,13 @@ class ConversationService:
 
         fork_dir = self.conversations_dir / fork_conv_id.hex
         async with self._conversation_lifecycle(fork_conv_id):
-            # Re-check under the lock, before fork() writes into ``fork_dir``: a
-            # concurrent fork of the same id can have committed since the check
-            # above, and both fork() and the cleanup below would then touch the
-            # winner's persisted data.
+            # 在锁重新检查一下，确保fork()在``fork_dir``写入之前，没有并发同id的分支已经
+            # 提交，那么fork()和清理操作之后，都会触及获胜者的已持久化数据。
+            #
             if self._has_conversation(fork_conv_id):
                 raise ValueError(f"Conversation with id {fork_id} already exists")
 
-            # fork() deep-copies events and state into ``fork_dir``.
+            # fork() 将事件和状态深度复制到 ``fork_dir`` 中。
             fork_conv = await asyncio.to_thread(
                 source_conversation.fork,
                 conversation_id=fork_conv_id,
@@ -2048,24 +2036,22 @@ class ConversationService:
                 reset_metrics=reset_metrics,
                 from_event_id=from_event_id,
             )
-            # Extract the persisted data, then discard the temporary conversation.
+            # 提取已持久化数据，然后丢弃临时会话。
             fork_agent = cast(AgentBase, fork_conv.agent)
             fork_workspace = fork_conv.workspace
             fork_conv.delete_on_close = False
             fork_conv.close()
 
-            # _start_event_service will resume from the persisted fork directory.
-            # Copy the source's stored metadata so request-level configuration
-            # (client_tools, tool_module_qualnames, agent_definitions, plugins,
-            # secrets, ...) is preserved on the fork, then override only the
-            # fork-specific fields. Without this, e.g. a fork of a client-tool
-            # conversation would lose ``client_tools`` in meta.json and be unable
-            # to re-register its tools after a server restart.
-            # Note: the agent is NOT stored in meta.json (StoredConversation) — the
-            # fork's agent is already persisted to the fork's base_state.json by
-            # ``source_conversation.fork`` above. It is passed to
-            # ``_start_event_service`` via ``agent=`` for the new-conversation
-            # path.
+            # _start_event_service 将从已持久化 fork 目录恢复。 复制源的存储元数据，这样
+            # 请求级别的配置（client_tools，tool_module_qualnames，agent_definitions，插
+            # 件，机密…）在分支上保留，然后只覆盖分支特定的字段。 Without this, e.g. 客
+            # 户端工具对话的分支将丢失meta.json中的``client_tools``，并且在服务器重新启
+            # 动后无法重新注册其工具。
+            # 注意：智能体是存储在 meta.json (StoredConversation) 中的不 —
+            # 叉子的智能体已经是已持久化到叉子的 base_state.json
+            # ``source_conversation.fork`` 上面。 它被传递到
+            # ``_start_event_service`` 通过 ``agent=`` 作为新对话路径。
+            #
             fork_overrides: dict[str, Any] = {
                 "id": fork_conv_id,
                 "workspace": fork_workspace,
@@ -2080,8 +2066,9 @@ class ConversationService:
                 fork_overrides["metrics"] = None
             fork_stored = source_service.stored.model_copy(update=fork_overrides)
             try:
-                # If the service fails to start, clean up the orphaned
-                # persistence directory so we don't leave stale state on disk.
+                # 如果服务无法启动，请清理孤立的持久化目录，这样我们就不会在磁盘上留下过
+                # 时的状态。
+                #
                 fork_event_service = await self._start_event_service(
                     fork_stored, is_new_conversation=True, persisted_agent=fork_agent
                 )
@@ -2099,23 +2086,21 @@ class ConversationService:
         parent_id: UUID,
         request: StartChildConversationRequest,
     ) -> StartChildConversationResponse | None:
-        """Start a child conversation on this server, derived from *parent_id*.
+        """在此服务器上启动源自 *parent_id* 的子对话。
 
-        Like :meth:`fork_conversation`, the child inherits the parent's stored
-        configuration (secrets, client tools, plugins, hooks, tags, ...) and its
-        resolved agent, but it starts with a fresh event history: ``task`` is
-        delivered as the child's first user message. With
-        ``isolation="worktree"`` the child runs in a git worktree carved from
-        the parent's workspace when that workspace is a git repository with
-        a usable base commit; otherwise (or with ``isolation="shared"``) it
-        shares the parent's directory. The link is recorded via
+        就像：meth:`fork_conversation`，子类继承了父类的存储配置 (机密，客户端工具、
+        插件、钩子、标签、...) 和其解析智能体，但其事件历
+        史从头开始：``task`` 作为子类的第一个用户消息被传递。 与
+        ``isolation="worktree"`` 当工作区是一个具有可用基本提交的 git 存储库时，子级
+        在从父级工作区中分离出来的 git 工作树中运行；
+         否则（或使用``isolation="shared"``）它共享父目录。 该链接是通过记录的
         ``parent_conversation_id``.
 
-        Returns ``None`` when *parent_id* does not exist.
+        当 *parent_id* 不存在时返回 ``None``。
 
         Raises:
-            ConversationRunLimitExceeded: If all server run slots are occupied.
-                Nothing is persisted in that case.
+            ConversationRunLimitExceeded: 如果所有服务器运行槽都被占用。
+                在这种情况下，什么都不是已持久化。
         """
         if self._event_services is None:
             raise ValueError("inactive_service")
@@ -2124,17 +2109,17 @@ class ConversationService:
         if parent_service is None:
             return None
 
-        # Admission first, as in a normal start: a full server refuses the
-        # launch before a worktree or the child's persistence directory exists.
+        # 首先入场，就像正常启动一样：完整服务器在工作树或子目录持久化目录存在之前拒绝启
+        # 动。
+        #
         with await RunSlot.acquire(self._run_semaphore) as run_slot:
             parent_stored = parent_service.stored
             parent_agent = cast(AgentBase, parent_service.get_conversation().agent)
             child_id = uuid4()
 
-            # Reuse the worktree machinery of a regular start: a worktree is
-            # planned (and its guidance appended to the child's agent) only when
-            # the parent workspace has a usable git base commit; otherwise
-            # the child shares it.
+            # 重用常规启动的工作树机制：计划工作树（并将其附在子进程智能体中），只有当父
+            # 进程工作区有一个可用的 git 基本提交时。 否则，子节点会共享它。
+            #
             worktree = (
                 _plan_conversation_worktree(
                     parent_stored.workspace,
@@ -2195,15 +2180,15 @@ class ConversationService:
     async def navigate_conversation(
         self, conversation_id: UUID, *, event_id: str | None = None
     ) -> ConversationInfo | None:
-        """Move a conversation's HEAD to an existing event (in-place re-root).
+        """将对话的 HEAD 移至现有事件（就地重新根）。
 
-        All branches stay on disk; only the active branch the agent runs on
-        changes. The new HEAD persists via the conversation's own state
-        autosave. Returns ``None`` when *conversation_id* does not exist.
+        所有分支都保留在磁盘上； 只有智能体运行的活动分支发生变化。 新的 HEAD 通过对
+        话自身的状态自动保存而保留。 当 *conversation_id* 不
+        存在时返回 ``None``。
 
         Raises:
-            ValueError: If *event_id* is not ``None`` and not present in the
-                conversation.
+            ValueError: 如果 *event_id* 不是 ``None`` 并且不存在于
+                谈话。
         """
         event_service = await self._get_or_load_event_service(conversation_id)
         if event_service is None:
@@ -2225,7 +2210,7 @@ class ConversationService:
         self._event_services = {}
         self._conversation_records = await asyncio.to_thread(self._load_catalog_sync)
 
-        # Initialize conversation webhook subscribers
+        # 初始化对话 Webhook 个订阅者
         self._conversation_webhook_subscribers = [
             ConversationWebhookSubscriber(
                 spec=webhook_spec,
@@ -2234,10 +2219,10 @@ class ConversationService:
             for webhook_spec in self.webhook_specs
         ]
 
-        # Preserve crash recovery semantics without hydrating every idle
-        # conversation. RUNNING records may contain an interrupted tool call;
-        # EventService.start() marks those records as ERROR and appends the
-        # corresponding recovery event. A live lease still prevents takeover.
+        # 保留崩溃恢复语义，而不需要补充每个空闲对话。 RUNNING记录可能包含中断的工具调用
+        # ； EventService.start() 将这些记录标记为 ERROR 并附加相应的恢复事件。 实时租赁
+        # 仍然可以防止接管。
+        #
         running_ids = [
             conversation_id
             for conversation_id, record in self._conversation_records.items()
@@ -2247,8 +2232,8 @@ class ConversationService:
             try:
                 await self._get_or_load_event_service(conversation_id)
             except Exception:
-                # One broken conversation must not prevent the server from
-                # starting or make every healthy conversation unavailable.
+                # 一个中断的对话不得阻止服务器启动或使每个正常的对话不可用。
+                #
                 logger.exception(
                     "error_recovering_running_conversation:%s",
                     conversation_id,
@@ -2264,12 +2249,11 @@ class ConversationService:
         return self
 
     async def _renew_all_leases_loop(self) -> None:
-        """Single background task that renews leases for all active conversations.
+        """为所有活动对话续订租约的单一后台任务。
 
-        Replaces N per-conversation renewal tasks with one centralized loop,
-        reducing asyncio task overhead.  Each renewal involves synchronous
-        file I/O (FileLock + read + write), so individual calls are offloaded
-        via ``asyncio.to_thread`` to avoid blocking the event loop.
+        用一个集中循环替换 N 个每次会话更新任务，从而减少异步任务开销。 每次更新都涉
+        及同步文件 I/O（FileLock + 读 + 写），因此各个调用通过
+        ``asyncio.to_thread`` 卸载，以避免阻塞事件循环。
         """
         try:
             while True:
@@ -2283,7 +2267,7 @@ class ConversationService:
             raise
 
     async def _evict_idle_conversations_loop(self) -> None:
-        """Periodically evict conversations idle beyond the TTL."""
+        """定期驱逐超出 TTL 的空闲对话。"""
         ttl = self.conversation_idle_ttl_seconds
         if not ttl or ttl <= 0:
             return
@@ -2301,9 +2285,9 @@ class ConversationService:
             raise
 
     async def _evict_idle_conversations(self, ttl_seconds: float) -> None:
-        """Evict idle conversations, keeping the record so they re-hydrate on access.
+        """驱逐闲置的对话，保留记录，以便它们在访问时重新补充水分。
 
-        Running or externally-subscribed conversations are skipped.
+        正在运行的或外部订阅的对话将被跳过。
         """
         async with self._exclusive_lifecycle():
             event_services = self._event_services
@@ -2320,10 +2304,10 @@ class ConversationService:
                 event_service = event_services.pop(conversation_id, None)
                 if event_service is None:
                     continue
-                # Preserve runtime-only state so rehydration is faithful:
-                # sync the catalog to the current stored (switch_acp_model /
-                # secret updates replace it) and hand back credential bindings
-                # (close() clears them).
+                # 保留只在运行时使用的状态，以确保重新加载时状态忠实：同步链表应更新为当
+                # 前存储的（switch_acp_model / 机密更新替换它）并返回凭据绑定（close()
+                # 清除它们）。
+                #
                 record = self._conversation_records.get(conversation_id)
                 if record is not None:
                     record.stored = event_service.stored
@@ -2423,8 +2407,9 @@ class ConversationService:
 
     @classmethod
     def get_instance(cls, config: Config) -> "ConversationService":
-        # Initialise the settings-store singleton with the server cipher before
-        # any conversation handler can call get_settings_store() without config.
+        # 在任何会话处理程序可以在没有配置的情况下调用 get_settings_store() 之前，使用服
+        # 务器密码初始化设置存储单例。
+        #
         from openhands.agent_server.mcp_oauth_store import (
             create_settings_backed_mcp_tool_provider,
         )
@@ -2463,9 +2448,9 @@ class ConversationService:
         if event_services is None:
             raise ValueError("inactive_service")
 
-        # A new conversation starts with the ``launched`` agent (meta.json does
-        # not carry it). Otherwise the agent is read from base_state.json, and
-        # ``persisted_agent`` only spares the credential check that read.
+        # 新对话以 ``launched`` 智能体开始（meta.json 不包含它）。 否则从
+        # base_state.json 读取智能体，并且
+        # ``persisted_agent``仅保留读取的凭据检查。
         agent = launched.agent if launched is not None else persisted_agent
         credential_bindings = await self._resolve_credential_bindings(
             stored, agent=agent
@@ -2480,17 +2465,17 @@ class ConversationService:
             owner_instance_id=self.owner_instance_id,
             lease_ttl_seconds=self.lease_ttl_seconds,
         )
-        # Lease renewal is handled by the centralized
-        # _renew_all_leases_loop task on ConversationService.
+        # 租约续订由 ConversationService 上的集中 _renew_all_leases_loop 任务处理。
+        #
         event_service._external_lease_renewal = True
         event_service._run_executor = self._run_executor
         event_service._run_semaphore = self._run_semaphore
 
         try:
             await event_service.start()
-            # Register subscribers after start() so subscribe_to_events runs
-            # its initial-state push synchronously and any failure surfaces to
-            # the caller instead of being silently logged on a later publish.
+            # start()后注册订阅者，以便subscribe_to_events同步运行其初始状态推送，并将任
+            # 何失败上报给调用者，而不是在稍后推送时默默记录。
+            #
             await event_service.subscribe_to_events(
                 _EventSubscriber(service=event_service)
             )
@@ -2514,10 +2499,10 @@ class ConversationService:
                     for webhook_spec in self.webhook_specs
                 ]
             )
-            # Mark these as internal so idle eviction only counts external clients.
+            # 将它们标记为内部，以便空闲驱逐仅计算外部客户端。
             event_service.mark_subscription_baseline()
-            # Save metadata immediately after successful start to ensure persistence
-            # even if the system is not shut down gracefully
+            # 成功启动后立即保存元数据，以确保持久化即使系统未正常关闭
+            #
             await event_service.save_meta()
             if self._event_services is not event_services:
                 raise ValueError("inactive_service")
@@ -2551,27 +2536,22 @@ class ConversationService:
         *,
         is_new_conversation: bool,
     ) -> None:
-        """Attach the telemetry subscriber, if telemetry is active.
+        """如果遥测处于活动状态，请附加遥测订阅者。
 
-        The subscriber is attached on *every* path, including rehydration, so
-        errors and terminal outcomes are always captured. But
-        ``conversation_created`` is emitted only for a genuinely new
-        conversation: ``_start_event_service`` also runs when an idle
-        conversation is lazily reloaded and when RUNNING conversations are
-        recovered after a restart, and counting those as creations would inflate
-        the metric on every server bounce.
+        订户连接到 * 每 * 路径，包括补液，因此错误和终端结果始终会被捕获。 但是
+        ``conversation_created`` 仅针对真正全新的产品而发出
+        conversation: ``_start_event_service`` 空闲时也运行
+        对话懒加载，重启后 RUNNING 个会话被恢复，这些会话会被计为创建，这将导致每台服
+        务器重启时的指标膨胀。
 
-        Deliberately total: telemetry must never be able to fail conversation
-        startup. The ``enabled`` check comes first so the disabled path does no
-        sanitization work at all.
+        故意全面：遥测绝不能导致对话启动失败。 ``enabled`` 检查首先出现，因此禁用的路
+        径根本不执行清理工作。
         """
-        # Resolve the process sink lazily rather than trusting a value captured
-        # at construction. ``ConversationService`` is instantiated at import
-        # time (``sockets.py`` module scope), before the lifespan builds the
-        # sink, so a cached reference is always the pre-init NoOp — which would
-        # silence conversation telemetry regardless of consent. Reading the
-        # current sink here makes conversations honour the live decision, the
-        # same way the server-lifecycle and request-failed paths already do.
+        # 懒惰地解决流程汇，而不是相信在构建时捕获的值。 ``ConversationService`` 在导入
+        # 时被实例化``sockets.py`` 在生命周期之前，模块作用域），在构建 sink 之前，所以
+        # 总是缓存引用是预初始化 NoOp — 无论是否同意，都会沉默对话追踪。 在这里读取当前
+        # 接收器使对话尊重实时决策，就像服务器生命周期和请求失败路径已经做的那样。
+        #
         sink = get_telemetry_sink()
         if not sink.enabled:
             return
@@ -2602,14 +2582,14 @@ def _build_telemetry_context(
     factory: DiagnosticEventFactory,
     agent: AgentBase | None = None,
 ) -> ConversationTelemetryContext:
-    """Reduce a stored conversation to its sanitized telemetry facts.
+    """将存储的对话简化为经过净化的遥测事实。
 
-    Every read is defensive: a shape change upstream should degrade a property
-    to ``unknown``, never raise into conversation startup.
+    每次读取都是防御性的：上游的形状变化应该将属性降级为 ``unknown``，永远不会引发对
+    话启动。
 
-    The agent is no longer stored on meta.json; callers pass the live/persisted
-    agent explicitly. When ``agent`` is ``None`` (no live conversation), the
-    agent-derived fields simply degrade to ``unknown``.
+    智能体不再存储在meta.json上； 调用者显式传递实时/持久智能体。 当 ``agent`` 为
+    ``None``（无实时对话）时，由智能体派生的字段将简单降级
+    为 ``unknown``。
     """
     tags = getattr(stored, "tags", None)
     is_automation = isinstance(tags, dict) and any(
@@ -2635,7 +2615,7 @@ def _build_telemetry_context(
         is_fork=getattr(stored, "forked_from_conversation_id", None) is not None,
         has_agent_profile=getattr(stored, "launched_agent_profile", None) is not None,
         workspace_kind=workspace_kind,
-        # Policy kind, not a bool: a bool would collapse ConfirmRisky.
+        # 政策类型，而不是布尔值：布尔值会崩溃ConfirmRisky。
         confirmation_policy=safe_token(
             type(getattr(stored, "confirmation_policy", None)).__name__.lower()
         ),
@@ -2648,12 +2628,12 @@ class _EventSubscriber(Subscriber):
     service: EventService
 
     async def __call__(self, _event: Event):
-        # Any event is activity; refresh the idle-eviction clock.
+        # 任何事件都是活动； 刷新空闲驱逐时钟。
         self.service.touch()
-        # Skip updating timestamp for ConversationStateUpdateEvent, which is
-        # published during startup/state changes and doesn't represent actual
-        # conversation activity. This prevents updated_at from being reset
-        # on every server restart.
+        # 跳过更新 ConversationStateUpdateEvent 的时间戳，该时间戳在启动/状态更改期间发
+        # 布，并不代表实际的对话活动。 这可以防止 updated_at 在每次服务器重新启动时重置
+        # 。
+        #
         if isinstance(_event, ConversationStateUpdateEvent):
             return
         self.service.stored.updated_at = utc_now()
@@ -2666,8 +2646,9 @@ class _EventSubscriber(Subscriber):
     metadata={OPERATION_METADATA_KEY: "title_generation"},
 )
 def _generate_title_traced(
-    # Must stay first and positional: ``observe`` re-attaches the
-    # root span it carries, and this runs on a context-less executor thread.
+    # 必须保持第一个位置：``observe`` 重新附加它所携带的根跨度，并且这在无上下文的执行器
+    # 线程上运行。
+    #
     conversation: LocalConversation | None,
     message: str,
     llm: LLM | None,
@@ -2693,30 +2674,31 @@ class AutoTitleSubscriber(Subscriber):
     service: EventService
 
     async def __call__(self, event: Event) -> None:
-        # Only act on incoming user messages
+        # 仅对传入的用户消息进行操作
         if not isinstance(event, MessageEvent) or event.source != "user":
             return
-        # Guard: skip if a title was already set (e.g. by a concurrent task)
+        # Guard：如果已经设置了标题则跳过 (e.g. 通过并发任务）
         if self.service.stored.title is not None:
             return
 
-        # Extract the message text now, before spawning the background task,
-        # to avoid a race where the event hasn't been persisted to the events
-        # list yet when title generation tries to read it.
+        # 现在提取消息文本，以免在后台任务启动之前，导致事件尚未已持久化到事件列表时，标
+        # 题生成尝试读取它。
+        #
         message_text = extract_message_text(event)
         if not message_text:
             return
 
-        # Precedence: title_llm_profile (if configured and loads) → agent.llm →
-        # truncation. This keeps auto-titling non-breaking for consumers who
-        # don't configure title_llm_profile.
+        # 优先级：title_llm_profile（如果已配置并加载）→ agent.llm →
+        # 截断。 对于未配置 title_llm_profile 的消费者来说，这可以保证自动标题不会中断。
+        #
         conversation = self.service._conversation
         title_llm = self._load_title_llm()
         if title_llm is None:
             title_llm = conversation.agent.llm if conversation else None
 
-        # Surface an LLM failure during auto-titling to the UI (issue #16686);
-        # generation itself stays non-fatal and falls back to truncation.
+        # 在 UI 自动标题期间出现 LLM 失败（问题 #16686）； 生成本身保持非致命状态并退回
+        # 到截断状态。
+        #
         def _on_title_error(exc: Exception) -> None:
             self.service._publish_error_event_sync(exc)
 
@@ -2749,12 +2731,12 @@ class AutoTitleSubscriber(Subscriber):
         asyncio.create_task(_generate_and_save())
 
     def _load_title_llm(self) -> LLM | None:
-        """Load the LLM for title generation from profile store.
+        """从配置文件存储加载用于标题生成的 LLM。
 
         Returns:
-            LLM instance if title_llm_profile is configured and loads
-            successfully, None otherwise. When None is returned, the caller
-            falls back to the agent's LLM (and then to message truncation).
+            如果 title_llm_profile 配置并成功加载，则为 LLM 实例，否则为 None。 当返
+            回 None 时，调用者回退到智能体的 LLM
+            （然后到消息截断）。
         """
         profile_name = self.service.stored.title_llm_profile
         if not profile_name:
@@ -2788,9 +2770,9 @@ class WebhookSubscriber(Subscriber):
     _queue_bytes: int = field(default=0, init=False)
     _dropped_events: int = field(default=0, init=False)
     _closed: bool = field(default=False, init=False)
-    # Per-instance sleep seam so tests override delays without patching the
-    # global asyncio.sleep. default_factory (not default) keeps it an instance
-    # attribute, else the function would be descriptor-bound as a method.
+    # 每个实例的睡眠接缝因此测试会覆盖延迟而无需修补全局 asyncio.sleep。 default_factory
+    # （非默认）将其保留为实例属性，否则该函数将作为方法被描述符绑定。
+    #
     _sleep: Callable[[float], Awaitable[None]] = field(
         default_factory=lambda: asyncio.sleep, init=False
     )
@@ -2802,32 +2784,33 @@ class WebhookSubscriber(Subscriber):
         )
 
     async def __call__(self, event: Event):
-        """Add event to queue and post to webhook when buffer size is reached."""
+        """将事件添加到队列并在达到缓冲区大小时发布到 Webhook。"""
         self._enqueue(event)
 
         if self._buffer_full():
             if self._post_lock.locked():
-                # The in-flight _post_events re-checks the buffer when it is
-                # done and re-arms the timer if a post fails.
+                # 运行中的 _post_events 会在完成后重新检查缓冲区，并在发布失败时重新启动
+                # 计时器。
+                #
                 self._start_flush_timer()
                 return
-            # Cancel timer since we're flushing due to buffer size
+            # 取消计时器，因为我们由于缓冲区大小而正在刷新
             self._cancel_flush_timer()
             await self._post_events()
         elif self.queue:
             self._start_flush_timer()
 
     async def close(self):
-        """Post any remaining items in the queue to the webhook."""
+        """将队列中的所有剩余项目发送到 Webhook。"""
         self._closed = True
-        # Cancel any pending flush timer
+        # 取消任何挂起的刷新计时器
         self._cancel_flush_timer()
 
         if self.queue:
             await self._post_events()
 
     async def _post_events(self):
-        """Post bounded batches serially until the queue is empty or a post fails."""
+        """连续发布有界批次，直到队列为空或发布失败。"""
         async with self._post_lock:
             self._sync_queue_sizes()
             self._trim_queue()
@@ -2836,32 +2819,33 @@ class WebhookSubscriber(Subscriber):
                 events_to_post, event_data = self._take_batch(events_remaining)
                 if not await self._post_batch(event_data):
                     self._requeue(events_to_post)
-                    # A timer that fired during the POST saw an empty queue
-                    # and exited, so arm one for the requeued events.
+                    # 在 POST 期间触发的计时器看到一个空队列并退出，因此为重新排队的事件
+                    # 准备一个。
+                    #
                     self._start_flush_timer()
                     return
                 events_remaining -= len(events_to_post)
                 if not events_remaining and self._buffer_full():
-                    # Events published during the POST filled the buffer again.
+                    # POST期间发布的事件再次填满了缓冲区。
                     events_remaining = len(self.queue)
-            # A timer started during the POST has nothing left to flush.
+            # 在 POST 期间启动的计时器没有剩余内容可以刷新。
             if not self.queue and self._flush_timer is not asyncio.current_task():
                 self._cancel_flush_timer()
 
     async def _post_batch(self, event_data: list[dict[str, Any]]) -> bool:
-        """Post one serialized batch with retry logic."""
+        """使用重试逻辑发布一批已序列化批次。"""
 
-        # Prepare headers
+        # 准备标头
         headers = self.spec.headers.copy()
         if self.session_api_key:
             headers["X-Session-API-Key"] = self.session_api_key
 
-        # Construct events URL
+        # 构建事件 URL
         events_url = (
             f"{self.spec.base_url.rstrip('/')}/events/{self.conversation_id.hex}"
         )
 
-        # Retry logic
+        # 重试逻辑
         for attempt in range(self.spec.num_retries + 1):
             try:
                 async with httpx.AsyncClient() as client:
@@ -2908,7 +2892,7 @@ class WebhookSubscriber(Subscriber):
         )
 
     def _sync_queue_sizes(self):
-        """Refresh size accounting after callers directly replace the public queue."""
+        """调用者直接替换公共队列后刷新大小统计。"""
         if len(self._queue_sizes) != len(self.queue):
             self._queue_sizes = [self._event_size(event) for event in self.queue]
             self._queue_bytes = sum(self._queue_sizes)
@@ -2952,7 +2936,7 @@ class WebhookSubscriber(Subscriber):
 
     def _take_batch(self, max_events: int) -> tuple[list[Event], list[dict[str, Any]]]:
         self._sync_queue_sizes()
-        batch_size = 2  # JSON array brackets
+        batch_size = 2  # JSON 数组括号
         batch_count = 0
         event_data: list[dict[str, Any]] = []
 
@@ -2978,23 +2962,23 @@ class WebhookSubscriber(Subscriber):
             self._flush_timer = asyncio.create_task(self._flush_after_delay())
 
     def _cancel_flush_timer(self):
-        """Cancel the current flush timer if it exists."""
+        """取消当前的刷新计时器（如果存在）。"""
         if self._flush_timer and not self._flush_timer.done():
             self._flush_timer.cancel()
         self._flush_timer = None
 
     async def _flush_after_delay(self):
-        """Wait for flush_delay seconds then flush events if any exist."""
+        """等待 flush_delay 秒，然后刷新事件（如果存在）。"""
         current_task = asyncio.current_task()
         should_reschedule = False
         try:
             await self._sleep(self.spec.flush_delay)
-            # Only flush if there are events in the queue
+            # 仅当队列中有事件时才刷新
             if self.queue:
                 await self._post_events()
                 should_reschedule = bool(self.queue)
         except asyncio.CancelledError:
-            # Timer was cancelled, which is expected behavior
+            # 计时器被取消，这是预期的行为
             pass
         finally:
             if self._flush_timer is current_task:
@@ -3005,29 +2989,29 @@ class WebhookSubscriber(Subscriber):
 
 @dataclass
 class ConversationWebhookSubscriber:
-    """Webhook subscriber for conversation lifecycle events (start, pause, stop)."""
+    """Webhook 对话生命周期事件（开始、暂停、停止）的订阅者。"""
 
     spec: WebhookSpec
     session_api_key: str | None = None
-    # Per-instance sleep seam; see WebhookSubscriber._sleep.
+    # 实例级睡眠缝参见WebhookSubscriber._sleep。
     _sleep: Callable[[float], Awaitable[None]] = field(
         default_factory=lambda: asyncio.sleep, init=False
     )
 
     async def post_conversation_info(self, conversation_info: BaseModel):
-        """Post conversation info to the webhook immediately (no batching)."""
-        # Prepare headers
+        """立即将对话信息发布到 Webhook（无批处理）。"""
+        # 准备标头
         headers = self.spec.headers.copy()
         if self.session_api_key:
             headers["X-Session-API-Key"] = self.session_api_key
 
-        # Construct conversations URL
+        # 构建对话 URL
         conversations_url = f"{self.spec.base_url.rstrip('/')}/conversations"
 
-        # Convert conversation info to serializable format
+        # 将对话信息转换为可序列化格式
         conversation_data = conversation_info.model_dump(mode="json")
 
-        # Retry logic
+        # 重试逻辑
         response = None
         for attempt in range(self.spec.num_retries + 1):
             try:
@@ -3052,7 +3036,7 @@ class ConversationWebhookSubscriber:
                 if attempt < self.spec.num_retries:
                     await self._sleep(self.spec.retry_delay)
                 else:
-                    # Log response content for debugging failures
+                    # 记录调试失败的响应内容
                     response_content = (
                         response.text if response is not None else "No response"
                     )

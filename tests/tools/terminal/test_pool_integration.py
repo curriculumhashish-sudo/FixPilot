@@ -1,8 +1,8 @@
-"""Integration tests verifying TerminalExecutor pool mode works end-to-end.
+"""集成测试验证 TerminalExecutor 池模式是否可以端到端运行。
 
-These tests exercise the full stack: TerminalExecutor → TmuxPanePool →
-PooledTmuxTerminal, including declared_resources() and concurrent execution
-through the executor's __call__ interface.
+这些测试练习整个堆栈：TerminalExecutor → TmuxPanePool → PooledTmuxTerminal，包括通过
+执行器的 __call__ 接口执行
+ declared_resources() 和并发。
 """
 
 import tempfile
@@ -22,7 +22,7 @@ from openhands.tools.terminal.impl import TerminalExecutor
 
 @pytest.fixture
 def pool_executor():
-    """Create a TerminalExecutor in pool mode."""
+    """在池模式下创建一个TerminalExecutor。"""
     with tempfile.TemporaryDirectory() as work_dir:
         executor = TerminalExecutor(
             working_dir=work_dir,
@@ -35,8 +35,8 @@ def pool_executor():
 
 class TestDeclaredResources:
     def test_pool_mode_opts_out_of_framework_locking(self, pool_executor):
-        """In pool mode, declared_resources returns empty keys so the
-        framework does not serialize terminal calls."""
+        """在池模式下，declared_resources返回空键，因此
+        框架不进行序列化终端调用。"""
         tool = TerminalTool(
             action_type=TerminalAction,
             observation_type=TerminalObservation,
@@ -48,8 +48,8 @@ class TestDeclaredResources:
         assert resources == DeclaredResources(keys=(), declared=True)
 
     def test_subprocess_mode_serializes(self):
-        """In subprocess mode, declared_resources returns a resource key
-        so the framework serializes terminal calls."""
+        """在子进程模式下，declared_resources返回资源键
+        因此框架会序列化终端调用。"""
         with tempfile.TemporaryDirectory() as work_dir:
             executor = TerminalExecutor(
                 working_dir=work_dir,
@@ -71,10 +71,10 @@ class TestDeclaredResources:
 
 class TestConcurrentExecution:
     def test_parallel_calls_execute_concurrently(self, pool_executor):
-        """Multiple concurrent executor calls run in parallel, not serially.
+        """多个并发执行程序调用并行运行，而不是串行运行。
 
-        Each call sleeps for 2s. With 3 panes, 3 calls should complete in
-        well under 6s (serial) wall time.
+        每个调用休眠 2 秒。 对于 3 个窗格，3 个调用应在远低于 6 秒（串行）的墙上时间
+        内完成。
         """
         num_calls = 3
         sleep_seconds = 2
@@ -103,8 +103,8 @@ class TestConcurrentExecution:
         assert len(results) == num_calls
         for idx in range(num_calls):
             assert "done" in results[idx]
-        # If calls were serial, elapsed would be >= 6s.
-        # With parallelism it should be ~2s + overhead.
+        # 如果调用是串行的，则花费的时间将 >= 6 秒。 有了并行性，它应该是~2s + 开销。
+        #
         serial_time = num_calls * sleep_seconds
         assert elapsed < serial_time, (
             f"Expected parallel execution under {serial_time}s, took {elapsed:.1f}s"

@@ -1,57 +1,77 @@
-# Datadog Error Debugging Workflow
+<a id="datadog-error-debugging-workflow"></a>
 
-This example demonstrates how to use OpenHands agents to automatically debug errors from Datadog in a GitHub Actions workflow.
+# Datadog 错误调试工作流程
 
-## Overview
+此示例演示如何使用 OpenHands 智能体在 GitHub Actions 工作流程中自动调试来自 Datadog 的错误。
 
-The workflow:
-1. Fetches errors from Datadog based on configurable queries
-2. Searches for or creates GitHub issues to track errors
-3. Clones relevant repositories for comprehensive analysis
-4. Uses OpenHands AI agents to analyze code and identify root causes
-5. Posts debugging insights as comments on GitHub issues
+<a id="overview"></a>
 
-## Files
+## 概述
 
-- `workflow.yml` - GitHub Actions workflow with manual trigger
-- `datadog_debugging.py` - Main debugging script
-- `debug_prompt.jinja` - Template for AI debugging prompts
+工作流程：
+1. 根据可配置查询从 Datadog 获取错误
+2. 搜索或创建 GitHub 个问题以跟踪错误
+3. 克隆相关存储库以进行综合分析
+4. 使用 OpenHands AI 智能体分析代码并确定根本原因
+5. 将调试见解作为对 GitHub 问题的评论发布
 
-## Features
+<a id="files"></a>
 
-### Manual Trigger
-Run on-demand via GitHub Actions UI with configurable inputs:
-- **Query Type**: Choose between `log-query` (search) or `log-error-id` (specific error ID)
-- **Datadog Query**:
-  - For `log-query`: Search query like `service:deploy ClientDisconnect`
-  - For `log-error-id`: Specific error tracking ID like `2adba034-ab5a-11f0-b04e-da7ad0900000`
-- Repository list to analyze
-- Issue repository for tracking
-- Parent issue for organization
-- LLM model selection
+## 文件
 
-### Smart Issue Management
-- Searches for existing issues before creating duplicates
-- Uses URL encoding for proper GitHub API queries
-- Selects oldest matching issue when duplicates exist
-- Links to parent tracking issue
+- `workflow.yml` - GitHub 手动触发的操作工作流程
+- `datadog_debugging.py` - 主要调试脚本
+- `debug_prompt.jinja` - AI 调试模板提示词
 
-### Multi-Repository Analysis
-- Clone multiple repositories for comprehensive context
-- Agent has full view of all relevant codebases
-- Identifies root causes across repository boundaries
+<a id="features"></a>
 
-### AI-Powered Debugging
-- Automatic code analysis using OpenHands agents
-- Identifies error locations and root causes
-- Provides actionable fix recommendations
-- Posts detailed findings as GitHub comments
+## 特点
 
-## Setup
+<a id="manual-trigger"></a>
 
-### Required Secrets
+### 手动触发
+通过具有可配置输入的 GitHub Actions UI 按需运行：
+- **查询类型**：选择 `log-query`（搜索）或 `log-error-id`（特定错误 ID）
+- **数据狗查询**：
+  - 对于 `log-query`：搜索查询如 `service:deploy ClientDisconnect`
+  - 对于 `log-error-id`：特定错误跟踪 ID，如 `2adba034-ab5a-11f0-b04e-da7ad0900000`
+- 要分析的存储库列表
+- 用于跟踪的问题存储库
+- 组织的父级问题
+- LLM 型号选择
 
-Configure these in your repository Settings → Secrets and variables → Actions:
+<a id="smart-issue-management"></a>
+
+### 智能问题管理
+- 在创建重复项之前搜索现有问题
+- 使用 URL 编码进行正确的 GitHub API 查询
+- 存在重复项时选择最旧的匹配问题
+- 家长跟踪问题的链接
+
+<a id="multi-repository-analysis"></a>
+
+### 多存储库分析
+- 克隆多个存储库以实现综合性上下文
+- 智能体拥有所有相关代码库的完整视图
+- 识别跨存储库边界的根本原因
+
+<a id="ai-powered-debugging"></a>
+
+### AI 支持的调试
+- 使用 OpenHands 智能体自动代码分析
+- 识别错误位置和根本原因
+- 提供可行的修复建议
+- 将详细调查结果发布为 GitHub 条评论
+
+<a id="setup"></a>
+
+## 设置
+
+<a id="required-secrets"></a>
+
+### 必填机密
+
+在存储库中配置这些设置 → 机密和变量 → 操作：
 
 ```yaml
 DD_API_KEY: Your Datadog API key
@@ -61,38 +81,46 @@ LLM_API_KEY: API key for LLM service
 LLM_BASE_URL: Base URL for LLM service (optional)
 ```
 
-**Note**: `GITHUB_TOKEN` is automatically provided by GitHub Actions.
+**注**：`GITHUB_TOKEN`由GitHub操作自动提供。
 
-### Installation
+<a id="installation"></a>
 
-1. Copy `workflow.yml` to your repository's `.github/workflows/` directory (e.g., `.github/workflows/datadog-debugging.yml`)
-2. Configure the required secrets in repository Settings → Secrets and variables → Actions
-3. Optionally, customize the workflow inputs and defaults in the YAML file
+### 安装
 
-**Note**: The workflow automatically downloads the latest version of `datadog_debugging.py` and `debug_prompt.jinja` from the SDK repository at runtime. No need to copy these files to your repository unless you want to customize them.
+1. 将 `workflow.yml` 复制到存储库的 `.github/workflows/` 目录（e.g., `.github/workflows/datadog-debugging.yml`）
+2. 在仓库设置 → 机密和变量 → 操作中配置所需的机密
+3. （可选）在 YAML 文件中自定义工作流程输入和默认值
 
-## Usage
+**注意**：工作流在运行时自动从SDK存储库下载最新版本的`datadog_debugging.py`和`debug_prompt.jinja`。 无需将这些文件复制到您的存储库，除非您想自定义它们。
 
-### Via GitHub Actions UI
+<a id="usage"></a>
 
-1. Go to the **Actions** tab in your repository
-2. Select **Datadog Error Debugging** workflow
-3. Click **Run workflow**
-4. Configure inputs:
-   - **Query Type**: Choose `log-query` or `log-error-id` (default: `log-query`)
-   - **Datadog Query**: 
-     - For `log-query`: Search query (default: `service:deploy ClientDisconnect`)
-     - For `log-error-id`: Error tracking ID (e.g., `2adba034-ab5a-11f0-b04e-da7ad0900000`)
-   - **Repository List**: Comma-separated repos to analyze (default: `OpenHands/OpenHands,All-Hands-AI/infra`)
-   - **Issue Repository**: Where to create issues (default: `All-Hands-AI/infra`)
-   - **Parent Issue**: Optional parent issue URL for tracking
-   - **Issue Prefix**: Prefix for issue titles (default: `DataDog Error: `)
-   - **LLM Model**: Model to use (default: `gpt-5.5`)
-5. Click **Run workflow**
+## 用途
 
-### Via GitHub CLI
+<a id="via-github-actions-ui"></a>
 
-**Search for errors matching a query:**
+### 通过 GitHub 操作 UI
+
+1. 转到存储库中的 **Actions** 选项卡
+2. 选择 **Datadog 错误调试** 工作流程
+3. 单击**运行工作流程**
+4. 配置输入：
+   - **查询类型**：选择`log-query`或`log-error-id`（默认：`log-query`）
+   - **数据狗查询**：
+     - 对于 `log-query`：搜索查询（默认值：`service:deploy ClientDisconnect`）
+     - 对于 `log-error-id`：错误跟踪 ID (e.g., `2adba034-ab5a-11f0-b04e-da7ad0900000`)
+   - **存储库列表**：要分析的以逗号分隔的存储库（默认值：`OpenHands/OpenHands,All-Hands-AI/infra`）
+   - **问题存储库**：创建问题的位置（默认值：`All-Hands-AI/infra`）
+   - **父问题**：用于跟踪的可选父问题URL
+   - **问题前缀**：问题标题的前缀（默认值：`DataDog Error: `）
+   - **LLM 模型**：要使用的模型（默认值：`gpt-5.5`）
+5. 单击**运行工作流程**
+
+<a id="via-github-cli"></a>
+
+### 通过 GitHub CLI
+
+**搜索与查询匹配的错误：**
 ```bash
 gh workflow run datadog-debugging.yml \
   -f query_type="log-query" \
@@ -101,7 +129,7 @@ gh workflow run datadog-debugging.yml \
   -f issue_repo="All-Hands-AI/infra"
 ```
 
-**Debug a specific error by ID:**
+**按 ID 调试特定错误：**
 ```bash
 gh workflow run datadog-debugging.yml \
   -f query_type="log-error-id" \
@@ -110,9 +138,13 @@ gh workflow run datadog-debugging.yml \
   -f issue_repo="All-Hands-AI/infra"
 ```
 
-## Example
+<a id="example"></a>
 
-### Input (Search Query)
+## 示例
+
+<a id="input-search-query"></a>
+
+### 输入（搜索查询）
 ```yaml
 query_type: "log-query"
 datadog_query: "service:deploy ClientDisconnect"
@@ -121,7 +153,9 @@ issue_repo: "All-Hands-AI/infra"
 issue_parent: "https://github.com/All-Hands-AI/infra/issues/672"
 ```
 
-### Input (Specific Error ID)
+<a id="input-specific-error-id"></a>
+
+### 输入（特定错误 ID）
 ```yaml
 query_type: "log-error-id"
 datadog_query: "2adba034-ab5a-11f0-b04e-da7ad0900000"
@@ -130,33 +164,41 @@ issue_repo: "All-Hands-AI/infra"
 issue_parent: "https://github.com/All-Hands-AI/infra/issues/672"
 ```
 
-### Output
-- **Console**: Progress logs showing error fetching, repository cloning, and agent analysis
-- **GitHub Issue**: Created or updated with error details
-- **GitHub Comment**: AI-generated analysis with root cause and recommendations
-- **Artifacts**: Debugging data and logs saved for 7 days
+<a id="output"></a>
 
-### Real Example
+### 输出
+- **控制台**：显示错误获取、存储库克隆和智能体分析的进度日志
+- **GitHub 问题**：已创建或更新错误详细信息
+- **GitHub评论**：人工智能生成的分析，包含根本原因和建议
+- **Artifacts**：保存7天的调试数据和日志
 
-See a real run with production data:
-- Error: `starlette.requests.ClientDisconnect` (1,526 occurrences)
-- Issue: https://github.com/All-Hands-AI/infra/issues/703
-- AI Analysis: https://github.com/All-Hands-AI/infra/issues/703#issuecomment-3480707049
+<a id="real-example"></a>
 
-The agent identified:
-- Error locations in `github.py` and `gitlab.py`
-- Root cause: Unhandled `ClientDisconnect` exceptions
-- Recommendations: Add proper error handling for client disconnections
+### 真实例子
 
-## Configuration
+查看生产数据的实际运行：
+- 错误：`starlette.requests.ClientDisconnect`（出现 1,526 次）
+- 问题： https://github.com/All-Hands-AI/infra/issues/703
+- 人工智能分析： https://github.com/All-Hands-AI/infra/issues/703#issuecomment-3480707049
 
-### Datadog Query Examples
+智能体确定：
+- 错误位置在`github.py`和`gitlab.py`中
+- 根本原因：未处理的 `ClientDisconnect` 异常
+- 建议：为客户端断开连接添加适当的错误处理
+
+<a id="configuration"></a>
+
+## 配置
+
+<a id="datadog-query-examples"></a>
+
+### Datadog 查询示例
 
 ```yaml
-# ClientDisconnect errors
+# ClientDisconnect 错误
 service:deploy ClientDisconnect
 
-# Server errors (5xx)
+# 服务器错误 (5xx)
 service:deploy http.status_code:5*
 
 # Database errors
@@ -169,62 +211,80 @@ service:deploy (authentication OR authorization) status:error
 service:deploy rate_limit status:error
 ```
 
-### Repository List Format
+<a id="repository-list-format"></a>
 
-Comma-separated list of `owner/repo`:
+### 存储库列表格式
+
+`owner/repo` 的逗号分隔列表：
 ```
 OpenHands/OpenHands,All-Hands-AI/infra,All-Hands-AI/deploy
 ```
 
-### LLM Model Options
+<a id="llm-model-options"></a>
 
-- `gpt-5.5` - Best quality (default)
-- `openhands/claude-haiku-4-5-20251001` - Faster, cheaper
-- `anthropic/claude-3-5-sonnet-20241022` - Alternative
+### LLM 型号选项
 
-## Workflow Details
+- `gpt-5.5` - 最佳质量（默认）
+- `openhands/claude-haiku-4-5-20251001` - 更快、更便宜
+- `anthropic/claude-3-5-sonnet-20241022` - 替代方案
 
-### Inputs
+<a id="workflow-details"></a>
 
-| Input | Type | Required | Default | Description |
+## 工作流程详情
+
+<a id="inputs"></a>
+
+### 输入
+
+| 输入 | 类型 | 必填 | 默认 | 描述 |
 |-------|------|----------|---------|-------------|
-| `datadog_query` | string | Yes | `service:deploy ClientDisconnect` | Datadog query to search for errors |
-| `repo_list` | string | Yes | `OpenHands/OpenHands,All-Hands-AI/infra` | Comma-separated list of repositories |
-| `issue_repo` | string | Yes | `All-Hands-AI/infra` | Repository to create/update issues in |
-| `issue_parent` | string | No | - | Parent GitHub issue URL for tracking |
-| `issue_prefix` | string | No | `DataDog Error: ` | Prefix for issue titles |
-| `max_errors` | string | No | `5` | Maximum number of errors to fetch |
-| `llm_model` | string | No | `gpt-5.5` | LLM model to use |
+| `datadog_query` | 字符串 | 是的 | `service:deploy ClientDisconnect` | 用于搜索错误的 Datadog 查询 |
+| `repo_list` | 字符串 | 是的 | `OpenHands/OpenHands,All-Hands-AI/infra` | 以逗号分隔的存储库列表 |
+| `issue_repo` | 字符串 | 是的 | `All-Hands-AI/infra` | 用于创建/更新问题的存储库 |
+| `issue_parent` | 字符串 | 否 | - | 用于跟踪的父 GitHub 问题 URL |
+| `issue_prefix` | 字符串 | 否 | `DataDog Error: ` | 问题标题的前缀 |
+| `max_errors` | 字符串 | 否 | `5` | 获取的最大错误数 |
+| `llm_model` | 字符串 | 否 | `gpt-5.5` | LLM 使用型号 |
 
-### Outputs
+<a id="outputs"></a>
 
-- **GitHub Issues**: Created or updated with error details
-- **GitHub Comments**: AI analysis posted to issues
-- **Artifacts**: Debugging data and logs (retained for 7 days)
+### 输出
 
-### Permissions
+- **GitHub 问题**：创建或更新了错误详细信息
+- **GitHub评论**：人工智能分析发布到问题
+- **Artifacts**：调试数据和日志（保留7天）
+
+<a id="permissions"></a>
+
+### 权限
 
 ```yaml
 permissions:
-  contents: read   # Clone repositories
-  issues: write    # Create/update issues and comments
+  contents: read   # 克隆存储库
+  issues: write    # 创建/更新问题和评论
 ```
 
-## Customization
+<a id="customization"></a>
 
-### For Production Use
+## 定制化
 
-Consider creating a separate configuration repository with:
-- Scheduled runs (daily for critical, weekly for comprehensive)
-- Predefined error query categories
-- Repository group definitions
-- Environment-specific settings
+<a id="for-production-use"></a>
 
-See the All-Hands-AI/infra example for a production-ready implementation.
+### 用于生产环境
 
-### Adding Scheduled Runs
+考虑创建一个单独的配置存储库：
+- 计划运行（关键运行每天运行，综合运行每周运行）
+- 预定义的错误查询类别
+- 存储库组定义
+- 环境特定设置
 
-Add to the workflow's `on:` section:
+请参阅 All-Hands-AI/infra 示例，了解生产就绪的实施。
+
+<a id="adding-scheduled-runs"></a>
+
+### 添加预定运行
+
+添加到工作流程的 `on:` 部分：
 
 ```yaml
 on:
@@ -232,15 +292,17 @@ on:
     # ... existing inputs ...
   
   schedule:
-    # Daily at 09:00 UTC for critical errors
+    # 每天 09:00 UTC 出现严重错误
     - cron: '0 9 * * *'
-    # Weekly on Monday at 09:00 UTC for full scan
+    # 每周一 09:00 UTC 进行全面扫描
     - cron: '0 9 * * 1'
 ```
 
-### Matrix Strategy
+<a id="matrix-strategy"></a>
 
-Run multiple queries in parallel:
+### 矩阵策略
+
+并行运行多个查询：
 
 ```yaml
 jobs:
@@ -254,46 +316,62 @@ jobs:
       fail-fast: false
 ```
 
-## Troubleshooting
+<a id="troubleshooting"></a>
 
-### Workflow Fails to Start
-- Verify all required secrets are configured
-- Check `GITHUB_TOKEN` has necessary permissions
-- Review workflow syntax with `yamllint`
+## 故障排除
 
-### No Issues Created
-- Verify issue repository exists and is accessible
-- Check `GITHUB_TOKEN` has `issues: write` permission
-- Review workflow logs for API errors
+<a id="workflow-fails-to-start"></a>
 
-### Agent Analysis Incomplete
-- Increase workflow timeout if needed
-- Check `LLM_API_KEY` is valid and has quota
-- Try a different LLM model
-- Reduce number of repositories to analyze
+### 工作流程无法启动
+- 验证所有必需的机密均已配置
+- 检查`GITHUB_TOKEN`是否具有必要的权限
+- 使用 `yamllint` 检查工作流语法
 
-### Repository Clone Failures
-- Verify repository names use `owner/repo` format
-- Check `GITHUB_TOKEN` has access to private repos
-- Ensure repositories exist and are accessible
+<a id="no-issues-created"></a>
 
-## Related Examples
+### 没有创建任何问题
+- 验证问题存储库是否存在并且可以访问
+- 检查 `GITHUB_TOKEN` 拥有 `issues: write` 权限
+- 查看工作流程日志中是否存在 API 个错误
 
-- **Basic Action**: `examples/03_github_workflows/01_basic_action/` - Simple workflow example
-- **PR Review**: `examples/03_github_workflows/02_pr_review/` - PR automation example
-- **TODO Management**: `examples/03_github_workflows/03_todo_management/` - Automated TODO tracking
+<a id="agent-analysis-incomplete"></a>
 
-## Benefits
+### 智能体分析不完整
+- 如果需要，增加工作流程超时
+- 检查`LLM_API_KEY`有效且有配额
+- 尝试不同的 LLM 模型
+- 减少要分析的存储库数量
 
-1. **Automated Debugging**: AI analyzes code without manual intervention
-2. **Reduced MTTR**: Faster root cause identification
-3. **Context-Aware**: Multi-repo analysis for complete picture
-4. **No Duplicates**: Smart issue tracking prevents clutter
-5. **Actionable Insights**: Clear recommendations for fixes
-6. **Scalable**: Easy to add new error categories
+<a id="repository-clone-failures"></a>
 
-## Learn More
+### 存储库克隆失败
+- 验证存储库名称使用 `owner/repo` 格式
+- 检查 `GITHUB_TOKEN` 有权访问私人存储库
+- 确保存储库存在并且可访问
 
-- [Datadog API Documentation](https://docs.datadoghq.com/api/)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [OpenHands SDK Documentation](https://github.com/OpenHands/software-agent-sdk)
+<a id="related-examples"></a>
+
+## 相关示例
+
+- **基本操作**：`examples/03_github_workflows/01_basic_action/` - 简单工作流程示例
+- **PR评论**：`examples/03_github_workflows/02_pr_review/` - PR自动化示例
+- **TODO 管理**：`examples/03_github_workflows/03_todo_management/` - 自动 TODO 跟踪
+
+<a id="benefits"></a>
+
+## 好处
+
+1. **自动调试**：AI分析代码，无需人工干预
+2. **减少MTTR**：更快地识别根本原因
+3. **上下文-Aware**：完整图片的多存储库分析
+4. **无重复**：智能问题跟踪可防止混乱
+5. **可行的见解**：明确的修复建议
+6. **可扩展**：轻松添加新的错误类别
+
+<a id="learn-more"></a>
+
+## 了解更多
+
+- [Datadog API 文档](https://docs.datadoghq.com/api/)
+- [GitHub 操作文档](https://docs.github.com/en/actions)
+- [OpenHands SDK 文档](https://github.com/OpenHands/software-agent-sdk)

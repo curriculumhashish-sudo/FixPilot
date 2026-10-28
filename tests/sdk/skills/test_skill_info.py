@@ -1,4 +1,4 @@
-"""Tests for Skill.to_skill_info() and related methods."""
+"""测试 Skill.to_skill_info() 和相关方法。"""
 
 from typing import Literal, get_args
 
@@ -14,10 +14,10 @@ SkillType = Literal["repo", "knowledge", "agentskills"]
 
 
 class TestSkillGetSkillType:
-    """Tests for Skill.get_skill_type() method."""
+    """测试 Skill.get_skill_type() 方法。"""
 
     def test_repo_skill_type(self):
-        """Test that a skill with trigger=None returns 'repo' type."""
+        """测试触发器 = None 的技能是否返回“repo”类型。"""
         skill = Skill(
             name="test-repo",
             content="Repository instructions",
@@ -26,7 +26,7 @@ class TestSkillGetSkillType:
         assert skill.get_skill_type() == "repo"
 
     def test_knowledge_skill_type_with_keyword_trigger(self):
-        """Test that a skill with KeywordTrigger returns 'knowledge' type."""
+        """测试带有 KeywordTrigger 的技能是否返回“知识”类型。"""
         skill = Skill(
             name="test-knowledge",
             content="Knowledge instructions",
@@ -35,7 +35,7 @@ class TestSkillGetSkillType:
         assert skill.get_skill_type() == "knowledge"
 
     def test_knowledge_skill_type_with_task_trigger(self):
-        """Test that a skill with TaskTrigger returns 'knowledge' type."""
+        """测试带有 TaskTrigger 的技能是否返回“知识”类型。"""
         skill = Skill(
             name="test-task",
             content="Task instructions",
@@ -44,7 +44,7 @@ class TestSkillGetSkillType:
         assert skill.get_skill_type() == "knowledge"
 
     def test_agent_skill_type(self):
-        """Test that an AgentSkills format skill returns 'agentskills' type."""
+        """测试 AgentSkills 格式技能是否返回“agentskills”类型。"""
         skill = Skill(
             name="test-agent",
             content="Agent instructions",
@@ -54,22 +54,22 @@ class TestSkillGetSkillType:
         assert skill.get_skill_type() == "agentskills"
 
     def test_agent_skill_type_with_trigger(self):
-        """Test that AgentSkills format takes precedence over trigger type."""
+        """测试 AgentSkills 格式是否优先于触发类型。"""
         skill = Skill(
             name="test-agent",
             content="Agent instructions",
             trigger=KeywordTrigger(keywords=["test"]),
             is_agentskills_format=True,
         )
-        # AgentSkills format should return 'agentskills' even with triggers
+        # AgentSkills 格式应返回“agentskills”，即使有触发器
         assert skill.get_skill_type() == "agentskills"
 
 
 class TestSkillGetTriggers:
-    """Tests for Skill.get_triggers() method."""
+    """测试 Skill.get_triggers() 方法。"""
 
     def test_no_triggers(self):
-        """Test that a skill with trigger=None returns empty list."""
+        """测试触发器=None 的技能是否返回空列表。"""
         skill = Skill(
             name="test-repo",
             content="Repository instructions",
@@ -78,7 +78,7 @@ class TestSkillGetTriggers:
         assert skill.get_triggers() == []
 
     def test_keyword_triggers(self):
-        """Test that KeywordTrigger returns its keywords."""
+        """测试 KeywordTrigger 返回其关键字。"""
         skill = Skill(
             name="test-knowledge",
             content="Knowledge instructions",
@@ -87,7 +87,7 @@ class TestSkillGetTriggers:
         assert skill.get_triggers() == ["python", "testing", "pytest"]
 
     def test_task_triggers(self):
-        """Test that TaskTrigger returns its triggers."""
+        """测试 TaskTrigger 返回其触发器。"""
         skill = Skill(
             name="test-task",
             content="Task instructions",
@@ -96,7 +96,7 @@ class TestSkillGetTriggers:
         assert skill.get_triggers() == ["/deploy", "/build"]
 
     def test_empty_keyword_triggers(self):
-        """Test KeywordTrigger with empty keywords list."""
+        """使用空关键字列表测试 KeywordTrigger。"""
         skill = Skill(
             name="test-empty",
             content="Instructions",
@@ -106,10 +106,10 @@ class TestSkillGetTriggers:
 
 
 class TestSkillToSkillInfo:
-    """Tests for Skill.to_skill_info() method."""
+    """测试 Skill.to_skill_info() 方法。"""
 
     def test_repo_skill_to_info(self):
-        """Test conversion of repo skill to SkillInfo."""
+        """测试 repo 技能到 SkillInfo 的转换。"""
         skill = Skill(
             name="test-repo",
             content="Repository instructions",
@@ -129,7 +129,7 @@ class TestSkillToSkillInfo:
         assert info.is_agentskills_format is False
 
     def test_knowledge_skill_to_info(self):
-        """Test conversion of knowledge skill to SkillInfo."""
+        """测试知识技能到SkillInfo的转换。"""
         skill = Skill(
             name="test-knowledge",
             content="Knowledge instructions",
@@ -148,7 +148,7 @@ class TestSkillToSkillInfo:
         assert info.is_agentskills_format is False
 
     def test_agent_skill_to_info(self):
-        """Test conversion of AgentSkills format skill to SkillInfo."""
+        """测试AgentSkills格式技能到SkillInfo的转换。"""
         skill = Skill(
             name="pdf-tools",
             content="PDF processing instructions",
@@ -170,7 +170,7 @@ class TestSkillToSkillInfo:
         assert info.disable_model_invocation is False
 
     def test_agent_skill_to_info_preserves_disable_model_invocation(self):
-        """AgentSkills direct-invocation metadata should survive serialization."""
+        """AgentSkills 直接调用元数据应该保留下来序列化。"""
         skill = Skill(
             name="trigger-only",
             content="Trigger-only instructions",
@@ -185,7 +185,7 @@ class TestSkillToSkillInfo:
         assert info.disable_model_invocation is True
 
     def test_task_skill_to_info(self):
-        """Test conversion of task skill to SkillInfo."""
+        """测试任务技能到SkillInfo的转换。"""
         skill = Skill(
             name="deploy-task",
             content="Deployment instructions with ${env}",
@@ -197,13 +197,13 @@ class TestSkillToSkillInfo:
         assert isinstance(info, SkillInfo)
         assert info.name == "deploy-task"
         assert info.type == "knowledge"
-        # TaskTrigger appends guidance about variables to the content
+        # TaskTrigger 在内容中附加有关变量的指导
         assert "Deployment instructions with ${env}" in info.content
         assert info.triggers == ["/deploy"]
         assert info.source == "/tasks/deploy.md"
 
     def test_skill_info_with_none_values(self):
-        """Test SkillInfo handles None values correctly."""
+        """测试 SkillInfo 正确处理 None 值。"""
         skill = Skill(
             name="minimal",
             content="Minimal content",
@@ -221,10 +221,10 @@ class TestSkillToSkillInfo:
 
 
 class TestSkillInfoDataclass:
-    """Tests for the SkillInfo dataclass itself."""
+    """测试 SkillInfo 数据类本身。"""
 
     def test_skill_info_creation(self):
-        """Test direct creation of SkillInfo."""
+        """测试直接创建SkillInfo。"""
         info = SkillInfo(
             name="test",
             type="repo",
@@ -238,7 +238,7 @@ class TestSkillInfoDataclass:
         assert info.type == "repo"
 
     def test_skill_info_with_all_types(self):
-        """Test SkillInfo accepts all valid type values."""
+        """测试 SkillInfo 接受所有有效的类型值。"""
         for skill_type in get_args(SkillType):
             info = SkillInfo(
                 name="test",
@@ -252,7 +252,7 @@ class TestSkillInfoDataclass:
             assert info.type == skill_type
 
     def test_skill_info_equality(self):
-        """Test SkillInfo equality comparison."""
+        """测试SkillInfo相等比较。"""
         info1 = SkillInfo(
             name="test",
             type="repo",
@@ -274,7 +274,7 @@ class TestSkillInfoDataclass:
         assert info1 == info2
 
     def test_skill_info_inequality(self):
-        """Test SkillInfo inequality comparison."""
+        """测试SkillInfo不等式比较。"""
         info1 = SkillInfo(
             name="test1",
             type="repo",

@@ -1,4 +1,4 @@
-"""Tests for hooks router."""
+"""测试 hooks 路由器。"""
 
 import json
 import tempfile
@@ -13,19 +13,19 @@ from openhands.agent_server.config import Config
 
 @pytest.fixture
 def client():
-    """Create a test client for the API."""
+    """为 API 创建一个测试客户端。"""
     config = Config(session_api_keys=[])
     app = create_app(config)
     return TestClient(app)
 
 
 class TestHooksRouter:
-    """Tests for hooks router endpoints."""
+    """测试 hooks 路由器端点。"""
 
     def test_get_hooks_success(self, client):
-        """Test getting hooks from a valid hooks.json file."""
+        """测试从有效的 hooks.json 文件获取挂钩。"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create .openhands/hooks.json
+            # 创建 openhands/hooks.json
             openhands_dir = Path(tmpdir) / ".openhands"
             openhands_dir.mkdir()
             hooks_file = openhands_dir / "hooks.json"
@@ -55,7 +55,7 @@ class TestHooksRouter:
             assert len(data["hook_config"]["stop"]) == 1
 
     def test_get_hooks_file_not_found(self, client):
-        """Test getting hooks when hooks.json does not exist."""
+        """测试当 hooks.json 不存在时获取钩子。"""
         with tempfile.TemporaryDirectory() as tmpdir:
             response = client.post(
                 "/api/hooks",
@@ -67,7 +67,7 @@ class TestHooksRouter:
             assert data["hook_config"] is None
 
     def test_get_hooks_no_project_dir(self, client):
-        """Test getting hooks with no project_dir provided."""
+        """测试获取未提供 project_dir 的钩子。"""
         response = client.post(
             "/api/hooks",
             json={},
@@ -78,9 +78,9 @@ class TestHooksRouter:
         assert data["hook_config"] is None
 
     def test_get_hooks_empty_hooks(self, client):
-        """Test getting hooks when hooks.json is empty."""
+        """测试 hooks.json 为空时获取钩子。"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create .openhands/hooks.json with empty content
+            # 创建一个 openhands/hooks.json，内容为空
             openhands_dir = Path(tmpdir) / ".openhands"
             openhands_dir.mkdir()
             hooks_file = openhands_dir / "hooks.json"
@@ -96,9 +96,9 @@ class TestHooksRouter:
             assert data["hook_config"] is None
 
     def test_get_hooks_multiple_event_types(self, client):
-        """Test getting hooks with multiple event types."""
+        """测试获取具有多种事件类型的挂钩。"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create .openhands/hooks.json with multiple event types
+            # 创建具有多种事件类型的 .openhands/hooks.json
             openhands_dir = Path(tmpdir) / ".openhands"
             openhands_dir.mkdir()
             hooks_file = openhands_dir / "hooks.json"

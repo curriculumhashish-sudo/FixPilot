@@ -1,7 +1,7 @@
 /**
- * Tests for rich event types
+ * 测试丰富的事件类型
  *
- * These tests verify the event type definitions and type guards.
+ * 这些测试验证事件类型定义和类型防护。
  */
 
 import {
@@ -368,7 +368,7 @@ describe('Event Structure', () => {
       };
 
       expect(event.action_id).toBe('action_456');
-      // observation is typed as unknown, cast to check structure
+      // 观测结果类型为未知，强制转换以检查结构
       const obs = event.observation as { stdout: string; exit_code: number };
       expect(obs.stdout).toBeDefined();
       expect(obs.exit_code).toBe(0);

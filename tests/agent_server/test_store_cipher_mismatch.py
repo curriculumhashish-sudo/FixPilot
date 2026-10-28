@@ -1,7 +1,7 @@
-"""Settings and secrets writes must not destroy values stored under another key.
+"""设置和机密写入不得破坏存储在另一个键下的值。
 
-Regression tests for #5622: after a cipher key change, a read-modify-write used
-to load undecryptable values as ``None`` and save them back as ``null``.
+回归测试 #5622：在密码密钥更改后，读取-修改-写入用于将不可解密的值加载为 ``None`` 并
+将它们保存回 ``null``。
 """
 
 import os
@@ -55,7 +55,7 @@ def _apply(
 
 
 def _seed(persistence_dir: Path) -> tuple[bytes, bytes]:
-    """Store an LLM key and a custom secret under KEY_A; return the raw files."""
+    """在KEY_A下存储一个LLM键和一个自定义机密； 返回原始文件。"""
     cipher = Cipher(KEY_A)
     settings_store = FileSettingsStore(persistence_dir, cipher=cipher)
     settings_store.update(
@@ -148,7 +148,7 @@ def test_api_writes_refuse_under_wrong_cipher(persistence_dir):
     for response in (patch, put, delete):
         assert "gAAAAA" not in response.text
 
-    # Reads under the wrong key still answer.
+    # 读错键下依然答案。
     assert client.get("/api/settings").status_code == 200
     assert client.get("/api/settings/secrets").status_code == 200
 
@@ -157,7 +157,7 @@ def test_api_writes_refuse_under_wrong_cipher(persistence_dir):
     _assert_original_key_reads_back(persistence_dir)
 
 
-# ── Key rotation: the old key listed in previous_secret_keys ─────────────
+# ── 密钥轮换：previous_secret_keys中列出的旧密钥──────────────
 
 KEY_C = "qa-cipher-key-c"
 
@@ -167,7 +167,7 @@ def _rotated() -> Cipher:
 
 
 def _assert_readable_with(persistence_dir: Path, cipher: Cipher) -> None:
-    """Every stored value loads strictly (no ``None``) under ``cipher``."""
+    """每个存储的值都严格加载（无 ``None``）在 ``cipher`` 下。"""
     settings = FileSettingsStore(persistence_dir, cipher=cipher).load(strict=True)
     assert settings is not None
     assert isinstance(settings.agent_settings, OpenHandsAgentSettings)
@@ -188,17 +188,17 @@ def test_rotation_keeps_values_readable_and_reencrypts_on_save(persistence_dir):
     settings_store = FileSettingsStore(persistence_dir, cipher=cipher)
     secrets_store = FileSecretsStore(persistence_dir, cipher=cipher)
 
-    # Reads under the new key see the values saved under the old one.
+    # 在新密钥下读取可以看到旧密钥下保存的值。
     _assert_readable_with(persistence_dir, cipher)
     assert secrets_store.get_secret("QA_TOKEN") == SECRET_VALUE
 
-    # Writes go through and re-encrypt everything under the new key.
+    # 写入会在新密钥下遍历并重新加密所有内容。
     settings_store.update(
         lambda s: _apply(s, {"misc_settings_diff": {"qa_note": True}})
     )
     secrets_store.set_secret("QA_OTHER", "x")
 
-    # The previous key is no longer needed ...
+    # 不再需要以前的密钥...
     _assert_readable_with(persistence_dir, Cipher(KEY_B))
     assert (
         FileSecretsStore(persistence_dir, cipher=Cipher(KEY_B)).get_secret("QA_OTHER")
@@ -215,7 +215,7 @@ def test_rotation_keeps_values_readable_and_reencrypts_on_save(persistence_dir):
 def test_reencrypt_rewrites_only_stale_files(persistence_dir):
     settings_before, secrets_before = _seed(persistence_dir)
 
-    # A wrong previous key: nothing can be decrypted, nothing is rewritten.
+    # 错误的先前密钥：无法解密任何内容，也无法重写任何内容。
     wrong = Cipher(KEY_B, previous_keys=[KEY_C])
     assert FileSettingsStore(persistence_dir, cipher=wrong).reencrypt() is False
     assert FileSecretsStore(persistence_dir, cipher=wrong).reencrypt() is False
@@ -227,7 +227,7 @@ def test_reencrypt_rewrites_only_stale_files(persistence_dir):
     assert FileSecretsStore(persistence_dir, cipher=cipher).reencrypt() is True
     _assert_readable_with(persistence_dir, Cipher(KEY_B))
 
-    # Everything is current now: a second pass leaves the files alone.
+    # 现在一切都是最新的：第二遍将保留文件。
     settings_after = (persistence_dir / "settings.json").read_bytes()
     secrets_after = (persistence_dir / "secrets.json").read_bytes()
     assert FileSettingsStore(persistence_dir, cipher=cipher).reencrypt() is False
@@ -269,7 +269,7 @@ def test_api_writes_succeed_after_rotation_with_previous_key(persistence_dir):
     delete = client.delete("/api/settings/secrets/QA_OTHER")
     assert delete.status_code == 200
 
-    # The writes re-encrypted both files: the new key alone now reads them.
+    # 写入操作重新加密了这两个文件：现在仅用新密钥即可读取它们。
     reset_stores()
     client = TestClient(
         create_app(
@@ -305,5 +305,5 @@ def test_api_refusal_names_previous_keys(persistence_dir):
     assert patch.status_code == 409
     assert "OH_PREVIOUS_SECRET_KEYS" in patch.json()["detail"]
     put = client.put("/api/settings/secrets", json={"name": "QA_OTHER", "value": "x"})
-    # The server masks 500 details; the guidance is in the server log.
+    # 服务器屏蔽了 500 个详细信息； 该指导位于服务器日志中。
     assert put.status_code == 500

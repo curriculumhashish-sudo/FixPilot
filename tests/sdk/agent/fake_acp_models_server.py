@@ -1,9 +1,10 @@
-"""Minimal stdio ACP server that reports models, for model-discovery tests.
+"""报告模型的最小 stdio ACP 服务器，用于模型发现测试。
 
-``FAKE_ACP_MODELS`` picks how models are reported: ``config`` (a ``model``
-configOptions select) or ``legacy`` (the UNSTABLE ``models`` block). A
-``FAKE_ACP_KEY`` in the environment unlocks a ``premium`` model; with
-``FAKE_ACP_REQUIRE_KEY`` set, ``session/new`` fails without it.
+``FAKE_ACP_MODELS`` 选择模型的报告方式：``config``（``model``configOptions 选择）或
+``legacy``（
+UNSTABLE``models`` 块）。 A
+``FAKE_ACP_KEY`` 在环境中解锁 ``premium`` 模型； 与
+``FAKE_ACP_REQUIRE_KEY`` 设置，``session/new`` 没有它就会失败。
 """
 
 import json

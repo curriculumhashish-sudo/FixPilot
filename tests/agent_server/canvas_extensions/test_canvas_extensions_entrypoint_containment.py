@@ -1,8 +1,8 @@
-"""Adversarial tests for entrypoint containment (security-critical).
+"""入口遏制的对抗性测试（安全关键）。
 
-Kept separate from generic manifest validation: these exercise the
-filesystem-level check in ``resolve_entrypoint`` (path traversal and
-symlink escapes), not the syntactic ``entrypoint`` field validator.
+与通用的ifest文件分开管理验证这些测试涉及文件系统级别的检查 ``resolve_entrypoint`` (
+路径遍历和符号链接逃逸)，而不是语法
+``entrypoint`` field 验证器。
 """
 
 from pathlib import Path
@@ -16,10 +16,9 @@ from openhands.agent_server.canvas_extensions.manifest import (
 
 
 def _manifest_with_raw_entrypoint(entrypoint: str) -> CanvasExtensionManifest:
-    """Build a manifest bypassing field validation.
+    """构建绕过字段的清单验证。
 
-    Lets these tests drive ``resolve_entrypoint`` directly with entrypoints
-    the syntactic validator would already reject at construction time.
+    让这些测试直接用入口驱动 ``resolve_entrypoint``，语法验证器在构造时已经被拒绝。
     """
     manifest = CanvasExtensionManifest(
         schema_version=1,
@@ -54,8 +53,8 @@ def test_resolves_valid_nested_entrypoint(package_root: Path):
 
 
 def test_resolves_entrypoint_via_in_package_symlink(package_root: Path):
-    """A symlink that stays inside ``package_root`` is legitimate (e.g. build
-    tooling) and must still resolve — only escapes are rejected.
+    """位于 ``package_root`` 内的符号链接是合法的 (e.g. 建造
+    工具）并且仍然必须解决——只有转义被拒绝。
     """
     (package_root / "dist").mkdir()
     real_bundle = package_root / "dist" / "bundle.js"
@@ -86,16 +85,15 @@ def test_rejects_textual_traversal_escape(package_root: Path, entrypoint: str):
 def test_rejects_absolute_entrypoint_bypassing_field_validation(
     package_root: Path, tmp_path: Path
 ):
-    """``root / "/abs/path"`` silently discards ``root`` (a well-known
-    pathlib footgun: joining with an absolute path drops everything to its
-    left, same as ``os.path.join``). Confirms containment still catches
-    this rather than trusting the join, for an entrypoint value that
-    reaches ``resolve_entrypoint`` without going through field validation
-    (which normally rejects absolute paths first).
+    """``root / "/abs/path"``默默地丢弃``root``（一个众所周知的
+    pathlib footgun：使用绝对路径连接会将所有内容删除到其左侧，与 ``os.path.join`` 相
+    同）。 确认包含仍然捕获这个值，而不是信任连接，因
+    为一个入口值到达 ``resolve_entrypoint`` 但没有经过字段验证（通常会首先拒绝绝对路
+    径）。
     """
     outside_secret = tmp_path / "outside-secret.js"
     outside_secret.write_text("should never be served")
-    assert (package_root / str(outside_secret)) == outside_secret  # the footgun
+    assert (package_root / str(outside_secret)) == outside_secret  # 步枪
 
     manifest = _manifest_with_raw_entrypoint(str(outside_secret))
     with pytest.raises(ValueError, match="resolves outside"):
@@ -128,7 +126,7 @@ def test_rejects_symlinked_directory_escaping_root(package_root: Path, tmp_path:
 
 
 def test_rejects_symlinked_package_root_itself(package_root: Path, tmp_path: Path):
-    """A symlinked ``package_root`` should still confine resolution to its target."""
+    """符号链接的 ``package_root`` 仍应将分辨率限制为其目标。"""
     outside_secret = tmp_path / "outside-secret.js"
     outside_secret.write_text("should never be served")
 
@@ -146,7 +144,7 @@ def test_rejects_symlinked_package_root_itself(package_root: Path, tmp_path: Pat
 
 
 def test_rejects_entrypoint_equal_to_package_root(package_root: Path):
-    """``.`` is contained (no escape) but is a directory, not an entrypoint."""
+    """``.`` 被包含（没有转义），但它是一个目录，而不是入口。"""
     manifest = _manifest_with_raw_entrypoint(".")
     with pytest.raises(ValueError, match="does not resolve to a file"):
         resolve_entrypoint(manifest, package_root)
@@ -166,8 +164,8 @@ def test_rejects_missing_entrypoint(package_root: Path):
 
 
 def test_rejects_symlink_cycle(package_root: Path):
-    """A self-referential symlink must resolve() cleanly, not hang or crash,
-    and must still be rejected since it never resolves to a real file.
+    """自引用符号链接必须 resolve() 干净，不会挂起或崩溃，
+    并且仍然必须被拒绝，因为它永远不会解析为真实文件。
     """
     loop = package_root / "index.js"
     loop.unlink()

@@ -15,19 +15,18 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# A resolver produces ToolDefinition instances for given params.
+# 解析器为给定参数生成 ToolDefinition 个实例。
 Resolver = Callable[[dict[str, Any], "ConversationState"], Sequence[ToolDefinition]]
 UsabilityChecker = Callable[[], bool]
-"""A resolver produces ToolDefinition instances for given params.
+"""解析器为给定参数生成 ToolDefinition 个实例。
 
 Args:
-    params: Arbitrary parameters passed to the resolver. These are typically
-        used to configure the ToolDefinition instances that are created.
-    conversation: Optional conversation state to get directories from.
-Returns: A sequence of ToolDefinition instances. Most of the time this will be a
-    single-item
-    sequence, but in some cases a ToolDefinition.create may produce multiple tools
-    (e.g., BrowserToolSet).
+    params: 传递给解析器的任意参数。 这些通常是
+        用于配置创建的 ToolDefinition 个实例。
+    conversation: 用于获取目录的可选对话状态。
+Returns: ToolDefinition 实例的序列。 大多数时候这将是
+    单项序列，但在某些情况下，ToolDefinition.create 可能会生成多个工具 (e.g.,
+    BrowserToolSet)。
 """
 
 _LOCK = RLock()
@@ -38,14 +37,14 @@ _SEALED_CATALOG: dict[str, tuple[type[ToolDefinition], UsabilityChecker]] | None
 
 
 class ToolCatalogEntry(BaseModel):
-    """A registered tool as offered to clients configuring an agent."""
+    """为配置智能体的客户端提供的注册工具。"""
 
     name: str
     user_selectable: bool = True
     usable: bool = True
     description: str = ""
     in_default_set: bool = False
-    """Whether a profile with unset ``tools`` gets this tool where it is usable."""
+    """未设置 ``tools`` 的配置文件是否使该工具可用。"""
 
 
 def _resolver_from_instance(name: str, tool: ToolDefinition) -> Resolver:
@@ -72,7 +71,7 @@ def _is_abstract_method(cls: type, name: str) -> bool:
         attr = inspect.getattr_static(cls, name)
     except AttributeError:
         return False
-    # Unwrap classmethod/staticmethod
+    # 解开类方法/静态方法
     if isinstance(attr, (classmethod, staticmethod)):
         attr = attr.__func__
     return bool(inspect.getattr_static(attr, "__isabstractmethod__", False))
@@ -103,7 +102,7 @@ def _resolver_from_subclass(_name: str, cls: type[ToolDefinition]) -> Resolver:
                 f"Sequence[ToolDefinition], "
                 f"got {type(created)}"
             )
-        # Optional sanity: permit tools without executor; they'll fail at .call()
+        # 可选的理智：允许没有执行者的工具； 他们会在 .call() 处失败
         return created
 
     return _resolve
@@ -149,7 +148,7 @@ def register_tool(
     tool_class = factory if isinstance(factory, type) else factory.__class__
 
     with _LOCK:
-        # TODO: throw exception when registering duplicate name tools
+        # TODO：注册重名工具时抛出异常
         if name in _REG:
             logger.warning(f"Duplicate tool name registered: {name}")
         _REG[name] = resolver
@@ -189,10 +188,10 @@ def list_registered_tools() -> list[str]:
 
 
 def is_tool_usable(name: str) -> bool:
-    """Whether ``name`` is registered AND its usability check passes.
+    """``name`` 是否已注册 AND 其可用性检查是否通过。
 
-    False for unregistered names; a checker that raises counts as unusable
-    (mirrors :func:`list_usable_tools`).
+    False 对于未注册的名称； 一个将计数提高为不可用的检查器（mirrors :func:
+    `list_usable_tools`）。
     """
     with _LOCK:
         if name not in _REG:
@@ -202,19 +201,19 @@ def is_tool_usable(name: str) -> bool:
 
 
 def registered_tool_class(name: str) -> type[ToolDefinition] | None:
-    """Return the tool class registered under ``name`` for every conversation."""
+    """返回每个对话在 ``name`` 下注册的工具类。"""
     from openhands.sdk.tool.client_tool import ClientTool
 
     with _LOCK:
         tool_class = _TOOL_CLASSES.get(name)
-    # A client tool belongs to the conversation that registered it.
+    # 客户端工具属于注册它的会话。
     if tool_class is not None and issubclass(tool_class, ClientTool):
         return None
     return tool_class
 
 
 def is_tool_available(name: str, *, check_usable: bool = True) -> bool:
-    """Whether ``resolve_tool`` resolves ``name`` and, if checked, it is usable."""
+    """``resolve_tool``是否解析``name``，如果选中，则可用。"""
     with _LOCK:
         checker = _USABILITY_REG.get(name, lambda: True) if name in _REG else None
     if checker is None:
@@ -244,24 +243,24 @@ def _registered_catalog() -> dict[str, tuple[type[ToolDefinition], UsabilityChec
 
 
 def seal_tool_catalog() -> None:
-    """Freeze the catalog to the tools registered so far."""
+    """将目录冻结到迄今为止注册的工具。"""
     global _SEALED_CATALOG
     with _LOCK:
         _SEALED_CATALOG = _registered_catalog()
 
 
 def unseal_tool_catalog() -> None:
-    """Let the catalog track registrations again."""
+    """让目录再次跟踪注册情况。"""
     global _SEALED_CATALOG
     with _LOCK:
         _SEALED_CATALOG = None
 
 
 def list_tool_catalog(*, check_usable: bool = True) -> list[ToolCatalogEntry]:
-    """List the tools offered for configuring an agent, built-ins included.
+    """列出用于配置智能体的工具，包括内置工具。
 
-    ``check_usable=False`` skips the usability probes and reports every tool
-    usable, for callers whose agents run somewhere this process cannot probe.
+    ``check_usable=False`` 跳过可用性探测并报告每个可用的工具，对于其智能体运行在该进
+    程无法探测的地方的调用者。
     """
     from openhands.sdk.tool.builtins import BUILT_IN_TOOL_CLASSES
     from openhands.sdk.tool.defaults import canonical_tool_name, resolve_tool_specs
@@ -276,7 +275,7 @@ def list_tool_catalog(*, check_usable: bool = True) -> list[ToolCatalogEntry]:
             if _SEALED_CATALOG is not None
             else _registered_catalog()
         )
-    # A built-in registered under its class name is offered under its tool name.
+    # 在其类名下注册的内置函数在其工具名称下提供。
     offered = {
         canonical_tool_name(name): (name, tool_class, usability_checker)
         for name, (tool_class, usability_checker) in registered.items()
@@ -302,10 +301,10 @@ def list_tool_catalog(*, check_usable: bool = True) -> list[ToolCatalogEntry]:
 
 
 def get_tool_module_qualnames() -> dict[str, str]:
-    """Get a mapping of tool names to their module qualnames.
+    """获取工具名称到其模块限定名的映射。
 
     Returns:
-        A dictionary mapping tool names to module qualnames (e.g.,
+        将名称映射到模块限定名的字典工具 (e.g.,
         {"glob": "openhands.tools.glob.definition"}).
     """
     with _LOCK:

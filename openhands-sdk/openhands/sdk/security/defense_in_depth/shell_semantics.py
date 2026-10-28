@@ -1,27 +1,23 @@
-"""Shared AST-backed shell command semantics for security analyzers.
+"""用于安全分析器的共享 AST 支持的 shell 命令语义。
 
-Resolves command names and arguments against the shared tree-sitter
-``_shell_ast`` view (issue #2721). Policy rails reuse these facts for pipeline,
-wrapper, raw-disk, delete, and nested-script analysis. The pattern analyzer
-uses the same view for recursive force-delete detection. Injection and
-Python-code patterns stay as regex in ``pattern.py`` because they are not shell
-syntax.
+解析针对共享树管理员的命令名称和参数
+``_shell_ast`` 视图（问题#2721）。 策略轨道将这些事实重新用于管道、包装器、原始磁盘、
+删除和嵌套脚本分析。 模式分析器使用相同的视图进行递归强制删除检测
+。 注入和 Python 代码模式在 ``pattern.py`` 中保留为正则表达式，因为它们不是 shell 语
+法。
 
-The destructive-command scanner reports ``uncertain`` when it cannot verify a
-relevant structure. The analyzer can then emit ``UNKNOWN`` rather than a false
+当破坏性命令扫描器无法验证相关结构时，它会报告 ``uncertain``。 然后分析器可以发出
+``UNKNOWN`` 而不是 False
 ``LOW``:
 
-- the destructive flag shape appears on a command whose verb cannot be
-  resolved;
-- a dynamic argument or unsupported option group prevents safe selection of
-  directly executed shell source;
-- an ERROR/MISSING parse node intersects a command span the detector uses; or
-- the nested-runner depth bound is hit with a script operand still unscanned.
+- 破坏性标志形状出现在动词无法解析的命令上；
+- 动态参数或不受支持的选项组会阻止安全选择直接执行的 shell 源；
+- ERROR/MISSING 解析节点与检测器使用的命令范围相交； 或
+- 嵌套运行器深度界限受到仍未扫描的脚本操作数的影响。
 
-Shell parse errors outside these spans stay ``LOW``. Arbitrary non-shell text
-can contain parse errors, so mapping each error to ``UNKNOWN`` would produce too
-many uncertain results. Detector IDs are owned by ``pattern.py`` and passed in
-unchanged.
+这些范围之外的 Shell 解析错误保留为 ``LOW``。 任意非 shell 文本可能包含解析错误，因此
+将每个错误映射到 ``UNKNOWN`` 会产生太多不确定的结果
+。 探测器 ID 归 ``pattern.py`` 所有，并且未更改地传入。
 """
 
 from __future__ import annotations
@@ -42,36 +38,37 @@ from openhands.sdk.security._shell_ast import (
 )
 
 
-# Command basenames whose script operand is a nested shell program.
-# Resolving and re-parsing that operand closes the nested-runner bypass
+# 脚本操作数是嵌套 shell 程序的命令基本名称。 解析并重新解析该操作数会关闭嵌套运行器绕过
+#
 # class without hardcoding payloads.
 _SHELL_RUNNERS: Final[frozenset[str]] = frozenset(
     {"sh", "bash", "dash", "zsh", "ksh", "ash"}
 )
 
-# Basename of the recursive force-delete command resolved structurally.
+# 递归强制删除命令的基本名称已结构解析。
 _RM_BASENAME: Final[str] = "rm"
 
-# The short-option character that makes a runner's first operand a script.
+# 使跑步者的第一个操作数成为脚本的短选项字符。
 _SCRIPT_FLAG_CHAR: Final[str] = "c"
 
-# End-of-options marker that terminates option parsing (POSIX).
+# 终止选项解析的选项结束标记 (POSIX)。
 _END_OF_OPTIONS: Final[str] = "--"
 
-# A lone dash: the historical end-of-options synonym POSIX sh still accepts.
+# 一个单独的破折号：历史上的选项结束同义词 POSIX sh 仍然接受。
 _BARE_DASH: Final[str] = "-"
 
-# Leading characters that mark a runner argv word as an option group. POSIX
-# sh accepts both ``-x``-style and ``+x``-style groups.
+# 将运行程序 argv 单词标记为选项组的前导字符。 POSIX sh 接受 ``-x`` 样式和 ``+x`` 样式组
+# 。
+#
 _OPTION_PREFIXES: Final[frozenset[str]] = frozenset({"-", "+"})
 
-# Runner short options that consume the next word as their argument (set -o /
-# shopt -O names). Without this, ``bash -o errexit -c ...`` would misread the
-# option argument as the first operand and stop looking for the script flag.
+# 使用下一个单词作为参数的运行程序短选项（set -o / shopt -O 名称）。 如果没有这个，
+# ``bash -o errexit -c ...`` 会将选项参数误读为第一个操作数并停止查找脚本标志。
+#
 _SHORT_OPTS_WITH_ARG: Final[frozenset[str]] = frozenset({"o", "O"})
 
-# Runner long options that consume the next word as their argument. An
-# unrecognized long option makes command selection uncertain.
+# 运行长选项，将下一个单词作为参数。 无法识别的长选项使命令选择不确定。
+#
 _LONG_OPTS_WITH_ARG: Final[frozenset[str]] = frozenset({"--rcfile", "--init-file"})
 
 _LONG_OPTS_WITHOUT_ARG: Final[frozenset[str]] = frozenset(
@@ -89,13 +86,13 @@ _LONG_OPTS_WITHOUT_ARG: Final[frozenset[str]] = frozenset(
 
 _SHORT_RUNNER_OPTIONS: Final[frozenset[str]] = frozenset("abefhkmnptuvxBCDHPcilrsoO")
 
-# Long-flag names mapped onto their short-flag characters below.
+# 长标志名称映射到下面的短标志字符上。
 _LONG_RECURSIVE: Final[str] = "recursive"
 _LONG_FORCE: Final[str] = "force"
 
-# Node types that this analyzer cannot resolve to literal text. Most are
-# dynamic. ANSI-C strings are static, but decoding their escape language is
-# outside this analyzer's bounded literal resolver.
+# 此分析器无法解析为文字文本的节点类型。 大多数是动态的。 ANSI-C 字符串是静态的，但对其
+# 转义语言的解码位于此分析器的有界文字解析器之外。
+#
 _UNRESOLVED_LITERAL_NODE_TYPES: Final[frozenset[str]] = frozenset(
     {
         "command_substitution",
@@ -107,17 +104,19 @@ _UNRESOLVED_LITERAL_NODE_TYPES: Final[frozenset[str]] = frozenset(
     }
 )
 
-# How deep nested script operands are followed. Bounds work on adversarial
-# deeply-nested runner arguments; hitting the bound with an operand still
-# unscanned is surfaced as uncertain, never a silent LOW.
+# 脚本操作数的嵌套深度有多深。 Bounds 适用于对抗性深度嵌套的跑步者争论； 使用仍未扫描的
+# 操作数达到界限会表现为不确定，而不是沉默 LOW。
+#
 _MAX_NESTING_DEPTH: Final[int] = 8
 
-# Characters a backslash escapes inside double quotes (POSIX 2.2.3). Before
-# any other character the backslash is literal and must be retained.
+# 反斜杠在双引号内转义的字符 (POSIX 2.2.3)。 在任何其他字符之前，反斜杠是字面意思，必须
+# 保留。
+#
 _DOUBLE_QUOTE_ESCAPABLE: Final[frozenset[str]] = frozenset('$`"\\')
 
-# These unresolved node types stay in one argv position. Quoted Bash ``@``
-# expansions are handled separately below. Other unresolved shapes can split.
+# 这些未解析的节点类型保留在一个 argv 位置。 下面单独处理引用的 Bash ``@`` 扩展。 其他未
+# 解决的形状可能会分裂。
+#
 _SINGLE_ARGUMENT_UNRESOLVED_NODE_TYPES: Final[frozenset[str]] = frozenset(
     {
         "string",
@@ -147,7 +146,7 @@ _RM_OPTION_PATTERNS: Final[tuple[tuple[str, frozenset[str]], ...]] = (
 
 @dataclass(frozen=True, slots=True)
 class CommandSemantics:
-    """Static argv facts for one resolved command."""
+    """一个已解析命令的静态 argv 事实。"""
 
     basename: str | None
     arguments: tuple[str | None, ...]
@@ -159,13 +158,12 @@ class CommandSemantics:
 
 @dataclass(frozen=True, slots=True)
 class ShellScanResult:
-    """Outcome of an AST-backed shell scan.
+    """AST 支持的 shell 扫描的结果。
 
-    ``detector_id`` is the matched pattern stable ID when ``matched`` is True,
+    ``detector_id``是``matched``为True时匹配的模式稳定ID，
     else None. ``uncertain`` is True when the scan cannot resolve a relevant
-    command or shell-runner boundary, cannot trust a required parse span, or
-    reaches the nesting depth bound. The caller then emits ``UNKNOWN`` instead
-    of ``LOW``.
+    命令或 shell 运行程序边界，无法信任所需的解析范围，或达到嵌套深度限制。 然后调用
+    者发出 ``UNKNOWN`` 而不是 ``LOW``。
     """
 
     matched: bool
@@ -175,15 +173,14 @@ class ShellScanResult:
 
 @dataclass(frozen=True, slots=True)
 class SignalOutput:
-    """Outcome of scanning one program or command for a destructive verb.
+    """扫描一个程序或命令以查找破坏性动词的结果。
 
-    ``matched`` is True once a recursive force delete is resolved concretely.
-    ``uncertain`` is True when the scan cannot verify a destructive shape or a
-    relevant shell-runner boundary. The caller turns this into ``UNKNOWN``
-    rather than ``LOW``.
+    一旦递归强制删除被具体解决，``matched``就是True。
+    当扫描无法验证破坏性形状或相关的壳-运行边界时，``uncertain`` 为 True。 调用者将其
+    转换为 ``UNKNOWN`` 而不是 ``LOW``。
 
-    A concrete match always outranks uncertainty, so ``matched`` and
-    ``uncertain`` are never both True.
+    具体的匹配总是胜过不确定性，因此 ``matched`` 和
+    ``uncertain`` 永远不会同时是 True。
     """
 
     matched: bool
@@ -196,22 +193,20 @@ _UNCERTAIN_SIGNAL: Final[SignalOutput] = SignalOutput(matched=False, uncertain=T
 
 
 def scan_shell_command(command: str, rm_detector_id: str) -> ShellScanResult:
-    """Scan ``command`` for AST-resolvable destructive shell commands.
+    """扫描 ``command`` 查找 AST 可解析的破坏性 shell 命令。
 
-    Resolves each simple command name through quotes and path prefixes,
-    descends into directly executed shell source, and reports a match for the
-    recursive force-delete family.
+    通过引号和路径前缀解析每个简单命令名，进入直接执行的 shell 源，并报告递归强制删除
+    家族的匹配。
 
-    Uncertainty is reported narrowly. It applies when the scan cannot verify a
-    destructive command, a relevant shell-runner option boundary, a required
-    parse span, or a nested script before the depth limit. In each case the
-    caller emits UNKNOWN rather than a false LOW. An unrelated parse error
-    stays LOW.
+    不确定性的报道范围很窄。 当扫描无法验证破坏性命令、相关shell-runner选项边界、必需
+    解析区间或在深度限制之前嵌套的脚本时，它适用。 在每种情况下，调用者都
+    会发出 UNKNOWN 而不是 False LOW。 不相关的解析错误仍然存在 LOW。
     """
     program = _safe_parse(command)
     if program is None:
-        # Encoding failure (e.g. lone surrogate). The regex layer already
-        # scanned the flattened text; report neither match nor uncertainty.
+        # 编码失败（e.g. 孤独的代理人）。 正则表达式层已经扫描了扁平化的文本； 既不报告
+        # 匹配也不报告不确定性。
+        #
         return ShellScanResult(matched=False)
 
     signal = _program_signal(program, depth=0)
@@ -227,7 +222,7 @@ def _safe_parse(command: str) -> ShellProgram | None:
 
 
 def resolve_command(command: ShellCommand) -> CommandSemantics:
-    """Resolve a command name and its literal arguments."""
+    """解析命令名称及其文字参数。"""
     name_word = command.name
     argument_words = command.words
     if (
@@ -270,13 +265,13 @@ def resolve_command(command: ShellCommand) -> CommandSemantics:
 
 
 def has_recursive_force_flags(command: CommandSemantics) -> bool:
-    """Return whether a resolved command has recursive and force flags."""
+    """返回已解析的命令是否具有递归和强制标志。"""
     flags = _collect_literal_flags(command.arguments)
     return ("r" in flags or "R" in flags) and "f" in flags
 
 
 def static_shell_script(command: CommandSemantics) -> tuple[bool, str | None, bool]:
-    """Return the script and option-boundary uncertainty for a shell runner."""
+    """返回 shell 运行程序的脚本和选项边界不确定性。"""
     if not is_shell_runner(command):
         return False, None, False
     assert command.basename is not None
@@ -288,7 +283,7 @@ def static_shell_script(command: CommandSemantics) -> tuple[bool, str | None, bo
 
 
 def is_shell_runner(command: CommandSemantics) -> bool:
-    """Return whether a command resolves to a supported shell runner."""
+    """返回命令是否解析为受支持的 shell 运行程序。"""
     return command.basename in _SHELL_RUNNERS
 
 
@@ -296,7 +291,7 @@ def static_executable_shell_source(
     syntax: ShellCommand,
     command: CommandSemantics,
 ) -> tuple[bool, str | None, bool]:
-    """Return shell source that the command executes directly."""
+    """返回命令直接执行的shell源。"""
     runner_command = _without_redirect_descriptor_words(syntax, command)
     has_script, script, uncertain = static_shell_script(runner_command)
     if has_script or uncertain:
@@ -345,7 +340,7 @@ def static_pipeline_output(
     command: CommandSemantics,
     enclosing_node: Node,
 ) -> tuple[bool, str | None, bool]:
-    """Return output that a command writes as the next pipeline stage's input."""
+    """返回命令写入作为下一个管道阶段的输入的输出。"""
     reaches_pipeline = standard_output_reaches_pipeline(syntax, enclosing_node)
     if reaches_pipeline is False:
         return False, None, False
@@ -372,7 +367,7 @@ def static_piped_shell_source(
     pipeline_source: tuple[bool, str | None, bool],
     enclosing_node: Node,
 ) -> tuple[bool, str | None, bool]:
-    """Return pipeline input that a shell runner executes as source."""
+    """返回 shell 运行程序作为源执行的管道输入。"""
     if not pipeline_source[0]:
         return False, None, False
 
@@ -406,7 +401,7 @@ def static_standard_input_source(
     initial_source: tuple[bool, str | None, bool],
     enclosing_node: Node,
 ) -> tuple[bool, str | None, bool]:
-    """Return the standard-input source after applying command redirects."""
+    """应用命令重定向后返回标准输入源。"""
     return _static_standard_input_source(
         syntax,
         initial_source,
@@ -505,7 +500,7 @@ def standard_output_reaches_pipeline(
     command: ShellCommand,
     enclosing_node: Node | None = None,
 ) -> bool | None:
-    """Return whether the command's standard output still reaches its pipe."""
+    """返回命令的标准输出是否仍到达其管道。"""
     pipe_output: dict[str, bool | None] = {"1": True, "2": False}
     for redirect, descriptor in _command_redirects(command, enclosing_node):
         target_fd = _normalize_descriptor(descriptor)
@@ -588,14 +583,14 @@ def argument_arity_is_uncertain(
     literal: str | None,
     word: ShellWord,
 ) -> bool:
-    """Return whether one source word can change the number of argv words."""
+    """返回一个源单词是否可以改变 argv 单词的数量。"""
     if literal is not None:
         return _contains_unquoted_arity_syntax(word.text)
     return _node_arity_is_uncertain(word.node)
 
 
 def static_word_prefix(word: ShellWord) -> str:
-    """Return the literal prefix before the first dynamic node in a shell word."""
+    """返回 shell 单词中第一个动态节点之前的文字前缀。"""
     prefix, _ = _static_node_prefix(word.node)
     return prefix
 
@@ -655,12 +650,12 @@ def _contains_multi_argument_expansion(node: Node) -> bool:
 
 
 def _contains_unquoted_arity_syntax(text: str) -> bool:
-    """Detect unquoted pathname and brace expansion syntax in one shell word."""
+    """检测一个 shell 单词中不带引号的路径名和大括号扩展语法。"""
     return any(_unquoted_expansion_syntax(text))
 
 
 def _unquoted_expansion_syntax(text: str) -> tuple[bool, bool]:
-    """Return whether a word contains pathname or brace expansion syntax."""
+    """返回单词是否包含路径名或大括号扩展语法。"""
     bracket_open = False
     brace_expands: list[bool] = []
     pathname_expands = False
@@ -713,11 +708,10 @@ def _unquoted_expansion_syntax(text: str) -> tuple[bool, bool]:
 
 
 def _program_signal(program: ShellProgram, depth: int) -> SignalOutput:
-    """Return the scan signal for a parsed program.
+    """返回已解析程序的扫描信号。
 
-    ``matched`` is True when a recursive force delete is resolved. ``uncertain``
-    is True when a relevant command, flag shape, parse span, or nested execution
-    boundary cannot be resolved statically.
+    当递归强制删除解决时，``matched`` 为 True。 当相关命令、标志形状、解析范围或嵌套
+    执行边界无法静态解析时，``uncertain`` 为 True。
     """
     uncertain = False
     for command in ast_view.iter_commands(program):
@@ -726,11 +720,10 @@ def _program_signal(program: ShellProgram, depth: int) -> SignalOutput:
             if resolved.basename == _RM_BASENAME:
                 return _MATCH_SIGNAL
             if resolved.basename is None or command.has_error:
-                # Dangerous flag shape on a verb we cannot vouch for:
-                # either the name is unresolvable, or an ERROR/MISSING
-                # parse node intersects this command, so the resolved verb
-                # may not be the verb the shell would run. Keep scanning
-                # for a concrete match first.
+                # 在我们无法担保的危险动词形状上：要么名称不可解析，要么ERROR/MISSING解
+                # 析节点与该命令重叠，因此解析后的动词可能不是shell将运行的动词。 首先继
+                # 续扫描具体的匹配。
+                #
                 uncertain = True
         elif resolved.basename == _RM_BASENAME and _has_uncertain_recursive_force_flags(
             resolved
@@ -744,23 +737,21 @@ def _program_signal(program: ShellProgram, depth: int) -> SignalOutput:
 
 
 def _collect_literal_flags(arguments: tuple[str | None, ...]) -> set[str]:
-    """Collect short-flag chars and recognised long flags.
+    """收集短标志字符并识别长标志。
 
-    Option words are resolved through the same quote-removal path as the
-    command name. POSIX quote removal makes ``rm "-rf" /`` and ``rm -r"f" /``
-    argv-identical to ``rm -rf /``, so treating a quoted option word as opaque
-    -- and therefore flagless -- would let the same catastrophic delete through
-    under a different spelling while the de-quoted verb still resolved to
-    ``rm``. Resolving the verb but not its options is the asymmetry that made
-    that bypass possible.
+    选项词通过与命令名称相同的引号删除路径来解析。 POSIX 引号删除使 ``rm "-rf" /`` 和
+     ``rm -r"f" /`` argv 与
+    ``rm -rf /`` 相同，因此将带引号的选项词视为不透明
+    ——因此无标志——会让同样的灾难性删除通过
+    在不同的拼写下，而取消引号的动词仍然解析为
+    ``rm``. 解决动词而不是其选项是使绕过成为可能的不对称性。
 
-    Unresolved words do not add literal flags. A separate check marks them
-    uncertain when they can expand to recursive and force flags.
+    未解析的单词不会添加文字标记。 单独的检查标记它们不确定何时可以扩展到递归和强制标
+    志。
 
-    The end-of-options marker terminates flag parsing, and it is compared
-    against the de-quoted literal too -- after ``rm "--"`` the shell really
-    does treat a following ``-rf`` as a filename. Long flags are mapped onto
-    their short-flag character so ordering and mixing work.
+    结束选项标志终止了标志解析，并且它还与脱引号的字面量进行比较——在 ``rm "--"`` 之后
+    ，shell 真正将一个跟随的 ``-rf`` 视为一个文件名。 长
+    标志被映射到它们的短标志字符上，以便排序和混合工作。
     """
     flags: set[str] = set()
     for literal in arguments:
@@ -899,17 +890,14 @@ def _nested_signal(
     resolved: CommandSemantics,
     depth: int,
 ) -> SignalOutput:
-    """Descend into directly executed shell source and re-parse it.
+    """深入到直接执行的 shell 源代码并重新解析它。
 
-    Closes the nested-runner bypass class, including quoted verbs inside the
-    script that no outer pattern can see.
+    关闭嵌套运行器旁路类，包括脚本内外部模式看不到的带引号的动词。
 
-    Fail-safe ordering: the operand scan runs first so a concrete match
-    always wins; only when no match is found does a parse error on the
-    source command's node force uncertainty -- an ERROR/MISSING there (e.g. an
-    unclosed quote truncating the script operand) means the argv spans the
-    scan just read cannot be trusted, so a silent LOW would vouch for
-    something never actually seen.
+    故障安全排序：首先运行操作数扫描，因此具体匹配始终获胜； 仅当未找到匹配项时，源命
+    令节点上的解析错误才会强制不确定性 - 那里存在 ERROR/MISSING (
+    e.g. 一个未闭合的引号截断了脚本参数，这意味着 argv 跨越刚刚读取的扫描无法信任，因
+    此一个无声的 LOW 会证明从未见过的东西。
     """
     source_command = is_shell_runner(resolved) or resolved.basename in {
         "eval",
@@ -1255,19 +1243,18 @@ def _extract_script_operand(
     argument_words: tuple[ShellWord, ...],
     basename: str,
 ) -> tuple[bool, str | None, bool]:
-    """Locate the runner script operand with the supported shell option rules.
+    """使用支持的 shell 选项规则找到运行程序脚本操作数。
 
-    Short options combine, so the script flag counts at any position in a
-    group (``-xc``, ``-cx``). A supported argument-taking option consumes the
-    next word when it is last in its group. Other placements remain uncertain.
-    ``--`` (or the historical lone ``-``) terminates option parsing. The first
-    operand then ends the option list. With the script flag set, that operand
-    is the script. Without it, that operand is a script file. Later flags
-    belong to the script and must not trigger a nested scan.
+    短选项组合在一起，因此脚本标志在组中的任何位置都计数（``-xc``，``-cx``）。 支持的
+    参数获取选项会在下一个单词位于其组中的最后一个单词时使用该单词。 其
+    他安置仍不确定。
+    ``--``（或历史上的单独的``-``）终止选项解析。 然后第一个操作数结束选项列表。 设置
+    脚本标志后，该操作数就是脚本。 如果没有它，该操作数就是一个脚本文件。
+     后面的标志属于脚本，不得触发嵌套扫描。
 
-    Returns ``(has_flag, operand, uncertain)``. ``uncertain`` is True when a
-    dynamic word or unsupported option group prevents safe selection of the
-    script operand.
+    返回 ``(has_flag, operand, uncertain)``。 当动态字或不受支持的选项组阻止安全选择
+    脚本操作数时，``uncertain`` 为 T
+    rue。
     """
     has_script_flag = False
     noexec = False
@@ -1325,7 +1312,7 @@ def _extract_script_operand(
                         return has_script_flag, None, True
                 index += value_count + 1
                 continue
-        # First operand reached.
+        # 到达第一个操作数。
         if has_script_flag:
             return (
                 (False, None, False)
@@ -1341,15 +1328,14 @@ def _extract_script_operand(
 
 
 def _is_option_word(literal: str) -> bool:
-    """Return whether a resolved argv word is an option group."""
+    """返回已解析的 argv 单词是否是选项组。"""
     return len(literal) > 1 and literal[0] in _OPTION_PREFIXES
 
 
 def _sets_script_flag(literal: str) -> bool:
-    """Return whether a short-option group contains the script flag.
+    """返回短选项组是否包含脚本标志。
 
-    A single ``-`` or ``+`` prefix starts a short-option group. Repeated
-    prefixes do not.
+    单个 ``-`` 或 ``+`` 前缀启动一个短选项组。 重复的前缀则不然。
     """
     return _is_short_option_group(literal) and _SCRIPT_FLAG_CHAR in literal[1:]
 
@@ -1400,11 +1386,11 @@ def _is_definitely_invalid_option_word(literal: str) -> bool:
 
 
 def _resolve_node_literal(node: Node) -> str | None:
-    """Concatenate literal text, or return None when it cannot be resolved.
+    """连接文字文本，或在无法解析时返回 None。
 
-    Walks the concatenation/string/raw_string/word structure that
-    tree-sitter-bash produces for command names and arguments. A dynamic or
-    unsupported child, including an ANSI-C string, yields None.
+    遍历 tree-sitter-bash 为命令名称和参数生成的串联/字符串/raw_string/单词结构。 动
+    态或不受支持的子项（包括 ANSI-C 字符串）会生
+    成 None。
     """
     parts = _collect_literal_parts(node)
     if parts is None:
@@ -1413,13 +1399,12 @@ def _resolve_node_literal(node: Node) -> str | None:
 
 
 def _collect_literal_parts(node: Node) -> list[str] | None:
-    """Return literal fragments, or None when a node cannot be resolved.
+    """当无法解析节点时返回文字片段或 None。
 
-    None means the subtree is not statically resolvable. Fragments are
-    escape-normalized to the effective literal the shell would produce after
-    quote removal: tree-sitter keeps backslash escapes inline in ``word`` and
-    ``string_content`` text, so comparing raw text would let ``r\\m`` (which
-    the shell runs as ``rm``) slip past the basename check.
+    None 表示子树不可静态解析。 片段被转义字符化为在去掉引号后产生的有效字面量：tree-
+    sitter保留了 ``word`` 中的反斜杠转义字符
+    ``string_content`` 文本，因此比较原始文本会让 ``r\\m``（shell 作为 ``rm`` 运行）
+    溜过基本名称检查。
     """
     if node.type in _UNRESOLVED_LITERAL_NODE_TYPES:
         return None
@@ -1429,18 +1414,17 @@ def _collect_literal_parts(node: Node) -> list[str] | None:
             return [_unescape_unquoted(_decode(node.text))]
 
         case "raw_string":
-            # Single-quoted operand: strip the quotes; contents are literal
-            # and backslash has no special meaning inside single quotes.
+            # 单引号操作数：去掉引号； 内容是字面意思，单引号内的反斜杠没有特殊含义。
+            #
             text = _decode(node.text)
             return [text[1:-1] if len(text) >= 2 else ""]
 
         case "string_content":
             return [_unescape_double_quoted(_decode(node.text))]
 
-        # "string" is the double-quoted case: recursing catches an embedded
-        # expansion as dynamic while string_content fragments contribute
-        # literally. command_name and concatenation recurse for the same
-        # reason, so all three share one branch.
+        # “string”是双引号的情况：递归将嵌入的扩展捕获为动态，而 string_content 片段按字
+        # 面意思贡献。 command_name 和串联递归出于同样的原因，因此所有三个共享一个分支。
+        #
         case "string" | "command_name" | "concatenation":
             parts: list[str] = []
             for child in node.named_children:
@@ -1450,38 +1434,37 @@ def _collect_literal_parts(node: Node) -> list[str] | None:
                 parts.extend(child_parts)
             return parts
 
-        # Unknown / unhandled node type in a name position: treat as dynamic
-        # so we never fabricate a resolved name we are not sure about.
+        # 名称位置中的未知/未处理的节点类型：视为动态，因此我们永远不会伪造我们不确定的
+        # 已解析名称。
+        #
         case _:
             return None
 
 
 def _unescape_unquoted(text: str) -> str:
-    """Strip backslash escapes from an unquoted word (POSIX 2.2.1).
+    """去掉未加引号的单词中的反斜杠转义符 (POSIX 2.2.1)。
 
-    Outside quotes a backslash makes the next character literal, so the
-    effective value drops the backslash (``r\\m`` -> ``rm``); a
-    backslash-newline pair is a line continuation and disappears entirely.
+    引号外的反斜杠生成下一个字符文字，因此有效值会删除反斜杠 (``r\\m`` -> ``rm``)；
+    反斜杠-换行对是行延续并完全消失。
     """
     return _strip_backslash_escapes(text, escapable=None)
 
 
 def _unescape_double_quoted(text: str) -> str:
-    """Strip the escapes double quotes honour (POSIX 2.2.3).
+    """去掉转义双引号（POSIX 2.2.3）。
 
-    Inside double quotes a backslash only escapes ``$``, `````, ``"``,
-    ``\\`` and newline; before any other character the backslash itself is
-    literal and must be retained (``"r\\m"`` stays ``r\\m``).
+    双引号内的反斜杠仅转义 ``$``, `````, ``"``,
+    ``\\`` 和换行符； 在任何其他字符之前，反斜杠本身就是文字，必须保留（``"r\\m"`` 保
+    留为 ``r\\m``）。
     """
     return _strip_backslash_escapes(text, escapable=_DOUBLE_QUOTE_ESCAPABLE)
 
 
 def _strip_backslash_escapes(text: str, escapable: frozenset[str] | None) -> str:
-    """Return ``text`` with backslash escapes reduced to their literals.
+    """返回 ``text``，并将反斜杠转义简化为其文字。
 
-    ``escapable`` is the set of characters whose escapes are honoured, or
-    None to honour every character. Backslash-newline is always a line
-    continuation and yields nothing. A trailing lone backslash is kept.
+    ``escapable`` 是尊重转义的字符集，或者 None 尊重每个字符。 反斜杠换行始终是行延续
+    并且不会产生任何结果。 保留尾随的单独反斜杠。
     """
     parts: list[str] = []
     index = 0

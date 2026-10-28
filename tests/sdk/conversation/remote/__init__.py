@@ -1,1 +1,1 @@
-"""Remote conversation tests."""
+"""远程对话测试。"""

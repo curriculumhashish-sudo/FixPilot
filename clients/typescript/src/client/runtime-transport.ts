@@ -6,11 +6,11 @@ export interface RuntimeServiceClientOptions {
   host: string;
   apiKey?: string;
   timeout?: number;
-  /** Owning conversation. Omit for host-level use before a conversation exists. */
+  /** 拥有对话。 在对话存在之前省略主机级别的使用。*/
   conversationId?: string;
 }
 
-/** Internal transport for operations on one conversation's workspace. */
+/** 内部传输层用于对一个对话的工作区进行操作。*/
 class ConversationScopedHttpClient extends HttpClient {
   constructor(
     options: RuntimeServiceClientOptions,

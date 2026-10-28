@@ -16,19 +16,19 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Helpful alias for listener signature: (attempt_number, max_retries) -> None
+# 侦听器签名的有用别名：(attempt_number, max_retries) -> None
 RetryListener = Callable[[int, int, BaseException | None], None]
 
 
 class RetryMixin:
-    """Mixin class for retry logic."""
+    """重试逻辑的 Mixin 类。"""
 
     def _build_before_sleep(
         self,
         num_retries: int,
         retry_listener: RetryListener | None,
     ) -> Callable[[RetryCallState], None]:
-        """Build a ``before_sleep`` callback shared by sync and async decorators."""
+        """构建一个由同步和异步装饰器共享的 ``before_sleep`` 回调。"""
 
         def before_sleep(retry_state: RetryCallState) -> None:
             self.log_retry_attempt(retry_state)
@@ -47,7 +47,7 @@ class RetryMixin:
             if exc is None:
                 return
 
-            # Only adjust temperature for LLMNoResponseError
+            # 仅调整温度 LLMNoResponseError
             if isinstance(exc, LLMNoResponseError):
                 kwargs = getattr(retry_state, "kwargs", None)
                 if isinstance(kwargs, dict):
@@ -86,13 +86,14 @@ class RetryMixin:
         retry_listener: RetryListener | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
-        Create a LLM retry decorator with customizable parameters.
-        This is used for 429 errors, and a few other exceptions in LLM classes.
+        创建一个具有可自定义参数的 LLM 重试装饰器。 这用于 429 错误以及 LLM 类中的一
+        些其他异常。
 
-        ``retry_exceptions`` may be either a tuple of exception types (retried
-        as-is) or a tenacity retry predicate (e.g. a combined
-        ``retry_if_exception_type(...) & retry_if_not_exception(...)``) for
-        finer-grained control over which exceptions are retried.
+        ``retry_exceptions`` 可以是异常类型的元组（按原样重试）或 tenacity 重试谓词 (
+        e.g. 一个组合的
+        ``retry_if_exception_type(...) & retry_if_not_exception(...)``) 用于更细粒度
+        地控制重试哪些异
+        常。
         """
         before_sleep = self._build_before_sleep(num_retries, retry_listener)
 
@@ -116,7 +117,7 @@ class RetryMixin:
         return retry_decorator
 
     def log_retry_attempt(self, retry_state: RetryCallState) -> None:
-        """Log retry attempts."""
+        """Log 重试 attempts."""
 
         if retry_state.outcome is None:
             logger.error(
@@ -130,12 +131,12 @@ class RetryMixin:
             logger.error("retry_state.outcome.exception() returned None.")
             return
 
-        # Try to get max attempts from the stop condition if present
+        # 尝试从停止条件（如果存在）获得最大尝试次数
         max_attempts: int | None = None
         retry_obj = getattr(retry_state, "retry_object", None)
         stop_condition = getattr(retry_obj, "stop", None)
         if stop_condition is not None:
-            # stop_any has .stops, single stop does not
+            # stop_any 有 .stops，单站没有
             stops: Iterable[Any]
             if hasattr(stop_condition, "stops"):
                 stops = stop_condition.stops  # type: ignore[attr-defined]
@@ -146,7 +147,7 @@ class RetryMixin:
                     max_attempts = getattr(stop_func, "max_attempts")
                     break
 
-        # Attach dynamic fields for downstream consumers (keep existing behavior)
+        # 为下游消费者附加动态字段（保留现有行为）
         setattr(cast(Any, exc), "retry_attempt", retry_state.attempt_number)
         if max_attempts is not None:
             setattr(cast(Any, exc), "max_retries", max_attempts)

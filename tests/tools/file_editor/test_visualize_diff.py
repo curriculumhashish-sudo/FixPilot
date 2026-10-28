@@ -1,4 +1,4 @@
-"""Tests for the visualize_diff functionality in FileEditorObservation."""
+"""visualize_diff 功能的测试在 FileEditorObservation。"""
 
 from rich.text import Text
 
@@ -10,7 +10,7 @@ from openhands.tools.file_editor.utils.diff import (
 
 
 def test_visualize_diff_simple_replacement():
-    """Test visualize_diff with a simple string replacement."""
+    """使用简单的字符串替换来测试 visualize_diff。"""
     old_content = """def hello():
     print("Hello, World!")
     return True"""
@@ -32,7 +32,7 @@ def test_visualize_diff_simple_replacement():
         observation.path, observation.old_content, observation.new_content
     )
 
-    # Check that the diff contains expected elements
+    # 检查 diff 是否包含预期元素
     diff_str = str(diff)
     assert "[File /test/file.py edited with 1 changes.]" in diff_str
     assert "[begin of edit 1 / 1]" in diff_str
@@ -44,7 +44,7 @@ def test_visualize_diff_simple_replacement():
 
 
 def test_visualize_diff_no_changes():
-    """Test visualize_diff when there are no changes."""
+    """当没有变化时测试visualize_diff。"""
     content = """def hello():
     print("Hello, World!")
     return True"""
@@ -71,7 +71,7 @@ def test_visualize_diff_no_changes():
 
 
 def test_visualize_diff_multiple_changes():
-    """Test visualize_diff with multiple changes in the same hunk."""
+    """在同一块中进行多次更改来测试 visualize_diff。"""
     old_content = """def calculate(a, b):
     result = a + b
     print(f"Result: {result}")
@@ -104,7 +104,7 @@ def main():
         observation.path, observation.old_content, observation.new_content
     )
 
-    # Check that the diff contains expected elements
+    # 检查 diff 是否包含预期元素
     diff_str = str(diff)
     assert "[File /test/calc.py edited with 1 changes.]" in diff_str
     assert "-2|    result = a + b" in diff_str
@@ -116,7 +116,7 @@ def main():
 
 
 def test_visualize_diff_attempted_edit():
-    """Test visualize_diff with change_applied=False."""
+    """用 change_applied=False 测试 visualize_diff。"""
     old_content = "old line"
     new_content = "new line"
 
@@ -144,7 +144,7 @@ def test_visualize_diff_attempted_edit():
 
 
 def test_visualize_diff_caching():
-    """Test that diff visualization is cached properly."""
+    """测试差异可视化是否正确缓存。"""
     old_content = "old line"
     new_content = "new line"
 
@@ -156,14 +156,14 @@ def test_visualize_diff_caching():
         prev_exist=True,
     )
 
-    # First call should compute and cache
+    # 第一次调用应该计算和缓存
     assert observation._diff_cache is None
     assert observation.path == "/test/file.py"
     diff1 = visualize_diff(
         observation.path, observation.old_content, observation.new_content
     )
 
-    # Second call should use cache
+    # 第二次调用应该使用缓存
     diff2 = visualize_diff(
         observation.path, observation.old_content, observation.new_content
     )
@@ -172,7 +172,7 @@ def test_visualize_diff_caching():
 
 
 def test_visualize_diff_custom_context_lines():
-    """Test visualize_diff with custom number of context lines."""
+    """使用自定义数量的上下文行测试 visualize_diff。"""
     old_content = """line1
 line2
 old_line
@@ -197,7 +197,7 @@ line7"""
         prev_exist=True,
     )
 
-    # Test with 1 context line
+    # 用 1上下文行测试
     assert observation.path == "/test/file.py"
     diff_1_context = visualize_diff(
         observation.path,
@@ -206,10 +206,10 @@ line7"""
         n_context_lines=1,
     )
 
-    # Reset cache to test different context
+    # 重置缓存以测试不同的上下文
     observation._diff_cache = None
 
-    # Test with 3 context lines
+    # 使用 3 上下文行进行测试
     diff_3_context = visualize_diff(
         observation.path,
         observation.old_content,
@@ -217,12 +217,12 @@ line7"""
         n_context_lines=3,
     )
 
-    # The diffs should be different due to different context
+    # 由于不同的上下文，差异应该不同
     assert diff_1_context != diff_3_context
 
 
 def test_get_edit_groups():
-    """Test the get_edit_groups method."""
+    """测试 get_edit_groups 方法。"""
     old_content = """line1
 old_line2
 line3"""
@@ -249,13 +249,13 @@ line3"""
     assert len(edit_groups) == 1
     assert edit_groups[0].before_edits
     assert edit_groups[0].after_edits
-    assert len(edit_groups[0].before_edits) == 3  # 1 context + 1 change + 1 context
+    assert len(edit_groups[0].before_edits) == 3  # 1 上下文 + 1 变化 + 1 上下文
     assert len(edit_groups[0].after_edits) == 3
 
 
 def test_get_edit_groups_no_content():
-    """Test get_edit_groups when old_content or new_content is None."""
-    # Test with None values directly - should return empty list
+    """当 old_content 或 new_content 为 None 时测试 get_edit_groups。"""
+    # 直接使用 None 值进行测试 - 应返回空列表
     edit_groups = get_edit_groups(None, "some content")
     assert edit_groups == []
 
@@ -265,7 +265,7 @@ def test_get_edit_groups_no_content():
     edit_groups = get_edit_groups(None, None)
     assert edit_groups == []
 
-    # Test with empty string vs content - should return edit groups
+    # 使用空字符串与内容进行测试 - 应返回编辑组
     edit_groups = get_edit_groups("", "some content")
     assert len(edit_groups) == 1
     assert edit_groups[0].before_edits == ["-1|"]
@@ -278,7 +278,7 @@ def test_get_edit_groups_no_content():
 
 
 def test_visualize_diff_none_content():
-    """Test visualize_diff when content is None."""
+    """当内容为 None 时测试 visualize_diff。"""
     observation = FileEditorObservation(
         command="str_replace",
         path="/test/file.py",
@@ -287,13 +287,13 @@ def test_visualize_diff_none_content():
         prev_exist=True,
     )
 
-    # Should not crash and should return the "no changes detected" message
+    # 不应崩溃并应返回“未检测到更改”消息
     assert observation.path == "/test/file.py"
     diff = visualize_diff(
         observation.path, observation.old_content, observation.new_content
     )
 
-    # When both contents are None, it's treated as no changes
+    # 当两个内容都为None时，视为没有变化
     expected_msg = (
         "(no changes detected. Please make sure your edits change "
         "the content of the existing file.)\n"

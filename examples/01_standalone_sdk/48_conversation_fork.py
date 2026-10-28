@@ -1,15 +1,13 @@
-"""Branch a conversation. The conversation is a tree (every event has a
-``parent_id``; the HEAD is ``leaf_event_id``), exposing three primitives:
+"""分支对话。 对话是一棵树（每个事件都有一个
+``parent_id``; HEAD 是 ``leaf_event_id``)，暴露了三个原语：
 
-  - ``fork()`` — deep-copy the whole conversation into a new one; ``run()``
-    resumes with full event memory.
-  - ``fork(from_event_id=...)`` — fork only the branch up to a chosen event;
-    the fork's HEAD is that event.
-  - ``navigate_to(event_id)`` — move HEAD within one conversation; appending
-    after navigating creates a sibling branch, abandoned events stay on disk.
+  - ``fork()`` — 将整个对话深复制到一个新对话中； ``run()`` 恢复时事件内存已满。
+  - ``fork(from_event_id=...)`` — 仅分叉至所选事件的分支； 分叉的 HEAD 就是那个事件。
+  - ``navigate_to(event_id)`` — 在一次对话中移动 HEAD； 导航后追加会创建同级分支，废
+  弃的事件保留在磁盘上。
 
-Use cases: debugging a wrong CI patch off the original's audit trail,
-A/B-testing prompts, fork-on-tool-change, edit-a-past-turn-and-re-run.
+用例：从原始审计跟踪中调试错误的 CI 补丁、A/B 测试提示词、工具更改上的 fork、编辑过去
+的转弯并重新运行。
 """
 
 import os
@@ -20,7 +18,7 @@ from openhands.tools.terminal import TerminalTool
 
 
 # -----------------------------------------------------------------
-# Setup
+# 设置
 # -----------------------------------------------------------------
 llm = LLM(
     model=os.getenv("LLM_MODEL", "gpt-5.5"),
@@ -32,7 +30,7 @@ agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name)])
 cwd = os.getcwd()
 
 # =================================================================
-# 1. Run the source conversation
+# 1. 运行源对话
 # =================================================================
 source = Conversation(agent=agent, workspace=cwd)
 source.send_message("Run `echo hello-from-source` in the terminal.")
@@ -45,7 +43,7 @@ print(f"\nSource conversation ID : {source.id}")
 print(f"Source events count    : {len(source.state.events)}")
 
 # =================================================================
-# 2. Fork and continue independently
+# 2. 独立分叉并继续
 # =================================================================
 fork = source.fork()
 source_event_count = len(source.state.events)
@@ -60,14 +58,14 @@ assert len(fork.state.events) == source_event_count
 fork.send_message("Now run `echo hello-from-fork` in the terminal.")
 fork.run()
 
-# Source is untouched
+# 来源未受影响
 assert len(source.state.events) == source_event_count
 print("\n--- After running fork ---")
 print(f"Source events (unchanged): {source_event_count}")
 print(f"Fork events (grew)       : {len(fork.state.events)}")
 
 # =================================================================
-# 3. Fork with a different agent (tool-change / A/B testing)
+# 3. 具有不同智能体的前叉（工具更换/A/B 测试）
 # =================================================================
 alt_llm = LLM(
     model=os.getenv("LLM_MODEL", "gpt-5.5"),
@@ -92,10 +90,10 @@ fork_alt.run()
 print(f"Fork events : {len(fork_alt.state.events)}")
 
 # =================================================================
-# 4. Branch-slice fork: fork from a chosen past event
+# 4. 分支切片分叉：来自选定的过去事件的分叉
 # =================================================================
-# Fork from the first user message: copies only path_to_root(event) and sets
-# the fork's HEAD there.
+# 从第一条用户消息分叉：仅复制 path_to_root（事件）并在那里设置分叉的 HEAD。
+#
 cut_event_id = next(
     e.id
     for e in source.state.events
@@ -110,7 +108,7 @@ print(f"Source events (full)  : {len(source.state.events)}")
 print(f"Fork events (sliced)  : {len(fork_slice.state.events)}")
 print(f"Fork HEAD             : {fork_slice.state.leaf_event_id}")
 
-# The slice contains only the branch up to the cut point.
+# 该切片仅包含直到切割点的分支。
 assert len(fork_slice.state.events) <= len(source.state.events)
 assert fork_slice.state.leaf_event_id == cut_event_id
 
@@ -120,10 +118,11 @@ print(f"Fork events after run : {len(fork_slice.state.events)}")
 assert any("sliced-branch" in str(e) for e in fork_slice.state.events)
 
 # =================================================================
-# 5. In-conversation navigation: move HEAD and create a sibling branch
+# 5. 对话内导航：移动 HEAD 并创建同级分支
 # =================================================================
-# Move HEAD back to the cut point and send a new message: a sibling branch.
-# The abandoned branch stays on disk but leaves the agent's active context.
+# 将 HEAD 移回剪切点并发送一条新消息：兄弟分支。 废弃的分支保留在磁盘上，但保留智能体的
+# 活动上下文。
+#
 events_before_nav = len(source.state.events)
 
 source.navigate_to(cut_event_id)
@@ -137,12 +136,12 @@ source.run()
 print(f"Events on disk now     : {len(source.state.events)} (old branch retained)")
 
 # =================================================================
-# Summary
+# 总结
 # =================================================================
 print(f"\n{'=' * 64}")
 print("All done — fork() works end-to-end.")
 print("=" * 64)
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost + alt_llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

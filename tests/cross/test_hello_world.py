@@ -1,4 +1,4 @@
-"""Test based on hello_world.py example with mocked LLM responses."""
+"""基于 hello_world.py 示例和模拟的 LLM 响应进行测试。"""
 
 import logging
 import os
@@ -38,16 +38,16 @@ pytestmark = pytest.mark.skipif(
 
 
 class TestHelloWorld:
-    """Test for the hello world example with mocked LLM."""
+    """使用模拟的 LLM 测试 hello world 示例。"""
 
     def setup_method(self):
-        """Set up test environment."""
+        """设置测试环境。"""
         self.temp_dir: str = tempfile.mkdtemp()
         self.logger: logging.Logger = get_logger(__name__)
         self.collected_events: list[Event] = []
         self.llm_messages: list[dict[str, Any]] = []
 
-        # Clean up any existing hello.py files
+        # 清理任何现有的 hello.py 文件
         import os
 
         hello_files = ["/tmp/hello.py", os.path.join(self.temp_dir, "hello.py")]
@@ -56,13 +56,13 @@ class TestHelloWorld:
                 os.remove(file_path)
 
     def teardown_method(self):
-        """Clean up test environment."""
+        """清理测试环境。"""
         import shutil
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def conversation_callback(self, event: Event):
-        """Callback to collect conversation events."""
+        """回调收集对话事件。"""
         self.collected_events.append(event)
         if isinstance(event, ActionEvent):
             self.logger.info(f"Found a conversation action: {event}")
@@ -73,10 +73,10 @@ class TestHelloWorld:
             self.llm_messages.append(event.llm_message.model_dump())
 
     def create_real_llm_responses_from_fixtures(self, fncall_raw_logs):
-        """Create real LLM responses from stored fixture data."""
+        """从存储的测试夹具数据创建真实的 LLM 响应。"""
         responses = []
 
-        # Filter for entries with assistant messages that have content
+        # 过滤包含有内容的助理消息的条目
         valid_entries = []
         for log_entry in fncall_raw_logs:
             if "response" not in log_entry:
@@ -85,26 +85,27 @@ class TestHelloWorld:
             choices = response_data.get("choices", [])
             if choices:
                 message = choices[0].get("message", {})
-                # Include entries with assistant messages that have content
-                # (tool_calls may be empty in processed fixture data)
+                # 包括带有内容的辅助消息的条目（tool_calls 在已处理的测试夹具数据中可能
+                # 为空）
+                #
                 if message.get("role") == "assistant" and message.get("content"):
                     valid_entries.append(log_entry)
 
-        # Use all valid entries for complete conversation replay
+        # 使用所有有效条目进行完整的对话重播
         for log_entry in valid_entries:
             response_data = log_entry["response"]
-            # Work with raw data - no cleaning
+            # 使用原始数据 - 无需清理
             model_response = ModelResponse(**response_data)
             responses.append(model_response)
 
         return responses
 
     def create_mock_llm_responses(self):
-        """Create mock LLM responses that simulate the agent's behavior."""
-        # Use absolute path in temp directory
+        """创建模拟智能体行为的模拟对象 LLM 响应。"""
+        # 在临时目录中使用绝对路径
         hello_path = os.path.join(self.temp_dir, "hello.py")
 
-        # First response: Agent decides to create the file
+        # 第一个响应：智能体决定创建文件
         first_response = ModelResponse(
             id="mock-response-1",
             choices=[
@@ -133,7 +134,7 @@ class TestHelloWorld:
             usage=Usage(prompt_tokens=50, completion_tokens=30, total_tokens=80),
         )
 
-        # Second response: Agent acknowledges the file creation
+        # 第二个响应：智能体确认文件创建
         second_response = ModelResponse(
             id="mock-response-2",
             choices=[
@@ -155,24 +156,25 @@ class TestHelloWorld:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_hello_world_with_real_llm_data(self, mock_completion, fncall_raw_logs):
-        """Test the complete hello world flow with real LLM completion data."""
-        # Setup real LLM responses from fixtures
+        """使用真实的 LLM 完成数据测试完整的 hello world 流程。"""
+        # 设置来自测试夹具的真实 LLM 响应
         real_responses = self.create_real_llm_responses_from_fixtures(fncall_raw_logs)
 
-        # Always use mock responses for consistent behavior
-        # Real fixture data may have different tool call sequences than current agent
+        # 始终使用模拟对象响应来实现一致的行为实际测试夹具数据可能具有与当前智能体不同的
+        # 工具调用序列
+        #
         real_responses = self.create_mock_llm_responses()
 
         mock_completion.side_effect = real_responses
 
-        # Configure LLM (no real API key needed)
+        # 配置 LLM（不需要真正的 API 密钥）
         llm = LLM(
             usage_id="test-llm",
             model="claude-sonnet-4",
             api_key=SecretStr("mock-api-key"),
         )
 
-        # Tools setup with temporary directory - use registry + Tool as in runtime
+        # 使用临时目录设置工具 - 在运行时使用注册表 + Tool
         register_tool("terminal", TerminalTool)
         register_tool("file_editor", FileEditorTool)
         tools = [
@@ -180,17 +182,17 @@ class TestHelloWorld:
             Tool(name="file_editor"),
         ]
 
-        # Agent setup
+        # 智能体设置
         agent = Agent(llm=llm, tools=tools)
 
-        # Conversation setup
+        # 对话设置
         conversation = Conversation(
             agent=agent,
             workspace=self.temp_dir,
             callbacks=[self.conversation_callback],
         )
 
-        # Send the same message as in hello_world.py
+        # 发送与 hello_world.py 中相同的消息
         conversation.send_message(
             message=Message(
                 role="user",
@@ -203,18 +205,18 @@ class TestHelloWorld:
             )
         )
 
-        # Run the conversation
+        # 运行对话
         conversation.run()
 
-        # Verify that LLM was called with real data
+        # 验证是否使用真实数据调用了 LLM
         assert mock_completion.call_count >= 1, "LLM completion should have been called"
 
-        # Verify that we collected events
+        # 验证我们是否收集了事件
         assert len(self.collected_events) > 0, (
             "Should have collected conversation events"
         )
 
-        # Verify that we have both actions and observations
+        # 验证我们是否有操作和观测结果
         actions = [
             event for event in self.collected_events if isinstance(event, ActionEvent)
         ]
@@ -234,10 +236,10 @@ class TestHelloWorld:
         assert len(observations) > 0, "Should have at least one observation"
         assert len(messages) > 0, "Should have at least one message"
 
-        # Verify that LLM messages were collected
+        # 验证是否已收集 LLM 条消息
         assert len(self.llm_messages) > 0, "Should have collected LLM messages"
 
-        # Verify the conversation flow makes sense
+        # 验证对话流程是否有意义
         user_messages = [msg for msg in self.llm_messages if msg.get("role") == "user"]
         assistant_messages = [
             msg for msg in self.llm_messages if msg.get("role") == "assistant"
@@ -248,12 +250,12 @@ class TestHelloWorld:
             "Should have at least one assistant message"
         )
 
-        # Verify the user message content
+        # 验证用户消息内容
         first_user_message = user_messages[0]
         user_content = first_user_message.get("content", [])
         user_text = ""
         if user_content:
-            # Extract text from TextContent objects
+            # 从 TextContent 个对象中提取文本
             for content in user_content:
                 if hasattr(content, "text"):
                     user_text += content.text.lower()
@@ -264,14 +266,15 @@ class TestHelloWorld:
             f"User message should mention hello.py and Hello, World! Got: {user_text}"
         )
 
-        # Verify that we're using real LLM data by checking response characteristics
-        # Real responses should have more authentic content and structure
+        # 通过检查响应特征来验证我们使用的是真实的 LLM 数据真实的响应应该具有更真实的内
+        # 容和结构
+        #
         for response in real_responses:
             assert response.id is not None, "Real responses should have IDs"
-            # Note: model field might be None in some fixture data, that's OK
+            # 注意：模型字段在某些测试夹具数据中可能是 None，没关系
             if response.choices:
                 choice = response.choices[0]
-                # Cast to Choices type to access message attribute
+                # 转换为 Choices 类型以访问消息属性
                 if isinstance(choice, Choices) and choice.message:
                     assert choice.message.content is not None, (
                         "Real responses should have content"
@@ -279,20 +282,21 @@ class TestHelloWorld:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_llm_completion_logging_fidelity(self, mock_completion, fncall_raw_logs):
-        """Test mocked LLM completion logging produces same output."""
-        # Use mock responses for consistent behavior instead of real fixture data
-        # Real fixture data may have different tool call sequences than current agent
+        """测试模拟的 LLM 完成日志记录会产生相同的输出。"""
+        # 使用模拟对象响应来实现一致的行为，而不是真实的测试夹具数据真实的测试夹具数据可
+        # 能具有与当前智能体不同的工具调用序列
+        #
         mock_responses = self.create_mock_llm_responses()
         mock_completion.side_effect = mock_responses
 
-        # Configure LLM with logging enabled
+        # 配置 LLM 并启用日志记录
         llm = LLM(
             usage_id="test-llm",
             model="claude-sonnet-4",
             api_key=SecretStr("mock-api-key"),
         )
 
-        # Tools setup with temporary directory - use registry + Tool as in runtime
+        # 使用临时目录设置工具 - 在运行时使用注册表 + Tool
         register_tool("terminal", TerminalTool)
         register_tool("file_editor", FileEditorTool)
         tools = [
@@ -300,7 +304,7 @@ class TestHelloWorld:
             Tool(name="file_editor"),
         ]
 
-        # Create agent and conversation
+        # 创建智能体并对话
         agent = Agent(llm=llm, tools=tools)
         conversation = Conversation(
             agent=agent,
@@ -308,19 +312,19 @@ class TestHelloWorld:
             callbacks=[self.conversation_callback],
         )
 
-        # Capture logged completion data by monitoring the LLM calls
+        # 通过监视 LLM 调用捕获记录的完成数据
         logged_completions = []
         mock_responses = self.create_mock_llm_responses()
         response_index = 0
 
         def capture_completion_call(*args, **kwargs):
             nonlocal response_index
-            # Get the next response from the list
+            # 从列表中获取下一个响应
             if response_index < len(mock_responses):
                 response = mock_responses[response_index]
                 response_index += 1
 
-                # Capture the logged data structure
+                # 捕获记录的数据结构
                 logged_data = {
                     "messages": kwargs.get("messages", []),
                     "tools": kwargs.get("tools", []),
@@ -332,12 +336,12 @@ class TestHelloWorld:
                 logged_completions.append(logged_data)
                 return response
             else:
-                # No more responses available
+                # 没有更多可用回复
                 raise StopIteration("No more mock responses available")
 
         mock_completion.side_effect = capture_completion_call
 
-        # Send message and run conversation
+        # 发送消息并运行对话
         user_message = "Hello! Can you create a hello.py file?"
         conversation.send_message(
             message=Message(
@@ -347,22 +351,22 @@ class TestHelloWorld:
         )
         conversation.run()
 
-        # Validate logged completions structure
+        # 验证记录的完成结构
         assert len(logged_completions) > 0, "Should have captured LLM completion logs"
 
-        # Validate that logged data has expected structure
+        # 验证记录的数据是否具有预期的结构
         for i, logged in enumerate(logged_completions):
             self._validate_completion_data(logged, f"completion_{i}")
 
     def _validate_completion_data(self, logged_data, context):
-        """Validate logged completion data has expected structure."""
+        """验证记录的完成数据具有预期的结构。"""
 
-        # Validate basic structure
+        # 验证基本结构
         assert "messages" in logged_data, f"{context}: Missing messages"
         assert "tools" in logged_data, f"{context}: Missing tools"
         assert "response" in logged_data, f"{context}: Missing response"
 
-        # Validate messages structure
+        # 验证消息结构
         logged_messages = logged_data.get("messages", [])
         assert len(logged_messages) > 0, f"{context}: No messages logged"
 
@@ -372,14 +376,14 @@ class TestHelloWorld:
                 f"{context} message {j}: Invalid role"
             )
 
-        # Validate tools structure
+        # 验证工具结构
         logged_tools = logged_data.get("tools", [])
         for k, logged_tool in enumerate(logged_tools):
             assert "function" in logged_tool, f"{context} tool {k}: Missing function"
             logged_func = logged_tool.get("function", {})
             assert "name" in logged_func, f"{context} tool {k}: Missing function name"
 
-        # Validate response structure
+        # 验证响应结构
         logged_response = logged_data.get("response", {})
         assert "choices" in logged_response, f"{context}: Missing response choices"
 
@@ -394,14 +398,14 @@ class TestHelloWorld:
             )
 
     def test_non_function_call(self):
-        """Test LLM completion logging for non-function call responses (pure text)."""
+        """非函数调用响应的测试 LLM 完成日志记录（纯文本）。"""
         from litellm.types.utils import (
             Choices,
             Message as LiteLLMMessage,
             ModelResponse,
         )
 
-        # Create a mock response without function calls (pure text response)
+        # 创建不带函数调用的模拟对象响应（纯文本响应）
         mock_response = ModelResponse(
             id="test-non-func-call",
             choices=[
@@ -421,11 +425,11 @@ class TestHelloWorld:
             usage=None,
         )
 
-        # Mock the LLM to return our non-function call response
+        # 模拟对象 LLM 返回我们的非函数调用响应
         captured_completions = []
 
         def capture_completion_fidelity(*args, **kwargs):
-            # Capture the completion data for validation
+            # 捕获验证的完成数据
             completion_data = {
                 "messages": kwargs.get("messages", []),
                 "tools": kwargs.get("tools", []),
@@ -436,16 +440,16 @@ class TestHelloWorld:
             captured_completions.append(completion_data)
             return mock_response
 
-        # Create agent with mocked LLM
+        # 使用模拟的 LLM 创建智能体
         llm = LLM(model="claude-sonnet-4", usage_id="test-llm")
         agent = Agent(llm=llm, tools=[])
 
-        # Mock the completion method
+        # 模拟对象补全方法
         with patch(
             "openhands.sdk.llm.llm.litellm_completion",
             side_effect=capture_completion_fidelity,
         ):
-            # Create conversation and send a message
+            # 创建对话并发送消息
             conversation = Conversation(agent=agent)
             assert isinstance(conversation, LocalConversation)
             conversation.send_message(
@@ -455,23 +459,23 @@ class TestHelloWorld:
                 )
             )
 
-            # Run one step to get the non-function call response
+            # 运行一步即可获取非函数调用响应
             agent.step(conversation, on_event=conversation._on_event)
 
-        # Validate that we captured the completion data
+        # 验证我们是否捕获了完成数据
         assert len(captured_completions) == 1, (
             f"Expected 1 completion, got {len(captured_completions)}"
         )
 
         logged_data = captured_completions[0]
 
-        # Validate structure for non-function call response
+        # 验证非功能调用响应的结构
         assert "messages" in logged_data
         assert "response" in logged_data
         assert "timestamp" in logged_data
         assert "latency_sec" in logged_data
 
-        # Validate response structure
+        # 验证响应结构
         response = logged_data["response"]
         assert "choices" in response
         assert len(response["choices"]) == 1
@@ -479,12 +483,12 @@ class TestHelloWorld:
         choice = response["choices"][0]
         message = choice["message"]
 
-        # Validate this is a non-function call response
+        # 验证这是一个非函数调用响应
         assert message["role"] == "assistant"
         assert message["content"] is not None
         assert len(message["content"]) > 0
 
-        # Validate no tool calls
+        # 验证否工具调用
         tool_calls = message.get("tool_calls")
         assert tool_calls is None or tool_calls == [], (
             f"Expected no tool calls, got {tool_calls}"
@@ -495,7 +499,7 @@ class TestHelloWorld:
         print(f"   Tool calls: {tool_calls}")
         print(f"   Message count: {len(logged_data['messages'])}")
 
-        # Create a mock response without function calls (pure text response)
+        # 创建不带函数调用的模拟对象响应（纯文本响应）
         mock_response = ModelResponse(
             id="test-non-func-call",
             choices=[
@@ -515,11 +519,11 @@ class TestHelloWorld:
             usage=None,
         )
 
-        # Mock the LLM to return our non-function call response
+        # 模拟对象 LLM 返回我们的非函数调用响应
         captured_completions = []
 
         def capture_completion_non_func(*args, **kwargs):
-            # Capture the completion data for validation
+            # 捕获验证的完成数据
             completion_data = {
                 "messages": kwargs.get("messages", []),
                 "tools": kwargs.get("tools", []),
@@ -530,15 +534,15 @@ class TestHelloWorld:
             captured_completions.append(completion_data)
             return mock_response
 
-        # Create agent with mocked LLM
+        # 使用模拟的 LLM 创建智能体
         agent = Agent(llm=LLM(model="claude-sonnet-4", usage_id="test-llm"), tools=[])
 
-        # Mock the completion method
+        # 模拟对象补全方法
         with patch(
             "openhands.sdk.llm.llm.litellm_completion",
             side_effect=capture_completion_non_func,
         ):
-            # Create conversation and send a message
+            # 创建对话并发送消息
             conversation = Conversation(agent=agent)
             assert isinstance(conversation, LocalConversation)
             conversation.send_message(
@@ -548,23 +552,23 @@ class TestHelloWorld:
                 )
             )
 
-            # Run one step to get the non-function call response
+            # 运行一步即可获取非函数调用响应
             agent.step(conversation, on_event=conversation._on_event)
 
-        # Validate that we captured the completion data
+        # 验证我们是否捕获了完成数据
         assert len(captured_completions) == 1, (
             f"Expected 1 completion, got {len(captured_completions)}"
         )
 
         logged_data = captured_completions[0]
 
-        # Validate structure for non-function call response
+        # 验证非功能调用响应的结构
         assert "messages" in logged_data
         assert "response" in logged_data
         assert "timestamp" in logged_data
         assert "latency_sec" in logged_data
 
-        # Validate response structure
+        # 验证响应结构
         response = logged_data["response"]
         assert "choices" in response
         assert len(response["choices"]) == 1
@@ -572,12 +576,12 @@ class TestHelloWorld:
         choice = response["choices"][0]
         message = choice["message"]
 
-        # Validate this is a non-function call response
+        # 验证这是一个非函数调用响应
         assert message["role"] == "assistant"
         assert message["content"] is not None
         assert len(message["content"]) > 0
 
-        # Validate no tool calls
+        # 验证否工具调用
         tool_calls = message.get("tool_calls")
         assert tool_calls is None or tool_calls == [], (
             f"Expected no tool calls, got {tool_calls}"

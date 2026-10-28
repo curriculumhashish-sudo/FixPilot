@@ -14,12 +14,12 @@ export interface MetaProfilesClientOptions {
 }
 
 /**
- * Client for the agent-server ``/api/meta-profiles`` endpoints.
+ * 客户端为智能体-服务器``/api/meta-profiles``端点。
  *
- * A meta-profile is a model-routing configuration consumed by the
- * ``route_task_to_model`` tool. Unlike LLM profiles, meta-profiles hold no
- * secrets — they are plain JSON documents — so there is no secret-exposure
- * handling here.
+ * 元配置文件是由
+ * ``route_task_to_model`` 工具。 与 LLM 配置文件不同，元配置文件不包含
+ * 机密 — 它们是普通的 JSON 文档 — 因此没有机密-曝光
+ * 在这里处理。
  */
 export class MetaProfilesClient {
   public readonly host: string;

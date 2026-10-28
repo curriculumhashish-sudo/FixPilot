@@ -1,19 +1,19 @@
-"""Streamlit app to explore OpenHands conversation logs.
+"""Streamlit 应用程序用于探索 OpenHands 对话日志。
 
-Usage:
-    streamlit run scripts/conversation_viewer.py
+用途：
+    运行 scripts/conversation_viewer.py 的 streamlit
 
-The viewer expects a directory containing conversation folders. By default we
-look for ``.conversations`` next to the repository root (the location created by
-``openhands`` when recording sessions). You can override the location via:
+查看者期望包含对话文件夹的目录。 默认情况下，我们在存储库根目录（由创建的位置）旁边查
+找 ``.conversations``
+``openhands`` 录制会话时）。 您可以通过以下方式覆盖该位置：
 
-* Environment variable ``OPENHANDS_CONVERSATIONS_ROOT``
-* URL query parameter ``?root=/path/to/logs`` when the app is open
-* The sidebar text input labelled "Conversations directory"
+* 环境变量 ``OPENHANDS_CONVERSATIONS_ROOT``
+* URL打开应用时查询参数``?root=/path/to/logs``
+* 侧边栏文本输入标记为“对话目录”
 
-Each conversation directory should contain ``base_state.json`` plus an
-``events/`` folder with individual ``*.json`` event files. The viewer will
-summarise events in a table and show their full payload when expanded.
+每个对话目录应包含 ``base_state.json`` 加上一个
+``events/`` 文件夹，其中包含单独的 ``*.json`` 个事件文件。 查看器将在表格中总结事件并
+在展开时显示完整的载荷。
 """
 
 from __future__ import annotations
@@ -98,9 +98,9 @@ def load_conversation(path_str: str) -> Conversation:
 
 @st.cache_data(show_spinner=False)
 def get_last_event_timestamp(conversation_path_str: str) -> str:
-    """Get the timestamp of the most recent event in a conversation directory.
+    """获取对话目录中最近事件的时间戳。
 
-    Returns empty string if no events found or if timestamps can't be parsed.
+    如果未找到事件或无法解析时间戳，则返回空字符串。
     """
     conversation_path = Path(conversation_path_str)
     events_dir = conversation_path / "events"
@@ -116,42 +116,42 @@ def get_last_event_timestamp(conversation_path_str: str) -> str:
             event_data = load_json(event_file)
             timestamp = event_data.get("timestamp", "")
             if timestamp:
-                # Try to parse the timestamp to compare properly
+                # 尝试解析时间戳以正确比较
                 try:
-                    # Handle various timestamp formats
+                    # 处理各种时间戳格式
                     if "T" in timestamp:
-                        # ISO format with T separator
+                        # ISO 带 T 分隔符的格式
                         dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     else:
-                        # Try other common formats
+                        # 尝试其他常见格式
                         dt = datetime.fromisoformat(timestamp)
 
                     if latest_datetime is None or dt > latest_datetime:
                         latest_datetime = dt
                         latest_timestamp = timestamp
                 except (ValueError, TypeError):
-                    # If we can't parse the timestamp, fall back to string comparison
+                    # 如果我们无法解析时间戳，则回退到字符串比较
                     if timestamp > latest_timestamp:
                         latest_timestamp = timestamp
         except (json.JSONDecodeError, OSError):
-            # Skip files that can't be read or parsed
+            # 跳过无法读取或解析的文件
             continue
 
     return latest_timestamp
 
 
 def conversation_dirs(root: Path) -> list[Path]:
-    """Return conversation sub-directories under ``root``.
+    """返回 ``root`` 下的对话子目录。
 
-    Sorted by last event timestamp (most recent first).
+    按最后事件时间戳排序（最近的在前）。
     """
     dirs = [p for p in root.iterdir() if p.is_dir()]
 
-    # Sort by last event timestamp (most recent first), fall back to directory name
+    # 按最后一个事件时间戳排序（最近的在前），回退到目录名称
     def sort_key(path: Path) -> tuple[str, str]:
         timestamp = get_last_event_timestamp(str(path))
-        # Reverse timestamp for descending order (most recent first)
-        # Use empty string as fallback which will sort last
+        # 降序反转时间戳（最近的在前）使用空字符串作为回退方案，这将排序在最后
+        #
         return (timestamp or "", path.name)
 
     return sorted(dirs, key=sort_key, reverse=True)
@@ -248,23 +248,23 @@ def draw_base_state(base_state: dict[str, Any]) -> None:
 
 
 def create_conversation_zip(conversation_path: Path) -> bytes:
-    """Create a zip file containing all files from the conversation directory.
+    """创建一个包含对话目录中所有文件的 zip 文件。
 
     Args:
-        conversation_path: Path to the conversation directory
+        conversation_path: 对话目录的路径
 
     Returns:
-        Bytes of the zip file
+        zip 文件的字节数
     """
     buffer = io.BytesIO()
 
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        # Add base_state.json if it exists
+        # 如果存在则添加base_state.json
         base_state_path = conversation_path / "base_state.json"
         if base_state_path.exists():
             zip_file.write(base_state_path, "base_state.json")
 
-        # Add all event files from the events directory
+        # 添加事件目录中的所有事件文件
         events_dir = conversation_path / "events"
         if events_dir.exists():
             for event_file in sorted(events_dir.glob("*.json")):
@@ -302,11 +302,11 @@ def draw_event_detail(event: dict[str, Any]) -> None:
 def main() -> None:
     st.title("OpenHands Conversation Viewer")
 
-    # Initialize root directory in session state if not present
+    # 如果不存在，则在会话状态下初始化根目录
     if "root_directory" not in st.session_state:
         params = st.query_params
         default_root = DEFAULT_CONVERSATIONS_ROOT
-        # Handle both old (list) and new (string) query param formats
+        # 处理旧的（列表）和新的（字符串）查询参数格式
         root_from_params = params.get("root", str(default_root))
         if isinstance(root_from_params, list):
             root_from_params = (
@@ -320,11 +320,11 @@ def main() -> None:
         help="Root folder containing OpenHands conversation dumps",
     )
 
-    # Ensure root_input is not None (should not happen with default value)
+    # 确保 root_input 不是 None（默认值不会发生）
     if not root_input:
         root_input = st.session_state["root_directory"]
 
-    # Update session state if root input changed
+    # 如果根输入更改则更新会话状态
     if root_input != st.session_state["root_directory"]:
         st.session_state["root_directory"] = root_input
         if not st.session_state.get("_suppress_query_update", False):
@@ -356,19 +356,19 @@ def main() -> None:
         st.warning("No conversation folders found in the selected directory.")
         return
 
-    # Create options with timestamps for better UX
+    # 创建带有时间戳的选项以获得更好的用户体验
     options_with_timestamps = []
     options = []
     for directory in directories:
         timestamp = get_last_event_timestamp(str(directory))
         if timestamp:
-            # Format timestamp for display
+            # 显示时间戳格式
             try:
                 if "T" in timestamp:
                     dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     formatted_time = dt.strftime("%Y-%m-%d %H:%M")
                 else:
-                    formatted_time = timestamp[:16]  # Truncate if too long
+                    formatted_time = timestamp[:16]  # 如果太长则截断
                 display_name = f"{directory.name} ({formatted_time})"
             except (ValueError, TypeError):
                 display_name = f"{directory.name} ({timestamp[:16]})"
@@ -396,7 +396,7 @@ def main() -> None:
 
     conversation = load_conversation(str(root_path / selected))
 
-    # Add download button for the conversation
+    # 为对话添加下载按钮
     st.sidebar.divider()
     zip_data = create_conversation_zip(conversation.path)
     st.sidebar.download_button(

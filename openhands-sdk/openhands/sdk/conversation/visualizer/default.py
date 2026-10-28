@@ -32,15 +32,15 @@ from openhands.sdk.llm.utils.metrics import MetricsSnapshot, TokenUsage
 logger = logging.getLogger(__name__)
 
 
-# These are external inputs
+# 这些是外部输入
 _OBSERVATION_COLOR = "yellow"
 _MESSAGE_USER_COLOR = "gold3"
 _PAUSE_COLOR = "bright_yellow"
-# These are internal system stuff
+# 这些是内部系统的东西
 _SYSTEM_COLOR = "magenta"
 _THOUGHT_COLOR = "bright_black"
 _ERROR_COLOR = "red"
-# These are agent actions
+# 这些是智能体个操作
 _ACTION_COLOR = "blue"
 _MESSAGE_ASSISTANT_COLOR = _ACTION_COLOR
 
@@ -65,7 +65,7 @@ DEFAULT_HIGHLIGHT_REGEX = {
     r"^Tool:": f"bold {_OBSERVATION_COLOR}",
     r"^Result:": f"bold {_OBSERVATION_COLOR}",
     r"^Rejection Reason:": f"bold {_ERROR_COLOR}",
-    # Markdown-style
+    # Markdown-风格
     r"\*\*(.*?)\*\*": "bold",
     r"\*(.*?)\*": "italic",
 }
@@ -73,7 +73,7 @@ DEFAULT_HIGHLIGHT_REGEX = {
 
 @dataclass(slots=True)
 class _EncodingSafeTextIO:
-    """Text stream wrapper that replaces characters unsupported by stdout."""
+    """文本流包装器，用于替换标准输出不支持的字符。"""
 
     _stream: TextIO
 
@@ -106,28 +106,28 @@ def _create_console() -> Console:
 
 
 class EventVisualizationConfig(BaseModel):
-    """Configuration for how to visualize an event type."""
+    """用于如何可视化事件类型的配置。"""
 
     title: str | Callable[[Event], str]
-    """The title to display for this event. Can be a string or callable."""
+    """为此事件显示的标题。 可以是字符串或可调用的。"""
 
     color: str | Callable[[Event], str]
-    """The Rich color to use for the title and rule. Can be a string or callable."""
+    """用于标题和规则的丰富颜色。 可以是字符串或可调用的。"""
 
     show_metrics: bool = False
-    """Whether to show the metrics subtitle."""
+    """是否显示指标副标题。"""
 
     indent_content: bool = False
-    """Whether to indent the content."""
+    """是否缩进内容。"""
 
     skip: bool = False
-    """If True, skip visualization of this event type entirely."""
+    """如果 True，则完全跳过此事件类型的可视化。"""
 
     model_config = {"arbitrary_types_allowed": True}
 
 
 def indent_content(content: Text, spaces: int = 4) -> Text:
-    """Indent content for visual hierarchy while preserving all formatting."""
+    """缩进视觉层次结构的内容，同时保留所有格式。"""
     prefix = " " * spaces
     lines = content.split("\n")
 
@@ -142,7 +142,7 @@ def indent_content(content: Text, spaces: int = 4) -> Text:
 
 
 def section_header(title: str, color: str) -> Rule:
-    """Create a semantic divider with title."""
+    """创建带有标题的语义分隔线。"""
     return Rule(
         f"[{color} bold]{title}[/{color} bold]",
         style=color,
@@ -158,54 +158,54 @@ def build_event_block(
     subtitle: str | None = None,
     indent: bool = False,
 ) -> Group:
-    """Build a complete event block with header, content, and optional subtitle."""
+    """构建一个包含标题、内容和可选副标题的完整事件块。"""
     parts = []
 
-    # Header with rule
+    # 带规则的标题
     parts.append(section_header(title, title_color))
-    parts.append(Text())  # Blank line after header
+    parts.append(Text())  # 标题后空行
 
-    # Content (optionally indented)
+    # 内容（可选缩进）
     if indent:
         parts.append(indent_content(content))
     else:
         parts.append(content)
 
-    # Subtitle (metrics) if provided
+    # 副标题（指标）（如果提供）
     if subtitle:
-        parts.append(Text())  # Blank line before subtitle
+        parts.append(Text())  # 字幕前空行
         subtitle_text = Text.from_markup(subtitle)
         subtitle_text.stylize("dim")
         parts.append(subtitle_text)
 
-    parts.append(Text())  # Blank line after block
+    parts.append(Text())  # 块后空行
 
     return Group(*parts)
 
 
 def _get_action_title(event: Event) -> str:
-    """Get title for ActionEvent based on whether action is None."""
+    """根据操作是否为 None 获取 ActionEvent 的标题。"""
     if isinstance(event, ActionEvent):
         return "Agent Action (Not Executed)" if event.action is None else "Agent Action"
     return "Action"
 
 
 def _get_message_title(event: Event) -> str:
-    """Get title for MessageEvent based on event attribution."""
+    """根据事件归因获取 MessageEvent 的标题。"""
     if isinstance(event, MessageEvent) and event.llm_message:
         return _MESSAGE_SOURCE_TITLES[event.source]
     return "Message"
 
 
 def _get_message_color(event: Event) -> str:
-    """Get color for MessageEvent based on event attribution."""
+    """根据事件归因获取 MessageEvent 的颜色。"""
     if isinstance(event, MessageEvent) and event.llm_message:
         return _MESSAGE_SOURCE_COLORS[event.source]
     return "white"
 
 
-# Event type to visualization configuration mapping
-# This replaces the large isinstance chain with a cleaner lookup approach
+# 事件类型到可视化配置映射这用更清晰的查找方法替换了大型 isinstance 链
+#
 EVENT_VISUALIZATION_CONFIG: dict[type[Event], EventVisualizationConfig] = {
     ACPToolCallEvent: EventVisualizationConfig(
         title="ACP Tool Call",
@@ -260,9 +260,9 @@ EVENT_VISUALIZATION_CONFIG: dict[type[Event], EventVisualizationConfig] = {
 
 
 class DefaultConversationVisualizer(ConversationVisualizerBase):
-    """Handles visualization of conversation events with Rich formatting.
+    """使用丰富的格式处理对话事件的可视化。
 
-    Provides Rich-formatted output with semantic dividers and complete content display.
+    提供具有语义分隔符和完整内容显示的丰富格式输出。
     """
 
     _console: Console
@@ -274,46 +274,46 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         highlight_regex: dict[str, str] | None = DEFAULT_HIGHLIGHT_REGEX,
         skip_user_messages: bool = False,
     ):
-        """Initialize the visualizer.
+        """初始化可视化工具。
 
         Args:
-            highlight_regex: Dictionary mapping regex patterns to Rich color styles
-                           for highlighting keywords in the visualizer.
-                           For example: {"Reasoning:": "bold blue",
-                           "Thought:": "bold green"}
-            skip_user_messages: If True, skip displaying user messages. Useful for
-                                scenarios where user input is not relevant to show.
+            highlight_regex: 将正则表达式模式映射到丰富颜色样式的字典
+                           用于在可视化工具中突出显示关键字。 例如：{“推理：”：“粗体
+                           蓝色”，“思想：”：“粗体绿色”}
+            skip_user_messages: 如果为 True，则跳过显示用户消息。 有用于
+                                用户输入与显示无关的场景。
         """
         super().__init__()
         self._console = _create_console()
         self._skip_user_messages = skip_user_messages
         self._highlight_patterns = highlight_regex or {}
-        # Previous ActionEvent's response id; used by ``_claim_batch_primary``
-        # to spot parallel tool-call siblings (#4189).
+        # 上一个 ActionEvent 的响应 ID； ``_claim_batch_primary`` 使用它来发现并行工具调
+        # 用同级 (#4189)。
+        #
         self._last_action_response_id: str | None = None
 
     def on_event(self, event: Event) -> None:
-        """Main event handler that displays events with Rich formatting."""
+        """显示具有丰富格式的事件的主事件处理程序。"""
         output = self._create_event_block(event)
         if output:
             self._console.print(output)
 
     def _apply_highlighting(self, text: Text) -> Text:
-        """Apply regex-based highlighting to text content.
+        """将基于正则表达式的突出显示应用于文本内容。
 
         Args:
-            text: The Rich Text object to highlight
+            text: 要突出显示的富文本对象
 
         Returns:
-            A new Text object with highlighting applied
+            应用了突出显示的新文本对象
         """
         if not self._highlight_patterns:
             return text
 
-        # Create a copy to avoid modifying the original
+        # 创建副本以避免修改原始内容
         highlighted = text.copy()
 
-        # Apply each pattern using Rich's built-in highlight_regex method
+        # 使用 Rich 的内置 highlight_regex 方法应用每个模式
         for pattern, style in self._highlight_patterns.items():
             pattern_compiled = re.compile(pattern, re.MULTILINE)
             highlighted.highlight_regex(pattern_compiled, style)
@@ -321,12 +321,12 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         return highlighted
 
     def _create_event_block(self, event: Event) -> Group | None:
-        """Create a Rich event block for the event with full detail."""
-        # Look up visualization config for this event type
+        """为具有完整详细信息的事件创建丰富的事件块。"""
+        # 查找此事件类型的可视化配置
         config = EVENT_VISUALIZATION_CONFIG.get(type(event))
 
         if not config:
-            # Warn about unknown event types and skip
+            # 警告未知事件类型并跳过
             logger.warning(
                 "Event type %s is not registered in EVENT_VISUALIZATION_CONFIG. "
                 "Skipping visualization.",
@@ -334,11 +334,11 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
             )
             return None
 
-        # Check if this event type should be skipped
+        # 检查是否应跳过此事件类型
         if config.skip:
             return None
 
-        # Check if we should skip user messages based on runtime configuration
+        # 检查我们是否应该根据运行时配置跳过用户消息
         if (
             self._skip_user_messages
             and isinstance(event, MessageEvent)
@@ -347,24 +347,25 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         ):
             return None
 
-        # Use the event's visualize property for content
+        # 使用事件的可视化属性来显示内容
         content = event.visualize
 
         if not content.plain.strip():
             return None
 
-        # Apply highlighting if configured
+        # 如果已配置，则应用突出显示
         if self._highlight_patterns:
             content = self._apply_highlighting(content)
 
-        # Resolve title (may be a string or callable)
+        # 解析标题（可以是字符串或可调用的）
         title = config.title(event) if callable(config.title) else config.title
 
-        # Resolve color (may be a string or callable)
+        # 解析颜色（可以是字符串或可调用）
         title_color = config.color(event) if callable(config.color) else config.color
 
-        # Build subtitle if needed. Siblings of a parallel tool-call batch fall
-        # back to totals-only so the shared per-request usage isn't repeated.
+        # 如果需要，构建字幕。 并行工具调用批处理的同级会回退到仅总计，因此不会重复共享
+        # 的每个请求使用情况。
+        #
         subtitle = (
             self._format_metrics_subtitle(
                 event, force_totals=not self._claim_batch_primary(event)
@@ -381,18 +382,18 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         )
 
     def _find_request_usage(self, event: Event | None) -> TokenUsage | None:
-        """Find the TokenUsage for the LLM request that produced ``event``.
+        """查找生成 ``event`` 的 LLM 请求的 TokenUsage。
 
-        Matches on ``TokenUsage.response_id``, not on list position: telemetry
-        records ``TokenUsage.response_id = resp.id`` and events carry
-        ``llm_response_id = llm_response.id``, which line up for most LLM
-        paths. That correspondence isn't guaranteed everywhere though -- the
-        ACP path records one ``response_id`` per session rather than per
-        request, so it never matches here and the caller falls back to the
-        cumulative-only format. We deliberately do NOT use
-        ``get_combined_metrics().token_usages[-1]`` because that list merges
-        usages across every usage id (agent, condenser, ...) and is not
-        chronological across them.
+        匹配 ``TokenUsage.response_id``，不在列表位置：遥测记录
+        ``TokenUsage.response_id = resp.id``
+         和事件携带
+        ``llm_response_id = llm_response.id``，与大多数 LLM 路径对齐。 不过，这种通信
+        并不总是可靠的——ACP路径记录一个
+        ``response_id``，而不是一个请求，因此它在这里无法匹配，调用者会 fallback到累
+        积格式。 我们故意不使用
+        ``get_combined_metrics().token_usages[-1]`` 因为该列表合并了每个用法 ID（智能
+        体、上下文压缩器、...）的用法
+        ，并且它们之间不按时间顺序排列。
         """
         if not isinstance(event, (ActionEvent, MessageEvent, Condensation)):
             return None
@@ -415,13 +416,12 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         )
 
     def _claim_batch_primary(self, event: Event | None) -> bool:
-        """Whether ``event`` is the first ActionEvent of its LLM response.
+        """``event`` 是否是其 LLM 响应的第一个 ActionEvent。
 
-        Parallel tool calls share one ``llm_response_id`` and one per-request
-        ``TokenUsage``; showing it under every sibling reads as N separate
-        requests (#4189), so only the first "claims" the per-request numbers.
-        Stateful -- call once per event in render order. Batches render
-        consecutively, so tracking the previous response id is enough (O(1)).
+        并行工具调用共享一个 ``llm_response_id`` 和每个请求一个
+        ``TokenUsage``; 将其显示在每个同级下读取为 N 个单独的请求（#4189），因此只有
+        第一个“声明”每个请求的编号。 有状态——按渲染顺序每个
+        事件调用一次。 批次连续渲染，因此跟踪先前的响应 ID 就足够了 (O(1))。
         """
         if not isinstance(event, ActionEvent):
             return True
@@ -433,8 +433,8 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
     def _format_metrics_subtitle(
         self, event: Event | None = None, *, force_totals: bool = False
     ) -> str | None:
-        """Format LLM metrics as a visually appealing subtitle string with icons,
-        colors, and k/m abbreviations using conversation stats."""
+        """将 LLM 指标格式化为带有图标的视觉上吸引人的字幕字符串，
+        使用对话统计数据的颜色和 k/m 缩写。"""
         stats = self.conversation_stats
         if not stats:
             return None
@@ -446,7 +446,7 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
         usage = combined_metrics.accumulated_token_usage
         cost = combined_metrics.accumulated_cost or 0.0
 
-        # helper: 1234 -> "1.2K", 1200000 -> "1.2M"
+        # 助手：1234 ->“1.2K”，1200000 ->“1.2M”
         def abbr(n: int | float) -> str:
             n = int(n or 0)
             if n >= 1_000_000_000:
@@ -459,7 +459,7 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
                 return str(n)
             return f"{val:.2f}".rstrip("0").rstrip(".") + suffix
 
-        # Cache hit rate is derived on Metrics; the visualizer just formats it.
+        # 缓存命中率是基于 Metrics计算的。 可视化工具只是格式化它。
         def fmt_rate(rate: float | None) -> str:
             return f"{rate * 100:.2f}%" if rate is not None else "N/A"
 
@@ -488,11 +488,11 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
                 f"(total {abbr(total_reasoning_tokens)})"
             )
         else:
-            # No per-request usage is attributable to this event (no
-            # ``llm_response_id``, or a path like ACP where response ids are
-            # per-session). Every number here is a running total, so label it
-            # as such -- next to per-request events, bare numbers would read
-            # as per-request, which is the confusion #4105 set out to fix.
+            # 没有每个请求的使用可归因于此事件（没有
+            # ``llm_response_id``，或类似 ACP 的路径，其中响应 ID 是每个会话）。 这里的
+            # 所有数字都是累计值，所以应该标记为累计值。例如，单独的数字应该读作“每请求”
+            # ，这正是#4105要解决的问题。
+            #
             input_str = f"↑ input (total {abbr(usage.prompt_tokens or 0)})"
             output_str = f"↓ output (total {abbr(usage.completion_tokens or 0)})"
             cache_rate = f"(total {fmt_rate(combined_metrics.cache_hit_rate)})"
@@ -500,11 +500,12 @@ class DefaultConversationVisualizer(ConversationVisualizerBase):
             show_reasoning = total_reasoning_tokens > 0
             reasoning_str = f"reasoning (total {abbr(total_reasoning_tokens)})"
 
-        # Cost is always cumulative: ``Cost`` entries carry no ``response_id``
-        # (unlike ``TokenUsage``), so a per-request cost cannot be attributed.
+        # 成本始终是累积的：``Cost`` 条目不包含 ``response_id``（与 ``TokenUsage`` 不同
+        # ），因此无法归因于每个请求的成本。
+        #
         cost_str = f"{cost:.4f}" if cost > 0 else "0.00"
 
-        # Build with fixed color scheme
+        # 使用固定配色方案构建
         parts: list[str] = []
         parts.append(f"[cyan]{input_str}[/cyan]")
         parts.append(f"[magenta]cache hit {cache_rate}[/magenta]")

@@ -1,4 +1,4 @@
-"""Tests for policy rail evaluation and PolicyRailSecurityAnalyzer."""
+"""政策铁路评估测试和PolicyRailSecurityAnalyzer。"""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def make_action(command: str, tool_name: str = "bash") -> ActionEvent:
 
 
 class TestPolicyRails:
-    """Deterministic rules that short-circuit before pattern scanning."""
+    """在模式扫描之前短路的确定性规则。"""
 
     def test_safe_command_passes(self):
         decision = _evaluate_rail("ls /tmp")
@@ -86,7 +86,7 @@ class TestPolicyRails:
 
 
 class TestPolicyRailAnalyzer:
-    """Integration tests for PolicyRailSecurityAnalyzer."""
+    """集成测试为 PolicyRailSecurityAnalyzer。"""
 
     def test_fetch_to_curl_returns_high(self):
         analyzer = PolicyRailSecurityAnalyzer()
@@ -99,7 +99,7 @@ class TestPolicyRailAnalyzer:
         assert risk == SecurityRisk.LOW
 
     def test_reasoning_does_not_trip_rails(self):
-        """Rails use the executable-only corpus -- reasoning is safe."""
+        """Rails 使用仅可执行的语料库——推理是安全的。"""
         action = ActionEvent(
             thought=[TextContent(text="I should avoid rm -rf /")],
             tool_name="bash",

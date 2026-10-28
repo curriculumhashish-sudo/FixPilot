@@ -1,4 +1,4 @@
-"""Tests for standardized send_keys special key handling."""
+"""测试标准化 send_keys 特殊按键处理。"""
 
 import platform
 import shutil
@@ -59,7 +59,7 @@ def test_supported_special_keys_contains_essentials() -> None:
     reason="SubprocessTerminal is not available on Windows",
 )
 def test_subprocess_specials_match_contract() -> None:
-    """Backend specials dicts must stay in sync with SUPPORTED_SPECIAL_KEYS."""
+    """后端特殊字典必须保留在同步和 SUPPORTED_SPECIAL_KEYS 中。"""
     from openhands.tools.terminal.terminal.subprocess_terminal import (
         _SUBPROCESS_SPECIALS,
     )
@@ -80,7 +80,7 @@ def test_tmux_specials_match_contract() -> None:
 
 @pytest.fixture
 def subprocess_terminal():
-    """Create a real SubprocessTerminal for send_keys testing."""
+    """创建一个真实的 SubprocessTerminal 来进行 send_keys 测试。"""
     if platform.system() == "Windows":
         pytest.skip("SubprocessTerminal not available on Windows")
 
@@ -96,23 +96,23 @@ def subprocess_terminal():
 
 
 def test_subprocess_send_keys_ctrl_c(subprocess_terminal) -> None:
-    """C-c should be recognized as a special key (not sent as literal text)."""
+    """C-c 应被识别为特殊键（不作为文字文本发送）。"""
     subprocess_terminal.send_keys("C-c")
 
 
 def test_subprocess_send_keys_named_special(subprocess_terminal) -> None:
-    """Named specials like TAB should be dispatched without error."""
+    """像 TAB 这样的命名特价商品应该毫无错误地发送。"""
     subprocess_terminal.send_keys("TAB")
 
 
 def test_subprocess_send_keys_ctrl_variants(subprocess_terminal) -> None:
-    """CTRL-x and CTRL+x forms should work."""
+    """CTRL-x 和 CTRL+x 形式应该有效。"""
     subprocess_terminal.send_keys("CTRL-a")
     subprocess_terminal.send_keys("CTRL+e")
 
 
 def test_subprocess_send_keys_echo(subprocess_terminal) -> None:
-    """Verify data actually flows through the PTY dispatch path."""
+    """验证数据确实流经 PTY 调度路径。"""
     subprocess_terminal.send_keys("echo hello_subprocess")
     time.sleep(0.5)
     screen = subprocess_terminal.read_screen()
@@ -124,7 +124,7 @@ def test_subprocess_send_keys_echo(subprocess_terminal) -> None:
 
 @pytest.fixture
 def tmux_terminal():
-    """Create a real TmuxTerminal for send_keys testing."""
+    """创建一个真实的 TmuxTerminal 来进行 send_keys 测试。"""
     if platform.system() == "Windows":
         pytest.skip("TmuxTerminal not available on Windows")
     if shutil.which("tmux") is None:
@@ -155,7 +155,7 @@ def test_tmux_send_keys_ctrl_variants(tmux_terminal) -> None:
 
 
 def test_tmux_send_keys_plain_text(tmux_terminal) -> None:
-    """Plain text should be sent literally (not interpreted as a key name)."""
+    """纯文本应按字面意思发送（不解释为键名）。"""
     tmux_terminal.send_keys("echo hello_world")
     time.sleep(0.3)
     screen = tmux_terminal.read_screen()

@@ -4,11 +4,11 @@ from openhands.sdk.llm import LLM
 
 
 class DummyFeatures:
-    """Simple stub for get_features results."""
+    """get_features 结果的简单存根。"""
 
     def __init__(self, model: str):
         self.model = model
-        # Treat only the canonical model as feature-enabled
+        # 仅将规范模型视为启用功能的模型
         self.supports_prompt_cache = model == "openai/gpt-5-mini"
         self.supports_responses_api = model == "openai/gpt-5-mini"
         self.force_string_serializer = False
@@ -18,7 +18,7 @@ class DummyFeatures:
 
 
 def test_model_canonical_name_used_for_capabilities(monkeypatch):
-    """Proxy/aliased model uses model_canonical_name for capability lookups."""
+    """代理/别名模型使用 model_canonical_name 进行功能查找。"""
 
     model_info_calls: list[str] = []
     feature_calls: list[str] = []
@@ -43,30 +43,30 @@ def test_model_canonical_name_used_for_capabilities(monkeypatch):
         model="proxy/test-renamed-model", model_canonical_name="openai/gpt-5-mini"
     )
 
-    # Model info and vision support come from the canonical model name
+    # 模型信息和视觉支持来自规范模型名称
     assert real_llm.model_info == {"supports_vision": True, "max_input_tokens": 128000}
     assert proxy_llm.model_info == real_llm.model_info
     assert real_llm.vision_is_active() is True
     assert proxy_llm.vision_is_active() is True
 
-    # Feature lookups (prompt cache / responses API) also respect model_canonical_name
+    # 特征查找（提示词缓存/响应API）也尊重model_canonical_name
     assert real_llm.is_caching_prompt_active() is True
     assert proxy_llm.is_caching_prompt_active() is True
     assert real_llm.uses_responses_api() is True
     assert proxy_llm.uses_responses_api() is True
 
-    # Ensure capability lookups invoked the canonical name at least once
+    # 确保功能查找至少调用一次规范名称
     assert "openai/gpt-5-mini" in model_info_calls
     assert "openai/gpt-5-mini" in feature_calls
 
 
 def test_model_canonical_name_with_real_model_info():
-    """Integration-style check using litellm's built-in model info."""
+    """使用 LiteLLM 的内置模型信息进行集成式检查。"""
 
     base = LLM(model="gpt-4o-mini")
     proxied = LLM(model="proxy/test-renamed-model", model_canonical_name="gpt-4o-mini")
 
-    # Model info and derived flags should align with the canonical model
+    # 模型信息和派生标志应与规范模型一致
     assert proxied.model_info == base.model_info
     assert proxied.vision_is_active() == base.vision_is_active()
     assert proxied.is_caching_prompt_active() == base.is_caching_prompt_active()

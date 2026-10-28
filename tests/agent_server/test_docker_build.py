@@ -1,4 +1,4 @@
-"""Tests for agent_server docker build module."""
+"""测试 agent_server Docker 构建模块。"""
 
 import os
 import subprocess
@@ -49,7 +49,7 @@ def _create_fake_sdist(tmp_path: Path) -> Path:
 
 
 def test_git_info_priority_sdk_sha():
-    """Test that SDK_SHA takes priority over GITHUB_SHA and git commands."""
+    """测试 SDK_SHA 优先于 GITHUB_SHA 和 git 命令。"""
     from openhands.agent_server.docker.build import _git_info
 
     with patch.dict(
@@ -57,13 +57,13 @@ def test_git_info_priority_sdk_sha():
         {
             "SDK_SHA": "abc1234567890",
             "GITHUB_SHA": "def1234567890",
-            "SDK_REF": "refs/heads/test-branch",  # Also set REF to avoid git call
+            "SDK_REF": "refs/heads/test-branch",  # 还设置 REF 以避免 git 调用
         },
         clear=False,
     ):
         with patch(
             "openhands.agent_server.docker.build._run"
-        ) as mock_run:  # Should not be called
+        ) as mock_run:  # 不应该被称为
             git_ref, git_sha = _git_info()
 
             assert git_sha == "abc1234567890"
@@ -73,18 +73,18 @@ def test_git_info_priority_sdk_sha():
 
 
 def test_git_info_priority_github_sha():
-    """Test that GITHUB_SHA is used when SDK_SHA is not set."""
+    """测试未设置 SDK_SHA 时使用 GITHUB_SHA。"""
     from openhands.agent_server.docker.build import _git_info
 
     with patch.dict(
         os.environ,
         {
             "GITHUB_SHA": "def1234567890",
-            "GITHUB_REF": "refs/heads/main",  # Also set REF to avoid git call
+            "GITHUB_REF": "refs/heads/main",  # 还设置 REF 以避免 git 调用
         },
         clear=False,
     ):
-        # Remove SDK_SHA if it exists
+        # 删除 SDK_SHA（如果存在）
         if "SDK_SHA" in os.environ:
             del os.environ["SDK_SHA"]
         if "SDK_REF" in os.environ:
@@ -92,7 +92,7 @@ def test_git_info_priority_github_sha():
 
         with patch(
             "openhands.agent_server.docker.build._run"
-        ) as mock_run:  # Should not be called
+        ) as mock_run:  # 不应该被称为
             git_ref, git_sha = _git_info()
 
             assert git_sha == "def1234567890"
@@ -101,7 +101,7 @@ def test_git_info_priority_github_sha():
 
 
 def test_git_info_priority_sdk_ref():
-    """Test that SDK_REF takes priority over GITHUB_REF and git commands."""
+    """测试 SDK_REF 优先于 GITHUB_REF 和 git 命令。"""
     from openhands.agent_server.docker.build import _git_info
 
     with patch.dict(
@@ -109,7 +109,7 @@ def test_git_info_priority_sdk_ref():
         {
             "SDK_REF": "refs/heads/my-branch",
             "GITHUB_REF": "refs/heads/other-branch",
-            "SDK_SHA": "test123456",  # Also set SHA to avoid git call
+            "SDK_SHA": "test123456",  # 还设置 SHA 以避免 git 调用
         },
         clear=False,
     ):
@@ -119,18 +119,18 @@ def test_git_info_priority_sdk_ref():
 
 
 def test_git_info_priority_github_ref():
-    """Test that GITHUB_REF is used when SDK_REF is not set."""
+    """测试未设置 SDK_REF 时使用 GITHUB_REF。"""
     from openhands.agent_server.docker.build import _git_info
 
     with patch.dict(
         os.environ,
         {
             "GITHUB_REF": "refs/heads/other-branch",
-            "GITHUB_SHA": "test123456",  # Also set SHA to avoid git call
+            "GITHUB_SHA": "test123456",  # 还设置 SHA 以避免 git 调用
         },
         clear=False,
     ):
-        # Remove SDK_REF if it exists
+        # 删除 SDK_REF（如果存在）
         if "SDK_REF" in os.environ:
             del os.environ["SDK_REF"]
         if "SDK_SHA" in os.environ:
@@ -143,17 +143,16 @@ def test_git_info_priority_github_ref():
 
 def test_git_info_submodule_scenario():
     """
-    Test the submodule scenario where parent repo sets SDK_SHA and SDK_REF.
-    This simulates the use case from the PR description.
+    测试父存储库设置 SDK_SHA 和 SDK_REF 的子模块场景。 这模拟了 PR 描述中的用例。
     """
     from openhands.agent_server.docker.build import _git_info
 
-    # Simulate parent repo extracting submodule commit and passing it
+    # 模拟父存储库提取子模块提交并传递它
     with patch.dict(
         os.environ,
         {
-            "SDK_SHA": "a612c0a1234567890abcdef",  # Submodule commit
-            "SDK_REF": "refs/heads/detached",  # Detached HEAD in submodule
+            "SDK_SHA": "a612c0a1234567890abcdef",  # 子模块提交
+            "SDK_REF": "refs/heads/detached",  # 在子模块中分离 HEAD
         },
         clear=False,
     ):
@@ -165,15 +164,15 @@ def test_git_info_submodule_scenario():
 
 
 def test_git_info_empty_sdk_sha_falls_back():
-    """Test that empty SDK_SHA falls back to GITHUB_SHA."""
+    """测试空的 SDK_SHA 回落到 GITHUB_SHA。"""
     from openhands.agent_server.docker.build import _git_info
 
     with patch.dict(
         os.environ,
         {
-            "SDK_SHA": "",  # Empty string should fall back
+            "SDK_SHA": "",  # 空字符串应该回退
             "GITHUB_SHA": "github123456",
-            "GITHUB_REF": "refs/heads/fallback",  # Also set REF to avoid git call
+            "GITHUB_REF": "refs/heads/fallback",  # 还设置 REF 以避免 git 调用
         },
         clear=False,
     ):
@@ -186,20 +185,20 @@ def test_git_info_empty_sdk_sha_falls_back():
 
 
 def test_base_slug_short_image():
-    """Test that short image names are returned unchanged."""
+    """测试短图像名称是否原样返回。"""
     from openhands.agent_server.docker.build import _base_slug
 
-    # Simple image name, no truncation needed
+    # 简单的图像名称，无需截断
     result = _base_slug("python:3.13")
     assert result == "python_tag_3.13"
 
-    # With registry
+    # 与注册表
     result = _base_slug("ghcr.io/org/repo:v1.0")
     assert result == "ghcr.io_s_org_s_repo_tag_v1.0"
 
 
 def test_base_slug_no_tag():
-    """Test base_slug with image that has no tag."""
+    """使用没有标签的图像测试 base_slug。"""
     from openhands.agent_server.docker.build import _base_slug
 
     result = _base_slug("python")
@@ -210,7 +209,7 @@ def test_base_slug_no_tag():
 
 
 def test_truncate_ident_cases():
-    """Exercise _truncate_ident priority rules."""
+    """练习_truncate_ident优先规则。"""
     from openhands.agent_server.docker.build import _truncate_ident
 
     assert _truncate_ident("repo", "v1", 20) == "repo_tag_v1"
@@ -220,10 +219,10 @@ def test_truncate_ident_cases():
 
 
 def test_base_slug_truncation_with_tag():
-    """Test that long image names with tags are truncated correctly."""
+    """测试带有标签的长图像名称是否被正确截断。"""
     from openhands.agent_server.docker.build import _base_slug
 
-    # Create a very long image name that exceeds max_len=64
+    # 创建一个很长的图像名称，超过 max_len=64
     long_image = (
         "ghcr.io/very-long-organization-name/"
         "very-long-repository-name:very-long-tag-v1.2.3-alpha.1+build.123"
@@ -231,22 +230,22 @@ def test_base_slug_truncation_with_tag():
 
     result = _base_slug(long_image, max_len=64)
 
-    # Check that result is within max_len
+    # 检查结果是否在 max_len 范围内
     assert len(result) <= 64
 
-    # Check that result contains a digest suffix (13 chars: "-" + 12 hex chars)
+    # 检查结果是否包含摘要后缀（13 个字符：“-”+ 12 个十六进制字符）
     assert result[-13:-12] == "-"
     assert all(c in "0123456789abcdef" for c in result[-12:])
 
-    # Check the exact truncated output for determinism
+    # 检查确切的截断输出以确定性
     assert result == "very-lon_tag_very-long-tag-v1.2.3-alpha.1+build.123-cdb8db90d8c5"
 
 
 def test_base_slug_truncation_no_tag():
-    """Test that long image names without tags are truncated correctly."""
+    """测试没有标签的长图像名称是否被正确截断。"""
     from openhands.agent_server.docker.build import _base_slug
 
-    # Create a very long image name without a tag
+    # 创建一个很长的没有标签的图像名称
     long_image = (
         "ghcr.io/very-long-organization-name-here/"
         "very-long-repository-name-that-exceeds-max-length"
@@ -254,19 +253,19 @@ def test_base_slug_truncation_no_tag():
 
     result = _base_slug(long_image, max_len=64)
 
-    # Check that result is within max_len
+    # 检查结果是否在 max_len 范围内
     assert len(result) <= 64
 
-    # Check that result contains a digest suffix
+    # 检查结果是否包含摘要后缀
     assert result[-13:-12] == "-"
     assert all(c in "0123456789abcdef" for c in result[-12:])
 
-    # Check the exact truncated output for determinism
+    # 检查确切的截断输出以确定性
     assert result == "very-long-repository-name-that-exceeds-max-length-2a772685291d"
 
 
 def test_base_slug_preserves_latest_tag_suffix():
-    """Ensure tag_latest suffix is not mangled when truncating long slugs."""
+    """确保在截断长段时 tag_latest 后缀不会被破坏。"""
     from openhands.agent_server.docker.build import _base_slug
 
     image = (
@@ -281,7 +280,7 @@ def test_base_slug_preserves_latest_tag_suffix():
 
 
 def test_base_slug_preserves_tag_with_registry_port():
-    """Handle registries with ports without losing the tag segment."""
+    """使用端口处理注册表，而不丢失标记段。"""
     from openhands.agent_server.docker.build import _base_slug
 
     image = (
@@ -296,24 +295,24 @@ def test_base_slug_preserves_tag_with_registry_port():
 
 
 def test_base_slug_custom_max_len():
-    """Test base_slug with custom max_len parameter."""
+    """使用自定义 max_len 参数测试 base_slug。"""
     from openhands.agent_server.docker.build import _base_slug
 
     image = "ghcr.io/org/very-long-repository-name:v1.2.3"
 
-    # With max_len=40, should trigger truncation
+    # 当 max_len=40 时，应该触发截断
     result = _base_slug(image, max_len=40)
     assert len(result) <= 40
-    assert result[-13:-12] == "-"  # Has digest suffix
+    assert result[-13:-12] == "-"  # 是否有摘要后缀
 
-    # With max_len=100, should not truncate
+    # 当 max_len=100 时，不应截断
     result = _base_slug(image, max_len=100)
     assert result == "ghcr.io_s_org_s_very-long-repository-name_tag_v1.2.3"
     assert len(result) < 100
 
 
 def test_base_slug_digest_consistency():
-    """Test that the same image always produces the same digest."""
+    """测试相同的图像始终生成相同的摘要。"""
     from openhands.agent_server.docker.build import _base_slug
 
     long_image = (
@@ -324,21 +323,22 @@ def test_base_slug_digest_consistency():
     result1 = _base_slug(long_image, max_len=50)
     result2 = _base_slug(long_image, max_len=50)
 
-    # Same input should always produce same output
+    # 相同的输入应始终产生相同的输出
     assert result1 == result2
 
-    # Different input should produce different digest
+    # 不同的输入应该产生不同的摘要
     different_image = long_image.replace("v1.2.3", "v1.2.4")
     result3 = _base_slug(different_image, max_len=50)
     assert result1 != result3
 
 
 def test_base_slug_edge_case_exact_max_len():
-    """Test base_slug when slug length exactly equals max_len."""
+    """当段塞长度完全等于 max_len 时测试 base_slug。"""
     from openhands.agent_server.docker.build import _base_slug
 
-    # Create an image that results in exactly 30 characters
-    # "python_tag_3.13" is 15 chars, let's use it with max_len=15
+    # 创建一个恰好包含 30 个字符的图像“python_tag_3.13”是 15 个字符，让我们将其与
+    # max_len=15 一起使用
+    #
     result = _base_slug("python:3.13", max_len=15)
     assert result == "python_tag_3.13"
     assert len(result) == 15
@@ -358,7 +358,7 @@ def test_release_tag_aliases_sanitize_non_semver_tags():
 
 
 def test_versioned_tags_use_sdk_version_for_semver_git_tags():
-    """Semver git tags (v1.2.3) defer to sdk_version (PEP 440, no 'v')."""
+    """Semver git 标签 (v1.2.3) 遵循 sdk_version (PEP 440，无“v”)。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -368,12 +368,12 @@ def test_versioned_tags_use_sdk_version_for_semver_git_tags():
         include_versioned_tag=True,
     )
 
-    # Docker tags use bare semver from sdk_version, not the git tag.
+    # Docker 标签使用 sdk_version 中的裸 semver，而不是 git 标签。
     assert opts.versioned_tags == ["1-python", "1.2-python", "1.2.3-python"]
 
 
 def test_versioned_tags_semver_git_tag_strips_v_when_sdk_version_unknown():
-    """Semver git tags still produce bare semver even if sdk_version is unknown."""
+    """即使 sdk_version 未知，Semver git 标签仍然会生成裸 semver。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -387,7 +387,7 @@ def test_versioned_tags_semver_git_tag_strips_v_when_sdk_version_unknown():
 
 
 def test_versioned_tags_fallback_to_sdk_version_aliases():
-    """Test versioned_tags fall back to the SDK version when no git tag exists."""
+    """当不存在 git 标签时，测试 versioned_tags 回退到 SDK 版本。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -410,7 +410,7 @@ def test_versioned_tags_fallback_to_sdk_version_aliases():
 
 
 def test_versioned_tags_non_semver_git_tag_preserved():
-    """Test non-semver git tags are published exactly once per custom tag."""
+    """每个自定义标签只发布一次测试非 semver git 标签。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -424,7 +424,7 @@ def test_versioned_tags_non_semver_git_tag_preserved():
 
 
 def test_versioned_tags_no_custom_tags():
-    """Test versioned_tags when no custom tags are provided."""
+    """当未提供自定义标签时测试 versioned_tags。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -437,7 +437,7 @@ def test_versioned_tags_no_custom_tags():
 
 
 def test_all_tags_include_short_long_sha_and_branch():
-    """Test that all_tags includes short SHA, long SHA, and sanitized branch tags."""
+    """测试 all_tags 是否包含短 SHA、长 SHA 和经过清理的分支标签。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -504,7 +504,7 @@ def test_minimal_flavor_names_binary_minimal_without_duplicate_suffix():
 
 
 def test_all_tags_includes_versioned_tags():
-    """Test that all_tags includes bare semver aliases when enabled for a tag build."""
+    """测试 all_tags 在为标记构建启用时是否包含裸 semver 别名。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -520,7 +520,7 @@ def test_all_tags_includes_versioned_tags():
 
     assert "ghcr.io/openhands/agent-server:abc1234-python" in all_tags
     assert "ghcr.io/openhands/agent-server:abc1234567890-python" in all_tags
-    # Versioned tags use bare semver (no "v" prefix)
+    # 版本化标签使用裸语义版本（无“v”前缀）
     assert "ghcr.io/openhands/agent-server:1-python" in all_tags
     assert "ghcr.io/openhands/agent-server:1.2-python" in all_tags
     assert "ghcr.io/openhands/agent-server:1.2.0-python" in all_tags
@@ -529,7 +529,7 @@ def test_all_tags_includes_versioned_tags():
 
 
 def test_all_tags_excludes_versioned_tags_when_disabled():
-    """Test that all_tags excludes versioned tags when disabled."""
+    """测试 all_tags 禁用时是否排除版本化标签。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -550,7 +550,7 @@ def test_all_tags_excludes_versioned_tags_when_disabled():
 
 
 def test_all_tags_with_arch_suffix():
-    """Test that expanded release tags include architecture suffixes."""
+    """测试扩展版本标签是否包含架构后缀。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -565,7 +565,7 @@ def test_all_tags_with_arch_suffix():
 
     all_tags = opts.all_tags
 
-    # Versioned tags use bare semver (no "v" prefix)
+    # 版本化标签使用裸语义版本（无“v”前缀）
     assert "ghcr.io/openhands/agent-server:1-python-amd64" in all_tags
     assert "ghcr.io/openhands/agent-server:1.2-python-amd64" in all_tags
     assert "ghcr.io/openhands/agent-server:1.2.0-python-amd64" in all_tags
@@ -573,7 +573,7 @@ def test_all_tags_with_arch_suffix():
 
 
 def test_all_tags_with_target_suffix():
-    """Test expanded release tags on non-binary targets."""
+    """在非二进制目标上测试扩展版本标签。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(
@@ -622,7 +622,7 @@ def test_make_build_context_reuses_prebuilt_sdist_without_running_uv_build(
 
 
 def test_install_acp_providers_defaults_to_full_provider_set():
-    """Test that the default reproduces today's full ACP provider set."""
+    """测试默认值是否再现今天的完整 ACP 提供程序集。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions()
@@ -630,7 +630,7 @@ def test_install_acp_providers_defaults_to_full_provider_set():
 
 
 def test_install_acp_providers_rejects_unknown_provider():
-    """Test that an unknown provider key fails fast with a clear message."""
+    """测试未知的提供商密钥是否快速失败并显示明确的消息。"""
     from pydantic import ValidationError
 
     from openhands.agent_server.docker.build import BuildOptions
@@ -640,7 +640,7 @@ def test_install_acp_providers_rejects_unknown_provider():
 
 
 def test_install_acp_providers_accepts_empty_list():
-    """Test that an empty provider list is valid (installs none)."""
+    """测试空提供程序列表是否有效（安装 None）。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(install_acp_providers="")
@@ -654,7 +654,7 @@ def test_install_acp_providers_accepts_empty_list():
 def test_build_passes_install_acp_providers_build_arg(
     tmp_path: Path, install_acp_providers: str
 ):
-    """Test that build() forwards install_acp_providers as a --build-arg."""
+    """测试 build() 将 install_acp_providers 作为 --build-arg 转发。"""
     from openhands.agent_server.docker.build import (
         BuildOptions,
         _default_sdk_project_root,
@@ -715,8 +715,8 @@ def test_build_passes_install_acp_providers_build_arg(
 def test_main_resolves_install_acp_providers_from_env(
     monkeypatch, env_value: str | None, expected: str
 ):
-    """Test that an explicit empty $INSTALL_ACP_PROVIDERS survives as empty,
-    rather than being coerced back to the default like an unset var would be.
+    """测试显式空 $INSTALL_ACP_PROVIDERS 是否作为空存在，
+    而不是像未设置的变量那样被强制恢复为默认值。
     """
     from openhands.agent_server.docker import build as build_module
 
@@ -739,7 +739,7 @@ def test_main_resolves_install_acp_providers_from_env(
 
 
 def test_install_capabilities_defaults_to_full_capability_set():
-    """Test that the default reproduces today's full base-image contents."""
+    """测试默认值是否再现了今天的完整基础映像内容。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions()
@@ -747,7 +747,7 @@ def test_install_capabilities_defaults_to_full_capability_set():
 
 
 def test_install_capabilities_rejects_unknown_capability():
-    """Test that an unknown capability key fails fast with a clear message."""
+    """测试未知的功能密钥是否快速失败并显示明确的消息。"""
     from pydantic import ValidationError
 
     from openhands.agent_server.docker.build import BuildOptions
@@ -757,7 +757,7 @@ def test_install_capabilities_rejects_unknown_capability():
 
 
 def test_install_capabilities_accepts_empty_list():
-    """Test that an empty capability list is valid (installs none)."""
+    """测试空功能列表是否有效（安装 None）。"""
     from openhands.agent_server.docker.build import BuildOptions
 
     opts = BuildOptions(install_capabilities="")
@@ -771,7 +771,7 @@ def test_install_capabilities_accepts_empty_list():
 def test_build_passes_install_capabilities_build_arg(
     tmp_path: Path, install_capabilities: str
 ):
-    """Test that build() forwards install_capabilities as a --build-arg."""
+    """测试 build() 将 install_capabilities 作为 --build-arg 转发。"""
     from openhands.agent_server.docker.build import (
         BuildOptions,
         _default_sdk_project_root,
@@ -832,8 +832,8 @@ def test_build_passes_install_capabilities_build_arg(
 def test_main_resolves_install_capabilities_from_env(
     monkeypatch, env_value: str | None, expected: str
 ):
-    """Test that an explicit empty $INSTALL_CAPABILITIES survives as empty,
-    rather than being coerced back to the default like an unset var would be.
+    """测试显式空 $INSTALL_CAPABILITIES 是否作为空存在，
+    而不是像未设置的变量那样被强制恢复为默认值。
     """
     from openhands.agent_server.docker import build as build_module
 
@@ -866,11 +866,10 @@ def test_main_resolves_install_capabilities_from_env(
 def test_base_image_target_uses_real_build_context(
     tmp_path: Path, target: str, expect_real_context: bool
 ):
-    """Regression test: only base-image-minimal has zero build-context
-    dependency. base-image transitively depends on the `builder` stage (for
-    VSCode extensions), which needs the real context — the empty-context
-    fast path silently broke `--target base-image` (pre-existing, not
-    specific to INSTALL_CAPABILITIES).
+    """回归测试：只有基本图像最小有零构建-上下文
+    依赖性。 基础镜像通过`builder`阶段（VSCode扩展所需）依赖于它，而这个阶段需要真实
+    的上下文 — 空的上下文路径默默地破坏了
+    `--target base-image`（已存在，非特定于INSTALL_CAPABILITIES）。
     """
     from openhands.agent_server.docker.build import (
         BuildOptions,
@@ -918,10 +917,10 @@ def test_base_image_target_uses_real_build_context(
 def test_base_image_minimal_stages_acp_install_catalog_without_full_context(
     tmp_path: Path,
 ):
-    """base-image-minimal's empty-context fast path must still stage the
-    dependency-free ACP install catalog the Dockerfile's acp-providers stage
-    COPies in — at the same relative path a real sdist-extracted context
-    would use — without falling back to the expensive full SDK build context.
+    """base-image-minimal 的空-上下文快速路径仍必须上演
+    ACP 无依赖的 COPies 安装 Dockerfile 的 ACP 提供者阶段上下文，在 —— 与真实 sdist-
+    提取的上下文使用相同的相对路径 —— 而不是
+    回退到昂贵的完整 SDK 构建。
     """
     from openhands.agent_server.docker.build import (
         _ACP_INSTALL_CATALOG_RELPATH,
@@ -1117,24 +1116,23 @@ def test_parse_buildkit_telemetry_extracts_phase_timings():
 
 
 def test_parse_buildkit_telemetry_cache_export_with_preparing_line():
-    """Test that cache export timing is captured when sub-operations appear.
+    """测试当子操作出现时是否捕获缓存导出时间。
 
-    This reproduces a bug where BuildKit outputs:
-        #33 exporting cache to registry
-        #33 preparing build cache for export
+    这会重现 BuildKit 输出的错误：
+        #33 正在将缓存导出到注册表
+        #33 准备导出构建缓存
         #33 DONE 36.2s
 
-    Previously, the second line overwrote step_descriptions["33"], causing
-    the DONE time to be attributed to "preparing build cache for export"
-    which wasn't classified as cache_export.
+    之前，第二行覆盖了 step_descriptions["33"]，导致 DONE 时间被归因于“准备导出缓存”
+    这一项，而这一项并未被分类为
+    cache_export。
 
-    The fix ensures that once a step has a classified description
-    ("exporting cache to registry" -> cache_export), subsequent sub-operation
-    descriptions don't overwrite it.
+    修复确保了一旦步骤有一个分类描述（“导出缓存到注册表” -> cache_export），后续子操
+    作描述不会覆盖它。
     """
     from openhands.agent_server.docker.build import _parse_buildkit_telemetry
 
-    # Real-world BuildKit output pattern
+    # 真实世界 BuildKit 输出模式
     stderr_with_preparing = "\n".join(
         [
             "#33 exporting cache to registry",
@@ -1148,8 +1146,9 @@ def test_parse_buildkit_telemetry_cache_export_with_preparing_line():
 
     telemetry = _parse_buildkit_telemetry(stderr_with_preparing)
 
-    # Should capture the cache export time because "exporting cache to registry"
-    # is preserved as the step description (not overwritten by "preparing...")
+    # 应捕获缓存导出时间，因为“将缓存导出到注册表”被保留为步骤描述（不会被“准备...”覆盖
+    # ）
+    #
     assert telemetry.cache_export_seconds == 36.2
 
 
@@ -1267,7 +1266,7 @@ def test_build_with_telemetry_preserves_telemetry_on_failure(tmp_path: Path):
         ("off", False, None),
         ("max", True, "max"),
         ("min", True, "min"),
-        ("invalid", True, "max"),  # Invalid values default to "max" (preserve behavior)
+        ("invalid", True, "max"),  # 无效值默认为“max”（保留行为）
     ],
 )
 def test_cache_export_modes(
@@ -1276,7 +1275,7 @@ def test_cache_export_modes(
     expect_cache_to: bool,
     expect_mode_value: str | None,
 ):
-    """Test cache export behavior for different OPENHANDS_BUILDKIT_CACHE_MODE values."""
+    """测试不同 OPENHANDS_BUILDKIT_CACHE_MODE 值的缓存导出行为。"""
     from openhands.agent_server.docker.build import (
         BuildOptions,
         _default_sdk_project_root,
@@ -1318,7 +1317,7 @@ def test_cache_export_modes(
     cmd = docker_calls[0][0]
     cmd_str = " ".join(cmd)
 
-    # Should always have --cache-from
+    # 应该总是有 --cache-from
     assert "--cache-from" in cmd_str
 
     if expect_cache_to:

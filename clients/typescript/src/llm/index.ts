@@ -1,8 +1,8 @@
 /**
- * LLM module exports
+ * LLM 模块导出
  */
 
-// Base types and interface
+// 基本类型和接口
 export type {
   ILLM,
   BaseLLMOptions,
@@ -23,10 +23,10 @@ export type {
   TokenStreamEvent,
 } from './base';
 
-// OpenRouter implementation
+// OpenRouter 实施
 export { OpenRouterLLM } from './openrouter-llm';
 export type { OpenRouterLLMOptions } from './openrouter-llm';
 
-// Factory functions and LLM class
+// 工厂函数和 LLM 类
 export { LLM, createLLM, createOpenRouterLLM } from './llm';
 export type { LLMOptions, CreateLLMOptions } from './llm';

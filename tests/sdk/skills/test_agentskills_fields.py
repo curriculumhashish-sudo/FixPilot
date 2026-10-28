@@ -1,4 +1,4 @@
-"""Tests for AgentSkills standard fields in the Skill model."""
+"""测试技能模型中的 AgentSkills 标准字段。"""
 
 import pytest
 from pydantic import ValidationError
@@ -7,7 +7,7 @@ from openhands.sdk.skills import Skill, SkillValidationError
 
 
 def test_skill_with_agentskills_fields(tmp_path) -> None:
-    """Skill should support AgentSkills standard fields."""
+    """技能应支持 AgentSkills 标准字段。"""
     skill_content = """---
 name: pdf-processing
 description: Extract text from PDF files.
@@ -38,20 +38,20 @@ triggers:
 
 
 def test_skill_allowed_tools_formats(tmp_path) -> None:
-    """allowed-tools should accept string or list format."""
-    # String format
+    """allowed-tools 应接受字符串或列表格式。"""
+    # 字符串格式
     path = tmp_path / "s1.md"
     path.write_text("---\nname: s\nallowed-tools: A B\n---\n#")
     skill = Skill.load(path)
     assert skill.allowed_tools == ["A", "B"]
 
-    # List format
+    # 列表格式
     path = tmp_path / "s2.md"
     path.write_text("---\nname: s\nallowed-tools:\n  - A\n  - B\n---\n#")
     skill = Skill.load(path)
     assert skill.allowed_tools == ["A", "B"]
 
-    # Underscore variant
+    # 下划线变体
     path = tmp_path / "s3.md"
     path.write_text("---\nname: s\nallowed_tools: A B\n---\n#")
     skill = Skill.load(path)
@@ -59,20 +59,20 @@ def test_skill_allowed_tools_formats(tmp_path) -> None:
 
 
 def test_skill_invalid_field_types(tmp_path) -> None:
-    """Skill should reject invalid field types via Pydantic validation."""
-    # Invalid description - Pydantic validates string type
+    """技能应通过 Pydantic 验证拒绝无效字段类型。"""
+    # 无效描述 - Pydantic 验证字符串类型
     path = tmp_path / "invalid_desc.md"
     path.write_text("---\nname: s\ndescription:\n  - list\n---\n#")
     with pytest.raises(ValidationError, match="description"):
         Skill.load(path)
 
-    # Invalid metadata - custom validator raises SkillValidationError
+    # 元数据无效 - 自定义验证器引发 SkillValidationError
     path = tmp_path / "invalid_meta.md"
     path.write_text("---\nname: s\nmetadata: string\n---\n#")
     with pytest.raises(SkillValidationError, match="metadata must be a dictionary"):
         Skill.load(path)
 
-    # Invalid allowed-tools - custom validator raises SkillValidationError
+    # 允许的工具无效 - 自定义验证器引发 SkillValidationError
     path = tmp_path / "invalid_tools.md"
     path.write_text("---\nname: s\nallowed-tools: 123\n---\n#")
     with pytest.raises(SkillValidationError, match="allowed-tools must be"):
@@ -80,7 +80,7 @@ def test_skill_invalid_field_types(tmp_path) -> None:
 
 
 def test_skill_backward_compatibility(tmp_path) -> None:
-    """Skills without AgentSkills fields should still work."""
+    """没有 AgentSkills 字段的技能应该仍然有效。"""
     path = tmp_path / "s.md"
     path.write_text("---\nname: legacy\ntriggers:\n  - test\n---\n#")
     skill = Skill.load(path)

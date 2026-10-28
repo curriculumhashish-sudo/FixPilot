@@ -1,9 +1,8 @@
-"""Tests for the cleanup LLM profile (``clean_outward_text``).
+"""测试清理 LLM 配置文件 (``clean_outward_text``)。
 
-The cleanup profile repairs an agent's outward text before a human reads it. It
-resolves a saved LLM profile named ``cleanup`` and runs a single stateless
-completion, failing open (returning the original text) whenever the profile is
-missing or the call errors.
+清理脚本修复了智能体在人类阅读之前的人外文本。 它解决了一个保存的 LLM [profile named]
+ ``cleanup`` 它运行一个单个无状态完成，当配置缺失或调
+用失败时，以失败打开（返回原始文本）。
 """
 
 from collections.abc import Sequence
@@ -31,7 +30,7 @@ from openhands.sdk.tool import ToolDefinition
 
 
 class CapturingTestLLM(TestLLM):
-    """TestLLM that records the messages and tools of the last completion."""
+    """TestLLM记录上次完成的消息和工具。"""
 
     _last_messages: list[Message] = PrivateAttr(default_factory=list)
     _last_tools: Sequence[ToolDefinition] | None = PrivateAttr(default=None)
@@ -101,7 +100,7 @@ def test_returns_cleaned_text_from_cleanup_profile(
     result = clean_outward_text(original)
 
     assert result == "Done! I appreciate the nudge."
-    # Stateless call: only a system + user message, no tools, no history.
+    # 无状态调用：只有系统+用户消息，没有工具，没有历史记录。
     assert [message.role for message in cleanup_llm.last_messages] == ["system", "user"]
     assert cleanup_llm.last_tools is None
     assert "repair" in _message_text(cleanup_llm.last_messages[0]).lower()
@@ -111,8 +110,8 @@ def test_returns_cleaned_text_from_cleanup_profile(
 def test_cipher_is_forwarded_to_profile_load(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The cipher argument must reach LLMProfileStore.load so the encrypted-secret
-    # path works when a caller passes one.
+    # 密码参数必须达到 LLMProfileStore.load，以便当调用者传递 1 时加密的机密路径起作用。
+    #
     cleanup_llm = _capturing_llm("clean")
     sentinel = object()
     seen: dict[str, Any] = {}
@@ -131,8 +130,8 @@ def test_cipher_is_forwarded_to_profile_load(
 def test_missing_profile_returns_original_text(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # A real, empty profile directory: no "cleanup" profile exists, so the
-    # feature is off and the original text passes through unchanged.
+    # 真实的空配置文件目录：不存在“清理”配置文件，因此该功能关闭，原始文本不变地通过。
+    #
     profile_dir = tmp_path / "profiles"
     profile_dir.mkdir()
     monkeypatch.setattr(llm_profile_store, "_DEFAULT_PROFILE_DIR", profile_dir)
@@ -144,8 +143,9 @@ def test_missing_profile_returns_original_text(
 def test_call_failure_returns_original_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Scripted with no replies: the next completion raises (exhausted), so the
-    # cleanup must fail open and return the untouched original.
+    # 编写没有回复的脚本：下一个完成引发（耗尽），因此清理必须失败并返回未触及的原始内容
+    # 。
+    #
     failing_llm = _capturing_llm()
 
     monkeypatch.setattr(
@@ -161,7 +161,7 @@ def test_call_failure_returns_original_text(
 def test_empty_cleanup_reply_returns_original_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A blank reply must not blank out the message; keep the original.
+    # 空白回复不得使消息空白； 保留原件。
     cleanup_llm = _capturing_llm("   ")
     monkeypatch.setattr(
         LLMProfileStore,

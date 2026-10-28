@@ -1,8 +1,7 @@
-"""Pydantic models for persisted settings and secrets.
+"""Pydantic 个模型用于已持久化设置和机密。
 
-These models mirror the structure used in OpenHands app-server for consistency,
-allowing the agent-server to be used standalone or as a drop-in replacement
-for the Cloud API's settings/secrets endpoints.
+这些模型模仿了使用的结构 OpenHands 一致性应用服务器，允许智能体- 用于独立运行或作为云
+的替代品使用的服务器 API'settings/secrets' 端点。
 """
 
 from __future__ import annotations
@@ -35,16 +34,15 @@ from openhands.sdk.utils.pydantic_secrets import serialize_secret, validate_secr
 
 
 class _SecretProbeCipher:
-    """Fake cipher that flags secret serialization without needing a real key.
+    """无需真实密钥即可标记机密序列化的假密码。
 
-    Passed as ``context={"cipher": probe}`` this forces every secret field's
-    serializer down the "encrypted" branch (see ``resolve_expose_mode``),
-    reusing the real serialization pipeline to detect secret-bearing fields
-    instead of hand-walking the model for ``SecretStr`` instances. That
-    matters for fields like ``AgentContext.secrets``, whose bare-string
-    entries are plain ``str`` at rest and only become secret-shaped inside
-    their own field serializer at dump time -- a value-type walk can't see
-    that, but reusing the pipeline does.
+    通过 ``context={"cipher": probe}`` 这迫使每个机密字段的序列化器沿着“加密”分支（见
+     ``resolve_expose_mode``)
+    , 重用真实序列化检测管道机密-使用字段而不是手走模型进行操作 ``SecretStr`` 实例。
+    这对于诸如的领域很重要
+    ``AgentContext.secrets``[whose] 空心字符串的条目是裸露的 ``str`` at REST 仅能成为
+    机密在自己的领域内序列化器在dum
+    p时间 -- 值类型遍历无法看到这一点，但重用管道可以。
     """
 
     def __init__(self) -> None:
@@ -60,29 +58,27 @@ class _SecretProbeCipher:
 
 
 def _contains_secret_value(model: BaseModel) -> bool:
-    """Check if serializing `model` would touch any secret-bearing field."""
+    """检查序列化 `model` 是否会触及任何包含机密的字段。"""
     probe = _SecretProbeCipher()
     model.model_dump(mode="json", context={"cipher": probe})
     return probe.found
 
 
 class SettingsUpdatePayload(TypedDict, total=False):
-    """Typed payload for PersistedSettings.update() method.
+    """为 PersistedSettings.update() 方法键入载荷。
 
-    ``agent_settings_diff`` is applied via :func:`apply_agent_settings_diff`:
-    full RFC 7386 merge-patch semantics — a ``None`` value on any key (top-level
-    or nested) removes it, resetting that field to its default.
+    ``agent_settings_diff`` 通过：func:`apply_agent_settings_diff` 应用，完整遵循 RFC
+     7386 的合并补丁
+    语义；任意顶层或嵌套键的值为 ``None`` 时，都会删除该键，使对应字段恢复默认值。
 
-    ``conversation_settings_diff`` and ``misc_settings_diff`` use
-    :func:`_deep_merge`: nested maps merge recursively, ``None`` *inside* a
-    nested map removes that entry, but a ``None`` on a top-level field flows to
-    validation as before.
+    ``conversation_settings_diff`` 和 ``misc_settings_diff`` 使用
+    :func:`_deep_merge`: 嵌套映射递归合并，``None`` *inside* a
+    嵌套映射会删除该条目，但顶级字段上的 ``None`` 会像以前一样流向验证。
 
-    ``misc_settings_diff`` is deep-merged into the persisted ``misc_settings``
-    block. The agent-server treats ``misc_settings`` as opaque
-    frontend-owned data (it persists and merges, but does not interpret), so
-    any shape the client chooses is valid; lists are replaced wholesale by
-    the deep-merge.
+    ``misc_settings_diff`` 深度合并到已持久化 ``misc_settings`` 块中。 智能体-服务器
+    将``misc_settings``视为
+    不透明的前端拥有的数据（它保留并合并，但不解释），因此客户端选择的任何形状都是有
+    效的； 列表被深度合并大规模取代。
     """
 
     agent_settings_diff: dict[str, Any]
@@ -99,47 +95,45 @@ def _deep_merge(
     *,
     unset_nulls: bool = False,
 ) -> dict[str, Any]:
-    """Recursively merge ``overlay`` into ``base``.
+    """递归地将 ``overlay`` 合并到 ``base`` 中。
 
-    - Nested dicts are merged recursively.
-    - **Inside a nested map** a ``None`` value **removes** that key — the
-      "unset" primitive a plain deep-merge lacks. It lets a
-      ``PATCH /api/settings`` diff delete a single map entry (one MCP
-      ``env`` / ``headers`` key) without round-tripping the whole map::
+    - 嵌套字典被递归合并。
+    - **在嵌套映射内部**，``None``值**删除**该键——普通深度合并所缺少的“未设置”原语。
+    它让一个
+      ``PATCH /api/settings`` diff 删除单个映射条目（一个 MCP
+      ``env`` / ``headers`` 键）无需往返整个地图：:
 
           {"agent_settings_diff":
               {"mcp_config": {"svc": {"env": {"STALE_KEY": null}}}}}
 
-    - **At the top level** (a settings *field* like ``confirmation_mode``)
-      a ``None`` is left as-is and flows to model
-      validation — exactly as before this primitive existed. So a stray
-      ``{"confirmation_mode": null}`` still fails loudly (422) instead of
-      silently resetting a field to its default. This scoping is deliberate:
-      ``unset`` is for *entries within* a map, not for nulling whole fields.
-    - For any other scalar/list value, the overlay wins.
+    - **在顶层**（像``confirmation_mode``一样的设置*字段*），``None``保持原样并流向模
+    型验证——与该原语存在之前完全相同。 那么流浪
+      ``{"confirmation_mode": null}`` 仍然会大声失败 (422)，而不是默默地将字段重置为
+      其默认值。 这个范围界定是经过深思熟虑的：
+      ``unset`` 用于 * 映射内的 * 条目，而不是用于清空整个字段。
+    - 对于任何其他标量/列表值，覆盖获胜。
 
-    ``unset_nulls`` is ``False`` for the top-level call and ``True`` for every
-    recursive (nested) call — that's what draws the field-vs-entry line above.
+    对于顶级调用，``unset_nulls`` 是 ``False``，对于每个递归（嵌套）调用，``True`` 是
+    这样的——这就是上面绘制字段与条目线的原因。
 
-    Corner case: a key **absent from** ``base`` whose overlay value is a dict
-    is assigned wholesale (no recursion), so any ``null`` entries inside that
-    dict are stored as-is rather than treated as deletes. This is intentional
-    — you can't delete an entry from a map that doesn't exist yet — but it
-    means "initialize a new map and unset a key within it" in one diff won't
-    strip the null; downstream validation handles the resulting value.
+    **缺失的键** ``base``的覆盖值是一个字典时，``null``字典内部的任何条目都将被存储原
+    样，而不是被处理为删除。 这是有意为之——你不能从一个不存在的
+    图中删除一条记录——但这意味着“初始化一个新的图并清除其中的一个键”在一次差异中不会
+    移除 null。 下游验证处理结果值。
     """
     result = dict(base)
     for key, value in overlay.items():
         if value is None and unset_nulls:
-            # Nested map entry: a null member removes the key (no-op if absent).
+            # 嵌套映射条目：null 成员删除键（如果不存在则无操作）。
             result.pop(key, None)
         elif (
             key in result and isinstance(result[key], dict) and isinstance(value, dict)
         ):
             result[key] = _deep_merge(result[key], value, unset_nulls=True)
         else:
-            # Top-level null (unset_nulls=False) falls here: set as-is and let
-            # model validation decide (preserves pre-existing behavior).
+            # 顶级 null (unset_nulls=False) 位于此处：按原样设置并让模型验证决定（保留预
+            # 先存在的行为）。
+            #
             result[key] = value
     return result
 
@@ -148,27 +142,25 @@ PERSISTED_SETTINGS_SCHEMA_VERSION = 6
 
 
 class PersistedSettings(BaseModel):
-    """Persisted settings for agent server.
+    """Agent Server 的已持久化设置。
 
-    Agent settings (LLM config, MCP config, condenser) live in ``agent_settings``.
-    Conversation settings (max_iterations, confirmation_mode) live in
+    智能体设置（LLM 配置、MCP 配置、上下文压缩器）位于 ``agent_settings`` 中。 对话设
+    置 (max_iterations,
+    confirmation_mode) 实时存在
     ``conversation_settings``.
 
-    The ``active_profile`` field tracks which LLM profile was last activated,
-    allowing frontends to display which profile is currently in use.
+    ``active_profile`` 字段跟踪最后激活的 LLM 配置文件，允许前端显示当前正在使用的配
+    置文件。
 
-    The ``misc_settings`` field is an opaque dict the agent-server persists
-    on behalf of the frontend. The agent-server never reads its contents and
-    has no schema for it; clients are free to store any JSON-serializable
-    structure they need (e.g. app/UI preferences, git identity used for
-    in-conversation commits, etc.).
+    ``misc_settings`` 字段是一个不透明的字典，智能体服务器代表前端保留。 智能体-服务
+    器从不读取其内容，也没有模式。 客户端可以自由存储他们需要的任何
+     JSON-可序列化结构（e.g. 应用程序/UI 首选项、用于对话中提交的 git 身份等）。
 
-    One namespace inside ``misc_settings`` is a documented exception to the
-    "never read" rule: ``misc_settings.telemetry`` holds ``consent``
-    (``granted``/``denied``/``unset``) and an optional ``managed`` flag. The
-    frontend still owns the value; the agent-server only reads it, to decide
-    whether product analytics may be delivered. Nothing else in the container
-    is interpreted.
+    ``misc_settings`` 内的命名空间是“从不读取”规则的记录例外：
+    ``misc_settings.telemetry`` 包含 ``consent``（
+    ``granted``/``denied``/``unset``) 和可选的 ``managed`` 标志。 前端仍然拥有该值；
+    智能体-服务器仅读取它，以决定是否
+    可以提供产品分析。 容器中的任何其他内容都不会被解释。
     """
 
     schema_version: int = Field(
@@ -210,7 +202,7 @@ class PersistedSettings(BaseModel):
 
     @property
     def llm_api_key_is_set(self) -> bool:
-        """Check if an LLM API key is configured."""
+        """检查是否配置了LLMAPI键。"""
         if not isinstance(self.agent_settings, OpenHandsAgentSettings):
             return False
         raw = self.agent_settings.llm.api_key
@@ -223,12 +215,13 @@ class PersistedSettings(BaseModel):
 
     @property
     def has_any_secret(self) -> bool:
-        """Check if these settings contain any secret value anywhere.
+        """检查这些设置是否在任何地方包含任何机密值。
 
-        Broader than ``llm_api_key_is_set``: walks the whole ``agent_settings``
-        tree (MCP server env/headers, ``critic_api_key``, provider creds,
-        ``agent_context.secrets``, ...) rather than checking a fixed field
-        list, so it stays correct as new secret-bearing fields are added.
+        比 ``llm_api_key_is_set`` 更广泛：遍历整个 ``agent_settings`` 树（MCP 服务器
+        环境/标头、
+        ``critic_api_key``、提供商信用、
+        ``agent_context.secrets``, ...) 而不是检查固定字段列表，因此在添加新的机密字
+        段时它保持正确。
         """
         return _contains_secret_value(self.agent_settings)
 
@@ -238,40 +231,40 @@ class PersistedSettings(BaseModel):
         *,
         context: Mapping[str, object] | None = None,
     ) -> None:
-        """Apply a batch of changes from a nested dict.
+        """应用嵌套字典中的一批更改。
 
-        Accepts ``agent_settings_diff``, ``conversation_settings_diff``,
-        ``active_profile``, and ``active_agent_profile_id`` for partial updates.
+        接受 ``agent_settings_diff``、``conversation_settings_diff``、
+        ``active_profile`` 和 ``active_agent_profile_id`` 用于部分更新。
 
-        ``agent_settings_diff`` is applied via :func:`apply_agent_settings_diff`:
-        RFC 7386 merge-patch semantics with kind-switch awareness. When
-        ``agent_kind`` changes, the diff is applied onto a fresh base of the
-        target variant. Same-kind diffs deep-merge within the variant. A
-        ``None`` value at any level removes that key and resets it to default.
+        ``agent_settings_diff`` 通过：func:`apply_agent_settings_diff`: RFC 7386 具有
+        种类切换感知
+        的合并补丁语义来应用。 当
+        ``agent_kind`` 更改时，差异将应用到目标变体的新基础上。 同类差异在变体中深度
+        合并。 A
+        任何级别的 ``None`` 值都会删除该键并将其重置为默认值。
 
-        ``conversation_settings_diff`` uses :func:`_deep_merge`: ``None`` inside
-        a nested map removes that entry; ``None`` on a top-level field flows to
-        validation.
+        ``conversation_settings_diff`` 在嵌套映射内使用：func:`_deep_merge`: ``None``
+         删除该条目；
+        ``None`` 顶级字段流向验证。
 
-        Thread Safety:
-            This method is NOT thread-safe for concurrent in-memory updates.
-            The assignments to ``agent_settings`` and ``conversation_settings``
-            are not atomic. However, the router wraps calls via ``store.update()``
-            which uses file locking to prevent concurrent updates at the I/O layer.
-            Multiple ``PersistedSettings`` instances should NOT be shared across
-            threads without external synchronization.
+        线程安全：
+            此方法是不线程安全，用于并发内存中更新。 对 ``agent_settings`` 和
+            ``conversation_settings`` 的赋值不
+            是原子的。 然而，路由器通过 ``store.update()`` 包装调用，它使用文件锁定来
+            防止 I/O 层的并发更新。 多个
+            ``PersistedSettings`` 实例应该不在线程之间共享，无需外部同步。
 
-        Atomicity:
-            Both updates are validated before any mutations occur. If either
-            validation fails, the object remains unchanged.
+        原子性：
+            两个更新都会在任何突变发生之前进行验证。 如果任一验证失败，则该对象保持不
+            变。
 
         Raises:
-            ValueError: If validation fails (sanitized to avoid secret leakage).
+            ValueError: 如果验证失败（已清理以避免机密泄漏）。
         """
         agent_update = payload.get("agent_settings_diff")
         conv_update = payload.get("conversation_settings_diff")
 
-        # Phase 1: Validate all updates before any mutations
+        # 第 1 阶段：在任何突变之前验证所有更新
         new_agent: AgentSettingsConfig | None = None
         new_conv: ConversationSettings | None = None
         conv_merged: dict | None = None
@@ -283,8 +276,9 @@ class PersistedSettings(BaseModel):
                         self.agent_settings, agent_update, context=context
                     )
                 except Exception as e:
-                    # Use 'from None' to break exception chain - the original
-                    # exception may contain secret values in Pydantic errors
+                    # 使用“from None”来中断异常链 - 原始异常可能在 Pydantic 错误中包含机
+                    # 密值
+                    #
                     raise ValueError(
                         f"Failed to update agent settings: {type(e).__name__}"
                     ) from None
@@ -297,22 +291,21 @@ class PersistedSettings(BaseModel):
                 try:
                     new_conv = ConversationSettings.from_persisted(conv_merged)
                 except Exception as e:
-                    # Use 'from None' to break exception chain - see above
+                    # 使用“from None”打破异常链 - 见上文
                     raise ValueError(
                         f"Failed to update conversation settings: {type(e).__name__}"
                     ) from None
 
-            # ``misc_settings`` is opaque: deep-merge without schema
-            # validation. The agent-server doesn't interpret what's inside,
-            # and ``misc_settings`` is not a secret container — the merged
-            # dict is therefore stored directly without the post-commit
-            # clear-down used by ``conversation_settings``.
+            # ``misc_settings`` 是不透明的：没有模式验证的深度合并。 智能体服务器不理解
+            # 其中的内容，``misc_settings``不是一个机密容器——因此，合并字典直接存储，而
+            # 不是像``conversation_settings``使用的post-commit清空那样。
+            #
             misc_update = payload.get("misc_settings_diff")
             new_misc: dict[str, Any] | None = None
             if isinstance(misc_update, dict):
                 new_misc = _deep_merge(self.misc_settings, misc_update)
 
-            # Phase 2: Apply validated changes atomically
+            # 第 2 阶段：自动应用经过验证的更改
             if new_agent is not None:
                 self.agent_settings = new_agent
             if new_conv is not None:
@@ -320,46 +313,46 @@ class PersistedSettings(BaseModel):
             if new_misc is not None:
                 self.misc_settings = new_misc
 
-            # Update pointers if explicitly provided (including None to clear)
+            # 如果明确提供则更新指针（包括要清除的 None）
             if "active_profile" in payload:
                 self.active_profile = payload["active_profile"]
             if "active_agent_profile_id" in payload:
                 self.active_agent_profile_id = payload["active_agent_profile_id"]
 
-            # Update active_meta_profile if explicitly provided (incl. None)
+            # 如果明确提供，则更新 active_meta_profile（包括 None)
             if "active_meta_profile" in payload:
                 self._apply_active_meta_profile(payload["active_meta_profile"])
 
-            # Enforce the invariant even when only ``agent_settings`` changed:
-            # switching to an agent variant that cannot attach the routing tool
-            # (e.g. ACP) must not leave a stale top-level ``active_meta_profile``
-            # claiming routing is active. (No-op when active already matches.)
+            # 即使仅 ``agent_settings`` 发生更改，也强制执行不变量：切换到无法附加布线工
+            # 具的智能体变体 (e.g. ACP) 不得留下过时的顶级 ``active_meta_profile`` 声明
+            # 路由处于活动状态。 （当活动已经匹配时，无操作。）
+            #
             self._clear_active_meta_profile_if_unsupported()
         finally:
-            # Clear conv_merged to minimize plaintext exposure window
+            # 清除 conv_merged 以最小化明文暴露窗口
             if conv_merged is not None:
                 conv_merged.clear()
 
     def _agent_supports_routing(self) -> bool:
-        """Whether the current agent variant can attach the routing tool.
+        """当前智能体变体是否可以附加布线工具。
 
-        OpenHands agent settings expose ``active_meta_profile`` /
-        ``enable_classify_and_switch_llm_tool``; ACP (and any other) variants do
-        not and never attach :class:`ClassifyAndSwitchLLMTool`.
+        OpenHands 智能体设置公开 ``active_meta_profile`` /
+        ``enable_classify_and_switch_llm_tool``; ACP（和任何其他）变体不会也永远不会
+        附加：class：
+        `ClassifyAndSwitchLLMTool`。
         """
         return "active_meta_profile" in type(self.agent_settings).model_fields
 
     def _apply_active_meta_profile(self, name: str | None) -> None:
-        """Set ``active_meta_profile`` and propagate it into agent_settings.
+        """设置 ``active_meta_profile`` 并将其传播到 agent_settings。
 
-        Propagating into the nested ``agent_settings`` is what enables/uses the
-        routing tool on the agent built from these settings (mirrors how
-        activating a profile bakes the LLM into ``agent_settings``).
+        ``agent_settings`` 中的传播使得路由工具能够在基于这些设置的智能体中运行（就像
+        激活一个预设会将 LLM 贴合到
+        ``agent_settings`` 一样）。
 
-        The top-level field is a strict facade for the nested state, not a
-        best-effort hint: if the current agent variant cannot attach the routing
-        tool (e.g. ACP), the request is dropped and the facade cleared so
-        persisted state never claims an active router no conversation can use.
+        顶层字段是一个嵌套状态的严格面纱，而不是一种最佳努力的提示：如果当前智能体变
+        体无法附上路由工具 (e.g。 ACP)，请求被丢弃并且外观被清除，因此已持久化
+        状态永远不会声明没有会话可以使用的活动路由器。
         """
         if not self._agent_supports_routing():
             self.active_meta_profile = None
@@ -373,11 +366,11 @@ class PersistedSettings(BaseModel):
         )
 
     def _clear_active_meta_profile_if_unsupported(self) -> None:
-        """Clear the facade when the agent variant cannot support routing.
+        """当智能体变体无法支持路由时清除外观。
 
-        Guards the agent-kind-switch path: changing ``agent_settings`` to a
-        non-routing variant (e.g. ACP) while a meta-profile is active would
-        otherwise leave the top-level ``active_meta_profile`` stale.
+        保护智能体-kind-switch 路径：将 ``agent_settings`` 更改为非路由变体 (e.g. ACP
+        ）当元配置文件处于活动状态时，否则会
+        使顶级 ``active_meta_profile`` 过时。
         """
         if not self._agent_supports_routing() and self.active_meta_profile is not None:
             self.active_meta_profile = None
@@ -386,24 +379,23 @@ class PersistedSettings(BaseModel):
     def from_persisted(
         cls, data: Any, *, context: dict[str, Any] | None = None
     ) -> PersistedSettings:
-        """Load persisted settings.
+        """加载已持久化设置。
 
-        Schema-version history:
+        模式-版本历史：
 
-        - **v1**: ``agent_settings`` + ``conversation_settings`` plus
+        - **v1**: ``agent_settings`` + ``conversation_settings`` 加
           ``active_profile``.
-        - **v2**: adds the opaque ``misc_settings`` container.
-        - **v3**: nested ``agent_settings`` advanced to schema v6
-          (dropped the removed ``llm.modify_params`` field). Nested payloads
-          are migrated through ``validate_agent_settings`` in
-          ``_normalize_inputs``; the top-level bump keeps the file schema in
-          step with the nested shape change.
-        - **v4**: nested ``agent_settings`` advanced to schema v7
-          (dropped the deprecated ``llm`` from ACP settings).
-        - **v5**: nested ``agent_settings`` advanced to schema v8
-          (retired tool switches folded into ``tools``).
-        - **v6** (current): nested ``agent_settings`` advanced to schema v9
-          (removed deprecated live input paths; persisted inputs still migrate).
+        - **v2**: 添加不透明的 ``misc_settings`` 容器。
+        - **v3**: 嵌套 ``agent_settings`` 升级到模式 v6（删除了已删除的
+        ``llm.modify_params`` 字段）。 嵌套
+        的载荷通过 ``validate_agent_settings`` 迁移
+          ``_normalize_inputs``; 顶层凹凸使文件模式与嵌套形状变化保持同步。
+        - **v4**: 嵌套 ``agent_settings`` 升级到模式 v7（从 ACP 设置中删除了已弃用
+        ``llm``）。
+        - **v5**: 嵌套 ``agent_settings`` 升级到模式 v8（已退役的工具开关合并到
+        ``tools`` 中）。
+        - **v6** (current): 嵌套 ``agent_settings`` 升级到模式 v9（删除了已弃用实时输
+        入路径； 已持久化输入仍然迁移）。
         """
         if not isinstance(data, dict):
             return cls.model_validate(data, context=context)
@@ -428,8 +420,9 @@ class PersistedSettings(BaseModel):
         agent_settings: AgentSettingsConfig,
         info: SerializationInfo,
     ) -> dict[str, Any]:
-        # Pass through the full context (cipher, expose_secrets) to AgentSettings
-        # This ensures secrets are properly encrypted/exposed based on context
+        # 将完整的上下文（密码，expose_secrets）传递到 AgentSettings 这确保机密基于上下
+        # 文正确加密/公开
+        #
         return agent_settings.model_dump(mode="json", context=info.context)
 
     @model_validator(mode="before")
@@ -437,16 +430,14 @@ class PersistedSettings(BaseModel):
     def _normalize_inputs(
         cls, data: dict | object, info: ValidationInfo
     ) -> dict | object:
-        """Normalize inputs during deserialization.
+        """在反序列化期间标准化输入。
 
-        Applies schema migrations for both agent and conversation settings,
-        ensuring forward compatibility when loading settings files saved with
-        older schema versions.
+        对智能体和对话设置应用模式迁移，确保加载使用旧模式版本保存的设置文件时向前兼
+        容性。
 
-        Agent settings are normalized through ``validate_agent_settings``
-        so the same migration entry point is used for settings files and direct
-        SDK callers. The validation context is forwarded so cipher-based secret
-        decryption still works during the nested settings validation.
+        智能体设置通过 ``validate_agent_settings`` 标准化，因此相同的迁移入口用于设置
+        文件和直接 SDK 调用者。 验证上下文被转发，因
+        此基于密码的机密解密在嵌套设置验证期间仍然有效。
         """
         if not isinstance(data, dict):
             return data
@@ -460,7 +451,7 @@ class PersistedSettings(BaseModel):
                 persisted=True,
             )
 
-        # Apply migrations for conversation_settings
+        # 为 conversation_settings 应用迁移
         conv_settings = data.get("conversation_settings")
         if isinstance(conv_settings, dict):
             data["conversation_settings"] = ConversationSettings.from_persisted(
@@ -470,13 +461,13 @@ class PersistedSettings(BaseModel):
         return data
 
 
-# Validation pattern for secret names - exported for use by settings_router
-# Names: start with letter, alphanumeric + underscores, 1-64 chars
+# 机密名称的验证模式 - 导出供 settings_router 使用
+# 名称：以字母开头、字母数字+下划线、1-64 个字符
 SECRET_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
 
 class CustomSecret(BaseModel):
-    """A custom secret with name, value, and optional description."""
+    """包含名称、值和可选描述的自定义机密。"""
 
     name: str
     secret: SecretStr | None
@@ -485,17 +476,16 @@ class CustomSecret(BaseModel):
     @field_validator("name")
     @classmethod
     def _validate_name(cls, v: str) -> str:
-        """Validate secret name format for safety.
+        """为了安全起见，验证机密名称格式。
 
-        Secret names are used as environment variable names and may be logged,
-        so we enforce strict validation to prevent:
-        - Path traversal (../, null bytes)
-        - Log injection (control characters)
-        - Shell injection (special characters)
-        - Invalid env var names (starting with numbers, special chars)
+        机密名称用作环境变量名称并且可能会被记录，因此我们强制执行严格的验证来防止：
+        - 路径遍历（../，null字节）
+        - 日志注入（控制字符）
+        - Shell注入（特殊字符）
+        - 无效的环境变量名称（以数字、特殊字符开头）
 
-        Note: The router also validates names, but this provides defense-in-depth
-        for secrets created directly via the store (bypassing the HTTP layer).
+        Note: 路由器也验证名称，但这提供了一层纵深防御
+        对于直接通过商店创建的机密（绕过 HTTP 层）。
         """
         if not SECRET_NAME_PATTERN.match(v):
             raise ValueError(
@@ -517,11 +507,10 @@ class CustomSecret(BaseModel):
 
 
 class Secrets(BaseModel):
-    """Model for storing custom secrets.
+    """用于存储自定义机密的模型。
 
-    Unlike OpenHands app-server which also stores provider tokens,
-    the agent-server only stores custom secrets since it doesn't
-    integrate with OAuth providers directly.
+    不像 OpenHands 也存储提供商的 app-server token, the 智能体- 服务器仅存储自定义机
+    密因为它直接不与OAuth提供商集成。
     """
 
     custom_secrets: dict[str, CustomSecret] = Field(default_factory=dict)
@@ -530,13 +519,13 @@ class Secrets(BaseModel):
 
     @property
     def has_any_secret(self) -> bool:
-        """Check if these secrets contain any non-empty value."""
+        """检查这些机密是否包含任何非空值。"""
         return _contains_secret_value(self)
 
     def get_env_vars(self) -> dict[str, str]:
-        """Get secrets as environment variables dict.
+        """获取机密作为环境变量字典。
 
-        Safely extracts secret values, logging warnings for malformed secrets.
+        安全提取机密值，记录格式错误的警告机密。
         """
         result: dict[str, str] = {}
         for name, secret in self.custom_secrets.items():
@@ -545,7 +534,7 @@ class Secrets(BaseModel):
             try:
                 result[name] = secret.secret.get_secret_value()
             except Exception:
-                # Log without exposing secret contents
+                # 记录而不暴露机密内容
                 from openhands.sdk.logger import get_logger
 
                 get_logger(__name__).warning(
@@ -554,7 +543,7 @@ class Secrets(BaseModel):
         return result
 
     def get_descriptions(self) -> dict[str, str | None]:
-        """Get secret name to description mapping."""
+        """获取机密名称到描述的映射。"""
         return {
             name: secret.description for name, secret in self.custom_secrets.items()
         }
@@ -563,8 +552,9 @@ class Secrets(BaseModel):
     def custom_secrets_serializer(
         self, custom_secrets: dict[str, CustomSecret], info: SerializationInfo
     ) -> dict[str, dict[str, Any]]:
-        # Delegate to CustomSecret.model_dump which uses serialize_secret
-        # This ensures cipher context flows through for encryption
+        # 委托给使用 serialize_secret 的 CustomSecret.model_dump 这确保密码上下文流过进
+        # 行加密
+        #
         result = {}
         for name, secret in custom_secrets.items():
             result[name] = secret.model_dump(mode="json", context=info.context)
@@ -573,12 +563,12 @@ class Secrets(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_inputs(cls, data: dict | object) -> dict | object:
-        """Normalize dict inputs to the expected structure.
+        """将字典输入标准化为预期结构。
 
-        Note: We deliberately keep values as raw strings/dicts here so that
-        Pydantic's field validators can handle cipher-based decryption via
-        the validation context. Wrapping in SecretStr here would bypass the
-        validate_secret() call that handles decryption.
+        Note: 我们故意将值保留为原始字符串/字典，以便
+        Pydantic 的字段验证器可以通过验证上下文处理基于密码的解密。 此处包裹在
+        SecretStr 中将绕过处理解密的 validate_secret()
+         调用。
         """
         if not isinstance(data, dict):
             return data
@@ -590,12 +580,12 @@ class Secrets(BaseModel):
                 if isinstance(value, CustomSecret):
                     converted[name] = value
                 elif isinstance(value, dict):
-                    # Keep as dict - let Pydantic handle validation with context
-                    # Note: Use None instead of "" for missing secret to preserve
-                    # distinction between "empty secret" and "missing secret"
+                    # 保留为字典 - 让 Pydantic 用上下文处理验证
+                    # 注意：对于缺少的机密，请使用None而不是“”来保留
+                    # 区分“空机密”和“缺失机密”之间的区别
                     converted[name] = {
                         "name": name,
-                        "secret": value.get("secret"),  # None if missing
+                        "secret": value.get("secret"),  # None 如果缺失
                         "description": value.get("description"),
                     }
                 elif isinstance(value, str):
@@ -609,16 +599,16 @@ class Secrets(BaseModel):
         return data
 
 
-# ── Workspaces ───────────────────────────────────────────────────────────
+# ── 工作区 ───────────────────────────────────────────────────────────
 
 WORKSPACES_SCHEMA_VERSION = 1
 
 
 class WorkspaceItem(BaseModel):
-    # ``id`` is opaque server-side (dedupe is by ``path``), but the GUI sets
-    # ``id == path`` for both workspaces and parents. Capping ``id`` below
-    # ``path`` would 422 long but otherwise-valid filesystem paths, so the
-    # two caps must stay aligned.
+    # ``id`` 是不透明的服务器端（重复数据删除由 ``path`` 进行），但 GUI 设置
+    # ``id == path`` 对于工作区和父母。 下面的上限 ``id``
+    # ``path`` 将是 422 个长但有效的文件系统路径，因此两个上限必须保持对齐。
+    #
     id: str = Field(..., min_length=1, max_length=4096)
     name: str = Field(..., min_length=1, max_length=256)
     path: str = Field(..., min_length=1, max_length=4096)
@@ -627,7 +617,7 @@ class WorkspaceItem(BaseModel):
 
 
 class WorkspaceParentItem(BaseModel):
-    # See ``WorkspaceItem.id`` — keep ``id`` and ``path`` caps aligned.
+    # 请参阅 ``WorkspaceItem.id`` — 保持 ``id`` 和 ``path`` 盖子对齐。
     id: str = Field(..., min_length=1, max_length=4096)
     name: str = Field(..., min_length=1, max_length=256)
     path: str = Field(..., min_length=1, max_length=4096)
@@ -658,18 +648,18 @@ class PersistedWorkspaces(BaseModel):
         return cls.model_validate(payload)
 
 
-# ── Helper Functions ─────────────────────────────────────────────────────
+# ── 辅助函数──────────────────────────────────────────────────────
 #
-# Note: API request/response models have been moved to the SDK to enable
-# sharing between SDK clients and the agent-server. See:
-#   openhands.sdk.settings.api_models (SecretCreateRequest, SecretItemResponse, etc.)
+# 注意：API 请求/响应模型已移至 SDK 以启用
+# 在 SDK 客户端和智能体服务器之间共享。 参见：
+#   openhands.sdk.settings.api_models（SecretCreateRequest、SecretItemResponse等）
 
 
 def _coerce_dict_secrets(d: dict[str, Any]) -> dict[str, Any]:
-    """Recursively coerce SecretStr leaves to plain values.
+    """递归地将 SecretStr 叶子强制转换为普通值。
 
-    Note: SecretStr extraction is wrapped in error handling to prevent secret
-    values from leaking in exception tracebacks.
+    Note: SecretStr 提取包含在错误处理中以防止机密
+    异常回溯中泄漏的值。
     """
     from openhands.sdk.logger import get_logger
 

@@ -1,8 +1,8 @@
 /**
- * Remote workspace implementation for executing commands and file operations
+ * 用于执行命令和文件操作的远程工作区实现
  *
- * This implements the IWorkspace interface by connecting to a remote OpenHands
- * agent server. It mirrors the Python SDK's RemoteWorkspace class.
+ * 这通过连接到远程 OpenHands 来实现 IWorkspace 接口
+ * Agent Server. 它反映了 Python SDK 的 RemoteWorkspace 类。
  */
 
 import { BashClient } from '../client/bash-client';
@@ -19,23 +19,23 @@ import { ConversationID } from '../types/base';
 import { IWorkspace, BaseWorkspaceOptions, GitQueryOptions } from './base';
 
 /**
- * Options for creating a RemoteWorkspace instance.
+ * 用于创建 RemoteWorkspace 实例的选项。
  */
 export interface RemoteWorkspaceOptions extends BaseWorkspaceOptions {
-  /** The remote host URL for the workspace (e.g., 'http://localhost:8000') */
+  /** 远程主机URL为工作区(e.g.,' http://localhost:8000' )*/
   host: string;
-  /** Owning conversation. Omit for standalone use before a conversation exists. */
+  /** 拥有对话。 在对话存在之前省略以独立使用。*/
   conversationId?: string;
-  /** API key for authenticating with the remote host (optional) */
+  /** API 用于与远程主机进行身份验证的密钥（可选）*/
   apiKey?: string;
 }
 
 /**
- * Remote workspace implementation that connects to an OpenHands agent server.
+ * 连接到 OpenHands Agent Server 的远程工作区实现。
  *
- * RemoteWorkspace provides access to a sandboxed environment running on a remote
- * OpenHands agent server. This is the recommended approach for production deployments
- * as it provides better isolation and security.
+ * RemoteWorkspace 提供对远程运行的沙盒环境的访问
+ * OpenHands Agent Server. 这是生产部署的推荐方法
+ * 因为它提供了更好的隔离和安全性。
  */
 export class RemoteWorkspace implements IWorkspace {
   public readonly host: string;
@@ -64,32 +64,32 @@ export class RemoteWorkspace implements IWorkspace {
   }
 
   /**
-   * Start a workspace static-asset session for a conversation and return the
-   * base URL its workspace files are served from.
+   * 启动工作区静态资产会话进行对话并返回
+   * 其工作区文件由 base URL 提供。
    *
-   * Calls `POST /api/auth/workspace-session` to exchange the workspace's
-   * configured `X-Session-API-Key` for an HttpOnly cookie
-   * (`oh_workspace_session_key`) scoped to `/api/conversations`. With the
-   * cookie set, browsers can embed workspace artifacts directly as
-   * `<iframe src>`, `<img src>` or top-level navigations without having to
-   * attach the custom `X-Session-API-Key` header — which they cannot do on
-   * those request types.
+   * 调用 `POST /api/auth/workspace-session` 来交换工作区的
+   * 为 HttpOnly cookie 配置 `X-Session-API-Key`
+   * (`oh_workspace_session_key`) 范围为 `/api/conversations`。 随着
+   * cookie 设置，浏览器可以直接嵌入工作区工件
+   * `<iframe src>`、`<img src>` 或顶级导航，无需
+   * 附加自定义 `X-Session-API-Key` 标头 - 他们无法执行此操作
+   * 这些请求类型。
    *
-   * The fetch is made with `credentials: 'include'` so the browser persists
-   * the `Set-Cookie` response even when the agent server lives on a different
-   * origin from the embedding page (e.g. canvas + `agent-{id}.example.com`).
+   * 获取是用 `credentials: 'include'` 进行的，因此浏览器会持续存在
+   * 即使 Agent Server 生活在不同的环境中，`Set-Cookie` 也会做出响应
+   * 源自嵌入页面 (e.g. 画布+`agent-{id}.example.com`）。
    *
-   * This is intentionally a workspace-level method rather than a
-   * conversation-level one: the static asset server lives on the agent host
-   * and consumers (e.g. agent-canvas) often want to embed workspace files
-   * before they have a full `RemoteConversation` constructed — they just need
-   * a conversation ID.
+   * 这是故意的工作区级方法而不是
+   * 会话级别一：静态资产服务器位于智能体主机上
+   * 和消费者（e.g. 智能体-canvas）经常想要嵌入工作区文件
+   * 在他们构建完整的 `RemoteConversation` 之前 - 他们只需要
+   * 对话 ID。
    *
-   * @param conversationId The conversation whose workspace files should be
-   *                       served from the returned URL.
-   * @returns The base URL for the workspace static file server, including a
-   *          trailing slash (e.g. `https://host/api/conversations/{id}/workspace/`),
-   *          suitable for joining a relative path onto.
+   * @param conversationId 其工作区文件应该是的对话
+   *                       从返回的 URL 送达。
+   * @returns 工作区静态文件服务器的基 URL，包括
+   *          尾部斜杠 (e.g. `https://host/api/conversations/{id}/workspace/`),
+   *          适合加入相对路径。
    */
   async startWorkspaceSession(conversationId: ConversationID): Promise<string> {
     if (this.conversationId !== undefined && this.conversationId !== conversationId) {
@@ -134,8 +134,8 @@ export class RemoteWorkspace implements IWorkspace {
 
     return {
       command,
-      // A missing exit code means the command did not report one; never treat
-      // it as success.
+      // 缺少退出代码意味着该命令未报告退出代码； 永远不要把它当作成功。
+      //
       exit_code: bashOutput.exit_code ?? -1,
       stdout: bashOutput.stdout || '',
       stderr: bashOutput.stderr || '',
@@ -254,7 +254,7 @@ export class RemoteWorkspace implements IWorkspace {
   }
 
   /**
-   * Convenience method to upload text content as a file
+   * 将文本内容作为文件上传的便捷方法
    */
   async uploadText(
     text: string,
@@ -265,14 +265,14 @@ export class RemoteWorkspace implements IWorkspace {
   }
 
   /**
-   * Convenience method to upload a File object (from file input)
+   * 上传 File 对象的便捷方法（从文件输入）
    */
   async uploadFileObject(file: File, destinationPath: string): Promise<FileOperationResult> {
     return this.fileUpload(file, destinationPath);
   }
 
   /**
-   * Convenience method to download file content as text
+   * 将文件内容下载为文本的便捷方法
    */
   async downloadAsText(sourcePath: string): Promise<string> {
     const result = await this.fileDownload(sourcePath);
@@ -290,7 +290,7 @@ export class RemoteWorkspace implements IWorkspace {
   }
 
   /**
-   * Convenience method to download file content as a Blob
+   * 将文件内容下载为 Blob 的便捷方法
    */
   async downloadAsBlob(sourcePath: string): Promise<Blob> {
     const result = await this.fileDownload(sourcePath);
@@ -308,8 +308,8 @@ export class RemoteWorkspace implements IWorkspace {
   }
 
   /**
-   * Convenience method to trigger a browser download of a file
-   * @throws Error in non-browser environments; use downloadAsBlob() or downloadAsText() instead.
+   * 触发浏览器下载文件的便捷方法
+   * @throws 非浏览器环境中的错误； 使用 downloadAsBlob() 或 downloadAsText() 代替。
    */
   async downloadAndSave(sourcePath: string, saveAsFileName?: string): Promise<void> {
     if (typeof document === 'undefined') {

@@ -1,4 +1,4 @@
-"""Strict plugin source resolution for pre-flight checks and sandbox fetches."""
+"""用于飞行前检查和沙箱获取的严格插件源解析。"""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ _ERROR_STATUSES = {
 
 
 class PluginSourceError(PluginFetchError):
-    """Raised when strict plugin source resolution fails."""
+    """当严格的插件源解析失败时引发。"""
 
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -63,7 +63,7 @@ class PluginSourceError(PluginFetchError):
 
 
 class CheckedPlugin(BaseModel):
-    """A strictly resolved plugin checkout and its public metadata."""
+    """严格解析的插件签出及其公共元数据。"""
 
     path: Path = Field(description="Path to the resolved plugin directory")
     resolved_ref: str | None = Field(description="Resolved git commit SHA")
@@ -75,7 +75,7 @@ class CheckedPlugin(BaseModel):
 
 
 def plugin_source_error_status(code: str) -> int:
-    """Return the HTTP status code used for a strict plugin source error."""
+    """返回用于严格插件源错误的 HTTP 状态代码。"""
     return _ERROR_STATUSES.get(code, 422)
 
 
@@ -89,10 +89,9 @@ def preflight_plugin(
     timeout: int = 60,
     allow_local: bool = False,
 ) -> Iterator[CheckedPlugin]:
-    """Strictly check a plugin source in a throwaway checkout.
+    """在一次性结帐中严格检查插件源。
 
-    The temporary checkout is deleted when the context exits, including when the
-    caller raises while inspecting files referenced by the manifest.
+    当上下文退出时，包括当调用者在检查清单引用的文件时引发时，临时签出将被删除。
     """
     with tempfile.TemporaryDirectory(prefix="openhands-plugin-preflight-") as tmp:
         yield fetch_plugin_strict(
@@ -120,7 +119,7 @@ def fetch_plugin_strict(
     allow_local: bool = False,
     use_cache: bool = True,
 ) -> CheckedPlugin:
-    """Strictly fetch and describe a plugin without installing it."""
+    """严格获取并描述插件而不安装它。"""
     resolved_cache_dir = (
         DEFAULT_CACHE_DIR if use_cache and cache_dir is None else cache_dir
     )

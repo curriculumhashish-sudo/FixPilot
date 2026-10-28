@@ -62,7 +62,7 @@ class InvokeSkillExecutor(ToolExecutor):
     def _get_skills_and_working_dir(
         conversation: BaseConversation | None,
     ) -> tuple[list, Path | None]:
-        """Extract the skill catalog and working dir from the conversation state."""
+        """从对话状态中提取技能目录和工作目录。"""
         if conversation is None:
             return [], None
 
@@ -74,7 +74,7 @@ class InvokeSkillExecutor(ToolExecutor):
 
     @staticmethod
     def _record_invocation(conversation: BaseConversation | None, name: str) -> None:
-        """Append `name` to the conversation's invoked-skills list (deduped)."""
+        """将 `name` 附加到对话的调用技能列表（已删除重复数据）。"""
         if conversation is None:
             return
         invoked = conversation.state.invoked_skills
@@ -126,15 +126,14 @@ class InvokeSkillExecutor(ToolExecutor):
     def _append_skill_location_footer(
         rendered: str, source: str | None, working_dir: Path | None
     ) -> str:
-        """Append a trailing note pointing the LLM at the skill's on-disk directory.
+        """添加一个尾注，将 LLM 指向技能的磁盘目录。
 
-        The AgentSkills spec allows skills to bundle `scripts/`, `references/`, and
-        `assets/` alongside `SKILL.md`. Skill authors reference those by relative
-        path, so the model needs to know where the skill lives to reach them.
+        AgentSkills 规范允许技能捆绑 `scripts/`、`references/` 和
+        `assets/` 与 `SKILL.md` 并排。 技能作者通过相对路径引用这些技能，因此模型需要
+        知道技能所在的位置才能到达它们。
 
-        When the skill lives under the conversation's `working_dir`, the path is
-        rendered relative to it to avoid leaking absolute home-directory paths
-        into the LLM context.
+        当技能位于对话的 `working_dir` 时，路径将相对于它来避免将绝对的家目录路径泄露
+        到 LLM 上下文。
         """
         if not source:
             return rendered
@@ -150,7 +149,7 @@ class InvokeSkillExecutor(ToolExecutor):
             try:
                 display = skill_dir.relative_to(working_dir.resolve())
             except (ValueError, OSError):
-                pass  # skill lives outside working_dir, keep absolute
+                pass  # 技能存在于 working_dir 之外，保持绝对
         footer = (
             f"\n\n---\n"
             f"This skill is located at `{to_posix_path(display)}`. "
@@ -161,15 +160,14 @@ class InvokeSkillExecutor(ToolExecutor):
 
 
 class InvokeSkillTool(ToolDefinition[InvokeSkillAction, InvokeSkillObservation]):
-    """Built-in tool for explicit invocation of progressive-disclosure skills."""
+    """用于显式调用渐进式披露技能的内置工具。"""
 
     user_selectable: ClassVar[bool] = False
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        # Rendering a skill may execute inline `!`cmd`` tokens, which can
-        # touch arbitrary on-disk state. Keying on the skill name serializes
-        # concurrent invocations of the same skill while still allowing
-        # distinct skills to render in parallel.
+        # 渲染技能可以执行内联`!`cmd``token，它可以触及任意磁盘状态。 键入技能名称可序列
+        # 化并发同一技能的调用，同时仍允许并行渲染不同的技能。
+        #
         name = action.name if isinstance(action, InvokeSkillAction) else ""
         return DeclaredResources(keys=(f"skill:{name.strip()}",), declared=True)
 

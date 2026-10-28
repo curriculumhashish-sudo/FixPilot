@@ -17,10 +17,10 @@ export interface ProfilesClientOptions {
 
 export interface GetProfileOptions {
   /**
-   * Controls server-side secret exposure via the ``X-Expose-Secrets`` header:
-   * - ``encrypted``: cipher-encrypted values (safe for frontend round-trip)
-   * - ``plaintext``: raw secret values (backend clients only)
-   * - omitted: ``api_key`` is nulled, with ``api_key_set`` indicator
+   * 通过 ``X-Expose-Secrets`` 标头控制服务器端机密暴露：
+   * - ``encrypted``：密码加密值（前端往返安全）
+   * - ``plaintext``：原始机密值（仅限后端客户端）
+   * - 省略：``api_key`` 为空，带有 ``api_key_set`` 指示符
    */
   exposeSecrets?: ExposeSecretsMode;
 }
@@ -89,16 +89,16 @@ export class ProfilesClient {
   }
 
   /**
-   * Pre-flight check: fire a minimal LLM completion (``ping``,
-   * ``max_tokens=1``) with the submitted config to catch misconfigurations
-   * (invalid model names, missing provider prefixes, bad base URLs, invalid
-   * API keys) before a profile is saved.
+   * 飞行前检查：触发最小 LLM 完成（``ping``，
+   * ``max_tokens=1``) 使用提交的配置来捕获错误配置
+   * 无效的模型名称，缺少提供者前缀，错误的基类 URLs无效
+   * API 键）在保存配置文件之前。
    *
-   * A structured ``{ valid: false, error: { type, message } }`` response is
-   * returned on blocking errors. Transient errors (rate limits, timeouts) are
-   * non-blocking (``valid: true``). Older agent-server versions that do not
-   * implement the endpoint respond 404, which surfaces as an ``HttpError`` so
-   * callers can treat it as "no verdict" and proceed.
+   * 结构化的 ``{ valid: false, error: { type, message } }`` 响应是
+   * 阻塞错误时返回。 瞬态错误（速率限制，超时）是
+   * 非阻塞（``valid: true``）。 较旧的智能体-服务器版本不支持
+   * 实现端点响应 404，其表面为 ``HttpError``，因此
+   * 调用者可以将其视为“无判决”并继续。
    */
   async validateProfile(
     name: string,

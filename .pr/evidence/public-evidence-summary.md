@@ -1,16 +1,15 @@
-# Public feature evidence export
+<a id="public-feature-evidence-export"></a>
 
-Generated from aggregation snapshot 2026-10-23T06:44:47+00:00 (5bd67842feefeb4570bc85bb75872fa600f78a728feba7f5bde1f79da1671ef0).
+# 公共特征证据导出
 
-Current/frozen IDs: 948/935; initial family outputs: 34/34.
-Admitted ledger attempts: 1480 from 109 TARGET/BASE runs; output-only statuses: 0.
-The canonical CLI report has 1471 rows after its latest-per-run-and-feature reduction. The compact public JSON preserves all 1480 raw ledger rows and their branches.
+从聚合快照 2026-10-23T06:44:47+00:00 (5bd67842feefeb4570bc85bb75872fa600f78a728feba7f5bde1f79da1671ef0) 生成。
 
-Aggregation and CLI live-ledger inputs agree: **True**. A false value means tail activity changed the ledger; regenerate after workers finish.
+当前/冻结 ID：948/935； 初始家庭产出：34/34。 承认的账本尝试：109 TARGET/BASE 次运行中的 1480 次； 仅输出状态：0。 规范 CLI 报告在最新的每次运行和功能减少后有 1471 行。 紧凑公共 JSON 保留所有 1480 个原始账本行及其分支。
 
-Public candidates: `feature-results.json`, `feature-results.md`, and `feature-results-scan.json`.
-The canonical raw CLI table, summary, exact invocation and ledger fingerprints remain outside this public directory in the sibling local-cli-evidence directory. They include free-text ledger fields and use a different row reduction.
+聚合和 CLI 实时账本输入一致：**True**。 A False 值表示尾部活动改变了账本； 工人完成后再生。
 
-Rerun the scratch export-public-evidence.py script with --require-stable after tail runs finish. This refreshes aggregation, invokes `control-agent-server evidence report --runs ... --out ...`, and reruns the metadata/secret scan. It does not contact servers or APIs.
+公共候选人：`feature-results.json`、`feature-results.md` 和 `feature-results-scan.json`。 canonical raw CLI table、summary、exact invocation 和 ledger fingerprints 仍不在本公共目录中，而是位于兄弟本地-CLI-evidence 目录中。 它们包括自由文本分类账字段并使用不同的行缩减。
 
-No source artifact is copied. No response body, transcript, workspace file or private state is included in these feature tables. Known secret values were compared without printing.
+tail 运行完成后，使用 --require-stable 重新运行 scrap export-public-evidence.py 脚本。 这会刷新聚合，调用 `control-agent-server evidence report --runs ... --out ...`，并重新运行元数据/秘密扫描。 它不联系服务器或APIs。
+
+不复制任何源工件。 这些特征表中不包含响应正文、转录本、工作区文件或私有状态。 无需打印即可比较已知机密值。

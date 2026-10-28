@@ -1,4 +1,4 @@
-"""Tests for skill serialization using trigger composition."""
+"""使用触发组合测试技能序列化。"""
 
 import json
 
@@ -15,8 +15,8 @@ from openhands.sdk.utils.models import OpenHandsModel
 
 
 def test_repo_skill_serialization():
-    """Test Skill with trigger=None (always-active) serialization."""
-    # Create a Skill with trigger=None (always-active)
+    """使用触发器=None（始终有效）序列化测试技能。"""
+    # 创建触发器=None的技能（始终有效）
     repo_skill = Skill(
         name="test-repo",
         content="Repository-specific instructions",
@@ -24,7 +24,7 @@ def test_repo_skill_serialization():
         trigger=None,
     )
 
-    # Test serialization
+    # 测试序列化
     serialized = repo_skill.model_dump()
     assert serialized["trigger"] is None
     assert serialized["name"] == "test-repo"
@@ -32,21 +32,21 @@ def test_repo_skill_serialization():
     assert serialized["source"] == "test-repo.md"
     assert serialized["mcp_tools"] is None
 
-    # Test JSON serialization
+    # 测试 JSON 序列化
     json_str = repo_skill.model_dump_json()
     assert isinstance(json_str, str)
     parsed = json.loads(json_str)
     assert parsed["trigger"] is None
 
-    # Test deserialization
+    # 测试反序列化
     deserialized = Skill.model_validate(serialized)
     assert deserialized.trigger is None
     assert deserialized == repo_skill
 
 
 def test_knowledge_skill_serialization():
-    """Test Skill with KeywordTrigger serialization and deserialization."""
-    # Create a Skill with KeywordTrigger
+    """使用 KeywordTrigger 序列化和反序列化测试技能。"""
+    # 使用 KeywordTrigger 创建技能
     knowledge_skill = Skill(
         name="test-knowledge",
         content="Knowledge-based instructions",
@@ -54,27 +54,27 @@ def test_knowledge_skill_serialization():
         trigger=KeywordTrigger(keywords=["python", "testing"]),
     )
 
-    # Test serialization
+    # 测试序列化
     serialized = knowledge_skill.model_dump()
     assert serialized["trigger"]["type"] == "keyword"
     assert serialized["name"] == "test-knowledge"
     assert serialized["content"] == "Knowledge-based instructions"
     assert serialized["trigger"]["keywords"] == ["python", "testing"]
 
-    # Test JSON serialization
+    # 测试 JSON 序列化
     json_str = knowledge_skill.model_dump_json()
     assert isinstance(json_str, str)
     parsed = json.loads(json_str)
     assert parsed["trigger"]["type"] == "keyword"
 
-    # Test deserialization
+    # 测试反序列化
     deserialized = Skill.model_validate(serialized)
     assert deserialized == knowledge_skill
 
 
 def test_task_skill_serialization():
-    """Test Skill with TaskTrigger serialization and deserialization."""
-    # Create a Skill with TaskTrigger
+    """使用 TaskTrigger 序列化和反序列化测试技能。"""
+    # 使用 TaskTrigger 创建技能
     task_skill = Skill(
         name="test-task",
         content="Task-based instructions with ${variable}",
@@ -85,7 +85,7 @@ def test_task_skill_serialization():
         ],
     )
 
-    # Test serialization
+    # 测试序列化
     serialized = task_skill.model_dump()
     assert serialized["trigger"]["type"] == "task"
     assert serialized["name"] == "test-task"
@@ -94,20 +94,20 @@ def test_task_skill_serialization():
     assert len(serialized["inputs"]) == 1
     assert serialized["inputs"][0]["name"] == "variable"
 
-    # Test JSON serialization
+    # 测试 JSON 序列化
     json_str = task_skill.model_dump_json()
     assert isinstance(json_str, str)
     parsed = json.loads(json_str)
     assert parsed["trigger"]["type"] == "task"
 
-    # Test deserialization
+    # 测试反序列化
     deserialized = Skill.model_validate(serialized)
     assert deserialized == task_skill
 
 
 def test_skill_union_serialization_roundtrip():
-    """Test complete serialization roundtrip for all trigger types."""
-    # Test data for each trigger type
+    """测试所有触发器类型的完整序列化往返。"""
+    # 每种触发类型的测试数据
     test_cases = [
         Skill(
             name="repo-test",
@@ -131,26 +131,26 @@ def test_skill_union_serialization_roundtrip():
     ]
 
     for original_skill in test_cases:
-        # Serialize to dict
+        # 序列化听写
         serialized = original_skill.model_dump()
 
-        # Serialize to JSON string
+        # 序列化到 JSON 字符串
         json_str = original_skill.model_dump_json()
 
-        # Deserialize from dict
+        # 反序列化来自字典
         deserialized_from_dict = Skill.model_validate(serialized)
 
-        # Deserialize from JSON string
+        # 反序列化来自 JSON 字符串
         deserialized_from_json = Skill.model_validate_json(json_str)
 
-        # Verify all versions are equivalent
+        # 验证所有版本是否等效
         assert deserialized_from_dict == original_skill
         assert deserialized_from_json == original_skill
 
 
 def test_skill_union_polymorphic_list():
-    """Test that a list of Skills can contain different trigger types."""
-    # Create a list with different trigger types
+    """测试技能列表是否可以包含不同的触发器类型。"""
+    # 创建具有不同触发器类型的列表
     skills = [
         Skill(
             name="repo1",
@@ -172,24 +172,24 @@ def test_skill_union_polymorphic_list():
         ),
     ]
 
-    # Serialize the list
+    # 序列化列表
     serialized_list = [skill.model_dump() for skill in skills]
 
-    # Verify each item has correct trigger type
-    assert serialized_list[0]["trigger"] is None  # Always-active skill
+    # 验证每个项目都有正确的触发器类型
+    assert serialized_list[0]["trigger"] is None  # 永远活跃的技能
     assert serialized_list[1]["trigger"]["type"] == "keyword"
     assert serialized_list[2]["trigger"]["type"] == "task"
 
-    # Test JSON serialization of the list
+    # 测试列表的JSON序列化
     json_str = json.dumps(serialized_list)
     parsed_list = json.loads(json_str)
 
     assert len(parsed_list) == 3
-    assert parsed_list[0]["trigger"] is None  # Always-active skill
+    assert parsed_list[0]["trigger"] is None  # 永远活跃的技能
     assert parsed_list[1]["trigger"]["type"] == "keyword"
     assert parsed_list[2]["trigger"]["type"] == "task"
 
-    # reconstruct the list from serialized data
+    # 从已序列化数据重建列表
     deserialized_list = [Skill.model_validate(item) for item in serialized_list]
 
     assert len(deserialized_list) == 3
@@ -202,12 +202,12 @@ def test_skill_union_polymorphic_list():
 
 
 def test_discriminated_union_with_openhands_model():
-    """Test trigger discrimination functionality with OpenHandsModel."""
+    """使用 OpenHandsModel 测试触发辨别功能。"""
 
     class TestModel(OpenHandsModel):
         skills: list[Skill] = Field(default_factory=list)
 
-    # Create test data with different trigger types
+    # 使用不同的触发器类型创建测试数据
     test_data = {
         "skills": [
             {
@@ -215,7 +215,7 @@ def test_discriminated_union_with_openhands_model():
                 "name": "test-repo",
                 "content": "Repo content",
                 "source": "repo.md",
-                "trigger": None,  # Always-active skill
+                "trigger": None,  # 永远活跃的技能
                 "mcp_tools": None,
             },
             {
@@ -236,35 +236,35 @@ def test_discriminated_union_with_openhands_model():
         ]
     }
 
-    # Validate the model - this tests the trigger discrimination
+    # 验证模型 - 这测试触发辨别力
     model = TestModel.model_validate(test_data)
 
-    # Verify each skill was correctly discriminated
+    # 验证每个技能是否被正确区分
     assert len(model.skills) == 3
     assert model.skills[0].trigger is None
     assert isinstance(model.skills[1].trigger, KeywordTrigger)
     assert isinstance(model.skills[2].trigger, TaskTrigger)
 
-    # Verify trigger types are correct
-    # First skill is always-active (trigger is None)
+    # 验证触发器类型是否正确第一个技能始终有效（触发器为 None）
+    #
     assert model.skills[1].trigger.type == "keyword"
     assert model.skills[2].trigger.type == "task"
 
 
 def test_discriminated_union_with_pydantic_model():
-    """Test trigger discrimination functionality with Pydantic BaseModel."""
+    """使用 Pydantic BaseModel 测试触发辨别功能。"""
 
     class TestModel(BaseModel):
         skills: list[Skill] = Field(default_factory=list)
 
-    # Create test data with different trigger types
+    # 使用不同的触发器类型创建测试数据
     test_data = {
         "skills": [
             {
                 "name": "test-repo",
                 "content": "Repo content",
                 "source": "repo.md",
-                "trigger": None,  # Always-active skill
+                "trigger": None,  # 永远活跃的技能
                 "mcp_tools": None,
             },
             {
@@ -283,22 +283,22 @@ def test_discriminated_union_with_pydantic_model():
         ]
     }
 
-    # Validate the model - this tests the trigger discrimination
+    # 验证模型 - 这测试触发辨别力
     model = TestModel.model_validate(test_data)
 
-    # Verify each skill was correctly discriminated
+    # 验证每个技能是否被正确区分
     assert len(model.skills) == 3
     assert model.skills[0].trigger is None
     assert isinstance(model.skills[1].trigger, KeywordTrigger)
     assert isinstance(model.skills[2].trigger, TaskTrigger)
 
-    # Verify trigger types are correct
-    # First skill is always-active (trigger is None)
+    # 验证触发器类型是否正确第一个技能始终有效（触发器为 None）
+    #
     assert model.skills[1].trigger.type == "keyword"
     assert model.skills[2].trigger.type == "task"
 
 
-# A clearly identifiable secret value for the mcp_tools masking tests.
+# mcp_tools 掩蔽测试的可清晰识别的机密值。
 _MCP_SECRET = "ghp_SUPER_SECRET_TOKEN_SHOULD_NOT_LEAK"
 
 
@@ -317,8 +317,8 @@ def _skill_with_mcp_secret() -> Skill:
 
 
 def test_mcp_tools_secrets_redacted_by_default():
-    """mcp_tools env/headers carry MCP credentials; they must be redacted at
-    rest, just like settings mcp_config -- not dumped in plaintext."""
+    """mcp_tools env/headers 携带 MCP 凭据; 他们必须已脱敏在
+    REST，就像设置 mcp_config 一样——不以明文形式转储。"""
     skill = _skill_with_mcp_secret()
 
     dumped = json.dumps(skill.model_dump(mode="json"))
@@ -329,7 +329,7 @@ def test_mcp_tools_secrets_redacted_by_default():
 
 
 def test_mcp_tools_secrets_exposed_under_expose_secrets():
-    """Opt-in exposure surfaces the real values (parity with mcp_config)."""
+    """选择加入暴露表面真实值（与 mcp_config 相同）。"""
     skill = _skill_with_mcp_secret()
 
     exposed = json.dumps(
@@ -339,8 +339,8 @@ def test_mcp_tools_secrets_exposed_under_expose_secrets():
 
 
 def test_mcp_tools_secrets_encrypted_under_cipher():
-    """With a cipher in context, secrets are encrypted (not plaintext, not
-    dropped) so they can be decrypted on restore."""
+    """使用上下文中的密码，机密被加密（不是明文，不是
+    删除），以便它们可以在恢复时解密。"""
     from openhands.sdk.utils.cipher import Cipher
 
     skill = _skill_with_mcp_secret()
@@ -352,7 +352,7 @@ def test_mcp_tools_secrets_encrypted_under_cipher():
         )
     )
     assert _MCP_SECRET not in encrypted
-    # The server/env/header keys survive and only secret values are transformed.
+    # server/env/header 键仍然存在，并且只有机密值被转换。
     assert '"svc"' in encrypted
     assert "Authorization" in encrypted
     assert "headers" in encrypted
@@ -360,8 +360,8 @@ def test_mcp_tools_secrets_encrypted_under_cipher():
 
 
 def test_mcp_tools_real_values_remain_accessible_in_memory():
-    """Masking is serialization-only: the live attribute keeps real values so
-    runtime MCP usage is unaffected."""
+    """屏蔽仅限序列化：live 属性保留真实值，因此
+    运行时MCP的使用不受影响。"""
     skill = _skill_with_mcp_secret()
 
     assert skill.mcp_tools is not None
@@ -371,7 +371,7 @@ def test_mcp_tools_real_values_remain_accessible_in_memory():
 
 
 def test_mcp_tools_none_round_trips_unchanged():
-    """A skill without mcp_tools still serializes mcp_tools as None."""
+    """没有 mcp_tools 的技能仍将 mcp_tools 序列化为 None。"""
     skill = Skill(name="clean", content="hello")
     dumped = skill.model_dump(mode="json")
     assert dumped["mcp_tools"] is None

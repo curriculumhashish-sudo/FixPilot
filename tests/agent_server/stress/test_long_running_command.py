@@ -1,24 +1,24 @@
-"""Stress test: long-running bash command must not block the event loop.
+"""压力测试：长时间运行的 bash 命令不得阻塞事件循环。
 
-Bug class this catches:
-    - Blocking I/O in the async path during a long bash command (sync subprocess
-      calls instead of asyncio.subprocess).
-    - Leaked PTYs / zombies after the command finishes or times out.
-    - The agent-server losing responsiveness on /health while bash runs.
+捕获的错误类：
+    - 在长 bash 命令期间阻塞异步路径中的 I/O（同步子进程调用而不是 asyncio.subprocess
+    ）。
+    - PTYs / 指令执行完毕或超时后泄露。
+    - 当 bash 运行时，智能体-服务器在 /health 上失去响应能力。
 
-API gap (documented):
-    The bash router exposes ``POST /api/bash/start_bash_command`` (background)
-    and ``DELETE /api/bash/bash_events`` (clear all), but **no per-command
-    kill/cancel endpoint**. The proposal's "cancel returns < 1s" assertion
-    cannot be tested through the public API today. The closest substitute is
-    the ``timeout`` field on ExecuteBashRequest, which forces the service to
-    SIGKILL the process after a deadline (bash_service.py:274). We exercise
-    that code path here. A real cancel endpoint would warrant a separate test.
+API 差距（已记录）：
+    bash 路由器公开 ``POST /api/bash/start_bash_command``（背景）和
+    ``DELETE /api/bash/bash_events``（清除所有），但 ** 没有每个命令的终止/取消端点**
+    。 该提案的“取消返回< 1s”断言目前无法
+    通过公众测试API。 最接近的替代是 ExecuteBashRequest 上的 ``timeout`` 字段，它强制
+    服务在截止日期后执行 SIGKILL 流程 (
+    bash_service.py:274)。 我们在这里练习该代码路径。 真正的取消端点需要进行单独的测
+    试。
 
-CI mode:
-    ``--stress-quick`` (default): 5s. ``--stress-full`` would bump to 1800s
-    per the proposal. We don't gate on the long path here; that's a
-    separate workflow.
+CI模式：
+    ``--stress-quick``（默认）：5 秒。 ``--stress-full`` 根据提案，将增加到 1800 秒。
+     我们不在这里的漫长道路上设门； 这是
+    一个单独的工作流程。
 """
 
 import asyncio
@@ -41,13 +41,13 @@ async def test_long_running_bash_does_not_block_event_loop(
     client,
     bash_service: BashEventService,
 ):
-    """While bash runs, /health must stay responsive and the process tree
-    must clean up after the command ends or times out."""
+    """当 bash 运行时，/health 必须保持响应并且进程树
+    必须在命令结束或超时后清理。"""
     duration = LONG_RUNNING_COMMAND.duration_s
 
-    # Start a command that stays alive for ``duration`` seconds and emits a
-    # final marker. We give the service a slightly larger timeout so the
-    # natural-exit path runs (we test the timeout path separately below).
+    # 启动一个命令，该命令保持活动状态 ``duration`` 秒并发出最终标记。 我们为服务提供稍
+    # 大的超时，以便自然退出路径运行（我们在下面单独测试超时路径）。
+    #
     pre_children = set(p.pid for p in descendants_of(os.getpid()))
     resp = await client.post(
         "/api/bash/start_bash_command",
@@ -59,29 +59,27 @@ async def test_long_running_bash_does_not_block_event_loop(
     assert resp.status_code == 200, resp.text
     cmd_id = UUID(resp.json()["id"])
 
-    # Sample /health continuously while the bash command is running. A
-    # pre-loop burst of N requests would finish in ~100 ms (in-process ASGI),
-    # so blocking that happens later in the 5 s window would go unobserved.
-    # Interleaving with the completion-poll spreads samples across the full
-    # bash lifetime.
+    # bash 命令运行时连续采样 /health。 N 个请求的预循环突发将在约 100 毫秒内完成（进程
+    # 内 ASGI），因此稍后在 5 秒窗口中发生的阻塞将不会被观察到。 与完成轮询交错可将样本
+    # 分布在整个 bash 生命周期中。
+    #
     health_lats: list[float] = []
     deadline = time.monotonic() + duration + 10
     while time.monotonic() < deadline:
         for _ in range(5):
             t0 = time.monotonic()
-            # Bound each request by the remaining wall-time so a hung
-            # /health can't bypass `deadline` (with a 0.1 s floor to
-            # avoid passing zero/negative on the boundary).
+            # 将每个请求限制在剩余的墙上时间，以便挂起的 /health 无法绕过 `deadline`（使
+            # 用 0.1 秒的下限以避免在边界上传递零/负值）。
+            #
             remaining = max(0.1, deadline - time.monotonic())
             h_resp = await client.get("/health", timeout=remaining)
             health_lats.append(time.monotonic() - t0)
             assert h_resp.status_code == 200
 
-        # `limit=1, sort_order=TIMESTAMP_DESC` fetches just the latest
-        # event. The default page caps at 100; if a regression ever made
-        # bash emit per-line/per-byte (which is what test_high_volume_…
-        # asserts against), a first-page fetch could miss the final event
-        # and silently time out here.
+        # `limit=1, sort_order=TIMESTAMP_DESC` 仅获取最新事件。 默认页数上限为100； 如果
+        # 回归时，bash 会发出每行/每字的输出（这是 test_high_volume_… 所测试的），那么第
+        # 一次页面的加载可能会错过最后一个事件，从而无声地超时。
+        #
         events = await client.get(
             "/api/bash/bash_events/search",
             params={
@@ -91,7 +89,7 @@ async def test_long_running_bash_does_not_block_event_loop(
             },
         )
         items = events.json()["items"]
-        # Final BashOutput carries exit_code != null.
+        # 最后的 BashOutput 带有 exit_code != null。
         final = next(
             (
                 e
@@ -107,10 +105,10 @@ async def test_long_running_bash_does_not_block_event_loop(
     else:
         pytest.fail(f"command {cmd_id} did not finish within {duration + 10}s")
 
-    # 1. /health stayed responsive throughout. p95 budget catches event-loop
-    #    starvation; failures here typically indicate sync subprocess.* in
-    #    the async path. Require ≥ 10 samples so the n=20 quantile is a
-    #    real p95 instead of collapsing toward max(...).
+    # 1. /health 始终保持响应。 p95 预算捕获事件循环饥饿； 这里的失败通常表示同步子进程.
+    # *在异步路径中。 需要 ≥ 10 个样本，因此 n=20 分位数是真正的 p95，而不是向 max(...)
+    # 折叠。
+    #
     assert len(health_lats) >= 10, (
         f"only {len(health_lats)} /health samples collected during the "
         f"bash run; not enough for a representative p95."
@@ -122,9 +120,9 @@ async def test_long_running_bash_does_not_block_event_loop(
         f"is probably being blocked by the bash command's I/O."
     )
 
-    # 2. No descendant processes leaked. The bash subprocess and any of its
-    #    children must be reaped within cleanup_timeout_s of the command's
-    #    completion.
+    # 2. 没有后代进程泄漏。 bash 子进程及其任何子级必须在命令完成后 cleanup_timeout_s 内
+    # 收获。
+    #
     cleanup_deadline = time.monotonic() + LONG_RUNNING_COMMAND.cleanup_timeout_s
     leaked: set[int] = set()
     while time.monotonic() < cleanup_deadline:
@@ -145,11 +143,10 @@ async def test_bash_timeout_kills_process_cleanly(
     client,
     bash_service: BashEventService,
 ):
-    """A command that exceeds its ``timeout`` is SIGKILLed, exit_code reported,
-    no zombie left in the descendant tree.
+    """超出其范围的命令 ``timeout`` 是 SIGKILLed, exit_code reported,
+    后代树中没有留下任何僵尸。
 
-    This is the closest available substitute for an explicit cancel; see the
-    module docstring for the API gap.
+    这是最接近的显式取消可用替代方案； 有关 API 间隙，请参阅模块文档字符串。
     """
     pre_children = set(p.pid for p in descendants_of(os.getpid()))
 
@@ -157,16 +154,16 @@ async def test_bash_timeout_kills_process_cleanly(
         "/api/bash/start_bash_command",
         json={
             "command": "sleep 30",
-            "timeout": 1,  # forces the timeout-kill path
+            "timeout": 1,  # 强制超时-kill 路径
         },
     )
     assert resp.status_code == 200, resp.text
     cmd_id = UUID(resp.json()["id"])
 
-    # Wait for the timeout to fire and the kill to propagate.
+    # 等待超时发射并传播杀戮。
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
-        # See sibling test for why `limit=1, sort_order=TIMESTAMP_DESC`.
+        # 请参阅兄弟测试以了解原因 `limit=1, sort_order=TIMESTAMP_DESC`。
         events = await client.get(
             "/api/bash/bash_events/search",
             params={
@@ -185,8 +182,8 @@ async def test_bash_timeout_kills_process_cleanly(
             None,
         )
         if final is not None:
-            # exit_code == -1 is the bash_service signal for "timed out and
-            # SIGKILLed" (bash_service.py:289).
+            # exit_code -1 是  bash_service 超时信号 SIGKILLed" (bash_service.py:289).
+            #
             assert final["exit_code"] == -1, (
                 f"expected exit_code -1 (timeout-kill), got {final['exit_code']}"
             )

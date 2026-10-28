@@ -1,26 +1,25 @@
-"""Release security check #1 — approval drift (a TOCTOU guard).
+"""发布安全检查 #1 — 批准漂移（TOCTOU 警卫）。
 
-The window we care about: a human reviews a PR (time-of-check), but what is
-actually merged and shipped (time-of-use) is not what they reviewed — because
-commits were pushed after approval, or the PR was merged with no human approval
-at all (e.g. auto-merge, or an agent acting on an injected review comment).
+我们关心的窗口：一个人在看 PR (时间检查)，但实际合并和发布的（时间使用）与他们审查的
+并不一样——因为提交是在批准之后进行的，或者提交是在批准之后进行的 PR 未经任何
+人工审核就合并了e.g. 自动合并，或智能体根据注入的评论执行。
 
-For every PR merged into this line of history since the last release tag, this
-compares the PR's merged head against its last *human* APPROVED review:
+对于自上一个发布标签以来合并进来的每一条PR，该比较PR的合并头与它的最后*人类* APPROVED
+评审：
 
-  * merged with **no human approval**            -> blocking
-  * commits pushed **after** the last approval    -> blocking (the reviewed
-    diff is not the shipped diff)
+  * 与 ** 未经人工批准 ** 合并 -> 阻止
+  * 提交推 **之后** 最后的批准 -> 阻塞（审查的差异不是已发布的差异）
 
-Deterministic: reads ``git log`` for the merged-PR list and the read-only
-GitHub REST API for reviews. It never runs the PR's code.
+Deterministic: 读取合并的 PR 列表的 ``git log`` 和只读
+GitHub REST API 进行评论。 它从不运行 PR 的代码。
 
-Env:
-  GITHUB_TOKEN       (recommended; raises rate limits, reads private repos)
-  GITHUB_REPOSITORY  (owner/name; falls back to the origin remote)
-  SECURITY_SCAN_BASELINE_TAG  (optional; overrides the auto-detected last tag)
-  SECURITY_SCAN_TRUSTED_BOTS  (optional CSV of bot logins whose merges are
-                               allowed without human approval, e.g. dependabot)
+环境：
+  GITHUB_TOKEN（推荐； 提高利率限制，读取私人回购）GITHUB_REPOSITORY（所有者/名称；
+  回落到原始远程）
+  SECURITY_SCAN_BASELINE_TAG（可选； 覆盖自动检测到的最后一个标签）
+  SECURITY_SCAN_TRUSTED_BOTS（机器人登录的可选
+  CSV，其合并为
+                               未经人类批准即可允许，e.g。 依赖机器人）
 """
 
 from __future__ import annotations
@@ -39,21 +38,21 @@ from security_scan_common import (
 )
 
 
-# Squash-merge subjects on this repo end with "(#1234)"; that is the PR number.
+# 此存储库中的挤压合并主题以“(#1234)”结尾； 那是 PR 数字。
 _PR_NUM_RE = re.compile(r"\(#(\d+)\)\s*$")
 
-# GitHub marks these association values as coming from outside the project.
+# GitHub 将这些关联值标记为来自项目外部。
 _OUTSIDE_ASSOC = {"NONE", "FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR", "MANNEQUIN"}
 
 
 def merged_pr_numbers(baseline: str) -> tuple[list[tuple[int, str]], list[str]]:
-    """PRs named in ``baseline..HEAD`` plus the subjects that map to none.
+    """PR 在 ``baseline..HEAD`` 中命名，加上映射到 None 的主题。
 
-    Returns ``(matched, unmapped)`` where ``matched`` is ``(pr_number,
-    subject)`` for first-parent commits whose subject ends in ``(#N)``, and
-    ``unmapped`` is the subjects that do not — so the caller can surface the
-    blind spot (a merge that skipped the squash convention is exactly the one
-    an approval-drift guard must not silently ignore) instead of dropping it.
+    对于主题以 ``(#N)`` 结尾的第一个父提交，返回 ``(matched, unmapped)``，其中
+    ``matched`` 是
+    ``(pr_number, subject)``，并且
+    ``unmapped`` 是那些不做的事情——因此调用者可以突出盲点（一个跳过了 squash 规则的合
+    并恰好是批准漂移警报者必须无声忽略的那一个）而不是丢弃它。
     """
     log = run_git(
         "log", "--first-parent", "--pretty=format:%H%x1f%s", f"{baseline}..HEAD"
@@ -79,17 +78,16 @@ def _is_bot(user: dict[str, object]) -> bool:
 def audit_pr(
     repo: str, number: int, token: str | None, trusted_bots: set[str]
 ) -> tuple[str, str | None]:
-    """Return (status, detail) for one PR.
+    """返回一 PR 的（状态、详细信息）。
 
-    status is one of: "ok", "no-human-approval", "changed-after-approval",
-    "trusted-bot", "error".
+    状态是以下之一：“确定”、“无人批准”、“批准后更改”、“可信机器人”、“错误”。
     """
     try:
         pr = github_request(f"/repos/{repo}/pulls/{number}", token)
-        # Paginate: the reviews endpoint returns every review (COMMENTED too),
-        # so a heavily-discussed PR can exceed one page. A human APPROVED past
-        # the first page must not be missed, or the PR is misclassified as
-        # unapproved and blocks a clean release.
+        # 分页：评论端点返回每条评论（也返回 COMMENTED），
+        # 因此，大量讨论的 PR 可能会超过一页。 绝不能错过首页之后的人类 APPROVED，否则
+        # PR 会被错误分类为未经批准并阻止干净发布。
+        #
         reviews = github_request_all(
             f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token
         )
@@ -117,7 +115,7 @@ def audit_pr(
             f"author @{author}; merged={_short(merge_sha)}; no human APPROVED review",
         )
 
-    # The reviewed commit is the head each approval was submitted against.
+    # 已审查的提交是每个批准提交的标题。
     approved_shas = {r.get("commit_id") for r in approvals if r.get("commit_id")}
     reviewed_head = head_sha in approved_shas
     if not reviewed_head:
@@ -143,10 +141,9 @@ def _short(sha: object) -> str:
 
 
 def _compare_link(repo: str, base: object, head: object, label: str) -> str:
-    """Markdown link to the GitHub compare page between *base* and *head*.
+    """Markdown 与 GitHub 比较页面之间的 *base* 和 *head* 的链接。
 
-    Falls back to plain text if either SHA is missing so the report never
-    breaks on a sparse API response.
+    如果缺少任一 SHA，则返回纯文本，因此报告不会因稀疏的 API 响应而中断。
     """
     if not base or not head:
         return label

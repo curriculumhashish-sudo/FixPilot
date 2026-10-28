@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-TODO Scanner for OpenHands Automated TODO Management
+TODO 用于 OpenHands 自动化 TODO 管理的扫描仪
 
-Scans for configurable TODO comments in Python, TypeScript, Java, and Rust files.
-Default identifier: TODO(openhands)
+扫描 Python、TypeScript、Java 和 Rust 文件中的可配置 TODO 注释。 默认标识符：TODO(
+OpenHands)
 """
 
 import argparse
@@ -15,12 +15,12 @@ import sys
 from pathlib import Path
 
 
-# Configure logging
+# 配置日志记录
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        # Log to stderr to avoid JSON interference
+        # 将日志输出到标准错误以避免干扰 JSON
         logging.StreamHandler(sys.stderr),
     ],
 )
@@ -30,19 +30,19 @@ logger = logging.getLogger(__name__)
 def scan_file_for_todos(
     file_path: Path, todo_identifier: str = "TODO(openhands)"
 ) -> list[dict]:
-    """Scan a single file for configurable TODO comments."""
-    # Only scan specific file extensions
+    """扫描单个文件以获取可配置的 TODO 注释。"""
+    # 仅扫描特定文件扩展名
     if file_path.suffix.lower() not in {".py", ".ts", ".java", ".rs"}:
         logger.debug(f"Skipping file {file_path} (unsupported extension)")
         return []
 
-    # Skip test files and example files that contain mock TODOs
+    # 跳过包含模拟对象 TODOs 的测试文件和示例文件
     file_str = str(file_path)
     if (
         "/test" in file_str
         or "/tests/" in file_str
         or "test_" in file_path.name
-        # Skip examples
+        # 跳过示例
         or "examples/03_github_workflows/03_todo_management/" in file_str
     ):
         logger.debug(f"Skipping test/example file: {file_path}")
@@ -58,44 +58,44 @@ def scan_file_for_todos(
         return []
 
     todos = []
-    # Escape special regex characters in the identifier
+    # 转义标识符中的特殊正则表达式字符
     escaped_identifier = re.escape(todo_identifier)
     todo_pattern = re.compile(rf"{escaped_identifier}(?::\s*(.*))?", re.IGNORECASE)
 
     for line_num, line in enumerate(lines, 1):
         match = todo_pattern.search(line)
         if match:
-            # Extract initial description from the TODO line
+            # 从 TODO 行提取初始描述
             description = match.group(1).strip() if match.group(1) else ""
 
-            # Look ahead for continuation lines that are also comments
+            # 向前查找同时也是注释的延续行
             continuation_lines = []
             for next_line_idx in range(line_num, len(lines)):
                 next_line = lines[next_line_idx]
                 next_stripped = next_line.strip()
 
-                # Check if this line is a comment continuation
+                # 检查此行是否是注释延续
                 if (
                     next_stripped.startswith("#")
                     and not next_stripped.startswith(f"# {todo_identifier}")
-                    # Skip empty comment lines
+                    # 跳过空注释行
                     and next_stripped != "#"
-                    # Must have content after #
+                    # #后必须有内容
                     and len(next_stripped) > 1
                 ):
-                    # Extract comment content (remove # and leading whitespace)
+                    # 提取评论内容（删除#和前导空格）
                     comment_content = next_stripped[1:].strip()
 
-                    if comment_content:  # Only add non-empty content
+                    if comment_content:  # 只添加非空内容
                         continuation_lines.append(comment_content)
                 elif next_stripped == "#":
-                    # Empty comment line - continue looking
+                    # 空评论行 - 继续寻找
                     continue
                 else:
-                    # Stop at first non-comment line
+                    # 在第一个非注释行处停止
                     break
 
-            # Combine description with continuation lines
+            # 将描述与连续线结合起来
             if continuation_lines:
                 if description:
                     full_description = description + " " + " ".join(continuation_lines)
@@ -120,12 +120,12 @@ def scan_file_for_todos(
 def scan_directory(
     directory: Path, todo_identifier: str = "TODO(openhands)"
 ) -> list[dict]:
-    """Recursively scan a directory for configurable TODO comments."""
+    """递归扫描目录中的可配置 TODO 注释。"""
     logger.info(f"Scanning directory: {directory}")
     all_todos = []
 
     for root, dirs, files in os.walk(directory):
-        # Skip hidden and common ignore directories
+        # 跳过隐藏和常见的忽略目录
         dirs[:] = [
             d
             for d in dirs
@@ -150,7 +150,7 @@ def scan_directory(
 
 
 def main():
-    """Main function to scan for TODOs and output results."""
+    """主函数用于扫描 TODOs 并输出结果。"""
     parser = argparse.ArgumentParser(
         description="Scan codebase for configurable TODO comments"
     )

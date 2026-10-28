@@ -1,4 +1,4 @@
-"""Span cost must be authoritative and cache-aware (issue #4817)."""
+"""Span 成本必须具有权威性并且能够感知缓存（问题#4817）。"""
 
 import contextlib
 
@@ -64,7 +64,7 @@ def test_span_cost_uses_authoritative_proxy_cost(exporter):
 
     attrs = _attrs(exporter)
     assert attrs["gen_ai.usage.cost"] == pytest.approx(PROXY_COST)
-    # Not the flat token recompute that loses the cache buckets.
+    # 不是丢失缓存桶的平面 token 重新计算。
     flat = 20291 * 3e-6 + 83 * 15e-6
     assert attrs["gen_ai.usage.cost"] != pytest.approx(flat)
 
@@ -101,8 +101,8 @@ def test_cache_write_survives_absent_prompt_tokens_details():
 
 
 def test_normalize_usage_cache_write_null_does_not_raise():
-    """litellm deletes None optional fields from the instance but keeps them in
-    ``model_fields_set`` (e.g. minimax-m3 reports ``cache_creation_tokens: null``).
+    """LiteLLM 从实例中删除 None 个可选字段，但保留它们
+    ``model_fields_set`` (e.g. minimax-m3 报告 ``cache_creation_tokens: null``）。
     """
     usage = Usage(
         prompt_tokens=100,
@@ -129,6 +129,6 @@ def test_span_closed_on_error(exporter):
 def test_retry_does_not_leak_spans(exporter):
     t = Telemetry(model_name="m", metrics=Metrics())
     t.on_request(telemetry_ctx={})
-    t.on_request(telemetry_ctx={})  # retry re-enters without a response
+    t.on_request(telemetry_ctx={})  # 重试重新输入无响应
     t.on_response(_response(_usage()))
     assert len(exporter.get_finished_spans()) == 2

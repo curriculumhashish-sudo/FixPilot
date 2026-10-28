@@ -1,4 +1,4 @@
-"""Integration tests for ParallelToolExecutor resource locking."""
+"""集成测试用于 ParallelToolExecutor 资源锁定。"""
 
 import threading
 from typing import Any
@@ -17,7 +17,7 @@ def _make_action(
     tool_call_id: str = "call_1",
     action: Any = _SENTINEL,
 ) -> Any:
-    """Create a mock ActionEvent."""
+    """创建模拟对象 ActionEvent。"""
     ae = MagicMock()
     ae.tool_name = tool_name
     ae.tool_call_id = tool_call_id
@@ -29,7 +29,7 @@ def _make_tool(
     name: str = "my_tool",
     resources: DeclaredResources | None = None,
 ) -> Any:
-    """Create a mock ToolDefinition."""
+    """创建模拟对象 ToolDefinition。"""
     tool = MagicMock()
     tool.name = name
     tool.annotations = ToolAnnotations()
@@ -43,7 +43,7 @@ def _ok_event() -> Any:
     return MagicMock()
 
 
-# ── Undeclared resources → tool-wide mutex ────────────────────────
+# ── 未声明的资源→工具范围互斥体────────────────────────
 
 
 def test_undeclared_resources_serializes_via_tool_mutex():
@@ -72,7 +72,7 @@ def test_undeclared_resources_serializes_via_tool_mutex():
     assert len(log) == 8
 
 
-# ── Declared with no keys → no locking ───────────────────────────
+# ── 声明无钥匙→无锁定────────────────────────────
 
 
 def test_declared_empty_keys_skips_locking():
@@ -92,18 +92,18 @@ def test_declared_empty_keys_skips_locking():
     def runner(a: Any) -> list[Any]:
         idx = int(a.tool_call_id[1])
         reached[idx] = True
-        barrier.wait()  # all 4 must reach here concurrently
+        barrier.wait()  # 所有 4 人必须同时到达这里
         return [_ok_event()]
 
     executor.execute_batch(actions, runner, tools)
     assert all(reached)
 
 
-# ── Specific resource keys → per-resource locking ────────────────
+# ── 特定资源键 → 每个资源锁定 ────────────────
 
 
 def test_specific_resource_keys_serialize_same_resource():
-    """Tools on the same file serialize; different files can overlap."""
+    """同一文件上的工具序列化； 不同的文件可以重叠。"""
     lock_mgr = ResourceLockManager()
     executor = ParallelToolExecutor(max_workers=4, lock_manager=lock_mgr)
 
@@ -137,11 +137,11 @@ def test_specific_resource_keys_serialize_same_resource():
     assert len(results) == 4
 
 
-# ── No tools dict → locking skipped entirely ─────────────────────
+# ── 无工具字典 → 完全跳过锁定──────────────────────
 
 
 def test_no_tools_dict_skips_locking():
-    """When tools=None, execute without any locking (backward compat)."""
+    """当tools=None时，执行时不带任何锁定（向后兼容）。"""
     executor = ParallelToolExecutor(max_workers=4)
     actions = [_make_action("x", f"c{i}") for i in range(3)]
 
@@ -150,11 +150,11 @@ def test_no_tools_dict_skips_locking():
     assert len(results) == 3
 
 
-# ── action.action is None → tool-wide mutex ──────────────────────
+# ── action.action 是 None → 工具范围互斥体 ──────────────────────
 
 
 def test_none_action_falls_back_to_tool_mutex():
-    """ActionEvent with action=None should use tool-wide mutex."""
+    """ActionEvent 和 action=None 应该使用工具范围的互斥体。"""
     lock_mgr = ResourceLockManager()
     executor = ParallelToolExecutor(max_workers=2, lock_manager=lock_mgr)
     ae = _make_action("editor", "c0", action=None)

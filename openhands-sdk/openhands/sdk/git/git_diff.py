@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Get git diff in a single git file for the closest git repo in the file system"""
+"""在单个 git 文件中获取文件系统中最近的 git 存储库的 git diff"""
 
 import json
 import logging
@@ -23,36 +23,36 @@ from openhands.sdk.git.utils import (
 logger = logging.getLogger(__name__)
 
 
-MAX_FILE_SIZE_FOR_GIT_DIFF = 1024 * 1024  # 1 Mb
+MAX_FILE_SIZE_FOR_GIT_DIFF = 1024 * 1024  # 1兆字节
 
 
 def get_closest_git_repo(path: Path) -> Path | None:
-    """Find the closest git repository by walking up the directory tree.
+    """通过向上目录树查找最近的 git 存储库。
 
     Args:
-        path: Starting path to search from
+        path: 搜索的起始路径
 
     Returns:
-        Path to the git repository root, or None if not found
+        git 存储库根的路径，如果未找到则为 None
     """
     current_path = path.resolve()
 
     while True:
         git_path = current_path / ".git"
-        if git_path.exists():  # Could be file (worktree) or directory
+        if git_path.exists():  # 可以是文件（工作树）或目录
             logger.debug(f"Found git repository at: {current_path}")
             return current_path
 
         parent = current_path.parent
-        if parent == current_path:  # Reached filesystem root
+        if parent == current_path:  # 已到达文件系统根目录
             logger.debug(f"No git repository found for path: {path}")
             return None
         current_path = parent
 
 
 def _base_file_size(repo: Path, ref: str, relative_path: Path) -> int | None:
-    """Size of the file (blob) ``relative_path`` at ``ref``, or ``None``
-    when ``ref`` has no file at that path."""
+    """文件 (blob) 的大小 ``relative_path`` 位于 ``ref`` 或 ``None``
+    当 ``ref`` 在该路径上没有文件时。"""
     spec = f"{ref}:{relative_path.as_posix()}"
     try:
         object_type = run_git_command(
@@ -66,33 +66,32 @@ def _base_file_size(repo: Path, ref: str, relative_path: Path) -> int | None:
 
 
 def get_git_diff(relative_file_path: str | Path, ref: str | None = None) -> GitDiff:
-    """Get git diff for a single file.
+    """获取单个文件的 git diff。
 
     Args:
-        relative_file_path: Path to the file relative to current working directory
-        ref: Optional explicit ref to compare against (e.g. ``"HEAD"`` or a
-            commit hash). When ``None``, compares against the auto-detected
-            upstream/default branch as before.
+        relative_file_path: 相对于当前工作目录的文件路径
+        ref: 用于比较的可选显式引用 (e.g. ``"HEAD"`` 或
+            提交哈希）。 当 ``None`` 时，与以前一样与自动检测的上游/默认分支进行比较
+            。
 
     Returns:
-        GitDiff object containing diff information
+        GitDiff 包含差异信息的对象
 
     Raises:
-        GitPathError: If file is too large, or exists neither on disk nor
-            at the base ref (a working-tree deletion diffs as the base text
-            against ``""``)
-        GitRepositoryError: If not in a git repository
-        GitCommandError: If git commands fail (including when ``ref`` is
-            provided but does not resolve in the repository).
+        GitPathError: 如果文件太大，或者既不在磁盘上也不存在
+            在基本引用处（工作树删除与基本文本相对于 ``""`` 的差异）
+        GitRepositoryError: 如果不在 git 存储库中
+        GitCommandError: 如果 git 命令失败（包括 ``ref`` 为
+            提供但未在存储库中解析）。
     """
     path = Path(os.getcwd(), relative_file_path).resolve()
     missing_error = GitPathError(f"File does not exist: {path}")
 
-    # A path missing from disk may still be a working-tree deletion (or the
-    # old side of a rename) that only exists at the base ref.
+    # 磁盘中丢失的路径可能仍然是仅存在于基本引用中的工作树删除（或重命名的旧部分）。
+    #
     deleted = not path.exists()
 
-    # Check file size
+    # 检查文件大小
     try:
         file_size = 0 if deleted else os.path.getsize(path)
         if file_size > MAX_FILE_SIZE_FOR_GIT_DIFF:
@@ -103,18 +102,19 @@ def get_git_diff(relative_file_path: str | Path, ref: str | None = None) -> GitD
     except OSError as e:
         raise GitPathError(f"Cannot access file: {path}") from e
 
-    # Find git repository
+    # 找到git仓库
     closest_git_repo = get_closest_git_repo(path)
     if not closest_git_repo:
         if deleted:
             raise missing_error
         raise GitRepositoryError(f"File is not in a git repository: {path}")
 
-    # Validate the git repository
+    # 验证 git 存储库
     validated_repo = validate_git_repository(closest_git_repo)
 
-    # Must match get_changes_in_repo's base selection (purpose="display"),
-    # so the per-file diff lines up with the change list it was opened from.
+    # 必须匹配 get_changes_in_repo 的基本选择（目的=“显示”），因此每个文件的差异与打开它
+    # 的更改列表对齐。
+    #
     current_rev = get_valid_ref(validated_repo, override=ref, purpose="display")
     if not current_rev:
         if deleted:
@@ -122,7 +122,7 @@ def get_git_diff(relative_file_path: str | Path, ref: str | None = None) -> GitD
         logger.warning(f"No valid git reference found for {validated_repo}")
         return GitDiff(modified="", original="")
 
-    # Get the relative path from the git repo root
+    # 获取 git repo 根目录的相对路径
     try:
         relative_path_from_repo = path.relative_to(validated_repo)
     except ValueError as e:
@@ -140,10 +140,11 @@ def get_git_diff(relative_file_path: str | Path, ref: str | None = None) -> GitD
                 f"(max: {MAX_FILE_SIZE_FOR_GIT_DIFF} bytes)"
             )
 
-    # Get old content (from the ref)
+    # 获取旧内容（来自参考）
     try:
-        # Read the blob verbatim and normalize it like the modified side below,
-        # so an unchanged file keeps its edge whitespace on both sides.
+        # 逐字读取 blob 并将其规范化，就像下面修改的一侧一样，因此未更改的文件在两侧都会
+        # 保留其边缘空白。
+        #
         original = "\n".join(
             run_git_command(
                 ["git", "show", f"{current_rev}:{relative_path_from_repo}"],
@@ -159,7 +160,7 @@ def get_git_diff(relative_file_path: str | Path, ref: str | None = None) -> GitD
         logger.info(f"Generated git diff for deleted file {path}")
         return GitDiff(modified="", original=original)
 
-    # Get new content (current file)
+    # 获取新内容（当前文件）
     try:
         with open(path, encoding="utf-8") as f:
             modified = "\n".join(f.read().splitlines())

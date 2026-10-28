@@ -1,7 +1,7 @@
 """
-Unit tests for confirmation mode functionality.
+单元测试用于确认模式功能。
 
-Tests the core behavior: pause action execution for user confirmation.
+测试核心行为：暂停操作执行以供用户确认。
 """
 
 from collections.abc import Sequence
@@ -47,13 +47,13 @@ from openhands.sdk.tool.schema import Action, Observation
 
 
 class MockConfirmationModeAction(Action):
-    """Mock action schema for testing."""
+    """模拟对象操作模式用于测试。"""
 
     command: str
 
 
 class MockConfirmationModeObservation(Observation):
-    """Mock observation schema for testing."""
+    """模拟对象观测结果模式用于测试。"""
 
     result: str
 
@@ -65,7 +65,7 @@ class MockConfirmationModeObservation(Observation):
 class TestExecutor(
     ToolExecutor[MockConfirmationModeAction, MockConfirmationModeObservation]
 ):
-    """Test executor for confirmation mode testing."""
+    """用于确认模式测试的测试执行器。"""
 
     def __call__(
         self,
@@ -78,7 +78,7 @@ class TestExecutor(
 class ConfirmationTestTool(
     ToolDefinition[MockConfirmationModeAction, MockConfirmationModeObservation]
 ):
-    """Concrete tool for confirmation mode testing."""
+    """用于确认模式测试的具体工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -95,20 +95,20 @@ class ConfirmationTestTool(
 
 
 class TestConfirmationMode:
-    """Test suite for confirmation mode functionality."""
+    """测试套件用于确认模式功能。"""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
 
-        # Create a real LLM instance for Agent validation
+        # 为智能体验证创建一个真实的 LLM 实例
         self.llm: LLM = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
         )
 
-        # Create a MagicMock to override the completion method
+        # 创建一个MagicMock来覆盖完成方法
         self.mock_llm: Mock = MagicMock()
 
-        # Create a proper MetricsSnapshot mock for the LLM
+        # 为 LLM 创建适当的 MetricsSnapshot 模拟对象
         mock_token_usage = TokenUsage(
             model="test-model",
             prompt_tokens=100,
@@ -136,7 +136,7 @@ class TestConfirmationMode:
         self.conversation: LocalConversation = Conversation(agent=self.agent)
 
     def _mock_message_only(self, text: str = "Hello, how can I help you?") -> MagicMock:
-        """Configure LLM to return a plain assistant message (no tool calls)."""
+        """配置 LLM 以返回普通助理消息（无工具调用）。"""
         return MagicMock(
             return_value=ModelResponse(
                 id="response_msg",
@@ -150,7 +150,7 @@ class TestConfirmationMode:
         )
 
     def _make_pending_action(self) -> None:
-        """Enable confirmation mode and produce a single pending action."""
+        """启用确认模式并生成单个待处理操作。"""
         self.conversation.set_confirmation_policy(AlwaysConfirm())
         mock_completion = self._mock_action_once()
         with patch(
@@ -170,7 +170,7 @@ class TestConfirmationMode:
     def _mock_action_once(
         self, call_id: str = "call_1", command: str = "test_command"
     ) -> MagicMock:
-        """Configure LLM to return one tool call (action)."""
+        """配置 LLM 返回一工具调用（操作）。"""
         litellm_tool_call = ChatCompletionMessageToolCall(
             id=call_id,
             type="function",
@@ -198,7 +198,7 @@ class TestConfirmationMode:
         )
 
     def _mock_finish_action(self, message: str = "Task completed") -> MagicMock:
-        """Configure LLM to return a FinishAction tool call."""
+        """配置 LLM 返回 FinishAction 工具调用。"""
         tool_call = ChatCompletionMessageToolCall(
             id="finish_call_1",
             type="function",
@@ -227,7 +227,7 @@ class TestConfirmationMode:
         )
 
     def _mock_think_action(self, thought: str = "Let me think about this") -> MagicMock:
-        """Configure LLM to return a ThinkAction tool call."""
+        """配置 LLM 返回 ThinkAction 工具调用。"""
         tool_call = ChatCompletionMessageToolCall(
             id="think_call_1",
             type="function",
@@ -256,7 +256,7 @@ class TestConfirmationMode:
         )
 
     def _mock_multiple_actions_with_finish(self) -> MagicMock:
-        """Configure LLM to return both a regular action and a FinishAction."""
+        """配置 LLM 以返回常规操作和 FinishAction。"""
         regular_tool_call = ChatCompletionMessageToolCall(
             id="call_1",
             type="function",
@@ -297,7 +297,7 @@ class TestConfirmationMode:
         )
 
     def _create_test_action(self, call_id="call_1", command="test_command"):
-        """Helper to create test action events."""
+        """创建测试操作事件的帮助程序。"""
         action = MockConfirmationModeAction(command=command)
 
         litellm_tool_call = ChatCompletionMessageToolCall(
@@ -309,7 +309,7 @@ class TestConfirmationMode:
             ),
         )
 
-        # Convert to MessageToolCall for ActionEvent
+        # 将 ActionEvent 转换为 MessageToolCall
         tool_call = MessageToolCall.from_chat_tool_call(litellm_tool_call)
 
         action_event = ActionEvent(
@@ -325,10 +325,10 @@ class TestConfirmationMode:
         return action_event
 
     def test_mock_observation(self):
-        # First test a round trip in the context of Observation
+        # 首先测试观测结果的上下文中的往返
         obs = MockConfirmationModeObservation(result="executed")
 
-        # Now test embeddding this into an ObservationEvent
+        # 现在测试将其嵌入到 ObservationEvent 中
         event = ObservationEvent(
             observation=obs,
             action_id="action_id",
@@ -344,8 +344,8 @@ class TestConfirmationMode:
         assert loaded_obs.result == "executed"
 
     def test_confirmation_mode_basic_functionality(self):
-        """Test basic confirmation mode operations."""
-        # Test initial state
+        """测试基本确认模式操作。"""
+        # 测试初始状态
         assert self.conversation.state.confirmation_policy == NeverConfirm()
         assert (
             self.conversation.state.execution_status == ConversationExecutionStatus.IDLE
@@ -355,15 +355,15 @@ class TestConfirmationMode:
             == []
         )
 
-        # Enable confirmation mode
+        # 启用确认模式
         self.conversation.set_confirmation_policy(AlwaysConfirm())
         assert self.conversation.state.confirmation_policy == AlwaysConfirm()
 
-        # Disable confirmation mode
+        # 禁用确认模式
         self.conversation.set_confirmation_policy(NeverConfirm())
         assert self.conversation.state.confirmation_policy == NeverConfirm()
 
-        # Test rejecting when no actions exist doesn't raise error
+        # 当不存在任何操作时测试拒绝不会引发错误
         self.conversation.reject_pending_actions("Nothing to reject")
         rejection_events = [
             event
@@ -373,17 +373,17 @@ class TestConfirmationMode:
         assert len(rejection_events) == 0
 
     def test_getting_unmatched_events(self):
-        """Test getting unmatched events (actions without observations)."""
-        # Create test action
+        """测试获取不匹配的事件（不带观测结果的操作）。"""
+        # 创建测试动作
         action_event = self._create_test_action()
         events: list[Event] = [action_event]
 
-        # Test: action without observation should be pending
+        # 测试：不带观测结果的操作应待处理
         unmatched = ConversationState.get_unmatched_actions(events)
         assert len(unmatched) == 1
         assert unmatched[0].id == action_event.id
 
-        # Add observation for the action
+        # 为操作添加观测结果
         obs = MockConfirmationModeObservation(result="test result")
 
         obs_event = ObservationEvent(
@@ -395,15 +395,15 @@ class TestConfirmationMode:
         )
         events.append(obs_event)
 
-        # Test: action with observation should not be pending
+        # 测试： 观测结果的操作不应处于待处理状态
         unmatched = ConversationState.get_unmatched_actions(events)
         assert len(unmatched) == 0
 
-        # Test rejection functionality
+        # 测试拒绝功能
         action_event2 = self._create_test_action("call_2", "test_command_2")
         events.append(action_event2)
 
-        # Add rejection for the second action
+        # 添加第二个操作的拒绝
         rejection = UserRejectObservation(
             action_id=action_event2.id,
             tool_name="test_tool",
@@ -412,11 +412,11 @@ class TestConfirmationMode:
         )
         events.append(rejection)
 
-        # Test: rejected action should not be pending
+        # 测试：被拒绝的操作不应处于待处理状态
         unmatched = ConversationState.get_unmatched_actions(events)
         assert len(unmatched) == 0
 
-        # Test UserRejectObservation functionality
+        # 测试 UserRejectObservation 功能
         llm_message = rejection.to_llm_message()
         assert llm_message.role == "tool"
         assert llm_message.name == "test_tool"
@@ -425,7 +425,7 @@ class TestConfirmationMode:
         assert "Action rejected: Test rejection" in llm_message.content[0].text
 
     def test_message_only_in_confirmation_mode_does_not_wait(self):
-        """Don't confirm agent messages."""
+        """不确认智能体消息。"""
         self.conversation.set_confirmation_policy(AlwaysConfirm())
         mock_completion = self._mock_message_only("Hello, how can I help you?")
         with patch(
@@ -454,15 +454,15 @@ class TestConfirmationMode:
     @pytest.mark.parametrize("should_reject", [True, False])
     def test_action_then_confirm_or_reject(self, should_reject: bool):
         """
-        Start in confirmation mode, get a pending action, then:
-        - if should_reject is False: confirm by calling conversation.run()
-        - if should_reject is True: reject via conversation.reject_pending_action
+        以确认模式启动，获取待处理操作，然后：
+        - 如果 should_reject 是 False：通过调用 conversation.run() 确认
+        - 如果 should_reject 是 True：通过 conversation.reject_pending_action 拒绝
         """
-        # Create a single pending action
+        # 创建单个待处理操作
         self._make_pending_action()
 
         if not should_reject:
-            # Confirm path per your instruction: call run() to execute pending action
+            # 根据您的指令确认路径：调用 run() 执行待处理的操作
             mock_completion = self._mock_message_only("Task completed successfully!")
             with patch(
                 "openhands.sdk.llm.llm.litellm_completion",
@@ -470,7 +470,7 @@ class TestConfirmationMode:
             ):
                 self.conversation.run()
 
-            # Expect an observation (tool executed) and no rejection
+            # 预计出现观测结果（工具已执行）并且不会被拒绝
             obs_events = [
                 e
                 for e in self.conversation.state.events
@@ -491,7 +491,7 @@ class TestConfirmationMode:
         else:
             self.conversation.reject_pending_actions("Not safe to run")
 
-            # Expect a rejection event and no observation
+            # 预计会发生拒绝事件，但不会观测结果
             rejection_events = [
                 e
                 for e in self.conversation.state.events
@@ -506,14 +506,14 @@ class TestConfirmationMode:
             assert len(obs_events) == 0
 
     def test_single_finish_action_skips_confirmation_entirely(self):
-        """Test that a single FinishAction skips confirmation entirely."""
-        # Enable confirmation mode
+        """测试单个 FinishAction 完全跳过确认。"""
+        # 启用确认模式
         self.conversation.set_confirmation_policy(AlwaysConfirm())
 
-        # Mock LLM to return a single FinishAction
+        # 模拟对象 LLM 返回单个 FinishAction
         mock_completion = self._mock_finish_action("Task completed successfully!")
 
-        # Send a message that should trigger the finish action
+        # 发送一条应触发完成操作的消息
         with patch(
             "openhands.sdk.llm.llm.litellm_completion",
             return_value=mock_completion.return_value,
@@ -524,38 +524,38 @@ class TestConfirmationMode:
                 )
             )
 
-            # Run the conversation
+            # 运行对话
             self.conversation.run()
 
-        # Single FinishAction should skip confirmation entirely
+        # 单个 FinishAction 应完全跳过确认
         assert (
             self.conversation.state.confirmation_policy == AlwaysConfirm()
-        )  # Still in confirmation mode
+        )  # 仍处于确认模式
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.FINISHED
-        )  # Agent should be finished
+        )  # 智能体应该完成
 
-        # Should have no pending actions (FinishAction was executed immediately)
+        # 不应有待处理的操作（FinishAction 已立即执行）
         pending_actions = ConversationState.get_unmatched_actions(
             self.conversation.state.events
         )
         assert len(pending_actions) == 0
 
-        # Should have an observation event (action was executed)
+        # 应该有一个观测结果事件（操作已执行）
         obs_events = [
             e for e in self.conversation.state.events if isinstance(e, ObservationEvent)
         ]
         assert len(obs_events) == 1
-        # FinishObservation should contain the finish message in content
+        # FinishObservation 内容中应包含结束消息
         assert obs_events[0].observation.text == "Task completed successfully!"
 
     def test_think_and_finish_action_skips_confirmation_entirely(self):
-        """First step: ThinkAction (skips confirmation). Second step: FinishAction."""
-        # Enable confirmation mode
+        """第一步：ThinkAction（跳过确认）。 第二步：FinishAction。"""
+        # 启用确认模式
         self.conversation.set_confirmation_policy(AlwaysConfirm())
 
-        # 1st model call -> ThinkAction; 2nd model call -> FinishAction
+        # 第一个模型调用 -> ThinkAction;第二次模型调用 -> FinishAction
         mock_think = self._mock_think_action("Let me analyze this problem")
         mock_finish = self._mock_finish_action("Analysis complete")
 
@@ -563,7 +563,7 @@ class TestConfirmationMode:
             "openhands.sdk.llm.llm.litellm_completion",
             side_effect=[mock_think.return_value, mock_finish.return_value],
         ):
-            # Kick things off (LLM returns ThinkAction; should execute immediately)
+            # 开始吧（LLM 返回 ThinkAction； 应立即执行）
             self.conversation.send_message(
                 Message(
                     role="user", content=[TextContent(text="Please think about this")]
@@ -571,79 +571,79 @@ class TestConfirmationMode:
             )
             self.conversation.run()
 
-        # Still in confirmation mode overall, but both actions should have executed
+        # 总体仍处于确认模式，但两个操作都应该已执行
         assert self.conversation.state.confirmation_policy == AlwaysConfirm()
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.FINISHED
         )
 
-        # No pending actions
+        # 没有在进行中的操作
         pending_actions = ConversationState.get_unmatched_actions(
             self.conversation.state.events
         )
         assert len(pending_actions) == 0
 
-        # We should have two observations: one for ThinkAction, one for FinishAction
+        # 我们应该有两个观测结果：一个用于 ThinkAction，一个用于 FinishAction
         obs_events = [
             e for e in self.conversation.state.events if isinstance(e, ObservationEvent)
         ]
         assert len(obs_events) == 2
 
-        # 1) ThinkAction observation - should contain the standard message
+        # 1) ThinkAction 观测结果 - 应包含标准消息
         assert hasattr(obs_events[0].observation, "content")
         assert obs_events[0].observation.text == "Your thought has been logged."
 
-        # 2) FinishAction observation - should contain the finish message
+        # 2) FinishAction 观测结果 - 应包含完成消息
         assert hasattr(obs_events[1].observation, "content")
         assert obs_events[1].observation.text == "Analysis complete"
 
     def test_pause_during_confirmation_preserves_waiting_status(self):
-        """Test that pausing during WAITING_FOR_CONFIRMATION preserves the status.
+        """测试 WAITING_FOR_CONFIRMATION 期间暂停是否保留状态。
 
-        This test reproduces the race condition issue where agent can be waiting
-        for confirmation and the status is changed to paused instead. Waiting for
-        confirmation is simply a special type of pause and should not be overridden.
+        此测试重现了竞态条件问题，其中智能体可以等待确认，并且状态改为已暂停。 等待确
+        认只是一种特殊类型的暂停，不应被覆盖。
         """
-        # Create a pending action that puts agent in WAITING_FOR_CONFIRMATION state
+        # 创建一个待处理操作，将智能体置于 WAITING_FOR_CONFIRMATION 状态
         self._make_pending_action()
 
-        # Verify we're in the expected state
+        # 验证我们处于预期状态
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
         )
         assert self.conversation.state.confirmation_policy == AlwaysConfirm()
 
-        # Call pause() while in WAITING_FOR_CONFIRMATION state
+        # 处于 WAITING_FOR_CONFIRMATION 状态时调用 pause()
         self.conversation.pause()
 
-        # Status should remain WAITING_FOR_CONFIRMATION, not change to PAUSED
-        # This is the key fix: waiting for confirmation is a special type of pause
+        # 状态应保持 WAITING_FOR_CONFIRMATION，而不是更改为 PAUSED 这是关键修复：等待确
+        # 认是一种特殊类型的暂停
+        #
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
         )
 
-        # Test that pause works correctly for other states
-        # Reset to IDLE state
+        # 测试暂停对于其他状态是否正常工作重置为 IDLE 状态
+        #
         with self.conversation._state:
             self.conversation._state.execution_status = ConversationExecutionStatus.IDLE
 
-        # Pause from IDLE should change status to PAUSED
+        # 从 IDLE 暂停应将状态更改为 PAUSED
         self.conversation.pause()
         assert (
             self.conversation._state.execution_status
             == ConversationExecutionStatus.PAUSED
         )
 
-        # Reset to RUNNING state
+        # 重置为RUNNING状态
         with self.conversation._state:
             self.conversation._state.execution_status = (
                 ConversationExecutionStatus.RUNNING
             )
 
-        # Pause from RUNNING should change status to PAUSED
+        # 从 RUNNING 暂停应将状态更改为 PAUSED
         self.conversation.pause()
         assert (
             self.conversation._state.execution_status
@@ -651,22 +651,22 @@ class TestConfirmationMode:
         )
 
     def test_is_confirmation_mode_active_property(self):
-        """Test the is_confirmation_mode_active property behavior."""
-        # Initially, no security analyzer and NeverConfirm policy
+        """测试 is_confirmation_mode_active 属性行为。"""
+        # 最初，没有安全分析器和 NeverConfirm 策略
         assert self.conversation.state.security_analyzer is None
         assert self.conversation.state.confirmation_policy == NeverConfirm()
         assert not self.conversation.confirmation_policy_active
         assert not self.conversation.is_confirmation_mode_active
 
-        # Set confirmation policy to AlwaysConfirm, but still no security analyzer
+        # 将确认策略设置为AlwaysConfirm，但仍然没有安全分析器
         self.conversation.set_confirmation_policy(AlwaysConfirm())
         assert self.conversation.state.security_analyzer is None
         assert self.conversation.state.confirmation_policy == AlwaysConfirm()
         assert self.conversation.confirmation_policy_active
-        # Still False because no security analyzer
+        # 仍然是 False，因为没有安全分析器
         assert not self.conversation.is_confirmation_mode_active
 
-        # Create agent and set security analyzer on conversation state
+        # 创建智能体并在对话状态上设置安全分析器
         from openhands.sdk.security.llm_analyzer import LLMSecurityAnalyzer
 
         agent = Agent(
@@ -676,17 +676,17 @@ class TestConfirmationMode:
         conversation_with_analyzer = Conversation(agent=agent)
         conversation_with_analyzer.set_security_analyzer(LLMSecurityAnalyzer())
 
-        # Initially with security analyzer but NeverConfirm policy
+        # 最初使用安全分析器，但 NeverConfirm 策略
         assert conversation_with_analyzer.state.security_analyzer is not None
         assert conversation_with_analyzer.state.confirmation_policy == NeverConfirm()
         assert not conversation_with_analyzer.confirmation_policy_active
-        # False because policy is NeverConfirm
+        # False 因为政策是 NeverConfirm
         assert not conversation_with_analyzer.is_confirmation_mode_active
 
-        # Set confirmation policy to AlwaysConfirm with security analyzer
+        # 使用安全分析器将确认策略设置为 AlwaysConfirm
         conversation_with_analyzer.set_confirmation_policy(AlwaysConfirm())
         assert conversation_with_analyzer.state.security_analyzer is not None
         assert conversation_with_analyzer.state.confirmation_policy == AlwaysConfirm()
         assert conversation_with_analyzer.confirmation_policy_active
-        # True because both conditions are met
+        # True 因为两个条件都满足
         assert conversation_with_analyzer.is_confirmation_mode_active

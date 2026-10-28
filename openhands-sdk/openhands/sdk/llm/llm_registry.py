@@ -21,14 +21,13 @@ class RegistryEvent(BaseModel):
 
 
 class LLMRegistry:
-    """A minimal LLM registry for managing LLM instances by usage ID.
+    """用于按使用 ID 管理 LLM 个实例的最小 LLM 注册表。
 
-    This registry provides a simple way to manage multiple LLM instances,
-    avoiding the need to recreate LLMs with the same configuration.
+    注册表提供了一种简单的方法来管理多个 LLM 实例，从而避免了需要重新配置 LLMs 的需求
+    。
 
-    The registry also ensures that each registered LLM has independent metrics,
-    preventing metrics from being shared between LLMs that were created via
-    model_copy(). This is important for scenarios like creating a condenser LLM
+    的注册表也确保每个注册的 LLM 具有独立的指标，防止指标被共享 LLMs 通过创建的
+    model_copy(). 这对于创建的场景非常重要上下文压缩器  LLM
     from an agent LLM, where each should track its own usage independently.
     """
 
@@ -39,31 +38,31 @@ class LLMRegistry:
         self,
         retry_listener: Callable[[int, int], None] | None = None,
     ):
-        """Initialize the LLM registry.
+        """初始化LLM注册表。
 
         Args:
-            retry_listener: Optional callback for retry events.
+            retry_listener: 重试事件的可选回调。
         """
         self.registry_id = str(uuid4())
         self.retry_listener = retry_listener
         self._usage_to_llm: dict[str, LLM] = {}
-        # Track metrics object IDs to detect shared metrics
+        # 跟踪指标对象 ID 以检测共享指标
         self._metrics_ids: set[int] = set()
         self.subscriber: Callable[[RegistryEvent], None] | None = None
 
     def subscribe(self, callback: Callable[[RegistryEvent], None]) -> None:
-        """Subscribe to registry events.
+        """订阅注册表事件。
 
         Args:
-            callback: Function to call when LLMs are created or updated.
+            callback: 当 LLMs 创建或更新时调用的函数。
         """
         self.subscriber = callback
 
     def notify(self, event: RegistryEvent) -> None:
-        """Notify subscribers of registry events.
+        """通知订阅者注册表事件。
 
         Args:
-            event: The registry event to notify about.
+            event: 要通知的注册表事件。
         """
         if self.subscriber:
             try:
@@ -73,51 +72,48 @@ class LLMRegistry:
 
     @property
     def usage_to_llm(self) -> MappingProxyType[str, LLM]:
-        """Access the internal usage-ID-to-LLM mapping (read-only view)."""
+        """访问内部使用 ID 到 LLM 映射（只读视图）。"""
 
         return MappingProxyType(self._usage_to_llm)
 
     def _ensure_independent_metrics(self, llm: LLM) -> None:
-        """Ensure the LLM has independent metrics not shared with other LLMs.
+        """确保 LLM 有独立的指标，不与其他 LLMs 共享。
 
-        When LLMs are created via model_copy(), Pydantic does a shallow copy of
-        private attributes by default, causing the original and copied LLM to
-        share the same Metrics object. This method detects such sharing and
-        resets the metrics to ensure each LLM tracks its own usage independently.
+        当 LLMs 通过 model_copy() 创建时，默认情况下，Pydantic 会浅拷贝私有属性，导致
+        原始和拷贝的 LLM 共享同一个 Metrics
+        对象。 该方法检测共享行为，并重置指标以确保每个LLM都能独立跟踪其使用情况。
 
         Args:
-            llm: The LLM instance to check and potentially reset metrics for.
+            llm: 要检查并可能重置指标的 LLM 实例。
         """
-        # Access the metrics to trigger lazy initialization if needed
+        # 如果需要，访问指标以触发延迟初始化
         metrics = llm.metrics
         metrics_id = id(metrics)
 
-        # Check if this metrics object is already tracked by another LLM
+        # 检查此指标对象是否已被另一个 LLM 跟踪
         if metrics_id in self._metrics_ids:
             logger.debug(
                 f"[LLM registry {self.registry_id}]: Detected shared metrics for "
                 f"usage '{llm.usage_id}', resetting to independent metrics"
             )
             llm.reset_metrics()
-            # Get the new metrics ID after reset
+            # 重置后获取新的指标ID
             metrics_id = id(llm.metrics)
 
-        # Track this metrics object ID
+        # 跟踪此指标对象 ID
         self._metrics_ids.add(metrics_id)
 
     def add(self, llm: LLM) -> None:
-        """Add an LLM instance to the registry.
+        """将 LLM 实例添加到注册表。
 
-        This method ensures that the LLM has independent metrics before
-        registering it. If the LLM's metrics are shared with another
-        registered LLM (e.g., due to model_copy()), fresh metrics will
-        be created automatically.
+        此方法确保 LLM 在注册之前具有独立的度量。 如果LLM的指标与另一个注册的LLM（e.g
+        .，由于model_copy()）共享，则会自动创建新的指标。
 
         Args:
-            llm: The LLM instance to register.
+            llm: 要注册的 LLM 实例。
 
         Raises:
-            ValueError: If llm.usage_id already exists in the registry.
+            ValueError: 如果注册表中已经存在llm.usage_id。
         """
         usage_id = llm.usage_id
         if usage_id in self._usage_to_llm:
@@ -128,7 +124,7 @@ class LLMRegistry:
             )
             raise ValueError(message)
 
-        # Ensure this LLM has independent metrics before registering
+        # 注册前确保此 LLM 具有独立的指标
         self._ensure_independent_metrics(llm)
 
         self._usage_to_llm[usage_id] = llm
@@ -138,16 +134,16 @@ class LLMRegistry:
         )
 
     def get(self, usage_id: str) -> LLM:
-        """Get an LLM instance from the registry.
+        """从注册表获取 LLM 实例。
 
         Args:
-            usage_id: Unique identifier for the LLM usage slot.
+            usage_id: LLM 使用槽的唯一标识符。
 
         Returns:
-            The LLM instance.
+            LLM 实例。
 
         Raises:
-            KeyError: If usage_id is not found in the registry.
+            KeyError: 如果在注册表中没有找到usage_id。
         """
         if usage_id not in self._usage_to_llm:
             raise KeyError(
@@ -161,14 +157,14 @@ class LLMRegistry:
         return self._usage_to_llm[usage_id]
 
     def remove(self, usage_id: str) -> None:
-        """Remove an LLM instance from the registry, if present.
+        """从注册表中删除 LLM 实例（如果存在）。
 
-        Unlike :meth:`add` and :meth:`get`, this is a no-op when ``usage_id``
-        is absent, so callers can invalidate a lazily-cached slot without
-        first checking for it.
+        与：meth:`add` 和：meth:`get` 不同，当 ``usage_id`` 不存在时，这是一个无操作
+        ，因此调用者可以使延迟缓存的槽无效，而无需先
+        检查它。
 
         Args:
-            usage_id: Usage slot to drop from the registry.
+            usage_id: 使用槽从注册表掉落。
         """
         if self._usage_to_llm.pop(usage_id, None) is not None:
             logger.debug(
@@ -176,6 +172,6 @@ class LLMRegistry:
             )
 
     def list_usage_ids(self) -> list[str]:
-        """List all registered usage IDs."""
+        """列出所有已注册的使用 ID。"""
 
         return list(self._usage_to_llm.keys())

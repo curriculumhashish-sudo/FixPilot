@@ -4,8 +4,8 @@ run-name: >-
     Run Integration Tests ${{ inputs.reason || github.event.label.name || 'manual' }}
 
 on:
-    # Use pull_request_target to access secrets even on fork PRs.
-    # Labeled PR runs are gated per job to supported test labels.
+    # 即使在叉子 PR 上，也可以使用 pull_request_target 访问机密。 标记的 PR 运行按作业门控到支持的测试标签。
+    #
     pull_request_target:
         types:
             - labeled
@@ -52,8 +52,8 @@ on:
                     - planning
 
 env:
-    N_PROCESSES: 4 # Global configuration for number of parallel processes for evaluation
-    # Default models for label-triggered runs (resolved by the inline table below)
+    N_PROCESSES: 4 # 用于评估的并行进程数量的全局配置
+    # 标签触发运行的默认模型（通过下面的内联表解决）
     DEFAULT_MODEL_IDS: gpt-5.5,deepseek-v4.1-flash,minimax-m2.7,gemini-3.1-pro,claude-sonnet-4-6
     DEFAULT_CONDENSER_MODEL_IDS: gpt-5.5,claude-sonnet-4-6
 
@@ -183,7 +183,7 @@ jobs:
                     echo "issue_number=" >> "$GITHUB_OUTPUT"
                   fi
 
-    # Post initial comment for label triggers (no dependencies - runs immediately)
+    # 发布标签触发器的初始评论（无依赖性 - 立即运行）
     post-label-comment:
         if: >
             github.event_name == 'pull_request_target' && (
@@ -225,7 +225,7 @@ jobs:
                   comment: |
                       Hi! I started running the API compliance tests on your PR. You will receive a comment with the results shortly.
 
-    # Post initial comment for workflow_dispatch (depends on setup-matrix for issue_number resolution)
+    # 发表 workflow_dispatch 的初始评论（取决于 issue_number 分辨率的设置矩阵）
     post-dispatch-comment:
         needs: setup-matrix
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number != ''
@@ -263,9 +263,9 @@ jobs:
                     --repo "$GITHUB_REPOSITORY" --body-file -
 
     run-integration-tests:
-        # Security: Only run when integration-related labels are present or via workflow_dispatch
-        # This prevents automatic execution on fork PRs without maintainer approval
-        # Note: uses always() to run even when comment jobs are skipped
+        # 安全性：仅在存在集成相关标签或通过 workflow_dispatch 时运行
+        # 这可以防止在未经维护者批准的情况下在 fork PR 上自动执行
+        # 注意：即使跳过注释作业，也使用 always() 运行
         if: |
             always() && (
                 (
@@ -294,11 +294,11 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v7.0.1
               with:
-                  # For pull_request_target: checkout fork PR code (requires explicit repository)
-                  # For other events: fallback to current repository and ref
+                  # 对于 pull_request_target：签出 fork PR 代码（需要显式存储库） 对于其他事件：回退方案到当前存储库和引用
+                  #
                   repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
                   ref: ${{ github.event.pull_request.head.sha || github.ref }}
-                  # Security: Don't persist credentials to prevent untrusted PR code from using them
+                  # 安全性：不要持久化凭据以防止不受信任的 PR 代码使用它们
                   persist-credentials: false
 
             - name: Install uv
@@ -321,7 +321,7 @@ jobs:
               run: |
                   uv sync --frozen --group dev
 
-            # Run integration test evaluation
+            # 运行集成测试评估
             - name: Determine test selection
               env:
                   TEST_TYPE_INPUT: ${{ github.event.inputs.test_type }}
@@ -455,8 +455,8 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v7.0.1
               with:
-                  # When using pull_request_target, explicitly checkout the PR branch
-                  # This ensures we use the scripts from the actual PR code
+                  # 使用 pull_request_target 时，显式签出 PR 分支这确保我们使用实际 PR 代码中的脚本
+                  #
                   ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
             - name: Install uv

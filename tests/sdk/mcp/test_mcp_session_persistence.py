@@ -1,9 +1,8 @@
-"""Tests for MCP session persistence across tool calls.
+"""跨工具调用测试 MCP 会话持久化。
 
-Verifies that MCP connections are reused across multiple tool calls,
-avoiding the overhead of reconnecting for each call.
+验证 MCP 连接是否在多个工具调用之间重用，避免了每次调用重新连接的开销。
 
-Related issue: https://github.com/OpenHands/software-agent-sdk/issues/1739
+相关问题： https://github.com/OpenHands/software-agent-sdk/issues/1739
 """
 
 import asyncio
@@ -20,7 +19,7 @@ from openhands.sdk.mcp.tool import MCPToolExecutor
 
 
 def _find_free_port() -> int:
-    """Find an available port."""
+    """找到可用的端口。"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -28,17 +27,17 @@ def _find_free_port() -> int:
 
 @pytest.fixture
 def live_server():
-    """Fixture providing a live MCP test server with echo/add tools."""
+    """测试夹具提供带有 echo/add 工具的实时 MCP 测试服务器。"""
     mcp = FastMCP("session-test-server")
 
     @mcp.tool()
     def echo(message: str) -> str:
-        """Echo a message."""
+        """回显一条消息。"""
         return f"Echo: {message}"
 
     @mcp.tool()
     def add_numbers(a: int, b: int) -> str:
-        """Add two numbers."""
+        """添加两个数字。"""
         return str(a + b)
 
     port = _find_free_port()
@@ -63,10 +62,10 @@ def live_server():
 
 
 class TestSessionPersistence:
-    """Tests verifying session/connection persistence."""
+    """测试验证会话/连接持久化。"""
 
     def test_connection_reused_across_tool_calls(self, live_server: int):
-        """Test that multiple tool calls reuse the same connection."""
+        """测试多个工具调用重用同一连接。"""
         config = {
             "mcpServers": {
                 "test": {
@@ -84,26 +83,26 @@ class TestSessionPersistence:
             echo_tool = next(t for t in client if t.name == "echo")
             add_tool = next(t for t in client if t.name == "add_numbers")
 
-            # Verify they share the same client
+            # 验证他们共享同一个客户端
             echo_executor = echo_tool.executor
             add_executor = add_tool.executor
             assert isinstance(echo_executor, MCPToolExecutor)
             assert isinstance(add_executor, MCPToolExecutor)
             assert echo_executor.client is add_executor.client
 
-            # Make multiple calls - should all use same connection
+            # 拨打多个电话 - 均应使用同一连接
             for i in range(3):
                 action = echo_tool.action_from_arguments({"message": f"test_{i}"})
                 result = echo_executor(action)
                 assert f"test_{i}" in result.text
 
-            # Call different tool - same connection
+            # 调用不同的工具 - 相同的连接
             action = add_tool.action_from_arguments({"a": 5, "b": 3})
             result = add_executor(action)
             assert "8" in result.text
 
     def test_close_releases_connection(self, live_server: int):
-        """Test that close() properly releases the connection."""
+        """测试 close() 是否正确释放连接。"""
         config = {
             "mcpServers": {
                 "test": {
@@ -120,7 +119,7 @@ class TestSessionPersistence:
             executor = tool.executor
             assert isinstance(executor, MCPToolExecutor)
 
-            # Make a call
+            # 拨打电话
             action = tool.action_from_arguments({"message": "test"})
             result = executor(action)
             assert "test" in result.text

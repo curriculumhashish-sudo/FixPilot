@@ -1,12 +1,10 @@
 """
-Unit tests for pause functionality.
+单元测试用于暂停功能。
 
-Tests the core behavior: pause agent execution between steps.
-Key requirements:
-1. Multiple pause method calls successively only create one PauseEvent
-2. Calling conversation.pause() while conversation.run() is still running in a
-   separate thread will pause the agent
-3. Calling conversation.run() on an already paused agent will resume it
+测试核心行为：在步骤之间暂停智能体执行。 关键要求：
+1. 连续多次调用暂停方法只会创建一个PauseEvent
+2. 当 conversation.run() 仍在单独的线程中运行时调用 conversation.pause() 将暂停智能体
+3. 在已经暂停的智能体上调用 conversation.run() 将恢复它
 """
 
 import threading
@@ -47,13 +45,13 @@ from openhands.sdk.tool import (
 
 
 class PauseFunctionalityMockAction(Action):
-    """Mock action schema for testing."""
+    """模拟对象操作模式用于测试。"""
 
     command: str
 
 
 class PauseFunctionalityMockObservation(Observation):
-    """Mock observation schema for testing."""
+    """模拟对象观测结果模式用于测试。"""
 
     result: str
 
@@ -73,7 +71,7 @@ class BlockingExecutor(
         action: PauseFunctionalityMockAction,
         conversation: BaseConversation | None = None,
     ) -> PauseFunctionalityMockObservation:
-        # Signal we've entered tool execution for this step
+        # 表明我们已进入此步骤的工具执行
         self.step_entered.set()
         return PauseFunctionalityMockObservation(result=f"Executed: {action.command}")
 
@@ -81,7 +79,7 @@ class BlockingExecutor(
 class TestExecutor(
     ToolExecutor[PauseFunctionalityMockAction, PauseFunctionalityMockObservation]
 ):
-    """Test executor for pause functionality testing."""
+    """用于暂停功能测试的测试执行器。"""
 
     def __call__(
         self,
@@ -94,7 +92,7 @@ class TestExecutor(
 class PauseFunctionalityTestTool(
     ToolDefinition[PauseFunctionalityMockAction, PauseFunctionalityMockObservation]
 ):
-    """Concrete tool for pause functionality testing."""
+    """用于暂停功能测试的具体工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -115,7 +113,7 @@ class PauseFunctionalityTestTool(
 class BlockingTestTool(
     ToolDefinition[PauseFunctionalityMockAction, PauseFunctionalityMockObservation]
 ):
-    """Concrete tool for blocking pause testing."""
+    """用于阻止暂停测试的具体工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -136,10 +134,10 @@ class BlockingTestTool(
 
 
 class TestPauseFunctionality:
-    """Test suite for pause functionality."""
+    """测试套件用于暂停功能。"""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """设置测试测试夹具。"""
 
         self.llm: LLM = LLM(
             model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm"
@@ -154,14 +152,14 @@ class TestPauseFunctionality:
         self.conversation: LocalConversation = Conversation(agent=self.agent)
 
     def test_pause_basic_functionality(self):
-        """Test basic pause operations."""
-        # Test initial state
+        """测试基本的暂停操作。"""
+        # 测试初始状态
         assert (
             self.conversation.state.execution_status == ConversationExecutionStatus.IDLE
         )
-        # Note: With lazy init, system prompt event not added until first use
+        # 注意：使用延迟初始化，系统提示词事件在第一次使用之前不会添加
 
-        # Test pause method
+        # 测试暂停方法
         self.conversation.pause()
         assert (
             self.conversation.state.execution_status
@@ -178,8 +176,8 @@ class TestPauseFunctionality:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_pause_during_normal_execution(self, mock_completion):
-        """Test pausing before run() starts - pause is reset and agent runs normally."""
-        # Mock LLM to return a message that finishes execution
+        """run() 开始之前测试暂停 - 暂停已重置且智能体正常运行。"""
+        # 模拟对象LLM返回执行完成的消息
         mock_completion.return_value = ModelResponse(
             id="response_msg",
             choices=[
@@ -192,30 +190,30 @@ class TestPauseFunctionality:
             object="chat.completion",
         )
 
-        # Send message and start execution
+        # 发送消息并开始执行
         self.conversation.send_message(
             Message(role="user", content=[TextContent(text="Hello")])
         )
 
-        # Pause immediately (before run starts)
+        # 立即暂停（运行开始前）
         self.conversation.pause()
 
-        # Verify pause was set
+        # 验证已设置暂停
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.PAUSED
         )
 
-        # Run resets pause flag at start and proceeds normally
+        # 运行在开始时重置暂停标志并正常进行
         self.conversation.run()
 
-        # Agent should be finished (pause was reset at start of run)
+        # 智能体应该完成（暂停在运行开始时重置）
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.FINISHED
         )
 
-        # Should have pause event from the pause() call
+        # 应该有来自 pause() 调用的暂停事件
         pause_events = [
             event
             for event in self.conversation.state.events
@@ -225,8 +223,8 @@ class TestPauseFunctionality:
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_resume_paused_agent(self, mock_completion):
-        """Test pausing before run() - pause is reset and agent runs normally."""
-        # Mock LLM to return a message that finishes execution
+        """在 run() 之前测试暂停 - 暂停被重置并且智能体正常运行。"""
+        # 模拟对象LLM返回执行完成的消息
         mock_completion.return_value = ModelResponse(
             id="response_msg",
             choices=[
@@ -239,39 +237,39 @@ class TestPauseFunctionality:
             object="chat.completion",
         )
 
-        # Send message
+        # 发送消息
         self.conversation.send_message(
             Message(role="user", content=[TextContent(text="Hello")])
         )
 
-        # Pause before run
+        # 跑步前暂停
         self.conversation.pause()
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.PAUSED
         )
 
-        # First run() call resets pause and runs normally
+        # 第一个 run() 调用重置暂停并正常运行
         self.conversation.run()
 
-        # Agent should be finished (pause was reset at start of run)
+        # 智能体应该完成（暂停在运行开始时重置）
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.FINISHED
         )
 
-        # Should have agent message since run completed normally
+        # 由于运行正常完成，应该有智能体消息
         agent_messages = [
             event
             for event in self.conversation.state.events
             if isinstance(event, MessageEvent) and event.source == "agent"
         ]
-        assert len(agent_messages) == 1  # Agent ran and completed
+        assert len(agent_messages) == 1  # 智能体运行并完成
 
     @patch("openhands.sdk.llm.llm.litellm_completion")
     def test_pause_with_confirmation_mode(self, mock_completion):
-        """Test that pause before run() with confirmation mode - pause is reset and agent waits for confirmation."""  # noqa: E501
-        # Enable confirmation mode
+        """使用确认模式测试 run() 之前的暂停 - 暂停已重置并且智能体等待确认。"""  # noqa: E501
+        # 启用确认模式
         self.conversation.set_confirmation_policy(AlwaysConfirm())
         self.conversation.pause()
         assert (
@@ -279,7 +277,7 @@ class TestPauseFunctionality:
             == ConversationExecutionStatus.PAUSED
         )
 
-        # Mock action
+        # 模拟对象行动
         tool_call = ChatCompletionMessageToolCall(
             id="call_1",
             type="function",
@@ -304,21 +302,21 @@ class TestPauseFunctionality:
             object="chat.completion",
         )
 
-        # Send message
+        # 发送消息
         self.conversation.send_message(
             Message(role="user", content=[TextContent(text="Execute command")])
         )
 
-        # Run resets pause and proceeds to create action, then waits for confirmation
+        # 运行重置暂停并继续创建操作，然后等待确认
         self.conversation.run()
 
-        # Pause should be reset, agent should be waiting for confirmation
+        # 应重置暂停，智能体应等待确认
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.WAITING_FOR_CONFIRMATION
         )
 
-        # Action did not execute (no ObservationEvent should be recorded)
+        # 操作未执行（不应记录 ObservationEvent）
 
         observations = [
             event
@@ -327,7 +325,7 @@ class TestPauseFunctionality:
         ]
         assert len(observations) == 0
 
-        # But there should be at least one ActionEvent pending confirmation
+        # 但应该至少有一个 ActionEvent 待确认
         action_events = [
             event
             for event in self.conversation.state.events
@@ -336,13 +334,13 @@ class TestPauseFunctionality:
         assert len(action_events) >= 1
 
     def test_multiple_pause_calls_create_one_event(self):
-        """Test that multiple successive pause calls only create one PauseEvent."""
-        # Call pause multiple times successively
+        """测试多个连续的暂停调用仅创建一个 PauseEvent。"""
+        # 连续多次调用暂停
         self.conversation.pause()
         self.conversation.pause()
         self.conversation.pause()
 
-        # Should have only ONE pause event (requirement #1)
+        # 应该只有一个个暂停事件（要求 #1）
         pause_events = [
             event
             for event in self.conversation.state.events
@@ -353,7 +351,7 @@ class TestPauseFunctionality:
             "Multiple successive pause calls should only create one PauseEvent."
         )
 
-        # State should be paused
+        # 状态应该暂停
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.PAUSED
@@ -372,11 +370,11 @@ class TestPauseFunctionality:
         )
         conversation = Conversation(agent=agent, stuck_detection=False)
 
-        # Swap them in for this test only
+        # 仅在本次测试中更换它们
         self.agent = agent
         self.conversation = conversation
 
-        # LLM continuously emits actions (no finish)
+        # LLM 连续发出动作（没有完成）
         tool_call = ChatCompletionMessageToolCall(
             id="call_loop",
             type="function",
@@ -406,7 +404,7 @@ class TestPauseFunctionality:
 
         mock_completion.side_effect = side_effect
 
-        # Seed a user message
+        # 播种用户消息
         self.conversation.send_message(
             Message(
                 role="user", content=[TextContent(text="Loop actions until paused")]
@@ -427,7 +425,7 @@ class TestPauseFunctionality:
         t = threading.Thread(target=run_agent, daemon=True)
         t.start()
 
-        # Wait until we're *inside* tool execution of the current iteration
+        # 等到我们在当前迭代的 *inside* 工具执行中
         assert step_entered.wait(timeout=3.0), "Agent never reached tool execution"
         self.conversation.pause()
         assert (
@@ -439,7 +437,7 @@ class TestPauseFunctionality:
         t.join(timeout=0.1)
         assert run_exc[0] is None, f"Run thread failed with: {run_exc[0]}"
 
-        # paused, not finished, exactly one PauseEvent
+        # 已暂停，未完成，正好一个 PauseEvent
         assert (
             self.conversation.state.execution_status
             == ConversationExecutionStatus.PAUSED

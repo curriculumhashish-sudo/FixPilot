@@ -1,10 +1,10 @@
-"""Regression tests for ACP tool call deduplication and content truncation.
+"""回归测试 ACP 工具调用重复数据删除和内容截断。
 
-Covers:
-- RemoteEventsList._add_event_unsafe deduplicates ACPToolCallEvent by tool_call_id
-- _serialize_tool_content truncates text blocks to MAX_ACP_CONTENT_CHARS
-- _emit_tool_call_event (via _serialize_tool_content) preserves non-text blocks
-- Stale index entry is cleaned up and a warning is logged
+涵盖：
+- RemoteEventsList._add_event_unsafe ACPToolCallEvent tool_call_id
+- _serialize_tool_content 将文本块截断为 MAX_ACP_CONTENT_CHARS
+- _emit_tool_call_event（通过_serialize_tool_content）保留非文本块
+- 过时的索引条目被清理并记录警告
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def _make_tool_call_event(tool_call_id: str, raw_output: str = "") -> ACPToolCal
 
 
 def _make_events_list() -> RemoteEventsList:
-    """Return a RemoteEventsList with _do_full_sync stubbed out."""
+    """返回 RemoteEventsList，_do_full_sync 被删除。"""
     with patch.object(RemoteEventsList, "_do_full_sync"):
         client = MagicMock()
         return RemoteEventsList(client=client, conversation_id="conv-1")
@@ -90,7 +90,7 @@ class TestACPToolCallDeduplication(unittest.TestCase):
         ev1 = _make_tool_call_event("tc-1", "v1")
         self._add(ev1)
 
-        # Manually corrupt state: remove ev1 from _cached_events but leave index intact
+        # 手动损坏状态：从 _cached_events 中删除 ev1 但保持索引不变
         self.events._cached_events.clear()
         self.events._cached_event_ids.discard(ev1.id)
 
@@ -102,13 +102,13 @@ class TestACPToolCallDeduplication(unittest.TestCase):
             any("Stale" in line for line in log_ctx.output),
             "Expected a stale-index warning to be logged",
         )
-        # ev2 should be inserted normally after cleanup
+        # 清理后 ev2 应正常插入
         self.assertEqual(len(self.events._cached_events), 1)
         self.assertEqual(self.events._cached_events[0].id, ev2.id)
         self.assertEqual(self.events._acp_tool_call_id_to_event_id["tc-1"], ev2.id)
 
     def test_thread_safety_concurrent_updates(self) -> None:
-        """Concurrent updates to the same tool_call_id must not corrupt state."""
+        """并发对相同 tool_call_id 的更新不得破坏状态。"""
         errors: list[Exception] = []
 
         def updater(i: int) -> None:
@@ -125,7 +125,7 @@ class TestACPToolCallDeduplication(unittest.TestCase):
             t.join()
 
         self.assertEqual(errors, [])
-        # Only one event per tool_call_id should survive
+        # 每个 tool_call_id 只能存活一个事件
         tc_events = [
             e
             for e in self.events._cached_events
@@ -174,7 +174,7 @@ class TestSerializeToolContentTruncation(unittest.TestCase):
         self.assertEqual(len(result[1]["url"]), MAX_ACP_CONTENT_CHARS + 1_000)
 
     def test_pydantic_model_content_is_serialized(self) -> None:
-        """Blocks with model_dump() are serialized before the truncation check."""
+        """带有 model_dump() 的块在截断检查之前为已序列化。"""
 
         class FakeBlock:
             def model_dump(self, **_kwargs: object) -> dict:

@@ -19,7 +19,7 @@ from openhands.sdk.llm.utils.metrics import Metrics, TokenUsage
 from openhands.sdk.llm.utils.telemetry import Telemetry
 from openhands.sdk.tool.builtins.finish import FinishTool
 
-# Import common test utilities
+# 导入常用测试实用程序
 from tests.conftest import create_mock_litellm_response
 
 
@@ -36,7 +36,7 @@ def default_llm():
 
 
 def test_llm_init_with_default_config(default_llm):
-    """Test LLM initialization with default config using fixture."""
+    """使用测试夹具使用默认配置测试 LLM 初始化。"""
     assert default_llm.model == "gpt-4o"
     assert (
         default_llm.api_key is not None
@@ -119,8 +119,8 @@ async def test_agenerate_dispatches_to_configured_api(default_llm, api_mode):
 
 @patch("openhands.sdk.llm.utils.model_info.httpx.get")
 def test_base_url_for_openhands_provider(mock_get):
-    """Test that openhands/ remains public while transport uses the proxy."""
-    # Mock the model info fetch to avoid actual HTTP calls to production
+    """测试当传输层使用代理时 openhands/ 是否保持公开状态。"""
+    # 模拟对象模型信息获取以避免实际 HTTP 调用生产
     mock_get.return_value = Mock(json=lambda: {"data": []})
 
     llm = LLM(
@@ -138,8 +138,8 @@ def test_base_url_for_openhands_provider(mock_get):
 
 @patch("openhands.sdk.llm.utils.model_info.httpx.get")
 def test_base_url_for_openhands_provider_with_explicit_none(mock_get):
-    """Test that explicit None remains public config, not persisted transport config."""
-    # Mock the model info fetch to avoid actual HTTP calls to production
+    """测试显式 None 是否保留公共配置，而不是已持久化传输层配置。"""
+    # 模拟对象模型信息获取以避免实际 HTTP 调用生产
     mock_get.return_value = Mock(json=lambda: {"data": []})
 
     llm = LLM(
@@ -200,7 +200,7 @@ def test_digitalocean_provider_routes_to_openai_compatible_endpoint(mock_complet
 
 @patch("openhands.sdk.llm.utils.model_info.httpx.get")
 def test_kimi_k2_5_uses_provider_defaults(mock_get):
-    """Test that kimi-k2.5 uses provider defaults (None) for temperature and top_p."""
+    """测试 kimi-k2.5 使用提供商默认值 (None) 作为温度和 top_p。"""
     mock_get.return_value = Mock(json=lambda: {"data": []})
 
     llm = LLM(
@@ -208,11 +208,11 @@ def test_kimi_k2_5_uses_provider_defaults(mock_get):
         api_key=SecretStr("test-key"),
         usage_id="test-kimi-llm",
     )
-    # Both temperature and top_p should be None (use provider defaults)
+    # 温度和 top_p 都应为 None（使用提供商默认值）
     assert llm.temperature is None
     assert llm.top_p is None
 
-    # Explicit values should still be respected
+    # 明确的价值观仍应得到尊重
     llm_explicit = LLM(
         model="moonshot/kimi-k2.5",
         api_key=SecretStr("test-key"),
@@ -226,8 +226,8 @@ def test_kimi_k2_5_uses_provider_defaults(mock_get):
 
 @patch("openhands.sdk.llm.utils.model_info.httpx.get")
 def test_base_url_for_openhands_provider_with_custom_url(mock_get):
-    """Test that openhands/ provider respects custom base_url when provided."""
-    # Mock the model info fetch to avoid actual HTTP calls
+    """测试 openhands/ 提供者在提供时是否尊重自定义 base_url。"""
+    # 模拟对象模型信息获取以避免实际的 HTTP 调用
     mock_get.return_value = Mock(json=lambda: {"data": []})
 
     custom_url = "https://custom-proxy.example.com/"
@@ -238,13 +238,13 @@ def test_base_url_for_openhands_provider_with_custom_url(mock_get):
         base_url=custom_url,
     )
     assert llm.base_url == custom_url
-    # Should call with custom URL
+    # 应使用自定义 URL 进行调用
     mock_get.assert_called_once()
 
 
 def test_token_usage_add():
-    """Test that TokenUsage instances can be added together."""
-    # Create two TokenUsage instances
+    """测试 TokenUsage 个实例是否可以添加在一起。"""
+    # 创建两个 TokenUsage 实例
     usage1 = TokenUsage(
         model="model1",
         prompt_tokens=10,
@@ -263,32 +263,30 @@ def test_token_usage_add():
         response_id="response-2",
     )
 
-    # Add them together
+    # 将它们加在一起
     combined = usage1 + usage2
 
-    # Verify the result
-    assert combined.model == "model1"  # Should keep the model from the first instance
+    # 验证结果
+    assert combined.model == "model1"  # 应该从第一个实例开始就保留模型
     assert combined.prompt_tokens == 18  # 10 + 8
     assert combined.completion_tokens == 11  # 5 + 6
     assert combined.cache_read_tokens == 5  # 3 + 2
     assert combined.cache_write_tokens == 6  # 2 + 4
-    assert (
-        combined.response_id == "response-1"
-    )  # Should keep the response_id from the first instance
+    assert combined.response_id == "response-1"  # 应保留第一个实例中的 response_id
 
 
 def test_metrics_merge_accumulated_token_usage():
-    """Test that accumulated token usage is properly merged between two Metrics
-    instances."""
-    # Create two Metrics instances
+    """测试累积的词元用量是否在两个指标之间正确合并
+    实例。"""
+    # 创建两个 Metrics 实例
     metrics1 = Metrics(model_name="model1")
     metrics2 = Metrics(model_name="model2")
 
-    # Add token usage to each
+    # 为每个添加词元用量
     metrics1.add_token_usage(10, 5, 3, 2, 1000, "response-1")
     metrics2.add_token_usage(8, 6, 2, 4, 1000, "response-2")
 
-    # Verify initial accumulated token usage
+    # 验证初始累计词元用量
     metrics1_data = metrics1.get()
     accumulated1 = metrics1_data["accumulated_token_usage"]
     assert accumulated1["prompt_tokens"] == 10
@@ -303,10 +301,10 @@ def test_metrics_merge_accumulated_token_usage():
     assert accumulated2["cache_read_tokens"] == 2
     assert accumulated2["cache_write_tokens"] == 4
 
-    # Merge metrics2 into metrics1
+    # 将指标2合并到指标1中
     metrics1.merge(metrics2)
 
-    # Verify merged accumulated token usage
+    # 验证合并累计词元用量
     merged_data = metrics1.get()
 
     merged_accumulated = merged_data["accumulated_token_usage"]
@@ -317,34 +315,34 @@ def test_metrics_merge_accumulated_token_usage():
 
 
 def test_metrics_diff():
-    """Test that metrics diff correctly calculates the difference between two
-    metrics."""
-    # Create baseline metrics
+    """测试指标 diff 是否正确计算两个之间的差异
+    指标。"""
+    # 创建基线指标
     baseline = Metrics(model_name="test-model")
     baseline.add_cost(1.0)
     baseline.add_token_usage(10, 5, 2, 1, 1000, "baseline-response")
     baseline.add_response_latency(0.5, "baseline-response")
 
-    # Create current metrics with additional data
+    # 使用附加数据创建当前指标
     current = Metrics(model_name="test-model")
-    current.merge(baseline)  # Start with baseline
-    current.add_cost(2.0)  # Add more cost
-    current.add_token_usage(15, 8, 3, 2, 1000, "current-response")  # Add more tokens
-    current.add_response_latency(0.8, "current-response")  # Add more latency
+    current.merge(baseline)  # 从基线开始
+    current.add_cost(2.0)  # 添加更多成本
+    current.add_token_usage(15, 8, 3, 2, 1000, "current-response")  # 添加更多 token
+    current.add_response_latency(0.8, "current-response")  # 添加更多延迟
 
-    # Calculate diff
+    # 计算差异
     diff = current.diff(baseline)
 
-    # Verify diff contains only the additional data
+    # 验证 diff 仅包含附加数据
     diff_data = diff.get()
-    assert diff_data["accumulated_cost"] == 2.0  # Only the additional cost
-    assert len(diff_data["costs"]) == 1  # Only the additional cost entry
-    assert len(diff_data["token_usages"]) == 1  # Only the additional token usage
-    assert len(diff_data["response_latencies"]) == 1  # Only the additional latency
+    assert diff_data["accumulated_cost"] == 2.0  # 只需支付额外费用
+    assert len(diff_data["costs"]) == 1  # 仅输入额外费用
+    assert len(diff_data["token_usages"]) == 1  # 仅附加词元用量
+    assert len(diff_data["response_latencies"]) == 1  # 仅额外的延迟
 
-    # Verify accumulated token usage diff
+    # 验证累积的词元用量差异
     accumulated_diff = diff_data["accumulated_token_usage"]
-    assert accumulated_diff["prompt_tokens"] == 15  # Only the additional tokens
+    assert accumulated_diff["prompt_tokens"] == 15  # 仅附加token
     assert accumulated_diff["completion_tokens"] == 8
     assert accumulated_diff["cache_read_tokens"] == 3
     assert accumulated_diff["cache_write_tokens"] == 2
@@ -352,11 +350,11 @@ def test_metrics_diff():
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_with_mock(mock_completion):
-    """Test LLM completion with mocked litellm."""
+    """使用模拟的 LiteLLM 测试 LLM 完成情况。"""
     mock_response = create_mock_litellm_response("Test response")
     mock_completion.return_value = mock_response
 
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -366,7 +364,7 @@ def test_llm_completion_with_mock(mock_completion):
         retry_max_wait=2,
     )
 
-    # Test completion
+    # 测试完成
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     response = llm.completion(messages=messages)
 
@@ -377,7 +375,7 @@ def test_llm_completion_with_mock(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_retry_on_rate_limit(mock_completion):
-    """Test that LLM retries on rate limit errors."""
+    """测试 LLM 重试的速率限制错误。"""
     mock_response = create_mock_litellm_response("Success after retry")
 
     mock_completion.side_effect = [
@@ -389,7 +387,7 @@ def test_llm_retry_on_rate_limit(mock_completion):
         mock_response,
     ]
 
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -399,40 +397,40 @@ def test_llm_retry_on_rate_limit(mock_completion):
         retry_max_wait=2,
     )
 
-    # Test completion with retry
+    # 测试完成重试
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     response = llm.completion(messages=messages)
 
     assert isinstance(response, LLMResponse)
     assert response.raw_response == mock_response
-    assert mock_completion.call_count == 2  # First call failed, second succeeded
+    assert mock_completion.call_count == 2  # 第一次调用失败，第二次成功
 
 
 def test_llm_cost_calculation(default_llm):
-    """Test LLM cost calculation and metrics tracking."""
+    """测试 LLM 成本计算和指标跟踪。"""
     llm = default_llm
 
-    # Test cost addition
+    # 测试成本添加
     initial_cost = llm.metrics.accumulated_cost
     llm.metrics.add_cost(1.5)
     assert llm.metrics.accumulated_cost == initial_cost + 1.5
 
-    # Test cost validation
+    # 测试费用验证
     with pytest.raises(ValueError, match="Added cost cannot be negative"):
         llm.metrics.add_cost(-1.0)
 
 
 def test_llm_token_counting(default_llm):
-    """Test LLM token counting functionality."""
+    """测试 LLM token 计数功能。"""
     llm = default_llm
 
-    # Test with dict messages
+    # 使用 dict 消息进行测试
     messages = [
         Message(role="user", content=[TextContent(text="Hello")]),
         Message(role="assistant", content=[TextContent(text="Hi there!")]),
     ]
 
-    # Token counting might return 0 if model not supported, but should not error
+    # token 如果模型不支持，计数可能会返回 0，但不应出错
     token_count = llm.get_token_count(messages)
     assert isinstance(token_count, int)
     assert token_count >= 0
@@ -440,7 +438,7 @@ def test_llm_token_counting(default_llm):
 
 @patch("openhands.sdk.llm.llm.token_counter")
 def test_llm_token_counting_includes_tools(mock_token_counter, default_llm):
-    """Test LLM token counting forwards tool schemas to LiteLLM."""
+    """测试 LLM token 将工具模式向前计数到 LiteLLM。"""
     mock_token_counter.return_value = 123
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     tools = list(FinishTool.create())
@@ -459,7 +457,7 @@ def test_llm_token_counting_includes_tools(mock_token_counter, default_llm):
 
 
 def test_llm_load_chat_template_tokenizer_prefers_transformers(monkeypatch):
-    """The chat-template tokenizer uses Transformers when available."""
+    """聊天模板分词器在可用时使用 Transformer。"""
 
     class FakeTokenizer:
         chat_template = "template"
@@ -605,7 +603,7 @@ def test_llm_custom_tokenizer_allows_apply_chat_template_without_declared_templa
 def test_llm_token_counting_prefers_chat_template_tokenizer(
     mock_token_counter, default_llm
 ):
-    """Token counting uses apply_chat_template when the tokenizer supports it."""
+    """当分词器支持时，token 计数使用 apply_chat_template。"""
 
     class FakeChatTemplateTokenizer:
         def __init__(self):
@@ -641,7 +639,7 @@ def test_llm_token_counting_prefers_chat_template_tokenizer(
 def test_llm_chat_template_token_counting_parses_tool_call_arguments(
     mock_token_counter, default_llm
 ):
-    """HF chat templates may expect assistant tool-call arguments as objects."""
+    """HF 聊天模板可能需要辅助工具调用参数作为对象。"""
 
     class FakeChatTemplateTokenizer:
         def __init__(self):
@@ -677,7 +675,7 @@ def test_llm_chat_template_token_counting_parses_tool_call_arguments(
 
 
 def test_llm_count_tokenized_output_handles_encoding_objects(default_llm):
-    """Token counting handles Hugging Face BatchEncoding/Encoding shapes."""
+    """token 计数手柄拥抱面 BatchEncoding/编码形状。"""
 
     class FakeEncoding:
         def __init__(self):
@@ -706,7 +704,7 @@ def test_llm_count_tokenized_output_handles_encoding_objects(default_llm):
 def test_llm_token_counting_falls_back_when_chat_template_fails(
     mock_token_counter, default_llm
 ):
-    """A broken tokenizer chat template should fall back to LiteLLM counting."""
+    """损坏的分词器聊天模板应回退到 LiteLLM 计数。"""
 
     class BrokenChatTemplateTokenizer:
         def apply_chat_template(self, messages, **kwargs):
@@ -787,7 +785,7 @@ def test_optional_tokenizer_loading_falls_back(monkeypatch, failure):
 
 @patch("openhands.sdk.llm.llm.token_counter")
 def test_llm_token_counting_mocks_tools_for_non_native_models(mock_token_counter):
-    """Test token counting prompt-mocks tools when native tool calling is disabled."""
+    """当禁用本机工具调用时，测试 token 计数提示词-模拟对象个工具。"""
     mock_token_counter.return_value = 456
     llm = LLM(
         model="gpt-4o",
@@ -822,7 +820,7 @@ def test_llm_forwards_extra_headers_to_litellm(mock_completion):
     mock_response = create_mock_litellm_response("ok")
     mock_completion.return_value = mock_response
 
-    headers = {"anthropic-beta": "context-1m-2025-08-07"}  # Enable 1M context
+    headers = {"anthropic-beta": "context-1m-2025-08-07"}  # 启用1M 上下文
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -836,17 +834,18 @@ def test_llm_forwards_extra_headers_to_litellm(mock_completion):
 
     assert mock_completion.call_count == 1
     _, kwargs = mock_completion.call_args
-    # User-supplied extra_headers must reach litellm. The LLM may also inject
-    # OpenRouter HTTP-Referer / X-Title defaults (issue #3138), so only assert
-    # the user's headers are a subset of the forwarded dict.
+    # 用户提供的 extra_headers 必须达到 LiteLLM。 LLM 也可能注入 OpenRouter HTTP-Referer
+    #  / X-Title 默认值（issue #3138），因此仅需验证用户头信息是转发字典的子集。
+    #
     forwarded = kwargs.get("extra_headers") or {}
     assert headers.items() <= forwarded.items()
 
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_llm_responses_forwards_extra_headers_to_litellm(mock_responses):
-    # Build a minimal, but valid, ResponsesAPIResponse instance per litellm types
-    # Build typed message output using OpenAI types to satisfy litellm schema
+    # 为每个 LiteLLM 类型构建一个最小但有效的 ResponsesAPIResponse 个实例使用 OpenAI 类
+    # 型构建类型化消息输出以满足 LiteLLM 模式
+    #
     msg = ResponseOutputMessage.model_construct(
         id="m1",
         type="message",
@@ -889,7 +888,7 @@ def test_llm_responses_forwards_extra_headers_to_litellm(mock_responses):
     _, kwargs = mock_responses.call_args
     assert kwargs["model"] == "gpt-4o"
     assert kwargs["custom_llm_provider"] == "openai"
-    # See test_llm_forwards_extra_headers_to_litellm for the same rationale.
+    # 参见test_llm_forwards_extra_headers_to_litellm了解相同的原理。
     forwarded = kwargs.get("extra_headers") or {}
     assert headers.items() <= forwarded.items()
 
@@ -991,10 +990,11 @@ def test_llm_model_copy_refreshes_provider_for_base_url_update():
 @pytest.mark.parametrize(
     ("model", "base_url"),
     [
-        # OpenAI-compatible local endpoint: the common custom-base case.
+        # OpenAI-兼容本地端点：常见的自定义基础情况。
         ("openai/local-model", "http://localhost:8000/v1"),
-        # LiteLLM would append "/v1" to a custom mistral base during provider
-        # resolution; the SDK must still forward the user's value untouched.
+        # LiteLLM 会在提供者解析期间将“/v1" 附加到自定义的 Misstral 基； SDK 仍必须原封
+        # 不动地转发用户的价值。
+        #
         ("mistral/mistral-small-latest", "https://myproxy.example.com"),
     ],
 )
@@ -1013,9 +1013,10 @@ def test_llm_forwards_custom_base_url_as_is(model: str, base_url: str):
 
 
 def test_llm_forwards_none_api_base_when_no_base_url():
-    # LiteLLM knows default bases for many providers (e.g. mistral). The SDK
-    # must not bake them into the call; api_base stays None so LiteLLM keeps
-    # resolving env vars / defaults per call, exactly as on main.
+    # LiteLLM 知道许多提供者的默认基础 (e.g. 米斯塔拉尔）。 SDK 不得将它们烘焙到调用中；
+    #  api_base 保持 None，因此 LiteLLM 继续解析每次调用的环境变量/默认值，与 main 上的
+    # 完全相同。
+    #
     llm = LLM(
         usage_id="test-llm",
         model="mistral/mistral-small-latest",
@@ -1050,11 +1051,11 @@ def test_completion_merges_llm_extra_headers_with_extended_thinking_default(
     assert mock_completion.call_count == 1
     _, kwargs = mock_completion.call_args
     headers = kwargs.get("extra_headers") or {}
-    # Intended behavior:
-    # - No per-call headers provided.
-    # - LLM.extra_headers should be used.
-    # - Extended thinking default (anthropic-beta) should be merged in.
-    # - Result keeps both the default and configured headers.
+    # 预期行为：
+    # - 不提供每次调用标头。
+    # - 应使用LLM.extra_headers。
+    # - 扩展思维默认值（Anthropic-beta）应该合并进来。
+    # - 结果保留默认和配置的标头。
     assert headers.get("anthropic-beta") == "interleaved-thinking-2025-05-14"
     assert headers.get("X-Trace") == "1"
 
@@ -1070,17 +1071,17 @@ def test_completion_call_time_extra_headers_override_config_and_defaults(
         usage_id="test-llm",
         model="claude-sonnet-4-5-20250514",
         api_key=SecretStr("test_key"),
-        # Config sets a conflicting header
+        # 配置设置了冲突的标头
         extra_headers={"anthropic-beta": "context-1m-2025-08-07", "X-Trace": "1"},
         extended_thinking_budget=1000,
         num_retries=0,
     )
 
     messages = [Message(role="user", content=[TextContent(text="Hi")])]
-    # Intended behavior:
-    # - Per-call headers should replace any LLM.extra_headers.
-    # - Extended thinking default should still be merged in.
-    # - On conflicts, per-call headers win (anthropic-beta => custom-beta).
+    # 预期行为：
+    # - 每次调用标头应替换任何 LLM.extra_headers。
+    # - 扩展思维默认值仍应合并进来。
+    # - 在发生冲突时，每次调用标头获胜（Anthropic-beta => custom-beta）。
     call_headers = {"anthropic-beta": "custom-beta", "Header-Only": "H"}
     _ = llm.completion(messages=messages, extra_headers=call_headers)
 
@@ -1089,14 +1090,14 @@ def test_completion_call_time_extra_headers_override_config_and_defaults(
     headers = kwargs.get("extra_headers") or {}
     assert headers.get("anthropic-beta") == "custom-beta"
     assert headers.get("Header-Only") == "H"
-    # LLM.config headers should not be merged when user specifies their own
-    # (except defaults we explicitly add)
+    # LLM.config 当用户指定自己的标头时，不应合并标头（我们明确添加的默认值除外）
+    #
     assert "X-Trace" not in headers
 
 
 @patch("openhands.sdk.llm.llm.litellm_responses")
 def test_responses_call_time_extra_headers_override_config(mock_responses):
-    # Build a minimal valid Responses response
+    # 构建最小有效响应响应
     msg = ResponseOutputMessage.model_construct(
         id="m1",
         type="message",
@@ -1128,9 +1129,9 @@ def test_responses_call_time_extra_headers_override_config(mock_responses):
     )
 
     messages = [Message(role="user", content=[TextContent(text="Hi")])]
-    # Intended behavior:
-    # - Per-call headers should replace any LLM.extra_headers for Responses path.
-    # - No Anthropic default is currently added on the Responses path.
+    # 预期行为：
+    # - 每次调用标头应替换响应路径的任何 LLM.extra_headers。
+    # - 当前未在响应路径上添加 Anthropic 默认值。
     call_headers = {"Header-Only": "H"}
     _ = llm.responses(messages=messages, extra_headers=call_headers)
 
@@ -1142,32 +1143,32 @@ def test_responses_call_time_extra_headers_override_config(mock_responses):
 
 
 def test_llm_vision_support(default_llm):
-    """Test LLM vision support detection."""
+    """测试LLM视觉支持检测。"""
     llm = default_llm
 
-    # Vision support detection should work without errors
+    # 视觉支持检测应该没有错误
     vision_active = llm.vision_is_active()
     assert isinstance(vision_active, bool)
 
 
 def test_llm_function_calling_support(default_llm):
-    """Test LLM function calling support detection."""
+    """TestLLM函数调用支持检测。"""
     llm = default_llm
 
-    # Function calling support detection should work without errors
+    # 函数调用支持检测应该没有错误
     native_tool_calling = llm.native_tool_calling
     assert isinstance(native_tool_calling, bool)
 
 
 def test_llm_function_calling_enabled_by_default():
-    """Test that function calling is enabled by default for all models."""
-    # Test with a known model
+    """测试所有模型是否默认启用函数调用。"""
+    # 使用已知模型进行测试
     llm_known = LLM(
         model="gpt-4o", api_key=SecretStr("test_key"), usage_id="test-known"
     )
     assert llm_known.native_tool_calling is True
 
-    # Test with an unknown model - should still be enabled by default
+    # 使用未知模型进行测试 - 默认情况下仍应启用
     llm_unknown = LLM(
         model="some-unknown-model-xyz",
         api_key=SecretStr("test_key"),
@@ -1177,9 +1178,9 @@ def test_llm_function_calling_enabled_by_default():
 
 
 def test_llm_function_calling_can_be_disabled():
-    """Test that users can opt-out of function calling via
+    """测试用户可以通过以下方式选择退出函数调用
     native_tool_calling=False."""
-    # Test with a known model that normally has function calling
+    # 使用通常具有函数调用的已知模型进行测试
     llm_disabled = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
@@ -1188,7 +1189,7 @@ def test_llm_function_calling_can_be_disabled():
     )
     assert llm_disabled.native_tool_calling is False
 
-    # Test with an unknown model with function calling disabled
+    # 使用禁用函数调用的未知模型进行测试
     llm_unknown_disabled = LLM(
         model="some-unknown-model-xyz",
         api_key=SecretStr("test_key"),
@@ -1199,42 +1200,43 @@ def test_llm_function_calling_can_be_disabled():
 
 
 def test_llm_force_string_serializer_auto_detect():
-    """Test that force_string_serializer auto-detects based on model when None."""
-    # Test with the legacy DeepSeek family that requires string serialization
+    """测试 force_string_serializer 在 None 时根据模型自动检测。"""
+    # 使用需要字符串序列化的旧 DeepSeek 系列进行测试
     llm_deepseek = LLM(
         model="DeepSeek-V3.2-Exp",
         api_key=SecretStr("test_key"),
         usage_id="test-deepseek",
     )
-    # Should be None at LLM level (auto-detect)
+    # 应为 None 且 LLM 级别（自动检测）
     assert llm_deepseek.force_string_serializer is None
-    # When formatting messages, it should be set to True based on model features
+    # 格式化消息时，应根据模型特性设置为True
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     formatted = llm_deepseek.format_messages_for_llm(messages)
-    # The formatted messages should have force_string_serializer applied
-    # For DeepSeek models, content should be a string (not list)
+    # 格式化消息应应用 force_string_serializer 对于 DeepSeek 模型，内容应为字符串（不是
+    # 列表）
+    #
     assert len(formatted) == 1
     assert isinstance(formatted[0]["content"], str)
 
-    # Test with a model that doesn't require string serialization
+    # 使用不需要字符串序列化的模型进行测试
     llm_gpt = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
         usage_id="test-gpt",
-        caching_prompt=False,  # Disable caching
-        native_tool_calling=False,  # Disable tool calling
-        disable_vision=True,  # Disable vision to test simple string case
+        caching_prompt=False,  # 禁用缓存
+        native_tool_calling=False,  # 禁用工具调用
+        disable_vision=True,  # 禁用视觉来测试简单的字符串大小写
     )
     assert llm_gpt.force_string_serializer is None
-    # When formatting messages for GPT without special features, uses string by default
+    # 当没有特殊功能的 GPT 格式化消息时，默认使用字符串
     formatted_gpt = llm_gpt.format_messages_for_llm(messages)
     assert len(formatted_gpt) == 1
     assert isinstance(formatted_gpt[0]["content"], str)
 
 
 def test_llm_force_string_serializer_override():
-    """Test force_string_serializer can be explicitly set to override auto-detect."""
-    # Set force_string_serializer=True for a model that normally doesn't need it
+    """可以显式设置测试 force_string_serializer 以覆盖自动检测。"""
+    # 对于通常不需要的模型设置 force_string_serializer=True
     llm_force_true = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
@@ -1252,17 +1254,18 @@ def test_llm_force_string_serializer_override():
     formatted = llm_force_true.format_messages_for_llm(messages)
     assert isinstance(formatted[0]["content"], str)
 
-    # Explicitly set force_string_serializer=False for a model that normally needs it
-    # Use a model that supports caching to test list serialization
+    # 对于通常需要的模型显式设置 force_string_serializer=False 使用支持缓存的模型来测试
+    # 列表序列化
+    #
     llm_force_false = LLM(
-        model="anthropic/claude-sonnet-4-20250514",  # Supports caching
+        model="anthropic/claude-sonnet-4-20250514",  # 支持缓存
         api_key=SecretStr("test_key"),
         force_string_serializer=False,
-        caching_prompt=True,  # Enable caching to trigger list serialization
+        caching_prompt=True,  # 启用缓存以触发列表序列化
         usage_id="test-force-false",
     )
     assert llm_force_false.force_string_serializer is False
-    # With caching enabled and force_string_serializer=False, should use list
+    # 启用缓存时 force_string_serializer=False, 应使用列表
     messages_cache = [
         Message(
             role="user",
@@ -1274,10 +1277,10 @@ def test_llm_force_string_serializer_override():
 
 
 def test_llm_caching_support(default_llm):
-    """Test LLM prompt caching support detection."""
+    """测试LLM提示词缓存支持检测。"""
     llm = default_llm
 
-    # Caching support detection should work without errors
+    # 缓存支持检测应该没有错误
     caching_active = llm.is_caching_prompt_active()
     assert isinstance(caching_active, bool)
 
@@ -1311,29 +1314,29 @@ def test_claude_55_cache_markers_without_metadata(model, prefix, caching_prompt)
 
 
 def test_llm_string_representation(default_llm):
-    """Test LLM string representation."""
+    """测试 LLM 字符串表示形式。"""
     llm = default_llm
 
     str_repr = str(llm)
-    # Pydantic models don't show "LLM(" prefix in str(), just the field values
+    # Pydantic 模型在 str() 中不显示“LLM(”前缀，仅显示字段值
     assert "gpt-4o" in str_repr
     assert "model=" in str_repr
 
     repr_str = repr(llm)
-    # repr() shows "LLM(" prefix, str() doesn't
+    # repr() 显示“LLM(”前缀，str() 不显示
     assert "LLM(" in repr_str
     assert "gpt-4o" in repr_str
 
 
 def test_llm_local_detection_based_on_model_name(default_llm):
-    """Test LLM local model detection based on model name."""
+    """测试LLM基于模型名称的本地模型检测。"""
     llm = default_llm
 
-    # Test basic model configuration
+    # 测试基本模型配置
     assert llm.model == "gpt-4o"
-    assert llm.temperature is None  # Uses provider default
+    assert llm.temperature is None  # 使用提供商默认值
 
-    # Test with localhost base_url
+    # 使用本地主机进行测试 base_url
     local_llm = LLM(
         model="gpt-4o",
         base_url="http://localhost:8000",
@@ -1341,7 +1344,7 @@ def test_llm_local_detection_based_on_model_name(default_llm):
     )
     assert local_llm.base_url == "http://localhost:8000"
 
-    # Test with ollama model
+    # 使用ollama模型进行测试
     ollama_llm = LLM(
         model="ollama/llama2",
         usage_id="test-llm",
@@ -1351,20 +1354,20 @@ def test_llm_local_detection_based_on_model_name(default_llm):
 
 
 def test_llm_local_detection_based_on_base_url():
-    """Test local model detection based on base_url."""
-    # Test with localhost base_url
+    """基于base_url测试局部模型检测。"""
+    # 使用本地主机进行测试 base_url
     local_llm = LLM(
         model="gpt-4o", base_url="http://localhost:8000", usage_id="test-llm"
     )
     assert local_llm.base_url == "http://localhost:8000"
 
-    # Test with 127.0.0.1 base_url
+    # 使用 127.0.0.1 进行测试 base_url
     local_llm_ip = LLM(
         model="gpt-4o", base_url="http://127.0.0.1:8000", usage_id="test-llm"
     )
     assert local_llm_ip.base_url == "http://127.0.0.1:8000"
 
-    # Test with remote model
+    # 使用远程模型进行测试
     remote_llm = LLM(
         model="gpt-4o", base_url="https://api.openai.com/v1", usage_id="test-llm"
     )
@@ -1372,17 +1375,17 @@ def test_llm_local_detection_based_on_base_url():
 
 
 def test_llm_openhands_provider_rewrite(default_llm):
-    """Test LLM message formatting for different message types."""
+    """测试不同消息类型的 LLM 消息格式。"""
     llm = default_llm
 
-    # Test with single Message object in a list
+    # 使用列表中的单个 Message 对象进行测试
     message = [Message(role="user", content=[TextContent(text="Hello")])]
     formatted = llm.format_messages_for_llm(message)
     assert isinstance(formatted, list)
     assert len(formatted) == 1
     assert isinstance(formatted[0], dict)
 
-    # Test with list of Message objects
+    # 使用 Message 对象列表进行测试
     messages = [
         Message(role="user", content=[TextContent(text="Hello")]),
         Message(role="assistant", content=[TextContent(text="Hi there!")]),
@@ -1394,16 +1397,16 @@ def test_llm_openhands_provider_rewrite(default_llm):
 
 
 def test_metrics_copy():
-    """Test that metrics can be copied correctly."""
+    """测试是否可以正确复制指标。"""
     original = Metrics(model_name="test-model")
     original.add_cost(1.0)
     original.add_token_usage(10, 5, 2, 1, 1000, "test-response")
     original.add_response_latency(0.5, "test-response")
 
-    # Create a copy
+    # 创建副本
     copied = original.deep_copy()
 
-    # Verify copy has same data
+    # 验证副本具有相同的数据
     original_data = original.get()
     copied_data = copied.get()
 
@@ -1414,13 +1417,13 @@ def test_metrics_copy():
         copied_data["response_latencies"]
     )
 
-    # Verify they are independent (modifying one doesn't affect the other)
+    # 验证它们是独立的（修改一个不会影响另一个）
     copied.add_cost(2.0)
     assert original.accumulated_cost != copied.accumulated_cost
 
 
 def test_metrics_log():
-    """Test metrics logging functionality."""
+    """测试指标记录功能。"""
     metrics = Metrics(model_name="test-model")
     metrics.add_cost(1.5)
     metrics.add_token_usage(10, 5, 2, 1, 1000, "test-response")
@@ -1432,12 +1435,12 @@ def test_metrics_log():
 
 
 def test_llm_config_validation():
-    """Test LLM configuration validation."""
-    # Test with minimal valid config
+    """测试 LLM 配置验证。"""
+    # 测试最小有效的配置
     llm = LLM(model="gpt-4o", usage_id="test-llm")
     assert llm.model == "gpt-4o"
 
-    # Test with full config
+    # 使用完整配置进行测试
     full_llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -1455,13 +1458,13 @@ def test_llm_config_validation():
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_no_response_error(mock_completion):
-    """Test handling of LLMNoResponseError."""
+    """测试 LLMNoResponseError 的处理。"""
     from litellm.types.utils import ModelResponse, Usage
 
-    # Mock empty response using proper ModelResponse
+    # 模拟对象使用正确的 ModelResponse 进行空响应
     mock_response = ModelResponse(
         id="test-id",
-        choices=[],  # Empty choices should trigger LLMNoResponseError
+        choices=[],  # 空选项应触发 LLMNoResponseError
         created=1234567890,
         model="gpt-4o",
         object="chat.completion",
@@ -1469,7 +1472,7 @@ def test_llm_no_response_error(mock_completion):
     )
     mock_completion.return_value = mock_response
 
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -1479,17 +1482,17 @@ def test_llm_no_response_error(mock_completion):
         retry_max_wait=2,
     )
 
-    # Test that empty response raises LLMNoResponseError
+    # 测试空响应会引发 LLMNoResponseError
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     with pytest.raises(LLMNoResponseError):
         llm.completion(messages=messages)
 
 
 def test_response_latency_tracking(default_llm):
-    """Test response latency tracking in metrics."""
+    """测试指标中的响应延迟跟踪。"""
     metrics = Metrics(model_name="test-model")
 
-    # Add some latencies
+    # 添加一些延迟
     metrics.add_response_latency(0.5, "response-1")
     metrics.add_response_latency(1.2, "response-2")
     metrics.add_response_latency(0.8, "response-3")
@@ -1500,13 +1503,13 @@ def test_response_latency_tracking(default_llm):
     assert latencies[1].latency == 1.2
     assert latencies[2].latency == 0.8
 
-    # Test negative latency is converted to 0
+    # 测试负延迟转换为0
     metrics.add_response_latency(-0.1, "response-4")
     assert metrics.response_latencies[-1].latency == 0.0
 
 
 def test_token_usage_context_window():
-    """Test token usage with context window tracking."""
+    """使用上下文窗口跟踪测试词元用量。"""
     usage = TokenUsage(
         model="test-model",
         prompt_tokens=100,
@@ -1516,9 +1519,9 @@ def test_token_usage_context_window():
     )
 
     assert usage.context_window == 4096
-    assert usage.per_turn_token == 0  # Default value
+    assert usage.per_turn_token == 0  # 默认值
 
-    # Test addition preserves max context window
+    # 测试添加保留 max 上下文窗口
     usage2 = TokenUsage(
         model="test-model",
         prompt_tokens=200,
@@ -1528,36 +1531,36 @@ def test_token_usage_context_window():
     )
 
     combined = usage + usage2
-    assert combined.context_window == 8192  # Should take the max
+    assert combined.context_window == 8192  # 应该取最大值
     assert combined.prompt_tokens == 300
     assert combined.completion_tokens == 125
 
 
-# Telemetry Tests
+# 遥测测试
 
 
 def test_telemetry_cost_calculation_header_exception():
-    """Test telemetry cost calculation handles header parsing exceptions."""
-    # Create a mock response with headers that will cause an exception
+    """测试遥测成本计算处理标头解析异常。"""
+    # 创建一个带有会导致异常的标头的模拟对象响应
     mock_response = Mock()
     mock_response.headers = {"x-litellm-cost": "invalid-float"}
 
     metrics = Metrics()
     telemetry = Telemetry(model_name="test-model", metrics=metrics)
 
-    # Mock the logger to capture debug messages
+    # 模拟对象捕获调试消息的记录器
     with patch("openhands.sdk.llm.utils.telemetry.logger") as mock_logger:
-        # Mock litellm_completion_cost to return a valid cost
+        # 模拟对象 litellm_completion_cost 返回有效成本
         with patch(
             "openhands.sdk.llm.utils.telemetry.litellm_completion_cost",
             return_value=0.001,
         ):
             cost = telemetry._compute_cost(mock_response)
 
-            # Should fall back to litellm cost calculator
+            # 应回退到 LiteLLM 成本计算器
             assert cost == 0.001
 
-            # Should have logged the debug message for header parsing failure (line 139)
+            # 应该记录标头解析失败的调试消息（第 139 行）
             mock_logger.debug.assert_called_once()
             assert "Failed to get cost from LiteLLM headers:" in str(
                 mock_logger.debug.call_args
@@ -1566,13 +1569,13 @@ def test_telemetry_cost_calculation_header_exception():
 
 def test_enable_encrypted_reasoning_respects_flag_and_defaults_true():
     """
-    Encrypted reasoning should be included only when:
-    - The request is stateless (store=False), and
-    - LLM.enable_encrypted_reasoning is True (default).
+    仅在以下情况下才应包含加密推理：
+    - 该请求是无状态的（store=False），并且
+    - LLM.enable_encrypted_reasoning 为 True（默认）。
 
-    No model-based auto behavior; strictly respect the flag.
+    没有基于模型的自动行为； 严格尊重国旗。
     """
-    # Default behavior: flag is True
+    # 默认行为：标志为 True
     llm_default = LLM(
         model="openai/gpt-5-mini",
         api_key=SecretStr("test_key"),
@@ -1585,7 +1588,7 @@ def test_enable_encrypted_reasoning_respects_flag_and_defaults_true():
     )
     assert "reasoning.encrypted_content" in normalized_default.get("include", [])
 
-    # Explicit False disables encrypted reasoning even for GPT families
+    # 显式 False 即使对于 GPT 个系列也会禁用加密推理
     llm_disabled = LLM(
         model="gpt-4o",
         api_key=SecretStr("test_key"),
@@ -1598,7 +1601,7 @@ def test_enable_encrypted_reasoning_respects_flag_and_defaults_true():
     )
     assert "reasoning.encrypted_content" not in normalized_disabled.get("include", [])
 
-    # When store=True (stateful), do not include encrypted reasoning
+    # 当store=True（有状态）时，不包括加密推理
     normalized_stateful = select_responses_options(
         llm_default, {}, include=None, store=True
     )
@@ -1607,17 +1610,17 @@ def test_enable_encrypted_reasoning_respects_flag_and_defaults_true():
 
 @patch("openhands.sdk.llm.llm.LLM._transport_call")
 def test_unmapped_model_with_logging_enabled(mock_transport):
-    """Test that unmapped models with logging enabled don't cause validation errors.
+    """测试启用日志记录的未映射模型不会导致验证错误。
 
-    This is an integration test for issue #905 where unmapped models
-    (those not in LiteLLM's model_prices_and_context_window.json)
-    have max_input_tokens=None, which causes validation errors when
-    logging is enabled because the context_window gets set to None.
+    这是一个集成测试 905 号问题，未映射的模型（不在 LiteLLM 的
+    model_prices_and_context_window.json 中）的
+    max_input_tokens=None，启用日志时会导致验证错误，因为 context_window 被设置为
+    None。
     """
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create an LLM with an unmapped model and logging enabled
+        # 创建一个未映射模型并启用日志记录的 LLM
         llm = LLM(
             model="openai/UnmappedTestModel",
             api_key=SecretStr("test-key"),
@@ -1626,16 +1629,16 @@ def test_unmapped_model_with_logging_enabled(mock_transport):
             log_completions_folder=tmpdir,
         )
 
-        # Verify max_input_tokens is None (unmapped model)
+        # 验证 max_input_tokens 为 None（未映射模型）
         assert llm.max_input_tokens is None
 
-        # Mock the transport call
+        # 模拟对象传输层通话
         mock_response = create_mock_litellm_response(
             "Test response", model="UnmappedTestModel"
         )
         mock_transport.return_value = mock_response
 
-        # This should not raise a validation error
+        # 这不应引发验证错误
         response = llm.completion(
             messages=[Message(role="user", content=[TextContent(text="test")])]
         )
@@ -1643,21 +1646,21 @@ def test_unmapped_model_with_logging_enabled(mock_transport):
         assert response is not None
         assert isinstance(response, LLMResponse)
 
-        # Verify token usage was recorded correctly with context_window=0
+        # 验证词元用量已正确记录且 context_window=0
         metrics = llm.metrics.get()
         assert len(metrics["token_usages"]) == 1
         token_usage = metrics["token_usages"][0]
         assert isinstance(token_usage["context_window"], int)
-        # Should default to 0 when max_input_tokens is None
+        # 当 max_input_tokens 为 None 时应默认为 0
         assert token_usage["context_window"] == 0
 
 
-# Context Window Validation Tests
+# 上下文窗口验证测试
 
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_llm_raises_error_on_small_context_window(mock_get_model_info):
-    """Test that LLM raises error when context window is too small."""
+    """测试当上下文窗口太小时 LLM 是否会引发错误。"""
     from openhands.sdk.llm.exceptions import LLMContextWindowTooSmallError
     from openhands.sdk.llm.llm import MIN_CONTEXT_WINDOW_TOKENS
 
@@ -1677,16 +1680,16 @@ def test_llm_raises_error_on_small_context_window(mock_get_model_info):
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_llm_respects_allow_short_context_windows_env_var(mock_get_model_info):
-    """Test that ALLOW_SHORT_CONTEXT_WINDOWS env var bypasses validation."""
+    """测试 ALLOW_SHORT_CONTEXT_WINDOWS 环境变量绕过验证。"""
     import os
 
     from openhands.sdk.llm.llm import ENV_ALLOW_SHORT_CONTEXT_WINDOWS
 
     mock_get_model_info.return_value = {"max_input_tokens": 2048}
 
-    # Set the environment variable
+    # 设置环境变量
     with patch.dict(os.environ, {ENV_ALLOW_SHORT_CONTEXT_WINDOWS: "true"}):
-        # Should not raise
+        # 不应该提高
         llm = LLM(
             model="ollama/test-model",
             api_key=SecretStr("test-key"),
@@ -1696,12 +1699,12 @@ def test_llm_respects_allow_short_context_windows_env_var(mock_get_model_info):
         assert llm.effective_max_input_tokens == 2048
 
 
-# LLM model_copy Tests
+# LLM model_copy 测试
 
 
 def test_llm_model_copy_preserves_configuration():
-    """Test that model_copy preserves the LLM configuration."""
-    # Create original LLM with custom configuration
+    """测试 model_copy 是否保留 LLM 配置。"""
+    # 使用自定义配置创建原始 LLM
     original = LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -1711,37 +1714,37 @@ def test_llm_model_copy_preserves_configuration():
         caching_prompt=False,
     )
 
-    # Copy with updated usage_id
+    # 复制并更新 usage_id
     copied = original.model_copy(update={"usage_id": "copied-llm"})
 
-    # Verify configuration is preserved
+    # 验证配置是否已保留
     assert copied.model == original.model
     assert copied.temperature == original.temperature
     assert copied.max_output_tokens == original.max_output_tokens
     assert copied.caching_prompt == original.caching_prompt
 
-    # Verify usage_id was updated
+    # 验证 usage_id 已更新
     assert copied.usage_id == "copied-llm"
     assert original.usage_id == "original-llm"
 
 
 def test_llm_reset_metrics():
-    """Test that reset_metrics creates fresh metrics and telemetry instances."""
+    """测试 reset_metrics 创建新的指标和遥测实例。"""
     llm = LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
         usage_id="test-llm",
     )
 
-    # Access metrics to trigger lazy initialization
+    # 访问指标以触发延迟初始化
     original_metrics = llm.metrics
     original_telemetry = llm.telemetry
     original_metrics.add_cost(1.0)
 
-    # Reset metrics
+    # 重置指标
     llm.reset_metrics()
 
-    # Verify new metrics are created
+    # 验证是否创建了新指标
     assert llm._metrics is not None
     assert llm._telemetry is not None
     assert llm.metrics is not original_metrics
@@ -1750,11 +1753,11 @@ def test_llm_reset_metrics():
 
 
 def test_issue_2459_restore_metrics_syncs_telemetry():
-    """Restore metrics must update telemetry's reference to avoid desync.
+    """恢复指标必须更新遥测的参考以避免不同步。
 
-    After restore_metrics(), llm.telemetry.metrics must point to the same
-    object as llm.metrics. Otherwise post-resume LLM calls record
-    tokens/cost into a stale metrics object and accounting data is lost.
+    restore_metrics()之后，llm.telemetry.metrics必须与llm.metrics指向同一个对象。 否
+    则，恢复后 LLM 会将记录令牌/
+    成本调用到过时的指标对象中，并且会计数据会丢失。
 
     See: https://github.com/OpenHands/software-agent-sdk/issues/2459
     """
@@ -1763,7 +1766,7 @@ def test_issue_2459_restore_metrics_syncs_telemetry():
         api_key=SecretStr("test-key"),
     )
 
-    # Force telemetry creation (simulates normal init before resume)
+    # 强制遥测创建（在恢复之前模拟正常初始化）
     _ = llm.telemetry
 
     restored = Metrics(model_name=llm.model)
@@ -1776,7 +1779,7 @@ def test_issue_2459_restore_metrics_syncs_telemetry():
 
 @pytest.fixture
 def llm():
-    """Create a minimal SDK LLM for testing."""
+    """创建最小的 SDK LLM 进行测试。"""
     return LLM(
         model="openai/gpt-4o",
         api_key=SecretStr("test-key"),
@@ -1785,7 +1788,7 @@ def llm():
 
 
 def test_cost_recorded_in_restored_metrics(llm):
-    """Costs added via telemetry after restore must land in the restored Metrics."""
+    """恢复后通过遥测添加的成本必须计入恢复的指标中。"""
     restored = Metrics(model_name="openai/gpt-4o")
     restored.add_cost(5.00)
     llm.restore_metrics(restored)
@@ -1797,7 +1800,7 @@ def test_cost_recorded_in_restored_metrics(llm):
 
 
 def test_stale_metrics_not_updated(llm):
-    """The original (pre-restore) Metrics must not receive new costs."""
+    """原始（恢复前）指标不得产生新成本。"""
     original_metrics = llm.metrics
 
     restored = Metrics(model_name="openai/gpt-4o")
@@ -1811,7 +1814,7 @@ def test_stale_metrics_not_updated(llm):
 
 
 def test_restore_metrics_telemetry_none():
-    """restore_metrics() must not crash when telemetry has not been initialized."""
+    """当遥测尚未初始化时，restore_metrics() 不得崩溃。"""
     llm = LLM(
         model="openai/gpt-4o",
         api_key=SecretStr("test-key"),
@@ -1828,7 +1831,7 @@ def test_restore_metrics_telemetry_none():
 
 
 def test_conversation_stats_restore_then_track():
-    """End-to-end: ConversationStats restores metrics, then new costs are tracked."""
+    """端到端：ConversationStats 恢复指标，然后跟踪新成本。"""
     saved_metrics = Metrics(model_name="openai/gpt-4o")
     saved_metrics.add_cost(10.00)
 
@@ -1845,7 +1848,7 @@ def test_conversation_stats_restore_then_track():
 
         assert llm.metrics.accumulated_cost == 10.00
 
-        # Simulate a new LLM response adding cost via telemetry
+        # 模拟新的 LLM 响应，通过遥测增加成本
         llm.telemetry.metrics.add_cost(0.25)
 
         assert llm.metrics.accumulated_cost == 10.25
@@ -1853,14 +1856,15 @@ def test_conversation_stats_restore_then_track():
 
 
 def test_telemetry_callback_preserved_across_revalidation():
-    """Telemetry callbacks must survive validators re-running on the LLM.
+    """遥测回调必须在验证器在 LLM 上重新运行后继续存在。
 
-    Wrapping an LLM in another Pydantic model (e.g. RegistryEvent) re-runs the
-    LLM's `mode="after"` validators. Before this fix, _set_env_side_effects
-    rebuilt _telemetry unconditionally, silently dropping any callback wired
-    via telemetry.set_*_callback() — which broke real-time stats streaming
+    将 LLM 包装在另一个 Pydantic 模型中 (e.g. RegistryEvent) 重新运行 LLM 的
+    `mode="after"` 验证器。 在此修复
+    之前，_set_env_side_effects 无条件重建 _telemetry，默默地删除通过 telemetry.set_*
+    _callback() 连接的任何
+    回调 — 这破坏了实时统计数据流式传输
     from the agent server (no `key="stats"` events were ever emitted after
-    the first agent step).
+    第一个智能体步骤）。
     """
     llm = LLM(
         model="openai/gpt-4o",
@@ -1879,25 +1883,24 @@ def test_telemetry_callback_preserved_across_revalidation():
     assert fired == [True]
 
 
-# max_output_tokens Capping Tests
+# max_output_tokens 上限测试
 
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_max_output_tokens_capped_when_using_max_tokens_fallback(mock_get_model_info):
-    """Test that max_output_tokens is capped when falling back to max_tokens.
+    """测试回落到 max_tokens 时 max_output_tokens 是否受到限制。
 
-    Some providers (e.g., OpenRouter) set max_tokens to the context window size
-    rather than the output limit. Without capping, this could request output
-    that exceeds the context window.
+    某些提供程序（e.g.、OpenRouter）将 max_tokens 设置为上下文窗口大小而不是输出限制
+    。 如果没有上限，这可能会请求超出上下文窗口的输出。
 
     See: https://github.com/OpenHands/software-agent-sdk/pull/2264
     """
     from openhands.sdk.llm.llm import DEFAULT_MAX_OUTPUT_TOKENS_CAP
 
-    # Simulate a model where max_tokens = context window (200k) but
-    # max_output_tokens is not set
+    # 模拟 max_tokens = 上下文窗口 (200k) 但未设置 max_output_tokens 的模型
+    #
     mock_get_model_info.return_value = {
-        "max_tokens": 200000,  # This is the context window, not output limit
+        "max_tokens": 200000,  # 这是上下文窗口，不是输出限制
         "max_output_tokens": None,
         "max_input_tokens": 200000,
     }
@@ -1908,7 +1911,7 @@ def test_max_output_tokens_capped_when_using_max_tokens_fallback(mock_get_model_
         usage_id="test-llm",
     )
 
-    # Config remains unset; the effective runtime value is capped.
+    # 配置保持未设置状态； 有效运行时间值有上限。
     assert llm.max_output_tokens is None
     effective_max_output_tokens = llm.effective_max_output_tokens
     assert effective_max_output_tokens is not None
@@ -1918,8 +1921,8 @@ def test_max_output_tokens_capped_when_using_max_tokens_fallback(mock_get_model_
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_max_output_tokens_uses_actual_value_when_available(mock_get_model_info):
-    """Test that actual max_output_tokens is used when available."""
-    # Simulate a model with proper max_output_tokens
+    """测试是否使用实际的 max_output_tokens（如果可用）。"""
+    # 使用适当的 max_output_tokens 模拟模型
     mock_get_model_info.return_value = {
         "max_tokens": 8192,
         "max_output_tokens": 8192,
@@ -1932,7 +1935,7 @@ def test_max_output_tokens_uses_actual_value_when_available(mock_get_model_info)
         usage_id="test-llm",
     )
 
-    # Should use the actual effective max_output_tokens, not capped
+    # 应使用实际有效max_output_tokens，不封顶
     assert llm.max_output_tokens is None
     assert llm.effective_max_output_tokens == 8192
 
@@ -1941,7 +1944,7 @@ def test_max_output_tokens_uses_actual_value_when_available(mock_get_model_info)
 def test_max_output_tokens_capped_when_model_info_exceeds_default_cap(
     mock_get_model_info,
 ):
-    """High LiteLLM max_output_tokens metadata is capped for custom gateways."""
+    """自定义网关的高 LiteLLM max_output_tokens 元数据受到限制。"""
     from openhands.sdk.llm.llm import DEFAULT_MAX_OUTPUT_TOKENS_CAP
 
     mock_get_model_info.return_value = {
@@ -1963,7 +1966,7 @@ def test_max_output_tokens_capped_when_model_info_exceeds_default_cap(
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_max_output_tokens_not_capped_without_custom_base_url(mock_get_model_info):
-    """Direct API (no base_url) keeps litellm's real max_output_tokens."""
+    """直接 API（无 base_url）保留 LiteLLM 的实数 max_output_tokens。"""
     mock_get_model_info.return_value = {
         "max_output_tokens": 64000,
         "max_tokens": 64000,
@@ -1979,12 +1982,12 @@ def test_max_output_tokens_not_capped_without_custom_base_url(mock_get_model_inf
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_max_output_tokens_small_max_tokens_not_capped(mock_get_model_info):
-    """Test that small max_tokens fallback is not unnecessarily capped."""
+    """测试小 max_tokens 回退方案是否没有不必要的上限。"""
     from openhands.sdk.llm.llm import DEFAULT_MAX_OUTPUT_TOKENS_CAP
 
-    # Simulate a model where max_tokens is small (actual output limit)
+    # 模拟 max_tokens 较小的模型（实际输出限制）
     mock_get_model_info.return_value = {
-        "max_tokens": 4096,  # This is the actual output limit
+        "max_tokens": 4096,  # 这是实际的输出限制
         "max_output_tokens": None,
         "max_input_tokens": None,
     }
@@ -1995,7 +1998,7 @@ def test_max_output_tokens_small_max_tokens_not_capped(mock_get_model_info):
         usage_id="test-llm",
     )
 
-    # Should use the actual effective value since it's below the cap
+    # 应使用实际有效值，因为它低于上限
     assert llm.max_output_tokens is None
     assert llm.effective_max_output_tokens == 4096
     assert llm.effective_max_output_tokens < DEFAULT_MAX_OUTPUT_TOKENS_CAP
@@ -2003,7 +2006,7 @@ def test_max_output_tokens_small_max_tokens_not_capped(mock_get_model_info):
 
 @patch("openhands.sdk.llm.llm.get_litellm_model_info")
 def test_explicit_max_output_tokens_not_overridden(mock_get_model_info):
-    """Test that explicitly set max_output_tokens is respected."""
+    """测试显式设置 max_output_tokens 是否受到尊重。"""
     mock_get_model_info.return_value = {
         "max_tokens": 262144,
         "max_output_tokens": 131072,
@@ -2014,10 +2017,10 @@ def test_explicit_max_output_tokens_not_overridden(mock_get_model_info):
         model="gpt-4o",
         api_key=SecretStr("test-key"),
         usage_id="test-llm",
-        max_output_tokens=32768,  # Explicitly set higher than cap
+        max_output_tokens=32768,  # 明确设置高于上限
     )
 
-    # Should respect the explicit value
+    # 应尊重明确的价值
     assert llm.max_output_tokens == 32768
     assert llm.effective_max_output_tokens == 32768
 
@@ -2026,10 +2029,10 @@ def test_explicit_max_output_tokens_not_overridden(mock_get_model_info):
 def test_max_output_tokens_capped_when_equal_to_context_window(
     mock_get_model_info,
 ):
-    """max_output_tokens == context window leaves zero input headroom.
+    """max_output_tokens == 上下文窗口留下零输入余量。
 
-    Strict providers (e.g. AWS Bedrock) reject every call when
-    max_output_tokens fills the entire context window.
+    严格的提供者 (e.g. AWS 基岩）当 max_output_tokens 填满整个上下文窗口时拒绝所有呼
+    叫。
     """
     mock_get_model_info.return_value = {
         "max_output_tokens": 262144,
@@ -2052,10 +2055,10 @@ def test_max_output_tokens_capped_when_equal_to_context_window(
 def test_max_output_tokens_capped_when_equal_to_max_tokens(
     mock_get_model_info,
 ):
-    """max_output_tokens == max_tokens should also be halved.
+    """max_output_tokens == max_tokens 也应该减半。
 
-    Some registries only provide max_tokens (context window) without
-    max_input_tokens. The guard should still fire.
+    有些注册表只提供max_tokens（上下文窗口）而没有max_input_tokens。 守卫仍然应该开枪
+    。
     """
     mock_get_model_info.return_value = {
         "max_output_tokens": 131072,
@@ -2077,7 +2080,7 @@ def test_max_output_tokens_capped_when_equal_to_max_tokens(
 def test_max_output_tokens_not_capped_when_below_context_window(
     mock_get_model_info,
 ):
-    """max_output_tokens < context window should be used as-is."""
+    """max_output_tokens < 上下文窗口应按原样使用。"""
     mock_get_model_info.return_value = {
         "max_output_tokens": 8192,
         "max_input_tokens": 200000,
@@ -2093,4 +2096,4 @@ def test_max_output_tokens_not_capped_when_below_context_window(
     assert llm.effective_max_output_tokens == 8192
 
 
-# LLM Registry Tests
+# LLM 注册表测试

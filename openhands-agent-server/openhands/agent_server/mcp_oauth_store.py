@@ -1,9 +1,9 @@
-"""Settings-backed OAuth token storage for FastMCP MCP clients.
+"""用于 FastMCP MCP 个客户端的设置支持的 OAuth token 存储。
 
-FastMCP's OAuth client reads and writes an ``AsyncKeyValue`` token store.
-This adapter maps FastMCP's token/client-info/expiry keys onto OpenHands
-settings so MCP OAuth credentials remain in the settings DataModel and use
-the same encryption/redaction path as other settings secrets.
+FastMCP'OAuth客户端读取和写入一个' ``AsyncKeyValue``  token store. 这个适配器映射了
+FastMCP将“token/clien
+t-info/expiry”键值对放到 OpenHands 设置好 MCP OAuth 凭据留在设置中 DataModel 并且使用
+其他设置的加密/删除路径机密。
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ _OAUTH_KEY_SPECS: tuple[_OAuthKeySpec, ...] = (
 
 
 def _client_id(client_info: MCPOAuthClientInfoState | None) -> str | None:
-    """The client a stored registration names."""
+    """客户端存储注册名称。"""
     if client_info is None:
         return None
     client_id = (client_info.model_extra or {}).get("client_id")
@@ -64,7 +64,7 @@ def _client_id(client_info: MCPOAuthClientInfoState | None) -> str | None:
 
 
 def _server_url_from_fastmcp_key(key: str) -> str:
-    """Extract FastMCP's server-url prefix from its OAuth token-store key."""
+    """从其 OAuth token 存储密钥中提取 FastMCP 的服务器 URL 前缀。"""
     for spec in _OAUTH_KEY_SPECS:
         if key.endswith(spec.suffix):
             return key[: -len(spec.suffix)].rstrip("/")
@@ -99,18 +99,16 @@ def _state_field_for_fastmcp_key(
 
 
 class MCPSettingsOAuthTokenStore:
-    """FastMCP OAuth token storage persisted inside settings MCP servers.
+    """将 FastMCP OAuth 令牌持久化到设置中的 MCP 服务器配置。
 
-    ``seed_mcp_config`` covers OAuth servers that are not in this server's
-    settings store, such as the ones a hosted deployment passes inline on the
-    agent (their settings live on the remote app server): the ``auth.state``
-    they carry is served to FastMCP, and tokens refreshed during the
-    conversation are kept in memory for the lifetime of the store instead of
-    being dropped. Servers found in settings always take precedence.
+    ``seed_mcp_config`` 涵盖未保存在本服务器设置中的 OAuth 服务器，例如托管部署
+    通过内联配置传入智能体的服务器；它们的设置保存在远程应用服务器上。
+    这些服务器携带的 ``auth.state`` 会提供给 FastMCP。对话期间刷新的令牌会在
+    存储对象的整个生命周期内保留在内存中，而不是被丢弃。设置中已有的服务器始终优先。
 
-    ``write_back_webhooks`` are the app server callbacks this agent server
-    posts conversation events to; a refreshed inline state is posted there
-    too so the app server can persist it (see ``_write_back_seeded_state``).
+    ``write_back_webhooks`` 是本智能体服务器发送对话事件时调用的应用服务器回调。
+    刷新后的内联状态也会发送到这些回调，让应用服务器能够持久化该状态；
+    参见 ``_write_back_seeded_state``。
     """
 
     def __init__(
@@ -132,8 +130,8 @@ class MCPSettingsOAuthTokenStore:
                 continue
             state = server.initial_oauth_state(cipher=cipher) or MCPOAuthState()
             self._seeded[server.url.rstrip("/")] = state
-            # FastMCP always uses a configured static client, rewriting its
-            # stored registration on every connect.
+            # FastMCP 始终使用配置的静态客户端，在每次连接时重写其存储的注册。
+            #
             authentication = oauth_auth.authentication
             static_client_id = authentication.client_id if authentication else None
             self._seeded_client_ids[server.url.rstrip("/")] = (
@@ -231,17 +229,13 @@ class MCPSettingsOAuthTokenStore:
             self._write_back_seeded_state(server_url, state)
 
     def _write_back_seeded_state(self, server_url: str, state: MCPOAuthState) -> None:
-        """Post the refreshed state of an inline server to the app server.
+        """将内联服务器的刷新状态发布到应用程序服务器。
 
-        The settings of a server passed inline on the agent live on the app
-        server that started the conversation. Without this the refreshed
-        tokens die with the sandbox, and the next conversation starts from
-        the previous refresh token, which providers that rotate refresh
-        tokens have already revoked. Best effort: a failure only logs, and
-        the in-memory overlay keeps serving the new tokens. Only a state with
-        tokens for the client it was seeded with is posted, so neither FastMCP
-        dropping the stored credentials nor a client it registers during the
-        conversation can replace them on the app server.
+        服务器的设置在 inline 上通过智能体在启动对话的服务器上运行。 没有它，刷新就失
+        效了 token 在沙盒中死亡，接下来的对话从上一个开始刷新令牌，该端
+        点已弃用 token 已经撤销。 尽力而为：失败只会记录，内存映射层继续提供新内容
+        token. 只有  token 对于客户端来说，它被填充了，所以
+        FastMCP 删除存储的凭据在对话期间，客户端不能替换这些端点。
         """
         if not self._write_back_webhooks:
             return
@@ -370,7 +364,7 @@ class MCPSettingsOAuthTokenStore:
 
 
 class InMemoryMCPOAuthTokenStore:
-    """In-memory store used by non-mutating MCP install probes."""
+    """非变异 MCP 安装探针使用的内存存储。"""
 
     def __init__(
         self,
@@ -452,13 +446,12 @@ class InMemoryMCPOAuthTokenStore:
 
 @dataclass(frozen=True, slots=True)
 class SettingsBackedMCPToolProvider:
-    """Create MCP tools with FastMCP OAuth state persisted in settings.
+    """在设置中创建具有 FastMCP OAuth 状态已持久化的 MCP 工具。
 
-    OAuth servers absent from settings (passed inline on the agent) fall back
-    to the OAuth state they carry, and their refreshed state is posted back
-    through ``webhooks``; see ``MCPSettingsOAuthTokenStore``. Conversations
-    only use and refresh that state: authorizing a server again is left to
-    the user.
+    不在设置中的OAuth服务器（通过智能体传递）会回退到它们携带的OAuth状态，并通过
+    ``webhooks``发布刷新状态。 参见
+    ``MCPSettingsOAuthTokenStore``。 对话仅使用和刷新该状态：再次授权服务器由用户决定
+    。
     """
 
     cipher: Cipher | None = None
@@ -491,7 +484,7 @@ class SettingsBackedMCPToolProvider:
 def create_settings_backed_mcp_tool_provider(
     config: Config,
 ) -> SettingsBackedMCPToolProvider:
-    """Initialize settings storage and return the agent-server MCP provider."""
+    """初始化设置存储并返回智能体-服务器 MCP 提供程序。"""
     get_settings_store(config)
     if config.secret_key is None:
         logger.warning(

@@ -1,4 +1,4 @@
-"""Test that BaseConversation properly manages span state to prevent double-ending warnings."""  # noqa: E501
+"""测试 BaseConversation 是否正确管理跨度状态以防止双端警告。"""  # noqa: E501
 
 import logging
 from typing import Any
@@ -15,12 +15,12 @@ from openhands.sdk.tool.schema import Action, Observation
 
 
 class MockConversation(BaseConversation):
-    """Test implementation of BaseConversation for testing span management."""
+    """用于测试跨度管理的 BaseConversation 的测试实现。"""
 
     def __init__(self):
         super().__init__()
 
-    # Implement abstract methods with minimal stubs
+    # 用最少的存根实现抽象方法
     def close(self) -> None:
         pass
 
@@ -64,19 +64,19 @@ class MockConversation(BaseConversation):
         return "Mock response"
 
     def condense(self) -> None:
-        """Mock implementation of condense method."""
+        """模拟对象压缩方法的实现。"""
         pass
 
     def execute_tool(self, tool_name: str, action: Action) -> Observation:
-        """Mock implementation of execute_tool method."""
+        """模拟对象 execute_tool 方法的实现。"""
         raise NotImplementedError("Mock execute_tool not implemented")
 
     def fork(self, **kwargs: Any) -> "MockConversation":
-        """Mock implementation of fork method."""
+        """模拟对象fork方法的实现。"""
         raise NotImplementedError("Mock fork not implemented")
 
     def navigate_to(self, event_id: Any) -> None:
-        """Mock implementation of navigate_to method."""
+        """模拟对象 navigate_to 方法的实现。"""
         raise NotImplementedError("Mock navigate_to not implemented")
 
 
@@ -88,9 +88,9 @@ def test_base_conversation_load_plugin_default_not_supported():
 
 
 def test_base_conversation_span_management():
-    """Test that BaseConversation properly manages span state to prevent double-ending."""  # noqa: E501
+    """测试 BaseConversation 是否正确管理跨度状态以防止双端。"""  # noqa: E501
 
-    # Create a minimal BaseConversation instance for testing
+    # 创建一个最小的 BaseConversation 实例用于测试
     conversation = MockConversation()
 
     with (
@@ -100,12 +100,12 @@ def test_base_conversation_span_management():
         patch("openhands.sdk.conversation.base.start_root_span") as mock_start_span,
         patch("openhands.sdk.conversation.base.end_root_span") as mock_end_span,
     ):
-        # Test when observability is enabled
+        # 测试何时启用可观察性
         mock_should_enable.return_value = True
         fake_root = MagicMock(name="root-span")
         mock_start_span.return_value = fake_root
 
-        # Start span
+        # 起始跨度
         conversation._start_observability_span("test-session-id")
         mock_start_span.assert_called_once_with(
             "conversation",
@@ -119,25 +119,25 @@ def test_base_conversation_span_management():
         assert conversation._span_ended is False
         assert conversation._observability_root_span is fake_root
 
-        # Calling start again is idempotent (already-started conversations
-        # must not produce a second root span).
+        # 再次调用 start 是幂等的（已经开始的对话不得产生第二个根跨度）。
+        #
         conversation._start_observability_span("test-session-id")
         assert mock_start_span.call_count == 1
 
-        # End span first time
+        # 第一次结束跨度
         conversation._end_observability_span()
         mock_end_span.assert_called_once_with(fake_root)
         assert conversation._span_ended is True
         assert conversation._observability_root_span is None
 
-        # Try to end span again - should not call end_root_span again
+        # 再次尝试结束跨度 - 不应再次调用 end_root_span
         conversation._end_observability_span()
-        assert mock_end_span.call_count == 1  # Still only called once
+        assert mock_end_span.call_count == 1  # 还是只打过一次电话
         assert conversation._span_ended is True
 
 
 def test_base_conversation_passes_observability_metadata_and_tag_attributes():
-    """Conversation metadata, span tags, and conversation tags reach the root span."""
+    """对话元数据、跨度标签和对话标签到达根跨度。"""
     conversation = MockConversation()
 
     with (
@@ -177,7 +177,7 @@ def test_base_conversation_passes_observability_metadata_and_tag_attributes():
 
 
 def test_base_conversation_uses_custom_observability_span_name_as_child_span():
-    """Custom span names are emitted as child spans under the conversation root."""
+    """自定义 Span 名称作为对话根下的子 Span 发出。"""
     conversation = MockConversation()
 
     with (
@@ -210,9 +210,9 @@ def test_base_conversation_uses_custom_observability_span_name_as_child_span():
 
 
 def test_base_conversation_span_management_disabled():
-    """Test that BaseConversation doesn't perform span operations when observability is disabled."""  # noqa: E501
+    """测试当可观察性被禁用时 BaseConversation 不执行跨度操作。"""  # noqa: E501
 
-    # Create a minimal BaseConversation instance for testing
+    # 创建一个最小的 BaseConversation 实例用于测试
     conversation = MockConversation()
 
     with (
@@ -222,25 +222,25 @@ def test_base_conversation_span_management_disabled():
         patch("openhands.sdk.conversation.base.start_root_span") as mock_start_span,
         patch("openhands.sdk.conversation.base.end_root_span") as mock_end_span,
     ):
-        # Test when observability is disabled
+        # 测试何时禁用可观察性
         mock_should_enable.return_value = False
 
-        # Try to start span - should not call start_root_span
+        # 尝试启动跨度 - 不应调用 start_root_span
         conversation._start_observability_span("test-session-id")
         mock_start_span.assert_not_called()
         assert conversation._span_ended is False
         assert conversation._observability_root_span is None
 
-        # Ending without a started root span is a no-op and marks ended.
+        # 在没有启动根跨度的情况下结束是无操作并标记结束。
         conversation._end_observability_span()
         mock_end_span.assert_not_called()
         assert conversation._span_ended is True
 
 
 def test_base_conversation_no_span_warnings(caplog):
-    """Test that BaseConversation doesn't produce span warnings during normal operation."""  # noqa: E501
+    """测试 BaseConversation 在正常操作期间不会产生跨度警告。"""  # noqa: E501
 
-    # Create a minimal BaseConversation instance for testing
+    # 创建一个最小的 BaseConversation 实例用于测试
     conversation = MockConversation()
 
     with (
@@ -251,16 +251,16 @@ def test_base_conversation_no_span_warnings(caplog):
         patch("openhands.sdk.conversation.base.start_root_span"),
         patch("openhands.sdk.conversation.base.end_root_span"),
     ):
-        # Capture logs at WARNING level
+        # 捕获警告级别的日志
         with caplog.at_level(logging.WARNING):
-            # Start and end span normally
+            # 正常开始和结束跨度
             conversation._start_observability_span("test-session-id")
             conversation._end_observability_span()
 
-            # Try to end again (simulating __del__ calling close())
+            # 再次尝试结束（模拟__del__调用close()）
             conversation._end_observability_span()
 
-        # Check that no span warnings were logged
+        # 检查是否未记录跨度警告
         span_warnings = [
             record
             for record in caplog.records

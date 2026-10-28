@@ -10,20 +10,18 @@ from openhands.sdk.tool import ToolDefinition
 
 
 class SystemPromptEvent(LLMConvertibleEvent):
-    """System prompt added by the agent.
+    """系统提示词由智能体添加。
 
-    The system prompt can optionally include dynamic context that varies between
-    conversations. When ``dynamic_context`` is provided, it is included as a
-    second content block in the same system message. Cache markers are NOT
-    applied here - they are applied by ``LLM._apply_prompt_caching()`` when
-    caching is enabled, ensuring provider-specific cache control is only added
-    when appropriate.
+    系统提示词可以选择包含在对话之间变化的动态上下文。 当提供``dynamic_context``时，
+    它作为第二内容块包含在同一系统消息中。 缓存标记在这里不应用 -
+     它们在启用缓存时由 ``LLM._apply_prompt_caching()`` 应用，确保只有在适当的情况下
+     才会添加提供商特定的缓存控制。
 
     Attributes:
-        system_prompt: The static system prompt text (cacheable across conversations)
-        tools: List of available tools
-        dynamic_context: Optional per-conversation context (hosts, repo info, etc.)
-            Sent as a second TextContent block inside the system message.
+        system_prompt: 静态系统提示词文本（可跨对话缓存）
+        tools: 可用工具列表
+        dynamic_context: 可选的每个会话上下文（主机、存储库信息等）
+            作为系统消息内的第二个 TextContent 块发送。
     """
 
     source: SourceType = "agent"
@@ -42,7 +40,7 @@ class SystemPromptEvent(LLMConvertibleEvent):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this system prompt event."""
+        """返回此系统提示词事件的富文本表示形式。"""
         content = Text()
         content.append("System Prompt:\n", style="bold")
         content.append(self.system_prompt.text)
@@ -51,14 +49,14 @@ class SystemPromptEvent(LLMConvertibleEvent):
             content.append(self.dynamic_context.text)
         content.append(f"\n\nTools Available: {len(self.tools)}")
         for tool in self.tools:
-            # Use ToolDefinition properties directly
+            # 直接使用ToolDefinition属性
             description = tool.description.split("\n")[0][:100]
             if len(description) < len(tool.description):
                 description += "..."
 
             content.append(f"\n  - {tool.name}: {description}\n")
 
-            # Get parameters from the action type schema
+            # 从操作类型获取参数模式
             try:
                 params_dict = tool.action_type.to_mcp_schema()
                 params_str = json.dumps(params_dict)
@@ -70,13 +68,13 @@ class SystemPromptEvent(LLMConvertibleEvent):
         return content
 
     def to_llm_message(self) -> Message:
-        """Convert to a single system LLM message.
+        """转换为单个系统 LLM 消息。
 
-        When ``dynamic_context`` is present the message contains two content
-        blocks: the static prompt followed by the dynamic context. Cache markers
-        are NOT applied here - they are applied by ``LLM._apply_prompt_caching()``
-        when caching is enabled, which marks the static block (index 0) and leaves
-        the dynamic block (index 1) unmarked for cross-conversation cache sharing.
+        当 ``dynamic_context`` 存在时，消息包含两个内容
+        blocks: 静态提示词后跟动态上下文。 缓存标记
+        这里不应用了 - 应用时 ``LLM._apply_prompt_caching()`` 会缓存，标记静态块（索
+        引 0），留下动态块（索引 1）未标记，以供
+        跨会话缓存共享。
         """
         if self.dynamic_context:
             return Message(
@@ -85,7 +83,7 @@ class SystemPromptEvent(LLMConvertibleEvent):
         return Message(role="system", content=[self.system_prompt])
 
     def __str__(self) -> str:
-        """Plain text string representation for SystemPromptEvent."""
+        """SystemPromptEvent 的纯文本字符串表示形式。"""
         base_str = f"{self.__class__.__name__} ({self.source})"
         prompt_preview = (
             self.system_prompt.text[:N_CHAR_PREVIEW] + "..."

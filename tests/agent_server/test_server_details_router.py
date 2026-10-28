@@ -1,4 +1,4 @@
-"""Tests for the server details router, including the /ready endpoint."""
+"""测试服务器详细信息路由器，包括 /ready 端点。"""
 
 import asyncio
 
@@ -13,7 +13,7 @@ from openhands.agent_server.config import Config
 
 @pytest.fixture(autouse=True)
 def reset_initialization_state():
-    """Reset the asyncio.Event between tests to avoid state leakage."""
+    """在测试之间重置 asyncio.Event 以避免状态泄漏。"""
     sdr._initialization_complete = asyncio.Event()
     yield
     sdr._initialization_complete = asyncio.Event()
@@ -26,7 +26,7 @@ def client():
 
 
 def test_alive_and_health_return_ok_status(client):
-    """The liveness and health checks should share the same JSON payload."""
+    """活性和健康检查应该共享相同的 JSON 载荷。"""
     for endpoint in ("/alive", "/health"):
         response = client.get(endpoint)
         assert response.status_code == 200
@@ -34,14 +34,14 @@ def test_alive_and_health_return_ok_status(client):
 
 
 def test_ready_returns_503_before_init(client):
-    """The /ready endpoint should return 503 while initialization is not complete."""
+    """当初始化未完成时，/ready 端点应返回 503。"""
     response = client.get("/ready")
     assert response.status_code == 503
     assert response.json()["status"] == "initializing"
 
 
 def test_ready_returns_200_after_init(client):
-    """The /ready endpoint should return 200 after mark_initialization_complete()."""
+    """/ready 端点在 mark_initialization_complete() 之后应返回 200。"""
     sdr.mark_initialization_complete()
     response = client.get("/ready")
     assert response.status_code == 200
@@ -49,18 +49,18 @@ def test_ready_returns_200_after_init(client):
 
 
 def test_ready_resets_after_new_event(client):
-    """After resetting the event, /ready should return 503 again."""
+    """重置事件后，/ready 应再次返回 503。"""
     sdr.mark_initialization_complete()
     assert client.get("/ready").status_code == 200
 
-    # Simulate a reset (e.g. for testing)
+    # 模拟重置 (e.g. 用于测试）
     sdr._initialization_complete = asyncio.Event()
     response = client.get("/ready")
     assert response.status_code == 503
 
 
 def test_server_info_reports_usable_tools(client, monkeypatch: pytest.MonkeyPatch):
-    """/server_info should expose the registry-filtered usable tool list."""
+    """/server_info 应该公开注册表过滤的可用工具列表。"""
     monkeypatch.setattr(
         sdr,
         "list_usable_tools",
@@ -76,7 +76,7 @@ def test_server_info_reports_usable_tools(client, monkeypatch: pytest.MonkeyPatc
 def test_server_info_leaves_out_browser_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """With enable_browser=False, usable_tools agrees with the catalog."""
+    """当enable_browser=False时，usable_tools与目录一致。"""
     monkeypatch.setattr(
         sdr,
         "list_usable_tools",
@@ -95,7 +95,7 @@ def test_server_info_leaves_out_browser_when_disabled(
 def test_server_info_browser_follows_configured_availability(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A config-fixed browser availability overrides the process probe."""
+    """配置固定的浏览器可用性会覆盖进程探针。"""
     monkeypatch.setattr(sdr, "list_usable_tools", lambda: ["terminal"])
     monkeypatch.setattr(
         sdr, "list_registered_tools", lambda: ["terminal", "browser_tool_set"]
@@ -169,7 +169,7 @@ def test_server_info_reports_runtime_timeout_cap(
     client,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """/server_info should expose the idle-derived terminal timeout cap."""
+    """/server_info 应暴露空闲派生端子超时上限。"""
     monkeypatch.setenv("OH_RUNTIME_IDLE_TIMEOUT_SECONDS", "1200")
 
     response = client.get("/server_info")

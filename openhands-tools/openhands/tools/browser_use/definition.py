@@ -1,4 +1,4 @@
-"""Browser-use tool implementation for web automation."""
+"""用于 Web 自动化的浏览器使用工具实现。"""
 
 import base64
 import hashlib
@@ -25,16 +25,16 @@ from openhands.sdk.utils.masking import SkipSecretMasking
 
 _logger = logging.getLogger(__name__)
 
-# Lazy import to avoid hanging during module import
+# 延迟导入以避免模块导入期间挂起
 if TYPE_CHECKING:
     from openhands.sdk.conversation.state import ConversationState
     from openhands.tools.browser_use.impl import BrowserToolExecutor
 
 
-# Directory where browser session recordings are saved
+# 保存浏览器会话记录的目录
 BROWSER_RECORDING_OUTPUT_DIR = os.path.join(".agent_tmp", "browser_observations")
 
-# Mapping of base64 prefixes to MIME types for image detection
+# 将 Base64 前缀映射到 MIME 类型以进行图像检测
 BASE64_IMAGE_PREFIXES = {
     "/9j/": "image/jpeg",
     "iVBORw0KGgo": "image/png",
@@ -44,13 +44,13 @@ BASE64_IMAGE_PREFIXES = {
 
 
 def detect_image_mime_type(base64_data: str) -> str:
-    """Detect MIME type from base64-encoded image data.
+    """从 Base64 编码的图像数据中检测 MIME 类型。
 
     Args:
-        base64_data: Base64-encoded image data
+        base64_data: Base64 编码的图像数据
 
     Returns:
-        Detected MIME type, defaults to "image/png" if not detected
+        检测到 MIME 类型，如果未检测到，则默认为“image/png”
     """
     for prefix, mime_type in BASE64_IMAGE_PREFIXES.items():
         if base64_data.startswith(prefix):
@@ -59,7 +59,7 @@ def detect_image_mime_type(base64_data: str) -> str:
 
 
 class BrowserObservation(Observation):
-    """Base observation for browser operations."""
+    """浏览器操作的基址观测结果。"""
 
     screenshot_data: Annotated[str | None, SkipSecretMasking()] = Field(
         default=None,
@@ -80,7 +80,7 @@ class BrowserObservation(Observation):
             if ext == "jpeg":
                 ext = "jpg"
 
-            # Generate hash for filename
+            # 生成文件名的哈希值
             content_hash = hashlib.sha256(base64_data.encode("utf-8")).hexdigest()[:8]
             filename = f"browser_screenshot_{content_hash}.{ext}"
             file_path = save_dir_path / filename
@@ -97,11 +97,11 @@ class BrowserObservation(Observation):
     def to_llm_content(self) -> Sequence[TextContent | ImageContent]:
         llm_content: list[TextContent | ImageContent] = []
 
-        # If is_error is true, prepend error message
+        # 如果 is_error 为 True，则添加错误消息
         if self.is_error:
             llm_content.append(TextContent(text=self.ERROR_MESSAGE_HEADER))
 
-        # Get text content and truncate if needed
+        # 获取文本内容并根据需要截断
         content_text = self.text
         if content_text:
             llm_content.append(
@@ -118,7 +118,7 @@ class BrowserObservation(Observation):
         if self.screenshot_data:
             mime_type = detect_image_mime_type(self.screenshot_data)
 
-            # Save screenshot if directory is available
+            # 如果目录可用，则保存屏幕截图
             if self.full_output_save_dir:
                 saved_path = self._save_screenshot(
                     self.screenshot_data, self.full_output_save_dir
@@ -128,7 +128,7 @@ class BrowserObservation(Observation):
                         TextContent(text=f"Screenshot saved to: {saved_path}")
                     )
 
-            # Convert base64 to data URL format for ImageContent
+            # 将 ImageContent 的 Base64 转换为数据 URL 格式
             data_url = f"data:{mime_type};base64,{self.screenshot_data}"
             llm_content.append(ImageContent(image_urls=[data_url]))
 
@@ -136,13 +136,13 @@ class BrowserObservation(Observation):
 
 
 # ============================================
-# Base Browser Action
+# 基本浏览器操作
 # ============================================
 class BrowserAction(Action):
-    """Base class for all browser actions.
+    """所有浏览器操作的基类。
 
-    This base class serves as the parent for all browser-related actions,
-    enabling proper type hierarchy and eliminating the need for union types.
+    该基类充当所有与浏览器相关的操作的父类，从而启用正确的类型层次结构并消除对联合类
+    型的需要。
     """
 
     pass
@@ -152,7 +152,7 @@ class BrowserAction(Action):
 # `go_to_url`
 # ============================================
 class BrowserNavigateAction(BrowserAction):
-    """Schema for browser navigation."""
+    """模式用于浏览器导航。"""
 
     url: str = Field(description="The URL to navigate to")
     new_tab: bool = Field(
@@ -175,7 +175,7 @@ Examples:
 
 
 class BrowserNavigateTool(ToolDefinition[BrowserNavigateAction, BrowserObservation]):
-    """Tool for browser navigation."""
+    """浏览器导航工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -200,7 +200,7 @@ class BrowserNavigateTool(ToolDefinition[BrowserNavigateAction, BrowserObservati
 # `browser_click`
 # ============================================
 class BrowserClickAction(BrowserAction):
-    """Schema for clicking elements."""
+    """模式用于点击元素。"""
 
     index: int = Field(
         ge=0, description="The index of the element to click (from browser_get_state)"
@@ -225,7 +225,7 @@ Important: Only use indices that appear in your current browser_get_state output
 
 
 class BrowserClickTool(ToolDefinition[BrowserClickAction, BrowserObservation]):
-    """Tool for clicking browser elements."""
+    """用于单击浏览器元素的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -250,7 +250,7 @@ class BrowserClickTool(ToolDefinition[BrowserClickAction, BrowserObservation]):
 # `browser_type`
 # ============================================
 class BrowserTypeAction(BrowserAction):
-    """Schema for typing text into elements."""
+    """模式用于将文本输入到元素中。"""
 
     index: int = Field(
         ge=0, description="The index of the input element (from browser_get_state)"
@@ -272,7 +272,7 @@ Important: Only use indices that appear in your current browser_get_state output
 
 
 class BrowserTypeTool(ToolDefinition[BrowserTypeAction, BrowserObservation]):
-    """Tool for typing text into browser elements."""
+    """用于在浏览器元素中输入文本的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -297,7 +297,7 @@ class BrowserTypeTool(ToolDefinition[BrowserTypeAction, BrowserObservation]):
 # `browser_get_state`
 # ============================================
 class BrowserGetStateAction(BrowserAction):
-    """Schema for getting browser state."""
+    """模式用于获取浏览器状态。"""
 
     include_screenshot: bool = Field(
         default=False,
@@ -316,7 +316,7 @@ Parameters:
 
 
 class BrowserGetStateTool(ToolDefinition[BrowserGetStateAction, BrowserObservation]):
-    """Tool for getting browser state."""
+    """获取浏览器状态的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -341,7 +341,7 @@ class BrowserGetStateTool(ToolDefinition[BrowserGetStateAction, BrowserObservati
 # `browser_get_content`
 # ============================================
 class BrowserGetContentAction(BrowserAction):
-    """Schema for getting page content in markdown."""
+    """模式用于获取Markdown中的页面内容。"""
 
     extract_links: bool = Field(
         default=False,
@@ -363,7 +363,7 @@ If the content was truncated and you need more information, use start_from_char 
 class BrowserGetContentTool(
     ToolDefinition[BrowserGetContentAction, BrowserObservation]
 ):
-    """Tool for getting page content in markdown."""
+    """用于获取Markdown中页面内容的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -388,7 +388,7 @@ class BrowserGetContentTool(
 # `browser_scroll`
 # ============================================
 class BrowserScrollAction(BrowserAction):
-    """Schema for scrolling the page."""
+    """模式用于滚动页面。"""
 
     direction: Literal["up", "down"] = Field(
         default="down",
@@ -407,7 +407,7 @@ Parameters:
 
 
 class BrowserScrollTool(ToolDefinition[BrowserScrollAction, BrowserObservation]):
-    """Tool for scrolling the browser page."""
+    """用于滚动浏览器页面的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -432,7 +432,7 @@ class BrowserScrollTool(ToolDefinition[BrowserScrollAction, BrowserObservation])
 # `browser_go_back`
 # ============================================
 class BrowserGoBackAction(BrowserAction):
-    """Schema for going back in browser history."""
+    """模式用于返回浏览器历史记录。"""
 
     pass
 
@@ -445,7 +445,7 @@ browser's back button.
 
 
 class BrowserGoBackTool(ToolDefinition[BrowserGoBackAction, BrowserObservation]):
-    """Tool for going back in browser history."""
+    """用于返回浏览器历史记录的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -470,7 +470,7 @@ class BrowserGoBackTool(ToolDefinition[BrowserGoBackAction, BrowserObservation])
 # `browser_list_tabs`
 # ============================================
 class BrowserListTabsAction(BrowserAction):
-    """Schema for listing browser tabs."""
+    """模式用于列出浏览器选项卡。"""
 
     pass
 
@@ -483,7 +483,7 @@ with browser_switch_tab or browser_close_tab.
 
 
 class BrowserListTabsTool(ToolDefinition[BrowserListTabsAction, BrowserObservation]):
-    """Tool for listing browser tabs."""
+    """用于列出浏览器选项卡的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -508,7 +508,7 @@ class BrowserListTabsTool(ToolDefinition[BrowserListTabsAction, BrowserObservati
 # `browser_switch_tab`
 # ============================================
 class BrowserSwitchTabAction(BrowserAction):
-    """Schema for switching browser tabs."""
+    """模式用于切换浏览器选项卡。"""
 
     tab_id: str = Field(
         description="4 Character Tab ID of the tab to switch"
@@ -526,7 +526,7 @@ Parameters:
 
 
 class BrowserSwitchTabTool(ToolDefinition[BrowserSwitchTabAction, BrowserObservation]):
-    """Tool for switching browser tabs."""
+    """用于切换浏览器选项卡的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -551,7 +551,7 @@ class BrowserSwitchTabTool(ToolDefinition[BrowserSwitchTabAction, BrowserObserva
 # `browser_close_tab`
 # ============================================
 class BrowserCloseTabAction(BrowserAction):
-    """Schema for closing browser tabs."""
+    """模式用于关闭浏览器选项卡。"""
 
     tab_id: str = Field(
         description="4 Character Tab ID of the tab to close (from browser_list_tabs)"
@@ -568,7 +568,7 @@ Parameters:
 
 
 class BrowserCloseTabTool(ToolDefinition[BrowserCloseTabAction, BrowserObservation]):
-    """Tool for closing browser tabs."""
+    """用于关闭浏览器选项卡的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -593,7 +593,7 @@ class BrowserCloseTabTool(ToolDefinition[BrowserCloseTabAction, BrowserObservati
 # `browser_get_storage`
 # ============================================
 class BrowserGetStorageAction(BrowserAction):
-    """Schema for getting browser storage (cookies, local storage, session storage)."""
+    """模式用于获取浏览器存储（cookie、本地存储、会话存储）。"""
 
     pass
 
@@ -609,7 +609,7 @@ Useful for debugging, session management, or extracting authentication tokens.
 class BrowserGetStorageTool(
     ToolDefinition[BrowserGetStorageAction, BrowserObservation]
 ):
-    """Tool for getting browser storage."""
+    """用于获取浏览器存储空间的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -634,7 +634,7 @@ class BrowserGetStorageTool(
 # `browser_set_storage`
 # ============================================
 class BrowserSetStorageAction(BrowserAction):
-    """Schema for setting browser storage (cookies, local storage, session storage)."""
+    """模式用于设置浏览器存储（cookie、本地存储、会话存储）。"""
 
     storage_state: dict = Field(
         description="Storage state dictionary containing 'cookies' and 'origins' (from browser_get_storage)"  # noqa: E501
@@ -657,7 +657,7 @@ Parameters:
 class BrowserSetStorageTool(
     ToolDefinition[BrowserSetStorageAction, BrowserObservation]
 ):
-    """Tool for setting browser storage."""
+    """用于设置浏览器存储的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -682,7 +682,7 @@ class BrowserSetStorageTool(
 # `browser_start_recording`
 # ============================================
 class BrowserStartRecordingAction(BrowserAction):
-    """Schema for starting browser session recording."""
+    """模式用于启动浏览器会话记录。"""
 
     pass
 
@@ -707,7 +707,7 @@ restart on new pages.
 class BrowserStartRecordingTool(
     ToolDefinition[BrowserStartRecordingAction, BrowserObservation]
 ):
-    """Tool for starting browser session recording."""
+    """用于启动浏览器会话记录的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -732,7 +732,7 @@ class BrowserStartRecordingTool(
 # `browser_stop_recording`
 # ============================================
 class BrowserStopRecordingAction(BrowserAction):
-    """Schema for stopping browser session recording."""
+    """模式用于停止浏览器会话记录。"""
 
     pass
 
@@ -753,7 +753,7 @@ Returns a summary message with the total event count, file count, and save direc
 class BrowserStopRecordingTool(
     ToolDefinition[BrowserStopRecordingAction, BrowserObservation]
 ):
-    """Tool for stopping browser session recording."""
+    """用于停止浏览器会话记录的工具。"""
 
     @classmethod
     def create(cls, executor: "BrowserToolExecutor") -> Sequence[Self]:
@@ -764,7 +764,7 @@ class BrowserStopRecordingTool(
                 observation_type=BrowserObservation,
                 annotations=ToolAnnotations(
                     title="browser_stop_recording",
-                    # Modifies state: stops recording, flushes events to disk
+                    # 修改状态：停止记录，将事件刷新到磁盘
                     readOnlyHint=False,
                     destructiveHint=False,
                     idempotentHint=False,
@@ -788,21 +788,21 @@ You have a browser for navigating pages and interacting with web UIs.
 
 
 class BrowserToolSet(ToolDefinition[BrowserAction, BrowserObservation]):
-    """A set of all browser tools.
+    """一组所有浏览器工具。
 
-    This tool set includes all available browser-related tools
-      for interacting with web pages.
+    该工具集包括所有可用的浏览器相关工具
+      用于与网页交互。
 
-    The toolset automatically checks for Chromium availability
-    when created and automatically installs it if missing.
+    该工具集在创建时会自动检查 Chromium 的可用性，如果缺少则自动安装。
     """
 
     catalog_description: ClassVar[str] = (
         "Browse the web: navigate pages, click, type and read content."
     )
 
-    # Shared executor: reuse a single Chromium/CDP instance across parent
-    # and subagents to avoid CDP port conflicts in sandbox containers.
+    # 共享执行器：跨父级和子智能体重用单个 Chromium/CDP 实例，以避免沙箱容器中的 CDP 端
+    # 口冲突。
+    #
     _shared_executor: ClassVar["BrowserToolExecutor | None"] = None
     _shared_executor_lock: ClassVar[threading.Lock] = threading.Lock()
     _shared_executor_creation_lock: ClassVar[threading.Lock] = threading.Lock()
@@ -858,8 +858,8 @@ class BrowserToolSet(ToolDefinition[BrowserAction, BrowserObservation]):
         try:
             executor = cls._get_or_create_shared_executor(conv_state, **executor_config)
         except Exception:
-            # A browser that cannot start must not fail the whole conversation;
-            # the agent keeps working with its remaining tools.
+            # 无法启动的浏览器一定不会导致整个会话失败； 智能体继续使用其剩余的工具。
+            #
             _logger.warning(
                 "Browser tools are unavailable: the browser executor failed to "
                 "start. Continuing without them.",
@@ -867,7 +867,7 @@ class BrowserToolSet(ToolDefinition[BrowserAction, BrowserObservation]):
             )
             return []
 
-        # Each tool.create() returns a Sequence[Self], so we flatten the results
+        # 每个 tool.create() 返回一个 Sequence[Self]，因此我们将结果展平
         tools: list[ToolDefinition[BrowserAction, BrowserObservation]] = []
         for tool_class in [
             BrowserNavigateTool,

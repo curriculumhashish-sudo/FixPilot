@@ -65,9 +65,9 @@ export class SettingsClient {
   }
 
   /**
-   * @deprecated Pass `AgentServerSettingsPatchRequest` for generated
-   * contract checking. This overload keeps existing extension-shaped callers
-   * source compatible while they migrate.
+   * @已弃用通过 `AgentServerSettingsPatchRequest` 生成
+   * 合同检查。 这种过载保留了现有的分机型呼叫者
+   * 迁移时源兼容。
    */
   async updateSettings(
     request: LegacySettingsUpdateRequest
@@ -85,7 +85,7 @@ export class SettingsClient {
     return response.data;
   }
 
-  /** Create one named MCP server without reading or resending the catalog. */
+  /** 创建一台名为 MCP 的服务器，无需读取或重新发送目录。*/
   async createMcpServer(
     settingsKey: string,
     server: MCPServer
@@ -97,7 +97,7 @@ export class SettingsClient {
     return response.data;
   }
 
-  /** Sparsely update one existing named MCP server. */
+  /** 稀疏地更新一台现有的名为 MCP 的服务器。*/
   async patchMcpServer(
     settingsKey: string,
     patch: MCPServerPatch
@@ -109,7 +109,7 @@ export class SettingsClient {
     return response.data;
   }
 
-  /** Delete one existing named MCP server. */
+  /** 删除一台现有的名为 MCP 的服务器。*/
   async deleteMcpServer(settingsKey: string): Promise<AgentServerSettingsPatchResponse> {
     const response = await this.client.delete<AgentServerSettingsPatchResponse>(
       `/api/settings/mcp/${encodeURIComponent(settingsKey)}`

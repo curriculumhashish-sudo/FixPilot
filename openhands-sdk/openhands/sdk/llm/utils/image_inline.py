@@ -1,19 +1,18 @@
-"""Inline ``http(s)://`` image URLs as base64 ``data:`` URLs.
+"""Inline ``http(s)://`` image URLs 作为 base64 ``data:``  URLs.
 
-Some model APIs (notably Moonshot's public Kimi endpoint) reject http(s)
-image URLs and only accept base64-encoded image content. When this pass is
-active, every ``ImageContent`` whose entry is not already a ``data:`` URL is
-fetched and rewritten as ``data:{mime};base64,{...}`` before the request
-leaves the SDK.
+一些模型 APIs （特别是 Moonshot 的公共 Kimi） 端点) reject http(s) image URLs 仅接受
+base64 编码的图像内容。 当此
+轮次生效时，每  ``ImageContent`` 其条目还不是 ``data:``  URL 被获取并重写为
+``data:{mime};base64,{...}`` 在
+请求离开之前 SDK.
 
-Failures are non-fatal: the original URL is preserved and the upstream is
-allowed to produce its native error. We also keep a small in-memory cache so
-the same image is not re-downloaded on every conversation turn.
+失败是非致命的：原始的 URL 被保留，并且允许上游产生其本机错误。 我们还保留了一个小的
+内存缓存，因此每次对话时都不会重新下载相同的图像。
 
-Security: requests are validated against an SSRF block-list of loopback,
-private, link-local, multicast and otherwise reserved IP ranges, and
-redirects are followed manually so each hop is revalidated. Set
-``OH_INLINE_IMAGE_ALLOW_PRIVATE_HOSTS=1`` only in tests/dev to bypass.
+Security: 请求根据环回的 SSRF 块列表进行验证，
+手动遵循私有、链路本地、多播和其他保留的 IP 范围以及重定向，以便重新验证每个跃点。 套
+装
+``OH_INLINE_IMAGE_ALLOW_PRIVATE_HOSTS=1`` 只有在 tests/dev 才能绕过。
 """
 
 from __future__ import annotations
@@ -36,29 +35,30 @@ from openhands.sdk.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Max individual image size we are willing to download, in megabytes.
-# Mirrors LiteLLM's MAX_IMAGE_URL_DOWNLOAD_SIZE_MB default.
+# 我们愿意下载的最大单个图像大小（以兆字节为单位）。 镜像 LiteLLM 的
+# MAX_IMAGE_URL_DOWNLOAD_SIZE_MB 默认值。
+#
 DEFAULT_MAX_IMAGE_DOWNLOAD_MB = 20
 MAX_IMAGE_DOWNLOAD_MB: int = int(
     os.environ.get("OH_INLINE_IMAGE_MAX_MB", DEFAULT_MAX_IMAGE_DOWNLOAD_MB)
 )
 
-# Cap how much memory the in-process cache may hold across all inlined images.
-DEFAULT_CACHE_MAX_BYTES = 64 * 1024 * 1024  # 64 MB
+# 限制进程内缓存在所有内联图像中可以容纳的内存量。
+DEFAULT_CACHE_MAX_BYTES = 64 * 1024 * 1024  # 64MB
 CACHE_MAX_BYTES: int = int(
     os.environ.get("OH_INLINE_IMAGE_CACHE_BYTES", DEFAULT_CACHE_MAX_BYTES)
 )
 
-# Per-image fetch timeout (seconds). Override via env for slow networks.
+# 每个图像获取超时（秒）。 通过 env 覆盖慢速网络。
 DEFAULT_FETCH_TIMEOUT_S = 30.0
 FETCH_TIMEOUT_S: float = float(
     os.environ.get("OH_INLINE_IMAGE_FETCH_TIMEOUT_S", DEFAULT_FETCH_TIMEOUT_S)
 )
 
-# Maximum number of HTTP redirects we will follow manually.
+# 我们将手动遵循的最大数量 HTTP 重定向。
 MAX_REDIRECTS = 5
 
-# Opt-out switch for the SSRF check; intended for tests/dev only.
+# SSRF 检查的选择退出开关； 仅限 tests/dev。
 _ALLOW_PRIVATE_HOSTS = os.environ.get(
     "OH_INLINE_IMAGE_ALLOW_PRIVATE_HOSTS", ""
 ).lower() in {"1", "true", "yes"}
@@ -74,10 +74,10 @@ _EXT_TO_MIME = {
     "tif": "image/tiff",
 }
 
-# Only inline content the upstream model can actually decode as an image.
-# If the server returns ``200 OK`` with ``text/html`` (soft-404, auth wall,
-# CDN error page), inlining the bytes would produce ``data:text/html;...``
-# which the model silently rejects. We fall back to the original URL instead.
+# 只有内联内容上游模型才能真正解码为图像。 如果服务器返回 ``200 OK`` 和 ``text/html``（
+# soft-404、auth wall、CDN 错误页面），则内联字节将生成 ``data:text/html;...``，模型会默
+# 默地拒绝该值。 相反，我们回到原来的URL。
+#
 _ALLOWED_IMAGE_MIMES = frozenset(
     {
         "image/jpeg",
@@ -91,10 +91,9 @@ _ALLOWED_IMAGE_MIMES = frozenset(
 
 
 class _DataUrlCache:
-    """Bounded LRU cache mapping URL → ``data:`` URL.
+    """有界 LRU 缓存映射 URL → ``data:`` URL。
 
-    Size is bounded by the total encoded size of cached entries so a few
-    very large images can't push everything else out.
+    大小受缓存条目的总编码大小限制，因此一些非常大的图像无法将其他所有图像推出。
     """
 
     def __init__(self, max_bytes: int) -> None:
@@ -113,7 +112,7 @@ class _DataUrlCache:
     def put(self, url: str, data_url: str) -> None:
         encoded_size = len(data_url)
         if encoded_size > self._max_bytes:
-            # A single image larger than the cache budget: skip caching it.
+            # 单个图像大于缓存预算：跳过缓存。
             logger.debug(
                 "Image too large to cache (%d bytes > %d byte budget); "
                 "will re-fetch. url=%s",
@@ -147,12 +146,11 @@ def maybe_inline_image_urls(
     inline_required: bool,
     vision_enabled: bool,
 ) -> list[Message]:
-    """Return a detached message list with http(s) image URLs inlined as base64.
+    """返回带有http(s)图片URLs的分离消息列表，作为Base64编码。
 
-    When ``inline_required`` or ``vision_enabled`` is False this is a no-op
-    fast path that returns the input list unchanged. Otherwise, fetches and
-    inlines URL-formatted images using a single shared ``httpx.Client`` so
-    multi-image turns benefit from connection pooling.
+    当 ``inline_required`` 或 ``vision_enabled`` 为 False 时，这是一个无操作快速路径
+    ，返回输入列表不变。 否则，使用单个
+    共享 ``httpx.Client`` 获取和内联 URL 格式的图像，因此多图像可以从连接池中受益。
     """
     if not vision_enabled or not inline_required:
         return messages
@@ -168,9 +166,9 @@ def maybe_inline_image_urls(
                 new_urls: list[str] = []
                 changed = False
                 for url in item.image_urls:
-                    # Only construct the client when we know we need to make
-                    # a real network call. URLs already served from the cache
-                    # (e.g. on second turns) must not trigger a client setup.
+                    # 仅当我们知道需要进行真正的网络调用时才构建客户端。 URLs 已经从缓存
+                    # 中服务过e.g. 在第二轮）不得触发客户端设置。
+                    #
                     if _needs_fetch(url) and _CACHE.get(url) is None and client is None:
                         client = httpx.Client(
                             timeout=FETCH_TIMEOUT_S,
@@ -205,9 +203,9 @@ async def amaybe_inline_image_urls(
     inline_required: bool,
     vision_enabled: bool,
 ) -> list[Message]:
-    """Async variant: offload the blocking fetch+encode work to a worker thread.
+    """异步变体：将阻塞的 fetch+encode 工作卸载给工作人员线程。
 
-    Used by ``acompletion`` / ``aresponses`` so the event loop is not blocked
+    由 ``acompletion`` / ``aresponses`` 使用，因此事件循环不会被阻塞
     while images download.
     """
     if not vision_enabled or not inline_required:
@@ -225,21 +223,20 @@ def _needs_fetch(url: str) -> bool:
 
 
 def _inline_url(url: str, client: httpx.Client | None) -> str:
-    """Return the URL unchanged or a ``data:`` URL with base64 image bytes."""
+    """返回不变的 URL 或具有 base64 图像字节的 ``data:`` URL。"""
     if url.startswith("data:"):
         return url
     if not _needs_fetch(url):
-        # Unknown scheme (e.g. ``ms://<file_id>``): leave it to the upstream.
+        # 未知方案（e.g. ``ms://<file_id>``): 留给上游。
         return url
 
     cached = _CACHE.get(url)
     if cached is not None:
         return cached
 
-    # ``assert`` would be stripped under ``python -O``; use an explicit raise
-    # so the contract is enforced regardless of the optimisation level. The
-    # invariant is maintained by ``maybe_inline_image_urls``, so this path is
-    # unreachable in practice.
+    # ``assert`` 将被剥离到 ``python -O`` 下； 使用显式加薪，以便无论优化级别如何，合约
+    # 都会得到执行。 不变量由``maybe_inline_image_urls``维护，因此该路径在实践中不可达。
+    #
     if client is None:
         raise RuntimeError(
             "internal error: httpx.Client must be provided for http(s) URLs"
@@ -262,12 +259,12 @@ def _inline_url(url: str, client: httpx.Client | None) -> str:
 
 
 def _fetch_and_encode(url: str, client: httpx.Client) -> str:
-    """Fetch ``url`` (with manual, SSRF-validated redirect following) and
-    return the resulting ``data:`` URL."""
+    """获取 ``url``（手动，SSRF-验证重定向跟随）和
+    返回结果 ``data:`` URL。"""
     max_bytes = MAX_IMAGE_DOWNLOAD_MB * 1024 * 1024
     current_url = url
-    # +1: the initial fetch does not count against MAX_REDIRECTS, so this
-    # loop performs 1 original request + up to MAX_REDIRECTS redirect hops.
+    # +1：初始获取不计入 MAX_REDIRECTS，所以这
+    # 循环执行 1 个原始请求 + 最多 MAX_REDIRECTS 个重定向跃点。
     for _ in range(MAX_REDIRECTS + 1):
         _validate_url_target(current_url)
         with client.stream("GET", current_url) as response:
@@ -276,8 +273,9 @@ def _fetch_and_encode(url: str, client: httpx.Client) -> str:
                     "location"
                 )
                 if not location:
-                    # ``raise_for_status()`` is a no-op on 3xx, so raise
-                    # directly to surface a clear, logged error.
+                    # ``raise_for_status()`` 在 3xx 上是无操作，因此直接引发以显示明确的
+                    # 已记录错误。
+                    #
                     raise ValueError(f"Redirect without Location header: {current_url}")
                 current_url = urljoin(current_url, location)
                 continue
@@ -307,19 +305,16 @@ def _fetch_and_encode(url: str, client: httpx.Client) -> str:
 
 
 def _validate_url_target(url: str) -> None:
-    """Raise ``ValueError`` if ``url`` resolves to a non-public address.
+    """如果 ``url`` 解析为非公共地址，则引发 ``ValueError``。
 
-    Blocks loopback, private, link-local, multicast, broadcast and reserved
-    ranges (both IPv4 and IPv6), plus syntactic shortcuts like ``localhost``
-    and ``*.local`` mDNS hostnames. Called on the initial URL and on every
-    redirect target.
+    跳过回环、私有、链路本地、组播和广播范围（IPv4和IPv6），以及像``localhost``和
+    ``*.local``这样的DNS主机名的语法捷径。 在初始
+    URL 和每个重定向目标上调用。
 
-    Note (TOCTOU): httpx performs a second DNS resolution at connect time,
-    so a rogue short-TTL DNS server could serve a public IP during this
-    check and a private IP on the real connection. This is a known
-    limitation of the validate-then-connect pattern and is considered
-    acceptable for this threat model — inlining is bounded by size, MIME
-    type and timeout, and failures fall back to the original URL.
+    Note (TOCTOU): httpx 在连接时执行第二个 DNS 解析，
+    所以，一个叛逆的短-TTL  DNS 服务器在检查期间可以提供公共IP，在真实连接上提供私有
+    IP。 这是验证-连接模式的已知限制，并且在这一威胁模型中被认为是可接受
+    的——嵌入是受大小限制的 MIME 类型和超时，失败时会回退到原始状态 URL.
     """
     if _ALLOW_PRIVATE_HOSTS:
         return
@@ -338,7 +333,7 @@ def _validate_url_target(url: str) -> None:
     ):
         raise ValueError(f"Refusing to fetch local/mDNS host: {host}")
 
-    # IP literal? Validate directly without DNS.
+    # IP 字面意思？ 不带DNS直接验证。
     try:
         ip = ipaddress.ip_address(host_lower.strip("[]"))
     except ValueError:
@@ -348,7 +343,7 @@ def _validate_url_target(url: str) -> None:
             raise ValueError(f"Refusing to fetch disallowed IP {ip}: {url}")
         return
 
-    # Hostname: resolve and check every returned address.
+    # 主机名：解析并检查每个返回的地址。
     port = parsed.port or (443 if scheme == "https" else 80)
     addrs = _resolve_host_ips(host, port)
     if not addrs:
@@ -357,7 +352,7 @@ def _validate_url_target(url: str) -> None:
         try:
             resolved = ipaddress.ip_address(ip_str)
         except ValueError:
-            # Skip anything we can't interpret as an IP literal.
+            # 跳过任何我们无法解释为 IP 文字的内容。
             continue
         if _is_disallowed_ip(resolved):
             raise ValueError(
@@ -367,10 +362,10 @@ def _validate_url_target(url: str) -> None:
 
 
 def _resolve_host_ips(host: str, port: int) -> list[str]:
-    """Return the unique IP literals that ``host`` resolves to.
+    """返回 ``host`` 解析为的唯一 IP 文字。
 
-    Extracted as a module-level function so tests can patch it without
-    poisoning the in-process DNS cache or requiring real network access.
+    提取为模块级函数，以便测试可以对其进行修补，而不会毒害进程内 DNS 缓存或需要真正的
+    网络访问。
     """
     try:
         addrinfo = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
@@ -379,8 +374,9 @@ def _resolve_host_ips(host: str, port: int) -> list[str]:
     seen: list[str] = []
     for entry in addrinfo:
         sockaddr = entry[4]
-        # sockaddr is (host, port) for IPv4 and (host, port, flowinfo, scopeid)
-        # for IPv6; the host element is always the IP literal as a string.
+        # sockaddr 对于 IPv4 是（主机、端口），对于 IPv6 是（主机、端口、flowinfo、
+        # scopeid）； 主机元素始终是字符串形式的 IP 文字。
+        #
         ip_str = sockaddr[0]
         if isinstance(ip_str, str) and ip_str not in seen:
             seen.append(ip_str)
@@ -405,11 +401,11 @@ def _is_disallowed_ip(
 
 
 def _derive_mime_type(content_type_header: str | None, url: str) -> str:
-    """Return a validated image MIME type for the response body.
+    """返回响应正文的经过验证的图像 MIME 类型。
 
-    If the server reports a non-image ``Content-Type`` (e.g. ``text/html``
+    如果服务器报告非图像 ``Content-Type`` (e.g. ``text/html``
     from a soft-404 or auth wall), raise ``ValueError`` so the caller can
-    fall back to the original URL instead of inlining unusable bytes.
+    回退到原始的 URL 而不是内联不可用的字节。
     """
     mime = ""
     if content_type_header:
@@ -422,13 +418,13 @@ def _derive_mime_type(content_type_header: str | None, url: str) -> str:
 
 
 def _mime_from_url(url: str) -> str:
-    """Best-effort MIME inference from the URL path extension.
+    """根据 URL 路径扩展进行尽力 MIME 推断。
 
-    Returns ``""`` when the extension is unknown or absent so that
-    ``_derive_mime_type`` raises and the caller falls back to the original
-    URL. We deliberately do not guess ``image/png`` here: a soft-404 or
-    auth-wall that omits ``Content-Type`` would otherwise sneak past the
-    ``_ALLOWED_IMAGE_MIMES`` guard.
+    当扩展名未知或不存在时返回 ``""``，以便
+    ``_derive_mime_type`` 上升，调用者回落到原来的 URL。 我们故意不在这里猜测
+    ``image/png``：省略
+    ``Content-Type`` 的 soft-404 或 auth-wall 会偷偷溜过
+    ``_ALLOWED_IMAGE_MIMES`` 守卫。
     """
     path = url.split("?", 1)[0].split("#", 1)[0]
     ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""

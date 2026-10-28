@@ -24,9 +24,9 @@ llm = LLM(
 )
 
 
-# Create a Docker-based remote workspace with extra ports for VSCode access
+# 创建一个基于Docker的远程工作区，并额外开放VSCode访问端口
 def detect_platform():
-    """Detects the correct Docker platform string."""
+    """检测正确的 Docker 平台字符串。"""
     machine = platform.machine().lower()
     if "arm" in machine or "aarch64" in machine:
         return "linux/arm64"
@@ -34,11 +34,12 @@ def detect_platform():
 
 
 def get_server_image():
-    """Get the server image tag, using PR-specific image in CI."""
+    """使用 CI 中的 PR 特定图像获取服务器图像标签。"""
     platform_str = detect_platform()
     arch = "arm64" if "arm64" in platform_str else "amd64"
-    # SDK_SHA is the canonical commit SHA set by CI workflows (avoids the
-    # built-in GITHUB_SHA which resolves to the merge-commit on PRs).
+    # SDK_SHA 是 CI 工作流设置的规范提交 SHA（避免解析为 PR 上的合并提交的内置
+    # GITHUB_SHA）。
+    #
     sha = os.getenv("SDK_SHA") or os.getenv("GITHUB_SHA")
     if sha:
         return f"ghcr.io/openhands/agent-server:{sha[:7]}-python-{arch}"
@@ -51,17 +52,17 @@ with DockerWorkspace(
     server_image=server_image,
     host_port=18010,
     platform=detect_platform(),
-    extra_ports=True,  # Expose the additional VSCode port
+    extra_ports=True,  # 暴露额外的 VSCode 端口
 ) as workspace:
-    """Extra ports allows you to access VSCode at localhost:18011"""
+    """额外的端口允许你访问 VSCode 在本地主机：18011"""
 
-    # Create agent
+    # 创建智能体
     agent = get_default_agent(
         llm=llm,
         cli_mode=True,
     )
 
-    # Set up callback collection
+    # 设置回调个集合
     received_events: list = []
     last_event_time = {"ts": time.time()}
 
@@ -71,7 +72,7 @@ with DockerWorkspace(
         received_events.append(event)
         last_event_time["ts"] = time.time()
 
-    # Create RemoteConversation using the workspace
+    # 使用工作区创建 RemoteConversation
     conversation = Conversation(
         agent=agent,
         workspace=workspace,
@@ -84,7 +85,7 @@ with DockerWorkspace(
     conversation.send_message("Create a simple Python script that prints Hello World")
     conversation.run()
 
-    # Get VSCode URL with token
+    # 获取 VSCode URL token
     vscode_port = (workspace.host_port or 8010) + 1
     try:
         response = httpx.get(
@@ -96,7 +97,7 @@ with DockerWorkspace(
             "localhost:8001", f"localhost:{vscode_port}"
         )
     except Exception:
-        # Fallback if server route not available
+        # 回退方案如果服务器路由不可用
         folder = (
             f"/{workspace.working_dir}"
             if not str(workspace.working_dir).startswith("/")
@@ -104,7 +105,7 @@ with DockerWorkspace(
         )
         vscode_url = f"http://localhost:{vscode_port}/?folder={folder}"
 
-    # Wait for user to explore VSCode
+    # 等待用户探索 VSCode
     y = None
     while y != "y":
         y = input(

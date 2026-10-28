@@ -1,11 +1,9 @@
-"""API Compliance Tests.
+"""API 合规性测试。
 
-This module provides a framework for testing how different LLM APIs respond
-to malformed message patterns. These tests are documentary in nature - they
-intentionally send invalid data to understand API behavior across providers.
+该模块提供了一个框架，用于测试不同 LLM APIs 如何响应畸形的消息模式。 这些测试是文档性
+质的 - 它们故意发送无效数据以了解API行为。
 
-The tests are NON-BLOCKING: they are expected to fail and exist to document
-API behavior, not enforce correctness.
+测试是 NON-BLOCKING：它们预计会失败，并且存在是为了记录 API 行为，而不是强制正确性。
 """
 
 from tests.integration.api_compliance.base import BaseAPIComplianceTest

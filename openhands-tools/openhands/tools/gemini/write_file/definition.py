@@ -1,4 +1,4 @@
-"""Write file tool definition (Gemini-style)."""
+"""编写文件工具定义（Gemini 风格）。"""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -21,14 +21,14 @@ if TYPE_CHECKING:
 
 
 class WriteFileAction(Action):
-    """Schema for write file operation."""
+    """模式用于写文件操作。"""
 
     file_path: str = Field(description="The path to the file to write to.")
     content: str = Field(description="The content to write to the file.")
 
 
 class WriteFileObservation(FileChangeObservation):
-    """Observation from writing a file."""
+    """观测结果来自写入文件。"""
 
     file_path: str | None = Field(
         default=None, description="The file path that was written."
@@ -67,13 +67,13 @@ Examples:
 
 
 class WriteFileTool(ToolDefinition[WriteFileAction, WriteFileObservation]):
-    """Tool for writing complete file contents."""
+    """用于写入完整文件内容的工具。"""
 
     user_selectable: ClassVar[bool] = False
 
     def declared_resources(self, action: Action) -> DeclaredResources:
-        """Lock on the target file path so concurrent writes to the same
-        file are serialized, while writes to different files run in parallel.
+        """锁在目标文件路径上，因此并发写入相同的内容
+        文件的大小为已序列化，而对不同文件的写入并行运行。
         """
         assert isinstance(action, WriteFileAction)
         path = Path(action.file_path)
@@ -89,10 +89,10 @@ class WriteFileTool(ToolDefinition[WriteFileAction, WriteFileObservation]):
         cls,
         conv_state: "ConversationState",
     ) -> Sequence["WriteFileTool"]:
-        """Initialize WriteFileTool with executor.
+        """使用执行器初始化 WriteFileTool。
 
         Args:
-            conv_state: Conversation state to get working directory from.
+            conv_state: 要从中获取工作目录的对话状态。
         """
         from openhands.tools.gemini.write_file.impl import WriteFileExecutor
 

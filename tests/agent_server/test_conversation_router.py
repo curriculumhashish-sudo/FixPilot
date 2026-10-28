@@ -1,4 +1,4 @@
-"""Tests for conversation_router.py endpoints."""
+"""测试 conversation_router.py 端点。"""
 
 import time
 from unittest.mock import AsyncMock, MagicMock
@@ -45,11 +45,12 @@ from openhands.sdk.workspace import LocalWorkspace
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
     app = FastAPI()
     app.include_router(conversation_router, prefix="/api")
-    # switch_llm reads request.app.state.config to get the optional cipher;
-    # populate it with a no-cipher config so unrelated tests don't 503.
+    # switch_llm读取request.app.state.config以获取可选密码； 使用无密码配置填充它，这样
+    # 不相关的测试就不会发生 503。
+    #
     app.state.config = Config(
         static_files_path=None, session_api_keys=[], secret_key=None
     )
@@ -58,13 +59,13 @@ def client():
 
 @pytest.fixture
 def sample_conversation_id():
-    """Return a sample conversation ID."""
+    """返回示例对话 ID。"""
     return uuid4()
 
 
 @pytest.fixture
 def sample_conversation_info():
-    """Create a sample ConversationInfo for testing."""
+    """创建样本 ConversationInfo 进行测试。"""
     conversation_id = uuid4()
     now = utc_now()
     return ConversationInfo(
@@ -87,27 +88,27 @@ def sample_conversation_info():
 
 @pytest.fixture
 def mock_conversation_service():
-    """Create a mock ConversationService for testing."""
+    """创建模拟对象 ConversationService 进行测试。"""
     service = AsyncMock(spec=ConversationService)
     return service
 
 
 @pytest.fixture
 def mock_event_service():
-    """Create a mock EventService for testing."""
+    """创建模拟对象 EventService 进行测试。"""
     service = AsyncMock(spec=EventService)
     return service
 
 
 @pytest.fixture
 def llm_security_analyzer():
-    """Create an LLMSecurityAnalyzer for testing."""
+    """创建一个 LLMSecurityAnalyzer 进行测试。"""
     return LLMSecurityAnalyzer()
 
 
 @pytest.fixture
 def sample_start_conversation_request():
-    """Create a sample StartConversationRequest for testing."""
+    """创建样本 StartConversationRequest 进行测试。"""
     return StartConversationRequest(
         agent=Agent(
             llm=LLM(
@@ -127,13 +128,13 @@ def sample_start_conversation_request():
 def test_search_conversations_default_params(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test search_conversations endpoint with default parameters."""
+    """使用默认参数测试 search_conversations 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_page = ConversationPage(items=[sample_conversation_info], next_page_id=None)
     mock_conversation_service.search_conversations.return_value = mock_page
 
-    # Override the dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
@@ -148,7 +149,7 @@ def test_search_conversations_default_params(
         assert len(data["items"]) == 1
         assert data["items"][0]["id"] == str(sample_conversation_info.id)
 
-        # Verify service was called with default parameters
+        # 验证使用默认参数调用服务
         mock_conversation_service.search_conversations.assert_called_once_with(
             None, 100, None, ConversationSortOrder.CREATED_AT_DESC
         )
@@ -193,15 +194,15 @@ def test_search_conversations_includes_runtime_info(
 def test_search_conversations_with_all_params(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test search_conversations endpoint with all parameters."""
+    """使用所有参数测试 search_conversations 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_page = ConversationPage(
         items=[sample_conversation_info], next_page_id="next_page"
     )
     mock_conversation_service.search_conversations.return_value = mock_page
 
-    # Override the dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
@@ -222,7 +223,7 @@ def test_search_conversations_with_all_params(
         assert len(data["items"]) == 1
         assert data["next_page_id"] == "next_page"
 
-        # Verify service was called with correct parameters
+        # 验证使用正确的参数调用服务
         mock_conversation_service.search_conversations.assert_called_once_with(
             "test_page",
             50,
@@ -234,22 +235,22 @@ def test_search_conversations_with_all_params(
 
 
 def test_search_conversations_limit_validation(client, mock_conversation_service):
-    """Test search_conversations endpoint with invalid limit values."""
+    """使用无效限值测试 search_conversations 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # Test limit too low (gt=0 means > 0, so 0 should fail)
+        # 测试限制太低（gt=0 表示 > 0，因此 0 应该失败）
         response = client.get("/api/conversations/search", params={"limit": 0})
         assert response.status_code == 422
 
-        # Test limit too high - rejected by FastAPI validation (le=100)
+        # 测试限制太高 - 被 FastAPI 验证拒绝 (le=100)
         response = client.get("/api/conversations/search", params={"limit": 101})
         assert response.status_code == 422
 
-        # Test valid limit
+        # 测试有效限度
         mock_conversation_service.search_conversations.return_value = ConversationPage(
             items=[], next_page_id=None
         )
@@ -260,9 +261,9 @@ def test_search_conversations_limit_validation(client, mock_conversation_service
 
 
 def test_search_conversations_empty_result(client, mock_conversation_service):
-    """Test search_conversations endpoint with empty result."""
+    """测试 search_conversations 端点，结果为空。"""
 
-    # Mock empty response
+    # 模拟对象 empty response
     mock_page = ConversationPage(items=[], next_page_id=None)
     mock_conversation_service.search_conversations.return_value = mock_page
 
@@ -282,9 +283,9 @@ def test_search_conversations_empty_result(client, mock_conversation_service):
 
 
 def test_count_conversations_no_filter(client, mock_conversation_service):
-    """Test count_conversations endpoint without status filter."""
+    """测试 count_conversations 端点，无状态过滤器。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.count_conversations.return_value = 5
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -297,16 +298,16 @@ def test_count_conversations_no_filter(client, mock_conversation_service):
         assert response.status_code == 200
         assert response.json() == 5
 
-        # Verify service was called with no status filter
+        # 验证在没有状态过滤器的情况下调用服务
         mock_conversation_service.count_conversations.assert_called_once_with(None)
     finally:
         client.app.dependency_overrides.clear()
 
 
 def test_count_conversations_with_status_filter(client, mock_conversation_service):
-    """Test count_conversations endpoint with status filter."""
+    """使用状态过滤器测试 count_conversations 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.count_conversations.return_value = 3
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -322,7 +323,7 @@ def test_count_conversations_with_status_filter(client, mock_conversation_servic
         assert response.status_code == 200
         assert response.json() == 3
 
-        # Verify service was called with status filter
+        # 验证使用状态过滤器调用服务
         mock_conversation_service.count_conversations.assert_called_once_with(
             ConversationExecutionStatus.RUNNING
         )
@@ -331,9 +332,9 @@ def test_count_conversations_with_status_filter(client, mock_conversation_servic
 
 
 def test_count_conversations_zero_result(client, mock_conversation_service):
-    """Test count_conversations endpoint with zero result."""
+    """测试 count_conversations 端点，结果为零。"""
 
-    # Mock zero count response
+    # 模拟对象零计数响应
     mock_conversation_service.count_conversations.return_value = 0
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -352,9 +353,9 @@ def test_count_conversations_zero_result(client, mock_conversation_service):
 def test_get_conversation_success(
     client, mock_conversation_service, sample_conversation_info, sample_conversation_id
 ):
-    """Test get_conversation endpoint with existing conversation."""
+    """使用现有对话测试 get_conversation 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.get_conversation.return_value = sample_conversation_info
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -369,7 +370,7 @@ def test_get_conversation_success(
         assert data["id"] == str(sample_conversation_info.id)
         assert data["title"] == sample_conversation_info.title
 
-        # Verify service was called with correct conversation ID
+        # 验证使用正确的对话 ID 调用服务
         mock_conversation_service.get_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -380,9 +381,9 @@ def test_get_conversation_success(
 def test_get_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test get_conversation endpoint with non-existent conversation."""
+    """使用不存在的对话测试 get_conversation 端点。"""
 
-    # Mock the service to return None (conversation not found)
+    # 模拟对象要返回的服务None（未找到会话）
     mock_conversation_service.get_conversation.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -394,7 +395,7 @@ def test_get_conversation_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called with correct conversation ID
+        # 验证使用正确的对话 ID 调用服务
         mock_conversation_service.get_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -403,7 +404,7 @@ def test_get_conversation_not_found(
 
 
 def test_get_conversation_invalid_uuid(client, mock_conversation_service):
-    """Test get_conversation endpoint with invalid UUID."""
+    """使用无效的 UUID 测试 get_conversation 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -412,7 +413,7 @@ def test_get_conversation_invalid_uuid(client, mock_conversation_service):
     try:
         response = client.get("/api/conversations/invalid-uuid")
 
-        assert response.status_code == 422  # Validation error for invalid UUID
+        assert response.status_code == 422  # 验证无效 UUID 错误
     finally:
         client.app.dependency_overrides.clear()
 
@@ -420,13 +421,13 @@ def test_get_conversation_invalid_uuid(client, mock_conversation_service):
 def test_batch_get_conversations_success(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test batch_get_conversations endpoint with valid IDs."""
+    """使用有效 ID 测试 batch_get_conversations 端点。"""
 
-    # Create additional conversation info for testing
+    # 创建额外的对话信息以进行测试
     conversation_id_1 = uuid4()
     conversation_id_2 = uuid4()
 
-    # Mock the service response - return one found, one None
+    # 模拟对象服务响应 - 返回一发现，一 None
     mock_conversation_service.batch_get_conversations.return_value = [
         sample_conversation_info,
         None,
@@ -448,7 +449,7 @@ def test_batch_get_conversations_success(
         assert data[0]["id"] == str(sample_conversation_info.id)
         assert data[1] is None
 
-        # Verify service was called with correct IDs
+        # 验证使用正确的 ID 调用服务
         mock_conversation_service.batch_get_conversations.assert_called_once_with(
             [conversation_id_1, conversation_id_2]
         )
@@ -457,9 +458,9 @@ def test_batch_get_conversations_success(
 
 
 def test_batch_get_conversations_empty_list(client, mock_conversation_service):
-    """Test batch_get_conversations endpoint with empty ID list."""
+    """使用空 ID 列表测试 batch_get_conversations 端点。"""
 
-    # Mock empty response
+    # 模拟对象 empty response
     mock_conversation_service.batch_get_conversations.return_value = []
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -467,8 +468,8 @@ def test_batch_get_conversations_empty_list(client, mock_conversation_service):
     )
 
     try:
-        # FastAPI requires at least one value for query parameters that expect a list
-        # So we'll test with a single valid UUID instead
+        # FastAPI 需要至少一个需要列表的查询参数值因此我们将使用单个有效的 UUID 进行测试
+        #
         test_id = str(uuid4())
         mock_conversation_service.batch_get_conversations.return_value = [None]
 
@@ -478,28 +479,28 @@ def test_batch_get_conversations_empty_list(client, mock_conversation_service):
         data = response.json()
         assert data == [None]
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.batch_get_conversations.assert_called_once()
     finally:
         client.app.dependency_overrides.clear()
 
 
 def test_batch_get_conversations_too_many_ids(client, mock_conversation_service):
-    """Test batch_get_conversations endpoint with too many IDs."""
+    """使用太多 ID 测试 batch_get_conversations 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # 100 ids exceed the 99-id limit: a 422 naming the limit, not a 500
+        # 100 个 ID 超出 99 个 ID 限制：422 命名限制，而不是 500
         many_ids = [str(uuid4()) for _ in range(100)]
         response = client.get("/api/conversations", params={"ids": many_ids})
         assert response.status_code == 422
         assert "at most 99 items" in response.text
         mock_conversation_service.batch_get_conversations.assert_not_called()
 
-        # Test with 99 IDs (should work)
+        # 使用 99 个 ID 进行测试（应该有效）
         mock_conversation_service.batch_get_conversations.return_value = [None] * 99
         valid_ids = [str(uuid4()) for _ in range(99)]
         response = client.get("/api/conversations", params={"ids": valid_ids})
@@ -510,14 +511,14 @@ def test_batch_get_conversations_too_many_ids(client, mock_conversation_service)
 
 
 def test_batch_get_conversations_openapi_declares_id_limit(client):
-    """The 99-id limit is part of the published schema, not only enforced."""
+    """99-id 限制是已发布的模式的一部分，而不仅仅是强制执行的。"""
     operation = client.app.openapi()["paths"]["/api/conversations"]["get"]
     ids_param = next(p for p in operation["parameters"] if p["name"] == "ids")
     assert ids_param["schema"]["maxItems"] == 99
 
 
 def test_batch_get_conversations_invalid_uuid(client, mock_conversation_service):
-    """Test batch_get_conversations endpoint with invalid UUID."""
+    """使用无效的 UUID 测试 batch_get_conversations 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -526,7 +527,7 @@ def test_batch_get_conversations_invalid_uuid(client, mock_conversation_service)
     try:
         response = client.get("/api/conversations", params={"ids": ["invalid-uuid"]})
 
-        assert response.status_code == 422  # Validation error for invalid UUID
+        assert response.status_code == 422  # 验证无效 UUID 错误
     finally:
         client.app.dependency_overrides.clear()
 
@@ -534,9 +535,9 @@ def test_batch_get_conversations_invalid_uuid(client, mock_conversation_service)
 def test_start_conversation_new(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test start_conversation endpoint creating a new conversation."""
+    """测试 start_conversation 端点创建新对话。"""
 
-    # Mock the service response - new conversation created
+    # 模拟对象服务响应 - 创建新对话
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
@@ -547,7 +548,7 @@ def test_start_conversation_new(
     )
 
     try:
-        # Create request data with proper serialization
+        # 使用正确的序列化创建请求数据
         request_data = {
             "agent": {
                 "kind": "Agent",
@@ -567,12 +568,12 @@ def test_start_conversation_new(
 
         response = client.post("/api/conversations", json=request_data)
 
-        assert response.status_code == 201  # Created
+        assert response.status_code == 201  # 已创建
         data = response.json()
         assert data["id"] == str(sample_conversation_info.id)
         assert data["title"] == sample_conversation_info.title
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.start_conversation.assert_called_once()
     finally:
         client.app.dependency_overrides.clear()
@@ -667,9 +668,9 @@ def test_start_conversation_body_observability_overrides_headers(
 def test_start_conversation_existing(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test start_conversation endpoint with existing conversation."""
+    """使用现有对话测试 start_conversation 端点。"""
 
-    # Mock the service response - existing conversation returned
+    # 模拟对象服务响应 - 返回现有对话
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         False,
@@ -680,7 +681,7 @@ def test_start_conversation_existing(
     )
 
     try:
-        # Create request data with proper serialization
+        # 使用正确的序列化创建请求数据
         request_data = {
             "agent": {
                 "kind": "Agent",
@@ -696,11 +697,11 @@ def test_start_conversation_existing(
 
         response = client.post("/api/conversations", json=request_data)
 
-        assert response.status_code == 200  # OK (existing)
+        assert response.status_code == 200  # 好的（现有）
         data = response.json()
         assert data["id"] == str(sample_conversation_info.id)
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.start_conversation.assert_called_once()
     finally:
         client.app.dependency_overrides.clear()
@@ -997,19 +998,19 @@ def test_start_conversation_rejects_acp_agent_without_kind(
 
 
 def test_start_conversation_invalid_request(client, mock_conversation_service):
-    """Test start_conversation endpoint with invalid request data."""
+    """使用无效请求数据测试 start_conversation 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # Test with missing required fields
+        # 测试缺少必填字段
         invalid_request = {"invalid": "data"}
 
         response = client.post("/api/conversations", json=invalid_request)
 
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422  # 验证错误
     finally:
         client.app.dependency_overrides.clear()
 
@@ -1018,7 +1019,7 @@ def test_start_conversation_invalid_request(client, mock_conversation_service):
 def test_start_conversation_non_object_secret_is_422(
     client, mock_conversation_service, value
 ):
-    """A secret value that is not an object is a 422, never a 500."""
+    """不是对象的机密值是 422，而不是 500。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -1048,7 +1049,7 @@ def test_start_conversation_non_object_secret_is_422(
 def test_update_secrets_non_string_value_is_422(
     client, mock_conversation_service, mock_event_service, sample_conversation_id, value
 ):
-    """A number, null or boolean secret value is a 422, never a 500."""
+    """数字、null 或布尔值机密是 422，而不是 500。"""
 
     mock_conversation_service.get_event_service.return_value = mock_event_service
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1071,9 +1072,9 @@ def test_update_secrets_non_string_value_is_422(
 def test_start_conversation_minimal_request(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test start_conversation endpoint with minimal valid request."""
+    """使用最少的有效请求测试 start_conversation 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
@@ -1084,7 +1085,7 @@ def test_start_conversation_minimal_request(
     )
 
     try:
-        # Create minimal valid request
+        # 创建最小有效请求
         minimal_request = {
             "agent": {
                 "kind": "Agent",
@@ -1110,7 +1111,7 @@ def test_start_conversation_minimal_request(
 def test_start_conversation_legacy_request_without_agent_kind(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """v1 conversation creation should preserve the pre-ACP agent shape."""
+    """v1 对话创建应保留 ACP 智能体之前的形状。"""
 
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
@@ -1145,9 +1146,9 @@ def test_start_conversation_legacy_request_without_agent_kind(
 def test_pause_conversation_success(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test pause_conversation endpoint with successful pause."""
+    """测试 pause_conversation 端点并成功暂停。"""
 
-    # Mock the service response - pause successful
+    # 模拟对象服务响应 - 暂停成功
     mock_conversation_service.pause_conversation.return_value = True
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1161,7 +1162,7 @@ def test_pause_conversation_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify service was called with correct conversation ID
+        # 验证使用正确的对话 ID 调用服务
         mock_conversation_service.pause_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -1172,7 +1173,7 @@ def test_pause_conversation_success(
 def test_pause_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """An unknown conversation is the 404 the route declares, not a 400."""
+    """未知会话是路由声明的 404，而不是 400。"""
 
     mock_conversation_service.pause_conversation.return_value = False
 
@@ -1185,7 +1186,7 @@ def test_pause_conversation_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.pause_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -1196,7 +1197,7 @@ def test_pause_conversation_not_found(
 def test_interrupt_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """An unknown conversation is the 404 the route declares, not a 400."""
+    """未知会话是路由声明的 404，而不是 400。"""
 
     mock_conversation_service.interrupt_conversation.return_value = False
 
@@ -1218,9 +1219,9 @@ def test_interrupt_conversation_not_found(
 def test_delete_conversation_success(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test delete_conversation endpoint with successful deletion."""
+    """测试delete_conversation端点删除成功。"""
 
-    # Mock the service response - deletion successful
+    # 模拟对象服务响应-删除成功
     mock_conversation_service.delete_conversation.return_value = True
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1234,7 +1235,7 @@ def test_delete_conversation_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify service was called with correct conversation ID
+        # 验证使用正确的对话 ID 调用服务
         mock_conversation_service.delete_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -1245,7 +1246,7 @@ def test_delete_conversation_success(
 def test_delete_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """An unknown or already deleted conversation is 404, not 400."""
+    """未知或已删除的对话是 404，而不是 400。"""
 
     mock_conversation_service.delete_conversation.return_value = False
 
@@ -1258,7 +1259,7 @@ def test_delete_conversation_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.delete_conversation.assert_called_once_with(
             sample_conversation_id
         )
@@ -1269,11 +1270,11 @@ def test_delete_conversation_not_found(
 def test_run_conversation_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test run_conversation endpoint with successful run."""
+    """测试 run_conversation 端点并成功运行。"""
 
-    # Mock the service responses
+    # 模拟对象服务响应
     mock_conversation_service.get_event_service.return_value = mock_event_service
-    mock_event_service.run.return_value = None  # Successful run
+    mock_event_service.run.return_value = None  # 运行成功
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -1286,7 +1287,7 @@ def test_run_conversation_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify services were called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1298,9 +1299,9 @@ def test_run_conversation_success(
 def test_run_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test run_conversation endpoint when conversation is not found."""
+    """当未找到对话时测试 run_conversation 端点。"""
 
-    # Mock the service response - conversation not found
+    # 模拟对象服务响应 - 未找到对话
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1312,7 +1313,7 @@ def test_run_conversation_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1323,7 +1324,7 @@ def test_run_conversation_not_found(
 def test_start_goal_in_conversation_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """/goal endpoint forwards the objective to the event service."""
+    """/goal 端点将目标转发到事件服务。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.start_goal_loop.return_value = None
 
@@ -1347,7 +1348,7 @@ def test_start_goal_in_conversation_success(
 def test_start_goal_in_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """/goal returns 404 when the conversation is unknown."""
+    """当对话未知时，/goal 返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = (
@@ -1366,7 +1367,7 @@ def test_start_goal_in_conversation_not_found(
 def test_start_goal_in_conversation_rejects_busy_loop(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """/goal returns 409 when a goal loop or conversation run is active."""
+    """当目标循环或对话运行处于活动状态时，/goal 返回 409。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.start_goal_loop.side_effect = ValueError("goal_already_running")
 
@@ -1386,7 +1387,7 @@ def test_start_goal_in_conversation_rejects_busy_loop(
 def test_stop_goal_in_conversation_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """/goal/stop endpoint forwards to the event service."""
+    """/goal/stop 端点转发到事件服务。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.stop_goal_loop.return_value = True
 
@@ -1405,7 +1406,7 @@ def test_stop_goal_in_conversation_success(
 def test_stop_goal_in_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """/goal/stop returns 404 when the conversation is unknown."""
+    """当对话未知时，/goal/stop 返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = (
@@ -1421,7 +1422,7 @@ def test_stop_goal_in_conversation_not_found(
 def test_resume_goal_in_conversation_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """/goal/resume endpoint forwards to the event service."""
+    """/goal/resume 端点转发到事件服务。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.resume_goal_loop.return_value = None
 
@@ -1442,7 +1443,7 @@ def test_resume_goal_in_conversation_success(
 def test_resume_goal_in_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """/goal/resume returns 404 when the conversation is unknown."""
+    """当对话未知时，/goal/resume 返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = (
@@ -1460,7 +1461,7 @@ def test_resume_goal_in_conversation_not_found(
 def test_resume_goal_in_conversation_no_resumable(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """/goal/resume returns 400 when there is nothing to resume."""
+    """当没有任何内容可恢复时，/goal/resume 返回 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.resume_goal_loop.side_effect = ValueError("no_resumable_goal")
 
@@ -1479,7 +1480,7 @@ def test_resume_goal_in_conversation_no_resumable(
 def test_switch_acp_model_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """switch_acp_model endpoint forwards the model to the event service."""
+    """switch_acp_model 端点将模型转发到事件服务。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.return_value = None
 
@@ -1501,7 +1502,7 @@ def test_switch_acp_model_success(
 def test_switch_acp_model_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """switch_acp_model returns 404 when the conversation is unknown."""
+    """当对话未知时，switch_acp_model 返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1520,7 +1521,7 @@ def test_switch_acp_model_not_found(
 def test_switch_acp_model_non_acp_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A ValueError (e.g. non-ACP agent / unsupported provider) maps to 400."""
+    """A ValueError (e.g. 非 ACP 智能体 / 不受支持的提供商）映射到 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.side_effect = ValueError(
         "switch_acp_model is only supported for ACP conversations."
@@ -1542,12 +1543,11 @@ def test_switch_acp_model_non_acp_returns_400(
 def test_switch_acp_model_pre_session_returns_200(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A switch before the first run() is a 200, not a 409.
+    """第一个 run() 之前的开关是 200，而不是 409。
 
-    Regression for #3763: the SDK now persists (defers) a pre-session switch
-    instead of raising, so the route no longer maps it to 409 "ACP session not
-    initialized yet". The event service returns normally (the deferral is
-    applied when the first session starts).
+    回归对于 #3763：现在 SDK 会持久化（推迟）预会话切换，而不是抛出，因此路由不再将其
+    映射到 409 "ACP 会话尚未初始化"。 事件服务正常返回（在第一个
+    会话开始时应用延迟）。
     """
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.return_value = None
@@ -1569,11 +1569,11 @@ def test_switch_acp_model_pre_session_returns_200(
 def test_switch_acp_model_inactive_service_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """An inactive service (closed/never-started) maps to 400.
+    """不活动的服务（关闭/从未启动）映射到 400。
 
-    The event service raises the shared ``inactive_service`` ValueError for a
-    missing live conversation, consistent with its other methods; the router's
-    generic ValueError handler turns it into a 400.
+    事件服务针对丢失的实时对话提出共享 ``inactive_service`` ValueError，与其其他方法
+    一致； 路由器的通用 ValueError 处理程序
+    将其转换为 400。
     """
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.side_effect = ValueError("inactive_service")
@@ -1594,12 +1594,12 @@ def test_switch_acp_model_inactive_service_returns_400(
 def test_switch_acp_model_protocol_error_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A rejected ACP model-selection call maps to 400, not 500.
+    """被拒绝的 ACP 模型选择调用映射到 400，而不是 500。
 
-    ``ACPAgent.set_acp_model`` translates ``acp.exceptions.RequestError`` (e.g.
-    method-not-found on a custom server, or an invalid model id) into a
-    ValueError, so a protocol-level rejection surfaces as a 400 client error
-    rather than an opaque 500.
+    ``ACPAgent.set_acp_model`` 翻译 ``acp.exceptions.RequestError`` (e.g. 将自定义服
+    务器上的方法未找到
+    错误，或无效的模型ID转换为ValueError，因此协议级拒绝以400客户端错误而不是500无意
+    义错误表面。
     """
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.side_effect = ValueError(
@@ -1622,11 +1622,11 @@ def test_switch_acp_model_protocol_error_returns_400(
 def test_switch_acp_model_timeout_returns_504(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A TimeoutError (wedged/slow ACP server) maps to 504, not 500.
+    """TimeoutError（楔入/慢速 ACP 服务器）映射到 504，而不是 500。
 
-    ``ACPAgent.set_acp_model`` bounds the provider model-selection round-trip
-    with ``acp_prompt_timeout``; an expired call raises ``TimeoutError``, which
-    the route surfaces as a Gateway Timeout rather than an opaque 500.
+    ``ACPAgent.set_acp_model`` 将提供者模型选择往返与 ``acp_prompt_timeout`` 绑定；
+    过期的呼叫引发
+    ``TimeoutError``，路由将其显示为网关超时，而不是不透明的 500。
     """
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.switch_acp_model.side_effect = TimeoutError(
@@ -1649,9 +1649,9 @@ def test_switch_acp_model_timeout_returns_504(
 def test_run_conversation_already_running(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test run_conversation endpoint when conversation is already running."""
+    """当对话已在运行时测试 run_conversation 端点。"""
 
-    # Mock the service responses
+    # 模拟对象服务响应
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.run.side_effect = ValueError("conversation_already_running")
 
@@ -1662,11 +1662,11 @@ def test_run_conversation_already_running(
     try:
         response = client.post(f"/api/conversations/{sample_conversation_id}/run")
 
-        assert response.status_code == 409  # Conflict
+        assert response.status_code == 409  # 冲突
         data = response.json()
         assert "already running" in data["detail"]
 
-        # Verify services were called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1678,9 +1678,9 @@ def test_run_conversation_already_running(
 def test_run_conversation_other_error(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test run_conversation endpoint with other ValueError."""
+    """与其他 ValueError 一起测试 run_conversation 端点。"""
 
-    # Mock the service responses
+    # 模拟对象服务响应
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.run.side_effect = ValueError("some other error")
 
@@ -1691,7 +1691,7 @@ def test_run_conversation_other_error(
     try:
         response = client.post(f"/api/conversations/{sample_conversation_id}/run")
 
-        assert response.status_code == 400  # Bad Request
+        assert response.status_code == 400  # 错误的请求
         data = response.json()
         assert data["detail"] == "some other error"
     finally:
@@ -1701,9 +1701,9 @@ def test_run_conversation_other_error(
 def test_update_conversation_secrets_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test update_conversation_secrets endpoint with successful update."""
+    """测试 update_conversation_secrets 端点更新成功。"""
 
-    # Mock the service responses
+    # 模拟对象服务响应
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.update_secrets.return_value = None
 
@@ -1712,7 +1712,7 @@ def test_update_conversation_secrets_success(
     )
 
     try:
-        # Use proper secret source format
+        # 使用正确的机密源格式
         request_data = {
             "secrets": {
                 "API_KEY": {"kind": "StaticSecret", "value": "secret-value"},
@@ -1728,7 +1728,7 @@ def test_update_conversation_secrets_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify services were called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1740,9 +1740,9 @@ def test_update_conversation_secrets_success(
 def test_update_conversation_secrets_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test update_conversation_secrets endpoint when conversation is not found."""
+    """当未找到对话时测试 update_conversation_secrets 端点。"""
 
-    # Mock the service response - conversation not found
+    # 模拟对象服务响应 - 未找到对话
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1760,7 +1760,7 @@ def test_update_conversation_secrets_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1771,9 +1771,9 @@ def test_update_conversation_secrets_not_found(
 def test_set_conversation_confirmation_policy_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test set_conversation_confirmation_policy endpoint with successful update."""
+    """测试 set_conversation_confirmation_policy 端点更新成功。"""
 
-    # Mock the service responses
+    # 模拟对象服务响应
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.set_confirmation_policy.return_value = None
 
@@ -1793,7 +1793,7 @@ def test_set_conversation_confirmation_policy_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify services were called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1805,9 +1805,9 @@ def test_set_conversation_confirmation_policy_success(
 def test_set_conversation_confirmation_policy_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test set_conversation_confirmation_policy endpoint when conversation is not found."""  # noqa: E501
+    """当未找到对话时测试 set_conversation_confirmation_policy 端点。"""  # noqa: E501
 
-    # Mock the service response - conversation not found
+    # 模拟对象服务响应 - 未找到对话
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1824,7 +1824,7 @@ def test_set_conversation_confirmation_policy_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.get_event_service.assert_called_once_with(
             sample_conversation_id
         )
@@ -1835,9 +1835,9 @@ def test_set_conversation_confirmation_policy_not_found(
 def test_update_conversation_success(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test update_conversation endpoint with successful update."""
+    """测试 update_conversation 端点更新成功。"""
 
-    # Mock the service response - update successful
+    # 模拟对象服务响应 - 更新成功
     mock_conversation_service.update_conversation.return_value = True
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -1855,7 +1855,7 @@ def test_update_conversation_success(
         data = response.json()
         assert data["success"] is True
 
-        # Verify service was called with correct parameters
+        # 验证使用正确的参数调用服务
         mock_conversation_service.update_conversation.assert_called_once()
         call_args = mock_conversation_service.update_conversation.call_args
         assert call_args[0][0] == sample_conversation_id
@@ -1867,7 +1867,7 @@ def test_update_conversation_success(
 def test_update_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """An unknown conversation is 404, not 200 with success=false."""
+    """未知对话是 404，而不是成功=False 的 200。"""
 
     mock_conversation_service.update_conversation.return_value = False
 
@@ -1884,7 +1884,7 @@ def test_update_conversation_not_found(
 
         assert response.status_code == 404
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.update_conversation.assert_called_once()
     finally:
         client.app.dependency_overrides.clear()
@@ -1893,27 +1893,27 @@ def test_update_conversation_not_found(
 def test_update_conversation_invalid_title(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test update_conversation endpoint with invalid title."""
+    """使用无效标题测试 update_conversation 端点。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # Test with empty title
+        # 使用空标题进行测试
         request_data = {"title": ""}
         response = client.patch(
             f"/api/conversations/{sample_conversation_id}", json=request_data
         )
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422  # 验证错误
 
-        # Test with too long title
-        long_title = "x" * 201  # Exceeds max_length=200
+        # 测试标题太长
+        long_title = "x" * 201  # 超过max_length=200
         request_data = {"title": long_title}
         response = client.patch(
             f"/api/conversations/{sample_conversation_id}", json=request_data
         )
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 422  # 验证错误
     finally:
         client.app.dependency_overrides.clear()
 
@@ -1922,8 +1922,8 @@ def test_update_conversation_invalid_title(
 def test_update_conversation_whitespace_only_title_rejected(
     client, mock_conversation_service, sample_conversation_id, title
 ):
-    """A whitespace-only title is rejected like an empty one (422) and the
-    service is never called, so the stored title is kept."""
+    """仅包含空格的标题会像空标题 (422) 一样被拒绝，并且
+    服务永远不会被调用，因此存储的标题被保留。"""
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -1953,15 +1953,15 @@ def test_generate_title_endpoint_removed_from_openapi(client):
 def test_start_conversation_with_tool_module_qualnames(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test start_conversation endpoint with tool_module_qualnames field."""
+    """使用 tool_module_qualnames 字段测试 start_conversation 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
     )
 
-    # Override the dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
@@ -1997,7 +1997,7 @@ def test_start_conversation_with_tool_module_qualnames(
         data = response.json()
         assert data["id"] == str(sample_conversation_info.id)
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.start_conversation.assert_called_once()
         call_args = mock_conversation_service.start_conversation.call_args
         request_arg = call_args[0][0]
@@ -2014,15 +2014,15 @@ def test_start_conversation_with_tool_module_qualnames(
 def test_start_conversation_without_tool_module_qualnames(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """Test start_conversation endpoint without tool_module_qualnames field."""
+    """在没有 tool_module_qualnames 字段的情况下测试 start_conversation 端点。"""
 
-    # Mock the service response
+    # 模拟对象服务响应
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
     )
 
-    # Override the dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
@@ -2047,12 +2047,12 @@ def test_start_conversation_without_tool_module_qualnames(
         data = response.json()
         assert data["id"] == str(sample_conversation_info.id)
 
-        # Verify service was called
+        # 验证服务被调用
         mock_conversation_service.start_conversation.assert_called_once()
         call_args = mock_conversation_service.start_conversation.call_args
         request_arg = call_args[0][0]
         assert hasattr(request_arg, "tool_module_qualnames")
-        # Should default to empty dict
+        # 应该默认为空字典
         assert request_arg.tool_module_qualnames == {}
     finally:
         client.app.dependency_overrides.clear()
@@ -2061,7 +2061,7 @@ def test_start_conversation_without_tool_module_qualnames(
 def test_start_conversation_autotitle_defaults_to_true(
     client, mock_conversation_service, sample_conversation_info
 ):
-    """autotitle defaults to True when not supplied in the request."""
+    """当请求中未提供时，autotitle 默认为 True。"""
     mock_conversation_service.start_conversation.return_value = (
         sample_conversation_info,
         True,
@@ -2136,27 +2136,27 @@ def test_set_conversation_security_analyzer_success(
     mock_event_service,
     llm_security_analyzer,
 ):
-    """Test successful setting of security analyzer via API endpoint."""
-    # Setup mocks
+    """通过 API 端点测试安全分析器设置是否成功。"""
+    # 设置模拟对象
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.set_security_analyzer.return_value = None
 
-    # Override dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
-    # Make request
+    # 提出请求
     response = client.post(
         f"/api/conversations/{sample_conversation_id}/security_analyzer",
         json={"security_analyzer": llm_security_analyzer.model_dump()},
     )
 
-    # Verify response
+    # 验证响应
     assert response.status_code == 200
     assert response.json() == {"success": True}
 
-    # Verify service calls
+    # 验证服务调用
     mock_conversation_service.get_event_service.assert_called_once_with(
         sample_conversation_id
     )
@@ -2166,27 +2166,27 @@ def test_set_conversation_security_analyzer_success(
 def test_set_conversation_security_analyzer_with_none(
     client, sample_conversation_id, mock_conversation_service, mock_event_service
 ):
-    """Test setting security analyzer to None via API endpoint."""
-    # Setup mocks
+    """通过 API 端点测试将安全分析器设置为 None。"""
+    # 设置模拟对象
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.set_security_analyzer.return_value = None
 
-    # Override dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
-    # Make request with None analyzer
+    # 使用 None 分析器发出请求
     response = client.post(
         f"/api/conversations/{sample_conversation_id}/security_analyzer",
         json={"security_analyzer": None},
     )
 
-    # Verify response
+    # 验证响应
     assert response.status_code == 200
     assert response.json() == {"success": True}
 
-    # Verify service calls
+    # 验证服务调用
     mock_conversation_service.get_event_service.assert_called_once_with(
         sample_conversation_id
     )
@@ -2196,23 +2196,23 @@ def test_set_conversation_security_analyzer_with_none(
 def test_security_analyzer_endpoint_with_malformed_analyzer_data(
     client, sample_conversation_id, mock_conversation_service, mock_event_service
 ):
-    """Test endpoint behavior with malformed security analyzer data."""
-    # Setup mocks
+    """使用格式错误的安全分析器数据测试端点行为。"""
+    # 设置模拟对象
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.set_security_analyzer.return_value = None
 
-    # Override dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
-    # Test with invalid analyzer type (should be rejected)
+    # 使用无效的分析仪类型进行测试（应被拒绝）
     response = client.post(
         f"/api/conversations/{sample_conversation_id}/security_analyzer",
         json={"security_analyzer": {"kind": "InvalidAnalyzerType"}},
     )
 
-    # Should return validation error for unknown analyzer type
+    # 对于未知的分析器类型应返回验证错误
     assert response.status_code == 422
     response_data = response.json()
     assert "detail" in response_data
@@ -2221,19 +2221,19 @@ def test_security_analyzer_endpoint_with_malformed_analyzer_data(
 def test_update_secrets_with_string_values(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test update_secrets endpoint accepts plain string values."""
+    """测试 update_secrets 端点接受纯字符串值。"""
 
-    # Mock the services
+    # 模拟对象服务
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.update_secrets.return_value = None
 
-    # Override dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # Test with plain string secrets (should be auto-converted)
+        # 使用纯字符串机密进行测试（应该自动转换）
         response = client.post(
             f"/api/conversations/{sample_conversation_id}/secrets",
             json={
@@ -2247,12 +2247,12 @@ def test_update_secrets_with_string_values(
         assert response.status_code == 200
         assert response.json() == {"success": True}
 
-        # Verify the event service was called (secrets should be converted internally)
+        # 验证事件服务被调用（机密应在内部转换）
         mock_event_service.update_secrets.assert_called_once()
         call_args = mock_event_service.update_secrets.call_args
 
-        # Verify secrets were converted to proper SecretSource objects
-        secrets_dict = call_args[0][0]  # secrets parameter
+        # 验证机密已转换为正确的 SecretSource 对象
+        secrets_dict = call_args[0][0]  # 机密参数
         assert "API_KEY" in secrets_dict
         assert "TOKEN" in secrets_dict
 
@@ -2263,19 +2263,19 @@ def test_update_secrets_with_string_values(
 def test_update_secrets_with_mixed_formats(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test update_secrets endpoint accepts mixed secret formats."""
+    """测试 update_secrets 端点接受混合机密格式。"""
 
-    # Mock the services
+    # 模拟对象服务
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.update_secrets.return_value = None
 
-    # Override dependency
+    # 覆盖依赖关系
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
     )
 
     try:
-        # Test with mixed formats: plain strings and proper SecretSource objects
+        # 使用混合格式进行测试：纯字符串和正确的 SecretSource 对象
         response = client.post(
             f"/api/conversations/{sample_conversation_id}/secrets",
             json={
@@ -2296,12 +2296,12 @@ def test_update_secrets_with_mixed_formats(
         assert response.status_code == 200
         assert response.json() == {"success": True}
 
-        # Verify the event service was called
+        # 验证事件服务被调用
         mock_event_service.update_secrets.assert_called_once()
         call_args = mock_event_service.update_secrets.call_args
 
-        # Verify all secrets are present
-        secrets_dict = call_args[0][0]  # secrets parameter
+        # 验证所有机密都存在
+        secrets_dict = call_args[0][0]  # 机密参数
         assert "PLAIN_SECRET" in secrets_dict
         assert "STATIC_SECRET" in secrets_dict
         assert "LOOKUP_SECRET" in secrets_dict
@@ -2310,13 +2310,13 @@ def test_update_secrets_with_mixed_formats(
         client.app.dependency_overrides.clear()
 
 
-# --- switch_profile endpoint tests ---
+# --- switch_profile 端点测试 ---
 
 
 def test_switch_conversation_profile_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test switch_conversation_profile endpoint with a valid profile."""
+    """使用有效的配置文件测试 switch_conversation_profile 端点。"""
     mock_conversation = MagicMock()
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.get_conversation.return_value = mock_conversation
@@ -2346,7 +2346,7 @@ def test_switch_conversation_profile_success(
 def test_switch_conversation_profile_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test switch_conversation_profile endpoint when conversation is not found."""
+    """当未找到对话时测试 switch_conversation_profile 端点。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2370,7 +2370,7 @@ def test_switch_conversation_profile_not_found(
 def test_switch_conversation_profile_nonexistent_profile(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test switch_conversation_profile when the profile does not exist on disk."""
+    """当磁盘上不存在配置文件时测试 switch_conversation_profile。"""
     mock_conversation = MagicMock()
     mock_conversation.switch_profile.side_effect = FileNotFoundError(
         "Profile 'missing' not found"
@@ -2398,7 +2398,7 @@ def test_switch_conversation_profile_nonexistent_profile(
 def test_switch_conversation_profile_corrupted_profile(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Test switch_conversation_profile when the profile is corrupted or invalid."""
+    """当配置文件损坏或无效时测试 switch_conversation_profile。"""
     mock_conversation = MagicMock()
     mock_conversation.switch_profile.side_effect = ValueError("Invalid profile format")
     mock_conversation_service.get_event_service.return_value = mock_event_service
@@ -2424,7 +2424,7 @@ def test_switch_conversation_profile_corrupted_profile(
 def test_load_conversation_plugin_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint forwards the plugin ref to EventService."""
+    """/load_plugin 端点将插件引用转发到 EventService。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -2445,7 +2445,7 @@ def test_load_conversation_plugin_success(
 def test_load_conversation_plugin_not_found(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint maps plugin resolution errors to 404."""
+    """/load_plugin 端点将插件解析错误映射到 404。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.load_plugin.side_effect = PluginNotFoundError("missing")
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2467,7 +2467,7 @@ def test_load_conversation_plugin_not_found(
 def test_load_conversation_plugin_malformed_ref_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint maps malformed plugin refs to 400."""
+    """/load_plugin 端点将格式错误的插件引用映射到 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.load_plugin.side_effect = PluginResolutionError(
         "Plugin reference must use 'plugin-name@marketplace-name'"
@@ -2491,7 +2491,7 @@ def test_load_conversation_plugin_malformed_ref_returns_400(
 def test_load_conversation_plugin_fetch_error_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint maps plugin fetch failures to 400."""
+    """/load_plugin 端点将插件获取失败映射到 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.load_plugin.side_effect = PluginFetchError("fetch failed")
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2513,7 +2513,7 @@ def test_load_conversation_plugin_fetch_error_returns_400(
 def test_load_conversation_plugin_file_not_found_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint maps plugin load failures to 400."""
+    """/load_plugin 端点将插件加载失败映射到 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.load_plugin.side_effect = FileNotFoundError("missing plugin dir")
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2535,7 +2535,7 @@ def test_load_conversation_plugin_file_not_found_returns_400(
 def test_load_conversation_plugin_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint returns 404 when the conversation is missing."""
+    """当会话丢失时，/load_plugin 端点返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
     client.app.dependency_overrides[get_conversation_service] = lambda: (
         mock_conversation_service
@@ -2555,7 +2555,7 @@ def test_load_conversation_plugin_conversation_not_found(
 def test_load_conversation_plugin_inactive_service_returns_400(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /load_plugin endpoint maps inactive runtime state to 400."""
+    """/load_plugin 端点将非活动运行时状态映射到 400。"""
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.load_plugin.side_effect = ValueError("inactive_service")
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2577,8 +2577,8 @@ def test_load_conversation_plugin_inactive_service_returns_400(
 def test_switch_conversation_llm_success(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """The /switch_llm endpoint forwards the inline LLM to switch_llm,
-    bypassing the profile store (#3017).
+    """/switch_llm 端点将内联 LLM 转发到 switch_llm，
+    绕过配置文件存储（#3017）。
     """
     mock_conversation = MagicMock()
     mock_conversation_service.get_event_service.return_value = mock_event_service
@@ -2613,9 +2613,9 @@ def test_switch_conversation_llm_success(
 def test_switch_conversation_llm_decrypts_encrypted_api_key(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """When the server has a cipher and the client posts an encrypted api_key
-    (the natural FE flow: GET profile with X-Expose-Secrets: encrypted, then
-    forward into switch_llm), the router decrypts before applying. Regression
+    """当服务器有密码并且客户端发布加密的 api_key
+    （自然的FE流：GET配置文件与X-Expose-机密：加密，然后转发到switch_llm），路由器在
+    应用之前解密。 回归
     for #3164.
     """
     from base64 import urlsafe_b64encode
@@ -2627,7 +2627,7 @@ def test_switch_conversation_llm_decrypts_encrypted_api_key(
     encrypted_api_key = cipher.encrypt(SecretStr("plaintext-api-key"))
     assert encrypted_api_key is not None
 
-    # Install a cipher-enabled config on the test app for this test.
+    # 为此测试在测试应用程序上安装启用密码的配置。
     client.app.state.config = Config(
         static_files_path=None,
         session_api_keys=[],
@@ -2666,10 +2666,9 @@ def test_switch_conversation_llm_decrypts_encrypted_api_key(
 def test_switch_conversation_llm_plaintext_with_cipher_passes_through(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A plaintext api_key must pass through untouched even when the server
-    has a cipher configured (no Fernet prefix → no decrypt attempted).
-    Regression guard for #3164: backward-compat for app-servers that supply
-    plaintext keys.
+    """明文 api_key 必须不受影响地通过，即使服务器
+    已配置密码（无 Fernet 前缀 → 未尝试解密）。 回归 #3164 的防护：向后兼容提供明文密
+    钥的应用程序服务器。
     """
     from base64 import urlsafe_b64encode
 
@@ -2711,7 +2710,7 @@ def test_switch_conversation_llm_plaintext_with_cipher_passes_through(
 def test_switch_conversation_llm_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """The /switch_llm endpoint returns 404 when the conversation is missing."""
+    """当会话丢失时，/switch_llm 端点返回 404。"""
     mock_conversation_service.get_event_service.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2738,9 +2737,10 @@ def test_switch_conversation_llm_not_found(
 def test_switch_conversation_llm_resolves_provider_connection(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A provider_connection_id is resolved into the connection's api_key /
-    base_url before the LLM is installed — regression for OpenHands/OpenHands#17206
-    (switching to a linked OpenRouter profile lost credentials)."""
+    """provider_connection_id 被解析为连接的 api_key /
+    安装 LLM 之前的 base_url — OpenHands/OpenHands#17206 的回归（切换到链接的
+    OpenRouter 配置文件丢失凭据）。
+    """
     import tempfile
     from pathlib import Path
 
@@ -2794,8 +2794,8 @@ def test_switch_conversation_llm_resolves_provider_connection(
 def test_switch_conversation_llm_resolves_encrypted_provider_connection(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """Encrypted-at-rest provider credentials are decrypted with the server's
-    cipher before the LLM is installed."""
+    """Encrypted-at-REST 提供者凭据使用服务器的
+    安装 LLM 之前的密码。"""
     import tempfile
     from base64 import urlsafe_b64encode
     from pathlib import Path
@@ -2861,8 +2861,8 @@ def test_switch_conversation_llm_resolves_encrypted_provider_connection(
 def test_switch_conversation_llm_inline_key_without_provider_connection(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """An inline api_key with no provider_connection_id is applied unchanged
-    (byte-identical old path)."""
+    """不带 provider_connection_id 的内联 api_key 保持不变
+    （字节相同的旧路径）。"""
     mock_conversation = MagicMock()
     mock_conversation_service.get_event_service.return_value = mock_event_service
     mock_event_service.get_conversation.return_value = mock_conversation
@@ -2893,8 +2893,8 @@ def test_switch_conversation_llm_inline_key_without_provider_connection(
 def test_switch_conversation_llm_missing_provider_connection_rejects_before_switch(
     client, mock_conversation_service, mock_event_service, sample_conversation_id
 ):
-    """A dangling provider_connection_id (and no inline key) surfaces 422 before
-    the working LLM is replaced."""
+    """悬空的 provider_connection_id（并且没有内联键）在 422 之前出现
+    工作 LLM 被替换。"""
     import tempfile
     from pathlib import Path
 
@@ -2955,7 +2955,7 @@ def _provider_connection(connection_id: str, *, api_key: str, base_url: str | No
 def test_fork_conversation_success(
     client, mock_conversation_service, sample_conversation_info, sample_conversation_id
 ):
-    """Test fork endpoint returns 201 with forked conversation info."""
+    """测试分叉端点返回 201 以及分叉对话信息。"""
     mock_conversation_service.fork_conversation.return_value = sample_conversation_info
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -2979,7 +2979,7 @@ def test_fork_conversation_success(
 def test_fork_conversation_not_found(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test fork returns 404 when source conversation doesn't exist."""
+    """当源会话不存在时，测试分支返回 404。"""
     mock_conversation_service.fork_conversation.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -3000,7 +3000,7 @@ def test_fork_conversation_not_found(
 def test_fork_conversation_duplicate_id_returns_409(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """Test fork returns 409 when the requested fork ID already exists."""
+    """当请求的分叉 ID 已存在时，测试分叉返回 409。"""
     mock_conversation_service.fork_conversation.side_effect = ValueError(
         f"Conversation with id {sample_conversation_id} already exists"
     )
@@ -3023,7 +3023,7 @@ def test_fork_conversation_duplicate_id_returns_409(
 def test_fork_conversation_from_event_id_passed_through(
     client, mock_conversation_service, sample_conversation_info, sample_conversation_id
 ):
-    """fork with from_event_id forwards the branch point to the service."""
+    """fork with from_event_id 将分支点转发到服务。"""
     mock_conversation_service.fork_conversation.return_value = sample_conversation_info
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -3046,7 +3046,7 @@ def test_fork_conversation_from_event_id_passed_through(
 def test_fork_conversation_unknown_from_event_id_returns_404(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """fork with an unknown from_event_id surfaces as a 404."""
+    """具有未知 from_event_id 表面的叉子为 404。"""
     mock_conversation_service.fork_conversation.side_effect = ValueError(
         "Unknown from_event_id: evt-missing"
     )
@@ -3069,7 +3069,7 @@ def test_fork_conversation_unknown_from_event_id_returns_404(
 def test_navigate_conversation_success(
     client, mock_conversation_service, sample_conversation_info, sample_conversation_id
 ):
-    """navigate returns the updated conversation info and forwards event_id."""
+    """导航返回更新的对话信息并转发event_id。"""
     mock_conversation_service.navigate_conversation.return_value = (
         sample_conversation_info
     )
@@ -3096,7 +3096,7 @@ def test_navigate_conversation_success(
 def test_ask_agent_unknown_conversation_returns_404(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """ask_agent returns 404, not 500, when the conversation does not exist."""
+    """当对话不存在时，ask_agent 返回 404，而不是 500。"""
     mock_conversation_service.ask_agent.return_value = None
 
     client.app.dependency_overrides[get_conversation_service] = lambda: (
@@ -3119,7 +3119,7 @@ def test_ask_agent_unknown_conversation_returns_404(
 def test_navigate_conversation_returns_404(
     client, mock_conversation_service, sample_conversation_id, failure_mode
 ):
-    """navigate returns 404 for a missing conversation or an unknown event."""
+    """如果缺少对话或未知事件，navigate 将返回 404。"""
     if failure_mode == "missing_conversation":
         mock_conversation_service.navigate_conversation.return_value = None
     else:
@@ -3145,7 +3145,7 @@ def test_navigate_conversation_returns_404(
 def test_start_conversation_client_tool_registration_error_returns_422(
     client, mock_conversation_service
 ):
-    """Client tool registration input errors yield 422, not 500."""
+    """客户端工具注册输入错误产生 422，而不是 500。"""
     from openhands.sdk.tool.client_tool import ClientToolRegistrationError
 
     mock_conversation_service.start_conversation.side_effect = (
@@ -3181,7 +3181,7 @@ def test_start_conversation_client_tool_registration_error_returns_422(
 def test_start_conversation_unavailable_agent_tool_returns_422(
     client, mock_conversation_service
 ):
-    """An agent tool whose module the server cannot import yields 422, not 500."""
+    """服务器无法导入其模块的智能体工具会生成 422，而不是 500。"""
     from openhands.agent_server.conversation_service import UnavailableAgentTool
 
     mock_conversation_service.start_conversation.side_effect = UnavailableAgentTool(
@@ -3225,7 +3225,7 @@ def test_runtime_requires_existing_conversation(
 def test_condense_conversation_without_condenser_returns_409(
     client, mock_conversation_service, sample_conversation_id
 ):
-    """condense answers 409 with the cause when the agent cannot condense."""
+    """condense 当智能体无法压缩时回答 409 并说明原因。"""
     mock_conversation_service.condense.side_effect = CondensationUnavailable(
         "Cannot condense conversation: No condenser configured"
     )

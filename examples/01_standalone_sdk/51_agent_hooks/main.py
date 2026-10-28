@@ -1,21 +1,19 @@
-"""OpenHands Agent SDK — Agent-based Hooks Example
+"""OpenHands 智能体 SDK — 智能体基于 Hook 示例
 
-Demonstrates the `type="agent"` hook, which evaluates lifecycle events with an
-LLM-driven sub-agent instead of a shell script. The hook agent receives the
-event JSON, reasons about it semantically, and replies with a decision payload:
+演示 `type="agent"` 挂钩，它使用 LLM 驱动的子智能体而不是 shell 脚本来评估生命周期事
+件。 钩子智能体接收事件 JSON，从语义上推理，并回复决策
+载荷：
 
     {"decision": "allow" | "deny", "reason": "..."}
 
-Two demos:
+两个演示：
 
-- PreToolUse (security reviewer): inspects the INTENT of a terminal command,
-  not just its syntax. A command like `awk '{print}' /etc/passwd` would slip
-  past a blacklist of command names, but the agent hook recognises it as
-  reading a sensitive system file and denies it.
-- Stop (quality reviewer): refuses to let the main agent finish until the
-  required deliverable exists in the workspace.
+- PreToolUse (security reviewer): 检查终端命令的 INTENT，而不仅仅是其语法。 像
+`awk '{print}' /etc/passwd` 这样的命令会跳过命令名称黑名单，但智能体挂钩将其识别为读
+取敏感系统文件并拒绝它。
+- Stop (quality reviewer): 拒绝让 main 智能体完成，直到工作区中存在所需的可交付成果。
 
-For shell-command hooks see ../33_hooks/main.py.
+对于 shell 命令挂钩，请参阅 ../33_hooks/main.py.
 """
 
 import os
@@ -31,13 +29,13 @@ from openhands.sdk.hooks import HookConfig, HookDefinition, HookMatcher, HookTyp
 from openhands.tools.preset.default import get_default_agent
 
 
-# Keep the demo conversations short: a small per-run iteration cap means a hook
-# that keeps denying (or a model that keeps retrying) fails fast instead of
-# burning calls up to the default 500-iteration limit / CI subprocess timeout.
+# 请保持演示对话简短：每次运行的迭代次数限制小，意味着一个钩子会立即拒绝（或一个模型会不
+# 断重试）而不是耗尽调用到默认的500次迭代次数限制 / CI 子进程超时。
+#
 MAX_ITERATIONS = 10
 
 
-# Configure LLM
+# 配置LLM
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5-20250929")
@@ -83,7 +81,7 @@ Reply with a single JSON object and nothing else:
 
 
 def hook_logger(event) -> None:
-    """Surface each hook decision so the demo output is self-explanatory."""
+    """展示每个钩子决策，以便演示输出是不言自明的。"""
     if not isinstance(event, HookExecutionEvent):
         return
     status = "DENY " if event.blocked else ("ALLOW" if event.success else "FAIL ")
@@ -94,12 +92,11 @@ def hook_logger(event) -> None:
 
 
 def run_demo(workspace: Path, hook_config: HookConfig, message: str) -> float:
-    """Run one demo in its own conversation and return its cost.
+    """在自己的对话中运行一个演示并返回其成本。
 
-    Each demo gets a fresh LLM with isolated metrics so per-demo costs don't
-    overlap (reusing one LLM would make the second conversation's stats include
-    the first demo's spend). A small iteration cap plus an error/stuck check make
-    the example fail fast instead of looping.
+    每个演示都会获得一个独立的 LLM，并且有隔离的指标，因此每个演示的成本不会重叠（重
+    复使用一个 LLM 会使第二个对话的统计包括第一个演示的花费）。 小迭代上限加上
+    错误/卡住检查使示例快速失败而不是循环。
     """
     demo_llm = llm.model_copy()
     demo_llm.reset_metrics()
@@ -124,10 +121,10 @@ def run_demo(workspace: Path, hook_config: HookConfig, message: str) -> float:
     return conversation.conversation_stats.get_combined_metrics().accumulated_cost
 
 
-# Each demo runs in its own conversation with only the hook it needs. Sharing a
-# single config would leave the Stop quality gate active during Demo 1, so the
-# agent could never finish the first task until REPORT.md existed — coupling two
-# unrelated demos and burning iterations.
+# 每个演示都在自己的对话中运行，仅使用它需要的钩子。 共享一个配置文件会导致在演示1期间停
+# 质量门仍然激活，因此智能体在REPORT.md存在之前无法完成第一个任务——将两个无关的演示耦合
+# 在一起并浪费迭代。
+#
 security_hook_config = HookConfig(
     pre_tool_use=[
         HookMatcher(

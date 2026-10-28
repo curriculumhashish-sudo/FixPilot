@@ -1,7 +1,6 @@
-"""Utility for converting OpenHands SDK events to OpenAI message format.
+"""用于将 OpenHands SDK 事件转换为 OpenAI 消息格式的实用程序。
 
-This module provides functions to convert SDK events into the OpenAI message
-format required by the GraySwan Cygnal API.
+该模块提供将 SDK 事件转换为 GraySwan Cygnal API 所需的 OpenAI 消息格式的功能。
 """
 
 from __future__ import annotations
@@ -28,16 +27,16 @@ logger = get_logger(__name__)
 def convert_events_to_openai_messages(
     events: Sequence[LLMConvertibleEvent],
 ) -> list[dict[str, Any]]:
-    """Convert OpenHands SDK events to OpenAI message format for LLM APIs.
+    """将 OpenHands SDK 事件转换为 LLM APIs 的 OpenAI 消息格式。
 
-    This function transforms SDK events into the message format expected by
-    OpenAI-compatible APIs, which is required by the GraySwan Cygnal API.
+    该函数将 SDK 事件转换为 OpenAI-兼容的 APIs 需要的格式，这是 GraySwan Cygnal API
+    所需的。
 
     Args:
-        events: List of LLMConvertibleEvent objects to convert
+        events: LLMConvertibleEvent 个要转换的对象列表
 
     Returns:
-        List of dictionaries in OpenAI message format
+        OpenAI消息格式的字典列表
     """
     openai_messages: list[dict[str, Any]] = []
 
@@ -46,23 +45,23 @@ def convert_events_to_openai_messages(
     for event in events:
         event_type = type(event).__name__
 
-        # Handle system prompts
+        # 手柄系统提示词
         if isinstance(event, SystemPromptEvent):
             msg = {"role": "system", "content": event.system_prompt.text}
             openai_messages.append(msg)
 
-        # Handle message events (user/agent messages)
+        # 处理消息事件（用户/代理消息）
         elif isinstance(event, MessageEvent):
             source = event.source
             llm_message = event.to_llm_message()
 
-            # Extract text content from the message
+            # 从消息中提取文本内容
             content_parts = []
             for content in llm_message.content:
                 if isinstance(content, TextContent):
                     content_parts.append(content.text)
                 elif isinstance(content, ImageContent):
-                    # Skip images for security analysis
+                    # 跳过图像进行安全分析
                     logger.debug("Skipping image content in security analysis")
                     continue
 
@@ -75,9 +74,9 @@ def convert_events_to_openai_messages(
                 msg = {"role": "assistant", "content": content_str}
                 openai_messages.append(msg)
 
-        # Handle action events (tool calls from agent)
+        # 处理动作事件（智能体中的工具调用）
         elif isinstance(event, ActionEvent):
-            # Build the tool call structure
+            # 构建工具调用结构
             tool_call_dict = {
                 "id": event.tool_call_id,
                 "type": "function",
@@ -87,7 +86,7 @@ def convert_events_to_openai_messages(
                 },
             }
 
-            # Remove security_risk from arguments to avoid biasing the analysis
+            # 从参数中删除 security_risk 以避免分析出现偏差
             try:
                 args = json.loads(event.tool_call.arguments)
                 if "security_risk" in args:
@@ -96,7 +95,7 @@ def convert_events_to_openai_messages(
             except (json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"Could not remove security_risk from arguments: {e}")
 
-            # Extract thought content
+            # 提取思想内容
             thought_text = " ".join([t.text for t in event.thought])
 
             assistant_msg: dict[str, Any] = {
@@ -106,12 +105,12 @@ def convert_events_to_openai_messages(
             }
             openai_messages.append(assistant_msg)
 
-        # Handle observation events (tool responses)
+        # 处理观测结果事件（工具响应）
         elif isinstance(event, ObservationEvent):
             tool_call_id = event.tool_call_id
 
             if tool_call_id:
-                # Get content from observation
+                # 从观测结果获取内容
                 content_parts = content_to_str(event.observation.to_llm_content)
                 content_str = " ".join(content_parts)
 
@@ -126,12 +125,12 @@ def convert_events_to_openai_messages(
                     f"Could not find tool_call_id for observation {event_type}"
                 )
 
-        # Handle other observation base events (errors, rejections)
+        # 处理其他观测结果基本事件（错误、拒绝）
         elif isinstance(event, ObservationBaseEvent):
             tool_call_id = event.tool_call_id
 
             if tool_call_id:
-                # Get content from the event's LLM message
+                # 从事件的 LLM 消息中获取内容
                 llm_message = event.to_llm_message()
                 content_parts = content_to_str(llm_message.content)
                 content_str = " ".join(content_parts)

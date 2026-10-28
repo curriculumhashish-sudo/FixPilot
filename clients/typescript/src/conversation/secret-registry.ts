@@ -1,23 +1,23 @@
 /**
- * Secret Registry for Conversations
+ * 机密注册表对话
  *
- * Manages secrets and injects them into commands when needed.
- * Provides secret masking in output to prevent accidental exposure.
- * This mirrors the Python SDK's SecretRegistry class.
+ * 管理机密并在需要时将它们注入命令中。
+ * 在输出中提供机密屏蔽以防止意外暴露。
+ * 这反映了 Python SDK 的 SecretRegistry 类。
  */
 
 import { SecretValue } from '../types/base';
 
-// Re-export so existing consumers of this module still find the type
+// 重新导出，以便该模块的现有使用者仍然可以找到该类型
 export type { SecretValue } from '../types/base';
 
 /**
- * Secret source types
+ * 机密来源类型
  */
 export type SecretSourceKind = 'static' | 'callable';
 
 /**
- * Base interface for secret sources
+ * 机密源的基本接口
  */
 export interface SecretSource {
   kind: SecretSourceKind;
@@ -25,7 +25,7 @@ export interface SecretSource {
 }
 
 /**
- * Static secret source - stores a fixed value
+ * Static 机密 source - 存储固定值
  */
 export class StaticSecretSource implements SecretSource {
   readonly kind: SecretSourceKind = 'static';
@@ -41,7 +41,7 @@ export class StaticSecretSource implements SecretSource {
 }
 
 /**
- * Callable secret source - evaluates a function to get the value
+ * Callable 机密源 - 计算函数以获取值
  */
 export class CallableSecretSource implements SecretSource {
   readonly kind: SecretSourceKind = 'callable';
@@ -61,7 +61,7 @@ export class CallableSecretSource implements SecretSource {
 }
 
 /**
- * Wrap a SecretValue into a SecretSource
+ * 将 SecretValue 包裹成 SecretSource
  */
 function wrapSecret(value: SecretValue): SecretSource {
   if (typeof value === 'function') {
@@ -71,43 +71,43 @@ function wrapSecret(value: SecretValue): SecretSource {
 }
 
 /**
- * Manages secrets and injects them into bash commands when needed.
+ * 管理机密并在需要时将它们注入到 bash 命令中。
  *
- * The secret registry stores a mapping of secret keys to SecretSources
- * that retrieve the actual secret values. When a bash command is about to be
- * executed, it scans the command for any secret keys and provides the
- * corresponding environment variables.
+ * 机密注册表存储机密键到 SecretSources 的映射
+ * 检索实际的机密值。 当 bash 命令即将执行时
+ * 执行时，它会扫描命令中的任何机密键并提供
+ * corresponding 环境变量。
  *
- * Additionally, it tracks the latest exported values to enable consistent masking
- * even when callable secrets fail on subsequent calls.
+ * 此外，它还跟踪最新导出的值以实现一致的屏蔽
+ * 即使可调用机密在后续调用中失败。
  *
- * Example:
- * ```typescript
- * const registry = new SecretRegistry();
+ * 示例：
+ * ```TypeScript
+ * const 注册表 = new SecretRegistry();
  * registry.updateSecrets({
- *   'API_KEY': 'sk-secret-key',
+ *   'API_KEY': 'sk-机密-key',
  *   'DYNAMIC_TOKEN': () => getToken(),
  * });
  *
- * // Get env vars for a command
- * const envVars = registry.getSecretsAsEnvVars('curl -H "Authorization: Bearer $API_KEY" ...');
+ * // 获取命令的环境变量
+ * const envVars = registry.getSecretsAsEnvVars('curl -H "授权：承载 $API_KEY" ...');
  *
- * // Mask secrets in output
- * const maskedOutput = registry.maskSecretsInOutput('Response with sk-secret-key visible');
- * // Returns: 'Response with <secret-hidden> visible'
+ * // 输出中的掩码机密
+ * const maskedOutput = registry.maskSecretsInOutput('响应 sk-机密-key 可见');
+ * // 返回：“<secret-hidden> 可见的响应”
  * ```
  */
 export class SecretRegistry {
-  /** Map of secret key to secret source */
+  /** 机密键到机密源的映射*/
   private secretSources: Map<string, SecretSource> = new Map();
 
-  /** Cache of successfully exported values for masking */
+  /** 缓存成功导出的屏蔽值*/
   private exportedValues: Map<string, string> = new Map();
 
   /**
-   * Add or update secrets in the registry.
+   * 在注册表中添加或更新机密。
    *
-   * @param secrets - Dictionary mapping secret keys to values or callable functions
+   * @param 机密 - 字典将机密键映射到值或可调用函数
    */
   updateSecrets(secrets: Record<string, SecretValue>): void {
     for (const [key, value] of Object.entries(secrets)) {
@@ -116,9 +116,9 @@ export class SecretRegistry {
   }
 
   /**
-   * Remove a secret from the registry.
+   * 从注册表中删除机密。
    *
-   * @param key - The secret key to remove
+   * @param key - 要删除的机密键
    */
   removeSecret(key: string): void {
     this.secretSources.delete(key);
@@ -126,7 +126,7 @@ export class SecretRegistry {
   }
 
   /**
-   * Clear all secrets from the registry.
+   * 从注册表中清除所有机密。
    */
   clearSecrets(): void {
     this.secretSources.clear();
@@ -134,25 +134,25 @@ export class SecretRegistry {
   }
 
   /**
-   * Get the number of registered secrets.
+   * 获取注册数量机密。
    */
   get size(): number {
     return this.secretSources.size;
   }
 
   /**
-   * Get all registered secret keys.
+   * 获取所有已注册的机密键。
    */
   get keys(): string[] {
     return Array.from(this.secretSources.keys());
   }
 
   /**
-   * Find all secret keys mentioned in the given text.
-   * Uses case-insensitive matching.
+   * 查找给定文本中提到的所有机密键。
+   * 使用不区分大小写的匹配。
    *
-   * @param text - The text to search for secret keys
-   * @returns Set of secret keys found in the text
+   * @param text - 用于搜索机密键的文本
+   * @returns 在文本中找到的机密个键的集合
    */
   findSecretsInText(text: string): Set<string> {
     const foundKeys = new Set<string>();
@@ -168,10 +168,10 @@ export class SecretRegistry {
   }
 
   /**
-   * Get secrets that should be exported as environment variables for a command.
+   * 获取应导出为命令环境变量的机密。
    *
-   * @param command - The bash command to check for secret references
-   * @returns Dictionary of environment variables to export (key -> value)
+   * @param command - 用于检查机密引用的 bash 命令
+   * @returns 要导出的环境变量字典（键 -> 值）
    */
   getSecretsAsEnvVars(command: string): Record<string, string> {
     const foundSecrets = this.findSecretsInText(command);
@@ -197,13 +197,13 @@ export class SecretRegistry {
   }
 
   /**
-   * Mask secret values in the given text.
+   * 给定文本中的掩码机密值。
    *
-   * This method uses the currently exported values to ensure comprehensive masking.
-   * It replaces all known secret values with '<secret-hidden>'.
+   * 此方法使用当前导出的值来确保全面屏蔽。
+   * 它将所有已知的机密值替换为“<secret-hidden>”。
    *
-   * @param text - The text to mask secrets in
-   * @returns Text with secret values replaced by <secret-hidden>
+   * @param text - 要屏蔽机密的文本
+   * @returns 将机密值替换为 <secret-hidden> 的文本
    */
   maskSecretsInOutput(text: string): string {
     if (!text) {
@@ -212,15 +212,15 @@ export class SecretRegistry {
 
     let maskedText = text;
 
-    // Mask using currently exported values
+    // 使用当前导出的值进行掩码
     for (const value of this.exportedValues.values()) {
       if (value) {
-        // Use a global replace
+        // 使用全局替换
         maskedText = maskedText.split(value).join('<secret-hidden>');
       }
     }
 
-    // Also try to get fresh values from sources (in case they weren't exported yet)
+    // 还尝试从源获取新值（如果它们尚未导出）
     for (const [key, source] of this.secretSources) {
       try {
         const value = source.getValue();
@@ -228,7 +228,7 @@ export class SecretRegistry {
           maskedText = maskedText.split(value).join('<secret-hidden>');
         }
       } catch {
-        // Ignore errors when trying to mask - we'll use cached values
+        // 尝试屏蔽时忽略错误 - 我们将使用缓存值
       }
     }
 
@@ -236,29 +236,29 @@ export class SecretRegistry {
   }
 
   /**
-   * Check if a specific secret key is registered.
+   * 检查是否注册了特定的机密键。
    *
-   * @param key - The secret key to check
-   * @returns True if the key is registered
+   * @param key - 要检查的机密键
+   * @returns True 如果密钥已注册
    */
   hasSecret(key: string): boolean {
     return this.secretSources.has(key);
   }
 
   /**
-   * Serialize the registry state for persistence.
-   * Note: Callable secrets cannot be serialized and will be omitted.
-   * Secret values are redacted by default for security.
+   * 序列化持久化的注册表状态。
+   * 注意：Callable 机密不能为已序列化，将被省略。
+   * 为了安全起见，机密值默认为已脱敏。
    *
-   * @param exposeSecrets - If true, include actual secret values (use with caution!)
-   * @returns Serialized registry state
+   * @param exposeSecrets - 如果是 True，则包含实际的机密值（谨慎使用！）
+   * @returns 已序列化注册表状态
    */
   serialize(exposeSecrets: boolean = false): Record<string, string | null> {
     const result: Record<string, string | null> = {};
 
     for (const [key, source] of this.secretSources) {
       if (source.kind === 'callable') {
-        // Callable secrets can't be serialized
+        // 可调用机密不能为已序列化
         result[key] = null;
       } else if (exposeSecrets) {
         result[key] = source.getValue();
@@ -271,10 +271,10 @@ export class SecretRegistry {
   }
 
   /**
-   * Restore secrets from serialized state.
-   * Only static secrets can be restored.
+   * 从已序列化状态恢复机密。
+   * 只能恢复静态机密。
    *
-   * @param state - Previously serialized state
+   * @param state - 之前的已序列化状态
    */
   deserialize(state: Record<string, string | null>): void {
     for (const [key, value] of Object.entries(state)) {

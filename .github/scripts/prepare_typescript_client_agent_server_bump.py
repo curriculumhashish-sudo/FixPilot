@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare a TypeScript client checkout for an exact Agent Server release.
+"""为确切的 Agent Server 版本准备 TypeScript 客户端结账。
 
-The release workflow owns artifact acquisition and client generation. This
-script validates the acquired OpenAPI document and updates every checked-in
-mirror of ``package.json.config.agentServerImage`` in one deterministic step.
+发布工作流程拥有工件获取和客户端生成。 该脚本验证获取的 OpenAPI 文档，并在一个确定性
+步骤中更新
+``package.json.config.agentServerImage`` 的每个签入镜像。
 """
 
 from __future__ import annotations

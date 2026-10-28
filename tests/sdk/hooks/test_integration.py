@@ -1,4 +1,4 @@
-"""Integration tests for hooks blocking in Agent and Conversation."""
+"""集成测试用于阻止智能体和对话中的钩子。"""
 
 import pytest
 
@@ -35,16 +35,16 @@ def _write_stdin_to_file_command(path) -> str:
 
 
 class TestBlockedActionsState:
-    """Tests for blocked_actions field on ConversationState."""
+    """测试 ConversationState 上的 blocked_actions 字段。"""
 
     def test_blocked_actions_field_exists(self):
-        """Test that ConversationState has blocked_actions field."""
-        # blocked_actions should be in the model fields
+        """测试 ConversationState 是否有 blocked_actions 字段。"""
+        # blocked_actions 应位于模型字段中
         assert "blocked_actions" in ConversationState.model_fields
 
     def test_blocked_actions_default_empty(self):
-        """Test that blocked_actions defaults to empty dict."""
-        # Create a minimal state dict for validation
+        """测试 blocked_actions 默认为空字典。"""
+        # 为验证创建一个最小状态字典
         import tempfile
         import uuid
 
@@ -70,7 +70,7 @@ class TestBlockedActionsState:
 
 
 class TestBlockedStatePersistence:
-    """Tests for blocked state persistence across resume."""
+    """跨恢复测试阻塞状态持久化。"""
 
     def _create_persistent_state(self, tmp_path, conversation_id):
         from pydantic import SecretStr
@@ -121,11 +121,11 @@ class TestBlockedStatePersistence:
 
 
 class TestUserPromptSubmitBlocking:
-    """Tests for UserPromptSubmit hook blocking."""
+    """测试 UserPromptSubmit 钩子阻塞。"""
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state."""
+        """创建模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -146,16 +146,16 @@ class TestUserPromptSubmitBlocking:
         )
 
     def test_is_message_blocked_without_state(self, tmp_path):
-        """Test that is_message_blocked returns False without state set."""
+        """测试 is_message_blocked 返回 False 且未设置状态。"""
         manager = HookManager(config=HookConfig(), working_dir=str(tmp_path))
         processor = HookEventProcessor(hook_manager=manager)
-        # No state set
+        # 未设置状态
         assert not processor.is_message_blocked("any-message-id")
 
     def test_blocking_user_prompt_hook_adds_to_state(
         self, tmp_path, mock_conversation_state
     ):
-        """Test blocking UserPromptSubmit hooks add message ID to blocked_messages."""
+        """测试阻塞 UserPromptSubmit 挂钩将消息 ID 添加到 blocked_messages。"""
         command = _stderr_exit_command("Blocked by policy", 2)
 
         config = HookConfig.from_dict(
@@ -191,7 +191,7 @@ class TestUserPromptSubmitBlocking:
     def test_non_blocking_user_prompt_hook_does_not_block(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that non-blocking hooks don't add to blocked_messages."""
+        """测试非阻塞挂钩不会添加到 blocked_messages。"""
         command = python_command("import sys; sys.exit(0)")
 
         config = HookConfig.from_dict(
@@ -222,11 +222,11 @@ class TestUserPromptSubmitBlocking:
 
 
 class TestHookEventProcessorBlocking:
-    """Tests for HookEventProcessor blocking integration."""
+    """测试 HookEventProcessor 阻塞集成。"""
 
     @pytest.fixture
     def blocking_config(self, tmp_path):
-        """Create a config with a blocking hook."""
+        """创建一个带有阻塞钩子的配置。"""
         command = _json_command({"decision": "deny", "reason": "Test block"}, 2)
 
         return HookConfig.from_dict(
@@ -244,7 +244,7 @@ class TestHookEventProcessorBlocking:
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state with blocked_actions."""
+        """创建与 blocked_actions 的模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -265,7 +265,7 @@ class TestHookEventProcessorBlocking:
         )
 
     def test_set_conversation_state(self, tmp_path, mock_conversation_state):
-        """Test that set_conversation_state stores the state reference."""
+        """测试 set_conversation_state 是否存储状态引用。"""
         manager = HookManager(
             config=HookConfig(),
             working_dir=str(tmp_path),
@@ -279,7 +279,7 @@ class TestHookEventProcessorBlocking:
     def test_blocking_hook_adds_to_state(
         self, tmp_path, blocking_config, mock_conversation_state
     ):
-        """Test that blocking hooks add action ID to state.blocked_actions."""
+        """测试阻塞钩子是否将操作 ID 添加到 state.blocked_actions。"""
         manager = HookManager(
             config=blocking_config,
             working_dir=str(tmp_path),
@@ -287,7 +287,7 @@ class TestHookEventProcessorBlocking:
         processor = HookEventProcessor(hook_manager=manager)
         processor.set_conversation_state(mock_conversation_state)
 
-        # Create a mock action event with required fields
+        # 创建具有必填字段的模拟对象操作事件
         from openhands.sdk.llm import MessageToolCall
         from openhands.sdk.tool.builtins import ThinkAction
 
@@ -303,17 +303,17 @@ class TestHookEventProcessorBlocking:
             thought=[],
         )
 
-        # Process the event (this should trigger the blocking hook)
+        # 处理事件（这应该触发阻塞钩子）
         processor.on_event(action_event)
 
-        # Check that the action was marked as blocked
+        # 检查该操作是否被标记为已阻止
         assert action_event.id in mock_conversation_state.blocked_actions
         assert "Test block" in mock_conversation_state.blocked_actions[action_event.id]
 
     def test_is_action_blocked_uses_state(
         self, tmp_path, blocking_config, mock_conversation_state
     ):
-        """Test that is_action_blocked checks the state."""
+        """测试 is_action_blocked 检查状态。"""
         manager = HookManager(
             config=blocking_config,
             working_dir=str(tmp_path),
@@ -321,30 +321,30 @@ class TestHookEventProcessorBlocking:
         processor = HookEventProcessor(hook_manager=manager)
         processor.set_conversation_state(mock_conversation_state)
 
-        # Manually add a blocked action
+        # 手动添加阻止的操作
         mock_conversation_state.blocked_actions["test-action-id"] = "Blocked"
 
         assert processor.is_action_blocked("test-action-id")
         assert not processor.is_action_blocked("other-action-id")
 
     def test_is_action_blocked_without_state(self, tmp_path):
-        """Test that is_action_blocked returns False without state."""
+        """测试 is_action_blocked 返回没有状态的 False。"""
         manager = HookManager(
             config=HookConfig(),
             working_dir=str(tmp_path),
         )
         processor = HookEventProcessor(hook_manager=manager)
 
-        # No state set
+        # 未设置状态
         assert not processor.is_action_blocked("any-action-id")
 
 
 class TestPostToolUseActionLookup:
-    """Tests for PostToolUse looking up actions from conversation state events."""
+    """测试 PostToolUse 从对话状态事件中查找操作。"""
 
     @pytest.fixture
     def logging_config(self, tmp_path):
-        """Create a config with a PostToolUse hook that logs tool_input."""
+        """使用记录 tool_input 的 PostToolUse 挂钩创建一个配置。"""
         log_file = tmp_path / "hook_output.log"
         command = _write_stdin_to_file_command(log_file)
 
@@ -363,7 +363,7 @@ class TestPostToolUseActionLookup:
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state using the factory method."""
+        """使用工厂方法创建模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -376,7 +376,7 @@ class TestPostToolUseActionLookup:
         agent = Agent(llm=llm, tools=[])
         workspace = LocalWorkspace(working_dir=str(tmp_path))
 
-        # Use create() factory to properly initialize _events
+        # 使用create()工厂正确初始化_events
         return ConversationState.create(
             id=uuid.uuid4(),
             agent=agent,
@@ -387,7 +387,7 @@ class TestPostToolUseActionLookup:
     def test_post_tool_use_finds_action_from_events(
         self, tmp_path, logging_config, mock_conversation_state
     ):
-        """Test that PostToolUse hooks find action from conversation.state.events."""
+        """测试 PostToolUse 挂钩是否找到来自 conversation.state.events 的操作。"""
         import json
 
         from openhands.sdk.event import ObservationEvent
@@ -402,7 +402,7 @@ class TestPostToolUseActionLookup:
         processor = HookEventProcessor(hook_manager=manager)
         processor.set_conversation_state(mock_conversation_state)
 
-        # Create an action event
+        # 创建动作事件
         action_event = ActionEvent(
             source="agent",
             tool_name="Think",
@@ -415,35 +415,35 @@ class TestPostToolUseActionLookup:
             thought=[],
         )
 
-        # Add action to state events (simulating what Conversation does)
+        # 向状态事件添加操作（模拟对话的作用）
         mock_conversation_state.events.append(action_event)
 
-        # Create a corresponding observation event
+        # 创建对应的观测结果事件
         observation_event = ObservationEvent(
             source="agent",
-            action_id=action_event.id,  # Links to the action
+            action_id=action_event.id,  # 操作链接
             tool_name="Think",
             tool_call_id="test-call-id",
             observation=ThinkObservation(),
         )
 
-        # Process the observation (this should trigger PostToolUse and find the action)
+        # 处理观测结果（这应该触发 PostToolUse 并找到操作）
         processor.on_event(observation_event)
 
-        # Verify the hook received the action's tool_input and tool_response
+        # 验证挂钩收到操作的 tool_input 和 tool_response
         assert log_file.exists(), "Hook should have been called and written to log file"
         hook_input = json.loads(log_file.read_text())
         assert hook_input["tool_name"] == "Think"
         assert "tool_input" in hook_input
-        # The tool_input should contain the action's model_dump
+        # tool_input 应包含操作的 model_dump
         assert "thought" in hook_input["tool_input"]
-        # The tool_response should contain the observation's model_dump
+        # tool_response 应包含观测结果的 model_dump
         assert "tool_response" in hook_input
         assert isinstance(hook_input["tool_response"], dict)
-        assert "content" in hook_input["tool_response"]  # From Observation base class
+        assert "content" in hook_input["tool_response"]  # 来自观测结果基类
 
     def test_post_tool_use_without_state_does_not_crash(self, tmp_path, logging_config):
-        """Test that PostToolUse gracefully handles missing conversation state."""
+        """测试 PostToolUse 是否妥善处理丢失的对话状态。"""
         from openhands.sdk.event import ObservationEvent
         from openhands.sdk.tool.builtins import ThinkObservation
 
@@ -453,7 +453,7 @@ class TestPostToolUseActionLookup:
             working_dir=str(tmp_path),
         )
         processor = HookEventProcessor(hook_manager=manager)
-        # Note: NOT calling set_conversation_state
+        # 注意：不呼叫set_conversation_state
 
         observation_event = ObservationEvent(
             source="agent",
@@ -463,18 +463,18 @@ class TestPostToolUseActionLookup:
             observation=ThinkObservation(),
         )
 
-        # Should not crash, just return early
+        # 不应该崩溃，只要早点返回
         processor.on_event(observation_event)
 
-        # Hook should NOT have been called (action not found)
+        # 应该已调用挂钩不（未找到操作）
         assert not log_file.exists()
 
 
 class TestCreateHookCallback:
-    """Tests for create_hook_callback function."""
+    """测试 create_hook_callback 功能。"""
 
     def test_create_hook_callback_returns_processor_and_callback(self, tmp_path):
-        """Test that create_hook_callback returns processor and callback."""
+        """测试 create_hook_callback 返回处理器和回调。"""
         config = HookConfig.from_dict({"hooks": {}})
 
         processor, callback = create_hook_callback(
@@ -489,17 +489,17 @@ class TestCreateHookCallback:
 
 
 class TestLocalConversationHookCallbackWiring:
-    """Tests that LocalConversation wires hook callbacks to event persistence."""
+    """测试 LocalConversation 将挂钩回调连接到事件持久化。"""
 
     def test_modified_events_with_additional_context_persisted(self, tmp_path):
-        """Test that hook-modified events (with additional_context) get persisted."""
+        """测试钩子修改的事件（带有 additional_context）是否获得已持久化。"""
         from pydantic import SecretStr
 
         from openhands.sdk.agent import Agent
         from openhands.sdk.conversation import LocalConversation
         from openhands.sdk.llm import LLM
 
-        # Create a hook that adds additional_context
+        # 创建一个添加 additional_context 的钩子
         command = _json_command(
             {"additionalContext": "HOOK_INJECTED_CONTEXT"},
         )
@@ -526,7 +526,7 @@ class TestLocalConversationHookCallbackWiring:
 
         conversation.send_message("Hello")
 
-        # Verify the MODIFIED event (with extended_content) was persisted
+        # 验证 MODIFIED 事件（带有 extended_content）为已持久化
         events = list(conversation.state.events)
         message_events = [e for e in events if isinstance(e, MessageEvent)]
 
@@ -541,11 +541,11 @@ class TestLocalConversationHookCallbackWiring:
 
 
 class TestAdditionalContextInjection:
-    """Tests for additional_context injection into LLM messages."""
+    """测试 additional_context 注入 LLM 消息。"""
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state using the factory method."""
+        """使用工厂方法创建模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -568,8 +568,8 @@ class TestAdditionalContextInjection:
     def test_additional_context_appears_in_extended_content(
         self, tmp_path, mock_conversation_state
     ):
-        """Test hook additional_context is injected into extended_content."""
-        # Create a hook that returns additional context
+        """测试挂钩 additional_context 被注入到 extended_content 中。"""
+        # 创建一个返回附加上下文的钩子
         command = _json_command(
             {"additionalContext": "Important context from hook"},
         )
@@ -605,19 +605,19 @@ class TestAdditionalContextInjection:
 
         processor.on_event(original_event)
 
-        # Filter for MessageEvent (excluding HookExecutionEvent)
+        # 筛选 MessageEvent（不包括 HookExecutionEvent）
         message_events = [e for e in processed_events if isinstance(e, MessageEvent)]
         assert len(message_events) == 1
         processed_event = message_events[0]
 
-        # The extended_content should contain the hook's additional context
+        # extended_content 应包含钩子的附加上下文
         assert len(processed_event.extended_content) == 1
         assert processed_event.extended_content[0].text == "Important context from hook"
 
     def test_additional_context_appears_in_llm_message(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that hook additional_context appears when converting to LLM message."""
+        """测试转换为LLM消息时是否出现挂钩additional_context。"""
         command = _json_command({"additionalContext": "Injected by hook"})
 
         config = HookConfig.from_dict(
@@ -651,13 +651,13 @@ class TestAdditionalContextInjection:
 
         processor.on_event(original_event)
 
-        # Filter for MessageEvent (excluding HookExecutionEvent)
+        # 筛选 MessageEvent（不包括 HookExecutionEvent）
         message_events = [e for e in processed_events if isinstance(e, MessageEvent)]
         assert len(message_events) == 1
         processed_event = message_events[0]
         llm_message = processed_event.to_llm_message()
 
-        # The content should include both original message and hook context
+        # 内容应包括原始消息和挂钩上下文
         content_texts = [
             c.text for c in llm_message.content if isinstance(c, TextContent)
         ]
@@ -667,7 +667,7 @@ class TestAdditionalContextInjection:
     def test_additional_context_preserves_existing_extended_content(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that hook context is appended to existing extended_content."""
+        """测试挂钩上下文是否附加到现有 extended_content。"""
         command = _json_command({"additionalContext": "Hook context"})
 
         config = HookConfig.from_dict(
@@ -691,7 +691,7 @@ class TestAdditionalContextInjection:
         )
         processor.set_conversation_state(mock_conversation_state)
 
-        # Create event with existing extended_content
+        # 使用现有的 extended_content 创建事件
         original_event = MessageEvent(
             source="user",
             llm_message=Message(
@@ -703,12 +703,12 @@ class TestAdditionalContextInjection:
 
         processor.on_event(original_event)
 
-        # Filter for MessageEvent (excluding HookExecutionEvent)
+        # 筛选 MessageEvent（不包括 HookExecutionEvent）
         message_events = [e for e in processed_events if isinstance(e, MessageEvent)]
         assert len(message_events) == 1
         processed_event = message_events[0]
 
-        # Both existing and hook context should be present
+        # 现有的和钩子上下文都应该存在
         assert len(processed_event.extended_content) == 2
         content_texts = [c.text for c in processed_event.extended_content]
         assert "Existing context" in content_texts
@@ -716,11 +716,11 @@ class TestAdditionalContextInjection:
 
 
 class TestStopHookIntegration:
-    """Tests for Stop hook integration in conversations."""
+    """测试对话中的 Stop 挂钩集成。"""
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state using the factory method."""
+        """使用工厂方法创建模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -741,7 +741,7 @@ class TestStopHookIntegration:
         )
 
     def test_run_stop_with_allowing_hook(self, tmp_path, mock_conversation_state):
-        """Test that run_stop returns True when hook allows stopping."""
+        """测试当 hook 允许停止时 ​​run_stop 返回 True。"""
         command = _json_command({"decision": "allow"})
 
         config = HookConfig.from_dict(
@@ -758,7 +758,7 @@ class TestStopHookIntegration:
         assert feedback is None
 
     def test_run_stop_with_denying_hook(self, tmp_path, mock_conversation_state):
-        """Test that run_stop returns False when hook denies stopping."""
+        """测试当钩子拒绝停止时 run_stop 返回 False。"""
         command = _json_command(
             {"decision": "deny", "reason": "Not done yet"},
             2,
@@ -780,7 +780,7 @@ class TestStopHookIntegration:
     def test_run_stop_with_additional_context_as_feedback(
         self, tmp_path, mock_conversation_state
     ):
-        """Test additional_context is returned as feedback when stop is denied."""
+        """当停止被拒绝时，返回测试 additional_context 作为反馈。"""
         command = _json_command(
             {"decision": "deny", "additionalContext": "Please complete X"},
             2,
@@ -802,7 +802,7 @@ class TestStopHookIntegration:
     def test_stop_hook_error_is_logged_and_allows_stop(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that hook errors are handled gracefully and stopping is allowed."""
+        """测试挂钩错误是否得到妥善处理并允许停止。"""
         command = python_command("import sys; sys.exit(1)")
 
         config = HookConfig.from_dict(
@@ -815,16 +815,16 @@ class TestStopHookIntegration:
 
         should_stop, feedback = processor.run_stop(reason="finish_tool")
 
-        # Error exit (1) doesn't block, so stopping should proceed
+        # 错误退出 (1) 不会阻塞，因此应继续停止
         assert should_stop is True
         assert feedback is None
 
 
 class TestStopHookConversationIntegration:
-    """Integration tests for Stop hook in LocalConversation run loop."""
+    """集成测试用于 LocalConversation 运行循环中的停止钩子。"""
 
     def test_stop_hook_denial_injects_feedback_and_continues(self, tmp_path):
-        """Test stop hook denial injects feedback and continues loop."""
+        """测试停止钩子拒绝注入反馈并继续循环。"""
         from unittest.mock import patch
 
         from pydantic import SecretStr
@@ -834,7 +834,7 @@ class TestStopHookConversationIntegration:
         from openhands.sdk.conversation.state import ConversationExecutionStatus
         from openhands.sdk.llm import LLM
 
-        # Create a stop hook that denies stopping the first time, then allows
+        # 创建一个停止钩子，第一次拒绝停止，然后允许
         stop_count_file = tmp_path / "stop_count"
         stop_count_file.write_text("0")
 
@@ -859,19 +859,19 @@ class TestStopHookConversationIntegration:
         llm = LLM(model="test-model", api_key=SecretStr("test-key"))
         agent = Agent(llm=llm, tools=[])
 
-        # Track events
+        # 追踪事件
         events_captured = []
 
         def capture_event(event):
             events_captured.append(event)
 
-        # Create a mock agent that sets FINISHED immediately
+        # 创建立即设置 FINISHED 的模拟对象智能体
         step_count = 0
 
         def mock_step(self, conversation, on_event, on_token=None):
             nonlocal step_count
             step_count += 1
-            # Always set to FINISHED - the stop hook integration should handle this
+            # 始终设置为 FINISHED - 停止挂钩集成应该处理此问题
             conversation.state.execution_status = ConversationExecutionStatus.FINISHED
 
         with patch.object(Agent, "step", mock_step):
@@ -884,21 +884,21 @@ class TestStopHookConversationIntegration:
                 max_iteration_per_run=10,
             )
 
-            # Send a message to start
+            # 发送消息开始
             conversation.send_message("Hello")
 
-            # Run the conversation
+            # 运行对话
             conversation.run()
 
-            # Close to trigger session end
+            # 接近触发会话结束
             conversation.close()
 
-        # The agent should have been called twice:
-        # 1. First step sets FINISHED, stop hook denies, feedback injected
-        # 2. Second step sets FINISHED, stop hook allows, conversation ends
+        # 智能体应该被调用两次：
+        # 1. 第一步设置 FINISHED，停止钩子拒绝，注入反馈
+        # 2. 第二步设置FINISHED，停止挂机允许，通话结束
         assert step_count == 2
 
-        # Check that feedback was injected as an environment message with prefix
+        # 检查反馈是否作为带有前缀的环境消息注入
         feedback_messages = [
             e
             for e in events_captured
@@ -914,11 +914,11 @@ class TestStopHookConversationIntegration:
 
 
 class TestHookExecutionEventEmission:
-    """Tests for HookExecutionEvent emission during hook execution."""
+    """在钩子执行期间测试 HookExecutionEvent 发射。"""
 
     @pytest.fixture
     def mock_conversation_state(self, tmp_path):
-        """Create a mock conversation state using the factory method."""
+        """使用工厂方法创建模拟对象对话状态。"""
         import uuid
 
         from pydantic import SecretStr
@@ -941,7 +941,7 @@ class TestHookExecutionEventEmission:
     def test_hook_execution_event_emitted_for_user_prompt_submit(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that HookExecutionEvent is emitted when UserPromptSubmit hooks run."""
+        """测试 UserPromptSubmit 挂钩运行时是否发出 HookExecutionEvent。"""
         command = _json_command({"decision": "allow"})
 
         config = HookConfig.from_dict(
@@ -974,7 +974,7 @@ class TestHookExecutionEventEmission:
 
         processor.on_event(original_event)
 
-        # Should have both HookExecutionEvent and MessageEvent
+        # 应该同时具有 HookExecutionEvent 和 MessageEvent
         hook_events = [e for e in processed_events if isinstance(e, HookExecutionEvent)]
         message_events = [e for e in processed_events if isinstance(e, MessageEvent)]
 
@@ -992,7 +992,7 @@ class TestHookExecutionEventEmission:
     def test_hook_execution_event_not_emitted_when_disabled(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that HookExecutionEvent is not emitted when emit_hook_events=False."""
+        """测试当 emit_hook_events=False 时不发射 HookExecutionEvent。"""
         command = _json_command({"decision": "allow"})
 
         config = HookConfig.from_dict(
@@ -1014,7 +1014,7 @@ class TestHookExecutionEventEmission:
         processor = HookEventProcessor(
             hook_manager=manager,
             original_callback=capture_callback,
-            emit_hook_events=False,  # Disabled
+            emit_hook_events=False,  # 残疾人
         )
         processor.set_conversation_state(mock_conversation_state)
 
@@ -1025,7 +1025,7 @@ class TestHookExecutionEventEmission:
 
         processor.on_event(original_event)
 
-        # Should only have MessageEvent, no HookExecutionEvent
+        # 应该只有 MessageEvent，没有 HookExecutionEvent
         hook_events = [e for e in processed_events if isinstance(e, HookExecutionEvent)]
         message_events = [e for e in processed_events if isinstance(e, MessageEvent)]
 
@@ -1035,7 +1035,7 @@ class TestHookExecutionEventEmission:
     def test_hook_execution_event_captures_blocking(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that HookExecutionEvent captures blocking status correctly."""
+        """测试 HookExecutionEvent 是否正确捕获阻塞状态。"""
         command = _json_command({"decision": "deny", "reason": "Blocked!"}, 2)
 
         config = HookConfig.from_dict(
@@ -1079,7 +1079,7 @@ class TestHookExecutionEventEmission:
     def test_hook_execution_event_emitted_for_session_start(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that HookExecutionEvent is emitted for SessionStart hooks."""
+        """测试是否为 SessionStart 挂钩发出 HookExecutionEvent。"""
         command = python_command("print('Session started')")
 
         config = HookConfig.from_dict(
@@ -1117,7 +1117,7 @@ class TestHookExecutionEventEmission:
     def test_hook_execution_event_emitted_for_stop(
         self, tmp_path, mock_conversation_state
     ):
-        """Test that HookExecutionEvent is emitted for Stop hooks."""
+        """测试是否为 Stop 挂钩发出 HookExecutionEvent。"""
         command = _json_command({"decision": "allow"})
 
         config = HookConfig.from_dict(

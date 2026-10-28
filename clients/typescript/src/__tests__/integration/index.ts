@@ -1,7 +1,7 @@
 /**
- * Integration tests index
+ * 集成测试索引
  *
- * Export common utilities and configuration for use in tests.
+ * 导出常用实用程序和配置以在测试中使用。
  */
 
 export * from './test-config';

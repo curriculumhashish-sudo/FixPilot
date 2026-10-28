@@ -1,4 +1,4 @@
-"""Tests that the agent emits ActionEvent with action=None on missing tools."""
+"""测试智能体在缺少工具时发出 ActionEvent 的动作为 None。"""
 
 import json
 from unittest.mock import patch
@@ -23,7 +23,7 @@ from openhands.sdk.llm import LLM, Message, TextContent
 
 
 def test_emits_action_event_with_none_action_then_error_on_missing_tool() -> None:
-    """Test that agent emits ActionEvent(action=None) when tool is missing."""
+    """测试当工具丢失时智能体是否发出 ActionEvent(action=None)。"""
     llm = LLM(
         usage_id="test-llm",
         model="test-model",
@@ -73,17 +73,17 @@ def test_emits_action_event_with_none_action_then_error_on_missing_tool() -> Non
         conv.send_message(Message(role="user", content=[TextContent(text="go")]))
         agent.step(conv, on_event=cb)
 
-    # Find ActionEvent with action=None
+    # 使用 action=None 查找 ActionEvent
     action_events_none = [
         e for e in collected if isinstance(e, ActionEvent) and e.action is None
     ]
     error_events = [e for e in collected if isinstance(e, AgentErrorEvent)]
 
-    # We expect at least one ActionEvent with action=None and one AgentErrorEvent
+    # 我们期望至少有一个 ActionEvent 且 action=None 和一个 AgentErrorEvent
     assert len(action_events_none) > 0
     assert len(error_events) > 0
 
-    # Ensure ordering: ActionEvent(action=None) occurs before AgentErrorEvent
+    # 确保排序：ActionEvent(action=None) 发生在 AgentErrorEvent 之前
     first_action_none_idx = next(
         i
         for i, e in enumerate(collected)
@@ -94,11 +94,11 @@ def test_emits_action_event_with_none_action_then_error_on_missing_tool() -> Non
     )
     assert first_action_none_idx < first_err_idx
 
-    # Verify tool_call_id continuity
+    # 验证 tool_call_id 连续性
     action_event = action_events_none[0]
     tc_id = action_event.tool_call.id
     err = error_events[0]
     assert err.tool_call_id == tc_id
 
-    # Ensure message event exists for the initial system prompt
+    # 确保初始系统提示词存在消息事件
     assert any(isinstance(e, MessageEvent) for e in collected)

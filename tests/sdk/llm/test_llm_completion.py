@@ -1,4 +1,4 @@
-"""Tests for LLM completion functionality, configuration, and metrics tracking."""
+"""测试 LLM 完成功能、配置和指标跟踪。"""
 
 import asyncio
 from collections.abc import Sequence
@@ -31,7 +31,7 @@ from openhands.sdk.tool.tool import ToolDefinition
 
 
 def create_mock_response(content: str = "Test response", response_id: str = "test-id"):
-    """Helper function to create properly structured mock responses."""
+    """用于创建结构正确的模拟对象响应的辅助函数。"""
     return ModelResponse(
         id=response_id,
         choices=[
@@ -51,7 +51,7 @@ def create_mock_response(content: str = "Test response", response_id: str = "tes
 
 @pytest.mark.parametrize("non_native", [False, True])
 def test_opaque_provider_metadata_does_not_reject_valid_chat_text(non_native):
-    # LiteLLM accepts opaque provider values at runtime despite its annotation.
+    # LiteLLM 尽管有注释，但在运行时接受不透明的提供程序值。
     provider_fields: dict[str, Any] = {"provider_specific_fields": ["extra"]}
     message = LiteLLMMessage(role="assistant", content="hello", **provider_fields)
     if non_native:
@@ -64,15 +64,15 @@ def test_opaque_provider_metadata_does_not_reject_valid_chat_text(non_native):
     assert Message.from_llm_chat_message(message).content == [TextContent(text="hello")]
 
 
-# Helper tool classes for testing
+# 用于测试的辅助工具类
 class _ArgsBasic(Action):
-    """Basic action for testing."""
+    """测试的基本动作。"""
 
     param: str
 
 
 class _MockTool(ToolDefinition[_ArgsBasic, None]):
-    """Mock tool for LLM completion testing."""
+    """模拟对象用于 LLM 完成测试的工具。"""
 
     name: ClassVar[str] = "test_tool"
 
@@ -155,10 +155,10 @@ def test_prompt_mock_preserves_reasoning_metadata(reasoning, provider_fields):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_basic(mock_completion):
-    """Test basic LLM completion functionality."""
+    """测试基本的 LLM 完成功能。"""
     mock_response = create_mock_response("Test response")
     mock_completion.return_value = mock_response
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
 
     llm = LLM(
         usage_id="test-llm",
@@ -169,11 +169,11 @@ def test_llm_completion_basic(mock_completion):
         retry_max_wait=2,
     )
 
-    # Test completion
+    # 测试完成
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     response = llm.completion(messages=messages)
 
-    # Check that response is a LLMResponse with expected properties
+    # 检查响应是否为 LLMResponse，并包含预期的属性
     assert response.raw_response == mock_response
     assert response.message.role == "assistant"
     assert isinstance(response.message.content[0], TextContent)
@@ -184,16 +184,17 @@ def test_llm_completion_basic(mock_completion):
     assert kwargs["model"] == "gpt-4o"
     assert kwargs["custom_llm_provider"] == "openai"
 
-    # Additionally, verify the pre-check helper recognizes provider-style tools
-    # (use an empty list of tools here just to exercise the path)
+    # 此外，验证预检查帮助程序是否识别提供者样式的工具（此处使用空的工具列表只是为了练习
+    # 路径）
+    #
     cc_tools = []
     assert not llm.should_mock_tool_calls(cc_tools)
 
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_streaming_without_callback_degrades(mock_completion, default_config):
-    """Streaming requested without an on_token callback degrades to a plain
-    non-streaming completion instead of crashing the run (#4014)."""
+    """流式传输请求没有 on_token 回调降级为普通
+    非流式传输完成而不是使运行崩溃 (#4014)。"""
     llm = default_config
     mock_completion.return_value = create_mock_response("Test response")
 
@@ -201,7 +202,7 @@ def test_llm_streaming_without_callback_degrades(mock_completion, default_config
 
     response = llm.completion(messages=messages, stream=True)
 
-    # No stream kwarg is forwarded to litellm — the call ran non-streaming.
+    # 没有流 kwarg 被转发到 LiteLLM — 调用运行在非流式传输范围内。
     assert mock_completion.call_args.kwargs.get("stream") in (None, False)
     assert isinstance(response.message.content[0], TextContent)
     assert response.message.content[0].text == "Test response"
@@ -210,9 +211,9 @@ def test_llm_streaming_without_callback_degrades(mock_completion, default_config
 @patch("openhands.sdk.llm.llm.litellm_completion")
 @patch("openhands.sdk.llm.llm.litellm.stream_chunk_builder")
 def test_llm_completion_streaming_with_callback(mock_stream_builder, mock_completion):
-    """Test that streaming with on_token callback works correctly."""
+    """测试流式传输和 on_token 回调是否正常工作。"""
 
-    # Create stream chunks
+    # 创建流块
     chunk1 = ModelResponse(
         id="chatcmpl-test",
         choices=[
@@ -255,16 +256,16 @@ def test_llm_completion_streaming_with_callback(mock_stream_builder, mock_comple
         object="chat.completion.chunk",
     )
 
-    # Create a mock stream wrapper
+    # 创建一个模拟对象流包装器
     mock_stream = MagicMock(spec=CustomStreamWrapper)
     mock_stream.__iter__.return_value = iter([chunk1, chunk2, chunk3])
     mock_completion.return_value = mock_stream
 
-    # Mock the stream builder to return a complete response
+    # 模拟对象流构建器返回完整响应
     final_response = create_mock_response("Hello world!")
     mock_stream_builder.return_value = final_response
 
-    # Create LLM
+    # 创建LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -274,7 +275,7 @@ def test_llm_completion_streaming_with_callback(mock_stream_builder, mock_comple
         retry_max_wait=2,
     )
 
-    # Track chunks received by callback
+    # 跟踪回调接收到的块
     received_chunks = []
 
     def on_token(chunk):
@@ -283,16 +284,16 @@ def test_llm_completion_streaming_with_callback(mock_stream_builder, mock_comple
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
     response = llm.completion(messages=messages, stream=True, on_token=on_token)
 
-    # Verify callback was invoked for each chunk
+    # 验证每个块都调用了回调
     assert len(received_chunks) == 3
     assert received_chunks[0] == chunk1
     assert received_chunks[1] == chunk2
     assert received_chunks[2] == chunk3
 
-    # Verify stream builder was called to assemble final response
+    # 验证流构建器被调用来组装最终响应
     mock_stream_builder.assert_called_once()
 
-    # Verify final response
+    # 验证最终响应
     assert response.message.role == "assistant"
     assert isinstance(response.message.content[0], TextContent)
     assert response.message.content[0].text == "Hello world!"
@@ -301,9 +302,9 @@ def test_llm_completion_streaming_with_callback(mock_stream_builder, mock_comple
 @patch("openhands.sdk.llm.llm.litellm_completion")
 @patch("openhands.sdk.llm.llm.litellm.stream_chunk_builder")
 def test_llm_completion_streaming_with_tools(mock_stream_builder, mock_completion):
-    """Test streaming completion with tool calls."""
+    """使用工具调用测试流式传输完成情况。"""
 
-    # Create stream chunks with tool call
+    # 使用工具调用创建流块
     chunk1 = ModelResponse(
         id="chatcmpl-test",
         choices=[
@@ -365,12 +366,12 @@ def test_llm_completion_streaming_with_tools(mock_stream_builder, mock_completio
         object="chat.completion.chunk",
     )
 
-    # Create mock stream
+    # 创建模拟对象流
     mock_stream = MagicMock(spec=CustomStreamWrapper)
     mock_stream.__iter__.return_value = iter([chunk1, chunk2, chunk3])
     mock_completion.return_value = mock_stream
 
-    # Mock final response with tool call
+    # 模拟对象最终回复工具调用
     final_response = create_mock_response("I'll use the tool")
     final_response.choices[0].message.tool_calls = [  # type: ignore
         ChatCompletionMessageToolCall(
@@ -402,10 +403,10 @@ def test_llm_completion_streaming_with_tools(mock_stream_builder, mock_completio
         messages=messages, tools=tools, stream=True, on_token=on_token
     )
 
-    # Verify chunks were received
+    # 验证已收到块
     assert len(received_chunks) == 3
 
-    # Verify final response has tool call
+    # 验证最终响应有工具调用
     assert response.message.tool_calls is not None
     assert len(response.message.tool_calls) == 1
     assert response.message.tool_calls[0].name == "test_tool"
@@ -413,7 +414,7 @@ def test_llm_completion_streaming_with_tools(mock_stream_builder, mock_completio
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_with_tools(mock_completion):
-    """Test LLM completion with tools."""
+    """使用工具测试 LLM 完成情况。"""
     mock_response = create_mock_response("I'll use the tool")
     mock_response.choices[0].message.tool_calls = [  # type: ignore
         ChatCompletionMessageToolCall(
@@ -427,7 +428,7 @@ def test_llm_completion_with_tools(mock_completion):
     ]
     mock_completion.return_value = mock_response
 
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -437,14 +438,14 @@ def test_llm_completion_with_tools(mock_completion):
         retry_max_wait=2,
     )
 
-    # Test completion with tools
+    # 使用工具完成测试
     messages = [Message(role="user", content=[TextContent(text="Use the test tool")])]
 
     tools_list = list(_MockTool.create())
 
     response = llm.completion(messages=messages, tools=tools_list)
 
-    # Check that response is a LLMResponse with expected properties
+    # 检查响应是否为 LLMResponse，并包含预期的属性
     assert response.raw_response == mock_response
     assert response.message.role == "assistant"
     assert isinstance(response.message.content[0], TextContent)
@@ -458,11 +459,11 @@ def test_llm_completion_with_tools(mock_completion):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_error_handling(mock_completion):
-    """Test LLM completion error handling."""
-    # Mock an exception
+    """测试LLM完成错误处理。"""
+    # 模拟对象异常
     mock_completion.side_effect = Exception("Test error")
 
-    # Create LLM after the patch is applied
+    # 应用补丁后创建 LLM
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -474,55 +475,55 @@ def test_llm_completion_error_handling(mock_completion):
 
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
 
-    # Should propagate the exception
+    # 应该传播异常
     with pytest.raises(Exception, match="Test error"):
         llm.completion(messages=messages)
 
 
 def test_llm_token_counting_basic(default_config):
-    """Test basic token counting functionality."""
+    """测试基本的 token 计数功能。"""
     llm = default_config
 
-    # Test with simple messages
+    # 用简单的消息进行测试
     messages = [
         Message(role="user", content=[TextContent(text="Hello")]),
         Message(role="assistant", content=[TextContent(text="Hi there!")]),
     ]
 
-    # Token counting should return a non-negative integer
+    # token 计数应返回一个非负整数
     token_count = llm.get_token_count(messages)
     assert isinstance(token_count, int)
     assert token_count >= 0
 
 
 def test_llm_model_info_initialization(default_config):
-    """Test model info initialization."""
+    """测试模型信息初始化。"""
     llm = default_config
 
-    # Model info initialization should complete without errors
+    # 模型信息初始化应该完成且没有错误
     llm._init_model_info_and_caps()
 
-    # Model info might be None for unknown models, which is fine
+    # 对于未知模型，模型信息可能是 None，这很好
     assert llm.model_info is None or isinstance(llm.model_info, dict)
 
 
 def test_llm_feature_detection(default_config):
-    """Test various feature detection methods."""
+    """测试各种特征检测方法。"""
     llm = default_config
 
-    # All feature detection methods should return booleans
+    # 所有特征检测方法都应返回布尔值
     assert isinstance(llm.vision_is_active(), bool)
     assert isinstance(llm.native_tool_calling, bool)
     assert isinstance(llm.is_caching_prompt_active(), bool)
 
 
 def test_llm_cost_tracking(default_config):
-    """Test cost tracking functionality."""
+    """测试成本跟踪功能。"""
     llm = default_config
 
     initial_cost = llm.metrics.accumulated_cost
 
-    # Add some cost
+    # 添加一些成本
     llm.metrics.add_cost(1.5)
 
     assert llm.metrics.accumulated_cost == initial_cost + 1.5
@@ -530,12 +531,12 @@ def test_llm_cost_tracking(default_config):
 
 
 def test_llm_latency_tracking(default_config):
-    """Test latency tracking functionality."""
+    """测试延迟跟踪功能。"""
     llm = default_config
 
     initial_count = len(llm.metrics.response_latencies)
 
-    # Add some latency
+    # 添加一些延迟
     llm.metrics.add_response_latency(0.5, "test-response")
 
     assert len(llm.metrics.response_latencies) == initial_count + 1
@@ -543,12 +544,12 @@ def test_llm_latency_tracking(default_config):
 
 
 def test_llm_token_usage_tracking(default_config):
-    """Test token usage tracking functionality."""
+    """测试词元用量跟踪功能。"""
     llm = default_config
 
     initial_count = len(llm.metrics.token_usages)
 
-    # Add some token usage
+    # 添加一些词元用量
     llm.metrics.add_token_usage(
         prompt_tokens=10,
         completion_tokens=5,
@@ -560,7 +561,7 @@ def test_llm_token_usage_tracking(default_config):
 
     assert len(llm.metrics.token_usages) == initial_count + 1
 
-    # Check accumulated token usage
+    # 检查累计词元用量
     accumulated = llm.metrics.accumulated_token_usage
     assert accumulated.prompt_tokens >= 10
     assert accumulated.completion_tokens >= 5
@@ -568,11 +569,11 @@ def test_llm_token_usage_tracking(default_config):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_with_custom_params(mock_completion, default_config):
-    """Test LLM completion with custom parameters."""
+    """使用自定义参数测试 LLM 完成情况。"""
     mock_response = create_mock_response("Custom response")
     mock_completion.return_value = mock_response
 
-    # Create config with custom parameters
+    # 使用自定义参数创建配置
     custom_config = LLM(
         usage_id="test-llm",
         model="gpt-4o",
@@ -589,14 +590,14 @@ def test_llm_completion_with_custom_params(mock_completion, default_config):
     ]
     response = llm.completion(messages=messages)
 
-    # Check that response is a LLMResponse with expected properties
+    # 检查响应是否为 LLMResponse，并包含预期的属性
     assert response.raw_response == mock_response
     assert response.message.role == "assistant"
     assert isinstance(response.message.content[0], TextContent)
     assert response.message.content[0].text == "Custom response"
     mock_completion.assert_called_once()
 
-    # Verify that custom parameters were used in the call
+    # 验证调用中是否使用了自定义参数
     call_kwargs = mock_completion.call_args[1]
     assert call_kwargs.get("temperature") == 0.8
     assert call_kwargs.get("max_completion_tokens") == 500
@@ -605,9 +606,9 @@ def test_llm_completion_with_custom_params(mock_completion, default_config):
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_non_function_call_mode(mock_completion):
-    """Test LLM completion with non-function call mode (prompt-based tool calling)."""
-    # Create a mock response that looks like a non-function call response
-    # but contains tool usage in text format
+    """使用非函数调用模式（基于提示词的工具调用）测试 LLM 完成情况。"""
+    # 创建一个看起来像非函数调用响应但包含文本格式的工具使用情况的模拟对象响应
+    #
     mock_response = create_mock_response(
         "I'll help you with that.\n"
         "<function=test_tool>\n"
@@ -616,23 +617,24 @@ def test_llm_completion_non_function_call_mode(mock_completion):
     )
     mock_completion.return_value = mock_response
 
-    # Create LLM with native_tool_calling explicitly set to False
-    # This forces the LLM to use prompt-based tool calling instead of native FC
+    # 创建 LLM，并将 native_tool_calling 显式设置为 False 这会强制 LLM 使用基于提示词的
+    # 工具调用，而不是本机 FC
+    #
     llm = LLM(
         usage_id="test-llm",
         model="gpt-4o",
         api_key=SecretStr("test_key"),
-        # This is the key setting for non-function call mode
+        # 这是非功能调用模式的按键设置
         native_tool_calling=False,
         num_retries=2,
         retry_min_wait=1,
         retry_max_wait=2,
     )
 
-    # Verify that function calling is not active
+    # 验证函数调用未激活
     assert not llm.native_tool_calling
 
-    # Test completion with tools - this should trigger the non-function call path
+    # 使用工具完成测试 - 这应该触发非函数调用路径
     messages = [
         Message(
             role="user",
@@ -642,85 +644,86 @@ def test_llm_completion_non_function_call_mode(mock_completion):
 
     tools = list(_MockTool.create())
 
-    # Verify that tools should be mocked (non-function call path)
+    # 验证工具应为模拟的（非函数调用路径）
     cc_tools = [t.to_openai_tool(add_security_risk_prediction=False) for t in tools]
     assert llm.should_mock_tool_calls(cc_tools)
 
-    # Call completion - this should go through the prompt-based tool calling path
+    # 调用完成 - 这应该经过基于提示词的工具调用路径
     response = llm.completion(messages=messages, tools=tools)
 
-    # Verify the response
+    # 验证响应
     assert response is not None
     mock_completion.assert_called_once()
-    # And that post-response conversion produced a tool_call
-    # Access message through LLMResponse interface
+    # 该响应转换产生了 tool_call 访问消息通过 LLMResponse 接口
+    #
     msg = response.message
-    # Guard for optional attribute: treat None as failure explicitly
+    # 可选属性的防护：明确将 None 视为失败
     assert getattr(msg, "tool_calls", None) is not None, (
         "Expected tool_calls after post-mock"
     )
-    # At this point, tool_calls should be non-None; assert explicitly
+    # 此时，tool_calls应该是非None； 明确断言
     assert msg.tool_calls is not None
     tc = msg.tool_calls[0]
 
     assert tc.name == "test_tool"
-    # Ensure function-call markup was stripped from assistant content
+    # 确保从助手内容中删除函数调用标记
     if msg.content:
         for content_item in msg.content:
             if isinstance(content_item, TextContent):
                 assert "<function=" not in content_item.text
 
-    # Verify that the call was made without native tools parameter
-    # (since we're using prompt-based tool calling)
+    # 验证是否在没有本机工具参数的情况下进行了调用（因为我们使用的是基于提示词的工具调用
+    # ）
+    #
     call_kwargs = mock_completion.call_args[1]
-    # In non-function call mode, tools should not be passed to the underlying LLM
+    # 在非函数调用模式下，工具不应传递给底层LLM
     assert call_kwargs.get("tools") is None
 
-    # Verify that the messages were modified for prompt-based tool calling
+    # 验证消息是否已针对基于提示词的工具调用进行了修改
     call_messages = mock_completion.call_args[1]["messages"]
-    # The messages should be different from the original due to prompt modification
+    # 由于提示词修改，消息应该与原始消息不同
     assert len(call_messages) >= len(messages)
 
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_completion_function_call_vs_non_function_call_mode(mock_completion):
-    """Test the difference between function call mode and non-function call mode."""
+    """测试函数调用模式和非函数调用模式的区别。"""
     mock_response = create_mock_response("Test response")
     mock_completion.return_value = mock_response
 
     tools = list(_MockTool.create())
     messages = [Message(role="user", content=[TextContent(text="Use the test tool")])]
 
-    # Test with native function calling enabled (default behavior for gpt-4o)
+    # 启用本机函数调用的测试（gpt-4o 的默认行为）
     llm_native = LLM(
         usage_id="test-llm",
         model="gpt-4o",
         api_key=SecretStr("test_key"),
-        native_tool_calling=True,  # Explicitly enable native function calling
+        native_tool_calling=True,  # 显式启用本机函数调用
         num_retries=2,
         retry_min_wait=1,
         retry_max_wait=2,
     )
 
-    # Verify function calling is active
+    # 验证函数调用是否处于活动状态
     assert llm_native.native_tool_calling
-    # Should not mock tools when native function calling is active
+    # 当本机函数调用处于活动状态时不应使用模拟对象工具
 
-    # Test with native function calling disabled
+    # 禁用本机函数调用的测试
     llm_non_native = LLM(
         usage_id="test-llm",
         model="gpt-4o",
         api_key=SecretStr("test_key"),
-        native_tool_calling=False,  # Explicitly disable native function calling
+        native_tool_calling=False,  # 显式禁用本机函数调用
         num_retries=2,
         retry_min_wait=1,
         retry_max_wait=2,
     )
 
-    # Verify function calling is not active
+    # 验证函数调用未激活
     assert not llm_non_native.native_tool_calling
 
-    # Call both and verify different behavior
+    # 调用两者并验证不同的行为
     mock_completion.reset_mock()
     response_native = llm_native.completion(messages=messages, tools=tools)
     native_call_kwargs = mock_completion.call_args[1]
@@ -729,41 +732,41 @@ def test_llm_completion_function_call_vs_non_function_call_mode(mock_completion)
     response_non_native = llm_non_native.completion(messages=messages, tools=tools)
     non_native_call_kwargs = mock_completion.call_args[1]
 
-    # Both should return LLMResponse responses
+    # 两者都应该返回 LLMResponse 响应
     assert response_native.raw_response == mock_response
     assert response_native.message.role == "assistant"
     assert response_non_native.raw_response == mock_response
     assert response_non_native.message.role == "assistant"
 
-    # But the underlying calls should be different:
-    # Native mode should pass tools to the LLM
+    # 但底层调用应该不同：本机模式应该将工具传递给 LLM
+    #
     assert isinstance(native_call_kwargs.get("tools"), list)
     assert native_call_kwargs["tools"][0]["type"] == "function"
     assert native_call_kwargs["tools"][0]["function"]["name"] == "test_tool"
 
-    # Non-native mode should not pass tools (they're handled via prompts)
+    # 非本机模式不应传递工具（它们通过提示词处理）
     assert non_native_call_kwargs.get("tools") is None
 
 
 @patch("openhands.sdk.llm.llm.litellm_completion")
 def test_llm_streaming_preserves_cache_read_tokens(mock_completion):
-    """Test that cache_read_tokens from prompt_tokens_details survive streaming.
+    """测试 prompt_tokens_details 中的 cache_read_tokens 是否存在流式传输。
 
-    Regression test for: when streaming through a LiteLLM proxy, the proxy
-    sends a final usage-only chunk (empty choices) with prompt_tokens_details
-    including cached_tokens.  If the SDK doesn't request
+    回归测试：当流式传输通过 LiteLLM 代理时，代理发送最终仅供使用的块（空选择），其中
+     prompt_tokens_details 包括
+    cached_tokens。 如果SDK没有要求
     stream_options={"include_usage": True}, litellm's streaming handler
-    silently discards this chunk and falls back to calculate_total_usage()
-    which only keeps prompt_tokens/completion_tokens — losing
-    prompt_tokens_details.cached_tokens entirely.
+    默默地丢弃这个块并回退到 calculate_total_usage()，它只保留 prompt_tokens/
+    completion_tokens — 完全丢失
+    prompt_tokens_details.cached_tokens。
 
-    This test creates realistic streaming chunks (as sent by a LiteLLM proxy)
-    including a usage-only final chunk with cached_tokens=4000 and lets the
-    real stream_chunk_builder reassemble them.  It verifies:
-    1. stream_options={"include_usage": True} is passed to litellm_completion
-    2. cache_read_tokens is correctly reported in the response metrics
+    该测试创建了包含一个使用仅有的最终分块（由LiteLLM代理发送）的流式传输块（如实际的
+    stream_chunk_builder块），该块包含cached_toke
+    ns=4000的使用仅有的最终分块。 它验证：
+    1. stream_options={"include_usage": True} 传递给 litellm_completion
+    2. cache_read_tokens 在响应指标中正确报告
     """
-    # --- Simulate chunks as sent by a LiteLLM proxy ---
+    # --- 模拟由 LiteLLM 代理发送的块 ---
     content_chunk = ModelResponseStream(
         id="chatcmpl-test",
         choices=[
@@ -792,8 +795,9 @@ def test_llm_streaming_preserves_cache_read_tokens(mock_completion):
         object="chat.completion.chunk",
     )
 
-    # Final usage-only chunk (empty choices) — this is the chunk the proxy
-    # sends when stream_options={"include_usage": True} is set upstream.
+    # 最终仅供使用的块（空选择）——这是当上游设置 stream_options={"include_usage": True}
+    # 时代理发送的块。
+    #
     usage_chunk = ModelResponseStream(
         id="chatcmpl-test",
         choices=[],
@@ -827,12 +831,12 @@ def test_llm_streaming_preserves_cache_read_tokens(mock_completion):
         messages=messages, stream=True, on_token=received_chunks.append
     )
 
-    # The usage-only chunk must reach the SDK (not be discarded)
+    # 仅供使用的块必须到达SDK（不被丢弃）
     assert len(received_chunks) == 3
 
-    # stream_chunk_builder must preserve prompt_tokens_details.
-    # ModelResponse stores 'usage' as an extra (dynamic) field, so pyright
-    # cannot see it statically — cast to Any for attribute access.
+    # stream_chunk_builder 必须保留 prompt_tokens_details。 ModelResponse 将“用法”存储为
+    # 额外的（动态）字段，因此 Pyright 无法静态地看到它 — 转换为 Any 以进行属性访问。
+    #
     raw_resp: Any = response.raw_response
     assert raw_resp.usage is not None
     assert raw_resp.usage.prompt_tokens == 5000
@@ -840,12 +844,12 @@ def test_llm_streaming_preserves_cache_read_tokens(mock_completion):
     assert raw_resp.usage.prompt_tokens_details is not None
     assert raw_resp.usage.prompt_tokens_details.cached_tokens == 4000
 
-    # Telemetry must record cache_read_tokens from prompt_tokens_details
+    # 遥测必须记录 prompt_tokens_details 中的 cache_read_tokens
     acc = response.metrics.accumulated_token_usage
     assert acc is not None
     assert acc.cache_read_tokens == 4000
 
-    # Verify stream_options={"include_usage": True} was passed to litellm
+    # 验证 stream_options={"include_usage": True} 已传递给 LiteLLM
     call_kwargs = mock_completion.call_args
     assert call_kwargs is not None
     actual_stream_options = call_kwargs.kwargs.get("stream_options") or call_kwargs[
@@ -860,10 +864,10 @@ def test_llm_streaming_preserves_cache_read_tokens(mock_completion):
 def test_completion_retries_without_caching_on_prompt_cache_too_small(
     mock_completion,
 ):
-    """When Vertex AI rejects caching due to small content, retry without cache."""
+    """当 Vertex AI 由于内容较小而拒绝缓存时，重试无缓存。"""
     from litellm.exceptions import BadRequestError
 
-    # First call raises the "cache too small" error, second succeeds
+    # 第一次调用引发“缓存太小”错误，第二次调用成功
     cache_error = BadRequestError(
         (
             "Vertex_aiException BadRequestError - "
@@ -889,15 +893,15 @@ def test_completion_retries_without_caching_on_prompt_cache_too_small(
     )
 
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
-    # Pass a kwarg via **kwargs to verify _caller_kwargs preservation on retry.
+    # 通过 **kwargs 传递一个 kwarg 来验证 _caller_kwargs 在重试上的保存。
     response = llm.completion(messages=messages, metadata={"trace": "sync"})
 
-    # Should succeed after retry without caching
+    # 应该在重试之后成功，无需缓存
     assert response.raw_response == mock_response
-    # Two calls: first with cache (fails), second without cache (succeeds)
+    # 两次调用：第一次使用缓存（失败），第二次不使用缓存（成功）
     assert mock_completion.call_count == 2
 
-    # The first call SHOULD have cache_control markers
+    # 第一个调用 SHOULD 有 cache_control 个标记
     first_call_kwargs = mock_completion.call_args_list[0].kwargs
     first_messages = first_call_kwargs.get("messages", [])
     first_has_cache = any(
@@ -909,7 +913,7 @@ def test_completion_retries_without_caching_on_prompt_cache_too_small(
     )
     assert first_has_cache, "First call should include cache_control markers"
 
-    # The second call should NOT have cache_control markers
+    # 第二次调用应该不有 cache_control 标记
     second_call_kwargs = mock_completion.call_args_list[1].kwargs
     second_messages = second_call_kwargs.get("messages", [])
     second_has_cache = any(
@@ -921,8 +925,8 @@ def test_completion_retries_without_caching_on_prompt_cache_too_small(
     )
     assert not second_has_cache, "Retry should not include cache_control markers"
 
-    # Caller kwargs preserved on the retry — without _caller_kwargs the retry
-    # would silently drop them.
+    # 调用者 kwargs 保留在重试上 - 如果没有 _caller_kwargs，重试会默默地丢弃它们。
+    #
     assert second_call_kwargs.get("metadata") == {"trace": "sync"}
 
 
@@ -931,11 +935,11 @@ def test_completion_retries_without_caching_on_prompt_cache_too_small(
 async def test_acompletion_retries_without_caching_on_prompt_cache_too_small(
     mock_acompletion,
 ):
-    """Async version of the sync prompt-cache-too-small retry test.
+    """异步版本同步提示词-缓存太小重试测试。
 
-    When Vertex AI rejects caching due to small content, acompletion() should
-    retry without prompt caching while preserving caller kwargs. Mirrors
-    test_completion_retries_without_caching_on_prompt_cache_too_small.
+    当 Vertex AI 由于内容较小而拒绝缓存时，acompletion() 应该重试而没有提示词缓存，同
+    时保留调用者 kwargs。 镜子test_complet
+    ion_retries_without_caching_on_prompt_cache_too_small。
     """
     from litellm.exceptions import BadRequestError
 
@@ -964,15 +968,15 @@ async def test_acompletion_retries_without_caching_on_prompt_cache_too_small(
     )
 
     messages = [Message(role="user", content=[TextContent(text="Hello")])]
-    # Pass a kwarg via **kwargs to verify _caller_kwargs preservation on retry.
+    # 通过 **kwargs 传递一个 kwarg 来验证 _caller_kwargs 在重试上的保存。
     response = await llm.acompletion(messages=messages, metadata={"trace": "abc"})
 
-    # Should succeed after retry without caching
+    # 应该在重试之后成功，无需缓存
     assert response.raw_response == mock_response
-    # Two calls: first with cache (fails), second without cache (succeeds)
+    # 两次调用：第一次使用缓存（失败），第二次不使用缓存（成功）
     assert mock_acompletion.call_count == 2
 
-    # The first call SHOULD have cache_control markers
+    # 第一个调用 SHOULD 有 cache_control 个标记
     first_call_kwargs = mock_acompletion.call_args_list[0].kwargs
     first_messages = first_call_kwargs.get("messages", [])
     first_has_cache = any(
@@ -984,7 +988,7 @@ async def test_acompletion_retries_without_caching_on_prompt_cache_too_small(
     )
     assert first_has_cache, "First call should include cache_control markers"
 
-    # The second call should NOT have cache_control markers
+    # 第二次调用应该不有 cache_control 标记
     second_call_kwargs = mock_acompletion.call_args_list[1].kwargs
     second_messages = second_call_kwargs.get("messages", [])
     second_has_cache = any(
@@ -996,22 +1000,22 @@ async def test_acompletion_retries_without_caching_on_prompt_cache_too_small(
     )
     assert not second_has_cache, "Retry should not include cache_control markers"
 
-    # Caller kwargs preserved on the retry — without _caller_kwargs the retry
-    # would silently drop them.
+    # 调用者 kwargs 保留在重试上 - 如果没有 _caller_kwargs，重试会默默地丢弃它们。
+    #
     assert second_call_kwargs.get("metadata") == {"trace": "abc"}
 
 
 # ---------------------------------------------------------------------------
-# Streaming path tolerance: the SDK must accept any iterable of
-# ``ModelResponseStream`` chunks, not only ``litellm.CustomStreamWrapper``.
-# Third-party litellm wrappers (e.g. lmnr's instrumentor in versions inside the
-# pinned range) can swap the container type for streaming calls, which used to
-# trip the assert in ``_transport_call`` / ``_atransport_call`` (issue #3972).
+# 流式传输路径容差：SDK 必须接受任何可迭代的
+# ``ModelResponseStream`` 块，而不仅仅是 ``litellm.CustomStreamWrapper``。 第三方
+# LiteLLM 包装器 (e.g. 在 pinned 范围内的 lmnr 的 instrumentor 可以替换流式传输调用中的
+# 容器类型，这些调用在 ``_transport_call`` / ``_atransport_call`` 中曾经触发 assert（
+# issue #3972）。
 # ---------------------------------------------------------------------------
 
 
 def _make_streaming_chunks(text: str = "Hello world!"):
-    """Build the three-chunk ``ModelResponseStream`` sequence used in tests."""
+    """构建测试中使用的三块 ``ModelResponseStream`` 序列。"""
     chunks = [
         ModelResponseStream(
             id="chatcmpl-test",
@@ -1060,12 +1064,12 @@ def _make_streaming_chunks(text: str = "Hello world!"):
 @patch("openhands.sdk.llm.llm.litellm_completion")
 @patch("openhands.sdk.llm.llm.litellm.stream_chunk_builder")
 def test_streaming_accepts_plain_iterator(mock_stream_builder, mock_completion):
-    """A sync iterator (no ``CustomStreamWrapper``) must still drive streaming.
+    """同步迭代器（无 ``CustomStreamWrapper``）仍必须驱动流式传输。
 
-    Regression test for issue #3972: ``_transport_call`` used to assert
-    ``isinstance(ret, CustomStreamWrapper)``; when lmnr's litellm
-    instrumentation replaced the wrapper with a plain generator, the assert
-    failed before any chunk could be processed.
+    回归测试问题 #3972：``_transport_call`` 用于断言
+    ``isinstance(ret, CustomStreamWrapper)``; 当 lmnr 的 LiteLLM 工具用普通生成器替换
+    包装器时，断言在处理任何块
+    之前失败。
     """
     chunks = _make_streaming_chunks()
     mock_completion.return_value = iter(chunks)
@@ -1096,12 +1100,12 @@ def test_streaming_accepts_plain_iterator(mock_stream_builder, mock_completion):
 @patch("openhands.sdk.llm.llm.litellm_acompletion", new_callable=AsyncMock)
 @patch("openhands.sdk.llm.llm.litellm.stream_chunk_builder")
 async def test_streaming_accepts_async_generator(mock_stream_builder, mock_acompletion):
-    """An async generator (not ``CustomStreamWrapper``) must still drive streaming.
+    """异步发电机（不是 ``CustomStreamWrapper``）仍必须驱动流式传输。
 
-    Mirrors the lmnr wrapper's exact behavior from issue #3972: the wrapped
-    call returns ``process_streaming_coroutine()`` -- an ``async_generator``
-    object -- instead of ``CustomStreamWrapper``. The SDK must iterate it
-    transparently.
+    镜像问题 #3972 中 lmnr 包装器的确切行为：包装的调用返回
+    ``process_streaming_coroutine()``（一个
+    ``async_generator`` 对象），而不是 ``CustomStreamWrapper``。 SDK 必须透明地迭代它
+    。
     """
 
     async def _chunks():
@@ -1138,20 +1142,22 @@ async def test_streaming_accepts_async_generator(mock_stream_builder, mock_acomp
 async def test_streaming_accepts_sync_generator_in_async_path(
     mock_stream_builder, mock_acompletion
 ):
-    """A sync generator returned from the async transport path must work.
+    """从异步传输层路径返回的同步生成器必须工作。
 
-    Regression test for Engel's review comment on PR #3975: lmnr 0.7.47's
-    litellm wrapper wraps ``litellm.completion`` (sync) and the resulting
-    sync generator propagates back through ``litellm_acompletion``. The
-    awaited value is therefore a plain ``generator`` (no ``__aiter__``)
-    rather than an async generator. ``_atransport_call`` must detect this
-    at runtime and iterate via plain ``for`` instead of ``async for``.
+    针对 Engel 在 PR #3975 审查意见中提出问题的回归测试：lmnr 0.7.47 的LiteLLM包装器
+    会包装
+    ``litellm.completion``（同步），产生的同步生成器会经由 ``litellm_acompletion`` 向
+    上传播。 因此，等待的值是一个普通的
+     ``generator``（没有 ``__aiter__``）而不是异步生成器。 ``_atransport_call`` 必须
+     在运行时检测到这一点，并通过普通的
+     ``for`` 而不是 ``async for`` 进行迭代。
     """
     chunks = _make_streaming_chunks()
 
     def _return_sync_generator(*args, **kwargs):
-        # ``await litellm_acompletion(...)`` evaluates to this value in
-        # the lmnr-async case — a plain sync generator.
+        # 在 lmnr-异步情况下，``await litellm_acompletion(...)`` 计算为该值 — 一个普通的
+        # 同步生成器。
+        #
         return (c for c in chunks)
 
     mock_acompletion.side_effect = _return_sync_generator

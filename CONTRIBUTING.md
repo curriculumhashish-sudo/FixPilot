@@ -1,114 +1,97 @@
-# Contributing
+<a id="contributing"></a>
 
-Thank you for helping improve the OpenHands Software Agent SDK.
+# 参与贡献
 
-This repo is a foundation. We want the SDK to stay stable and extensible so that many
-applications can build on it safely.
+感谢你帮助改进 OpenHands 软件智能体 SDK。
 
-Downstream applications we actively keep in mind:
-- [OpenHands-CLI](https://github.com/OpenHands/OpenHands-CLI) (client)
-- [OpenHands app-server](https://github.com/OpenHands/OpenHands/blob/main/openhands/app_server/README.md) (client)
-- [OpenHands Enterprise](https://github.com/OpenHands/OpenHands/blob/main/enterprise/README.md) (client)
+本仓库提供底层基础。我们希望 SDK 保持稳定和可扩展，让各种应用都能可靠地基于它构建。
 
-The SDK itself has a Python interface. In addition, the
-[agent-server](https://docs.openhands.dev/sdk/guides/agent-server/overview) is the
-REST/WebSocket server component that exposes the SDK for remote execution and integrations.
-Changes should keep both interfaces stable and consistent.
+我们重点考虑的下游应用包括：
+- [OpenHands-CLI](https://github.com/OpenHands/OpenHands-CLI)（客户端）
+- [OpenHands app-server](https://github.com/OpenHands/OpenHands/blob/main/openhands/app_server/README.md)（客户端）
+- [OpenHands Enterprise](https://github.com/OpenHands/OpenHands/blob/main/enterprise/README.md)（客户端）
 
-## A lesson we learned (why we care about architecture)
+SDK 本身提供 Python 接口。此外，
+[agent-server](https://docs.openhands.dev/sdk/guides/agent-server/overview) 作为
+REST/WebSocket 服务器组件，将 SDK 的能力用于远程执行和系统集成。 所有变更都应保持这两类接口的稳定与一致。
 
-In earlier iterations, we repeatedly ran into a failure mode: needs from downstream applications
-(or assumptions) would leak into core logic.
+<a id="a-lesson-we-learned-why-we-care-about-architecture"></a>
 
-That kind of coupling can feel convenient in the moment, but it tends to create subtle
-breakage elsewhere: different environments, different workspaces, different execution modes,
-and different evaluation setups.
+## 我们的经验教训：为什么重视架构
 
-The architecture of OpenHands V0 was too monolithic to support multiple applications built into it,
-as CLI, evaluation scripts, web server were, and built on it, as OpenHands Cloud was.
+在早期迭代中，我们反复遇到同一类问题：下游应用的需求或假设渗入了核心逻辑。
 
-If you’re interested in the deeper background and lessons learned, see our write-up:
+这种耦合在当时看似方便，却往往会在其他环境、工作区、执行模式或评估配置中引发隐蔽的问题。
+
+OpenHands V0 的架构过于集中，难以同时支持内置的 CLI、评估脚本、Web 服务器， 以及基于它构建的 OpenHands Cloud 等多个应用。
+
+更详细的背景与经验总结，请参阅我们的论文：
 [OpenHands: An Open Platform for AI Software Developers as Generalist Agents](https://arxiv.org/abs/2511.03690)
 
-This SDK exists (as a separate, rebuilt foundation) to avoid that failure mode.
+我们将 SDK 作为独立的基础重新构建，正是为了避免再次出现这类问题。
 
-## Principles we review PRs with
+<a id="principles-we-review-prs-with"></a>
 
-We welcome all contributions, big or small, to improve or extend the software agent SDK.
+## PR 审查原则
 
-You may find that occasionally we are opinionated about several things:
+欢迎各种规模的贡献，共同改进和扩展软件智能体 SDK。
 
-- **OpenHands SDK is its own thing**: its downstream are client applications.
-- **Prefer interfaces over special cases**: if a client needs something, add or improve a
-  clean, reusable interface/extension point instead of adding a shortcut.
-- **Extensibility over one-off patches**: design features so multiple clients can adopt them
-  without rewriting core logic.
-- **Avoid hidden assumptions**: don’t rely on particular env vars, workspace layouts, request
-  contexts, or runtime quirks that only exist in one app.
-  - Workspaces *do* encode environment specifics (local/Docker/remote), but keep those assumptions
-    explicit (params + validation) and contained to the `workspace` layer.
-- **No client-specific code paths**: avoid logic that only makes sense for one
-  downstream app.
-  - It’s fine to have multiple workspace implementations; it’s not fine for SDK core behavior to
-    branch on whether the caller is CLI/app-server/SaaS. Prefer capabilities/config over app-identity.
-- **Keep the agent loop stable**: treat stability as a feature; be cautious with control-flow
-  changes and "small" behavior tweaks.
-- **Compatibility is part of the API**: if something could break downstream clients, call it
-  out explicitly and consider a migration path. We have a deprecation mechanism you may want to use.
+我们在以下方面有明确的要求：
 
-### New AI providers
+- **OpenHands SDK 是独立的组件**：下游应用都是它的客户端。
+- **优先设计接口，减少特例**：客户端需要某种能力时，应新增或改进清晰、可复用的接口或扩展点。
+- **优先考虑可扩展性**：让多个客户端都能使用新功能，无须重写核心逻辑。
+- **避免隐含假设**：不要依赖仅存在于某个应用中的特定环境变量、工作区布局、请求上下文或运行时特性。
+  - 工作区*确实*需要表达本地、Docker、远程等环境差异，但这些假设必须通过参数与校验明确表达， 并限定在 `workspace` 层。
+- **避免客户端专用的代码路径**：不要加入只适用于某个下游应用的逻辑。
+  - 可以提供多种工作区实现；SDK 核心行为应根据能力或配置决定， 不应根据调用方是 CLI、app-server 还是 SaaS 来分支。
+- **保持智能体循环稳定**：将稳定性视为一项功能，谨慎修改控制流和看似微小的行为细节。
+- **兼容性是 API 的一部分**：可能影响下游客户端时，应明确说明影响并考虑迁移路径。 项目已有可供使用的弃用机制。
 
-Adding a new AI provider is generally out of scope for the SDK unless it is broadly popular and
-commonly used by OpenHands users. The SDK should provide reusable interfaces and extension points,
-not maintain a long tail of provider-specific integrations.
+<a id="new-ai-providers"></a>
 
-Feature requests and pull requests for providers that do not meet that bar should be marked as
-out of scope and closed politely. Contributors can still use the existing generic provider
-interfaces or maintain integrations externally. If demand becomes broad and sustained, a future
-request can be reassessed with evidence of user adoption and a maintainable integration shape.
+### 新增 AI 提供商
 
-If you’re not sure whether a change crosses these lines, please ask early. We’re happy to help think
-through the shape of a clean interface.
+除非某个 AI 提供商已广泛普及且被 OpenHands 用户普遍使用，否则为其新增集成通常不属于 SDK 的范围。 SDK 应提供可复用的接口和扩展点，无须维护大量提供商专用的长尾集成。
 
-## Practical pointers
+不满足上述条件的功能请求和拉取请求应标记为超出范围，并礼貌地关闭。 贡献者仍可使用现有的通用提供商接口，或在外部维护集成。 如果需求变得广泛且持续，可以结合用户使用情况和可维护的集成方案重新评估。
 
-This file is mostly about principles. For the mechanics, please see:
-- [AGENTS.md](AGENTS.md) for AI agents
-- [DEVELOPMENT.md](DEVELOPMENT.md) for humans
-- [openhands-sdk/openhands/sdk/subagent/AGENTS.md](openhands-sdk/openhands/sdk/subagent/AGENTS.md) for file-based subagent discovery, precedence, and task handoff conventions
-- `examples/01_standalone_sdk/41_task_tool_set.py` for delegating work to registered subagents with resume support
-- `examples/01_standalone_sdk/42_file_based_subagents.py` for programmatic `AgentDefinition` registration
+如果不确定变更是否超出这些边界，请尽早沟通。我们很乐意一起设计清晰的接口。
 
-## Design doc for non-trivial PRs
+<a id="practical-pointers"></a>
 
-For a non-trivial PR — a new or changed public API (Python or the agent-server REST/WebSocket
-surface), a new subsystem, a behavior change in the agent loop, or a migration — a reviewer
-often has to reconstruct the design from the diff alone. That is slow, and it is where the
-compatibility risks we care about hide. You are encouraged (though not required) to add a short design
-doc so reviewers grasp the proposal at a glance.
+## 实用参考
 
-The convention:
+本文件主要介绍原则。具体操作请参阅：
+- [AGENTS.md](AGENTS.md)：供 AI 智能体使用
+- [DEVELOPMENT.md](DEVELOPMENT.md)：供开发者使用
+- [openhands-sdk/openhands/sdk/subagent/AGENTS.md](openhands-sdk/openhands/sdk/subagent/AGENTS.md)：基于文件的子智能体发现、优先级和任务交接约定
+- `examples/01_standalone_sdk/41_task_tool_set.py`：向已注册的子智能体委派工作，并支持恢复执行
+- `examples/01_standalone_sdk/42_file_based_subagents.py`：以编程方式注册 `AgentDefinition`
 
-1. Write a **self-contained HTML** page (inline CSS/SVG, opens by double-click) that covers the
-   code/API design and a **before/after** of your change, grounded to the actual code. Show the
-   interface before and after when you touch one — signatures, schemas, or event shapes — and
-   state the compatibility impact (additive, breaking, or behind a flag).
-2. Commit it under the temporary **`.pr/`** directory, e.g. `.pr/design.html`. This directory is
-   for PR-only artifacts. After a PR merges to `main`, `.github/workflows/pr-artifacts.yml`
-   automatically opens or updates a cleanup PR to remove the directory from `main`.
-3. Link it near the top of the PR description via htmlpreview, pointing at the fork and branch the
-   PR is opened from so it renders before the PR is merged:
+<a id="design-doc-for-non-trivial-prs"></a>
+
+## 较复杂 PR 的设计文档
+
+对于新增或修改公共 API（Python 或 agent-server 的 REST/WebSocket 接口）、引入新子系统、 调整智能体循环行为或进行迁移等较复杂的 PR，审查者往往只能根据差异重建设计思路。 这既费时，也容易遗漏兼容性风险。因此，我们鼓励附上一份简短的设计文档，帮助审查者快速理解方案； 这不是强制要求。
+
+约定如下：
+
+1. 编写一个**自包含的 HTML** 页面（内联 CSS/SVG，可双击打开），结合实际代码说明代码/API 设计， 并展示变更**前后的对比**。涉及接口时，应对比签名、模式或事件结构， 并说明兼容性影响：新增能力、不兼容变更，或由功能开关控制。
+2. 将页面提交到临时的 **`.pr/`** 目录，例如 `.pr/design.html`。此目录仅存放 PR 专用产物。 PR 合并到 `main` 后，`.github/workflows/pr-artifacts.yml` 会自动创建或更新清理 PR，将该目录从 `main` 中移除。
+3. 在 PR 描述靠前的位置添加 htmlpreview 链接，指向发起 PR 的派生仓库和分支， 以便合并前就能预览：
 
    ```
    https://htmlpreview.github.io/?https://github.com/<your-fork>/<repo>/blob/<your-branch>/.pr/design.html
    ```
 
-Skip this for trivial PRs (a typo, a one-line guard, a dependency bump, a small bug fix) — there, a design doc is
-just noise.
+修正拼写、添加一行保护条件、更新依赖或修复小问题等简单 PR 可以省略设计文档。
 
-The `pr-design-doc` skill in the [OpenHands extensions](https://github.com/OpenHands/extensions)
-repo can generate the page for you.
+[OpenHands extensions](https://github.com/OpenHands/extensions) 仓库中的
+`pr-design-doc` 技能可以帮助生成此页面。
 
-## Questions / discussion
+<a id="questions--discussion"></a>
 
-Join us on Slack: https://openhands.dev/joinslack
+## 提问与讨论
+
+欢迎加入 Slack：https://openhands.dev/joinslack

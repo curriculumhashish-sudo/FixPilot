@@ -1,9 +1,9 @@
-"""Stable DTOs for ACP session model metadata.
+"""稳定 DTOs ACP 会话模型元数据。
 
-These live in a standalone module — *not* ``acp_agent`` — so the agent-server
-can import them for its public ``ConversationInfo`` schema without importing
-``ACPAgent``, which would eagerly register it in the agent
-``DiscriminatedUnion`` (see ``openhands/sdk/agent/__init__.py``).
+它们存在于独立模块中 - *而不是* ``acp_agent`` - 因此智能体服务器可以为其公共
+``ConversationInfo`` 模式导入它们，而无需导入
+``ACPAgent``，它会急切地将其注册到智能体中
+``DiscriminatedUnion``（参见``openhands/sdk/agent/__init__.py``）。
 """
 
 from __future__ import annotations
@@ -35,21 +35,20 @@ class _ModelInfoWithDescription(Protocol):
 
 
 class ACPModelInfo(BaseModel):
-    """One model an ACP server offers for a session.
+    """ACP 服务器为会话提供的一种模型。
 
-    A normalized, stable mirror of the ACP protocol's ``ModelInfo``. The
-    protocol ``models`` capability is flagged **UNSTABLE**, so we re-map it
-    into our own type at the SDK boundary rather than re-serializing the
-    vendored ``acp.schema`` type onto the agent-server's public API — clients
-    get a stable shape regardless of upstream protocol churn.
+    ACP 协议 ``ModelInfo`` 的标准化、稳定的镜像。 ``models`` 协议 **UNSTABLE** 标记，
+    因此我们将其映射到我们的类型，在
+    SDK 边界而不是将 ``acp.schema`` 供应商的类型重新序列化到智能体服务器的公共 API ——
+     客户端无论上游协议变化都能获得稳定形状。
 
-    Carries everything a client needs to render a picker and resolve a
-    ``current_model_id`` to a display label *itself*; the SDK deliberately
-    does no name curation.
+    携带客户端渲染选择器和解析问题所需的一切
+    ``current_model_id`` 到显示标签 * 本身 *； SDK 故意没有命名。
     """
 
-    # ``model_id`` collides with pydantic's protected ``model_`` namespace;
-    # opt out (the name mirrors the protocol field and the persisted shape).
+    # ``model_id`` 与 Pydantic 受保护的 ``model_`` 命名空间发生冲突； 选择退出（名称反映
+    # 了协议字段和已持久化形状）。
+    #
     model_config = ConfigDict(protected_namespaces=())
 
     model_id: str = Field(
@@ -71,16 +70,17 @@ class ACPModelInfo(BaseModel):
 
     @classmethod
     def from_protocol(cls, raw: Any, *, id_attr: str = "model_id") -> ACPModelInfo:
-        """Build from a raw ACP ``ModelInfo`` (or any duck-typed object).
+        """从原始的 ACP ``ModelInfo`` （或任何鸭子类型的对象）构建。
 
-        Tolerant of partial/malformed entries: non-string fields degrade to
-        ``""`` (``model_id``) or ``None`` (``name``/``description``) rather
-        than raising, since the source is an UNSTABLE protocol capability that
-        older or half-implemented agents may emit incompletely.
+        容忍部分/格式错误的条目：非字符串字段降级为
+        ``""`` 或 ``model_id``，或者 ``None`` 或 ``name``/``description``) 而不是抛出
+        异常，因为源协议能力是
+         UNSTABLE 协议能力，而较旧或半实现的智能体可能会发出不完全。
 
-        ``id_attr`` names the attribute carrying the model id — ``"model_id"``
-        for a ``models``-capability ``ModelInfo``, ``"value"`` for a
-        ``configOptions`` select option.
+        ``id_attr`` 命名携带模型 id 的属性 — ``"model_id"`` 表示 ``models``-能力
+        ``ModelInfo``，
+        ``"value"`` 表示
+        ``configOptions`` 选择选项。
         """
         if isinstance(raw, ACPModelInfo):
             if id_attr == "model_id":
@@ -122,7 +122,7 @@ class ACPModelInfo(BaseModel):
 
 
 class ACPModelDiscoveryError(BaseModel):
-    """Why an ACP server could not report its models."""
+    """为什么 ACP 服务器无法报告其型号。"""
 
     code: str = Field(
         description=(
@@ -135,7 +135,7 @@ class ACPModelDiscoveryError(BaseModel):
 
 
 class ACPModelDiscovery(BaseModel):
-    """What an ACP server reports for a fresh session, before any conversation."""
+    """在任何对话之前，ACP 服务器报告新会话的内容。"""
 
     model_config = ConfigDict(protected_namespaces=())
 

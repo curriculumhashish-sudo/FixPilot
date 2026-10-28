@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""ACP-registry drift check vs openhands-sdk.
+"""ACP-注册表与 OpenHands-SDK 的漂移检查。
 
-Reads `src/models/acp-providers.json` (the TS-side source of truth) and
-compares it field-for-field against `ACP_PROVIDERS` in the installed
-openhands-sdk. Exits non-zero with a unified diff on mismatch.
+读取 `src/models/acp-providers.json`（TS 端事实来源）并将其与已安装的 OpenHands-SDK
+中的 `ACP_PROVIDERS`
+进行逐场比较。 不匹配时以非零值退出并带有统一差异。
 
-Run locally:
+本地运行：
     pip install -r scripts/requirements-acp-check.txt
     python scripts/check-acp-drift.py
 
-Pass --write to regenerate src/models/acp-providers.json from ACP_PROVIDERS
-instead of just checking for drift (e.g. after bumping a provider's pinned
-version or adding a new one to the SDK registry).
+将 --write 选项用于重新生成 src/models/acp-providers.json，而不是仅仅检查
+ACP_PROVIDERS 是否有漂移 (e.g。 在更改
+提供商的固定版本或将新版本添加到 SDK 注册表后）。
 
-CI runs this as the `validate-acp-providers` job on every PR + push to main.
+CI 在每个 PR + 推送到 main 上将其作为 `validate-acp-providers` 作业运行。
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ import sys
 
 
 def _normalize(value):
-    """Coerce tuples to lists and dataclasses/pydantic models to dicts; recurse."""
-    if hasattr(value, "model_dump"):  # pydantic models (e.g. ACPFileSecretSpec)
+    """将元组强制转换为列表，将数据类/pydantic 模型强制转换为字典； 递归。"""
+    if hasattr(value, "model_dump"):  # Pydantic models (e.g. ACPFileSecretSpec)
         return _normalize(value.model_dump(mode="json"))
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return _normalize(dataclasses.asdict(value))

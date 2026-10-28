@@ -6,23 +6,22 @@ from openhands.sdk.event import Event, EventID, LLMConvertibleEvent
 
 
 class ViewPropertyBase(ABC):
-    """Abstract base class for properties of a view.
+    """视图属性的抽象基类。
 
-    Properties define rules that help maintain the integrity and coherence of the events
-    in the view. The properties are maintained by two strategies:
+    属性定义有助于维护视图中事件的完整性和连贯性的规则。 这些属性由两种策略维护：
 
-    1. Enforcing the property by removing events that violate it.
-    2. Defining manipulation indices that restrict where the view can be modified.
+    1. 通过删除违反该属性的事件来强制执行该属性。
+    2. 定义限制视图修改位置的操作索引。
 
-    The main way views are manipulated (beyond adding new events in the course of a
-    conversation) is in the condensers, which are designed to respect the manipulation
-    indices. That means properties should hold inductively, and manipulation indices
-    should be calculable purely from the events in the current view.
+    主要的视图操作方式（除了在对话过程中添加新事件之外）是在上下文压缩器中进行的，这
+    些视图设计是为了尊重操作索引。 这意味着属性应该是归纳性的，并且操纵指数应该可以纯
+    粹
+    根据当前视图中的事件来计算。
 
-    Enforcement is intended as a fallback mechanism to handle edge cases, bad data, or
-    unforeseen situations. Because enforcement assumes the view is in a bad state, it
-    often requires a much larger perspective on the events and therefore depends on a
-    sequence of _all_ events in the conversation.
+    强制执行旨在作为一种回退方案机制来处理边缘情况、不良数据或不可预见的情况。 因为执
+    行假设视图处于不良状态，因此通常需要对事件有更全面的理解，因此依赖于对话中的所有
+    事
+    件的序列。
     """
 
     @abstractmethod
@@ -31,16 +30,15 @@ class ViewPropertyBase(ABC):
         current_view_events: list[LLMConvertibleEvent],
         all_events: Sequence[Event],
     ) -> set[EventID]:
-        """Enforce the property on a list of events.
+        """在事件列表上强制执行该属性。
 
         Args:
-            current_view_events: The sequence of events currently in the view.
-            all_events: A list of all Event objects in the conversation. Useful for
-                properties that need to reference events outside the current view.
+            current_view_events: 当前视图中的事件顺序。
+            all_events: 对话中所有事件对象的列表。 有用于
+                需要引用当前视图之外的事件的属性。
 
         Returns:
-            A set of EventID objects corresponding to events that should be removed from
-            the current view to enforce the property.
+            一组 EventID 对象，对应于应从当前视图中删除以强制执行该属性的事件。
         """
 
     @abstractmethod
@@ -48,12 +46,11 @@ class ViewPropertyBase(ABC):
         self,
         current_view_events: list[LLMConvertibleEvent],
     ) -> ManipulationIndices:
-        """Get manipulation indices for the property on a list of events.
+        """获取事件列表上属性的操作索引。
 
         Args:
-            current_view_events: The sequence of events currently in the view.
+            current_view_events: 当前视图中的事件顺序。
 
         Returns:
-            A ManipulationIndices object defining where the view can be modified while
-            maintaining the property.
+            一个 ManipulationIndices 对象，定义在维护属性的同时可以修改视图的位置。
         """

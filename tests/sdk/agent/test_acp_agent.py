@@ -1,4 +1,4 @@
-"""Tests for ACPAgent."""
+"""测试 ACPAgent。"""
 
 from __future__ import annotations
 
@@ -96,19 +96,18 @@ from openhands.sdk.workspace.local import LocalWorkspace
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 帮手
 # ---------------------------------------------------------------------------
 
 
 class _FakeLookupSecret(SecretSource):
-    """Module-level stand-in for ``LookupSecret`` used by registry tests.
+    """注册表测试使用的 ``LookupSecret`` 的模块级替代。
 
-    Defined at module scope (not inside a test method) so its ``__qualname__``
-    does not contain ``<locals>``. ``DiscriminatedUnionMixin`` rejects
-    subclasses whose qualname contains ``<locals>`` during ``SecretSource``
-    union validation, and any such local subclass leaks into the global
-    ``__subclasses__`` registry — breaking unrelated serialization tests
-    that run later on the same xdist worker.
+    在模块范围内定义（不在测试方法内），因此其 ``__qualname__`` 不包含 ``<locals>``。
+    ``DiscriminatedUnionMixin`` 在 ``SecretSource`` union 验证期间拒绝 qualname 包含
+    ``<locals>`` 的子类，并且任何此类本地子类都会泄漏到全局中
+    ``__subclasses__`` 注册表 — 破坏稍后在同一个 xdist 工作线程上运行的不相关的序列化
+    测试。
     """
 
     stored_value: str
@@ -202,10 +201,11 @@ def test_npx_packages_skips_prefer_offline():
 
 
 def test_npx_packages_prefers_pinned_package_flags():
-    """A multi-package spec's positional argument is the bare binary name;
-    warming that would fetch an unpinned package, so the ``--package=`` pins
-    win. ``npx_command`` emits that form whenever a provider pins more than one
-    package (an adapter plus the engine it spawns)."""
+    """多包规范的位置参数是裸二进制名称；
+    变暖将获取未固定的包裹，因此 ``--package=`` 引脚获胜。 每当提供者固定多个包（一个
+    适配器加上它生成的引擎）时，``npx_command`` 就会发
+    出该形式。
+    """
     spec = ACPInstallSpec(
         key="two-package",
         packages=(
@@ -329,7 +329,7 @@ def test_npx_cache_warm_failure_continues_with_normal_startup(tmp_path, caplog):
 
 
 # ---------------------------------------------------------------------------
-# Instantiation
+# 实例化
 # ---------------------------------------------------------------------------
 
 
@@ -387,7 +387,7 @@ class TestACPAgentInstantiation:
             agent.acp_command = ["other"]  # type: ignore[misc]
 
     def test_acp_model_propagated_to_metrics(self):
-        """When acp_model is set, metrics.model_name should reflect the actual model."""
+        """设置 acp_model 时，metrics.model_name 应反映实际模型。"""
         agent = _make_agent(acp_model="gemini-3-flash-preview")
         assert agent.llm.metrics.model_name == "gemini-3-flash-preview"
         assert agent.llm.metrics.accumulated_token_usage is not None
@@ -396,8 +396,8 @@ class TestACPAgentInstantiation:
         )
 
     def test_acp_model_propagated_to_llm_model(self):
-        """acp_model overrides the sentinel model name so logs/state show
-        the real model. The ACP-sentinel marker lives on usage_id."""
+        """acp_model 覆盖哨兵值模型名称，以便显示日志/状态
+        真实模型。 ACP-哨兵值标记位于 usage_id 上。"""
         agent = _make_agent(acp_model="claude-opus-4-6")
         assert agent.llm.model == "claude-opus-4-6"
         assert agent.llm.usage_id == "acp-managed"
@@ -408,19 +408,19 @@ class TestACPAgentInstantiation:
         assert agent.llm.usage_id == "acp-managed"
 
     def test_no_acp_model_keeps_sentinel(self):
-        """Without acp_model, metrics.model_name remains the sentinel value."""
+        """如果没有 acp_model，metrics.model_name 仍为哨兵值值。"""
         agent = _make_agent()
         assert agent.llm.metrics.model_name == "acp-managed"
 
     def test_acp_model_used_in_cost_entries(self):
-        """Cost entries should use the actual model name, not the sentinel."""
+        """成本条目应使用实际型号名称，而不是哨兵值。"""
         agent = _make_agent(acp_model="claude-opus-4-6")
         agent.llm.metrics.add_cost(0.05)
         assert agent.llm.metrics.costs[0].model == "claude-opus-4-6"
 
 
 # ---------------------------------------------------------------------------
-# Serialization
+# 序列化
 # ---------------------------------------------------------------------------
 
 
@@ -452,15 +452,15 @@ class TestACPAgentSerialization:
 
 
 # ---------------------------------------------------------------------------
-# Feature validation (init_state guards)
+# 特征验证（init_state守卫）
 # ---------------------------------------------------------------------------
 
 
 class TestACPAgentValidation:
-    """Test that unsupported features raise NotImplementedError in init_state."""
+    """测试不支持的功能是否会在 init_state 中引发 NotImplementedError。"""
 
     def _init_with_patches(self, agent, tmp_path):
-        """Call init_state with ACP SDK mocked out."""
+        """用 ACP SDK 模拟的呼出 init_state。"""
         state = _make_state(tmp_path)
         events = []
         with (
@@ -474,17 +474,19 @@ class TestACPAgentValidation:
         return events
 
     def test_allows_mcp_config(self, tmp_path):
-        """mcp_config is forwarded to the ACP subprocess, not rejected.
+        """mcp_config被转发到ACP子进程，没有被拒绝。
 
-        The servers are translated and passed to new_session/load_session
-        (see test_acp_mcp.py); here we just assert init_state no longer raises.
+        服务器被翻译并传递到new_session/load_session（参见test_acp_mcp.py）； 这里我
+        们只是断言 init_state 不再加
+        注。
         """
         agent = ACPAgent(
             acp_command=["echo"],
             mcp_config=coerce_mcp_config({"test": {"command": "echo"}}),
         )
-        # Should not raise; ACP receives MCP servers at session creation instead
-        # of OpenHands creating in-process runtime MCP tools.
+        # 不应提高； ACP 在会话创建时接收 MCP 服务器，而不是 OpenHands 创建进程内运行时
+        # MCP 工具。
+        #
         self._init_with_patches(agent, tmp_path)
         assert agent.supports_openhands_tools is False
 
@@ -505,13 +507,13 @@ class TestACPAgentValidation:
         self._init_with_patches(agent, tmp_path)
 
     def test_allows_agent_context_with_secrets(self, tmp_path):
-        """Secrets are now ACP-compatible: they are injected into the subprocess
-        env by _start_acp_server and advertised in the prompt via <CUSTOM_SECRETS>."""
+        """机密现在与 ACP 兼容：它们被注入到子进程中
+        env 由 _start_acp_server 并通过 <CUSTOM_SECRETS> 在提示词中公布。"""
         agent = ACPAgent(
             acp_command=["echo"],
             agent_context=AgentContext(secrets={"GITHUB_TOKEN": "ghp_secret"}),
         )
-        # Should not raise
+        # 不应该提高
         self._init_with_patches(agent, tmp_path)
 
     def test_agent_context_to_acp_prompt_context(self):
@@ -532,16 +534,17 @@ class TestACPAgentValidation:
         prompt = context.to_acp_prompt_context()
 
         assert prompt is not None
-        # Assembled by the same prompt registry the general agent uses, so the
-        # rendered dynamic-tier sections are identical.
+        # 由与一般智能体使用的相同的提示词注册表组装，因此呈现的动态层部分是相同的。
+        #
         assert "<CURRENT_DATETIME>" in prompt
         assert "2026-04-24T00:00:00" in prompt
         assert "<name>review</name>" in prompt
         assert "<description>Review pull requests.</description>" in prompt
         assert "Full review instructions" not in prompt
         assert "Follow repository rules." in prompt
-        # user_message_suffix is not emitted by to_acp_prompt_context because
-        # LocalConversation already applies it via event.to_llm_message().
+        # user_message_suffix 不是由 to_acp_prompt_context 发出的，因为
+        # LocalConversation 已经通过 event.to_llm_message() 应用了它。
+        #
         assert "Prefer concise responses." not in prompt
 
     def test_agent_context_to_acp_prompt_context_returns_none_when_empty(self):
@@ -557,8 +560,8 @@ class TestACPAgentValidation:
         assert "<CURRENT_DATETIME>" in prompt
 
     def test_agent_context_to_acp_prompt_context_includes_secrets(self):
-        """Secrets appear in the ACP prompt as a <CUSTOM_SECRETS> block so the
-        ACP subprocess knows which environment variables are available."""
+        """机密作为 <CUSTOM_SECRETS> 块出现在 ACP 提示词中，因此
+        ACP 子进程知道哪些环境变量可用。"""
         from pydantic import SecretStr
 
         from openhands.sdk.secret import StaticSecret
@@ -700,12 +703,12 @@ class TestImageUrlToAcpBlock:
         assert block is None
 
     def test_real_png_round_trips(self):
-        """Verify a real PNG image survives the full conversion path."""
+        """验证真实的 PNG 图像在整个转换路径中是否存在。"""
         import base64
         import struct
         import zlib
 
-        # Minimal valid 1x1 red PNG
+        # 最小有效 1x1 红色 PNG
         sig = b"\x89PNG\r\n\x1a\n"
         ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
         ihdr_crc = zlib.crc32(b"IHDR" + ihdr_data) & 0xFFFFFFFF
@@ -786,8 +789,8 @@ class TestACPAgentInitState:
         assert "Team rules." in agent._installed_suffix
 
     def test_init_state_sets_installed_when_suffix_marker_persisted(self, tmp_path):
-        """A successful first turn persists ``acp_suffix_installed`` — on resume
-        the ACPAgent reads that marker and skips re-injection."""
+        """成功的第一轮持续 ``acp_suffix_installed`` — 恢复时
+        的 ACPAgent 读取该标记并跳过重新注入。"""
         agent = _make_agent(
             agent_context=AgentContext(system_message_suffix="Team rules.")
         )
@@ -803,12 +806,10 @@ class TestACPAgentInitState:
         assert agent._suffix_install_state == "installed"
 
     def test_init_state_pending_when_session_id_only_no_suffix_marker(self, tmp_path):
-        """Persisted ``acp_session_id`` without ``acp_suffix_installed`` means
-        the prior session was created but its first prompt never completed
-        (cancelled / crashed before ``_finalize_successful_turn``).  The
-        ACP subprocess never received the suffix; on resume we must
-        re-inject it on the next turn rather than infer "installed" from
-        session-id presence alone.
+        """已持久化 ``acp_session_id`` 没有 ``acp_suffix_installed`` 表示
+        先前的会话已创建，但其第一个提示词从未完成（在 ``_finalize_successful_turn``
+        之前取消/崩溃）。 ACP 子进程从未收到后缀；
+         在恢复时，我们必须在下一轮重新注入它，而不是仅从会话 ID 的存在推断“已安装”。
         """
         agent = _make_agent(
             agent_context=AgentContext(system_message_suffix="Team rules.")
@@ -844,21 +845,19 @@ class TestACPAgentInitState:
         assert "REGISTRY_TOKEN" in events[0].dynamic_context.text
 
     def test_init_state_renders_registry_secrets_without_agent_context(self, tmp_path):
-        """The <CUSTOM_SECRETS> block should render from secret_registry alone.
+        """<CUSTOM_SECRETS> 块应单独从 secret_registry 渲染。
 
-        Callers that ship secrets through the canonical conversation
-        channel (``StartConversationRequest.secrets`` →
-        ``Conversation.update_secrets`` → ``secret_registry``) but don't
-        attach an ``AgentContext`` shouldn't see those secrets silently
-        dropped from the system suffix — the values still flow into the
-        subprocess env via ``_start_acp_server``, so the agent needs to
-        know they're available.
+        通过规范对话渠道发送机密的呼叫者 (``StartConversationRequest.secrets`` →
+        ``Conversation.update_secrets`` → ``secret_registry``) 但不要附加
+        ``AgentContext``，
+        不应该看到这些机密无声地从系统后缀中删除 —— 值仍然通过 ``_start_acp_server``
+        流入子进程环境，因此智能体需要知道它们是可用的。
         """
         from pydantic import SecretStr
 
         from openhands.sdk.secret import StaticSecret
 
-        agent = _make_agent()  # no agent_context
+        agent = _make_agent()  # 没有 agent_context
         state = _make_state(tmp_path)
         state.secret_registry.update_secrets(
             {
@@ -875,13 +874,14 @@ class TestACPAgentInitState:
         assert events[0].dynamic_context is not None
         assert "REGISTRY_TOKEN" in events[0].dynamic_context.text
 
-    # -- Cold-start error surfacing (issue #1024) --------------------------
+    # -- 冷启动错误出现（问题#1024） --------------------------
 
     def _init_state_failure(self, tmp_path, exc: BaseException):
-        """Run init_state with ``_start_acp_server`` raising ``exc``.
+        """运行 init_state，``_start_acp_server`` 加注 ``exc``。
 
-        Returns ``(state, events, raised)`` where ``raised`` is the exception
-        that escaped init_state (asserted to be the original ``exc``).
+        返回 ``(state, events, raised)``，其中 ``raised`` 是转义 init_state 的异常（
+        断言是原始 ``exc``）
+        。
         """
         agent = _make_agent()
         state = _make_state(tmp_path)
@@ -896,9 +896,10 @@ class TestACPAgentInitState:
         return state, events
 
     def test_init_state_surfaces_auth_required(self, tmp_path):
-        """An auth-required protocol error becomes a typed ACPAuthRequired event
-        with ERROR status — instead of bypassing emission and reaching the
-        client as a generic "remote conversation ended with error"."""
+        """认证要求的协议错误变成一个类型 ACPAuthRequired 事件
+        具有 ERROR 状态 - 而不是绕过发射并以通用的“远程对话因错误结束”的方式到达客户
+        端。
+        """
         exc = ACPRequestError(-32000, "Authentication required")
         state, events = self._init_state_failure(tmp_path, exc)
 
@@ -910,8 +911,8 @@ class TestACPAgentInitState:
         assert state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_init_state_surfaces_spawn_error(self, tmp_path):
-        """A missing/unexecutable CLI binary (FileNotFoundError /
-        PermissionError from create_subprocess_exec) becomes ACPSpawnError."""
+        """丢失/无法执行的 CLI 二进制文件 (FileNotFoundError /
+        PermissionError 从 create_subprocess_exec 开始，变为 ACPSpawnError。"""
         for exc in (
             FileNotFoundError("no such file: claude-agent-acp"),
             PermissionError("permission denied"),
@@ -923,7 +924,7 @@ class TestACPAgentInitState:
             assert state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_init_state_surfaces_generic_init_error(self, tmp_path):
-        """Any other handshake/session failure falls back to ACPInitError."""
+        """任何其他握手/会话失败都回退到 ACPInitError。"""
         exc = RuntimeError("protocol handshake timed out")
         state, events = self._init_state_failure(tmp_path, exc)
 
@@ -934,9 +935,10 @@ class TestACPAgentInitState:
         assert state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_init_state_surfaces_request_error_data(self, tmp_path):
-        """A ``RequestError`` cold-start failure surfaces its ``.code`` and
-        ``.data`` — not the bare "Internal error" that ``str(exc)`` yields — so the
-        real cause (an auth marker here) reaches the user and is classified."""
+        """``RequestError`` 冷启动故障表面其 ``.code`` 和
+        ``.data`` — 不是 ``str(exc)`` 产生的纯粹的“内部错误” — 因此真正的原因（此处的
+        身份验证标记）到达了用户并被分类。
+        """
         exc = ACPRequestError(
             -32603, "Internal error", {"message": "401 Unauthorized from provider"}
         )
@@ -948,15 +950,15 @@ class TestACPAgentInitState:
         assert "-32603" in errors[0].detail
 
     def test_init_state_truncates_long_detail(self, tmp_path):
-        """detail is capped at 500 chars, matching the run-loop error path."""
+        """详细信息的上限为 500 个字符，与运行循环错误路径匹配。"""
         exc = RuntimeError("x" * 1000)
         _state, events = self._init_state_failure(tmp_path, exc)
         errors = [e for e in events if isinstance(e, ConversationErrorEvent)]
         assert len(errors[0].detail) == 500
 
     def test_init_state_reraises_even_if_emission_fails(self, tmp_path):
-        """A failure while surfacing the error must never mask the original
-        exception — the re-raise contract run()/arun() rely on is preserved."""
+        """暴露错误时的失败绝不能掩盖原来的错误
+        exception — 依赖于的重抛合同 run()/arun() 仍保留。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         exc = RuntimeError("boom")
@@ -984,8 +986,9 @@ class TestClassifyACPInitError:
         assert _classify_acp_init_error(exc) == "ACPAuthRequired"
 
     def test_other_request_error_is_init_error(self):
-        # A protocol error that isn't auth-required (e.g. internal error) is a
-        # generic init failure, not an auth failure.
+        # 不需要身份验证的协议错误 (e.g. 内部错误）是一般的初始化失败，而不是身份验证失
+        # 败。
+        #
         exc = ACPRequestError(-32603, "Internal error")
         assert _classify_acp_init_error(exc) == "ACPInitError"
 
@@ -999,24 +1002,25 @@ class TestClassifyACPInitError:
         assert _classify_acp_init_error(PermissionError()) == "ACPSpawnError"
 
     def test_broken_pipe_is_init_error(self):
-        # A transport drop during the handshake is an OSError subclass but not a
-        # spawn failure — it must classify as ACPInitError, not ACPSpawnError.
+        # A 传输层握手期间掉包是 OSError 子类但不是生成失败 - 它必须分类为 ACPInitError,
+        #  not ACPSpawnError.
+        #
         assert _classify_acp_init_error(BrokenPipeError()) == "ACPInitError"
 
     def test_generic_exception_is_init_error(self):
         assert _classify_acp_init_error(RuntimeError("x")) == "ACPInitError"
 
     def test_auth_marker_in_internal_error_is_auth_required(self):
-        # Servers collapse upstream 401/403s into a generic -32603 instead of
-        # -32000; the message/data still reveal the credential failure, which must
-        # map to ACPAuthRequired so the client can offer re-auth.
+        # 服务器将上游 401/403 折叠为通用 -32603 而不是 -32000； 该消息/数据仍然揭示了凭
+        # 据失败，必须映射到ACPAuthRequired，以便客户端可以提供重新认证。
+        #
         exc = ACPRequestError(
             -32603, "Internal error", {"message": "401 Unauthorized: invalid api key"}
         )
         assert _classify_acp_init_error(exc) == "ACPAuthRequired"
 
     def test_benign_internal_error_stays_init_error(self):
-        # A -32603 with no auth marker is a generic init failure, not auth.
+        # 没有 auth 标记的 -32603 是一般的 init 失败，而不是 auth。
         exc = ACPRequestError(-32603, "Internal error", {"message": "disk full"})
         assert _classify_acp_init_error(exc) == "ACPInitError"
 
@@ -1043,14 +1047,14 @@ class TestStringifyACPErrorData:
         )
 
     def test_dict_prefers_message_key(self):
-        # codex turn errors send {"message", "codex_error_info"}.
+        # Codex 转向错误发送 {"message", "codex_error_info"}。
         out = _stringify_acp_error_data(
             {"message": "model not found", "codex_error_info": "gpt-9"}
         )
         assert out == "model not found (gpt-9)"
 
     def test_dict_details_key(self):
-        # the claude SDK catch-all wraps non-RequestError exceptions as {"details"}.
+        # claude SDK catch-all 将非 RequestError 异常包装为 {"details"}。
         assert _stringify_acp_error_data({"details": "boom"}) == "boom"
 
     def test_opaque_dict_falls_back_to_json(self):
@@ -1090,7 +1094,7 @@ class TestACPErrorIndicatesAuth:
         assert _acp_error_indicates_auth(RuntimeError("HTTP 401 Unauthorized"))
 
     def test_digit_substring_in_timeout_does_not_match(self):
-        # "4031ms" contains "403" but must not fire — word-boundary check.
+        # “4031ms”包含“403”，但不得触发 — 字边界检查。
         assert not _acp_error_indicates_auth(RuntimeError("timeout after 4031ms"))
 
     def test_model_id_with_401_does_not_match(self):
@@ -1119,7 +1123,7 @@ class TestClassifyACPTurnError:
         assert _classify_acp_turn_error(exc) == "UsagePolicyRefusal"
 
     def test_auth_failure_maps_to_auth_required(self):
-        # A bad credential surfaced mid-turn as -32603 must still route to re-auth.
+        # 错误的凭据出现在中间，因为 -32603 仍必须路由到重新验证。
         exc = ACPRequestError(-32603, "Internal error", {"message": "401 unauthorized"})
         assert _classify_acp_turn_error(exc) == "ACPAuthRequired"
 
@@ -1141,8 +1145,9 @@ class TestACPErrorDetail:
         assert _acp_error_detail(RuntimeError("boom")) == "boom"
 
     def test_request_error_keeps_code_and_data(self):
-        # The bug this fixes: str(RequestError) is just "Internal error"; the real
-        # cause lives in .code/.data and must reach the user.
+        # 此修复的错误：str(RequestError) 只是“内部错误”； 真正的原因位于 .code/.data 中
+        # 并且必须到达用户。
+        #
         exc = ACPRequestError(
             -32603, "Internal error", {"message": "model gpt-9 not found"}
         )
@@ -1161,7 +1166,7 @@ class TestACPErrorDetail:
         assert detail == "[-32000] Authentication required"
 
     def test_data_appended_when_it_differs_from_message(self):
-        # data["message"] differs from exc.message → must be included.
+        # data[“message”] 与 exc.message 不同 → 必须包含在内。
         exc = ACPRequestError(
             -32603, "Internal error", {"message": "model gpt-9 not found"}
         )
@@ -1170,8 +1175,9 @@ class TestACPErrorDetail:
         assert "Internal error" in detail
 
     def test_data_not_duplicated_when_equal_to_message(self):
-        # When data["message"] == exc.message, nothing extra to add — avoid
-        # "[-32603] Internal error: Internal error" redundancy.
+        # 当 data["message"] == exc.message 时，无需添加任何额外内容 — 避免“[-32603] 内
+        # 部错误：内部错误”冗余。
+        #
         exc = ACPRequestError(-32603, "Internal error", {"message": "Internal error"})
         detail = _acp_error_detail(exc)
         assert detail == "[-32603] Internal error"
@@ -1181,7 +1187,7 @@ class TestACPErrorDetail:
         assert len(_acp_error_detail(exc)) == 500
 
     def test_pattern_redaction_of_data(self):
-        # redact_text_secrets scrubs api_key=... even without a registry.
+        # redact_text_secrets 磨砂 api_key=... 即使没有注册表。
         exc = ACPRequestError(-32603, "Internal error", "api_key='sk-leakme123'")
         detail = _acp_error_detail(exc)
         assert "sk-leakme123" not in detail
@@ -1190,7 +1196,7 @@ class TestACPErrorDetail:
     def test_registry_masks_tracked_secret_value(self):
         registry = SecretRegistry()
         registry.update_secrets({"PROVIDER_TOKEN": "supersecretvalue"})
-        # Resolve once so the value is tracked for masking.
+        # 解析一次，以便跟踪该值以进行屏蔽。
         registry.get_all_secrets_as_env_vars()
         exc = ACPRequestError(
             -32603, "Internal error", {"message": "rejected supersecretvalue"}
@@ -1237,7 +1243,7 @@ class TestOpenHandsACPClient:
         tokens: list[str] = []
         client.on_token = tokens.append
 
-        # Simulate what session_update would do
+        # 模拟 session_update 会做什么
         text = "chunk1"
         client.accumulated_text.append(text)
         if client.on_token is not None:
@@ -1276,11 +1282,11 @@ class TestOpenHandsACPClient:
     @pytest.mark.asyncio
     async def test_ext_notification_is_noop(self):
         client = _OpenHandsACPBridge()
-        await client.ext_notification("test", {})  # Should not raise
+        await client.ext_notification("test", {})  # 不应该提高
 
 
 # ---------------------------------------------------------------------------
-# Tool-call event emission (started + terminal, no per-progress fan-out)
+# 工具调用事件发射（启动 + 终端，无按进度扇出）
 # ---------------------------------------------------------------------------
 
 
@@ -1331,14 +1337,14 @@ def _mk_tool_progress(
 
 
 class TestACPToolCallProgressCollapse:
-    """The bridge persists exactly one ``started`` + one terminal event.
+    """该桥恰好持续存在一个 ``started`` + 一个终止事件。
 
-    Each ``ToolCallProgress`` carries the *full cumulative* output, so emitting
-    one event per frame is O(n^2) storage + WebSocket relay. The bridge instead
-    streams one early ``started`` event and one terminal (``completed`` /
-    ``failed``) event per ``tool_call_id`` — the action->observation pair —
+    每个 ``ToolCallProgress`` 承载 * 完整累积 * 输出，因此每帧发出一个事件是 O(n^2)
+    存储 + WebSocket 继电器。 相反，桥
+    接器会传输一个早期 ``started`` 事件和一个终端 (``completed`` /
+    ``failed``) 每个 ``tool_call_id`` 的事件 — 操作 ->观测结果对 —
     while silently accumulating the intermediate frames so the terminal event
-    still carries the final output.
+    仍然带有最终输出。
     """
 
     @pytest.mark.asyncio
@@ -1362,14 +1368,14 @@ class TestACPToolCallProgressCollapse:
         client.on_event = events.append
 
         await client.session_update("s1", _mk_tool_start(status="in_progress"))
-        # Several non-terminal progress frames with growing cumulative output.
+        # 几个非终端进度框架，累积输出不断增长。
         for chunk in ("a", "ab", "abc"):
             await client.session_update(
                 "s1", _mk_tool_progress(status="in_progress", raw_output=chunk)
             )
 
-        # Only the started event was persisted — the intermediate frames are
-        # accumulated silently (this is the O(n^2)->O(1) collapse).
+        # 只有开始的事件是已持久化 - 中间帧默默地累积（这是 O(n^2)->O(1) 崩溃）。
+        #
         assert len(events) == 1
         assert events[0].status == "in_progress"
 
@@ -1391,7 +1397,7 @@ class TestACPToolCallProgressCollapse:
         started, terminal = events
         assert started.status == "pending"
         assert terminal.status == "completed"
-        # Terminal event carries the final cumulative output.
+        # 终端事件承载最终的累积输出。
         assert terminal.raw_output == "partial-final"
         assert terminal.is_error is False
 
@@ -1412,7 +1418,7 @@ class TestACPToolCallProgressCollapse:
 
     @pytest.mark.asyncio
     async def test_single_shot_completed_start_emits_once(self) -> None:
-        """A ToolCallStart that is already terminal is the only event."""
+        """已经终止的 ToolCallStart 是唯一的事件。"""
         client = _OpenHandsACPBridge()
         events: list[Any] = []
         client.on_event = events.append
@@ -1426,28 +1432,28 @@ class TestACPToolCallProgressCollapse:
 
     @pytest.mark.asyncio
     async def test_redundant_terminal_progress_does_not_double_emit(self) -> None:
-        """Only the first transition into a terminal status emits."""
+        """只有第一次转换到终端状态时才会发出。"""
         client = _OpenHandsACPBridge()
         events: list[Any] = []
         client.on_event = events.append
 
         await client.session_update("s1", _mk_tool_start(status="in_progress"))
         await client.session_update("s1", _mk_tool_progress(status="completed"))
-        # A trailing duplicate terminal frame must not produce a third event.
+        # 尾随的重复终端帧不得产生第三个事件。
         await client.session_update("s1", _mk_tool_progress(status="completed"))
 
         assert len(events) == 2
         assert [e.status for e in events] == ["in_progress", "completed"]
 
     def test_finalize_flush_completes_orphaned_tool_calls(self) -> None:
-        """A card the server opened but never closed is flushed to completed."""
+        """服务器打开但从未关闭的卡将刷新为完成。"""
         agent = _make_agent()
         client = _OpenHandsACPBridge()
         events: list[Any] = []
         client.on_event = events.append
         agent._client = client
 
-        # One still-running call and one already-terminal call.
+        # 一个仍在运行的呼叫和一个已经终止的呼叫。
         client.accumulated_tool_calls.append(
             {
                 "tool_call_id": "live-1",
@@ -1473,13 +1479,13 @@ class TestACPToolCallProgressCollapse:
 
         agent._flush_inflight_tool_calls_as_completed()
 
-        # Only the non-terminal call is flushed (the terminal one is untouched).
+        # 仅刷新非终端调用（终端调用不受影响）。
         assert len(events) == 1
         assert events[0].tool_call_id == "live-1"
         assert events[0].status == "completed"
         assert events[0].is_error is False
         assert events[0].raw_output == "partial output"
-        # The accumulator entry is now terminal so it won't be flushed again.
+        # 累加器条目现在已终止，因此不会再次刷新。
         assert client.accumulated_tool_calls[0]["status"] == "completed"
 
 
@@ -1489,7 +1495,7 @@ class TestACPToolCallProgressCollapse:
 
 
 class TestACPActivityHeartbeat:
-    """Tests for the on_activity heartbeat in _OpenHandsACPBridge."""
+    """测试 _OpenHandsACPBridge 中的 on_activity 心跳。"""
 
     def test_reset_clears_on_activity(self):
         client = _OpenHandsACPBridge()
@@ -1498,39 +1504,38 @@ class TestACPActivityHeartbeat:
         assert client.on_activity is None
 
     def test_reset_preserves_last_activity_signal(self):
-        """_last_activity_signal persists across resets (like telemetry state)."""
+        """_last_activity_signal 在重置后仍然存在（如遥测状态）。"""
         client = _OpenHandsACPBridge()
         client._last_activity_signal = 999.0
         client.reset()
         assert client._last_activity_signal == 999.0
 
     def test_idle_clock_unarmed_reports_infinite_idle(self):
-        """Before arming, the idle clock reports an unbounded gap."""
+        """在启动之前，空闲时钟会报告无限的间隙。"""
         client = _OpenHandsACPBridge()
         assert client.seconds_since_last_activity() == float("inf")
 
     def test_arm_activity_clock_resets_idle(self):
         client = _OpenHandsACPBridge()
         client.arm_activity_clock()
-        # Just armed → effectively zero seconds since activity.
+        # 刚刚武装→活动后零秒有效。
         assert client.seconds_since_last_activity() < 1.0
 
     @pytest.mark.asyncio
     async def test_session_update_records_activity_for_idle_clock(self):
-        """Every session_update resets the idle clock, even when throttled.
+        """每个 session_update 都会重置空闲时钟，即使在节流时也是如此。
 
-        The throttled heartbeat (_last_activity_signal) and the idle clock
-        (_last_activity_monotonic) are independent: a second update inside the
-        throttle window does not re-fire on_activity but still counts as
-        progress for the idle timeout.
+        _last_activity_signal 速率限制心跳和_last_activity_monotonic 停机计时器是独立
+        的：在速率限制窗口内进行第二次更
+        新不会重新触发on_activity，但仍然计为进度超时。
         """
         from acp.schema import AgentThoughtChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
         client._last_activity_monotonic = float("-inf")
 
-        # A thought chunk does not fire the on_activity heartbeat at all, but
-        # must still count as activity for the idle clock.
+        # 思想块根本不会触发 on_activity 心跳，但仍必须算作空闲时钟的活动。
+        #
         chunk = MagicMock(spec=AgentThoughtChunk)
         chunk.content = MagicMock(spec=TextContentBlock)
         chunk.content.text = "thinking"
@@ -1566,7 +1571,7 @@ class TestACPActivityHeartbeat:
         signals: list[bool] = []
         client.on_activity = lambda: signals.append(True)
 
-        # Need a ToolCallStart first
+        # 首先需要一个ToolCallStart
         start = MagicMock(spec=ToolCallStart)
         start.tool_call_id = "tc-1"
         start.title = "Read"
@@ -1577,7 +1582,7 @@ class TestACPActivityHeartbeat:
         start.content = None
         await client.session_update("sess-1", start)
 
-        # Reset throttle so ToolCallProgress can fire
+        # 重置油门，以便 ToolCallProgress 可以开火
         client._last_activity_signal = float("-inf")
         signals.clear()
 
@@ -1609,7 +1614,7 @@ class TestACPActivityHeartbeat:
 
     @pytest.mark.asyncio
     async def test_activity_signal_is_throttled(self):
-        """Signals should be throttled to at most one per interval."""
+        """信号应限制在每个时间间隔最多一个。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -1627,12 +1632,12 @@ class TestACPActivityHeartbeat:
             start.content = None
             await client.session_update("sess-1", start)
 
-        # All happened within the same throttle window → only 1 signal
+        # 所有这些都发生在同一个油门窗口内→只有 1 个信号
         assert len(signals) == 1
 
     @pytest.mark.asyncio
     async def test_no_signal_without_callback(self):
-        """No error when on_activity is None."""
+        """当on_activity为None时没有错误。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -1647,11 +1652,11 @@ class TestACPActivityHeartbeat:
         start.raw_output = None
         start.content = None
 
-        await client.session_update("sess-1", start)  # Should not raise
+        await client.session_update("sess-1", start)  # 不应该提高
 
     @pytest.mark.asyncio
     async def test_activity_callback_error_is_swallowed(self):
-        """Errors in on_activity must not break session_update."""
+        """on_activity 中的错误不得破坏 session_update。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -1666,15 +1671,15 @@ class TestACPActivityHeartbeat:
         start.raw_output = None
         start.content = None
 
-        await client.session_update("sess-1", start)  # Should not raise
+        await client.session_update("sess-1", start)  # 不应该提高
         client.on_activity.assert_called_once()
 
     def test_step_wires_on_activity(self, tmp_path):
-        """step() should set on_activity on the bridge from _on_activity."""
+        """step() 应在 _on_activity 的桥上设置 on_activity。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
 
-        # Wire up a user message
+        # 连接用户消息
         state.events.append(
             SystemPromptEvent(
                 source="agent",
@@ -1692,12 +1697,12 @@ class TestACPActivityHeartbeat:
         activity_fn = MagicMock()
         agent._on_activity = activity_fn
 
-        # Mock the internals so step() doesn't actually call the ACP server
+        # 模拟对象内部结构，因此 step() 实际上并不调用 ACP 服务器
         agent._client = _OpenHandsACPBridge()
 
-        # Capture on_activity while prompt() is still "running" — step()
-        # unwires the bridge callbacks in its finally block once the turn
-        # completes, so the post-return value is None by design.
+        # 在 prompt() 还在运行时捕获 on_activity —— 在 step() 完成后， 回调的 finally 块
+        # 会断开，这样返回值 None 是设计的。
+        #
         wired_during_prompt: list = []
 
         def _capture_run_async(_coro, **_kwargs):
@@ -1715,33 +1720,32 @@ class TestACPActivityHeartbeat:
 
         agent.step(conversation, on_event=events.append)
 
-        # Verify on_activity was wired to the bridge during the turn.
+        # 验证 on_activity 在转弯期间已连接至桥。
         assert wired_during_prompt == [activity_fn]
-        # And that it was cleared afterward so a late session_update
-        # cannot fire the per-turn heartbeat callback out-of-band.
+        # 并且后来它被清除，因此迟到的 session_update 无法在带外触发每轮心跳回调。
+        #
         assert agent._client.on_activity is None
 
 
 # ---------------------------------------------------------------------------
-# Prompt idle (inactivity) timeout
+# 提示词空闲（不活动）超时
 # ---------------------------------------------------------------------------
 
 
 class TestACPPromptIdleTimeout:
-    """The prompt deadline is an idle timeout: ACP activity resets it.
+    """提示词截止时间是空闲的超时：ACP 活动将其重置。
 
-    Regression coverage for agent-canvas#1245 — long-running ACP prompts must
-    keep working as long as the agent makes progress, rather than dying at a
-    hard wall-clock deadline.
+    回归对智能体-canvas#1245 的覆盖率 —— 长运行的 ACP 提示词必须像智能体进展一样继续
+    运行，而不是在硬的时钟截止日期上死掉。
     """
 
     @pytest.mark.asyncio
     async def test_active_prompt_outlives_idle_window(self):
-        """A prompt that keeps streaming updates is not killed at the deadline.
+        """保持流式传输更新的提示词不会在截止日期前被杀死。
 
-        The agent runs for well over ``acp_prompt_timeout`` of total wall-clock
-        time, but emits a ``session_update`` far more often than the idle window,
-        so the deadline keeps resetting and the prompt completes normally.
+        智能体运行时间超过``acp_prompt_timeout``总时长，但比空闲窗口
+        ``session_update`` 更频繁地发出，因此截止日期不断重置
+        ，提示词正常完成。
         """
         from acp.schema import AgentMessageChunk, TextContentBlock
 
@@ -1753,8 +1757,9 @@ class TestACPPromptIdleTimeout:
         sentinel = object()
 
         async def _active_prompt() -> Any:
-            # ~0.5s total (> 0.3s idle window) but a tick every 0.02s
-            # (<< 0.3s), so the idle clock never elapses.
+            # 总共约 0.5 秒（> 0.3 秒空闲窗口），但每 0.02 秒（<< 0.3 秒）一次，因此空闲
+            # 时钟永远不会消失。
+            #
             for _ in range(25):
                 await asyncio.sleep(0.02)
                 chunk = MagicMock(spec=AgentMessageChunk)
@@ -1770,7 +1775,7 @@ class TestACPPromptIdleTimeout:
 
     @pytest.mark.asyncio
     async def test_silent_prompt_times_out_after_idle_window(self):
-        """A prompt that produces no activity is aborted after the idle window."""
+        """不产生任何活动的提示词将在空闲窗口后中止。"""
         agent = _make_agent(acp_prompt_timeout=0.1)
         client = _OpenHandsACPBridge()
         agent._client = client
@@ -1789,12 +1794,12 @@ class TestACPPromptIdleTimeout:
         with pytest.raises(TimeoutError, match="no activity"):
             await agent._await_with_idle_deadline(_silent_prompt(), cancel_on_exit=True)
 
-        # The helper cancels the underlying prompt on timeout.
+        # 助手取消超时上的基础提示词。
         await asyncio.wait_for(cancelled.wait(), timeout=1.0)
 
     @pytest.mark.asyncio
     async def test_late_activity_extends_then_idle_times_out(self):
-        """Activity extends the deadline; silence after it still times out."""
+        """活动延长期限； 仍然超时后的沉默。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         agent = _make_agent(acp_prompt_timeout=0.15)
@@ -1803,7 +1808,7 @@ class TestACPPromptIdleTimeout:
         client.arm_activity_clock()
 
         async def _active_then_silent() -> Any:
-            # One burst of activity past the first idle window...
+            # 第一个空闲窗口过后的突发活动...
             await asyncio.sleep(0.1)
             chunk = MagicMock(spec=AgentMessageChunk)
             chunk.content = MagicMock(spec=TextContentBlock)
@@ -1820,13 +1825,13 @@ class TestACPPromptIdleTimeout:
 
 
 # ---------------------------------------------------------------------------
-# step
+# 步骤
 # ---------------------------------------------------------------------------
 
 
 class TestACPAgentStep:
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
-        """Create a mock conversation with a user message."""
+        """使用用户消息创建模拟对象对话。"""
         state = _make_state(tmp_path)
         state.events.append(
             SystemPromptEvent(
@@ -1851,8 +1856,9 @@ class TestACPAgentStep:
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
 
-        # Set up mocked runtime state — populate text *after* reset
-        # (step() calls client.reset() then run_async which populates text)
+        # 设置模拟的运行时状态 — 在 * 重置后填充文本 *（step() 调用 client.reset()，然后
+        # 调用 run_async 填充文本）
+        #
         mock_client = _OpenHandsACPBridge()
         agent._client = mock_client
         agent._conn = MagicMock()
@@ -1868,7 +1874,7 @@ class TestACPAgentStep:
         agent.step(conversation, on_event=events.append)
 
         # step() emits ActionEvent(FinishAction) + ObservationEvent(FinishObservation)
-        # MessageEvent is not emitted — FinishAction.message carries the response text
+        # MessageEvent 不会发出 — FinishAction.message 包含响应文本
         assert len(events) == 2
         assert isinstance(events[0], ActionEvent)
         assert isinstance(events[0].action, FinishAction)
@@ -1876,7 +1882,7 @@ class TestACPAgentStep:
 
     @staticmethod
     def _wire_passthrough_mocks(agent: ACPAgent) -> None:
-        """Wire mock ACP internals that relay prompt() calls through asyncio."""
+        """通过 asyncio 连接模拟对象 ACP 中继 prompt() 调用的内部结构。"""
         mock_client = _OpenHandsACPBridge()
         mock_client.get_turn_usage_update = MagicMock(return_value=object())
         agent._client = mock_client
@@ -2050,7 +2056,7 @@ class TestACPAgentStep:
         assert "<description>AgentSkills review catalog.</description>" in prompt_text
 
     def test_step_does_not_re_inject_suffix_on_second_turn(self, tmp_path):
-        """Suffix must not appear in subsequent turns after the first injection."""
+        """第一次注射后的后续回合中不得出现后缀。"""
         agent = _make_agent(
             agent_context=AgentContext(
                 system_message_suffix="Team rules.", current_datetime=None
@@ -2066,7 +2072,7 @@ class TestACPAgentStep:
         conversation = MagicMock()
         conversation.state = state
         self._wire_passthrough_mocks(agent)
-        # Simulate: suffix was already installed on the first turn.
+        # 模拟：第一回合就已经安装了后缀。
         agent._installed_suffix = agent.agent_context.to_acp_prompt_context()  # type: ignore[union-attr]
         agent._suffix_install_state = "installed"
 
@@ -2081,11 +2087,12 @@ class TestACPAgentStep:
         assert "Team rules." not in prompt_text
 
     def test_step_suffix_install_state_transitions_to_installed(self, tmp_path):
-        """After the first turn the install state must be 'installed' AND the
-        ``acp_suffix_installed`` marker must be persisted into
-        ``state.agent_state`` so a subsequent agent-server restart can tell
-        the suffix was actually installed (rather than inferring from the
-        mere presence of ``acp_session_id``)."""
+        """第一轮后安装状态必须为“已安装”AND
+        ``acp_suffix_installed`` 标记必须位于已持久化中
+        ``state.agent_state``，因此随后的智能体-服务器重新启动可以告诉后缀确实已安装
+        （而不是仅根据 ``acp_session_id`` 的存
+        在来推断）。
+        """
         agent = _make_agent(
             agent_context=AgentContext(
                 system_message_suffix="Team rules.", current_datetime=None
@@ -2110,7 +2117,7 @@ class TestACPAgentStep:
         assert state.agent_state.get("acp_suffix_installed") is True
 
     def test_step_with_reasoning_surfaces_via_action_event(self, tmp_path):
-        """Reasoning traces are preserved in ActionEvent.reasoning_content."""
+        """推理痕迹保存在ActionEvent.reasoning_content中。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -2160,7 +2167,7 @@ class TestACPAgentStep:
     def test_step_no_user_message_finishes(self, tmp_path):
         agent = _make_agent()
         state = _make_state(tmp_path)
-        # No user message added
+        # 未添加用户留言
 
         conversation = MagicMock()
         conversation.state = state
@@ -2200,7 +2207,7 @@ class TestACPAgentStep:
         events: list = []
 
         mock_client = _OpenHandsACPBridge()
-        # accumulated_text stays empty — run_async is a no-op
+        # accumulated_text 保持为空 — run_async 是无操作
         agent._client = mock_client
         agent._conn = MagicMock()
         agent._session_id = "test-session"
@@ -2224,8 +2231,9 @@ class TestACPAgentStep:
         agent._conn = MagicMock()
         agent._session_id = "test-session"
 
-        # Capture on_token while prompt() is still running — step() clears
-        # the per-turn callbacks in its finally block once the turn ends.
+        # 在 prompt() 仍在运行时捕获 on_token — 一旦回合结束，step() 就会清除其finally
+        # 块中的每回合回调。
+        #
         wired_during_prompt: list = []
 
         def _fake_run_async(_coro, **_kwargs):
@@ -2240,20 +2248,20 @@ class TestACPAgentStep:
 
         agent.step(conversation, on_event=lambda _: None, on_token=on_token)
 
-        # The bridge is wired with StreamContext's stamping wrapper, which
-        # forwards to the caller's callback unchanged.
+        # 该桥与 StreamContext 的标记包装器连接，该包装器不变地转发到调用者的回调。
+        #
         assert len(wired_during_prompt) == 1
         wired = wired_during_prompt[0]
         assert wired is not None and wired is not on_token
         wired("chunk")
         on_token.assert_called_once_with("chunk")
-        # And unwired afterward so a late token chunk is a no-op.
+        # 之后未连线，因此迟到的 token 块是无操作的。
         assert mock_client.on_token is None
 
     def test_step_retires_its_stream_on_the_turn_finish_action(self, tmp_path):
-        """An ACP turn's streamed text lands in the FinishAction, not a message.
+        """ACP 回合的流文本落在 FinishAction 中，而不是消息。
 
-        See https://github.com/OpenHands/software-agent-sdk/issues/4682.
+        参见 https://github.com/OpenHands/software-agent-sdk/issues/4682.
         """
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
@@ -2285,12 +2293,12 @@ class TestACPAgentStep:
         action = next(e for e in events if isinstance(e, ActionEvent))
         assert action.id == started[0].item_id
         assert not any(isinstance(f, StreamAborted) for f in frames)
-        # The context is released with the turn.
+        # 上下文随回合释放。
         assert agent._stream is None
 
     @pytest.mark.asyncio
     async def test_astep_opens_and_retires_the_same_slot(self, tmp_path):
-        """The async entry point gets the same guarantee as the sync one."""
+        """异步入口得到与同步相同的保证。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         frames: list = []
@@ -2314,16 +2322,15 @@ class TestACPAgentStep:
 
 
 # ---------------------------------------------------------------------------
-# Async step (astep) — regression coverage for #3348
+# 异步步骤 (astep) — 回归 #3348 的覆盖范围
 # ---------------------------------------------------------------------------
 
 
 class TestACPAgentAstep:
-    """Native ``ACPAgent.astep`` must not fall back to ``AgentBase.astep``
-    (which wraps ``step`` in ``loop.run_in_executor``).  Doing so would
-    move post-prompt callbacks and state updates onto an executor worker
-    thread, outside ``LocalConversation.arun``'s controlled event
-    serialization. See #3348.
+    """本机 ``ACPAgent.astep`` 不得回退到 ``AgentBase.astep``
+    （将 ``step`` 包裹在 ``loop.run_in_executor`` 中）。 这样做会将后提示词回调和状态
+    更新移动到执行器工作线程线程上，位于
+    ``LocalConversation.arun`` 的受控事件序列化之外。 参见#3348。
     """
 
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
@@ -2346,16 +2353,16 @@ class TestACPAgentAstep:
         return conversation
 
     def test_astep_overrides_default_agentbase_implementation(self):
-        """Structural guard: if this flips back, ``AgentBase.astep``'s
-        ``run_in_executor`` wrapper resumes and #3348 reopens.
+        """结构防护：如果翻转回来，``AgentBase.astep``的
+        ``run_in_executor`` 包装器恢复并重新打开 #3348。
         """
         assert ACPAgent.astep is not AgentBase.astep
 
     def test_astep_runs_post_prompt_callbacks_on_caller_thread(self, tmp_path):
-        """Post-prompt ``on_event`` callbacks must fire on the caller
-        thread. If astep schedules ``step`` on a worker thread (the buggy
-        default), callbacks and final state updates run outside the async
-        run task's serialization model — see #3348.
+        """Post-提示词 ``on_event`` 回调必须对调用者触发
+        线程。 如果 astep 在工作线程线程上调度 ``step``（有缺陷的默认值），回调和最终
+        状态更新在异步运行任务的序列化模型之外运行 - 请参阅#334
+        8。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -2372,8 +2379,9 @@ class TestACPAgentAstep:
         agent._conn = MagicMock()
 
         async def _fake_prompt(session_id, prompt):  # noqa: ARG001
-            # Must execute on the portal loop's thread, not the caller's
-            # — proves we actually crossed the loop boundary.
+            # 必须在入口循环的线程上执行，而不是调用者的 - 证明我们实际上跨越了循环边界
+            # 。
+            #
             prompt_thread_id.append(threading.get_ident())
             mock_client.accumulated_text.append("answer")
             return None
@@ -2395,7 +2403,7 @@ class TestACPAgentAstep:
         assert len(prompt_thread_id) == 1
         assert prompt_thread_id[0] != caller_thread_id
 
-        # FinishAction + ObservationEvent — both on caller thread.
+        # FinishAction + ObservationEvent — 均在呼叫者线程上。
         assert len(on_event_thread_ids) >= 2
         for tid in on_event_thread_ids:
             assert tid == caller_thread_id, (
@@ -2408,11 +2416,10 @@ class TestACPAgentAstep:
         )
 
     def test_astep_restarts_session_off_caller_loop(self, tmp_path):
-        """Restart init can synchronously resolve loopback LookupSecret values.
+        """重启init可以同步解析loopbackLookupSecret值。
 
-        ``astep`` must keep that restart work off the caller loop so the
-        agent-server can serve those loopback HTTP requests instead of waiting
-        for each secret lookup to time out.
+        ``astep`` 必须确保重启工作不在调用者循环中，这样智能体-服务器就可以用这些回环
+         HTTP 请求代替等待每个机密查找超时。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -2475,13 +2482,13 @@ class TestACPAgentAstep:
         assert emitted
 
     def test_astep_active_prompt_survives_idle_window(self, tmp_path):
-        """End-to-end via the real portal: an actively-streaming prompt that
-        runs well past ``acp_prompt_timeout`` finalizes normally.
+        """通过真正的门户进行端到端：一个主动的流式传输提示词
+        正常运行超过 ``acp_prompt_timeout`` 结束。
 
-        Exercises the full concurrency model — the prompt runs on the portal
-        loop while the idle watchdog polls on the caller loop, and each
-        bridge ``session_update`` (fired across the loop boundary) resets the
-        deadline. Regression coverage for agent-canvas#1245.
+        执行完整操作并发 model — the 提示词在空闲 watchdog 检查循环中运行，在 caller
+        检查循环中运行，每个桥都运行
+        ``session_update`` (越过循环边界时)重置了截止时间。 回归覆盖率智能体-canvas#
+        1245.
         """
         from acp.schema import AgentMessageChunk, TextContentBlock
 
@@ -2498,8 +2505,9 @@ class TestACPAgentAstep:
         agent._session_id = "test-session"
 
         async def _fake_prompt(session_id, prompt):  # noqa: ARG001
-            # ~0.5s total (> 0.3s idle window), one update every 0.02s so the
-            # deadline keeps resetting; then complete the turn.
+            # 总计约 0.5 秒（> 0.3 秒空闲窗口），每 0.02 秒更新一次，因此截止时间不断重
+            # 置； 然后完成转弯。
+            #
             for _ in range(25):
                 await asyncio.sleep(0.02)
                 chunk = MagicMock(spec=AgentMessageChunk)
@@ -2530,13 +2538,13 @@ class TestACPAgentAstep:
         )
 
     def test_astep_emits_error_and_reraises_on_exception(self, tmp_path):
-        """astep's error path must call ``_emit_turn_error`` AND re-raise.
+        """astep的错误路径必须调用``_emit_turn_error``AND重新引发。
 
-        Guards against a silently swallowed ``raise`` in the
-        ``except Exception`` branch — without re-raise,
-        ``LocalConversation.arun()`` would not transition out of the
-        loop and the failure would be invisible to ``RemoteConversation``.
-        Mirrors the contract that sync ``step()`` already enforces.
+        防备着被无声吞噬的``raise``
+        ``except Exception`` 分支 — 无需重新加注，
+        ``LocalConversation.arun()`` 不会转换出循环，并且失败对于
+        ``RemoteConversation`` 来说是不可见的。 反映
+        同步 ``step()`` 已经执行的合同。
         """
         from openhands.sdk.event.conversation_error import ConversationErrorEvent
         from openhands.sdk.utils.async_executor import AsyncExecutor
@@ -2564,8 +2572,9 @@ class TestACPAgentAstep:
         finally:
             executor.close()
 
-        # _emit_turn_error emits exactly two events: MessageEvent + typed
-        # ConversationErrorEvent.  Both must land before re-raise.
+        # _emit_turn_error 恰好发出两个事件：MessageEvent + 输入的
+        # ConversationErrorEvent。 双方都必须在重新加注之前落地。
+        #
         def _message_text(ev: MessageEvent) -> str:
             first = ev.llm_message.content[0]
             return first.text if isinstance(first, TextContent) else ""
@@ -2589,13 +2598,13 @@ class TestACPAgentAstep:
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_astep_times_out_when_idle_with_inflight_tool_call(self, tmp_path):
-        """The idle timeout fires when a tool call hangs with no further updates.
+        """当工具调用挂起且没有进一步更新时，空闲超时会触发。
 
-        The deadline is an inactivity timeout: a tool card that was opened but
-        then produces no further ``session_update`` (the prompt future never
-        resolves and nothing streams) is silent, so the idle window elapses and
-        the timeout path must cancel the ACP session and close the streamed tool
-        card as failed. (Ongoing activity instead resets the clock — see
+        截止日期是一个停用状态超时一个被打开但随后不再产生进一步内容的工具卡片
+        ``session_update`` (the) 提示词未来永远不会解决，没有什么流
+        过，所以空闲窗口会消失， 译文：未来永远不会解决，没有什么流过。所以空闲窗口会
+        消失超时路径必须取消  ACP 关闭流工具卡片并标记为失败。（正在进行的活动会
+        重置时钟——请参阅
         ``TestACPPromptIdleTimeout``.)
         """
         from concurrent.futures import Future
@@ -2667,17 +2676,17 @@ class TestACPAgentAstep:
         )
 
     def test_astep_emits_failed_tool_calls_on_cancellation(self, tmp_path):
-        """``asyncio.CancelledError`` during astep must close in-flight
-        ``ACPToolCallEvent``s as ``failed`` and re-raise.
+        """``asyncio.CancelledError`` 在步骤期间必须在飞行中关闭
+        ``ACPToolCallEvent`` 变为 ``failed`` 并重新加注。
 
-        ``asyncio.CancelledError`` inherits from ``BaseException`` (not
-        ``Exception``), so the generic ``except Exception`` handler does
-        not catch it — without an explicit ``except asyncio.CancelledError``
-        branch, the cancel races straight to ``finally`` (which only
-        clears callbacks).  Any ``pending`` / ``in_progress`` tool cards
-        already streamed would then stay live forever
-        (``LocalConversation._emit_orphaned_action_errors`` only patches
-        ``ActionEvent``s, not ``ACPToolCallEvent``s).
+        ``asyncio.CancelledError`` 继承自 ``BaseException``（不是
+        ``Exception``），因此通用 ``except Exception`` 处理程序不会捕获它 - 如果没有
+        显式
+        ``except asyncio.CancelledError`` 分支，取消会直接进入 ``finally``（仅清除回
+        调）。 任何已流式传输的
+        ``pending`` / ``in_progress`` 工具卡将永远保持有效（
+        ``LocalConversation._emit_orphaned_action_errors`` 仅补丁
+        ``ActionEvent``，而不是 ``ACPToolCallEvent``）。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -2699,11 +2708,10 @@ class TestACPAgentAstep:
             caller_loop = asyncio.get_running_loop()
 
             async def _fake_prompt(session_id, prompt):  # noqa: ARG001
-                # Seed an in-flight tool call AFTER _reset_client_for_turn
-                # has run (which clears accumulated_tool_calls).  In
-                # production the bridge accumulates these inside
-                # session_update as ToolCallStart / ToolCallProgress
-                # notifications arrive.
+                # 正在运行的种子工具调用之后 _reset_client_for_turn 已运行（这将清除
+                # accumulated_tool_calls）。 在生产环境中，桥接器将这些信息累积到
+                # session_update，当 ToolCallStart / ToolCallProgress 通知到达时。
+                #
                 mock_client.accumulated_tool_calls.append(
                     {
                         "tool_call_id": "tc-cancel-1",
@@ -2715,12 +2723,12 @@ class TestACPAgentAstep:
                         "content": None,
                     }
                 )
-                # Signal caller loop that we're holding inside the prompt
-                # so the cancel races deterministically.
+                # 我们将信号调用者循环保留在提示词内，因此取消可以确定地进行。
+                #
                 caller_loop.call_soon_threadsafe(prompt_entered.set)
-                # Block beyond the cancel-drain timeout so this test exercises
-                # the non-quiesced cancellation path that must synthesize
-                # failed ACP tool-call events.
+                # 阻止超出取消耗尽超时，因此此测试练习必须合成失败的 ACP 工具调用事件的
+                # 非静默取消路径。
+                #
                 released = await asyncio.to_thread(prompt_released.wait, 10.0)
                 assert released
                 return None
@@ -2769,14 +2777,12 @@ class TestACPAgentAstep:
         assert failed_tool_events[0].is_error is True
 
     def test_astep_finalizes_and_reraises_completed_cancelled_prompt(self, tmp_path):
-        """If a cancelled ACP prompt drains successfully, keep the completed turn.
+        """如果取消的 ACP 提示词成功耗尽，则保留已完成的回合。
 
-        The ACP server may finish the prompt while ``session/cancel`` is being
-        delivered. In that case the remote session has accepted the assistant
-        turn, so OpenHands must finalize the same turn locally instead of
-        discarding the response and later resuming from diverged session history.
-        The original cancellation still propagates so explicit user stop intent
-        wins at the conversation layer.
+        ACP服务器可以在传送``session/cancel``的同时完成提示词。 在这种情况下，远程会
+        话已经接受了助理的会话，所以OpenHands必须本地完成
+        相同的会话，而不是丢弃响应并稍后从分叉的会话历史中恢复。 原始的取消仍然在对话
+        层传播如此明确的用户停止意图。
         """
         from acp.schema import AgentMessageChunk, TextContentBlock
 
@@ -2829,9 +2835,9 @@ class TestACPAgentAstep:
                     autospec=True,
                     side_effect=lambda _agent: threading.Event().wait(0.05),
                 ),
-                # Must exceed the 0.05s credential-sync delay above: with
-                # 0.01s the drain window expires before the released prompt
-                # can complete on loaded runners, flaking to `idle`.
+                # 必须超过0.05秒的延迟凭据-同步：在0.01秒时，加载的运行器的释放窗口在提
+                # 示词完成之前就到期了，导致 `idle`。
+                #
                 patch.object(acp_agent_module, "_ACP_CANCEL_DRAIN_TIMEOUT", 5.0),
             ):
                 task = asyncio.create_task(
@@ -2861,7 +2867,7 @@ class TestACPAgentAstep:
         assert agent._restart_session_on_next_turn is False
 
     def test_astep_cancelled_prompt_error_pauses_without_turn_error(self, tmp_path):
-        """Explicit cancellation should not emit stale prompt errors."""
+        """显式取消不应发出过时的提示词错误。"""
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
         agent = _make_agent()
@@ -2924,7 +2930,7 @@ class TestACPAgentAstep:
         assert agent._restart_session_on_next_turn is True
 
     def test_astep_double_cancel_during_drain_restarts_next_turn(self, tmp_path):
-        """A second cancellation during drain should quarantine the live prompt."""
+        """排水期间的第二个取消应隔离活体提示词。"""
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
         agent = _make_agent()
@@ -2985,7 +2991,7 @@ class TestACPAgentAstep:
         assert agent._restart_session_on_next_turn is True
 
     def test_astep_double_cancel_during_cancel_send_restarts_next_turn(self, tmp_path):
-        """A second cancellation during session/cancel should quarantine prompt."""
+        """会话/取消期间的第二个取消应隔离提示词。"""
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
         agent = _make_agent()
@@ -3040,7 +3046,7 @@ class TestACPAgentAstep:
         assert agent._restart_session_on_next_turn is True
 
     def test_cleanup_interruption_finalizes_completed_prompt(self, tmp_path):
-        """A completed prompt should be finalized if cleanup is cancelled."""
+        """如果取消清理，则应完成已完成的提示词。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         mock_client = _OpenHandsACPBridge()
@@ -3115,14 +3121,12 @@ class TestACPAgentAstep:
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_astep_cancellation_does_not_mark_suffix_installed(self, tmp_path):
-        """Cancellation before a turn completes must leave
-        ``_suffix_install_state`` as ``pending_first_prompt``.
+        """取消回合结束前必须离开
+        ``_suffix_install_state`` 为 ``pending_first_prompt``。
 
-        Otherwise the local state would say "installed" while the ACP
-        server never received the suffix (the cancel landed before the
-        portal task could persist it), and the next turn would skip
-        re-injection.  Mirrors the ``_build_acp_prompt`` contract that
-        the install state is only committed via
+        否则本地状态会说“已安装”，而 ACP 服务器从未收到后缀（取消在门户任务之前就持久
+        化了），下一回合会跳过重新注入。 镜像
+        ``_build_acp_prompt`` 合约，安装状态仅通过以下方式提交
         ``_finalize_successful_turn`` → ``_commit_suffix_installation``.
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
@@ -3182,30 +3186,29 @@ class TestACPAgentAstep:
         finally:
             executor.close()
 
-        # Cancellation hit before _finalize_successful_turn ran, so the
-        # suffix install state must remain pending — a subsequent turn
-        # will re-inject the suffix.
+        # 取消在 _finalize_successful_turn 运行之前命中，因此后缀安装状态必须保持待定状
+        # 态 - 后续回合将重新注入后缀。
+        #
         assert agent._suffix_install_state == "pending_first_prompt", (
             f"suffix install state was prematurely flipped to "
             f"{agent._suffix_install_state!r} — next turn would skip suffix"
         )
-        # ``acp_suffix_installed`` must also not be persisted into
-        # ``agent_state``: otherwise a process restart between this
-        # cancelled turn and the next would read the marker and skip
-        # re-injection (issue #3359 review thread 7).
+        # ``acp_suffix_installed`` 也不得被已持久化纳入
+        # ``agent_state``：否则，在该取消的回合和下一个回合之间重新启动流程将读取标记并
+        # 跳过重新注入（问题＃3359评论线程 7）。
+        #
         assert conversation.state.agent_state.get("acp_suffix_installed") is not True, (
             "acp_suffix_installed was persisted despite cancellation — "
             "a process restart would skip suffix re-injection"
         )
 
     def test_astep_does_not_deadlock_under_reentrant_state_lock(self, tmp_path):
-        """End-to-end shape of the #3348 bug.
+        """#3348 bug 的端到端形状。
 
-        Covers direct callers that hold ``state.lock`` on the loop thread
-        across ``await astep(...)`` while a post-prompt callback
-        re-acquires it. With astep overridden, the callback runs on the
-        same thread as the lock owner — FIFOLock's reentrancy lets it
-        through. Without the override, this hangs.
+        涵盖直接拨打者 ``state.lock`` 在循环中线程 across ``await astep(...)`` 在发布
+        提示词回调重新获得它。 在重写步骤
+        之后，的回调运行在同一个平台上线程 as the 锁 owner — FIFOLock's 可重入性通过
+        它。 如果没有覆盖，这个就会挂起。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -3229,7 +3232,7 @@ class TestACPAgentAstep:
         try:
             agent._executor = executor
 
-            # stats_callback-shaped re-entry: take the state lock briefly
+            # stats_callback形重入：简单取状态锁
             # from each event callback.  Same-thread reentry must succeed.
             def _capture_event(event):
                 with state:
@@ -3252,20 +3255,19 @@ class TestACPAgentAstep:
 
 
 # ---------------------------------------------------------------------------
-# Cleanup
+# 清理
 # ---------------------------------------------------------------------------
 
 
 def _own_finalize_calls(finalize_mock, agent) -> list:
-    """Calls to an autospec'd ACPAgent._finalize made by *agent* itself.
+    """由 *智能体* 本身调用 autospec'd ACPAgent._finalize。
 
-    ``_finalize`` must be patched on the class (ACPAgent is a frozen pydantic
-    model, so the instance attribute cannot be replaced), which means the mock
-    also records calls from *other* agents. Unrelated tests leave agents
-    holding MagicMock executors/connections; when one of those is collected,
-    ``__del__`` calls ``_finalize`` on it, and with a plain class patch that
-    lands on this mock at an unpredictable point in the run. ``autospec=True``
-    records ``self``, so the caller can count only its own.
+    ``_finalize`` 必须在类中进行修补ACPAgent 是一个冻结的 Pydantic 模型，因此实例属性
+    不能被替换，这意味着模拟对象也记录了来电 *其他*
+      智能体。 无关的测试留下智能体 holding MagicMock 执行器/连接当其中之一被收集时，
+    ``__del__`` 在其上调用 ``_finalize``，并使用一个普通的类补丁在运行中不可预测的点
+    落在此模拟对象上。 ``autospec=True``记录
+    ``self``，因此调用者只能计算自己的。
     """
     return [c for c in finalize_mock.call_args_list if c.args[:1] == (agent,)]
 
@@ -3484,9 +3486,9 @@ class TestACPAgentCleanup:
         agent._conn = None
 
         agent.close()
-        agent.close()  # Second call should be a no-op
+        agent.close()  # 第二次调用应该是空操作
 
-        # terminate/kill should only be called once
+        # 终止/终止只能调用一次
         mock_process.terminate.assert_called_once()
 
     def test_close_closes_executor(self):
@@ -3509,7 +3511,7 @@ class TestACPAgentCleanup:
         agent._executor = MagicMock()
         agent._conn = None
 
-        # Should not raise
+        # 不应该提高
         agent.close()
 
     def test_failed_credential_close_can_be_retried(self):
@@ -3675,7 +3677,7 @@ class TestFilterJsonrpcLines:
         result = await dest.readline()
         assert b'"jsonrpc"' in result
 
-        # Should get EOF next (non-JSON lines were filtered)
+        # 应该获取 EOF 下一个（过滤掉了非 JSON 行）
         result2 = await dest.readline()
         assert result2 == b""
 
@@ -3703,9 +3705,9 @@ class TestFilterJsonrpcLines:
         assert "ACP stderr: codex-acp diagnostic" in caplog.text
 
     def test_shutdown_cancels_stdout_and_stderr_drain_tasks(self):
-        """The stdout-filter and stderr-log tasks aren't referenced anywhere
+        """stdout-filter 和 stderr-log 任务未在任何地方引用
         else once started; _shutdown_runtime must cancel and clear them so
-        nothing keeps draining a closed subprocess's pipes indefinitely.
+        没有任何东西会无限期地耗尽关闭的子进程的管道。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -3716,9 +3718,9 @@ class TestFilterJsonrpcLines:
             await asyncio.sleep(3600)
 
         async def _spawn_task():
-            # Mirrors how _init() schedules the real drain tasks: via
-            # asyncio.get_event_loop().create_task() from inside a coroutine
-            # already running on the executor's portal loop.
+            # 镜像 _init() 如何安排真正的排出任务：通过 asyncio.get_event_loop().
+            # create_task() 从已经在执行器的门户循环上运行的协程内部。
+            #
             return asyncio.get_event_loop().create_task(_never_ending())
 
         stdout_task = agent._executor.run_async(_spawn_task)
@@ -3740,7 +3742,7 @@ class TestFilterJsonrpcLines:
         source = asyncio.StreamReader()
         dest = asyncio.StreamReader()
 
-        # Pretty-printed JSON starts with { but doesn't contain "jsonrpc"
+        # 漂亮打印的 JSON 以 { 开头，但不包含“jsonrpc”
         source.feed_data(b"{\n")
         source.feed_data(b'  "type": "message"\n')
         source.feed_data(b"}\n")
@@ -3748,19 +3750,19 @@ class TestFilterJsonrpcLines:
 
         await _filter_jsonrpc_lines(source, dest)
 
-        # Should only get EOF
+        # 应该只得到EOF
         result = await dest.readline()
         assert result == b""
 
 
 # ---------------------------------------------------------------------------
-# Telemetry
+# 遥测
 # ---------------------------------------------------------------------------
 
 
 class TestACPAgentTelemetry:
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
-        """Create a mock conversation with a user message."""
+        """使用用户消息创建模拟对象对话。"""
         state = _make_state(tmp_path)
         state.events.append(
             SystemPromptEvent(
@@ -3781,7 +3783,7 @@ class TestACPAgentTelemetry:
         return conversation
 
     def test_get_all_llms_yields_sentinel(self):
-        """get_all_llms() yields the sentinel LLM for telemetry."""
+        """get_all_llms() 产生用于遥测的哨兵值 LLM。"""
         agent = _make_agent()
         llms = list(agent.get_all_llms())
         assert len(llms) == 1
@@ -3789,7 +3791,7 @@ class TestACPAgentTelemetry:
         assert llms[0].model == "acp-managed"
 
     def _make_step_fixtures(self, tmp_path, agent=None, usage=None, cost=None):
-        """Set up agent + client + executor for step() telemetry tests."""
+        """为 step() 遥测测试设置智能体 + 客户端 + 执行器。"""
         if agent is None:
             agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
@@ -3832,7 +3834,7 @@ class TestACPAgentTelemetry:
         return agent, conversation
 
     def test_step_records_token_usage(self, tmp_path):
-        """step() records per-turn token usage from PromptResponse.usage."""
+        """step() 从 PromptResponse.usage 记录每回合词元用量。"""
         agent, conversation = self._make_step_fixtures(
             tmp_path,
             usage={
@@ -3858,7 +3860,7 @@ class TestACPAgentTelemetry:
         assert usage.context_window == 200000
 
     def test_step_handles_no_usage(self, tmp_path):
-        """step() handles PromptResponse with no usage gracefully."""
+        """step() 优雅地处理没有使用的 PromptResponse。"""
         agent, conversation = self._make_step_fixtures(tmp_path)
 
         agent.step(conversation, on_event=lambda _: None)
@@ -3866,7 +3868,7 @@ class TestACPAgentTelemetry:
         assert len(agent.llm.metrics.token_usages) == 0
 
     def test_step_records_cost_from_usage_update(self, tmp_path):
-        """step() records cost from UsageUpdate in the single telemetry path."""
+        """step() 记录单个遥测路径中 UsageUpdate 的成本。"""
         agent, conversation = self._make_step_fixtures(
             tmp_path,
             usage={"input": 100, "output": 50},
@@ -3880,7 +3882,7 @@ class TestACPAgentTelemetry:
         assert agent._client._last_cost == pytest.approx(0.05)
 
     def test_step_records_incremental_cost(self, tmp_path):
-        """Cost tracking is incremental across turns."""
+        """成本跟踪是跨回合递增的。"""
         agent = _make_agent()
 
         _, conversation1 = self._make_step_fixtures(
@@ -3903,7 +3905,7 @@ class TestACPAgentTelemetry:
         assert len(agent.llm.metrics.costs) == 2
 
     def test_step_no_cost_when_usage_update_missing(self, tmp_path):
-        """No cost is recorded when PromptResponse arrives without UsageUpdate."""
+        """当 PromptResponse 到达但没有 UsageUpdate 时，不记录任何成本。"""
         agent, conversation = self._make_step_fixtures(
             tmp_path,
             usage={"input": 100, "output": 50},
@@ -3917,16 +3919,16 @@ class TestACPAgentTelemetry:
         assert len(agent.llm.metrics.token_usages) == 1
 
     def test_step_records_partial_metrics_on_usage_timeout(self, tmp_path, caplog):
-        """Timeout waiting for UsageUpdate logs warning but records token metrics."""
+        """超时等待 UsageUpdate 记录警告，但记录 token 指标。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
 
         mock_client = _OpenHandsACPBridge()
         agent._client = mock_client
         agent._conn = MagicMock()
-        # A bearer-secret-looking id so the log-hygiene assertion below is
-        # meaningful: the timeout warning must fingerprint it to ``...<last-8>``,
-        # never emit the full id.
+        # 一个持有者-机密-看起来的id，所以下面的日志卫生断言是
+        # 有意义：超时警告必须将其指纹识别为 ``...<last-8>``，
+        # 永远不要发出完整的 ID。
         agent._session_id = "sk-resume-secret-DEADBEEF"
 
         mock_usage = MagicMock()
@@ -3965,7 +3967,7 @@ class TestACPAgentTelemetry:
             agent.step(conversation, on_event=lambda _: None)
 
         assert "UsageUpdate not received within 2.0s" in caplog.text
-        # Bearer session id is fingerprinted, not leaked, in the timeout warning.
+        # 在超时警告中，承载会话 ID 已被指纹识别，并未泄露。
         assert "sk-resume-secret-DEADBEEF" not in caplog.text
         assert "...DEADBEEF" in caplog.text
         assert len(agent.llm.metrics.token_usages) == 1
@@ -3973,7 +3975,7 @@ class TestACPAgentTelemetry:
         assert agent.llm.metrics.accumulated_cost == 0.0
 
     def test_step_records_latency(self, tmp_path):
-        """step() records response latency in the single telemetry path."""
+        """step() 记录单个遥测路径中的响应延迟。"""
         agent, conversation = self._make_step_fixtures(tmp_path)
 
         agent.step(conversation, on_event=lambda _: None)
@@ -3983,7 +3985,7 @@ class TestACPAgentTelemetry:
 
     @pytest.mark.asyncio
     async def test_session_update_stores_usage_update(self):
-        """session_update() stores UsageUpdate for step() to process later."""
+        """session_update() 存储 UsageUpdate 供 step() 稍后处理。"""
         from acp.schema import UsageUpdate
 
         client = _OpenHandsACPBridge()
@@ -4003,7 +4005,7 @@ class TestACPAgentTelemetry:
 
     @pytest.mark.asyncio
     async def test_usage_update_updates_context_window(self):
-        """UsageUpdate.size updates the client's _context_window."""
+        """UsageUpdate.size 更新客户端的 _context_window。"""
         from acp.schema import UsageUpdate
 
         client = _OpenHandsACPBridge()
@@ -4018,7 +4020,7 @@ class TestACPAgentTelemetry:
         assert client._context_window_by_session["sess-1"] == 200000
 
     def test_stats_callback_invoked(self, tmp_path):
-        """After step(), the sentinel LLM's stats callback is invoked."""
+        """step() 之后，哨兵值 LLM 的统计信息回调被调用。"""
         agent, conversation = self._make_step_fixtures(tmp_path)
 
         callback = MagicMock()
@@ -4029,7 +4031,7 @@ class TestACPAgentTelemetry:
         callback.assert_called_once()
 
     def test_init_state_sets_bridge_client(self, tmp_path):
-        """init_state() keeps the bridge instance installed by _start_acp_server."""
+        """init_state() 保留 _start_acp_server 安装的网桥实例。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         expected_client = _OpenHandsACPBridge()
@@ -4047,7 +4049,7 @@ class TestACPAgentTelemetry:
         assert agent._client is expected_client
 
     def test_reset_preserves_telemetry_state(self):
-        """reset() clears per-turn buffers but preserves cumulative telemetry."""
+        """reset() 清除每轮缓冲区，但保留累积遥测数据。"""
         client = _OpenHandsACPBridge()
         client._last_cost = 1.23
         client._last_cost_by_session["sess-1"] = 1.23
@@ -4071,16 +4073,16 @@ class TestACPAgentTelemetry:
 
 
 # ---------------------------------------------------------------------------
-# Tool call accumulation and emission
+# 工具调用积累与排放
 # ---------------------------------------------------------------------------
 
 
 class TestACPToolCallAccumulation:
-    """Tests for ToolCallStart/ToolCallProgress accumulation in the bridge."""
+    """测试桥中的 ToolCallStart/ToolCallProgress 累积情况。"""
 
     @pytest.mark.asyncio
     async def test_session_update_accumulates_tool_call_start(self):
-        """ToolCallStart creates an entry in accumulated_tool_calls."""
+        """ToolCallStart 在 accumulated_tool_calls 中创建一个条目。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -4108,12 +4110,12 @@ class TestACPToolCallAccumulation:
 
     @pytest.mark.asyncio
     async def test_session_update_merges_tool_call_progress(self):
-        """ToolCallProgress merges updates into the existing tool call entry."""
+        """ToolCallProgress 将更新合并到现有的工具调用条目中。"""
         from acp.schema import ToolCallProgress, ToolCallStart
 
         client = _OpenHandsACPBridge()
 
-        # Start
+        # 开始
         start = MagicMock(spec=ToolCallStart)
         start.tool_call_id = "tc-2"
         start.title = "Execute command"
@@ -4125,13 +4127,13 @@ class TestACPToolCallAccumulation:
 
         await client.session_update("sess-1", start)
 
-        # Progress
+        # 进展
         progress = MagicMock(spec=ToolCallProgress)
         progress.tool_call_id = "tc-2"
-        progress.title = None  # not updated
-        progress.kind = None  # not updated
+        progress.title = None  # 未更新
+        progress.kind = None  # 未更新
         progress.status = "completed"
-        progress.raw_input = None  # not updated
+        progress.raw_input = None  # 未更新
         progress.raw_output = "file1.py\nfile2.py"
         progress.content = None
 
@@ -4139,14 +4141,14 @@ class TestACPToolCallAccumulation:
 
         assert len(client.accumulated_tool_calls) == 1
         tc = client.accumulated_tool_calls[0]
-        assert tc["title"] == "Execute command"  # unchanged
-        assert tc["tool_kind"] == "execute"  # unchanged
-        assert tc["status"] == "completed"  # updated
-        assert tc["raw_output"] == "file1.py\nfile2.py"  # updated
+        assert tc["title"] == "Execute command"  # 不变
+        assert tc["tool_kind"] == "execute"  # 不变
+        assert tc["status"] == "completed"  # 已更新
+        assert tc["raw_output"] == "file1.py\nfile2.py"  # 已更新
 
     @pytest.mark.asyncio
     async def test_multiple_tool_calls_accumulated(self):
-        """Multiple ToolCallStart events create separate entries."""
+        """多个 ToolCallStart 事件创建单独的条目。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -4170,7 +4172,7 @@ class TestACPToolCallAccumulation:
         ]
 
     def test_reset_clears_accumulated_tool_calls(self):
-        """reset() clears accumulated_tool_calls."""
+        """reset() 清除 accumulated_tool_calls。"""
         client = _OpenHandsACPBridge()
         client.accumulated_tool_calls.append(
             {
@@ -4189,16 +4191,16 @@ class TestACPToolCallAccumulation:
 
 
 class TestACPToolCallLiveEmission:
-    """Tests that ``session_update`` fires ``on_event`` live (not batched).
+    """测试 ``session_update`` 实时触发 ``on_event``（未批量）。
 
-    Closes OpenHands/software-agent-sdk#2866: tool-call events must reach
-    ``on_event`` as each ACP notification arrives, so the event stream
-    reflects real subprocess progress instead of a single end-of-turn burst.
+    关闭 OpenHands/software-智能体-SDK#2866: 工具调用事件必须到达
+    ``on_event`` 随着每个 ACP 通知到达，因此事件流反映真实的子进程进度，而不是单个回
+    合结束突发。
     """
 
     @pytest.mark.asyncio
     async def test_session_update_fires_on_event_live(self):
-        """Each ToolCallStart/Progress triggers an immediate on_event call."""
+        """每个 ToolCallStart/Progress 都会立即触发 on_event 调用。"""
         from acp.schema import ToolCallProgress, ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -4215,7 +4217,7 @@ class TestACPToolCallLiveEmission:
         start.content = None
         await client.session_update("sess", start)
 
-        # on_event fires synchronously — event already present, not batched.
+        # on_event 同步触发 - 事件已存在，未批量处理。
         assert len(events) == 1
         assert isinstance(events[0], ACPToolCallEvent)
         assert events[0].tool_call_id == "tc-1"
@@ -4232,7 +4234,7 @@ class TestACPToolCallLiveEmission:
         progress.content = None
         await client.session_update("sess", progress)
 
-        # Same tool_call_id, evolving status/raw_output — consumer dedupes.
+        # 相同的 tool_call_id，不断变化的状态/raw_output — 消费者重复数据删除。
         assert len(events) == 2
         assert events[1].tool_call_id == "tc-1"
         assert events[1].status == "completed"
@@ -4241,13 +4243,12 @@ class TestACPToolCallLiveEmission:
 
     @pytest.mark.asyncio
     async def test_session_update_preserves_interleaved_order(self):
-        """Tool-call and text-chunk updates reach callbacks in arrival order.
+        """工具调用和文本块更新按到达顺序到达回调。
 
-        The bridge emits on_event synchronously from session_update, so the
-        order consumers see is exactly the order the ACP subprocess sent them.
-        Text/thought chunks are routed to on_token rather than on_event, but
-        the *combined* callback stream must stay in arrival order so that
-        consumers can rebuild a coherent trace.
+        桥发出 on_event 同步地 session_update因此，消费者看到的订单与的订单完全一致
+        ACP  子进程他们被发送了。 文本/想法块被路由到
+        on_token rather than on_event，但是…… *combined*  回调流必须保持到达顺序，以
+        便消费者可以重建一个连贯的跟踪。
         """
         from acp.schema import (
             AgentMessageChunk,
@@ -4258,7 +4259,7 @@ class TestACPToolCallLiveEmission:
         )
 
         client = _OpenHandsACPBridge()
-        # Single timeline of callback arrivals, tagged by source.
+        # 回调个到达者的单一时间线，按来源标记。
         observed: list[tuple[str, Any]] = []
         client.on_event = lambda e: observed.append(("event", e))
         client.on_token = lambda t: observed.append(("token", t))
@@ -4309,15 +4310,16 @@ class TestACPToolCallLiveEmission:
         for update in sequence:
             await client.session_update("sess", update)
 
-        # Thought chunks don't fire a callback today — filter to the callback
-        # kinds we drove and confirm arrival order matches the driven sequence.
+        # 思想块今天不会触发回调 - 过滤到我们驱动的回调类型并确认到达顺序与驱动序列匹配
+        # 。
+        #
         expected_stream = [
-            "event",  # tc-a start
-            "token",  # text chunk
-            "event",  # tc-a progress
-            "event",  # tc-b start
-            "token",  # text chunk
-            "event",  # tc-b progress
+            "event",  # tc-a 开始
+            "token",  # 文本块
+            "event",  # TC-a 进展
+            "event",  # tc-b 开始
+            "token",  # 文本块
+            "event",  # tc-b 进展
         ]
         assert [kind for kind, _ in observed] == expected_stream
         tool_events = [payload for kind, payload in observed if kind == "event"]
@@ -4336,7 +4338,7 @@ class TestACPToolCallLiveEmission:
 
     @pytest.mark.asyncio
     async def test_session_update_no_on_event_when_unset(self):
-        """When on_event is None (no active step), session_update is a no-op emit."""
+        """当 on_event 为 None（无活动步骤）时，session_update 为无操作发射。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -4351,14 +4353,14 @@ class TestACPToolCallLiveEmission:
         start.raw_output = None
         start.content = None
 
-        # Must not raise
+        # 不得提高
         await client.session_update("sess", start)
-        # Still accumulated so step() can reference it if needed.
+        # 仍在积累，因此 step() 可以在需要时引用它。
         assert len(client.accumulated_tool_calls) == 1
 
     @pytest.mark.asyncio
     async def test_on_event_errors_are_swallowed(self):
-        """A raising on_event must not break the session_update pipeline."""
+        """提升 on_event 不得破坏 session_update 管道。"""
         from acp.schema import ToolCallStart
 
         client = _OpenHandsACPBridge()
@@ -4373,11 +4375,11 @@ class TestACPToolCallLiveEmission:
         start.raw_output = None
         start.content = None
 
-        await client.session_update("sess", start)  # must not raise
+        await client.session_update("sess", start)  # 不得提高
         client.on_event.assert_called_once()
 
     def test_reset_clears_on_event(self):
-        """reset() clears on_event so the next step wires a fresh callback."""
+        """reset() 清除 on_event，因此下一步会连接新的回调。"""
         client = _OpenHandsACPBridge()
         client.on_event = lambda _: None
         client.reset()
@@ -4385,13 +4387,12 @@ class TestACPToolCallLiveEmission:
 
 
 class TestACPCancelInflightToolCalls:
-    """Tests for _cancel_inflight_tool_calls — ensures ghost tool cards are
-    closed on retry / abort so the live-emission stream cannot leave an
-    orphaned pending event on ``state.events``.
+    """测试 _cancel_inflight_tool_calls — 确保幽灵工具卡
+    在重试上关闭/中止，因此实时发射流不能在 ``state.events`` 上留下孤立的待处理事件。
 
-    Raised in PR review on #2866: ACP servers mint fresh ``tool_call_id``s
-    when the prompt is retried, so any pending event already fired for the
-    failed attempt would otherwise spin forever under dedup-by-id consumers.
+    在 PR 评论中，ACP 服务器在提示词重试时会重新生成 ``tool_call_id``，因此，对于失败
+    尝试中已经触发的任何待处理事件，否则在 dedup-by-
+    id 消费者中会无限期地循环。
     """
 
     @staticmethod
@@ -4411,7 +4412,7 @@ class TestACPCancelInflightToolCalls:
         )
 
     def test_emits_failed_event_for_pending_entries(self, tmp_path):
-        """Pending / in_progress entries get a terminal failed ACPToolCallEvent."""
+        """待办/ in_progress 获取条目失败 ACPToolCallEvent."""
         agent = _make_agent()
         agent._client = _OpenHandsACPBridge()
         emitted: list = []
@@ -4427,7 +4428,7 @@ class TestACPCancelInflightToolCalls:
         assert all(e.status == "failed" and e.is_error for e in emitted)
 
     def test_skips_already_terminal_entries(self, tmp_path):
-        """completed / failed entries are left alone — they already closed."""
+        """已完成/失败的条目将被保留 - 它们已经关闭。"""
         agent = _make_agent()
         agent._client = _OpenHandsACPBridge()
         emitted: list = []
@@ -4438,11 +4439,11 @@ class TestACPCancelInflightToolCalls:
 
         agent._cancel_inflight_tool_calls()
 
-        # Only the pending one gets a synthetic terminal event.
+        # 只有待处理的事件才会获得合成终端事件。
         assert [e.tool_call_id for e in emitted] == ["tc-live"]
 
     def test_callback_errors_are_swallowed(self):
-        """A raising on_event during cancellation must not break the retry path."""
+        """在取消期间加注 on_event 不得破坏重试路径。"""
         agent = _make_agent()
         agent._client = _OpenHandsACPBridge()
         self._push_entry(agent._client, "tc-1", "pending")
@@ -4455,22 +4456,22 @@ class TestACPCancelInflightToolCalls:
             raise RuntimeError("boom")
 
         agent._client.on_event = flaky
-        agent._cancel_inflight_tool_calls()  # must not raise
-        # Both entries still attempted even though the first raised.
+        agent._cancel_inflight_tool_calls()  # 不得提高
+        # 尽管第一个条目提出了，但两个条目仍然尝试。
         assert len(seen) == 2
 
     def test_noop_when_on_event_unset(self):
-        """If no on_event is wired, cancellation quietly does nothing."""
+        """如果没有连接 on_event，取消则不执行任何操作。"""
         agent = _make_agent()
         agent._client = _OpenHandsACPBridge()
         self._push_entry(agent._client, "tc-1", "pending")
 
-        # on_event default is None — must not raise, must not iterate
+        # on_event 默认为 None — 不得引发，不得迭代
         assert agent._client.on_event is None
         agent._cancel_inflight_tool_calls()
 
     def test_retry_cancels_pending_events_before_reset(self, tmp_path):
-        """Full step() retry path closes pending cards before the new attempt."""
+        """完整的 step() 重试路径会在新尝试之前关闭待处理的卡。"""
         from acp.schema import ToolCallStart
 
         agent = _make_agent()
@@ -4503,7 +4504,7 @@ class TestACPCancelInflightToolCalls:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                # First attempt: stream a pending tool call, then fail
+                # 第一次尝试：流式传输待处理的工具调用，然后失败
                 start = MagicMock(spec=ToolCallStart)
                 start.tool_call_id = "toolu_AAA"
                 start.title = "Read file"
@@ -4514,7 +4515,7 @@ class TestACPCancelInflightToolCalls:
                 start.content = None
                 asyncio.run(mock_client.session_update("sess", start))
                 raise ConnectionError("reset by peer")
-            # Retry: fresh tool call id reaches terminal state
+            # 重试：新的工具调用 id 达到最终状态
             start = MagicMock(spec=ToolCallStart)
             start.tool_call_id = "toolu_BBB"
             start.title = "Read file"
@@ -4536,24 +4537,24 @@ class TestACPCancelInflightToolCalls:
 
         assert call_count == 2
         tool_events = [e for e in events if isinstance(e, ACPToolCallEvent)]
-        # Expected sequence:
-        #   toolu_AAA(pending)  — live-emitted during attempt 1
-        #   toolu_AAA(failed)   — synthetic cancellation before retry reset
-        #   toolu_BBB(completed) — attempt 2
+        # 预期顺序：
+        # toolu_AAA（待定）— 尝试 1 期间实时发射 toolu_AAA（失败）— 在重试重置之前合成取
+        # 消 toolu_BBB（已完成）— 尝试 2
+        #
         by_id: dict[str, list[ACPToolCallEvent]] = {}
         for e in tool_events:
             by_id.setdefault(e.tool_call_id, []).append(e)
 
         assert "toolu_AAA" in by_id
         aaa_events = by_id["toolu_AAA"]
-        # Must end in a terminal status so consumer dedupe-by-id closes the card.
+        # 必须以终端状态结束，以便消费者按 ID 重复数据删除关闭卡。
         assert aaa_events[-1].status == "failed"
         assert aaa_events[-1].is_error is True
 
         assert "toolu_BBB" in by_id
         assert by_id["toolu_BBB"][-1].status == "completed"
 
-        # The toolu_AAA cancellation comes before any toolu_BBB event.
+        # toolu_AAA 取消出现在任何 toolu_BBB 事件之前。
         aaa_idx = max(
             i for i, e in enumerate(tool_events) if e.tool_call_id == "toolu_AAA"
         )
@@ -4564,10 +4565,10 @@ class TestACPCancelInflightToolCalls:
 
 
 class TestACPToolCallEmission:
-    """Tests for ACPToolCallEvent emission in step()."""
+    """测试 for ACPToolCallEvent 排放 step()."""
 
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
-        """Create a mock conversation with a user message."""
+        """使用用户消息创建模拟对象对话。"""
         state = _make_state(tmp_path)
         state.events.append(
             SystemPromptEvent(
@@ -4588,7 +4589,7 @@ class TestACPToolCallEmission:
         return conversation
 
     def test_step_emits_tool_call_events_before_message(self, tmp_path):
-        """Tool-call events reach on_event live, ahead of the MessageEvent."""
+        """工具调用事件先于 MessageEvent 实时到达 on_event。"""
         from acp.schema import ToolCallStart
 
         agent = _make_agent()
@@ -4601,9 +4602,9 @@ class TestACPToolCallEmission:
         agent._session_id = "test-session"
 
         def _fake_run_async(_coro, **_kwargs):
-            # Simulate the ACP subprocess streaming two tool-call notifications
-            # during prompt(). session_update fires on_event synchronously,
-            # so these events appear before run_async returns.
+            # 在 prompt() 期间模拟 ACP 子进程流式传输两个工具调用通知。 session_update
+            # 同步触发 on_event，因此这些事件在 run_async 返回之前出现。
+            #
             for tool_call_id, title, kind, status, raw_input, raw_output in [
                 (
                     "tc-1",
@@ -4632,13 +4633,13 @@ class TestACPToolCallEmission:
 
         agent.step(conversation, on_event=events.append)
 
-        # Should be: 2 tool call events (live) + finish action + finish observation
+        # 应该是：2 工具调用个事件（实时）+ 完成动作 + 完成观测结果
         assert len(events) == 4
         assert isinstance(events[0], ACPToolCallEvent)
         assert isinstance(events[1], ACPToolCallEvent)
         assert isinstance(events[2], ActionEvent)
 
-        # Verify first tool call event
+        # 验证第一个工具调用事件
         assert events[0].tool_call_id == "tc-1"
         assert events[0].title == "Read file"
         assert events[0].tool_kind == "read"
@@ -4647,18 +4648,18 @@ class TestACPToolCallEmission:
         assert events[0].raw_output == "content"
         assert events[0].is_error is False
 
-        # Verify second tool call event (failed)
+        # 验证第二个工具调用事件（失败）
         assert events[1].tool_call_id == "tc-2"
         assert events[1].is_error is True
 
     def test_step_clears_live_callbacks_on_return(self, tmp_path):
-        """After step() returns, bridge callbacks are unwired.
+        """step() 返回后，桥回调被断开。
 
-        A trailing ``session_update`` that lands between turns (the ACP
-        subprocess sending a late ``ToolCallProgress`` after its prompt
-        response) would otherwise fire the previous step's ``on_event``
-        on the portal thread with no FIFOLock held by anyone, racing
-        other threads appending to ``state.events``.
+        逗号 ``session_update`` 在转弯之间 ACP  子进程发送晚的 ``ToolCallProgress``
+        在它的提示词 response)
+         会触发之前的步骤 ``on_event`` 在门户上线程没有 FIFOLock 被任何人持有，进行竞
+         速线程 append ``state.events``
+        .
         """
         from acp.schema import ToolCallStart
 
@@ -4680,7 +4681,7 @@ class TestACPToolCallEmission:
 
         agent.step(conversation, on_event=events.append, on_token=lambda _: None)
 
-        # Callbacks unwired — a late session_update is a safe no-op emit.
+        # 回调未连线 — 迟到的 session_update 是安全的无操作发射。
         assert mock_client.on_event is None
         assert mock_client.on_token is None
         assert mock_client.on_activity is None
@@ -4695,10 +4696,10 @@ class TestACPToolCallEmission:
         trailing.raw_output = None
         trailing.content = None
         asyncio.run(mock_client.session_update("sess", trailing))
-        assert len(events) == pre_count  # nothing reached the stale callback
+        assert len(events) == pre_count  # 没有任何内容达到陈旧状态回调
 
     def test_step_clears_live_callbacks_on_error(self, tmp_path):
-        """Callback unwire also runs when step() raises (finally block)."""
+        """回调 unwire 也会在 step() 上升时运行（finally 阻塞）。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -4723,7 +4724,7 @@ class TestACPToolCallEmission:
         assert mock_client.on_activity is None
 
     def test_step_emits_no_tool_call_events_when_none(self, tmp_path):
-        """step() emits only MessageEvent when no tool calls accumulated."""
+        """当没有积累工具调用时，step() 仅发出 MessageEvent。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -4747,14 +4748,14 @@ class TestACPToolCallEmission:
         assert isinstance(events[0], ActionEvent)
 
     def test_tool_call_events_cleared_between_turns(self, tmp_path):
-        """accumulated_tool_calls are cleared on reset() between turns."""
+        """accumulated_tool_calls 在回合之间在 reset() 上被清除。"""
         agent = _make_agent()
         mock_client = _OpenHandsACPBridge()
         agent._client = mock_client
         agent._conn = MagicMock()
         agent._session_id = "test-session"
 
-        # Simulate first turn with tool calls
+        # 使用工具调用模拟第一回合
         mock_client.accumulated_tool_calls.append(
             {
                 "tool_call_id": "tc-old",
@@ -4770,19 +4771,19 @@ class TestACPToolCallEmission:
         events: list = []
 
         def _fake_run_async(_coro, **_kwargs):
-            # After reset, accumulated_tool_calls should be empty
-            # Only add text so step() succeeds
+            # 重置后，accumulated_tool_calls 应该为空仅添加文本，以便 step() 成功
+            #
             mock_client.accumulated_text.append("response")
 
         mock_executor = MagicMock()
         mock_executor.run_async = _fake_run_async
         agent._executor = mock_executor
 
-        # step() calls reset() which should clear old tool calls
+        # step() 调用 reset()，应清除旧的工具调用
         agent.step(conversation, on_event=events.append)
 
-        # Only the FinishAction + FinishObservation should appear —
-        # the old tool call was cleared by reset()
+        # 仅应出现 FinishAction + FinishObservation — 旧的工具调用已被 reset() 清除
+        #
         assert len(events) == 2
         assert isinstance(events[0], ActionEvent)
 
@@ -4794,14 +4795,14 @@ class TestACPToolCallEmission:
 
 class TestACPAgentAskAgent:
     def test_ask_agent_raises_if_not_initialized(self):
-        """ask_agent() raises RuntimeError when _conn is None."""
+        """当 _conn 为 None 时，ask_agent() 引发 RuntimeError。"""
         agent = _make_agent()
-        # _conn and _session_id are None by default
+        # _conn 和 _session_id 默认为 None
         with pytest.raises(RuntimeError, match="no ACP connection"):
             agent.ask_agent("What is 2+2?")
 
     def test_ask_agent_raises_if_session_id_missing(self):
-        """ask_agent() raises RuntimeError when _session_id is None."""
+        """当 _session_id 为 None 时，ask_agent() 引发 RuntimeError。"""
         agent = _make_agent()
         agent._conn = MagicMock()
         agent._session_id = None
@@ -4809,7 +4810,7 @@ class TestACPAgentAskAgent:
             agent.ask_agent("What is 2+2?")
 
     def test_ask_agent_forks_and_prompts(self):
-        """ask_agent() forks the session, prompts, and returns the response."""
+        """ask_agent() 分叉会话提示词，并返回响应。"""
         agent = _make_agent()
         mock_client = _OpenHandsACPBridge()
         agent._client = mock_client
@@ -4817,21 +4818,21 @@ class TestACPAgentAskAgent:
         agent._session_id = "main-session"
         agent._working_dir = "/workspace"
 
-        # Mock fork_session response
+        # 模拟对象 fork_session 回复
         mock_fork_response = MagicMock()
         mock_fork_response.session_id = "fork-session-123"
 
-        # Mock prompt response (no usage)
+        # 模拟对象提示词响应（无使用）
         mock_prompt_response = MagicMock()
         mock_prompt_response.usage = None
 
         async def _fake_prompt(*args, **kwargs):
-            # Simulate text arriving via session_update during prompt
+            # 模拟在提示词期间通过 session_update 到达的文本
             mock_client._fork_accumulated_text.extend(["Hello", " world"])
             return mock_prompt_response
 
         def _fake_run_async(coro_fn, **_kwargs):
-            """Simulate the async execution synchronously."""
+            """同步模拟异步执行。"""
             loop = asyncio.new_event_loop()
             try:
                 _agent_conn(agent).fork_session = AsyncMock(
@@ -4851,7 +4852,7 @@ class TestACPAgentAskAgent:
         assert result == "Hello world"
 
     def test_ask_agent_records_token_usage(self):
-        """ask_agent() records token usage from the PromptResponse."""
+        """ask_agent()记录PromptResponse中的词元用量。"""
         agent = _make_agent()
         mock_client = _OpenHandsACPBridge()
         mock_client._context_window = 200000
@@ -4905,7 +4906,7 @@ class TestACPAgentAskAgent:
         assert usage.context_window == 200000
 
     def test_ask_agent_cleans_up_fork_state(self):
-        """ask_agent() cleans up fork state even on success."""
+        """即使成功，ask_agent() 也会清除分叉状态。"""
         agent = _make_agent()
         mock_client = _OpenHandsACPBridge()
         agent._client = mock_client
@@ -4940,20 +4941,20 @@ class TestACPAgentAskAgent:
 
         agent.ask_agent("test")
 
-        # Fork state should be cleaned up
+        # 应该清理fork状态
         assert mock_client._fork_session_id is None
         assert mock_client._fork_accumulated_text == []
 
 
 # ---------------------------------------------------------------------------
-# Client fork text routing
+# 客户端分叉文本路由
 # ---------------------------------------------------------------------------
 
 
 class TestClientForkTextRouting:
     @pytest.mark.asyncio
     async def test_fork_text_routed_to_fork_accumulator(self):
-        """When _fork_session_id is set, matching text goes to fork accumulator."""
+        """当设置 _fork_session_id 时，匹配的文本将进入 fork 累加器。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
@@ -4967,12 +4968,12 @@ class TestClientForkTextRouting:
         await client.session_update("fork-sess", update)
 
         assert client._fork_accumulated_text == ["fork response"]
-        # Main accumulator should be empty
+        # 主蓄能器应为空
         assert client.accumulated_text == []
 
     @pytest.mark.asyncio
     async def test_main_text_unaffected_by_active_fork(self):
-        """Main session text routes to accumulated_text even when fork is active."""
+        """即使分叉处于活动状态，主会话文本也会路由到 accumulated_text。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
@@ -4990,7 +4991,7 @@ class TestClientForkTextRouting:
 
     @pytest.mark.asyncio
     async def test_no_fork_normal_routing(self):
-        """When _fork_session_id is None, all text goes to main accumulator."""
+        """当_fork_session_id为None时，所有文本都进入主累加器。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
@@ -5007,7 +5008,7 @@ class TestClientForkTextRouting:
 
 
 # ---------------------------------------------------------------------------
-# acp_session_mode field
+# acp_session_mode 字段
 # ---------------------------------------------------------------------------
 
 
@@ -5022,7 +5023,7 @@ _CHATGPT_AUTH_JSON = (
 
 
 class TestSelectAuthMethod:
-    """Test auto-detection of ACP auth method from env vars."""
+    """测试环境变量中 ACP auth 方法的自动检测。"""
 
     @staticmethod
     def _make_auth_method(method_id: str) -> MagicMock:
@@ -5041,7 +5042,7 @@ class TestSelectAuthMethod:
         assert _select_auth_method(methods, env) == "api-key"
 
     def test_chatgpt_preferred_over_api_key(self, tmp_path):
-        """ChatGPT subscription login takes precedence over API keys."""
+        """ChatGPT 订阅登录优先于 API 键。"""
         methods = [
             self._make_auth_method("chat-gpt"),
             self._make_auth_method("api-key"),
@@ -5055,7 +5056,7 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "chat-gpt"
 
     def test_api_key_fallback_when_no_chatgpt_file(self, tmp_path):
-        """Falls back to API key when chatgpt is offered but auth file absent."""
+        """当提供 chatgpt 但缺少验证文件时，返回到 API 键。"""
         methods = [
             self._make_auth_method("chat-gpt"),
             self._make_auth_method("api-key"),
@@ -5115,8 +5116,8 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, {}) == "chat-gpt"
 
     def test_gemini_oauth_personal_when_creds_file_present(self, tmp_path):
-        """gemini-cli's OAuth login is selected when ~/.gemini/oauth_creds.json
-        exists, with no GEMINI_API_KEY needed."""
+        """当~/.gemini/oauth_creds.json时选择gemini-CLI的OAuth登录
+        存在，不需要 GEMINI_API_KEY。"""
         methods = [
             self._make_auth_method("oauth-personal"),
             self._make_auth_method("gemini-api-key"),
@@ -5129,7 +5130,7 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, {}) == "oauth-personal"
 
     def test_gemini_oauth_preferred_over_api_key(self, tmp_path):
-        """OAuth login takes precedence over GEMINI_API_KEY (mirrors chatgpt)."""
+        """OAuth 登录优先于 GEMINI_API_KEY（镜像 chatgpt）。"""
         methods = [
             self._make_auth_method("oauth-personal"),
             self._make_auth_method("gemini-api-key"),
@@ -5143,8 +5144,8 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "oauth-personal"
 
     def test_gemini_api_key_fallback_when_no_oauth_file(self, tmp_path):
-        """Falls back to GEMINI_API_KEY when oauth-personal is offered but the
-        creds file is absent (e.g. in a server image)."""
+        """回到 GEMINI_API_KEY 当提供 oauth-personal 时，
+        creds 文件不存在 (e.g. 在服务器图像中）。"""
         methods = [
             self._make_auth_method("oauth-personal"),
             self._make_auth_method("gemini-api-key"),
@@ -5154,7 +5155,7 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "gemini-api-key"
 
     def test_gemini_oauth_offered_but_no_creds_no_key(self, tmp_path):
-        """oauth-personal offered, no creds file and no API key -> None."""
+        """提供了 oauth-personal，没有信用文件，也没有 API 密钥 -> None。"""
         methods = [
             self._make_auth_method("oauth-personal"),
             self._make_auth_method("gemini-api-key"),
@@ -5166,17 +5167,17 @@ class TestSelectAuthMethod:
         assert _select_auth_method([], {}) is None
 
     def test_method_not_in_server_list(self, tmp_path):
-        """Even if env var is set, method must be offered by server."""
+        """即使设置了环境变量，方法也必须由服务器提供。"""
         methods = [self._make_auth_method("chat-gpt")]
         env = {"OPENAI_API_KEY": "sk-test"}
         with patch("openhands.sdk.agent.acp_agent.Path.home", return_value=tmp_path):
             assert _select_auth_method(methods, env) is None
 
-    # -- CODEX_HOME-aware chatgpt detection (issue #1020) ------------------
+    # -- CODEX_HOME 感知 chatgpt 检测（问题 #1020） ------------------
 
     def test_chatgpt_detected_under_relocated_codex_home(self, tmp_path):
-        """chatgpt is selected when auth.json lives under a relocated CODEX_HOME,
-        even though ~/.codex/auth.json does not exist."""
+        """当 auth.json 位于重新定位的 CODEX_HOME 下时，选择 chatgpt，
+        即使 ~/.codex/auth.json 不存在。"""
         codex_home = tmp_path / "conv" / "acp" / "codex"
         codex_home.mkdir(parents=True)
         (codex_home / "auth.json").write_text(_CHATGPT_AUTH_JSON, encoding="utf-8")
@@ -5190,8 +5191,8 @@ class TestSelectAuthMethod:
             )
 
     def test_codex_home_without_auth_file_falls_back(self, tmp_path):
-        """A CODEX_HOME without auth.json is not detected as chatgpt; it falls
-        back to the API key when offered."""
+        """没有 auth.json 的 CODEX_HOME 不会被检测为 chatgpt； 它掉下来了
+        当提供时返回到 API 键。"""
         codex_home = tmp_path / "empty_codex_home"
         codex_home.mkdir()
         methods = [
@@ -5205,7 +5206,7 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "api-key"
 
     def test_codex_auth_file_honors_codex_home(self, tmp_path):
-        """codex_auth_file points at $CODEX_HOME/auth.json when set, else
+        """设置后，codex_auth_file 指向 $CODEX_HOME/auth.json，否则
         ~/.codex/auth.json."""
         home = tmp_path / "home"
         home.mkdir()
@@ -5214,12 +5215,13 @@ class TestSelectAuthMethod:
         ch = tmp_path / "ch"
         assert codex_auth_file({"CODEX_HOME": str(ch)}) == ch / "auth.json"
 
-    # -- apikey-format auth.json must not be treated as chatgpt (#3627) -----
+    # -- apikey-format auth.json 不得被视为 chatgpt (#3627) -----
 
     def test_apikey_format_auth_file_falls_back_to_api_key(self, tmp_path):
-        """Codex rewrites $CODEX_HOME/auth.json with {"auth_mode": "apikey", ...}
-        during apikey-mode sessions. On a restart, that file must NOT be picked
-        as ``chatgpt`` or codex-acp hangs on browser-based OAuth (issue #3627).
+        """Codex 用 {"auth_mode": "apikey", ...} 重写 $CODEX_HOME/auth.json
+        在 apikey 模式会话期间。 重新启动时，该文件必须不被选择为 ``chatgpt``，否则
+        codex-ACP 会挂在基于浏览器的 OAuth 上（问
+        题 #3627）。
         """
         codex_home = tmp_path / "codex"
         codex_home.mkdir()
@@ -5238,7 +5240,7 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "api-key"
 
     def test_malformed_auth_file_falls_back_to_api_key(self, tmp_path):
-        """A non-JSON / unreadable auth.json must not trip chatgpt selection."""
+        """非 JSON/不可读的 auth.json 不得触发 chatgpt 选择。"""
         codex_home = tmp_path / "codex"
         codex_home.mkdir()
         (codex_home / "auth.json").write_text("not-json{", encoding="utf-8")
@@ -5252,11 +5254,11 @@ class TestSelectAuthMethod:
         with patch("openhands.sdk.agent.acp_agent.Path.home", return_value=empty_home):
             assert _select_auth_method(methods, env) == "api-key"
 
-    # -- Gemini Vertex AI service-account detection (issue #1020) ----------
+    # -- Gemini Vertex AI 服务帐户检测（问题 #1020） ----------
 
     def test_vertex_ai_selected_when_credentials_file_present(self, tmp_path):
-        """vertex-ai is selected when GOOGLE_APPLICATION_CREDENTIALS points at an
-        existing service-account JSON."""
+        """当 GOOGLE_APPLICATION_CREDENTIALS 指向某个点时，将选择 vertex-ai
+        现有服务帐户JSON。"""
         sa = tmp_path / "gcloud-credentials.json"
         sa.write_text("{}", encoding="utf-8")
         methods = [
@@ -5269,8 +5271,8 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "vertex-ai"
 
     def test_vertex_ai_preferred_over_personal_oauth(self, tmp_path):
-        """The materialised Vertex SA (deployable) wins over a host-bound
-        personal OAuth login file."""
+        """物化 Vertex SA（可部署）胜过主机绑定
+        个人 OAuth 登录文件。"""
         sa = tmp_path / "sa.json"
         sa.write_text("{}", encoding="utf-8")
         gem_dir = tmp_path / ".gemini"
@@ -5285,8 +5287,8 @@ class TestSelectAuthMethod:
             assert _select_auth_method(methods, env) == "vertex-ai"
 
     def test_vertex_ai_offered_but_no_credentials_file(self, tmp_path):
-        """vertex-ai offered but GOOGLE_APPLICATION_CREDENTIALS missing/empty ->
-        falls through to the API-key fallback."""
+        """vertex-ai 已提供，但 GOOGLE_APPLICATION_CREDENTIALS 缺失/为空 ->
+        落入 API 键回退方案。"""
         methods = [
             self._make_auth_method("vertex-ai"),
             self._make_auth_method("gemini-api-key"),
@@ -5404,15 +5406,16 @@ class TestCodexModelConfigOptions:
 
 
 # ---------------------------------------------------------------------------
-# ACP model overrides
+# ACP 模型覆盖
 # ---------------------------------------------------------------------------
 
 
 class TestMaybeSetSessionModel:
     @pytest.mark.asyncio
     async def test_set_session_model_mechanism(self):
-        # ``via_config_option=False`` (gemini-cli's ``models`` capability)
-        # applies the model via ``set_session_model``.
+        # ``via_config_option=False``（gemini-CLI 的 ``models`` 功能）通过
+        # ``set_session_model`` 应用模型。
+        #
         conn = AsyncMock()
         applied = await _maybe_set_session_model(
             conn, "codex-acp", "session-1", "gpt-5.4", via_config_option=False
@@ -5422,13 +5425,14 @@ class TestMaybeSetSessionModel:
             session_id="session-1",
         )
         conn.set_config_option.assert_not_called()
-        # The override was actually pushed to the server via the protocol call.
+        # 覆盖实际上是通过协议调用推送到服务器的。
         assert applied is True
 
     @pytest.mark.asyncio
     async def test_set_config_option_mechanism(self):
-        # ``via_config_option=True`` (codex-acp and claude-agent-acp)
-        # applies the model via ``set_config_option(configId="model")``.
+        # ``via_config_option=True``（codex-ACP 和 claude-智能体-ACP）通过
+        # ``set_config_option(configId="model")`` 应用模型。
+        #
         conn = AsyncMock()
         applied = await _maybe_set_session_model(
             conn,
@@ -5447,8 +5451,9 @@ class TestMaybeSetSessionModel:
 
     @pytest.mark.asyncio
     async def test_codex_config_option_splits_reasoning_effort(self):
-        # Canvas may persist Codex ids as ``model/effort``; codex-acp exposes
-        # effort as its own config option.
+        # Canvas 可能持久化 Codex ids 为 ``model/effort``； codex-ACP 将工作量公开为其自
+        # 己的配置选项。
+        #
         conn = AsyncMock()
         applied = await _maybe_set_session_model(
             conn, "codex-acp", "session-1", "gpt-5.4/low", via_config_option=True
@@ -5469,7 +5474,7 @@ class TestMaybeSetSessionModel:
 
     @pytest.mark.asyncio
     async def test_pi_model_switch_mechanism(self):
-        """pi-acp applies the model through set_config_option(config_id='model')."""
+        """pi-ACP 通过 set_config_option(config_id='model') 应用模型。"""
         conn = AsyncMock()
         applied = await _maybe_set_session_model(
             conn,
@@ -5497,8 +5502,9 @@ class TestMaybeSetSessionModel:
 
     @pytest.mark.asyncio
     async def test_unknown_provider_applies_via_detected_mechanism(self):
-        # An unknown/custom server applies the model via whichever mechanism its
-        # session/new advertised (detected upstream), not a hardcoded guess.
+        # 未知/自定义服务器通过其会话/新广告（在上游检测到）的任何机制应用模型，而不是硬
+        # 编码的猜测。
+        #
         conn_cfg = AsyncMock()
         applied = await _maybe_set_session_model(
             conn_cfg, "devin-cli", "session-1", "kimi-k2-6", via_config_option=True
@@ -5521,8 +5527,8 @@ class TestMaybeSetSessionModel:
 
     @pytest.mark.asyncio
     async def test_unknown_provider_apply_failure_is_tolerated(self):
-        # If the model-apply fails for an unknown provider, we log a warning but
-        # don't break session creation.
+        # 如果模型应用对于未知提供者失败，我们会记录警告，但不会中断会话创建。
+        #
         conn = AsyncMock()
         conn.set_config_option.side_effect = ACPRequestError(
             code=-32601, message="method not found"
@@ -5535,12 +5541,11 @@ class TestMaybeSetSessionModel:
 
     @pytest.mark.asyncio
     async def test_known_provider_apply_rejection_is_tolerated(self):
-        # claude-agent-acp's ``model`` select is dynamic/account-dependent and
-        # rejects an absent curated id (e.g. ``sonnet`` on accounts without it,
-        # dressed as -32603). A rejected *initial* model must not fail session
-        # creation — it degrades to the server default (applied=False) like the
-        # unknown-provider path, since the curated list is a suggestion not an
-        # access check. (Runtime switches via set_acp_model surface the error.)
+        # Claude-智能体-ACP's ``model`` 选择是动态/账户相关的，并且拒绝缺失的自定义
+        # IDe.g. ``sonnet`` 在没有它的情况下，伪装成 -32603)。 拒绝 *初始* 模型必须不能
+        # 失败会话创建——它降级到服务器默认值（应用）False）类似于未知提供者路径，因为精
+        # 选列表是一个建议，而不是访问检查。（运行时切换 via set_acp_model 展示错误。
+        #
         conn = AsyncMock()
         conn.set_config_option.side_effect = ACPRequestError(
             code=-32603, message="Invalid value for config option model: sonnet"
@@ -5554,13 +5559,13 @@ class TestMaybeSetSessionModel:
 
 
 class TestReapplySessionModelOnResume:
-    """Resume reapplies the persisted model via the runtime-switch gate."""
+    """Resume 通过运行时切换门重新应用已持久化模型。"""
 
     @pytest.mark.asyncio
     async def test_reapply_via_set_session_model_mechanism(self):
-        # load_session() carries no model selection, so on resume the persisted
-        # model must be reapplied via the runtime-switch gate. Servers with the
-        # ``models`` capability (gemini-cli, older codex/claude) use
+        # load_session() 不进行模型选择，因此在恢复时必须通过运行时切换门重新应用已持久
+        # 化模型。 服务器与
+        # ``models`` 能力（gemini-CLI，较旧的法典/克劳德）使用
         # ``set_session_model``.
         conn = AsyncMock()
         applied = await _reapply_session_model_on_resume(
@@ -5577,8 +5582,8 @@ class TestReapplySessionModelOnResume:
 
     @pytest.mark.asyncio
     async def test_reapply_via_set_config_option_mechanism(self):
-        # codex-acp/claude-agent-acp 0.44+ reapply via
-        # ``set_config_option(configId="model")`` with the bare preset id.
+        # codex-acp/claude-智能体-ACP 0.44+ 通过重新申请
+        # ``set_config_option(configId="model")`` 带有裸预设 ID。
         conn = AsyncMock()
         applied = await _reapply_session_model_on_resume(
             conn, "codex-acp", "sess-1", "gpt-5.5", via_config_option=True
@@ -5622,7 +5627,7 @@ class TestReapplySessionModelOnResume:
     @pytest.mark.asyncio
     async def test_unknown_provider_reapplies_via_detected_mechanism(self):
         # provider=None (custom server) reapplies via whichever mechanism the
-        # resumed session advertised, not a hardcoded guess.
+        # 已恢复会话广告，而不是硬编码的猜测。
         conn = AsyncMock()
         applied = await _reapply_session_model_on_resume(
             conn, "devin-cli", "sess-1", "kimi-k2-6", via_config_option=True
@@ -5664,9 +5669,9 @@ class TestReapplySessionModelOnResume:
 
     @pytest.mark.asyncio
     async def test_client_rejection_is_swallowed_on_resume(self):
-        # A client/protocol rejection (method-not-found = server doesn't support
-        # the call, or invalid model id) must not break resume — mirrors the
-        # load_session fallback. The error is logged, not raised.
+        # 客户端/协议拒绝（方法未找到 = 服务器不支持调用，或无效模型 ID）不应中断回放 —
+        # 这与 load_session 回退方案相同。 错误被记录，而不是引发。
+        #
         conn = AsyncMock()
         conn.set_config_option.side_effect = ACPRequestError(
             code=-32601, message="method not found"
@@ -5676,14 +5681,15 @@ class TestReapplySessionModelOnResume:
         )
         conn.set_config_option.assert_awaited_once()
         # Rejected => the live session kept the server default, so the override
-        # must NOT be reported as applied.
+        # 必须将不报告为已应用。
         assert applied is False
 
     @pytest.mark.asyncio
     async def test_any_request_error_is_swallowed_on_resume(self):
-        # Any ACPRequestError (here a -32603 server error) is tolerated on
-        # resume — like the load_session fallback — so a flaky/stale server
-        # can't break session startup; the session keeps the server default.
+        # 任何 ACPRequestError（例如 -32603 服务器错误）在恢复时都容忍 — 比如
+        # load_session 回退方案 — 因此，一个不可靠/过时的服务器不能破坏会话启动； 会话保
+        # 持服务器默认值。
+        #
         conn = AsyncMock()
         conn.set_session_model.side_effect = ACPRequestError(
             code=-32603, message="internal error"
@@ -5696,10 +5702,10 @@ class TestReapplySessionModelOnResume:
 
 
 class TestHasLiveACPSession:
-    """The public predicate LocalConversation branches on for model switching."""
+    """公共谓词 LocalConversation 分支用于模型切换。"""
 
     def test_false_before_session(self):
-        # Freshly constructed: no connection / session / executor wired yet.
+        # 全新构建：尚未连接连接/会话/执行器。
         agent = _make_agent()
         assert agent.has_live_acp_session is False
 
@@ -5719,8 +5725,8 @@ class TestHasLiveACPSession:
         ],
     )
     def test_false_when_partially_wired(self, conn, session_id, executor):
-        # Every one of the three runtime handles must be present; a partial
-        # teardown / bootstrap must not read as a live session.
+        # 三个运行时句柄中的每一个都必须存在； 部分拆卸/引导程序不得读取为实时会话。
+        #
         agent = _make_agent()
         agent._conn = MagicMock() if conn else None
         agent._session_id = session_id
@@ -5728,9 +5734,9 @@ class TestHasLiveACPSession:
         assert agent.has_live_acp_session is False
 
     def test_set_acp_model_raises_when_no_live_session(self):
-        # The low-level primitive still rejects a pre-session call (the deferral
-        # lives in LocalConversation.switch_acp_model, which branches on the
-        # predicate); guards that the two stay in sync.
+        # 低级原语仍然拒绝会话前调用（延迟位于 LocalConversation.switch_acp_model 中，它
+        # 在谓词上分支）； 两人呆在同步中的警卫。
+        #
         agent = _make_agent()
         assert not agent.has_live_acp_session
         with pytest.raises(RuntimeError, match="not initialized"):
@@ -5738,7 +5744,7 @@ class TestHasLiveACPSession:
 
 
 class TestSetACPModel:
-    """Runtime (mid-conversation) model switching via the session's mechanism."""
+    """通过会话机制进行运行时（对话中）模型切换。"""
 
     @staticmethod
     def _wire(
@@ -5753,8 +5759,9 @@ class TestSetACPModel:
         agent._model_via_config_option = via_config_option
         executor = MagicMock()
 
-        # run_async actually drives the (async) apply coroutine to completion so
-        # the AsyncMock conn calls fire — exercising the real apply/split path.
+        # run_async 实际上驱动 (异步) apply 协程完成，因此 AsyncMock conn 调用 fire — 行
+        # 使真正的 apply/split 路径。
+        #
         def _run(coro: Any, timeout: Any = None) -> Any:
             loop = asyncio.new_event_loop()
             try:
@@ -5767,7 +5774,7 @@ class TestSetACPModel:
         return agent
 
     def test_switches_model_on_live_codex_session(self):
-        # Default (models-capability) session ⇒ set_session_model, id as-is.
+        # 默认（模型能力）会话 ⇒ set_session_model，id 按原样。
         agent = self._wire(_make_agent(), "codex-acp")
         agent.set_acp_model("gpt-5.5")
         _agent_conn(agent).set_session_model.assert_awaited_once_with(
@@ -5775,13 +5782,13 @@ class TestSetACPModel:
         )
         _agent_conn(agent).set_config_option.assert_not_called()
         agent._executor.run_async.assert_called_once()
-        # Sentinel LLM + metrics reflect the live model for cost/token tracking.
+        # 哨兵值 LLM + 指标反映了成本/代币跟踪的实时模型。
         assert agent.llm.model == "gpt-5.5"
         assert agent.llm.metrics.model_name == "gpt-5.5"
 
     def test_switches_codex_via_config_option_single_call(self):
-        # codex-acp configOptions: the bare preset id applies as a single
-        # `model` selection.
+        # codex-ACP configOptions：裸预设 id 作为单个应用
+        # `model`选择。
         agent = self._wire(_make_agent(), "codex-acp", via_config_option=True)
         agent.set_acp_model("gpt-5.5")
         _agent_conn(agent).set_config_option.assert_awaited_once_with(
@@ -5810,7 +5817,7 @@ class TestSetACPModel:
         assert agent._current_model_id == "gpt-5.5/high"
 
     def test_switches_claude_via_config_option_single_call(self):
-        # A bare id (no `/`) applies as a single `model` selection — no effort.
+        # 裸 ID（无 `/`）可用作单个 `model` 选择 — 毫不费力。
         agent = self._wire(_make_agent(), "claude-agent-acp", via_config_option=True)
         agent.set_acp_model("sonnet")
         _agent_conn(agent).set_config_option.assert_awaited_once_with(
@@ -5819,8 +5826,9 @@ class TestSetACPModel:
         assert agent._current_model_id == "sonnet"
 
     def test_switch_method_not_found_raises_no_fallback(self):
-        # No cross-mechanism fallback: a -32601 surfaces as a ValueError naming
-        # the advertised mechanism, and the other call is never attempted.
+        # 无跨机制回退方案：-32601 表面作为 ValueError 命名所公布的机制，并且从未尝试其
+        # 他调用。
+        #
         agent = self._wire(_make_agent(), "codex-acp", via_config_option=False)
         _agent_conn(agent).set_session_model.side_effect = ACPRequestError(
             code=-32601, message="Method not found"
@@ -5829,13 +5837,13 @@ class TestSetACPModel:
             agent.set_acp_model("gpt-5.5")
         _agent_conn(agent).set_config_option.assert_not_called()
         agent._executor.run_async.assert_called_once()
-        # Mechanism + sentinel model are left unchanged on a failed switch.
+        # 机制 + 哨兵值模型在发生故障的开关上保持不变。
         assert agent._model_via_config_option is False
         assert agent.llm.model != "gpt-5.5"
 
     def test_switch_invalid_model_raises_value_error(self):
-        # A -32602 invalid-params is a real client error, not a wrong-mechanism
-        # signal: surface it as ValueError without a second call.
+        # -32602 invalid-params 是真正的客户端错误，而不是错误机制
+        # signal：将其显示为 ValueError，无需第二次调用。
         agent = self._wire(_make_agent(), "codex-acp", via_config_option=True)
         _agent_conn(agent).set_config_option.side_effect = ACPRequestError(
             code=-32602, message="Invalid params"
@@ -5852,8 +5860,9 @@ class TestSetACPModel:
         )
 
     def test_unknown_provider_still_attempts_switch(self):
-        # A custom/unrecognised server (provider=None) is allowed to attempt
-        # the call; the ACP layer errors if it isn't actually supported.
+        # 允许自定义/无法识别的服务器（provider=None）尝试调用； 如果实际上不支持，则
+        # ACP 层错误。
+        #
         agent = self._wire(_make_agent(), "some-custom-acp")
         agent.set_acp_model("whatever")
         _agent_conn(agent).set_session_model.assert_called_once()
@@ -5865,7 +5874,7 @@ class TestSetACPModel:
         _agent_conn(agent).set_session_model.assert_not_called()
 
     def test_raises_before_session_initialized(self):
-        agent = _make_agent()  # no _conn / _session_id / _executor
+        agent = _make_agent()  # 没有 _conn / _session_id / _executor
         with pytest.raises(RuntimeError, match="not initialized"):
             agent.set_acp_model("gpt-5.4")
 
@@ -5894,37 +5903,38 @@ class TestSetACPModel:
         _agent_conn(agent).set_session_model.assert_not_called()
 
     def test_translates_acp_request_error_to_value_error(self):
-        # A protocol-level rejection (e.g. method-not-found on a custom server,
-        # or an invalid model id) must surface as a ValueError — not leak as a
-        # raw acp.exceptions.RequestError — so the agent-server maps it to 400.
-        # The rejection is raised by the conn (driven through the real apply
-        # coroutine), exercising set_acp_model's actual error path.
+        # 协议级拒绝 (e.g. 自定义服务器上未找到方法，或无效的模型 ID）必须以 ValueError
+        # 形式出现 - 不会作为原始 acp.exceptions.RequestError 泄漏 - 因此智能体服务器将
+        # 其映射到 400。 拒绝是由 conn 引发的（通过实际应用协程驱动），行使
+        # set_acp_model 的实际错误路径。
+        #
         agent = self._wire(_make_agent(), "codex-acp")
         _agent_conn(agent).set_session_model.side_effect = ACPRequestError(
             code=-32601, message="method not found"
         )
         with pytest.raises(ValueError, match="rejected set_session_model"):
             agent.set_acp_model("bogus-model")
-        # The sentinel LLM must not be mutated when the switch fails.
+        # 当交换机发生故障时，哨兵值LLM不得发生突变。
         assert agent.llm.model != "bogus-model"
 
     def test_propagates_server_internal_error(self):
-        # JSON-RPC -32603 is a server-internal failure, not a bad client
-        # request. It must propagate (as the raw ACPRequestError -> 5xx) rather
-        # than be mislabeled as a 400-class ValueError, mirroring the retriable
-        # handling on the prompt path.
+        # JSON-RPC -32603 是服务器内部错误，不是客户端请求的错误。 它必须传播（作为原始
+        # ） ACPRequestError -> 5xx) 而不是被错误地标记为 400 类别 ValueError，重现处理
+        # 的镜像提示词路径。
+        #
         agent = self._wire(_make_agent(), "codex-acp")
         _agent_conn(agent).set_session_model.side_effect = ACPRequestError(
             code=-32603, message="internal error"
         )
         with pytest.raises(ACPRequestError):
             agent.set_acp_model("some-model")
-        # The sentinel LLM must not be mutated when the switch fails.
+        # 当交换机发生故障时，哨兵值LLM不得发生突变。
         assert agent.llm.model != "some-model"
 
     def test_passes_timeout_to_run_async(self):
-        # The protocol round-trip runs under the conversation state lock, so it
-        # must be bounded to avoid wedging the lock if the server never answers.
+        # 协议往返在会话状态锁下运行，因此必须对其进行限制，以避免在服务器从未应答时楔入
+        # 锁。
+        #
         agent = self._wire(_make_agent(acp_prompt_timeout=42.0), "codex-acp")
         agent.set_acp_model("gpt-5.5")
         _, kwargs = agent._executor.run_async.call_args
@@ -5932,7 +5942,7 @@ class TestSetACPModel:
 
 
 # ---------------------------------------------------------------------------
-# acp_session_mode field
+# acp_session_mode 字段
 # ---------------------------------------------------------------------------
 
 
@@ -5957,15 +5967,15 @@ class TestACPSessionMode:
 
 
 # ---------------------------------------------------------------------------
-# Connection retry logic
+# 连接重试逻辑
 # ---------------------------------------------------------------------------
 
 
 class TestACPPromptRetry:
-    """Test retry logic for ACP prompt failures."""
+    """测试重试逻辑是否存在 ACP 提示词故障。"""
 
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
-        """Create a mock conversation with a user message."""
+        """使用用户消息创建模拟对象对话。"""
         state = _make_state(tmp_path)
         state.events.append(
             SystemPromptEvent(
@@ -5986,7 +5996,7 @@ class TestACPPromptRetry:
         return conversation
 
     def test_retry_on_connection_error_then_success(self, tmp_path):
-        """Retry succeeds after transient connection error."""
+        """重试在暂时连接错误后成功。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -6023,7 +6033,7 @@ class TestACPPromptRetry:
         assert "Success after retry" in events[0].action.message
 
     def test_no_retry_on_non_connection_error(self, tmp_path):
-        """Non-connection errors fail immediately without retry."""
+        """非连接错误会立即失败，没有重试。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -6051,7 +6061,7 @@ class TestACPPromptRetry:
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_no_retry_on_timeout(self, tmp_path):
-        """Timeout errors are not retried."""
+        """超时错误不会重试。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
 
@@ -6077,7 +6087,7 @@ class TestACPPromptRetry:
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_max_retries_exceeded(self, tmp_path):
-        """Error raised after max retries exhausted."""
+        """max 重试用尽后引发错误。"""
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
         events: list = []
@@ -6106,7 +6116,7 @@ class TestACPPromptRetry:
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_retry_on_acp_server_error_then_success(self, tmp_path):
-        """Retry succeeds after transient ACP server error (JSON-RPC -32603)."""
+        """重试在短暂的 ACP 服务器错误 (JSON-RPC -32603) 后成功。"""
         from acp.exceptions import RequestError as ACPRequestError
 
         agent = _make_agent()
@@ -6144,7 +6154,7 @@ class TestACPPromptRetry:
         assert "Success after server error retry" in events[0].action.message
 
     def test_no_retry_on_non_retriable_acp_error(self, tmp_path):
-        """Non-retriable ACP error codes fail immediately."""
+        """不可重试的 ACP 错误代码立即失败。"""
         from acp.exceptions import RequestError as ACPRequestError
 
         agent = _make_agent()
@@ -6170,11 +6180,11 @@ class TestACPPromptRetry:
         with pytest.raises(ACPRequestError, match="Invalid request"):
             agent.step(conversation, on_event=events.append)
 
-        assert call_count == 1  # No retry for non-retriable error codes
+        assert call_count == 1  # 对于不可重试的错误代码，没有重试
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
     def test_max_retries_exceeded_acp_server_error(self, tmp_path):
-        """ACP server error raised after max retries exhausted."""
+        """max 重试耗尽后出现 ACP 服务器错误。"""
         from acp.exceptions import RequestError as ACPRequestError
 
         agent = _make_agent()
@@ -6201,20 +6211,20 @@ class TestACPPromptRetry:
             with pytest.raises(ACPRequestError, match="Internal Server Error"):
                 agent.step(conversation, on_event=events.append)
 
-        # Default max retries is 3, so 4 total attempts
+        # 默认最大值重试为 3，因此总共尝试 4 次
         assert call_count == 4
         assert conversation.state.execution_status == ConversationExecutionStatus.ERROR
 
 
 # ---------------------------------------------------------------------------
-# Gemini-specific tests
+# 双子座特定测试
 # ---------------------------------------------------------------------------
 
 
 class TestGeminiSessionModel:
     @pytest.mark.asyncio
     async def test_gemini_cli_uses_protocol_model_override(self):
-        # gemini-cli keeps the ``models`` capability, so model selection rides
+        # gemini-CLI 保留 ``models`` 功能，因此模型选择会起作用
         # ``set_session_model`` (via_config_option=False).
         conn = AsyncMock()
         await _maybe_set_session_model(
@@ -6233,7 +6243,7 @@ class TestGeminiSessionModel:
 
 class TestExtractTokenUsage:
     def test_from_response_usage(self):
-        """claude-agent-acp, codex-acp: standard response.usage field."""
+        """claude-智能体-ACP，codex-ACP：标准 response.usage 字段。"""
         response = MagicMock()
         response.usage.input_tokens = 100
         response.usage.output_tokens = 50
@@ -6243,7 +6253,7 @@ class TestExtractTokenUsage:
         assert _extract_token_usage(response) == (100, 50, 10, 5, 20)
 
     def test_from_field_meta_quota(self):
-        """gemini-cli: _meta.quota.token_count fallback."""
+        """双子座-CLI：_meta.quota.token_count回退方案。"""
         response = MagicMock()
         response.usage = None
         response.field_meta = {
@@ -6345,20 +6355,19 @@ class TestSerializeToolContent:
 
 
 # ---------------------------------------------------------------------------
-# ACP session resume via ConversationState.agent_state (issue #2867)
+# ACP 通过 ConversationState.agent_state 恢复会话（问题 #2867）
 # ---------------------------------------------------------------------------
 
 
 class TestACPSessionIdPersistence:
-    """Verify that the ACP session id is stashed in ``state.agent_state`` on
-    first launch and that _start_acp_server reads it back on resume to drive
-    load_session vs. new_session.
+    """验证 ACP 会话 ID 是否已保存在 ``state.agent_state`` 中
+    第一次启动，_start_acp_server 在恢复时读取它以驱动 load_session 与 new_session.
     """
 
     @staticmethod
     def _transport_patches(conn):
-        """Context manager stacking the transport-layer mocks that let
-        _start_acp_server run without spawning a real subprocess.
+        """上下文管理器堆叠传输层层模拟对象让
+        _start_acp_server 运行时不会生成真正的子进程。
         """
         from contextlib import ExitStack
 
@@ -6404,7 +6413,7 @@ class TestACPSessionIdPersistence:
 
     @staticmethod
     def _patched_start_acp_server(agent, state, *, conn):
-        """Invoke the real _start_acp_server with ACP transport layers mocked."""
+        """使用 ACP 传输层层模拟的调用真实的 _start_acp_server。"""
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
         agent._executor = AsyncExecutor()
@@ -6442,12 +6451,12 @@ class TestACPSessionIdPersistence:
         return conn
 
     def test_fresh_state_has_no_session_id(self, tmp_path):
-        """A fresh ConversationState holds no session id under agent_state."""
+        """新鲜的 ConversationState 在 agent_state 下不包含任何会话 ID。"""
         state = _make_state(tmp_path)
         assert "acp_session_id" not in state.agent_state
 
     def test_first_launch_calls_new_session(self, tmp_path):
-        """Empty agent_state → _start_acp_server calls new_session only."""
+        """空 agent_state → _start_acp_server 仅调用 new_session。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         conn = self._make_conn(new_session_id="fresh-sess")
@@ -6497,7 +6506,7 @@ class TestACPSessionIdPersistence:
         assert conn.new_session.await_args.kwargs["additional_directories"] is None
 
     def test_cancel_drain_restart_keeps_retry_flag_when_init_fails(self, tmp_path):
-        """A failed replacement session should leave the deferred restart armed."""
+        """失败的替换会话应该使延迟重新启动处于待命状态。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         agent._restart_session_on_next_turn = True
@@ -6511,14 +6520,15 @@ class TestACPSessionIdPersistence:
         assert agent._restart_session_on_next_turn is True
 
     def test_init_state_writes_session_id_into_agent_state(self, tmp_path):
-        """init_state lands the session id in state.agent_state so
-        ConversationState's base_state.json persistence carries it forward.
+        """init_state 将会话 ID 放入 state.agent_state 中，因此
+        ConversationState 的 base_state.json 持久化将其向前推进。
         """
         agent = _make_agent()
         state = _make_state(tmp_path)
 
-        # Short-circuit _start_acp_server: pretend the ACP handshake ran and
-        # populated the runtime attrs that init_state reads afterwards.
+        # 短路 _start_acp_server：假装 ACP 握手运行并填充 init_state 之后读取的运行时属
+        # 性。
+        #
         def _fake_start(self, _state):
             self._session_id = "end-to-end-sess"
             self._agent_name = "claude-agent-acp"
@@ -6532,7 +6542,7 @@ class TestACPSessionIdPersistence:
         assert state.agent_state["acp_agent_version"] == "1.0"
 
     def test_resume_reads_session_id_from_agent_state(self, tmp_path):
-        """Prior session id in agent_state → load_session is called with it."""
+        """agent_state → load_session 中的先前会话 ID 被调用。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         state.agent_state = {**state.agent_state, "acp_session_id": "stored-sess"}
@@ -6548,9 +6558,8 @@ class TestACPSessionIdPersistence:
         assert agent._session_id == "stored-sess"
 
     def test_cancel_drain_restart_preserves_session_id_for_resume(self, tmp_path):
-        """A cancelled-prompt drain timeout restarts the subprocess, but should
-        still load the persisted ACP session so the server keeps conversation
-        memory.
+        """已取消的提示词排水超时会重新启动子进程，但应该
+        仍然加载已持久化 ACP 会话，以便服务器保留会话内存。
         """
         agent = _make_agent(
             agent_context=AgentContext(system_message_suffix="Team rules.")
@@ -6576,7 +6585,7 @@ class TestACPSessionIdPersistence:
         assert agent._suffix_install_state == "installed"
 
     def test_load_session_failure_falls_back_to_new_session(self, tmp_path):
-        """ACPRequestError on load_session → new_session is called."""
+        """ACPRequestError on load_session → new_session 是叫的。"""
         agent = _make_agent()
         state = _make_state(tmp_path)
         state.agent_state = {**state.agent_state, "acp_session_id": "stale-sess"}
@@ -6591,15 +6600,15 @@ class TestACPSessionIdPersistence:
         conn.new_session.assert_awaited_once()
         assert agent._session_id == "replacement-sess"
 
-    # ----- explicit acp_resume_session_id (the durable-mirror override) -----
+    # ----- 显式 acp_resume_session_id （持久镜像覆盖）-----
 
     def test_acp_resume_session_id_drives_load_session_when_no_fs_state(self, tmp_path):
-        """``acp_resume_session_id`` resumes even when ``agent_state`` is empty.
+        """即使 ``agent_state`` 为空，``acp_resume_session_id`` 也会恢复。
 
-        Cloud sandboxes lose ``base_state.json`` on recycle, so the FS-persisted
-        ``acp_session_id`` is gone.  The app-server mirrors the id into durable
-        storage and passes it back via ``acp_resume_session_id`` — that should
-        still drive ``load_session``.
+        云沙箱在回收时丢失 ``base_state.json``，因此 FS-已持久化
+        ``acp_session_id`` 不见了。 应用程序服务器将 ID 镜像到持久存储中，并通过
+        ``acp_resume_session_id`` 将其传
+        回 - 这仍应驱动 ``load_session``。
         """
         agent = _make_agent(acp_resume_session_id="externally-stored-sess")
         state = _make_state(tmp_path)
@@ -6616,7 +6625,7 @@ class TestACPSessionIdPersistence:
         assert agent._session_id == "externally-stored-sess"
 
     def test_acp_resume_session_id_overrides_fs_session_id(self, tmp_path):
-        """The explicit field wins over the FS-persisted id when they differ."""
+        """当显式字段不同时，显式字段优先于 FS-已持久化 id。"""
         agent = _make_agent(acp_resume_session_id="durable-sess")
         state = _make_state(tmp_path)
         state.agent_state = {
@@ -6658,11 +6667,11 @@ class TestACPSessionIdPersistence:
         assert client.before_mask() is None
 
     def test_acp_resume_session_id_failure_falls_back_to_new_session(self, tmp_path):
-        """If the server can't load the explicit id, fall back to new_session.
+        """如果服务器无法加载显式 ID，则返回到 new_session。
 
-        The ACP server may have lost its own session storage (no PVC, different
-        host …); failing closed by aborting is worse than starting fresh.
-        Matches the existing ``load_session`` failure path.
+        ACP服务器可能丢失了自己的会话存储（没有PVC，不同的主机......）； 通过中止而失
+        败比重新开始更糟糕。 匹配现有的 ``load_session``
+         故障路径。
         """
         agent = _make_agent(acp_resume_session_id="missing-sess")
         state = _make_state(tmp_path)
@@ -6678,10 +6687,10 @@ class TestACPSessionIdPersistence:
         assert agent._session_id == "replacement-sess"
 
     def test_acp_resume_session_id_matches_fs_id_uses_fs_cwd(self, tmp_path):
-        """When the explicit id equals the FS id, the FS cwd is reused.
+        """当显式id等于FS id时，FS cwd被重用。
 
-        Avoids a spurious "infer cwd from current workspace" branch when the
-        agent_state was just hydrated from the same id.
+        当 agent_state 刚刚从相同的 id 中水合时，避免虚假的“从当前工作区推断 cwd”分支
+        。
         """
         agent = _make_agent(acp_resume_session_id="same-sess")
         state = _make_state(tmp_path)
@@ -6699,12 +6708,11 @@ class TestACPSessionIdPersistence:
         assert kwargs["session_id"] == "same-sess"
 
     def test_session_ids_redacted_in_resume_log_lines(self, tmp_path, caplog):
-        """Resume / fallback log lines must not emit plaintext session ids.
+        """Resume / 回退方案日志行不得发出纯文本会话 ID。
 
-        ACP session ids are bearer tokens; log aggregators retain lines for
-        weeks, so they're a serialization boundary in their own right. The
-        ``_start_acp_server`` log lines must emit only a short suffix
-        fingerprint, never the full id.
+        ACP 会话 ID 是承载者 token； 日志聚合器会保留行数周，因此它们本身就是一个序列
+        化边界。 的
+        ``_start_acp_server`` 日志行必须仅发出短后缀指纹，而不是完整 ID。
         """
         sensitive_explicit = "explicit-do-not-log-abc12345-LONGTAIL"
         sensitive_fs = "fs-session-do-not-log-OTHERTAIL"
@@ -6718,7 +6726,7 @@ class TestACPSessionIdPersistence:
         messages = "\n".join(rec.getMessage() for rec in caplog.records)
         assert sensitive_explicit not in messages
         assert sensitive_fs not in messages
-        assert sensitive_explicit[-8:] in messages  # fingerprint suffix present
+        assert sensitive_explicit[-8:] in messages  # 存在指纹后缀
 
         caplog.clear()
         agent2 = _make_agent(acp_resume_session_id=sensitive_explicit)
@@ -6737,7 +6745,7 @@ class TestACPSessionIdPersistence:
         assert sensitive_explicit not in fail_warnings
 
     def test_fingerprint_session_id_helper(self):
-        """``_fingerprint_session_id`` returns a last-8 suffix, never the full id."""
+        """``_fingerprint_session_id`` 返回最后 8 个后缀，而不是完整 ID。"""
         from openhands.sdk.agent.acp_agent import _fingerprint_session_id
 
         assert _fingerprint_session_id(None) == "<none>"
@@ -6749,10 +6757,10 @@ class TestACPSessionIdPersistence:
         assert out.endswith("12345678")
         assert out.startswith("...")
 
-    # ----- acp_resume_session_id is a bearer secret on the wire -----
+    # ----- acp_resume_session_id 是线路上的承载机密 -----
 
     def test_acp_resume_session_id_redacted_by_default(self):
-        """Default serialization must mask ``acp_resume_session_id``."""
+        """默认值序列化必须屏蔽 ``acp_resume_session_id``。"""
         sensitive = "super-secret-resume-id-do-not-leak"
         agent = _make_agent(acp_resume_session_id=sensitive)
 
@@ -6769,18 +6777,18 @@ class TestACPSessionIdPersistence:
         assert sensitive not in str(py_value)
 
     def test_acp_resume_session_id_none_serializes_as_none(self):
-        """Absence is not a secret — ``None`` must round-trip as ``null``."""
+        """缺席不是机密 — ``None`` 必须像 ``null`` 一样往返。"""
         agent = _make_agent()
         data = json.loads(agent.model_dump_json())
         assert data.get("acp_resume_session_id") is None
 
     def test_acp_resume_session_id_redacted_sentinel_loads_as_none(self):
-        """Default-redacted dump must reload as ``None``, not ``'**********'``.
+        """Default-已脱敏转储必须重新加载为 ``None``，而不是 ``'**********'``。
 
-        Without the matching validator, ``model_validate_json`` of a default
-        dump would leave the field set to the literal sentinel — calling
-        ``session/load`` with that fails server-side and we'd fall back to
-        ``new_session`` every time, defeating the durable-mirror design.
+        如果没有匹配的验证器，默认转储的 ``model_validate_json`` 会将字段设置为文字哨
+        兵值 — 调用
+        ``session/load`` 服务器端失败，我们会回退到
+        ``new_session`` 每次都击败了耐用镜子设计。
         """
         sensitive = "super-secret-resume-id-do-not-leak"
         agent = _make_agent(acp_resume_session_id=sensitive)
@@ -6788,7 +6796,7 @@ class TestACPSessionIdPersistence:
         assert reloaded.acp_resume_session_id is None
 
     def test_acp_resume_session_id_plaintext_roundtrip(self):
-        """Plaintext dump (trusted backend) reloads verbatim without a cipher."""
+        """明文转储（可信后端）逐字重新加载，无需密码。"""
         sensitive = "super-secret-resume-id-do-not-leak"
         agent = _make_agent(acp_resume_session_id=sensitive)
         exposed = agent.model_dump_json(context={"expose_secrets": "plaintext"})
@@ -6797,7 +6805,7 @@ class TestACPSessionIdPersistence:
         assert reloaded.acp_resume_session_id == sensitive
 
     def test_acp_resume_session_id_encrypted_roundtrip(self):
-        """Encrypted dump + cipher in context decrypts back to the real id."""
+        """上下文中的加密转储 + 密码解密回真实 ID。"""
         sensitive = "super-secret-resume-id-do-not-leak"
         agent = _make_agent(acp_resume_session_id=sensitive)
         cipher = Cipher(secret_key="test-cipher-secret-key-for-roundtrip-only")
@@ -6813,8 +6821,8 @@ class TestACPSessionIdPersistence:
         assert reloaded.acp_resume_session_id == sensitive
 
     def test_session_id_not_on_serialized_agent(self):
-        """Session id must not leak onto the agent model — it lives in
-        ConversationState.agent_state, not on the frozen ACPAgent.
+        """会话 ID 不得泄漏到智能体模型上 — 它位于
+        ConversationState.agent_state，不在冻结的ACPAgent。
         """
         agent = _make_agent()
         data = json.loads(agent.model_dump_json())
@@ -6822,8 +6830,8 @@ class TestACPSessionIdPersistence:
         assert not hasattr(agent, "acp_session_id")
 
     def test_init_state_writes_cwd_alongside_session_id(self, tmp_path):
-        """init_state records the cwd the session was created under so a later
-        resume can reject cwd mismatches (ACP keys persistence by cwd).
+        """init_state 记录会话创建时使用的 cwd，以便稍后使用
+        resume 可以拒绝 cwd 不匹配（cwd 的 ACP 键持久化）。
         """
         agent = _make_agent()
         state = _make_state(tmp_path)
@@ -6841,9 +6849,9 @@ class TestACPSessionIdPersistence:
         assert state.agent_state["acp_session_cwd"] == str(tmp_path)
 
     def test_cwd_mismatch_skips_load_and_calls_new_session(self, tmp_path, caplog):
-        """If the stored cwd differs from the current workspace cwd, resume
-        is skipped and new_session runs instead — so we never silently load
-        a session that the ACP server associated with a different directory.
+        """如果存储的cwd与当前的工作区 cwd不同，则恢复
+        被跳过并运行 new_session — 因此我们永远不会默默加载 ACP 服务器与不同目录关联
+        的会话。
         """
         agent = _make_agent()
         state = _make_state(tmp_path)
@@ -6866,8 +6874,8 @@ class TestACPSessionIdPersistence:
         ), "expected a warning explaining the cwd mismatch"
 
     def test_resume_without_stored_cwd_still_works(self, tmp_path):
-        """Legacy state written by an earlier version has acp_session_id but
-        no acp_session_cwd — resume should still proceed (best-effort).
+        """早期版本编写的遗留状态有 acp_session_id 但
+        否 acp_session_cwd — 简历仍应继续（尽力而为）。
         """
         agent = _make_agent()
         state = _make_state(tmp_path)
@@ -6883,15 +6891,14 @@ class TestACPSessionIdPersistence:
     def test_resume_preserves_persisted_model_when_load_session_omits_models(
         self, tmp_path
     ):
-        """Resume must not blank the persisted ``acp_current_model_*`` when
-        ``load_session`` returns no ``models`` field.
+        """恢复时不得将已持久化 ``acp_current_model_*`` 留空
+        ``load_session`` 不返回 ``models`` 字段。
 
-        The ``models`` capability is UNSTABLE; some agents only attach it to
-        ``new_session`` responses, not ``load_session``. Previously
-        ``init_state`` unconditionally overwrote ``agent_state`` with the
-        freshly-extracted (possibly ``None``) values, dropping the chip on
-        every resume. The contract is: only update model state when we
-        actually learned something new.
+        ``models``能力为UNSTABLE； 有些智能体仅将其附加到
+        ``new_session`` 回复，而不是 ``load_session``。 以前
+        ``init_state`` 无条件地用新提取的（可能是 ``None``）值覆盖 ``agent_state``，
+        从而在每份简历上删除芯片。 契约是：只有
+        当我们真正学到新东西时才更新模型状态。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -6910,9 +6917,9 @@ class TestACPSessionIdPersistence:
                 }
             ],
         }
-        # ``load_session`` returns a response whose ``models`` field is
-        # absent — same shape as a server that doesn't surface the
-        # UNSTABLE capability on resume responses.
+        # ``load_session`` 返回一个不存在 ``models`` 字段的响应 — 与在恢复响应上不显示
+        # UNSTABLE 功能的服务器的形状相同。
+        #
         conn = self._make_conn()
         load_response = MagicMock(spec=[])  # spec=[] → no .models attribute
         conn.load_session = AsyncMock(return_value=load_response)
@@ -6921,8 +6928,8 @@ class TestACPSessionIdPersistence:
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # Persisted values survive the resume even though load_session
-        # didn't re-report them.
+        # 已持久化值在简历中保留下来，即使 load_session 没有重新报告它们。
+        #
         assert state.agent_state["acp_current_model_id"] == "claude-opus-4-1"
         assert state.agent_state["acp_available_models"] == [
             {"model_id": "claude-opus-4-1", "name": "Opus 4.1", "description": None}
@@ -6931,19 +6938,20 @@ class TestACPSessionIdPersistence:
     def test_resume_with_forced_model_preserves_persisted_available_models(
         self, tmp_path
     ):
-        """Resume with a switched ``acp_model`` must not blank the persisted
+        """切换 ``acp_model`` 后继续，不得将已持久化留空
         ``acp_available_models``.
 
-        Regression: ``current_model_id = self.acp_model or reported`` becomes
-        non-null from the forced ``acp_model`` even when ``load_session`` omits
-        the UNSTABLE ``models`` block (so ``_available_models`` is empty). The
-        list persistence must be gated on actually receiving a list, not on
-        ``current_model_id`` being set — otherwise the picker payload is wiped
-        on every resume of a switched conversation.
+        Regression: ``current_model_id = self.acp_model or reported`` 变为
+        即使 ``load_session`` 省略了 UNSTABLE ``models`` 块（因此
+        ``_available_models`` 为空），强制
+        ``acp_model`` 中的非 null 也是如此。 列表持久化必须在实际接收到列表时进行门控
+        ，而不是在
+        设置 ``current_model_id`` — 否则，切换对话的每个简历上的选择器载荷都会被擦除
+        。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
-        # A prior runtime switch made ``model-b`` the authoritative model.
+        # 先前的运行时切换使 ``model-b`` 成为权威模型。
         agent = _make_agent(acp_model="model-b")
         state = _make_state(tmp_path)
         state.agent_state = {
@@ -6957,14 +6965,14 @@ class TestACPSessionIdPersistence:
             ],
         }
         conn = self._make_conn()
-        load_response = MagicMock(spec=[])  # no .models block
+        load_response = MagicMock(spec=[])  # 没有 .models 块
         conn.load_session = AsyncMock(return_value=load_response)
 
         agent._executor = AsyncExecutor()
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # current_model_id reflects the forced (switched) model...
+        # current_model_id 反映了强制（切换）模型...
         assert state.agent_state["acp_current_model_id"] == "model-b"
         # ...but the previously persisted list is preserved, not clobbered.
         assert state.agent_state["acp_available_models"] == [
@@ -6973,14 +6981,14 @@ class TestACPSessionIdPersistence:
         ]
 
     def test_resume_with_explicit_empty_models_clears_stale_list(self, tmp_path):
-        """Resume where the server *explicitly* reports ``availableModels: []``
-        must CLEAR the persisted list — not preserve it.
+        """在服务器 * 明确 * 报告 ``availableModels: []`` 的位置恢复
+        必须 CLEAR 已持久化列表——而不是保留它。
 
-        Regression: a truthy ``if self._available_models`` check couldn't tell
-        an omitted ``models`` block (preserve) from an explicit empty list
-        (clear), so a server that dropped its models kept advertising stale
-        picker options after resume. The ``None`` (absent) vs ``[]`` (reported
-        empty) distinction from ``_extract_session_models`` fixes this.
+        Regression: 真实的 ``if self._available_models`` 检查无法判断
+        一个省略掉的 ``models`` 块（保留）从一个明确的空列表（清除）中，因此一个丢弃
+        其模型的服务器在恢复后继续广播过时的筛选器选项。 ``None``（
+        缺席）与 ``[]``（报告为空）与 ``_extract_session_models`` 的区别解决了这个问
+        题。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -6995,8 +7003,8 @@ class TestACPSessionIdPersistence:
                 {"model_id": "model-a", "name": "Model A", "description": None},
             ],
         }
-        # load_session DOES carry a ``models`` block, but the server now offers
-        # no models (explicit empty list).
+        # load_session DOES 带有 ``models`` 块，但服务器现在不提供模型（显式空列表）。
+        #
         conn = self._make_conn()
         load_response = MagicMock()
         load_response.models = MagicMock()
@@ -7008,23 +7016,22 @@ class TestACPSessionIdPersistence:
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # The stale list is cleared (overwritten with []), not preserved.
+        # 过时列表被清除（用 [] 覆盖），而不是保留。
         assert state.agent_state["acp_available_models"] == []
         # ...and the stale current id is cleared in lock-step: the server
-        # reported a ``models`` block with no usable current id, so leaving the
-        # old id would render a chip that points at a model absent from the
-        # (now-empty) picker list.
+        # 报告了一个 ``models`` 个不可用的当前 id 的块，因此保留旧 id 会使指向上不存在的
+        # 模型的芯片无效。
+        #
         assert "acp_current_model_id" not in state.agent_state
 
     def test_resume_with_reported_models_but_no_current_clears_stale_id(self, tmp_path):
-        """Resume where the server reports a non-empty ``availableModels`` list
-        but no usable ``currentModelId`` must CLEAR the stale persisted current
-        id while adopting the freshly reported list.
+        """恢复服务器报告非空 ``availableModels`` 列表的位置
+        但在采用新报告的列表时，可用的 ``currentModelId`` 必须 CLEAR 过时的已持久化当
+        前 ID。
 
-        This is the asymmetric-gating case: ``_available_models`` is reported
-        (so the list is overwritten) while ``_current_model_id`` is ``None``.
-        The current id must follow the list's "reported" signal, not silently
-        keep a stale value the server no longer claims.
+        这是非对称门控情况：报告 ``_available_models``（因此列表被覆盖），而
+        ``_current_model_id`` 为 ``None``
+        。 当前 id 必须遵循列表的“报告”信号，而不是默默地保留服务器不再声明的陈旧值。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -7039,8 +7046,9 @@ class TestACPSessionIdPersistence:
                 {"model_id": "model-a", "name": "Model A", "description": None},
             ],
         }
-        # load_session carries a models block listing models, but with no
-        # current selection (e.g. the server cleared its current model).
+        # load_session 包含一个模型块，列出模型，但没有当前选择 (e.g. 服务器清除其当前模
+        # 型）。
+        #
         conn = self._make_conn()
         load_response = MagicMock()
         load_response.models = MagicMock()
@@ -7056,7 +7064,7 @@ class TestACPSessionIdPersistence:
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # The stale current id is dropped (server reported none)...
+        # 过时的当前 ID 已被删除（服务器报告 None）...
         assert "acp_current_model_id" not in state.agent_state
         # ...while the freshly reported picker list replaces the stale one.
         assert [m["model_id"] for m in state.agent_state["acp_available_models"]] == [
@@ -7066,19 +7074,19 @@ class TestACPSessionIdPersistence:
     def test_resume_rejected_override_with_absent_models_clears_stale_id(
         self, tmp_path
     ):
-        """Resume where ``set_session_model`` is rejected AND ``load_session``
-        omits the ``models`` block must CLEAR the stale persisted current id.
+        """恢复 ``set_session_model`` 被拒绝的位置 AND ``load_session``
+        省略 ``models`` 块必须 CLEAR 过时的已持久化当前 ID。
 
-        This is the case the preserve-on-resume rule would otherwise keep:
-        ``truly_resumed`` is true and ``_available_models`` is ``None`` (server
-        didn't report a block), so the only signal that the persisted id is now
-        wrong is that we attempted to force ``acp_model`` and the server rejected
-        it (``_model_override_applied`` is False). The persisted id named that
-        rejected override, so it no longer reflects the live session.
+        这是保留恢复规则的情况，否则会保留：
+        ``truly_resumed`` 是 True，``_available_models`` 是 ``None``（服务器没有报告
+        块），因此已持久化 id
+        现在错误的唯一信号是我们尝试强制 ``acp_model``，但服务器拒绝了它（
+        ``_model_override_applied`` 是 False）。
+        被命名为拒绝覆盖的已持久化 id，因此它不再反映实时会话。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
-        # ``model-x`` was the authoritative model last launch (applied + persisted).
+        # ``model-x``是上次发布的权威模型（已应用+已持久化）。
         agent = _make_agent(acp_model="model-x")
         state = _make_state(tmp_path)
         state.agent_state = {
@@ -7087,12 +7095,13 @@ class TestACPSessionIdPersistence:
             "acp_session_cwd": str(tmp_path),
             "acp_current_model_id": "model-x",
         }
-        # load_session succeeds (id preserved => truly_resumed) but carries no
-        # models block, and the server now rejects the reapply of ``model-x``.
+        # load_session 成功（idserved => truly_resumed），但不携带模型块，服务器现在拒绝
+        # 重新申请 ``model-x``。
+        #
         conn = self._make_conn()
         conn.initialize.return_value.agent_info.name = "codex-acp"
         conn.initialize.return_value.auth_methods = []
-        load_response = MagicMock(spec=[])  # no .models block
+        load_response = MagicMock(spec=[])  # 没有 .models 块
         conn.load_session = AsyncMock(return_value=load_response)
         conn.set_session_model = AsyncMock(
             side_effect=ACPRequestError(code=-32601, message="method not found")
@@ -7102,10 +7111,10 @@ class TestACPSessionIdPersistence:
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # Resume kept the same session id (so this is a true resume)...
+        # 简历保留相同的会话 ID（因此这是 True 简历）...
         assert state.agent_state["acp_session_id"] == "resumable-sess"
         # ...the override was not applied, so neither the live attr nor the
-        # persisted hint may claim ``model-x``.
+        # 已持久化提示可能声称 ``model-x``。
         assert agent.current_model_id is None
         assert agent._model_override_applied is False
         assert "acp_current_model_id" not in state.agent_state
@@ -7113,14 +7122,12 @@ class TestACPSessionIdPersistence:
     def test_fresh_replacement_clears_stale_model_when_new_session_omits_models(
         self, tmp_path
     ):
-        """Fresh replacement (load_session failed → new_session) with no
-        ``models`` block in the response must clear the persisted
-        ``acp_current_model_*`` rather than carry the old session's values
-        forward.
+        """全新更换（load_session 失败 → new_session），无
+        响应中的 ``models`` 块必须清除已持久化
+        ``acp_current_model_*`` 而不是继承旧会话的价值观。
 
-        Otherwise ``acp_session_id`` points at the replacement session while
-        the model fields still describe the dead one — ``ConversationInfo``
-        renders the wrong chip.
+        否则，``acp_session_id`` 指向替换会话，而模型字段仍然描述失效的会话 -
+        ``ConversationInfo`` 渲染错误的芯片。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -7135,7 +7142,7 @@ class TestACPSessionIdPersistence:
                 {"model_id": "claude-opus-4-1", "name": "Opus 4.1"}
             ],
         }
-        # load_session fails → new_session runs; its response has no .models.
+        # load_session 失败 → new_session 运行； 它的响应没有.models。
         new_session_response = MagicMock(spec=["session_id"])
         new_session_response.session_id = "replacement-sess"
         conn = self._make_conn(
@@ -7147,7 +7154,7 @@ class TestACPSessionIdPersistence:
         with self._transport_patches(conn):
             agent.init_state(state, on_event=lambda _: None)
 
-        # Replacement id wins, and the stale model fields are gone.
+        # 替换 id 获胜，过时的模型字段消失了。
         assert state.agent_state["acp_session_id"] == "replacement-sess"
         assert "acp_current_model_id" not in state.agent_state
         assert "acp_available_models" not in state.agent_state
@@ -7155,9 +7162,9 @@ class TestACPSessionIdPersistence:
     def test_cwd_mismatch_clears_stale_model_when_new_session_omits_models(
         self, tmp_path
     ):
-        """Same contract as the load_session-failure case, but reached via
-        the cwd-mismatch branch in ``_start_acp_server`` (which sets
-        ``prior_session_id = None`` before falling through to new_session).
+        """与 load_session-失败案例相同的合同，但通过
+        ``_start_acp_server`` 中的 cwd-mismatch 分支（设置
+        ``prior_session_id = None`` 在下降到 new_session 之前）。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -7188,9 +7195,9 @@ class TestACPSessionIdPersistence:
         assert "acp_available_models" not in state.agent_state
 
     def test_fallback_replacement_id_lands_in_agent_state(self, tmp_path):
-        """When load_session fails and new_session runs, init_state must
-        overwrite state.agent_state['acp_session_id'] with the new id so
-        the next restart doesn't keep trying to resume the stale one.
+        """当 load_session 失败且 new_session 运行时，init_state 必须
+        用新的 id 覆盖 state.agent_state['acp_session_id']，这样下次重新启动时就不会
+        继续尝试恢复旧的 id。
         """
         from openhands.sdk.utils.async_executor import AsyncExecutor
 
@@ -7216,8 +7223,8 @@ class TestACPSessionIdPersistence:
         assert state.agent_state["acp_session_cwd"] == str(tmp_path)
 
     def test_fallback_replacement_clears_suffix_marker(self, tmp_path):
-        """If load_session fails, the replacement session has not seen any
-        suffix yet, even if the stale session had persisted the marker.
+        """如果 load_session 失败，则替换会话没有看到任何
+        后缀，即使过时的会话具有已持久化标记。
         """
         agent = _make_agent(
             agent_context=AgentContext(system_message_suffix="Team rules.")
@@ -7245,9 +7252,9 @@ class TestACPSessionIdPersistence:
         assert agent._suffix_install_state == "pending_first_prompt"
 
     def test_resume_path_still_applies_session_mode_and_model(self, tmp_path):
-        """load_session must be followed by the same set_session_model and
-        set_session_mode calls as new_session, so a resumed session honours
-        acp_model overrides and the bypass-permissions mode.
+        """load_session 后面必须跟有相同的 set_session_model 和
+        set_session_mode 调用为 new_session，因此恢复的会话将遵循 acp_model 覆盖和旁
+        路权限模式。
         """
         agent = _make_agent(acp_model="claude-opus-4-6")
         state = _make_state(tmp_path)
@@ -7256,8 +7263,9 @@ class TestACPSessionIdPersistence:
             "acp_session_id": "stored-sess",
             "acp_session_cwd": str(tmp_path),
         }
-        # The maintained Codex adapter reports its scoped package name; provider
-        # detection still routes acp_model through conn.set_session_model.
+        # 维护的 Codex 适配器报告其作用域包名称； 提供商检测仍然通过
+        # conn.set_session_model 路由 acp_model。
+        #
         conn = self._make_conn()
         conn.initialize.return_value.agent_info.name = "@agentclientprotocol/codex-acp"
         conn.initialize.return_value.auth_methods = []
@@ -7277,7 +7285,7 @@ class TestACPSessionIdPersistence:
 
     @staticmethod
     def _models_block(current_model_id: str, model_ids: list[str]):
-        """Build a response ``.models`` block mock for the resolution tests."""
+        """为分辨率测试构建响应 ``.models`` 块模拟对象。"""
         models = MagicMock()
         models.current_model_id = current_model_id
         entries = []
@@ -7291,10 +7299,10 @@ class TestACPSessionIdPersistence:
         return models
 
     def test_unknown_provider_applies_override_via_detected_mechanism(self, tmp_path):
-        """Fresh session on an unknown/custom provider with ``acp_model`` set:
-        the override is pushed via the mechanism the session advertised — here a
-        ``models``-capability response, so ``set_session_model`` — and
-        ``current_model_id`` must reflect the applied override.
+        """未知/自定义提供商的新会话设置为 ``acp_model``：
+        覆盖是通过会话通告的机制推送的 - 这里是
+        ``models``-能力响应，因此``set_session_model`` - 和
+        ``current_model_id`` 必须反映所应用的覆盖。
         """
         agent = _make_agent(acp_model="caller-model")
         state = _make_state(tmp_path)
@@ -7316,10 +7324,10 @@ class TestACPSessionIdPersistence:
         assert agent.current_model_id == "caller-model"
 
     def test_known_provider_surfaces_applied_override(self, tmp_path):
-        """Fresh session on a provider that applies the override via the
-        protocol call (codex): ``current_model_id`` reflects the override, since
-        it was actually pushed to the server.  Guards the precedence the QA
-        verified — the fix must not regress the happy override path.
+        """提供程序上的新会话通过以下方式应用覆盖
+        协议调用（codex）：``current_model_id``反映了覆盖，因为它实际上被推送到服务器
+        。 保护 QA 验证的优先级 - 修复不得倒退快乐的覆
+        盖路径。
         """
         agent = _make_agent(acp_model="caller-model")
         state = _make_state(tmp_path)
@@ -7339,9 +7347,9 @@ class TestACPSessionIdPersistence:
         assert agent.current_model_id == "caller-model"
 
     def test_resume_rejected_override_surfaces_server_model(self, tmp_path):
-        """Resume where ``set_session_model`` is rejected: the live session keeps
-        the server default, so ``current_model_id`` must fall back to what the
-        server reported on ``load_session`` rather than claiming the override.
+        """在 ``set_session_model`` 被拒绝的地方继续：实时会话保持
+        服务器默认值，因此 ``current_model_id`` 必须回退到服务器在 ``load_session``
+        上报告的内容，而不是声明覆盖。
         """
         agent = _make_agent(acp_model="caller-model")
         state = _make_state(tmp_path)
@@ -7356,7 +7364,7 @@ class TestACPSessionIdPersistence:
         conn.initialize.return_value.agent_info.name = "codex-acp"
         conn.initialize.return_value.auth_methods = []
         conn.load_session = AsyncMock(return_value=load_response)
-        # Server rejects the reapply — swallowed, session keeps its own model.
+        # 服务器拒绝重新申请——被吞没，会话保留自己的模型。
         conn.set_session_model = AsyncMock(
             side_effect=ACPRequestError(code=-32601, message="method not found")
         )
@@ -7367,15 +7375,16 @@ class TestACPSessionIdPersistence:
         assert agent.current_model_id == "server-resumed"
 
     def test_roundtrip_via_conversation_state_persistence(self, tmp_path):
-        """End-to-end round-trip through ConversationState persistence:
+        """通过ConversationState持久化的端到端往返：
 
-        1. First Conversation with persistence_dir → init_state runs,
-           new_session is called, ``state.agent_state["acp_session_id"]`` is
-           written, autosave flushes ``base_state.json`` to disk.
-        2. Fresh ACPAgent + Conversation pointed at the same persistence_dir
-           and id → ConversationState.create() restores ``base_state.json``
-           so ``agent_state["acp_session_id"]`` survives; init_state on the
-           resumed state triggers ``load_session`` with that id.
+        1. 与 persistence_dir → init_state 的第一个对话运行，调用 new_session，写入
+        ``state.agent_state["acp_session_id"]``，自动保存将 ``base_state.json`` 刷新
+        到磁盘。
+        2. 新鲜 ACPAgent + 会话指向同一个 persistence_dir 和 id →
+        ConversationState.create() 重置
+        ``base_state.json`` so ``agent_state["acp_session_id"]`` 生存； init_state 在
+        恢复状态触
+        发 ``load_session`` 使用该ID。
         """
         import uuid as _uuid
 
@@ -7406,7 +7415,7 @@ class TestACPSessionIdPersistence:
         conn1.new_session.assert_awaited_once()
         conn1.load_session.assert_not_awaited()
 
-        # Fresh ACPAgent with no runtime knowledge of the prior session.
+        # ACPAgent 无运行时知识，与先前会话无关。
         conn2 = self._make_conn()
         agent2 = _make_agent()
         agent2._executor = AsyncExecutor()
@@ -7420,11 +7429,11 @@ class TestACPSessionIdPersistence:
                 visualizer=None,
             )
             conv2._ensure_agent_ready()
-            # base_state.json restored the id into agent_state.
+            # base_state.json 将 ID 恢复到 agent_state 中。
             assert conv2.state.agent_state["acp_session_id"] == "roundtrip-sess"
             conv2.close()
 
-        # Second launch took the load_session branch with the persisted id.
+        # 第二次启动采用了 ID 为已持久化的 load_session 分支。
         conn2.load_session.assert_awaited_once()
         _, kwargs = conn2.load_session.call_args
         assert kwargs["session_id"] == "roundtrip-sess"
@@ -7433,11 +7442,12 @@ class TestACPSessionIdPersistence:
         assert agent2._session_id == "roundtrip-sess"
 
     def test_start_acp_server_bounds_a_hung_handshake_call(self, tmp_path):
-        """A hung ACP call during the handshake (e.g. codex-acp blocking on an
-        expired id_token inside authenticate(), #3629) used to freeze
-        init_state() forever. acp_startup_timeout now bounds the whole
-        _init() coroutine, and the resulting bare TimeoutError (raised by
-        anyio.fail_after with no message) is converted to a descriptive one."""
+        """握手期间挂起的 ACP 调用 (e.g. codex-ACP 阻塞
+        authenticate() 内的 id_token 过期，#3629) 用于永久冻结 init_state()。
+        acp_startup_timeout
+        现在限制了整个 _init() 协程，并且生成的裸 TimeoutError（由 anyio.fail_after
+        提出，没有消息）被转换为描述性的。
+        """
         agent = _make_agent(acp_startup_timeout=0.05)
         state = _make_state(tmp_path)
         conn = self._make_conn()
@@ -7451,10 +7461,11 @@ class TestACPSessionIdPersistence:
             self._patched_start_acp_server(agent, state, conn=conn)
 
     def test_init_state_surfaces_startup_timeout(self, tmp_path):
-        """The converted TimeoutError reaches the client as a typed
-        ACPStartupTimeout ConversationErrorEvent, not a generic ACPInitError,
-        via the same init_state() cold-start path as other classified
-        failures."""
+        """转换后的 TimeoutError 作为类型到达客户端
+        ACPStartupTimeout  ConversationErrorEvent不是通用的 ACPInitError, via the
+        same
+        init_state（冷启动路径）和其他分类失败一样。
+        """
         agent = _make_agent(acp_startup_timeout=0.05)
         state = _make_state(tmp_path)
         conn = self._make_conn()
@@ -7477,14 +7488,15 @@ class TestACPSessionIdPersistence:
 
 
 class TestACPSecretsEnvInjection:
-    """Tests for secret injection into the ACP subprocess environment.
+    """测试机密注入 ACP 子进程环境。
 
-    Secrets passed via ``agent_context.secrets`` must land in the subprocess
-    env so the ACP server (Claude Code, Codex CLI, etc.) can use them. They
-    reach the subprocess through ``state.secret_registry``: ``LocalConversation``
-    seeds ``agent_context.secrets`` into the registry at init (covering
-    callers that never lift them into ``request.secrets``), and
-    ``_start_acp_server`` injects the registry.
+    通过 ``agent_context.secrets`` 传递的机密必须落在子进程环境中，以便 ACP 服务器（
+    Claude Code、Codex CLI 等）可以
+    使用它们。 它们通过 ``state.secret_registry`` 到达子进程：``LocalConversation``
+    种子
+    ``agent_context.secrets`` 在 init 处进入注册表（覆盖从未将它们提升到
+    ``request.secrets`` 的调用者），并且
+    ``_start_acp_server`` 注入注册表。
     """
 
     @staticmethod
@@ -7508,11 +7520,11 @@ class TestACPSecretsEnvInjection:
 
     @staticmethod
     def _run_start_capturing_env(agent, tmp_path, *, state=None) -> dict:
-        """Run _start_acp_server and return the env dict passed to the subprocess.
+        """运行 _start_acp_server 并返回传递给子进程的环境字典。
 
-        Pass ``state`` to run against a conversation-seeded registry (e.g. one
-        built via ``LocalConversation`` so ``agent_context.secrets`` are lifted
-        in); otherwise a bare state is used.
+        传递 ``state`` 以对抗对话种子注册表 (e.g. 一个通过 ``LocalConversation`` 构建
+        ，因此
+        ``agent_context.secrets`` 被提升）； 否则使用裸状态。
         """
         from contextlib import ExitStack
 
@@ -7540,10 +7552,11 @@ class TestACPSecretsEnvInjection:
         agent._executor = AsyncExecutor()
 
         with ExitStack() as stack:
-            # Hermetic: exclude the runner's ambient env (e.g. a real
-            # GITHUB_TOKEN / ANTHROPIC_API_KEY) so it can't shadow the
-            # registry values under test — env.update(os.environ) runs
-            # before the fill-if-absent registry tier in _start_acp_server.
+            # e.g 包含跑者的环境。 一个真实的
+            # GITHUB_TOKEN / ANTHROPIC_API_KEY) 因此它不能遮蔽测试下的注册表值 —
+            # env.update(os.environ) 在 _start_acp_server 中的 fill-if-absent 注册表层之
+            # 前运行。
+            #
             stack.enter_context(patch.dict("os.environ", {}, clear=True))
             stack.enter_context(
                 patch(
@@ -7574,13 +7587,13 @@ class TestACPSecretsEnvInjection:
         return captured
 
     def test_static_secret_injected_into_subprocess_env(self, tmp_path):
-        """A StaticSecret in agent_context.secrets reaches the subprocess env.
+        """agent_context.secrets 中的 StaticSecret 到达子进程环境。
 
-        ``LocalConversation`` seeds ``agent_context.secrets`` into
-        ``state.secret_registry`` at init, and ``_start_acp_server`` injects the
-        registry — the path that delivers ``agent_context.secrets`` to the CLI
-        for callers that don't lift them into ``request.secrets`` via
-        ``create_request`` (e.g. canvas-local).
+        ``LocalConversation`` 种子 ``agent_context.secrets`` 进入
+        ``state.secret_registry`` 在 init 处，``_start_acp_server`` 注入注册表 — 将
+        ``agent_context.secrets`` 传递到 CLI 的路径，对于不通过以下方式将其提升到
+        ``request.secrets`` 的调用者
+        ``create_request`` (e.g. 画布本地）。
         """
         from pydantic import SecretStr
 
@@ -7607,7 +7620,7 @@ class TestACPSecretsEnvInjection:
         assert env.get("GITHUB_TOKEN") == "ghp_test123"
 
     def test_none_value_secret_not_injected(self, tmp_path):
-        """A StaticSecret with value=None is not added to the subprocess env."""
+        """value=None 的 StaticSecret 不会添加到子进程环境中。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent(
@@ -7619,7 +7632,7 @@ class TestACPSecretsEnvInjection:
         assert "ABSENT_SECRET" not in env
 
     def test_empty_string_secret_not_injected(self, tmp_path):
-        """Empty string secrets are not injected into the subprocess env."""
+        """空字符串机密不会注入到子进程环境中。"""
         from pydantic import SecretStr
 
         from openhands.sdk.secret import StaticSecret
@@ -7634,38 +7647,39 @@ class TestACPSecretsEnvInjection:
 
 
 class _BrokenSecret(SecretSource):
-    """A source whose ``get_value()`` raises, to verify a failing lookup is
-    treated as "skip" rather than taking the subprocess down."""
+    """``get_value()`` 引发的源，用于验证失败的查找是
+    被视为“跳过”而不是删除子进程。"""
 
     def get_value(self) -> str | None:
         raise OSError("network down")
 
 
 class TestACPSecretRegistryEnvInjection:
-    """Tests for secret injection from the conversation's secret_registry.
+    """测试来自对话的 secret_registry 的机密注入。
 
-    Secrets registered via ``Conversation.update_secrets()`` — or the
-    equivalent ``payload.secrets`` channel that app-server callers
-    (agent-canvas, the OpenHands cloud app server) use — must land in the
-    ACP subprocess env. ``agent_context.secrets`` are seeded into the same
-    registry at ``LocalConversation.__init__`` (below ``request.secrets``), so
-    the registry is the single channel ``_start_acp_server`` injects from.
+    机密注册的 ``Conversation.update_secrets()`` — 或者等效的 ``payload.secrets`` 应
+    用程序服务器调用者（智能体
+    -canvas, the OpenHands 云应用服务器) 必须位于  ACP  子进程 env.
+    ``agent_context.secrets`` 被种在同一
+    组中注册表 at ``LocalConversation.__init__`` (以下) ``request.secrets``, 所以注册
+    表这是一个单一的渠道
+    ``_start_acp_server`` 注入。
 
-    Same-key precedence is ``secret_registry > os.environ``.
-    Registry secrets override ambient ``os.environ`` so an explicit
-    per-conversation/provider secret wins over a same-named server env var.
+    相同键优先级为 ``secret_registry > os.environ``。 注册表机密覆盖环境
+    ``os.environ``，因此显式的每个会话/提供者机密
+    胜过同名服务器环境变量。
     """
 
     @staticmethod
     def _run_start_capturing_env(
         agent, tmp_path, *, registry_secrets=None, extra_os_env=None, state=None
     ) -> dict:
-        """Re-uses the env-capture harness from TestACPSecretsEnvInjection.
+        """重新使用 TestACPSecretsEnvInjection 中的环境捕获工具。
 
-        Pass ``state`` to run against a conversation-seeded registry (e.g. one
-        built via ``LocalConversation`` so ``agent_context.secrets`` are lifted
-        in); otherwise a bare state is used and ``registry_secrets`` are applied
-        directly.
+        传递 ``state`` 以对抗对话种子注册表 (e.g. 一个通过 ``LocalConversation`` 构建
+        ，因此
+        ``agent_context.secrets`` 被提升）； 否则使用裸状态并直接应用
+        ``registry_secrets``。
         """
         if state is None:
             state = _make_state(tmp_path)
@@ -7696,9 +7710,10 @@ class TestACPSecretRegistryEnvInjection:
         agent._executor = AsyncExecutor()
 
         with ExitStack() as stack:
-            # Hermetic: replace the runner's ambient env with extra_os_env (or
-            # nothing), so it can't shadow the registry values under test and so
-            # tests can inject a controlled ambient var to assert precedence.
+            # Hermetic：将跑步者的环境环境替换为 extra_os_env （或
+            # 什么都没有），所以它不能隐藏测试中的注册表值，因此测试可以注入受控的环境变
+            # 量来断言优先级。
+            #
             stack.enter_context(
                 patch.dict("os.environ", extra_os_env or {}, clear=True)
             )
@@ -7731,11 +7746,12 @@ class TestACPSecretRegistryEnvInjection:
         return captured
 
     def test_registry_string_secret_injected_into_subprocess_env(self, tmp_path):
-        """A string secret in secret_registry lands in the subprocess env.
+        """secret_registry 中的字符串机密落在子进程环境中。
 
-        The canvas / OpenHands ``payload.secrets`` channel ends up here
-        via ``Conversation.update_secrets()`` → ``SecretRegistry.update_secrets``;
-        without this injection the secret is invisible to the ACP CLI.
+        canvas / OpenHands ``payload.secrets`` 通道通过
+        ``Conversation.update_secrets()``
+        → ``SecretRegistry.update_secrets`` 到达这里； 如果没有这种注入，机密对 ACP
+        CLI 是不可见的。
         """
         agent = _make_agent()
         env = self._run_start_capturing_env(
@@ -7746,11 +7762,11 @@ class TestACPSecretRegistryEnvInjection:
         assert env.get("ANTHROPIC_API_KEY") == "sk-from-registry"
 
     def test_registry_lookup_secret_injected_into_subprocess_env(self, tmp_path):
-        """A LookupSecret (callable) in secret_registry resolves and injects.
+        """secret_registry 中的 LookupSecret（可调用）解析并注入。
 
-        This is the wire shape canvas actually sends: a ``LookupSecret``
-        whose ``get_value()`` fetches over HTTP from the agent-server's
-        ``/api/settings/secrets/{name}`` endpoint.
+        这是线形画布实际发送的：一个 ``LookupSecret``，其 ``get_value()`` 从智能体服
+        务器的 HTTP 获取
+        ``/api/settings/secrets/{name}`` 端点。
         """
         agent = _make_agent()
         env = self._run_start_capturing_env(
@@ -7765,13 +7781,12 @@ class TestACPSecretRegistryEnvInjection:
     def test_request_secret_wins_and_context_only_secret_still_reaches_env(
         self, tmp_path
     ):
-        """request.secrets win on collision; a context-only key still reaches env.
+        """request.secrets 碰撞获胜； 仅上下文的密钥仍然到达 env。
 
-        Both channels flow through ``state.secret_registry``: ``LocalConversation``
-        seeds ``agent_context.secrets`` first, then ``request.secrets`` overwrite
-        colliding keys. A key present only in ``agent_context.secrets`` still
-        lands in the registry — and therefore the subprocess env — proving the
-        two channels coexist without one dropping the other.
+        两个通道首先流经 ``state.secret_registry``：``LocalConversation`` 种子
+        ``agent_context.secrets``，然后 ``request.secrets`` 覆盖冲突键。 仅在
+        ``agent_context.secrets`` 中存在的密钥仍然落在注册表中 - 因此子进程环境中 -
+        证明两个通道共存而不会丢失另一个通道。
         """
         from pydantic import SecretStr
 
@@ -7801,20 +7816,19 @@ class TestACPSecretRegistryEnvInjection:
         assert env.get("CONTEXT_ONLY") == "ctx-value"
 
     def test_empty_registry_does_not_change_behaviour(self, tmp_path):
-        """An empty secret_registry must not raise or alter the spawn env."""
+        """空的 secret_registry 不得引发或改变生成环境。"""
         agent = _make_agent()
         env = self._run_start_capturing_env(agent, tmp_path, registry_secrets=None)
-        # No secrets to inject; spawn still succeeds and produces an env dict.
+        # 没有机密可注入。 spawn 仍然成功并生成一个 env 字典。
         assert isinstance(env, dict)
 
     def test_failing_registry_lookup_swallowed(self, tmp_path):
-        """A secret source that raises is dropped, not propagated.
+        """引发的机密源将被丢弃，而不是传播。
 
-        ``SecretRegistry.get_secret_value`` already catches lookup
-        errors and returns ``None``; the spawn-env loop must treat
-        that ``None`` as "skip", so a transient secret-source failure
-        (network blip, expired token) doesn't take the whole ACP
-        subprocess down.
+        ``SecretRegistry.get_secret_value`` 已经捕获查找错误并返回 ``None``； spawn-
+        env 循环必须将那个
+        ``None`` 看作“跳过”，这样就不会因为机密的临时源失败（网络断开、过期 token）而
+        将整个 ACP 子进程拒绝。
         """
         agent = _make_agent()
         env = self._run_start_capturing_env(
@@ -7825,11 +7839,10 @@ class TestACPSecretRegistryEnvInjection:
         assert "BROKEN" not in env
 
     def test_registry_secret_overrides_ambient_os_environ(self, tmp_path):
-        """A registry secret overrides a same-named ambient os.environ var.
+        """注册表机密覆盖同名的环境 os.environ 变量。
 
-        Conversation/provider creds must win over the agent-server's own
-        environment (os.environ is the wrong process for a remote server).
-        Before this change the ambient value silently won.
+        对话/提供者信用必须赢得智能体服务器自己的环境（os.environ 对于远程服务器来说
+        是错误的进程）。 在这次改变之前，环境值悄然获胜。
         """
         agent = _make_agent()
         env = self._run_start_capturing_env(
@@ -7841,11 +7854,11 @@ class TestACPSecretRegistryEnvInjection:
         assert env.get("ANTHROPIC_API_KEY") == "from-registry"
 
     def test_agent_context_secret_overrides_ambient_os_environ(self, tmp_path):
-        """An agent_context secret (seeded into the registry) beats ambient os.environ.
+        """agent_context 机密（播种到注册表中）击败环境 os.environ。
 
-        ``LocalConversation`` lifts ``agent_context.secrets`` into the registry,
-        and registry secrets override the agent-server's own ``os.environ`` so a
-        per-conversation/provider secret wins over a same-named server env var.
+        ``LocalConversation`` 将 ``agent_context.secrets`` 提升到注册表，并且注册表机
+        密覆盖智能体服务器自己的
+        ``os.environ``，因此每个会话/提供者机密胜过同名服务器环境变量。
         """
         from pydantic import SecretStr
 
@@ -7873,16 +7886,16 @@ class TestACPSecretRegistryEnvInjection:
 
 
 class TestACPEnvConflictSuppression:
-    """An active CLAUDE_CODE_OAUTH_TOKEN must not coexist with API-key env vars.
+    """活动的 CLAUDE_CODE_OAUTH_TOKEN 不得与 API-key 环境变量共存。
 
-    When CLAUDE_CODE_OAUTH_TOKEN is present the subprocess authenticates with
-    that bearer against api.anthropic.com.  A co-present ANTHROPIC_API_KEY would
-    take precedence (bypassing the subscription) and an ANTHROPIC_BASE_URL would
-    route the bearer to a proxy that rejects it, breaking auth silently.
+    当 CLAUDE_CODE_OAUTH_TOKEN 存在时，子进程会根据 api.anthropic.com 对该承载者进行
+    身份验证。
+    ANTHROPIC_API_KEY 会优先处理（绕过订阅），而 ANTHROPIC_BASE_URL 会将承载路由到一
+    个拒绝它的代理，从而无声地破坏认证。
 
-    _start_acp_server must strip the conflicting vars regardless of where they
-    came from: os.environ, secret_registry, or agent_context.secrets.
-    The strip is keyed on the token, not on CLAUDE_CONFIG_DIR (#3588).
+    _start_acp_server 必须删除冲突的变量，无论它们来自哪里：os.environ、
+    secret_registry 或
+    agent_context.secrets。 该条带键控在 token 上，而不是 CLAUDE_CONFIG_DIR (#3588)。
     """
 
     @staticmethod
@@ -7959,9 +7972,10 @@ class TestACPEnvConflictSuppression:
                     return_value=MagicMock(),
                 )
             )
-            # Hermetic: clear the runner's ambient env so it can't shadow the
-            # values under test; extra_os_env is the only os.environ content
-            # (used by the test that injects ANTHROPIC_API_KEY via os.environ).
+            # Hermetic：清除跑步者的环境环境，使其无法遮蔽
+            # 测试值； extra_os_env 是唯一的 os.environ 内容（由通过 os.environ 注入
+            # ANTHROPIC_API_KEY 的测试使用）。
+            #
             stack.enter_context(
                 patch.dict("os.environ", extra_os_env or {}, clear=True)
             )
@@ -7970,7 +7984,7 @@ class TestACPEnvConflictSuppression:
         return captured
 
     def test_oauth_token_suppresses_api_key_from_os_environ(self, tmp_path):
-        """ANTHROPIC_API_KEY leaking in from os.environ is stripped too."""
+        """从 os.environ 泄漏的 ANTHROPIC_API_KEY 也被剥离。"""
         agent = _make_agent()
         env = self._run_start_capturing_env(
             agent,
@@ -7987,11 +8001,11 @@ class TestACPEnvConflictSuppression:
         assert "ANTHROPIC_BASE_URL" not in env
 
     def test_oauth_token_suppresses_api_key_from_registry(self, tmp_path):
-        """The token + conflicting vars all injected via secret_registry.
+        """token + 冲突的变量全部通过 secret_registry 注入。
 
-        This is the channel provider creds now travel on (folded into
-        ``agent_context.secrets`` by ``create_agent`` → lifted into the
-        registry by ``create_request``).
+        这是渠道提供商的信用现在传播（折叠成
+        ``agent_context.secrets`` 乘 ``create_agent`` → 提升到注册表乘
+        ``create_request``）。
         """
         agent = _make_agent()
         env = self._run_start_capturing_env(
@@ -8009,11 +8023,11 @@ class TestACPEnvConflictSuppression:
         assert "ANTHROPIC_BASE_URL" not in env
 
     def test_oauth_token_suppresses_api_key_from_secrets(self, tmp_path):
-        """Conflicting vars drained from agent_context.secrets are stripped too.
+        """从 agent_context.secrets 中排出的冲突变量也被删除。
 
-        Covers the canvas-local channel: provider creds folded into
-        ``agent_context.secrets`` reach env via the drain, and must still be
-        stripped when the OAuth token is active.
+        覆盖画布本地渠道：提供商信用纳入
+        ``agent_context.secrets`` 通过排水到达 env，并且当 OAuth token 处于活动状态时
+        仍必须被剥离。
         """
         from pydantic import SecretStr
 
@@ -8042,7 +8056,7 @@ class TestACPEnvConflictSuppression:
         assert "ANTHROPIC_BASE_URL" not in env
 
     def test_no_suppression_without_oauth_token(self, tmp_path):
-        """Without the OAuth token, ANTHROPIC_API_KEY passes through unchanged."""
+        """如果没有 OAuth token，ANTHROPIC_API_KEY 会保持不变。"""
         agent = _make_agent()
         env = self._run_start_capturing_env(
             agent,
@@ -8054,10 +8068,10 @@ class TestACPEnvConflictSuppression:
         assert "CLAUDE_CODE_OAUTH_TOKEN" not in env
 
     def test_config_dir_alone_does_not_suppress_api_key(self, tmp_path):
-        """Regression (#3588): CLAUDE_CONFIG_DIR without the OAuth token must NOT
-        strip ANTHROPIC_API_KEY. The config dir is a location lever (data-dir
-        isolation), orthogonal to auth mode — keying the strip on it used to
-        delete a working API key during isolation."""
+        """Regression (#3588): CLAUDE_CONFIG_DIR 没有 OAuth token 必须不
+        剥离ANTHROPIC_API_KEY。 配置目录是一个隔离数据目录的开关（认证模式），与授权
+        模式无关——在隔离期间使用它来删除一个工作 API 的密钥。
+        """
         agent = _make_agent()
         env = self._run_start_capturing_env(
             agent,
@@ -8072,12 +8086,11 @@ class TestACPEnvConflictSuppression:
         assert env.get("ANTHROPIC_API_KEY") == "sk-valid"
 
     def test_rule_does_not_reach_another_provider(self, tmp_path):
-        """A provider that did not declare the conflict keeps the variable.
+        """未声明冲突的提供者保留该变量。
 
-        The rule belongs to claude-code, but the loop used to run for every
-        provider — so an ambient Claude subscription token deleted
-        ANTHROPIC_API_KEY out of any ACP subprocess. For a provider whose own
-        ``api_key_env_var`` is ANTHROPIC_API_KEY that is its only credential.
+        规则属于claude-code，但用于每个提供者运行的循环已被删除ANTHROPIC_API_KEY，任
+        何ACP 子进程的token。 对于拥有自己的
+        ``api_key_env_var``是ANTHROPIC_API_KEY，这是它唯一的凭据。
         """
         agent = _make_agent(acp_server="gemini-cli")
         env = self._run_start_capturing_env(
@@ -8092,7 +8105,7 @@ class TestACPEnvConflictSuppression:
         assert env.get("ANTHROPIC_API_KEY") == "sk-this-providers-credential"
 
     def test_claude_code_key_still_applies_the_rule(self, tmp_path):
-        """The declaring provider is unaffected by the scoping."""
+        """声明提供者不受范围的影响。"""
         agent = _make_agent(acp_server="claude-code")
         env = self._run_start_capturing_env(
             agent,
@@ -8107,13 +8120,12 @@ class TestACPEnvConflictSuppression:
 
 
 class TestACPAgentCurrentModelIdProperty:
-    """``current_model_id`` is a read-only property backed by a PrivateAttr.
+    """``current_model_id`` 是由 PrivateAttr 支持的只读属性。
 
-    ``AgentBase`` is frozen so the value can't live on the agent as a
-    regular Pydantic field; it doesn't round-trip through ``model_dump``
-    either.  Cross-process consumers (the OpenHands app_server) should
-    read it off ``ConversationInfo`` instead — the agent-server lifts the
-    value off the agent into the API response.
+    ``AgentBase`` 被冻结，因此该值不能作为常规 Pydantic 字段存在于智能体中； 它也不通
+    过 ``model_dump`` 往返。 跨进程消费者（
+    OpenHands app_server）应该从 ``ConversationInfo`` 中读取它 - 智能体服务器将智能体
+    中的值提升到 API 响应中。
     """
 
     def test_defaults_to_none(self):
@@ -8121,26 +8133,27 @@ class TestACPAgentCurrentModelIdProperty:
         assert agent.current_model_id is None
 
     def test_reflects_private_attr(self):
-        # ``_init`` writes the resolved model into ``_current_model_id``
-        # after consulting the server response + the caller override.
+        # ``_init`` 在咨询服务器响应 + 调用者覆盖后将解析的模型写入
+        # ``_current_model_id``。
+        #
         agent = _make_agent()
         agent._current_model_id = "claude-sonnet-4-5"
         assert agent.current_model_id == "claude-sonnet-4-5"
 
     def test_acp_model_override_wins_over_server_report(self):
-        """When ``acp_model`` is set, ``current_model_id`` reflects the override.
+        """设置 ``acp_model`` 时，``current_model_id`` 反映覆盖。
 
-        Mirrors the resolution logic in ``_init``: a caller-provided
-        ``acp_model`` takes precedence over whatever the server happens to
-        report, regardless of which protocol model-selection mechanism applies.
+        镜像 ``_init`` 中的解析逻辑：调用者提供
+        ``acp_model`` 优先于服务器报告的任何内容，无论应用哪种协议模型选择机制。
         """
         agent = _make_agent(acp_model="gpt-5")
         agent._current_model_id = agent.acp_model or "fallback-from-server"
         assert agent.current_model_id == "gpt-5"
 
     def test_does_not_round_trip_through_json(self):
-        # Locks in the deliberate design choice: PrivateAttr → not serialized.
-        # Cross-process consumers must read from ``ConversationInfo``.
+        # 锁在刻意的设计选择中：PrivateAttr→不是已序列化。 跨进程消费者必须从
+        # ``ConversationInfo``读取。
+        #
         agent = _make_agent()
         agent._current_model_id = "claude-opus-4-1"
         clone = ACPAgent.model_validate_json(agent.model_dump_json())
@@ -8148,12 +8161,12 @@ class TestACPAgentCurrentModelIdProperty:
 
 
 class TestExtractSessionModels:
-    """``_extract_session_models`` reads the model the ACP server reports.
+    """``_extract_session_models`` 读取 ACP 服务器报告的模型。
 
-    The ``models`` capability is marked UNSTABLE in the spec. The second
-    element distinguishes **absent** (``None`` — block missing) from
-    **present-but-empty** (``[]`` — server reports no models), which the
-    resume-persistence logic relies on to preserve vs. clear the stored list.
+    ``models`` 功能在规范中标记为 UNSTABLE。 第二个元素将 **absent**（``None`` — 块丢
+    失）与
+    **present-but-empty**（``[]`` - 服务器报告没有模型），其中
+    resume-持久化逻辑依赖于保存 vs. 清除已存储的列表。
     """
 
     def test_returns_both_when_response_carries_them(self):
@@ -8167,7 +8180,7 @@ class TestExtractSessionModels:
         response.models.available_models = [m1]
         cur, avail, _ = _extract_session_models(response)
         assert cur == "default"
-        # Normalized into our stable ACPModelInfo, not the raw acp type.
+        # 标准化为我们的稳定版本 ACPModelInfo，而不是原始 ACP 类型。
         assert avail == [
             ACPModelInfo(
                 model_id="default",
@@ -8177,16 +8190,18 @@ class TestExtractSessionModels:
         ]
 
     def test_returns_none_list_when_models_block_absent(self):
-        # Older agents don't include the ``models`` block at all -> None, so
-        # callers know nothing was reported (and can preserve prior state).
+        # 较旧的智能体根本不包含 ``models`` 块 -> None，因此调用者知道没有报告任何内容（
+        # 并且可以保留先前的状态）。
+        #
         response = MagicMock(spec=[])
         cur, avail, _ = _extract_session_models(response)
         assert cur is None
         assert avail is None
 
     def test_returns_empty_list_when_available_models_missing(self):
-        # ``models`` block present but ``availableModels`` absent/None: the
-        # block WAS reported, so we return ``[]`` (present, no models), not None.
+        # ``models`` 块存在，但 ``availableModels`` 不存在/无：报告的块 WAS，因此我们返
+        # 回 ``[]``（存在，无模型），而不是 None。
+        #
         response = MagicMock()
         response.models = MagicMock()
         response.models.current_model_id = "gpt-5"
@@ -8196,8 +8211,9 @@ class TestExtractSessionModels:
         assert avail == []
 
     def test_returns_none_list_when_response_is_none(self):
-        # ``load_session`` can return ``None`` for servers that don't
-        # implement the call — the helper must not crash, and reports "absent".
+        # 对于不实现调用的服务器，``load_session`` 可以返回 ``None`` — 帮助程序不得崩溃
+        # ，并报告“缺席”。
+        #
         assert _extract_session_models(None) == (None, None, False)
 
     def test_returns_none_list_when_models_field_is_none(self):
@@ -8206,9 +8222,9 @@ class TestExtractSessionModels:
         assert _extract_session_models(response) == (None, None, False)
 
     def test_returns_none_when_current_model_id_is_empty_string(self):
-        # An empty string is treated the same as a missing field — we don't
-        # want to surface "" as a real model name. The block is present, so
-        # available_models is [] (not None).
+        # 空字符串被视为与缺失字段相同 - 我们不想将“”显示为真实的模型名称。 该块存在，因
+        # 此 available_models 是 []（而不是 None）。
+        #
         response = MagicMock()
         response.models = MagicMock()
         response.models.current_model_id = ""
@@ -8216,7 +8232,7 @@ class TestExtractSessionModels:
         assert _extract_session_models(response) == (None, [], False)
 
     def test_returns_none_when_current_model_id_is_not_a_string(self):
-        # Defensive: an agent returning a non-string here is malformed.
+        # 防御性：这里返回非字符串的智能体格式错误。
         response = MagicMock()
         response.models = MagicMock()
         response.models.current_model_id = 42
@@ -8225,11 +8241,11 @@ class TestExtractSessionModels:
 
 
 class TestExtractSessionModelsNormalization:
-    """``_extract_session_models`` normalizes raw acp entries to ACPModelInfo.
+    """``_extract_session_models`` 标准化原始数据 ACP entries to ACPModelInfo.
 
-    The SDK deliberately re-maps the (UNSTABLE) ``acp.schema`` ``ModelInfo``
-    into our own stable type at this boundary, tolerating partial/malformed
-    entries rather than leaking the vendored shape or raising.
+    SDK 有意地将 UNSTABLE ``acp.schema`` ``ModelInfo`` 重映射为我们的稳定类型，在边界
+    处容忍部分/畸形输入，而不是泄露供应商形
+    状或抛出异常。
     """
 
     def _raw(self, model_id: Any, name: Any = None, description: Any = None) -> Any:
@@ -8256,28 +8272,29 @@ class TestExtractSessionModelsNormalization:
         ]
 
     def test_drops_entries_without_usable_id(self):
-        # A malformed entry (missing/non-string id) must not blow up session
-        # bring-up, and must not surface as an empty-id picker option — it's
-        # dropped, while valid entries alongside it survive.
+        # 一个畸形的条目（缺少或非字符串的id）必须不会导致会话启动失败，也不会显示为空id
+        # 选择器选项——它被丢弃，而与之一起存在的有效条目则存活。
+        #
         response = MagicMock()
         response.models = MagicMock()
         response.models.current_model_id = "good"
         response.models.available_models = [
-            self._raw(model_id=42),  # non-string -> "" -> dropped
+            self._raw(model_id=42),  # 非字符串 -> "" -> 删除
             self._raw(model_id="good", name="Good"),
-            self._raw(model_id="", name="Empty"),  # empty -> dropped
+            self._raw(model_id="", name="Empty"),  # 空 -> 丢弃
         ]
         _cur, avail, _ = _extract_session_models(response)
         assert avail == [ACPModelInfo(model_id="good", name="Good", description=None)]
 
 
 class TestConfigOptionModelMechanism:
-    """Model selection via the ``model`` ``configOptions`` select.
+    """通过 ``model`` ``configOptions`` 选择来选择型号。
 
-    Current codex-acp and claude-agent-acp expose a ``model`` config-option
-    select driven by ``session/set_config_option``. ``_extract_session_models``
-    reads that select and reports the apply mechanism as its third return value
-    (``via_config_option``) in the same scan.
+    当前的 codex-ACP 和 claude-智能体-ACP 公开了由 ``session/set_config_option`` 驱动
+    的 ``model`` 配置
+    选项选择。 ``_extract_session_models`` 读取该选择并将应用机制报告为同一扫描中的第
+    三个返回值 (
+    ``via_config_option``)。
     """
 
     def _select(self, *, id="model", type="select", current_value, options):
@@ -8293,7 +8310,7 @@ class TestConfigOptionModelMechanism:
         return SimpleNamespace(models=models, config_options=config_options)
 
     def test_extracts_model_state_from_config_option(self):
-        # claude-agent-acp 0.44: model select with short aliases.
+        # claude-智能体-ACP 0.44：使用短别名选择模型。
         response = self._response(
             config_options=[
                 self._select(
@@ -8322,14 +8339,15 @@ class TestConfigOptionModelMechanism:
         ]
 
     def test_unwraps_rootmodel_wrapped_config_option(self):
-        # agent-client-protocol 0.8.x wraps each entry in a SessionConfigOption
-        # RootModel (the option lives under ``.root``); detection must unwrap it,
+        # 智能体-client-protocol 0.8.x 将每个条目包装在 SessionConfigOption RootModel 中
+        # （该选项位于 ``.root`` 下）； 检测必须将其打开，
+        #
         # else ``opt.id`` is None and the SDK wrongly falls back to set_model.
         select = self._select(
             current_value="opus[1m]",
             options=[self._opt("opus[1m]", "Opus"), self._opt("sonnet", "Sonnet")],
         )
-        wrapped = SimpleNamespace(root=select)  # mimics the RootModel wrapper
+        wrapped = SimpleNamespace(root=select)  # 模仿 RootModel 包装器
         response = self._response(config_options=[wrapped])
         cur, avail, via = _extract_session_models(response)
         assert via is True
@@ -8338,7 +8356,7 @@ class TestConfigOptionModelMechanism:
         assert [m.model_id for m in avail] == ["opus[1m]", "sonnet"]
 
     def test_config_option_wins_over_models_capability(self):
-        # Current codex-acp carries both; use the standard config-option path.
+        # 当前的 codex-ACP 包含两者； 使用标准配置选项路径。
         models = MagicMock()
         models.current_model_id = "from-models"
         models.available_models = []
@@ -8368,8 +8386,9 @@ class TestConfigOptionModelMechanism:
         assert _extract_session_models(response)[2] is True
 
     def test_ignores_non_model_config_options(self):
-        # A ``mode`` select alongside no ``model`` select ⇒ old mechanism, and
-        # the default (False) is reported since neither block was present.
+        # ``mode`` 选择和``model`` 选择都没有 ⇒ 旧机制，且默认值(False)被报告，因为没有
+        # 块。
+        #
         response = self._response(
             config_options=[
                 SimpleNamespace(
@@ -8388,9 +8407,9 @@ class TestConfigOptionModelMechanism:
                 self._select(
                     current_value="ok",
                     options=[
-                        self._opt(value=42),  # non-string -> dropped
+                        self._opt(value=42),  # 非字符串 -> 被丢弃
                         self._opt("ok", "Ok"),
-                        self._opt(value="", name="Empty"),  # empty -> dropped
+                        self._opt(value="", name="Empty"),  # 空 -> 丢弃
                     ],
                 )
             ],
@@ -8403,15 +8422,15 @@ class TestConfigOptionModelMechanism:
         assert _extract_session_models(None)[2] is False
 
     def test_default_via_config_option_used_when_no_block_present(self):
-        # On resume a load_session that omits both the models capability and the
-        # model config-option must not blindly default to set_session_model: the
-        # caller passes the persisted mechanism hint, which is honored (#3772).
+        # 在恢复时 load_session 必须不盲目的默认掉模型的能力和配置选项 set_session_model
+        # : 调用者传递了已持久化机制提示，已认可 (#3772)。
+        #
         response = self._response(config_options=[])
         assert _extract_session_models(response)[2] is False
         assert (
             _extract_session_models(response, default_via_config_option=True)[2] is True
         )
-        # A present block still wins over the hint.
+        # 当前的块仍然胜过提示。
         present = self._response(
             config_options=[
                 self._select(current_value="x", options=[self._opt("x", "X")])
@@ -8422,12 +8441,11 @@ class TestConfigOptionModelMechanism:
         )
 
 
-# Real ``session/new`` wire payloads (by-alias) captured from the pinned CLIs.
-# Parsed through the real ``NewSessionResponse`` so the test exercises the
-# genuine schema, INCLUDING the ``SessionConfigOption`` RootModel wrapper the
-# ``agent-client-protocol`` lib applies to ``config_options`` on 0.8.x (where a
-# naive ``opt.id`` read returns ``None``). The detection helper unwraps
-# ``.root`` so it works on 0.8.x + 0.10.x.
+# 从挂载的CLIs中捕获了实``session/new``的别名载荷。 通过真实的 ``NewSessionResponse`` 进
+# 行解析，因此测试会测试真实的模式、INCLUDING、``SessionConfigOption``、RootModel 包
+# ``agent-client-protocol`` lib 适用于 0.8.x 上的 ``config_options``（其中简单的
+# ``opt.id`` 读取返回 ``None``）。 检测助手打开
+# ``.root`` 所以它适用于 0.8.x + 0.10.x。
 def _select_dict(opt_id, current, values, category=None):
     return {
         "id": opt_id,
@@ -8498,18 +8516,18 @@ _GEMINI_046_SESSION = {
 
 
 class TestDetectionAgainstRealSessionResponses:
-    """Detection + extraction against the real CLI ``session/new`` wire shapes,
-    parsed through the actual ``acp.schema.NewSessionResponse``.
+    """针对真实 CLI ``session/new`` 线形状的检测 + 提取，
+    通过实际的``acp.schema.NewSessionResponse``进行解析。
 
-    Guards a schema-shape regression: on ``agent-client-protocol`` 0.8.x each
-    ``config_options`` entry is a ``SessionConfigOption`` RootModel (``.root``),
-    so a naive ``opt.id`` read is ``None`` and the SDK would fall back to the
-    removed ``session/set_model``.
+    守卫模式形状回归：每个 ``agent-client-protocol`` 0.8.x
+    ``config_options`` 条目是 ``SessionConfigOption`` RootModel (``.root``)，因此简单
+    的
+    ``opt.id`` 读取是 ``None``，并且 SDK 将回退到已删除的 ``session/set_model``。
     """
 
     def test_config_options_is_the_schema_field_name(self):
-        # The SDK reads ``response.config_options``; pin that this is the real
-        # field on the schema.
+        # SDK 变为 ``response.config_options``； 指出这是模式上的真实字段。
+        #
         assert "config_options" in NewSessionResponse.model_fields
 
     def test_claude_046_uses_config_option(self):
@@ -8534,7 +8552,7 @@ class TestDetectionAgainstRealSessionResponses:
         ]
 
     def test_gemini_046_models_block_needs_the_extended_response(self):
-        # agent-client-protocol 0.12.1 dropped the UNSTABLE ``models`` block
+        # 智能体-client-protocol 0.12.1 删除了 UNSTABLE ``models`` 块
         # from ``NewSessionResponse``; gemini-cli reports its models only there.
         plain = NewSessionResponse.model_validate(_GEMINI_046_SESSION)
         assert _extract_session_models(plain) == (None, None, False)
@@ -8559,11 +8577,10 @@ class TestDetectionAgainstRealSessionResponses:
 
 
 class TestApplyAcpModelNoFallback:
-    """``_apply_acp_model`` applies via the advertised mechanism only — there is
-    no cross-mechanism fallback. Response-detection is deterministic from the
-    session/new shape and correct for every validated CLI, so any rejection is a
-    real error (invalid model id, or a genuinely mis-advertised server) and
-    propagates rather than silently trying the other call.
+    """``_apply_acp_model`` 仅通过广告机制适用 - 有
+    无交叉机制回退方案。 响应检测在会话/新形状下是确定性的，并且对每个验证过的 CLI 都
+    是正确的，因此任何拒绝都是真正的错误（无效的模型 ID，或一个真正被错误地广
+    播的服务器），而不是默默地尝试其他调用。
     """
 
     @pytest.mark.asyncio
@@ -8574,7 +8591,7 @@ class TestApplyAcpModelNoFallback:
         )
         with pytest.raises(ACPRequestError):
             await _apply_acp_model(conn, "sess-1", "opus[1m]", via_config_option=True)
-        conn.set_session_model.assert_not_called()  # no fallback
+        conn.set_session_model.assert_not_called()  # 没有回退方案
 
     @pytest.mark.asyncio
     async def test_set_session_model_rejection_propagates(self):
@@ -8586,11 +8603,11 @@ class TestApplyAcpModelNoFallback:
             await _apply_acp_model(
                 conn, "sess-1", "gemini-3-flash", via_config_option=False
             )
-        conn.set_config_option.assert_not_called()  # no fallback
+        conn.set_config_option.assert_not_called()  # 没有回退方案
 
 
 class TestApplyAcpModel:
-    """``_apply_acp_model`` uses the mechanism the session advertised."""
+    """``_apply_acp_model`` 使用会话通告的机制。"""
 
     @pytest.mark.asyncio
     async def test_config_option_single_call(self):
@@ -8637,11 +8654,11 @@ class TestApplyAcpModel:
 
 
 class TestACPAgentAvailableModelsProperty:
-    """``available_models`` exposes the server's model list verbatim.
+    """``available_models`` 逐字公开服务器的模型列表。
 
-    No server-side curation: the property hands back the normalized
-    ``ACPModelInfo`` list so clients render the picker and resolve
-    ``current_model_id`` to a display label themselves.
+    无服务器端管理：酒店返还标准化的内容
+    ``ACPModelInfo`` 列出以便客户端渲染选择器并解析
+    ``current_model_id`` 为显示标签本身。
     """
 
     def test_defaults_to_empty(self):
@@ -8661,7 +8678,7 @@ class TestACPAgentAvailableModelsProperty:
         assert agent.available_models == models
 
     def test_returns_a_copy(self):
-        # Mutating the returned list must not corrupt the agent's state.
+        # 改变返回的列表不得破坏智能体的状态。
         agent = _make_agent()
         agent._available_models = [ACPModelInfo(model_id="default")]
         got = agent.available_models
@@ -8670,16 +8687,16 @@ class TestACPAgentAvailableModelsProperty:
 
 
 class TestACPAgentSupportsRuntimeModelSwitch:
-    """``supports_runtime_model_switch`` gates the live-switch picker.
+    """``supports_runtime_model_switch`` 控制实时开关选择器。
 
-    ``True`` only for known providers that declare ``session/set_model`` support.
-    Unknown/custom providers use ``set_config_option`` for initial model selection
-    but that is a generic config write, not a guaranteed live-switch primitive,
-    so the picker is hidden for them. ``False`` before a session exists.
+    ``True`` 仅适用于声明 ``session/set_model`` 支持的已知提供商。
+    ``set_config_option`` 未知/自定义提供者在初始
+    模型选择中使用，但这只是通用配置写入，而不是保证的实时切换原语，因此选择器对他们
+    是隐藏的。 ``False`` 在会话存在之前。
     """
 
     def test_false_before_session(self):
-        # No live session (``_session_id is None``) -> nothing to switch.
+        # 没有实时会话 (``_session_id is None``) -> 没有任何可切换的内容。
         agent = _make_agent()
         agent._agent_name = "codex-acp"
         assert agent.supports_runtime_model_switch is False
@@ -8691,15 +8708,16 @@ class TestACPAgentSupportsRuntimeModelSwitch:
         assert agent.supports_runtime_model_switch is True
 
     def test_false_for_unknown_provider(self):
-        # Unknown/custom providers use set_config_option for initial model
-        # selection only; the live-switch picker is hidden for them.
+        # 未知/自定义提供商仅使用 set_config_option 进行初始模型选择； 实时切换选择器对
+        # 他们来说是隐藏的。
+        #
         agent = _make_agent()
         agent._session_id = "sess-1"
         agent._agent_name = "some-third-party-acp-server"
         assert agent.supports_runtime_model_switch is False
 
     def test_false_for_known_unsupported_provider(self, monkeypatch):
-        # A known provider that declares no support is the one case we refuse.
+        # 声明不提供支持的知名提供商是我们拒绝的一种情况。
         import openhands.sdk.agent.acp_agent as acp_agent_module
 
         unsupported = MagicMock()
@@ -8717,12 +8735,12 @@ class TestACPAgentSupportsRuntimeModelSwitch:
 
 # ---------------------------------------------------------------------------
 
-# MCP forwarding
+# MCP 转发
 # ---------------------------------------------------------------------------
 
 
 class TestMcpConfigToAcpServers:
-    """Unit tests for the mcp_config -> ACP server translation + gating."""
+    """单元测试为 mcp_config -> ACP 服务器翻译 + 门控。"""
 
     @staticmethod
     def _caps(http: bool, sse: bool):
@@ -8747,7 +8765,7 @@ class TestMcpConfigToAcpServers:
                 }
             }
         }
-        # Even with no advertised remote capabilities, stdio is forwarded.
+        # 即使没有公开的远程功能，stdio 也会被转发。
         out = _mcp_config_to_acp_servers(
             self._config(cfg), self._caps(http=False, sse=False)
         )
@@ -8770,14 +8788,14 @@ class TestMcpConfigToAcpServers:
                 }
             }
         }
-        # Dropped when the server doesn't advertise http.
+        # 当服务器不做广告时被丢弃 HTTP。
         assert (
             _mcp_config_to_acp_servers(
                 self._config(cfg), self._caps(http=False, sse=False)
             )
             == []
         )
-        # Forwarded when advertised.
+        # 发布广告时转发。
         out = _mcp_config_to_acp_servers(
             self._config(cfg), self._caps(http=True, sse=False)
         )
@@ -8978,8 +8996,8 @@ class TestMcpConfigToAcpServers:
                 "switched_off": {"command": "uvx", "enabled": False},
             }
         }
-        # The subprocess owns the connection, so withholding the entry is the
-        # only way to keep a disabled server out of its reach.
+        # 子进程拥有该连接，因此保留该条目是使禁用的服务器无法访问的唯一方法。
+        #
         out = _mcp_config_to_acp_servers(
             self._config(cfg), self._caps(http=True, sse=True)
         )
@@ -9004,7 +9022,7 @@ class TestMcpConfigToAcpServers:
 
 
 class TestACPMcpForwarding:
-    """The translated servers reach new_session AND load_session (resume)."""
+    """已翻译的服务器达到 new_session AND load_session（恢复）。"""
 
     @staticmethod
     def _conn_with_caps(*, http=True, sse=True, load_exc=None):
@@ -9026,8 +9044,8 @@ class TestACPMcpForwarding:
         assert [s.name for s in servers] == ["fetch"]
 
     def test_resume_load_session_receives_acp_mcp_servers(self, tmp_path):
-        """The key correctness point: resume must re-pass MCP servers, since
-        load_session does not persist them server-side."""
+        """关键正确点：resume必须重新经过MCP个服务器，因为
+        load_session 不持久化服务器端。"""
         agent = _make_agent(mcp_config={"fetch": {"command": "echo"}})
         state = _make_state(tmp_path)
         state.agent_state = {**state.agent_state, "acp_session_id": "stored-sess"}
@@ -9052,13 +9070,13 @@ class TestACPMcpForwarding:
 
 
 # ---------------------------------------------------------------------------
-# Reserved file-content secret materialisation (issue #1020)
+# 保留文件内容机密实现（问题 #1020）
 # ---------------------------------------------------------------------------
 
 
 class TestACPFileSecretMaterialisation:
-    """Codex auth.json / Gemini Vertex SA JSON materialise to the durable
-    per-conversation root, with the right data-dir env var, seed-if-absent.
+    """Codex auth.json / Gemini Vertex SA JSON 实现耐用
+    每个对话根，具有正确的数据目录环境变量，如果不存在则种子。
     """
 
     @staticmethod
@@ -9074,7 +9092,7 @@ class TestACPFileSecretMaterialisation:
         init_response.agent_info.name = agent_name
         init_response.agent_info.version = "1.0"
         init_response.auth_methods = [MagicMock(id=auth_method)] if auth_method else []
-        # MagicMock(id=...) doesn't set .id; assign explicitly.
+        # MagicMock(id=...) 未设置 .id； 显式分配。
         for m in init_response.auth_methods:
             m.id = auth_method
             m.type = auth_method_type
@@ -9092,8 +9110,8 @@ class TestACPFileSecretMaterialisation:
 
     @staticmethod
     def _run_start(agent, state, *, conn):
-        """Run the real _start_acp_server with transport mocked; return the env
-        dict handed to the subprocess."""
+        """用传输层模拟的运行真实的_start_acp_server； 返回环境
+        字典交给子进程。"""
         from contextlib import ExitStack
 
         from openhands.sdk.utils.async_executor import AsyncExecutor
@@ -9176,11 +9194,11 @@ class TestACPFileSecretMaterialisation:
         assert codex_home == Path(persist) / "acp" / "codex"
         auth_file = codex_home / "auth.json"
         assert auth_file.read_text(encoding="utf-8") == '{"tokens": "x"}'
-        # 0600 file inside a 0700 dir, and the shared acp/ parent is 0700 too.
+        # 0700 目录中的 0600 文件，共享的 acp/ 父级也是 0700。
         assert auth_file.stat().st_mode & 0o777 == 0o600
         assert codex_home.stat().st_mode & 0o777 == 0o700
         assert codex_home.parent.stat().st_mode & 0o777 == 0o700
-        # The blob is not exported as an env var.
+        # 该 blob 不会作为环境变量导出。
         assert "CODEX_AUTH_JSON" not in env
 
     def test_secret_file_replace_failure_preserves_existing_value(self, tmp_path):
@@ -9229,13 +9247,13 @@ class TestACPFileSecretMaterialisation:
         gac = Path(env["GOOGLE_APPLICATION_CREDENTIALS"])
         assert gac == Path(persist) / "acp" / "gemini-cli" / "gcloud-credentials.json"
         assert gac.read_text(encoding="utf-8") == '{"type": "service_account"}'
-        # 0600 file inside a 0700 dir (symmetry with the Codex test).
+        # 0700 目录内的 0600 文件（与 Codex 测试对称）。
         assert gac.stat().st_mode & 0o777 == 0o600
         assert gac.parent.stat().st_mode & 0o777 == 0o700
         assert "GOOGLE_APPLICATION_CREDENTIALS_JSON" not in env
 
     def test_pi_auth_json_materialises_into_the_agent_config_dir(self, tmp_path):
-        """PI_AUTH_JSON lands as auth.json with PI_CODING_AGENT_DIR on the dir."""
+        """PI_AUTH_JSON 着陆为 auth.json，PI_CODING_AGENT_DIR 位于目录上。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9270,8 +9288,8 @@ class TestACPFileSecretMaterialisation:
         assert "PI_AUTH_JSON" not in env
 
     def test_terminal_only_auth_with_seeded_file_does_not_warn(self, tmp_path):
-        """pi-acp offers only an interactive login; a seeded auth.json is the
-        credential, so startup must not call authenticate() or warn."""
+        """pi-ACP 仅提供交互式登录； 种子 auth.json 是
+        凭据，因此启动时不得调用authenticate()或警告。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9295,9 +9313,9 @@ class TestACPFileSecretMaterialisation:
         conn.new_session.assert_called_once()
 
     def test_terminal_only_auth_with_the_provider_api_key_does_not_warn(self, tmp_path):
-        """pi authenticates from ANTHROPIC_API_KEY in its own environment even
-        though the server advertises only an interactive login, so the
-        no-credential warning would fire on a working configuration."""
+        """pi 在自己的环境中甚至从 ANTHROPIC_API_KEY 进行身份验证
+        尽管服务器仅通告交互式登录，因此 no-凭据警告将在工作配置上触发。
+        """
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9339,8 +9357,8 @@ class TestACPFileSecretMaterialisation:
         mock_warn.assert_called_once()
 
     def test_non_terminal_auth_still_warns_with_a_seeded_file(self, tmp_path):
-        """The suppression is scoped to terminal-only servers: codex with an
-        auth.json that isn't ChatGPT auth must keep warning."""
+        """抑制范围仅限于终端服务器：带有
+        auth.json 这不是 ChatGPT 身份验证必须保持警告。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9358,7 +9376,7 @@ class TestACPFileSecretMaterialisation:
         mock_warn.assert_called_once()
 
     def test_pi_initialization_skips_set_session_mode(self, tmp_path):
-        """Pi has default_session_mode=None, so set_session_mode is not called."""
+        """Pi 有 default_session_mode=None，所以 set_session_mode 没有被调用。"""
         agent = _make_agent()
         state = self._state(tmp_path)
         conn = self._make_conn(
@@ -9372,15 +9390,15 @@ class TestACPFileSecretMaterialisation:
         conn.set_session_mode.assert_not_called()
 
     def test_seed_if_absent_does_not_clobber_existing_file(self, tmp_path):
-        """A non-empty existing credential file (e.g. a token the CLI refreshed)
-        is preserved; the stale pasted blob does not overwrite it."""
+        """一个非空的现有凭据文件 (e.g. a token CLI 已刷新）
+        被保留； 陈旧的粘贴斑点不会覆盖它。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
         state = self._state(tmp_path)
         persist = state.persistence_dir
         assert persist is not None
-        # Pre-seed a "refreshed" auth.json with deliberately wide (0644) perms.
+        # 预先播种“焕然一新”的 auth.json 故意宽 (0644) 的烫发。
         codex_home = Path(persist) / "acp" / "codex"
         codex_home.mkdir(parents=True)
         refreshed = codex_home / "auth.json"
@@ -9393,10 +9411,10 @@ class TestACPFileSecretMaterialisation:
         env = self._run_start(agent, state, conn=self._make_conn())
 
         assert Path(env["CODEX_HOME"]) == codex_home
-        # Contents preserved (not clobbered by the stale paste)...
+        # 内容被保留（没有被陈旧的糊状物破坏）......
         assert refreshed.read_text(encoding="utf-8") == '{"refreshed": true}'
         # ...but perms are still clamped to 0600 (regression: QA found a
-        # preserved 0644 file staying world-readable).
+        # 保留的 0644 文件保持世界可读）。
         assert refreshed.stat().st_mode & 0o777 == 0o600
 
     def test_updated_credential_replaces_existing_file_once(self, tmp_path):
@@ -9437,8 +9455,8 @@ class TestACPFileSecretMaterialisation:
         assert auth_file.read_text(encoding="utf-8") == '{"refreshed": true}'
 
     def test_reads_reserved_secret_seeded_from_agent_context(self, tmp_path):
-        """A reserved file secret supplied via agent_context.secrets (canvas-local
-        path) is seeded into the registry at conversation init and materialised."""
+        """通过 agent_context.secrets（canvas-local）提供的保留文件机密
+        注册表被初始化时被种子，然后被实现。"""
         from openhands.sdk.conversation.impl.local_conversation import (
             LocalConversation,
         )
@@ -9465,8 +9483,8 @@ class TestACPFileSecretMaterialisation:
         assert "CODEX_AUTH_JSON" not in env
 
     def test_fallback_root_when_not_persisted(self, tmp_path):
-        """With no persistence_dir, the file lands under the workspace tree —
-        still seed-if-absent, no TemporaryDirectory."""
+        """如果没有 persistence_dir，文件会落在工作区树下 -
+        仍然是种子（如果不存在），没有 TemporaryDirectory。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9482,7 +9500,7 @@ class TestACPFileSecretMaterialisation:
         assert (expected / "auth.json").is_file()
 
     def test_no_file_secret_when_secret_absent(self, tmp_path):
-        """No reserved secret present -> no data-dir env var is set."""
+        """不存在保留机密 -> 未设置数据目录环境变量。"""
         agent = _make_agent()
         state = self._state(tmp_path)
         with patch.dict("os.environ", {}, clear=True):
@@ -9490,10 +9508,11 @@ class TestACPFileSecretMaterialisation:
         assert "CODEX_HOME" not in env
 
     def test_materialisation_oserror_fails_fast(self, tmp_path):
-        """If the credential can't be written (e.g. read-only mount), the error
-        propagates out of _start_acp_server (so init_state surfaces a typed
-        ConversationErrorEvent) instead of being swallowed and leaving the CLI
-        to fail at auth time with no SDK breadcrumb."""
+        """如果凭据不能写(e.g. 只读挂载），错误
+        从 _start_acp_server 传播（因此 init_state 表面有类型的
+        ConversationErrorEvent），而不是被吞没并使
+        CLI 在验证时失败，没有 SDK 面包屑。
+        """
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent()
@@ -9534,8 +9553,8 @@ class TestACPFileSecretMaterialisation:
         assert agent._present_file_secret_names(state) == {"CODEX_AUTH_JSON"}
 
     def test_blob_excluded_from_custom_secrets_advertisement(self, tmp_path):
-        """The <CUSTOM_SECRETS> advertisement lists plain secrets but not the
-        file-content blob (it's not an env var the agent can reference)."""
+        """<CUSTOM_SECRETS> 广告列出了普通的机密，但没有列出
+        文件内容 blob（它不是智能体可以引用的环境变量）。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent(
@@ -9560,8 +9579,8 @@ class TestACPFileSecretMaterialisation:
         assert "CODEX_AUTH_JSON" not in suffix.text
 
     def test_downstream_can_override_specs_with_custom_provider(self, tmp_path):
-        """A downstream app supplies its own ACPFileSecretSpec for a custom CLI;
-        the SDK mechanism materialises it without any registry change."""
+        """下游应用为其 CLI 提供了自定义 ACPFileSecretSpec。
+        SDK机制在没有任何注册表改变的情况下实现了它。"""
         from openhands.sdk import ACPFileSecretSpec
         from openhands.sdk.secret import StaticSecret
 
@@ -9585,13 +9604,13 @@ class TestACPFileSecretMaterialisation:
         assert home == Path(persist) / "acp" / "mycli"
         assert (home / "token.json").read_text(encoding="utf-8") == '{"t": 1}'
         assert "MYCLI_TOKEN_JSON" not in env
-        # The built-in Codex/Gemini specs were replaced, so their secrets would
-        # NOT be materialised by this agent.
+        # 内置的 Codex/Gemini 规范已被替换，因此它们的机密将不通过此智能体实现。
+        #
         assert agent._present_file_secret_names(state) == {"MYCLI_TOKEN_JSON"}
 
     def test_empty_specs_disables_materialisation(self, tmp_path):
-        """With acp_file_secrets=[], a CODEX_AUTH_JSON secret is treated as an
-        ordinary env var (no file written, no CODEX_HOME) — downstream opt-out."""
+        """当 acp_file_secrets=[] 时，CODEX_AUTH_JSON 机密被视为
+        普通环境变量（未写入文件，无 CODEX_HOME）- 下游选择退出。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent(acp_file_secrets=[])
@@ -9603,12 +9622,12 @@ class TestACPFileSecretMaterialisation:
             env = self._run_start(agent, state, conn=self._make_conn())
 
         assert "CODEX_HOME" not in env
-        # Not configured as a file-secret, so it flows through as a plain env var.
+        # 未配置为文件-机密，因此它作为普通环境变量流过。
         assert env.get("CODEX_AUTH_JSON") == "blob"
 
     def test_settings_pass_file_secrets_through_create_agent(self):
-        """ACPAgentSettings defaults to the built-in specs and forwards them to
-        the constructed ACPAgent."""
+        """ACPAgentSettings 默认使用内置规格，并将它们转发给
+        已构建的 ACPAgent。"""
         from openhands.sdk.settings.acp_providers import default_acp_file_secrets
         from openhands.sdk.settings.model import ACPAgentSettings
 
@@ -9622,10 +9641,9 @@ class TestACPFileSecretMaterialisation:
 
 
 class TestACPFileSecretProviderScoping:
-    """``acp_file_secrets`` defaults to the union across every registered
-    provider, but only the running provider's specs apply (#4923). Without the
-    scoping, registering a harness upstream changes how an unrelated provider's
-    conversation treats a secret carrying the new reserved name.
+    """``acp_file_secrets`` 默认为每个注册的联合
+    提供商，但仅适用正在运行的提供商的规范 (#4923)。 如果没有范围，在上游注册线束会改
+    变不相关提供者的对话处理带有新保留名称的机密的方式。
     """
 
     _H = TestACPFileSecretMaterialisation
@@ -9650,8 +9668,8 @@ class TestACPFileSecretProviderScoping:
         assert self._names(agent) == expected
 
     def test_no_provider_claims_another_providers_reserved_secret(self):
-        """The property the scoping exists to hold, asserted over the registry
-        so a provider added upstream is covered without editing this test."""
+        """该属性存在的目的是注册表
+        因此，无需编辑此测试即可覆盖添加到上游的提供程序。"""
         from openhands.sdk.settings.acp_providers import ACP_PROVIDERS
 
         for key, info in ACP_PROVIDERS.items():
@@ -9664,8 +9682,8 @@ class TestACPFileSecretProviderScoping:
             assert self._names(_make_agent(acp_server=key)).isdisjoint(others)
 
     def test_unrecognised_server_keeps_the_union(self):
-        """No identity means we cannot tell whose credential a reserved name
-        belongs to, so stay conservative — as ``_strip_conflicting_env`` does."""
+        """没有身份意味着我们无法分辨谁的凭据是保留名称
+        属于，所以保持保守——就像``_strip_conflicting_env``一样。"""
         from openhands.sdk.settings.acp_providers import default_acp_file_secrets
 
         agent = ACPAgent(acp_command=["some-unknown-acp-server"])
@@ -9678,8 +9696,8 @@ class TestACPFileSecretProviderScoping:
         assert self._names(agent) == {"CODEX_AUTH_JSON"}
 
     def test_specs_outside_the_registry_always_apply(self):
-        """A downstream CLI's spec is owned by no registered provider, so it is
-        never filtered out — whichever harness the conversation runs."""
+        """下游 CLI 的规范不属于任何注册提供者，因此它是
+        从未被过滤掉——无论对话运行在哪个工具上。"""
         from openhands.sdk import ACPFileSecretSpec
 
         custom = ACPFileSecretSpec(
@@ -9700,10 +9718,10 @@ class TestACPFileSecretProviderScoping:
         assert self._names(agent) == {"MYCLI_TOKEN_JSON", "CODEX_AUTH_JSON"}
 
     def test_a_list_persisted_before_a_provider_was_added_still_scopes(self):
-        """The upgrade case. A conversation written when the registry held only
-        Codex and Gemini carries that two-spec list; resumed on a newer SDK it
-        must still scope, which a comparison against today's default could not
-        do — the stored list no longer equals it.
+        """升级案例。 仅当注册表举行时编写的对话
+        Codex 和 Gemini 包含两个规格列表； 在较新的 SDK 上恢复它仍然必须具有范围，而
+        与今天的默认值进行比较无法做到这一点 - 存储的列表不再等于
+        它。
         """
         from openhands.sdk.settings.acp_providers import ACP_PROVIDERS
 
@@ -9718,8 +9736,8 @@ class TestACPFileSecretProviderScoping:
         assert self._names(agent) == {"CODEX_AUTH_JSON"}
 
     def test_a_name_several_providers_share_is_kept(self):
-        """``owned_elsewhere`` subtracts the running provider's own names, so a
-        spec two providers both claim is not filtered from either."""
+        """``owned_elsewhere`` 减去正在运行的提供商自己的名称，因此
+        规范两个提供商都声称没有被过滤掉。"""
         from openhands.sdk import ACPFileSecretSpec
 
         shared = ACPFileSecretSpec(
@@ -9736,17 +9754,19 @@ class TestACPFileSecretProviderScoping:
         assert self._names(agent) == set()
 
     def test_scoping_survives_a_serialization_round_trip(self):
-        """A resumed conversation must scope too — including one written by an
-        older SDK, which ``test_a_list_persisted_before_a_provider_was_added_
-        still_scopes`` covers."""
+        """恢复的对话也必须涵盖范围——包括由一位
+        旧的 SDK，``test_a_list_persisted_before_a_provider_was_added_ still_scopes``
+         涵盖。
+        """
         agent = _make_agent(acp_server="claude-code")
         restored = ACPAgent.model_validate(agent.model_dump())
         assert self._names(restored) == set()
 
     def test_other_providers_blob_stays_a_plain_env_var(self, tmp_path):
-        """End to end through ``_start_acp_server``: on a claude-code
-        conversation ``PI_AUTH_JSON`` is delivered as an ordinary env var, not
-        materialised to disk with ``PI_CODING_AGENT_DIR`` set."""
+        """端到端通过 ``_start_acp_server``：在克劳德代码上
+        对话 ``PI_AUTH_JSON`` 作为普通环境变量传递，未通过 ``PI_CODING_AGENT_DIR`` 设
+        置具体化到磁盘。
+        """
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent(acp_server="claude-code")
@@ -9765,8 +9785,8 @@ class TestACPFileSecretProviderScoping:
         assert not (agent._acp_file_secret_dir(state, "pi") / "auth.json").exists()
 
     def test_own_blob_still_materialises(self, tmp_path):
-        """The counterpart: on a pi conversation the same secret is written to
-        disk and the data-dir var points at it."""
+        """对应：在 pi 对话中，写入相同的机密
+        disk 和 data-dir var 指向它。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = _make_agent(acp_server="pi")
@@ -9787,15 +9807,15 @@ class TestACPFileSecretProviderScoping:
 
 
 # ---------------------------------------------------------------------------
-# Per-conversation CLI data-dir isolation (issue #1019)
+# 每个对话 CLI 数据目录隔离（问题 #1019）
 # ---------------------------------------------------------------------------
 
 
 class TestACPDataDirIsolation:
-    """``acp_isolate_data_dir`` relocates each provider's CLI data/config root to
-    ``<persistence_dir>/acp/<provider>`` so conversations sharing one sandbox
-    don't race on a shared HOME. Reuses the materialisation harness so the two
-    features are exercised against the same _start_acp_server path.
+    """``acp_isolate_data_dir`` 将每个提供商的 CLI 数据/配置根重新定位到
+    ``<persistence_dir>/acp/<provider>`` 因此共享一个沙箱的对话不会在共享的 HOME 上竞
+    争。 重用物化工具，以便针对相同的
+    _start_acp_server 路径运用这两个功能。
     """
 
     _H = TestACPFileSecretMaterialisation
@@ -9828,7 +9848,7 @@ class TestACPDataDirIsolation:
         assert Path(env["HOME"]) == Path(persist) / "acp" / "gemini-cli"
 
     def test_disabled_by_default_leaves_home_shared(self, tmp_path):
-        # Same codex command, isolation OFF (the default): no CODEX_HOME injected.
+        # 相同的 codex 命令，隔离 OFF（默认）：没有注入 CODEX_HOME。
         agent = ACPAgent(acp_command=["codex-acp"])
         state = self._H._state(tmp_path)
         with patch.dict("os.environ", {}, clear=True):
@@ -9855,7 +9875,7 @@ class TestACPDataDirIsolation:
         )
 
     def test_composes_with_materialised_codex_auth(self, tmp_path):
-        """Isolation and file-secret materialisation agree on one CODEX_HOME."""
+        """隔离和文件机密实现在一项CODEX_HOME上达成一致。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = self._agent(["codex-acp"])
@@ -9869,7 +9889,7 @@ class TestACPDataDirIsolation:
             env = self._H._run_start(agent, state, conn=self._H._make_conn())
         codex_home = Path(env["CODEX_HOME"])
         assert codex_home == Path(persist) / "acp" / "codex"
-        # Materialisation seeded auth.json into the SAME dir isolation points at.
+        # 物化将 auth.json 播种到 SAME dir 隔离点中。
         assert (codex_home / "auth.json").read_text(
             encoding="utf-8"
         ) == '{"tokens": "x"}'
@@ -9903,7 +9923,7 @@ class TestACPDataDirIsolation:
         finally:
             agent.close()
 
-    # --- Claude: isolation applies under either auth mode (#3588) ------------
+    # --- Claude：隔离适用于任一身份验证模式 (#3588) ------------
 
     def test_claude_isolates_under_api_key(self, tmp_path):
         from openhands.sdk.secret import StaticSecret
@@ -9919,9 +9939,10 @@ class TestACPDataDirIsolation:
             env = self._H._run_start(
                 agent, state, conn=self._H._make_conn(agent_name="claude-agent-acp")
             )
-        # #3588: the conflict strip is keyed on CLAUDE_CODE_OAUTH_TOKEN, not on
-        # CLAUDE_CONFIG_DIR, so relocating the data dir no longer strips a working
-        # API key — API-key Claude gets the same per-conversation isolation.
+        # #3588: 冲突条键在 CLAUDE_CODE_OAUTH_TOKEN 上，而不是在
+        # CLAUDE_CONFIG_DIR，因此重新定位数据目录不再删除工作的 API 键 — API 键 Claude
+        # 获得相同的每个会话隔离。
+        #
         assert Path(env["CLAUDE_CONFIG_DIR"]) == Path(persist) / "acp" / "claude-code"
         assert env["ANTHROPIC_API_KEY"] == "sk-live"
 
@@ -9942,8 +9963,8 @@ class TestACPDataDirIsolation:
         assert Path(env["CLAUDE_CONFIG_DIR"]) == Path(persist) / "acp" / "claude-code"
 
     def test_pi_isolates_data_dir(self, tmp_path):
-        """pi-acp's session map follows HOME; pi's own config dir follows
-        PI_CODING_AGENT_DIR, which only the file secret sets."""
+        """pi-ACP 的会话映射遵循 HOME； pi 自己的配置目录如下
+        PI_CODING_AGENT_DIR，仅文件机密设置。"""
         from openhands.sdk.secret import StaticSecret
 
         agent = self._agent(["npx", "-y", "pi-acp"])
@@ -9970,18 +9991,18 @@ class TestACPDataDirIsolation:
 
 
 # ---------------------------------------------------------------------------
-# Secret masking (#1023)
+# 机密掩蔽 (#1023)
 # ---------------------------------------------------------------------------
 
 
 def _redacting_mask(text: str) -> str:
-    """Stand-in for ``secret_registry.mask_secrets_in_output``: replaces the
-    literal secret with the same sentinel the real registry uses."""
+    """替代``secret_registry.mask_secrets_in_output``：替换
+    文字机密与实际注册表使用的哨兵值相同。"""
     return text.replace("SEKRET", "<secret-hidden>")
 
 
 class TestMaskJsonValue:
-    """Unit tests for the recursive JSON masker helper."""
+    """单元测试用于递归 JSON 掩码助手。"""
 
     def test_masks_bare_string(self):
         assert _mask_json_value("token=SEKRET", _redacting_mask) == (
@@ -9999,7 +10020,7 @@ class TestMaskJsonValue:
         masked = _mask_json_value(value, _redacting_mask)
         assert masked["command"] == "curl -H 'Authorization: Bearer <secret-hidden>'"
         assert masked["args"] == ["--data", "key=<secret-hidden>"]
-        # Non-string leaves pass through unchanged.
+        # 非串叶通过时保持不变。
         assert masked["count"] == 3
         assert masked["ok"] is True
         assert masked["nothing"] is None
@@ -10010,8 +10031,8 @@ class TestMaskJsonValue:
 
 
 class TestACPBridgeMasking:
-    """``_OpenHandsACPBridge`` masks injected secrets before they reach the
-    ``on_token`` / ``on_event`` sinks (persisted + network-relayed)."""
+    """``_OpenHandsACPBridge`` 口罩在到达目的地之前已注入机密
+    ``on_token`` / ``on_event`` 接收器（已持久化 + 网络中继）。"""
 
     @pytest.mark.asyncio
     async def test_message_chunk_masked_in_relay_and_accumulation(self):
@@ -10071,8 +10092,8 @@ class TestACPBridgeMasking:
         assert evt.title == "Running: echo <secret-hidden>"
         assert evt.raw_input == {"command": "echo <secret-hidden>"}
         assert evt.raw_output == "leaked <secret-hidden> here"
-        # The accumulator itself must hold masked values so the supersede /
-        # flush path can't re-leak them.
+        # 累加器本身必须保存屏蔽值，以便取代/刷新路径不能重新泄漏它们。
+        #
         stored = client.accumulated_tool_calls[0]
         assert stored["title"] == "Running: echo <secret-hidden>"
         assert stored["raw_input"] == {"command": "echo <secret-hidden>"}
@@ -10097,7 +10118,7 @@ class TestACPBridgeMasking:
         start.content = None
         await client.session_update("sess-1", start)
 
-        # Terminal progress frame carries the secret in its cumulative output.
+        # 终端进度帧在其累积输出中携带机密。
         progress = MagicMock(spec=ToolCallProgress)
         progress.tool_call_id = "tc-1"
         progress.title = None
@@ -10108,8 +10129,8 @@ class TestACPBridgeMasking:
         progress.content = None
         await client.session_update("sess-1", progress)
 
-        # The terminal event (emitted on the in_progress->completed transition)
-        # carries masked output.
+        # 终止事件（在 in_progress-> 完成的转换上发出）携带屏蔽输出。
+        #
         assert events[-1].status == "completed"
         assert events[-1].raw_output == "result: <secret-hidden>"
         assert (
@@ -10158,8 +10179,8 @@ class TestACPBridgeMasking:
 
     @pytest.mark.asyncio
     async def test_no_masking_when_mask_unset(self):
-        """A standalone bridge (mask is None) passes text through unchanged
-        and never raises."""
+        """独立的网桥（掩码为 None）通过不变地传递文本
+        并且从不加注。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
@@ -10177,8 +10198,8 @@ class TestACPBridgeMasking:
         assert client.accumulated_text == ["raw SEKRET"]
 
     def test_mask_value_swallows_mask_errors(self):
-        """A failing masker must never crash session_update — fall back to the
-        original value (matches the regular terminal tool's masking contract)."""
+        """失败的掩码器绝不能崩溃 session_update — 退回到
+        原始值（与常规终端工具的屏蔽合约匹配）。"""
 
         def _boom(_text: str) -> str:
             raise RuntimeError("masker exploded")
@@ -10198,8 +10219,8 @@ class TestACPBridgeMasking:
             client._mask_value("SEKRET")
 
     def test_reset_preserves_mask(self):
-        """mask is conversation-lifetime (bound once in _start_acp_server), so a
-        per-turn reset() must NOT clear it — unlike on_token/on_event."""
+        """mask 是会话生命周期（在 _start_acp_server 中绑定一次），所以
+        每回合 reset() 必须不清除它——与 on_token/on_event 不同。"""
         client = _OpenHandsACPBridge()
         client.mask = _redacting_mask
         client.reset()
@@ -10207,8 +10228,8 @@ class TestACPBridgeMasking:
 
     @pytest.mark.asyncio
     async def test_fork_session_text_masked(self):
-        """ask_agent() joins _fork_accumulated_text and returns it to the
-        caller, so fork-session chunks must be masked too."""
+        """ask_agent() 连接 _fork_accumulated_text 并将其返回给
+        调用者，因此分叉会话块也必须被屏蔽。"""
         from acp.schema import AgentMessageChunk, TextContentBlock
 
         client = _OpenHandsACPBridge()
@@ -10225,8 +10246,8 @@ class TestACPBridgeMasking:
 
 
 class TestACPStepMasksPersistedTurn:
-    """End-to-end: the persisted FinishAction text is masked at the join
-    boundary, including secrets split across streamed chunks."""
+    """端到端：已持久化 FinishAction 文本在连接处被屏蔽
+    边界，包括机密跨流块分割。"""
 
     def _make_conversation_with_message(self, tmp_path, text="Hello"):
         state = _make_state(tmp_path)
@@ -10250,9 +10271,9 @@ class TestACPStepMasksPersistedTurn:
     def test_finish_action_masks_secret_split_across_chunks(self, tmp_path):
         agent = _make_agent()
         conversation = self._make_conversation_with_message(tmp_path)
-        # Seed the mask set via the canonical registry path (get_secret_value
-        # records the resolved value in _exported_values) — the same path
-        # _start_acp_server drives for StartConversationRequest secrets.
+        # 通过规范注册表路径（get_secret_value 记录 _exported_values 中的解析值）播种掩
+        # 码集 — 相同的路径 _start_acp_server 驱动 StartConversationRequest 机密。
+        #
         reg = conversation.state.secret_registry
         reg.update_secrets({"TOKEN": "supersecret"})
         reg.get_secret_value("TOKEN")
@@ -10264,11 +10285,11 @@ class TestACPStepMasksPersistedTurn:
         agent._session_id = "test-session"
 
         def _fake_run_async(_coro, **_kwargs):
-            # Populate accumulated_text directly, bypassing session_update (and
-            # thus per-chunk masking) on purpose: this isolates the join-boundary
-            # re-mask in _finalize_successful_turn. The secret straddles two
-            # chunks, so neither chunk matches alone — only the reassembled join
-            # does, which is exactly what the persistence-boundary mask catches.
+            # 直接填充 accumulated_text，故意绕过 session_update（从而绕过每个块掩码）：
+            # 这隔离了 _finalize_successful_turn 中的连接边界重新掩码。 机密横跨两个块，
+            # 因此两个块都不会单独匹配 - 只有重新组装的连接才会匹配，这正是持久化边界掩
+            # 码捕获的内容。
+            #
             mock_client.accumulated_text.append("the value is super")
             mock_client.accumulated_text.append("secret now")
 
@@ -10286,12 +10307,11 @@ class TestACPStepMasksPersistedTurn:
 
 
 class TestPreconfiguredCredentials:
-    """A server whose advertised auth methods we cannot perform may still be
-    authenticated out of band, so the SDK must be able to tell "we could not
-    authenticate" from "we did not need to".
+    """我们无法执行其广告身份验证方法的服务器可能仍然是
+    带外验证，因此 SDK 必须能够区分“我们无法验证”和“我们不需要”。
 
-    Sourced from the provider's registry record rather than provider names, so
-    it holds for a provider added later without touching this code.
+    源自提供者的注册表记录而不是提供者名称，因此它适用于稍后添加的提供者，而无需触及
+    此代码。
     """
 
     def test_reports_the_provider_api_key_when_present(self):
@@ -10311,8 +10331,8 @@ class TestPreconfiguredCredentials:
         assert _preconfigured_credentials(None, (spec,), env) == [spec.secret_name]
 
     def test_ignores_a_file_secret_that_cannot_authenticate(self, tmp_path):
-        """Present but unusable is the case that most needs the warning: the
-        server offered a method that consumes this very file and declined it."""
+        """存在但不可用的是最需要警告的情况：
+        服务器提供了一种使用该文件的方法并拒绝了它。"""
         spec = ACP_PROVIDERS["codex"].file_secrets[0]
         (tmp_path / spec.filename).write_text('{"tokens": null}', encoding="utf-8")
         env = {spec.env_var: str(tmp_path)}
@@ -10328,13 +10348,11 @@ class TestPreconfiguredCredentials:
 
 
 class TestAuthSelectionFailureReason:
-    """The reason line must name what is actually missing.
+    """原因行必须指出实际缺少的内容。
 
-    Two shapes it could not describe before: a provider whose own key var is
-    unset, and a login only an interactive terminal can complete — which is
-    what every recently added harness advertises, so the old text ("no
-    supported credential source is available") implied a missing credential
-    where none was ever expected.
+    它之前无法描述的两个形状：一个没有设置自身密钥的提供者，以及一个仅能通过交互式终
+    端完成的登录 —— 这就是每个最近添加的框架宣称的，所以旧文本“没有可用的凭据源”暗
+    示了一个缺失的凭据，而None本应出现。
     """
 
     @staticmethod
@@ -10364,14 +10382,11 @@ class TestAuthSelectionFailureReason:
 
 
 class TestUnperformableAuthMethodLogging:
-    """What the log says when the server's only auth method is one the runtime
-    cannot perform — an interactive login, which is what every recently added
-    harness advertises.
+    """当服务器唯一的身份验证方法是运行时方法时，日志显示的内容
+    无法执行 - 交互式登录，这是每个最近添加的工具所宣传的内容。
 
-    The session still starts, because these CLIs read their key from the
-    environment at generation time, so warning "no matching credential is
-    available ... session creation may fail" on every start was both alarming
-    and wrong.
+    端点仍然启动，因为这些 CLIs 在生成时从环境读取密钥，所以警告“没有可用的凭据”。 每
+    次启动时“会话创建可能会失败”既令人震惊又错误。
     """
 
     @staticmethod

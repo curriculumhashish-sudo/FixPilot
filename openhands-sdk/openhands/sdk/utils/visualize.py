@@ -2,19 +2,19 @@ from rich.text import Text
 
 
 def display_json(data) -> Text:
-    """Create a Rich Text representation of JSON data.
+    """创建 JSON 数据的富文本表示形式。
 
-    Handles dictionaries, lists, strings, numbers, booleans, and None values.
+    处理字典、列表、字符串、数字、布尔值和 None 值。
     """
     content = Text()
 
     if isinstance(data, dict):
         for field_name, field_value in data.items():
             if field_value is None:
-                continue  # skip None fields
+                continue  # 跳过 None 个字段
             content.append(f"\n  {field_name}: ", style="bold")
             if isinstance(field_value, str):
-                # Handle multiline strings with proper indentation
+                # 使用适当的缩进处理多行字符串
                 if "\n" in field_value:
                     content.append("\n")
                     for line in field_value.split("\n"):
@@ -34,7 +34,7 @@ def display_json(data) -> Text:
             else:
                 content.append(f"{item}\n")
     elif isinstance(data, str):
-        # Handle multiline strings with proper indentation
+        # 使用适当的缩进处理多行字符串
         if "\n" in data:
             content.append("String:\n")
             for line in data.split("\n"):
@@ -44,7 +44,7 @@ def display_json(data) -> Text:
     elif data is None:
         content.append("null")
     else:
-        # Handle numbers, booleans, and other JSON primitives
+        # 处理数字、布尔值和其他 JSON 原语
         content.append(str(data))
 
     return content

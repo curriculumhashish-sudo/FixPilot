@@ -1,4 +1,4 @@
-"""History management for file edits with disk-based storage and memory constraints."""
+"""具有基于磁盘的存储和内存限制的文件编辑历史记录管理。"""
 
 import logging
 import tempfile
@@ -8,26 +8,25 @@ from openhands.tools.file_editor.utils.file_cache import FileCache
 
 
 class FileHistoryManager:
-    """Manages file edit history with disk-based storage and memory constraints."""
+    """通过基于磁盘的存储和内存限制来管理文件编辑历史记录。"""
 
     max_history_per_file: int
     cache: FileCache
     logger: logging.Logger
 
     def __init__(self, max_history_per_file: int = 5, history_dir: Path | None = None):
-        """Initialize the history manager.
+        """初始化历史管理器。
 
         Args:
-            max_history_per_file: Maximum number of history entries to keep per
-                file (default: 5)
-            history_dir: Directory to store history files. If None, uses a temp
-                directory
+            max_history_per_file: 每个保留的历史记录条目的最大数量
+                文件（默认：5）
+            history_dir: 存储历史文件的目录。 如果 None，则使用温度
+                目录
 
         Notes:
-            - Each file's history is limited to the last N entries to conserve
-              memory
-            - The file cache is limited to prevent excessive disk usage
-            - Older entries are automatically removed when limits are exceeded
+            - 每个文件的历史记录仅限于最后 N 个条目以节省内存
+            - 文件缓存受到限制，以防止过多的磁盘使用
+            - 当超出限制时，较旧的条目将被自动删除
         """
         self.max_history_per_file = max_history_per_file
         if history_dir is None:
@@ -42,19 +41,19 @@ class FileHistoryManager:
         return f"{file_path}.{counter}"
 
     def add_history(self, file_path: Path, content: str):
-        """Add a new history entry for a file."""
+        """为文件添加新的历史记录条目。"""
         metadata_key = self._get_metadata_key(file_path)
         metadata = self.cache.get(metadata_key, {"entries": [], "counter": 0})
         counter = metadata["counter"]
 
-        # Add new entry
+        # 添加新条目
         history_key = self._get_history_key(file_path, counter)
         self.cache.set(history_key, content)
 
         metadata["entries"].append(counter)
         metadata["counter"] += 1
 
-        # Keep only last N entries
+        # 仅保留最后 N 个条目
         while len(metadata["entries"]) > self.max_history_per_file:
             old_counter = metadata["entries"].pop(0)
             old_history_key = self._get_history_key(file_path, old_counter)
@@ -63,7 +62,7 @@ class FileHistoryManager:
         self.cache.set(metadata_key, metadata)
 
     def pop_last_history(self, file_path: Path) -> str | None:
-        """Pop and return the most recent history entry for a file."""
+        """弹出并返回文件的最新历史记录条目。"""
         metadata_key = self._get_metadata_key(file_path)
         metadata = self.cache.get(metadata_key, {"entries": [], "counter": 0})
         entries = metadata["entries"]
@@ -71,7 +70,7 @@ class FileHistoryManager:
         if not entries:
             return None
 
-        # Pop and remove the last entry
+        # 弹出并删除最后一个条目
         last_counter = entries.pop()
         history_key = self._get_history_key(file_path, last_counter)
         content = self.cache.get(history_key)
@@ -79,36 +78,36 @@ class FileHistoryManager:
         if content is None:
             self.logger.warning(f"History entry not found for {file_path}")
         else:
-            # Remove the entry from the cache
+            # 从缓存中删除该条目
             self.cache.delete(history_key)
 
-        # Update metadata
+        # 更新元数据
         metadata["entries"] = entries
         self.cache.set(metadata_key, metadata)
 
         return content
 
     def get_metadata(self, file_path: Path):
-        """Get metadata for a file (for testing purposes)."""
+        """获取文件的元数据（用于测试目的）。"""
         metadata_key = self._get_metadata_key(file_path)
         metadata = self.cache.get(metadata_key, {"entries": [], "counter": 0})
-        return metadata  # Return the actual metadata, not a copy
+        return metadata  # 返回实际的元数据，而不是副本
 
     def clear_history(self, file_path: Path):
-        """Clear history for a given file."""
+        """清除给定文件的历史记录。"""
         metadata_key = self._get_metadata_key(file_path)
         metadata = self.cache.get(metadata_key, {"entries": [], "counter": 0})
 
-        # Delete all history entries
+        # 删除所有历史记录
         for counter in metadata["entries"]:
             history_key = self._get_history_key(file_path, counter)
             self.cache.delete(history_key)
 
-        # Clear metadata
+        # 清除元数据
         self.cache.set(metadata_key, {"entries": [], "counter": 0})
 
     def get_all_history(self, file_path: Path) -> list[str]:
-        """Get all history entries for a file."""
+        """获取文件的所有历史条目。"""
         metadata_key = self._get_metadata_key(file_path)
         metadata = self.cache.get(metadata_key, {"entries": [], "counter": 0})
         entries = metadata["entries"]

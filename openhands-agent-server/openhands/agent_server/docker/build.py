@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Single-entry build helper for agent-server images.
+智能体-服务器镜像的单入口构建助手。
 
-- Targets: binary | binary-minimal | source | source-minimal
-- Multi-tagging via CUSTOM_TAGS (comma-separated)
-- Git tag- and semver-derived tags for custom tags
-- Branch-scoped cache keys
-- CI (push) vs local (load) behavior
-- sdist-based builds: Uses `uv build` to create clean build contexts
-- One entry: build(opts: BuildOptions)
-- Automatically detects sdk_project_root (no manual arg)
-- No local artifacts left behind (uses tempfile dirs only)
+- Targets: 二进制 | 二进制最小化 | 源码 | 源码最小化
+- 通过 CUSTOM_TAGS 进行多重标记（逗号分隔）
+- 用于自定义标签的 Git 标签和 semver 派生标签
+- 分支范围的缓存键
+- CI（推送）与本地（加载）行为
+- 基于 sdist 的构建：使用 `uv build` 创建干净的构建上下文
+- 一项：build(opts: BuildOptions)
+- 自动检测 sdk_project_root（无手动参数）
+- 没有留下任何本地工件（仅使用临时文件目录）
 """
 
 import argparse
@@ -50,17 +50,16 @@ VALID_TARGETS = {
     "base-image",
     "builder",
 }
-# Relative path (from sdk_project_root) of the dependency-free ACP install
-# catalog the Dockerfile's `acp-providers` stage COPYs in directly. Mirrored
-# here so the empty-context fast path below (`is_base_only`) can stage just
-# this one file instead of pulling in the full SDK source tree.
+# 相对于的相对路径 sdk_project_root无依赖的 ACP 安装 Dockerfile 的仓库 `acp-providers`
+# stage COPYs 直接的。 这里重叠显示，以便为空上下文快速路径（`is_base_only`) 只能
+# staging 这一个文件，而不是拉取整个 SDK 源代码树。
+#
 _ACP_INSTALL_CATALOG_RELPATH = Path(
     "openhands-sdk/openhands/sdk/settings/acp_install_catalog.py"
 )
-# Capability keys accepted by the Dockerfile's INSTALL_CAPABILITIES build arg
-# (the `base-image` stage's VSCode Web, browser, and Docker blocks). Kept
-# local to this module since, unlike ACP_PROVIDERS, no other repo/runtime
-# code needs this set.
+# Dockerfile的INSTALL_CAPABILITIES构建参数接受的`base-image`阶段的VSCodeWeb、浏览器和
+# Docker块。 自本模块以来，由于 ACP_PROVIDERS 之外的其他仓库/运行时代码不需要这个集合。
+#
 AGENT_SERVER_CAPABILITIES = ("vscode", "browser", "docker")
 _BUILDKIT_STEP_RE = re.compile(r"^#(?P<step>\d+)\s+(?P<message>.+)$")
 _BUILDKIT_DONE_RE = re.compile(r"^DONE\s+(?P<seconds>\d+(?:\.\d+)?)s$")
@@ -72,23 +71,23 @@ _SEMVER_RELEASE_RE = re.compile(
 )
 
 
-# --- helpers ---
+# --- 帮手 ---
 
 
 def _default_sdk_project_root() -> Path:
     """
-    Resolve top-level OpenHands UV workspace root:
+    解析顶级 OpenHands uv 工作区根：
 
-    Order:
-      1) Walk up from CWD
-      2) Walk up from this file location
+    订单：
+      1) 从CWD向上走
+      2) 从该文件位置向上走
 
-    Reject anything in site/dist-packages (installed wheels).
+    拒绝 site/dist-packages 中的任何内容（已安装的轮子）。
     """
     site_markers = ("site-packages", "dist-packages")
 
     def _is_workspace_root(d: Path) -> bool:
-        """Detect if d is the root of the Agent-SDK repo UV workspace."""
+        """检测 d 是否是智能体-SDK 存储库 uv 工作区的根。"""
         _EXPECTED = (
             "openhands-sdk/pyproject.toml",
             "openhands-tools/pyproject.toml",
@@ -107,7 +106,7 @@ def _default_sdk_project_root() -> Path:
             cfg.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
             or []
         )
-        # Accept either explicit UV members or structural presence of all subprojects
+        # 接受所有子项目的显式 uv 成员或结构存在
         if members:
             norm = {str(Path(m)) for m in members}
             return {
@@ -160,7 +159,7 @@ def _default_sdk_project_root() -> Path:
     except NameError:
         pass
 
-    # Final, user-facing guidance
+    # 最终的、面向用户的指南
     raise RuntimeError(
         "Could not resolve the OpenHands UV workspace root.\n\n"
         "Expected repo layout:\n"
@@ -179,10 +178,11 @@ def _run(
     cwd: str | None = None,
 ) -> subprocess.CompletedProcess:
     """
-    Stream stdout and stderr concurrently into the rolling logger,
+    将 stdout 和 stderr 同时流式传输到滚动记录器中，
     while capturing FULL stdout/stderr.
-    Returns CompletedProcess(stdout=<full>, stderr=<full>).
-    Raises CalledProcessError with both output and stderr on failure.
+    返回 CompletedProcess（stdout=<full>，stderr=<full>）。 失败时会引发
+    CalledProcessError 输出和 st
+    derr。
     """
     logger.info(f"$ {' '.join(cmd)} (cwd={cwd})")
 
@@ -191,8 +191,8 @@ def _run(
         cwd=cwd,
         text=True,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,  # keep separate
-        bufsize=1,  # line-buffered
+        stderr=subprocess.PIPE,  # 保持分开
+        bufsize=1,  # 行缓冲
     )
     assert proc.stdout is not None and proc.stderr is not None
 
@@ -227,7 +227,7 @@ def _run(
     result = subprocess.CompletedProcess(cmd, rc, stdout=stdout, stderr=stderr)
 
     if rc != 0:
-        # Include full outputs on failure
+        # 包括失败时的完整输出
         raise subprocess.CalledProcessError(rc, cmd, output=stdout, stderr=stderr)
 
     return result
@@ -266,13 +266,13 @@ def _release_tag_aliases(version: str) -> list[str]:
 
 def _truncate_ident(repo: str, tag: str, budget: int) -> str:
     """
-    Truncate repo+tag to fit budget, prioritizing tag preservation.
+    截断 repo+tag 以适应预算，优先考虑标签保留。
 
-    Strategy:
-    1. If both fit: return both
-    2. If tag fits but repo doesn't: truncate repo, keep full tag
-    3. If tag doesn't fit: truncate tag, discard repo
-    4. If no tag: truncate repo
+    策略：
+    1. 如果两者都适合：返回两者
+    2. 如果标签适合但仓库不适合：截断仓库，保留完整标签
+    3. 如果标签不适合：截断标签，丢弃存储库
+    4. 如果没有标签：截断仓库
     """
     tag_suffix = f"_tag_{tag}" if tag else ""
     full_ident = repo + tag_suffix
@@ -292,16 +292,15 @@ def _truncate_ident(repo: str, tag: str, budget: int) -> str:
 
 def _base_slug(image: str, max_len: int = 64) -> str:
     """
-    If the slug is too long, keep the most identifiable parts:
-    - repository name (last path segment)
-    - tag (if present)
-    Then append a short digest for uniqueness.
-    Format preserved with existing separators: '_s_' for '/', '_tag_' for ':'.
+    如果段头太长，请保留最容易识别的部分：
+    - 存储库名称（最后一个路径段）
+    - 标签（如果有）
+    然后附加一个简短的摘要以确保唯一性。 使用现有分隔符保留格式：“_s_”表示“/'”，“
+    _tag_”表示“:”。
 
     Example:
-      'ghcr.io_s_org_s/very-long-repo_tag_v1.2.3-extra'
-      ->  'very-long-repo_tag_v1.2.3-<digest>'
-    """
+      'ghcr.io_s_org_s/very-long-repo_tag_v1.2.3-extra' -> 'very-long-repo_tag_v1.2.3-<digest>'
+    """  # noqa: E501
     base_slug = image.replace("/", "_s_").replace(":", "_tag_")
 
     if len(base_slug) <= max_len:
@@ -310,16 +309,16 @@ def _base_slug(image: str, max_len: int = 64) -> str:
     digest = hashlib.sha256(base_slug.encode()).hexdigest()[:12]
     suffix = f"-{digest}"
 
-    # Parse components from the slug form
+    # 从 slug 形式解析组件
     if "_tag_" in base_slug:
-        left, tag = base_slug.rsplit("_tag_", 1)  # Split on last : (rightmost tag)
+        left, tag = base_slug.rsplit("_tag_", 1)  # 在最后分割：（最右边的标签）
     else:
         left, tag = base_slug, ""
 
     parts = left.split("_s_") if left else []
-    repo = parts[-1] if parts else left  # last path segment is the repo
+    repo = parts[-1] if parts else left  # 最后一个路径段是存储库
 
-    # Fit within budget, reserving space for the digest suffix
+    # 适合预算，为摘要后缀保留空间
     visible_budget = max_len - len(suffix)
     assert visible_budget > 0, (
         f"max_len too small to fit digest suffix with length {len(suffix)}"
@@ -331,17 +330,17 @@ def _base_slug(image: str, max_len: int = 64) -> str:
 
 def _git_info() -> tuple[str, str]:
     """
-    Get git info (ref, sha) for the current working directory.
+    获取当前工作目录的 git info (ref, sha)。
 
-    Priority order for SHA:
-    1. SDK_SHA - Explicit override (e.g., for submodule builds)
-    2. GITHUB_SHA - GitHub Actions environment
-    3. git rev-parse HEAD - Local development
+    SHA 的优先顺序：
+    1. SDK_SHA - 显式覆盖（e.g.，用于子模块构建）
+    2. GITHUB_SHA - GitHub 动作环境
+    3. git rev-parse HEAD - 本地开发
 
-    Priority order for REF:
-    1. SDK_REF - Explicit override (e.g., for submodule builds)
-    2. GITHUB_REF - GitHub Actions environment
-    3. git symbolic-ref HEAD - Local development
+    REF 的优先顺序：
+    1. SDK_REF - 显式覆盖（e.g.，用于子模块构建）
+    2. GITHUB_REF - GitHub 动作环境
+    3. git symbolic-ref HEAD - 本地开发
     """
     sdk_root = _default_sdk_project_root()
     git_sha = os.environ.get("SDK_SHA") or os.environ.get("GITHUB_SHA")
@@ -368,15 +367,15 @@ def _git_info() -> tuple[str, str]:
 
 def _package_version() -> str:
     """
-    Get the semantic version from the openhands-sdk package.
-    This is used as a fallback when git-tag-derived release tags are unavailable.
+    从 OpenHands-SDK 包中获取语义版本。 当 git-tag 派生的发布标签不可用时，这用作回退
+    方案。
     """
     try:
         from importlib.metadata import version
 
         return version("openhands-sdk")
     except Exception:
-        # If package is not installed, try reading from pyproject.toml
+        # 如果未安装软件包，请尝试从 pyproject.toml 读取
         try:
             sdk_root = _default_sdk_project_root()
             pyproject_path = sdk_root / "openhands-sdk" / "pyproject.toml"
@@ -536,14 +535,15 @@ class BuildOptions(BaseModel):
     def release_tag_source(self) -> str | None:
         if self.git_ref.startswith("refs/tags/"):
             tag = self.git_ref.removeprefix("refs/tags/")
-            # For semver release tags (v1.2.3), use the SDK package version
-            # which follows PEP 440 (bare semver, no "v" prefix).
+            # 对于 semver 版本标签 (v1.2.3)，请使用 PEP 440 后面的 SDK 包版本（裸 semver
+            # ，无“v”前缀）。
+            #
             if _SEMVER_RELEASE_RE.fullmatch(tag):
                 if self.sdk_version != "unknown":
                     return self.sdk_version
-                # Defensive: strip "v" if sdk_version is unavailable.
+                # 防御：如果 sdk_version 不可用，则剥离“v”。
                 return tag.removeprefix("v")
-            # Non-semver tags (e.g. build-docker) are used as-is.
+            # 非 semver 标签 (e.g. build-Docker) 按原样使用。
             return tag
         if self.sdk_version and self.sdk_version != "unknown":
             return self.sdk_version
@@ -551,7 +551,7 @@ class BuildOptions(BaseModel):
 
     @property
     def versioned_tags(self) -> list[str]:
-        """Generate git tag-derived tags for each custom tag variant."""
+        """为每个自定义标签变体生成 git 标签派生标签。"""
         if not self.release_tag_source:
             return []
         return [
@@ -600,7 +600,7 @@ class BuildOptions(BaseModel):
             for versioned_tag in self.versioned_tags:
                 tags.append(f"{self.image}:{versioned_tag}{arch_suffix}")
 
-        # The minimal image flavor already names its binary-minimal target.
+        # 最小图像风格已经命名了它的二进制最小目标。
         if self.target != "binary" and not (
             self.target == "binary-minimal" and self.image_flavor == "minimal"
         ):
@@ -640,20 +640,20 @@ class BuildCommandError(subprocess.CalledProcessError):
         self.telemetry = telemetry
 
 
-# --- build helpers ---
+# --- 构建助手 ---
 
 
 def _extract_tarball(tarball: Path, dest: Path) -> None:
     dest = dest.resolve()
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(tarball, "r:gz") as tar, chdir(dest):
-        # Pre-validate entries
+        # 预先验证条目
         for m in tar.getmembers():
             name = m.name.lstrip("./")
             p = Path(name)
             if p.is_absolute() or ".." in p.parts:
                 raise RuntimeError(f"Unsafe path in sdist: {m.name}")
-        # Safe(-r) extraction: no symlinks/devices
+        # Safe(-r) 提取：无符号链接/设备
         tar.extractall(path=".", filter="data")
 
 
@@ -689,13 +689,13 @@ def _make_build_context(
         logger.debug(f"[build] Extracting sdist {sdist} to clean context {tmp_root}")
         _extract_tarball(sdist, tmp_root)
 
-        # assert only one folder created
+        # 断言只创建了一个文件夹
         entries = list(tmp_root.iterdir())
         assert len(entries) == 1 and entries[0].is_dir(), (
             "Expected single folder in sdist"
         )
         tmp_root = entries[0].resolve()
-        # copy Dockerfile into place
+        # 将 Dockerfile 复制到位
         shutil.copy2(dockerfile_path, tmp_root / "Dockerfile")
         logger.debug(f"[build] Clean context ready at {tmp_root}")
         return tmp_root
@@ -720,7 +720,7 @@ def _active_buildx_driver() -> str | None:
 
 
 def _default_local_cache_dir() -> Path:
-    # keep cache outside repo; override with BUILD_CACHE_DIR if wanted
+    # 将缓存保留在存储库之外； 如果需要的话用 BUILD_CACHE_DIR 覆盖
     root = os.environ.get("BUILD_CACHE_DIR")
     if root:
         return Path(root).expanduser().resolve()
@@ -835,8 +835,8 @@ def _parse_buildkit_telemetry(stderr: str) -> BuildTelemetry:
             )
             continue
 
-        # Only update step description if there isn't already a classified one.
-        # This prevents sub-operations (like "preparing build cache for export")
+        # 仅当尚未分类时才更新步骤描述。 这可以防止子操作（例如“准备导出构建缓存”）
+        #
         # from overwriting the main operation (like "exporting cache to registry").
         new_desc = message.removesuffix(" ...").strip()
         existing_desc = step_descriptions.get(step)
@@ -861,11 +861,11 @@ def _parse_buildkit_telemetry(stderr: str) -> BuildTelemetry:
     return telemetry
 
 
-# --- single entry point ---
+# --- 单入口 ---
 
 
 def build_with_telemetry(opts: BuildOptions) -> BuildResult:
-    """Build the agent-server image and return tags plus phase telemetry."""
+    """构建智能体-服务器映像并返回标签以及相位遥测。"""
     dockerfile_path = _get_dockerfile_path(opts.sdk_project_root)
     push = opts.push
     if push is None:
@@ -876,23 +876,20 @@ def build_with_telemetry(opts: BuildOptions) -> BuildResult:
 
     telemetry = BuildTelemetry()
     build_context_started = time.monotonic()
-    # Only base-image-minimal has zero context dependency (no COPY from the
-    # build context, direct or transitive). base-image is NOT eligible for
-    # this fast path even though it looked context-free at a glance: it pulls
-    # in the `builder` stage (for VSCode extensions), and `builder` itself
-    # COPYs the real SDK source from context. This dependency is
-    # unconditional at the Dockerfile level, so excluding vscode from
-    # INSTALL_CAPABILITIES shrinks the resulting image but not this
-    # build-context cost or the `builder` stage's own build time (a full SDK
-    # venv sync).
+    # 只有 base-image-minimal 有零上下文 dependency (no COPY 从构建中上下文，直接或间接
+    # 的)。 基础镜像是不尽管看起来不符合这条快速路径，它仍然符合条件上下文-免费一目了然
+    # ：它整合了  `builder` stage (for ) VSCode extensions), and `builder` 它自身 COPYs
+    # the real SDK 源码从上下文。 这个依赖项在Dockerfile级别是无条件的，所以排除vscode
+    # INSTALL_CAPABILITIES 缩小了结果图像，但没有这个构建-上下文成本或  `builder` 自己的
+    # 构建时间（一个完整的 SDK venv 同步).
+    #
     is_base_only = opts.target == "base-image-minimal"
     if is_base_only:
         ctx = Path(tempfile.mkdtemp(prefix="agent-base-ctx-"))
         shutil.copy2(dockerfile_path, ctx / "Dockerfile")
-        # The acp-providers stage COPYs this one dependency-free catalog file
-        # (see the Dockerfile) — stage it at the same relative path the real
-        # sdist-extracted context uses, so the same COPY instruction works
-        # here without pulling in the rest of the SDK source.
+        # ACP的COPYs阶段COPY这个依赖的无依赖的镜像文件（见Dockerfile）——在相同的相对路径
+        # 下阶段它，这样上下文就不用拉取REST的源的SDK。
+        #
         catalog_dst = ctx / _ACP_INSTALL_CATALOG_RELPATH
         catalog_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(opts.sdk_project_root / _ACP_INSTALL_CATALOG_RELPATH, catalog_dst)
@@ -930,14 +927,14 @@ def build_with_telemetry(opts: BuildOptions) -> BuildResult:
     for t in tags:
         args += ["--tag", t]
 
-    # -------- cache strategy --------
+    # --------缓存策略--------
     driver = _active_buildx_driver() or "unknown"
     local_cache_dir = _default_local_cache_dir()
     cache_args: list[str] = []
 
-    # Cache export mode: "max" (default), "min", or "off"
-    # Default to "max" to preserve existing behavior; set to "off" in batch builds
-    # to avoid contention when building many images in parallel
+    # 缓存导出模式：“max”（默认）、“min”或“off” 默认为“max”以保留现有行为； 在批量构建中
+    # 设置为“关闭”以避免并行构建多个图像时发生争用
+    #
     cache_export_mode = os.environ.get("OPENHANDS_BUILDKIT_CACHE_MODE", "max").lower()
     if cache_export_mode not in ("off", "max", "min"):
         logger.warning(
@@ -947,14 +944,14 @@ def build_with_telemetry(opts: BuildOptions) -> BuildResult:
         cache_export_mode = "max"
 
     if push:
-        # Remote/CI builds: always read from registry cache
+        # 远程/CI 构建：始终从注册表缓存读取
         cache_args += [
             "--cache-from",
             f"type=registry,ref={opts.image}:{cache_tag}",
             "--cache-from",
             f"type=registry,ref={opts.image}:{cache_tag_base}-main",
         ]
-        # Only export cache if explicitly enabled (avoids contention in batch builds)
+        # 仅在显式启用时导出缓存（避免批量构建中的争用）
         if cache_export_mode in ("max", "min"):
             cache_args += [
                 "--cache-to",
@@ -966,8 +963,8 @@ def build_with_telemetry(opts: BuildOptions) -> BuildResult:
         else:
             logger.info("[build] Cache: registry read only (export disabled)")
     else:
-        # Local/dev builds: prefer local dir cache if
-        # driver supports it; otherwise inline-only.
+        # 本地/开发版本：如果驱动程序支持，则更喜欢本地目录缓存； 否则仅限内联。
+        #
         if driver == "docker-container":
             local_cache_dir.mkdir(parents=True, exist_ok=True)
             cache_args += [
@@ -1050,11 +1047,11 @@ def build_with_telemetry(opts: BuildOptions) -> BuildResult:
 
 
 def build(opts: BuildOptions) -> list[str]:
-    """Single entry point for building the agent-server image."""
+    """单个入口用于构建智能体服务器映像。"""
     return build_with_telemetry(opts).tags
 
 
-# --- CLI shim ---
+# --- CLI 垫片 ---
 
 
 def _env(name: str, default: str) -> str:
@@ -1145,7 +1142,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--install-acp-providers",
         # os.environ.get, not _env(): an explicit empty string here means
-        # "install none" and must survive, but _env() treats blank as unset.
+        # “安装 None”并且必须生存，但 _env() 将空白视为未设置。
         default=os.environ.get(
             "INSTALL_ACP_PROVIDERS", ",".join(DEFAULT_PREINSTALLED_ACP_PROVIDERS)
         ),
@@ -1157,7 +1154,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--install-capabilities",
         # os.environ.get, not _env(): an explicit empty string here means
-        # "install none" and must survive, but _env() treats blank as unset.
+        # “安装 None”并且必须生存，但 _env() 将空白视为未设置。
         default=os.environ.get("INSTALL_CAPABILITIES", "vscode,browser,docker"),
         help=(
             "Comma-separated capability keys to bake into the image "
@@ -1167,7 +1164,7 @@ def main(argv: list[str]) -> int:
 
     args = parser.parse_args(argv)
 
-    # ---- resolve sdk project root ----
+    # ---- 解析 SDK 项目根 ----
     sdk_project_root = args.sdk_project_root
     if sdk_project_root is None:
         try:
@@ -1176,12 +1173,12 @@ def main(argv: list[str]) -> int:
             logger.error(str(e))
             return 1
 
-    # ---- build-ctx-only path ----
+    # ---- 仅构建 ctx 路径 ----
     if args.build_ctx_only:
         ctx = _make_build_context(sdk_project_root, args.prebuilt_sdist)
         logger.info(f"[build] Clean build context (kept for debugging): {ctx}")
 
-        # Create BuildOptions to generate tags
+        # 创建BuildOptions生成标签
         opts = BuildOptions(
             base_image=args.base_image,
             custom_tags=args.custom_tags,
@@ -1189,7 +1186,7 @@ def main(argv: list[str]) -> int:
             image_flavor=args.image_flavor,
             target=args.target,  # type: ignore
             platforms=[p.strip() for p in args.platforms.split(",") if p.strip()],  # type: ignore
-            push=None,  # Not relevant for build-ctx-only
+            push=None,  # 与仅 build-ctx 无关
             sdk_project_root=sdk_project_root,
             prebuilt_sdist=args.prebuilt_sdist,
             arch=args.arch or None,
@@ -1198,14 +1195,14 @@ def main(argv: list[str]) -> int:
             install_capabilities=args.install_capabilities,
         )
 
-        # If running in GitHub Actions, write outputs directly to GITHUB_OUTPUT
+        # 如果在 GitHub 操作中运行，则将输出直接写入 GITHUB_OUTPUT
         github_output = os.environ.get("GITHUB_OUTPUT")
         if github_output:
             with open(github_output, "a") as fh:
                 fh.write(f"build_context={ctx}\n")
                 fh.write(f"dockerfile={ctx / 'Dockerfile'}\n")
                 fh.write(f"tags_csv={','.join(opts.all_tags)}\n")
-                # Only output versioned tags if they're being used
+                # 仅在使用时输出版本控制标签
                 if opts.include_versioned_tag:
                     fh.write(f"versioned_tags_csv={','.join(opts.versioned_tags)}\n")
                 else:
@@ -1213,11 +1210,11 @@ def main(argv: list[str]) -> int:
                 fh.write(f"base_image_slug={opts.base_image_slug}\n")
             logger.info("[build] Wrote outputs to $GITHUB_OUTPUT")
 
-        # Also print to stdout for debugging/local use
+        # 还打印到标准输出以供调试/本地使用
         print(str(ctx))
         return 0
 
-    # ---- push/load resolution (CLI wins over env, else auto) ----
+    # ---- 推送/加载分辨率（CLI 胜过 env，否则自动）----
     push: bool | None
     if args.push:
         push = True
@@ -1232,7 +1229,7 @@ def main(argv: list[str]) -> int:
             else None
         )
 
-    # ---- normal build path ----
+    # ---- 正常构建路径 ----
     opts = BuildOptions(
         base_image=args.base_image,
         custom_tags=args.custom_tags,
@@ -1250,7 +1247,7 @@ def main(argv: list[str]) -> int:
     )
     tags = build(opts)
 
-    # --- expose outputs for GitHub Actions ---
+    # --- 公开 GitHub 操作的输出 ---
     def _write_gha_outputs(
         image: str,
         short_sha: str,
@@ -1259,13 +1256,12 @@ def main(argv: list[str]) -> int:
         include_versioned_tag: bool,
     ) -> None:
         """
-        If running in GitHub Actions, append step outputs to $GITHUB_OUTPUT.
-        - image: repo/name (no tag)
-        - short_sha: 7-char SHA
-        - versioned_tags_csv: comma-separated list of versioned tags
-          (empty if not enabled)
-        - tags: multiline output (one per line)
-        - tags_csv: single-line, comma-separated
+        如果在 GitHub 操作中运行，请将步骤输出附加到 $GITHUB_OUTPUT。
+        - image: 仓库/名称（无标签）
+        - short_sha: 7 个字符 SHA
+        - versioned_tags_csv: 以逗号分隔的版本标记列表（如果未启用则为空）
+        - tags: 多行输出（每行一个）
+        - tags_csv: 单行，逗号分隔
         """
         out_path = os.environ.get("GITHUB_OUTPUT")
         if not out_path:
@@ -1273,7 +1269,7 @@ def main(argv: list[str]) -> int:
         with open(out_path, "a", encoding="utf-8") as fh:
             fh.write(f"image={image}\n")
             fh.write(f"short_sha={short_sha}\n")
-            # Only output versioned tags if they're being used
+            # 仅在使用时输出版本控制标签
             if include_versioned_tag:
                 fh.write(f"versioned_tags_csv={','.join(versioned_tags)}\n")
             else:

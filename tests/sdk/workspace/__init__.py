@@ -1,1 +1,1 @@
-"""Tests for workspace functionality."""
+"""测试工作区功能。"""

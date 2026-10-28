@@ -1,4 +1,4 @@
-"""User-facing terminal tool descriptions by shell family."""
+"""按 shell 系列划分的面向用户的终端工具描述。"""
 
 UNIX_TOOL_DESCRIPTION = "\n".join(
     [

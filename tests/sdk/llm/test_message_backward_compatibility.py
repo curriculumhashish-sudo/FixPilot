@@ -1,16 +1,14 @@
-"""Backward compatibility tests for Message and TextContent serialization.
+"""向后兼容性测试消息和 TextContent 序列化。
 
-These tests verify that events serialized in previous SDK versions can still
-be loaded correctly. This is critical for production systems that may resume
-conversations created with older SDK versions.
+这些测试验证以前 SDK 版本中的事件已序列化仍然可以正确加载。 这对于可能恢复使用旧 SDK
+版本创建的对话的生产系统至关重要。
 
-IMPORTANT: These tests should NOT be modified to fix unit test failures.
-If a test fails, it indicates that the code should be updated to accommodate
-the old serialization format, NOT that the test should be changed.
+IMPORTANT: 应修改这些测试不以修复单元测试故障。
+如果测试失败，则表明应更新代码以适应旧的序列化格式，不表明应更改测试。
 
-VERSION NAMING CONVENTION: The version in the test name should be the LAST
-version where a particular event structure exists. For example, if a field
-was removed in v1.11.1, the test should be named for v1.10.x (the last version
+VERSION NAMING CONVENTION：测试名称中的版本应该是存在特定事件结构的 LAST 版本。 例如
+，如果在 v1.11.1 中删除了某个字段，则测试应命名
+为 v1.10.x（最后一个版本）
 with that field).
 """
 
@@ -21,17 +19,17 @@ from openhands.sdk.llm.message import Message, TextContent
 
 
 # =============================================================================
-# TextContent Backward Compatibility Tests
+# TextContent 向后兼容性测试
 # =============================================================================
 
 
 def test_v1_10_0_text_content_with_enable_truncation():
-    """Verify TextContent with enable_truncation loads (last version: v1.10.0).
+    """验证 TextContent 与 enable_truncation 负载（最新版本：v1.10.0）。
 
-    enable_truncation was added in v1.6.0 and removed in v1.11.1.
-    v1.10.0 was the LAST version with this field.
+    enable_truncation 在 v1.6.0 中添加，在 v1.11.1 中删除。 v1.10.0 是包含此字段的
+    LAST 版本。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     old_format = {
         "type": "text",
@@ -50,11 +48,11 @@ def test_v1_10_0_text_content_with_enable_truncation():
 
 
 def test_v1_10_0_text_content_with_enable_truncation_false():
-    """Verify TextContent with enable_truncation=false loads (last version: v1.10.0).
+    """验证 TextContent 与 enable_truncation=False 负载（最新版本：v1.10.0）。
 
-    Some use cases explicitly set enable_truncation=false to preserve full content.
+    某些用例明确设置 enable_truncation=False 以保留完整内容。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     old_format = {
         "type": "text",
@@ -72,11 +70,11 @@ def test_v1_10_0_text_content_with_enable_truncation_false():
 
 
 def test_text_content_current_format():
-    """Verify TextContent in current format loads (v1.11.1+).
+    """验证当前格式负载 (v1.11.1+) 中的 TextContent。
 
-    Current format without enable_truncation field.
+    当前格式不带 enable_truncation 字段。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     current_format = {
         "type": "text",
@@ -91,18 +89,20 @@ def test_text_content_current_format():
 
 
 # =============================================================================
-# Message Backward Compatibility Tests
+# 消息向后兼容性测试
 # =============================================================================
 
 
 def test_v1_9_0_message_with_deprecated_fields():
-    """Verify Message with deprecated serialization fields loads (last version: v1.9.0).
+    """验证带有已弃用序列化字段的消息加载（最新版本：v1.9.0）。
 
-    In v1.9.0, Message had cache_enabled, vision_enabled, function_calling_enabled,
-    force_string_serializer, and send_reasoning_content as instance fields.
-    These were removed in v1.9.1+. v1.9.0 was the LAST version with these fields.
+    在 v1.9.0 中，Message 有 cache_enabled、vision_enabled、function_calling_enabled
+    、
+    force_string_serializer 和 send_reasoning_content 作为实例字段。 这些在 v1.9.1+
+    中被删除。 v1.9.0
+    是包含这些字段的 LAST 版本。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     old_format = {
         "role": "assistant",
@@ -139,11 +139,11 @@ def test_v1_9_0_message_with_deprecated_fields():
 
 
 def test_message_current_format():
-    """Verify Message in current format loads (v1.9.1+).
+    """验证当前格式的消息加载 (v1.9.1+)。
 
-    Current format without deprecated serialization control fields.
+    当前格式不带已弃用序列化控制字段。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     current_format = {
         "role": "assistant",
@@ -167,20 +167,20 @@ def test_message_current_format():
 
 
 # =============================================================================
-# Mixed Version Conversation Test
+# 混合版本对话测试
 # =============================================================================
 
 
 def test_mixed_version_conversation_loads():
-    """Verify a conversation with events from multiple SDK versions loads.
+    """验证与来自多个 SDK 版本加载的事件的对话。
 
-    Real conversations may have events serialized with different SDK versions
-    if the SDK was upgraded mid-conversation or if resuming an old conversation.
+    如果 SDK 在对话中升级或恢复旧对话，则真实对话可能会出现具有不同 SDK 版本的事件已
+    序列化。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     events = [
-        # Old format with deprecated fields
+        # 带有已弃用字段的旧格式
         {
             "role": "user",
             "content": [
@@ -200,7 +200,7 @@ def test_mixed_version_conversation_loads():
             "tool_call_id": None,
             "name": None,
         },
-        # Current format without deprecated fields
+        # 当前格式不带已弃用字段
         {
             "role": "assistant",
             "content": [{"type": "text", "text": "Hi there!", "cache_prompt": False}],
@@ -225,16 +225,16 @@ def test_mixed_version_conversation_loads():
 
 
 # =============================================================================
-# JSON Deserialization Tests
+# JSON 反序列化测试
 # =============================================================================
 
 
 def test_v1_10_0_text_content_json_deserialization():
-    """Test JSON string deserialization for TextContent with deprecated fields.
+    """使用已弃用字段测试 TextContent 的 JSON 字符串反序列化。
 
-    Uses model_validate_json to ensure JSON string parsing works.
+    使用 model_validate_json 确保 JSON 字符串解析有效。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     serialized_json = json.dumps(
         {
@@ -253,11 +253,11 @@ def test_v1_10_0_text_content_json_deserialization():
 
 
 def test_v1_9_0_message_json_deserialization():
-    """Test JSON string deserialization for Message with deprecated fields.
+    """测试带有已弃用字段的消息的 JSON 字符串反序列化。
 
-    Uses model_validate_json to ensure JSON string parsing works.
+    使用 model_validate_json 确保 JSON 字符串解析有效。
 
-    AGENTS: Do NOT modify this test to fix failures. Update the code instead.
+    AGENTS: 执行不修改此测试以修复故障。 而是更新代码。
     """
     serialized_json = json.dumps(
         {

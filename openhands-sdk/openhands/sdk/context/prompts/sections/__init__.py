@@ -1,9 +1,9 @@
-"""Concrete :class:`~openhands.sdk.context.prompts.section.PromptSection` units.
+"""具体：类：`~openhands.sdk.context.prompts.section.PromptSection` 单位。
 
-Sections are pure, synchronous functions of a :class:`PromptContext` -- no Jinja
-environment, no filesystem loader, no ``render_template`` bootstrap -- so each one
-unit-tests in isolation. The static tier (ported from ``system_prompt.j2``) lives
-in :mod:`.static`; the standalone planning composition (ported from
+章节是纯的，同步与一个：class:`PromptContext` 有关——没有 Jinja 环境，没有文件系统加载
+器，也没有 ``render_template`` 驱动
+程序——因此，每个都单独单元测试。 静态层（从 ``system_prompt.j2`` 移植）位于：mod:
+`.static`; 独立的规划构成（移植自
 ``system_prompt_planning.j2``) in :mod:`.planning`.
 """
 

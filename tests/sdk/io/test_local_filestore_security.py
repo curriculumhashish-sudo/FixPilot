@@ -1,4 +1,4 @@
-"""Tests for LocalFileStore path traversal security."""
+"""测试 LocalFileStore 路径遍历安全性。"""
 
 import os
 import tempfile
@@ -9,23 +9,23 @@ from openhands.sdk.io.local import LocalFileStore
 
 
 def test_path_traversal_attacks_blocked():
-    """Test that various path traversal attacks are properly blocked."""
+    """测试各种路径遍历攻击是否被正确阻止。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root_dir = os.path.join(temp_dir, "filestore_root")
         store = LocalFileStore(root_dir)
 
-        # Create a sensitive file outside the root
+        # 在根目录之外创建敏感文件
         sensitive_file = os.path.join(temp_dir, "sensitive.txt")
         with open(sensitive_file, "w") as f:
             f.write("SENSITIVE DATA")
 
-        # Test various path traversal attack vectors
+        # 测试各种路径遍历攻击向量
         attack_vectors = [
             "../sensitive.txt",
             "../../sensitive.txt",
             "../../../etc/passwd",
             "subdir/../../../sensitive.txt",
-            "..\\sensitive.txt",  # Windows-style
+            "..\\sensitive.txt",  # Windows风格
             "subdir/../../sensitive.txt",
             "./../sensitive.txt",
             "a/../../../sensitive.txt",
@@ -37,7 +37,7 @@ def test_path_traversal_attacks_blocked():
 
 
 def test_legitimate_paths_allowed():
-    """Test that legitimate paths within the root are allowed."""
+    """测试是否允许根目录内的合法路径。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root_dir = os.path.join(temp_dir, "filestore_root")
         store = LocalFileStore(root_dir)
@@ -53,46 +53,46 @@ def test_legitimate_paths_allowed():
 
         for legit_path in legitimate_paths:
             full_path = store.get_full_path(legit_path)
-            # Verify the path is within the root
+            # 验证路径是否在根目录内
             assert full_path.startswith(root_dir)
             assert os.path.commonpath([root_dir, full_path]) == root_dir
 
 
 def test_edge_cases():
-    """Test edge cases like empty paths and root paths."""
+    """测试边缘情况，例如空路径和根路径。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root_dir = os.path.join(temp_dir, "filestore_root")
         store = LocalFileStore(root_dir)
 
-        # Test empty path
+        # 测试空路径
         full_path = store.get_full_path("")
         assert full_path == root_dir
 
-        # Test root path
+        # 测试根路径
         full_path = store.get_full_path("/")
         assert full_path == root_dir
 
-        # Test current directory
+        # 测试当前目录
         full_path = store.get_full_path(".")
         assert full_path == root_dir
 
 
 def test_root_normalization():
-    """Test that the root path is properly normalized during initialization."""
+    """测试根路径在初始化期间是否已正确规范化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Test with tilde expansion
+        # 使用波形符扩展进行测试
         if os.path.expanduser("~") != "~":
             store = LocalFileStore("~/test_root")
             assert not store.root.startswith("~")
 
-        # Test with relative path
+        # 使用相对路径测试
         original_cwd = os.getcwd()
         try:
             os.chdir(temp_dir)
             store = LocalFileStore("./relative_root")
             assert os.path.isabs(store.root)
 
-            # Prevent test error in some mac environments
+            # 防止某些mac环境下测试出错
             if store.root.startswith("/private/") and not temp_dir.startswith(
                 "/private/"
             ):
@@ -104,20 +104,20 @@ def test_root_normalization():
 
 
 def test_file_operations_with_security():
-    """Test that file operations work correctly with the security fix."""
+    """通过安全修复测试文件操作是否正常工作。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         root_dir = os.path.join(temp_dir, "filestore_root")
         store = LocalFileStore(root_dir)
 
-        # Test writing and reading a legitimate file
+        # 测试写入和读取合法文件
         test_content = "Hello, World!"
         store.write("test.txt", test_content)
         assert store.read("test.txt") == test_content
 
-        # Test that we can't write outside the root
+        # 测试我们不能在root之外写入
         with pytest.raises(ValueError, match="path escapes filestore root"):
             store.write("../outside.txt", "malicious content")
 
-        # Test that we can't read outside the root
+        # 测试我们无法读取root之外的内容
         with pytest.raises(ValueError, match="path escapes filestore root"):
             store.read("../outside.txt")

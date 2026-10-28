@@ -1,4 +1,4 @@
-"""Tests for git_diff.py functionality using temporary directories and bash commands."""
+"""使用临时目录和 bash 命令测试 git_diff.py 功能。"""
 
 import os
 import subprocess
@@ -12,7 +12,7 @@ from openhands.sdk.git.models import GitDiff
 
 
 def run_bash_command(command: str, cwd: str) -> subprocess.CompletedProcess:
-    """Run a bash command in the specified directory."""
+    """在指定目录下运行bash命令。"""
     return subprocess.run(
         command,
         shell=True,
@@ -24,14 +24,14 @@ def run_bash_command(command: str, cwd: str) -> subprocess.CompletedProcess:
 
 
 def setup_git_repo(repo_dir: str) -> None:
-    """Initialize a git repository with basic configuration."""
+    """使用基本配置初始化 git 存储库。"""
     run_bash_command("git init", repo_dir)
     run_bash_command("git config user.name 'Test User'", repo_dir)
     run_bash_command("git config user.email 'test@example.com'", repo_dir)
 
 
 def run_in_directory(temp_dir: str, func, *args, **kwargs):
-    """Helper to run a function in a specific directory."""
+    """在特定目录中运行函数的帮助程序。"""
     original_cwd = os.getcwd()
     try:
         os.chdir(temp_dir)
@@ -41,11 +41,11 @@ def run_in_directory(temp_dir: str, func, *args, **kwargs):
 
 
 def test_get_git_diff_new_file():
-    """Test get_git_diff with a new file."""
+    """使用新文件测试 get_git_diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create a new file
+        # 创建一个新文件
         test_file = Path(temp_dir) / "new_file.txt"
         test_content = "This is a new file\nwith multiple lines\nof content."
         test_file.write_text(test_content)
@@ -54,15 +54,15 @@ def test_get_git_diff_new_file():
 
         assert isinstance(diff, GitDiff)
         assert diff.modified == test_content
-        assert diff.original == ""  # Empty string for new files
+        assert diff.original == ""  # 新文件的空字符串
 
 
 def test_get_git_diff_modified_file():
-    """Test get_git_diff with a modified file."""
+    """使用修改后的文件测试 get_git_diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create and commit initial file
+        # 创建并提交初始文件
         test_file = Path(temp_dir) / "modified_file.txt"
         original_content = "Original content\nLine 2\nLine 3"
         test_file.write_text(original_content)
@@ -70,7 +70,7 @@ def test_get_git_diff_modified_file():
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Modify the file
+        # 修改文件
         modified_content = "Modified content\nLine 2 changed\nLine 3\nNew line 4"
         test_file.write_text(modified_content)
 
@@ -78,17 +78,17 @@ def test_get_git_diff_modified_file():
 
         assert isinstance(diff, GitDiff)
         assert diff.modified == modified_content
-        # Repos without a remote compare against HEAD, so the committed
-        # content is the original side of the diff.
+        # 没有与 HEAD 进行远程比较的存储库，因此提交的内容是差异的原始部分。
+        #
         assert diff.original == original_content
 
 
 def test_get_git_diff_deleted_file():
-    """A working-tree-deleted file diffs as its base text against ''."""
+    """工作树删除的文件与其基本文本相对于 '' 进行比较。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create and commit initial file
+        # 创建并提交初始文件
         test_file = Path(temp_dir) / "deleted_file.txt"
         original_content = "This file will be deleted\nLine 2\nLine 3"
         test_file.write_text(original_content)
@@ -96,7 +96,7 @@ def test_get_git_diff_deleted_file():
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Delete the file
+        # 删除文件
         os.remove(test_file)
 
         diff = run_in_directory(temp_dir, get_git_diff, "deleted_file.txt")
@@ -106,7 +106,7 @@ def test_get_git_diff_deleted_file():
 
 
 def test_get_git_diff_missing_path_that_is_a_directory_at_base():
-    """A missing path that was a directory at the base is not a file diff."""
+    """作为基础目录的缺失路径不是文件差异。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
@@ -126,7 +126,7 @@ def test_get_git_diff_missing_path_that_is_a_directory_at_base():
 
 
 def test_get_git_diff_deleted_file_too_large():
-    """A deleted file's base text is held to the same size cap."""
+    """已删除文件的基本文本保持相同的大小上限。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
@@ -143,7 +143,7 @@ def test_get_git_diff_deleted_file_too_large():
 
 
 def test_get_git_diff_missing_file_outside_repo():
-    """A missing path outside any repository still reports a missing file."""
+    """任何存储库之外的丢失路径仍会报告丢失文件。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         from openhands.sdk.git.exceptions import GitPathError
 
@@ -152,15 +152,15 @@ def test_get_git_diff_missing_file_outside_repo():
 
 
 def test_get_git_diff_nested_path():
-    """Test get_git_diff with files in nested directories."""
+    """使用嵌套目录中的文件测试 get_git_diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create nested directory structure
+        # 创建嵌套目录结构
         nested_dir = Path(temp_dir) / "src" / "utils"
         nested_dir.mkdir(parents=True)
 
-        # Create and commit initial file
+        # 创建并提交初始文件
         test_file = nested_dir / "helper.py"
         original_content = "def helper():\n    return 'original'"
         test_file.write_text(original_content)
@@ -168,7 +168,7 @@ def test_get_git_diff_nested_path():
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Modify the file
+        # 修改文件
         modified_content = (
             "def helper():\n    return 'modified'\n\ndef new_function():\n    pass"
         )
@@ -178,15 +178,15 @@ def test_get_git_diff_nested_path():
 
         assert isinstance(diff, GitDiff)
         assert diff.modified == modified_content
-        # Repos without a remote compare against HEAD, so the committed
-        # content is the original side of the diff.
+        # 没有与 HEAD 进行远程比较的存储库，因此提交的内容是差异的原始部分。
+        #
         assert diff.original == original_content
 
 
 def test_get_git_diff_no_repository():
-    """Test get_git_diff with a non-git directory."""
+    """使用非 git 目录测试 get_git_diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Don't initialize git repo
+        # 不要初始化 git repo
         test_file = Path(temp_dir) / "file.txt"
         test_file.write_text("Content")
 
@@ -197,7 +197,7 @@ def test_get_git_diff_no_repository():
 
 
 def test_get_git_diff_nonexistent_file():
-    """Test get_git_diff with a nonexistent file."""
+    """使用不存在的文件测试 get_git_diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
@@ -208,33 +208,33 @@ def test_get_git_diff_nonexistent_file():
 
 
 def test_get_closest_git_repo():
-    """Test the get_closest_git_repo helper function."""
+    """测试 get_closest_git_repo 辅助函数。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create nested directory structure
+        # 创建嵌套目录结构
         nested_dir = Path(temp_dir) / "src" / "utils"
         nested_dir.mkdir(parents=True)
 
-        # Test finding git repo from nested directory
+        # 测试从嵌套目录中查找 git repo
         git_repo = get_closest_git_repo(nested_dir)
-        # Compare resolved paths to avoid symlink differences on macOS
-        # Example: /var is a symlink to /private/var
+        # 比较已解析的路径以避免 macOS 上的符号链接差异
+        # 示例：/var 是 /private/var 的符号链接
         assert git_repo is not None
         assert git_repo.resolve() == Path(temp_dir).resolve()
 
-        # Test with non-git directory
+        # 使用非 git 目录进行测试
         with tempfile.TemporaryDirectory() as non_git_dir:
             git_repo = get_closest_git_repo(Path(non_git_dir))
             assert git_repo is None
 
 
 def test_git_diff_model_properties():
-    """Test GitDiff model properties and serialization."""
+    """测试 GitDiff 模型属性和序列化。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create and commit initial file
+        # 创建并提交初始文件
         test_file = Path(temp_dir) / "model_test.py"
         original_content = "# Original model test"
         test_file.write_text(original_content)
@@ -242,22 +242,22 @@ def test_git_diff_model_properties():
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Modify the file
+        # 修改文件
         modified_content = "# Modified model test\nprint('Hello')"
         test_file.write_text(modified_content)
 
         diff = run_in_directory(temp_dir, get_git_diff, "model_test.py")
 
-        # Test model properties
+        # 测试模型属性
         assert isinstance(diff, GitDiff)
         assert isinstance(diff.modified, str)
         assert isinstance(diff.original, str)
         assert diff.modified == modified_content
-        # Repos without a remote compare against HEAD, so the committed
-        # content is the original side of the diff.
+        # 没有与 HEAD 进行远程比较的存储库，因此提交的内容是差异的原始部分。
+        #
         assert diff.original == original_content
 
-        # Test serialization
+        # 测试序列化
         diff_dict = diff.model_dump()
         assert "modified" in diff_dict
         assert "original" in diff_dict
@@ -266,18 +266,18 @@ def test_git_diff_model_properties():
 
 
 def test_git_diff_with_empty_file():
-    """Test git diff with empty files."""
+    """使用空文件测试 git diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create and commit empty file
+        # 创建并提交空文件
         test_file = Path(temp_dir) / "empty.txt"
         test_file.write_text("")
 
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Add content to the file
+        # 将内容添加到文件中
         new_content = "Now has content"
         test_file.write_text(new_content)
 
@@ -289,11 +289,11 @@ def test_git_diff_with_empty_file():
 
 
 def test_git_diff_with_special_characters():
-    """Test git diff with files containing special characters."""
+    """使用包含特殊字符的文件测试 git diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create file with special characters
+        # 创建带有特殊字符的文件
         test_file = Path(temp_dir) / "special_chars.txt"
         original_content = (
             "Original: àáâãäå\n中文\n🚀 emoji\n\"quotes\" and 'apostrophes'"
@@ -303,7 +303,7 @@ def test_git_diff_with_special_characters():
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'Initial commit'", temp_dir)
 
-        # Modify with more special characters
+        # 修改更多特殊字符
         modified_content = (
             "Modified: àáâãäå\n中文修改\n🎉 new emoji\n"
             "\"new quotes\" and 'new apostrophes'\n\ttabs and\nlines"
@@ -314,19 +314,19 @@ def test_git_diff_with_special_characters():
 
         assert isinstance(diff, GitDiff)
         assert diff.modified == modified_content
-        # Repos without a remote compare against HEAD, so the committed
-        # content is the original side of the diff.
+        # 没有与 HEAD 进行远程比较的存储库，因此提交的内容是差异的原始部分。
+        #
         assert diff.original == original_content
 
 
 def test_git_diff_large_file_error():
-    """Test git diff with a file that's too large."""
+    """使用太大的文件测试 git diff。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 
-        # Create a file larger than MAX_FILE_SIZE_FOR_GIT_DIFF (1MB)
+        # 创建大于 MAX_FILE_SIZE_FOR_GIT_DIFF (1MB) 的文件
         test_file = Path(temp_dir) / "large_file.txt"
-        large_content = "x" * (1024 * 1024 + 1)  # 1MB + 1 byte
+        large_content = "x" * (1024 * 1024 + 1)  # 1MB + 1 字节
         test_file.write_text(large_content)
 
         from openhands.sdk.git.exceptions import GitPathError
@@ -336,23 +336,23 @@ def test_git_diff_large_file_error():
 
 
 def test_get_git_diff_ref_head_compares_against_latest_commit():
-    """``ref='HEAD'`` should diff against the latest commit, not the remote."""
+    """``ref='HEAD'`` 应该与最新提交进行比较，而不是与远程提交进行比较。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
         target = Path(temp_dir) / "file.txt"
 
-        # First commit (this would be the empty-tree fallback's "original"
-        # in the default behavior).
+        # 第一次提交（这将是默认行为中空树回退方案的“原始”）。
+        #
         target.write_text("v1\n")
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'v1'", temp_dir)
 
-        # Second commit becomes HEAD.
+        # 第二次提交变为 HEAD。
         target.write_text("v2\n")
         run_bash_command("git add .", temp_dir)
         run_bash_command("git commit -m 'v2'", temp_dir)
 
-        # Working-tree edit (uncommitted).
+        # 工作树编辑（未提交）。
         target.write_text("v3\n")
 
         diff = run_in_directory(temp_dir, get_git_diff, "file.txt", ref="HEAD")
@@ -365,7 +365,7 @@ def test_get_git_diff_ref_head_compares_against_latest_commit():
 
 
 def test_get_git_diff_invalid_ref_raises():
-    """An explicit ref that does not resolve should raise."""
+    """应该引发未解析的显式引用。"""
     from openhands.sdk.git.exceptions import GitCommandError
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -379,11 +379,12 @@ def test_get_git_diff_invalid_ref_raises():
 
 
 def test_get_git_diff_committed_branch_change_diffs_against_fork_point():
-    """A change committed on a branch must diff against the branch's fork
-    point — matching the change list. Diffing against HEAD instead would
-    render the committed content as an empty diff (APP-2205)."""
+    """在分支上提交的更改必须与分支的分叉不同
+    point — 匹配更改列表。 相反，与 HEAD 进行比较会将提交的内容呈现为空差异 (APP-2205
+    )。
+    """
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Arrange — repo on `main`, then a branch with a committed change.
+        # 在 `main` 上安排 — 存储库，然后是具有已提交更改的分支。
         run_bash_command("git init -b main", temp_dir)
         run_bash_command("git config user.name 'Test User'", temp_dir)
         run_bash_command("git config user.email 'test@example.com'", temp_dir)
@@ -395,10 +396,10 @@ def test_get_git_diff_committed_branch_change_diffs_against_fork_point():
         target.write_text("changed by agent")
         run_bash_command("git commit -am 'agent work'", temp_dir)
 
-        # Act
+        # 法案
         diff = run_in_directory(temp_dir, get_git_diff, "file.txt")
 
-        # Assert — original is the fork-point (main) content.
+        # 断言 — 原始内容是分叉点（主要）内容。
         assert diff.original == "base"
         assert diff.modified == "changed by agent"
 
@@ -414,7 +415,7 @@ def test_get_git_diff_committed_branch_change_diffs_against_fork_point():
     ids=["leading-indent", "trailing-blank-lines", "leading-blank-lines", "crlf"],
 )
 def test_get_git_diff_unchanged_file_has_identical_sides(content):
-    """An unchanged file keeps its edge whitespace on both sides of the diff."""
+    """未更改的文件在差异两侧保留其边缘空白。"""
     with tempfile.TemporaryDirectory() as temp_dir:
         setup_git_repo(temp_dir)
 

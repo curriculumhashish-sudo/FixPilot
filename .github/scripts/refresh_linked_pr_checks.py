@@ -14,7 +14,7 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def _linked_open_prs(repo: str, issue_number: int) -> list[dict]:
-    """Return open PRs that cross-reference ``issue_number``."""
+    """返回打开PR即交叉引用``issue_number``。"""
     owner, name = repo.split("/", 1)
     query = """
 query($owner: String!, $name: String!, $num: Int!) {
@@ -74,7 +74,7 @@ query($owner: String!, $name: String!, $num: Int!) {
 
 
 def _rerun_pr_description_check(repo: str, head_sha: str) -> bool:
-    """Re-run the latest PR Description Check for the given head SHA."""
+    """重新运行最新的PR 说明检查给定的头SHA。"""
     runs_result = _run(
         [
             "gh",
@@ -97,7 +97,7 @@ def _rerun_pr_description_check(repo: str, head_sha: str) -> bool:
     lines = [line.split() for line in runs_result.stdout.splitlines() if line.strip()]
     if not lines:
         return False
-    # Created-at is sortable; pick the most recent run for this commit.
+    # 创建于可排序； 选择此提交的最新运行。
     latest = sorted(lines, key=lambda item: " ".join(item[1:]))[-1][0]
     rerun = _run(
         ["gh", "api", "-X", "POST", f"repos/{repo}/actions/runs/{latest}/rerun"]
@@ -151,8 +151,8 @@ def main() -> int:
         if body_result.returncode != 0:
             continue
         if issue_number not in extract_linked_issue_numbers(body_result.stdout):
-            # Cross-referenced but not treated as a linked issue by the gate;
-            # nothing to refresh.
+            # 交叉引用但不被门视为链接问题； 没有什么可刷新的。
+            #
             continue
         if _rerun_pr_description_check(repo, pr["headRefOid"]):
             refreshed += 1

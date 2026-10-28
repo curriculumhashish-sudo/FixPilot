@@ -1,4 +1,4 @@
-# Core tool interface
+# 核心工具界面
 from openhands.tools.grep.definition import (
     GrepAction,
     GrepObservation,
@@ -8,7 +8,7 @@ from openhands.tools.grep.impl import GrepExecutor
 
 
 __all__ = [
-    # === Core Tool Interface ===
+    # ===核心工具界面===
     "GrepTool",
     "GrepAction",
     "GrepObservation",

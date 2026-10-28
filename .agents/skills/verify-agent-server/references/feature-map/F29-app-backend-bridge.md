@@ -1,29 +1,19 @@
-# Canvas App backend bridge (session, HTTP and WebSocket proxy)
+<a id="canvas-app-backend-bridge-session-http-and-websocket-proxy"></a>
 
-How the Agent Canvas iframe reaches a Canvas App's own backend process from a
-separate browser origin. When `app_backend_public_url` is configured, the
-server advertises it in `/server_info`, and a Canvas page exchanges its
-`X-Session-API-Key` for a five-minute, app-scoped, HttpOnly cookie with
-`POST /app-backends/{name}/session` (sent to the ingress host, with an allowed
-control `Origin` that is not the ingress origin). From then on every HTTP
-method and WebSocket under `/app-backends/{name}` is forwarded to the app's
-ready backend on loopback, authenticated only by that cookie: unsafe methods
-and WebSockets must also carry `Origin` equal to the ingress origin, the
-cookie, `Authorization`, `X-Session-API-Key` and key-bearing query parameters
-are stripped going upstream, upstream redirects become 502 and upstream
-`Set-Cookie` is dropped. Sessions live in memory only and die on revoke,
-backend stop, disable, a backend or server restart, and at their TTL, which
-also closes their bridged WebSockets. Installing, preparing and starting the
-backend is the Canvas apps family (F28); this family arranges a ready backend
-and proves the bridge.
+# Canvas App 后端桥（会话、HTTP 和 WebSocket 代理）
 
-Source: `openhands-agent-server/openhands/agent_server/canvas_extensions_bridge_router.py`, `openhands-agent-server/openhands/agent_server/canvas_extensions/bridge.py`, `openhands-agent-server/openhands/agent_server/docker_runtime/proxy.py`, `openhands-agent-server/openhands/agent_server/config.py`, `openhands-agent-server/openhands/agent_server/server_details_router.py`
+Agent Canvas iframe 如何从单独的浏览器源到达 Canvas 应用程序自己的后端进程。 当配置`app_backend_public_url`时，服务器在`/server_info`中通告它，Canvas页面交换它的
+`X-Session-API-Key` 五分钟，应用程序范围，HttpOnly cookie
+`POST /app-backends/{name}/session`（发送到入口主机，允许的控制 `Origin` 不是入口源）。 从那时起，所有 HTTP 方法和 WebSocket 下的 `/app-backends/{name}` 都会转发到回路的准备后端，仅通过那个 cookie：WebSockets 方法和 `Origin` 也必须携带 `Authorization` 等于入站源、cookie、`X-Session-API-Key` 和带有密钥的查询参数，这些参数在上游被去除，上游重定向变为 502，上游
+`Set-Cookie` 被删除。 会话只存在于内存中，并在撤销、后端停止、禁用、后端或服务器重启时销毁，以及在它们的TTL时，这也会关闭它们的桥接WebSockets。 安装、准备和启动后端是 Canvas 应用程序系列 (F28)； 这个家庭安排了一个现成的后端并证明了桥梁。
 
-Needs: `git`
+资料来源：`openhands-agent-server/openhands/agent_server/canvas_extensions_bridge_router.py`、`openhands-agent-server/openhands/agent_server/canvas_extensions/bridge.py`、`openhands-agent-server/openhands/agent_server/docker_runtime/proxy.py`、`openhands-agent-server/openhands/agent_server/config.py`、`openhands-agent-server/openhands/agent_server/server_details_router.py`
 
-Launch: `--canvas-ingress`
+需求：`git`
 
-Routes: `POST /app-backends/{extension_name}/session`,
+发射：`--canvas-ingress`
+
+路线：`POST /app-backends/{extension_name}/session`，
 `DELETE /app-backends/{extension_name}/session`,
 `DELETE /app-backends/{extension_name}/{path:path}`,
 `GET /app-backends/{extension_name}/{path:path}`,
@@ -36,102 +26,83 @@ Routes: `POST /app-backends/{extension_name}/session`,
 `WS /app-backends/{extension_name}/{path:path}`,
 `WS /app-backends/{extension_name}`
 
-## Sub-features
+<a id="sub-features"></a>
 
-- `F29.ingress-advertised`: with `app_backend_public_url` set, `/server_info` reports it as `app_backend_ingress_url` and lists the `canvas_app_backend_bridge_v1` capability.
-- `F29.ingress-config-errors`: on a server without `app_backend_public_url`, the session routes and the HTTP proxy answer 503 `Canvas App backend ingress is not configured`, the WebSocket handshake is refused with 403, and `/server_info` has neither the URL nor the capability; a value that is not an http(s) URL answers 503 `... is misconfigured`, and a plain-HTTP ingress on a non-loopback host refuses to mint a session (503 `... require HTTPS or a loopback secure context`).
-- `F29.session-bootstrap`: `POST /app-backends/{name}/session` with the key and a control `Origin` returns `ingress_url`, `expires_at` about 300 s ahead and `iframe_sandbox`, and sets `oh_app_backend_session` with `HttpOnly; Max-Age=300; Path=/app-backends/{name}; SameSite=none; Secure; Partitioned`; a cookie jar replays it to the app's proxy, and the browser's CORS preflight for the bootstrap is allowed for the control origin with credentials.
-- `F29.session-key-required`: the bootstrap answers 401 with no cookie to a missing or wrong `X-Session-API-Key`, to `Authorization: Bearer` and to an app session cookie.
-- `F29.session-ingress-host`: a bootstrap or proxy request whose `Host` is not the ingress host answers 421, and `X-Forwarded-Host` does not change that while `trust_forwarded_headers` is off.
-- `F29.session-forwarded-proto`: with `trust_forwarded_headers` off, a client-supplied `X-Forwarded-Proto: https` does not change the request origin, so a bootstrap on the plain-HTTP ingress still succeeds.
-- `F29.session-origin-rules`: a missing, foreign or `null` `Origin` gets 403 and the ingress origin itself gets 409, both without a cookie; any `localhost` or `127.0.0.1` origin is accepted.
-- `F29.session-configured-control-origin`: after a restart with `allow_cors_origins`, `allow_cors_origin_regex` and `DOCKER_HOST_ADDR`, a bootstrap from a listed origin, a regex match and the Docker host address succeeds (its CORS preflight is allowed too), while an unlisted origin, the listed host on another scheme or port, a partial regex match and another address get 403; a configured control origin does not count as the ingress `Origin` for unsafe proxied methods, and clearing the settings refuses those origins again.
-- `F29.session-backend-not-ready`: bootstrapping or proxying an app whose backend is not ready (unknown app) answers 503 `Canvas App backend is not ready`; an invalid app name answers 422.
-- `F29.proxy-get`: safe methods (GET, HEAD, OPTIONS) with only the cookie reach the backend with the method, sub-path and query, including `GET /session`; a CORS preflight is answered by the server and never reaches the backend.
-- `F29.proxy-cookie-required`: proxied requests without a cookie, with a bogus cookie, with another app's cookie or with only the session key answer 401.
-- `F29.proxy-unsafe-methods`: POST, PUT, PATCH and DELETE with the cookie and the ingress `Origin` reach the backend with their body; without that `Origin` (or with the control origin) they answer 403 before the cookie is checked.
-- `F29.proxy-root`: `/app-backends/{name}` and `/app-backends/{name}/` reach the backend's `/` for all five methods, and on `/app-backends/{name}/` a `path` query parameter is an ordinary parameter.
-- `F29.proxy-root-path-query`: on the bare root route (no trailing slash), a `path` query parameter is forwarded as a query parameter to the backend's `/`, like any other parameter.
-- `F29.proxy-credentials-stripped`: the backend never sees `Cookie`, `Authorization`, `X-Session-API-Key` or the `session_api_key`, `X-Session-API-Key` and `Authorization` query parameters, while other headers and parameters pass.
-- `F29.proxy-request-framing`: a proxied request keeps its framing: a GET reaches the backend without `Transfer-Encoding`, and a POST with a 13-byte JSON body reaches it with `Content-Length: 13`, as it does when sent to the backend directly.
-- `F29.proxy-response-filter`: an upstream redirect becomes 502 `Upstream redirect is not allowed` with no `Location`, and an upstream `Set-Cookie` never reaches the client.
-- `F29.proxy-response-headers`: a proxied response carries a single `Date` and a single `Server` header.
-- `F29.proxy-path-traversal`: `.`/`..` segments and backslashes, percent-encoded at any depth, answer 400 `Invalid backend path` before any credential check, on HTTP and WebSocket.
-- `F29.ws-bridge`: a WebSocket with the cookie and the ingress `Origin` is bridged to the backend, which echoes frames and receives no cookie, `Origin`, session key or `session_api_key` parameter; a path the backend does not upgrade (the root route) is accepted and then closed with 1011.
-- `F29.ws-handshake-rejections`: a WebSocket without the ingress `Origin`, without a valid cookie for this app, or with only the session key is refused at the handshake with 403.
-- `F29.ws-subprotocol`: a WebSocket subprotocol requested by the client reaches the backend and is negotiated through the bridge.
-- `F29.session-revoke`: `DELETE /app-backends/{name}/session` answers 204 with a `Max-Age=0` cookie, closes that session's bridged WebSocket and makes its cookie 401, while other sessions of the app keep working; it needs the key and a control origin but no cookie.
-- `F29.backend-lifecycle-revokes`: stopping or disabling the backend closes bridged WebSockets and makes the bridge answer 503; after the backend starts again on a new port, old cookies get 401 and a new session works. A backend that dies while ready is reported `unhealthy` (exited) by a status poll, after which the bridge answers 503, and once it starts again a session minted before the crash gets 401 because sessions are bound to the backend's port.
-- `F29.backend-crash-detected`: once a ready backend's process has exited, the bridge answers 503 `Canvas App backend is not ready` without waiting for anyone to poll the backend's status.
-- `F29.trusted-forwarded-headers`: with `trust_forwarded_headers` on, `X-Forwarded-Host` naming the ingress is accepted from a request whose `Host` is not, and a forwarded `https` that does not match the ingress answers 421; turned off again, the same header is ignored.
-- `F29.sessions-not-persisted`: after a server restart the backend is stopped (the bridge answers 503), its prepared revision survives so it starts without a new prepare, and cookies minted before the restart get 401.
-- `F29.session-ttl`: an idle bridged WebSocket is closed when its session expires 300 s after the bootstrap, and its cookie then gets 401.
-- `F29.uninstall-revokes`: uninstalling the app closes its bridged WebSockets, stops its backend and makes the bridge answer 503 to old cookies and new bootstraps.
+## 子功能
 
-## How to get to it (agent POV)
+- `F29.ingress-advertised`：设置`app_backend_public_url`后，`/server_info`将其报告为`app_backend_ingress_url`并列出`canvas_app_backend_bridge_v1`功能。
+- `F29.ingress-config-errors`：在没有`app_backend_public_url`的服务器上，会话路由和HTTP代理会返回503 `Canvas App backend ingress is not configured`，WebSocket握手被拒绝返回403，而`/server_info`既没有URL也没有能力。 不是 http(s) URL 的值会回答 503 `... is misconfigured`，并且非环回主机上的普通 HTTP 入口拒绝创建会话 (503 `... require HTTPS or a loopback secure context`)。
+- `F29.session-bootstrap`：`POST /app-backends/{name}/session`用按键和控件`Origin`返回`ingress_url`，`expires_at`提前约300秒和`iframe_sandbox`，并用`HttpOnly; Max-Age=300; Path=/app-backends/{name}; SameSite=none; Secure; Partitioned`设置`oh_app_backend_session`； cookie jar 将其重播到应用程序的代理，并且允许浏览器的 CORS 引导程序预检用于凭据的控制源。
+- `F29.session-key-required`：引导程序对丢失或错误的 `X-Session-API-Key`、`Authorization: Bearer` 和应用程序会话 cookie 回答 401，没有 cookie。
+- `F29.session-ingress-host`：引导程序或代理请求，其 `Host` 不是入口主机，回答 421，并且 `X-Forwarded-Host` 在 `trust_forwarded_headers` 关闭时不会更改。
+- `F29.session-forwarded-proto`：`trust_forwarded_headers` 关闭时，客户端提供的 `X-Forwarded-Proto: https` 不会更改请求来源，因此普通 HTTP 入口上的引导程序仍然会成功。
+- `F29.session-origin-rules`：缺失的、外部的或 `null` `Origin` 得到 403，入口源本身得到 409，两者都没有 cookie； 接受任何 `localhost` 或 `127.0.0.1` 来源。
+- `F29.session-configured-control-origin`重启后，`allow_cors_origins`、`allow_cors_origin_regex`、`DOCKER_HOST_ADDR`和Docker主机地址成功（CORS预检也允许），而未列出的主机、列出的主机在另一个方案或端口上，或部分正则匹配，以及另一个地址返回403。 配置的控制源不计为不安全代理方法的入口 `Origin`，清除设置会再次拒绝这些源。
+- `F29.session-backend-not-ready`：引导或代理后端未就绪的应用程序（未知应用程序）答案 503 `Canvas App backend is not ready`； 无效的应用程序名称会回答 422。
+- `F29.proxy-get`：安全方法（GET、HEAD、OPTIONS），只有cookie通过方法、子路径和查询到达后端，包括`GET /session`； CORS 预检由服务器应答，并且永远不会到达后端。
+- `F29.proxy-cookie-required`：不带 cookie、使用伪造 cookie、使用其他应用程序的 cookie 或仅使用会话密钥答案 401 的代理请求。
+- `F29.proxy-unsafe-methods`：POST、PUT、PATCH和DELETE带着cookie和入口`Origin`通过它们的body到达后端； 如果没有`Origin`（或有控制源），他们会在检查 cookie 之前回答 403。
+- `F29.proxy-root`：`/app-backends/{name}`和`/app-backends/{name}/`对于所有五个方法都到达后端的`/`，并且在`/app-backends/{name}/`上的`path`查询参数是普通参数。
+- `F29.proxy-root-path-query`：在裸根路由（没有后缀斜杠）上，一个 `path` 查询参数会被转发为查询参数发送到后端的 `/`，就像其他参数一样。
+- `F29.proxy-credentials-stripped`：后端永远看不到`Cookie`、`Authorization`、`X-Session-API-Key`或`session_api_key`、`X-Session-API-Key`和`Authorization`查询参数，而其他标头和参数则通过。
+- `F29.proxy-request-framing`: 代理请求保持其封装：GET到达后端时没有`Transfer-Encoding`，而POST带有13字节JSON的请求体到达后端时则有`Content-Length: 13`，这与直接发送到后端时一样。
+- `F29.proxy-response-filter`：上游重定向变为 502 `Upstream redirect is not allowed`，没有 `Location`，上游 `Set-Cookie` 永远不会到达客户端。
+- `F29.proxy-response-headers`：代理响应携带单个 `Date` 和单个 `Server` 标头。
+- `F29.proxy-path-traversal`：`.`/`..`段和反斜杠，在任何深度进行百分比编码，在HTTP和WebSocket上的任何凭据检查之前回答400 `Invalid backend path`。
+- `F29.ws-bridge`: a WebSocket 带有 cookie 和 ingress `Origin` 它被桥接到后端，后端回显帧并接收不到 cookie `Origin`, 会话密钥或 `session_api_key` 参数； 后端未升级的路径（根路由）被接受，然后以 1011 关闭。
+- `F29.ws-handshake-rejections`：没有入口 `Origin` 的 WebSocket，没有此应用程序的有效 cookie，或者只有会话密钥在与 403 握手时被拒绝。
+- `F29.ws-subprotocol`：客户端请求的WebSocket子协议到达后端并通过网桥协商。
+- `F29.session-revoke`: `DELETE /app-backends/{name}/session` 使用 `Max-Age=0` cookie 回答 204，关闭该会话的桥接 WebSocket 并使其 cookie 为 401，而应用程序的其他会话继续工作； 它需要密钥和控制源，但不需要 cookie。
+- `F29.backend-lifecycle-revokes`：停止或禁用后端关闭桥接WebSockets并使桥接应答503； 后端在新端口上再次启动后，旧的 cookie 会返回 401，新的会话将正常工作。 `unhealthy` 当后端在准备就绪时崩溃时，状态轮询报告了 [exited]。之后，桥接器会返回 503，而当后端重新启动时，一个在崩溃之前创建的会话会收到 401，因为会话是绑定到后端端口的。
+- `F29.backend-crash-detected`：一旦就绪的后端进程退出，桥接器就会应答 503 `Canvas App backend is not ready`，而不等待任何人轮询后端的状态。
+- `F29.trusted-forwarded-headers`: 当 `trust_forwarded_headers` 时，请求的 `X-Forwarded-Host` 名为入站，而入站的 `Host` 不是，转发的 `https` 不匹配入站，答案为 421。 再次关闭，相同的标头将被忽略。
+- `F29.sessions-not-persisted` 服务器重启后，后端停止（桥接返回 503），其准备的修订仍然存在，因此它不会启动新的准备，重启前 minted 的 cookie 会返回 401。
+- `F29.session-ttl`：当引导后 300 秒会话过期时，空闲桥接 WebSocket 将被关闭，并且其 cookie 将变为 401。
+- `F29.uninstall-revokes`：卸载应用程序会关闭其桥接 WebSockets，停止其后端并使桥接器对旧 cookie 和新引导程序应答 503。
 
-- Config: `app_backend_public_url` (`OH_APP_BACKEND_PUBLIC_URL`), the
-  separate browser origin of the ingress; `launch --canvas-ingress` sets it to
-  the run's own URL (`http://127.0.0.1:PORT`), so the control origin used in
-  recipes is `http://localhost:3000`. `trust_forwarded_headers`
-  (`OH_TRUST_FORWARDED_HEADERS`) lets `X-Forwarded-Proto`/`X-Forwarded-Host`
-  decide the request origin; `allow_cors_origins`,
-  `allow_cors_origin_regex` and the `DOCKER_HOST_ADDR` environment variable
-  extend the accepted control origins beyond `localhost` and `127.0.0.1`.
-  The bridge checks them with its own code (`_allowed_control_origin`), not
-  through the CORS middleware that reads the same settings
-  (`F29.session-configured-control-origin` drives both).
-- REST: `GET /server_info` (`app_backend_ingress_url`, capability
-  `canvas_app_backend_bridge_v1`; F01 owns the route).
-- REST: `POST /app-backends/{extension_name}/session` and
-  `DELETE /app-backends/{extension_name}/session`: `X-Session-API-Key`, a
-  control `Origin`, the ingress `Host`; no body.
-- REST (proxy, cookie only, `include_in_schema=False`):
-  `GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE /app-backends/{extension_name}`
-  and `/app-backends/{extension_name}/{path:path}`; unsafe methods need
-  `Origin` equal to the ingress origin. The route table lists five methods;
-  HEAD and OPTIONS ride on the same handler.
-- WebSocket: `/app-backends/{extension_name}` and
-  `/app-backends/{extension_name}/{path:path}`, with the cookie and the
-  ingress `Origin` on the handshake (no first-frame auth).
-- Backend lifecycle that revokes sessions (F28 owns these routes):
+<a id="how-to-get-to-it-agent-pov"></a>
+
+## 如何到达 (智能体 POV)
+
+- Config：`app_backend_public_url`（`OH_APP_BACKEND_PUBLIC_URL`），入口的单独浏览器来源； `launch --canvas-ingress` 将其设置为运行自己的 URL (`http://127.0.0.1:PORT`)，因此配方中使用的控制原点是 `http://localhost:3000`。 `trust_forwarded_headers` (`OH_TRUST_FORWARDED_HEADERS`) 让`X-Forwarded-Proto`/`X-Forwarded-Host`决定请求来源； `allow_cors_origins`,
+  `allow_cors_origin_regex` 和 `DOCKER_HOST_ADDR` 环境变量将接受的控制源扩展到 `localhost` 和 `127.0.0.1` 之外。 桥接器使用自己的代码 (`_allowed_control_origin`) 检查它们，而不是通过读取相同设置的 CORS 中间件（`F29.session-configured-control-origin` 驱动两者）。
+- REST: `GET /server_info` (`app_backend_ingress_url`, 能力
+  `canvas_app_backend_bridge_v1`; F01 拥有该路线）。
+- REST: `POST /app-backends/{extension_name}/session` 和
+  `DELETE /app-backends/{extension_name}/session`：`X-Session-API-Key`、控制`Origin`、入口`Host`； 没有身体。
+- REST（代理，仅 cookie，`include_in_schema=False`）：
+  `GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE /app-backends/{extension_name}`和`/app-backends/{extension_name}/{path:path}`； 需要不安全的方法
+  `Origin` 等于入口原点。 路由表列出了五种方法； HEAD 和 OPTIONS 骑在同一个处理程序上。
+- WebSocket: `/app-backends/{extension_name}` 和
+  `/app-backends/{extension_name}/{path:path}`，在握手时包含 cookie 和 ingress `Origin`。
+- 撤销会话的后端生命周期（F28 拥有这些路由）：
   `POST /api/canvas-extensions/installed/{name}/backend/stop`,
-  `PATCH /api/canvas-extensions/installed/{name}` with `{"enabled": false}`,
+  `PATCH /api/canvas-extensions/installed/{name}` 与 `{"enabled": false}`，
   `DELETE /api/canvas-extensions/installed/{name}`.
-- TypeScript client: `CanvasExtensionsClient.createAppBackendSession(name,
-  signal)` and `revokeAppBackendSession(name, signal)`
-  (`clients/typescript/src/client/canvas-extensions-client.ts`); they need
-  `appBackendIngressUrl` from `/server_info`, which `OpenHandsClient` does not
+- TypeScript客户端：`CanvasExtensionsClient.createAppBackendSession(name, signal)`和`revokeAppBackendSession(name, signal)`（`clients/typescript/src/client/canvas-extensions-client.ts`）； 他们需要
+  `appBackendIngressUrl` 来自 `/server_info`，而 `OpenHandsClient` 不
   pass to its `canvasExtensions`, and they rely on the browser adding `Origin`
-  and keeping the cookie (`credentials: 'include'`). Not driven here.
-- SDK: none. Agent Canvas (context): loads the app in an iframe at
-  `ingress_url` with the returned `iframe_sandbox`, re-bootstraps after each
-  backend start and before the TTL.
-- Recipes drive every route with the CLI's `api` verb (the cookie as a raw
-  `--cookie` value or a `--jar`, `Origin` and `Host` as `--header`) and its
-  `ws listen`/`ws start` verbs with `--auth none` and `--header` for the
-  cookie and `Origin`; HEAD, OPTIONS and CORS preflights use `curl`, and the
-  subprotocol check uses a `websockets` client through `exec`.
+  并保留 cookie (`credentials: 'include'`)。 这里没有开车。
+- SDK: None. Agent Canvas (上下文)：在 iframe 中加载应用程序
+  `ingress_url` 与返回的 `iframe_sandbox` 一起，在每个后端启动之后和 TTL 之前重新引导。
+- 食谱使用 CLI 的 `api` 动词驱动每条路线（cookie 作为原始
+  `--cookie` 值或 `--jar`、`Origin` 和 `Host` 作为 `--header`) 及其
+  `ws listen`/`ws开始` verbs with `--auth None` and `--header` for the cookie and `Origin`; HEAD, OPTIONS and CORS preflights use `curl`, and the subprotocol check uses a `WebSocket` client through `exec`。
 
-## Driving it with control-agent-server
+<a id="driving-it-with-control-agent-server"></a>
 
-Preconditions:
+## 使用 control-智能体-server 驱动它
 
-- A run launched with this family's `Launch:` flags (`--canvas-ingress`), so
-  the ingress is the run's own URL. No LLM is needed.
-- `qa-backend`: the CLI's `fixture canvas-app --backend ok` (an aiohttp
-  backend: `/health`, a `/ws` text echo answering `echo:<frame>`, and a
-  catch-all JSON echo of `app`, `method`, `path`, `query`, `body` and
-  `cookie_forwarded`), installed, enabled, prepared and started.
-- `qa-headers`: the same fixture with its backend replaced by a diagnostic
-  one written here (echoes every request header, `/redirect` answers 302,
-  `/set-cookie` sets a cookie, `/ws` accepts subprotocol `qa.v1` and reports
-  which headers and query reached it), because the CLI fixture cannot show
-  request headers, redirects or subprotocols. The script keeps the
-  fixture's shebang (the checkout's `.venv` Python, which has aiohttp),
-  repacks `backend/linux.tar.gz` and rewrites the manifest's `sha256`; the
-  app is then installed, enabled, prepared and started.
-- `S` is the ingress URL, `P` its port, `REV`/`REV2` the approved revisions.
+前提条件：
+
+- 使用该系列的 `Launch:` 标志 (`--canvas-ingress`) 启动的运行，因此入口是运行自己的 URL。 不需要LLM。
+- `qa-backend`：CLI的`fixture canvas-app --backend ok`（aiohttp
+  后端：`/health`、一个 `/ws` 文本回显应答 `echo:<frame>` 和一个
+  包罗万象的 JSON 回显 `app`、`method`、`path`、`query`、`body` 和
+  `cookie_forwarded`)、已安装、启用、准备并启动。
+- `qa-headers`：相同的测试夹具，其后端被此处编写的诊断后端替换（回显每个请求标头，`/redirect` 回答 302，
+  `/set-cookie` 设置了一个 cookie，`/ws` 接受子协议 `qa.v1`，并报告哪些头和查询到达了它，因为 CLI 测试夹具无法显示请求头、重定向或子协议。 该脚本保留测试夹具的shebang（结账的`.venv`Python，其中有aiohttp），重新打包`backend/linux.tar.gz`并重写清单的`sha256`； 然后，该应用程序将被安装、启用、准备并启动。
+- `S` 是入口 URL，`P` 是其端口，`REV`/`REV2` 是已批准的修订版本。
 
 ```sh
 control-agent-server api GET /server_info --auth none --check capabilities contains canvas_app_backend_bridge_v1 --quiet
@@ -215,19 +186,15 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
 control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backend/start --json "{\"revision\": \"$REV2\"}" --expect 200 --check state eq ready --quiet
 ```
 
-- **Ingress advertised (`F29.ingress-advertised`).** The run's own URL is
-  the configured ingress.
+- **Ingress 已发布广告 (`F29.ingress-advertised`)。**运行自己的 URL 是配置的入口。
   ```sh
   RUN_URL=$(control-agent-server config | python3 -c 'import json, sys; print(json.load(sys.stdin)["url"])')
   control-agent-server api GET /server_info --auth none --expect 200 \
     --check app_backend_ingress_url eq "$RUN_URL" \
     --check capabilities contains canvas_app_backend_bridge_v1 --save F29.ingress-advertised/server-info
   ```
-  `app_backend_ingress_url` is `http://127.0.0.1:PORT` and the capability is
-  listed.
-- **Ingress not configured or unusable (`F29.ingress-config-errors`).** A
-  second run without `--canvas-ingress`, restarted with two unusable ingress
-  values and stopped when the bullet ends.
+  `app_backend_ingress_url` 为 `http://127.0.0.1:PORT`，并列出了功能。
+- ** 配置或不可用的入口 (`F29.ingress-config-errors`).** 无 `--canvas-ingress` 的第二次运行，重启时使用了两个不可用的入口值，并在子弹结束时停止。
   ```sh
   NOI=$(control-agent-server launch --new --name f29-no-ingress --print-run)
   trap 'control-agent-server stop --run "$NOI" >/dev/null' EXIT
@@ -266,18 +233,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /app-backends/qa-backend/session --run "$NOI" --header 'Origin: http://localhost:3000' \
     --expect 421
   ```
-  `/server_info` has no ingress URL and no capability; the session and proxy
-  routes answer 503 with the reason in `exception`, the socket is refused
-  with 403, and the key is still checked first (401 without it). After a
-  restart with an `ftp://` ingress, `/server_info` advertises it verbatim and
-  the bridge answers 503 `misconfigured`. After a restart with
-  `http://apps.qa.test:PORT` (plain HTTP, not loopback) and a ready backend,
-  a bootstrap addressed to that host (`Host: apps.qa.test:PORT`) passes the
-  host, origin and readiness checks but is refused with 503 because a
-  `Secure` cookie cannot be delivered over plain HTTP to a non-loopback
-  host; the run's own loopback address is now the wrong host (421).
-- **Session bootstrap (`F29.session-bootstrap`).** Mint a cookie for each app
-  the way Canvas does, then let a browser-like jar replay one.
+  `/server_info`没有入口URL并且没有能力； 会话和代理路由返回 `exception` 中的原因，拒绝连接返回 403，而首先检查密钥（没有密钥时返回 401）。 使用 `ftp://` 入口重新启动后，`/server_info` 逐字通告它，并且网桥回答 503 `misconfigured`。 重新启动后
+  `http://apps.qa.test:PORT`（非回环）和一个就绪的后端，一个针对该主机的 bootstrap（`Host: apps.qa.test:PORT`），通过主机、源和就绪检查，但被拒绝返回 503，因为 HTTP
+  `Secure` cookie 无法通过普通 HTTP 传递到非环回主机； 运行自己的环回地址现在是错误的主机（421）。
+- **会话引导程序 (`F29.session-bootstrap`).**像 Canvas 那样为每个应用程序创建一个 cookie，然后让类似浏览器的 jar 重放它。
   ```sh
   SC=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 \
     --check ingress_url eq "$S/app-backends/qa-backend/" \
@@ -308,16 +267,12 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   grep -qi '^access-control-allow-credentials: true' <<<"$PRE"
   grep -qi '^access-control-allow-headers: .*x-session-api-key' <<<"$PRE"
   ```
-  Each app gets its own cookie on its own path; `expires_at` is about 300 s
-  ahead, and a jar holding only the minted cookie (no key) reaches the
-  backend. The browser's CORS preflight for the bootstrap (a cross-origin
-  `POST` with `X-Session-API-Key`) is allowed for the control origin with
-  credentials; it goes through `curl` because `map check` does not accept
-  `api OPTIONS` on these routes.
-- **Session key required (`F29.session-key-required`).** The bootstrap takes
-  only the control header.
+  每个应用在其自己的路径上都有自己的 cookie。 `expires_at` 比实际时间快了300秒，一个只装了刚 minted 的饼干（没有钥匙）的罐子到达后端。 浏览器的 CORS 预检请求，用于 bootstrap（跨源）
+  `POST` 和 `X-Session-API-Key`) 允许作为具有凭据的控制原点； 它通过 `curl` 因为 `map check` 不接受
+  `api OPTIONS` 在这些路线上。
+- **需要会话密钥 (`F29.session-key-required`)。**引导程序仅采用控制标头。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 \
     --check-header set-cookie contains oh_app_backend_session=
@@ -330,12 +285,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /app-backends/qa-backend/session --auth none --header 'Origin: http://localhost:3000' \
     --cookie "oh_app_backend_session=$TOKEN" --expect 401 --check-header set-cookie missing
   ```
-  The run's key mints a cookie; no key, a wrong key, the key as a bearer
-  token and an app session cookie each answer 401 and set no cookie.
-- **Ingress host (`F29.session-ingress-host`).** The bootstrap and the proxy
-  must arrive on the ingress host.
+  运行的密钥生成了一个 cookie。 没有密钥，错误密钥，密钥作为持有者令牌，以及一个应用会话 cookie，每个密钥都会返回401并设置无 cookie。
+- **入口主机(`F29.session-ingress-host`)。**引导程序和代理必须到达入口主机。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --header "Host: localhost:$P" \
     --expect 421 --check detail eq 'Canvas App request must use the configured ingress origin' \
@@ -347,13 +300,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$TOKEN" \
     --expect 200 --check app eq qa-backend
   ```
-  `localhost:PORT` is the same server but not the ingress origin, so both
-  routes answer 421, and `X-Forwarded-Host` naming the ingress does not help;
-  the same cookie on the ingress host gets 200.
-- **Forwarded proto (`F29.session-forwarded-proto`).** With
-  `trust_forwarded_headers` off (the default), the request's own scheme
-  decides the origin (`bridge.py` `_request_origin`, `config.py`), so a
-  client-supplied `X-Forwarded-Proto: https` does not change it.
+  `localhost:PORT` 是同一台服务器，但不是入口源，因此两条路由都回答 421，并且 `X-Forwarded-Host` 命名入口没有帮助； 入口主机上的相同 cookie 得到 200。
+- **转发的原型 (`F29.session-forwarded-proto`).**与
+  `trust_forwarded_headers` 关闭（默认），请求自己的方案决定来源（`bridge.py` `_request_origin`，`config.py`），因此客户端提供的 `X-Forwarded-Proto: https` 不会更改它。
   ```sh
   FP=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 \
     --check ingress_url eq "$S/app-backends/qa-backend/" --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
@@ -366,13 +315,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$FP" \
     --header 'X-Forwarded-Proto: https' --expect 200 --check app eq qa-backend --save F29.session-forwarded-proto/proxy
   ```
-  The same bootstrap and proxied GET without the header answer 200 first,
-  and both still answer 200 with the header: the server starts uvicorn with
-  `proxy_headers` only when `trust_forwarded_headers` is on (`__main__.py`),
-  so uvicorn does not rewrite the scheme from `X-Forwarded-Proto` for a
-  loopback peer (`FORWARDED_ALLOW_IPS`) behind the setting's back.
-- **Origin rules (`F29.session-origin-rules`).** Only a control origin may
-  bootstrap, and it must differ from the ingress origin.
+  相同的 bootstrap 和 proxied GET 在没有头信息的情况下，首先返回 200，同时在头信息中返回：服务器启动 uvicorn
+  `proxy_headers` 仅当 `trust_forwarded_headers` 打开时 (`__main__.py`)，因此 uvicorn 不会在设置背后为环回对等点 (`FORWARDED_ALLOW_IPS`) 重写 `X-Forwarded-Proto` 中的方案。
+- **起源规则(`F29.session-origin-rules`).**只有控制源可以引导，并且它必须与入口源不同。
   ```sh
   control-agent-server api POST /app-backends/qa-backend/session --expect 403 --check detail eq 'Origin is not allowed' \
     --check-header set-cookie missing --save F29.session-origin-rules/no-origin
@@ -385,12 +330,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://127.0.0.1:5173' --expect 200 \
     --check-header set-cookie contains oh_app_backend_session=
   ```
-  403 for no, foreign and `null` origins, 409 for the ingress origin, all
-  without a cookie; another loopback port is accepted.
-- **Backend not ready (`F29.session-backend-not-ready`).** An app with no
-  running backend, and a malformed name.
+  403 对于非欧洲和 `null` 原产地，409 对于入口原产地；没有 cookie。 又接受了一个环回端口。
+- **后端未准备好(`F29.session-backend-not-ready`)。**没有运行后端且名称格式错误的应用程序。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api POST /app-backends/qa-nope/session --header 'Origin: http://localhost:3000' --expect 503 \
     --check exception eq '503: Canvas App backend is not ready' --check-header set-cookie missing \
@@ -401,12 +344,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --check detail.0.loc.1 eq extension_name
   control-agent-server api GET /app-backends/QA_Bad/echo --auth none --expect 422 --check detail.0.loc.1 eq extension_name
   ```
-  An unknown app looks exactly like a stopped one (503, no 404); a name
-  outside `^[a-z0-9]+(?:-[a-z0-9]+)*$` is 422. A stopped installed backend
-  is covered by `F29.backend-lifecycle-revokes`.
-- **Proxied safe methods (`F29.proxy-get`).** Only the cookie, no key.
+  一个未知的应用看起来像一个停止的应用（503，没有404）。 `^[a-z0-9]+(?:-[a-z0-9]+)*$`之外的名字是422。 已停止安装的后端被 `F29.backend-lifecycle-revokes` 覆盖。
+- **代理安全方法 (`F29.proxy-get`)。**只有 cookie，没有密钥。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$TOKEN" \
     --query view=main --expect 200 --check app eq qa-backend --check method eq GET --check path eq /echo \
@@ -421,19 +362,12 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-backend/session --auth none --cookie "oh_app_backend_session=$TOKEN" \
     --expect 200 --check path eq /session
   ```
-  The backend sees the method, the sub-path and the query, and no session
-  cookie; HEAD answers 200 and a plain OPTIONS (not a CORS preflight)
-  reaches the backend, while a CORS preflight (with
-  `Access-Control-Request-Method`) is answered by the server's CORS
-  middleware with a plain `OK` and never reaches the backend. HEAD and
-  OPTIONS go through `curl` because
-  `map check`'s route table lists only the five methods FastAPI reports for
-  these routes. Only POST and DELETE on `/session` are the bridge's own
-  routes; `GET /session` is the backend's.
-- **Cookie required (`F29.proxy-cookie-required`).** The cookie is the only
-  credential the proxy takes, and it is bound to one app.
+  后端看到方法、子路径和查询，没有会话 cookie。 HEAD 答案为 200，并且是一个简单的 OPTIONS （不是） CORS preflight) 路径到达后端，而另一个 CORS preflight (with
+  `Access-Control-Request-Method`) 由服务器的 CORS 中间件用普通的 `OK` 应答，并且永远不会到达后端。 HEAD 和 OPTIONS 遍历 `curl` 因为
+  `map check` 的路由表仅列出了这些路由的五种方法 FastAPI 报告。 `/session`上只有POST和DELETE是桥自己的路线； `GET /session` 是后端的。
+- **需要 Cookie (`F29.proxy-cookie-required`)。** cookie 是代理获取的唯一凭据，并且它绑定到一个应用程序。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --expect 401 --check detail eq Unauthorized \
     --save F29.proxy-cookie-required/none
@@ -444,13 +378,11 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-headers/echo --auth none --cookie "oh_app_backend_session=$T2" --expect 200 \
     --check path eq /echo
   ```
-  401 without a cookie, with a bogus one, with `qa-headers`' cookie on
-  `qa-backend`, and with only `X-Session-API-Key`; that cookie works on its
-  own app.
-- **Unsafe methods (`F29.proxy-unsafe-methods`).** The ingress `Origin` is a
-  CSRF guard for anything but GET, HEAD and OPTIONS.
+  401 无cookie，有假cookie，有`qa-headers`的cookie
+  `qa-backend`，并且只有 `X-Session-API-Key`； 该 cookie 在其自己的应用程序上运行。
+- **不安全的方法 (`F29.proxy-unsafe-methods`).**入口 `Origin` 是除 GET、HEAD 和 OPTIONS 之外的任何东西的 CSRF 守卫。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api POST /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$TOKEN" \
     --header "Origin: $S" --json '{"qa": "f29"}' --expect 200 --check method eq POST --check path eq /echo \
@@ -478,12 +410,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --expect 403
   control-agent-server api POST /app-backends/qa-backend/echo --auth none --header "Origin: $S" --expect 401
   ```
-  Each method reaches the backend with its JSON body; without `Origin`, or
-  with the Canvas control origin, it is 403, and that check runs before the
-  cookie check (a bogus cookie and no `Origin` is 403, not 401).
-- **App root (`F29.proxy-root`).** The route without a sub-path.
+  每个方法都以 JSON 的体态到达后端。 如果没有`Origin`，或者使用Canvas控件的起源，它会返回403，而这个检查在cookie检查之前运行（一个无效的cookie和没有`Origin`，返回403，而不是401）。
+- **应用程序根目录 (`F29.proxy-root`)。**没有子路径的路由。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api GET /app-backends/qa-backend --auth none --cookie "oh_app_backend_session=$TOKEN" --expect 200 \
     --check method eq GET --check path eq / --save F29.proxy-root/get
@@ -507,12 +437,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /app-backends/qa-backend --auth none --cookie "oh_app_backend_session=$TOKEN" --expect 403
   control-agent-server api GET /app-backends/qa-backend --auth none --expect 401
   ```
-  All five methods reach `/`; the same `Origin` and cookie rules apply. On
-  `/app-backends/qa-backend/` (the form `ingress_url` uses) a `path` query
-  parameter is an ordinary parameter of the backend's `/`.
-- **Root `path` parameter (`F29.proxy-root-path-query`).** The bare root
-  routes have no `{path}` segment and take no `path` argument, so a `path`
-  query parameter is an ordinary parameter of the backend's `/`.
+  所有五种方法都达到b`/`； 相同的 `Origin` 和 cookie 规则适用。 开
+  `/app-backends/qa-backend/`（形式`ingress_url`使用）`path`查询参数是后端`/`的普通参数。
+- **根 `path` 参数 (`F29.proxy-root-path-query`).** 裸根路由没有 `{path}` 分段并忽略 `path` argument, so a `path` 查询参数是一个后端的普通参数 `/`.
   ```sh
   RP=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$RP"
@@ -528,16 +455,11 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server ws listen /app-backends/qa-backend --query path=ws --auth none --header "Origin: $S" \
     --header "Cookie: oh_app_backend_session=$RP" --send qa-f29-root --duration 5 --expect-close 1011 --expect-frames 0
   ```
-  The controls first: the bare root with another query parameter, and the
-  trailing-slash root with `?path=echo`, both reach `/` with the query
-  intact. The bare root does the same: `?path=echo` and `?path=..` reach the
-  backend's `/` with the parameter in the query, and a root WebSocket with
-  `?path=ws` targets `/`, so it is closed with 1011 and no frame, like any
-  root WebSocket (`F29.ws-bridge`), instead of reaching the backend's `/ws`.
-- **Credentials stripped (`F29.proxy-credentials-stripped`).** `qa-headers`
-  echoes every header it receives.
+  首先：裸根，另一个查询参数；末尾斜杠根，`?path=echo`；两者都以完整查询参数到达`/`。 裸根也这样做：`?path=echo` 和 `?path=..` 通过查询参数到达后端的 `/`，而根 WebSocket 也这样做
+  `?path=ws` 的目标是 `/`，因此它以 1011 关闭并且没有框架，就像任何根 WebSocket (`F29.ws-bridge`) 一样，而不是到达后端的 `/ws`。
+- **凭据已删除 (`F29.proxy-credentials-stripped`).** `qa-headers` 回显它收到的每个标头。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api POST /app-backends/qa-headers/echo --cookie "oh_app_backend_session=$T2; qa_other=1" \
     --header "Origin: $S" --header 'Authorization: Bearer qa-f29-bearer' --header 'X-QA-Custom: kept' \
@@ -548,12 +470,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --check query.session_api_key missing --check query.X-Session-API-Key missing --check query.Authorization missing \
     --check body eq '{"qa":"body"}' --save F29.proxy-credentials-stripped/echo
   ```
-  The request carried the cookie, the run's `X-Session-API-Key`, a bearer
-  token and three key-named query parameters; the backend saw none of them,
-  but did see `X-QA-Custom`, `Origin`, `view` and the body.
-- **Request framing (`F29.proxy-request-framing`).** `qa-headers`
-  echoes the framing headers it receives; direct calls to its loopback port
-  are the control.
+  请求携带了 cookie，run 的 `X-Session-API-Key`, a 持有者令牌以及三个带有名称的关键查询参数。 后端看到 None 他们之中，但确实看到了 `X-QA-Custom`, `Origin`, `view` and the body.
+- **请求帧 (`F29.proxy-request-framing`)。** `qa-headers` 回显它收到的帧头； 直接调用其环回端口是控制。
   ```sh
   FR=$(control-agent-server api POST /app-backends/qa-headers/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$FR"
@@ -572,17 +490,13 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --check headers.content-length eq 13 --check headers.transfer-encoding missing \
     --save F29.proxy-request-framing/post
   ```
-  Directly, the backend sees no `Transfer-Encoding` on a GET and
-  `Content-Length: 13` on the POST; through the bridge it sees the same.
-  `proxy_http` (`docker_runtime/proxy.py`) sends no body when the client
-  sent neither `Content-Length` nor `Transfer-Encoding`, re-adds the
-  client's `Content-Length` while still streaming the body, and forwards a
-  chunked client body chunked, so backends on servers that read only
-  `Content-Length` (Python's `http.server`) get the body too.
-- **Response filter (`F29.proxy-response-filter`).** Direct calls to the
-  backend's loopback port are the control.
+  直接，后端看不到 `Transfer-Encoding` 在 GET 上
+  POST 上的 `Content-Length: 13`； 穿过桥，看到的都是一样的。
+  `proxy_http` (`docker_runtime/proxy.py`）客户端发送了请求体，但服务器端没有发送任何内容 `Content-Length` nor `Transfer-Encoding`重新添加客户端的 `Content-Length` while still 流式传输 body，然后发送一个chunked客户端body chunked，因此服务器上的后端处理 chunked客户端body chunked 只读
+  `Content-Length`（Python的`http.server`）也获得主体。
+- **响应过滤器(`F29.proxy-response-filter`)。**直接调用后端的环回端口是控制。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   HPORT=$(control-agent-server api GET /api/canvas-extensions/installed/qa-headers/backend --field port)
   test "$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' "http://127.0.0.1:$HPORT/redirect")" = 302
@@ -594,11 +508,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-headers/set-cookie --auth none --cookie "oh_app_backend_session=$T2" \
     --expect 200 --check set_cookie eq sent --check-header set-cookie missing --save F29.proxy-response-filter/set-cookie
   ```
-  The backend answers 302 and sets `qa_upstream`; through the bridge the
-  redirect is 502 without `Location` and the body arrives without the cookie.
-- **One Date and Server header (`F29.proxy-response-headers`).**
-  The proxy drops the backend's `Date` and `Server` headers because uvicorn
-  adds its own, so a proxied response carries exactly one of each.
+  后端返回302，并设置`qa_upstream`。 通过桥，重定向为502，没有`Location`，而体没有cookie。
+- **一个日期头和服务器头 (`F29.proxy-response-headers`).** 代理会丢弃后端的 `Date` 和 `Server` 头，因为 uvicorn 会添加自己的，所以代理响应中只携带一个。
   ```sh
   control-agent-server api GET /server_info --auth none --expect 200 \
     --check-header date matches '^[A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} [0-9]{4} [0-9:]{8} GMT$' --check-header server eq uvicorn
@@ -611,15 +522,13 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --check-header date matches '^[A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} [0-9]{4} [0-9:]{8} GMT$' \
     --check-header server not-contains ', ' --all-headers --save F29.proxy-response-headers/echo
   ```
-  The controls: a route the server answers itself carries one `Date` and
-  `server: uvicorn`, and the backend answered directly sends one of each.
-  Through the bridge the response carries one `Date` and `server: uvicorn`
-  too: no `date: <uvicorn's>, <aiohttp's>` (RFC 9110 allows a single `Date`)
-  and no `Python/3.x aiohttp/3.x` disclosing the backend stack.
-- **Path traversal (`F29.proxy-path-traversal`).** Checked first, so no
-  credential is needed to see it.
+  控件：服务器回答一个 `Date`
+  `server: uvicorn`，后端应答直接各发一份。 通过桥接器，响应携带 `Date` 和 `server: uvicorn`
+  太：没有 `date: <uvicorn's>, <aiohttp's>`（RFC 9110 允许单个 `Date`）
+  并且没有 `Python/3.x aiohttp/3.x` 公开后端堆栈。
+- **路径遍历(`F29.proxy-path-traversal`)。**首先检查，所以不需要凭据来查看它。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server api GET '/app-backends/qa-backend/%2e%2e/secret' --auth none --expect 400 \
     --check detail eq 'Invalid backend path' --save F29.proxy-path-traversal/dotdot
@@ -634,13 +543,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET '/app-backends/qa-backend/app%2Ejs' --auth none --cookie "oh_app_backend_session=$TOKEN" \
     --expect 200 --check path eq /app.js
   ```
-  `..`, `.` and backslashes are refused at every encoding depth (400 on
-  HTTP, a 403 handshake on WebSocket); an encoded dot inside a name is
-  forwarded.
-- **WebSocket bridge (`F29.ws-bridge`).** Cookie and ingress `Origin` on the
-  handshake.
+  拒绝 `..`、`.` 和反斜杠在每个编码深度（400 在 HTTP，403 非法握手在 WebSocket）。 名称内的编码点被转发。
+- **WebSocket 桥 (`F29.ws-bridge`).**握手时的 Cookie 和 ingress `Origin`。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server ws listen /app-backends/qa-backend/ws --auth none --header "Origin: $S" \
     --header "Cookie: oh_app_backend_session=$TOKEN" --send qa-f29-hello --until-kind str --until .=echo:qa-f29-hello \
@@ -655,16 +561,11 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server ws listen /app-backends/qa-backend/no-socket-here --auth none --header "Origin: $S" \
     --header "Cookie: oh_app_backend_session=$TOKEN" --duration 10 --expect-close 1011 --expect-frames 0
   ```
-  `qa-backend` answers `echo:qa-f29-hello`; `qa-headers` reports that its
-  handshake carried no cookie, no `Origin`, no `X-Session-API-Key` and only
-  `view=main` as the query. The root route `/app-backends/qa-backend` targets
-  the backend's `/`, which is plain HTTP: the handshake succeeds (the bridge
-  accepts before dialing the backend), then the socket closes with 1011 and
-  no frame, as does any sub-path the backend does not upgrade.
-- **Handshake rejections (`F29.ws-handshake-rejections`).** Each refused
-  before accept (server close 1008, which the client sees as HTTP 403).
+  `qa-backend` 答案 `echo:qa-f29-hello`； `qa-headers`报告说它的握手没有携带cookie，没有`Origin`，没有`X-Session-API-Key`并且只携带
+  `view=main` as the query. 根路由 `/app-backends/qa-backend` 针对后端的 `/`, which is plain HTTP握手成功（桥接在拨号之前接受），则套接字以1011关闭，并无帧，就像后端没有升级的子路径一样。
+- **握手拒绝 (`F29.ws-handshake-rejections`)。**每个在接受之前都被拒绝（服务器关闭 1008，客户端将其视为 HTTP 403）。
 
-  Requires: `F29.session-bootstrap`
+  需要：`F29.session-bootstrap`
   ```sh
   control-agent-server ws listen /app-backends/qa-backend/ws --auth none --header "Cookie: oh_app_backend_session=$TOKEN" \
     --duration 5 --expect-reject 403 --save F29.ws-handshake-rejections/no-origin
@@ -678,14 +579,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server ws listen /app-backends/qa-backend/ws --auth header --header "Origin: $S" --duration 5 --expect-reject 403
   control-agent-server ws listen /app-backends/qa-backend/ws --auth query --header "Origin: $S" --duration 5 --expect-reject 403
   ```
-  403 without `Origin`, with the control origin, without a cookie, with a
-  bogus or another app's cookie, and with only the session key (header or
-  query). The accepted handshake is in the previous bullet.
-- **Subprotocol (`F29.ws-subprotocol`), known bug.** `qa-headers`' `/ws`
-  negotiates `qa.v1` when a client asks for it; the direct connection is the
-  control. Both sides use a subprotocol-aware client (`websockets` with
-  `subprotocols=[...]`), because `ws listen --header 'Sec-WebSocket-Protocol: ...'`
-  rejects any subprotocol the server selects and so could never see a fix.
+  403 无 `Origin`，控制源，无 cookie，有假的或另一个应用的 cookie，仅凭会话密钥（头或查询）。 接受的手势在上一个列表项中。
+- **子协议 (`F29.ws-subprotocol`)，已知错误。** `qa-headers`' `/ws` 当客户提出要求时进行谈判 `qa.v1`； 直接连接就是控制。 双方都使用支持子协议的客户端（`websockets`
+  `subprotocols=[...]`），因为 `ws listen --header 'Sec-WebSocket-Protocol: ...'` 拒绝服务器选择的任何子协议，因此永远看不到修复。
   ```sh
   SP=$(control-agent-server api POST /app-backends/qa-headers/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$SP"
@@ -699,20 +595,12 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server exec --expect-output 'subprotocol=qa.v1' --expect-output '"protocol": "qa.v1"' \
     --save F29.ws-subprotocol/bridged -- "$PWD/.venv/bin/python" -c \
     'import sys; from websockets.sync.client import connect; ws = connect(sys.argv[1], subprotocols=["qa.v1"], origin=sys.argv[2], additional_headers={"Cookie": "oh_app_backend_session=" + sys.argv[3]}, proxy=None); print("subprotocol=" + str(ws.subprotocol)); ws.send("qa-f29-proto"); print(ws.recv(timeout=10)); ws.close()' \
-    "ws://127.0.0.1:$P/app-backends/qa-headers/ws" "$S" "$SP"  # bug: stdout_tail contains subprotocol=None && stdout_tail contains '"protocol": "none"'
+    "ws://127.0.0.1:$P/app-backends/qa-headers/ws" "$S" "$SP"  # bug: stdout_tail 包含 subprotocol=None && stdout_tail 包含 '"protocol": "None"'
   ```
-  The controls: directly, the backend negotiates `qa.v1`; through the
-  bridge, the same client without a subprotocol gets its echo with a fresh
-  cookie. Expected: the bridge negotiates `qa.v1` and the backend reports
-  `protocol: qa.v1`, as it does directly. Actual: `subprotocol=None` and
-  `protocol: none` (the echo frame still arrives); the bridge neither
-  forwards `Sec-WebSocket-Protocol` upstream nor selects one when it
-  accepts. Browsers fail such a handshake (Chrome: "Sent non-empty
-  'Sec-WebSocket-Protocol' header but no response was received"), so
-  clients that require a subprotocol (graphql-ws, many terminal protocols)
-  cannot connect through the bridge.
-- **Revoke a session (`F29.session-revoke`).** Two sessions of one app; one
-  has a bridged socket open.
+  控件：直接，后端协商 `qa.v1`。 通过这座桥，同一个客户端，没有子协议，会收到一个新的cookie的回声。 预期：桥梁协商 `qa.v1`，后端报告
+  `protocol: qa.v1`，就像直接做的那样。 实际：`subprotocol=None` 和
+  `protocol: none`（回显帧仍然到达）； 网桥在接受时既不会向上游转发 `Sec-WebSocket-Protocol`，也不会选择其中之一。 浏览器无法完成这种握手（Chrome：「发送了非空的「Sec-WebSocket-Protocol」头部，但没有收到响应」），因此需要子协议的客户端（如 graphql-ws、许多终端协议）无法通过桥接连接。
+- **撤销会话 (`F29.session-revoke`)。**一个应用程序的两个会话； 其中一个打开了桥接套接字。
   ```sh
   RA=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   RB=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
@@ -741,12 +629,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api DELETE /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 204 \
     --check-header set-cookie contains 'Max-Age=0;'
   ```
-  The revoked cookie's socket closes (1000) and the cookie gets 401 and a
-  403 handshake; the second session still works, also after DELETEs refused
-  for a missing key (401), a foreign origin (403) and the ingress origin
-  (409). A DELETE with no cookie still answers 204 and clears the cookie.
-- **Backend stop and disable revoke (`F29.backend-lifecycle-revokes`).**
-  F28's lifecycle routes, seen through the bridge.
+  撤销的 cookie 的套接字关闭（1000），并发送 401 和 403 响应。 第二个会话仍然有效，甚至在  DELETEs 缺少密钥（401）、外来来源（403）和入站来源（409）。 A DELETE 没有 cookie 仍然回答 204 并清除 cookie。
+- **后端停止并禁用撤销(`F29.backend-lifecycle-revokes`)。** F28 的生命周期路线，通过桥梁看到。
   ```sh
   LC=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$LC"
@@ -801,20 +685,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$LF" --expect 200 \
     --check app eq qa-backend
   ```
-  Stop and disable each close the open socket (1000) and turn the bridge to
-  503 (a DELETE of the session still answers 204); after the backend starts
-  again on a new port the old cookies get 401 and a fresh session works.
-  Killing the ready backend's process (a crash) is reported by the next
-  status poll as `unhealthy` (`Backend exited with code ...`, no `pid`),
-  after which the bridge answers 503 to the old cookie and to a new
-  bootstrap. A crash revokes nothing, so `LE` is still a live session; it
-  gets 401 once the backend restarts only because sessions are bound to the
-  backend's port, and a new session works. What the bridge answers between
-  the crash and that poll is `F29.backend-crash-detected`. The backend ends
-  enabled and ready.
-- **Crash seen by the bridge (`F29.backend-crash-detected`).**
-  The same crash, but nobody polls the backend's status before the next
-  proxied request.
+  停止并关闭每个已打开的套接字（1000），并将桥接设置为503（DELETE会继续回答204）。 在新的端口上重新启动后端，旧的 cookie 会返回 401，并且新的会话可以正常工作。 `unhealthy`（`Backend exited with code ...`，没有`pid`）报告了杀掉准备就绪后端进程（崩溃）的行为，之后桥接会用503响应旧的cookie和新的bootstrap。 崩溃无损，`LE` 仍然是一个活跃会话。 只有在后端重启后，它才会收到401，因为会话绑定到后端的端口，而一个新的会话是有效的。 桥在崩溃和那个调查之间回答的是 `F29.backend-crash-detected`。 后端端口已启用并就绪。
+- **桥上看到的事故(`F29.backend-crash-detected`)。**同样的崩溃，但没有人在下一个代理请求之前轮询后端的状态。
   ```sh
   CC=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$CC"
@@ -828,21 +700,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$REV\"}" \
     --expect 200 --check state eq ready
   ```
-  The cookie works until the kill. Within a few seconds of the process
-  exiting, the bridge answers 503 `Canvas App backend is not ready`, as for
-  any backend that is not running: `ready_endpoint`
-  (`canvas_extensions/backend.py`) checks that the process is still alive,
-  not only the stored `ready` state. The stored state stays `ready` until the
-  next F28 status poll reports `unhealthy` and reaps the process group
-  (`F29.backend-lifecycle-revokes`); the bullet then starts the backend
-  again, so it ends enabled and ready.
-- **Configured control origins (`F29.session-configured-control-origin`).**
-  A hosted Canvas runs on its own origin, which the operator lists in
-  `allow_cors_origins` or matches with `allow_cors_origin_regex`; a Canvas in
-  Docker reaches the server from `DOCKER_HOST_ADDR`. The bridge checks these
-  with its own code, so the bullet drives the bootstrap and its CORS
-  preflight together. A restart stops the backends, so the bullet starts
-  them again, and it clears the settings before it ends.
+  这个cookie会一直有效到被杀掉。 在进程退出几秒钟后，桥接器返回503 `Canvas App backend is not ready`，就像任何不运行的后端一样：`ready_endpoint` `canvas_extensions/backend.py` 检查进程是否仍然存活，而不是仅仅存储 `ready` 状态。 存储状态会持续`ready`直到下一个F28状态报告`unhealthy`并重新捕获进程组(`F29.backend-lifecycle-revokes`)。 然后子弹启动后端，所以它被禁用并准备好。
+- **配置的控制源(`F29.session-configured-control-origin`)。**托管 Canvas 在其自己的源上运行，运营商将其列出在
+  `allow_cors_origins` 或与 `allow_cors_origin_regex` 匹配； Docker 中的 Canvas 从 `DOCKER_HOST_ADDR` 到达服务器。 桥接器使用自己的代码检查这些，因此子弹驱动引导程序及其 CORS 预检。 重新启动会停止后端，因此子弹会再次启动它们，并在结束之前清除设置。
   ```sh
   control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: https://qa-f29.example' --expect 403 \
     --check detail eq 'Origin is not allowed' --check-header set-cookie missing
@@ -892,20 +752,10 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 \
     --check-header set-cookie contains oh_app_backend_session= --save F29.session-configured-control-origin/cleared
   ```
-  Before the restart the hosted origin is refused (403). With the settings,
-  the listed origin, a full regex match and the Docker host address (any
-  port) each mint a cookie, and the CORS middleware allows each one's
-  preflight with credentials. The listed host on another port or on
-  `http`, a regex match with a suffix, the regex's bare domain and another
-  address are refused with 403 and no cookie. The minted cookie reaches the
-  backend on a GET, but the control origin is not the ingress origin, so an
-  unsafe proxied method with it is still 403; a DELETE from another
-  configured origin revokes the session. With the settings cleared
-  (`DOCKER_HOST_ADDR` set empty) the three origins are refused again and
-  `localhost` still works. Both backends end ready.
-- **Trusted forwarded headers (`F29.trusted-forwarded-headers`).** Restart
-  with `trust_forwarded_headers` on, as behind a TLS-terminating proxy, then
-  back off. A restart stops the backends, so the bullet starts them again.
+  在重启之前，托管的起源被拒绝（403）。 在这些设置下，列出的来源、完整的正则表达式匹配，以及 Docker 每个 mint 生成一个 host address (任何端口)，并生成一个 cookie CORS  中间件允许每个的预检操作凭据。 列出的主机使用其他端口，或位于
+  `http`，带有后缀的正则表达式匹配，正则表达式的裸域和另一个地址被拒绝，返回 403，并且没有 cookie。 生成的 cookie 到达 GET 上的后端，但控制源不是入口源，因此使用它的不安全代理方法仍然是 403； 来自另一个配置的源的 DELETE 撤销会话。 清除设置后（`DOCKER_HOST_ADDR` 设置为空），三个来源将再次被拒绝，并且
+  `localhost` 仍然有效。 两个后端都已准备就绪。
+- **可信转发标头 (`F29.trusted-forwarded-headers`)。**在 `trust_forwarded_headers` 开启的情况下重新启动，就像在 TLS 终止代理后面一样，然后退出。 重新启动会停止后端，因此子弹会再次启动它们。
   ```sh
   control-agent-server restart --config-json '{"trust_forwarded_headers": true}'
   control-agent-server api POST /api/canvas-extensions/installed/qa-backend/backend/start --json "{\"revision\": \"$REV\"}" \
@@ -933,13 +783,9 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
     --header "Host: localhost:$P" --header "X-Forwarded-Host: 127.0.0.1:$P" --expect 421 \
     --save F29.trusted-forwarded-headers/untrusted-again
   ```
-  Trusted, `X-Forwarded-Host: 127.0.0.1:PORT` makes a `localhost:PORT`
-  request count as the ingress for the bootstrap (a `Secure` cookie) and the
-  proxy, while the same request without it is still 421, and a forwarded
-  `https` or foreign host does not match the `http` ingress (421). After the
-  second restart the header is ignored again. Both backends end ready.
-- **Server restart (`F29.sessions-not-persisted`).** Sessions and running
-  backends are in memory.
+  信任，  输出的中文译文保持原样 `X-Forwarded-Host: 127.0.0.1:PORT` makes a `localhost:PORT` 请求计数作为入站（a `Secure` cookie) 和代理，但没有它时，请求仍然是 421，而转发过来的请求是 421
+  `https` 或外部主机与 `http` 入口 (421) 不匹配。 第二次重新启动后，标头将再次被忽略。 两个后端都已准备就绪。
+- **服务器重新启动(`F29.sessions-not-persisted`)。**会话和正在运行的后端都在内存中。
   ```sh
   RS=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$RS" --expect 200
@@ -959,11 +805,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-backend/echo --auth none --cookie "oh_app_backend_session=$RT" --expect 200 \
     --check app eq qa-backend
   ```
-  After the restart both backends are `stopped` and the bridge answers 503;
-  they start again without a new prepare, the pre-restart cookie gets 401
-  and a new session works.
-- **Session expiry (`F29.session-ttl`).** The server's own 300 s timer is the
-  thing under test, so this bullet waits for it (about five minutes).
+  重启后，两个后端都 `stopped`，桥接器返回 503。 他们再次开始，但没有新的准备，预重启 cookie 会返回 401 并且新的会话可以工作。
+- **会话到期 (`F29.session-ttl`)。**服务器自己的 300 秒计时器是被测试的东西，所以这个子弹等待它（大约五分钟）。
   ```sh
   T0=$SECONDS
   TTL=$(control-agent-server api POST /app-backends/qa-headers/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
@@ -979,10 +822,8 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /app-backends/qa-headers/echo --auth none --cookie "oh_app_backend_session=$TTL" --expect 401 \
     --save F29.session-ttl/expired-cookie
   ```
-  The idle socket closes (1000) between 295 and 320 s after the bootstrap,
-  with no traffic in between, and the cookie then gets 401.
-- **Uninstall (`F29.uninstall-revokes`).** F28's uninstall route, seen
-  through the bridge. Last, because it removes `qa-backend`.
+  在295到320秒之间，idle socket关闭（1000），期间没有流量，然后cookie返回401。
+- **卸载(`F29.uninstall-revokes`)。** F28的卸载路线，通过桥看到的。 最后，因为它删除了 `qa-backend`。
   ```sh
   UC=$(control-agent-server api POST /app-backends/qa-backend/session --header 'Origin: http://localhost:3000' --expect 200 --print-header set-cookie | sed -n 's/^oh_app_backend_session=\([^;]*\);.*/\1/p')
   test -n "$UC"
@@ -998,74 +839,31 @@ control-agent-server api POST /api/canvas-extensions/installed/qa-headers/backen
   control-agent-server api GET /api/canvas-extensions/installed/qa-backend/backend --expect 200 --check state eq missing \
     --check pid missing --save F29.uninstall-revokes/backend
   ```
-  Uninstalling closes the open socket (1000), stops the backend (`missing`,
-  no `pid`), and the bridge answers 503 to the old cookie and to a new
-  bootstrap, exactly as for an app that was never installed.
+  卸载会关闭打开的套接字（1000），停止后端（`missing`，没有`pid`），桥接器会以与从未安装过的应用程序相同的方式回答旧的cookie和新的bootstrap，即桥接器会以与从未启动过的应用程序相同的方式回答旧的 cookie 和新的 bootstrap。
 
-## Gotchas
+<a id="gotchas"></a>
 
-- Two credentials, two hosts' worth of rules: the bootstrap
-  (`POST`/`DELETE .../session`) takes `X-Session-API-Key` and a control
-  `Origin` that differs from the ingress origin, while the proxy routes take
-  only the cookie and, for unsafe methods and WebSockets, `Origin` equal to
-  the ingress origin. Both must arrive on the ingress host. With
-  `--canvas-ingress` the ingress is the run's own `http://127.0.0.1:PORT`, so
-  use `http://localhost:3000` (any loopback origin on another port) as the
-  control origin; the ingress origin itself gets 409.
-- 5xx answers from the bridge go through the server's generic 5xx handler:
-  `detail` is `Internal Server Error` and the reason is in `exception`
-  (`503: Canvas App backend is not ready`). Assert on `exception`.
-- An unknown app and an installed app whose backend is stopped, starting or
-  unhealthy look the same (503 not ready); the bridge never reveals which
-  apps exist. Only `state == ready` with a live process counts. The stored
-  state changes only when someone calls the F28 status, stop or start
-  routes, but a backend that crashed while ready is not dialed in between
-  (503, `F29.backend-crash-detected`). A live backend that refuses the
-  connection answers 502 `Canvas App backend unreachable`.
-- The session is bound to the app name and to the backend's current
-  loopback port: any backend restart (new port) invalidates every cookie, as
-  do stop, disable, uninstall, `DELETE .../session` and a server restart
-  (sessions are in memory). Canvas must bootstrap again after each start and
-  before the 300 s TTL; the TTL is a constant, not configurable.
-- Revocation and expiry close bridged sockets with code 1000 (normal
-  closure), not a policy code, and a revoking `DELETE` waits for those
-  sockets to finish closing (it can take about a second).
-- Sent from a shell, the cookie must be passed explicitly (`--cookie`) or
-  through a CLI `--jar`; the jar, like browsers, treats `127.0.0.1` as a
-  secure context and replays `Secure` cookies to it. `curl`'s own cookie jar
-  may not. The jar matches paths by prefix, so it also replays the cookie to
-  `/app-backends/<name>-other`; browsers do not.
-- The proxied request keeps the client's body framing
-  (`F29.proxy-request-framing`): a bodiless request arrives without a body,
-  a fixed-length body with its `Content-Length`, and only a chunked client
-  body arrives chunked.
-- Upstream `Set-Cookie` is dropped and upstream redirects become 502, so an
-  app backend can use neither; pages must use URLs relative to
-  `ingress_url` (which ends with `/`, unlike the bare root route).
-- `POST` and `DELETE` on `/app-backends/<name>/session` are the bridge's
-  session routes and never reach the backend; `GET`, `PUT`, `PATCH`, `HEAD`
-  and `OPTIONS` on that path are proxied. A CORS preflight (`OPTIONS` with
-  `Origin` and `Access-Control-Request-Method`) is answered by the CORS
-  middleware and never reaches the backend either.
-- HTTP clients normalize literal `.` and `..` segments before sending
-  (`/app-backends/<name>/./x` arrives as `/x`), so traversal recipes use
-  percent-encoded forms; the bridge decodes until the value stops changing.
-- uvicorn's `proxy_headers` (which trusts `X-Forwarded-Proto` and
-  `X-Forwarded-For` from `FORWARDED_ALLOW_IPS` peers, loopback by default)
-  is on only when `trust_forwarded_headers` is; with it off, neither header
-  changes the request scheme or client address, and `X-Forwarded-Host` is
-  never honored either.
-- Control origins from `allow_cors_origins` must match the listed origin
-  exactly after normalization (scheme, host and port; a default port may be
-  omitted), `allow_cors_origin_regex` must match the whole `Origin` value,
-  and `DOCKER_HOST_ADDR` matches the host on `http` or `https` and any
-  port. They take effect at startup, so a recipe changes them with
-  `restart`, which also stops every backend and drops every session. To
-  clear `DOCKER_HOST_ADDR` on a run, restart with `--env DOCKER_HOST_ADDR=`
-  (empty).
-- Not driven here: binary WebSocket frames (the CLI sends text frames
-  only), and the TypeScript client's session methods, which need a browser
-  to add `Origin` and keep the cookie.
-- Evidence saved by these recipes contains live `oh_app_backend_session`
-  values (the CLI redacts the run's keys, not app cookies). They expire
-  within five minutes and only reach the fixture backends.
+## 陷阱
+
+- 两个凭据，两个主机的规则：引导程序 (`POST`/`DELETE .../session`) 采用 `X-Session-API-Key` 和一个控制
+  `Origin` 与入站源不同，而代理路由仅使用 cookie，对于 WebSockets 和 `Origin`，则等于入站源。 两者都必须到达入口主机。 与
+  `--canvas-ingress`入口是运行自己的`http://127.0.0.1:PORT`，因此使用`http://localhost:3000`（另一个端口上的任何环回源）作为控制源； 入口原点本身为 409。
+- 来自网桥的 5xx 答案通过服务器的通用 5xx 处理程序：
+  `detail`是`Internal Server Error`，原因在`exception`（`503: Canvas App backend is not ready`）中。 对`exception`断言。
+- 未知的应用程序和已安装的后端已停止、正在启动或不健康的应用程序看起来相同（503 未就绪）； 该桥永远不会透露哪些应用程序存在。 只有具有实时进程的 `state == ready` 才有效。 只有当有人调用 F28 状态、停止或启动路由时，存储状态才会改变，但一个在准备就绪时崩溃的后端不会在之间被调用（503，`F29.backend-crash-detected`)。 拒绝连接的实时后端会回答 502 `Canvas App backend unreachable`。
+- 会话绑定到应用名称和后端的当前回环端口：任何后端重启（新端口）都会 invalidate 会话 cookie，还包括停止、禁用、卸载、`DELETE .../session` 和服务器重启（会话在内存中）。 Canvas 必须在每次启动后和 300 秒之前再次引导 TTL； TTL 是一个常量，不可配置。
+- 关闭并重置了代码为1000（正常关闭）的断开连接，而不是策略代码，并且一个撤销 `DELETE` 等待这些断开连接完成关闭（大约需要一秒）。
+- 从 shell 发送，cookie 必须显式传递 (`--cookie`) 或通过 CLI `--jar`； jar 与浏览器一样，将 `127.0.0.1` 视为安全的上下文并向其重播 `Secure` cookie。 `curl` 自己的 cookie jar 可能不会。 jar 通过前缀匹配路径，因此它也会将 cookie 重播到
+  `/app-backends/<name>-other`; 浏览器没有。
+- 代理请求保留了客户端的主体框架 (`F29.proxy-request-framing`): 无主体的请求到达，固定长度的主体带有 `Content-Length`，以及仅包含分块的客户端主体。
+- 上游 `Set-Cookie` 被删除，上游重定向变为 502，因此应用程序后端两者都不能使用； 页面必须使用 URLs 相对
+  `ingress_url`（以 `/` 结尾，与裸根路由不同）。
+- `/app-backends/<name>/session` 上的 `POST` 和 `DELETE` 是网桥的会话路由，永远不会到达后端； 该路径上的 `GET`、`PUT`、`PATCH`、`HEAD` 和 `OPTIONS` 被代理。 CORS 预检（`OPTIONS` 与
+  `Origin` 和 `Access-Control-Request-Method`) 由 CORS 中间件应答，并且也永远不会到达后端。
+- HTTP 客户端在发送之前规范化文字 `.` 和 `..` 段（`/app-backends/<name>/./x` 作为 `/x` 到达），因此遍历配方使用百分比编码形式； 桥解码直到值停止变化。
+- uvicorn 的 `proxy_headers` （信任 `X-Forwarded-Proto` 和
+  `X-Forwarded-For` 来自 `FORWARDED_ALLOW_IPS` 对等点，默认环回）仅当 `trust_forwarded_headers` 为时才打开； 关闭它后，两个标头都不会更改请求方案或客户端地址，并且 `X-Forwarded-Host` 也永远不会被遵守。
+- 来自 `allow_cors_origins` 的控制源必须在规范化后与列出的源完全匹配（方案、主机和端口； `allow_cors_origin_regex` 必须匹配整个 `Origin` 值，`DOCKER_HOST_ADDR` 必须匹配 `http` 或 `https` 上的主机，以及任何端口。 它们在启动时生效，因此配方会更改它们
+  `restart`，这也会停止每个后端并丢弃每个会话。 要在运行时清除 `DOCKER_HOST_ADDR`，请使用 `--env DOCKER_HOST_ADDR=`（空）重新启动。
+- 未被驱动到这里：二进制 WebSocket frames (the ) CLI 仅发送文本帧，以及  TypeScript 客户端会话方法，需要浏览器才能添加 `Origin` 并保持 cookie。
+- 这些配方保存的证据包含实时 `oh_app_backend_session` 值（CLI 编辑运行的密钥，而不是应用程序 cookie）。 它们会在五分钟内过期，并且仅到达测试夹具后端。

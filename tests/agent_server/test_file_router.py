@@ -1,4 +1,4 @@
-"""Tests for file_router.py endpoints."""
+"""测试 file_router.py 端点。"""
 
 import asyncio
 import io
@@ -32,26 +32,26 @@ from openhands.sdk.utils.pydantic_secrets import REDACTED_SECRET_VALUE
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app without authentication."""
-    config = Config(session_api_keys=[])  # Disable authentication
+    """为没有身份验证的 FastAPI 应用程序创建一个测试客户端。"""
+    config = Config(session_api_keys=[])  # 禁用身份验证
     return TestClient(create_app(config), raise_server_exceptions=False)
 
 
 @pytest.fixture
 def temp_file(tmp_path):
-    """Create a temporary file for download tests."""
+    """创建一个临时文件用于下载测试。"""
     test_file = tmp_path / "test_download.txt"
     test_file.write_text("test file content")
     return test_file
 
 
 # =============================================================================
-# Upload Tests - Query Parameter (Preferred Method)
+# 上传测试 - 查询参数（首选方法）
 # =============================================================================
 
 
 def test_upload_file_query_param_success(client, tmp_path):
-    """Test successful file upload with query parameter."""
+    """使用查询参数测试文件上传是否成功。"""
     target_path = tmp_path / "uploaded_file.txt"
     file_content = b"test content for upload"
 
@@ -68,7 +68,7 @@ def test_upload_file_query_param_success(client, tmp_path):
 
 
 def test_upload_file_query_param_creates_parent_dirs(client, tmp_path):
-    """Test that upload creates parent directories if they don't exist."""
+    """测试上传是否创建父目录（如果不存在）。"""
     target_path = tmp_path / "nested" / "dirs" / "file.txt"
     file_content = b"nested file content"
 
@@ -84,7 +84,7 @@ def test_upload_file_query_param_creates_parent_dirs(client, tmp_path):
 
 
 def test_upload_file_query_param_relative_path_fails(client):
-    """Test that upload with relative path returns 400."""
+    """测试使用相对路径上传返回400。"""
     response = client.post(
         "/api/file/upload",
         params={"path": "relative/path/file.txt"},
@@ -106,7 +106,7 @@ def test_upload_file_query_param_relative_path_fails(client):
 def test_upload_onto_directory_or_under_file_is_400(
     client, tmp_path, relative_target, detail
 ):
-    """Uploading onto a directory, or below a file, is the caller's path error."""
+    """上传到目录上，或文件下，是调用者的路径错误。"""
     (tmp_path / "is-a-dir").mkdir()
     (tmp_path / "a-file.txt").write_bytes(b"keep me")
 
@@ -123,7 +123,7 @@ def test_upload_onto_directory_or_under_file_is_400(
 
 
 def test_upload_file_query_param_missing_path(client):
-    """Test that upload without path parameter returns 422."""
+    """测试不带路径参数上传返回422。"""
     response = client.post(
         "/api/file/upload",
         files={"file": ("test.txt", io.BytesIO(b"content"), "text/plain")},
@@ -133,7 +133,7 @@ def test_upload_file_query_param_missing_path(client):
 
 
 def test_upload_file_query_param_missing_file(client, tmp_path):
-    """Test that upload without file returns 422."""
+    """测试无文件上传返回422。"""
     target_path = tmp_path / "missing_file.txt"
 
     response = client.post(
@@ -145,12 +145,12 @@ def test_upload_file_query_param_missing_file(client, tmp_path):
 
 
 # =============================================================================
-# Download Tests - Query Parameter (Preferred Method)
+# 下载测试 - 查询参数（首选方法）
 # =============================================================================
 
 
 def test_download_file_query_param_success(client, temp_file):
-    """Test successful file download with query parameter."""
+    """使用查询参数测试文件下载是否成功。"""
     response = client.get(
         "/api/file/download",
         params={"path": str(temp_file)},
@@ -162,7 +162,7 @@ def test_download_file_query_param_success(client, temp_file):
 
 
 def test_download_file_query_param_not_found(client, tmp_path):
-    """Test download returns 404 when file doesn't exist."""
+    """测试下载返回404，因为文件不存在。"""
     nonexistent_path = tmp_path / "nonexistent.txt"
 
     response = client.get(
@@ -175,7 +175,7 @@ def test_download_file_query_param_not_found(client, tmp_path):
 
 
 def test_download_file_query_param_relative_path_fails(client):
-    """Test that download with relative path returns 400."""
+    """测试使用相对路径下载返回400。"""
     response = client.get(
         "/api/file/download",
         params={"path": "relative/path/file.txt"},
@@ -186,7 +186,7 @@ def test_download_file_query_param_relative_path_fails(client):
 
 
 def test_download_file_query_param_directory_fails(client, tmp_path):
-    """Test that download of directory returns 400."""
+    """测试目录下载返回400。"""
     response = client.get(
         "/api/file/download",
         params={"path": str(tmp_path)},
@@ -197,19 +197,19 @@ def test_download_file_query_param_directory_fails(client, tmp_path):
 
 
 def test_download_file_query_param_missing_path(client):
-    """Test that download without path parameter returns 422."""
+    """测试不带路径参数下载返回422。"""
     response = client.get("/api/file/download")
 
     assert response.status_code == 422
 
 
 # =============================================================================
-# Create Directory Tests - POST /api/file/create_directory
+# 创建目录测试 - POST /api/file/create_directory
 # =============================================================================
 
 
 def test_create_directory_success(client, tmp_path):
-    """Test successful directory creation."""
+    """测试目录创建是否成功。"""
     target_path = tmp_path / "new_directory"
 
     response = client.post(
@@ -223,7 +223,7 @@ def test_create_directory_success(client, tmp_path):
 
 
 def test_create_directory_creates_missing_parents(client, tmp_path):
-    """Test that intermediate directories are created."""
+    """测试是否创建了中间目录。"""
     target_path = tmp_path / "parent" / "child" / "grandchild"
 
     response = client.post(
@@ -236,7 +236,7 @@ def test_create_directory_creates_missing_parents(client, tmp_path):
 
 
 def test_create_directory_existing_directory_succeeds(client, tmp_path):
-    """Test that creating an existing directory is idempotent."""
+    """测试创建现有目录是否幂等。"""
     target_path = tmp_path / "already_here"
     target_path.mkdir()
     (target_path / "keep.txt").write_text("untouched")
@@ -252,7 +252,7 @@ def test_create_directory_existing_directory_succeeds(client, tmp_path):
 
 
 def test_create_directory_relative_path_fails(client):
-    """Test that creating with a relative path returns 400."""
+    """测试使用相对路径创建返回 400。"""
     response = client.post(
         "/api/file/create_directory",
         params={"path": "relative/path/dir"},
@@ -263,7 +263,7 @@ def test_create_directory_relative_path_fails(client):
 
 
 def test_create_directory_existing_file_fails(client, tmp_path):
-    """Test that creating over an existing file returns 400, not 500."""
+    """测试在现有文件上创建是否返回 400，而不是 500。"""
     target_path = tmp_path / "a_file.txt"
     target_path.write_text("do not clobber me")
 
@@ -282,7 +282,7 @@ def test_create_directory_existing_file_fails(client, tmp_path):
     reason="root bypasses directory write permissions",
 )
 def test_create_directory_permission_denied(client, tmp_path):
-    """Test that an unwritable parent returns 403."""
+    """测试不可写的父级返回 403。"""
     parent = tmp_path / "readonly"
     parent.mkdir()
     parent.chmod(0o500)
@@ -299,22 +299,22 @@ def test_create_directory_permission_denied(client, tmp_path):
 
 
 def test_create_directory_missing_path(client):
-    """Test that creating without a path parameter returns 422."""
+    """测试不带路径参数的创建返回 422。"""
     response = client.post("/api/file/create_directory")
 
     assert response.status_code == 422
 
 
 # =============================================================================
-# Edge Case Tests
+# 边缘情况测试
 # =============================================================================
 
 
 def test_upload_large_file_chunked(client, tmp_path):
-    """Test that large files are uploaded correctly (chunked reading)."""
+    """测试大文件是否正确上传（分块读取）。"""
     target_path = tmp_path / "large_file.bin"
-    # Create a file larger than the 8KB chunk size
-    large_content = b"x" * (8192 * 3 + 100)  # About 24.5KB
+    # 创建大于 8KB 块大小的文件
+    large_content = b"x" * (8192 * 3 + 100)  # 约24.5KB
 
     response = client.post(
         "/api/file/upload",
@@ -331,7 +331,7 @@ def test_upload_large_file_chunked(client, tmp_path):
 
 
 def test_upload_overwrites_existing_file(client, tmp_path):
-    """Test that uploading to existing path overwrites the file."""
+    """测试上传到现有路径是否会覆盖文件。"""
     target_path = tmp_path / "existing.txt"
     target_path.write_text("original content")
 
@@ -348,7 +348,7 @@ def test_upload_overwrites_existing_file(client, tmp_path):
 
 
 def test_download_preserves_filename(client, tmp_path):
-    """Test that download response includes correct filename."""
+    """测试下载响应是否包含正确的文件名。"""
     test_file = tmp_path / "my_document.pdf"
     test_file.write_bytes(b"pdf content")
 
@@ -362,7 +362,7 @@ def test_download_preserves_filename(client, tmp_path):
 
 
 def test_upload_file_with_special_characters_in_path(client, tmp_path):
-    """Test upload with special characters in path (via query param)."""
+    """使用路径中的特殊字符测试上传（通过查询参数）。"""
     target_path = tmp_path / "file with spaces.txt"
     file_content = b"content with special path"
 
@@ -378,11 +378,11 @@ def test_upload_file_with_special_characters_in_path(client, tmp_path):
 
 
 def _use_conversations_path(client, conversations_path: Path) -> None:
-    """Point the app's request-time config at ``conversations_path``.
+    """将应用程序的请求时间配置指向 ``conversations_path``。
 
-    Trajectory downloads resolve the conversations directory from
-    ``request.app.state.config`` — the same config ``POST /api/init``
-    replaces on a deferred-init server.
+    轨迹下载解析对话目录
+    ``request.app.state.config`` — 在延迟初始化服务器上​​替换相同的配置
+    ``POST /api/init``。
     """
     client.app.state.config = Config(
         session_api_keys=[], conversations_path=conversations_path
@@ -390,7 +390,7 @@ def _use_conversations_path(client, conversations_path: Path) -> None:
 
 
 def test_download_trajectory_uses_python_zipfile(client, monkeypatch, tmp_path):
-    """Trajectory downloads should not depend on an OS-level zip command."""
+    """轨迹下载不应依赖于操作系统级别的 zip 命令。"""
     conversations_path = tmp_path / "conversations"
     conversation_id = uuid4()
     conversation_dir = conversations_path / conversation_id.hex
@@ -452,10 +452,10 @@ def test_download_trajectory_omits_acp_credential_dir(client, monkeypatch, tmp_p
 def test_download_trajectory_redacts_llm_and_condenser_secrets(
     client, monkeypatch, tmp_path
 ):
-    """A downloaded trajectory must never carry LLM/condenser API keys.
+    """下载的轨迹绝不能携带 LLM/condenser API 键。
 
-    Covers both plaintext keys (no ``OH_SECRET_KEY`` configured) and encrypted
-    Fernet blobs (cipher configured) — neither belongs in a shareable archive.
+    涵盖明文密钥（未配置 ``OH_SECRET_KEY``）和加密的 Fernet blob（已配置密码）——两者
+    都不属于可共享存档。
     """
     conversations_path = tmp_path / "conversations"
     conversation_id = uuid4()
@@ -468,7 +468,7 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
     encrypted_blob = "gAAAAABencrypted_condenser_blob_value"
     encrypted_custom_secret = "gAAAAABencrypted_custom_registry_secret"
 
-    # meta.json: plaintext main key + encrypted condenser key
+    # meta.json：明文主密钥+加密上下文压缩器密钥
     meta = {
         "id": conversation_id.hex,
         "agent": {
@@ -478,9 +478,9 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
     }
     (conversation_dir / "meta.json").write_text(json.dumps(meta))
 
-    # base_state.json mirrors the agent config with a plaintext condenser key,
-    # plus a cipher-encrypted custom secret whose field name ("value") is not
-    # in the LLM secret-field list.
+    # base_state.json 与智能体配置文件中的上下文压缩器明文密钥对齐，还包括一个加密的自定
+    # 义机密，其字段名 ("value") 不在 LLM 机密字段列表中。
+    #
     base_state = {
         "agent": {
             "llm": {"model": "gpt-4o", "api_key": plaintext_key},
@@ -494,7 +494,7 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
     }
     (conversation_dir / "base_state.json").write_text(json.dumps(base_state))
 
-    # A full_state event (JSONL) embedding the whole agent, plaintext keys
+    # 嵌入整个智能体的 full_state 事件 (JSONL)，明文密钥
     event = {
         "kind": "ConversationStateUpdateEvent",
         "key": "full_state",
@@ -517,7 +517,7 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         blob = b"\n".join(archive.read(name) for name in archive.namelist())
 
-    # No secret material of any kind survives into the archive.
+    # 任何类型的机密材料都没有保存到档案中。
     for secret in (
         plaintext_key,
         condenser_key,
@@ -526,8 +526,8 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
     ):
         assert secret.encode() not in blob
 
-    # The redaction marker is present where keys used to be, and non-secret
-    # content (model names) is preserved.
+    # 脱敏标记出现在原来的键所在的位置，并且保留非机密内容（模型名称）。
+    #
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         meta_out = json.loads(archive.read(f"{conversation_id.hex}/meta.json"))
     assert meta_out["agent"]["llm"]["api_key"] == "**********"
@@ -536,7 +536,7 @@ def test_download_trajectory_redacts_llm_and_condenser_secrets(
 
 
 def _trajectory_dir(client, tmp_path):
-    """Create a conversation directory served by download-trajectory."""
+    """创建一个由 download-trajectory 提供服务的对话目录。"""
     conversations_path = tmp_path / "conversations"
     conversation_id = uuid4()
     conversation_dir = conversations_path / conversation_id.hex
@@ -548,10 +548,9 @@ def _trajectory_dir(client, tmp_path):
 
 
 def _mutate_after_listing(monkeypatch, directory: Path, mutate) -> None:
-    """Run ``mutate`` right after ``directory.rglob`` lists its entries.
+    """在 ``directory.rglob`` 列出其条目之后立即运行 ``mutate``。
 
-    Reproduces a concurrent writer changing the directory between the
-    listing and the reads of the entries it returned.
+    再现一个并发 writer 在列表和它返回的条目的读取之间更改目录。
     """
     original_rglob = Path.rglob
 
@@ -567,9 +566,9 @@ def _mutate_after_listing(monkeypatch, directory: Path, mutate) -> None:
 def test_download_trajectory_redacts_json_and_jsonl_files_only(
     client, monkeypatch, tmp_path
 ):
-    """``.json`` and ``.jsonl`` files, in any letter case, are redacted.
+    """``.json`` 和 ``.jsonl`` 文件，无论字母大小写，都是已脱敏。
 
-    Other files are archived byte for byte, even when they hold JSON.
+    其他文件会逐字节存档，即使它们保存为 JSON。
     """
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     line = json.dumps({"llm": {"api_key": "sk-plaintext-main-0123456789"}})
@@ -602,7 +601,7 @@ def test_download_trajectory_redacts_json_and_jsonl_files_only(
 def test_download_trajectory_survives_state_save_during_zip(
     client, monkeypatch, tmp_path
 ):
-    """An atomic base-state save that lands mid-zip must not cause a 500."""
+    """到达中间的原子基态保存不得导致 500。"""
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     temp_file = conversation_dir / ".base_state.json.4867ztqe.tmp"
     temp_file.write_text('{"v": 2}')
@@ -626,7 +625,7 @@ def test_download_trajectory_survives_state_save_during_zip(
 def test_download_trajectory_skips_entries_removed_while_zipping(
     client, monkeypatch, tmp_path
 ):
-    """Files and directories removed after listing are left out, not a 500."""
+    """列出后删除的文件和目录将被排除，而不是 500。"""
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     (conversation_dir / "gone.txt").write_text("gone")
     (conversation_dir / "gone_dir").mkdir()
@@ -650,11 +649,11 @@ def test_download_trajectory_skips_entries_removed_while_zipping(
 
 
 def test_download_trajectory_omits_tmp_files(client, monkeypatch, tmp_path):
-    """Files still being written (``*.tmp``) are not archived.
+    """仍在写入的文件 (``*.tmp``) 不会被存档。
 
-    That covers ``atomic_write_text`` temp files and the conversation lease's
-    ``owner_lease.tmp``. They may be half-written, and their names do not end
-    in ``.json``, so they would also bypass secret redaction.
+    这涵盖了 ``atomic_write_text`` 临时文件和会话租约
+    ``owner_lease.tmp``. 它们可能写了一半，并且它们的名字不以``.json``结尾，所以它们
+    也会绕过机密脱敏。
     """
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     secret = "sk-in-progress-save-0123456789"
@@ -684,7 +683,7 @@ def test_download_trajectory_omits_tmp_files(client, monkeypatch, tmp_path):
 def test_download_trajectory_keeps_dotfiles_that_are_not_tmp_files(
     client, monkeypatch, tmp_path
 ):
-    """Only ``*.tmp`` files are left out; other dotfiles are archived."""
+    """仅遗漏``*.tmp``个文件； 其他点文件已存档。"""
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     kept = [".env.template", ".cache.metadata", "events/.eventlog-len-1.marker"]
     for name in kept:
@@ -701,11 +700,10 @@ def test_download_trajectory_keeps_dotfiles_that_are_not_tmp_files(
 def test_download_trajectory_archives_the_json_bytes_it_checked_for_secrets(
     client, monkeypatch, tmp_path
 ):
-    """A save that lands after a JSON file is read cannot slip in a secret.
+    """读取 JSON 文件后进行的保存无法滑入机密。
 
-    ``base_state.json`` holds no secret when it is read and is replaced right
-    afterwards by a version holding a Fernet token. The archive must contain
-    the content that was read, not the newer file.
+    ``base_state.json`` 在被读取时不包含机密，并且随后被包含 Fernet token 的版本替换
+    。 存档必须包含已读取的内容，而不是较新的文件。
     """
     conversation_id, conversation_dir = _trajectory_dir(client, tmp_path)
     base_state = conversation_dir / "base_state.json"
@@ -730,7 +728,7 @@ def test_download_trajectory_archives_the_json_bytes_it_checked_for_secrets(
 
         return read_then_save
 
-    # Hook both read methods so the test does not depend on which one is used.
+    # 挂钩两种读取方法，以便测试不依赖于使用哪一种。
     monkeypatch.setattr(Path, "read_bytes", replace_after_first_read(Path.read_bytes))
     monkeypatch.setattr(Path, "read_text", replace_after_first_read(Path.read_text))
 
@@ -748,10 +746,10 @@ def test_download_trajectory_archives_the_json_bytes_it_checked_for_secrets(
 def test_download_trajectory_resolves_dir_from_request_config(
     client, monkeypatch, tmp_path
 ):
-    """The served directory comes from ``request.app.state.config``.
+    """提供的目录来自``request.app.state.config``。
 
-    ``POST /api/init`` on a deferred-init server only replaces that config;
-    the launch-time config lookup must not decide where the route looks.
+    deferred-init 服务器上的 ``POST /api/init`` 仅替换该配置； 启动时配置查找不得决定
+    路由的查找位置。
     """
     request_path = tmp_path / "request-conversations"
     conversation_id = uuid4()
@@ -774,12 +772,12 @@ def test_download_trajectory_resolves_dir_from_request_config(
 
 
 def test_deferred_init_trajectory_downloads_follow_init_conversations_path(tmp_path):
-    """Both trajectory routes work after ``/api/init`` moves storage.
+    """两条轨迹路线在 ``/api/init`` 移动存储后起作用。
 
-    Regression test for a deferred-init (warm-pool) server: ``/api/init``
-    installs the per-user ``conversations_path`` on ``app.state.config``, so
-    both the flat and the conversation-scoped download route must serve the
-    conversation from that directory instead of the launch-time default.
+    回归测试一个延迟初始化（热池）服务器： ``/api/init`` 安装用户特定的
+    ``conversations_path`` 在
+    ``app.state.config``因此，无论是扁平下载路由还是基于对话的下载路由，都必须从该目
+    录中提供对话，而不是默认的启动时间。
     """
     cs_mod._conversation_service = None
     bash_mod._bash_event_service = None
@@ -842,9 +840,9 @@ def test_deferred_init_trajectory_downloads_follow_init_conversations_path(tmp_p
             assert f"{root}/meta.json" in flat_names
             assert f"{root}/base_state.json" in flat_names
 
-            # No conversation directory under the resolved config → 404 on
-            # both routes. Rebinding the config stands in for a conversation
-            # whose storage moved away from the initialized path.
+            # 两条路由上已解析的配置 → 404 下都没有对话目录。 重新绑定配置代表其存储已远
+            # 离初始化路径的对话。
+            #
             app.state.config = app.state.config.model_copy(
                 update={"conversations_path": tmp_path / "elsewhere"}
             )
@@ -857,7 +855,7 @@ def test_deferred_init_trajectory_downloads_follow_init_conversations_path(tmp_p
                 assert missing.status_code == 404, missing.text
                 assert missing.json()["detail"] == "Conversation not found"
 
-            # Repeated downloads leave no zip residue behind.
+            # 重复下载不会留下任何 zip 残留物。
             assert list(user_conversations.glob("*.zip")) == []
     finally:
         cs_mod._conversation_service = None
@@ -865,7 +863,7 @@ def test_deferred_init_trajectory_downloads_follow_init_conversations_path(tmp_p
 
 
 def test_download_file_with_special_characters_in_path(client, tmp_path):
-    """Test download with special characters in path (via query param)."""
+    """在路径中使用特殊字符测试下载（通过查询参数）。"""
     test_file = tmp_path / "file with spaces.txt"
     test_file.write_text("special path content")
 
@@ -888,12 +886,12 @@ def test_file_legacy_routes_are_removed_from_openapi(client):
 
 
 # =============================================================================
-# search_subdirs Tests
+# search_subdirs 测试
 # =============================================================================
 
 
 def test_search_subdirs_returns_only_directories_with_absolute_paths(client, tmp_path):
-    """Return subdirs with absolute paths; skip files and hidden entries."""
+    """返回具有绝对路径的子目录； 跳过文件和隐藏条目。"""
     (tmp_path / "repo1").mkdir()
     (tmp_path / "repo2").mkdir()
     (tmp_path / ".hidden_dir").mkdir()
@@ -911,7 +909,7 @@ def test_search_subdirs_returns_only_directories_with_absolute_paths(client, tmp
 
 
 def test_search_subdirs_include_hidden_lists_dot_directories(client, tmp_path):
-    """With include_hidden=true, dot-directories are listed (files still skipped)."""
+    """当 include_hidden=True 时，列出点目录（仍跳过文件）。"""
     (tmp_path / "repo1").mkdir()
     (tmp_path / ".hidden_dir").mkdir()
     (tmp_path / "README.md").write_text("hi")
@@ -924,7 +922,7 @@ def test_search_subdirs_include_hidden_lists_dot_directories(client, tmp_path):
     assert response.status_code == 200
     body = response.json()
     names = [entry["name"] for entry in body["items"]]
-    # Sorted case-insensitively; '.' sorts before alphanumerics.
+    # 排序时不区分大小写； '.'在字母数字之前排序。
     assert names == [".hidden_dir", "repo1"]
 
 
@@ -951,7 +949,7 @@ def test_search_subdirs_path_is_a_file_returns_400(client, tmp_path):
 
 
 def test_search_subdirs_paginates_with_limit_and_page_id(client, tmp_path):
-    """Limit caps the page; next_page_id resumes from the next item."""
+    """limit 限制页面大小； next_page_id 从下一项继续。"""
     for name in ["alpha", "Bravo", "charlie", "Delta", "echo"]:
         (tmp_path / name).mkdir()
 
@@ -992,7 +990,7 @@ def test_search_subdirs_paginates_with_limit_and_page_id(client, tmp_path):
 
 
 def test_search_subdirs_pages_past_case_only_twins(client, tmp_path):
-    """Following next_page_id reaches each of two names that differ by case."""
+    """接下来的 next_page_id 到达两个大小写不同的名称中的每一个。"""
     (tmp_path / "foo").mkdir()
     if (tmp_path / "Foo").exists():
         pytest.skip("filesystem does not distinguish case-only directory names")
@@ -1018,7 +1016,7 @@ def test_search_subdirs_pages_past_case_only_twins(client, tmp_path):
 
 
 def test_search_subdirs_accepts_lowercase_cursor(client, tmp_path):
-    """A lowercase cursor from an older server still resumes at its entry."""
+    """来自较旧服务器的小写光标仍会在其条目处恢复。"""
     for name in ["Alpha", "Bravo"]:
         (tmp_path / name).mkdir()
 
@@ -1047,19 +1045,20 @@ def test_get_home_returns_user_home(client):
 def test_get_home_returns_dynamic_favorites_and_locations(
     client, tmp_path, monkeypatch
 ):
-    # Arrange: pretend the user's home is tmp_path, populated with a mix of
-    # visible dirs, a hidden dir, and a file. Favorites should include only
-    # the visible dirs, alphabetised. Locations should report the POSIX root.
+    # 排列：假设用户的家是 tmp_path，混合填充
+    # 可见目录、隐藏目录和文件。 收藏夹应仅包括按字母顺序排列的可见目录。 位置应报告
+    # POSIX 根。
+    #
     monkeypatch.setenv("HOME", str(tmp_path))
     (tmp_path / "projects").mkdir()
     (tmp_path / "Documents").mkdir()
     (tmp_path / ".cache").mkdir()
     (tmp_path / "readme.txt").write_text("ignored")
 
-    # Act
+    # 法案
     response = client.get("/api/file/home")
 
-    # Assert
+    # 断言
     assert response.status_code == 200
     body = response.json()
     assert body["home"] == str(tmp_path)
@@ -1071,8 +1070,8 @@ def test_get_home_returns_dynamic_favorites_and_locations(
 
 
 def test_get_home_include_hidden_lists_hidden_favorites(client, tmp_path, monkeypatch):
-    # With include_hidden=true, hidden top-level directories appear in favorites
-    # (files are still excluded).
+    # 当 include_hidden=True 时，隐藏的顶级目录出现在收藏夹中（文件仍被排除）。
+    #
     monkeypatch.setenv("HOME", str(tmp_path))
     (tmp_path / "projects").mkdir()
     (tmp_path / ".cache").mkdir()
@@ -1090,9 +1089,10 @@ def test_get_home_include_hidden_lists_hidden_favorites(client, tmp_path, monkey
 
 @pytest.mark.timeout(20)
 async def test_upload_does_not_block_event_loop_on_slow_storage(tmp_path, monkeypatch):
-    # Drive _upload_file directly, not via ASGI: in-process ASGI interleaves
-    # so cleanly that competing /health requests fit between writes, masking
-    # the blocking. A background ticker on the same loop measures starvation.
+    # 直接驱动 _upload_file，而不是通过 ASGI：进程内 ASGI 交错得如此干净，以至于竞争的
+    # /health 请求适合写入之间，从而屏蔽了阻塞。 同一循环上的背景行情自动收录器测量饥饿
+    # 。
+    #
     real_open = open
 
     class _SlowWriteFile:
@@ -1100,7 +1100,7 @@ async def test_upload_does_not_block_event_loop_on_slow_storage(tmp_path, monkey
             self._f = real_file
 
         def write(self, data):
-            time.sleep(0.1)  # models NFS / FUSE / encrypted FS write latency
+            time.sleep(0.1)  # 型号 NFS / FUSE / 加密 FS 写入延迟
             return self._f.write(data)
 
         def __enter__(self):
@@ -1116,10 +1116,11 @@ async def test_upload_does_not_block_event_loop_on_slow_storage(tmp_path, monkey
     monkeypatch.setattr(file_router_module, "open", _slow_open, raising=False)
 
     spooled = tempfile.SpooledTemporaryFile()
-    spooled.write(b"x" * 64 * 1024)  # 8 × 8 KB chunks → ~800 ms of blocking
+    spooled.write(b"x" * 64 * 1024)  # 8 × 8 KB 块 → 约 800 毫秒的阻塞
     spooled.seek(0)
-    # SpooledTemporaryFile satisfies the BinaryIO protocol but isn't a nominal
-    # subclass; UploadFile accepts it at runtime.
+    # SpooledTemporaryFile 满足 BinaryIO 协议，但不是名义上的子类； UploadFile 在运行时
+    # 接受它。
+    #
     upload = UploadFile(file=spooled, filename="uploaded.bin")  # pyright: ignore[reportArgumentType]
 
     ticks: list[float] = []
@@ -1153,13 +1154,13 @@ async def test_upload_does_not_block_event_loop_on_slow_storage(tmp_path, monkey
 
 
 # =============================================================================
-# Archive Tests - GET /api/file/archive (AGE-1871)
+# 存档测试 - GET /api/file/archive (AGE-1871)
 # =============================================================================
 
 
 @pytest.fixture
 def workspace(tmp_path):
-    """A small nested workspace tree under ``tmp_path/project``."""
+    """``tmp_path/project`` 下的一个小型嵌套工作区树。"""
     root = tmp_path / "project"
     (root / "src").mkdir(parents=True)
     (root / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
@@ -1215,9 +1216,9 @@ def test_archive_cleans_up_temp_file(client, tmp_path):
     resp = client.get("/api/file/archive", params={"path": str(repo)})
 
     assert resp.status_code == 200
-    # The scratch archive is built on the workspace volume (the target's parent)
-    # rather than the system temp dir, and the BackgroundTask unlinks it once the
-    # response is fully sent — so nothing is left behind next to the repo.
+    # 工作区该临时存储区是建立在目标的父级卷（即系统临时目录）上，而不是系统临时目录，
+    # BackgroundTask 一旦响应完全发送，就将其删除，因此不会留下任何东西在仓库旁边。
+    #
     leftovers = [p for p in repo.parent.iterdir() if p.name != "repo"]
     assert leftovers == []
 
@@ -1246,7 +1247,7 @@ def test_git_delta_captures_modifications_and_untracked_vs_head(client, tmp_path
     (root / "a.txt").write_text("original\n", encoding="utf-8")
     _git(["add", "-A"], root)
     _git(["commit", "-m", "init"], root)
-    # Mutate a tracked file and add an untracked one after the commit.
+    # 更改已跟踪的文件并在提交后添加未跟踪的文件。
     (root / "a.txt").write_text("changed\n", encoding="utf-8")
     (root / "b.txt").write_text("brand new\n", encoding="utf-8")
 
@@ -1266,8 +1267,9 @@ def test_git_delta_excludes_node_modules_even_when_not_gitignored(client, tmp_pa
     root = tmp_path / "repo"
     root.mkdir()
     _git(["init"], root)
-    # New source file (should be in the delta) + a heavy untracked node_modules
-    # with NO .gitignore (should be excluded by the default excludes).
+    # 新的源文件（应该在增量中）+一个重的未跟踪的node_modules，没有.gitignore（应该被默
+    # 认排除）。
+    #
     (root / "app.py").write_text("x = 1\n", encoding="utf-8")
     (root / "node_modules" / "pkg").mkdir(parents=True)
     (root / "node_modules" / "pkg" / "big.js").write_text(
@@ -1319,11 +1321,11 @@ def test_git_delta_scoped_to_requested_subdirectory(client, tmp_path):
     (sub / "inside.txt").write_text("base\n", encoding="utf-8")
     _git(["add", "-A"], root)
     _git(["commit", "-m", "init"], root)
-    # Change a file inside the subdir AND one outside it, after the commit.
+    # 提交后，更改子目录 AND 内部的文件和其外部的文件。
     (root / "outside.txt").write_text("changed-outside\n", encoding="utf-8")
     (sub / "inside.txt").write_text("changed-inside\n", encoding="utf-8")
 
-    # Archiving the subdir must yield only the subdir's delta, not the repo's.
+    # 归档子目录必须仅产生子目录的增量，而不是存储库的增量。
     resp = client.get(
         "/api/file/archive",
         params={"path": str(sub), "format": "git-delta", "base_ref": "HEAD"},
@@ -1352,7 +1354,7 @@ def test_git_delta_invalid_base_ref_returns_400(client, tmp_path):
         },
     )
 
-    # A bad base_ref is client error, not a 500.
+    # bad base_ref 是客户端错误，而不是 500。
     assert resp.status_code == 400
 
 
@@ -1378,7 +1380,7 @@ def test_git_delta_response_includes_base_commit_header(client, tmp_path):
         capture_output=True,
         text=True,
     ).stdout.strip()
-    # Working-tree change so the delta is non-empty.
+    # 工作树发生变化，因此增量非空。
     (root / "a.txt").write_text("changed\n", encoding="utf-8")
 
     resp = client.get(
@@ -1402,14 +1404,14 @@ def test_git_delta_new_repo_has_no_base_commit_header(client, tmp_path):
     )
 
     assert resp.status_code == 200, resp.text
-    # Empty-tree base (no commits) is not a replayable commit, so no header.
+    # 空树基（无提交）不是可重播的提交，因此没有标头。
     assert "x-archive-base-commit" not in resp.headers
 
 
 def _repo_with_remote(root: Path, remote_url: str, branch: str = "feature-x") -> str:
-    """Init a repo with one commit, an ``origin`` remote, and a named branch.
+    """使用一次提交、一个 ``origin`` 远程和一个命名分支来初始化一个存储库。
 
-    Returns the HEAD commit sha.
+    返回 HEAD 提交 sha。
     """
     root.mkdir()
     _git(["init"], root)
@@ -1447,8 +1449,9 @@ def test_git_delta_response_includes_repo_metadata_headers(client, tmp_path):
 
 
 def test_tar_gz_response_includes_repo_metadata_headers(client, tmp_path):
-    # The new repo-identity headers make a tar.gz snapshot self-describing too,
-    # even though it carries no base_commit/base_ref.
+    # 新的 repo-identity 标头也使 tar.gz 快照具有自描述性，即使它不包含 base_commit/
+    # base_ref。
+    #
     head_sha = _repo_with_remote(
         tmp_path / "repo", "https://github.com/example/repo.git"
     )
@@ -1555,7 +1558,7 @@ def test_archive_detached_head_reports_detached_branch(client, tmp_path):
     head_sha = _repo_with_remote(
         tmp_path / "repo", "https://github.com/example/repo.git"
     )
-    # Detach HEAD at the commit (SWE-bench-style pinned checkout).
+    # 在提交处分离 HEAD（SWE-工作台式固定结帐）。
     _git(["checkout", head_sha], tmp_path / "repo")
 
     resp = client.get(
@@ -1580,9 +1583,9 @@ def test_archive_non_git_directory_has_no_repo_metadata_headers(client, workspac
 
 
 def test_archive_format_description_matches_single_nested_repo(client, tmp_path):
-    # A non-repo directory holding exactly one repository is archived as that
-    # repository, so files beside it are left out; the public description of
-    # ``format`` must say so instead of promising "the entire directory".
+    # 恰好包含一个存储库的非存储库目录将被归档为该存储库，因此它旁边的文件将被忽略； 的
+    # 公开描述
+    # ``format`` 必须这样说，而不是承诺“整个目录”。
     parent = tmp_path / "parent"
     repo = parent / "group" / "proj"
     repo.mkdir(parents=True)
@@ -1614,8 +1617,9 @@ def test_archive_format_description_matches_single_nested_repo(client, tmp_path)
 
 
 def test_archive_remote_with_embedded_control_char_is_percent_encoded(client, tmp_path):
-    # A remote URL is free-form text (unlike a ref name), so it can carry a
-    # literal control character straight into what becomes a header value.
+    # 远程 URL 是自由格式的文本（与引用名称不同），因此它可以直接将文字控制字符携带到成
+    # 为标头值的内容中。
+    #
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(["init"], repo)
@@ -1648,7 +1652,7 @@ def test_archive_non_ascii_branch_is_percent_encoded_not_dropped(client, tmp_pat
 
 
 # =============================================================================
-# Archive Tests - format=tar.gz (full-workspace archive)
+# 存档测试 - 格式=tar.gz（完整工作区存档）
 # =============================================================================
 
 
@@ -1658,8 +1662,8 @@ def _tar_members(content: bytes) -> list[str]:
 
 
 def test_tar_gz_on_non_git_directory_succeeds(client, workspace):
-    # The key differentiator: git-delta 400s on a non-git dir, tar.gz captures
-    # the whole tree.
+    # 关键区别在于：非 git 目录上的 git-delta 400s，tar.gz 捕获整个树。
+    #
     resp = client.get(
         "/api/file/archive", params={"path": str(workspace), "format": "tar.gz"}
     )
@@ -1723,7 +1727,7 @@ def test_tar_gz_exclude_param_extends_defaults(client, tmp_path):
     (root / "keep" / "a.txt").write_text("keep\n", encoding="utf-8")
     (root / "secrets").mkdir()
     (root / "secrets" / "token.txt").write_text("shh\n", encoding="utf-8")
-    # A default-excluded dir to confirm defaults still apply alongside the param.
+    # 用于确认默认值的默认排除目录仍然与参数一起应用。
     (root / "__pycache__").mkdir()
     (root / "__pycache__" / "x.pyc").write_text("bytecode\n", encoding="utf-8")
 
@@ -1736,13 +1740,14 @@ def test_tar_gz_exclude_param_extends_defaults(client, tmp_path):
     names = _tar_members(resp.content)
     assert f"{root.name}/keep/a.txt" in names
     assert not any("secrets" in n for n in names)
-    # Defaults still apply alongside the extra pattern.
+    # 默认值仍然与额外模式一起应用。
     assert not any("__pycache__" in n for n in names)
 
 
 def test_tar_gz_captures_gitignored_and_non_repo_files(client, tmp_path):
-    # tar.gz is byte-for-byte: it captures files git-delta would miss, including
-    # gitignored authored files (the dir need not even be a git repo).
+    # tar.gz 是逐字节的：它捕获 git-delta 会错过的文件，包括 gitignored 创作的文件（目录
+    # 甚至不需要是 git 存储库）。
+    #
     root = tmp_path / "repo"
     root.mkdir()
     _git(["init"], root)
@@ -1775,13 +1780,13 @@ def test_tar_gz_manifest_records_format_and_excludes(client, workspace):
     assert manifest["format"] == "tar.gz"
     assert manifest["source"] == workspace.name
     assert manifest["file_count"] >= 2
-    # The applied excludes = defaults + the caller-supplied pattern.
+    # 应用的排除 = 默认值 + 调用者提供的模式。
     assert "*.bin" in manifest["excludes"]
     assert "node_modules/" in manifest["excludes"]
 
 
 def test_tar_gz_ignores_base_ref_without_error(client, workspace):
-    # base_ref applies only to git-delta; tar.gz must not error on it.
+    # base_ref 仅适用于 git-delta； tar.gz一定不能出错。
     resp = client.get(
         "/api/file/archive",
         params={"path": str(workspace), "format": "tar.gz", "base_ref": "HEAD"},
@@ -1792,15 +1797,15 @@ def test_tar_gz_ignores_base_ref_without_error(client, workspace):
 
 
 def test_tar_gz_multi_segment_exclude_drops_nested_dir(client, tmp_path):
-    # A multi-segment exclude (containing '/') must be honored for tar.gz, the
-    # same way git-delta honors it via core.excludesFile. ``secrets/prod`` should
-    # drop only that nested dir, while a same-named dir elsewhere is kept.
+    # 多段排除（包含 '/') 必须遵守 tar.gz，就像 git-delta 通过 core.excludesFile 遵守它
+    # 一样。 ``secrets/prod`` 应该只删除该嵌套目录，而其他同名目录应保留。
+    #
     root = tmp_path / "plain"
     (root / "secrets" / "prod").mkdir(parents=True)
     (root / "secrets" / "prod" / "token.txt").write_text("shh\n", encoding="utf-8")
     (root / "secrets" / "dev").mkdir(parents=True)
     (root / "secrets" / "dev" / "token.txt").write_text("ok\n", encoding="utf-8")
-    (root / "prod").mkdir()  # same basename, different path: must be kept
+    (root / "prod").mkdir()  # 相同的基本名称，不同的路径：必须保留
     (root / "prod" / "keep.txt").write_text("keep\n", encoding="utf-8")
 
     resp = client.get(
@@ -1810,7 +1815,7 @@ def test_tar_gz_multi_segment_exclude_drops_nested_dir(client, tmp_path):
 
     assert resp.status_code == 200, resp.text
     names = _tar_members(resp.content)
-    # The nested secrets/prod subtree is gone...
+    # 嵌套的 Secret/prod 子树消失了......
     assert not any("secrets/prod" in n for n in names)
     # ...but the sibling secrets/dev and the unrelated top-level prod survive.
     assert f"{root.name}/secrets/dev/token.txt" in names
@@ -1818,9 +1823,9 @@ def test_tar_gz_multi_segment_exclude_drops_nested_dir(client, tmp_path):
 
 
 def test_tar_gz_bare_name_exclude_still_matches_any_component(client, tmp_path):
-    # Bare-name excludes (no '/') must keep matching any path component at any
-    # depth, so the multi-segment support does not regress node_modules-style
-    # pruning.
+    # 裸名排除（没有 '/') 必须在任何深度保持匹配任何路径组件，因此多段支持不会回归
+    # node_modules 式修剪。
+    #
     root = tmp_path / "plain"
     (root / "a" / "node_modules").mkdir(parents=True)
     (root / "a" / "node_modules" / "junk.js").write_text("// big\n", encoding="utf-8")
@@ -1843,9 +1848,9 @@ def test_tar_gz_bare_name_exclude_still_matches_any_component(client, tmp_path):
 
 
 def test_tar_gz_preserves_user_archive_manifest_file(client, tmp_path, caplog):
-    # If the workspace itself contains a top-level archive_manifest.json, the
-    # synthetic capture manifest must NOT clobber it: the user's bytes win and a
-    # warning is logged.
+    # 如果工作区本身包含顶级 archive_manifest.json，则合成捕获清单必须不破坏它：用户的字
+    # 节获胜并记录警告。
+    #
     root = tmp_path / "plain"
     root.mkdir()
     user_payload = b'{"this": "is the user\'s real file"}'
@@ -1860,7 +1865,7 @@ def test_tar_gz_preserves_user_archive_manifest_file(client, tmp_path, caplog):
     assert resp.status_code == 200, resp.text
     arcname = f"{root.name}/archive_manifest.json"
     with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:gz") as tar:
-        # Exactly one member at the path (no shadowing duplicate).
+        # 路径上只有一个成员（无阴影重复）。
         assert [n for n in tar.getnames() if n == arcname] == [arcname]
         member = tar.extractfile(arcname)
         assert member is not None
@@ -1872,16 +1877,18 @@ def test_tar_gz_preserves_user_archive_manifest_file(client, tmp_path, caplog):
 
 
 # =============================================================================
-# Archive Tests - git-delta auto-descend to the repo under the workspace base
-# (AGE-1871 / infra#1444 H1). A repo-backed conversation clones into
+# 存档测试 - git-delta 自动下降到工作区基础下的存储库 (AGE-1871 / infra#1444 H1)。 回购
+# 支持的对话克隆到
+#
 # {base}/{repo_name}, so archiving the base itself must resolve down to the repo
-# instead of 400-ing on the non-repo parent and capturing nothing.
+# 而不是对非 repo 父级进行 400-ing 并且什么也不捕获。
 # =============================================================================
 
 
 def test_git_delta_auto_descends_to_single_repo_under_base(client, tmp_path):
-    # The archive PATH points at the workspace base, but the git repo lives one
-    # level below at {base}/{repo_name}. git-delta must resolve to it.
+    # 存档 PATH 指向工作区基础，但 git 存储库位于 {base}/{repo_name}. 的下一级，git-
+    # delta 必须解析它。
+    #
     base = tmp_path / "project"
     repo = base / "my-repo"
     repo.mkdir(parents=True)
@@ -1899,9 +1906,9 @@ def test_git_delta_auto_descends_to_single_repo_under_base(client, tmp_path):
 
 
 def test_git_delta_auto_descends_two_levels_for_grouped_workspace(client, tmp_path):
-    # Under sandbox grouping the repo is at {base}/{group}/{repo_name} — two
-    # levels below the static base path runtime-api passes. Resolution is
-    # bounded-depth, so it still finds it.
+    # 在沙箱分组下，存储库位于 {base}/{group}/{repo_name} — 比静态基本路径运行时-API 通
+    # 道低两级。 分辨率是有限深度的，所以它仍然可以找到它。
+    #
     base = tmp_path / "project"
     repo = base / "deadbeef" / "my-repo"
     repo.mkdir(parents=True)
@@ -1917,8 +1924,9 @@ def test_git_delta_auto_descends_two_levels_for_grouped_workspace(client, tmp_pa
 
 
 def test_git_delta_uses_base_directly_when_base_is_a_repo(client, tmp_path):
-    # If the base IS itself a repo, use it directly without descending (the
-    # resolver short-circuits), so a sibling subdir below it is irrelevant.
+    # 如果基础本身是一个存储库，则直接使用它而不使用降序（解析器短路），因此它下面的同级
+    # 子目录是不相关的。
+    #
     base = tmp_path / "project"
     base.mkdir()
     _git(["init"], base)
@@ -1937,9 +1945,9 @@ def test_git_delta_uses_base_directly_when_base_is_a_repo(client, tmp_path):
 
 
 def test_git_delta_ambiguous_multiple_repos_still_400s(client, tmp_path):
-    # Two candidate repos under the base is ambiguous — do not guess; fall back
-    # to the existing not-a-git-repo behavior (400) rather than archive a random
-    # one.
+    # 基地下的两个候选回购协议是不明确的——不要猜测； 退回到现有的 not-a-git-repo 行为 (
+    # 400)，而不是随机归档。
+    #
     base = tmp_path / "project"
     for name in ("repo-a", "repo-b"):
         r = base / name
@@ -1967,19 +1975,19 @@ def test_git_delta_no_repo_under_base_still_400s(client, tmp_path):
 
 
 # =============================================================================
-# Archive Tests - tar.gz never leaks .git credentials (infra#1444 H2)
+# 存档测试 - tar.gz 永远不会泄漏 .git 凭据 (infra#1444 H2)
 # =============================================================================
 
 
 def test_tar_gz_default_excludes_drop_dot_git(client, tmp_path):
-    # The full-archive default excludes must drop the entire .git tree so a clone
-    # token in .git/config never lands in the shared, indefinitely-retained
-    # archive bucket (and the object DB does not blow up the archive size).
+    # token 全部档案默认排除会删除整个 .git 树，因此在 .git/config 中的克隆永远不会进入
+    # 共享、无限保留的档案桶（对象数据库不会因为档案大小而膨胀）。
+    #
     root = tmp_path / "project"
     root.mkdir()
     _git(["init"], root)
     (root / "README.md").write_text("# p\n", encoding="utf-8")
-    # Simulate a tokenized clone remote persisted by git.
+    # 通过 git 模拟标记化克隆远程已持久化。
     _git(
         ["remote", "add", "origin", "https://x-access-token:ghs_SECRET@github.com/o/r"],
         root,
@@ -1997,8 +2005,9 @@ def test_tar_gz_default_excludes_drop_dot_git(client, tmp_path):
 
 
 def test_tar_gz_full_capture_still_strips_git_credentials(client, tmp_path):
-    # Even with use_default_excludes=false (a deliberate full capture), the
-    # credential-bearing git internals must never be persisted.
+    # 即使 use_default_excludes=False （故意的完整捕获），包含凭据的 git 内部结构也绝不
+    # 能是已持久化。
+    #
     root = tmp_path / "project"
     root.mkdir()
     _git(["init"], root)
@@ -2019,7 +2028,7 @@ def test_tar_gz_full_capture_still_strips_git_credentials(client, tmp_path):
 
     assert resp.status_code == 200, resp.text
     names = _tar_members(resp.content)
-    # Full capture keeps most of .git (history/objects) for fidelity...
+    # 完整捕获保留大部分 .git（历史/对象）以保证保真度......
     assert any("/.git/" in n for n in names)
     # ...but never the secrets.
     assert not any(n.endswith("/.git/config") for n in names)
@@ -2028,10 +2037,11 @@ def test_tar_gz_full_capture_still_strips_git_credentials(client, tmp_path):
 
 
 def test_tar_gz_strips_credentials_file_and_reflog_with_tokens(client, tmp_path):
-    # Beyond .git/config: a synthetic .git/ carrying a token in .git/credentials
-    # and in a .git/logs/ reflog must never reach the archive bytes, even in a
-    # full capture. Built by hand (not `git init`) so .git/credentials and
-    # .git/logs/ — which git does not write on init — are exercised directly.
+    # 在 .git/config 之后：一个合成的 .git/ 包含一个 token 在 .git/credentials 和 .git/
+    # logs/ reflog 中，必须永远避免达到档案字节，无论进行何种完整捕获。 手工构建（不是自
+    # 动化） `git init`) .git/credentials 和 .git/logs/ — git 在初始化时不写入的文件 —
+    # 直接被使用。
+    #
     root = tmp_path / "project"
     git_dir = root / ".git"
     (git_dir / "logs").mkdir(parents=True)
@@ -2049,8 +2059,8 @@ def test_tar_gz_strips_credentials_file_and_reflog_with_tokens(client, tmp_path)
         "https://x-access-token:ghs_LOGTOK@github.com/o/r\n",
         encoding="utf-8",
     )
-    # A non-credential .git internal must survive: proves the credential files
-    # are stripped specifically, not the whole .git tree.
+    # 非凭据 .git 内部必须生存：证明凭据文件被专门删除，而不是整个 .git 树。
+    #
     (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
 
     resp = client.get(
@@ -2073,10 +2083,10 @@ def test_tar_gz_strips_credentials_file_and_reflog_with_tokens(client, tmp_path)
 
 
 def test_tar_gz_strips_fetch_head_and_submodule_credentials(client, tmp_path):
-    # enyst review (#3867): the strip must also cover .git/FETCH_HEAD (git writes
-    # the fetched URL — token and all — there) and submodule git dirs under
-    # .git/modules/<name>/, not just the top-level .git/config. Built by hand so
-    # those exact leak surfaces are exercised in a full capture.
+    # #3867: strip 也必须覆盖 .git/ FETCH_HEAD (git 会写入 fetched URL — token 和所有 ——
+    #  以及 .git/modules/<name> 下的 submodule git 目录，而不是只覆盖顶级 .git/config)。
+    #  手工构建，以便在完全捕获中运用这些精确的泄漏表面。
+    #
     root = tmp_path / "project"
     git_dir = root / ".git"
     sub = git_dir / "modules" / "libfoo"
@@ -2101,7 +2111,7 @@ def test_tar_gz_strips_fetch_head_and_submodule_credentials(client, tmp_path):
         "https://x-access-token:ghs_SUBLOGTOK@github.com/o/sub\n",
         encoding="utf-8",
     )
-    # A non-credential .git internal must still survive the strip.
+    # 非凭据 .git 内部必须仍能在剥离中幸存下来。
     (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
 
     resp = client.get(
@@ -2130,15 +2140,14 @@ def test_tar_gz_strips_fetch_head_and_submodule_credentials(client, tmp_path):
 
 
 # =============================================================================
-# Archive Tests - tar.gz empty-dir round-trip + per-segment exclude (infra#1444
-# L4 / L5)
+# 存档测试 - tar.gz 空目录往返 + 每个段排除（infra#1444 L4 / L5）
 # =============================================================================
 
 
 def test_tar_gz_preserves_empty_directories(client, tmp_path):
-    # An authored-but-empty directory must round-trip (byte-for-byte capture).
+    # 已创作但为空的目录必须往返（逐字节捕获）。
     root = tmp_path / "project"
-    (root / "outputs").mkdir(parents=True)  # empty, no files
+    (root / "outputs").mkdir(parents=True)  # 空，没有文件
     (root / "src").mkdir()
     (root / "src" / "main.py").write_text("x = 1\n", encoding="utf-8")
 
@@ -2153,9 +2162,9 @@ def test_tar_gz_preserves_empty_directories(client, tmp_path):
 
 
 def test_tar_gz_multi_segment_exclude_does_not_cross_slash(client, tmp_path):
-    # A '*' in a multi-segment exclude must not cross '/' (gitignore semantics,
-    # matching git-delta). '*/secret.txt' drops a depth-2 match but keeps a
-    # deeper one.
+    # 多段排除中的“*”不得与“/'”交叉（gitignore 语义，匹配 git-delta）。 '*/secret.txt'
+    # 放弃了深度 2 的匹配，但保留了更深的匹配。
+    #
     root = tmp_path / "project"
     (root / "a").mkdir(parents=True)
     (root / "a" / "secret.txt").write_text("drop\n", encoding="utf-8")
@@ -2178,7 +2187,7 @@ def test_tar_gz_multi_segment_exclude_does_not_cross_slash(client, tmp_path):
 
 
 def test_exact_size_reader_pads_short_and_caps_long():
-    """_ExactSizeReader yields EXACTLY the declared size: pad short, cap long."""
+    """_ExactSizeReader 产生 EXACTLY 声明的大小：pad 短，cap 长。"""
     reader = file_router_module._ExactSizeReader
     short = reader(io.BytesIO(b"abc"), 5)
     chunks = []
@@ -2191,19 +2200,19 @@ def test_exact_size_reader_pads_short_and_caps_long():
 
 
 def test_tar_stream_stays_aligned_when_source_shrinks(tmp_path):
-    """A file truncated mid-add must not corrupt the rest of the tar stream.
+    """在添加过程中截断的文件不得损坏 tar 流的 REST。
 
-    Regression for the catch-OSError-and-continue bug: tar.addfile writes the
-    header (declared size) before copying the body, so a short read used to
-    desync every following member and silently ship a corrupt archive.
-    _ExactSizeReader pads the short source so the bytes written always match the
-    header and the archive stays fully readable.
+    回归在捕获OSError-并继续的 bug： tar.addfile 在复制主体之前写入头部（声明的大小）
+    ，因此，短读取会破坏每个后续成员，默默地发送一个损坏的归档
+    。_ExactSizeReader 会填充源短，确保写入的字节与头部和归档保持一致，从而保持完全可
+    读。
     """
     out = tmp_path / "a.tar.gz"
     body2 = b"second member intact"
     with tarfile.open(out, "w:gz") as tar:
-        # Member one: header claims 10 bytes but the source only yields 3 (a file
-        # truncated after its size was taken). The reader pads to 10.
+        # 成员一：标头声称有 10 个字节，但源仅产生 3 个字节（文件在获取其大小后被截断）
+        # 。 读者将其填充到 10。
+        #
         info1 = tarfile.TarInfo("one")
         info1.size = 10
         tar.addfile(info1, file_router_module._ExactSizeReader(io.BytesIO(b"abc"), 10))
@@ -2212,7 +2221,7 @@ def test_tar_stream_stays_aligned_when_source_shrinks(tmp_path):
         tar.addfile(
             info2, file_router_module._ExactSizeReader(io.BytesIO(body2), len(body2))
         )
-    # Full readback must succeed (no ReadError) and member two must be intact.
+    # 完整读回必须成功（无 ReadError）并且成员 2 必须完好无损。
     with tarfile.open(out, "r:gz") as tar:
         assert tar.getnames() == ["one", "two"]
         member_two = tar.extractfile("two")
@@ -2224,12 +2233,12 @@ def test_tar_stream_stays_aligned_when_source_shrinks(tmp_path):
 
 
 def test_git_delta_dir_only_exclude_keeps_same_named_file(client, tmp_path):
-    """A 'build/' default exclude drops the build/ dir but KEEPS a file named
-    'build' — git-delta must match the tar.gz dir-only carve-out."""
+    """“build/”默认排除会删除 build/ 目录，但 KEEPS 名为的文件
+    'build' - git-delta 必须与仅 tar.gz 目录的剥离相匹配。"""
     root = tmp_path / "repo"
     root.mkdir()
     _git(["init"], root)
-    # A regular file literally named 'build' must be KEPT...
+    # 字面上名为“build”的常规文件必须是 KEPT...
     (root / "build").write_text("authored marker\n", encoding="utf-8")
     # ...while an actual build/ directory (the default 'build/' exclude) is dropped.
     (root / "sub" / "build").mkdir(parents=True)
@@ -2241,6 +2250,6 @@ def test_git_delta_dir_only_exclude_keeps_same_named_file(client, tmp_path):
 
     assert resp.status_code == 200, resp.text
     patch = resp.content.decode("utf-8")
-    assert "diff --git a/build b/build" in patch  # the file is kept
+    assert "diff --git a/build b/build" in patch  # 文件被保留
     assert "authored marker" in patch
-    assert "sub/build/out.o" not in patch  # the directory is excluded
+    assert "sub/build/out.o" not in patch  # 该目录被排除

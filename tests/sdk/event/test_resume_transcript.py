@@ -1,4 +1,4 @@
-"""Tests for openhands.sdk.event.resume_transcript."""
+"""测试 openhands.sdk.event.resume_transcript。"""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class TestRenderResumeTranscript:
         assert render_resume_transcript([]) is None
 
     def test_only_irrelevant_events_returns_none(self) -> None:
-        # Placeholder tool events with no input/output/error are skipped.
+        # 没有输入/输出/错误的占位符工具事件将被跳过。
         placeholder = _tool("tc-1", raw_input=None, raw_output=None)
         assert render_resume_transcript([placeholder]) is None
 
@@ -128,8 +128,8 @@ class TestRenderResumeTranscript:
         assert "[AGENT]: All done." in out
 
     def test_deduplicates_tool_events_by_id(self) -> None:
-        # Three streamed events for the same tool_call_id — only the terminal
-        # event (with raw_output) should be rendered.
+        # 同一 tool_call_id 的三个流事件 — 只应渲染终端事件（带有 raw_output）。
+        #
         pending = _tool("tc-1", title="bash", status="pending", raw_input={"c": 1})
         progress = _tool("tc-1", title="bash", status="in_progress", raw_input={"c": 1})
         completed = _tool(
@@ -146,9 +146,10 @@ class TestRenderResumeTranscript:
         assert "ok" in out
 
     def test_started_then_terminal_renders_only_terminal(self) -> None:
-        # The source now persists exactly two events per call: an early
-        # ``started`` (in_progress) event and one terminal event. The transcript
-        # must keep only the terminal one — it carries the final I/O.
+        # 源现在每次调用都保留两个事件：早期
+        # ``started`` in_progress 事件和一个终端事件。 转录本必须只保留最后一个——它携带
+        # 最终的 I/O。
+        #
         started = _tool("tc-1", title="bash", status="in_progress", raw_input={"c": 1})
         terminal = _tool(
             "tc-1",
@@ -164,8 +165,9 @@ class TestRenderResumeTranscript:
         assert "final output" in out
 
     def test_cross_session_same_id_both_render(self) -> None:
-        # ACP providers like Codex reset tool_call_id counters each session.
-        # A user message between two events with the same id means they come
+        # ACP 像 Codex 重置 tool_call_id 这样的提供商会对每个会话进行计数器。 具有相同
+        # id 的两个事件之间的用户消息意味着它们来了
+        #
         # from different sessions — both must render, not just the latest.
         session_1 = _tool(
             "exec_1",
@@ -173,26 +175,26 @@ class TestRenderResumeTranscript:
             raw_input={"command": "pytest"},
             raw_output="5 passed",
         )
-        boundary = _user("please continue")  # session boundary
+        boundary = _user("please continue")  # 会话边界
         session_2 = _tool(
-            "exec_1",  # same id, new session
+            "exec_1",  # 相同的 ID，新会话
             title="bash",
             raw_input={"command": "ls"},
             raw_output="file.txt",
         )
         out = render_resume_transcript([session_1, boundary, session_2])
         assert out is not None
-        # Both sessions render (not just the last).
+        # 两个会话都会渲染（不仅仅是最后一个）。
         assert out.count("[TOOL USE: bash]") == 2
         assert "5 passed" in out
         assert "file.txt" in out
 
     def test_cross_session_dedup_within_session_still_collapses(self) -> None:
-        # Within one session, pending→completed for the same id still
-        # collapses to the terminal event.
+        # 在一个会话中，同一 id 的待定→已完成仍然会折叠为终止事件。
+        #
         pending = _tool("exec_1", title="bash", status="pending")
         completed = _tool("exec_1", title="bash", raw_output="ok", status="completed")
-        # Note: no MessageEvent between them — same session.
+        # 注意：它们之间没有 MessageEvent — 同一会话。
         out = render_resume_transcript([pending, completed])
         assert out is not None
         assert out.count("[TOOL USE: bash]") == 1
@@ -214,9 +216,9 @@ class TestRenderResumeTranscript:
         assert idx_user < idx_tool < idx_assistant < idx_agent
 
     def test_max_chars_keeps_footer_when_tight(self) -> None:
-        # ``max_chars`` so tight that even header+footer can't fit alone:
-        # the tail-truncate fallback preserves the end of the transcript,
-        # which is the footer (and the freshest event content just above it).
+        # ``max_chars`` 宽度如此之窄，以至于连头和尾页都不能单独容纳：尾部截断回退方案保
+        # 留了转录的结尾，这是尾页（以及上面的最新事件内容）。
+        #
         events = [_user("x" * 5000)]
         out = render_resume_transcript(events, max_chars=200)
         assert out is not None
@@ -224,9 +226,9 @@ class TestRenderResumeTranscript:
         assert out.endswith(DEFAULT_FOOTER)
 
     def test_max_chars_preserves_header_footer_and_newest_event(self) -> None:
-        # With a budget large enough to hold the marker, header body, footer,
-        # and a chunk of body, the marker stays at the top, the footer at the
-        # bottom, and the BODY is head-truncated so the latest events survive.
+        # 用足够大的预算容纳标记、头部、尾部和一段内容，标记位于顶部，尾部位于底部， 一
+        # 段内容位于底部 BODY  是头截断的，所以最新的事件存活。
+        #
         events = [
             _user("OLD first turn " + "o" * 500),
             _assistant("OLD assistant reply " + "o" * 500),
@@ -237,15 +239,15 @@ class TestRenderResumeTranscript:
         assert len(out) <= 500
         assert out.startswith(RESUME_CONTEXT_MARKER)
         assert out.endswith(DEFAULT_FOOTER)
-        # The latest event must survive intact.
+        # 最新事件必须完好无损。
         assert "NEW most recent turn" in out
-        # The oldest turn should be dropped, with a "..." cut marker present.
+        # 最旧的转弯应被丢弃，并带有“...”剪切标记。
         assert "OLD first turn" not in out
         assert "..." in out
 
     @pytest.mark.parametrize("max_chars", [50, 100, 500])
     def test_max_chars_strictly_bounds_output(self, max_chars: int) -> None:
-        # For budgets >= len(marker), output must be non-None with length <= max_chars.
+        # 对于预算 >= len(marker)，输出必须是非 None，且长度 <= max_chars。
         events = [_user("hello"), _assistant("world")]
         out = render_resume_transcript(events, max_chars=max_chars)
         assert out is not None
@@ -253,19 +255,20 @@ class TestRenderResumeTranscript:
 
     @pytest.mark.parametrize("max_chars", [0, 1, 10, 23])
     def test_max_chars_below_marker_length_returns_none(self, max_chars: int) -> None:
-        # A budget below len(RESUME_CONTEXT_MARKER) (24 chars) cannot fit the
-        # complete marker. Returning a partial marker would bypass the
-        # double-resume guard (callers check out.startswith(RESUME_CONTEXT_MARKER)),
-        # so None is returned instead so callers treat it as a fresh conversation.
+        # 低于 len(RESUME_CONTEXT_MARKER)（24 个字符）的预算无法容纳完整的标记。 返回部
+        # 分标记会绕过双重恢复检查（调用者检查 out.startswith(RESUME_CONTEXT_MARKER)），
+        # 因此返回 None，调用者将其视为新的对话。
+        #
         assert render_resume_transcript([_user("hello")], max_chars=max_chars) is None
 
     @pytest.mark.parametrize("max_chars", [24, 30, 200])
     def test_tight_budget_output_starts_with_complete_marker(
         self, max_chars: int
     ) -> None:
-        # For any budget >= len(marker), even a very tight cap returns a
-        # transcript that starts with the full, untruncated marker so callers
-        # can reliably detect a resume and the double-resume guard works.
+        # 对于任何预算 >= len(marker)，即使是非常严格的上限，也会返回一个以完整、未截断
+        # 的标记开始的转录，这样用户可以可靠地检测到暂停，并且双暂停保护机制可以正常工作
+        # 。
+        #
         events = [_user("x" * 5000)]
         out = render_resume_transcript(events, max_chars=max_chars)
         assert out is not None
@@ -274,8 +277,8 @@ class TestRenderResumeTranscript:
 
     @pytest.mark.parametrize("cap", [0, 1, 2, 3, 4, 50])
     def test_max_message_chars_strictly_bounds_text(self, cap: int) -> None:
-        # The text portion of the message line (after "[USER]: ") must be
-        # ≤ cap characters regardless of how small ``cap`` is.
+        # 消息行的文本部分（在“[USER]:”之后）必须≤大写字符，无论 ``cap`` 有多小。
+        #
         events = [_user("x" * 500)]
         out = render_resume_transcript(events, max_message_chars=cap)
         assert out is not None
@@ -284,8 +287,9 @@ class TestRenderResumeTranscript:
         assert len(text_portion) <= cap
 
     def test_max_tool_chars_zero_skips_tool_block(self) -> None:
-        # With ``max_tool_chars=0`` the rendered tool block becomes "" and
-        # is dropped — non-tool events still render.
+        # 使用 ``max_tool_chars=0`` 时，渲染的工具块将变为“”并被删除 — 非工具事件仍会渲
+        # 染。
+        #
         events = [
             _user("hi"),
             _tool("tc-1", title="bash", raw_input={"command": "ls"}),
@@ -296,10 +300,10 @@ class TestRenderResumeTranscript:
         assert "[TOOL USE:" not in out
 
     def test_content_only_tool_event_is_rendered(self) -> None:
-        # A tool event whose only payload is structured ``content`` (no
-        # ``raw_input``/``raw_output``/``is_error``) must not be filtered
-        # out as a placeholder. ACP servers such as Codex and Gemini emit
-        # the diff or terminal data via ``content`` rather than raw I/O.
+        # 工具事件，其唯一的载荷是结构化的 ``content``（无
+        # ``raw_input``/``raw_output``/``is_error``) 必须不能被过滤为占位符。 ACP 服务器
+        # （例如 Codex 和 Gemini）通过 ``content`` 而不是原始 I/O 发出差异或终端数据。
+        #
         event = _tool(
             "tc-1",
             title="edit",
@@ -319,8 +323,8 @@ class TestRenderResumeTranscript:
         assert "[diff patch] /workspace/app.py" in out
 
     def test_content_only_tool_event_camelcase_diff(self) -> None:
-        # Same as above with JSON wire keys — content-only rendering must
-        # accept ``oldText`` / ``newText`` aliases.
+        # 与上面的 JSON 线键相同 - 仅内容渲染必须接受 ``oldText`` / ``newText`` 别名。
+        #
         event = _tool(
             "tc-1",
             title="Edit",
@@ -338,8 +342,9 @@ class TestRenderResumeTranscript:
         assert "[diff patch] /workspace/app.py" in out
 
     def test_content_only_write_block_labelled_as_write(self) -> None:
-        # A diff block without ``old_text`` is a full-file write, not a
-        # patch; the rendered line reflects that.
+        # 没有 ``old_text`` 的 diff 块是完整文件写入，而不是补丁； 渲染的线反映了这一点
+        # 。
+        #
         event = _tool(
             "tc-1",
             title="write",
@@ -357,10 +362,11 @@ class TestRenderResumeTranscript:
         assert "[diff write] /workspace/new.py" in out
 
     def test_direct_text_block_renders_verbatim(self) -> None:
-        # ``_serialize_tool_content`` preserves direct ``{type: "text",
-        # text: "..."}`` ContentBlocks at the top level (without the
-        # ``{type: "content"}`` wrapper). Their text must be rendered, not
-        # squashed to ``[text]``.
+        # ``_serialize_tool_content`` 保留直接 ``{type: "text",
+        # text: "..."}`` ContentBlocks 在顶层（没有
+        # ``{type: "content"}`` 包装）。 它们的文本必须被渲染，而不是被压缩到``[text]``
+        # 。
+        #
         event = _tool(
             "tc-1",
             title="search",
@@ -385,9 +391,9 @@ class TestRenderResumeTranscript:
 
     @pytest.mark.parametrize("falsey_output", [0, False, ""])
     def test_falsey_raw_output_is_rendered(self, falsey_output: object) -> None:
-        # Tools can legitimately return falsey scalars: ``0`` from a shell
-        # exit code, ``False`` from a boolean predicate, ``""`` from a
-        # silent command. None of these are placeholders.
+        # 工具可以合法地返回错误标量：``0`` 来自 shell 退出代码，``False`` 来自布尔谓词
+        # ，``""`` 来自静默命令。 None 其中是占位符。
+        #
         event = _tool(
             "tc-1",
             title="cmd",
@@ -400,8 +406,9 @@ class TestRenderResumeTranscript:
         assert str(falsey_output) in out
 
     def test_falsey_raw_output_only_is_not_a_placeholder(self) -> None:
-        # ``raw_output=0`` is a valid completion; even without ``raw_input``
-        # the event should render rather than being dropped.
+        # ``raw_output=0`` 是有效的完成； 即使没有 ``raw_input``，事件也应该呈现而不是被
+        # 丢弃。
+        #
         event = _tool("tc-1", title="cmd", raw_output=0)
         out = render_resume_transcript([event])
         assert out is not None
@@ -409,9 +416,9 @@ class TestRenderResumeTranscript:
         assert "output:" in out
 
     def test_content_text_block_renders_inline(self) -> None:
-        # ToolCallContent {type: "content", content: {type: "text", ...}}
-        # is the ACP wrapper around generic ContentBlock variants. Text
-        # content should appear inline under "content:".
+        # ToolCallContent {type: "content", content: {type: "text", ...}} 是通用
+        # ContentBlock 变体的 ACP 包装器。 文本内容应内联显示在“内容：”下。
+        #
         event = _tool(
             "tc-1",
             title="search",
@@ -437,14 +444,15 @@ class TestRenderResumeTranscript:
         assert "[terminal term-abc]" in out
 
     def test_placeholder_with_empty_content_still_skipped(self) -> None:
-        # A pending event with no input, no output, no error, and an empty
-        # content list is still a placeholder and should be dropped.
+        # 没有输入、没有输出、没有错误且内容列表为空的待处理事件仍然是占位符，应将其删除
+        # 。
+        #
         event = _tool("tc-1", content=[])
         assert render_resume_transcript([event]) is None
 
     def test_content_rendered_alongside_raw_io(self) -> None:
-        # When both content and raw I/O are present, both render (no
-        # information lost).
+        # 当内容和原始 I/O 都存在时，两者都会呈现（不会丢失信息）。
+        #
         event = _tool(
             "tc-1",
             title="edit",
@@ -462,10 +470,10 @@ class TestRenderResumeTranscript:
         assert "[diff patch] /foo" in out
 
     def test_extended_content_is_included(self) -> None:
-        # ``MessageEvent.extended_content`` (AgentContext / hook-provided
-        # per-turn context) is folded in by ``to_llm_message()`` and ACP sees
-        # it as part of the turn. The transcript must include it so the
-        # resumed agent has the same context.
+        # ``MessageEvent.extended_content``（AgentContext/每回合提供的钩子上下文）被
+        # ``to_llm_message()``折叠，ACP将其视为回合的一部分。 成绩单必须包含它，以便恢复
+        # 的智能体具有相同的上下文。
+        #
         event = MessageEvent(
             source="user",
             llm_message=Message(
@@ -484,7 +492,7 @@ class TestRenderResumeTranscript:
         assert out is not None
         user_line = next(ln for ln in out.splitlines() if ln.startswith("[USER]"))
         assert user_line.endswith("...")
-        # text portion (after "[USER]: ") capped at max_message_chars.
+        # 文本部分（“[USER]:”之后）上限为 max_message_chars。
         assert len(user_line) - len("[USER]: ") <= 100
 
     def test_max_tool_chars_truncates_tool_block(self) -> None:
@@ -495,8 +503,9 @@ class TestRenderResumeTranscript:
         )
         out = render_resume_transcript([event], max_tool_chars=120)
         assert out is not None
-        # Recover the rendered tool block from the body (between header and
-        # footer) and verify the whole block is bounded by max_tool_chars.
+        # 从主体（页眉和页脚之间）恢复渲染的工具块，并验证整个块以 max_tool_chars 为边界
+        # 。
+        #
         body_start = out.index("[TOOL USE:")
         body_end = out.index(DEFAULT_FOOTER)
         tool_block = out[body_start:body_end].strip()
@@ -504,8 +513,9 @@ class TestRenderResumeTranscript:
         assert len(tool_block) <= 120
 
     def test_image_content_renders_as_placeholder(self) -> None:
-        # ImageContent → "[Image: N URLs]" via content_to_str. Test that the
-        # renderer doesn't crash and produces a labelled line.
+        # ImageContent → "[Image: N URLs]" via content_to_str. 测试渲染器不会崩溃并生成
+        # 标记线。
+        #
         event = MessageEvent(
             source="user",
             llm_message=Message(
@@ -522,8 +532,8 @@ class TestRenderResumeTranscript:
         assert "[Image:" in out
 
     def test_empty_message_content_is_skipped(self) -> None:
-        # A MessageEvent whose content renders to empty text should not
-        # produce a stray "[USER]: " line.
+        # 内容呈现为空文本的 MessageEvent 不应产生杂散的“[USER]:”行。
+        #
         event = MessageEvent(
             source="user",
             llm_message=Message(role="user", content=[TextContent(text="   ")]),
@@ -531,8 +541,9 @@ class TestRenderResumeTranscript:
         assert render_resume_transcript([event]) is None
 
     def test_unknown_event_types_are_ignored(self) -> None:
-        # Mix a MessageEvent with a "non-renderable" event — here, an
-        # ActionEvent whose action is None (no message field).
+        # 将 MessageEvent 与“不可渲染”事件混合 — 此处，ActionEvent 的操作为 None（无消息
+        # 字段）。
+        #
         action_event = ActionEvent(
             source="agent",
             thought=[TextContent(text="thinking")],
@@ -567,7 +578,7 @@ class TestRenderResumeTranscript:
         lines = out.splitlines()
         assert lines[0] == RESUME_CONTEXT_MARKER
         assert lines[1] == ""
-        # Next non-blank line is the user turn, not header body text.
+        # 下一个非空行是用户轮流，而不是标题正文文本。
         assert lines[2].startswith("[USER]")
 
 
@@ -614,9 +625,9 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is False
 
     def test_dict_content_with_old_text_is_patch(self) -> None:
-        # Persisted ACP events store content blocks as plain dicts (via
-        # ``_serialize_tool_content`` → ``model_dump``). The property must
-        # handle both attribute and dict access.
+        # 已持久化 ACP 事件将内容块存储为普通字典（通过
+        # ``_serialize_tool_content`` → ``model_dump``). 该属性必须处理属性和字典访问。
+        #
         ev = _tool(
             "tc-1",
             content=[{"type": "diff", "old_text": "before", "new_text": "after"}],
@@ -631,9 +642,10 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is False
 
     def test_model_validate_dict_content_classifies_correctly(self) -> None:
-        # Regression for the QA reviewer's failure case: an event reconstructed
-        # via ``model_validate`` from a JSON-shaped payload keeps ``content[0]``
-        # as a dict, and ``is_patch_edit`` must still classify it correctly.
+        # 回归覆盖了 QA 审查者发现的失败场景：通过 ``model_validate`` 从 JSON 结构的载荷
+        # 重建事件时，``content[0]`` 会保留为字典，而 ``is_patch_edit`` 仍必须正确地对其
+        # 分类。
+        #
         ev = ACPToolCallEvent.model_validate(
             {
                 "tool_call_id": "validated-diff",
@@ -652,20 +664,20 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is True
 
     def test_raw_input_only_new_string_is_not_patch(self) -> None:
-        # A Write/create payload may carry only ``new_string`` — that's not
-        # a patch edit, it's a full-file write.
+        # 写入/创建载荷可能只携带 ``new_string`` — 这不是补丁编辑，而是完整文件写入。
+        #
         ev = _tool("tc-1", raw_input={"new_string": "whole file", "file_path": "/a"})
         assert ev.is_patch_edit is False
 
     def test_raw_input_empty_old_string_is_not_patch(self) -> None:
-        # An empty ``old_string`` has nothing to patch — it's effectively a
-        # create.
+        # 空的 ``old_string`` 没有什么可修补的——它实际上是一个创建。
+        #
         ev = _tool("tc-1", raw_input={"old_string": "", "new_string": "y"})
         assert ev.is_patch_edit is False
 
     def test_diff_content_takes_precedence_over_raw_input(self) -> None:
-        # If both signals are present, the structured ACP content block
-        # wins — it's the protocol-level source of truth.
+        # 如果两个信号都存在，则结构化 ACP 内容块获胜 - 它是协议级事实来源。
+        #
         ev = _tool(
             "tc-1",
             content=[{"type": "diff", "old_text": None, "new_text": "x"}],
@@ -674,9 +686,10 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is False
 
     def test_camel_case_oldText_alias_classifies_as_patch(self) -> None:
-        # ACP's JSON wire format uses camelCase: ``oldText`` / ``newText``.
-        # When events arrive from an external API or websocket frame the
-        # dict keys keep that shape because ``content`` is ``list[Any]``.
+        # ACP 的 JSON 有线格式使用 camelCase: ``oldText`` / ``newText``。 当事件从外部
+        # API 或 WebSocket 框架到达时，字典键保持该形状，因为 ``content`` 是
+        # ``list[Any]``。
+        #
         ev = _tool(
             "tc-1",
             content=[{"type": "diff", "oldText": "before", "newText": "after"}],
@@ -691,9 +704,9 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is False
 
     def test_diff_block_after_other_blocks_is_found(self) -> None:
-        # ACP content is a list of variants in any order — a text or
-        # terminal block can precede the diff. ``is_patch_edit`` must scan
-        # the whole list rather than only checking ``content[0]``.
+        # ACP 内容是任意顺序的变体列表 - 文本或端子块可以位于差异之前。
+        # ``is_patch_edit`` 必须扫描整个列表，而不是仅检查 ``content[0]``。
+        #
         ev = _tool(
             "tc-1",
             content=[
@@ -704,10 +717,9 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is True
 
     def test_any_diff_block_with_old_text_is_patch(self) -> None:
-        # A multi-file tool call can include a write (``oldText=None``)
-        # alongside a patch (``oldText`` set). If *any* diff is a patch,
-        # the event is a patch edit; only an all-writes set classifies as
-        # a write.
+        # 多文件工具调用可以包含写入 (``oldText=None``) 和补丁 (``oldText`` 集)。 如果 *
+        # any* diff 是补丁，则该事件是补丁编辑； 只有全写集才被归类为写。
+        #
         ev_patch_then_write = _tool(
             "tc-1",
             content=[
@@ -737,9 +749,9 @@ class TestIsPatchEdit:
         assert ev.is_patch_edit is False
 
     def test_diff_content_blocks_never_fall_back_to_raw_input(self) -> None:
-        # Structured ACP content is authoritative. When all diff blocks are
-        # writes the event must classify as a write even if ``raw_input``
-        # would otherwise trigger the patch fallback.
+        # 结构化ACP内容具有权威性。 当所有 diff 块都被写入时，即使 ``raw_input`` 会触发
+        # 补丁回退方案，事件也必须归类为写入。
+        #
         ev = _tool(
             "tc-1",
             content=[{"type": "diff", "old_text": None, "new_text": "create"}],
@@ -763,7 +775,7 @@ def test_role_labelling(role: str, label: str) -> None:
 
 
 def test_action_event_message_property_and_custom_action_transcript() -> None:
-    """ActionEvent exposes transcript message from FinishAction and custom actions."""
+    """ActionEvent 公开来自 FinishAction 的转录消息和自定义操作。"""
     finish_action = FinishAction(message="Task finished successfully.")
     event_with_finish = ActionEvent(
         source="agent",

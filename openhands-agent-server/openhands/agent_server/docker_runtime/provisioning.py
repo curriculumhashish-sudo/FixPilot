@@ -1,4 +1,4 @@
-"""Persist the credentials owned by one conversation container."""
+"""持久化凭据由一个对话容器拥有。"""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ class RuntimeProvisioningStore:
         return resolved
 
     def load_optional(self, conversation_id: UUID) -> RuntimeIdentity | None:
-        """Load an identity, returning ``None`` only when it does not exist."""
+        """加载一个身份，仅当它不存在时返回``None``。"""
         path = self.manifest_path(conversation_id)
         try:
             manifest_stat = path.lstat()

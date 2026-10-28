@@ -1,32 +1,31 @@
-"""Example: Using custom tools with remote agent server.
+"""Example: 使用带有远程功能的自定义工具 Agent Server。
 
-This example demonstrates how to use custom tools with a remote agent server
-by building a custom base image that includes the tool implementation and
-exposes it to the binary agent server through ``OH_EXTRA_PYTHON_PATH``.
+本示例展示了如何使用自定义工具与远程 Agent Server 通过构建包含工具实现的自定义基础镜
+像，并通过 ``OH_EXTRA_PYTHON_PATH`` 将其暴露给二
+进制 Agent Server。
 
-Prerequisites:
-    1. Build the custom base image first:
+先决条件：
+    1. 首先构建自定义基础镜像：
        cd examples/02_remote_agent_server/06_custom_tool
        ./build_custom_image.sh
 
-    2. Set LLM_API_KEY environment variable
+    2. 设置 LLM_API_KEY 环境变量
 
-The workflow is:
-1. Define a custom tool (LogDataTool for logging structured data to JSON)
-2. Create a simple Dockerfile that copies the tool into the base image
-3. Set OH_EXTRA_PYTHON_PATH so the binary server can import the custom tool
-4. Build the custom base image
-5. Use DockerDevWorkspace with base_image pointing to the custom image
-6. DockerDevWorkspace builds the binary agent server on top of the custom
-   base image
-7. The server dynamically registers tools when the client creates a conversation
-8. The agent can use the custom tool during execution
-9. Verify the logged data by reading the JSON file from the workspace
+工作流程是：
+1. 定义自定义工具（LogDataTool 用于将结构化数据记录到 JSON）
+2. 创建一个简单的 Dockerfile，将该工具复制到基础映像中
+3. 设置 OH_EXTRA_PYTHON_PATH 以便二进制服务器可以导入自定义工具
+4. 构建自定义基础镜像
+5. 使用 DockerDevWorkspace 和 base_image 指向自定义图像
+6. DockerDevWorkspace 在自定义基础镜像之上构建二进制文件 Agent Server
+7. 当客户端创建会话时，服务器动态注册工具
+8. 智能体可以在执行过程中使用自定义工具
+9. 通过从工作区读取 JSON 文件来验证记录的数据
 
-This pattern is useful for:
-- Collecting structured data during agent runs (logs, metrics, events)
-- Implementing custom integrations with external systems
-- Adding domain-specific operations to the agent
+该模式适用于：
+- 在智能体次运行期间收集结构化数据（日志、指标、事件）
+- 实施与外部系统的自定义集成
+- 将特定于域的操作添加到智能体
 """
 
 import os
@@ -50,7 +49,7 @@ from openhands.workspace import DockerDevWorkspace
 
 logger = get_logger(__name__)
 
-# 1) Ensure we have LLM API key
+# 1) 确保我们有 LLM API 键
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 
@@ -63,20 +62,20 @@ llm = LLM(
 
 
 def detect_platform():
-    """Detects the correct Docker platform string."""
+    """检测正确的 Docker 平台字符串。"""
     machine = platform.machine().lower()
     if "arm" in machine or "aarch64" in machine:
         return "linux/arm64"
     return "linux/amd64"
 
 
-# Get the directory containing this script
+# 获取包含该脚本的目录
 example_dir = Path(__file__).parent.absolute()
 
-# Custom base image tag (contains custom tools, agent server built on top)
+# 自定义基本图像标签（包含自定义工具，Agent Server构建在顶部）
 CUSTOM_BASE_IMAGE_TAG = "custom-base-image:latest"
 
-# 2) Check if custom base image exists, build if not
+# 2) 检查自定义基础镜像是否存在，如果不存在则构建
 logger.info(f"🔍 Checking for custom base image: {CUSTOM_BASE_IMAGE_TAG}")
 result = subprocess.run(
     ["docker", "images", "-q", CUSTOM_BASE_IMAGE_TAG],
@@ -103,9 +102,9 @@ if not result.stdout.strip():
 else:
     logger.info(f"✅ Custom base image found: {CUSTOM_BASE_IMAGE_TAG}")
 
-# 3) Create a DockerDevWorkspace with the custom base image
-#    DockerDevWorkspace will build the binary agent server on top of this
-#    base image
+# 3) 使用自定义基础映像 DockerDevWorkspace 创建 DockerDevWorkspace 将在此基础映像之上构
+# 建二进制文件 Agent Server
+#
 logger.info("🚀 Building and starting binary agent server with custom tools...")
 logger.info("📦 This may take a few minutes on first run...")
 
@@ -113,25 +112,26 @@ with DockerDevWorkspace(
     base_image=CUSTOM_BASE_IMAGE_TAG,
     host_port=8011,
     platform=detect_platform(),
-    # The custom base image sets OH_EXTRA_PYTHON_PATH=/app so the binary
-    # agent server can import custom_tools.log_data from outside the bundle.
+    # 自定义基础映像设置 OH_EXTRA_PYTHON_PATH=/app，因此二进制文件 Agent Server 可以从包
+    # 外部导入 custom_tools.log_data。
+    #
     target="binary",
 ) as workspace:
     logger.info("✅ Custom agent server started!")
 
-    # 4) Import custom tools to register them in the client's registry
-    #    This allows the client to send the module qualname to the server
-    #    The server will then import the same module and execute the tool
+    # 4) 将自定义工具导入客户端的注册表，这允许客户端将模块名称发送给服务器。服务器将导
+    # 入相同的模块并执行工具
+    #
     import custom_tools.log_data  # noqa: F401
 
-    # 5) Create agent with custom tools
-    #    Note: We specify the tool here, but it's actually executed on the server
-    #    Get default tools and add our custom tool
+    # 5) 使用自定义工具创建智能体
+    #    注意：我们在这里指定了工具，但它实际上是在服务器上执行的
+    #    获取默认工具并添加我们的自定义工具
     from openhands.sdk import Agent
     from openhands.tools.preset.default import get_default_condenser, get_default_tools
 
     tools = get_default_tools(enable_browser=False)
-    # Add our custom tool!
+    # 添加我们的自定义工具！
     tools.append(Tool(name="LogDataTool"))
 
     agent = Agent(
@@ -143,7 +143,7 @@ with DockerDevWorkspace(
         ),
     )
 
-    # 6) Set up callback collection
+    # 6) 设置回调个集合
     received_events: list = []
     last_event_time = {"ts": time.time()}
 
@@ -153,7 +153,7 @@ with DockerDevWorkspace(
         received_events.append(event)
         last_event_time["ts"] = time.time()
 
-    # 7) Test the workspace with a simple command
+    # 7) 使用简单的命令测试工作区
     result = workspace.execute_command(
         "echo 'Custom agent server ready!' && python --version"
     )
@@ -162,7 +162,7 @@ with DockerDevWorkspace(
     )
     logger.info(f"Output: {result.stdout}")
 
-    # 8) Create conversation with the custom agent
+    # 8) 与自定义创建对话智能体
     conversation = Conversation(
         agent=agent,
         workspace=workspace,
@@ -189,17 +189,17 @@ with DockerDevWorkspace(
         logger.info("✅ Task completed!")
         logger.info(f"Agent status: {conversation.state.execution_status}")
 
-        # Wait for events to settle (no events for 2 seconds)
+        # 等待事件稳定（2 秒内没有事件）
         logger.info("⏳ Waiting for events to stop...")
         while time.time() - last_event_time["ts"] < 2.0:
             time.sleep(0.1)
         logger.info("✅ Events have stopped")
 
-        # 9) Read the logged data from the JSON file using file_download API
+        # 9) 使用 file_download API 从 JSON 文件读取记录的数据
         logger.info("\n📊 Logged Data Summary:")
         logger.info("=" * 80)
 
-        # Download the log file from the workspace using the file download API
+        # 使用文件下载 API 从工作区下载日志文件
         import json
         import tempfile
 
@@ -231,7 +231,7 @@ with DockerDevWorkspace(
                 with open(local_path) as f:
                     logger.info(f"Raw content: {f.read()}")
             finally:
-                # Clean up the temporary file
+                # 清理临时文件
                 Path(local_path).unlink(missing_ok=True)
         else:
             logger.info("No log file found (agent may not have used the tool)")

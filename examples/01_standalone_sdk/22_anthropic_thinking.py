@@ -1,4 +1,4 @@
-"""Example demonstrating Anthropic's extended thinking feature with thinking blocks."""
+"""使用思维块演示 Anthropic 的扩展思维功能的示例。"""
 
 import os
 
@@ -17,7 +17,7 @@ from openhands.sdk.tool import Tool
 from openhands.tools.terminal import TerminalTool
 
 
-# Configure an Anthropic model with extended thinking.
+# 配置具有扩展思维的 Anthropic 模型。
 api_key = os.getenv("LLM_API_KEY")
 assert api_key is not None, "LLM_API_KEY environment variable is not set."
 model = os.getenv("LLM_MODEL")
@@ -34,11 +34,11 @@ llm = LLM(
     api_key=SecretStr(api_key),
 )
 
-# Setup agent with bash tool
+# 使用 bash 工具设置智能体
 agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name)])
 
 
-# Callback to display thinking blocks
+# 回调展示思维方块
 def show_thinking(event: Event):
     if isinstance(event, LLMConvertibleEvent):
         message = event.to_llm_message()
@@ -67,6 +67,6 @@ conversation.send_message(
 conversation.run()
 print("✅ Done!")
 
-# Report cost
+# 报告费用
 cost = llm.metrics.accumulated_cost
 print(f"EXAMPLE_COST: {cost}")

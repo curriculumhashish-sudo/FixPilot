@@ -1,4 +1,4 @@
-"""Tests for the --import-modules preloading and --extra-python-path helpers."""
+"""测试 --import-modules 预加载和 --extra-Python-path 帮助程序。"""
 
 import importlib
 import logging
@@ -60,14 +60,14 @@ class TestPreloadModules:
         ]
 
     def test_missing_module_raises(self):
-        # Follow project convention: don't swallow import errors.
+        # 遵循项目惯例：不要吞咽导入错误。
         with pytest.raises(ModuleNotFoundError):
             preload_modules("definitely_not_a_real_module_xyz_2771")
 
     @pytest.fixture
     def fake_tool_module(self, tmp_path, monkeypatch):
-        """Create an on-disk module whose top-level body has an observable
-        side effect (analogous to a `register_tool(...)` call)."""
+        """创建一个磁盘模块，其顶层主体有一个可观察的
+        副作用（类似于 `register_tool(...)` 调用）。"""
         pkg_name = "preload_modules_test_pkg"
         pkg = tmp_path / pkg_name
         pkg.mkdir()
@@ -89,25 +89,26 @@ class TestPreloadModules:
         sys.modules.pop(qualname, None)
 
     def test_module_side_effects_execute(self, fake_tool_module):
-        """With the flag: side effects land before conversations are served —
-        the race this flag exists to fix."""
+        """带有标志：副作用在对话开始之前就出现了——
+        该标志的存在是为了解决种族问题。"""
         preload_modules(fake_tool_module)
 
         imported = sys.modules[fake_tool_module]
         assert imported.REGISTRY == ["MyCustomTool"]
 
     def test_module_not_imported_without_flag(self, fake_tool_module):
-        """Contract companion: if `preload_modules` is not called (i.e. the
-        operator forgot `--import-modules`), the module stays unimported and
-        its `register_tool`-style side effects never run. This is exactly
-        the broken state the CLI flag exists to prevent."""
+        """合约伴侣：如果 `preload_modules` 没有被调用 (i.e. 的
+        操作员忘记了 `--import-modules`），该模块保持未导入状态，并且其
+        `register_tool` 样式的副作用永远不会运行。 这正是
+        CLI 标志所要防止的破坏状态。
+        """
         preload_modules(None)
 
         assert fake_tool_module not in sys.modules
 
     def test_import_error_is_logged_before_raising(self, caplog):
-        """Import failures should log the module name and error for
-        operator diagnostics before re-raising."""
+        """导入失败应记录模块名称和错误
+        重新提高之前操作员诊断。"""
         with caplog.at_level(logging.ERROR):
             with pytest.raises(ModuleNotFoundError):
                 preload_modules("no_such_module_xyz_2771")
@@ -119,8 +120,8 @@ class TestPreloadModules:
 
 
 class TestExtendPythonPath:
-    """Tests for extend_python_path() — the enabler for custom tool imports
-    in both source and binary (PyInstaller) agent-server builds."""
+    """测试 extend_python_path() — 自定义工具导入的推动者
+    在源代码和二进制 (PyInstaller) 智能体-服务器构建中。"""
 
     def test_none_and_no_env_is_noop(self, monkeypatch):
         monkeypatch.delenv(_EXTRA_PYTHON_PATH_ENV, raising=False)
@@ -203,8 +204,8 @@ class TestExtendPythonPath:
         sys.path.remove(str(d2))
 
     def test_enables_import_of_external_module(self, tmp_path, monkeypatch):
-        """End-to-end: extend_python_path + importlib.import_module works
-        for a .py file placed in the extra directory."""
+        """端到端：extend_python_path + importlib.import_module 有效
+        对于放置在额外目录中的 .py 文件。"""
         monkeypatch.delenv(_EXTRA_PYTHON_PATH_ENV, raising=False)
         d = tmp_path / "ext_tools"
         d.mkdir()
@@ -223,8 +224,8 @@ class TestExtendPythonPath:
             sys.modules.pop(mod_name, None)
 
     def test_enables_preload_modules_integration(self, tmp_path, monkeypatch):
-        """Confirm the intended workflow: extend_python_path() then
-        preload_modules() successfully imports an external tool module."""
+        """确认预期的工作流程：extend_python_path() 然后
+        preload_modules() 成功导入外部工具模块。"""
         monkeypatch.delenv(_EXTRA_PYTHON_PATH_ENV, raising=False)
         d = tmp_path / "integration_tools"
         d.mkdir()
@@ -260,11 +261,11 @@ def test_get_internal_server_url_brackets_ipv6_host():
 
 
 class TestMainCheckBrowserOrdering:
-    """Verify --check-browser runs independently of --import-modules."""
+    """验证 --check-browser 独立于 --import-modules 运行。"""
 
     def test_check_browser_exits_before_preload(self):
-        """--check-browser should short-circuit before preload_modules
-        runs, so a broken user module cannot mask the browser check."""
+        """--check-browser 应在 preload_modules 之前短路
+        运行，因此损坏的用户模块无法屏蔽浏览器检查。"""
         mock_result = MagicMock()
         mock_result.is_error = False
 
@@ -285,16 +286,16 @@ class TestMainCheckBrowserOrdering:
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
-            # Browser check succeeded → exit 0
+            # 浏览器检查成功→退出0
             assert exc_info.value.code == 0
-            # preload_modules must NOT have been called
+            # preload_modules 必须已调用不
             mock_preload.assert_not_called()
 
     def test_main_sets_internal_server_url(self, monkeypatch):
         monkeypatch.delenv("OH_INTERNAL_SERVER_URL", raising=False)
-        # An explicit wildcard bind requires auth to be enabled; set a key so
-        # the bind-host guard allows 0.0.0.0 and we still exercise the wildcard
-        # → loopback rewrite for the internal server URL.
+        # 显式通配符绑定需要启用身份验证； 设置一个密钥，以便绑定主机防护允许 0.0.0.0，
+        # 并且我们仍然对内部服务器 URL 执行通配符→环回重写。
+        #
         monkeypatch.setenv("SESSION_API_KEY", "test-key-for-internal-url")
 
         with (
@@ -314,7 +315,7 @@ class TestMainCheckBrowserOrdering:
 
 
 class TestMainBindHostGuard:
-    """The agent server must not bind all interfaces without authentication."""
+    """Agent Server 不得绑定所有没有身份验证的接口。"""
 
     def _no_key_env(self, monkeypatch, tmp_path):
         monkeypatch.delenv("SESSION_API_KEY", raising=False)
@@ -324,7 +325,7 @@ class TestMainBindHostGuard:
         monkeypatch.setenv("OPENHANDS_AGENT_SERVER_CONFIG_PATH", str(cfg))
 
     def test_default_host_is_loopback_without_key(self, monkeypatch, tmp_path):
-        """With no session API key, the default bind host is 127.0.0.1."""
+        """如果没有会话 API 密钥，则默认绑定主机为 127.0.0.1。"""
         self._no_key_env(monkeypatch, tmp_path)
         captured: dict = {}
 
@@ -349,7 +350,7 @@ class TestMainBindHostGuard:
         assert captured["host"] == "127.0.0.1"
 
     def test_default_host_is_wildcard_with_key(self, monkeypatch, tmp_path):
-        """With a session API key configured, the default bind host is 0.0.0.0."""
+        """配置会话 API 密钥后，默认绑定主机为 0.0.0.0。"""
         self._no_key_env(monkeypatch, tmp_path)
         monkeypatch.setenv("SESSION_API_KEY", "test-secret-123")
         captured: dict = {}
@@ -378,7 +379,7 @@ class TestMainBindHostGuard:
     def test_explicit_wildcard_warns_without_key(
         self, monkeypatch, tmp_path, wildcard, caplog
     ):
-        """An explicit --host <wildcard> without a key is allowed but warned."""
+        """允许使用没有密钥的显式 --host <wildcard>，但会发出警告。"""
         self._no_key_env(monkeypatch, tmp_path)
         captured: dict = {}
 
@@ -400,13 +401,13 @@ class TestMainBindHostGuard:
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
-        # Allowed (operator's explicit choice) but warned.
+        # 允许（操作员明确选择）但警告。
         assert exc_info.value.code == 0
         assert captured["host"] == wildcard
         assert any("without a session API key" in r.message for r in caplog.records)
 
     def test_explicit_wildcard_allowed_with_key(self, monkeypatch, tmp_path):
-        """An explicit --host 0.0.0.0 with a key is allowed."""
+        """允许使用带有密钥的显式 --host 0.0.0.0。"""
         self._no_key_env(monkeypatch, tmp_path)
         monkeypatch.setenv("SESSION_API_KEY", "test-secret-123")
         captured: dict = {}
@@ -432,7 +433,7 @@ class TestMainBindHostGuard:
         assert captured["host"] == "0.0.0.0"
 
     def test_explicit_loopback_allowed_without_key(self, monkeypatch, tmp_path):
-        """An explicit --host 127.0.0.1 without a key is allowed."""
+        """允许不带密钥的显式 --host 127.0.0.1。"""
         self._no_key_env(monkeypatch, tmp_path)
         captured: dict = {}
 
@@ -505,9 +506,9 @@ def test_auth_enabled_ignores_empty_env_key(monkeypatch, tmp_path):
 def test_main_ties_uvicorn_proxy_headers_to_trust_forwarded_headers(
     monkeypatch, tmp_path, config_json, expected
 ):
-    """uvicorn rewrites the request scheme from X-Forwarded-Proto only when
-    trust_forwarded_headers is on, so a client cannot change the origin the
-    Canvas bridge derives while it is off."""
+    """uvicorn 仅在以下情况下重写来自 X-Forwarded-Proto 的请求方案：
+    trust_forwarded_headers 打开，因此客户端无法更改 Canvas 桥在关闭时派生的原点。
+    """
     cfg = tmp_path / "config.json"
     cfg.write_text(config_json)
     monkeypatch.setenv("OPENHANDS_AGENT_SERVER_CONFIG_PATH", str(cfg))

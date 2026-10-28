@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """
-Benchmark: EventLog.append latency vs. conversation length.
+Benchmark: EventLog.append 延迟与延迟谈话长度。
 
-`bench_persist_latency.py` measures the lock-and-write path in isolation, which
-is flat by construction. This script measures the whole of `EventLog.append()`,
-including the multi-writer disk sync it performs while holding the lock, so any
-per-append cost that scales with the number of events already in the log shows
-up here.
+`bench_persist_latency.py` 衡量锁-单独写路径，这是平铺的。 这个脚本测量整个
+`EventLog.append()`包括多写入磁盘同步它在执行
+时保持锁因此，任何与日志中已有的事件数量成比例的附加成本都会显示在这里。
 
-Self-contained: it synthesizes events instead of replaying an evaluation run,
-so it needs no --eval-dir and runs in seconds.
+自包含：它合成事件而不是重播评估运行，因此它不需要 --eval-dir 并且在几秒钟内运行。
 
-Usage:
+用途：
     python bench_append_scaling.py [--events 4000] [--buckets 10]
 """
 
@@ -29,7 +26,7 @@ from openhands.sdk.io import LocalFileStore
 from openhands.sdk.llm import Message, TextContent
 
 
-# Median persisted event in the SWE-Bench traces is ~1.4KB (see README).
+# SWE-Bench 轨迹中的中值已持久化事件约为 1.4KB（请参阅 README）。
 PAYLOAD_BYTES = 1_400
 
 
@@ -44,7 +41,7 @@ def make_event(idx: int) -> MessageEvent:
 
 
 def measure_append_latencies(n_events: int) -> list[float]:
-    """Append `n_events` through the real EventLog path, timing each append."""
+    """通过真实的 EventLog 路径追加 `n_events`，对每个追加进行计时。"""
     tmpdir = tempfile.mkdtemp(prefix="bench_append_")
     try:
         fs = LocalFileStore(tmpdir, cache_limit_size=n_events + 100)

@@ -17,9 +17,8 @@ env:
     AGENT_SERVER_PORT: 8010
     HOST_WORKSPACE_DIR: /tmp/agent-workspace
     AGENT_WORKSPACE_DIR: /workspace
-    # integration-test builds this from the branch and loads it straight into the
-    # runner's daemon, never pushing, so fork PRs need no registry credentials.
-    # smoke-test deliberately stays on the pinned release image.
+    # Integration-test 从分支构建它并将其直接加载到运行程序的守护进程中，从不推送，因此 fork PR 不需要注册表凭据。 冒烟测试故意保留在固定的发布图像上。
+    #
     BRANCH_AGENT_SERVER_IMAGE: agent-server:branch-build
 
 defaults:
@@ -29,7 +28,7 @@ defaults:
 jobs:
     integration-test:
         runs-on: ubuntu-latest
-        # Raised from 30: this job now builds the agent-server image itself.
+        # 从 30 开始提高：此作业现在构建智能体-服务器映像本身。
         timeout-minutes: 45
 
         steps:
@@ -77,14 +76,14 @@ jobs:
               with:
                   context: ${{ steps.agent_server_ctx.outputs.build_context }}
                   file: ${{ steps.agent_server_ctx.outputs.dockerfile }}
-                  # `source` skips the pyinstaller stage that `binary` needs. Every
-                  # layer beneath it is shared, so the cache below still applies.
+                  # `source` 跳过PyInstaller阶段，`binary`需要。 它下面的每一层都是共享的，因此下面的缓存仍然适用。
+                  #
                   target: source
                   platforms: linux/amd64
                   push: false
                   load: true
                   tags: ${{ env.BRANCH_AGENT_SERVER_IMAGE }}
-                  # Scope server.yml populates with mode=max on push to main.
+                  # 范围 server.yml 在推送到主程序时填充 mode=max。
                   cache-from: type=gha,scope=agent-server-python-amd64
                   build-args: |
                       BASE_IMAGE=python-node-runtime
@@ -191,7 +190,7 @@ jobs:
                   docker rm agent-server || true
                   rm -rf ${{ env.HOST_WORKSPACE_DIR }} || true
 
-  # Separate job for quick smoke test without LLM
+  # 快速烟雾测试的单独工作，无需 LLM
     smoke-test:
         runs-on: ubuntu-latest
         timeout-minutes: 10
@@ -219,8 +218,8 @@ jobs:
               working-directory: .
               run: python3 .github/scripts/resolve_typescript_client_agent_server.py
 
-            # A release PR pins an image that is pushed only after merge; integration-test
-            # already covers the branch-built server. Any other missing pin still fails.
+            # 发布 PR 固定仅在合并后推送的图像； 集成测试已经覆盖了分支构建的服务器。 任何其他丢失的引脚仍然会失败。
+            #
             - name: Check pinned image is published
               id: image
               run: |

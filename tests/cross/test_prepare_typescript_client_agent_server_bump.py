@@ -1,4 +1,4 @@
-"""Tests for the TypeScript client Agent Server release updater."""
+"""测试 TypeScript 客户端 Agent Server 版本更新程序。"""
 
 from __future__ import annotations
 

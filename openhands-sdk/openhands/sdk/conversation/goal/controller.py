@@ -1,10 +1,10 @@
-"""The transport-agnostic brain of the ``/goal`` loop.
+"""``/goal`` 循环的传输层不可知大脑。
 
-``GoalController`` decides -- after each agent run finishes -- whether to
+``GoalController`` 决定 -- 每次智能体运行完成后 -- 是否
 continue (with a followup message) or stop (with a ``GoalOutcome``). It performs
-NO I/O: a *driver* (the sync ``run_goal``, or an async agent-server task) owns
-sending messages and running the agent; the controller only judges and decides.
-That split lets the sync and async drivers share identical decision logic.
+无 I/O：* 驱动程序 *（同步 ``run_goal`` 或异步智能体服务器任务）拥有发送消息并运行智
+能体； 控制者只是判断和决定。 这种划分让同步和异步驱动程序共享相
+同的决策逻辑。
 """
 
 from collections.abc import Sequence
@@ -23,10 +23,10 @@ logger = get_logger(__name__)
 
 
 class GoalOutcome(BaseModel):
-    """Result of a ``/goal`` loop.
+    """``/goal`` 循环的结果。
 
-    ``status`` distinguishes genuine completion from hitting the iteration cap,
-    so a driver never has to guess whether a silent finish meant success.
+    ``status`` 将真正的完成与达到迭代上限区分开来，因此驾驶员永远不必猜测无声的完成是
+    否意味着成功。
     """
 
     status: Literal["complete", "capped"]
@@ -35,15 +35,15 @@ class GoalOutcome(BaseModel):
 
 
 GoalStatusName = Literal["running", "complete", "capped", "interrupted"]
-"""Lifecycle state of a ``/goal`` loop."""
+"""``/goal`` 循环的生命周期状态。"""
 
 
 class GoalStatus(BaseModel):
-    """Live status of a ``/goal`` loop, for a UI progress chip.
+    """UI 进度芯片的 ``/goal`` 循环的实时状态。
 
-    The agent server publishes this as the ``value`` of a
-    ``ConversationStateUpdateEvent`` with ``key="goal"`` at each lifecycle point
-    (start, each round, and the terminal/interrupted state).
+    Agent Server 将其发布为 ``value``
+    ``ConversationStateUpdateEvent`` 与 ``key="goal"`` 在每个生命周期点（开始、每轮和
+    终止/中断状态）。
     """
 
     active: bool = Field(description="Whether the goal loop is still running.")
@@ -57,7 +57,7 @@ class GoalStatus(BaseModel):
 
 
 class GoalContinue(BaseModel):
-    """Decision to keep going: send ``followup`` before the next run."""
+    """决定继续：在下一次运行之前发送 ``followup``。"""
 
     followup: str
     verdict: GoalVerdict = Field(
@@ -66,22 +66,21 @@ class GoalContinue(BaseModel):
 
 
 class GoalDone(BaseModel):
-    """Decision to stop: the loop finished with ``outcome``."""
+    """决定停止：循环以``outcome``结束。"""
 
     outcome: GoalOutcome
 
 
 GoalStep = GoalContinue | GoalDone
-"""One decision returned by :meth:`GoalController.on_run_finished`."""
+""":meth:`GoalController.on_run_finished` 返回的一项决定。"""
 
 
 class GoalController:
-    """Judges goal completion and decides continue-vs-stop, without doing I/O.
+    """判断目标完成情况并决定继续还是停止，而不进行 I/O。
 
-    A driver calls :meth:`start` once to get the first message to send, then
-    calls :meth:`on_run_finished` after every agent run to get the next
-    decision. The controller owns the iteration count and the ``max_iterations``
-    cap, so drivers stay trivial.
+    驱动程序调用：meth:`start` 一次以获取要发送的第一条消息，然后在每次智能体运行后调
+    用：meth:`on_run_finished` 以获得下一个决定。
+    控制器拥有迭代计数和 ``max_iterations`` 上限，因此驱动程序保持微不足道。
     """
 
     def __init__(
@@ -97,17 +96,16 @@ class GoalController:
         self.iteration = 0
 
     def start(self) -> str:
-        """Return the first message a driver should send (the objective)."""
+        """返回驱动程序应发送的第一条消息（目标）。"""
         return self.objective
 
     def on_run_finished(self, events: Sequence[Event]) -> GoalStep:
-        """Judge the objective after a run and decide whether to continue.
+        """跑步后判断目标并决定是否继续。
 
-        Audits ``events`` with the judge LLM, counts the round once the judge
-        has returned a verdict, and returns a :class:`GoalContinue` (with a
-        followup) or a terminal :class:`GoalDone` (with a :class:`GoalOutcome`).
-        A judge call that raises leaves the count unchanged: a failed or
-        abandoned audit is not a completed round.
+        ``events``与法官LLM进行审计，当法官给出判决时计数一次，并返回一个：class:
+        `GoalContinue`（有后续）或一个终端：class:
+        `GoalDone`（有：class:`GoalOutcome`）。 法官提出加注后，计数保持不变：失败或
+        放弃的审核并不是完整的一轮。
         """
         verdict = judge_goal(self.judge_llm, self.objective, events)
         self.iteration += 1

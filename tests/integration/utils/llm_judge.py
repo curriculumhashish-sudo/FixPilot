@@ -1,4 +1,4 @@
-"""LLM-as-judge utility for evaluating agent behavior."""
+"""LLM-as-judge 实用程序用于评估智能体行为。"""
 
 import json
 import os
@@ -13,11 +13,11 @@ from openhands.sdk.tool import Action, Observation, ToolDefinition, ToolExecutor
 logger = get_logger(__name__)
 
 
-# ===== Tool-based Structured Output =====
+# ===== 基于工具的结构化输出 =====
 
 
 class SubmitJudgmentAction(Action):
-    """Action for submitting a judgment with structured output."""
+    """提交具有结构化输出的判决的操作。"""
 
     approved: bool = Field(
         description="Whether the agent's behavior is approved (true) or not (false)"
@@ -33,7 +33,7 @@ class SubmitJudgmentAction(Action):
 
 
 class SubmitJudgmentObservation(Observation):
-    """Observation returned after submitting judgment."""
+    """观测结果提交判断后返回。"""
 
     pass
 
@@ -41,23 +41,23 @@ class SubmitJudgmentObservation(Observation):
 class SubmitJudgmentExecutor(
     ToolExecutor[SubmitJudgmentAction, SubmitJudgmentObservation]
 ):
-    """Executor for submitting judgment."""
+    """提交判决的执行人。"""
 
     def __call__(
         self, action: SubmitJudgmentAction, conversation=None
     ) -> SubmitJudgmentObservation:
-        """Execute judgment submission - no actual execution needed."""
+        """执行判断提交——无需实际执行。"""
         return SubmitJudgmentObservation.from_text("Judgment received")
 
 
 class SubmitJudgmentTool(
     ToolDefinition[SubmitJudgmentAction, SubmitJudgmentObservation]
 ):
-    """Tool for submitting structured judgment about agent behavior."""
+    """用于提交有关智能体行为的结构化判断的工具。"""
 
     @classmethod
     def create(cls):
-        """Create the SubmitJudgmentTool."""
+        """创建 SubmitJudgmentTool。"""
         executor = SubmitJudgmentExecutor()
 
         return [
@@ -75,11 +75,11 @@ class SubmitJudgmentTool(
 
 
 class JudgmentResult(BaseModel):
-    """Result from LLM judge evaluation."""
+    """LLM 评委评价结果。"""
 
     approved: bool
     reasoning: str
-    confidence: float = 0.0  # 0.0 to 1.0
+    confidence: float = 0.0  # 0.0 至 1.0
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -88,9 +88,9 @@ class JudgmentResult(BaseModel):
 
 def create_judge_llm() -> LLM:
     """
-    Create an LLM instance for judging behavior.
+    创建一个LLM实例来判断行为。
 
-    Uses the same configuration as integration tests.
+    使用与集成测试相同的配置。
     """
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
@@ -100,8 +100,8 @@ def create_judge_llm() -> LLM:
     if not base_url:
         raise ValueError("LLM_BASE_URL environment variable not set")
 
-    # Use a fast model for judging to save costs
-    # You can override this by setting LLM_JUDGE_MODEL env var
+    # 使用快速模型进行判断以节省成本您可以通过设置 LLM_JUDGE_MODEL env var 来覆盖它
+    #
     model = os.getenv("LLM_JUDGE_MODEL", "litellm_proxy/claude-haiku-4-5-20251001")
 
     return LLM(
@@ -120,27 +120,26 @@ def judge_agent_behavior(
     llm: LLM | None = None,
 ) -> JudgmentResult:
     """
-    Use an LLM with tool calling to judge agent behavior.
+    使用带有工具调用的 LLM 来判断智能体行为。
 
-    This uses native tool calling to force structured output,
-    which is more reliable than asking for JSON in text format.
+    这使用本机工具调用来强制结构化输出，这比要求文本格式的 JSON 更可靠。
 
     Args:
-        user_instruction: The original user instruction
-        conversation_summary: Summary of the agent's conversation/actions
-        evaluation_criteria: What to evaluate
-        llm: Optional LLM instance to use (creates one if not provided)
+        user_instruction: 原始用户说明
+        conversation_summary: 智能体的对话/行为摘要
+        evaluation_criteria: 评估什么
+        llm: 要使用的可选 LLM 实例（如果未提供，则创建一个）
 
     Returns:
-        JudgmentResult with approval status and reasoning
+        JudgmentResult 具有批准状态和理由
     """
     if llm is None:
         llm = create_judge_llm()
 
-    # Create judgment tool
+    # 创建判断工具
     judgment_tool = SubmitJudgmentTool.create()[0]
 
-    # Create prompt that instructs to use the tool
+    # 创建指示使用该工具的提示词
     prompt = (
         f"""You are evaluating an AI agent's behavior in response to a user """
         f"""instruction.
@@ -172,7 +171,7 @@ the information available, assuming the agent's behavior is correct afterward.
     )
 
     try:
-        # Get LLM response with tool calling
+        # 通过工具调用获取 LLM 响应
         messages = [Message(role="user", content=[TextContent(text=prompt)])]
         response = llm.completion(
             messages=messages,
@@ -180,11 +179,11 @@ the information available, assuming the agent's behavior is correct afterward.
             extra_headers={"anthropic-beta": "context-1m-2025-08-07"},
         )
 
-        # Extract tool call from response
+        # 从响应中提取工具调用
         if response.message.tool_calls:
             tool_call = response.message.tool_calls[0]
 
-            # Parse the tool call arguments
+            # 解析工具调用参数
             if isinstance(tool_call.arguments, dict):
                 args = tool_call.arguments
             else:
@@ -192,7 +191,7 @@ the information available, assuming the agent's behavior is correct afterward.
 
             logger.info("Behavior judge tool call arguments: %s", args)
 
-            # Extract usage information
+            # 提取使用信息
             metrics = response.metrics
             usage = metrics.accumulated_token_usage
             prompt_tokens = usage.prompt_tokens or 0 if usage else 0

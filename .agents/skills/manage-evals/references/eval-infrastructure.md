@@ -1,64 +1,83 @@
-# Evaluation Infrastructure Reference
+<a id="evaluation-infrastructure-reference"></a>
 
-## Architecture Overview
+# 评估基础设施参考
 
-The evaluation pipeline spans three repositories:
+<a id="architecture-overview"></a>
 
-1. **OpenHands/software-agent-sdk** — Triggers evaluations via `run-eval.yml` workflow
-2. **OpenHands/evaluation** — Orchestrates the eval job via `eval-job.yml` workflow
-3. **OpenHands/benchmarks** — Contains benchmark runners (inference + evaluation)
+## 架构概述
 
-## Trigger Flow
+评估管道跨越三个存储库：
 
-### PR Label Trigger
+1. **OpenHands/software-智能体-SDK** — 通过 `run-eval.yml` 工作流程触发评估
+2. **OpenHands/evaluation** — 通过 `eval-job.yml` 工作流程协调评估作业
+3. **OpenHands/benchmarks** — 包含基准测试个跑步者（推理 + 评估）
 
-1. A label (`run-eval-1`, `run-eval-50`, `run-eval-200`, `run-eval-500`) is added to a PR
-2. `software-agent-sdk/.github/workflows/run-eval.yml` fires
-3. It resolves model configs from `.github/run-eval/resolve_model_config.py`
-4. Dispatches `eval-job.yml` in `OpenHands/evaluation` with:
-   - `sdk_commit`: The PR's head SHA
-   - `sdk_workflow_run_id`: The `run-eval.yml` workflow run ID
-   - `eval_limit`: Extracted from label name
-   - `models_json`: Resolved model configurations
-   - `pr_number`: The PR number (for result posting)
-5. Posts an "Evaluation Triggered" comment on the PR
+<a id="trigger-flow"></a>
 
-### Release Trigger
+## 触发流程
 
-Runs automatically on `release` events with `eval_limit=50`.
+<a id="pr-label-trigger"></a>
 
-### Manual Trigger
+### PR 标签触发器
 
-Via `workflow_dispatch` on `run-eval.yml` with explicit parameters.
+1. 将标签 (`run-eval-1`, `run-eval-50`, `run-eval-200`, `run-eval-500`) 添加到 PR
+2. `software-agent-sdk/.github/workflows/run-eval.yml` 火灾
+3. 它从 `.github/run-eval/resolve_model_config.py` 解析模型配置
+4. 调度 `OpenHands/evaluation` 中的 `eval-job.yml`：
+   - `sdk_commit`：PR的头部SHA
+   - `sdk_workflow_run_id`：`run-eval.yml` 工作流运行 ID
+   - `eval_limit`：从标签名称中提取
+   - `models_json`：已解决的模型配置
+   - `pr_number`：PR号码（用于结果发布）
+5. 在 PR 上发表“评估已触发”评论
 
-## Results Storage (GCS)
+<a id="release-trigger"></a>
 
-Results are stored in Google Cloud Storage bucket `openhands-evaluation-results`
-and served via CDN at `https://results.eval.all-hands.dev/`.
+### 释放触发器
 
-### Run Path Format
+在 `release` 事件和 `eval_limit=50` 上自动运行。
+
+<a id="manual-trigger"></a>
+
+### 手动触发
+
+通过带有显式参数的 `run-eval.yml` 上的 `workflow_dispatch`。
+
+<a id="results-storage-gcs"></a>
+
+## 结果存储 (GCS)
+
+结果存储在 Google Cloud Storage 存储桶 `openhands-evaluation-results` 中，并通过 CDN 和 `https://results.eval.all-hands.dev/` 提供服务。
+
+<a id="run-path-format"></a>
+
+### 运行路径格式
 
 ```
 {benchmark}/{model_slug}/{github_run_id}/
 ```
 
-- **benchmark**: `swebench`, `swebenchpro`, `gaia`, `swtbench`, `commit0`, `swebenchmultimodal`, `terminalbench`, `programbench`
-- **model_slug**: Model name with `/:@.` replaced by `-`
-  - Example: `litellm_proxy/claude-sonnet-4-5-20250929` → `litellm_proxy-claude-sonnet-4-5-20250929`
-- **github_run_id**: The GitHub Actions run ID from the `OpenHands/evaluation` repo
+- **基准测试**: `swebench`, `swebenchpro`, `gaia`, `swtbench`, `commit0`, `swebenchmultimodal`, `terminalbench`, `programbench`
+- **model_slug**：型号名称，`/:@.` 替换为 `-`
+  - 示例：`litellm_proxy/claude-sonnet-4-5-20250929` → `litellm_proxy-claude-sonnet-4-5-20250929`
+- **github_run_id**：`OpenHands/evaluation` 存储库中的 GitHub 操作运行 ID
 
-### Files Per Run
+<a id="files-per-run"></a>
+
+### 每次运行的文件数
 
 ```
 {run_path}/
 ├── metadata/
-│   └── params.json          # Job parameters (uploaded at job start)
-├── output.report.json       # Aggregated evaluation results
-├── cost_report.jsonl        # Per-instance cost data
-└── results.tar.gz           # Full archive
+│   └── params.json          # 作业参数（作业开始时上传）
+├── output.report.json       # 综合评价结果
+├── cost_report.jsonl        # 每个实例的成本数据
+└── results.tar.gz           # 完整档案
 ```
 
-### params.json Schema
+<a id="paramsjson-schema"></a>
+
+### params.json 模式
 
 ```json
 {
@@ -80,7 +99,9 @@ and served via CDN at `https://results.eval.all-hands.dev/`.
 }
 ```
 
-### output.report.json Schema
+<a id="outputreportjson-schema"></a>
+
+### output.report.json 模式
 
 ```json
 {
@@ -99,15 +120,17 @@ and served via CDN at `https://results.eval.all-hands.dev/`.
 }
 ```
 
-## Daily Metadata
+<a id="daily-metadata"></a>
 
-All runs registered on a given day are listed in:
+## 每日元数据
+
+某一天登记的所有跑步均列于：
 
 ```
 https://results.eval.all-hands.dev/metadata/YYYY-MM-DD.txt
 ```
 
-Each line is a run path. Example:
+每条线都是一条运行路径。 示例：
 
 ```
 swebench/litellm_proxy-claude-sonnet-4-5-20250929/23773892085/
@@ -115,47 +138,54 @@ swebench/litellm_proxy-gemini-3-flash-preview/23774756886/
 gaia/litellm_proxy-claude-sonnet-4-5-20250929/23775142614/
 ```
 
-Metadata files are updated atomically with generation preconditions and
-have `Cache-Control: no-cache` set.
+元数据文件根据生成前提条件自动更新并设置为 `Cache-Control: no-cache`。
 
-## Dashboard
+<a id="dashboard"></a>
 
-The eval monitor dashboard at `https://openhands-eval-monitor.vercel.app/`
-provides a visual view of runs. Construct URLs as:
+## 仪表板
+
+`https://openhands-eval-monitor.vercel.app/` 处的评估监视器仪表板提供了运行的可视化视图。 构建 URLs。
 
 ```
 https://openhands-eval-monitor.vercel.app/?run={benchmark}/{model_slug}/{run_id}/
 ```
 
-## Bot Comments
+<a id="bot-comments"></a>
 
-When an eval completes, `all-hands-bot` posts a comment on the PR (if `pr_number` was provided) with:
+## 机器人评论
 
-- Evaluation name (e.g., `23775164157-claude-son`)
-- Model name
-- Results summary (total, submitted, resolved, unresolved, empty patch, error counts)
-- Success rate
-- Archive link
+当评估完成时，`all-hands-bot` 在 PR 上发布评论（如果提供了 `pr_number`）：
 
-## Model Slug Computation
+- 评估名称 (e.g., `23775164157-claude-son`)
+- 型号名称
+- 结果摘要（总计、已提交、已解决、未解决、空补丁、错误计数）
+- 成功率
+- 存档链接
 
-The model slug is derived from the LLM config's `model` field:
+<a id="model-slug-computation"></a>
+
+## 模型段塞计算
+
+模型 slug 源自 LLM 配置的 `model` 字段：
 
 ```python
-model = config["model"]  # e.g., "litellm_proxy/claude-sonnet-4-5-20250929"
+model = config["model"]  # e.g.，“litellm_proxy/克劳德十四行诗-4-5-20250929”
 for ch in "/:@.":
     model = model.replace(ch, "-")
-# Result: "litellm_proxy-claude-sonnet-4-5-20250929"
+# 结果：“litellm_proxy-claude-sonnet-4-5-20250929”
 ```
 
-## Available Models
+<a id="available-models"></a>
 
-Models are defined in `software-agent-sdk/.github/run-eval/resolve_model_config.py`.
-Each model has an `id`, `display_name`, and `llm_config` with the model path and parameters.
+## 可用型号
 
-## Variance Between Runs
+模型在`software-agent-sdk/.github/run-eval/resolve_model_config.py`中定义。 每个模型都有 `id`、`display_name` 和 `llm_config`，其中包含模型路径和参数。
 
-For 50-instance SWE-bench evaluations:
-- Natural variance is typically ±2-4 resolved instances between identical configurations
-- Focus on instance-level changes (which specific instances gained/lost) to distinguish real regressions from noise
-- If the resolved instance set is identical, the runs are equivalent
+<a id="variance-between-runs"></a>
+
+## 运行之间的差异
+
+对于 50 个实例 SWE 基准评估：
+- 相同配置之间的自然方差通常为 ±2-4 个解析实例
+- 关注实例级别的变化（特定实例获得/丢失）以区分真实回归和噪音
+- 如果解析的实例集相同，则运行等效

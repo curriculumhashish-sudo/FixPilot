@@ -1,4 +1,4 @@
-"""Remote git provider repository discovery for Agent Server."""
+"""Agent Server 的远程 git 提供程序存储库发现。"""
 
 import re
 from typing import Final
@@ -36,15 +36,15 @@ _LINK_PART_RE: Final[re.Pattern[str]] = re.compile(r'<([^>]+)>;\s*rel="([^"]+)"'
 
 
 class GitProviderRepositorySearchError(Exception):
-    """Base error for remote provider repository discovery."""
+    """远程提供程序存储库发现的基本错误。"""
 
 
 class UnsupportedGitProviderError(GitProviderRepositorySearchError):
-    """Raised when repository discovery does not support a provider yet."""
+    """当存储库发现尚不支持提供程序时引发。"""
 
 
 class GitProviderAPIError(GitProviderRepositorySearchError):
-    """Raised when a provider API request fails."""
+    """当提供者 API 请求失败时引发。"""
 
     def __init__(self, message: str, *, status_code: int = 502) -> None:
         super().__init__(message)
@@ -59,7 +59,7 @@ async def search_provider_repositories(
     limit: int = 100,
     page_id: str | None = None,
 ) -> GitProviderRepositoryPage:
-    """List repositories the configured provider token can access."""
+    """列出配置的提供程序 token 可以访问的存储库。"""
     if provider != GitProvider.GITHUB:
         raise UnsupportedGitProviderError(
             f"Repository discovery is not supported for provider '{provider.value}'"

@@ -1,4 +1,4 @@
-"""Unit tests for the EventLog tree helpers and back-compat rule (#3747)."""
+"""单元测试用于 EventLog 树助手和反向兼容规则 (#3747)。"""
 
 import pytest
 from pydantic import ValidationError
@@ -10,8 +10,8 @@ from openhands.sdk.llm import Message, TextContent
 
 
 def test_event_id_cannot_equal_reserved_root_sentinel():
-    """No event may take the reserved ROOT_PARENT_ID as its id, else its children
-    would be read as parentless (parent_id == ROOT_PARENT_ID means "root")."""
+    """任何事件都不能将保留的 ROOT_PARENT_ID 作为其 id，否则其子事件
+    将被读作无父项（parent_id == ROOT_PARENT_ID 表示“根”）。"""
     with pytest.raises(ValidationError):
         _event(ROOT_PARENT_ID)
 
@@ -33,7 +33,7 @@ def _log(*events: MessageEvent) -> EventLog:
 
 
 def _branched_log() -> EventLog:
-    """Shared tree:  a -> b -> c   and   a -> d -> e  (b/d are siblings)."""
+    """共享树：a -> b -> c 和 a -> d -> e（b/d 是兄弟）。"""
     return _log(
         _event("a"),
         _event("b", parent_id="a"),
@@ -57,7 +57,7 @@ def test_contains_accepts_event_id_or_event(as_event, target, expected):
         (None, []),
         ("a", ["a"]),
         ("c", ["a", "b", "c"]),
-        ("e", ["a", "d", "e"]),  # the b->c sibling branch is excluded
+        ("e", ["a", "d", "e"]),  # b->c 兄弟分支被排除
     ],
 )
 def test_path_to_root(leaf, expected):
@@ -65,7 +65,7 @@ def test_path_to_root(leaf, expected):
 
 
 def test_path_to_root_cycle_raises():
-    # Simulate an already-corrupted persisted event, bypassing append validation.
+    # 模拟已损坏的已持久化事件，绕过附加验证。
     log = _log(_event("a"), _event("b", parent_id="a"))
     log._event_cache[0] = _event("a", parent_id="b")
     with pytest.raises(ValueError, match="Cycle in event tree"):
@@ -92,8 +92,8 @@ def test_path_to_root_unknown_leaf_raises():
 
 
 def test_legacy_events_form_a_single_linear_branch():
-    """Events without parent_id resolve to the linear idx chain (no rewrite)."""
-    # All parent_id default to None -> the effective-parent rule walks idx-1.
+    """没有 parent_id 的事件解析为线性 idx 链（不重写）。"""
+    # 所有 parent_id 默认为 None -> 有效父规则行走 idx-1。
     log = _log(_event("a"), _event("b"), _event("c"))
 
     assert [e.id for e in log.path_to_root("c")] == ["a", "b", "c"]
@@ -102,12 +102,12 @@ def test_legacy_events_form_a_single_linear_branch():
 @pytest.mark.parametrize(
     "idx, expected",
     [
-        (0, None),  # genuine root
-        (1, "a"),  # legacy linear chain (idx - 1)
-        (2, "a"),  # explicit parent wins over idx - 1
+        (0, None),  # 正版root
+        (1, "a"),  # 传统线性链 (idx - 1)
+        (2, "a"),  # 显式父级胜过 idx - 1
     ],
 )
 def test_effective_parent_id_rule(idx, expected):
-    # idx 0, 1 are legacy (no explicit parent); idx 2 carries parent_id="a".
+    # idx 0, 1 是遗留的（没有明确的父级）； idx 2 带有 parent_id="a"。
     log = _log(_event("a"), _event("b"), _event("c", parent_id="a"))
     assert log._effective_parent_id(idx, log[idx]) == expected

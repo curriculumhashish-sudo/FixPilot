@@ -1,9 +1,8 @@
-"""Example: Using LLMProfileStore to save and reuse LLM configurations.
+"""Example: 使用 LLMProfileStore 保存和重用 LLM 配置。
 
-This example ships with one pre-generated profile JSON file and creates another
-profile at runtime. The checked-in profile comes from a normal save, so secrets
-are masked instead of exposed and non-secret fields like `base_url` are kept
-when present.
+此示例附带一个预生成的配置文件 JSON 文件，并在运行时创建另一个配置文件。 签入的配置文
+件来自正常保存，因此机密被屏蔽而不是暴露，并且非机密字段（如
+`base_url`）在存在时被保留。
 """
 
 import os
@@ -36,9 +35,10 @@ creative_llm = LLM(
     temperature=0.9,
 )
 
-# The checked-in fast.json was generated with a normal save, so its api_key is
-# masked and any configured base_url would be preserved. This runtime profile
-# also avoids persisting the real API key because secrets are masked by default.
+# 签入的 fast.json 是通过正常保存生成的，因此它的 api_key 被屏蔽，并且任何配置的
+# base_url 将被保留。 此运行时配置文件还避免保留真实的 API 键，因为默认情况下机密被屏蔽
+# 。
+#
 store.save("creative", creative_llm)
 creative_profile_json = (profile_store_dir / "creative.json").read_text()
 if api_key is not None:

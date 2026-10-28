@@ -1,4 +1,4 @@
-"""Utility functions for skill loading and management."""
+"""用于技能加载和管理的实用功能。"""
 
 from __future__ import annotations
 
@@ -27,15 +27,15 @@ if TYPE_CHECKING:
     from openhands.sdk.mcp.config import MCPServer
     from openhands.sdk.skills.skill import Skill, SkillResources
 
-# Type alias for secret lookup functions
+# 机密查找函数的类型别名
 SecretLookup = Callable[[str], str | None]
 
 logger = get_logger(__name__)
 
-# Regex patterns for variable expansion
-# Braced only: ${VAR} or ${VAR:-default}
+# 用于变量扩展的正则表达式模式仅花括号：${VAR} 或 ${VAR:-default}
+#
 _BRACED_VAR_PATTERN = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)(?::-([^}]*))?\}")
-# Braced and unbraced: $VAR, ${VAR}, or ${VAR:-default}
+# 带花括号和不带花括号：$VAR、${VAR} 或 ${VAR:-default}
 _ALL_VAR_PATTERN = re.compile(
     r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)(?::-([^}]*))?\}|\$([a-zA-Z_][a-zA-Z0-9_]*)"
 )
@@ -50,38 +50,38 @@ def expand_variable_references(
     expand_defaults: bool = True,
     support_unbraced: bool = False,
 ) -> Any:
-    """Expand variable references in data structures.
+    """扩展数据结构中的变量引用。
 
-    This is the core expansion function used by both MCP config expansion
-    and runtime tool parameter expansion.
+    这是MCP配置扩展和运行时工具参数扩展所使用的核心扩展函数。
 
-    Supports variable expansion patterns:
-    - ${VAR} - Braced variable reference (always supported)
-    - ${VAR:-default} - With default value (always supported)
-    - $VAR - Unbraced variable reference (only if support_unbraced=True)
+    支持变量扩展模式：
+    - ${VAR} - 花括号变量引用（始终支持）
+    - ${VAR:-default} - 使用默认值（始终支持）
+    - $VAR - 无括号变量引用（仅当 support_unbraced=True 时）
 
-    Resolution order (each source is checked only if provided/enabled):
-    1. Provided variables dict
-    2. Secrets (via get_secret callback)
-    3. Environment variables (only if check_env=True)
-    4. Default value (only if expand_defaults=True)
+    解决顺序（仅在提供/启用时检查每个源）：
+    1. 提供变量字典
+    2. 机密 (via get_secret 回调)
+    3. 环境变量（仅当 check_env=True 时）
+    4. 默认值（仅当 expand_defaults=True 时）
 
     Args:
-        data: Data to expand (string, dict, list, or other).
-        variables: Dictionary of variable names to values.
-        get_secret: Callback to look up a secret by name.
-        check_env: If True, check os.environ for unresolved variables.
-        expand_defaults: If True, apply default values for unresolved variables.
-        support_unbraced: If True, support $VAR syntax in addition to ${VAR}.
+        data: 要扩展的数据（字符串、字典、列表或其他）。
+        variables: 变量名到值的字典。
+        get_secret: 回调查找一个机密按名称。
+        check_env: 如果为 True，则检查 os.environ 是否有未解析的变量。
+        expand_defaults: 如果为 True，则对未解析的变量应用默认值。
+        support_unbraced: 如果是True，除了${VAR}之外还支持$VAR语法。
 
     Returns:
-        Data with variable references expanded.
+        具有变量引用的数据已扩展。
     """
     pattern = _ALL_VAR_PATTERN if support_unbraced else _BRACED_VAR_PATTERN
 
     def replace_var(match: re.Match) -> str:
-        # For braced pattern: group(1) = var_name, group(2) = default
-        # For all pattern: group(1)=braced, group(2)=default, group(3)=unbraced
+        # 对于支撑模式：group(1) = var_name、group(2) = 默认对于所有模式：group(1)=支撑
+        # 、group(2)=默认、group(3)=不支撑
+        #
         if support_unbraced:
             braced_var = match.group(1)
             default_value = match.group(2)
@@ -91,7 +91,7 @@ def expand_variable_references(
             var_name = match.group(1)
             default_value = match.group(2)
 
-        # Resolution order: variables -> secrets -> env -> default
+        # 解析顺序：变量 -> 机密 -> env -> 默认值
         if variables is not None and var_name in variables:
             return variables[var_name]
 
@@ -103,11 +103,11 @@ def expand_variable_references(
         if check_env and var_name in os.environ:
             return os.environ[var_name]
 
-        # Apply default only if expand_defaults is True and we have a default
+        # 仅当 expand_defaults 为 True 并且我们有默认值时才应用默认值
         if expand_defaults and default_value is not None:
             return default_value
 
-        # Return original if not found (preserves placeholder)
+        # 如果未找到则返回原始内容（保留占位符）
         return match.group(0)
 
     def expand_value(value: Any) -> Any:
@@ -127,29 +127,29 @@ def expand_variable_references(
     return expand_value(data)
 
 
-# Standard resource directory names per AgentSkills spec
+# 每个 AgentSkills 规范的标准资源目录名称
 RESOURCE_DIRECTORIES = ("scripts", "references", "assets")
 
-# Regex pattern for valid AgentSkills names
-# - 1-64 characters
-# - Lowercase alphanumeric + hyphens only (a-z, 0-9, -)
-# - Must not start or end with hyphen
-# - Must not contain consecutive hyphens (--)
+# 有效 AgentSkills 名称的正则表达式模式
+# - 1-64 个字符
+# - 仅小写字母数字 + 连字符（a-z、0-9、-）
+# - 不得以连字符开头或结尾
+# - 不得包含连续的连字符 (--)
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
 def find_skill_md(skill_dir: Path) -> Path | None:
-    """Find SKILL.md file in a directory (case-insensitive).
+    """在目录中查找 SKILL.md 文件（不区分大小写）。
 
     Args:
-        skill_dir: Path to the skill directory to search.
+        skill_dir: 要搜索的技能目录的路径。
 
     Returns:
-        Path to SKILL.md if found, None otherwise.
+        如果找到则指向 SKILL.md 的路径，否则为 None。
     """
     if not skill_dir.is_dir():
         return None
-    # sorted() ensures deterministic case-collision winner (SKILL.md < skill.md).
+    # sorted() 确保确定性案例碰撞获胜者 (SKILL.md < skill.md)。
     for item in sorted(skill_dir.iterdir()):
         if item.is_file() and item.name.lower() == "skill.md":
             return item
@@ -157,13 +157,13 @@ def find_skill_md(skill_dir: Path) -> Path | None:
 
 
 def find_mcp_config(skill_dir: Path) -> Path | None:
-    """Find .mcp.json file in a skill directory.
+    """在技能目录中查找 .mcp.json 文件。
 
     Args:
-        skill_dir: Path to the skill directory to search.
+        skill_dir: 要搜索的技能目录的路径。
 
     Returns:
-        Path to .mcp.json if found, None otherwise.
+        如果找到，则指向 .mcp.json 的路径，否则为 None。
     """
     if not skill_dir.is_dir():
         return None
@@ -177,37 +177,38 @@ def expand_mcp_variables(
     config: dict,
     variables: dict[str, str],
     get_secret: SecretLookup | None = None,
-    *,  # keyword-only after this (PEP 3102)
+    *,  # 此后仅包含关键字 (PEP 3102)
     expand_defaults: bool = True,
 ) -> dict:
-    """Expand variables in MCP configuration.
+    """展开 MCP 配置中的变量。
 
-    Supports variable expansion similar to Claude Code:
-    - ${VAR} - Environment variables, provided variables, or secrets
-    - ${VAR:-default} - With default value
+    支持类似于 Claude Code 的变量扩展：
+    - ${VAR} - 环境变量，提供的变量，或机密
+    - ${VAR:-default} - 使用默认值
 
-    Resolution order:
-    1. Provided variables (e.g., SKILL_ROOT)
-    2. Secrets (via get_secret callback, if provided)
-    3. Environment variables
-    4. Default value (if specified and expand_defaults=True)
+    决议顺序：
+    1. 提供的变量 (e.g., SKILL_ROOT)
+    2. 机密（通过 get_secret 回调，如果提供）
+    3. 环境变量
+    4. 默认值（如果指定且 expand_defaults=True）
 
     Args:
-        config: MCP configuration dictionary.
-        variables: Dictionary of variable names to values (e.g., SKILL_ROOT).
-        get_secret: Callback to look up a secret by name. We use a callback
-            rather than a dict to avoid extracting all secrets into plain text.
-            Pass `secret_registry.get_secret_value` or `{"K": "V"}.get` for tests.
-        expand_defaults: If True, apply default values for unresolved variables.
-            If False, preserve ${VAR:-default} as-is for later expansion.
-            This allows deferred expansion when secrets are not yet available.
+        config: MCP配置字典。
+        variables: 变量名到值的字典 (e.g., SKILL_ROOT)。
+        get_secret: 回调查找一个机密按名称。 我们使用了一个回调
+            而不是字典以避免将所有机密提取为纯文本。 通过
+            `secret_registry.get_secret_value` 或
+            `{"K": "V"}.get` 进行测试。
+        expand_defaults: 如果为 True，则对未解析的变量应用默认值。
+            如果为 False，则按原样保留 ${VAR:-default} 以供以后扩展。 当机密尚不可用
+            时，这允许延迟扩展。
 
     Returns:
-        Configuration with variables expanded.
+        变量扩展的配置。
     """
-    # Use the shared expansion function with MCP config settings:
-    # - check_env=True (check environment variables)
-    # - support_unbraced=False (only ${VAR} syntax for config files)
+    # 通过 MCP 配置设置使用共享扩展功能：
+    # - check_env=True（检查环境变量）
+    # - support_unbraced=False（配置文件仅使用 ${VAR} 语法）
     expanded_config = expand_variable_references(
         config,
         variables=variables,
@@ -226,14 +227,13 @@ def expand_mcp_servers(
     servers: Mapping[str, MCPServer],
     get_secret: SecretLookup | None = None,
 ) -> dict[str, MCPServer]:
-    """Expand ``${VAR}`` placeholders in MCP servers, applying defaults.
+    """展开 MCP 服务器中的 ``${VAR}`` 占位符，应用默认值。
 
-    Servers with ``literal_values`` are returned untouched: they come from an
-    Agent Plugins package, whose loader has already expanded the only two
-    placeholders the standard allows, and §9.2 forbids expanding anything else
-    -- a package must not be able to pull a secret into its own subprocess.
+    ``literal_values`` 服务器返回原样：它们来自一个智能体插件包，其加载器已经扩展了标
+    准允许的两个占位符，而 §9.2 不允许扩展其他内容
+    -- 包不能将机密拉入其自己的子进程中。
     """
-    # Imported lazily: openhands.sdk.mcp imports this module.
+    # 延迟导入：openhands.sdk.mcp 导入该模块。
     from openhands.sdk.mcp.config import coerce_mcp_config, dump_mcp_config
 
     expandable = {name: s for name, s in servers.items() if not s.literal_values}
@@ -252,25 +252,25 @@ def load_mcp_config(
     mcp_json_path: Path,
     skill_root: Path | None = None,
     get_secret: SecretLookup | None = None,
-    *,  # keyword-only after this (PEP 3102)
+    *,  # 此后仅包含关键字 (PEP 3102)
     expand_defaults: bool = True,
 ) -> dict:
-    """Load and parse .mcp.json with variable expansion.
+    """使用变量扩展加载并解析 .mcp.json。
 
     Args:
-        mcp_json_path: Path to the .mcp.json file.
-        skill_root: Root directory of the skill (for ${SKILL_ROOT} expansion).
-        get_secret: Optional callback to look up per-conversation secrets.
-            See expand_mcp_variables() for details on why this is a callback.
-        expand_defaults: If True, apply default values for unresolved variables.
-            If False, preserve ${VAR:-default} as-is for later expansion.
-            Use False during plugin loading to defer until secrets are available.
+        mcp_json_path: .mcp.json 文件的路径。
+        skill_root: 技能的根目录（用于${SKILL_ROOT}扩展）。
+        get_secret: 可选回调用于查找每个对话机密。
+            有关为什么这是回调的详细信息，请参阅 expand_mcp_variables()。
+        expand_defaults: 如果为 True，则对未解析的变量应用默认值。
+            如果为 False，则按原样保留 ${VAR:-default} 以供以后扩展。 在插件加载期间
+            使用 False 来推迟，直到机密可用。
 
     Returns:
-        Parsed MCP configuration dictionary.
+        已解析的MCP配置字典。
 
     Raises:
-        SkillValidationError: If the file cannot be parsed or is invalid.
+        SkillValidationError: 如果文件无法解析或无效。
     """
     try:
         with open(mcp_json_path, encoding="utf-8") as f:
@@ -285,17 +285,17 @@ def load_mcp_config(
             f"Invalid .mcp.json format: expected object, got {type(config).__name__}"
         )
 
-    # Prepare variables for expansion
+    # 准备扩展变量
     variables: dict[str, str] = {}
     if skill_root:
         variables["SKILL_ROOT"] = str(skill_root)
 
-    # Expand variables (includes secrets if provided)
+    # 展开变量（包括机密（如果提供））
     config = expand_mcp_variables(
         config, variables, get_secret=get_secret, expand_defaults=expand_defaults
     )
 
-    # Validate the external .mcp.json shape using FastMCP's config model.
+    # 使用 FastMCP 的配置模型验证外部 .mcp.json 形状。
     try:
         MCPConfig.model_validate(config)
     except Exception as e:
@@ -305,14 +305,14 @@ def load_mcp_config(
 
 
 def validate_skill_name(name: str, directory_name: str | None = None) -> list[str]:
-    """Validate skill name according to AgentSkills spec.
+    """根据 AgentSkills 规范验证技能名称。
 
     Args:
-        name: The skill name to validate.
-        directory_name: Optional directory name to check for match.
+        name: 要验证的技能名称。
+        directory_name: 用于检查匹配的可选目录名称。
 
     Returns:
-        List of validation error messages (empty if valid).
+        验证错误消息列表（如果有效则为空）。
     """
     errors = []
 
@@ -338,34 +338,33 @@ def validate_skill_name(name: str, directory_name: str | None = None) -> list[st
 def find_third_party_files(
     repo_root: Path, third_party_skill_names: dict[str, str]
 ) -> list[Path]:
-    """Find third-party skill files in the repository root.
+    """在存储库根目录中查找第三方技能文件。
 
-    Searches for files like .cursorrules, AGENTS.md, CLAUDE.md, etc.
-    with case-insensitive matching.
+    搜索 .cursorrules、AGENTS.md、CLAUDE.md 等文件。 不区分大小写的匹配。
 
-    Resolves symlinks so that e.g. ``CLAUDE.md -> AGENTS.md`` is detected
-    as a duplicate and only the canonical (non-symlink) file is returned.
+    解析符号链接以便 e.g。 ``CLAUDE.md -> AGENTS.md`` 被检测为重复文件，并且仅返回规
+    范（非符号链接）文件。
 
     Args:
-        repo_root: Path to the repository root directory.
-        third_party_skill_names: Mapping of lowercase filenames to skill names.
+        repo_root: 存储库根目录的路径。
+        third_party_skill_names: 小写文件名到技能名称的映射。
 
     Returns:
-        List of paths to third-party skill files found.
+        找到的第三方技能文件的路径列表。
     """
     if not repo_root.exists():
         return []
 
-    # Build a set of target filenames (lowercase) for case-insensitive matching
+    # 构建一组目标文件名（小写）以进行不区分大小写的匹配
     target_names = {name.lower() for name in third_party_skill_names}
 
     files: list[Path] = []
     seen_names: set[str] = set()
     seen_real_paths: set[Path] = set()
-    # sorted() so an AGENTS.md/agents.md collision and the order are deterministic.
+    # sorted() 因此 AGENTS.md/agents.md 冲突和顺序是确定性的。
     for item in sorted(repo_root.iterdir()):
         if item.is_file() and item.name.lower() in target_names:
-            # Avoid duplicates (e.g., AGENTS.md and agents.md in same dir)
+            # 避免重复（e.g.、AGENTS.md 和 agents.md 在同一目录中）
             name_lower = item.name.lower()
             if name_lower in seen_names:
                 logger.warning(
@@ -374,7 +373,7 @@ def find_third_party_files(
                 )
                 continue
 
-            # Resolve symlinks to detect e.g. CLAUDE.md -> AGENTS.md
+            # 解析符号链接以检测 e.g。 CLAUDE.md -> AGENTS.md
             real_path = item.resolve()
             if real_path in seen_real_paths:
                 logger.debug(
@@ -390,10 +389,10 @@ def find_third_party_files(
 
 
 def _git_worktree_relpaths(work_dir: Path) -> list[PurePosixPath] | None:
-    """Return worktree file paths under ``work_dir`` (relative to it): tracked
-    plus untracked files that ``.gitignore`` does not exclude, so a freshly
-    written (uncommitted) file still counts. None when git is unavailable, so the
-    caller can walk instead."""
+    """返回``work_dir``下的工作树个文件路径（相对于它）：已跟踪
+    加上 ``.gitignore`` 不排除的未跟踪文件，因此新写入（未提交）的文件仍然有效。 None
+     当 git 不可用时，调用者可以步行代替。
+    """
     with contextlib.suppress(OSError, subprocess.SubprocessError):
         proc = subprocess.run(
             [
@@ -418,12 +417,13 @@ def _git_worktree_relpaths(work_dir: Path) -> list[PurePosixPath] | None:
 
 
 def _walk_relpaths(work_dir: Path) -> list[PurePosixPath]:
-    """Filesystem-walk fallback: file paths under ``work_dir`` (relative to it),
-    skipping hidden and ``node_modules`` directories. Used only when git is
-    unavailable (the git path relies on ``.gitignore`` instead)."""
+    """filesystem-walk 回退方案：``work_dir``下的文件路径（相对于它），
+    跳过隐藏目录和 ``node_modules`` 目录。 仅当 git 不可用时使用（git 路径依赖于
+    ``.gitignore``）。
+    """
     results: list[PurePosixPath] = []
     for dirpath, dirnames, filenames in os.walk(work_dir):
-        # Prune in place so os.walk does not descend into skipped directories.
+        # 就地修剪，使 os.walk 不会下降到跳过的目录。
         dirnames[:] = [
             d for d in dirnames if not d.startswith(".") and d != "node_modules"
         ]
@@ -436,11 +436,11 @@ def _walk_relpaths(work_dir: Path) -> list[PurePosixPath]:
 def find_nested_third_party_files(
     work_dir: Path, third_party_skill_names: dict[str, str]
 ) -> list[tuple[Path, PurePosixPath]]:
-    """Find third-party instruction files *nested* under ``work_dir`` (top-level
-    ones are handled by :func:`find_third_party_files`), so each can become a
-    directory-scoped path rule. Uses ``git ls-files`` when available, else a
-    pruned walk. Returns ``(absolute_path, relative_dir)`` tuples with
-    ``relative_dir`` POSIX-relative to ``work_dir``."""
+    """在``work_dir``（顶层）下查找第三方指令文件*嵌套*
+    由：func:`find_third_party_files`) 处理，因此每个都可以成为目录范围的路径规则。
+    如果可用，则使用 ``git ls-files``，
+    否则使用修剪过的步行。 返回 ``(absolute_path, relative_dir)`` 个元组
+    ``relative_dir``POSIX-相对于``work_dir``。"""
     if not work_dir.exists():
         return []
 
@@ -455,7 +455,7 @@ def find_nested_third_party_files(
         if rel.name.lower() not in target_names:
             continue
         rel_dir = rel.parent
-        # Skip top-level files: those belong to find_third_party_files.
+        # 跳过顶级文件：那些属于 find_third_party_files 的文件。
         if rel_dir == PurePosixPath("."):
             continue
         abs_path = work_dir / rel
@@ -470,15 +470,15 @@ def find_nested_third_party_files(
 
 
 def find_skill_md_directories(skill_dir: Path, root: Path | None = None) -> list[Path]:
-    """Find AgentSkills-style directories containing SKILL.md files.
+    """查找包含 SKILL.md 个文件的 AgentSkills 样式目录。
 
     Args:
-        skill_dir: Path to the skills directory.
-        root: If given, directories and SKILL.md files that resolve outside it
-            are skipped, and an escaping directory is never listed.
+        skill_dir: 技能目录的路径。
+        root: 如果给定，则在其外部解析的目录和 SKILL.md 文件
+            被跳过，并且转义目录永远不会列出。
 
     Returns:
-        List of paths to SKILL.md files.
+        SKILL.md 文件的路径列表。
     """
     results: list[Path] = []
     if not skill_dir.exists():
@@ -499,17 +499,17 @@ def find_regular_md_files(
     recursive: bool = True,
     root: Path | None = None,
 ) -> list[Path]:
-    """Find regular .md skill files, excluding SKILL.md and files in excluded dirs.
+    """查找常规 .md 技能文件，不包括 SKILL.md 和排除目录中的文件。
 
     Args:
-        skill_dir: Path to the skills directory.
-        exclude_dirs: Set of directories to exclude (e.g., SKILL.md directories).
-        recursive: If False, only scan the immediate children of skill_dir,
-            where every .md file except a README is a skill.
-        root: If given, files that resolve outside it are skipped.
+        skill_dir: 技能目录的路径。
+        exclude_dirs: 要排除的目录集（e.g.、SKILL.md 目录）。
+        recursive: 如果是False，则仅扫描skill_dir的直接子级，
+            其中除 README 之外的每个 .md 文件都是一项技能。
+        root: 如果给出，则跳过在其外部解析的文件。
 
     Returns:
-        List of paths to regular .md skill files.
+        常规 .md 技能文件的路径列表。
     """
     files: list[Path] = []
     if not skill_dir.exists():
@@ -541,21 +541,21 @@ def load_and_categorize(
     strict: bool = True,
     root: Path | None = None,
 ) -> None:
-    """Load a skill and categorize it.
+    """加载技能并对其进行分类。
 
-    Categorizes into repo_skills, knowledge_skills, or agent_skills.
+    分类为 repo_skills、knowledge_skills 或 agent_skills。
 
     Args:
-        path: Path to the skill file.
-        skill_base_dir: Base directory for skills (used to derive relative names).
-        repo_skills: Dictionary for skills with trigger=None (permanent context).
-        knowledge_skills: Dictionary for skills with triggers (progressive).
-        agent_skills: Dictionary for AgentSkills standard SKILL.md files.
-        strict: If True, enforce strict AgentSkills name validation.
-        root: If given, a skill-level ``.mcp.json`` that resolves outside it is
-            not loaded.
+        path: 技能文件的路径。
+        skill_base_dir: 技能的基本目录（用于派生相对名称）。
+        repo_skills: 触发器=None（永久上下文）的技能词典。
+        knowledge_skills: 带触发器的技能词典（渐进）。
+        agent_skills: AgentSkills 标准 SKILL.md 文件的字典。
+        strict: 如果为 True，则强制执行严格的 AgentSkills 名称验证。
+        root: 如果给定，则在其之外解析的技能级别 ``.mcp.json`` 是
+            未加载。
     """
-    # Import here to avoid circular dependency
+    # 此处导入以避免循环依赖
     from openhands.sdk.skills.skill import Skill
 
     skip_mcp = False
@@ -564,8 +564,9 @@ def load_and_categorize(
         skip_mcp = mcp_json is not None and not resolves_within(mcp_json, root)
     skill = Skill.load(path, skill_base_dir, strict=strict, skip_mcp=skip_mcp)
 
-    # AgentSkills (SKILL.md directories) are a separate category from OpenHands skills.
-    # They follow the AgentSkills standard and should be handled differently.
+    # AgentSkills（SKILL.md 目录）是与 OpenHands 技能不同的类别。 它们遵循 AgentSkills
+    # 标准，应该以不同的方式处理。
+    #
     is_skill_md = path.name.lower() == "skill.md"
     if is_skill_md:
         agent_skills[skill.name] = skill
@@ -576,11 +577,12 @@ def load_and_categorize(
 
 
 def get_skills_cache_dir() -> Path:
-    """Get the local cache directory for public skills repository.
+    """获取公共技能库本地缓存目录。
 
     Returns:
-        Path to the ``cache/skills`` subdirectory of the user persistence
-        directory (``~/.openhands/cache/skills`` absent OH_PERSISTENCE_DIR).
+        用户持久化目录的 ``cache/skills`` 子目录的路径（``~/.openhands/cache/skills``
+         不存在
+        OH_PERSISTENCE_DIR）。
     """
     cache_dir = get_user_persistence_dir() / "cache" / "skills"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -593,20 +595,19 @@ def update_skills_repository(
     cache_dir: Path,
     strict: bool = False,
 ) -> Path | None:
-    """Clone or update the local skills repository.
+    """克隆或更新本地技能存储库。
 
-    The shared Git cache resolves ``ref`` to a commit and uses a detached
-    checkout.
+    共享的 Git 缓存将 ``ref`` 解析为提交并使用分离的签出。
 
     Args:
-        repo_url: URL of the skills repository.
-        ref: Branch name, tag, or full commit SHA to checkout.
-        cache_dir: Directory where the repository should be cached.
-        strict: If True, return None when an existing clone cannot be updated
-            (e.g. the fetch fails offline) instead of the stale clone.
+        repo_url: 技能库的URL。
+        ref: 分支名称、标签或要签出的完整提交 SHA。
+        cache_dir: 应缓存存储库的目录。
+        strict: 如果为 True，则当无法更新现有克隆时返回 None
+            (e.g. 获取离线失败）而不是过时的克隆。
 
     Returns:
-        Path to the local repository if successful, None otherwise.
+        如果成功，则为本地存储库的路径，否则为 None。
     """
     repo_path = cache_dir / "public-skills"
     return try_cached_clone_or_update(
@@ -615,11 +616,11 @@ def update_skills_repository(
 
 
 def is_skills_repo_pinned(repo_path: Path, ref: str | None = None) -> bool:
-    """Return whether ``ref`` is a cached tag or object ID.
+    """返回 ``ref`` 是否是缓存标签或对象 ID。
 
-    Public skills treat tags and object IDs as pinned. Branches and other named
-    refs stay refreshable. Without ``ref``, use the legacy detached-HEAD check.
-    Returns False when the ref cannot be classified.
+    公共技能将标签和对象 ID 视为固定的。 分支和其他命名引用保持可刷新。 如果没有
+    ``ref``，请使用旧版 detached-HEAD 检查。 当 ref 无法
+    分类时返回 False。
     """
     try:
         if ref is None:
@@ -630,20 +631,20 @@ def is_skills_repo_pinned(repo_path: Path, ref: str | None = None) -> bool:
 
 
 def discover_skill_resources(skill_dir: Path) -> SkillResources:
-    """Discover resource directories in a skill directory.
+    """发现技能目录中的资源目录。
 
-    Scans for standard AgentSkills resource directories:
-    - scripts/: Executable scripts
-    - references/: Reference documentation
-    - assets/: Static assets
+    扫描标准 AgentSkills 资源目录：
+    - 脚本/：可执行脚本
+    - 参考文献/：参考文档
+    - 资产/：静态资产
 
     Args:
-        skill_dir: Path to the skill directory.
+        skill_dir: 技能目录的路径。
 
     Returns:
-        SkillResources with lists of files in each resource directory.
+        SkillResources 包含每个资源目录中的文件列表。
     """
-    # Import here to avoid circular dependency
+    # 此处导入以避免循环依赖
     from openhands.sdk.skills.skill import SkillResources
 
     collected: dict[str, list[str]] = {}
@@ -664,20 +665,20 @@ def _list_resource_files(
     resource_dir: Path,
     resource_type: str,
 ) -> list[str]:
-    """List files in a resource directory.
+    """列出资源目录中的文件。
 
     Args:
-        resource_dir: Path to the resource directory.
-        resource_type: Type of resource (scripts, references, assets).
+        resource_dir: 资源目录的路径。
+        resource_type: 资源类型（脚本、参考文献、资产）。
 
     Returns:
-        List of relative file paths within the resource directory.
+        资源目录中的相对文件路径列表。
     """
     files: list[str] = []
     try:
         for item in resource_dir.rglob("*"):
             if item.is_file():
-                # Store relative path from resource directory
+                # 存储资源目录的相对路径
                 rel_path = item.relative_to(resource_dir)
                 files.append(to_posix_path(rel_path))
     except OSError as e:

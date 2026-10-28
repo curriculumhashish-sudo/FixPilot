@@ -1,5 +1,5 @@
 """
-JSON schemas for structured integration test results.
+JSON 模式用于结构化集成测试结果。
 """
 
 from datetime import datetime
@@ -12,14 +12,14 @@ TestType = Literal["integration", "behavior", "condenser"]
 
 
 def json_serializer(obj):
-    """JSON serializer for objects not serializable by default json code"""
+    """JSON 序列化器对于默认情况下不可序列化的对象 JSON 代码"""
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 class TokenUsageData(BaseModel):
-    """Token usage data for a test instance."""
+    """词元用量测试实例的数据。"""
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -29,7 +29,7 @@ class TokenUsageData(BaseModel):
     context_window: int = 0
 
     def __add__(self, other: "TokenUsageData") -> "TokenUsageData":
-        """Add two TokenUsageData instances together."""
+        """将两个 TokenUsageData 实例添加在一起。"""
         return TokenUsageData(
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,
             completion_tokens=self.completion_tokens + other.completion_tokens,
@@ -41,7 +41,7 @@ class TokenUsageData(BaseModel):
 
 
 class TestResultData(BaseModel):
-    """Individual test result data."""
+    """个人测试结果数据。"""
 
     success: bool
     reason: str | None = None
@@ -49,30 +49,30 @@ class TestResultData(BaseModel):
 
 
 class TestInstanceResult(BaseModel):
-    """Result from a single test instance."""
+    """单个测试实例的结果。"""
 
     instance_id: str
     test_result: TestResultData
     test_type: TestType
-    required: bool  # True for integration tests, False for behavior/condenser tests
+    required: bool  # True 用于集成测试，False 用于行为/冷凝器测试
     cost: float = 0.0
     token_usage: TokenUsageData | None = None
     error_message: str | None = None
 
 
 class ModelTestResults(BaseModel):
-    """Complete test results for a single model."""
+    """单个模型的完整测试结果。"""
 
-    # Metadata
+    # 元数据
     model_name: str
     run_suffix: str
     llm_config: dict[str, Any]
     timestamp: datetime = Field(default_factory=datetime.now)
 
-    # Test execution data
+    # 测试执行数据
     test_instances: list[TestInstanceResult]
 
-    # Summary statistics
+    # 统计汇总
     total_tests: int
     successful_tests: int
     skipped_tests: int
@@ -80,7 +80,7 @@ class ModelTestResults(BaseModel):
     total_cost: float
     total_token_usage: TokenUsageData | None = None
 
-    # Type-specific statistics
+    # 特定类型的统计数据
     integration_tests_total: int = 0
     integration_tests_successful: int = 0
     integration_tests_success_rate: float = 0.0
@@ -88,7 +88,7 @@ class ModelTestResults(BaseModel):
     behavior_tests_successful: int = 0
     behavior_tests_success_rate: float = 0.0
 
-    # Additional metadata
+    # 附加元数据
     eval_note: str | None = None
     artifact_url: str | None = None
     status: str = "completed"
@@ -96,19 +96,19 @@ class ModelTestResults(BaseModel):
     @classmethod
     def from_eval_outputs(
         cls,
-        eval_outputs: list[Any],  # list[EvalOutput]
+        eval_outputs: list[Any],  # 列表[EvalOutput]
         model_name: str,
         run_suffix: str,
         llm_config: dict[str, Any],
         eval_note: str | None = None,
         artifact_url: str | None = None,
     ) -> "ModelTestResults":
-        """Create ModelTestResults from list of EvalOutput objects."""
+        """从 EvalOutput 对象列表创建 ModelTestResults。"""
 
-        # Convert EvalOutput objects to TestInstanceResult
+        # 将 EvalOutput 对象转换为 TestInstanceResult
         test_instances = []
         for output in eval_outputs:
-            # Convert token usage if available
+            # 转换词元用量（如果可用）
             token_usage = None
             if output.token_usage is not None:
                 token_usage = TokenUsageData(
@@ -136,24 +136,24 @@ class ModelTestResults(BaseModel):
                 )
             )
 
-        # Calculate summary statistics
+        # 计算汇总统计数据
         total_tests = len(test_instances)
         successful_tests = sum(1 for t in test_instances if t.test_result.success)
         skipped_tests = sum(1 for t in test_instances if t.test_result.skipped)
-        # Exclude skipped tests from success rate calculation
+        # 从成功率计算中排除跳过的测试
         non_skipped_tests = total_tests - skipped_tests
         success_rate = (
             successful_tests / non_skipped_tests if non_skipped_tests > 0 else 0.0
         )
         total_cost = sum(t.cost for t in test_instances)
 
-        # Calculate total token usage
+        # 计算总计词元用量
         total_token_usage = TokenUsageData()
         for t in test_instances:
             if t.token_usage is not None:
                 total_token_usage = total_token_usage + t.token_usage
 
-        # Calculate type-specific statistics
+        # 计算特定类型的统计数据
         integration_tests = [t for t in test_instances if t.test_type == "integration"]
         behavior_tests = [t for t in test_instances if t.test_type == "behavior"]
 
@@ -204,35 +204,36 @@ class ModelTestResults(BaseModel):
 
 
 class ConsolidatedResults(BaseModel):
-    """Consolidated results from all models."""
+    """所有模型的综合结果。"""
 
-    # Metadata
+    # 元数据
     timestamp: datetime = Field(default_factory=datetime.now)
     total_models: int
 
-    # Individual model results
+    # 个别模型结果
     model_results: list[ModelTestResults]
 
-    # Overall statistics
+    # 总体统计
     overall_success_rate: float
     total_cost_all_models: float
-    # Note: We intentionally don't aggregate token usage across models because
-    # different models use different tokenizers, making cross-model token sums
-    # meaningless. Per-model token usage is available in model_results.
+    # 注意：我们故意不跨模型聚合词元用量，因为
+    # 不同的模型使用不同的分词器，使得跨模型 token 的求和变得毫无意义。 每个模型词元用量
+    # 在 model_results 中可用。
+    #
 
     @classmethod
     def from_model_results(
         cls, model_results: list[ModelTestResults]
     ) -> "ConsolidatedResults":
-        """Create ConsolidatedResults from list of ModelTestResults."""
+        """从 ModelTestResults 列表中创建 ConsolidatedResults。"""
 
         total_models = len(model_results)
 
-        # Calculate overall statistics
+        # 计算总体统计数据
         total_tests_all = sum(r.total_tests for r in model_results)
         total_successful_all = sum(r.successful_tests for r in model_results)
         total_skipped_all = sum(r.skipped_tests for r in model_results)
-        # Exclude skipped tests from overall success rate calculation
+        # 从总体成功率计算中排除跳过的测试
         non_skipped_tests_all = total_tests_all - total_skipped_all
         overall_success_rate = (
             total_successful_all / non_skipped_tests_all

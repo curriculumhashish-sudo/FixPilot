@@ -1,4 +1,4 @@
-"""Action, observation, and tool definitions for the ask_oracle tool."""
+"""ask_oracle 工具的操作、观测结果和工具定义。"""
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, ClassVar, Final, Self
@@ -19,14 +19,15 @@ if TYPE_CHECKING:
     from openhands.sdk.conversation.state import ConversationState
 
 
-# The Oracle model is a saved LLM profile resolved by convention under this
-# name. Save a profile named "oracle" (e.g. via LLMProfileStore.save("oracle",
-# llm)) and the tool will consult it. No agent setting or wiring is required.
+# Oracle 模型是一个已保存的 LLM 配置文件，按惯例以该名称解析。 保存名为“oracle”的配置文
+# 件 (e.g. 通过 LLMProfileStore.save("oracle", llm)) 并且该工具将查阅它。 无需智能体设置
+# 或接线。
+#
 ORACLE_PROFILE_NAME: Final[str] = "oracle"
 
 
 class AskOracleAction(Action):
-    """Action for asking the Oracle for advice."""
+    """向 Oracle 寻求建议的行动。"""
 
     question: str = Field(
         description=(
@@ -54,7 +55,7 @@ class AskOracleAction(Action):
 
 
 class AskOracleObservation(Observation):
-    """Observation returned by the Oracle consultation."""
+    """观测结果由Oracle协商返回。"""
 
     @property
     def visualize(self) -> Text:
@@ -80,7 +81,7 @@ _DESCRIPTION = (
 
 
 class AskOracleTool(ToolDefinition[AskOracleAction, AskOracleObservation]):
-    """Tool for consulting the Oracle (a saved LLM profile named "oracle")."""
+    """用于咨询 Oracle 的工具（名为“oracle”的已保存 LLM 配置文件）。"""
 
     user_selectable: ClassVar[bool] = False
 
@@ -93,7 +94,7 @@ class AskOracleTool(ToolDefinition[AskOracleAction, AskOracleObservation]):
         if params:
             raise ValueError("AskOracleTool does not accept parameters")
 
-        # Import here to keep module import light and avoid any import cycles.
+        # 在此导入以保持模块导入轻量并避免任何导入周期。
         from openhands.tools.ask_oracle.impl import AskOracleExecutor
 
         return [
@@ -112,5 +113,5 @@ class AskOracleTool(ToolDefinition[AskOracleAction, AskOracleObservation]):
         ]
 
 
-# Automatically register when this module is imported.
+# 导入该模块时自动注册。
 register_tool(AskOracleTool.name, AskOracleTool)

@@ -10,8 +10,7 @@ logger = get_logger(__name__)
 
 class RandomRouter(RouterLLM):
     """
-    A simple implementation of RouterLLM that randomly selects an LLM from
-    llms_for_routing for each completion request.
+    RouterLLM 的简单实现，为每个完成请求从 llms_for_routing 中随机选择一个 LLM。
     """
 
     router_name: str = "random_router"

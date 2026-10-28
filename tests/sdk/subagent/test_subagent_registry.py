@@ -32,7 +32,7 @@ def teardown_function() -> None:
 
 
 def _make_test_llm() -> LLM:
-    """Create a real LLM instance for testing."""
+    """创建一个真实的 LLM 实例进行测试。"""
     return LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -41,7 +41,7 @@ def _make_test_llm() -> LLM:
 
 
 def _create_skill_file(skills_dir: Path, name: str, content: str) -> None:
-    """Create a skill .md file in the given skills directory."""
+    """在给定的技能目录中创建技能 .md 文件。"""
     skill_file = skills_dir / f"{name}.md"
     skill_file.write_text(
         f"---\nname: {name}\ntriggers:\n  - {name}\n---\n\n{content}\n"
@@ -49,15 +49,15 @@ def _create_skill_file(skills_dir: Path, name: str, content: str) -> None:
 
 
 def test_register_file_agents_project_priority(tmp_path: Path) -> None:
-    """Project-level agents take priority over user-level agents with same name."""
-    # Project .agents/
+    """项目级别智能体优先于同名的用户级别智能体。"""
+    # 项目.代理/
     project_agents_dir = tmp_path / ".agents" / "agents"
     project_agents_dir.mkdir(parents=True)
     (project_agents_dir / "shared-agent.md").write_text(
         "---\nname: shared-agent\ndescription: Project version\n---\n\nProject prompt."
     )
 
-    # User ~/.agents/ (using a separate temp dir)
+    # 用户〜/.agents/（使用单独的临时目录）
     user_home = tmp_path / "fake_home"
     user_home.mkdir(parents=True)
     user_agents_dir = user_home / ".agents" / "agents"
@@ -70,15 +70,15 @@ def test_register_file_agents_project_priority(tmp_path: Path) -> None:
         registered = register_file_agents(tmp_path)
 
     assert "shared-agent" in registered
-    # Verify the project version won
+    # 验证项目版本已赢得
     factory = get_agent_factory("shared-agent")
     assert factory.definition.description == "Project version"
 
 
 def test_register_file_agents_skips_programmatic(tmp_path: Path) -> None:
-    """Does not overwrite agents registered programmatically."""
+    """不覆盖以编程方式注册的智能体。"""
 
-    # Register an agent programmatically first
+    # 首先以编程方式注册智能体
     def existing_factory(llm: LLM) -> Agent:
         return cast(Agent, MagicMock())
 
@@ -88,7 +88,7 @@ def test_register_file_agents_skips_programmatic(tmp_path: Path) -> None:
         description="Programmatic version",
     )
 
-    # Create file-based agent with same name
+    # 创建具有相同名称的基于文件的智能体
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "existing-agent.md").write_text(
@@ -100,15 +100,15 @@ def test_register_file_agents_skips_programmatic(tmp_path: Path) -> None:
     ):
         registered = register_file_agents(tmp_path)
 
-    # File agent should NOT have been registered (programmatic wins)
+    # 文件智能体应不已注册（程序化获胜）
     assert "existing-agent" not in registered
-    # Verify the programmatic version is still there
+    # 验证编程版本是否仍然存在
     factory = get_agent_factory("existing-agent")
     assert factory.definition.description == "Programmatic version"
 
 
 def test_register_plugin_agents(tmp_path: Path) -> None:
-    """Plugin agents are registered via register_agent_if_absent."""
+    """插件智能体通过 register_agent_if_absent 注册。"""
     plugin_agent = AgentDefinition(
         name="plugin-agent",
         description="From plugin",
@@ -125,7 +125,7 @@ def test_register_plugin_agents(tmp_path: Path) -> None:
 
 
 def test_register_plugin_agents_skips_existing(tmp_path: Path) -> None:
-    """Plugin agents don't overwrite programmatically registered agents."""
+    """插件智能体不会覆盖以编程方式注册的智能体。"""
 
     def existing_factory(llm: LLM) -> Agent:
         return cast(Agent, MagicMock())
@@ -146,13 +146,13 @@ def test_register_plugin_agents_skips_existing(tmp_path: Path) -> None:
 
     registered = register_plugin_agents([plugin_agent], work_dir=tmp_path)
     assert registered == []
-    # Programmatic version still there
+    # 程序化版本仍然存在
     factory = get_agent_factory("my-agent")
     assert factory.definition.description == "Programmatic"
 
 
 def test_register_file_agents_skips_agent_with_missing_skill(tmp_path: Path) -> None:
-    """An agent naming a missing skill is skipped; the other agents register."""
+    """跳过指定缺失技能的智能体； 另一个智能体寄存器。"""
     skills_dir = tmp_path / ".agents" / "skills"
     skills_dir.mkdir(parents=True)
     _create_skill_file(skills_dir, "real-skill", "Real skill content.")
@@ -191,7 +191,7 @@ def test_register_file_agents_skips_agent_with_missing_skill(tmp_path: Path) -> 
 def test_register_plugin_agents_skips_agent_with_missing_skill(
     tmp_path: Path,
 ) -> None:
-    """A plugin agent naming a missing skill is skipped; the others register."""
+    """跳过命名缺失技能的插件智能体； 其他人注册。"""
     bad = AgentDefinition(
         name="bad-plugin-agent",
         description="Bad",
@@ -209,7 +209,7 @@ def test_register_plugin_agents_skips_agent_with_missing_skill(
 
 
 def test_register_agent_if_absent_existing() -> None:
-    """register_agent_if_absent returns False for existing agents."""
+    """register_agent_if_absent 为现有智能体返回 False。"""
 
     def factory1(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -226,13 +226,13 @@ def test_register_agent_if_absent_existing() -> None:
     )
     assert result is False
 
-    # First registration should be preserved
+    # 应保留首次注册
     factory = get_agent_factory("dup_agent")
     assert factory.definition.description == "First"
 
 
 def test_agent_definition_to_factory_basic() -> None:
-    """Factory creates Agent with correct tools, system prompt, and LLM."""
+    """工厂使用正确的工具、系统提示词和 LLM 创建智能体。"""
     agent_def = AgentDefinition(
         name="test-agent",
         description="A test agent",
@@ -246,15 +246,15 @@ def test_agent_definition_to_factory_basic() -> None:
     agent = factory(llm)
 
     assert isinstance(agent, Agent)
-    # Check tools are empty
+    # 检查工具为空
     assert agent.tools == []
-    # Check skill (system prompt as always-active skill)
+    # 检查技能（系统提示词为始终激活的技能）
     assert agent.agent_context is not None
     assert agent.agent_context.system_message_suffix == "You are a test agent."
 
 
 def test_agent_definition_to_factory_model_inherit() -> None:
-    """Model 'inherit' preserves the parent LLM."""
+    """模型“继承”保留父级 LLM。"""
     agent_def = AgentDefinition(
         name="inherit-agent",
         description="Uses parent model",
@@ -272,7 +272,7 @@ def test_agent_definition_to_factory_model_inherit() -> None:
 
 
 def test_agent_definition_to_factory_model_override() -> None:
-    """Non-inherit model that isn't a stored profile raises ValueError."""
+    """不是存储的配置文件的非继承模型引发 ValueError。"""
     agent_def = AgentDefinition(
         name="override-agent",
         description="Uses specific model",
@@ -289,7 +289,7 @@ def test_agent_definition_to_factory_model_override() -> None:
 
 
 def test_agent_definition_to_factory_no_system_prompt() -> None:
-    """Factory with empty system prompt creates agent without agent_context."""
+    """具有空系统提示词的工厂创建没有 agent_context 的智能体。"""
     agent_def = AgentDefinition(
         name="no-prompt-agent",
         description="No prompt",
@@ -305,8 +305,8 @@ def test_agent_definition_to_factory_no_system_prompt() -> None:
 
 
 def test_agent_definition_to_factory_with_skills(tmp_path: Path) -> None:
-    """Factory resolves skill names and passes them to AgentContext."""
-    # Create a skill file in project directory
+    """工厂解析技能名称并将其传递给 AgentContext。"""
+    # 在项目目录下创建技能文件
     skills_dir = tmp_path / ".agents" / "skills"
     skills_dir.mkdir(parents=True)
     _create_skill_file(skills_dir, "test-skill", "Skill content here.")
@@ -332,7 +332,7 @@ def test_agent_definition_to_factory_with_skills(tmp_path: Path) -> None:
 
 
 def test_agent_definition_to_factory_skills_only_no_prompt(tmp_path: Path) -> None:
-    """Factory with skills but no system prompt still creates AgentContext."""
+    """有技能但没有系统的工厂提示词仍然创造AgentContext。"""
     skills_dir = tmp_path / ".agents" / "skills"
     skills_dir.mkdir(parents=True)
     _create_skill_file(skills_dir, "only-skill", "Only skill content.")
@@ -357,7 +357,7 @@ def test_agent_definition_to_factory_skills_only_no_prompt(tmp_path: Path) -> No
 
 
 def test_agent_definition_to_factory_no_skills_no_prompt() -> None:
-    """Factory with no skills and no prompt creates no AgentContext."""
+    """没有技能、没有提示词的工厂就不会创造AgentContext。"""
     agent_def = AgentDefinition(
         name="empty-agent",
         description="No skills no prompt",
@@ -375,7 +375,7 @@ def test_agent_definition_to_factory_no_skills_no_prompt() -> None:
 
 
 def test_agent_definition_to_factory_skill_not_found() -> None:
-    """Factory raises ValueError when a skill name is not found."""
+    """当未找到技能名称时，工厂会引发 ValueError。"""
     agent_def = AgentDefinition(
         name="missing-skill-agent",
         description="Agent with missing skill",
@@ -388,13 +388,13 @@ def test_agent_definition_to_factory_skill_not_found() -> None:
 
 
 def test_agent_definition_to_factory_skills_project_over_user(tmp_path: Path) -> None:
-    """Project skills take priority over user skills with the same name."""
-    # Create project-level skill
+    """项目技能优先于同名的用户技能。"""
+    # 创建项目级技能
     project_skills_dir = tmp_path / ".agents" / "skills"
     project_skills_dir.mkdir(parents=True)
     _create_skill_file(project_skills_dir, "shared-skill", "Project version.")
 
-    # Create user-level skill with same name
+    # 创建同名的用户级技能
     user_home = tmp_path / "fake_home"
     user_skills_dir = user_home / ".agents" / "skills"
     user_skills_dir.mkdir(parents=True)
@@ -413,16 +413,16 @@ def test_agent_definition_to_factory_skills_project_over_user(tmp_path: Path) ->
 
     assert agent.agent_context is not None
     assert len(agent.agent_context.skills) == 1
-    # Project version should win
+    # 项目版本应该获胜
     assert "Project version." in agent.agent_context.skills[0].content
 
 
 def test_factory_info() -> None:
-    """get_factory_info returns formatted listing of registered agents."""
+    """get_factory_info 返回已注册的智能体的格式化列表。"""
     info = get_factory_info()
     assert "No user-registered agents" in info
 
-    # Register some agents
+    # 注册一些智能体
     def factory_a(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
 
@@ -436,12 +436,12 @@ def test_factory_info() -> None:
     assert "No user-registered agents" not in info
     assert "**alpha-agent**: Alpha desc" in info
     assert "**beta-agent**: Beta desc" in info
-    # Verify alphabetical ordering: alpha before beta
+    # 验证字母顺序：alpha 在 beta 之前
     assert info.index("alpha-agent") < info.index("beta-agent")
 
 
 def test_factory_info_mixed_tools_and_no_tools() -> None:
-    """get_factory_info correctly shows tools only for agents that have them."""
+    """get_factory_info 正确显示仅适用于智能体拥有的工具。"""
 
     def dummy(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -467,7 +467,7 @@ def test_factory_info_mixed_tools_and_no_tools() -> None:
 
 
 def test_factory_info_single_agent() -> None:
-    """get_factory_info works correctly with a single registered agent."""
+    """get_factory_info 与单个已注册的智能体一起正常工作。"""
 
     def dummy(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -480,13 +480,13 @@ def test_factory_info_single_agent() -> None:
 
 @pytest.mark.parametrize("name", [None, "", "default", "alpha"])
 def test_error_default_factory_empty(name: str | None) -> None:
-    """Ensure default agent factory is used when no type is provided."""
+    """确保在未提供类型时使用默认的智能体工厂。"""
     with pytest.raises(ValueError, match=f"Unknown agent '{name}'"):
         _ = get_agent_factory(name)
 
 
 def test_register_and_retrieve_custom_agent_factory() -> None:
-    """User-registered agent factories should be retrievable by name."""
+    """用户注册的智能体工厂应该可以通过名称检索。"""
 
     def dummy_factory(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -503,7 +503,7 @@ def test_register_and_retrieve_custom_agent_factory() -> None:
 
 
 def test_unknown_agent_type_raises_value_error() -> None:
-    """Retrieving an unknown agent type should provide a helpful error."""
+    """检索未知的智能体类型应该会提供有用的错误。"""
     with pytest.raises(ValueError) as excinfo:
         get_agent_factory("missing")
 
@@ -511,7 +511,7 @@ def test_unknown_agent_type_raises_value_error() -> None:
 
 
 def test_register_agent_if_absent_new() -> None:
-    """register_agent_if_absent returns True for new agents."""
+    """register_agent_if_absent 为新的智能体返回 True。"""
 
     def dummy_factory(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -528,7 +528,7 @@ def test_register_agent_if_absent_new() -> None:
 
 
 def test_agent_definition_to_factory_model_profile(tmp_path: Path) -> None:
-    """Profile name loads a complete LLM from the profile store."""
+    """配置文件名称从配置文件存储中加载完整的 LLM。"""
     store = LLMProfileStore(base_dir=tmp_path)
     profile_llm = LLM(
         model="claude-sonnet-4-20250514",
@@ -553,19 +553,19 @@ def test_agent_definition_to_factory_model_profile(tmp_path: Path) -> None:
     ):
         agent = factory(parent_llm)
 
-    # The agent's LLM should come from the profile, not the parent
+    # 智能体的 LLM 应该来自配置文件，而不是父级
     assert agent.llm is not parent_llm
     assert agent.llm.model == "claude-sonnet-4-20250514"
     assert agent.llm.temperature == 0.3
     assert agent.llm.stream is False
-    # Metrics must be independent from the parent LLM
+    # 指标必须独立于父级 LLM
     assert agent.llm.metrics is not parent_llm.metrics
 
 
 def test_agent_definition_to_factory_model_profile_with_json_suffix(
     tmp_path: Path,
 ) -> None:
-    """Profile name with .json suffix is accepted and loads correctly."""
+    """JSON后缀的用户名格式被接受，并正确加载。"""
     store = LLMProfileStore(base_dir=tmp_path)
     profile_llm = LLM(
         model="claude-sonnet-4-20250514",
@@ -596,7 +596,7 @@ def test_agent_definition_to_factory_model_profile_with_json_suffix(
 
 
 def test_agent_definition_to_factory_model_profile_not_found(tmp_path: Path) -> None:
-    """Missing profile raises ValueError."""
+    """缺少个人资料加注 ValueError。"""
     store = LLMProfileStore(base_dir=tmp_path)
 
     agent_def = AgentDefinition(
@@ -618,7 +618,7 @@ def test_agent_definition_to_factory_model_profile_not_found(tmp_path: Path) -> 
 
 
 def test_agent_definition_to_factory_model_profile_custom_store(tmp_path: Path) -> None:
-    """Patched profile store is used by the factory."""
+    """补丁配置文件存储由工厂使用。"""
     custom_store = LLMProfileStore(base_dir=tmp_path)
     profile_llm = LLM(
         model="gpt-4o-mini",
@@ -644,12 +644,12 @@ def test_agent_definition_to_factory_model_profile_custom_store(tmp_path: Path) 
 
     assert agent.llm.model == "gpt-4o-mini"
     assert agent.llm.stream is False
-    # Metrics must be independent from the parent LLM
+    # 指标必须独立于父级 LLM
     assert agent.llm.metrics is not parent_llm.metrics
 
 
 def test_agent_definition_to_factory_profile_store_dir(tmp_path: Path) -> None:
-    """profile_store_dir on AgentDefinition is used by the factory."""
+    """AgentDefinition 上的profile_store_dir 由工厂使用。"""
     store = LLMProfileStore(base_dir=tmp_path)
     profile_llm = LLM(
         model="gpt-4o-mini",
@@ -676,7 +676,7 @@ def test_agent_definition_to_factory_profile_store_dir(tmp_path: Path) -> None:
 def test_agent_definition_to_factory_profile_store_dir_not_found(
     tmp_path: Path,
 ) -> None:
-    """Missing profile in custom profile_store_dir raises ValueError."""
+    """自定义 profile_store_dir 中缺少配置文件会引发 ValueError。"""
     agent_def = AgentDefinition(
         name="missing-dir-agent",
         model="nonexistent",
@@ -695,7 +695,7 @@ def test_agent_definition_to_factory_profile_store_dir_not_found(
 def test_agent_definition_to_factory_profile_store_dir_none_uses_default(
     tmp_path: Path,
 ) -> None:
-    """When profile_store_dir is None, the default cached store is used."""
+    """当profile_store_dir为None时，使用默认缓存存储。"""
     store = LLMProfileStore(base_dir=tmp_path)
     profile_llm = LLM(
         model="claude-sonnet-4-20250514",
@@ -724,7 +724,7 @@ def test_agent_definition_to_factory_profile_store_dir_none_uses_default(
 
 
 def test_register_agent_with_hook_config() -> None:
-    """register_agent stores hook_config in the AgentFactory via AgentDefinition."""
+    """register_agent通过AgentDefinition将hook_config存储到AgentFactory中。"""
     hook_config = HookConfig(
         pre_tool_use=[
             HookMatcher(
@@ -756,7 +756,7 @@ def test_register_agent_with_hook_config() -> None:
 
 
 def test_register_agent_hook_config_defaults_to_none() -> None:
-    """AgentFactory.hook_config defaults to None when not provided."""
+    """如果未提供，AgentFactory.hook_config 默认为 None。"""
 
     def dummy_factory(llm: LLM) -> Agent:  # type: ignore[unused-argument]
         return cast(Agent, MagicMock())
@@ -772,7 +772,7 @@ def test_register_agent_hook_config_defaults_to_none() -> None:
 
 
 def test_register_file_agents_with_hooks(tmp_path: Path) -> None:
-    """File-based agents with hooks have hook_config stored in the factory."""
+    """带挂钩的基于文件的智能体在工厂中已存储 hook_config。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "hooked.md").write_text(
@@ -800,7 +800,7 @@ def test_register_file_agents_with_hooks(tmp_path: Path) -> None:
 
 
 def test_register_plugin_agents_with_hooks() -> None:
-    """Plugin agents with hooks have hook_config stored in the factory."""
+    """带钩子的插件智能体在工厂中已存储 hook_config。"""
     hook_config = HookConfig(
         stop=[
             HookMatcher(
@@ -827,7 +827,7 @@ def test_register_plugin_agents_with_hooks() -> None:
 
 
 def test_end_to_end_md_to_factory_to_registry(tmp_path: Path) -> None:
-    """End-to-end: .md file -> AgentDefinition.load() -> factory -> register -> get."""
+    """端到端：.md 文件 -> AgentDefinition.load() -> 工厂 -> 注册 -> 获取。"""
     md_file = tmp_path / "test-agent.md"
     md_file.write_text(
         "---\n"
@@ -839,15 +839,15 @@ def test_end_to_end_md_to_factory_to_registry(tmp_path: Path) -> None:
         "Focus on correctness and clarity.\n"
     )
 
-    # Load from file
+    # 从文件加载
     agent_def = AgentDefinition.load(md_file)
     assert agent_def.name == "e2e-test-agent"
     assert agent_def.description == "End-to-end test agent"
 
-    # Convert to factory
+    # 转为工厂
     factory = agent_definition_to_factory(agent_def)
 
-    # Register
+    # 注册
     result = register_agent_if_absent(
         name=agent_def.name,
         factory_func=factory,
@@ -855,11 +855,11 @@ def test_end_to_end_md_to_factory_to_registry(tmp_path: Path) -> None:
     )
     assert result is True
 
-    # Retrieve and verify
+    # 检索并验证
     retrieved = get_agent_factory("e2e-test-agent")
     assert retrieved.definition.description == "End-to-end test agent"
 
-    # Create agent from factory (with real LLM)
+    # 从工厂创建智能体（使用真实的 LLM）
     test_llm = LLM(
         model="gpt-4o",
         api_key=SecretStr("test-key"),
@@ -870,7 +870,7 @@ def test_end_to_end_md_to_factory_to_registry(tmp_path: Path) -> None:
 
 
 def test_agent_definition_to_factory_mcp_config() -> None:
-    """Factory passes mcp_config to the Agent."""
+    """工厂将 mcp_config 传递到智能体。"""
     agent_def = AgentDefinition(
         name="mcp-agent",
         description="Agent with MCP servers",
@@ -892,7 +892,7 @@ def test_agent_definition_to_factory_mcp_config() -> None:
 
 
 def test_agent_definition_to_factory_no_mcp_config() -> None:
-    """Factory without mcp_config passes an empty server map."""
+    """没有 mcp_config 的工厂传递一个空的服务器映射。"""
     agent_def = AgentDefinition(
         name="no-mcp-agent",
         model="inherit",
@@ -908,7 +908,7 @@ def test_agent_definition_to_factory_no_mcp_config() -> None:
 
 
 def test_register_file_agents_passes_mcp_config_to_agent(tmp_path: Path) -> None:
-    """Integration: mcp_config in markdown flows through registry to Agent."""
+    """Integration: Markdown中的mcp_config流经注册表到智能体。"""
     agents_dir = tmp_path / ".agents" / "agents"
     agents_dir.mkdir(parents=True)
     (agents_dir / "mcp-agent.md").write_text(
@@ -940,16 +940,16 @@ def test_register_file_agents_passes_mcp_config_to_agent(tmp_path: Path) -> None
 
 
 def test_factory_attaches_default_condenser() -> None:
-    """Sub-agents get a summarizing condenser by default (parity with the top-level
-    agent) so deep runs auto-compact instead of erroring on context overflow."""
+    """子智能体默认得到一个总结上下文压缩器（与顶级
+    智能体) 如此深度地运行自动压缩，而不是在上下文溢出时出错。"""
     factory = agent_definition_to_factory(AgentDefinition(name="gp"))
     agent = factory(_make_test_llm())
     assert isinstance(agent.condenser, LLMSummarizingCondenser)
 
 
 def test_factory_condenser_uses_distinct_usage_id() -> None:
-    """The condenser LLM must use a distinct usage_id or its tokens get deduped out
-    of conversation stats (first-write-wins on usage_id)."""
+    """上下文压缩器 LLM 必须使用不同的 usage_id 或其 token 被重复数据删除
+    对话统计信息（usage_id 上的先写胜出）。"""
     factory = agent_definition_to_factory(AgentDefinition(name="gp"))
     agent = factory(_make_test_llm())
     assert isinstance(agent.condenser, LLMSummarizingCondenser)
@@ -977,11 +977,12 @@ def test_factory_explicit_condenser_passthrough() -> None:
 
 
 def test_factory_explicit_condenser_fresh_per_spawn() -> None:
-    """Explicit condensers are copied per spawn so sub-agents don't share one
-    Metrics object (cross-contamination/race), and a colliding usage_id is
-    normalized so condenser tokens aren't deduped out of stats."""
+    """显式上下文压缩器会在每次生成时复制，因此子智能体不会共享一个
+    指标对象（交叉污染/种族）和冲突 usage_id 已标准化，因此上下文压缩器 token 不会从
+    统计数据中删除重复数据。
+    """
     custom = LLMSummarizingCondenser(
-        llm=_make_test_llm(),  # same usage_id as the agent -> must be normalized
+        llm=_make_test_llm(),  # usage_id 与智能体相同 -> 必须标准化
         max_size=40,
         keep_first=2,
     )
@@ -992,18 +993,18 @@ def test_factory_explicit_condenser_fresh_per_spawn() -> None:
     c1, c2 = a1.condenser, a2.condenser
     assert isinstance(c1, LLMSummarizingCondenser)
     assert isinstance(c2, LLMSummarizingCondenser)
-    # Fresh per spawn: distinct condenser, LLM, and Metrics objects.
+    # 每次生成时新鲜：不同的上下文压缩器、LLM 和 Metrics 对象。
     assert c1 is not c2
     assert c1.llm is not c2.llm
     assert c1.llm.metrics is not c2.llm.metrics
-    # Colliding usage_id normalized; config preserved through the copy.
+    # 碰撞 usage_id 标准化； 通过副本保存的配置。
     assert c1.llm.usage_id == "condenser"
     assert c1.llm.usage_id != a1.llm.usage_id
     assert c1.max_size == 40
 
 
 def test_factory_explicit_condenser_preserves_distinct_usage_id() -> None:
-    """A condenser usage_id that already differs from the agent's is kept."""
+    """已与智能体不同的上下文压缩器 usage_id 被保留。"""
     custom = LLMSummarizingCondenser(
         llm=_make_test_llm().model_copy(update={"usage_id": "my-condenser"}),
         max_size=40,

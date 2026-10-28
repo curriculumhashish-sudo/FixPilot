@@ -1,4 +1,4 @@
-"""MCPTool definition and implementation."""
+"""MCPTool 定义和实现。"""
 
 import json
 from typing import Any
@@ -19,18 +19,16 @@ from openhands.sdk.utils.visualize import display_json
 logger = get_logger(__name__)
 
 
-# NOTE: We don't define MCPToolAction because it
-# will be dynamically created from the MCP tool schema.
+# 注意我们不定义 MCPToolAction 因为它是
+# 将从 MCP 工具模式动态创建。
 
 
 class MCPToolAction(Action):
-    """Schema for MCP input action.
+    """模式用于 MCP 输入操作。
 
-    It is just a thin wrapper around raw JSON and does
-    not do any validation.
+    它只是原始 JSON 的薄包装，不执行任何验证操作。
 
-    Validation will be performed by MCPTool.__call__
-    by constructing dynamically created Pydantic model
+    验证将由 MCPTool.__call__ 通过构建动态创建的 Pydantic 模型来执行
     from the MCP tool input schema.
     """
 
@@ -39,16 +37,15 @@ class MCPToolAction(Action):
     )
 
     def to_mcp_arguments(self) -> dict:
-        """Return the data field as MCP tool call arguments.
+        """将数据字段作为 MCP 工具调用参数返回。
 
-        This is used to convert this action to MCP tool call arguments.
-        The data field contains the dynamic fields from the tool call.
+        这用于将此操作转换为 MCP 工具调用参数。 数据字段包含工具调用中的动态字段。
         """
         return self.data
 
 
 class MCPToolObservation(Observation):
-    """Observation from MCP tool execution."""
+    """观测结果来自 MCP 工具执行。"""
 
     tool_name: str = Field(description="Name of the tool that was called")
 
@@ -56,7 +53,7 @@ class MCPToolObservation(Observation):
     def from_call_tool_result(
         cls, tool_name: str, result: mcp.types.CallToolResult
     ) -> "MCPToolObservation":
-        """Create an MCPToolObservation from a CallToolResult."""
+        """从 CallToolResult 创建 MCPToolObservation。"""
 
         native_content: list[mcp.types.ContentBlock] = result.content
         content: list[TextContent | ImageContent] = [
@@ -84,7 +81,7 @@ class MCPToolObservation(Observation):
 
     @property
     def visualize(self) -> Text:
-        """Return Rich Text representation of this observation."""
+        """返回此观测结果的富文本表示形式。"""
         text = Text()
 
         if self.is_error:

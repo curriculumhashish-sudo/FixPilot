@@ -1,11 +1,11 @@
 /**
- * OpenHands Agent Server TypeScript Client
+ * OpenHands Agent Server TypeScript 客户端
  *
- * A TypeScript client library for the OpenHands Agent Server API that mirrors
- * the structure and functionality of the Python SDK.
+ * 用于镜像 OpenHands Agent Server API 的 TypeScript 客户端库
+ * Python SDK 的结构和功能。
  */
 
-// Main conversation and workspace classes
+// 主要对话和工作区课程
 export { RemoteConversation } from './conversation/remote-conversation';
 export { LocalConversation } from './conversation/local-conversation';
 export {
@@ -21,11 +21,11 @@ export { RemoteState } from './conversation/remote-state';
 export { RemoteEventsList } from './events/remote-events-list';
 export type { EventSearchOptions, RemoteEventsListOptions } from './events/remote-events-list';
 
-// Stuck Detection
+// 卡住检测
 export { StuckDetector, DEFAULT_STUCK_THRESHOLDS } from './conversation/stuck-detector';
 export type { StuckDetectionThresholds, StuckDetectionResult } from './conversation/stuck-detector';
 
-// Secret Registry
+// 机密注册表
 export {
   SecretRegistry,
   StaticSecretSource,
@@ -33,7 +33,7 @@ export {
 } from './conversation/secret-registry';
 export type { SecretSource, SecretSourceKind } from './conversation/secret-registry';
 
-// Security (Confirmation Policy & Security Analyzer)
+// 安全性（确认策略和安全分析器）
 export {
   NeverConfirm,
   AlwaysConfirm,
@@ -57,7 +57,7 @@ export {
 } from './security/security-analyzer';
 export type { SecurityAnalyzer } from './security/security-analyzer';
 
-// Rich Event Types
+// 丰富的事件类型
 export {
   generateEventId,
   createBaseEvent,
@@ -103,7 +103,7 @@ export type {
   ConversationEvent,
 } from './events/types';
 
-// Hooks
+// 挂钩
 export {
   HookEventType,
   HookType,
@@ -123,13 +123,13 @@ export {
 } from './hooks';
 export type { HookEvent, HookResult, HookDefinition, HookMatcher, HookConfig } from './hooks';
 
-// Agent classes
+// 智能体课程
 export { Agent } from './agent/agent';
 
-// LLM classes and factory functions
+// LLM 类和工厂函数
 export { LLM, OpenRouterLLM, createLLM, createOpenRouterLLM } from './llm';
 
-// Prompts
+// 提示词
 export {
   DEFAULT_SYSTEM_PROMPT,
   MINIMAL_SYSTEM_PROMPT,
@@ -137,13 +137,13 @@ export {
   generateSystemPrompt,
 } from './prompts';
 
-// WebSocket client for real-time events
+// WebSocket 实时事件客户端
 export { WebSocketCallbackClient } from './events/websocket-client';
 export type { ErrorCallbackType } from './events/websocket-client';
 export { BashWebSocketClient } from './events/bash-websocket-client';
 export type { BashWebSocketClientOptions } from './events/bash-websocket-client';
 
-// HTTP client
+// HTTP 客户端
 export { HttpClient, HttpError, isHttpError } from './client/http-client';
 export { HooksClient } from './client/hooks-client';
 export { MCPClient } from './client/mcp-client';
@@ -159,7 +159,7 @@ export {
   isAgentServerVersionError,
 } from './client/agent-server-compatibility';
 
-// Types and interfaces
+// 类型和接口
 export type {
   ConversationID,
   Event,
@@ -184,7 +184,7 @@ export type { AgentOptions } from './agent/agent';
 export { EventSortOrder, AgentExecutionStatus, ConversationExecutionStatus } from './types/base';
 export { ConversationSortOrder } from './models/conversation';
 
-// Workspace models
+// 工作区型号
 export type {
   CommandResult,
   FileOperationResult,
@@ -203,7 +203,7 @@ export type {
   ClearBashEventsResponse,
 } from './models/workspace';
 
-// Workspace base types and interface
+// 工作区基本类型和接口
 export type {
   IWorkspace,
   BaseWorkspaceOptions,
@@ -211,7 +211,7 @@ export type {
   WorkspaceType,
 } from './workspace/base';
 
-// Conversation base types and interface
+// 会话基础类型和接口
 export type {
   IConversation,
   IConversationState,
@@ -220,7 +220,7 @@ export type {
   ConversationType,
 } from './conversation/base';
 
-// ACP provider registry (mirrors openhands-sdk; see scripts/validate-acp-providers.mjs)
+// ACP 提供者注册表（镜像 OpenHands-SDK； 请参见 scripts/validate-acp-providers.mjs)
 export { ACP_PROVIDERS, ACP_SETTINGS_KEYS, getAcpProvider } from './models/acp';
 export type { ACPModelOption, ACPProviderInfo, ACPProviderKey } from './models/acp';
 export type {
@@ -230,7 +230,7 @@ export type {
   ACPModelInfo,
 } from './models/acp-model-discovery';
 
-// Agent profile types (mirrors openhands-sdk agent_profile.py + resolver.py)
+// 智能体配置文件类型（镜子 OpenHands-SDK agent_profile.py + resolver.py）
 export type {
   AgentKind,
   ACPServerKind,
@@ -246,7 +246,7 @@ export type {
 } from './models/agent-profile';
 export type { ToolCatalogEntry, ToolCatalogResponse } from './models/tool-catalog';
 
-// Agent profiles client
+// 智能体个人资料客户端
 export { AgentProfilesClient } from './client/agent-profiles-client';
 export type {
   AgentProfilesClientOptions,
@@ -257,11 +257,11 @@ export type {
   ActivateAgentProfileResponse,
 } from './client/agent-profiles-client';
 
-// deriveSwitchPlan — pure profile-switch decision helper
+// deriveSwitchPlan — 纯配置文件切换决策助手
 export { deriveSwitchPlan } from './profiles/derive-switch-plan';
 export type { SwitchPlan } from './profiles/derive-switch-plan';
 
-// Conversation models
+// 对话模型
 export type {
   ConversationInfo,
   ConversationRuntimeStatus,
@@ -295,7 +295,7 @@ export type {
   ConversationEventPage,
 } from './models/conversation';
 
-// Client options
+// 客户端选项
 export type {
   HttpClientOptions,
   RequestOptions,
@@ -461,7 +461,7 @@ export type { ConversationOptions, CreateConversationOptions } from './conversat
 
 export type { ConversationManagerOptions } from './conversation/conversation-manager';
 
-// LLM types and interfaces
+// LLM 类型和接口
 export type {
   ILLM,
   BaseLLMOptions,
@@ -481,10 +481,10 @@ export type {
 } from './llm';
 export type { OpenRouterLLMOptions, LLMOptions, CreateLLMOptions } from './llm';
 
-// Prompt types
+// 提示词类型
 export type { SystemPromptOptions } from './prompts';
 
-// Re-import for default export
+// 重新导入以默认导出
 import { RemoteConversation } from './conversation/remote-conversation';
 import { LocalConversation } from './conversation/local-conversation';
 import {
@@ -536,7 +536,7 @@ import {
   hookConfigToJSON,
 } from './hooks';
 
-// Default export for convenience
+// 默认导出方便
 export default {
   RemoteConversation,
   LocalConversation,

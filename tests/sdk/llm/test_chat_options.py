@@ -25,7 +25,7 @@ class DummyLLM:
     reasoning_effort: str | None = None
     extended_thinking_budget: int | None = None
     litellm_extra_body: dict[str, Any] | None = None
-    # Align with LLM default; only emitted for models that support it
+    # 与LLM默认对齐； 仅针对支持它的型号发出
     prompt_cache_retention: str | None = "24h"
     openrouter_site_url: str = ""
     openrouter_app_name: str = ""
@@ -62,16 +62,16 @@ def test_opus_4_5_uses_reasoning_effort_and_strips_temp_top_p():
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # LiteLLM automatically maps reasoning_effort to output_config
+    # LiteLLM 自动将 reasoning_effort 映射到 output_config
     assert out.get("reasoning_effort") == "medium"
     assert "output_config" not in out
 
-    # LiteLLM automatically adds the required beta header
+    # LiteLLM 自动添加所需的 beta 标头
     assert "extra_headers" not in out or "anthropic-beta" not in out.get(
         "extra_headers", {}
     )
 
-    # Strips temperature/top_p for reasoning models
+    # 剥离温度/top_p用于推理模型
     assert "temperature" not in out
     assert "top_p" not in out
 
@@ -132,7 +132,7 @@ def test_non_reasoning_model_preserves_temp_and_top_p():
     llm = DummyLLM(model="gpt-4o", temperature=0.6, top_p=0.7)
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # Non-reasoning models should retain temperature/top_p defaults
+    # 非推理模型应保留温度/top_p 默认值
     assert out.get("temperature") == 0.6
     assert out.get("top_p") == 0.7
 
@@ -162,10 +162,10 @@ def test_extra_body_is_forwarded():
 
 
 def test_claude_sonnet_4_6_strips_temp_and_top_p():
-    """Test that claude-sonnet-4-6 strips temperature and top_p.
+    """测试 claude-sonnet-4-6 剥离温度和 top_p。
 
-    This is a regression test for issue #2137 where Claude Sonnet 4.6
-    rejects requests with both temperature AND top_p specified.
+    这是针对问题 #2137 的回归测试，其中 Claude Sonnet 4.6 拒绝指定温度 AND top_p 的请
+    求。
     """
     llm = DummyLLM(
         model="claude-sonnet-4-6",
@@ -173,12 +173,12 @@ def test_claude_sonnet_4_6_strips_temp_and_top_p():
             "supports_reasoning": True,
             "supports_adaptive_thinking": True,
         },
-        top_p=1.0,  # SDK default
-        temperature=0.1,  # Often overridden by benchmarks
+        top_p=1.0,  # SDK 默认
+        temperature=0.1,  # 经常被基准测试覆盖
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # Extended thinking models should strip temperature/top_p to avoid API errors
+    # 扩展思维模型应该去除温度/top_p以避免API错误
     assert "temperature" not in out
     assert "top_p" not in out
     assert "thinking" not in out
@@ -280,8 +280,8 @@ def test_litellm_translates_claude_5_reasoning_to_adaptive_thinking(
 def test_bedrock_opus_4_8_strips_temp_top_p_without_thinking_block():
     llm = DummyLLM(
         model="bedrock/us.anthropic.claude-opus-4-8-v1:0",
-        top_p=1.0,  # SDK default
-        temperature=0.0,  # Often overridden by benchmarks (e.g. SWE-bench)
+        top_p=1.0,  # SDK 默认
+        temperature=0.0,  # 经常被基准测试 (e.g. SWE-长凳）
         reasoning_effort="high",
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
@@ -289,14 +289,14 @@ def test_bedrock_opus_4_8_strips_temp_top_p_without_thinking_block():
     assert "temperature" not in out
     assert "top_p" not in out
     assert out.get("reasoning_effort") == "high"
-    # Must NOT take the legacy extended-thinking path.
+    # 必须不走传统的扩展思维道路。
     assert "thinking" not in out
     assert "anthropic-beta" not in out.get("extra_headers", {})
 
 
 def test_extended_thinking_budget_clamped_below_max_tokens():
-    """Test that thinking.budget_tokens is clamped to max_output_tokens - 1."""
-    # Case 1: extended_thinking_budget exceeds max_output_tokens
+    """测试 thinking.budget_tokens 是否被钳位到 max_output_tokens - 1。"""
+    # 情况1：extended_thinking_budget超过max_output_tokens
     llm = DummyLLM(
         model="claude-sonnet-4-5-20250929",
         max_output_tokens=1000,
@@ -304,14 +304,14 @@ def test_extended_thinking_budget_clamped_below_max_tokens():
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # budget_tokens should be clamped to max_output_tokens - 1 = 999
+    # budget_tokens 应限制为 max_output_tokens - 1 = 999
     assert out.get("thinking") == {
         "type": "enabled",
         "budget_tokens": 999,
     }
     assert out.get("max_tokens") == 1000
 
-    # Case 2: extended_thinking_budget equals max_output_tokens
+    # 情况2：extended_thinking_budget等于max_output_tokens
     llm = DummyLLM(
         model="claude-sonnet-4-5-20250929",
         max_output_tokens=1000,
@@ -319,14 +319,14 @@ def test_extended_thinking_budget_clamped_below_max_tokens():
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # budget_tokens should be clamped to max_output_tokens - 1 = 999
+    # budget_tokens 应限制为 max_output_tokens - 1 = 999
     assert out.get("thinking") == {
         "type": "enabled",
         "budget_tokens": 999,
     }
     assert out.get("max_tokens") == 1000
 
-    # Case 3: extended_thinking_budget is already below max_output_tokens
+    # 情况 3：extended_thinking_budget 已经低于 max_output_tokens
     llm = DummyLLM(
         model="claude-sonnet-4-5-20250929",
         max_output_tokens=1000,
@@ -334,7 +334,7 @@ def test_extended_thinking_budget_clamped_below_max_tokens():
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
 
-    # budget_tokens should remain as-is
+    # budget_tokens 应保持原样
     assert out.get("thinking") == {
         "type": "enabled",
         "budget_tokens": 500,
@@ -343,7 +343,7 @@ def test_extended_thinking_budget_clamped_below_max_tokens():
 
 
 def test_chat_options_forwards_prompt_cache_key_when_set():
-    """Regression test for #2904."""
+    """回归测试 #2904。"""
     llm = LLM(model="gpt-4o")
     assert (
         select_chat_options(
@@ -364,12 +364,12 @@ def test_chat_options_omits_prompt_cache_key_when_unset():
 
 
 def test_chat_options_omits_prompt_cache_key_for_unsupported_provider():
-    """Anthropic/Gemini reject `prompt_cache_key` with 400; must not be sent.
+    """人择/双子拒绝 `prompt_cache_key` 为 400； 不得发送。
 
-    Regression test for the UnsupportedParamsError reported on Anthropic models
-    when running against a litellm proxy with `drop_params: false`. The param
-    is OpenAI-specific and must be gated on provider support, unlike
-    `supports_prompt_cache` which gates Anthropic `cache_control` breakpoints.
+    回归在 `drop_params: false` 的 LiteLLM 代理上运行时，对 Anthropic 模型上报告的
+    UnsupportedParamsError 进行测试。 该参数是 OpenAI 特定的，并且必须受到提供者支持
+    的限制，这与
+    `supports_prompt_cache` 门控 Anthropic `cache_control` 断点。
     """
     for model in ("claude-opus-4-5-20251101", "gemini/gemini-2.5-pro"):
         llm = DummyLLM(model=model)
@@ -379,8 +379,8 @@ def test_chat_options_omits_prompt_cache_key_for_unsupported_provider():
 
 
 def test_chat_options_forwards_prompt_cache_key_when_override_enabled():
-    """A capability override can force `prompt_cache_key` on for unresolved
-    OpenAI proxy aliases where litellm's registry returns no supported params."""
+    """功能覆盖可以强制 `prompt_cache_key` 打开以解决未解决的问题
+    OpenAI 代理别名，LiteLLM's 注册表返回无支持参数。"""
     llm = DummyLLM(
         model="prod/my-openai-alias",
         capability_overrides={"supports_prompt_cache_key": True},
@@ -391,7 +391,7 @@ def test_chat_options_forwards_prompt_cache_key_when_override_enabled():
 
 
 def test_chat_options_injects_openrouter_headers_via_extra_headers():
-    """OpenRouter site/app must flow per-call (issue #3138), not via env."""
+    """OpenRouter 站点/应用程序必须按调用流动（问题#3138），而不是通过环境。"""
     llm = DummyLLM(
         model="openrouter/anthropic/claude-3-5-sonnet",
         openrouter_site_url="https://app.example.com/",
@@ -403,7 +403,7 @@ def test_chat_options_injects_openrouter_headers_via_extra_headers():
 
 
 def test_chat_options_user_extra_headers_win_over_openrouter_defaults():
-    """User-supplied extra_headers must override per-call OpenRouter values."""
+    """用户提供的 extra_headers 必须覆盖每次调用的 OpenRouter 值。"""
     llm = DummyLLM(
         model="openrouter/anthropic/claude-3-5-sonnet",
         openrouter_site_url="https://app.example.com/",
@@ -412,22 +412,22 @@ def test_chat_options_user_extra_headers_win_over_openrouter_defaults():
     )
     out = select_chat_options(llm, user_kwargs={}, has_tools=False)
     assert out["extra_headers"]["X-Title"] == "UserOverride"
-    # Site URL still injected since user didn't override it
+    # 站点 URL 仍然被注入，因为用户没有覆盖它
     assert out["extra_headers"]["HTTP-Referer"] == "https://app.example.com/"
 
 
 def test_chat_options_omits_openrouter_headers_when_unset():
-    """Empty site/app must not add extra_headers."""
+    """空网站/应用程序不得添加 extra_headers。"""
     llm = DummyLLM(model="gpt-4o")
     out = select_chat_options(llm, user_kwargs={}, has_tools=False)
     assert "extra_headers" not in out
 
 
 def test_chat_options_sends_openrouter_session_id_for_affinity():
-    """OpenRouter keys sticky routing off `session_id` (issue #6164).
+    """OpenRouter 键粘性路由关闭 `session_id`（问题#6164）。
 
-    Without it the routing key is derived from the opening messages, which agent
-    conversations rewrite as they compact, so later turns lose the warm cache.
+    没有它，路由键就从消息的开头推导出来，智能体会重写这些消息，导致后续消息丢失温暖
+    缓存。
     """
     llm = DummyLLM(model="openrouter/meta/muse-glimmer-30b")
     out = select_chat_options(
@@ -437,12 +437,12 @@ def test_chat_options_sends_openrouter_session_id_for_affinity():
         call_context=LLMCallContext(session_id="conv-abc123"),
     )
     assert out["extra_body"]["session_id"] == "conv-abc123"
-    # litellm-internal tracing header is preserved alongside the affinity param.
+    # LiteLLM-内部跟踪标头与关联参数一起保留。
     assert out["extra_headers"]["x-litellm-session-id"] == "conv-abc123"
 
 
 def test_chat_options_sends_openrouter_session_id_from_scope():
-    """The ambient conversation scope reaches the OpenRouter affinity param."""
+    """环境对话范围达到 OpenRouter 亲和力参数。"""
     llm = DummyLLM(model="openrouter/meta/muse-glimmer-30b")
     with llm_call_context_scope(LLMCallContext(session_id="conv-scoped")):
         out = select_chat_options(llm, user_kwargs={}, has_tools=True)
@@ -450,7 +450,7 @@ def test_chat_options_sends_openrouter_session_id_from_scope():
 
 
 def test_chat_options_sends_openrouter_session_id_from_base_url():
-    """A bare OpenRouter model id with an openrouter.ai base URL also qualifies."""
+    """带有 openrouter.ai 基 URL 的裸 OpenRouter 模型 ID 也符合资格。"""
     llm = DummyLLM(model="meta/muse-glimmer-30b")
     llm.base_url = "https://openrouter.ai/api/v1"
     out = select_chat_options(
@@ -463,7 +463,7 @@ def test_chat_options_sends_openrouter_session_id_from_base_url():
 
 
 def test_chat_options_preserves_openrouter_provider_routing():
-    """Affinity must merge into, not replace, caller-supplied routing."""
+    """关联性必须合并到而不是取代调用者提供的路由。"""
     llm = DummyLLM(
         model="openrouter/meta/muse-glimmer-30b",
         litellm_extra_body={
@@ -484,7 +484,7 @@ def test_chat_options_preserves_openrouter_provider_routing():
 
 
 def test_chat_options_explicit_session_id_wins_over_conversation_id():
-    """A caller-supplied affinity id is not overwritten by the conversation id."""
+    """呼叫者提供的关联 ID 不会被对话 ID 覆盖。"""
     llm = DummyLLM(
         model="openrouter/meta/muse-glimmer-30b",
         litellm_extra_body={"session_id": "caller-chosen"},
@@ -499,7 +499,7 @@ def test_chat_options_explicit_session_id_wins_over_conversation_id():
 
 
 def test_chat_options_omits_openrouter_session_id_for_other_providers():
-    """Non-OpenRouter providers must not receive an OpenRouter-only field."""
+    """非 OpenRouter 提供者不得接收仅限 OpenRouter 的字段。"""
     for model in ("gpt-4o", "claude-opus-4-5-20251101", "gemini/gemini-2.5-pro"):
         llm = DummyLLM(model=model)
         out = select_chat_options(
@@ -514,7 +514,7 @@ def test_chat_options_omits_openrouter_session_id_for_other_providers():
 
 
 def test_chat_options_omits_openrouter_session_id_when_no_session():
-    """No conversation id means no affinity param, even on OpenRouter."""
+    """没有对话 ID 意味着没有亲和力参数，即使在 OpenRouter 上也是如此。"""
     llm = DummyLLM(model="openrouter/meta/muse-glimmer-30b")
     out = select_chat_options(llm, user_kwargs={}, has_tools=True)
     assert "extra_body" not in out or "session_id" not in out.get("extra_body", {})

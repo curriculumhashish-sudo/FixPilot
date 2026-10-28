@@ -1,18 +1,18 @@
 ---
-# To set this up:
-#  1. Change the name below to something relevant to your task
-#  2. Modify the "env" section below with your prompt
-#  3. Add your LLM_API_KEY to the repository secrets
-#  4. Commit this file to your repository
-#  5. Trigger the workflow manually or set up a schedule
+# 要进行此设置：
+#  1. 将下面的名称更改为与您的任务相关的名称
+#  2. 使用您的提示词修改下面的“env”部分
+#  3. 将您的 LLM_API_KEY 添加到存储库机密
+#  4. 将此文件提交到您的存储库
+#  5. 手动触发工作流程或设置时间表
 name: Assign Reviews
 
 on:
-    # Manual trigger
+    # 手动触发
     workflow_dispatch:
-    # Scheduled trigger (disabled by default, uncomment and customize as needed)
+    # 计划触发（默认禁用，取消注释并根据需要自定义）
     schedule:
-      # Run at 12 PM UTC every day
+      # 每天中午 12 点 UTC 运行
         - cron: 0 12 * * *
 
 permissions:
@@ -24,13 +24,13 @@ jobs:
     run-task:
         runs-on: ubuntu-24.04
         env:
-            # Configuration (modify these values as needed)
+            # 配置（根据需要修改这些值）
             AGENT_SCRIPT_URL: https://raw.githubusercontent.com/OpenHands/agent-sdk/main/examples/03_github_workflows/01_basic_action/agent_script.py
-            # Provide either PROMPT_LOCATION (URL/file) OR PROMPT_STRING (direct text), not both
-            # Option 1: Use a URL or file path for the prompt
+            # 提供 PROMPT_LOCATION（URL/文件）或 PROMPT_STRING（直接文本），但不能同时提供两者选项 1：使用 URL 或文件路径作为提示词
+            #
             PROMPT_LOCATION: ''
-            # PROMPT_LOCATION: 'https://example.com/prompts/maintenance.txt'
-            # Option 2: Use direct text for the prompt
+            # PROMPT_LOCATION: ' https://example.com/prompts/maintenance.txt'
+            # 选项 2：使用直接文本作为提示词
             PROMPT_STRING: >
                 Use GITHUB_TOKEN and the github API to organize open pull requests and issues in the repo.
                 Read the sections below in order, and perform each in order. Do NOT take action

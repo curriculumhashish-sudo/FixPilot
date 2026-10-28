@@ -12,25 +12,25 @@ class EditGroup(BaseModel):
 def get_edit_groups(
     old_content: str | None, new_content: str | None, n_context_lines: int = 2
 ) -> list[EditGroup]:
-    """Get the edit groups showing changes between old and new content.
+    """获取显示新旧内容之间更改的编辑组。
 
     Args:
-        n_context_lines: Number of context lines to show around each change.
+        n_context_lines: 每次更改周围显示的上下文行数。
 
     Returns:
-        A list of edit groups, where each group contains before/after edits.
+        编辑组列表，其中每个组包含编辑前/后的内容。
     """
     if old_content is None or new_content is None:
         return []
     old_lines = old_content.split("\n")
     new_lines = new_content.split("\n")
-    # Borrowed from difflib.unified_diff to directly parse into structured format
+    # 借用difflib.unified_diff直接解析成结构化格式
     edit_groups: list[EditGroup] = []
     for group in SequenceMatcher(None, old_lines, new_lines).get_grouped_opcodes(
         n_context_lines
     ):
-        # Take the max line number in the group
-        _indent_pad_size = len(str(group[-1][3])) + 1  # +1 for "*" prefix
+        # 取组内最大行数
+        _indent_pad_size = len(str(group[-1][3])) + 1  # +1 表示“*”前缀
         cur_group: EditGroup = EditGroup(
             before_edits=[],
             after_edits=[],
@@ -71,21 +71,20 @@ def visualize_diff(
     n_context_lines: int = 2,
     change_applied: bool = True,
 ) -> Text:
-    """Visualize the diff of the string replacement edit.
+    """可视化字符串替换编辑的差异。
 
-    Instead of showing the diff line by line, this function shows each hunk
-    of changes as a separate entity.
+    此函数不是逐行显示差异，而是将每个更改块显示为单独的实体。
 
     Args:
-        n_context_lines: Number of context lines to show before/after changes.
-        change_applied: Whether changes are applied. If false, shows as
-            attempted edit.
+        n_context_lines: 显示更改之前/之后的上下文行数。
+        change_applied: 是否应用更改。 如果False，则显示为
+            尝试编辑。
 
     Returns:
-        A string containing the formatted diff visualization.
+        包含格式化差异可视化的字符串。
     """
     content = Text()
-    # Check if there are any changes
+    # 检查是否有变化
     if change_applied and old_content == new_content:
         msg = "(no changes detected. Please make sure your edits change "
         msg += "the content of the existing file.)\n"
@@ -93,7 +92,7 @@ def visualize_diff(
         return content
 
     if old_content is None:
-        # creation of a new file
+        # 创建一个新文件
         old_content = ""
     assert new_content is not None, "new_content cannot be None"
     edit_groups = get_edit_groups(

@@ -1,14 +1,14 @@
-"""MCP-related exceptions for OpenHands SDK."""
+"""OpenHands SDK 的 MCP 相关异常。"""
 
 
 class MCPError(Exception):
-    """Base exception for MCP-related errors."""
+    """MCP 相关错误的基本异常。"""
 
     pass
 
 
 class MCPTimeoutError(MCPError):
-    """Exception raised when MCP operations timeout."""
+    """MCP 操作超时时引发异常。"""
 
     timeout: float
     config: dict | None

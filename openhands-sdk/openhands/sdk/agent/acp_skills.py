@@ -1,4 +1,4 @@
-"""Expose skills to any ACP agent as files plus a catalog that points at them."""
+"""将技能作为文件和指向它们的目录公开给任何 ACP 智能体。"""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _directory_name(name: str, taken: set[str]) -> str:
 
 
 def write_skill_files(root: Path, skills: Sequence[Skill]) -> dict[str, Path]:
-    """Write each skill to ``root/<dir>/SKILL.md``; return its path by skill name."""
+    """将每个技能写入``root/<dir>/SKILL.md``； 按技能名称返回其路径。"""
     locations: dict[str, Path] = {}
     taken: set[str] = set()
     for skill in skills:

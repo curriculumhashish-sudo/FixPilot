@@ -19,12 +19,12 @@ from openhands.sdk.subagent.scope import SubAgentScope
 
 
 __all__ = [
-    # loading
+    # 加载中
     "load_user_agents",
     "load_project_agents",
     "load_agents_from_dir",
     "discover_agents",
-    # agent registration
+    # 智能体注册
     "register_agent",
     "register_file_agents",
     "register_plugin_agents",
@@ -32,7 +32,7 @@ __all__ = [
     "get_factory_info",
     "get_agent_factory",
     "get_registered_agent_definitions",
-    # Agent def and factory
+    # 智能体 def 和工厂
     "AgentDefinition",
     "AgentDefinitionLevel",
     "agent_definition_to_factory",

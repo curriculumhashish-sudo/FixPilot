@@ -1,14 +1,14 @@
-"""Canonical default tool names for the standard OpenHands agent.
+"""标准的规范默认工具名称 OpenHands 智能体。
 
-Tool *names* are a wire contract: they are persisted in settings/profile JSON
-and sent by clients, independently of where the implementations live. Keeping
-the canonical defaults here lets ``openhands-sdk`` (which must not import
-``openhands-tools``) default a toolset from data alone — ``Tool`` is a spec
-(name + params) resolved to an implementation only at runtime via the registry.
+工具 * 名称 * 是一个电汇合约：它们位于已持久化设置/配置文件 JSON 中，并由客户端发送，
+与实现所在的位置无关。 在这里保留规范默认值可以让
+``openhands-sdk`` （不能导入
+``openhands-tools``）默认仅来自数据的工具集 - ``Tool`` 是仅在运行时通过注册表解析为实
+现的规范（名称 + 参数）。
 
-``openhands.tools.preset.default.get_default_tools`` remains the constructor
-that also registers the implementations; ``tests/cross`` asserts it stays in
-lockstep with these names.
+``openhands.tools.preset.default.get_default_tools`` 仍然是注册实现的构造函数；
+``tests/cross`` 断言它
+与这些名称保持一致。
 """
 
 from collections.abc import Mapping, Sequence
@@ -28,16 +28,16 @@ DEFAULT_EXEC_TOOL_NAMES: tuple[str, ...] = (
     "file_editor",
     "task_tracker",
 )
-"""Names of the standard exec tools every default OpenHands agent gets."""
+"""每个默认 OpenHands 智能体获取的标准执行工具的名称。"""
 
 BROWSER_TOOL_NAME = "browser_tool_set"
-"""Name of the browser tool set, added only when ``enable_browser`` is set."""
+"""浏览器工具集名称，仅当设置为``enable_browser``时添加。"""
 
 SUB_AGENT_TOOL_NAME = "task_tool_set"
-"""Name of the sub-agent delegation tool set."""
+"""子智能体委派工具集的名称。"""
 
 SWITCH_LLM_TOOL_NAME = "switch_llm"
-"""Name of the built-in LLM-switching tool."""
+"""内置LLM-切换工具的名称。"""
 
 
 def resolve_tool_specs(
@@ -45,7 +45,7 @@ def resolve_tool_specs(
     *,
     enable_browser: bool = False,
 ) -> list[Tool]:
-    """Resolve ``tools`` to specs: ``None`` is the standard set, a list is kept."""
+    """将 ``tools`` 解析为规格：``None`` 是标准集，保留列表。"""
     if tools is not None:
         return list(tools)
     return [
@@ -57,7 +57,7 @@ def resolve_tool_specs(
 def launch_tool_specs(
     tools: Sequence[Tool] | None, *, browser_available: bool
 ) -> list[Tool]:
-    """Resolve ``tools`` for a runtime, leaving out a browser it cannot run."""
+    """解析 ``tools`` 以获得运行时，忽略它无法运行的浏览器。"""
     resolved = resolve_tool_specs(tools, enable_browser=browser_available)
     if browser_available:
         return resolved
@@ -65,7 +65,7 @@ def launch_tool_specs(
 
 
 def effective_builtin_class(name: str) -> "type[ToolDefinition] | None":
-    """Return the built-in ``name`` resolves to, unless another tool holds it."""
+    """返回内置的 ``name`` 解析为，除非另一个工具保存它。"""
     from openhands.sdk.tool.builtins import builtin_tool_class
     from openhands.sdk.tool.registry import registered_tool_class
 
@@ -76,7 +76,7 @@ def effective_builtin_class(name: str) -> "type[ToolDefinition] | None":
 
 
 def canonical_tool_name(name: str) -> str:
-    """Return the tool name a spec resolves to, collapsing built-in class names."""
+    """返回规范解析为的工具名称，折叠内置类名称。"""
     builtin = effective_builtin_class(name)
     if builtin is None or effective_builtin_class(builtin.name) is not builtin:
         return name
@@ -88,7 +88,7 @@ def selects_tool(tools: Sequence[Tool], name: str) -> bool:
 
 
 def merge_duplicate_tools(tools: Sequence[Tool]) -> list[Tool]:
-    """Collapse specs that name the same tool, keeping the first one with params."""
+    """折叠命名相同工具的规范，保留第一个带有参数的规范。"""
     by_name: dict[str, Tool] = {}
     for tool in tools:
         name = canonical_tool_name(tool.name)
@@ -99,7 +99,7 @@ def merge_duplicate_tools(tools: Sequence[Tool]) -> list[Tool]:
 
 
 def reject_builtin_params(tools: Sequence[Tool]) -> None:
-    """Raise if a built-in that takes no parameters is given some."""
+    """如果给定了一些不带参数的内置函数，则引发该错误。"""
     from openhands.sdk.tool.builtins import BUILT_IN_TOOLS_WITH_PARAMS
 
     for tool in tools:
@@ -124,11 +124,11 @@ def default_tool_specs(
     enable_sub_agents: bool = False,
     enable_browser: bool = False,
 ) -> list[Tool]:
-    """Default tool specs for an OpenHands agent whose settings carry no tools.
+    """OpenHands 智能体的默认工具规格，其设置不包含任何工具。
 
-    Deterministic: the same inputs yield the same specs on every runtime.
-    Browser is off by default (see :data:`BROWSER_TOOL_NAME` — the serving
-    layer enables it where it can actually run).
+    Deterministic: 相同的输入在每个运行时产生相同的规格。
+    浏览器默认处于关闭状态（请参阅：data:`BROWSER_TOOL_NAME` — 服务层在实际可以运行的
+    地方启用它）。
     """
     specs = _preset_specs(enable_browser=enable_browser)
     if enable_sub_agents:
@@ -150,19 +150,19 @@ def fold_retired_tool_switches(
     sparse: bool = False,
     enable_browser: bool = True,
 ) -> dict[str, Any]:
-    """Fold the retired switches into ``tools``; ``sparse`` skips absent ones."""
+    """将退役的开关折叠到``tools``； ``sparse`` 跳过不存在的。"""
     folded = dict(payload)
     sub_agents = _pop_switch(folded, "enable_sub_agents", None if sparse else False)
     switch_llm = _pop_switch(folded, "enable_switch_llm_tool", None if sparse else True)
     tools = folded.get("tools")
     if tools is not None and not isinstance(tools, list | tuple):
         return folded
-    # Persisted `[]` predates `None` as the default.
+    # 已持久化 `[]` 早于 `None` 作为默认值。
     if not sparse and tools == []:
         tools = folded["tools"] = None
     if tools is None and not sub_agents and switch_llm is not False:
         return folded
-    # "The standard set plus/minus one tool" is not expressible, so pin it.
+    # “标准设置加/减一个工具”无法表达，所以将其固定。
     if tools is None:
         entries = _preset_specs(enable_browser=enable_browser)
         if sub_agents:
@@ -171,7 +171,7 @@ def fold_retired_tool_switches(
             switch_llm = True
     else:
         entries = [t if isinstance(t, Tool) else Tool.model_validate(t) for t in tools]
-        # A stored switch only ever fed the default set.
+        # 存储的开关仅馈送默认设置。
         if sparse and sub_agents is not None:
             entries = _toggle(entries, SUB_AGENT_TOOL_NAME, sub_agents)
     if switch_llm is not None:

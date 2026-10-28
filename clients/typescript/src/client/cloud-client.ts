@@ -22,20 +22,20 @@ import type {
 } from '../models/api';
 
 export interface CloudProxyOptions {
-  /** Agent-server or ingress host exposing `/api/cloud-proxy`. */
+  /** 智能体-暴露 `/api/cloud-proxy` 的服务器或入口主机。*/
   host: string;
-  /** Optional local session API key for the proxy endpoint. */
+  /** 代理端点的可选本地会话 API 密钥。*/
   apiKey?: string;
-  /** Additional headers for the proxy endpoint itself. */
+  /** 代理端点本身的附加标头。*/
   headers?: Record<string, string>;
-  /** Defaults to `/api/cloud-proxy`. */
+  /** 默认为 `/api/cloud-proxy`。*/
   path?: string;
 }
 
 export interface CloudClientOptions extends OpenHandsClientOptions {
-  /** Locally selected org. Sent as `X-Org-Id` on cloud app-host requests. */
+  /** 本地选择的组织。 在云应用程序主机请求上作为 `X-Org-Id` 发送。*/
   orgId?: string | null;
-  /** Runtime-sandbox requests with `hostOverride` are tunneled through this proxy. */
+  /** 带有 `hostOverride` 的运行时沙箱请求通过此代理进行隧道传输。*/
   proxy?: CloudProxyOptions;
 }
 
@@ -739,8 +739,8 @@ async function fetchAndParse<TResponse>(options: FetchAndParseOptions): Promise<
   try {
     response = await fetch(url, init);
   } catch (error) {
-    // AbortSignal.timeout() aborts with a TimeoutError; some runtimes
-    // surface plain AbortError instead.
+    // AbortSignal.timeout() 以 TimeoutError 中止； 有些运行时表面是普通的AbortError。
+    //
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       throw new Error(`Request timeout after ${options.timeoutMs}ms`, { cause: error });
     }

@@ -1,4 +1,4 @@
-"""Hook manager - orchestrates hook execution within conversations."""
+"""挂钩管理器 - 协调对话中的挂钩执行。"""
 
 import logging
 from collections.abc import Callable
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class HookManager:
-    """Manages hook execution for a conversation."""
+    """管理对话的钩子执行。"""
 
     def __init__(
         self,
@@ -58,7 +58,7 @@ class HookManager:
         message: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> HookEvent:
-        """Create a hook event with common fields populated."""
+        """创建一个填充了公共字段的挂钩事件。"""
         return HookEvent(
             event_type=event_type,
             tool_name=tool_name,
@@ -75,12 +75,12 @@ class HookManager:
         tool_name: str,
         tool_input: dict[str, Any],
     ) -> tuple[bool, list[HookResult]]:
-        """Run PreToolUse hooks. Returns (should_continue, results)."""
+        """运行 PreToolUse 挂钩。 返回（should_continue，结果）。"""
         hooks = self.config.get_hooks_for_event(HookEventType.PRE_TOOL_USE, tool_name)
         if not hooks:
             return True, []
 
-        # Warn about async hooks in PreToolUse - they cannot block operations
+        # 警告 PreToolUse 中的异步挂钩 - 它们无法阻止操作
         async_hooks = [h for h in hooks if h.async_]
         if async_hooks:
             logger.warning(
@@ -96,7 +96,7 @@ class HookManager:
 
         results = self.executor.execute_all(hooks, event, stop_on_block=True)
 
-        # Check if any hook blocked the operation
+        # 检查是否有任何钩子阻止了操作
         should_continue = all(r.should_continue for r in results)
 
         return should_continue, results
@@ -107,7 +107,7 @@ class HookManager:
         tool_input: dict[str, Any],
         tool_response: dict[str, Any],
     ) -> list[HookResult]:
-        """Run PostToolUse hooks after a tool completes."""
+        """工具完成后运行 PostToolUse 挂钩。"""
         hooks = self.config.get_hooks_for_event(HookEventType.POST_TOOL_USE, tool_name)
         if not hooks:
             return []
@@ -119,14 +119,14 @@ class HookManager:
             tool_response=tool_response,
         )
 
-        # PostToolUse hooks don't block - they just run
+        # PostToolUse 钩子不会阻塞 - 它们只是运行
         return self.executor.execute_all(hooks, event, stop_on_block=False)
 
     def run_user_prompt_submit(
         self,
         message: str,
     ) -> tuple[bool, str | None, list[HookResult]]:
-        """Run UserPromptSubmit hooks."""
+        """运行 UserPromptSubmit 挂钩。"""
         hooks = self.config.get_hooks_for_event(HookEventType.USER_PROMPT_SUBMIT)
         if not hooks:
             return True, None, []
@@ -138,10 +138,10 @@ class HookManager:
 
         results = self.executor.execute_all(hooks, event, stop_on_block=True)
 
-        # Check if any hook blocked
+        # 检查是否有任何钩子被阻塞
         should_continue = all(r.should_continue for r in results)
 
-        # Collect additional context from hooks
+        # 从钩子上收集额外的上下文
         additional_context_parts = [
             r.additional_context for r in results if r.additional_context
         ]
@@ -152,7 +152,7 @@ class HookManager:
         return should_continue, additional_context, results
 
     def run_session_start(self) -> list[HookResult]:
-        """Run SessionStart hooks when a conversation begins."""
+        """对话开始时运行 SessionStart 挂钩。"""
         hooks = self.config.get_hooks_for_event(HookEventType.SESSION_START)
         if not hooks:
             return []
@@ -161,27 +161,27 @@ class HookManager:
         return self.executor.execute_all(hooks, event, stop_on_block=False)
 
     def run_session_end(self) -> list[HookResult]:
-        """Run SessionEnd hooks when a conversation ends."""
+        """对话结束时运行 SessionEnd 挂钩。"""
         hooks = self.config.get_hooks_for_event(HookEventType.SESSION_END)
         results: list[HookResult] = []
         if hooks:
             event = self._create_event(HookEventType.SESSION_END)
             results = self.executor.execute_all(hooks, event, stop_on_block=False)
 
-        # Cleanup any background async processes
+        # 清理所有后台异步进程
         self.cleanup_async_processes()
 
         return results
 
     def cleanup_async_processes(self) -> None:
-        """Cleanup all background hook processes."""
+        """清理所有后台挂钩进程。"""
         self.executor.async_process_manager.cleanup_all()
 
     def run_stop(
         self,
         reason: str | None = None,
     ) -> tuple[bool, list[HookResult]]:
-        """Run Stop hooks. Returns (should_stop, results)."""
+        """运行停止挂钩。 返回（should_stop，结果）。"""
         hooks = self.config.get_hooks_for_event(HookEventType.STOP)
         if not hooks:
             return True, []
@@ -193,17 +193,17 @@ class HookManager:
 
         results = self.executor.execute_all(hooks, event, stop_on_block=True)
 
-        # If a hook blocks, the agent should NOT stop (continue running)
+        # 如果钩子阻塞，智能体应该不停止（继续运行）
         should_stop = all(r.should_continue for r in results)
 
         return should_stop, results
 
     def has_hooks(self, event_type: HookEventType) -> bool:
-        """Check if there are hooks configured for an event type."""
+        """检查是否有为事件类型配置的挂钩。"""
         return self.config.has_hooks_for_event(event_type)
 
     def get_blocking_reason(self, results: list[HookResult]) -> str | None:
-        """Get the reason for blocking from hook results."""
+        """从钩子结果中获取阻塞原因。"""
         for result in results:
             if result.blocked:
                 if result.reason:

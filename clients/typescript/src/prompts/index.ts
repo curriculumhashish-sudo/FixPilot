@@ -1,5 +1,5 @@
 /**
- * Prompts module - System prompts and tool descriptions
+ * 提示词模块-系统提示词和工具说明
  */
 
 export {

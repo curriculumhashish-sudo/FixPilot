@@ -1,94 +1,118 @@
-# OpenHands SDK React Example
+<a id="openhands-sdk-react-example"></a>
 
-This is a basic React application built with Vite that demonstrates successful integration with the OpenHands Agent Server TypeScript Client SDK.
+# OpenHands SDK 反应示例
 
-## Features
+这是一个使用 Vite 构建的基本 React 应用程序，演示了与 OpenHands Agent Server TypeScript 客户端 SDK 的成功集成。
 
-- ✅ **Local SDK Integration**: Uses a locally built version of the SDK via file dependency
-- ✅ **Automatic Build**: Builds the SDK before starting the app
-- ✅ **TypeScript Support**: Full TypeScript integration with type safety
-- ✅ **Import Verification**: Displays all imported SDK classes and enums
-- ✅ **Real-time Status**: Shows SDK import status and available functionality
+<a id="features"></a>
 
-## What's Demonstrated
+## 特点
 
-The app successfully imports and displays:
+- ✅ **本地SDK集成**：通过文件依赖关系使用SDK的本地构建版本
+- ✅ **自动构建**：在启动应用程序之前构建SDK
+- ✅ **TypeScript 支持**：与类型安全的全面TypeScript集成
+- ✅ **导入验证**：显示所有导入的SDK类和枚举
+- ✅ **实时状态**：显示SDK导入状态和可用功能
 
-### Main Classes
-- `RemoteConversation` - Main conversation management class
-- `RemoteWorkspace` - Workspace file operations class  
-- `HttpClient` - HTTP client for API communication
-- `AgentExecutionStatus` - Enum for agent execution states
-- `EventSortOrder` - Enum for event sorting options
+<a id="whats-demonstrated"></a>
 
-### Enum Values
+## 展示了什么
+
+应用成功导入并显示：
+
+<a id="main-classes"></a>
+
+### 主要课程
+- `RemoteConversation` - 主会话管理类
+- `RemoteWorkspace`-工作区文件操作类
+- `HttpClient` - HTTP 客户端用于 API 通信
+- `AgentExecutionStatus` - 枚举用于智能体执行状态
+- `EventSortOrder` - 枚举用于事件排序选项
+
+<a id="enum-values"></a>
+
+### 枚举价值观
 - **AgentExecutionStatus**: IDLE, RUNNING, PAUSED, FINISHED, ERROR
 - **EventSortOrder**: TIMESTAMP, REVERSE_TIMESTAMP
 
-## Getting Started
+<a id="getting-started"></a>
 
-### Prerequisites
-- Node.js (v18 or higher)
-- npm
+## 开始使用
 
-### Installation & Running
+<a id="prerequisites"></a>
 
-1. **Install dependencies**:
+### 先决条件
+- Node.js（v18 或更高版本）
+- 新项目管理
+
+<a id="installation--running"></a>
+
+### 安装与运行
+
+1. **安装依赖项**：
    ```bash
    npm install
    ```
 
-2. **Start development server**:
+2. **启动开发服务器**：
    ```bash
    npm run dev
    ```
-   This will:
-   - Build the SDK from `../agent-server-typescript-client`
-   - Start the Vite dev server on port 12000
-   - Open the app at `http://localhost:12000`
+   这将：
+   - 从 `../agent-server-typescript-client` 构建 SDK
+   - 在12000端口启动Vite开发服务器
+   - 打开应用程序 `http://localhost:12000`
 
-3. **Build for production**:
+3. **为生产而构建**：
    ```bash
    npm run build
    ```
 
-## Project Structure
+<a id="project-structure"></a>
+
+## 项目结构
 
 ```
 example/
 ├── src/
-│   ├── App.tsx          # Main React component with SDK integration
-│   ├── App.css          # Styling
-│   ├── main.tsx         # React entry point
-│   └── index.css        # Global styles
-├── package.json         # Dependencies and scripts
-├── vite.config.ts       # Vite configuration
-├── tsconfig.json        # TypeScript configuration
-└── index.html           # HTML template
+│   ├── App.tsx          # 主要 React 组件与 SDK 集成
+│   ├── App.css          # 造型
+│   ├── main.tsx         # 反应入口
+│   └── index.css        # 全局样式
+├── package.json         # 依赖项和脚本
+├── vite.config.ts       # Vite配置
+├── tsconfig.json        # TypeScript 配置
+└── index.html           # HTML 模板
 ```
 
-## Key Configuration
+<a id="key-configuration"></a>
+
+## 关键配置
 
 ### package.json
-- **Local SDK Dependency**: `"@openhands/agent-server-typescript-client": "file:../agent-server-typescript-client"`
-- **Build Script**: `"build:sdk": "cd ../agent-server-typescript-client && npm run build"`
-- **Dev Script**: Builds SDK before starting Vite
+- **本地SDK依赖项**：`"@openhands/agent-server-typescript-client": "file:../agent-server-typescript-client"`
+- **构建脚本**：`"build:sdk": "cd ../agent-server-typescript-client && npm run build"`
+- **开发脚本**：在启动Vite之前构建SDK
 
 ### vite.config.ts
-- Configured for React with TypeScript
-- CORS enabled for development
-- Host configuration for external access
+- 配置为使用 TypeScript 进行 React
+- CORS 可供开发
+- 外部访问的主机配置
 
-## SDK Integration Details
+<a id="sdk-integration-details"></a>
 
-The app demonstrates that the TypeScript SDK is properly:
-1. **Built as ES Modules** - Compatible with Vite's module system
-2. **Type-safe** - Full TypeScript support with proper type definitions
-3. **Functional** - All main classes and enums are importable and usable
-4. **Up-to-date** - Uses the latest local build of the SDK
+## SDK 集成详情
 
-## Notes
+该应用程序证明 TypeScript SDK 正确：
+1. **构建为ES模块** - 兼容Vite的模块系统
+2. **类型安全** - 全面TypeScript支持正确的类型定义
+3. **功能性** - 所有主类和枚举都是可导入和可用的
+4. **最新** - 使用SDK的最新本地版本
 
-- The SDK includes some Node.js-specific functionality (fs, path modules) that are externalized for browser compatibility
-- This is expected behavior and doesn't affect the core SDK functionality in browser environments
-- The app serves as a "Hello World" example to verify SDK integration works correctly
+<a id="notes"></a>
+
+## 注释
+
+- SDK 包括一些特定于 Node.js 的功能（fs、路径模块），这些功能被外部化以实现浏览器兼容性
+- 这是预期行为，不会影响浏览器环境中的核心 SDK 功能
+- 该应用程序充当“Hello World”示例，以验证 SDK 集成是否正常工作

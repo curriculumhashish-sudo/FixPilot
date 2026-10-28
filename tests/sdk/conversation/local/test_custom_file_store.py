@@ -1,4 +1,4 @@
-"""Tests for custom FileStore injection in local conversations."""
+"""测试本地对话中的自定义 FileStore 注入。"""
 
 import logging
 import uuid
@@ -15,13 +15,13 @@ from openhands.sdk.workspace import LocalWorkspace
 
 
 def create_test_agent() -> Agent:
-    """Create a test agent."""
+    """创建测试智能体。"""
     llm = LLM(model="gpt-4o-mini", api_key=SecretStr("test-key"), usage_id="test-llm")
     return Agent(llm=llm, tools=[])
 
 
 def test_conversation_state_uses_injected_file_store(tmp_path, caplog):
-    """ConversationState.create uses an injected FileStore without warning."""
+    """ConversationState.create 在没有警告的情况下使用注入的 FileStore。"""
     file_store = InMemoryFileStore()
     conversation_id = uuid.uuid4()
     workspace = LocalWorkspace(working_dir=tmp_path / "workspace")
@@ -56,7 +56,7 @@ def test_conversation_state_uses_injected_file_store(tmp_path, caplog):
 
 
 def test_conversation_state_file_store_takes_precedence_over_persistence_dir(tmp_path):
-    """Injected FileStore stores state while persistence_dir remains metadata."""
+    """注入的 FileStore 存储状态，而 persistence_dir 保留元数据。"""
     file_store = InMemoryFileStore()
     persistence_dir = tmp_path / "persistence"
 
@@ -75,7 +75,7 @@ def test_conversation_state_file_store_takes_precedence_over_persistence_dir(tmp
 
 
 def test_local_conversation_uses_injected_file_store(tmp_path):
-    """LocalConversation forwards the injected FileStore to ConversationState."""
+    """LocalConversation将注入的FileStore转发到ConversationState。"""
     file_store = InMemoryFileStore()
     conversation_id = uuid.uuid4()
 
@@ -105,7 +105,7 @@ def test_local_conversation_uses_injected_file_store(tmp_path):
 
 
 def test_local_conversation_keeps_persistence_dir_with_injected_file_store(tmp_path):
-    """persistence_dir still sets observation paths when FileStore is injected."""
+    """注入 FileStore 时，persistence_dir 仍设置观测结果路径。"""
     file_store = InMemoryFileStore()
     persistence_root = tmp_path / "persistence"
     conversation_id = uuid.uuid4()

@@ -1,7 +1,7 @@
-"""Source path handling for marketplace plugins and skills.
+"""市场插件和技能的源路径处理。
 
-Supports local paths (./path, /path, ~/path, file:///path) and
-GitHub URLs (https://github.com/{owner}/{repo}/blob/{branch}/{path}).
+支持本地路径 ./path /path ~/path file:///path) 和 GitHub URLs (
+https://github.com/{owner}/{repo}/blob/{branch}/{path} )。
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ DEFAULT_CACHE_DIR = get_user_persistence_dir() / "cache" / "git"
 
 
 class GitHubURLComponents(NamedTuple):
-    """Parsed components of a GitHub blob/tree URL."""
+    """GitHub blob/树 URL 的已解析组件。"""
 
     owner: str
     repo: str
@@ -39,7 +39,7 @@ class GitHubURLComponents(NamedTuple):
 
 
 def parse_github_url(url: str) -> GitHubURLComponents | None:
-    """Parse GitHub URL into components, or None if not a valid GitHub URL."""
+    """将 GitHub URL 解析为组件，如果不是有效的 GitHub URL，则解析为 None。"""
     if match := GITHUB_URL_PATTERN.match(url):
         return GitHubURLComponents(
             match.group("owner"),
@@ -51,12 +51,12 @@ def parse_github_url(url: str) -> GitHubURLComponents | None:
 
 
 def is_local_path(source: str) -> bool:
-    """Check if source is a local path (./, ../, /, ~, file://)."""
+    """检查源是否是本地路径（./, ../, /, ~, file://)."""
     return is_local_path_source(source)
 
 
 def validate_source_path(source: str) -> str:
-    """Validate source path format. Raises ValueError if invalid."""
+    """验证源路径格式。 如果无效则提高 ValueError。"""
     if is_local_path(source) or parse_github_url(source):
         return source
     raise ValueError(
@@ -70,28 +70,28 @@ def resolve_source_path(
     cache_dir: Path | None = None,
     update: bool = True,
 ) -> Path | None:
-    """Resolve source path to absolute local path.
+    """将源路径解析为绝对本地路径。
 
     Args:
-        source: Source path string (local path, file:// URL, or GitHub URL).
-        base_path: Base directory for resolving relative paths.
-        cache_dir: Directory for caching cloned GitHub repos.
-        update: Whether to update cached repos (git pull).
+        source: 源路径字符串（本地路径、文件：// URL 或 GitHub URL）。
+        base_path: 用于解析相对路径的基目录。
+        cache_dir: 用于缓存克隆的 GitHub 存储库的目录。
+        update: 是否更新缓存的存储库（git pull）。
 
     Returns:
-        Resolved absolute Path, or None if GitHub clone/update fails.
-        Callers should handle None gracefully (e.g., skip with warning).
+        已解析的绝对路径，如果 GitHub 克隆/更新失败，则为 None。 调用者应该优雅地处理
+         None（e.g.，跳过并警告）。
 
-    Supported source formats:
-        - Local paths: ./path, ../path, /absolute, ~/home
-        - file:// URLs: file:///absolute/path
-        - GitHub URLs: https://github.com/{owner}/{repo}/blob/{branch}/{path}
+    支持的源格式：
+        - 本地路径：./path、../path、/absolute、~/home
+        - 文件：// URLs 文件：///absolute/path
+        - GitHub URLs:  https://github.com/{owner}/{repo}/blob/{branch}/{path}
     """
-    # Handle file:// URLs
+    # 处理文件：// URLs
     if source.startswith("file://"):
         return Path(source[7:])
 
-    # Handle GitHub URLs
+    # 处理 GitHub URLs
     if gh := parse_github_url(source):
         cache = cache_dir or DEFAULT_CACHE_DIR
         repo_path = cache / "github.com" / gh.owner.lower() / gh.repo.lower()

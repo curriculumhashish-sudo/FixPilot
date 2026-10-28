@@ -1,12 +1,13 @@
-"""Tool router for OpenHands SDK."""
+"""OpenHands SDK 的工具刳刨机。"""
 
 import asyncio
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-# Registered only in the agent-server: the tool needs a server to create the
-# child on, so it is deliberately absent from get_default_tools().
+# 仅在智能体-服务器中注册：该工具需要服务器来创建子级，因此故意不在 get_default_tools()
+# 中。
+#
 import openhands.tools.child_conversation  # noqa: E402, F401
 from openhands.agent_server.config import Config
 from openhands.agent_server.launch import (
@@ -34,10 +35,10 @@ register_gemini_tools(enable_browser=True)
 register_planning_tools()
 
 
-# Tool listing
+# 工具清单
 @tool_router.get("/")
 async def list_available_tools() -> list[str]:
-    """List all available tools."""
+    """列出所有可用的工具。"""
     tools = list_registered_tools()
     return tools
 
@@ -48,10 +49,9 @@ class ToolCatalogResponse(BaseModel):
 
 @tool_router.get("/catalog")
 async def get_tool_catalog(request: Request) -> ToolCatalogResponse:
-    """List the tools this server offers for configuring an agent.
+    """列出该服务器提供的用于配置智能体的工具。
 
-    Clients offer the ``user_selectable`` entries; ``usable`` says whether the
-    runtime conversations run in can run the tool.
+    客户提供``user_selectable``条目； ``usable`` 表示运行时对话是否可以运行该工具。
     """
     config: Config = request.app.state.config
     entries = await asyncio.to_thread(

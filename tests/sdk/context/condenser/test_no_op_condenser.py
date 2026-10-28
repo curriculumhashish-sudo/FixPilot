@@ -15,7 +15,7 @@ def message_event(content: str) -> MessageEvent:
 
 
 def test_noop_condenser() -> None:
-    """Test that NoOpCondensers preserve their input events."""
+    """测试 NoOpCondensers 保留其输入事件。"""
     events: list[Event] = [
         message_event("Event 1"),
         message_event("Event 2"),
@@ -31,7 +31,7 @@ def test_noop_condenser() -> None:
 
 
 def test_noop_condenser_with_llm() -> None:
-    """Test that NoOpCondenser works with optional agent_llm parameter."""
+    """测试 NoOpCondenser 是否与可选的 agent_llm 参数一起使用。"""
     events: list[Event] = [
         message_event("Event 1"),
         message_event("Event 2"),
@@ -41,17 +41,17 @@ def test_noop_condenser_with_llm() -> None:
     condenser = NoOpCondenser()
     view = View.from_events(events)
 
-    # Create a mock LLM
+    # 创建模拟对象 LLM
     mock_llm = MagicMock(spec=LLM)
 
-    # Condense with agent_llm parameter
+    # 使用 agent_llm 参数进行压缩
     condensation_result = condenser.condense(view, agent_llm=mock_llm)
     assert isinstance(condensation_result, View)
     assert condensation_result.events == events
 
 
 def test_noop_condenser_get_llm() -> None:
-    """NoOpCondenser exposes get_llm()=None and excludes it from serialization."""
+    """NoOpCondenser 公开 get_llm()=None 并将其从序列化中排除。"""
     condenser = NoOpCondenser()
     assert condenser.get_llm() is None
     assert "llm" not in condenser.model_dump()

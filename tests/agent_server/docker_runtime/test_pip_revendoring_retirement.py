@@ -1,7 +1,6 @@
-"""Retirement guard for the Dockerfile's temporary `pip-revendored` stage.
+"""Dockerfile 临时 `pip-revendored` 阶段的退休守卫。
 
-Probes unmodified upstream pip in the `python-runtime` image, not the final
-image where the workaround has already patched it.
+探测 `python-runtime` 映像中未修改的上游 pip，而不是已通过解决方法修补的最终映像。
 """
 
 import json

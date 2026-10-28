@@ -1,4 +1,4 @@
-"""Helpers for examples that run a local OpenHands agent-server subprocess."""
+"""运行本地 OpenHands 智能体-服务器子进程的示例的帮助程序。"""
 
 from __future__ import annotations
 
@@ -27,12 +27,12 @@ def _stream_output(stream: TextIO, prefix: str, target_stream: TextIO) -> None:
 
 
 class ManagedAPIServer:
-    """Subprocess ``openhands.agent_server``: wait for ``/health``, stop on exit.
+    """子进程``openhands.agent_server``：等待``/health``，退出时停止。
 
-    Pass ``extra_env`` for defaults such as ``OH_SECRET_KEY`` (``os.environ`` still
-    wins if those variables are set in the environment). With
-    ``use_session_api_key=True``, ``SESSION_API_KEY`` is generated; read it from
-    ``session_api_key`` for the ``X-Session-API-Key`` header.
+    传递 ``extra_env`` 作为默认值，例如 ``OH_SECRET_KEY``（如果在环境中设置了这些变量
+    ，``os.environ`` 仍然获胜）。 与
+    生成``use_session_api_key=True``、``SESSION_API_KEY``； 读自
+    ``session_api_key`` 表示 ``X-Session-API-Key`` 标头。
     """
 
     def __init__(
@@ -62,7 +62,7 @@ class ManagedAPIServer:
         if self.session_api_key is not None:
             print("Session API key is set; send it as X-Session-API-Key on API calls.")
 
-        # Same precedence as the old inlined examples: os.environ overwrites demo keys.
+        # 与旧的内联示例相同的优先级：os.environ 覆盖演示键。
         env_keys: dict[str, str] = {"LOG_JSON": "true", **self._extra_env}
         if self.session_api_key is not None:
             env_keys["SESSION_API_KEY"] = self.session_api_key
